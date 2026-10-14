@@ -15,6 +15,27 @@ internal static class MHR_Shrine
 
 	internal const string DisplayName = "Odin's Shrine";
 
+	// The piece's name and description are set once (and again on every world load). The game localizes Piece.m_name /
+	// m_description as-is, so the localized text is written in directly, with the English name as the fallback for the
+	// (unlikely) case of the language dictionary not being up yet.
+	private static string LocalizedName()
+	{
+		if (Localization.instance == null)
+		{
+			return DisplayName;
+		}
+		return ModLocalization.Loc("hc_shrine_name");
+	}
+
+	private static string LocalizedDescription()
+	{
+		if (Localization.instance == null)
+		{
+			return "Shows your companions and whether they're alive, and brings back one that's been lost.";
+		}
+		return ModLocalization.Loc("hc_shrine_desc");
+	}
+
 	private static GameObject s_holder;
 
 	private static GameObject s_prefab;
@@ -43,6 +64,10 @@ internal static class MHR_Shrine
 			}
 			Piece component = s_prefab.GetComponent<Piece>();
 			component.m_resources = ParseRecipe(zs, ModConfig.ShrineRecipe.Value);
+			// the name and description are localized text; they are refreshed on every world load so the piece always
+			// matches the language in use
+			component.m_name = LocalizedName();
+			component.m_description = LocalizedDescription();
 			component.m_craftingStation = zs.GetPrefab("piece_workbench")?.GetComponent<CraftingStation>();
 			PieceTable pieceTable = zs.GetPrefab("Hammer")?.GetComponent<ItemDrop>()?.m_itemData?.m_shared?.m_buildPieces;
 			if (pieceTable == null)
@@ -97,7 +122,7 @@ internal static class MHR_Shrine
 			hoverOffset = component.m_hoverOffset;
 			if (component.m_worldText != null)
 			{
-				component.m_worldText.text = DisplayName;
+				component.m_worldText.text = LocalizedName();
 			}
 			if (component.m_floater != null && component.m_floater != gameObject)
 			{
@@ -153,8 +178,8 @@ internal static class MHR_Shrine
 				collider.gameObject.layer = num;
 			}
 		}
-		piece.m_name = DisplayName;
-		piece.m_description = "Shows your companions and whether they're alive, and brings back one that's been lost.";
+		piece.m_name = LocalizedName();
+		piece.m_description = LocalizedDescription();
 		piece.m_category = Piece.PieceCategory.Misc;
 		piece.m_enabled = true;
 		gameObject.AddComponent<CompanionShrine>().m_hoverOffset = hoverOffset;
@@ -216,10 +241,10 @@ internal static class MHR_Shrine
 	{
 		return s switch
 		{
-			MHR_Roster.Status.Alive => "<color=#80E080>Alive</color>",
-			MHR_Roster.Status.Dead => "<color=#C0C0C0>Dead</color> (its tombstone will bring it back)",
-			MHR_Roster.Status.Lost => "<color=#FF7060>Lost</color>",
-			_ => "<color=#FFCC50>Unknown</color> (not nearby - it may still be alive)",
+			MHR_Roster.Status.Alive => "<color=#80E080>" + ModLocalization.Loc("hc_roster_alive") + "</color>",
+			MHR_Roster.Status.Dead => "<color=#C0C0C0>" + ModLocalization.Loc("hc_roster_dead") + "</color>" + ModLocalization.Loc("hc_roster_dead_note"),
+			MHR_Roster.Status.Lost => "<color=#FF7060>" + ModLocalization.Loc("hc_roster_lost") + "</color>",
+			_ => "<color=#FFCC50>" + ModLocalization.Loc("hc_roster_unknown") + "</color>" + ModLocalization.Loc("hc_roster_unknown_note"),
 		};
 	}
 
@@ -254,11 +279,11 @@ internal static class MHR_Shrine
 		string text = stringBuilder.ToString().TrimEnd('\n');
 		if (roster.Count == 0)
 		{
-			text = "No companions on your roster in this world yet. A companion joins the roster once it has been near you for a few seconds.";
+			text = ModLocalization.Loc("hc_shrine_empty");
 		}
 		if (list.Count == 0)
 		{
-			UnifiedPopup.Push(new WarningPopup(DisplayName, text + ((roster.Count > 0) ? "\n\nNone of your companions needs bringing back." : ""), delegate
+			UnifiedPopup.Push(new WarningPopup(LocalizedName(), text + ((roster.Count > 0) ? "\n\n" + ModLocalization.Loc("hc_shrine_none_to_recover") : ""), delegate
 			{
 				UnifiedPopup.Pop();
 			}, localizeText: false));
@@ -276,12 +301,12 @@ internal static class MHR_Shrine
 			return;
 		}
 		MHR_Roster.Entry entry = candidates[index].Key;
-		string text = rosterText + "\n\nBring " + entry.Name + " back here? It returns with its gear and settings from the last roster save. If the old " + entry.Name + " turns up later, it will be removed.";
+		string text = rosterText + "\n\n" + ModLocalization.LocFmt("hc_shrine_bring_back", entry.Name);
 		if (candidates[index].Value == MHR_Roster.Status.Unknown)
 		{
-			text = text + "\n\n<color=#FFCC50>Warning:</color> " + entry.Name + " may still be alive somewhere that isn't loaded" + (entry.Dead ? " (last known: it died, and its tombstone keeps its items too)." : ".");
+			text = text + "\n\n<color=#FFCC50>" + ModLocalization.Loc("hc_shrine_warning") + "</color> " + ModLocalization.LocFmt(entry.Dead ? "hc_shrine_unknown_dead" : "hc_shrine_unknown_alive", entry.Name);
 		}
-		UnifiedPopup.Push(new YesNoPopup(DisplayName, text, delegate
+		UnifiedPopup.Push(new YesNoPopup(LocalizedName(), text, delegate
 		{
 			UnifiedPopup.Pop();
 			if (shrine != null)
@@ -302,7 +327,7 @@ public class CompanionShrine : MonoBehaviour, Hoverable, Interactable
 
 	public string GetHoverText()
 	{
-		return Localization.instance.Localize(MHR_Shrine.DisplayName + "\n[<color=yellow><b>$KEY_Use</b></color>] Your companions");
+		return Localization.instance.Localize(ModLocalization.Loc("hc_shrine_name") + "\n[<color=yellow><b>$KEY_Use</b></color>] " + ModLocalization.Loc("hc_shrine_hover"));
 	}
 
 	public string GetHoverName()

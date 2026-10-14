@@ -1095,7 +1095,7 @@ public class CompanionInteract : MonoBehaviour
 		{
 			_mhrSuperRecall = false;
 		}
-		MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, "Recalling all companions");
+		MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, ModLocalization.Loc("hc_msg_recall_all"));
 		CompanionsPlugin.Log.LogInfo("[Direct] Super recall: all companions, any distance, Command toggle ignored");
 	}
 

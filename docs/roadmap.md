@@ -300,3 +300,27 @@ Legenda: ✅ concluído · 🔄 em andamento · ⏳ pendente
     que faz a carroça acompanhar você) e a camada só **vigia** (carroça destruída ou junta
     arrebentada → ele solta e volta a te seguir). Ele **nunca engata sozinho** e a carroça **não**
     atravessa portal.
+
+---
+
+## Trilha C — Tradução PT-BR (fork)
+
+O upstream (Offline Companions Reborn) tem **dois** sistemas próprios de tradução, os dois alimentados por
+arquivos JSON ao lado do DLL:
+
+| Sistema | Arquivo | O que cobre |
+|---|---|---|
+| `ModLocalization` (UI) | `Translations/<Idioma>.json` | Painéis, menu radial, hover, HUD, mensagens do HUD, localização do Santuário/lista |
+| `SpeechConfig` (falas) | `Translations/speech/<Idioma>.json` | As falas do companheiro (saudações, conversa fiada, combate, fome, trabalho...) |
+
+Idioma do jogo em PT-BR = **`Portuguese_Brazilian`**.
+
+| Item | Status |
+|---|---|
+| `Translations/Portuguese_Brazilian.json` — **263 chaves** (204 do upstream + 59 novas para textos que estavam em inglês no código) | ✅ |
+| `Translations/speech/Portuguese_Brazilian.json` — **186 falas** (15 categorias, mesmas do `SpeechConfig.Defaults`) | ✅ |
+| Cópia no build (`Companions.csproj` → alvo `DeployTranslations`, `Translations\**\*.json` → `$(DeployDir)\Translations\`) | ✅ |
+| Textos fixos em inglês que o jogador vê (painel F8 + abas, painel da casa, HUD, hover do túmulo/cama, recall, Santuário/lista) localizados via `ModLocalization.Loc/LocFmt/LocOr` | ✅ |
+| Descrições das configurações (~250) — só aparecem no `BepInEx\config\*.cfg`; o painel F8 mostra as chaves | ⏳ (fora do escopo; exigiria ~250 chaves novas) |
+| Nomes técnicos das configurações no painel F8 (ex.: `MaxCarryWeight`) | ⏳ (mantidos iguais ao `.cfg`, por rastreabilidade) |
+| Linhas de log/diagnóstico (`[Roster]`, `[Shrine]`, `[Direct]`...) | ⏳ (mantidas em inglês de propósito, para suporte) |

@@ -2,6 +2,25 @@
 
 All notable changes to this fork of ProfMags' Offline Companions. Versions before 1.4.0 are the original mod (see [ProfMags' Thunderstore page](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) for that history) plus the initial batch of Valheim 1.0 API-compatibility fixes that let the mod load and run at all on 1.0.
 
+## Unreleased — Tradução PT-BR (fork ModAI-BR-Companions)
+- Tradução completa do **sistema de localização** para `Portuguese_Brazilian`: `Translations/Portuguese_Brazilian.json`
+  com **263 chaves** — as 204 do upstream e 59 novas para textos que estavam fixos em inglês no código.
+  Chaves e placeholders (`{0}`, `{1}`) idênticos ao inglês; o `English.json` continua sendo o fallback e é
+  regenerado sozinho quando faltam chaves.
+- Tradução das **186 falas do companheiro** em `Translations/speech/Portuguese_Brazilian.json` (o sistema de
+  fala próprio do mod, `SpeechConfig`): saudações e ordens, conversa fiada, combate, fome, peso, reparo,
+  fundição, caça, pesca, plantio, cozinha e "sem cama".
+- O build agora copia `Translations\**\*.json` da raiz do repositório para `$(DeployDir)\Translations\`
+  (alvo `DeployTranslations` no `Companions.csproj`) — de onde o mod lê UI e falas em runtime.
+- Textos que estavam fixos em inglês e que o jogador vê passaram a usar a localização: título e abas do painel
+  de configurações (F8, com as 21 categorias traduzidas), botões `Default`/`Aperte uma tecla...`, painel da
+  zona da casa (título, raio e dica de controle), barras de vida/stamina do HUD, hover do túmulo
+  (`Segure para ressuscitar`) e da cama (`Cama de X`), mensagem de recall e todo o **Santuário de Odin** /
+  lista de companheiros (nome da peça, descrição, status Vivo/Morto/Perdido/Desconhecido, avisos e recuperação).
+- Continua em inglês (fora do sistema de localização): as ~250 **descrições das configurações** (aparecem só no
+  `BepInEx\config\*.cfg`; o painel F8 mostra as chaves), os **nomes técnicos das configurações** nas abas do
+  painel e as **linhas de log** de diagnóstico (mantidas em inglês de propósito).
+
 ## 1.5.4
 - Hunting: with a spear to throw at a deer (and another weapon in its pack), a companion sneaks only to throwing distance, stops and throws, instead of walking right up and stabbing it. New setting Hunting > ThrowStandoff (10 m; it throws from anywhere within ThrowRange, 12 m).
 - Hunting: a companion with a spear as its only weapon throws it too once a deer (or other timid game) has noticed it, then lets the animal go and fetches the spear before hunting on.

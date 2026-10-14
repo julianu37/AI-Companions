@@ -105,7 +105,7 @@ public class HomeZonePanel : MonoBehaviour
 			{
 				text = text2;
 			}
-			_titleLabel.text = (string.IsNullOrEmpty(text) ? "Home Zone" : (text + " — Home Zone"));
+			_titleLabel.text = (string.IsNullOrEmpty(text) ? ModLocalization.Loc("hc_ui_home_zone") : (text + ModLocalization.Loc("hc_ui_home_zone_suffix")));
 			UpdateHintText();
 			_root.SetActive(value: true);
 			_visible = true;
@@ -172,7 +172,7 @@ public class HomeZonePanel : MonoBehaviour
 	{
 		if (!(_hintLabel == null))
 		{
-			_hintLabel.text = (ZInput.IsGamepadActive() ? "[D-Pad] Adjust   [A] Confirm   [B] Close" : "Drag slider  •  Esc to close");
+			_hintLabel.text = (ZInput.IsGamepadActive() ? ModLocalization.Loc("hc_ui_homezone_hint_gamepad") : ModLocalization.Loc("hc_ui_homezone_hint"));
 		}
 	}
 
@@ -306,7 +306,7 @@ public class HomeZonePanel : MonoBehaviour
 		{
 			_titleLabel.font = _font;
 		}
-		_titleLabel.text = "Home Zone";
+		_titleLabel.text = ModLocalization.Loc("hc_ui_home_zone");
 		_titleLabel.fontSize = 16f;
 		_titleLabel.color = LabelColor;
 		_titleLabel.fontStyle = FontStyles.Bold;
@@ -361,7 +361,7 @@ public class HomeZonePanel : MonoBehaviour
 		{
 			textMeshProUGUI.font = _font;
 		}
-		textMeshProUGUI.text = "Radius:";
+		textMeshProUGUI.text = ModLocalization.Loc("hc_ui_home_radius");
 		textMeshProUGUI.fontSize = 14f;
 		textMeshProUGUI.color = new Color(0.85f, 0.8f, 0.65f, 1f);
 		textMeshProUGUI.alignment = TextAlignmentOptions.Left;

@@ -377,7 +377,7 @@ public static class TraderUIPatches
 		TMP_Text componentInChildren = _tabCompanions.GetComponentInChildren<TMP_Text>(includeInactive: true);
 		if (componentInChildren != null)
 		{
-			componentInChildren.text = "Companions";
+			componentInChildren.text = ModLocalization.Loc("hc_ui_title_companions");
 			componentInChildren.gameObject.SetActive(value: true);
 		}
 		for (int num5 = _tabCompanions.transform.childCount - 1; num5 >= 0; num5--)

@@ -31,7 +31,11 @@ skills em `.opencode/skills/`. Leia este arquivo antes de agir.
 - Repositório: `C:\Users\revenda33\Desktop\ModAI-BR-Companions`
 - Jogo: `C:\Program Files (x86)\Steam\steamapps\common\Valheim`
 - Plugins: `...\BepInEx\plugins\ModAI-BR-Companions`
-- Traduções (runtime): `...\BepInEx\plugins\ModAI-BR-Companions\Translations\*.json`
+- Traduções (runtime): `...\BepInEx\plugins\ModAI-BR-Companions\Translations\*.json` (UI) e
+  `...\Translations\speech\*.json` (falas do companheiro). As fontes ficam em `Translations/` na raiz do
+  repositório e o build as copia (`Companions.csproj` → alvo `DeployTranslations`).
+- Idioma do jogo em PT-BR: **`Portuguese_Brazilian`** (o arquivo é `Translations/Portuguese_Brazilian.json`
+  e `Translations/speech/Portuguese_Brazilian.json`).
 
 ## Build
 
@@ -74,7 +78,8 @@ Notas de desenvolvimento do upstream: `docs/DEV_NOTES.md`; handoff: `docs/SESSIO
 1. **Carregue a skill** da dependência envolvida antes de codar ou revisar.
 2. **Não quebre o comportamento do upstream** — nossas mudanças são: **tradução PT-BR** + **camada de IA**.
    Mudanças de lógica só com motivo claro e documentado.
-3. **Tradução**: use o sistema de localização do próprio mod (`Translations/*.json`, `ModLocalization.cs`).
+3. **Tradução**: use o sistema de localização do próprio mod (`Translations/*.json`, `ModLocalization.cs`) —
+   UI/hover/HUD — e `Translations/speech/<Idioma>.json` para as falas (`SpeechConfig`).
    Não hardcode PT-BR no código quando houver token de localização.
 4. **Sem segredos** hardcoded (chaves de LLM/API via `ConfigEntry` ou variável de ambiente).
 5. **Sempre commitar e dar push** ao terminar (`git add -A && git commit && git push`), mensagem no padrão

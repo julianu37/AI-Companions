@@ -698,7 +698,7 @@ public class ConfigPanel : MonoBehaviour
 		{
 			textMeshProUGUI.font = _font;
 		}
-		textMeshProUGUI.text = "Companion Settings";
+		textMeshProUGUI.text = ModLocalization.Loc("hc_ui_settings_title");
 		textMeshProUGUI.fontSize = 18f;
 		textMeshProUGUI.color = LabelText;
 		textMeshProUGUI.fontStyle = FontStyles.Bold;
@@ -799,7 +799,8 @@ public class ConfigPanel : MonoBehaviour
 			{
 				textMeshProUGUI.font = _font;
 			}
-			textMeshProUGUI.text = item;
+			// the tab shows the translated name, the category itself stays the config section key
+			textMeshProUGUI.text = ModLocalization.LocOr("hc_cat_" + item.ToLowerInvariant(), item);
 			textMeshProUGUI.fontSize = 11f;
 			textMeshProUGUI.color = Color.white;
 			textMeshProUGUI.alignment = TextAlignmentOptions.Center;
@@ -1127,7 +1128,7 @@ public class ConfigPanel : MonoBehaviour
 		gameObject3.GetComponent<Button>().onClick.AddListener(delegate
 		{
 			listening = true;
-			btnTMP.text = "Press a key...";
+			btnTMP.text = ModLocalization.Loc("hc_ui_press_key");
 			btnTMP.color = LabelText;
 		});
 		KeyBindListener keyBindListener = gameObject3.AddComponent<KeyBindListener>();
@@ -1308,7 +1309,7 @@ public class ConfigPanel : MonoBehaviour
 		{
 			textMeshProUGUI.font = _font;
 		}
-		textMeshProUGUI.text = "Default";
+		textMeshProUGUI.text = ModLocalization.Loc("hc_ui_default");
 		textMeshProUGUI.fontSize = 9f;
 		textMeshProUGUI.color = Color.white;
 		textMeshProUGUI.alignment = TextAlignmentOptions.Center;

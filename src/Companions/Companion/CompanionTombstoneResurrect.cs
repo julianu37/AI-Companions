@@ -140,9 +140,9 @@ public class CompanionTombstoneResurrect : MonoBehaviour
 			float num = Time.time - _holdStartTime;
 			float num2 = Mathf.Clamp01(num / 7f);
 			int num3 = Mathf.RoundToInt(num2 * 100f);
-			return $"{text4}\n[<color=yellow><b>$KEY_Use</b></color>] Resurrecting... {num3}%";
+			return text4 + "\n[<color=yellow><b>$KEY_Use</b></color>] " + ModLocalization.LocFmt("hc_hover_resurrecting", num3);
 		}
-		return text4 + "\n[<color=yellow><b>$KEY_Use</b></color>] Hold to resurrect";
+		return text4 + "\n[<color=yellow><b>$KEY_Use</b></color>] " + ModLocalization.Loc("hc_hover_resurrect");
 	}
 
 	internal static void MHR_RemoveGravePinNear(Vector3 pos)

@@ -267,8 +267,78 @@ public static class ModLocalization
 			{ "hc_farmzone_any", "Any Crop" },
 			{ "hc_farmzone_hint", "[LMB] Place  [RMB] Remove  [Scroll] Resize  [RMB+Scroll] Rotate  [Esc] Exit" },
 			{ "hc_farmzone_hint_gamepad", "[A] Place  [X] Remove  [Bumpers] Resize  [D-Pad] Rotate  [Start] Exit" },
-			{ "hc_farmzone_full", "Maximum zones reached (4)" }
+			{ "hc_farmzone_full", "Maximum zones reached (4)" },
+			{ "hc_ui_settings_title", "Companion Settings" },
+			{ "hc_ui_press_key", "Press a key..." },
+			{ "hc_ui_default", "Default" },
+			{ "hc_ui_home_zone", "Home Zone" },
+			{ "hc_ui_home_zone_suffix", " — Home Zone" },
+			{ "hc_ui_home_radius", "Radius:" },
+			{ "hc_ui_home_zone_fmt", "Home zone: {0}m" },
+			{ "hc_ui_homezone_hint", "Drag slider  •  Esc to close" },
+			{ "hc_ui_homezone_hint_gamepad", "[D-Pad] Adjust   [A] Confirm   [B] Close" },
+			{ "hc_hud_health_fmt", "Health  {0} / {1}" },
+			{ "hc_hud_stamina_fmt", "Stamina  {0} / {1}" },
+			{ "hc_msg_recall_all", "Recalling all companions" },
+			{ "hc_hover_bed", "{0}'s Bed" },
+			{ "hc_hover_resurrect", "Hold to resurrect" },
+			{ "hc_hover_resurrecting", "Resurrecting... {0}%" },
+			{ "hc_shrine_name", "Odin's Shrine" },
+			{ "hc_shrine_desc", "Shows your companions and whether they're alive, and brings back one that's been lost." },
+			{ "hc_shrine_hover", "Your companions" },
+			{ "hc_shrine_empty", "No companions on your roster in this world yet. A companion joins the roster once it has been near you for a few seconds." },
+			{ "hc_shrine_none_to_recover", "None of your companions needs bringing back." },
+			{ "hc_shrine_bring_back", "Bring {0} back here? It returns with its gear and settings from the last roster save. If the old {0} turns up later, it will be removed." },
+			{ "hc_shrine_warning", "Warning:" },
+			{ "hc_shrine_unknown_alive", "{0} may still be alive somewhere that isn't loaded." },
+			{ "hc_shrine_unknown_dead", "{0} may still be alive somewhere that isn't loaded (last known: it died, and its tombstone keeps its items too)." },
+			{ "hc_roster_alive", "Alive" },
+			{ "hc_roster_dead", "Dead" },
+			{ "hc_roster_lost", "Lost" },
+			{ "hc_roster_unknown", "Unknown" },
+			{ "hc_roster_unknown_note", " (not nearby - it may still be alive)" },
+			{ "hc_roster_dead_note", " (its tombstone will bring it back)" },
+			{ "hc_roster_lost_note", " (nothing left of it in the world - it can be recovered)" },
+			{ "hc_roster_unknown_died", " (last known: died near {0}, {1})" },
+			{ "hc_roster_unknown_seen", " (last seen near {0}, {1})" },
+			{ "hc_roster_empty", "No companions on your roster in this world yet." },
+			{ "hc_roster_none_lost", "No lost companions to recover." },
+			{ "hc_roster_recovered", "{0} has been recovered!" },
+			{ "hc_roster_old_copy", "An old copy of {0} was found and removed ({0} was recovered)." },
+			{ "hc_roster_unknown_confirm", "{0}'s status is Unknown - it may still be alive somewhere that isn't loaded. Turn RecoverLostCompanion on again within {1} s to recover it anyway. If the old {0} turns up later, it will be removed." },
+			{ "hc_cat_general", "General" },
+			{ "hc_cat_controls", "Controls" },
+			{ "hc_cat_follow", "Follow" },
+			{ "hc_cat_movement", "Movement" },
+			{ "hc_cat_combat", "Combat" },
+			{ "hc_cat_food", "Food" },
+			{ "hc_cat_stamina", "Stamina" },
+			{ "hc_cat_rest", "Rest" },
+			{ "hc_cat_death", "Death" },
+			{ "hc_cat_looting", "Looting" },
+			{ "hc_cat_gearrepair", "GearRepair" },
+			{ "hc_cat_gathering", "Gathering" },
+			{ "hc_cat_hunting", "Hunting" },
+			{ "hc_cat_fishing", "Fishing" },
+			{ "hc_cat_farming", "Farming" },
+			{ "hc_cat_smelting", "Smelting" },
+			{ "hc_cat_cooking", "Cooking" },
+			{ "hc_cat_repairandrestock", "Repair and Restock" },
+			{ "hc_cat_idle", "Idle" },
+			{ "hc_cat_speech", "Speech" },
+			{ "hc_cat_advanced", "Advanced" }
 		};
+	}
+
+	// Translation for a key that is registered, otherwise the caller's own fallback. Used for text that has to show
+	// something sensible (a category name, a setting name) even when a key is missing.
+	public static string LocOr(string key, string fallback)
+	{
+		if (_englishDefaults != null && _englishDefaults.ContainsKey(key))
+		{
+			return Loc(key);
+		}
+		return fallback;
 	}
 
 	private static void InjectTranslations(Localization loc)

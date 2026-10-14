@@ -329,7 +329,7 @@ internal static class MHR_Roster
 			ZDO zDO = item.GetComponent<ZNetView>().GetZDO();
 			string text = zDO.GetString(CompanionSetup.NameHash, "Companion");
 			CompanionsPlugin.Log.LogWarning($"[Roster] Found an old copy of \"{text}\" at {item.transform.position:F1} (copy {zDO.GetInt(GenHash)}, the recovered one is copy {Find(zDO.GetString(CompanionSetup.MHR_CompanionIdHash)).Gen}) - removing it");
-			MessageHud.instance?.ShowMessage(MessageHud.MessageType.TopLeft, "An old copy of " + text + " was found and removed (" + text + " was recovered).");
+			MessageHud.instance?.ShowMessage(MessageHud.MessageType.TopLeft, ModLocalization.LocFmt("hc_roster_old_copy", text));
 			item._mhrStale = true;
 			item.PrepareForDespawn();
 			Humanoid component2 = item.GetComponent<Humanoid>();
@@ -574,19 +574,25 @@ internal static class MHR_Roster
 		return flag;
 	}
 
+	// the status name and the notes are localized; a status with no key falls back to its own name
+	private static string StatusName(Status s)
+	{
+		return ModLocalization.LocOr("hc_roster_" + s.ToString().ToLowerInvariant(), s.ToString());
+	}
+
 	internal static string Describe(Entry e, Status s)
 	{
-		string text = $"{e.Name}: {s}";
+		string text = e.Name + ": " + StatusName(s);
 		switch (s)
 		{
 		case Status.Dead:
-			text += " (its tombstone will bring it back)";
+			text += ModLocalization.Loc("hc_roster_dead_note");
 			break;
 		case Status.Lost:
-			text += " (nothing left of it in the world - it can be recovered)";
+			text += ModLocalization.Loc("hc_roster_lost_note");
 			break;
 		case Status.Unknown:
-			text += (e.Dead ? " (last known: died" : " (last seen") + $" near {e.LastPos.x:F0}, {e.LastPos.z:F0})";
+			text += ModLocalization.LocFmt(e.Dead ? "hc_roster_unknown_died" : "hc_roster_unknown_seen", e.LastPos.x.ToString("F0"), e.LastPos.z.ToString("F0"));
 			break;
 		}
 		return text;
@@ -596,7 +602,7 @@ internal static class MHR_Roster
 	{
 		if (s_entries.Count == 0)
 		{
-			MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, "No companions on your roster in this world yet.");
+			MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, ModLocalization.Loc("hc_roster_empty"));
 			CompanionsPlugin.Log.LogInfo("[Roster] No companions on the roster for this character in this world yet");
 			return;
 		}
@@ -616,7 +622,7 @@ internal static class MHR_Roster
 	{
 		if (s_entries.Count == 0)
 		{
-			MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, "No companions on your roster in this world yet.");
+			MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, ModLocalization.Loc("hc_roster_empty"));
 			return;
 		}
 		Dictionary<string, Status> statuses = GetStatuses();
@@ -639,7 +645,7 @@ internal static class MHR_Roster
 					{
 						s_confirmId = s_entry2.Id;
 						s_confirmUntil = Time.unscaledTime + ConfirmSeconds;
-						string text = $"{s_entry2.Name}'s status is Unknown - it may still be alive somewhere that isn't loaded. Turn RecoverLostCompanion on again within {ConfirmSeconds:F0} s to recover it anyway. If the old {s_entry2.Name} turns up later, it will be removed.";
+						string text = ModLocalization.LocFmt("hc_roster_unknown_confirm", s_entry2.Name, ConfirmSeconds.ToString("F0"));
 						MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, text);
 						CompanionsPlugin.Log.LogInfo("[Roster] " + text);
 						return;
@@ -652,7 +658,7 @@ internal static class MHR_Roster
 		s_confirmId = null;
 		if (entry == null)
 		{
-			string text2 = "No lost companions to recover.";
+			string text2 = ModLocalization.Loc("hc_roster_none_lost");
 			foreach (Entry s_entry3 in s_entries)
 			{
 				text2 = text2 + "\n" + Describe(s_entry3, statuses[s_entry3.Id]);
@@ -786,7 +792,7 @@ internal static class MHR_Roster
 		e.LastSeen = ZNet.instance.GetTimeSeconds();
 		Save(toDisk: true);
 		CompanionTombstoneResurrect.PlayResurrectEffects(vector);
-		MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, e.Name + " has been recovered!");
+		MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, ModLocalization.LocFmt("hc_roster_recovered", e.Name));
 		CompanionsPlugin.Log.LogInfo($"[Roster] Recovered \"{e.Name}\" ({status}) at {vector:F1} as copy {num}, with {num2} item(s) from the last roster save");
 	}
 }

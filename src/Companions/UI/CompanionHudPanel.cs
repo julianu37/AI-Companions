@@ -21,6 +21,11 @@ public class CompanionHudPanel : MonoBehaviour
 
 		private TextMeshProUGUI _staText;
 
+		// the localized bar templates are resolved once per row (the language can only change with a scene reload)
+		private string _hpFormat;
+
+		private string _staFormat;
+
 		private Image _restedIcon;
 
 		private Image[] _seIconSlots;
@@ -46,7 +51,11 @@ public class CompanionHudPanel : MonoBehaviour
 			}
 			if (_hpText != null)
 			{
-				_hpText.text = $"Health  {num:F0} / {num2:F0}";
+				if (_hpFormat == null)
+				{
+					_hpFormat = ModLocalization.Loc("hc_hud_health_fmt");
+				}
+				_hpText.text = string.Format(_hpFormat, num.ToString("F0"), num2.ToString("F0"));
 			}
 			float num3 = ((component2 != null) ? component2.Stamina : 0f);
 			float num4 = ((component2 != null) ? component2.MaxStamina : 1f);
@@ -56,7 +65,11 @@ public class CompanionHudPanel : MonoBehaviour
 			}
 			if (_staText != null)
 			{
-				_staText.text = $"Stamina  {num3:F0} / {num4:F0}";
+				if (_staFormat == null)
+				{
+					_staFormat = ModLocalization.Loc("hc_hud_stamina_fmt");
+				}
+				_staText.text = string.Format(_staFormat, num3.ToString("F0"), num4.ToString("F0"));
 			}
 			if (_foodIconSlots != null)
 			{

@@ -1473,7 +1473,7 @@ public class CompanionInteractPanel : MonoBehaviour
 		{
 			_homeRadiusLabel.font = font;
 		}
-		_homeRadiusLabel.text = "Home zone: 50m";
+		_homeRadiusLabel.text = ModLocalization.LocFmt("hc_ui_home_zone_fmt", 50);
 		_homeRadiusLabel.fontSize = 12f;
 		_homeRadiusLabel.color = new Color(1f, 0.9f, 0.5f, 1f);
 		_homeRadiusLabel.alignment = TextAlignmentOptions.Left;
@@ -1548,7 +1548,7 @@ public class CompanionInteractPanel : MonoBehaviour
 			_companion.SetHomeRadius(value);
 			if (_homeRadiusLabel != null)
 			{
-				_homeRadiusLabel.text = $"Home zone: {value:F0}m";
+				_homeRadiusLabel.text = ModLocalization.LocFmt("hc_ui_home_zone_fmt", value.ToString("F0"));
 			}
 		}
 	}
