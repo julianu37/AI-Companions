@@ -61,16 +61,20 @@
     <Message Importance="high" Text="Deployed $(TargetFileName) to $(DeployDir)" />
   </Target>
 
-  <!-- Translations live in the repository root (Translations\*.json plus Translations\speech\*.json) and are read at
-       runtime from next to the DLL: <DeployDir>\Translations\<Language>.json and \Translations\speech\<Language>.json.
-       Both the UI strings (ModLocalization) and the companion speech lines (SpeechConfig) are loaded from there. -->
+  <!-- UI strings (ModLocalization) live in Translations\<Language>.json and are read at runtime from next to
+       the DLL: <DeployDir>\Translations\<Language>.json.
+       Companion speech lines (SpeechConfig) live in Speech\<Language>.json, kept OUT of Translations\ on
+       purpose: Jotunn's automatic localization loader treats Translations\<Folder>\*.json as a language and
+       would mistake it for a language named "speech". -->
   <ItemGroup>
     <TranslationFiles Include="$(MSBuildThisFileDirectory)..\..\Translations\**\*.json" />
+    <SpeechFiles Include="$(MSBuildThisFileDirectory)..\..\Speech\**\*.json" />
   </ItemGroup>
 
-  <Target Name="DeployTranslations" AfterTargets="Build" Condition="'$(DeployDir)' != '' and '@(TranslationFiles)' != ''">
+  <Target Name="DeployTranslations" AfterTargets="Build" Condition="'$(DeployDir)' != '' and ('@(TranslationFiles)' != '' or '@(SpeechFiles)' != '')">
     <Copy SourceFiles="@(TranslationFiles)" DestinationFiles="@(TranslationFiles->'$(DeployDir)\Translations\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
-    <Message Importance="high" Text="Deployed @(TranslationFiles->Count()) translation file(s) to $(DeployDir)\Translations" />
+    <Copy SourceFiles="@(SpeechFiles)" DestinationFiles="@(SpeechFiles->'$(DeployDir)\Speech\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <Message Importance="high" Text="Deployed @(TranslationFiles->Count()) translation file(s) to $(DeployDir)\Translations and @(SpeechFiles->Count()) speech file(s) to $(DeployDir)\Speech" />
   </Target>
 
 </Project>

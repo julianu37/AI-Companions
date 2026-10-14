@@ -66,7 +66,7 @@ public class SpeechConfig
 		catch
 		{
 		}
-		string path = Path.Combine(directoryName, "Translations", "speech", text + ".json");
+		string path = Path.Combine(directoryName, "Speech", text + ".json");
 		if (TryLoadFrom(path))
 		{
 			return;
