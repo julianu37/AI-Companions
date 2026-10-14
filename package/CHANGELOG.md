@@ -2,7 +2,7 @@
 
 All notable changes to this fork of ProfMags' Offline Companions. Versions before 1.4.0 are the original mod (see [ProfMags' Thunderstore page](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) for that history) plus the initial batch of Valheim 1.0 API-compatibility fixes that let the mod load and run at all on 1.0.
 
-## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2: o número da ordem limita o trabalho + Tradução PT-BR (fork ModAI-BR-Companions)
+## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2: o número da ordem limita o trabalho + Fase 3.3: o número é um DELTA + Tradução PT-BR (fork ModAI-BR-Companions)
 - **Fase 3.1 — o jogador digita a ordem no chat do jogo e o companheiro executa.** `colete 20 de madeira`,
   `segue`, `para`, `vem cá`, `minere ferro`, `fica na defensiva`... A frase vai para um **LLM local** por uma
   API compatível com a OpenAI (`POST {BaseUrl}/chat/completions`; LM Studio, Ollama, llama.cpp, vLLM) e a
@@ -37,6 +37,19 @@ All notable changes to this fork of ProfMags' Offline Companions. Versions befor
   Vale para **madeira, pedra e minério**; `Name:Number` da lista, se for menor, continua ganhando.
 - **Ao bater o teto o companheiro para e volta a seguir** (como o `stop`), com a fala de "já temos de sobra"
   e uma linha no log. Se ele já tiver o suficiente, a ordem termina na hora.
+- **Fase 3.3 — o número da ordem é um DELTA ("colete 10" = 10 A MAIS).** A Fase 3.2 lia o número como *estoque
+  total*: como o teto era comparado com o que o companheiro já tinha na mochila + baús perto da casa + pilhas,
+  "colete 10 madeiras" com 9 de madeira guardada virava **uma** árvore e ele parava (bug reportado em jogo).
+  Agora, ao começar a ordem, o estoque **do momento** de cada item é capturado como base e o teto efetivo é
+  `base + número pedido` — ele coleta 10 a mais, mesmo com a mochila cheia. Vale para madeira, pedra e minério
+  (alvos e itens soltos). O `Name:Number` da lista, se for menor, continua ganhando; sem ordem nada muda.
+- **A base é de sessão (em memória, por companheiro/modo/item)** e é esquecida junto com o teto (fim da ordem,
+  `para`/`segue`, outra ordem de trabalho ou troca de modo). Depois de um **reload**, o teto continua no ZDO mas
+  a base é lida de novo do estoque atual: a ordem recomeça a contagem a partir dali (coleta o número pedido outra
+  vez) — o lado seguro de errar.
+- **O teto da ordem agora ganha do limite da configuração** (`WoodLimit`/`StoneLimit`/`OreLimit`, que é um
+  "já temos de sobra"): com a mochila em 500 e o limite em 500, `colete 10` ainda coleta 10 (antes a ordem ficava
+  presa sem fazer nada). O `Name:Number` explícito continua sendo o menor que ganha.
 - **O teto não mexe na coleta normal nem no radial:** sem ordem com número, tudo continua sendo a
   configuração; alvos apontados no radial (SetDirectedTarget) são ignorados pelo teto. A leitura do ZDO é um
   lookup por candidato por scan (nunca por frame).

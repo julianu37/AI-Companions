@@ -60,7 +60,7 @@ skills em `.opencode/skills/`. Leia este arquivo antes de agir.
 
 Notas de desenvolvimento do upstream: `docs/DEV_NOTES.md`; handoff: `docs/SESSION_HANDOFF.md`.
 
-## Camada de IA (Fase 3.1 — ordens por texto no chat; Fase 3.2 — o número da ordem limita o trabalho)
+## Camada de IA (Fase 3.1 — ordens por texto no chat; Fase 3.2/3.2b — o número da ordem é um delta que limita o trabalho)
 
 O jogador digita a ordem no chat do jogo (`colete 20 de madeira`, `segue`, `para`) e um **LLM local**
 (API compatível com a OpenAI: `POST {BaseUrl}/chat/completions`) devolve a intenção em JSON, que vira a
@@ -73,10 +73,12 @@ no `Update`) → `LlmIntent` (parser tolerante) → `CompanionOrders` (intençã
   `TimeoutSegundos`, `Prefixo`, `MostrarRespostaNoChat`, `CooldownSegundos`.
 - `Chat.SendText(Talker.Type, string)` é o caminho da mensagem **do próprio jogador** (as recebidas entram
   por `Chat.OnNewChatMessage`) — é o único ponto capturado.
-- `despawn` não é exposto ao modelo. O `amount` **limita** madeira/pedra/minério (Fase 3.2): vira um teto no
-  ZDO do companheiro (`HC_OrderCap`/`HC_OrderCapMode`), aplicado como `min(limite da config, teto)` em
-  `MHR_GatherRules.AllowTarget`/`AllowLoose`; ao bater o teto ele encerra a ordem e volta a seguir. Para os
-  outros jobs o número segue sendo só informativo.
+- `despawn` não é exposto ao modelo. O `amount` é um **DELTA** para madeira/pedra/minério (Fase 3.2 + 3.2b):
+  vira um teto no ZDO do companheiro (`HC_OrderCap`/`HC_OrderCapMode`) e o limite efetivo é
+  `estoque na hora da ordem + quantidade pedida` (`CompanionSetup.OrderCapBase`), aplicado em
+  `MHR_GatherRules.OrderLimit` (usado por `AllowTarget`/`AllowLoose`). Ou seja, `colete 10` = **10 a mais**,
+  mesmo com a mochila/baús cheios; ao bater o teto ele encerra a ordem e volta a seguir. Para os outros jobs o
+  número segue sendo só informativo.
 - Backend/contrato de referência: `docs/re/backend-contract.md`; mapa da fase: `docs/roadmap.md` (Trilha D).
 
 ## Nossas docs

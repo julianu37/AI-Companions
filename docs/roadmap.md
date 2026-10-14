@@ -336,6 +336,7 @@ Ordens em **linguagem natural** por cima do mod do upstream. O companheiro conti
 |---|---|---|
 | **3.1** | **Ordem por texto no chat** (LLM local, API OpenAI-compatible) | ✅ (Unreleased) |
 | **3.2** | **Teto da ordem**: `colete 5 madeiras` para em 5 (madeira/pedra/minério) e volta a seguir | ✅ (Unreleased) |
+| **3.2b** | **Correção da 3.2**: o número da ordem é um **DELTA** (`colete 10` = 10 a mais, não "tenha 10 no total") | ✅ (Unreleased) |
 | 3.3 | Voz: captura com `Microphone` → STT (backend) → mesma caixa de ordens | ⏳ |
 | 3.4 | TTS: o companheiro **fala** a confirmação (áudio do backend, `AudioSource`) | ⏳ |
 | 3.5 | Personalidade/memória: preset + texto livre no contexto do LLM | ⏳ |
@@ -372,7 +373,8 @@ O jogador digita `colete 20 de madeira` (ou `segue`, `para`, `vem cá`, `minere 
   `sethome`(11) `wander`(12) `pickup`(13) `command`(14) e suas negações; posturas 20–23 → `SetCombatStance`.
   `none` = não é ordem. `despawn` **não** é exposto ao modelo (de propósito).
 - **Pendências conhecidas:** ordens com alvo (`atacar X`, `equipar Y`) ainda não têm efeito além do job
-  (Fase 3.6). O número da ordem **limita** madeira/pedra/minério desde a Fase 3.2 (ver abaixo).
+  (Fase 3.6). O número da ordem **limita** madeira/pedra/minério desde a Fase 3.2 e é um **delta** desde a
+  Fase 3.2b ("colete 10" = 10 a mais — ver abaixo).
 
 ### Fase 3.2 — o número da ordem limita o trabalho (✅ — Unreleased)
 
@@ -383,7 +385,7 @@ O jogador digita `colete 20 de madeira` (ou `segue`, `para`, `vem cá`, `minere 
 |---|---|---|
 | Teto no ZDO | `src/Companions/Companion/CompanionSetup.cs` | `HC_OrderCap` (int, 0 = sem teto) e `HC_OrderCapMode` (int, o modo a que o teto pertence) + `OrderCap`/`SetOrderCap`/`ClearOrderCap`/`CompleteOrderCap` (escrita só no dono, `IsOwner`) |
 | Ordem → teto | `src/Companions/AI/CompanionOrders.cs` | Ordem de coleta com `amount > 0` (wood/stone/ore) grava o teto; `stop`, `follow`, outra ordem de trabalho ou a troca de modo (`ApplyActionMode`) **limpam** o teto |
-| Teto no job | `src/Companions/Jobs/MHR_GatherRules.cs` | `AllowTarget`/`AllowLoose` usam `limit = min(limite da config, teto)` (o `Name:Number` da lista, se for menor, continua ganhando); ao acabar o que alcançar, o teto cumprido **encerra a ordem** e volta ao follow |
+| Teto no job | `src/Companions/Jobs/MHR_GatherRules.cs` | `AllowTarget`/`AllowLoose` usam `limit = min(limite da config, teto)` (o `Name:Number` da lista, se for menor, continua ganhando); ao acabar o que alcançar, o teto cumprido **encerra a ordem** e volta ao follow. **Fase 3.2b:** o teto passou a ser `estoque na hora da ordem + número` (delta) e ganha do limite da config — ver a seção da 3.2b |
 | Fim da ordem | `src/Companions/Jobs/HarvestController.cs` | Um scan vazio passa por `MHR_GatherRules.OrderDone`: se o motivo foi o teto, o companheiro larga a ferramenta e volta a seguir (como o `stop`) |
 
 - **Como o teto é lido:** direto do ZDO (um lookup de dicionário, no máximo uma vez por candidato por scan,
@@ -396,4 +398,34 @@ O jogador digita `colete 20 de madeira` (ou `segue`, `para`, `vem cá`, `minere 
   e volta a seguir.
 - **Multiplayer/reload:** o teto vive no ZDO do companheiro, então cada companheiro para no seu próprio número
   e ele sobrevive a um reload; quem escreve é o dono (`MHR_Owner.TakeControl` antes da ordem).
+
+### Fase 3.2b — o número da ordem é um DELTA (correção da 3.2) (✅ — Unreleased)
+
+Bug reportado em jogo: *"solicito 10, ele coleta 1 ou 7 e para"*. O teto da 3.2 era comparado com o **estoque
+total** (`Stock`: mochila + baús perto da casa + pilhas), então `colete 10 madeiras` virava *"tenha 10 no
+total"*: com 9 de madeira guardada, o companheiro derrubava uma árvore e encerrava a ordem
+(`Order ceiling reached (10 on wood) - order done`).
+
+Agora o número é **quanto falta coletar** ("10 A MAIS"), independente do que já existe na mochila/baús.
+
+| Peça | Arquivo | O que faz |
+|---|---|---|
+| Base da ordem | `src/Companions/Companion/CompanionSetup.cs` | `OrderCapBase(c, mode, item, stockNow)`: o estoque **do momento** em que a ordem olhou aquele item pela primeira vez, por companheiro/modo/item (dicionário estático de sessão). `ClearOrderCapBase` é chamado junto com `SetOrderCap`/`ClearOrderCap` |
+| Teto efetivo | `src/Companions/Jobs/MHR_GatherRules.cs` | `OrderLimit(...)`: `capTotal = base + cap`; `AllowTarget`/`AllowLoose` usam `min(limite da config, capTotal)` — mas a ordem **ganha** do `WoodLimit`/`StoneLimit`/`OreLimit` (o `Name:Number` explícito, se menor, continua ganhando) |
+| Fim da ordem | `src/Companions/Jobs/HarvestController.cs` | inalterado: scan vazio + teto cumprido → `OrderDone` → volta a seguir |
+
+- **Como a base é capturada:** na **primeira leitura daquele item durante a ordem** (dentro de `OrderLimit`), e
+  não no instante em que a ordem é dada. Motivo: uma lista com `*` não tem itens para percorrer na hora, e a
+  leitura é a mesma `Stock()` que o job já faz (com cache de 10s) — no máximo uma vez por item por ordem,
+  **nunca por frame** e sem varredura própria do mundo. Na prática a diferença para "ler na hora da ordem" é
+  de um scan.
+- **Quando a base é limpa:** junto com o teto — fim da ordem (`CompleteOrderCap`), `para`/`segue`, outra ordem
+  de trabalho ou troca de modo (`ApplyActionMode`). Uma nova ordem lê o estoque de novo, então repetir
+  `colete 10` duas vezes soma 20 (10 + 10).
+- **Depois de um reload:** o teto (`HC_OrderCap`/`HC_OrderCapMode`) continua no ZDO, a base **não** (é de
+  sessão). A ordem recomeça a contagem do estoque do momento do reload — ou seja, ela coleta o número pedido
+  outra vez. É o lado seguro de errar (nunca "para de imediato").
+- **`Name:Number` continua ganhando se for menor** (`Wood:3` com `colete 10` para em 3) e o alvo apontado no
+  radial (`SetDirectedTarget`) continua fora do teto.
+- **Sem ordem nada muda:** `cap == 0` → caminho antigo (config pura), sem capturar base nenhuma.
 

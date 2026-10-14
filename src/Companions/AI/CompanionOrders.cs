@@ -155,11 +155,12 @@ internal static class CompanionOrders
 			// the wheel toggles a job off when it's picked twice; an order always sets it
 			CompanionSetup.ClearOrderCap(companion);   // a new job order drops the ceiling of the old one
 			CompanionSetup.ApplyActionMode(companion, mode, toggle: false);
-			// Fase 3.2: "colete 5 madeiras" - the number caps the job, so it stops at 5 instead of the config's 500
+			// Fase 3.2: "colete 5 madeiras" - the number caps the job, so it stops well before the config's 500.
+			// Fase 3.3: the number is a delta (5 MORE than it already had), see MHR_GatherRules.OrderLimit.
 			if (amount > 0 && HasOrderCap(mode))
 			{
 				CompanionSetup.SetOrderCap(companion, mode, amount);
-				CompanionsPlugin.Log?.LogInfo($"[IA] Order ceiling: mode {mode} stops at {amount}");
+				CompanionsPlugin.Log?.LogInfo($"[IA] Order ceiling: mode {mode} gathers {amount} more");
 			}
 			return true;
 		}

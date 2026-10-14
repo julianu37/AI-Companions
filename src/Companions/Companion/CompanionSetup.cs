@@ -41,6 +41,12 @@ public class CompanionSetup : MonoBehaviour
 	// Fase 3.2: which work mode that ceiling belongs to - a ceiling for Wood must not follow the companion into Stone.
 	internal static readonly int OrderCapModeHash = "HC_OrderCapMode".GetStableHashCode();
 
+	// Fase 3.3: what the companion already had when the current order started, per item, keyed by the companion's
+	// GameObject. The order's number is a DELTA ("colete 10 madeiras" = 10 MORE), so the gather jobs compare the
+	// stock against this base + the number asked for - never against the number alone (that read "have 10 in total"
+	// and stopped after one log when the pack/chests already held nine). Session-only on purpose: see OrderCapBase.
+	private static readonly Dictionary<int, Dictionary<string, int>> s_orderCapBase = new Dictionary<int, Dictionary<string, int>>();
+
 	internal static readonly int StaminaHash = "HC_Stamina".GetStableHashCode();
 
 	internal static readonly int AutoPickupHash = "HC_AutoPickup".GetStableHashCode();
@@ -862,6 +868,7 @@ public class CompanionSetup : MonoBehaviour
 		{
 			return;   // already there - don't dirty the ZDO for nothing
 		}
+		ClearOrderCapBase(c);   // Fase 3.3: a new ceiling reads the stock fresh (the base of the old one is gone)
 		zdo.Set(OrderCapHash, amount);
 		zdo.Set(OrderCapModeHash, amount > 0 ? mode : 0);
 	}
@@ -869,6 +876,7 @@ public class CompanionSetup : MonoBehaviour
 	/// <summary>Forgets the ceiling (order finished or cancelled, or another job picked).</summary>
 	internal static void ClearOrderCap(Component c)
 	{
+		ClearOrderCapBase(c);   // Fase 3.3: the base goes with the ceiling, whatever the ZDO says
 		ZNetView nv;
 		ZDO zdo = ZdoOf(c, out nv);
 		if (zdo == null || !nv.IsOwner())
@@ -881,6 +889,58 @@ public class CompanionSetup : MonoBehaviour
 		}
 		zdo.Set(OrderCapHash, 0);
 		zdo.Set(OrderCapModeHash, 0);
+	}
+
+	/// <summary>Fase 3.3: what this companion already had of one item when the current order started. The order's
+	/// number is a delta, so the jobs cap the stock at this base + the number. Captured on the order's first look
+	/// at the item, not when the order is given: a list of "*" names no items to walk then, and this is the same
+	/// <c>Stock()</c> read the gather jobs already do (cached for 10s), at most once per item per order - never per
+	/// frame, no scan of the world of its own. The base lives in memory only, so after a reload the order restarts
+	/// from the stock of that moment (the ceiling in the ZDO survives, the "already had" part doesn't - a reloaded
+	/// order collects its number again, which is the safe direction to be wrong in).</summary>
+	/// <param name="c">The companion, or any component on its GameObject (the gather job passes its controller).</param>
+	/// <param name="stockNow">The stock of that item right now - only read when the base isn't known yet.</param>
+	internal static int OrderCapBase(Component c, int mode, string item, int stockNow)
+	{
+		if (c == null || c.gameObject == null || string.IsNullOrEmpty(item))
+		{
+			return stockNow;
+		}
+		int id = c.gameObject.GetInstanceID();
+		Dictionary<string, int> per;
+		if (!s_orderCapBase.TryGetValue(id, out per))
+		{
+			if (s_orderCapBase.Count > 256)
+			{
+				s_orderCapBase.Clear();   // same soft cap the other session caches use; an order only re-reads its base
+			}
+			per = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+			s_orderCapBase[id] = per;
+		}
+		string key = mode + ":" + item;
+		int known;
+		if (per.TryGetValue(key, out known))
+		{
+			return known;
+		}
+		if (per.Count > 64)
+		{
+			per.Clear();   // a wild list ("*") over a long job: keep the per-companion entry bounded
+		}
+		per[key] = stockNow;
+		return stockNow;
+	}
+
+	/// <summary>Fase 3.3: forget the captured base (called with the ceiling itself). Resolves the companion from
+	/// whatever component was passed, so the base is found no matter who clears it (the gather job clears the
+	/// ceiling through its HarvestController - see CompleteOrderCap).</summary>
+	private static void ClearOrderCapBase(Component c)
+	{
+		if (c == null || c.gameObject == null)
+		{
+			return;
+		}
+		s_orderCapBase.Remove(c.gameObject.GetInstanceID());
 	}
 
 	/// <summary>The ceiling was met: the order is done. Forget it and go back to following, exactly like "stop".</summary>

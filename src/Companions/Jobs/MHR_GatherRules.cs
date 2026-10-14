@@ -205,6 +205,29 @@ namespace Companions
             p.CapRejects++;
         }
 
+        // Fase 3.3: what an order's number means for one item. The number is a DELTA - "colete 10 madeiras" is 10
+        // MORE than the companion already had - so the ceiling is the stock at the start of the order (the base,
+        // captured once per item and forgotten with the ceiling: see CompanionSetup.OrderCapBase) plus the number
+        // asked for. It caps the job's own limit like the Fase 3.2 ceiling did, but now the order also wins over the
+        // config's own limit (WoodLimit/StoneLimit/OreLimit is a "we have plenty" guard; the player asked on purpose,
+        // and with a delta that guard could otherwise block an order for ever without ever ending it). A smaller
+        // explicit Name:Number for that item still wins, exactly as before.
+        // capped says the returned limit is the order's ceiling, so a scan that turned everything away can tell
+        // "the order is done" (MHR_GatherRules.OrderDone) from "the config says stop" ("waiting").
+        static int OrderLimit(HarvestController h, int mode, string item, MHR_List list, int limit, out bool capped)
+        {
+            capped = false;
+            int cap = h.IsDirectedHarvest ? 0 : CompanionSetup.OrderCap(h, mode);
+            if (cap <= 0) return limit;         // no order: the config rules, as before
+            int capTotal = CompanionSetup.OrderCapBase(h, mode, item, Stock(h, item)) + cap;
+            if (limit <= 0 || !list.HasAmount(item) || capTotal < limit)
+            {
+                capped = true;
+                return capTotal;
+            }
+            return limit;
+        }
+
         // Fase 3.2: a scan came up empty and the ceiling an order put on this job is what stopped it ("colete 5
         // madeiras") - the order is done: forget the ceiling and go back to following, like "stop". Called by
         // HarvestController when a scan finds nothing, which also covers the jobs that only pick things up by hand.
@@ -220,7 +243,7 @@ namespace Companions
                 int cap = CompanionSetup.OrderCap(h, mode);
                 if (cap <= 0) return false;
                 p.CapRejects = 0;
-                Info("Order ceiling reached (" + cap + " on " + (mode == 1 ? "wood" : mode == 2 ? "stone" : "ore") + ") - order done, back to following");
+                Info("Order ceiling reached (" + cap + " more " + (mode == 1 ? "wood" : mode == 2 ? "stone" : "ore") + ") - order done, back to following");
                 CompanionTalk talk = h.GetComponent<CompanionTalk>();
                 if (talk != null) talk.Say(ModLocalization.Loc(mode == 1 ? "hc_speech_plenty_wood" : mode == 2 ? "hc_speech_plenty_stone" : "hc_speech_plenty_ore"), false);
                 CompanionSetup.CompleteOrderCap(h);
@@ -252,16 +275,15 @@ namespace Companions
                 List<string> drops = DropsOf(go);
                 if (drops.Count == 0) return true;      // unknown drops: don't block it
                 bool listed = false;
-                // Fase 3.2: the ceiling an order put on this job ("colete 5 madeiras") caps the job's own limit, so
-                // 5 wins over WoodLimit 500; a smaller per-item amount (Name:Number) still wins over the ceiling.
-                // A target the player pointed at on the radial is left alone.
-                int cap = h.IsDirectedHarvest ? 0 : CompanionSetup.OrderCap(h, mode);
                 for (int i = 0; i < drops.Count; i++)
                 {
                     if (!list.Allows(drops[i], ItemLocal(drops[i]))) continue;
-                    int limit = list.AmountFor(drops[i], DefaultLimit(mode));
-                    bool capped = false;
-                    if (cap > 0 && (limit <= 0 || cap < limit)) { limit = cap; capped = true; }
+                    // Fase 3.2/3.3: the ceiling an order put on this job ("colete 5 madeiras") caps the job's own
+                    // limit, so 5 wins over WoodLimit 500; a smaller per-item amount (Name:Number) still wins, and
+                    // since Fase 3.3 the number is a delta (see OrderLimit). A target the player pointed at on the
+                    // radial is left alone.
+                    bool capped;
+                    int limit = OrderLimit(h, mode, drops[i], list, list.AmountFor(drops[i], DefaultLimit(mode)), out capped);
                     listed = true;
                     if (limit <= 0 || Stock(h, drops[i]) < limit) return true;
                     if (capped) CapReject(p);
@@ -310,11 +332,10 @@ namespace Companions
                 MHR_List list = Parse(mode);
                 if (list == null) return true;
                 if (!list.Allows(item, ItemLocal(item))) return false;
-                int limit = list.AmountFor(item, DefaultLimit(mode));
-                // Fase 3.2: an order's ceiling caps this too, so "colete 5 madeiras" also stops picking branches up at 5
-                int cap = h.IsDirectedHarvest ? 0 : CompanionSetup.OrderCap(h, mode);
-                bool capped = false;
-                if (cap > 0 && (limit <= 0 || cap < limit)) { limit = cap; capped = true; }
+                // Fase 3.2: an order's ceiling caps this too, so "colete 5 madeiras" also stops picking branches up
+                // at 5; Fase 3.3: the number is a delta (base + the number asked for) - see OrderLimit.
+                bool capped;
+                int limit = OrderLimit(h, mode, item, list, list.AmountFor(item, DefaultLimit(mode)), out capped);
                 if (limit <= 0 || Stock(h, item) < limit) return true;
                 if (capped) CapReject(P(h));
                 return false;
