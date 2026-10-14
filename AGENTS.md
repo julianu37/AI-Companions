@@ -32,10 +32,10 @@ skills em `.opencode/skills/`. Leia este arquivo antes de agir.
 - Jogo: `C:\Program Files (x86)\Steam\steamapps\common\Valheim`
 - Plugins: `...\BepInEx\plugins\ModAI-BR-Companions`
 - Traduções (runtime): `...\BepInEx\plugins\ModAI-BR-Companions\Translations\*.json` (UI) e
-  `...\Translations\speech\*.json` (falas do companheiro). As fontes ficam em `Translations/` na raiz do
+  `...\Speech\*.json` (falas do companheiro). As fontes ficam em `Translations/` e `Speech/` na raiz do
   repositório e o build as copia (`Companions.csproj` → alvo `DeployTranslations`).
-- Idioma do jogo em PT-BR: **`Portuguese_Brazilian`** (o arquivo é `Translations/Portuguese_Brazilian.json`
-  e `Translations/speech/Portuguese_Brazilian.json`).
+- Idioma do jogo em PT-BR: **`Portuguese_Brazilian`** (os arquivos são `Translations/Portuguese_Brazilian.json`
+  e `Speech/Portuguese_Brazilian.json`).
 
 ## Build
 
@@ -60,7 +60,7 @@ skills em `.opencode/skills/`. Leia este arquivo antes de agir.
 
 Notas de desenvolvimento do upstream: `docs/DEV_NOTES.md`; handoff: `docs/SESSION_HANDOFF.md`.
 
-## Camada de IA (Fase 3.1 — ordens por texto no chat)
+## Camada de IA (Fase 3.1 — ordens por texto no chat; Fase 3.2 — o número da ordem limita o trabalho)
 
 O jogador digita a ordem no chat do jogo (`colete 20 de madeira`, `segue`, `para`) e um **LLM local**
 (API compatível com a OpenAI: `POST {BaseUrl}/chat/completions`) devolve a intenção em JSON, que vira a
@@ -73,7 +73,10 @@ no `Update`) → `LlmIntent` (parser tolerante) → `CompanionOrders` (intençã
   `TimeoutSegundos`, `Prefixo`, `MostrarRespostaNoChat`, `CooldownSegundos`.
 - `Chat.SendText(Talker.Type, string)` é o caminho da mensagem **do próprio jogador** (as recebidas entram
   por `Chat.OnNewChatMessage`) — é o único ponto capturado.
-- `despawn` não é exposto ao modelo. O `amount` é informativo: a quantidade real segue sendo a dos jobs.
+- `despawn` não é exposto ao modelo. O `amount` **limita** madeira/pedra/minério (Fase 3.2): vira um teto no
+  ZDO do companheiro (`HC_OrderCap`/`HC_OrderCapMode`), aplicado como `min(limite da config, teto)` em
+  `MHR_GatherRules.AllowTarget`/`AllowLoose`; ao bater o teto ele encerra a ordem e volta a seguir. Para os
+  outros jobs o número segue sendo só informativo.
 - Backend/contrato de referência: `docs/re/backend-contract.md`; mapa da fase: `docs/roadmap.md` (Trilha D).
 
 ## Nossas docs

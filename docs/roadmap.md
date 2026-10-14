@@ -53,7 +53,7 @@ Legenda: ✅ concluído · 🔄 em andamento · ⏳ pendente
 | 2.18b | **Seguir pelo portal** (`CompanionPortalFollow` + `[Portal]`): ele anda até o portal e é levado para junto de você quando o seu teleporte termina | ✅ (v0.4.6) |
 | 2.18c | **Carroça** (`CompanionCart` + `[Carroca]`): `modia_cart pull\|release` — ele anda até o engate do `Vagon` e puxa a carroça pelo `ConfigurableJoint` do jogo | ✅ (v0.4.6) |
 | 2.5 | Multiplayer (ZNetView/ZDO, testes com cliente/servidor) | ⏳ |
-| **3** | IA e voz: comandos por voz/chat, STT, TTS, personalidade — **no fork, ver Trilha D** | 🔄 (3.1 ✅) |
+| **3** | IA e voz: comandos por voz/chat, STT, TTS, personalidade — **no fork, ver Trilha D** | 🔄 (3.1, 3.2 ✅) |
 | **4** | Backend híbrido (LLM local + API), endpoints do "cérebro" | ⏳ |
 | **5** | Empacotamento (manifest, README, ícone) + revisão final | ⏳ |
 
@@ -335,11 +335,12 @@ Ordens em **linguagem natural** por cima do mod do upstream. O companheiro conti
 | Fase | Descrição | Status |
 |---|---|---|
 | **3.1** | **Ordem por texto no chat** (LLM local, API OpenAI-compatible) | ✅ (Unreleased) |
-| 3.2 | Voz: captura com `Microphone` → STT (backend) → mesma caixa de ordens | ⏳ |
-| 3.3 | TTS: o companheiro **fala** a confirmação (áudio do backend, `AudioSource`) | ⏳ |
-| 3.4 | Personalidade/memória: preset + texto livre no contexto do LLM | ⏳ |
-| 3.5 | Ordens com alvo (`atacar <criatura>`, `equipar <item>`, `largar <item>`) | ⏳ |
-| 3.6 | UI do NPC: menu de personalidade/voz + keybind de push-to-talk | ⏳ |
+| **3.2** | **Teto da ordem**: `colete 5 madeiras` para em 5 (madeira/pedra/minério) e volta a seguir | ✅ (Unreleased) |
+| 3.3 | Voz: captura com `Microphone` → STT (backend) → mesma caixa de ordens | ⏳ |
+| 3.4 | TTS: o companheiro **fala** a confirmação (áudio do backend, `AudioSource`) | ⏳ |
+| 3.5 | Personalidade/memória: preset + texto livre no contexto do LLM | ⏳ |
+| 3.6 | Ordens com alvo (`atacar <criatura>`, `equipar <item>`, `largar <item>`) | ⏳ |
+| 3.7 | UI do NPC: menu de personalidade/voz + keybind de push-to-talk | ⏳ |
 
 ### Fase 3.1 — ordem por texto no chat (✅ — Unreleased)
 
@@ -370,7 +371,29 @@ O jogador digita `colete 20 de madeira` (ou `segue`, `para`, `vem cá`, `minere 
   `fish`(9) `repair`(15) `cook`(17); `stop` → modo 0 + limpa alvo de combate; `come` → recall do mod;
   `sethome`(11) `wander`(12) `pickup`(13) `command`(14) e suas negações; posturas 20–23 → `SetCombatStance`.
   `none` = não é ordem. `despawn` **não** é exposto ao modelo (de propósito).
-- **Pendências conhecidas:** o `amount` é registrado no log e no feedback ("Ok: coletar madeira (20)") mas
-  a **quantidade real continua sendo a dos jobs** (`[Gathering] WoodLimit` etc.) — um teto por ordem exige
-  um campo novo nos controladores (Fase 3.5). Ordens com alvo (`atacar X`, `equipar Y`) idem.
+- **Pendências conhecidas:** ordens com alvo (`atacar X`, `equipar Y`) ainda não têm efeito além do job
+  (Fase 3.6). O número da ordem **limita** madeira/pedra/minério desde a Fase 3.2 (ver abaixo).
+
+### Fase 3.2 — o número da ordem limita o trabalho (✅ — Unreleased)
+
+`colete 5 madeiras` era tratado como "liga o job Wood": o companheiro cortava até o limite da configuração
+(`[Gathering] WoodLimit`, 500 por padrão). Agora o número da ordem é um **teto por companheiro**.
+
+| Peça | Arquivo | O que faz |
+|---|---|---|
+| Teto no ZDO | `src/Companions/Companion/CompanionSetup.cs` | `HC_OrderCap` (int, 0 = sem teto) e `HC_OrderCapMode` (int, o modo a que o teto pertence) + `OrderCap`/`SetOrderCap`/`ClearOrderCap`/`CompleteOrderCap` (escrita só no dono, `IsOwner`) |
+| Ordem → teto | `src/Companions/AI/CompanionOrders.cs` | Ordem de coleta com `amount > 0` (wood/stone/ore) grava o teto; `stop`, `follow`, outra ordem de trabalho ou a troca de modo (`ApplyActionMode`) **limpam** o teto |
+| Teto no job | `src/Companions/Jobs/MHR_GatherRules.cs` | `AllowTarget`/`AllowLoose` usam `limit = min(limite da config, teto)` (o `Name:Number` da lista, se for menor, continua ganhando); ao acabar o que alcançar, o teto cumprido **encerra a ordem** e volta ao follow |
+| Fim da ordem | `src/Companions/Jobs/HarvestController.cs` | Um scan vazio passa por `MHR_GatherRules.OrderDone`: se o motivo foi o teto, o companheiro larga a ferramenta e volta a seguir (como o `stop`) |
+
+- **Como o teto é lido:** direto do ZDO (um lookup de dicionário, no máximo uma vez por candidato por scan,
+  **nunca por frame**). Nada de config nova e nada de alocação por frame.
+- **`Name:Number` menor que o teto continua ganhando** (`Wood:3` com a ordem `colete 5` para em 3).
+- **Alvo apontado no radial** (`SetDirectedTarget`) **não** sofre o teto — a fase 3.2 só mexe nas ordens de chat.
+- **Coleta normal (sem ordem) inalterada:** sem teto no ZDO, tudo continua sendo a config (radial e teclas idem).
+- **Um detalhe honesto:** o teto decide se o companheiro **começa** um alvo; a última árvore derrubada pode
+  passar do número (a árvore inteira cai de uma vez). Depois disso ele para, diz "já temos madeira de sobra"
+  e volta a seguir.
+- **Multiplayer/reload:** o teto vive no ZDO do companheiro, então cada companheiro para no seu próprio número
+  e ele sobrevive a um reload; quem escreve é o dono (`MHR_Owner.TakeControl` antes da ordem).
 

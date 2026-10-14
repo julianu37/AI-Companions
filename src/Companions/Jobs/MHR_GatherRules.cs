@@ -10,6 +10,8 @@ namespace Companions
         class Per
         {
             public int LimitRejects, OtherRejects;
+            // Fase 3.2: candidates this frame's scan turned away because an order's ceiling was met (see CapReject)
+            public int CapRejects; public int CapFrame;
             public float NextPlenty;
             public bool PackFull;
             public float DodgeUntil; public Vector3 DodgePoint;
@@ -181,7 +183,10 @@ namespace Companions
             Per p = P(h);
             p.LimitRejects = 0; p.OtherRejects = 0;
             GameObject r = h.ScanForTarget(mode);
-            if (r == null && p.LimitRejects > 0 && mode >= 1 && mode <= 3 && Time.time >= p.NextPlenty)
+            // Fase 3.2: when an order's ceiling is what stopped this scan, the caller ends the order instead
+            // (MHR_GatherRules.OrderDone) - the "at its limit - waiting" line is for the config's own limits.
+            bool byCeiling = p.CapRejects > 0 && p.CapFrame == Time.frameCount;
+            if (r == null && !byCeiling && p.LimitRejects > 0 && mode >= 1 && mode <= 3 && Time.time >= p.NextPlenty)
             {
                 p.NextPlenty = Time.time + 120f;
                 Info("Everything it can reach on the " + (mode == 1 ? "wood" : mode == 2 ? "stone" : "ore") + " list is at its limit - waiting");
@@ -189,6 +194,39 @@ namespace Companions
                 if (talk != null) talk.Say(ModLocalization.Loc(mode == 1 ? "hc_speech_plenty_wood" : mode == 2 ? "hc_speech_plenty_stone" : "hc_speech_plenty_ore"), false);
             }
             return r;
+        }
+
+        // Fase 3.2: a candidate was turned away because the ceiling an order put on this job is met. Counted per frame
+        // (the frame's first look at a target or a loose item starts the count), so what "stopped it" is judged on
+        // what this scan cycle actually saw - and never more than one ZDO read per candidate.
+        static void CapReject(Per p)
+        {
+            if (p.CapFrame != Time.frameCount) { p.CapFrame = Time.frameCount; p.CapRejects = 0; }
+            p.CapRejects++;
+        }
+
+        // Fase 3.2: a scan came up empty and the ceiling an order put on this job is what stopped it ("colete 5
+        // madeiras") - the order is done: forget the ceiling and go back to following, like "stop". Called by
+        // HarvestController when a scan finds nothing, which also covers the jobs that only pick things up by hand.
+        public static bool OrderDone(HarvestController h, int mode)
+        {
+            try
+            {
+                if (h == null || mode < 1 || mode > 3) return false;
+                if (h.IsDirectedHarvest) return false;      // a target pointed at on the radial is not a chat order
+                Per p;
+                // the rejection has to be from this frame's scan - a stale count must never end an order
+                if (!s_per.TryGetValue(h.GetInstanceID(), out p) || p.CapRejects <= 0 || p.CapFrame != Time.frameCount) return false;
+                int cap = CompanionSetup.OrderCap(h, mode);
+                if (cap <= 0) return false;
+                p.CapRejects = 0;
+                Info("Order ceiling reached (" + cap + " on " + (mode == 1 ? "wood" : mode == 2 ? "stone" : "ore") + ") - order done, back to following");
+                CompanionTalk talk = h.GetComponent<CompanionTalk>();
+                if (talk != null) talk.Say(ModLocalization.Loc(mode == 1 ? "hc_speech_plenty_wood" : mode == 2 ? "hc_speech_plenty_stone" : "hc_speech_plenty_ore"), false);
+                CompanionSetup.CompleteOrderCap(h);
+                return true;
+            }
+            catch (Exception e) { Warn("OrderDone: " + e.Message); return false; }
         }
 
         public static bool AllowTarget(HarvestController h, GameObject go, int mode)
@@ -214,12 +252,19 @@ namespace Companions
                 List<string> drops = DropsOf(go);
                 if (drops.Count == 0) return true;      // unknown drops: don't block it
                 bool listed = false;
+                // Fase 3.2: the ceiling an order put on this job ("colete 5 madeiras") caps the job's own limit, so
+                // 5 wins over WoodLimit 500; a smaller per-item amount (Name:Number) still wins over the ceiling.
+                // A target the player pointed at on the radial is left alone.
+                int cap = h.IsDirectedHarvest ? 0 : CompanionSetup.OrderCap(h, mode);
                 for (int i = 0; i < drops.Count; i++)
                 {
                     if (!list.Allows(drops[i], ItemLocal(drops[i]))) continue;
                     int limit = list.AmountFor(drops[i], DefaultLimit(mode));
+                    bool capped = false;
+                    if (cap > 0 && (limit <= 0 || cap < limit)) { limit = cap; capped = true; }
                     listed = true;
                     if (limit <= 0 || Stock(h, drops[i]) < limit) return true;
+                    if (capped) CapReject(p);
                 }
                 if (listed) p.LimitRejects++; else p.OtherRejects++;
                 return false;
@@ -266,7 +311,13 @@ namespace Companions
                 if (list == null) return true;
                 if (!list.Allows(item, ItemLocal(item))) return false;
                 int limit = list.AmountFor(item, DefaultLimit(mode));
-                return limit <= 0 || Stock(h, item) < limit;
+                // Fase 3.2: an order's ceiling caps this too, so "colete 5 madeiras" also stops picking branches up at 5
+                int cap = h.IsDirectedHarvest ? 0 : CompanionSetup.OrderCap(h, mode);
+                bool capped = false;
+                if (cap > 0 && (limit <= 0 || cap < limit)) { limit = cap; capped = true; }
+                if (limit <= 0 || Stock(h, item) < limit) return true;
+                if (capped) CapReject(P(h));
+                return false;
             }
             catch (Exception e) { Warn("AllowLoose: " + e.Message); return false; }
         }

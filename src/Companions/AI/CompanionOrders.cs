@@ -64,7 +64,7 @@ internal static class CompanionOrders
 
 		foreach (CompanionSetup companion2 in CompanionSetup.AllCompanions)
 		{
-			if (companion2 != null && Apply(companion2, action))
+			if (companion2 != null && Apply(companion2, action, intent.Amount))
 			{
 				outcome.Count++;
 			}
@@ -78,7 +78,7 @@ internal static class CompanionOrders
 	}
 
 	/// <summary>True when this companion took the order. Null-safe, main thread only.</summary>
-	private static bool Apply(CompanionSetup companion, string action)
+	private static bool Apply(CompanionSetup companion, string action, int amount)
 	{
 		if (companion == null || companion.GetComponent<ZNetView>()?.GetZDO() == null)
 		{
@@ -106,9 +106,11 @@ internal static class CompanionOrders
 		switch (action)
 		{
 		case "follow":
+			CompanionSetup.ClearOrderCap(companion);
 			SetFollow(companion);
 			return true;
 		case "stop":
+			CompanionSetup.ClearOrderCap(companion);
 			SetFollow(companion);
 			ClearCombatTarget(companion);
 			return true;
@@ -151,10 +153,24 @@ internal static class CompanionOrders
 				return false;
 			}
 			// the wheel toggles a job off when it's picked twice; an order always sets it
+			CompanionSetup.ClearOrderCap(companion);   // a new job order drops the ceiling of the old one
 			CompanionSetup.ApplyActionMode(companion, mode, toggle: false);
+			// Fase 3.2: "colete 5 madeiras" - the number caps the job, so it stops at 5 instead of the config's 500
+			if (amount > 0 && HasOrderCap(mode))
+			{
+				CompanionSetup.SetOrderCap(companion, mode, amount);
+				CompanionsPlugin.Log?.LogInfo($"[IA] Order ceiling: mode {mode} stops at {amount}");
+			}
 			return true;
 		}
 		}
+	}
+
+	/// <summary>Fase 3.2: jobs that stop at an amount, so a number in the order can be their ceiling (wood, stone,
+	/// ore - the same three MHR_GatherRules keeps a limit for).</summary>
+	internal static bool HasOrderCap(int mode)
+	{
+		return mode == CompanionSetup.ModeGatherWood || mode == CompanionSetup.ModeGatherStone || mode == CompanionSetup.ModeGatherOre;
 	}
 
 	/// <summary>The work mode behind an order, or -1 when the action isn't a job.</summary>

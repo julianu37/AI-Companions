@@ -34,6 +34,13 @@ public class CompanionSetup : MonoBehaviour
 
 	internal static readonly int ActionModeSchemaHash = "HC_ActionModeSchema".GetStableHashCode();
 
+	// Fase 3.2: the ceiling a chat order put on a gathering job ("colete 5 madeiras" -> 5). 0 = no ceiling (the
+	// config rules, as before). In the ZDO so every companion has its own and it survives a reload.
+	internal static readonly int OrderCapHash = "HC_OrderCap".GetStableHashCode();
+
+	// Fase 3.2: which work mode that ceiling belongs to - a ceiling for Wood must not follow the companion into Stone.
+	internal static readonly int OrderCapModeHash = "HC_OrderCapMode".GetStableHashCode();
+
 	internal static readonly int StaminaHash = "HC_Stamina".GetStableHashCode();
 
 	internal static readonly int AutoPickupHash = "HC_AutoPickup".GetStableHashCode();
@@ -805,6 +812,12 @@ public class CompanionSetup : MonoBehaviour
 		int current = zdo.GetInt(ActionModeHash);
 		int next = (toggle && current == mode) ? 0 : mode;
 		zdo.Set(ActionModeHash, next);
+		// Fase 3.2: the ceiling belongs to one job. Picking another job (or turning the job off) drops it, so a stale
+		// ceiling can never stop a job the player didn't ask for. A chat order sets its own right after this call.
+		if (next == 0 || zdo.GetInt(OrderCapModeHash, 0) != next)
+		{
+			ClearOrderCap(companion);
+		}
 		MHR_JobRules.OnJobSet(companion, next);
 		companion.GetComponent<HarvestController>()?.NotifyActionModeChanged();
 		companion.ApplyFollowMode(next);
@@ -814,6 +827,80 @@ public class CompanionSetup : MonoBehaviour
 		companion.GetComponent<CookController>()?.NotifyActionModeChanged();
 		companion.GetComponent<HuntController>()?.NotifyActionModeChanged();
 		companion.GetComponent<UpkeepController>()?.NotifyActionModeChanged();
+	}
+
+	// ---- Fase 3.2: the ceiling a chat order put on a gathering job ----
+	// "colete 5 madeiras" used to be a job like any other, so the companion kept chopping until the config limit
+	// (WoodLimit, 500 by default). The ceiling is kept per companion in its ZDO (so several companions each stop at
+	// their own number and it survives a reload) and is only read by the gather jobs.
+
+	/// <summary>The ceiling an order put on this mode for this companion; 0 = no ceiling (or it belongs to another
+	/// mode). Reads the ZDO straight: a dictionary lookup, at most once per candidate per scan - never per frame.</summary>
+	internal static int OrderCap(Component c, int mode)
+	{
+		ZDO zdo = ZdoOf(c, out _);
+		if (zdo == null)
+		{
+			return 0;
+		}
+		int cap = zdo.GetInt(OrderCapHash, 0);
+		return (cap > 0 && zdo.GetInt(OrderCapModeHash, 0) == mode) ? cap : 0;
+	}
+
+	/// <summary>Remembers the ceiling of an order ("colete 5 madeiras"). Owner only: the ceiling is written where the
+	/// order was given (the caller has claimed the companion by then).</summary>
+	internal static void SetOrderCap(Component c, int mode, int amount)
+	{
+		ZNetView nv;
+		ZDO zdo = ZdoOf(c, out nv);
+		if (zdo == null || !nv.IsOwner())
+		{
+			CompanionsPlugin.Log?.LogWarning("[IA] Order ceiling not written: not the owner of this companion");
+			return;
+		}
+		if (amount > 0 && zdo.GetInt(OrderCapHash, 0) == amount && zdo.GetInt(OrderCapModeHash, 0) == mode)
+		{
+			return;   // already there - don't dirty the ZDO for nothing
+		}
+		zdo.Set(OrderCapHash, amount);
+		zdo.Set(OrderCapModeHash, amount > 0 ? mode : 0);
+	}
+
+	/// <summary>Forgets the ceiling (order finished or cancelled, or another job picked).</summary>
+	internal static void ClearOrderCap(Component c)
+	{
+		ZNetView nv;
+		ZDO zdo = ZdoOf(c, out nv);
+		if (zdo == null || !nv.IsOwner())
+		{
+			return;
+		}
+		if (zdo.GetInt(OrderCapHash, 0) == 0 && zdo.GetInt(OrderCapModeHash, 0) == 0)
+		{
+			return;
+		}
+		zdo.Set(OrderCapHash, 0);
+		zdo.Set(OrderCapModeHash, 0);
+	}
+
+	/// <summary>The ceiling was met: the order is done. Forget it and go back to following, exactly like "stop".</summary>
+	internal static void CompleteOrderCap(Component c)
+	{
+		CompanionSetup companion = c as CompanionSetup;
+		if (companion == null)
+		{
+			return;
+		}
+		ClearOrderCap(companion);
+		MHR_JobRules.FollowSetByPlayer(companion);
+		companion.SetFollow(true);
+		ApplyActionMode(companion, ModeFollow, toggle: false);
+	}
+
+	private static ZDO ZdoOf(Component c, out ZNetView nv)
+	{
+		nv = c != null ? c.GetComponent<ZNetView>() : null;
+		return (nv != null && nv.IsValid()) ? nv.GetZDO() : null;
 	}
 
 	internal void ApplyFollowMode(int mode, bool force = false)

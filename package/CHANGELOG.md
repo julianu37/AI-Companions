@@ -2,7 +2,7 @@
 
 All notable changes to this fork of ProfMags' Offline Companions. Versions before 1.4.0 are the original mod (see [ProfMags' Thunderstore page](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) for that history) plus the initial batch of Valheim 1.0 API-compatibility fixes that let the mod load and run at all on 1.0.
 
-## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Tradução PT-BR (fork ModAI-BR-Companions)
+## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2: o número da ordem limita o trabalho + Tradução PT-BR (fork ModAI-BR-Companions)
 - **Fase 3.1 — o jogador digita a ordem no chat do jogo e o companheiro executa.** `colete 20 de madeira`,
   `segue`, `para`, `vem cá`, `minere ferro`, `fica na defensiva`... A frase vai para um **LLM local** por uma
   API compatível com a OpenAI (`POST {BaseUrl}/chat/completions`; LM Studio, Ollama, llama.cpp, vLLM) e a
@@ -29,14 +29,25 @@ All notable changes to this fork of ProfMags' Offline Companions. Versions befor
 - **Feedback em PT-BR** via localização (`hc_ai_*`): `Pensando...`, `Ok: coletar madeira (20)`,
   `Não entendi a ordem.`, `Nenhum companheiro seu está perto o bastante...`, `A IA não respondeu: ...`, e a
   nova aba **IA** no painel F8.
-- **Nota:** o `amount` aparece no log e no feedback, mas a quantidade real continua sendo a dos jobs
-  (`[Gathering] WoodLimit` e afins) — teto por ordem e ordens com alvo (`atacar X`, `equipar Y`) ficam para
-  a Fase 3.5.
+- **Fase 3.2 — o número da ordem passou a valer: `colete 5 madeiras` para em 5.** Antes a ordem só ligava o
+  job e o companheiro cortava até o limite da configuração (`[Gathering] WoodLimit`, 500). Agora o número vira
+  um **teto por companheiro**, guardado no ZDO dele (`HC_OrderCap` / `HC_OrderCapMode`): funciona com vários
+  companheiros (cada um com o seu número), sobrevive a um reload e é limpo quando a ordem termina, quando você
+  diz `para`/`segue`, quando outra ordem de trabalho chega ou quando o modo de trabalho muda (radial incluído).
+  Vale para **madeira, pedra e minério**; `Name:Number` da lista, se for menor, continua ganhando.
+- **Ao bater o teto o companheiro para e volta a seguir** (como o `stop`), com a fala de "já temos de sobra"
+  e uma linha no log. Se ele já tiver o suficiente, a ordem termina na hora.
+- **O teto não mexe na coleta normal nem no radial:** sem ordem com número, tudo continua sendo a
+  configuração; alvos apontados no radial (SetDirectedTarget) são ignorados pelo teto. A leitura do ZDO é um
+  lookup por candidato por scan (nunca por frame).
+- **Nota:** o teto decide se o companheiro **começa** um alvo, então a última árvore derrubada pode passar do
+  número pedido (ela cai inteira). O `amount` também aparece no log e no feedback (`Ok: coletar madeira (5)`).
+  Ordens com alvo (`atacar X`, `equipar Y`) continuam na Fase 3.6.
 - Tradução completa do **sistema de localização** para `Portuguese_Brazilian`: `Translations/Portuguese_Brazilian.json`
   com **263 chaves** — as 204 do upstream e 59 novas para textos que estavam fixos em inglês no código.
   Chaves e placeholders (`{0}`, `{1}`) idênticos ao inglês; o `English.json` continua sendo o fallback e é
   regenerado sozinho quando faltam chaves.
-- Tradução das **186 falas do companheiro** em `Translations/speech/Portuguese_Brazilian.json` (o sistema de
+- Tradução das **186 falas do companheiro** em `Speech/Portuguese_Brazilian.json` (o sistema de
   fala próprio do mod, `SpeechConfig`): saudações e ordens, conversa fiada, combate, fome, peso, reparo,
   fundição, caça, pesca, plantio, cozinha e "sem cama".
 - O build agora copia `Translations\**\*.json` da raiz do repositório para `$(DeployDir)\Translations\`
