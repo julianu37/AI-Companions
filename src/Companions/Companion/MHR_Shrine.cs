@@ -27,6 +27,12 @@ internal static class MHR_Shrine
 		return ModLocalization.Loc("hc_shrine_name");
 	}
 
+	// the hover name of the shrine (CompanionShrine.GetHoverName)
+	internal static string HoverName()
+	{
+		return LocalizedName();
+	}
+
 	private static string LocalizedDescription()
 	{
 		if (Localization.instance == null)
@@ -332,7 +338,7 @@ public class CompanionShrine : MonoBehaviour, Hoverable, Interactable
 
 	public string GetHoverName()
 	{
-		return MHR_Shrine.DisplayName;
+		return MHR_Shrine.HoverName();
 	}
 
 	public float GetHoverOffset()
