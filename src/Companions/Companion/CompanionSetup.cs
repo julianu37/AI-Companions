@@ -886,9 +886,12 @@ public class CompanionSetup : MonoBehaviour
 	/// <summary>The ceiling was met: the order is done. Forget it and go back to following, exactly like "stop".</summary>
 	internal static void CompleteOrderCap(Component c)
 	{
-		CompanionSetup companion = c as CompanionSetup;
+		// The caller is the gather job (HarvestController), not the CompanionSetup: resolve the companion from
+		// whatever component was passed, otherwise the ceiling is never cleared and the job never stops.
+		CompanionSetup companion = c as CompanionSetup ?? (c != null ? c.GetComponent<CompanionSetup>() : null);
 		if (companion == null)
 		{
+			CompanionsPlugin.Log?.LogWarning("[IA] Order ceiling: no CompanionSetup on the component that reached the ceiling");
 			return;
 		}
 		ClearOrderCap(companion);
