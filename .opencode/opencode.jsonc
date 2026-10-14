@@ -1,0 +1,40 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "references": {
+    "bepinex": {
+      "repository": "BepInEx/BepInEx",
+      "description": "Fonte oficial do BepInEx (plugin, config, logging, Harmony). Use para confirmar APIs de plugin/config/patches."
+    },
+    "jotunn": {
+      "repository": "Valheim-Modding/Jotunn",
+      "description": "Fonte oficial do Jotunn (Managers, prefabs, itens, GUI, localização). Use para confirmar APIs do framework."
+    },
+    "offline-companions": {
+      "repository": "MaddhattrRocks/Offline-Companions-Reborn",
+      "description": "Mod companheiro (MIT, uso livre) para Valheim 1.0: IA de movimento/combate, jobs de coleta/farm/fish/hunt/cook/smelt/repair, UI (menu radial, painéis, HUD), patches. Consulte para ideias e implementação — ver docs/references.md."
+    }
+  },
+  "mcp": {
+    "servers": {
+      "alvin": {
+        "type": "local",
+        "command": [
+          "C:\\Users\\revenda33\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\mcp-proxy.exe",
+          "http://localhost:5050/sse"
+        ]
+      },
+      "github": {
+        "type": "remote",
+        "url": "https://api.githubcopilot.com/mcp/"
+      },
+      "context7": {
+        "type": "remote",
+        "url": "https://mcp.context7.com/mcp"
+      },
+      "learn": {
+        "type": "remote",
+        "url": "https://learn.microsoft.com/api/mcp"
+      }
+    }
+  }
+}
