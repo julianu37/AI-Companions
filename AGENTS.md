@@ -52,13 +52,29 @@ skills em `.opencode/skills/`. Leia este arquivo antes de agir.
 |---|---|
 | `Core/` | Entry point, config, **localização**, speech config, helpers (reflexão, texturas, input) |
 | `Companion/` | Setup, spawn/prefabs, aparência, tiers, skills, stamina, comida, descanso, **talk**, morte/respawn |
-| `AI/` | Movimento e combate: `CompanionAI`, `CompanionCombatAI`, arma/escudo, tocha, água, portas, `MHR_Mover` |
+| `AI/` | Movimento e combate: `CompanionAI`, `CompanionCombatAI`, arma/escudo, tocha, água, portas, `MHR_Mover`; **camada de IA**: `LlmClient`, `LlmIntent`, `CompanionOrders`, `CompanionChatAI` |
 | `Jobs/` | Trabalhos: harvest, farm, fish, hunt, cook, smelt, repair, upkeep, loot, tool keeper |
 | `UI/` | Painéis, **menu radial**, HUD, config, zone placers, fixes de fonte/inventário |
 | `Patches/` | Patches Harmony nas classes vanilla |
 | `Diagnostics/` | Logs de diagnóstico (`[AIGate]`, `[EQUIPDIAG]`, `[UiDiag]`, `[Diag]`) |
 
 Notas de desenvolvimento do upstream: `docs/DEV_NOTES.md`; handoff: `docs/SESSION_HANDOFF.md`.
+
+## Camada de IA (Fase 3.1 — ordens por texto no chat)
+
+O jogador digita a ordem no chat do jogo (`colete 20 de madeira`, `segue`, `para`) e um **LLM local**
+(API compatível com a OpenAI: `POST {BaseUrl}/chat/completions`) devolve a intenção em JSON, que vira a
+**mesma ação** do menu radial / tecla de comando. Fluxo: `CompanionChatAI` (patch Harmony em
+`Chat.SendText` + system prompt PT-BR) → `LlmClient` (POST em `Task` de fundo + fila thread-safe drenada
+no `Update`) → `LlmIntent` (parser tolerante) → `CompanionOrders` (intenção → `CompanionSetup.ApplyActionMode`,
+`SetCombatStance`, `MHR_JobRules`, recall...).
+
+- Config `[IA]` no `.cfg` (sem segredos no código): `Ligado`, `BaseUrl`, `Modelo`, `ApiKey`, `Temperatura`,
+  `TimeoutSegundos`, `Prefixo`, `MostrarRespostaNoChat`, `CooldownSegundos`.
+- `Chat.SendText(Talker.Type, string)` é o caminho da mensagem **do próprio jogador** (as recebidas entram
+  por `Chat.OnNewChatMessage`) — é o único ponto capturado.
+- `despawn` não é exposto ao modelo. O `amount` é informativo: a quantidade real segue sendo a dos jobs.
+- Backend/contrato de referência: `docs/re/backend-contract.md`; mapa da fase: `docs/roadmap.md` (Trilha D).
 
 ## Nossas docs
 

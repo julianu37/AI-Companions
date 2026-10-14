@@ -101,6 +101,7 @@ public class CompanionsPlugin : BaseUnityPlugin
 		EquipDiag.Install(_harmony);
 		ModLocalization.Init();
 		ModLocalization.EnsureDefaultFile();
+		CompanionChatAI.Init();
 		SceneManager.sceneLoaded += OnSceneLoaded;
 		Game.m_playerInitialSpawn += CompanionManager.MHR_StarterOnce;
 		ConfigPanel.Create();
@@ -168,6 +169,15 @@ public class CompanionsPlugin : BaseUnityPlugin
 		catch (Exception ex2)
 		{
 			Log.LogWarning("[Roster] Error: " + ex2.ToString());
+		}
+		try
+		{
+			// Fase 3.1: applies any chat order the model has finished thinking about (never blocks)
+			CompanionChatAI.Tick();
+		}
+		catch (Exception ex3)
+		{
+			Log.LogWarning("[IA] Error: " + ex3.ToString());
 		}
 	}
 

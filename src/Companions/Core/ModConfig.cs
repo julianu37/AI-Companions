@@ -480,6 +480,25 @@ internal static class ModConfig
 
 	internal static ConfigEntry<KeyCode> FarmZoneModifier;
 
+	// [IA] - Fase 3.1: ordens por texto no chat, interpretadas por um LLM local (LM Studio/Ollama, API OpenAI-compatible)
+	internal static ConfigEntry<bool> AiEnabled;
+
+	internal static ConfigEntry<string> AiBaseUrl;
+
+	internal static ConfigEntry<string> AiModel;
+
+	internal static ConfigEntry<string> AiApiKey;
+
+	internal static ConfigEntry<float> AiTemperature;
+
+	internal static ConfigEntry<int> AiTimeoutSeconds;
+
+	internal static ConfigEntry<string> AiPrefix;
+
+	internal static ConfigEntry<bool> AiShowResponse;
+
+	internal static ConfigEntry<float> AiCooldown;
+
 	internal static void Init(ConfigFile cfg)
 	{
 		// [General]
@@ -726,6 +745,18 @@ internal static class ModConfig
 		ConsumeCheckInterval = Bind(cfg, "Advanced", "FoodCheckInterval", 1f, "Food: seconds between checks whether a companion should eat or drink.", new AcceptableValueRange<float>(0.5f, 10f));
 		TombstoneScanInterval = Bind(cfg, "Advanced", "TombstoneScanInterval", 5f, "Death: seconds between looks for its own leftover tombstone nearby.", new AcceptableValueRange<float>(1f, 30f));
 		TombstoneNavTimeout = Bind(cfg, "Advanced", "TombstoneNavTimeout", 120f, "Death: seconds a companion keeps trying to get to its tombstone before giving up.", new AcceptableValueRange<float>(10f, 600f));
+
+		// [IA] - Fase 3.1: the player types an order in the game chat and a local LLM (LM Studio / Ollama / any
+		// OpenAI-compatible /chat/completions endpoint) turns it into an action for the companions. See CompanionChatAI.
+		AiEnabled = Bind(cfg, "IA", "Ligado", defaultValue: true, "Fase 3.1: type an order in the game chat (\"colete 20 de madeira\", \"segue\", \"para\") and the companions carry it out. The order is interpreted by a local LLM over an OpenAI-compatible API. Off = nothing is ever sent to the model.");
+		AiBaseUrl = Bind(cfg, "IA", "BaseUrl", "http://localhost:1234/v1", "Base URL of the OpenAI-compatible server (LM Studio: http://localhost:1234/v1, Ollama: http://localhost:11434/v1). /chat/completions is added automatically. This is a text setting: edit it in the .cfg file.");
+		AiModel = Bind(cfg, "IA", "Modelo", "google/gemma-4-e4b", "Model name to send to the server (the name the server lists for the loaded model). Text setting: edit it in the .cfg file.");
+		AiApiKey = Bind(cfg, "IA", "ApiKey", "", "API key, if the server wants one. Leave empty for LM Studio/Ollama on localhost. Text setting: edit it in the .cfg file. Never put a key in a shared config.");
+		AiTemperature = Bind(cfg, "IA", "Temperatura", 0.1f, "How much the model is allowed to improvise. Keep it low so the same order always gives the same JSON.", new AcceptableValueRange<float>(0f, 1f));
+		AiTimeoutSeconds = Bind(cfg, "IA", "TimeoutSegundos", 30, "Seconds to wait for the model before giving up. The request runs in the background, so a slow model never freezes the game.", new AcceptableValueRange<int>(1, 300));
+		AiPrefix = Bind(cfg, "IA", "Prefixo", "", "Only chat messages starting with this go to the model (for example /c). Empty = every chat message is sent. Text setting: edit it in the .cfg file.");
+		AiShowResponse = Bind(cfg, "IA", "MostrarRespostaNoChat", defaultValue: true, "Show the model's raw answer in the chat, so you can see what it understood. Useful while testing; turn off for a cleaner chat.");
+		AiCooldown = Bind(cfg, "IA", "CooldownSegundos", 3f, "Shortest time (seconds) between two orders, so a burst of chat messages can't flood the model.", new AcceptableValueRange<float>(0f, 60f));
 
 		// 1.4.149: settings moved/renamed in the config clean-up keep the values players set; leftovers are removed.
 		// 1.4.150: the fix-ups below only run on such an upgrade (a file from before the clean-up), not on every start -

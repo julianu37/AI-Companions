@@ -2,7 +2,36 @@
 
 All notable changes to this fork of ProfMags' Offline Companions. Versions before 1.4.0 are the original mod (see [ProfMags' Thunderstore page](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) for that history) plus the initial batch of Valheim 1.0 API-compatibility fixes that let the mod load and run at all on 1.0.
 
-## Unreleased — Tradução PT-BR (fork ModAI-BR-Companions)
+## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Tradução PT-BR (fork ModAI-BR-Companions)
+- **Fase 3.1 — o jogador digita a ordem no chat do jogo e o companheiro executa.** `colete 20 de madeira`,
+  `segue`, `para`, `vem cá`, `minere ferro`, `fica na defensiva`... A frase vai para um **LLM local** por uma
+  API compatível com a OpenAI (`POST {BaseUrl}/chat/completions`; LM Studio, Ollama, llama.cpp, vLLM) e a
+  intenção devolvida em JSON vira a **mesma ação** do menu radial/tecla de comando. Novos arquivos:
+  `src/Companions/AI/LlmClient.cs` (cliente HTTP), `LlmIntent.cs` (DTO + parser tolerante),
+  `CompanionOrders.cs` (intenção → ação do mod) e `CompanionChatAI.cs` (patch do chat + orquestração).
+- **Nunca trava o jogo:** o POST roda numa `Task` de fundo e a resposta volta por uma fila thread-safe
+  drenada no `Update` do plugin (sem `.Result`/`.Wait()`), com timeout configurável, um pedido por vez e
+  watchdog. Erro de rede vira uma linha no HUD/chat, nunca uma exceção no jogo.
+- **Captura do chat:** postfix Harmony em `Chat.SendText(Talker.Type, string)` — o caminho da mensagem **do
+  próprio jogador** (as mensagens recebidas entram por `Chat.OnNewChatMessage` e não são capturadas).
+  `Ping` é ignorado.
+- **Novo `[IA]` no `.cfg`** (nada de segredo no código): `Ligado` (true), `BaseUrl`
+  (`http://localhost:1234/v1`), `Modelo` (`google/gemma-4-e4b`), `ApiKey` (""), `Temperatura` (0.1),
+  `TimeoutSegundos` (30), `Prefixo` ("" = toda mensagem; ex. `/c` só as mensagens com esse prefixo),
+  `MostrarRespostaNoChat` (true, mostra a resposta crua do modelo no chat) e `CooldownSegundos` (3).
+- **Ações entendidas:** seguir, madeira, pedra, minério, coleta (plantas), fundir, caçar, plantar, pescar,
+  reparar/reabastecer, cozinhar; parar (volta a seguir + larga o alvo de combate), vir até você (recall),
+  definir casa, vagar/parar de vagar, recolher/parar de recolher, aceitar/ignorar comandos e as posturas
+  (equilibrada/defensiva/à distância/corpo a corpo). `despawn` **não** é exposto ao modelo.
+- **Refatoração mínima:** o corpo de `CompanionRadialMenu.SetActionMode` virou
+  `CompanionSetup.ApplyActionMode(companion, mode, toggle)` — o radial continua alternando (`toggle: true`),
+  as ordens do chat **setam** o modo (`toggle: false`).
+- **Feedback em PT-BR** via localização (`hc_ai_*`): `Pensando...`, `Ok: coletar madeira (20)`,
+  `Não entendi a ordem.`, `Nenhum companheiro seu está perto o bastante...`, `A IA não respondeu: ...`, e a
+  nova aba **IA** no painel F8.
+- **Nota:** o `amount` aparece no log e no feedback, mas a quantidade real continua sendo a dos jobs
+  (`[Gathering] WoodLimit` e afins) — teto por ordem e ordens com alvo (`atacar X`, `equipar Y`) ficam para
+  a Fase 3.5.
 - Tradução completa do **sistema de localização** para `Portuguese_Brazilian`: `Translations/Portuguese_Brazilian.json`
   com **263 chaves** — as 204 do upstream e 59 novas para textos que estavam fixos em inglês no código.
   Chaves e placeholders (`{0}`, `{1}`) idênticos ao inglês; o `English.json` continua sendo o fallback e é

@@ -53,7 +53,7 @@ Legenda: ✅ concluído · 🔄 em andamento · ⏳ pendente
 | 2.18b | **Seguir pelo portal** (`CompanionPortalFollow` + `[Portal]`): ele anda até o portal e é levado para junto de você quando o seu teleporte termina | ✅ (v0.4.6) |
 | 2.18c | **Carroça** (`CompanionCart` + `[Carroca]`): `modia_cart pull\|release` — ele anda até o engate do `Vagon` e puxa a carroça pelo `ConfigurableJoint` do jogo | ✅ (v0.4.6) |
 | 2.5 | Multiplayer (ZNetView/ZDO, testes com cliente/servidor) | ⏳ |
-| **3** | IA e voz: comandos por voz/chat, STT, TTS, personalidade | ⏳ |
+| **3** | IA e voz: comandos por voz/chat, STT, TTS, personalidade — **no fork, ver Trilha D** | 🔄 (3.1 ✅) |
 | **4** | Backend híbrido (LLM local + API), endpoints do "cérebro" | ⏳ |
 | **5** | Empacotamento (manifest, README, ícone) + revisão final | ⏳ |
 
@@ -324,3 +324,53 @@ Idioma do jogo em PT-BR = **`Portuguese_Brazilian`**.
 | Descrições das configurações (~250) — só aparecem no `BepInEx\config\*.cfg`; o painel F8 mostra as chaves | ⏳ (fora do escopo; exigiria ~250 chaves novas) |
 | Nomes técnicos das configurações no painel F8 (ex.: `MaxCarryWeight`) | ⏳ (mantidos iguais ao `.cfg`, por rastreabilidade) |
 | Linhas de log/diagnóstico (`[Roster]`, `[Shrine]`, `[Direct]`...) | ⏳ (mantidas em inglês de propósito, para suporte) |
+
+---
+
+## Trilha D — Camada de IA (fork)
+
+Ordens em **linguagem natural** por cima do mod do upstream. O companheiro continua sendo o do upstream
+(radial, jobs, combate); a IA é só uma **nova entrada** para as mesmas ações — nada de novo dirige o NPC.
+
+| Fase | Descrição | Status |
+|---|---|---|
+| **3.1** | **Ordem por texto no chat** (LLM local, API OpenAI-compatible) | ✅ (Unreleased) |
+| 3.2 | Voz: captura com `Microphone` → STT (backend) → mesma caixa de ordens | ⏳ |
+| 3.3 | TTS: o companheiro **fala** a confirmação (áudio do backend, `AudioSource`) | ⏳ |
+| 3.4 | Personalidade/memória: preset + texto livre no contexto do LLM | ⏳ |
+| 3.5 | Ordens com alvo (`atacar <criatura>`, `equipar <item>`, `largar <item>`) | ⏳ |
+| 3.6 | UI do NPC: menu de personalidade/voz + keybind de push-to-talk | ⏳ |
+
+### Fase 3.1 — ordem por texto no chat (✅ — Unreleased)
+
+O jogador digita `colete 20 de madeira` (ou `segue`, `para`, `vem cá`, `minere ferro`,
+`fica na defensiva`) no chat do jogo e o companheiro executa.
+
+| Peça | Arquivo | O que faz |
+|---|---|---|
+| Cliente HTTP | `src/Companions/AI/LlmClient.cs` | `POST {BaseUrl}/chat/completions` (LM Studio/Ollama/llama.cpp) numa `Task` de fundo + fila `ConcurrentQueue`; watchdog de timeout; nunca bloqueia a main thread |
+| DTO + parser | `src/Companions/AI/LlmIntent.cs` | Extrai o JSON mesmo com texto/markdown em volta, trata `"null"`/vazio, aceita `amount` ausente e **normaliza PT-BR/EN** (ações e recursos, com sinônimos) |
+| Intenção → ação | `src/Companions/AI/CompanionOrders.cs` | Reaproveita as mesmas chamadas do radial/tecla de comando (`CompanionSetup.ApplyActionMode`, `MHR_JobRules`, `SetCombatStance`, `MHR_FireSuperRecall`...) |
+| Orquestração | `src/Companions/AI/CompanionChatAI.cs` | Patch Harmony em `Chat.SendText` → filtro de prefixo → LLM → ação; feedback no HUD/chat em PT-BR; cooldown e anti-spam; system prompt PT-BR |
+
+- **Captura do chat:** postfix Harmony em `Chat.SendText(Talker.Type, string)`. Esse é o **único** caminho da
+  mensagem **do próprio jogador** (o `/say` do chat passa por ele); mensagens recebidas entram por
+  `Chat.OnNewChatMessage`/`Talker.RPC_Say`, então **não** são capturadas. `Ping` é ignorado.
+- **Sem travar o jogo:** o POST roda em `Task.Run` (com `HttpWebRequest.Timeout`/`ReadWriteTimeout`) e o
+  resultado volta por uma fila thread-safe drenada no `Update` do plugin. Nada de `.Result`/`.Wait()`.
+  Um pedido por vez (slot de "em voo") + watchdog.
+- **Refatoração mínima no upstream:** o corpo de `CompanionRadialMenu.SetActionMode` virou
+  `CompanionSetup.ApplyActionMode(companion, mode, toggle)`; o radial chama com `toggle: true`
+  (comportamento idêntico ao de antes) e o chat com `toggle: false` (ordem **seta** o modo, não alterna).
+- **Config `[IA]`:** `Ligado` (true), `BaseUrl` (`http://localhost:1234/v1`), `Modelo`
+  (`google/gemma-4-e4b`), `ApiKey` (""), `Temperatura` (0.1), `TimeoutSegundos` (30), `Prefixo` ("" = toda
+  mensagem; ex. `/c`), `MostrarRespostaNoChat` (true), `CooldownSegundos` (3). Nenhum segredo no código;
+  URL/modelo/chave/prefixo são strings do `.cfg`.
+- **Ações mapeadas:** `follow`(0) `wood`(1) `stone`(2) `ore`(3) `forage`(5) `smelt`(6) `hunt`(7) `farm`(8)
+  `fish`(9) `repair`(15) `cook`(17); `stop` → modo 0 + limpa alvo de combate; `come` → recall do mod;
+  `sethome`(11) `wander`(12) `pickup`(13) `command`(14) e suas negações; posturas 20–23 → `SetCombatStance`.
+  `none` = não é ordem. `despawn` **não** é exposto ao modelo (de propósito).
+- **Pendências conhecidas:** o `amount` é registrado no log e no feedback ("Ok: coletar madeira (20)") mas
+  a **quantidade real continua sendo a dos jobs** (`[Gathering] WoodLimit` etc.) — um teto por ordem exige
+  um campo novo nos controladores (Fase 3.5). Ordens com alvo (`atacar X`, `equipar Y`) idem.
+

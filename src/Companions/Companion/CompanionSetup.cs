@@ -788,6 +788,34 @@ public class CompanionSetup : MonoBehaviour
 		}
 	}
 
+	// Fase 3.1: one place that switches a companion's work mode, shared by the radial menu (toggle) and the chat
+	// orders (set, no toggle). The radial's own SetActionMode did exactly this; it now calls this method.
+	internal static void ApplyActionMode(CompanionSetup companion, int mode, bool toggle)
+	{
+		if (companion == null)
+		{
+			return;
+		}
+		ZNetView nv = companion.GetComponent<ZNetView>();
+		ZDO zdo = nv != null ? nv.GetZDO() : null;
+		if (zdo == null)
+		{
+			return;
+		}
+		int current = zdo.GetInt(ActionModeHash);
+		int next = (toggle && current == mode) ? 0 : mode;
+		zdo.Set(ActionModeHash, next);
+		MHR_JobRules.OnJobSet(companion, next);
+		companion.GetComponent<HarvestController>()?.NotifyActionModeChanged();
+		companion.ApplyFollowMode(next);
+		companion.GetComponent<SmeltController>()?.NotifyActionModeChanged();
+		companion.GetComponent<FarmController>()?.NotifyActionModeChanged();
+		companion.GetComponent<FishController>()?.NotifyActionModeChanged();
+		companion.GetComponent<CookController>()?.NotifyActionModeChanged();
+		companion.GetComponent<HuntController>()?.NotifyActionModeChanged();
+		companion.GetComponent<UpkeepController>()?.NotifyActionModeChanged();
+	}
+
 	internal void ApplyFollowMode(int mode, bool force = false)
 	{
 		if (_ai == null)

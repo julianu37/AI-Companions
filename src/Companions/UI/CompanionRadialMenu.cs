@@ -1748,22 +1748,9 @@ public class CompanionRadialMenu : MonoBehaviour
 
 	private void SetActionMode(int mode)
 	{
-		ZDO zDO = _companionNview.GetZDO();
-		if (zDO != null)
-		{
-			int num = zDO.GetInt(CompanionSetup.ActionModeHash);
-			int num2 = ((num != mode) ? mode : 0);
-			zDO.Set(CompanionSetup.ActionModeHash, num2);
-			MHR_JobRules.OnJobSet(_companion, num2);
-			_companionHarvest?.NotifyActionModeChanged();
-			_companion.ApplyFollowMode(num2);
-			_companion.GetComponent<SmeltController>()?.NotifyActionModeChanged();
-			_companion.GetComponent<FarmController>()?.NotifyActionModeChanged();
-			_companion.GetComponent<FishController>()?.NotifyActionModeChanged();
-			_companion.GetComponent<CookController>()?.NotifyActionModeChanged();
-			_companion.GetComponent<HuntController>()?.NotifyActionModeChanged();
-			_companion.GetComponent<UpkeepController>()?.NotifyActionModeChanged();
-		}
+		// Fase 3.1: the body moved to CompanionSetup.ApplyActionMode so the chat orders can set a mode without the
+		// toggle the wheel needs. Same behaviour as before here (toggle: true).
+		CompanionSetup.ApplyActionMode(_companion, mode, toggle: true);
 	}
 
 	private void DoSetHome()
