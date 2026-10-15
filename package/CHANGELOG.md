@@ -2,7 +2,52 @@
 
 All notable changes to this fork of ProfMags' Offline Companions. Versions before 1.4.0 are the original mod (see [ProfMags' Thunderstore page](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) for that history) plus the initial batch of Valheim 1.0 API-compatibility fixes that let the mod load and run at all on 1.0.
 
-## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.6b: a ordem sem alvo do modelo (drop/equip/attack caem para as palavras do jogador) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Fase 3.3c: raio de coleta maior e chatter aleatório desligado + Fase 3.3d: a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador + Fase 3.8: o companheiro abre o próprio inventário por voz/chat + Tradução PT-BR (fork ModAI-BR-Companions)
+## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.6b: a ordem sem alvo do modelo (drop/equip/attack caem para as palavras do jogador) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Fase 3.3c: raio de coleta maior e chatter aleatório desligado + Fase 3.3d: a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador + Fase 3.8: o companheiro abre o próprio inventário por voz/chat + Fase 3.4: o companheiro FALA (TTS local, Kokoro-82M via sherpa-onnx) + Tradução PT-BR (fork ModAI-BR-Companions)
+- **Fase 3.4 — o companheiro FALA: voz sintetizada local (Kokoro-82M via sherpa-onnx).** O companheiro agora
+  **fala em voz alta** o que responde, **na posição dele** no mundo. A voz é sintetizada **dentro do jogo** pelo
+  **Kokoro-82M** através do **`sherpa-onnx`** (NuGet `org.k2fsa.sherpa.onnx` 1.13.8, **Apache-2.0**, in-process) —
+  sem HTTP, sem processo filho, nada sai da sua máquina. É o espelho do `WhisperStt`: modelo carregado **uma vez**,
+  síntese **fora da main thread**, fila thread-safe drenada no `Update`. Nada do resto mudou (ordens por chat/voz,
+  STT, personalidade/memória/conversa, jobs, UI, radial, balão e chatter seguem iguais):
+  - **Vozes em português do Brasil:** `[IA] TtsVoz` **42** = `pf_dora` (feminina, padrão), **43** = `pm_alex`
+    (masculina), **44** = `pm_santa` (masculina). Os outros números do modelo são de outros idiomas.
+  - **Por FRASE, com cache:** o texto é cortado em frases (`.` `!` `?` `…`, quebras de linha; um ponto entre
+    dígitos é decimal; uma sequência de terminadores é **um** corte) e a **primeira frase já toca enquanto a
+    próxima é gerada** — a resposta começa a soar rápido. Falas repetidas (texto + voz + velocidade) saem do
+    **cache**, na hora.
+  - **Playback 3D:** **um** `AudioSource` na posição do companheiro (`spatialBlend = 1`), volume de
+    `[IA] TtsVolume`, **uma fala por vez** (fila, sem sobrepor), e o `AudioClip` é destruído ao terminar.
+  - **O que é falado** (regra: *a voz acompanha a linha que aparece no chat*): a **resposta do modelo**
+    (`[IA] TtsFalarRespostas`) e/ou a **linha do próprio mod** (`[IA] TtsFalarFalasDoMod`, ex. *"Ok: coletar
+    madeira (10)."*, *"Já temos o suficiente."*). Numa **ordem** a linha do mod ganha (desligue
+    `TtsFalarFalasDoMod` para ouvir a resposta do modelo no lugar dela); numa **conversa** é a resposta do
+    modelo. Nada é falado duas vezes (o texto que não foi falado vai para o log). Erro do LLM não é falado.
+  - **Prompt:** o contrato passou a exigir **UMA frase curta (até ~15 palavras)** no `reply` e a dizer que ela é
+    **falada em voz alta** — frase curta = fala mais rápida. O JSON do contrato não mudou.
+  - **Config `[IA]` (PT-BR):** `TtsLigado` (true), `TtsVoz` (42), `TtsVelocidade` (1.0), `TtsThreads` (**4** — RTF
+    medido ~0,83, mais rápido que o tempo real), `TtsVolume` (1.0), `TtsModelo` (`tts\kokoro\model.int8.onnx`;
+    `voices.bin`/`tokens.txt`/`espeak-ng-data` vêm da mesma pasta), `TtsIdioma` (**`pt-br`** — este Kokoro é
+    multi-lingue e a lib nativa **recusa** carregar sem idioma; `pt` sozinho é português de Portugal),
+    `TtsCache` (true), `TtsFalarRespostas` (true), `TtsFalarFalasDoMod` (true).
+  - **Carregamento dos nativos (Unity/Mono):** o binding gerenciado é um `[DllImport("sherpa-onnx-c-api")]` puro
+    (não tem loader próprio como o Whisper.net), e no Unity o Windows procuraria na pasta do **jogo**, não na do
+    plugin. `CompanionTts.EnsureNativeLibraries` roda antes do primeiro uso: `SetDllDirectory(<plugin>\runtimes\
+    win-x64\native)`, **pré-carrega** `onnxruntime.dll` e `sherpa-onnx-c-api.dll` por caminho absoluto com
+    `LoadLibraryEx(..., LOAD_WITH_ALTERED_SEARCH_PATH)` e **restaura** a ordem de busca (`SetDllDirectory(NULL)`)
+    — os módulos ficam no processo e o `DllImport` resolve por nome. O log diz qual DLL veio de onde.
+  - **`AudioClip`/`AudioSource` por reflexão:** o `UnityEngine.AudioModule` não é referenciável neste projeto
+    (netstandard 2.0 fixado pelos pacotes de voz → CS1705; a fachada 2.1 do jogo quebra `Span<T>` → CS7069), o
+    mesmo motivo do `VoiceInput.Mic`. A resolução é feita **uma vez** (11 membros) e as chamadas acontecem uma vez
+    por frase — o único trabalho por frame é o `transform.position` do `AudioSource` (CoreModule, direto).
+  - **Diagnóstico:** `[TTS] Modelo CARREGADO em N ms`, `[TTS] Frase i/n: N ms, RTF 0,xx para N,NN s de audio`,
+    `[TTS] Fala #n pronta: ...` e o comando de console **`modia_tts_teste [texto]`** (`F5`) para falar um texto
+    sem precisar do LLM nem do microfone.
+  - **PT-BR:** `hc_ai_tts_unavailable` (*"A voz do companheiro não está pronta (falta o modelo do Kokoro?)."*).
+  - **Verificação:** o `SplitSentences` **real** (17 casos) e o `PickSpokenText` **real** (14 casos, a tabela do
+    que é falado) compilados num harness de console (net472) — **ALL CHECKS PASSED**; a API do sherpa-onnx e o
+    carregamento dos nativos validados num harness que sintetizou áudio de verdade (carga ~1 s, 54 vozes, 24 kHz,
+    **RTF 0,73–0,91** com 4 threads). Detalhes: `docs/re/tts-kokoro-sherpa-onnx.md`.
+
 - **Fase 3.8 — "abre o teu inventário": o companheiro abre o próprio inventário para o jogador.** Pedido do jogador:
   *"seria possível fazer o companion abrir o inventário quando solicitado?"*. Falar/digitar `abre o teu inventário`,
   `mostra o inventário`, `mostra o que você carrega` (ou `fecha o inventário`, de bônus) e a **janela do inventário

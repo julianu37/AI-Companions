@@ -108,6 +108,7 @@ public class CompanionsPlugin : BaseUnityPlugin
 		WhisperSpike.Init();
 		WhisperStt.Init();
 		VoiceInput.Init();
+		CompanionTts.Init();
 		SceneManager.sceneLoaded += OnSceneLoaded;
 		Game.m_playerInitialSpawn += CompanionManager.MHR_StarterOnce;
 		ConfigPanel.Create();
@@ -138,6 +139,8 @@ public class CompanionsPlugin : BaseUnityPlugin
 		// Fase 3.3: stop recording (and free the microphone clip) and release the native Whisper model
 		VoiceInput.Shutdown();
 		WhisperStt.Shutdown();
+		// Fase 3.4: stop the speech worker, the AudioSource and release the native Kokoro model
+		CompanionTts.Shutdown();
 		_harmony?.UnpatchSelf();
 		if (ConfigPanel.Instance != null)
 		{
@@ -207,6 +210,15 @@ public class CompanionsPlugin : BaseUnityPlugin
 		catch (Exception ex5)
 		{
 			Log.LogWarning("[STT] Error: " + ex5.ToString());
+		}
+		try
+		{
+			// Fase 3.4: pre-warms the voice model and drives the speech playback queue (never blocks)
+			CompanionTts.Tick();
+		}
+		catch (Exception ex6)
+		{
+			Log.LogWarning("[TTS] Error: " + ex6.ToString());
 		}
 	}
 

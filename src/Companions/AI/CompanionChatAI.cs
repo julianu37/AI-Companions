@@ -55,8 +55,10 @@ internal static class CompanionChatAI
 		+ "stance_balanced, stance_passive (defensivo), stance_ranged (à distância), stance_melee (corpo a corpo),\n"
 		+ "none (a mensagem NÃO é uma ordem para o companheiro: conversa, pergunta, saudação ou algo que você não entende).\n"
 		+ "Regras:\n"
-		+ "- \"reply\" é SEMPRE a sua fala, em português, curta (uma frase), no seu jeito de falar: numa ORDEM é a confirmação\n"
-		+ "  (\"Deixa comigo.\"); quando NÃO é ordem é a sua resposta de conversa, respondendo de verdade o que o jogador perguntou.\n"
+		+ "- \"reply\" é SEMPRE a sua fala, em português, no seu jeito de falar, e é UMA ÚNICA FRASE CURTA (até ~15 palavras,\n"
+		+ "  sem duas frases, sem listas, sem parênteses): ela é FALADA EM VOZ ALTA, então uma frase curta sai na hora e\n"
+		+ "  uma frase longa faz o jogador esperar. Numa ORDEM ela é a confirmação (\"Deixa comigo.\"); quando NÃO é ordem\n"
+		+ "  é a sua resposta de conversa, respondendo de verdade o que o jogador perguntou.\n"
 		+ "- \"target\" é OBRIGATÓRIO em attack, equip e drop: é o NOME da criatura ou do item citado pela ordem, com as MESMAS\n"
 		+ "  PALAVRAS do jogador, em português, SEM traduzir e NUNCA null (nem vazio). \"ataca o greydwarf\" -> \"greydwarf\";\n"
 		+ "  \"joga essas pedras que você pegou\" -> \"pedra\"; \"joga 10 pedras no chão\" -> \"pedra\"; \"larga a madeira\" -> \"madeira\";\n"
@@ -294,7 +296,8 @@ internal static class CompanionChatAI
 		StringBuilder builder = new StringBuilder(Contract.Length + 320);
 		builder.Append("Você é ").Append(name).Append(", o companheiro NPC do jogador, e ele é o seu dono.\n");
 		builder.Append("Seu jeito de falar e de agir: ").Append(personality).Append('\n');
-		builder.Append("Fale sempre em português, no seu jeito, com uma ou duas frases, e trate o jogador como seu dono.\n");
+		builder.Append("Fale sempre em português, no seu jeito, com UMA frase curta, e trate o jogador como seu dono.\n");
+		builder.Append("A sua fala é lida em voz alta para o jogador: uma frase curta sai na hora, uma frase longa faz ele esperar.\n");
 		builder.Append(Contract);
 		CompanionMemory.AppendTo(builder, memoryKey, name);
 		return builder.ToString();
@@ -410,12 +413,17 @@ internal static class CompanionChatAI
 				CompanionsPlugin.Log?.LogInfo($"[IA] Conversation ({result.ElapsedMs} ms): \"{line}\"");
 				Speak(_pendingSpeaker, line);
 				Notify(line);
+				// Fase 3.4: the same line is spoken (the reply is the whole line of a conversation, so there is no
+				// "mod line" here to win over it)
+				SpeakOutLoud(_pendingSpeaker, null, line);
 				spoken = line;
 			}
 			else
 			{
 				CompanionsPlugin.Log?.LogInfo($"[IA] Not an order (action \"{intent?.Action}\") - nothing done");
-				Notify(ModLocalization.Loc("hc_ai_not_understood"));
+				string line2 = ModLocalization.Loc("hc_ai_not_understood");
+				Notify(line2);
+				SpeakOutLoud(_pendingSpeaker, line2, reply);
 			}
 		}
 		else
@@ -425,18 +433,23 @@ internal static class CompanionChatAI
 			CompanionOrders.OrderOutcome outcome = CompanionOrders.Run(intent, result.UserText, _pendingSpeaker);
 			if (outcome == null || !outcome.Understood)
 			{
-				Notify(ModLocalization.Loc("hc_ai_not_understood"));
+				string line3 = ModLocalization.Loc("hc_ai_not_understood");
+				Notify(line3);
+				SpeakOutLoud(_pendingSpeaker, line3, reply);
 			}
 			else if (!string.IsNullOrEmpty(outcome.Message))
 			{
 				CompanionsPlugin.Log?.LogInfo($"[IA] \"{intent.Action}\"{(string.IsNullOrEmpty(intent.Target) ? "" : $" target=\"{intent.Target}\"")} -> {outcome.Count} companion(s) in {result.ElapsedMs} ms");
 				Notify(outcome.Message);
+				SpeakOutLoud(_pendingSpeaker, outcome.Message, reply);
 				spoken = outcome.Message;
 			}
 			else if (outcome.Count == 0)
 			{
 				// Fase 3.2c: "colete 10 madeiras" with 15 already in the pack - the order was never started
-				Notify(ModLocalization.Loc(outcome.AlreadyHave ? "hc_ai_already_have" : "hc_ai_no_companion"));
+				string line4 = ModLocalization.Loc(outcome.AlreadyHave ? "hc_ai_already_have" : "hc_ai_no_companion");
+				Notify(line4);
+				SpeakOutLoud(_pendingSpeaker, line4, reply);
 			}
 			else
 			{
@@ -446,12 +459,13 @@ internal static class CompanionChatAI
 					: ModLocalization.LocFmt("hc_ai_ok", label);
 				CompanionsPlugin.Log?.LogInfo($"[IA] Applied \"{intent.Action}\" to {outcome.Count} companion(s) in {result.ElapsedMs} ms");
 				Notify(feedback);
+				SpeakOutLoud(_pendingSpeaker, feedback, reply);
 				spoken = feedback;
 			}
 			// Fase 3.5: for an ORDER the mod's own line wins and the model's "reply" is NOT shown - the companion would
 			// otherwise say two different things about the same order (and the localized line names the creature/item,
-			// which the free text can't). The reply is only remembered, so the tone of the order still reaches the
-			// memory of the next exchange.
+			// which the free text can't). Fase 3.4: the same rule decides what is SPOKEN (SpeakOutLoud) - so with both
+			// TtsFalarFalasDoMod and TtsFalarRespostas on, the visible line is the one that goes to the voice.
 			if (!string.IsNullOrEmpty(reply))
 			{
 				CompanionsPlugin.Log?.LogInfo($"[IA] Model's reply for the order (not shown, the mod's own line wins): \"{Shorten(reply, MaxReplyShown)}\"");
@@ -485,6 +499,52 @@ internal static class CompanionChatAI
 		{
 			CompanionsPlugin.Log?.LogDebug("[IA] Speech bubble failed: " + ex.Message);
 		}
+	}
+
+	/// <summary>
+	/// Fase 3.4: the companion says it in <b>voice</b> (local TTS, see CompanionTts). The rule is "the voice follows
+	/// the line that is shown in the chat":
+	/// <list type="bullet">
+	/// <item><paramref name="modLine"/> is the mod's own localized feedback (the one in the chat/HUD) and is spoken
+	/// when <c>[IA] TtsFalarFalasDoMod</c> is on;</item>
+	/// <item><paramref name="reply"/> is the model's own wording and is spoken when there is no line to read or when
+	/// <c>[IA] TtsFalarFalasDoMod</c> is off, and only with <c>[IA] TtsFalarRespostas</c> on.</item>
+	/// </list>
+	/// Only one of the two is ever spoken (the other goes to the log), so an order is never confirmed twice in two
+	/// different ways. Called on the main thread; the synthesis itself happens on a background thread.
+	/// </summary>
+	private static void SpeakOutLoud(CompanionSetup companion, string modLine, string reply)
+	{
+		string text = PickSpokenText(CompanionTts.SpeakModLines, CompanionTts.SpeakReplies, modLine, reply);
+		if (string.IsNullOrEmpty(text))
+		{
+			return;
+		}
+		if (!string.IsNullOrEmpty(modLine) && !string.IsNullOrEmpty(reply) && !string.Equals(modLine, reply, StringComparison.Ordinal))
+		{
+			string other = string.Equals(text, modLine, StringComparison.Ordinal) ? reply : modLine;
+			CompanionsPlugin.Log?.LogInfo($"[IA] Voz (Fase 3.4): falando \"{Shorten(text, MaxReplyShown)}\"; o outro texto (\"{Shorten(other, MaxReplyShown)}\") fica so no log - nada e falado duas vezes.");
+		}
+		CompanionTts.Speak(companion, text);
+	}
+
+	/// <summary>
+	/// The whole "what is spoken" rule, on its own (no Unity, no config): the visible line wins when
+	/// <paramref name="speakModLines"/> is on, otherwise the model's own wording, and only with
+	/// <paramref name="speakReplies"/>. Null means "say nothing". Kept pure so the decision table is easy to reason
+	/// about - and to check outside the game.
+	/// </summary>
+	internal static string PickSpokenText(bool speakModLines, bool speakReplies, string modLine, string reply)
+	{
+		if (!string.IsNullOrEmpty(modLine) && speakModLines)
+		{
+			return modLine;
+		}
+		if (!string.IsNullOrEmpty(reply) && speakReplies)
+		{
+			return reply;
+		}
+		return null;
 	}
 
 	private static string Shorten(string text, int max)

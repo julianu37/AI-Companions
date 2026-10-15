@@ -538,6 +538,27 @@ internal static class ModConfig
 
 	internal static ConfigEntry<bool> VozShowText;
 
+	// [IA] - Fase 3.4: TTS local (Kokoro-82M via sherpa-onnx): o companheiro FALA. Ver AI/CompanionTts.cs.
+	internal static ConfigEntry<bool> TtsEnabled;
+
+	internal static ConfigEntry<int> TtsVoice;
+
+	internal static ConfigEntry<float> TtsSpeed;
+
+	internal static ConfigEntry<int> TtsThreads;
+
+	internal static ConfigEntry<float> TtsVolume;
+
+	internal static ConfigEntry<string> TtsModel;
+
+	internal static ConfigEntry<string> TtsLanguage;
+
+	internal static ConfigEntry<bool> TtsCache;
+
+	internal static ConfigEntry<bool> TtsSpeakReplies;
+
+	internal static ConfigEntry<bool> TtsSpeakModLines;
+
 	internal static void Init(ConfigFile cfg)
 	{
 		// [General]
@@ -818,6 +839,19 @@ internal static class ModConfig
 		VozPromptInitial = Bind(cfg, "IA", "VozPromptInicial", "Ordens para o companheiro: colete madeira, pedra, minerio, ferro, segue, para, vem ca, ataca o greydwarf, equipa o machado de bronze, larga a pedra, descansa, bom dia.", "Fase 3.3b: prompt inicial enviado ao Whisper antes de cada transcrição. Ele enviesa o vocabulário, e é isso que faz ordens curtas (\"colete 10 madeiras\") saírem certas em vez de adivinhadas. Coloque as palavras que você realmente fala (as ordens, os nomes de criaturas e itens); vazio = sem viés. Opção de texto: edite no arquivo .cfg.");
 		VozDevice = Bind(cfg, "IA", "VozDispositivo", 0, "Fase 3.3: de qual microfone gravar, como o índice da lista que o log imprime na inicialização ([STT] Push-to-talk: ... 0: nome, 1: nome). 0 = o primeiro (o padrão do Windows).", new AcceptableValueRange<int>(0, 8));
 		VozShowText = Bind(cfg, "IA", "VozMostrarTexto", defaultValue: true, "Fase 3.3: mostra o que o microfone ouviu (\"Entendi: \"colete 10 madeiras\"\") no chat e no HUD, e faz o companheiro repetir, para uma transcrição errada ser fácil de notar. Desligado = o texto reconhecido só é escrito no log.");
+
+		// [IA] - Fase 3.4: TTS local (Kokoro-82M via sherpa-onnx, in-process). O companheiro fala as respostas em
+		// voz alta, na posição dele. Ver AI/CompanionTts.cs.
+		TtsEnabled = Bind(cfg, "IA", "TtsLigado", defaultValue: true, "Fase 3.4: o companheiro FALA as respostas em voz alta. A fala é sintetizada no seu computador pelo Kokoro-82M (via sherpa-onnx, dentro do jogo, sem processo filho e sem nada sair da sua máquina), na voz de TtsVoz, e sai no lugar onde o companheiro está (não no centro da tela). Desligado = ele só mostra o balão e o chat, como antes. A primeira fala de cada sessão espera o modelo carregar (~1 s, em segundo plano, quando você entra no mundo).");
+		TtsVoice = Bind(cfg, "IA", "TtsVoz", 42, "Fase 3.4: qual voz do Kokoro usar. As vozes em português do Brasil deste modelo são: 42 = pf_dora (feminina, o padrão), 43 = pm_alex (masculina) e 44 = pm_santa (masculina). Os outros números são de outros idiomas (45, por exemplo, soa chinês).", new AcceptableValueRange<int>(0, 100));
+		TtsSpeed = Bind(cfg, "IA", "TtsVelocidade", 1f, "Fase 3.4: a que velocidade o companheiro fala (1 = normal; acima de 1 fala mais rápido). Também deixa a fala mais curta.", new AcceptableValueRange<float>(0.5f, 2f));
+		TtsThreads = Bind(cfg, "IA", "TtsThreads", 4, "Fase 3.4: quantos núcleos da CPU a síntese da fala pode usar. Medido nesta máquina (Ryzen 7 5700X): 4 threads geram mais rápido do que o tempo real (RTF ~0,83), então a fala sai na frente do companheiro; mais threads não aceleram e competem com o jogo.", new AcceptableValueRange<int>(1, 16));
+		TtsVolume = Bind(cfg, "IA", "TtsVolume", 1f, "Fase 3.4: volume da voz do companheiro (0 = mudo, 1 = volume normal do jogo).", new AcceptableValueRange<float>(0f, 1f));
+		TtsModel = Bind(cfg, "IA", "TtsModelo", @"tts\kokoro\model.int8.onnx", "Fase 3.4: o modelo do Kokoro que o companheiro fala (relativo à pasta do plugin, ou um caminho absoluto). As vozes (voices.bin), os tokens (tokens.txt) e o espeak-ng-data são procurados na MESMA pasta do modelo. Opção de texto: edite no arquivo .cfg.");
+		TtsLanguage = Bind(cfg, "IA", "TtsIdioma", "pt-br", "Fase 3.4: idioma do texto falado, no formato que o Kokoro espera. Este modelo é multi-lingue e EXIGE um idioma: \"pt-br\" é português do Brasil (\"pt\" sozinho é português de Portugal). Vazio volta para \"pt-br\". Opção de texto: edite no arquivo .cfg.");
+		TtsCache = Bind(cfg, "IA", "TtsCache", defaultValue: true, "Fase 3.4: guarda as falas já sintetizadas (texto + voz + velocidade) para tocar de novo na hora. As falas fixas do mod (\"Já temos o suficiente.\") saem instantâneas; a memória usada é pequena. Desligado = toda fala é sintetizada de novo.");
+		TtsSpeakReplies = Bind(cfg, "IA", "TtsFalarRespostas", defaultValue: true, "Fase 3.4: fala em voz alta a resposta do modelo (o campo \"reply\"). Numa conversa é a resposta dele; numa ordem, quando TtsFalarFalasDoMod está desligado, é a confirmação no jeito dele (\"Deixa comigo.\").");
+		TtsSpeakModLines = Bind(cfg, "IA", "TtsFalarFalasDoMod", defaultValue: true, "Fase 3.4: fala em voz alta a linha do próprio mod que aparece no chat/HUD (\"Ok: coletar madeira (10).\", \"Atacando o troll.\", \"Já temos o suficiente.\"). Numa ORDEM ela ganha da resposta do modelo (a voz acompanha o que está escrito na tela); desligue para ouvir a resposta do modelo no lugar dela. Nada é falado duas vezes: com as duas opções ligadas, a linha que não é falada vai só para o log.");
 
 		// Fase 3.3b: the voice defaults changed after the first test in game. A .cfg written before this version still
 		// holds the old values and BepInEx keeps whatever is in the file, so a value that is EXACTLY the old default is

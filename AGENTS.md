@@ -60,7 +60,7 @@ skills em `.opencode/skills/`. Leia este arquivo antes de agir.
 
 Notas de desenvolvimento do upstream: `docs/DEV_NOTES.md`; handoff: `docs/SESSION_HANDOFF.md`.
 
-## Camada de IA (Fase 3.1 — ordens por texto no chat; Fase 3.2/3.2c — o número da ordem é um alvo total contado no inventário do companheiro; Fase 3.5 — personalidade, memória e conversa livre; Fase 3.6 — ordens com alvo: atacar/equipar/largar; Fase 3.6b — a ordem sem alvo do modelo cai para as palavras do jogador; Fase 3.3 — ordens por voz: push-to-talk + STT local; Fase 3.3c — raio de coleta maior e chatter aleatório desligado; Fase 3.3d — o teto da ordem vale para todo alvo do modo e a voz sai no balão do jogador)
+## Camada de IA (Fase 3.1 — ordens por texto no chat; Fase 3.2/3.2c — o número da ordem é um alvo total contado no inventário do companheiro; Fase 3.5 — personalidade, memória e conversa livre; Fase 3.6 — ordens com alvo: atacar/equipar/largar; Fase 3.6b — a ordem sem alvo do modelo cai para as palavras do jogador; Fase 3.3 — ordens por voz: push-to-talk + STT local; Fase 3.3c — raio de coleta maior e chatter aleatório desligado; Fase 3.3d — o teto da ordem vale para todo alvo do modo e a voz sai no balão do jogador; Fase 3.4 — o companheiro FALA: TTS local (Kokoro-82M via sherpa-onnx))
 
 O jogador digita no chat do jogo (`colete 20 de madeira`, `segue`, `para`, `ataca o greydwarf`,
 `equipa o machado de bronze`, `larga a pedra`, `bom dia`) e um **LLM local** (API compatível com a OpenAI:
@@ -199,8 +199,39 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   `hc_ai_inventory_timeout`, `hc_ai_inventory_no_gui`, `hc_ai_inventory_closed`, `hc_ai_inventory_none_open`,
   `hc_ai_no_container`, `hc_ai_order_inventory(_close)`. Verificado num harness fora do jogo (45 casos, com o
   `LlmIntent.cs` e o `IsInventoryRequest` **reais**): **ALL CHECKS PASSED**. Detalhes: `docs/roadmap.md` (Fase 3.8).
+- **Fase 3.4 — o companheiro FALA (TTS local, Kokoro-82M via sherpa-onnx):** o espelho do `WhisperStt`. Novo
+  `AI/CompanionTts.cs`: o `OfflineTts` (NuGet **`org.k2fsa.sherpa.onnx`** 1.13.8, **Apache-2.0**, `netstandard2.0`
+  → net472; nativos `sherpa-onnx-c-api.dll` + `onnxruntime.dll` do `...runtime.win-x64`) é carregado **uma vez**
+  (`TryGetTts`, lazy) e mantido; `Prewarm()` carrega em segundo plano quando você entra no mundo. A síntese roda
+  numa **thread de fundo dedicada** (`ModIA-CompanionTts`) alimentada por `ConcurrentQueue` + `SemaphoreSlim`
+  (teto de 3 pedidos), e os pedaços prontos voltam por outra `ConcurrentQueue` drenada no `Update` — o jogo nunca
+  espera. **Por frase** (`SplitSentences`: `.` `!` `?` `…` e quebras de linha; ponto entre dígitos é decimal; uma
+  sequência de terminadores é **um** corte; `:`/`,` não cortam) a 1ª frase já toca enquanto a 2ª é gerada;
+  **cache** `voz+velocidade+frase → amostras` (teto 256) faz as falas fixas saírem na hora. Playback: **um**
+  `AudioSource` **3D** na posição do companheiro (`spatialBlend=1`, `maxDistance = [Speech] CullDistance`), volume
+  de `[IA] TtsVolume`, uma fala por vez (fila), `AudioClip` destruído ao terminar. **Nativos:** o binding é um
+  `[DllImport("sherpa-onnx-c-api")]` puro (sem loader próprio, ao contrário do Whisper.net) e no Unity o Windows
+  procuraria na pasta do **jogo** — `EnsureNativeLibraries` roda antes do 1º uso: `SetDllDirectory(<plugin>\
+  runtimes\win-x64\native)`, pré-carrega as duas por caminho absoluto com
+  `LoadLibraryEx(..., LOAD_WITH_ALTERED_SEARCH_PATH)` e **restaura** (`SetDllDirectory(NULL)`); o módulo fica no
+  processo e o `DllImport` resolve por nome. **`AudioClip`/`AudioSource` por reflexão** (11 membros, uma vez): o
+  `UnityEngine.AudioModule` não é referenciável (CS1705 com a fachada netstandard 2.0 fixada pelos pacotes de voz;
+  a 2.1 do jogo quebra `Span<T>` → CS7069), o mesmo motivo do `VoiceInput.Mic`. **O que é falado** (regra: a voz
+  acompanha a linha do chat, decidida pela função pura `CompanionChatAI.PickSpokenText`): `[IA] TtsFalarRespostas`
+  = a resposta do modelo (`reply`); `[IA] TtsFalarFalasDoMod` = a linha localizada do mod (numa **ordem** ela
+  ganha; numa **conversa** a linha é a própria resposta). Só um dos dois é falado — o outro vai para o log.
+  **Prompt:** o contrato passou a exigir `reply` de **UMA frase curta (até ~15 palavras)**, dito que ela é
+  **falada em voz alta**. **Config `[IA]`:** `TtsLigado` (true), `TtsVoz` (42 = pf_dora fem.; 43 = pm_alex,
+  44 = pm_santa masc.), `TtsVelocidade` (1.0), `TtsThreads` (**4**; RTF medido **0,73–0,91**, mais rápido que o
+  tempo real), `TtsVolume` (1.0), `TtsModelo` (`tts\kokoro\model.int8.onnx`; `voices.bin`/`tokens.txt`/
+  `espeak-ng-data` da mesma pasta), `TtsIdioma` (**`pt-br`**, nunca vazio — o Kokoro é multi-lingue e a lib nativa
+  recusa carregar sem idioma), `TtsCache` (true), `TtsFalarRespostas` (true), `TtsFalarFalasDoMod` (true). Logs:
+  tempo de carga, tempo de síntese por frase, **RTF**, tamanho do áudio; comando de console **`modia_tts_teste
+  [texto]`**. PT-BR: `hc_ai_tts_unavailable`. Verificado fora do jogo: `SplitSentences` **real** (17 casos) +
+  `PickSpokenText` **real** (14 casos) → **ALL CHECKS PASSED**, e um harness que sintetizou áudio de verdade com os
+  nativos carregados por esse caminho. Detalhes: `docs/re/tts-kokoro-sherpa-onnx.md`.
 - Backend/contrato de referência: `docs/re/backend-contract.md`; mapa da fase: `docs/roadmap.md` (Trilha D);
-  pipeline de voz: `docs/re/stt-voz-pipeline.md`.
+  pipeline de voz: `docs/re/stt-voz-pipeline.md`; fala do companheiro: `docs/re/tts-kokoro-sherpa-onnx.md`.
 
 ## Nossas docs
 
@@ -211,6 +242,8 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
 - `docs/re/` — engenharia reversa do Valheim 1.0 (APIs, diff de versão).
 - `docs/re/stt-whisper-net-spike.md` — o spike do STT local (Whisper.net in-process) e o loader nativo.
 - `docs/re/stt-voz-pipeline.md` — o pipeline de voz da Fase 3.3 (push-to-talk → STT → ordens) e a receita de teste.
+- `docs/re/tts-kokoro-sherpa-onnx.md` — a Fase 3.4 (Kokoro-82M via sherpa-onnx: carregamento dos nativos,
+  síntese por frase, cache, playback 3D) e a receita de teste.
 - `docs/references.md` — fontes de terceiros e licenças.
 
 ## Skills (carregue antes de escrever/revisar código)

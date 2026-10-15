@@ -174,9 +174,10 @@ Nenhuma referência nova no `.csproj`, nenhuma segunda BCL dentro do Mono do jog
 6. **O spike continua funcionando e sem carregar o modelo de novo:** `modia_stt_teste` (F5) deve logar
    `Usando o modelo COMPARTILHADO com as ordens por voz (...) - sem carregar de novo.`
 
-## 8. O que ainda falta (Fase 3.4/3.7)
+## 8. O que ainda falta (Fase 3.7)
 
-- **TTS (3.4):** o companheiro responder com **voz** (`AudioSource` + áudio do backend) em vez de só o balão.
+- **TTS (3.4):** ✅ **feito** — ver `docs/re/tts-kokoro-sherpa-onnx.md` (Kokoro-82M local via sherpa-onnx; o
+  companheiro fala na posição dele, com cache e fala por frase).
 - **UI (3.7):** menu de personalidade/voz e o keybind na tela de config (hoje só no `.cfg`).
 
 ## 9. Fase 3.3b — as três correções do teste em jogo

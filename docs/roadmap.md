@@ -53,7 +53,7 @@ Legenda: ✅ concluído · 🔄 em andamento · ⏳ pendente
 | 2.18b | **Seguir pelo portal** (`CompanionPortalFollow` + `[Portal]`): ele anda até o portal e é levado para junto de você quando o seu teleporte termina | ✅ (v0.4.6) |
 | 2.18c | **Carroça** (`CompanionCart` + `[Carroca]`): `modia_cart pull\|release` — ele anda até o engate do `Vagon` e puxa a carroça pelo `ConfigurableJoint` do jogo | ✅ (v0.4.6) |
 | 2.5 | Multiplayer (ZNetView/ZDO, testes com cliente/servidor) | ⏳ |
-| **3** | IA e voz: comandos por voz/chat, STT, TTS, personalidade — **no fork, ver Trilha D** | 🔄 (3.1, 3.2, 3.2c, 3.3, 3.5, 3.6, 3.6b ✅) |
+| **3** | IA e voz: comandos por voz/chat, STT, TTS, personalidade — **no fork, ver Trilha D** | 🔄 (3.1, 3.2, 3.2c, 3.3, 3.3b, 3.4, 3.5, 3.6, 3.6b, 3.8 ✅) |
 | **4** | Backend híbrido (LLM local + API), endpoints do "cérebro" | ⏳ |
 | **5** | Empacotamento (manifest, README, ícone) + revisão final | ⏳ |
 
@@ -342,7 +342,7 @@ Ordens em **linguagem natural** por cima do mod do upstream. O companheiro conti
 | 3.3-spike | **SPIKE STT local**: Whisper.net **in-process** (NuGet, thread de fundo) x `whisper-server.exe` filho — teste mínimo, gatilhos `modia_stt_teste` / `[IA] SttTeste` | ✅ validado em jogo (`docs/re/stt-whisper-net-spike.md`) |
 | 3.3b | **Correções do teste da voz**: conflito da tecla **V** com o *Toggle Auto-Pickup* do jogo, qualidade do STT (modelo `small` + prompt inicial + trim) e medição da latência do LLM | ✅ build 0 erros + DLL/modelo no plugin (teste em jogo pendente) |
 | 3.3c | **Raio de coleta maior** (procura, alcance seguindo você, área com Follow off e drops) + **chatter aleatório desligado** por padrão (`[Speech] Chatter`) | ✅ build 0 erros + DLL no plugin (teste em jogo pendente) |
-| 3.4 | TTS: o companheiro **fala** a confirmação (áudio do backend, `AudioSource`) | ⏳ |
+| 3.4 | TTS: o companheiro **fala** as respostas (Kokoro-82M local, `sherpa-onnx` + `AudioSource` 3D) | ✅ build 0 erros + DLL/nativos/modelo no plugin (teste em jogo pendente) |
 | 3.5 | Personalidade/memória: preset + texto livre no contexto do LLM | ✅ validado em jogo |
 | 3.6 | **Ordens com alvo**: `ataca o greydwarf` (engaja a criatura), `equipa o machado de bronze` (equipa do inventário dele), `larga a pedra` (joga fora) | ✅ validado em jogo |
 | 3.6b | **Correção da ordem sem alvo**: quando o modelo responde `"target": null`, o item/criatura é lido das **palavras do próprio jogador**; o prompt passa a exigir `target` em `attack`/`equip`/`drop` | ✅ build 0 erros + DLL no plugin (teste em jogo pendente) |
@@ -1078,4 +1078,57 @@ personalidade/memória/conversa (3.5), jobs, UI, radial, STT (3.3/3.3b), raios e
    abrir janela.
 6. **Sem companheiro por perto:** afastar-se além do `[RecallRange]` (ou desligar os comandos dele no radial) e pedir
    → *"Nenhum companheiro seu está perto o bastante para receber essa ordem."*.
+
+---
+
+### Fase 3.4 — o companheiro FALA (TTS local, Kokoro-82M via sherpa-onnx) (✅ build 0 erros — teste em jogo pendente)
+
+O companheiro **fala em voz alta** as respostas, **na posição dele** no mundo. A voz é sintetizada **dentro do
+jogo** (sem HTTP, sem processo filho, nada sai da máquina) pelo **Kokoro-82M** através do **`sherpa-onnx`**
+(`org.k2fsa.sherpa.onnx` 1.13.8, **Apache-2.0**, `netstandard2.0` → roda no net472; runtime nativo
+`org.k2fsa.sherpa.onnx.runtime.win-x64`). É o espelho do `WhisperStt`: um modelo carregado uma vez, síntese fora
+da main thread, fila thread-safe drenada no `Update`.
+
+**Arquivo novo:** `src/Companions/AI/CompanionTts.cs` (+ `TtsRequest`/`TtsChunk`). Detalhes técnicos e receita de
+teste em [`docs/re/tts-kokoro-sherpa-onnx.md`](re/tts-kokoro-sherpa-onnx.md).
+
+| Peça | O que faz |
+|---|---|
+| `CompanionTts.TryGetTts` | carrega o `OfflineTts` **uma vez** (lazy, `lock`) e o mantém; `Prewarm()` faz isso em segundo plano quando você entra no mundo |
+| Worker dedicado | **thread de fundo** própria (`ModIA-CompanionTts`), alimentada por `ConcurrentQueue` + `SemaphoreSlim`; o jogo nunca espera |
+| Por frase | `SplitSentences` (`.` `!` `?` `…` e quebras de linha; um ponto entre dígitos é decimal; uma sequência de terminadores é **um** corte) — a 1ª frase toca enquanto a 2ª é gerada |
+| Cache | `texto + voz + velocidade → amostras` (teto de 256 entradas): as falas fixas saem **na hora** |
+| Playback | **um** `AudioSource` **3D** na posição do companheiro (`spatialBlend=1`, `min/maxDistance`), volume de `[IA] TtsVolume`; uma fala por vez, em fila; o `AudioClip` é destruído ao terminar |
+| `AudioClip`/`AudioSource` | acessados **por reflexão**, uma vez (o `UnityEngine.AudioModule` não é referenciável neste projeto — mesmo motivo do `VoiceInput.Mic`); o `transform.position` do `AudioSource` vai por `Component.transform` (CoreModule, referência direta) |
+| Nativos | `sherpa-onnx-c-api.dll` + `onnxruntime.dll` pré-carregados por caminho absoluto antes do 1º uso (ver o doc) |
+| Diagnóstico | `[TTS] Modelo CARREGADO em N ms`, `[TTS] Frase i/n: N ms, RTF 0,xx para N,NN s de audio`, `[TTS] Fala #n pronta: ...` e o comando de console `modia_tts_teste [texto]` |
+
+**O que é falado** (regra: *a voz acompanha a linha que aparece no chat*):
+
+| Situação | `modLine` | `reply` | Falado (padrão: as duas opções ligadas) |
+|---|---|---|---|
+| Conversa (`action=none`) | — | resposta do modelo | a **resposta do modelo** (`TtsFalarRespostas`) |
+| Ordem (confirmada) | linha do mod (`"Ok: coletar madeira (10)."`) | confirmação do modelo | a **linha do mod** (`TtsFalarFalasDoMod`); com ela desligada, a resposta do modelo |
+| Ordem recusada / "já temos" / sem companheiro / "não entendi" | linha do mod | (null) | a linha do mod, se `TtsFalarFalasDoMod` |
+| Erro do LLM (`[IA] hc_ai_error`) | — | — | **nada** (é erro de infraestrutura, não fala do companheiro) |
+
+Nada é falado duas vezes: o texto que não foi falado vai para o log (`[IA] Voz (Fase 3.4): falando "…"; o outro
+texto ("…") fica so no log`). A decisão é a função pura `CompanionChatAI.PickSpokenText`, verificada fora do jogo
+(14 casos) junto com o `SplitSentences` (17 casos) — **ALL CHECKS PASSED**.
+
+**Prompt:** o contrato e o `BuildPrompt` passaram a exigir **UMA frase curta (até ~15 palavras)** no `reply` e a
+dizer que ela é **falada em voz alta** (frase curta = fala mais rápida). O JSON do contrato não mudou.
+
+**Config `[IA]` (PT-BR):** `TtsLigado` (true), `TtsVoz` (42; 42 = pf_dora feminina, 43 = pm_alex, 44 = pm_santa
+masculinas), `TtsVelocidade` (1.0), `TtsThreads` (4 — RTF medido ~0,83, mais rápido que o tempo real),
+`TtsVolume` (1.0), `TtsModelo` (`tts\kokoro\model.int8.onnx`; `voices.bin`/`tokens.txt`/`espeak-ng-data` vêm da
+**mesma pasta**), `TtsIdioma` (`pt-br` — **nunca vazio**: este Kokoro é multi-lingue e a lib nativa recusa carregar
+sem idioma; `pt` sozinho é português de Portugal), `TtsCache` (true), `TtsFalarRespostas` (true),
+`TtsFalarFalasDoMod` (true).
+
+**Não muda nada do resto:** ordens por chat/voz, STT, personalidade/memória/conversa, jobs, UI, radial, balão e
+chatter seguem iguais. A integração são só 5 chamadas de `SpeakOutLoud(...)` no `CompanionChatAI.HandleResult`
+(conversa, ordem com linha própria, ordem genérica, recusa/"já temos", "não entendi") + `Init`/`Tick`/`Shutdown`
+no plugin.
+
 

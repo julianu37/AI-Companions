@@ -43,6 +43,25 @@
     <PackageReference Include="System.Text.Json" Version="10.0.2" ExcludeAssets="all" PrivateAssets="all" />
   </ItemGroup>
 
+  <!-- TTS local (Fase 3.4): Kokoro-82M via sherpa-onnx. O pacote gerenciado resolve o alvo netstandard2.0 (roda no
+       net472, como o Whisper.net); o runtime win-x64 traz os nativos em runtimes\win-x64\native
+       (sherpa-onnx-c-api.dll + onnxruntime.dll). O pacote gerenciado ARRASTA todos os runtimes (android, linux,
+       osx, win-arm64, win-x86) como dependencia: as referencias abaixo com ExcludeAssets="all" desligam esses
+       assets (mesmo truque do System.Text.Json acima) para nao copiar ~300 MB de nativos de outras plataformas
+       para o bin. So o win-x64 e usado. Ver AI/CompanionTts.cs e docs/re/tts-kokoro-sherpa-onnx.md. -->
+  <ItemGroup>
+    <PackageReference Include="org.k2fsa.sherpa.onnx" Version="1.13.8" />
+    <PackageReference Include="org.k2fsa.sherpa.onnx.runtime.win-x64" Version="1.13.8" GeneratePathProperty="true" />
+    <PackageReference Include="org.k2fsa.sherpa.onnx.runtime.android-arm64" Version="1.13.8" ExcludeAssets="all" PrivateAssets="all" />
+    <PackageReference Include="org.k2fsa.sherpa.onnx.runtime.android-x64" Version="1.13.8" ExcludeAssets="all" PrivateAssets="all" />
+    <PackageReference Include="org.k2fsa.sherpa.onnx.runtime.linux-arm64" Version="1.13.8" ExcludeAssets="all" PrivateAssets="all" />
+    <PackageReference Include="org.k2fsa.sherpa.onnx.runtime.linux-x64" Version="1.13.8" ExcludeAssets="all" PrivateAssets="all" />
+    <PackageReference Include="org.k2fsa.sherpa.onnx.runtime.osx-arm64" Version="1.13.8" ExcludeAssets="all" PrivateAssets="all" />
+    <PackageReference Include="org.k2fsa.sherpa.onnx.runtime.osx-x64" Version="1.13.8" ExcludeAssets="all" PrivateAssets="all" />
+    <PackageReference Include="org.k2fsa.sherpa.onnx.runtime.win-arm64" Version="1.13.8" ExcludeAssets="all" PrivateAssets="all" />
+    <PackageReference Include="org.k2fsa.sherpa.onnx.runtime.win-x86" Version="1.13.8" ExcludeAssets="all" PrivateAssets="all" />
+  </ItemGroup>
+
   <ItemGroup>
     <Reference Include="BepInEx" HintPath="$(BepInExCoreDir)\BepInEx.dll" Private="false" />
     <Reference Include="0Harmony" HintPath="$(BepInExCoreDir)\0Harmony.dll" Private="false" />
@@ -98,6 +117,23 @@
     <Copy SourceFiles="@(WhisperManaged)" DestinationFolder="$(DeployDir)" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(WhisperNative)" DestinationFolder="$(DeployDir)\runtimes\win-x64" SkipUnchangedFiles="true" />
     <Message Importance="high" Text="Deployed @(WhisperManaged->Count()) Whisper.net managed DLL(s) and @(WhisperNative->Count()) native DLL(s) to $(DeployDir) (managed: @(WhisperManaged->'%(Filename)%(Extension)', ', '))" />
+  </Target>
+
+  <!-- TTS (Fase 3.4): the sherpa-onnx managed assembly and its native libraries next to the plugin DLL. The native
+       tree keeps the package layout, runtimes\win-x64\native\, which is where CompanionTts looks for
+       sherpa-onnx-c-api.dll + onnxruntime.dll (it preloads them by absolute path - see EnsureNativeLibraries).
+
+       The natives are copied from the NuGet package folder itself (Pkg... path from GeneratePathProperty): a
+       RID-less build does NOT copy runtimes\<rid>\native\* to the output (only runtimes\<rid>\*.dll, which is the
+       non-standard layout the Whisper.net.Runtime package uses), so $(TargetDir) has nothing to pick up. -->
+  <Target Name="DeploySherpaOnnx" AfterTargets="DeployToPlugins" Condition="'$(DeployDir)' != ''">
+    <ItemGroup>
+      <SherpaManaged Include="@(ReferenceCopyLocalPaths)" Condition="'%(Filename)' == 'sherpa-onnx'" />
+      <SherpaNative Include="$(Pkgorg_k2fsa_sherpa_onnx_runtime_win-x64)\runtimes\win-x64\native\*.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(SherpaManaged)" DestinationFolder="$(DeployDir)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(SherpaNative)" DestinationFolder="$(DeployDir)\runtimes\win-x64\native" SkipUnchangedFiles="true" />
+    <Message Importance="high" Text="Deployed @(SherpaManaged->Count()) sherpa-onnx managed DLL(s) and @(SherpaNative->Count()) native DLL(s) from &quot;$(Pkgorg_k2fsa_sherpa_onnx_runtime_win-x64)&quot; to $(DeployDir)\runtimes\win-x64\native (managed: @(SherpaManaged->'%(Filename)%(Extension)', ', '); native: @(SherpaNative->'%(Filename)%(Extension)', ', '))" />
   </Target>
 
   <!-- UI strings (ModLocalization) live in Translations\<Language>.json and are read at runtime from next to

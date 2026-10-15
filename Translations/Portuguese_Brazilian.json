@@ -337,6 +337,7 @@
         { "key": "hc_ai_voice_ui_open", "value": "Feche a janela antes de falar." },
         { "key": "hc_ai_voice_cancelled", "value": "Gravação cancelada." },
         { "key": "hc_ai_voice_disabled", "value": "As ordens por voz estão desligadas ([IA] VozLigada = false)." },
-        { "key": "hc_ai_voice_key_conflict", "value": "A tecla {0} agora é o push-to-talk: o auto-pickup do jogo não alterna mais com ela. Reatribua o auto-pickup nas configurações do jogo (Controles) se quiser usá-lo." }
+        { "key": "hc_ai_voice_key_conflict", "value": "A tecla {0} agora é o push-to-talk: o auto-pickup do jogo não alterna mais com ela. Reatribua o auto-pickup nas configurações do jogo (Controles) se quiser usá-lo." },
+        { "key": "hc_ai_tts_unavailable", "value": "A voz do companheiro não está pronta (falta o modelo do Kokoro?)." }
     ]
 }

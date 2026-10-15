@@ -32,7 +32,22 @@ mesmo caminho das ordens digitadas. Exemplos:
   ele avisa *"Já temos o suficiente."* e não sai para coletar.
 - **Ver o que ele carrega:** `abre o teu inventário` / `mostra o que você carrega` abre a **janela do inventário
   do companheiro** (a mesma do toque na tecla de interagir); `fecha o inventário` fecha.
-- **Tudo local:** o LLM (LM Studio) e o reconhecimento de voz rodam **na sua máquina** — nada é enviado para fora.
+- **Tudo local:** o LLM (LM Studio), o reconhecimento de voz e a **voz do companheiro** rodam **na sua máquina**
+  — nada é enviado para fora.
+
+### 🔊 Ele fala (voz sintetizada local)
+
+O companheiro **fala em voz alta** o que responde, na posição dele no mundo. A voz é sintetizada **dentro do
+jogo** pelo **Kokoro-82M** (via `sherpa-onnx`, CPU) — sem serviço externo. Três vozes em **português do Brasil**:
+`42` = `pf_dora` (feminina, padrão), `43` = `pm_alex` (masculina), `44` = `pm_santa` (masculina).
+
+- **O que ele fala:** a resposta do modelo (*"Deixa comigo."*) e/ou a linha do mod que aparece no chat
+  (*"Ok: coletar madeira (10)."*, *"Já temos o suficiente."*) — duas opções separadas
+  (`TtsFalarRespostas` / `TtsFalarFalasDoMod`). Numa ordem a linha do mod ganha (a voz acompanha o que está
+  escrito na tela); desligue `TtsFalarFalasDoMod` para ouvir a resposta do modelo. Nada é falado duas vezes.
+- **Sem travar o jogo:** a síntese roda em thread de fundo, fala por **frases** (a primeira já toca enquanto a
+  próxima é gerada) e as falas repetidas saem do **cache**.
+- **Teste rápido** no console do jogo (`F5`): `modia_tts_teste` (ou `modia_tts_teste Bom dia, chefe!`).
 
 ### 🧠 Personalidade, memória e conversa
 
@@ -253,7 +268,8 @@ Ao atualizar de uma versão antiga, as opções que você mudou são migradas au
 2. Copie a pasta do mod para `BepInEx/plugins/ModAI-BR-Companions` (ou use um gerenciador de mods).
 3. **Para as ordens por voz:** deixe um modelo do Whisper (ex. `ggml-small-q5_1.bin`) em
    `.../ModAI-BR-Companions/whisper/`.
-4. **Para a IA:** instale o **[LM Studio](https://lmstudio.ai/)**, carregue um modelo e ligue o servidor local
+4. **Para ele falar:** o modelo do Kokoro já vem no pacote, em `.../ModAI-BR-Companions/tts/kokoro/`.
+5. **Para a IA:** instale o **[LM Studio](https://lmstudio.ai/)**, carregue um modelo e ligue o servidor local
    (padrão `http://localhost:1234/v1`). Ajuste em `[IA] BaseUrl` / `[IA] Modelo` se precisar.
 
 **Requisitos:** Valheim **1.0.x** + BepInEx (o BepInExPack já traz o Harmony). As ordens por voz exigem
@@ -264,7 +280,7 @@ Ao atualizar de uma versão antiga, as opções que você mudou são migradas au
 ## Planos futuros
 
 - Continuar melhorando a IA do companheiro e as ordens em linguagem natural.
-- Mais recursos de voz (ele **falar** as respostas — TTS) e um menu de personalidade/voz em jogo.
+- Mais recursos de voz: **mais vozes**, escolha de voz pelo menu radial e um menu de personalidade/voz em jogo.
 - Mais recursos de multiplayer.
 - Revisão de habilidades e atributos em cima dos de um jogador.
 

@@ -47,6 +47,28 @@ ordens digitadas: ordem, conversa, personalidade e memória funcionam igual.
 - **Memória curta** das últimas trocas (por companheiro).
 - **Conversa livre**: *"bom dia"*, *"o que achou da minha casa?"* — ele responde como personagem.
 
+### 🔊 Ele fala (voz sintetizada local)
+
+O companheiro **fala em voz alta** o que ele responde, na posição dele no mundo (não no centro da tela). A voz é
+sintetizada **dentro do jogo** pelo **Kokoro-82M** (via `sherpa-onnx`, CPU) — sem serviço externo, sem processo
+filho, nada sai da sua máquina. Três vozes em **português do Brasil**:
+
+| `TtsVoz` | Voz |
+|---|---|
+| **42** (padrão) | `pf_dora` — feminina |
+| **43** | `pm_alex` — masculina |
+| **44** | `pm_santa` — masculina |
+
+> **O que ele fala:** a resposta do modelo (o jeito dele — *"Deixa comigo."*) e/ou a linha do próprio mod que
+> aparece no chat (*"Ok: coletar madeira (10)."*, *"Já temos o suficiente."*). As duas opções são separadas
+> (`TtsFalarRespostas` / `TtsFalarFalasDoMod`) e a regra é **a voz acompanha o que está escrito na tela**: numa
+> ordem a linha do mod ganha (desligue `TtsFalarFalasDoMod` para ouvir a resposta do modelo no lugar dela). Nada
+> é falado duas vezes.
+
+> **Sem travar o jogo:** a síntese roda numa thread de fundo e a fala é montada por **frases** — a primeira frase
+> já começa a tocar enquanto a próxima é gerada. Falas repetidas saem do **cache**, na hora. Teste rápido no
+> console do jogo (`F5`): `modia_tts_teste`, ou `modia_tts_teste Bom dia, chefe!` para falar um texto seu.
+
 ### ⚙️ Ajustes nossos em cima do upstream
 
 - **Raio de coleta maior** (madeira/pedra/minério procurados até 25 m de você, drops catados até 12 m).
@@ -62,12 +84,15 @@ ordens digitadas: ordem, conversa, personalidade e memória funcionam igual.
 voz (Microphone 16 kHz) ──► Whisper.net (STT, whisper.cpp in-process, CPU) ─┐
                                                                             ├─► mesma caixa de ordens ─► CompanionOrders ─► o companheiro executa
 chat do jogo ───────────────────────────────────────────────────────────────┘            │
-                                                                                          └─► LLM local (LM Studio, API OpenAI-compatible) ─► ação + resposta
+                                                                                          ├─► LLM local (LM Studio, API OpenAI-compatible) ─► ação + resposta
+                                                                                          └─► Kokoro-82M (TTS, sherpa-onnx in-process, CPU) ─► ele FALA na posição dele
 ```
 
 - **LLM local**: LM Studio (ou qualquer endpoint compatível com OpenAI) — usado para **entender** a ordem e
   **conversar**.
 - **STT local**: `Whisper.net` (whisper.cpp) rodando **dentro do jogo**, com o modelo carregado uma vez.
+- **TTS local**: `sherpa-onnx` com o modelo **Kokoro-82M** — o companheiro **fala** a resposta dentro do jogo,
+  na posição dele, sem serviço externo.
 - **Privacidade**: por padrão **nada sai da sua máquina** (LLM e voz são locais). Um provedor remoto pode ser
   configurado se você quiser.
 - Nada disso bloqueia o jogo: tudo roda em threads de fundo.
@@ -88,8 +113,10 @@ chat do jogo ──────────────────────�
 1. Instale o **BepInExPack_Valheim** e copie a pasta do mod para `BepInEx\plugins\ModAI-BR-Companions`.
 2. (Opcional, para voz) deixe um modelo ggml do Whisper em `...\ModAI-BR-Companions\whisper\` — ex.
    `ggml-small-q5_1.bin`.
-3. No LM Studio: carregue um modelo, ligue o servidor local e confira a URL em `[IA] BaseUrl`.
-4. Entre no mundo. No chat: `colete 10 madeiras`. Ou segure **`V`** e fale.
+3. (Opcional, para ele **falar**) deixe o modelo do Kokoro em `...\ModAI-BR-Companions\tts\kokoro\`
+   (`model.int8.onnx`, `voices.bin`, `tokens.txt`, `espeak-ng-data\`) — já vem no pacote.
+4. No LM Studio: carregue um modelo, ligue o servidor local e confira a URL em `[IA] BaseUrl`.
+5. Entre no mundo. No chat: `colete 10 madeiras`. Ou segure **`V`** e fale. Ele responde **em voz alta**.
 
 ---
 
@@ -125,6 +152,14 @@ chat do jogo ──────────────────────�
 | `VozPromptInicial` | *(vocabulário das ordens)* | Enviesa o reconhecimento para as palavras das ordens |
 | `VozDispositivo` | `0` | Índice do microfone |
 | `SttModelo` | `whisper\ggml-small-q5_1.bin` | Modelo do Whisper |
+| `TtsLigado` | `true` | Ele **fala** as respostas (TTS local, Kokoro) |
+| `TtsVoz` | `42` | Voz: `42` pf_dora (fem.), `43` pm_alex (masc.), `44` pm_santa (masc.) |
+| `TtsVolume` / `TtsVelocidade` | `1` / `1` | Volume e velocidade da fala |
+| `TtsThreads` | `4` | Núcleos para a síntese (4 = mais rápido que o tempo real) |
+| `TtsFalarRespostas` | `true` | Falar a resposta do modelo |
+| `TtsFalarFalasDoMod` | `true` | Falar a linha do mod que aparece no chat (ganha numa ordem) |
+| `TtsCache` | `true` | Guardar as falas já sintetizadas (as repetidas saem na hora) |
+| `TtsModelo` / `TtsIdioma` | `tts\kokoro\model.int8.onnx` / `pt-br` | Modelo do Kokoro e idioma (nunca vazio) |
 
 ---
 
@@ -133,7 +168,7 @@ chat do jogo ──────────────────────�
 | Caminho | O que é |
 |---|---|
 | `src/Companions/` | O mod (C#, net472): `Core/`, `Companion/`, `AI/`, `Jobs/`, `UI/`, `Patches/`, `Diagnostics/` |
-| `src/Companions/AI/` | **A nossa camada de IA**: `LlmClient`, `LlmIntent`, `CompanionOrders`, `CompanionChatAI`, `WhisperStt`, `VoiceInput`, `CompanionPersona`, `CompanionMemory` |
+| `src/Companions/AI/` | **A nossa camada de IA**: `LlmClient`, `LlmIntent`, `CompanionOrders`, `CompanionChatAI`, `WhisperStt`, `VoiceInput`, `CompanionTts`, `CompanionPersona`, `CompanionMemory` |
 | `Translations/`, `Speech/` | Traduções PT-BR (interface e falas) — o build copia para o plugin |
 | `package/` | Arquivos de pacote (manifest, ícone, README/CHANGELOG do Thunderstore) |
 | `docs/` | Roadmap, visão, plano de fases, engenharia reversa e notas técnicas |

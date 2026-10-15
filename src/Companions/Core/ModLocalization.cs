@@ -396,7 +396,8 @@ public static class ModLocalization
 			{ "hc_ai_voice_unavailable", "Speech recognition isn't ready (the Whisper model is missing?)." },
 			{ "hc_ai_voice_ui_open", "Close the window before speaking." },
 			{ "hc_ai_voice_cancelled", "Recording cancelled." },
-			{ "hc_ai_voice_disabled", "Voice orders are off ([IA] VozLigada = false)." }
+			{ "hc_ai_voice_disabled", "Voice orders are off ([IA] VozLigada = false)." },
+			{ "hc_ai_tts_unavailable", "The companion's voice isn't ready (the Kokoro model is missing?)." }
 		};
 	}
 
