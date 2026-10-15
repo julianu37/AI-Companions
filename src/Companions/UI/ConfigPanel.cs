@@ -344,8 +344,9 @@ public class ConfigPanel : MonoBehaviour
 			{
 				Hide();
 			}
-			else
+			else if (CompanionAiPanel.Instance == null || !CompanionAiPanel.Instance.IsVisible)
 			{
+				// Fase 3.7: never on top of the AI panel (the AI panel refuses to open while this one is visible)
 				Show();
 			}
 		}

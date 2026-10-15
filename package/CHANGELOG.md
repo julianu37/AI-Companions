@@ -3,6 +3,42 @@
 All notable changes to this fork of ProfMags' Offline Companions. Versions before 1.4.0 are the original mod (see [ProfMags' Thunderstore page](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) for that history) plus the initial batch of Valheim 1.0 API-compatibility fixes that let the mod load and run at all on 1.0.
 
 ## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.6b: a ordem sem alvo do modelo (drop/equip/attack caem para as palavras do jogador) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Fase 3.3c: raio de coleta maior e chatter aleatório desligado + Fase 3.3d: a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador + Fase 3.8: o companheiro abre o próprio inventário por voz/chat + Fase 3.4: o companheiro FALA (TTS local, Kokoro-82M via sherpa-onnx) + Fase 3.7: painel da IA no jogo (personalidade, voz com Ouvir, push-to-talk) + Tradução PT-BR (fork ModAI-BR-Companions)
+- **Correções da auditoria (Fases 3.4 e 3.7) — o TTS e o painel da IA à prova de borda.** Nada do que já
+  funcionava mudou de comportamento; o que mudou foi o que dava crash, vazava memória ou ignorava a config:
+  - **A1 — corrida no `Shutdown` do TTS (crash nativo):** o `Shutdown` agora **espera a thread de síntese**
+    (`Join(5000)`) antes de liberar o modelo, `Process`/`TryGetTts` recusam sintetizar/carregar depois do
+    `Shutdown` e o `Dispose` passou para dentro do gate do nativo. Antes a thread podia estar **entre duas frases**
+    (contador de "ocupado" em 0) e o modelo era liberado com ela viva — o próximo `Generate` sobre o handle morto
+    derrubava o jogo (AccessViolation, que nenhum `catch` pega). Se o `Join` estourar, o modelo **fica carregado**
+    (como antes: melhor segurar do que descarregar em uso).
+  - **A2 — áudio nativo com handle nulo:** o binding devolve um objeto **não-nulo** mesmo quando a síntese nativa
+    falha (handle `IntPtr.Zero`), e `NumSamples`/`Samples` fazem `PtrToStructure` no handle — ou seja, ler
+    `NumSamples` com handle nulo era um crash. Agora o handle é checado **antes**, a falha vai para o log e a frase
+    é pulada.
+  - **A3 — `Speak` depois do `Shutdown`:** não enfileira mais (a fala ficaria na fila para sempre).
+  - **A4 — pré-carga do modelo com nova tentativa:** o `Prewarm` tentava **uma vez**; agora tenta de novo a cada
+    **30 s** enquanto você está no mundo, até carregar. Junto com isso, "modelo não encontrado" deixou de ser
+    definitivo: copiar a pasta do modelo com o jogo aberto passa a funcionar **sem reiniciar** (o erro é logado
+    uma vez só).
+  - **C2 — cache do TTS com teto por bytes:** o teto era por **entrada** (256) e cada entrada é um `float[]` cru
+    (frase de 180 caracteres ≈ 1,1 MB) — dava para passar de centenas de MB, e cada resposta única do modelo
+    **expulsava as falas fixas**. Agora o teto é **32 MB de áudio** (descartando as frases mais antigas) e **só as
+    linhas do mod entram no cache** — as respostas do modelo são novas a cada vez.
+  - **B1 — pré-carga nativa confere *qual* DLL entrou:** se `onnxruntime.dll`/`sherpa-onnx-c-api.dll` já estavam
+    carregados de outro caminho (outro mod ou cópia na pasta do jogo), o log agora **avisa** — o `DllImport`
+    resolve por **nome-base** e podia acabar numa versão com ABI diferente.
+  - **D2 — o painel da IA não abre por cima de nada:** a tecla é recusada com o inventário, o mapa, o menu, o chat
+    com foco, o console, a entrada de texto, a busca do comerciante ou o **painel F8** abertos — e o painel F8, por
+    sua vez, não abre enquanto o painel da IA está visível (nunca mais um painel sobre o outro).
+  - **E1 — texto que faltava em inglês:** `hc_ai_voice_key_conflict` (o aviso do conflito com o auto-pickup do
+    jogo) só existia no JSON PT-BR; agora tem o par em inglês nos padrões (outro idioma não mostra mais o token
+    cru).
+  - **E2 — slider de velocidade alinhado com a config:** o painel ia de 0,5 a 1,5 enquanto `[IA] TtsVelocidade`
+    aceita até 2,0 — com 2,0 no `.cfg` o valor aparecia como "2.00" e o primeiro arrasto rebaixava para 1,5 sem
+    avisar. Agora os dois usam os **mesmos** limites (`CompanionTts.MinSpeed/MaxSpeed`).
+  - **D3 — cursor ao fechar o painel:** **nada a fazer** (documentado): quem devolve o cursor é o próprio jogo
+    (`GameCamera.UpdateMouseCapture`, a cada frame, quando não há janela aberta) — e forçá-lo contrariaria quem
+    desliga a captura do mouse de propósito (`Ctrl+F1`).
 - **Fase 3.7 — painel da IA no jogo (tecla `I`): personalidade, voz com *Ouvir*, push-to-talk e toggles.** Tudo o
   que a IA lê do `.cfg` passou a ser ajustável **em jogo**, sem editar arquivo nenhum e sem reiniciar. Arquivo novo:
   `src/Companions/UI/CompanionAiPanel.cs` (painel de madeira no estilo dos outros painéis do mod). A tecla nova é
@@ -18,7 +54,7 @@ All notable changes to this fork of ProfMags' Offline Companions. Versions befor
   - **Voz (TTS):** dropdown das **três vozes pt-BR** (42 `pf_dora` feminina, 43 `pm_alex` masculina, 44 `pm_santa`
     masculina) + botão **Ouvir** (fala uma frase de exemplo pelo **mesmo** pipeline — worker, cache e playback 3D —
     e fica desabilitado se o TTS estiver desligado ou o modelo faltando) + sliders de **volume** (`TtsVolume`) e
-    **velocidade** (`TtsVelocidade`, 0,5–1,5 no painel). A voz vale na **próxima fala**; o volume, no próximo áudio.
+    **velocidade** (`TtsVelocidade`, 0,5–2,0 no painel, o mesmo intervalo do `.cfg`). A voz vale na **próxima fala**; o volume, no próximo áudio.
   - **Push-to-talk:** mostra a tecla atual (`[IA] VozTecla`) e o botão **Alterar** captura uma nova com o **mesmo**
     `KeyBindListener` do painel F8 (nada de lógica nova) + o toggle `VozLigada`. Ao trocar a tecla, o
     `AutoPickupKeyConflict.Reset()` reavalia o conflito com o *Toggle Auto-Pickup* do jogo (Fase 3.3b).
@@ -40,7 +76,8 @@ All notable changes to this fork of ProfMags' Offline Companions. Versions befor
   - **Por FRASE, com cache:** o texto é cortado em frases (`.` `!` `?` `…`, quebras de linha; um ponto entre
     dígitos é decimal; uma sequência de terminadores é **um** corte) e a **primeira frase já toca enquanto a
     próxima é gerada** — a resposta começa a soar rápido. Falas repetidas (texto + voz + velocidade) saem do
-    **cache**, na hora.
+    **cache**, na hora — e **só as linhas do mod** entram nele (as respostas do modelo são novas a cada vez), com
+    teto de **32 MB de áudio** (ver as correções da auditoria no topo).
   - **Playback 3D:** **um** `AudioSource` na posição do companheiro (`spatialBlend = 1`), volume de
     `[IA] TtsVolume`, **uma fala por vez** (fila, sem sobrepor), e o `AudioClip` é destruído ao terminar.
   - **O que é falado** (regra: *a voz acompanha a linha que aparece no chat*): a **resposta do modelo**

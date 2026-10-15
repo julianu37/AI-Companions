@@ -38,6 +38,13 @@ internal sealed class TtsRequest
 	internal GameObject Speaker;
 
 	internal string Text;
+
+	/// <summary>
+	/// May the sentences of this line be kept in the cache? True for the mod's own lines (they repeat word for
+	/// word, which is what the cache is for) and false for the model's replies (new every time - caching them
+	/// would push the fixed lines out and grow the heap, see <see cref="MaxCacheBytes"/>).
+	/// </summary>
+	internal bool Cacheable = true;
 }
 
 /// <summary>
@@ -59,7 +66,9 @@ internal sealed class TtsRequest
 /// <item>the line is split into <b>sentences</b> and synthesized one at a time: the first sentence starts playing
 /// while the next one is still being generated, so the companion begins to talk right away instead of after the
 /// whole line;</item>
-/// <item>fixed lines are <b>cached</b> (text + voice + speed → samples), so a repeated line is instant;</item>
+/// <item>fixed lines are <b>cached</b> (text + voice + speed → samples), so a repeated line is instant; only the
+/// mod's own lines go in (the model's replies are new every time) and the cache is capped by <b>bytes</b>, not by
+/// number of entries;</item>
 /// <item>playback is a single 3D <see cref="AudioSource"/> placed at the companion that is talking, one line at a
 /// time (a queue), volume from config; the <c>AudioClip</c> is destroyed as soon as it finishes.</item>
 /// </list>
@@ -118,8 +127,36 @@ internal static class CompanionTts
 	/// <summary>Lines waiting for the worker. Beyond this the new line is dropped (the LLM has its own cooldown).</summary>
 	private const int MaxPendingRequests = 3;
 
-	/// <summary>Sentences kept in the cache. Small on purpose: it is the fixed lines that repeat, not the model's.</summary>
+	/// <summary>Sentences kept in the cache. A second, hard cap on top of <see cref="MaxCacheBytes"/>.</summary>
 	private const int MaxCacheEntries = 256;
+
+	/// <summary>
+	/// How much <b>audio</b> the cache may hold: 32 MB of <c>float</c> samples (~29 s of 24 kHz mono audio, i.e.
+	/// a couple of dozen sentences).
+	///
+	/// The cap is by <b>bytes</b>, not by entry, because one entry is a raw <c>float[]</c>: a 180 character
+	/// sentence is ~12 s of audio = ~1.1 MB, so an entry cap of 256 allowed hundreds of MB in the Mono heap.
+	/// Entries are dropped oldest-first, and the model's replies are never stored at all (see
+	/// <see cref="TtsRequest.Cacheable"/>): they are new every time, so letting them in would evict the fixed
+	/// lines - the very thing the cache exists for - on every message.
+	/// </summary>
+	private const long MaxCacheBytes = 32L * 1024L * 1024L;
+
+	/// <summary>
+	/// How long <see cref="Shutdown"/> waits for the synthesis thread before giving up on freeing the model. The
+	/// worker leaves its loop as soon as it sees the stopping flag (its wait is at most 500 ms), so the only way
+	/// to hit this is a native <c>Generate</c> that never returns - and then the model must stay loaded.
+	/// </summary>
+	private const int ShutdownJoinMs = 5000;
+
+	/// <summary>How long between two pre-load attempts while the model file is not there yet (see MaybePrewarm).</summary>
+	private const float PrewarmRetrySeconds = 30f;
+
+	/// <summary>Bounds of <c>[IA] TtsVelocidade</c> (ModConfig binds 0,5–2,0): the clamp here and the panel slider
+	/// use these, so the three can never drift apart (the panel used to clamp at 1,5 and silently lowered a 2,0).</summary>
+	internal const float MinSpeed = 0.5f;
+
+	internal const float MaxSpeed = 2f;
 
 	/// <summary>A sentence longer than this is broken at a comma/space, so the first audio comes out sooner.</summary>
 	private const int MaxPartChars = 180;
@@ -141,6 +178,12 @@ internal static class CompanionTts
 
 	/// <summary>text+voice+speed → samples. Written by the worker, read by the worker (only the worker touches it).</summary>
 	private static readonly Dictionary<string, float[]> _cache = new Dictionary<string, float[]>();
+
+	/// <summary>Insertion order of <see cref="_cache"/>, so the oldest sentence is the first one to be dropped.</summary>
+	private static readonly Queue<string> _cacheOrder = new Queue<string>();
+
+	/// <summary>Bytes of samples held by the cache right now (a float is 4 bytes) - the cap that really matters.</summary>
+	private static long _cacheBytes;
 
 	private static readonly object _loadLock = new object();
 
@@ -171,9 +214,22 @@ internal static class CompanionTts
 
 	private static bool _warnedSlow;
 
-	private static bool _prewarmRequested;
+	/// <summary>1 while a pre-load attempt is running (see <see cref="MaybePrewarm"/>).</summary>
+	private static int _prewarmInFlight;
+
+	/// <summary>1 once the model is loaded (or failed for good): no more pre-load attempts.</summary>
+	private static int _prewarmDone;
+
+	/// <summary>When the next pre-load attempt may start (main thread only).</summary>
+	private static float _nextPrewarmAttempt;
+
+	/// <summary>The "not on disk yet" warning is logged once, not on every retry.</summary>
+	private static bool _warnedPrewarmMissing;
 
 	private static bool _warnedMissingModel;
+
+	/// <summary>TryGetTts logs the "model not found" error once (the pre-load retry calls it again).</summary>
+	private static bool _warnedMissingModelFile;
 
 	private static bool _warnedNoAudio;
 
@@ -223,7 +279,7 @@ internal static class CompanionTts
 		get
 		{
 			float value = ModConfig.TtsSpeed != null ? ModConfig.TtsSpeed.Value : 1f;
-			return Mathf.Clamp(value, 0.5f, 2f);
+			return Mathf.Clamp(value, MinSpeed, MaxSpeed);
 		}
 	}
 
@@ -304,10 +360,13 @@ internal static class CompanionTts
 		{
 			string model = ModelPath;
 			string dir = Path.GetDirectoryName(model) ?? "";
+			string cacheInfo = CacheEnabled
+				? $"ligado (so as linhas do proprio mod, teto {MaxCacheBytes / (1024 * 1024)} MB de audio)"
+				: "desligado";
 			CompanionsPlugin.Log?.LogInfo($"[TTS] Fala do companheiro (Kokoro-82M via sherpa-onnx, CPU, local): "
 				+ $"{(Enabled ? "LIGADO" : "desligado ([IA] TtsLigado = false)")} | modelo \"{model}\" ({DescribeFile(model)}) | "
 				+ $"voz {Voice}{VoiceName(Voice)} | idioma \"{Language}\" | {Threads} thread(s) | velocidade {Speed:0.##} | "
-				+ $"volume {Volume:0.##} | cache {(CacheEnabled ? "ligado" : "desligado")}.");
+				+ $"volume {Volume:0.##} | cache {cacheInfo}.");
 			CompanionsPlugin.Log?.LogInfo($"[TTS] O que e falado: a resposta do modelo (TtsFalarRespostas={(SpeakReplies ? "sim" : "nao")}) "
 				+ $"e as linhas do proprio mod (TtsFalarFalasDoMod={(SpeakModLines ? "sim" : "nao")}). Com os dois ligados a linha que "
 				+ "aparece no chat e a que sai em voz; a outra so vai para o log (nada e falado duas vezes).");
@@ -333,12 +392,16 @@ internal static class CompanionTts
 	}
 
 	/// <summary>
-	/// Loads the model in the background, before the first line needs it. Called once the player is in the world
-	/// (Tick); does nothing after the first call. Same idea as <see cref="WhisperStt.Prewarm"/>.
+	/// Loads the model in the background, before the first line needs it. Called from <see cref="MaybePrewarm"/>
+	/// (which is what decides whether a new attempt is due); does nothing while another attempt is running.
 	/// </summary>
 	internal static void Prewarm()
 	{
-		if (!Enabled)
+		if (!Enabled || _stopping)
+		{
+			return;
+		}
+		if (Interlocked.CompareExchange(ref _prewarmInFlight, 1, 0) != 0)
 		{
 			return;
 		}
@@ -348,36 +411,84 @@ internal static class CompanionTts
 			{
 				if (TryGetTts(out OfflineTts _, out string error))
 				{
+					Volatile.Write(ref _prewarmDone, 1);
 					CompanionsPlugin.Log?.LogInfo("[TTS] Modelo pre-carregado em segundo plano (a primeira fala nao vai esperar por ele).");
+				}
+				else if (_loadFailed || _stopping)
+				{
+					// a hard failure (bad model, native libraries, shutdown): trying again would only repeat it
+					Volatile.Write(ref _prewarmDone, 1);
+					CompanionsPlugin.Log?.LogWarning("[TTS] Nao consegui pre-carregar o modelo: " + error);
 				}
 				else
 				{
-					CompanionsPlugin.Log?.LogWarning("[TTS] Nao consegui pre-carregar o modelo: " + error);
+					// the file is simply not there yet: keep the door open (see MaybePrewarm) instead of staying
+					// mute for the rest of the session
+					if (!_warnedPrewarmMissing)
+					{
+						_warnedPrewarmMissing = true;
+						CompanionsPlugin.Log?.LogWarning("[TTS] Nao consegui pre-carregar o modelo: " + error
+							+ $" Vou tentar de novo a cada {PrewarmRetrySeconds:0} s enquanto voce estiver no mundo (o modelo pode ainda nao estar no disco).");
+					}
 				}
 			}
 			catch (Exception ex)
 			{
 				CompanionsPlugin.Log?.LogWarning("[TTS] Excecao ao pre-carregar o modelo: " + ex);
 			}
+			finally
+			{
+				Volatile.Write(ref _prewarmInFlight, 0);
+			}
 		});
+	}
+
+	/// <summary>
+	/// Warms the model once the player is in the world - and <b>tries again</b> while the model is not there yet.
+	/// The old version was single-shot: if the file was not on disk at that exact moment (the model folder copied
+	/// after the first spawn, a big download still being written), the companion stayed mute until a restart.
+	/// One attempt at a time, one every <see cref="PrewarmRetrySeconds"/>, and only until the model is loaded or
+	/// the load failed for good. Runs on the main thread once per frame but does nothing (a couple of bool reads)
+	/// unless a retry is really due.
+	/// </summary>
+	private static void MaybePrewarm()
+	{
+		if (!Enabled || _stopping || _loadFailed || Volatile.Read(ref _prewarmDone) != 0)
+		{
+			return;
+		}
+		if (Player.m_localPlayer == null || UnityEngine.Time.unscaledTime < _nextPrewarmAttempt)
+		{
+			return;
+		}
+		if (Volatile.Read(ref _prewarmInFlight) != 0)
+		{
+			// one attempt at a time; Prewarm itself takes the flag (it is the only place that does)
+			return;
+		}
+		_nextPrewarmAttempt = UnityEngine.Time.unscaledTime + PrewarmRetrySeconds;
+		Prewarm();
 	}
 
 	/// <summary>
 	/// The companion says something. Called on the main thread (from the AI layer); returns immediately - the line is
 	/// queued and synthesized on the background worker.
 	/// </summary>
-	internal static void Speak(CompanionSetup companion, string text)
+	internal static void Speak(CompanionSetup companion, string text, bool cacheable = true)
 	{
-		Speak(companion != null ? companion.gameObject : null, text);
+		Speak(companion != null ? companion.gameObject : null, text, cacheable);
 	}
 
 	/// <summary>
 	/// Same, for whoever is talking (a companion, or the player for the console test). <paramref name="talker"/> is
 	/// only used to place the 3D sound, so null is accepted (the sound then stays where it was).
+	/// <paramref name="cacheable"/> is false for the model's own replies (see <see cref="TtsRequest.Cacheable"/>).
 	/// </summary>
-	internal static void Speak(GameObject talker, string text)
+	internal static void Speak(GameObject talker, string text, bool cacheable = true)
 	{
-		if (!Enabled || string.IsNullOrEmpty(text))
+		// after Shutdown the worker is gone: queueing here would leave the line in the queue forever (and the
+		// pending counter with it)
+		if (_stopping || !Enabled || string.IsNullOrEmpty(text))
 		{
 			return;
 		}
@@ -414,7 +525,8 @@ internal static class CompanionTts
 		_requests.Enqueue(new TtsRequest
 		{
 			Speaker = talker,
-			Text = trimmed
+			Text = trimmed,
+			Cacheable = cacheable
 		});
 		EnsureWorker();
 		try
@@ -436,11 +548,7 @@ internal static class CompanionTts
 	{
 		try
 		{
-			if (!_prewarmRequested && Enabled && Player.m_localPlayer != null)
-			{
-				_prewarmRequested = true;
-				Prewarm();
-			}
+			MaybePrewarm();
 			Watchdog();
 			Playback();
 		}
@@ -475,23 +583,39 @@ internal static class CompanionTts
 			}
 			_source = null;
 		}
+		// Wait for the synthesis thread to really be gone before touching the model. It only checks the stopping
+		// flag at the top of its loop, so it can be between two sentences (busy == 0) with the model in hand: the
+		// old busy check let Dispose() run under a live thread, and a Generate on a freed handle is an
+		// AccessViolation - a native crash, not something a catch can handle.
+		Thread worker = _worker;
+		if (worker != null && !worker.Join(ShutdownJoinMs))
+		{
+			CompanionsPlugin.Log?.LogWarning($"[TTS] A thread de sintese nao terminou em {ShutdownJoinMs} ms - o modelo do Kokoro ficou carregado "
+				+ "(nao descarto um modelo nativo que pode estar em uso).");
+			return;
+		}
 		if (Volatile.Read(ref _busy) != 0)
 		{
-			// disposing the model under a running synthesis would take the native library down with it
+			// belt and suspenders: with the thread gone this cannot happen, and if it somehow does the model stays
 			CompanionsPlugin.Log?.LogWarning("[TTS] Ainda havia uma sintese em andamento no descarregamento - o modelo ficou carregado.");
 			return;
 		}
-		lock (_loadLock)
+		// the worker is gone, so the gate is free; taking it anyway keeps the rule "the native model is only
+		// touched under NativeGate" (the worker holds it across the Generate call)
+		lock (NativeGate)
 		{
-			try
+			lock (_loadLock)
 			{
-				_tts?.Dispose();
+				try
+				{
+					_tts?.Dispose();
+				}
+				catch (Exception ex)
+				{
+					CompanionsPlugin.Log?.LogDebug("[TTS] Falha ao liberar o modelo do Kokoro: " + ex.Message);
+				}
+				_tts = null;
 			}
-			catch (Exception ex)
-			{
-				CompanionsPlugin.Log?.LogDebug("[TTS] Falha ao liberar o modelo do Kokoro: " + ex.Message);
-			}
-			_tts = null;
 		}
 	}
 
@@ -542,7 +666,10 @@ internal static class CompanionTts
 			{
 				try
 				{
-					Process(request);
+					if (!_stopping)
+					{
+						Process(request);
+					}
 				}
 				catch (Exception ex)
 				{
@@ -564,15 +691,25 @@ internal static class CompanionTts
 	/// </summary>
 	private static void Process(TtsRequest request)
 	{
+		if (_stopping)
+		{
+			return;
+		}
 		if (!TryGetTts(out OfflineTts tts, out string error))
 		{
 			CompanionsPlugin.Log?.LogWarning($"[TTS] Nao consegui falar \"{request.Text}\": {error}");
 			return;
 		}
+		if (_stopping)
+		{
+			// Shutdown ran while the model was being fetched: the native library may be gone by now, so nothing
+			// else here may touch tts (Generate on a freed handle is an AccessViolation, not an exception)
+			return;
+		}
 		int job = Interlocked.Increment(ref _jobs);
 		int voice = EffectiveVoice(tts);
 		float speed = Speed;
-		bool cache = CacheEnabled;
+		bool cache = CacheEnabled && request.Cacheable;
 		string[] sentences = SplitSentences(request.Text);
 		if (sentences.Length == 0)
 		{
@@ -590,6 +727,7 @@ internal static class CompanionTts
 			float[] samples = null;
 			int synthesisMs = 0;
 			bool fromCache = false;
+			bool generateFailed = false;
 			if (cache && TryGetCached(key, out float[] cached))
 			{
 				samples = cached;
@@ -612,14 +750,34 @@ internal static class CompanionTts
 						{
 							watch.Stop();
 							synthesisMs = (int)watch.ElapsedMilliseconds;
-							if (audio != null && audio.NumSamples > 0)
+							// The handle is checked FIRST: the binding always builds a non-null object, even when
+							// the native call returned NULL (the handle is then IntPtr.Zero), and NumSamples/Samples
+							// go straight into Marshal.PtrToStructure(Handle) - a null dereference is an
+							// AccessViolationException, which no catch here could survive.
+							if (audio == null || audio.Handle == IntPtr.Zero)
+							{
+								generateFailed = true;
+							}
+							else if (audio.NumSamples > 0)
 							{
 								samples = audio.Samples;
 							}
 						}
 						finally
 						{
-							audio?.Dispose();
+							// with a null handle there is nothing to free, and handing NULL to the native destroy
+							// is at best pointless: suppress the finalizer instead of calling Dispose on it
+							if (audio != null)
+							{
+								if (audio.Handle == IntPtr.Zero)
+								{
+									GC.SuppressFinalize(audio);
+								}
+								else
+								{
+									audio.Dispose();
+								}
+							}
 						}
 					}
 					finally
@@ -630,7 +788,14 @@ internal static class CompanionTts
 				}
 				if (samples == null || samples.Length == 0)
 				{
-					CompanionsPlugin.Log?.LogWarning($"[TTS] A frase {i + 1}/{sentences.Length} voltou vazia: \"{sentence}\"");
+					if (generateFailed)
+					{
+						CompanionsPlugin.Log?.LogWarning($"[TTS] A sintese nativa falhou (handle nulo) na frase {i + 1}/{sentences.Length}: \"{sentence}\"");
+					}
+					else
+					{
+						CompanionsPlugin.Log?.LogWarning($"[TTS] A frase {i + 1}/{sentences.Length} voltou vazia: \"{sentence}\"");
+					}
 					continue;
 				}
 				if (cache)
@@ -696,6 +861,13 @@ internal static class CompanionTts
 				error = null;
 				return true;
 			}
+			if (_stopping)
+			{
+				// never (re)load after Shutdown: the new model would be used by a native library that is already
+				// disposed (and nothing would free it)
+				error = "o TTS foi encerrado";
+				return false;
+			}
 			if (_loadFailed)
 			{
 				error = _loadError;
@@ -704,9 +876,15 @@ internal static class CompanionTts
 			string modelPath = ModelPath;
 			if (!File.Exists(modelPath))
 			{
-				_loadFailed = true;
+				// deliberately NOT sticky: the folder may be copied while the game is running, and the pre-load
+				// retry (MaybePrewarm) is what turns that into a working voice without a restart. The error is
+				// logged once, so the retry does not fill the log.
 				_loadError = $"modelo nao encontrado em \"{modelPath}\"";
-				CompanionsPlugin.Log?.LogError($"[TTS] {_loadError}. Coloque a pasta tts\\kokoro do modelo no plugin ou ajuste [IA] TtsModelo.");
+				if (!_warnedMissingModelFile)
+				{
+					_warnedMissingModelFile = true;
+					CompanionsPlugin.Log?.LogError($"[TTS] {_loadError}. Coloque a pasta tts\\kokoro do modelo no plugin ou ajuste [IA] TtsModelo.");
+				}
 				error = _loadError;
 				return false;
 			}
@@ -740,6 +918,22 @@ internal static class CompanionTts
 				if (tts.NumSpeakers <= 0)
 				{
 					throw new InvalidOperationException($"o modelo carregou mas nao tem vozes (NumSpeakers={tts.NumSpeakers})");
+				}
+				if (_stopping)
+				{
+					// Shutdown ran while the model was loading: free what was just built instead of handing it out
+					// (and never assign it to _tts, so nothing can reach it afterwards)
+					try
+					{
+						tts.Dispose();
+					}
+					catch (Exception ex)
+					{
+						CompanionsPlugin.Log?.LogDebug("[TTS] Falha ao liberar o modelo carregado no shutdown: " + ex.Message);
+					}
+					tts = null;
+					error = "o TTS foi encerrado";
+					return false;
 				}
 				_tts = tts;
 				CompanionsPlugin.Log?.LogInfo($"[TTS] Modelo CARREGADO em {watch.ElapsedMilliseconds} ms e MANTIDO carregado: \"{modelPath}\" "
@@ -851,20 +1045,54 @@ internal static class CompanionTts
 			int code = Marshal.GetLastWin32Error();
 			throw new InvalidOperationException($"LoadLibraryEx falhou para \"{path}\" (erro Win32 {code})");
 		}
-		CompanionsPlugin.Log?.LogInfo($"[TTS] Nativa carregada: \"{path}\" -> {ModulePathOf(handle)} (handle 0x{handle.ToInt64():X})");
+		string actual = ModulePathOf(handle);
+		CompanionsPlugin.Log?.LogInfo($"[TTS] Nativa carregada: \"{path}\" -> {actual ?? "(caminho desconhecido)"} (handle 0x{handle.ToInt64():X})");
+		if (!SameFile(actual, path))
+		{
+			// Windows identifies a module by its full path, so a second copy of the same base name is loaded as a
+			// separate module - but the managed binding asks for it by NAME (DllImport("sherpa-onnx-c-api")), and
+			// that resolves to whichever copy got there first. A different version there means a broken ABI, so
+			// say it out loud instead of failing later inside the native call.
+			CompanionsPlugin.Log?.LogWarning($"[TTS] ATENCAO: o modulo de \"{Path.GetFileName(path)}\" que o processo esta usando e \"{actual}\", e NAO o do plugin "
+				+ $"(\"{path}\"). O binding resolve a nativa pelo NOME-BASE, entao as chamadas podem cair no modulo errado (outro mod, ou uma copia na pasta "
+				+ "do jogo, de versao diferente) e a ABI pode nao bater. Feche o outro mod/versao que usa sherpa-onnx/onnxruntime.");
+		}
 	}
 
+	/// <summary>The path of the module behind a handle, or <b>null</b> when it cannot be read (never a made-up path).</summary>
 	private static string ModulePathOf(IntPtr handle)
 	{
 		try
 		{
 			StringBuilder buffer = new StringBuilder(1024);
 			uint length = GetModuleFileName(handle, buffer, (uint)buffer.Capacity);
-			return length > 0 ? buffer.ToString() : "(caminho desconhecido)";
+			return length > 0 ? buffer.ToString() : null;
 		}
 		catch (Exception ex)
 		{
-			return "(erro ao ler o caminho: " + ex.Message + ")";
+			CompanionsPlugin.Log?.LogDebug("[TTS] Nao consegui ler o caminho do modulo nativo: " + ex.Message);
+			return null;
+		}
+	}
+
+	/// <summary>
+	/// Is the module Windows really has behind the handle the file we asked for? False means another copy of the
+	/// same base name was already loaded. When the path cannot be read (or cannot be compared) this says "same",
+	/// so an unreadable path never turns into a false alarm.
+	/// </summary>
+	private static bool SameFile(string actual, string expected)
+	{
+		if (string.IsNullOrEmpty(actual) || string.IsNullOrEmpty(expected))
+		{
+			return true;
+		}
+		try
+		{
+			return string.Equals(Path.GetFullPath(actual), Path.GetFullPath(expected), StringComparison.OrdinalIgnoreCase);
+		}
+		catch (Exception)
+		{
+			return true;
 		}
 	}
 
@@ -1075,14 +1303,44 @@ internal static class CompanionTts
 
 	private static void StoreCached(string key, float[] samples)
 	{
+		if (samples == null || samples.Length == 0)
+		{
+			return;
+		}
 		lock (_cache)
 		{
-			if (_cache.Count >= MaxCacheEntries)
+			if (!_cache.ContainsKey(key))
 			{
-				_cache.Clear();
-				CompanionsPlugin.Log?.LogInfo($"[TTS] Cache de falas cheio ({MaxCacheEntries}) - esvaziado.");
+				_cache[key] = samples;
+				_cacheOrder.Enqueue(key);
+				_cacheBytes += samples.Length * 4L;
 			}
-			_cache[key] = samples;
+			TrimCache();
+		}
+	}
+
+	/// <summary>
+	/// Drops the oldest sentences until the cache is inside both caps. The byte cap is the one that matters (it is
+	/// what keeps the Mono heap bounded); the entry cap is a hard ceiling for very short sentences. Called with the
+	/// cache lock held.
+	/// </summary>
+	private static void TrimCache()
+	{
+		int removed = 0;
+		while ((_cacheBytes > MaxCacheBytes || _cache.Count > MaxCacheEntries) && _cacheOrder.Count > 0)
+		{
+			string oldest = _cacheOrder.Dequeue();
+			if (_cache.TryGetValue(oldest, out float[] dropped))
+			{
+				_cache.Remove(oldest);
+				_cacheBytes -= dropped.Length * 4L;
+				removed++;
+			}
+		}
+		if (removed > 0)
+		{
+			CompanionsPlugin.Log?.LogDebug($"[TTS] Cache de falas: {removed} frase(s) mais antiga(s) descartada(s) - agora {_cache.Count} frase(s), "
+				+ $"{_cacheBytes / (1024 * 1024)} MB de audio (tetos: {MaxCacheBytes / (1024 * 1024)} MB / {MaxCacheEntries} frases).");
 		}
 	}
 

@@ -19,7 +19,10 @@ namespace Companions;
 /// <list type="bullet">
 /// <item>a wooden panel (<c>PanelBackground</c>) over a dark backdrop, opened/closed by <c>[IA] PainelTecla</c>
 /// (default <b>I</b>), by <b>Esc</b> and by the X button; the panel blocks the player's input while it is open (the
-/// same Harmony guards the other panels use) and hides itself when the player dies or leaves the world;</item>
+/// same Harmony guards the other panels use) and hides itself when the player dies or leaves the world; it also
+/// refuses to <b>open</b> over a window that owns the mouse and the keyboard - the game's inventory, map, menu,
+/// text input, console, store, the chat with focus - or over the mod's own F8 panel (which in turn refuses to open
+/// while this one is visible), so the two panels are never on top of each other;</item>
 /// <item>the controls are built <b>once</b> (first open) and only shown/hidden afterwards - nothing is allocated per
 /// frame; the only per-frame work is the panel key, the cursor and a status refresh <b>twice a second</b>;</item>
 /// <item>every control writes straight into its <see cref="ConfigEntry"/>, and BepInEx saves the .cfg on the spot
@@ -315,7 +318,18 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		{
 			return false;
 		}
+		// the same windows VoiceInput.BlockedByUi refuses to talk over: an open inventory, the map or the game menu
+		// mean the player is busy with the mouse and the keyboard
+		if (InventoryGui.IsVisible() || Menu.IsVisible() || Minimap.IsOpen())
+		{
+			return false;
+		}
 		if (TextInput.IsVisible() || Console.IsVisible() || StoreGui.IsVisible())
+		{
+			return false;
+		}
+		// never on top of the mod's own F8 panel (ConfigPanel refuses to open while this one is visible)
+		if (ConfigPanel.Instance != null && ConfigPanel.Instance.IsVisible)
 		{
 			return false;
 		}
@@ -558,7 +572,10 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		_memoryLabel = CreateText(_root.transform, "", RightEdge - 60f, RowMemory + 6f, 60f, 22f, 12f, ValueColor, TextAlignmentOptions.MidlineRight);
 
 		CreateLabel(RowSpeed, ModLocalization.Loc("hc_ai_panel_speed"));
-		_speed = CreateSlider("Speed", FieldX, RowSpeed, 440f, RowH, 0.5f, 1.5f, 1f, false, OnSpeedChanged);
+		// the bounds of [IA] TtsVelocidade (0,5–2,0) come from CompanionTts, the same constants its clamp uses: the
+		// slider used to stop at 1,5, so a .cfg with 2,0 was shown as "2.00" with the handle at the end and the
+		// first drag silently lowered the setting to 1,5
+		_speed = CreateSlider("Speed", FieldX, RowSpeed, 440f, RowH, CompanionTts.MinSpeed, CompanionTts.MaxSpeed, 1f, false, OnSpeedChanged);
 		_speedLabel = CreateText(_root.transform, "", RightEdge - 60f, RowSpeed + 6f, 60f, 22f, 12f, ValueColor, TextAlignmentOptions.MidlineRight);
 	}
 
@@ -602,7 +619,10 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		int voiceIndex = IndexOf(_voiceIds, voice);
 		if (voiceIndex < 0)
 		{
-			_voice.Index = -1;
+			if (_voice != null)
+			{
+				_voice.Index = -1;
+			}
 			SetCaption(_voice, ModLocalization.LocFmt("hc_ai_voice_other", voice), DimColor);
 			HighlightItems(_voice, -1);
 		}
@@ -716,7 +736,7 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 	private void OnSpeedChanged(float value)
 	{
-		float speed = Mathf.Clamp(value, 0.5f, 1.5f);
+		float speed = Mathf.Clamp(value, CompanionTts.MinSpeed, CompanionTts.MaxSpeed);
 		if (ModConfig.TtsSpeed != null)
 		{
 			ModConfig.TtsSpeed.Value = speed;
@@ -842,6 +862,10 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 	private static void HighlightItems(AiDropdown dropdown, int index)
 	{
+		if (dropdown == null || dropdown.Items == null)
+		{
+			return;
+		}
 		for (int i = 0; i < dropdown.Items.Count; i++)
 		{
 			dropdown.Items[i].Image.color = i == index ? GoldColor : ItemColor;
@@ -850,7 +874,7 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 	private static void SetCaption(AiDropdown dropdown, string text, Color color)
 	{
-		if (dropdown.Caption == null)
+		if (dropdown == null || dropdown.Caption == null)
 		{
 			return;
 		}

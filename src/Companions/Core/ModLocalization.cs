@@ -376,6 +376,17 @@ public static class ModLocalization
 			{ "hc_ai_not_equipable", "I can't equip {0}." },
 			{ "hc_ai_dropped", "Dropped {0} ({1})." },
 			{ "hc_ai_need_item", "I didn't catch which item." },
+			// Fase 3.8: the companion opens its own inventory (voice/chat). These 9 keys only existed in the PT-BR
+			// JSON, so another language showed the raw token - same bug the audit found in hc_ai_voice_key_conflict.
+			{ "hc_ai_order_inventory", "open the inventory" },
+			{ "hc_ai_order_inventory_close", "close the inventory" },
+			{ "hc_ai_inventory_open", "Opening the inventory." },
+			{ "hc_ai_inventory_requesting", "Asking {0} for access to the inventory - the window opens in a moment." },
+			{ "hc_ai_inventory_timeout", "I couldn't open the companion's inventory. Ask me again." },
+			{ "hc_ai_inventory_no_gui", "I can't open the inventory right now." },
+			{ "hc_ai_inventory_closed", "I closed the inventory." },
+			{ "hc_ai_inventory_none_open", "No inventory is open." },
+			{ "hc_ai_no_container", "I couldn't find {0}'s inventory." },
 			// Fase 3.5: personality presets (shown in the log), free conversation and the memory
 			{ "hc_ai_default_name", "Companion" },
 			{ "hc_ai_preset_default", "Default" },
@@ -397,6 +408,7 @@ public static class ModLocalization
 			{ "hc_ai_voice_ui_open", "Close the window before speaking." },
 			{ "hc_ai_voice_cancelled", "Recording cancelled." },
 			{ "hc_ai_voice_disabled", "Voice orders are off ([IA] VozLigada = false)." },
+			{ "hc_ai_voice_key_conflict", "The {0} key is now push-to-talk: the game's auto-pickup no longer toggles with it. Rebind auto-pickup in the game's Controls settings if you want to use it." },
 			{ "hc_ai_tts_unavailable", "The companion's voice isn't ready (the Kokoro model is missing?)." },
 			// Fase 3.7: the in-game AI panel (personality, voice, push-to-talk). See UI/CompanionAiPanel.cs.
 			{ "hc_ai_panel_title", "AI Panel" },

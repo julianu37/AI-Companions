@@ -105,7 +105,7 @@ simplesmente não fala (o jogo segue).
 | Fila de saída | `ConcurrentQueue<TtsChunk>` drenada no `Update`; cada `TtsChunk` leva amostras + taxa + quem fala |
 | Voz fora de alcance | `EffectiveVoice`: `[IA] TtsVoz` mas **nunca fora** de `NumSpeakers` (um id inexistente faria a chamada nativa falhar) |
 | Watchdog | se uma síntese passar de 30 s, o log avisa **uma vez** (o jogo não está travado: é thread de fundo) |
-| Shutdown | marca `_stopping`, acorda o worker, para o áudio, destrói o `AudioSource` e libera o nativo — **a menos que** haja síntese em andamento (aí o modelo fica carregado, como no `WhisperStt`) |
+| Shutdown | marca `_stopping`, acorda o worker, para o áudio, destrói o `AudioSource` e **espera a thread** (`_worker.Join(5000)`) **antes** de liberar o nativo (`lock (NativeGate)`); se o `Join` estourar (um `Generate` que não volta), o modelo fica carregado. `Process`/`TryGetTts`/`Speak` recusam trabalhar depois de `_stopping` (nada de recarregar o modelo depois do shutdown, nem de `Generate` sobre handle morto) |
 
 **Nunca bloqueia a main thread:** `Speak` só lê a config, marca o slot e enfileira; `Generate` é síncrono mas já
 está na thread de fundo. O `Update` só faz um `TryDequeue` (nada alocado) e, quando há fala tocando, **um**
@@ -129,9 +129,19 @@ Regras do corte (todas verificadas num harness com o código real, **17 casos, A
 - uma frase ainda maior que 180 caracteres é quebrada na última vírgula/espaço antes do limite (o modelo tagarela
   não faz o jogador esperar a frase toda).
 
-O **cache** (`[IA] TtsCache`, ligado) guarda `voz + velocidade + frase → amostras`, com teto de 256 entradas
-(esvazia quando enche, com log). É o que faz uma fala fixa (`"Já temos o suficiente."`) sair **na hora** — e como
-o cache é por **frase**, uma fala que mistura uma parte repetida com uma nova aproveita a parte repetida.
+O **cache** (`[IA] TtsCache`, ligado) guarda `voz + velocidade + frase → amostras`. É o que faz uma fala fixa
+(`"Já temos o suficiente."`) sair **na hora** — e como o cache é por **frase**, uma fala que mistura uma parte
+repetida com uma nova aproveita a parte repetida.
+
+Dois limites, depois da auditoria (ver §12):
+
+- **só as linhas do mod entram**: `TtsRequest.Cacheable` é `false` para o `reply` do modelo
+  (`CompanionChatAI.SpeakOutLoud` marca), porque uma resposta do modelo é **nova a cada vez** — deixá-las entrar era
+  o que **expulsava as falas fixas** (o motivo de o cache existir) a cada mensagem;
+- **teto por bytes**, não por entrada: `MaxCacheBytes` = **32 MB** de amostras `float` (~29 s de 24 kHz mono; uma
+  frase de 180 caracteres ≈ 1,1 MB) com **eviction do mais antigo** (`_cacheOrder`, uma fila de inserção) e
+  `MaxCacheEntries` = 256 como teto duro para frases muito curtas. Antes o teto era de 256 **entradas** e o cache
+  era **esvaziado** inteiro ao encher — com frases longas isso permitia centenas de MB no heap do Mono.
 
 ## 6. Latência (medida, não adivinhada)
 
@@ -195,7 +205,7 @@ reflexão e sem alocação.
 |---|---|---|
 | `TtsLigado` | `true` | liga/desliga a fala (com ela desligada o modelo **nem é carregado**) |
 | `TtsVoz` | `42` | voz do Kokoro: **42** pf_dora (fem.), **43** pm_alex (masc.), **44** pm_santa (masc.) |
-| `TtsVelocidade` | `1` | velocidade da fala (0,5–2) |
+| `TtsVelocidade` | `1` | velocidade da fala (0,5–2 — **o slider do painel da IA usa o mesmo intervalo**, `CompanionTts.MinSpeed/MaxSpeed`) |
 | `TtsThreads` | `4` | núcleos da síntese (1–16; 4 = RTF ~0,83 medido) |
 | `TtsVolume` | `1` | volume (0 = mudo) |
 | `TtsModelo` | `tts\kokoro\model.int8.onnx` | modelo; `voices.bin`/`tokens.txt`/`espeak-ng-data` vêm da **mesma pasta** |
@@ -226,12 +236,15 @@ reflexão e sem alocação.
    Com `TtsFalarFalasDoMod = false` ele fala a resposta do modelo (*"Deixa comigo."*) no lugar.
 5. **Ordem por voz:** segurar `V`, falar `ataca o greydwarf`, soltar → transcrição no balão do **jogador** e, depois
    da ação, a fala `"Atacando greydwarf."` saindo **dele**.
-6. **Conversa:** digitar `bom dia` → o companheiro responde (balão + chat) **e fala** a resposta. A mesma frase de
-   novo deve sair **na hora** (cache): no log, `[TTS] Frase 1/1: CACHE (0 ms) ...`.
+6. **Cache:** repetir uma **linha do mod** (ex.: `colete 10 madeiras` duas vezes) → no log,
+   `[TTS] Frase 1/1: CACHE (0 ms) ...` (só as linhas do mod entram no cache; a resposta do modelo é nova a cada
+   vez e é sempre sintetizada).
 7. **Vozes:** trocar `[IA] TtsVoz` para `43` e repetir o passo 3 (masculina).
 8. **Volume/velocidade:** `TtsVolume = 0.3` e `TtsVelocidade = 1.3` e repetir.
 9. **Casos de falha:** renomear `tts\kokoro\model.int8.onnx` → `[TTS] O modelo do TTS nao esta em ...` (uma vez, no
    log e no chat: *"A voz do companheiro não está pronta (falta o modelo do Kokoro?)."*) e o jogo segue normal;
+   **devolver o arquivo com o jogo aberto** → em até **30 s** o log mostra
+   `[TTS] Modelo pre-carregado em segundo plano ...` e a fala volta a funcionar **sem reiniciar** (A4);
    `TtsLigado = false` → nada é falado e o modelo não é carregado.
 10. **Sem travar:** durante uma fala longa (passo 3 com um texto grande), andar/lutar — o jogo **não** deve
     engasgar (a síntese é thread de fundo).
@@ -242,3 +255,19 @@ reflexão e sem alocação.
   a velocidade, o que é falado, a personalidade, a memória e a tecla do push-to-talk, com o botão **Ouvir** para
   ouvir a voz escolhida na hora. Ver `docs/roadmap.md` (Fase 3.7). Falta o menu radial como atalho para ele.
 - Vozes por companheiro (hoje `[IA] TtsVoz` é global) e amostras de referência (o Kokoro não faz clonagem).
+
+## 12. Auditoria (Fase 3.4/3.7) — o que foi endurecido
+
+Revisão dos commits `675a56f`/`758bec0`. Nada de comportamento visível mudou, exceto os limites citados.
+
+| # | Problema | Correção |
+|---|---|---|
+| A1 | **Corrida no `Shutdown`**: `_stopping` + `Dispose()` sem esperar a thread. O worker só olha o flag no topo do laço, então podia estar **entre duas frases** (`_busy == 0`) e o `Generate` seguinte rodava sobre o handle já liberado → **AccessViolation** (crash nativo, não é exceção capturável) | `_worker.Join(5000)` **antes** de tocar no `_tts`; `Process`/`TryGetTts` recusam sintetizar/carregar com `_stopping`; `Dispose` dentro do `lock (NativeGate)`; `Join` estourado ⇒ o modelo **fica carregado** |
+| A2 | `audio.NumSamples` com handle nulo: o binding devolve um `OfflineTtsGeneratedAudio` **não-nulo** com `Handle == IntPtr.Zero` quando o `Generate` nativo devolve `NULL`, e `NumSamples`/`Samples` fazem `Marshal.PtrToStructure(Handle)` → *AccessViolation* | `audio.Handle != IntPtr.Zero` checado **antes** de `NumSamples`/`Samples`; handle nulo = falha no log + `continue`, sem `Dispose` (o destroy nativo receberia `NULL`) — `GC.SuppressFinalize` no lugar |
+| A3 | `Speak` depois do `Shutdown` deixava a fala na fila e o `_pending` estourado | `if (_stopping) return;` no começo |
+| A4 | `Prewarm` era **single-shot** (`_prewarmRequested`): se o modelo não estivesse no disco naquele instante, nunca mais tentava — e "modelo não encontrado" marcava `_loadFailed` (definitivo) | `MaybePrewarm`: uma tentativa por vez, uma a cada **30 s**, enquanto no mundo; "não encontrado" **não** é mais `_loadFailed` (re-checado, erro logado uma vez) ⇒ copiar a pasta do modelo com o jogo aberto passa a funcionar |
+| C2 | Cache sem teto de **bytes** (256 entradas × `float[]` cru ≈ centenas de MB) e cada resposta única do modelo **expulsava as falas fixas** | teto de **32 MB** de áudio com eviction do mais antigo + **só as linhas do mod** entram (`TtsRequest.Cacheable`) |
+| B1 | A pré-carga não validava **qual** DLL foi carregada: se outra versão de `onnxruntime.dll`/`sherpa-onnx-c-api.dll` já estivesse no processo, o `DllImport` (resolvido por **nome-base**) podia cair nela | `PreloadNative` compara `ModulePathOf(handle)` com o caminho esperado e **avisa** no log quando diverge |
+| D2 | (painel 3.7) a tecla abria o painel por cima do inventário/menu/F8 | a tecla é recusada com `InventoryGui`/`Menu`/`Minimap`/`ConfigPanel` visíveis, e o `ConfigPanel` não abre com o painel da IA visível |
+| E1/E2 | `hc_ai_voice_key_conflict` só no JSON PT-BR; slider de velocidade 0,5–1,5 contra 0,5–2,0 na config | par em inglês nos padrões; `MinSpeed`/`MaxSpeed` compartilhados |
+| D3 | cursor não restaurado no `Hide()` do painel | **nada a fazer**: `GameCamera.UpdateMouseCapture` (decompilado) trava o cursor a cada frame quando não há janela aberta — e deixa livre de propósito para quem desliga a captura com `Ctrl+F1` |

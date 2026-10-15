@@ -1098,7 +1098,7 @@ teste em [`docs/re/tts-kokoro-sherpa-onnx.md`](re/tts-kokoro-sherpa-onnx.md).
 | `CompanionTts.TryGetTts` | carrega o `OfflineTts` **uma vez** (lazy, `lock`) e o mantém; `Prewarm()` faz isso em segundo plano quando você entra no mundo |
 | Worker dedicado | **thread de fundo** própria (`ModIA-CompanionTts`), alimentada por `ConcurrentQueue` + `SemaphoreSlim`; o jogo nunca espera |
 | Por frase | `SplitSentences` (`.` `!` `?` `…` e quebras de linha; um ponto entre dígitos é decimal; uma sequência de terminadores é **um** corte) — a 1ª frase toca enquanto a 2ª é gerada |
-| Cache | `texto + voz + velocidade → amostras` (teto de 256 entradas): as falas fixas saem **na hora** |
+| Cache | `texto + voz + velocidade → amostras`, **só das linhas do mod** e com teto **por bytes** (32 MB, eviction do mais antigo; ver as correções da auditoria abaixo): as falas fixas saem **na hora** |
 | Playback | **um** `AudioSource` **3D** na posição do companheiro (`spatialBlend=1`, `min/maxDistance`), volume de `[IA] TtsVolume`; uma fala por vez, em fila; o `AudioClip` é destruído ao terminar |
 | `AudioClip`/`AudioSource` | acessados **por reflexão**, uma vez (o `UnityEngine.AudioModule` não é referenciável neste projeto — mesmo motivo do `VoiceInput.Mic`); o `transform.position` do `AudioSource` vai por `Component.transform` (CoreModule, referência direta) |
 | Nativos | `sherpa-onnx-c-api.dll` + `onnxruntime.dll` pré-carregados por caminho absoluto antes do 1º uso (ver o doc) |
@@ -1144,6 +1144,7 @@ arquivo à mão e sem reiniciar nada.
 | `CompanionAiPanel` | painel de madeira (`PanelBackground`) sobre um fundo escuro, com o mesmo formato dos outros painéis do mod: montado **uma vez** (no primeiro `Show`) e só mostrado/escondido depois |
 | Tecla | **`[IA] PainelTecla`** (novo, `KeyCode`, padrão **`I`**) abre/fecha; **Esc** fecha (e, em ordem, primeiro sai da caixa de texto, depois fecha a lista aberta, depois o painel); o **X** fecha; um botão *Fechar* não existe porque o X faz isso |
 | Input bloqueado | o painel entra na **mesma lista** dos outros painéis: prefixos de `Player.TakeInput` e `PlayerController.TakeInput` (`Patches/*_BlockForCompanionUI.cs`), `Hud.InRadial` (`InRadial_BlockForStarterPanel.cs`) e `VoiceInput.BlockedByUi` (para a tecla do push-to-talk não gravar com o painel aberto) |
+| Não abre por cima | a tecla é recusada com o inventário, o mapa, o menu, o chat com foco, o console, a entrada de texto, a busca do comerciante ou o **painel F8** abertos (`InventoryGui.IsVisible()`, `Minimap.IsOpen()`, `Menu.IsVisible()`, `ConfigPanel.Instance.IsVisible`) — e o `ConfigPanel` recusa abrir enquanto o painel da IA está visível (correção D2 da auditoria) |
 | Fecha sozinho | o jogador morreu (`Player.IsDead()`) ou saiu do mundo (`Player.m_localPlayer == null`) — checado no *refresh* de status (2×/s), nunca por frame |
 | Sem companheiro perto | é config **global** do mod: o painel abre sem companheiro nenhum por perto; só o *Ouvir* e o nome no status usam o companheiro mais próximo que atenderia uma ordem (`CompanionChatAI.PickSpeaker`) |
 | Status | uma linha no rodapé (2×/s): personalidade em uso • voz • tecla do push-to-talk — mais a dica da tecla do painel; o **título** nomeia o companheiro que atenderia uma ordem agora (o mesmo que o *Ouvir* usa), quando há um por perto |
@@ -1158,7 +1159,7 @@ hora — `ConfigFile.SaveOnConfigSet`, confirmado na fonte do BepInEx):
 | Dropdown **Voz** (42 pf_dora fem. / 43 pm_alex masc. / 44 pm_santa masc.) | `[IA] TtsVoz` | na **próxima fala** (o worker de síntese lê a config ao rodar; o cache é `texto+voz+velocidade`, então não há áudio velho) |
 | **Ouvir** | nada (só fala) — usa `CompanionTts.Speak` com a frase `hc_ai_panel_tts_sample`, no companheiro mais próximo (se ele estiver dentro de `[Speech] CullDistance`; senão fala **em você**, para o teste nunca ficar mudo) | na hora; **desabilitado** se `TtsLigado = false` ou o modelo não estiver no disco (`CompanionTts.Ready`) |
 | Slider **Volume** | `[IA] TtsVolume` (0..1) | no **próximo áudio** (`StartChunk` lê o volume ao tocar) |
-| Slider **Velocidade** | `[IA] TtsVelocidade` (**0,5..1,5** no painel; o `.cfg` aceita até 2) | na próxima síntese |
+| Slider **Velocidade** | `[IA] TtsVelocidade` (**0,5..2,0**, o mesmo intervalo do `.cfg` — `CompanionTts.MinSpeed/MaxSpeed`) | na próxima síntese |
 | Tecla do **Push-to-talk** + **Alterar** | `[IA] VozTecla` via `KeyBindListener` (o **mesmo** componente do painel F8 — nada de lógica nova de captura) | na hora; o `AutoPickupKeyConflict.Reset()` é chamado para o conflito com o *Toggle Auto-Pickup* do jogo ser reavaliado com a tecla nova |
 | Toggle **Ordens por voz** | `[IA] VozLigada` | na hora |
 | Toggle **Companheiro fala** | `[IA] TtsLigado` | na próxima fala |
@@ -1189,6 +1190,40 @@ hora — `ConfigFile.SaveOnConfigSet`, confirmado na fonte do BepInEx):
   (`CompanionPersona.Presets`, `CompanionTts.PortugueseVoiceCount/PorAt` — e `Speed`/`Volume` viraram `internal` para
   o log do *Ouvir*), o `AutoPickupKeyConflict.Reset()`, a entrada na lista de UI bloqueada (4 arquivos) e
   `Create`/`Destroy` no plugin.
+
+### Fase 3.4/3.7 — correções da auditoria do TTS e do painel (✅ build 0 erros — teste em jogo pendente)
+
+Revisão dos commits `675a56f` (Fase 3.4, `CompanionTts.cs`) e `758bec0` (Fase 3.7, `CompanionAiPanel.cs`). Nada de
+comportamento visível mudou **exceto** onde a correção era exatamente isso (o teto do cache, a faixa do slider de
+velocidade e as guardas de abertura do painel).
+
+| # | Item | Correção |
+|---|---|---|
+| **A1** | Corrida no `Shutdown` (nativo usado depois do `Dispose` → *AccessViolation*) | o `Shutdown` agora **espera a thread de síntese** (`_worker.Join(5000)`) antes de tocar no `_tts`; `Process`/`TryGetTts` **recusam** sintetizar/carregar quando `_stopping`; o `Dispose` passou para dentro do `lock (NativeGate)`; se o `Join` estourar, o modelo **fica carregado** (comportamento seguro de antes) |
+| **A2** | `audio.NumSamples` com handle nulo (crash nativo) | o `audio.Handle != IntPtr.Zero` é checado **antes** de `NumSamples`/`Samples` (o binding devolve um objeto não-nulo mesmo com o `Generate` nativo devolvendo `NULL`); handle nulo = falha registrada no log + `continue`, e **não** se chama `Dispose` (o destroy nativo receberia `NULL`) — em vez disso `GC.SuppressFinalize` |
+| **A3** | `Speak` depois do `Shutdown` | `if (_stopping) return;` no começo do `Speak` (a fala não fica na fila e o `_pending` não vaza) |
+| **A4** | `Prewarm` tentava **uma vez só** | novo `MaybePrewarm()`: uma tentativa por vez, uma a cada **30 s**, enquanto o jogador estiver no mundo e o modelo **não** tiver carregado; o "modelo não encontrado" no `TryGetTts` deixou de ser definitivo (`_loadFailed`) — agora é re-checado, então copiar a pasta do modelo com o jogo aberto passa a funcionar sem reiniciar (o erro é logado **uma** vez) |
+| **C2** | Cache de TTS sem teto de bytes | teto **por bytes** (`MaxCacheBytes` = **32 MB** de amostras `float`, ~29 s de áudio) **e** eviction do mais antigo (fila de inserção), em vez do `Clear()` ao bater 256 entradas; **e** só as **linhas do mod** entram no cache (`TtsRequest.Cacheable`; `CompanionChatAI.SpeakOutLoud` marca a resposta do modelo como não cacheável) — eram as respostas únicas que expulsavam as falas fixas |
+| **B1** | pré-carga nativa não validava *qual* DLL entrou | `PreloadNative` compara `ModulePathOf(handle)` com o caminho esperado e, em divergência, **avisa** no log (o `DllImport` resolve por **nome-base**: outro mod/cópia na pasta do jogo pode capturar a chamada e a ABI não bater) |
+| **D2** | o painel da IA abria por cima do inventário/menu | `PanelKeyPressed` passou a recusar `InventoryGui.IsVisible()`, `Menu.IsVisible()` e `Minimap.IsOpen()` (a mesma lista do `VoiceInput.BlockedByUi`) **e** o painel **F8** (`ConfigPanel.Instance.IsVisible`); o `ConfigPanel.Update` ganhou a checagem cruzada (não abre com o painel da IA visível) |
+| **E1** | `hc_ai_voice_key_conflict` só existia no JSON PT-BR | par em **inglês** em `ModLocalization._englishDefaults` (o PT-BR continua no JSON); o `EnsureDefaultFile` regenera o `English.json` por contagem de chaves |
+| **E2** | slider de velocidade 0,5–1,5 contra a config 0,5–2,0 | `CompanionTts.MinSpeed`/`MaxSpeed` (novos) são usados pelo **clamp** do `Speed` e pelo **slider** do painel: com `TtsVelocidade = 2,0` o handle vai até o fim e nada é rebaixado no primeiro arrasto |
+| **D3** | cursor não era restaurado no `Hide()` | **não mexido, de propósito** — ver a nota abaixo |
+
+- **D3 (por que não mexer):** quem devolve o cursor no Valheim 1.0 é o **próprio jogo**:
+  `GameCamera.UpdateMouseCapture()` roda a cada frame e, com `m_mouseCapture` ligado (`= true` no `Start` fora do
+  editor) e nenhuma janela aberta, faz `ZCursor.LockState = CursorLockMode.Locked; ZCursor.Hide();` — é justamente
+  por isso que os painéis do mod (F8, IA, radial, casa, inicial) **reafirmam** `Cursor.lockState = None` a cada
+  frame enquanto estão abertos. Ao fechar, o jogo trava o cursor de novo no frame seguinte. Se o jogador desligou a
+  captura do mouse (`Ctrl+F1`), o mesmo método deixa o cursor **livre** de propósito — e um `Hide()` que forçasse
+  `Locked` contrariaria essa escolha. (O `FarmZonePlacer` trava no `Hide` porque ele toma conta da câmera com o
+  mouse, um caso diferente.) Fonte decompilada: `assembly_valheim.dll` → `GameCamera.UpdateMouseCapture`.
+- **Defensivo:** `_voice.Index = -1` ganhou null-check e os helpers `SetCaption`/`HighlightItems` passaram a aceitar
+  dropdown nulo (o resto do arquivo já era null-safe).
+- **Não mexido (D4):** os sliders continuam gravando o `.cfg` a cada passo do arrasto — padrão pré-existente do
+  `ConfigPanel`.
+- **Arquivos:** `AI/CompanionTts.cs` (A1, A2, A3, A4, B1, C2, E2), `AI/CompanionChatAI.cs` (C2), `UI/CompanionAiPanel.cs`
+  (D2, E2, defensivo), `UI/ConfigPanel.cs` (D2), `Core/ModLocalization.cs` (E1).
 
 
 

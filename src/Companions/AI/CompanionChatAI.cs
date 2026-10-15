@@ -525,7 +525,11 @@ internal static class CompanionChatAI
 			string other = string.Equals(text, modLine, StringComparison.Ordinal) ? reply : modLine;
 			CompanionsPlugin.Log?.LogInfo($"[IA] Voz (Fase 3.4): falando \"{Shorten(text, MaxReplyShown)}\"; o outro texto (\"{Shorten(other, MaxReplyShown)}\") fica so no log - nada e falado duas vezes.");
 		}
-		CompanionTts.Speak(companion, text);
+		// Only the mod's own lines go into the TTS cache (CompanionTts): they repeat word for word, which is what
+		// the cache is for. A reply from the model is new every time, and caching those would push the fixed lines
+		// out of the cache (and grow the heap) on every single message.
+		bool fromModel = !string.IsNullOrEmpty(reply) && string.Equals(text, reply, StringComparison.Ordinal) && !string.Equals(modLine, reply, StringComparison.Ordinal);
+		CompanionTts.Speak(companion, text, !fromModel);
 	}
 
 	/// <summary>

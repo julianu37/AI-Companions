@@ -207,7 +207,15 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   (teto de 3 pedidos), e os pedaços prontos voltam por outra `ConcurrentQueue` drenada no `Update` — o jogo nunca
   espera. **Por frase** (`SplitSentences`: `.` `!` `?` `…` e quebras de linha; ponto entre dígitos é decimal; uma
   sequência de terminadores é **um** corte; `:`/`,` não cortam) a 1ª frase já toca enquanto a 2ª é gerada;
-  **cache** `voz+velocidade+frase → amostras` (teto 256) faz as falas fixas saírem na hora. Playback: **um**
+  **cache** `voz+velocidade+frase → amostras` **só das linhas do mod** (as respostas do modelo, novas a cada vez,
+  não entram: eram elas que expulsavam as falas fixas) com teto **por bytes** — **32 MB** de áudio, descartando as
+  frases mais antigas (`MaxCacheBytes`/`MaxCacheEntries`, `StoreCached`/`TrimCache`) — faz as falas fixas saírem na
+  hora. **Ciclo de vida:** o `Prewarm` **tenta de novo** a cada 30 s enquanto você está no mundo e o modelo não
+  carregou (`MaybePrewarm`; "modelo não encontrado" no `TryGetTts` **não** é mais definitivo, então copiar a pasta
+  com o jogo aberto funciona sem reiniciar), e o `Shutdown` **espera a thread de síntese** (`_worker.Join(5000)`)
+  antes de liberar o `OfflineTts`, com `Process`/`TryGetTts`/`Speak` recusando trabalhar depois do flag
+  `_stopping` (o `Dispose` fica dentro do `lock (NativeGate)`; se o `Join` estourar, o modelo **fica carregado**).
+  Playback: **um**
   `AudioSource` **3D** na posição do companheiro (`spatialBlend=1`, `maxDistance = [Speech] CullDistance`), volume
   de `[IA] TtsVolume`, uma fala por vez (fila), `AudioClip` destruído ao terminar. **Nativos:** o binding é um
   `[DllImport("sherpa-onnx-c-api")]` puro (sem loader próprio, ao contrário do Whisper.net) e no Unity o Windows
@@ -232,7 +240,9 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   nativos carregados por esse caminho. Detalhes: `docs/re/tts-kokoro-sherpa-onnx.md`.
 - **Fase 3.7 — painel da IA no jogo (personalidade + voz + push-to-talk):** novo `UI/CompanionAiPanel.cs`, aberto pela
   tecla **`[IA] PainelTecla`** (novo `ConfigEntry<KeyCode>`, padrão **`I`** — livre no jogo e no mod; como é uma letra,
-  a tecla é ignorada quando o chat/console/entrada de texto/busca do comerciante está ativo). Painel de madeira
+  a tecla é ignorada quando o chat/console/entrada de texto/busca do comerciante está ativo, e a tecla **também** é
+  recusada com o inventário, o mapa, o menu ou o painel **F8** abertos — e o `ConfigPanel` recusa abrir enquanto este
+  painel está visível, então os dois nunca ficam um sobre o outro). Painel de madeira
   montado **uma vez** (no primeiro `Show`) e só mostrado/escondido depois; fecha com a tecla, com **Esc** e com o
   **X**, entra na lista de UI que bloqueia o input (os dois prefixos de `TakeInput`, `Hud.InRadial` e
   `VoiceInput.BlockedByUi`) e se fecha sozinho quando o jogador morre ou sai do mundo. **Não precisa de companheiro
@@ -240,7 +250,8 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   **personalidade** (dropdown dos presets de `CompanionPersona` + campo de texto livre + **Aplicar** →
   `PresetPersonalidade`/`Personalidade`, valendo na próxima mensagem); **voz** (dropdown das 3 vozes pt-BR 42/43/44 +
   botão **Ouvir** que fala uma frase de exemplo pelo **mesmo** `CompanionTts` — worker/cache/playback 3D — e fica
-  desabilitado sem TTS ou sem modelo + sliders de `TtsVolume` e `TtsVelocidade`); **push-to-talk** (mostra
+  desabilitado sem TTS ou sem modelo + sliders de `TtsVolume` e `TtsVelocidade` — o de velocidade vai de **0,5 a 2,0**,
+  o mesmo intervalo do `.cfg` (`CompanionTts.MinSpeed/MaxSpeed`)); **push-to-talk** (mostra
   `VozTecla` + botão **Alterar** com o **mesmo** `KeyBindListener` do painel F8 + toggle `VozLigada`; ao trocar a
   tecla o `AutoPickupKeyConflict.Reset()` reavalia o conflito com o auto-pickup do jogo); toggles `TtsLigado`,
   `TtsFalarRespostas`, `TtsFalarFalasDoMod`, `Conversa` e o slider de `Memoria` (0..12). O dropdown é **feito à mão**
@@ -249,6 +260,17 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   thread, sem alocação por frame (por frame: tecla + cursor + status 2×/s) e sem segredos. PT-BR: 33 chaves
   `hc_ai_panel_*` / `hc_ai_voice_*` no `ModLocalization` **e** no `Translations/Portuguese_Brazilian.json`.
   Detalhes: `docs/roadmap.md` (Fase 3.7).
+- **Correções da auditoria das Fases 3.4/3.7 (A1–A4, B1, C2, D2, E1, E2):** endurecimento do TTS e do painel, sem
+  mudar comportamento. `CompanionTts`: `Shutdown` **espera a thread** (`Join(5000)`) antes de `Dispose` e
+  `Process`/`TryGetTts`/`Speak` recusam trabalhar depois de `_stopping` (A1/A3); `audio.Handle != IntPtr.Zero`
+  checado **antes** de `NumSamples` (o binding devolve objeto não-nulo com handle nulo → *AccessViolation*) (A2);
+  `Prewarm` com **nova tentativa** a cada 30 s e "modelo não encontrado" **não** mais definitivo (A4); cache **por
+  bytes** (32 MB) + **só linhas do mod** (C2); `PreloadNative` **avisa** se o módulo carregado não é o do plugin
+  (o `DllImport` resolve por nome-base) (B1); `MinSpeed`/`MaxSpeed` compartilhados com o painel (E2).
+  `CompanionAiPanel`: a tecla é recusada com inventário/mapa/menu/**painel F8** abertos e o `ConfigPanel` recusa
+  abrir com o painel da IA visível (D2); `hc_ai_voice_key_conflict` ganhou o par em inglês (E1); **D3** (cursor no
+  `Hide`) não foi mexido de propósito — quem devolve o cursor é o `GameCamera.UpdateMouseCapture` do próprio jogo.
+  Detalhes: `docs/roadmap.md` (Fase 3.4/3.7 — correções da auditoria) e `docs/re/tts-kokoro-sherpa-onnx.md`.
 - Backend/contrato de referência: `docs/re/backend-contract.md`; mapa da fase: `docs/roadmap.md` (Trilha D);
   pipeline de voz: `docs/re/stt-voz-pipeline.md`; fala do companheiro: `docs/re/tts-kokoro-sherpa-onnx.md`.
 
