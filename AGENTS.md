@@ -60,20 +60,22 @@ skills em `.opencode/skills/`. Leia este arquivo antes de agir.
 
 Notas de desenvolvimento do upstream: `docs/DEV_NOTES.md`; handoff: `docs/SESSION_HANDOFF.md`.
 
-## Camada de IA (Fase 3.1 — ordens por texto no chat; Fase 3.2/3.2c — o número da ordem é um alvo total contado no inventário do companheiro; Fase 3.6 — ordens com alvo: atacar/equipar/largar)
+## Camada de IA (Fase 3.1 — ordens por texto no chat; Fase 3.2/3.2c — o número da ordem é um alvo total contado no inventário do companheiro; Fase 3.5 — personalidade, memória e conversa livre; Fase 3.6 — ordens com alvo: atacar/equipar/largar)
 
-O jogador digita a ordem no chat do jogo (`colete 20 de madeira`, `segue`, `para`, `ataca o greydwarf`,
-`equipa o machado de bronze`, `larga a pedra`) e um **LLM local** (API compatível com a OpenAI:
+O jogador digita no chat do jogo (`colete 20 de madeira`, `segue`, `para`, `ataca o greydwarf`,
+`equipa o machado de bronze`, `larga a pedra`, `bom dia`) e um **LLM local** (API compatível com a OpenAI:
 `POST {BaseUrl}/chat/completions`) devolve a intenção em JSON, que vira a **mesma ação** do menu radial /
-tecla de comando. Fluxo: `CompanionChatAI` (patch Harmony em `Chat.SendText` + system prompt PT-BR) →
-`LlmClient` (POST em `Task` de fundo + fila thread-safe drenada no `Update`) → `LlmIntent` (parser
-tolerante: `action`, `target`, `resource`, `amount`) → `CompanionOrders` (intenção →
-`CompanionSetup.ApplyActionMode`, `SetCombatStance`, `MHR_JobRules`, `DirectEngage`, `EquipItem`,
-`ItemDrop.DropItem`, recall...).
+tecla de comando — ou uma **resposta de conversa**, quando não é ordem. Fluxo: `CompanionChatAI` (patch Harmony
+em `Chat.SendText` + prompt PT-BR montado por mensagem) → `LlmClient` (POST em `Task` de fundo + fila
+thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `reply`, `target`, `resource`,
+`amount`) → `CompanionOrders` (intenção → `CompanionSetup.ApplyActionMode`, `SetCombatStance`, `MHR_JobRules`,
+`DirectEngage`, `EquipItem`, `ItemDrop.DropItem`, recall...).
 
 - Config `[IA]` no `.cfg` (sem segredos no código): `Ligado`, `BaseUrl`, `Modelo`, `ApiKey`, `Temperatura`,
   `TimeoutSegundos`, `Prefixo`, `MostrarRespostaNoChat`, `CooldownSegundos`, `RaioDeAlvo` (até onde procurar a
-  criatura citada numa ordem de ataque; a que estiver na mira vale sempre).
+  criatura citada numa ordem de ataque; a que estiver na mira vale sempre), `Personalidade` (texto livre do
+  jogador, PT-BR, até 600 caracteres), `PresetPersonalidade` (`viking`, `mago`, `sarcastico`, `guia`, `custom`;
+  vazio = padrão), `Memoria` (6; 0 = desligada, teto 12) e `Conversa` (true).
 - `Chat.SendText(Talker.Type, string)` é o caminho da mensagem **do próprio jogador** (as recebidas entram
   por `Chat.OnNewChatMessage`) — é o único ponto capturado.
 - `despawn` não é exposto ao modelo. O `amount` é um **ALVO TOTAL** para madeira/pedra/minério (Fase 3.2,
@@ -92,6 +94,16 @@ tolerante: `action`, `target`, `resource`, `amount`) → `CompanionOrders` (inte
   engajada **mesmo na postura Passiva** — a postura não muda); `equip` por `Humanoid.EquipItem`; `drop` por
   `ItemDrop.DropItem` + `Inventory.RemoveItem` (sem número = stack inteiro; a pilha sai do auto-pickup e item de
   missão nunca cai). "Pegar" é lido pelo objeto: `pega a picareta` → equipar, `pega madeira` → coleta.
+- **Fase 3.5 — personalidade, memória e conversa:** `CompanionPersona` (presets PT-BR embutidos + resolução do
+  texto livre, que **ganha** do preset) e `CompanionMemory` (últimas `Memoria` trocas **por companheiro**, teto de
+  `2 × Memoria` mensagens, 240 caracteres cada, no máximo 8 conversas; limpa na morte, no dismiss e na troca de
+  mundo) entram no **prompt montado por mensagem**: nome + personalidade + contrato fixo + memória. A memória vai
+  como **texto no system prompt** (`Jogador: ...` / `Thorin: ...`), nunca como mensagens `user`/`assistant`
+  extras — o contrato JSON continua sendo a última coisa que o modelo lê. Quando o `action` é `none` e há
+  `reply`, o companheiro **fala** (balão via `CompanionTalk.Say(..., force: true)`) e o texto aparece no chat;
+  numa **ordem** a linha localizada do mod **ganha** e o `reply` é só logado (nada de mensagem duplicada). Quem
+  fala é o companheiro **mais próximo** que pode receber ordem, e a conversa **não** toma posse dele
+  (`MHR_Owner.TakeControl` continua só nas ordens).
 - Backend/contrato de referência: `docs/re/backend-contract.md`; mapa da fase: `docs/roadmap.md` (Trilha D).
 
 ## Nossas docs

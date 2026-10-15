@@ -375,7 +375,15 @@ public static class ModLocalization
 			{ "hc_ai_no_item", "I don't have {0}." },
 			{ "hc_ai_not_equipable", "I can't equip {0}." },
 			{ "hc_ai_dropped", "Dropped {0} ({1})." },
-			{ "hc_ai_need_item", "I didn't catch which item." }
+			{ "hc_ai_need_item", "I didn't catch which item." },
+			// Fase 3.5: personality presets (shown in the log), free conversation and the memory
+			{ "hc_ai_default_name", "Companion" },
+			{ "hc_ai_preset_default", "Default" },
+			{ "hc_ai_preset_custom", "Free text" },
+			{ "hc_ai_preset_viking", "Loyal Viking" },
+			{ "hc_ai_preset_mago", "Sarcastic Mage" },
+			{ "hc_ai_preset_sarcastico", "Sarcastic" },
+			{ "hc_ai_preset_guia", "Patient Guide" }
 		};
 	}
 

@@ -143,6 +143,8 @@ public class CompanionsPlugin : BaseUnityPlugin
 	private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
 	{
 		FontFix.Ensure("scene:" + scene.name);
+		// Fase 3.5: the conversation memory lives in memory only - leaving the world forgets it
+		CompanionMemory.ClearAll();
 	}
 
 	private void OnDestroy()

@@ -501,6 +501,15 @@ internal static class ModConfig
 
 	internal static ConfigEntry<float> AiTargetRange;
 
+	// [IA] - Fase 3.5: personalidade (preset ou texto livre), memória curta da conversa e conversa livre
+	internal static ConfigEntry<string> AiPersonality;
+
+	internal static ConfigEntry<string> AiPersonalityPreset;
+
+	internal static ConfigEntry<int> AiMemory;
+
+	internal static ConfigEntry<bool> AiConversation;
+
 	internal static void Init(ConfigFile cfg)
 	{
 		// [General]
@@ -760,6 +769,10 @@ internal static class ModConfig
 		AiShowResponse = Bind(cfg, "IA", "MostrarRespostaNoChat", defaultValue: true, "Show the model's raw answer in the chat, so you can see what it understood. Useful while testing; turn off for a cleaner chat.");
 		AiCooldown = Bind(cfg, "IA", "CooldownSegundos", 3f, "Shortest time (seconds) between two orders, so a burst of chat messages can't flood the model.", new AcceptableValueRange<float>(0f, 60f));
 		AiTargetRange = Bind(cfg, "IA", "RaioDeAlvo", 40f, "Fase 3.6: how far from you (in meters) an order that names a creature looks for it (\"ataca o greydwarf\"). A creature you are aiming at is always taken, however far it is. 40 m is the same leash the combat code drops a target at.", new AcceptableValueRange<float>(5f, 200f));
+		AiPersonality = Bind(cfg, "IA", "Personalidade", "", "Fase 3.5: your companion's personality in your own words, in Portuguese - how it talks and behaves (\"fala como um viking leal e direto\", \"é um mago sarcástico que reclama do frio\"). It goes into the model's instructions, so the companion answers in that tone. When this is filled in it wins over PresetPersonalidade. Up to 600 characters. Text setting: edit it in the .cfg file.");
+		AiPersonalityPreset = Bind(cfg, "IA", "PresetPersonalidade", "", "Fase 3.5: a ready-made personality, written in Portuguese inside the mod: viking (leal e destemido), mago (velho e sarcástico), sarcastico (piadas secas), guia (paciente e didático), or custom (use Personalidade). Empty or unknown = the default (a loyal, practical companion). Text setting: edit it in the .cfg file.");
+		AiMemory = Bind(cfg, "IA", "Memoria", 6, "Fase 3.5: how many recent exchanges (one message from you + one from the companion) the companion remembers and sends along with the next message, so it follows the thread of the conversation. 0 = no memory. Kept per companion, in memory only (nothing is saved to the world) and forgotten when the companion dies or is dismissed.", new AcceptableValueRange<int>(0, 12));
+		AiConversation = Bind(cfg, "IA", "Conversa", defaultValue: true, "Fase 3.5: when the message is NOT an order (\"bom dia\", \"como você está?\", \"o que achou da minha casa?\"), the companion answers as conversation: it says the answer out loud (speech bubble) and shows it in the chat. Orders keep working exactly as before. Off = only orders are understood, as in Fase 3.1.");
 
 		// 1.4.149: settings moved/renamed in the config clean-up keep the values players set; leftovers are removed.
 		// 1.4.150: the fix-ups below only run on such an upgrade (a file from before the clean-up), not on every start -

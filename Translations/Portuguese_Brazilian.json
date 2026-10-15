@@ -308,6 +308,13 @@
         { "key": "hc_ai_no_item", "value": "Não tenho {0}." },
         { "key": "hc_ai_not_equipable", "value": "Não dá para equipar {0}." },
         { "key": "hc_ai_dropped", "value": "Larguei {0} ({1})." },
-        { "key": "hc_ai_need_item", "value": "Não entendi qual item." }
+        { "key": "hc_ai_need_item", "value": "Não entendi qual item." },
+        { "key": "hc_ai_default_name", "value": "Companheiro" },
+        { "key": "hc_ai_preset_default", "value": "Padrão" },
+        { "key": "hc_ai_preset_custom", "value": "Texto livre" },
+        { "key": "hc_ai_preset_viking", "value": "Viking leal" },
+        { "key": "hc_ai_preset_mago", "value": "Mago sarcástico" },
+        { "key": "hc_ai_preset_sarcastico", "value": "Sarcástico" },
+        { "key": "hc_ai_preset_guia", "value": "Guia paciente" }
     ]
 }

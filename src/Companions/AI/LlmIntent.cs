@@ -29,6 +29,11 @@ internal sealed class LlmIntent
 	/// <summary>How many were asked for, or 0 when the order didn't say.</summary>
 	internal int Amount;
 
+	/// <summary>Fase 3.5: what the companion says to the player, in its own words (the model's "reply"), or null.
+	/// In an order it is the short confirmation; when the message is not an order it IS the answer, and the
+	/// companion speaks it (see CompanionChatAI).</summary>
+	internal string Reply;
+
 	/// <summary>Raw text the model answered with, kept for the log and for "MostrarRespostaNoChat".</summary>
 	internal string Raw = "";
 
@@ -47,6 +52,9 @@ internal sealed class LlmIntent
 	private static readonly Regex TargetFieldRegex = new Regex("\"(?:target|alvo|target_name|nome_alvo|creature|item_name)\"\\s*:\\s*(?:\"((?:[^\"\\\\]|\\\\.)*)\"|([^,}}\\s\\]]+))", RegexOptions.Compiled | RegexOptions.Singleline);
 
 	private static readonly Regex StanceFieldRegex = new Regex("\"(?:stance|postura)\"\\s*:\\s*(?:\"((?:[^\"\\\\]|\\\\.)*)\"|([^,}}\\s\\]]+))", RegexOptions.Compiled | RegexOptions.Singleline);
+
+	// Fase 3.5: the companion's own words. Accepts the aliases a small model tends to use for it.
+	private static readonly Regex ReplyFieldRegex = new Regex("\"(?:reply|resposta|fala|mensagem|message|say|texto|text)\"\\s*:\\s*(?:\"((?:[^\"\\\\]|\\\\.)*)\"|([^,}}\\s\\]]+))", RegexOptions.Compiled | RegexOptions.Singleline);
 
 	private static readonly Regex NonWordRegex = new Regex("[^a-z0-9]+", RegexOptions.Compiled);
 
@@ -93,6 +101,7 @@ internal sealed class LlmIntent
 			string resource = ReadField(ResourceFieldRegex, body, noneIsNull: true);
 			string target = ReadField(TargetFieldRegex, body, noneIsNull: true);
 			string stance = ReadField(StanceFieldRegex, body, noneIsNull: true);
+			string reply = ReadField(ReplyFieldRegex, body, noneIsNull: true);
 
 			Match amountMatch = AmountRegex.Match(body);
 			if (amountMatch.Success && int.TryParse(amountMatch.Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int amount))
@@ -109,6 +118,16 @@ internal sealed class LlmIntent
 			intent.Resource = string.IsNullOrEmpty(resource) ? null : Normalize(resource);
 			intent.Target = string.IsNullOrEmpty(target) ? null : Normalize(target);
 			intent.Action = Canonicalize(action, stance, intent.Resource, intent.Target);
+			intent.Reply = string.IsNullOrEmpty(reply) ? null : reply.Trim();
+
+			// Fase 3.5: a model that ignored the JSON contract and simply answered in prose - in conversation mode
+			// that prose IS the answer (see CompanionChatAI). A one-word answer was already taken as the action
+			// above, so only a sentence long enough to be speech is accepted here, and only when nothing else was
+			// understood: no order can be swallowed by this.
+			if (start < 0 && intent.Reply == null && intent.IsNone && body.IndexOf(' ') > 0 && body.Length <= 300)
+			{
+				intent.Reply = body.Trim();
+			}
 
 			// Fase 3.6: the model often files the named creature/item under the wrong field. An order that needs a
 			// target takes "resource"/"item" when "target" is empty, and a gathering order takes "target" as its

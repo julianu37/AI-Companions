@@ -2,7 +2,37 @@
 
 All notable changes to this fork of ProfMags' Offline Companions. Versions before 1.4.0 are the original mod (see [ProfMags' Thunderstore page](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) for that history) plus the initial batch of Valheim 1.0 API-compatibility fixes that let the mod load and run at all on 1.0.
 
-## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Tradução PT-BR (fork ModAI-BR-Companions)
+## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.5: personalidade, memória e conversa livre + Tradução PT-BR (fork ModAI-BR-Companions)
+- **Fase 3.5 — personalidade, memória e conversa livre.** O companheiro agora **tem um jeito de falar**, **lembra
+  das últimas trocas** e, quando a mensagem **não é uma ordem** (`bom dia`, `como você está?`, `o que achou da minha
+  casa?`), **responde como conversa**: fala no balão do mundo (`CompanionTalk.Say`) e mostra a resposta no chat.
+  - **Personalidade:** novo `[IA] Personalidade` (texto livre do jogador, até 600 caracteres) e
+    `[IA] PresetPersonalidade` com presets embutidos em PT-BR — **`viking`** (leal e destemido), **`mago`** (velho e
+    sarcástico), **`sarcastico`** (piadas secas), **`guia`** (paciente e didático) — mais **`custom`** (usa o texto
+    livre). Texto livre **ganha** do preset; vazio = companheiro padrão (leal e prático); preset desconhecido avisa
+    no log e cai no padrão. O texto entra no começo do prompt, junto com o **nome** do companheiro
+    (`Você é Thorin, o companheiro NPC do jogador, e ele é o seu dono.` / `Seu jeito de falar e de agir: ...`).
+  - **Memória:** novo `[IA] Memoria` (6; 0 = desligada, teto 12). Guarda as últimas trocas (jogador ↔ companheiro)
+    **por companheiro**, com teto de `2 × Memoria` mensagens (240 caracteres cada, sem quebras de linha) e no
+    máximo 8 conversas ao mesmo tempo. Vai no prompt como **texto** (`Jogador: ...` / `Thorin: ...`), e não como
+    mensagens `user`/`assistant` extras — o contrato JSON continua sendo a última coisa que o modelo lê e ele nunca
+    recebe o próprio JSON antigo de volta. É **só em memória** (nada no ZDO/save) e é **esquecida** na morte
+    (`OnCompanionDeath`), no dismiss/despawn (`OnDestroy`) e na troca de mundo.
+  - **Conversa livre × ordem:** o JSON ganhou **`reply`** (aceita `resposta`/`fala`/`mensagem`/`message`/`texto`/
+    `text`/`say`; sem JSON nenhum, uma frase do modelo passa a ser lida como `reply`). Numa **ordem** nada mudou: a
+    **linha do mod ganha** e o `reply` é só logado (o companheiro não diz duas coisas sobre a mesma ordem, e a linha
+    localizada é a que sabe **nomear** criatura/item: "Atacando o troll."). Em conversa, o `reply` é falado (balão
+    forçado) e mostrado no chat. Novo `[IA] Conversa` (true): `false` volta ao comportamento exato da Fase 3.1.
+  - **Quem fala:** o companheiro **mais próximo** que pode receber ordem (seu, `Command` ligado, dentro do recall).
+    A conversa **não** toma posse do companheiro (isso continua só nas ordens). Sem companheiro perto, a resposta
+    ainda aparece no chat, sem balão.
+  - **Arquivos novos:** `src/Companions/AI/CompanionPersona.cs` (presets + resolução) e
+    `src/Companions/AI/CompanionMemory.cs` (memória por companheiro + bloco do prompt). `CompanionSetup` ganhou
+    `MHR_ResolveCompanionId`/`MHR_CachedCompanionId` (o ID permanente, lido uma vez) para a memória ser arquivada
+    por companheiro (e não pelo nome).
+  - **Textos PT-BR:** `hc_ai_default_name`, `hc_ai_preset_default/custom/viking/mago/sarcastico/guia`.
+  - **Nada de bloqueio:** tudo continua em uma única chamada de fundo (sem `.Result`/`.Wait()`), o prompt é montado
+    uma vez por mensagem (nunca por frame) e a memória é limitada nas duas pontas.
 - **Fase 3.6 — ordens com alvo: o companheiro ataca a criatura que você nomeou, equipa o item que ele tem e
   larga o que você mandar.** `ataca o greydwarf`, `mata o javali`, `equipa o machado de bronze`, `pega a
   picareta`, `larga a pedra`, `joga fora 5 madeira`.

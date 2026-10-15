@@ -90,6 +90,10 @@ public class CompanionSetup : MonoBehaviour
 
 	private bool _mhrHasId;
 
+	// Fase 3.5: the permanent ID, kept once it is known so the conversation memory can be filed under it (and
+	// forgotten from OnDestroy, where the ZNetView may already be gone).
+	private string _mhrId;
+
 	internal static readonly int TombInvWidthHash = "HC_TombInvW".GetStableHashCode();
 
 	internal static readonly int TombInvHeightHash = "HC_TombInvH".GetStableHashCode();
@@ -481,6 +485,21 @@ public class CompanionSetup : MonoBehaviour
 		return "";
 	}
 
+	/// <summary>Fase 3.5: the companion's permanent ID, read at most once - the conversation memory (CompanionMemory)
+	/// is filed under it, so it survives a rename. Returns "" when the companion has no ID yet (the caller falls back
+	/// to its name).</summary>
+	internal string MHR_ResolveCompanionId()
+	{
+		if (string.IsNullOrEmpty(_mhrId))
+		{
+			_mhrId = MHR_EnsureCompanionId();
+		}
+		return _mhrId ?? "";
+	}
+
+	/// <summary>Fase 3.5: the ID already known, without touching the ZNetView - safe to call from OnDestroy.</summary>
+	internal string MHR_CachedCompanionId => _mhrId ?? "";
+
 	internal ItemDrop.ItemData GetHelmetItem()
 	{
 		return GetEquipSlot(_helmetItemField);
@@ -573,6 +592,9 @@ public class CompanionSetup : MonoBehaviour
 			return;
 		}
 		_dead = true;
+		// Fase 3.5: a companion that goes down forgets the conversation (it comes back as the same companion, but a
+		// fresh start is what the player expects from one that just died).
+		CompanionMemory.Clear(MHR_CachedCompanionId);
 		if (_nview == null || !_nview.IsOwner())
 		{
 			return;
@@ -672,9 +694,14 @@ public class CompanionSetup : MonoBehaviour
 		}
 		MHR_StampOwnerDeathRule();
 		MHR_MarkNoDestroy();
-		if (!_mhrHasId && !string.IsNullOrEmpty(MHR_EnsureCompanionId()))
+		if (!_mhrHasId)
 		{
-			_mhrHasId = true;
+			string companionId = MHR_EnsureCompanionId();
+			if (!string.IsNullOrEmpty(companionId))
+			{
+				_mhrId = companionId;
+				_mhrHasId = true;
+			}
 		}
 		if (CompanionInteractPanel.IsOpenFor(this) || CompanionRadialMenu.IsOpenFor(this))
 		{
@@ -1822,6 +1849,8 @@ public class CompanionSetup : MonoBehaviour
 	private void OnDestroy()
 	{
 		_allCompanions.Remove(this);
+		// Fase 3.5: dismissal/despawn (and leaving the world) forgets this companion's conversation
+		CompanionMemory.Clear(MHR_CachedCompanionId);
 		if (_dead || _removePinOnDestroy)
 		{
 			RemoveMinimapPin();

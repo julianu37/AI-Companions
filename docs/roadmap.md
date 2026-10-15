@@ -53,7 +53,7 @@ Legenda: ✅ concluído · 🔄 em andamento · ⏳ pendente
 | 2.18b | **Seguir pelo portal** (`CompanionPortalFollow` + `[Portal]`): ele anda até o portal e é levado para junto de você quando o seu teleporte termina | ✅ (v0.4.6) |
 | 2.18c | **Carroça** (`CompanionCart` + `[Carroca]`): `modia_cart pull\|release` — ele anda até o engate do `Vagon` e puxa a carroça pelo `ConfigurableJoint` do jogo | ✅ (v0.4.6) |
 | 2.5 | Multiplayer (ZNetView/ZDO, testes com cliente/servidor) | ⏳ |
-| **3** | IA e voz: comandos por voz/chat, STT, TTS, personalidade — **no fork, ver Trilha D** | 🔄 (3.1, 3.2, 3.6 ✅) |
+| **3** | IA e voz: comandos por voz/chat, STT, TTS, personalidade — **no fork, ver Trilha D** | 🔄 (3.1, 3.2, 3.5, 3.6 ✅) |
 | **4** | Backend híbrido (LLM local + API), endpoints do "cérebro" | ⏳ |
 | **5** | Empacotamento (manifest, README, ícone) + revisão final | ⏳ |
 
@@ -340,7 +340,7 @@ Ordens em **linguagem natural** por cima do mod do upstream. O companheiro conti
 | **3.2c** | **Correção final da quantidade**: o número é um **ALVO TOTAL contado no inventário do companheiro**, só para o recurso pedido; com o alvo já na mochila ele nem começa e avisa | ✅ validado em jogo |
 | 3.3 | Voz: captura com `Microphone` → STT (backend) → mesma caixa de ordens | ⏳ |
 | 3.4 | TTS: o companheiro **fala** a confirmação (áudio do backend, `AudioSource`) | ⏳ |
-| 3.5 | Personalidade/memória: preset + texto livre no contexto do LLM | ⏳ |
+| 3.5 | Personalidade/memória: preset + texto livre no contexto do LLM | ✅ (build; teste em jogo pendente) |
 | 3.6 | **Ordens com alvo**: `ataca o greydwarf` (engaja a criatura), `equipa o machado de bronze` (equipa do inventário dele), `larga a pedra` (joga fora) | ✅ validado em jogo |
 | 3.7 | UI do NPC: menu de personalidade/voz + keybind de push-to-talk | ⏳ |
 
@@ -525,4 +525,57 @@ O jogador aponta e digita: **`ataca o greydwarf`**, **`equipa o machado de bronz
 - **Verificação:** as duas partes mais arriscadas (casamento de nomes e o parser) foram exercitadas contra o DLL
   compilado — 45 casos de nome (criaturas e itens, PT-BR e EN, e 5 que **não** podem casar) e 30 de JSON
   (ordens novas + as que já existiam), todos passando.
+
+### Fase 3.5 — personalidade, memória e conversa livre (✅ — build; teste em jogo pendente)
+
+O companheiro deixa de ser só um tradutor de ordens: ele **tem um jeito de falar** (preset ou texto livre do
+jogador), **lembra das últimas trocas** e, quando a mensagem **não é uma ordem**, **responde como conversa** —
+falando no balão do mundo e mostrando a resposta no chat. Nada do que já funcionava mudou: uma ordem continua
+executando a **mesma ação** do radial, com a **mesma** linha de feedback.
+
+| Peça | Arquivo | O que faz |
+|---|---|---|
+| Personalidade | `src/Companions/AI/CompanionPersona.cs` (novo) | presets embutidos (`viking`, `mago`, `sarcastico`, `guia`) + `custom`; `Resolve()` decide o texto que vai ao prompt (texto livre **ganha** do preset; vazio = padrão neutro) e `Describe()`/`Ids()` alimentam o log |
+| Memória | `src/Companions/AI/CompanionMemory.cs` (novo) | as últimas `[IA] Memoria` trocas **por companheiro**, injetadas no prompt; teto nas duas pontas (trocas por companheiro + nº de companheiros) e limpeza na morte/dismiss/desload |
+| Contrato | `src/Companions/AI/LlmIntent.cs` | novo campo **`reply`** (aceita `resposta`/`fala`/`mensagem`/`message`/`texto`/`text`/`say`); sem JSON nenhum, uma frase do modelo passa a ser lida como `reply` |
+| Orquestração | `src/Companions/AI/CompanionChatAI.cs` | prompt montado por mensagem (nome + personalidade + contrato + memória), escolha do companheiro que fala, conversa livre (balão + chat) e o registro da troca na memória |
+| Limpeza | `src/Companions/Companion/CompanionSetup.cs` | `MHR_ResolveCompanionId`/`MHR_CachedCompanionId` (ID permanente do companheiro, lido uma vez) + `CompanionMemory.Clear` na morte (`OnCompanionDeath`) e no `OnDestroy`; `CompanionsPlugin.OnSceneLoaded` limpa tudo |
+| Config | `src/Companions/Core/ModConfig.cs` | **`[IA] Personalidade`** (""), **`PresetPersonalidade`** (""), **`Memoria`** (6, 0–12) e **`Conversa`** (true) |
+| Textos | `ModLocalization.cs` + `Translations/Portuguese_Brazilian.json` | `hc_ai_default_name`, `hc_ai_preset_default/custom/viking/mago/sarcastico/guia` |
+
+- **Como a personalidade entra no prompt:** o prompt de cada mensagem começa com
+  `Você é {nome}, o companheiro NPC do jogador, e ele é o seu dono.` + `Seu jeito de falar e de agir: {personalidade}`
+  + `Fale sempre em português, no seu jeito, com uma ou duas frases...`, e só então vem o **contrato fixo** (ações,
+  regras, exemplos — agora com `reply`) e, no fim, a **memória**. O contrato é idêntico em toda mensagem, então o
+  começo do prompt continua cacheável pelo servidor local.
+- **Presets oferecidos:** `viking` (leal e destemido), `mago` (velho e sarcástico), `sarcastico` (piadas secas) e
+  `guia` (paciente e didático) — textos em PT-BR embutidos no código (o `.cfg` fica curto) —, mais `custom`, que
+  usa o texto livre de `Personalidade`. Config vazia = companheiro padrão (leal e prático). Preset desconhecido:
+  avisa no log e cai no padrão; se os dois estiverem preenchidos, o **texto livre ganha** (e o log diz).
+- **Como a memória funciona:** um dicionário `id do companheiro → lista de turnos` (jogador/companheiro), no
+  **máximo `2 × Memoria` mensagens** (6 trocas = 12 mensagens por padrão), cada mensagem cortada em 240 caracteres e
+  sem quebras de linha; no máximo 8 conversas ao mesmo tempo (a mais antiga sai). O **formato** escolhido é **texto
+  dentro do system prompt** (`Jogador: ...` / `Thorin: ...`), e não mensagens `user`/`assistant` extras: assim o
+  contrato JSON continua sendo a última coisa que o modelo lê e ele nunca recebe o próprio JSON antigo de volta
+  (modelos pequenos tendem a copiar/parafrasear o que veem no histórico).
+- **Limpeza:** a memória é **só em memória** (nada é gravado no ZDO/save). É esquecida quando o companheiro
+  **morre** (`OnCompanionDeath`), é **dispensado/despawnado** (`OnDestroy`) e quando o **mundo** é trocado
+  (`OnSceneLoaded` → `ClearAll`).
+- **Conversa livre × ordem:** com `Conversa = true`, `action: none` + `reply` → o companheiro **fala** o `reply`
+  (balão via `CompanionTalk.Say(..., force: true)`) e o texto aparece no chat/HUD; sem `reply`, continua o
+  "Não entendi a ordem." de antes. Com `Conversa = false`, o comportamento é **exatamente** o da Fase 3.1.
+  Numa **ordem**, a linha do mod **ganha** e o `reply` do modelo **não** é mostrado (só logado): o companheiro não
+  diz duas coisas sobre a mesma ordem, e a linha localizada é a única que sabe **nomear** a criatura/o item
+  ("Atacando o troll.", "Larguei Pedra (5)."). O `reply` da ordem entra na memória, então o tom não se perde.
+- **Quem fala:** o companheiro **mais próximo** que pode receber ordem (seu, `Command` ligado, dentro do
+  `[IA] RecallRange`/`[Controls] RecallRange`). Diferente das ordens, a conversa **não** toma posse do companheiro
+  (`MHR_Owner.TakeControl` fica só para ordens). Sem companheiro por perto a resposta ainda aparece no chat, sem balão.
+- **Verificação:** o parser e a memória foram exercitados contra o DLL compilado — 12 casos de JSON (conversa com
+  `reply`, aliases `resposta`/`fala`/`mensagem`, texto puro sem JSON, ordens antigas com `target`/`amount`) e a
+  memória (teto de 12 mensagens, corte das mais antigas, bloco do prompt, `Clear`/`ClearAll`), todos passando.
+- **Receita de teste:** `[IA] PresetPersonalidade = viking` (ou `Personalidade = é um mago sarcástico...`), entrar no
+  mundo, digitar `bom dia` e depois `como você está?` — a segunda resposta deve lembrar da primeira; `o que achou da
+  minha casa?` deve responder no tom; `colete 20 de madeira` deve continuar funcionando igual (Ok: coletar madeira
+  (20)); `Conversa = false` deve voltar ao silêncio para conversa; `Memoria = 0` deve fazer ele esquecer a cada
+  mensagem; matar/dispensar o companheiro deve zerar a memória (linha `[IA] Memory:` no `LogOutput.log`).
 
