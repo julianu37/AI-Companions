@@ -60,7 +60,7 @@ skills em `.opencode/skills/`. Leia este arquivo antes de agir.
 
 Notas de desenvolvimento do upstream: `docs/DEV_NOTES.md`; handoff: `docs/SESSION_HANDOFF.md`.
 
-## Camada de IA (Fase 3.1 — ordens por texto no chat; Fase 3.2/3.2c — o número da ordem é um alvo total contado no inventário do companheiro; Fase 3.5 — personalidade, memória e conversa livre; Fase 3.6 — ordens com alvo: atacar/equipar/largar; Fase 3.6b — a ordem sem alvo do modelo cai para as palavras do jogador; Fase 3.3 — ordens por voz: push-to-talk + STT local; Fase 3.3c — raio de coleta maior e chatter aleatório desligado; Fase 3.3d — o teto da ordem vale para todo alvo do modo e a voz sai no balão do jogador; Fase 3.4 — o companheiro FALA: TTS local (Kokoro-82M via sherpa-onnx))
+## Camada de IA (Fase 3.1 — ordens por texto no chat; Fase 3.2/3.2c — o número da ordem é um alvo total contado no inventário do companheiro; Fase 3.5 — personalidade, memória e conversa livre; Fase 3.6 — ordens com alvo: atacar/equipar/largar; Fase 3.6b — a ordem sem alvo do modelo cai para as palavras do jogador; Fase 3.3 — ordens por voz: push-to-talk + STT local; Fase 3.3c — raio de coleta maior e chatter aleatório desligado; Fase 3.3d — o teto da ordem vale para todo alvo do modo e a voz sai no balão do jogador; Fase 3.4 — o companheiro FALA: TTS local (Kokoro-82M via sherpa-onnx); Fase 3.7 — painel da IA no jogo: personalidade, voz com Ouvir e push-to-talk)
 
 O jogador digita no chat do jogo (`colete 20 de madeira`, `segue`, `para`, `ataca o greydwarf`,
 `equipa o machado de bronze`, `larga a pedra`, `bom dia`) e um **LLM local** (API compatível com a OpenAI:
@@ -230,6 +230,25 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   [texto]`**. PT-BR: `hc_ai_tts_unavailable`. Verificado fora do jogo: `SplitSentences` **real** (17 casos) +
   `PickSpokenText` **real** (14 casos) → **ALL CHECKS PASSED**, e um harness que sintetizou áudio de verdade com os
   nativos carregados por esse caminho. Detalhes: `docs/re/tts-kokoro-sherpa-onnx.md`.
+- **Fase 3.7 — painel da IA no jogo (personalidade + voz + push-to-talk):** novo `UI/CompanionAiPanel.cs`, aberto pela
+  tecla **`[IA] PainelTecla`** (novo `ConfigEntry<KeyCode>`, padrão **`I`** — livre no jogo e no mod; como é uma letra,
+  a tecla é ignorada quando o chat/console/entrada de texto/busca do comerciante está ativo). Painel de madeira
+  montado **uma vez** (no primeiro `Show`) e só mostrado/escondido depois; fecha com a tecla, com **Esc** e com o
+  **X**, entra na lista de UI que bloqueia o input (os dois prefixos de `TakeInput`, `Hud.InRadial` e
+  `VoiceInput.BlockedByUi`) e se fecha sozinho quando o jogador morre ou sai do mundo. **Não precisa de companheiro
+  perto** (config global). Controles (todos gravam no `ConfigEntry` e o BepInEx salva o `.cfg` na hora):
+  **personalidade** (dropdown dos presets de `CompanionPersona` + campo de texto livre + **Aplicar** →
+  `PresetPersonalidade`/`Personalidade`, valendo na próxima mensagem); **voz** (dropdown das 3 vozes pt-BR 42/43/44 +
+  botão **Ouvir** que fala uma frase de exemplo pelo **mesmo** `CompanionTts` — worker/cache/playback 3D — e fica
+  desabilitado sem TTS ou sem modelo + sliders de `TtsVolume` e `TtsVelocidade`); **push-to-talk** (mostra
+  `VozTecla` + botão **Alterar** com o **mesmo** `KeyBindListener` do painel F8 + toggle `VozLigada`; ao trocar a
+  tecla o `AutoPickupKeyConflict.Reset()` reavalia o conflito com o auto-pickup do jogo); toggles `TtsLigado`,
+  `TtsFalarRespostas`, `TtsFalarFalasDoMod`, `Conversa` e o slider de `Memoria` (0..12). O dropdown é **feito à mão**
+  (botão-campo + lista de botões numa camada overlay que é o último filho do painel) porque um `TMP_Dropdown` exige
+  um template inteiro e o `Dropdown` legado usa o `Text` legado (sem a fonte do Valheim). Sem bloqueio de main
+  thread, sem alocação por frame (por frame: tecla + cursor + status 2×/s) e sem segredos. PT-BR: 33 chaves
+  `hc_ai_panel_*` / `hc_ai_voice_*` no `ModLocalization` **e** no `Translations/Portuguese_Brazilian.json`.
+  Detalhes: `docs/roadmap.md` (Fase 3.7).
 - Backend/contrato de referência: `docs/re/backend-contract.md`; mapa da fase: `docs/roadmap.md` (Trilha D);
   pipeline de voz: `docs/re/stt-voz-pipeline.md`; fala do companheiro: `docs/re/tts-kokoro-sherpa-onnx.md`.
 

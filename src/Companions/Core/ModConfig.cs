@@ -538,6 +538,9 @@ internal static class ModConfig
 
 	internal static ConfigEntry<bool> VozShowText;
 
+	// [IA] - Fase 3.7: painel da IA no jogo (personalidade, voz, push-to-talk). Ver UI/CompanionAiPanel.cs.
+	internal static ConfigEntry<KeyCode> AiPanelKey;
+
 	// [IA] - Fase 3.4: TTS local (Kokoro-82M via sherpa-onnx): o companheiro FALA. Ver AI/CompanionTts.cs.
 	internal static ConfigEntry<bool> TtsEnabled;
 
@@ -839,6 +842,9 @@ internal static class ModConfig
 		VozPromptInitial = Bind(cfg, "IA", "VozPromptInicial", "Ordens para o companheiro: colete madeira, pedra, minerio, ferro, segue, para, vem ca, ataca o greydwarf, equipa o machado de bronze, larga a pedra, descansa, bom dia.", "Fase 3.3b: prompt inicial enviado ao Whisper antes de cada transcrição. Ele enviesa o vocabulário, e é isso que faz ordens curtas (\"colete 10 madeiras\") saírem certas em vez de adivinhadas. Coloque as palavras que você realmente fala (as ordens, os nomes de criaturas e itens); vazio = sem viés. Opção de texto: edite no arquivo .cfg.");
 		VozDevice = Bind(cfg, "IA", "VozDispositivo", 0, "Fase 3.3: de qual microfone gravar, como o índice da lista que o log imprime na inicialização ([STT] Push-to-talk: ... 0: nome, 1: nome). 0 = o primeiro (o padrão do Windows).", new AcceptableValueRange<int>(0, 8));
 		VozShowText = Bind(cfg, "IA", "VozMostrarTexto", defaultValue: true, "Fase 3.3: mostra o que o microfone ouviu (\"Entendi: \"colete 10 madeiras\"\") no chat e no HUD, e faz o companheiro repetir, para uma transcrição errada ser fácil de notar. Desligado = o texto reconhecido só é escrito no log.");
+
+		// [IA] - Fase 3.7: the in-game AI panel (personality, voice, push-to-talk, toggles). See UI/CompanionAiPanel.cs.
+		AiPanelKey = Bind(cfg, "IA", "PainelTecla", KeyCode.I, "Fase 3.7: abre o painel da IA no jogo, onde a personalidade (preset ou texto livre), a voz do companheiro (com o botão Ouvir), o volume, a velocidade da fala, a memória, a conversa e a tecla do push-to-talk são mudados sem editar este arquivo. Cada mudança é salva na hora. O padrão é I: o jogo e o mod não usam essa tecla. A tecla não é roubada de uma caixa de texto (o chat, o console e o campo de busca ficam em paz). Opção de tecla: edite no arquivo .cfg ou clique nela no painel F8.");
 
 		// [IA] - Fase 3.4: TTS local (Kokoro-82M via sherpa-onnx, in-process). O companheiro fala as respostas em
 		// voz alta, na posição dele. Ver AI/CompanionTts.cs.

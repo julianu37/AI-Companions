@@ -207,6 +207,11 @@ internal static class VoiceInput
 		{
 			return true;
 		}
+		// Fase 3.7: the AI panel owns the keyboard while it is open (the push-to-talk key is one of its controls)
+		if (CompanionAiPanel.Instance != null && CompanionAiPanel.Instance.IsVisible)
+		{
+			return true;
+		}
 		return FarmZoneCropPicker.IsOpen;
 	}
 

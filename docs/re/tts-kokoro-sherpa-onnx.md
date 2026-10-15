@@ -238,6 +238,7 @@ reflexão e sem alocação.
 
 ## 11. O que ainda falta
 
-- **3.7 (UI):** escolher a voz/personalidade pelo menu radial e mostrar a voz no painel do companheiro (hoje só no
-  `.cfg`/`F8`).
+- **3.7 (UI):** ✅ **feito** — `UI/CompanionAiPanel.cs` (tecla **`I`** / `[IA] PainelTecla`) escolhe a voz, o volume,
+  a velocidade, o que é falado, a personalidade, a memória e a tecla do push-to-talk, com o botão **Ouvir** para
+  ouvir a voz escolhida na hora. Ver `docs/roadmap.md` (Fase 3.7). Falta o menu radial como atalho para ele.
 - Vozes por companheiro (hoje `[IA] TtsVoz` é global) e amostras de referência (o Kokoro não faz clonagem).

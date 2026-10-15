@@ -112,6 +112,8 @@ public class CompanionsPlugin : BaseUnityPlugin
 		SceneManager.sceneLoaded += OnSceneLoaded;
 		Game.m_playerInitialSpawn += CompanionManager.MHR_StarterOnce;
 		ConfigPanel.Create();
+		// Fase 3.7: the in-game AI panel (personality, voice, push-to-talk) - built on first open, hidden until then
+		CompanionAiPanel.Create();
 		FarmZonePlacer.EnsureInstance();
 	}
 
@@ -145,6 +147,11 @@ public class CompanionsPlugin : BaseUnityPlugin
 		if (ConfigPanel.Instance != null)
 		{
 			UnityEngine.Object.Destroy(ConfigPanel.Instance.gameObject);
+		}
+		// Fase 3.7: the AI panel (its own GameObject; the backdrop and the controls go with it)
+		if (CompanionAiPanel.Instance != null)
+		{
+			UnityEngine.Object.Destroy(CompanionAiPanel.Instance.gameObject);
 		}
 		if (FarmZonePlacer.Instance != null)
 		{

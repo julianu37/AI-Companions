@@ -174,11 +174,15 @@ Nenhuma referência nova no `.csproj`, nenhuma segunda BCL dentro do Mono do jog
 6. **O spike continua funcionando e sem carregar o modelo de novo:** `modia_stt_teste` (F5) deve logar
    `Usando o modelo COMPARTILHADO com as ordens por voz (...) - sem carregar de novo.`
 
-## 8. O que ainda falta (Fase 3.7)
+## 8. Estado das pendências da trilha de voz
 
 - **TTS (3.4):** ✅ **feito** — ver `docs/re/tts-kokoro-sherpa-onnx.md` (Kokoro-82M local via sherpa-onnx; o
   companheiro fala na posição dele, com cache e fala por frase).
-- **UI (3.7):** menu de personalidade/voz e o keybind na tela de config (hoje só no `.cfg`).
+- **UI (3.7):** ✅ **feito** — `UI/CompanionAiPanel.cs`: painel em jogo (tecla **`I`**, `[IA] PainelTecla`) com a
+  personalidade (preset + texto livre + Aplicar), a voz do TTS (dropdown + **Ouvir** + volume + velocidade), a tecla
+  do push-to-talk (`KeyBindListener`, o mesmo do F8) e os toggles (`VozLigada`, `TtsLigado`, `TtsFalarRespostas`,
+  `TtsFalarFalasDoMod`, `Conversa`, `Memoria`). Tudo salvo na hora no `.cfg`. Ver `docs/roadmap.md` (Fase 3.7).
+- **Falta:** vozes por companheiro (hoje `[IA] TtsVoz` é global) e o menu radial como atalho para o painel da IA.
 
 ## 9. Fase 3.3b — as três correções do teste em jogo
 

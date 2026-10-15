@@ -246,6 +246,11 @@ trabalho no instante em que houver algo a fazer.
 Tudo fica em `BepInEx/config/Maddhattr.OfflineCompanionsReborn.cfg` e também pode ser mudado **em jogo** com o
 painel de configurações (**`F8`** por padrão). Cada opção tem descrição clara.
 
+A camada de IA tem o seu **próprio painel** (tecla **`I`** por padrão, mudável em `[IA] PainelTecla`): personalidade
+(preset ou texto livre), voz do companheiro (com o botão **Ouvir**), volume, velocidade da fala, memória, conversa
+livre, os toggles do que é falado e a tecla do **push-to-talk** (botão *Alterar*). Tudo é salvo no `.cfg` na hora.
+Ele abre sem precisar de companheiro perto e fecha com `Esc`.
+
 As seções incluem **General, Controls, Follow, Movement, Combat, Food, Stamina, Rest, Death, Looting, Gear Repair**,
 uma por trabalho (**Gathering, Hunting, Fishing, Farming, Smelting, Cooking, Repair and Restock**), **Idle,
 Speech** e **Advanced** — além das nossas em **`[IA]`** (ordens por texto/voz, personalidade, memória, Whisper).

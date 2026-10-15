@@ -76,6 +76,18 @@ internal static class AutoPickupKeyConflict
 	}
 
 	/// <summary>
+	/// Fase 3.7: the push-to-talk key can now be changed in the in-game AI panel, so the comparison above has to be
+	/// redone after that - otherwise the auto-pickup toggle would keep being blocked (or stop being blocked) based on
+	/// the key the mod had at startup. Called by the panel when <c>[IA] VozTecla</c> changes; the next query resolves
+	/// again and says so in the log.
+	/// </summary>
+	internal static void Reset()
+	{
+		_resolved = false;
+		_announced = false;
+	}
+
+	/// <summary>
 	/// Reads the key the game bound to "AutoPickup" and compares it with <c>[IA] VozTecla</c>. False while the answer
 	/// is still unknown (ZInput not up yet): the caller just doesn't block this frame and the check is retried.
 	/// </summary>

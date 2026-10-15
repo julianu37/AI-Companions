@@ -218,7 +218,7 @@ internal static class CompanionTts
 	}
 
 	/// <summary>[IA] TtsVelocidade.</summary>
-	private static float Speed
+	internal static float Speed
 	{
 		get
 		{
@@ -238,7 +238,7 @@ internal static class CompanionTts
 	}
 
 	/// <summary>[IA] TtsVolume.</summary>
-	private static float Volume
+	internal static float Volume
 	{
 		get
 		{
@@ -1213,6 +1213,15 @@ internal static class CompanionTts
 			}
 		}
 		return false;
+	}
+
+	/// <summary>How many pt-BR voices this Kokoro model has (Fase 3.7: the in-game AI panel lists them).</summary>
+	internal static int PortugueseVoiceCount => PortugueseVoices.Length;
+
+	/// <summary>The pt-BR voice id at <paramref name="index"/> (42, 43 or 44), or the default when out of range.</summary>
+	internal static int PortugueseVoiceAt(int index)
+	{
+		return index >= 0 && index < PortugueseVoices.Length ? PortugueseVoices[index] : DefaultVoice;
 	}
 
 	private static string VoiceName(int voice)

@@ -69,6 +69,23 @@ filho, nada sai da sua máquina. Três vozes em **português do Brasil**:
 > já começa a tocar enquanto a próxima é gerada. Falas repetidas saem do **cache**, na hora. Teste rápido no
 > console do jogo (`F5`): `modia_tts_teste`, ou `modia_tts_teste Bom dia, chefe!` para falar um texto seu.
 
+### 🎛️ Painel da IA (tecla `I`)
+
+Aperte **`I`** a qualquer momento (não precisa de companheiro perto) para ajustar a IA **em jogo**, sem editar o
+`.cfg`:
+
+| O que | Como |
+|---|---|
+| **Personalidade** | Escolha um **preset** (Padrão, Viking leal, Mago sarcástico, Sarcástico, Guia paciente) ou escreva nas **suas palavras** e clique em **Aplicar** — vale na próxima resposta |
+| **Voz** | Escolha entre as 3 vozes pt-BR e aperte **Ouvir** para escutar uma frase de exemplo na hora |
+| **Volume / Velocidade** | Sliders (o volume vale no próximo áudio, a velocidade na próxima fala) |
+| **Push-to-talk** | Veja a tecla atual e aperte **Alterar** para capturar outra |
+| **Liga/desliga** | Companheiro fala, falar respostas da IA, falar falas do mod, conversa livre e ordens por voz |
+| **Memória** | Quantas trocas recentes ele lembra (0–12) |
+
+Tudo é salvo no `.cfg` **na hora**. `Esc` ou o **X** fecham. Enquanto o painel está aberto, o seu personagem não
+responde aos controles (e a tecla do push-to-talk não grava).
+
 ### ⚙️ Ajustes nossos em cima do upstream
 
 - **Raio de coleta maior** (madeira/pedra/minério procurados até 25 m de você, drops catados até 12 m).
@@ -128,7 +145,12 @@ chat do jogo ──────────────────────�
 | **`Z`** | Tecla de comando: olhe para algo e toque para mandar os companheiros (mover/atacar/abrir porta/sentar/consertar). Segure para chamá-los |
 | **`E`** | Segure olhando um companheiro para abrir o **menu radial**; toque para abrir o painel/inventário dele |
 | **`LeftAlt` + `Z`** | Editor de zona de fazenda |
+| **`I`** | **Painel da IA**: personalidade, voz (com **Ouvir**), volume, velocidade, memória, conversa e a tecla do push-to-talk — tudo salvo na hora |
 | **`F8`** | Painel de configurações do mod (todas as opções, em jogo) |
+
+> O painel da IA (tecla **`I`**, mudável em `[IA] PainelTecla`) abre sem precisar de companheiro perto, fecha com
+> **Esc** ou no **X**, e cada controle é gravado no `.cfg` no mesmo instante. Enquanto ele está aberto, o seu
+> personagem não responde aos controles.
 
 ---
 
@@ -160,6 +182,7 @@ chat do jogo ──────────────────────�
 | `TtsFalarFalasDoMod` | `true` | Falar a linha do mod que aparece no chat (ganha numa ordem) |
 | `TtsCache` | `true` | Guardar as falas já sintetizadas (as repetidas saem na hora) |
 | `TtsModelo` / `TtsIdioma` | `tts\kokoro\model.int8.onnx` / `pt-br` | Modelo do Kokoro e idioma (nunca vazio) |
+| `PainelTecla` | `I` | Tecla que abre o **painel da IA** no jogo (personalidade, voz, push-to-talk) |
 
 ---
 

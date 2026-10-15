@@ -53,6 +53,12 @@ internal static class CompanionPersona
 			+ "e dá dicas curtas sobre o jogo (comida, abrigo, perigo, recursos), sem sermão e sem enrolação.")
 	};
 
+	/// <summary>
+	/// The ready-made personalities, in the order they are shown in the in-game AI panel (Fase 3.7). Each one carries
+	/// the id the player would write in <c>[IA] PresetPersonalidade</c> and the localization key of its name.
+	/// </summary>
+	internal static Preset[] Presets => s_presets;
+
 	/// <summary>The personality that goes into the prompt: the player's free text wins over the preset.</summary>
 	internal static string Resolve()
 	{

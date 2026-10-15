@@ -2,7 +2,33 @@
 
 All notable changes to this fork of ProfMags' Offline Companions. Versions before 1.4.0 are the original mod (see [ProfMags' Thunderstore page](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) for that history) plus the initial batch of Valheim 1.0 API-compatibility fixes that let the mod load and run at all on 1.0.
 
-## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.6b: a ordem sem alvo do modelo (drop/equip/attack caem para as palavras do jogador) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Fase 3.3c: raio de coleta maior e chatter aleatório desligado + Fase 3.3d: a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador + Fase 3.8: o companheiro abre o próprio inventário por voz/chat + Fase 3.4: o companheiro FALA (TTS local, Kokoro-82M via sherpa-onnx) + Tradução PT-BR (fork ModAI-BR-Companions)
+## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.6b: a ordem sem alvo do modelo (drop/equip/attack caem para as palavras do jogador) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Fase 3.3c: raio de coleta maior e chatter aleatório desligado + Fase 3.3d: a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador + Fase 3.8: o companheiro abre o próprio inventário por voz/chat + Fase 3.4: o companheiro FALA (TTS local, Kokoro-82M via sherpa-onnx) + Fase 3.7: painel da IA no jogo (personalidade, voz com Ouvir, push-to-talk) + Tradução PT-BR (fork ModAI-BR-Companions)
+- **Fase 3.7 — painel da IA no jogo (tecla `I`): personalidade, voz com *Ouvir*, push-to-talk e toggles.** Tudo o
+  que a IA lê do `.cfg` passou a ser ajustável **em jogo**, sem editar arquivo nenhum e sem reiniciar. Arquivo novo:
+  `src/Companions/UI/CompanionAiPanel.cs` (painel de madeira no estilo dos outros painéis do mod). A tecla nova é
+  **`[IA] PainelTecla`**, padrão **`I`** (livre no jogo e no mod: `Z`/`E`/`F8`/`LeftAlt+Z`/`F7`/`V` são nossas,
+  W/A/S/D, Tab, Esc, F, Q, C, R, X, G, H, T, M, B, Ctrl, Shift, Space e V são do jogo). Como é uma **letra**, ela
+  não é roubada de uma caixa de texto: o chat, o console, a entrada de texto e a busca do comerciante continuam com a
+  letra só para eles. Abre/fecha com a tecla, com **Esc** e com o **X**; bloqueia o input do jogador enquanto está
+  aberto (mesmos prefixos Harmony dos outros painéis + `Hud.InRadial` + `VoiceInput.BlockedByUi`) e fecha sozinho se
+  o jogador morrer ou sair do mundo. **Não precisa de companheiro perto** (é config global).
+  - **Personalidade:** dropdown (Padrão/Viking/Mago/Sarcástico/Guia/Texto livre) + campo de **texto livre** +
+    **Aplicar** → gravam `[IA] PresetPersonalidade` e `[IA] Personalidade` (o texto livre ganha, como sempre) e o
+    log/chat dizem o resultado efetivo (`CompanionPersona.Describe()`). Vale na **próxima mensagem**.
+  - **Voz (TTS):** dropdown das **três vozes pt-BR** (42 `pf_dora` feminina, 43 `pm_alex` masculina, 44 `pm_santa`
+    masculina) + botão **Ouvir** (fala uma frase de exemplo pelo **mesmo** pipeline — worker, cache e playback 3D —
+    e fica desabilitado se o TTS estiver desligado ou o modelo faltando) + sliders de **volume** (`TtsVolume`) e
+    **velocidade** (`TtsVelocidade`, 0,5–1,5 no painel). A voz vale na **próxima fala**; o volume, no próximo áudio.
+  - **Push-to-talk:** mostra a tecla atual (`[IA] VozTecla`) e o botão **Alterar** captura uma nova com o **mesmo**
+    `KeyBindListener` do painel F8 (nada de lógica nova) + o toggle `VozLigada`. Ao trocar a tecla, o
+    `AutoPickupKeyConflict.Reset()` reavalia o conflito com o *Toggle Auto-Pickup* do jogo (Fase 3.3b).
+  - **Toggles/valores:** `TtsLigado`, `TtsFalarRespostas`, `TtsFalarFalasDoMod`, `Conversa` e o slider de `Memoria`
+    (0..12).
+  - **Salva na hora:** cada controle escreve no seu `ConfigEntry` e o BepInEx grava o `.cfg` no mesmo instante
+    (`ConfigFile.SaveOnConfigSet`). Sem bloqueio de main thread, sem alocação por frame (o painel é montado **uma
+    vez**, no primeiro `Show`; por frame só a tecla, o cursor e um status 2×/s) e sem segredos no código.
+  - **Textos:** 33 chaves PT-BR novas em `ModLocalization` + `Translations/Portuguese_Brazilian.json`
+    (`hc_ai_panel_*`, `hc_ai_voice_42/43/44/other`).
 - **Fase 3.4 — o companheiro FALA: voz sintetizada local (Kokoro-82M via sherpa-onnx).** O companheiro agora
   **fala em voz alta** o que responde, **na posição dele** no mundo. A voz é sintetizada **dentro do jogo** pelo
   **Kokoro-82M** através do **`sherpa-onnx`** (NuGet `org.k2fsa.sherpa.onnx` 1.13.8, **Apache-2.0**, in-process) —

@@ -39,6 +39,12 @@ internal static class TakeInput_BlockForCompanionUI
 		if (instance5 != null && instance5.IsVisible)
 		{
 			__result = false;
+			return;
+		}
+		CompanionAiPanel instance6 = CompanionAiPanel.Instance;
+		if (instance6 != null && instance6.IsVisible)
+		{
+			__result = false;
 		}
 	}
 }

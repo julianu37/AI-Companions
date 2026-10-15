@@ -346,7 +346,7 @@ Ordens em **linguagem natural** por cima do mod do upstream. O companheiro conti
 | 3.5 | Personalidade/memória: preset + texto livre no contexto do LLM | ✅ validado em jogo |
 | 3.6 | **Ordens com alvo**: `ataca o greydwarf` (engaja a criatura), `equipa o machado de bronze` (equipa do inventário dele), `larga a pedra` (joga fora) | ✅ validado em jogo |
 | 3.6b | **Correção da ordem sem alvo**: quando o modelo responde `"target": null`, o item/criatura é lido das **palavras do próprio jogador**; o prompt passa a exigir `target` em `attack`/`equip`/`drop` | ✅ build 0 erros + DLL no plugin (teste em jogo pendente) |
-| 3.7 | UI do NPC: menu de personalidade/voz + keybind de push-to-talk | ⏳ |
+| 3.7 | **Painel da IA no jogo** (personalidade + voz com *Ouvir* + push-to-talk + toggles, tecla `I`) | ✅ build 0 erros + DLL no plugin (teste em jogo pendente) |
 
 ### Fase 3.1 — ordem por texto no chat (✅ — Unreleased)
 
@@ -668,7 +668,8 @@ caminho das ordens do chat** — ordem, conversa, personalidade, memória: tudo 
   (janelas de 10 ms acima de `VozLimiarSilencio`, com 0,125 s de folga) e vira **WAV PCM 16-bit mono** montado à mão
   na memória (sem arquivo temporário). O `AudioClip` do microfone é **destruído** no fim (vazamento clássico).
 - **A tecla V:** `DirectTargetKey`/`FarmZoneKey` usam `Z`, `RadialMenuKey` usa `E` (que também é o *Use* do jogo),
-  `ConfigPanelKey` usa `F8`, o editor de zona usa `LeftAlt`, `F5` é o console e `F7` o reposicionamento de UI.
+  `ConfigPanelKey` usa `F8`, o editor de zona usa `LeftAlt`, `F5` é o console, `F7` o reposicionamento de UI e, desde
+  a **Fase 3.7**, `AiPanelKey` usa **`I`** (o painel da IA — tecla livre no jogo e no mod; ver a seção 3.7).
   **Correção (Fase 3.3b):** a 3.3 dizia que **V** não era usada pelo jogo — **era**: `V` é o *Toggle Auto-Pickup* do
   Valheim (ver a seção 3.3b abaixo), e por isso o toggle do auto-pickup foi bloqueado enquanto a voz estiver ligada.
 - **Sem travar nada:** a transcrição é uma `Task` de fundo (nada de `.Result`), o resultado volta por fila drenada no
@@ -1130,5 +1131,64 @@ sem idioma; `pt` sozinho é português de Portugal), `TtsCache` (true), `TtsFala
 chatter seguem iguais. A integração são só 5 chamadas de `SpeakOutLoud(...)` no `CompanionChatAI.HandleResult`
 (conversa, ordem com linha própria, ordem genérica, recusa/"já temos", "não entendi") + `Init`/`Tick`/`Shutdown`
 no plugin.
+
+### Fase 3.7 — painel da IA no jogo: personalidade, voz e push-to-talk (✅ build 0 erros — teste em jogo pendente)
+
+Tudo o que a camada de IA lê do `.cfg` passou a ser ajustável **em jogo**, num painel próprio do mod — sem editar o
+arquivo à mão e sem reiniciar nada.
+
+**Arquivo novo:** `src/Companions/UI/CompanionAiPanel.cs` (a única peça nova; o resto são ganchos de 3 linhas).
+
+| Peça | O que faz |
+|---|---|
+| `CompanionAiPanel` | painel de madeira (`PanelBackground`) sobre um fundo escuro, com o mesmo formato dos outros painéis do mod: montado **uma vez** (no primeiro `Show`) e só mostrado/escondido depois |
+| Tecla | **`[IA] PainelTecla`** (novo, `KeyCode`, padrão **`I`**) abre/fecha; **Esc** fecha (e, em ordem, primeiro sai da caixa de texto, depois fecha a lista aberta, depois o painel); o **X** fecha; um botão *Fechar* não existe porque o X faz isso |
+| Input bloqueado | o painel entra na **mesma lista** dos outros painéis: prefixos de `Player.TakeInput` e `PlayerController.TakeInput` (`Patches/*_BlockForCompanionUI.cs`), `Hud.InRadial` (`InRadial_BlockForStarterPanel.cs`) e `VoiceInput.BlockedByUi` (para a tecla do push-to-talk não gravar com o painel aberto) |
+| Fecha sozinho | o jogador morreu (`Player.IsDead()`) ou saiu do mundo (`Player.m_localPlayer == null`) — checado no *refresh* de status (2×/s), nunca por frame |
+| Sem companheiro perto | é config **global** do mod: o painel abre sem companheiro nenhum por perto; só o *Ouvir* e o nome no status usam o companheiro mais próximo que atenderia uma ordem (`CompanionChatAI.PickSpeaker`) |
+| Status | uma linha no rodapé (2×/s): personalidade em uso • voz • tecla do push-to-talk — mais a dica da tecla do painel; o **título** nomeia o companheiro que atenderia uma ordem agora (o mesmo que o *Ouvir* usa), quando há um por perto |
+
+**Controles e o que cada um grava** (todos escrevem no `ConfigEntry` correspondente; o BepInEx salva o `.cfg` na
+hora — `ConfigFile.SaveOnConfigSet`, confirmado na fonte do BepInEx):
+
+| Controle | Grava | Quando vale |
+|---|---|---|
+| Dropdown **Personalidade** (Padrão/Viking/Mago/Sarcástico/Guia/Texto livre) | `[IA] PresetPersonalidade` (id do `CompanionPersona`) | na **próxima mensagem** (o prompt é montado por mensagem) |
+| Campo **Nas suas palavras** + **Aplicar** | `[IA] Personalidade` (até 600 caracteres, `CompanionPersona.MaxFreeTextLength`) **e** `[IA] PresetPersonalidade` (o do dropdown) | idem; o log/chat dizem o resultado efetivo (`CompanionPersona.Describe()`) |
+| Dropdown **Voz** (42 pf_dora fem. / 43 pm_alex masc. / 44 pm_santa masc.) | `[IA] TtsVoz` | na **próxima fala** (o worker de síntese lê a config ao rodar; o cache é `texto+voz+velocidade`, então não há áudio velho) |
+| **Ouvir** | nada (só fala) — usa `CompanionTts.Speak` com a frase `hc_ai_panel_tts_sample`, no companheiro mais próximo (se ele estiver dentro de `[Speech] CullDistance`; senão fala **em você**, para o teste nunca ficar mudo) | na hora; **desabilitado** se `TtsLigado = false` ou o modelo não estiver no disco (`CompanionTts.Ready`) |
+| Slider **Volume** | `[IA] TtsVolume` (0..1) | no **próximo áudio** (`StartChunk` lê o volume ao tocar) |
+| Slider **Velocidade** | `[IA] TtsVelocidade` (**0,5..1,5** no painel; o `.cfg` aceita até 2) | na próxima síntese |
+| Tecla do **Push-to-talk** + **Alterar** | `[IA] VozTecla` via `KeyBindListener` (o **mesmo** componente do painel F8 — nada de lógica nova de captura) | na hora; o `AutoPickupKeyConflict.Reset()` é chamado para o conflito com o *Toggle Auto-Pickup* do jogo ser reavaliado com a tecla nova |
+| Toggle **Ordens por voz** | `[IA] VozLigada` | na hora |
+| Toggle **Companheiro fala** | `[IA] TtsLigado` | na próxima fala |
+| Toggle **Falar respostas da IA** | `[IA] TtsFalarRespostas` | idem |
+| Toggle **Falar falas do mod** | `[IA] TtsFalarFalasDoMod` | idem |
+| Toggle **Conversa livre** | `[IA] Conversa` | na próxima mensagem |
+| Slider **Memória** (0..12) | `[IA] Memoria` | na próxima mensagem |
+
+- **Por que o dropdown é feito à mão:** um `TMP_Dropdown` exige um *template* inteiro (ScrollRect + máscara + item
+  com Toggle) instanciado em runtime, e o `Dropdown` legado do Unity desenha com o `Text` legado (cuja fonte padrão o
+  Valheim removeu). O do painel é **um botão-campo + uma lista de botões** — as mesmas primitivas que o mod já monta
+  em todo lugar (`Image`/`Button`/`TextMeshProUGUI`), numa camada *overlay* que é o **último filho** do painel (logo,
+  a lista aberta nunca é cortada por uma linha e nunca fica atrás dos controles).
+- **Nada de trabalho por frame:** o painel é montado uma vez; por frame só rodam a checagem da tecla (com
+  `Input.GetKeyDown` **antes** das guardas de UI), o cursor e — 2×/s — o status. Nenhum `Find*`, nenhum LINQ.
+- **A tecla `I`:** o mod usa `Z`, `E`, `F8`, `LeftAlt+Z`, `F7` e `V`; o jogo usa W/A/S/D, Tab, Esc, F, Q, C, R, X,
+  G, H, T, M, B, Ctrl, Shift, Space e V. `I` está livre nos dois. Como é uma **letra**, a tecla só é lida quando o
+  jogo **não** está com uma caixa de texto ativa: o chat (`Chat.HasFocus`), o console, a entrada de texto (placas) e o
+  campo de busca do comerciante (`StoreGui`) continuam com a letra só para eles — a mesma guarda que o
+  `CompanionInteract`/`VoiceInput` já usam.
+- **Fontes:** o painel pega o `TMP_FontAsset` do próprio jogo (`InventoryGui` → `Hud` → `TMP_Settings`) e re-checa no
+  `Show` (mesmo padrão do painel F8), porque a fonte pode não estar pronta quando o plugin carrega.
+- **Textos (PT-BR):** 33 chaves novas em `ModLocalization` (padrões em inglês) **e** em
+  `Translations/Portuguese_Brazilian.json` — `hc_ai_panel_*` (título com e sem o nome do companheiro, dica, rótulos,
+  `Ligado`/`Desligado`, status, frase do *Ouvir*, avisos) e `hc_ai_voice_42/43/44/other`.
+- **Não quebra nada:** nenhuma linha de ordem/STT/TTS/personalidade/memória/jobs/radial foi mudada. As mudanças fora
+  do arquivo novo são: a config nova (`ModConfig.AiPanelKey`), dois acessores só-de-leitura
+  (`CompanionPersona.Presets`, `CompanionTts.PortugueseVoiceCount/PorAt` — e `Speed`/`Volume` viraram `internal` para
+  o log do *Ouvir*), o `AutoPickupKeyConflict.Reset()`, a entrada na lista de UI bloqueada (4 arquivos) e
+  `Create`/`Destroy` no plugin.
+
 
 
