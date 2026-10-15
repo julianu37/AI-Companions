@@ -58,7 +58,7 @@ internal static class AIGateDiag
 		if (_logs < 200)
 		{
 			_logs++;
-			CompanionsPlugin.Log?.LogInfo(s);
+			CompanionsPlugin.Log?.LogDebug(s);
 		}
 	}
 }

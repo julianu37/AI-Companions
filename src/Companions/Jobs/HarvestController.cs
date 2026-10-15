@@ -831,7 +831,7 @@ public class HarvestController : MonoBehaviour
 				Log($"Blacklist cleanup: removed {list.Count} expired, {_blacklist.Count} remain");
 			}
 		}
-		LogInfo($"Scanning for targets... mode={mode} " + $"pos={base.transform.position:F1} radius={ScanRadius}");
+		LogDebug($"Scanning for targets... mode={mode} " + $"pos={base.transform.position:F1} radius={ScanRadius}");
 		// 1.4.122: with only a stone or flint axe, or no axe (Stone: or no pickaxe), also pick up branches / stones / flint
 		// lying around (user); with no tool for the job, that's all it does
 		GameObject loose = null;
@@ -856,7 +856,7 @@ public class HarvestController : MonoBehaviour
 			{
 				return;
 			}
-			LogInfo("Scan found 0 valid targets — staying idle");
+			LogDebug("Scan found 0 valid targets - staying idle");
 			if (!_goingBack && !Following && !_isDirectedHarvest && _hasAnchor && Vector3.Distance(base.transform.position, _anchor) > 8f)
 			{
 				LogInfo("Nothing left nearby - walking back to the middle of the work area");
@@ -1298,7 +1298,7 @@ public class HarvestController : MonoBehaviour
 		bool flag6 = _character != null && _character.IsStaggering();
 		if (flag4 || flag5 || flag6)
 		{
-			LogInfo($"Attack blocked: inAttack={flag4} inDodge={flag5} stagger={flag6} " + $"— retry in {0.25f}s");
+			LogDebug($"Attack blocked: inAttack={flag4} inDodge={flag5} stagger={flag6} " + $"- retry in {0.25f}s");
 			_attackTimer = 0.25f;
 			return;
 		}
@@ -1949,6 +1949,14 @@ public class HarvestController : MonoBehaviour
 		CompanionsPlugin.Log.LogInfo("[Gather|" + text + "] " + msg);
 	}
 
+	// Per-scan / per-retry chatter: handy while debugging a job, pure noise in a normal log. Shows up only with
+	// BepInEx Debug logging on.
+	private void LogDebug(string msg)
+	{
+		string text = _character?.m_name ?? "?";
+		CompanionsPlugin.Log.LogDebug("[Gather|" + text + "] " + msg);
+	}
+
 	private void LogWarn(string msg)
 	{
 	}
@@ -2420,7 +2428,7 @@ public class HarvestController : MonoBehaviour
 		{
 			num = _scanBuffer.Length;
 		}
-		LogInfo($"Physics scan: {num} colliders in {ScanRadius}m radius" + (flag ? " ** BUFFER FULL — may miss targets! **" : ""));
+		LogDebug($"Physics scan: {num} colliders in {ScanRadius}m radius" + (flag ? " ** BUFFER FULL - may miss targets! **" : ""));
 		int bestToolTier = GetBestToolTier(mode);
 		_seenIds.Clear();
 		GameObject gameObject = null;
@@ -2729,7 +2737,7 @@ public class HarvestController : MonoBehaviour
 		}
 		else if (num3 == 0)
 		{
-			LogInfo($"Forage scan: no pickables found within {ScanRadius}m");
+			LogDebug($"Forage scan: no pickables found within {ScanRadius}m");
 		}
 		return gameObject;
 	}
