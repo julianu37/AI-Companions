@@ -13,8 +13,10 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <Nullable>disable</Nullable>
     <DebugType>portable</DebugType>
-    <!-- Game assemblies are referenced in place and never copied next to the mod. -->
-    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <!-- Game assemblies are referenced in place and never copied next to the mod (every <Reference> below is
+         Private="false"). Package assemblies (Whisper.net) DO go to the build output so the DeployWhisperNet target
+         can pick the ones the plugin folder needs; nothing is copied next to the mod automatically. -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -25,6 +27,20 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- STT local (spike do Whisper.net in-process). No net472 o pacote resolve o alvo netstandard2.0, que usa o
+       loader DllImport (System.Memory para Span<T>, Microsoft.Bcl.AsyncInterfaces para IAsyncDisposable).
+       O Whisper.net.Runtime traz os nativos em runtimes\win-x64 (whisper.dll + ggml-*.dll).
+       O Whisper.net 1.9.1 arrasta Microsoft.Extensions.AI.Abstractions -> System.Text.Json SO por causa do
+       WhisperSpeechToTextClient (que nao usamos): os assets desses dois ficam de fora para nao levar
+       System.Text.Json (e a familia) para dentro do Mono do Unity. O DeployWhisperNet abaixo copia apenas uma
+       lista fechada de DLLs - veja docs/re/stt-whisper-net-spike.md. -->
+  <ItemGroup>
+    <PackageReference Include="Whisper.net" Version="1.9.1" />
+    <PackageReference Include="Whisper.net.Runtime" Version="1.9.1" />
+    <PackageReference Include="Microsoft.Extensions.AI.Abstractions" Version="10.2.0" ExcludeAssets="all" PrivateAssets="all" />
+    <PackageReference Include="System.Text.Json" Version="10.0.2" ExcludeAssets="all" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
@@ -59,6 +75,29 @@
   <Target Name="DeployToPlugins" AfterTargets="Build" Condition="'$(DeployDir)' != ''">
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(DeployDir)" />
     <Message Importance="high" Text="Deployed $(TargetFileName) to $(DeployDir)" />
+  </Target>
+
+  <!-- STT spike: the Whisper.net assemblies and its native libraries next to the plugin DLL, so Whisper.net finds
+       them without the game folder being involved. The managed list is a closed allow-list: Whisper.net plus the
+       netstandard2.0 shims it actually loads (Bcl.AsyncInterfaces for IAsyncDisposable, System.Memory for Span<T>
+       and its own dependencies). Microsoft.Extensions.AI.Abstractions / System.Text.Json stay out on purpose.
+       The natives keep their runtimes\win-x64 tree, which is exactly where Whisper.net's loader looks
+       (NativeLibraryLoader.GetRuntimePaths -> <LibraryPath dir>\runtimes\win-x64). -->
+  <Target Name="DeployWhisperNet" AfterTargets="DeployToPlugins" Condition="'$(DeployDir)' != ''">
+    <ItemGroup>
+      <WhisperManaged Include="@(ReferenceCopyLocalPaths)"
+                      Condition="'%(Filename)' == 'Whisper.net'
+                              Or '%(Filename)' == 'Microsoft.Bcl.AsyncInterfaces'
+                              Or '%(Filename)' == 'System.Threading.Tasks.Extensions'
+                              Or '%(Filename)' == 'System.Memory'
+                              Or '%(Filename)' == 'System.Buffers'
+                              Or '%(Filename)' == 'System.Numerics.Vectors'
+                              Or '%(Filename)' == 'System.Runtime.CompilerServices.Unsafe'" />
+      <WhisperNative Include="$(TargetDir)runtimes\win-x64\*.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(WhisperManaged)" DestinationFolder="$(DeployDir)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(WhisperNative)" DestinationFolder="$(DeployDir)\runtimes\win-x64" SkipUnchangedFiles="true" />
+    <Message Importance="high" Text="Deployed @(WhisperManaged->Count()) Whisper.net managed DLL(s) and @(WhisperNative->Count()) native DLL(s) to $(DeployDir) (managed: @(WhisperManaged->'%(Filename)%(Extension)', ', '))" />
   </Target>
 
   <!-- UI strings (ModLocalization) live in Translations\<Language>.json and are read at runtime from next to

@@ -510,6 +510,13 @@ internal static class ModConfig
 
 	internal static ConfigEntry<bool> AiConversation;
 
+	// [IA] - STT local (spike): teste do Whisper.net in-process. Ver Diagnostics/WhisperSpike.cs.
+	internal static ConfigEntry<bool> SttTest;
+
+	internal static ConfigEntry<string> SttModel;
+
+	internal static ConfigEntry<string> SttWav;
+
 	internal static void Init(ConfigFile cfg)
 	{
 		// [General]
@@ -773,6 +780,11 @@ internal static class ModConfig
 		AiPersonalityPreset = Bind(cfg, "IA", "PresetPersonalidade", "", "Fase 3.5: a ready-made personality, written in Portuguese inside the mod: viking (leal e destemido), mago (velho e sarcástico), sarcastico (piadas secas), guia (paciente e didático), or custom (use Personalidade). Empty or unknown = the default (a loyal, practical companion). Text setting: edit it in the .cfg file.");
 		AiMemory = Bind(cfg, "IA", "Memoria", 6, "Fase 3.5: how many recent exchanges (one message from you + one from the companion) the companion remembers and sends along with the next message, so it follows the thread of the conversation. 0 = no memory. Kept per companion, in memory only (nothing is saved to the world) and forgotten when the companion dies or is dismissed.", new AcceptableValueRange<int>(0, 12));
 		AiConversation = Bind(cfg, "IA", "Conversa", defaultValue: true, "Fase 3.5: when the message is NOT an order (\"bom dia\", \"como você está?\", \"o que achou da minha casa?\"), the companion answers as conversation: it says the answer out loud (speech bubble) and shows it in the chat. Orders keep working exactly as before. Off = only orders are understood, as in Fase 3.1.");
+
+		// [IA] - STT local (spike do Whisper.net in-process, Fase 3.x): só teste, não faz parte do pipeline de voz.
+		SttTest = Bind(cfg, "IA", "SttTeste", defaultValue: false, "SPIKE (teste): run the in-process Whisper.net speech-to-text test by itself about 25 seconds after the plugin loads, and write the result to the log. Off = only the console command \"modia_stt_teste\" runs it. It is a plain test: it does not listen to the microphone and does not change any companion behaviour.");
+		SttModel = Bind(cfg, "IA", "SttModelo", @"whisper\ggml-base-q5_1.bin", "SPIKE (teste): the ggml Whisper model to load, relative to the plugin folder (or an absolute path). Text setting: edit it in the .cfg file.");
+		SttWav = Bind(cfg, "IA", "SttWavTeste", @"whisper\jfk.wav", "SPIKE (teste): the WAV file to transcribe, relative to the plugin folder (or an absolute path). Needs to be PCM WAV (16 kHz mono is ideal). Text setting: edit it in the .cfg file.");
 
 		// 1.4.149: settings moved/renamed in the config clean-up keep the values players set; leftovers are removed.
 		// 1.4.150: the fix-ups below only run on such an upgrade (a file from before the clean-up), not on every start -

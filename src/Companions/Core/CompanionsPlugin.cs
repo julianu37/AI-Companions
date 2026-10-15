@@ -102,6 +102,7 @@ public class CompanionsPlugin : BaseUnityPlugin
 		ModLocalization.Init();
 		ModLocalization.EnsureDefaultFile();
 		CompanionChatAI.Init();
+		WhisperSpike.Init();
 		SceneManager.sceneLoaded += OnSceneLoaded;
 		Game.m_playerInitialSpawn += CompanionManager.MHR_StarterOnce;
 		ConfigPanel.Create();
@@ -180,6 +181,15 @@ public class CompanionsPlugin : BaseUnityPlugin
 		catch (Exception ex3)
 		{
 			Log.LogWarning("[IA] Error: " + ex3.ToString());
+		}
+		try
+		{
+			// SPIKE: fires the in-process Whisper.net test once, when [IA] SttTeste asked for it (never blocks)
+			WhisperSpike.Tick();
+		}
+		catch (Exception ex4)
+		{
+			Log.LogWarning("[STT] Error: " + ex4.ToString());
 		}
 	}
 

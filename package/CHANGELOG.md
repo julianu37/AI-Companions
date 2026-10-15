@@ -3,6 +3,32 @@
 All notable changes to this fork of ProfMags' Offline Companions. Versions before 1.4.0 are the original mod (see [ProfMags' Thunderstore page](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) for that history) plus the initial batch of Valheim 1.0 API-compatibility fixes that let the mod load and run at all on 1.0.
 
 ## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.5: personalidade, memória e conversa livre + Tradução PT-BR (fork ModAI-BR-Companions)
+- **SPIKE — STT local: Whisper.net in-process (teste, nada de pipeline de voz).** Prova de conceito para decidir
+  entre o Whisper.net dentro do jogo e um `whisper-server.exe` como processo filho. Roda o modelo de verdade numa
+  **thread de fundo** (a main thread nunca espera), transcreve um WAV de teste e escreve tudo no log:
+  `[STT]` versão/arquitetura detectada (`whisper_print_system_info`: AVX/AVX2/FMA), tempo de **carga do modelo**,
+  tempo de **transcrição**, número de segmentos, idioma e o **texto transcrito**; qualquer falha sai com a
+  mensagem completa + stack (inclusive `Failed to load native whisper library`).
+  - **Gatilhos:** comando de console **`modia_stt_teste`** (F5) e a config **`[IA] SttTeste`** (bool, default
+    `false`), que dispara sozinho ~25 s depois do plugin carregar (mundo já pronto). Caminhos por
+    **`[IA] SttModelo`** (default `whisper\ggml-base-q5_1.bin`) e **`[IA] SttWavTeste`** (default
+    `whisper\jfk.wav`), relativos à pasta do plugin ou absolutos.
+  - **Como o loader nativo foi apontado para a nossa pasta:** no net472 o pacote resolve o alvo
+    `netstandard2.0`, cujo `NativeLibraryLoader` faz `Path.GetDirectoryName(RuntimeOptions.LibraryPath)` e procura
+    `<pasta>\runtimes\win-x64\whisper.dll`. `WhisperFactory.FromPath` **não** tem `libraryPath` na 1.9.1, então
+    usamos `RuntimeOptions.LibraryPath = <pasta do plugin>\Whisper.net.dll` (definido antes de qualquer uso do
+    factory) — a pasta do plugin passa a ser a primeira sondada, em vez de `AppContext.BaseDirectory` (que no
+    Unity é a pasta do jogo). A ordem de runtimes é travada em **CPU** (só existe `runtimes\win-x64`).
+  - **Build/deploy:** `PackageReference` de `Whisper.net` 1.9.1 + `Whisper.net.Runtime` 1.9.1 e o novo target
+    **`DeployWhisperNet`**, que copia para a pasta do plugin **7 DLLs gerenciadas** (Whisper.net,
+    Microsoft.Bcl.AsyncInterfaces, System.Threading.Tasks.Extensions, System.Memory, System.Buffers,
+    System.Numerics.Vectors, System.Runtime.CompilerServices.Unsafe) e os **4 nativos** em `runtimes\win-x64`
+    (`whisper.dll` + `ggml-*.dll`). `Microsoft.Extensions.AI.Abstractions`/`System.Text.Json` ficam **fora**
+    (`ExcludeAssets="all"`): só servem ao `WhisperSpeechToTextClient`, que não é usado, e arrastariam
+    `System.Text.Json` para dentro do Mono do Unity.
+  - **Nada de bloqueio e nada quebrado:** o spike é adição pura (nenhuma mudança em ordens por chat, IA ou jobs);
+    a única chamada nova no jogo é um postfix em `Console.Awake` (para registrar o comando de console) e dois
+    `try/catch` de `Tick()` no `Update`. Detalhes e o que procurar no log: **`docs/re/stt-whisper-net-spike.md`**.
 - **Fase 3.5 — personalidade, memória e conversa livre.** O companheiro agora **tem um jeito de falar**, **lembra
   das últimas trocas** e, quando a mensagem **não é uma ordem** (`bom dia`, `como você está?`, `o que achou da minha
   casa?`), **responde como conversa**: fala no balão do mundo (`CompanionTalk.Say`) e mostra a resposta no chat.
