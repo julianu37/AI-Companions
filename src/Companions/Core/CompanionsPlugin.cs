@@ -95,7 +95,7 @@ public class CompanionsPlugin : BaseUnityPlugin
 			{
 				num++;
 			}
-			Log.LogInfo(string.Format("{0} loaded successfully! ({1} methods patched)", "Offline Companions Reborn", num));
+			Log.LogInfo(string.Format("{0} loaded successfully! ({1} methods patched)", PluginName, num));
 		}
 		catch (Exception arg)
 		{

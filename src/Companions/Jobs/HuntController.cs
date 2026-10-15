@@ -974,7 +974,7 @@ internal static class HuntCatalog
 		try
 		{
 			StringBuilder sb = new StringBuilder();
-			sb.AppendLine("Offline Companions Reborn - names for the [Hunting] settings. Written at every start from the game's own data, mods included.");
+			sb.AppendLine(CompanionsPlugin.PluginName + " - names for the [Hunting] settings. Written at every start from the game's own data, mods included.");
 			sb.AppendLine();
 			sb.AppendLine("PREY (Hunting > Prey)  name = in-game name  (meat it drops)");
 			sb.AppendLine("Tamed animals, bosses and companions are never hunted.");

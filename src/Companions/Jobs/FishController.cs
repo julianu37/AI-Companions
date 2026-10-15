@@ -1289,7 +1289,7 @@ internal static class FishCatalog
 		try
 		{
 			StringBuilder sb = new StringBuilder();
-			sb.AppendLine("Offline Companions Reborn - names for the [Fishing] settings. Written at every start from the game's own data, mods included.");
+			sb.AppendLine(CompanionsPlugin.PluginName + " - names for the [Fishing] settings. Written at every start from the game's own data, mods included.");
 			sb.AppendLine();
 			sb.AppendLine("FISH (Fishing > Fish)  name = in-game name  (baits it takes, with the chance)");
 			SortedDictionary<string, string> lines = new SortedDictionary<string, string>();

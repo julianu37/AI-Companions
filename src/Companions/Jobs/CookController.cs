@@ -2557,7 +2557,7 @@ internal static class CookCatalog
 		try
 		{
 			StringBuilder stringBuilder = new StringBuilder();
-			stringBuilder.AppendLine("Offline Companions Reborn - names for the [Cooking] settings. Written at every start from the game's own data, mods included.");
+			stringBuilder.AppendLine(CompanionsPlugin.PluginName + " - names for the [Cooking] settings. Written at every start from the game's own data, mods included.");
 			stringBuilder.AppendLine();
 			stringBuilder.AppendLine("FOODS (Cooking > Foods)  name = in-game name  (health + stamina + eitr, where it's made)");
 			SortedDictionary<string, string> sortedDictionary = new SortedDictionary<string, string>();
