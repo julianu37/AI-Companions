@@ -169,7 +169,8 @@ internal static class CompanionChatAI
 		}
 		if (outcome.Count == 0)
 		{
-			Notify(ModLocalization.Loc("hc_ai_no_companion"));
+			// Fase 3.2c: "colete 10 madeiras" with 15 already in the pack - the order was never started
+			Notify(ModLocalization.Loc(outcome.AlreadyHave ? "hc_ai_already_have" : "hc_ai_no_companion"));
 			return;
 		}
 		string label = ModLocalization.LocOr(outcome.LabelKey, intent.Action);

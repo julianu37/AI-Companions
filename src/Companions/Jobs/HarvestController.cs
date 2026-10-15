@@ -199,7 +199,7 @@ public class HarvestController : MonoBehaviour
 
 	private bool Following => _setup != null && _setup.GetFollow();
 
-	// Fase 3.2: a target the player pointed at on the radial - a chat order's ceiling must not touch it
+	// Fase 3.2: a target the player pointed at on the radial - a chat order's target must not touch it
 	internal bool IsDirectedHarvest => _isDirectedHarvest;
 
 	private void UpdateAnchor(int mode)
@@ -850,7 +850,7 @@ public class HarvestController : MonoBehaviour
 		}
 		if (gameObject == null)
 		{
-			// Fase 3.2: nothing to work and the reason is the ceiling a chat order put on this job ("colete 5
+			// Fase 3.2: nothing to work and the reason is the target a chat order put on this job ("colete 5
 			// madeiras") - the order is done, so it goes back to following instead of standing there.
 			if (MHR_GatherRules.OrderDone(this, mode))
 			{

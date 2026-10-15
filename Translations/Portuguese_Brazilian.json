@@ -273,6 +273,7 @@
         { "key": "hc_ai_raw", "value": "IA: {0}" },
         { "key": "hc_ai_ok", "value": "Ok: {0}" },
         { "key": "hc_ai_ok_amount", "value": "Ok: {0} ({1})" },
+        { "key": "hc_ai_already_have", "value": "Já temos o suficiente." },
         { "key": "hc_ai_order_follow", "value": "seguir você" },
         { "key": "hc_ai_order_wood", "value": "coletar madeira" },
         { "key": "hc_ai_order_stone", "value": "coletar pedra" },

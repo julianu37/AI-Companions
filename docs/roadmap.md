@@ -335,8 +335,9 @@ Ordens em **linguagem natural** por cima do mod do upstream. O companheiro conti
 | Fase | Descrição | Status |
 |---|---|---|
 | **3.1** | **Ordem por texto no chat** (LLM local, API OpenAI-compatible) | ✅ (Unreleased) |
-| **3.2** | **Teto da ordem**: `colete 5 madeiras` para em 5 (madeira/pedra/minério) e volta a seguir | ✅ (Unreleased) |
-| **3.2b** | **Correção da 3.2**: o número da ordem é um **DELTA** (`colete 10` = 10 a mais, não "tenha 10 no total") | ✅ (Unreleased) |
+| **3.2** | **Alvo da ordem**: `colete 5 madeiras` para em 5 (madeira/pedra/minério) e volta a seguir | ✅ (Unreleased) |
+| **3.2b** | Correção da 3.2: o número virou um **DELTA** | ❌ revertida pela 3.2c |
+| **3.2c** | **Correção final da quantidade**: o número é um **ALVO TOTAL contado no inventário do companheiro**, só para o recurso pedido; com o alvo já na mochila ele nem começa e avisa | ✅ (Unreleased) |
 | 3.3 | Voz: captura com `Microphone` → STT (backend) → mesma caixa de ordens | ⏳ |
 | 3.4 | TTS: o companheiro **fala** a confirmação (áudio do backend, `AudioSource`) | ⏳ |
 | 3.5 | Personalidade/memória: preset + texto livre no contexto do LLM | ⏳ |
@@ -373,45 +374,52 @@ O jogador digita `colete 20 de madeira` (ou `segue`, `para`, `vem cá`, `minere 
   `sethome`(11) `wander`(12) `pickup`(13) `command`(14) e suas negações; posturas 20–23 → `SetCombatStance`.
   `none` = não é ordem. `despawn` **não** é exposto ao modelo (de propósito).
 - **Pendências conhecidas:** ordens com alvo (`atacar X`, `equipar Y`) ainda não têm efeito além do job
-  (Fase 3.6). O número da ordem **limita** madeira/pedra/minério desde a Fase 3.2 e é um **delta** desde a
-  Fase 3.2b ("colete 10" = 10 a mais — ver abaixo).
+  (Fase 3.6). O número da ordem **limita** madeira/pedra/minério desde a Fase 3.2 e é, desde a Fase 3.2c, um
+  **alvo total contado no inventário do companheiro** ("colete 10" = ter 10 na mochila — ver abaixo).
 
 ### Fase 3.2 — o número da ordem limita o trabalho (✅ — Unreleased)
 
 `colete 5 madeiras` era tratado como "liga o job Wood": o companheiro cortava até o limite da configuração
-(`[Gathering] WoodLimit`, 500 por padrão). Agora o número da ordem é um **teto por companheiro**.
+(`[Gathering] WoodLimit`, 500 por padrão). Agora o número da ordem é um **alvo por companheiro**.
 
 | Peça | Arquivo | O que faz |
 |---|---|---|
-| Teto no ZDO | `src/Companions/Companion/CompanionSetup.cs` | `HC_OrderCap` (int, 0 = sem teto) e `HC_OrderCapMode` (int, o modo a que o teto pertence) + `OrderCap`/`SetOrderCap`/`ClearOrderCap`/`CompleteOrderCap` (escrita só no dono, `IsOwner`) |
-| Ordem → teto | `src/Companions/AI/CompanionOrders.cs` | Ordem de coleta com `amount > 0` (wood/stone/ore) grava o teto; `stop`, `follow`, outra ordem de trabalho ou a troca de modo (`ApplyActionMode`) **limpam** o teto |
-| Teto no job | `src/Companions/Jobs/MHR_GatherRules.cs` | `AllowTarget`/`AllowLoose` usam `limit = min(limite da config, teto)` (o `Name:Number` da lista, se for menor, continua ganhando); ao acabar o que alcançar, o teto cumprido **encerra a ordem** e volta ao follow. **Fase 3.2b:** o teto passou a ser `estoque na hora da ordem + número` (delta) e ganha do limite da config — ver a seção da 3.2b |
-| Fim da ordem | `src/Companions/Jobs/HarvestController.cs` | Um scan vazio passa por `MHR_GatherRules.OrderDone`: se o motivo foi o teto, o companheiro larga a ferramenta e volta a seguir (como o `stop`) |
+| Alvo no ZDO | `src/Companions/Companion/CompanionSetup.cs` | `HC_OrderCap` (int, 0 = sem alvo), `HC_OrderCapMode` (int, o modo a que o alvo pertence) e, desde a 3.2c, `HC_OrderCapItem` (string, o item do alvo) + `OrderCap`/`OrderCapItem`/`SetOrderCap`/`ClearOrderCap`/`CompleteOrderCap`/`OrderSeen` (escrita só no dono, `IsOwner`) |
+| Ordem → alvo | `src/Companions/AI/CompanionOrders.cs` | Ordem de coleta com `amount > 0` (wood/stone/ore) grava o alvo; `stop`, `follow`, outra ordem de trabalho ou a troca de modo (`ApplyActionMode`) **limpam** o alvo |
+| Alvo no job | `src/Companions/Jobs/MHR_GatherRules.cs` | `AllowTarget`/`AllowLoose` decidem o alvo em `OrderedItem`/`OrderSeen`/`Bag`/`LimitFor` (o `Name:Number` da lista, se for menor, continua ganhando no caminho da config); ao bater o alvo, ele **encerra a ordem** e volta ao follow. **Fase 3.2b (revertida pela 3.2c):** o número chegou a ser um delta (`estoque na hora da ordem + número`). **Fase 3.2c:** o número é um **alvo total contado no inventário do companheiro** e vale só para o recurso pedido — ver a seção da 3.2c |
+| Fim da ordem | `src/Companions/Jobs/HarvestController.cs` | Um scan vazio passa por `MHR_GatherRules.OrderDone`: se o motivo foi o alvo, o companheiro larga a ferramenta e volta a seguir (como o `stop`) |
 
-- **Como o teto é lido:** direto do ZDO (um lookup de dicionário, no máximo uma vez por candidato por scan,
+- **Como o alvo é lido:** direto do ZDO (um lookup de dicionário, no máximo uma vez por candidato por scan,
   **nunca por frame**). Nada de config nova e nada de alocação por frame.
-- **`Name:Number` menor que o teto continua ganhando** (`Wood:3` com a ordem `colete 5` para em 3).
-- **Alvo apontado no radial** (`SetDirectedTarget`) **não** sofre o teto — a fase 3.2 só mexe nas ordens de chat.
-- **Coleta normal (sem ordem) inalterada:** sem teto no ZDO, tudo continua sendo a config (radial e teclas idem).
-- **Um detalhe honesto:** o teto decide se o companheiro **começa** um alvo; a última árvore derrubada pode
+- **`Name:Number` menor que o alvo continua ganhando** (`Wood:3` com a ordem `colete 5` para em 3) — no
+  caminho da config, que é o que vale quando a ordem não nomeia um item (ver 3.2c).
+- **Alvo apontado no radial** (`SetDirectedTarget`) **não** sofre o alvo — a fase 3.2 só mexe nas ordens de chat.
+- **Coleta normal (sem ordem) inalterada:** sem alvo no ZDO, tudo continua sendo a config (radial e teclas idem).
+- **Um detalhe honesto:** o alvo decide se o companheiro **começa** um alvo; a última árvore derrubada pode
   passar do número (a árvore inteira cai de uma vez). Depois disso ele para, diz "já temos madeira de sobra"
   e volta a seguir.
-- **Multiplayer/reload:** o teto vive no ZDO do companheiro, então cada companheiro para no seu próprio número
+- **Multiplayer/reload:** o alvo vive no ZDO do companheiro, então cada companheiro para no seu próprio número
   e ele sobrevive a um reload; quem escreve é o dono (`MHR_Owner.TakeControl` antes da ordem).
 
-### Fase 3.2b — o número da ordem é um DELTA (correção da 3.2) (✅ — Unreleased)
+### Fase 3.2b — o número da ordem é um DELTA (❌ revertida pela Fase 3.2c)
+
+> **Revertida.** O delta não é o que o usuário quer: o número da ordem é um **alvo total contado no inventário
+> do companheiro**, não "10 a mais". O código da 3.2b (`CompanionSetup.OrderCapBase`/`ClearOrderCapBase` e o
+> `MHR_GatherRules.OrderLimit`) foi **removido** na 3.2c — a seção abaixo fica como registro do que foi tentado
+> e por quê.
 
 Bug reportado em jogo: *"solicito 10, ele coleta 1 ou 7 e para"*. O teto da 3.2 era comparado com o **estoque
 total** (`Stock`: mochila + baús perto da casa + pilhas), então `colete 10 madeiras` virava *"tenha 10 no
 total"*: com 9 de madeira guardada, o companheiro derrubava uma árvore e encerrava a ordem
 (`Order ceiling reached (10 on wood) - order done`).
 
-Agora o número é **quanto falta coletar** ("10 A MAIS"), independente do que já existe na mochila/baús.
+A 3.2b passou a ler o número como **quanto falta coletar** ("10 A MAIS"), independente do que já existe na
+mochila/baús.
 
-| Peça | Arquivo | O que faz |
+| Peça | Arquivo | O que fazia |
 |---|---|---|
-| Base da ordem | `src/Companions/Companion/CompanionSetup.cs` | `OrderCapBase(c, mode, item, stockNow)`: o estoque **do momento** em que a ordem olhou aquele item pela primeira vez, por companheiro/modo/item (dicionário estático de sessão). `ClearOrderCapBase` é chamado junto com `SetOrderCap`/`ClearOrderCap` |
-| Teto efetivo | `src/Companions/Jobs/MHR_GatherRules.cs` | `OrderLimit(...)`: `capTotal = base + cap`; `AllowTarget`/`AllowLoose` usam `min(limite da config, capTotal)` — mas a ordem **ganha** do `WoodLimit`/`StoneLimit`/`OreLimit` (o `Name:Number` explícito, se menor, continua ganhando) |
+| Base da ordem | `src/Companions/Companion/CompanionSetup.cs` | `OrderCapBase(c, mode, item, stockNow)`: o estoque **do momento** em que a ordem olhou aquele item pela primeira vez, por companheiro/modo/item (dicionário estático de sessão). `ClearOrderCapBase` era chamado junto com `SetOrderCap`/`ClearOrderCap` |
+| Teto efetivo | `src/Companions/Jobs/MHR_GatherRules.cs` | `OrderLimit(...)`: `capTotal = base + cap`; `AllowTarget`/`AllowLoose` usavam `min(limite da config, capTotal)` — mas a ordem **ganhava** do `WoodLimit`/`StoneLimit`/`OreLimit` (o `Name:Number` explícito, se menor, continuava ganhando) |
 | Fim da ordem | `src/Companions/Jobs/HarvestController.cs` | inalterado: scan vazio + teto cumprido → `OrderDone` → volta a seguir |
 
 - **Como a base é capturada:** na **primeira leitura daquele item durante a ordem** (dentro de `OrderLimit`), e
@@ -428,4 +436,50 @@ Agora o número é **quanto falta coletar** ("10 A MAIS"), independente do que j
 - **`Name:Number` continua ganhando se for menor** (`Wood:3` com `colete 10` para em 3) e o alvo apontado no
   radial (`SetDirectedTarget`) continua fora do teto.
 - **Sem ordem nada muda:** `cap == 0` → caminho antigo (config pura), sem capturar base nenhuma.
+
+### Fase 3.2c — o número é um ALVO TOTAL contado no INVENTÁRIO (correção final) (✅ — Unreleased)
+
+Regra pedida pelo usuário, literal: *"peço para o companion cortar 10 madeiras e ele já tem 15 no inventário,
+aí ele não executa a tarefa e diz que já temos o suficiente"*; *"se ele já tem 7 no inventário dele, ele executa
+a tarefa até que tenha 10 ou mais no inventário"*.
+
+Ou seja: **o número é um alvo total, contado APENAS na mochila do companheiro** — não conta baús nem pilhas —
+**e vale apenas para o recurso pedido** (não para todos os itens da lista do modo).
+
+| Peça | Arquivo | O que faz |
+|---|---|---|
+| Item da ordem | `src/Companions/AI/OrderItems.cs` (novo) | `Resolve(action, resource, mode)` traduz o recurso que o modelo devolveu (`wood`/`madeira`, `stone`/`pedra`, `iron`/`ferro`...) para o prefab do item (`Wood`, `Stone`, `IronScrap`): mapa PT-BR/EN + conferência com `ObjectDB.GetItemPrefab`, e, para o que o mapa não pega, o nome **localizado** dos itens da própria lista do modo |
+| Contagem na mochila | `src/Companions/Jobs/MHR_GatherRules.cs` | `Bag(c, item)` soma o item no `Inventory` do `Humanoid` (todos os stacks). `Stock` (mochila + baús + pilhas) continua sendo o que a **config** usa |
+| Alvo no ZDO | `src/Companions/Companion/CompanionSetup.cs` | `HC_OrderCap` + `HC_OrderCapMode` + **`HC_OrderCapItem`** (o item do alvo, "" quando não foi possível fixar um); `OrderCapItem(c, mode)` lê o item; `OrderSeen(c, inPackNow)` guarda o **maior** valor visto na mochila durante a ordem (sessão) e é limpo junto com o alvo |
+| Ordem → alvo | `src/Companions/AI/CompanionOrders.cs` | Com `amount > 0` resolve o item e, **se a mochila já tem `amount`**, não inicia o trabalho: o modo de trabalho fica como estava e o companheiro avisa (`hc_ai_already_have`). Senão grava o alvo com o item |
+| Alvo no job | `src/Companions/Jobs/MHR_GatherRules.cs` | `OrderedItem` → `AllowTarget`/`AllowLoose`: quando o alvo nomeia um item **e o alvo produz esse item**, a decisão é só dele (uma árvore não é derrubada só porque a resina ainda está abaixo do `WoodLimit`); a contagem é `Bag` e o alvo **ganha** do limite da config |
+| Aviso | `src/Companions/Core/ModLocalization.cs`, `Translations/Portuguese_Brazilian.json` | `hc_ai_already_have` = "Já temos o suficiente." (PT-BR) — falado pelo companheiro e mostrado no HUD/chat |
+
+- **Como a mochila é contada:** `Bag()` varre `Humanoid.GetInventory().GetAllItems()` (a lista interna do
+  inventário, sem alocar) somando `m_stack` de todo item cujo `m_dropPrefab.name` bate com o item do alvo
+  (pode haver mais de um stack). Uma vez por candidato por scan — nunca por frame.
+- **Como o item da ordem é resolvido:** (1) mapa PT-BR/EN de apelidos (`madeira`→`Wood`, `pedra`→`Stone`,
+  `ferro`→`IronScrap`, `resina`→`Resin`, `silex`→`Flint`...); (2) se o modelo não devolveu recurso nenhum, o
+  **próprio action** resolve (`wood`→`Wood`, `stone`→`Stone`); (3) o nome localizado dos itens da lista do modo
+  ("casca de ancião" → `ElderBark`); (4) tudo é conferido com `ObjectDB.GetItemPrefab` antes de usar.
+- **Se o recurso não for reconhecido** (`minério`/`ore`/`metal`, que são cobre, ferro, prata e estanho ao mesmo
+  tempo; ou qualquer nome desconhecido): o alvo **vale para o modo inteiro**, como na Fase 3.2 — cada item da
+  lista é comparado com o número, contado na mochila. É o comportamento de reserva, e é logado assim
+  (`stops at 10 of every item on the job's list`).
+- **O que acontece quando o alvo é batido:** o candidato é recusado com `CapReject` e, como o scan não acha mais
+  nada, `MHR_GatherRules.OrderDone` encerra a ordem e volta a seguir (fala "já temos madeira/pedra/minério de
+  sobra"). A última árvore derrubada pode passar do número — ela cai inteira.
+- **Depósito no meio da ordem (limitação conhecida, atenuada):** quando a mochila enche o companheiro leva a
+  carga para um baú (`CompanionAI.PendingDeposit`) e a contagem da mochila cai — sem tratamento ele continuaria
+  coletando. Para não começar a contagem do zero, `CompanionSetup.OrderSeen` guarda o **maior** valor visto na
+  mochila **durante esta ordem** (um int por companheiro, em memória, zerado quando o alvo é escrito ou limpo).
+  Na prática a ordem termina quando ele já **coletou** o número pedido, mesmo que parte já esteja no baú. O
+  contraste é literal: o requisito fala de "ter N no inventário"; com depósito o número passa a ser "ter tido N
+  no inventário". Fora isso nada muda (com o alvo ainda não atingido ele segue coletando normalmente).
+- **Alvo que não produz o recurso pedido:** se a ordem nomeia um item e o alvo **não** o produz (ex.: pedir
+  `ferro` e olhar uma rocha que só dá cobre), a decisão volta a ser a da config (`WoodLimit`/`StoneLimit`/
+  `OreLimit`) — assim o companheiro nunca fica parado sem conseguir encerrar a ordem. É a mesma limitação da
+  Fase 3.2 e está documentada de propósito.
+- **Coleta normal, radial e directed continuam iguais:** sem ordem no ZDO, tudo é a config pura (`Stock`);
+  alvo apontado no radial (`SetDirectedTarget`) nunca tem alvo de ordem (`IsDirectedHarvest`).
 

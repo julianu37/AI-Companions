@@ -60,7 +60,7 @@ skills em `.opencode/skills/`. Leia este arquivo antes de agir.
 
 Notas de desenvolvimento do upstream: `docs/DEV_NOTES.md`; handoff: `docs/SESSION_HANDOFF.md`.
 
-## Camada de IA (Fase 3.1 — ordens por texto no chat; Fase 3.2/3.2b — o número da ordem é um delta que limita o trabalho)
+## Camada de IA (Fase 3.1 — ordens por texto no chat; Fase 3.2/3.2c — o número da ordem é um alvo total contado no inventário do companheiro)
 
 O jogador digita a ordem no chat do jogo (`colete 20 de madeira`, `segue`, `para`) e um **LLM local**
 (API compatível com a OpenAI: `POST {BaseUrl}/chat/completions`) devolve a intenção em JSON, que vira a
@@ -73,12 +73,15 @@ no `Update`) → `LlmIntent` (parser tolerante) → `CompanionOrders` (intençã
   `TimeoutSegundos`, `Prefixo`, `MostrarRespostaNoChat`, `CooldownSegundos`.
 - `Chat.SendText(Talker.Type, string)` é o caminho da mensagem **do próprio jogador** (as recebidas entram
   por `Chat.OnNewChatMessage`) — é o único ponto capturado.
-- `despawn` não é exposto ao modelo. O `amount` é um **DELTA** para madeira/pedra/minério (Fase 3.2 + 3.2b):
-  vira um teto no ZDO do companheiro (`HC_OrderCap`/`HC_OrderCapMode`) e o limite efetivo é
-  `estoque na hora da ordem + quantidade pedida` (`CompanionSetup.OrderCapBase`), aplicado em
-  `MHR_GatherRules.OrderLimit` (usado por `AllowTarget`/`AllowLoose`). Ou seja, `colete 10` = **10 a mais**,
-  mesmo com a mochila/baús cheios; ao bater o teto ele encerra a ordem e volta a seguir. Para os outros jobs o
-  número segue sendo só informativo.
+- `despawn` não é exposto ao modelo. O `amount` é um **ALVO TOTAL** para madeira/pedra/minério (Fase 3.2,
+  corrigido na 3.2c): vira um alvo no ZDO do companheiro (`HC_OrderCap`/`HC_OrderCapMode`/`HC_OrderCapItem`) e
+  é contado **apenas no inventário do companheiro** (a mochila — **não** conta baús nem pilhas), em
+  `MHR_GatherRules.Bag` (usado por `AllowTarget`/`AllowLoose` através de `CompanionSetup.OrderCap`/`OrderSeen`).
+  Ou seja, `colete 10` = **ter 10 na mochila**: com 15 ele nem começa e diz "já temos o suficiente"; com 7 ele
+  coleta até 10 ou mais (a última árvore pode passar). O alvo vale **só para o recurso pedido**
+  (`OrderItems.Resolve` traduz "madeira"/"wood" → `Wood`); se o recurso não for reconhecido, vale para o modo
+  inteiro (comportamento de reserva, como na 3.2). Ao bater o alvo ele encerra a ordem e volta a seguir. Para os
+  outros jobs o número segue sendo só informativo.
 - Backend/contrato de referência: `docs/re/backend-contract.md`; mapa da fase: `docs/roadmap.md` (Trilha D).
 
 ## Nossas docs

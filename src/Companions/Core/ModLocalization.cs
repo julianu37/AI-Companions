@@ -337,6 +337,8 @@ public static class ModLocalization
 			{ "hc_ai_raw", "AI: {0}" },
 			{ "hc_ai_ok", "Ok: {0}" },
 			{ "hc_ai_ok_amount", "Ok: {0} ({1})" },
+			// Fase 3.2c: the pack already has what the order asked for - the order is not started
+			{ "hc_ai_already_have", "We already have enough." },
 			{ "hc_ai_order_follow", "follow me" },
 			{ "hc_ai_order_wood", "gather wood" },
 			{ "hc_ai_order_stone", "gather stone" },

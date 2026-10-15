@@ -2,7 +2,7 @@
 
 All notable changes to this fork of ProfMags' Offline Companions. Versions before 1.4.0 are the original mod (see [ProfMags' Thunderstore page](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) for that history) plus the initial batch of Valheim 1.0 API-compatibility fixes that let the mod load and run at all on 1.0.
 
-## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2: o número da ordem limita o trabalho + Fase 3.3: o número é um DELTA + Tradução PT-BR (fork ModAI-BR-Companions)
+## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Tradução PT-BR (fork ModAI-BR-Companions)
 - **Fase 3.1 — o jogador digita a ordem no chat do jogo e o companheiro executa.** `colete 20 de madeira`,
   `segue`, `para`, `vem cá`, `minere ferro`, `fica na defensiva`... A frase vai para um **LLM local** por uma
   API compatível com a OpenAI (`POST {BaseUrl}/chat/completions`; LM Studio, Ollama, llama.cpp, vLLM) e a
@@ -29,33 +29,39 @@ All notable changes to this fork of ProfMags' Offline Companions. Versions befor
 - **Feedback em PT-BR** via localização (`hc_ai_*`): `Pensando...`, `Ok: coletar madeira (20)`,
   `Não entendi a ordem.`, `Nenhum companheiro seu está perto o bastante...`, `A IA não respondeu: ...`, e a
   nova aba **IA** no painel F8.
+- **Fase 3.2c — o número da ordem é um ALVO TOTAL contado no INVENTÁRIO do companheiro (correção final).**
+  Regra do usuário: *"peço 10 madeiras e ele já tem 15 no inventário, então ele não executa e diz que já temos
+  o suficiente"*; *"se ele já tem 7, ele coleta até ter 10 ou mais"*. Ou seja: o número é **um alvo total**
+  (não um delta — a leitura de "10 a mais" da 3.3/3.2b foi **revertida e removida**), contado **apenas na
+  mochila do companheiro** (não conta baús nem pilhas) e **só para o recurso pedido**.
+  - **Item da ordem:** `src/Companions/AI/OrderItems.cs` (novo) traduz o recurso que o modelo devolveu
+    (`wood`/`madeira`, `stone`/`pedra`, `ferro`/`iron`...) para o prefab (`Wood`, `Stone`, `IronScrap`), com
+    mapa PT-BR/EN, conferência em `ObjectDB.GetItemPrefab` e, como reserva, o nome localizado dos itens da
+    própria lista do modo. **Não reconheceu?** O alvo vale para o modo inteiro (como na 3.2).
+  - **Contagem:** `MHR_GatherRules.Bag()` soma o item no `Inventory` do `Humanoid` (todos os stacks). O
+    `Stock` (mochila + baús + pilhas) continua sendo o que a config usa (`WoodLimit`/`StoneLimit`/`OreLimit`).
+  - **Já tem o suficiente:** a ordem **nem começa** e o modo de trabalho fica como estava; o companheiro diz
+    "Já temos o suficiente." (nova chave `hc_ai_already_have`, PT-BR) e o HUD/chat mostra o mesmo.
+  - **Só o recurso pedido:** com o alvo nomeando `Wood`, a árvore não é mais derrubada só porque a **resina**
+    ainda está abaixo do `WoodLimit` (era o "continua cortando para chegar a 10 de resina").
+  - **Ao bater o alvo:** a ordem é encerrada e o companheiro volta a seguir (fala "já temos ... de sobra").
+    A última árvore pode passar do número — ela cai inteira.
+  - **Depósito (limitação atenuada):** se a mochila encher e ele levar a carga para um baú, a contagem não
+    recomeça do zero — `CompanionSetup.OrderSeen` guarda o **maior** valor visto na mochila durante a ordem.
+    Ou seja, o alvo passa a significar "ter **tido** N no inventário" quando há depósito.
+  - **Sem ordem, radial e `SetDirectedTarget` seguem exatamente como antes** (config pura).
 - **Fase 3.2 — o número da ordem passou a valer: `colete 5 madeiras` para em 5.** Antes a ordem só ligava o
   job e o companheiro cortava até o limite da configuração (`[Gathering] WoodLimit`, 500). Agora o número vira
-  um **teto por companheiro**, guardado no ZDO dele (`HC_OrderCap` / `HC_OrderCapMode`): funciona com vários
-  companheiros (cada um com o seu número), sobrevive a um reload e é limpo quando a ordem termina, quando você
-  diz `para`/`segue`, quando outra ordem de trabalho chega ou quando o modo de trabalho muda (radial incluído).
-  Vale para **madeira, pedra e minério**; `Name:Number` da lista, se for menor, continua ganhando.
-- **Ao bater o teto o companheiro para e volta a seguir** (como o `stop`), com a fala de "já temos de sobra"
-  e uma linha no log. Se ele já tiver o suficiente, a ordem termina na hora.
-- **Fase 3.3 — o número da ordem é um DELTA ("colete 10" = 10 A MAIS).** A Fase 3.2 lia o número como *estoque
-  total*: como o teto era comparado com o que o companheiro já tinha na mochila + baús perto da casa + pilhas,
-  "colete 10 madeiras" com 9 de madeira guardada virava **uma** árvore e ele parava (bug reportado em jogo).
-  Agora, ao começar a ordem, o estoque **do momento** de cada item é capturado como base e o teto efetivo é
-  `base + número pedido` — ele coleta 10 a mais, mesmo com a mochila cheia. Vale para madeira, pedra e minério
-  (alvos e itens soltos). O `Name:Number` da lista, se for menor, continua ganhando; sem ordem nada muda.
-- **A base é de sessão (em memória, por companheiro/modo/item)** e é esquecida junto com o teto (fim da ordem,
-  `para`/`segue`, outra ordem de trabalho ou troca de modo). Depois de um **reload**, o teto continua no ZDO mas
-  a base é lida de novo do estoque atual: a ordem recomeça a contagem a partir dali (coleta o número pedido outra
-  vez) — o lado seguro de errar.
-- **O teto da ordem agora ganha do limite da configuração** (`WoodLimit`/`StoneLimit`/`OreLimit`, que é um
-  "já temos de sobra"): com a mochila em 500 e o limite em 500, `colete 10` ainda coleta 10 (antes a ordem ficava
-  presa sem fazer nada). O `Name:Number` explícito continua sendo o menor que ganha.
-- **O teto não mexe na coleta normal nem no radial:** sem ordem com número, tudo continua sendo a
-  configuração; alvos apontados no radial (SetDirectedTarget) são ignorados pelo teto. A leitura do ZDO é um
-  lookup por candidato por scan (nunca por frame).
-- **Nota:** o teto decide se o companheiro **começa** um alvo, então a última árvore derrubada pode passar do
-  número pedido (ela cai inteira). O `amount` também aparece no log e no feedback (`Ok: coletar madeira (5)`).
-  Ordens com alvo (`atacar X`, `equipar Y`) continuam na Fase 3.6.
+  um **alvo por companheiro**, guardado no ZDO dele (`HC_OrderCap` / `HC_OrderCapMode` / `HC_OrderCapItem`):
+  funciona com vários companheiros (cada um com o seu número), sobrevive a um reload e é limpo quando a ordem
+  termina, quando você diz `para`/`segue`, quando outra ordem de trabalho chega ou quando o modo de trabalho
+  muda (radial incluído). Vale para **madeira, pedra e minério**; `Name:Number` da lista, se for menor,
+  continua ganhando no caminho da config.
+- **Ao bater o alvo o companheiro para e volta a seguir** (como o `stop`), com a fala de "já temos de sobra"
+  e uma linha no log.
+- **Fase 3.3/3.2b (REVERTIDA — ver 3.2c acima).** Chegou a valer em Unreleased que o número era um DELTA
+  ("colete 10" = 10 A MAIS): a base do estoque do momento da ordem era somada ao número. Não é o que o
+  usuário quer — o código (`CompanionSetup.OrderCapBase` e o `MHR_GatherRules.OrderLimit`) foi **removido**.
 - Tradução completa do **sistema de localização** para `Portuguese_Brazilian`: `Translations/Portuguese_Brazilian.json`
   com **263 chaves** — as 204 do upstream e 59 novas para textos que estavam fixos em inglês no código.
   Chaves e placeholders (`{0}`, `{1}`) idênticos ao inglês; o `English.json` continua sendo o fallback e é

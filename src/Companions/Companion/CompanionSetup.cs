@@ -34,18 +34,22 @@ public class CompanionSetup : MonoBehaviour
 
 	internal static readonly int ActionModeSchemaHash = "HC_ActionModeSchema".GetStableHashCode();
 
-	// Fase 3.2: the ceiling a chat order put on a gathering job ("colete 5 madeiras" -> 5). 0 = no ceiling (the
+	// Fase 3.2: the target a chat order put on a gathering job ("colete 5 madeiras" -> 5). 0 = no target (the
 	// config rules, as before). In the ZDO so every companion has its own and it survives a reload.
 	internal static readonly int OrderCapHash = "HC_OrderCap".GetStableHashCode();
 
-	// Fase 3.2: which work mode that ceiling belongs to - a ceiling for Wood must not follow the companion into Stone.
+	// Fase 3.2: which work mode that target belongs to - a target for Wood must not follow the companion into Stone.
 	internal static readonly int OrderCapModeHash = "HC_OrderCapMode".GetStableHashCode();
 
-	// Fase 3.3: what the companion already had when the current order started, per item, keyed by the companion's
-	// GameObject. The order's number is a DELTA ("colete 10 madeiras" = 10 MORE), so the gather jobs compare the
-	// stock against this base + the number asked for - never against the number alone (that read "have 10 in total"
-	// and stopped after one log when the pack/chests already held nine). Session-only on purpose: see OrderCapBase.
-	private static readonly Dictionary<int, Dictionary<string, int>> s_orderCapBase = new Dictionary<int, Dictionary<string, int>>();
+	// Fase 3.2c: the item that target is about ("colete 10 madeiras" -> "Wood"). Empty when the order named no item
+	// the game knows: the target is then the whole job, as in Fase 3.2. In the ZDO, with the target.
+	internal static readonly int OrderCapItemHash = "HC_OrderCapItem".GetStableHashCode();
+
+	// Fase 3.2c: the most of the ordered item this companion has had in its OWN pack during the current order, one
+	// int per companion, session-only. The target is counted in the pack (not in the chests), so unloading a full
+	// pack into a chest would start the count over - the high-water mark keeps the order ending when it has
+	// collected the number asked for. Written and dropped with the target: SetOrderCap/ClearOrderCap/OrderSeen.
+	private static readonly Dictionary<int, int> s_orderSeen = new Dictionary<int, int>();
 
 	internal static readonly int StaminaHash = "HC_Stamina".GetStableHashCode();
 
@@ -818,8 +822,8 @@ public class CompanionSetup : MonoBehaviour
 		int current = zdo.GetInt(ActionModeHash);
 		int next = (toggle && current == mode) ? 0 : mode;
 		zdo.Set(ActionModeHash, next);
-		// Fase 3.2: the ceiling belongs to one job. Picking another job (or turning the job off) drops it, so a stale
-		// ceiling can never stop a job the player didn't ask for. A chat order sets its own right after this call.
+		// Fase 3.2: the target belongs to one job. Picking another job (or turning the job off) drops it, so a stale
+		// target can never stop a job the player didn't ask for. A chat order sets its own right after this call.
 		if (next == 0 || zdo.GetInt(OrderCapModeHash, 0) != next)
 		{
 			ClearOrderCap(companion);
@@ -835,12 +839,15 @@ public class CompanionSetup : MonoBehaviour
 		companion.GetComponent<UpkeepController>()?.NotifyActionModeChanged();
 	}
 
-	// ---- Fase 3.2: the ceiling a chat order put on a gathering job ----
+	// ---- Fase 3.2 / 3.2c: the target a chat order put on a gathering job ----
 	// "colete 5 madeiras" used to be a job like any other, so the companion kept chopping until the config limit
-	// (WoodLimit, 500 by default). The ceiling is kept per companion in its ZDO (so several companions each stop at
+	// (WoodLimit, 500 by default). The target is kept per companion in its ZDO (so several companions each stop at
 	// their own number and it survives a reload) and is only read by the gather jobs.
+	// Fase 3.2c: the number is a TOTAL counted in the companion's own pack ("colete 10 madeiras" = have 10 wood on
+	// you - not "10 more", which is how Fase 3.2b read it), and it belongs to the item the order named (see
+	// OrderCapItemHash), not to every item on the job's list.
 
-	/// <summary>The ceiling an order put on this mode for this companion; 0 = no ceiling (or it belongs to another
+	/// <summary>The target an order put on this mode for this companion; 0 = no target (or it belongs to another
 	/// mode). Reads the ZDO straight: a dictionary lookup, at most once per candidate per scan - never per frame.</summary>
 	internal static int OrderCap(Component c, int mode)
 	{
@@ -853,105 +860,109 @@ public class CompanionSetup : MonoBehaviour
 		return (cap > 0 && zdo.GetInt(OrderCapModeHash, 0) == mode) ? cap : 0;
 	}
 
-	/// <summary>Remembers the ceiling of an order ("colete 5 madeiras"). Owner only: the ceiling is written where the
-	/// order was given (the caller has claimed the companion by then).</summary>
-	internal static void SetOrderCap(Component c, int mode, int amount)
+	/// <summary>Fase 3.2c: the item the target is about ("Wood"), or "" when there is no target, when it belongs to
+	/// another mode, or when the order named no item the game knows - in that last case the target is the whole job
+	/// (every item on the mode's list), exactly as Fase 3.2 did it.</summary>
+	internal static string OrderCapItem(Component c, int mode)
+	{
+		ZDO zdo = ZdoOf(c, out _);
+		if (zdo == null)
+		{
+			return "";
+		}
+		int cap = zdo.GetInt(OrderCapHash, 0);
+		if (cap <= 0 || zdo.GetInt(OrderCapModeHash, 0) != mode)
+		{
+			return "";
+		}
+		return zdo.GetString(OrderCapItemHash, "") ?? "";
+	}
+
+	/// <summary>Remembers the target of an order ("colete 5 madeiras"). Owner only: it is written where the order was
+	/// given (the caller has claimed the companion by then). <paramref name="item"/> is the item prefab the order
+	/// named, or null/"" when it couldn't be pinned to one item.</summary>
+	internal static void SetOrderCap(Component c, int mode, int amount, string item)
 	{
 		ZNetView nv;
 		ZDO zdo = ZdoOf(c, out nv);
 		if (zdo == null || !nv.IsOwner())
 		{
-			CompanionsPlugin.Log?.LogWarning("[IA] Order ceiling not written: not the owner of this companion");
+			CompanionsPlugin.Log?.LogWarning("[IA] Order target not written: not the owner of this companion");
 			return;
 		}
-		if (amount > 0 && zdo.GetInt(OrderCapHash, 0) == amount && zdo.GetInt(OrderCapModeHash, 0) == mode)
+		item = amount > 0 ? (item ?? "") : "";
+		if (amount > 0 && zdo.GetInt(OrderCapHash, 0) == amount && zdo.GetInt(OrderCapModeHash, 0) == mode && (zdo.GetString(OrderCapItemHash, "") ?? "") == item)
 		{
 			return;   // already there - don't dirty the ZDO for nothing
 		}
-		ClearOrderCapBase(c);   // Fase 3.3: a new ceiling reads the stock fresh (the base of the old one is gone)
+		ClearOrderSeen(c);   // Fase 3.2c: a new target counts the pack from scratch
 		zdo.Set(OrderCapHash, amount);
 		zdo.Set(OrderCapModeHash, amount > 0 ? mode : 0);
+		zdo.Set(OrderCapItemHash, item);
 	}
 
-	/// <summary>Forgets the ceiling (order finished or cancelled, or another job picked).</summary>
+	/// <summary>Forgets the target (order finished or cancelled, or another job picked).</summary>
 	internal static void ClearOrderCap(Component c)
 	{
-		ClearOrderCapBase(c);   // Fase 3.3: the base goes with the ceiling, whatever the ZDO says
+		ClearOrderSeen(c);   // Fase 3.2c: the pack count goes with the target
 		ZNetView nv;
 		ZDO zdo = ZdoOf(c, out nv);
 		if (zdo == null || !nv.IsOwner())
 		{
 			return;
 		}
-		if (zdo.GetInt(OrderCapHash, 0) == 0 && zdo.GetInt(OrderCapModeHash, 0) == 0)
+		if (zdo.GetInt(OrderCapHash, 0) == 0 && zdo.GetInt(OrderCapModeHash, 0) == 0 && string.IsNullOrEmpty(zdo.GetString(OrderCapItemHash, "")))
 		{
 			return;
 		}
 		zdo.Set(OrderCapHash, 0);
 		zdo.Set(OrderCapModeHash, 0);
+		zdo.Set(OrderCapItemHash, "");
 	}
 
-	/// <summary>Fase 3.3: what this companion already had of one item when the current order started. The order's
-	/// number is a delta, so the jobs cap the stock at this base + the number. Captured on the order's first look
-	/// at the item, not when the order is given: a list of "*" names no items to walk then, and this is the same
-	/// <c>Stock()</c> read the gather jobs already do (cached for 10s), at most once per item per order - never per
-	/// frame, no scan of the world of its own. The base lives in memory only, so after a reload the order restarts
-	/// from the stock of that moment (the ceiling in the ZDO survives, the "already had" part doesn't - a reloaded
-	/// order collects its number again, which is the safe direction to be wrong in).</summary>
-	/// <param name="c">The companion, or any component on its GameObject (the gather job passes its controller).</param>
-	/// <param name="stockNow">The stock of that item right now - only read when the base isn't known yet.</param>
-	internal static int OrderCapBase(Component c, int mode, string item, int stockNow)
+	/// <summary>Fase 3.2c: how much of the ordered item the companion has had in its own pack during this order -
+	/// the pack count of right now, or the highest it has reached (so unloading part of a full pack into a chest,
+	/// which the mod does on its own, doesn't make the order start over). One dictionary lookup per candidate per
+	/// scan, never per frame.</summary>
+	internal static int OrderSeen(Component c, int inPackNow)
 	{
-		if (c == null || c.gameObject == null || string.IsNullOrEmpty(item))
+		if (c == null || c.gameObject == null)
 		{
-			return stockNow;
+			return inPackNow;
 		}
 		int id = c.gameObject.GetInstanceID();
-		Dictionary<string, int> per;
-		if (!s_orderCapBase.TryGetValue(id, out per))
+		int seen;
+		if (s_orderSeen.TryGetValue(id, out seen) && seen >= inPackNow)
 		{
-			if (s_orderCapBase.Count > 256)
-			{
-				s_orderCapBase.Clear();   // same soft cap the other session caches use; an order only re-reads its base
-			}
-			per = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-			s_orderCapBase[id] = per;
+			return seen;
 		}
-		string key = mode + ":" + item;
-		int known;
-		if (per.TryGetValue(key, out known))
+		if (s_orderSeen.Count > 256)
 		{
-			return known;
+			s_orderSeen.Clear();   // same soft cap the other session caches use
 		}
-		if (per.Count > 64)
-		{
-			per.Clear();   // a wild list ("*") over a long job: keep the per-companion entry bounded
-		}
-		per[key] = stockNow;
-		return stockNow;
+		s_orderSeen[id] = inPackNow;
+		return inPackNow;
 	}
 
-	/// <summary>Fase 3.3: forget the captured base (called with the ceiling itself). Resolves the companion from
-	/// whatever component was passed, so the base is found no matter who clears it (the gather job clears the
-	/// ceiling through its HarvestController - see CompleteOrderCap).</summary>
-	private static void ClearOrderCapBase(Component c)
+	/// <summary>Fase 3.2c: forgets the pack count of the order (called with the target itself).</summary>
+	private static void ClearOrderSeen(Component c)
 	{
 		if (c == null || c.gameObject == null)
 		{
 			return;
 		}
-		s_orderCapBase.Remove(c.gameObject.GetInstanceID());
+		s_orderSeen.Remove(c.gameObject.GetInstanceID());
 	}
 
-	/// <summary>The ceiling was met: the order is done. Forget it and go back to following, exactly like "stop".</summary>
+	/// <summary>The target was met: the order is done. Forget it and go back to following, exactly like "stop".</summary>
 	internal static void CompleteOrderCap(Component c)
 	{
 		// The caller is the gather job (HarvestController), not the CompanionSetup: resolve the companion from
-		// whatever component was passed, otherwise the ceiling is never cleared and the job never stops.
+		// whatever component was passed, otherwise the target is never cleared and the job never stops.
 		CompanionSetup companion = c as CompanionSetup ?? (c != null ? c.GetComponent<CompanionSetup>() : null);
 		if (companion == null)
 		{
-			CompanionsPlugin.Log?.LogWarning("[IA] Order ceiling: no CompanionSetup on the component that reached the ceiling");
+			CompanionsPlugin.Log?.LogWarning("[IA] Order target: no CompanionSetup on the component that reached the target");
 			return;
 		}
 		ClearOrderCap(companion);

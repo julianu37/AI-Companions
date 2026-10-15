@@ -23,6 +23,10 @@ internal static class CompanionOrders
 
 		/// <summary>How many companions actually took the order.</summary>
 		internal int Count;
+
+		/// <summary>Fase 3.2c: true when a companion already had what the order asked for in its own pack, so the
+		/// order was never started (the work mode was left alone - see CompanionOrders.Apply).</summary>
+		internal bool AlreadyHave;
 	}
 
 	internal static OrderOutcome Run(LlmIntent intent)
@@ -64,13 +68,14 @@ internal static class CompanionOrders
 
 		foreach (CompanionSetup companion2 in CompanionSetup.AllCompanions)
 		{
-			if (companion2 != null && Apply(companion2, action, intent.Amount))
+			if (companion2 != null && Apply(companion2, action, intent.Amount, intent.Resource, outcome))
 			{
 				outcome.Count++;
 			}
 		}
-		CompanionsPlugin.Log?.LogInfo($"[IA] Order \"{action}\"{(outcome.Amount > 0 ? $" (x{outcome.Amount})" : "")} -> {outcome.Count} companion(s)");
-		if (outcome.Count == 0)
+		CompanionsPlugin.Log?.LogInfo($"[IA] Order \"{action}\"{(outcome.Amount > 0 ? $" (x{outcome.Amount})" : "")} -> {outcome.Count} companion(s)"
+			+ (outcome.AlreadyHave ? " (and at least one already had enough)" : ""));
+		if (outcome.Count == 0 && !outcome.AlreadyHave)
 		{
 			CompanionsPlugin.Log?.LogInfo("[IA] No companion answered - none of yours is in range, or their Command switch is off (wheel)");
 		}
@@ -78,7 +83,7 @@ internal static class CompanionOrders
 	}
 
 	/// <summary>True when this companion took the order. Null-safe, main thread only.</summary>
-	private static bool Apply(CompanionSetup companion, string action, int amount)
+	private static bool Apply(CompanionSetup companion, string action, int amount, string resource, OrderOutcome outcome)
 	{
 		if (companion == null || companion.GetComponent<ZNetView>()?.GetZDO() == null)
 		{
@@ -152,22 +157,40 @@ internal static class CompanionOrders
 			{
 				return false;
 			}
+			// Fase 3.2c: the number is a TOTAL counted in the companion's own pack, and it is about the item the
+			// order named ("colete 10 madeiras" = have 10 wood on you - see MHR_GatherRules.Bag). If it already has
+			// that much, the order is not started at all and it says so: nothing is touched, so a companion chopping
+			// wood keeps chopping and is not sent off to gather stone it doesn't need. Resolved before the target of
+			// the order that is running is dropped, so a refused order doesn't disturb that one either.
+			string item = (amount > 0 && HasOrderCap(mode)) ? OrderItems.Resolve(action, resource, mode) : null;
+			if (item != null && MHR_GatherRules.Bag(companion, item) >= amount)
+			{
+				outcome.AlreadyHave = true;
+				CompanionsPlugin.Log?.LogInfo($"[IA] \"{action}\" x{amount}: {NameOf(companion)} already has {amount}+ {item} in its pack - the order wasn't started");
+				CompanionTalk talk = companion.GetComponent<CompanionTalk>();
+				if (talk != null)
+				{
+					talk.Say(ModLocalization.Loc("hc_ai_already_have"), true);
+				}
+				return false;
+			}
 			// the wheel toggles a job off when it's picked twice; an order always sets it
-			CompanionSetup.ClearOrderCap(companion);   // a new job order drops the ceiling of the old one
+			CompanionSetup.ClearOrderCap(companion);   // a new job order drops the target of the old one
 			CompanionSetup.ApplyActionMode(companion, mode, toggle: false);
 			// Fase 3.2: "colete 5 madeiras" - the number caps the job, so it stops well before the config's 500.
-			// Fase 3.3: the number is a delta (5 MORE than it already had), see MHR_GatherRules.OrderLimit.
+			// Fase 3.2c: the number is a total counted in the pack, for the item the order named; when the order
+			// named no item the game knows, it caps the whole job (as in Fase 3.2).
 			if (amount > 0 && HasOrderCap(mode))
 			{
-				CompanionSetup.SetOrderCap(companion, mode, amount);
-				CompanionsPlugin.Log?.LogInfo($"[IA] Order ceiling: mode {mode} gathers {amount} more");
+				CompanionSetup.SetOrderCap(companion, mode, amount, item);
+				CompanionsPlugin.Log?.LogInfo($"[IA] Order target: mode {mode} stops at {amount} {(item ?? "of every item on the job's list")} in the pack");
 			}
 			return true;
 		}
 		}
 	}
 
-	/// <summary>Fase 3.2: jobs that stop at an amount, so a number in the order can be their ceiling (wood, stone,
+	/// <summary>Fase 3.2: jobs that stop at an amount, so a number in the order can be their target (wood, stone,
 	/// ore - the same three MHR_GatherRules keeps a limit for).</summary>
 	internal static bool HasOrderCap(int mode)
 	{
@@ -226,5 +249,12 @@ internal static class CompanionOrders
 	private static void SetAutoPickup(CompanionSetup companion, bool value)
 	{
 		companion.GetComponent<ZNetView>()?.GetZDO()?.Set(CompanionSetup.AutoPickupHash, value);
+	}
+
+	/// <summary>The companion's name, for the log.</summary>
+	private static string NameOf(CompanionSetup companion)
+	{
+		ZDO zdo = companion != null ? companion.GetComponent<ZNetView>()?.GetZDO() : null;
+		return zdo != null ? zdo.GetString(CompanionSetup.NameHash, "Companion") : "Companion";
 	}
 }
