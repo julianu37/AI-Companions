@@ -285,7 +285,7 @@
         { "key": "hc_ai_order_fish", "value": "pescar" },
         { "key": "hc_ai_order_repair", "value": "reparar e reabastecer" },
         { "key": "hc_ai_order_cook", "value": "cozinhar" },
-        { "key": "hc_ai_order_stop", "value": "parar e seguir você" },
+        { "key": "hc_ai_order_stop", "value": "parar de seguir" },
         { "key": "hc_ai_order_come", "value": "vir até você" },
         { "key": "hc_ai_order_sethome", "value": "definir a casa aqui" },
         { "key": "hc_ai_order_wander", "value": "vagar por perto" },

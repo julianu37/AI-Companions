@@ -380,11 +380,13 @@ internal static class CompanionOrders
 		{
 		case "follow":
 			CompanionSetup.ClearOrderCap(companion);
-			SetFollow(companion);
+			SetFollow(companion, true);
 			return true;
 		case "stop":
 			CompanionSetup.ClearOrderCap(companion);
-			SetFollow(companion);
+			// "para de me seguir" must actually STOP the follow - the wheel's Follow toggle turns it off the same
+			// way. Turning it on here (as it used to) made the order look like it did nothing.
+			SetFollow(companion, false);
 			ClearCombatTarget(companion);
 			return true;
 		case "sethome":
@@ -495,12 +497,13 @@ internal static class CompanionOrders
 		}
 	}
 
-	// "follow" and "stop" both mean "come back and follow me": a job and Follow can't both be on, and the job that
-	// had paused Follow must not turn it back on later (same as the wheel does it).
-	private static void SetFollow(CompanionSetup companion)
+	// "follow" turns following ON; "stop" turns it OFF (exactly what the wheel's Follow toggle does). Either way
+	// the job is dropped first: a job and Follow can't both be on, and the job that had paused Follow must not
+	// turn it back on later (same as the wheel does it).
+	private static void SetFollow(CompanionSetup companion, bool follow)
 	{
 		MHR_JobRules.FollowSetByPlayer(companion);
-		companion.SetFollow(true);
+		companion.SetFollow(follow);
 		CompanionSetup.ApplyActionMode(companion, CompanionSetup.ModeFollow, toggle: false);
 	}
 

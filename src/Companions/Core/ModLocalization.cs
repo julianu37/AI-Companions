@@ -350,7 +350,7 @@ public static class ModLocalization
 			{ "hc_ai_order_fish", "fish" },
 			{ "hc_ai_order_repair", "repair and restock" },
 			{ "hc_ai_order_cook", "cook" },
-			{ "hc_ai_order_stop", "stop and follow me" },
+			{ "hc_ai_order_stop", "stop following" },
 			{ "hc_ai_order_come", "come here" },
 			{ "hc_ai_order_sethome", "set home here" },
 			{ "hc_ai_order_wander", "wander around" },
