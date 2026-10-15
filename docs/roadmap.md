@@ -341,6 +341,7 @@ Ordens em **linguagem natural** por cima do mod do upstream. O companheiro conti
 | 3.3 | **Ordens por voz**: push-to-talk (`Microphone`, 16 kHz mono) → **STT local** (Whisper.net) → **mesma caixa de ordens** do chat | ✅ build 0 erros + DLL no plugin (teste em jogo pendente) |
 | 3.3-spike | **SPIKE STT local**: Whisper.net **in-process** (NuGet, thread de fundo) x `whisper-server.exe` filho — teste mínimo, gatilhos `modia_stt_teste` / `[IA] SttTeste` | ✅ validado em jogo (`docs/re/stt-whisper-net-spike.md`) |
 | 3.3b | **Correções do teste da voz**: conflito da tecla **V** com o *Toggle Auto-Pickup* do jogo, qualidade do STT (modelo `small` + prompt inicial + trim) e medição da latência do LLM | ✅ build 0 erros + DLL/modelo no plugin (teste em jogo pendente) |
+| 3.3c | **Raio de coleta maior** (procura, alcance seguindo você, área com Follow off e drops) + **chatter aleatório desligado** por padrão (`[Speech] Chatter`) | ✅ build 0 erros + DLL no plugin (teste em jogo pendente) |
 | 3.4 | TTS: o companheiro **fala** a confirmação (áudio do backend, `AudioSource`) | ⏳ |
 | 3.5 | Personalidade/memória: preset + texto livre no contexto do LLM | ✅ validado em jogo |
 | 3.6 | **Ordens com alvo**: `ataca o greydwarf` (engaja a criatura), `equipa o machado de bronze` (equipa do inventário dele), `larga a pedra` (joga fora) | ✅ validado em jogo |
@@ -715,4 +716,106 @@ valor foi escolhido pelo jogador e **não** é tocado.
 alternar** (nenhuma mensagem `Auto-Pickup: On/Off` no HUD) e `colete 10 madeiras` deve sair certo com mais frequência
 (`TRANSCRICAO ... TEXTO: "colete 10 madeiras"`). Reatribuir o auto-pickup para outra tecla nas configurações do jogo
 e reentrar: o log deve passar a dizer `[STT] Sem conflito de tecla: ...` e o auto-pickup volta a funcionar.
+
+### Fase 3.3c — raio de coleta maior e chatter aleatório desligado (✅ — build; teste em jogo pendente)
+
+Dois pedidos do jogador, sem lógica nova: (1) o companheiro **procura e trabalha mais longe** quando você manda
+coletar; (2) **sem comentários aleatórios** — as falas **contextuais** continuam. Nada de ordem, job, radial, UI, IA
+ou STT foi tocado.
+
+#### 1. Raio de coleta (defaults novos)
+
+| Config | Antes | Agora | O que muda em jogo |
+|---|---|---|---|
+| `[Advanced] GatheringSearchRadius` | 30 m | **50 m** | o anel em que ele procura a próxima árvore, rocha ou planta (seguindo você, ou mandado a um alvo com a tecla de comando) |
+| `[Gathering] FollowRange` | 10 m | **25 m** | madeira/pedra/minério **seguindo você**: o alvo pode estar a até 25 m de **você** |
+| `[Gathering] ForageFollowRange` | 10 m | **20 m** | forrageio seguindo você (continua sendo "o que você passou perto", com mais alcance) |
+| `[Gathering] Range` | 40 m | **60 m** | **Follow desligado**: a área de trabalho em volta de casa (ou de onde o job começou) |
+| `[Advanced] GatheringDropRadius` | 8 m | **12 m** | até onde ele cata o que caiu de uma árvore derrubada ou rocha quebrada |
+
+**Por que esses números:**
+
+- **Enquanto segue você, quem limita é o `FollowRange`**, não o `GatheringSearchRadius`: `HarvestController.ScanCenter()`
+  é o **companheiro** e o anel tem o `GatheringSearchRadius`, mas cada candidato ainda passa por
+  `InWorkArea(...)` → `PlayerRange()` = `FollowRange` medido **a partir de você**. Ou seja, o alcance efetivo é o
+  `FollowRange`. O `GatheringSearchRadius` só precisa ser **grande o bastante para não virar o gargalo**: o companheiro
+  pode estar a 25 m de você e o alvo a 25 m de você **do outro lado**, então o pior caso é ~50 m do companheiro — daí
+  **50 m** (era 30, que com 10 m de `FollowRange` sobrava).
+- **`FollowRange` 25 m** (era 10) é o que o jogador sente: ele para de ficar colado em você e vai buscar a árvore
+  mais próxima num raio bem maior. Não passa disso porque a **coleira** existe: com um alvo em andamento e Follow
+  ligado, o companheiro **abandona o alvo e volta** se ficar a mais de `PlayerRange() + 15 m` de você
+  (`HarvestController`, o "You moved on" da 1.4.120) — com 25 m isso dá **40 m** de folga, então o raio de 25 m é
+  plenamente utilizável (com 10 m a folga era 25 m).
+- **A outra coleira (`[Follow] MaxDistance`, 10 m) não atrapalha:** enquanto o job tem alvo, `CompanionAI` **pula** o
+  `MHR_Follow` (`_harvest.IsActive`, 1.4.94) e quem dirige o movimento é o `HarvestController`. O `MHR_Follow` só volta
+  a mandar quando o job fica **ocioso** (nada no anel) — e aí ele volta para perto de você, como sempre fez. Efeito
+  prático do raio maior: ele anda até ~25 m, coleta, e **volta** para o seu lado quando não há mais nada naquele anel
+  (o vaivém é mais longo do que era com 10 m — é o preço do alcance pedido).
+- **Forage 20 m** (era 10): o forrageio é o único com raio próprio desde a 1.4.151, justamente para não varrer tudo em
+  volta do jogador; 20 m dobra o alcance sem virar "limpa o mapa".
+- **Range 60 m** (era 40) e **DropRadius 12 m** (era 8): o primeiro é a área de trabalho com Follow **desligado**
+  (ninguém fica esperando você, então pode ser bem maior); o segundo é o que resolve o caso clássico da árvore que cai
+  longe e deixa os troncos para trás (12 m em vez de 8).
+- **`AcceptableValueRange`:** todos os novos defaults já cabem nos ranges existentes (50 ≤ 100, 25/20 ≤ 60, 60 ≤ 150,
+  12 ≤ 20) — nenhum range precisou mudar. O teto de 100 m do `GatheringSearchRadius` e o de 60 m do `FollowRange`
+  continuam sendo o limite de quem quiser ir além.
+
+#### 2. Chatter aleatório desligado (`[Speech] Chatter`, novo, default **false**)
+
+O chatter periódico vinha **só** do timer do `CompanionTalk.Update()` (`_talkTimer` → `ResetTimer()` →
+`SayContextual()`), que a cada `MinInterval`–`MaxInterval` segundos escolhia uma fala pelo contexto (inimigo perto,
+sobrepeso, fome, equipamento gasto, sem cama, o job em andamento) e, no fim, 30% `IdleLines` / 70% `FollowLines`.
+Agora esse timer só roda com **`[Speech] Chatter = true`**:
+
+| O que fala | Continua? | Por quê |
+|---|---|---|
+| `Say(text, force: true)` — confirmações de ordem ("Ok: coletar madeira (10)"), "já temos o suficiente", respostas da conversa da IA, "Entendi: ..." da voz | **Sim** | é a camada de IA / a resposta a uma ordem sua |
+| `SayRandom(ActionLines)` na **mudança de modo** ("Deixa comigo!") | **Sim** | roda **antes** da guarda, no mesmo `Update()` |
+| Falas de job/evento (`hc_speech_*`: peixe fisgado, plantando, reparo, "unload", tombstone, marco do smelt...) | **Sim** | são por evento, não pelo timer |
+| Linhas de **ociosidade** (`[Idle] SpeechInterval`, 300 s) | **Sim** | têm configuração própria (0 = nunca) e são separadas |
+| **Chatter do timer** (o "comentário aleatório") | **Não** (default) | é o que o jogador pediu para tirar |
+
+- **Custo:** com `Chatter = false` o `Update()` **nem decrementa** o `_talkTimer` (um `if` e uma leitura de
+  `ConfigEntry<bool>` por frame, o mesmo tipo de leitura que `CullDistance`/`SayCooldown` já fazem ali) — nada por
+  frame, nada alocado, e o resto do `Update` (que já sai cedo quando o companheiro está longe, morto ou com painel
+  aberto) fica igual.
+- **Ligar de volta:** `[Speech] Chatter = true` (painel `F8` ou `.cfg`) e o comportamento antigo volta inteiro, com os
+  intervalos de sempre (`MinInterval` 15 / `MaxInterval` 30).
+
+#### 3. Migração do `.cfg`
+
+Como os defaults mudaram, um `.cfg` que já existia continua com os valores antigos (o BepInEx mantém o que está no
+arquivo). Mesma regra da 3.3b: **só** um valor que esteja **exatamente** no default antigo é atualizado, com uma linha
+no log dizendo o que mudou e por quê; **qualquer** valor escolhido pelo jogador fica intacto.
+
+```
+[Config] Fase 3.3c: [Gathering] FollowRange estava no default antigo (10) - agora 25: madeira/pedra/minerio agora
+sao procurados ate 25 m de voce, em vez de 10 m. Coloque 10 de volta se preferir o raio curto.
+```
+
+- Vale para os **cinco** raios: `30→50`, `10→25`, `10→20`, `40→60`, `8→12` (`Mathf.Approximately`, tolerância de
+  float).
+- A chave nova **`[Speech] Chatter`** não precisa de migração: o BepInEx a cria com o próprio default (**false**) e
+  escreve no arquivo no primeiro save (ela aparece no `F8` e no `.cfg`).
+- A migração roda **depois** do `MigrateAndClean` (1.4.149), então um `.cfg` ainda com os nomes antigos
+  (`[Harvest] FollowRange`) também é coberto.
+- Nada mais é mexido: nenhuma chave é apagada, nenhum valor customizado é trocado, e a migração não depende de nenhum
+  outro ajuste do `Init`.
+
+#### Receita de teste
+
+1. **Build:** `dotnet build Companions.sln -c Release` → 0 erros, DLL copiada para
+   `BepInEx\plugins\ModAI-BR-Companions` (feito).
+2. **Raio maior:** entrar no mundo, mandar `colete 20 de madeira` (chat ou voz, ou o radial) e andar — o companheiro
+   deve **se afastar bem mais de você** (até ~25 m) para achar a próxima árvore, em vez de parar na de sempre, e
+   voltar para o seu lado quando não houver mais nada por perto. Com Follow **desligado** (`[Gathering] Range`), a área
+   de trabalho em volta de casa deve chegar aos 60 m. Conferir no log de diagnóstico do job
+   (`Physics scan: N colliders in ...`) e, se quiser, comparar com os valores novos no `F8` (`Advanced →
+   GatheringSearchRadius` 50, `Gathering → FollowRange` 25, `ForageFollowRange` 20, `Range` 60,
+   `GatheringDropRadius` 12).
+3. **Sem chatter:** ficar **parado perto do companheiro ~1–2 min** (ele tem de estar a menos de `CullDistance` 20 m e
+   não pode haver painel aberto) — **nenhuma** fala solta deve aparecer. Dar uma ordem (`segue`, `colete madeira`) e
+   conferir que a fala **contextual** continua: **"Deixa comigo!"** na troca de modo e a linha da ordem no chat/balão.
+   Falar por voz (`bom dia`) e conferir que a resposta da IA continua aparecendo.
+4. **Voltar ao antigo:** `[Speech] Chatter = true` e o chatter de 15–30 s volta.
 

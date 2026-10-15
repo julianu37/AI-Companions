@@ -468,6 +468,10 @@ internal static class ModConfig
 
 	internal static ConfigEntry<float> SpeechSayCooldown;
 
+	// Fase 3.3c: the periodic chatter (CompanionTalk's own timer) is off by default; orders, mode changes, job
+	// milestones and everything the AI layer says still speak.
+	internal static ConfigEntry<bool> SpeechChatter;
+
 	internal static ConfigEntry<float> SkillDeathLossFactor;
 
 	internal static ConfigEntry<KeyCode> DirectTargetKey;
@@ -640,9 +644,9 @@ internal static class ModConfig
 		RepairNoStationWait = Bind(cfg, "GearRepair", "NoStationWait", 600f, "When a worn item can't be repaired at any station within reach (say it needs a black forge and there isn't one nearby), or the way to the station failed, that item is left alone for this many seconds before it looks again.", new AcceptableValueRange<float>(30f, 3600f));
 		RepairScanRadius = Bind(cfg, "GearRepair", "StationRange", 20f, "How far (meters) a companion looks for a crafting station to repair at. Near home, any station near home counts.", new AcceptableValueRange<float>(5f, 60f));
 		// [Gathering]
-		HarvestRange = Bind(cfg, "Gathering", "Range", 40f, "Wood, Stone, Ore and Forage with Follow off: how far (meters) from where it's working it goes for trees, rocks and plants - around home when the job is started near home, otherwise around where it was started. It keeps working there when you leave.", new AcceptableValueRange<float>(10f, 150f));
-		HarvestFollowRange = Bind(cfg, "Gathering", "FollowRange", 10f, "Wood, Stone and Ore with Follow on: a tree or rock has to be within this many meters of you. With nothing that close the companion just follows you. (With Follow off see Range; Forage has ForageFollowRange.)", new AcceptableValueRange<float>(5f, 60f));
-		ForageFollowRange = Bind(cfg, "Gathering", "ForageFollowRange", 10f, "Forage with Follow on: a plant has to be within this many meters of you - the berries you happen to walk past, not everything around. With nothing that close the companion just follows you. (With Follow off see Range.)", new AcceptableValueRange<float>(3f, 60f));
+		HarvestRange = Bind(cfg, "Gathering", "Range", 60f, "Wood, Stone, Ore and Forage with Follow off: how far (meters) from where it's working it goes for trees, rocks and plants - around home when the job is started near home, otherwise around where it was started. It keeps working there when you leave. (Fase 3.3c: 60, was 40.)", new AcceptableValueRange<float>(10f, 150f));
+		HarvestFollowRange = Bind(cfg, "Gathering", "FollowRange", 25f, "Wood, Stone and Ore with Follow on: a tree or rock has to be within this many meters of you. With nothing that close the companion just follows you. (With Follow off see Range; Forage has ForageFollowRange.) Fase 3.3c: 25, was 10 - it works up to 25 m away from you instead of standing right next to you, and only gives up a target once it is more than 15 m beyond this.", new AcceptableValueRange<float>(5f, 60f));
+		ForageFollowRange = Bind(cfg, "Gathering", "ForageFollowRange", 20f, "Forage with Follow on: a plant has to be within this many meters of you - the berries you happen to walk past, not everything around. With nothing that close the companion just follows you. (With Follow off see Range.) Fase 3.3c: 20, was 10 - still short enough that Forage stays \"what you walked past\", not a sweep of the whole area.", new AcceptableValueRange<float>(3f, 60f));
 		HarvestPickUpLoose = Bind(cfg, "Gathering", "PickUpLoose", true, "Wood and Stone jobs, early in the game only: also pick up what's lying on the ground by hand - branches (Wood job), loose stones and flint (Stone job) - as long as they're on GatherWood / GatherStone and under their amount. Early game = there's no bronze-or-better axe in the companion's pack, your pack or the chests near home, and no forge at home to make one. With no tool for the job (no axe for Wood, no pickaxe for Stone) picking things up is all it does.");
 		WoodLimit = Bind(cfg, "Gathering", "WoodLimit", 500, "How many of each wood material (counting the companion's pack and chests near its home) the Wood job gathers before stopping. 0 = no limit. Per-item numbers in GatherWood override this.", new AcceptableValueRange<int>(0, 100000));
 		StoneLimit = Bind(cfg, "Gathering", "StoneLimit", 500, "Same as WoodLimit, for the Stone job and GatherStone.", new AcceptableValueRange<int>(0, 100000));
@@ -753,17 +757,18 @@ internal static class ModConfig
 		IdleSocialize = Bind(cfg, "Idle", "Socialize", true, "While idle, go over to you or another companion nearby and chat now and then.");
 		IdleSpeechInterval = Bind(cfg, "Idle", "SpeechInterval", 300f, "At most every this many seconds it says why it's idle (and chats while socializing about half as often). 0 = never.", new AcceptableValueRange<float>(0f, 3600f));
 		// [Speech]
-		SpeechMinInterval = Bind(cfg, "Speech", "MinInterval", 15f, "Shortest time (seconds) between a companion's chatter when nothing is happening.", new AcceptableValueRange<float>(5f, 120f));
-		SpeechMaxInterval = Bind(cfg, "Speech", "MaxInterval", 30f, "Longest time (seconds) between a companion's chatter when nothing is happening.", new AcceptableValueRange<float>(10f, 300f));
+		SpeechChatter = Bind(cfg, "Speech", "Chatter", defaultValue: false, "Companions talk on their own now and then while nothing is happening: a line about a fight nearby, being overweight, being hungry, worn gear, no bed, the job they're on, or just following you. Off (Fase 3.3c) = no random chatter at all. They still speak when something actually happens: an order (chat or voice), a change of mode (\"Deixa comigo!\"), the AI's answers, a fish caught, a farm/repair/smelt milestone, a tombstone found, unloading near home. The idle lines are separate ([Idle] SpeechInterval). Turn on for the old behaviour.");
+		SpeechMinInterval = Bind(cfg, "Speech", "MinInterval", 15f, "Shortest time (seconds) between a companion's chatter when nothing is happening. Only used while Chatter is on.", new AcceptableValueRange<float>(5f, 120f));
+		SpeechMaxInterval = Bind(cfg, "Speech", "MaxInterval", 30f, "Longest time (seconds) between a companion's chatter when nothing is happening. Only used while Chatter is on.", new AcceptableValueRange<float>(10f, 300f));
 		SpeechDuration = Bind(cfg, "Speech", "Duration", 5f, "Seconds a line of speech stays on screen.", new AcceptableValueRange<float>(1f, 15f));
 		SpeechSayCooldown = Bind(cfg, "Speech", "SayCooldown", 3f, "Least time (seconds) between two lines from any companion, so they don't all talk at once.", new AcceptableValueRange<float>(1f, 30f));
 		SpeechCullDistance = Bind(cfg, "Speech", "CullDistance", 20f, "Speech from companions further away than this (meters) isn't shown.", new AcceptableValueRange<float>(5f, 60f));
 		// [Advanced]
 		RosterSaveInterval = Bind(cfg, "Advanced", "RosterSaveInterval", 60f, "Seconds between saves of your companions to the roster (their gear and settings), used to recover a lost companion.", new AcceptableValueRange<float>(10f, 600f));
-		HarvestScanRadius = Bind(cfg, "Advanced", "GatheringSearchRadius", 30f, "Gathering: how far (meters) around itself a companion looks for trees, rocks and plants when it's following you or sent to one with the command key (with Follow off it's [Gathering] Range).", new AcceptableValueRange<float>(5f, 100f));
+		HarvestScanRadius = Bind(cfg, "Advanced", "GatheringSearchRadius", 50f, "Gathering: how far (meters) around itself a companion looks for trees, rocks and plants when it's following you or sent to one with the command key (with Follow off it's [Gathering] Range). Fase 3.3c: 50, was 30 - while following, the companion can be 25 m away from you ([Gathering] FollowRange) and the target up to 25 m from you on the other side, so the ring it looks in has to reach about 50 m.", new AcceptableValueRange<float>(5f, 100f));
 		HarvestScanInterval = Bind(cfg, "Advanced", "GatheringScanInterval", 4f, "Gathering: seconds between looks for the next tree, rock or plant.", new AcceptableValueRange<float>(1f, 30f));
 		HarvestAttackInterval = Bind(cfg, "Advanced", "GatheringSwingInterval", 2.5f, "Gathering: seconds between swings at a tree or rock.", new AcceptableValueRange<float>(0.5f, 5f));
-		HarvestDropScanRadius = Bind(cfg, "Advanced", "GatheringDropRadius", 8f, "Gathering: how far (meters) around a felled tree or broken rock the drops are picked up.", new AcceptableValueRange<float>(2f, 20f));
+		HarvestDropScanRadius = Bind(cfg, "Advanced", "GatheringDropRadius", 12f, "Gathering: how far (meters) around a felled tree or broken rock the drops are picked up. Fase 3.3c: 12, was 8 - a tree can fall (or a rock scatter) further away than 8 m, and the drops were being left behind.", new AcceptableValueRange<float>(2f, 20f));
 		HarvestBlacklistDuration = Bind(cfg, "Advanced", "GatheringSkipTime", 60f, "Gathering: seconds a tree, rock or plant it couldn't get to is skipped.", new AcceptableValueRange<float>(5f, 300f));
 		FarmScanInterval = Bind(cfg, "Advanced", "FarmScanInterval", 4f, "Farming: seconds between looks for crops to pick and ground to plant.", new AcceptableValueRange<float>(1f, 30f));
 		FarmUseDistance = Bind(cfg, "Advanced", "FarmUseDistance", 2f, "Farming: how close (meters) a companion has to be to a crop or chest to use it.", new AcceptableValueRange<float>(1f, 5f));
@@ -834,6 +839,11 @@ internal static class ModConfig
 		{
 			ForageItems.Value = (string)ForageItems.DefaultValue;
 		}
+		// Fase 3.3c: the gathering radii grew (the companion searches and works further away). Same rule as 3.3b: a
+		// value that is EXACTLY the old default is moved to the new one and said so in the log; anything else stays.
+		// This runs after the config clean-up above, so a file still using the pre-1.4.149 names ([Harvest] FollowRange)
+		// is covered too.
+		ApplyGatheringDefaultsPhase33c();
 		// 1.4.92: a config file still holding the 1.4.87 draft gets the reviewed table
 		if (CookMeadFocus.Value == "start: MeadBaseHealthMinor, MeadBaseStaminaMinor; eikthyr: MeadBaseHealthMinor, MeadBaseStaminaMinor, MeadBasePoisonResist; gdking: MeadBaseHealthMinor, MeadBaseStaminaMinor, MeadBasePoisonResist; bonemass: MeadBaseHealthMedium, MeadBaseStaminaMedium, MeadBaseFrostResist; dragon: MeadBaseHealthMedium, MeadBaseStaminaMedium, MeadBaseFrostResist, BarleyWineBase; goblinking: MeadBaseHealthMajor, MeadBaseStaminaMedium, MeadBaseEitrMinor, BarleyWineBase; queen: MeadBaseHealthMajor, MeadBaseStaminaLingering, MeadBaseEitrMinor, BarleyWineBase; fader: MeadBaseHealthMajor, MeadBaseHealthLingering, MeadBaseStaminaLingering, MeadBaseEitrMinor, BarleyWineBase")
 		{
@@ -878,6 +888,34 @@ internal static class ModConfig
 			CompanionsPlugin.Log?.LogInfo($"[IA] Fase 3.3b: [IA] Memoria estava no valor antigo (6) - agora {AiMemory.Value} trocas: cada troca entra no prompt, "
 				+ "entao menos memoria = prompt menor = resposta mais rapida. Coloque 6 de volta se preferir a memoria longa.");
 		}
+	}
+
+	/// <summary>
+	/// Fase 3.3c: the gathering radii grew (the companion looks for trees, rocks and plants much further away and
+	/// picks up the drops of a wider felling). A config file written before this version still holds the old value
+	/// and BepInEx keeps whatever is in the file - so a value that is <b>exactly the old default</b> is moved to the
+	/// new one (and the log says so). A value the player picked is never touched. The new <c>[Speech] Chatter</c> key
+	/// needs nothing here: BepInEx writes it with its own default (off) the first time the file is saved.
+	/// </summary>
+	private static void ApplyGatheringDefaultsPhase33c()
+	{
+		MovedDefault(HarvestScanRadius, 30f, "procura arvores, rochas e plantas num raio bem maior (seguindo voce, o companheiro pode estar a 25 m de distancia)");
+		MovedDefault(HarvestFollowRange, 10f, "madeira/pedra/minerio agora sao procurados ate 25 m de voce, em vez de 10 m");
+		MovedDefault(ForageFollowRange, 10f, "forrageio agora procura ate 20 m de voce (continua sendo \"o que voce passou perto\")");
+		MovedDefault(HarvestRange, 40f, "com Follow desligado o companheiro trabalha ate 60 m do ponto de trabalho");
+		MovedDefault(HarvestDropScanRadius, 8f, "os drops de uma arvore derrubada ou rocha quebrada sao catados ate 12 m do ponto da queda");
+	}
+
+	/// <summary>Fase 3.3c: moves one setting from an old default to the new one, saying what and why in the log.</summary>
+	private static void MovedDefault(ConfigEntry<float> entry, float oldDefault, string why)
+	{
+		if (entry == null || !Mathf.Approximately(entry.Value, oldDefault))
+		{
+			return;
+		}
+		entry.Value = (float)entry.DefaultValue;
+		CompanionsPlugin.Log?.LogInfo($"[Config] Fase 3.3c: [{entry.Definition.Section}] {entry.Definition.Key} estava no default antigo ({oldDefault:0.#}) - "
+			+ $"agora {entry.Value:0.#}: {why}. Coloque {oldDefault:0.#} de volta se preferir o raio curto.");
 	}
 
 	// 1.4.149: old section/key -> new section/key

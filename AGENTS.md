@@ -60,7 +60,7 @@ skills em `.opencode/skills/`. Leia este arquivo antes de agir.
 
 Notas de desenvolvimento do upstream: `docs/DEV_NOTES.md`; handoff: `docs/SESSION_HANDOFF.md`.
 
-## Camada de IA (Fase 3.1 — ordens por texto no chat; Fase 3.2/3.2c — o número da ordem é um alvo total contado no inventário do companheiro; Fase 3.5 — personalidade, memória e conversa livre; Fase 3.6 — ordens com alvo: atacar/equipar/largar; Fase 3.3 — ordens por voz: push-to-talk + STT local)
+## Camada de IA (Fase 3.1 — ordens por texto no chat; Fase 3.2/3.2c — o número da ordem é um alvo total contado no inventário do companheiro; Fase 3.5 — personalidade, memória e conversa livre; Fase 3.6 — ordens com alvo: atacar/equipar/largar; Fase 3.3 — ordens por voz: push-to-talk + STT local; Fase 3.3c — raio de coleta maior e chatter aleatório desligado)
 
 O jogador digita no chat do jogo (`colete 20 de madeira`, `segue`, `para`, `ataca o greydwarf`,
 `equipa o machado de bronze`, `larga a pedra`, `bom dia`) e um **LLM local** (API compatível com a OpenAI:
@@ -129,6 +129,21 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   (`WithPrompt`, sobrevive ao `WithNoContext`) e trim com limiar `0.01` + folga de `0,2 s`.
   (3) **Latência do LLM medida:** `[IA] Prompt:` (car./tokens) e `[IA] Tempo:` (ms, tokens/s, aviso a partir de 5 s),
   e `[IA] Memoria` default **4**. Detalhes: `docs/roadmap.md` (Fase 3.3b) e `docs/re/stt-voz-pipeline.md`.
+- **Fase 3.3c — raio de coleta maior + chatter desligado:** (1) os cinco raios da coleta subiram de default
+  (`[Advanced] GatheringSearchRadius` 30→**50**, `[Gathering] FollowRange` 10→**25**, `ForageFollowRange` 10→**20**,
+  `Range` 40→**60**, `[Advanced] GatheringDropRadius` 8→**12**). Seguindo você, quem limita é o `FollowRange`
+  (cada candidato passa por `InWorkArea` → `PlayerRange()`, medido **de você**); o `GatheringSearchRadius` só
+  precisa cobrir o pior caso (companheiro a 25 m + alvo a 25 m do outro lado ≈ 50 m). A **coleira** continua
+  respeitada: com alvo em andamento o `HarvestController` abandona o alvo acima de `FollowRange + 15 m` de você
+  (40 m com o valor novo) e o `MHR_Follow` (`[Follow] MaxDistance` 10 m) só volta a mandar quando o job fica
+  **ocioso** (`_harvest.IsActive`). (2) **`[Speech] Chatter`** (bool, default **false**): o chatter periódico vinha
+  **só** do timer do `CompanionTalk.Update()` (`_talkTimer` → `SayContextual()`); com `false` o timer não é nem
+  decrementado. **Continuam** falando as falas forçadas (`Say(..., force: true)` — ordens, "já temos o suficiente",
+  conversa da IA, "Entendi: ..."), a linha de **mudança de modo** (`SayRandom(ActionLines)`, roda antes da guarda),
+  as de evento (`hc_speech_*`) e as de ociosidade (`[Idle] SpeechInterval`, própria). (3) **Migração:** os cinco
+  raios são atualizados **só** se estiverem exatamente no default antigo (`MovedDefault`, log explicando), depois do
+  `MigrateAndClean` (cobre nomes pré-1.4.149); a chave nova é criada pelo BepInEx com `false`. Detalhes:
+  `docs/roadmap.md` (Fase 3.3c).
 - Backend/contrato de referência: `docs/re/backend-contract.md`; mapa da fase: `docs/roadmap.md` (Trilha D);
   pipeline de voz: `docs/re/stt-voz-pipeline.md`.
 

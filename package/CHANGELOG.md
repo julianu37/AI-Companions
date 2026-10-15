@@ -2,7 +2,39 @@
 
 All notable changes to this fork of ProfMags' Offline Companions. Versions before 1.4.0 are the original mod (see [ProfMags' Thunderstore page](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) for that history) plus the initial batch of Valheim 1.0 API-compatibility fixes that let the mod load and run at all on 1.0.
 
-## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Tradução PT-BR (fork ModAI-BR-Companions)
+## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Fase 3.3c: raio de coleta maior e chatter aleatório desligado + Tradução PT-BR (fork ModAI-BR-Companions)
+- **Fase 3.3c — raio de coleta maior e chatter aleatório desligado.** Dois pedidos do jogador, sem lógica nova (nenhuma
+  ordem, job, radial, UI, IA ou STT foi tocado).
+  - **O companheiro procura e trabalha mais longe.** Os cinco raios da coleta subiram de default:
+    `[Advanced] GatheringSearchRadius` **30 → 50 m** (o anel em que ele procura a próxima árvore/rocha/planta seguindo
+    você ou mandado a um alvo), `[Gathering] FollowRange` **10 → 25 m** (madeira/pedra/minério seguindo você: o alvo
+    pode estar a até 25 m de **você**), `[Gathering] ForageFollowRange` **10 → 20 m** (forrageio),
+    `[Gathering] Range` **40 → 60 m** (com Follow **desligado**, a área de trabalho em volta de casa) e
+    `[Advanced] GatheringDropRadius` **8 → 12 m** (o que ele cata de uma árvore derrubada/rocha quebrada).
+    **Por que 50 no `GatheringSearchRadius`:** seguindo você, o limite real é o `FollowRange` (cada candidato passa por
+    `InWorkArea` → distância de **você**), mas o companheiro pode estar a 25 m de você e o alvo a 25 m do outro lado —
+    o pior caso são ~50 m do companheiro, então o anel tem de chegar lá para não virar o gargalo. **Coleira conferida:**
+    com alvo em andamento o `HarvestController` **abandona** o alvo se ficar a mais de `FollowRange + 15 m` de você
+    (25 + 15 = **40 m** de folga, contra 25 m antes) e o `MHR_Follow` (`[Follow] MaxDistance` 10 m) só volta a mandar
+    quando o job fica **ocioso** — então o raio novo é utilizável de verdade (o efeito colateral é um vaivém mais
+    longo: ele vai até ~25 m, coleta e volta quando o anel esvazia). Os `AcceptableValueRange` já acomodavam todos os
+    valores novos (50 ≤ 100, 25/20 ≤ 60, 60 ≤ 150, 12 ≤ 20) — nenhum range mudou.
+  - **Sem comentários aleatórios:** nova config **`[Speech] Chatter`** (bool, default **false**). O chatter periódico
+    vinha **só** do timer do `CompanionTalk.Update()` (`_talkTimer` → `ResetTimer()` → `SayContextual()`, a cada
+    `MinInterval`–`MaxInterval` s, escolhendo a fala pelo contexto e caindo em 30% `IdleLines` / 70% `FollowLines`);
+    com `Chatter = false` o timer **não é nem decrementado**. **Continuam falando** (nada de silêncio no que importa):
+    as falas **forçadas** da camada de IA (confirmação de ordem, "já temos o suficiente", respostas da conversa,
+    "Entendi: ..." da voz), a linha de **mudança de modo** (`SayRandom(ActionLines)`, o "Deixa comigo!" — roda **antes**
+    da guarda), as falas de **evento** (`hc_speech_*`: peixe fisgado, plantando, reparo, unload, tombstone, marco do
+    smelt) e as linhas de **ociosidade** (`[Idle] SpeechInterval`, 300 s, com configuração própria). `Chatter = true`
+    devolve o comportamento antigo inteiro. Custo: um `if` e uma leitura de `ConfigEntry<bool>` por frame no lugar do
+    decremento — nada por frame, nada alocado.
+  - **Migração:** como os defaults mudaram, um `.cfg` existente mantém os valores antigos (o BepInEx guarda o que está
+    no arquivo). Mesma regra da 3.3b: um valor que esteja **exatamente** no default antigo (`30`/`10`/`10`/`40`/`8`) é
+    atualizado com uma linha no log explicando; qualquer valor escolhido pelo jogador **não** é tocado. A chave nova
+    `[Speech] Chatter` é criada pelo próprio BepInEx com o default **false** (aparece no `F8` e no `.cfg`). A migração
+    roda depois do `MigrateAndClean` (1.4.149), então um `.cfg` ainda com os nomes antigos (`[Harvest] FollowRange`)
+    também é coberto.
 - **Fase 3.3b — correções do teste da voz (tecla V, qualidade do STT e latência do LLM).** Três problemas do
   primeiro teste em jogo, com evidência no log (`"Coleta deis mandem."` para 1,1 s de fala; `"O leta deles."` para
   0,7 s; conversa em `10237 ms` contra ~3 s das ordens).

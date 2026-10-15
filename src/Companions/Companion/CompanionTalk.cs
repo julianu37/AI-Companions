@@ -39,6 +39,11 @@ public class CompanionTalk : MonoBehaviour
 
 	private static float SayCooldown => ModConfig.SpeechSayCooldown.Value;
 
+	// Fase 3.3c: [Speech] Chatter. Off (the default) = no line on the timer at all - the periodic chatter goes away.
+	// Everything that happens on purpose still speaks: Say(text, force: true) (orders, the AI's answers) and the
+	// mode-change line below.
+	private static bool Chatter => ModConfig.SpeechChatter?.Value ?? false;
+
 	private static string[] ActionLines => SpeechConfig.Instance.Action;
 
 	private static string[] GatherLines => SpeechConfig.Instance.Gather;
@@ -124,6 +129,13 @@ public class CompanionTalk : MonoBehaviour
 				SayRandom(ActionLines);
 			}
 			_lastActionMode = num2;
+		}
+		// Fase 3.3c: [Speech] Chatter off (the default) = no line on the timer at all, so the random chatter is gone.
+		// The mode-change line above and every Say(..., force: true) (orders, the AI's answers, job milestones) still
+		// speak - the timer isn't even counted down.
+		if (!Chatter)
+		{
+			return;
 		}
 		_talkTimer -= Time.deltaTime;
 		if (!(_talkTimer > 0f))

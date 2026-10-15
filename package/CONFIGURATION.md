@@ -364,14 +364,14 @@ How far (meters) a companion looks for a crafting station to repair at. Near hom
 
 The Wood, Stone, Ore and Forage jobs.
 
-**Range** — Default: 40 · Range: 10 – 150  
-Wood, Stone, Ore and Forage with Follow off: how far (meters) from where it's working it goes for trees, rocks and plants - around home when the job is started near home, otherwise around where it was started. It keeps working there when you leave.
+**Range** — Default: 60 · Range: 10 – 150  
+Wood, Stone, Ore and Forage with Follow off: how far (meters) from where it's working it goes for trees, rocks and plants - around home when the job is started near home, otherwise around where it was started. It keeps working there when you leave. (Fase 3.3c: 60, was 40.)
 
-**FollowRange** — Default: 10 · Range: 5 – 60  
-Wood, Stone and Ore with Follow on: a tree or rock has to be within this many meters of you. With nothing that close the companion just follows you. (With Follow off see Range; Forage has ForageFollowRange.)
+**FollowRange** — Default: 25 · Range: 5 – 60  
+Wood, Stone and Ore with Follow on: a tree or rock has to be within this many meters of you. With nothing that close the companion just follows you. (With Follow off see Range; Forage has ForageFollowRange.) Fase 3.3c: 25, was 10 - it works up to 25 m away from you instead of standing right next to you, and only gives up a target once it is more than 15 m beyond this.
 
-**ForageFollowRange** — Default: 10 · Range: 3 – 60  
-Forage with Follow on: a plant has to be within this many meters of you - the berries you happen to walk past, not everything around. With nothing that close the companion just follows you. (With Follow off see Range.)
+**ForageFollowRange** — Default: 20 · Range: 3 – 60  
+Forage with Follow on: a plant has to be within this many meters of you - the berries you happen to walk past, not everything around. With nothing that close the companion just follows you. (With Follow off see Range.) Fase 3.3c: 20, was 10 - still short enough that Forage stays "what you walked past", not a sweep of the whole area.
 
 **PickUpLoose** — Default: On  
 Wood and Stone jobs, early in the game only: also pick up what's lying on the ground by hand - branches (Wood job), loose stones and flint (Stone job) - as long as they're on GatherWood / GatherStone and under their amount. Early game = there's no bronze-or-better axe in the companion's pack, your pack or the chests near home, and no forge at home to make one. With no tool for the job (no axe for Wood, no pickaxe for Stone) picking things up is all it does.
@@ -749,11 +749,14 @@ At most every this many seconds it says why it's idle (and chats while socializi
 
 How often companions talk and how long their words stay on screen.
 
+**Chatter** — Default: Off  
+Companions talk on their own now and then while nothing is happening: a line about a fight nearby, being overweight, being hungry, worn gear, no bed, the job they're on, or just following you. Off (Fase 3.3c) = no random chatter at all. They still speak when something actually happens: an order (chat or voice), a change of mode ("Deixa comigo!"), the AI's answers, a fish caught, a farm/repair/smelt milestone, a tombstone found, unloading near home. The idle lines are separate ([Idle] SpeechInterval). Turn on for the old behaviour.
+
 **MinInterval** — Default: 15 · Range: 5 – 120  
-Shortest time (seconds) between a companion's chatter when nothing is happening.
+Shortest time (seconds) between a companion's chatter when nothing is happening. Only used while Chatter is on.
 
 **MaxInterval** — Default: 30 · Range: 10 – 300  
-Longest time (seconds) between a companion's chatter when nothing is happening.
+Longest time (seconds) between a companion's chatter when nothing is happening. Only used while Chatter is on.
 
 **Duration** — Default: 5 · Range: 1 – 15  
 Seconds a line of speech stays on screen.
@@ -771,8 +774,8 @@ Fine-tuning for timings and distances. Most players never need to touch these.
 **RosterSaveInterval** — Default: 60 · Range: 10 – 600  
 Seconds between saves of your companions to the roster (their gear and settings), used to recover a lost companion.
 
-**GatheringSearchRadius** — Default: 30 · Range: 5 – 100  
-Gathering: how far (meters) around itself a companion looks for trees, rocks and plants when it's following you or sent to one with the command key (with Follow off it's [Gathering] Range).
+**GatheringSearchRadius** — Default: 50 · Range: 5 – 100  
+Gathering: how far (meters) around itself a companion looks for trees, rocks and plants when it's following you or sent to one with the command key (with Follow off it's [Gathering] Range). Fase 3.3c: 50, was 30 - while following, the companion can be 25 m away from you ([Gathering] FollowRange) and the target up to 25 m from you on the other side, so the ring it looks in has to reach about 50 m.
 
 **GatheringScanInterval** — Default: 4 · Range: 1 – 30  
 Gathering: seconds between looks for the next tree, rock or plant.
@@ -780,8 +783,8 @@ Gathering: seconds between looks for the next tree, rock or plant.
 **GatheringSwingInterval** — Default: 2.5 · Range: 0.5 – 5  
 Gathering: seconds between swings at a tree or rock.
 
-**GatheringDropRadius** — Default: 8 · Range: 2 – 20  
-Gathering: how far (meters) around a felled tree or broken rock the drops are picked up.
+**GatheringDropRadius** — Default: 12 · Range: 2 – 20  
+Gathering: how far (meters) around a felled tree or broken rock the drops are picked up. Fase 3.3c: 12, was 8 - a tree can fall (or a rock scatter) further away than 8 m, and the drops were being left behind.
 
 **GatheringSkipTime** — Default: 60 · Range: 5 – 300  
 Gathering: seconds a tree, rock or plant it couldn't get to is skipped.
