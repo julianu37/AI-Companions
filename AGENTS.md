@@ -255,11 +255,13 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   `VozTecla` + botão **Alterar** com o **mesmo** `KeyBindListener` do painel F8 + toggle `VozLigada`; ao trocar a
   tecla o `AutoPickupKeyConflict.Reset()` reavalia o conflito com o auto-pickup do jogo); toggles `TtsLigado`,
   `TtsFalarRespostas`, `TtsFalarFalasDoMod`, `Conversa` e o slider de `Memoria` (0..12). O dropdown é **feito à mão**
-  (botão-campo + lista de botões numa camada overlay que é o último filho do painel) porque um `TMP_Dropdown` exige
-  um template inteiro e o `Dropdown` legado usa o `Text` legado (sem a fonte do Valheim). Sem bloqueio de main
-  thread, sem alocação por frame (por frame: tecla + cursor + status 2×/s) e sem segredos. PT-BR: 33 chaves
+  (botão-campo + lista de botões numa camada overlay que é o último filho do painel e que tem **`Canvas` próprio** com
+  `overrideSorting`/`sortingOrder` 34 + `GraphicRaycaster`, com um *catcher* invisível que fecha a lista ao clicar
+  fora) porque um `TMP_Dropdown` exige um template inteiro e o `Dropdown` legado usa o `Text` legado (sem a fonte do
+  Valheim). Sem bloqueio de main thread, sem alocação por frame (por frame: tecla + cursor + status 2×/s) e sem
+  segredos. PT-BR: 33 chaves
   `hc_ai_panel_*` / `hc_ai_voice_*` no `ModLocalization` **e** no `Translations/Portuguese_Brazilian.json`.
-  Detalhes: `docs/roadmap.md` (Fase 3.7).
+  Detalhes: `docs/roadmap.md` (Fase 3.7 — inclui a correção da lista que aparecia atrás dos controles).
 - **Correções da auditoria das Fases 3.4/3.7 (A1–A4, B1, C2, D2, E1, E2):** endurecimento do TTS e do painel, sem
   mudar comportamento. `CompanionTts`: `Shutdown` **espera a thread** (`Join(5000)`) antes de `Dispose` e
   `Process`/`TryGetTts`/`Speak` recusam trabalhar depois de `_stopping` (A1/A3); `audio.Handle != IntPtr.Zero`

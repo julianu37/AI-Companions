@@ -3,6 +3,23 @@
 All notable changes to this fork of ProfMags' Offline Companions. Versions before 1.4.0 are the original mod (see [ProfMags' Thunderstore page](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) for that history) plus the initial batch of Valheim 1.0 API-compatibility fixes that let the mod load and run at all on 1.0.
 
 ## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.6b: a ordem sem alvo do modelo (drop/equip/attack caem para as palavras do jogador) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Fase 3.3c: raio de coleta maior e chatter aleatório desligado + Fase 3.3d: a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador + Fase 3.8: o companheiro abre o próprio inventário por voz/chat + Fase 3.4: o companheiro FALA (TTS local, Kokoro-82M via sherpa-onnx) + Fase 3.7: painel da IA no jogo (personalidade, voz com Ouvir, push-to-talk) + Tradução PT-BR (fork ModAI-BR-Companions)
+- **Correção — a lista do dropdown do painel da IA aparecia ATRÁS dos controles (Fase 3.7).** Ao abrir o dropdown de
+  **Personalidade**, a lista saía desenhada **por trás** do campo do dropdown de **Voz**, do campo *Nas suas palavras*
+  e do botão **Aplicar** (relato com screenshot). No uGUI a ordem de desenho é a **ordem dos irmãos** na hierarquia e
+  os **campos** dos dropdowns eram criados **depois** do *overlay* das listas, então passavam a ser os últimos filhos
+  do painel e desenhavam por cima dele. Agora:
+  - o *overlay* volta a ser o **último filho** do painel depois de os campos existirem (`_overlay.SetAsLastSibling()`
+    no fim do `Build()`, com o porquê comentado);
+  - o *overlay* ganhou um **`Canvas` próprio** (`overrideSorting = true`, `sortingOrder` = **34**, um acima do painel,
+    que é 33) com **`GraphicRaycaster`** — é o que o **próprio template de `Dropdown` do Unity** faz
+    (`popupCanvas.overrideSorting = true; popupCanvas.sortingOrder = kHighSortingLayer`): a lista passa a desenhar
+    (e a receber o clique) acima do painel sem depender de onde o *overlay* está na hierarquia;
+  - **clicar fora da lista fecha a lista:** um *catcher* invisível (`Image` com alfa 0 + `Button` com
+    `transition = None` — o mesmo *blocker* do `Dropdown` do Unity) cobre o painel inteiro como **primeiro filho do
+    overlay**: fica atrás das listas, então o clique num item vai para o item, e só é **ativado enquanto há lista
+    aberta** (fora disso roubaria o clique do painel).
+  Nada de TTS/STT/ordens/jobs/patches mudou; sem alocação por frame, sem `Find*`/LINQ. Arquivo único:
+  `src/Companions/UI/CompanionAiPanel.cs`.
 - **Correções da auditoria (Fases 3.4 e 3.7) — o TTS e o painel da IA à prova de borda.** Nada do que já
   funcionava mudou de comportamento; o que mudou foi o que dava crash, vazava memória ou ignorava a config:
   - **A1 — corrida no `Shutdown` do TTS (crash nativo):** o `Shutdown` agora **espera a thread de síntese**

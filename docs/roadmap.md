@@ -1172,7 +1172,8 @@ hora — `ConfigFile.SaveOnConfigSet`, confirmado na fonte do BepInEx):
   com Toggle) instanciado em runtime, e o `Dropdown` legado do Unity desenha com o `Text` legado (cuja fonte padrão o
   Valheim removeu). O do painel é **um botão-campo + uma lista de botões** — as mesmas primitivas que o mod já monta
   em todo lugar (`Image`/`Button`/`TextMeshProUGUI`), numa camada *overlay* que é o **último filho** do painel (logo,
-  a lista aberta nunca é cortada por uma linha e nunca fica atrás dos controles).
+  a lista aberta nunca é cortada por uma linha e nunca fica atrás dos controles) e que tem **`Canvas` próprio**
+  (`overrideSorting`, `sortingOrder` 34) — ver a **correção da lista atrás dos controles**, no fim da Trilha D.
 - **Nada de trabalho por frame:** o painel é montado uma vez; por frame só rodam a checagem da tecla (com
   `Input.GetKeyDown` **antes** das guardas de UI), o cursor e — 2×/s — o status. Nenhum `Find*`, nenhum LINQ.
 - **A tecla `I`:** o mod usa `Z`, `E`, `F8`, `LeftAlt+Z`, `F7` e `V`; o jogo usa W/A/S/D, Tab, Esc, F, Q, C, R, X,
@@ -1224,6 +1225,37 @@ velocidade e as guardas de abertura do painel).
   `ConfigPanel`.
 - **Arquivos:** `AI/CompanionTts.cs` (A1, A2, A3, A4, B1, C2, E2), `AI/CompanionChatAI.cs` (C2), `UI/CompanionAiPanel.cs`
   (D2, E2, defensivo), `UI/ConfigPanel.cs` (D2), `Core/ModLocalization.cs` (E1).
+
+### Fase 3.7 — correção: a lista do dropdown do painel aparecia atrás dos controles (✅ build 0 erros — teste em jogo pendente)
+
+**Relato (com screenshot):** ao abrir o dropdown de **Personalidade**, a lista (*Padrão*, *Viking leal*, *Mago
+sarcástico*, …) saía **atrás** do campo do dropdown de **Voz** (`pf_dora (feminina)`), do campo *Nas suas palavras* e
+do botão **Aplicar** — e a lista ainda "vazava" para cima das linhas seguintes sem cobri-las.
+
+**Causa raiz (no `Build()`):** no uGUI a ordem de desenho é a **ordem dos irmãos** na hierarquia (o último filho
+desenha na frente). O *overlay* das listas era criado como **último filho** de `_root`… e logo depois o
+`BuildDropdowns()` criava os **campos** dos dois dropdowns **em `_root`** (`CreateDropdown` →
+`CreateButton(_root.transform, …)`): os campos passavam a ser os últimos filhos do painel e desenhavam **acima** do
+*overlay* — e as listas (filhas do *overlay*) ficavam atrás deles. O mesmo valia para o clique: os campos estavam "na
+frente" no *raycast*.
+
+**Correção (só `src/Companions/UI/CompanionAiPanel.cs`):**
+
+| # | O que mudou | Por que resolve |
+|---|---|---|
+| 1 | `_overlay.SetAsLastSibling()` no fim do `Build()`, **depois** do `BuildDropdowns()` (com o porquê comentado) | o *overlay* volta a ser o último filho do painel, então as listas desenham (e recebem o clique) acima de tudo o que foi criado antes dele |
+| 2 | o *overlay* ganhou **`Canvas` próprio** (`overrideSorting = true`, `sortingOrder` **34** — o painel é 33) + **`GraphicRaycaster`** | a ordem da lista deixa de depender da posição do *overlay* na hierarquia: é o que o **template de `Dropdown` do Unity** faz (`popupCanvas.overrideSorting = true; popupCanvas.sortingOrder = kHighSortingLayer`). O `GraphicRaycaster` é obrigatório — sem ele os itens da lista não receberiam clique nenhum. As constantes `PanelSortingOrder`/`OverlaySortingOrder` substituíram o `33` solto |
+| 3 | *catcher* de clique fora: `Image` alfa 0 + `Button` (`transition = None`) cobrindo o painel inteiro, **primeiro filho do overlay**, ativo **só** com lista aberta, `onClick → CloseLists()` | clicar em qualquer lugar fora da lista fecha a lista (antes só fechava clicando de novo no campo). É o mesmo *blocker* do `Dropdown` do Unity (`Color.clear` + `Button` + `Hide`); por ser o **primeiro** filho, fica **atrás** das listas — o clique num item vai para o item, sem clique duplicado |
+| 4 | `CloseLists()` também desativa o *catcher*; `Show()` passou a chamar `CloseLists()` (defensivo) | o *catcher* não sobrevive a um `Hide()`/`Show()` e nunca rouba o clique do painel com tudo fechado |
+
+- **Ordem de clique conferida na fonte do uGUI:** `GraphicRaycaster.sortOrderPriority` devolve `canvas.sortingOrder`
+  no modo *Screen Space Overlay* — o *canvas* do *overlay* (34) tem prioridade sobre o do painel (33), então o item da
+  lista ganha o clique do campo que está atrás; dentro do mesmo *canvas* vale a ordem dos irmãos (o *catcher* é o
+  primeiro). Nenhum item dispara duas vezes: o `EventSystem` entrega o evento só ao **primeiro** resultado.
+- **Escondido junto com o painel:** o *overlay* continua filho de `_root`, então o `_root.SetActive(false)` do fim do
+  `Build()` e do `Hide()` esconde as listas junto; o `Hide()` já chamava `CloseLists()` (estado aberto nunca sobrevive).
+- **Não mudou:** TTS, STT, ordens, jobs, patches de input e o resto do painel. Sem alocação por frame, sem `Find*`/LINQ,
+  null-safe.
 
 
 

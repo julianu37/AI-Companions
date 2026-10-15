@@ -38,7 +38,9 @@ namespace Companions;
 /// Why the dropdown is hand-built: a <c>TMP_Dropdown</c> needs a whole template (scroll view, mask, toggle items)
 /// instantiated at runtime, and the game's legacy <c>Dropdown</c> renders with the legacy <c>Text</c> (whose default
 /// font Valheim removed). This one is a field button plus a list of buttons - the same primitives the mod already
-/// builds everywhere else, drawn on an overlay layer that is the last child of the panel so it is never clipped.
+/// builds everywhere else, drawn on an overlay layer that is the last child of the panel and that carries a
+/// <c>Canvas</c> of its own (the same trick Unity's own dropdown template uses), so an open list is never clipped
+/// and never drawn behind a control that happens to be created after it.
 /// </summary>
 internal sealed class CompanionAiPanel : MonoBehaviour
 {
@@ -91,6 +93,13 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	/// <summary>How often the status line and the "Ouvir" button are refreshed (never per frame).</summary>
 	private const float StatusInterval = 0.5f;
 
+	/// <summary>Sorting order of the panel's own canvas (it is the whole mod UI layer: 33).</summary>
+	private const int PanelSortingOrder = 33;
+
+	/// <summary>Sorting order of the overlay canvas that holds the dropdown lists: one step above the panel, so the
+	/// list of an open dropdown is drawn - and clicked - above every control of the panel.</summary>
+	private const int OverlaySortingOrder = PanelSortingOrder + 1;
+
 	// ------------------------------------------------------------------ colours
 
 	private static readonly Color LabelColor = new Color(1f, 0.9f, 0.5f, 1f);
@@ -120,6 +129,10 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	private GameObject _root;
 
 	private Transform _overlay;
+
+	/// <summary>The invisible click catcher of the overlay: active only while a dropdown list is open, so clicking
+	/// anywhere else on the panel closes the list instead of doing nothing (see <see cref="BuildListCatcher"/>).</summary>
+	private GameObject _listCatcher;
 
 	private TMP_FontAsset _font;
 
@@ -234,6 +247,9 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 			}
 		}
 		RefreshFromConfig();
+		// defensive: no list (and no click catcher) may survive a hide, and Show() is the one place that turns the
+		// panel back on - Hide() already closes the lists, so this only matters if something ever changes that
+		CloseLists();
 		_backdrop.SetActive(true);
 		_root.SetActive(true);
 		_visible = true;
@@ -404,7 +420,7 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	{
 		Canvas canvas = base.gameObject.AddComponent<Canvas>();
 		canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-		canvas.sortingOrder = 33;
+		canvas.sortingOrder = PanelSortingOrder;
 		CanvasScaler scaler = base.gameObject.AddComponent<CanvasScaler>();
 		scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
 		scaler.referenceResolution = new Vector2(1920f, 1080f);
@@ -451,19 +467,64 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		BuildFooter();
 
 		// The dropdown lists live on an overlay that is the last child of the panel, so an open list is drawn above
-		// every row instead of being clipped by the row it belongs to. It has no Image, so it never eats a click.
-		GameObject overlay = new GameObject("Overlay", typeof(RectTransform));
+		// every row instead of being clipped by the row it belongs to. The overlay itself has no Image (it never eats
+		// a click) and its own Canvas with overrideSorting, so the list draws - and gets the click - above the whole
+		// panel no matter where the overlay sits in the hierarchy: that is exactly what Unity's own dropdown template
+		// does, and it is why the list can never end up behind a control again.
+		GameObject overlay = new GameObject("Overlay", typeof(RectTransform), typeof(Canvas), typeof(GraphicRaycaster));
 		overlay.transform.SetParent(_root.transform, worldPositionStays: false);
 		RectTransform overlayRT = overlay.GetComponent<RectTransform>();
 		overlayRT.anchorMin = Vector2.zero;
 		overlayRT.anchorMax = Vector2.one;
 		overlayRT.offsetMin = Vector2.zero;
 		overlayRT.offsetMax = Vector2.zero;
+		Canvas overlayCanvas = overlay.GetComponent<Canvas>();
+		overlayCanvas.overrideSorting = true;
+		overlayCanvas.sortingOrder = OverlaySortingOrder;
 		_overlay = overlay.transform;
+		// the catcher is the FIRST child of the overlay: the lists created after it draw above it, so an item click
+		// reaches the item and only a click outside the list reaches the catcher
+		BuildListCatcher(_overlay);
 		BuildDropdowns();
+		// The fields of the two dropdowns are created by BuildDropdowns with the panel itself as the parent, i.e.
+		// AFTER the overlay: in uGUI the render order is the order of the siblings (the last child draws on top), so
+		// without this line the field of "Voz", the free-text box and "Aplicar" would be drawn OVER the open list -
+		// which is exactly the bug of the screenshot (the list of "Personalidade" appearing behind the rows below it).
+		// The overlay canvas above already wins over the panel canvas, but the sibling order is kept correct too, so
+		// nothing depends on a single mechanism.
+		_overlay.SetAsLastSibling();
 
 		_backdrop.SetActive(false);
 		_root.SetActive(false);
+	}
+
+	/// <summary>
+	/// The invisible catcher that closes an open list when the player clicks anywhere else on the panel. It is the
+	/// first child of the overlay, so the lists are drawn (and clicked) above it, and it is only active while a list
+	/// is open - otherwise it would eat every click on the panel. No visual state: an alpha-0 Image with
+	/// <c>raycastTarget</c> still receives the click, and the Button transition is off because there is nothing to
+	/// tint. It is the same primitive Unity's own Dropdown uses for its "blocker" (a clear Image plus a Button whose
+	/// onClick hides the list) - here it is a sibling that sits under the lists instead of a canvas of its own one
+	/// sorting order below, which is the same thing one canvas lower.
+	/// </summary>
+	private void BuildListCatcher(Transform overlay)
+	{
+		GameObject catcher = new GameObject("ListCatcher", typeof(RectTransform), typeof(Image), typeof(Button));
+		catcher.transform.SetParent(overlay, worldPositionStays: false);
+		RectTransform rt = catcher.GetComponent<RectTransform>();
+		rt.anchorMin = Vector2.zero;
+		rt.anchorMax = Vector2.one;
+		rt.offsetMin = Vector2.zero;
+		rt.offsetMax = Vector2.zero;
+		Image image = catcher.GetComponent<Image>();
+		image.color = Color.clear;
+		image.raycastTarget = true;
+		Button button = catcher.GetComponent<Button>();
+		button.transition = Selectable.Transition.None;
+		button.targetGraphic = image;
+		button.onClick.AddListener(CloseLists);
+		catcher.SetActive(false);
+		_listCatcher = catcher;
 	}
 
 	private void BuildHeader()
@@ -587,7 +648,11 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 			new Color(0.55f, 0.55f, 0.55f, 0.9f), TextAlignmentOptions.MidlineLeft);
 	}
 
-	/// <summary>The two dropdowns are built last, on the overlay, so their lists are drawn above everything.</summary>
+	/// <summary>
+	/// The two dropdowns: the field button goes into the panel (where the row is), the list of options goes into the
+	/// overlay. Both are built after the overlay exists, and <c>Build</c> puts the overlay back as the last child of
+	/// the panel right after this - the fields are the reason that line has to exist.
+	/// </summary>
 	private void BuildDropdowns()
 	{
 		_personalityIds = PersonalityIds();
@@ -819,6 +884,11 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		}
 		CloseLists();
 		dropdown.ListRoot.SetActive(true);
+		// the catcher only exists while a list is open: outside that it would swallow the clicks of the panel
+		if (_listCatcher != null)
+		{
+			_listCatcher.SetActive(true);
+		}
 		_openList = dropdown;
 	}
 
@@ -829,6 +899,10 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 			_openList.ListRoot.SetActive(false);
 		}
 		_openList = null;
+		if (_listCatcher != null)
+		{
+			_listCatcher.SetActive(false);
+		}
 	}
 
 	private void Pick(AiDropdown dropdown, int index)
@@ -1114,6 +1188,7 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 			Index = index,
 			OnPick = onPick
 		};
+		// the field belongs to the panel (its row), the list to the overlay: only the list has to float above the rows
 		AiButton field = CreateButton(_root.transform, name + "Field", x, y, w, h, "", delegate
 		{
 			ToggleList(dropdown);
