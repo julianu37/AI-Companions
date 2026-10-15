@@ -919,4 +919,4 @@ Ordens para o companheiro: colete madeira, pedra, minerio, ferro, segue, para, v
 Fase 3.3: de qual microfone gravar, como o índice da lista que o log imprime na inicialização ([STT] Push-to-talk: ... 0: nome, 1: nome). 0 = o primeiro (o padrão do Windows).
 
 **VozMostrarTexto** — Padrão: Ligado  
-Fase 3.3: mostra o que o microfone ouviu ("Entendi: \"colete 10 madeiras\"") no chat e no HUD, e faz o companheiro repetir, para uma transcrição errada ser fácil de notar. Desligado = o texto reconhecido só é escrito no log.
+Fase 3.3: mostra o que o microfone ouviu ("Entendi: "colete 10 madeiras"") no chat e no HUD, e faz o companheiro repetir, para uma transcrição errada ser fácil de notar. Desligado = o texto reconhecido só é escrito no log.
