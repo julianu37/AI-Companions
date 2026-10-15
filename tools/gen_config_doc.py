@@ -1,7 +1,10 @@
-# Writes package/CONFIGURATION.md from the settings in src/Companions/Core/ModConfig.cs.
+# Writes package/CONFIGURATION.md (PT-BR) from the settings in src/Companions/Core/ModConfig.cs.
 # Usage: python3 tools/gen_config_doc.py src/Companions/Core/ModConfig.cs package/CONFIGURATION.md
-import re,sys
-src=open(sys.argv[1]).read()
+# The setting DESCRIPTIONS come from ModConfig.cs, so they are translated there (this file only
+# holds the page's own text). Section/key names are kept as they are, because they are what the
+# player sees in the .cfg file and in the F8 panel tabs.
+import io,re,sys
+src=io.open(sys.argv[1],encoding='utf-8').read()
 out=sys.argv[2]
 init=src[src.index('internal static void Init(ConfigFile cfg)'):]
 init=init[:init.index('MigrateAndClean(cfg);')]
@@ -19,9 +22,13 @@ def fmt_num(x):
     except: return x
 def fmt_default(d):
     d=d.replace('defaultValue:','').strip()
-    if d=='true': return 'On'
-    if d=='false': return 'Off'
+    if d=='true': return 'Ligado'
+    if d=='false': return 'Desligado'
     if d.startswith('KeyCode.'): return '`'+d[8:]+'`'
+    if d.startswith('@"'):
+        v=d[2:-1].replace('""','"').replace('\\\\','\\')
+        if len(v)>60: return None
+        return '`'+v+'`'
     if d.startswith('"'):
         v=d[1:-1]
         if len(v)>60: return None
@@ -33,46 +40,48 @@ def fmt_range(r):
     return '%s – %s'%(fmt_num(m.group(1)),fmt_num(m.group(2))) if m else ''
 NAMES={'GearRepair':'Gear Repair','RepairAndRestock':'Repair and Restock'}
 INTRO={
-'General':'The basics: what a companion costs, its health, stamina and carrying limits, and how far "home" reaches.',
-'Controls':'Keys and how far your commands reach.',
-'Follow':'How companions follow you around.',
-'Movement':'How companions move: speeds, how far they see, and how they get around (doors, steps, water, jumps).',
-'Combat':'When companions fight and how they pick weapons and shields.',
-'Food':'When companions drink meads.',
-'Stamina':'How fast companions use and regain stamina.',
-'Rest':'Sleeping in beds, sitting by fires and the Rested buff.',
-'Death':'What happens when a companion dies, and how it comes back.',
-'Looting':'Picking up what a kill dropped.',
-'GearRepair':'Repairing a companion\'s own weapons, armor and tools at a crafting station.',
-'Gathering':'The Wood, Stone, Ore and Forage jobs.',
-'Hunting':'The Hunt job.',
-'Fishing':'The Fish job.',
-'Farming':'The Farm job.',
-'Smelting':'The Smelt job.',
-'Cooking':'The Cook job.',
-'RepairAndRestock':'The Repair and Restock job (looking after your base).',
-'Idle':'What a companion does when its job has nothing to do.',
-'Speech':'How often companions talk and how long their words stay on screen.',
-'Advanced':'Fine-tuning for timings and distances. Most players never need to touch these.',
+'General':'O básico: quanto custa um companheiro, a vida, a stamina e os limites de carga dele, e até onde vai a "casa".',
+'Controls':'As teclas e até onde os seus comandos alcançam.',
+'Follow':'Como os companheiros seguem você.',
+'Movement':'Como os companheiros se movem: velocidades, até onde enxergam e como contornam obstáculos (portas, degraus, água, pulos).',
+'Combat':'Quando os companheiros lutam e como escolhem arma e escudo.',
+'Food':'Quando os companheiros bebem hidroméis.',
+'Stamina':'Com que rapidez os companheiros gastam e recuperam stamina.',
+'Rest':'Dormir em camas, sentar perto do fogo e o efeito Descansado.',
+'Death':'O que acontece quando um companheiro morre e como ele volta.',
+'Looting':'Recolher o que um abate deixou no chão.',
+'GearRepair':'Consertar as próprias armas, armaduras e ferramentas do companheiro numa bancada.',
+'Gathering':'Os trabalhos de Madeira, Pedra, Minério e Forrageio.',
+'Hunting':'O trabalho de Caça.',
+'Fishing':'O trabalho de Pesca.',
+'Farming':'O trabalho de Fazenda.',
+'Smelting':'O trabalho de Fundição.',
+'Cooking':'O trabalho de Cozinha.',
+'RepairAndRestock':'O trabalho de Reparar e Reabastecer (cuidar da sua base).',
+'Idle':'O que um companheiro faz quando o trabalho dele não tem nada para fazer.',
+'Speech':'Com que frequência os companheiros falam e quanto tempo as falas ficam na tela.',
+'Advanced':'Ajustes finos de tempos e distâncias. A maioria dos jogadores nunca precisa mexer nisso.',
+'IA':'A camada de IA do fork: ordens por texto e por voz, personalidade, memória e o reconhecimento de voz local.',
 }
 order=[]
 for r in rows:
     if r[0] not in order: order.append(r[0])
 L=[]
-L.append('# Offline Companions Reborn — Settings Reference\n')
-L.append('Every setting in the mod, what it does and what it starts at.\n')
-L.append('**Where to change them:** in game, press `F8` to open the settings panel. You can also edit `BepInEx/config/Maddhattr.OfflineCompanionsReborn.cfg` with any text editor while the game is closed.\n')
-L.append('**Tips**\n')
-L.append('- A setting shown as a share (like `0.5`) means 50%. `0.25` is 25%, `1` is 100%.')
-L.append('- Distances are in meters. For scale, a player is about 2 m tall and a workbench\'s build range is 20 m.')
-L.append('- **List settings** all use the same format, separated by commas:')
-L.append('  - `*` = everything')
-L.append('  - `Name` = this one')
-L.append('  - `-Name` = never this one')
-L.append('  - `Name:Number` = this one, with its own amount (`0` = no limit)')
-L.append('  - Names can be the item\'s or creature\'s in-game name or its internal (prefab) name. The names you can use for cooking, hunting and fishing are written to `OfflineCompanionsReborn.Cooking.txt`, `.Hunting.txt` and `.Fishing.txt` in the config folder each time the game starts.')
-L.append('- Updating from an older version? Settings you had changed are moved to their new names automatically the first time you load in.\n')
-L.append('## Sections\n')
+L.append('# ModAI-BR-Companions — Referência de configurações\n')
+L.append('Todas as configurações do mod: o que cada uma faz e com que valor ela começa.\n')
+L.append('**Onde mudar:** no jogo, aperte `F8` para abrir o painel de configurações. Você também pode editar `BepInEx/config/Maddhattr.OfflineCompanionsReborn.cfg` com qualquer editor de texto, com o jogo fechado.\n')
+L.append('**Dicas**\n')
+L.append('- Uma opção mostrada como fração (como `0.5`) significa 50%. `0.25` é 25%, `1` é 100%.')
+L.append('- As distâncias estão em metros. Para comparar: um jogador tem cerca de 2 m de altura e o alcance de construção de uma bancada é de 20 m.')
+L.append('- **Opções de lista** usam todas o mesmo formato, separadas por vírgulas:')
+L.append('  - `*` = tudo')
+L.append('  - `Nome` = só esse')
+L.append('  - `-Nome` = nunca esse')
+L.append('  - `Nome:Número` = esse, com a sua própria quantidade (`0` = sem limite)')
+L.append('  - Os nomes podem ser o nome do item ou da criatura no jogo ou o nome interno (prefab). Os nomes que você pode usar em cozinha, caça e pesca são escritos em `OfflineCompanionsReborn.Cooking.txt`, `.Hunting.txt` e `.Fishing.txt` na pasta de configuração a cada vez que o jogo inicia.')
+L.append('- Atualizando de uma versão antiga? As opções que você mudou são movidas para os nomes novos automaticamente na primeira vez que você entra no mundo.')
+L.append('- Os nomes das seções abaixo são os mesmos do arquivo `.cfg` (e das abas do painel `F8`, que as mostram em português): `General` = **Geral**, `Controls` = **Controles**, `Follow` = **Seguir**, `Movement` = **Movimento**, `Combat` = **Combate**, `Food` = **Comida**, `Stamina` = **Stamina**, `Rest` = **Descanso**, `Death` = **Morte**, `Looting` = **Saque**, `GearRepair` = **Reparo de Equip.**, `Gathering` = **Coleta**, `Hunting` = **Caça**, `Fishing` = **Pesca**, `Farming` = **Plantio**, `Smelting` = **Fundição**, `Cooking` = **Cozinha**, `RepairAndRestock` = **Reparar e Reabastecer**, `Idle` = **Ócio**, `Speech` = **Fala**, `Advanced` = **Avançado**, `IA` = **IA**.\n')
+L.append('## Seções\n')
 for s in order:
     L.append('- [%s](#%s)'%(NAMES.get(s,s), NAMES.get(s,s).lower().replace(' ','-')))
 L.append('')
@@ -83,15 +92,15 @@ for s in order:
         if sec!=s: continue
         dv=fmt_default(d)
         meta=[]
-        meta.append('Default: '+(dv if dv is not None else 'see below'))
+        meta.append('Padrão: '+(dv if dv is not None else 'veja abaixo'))
         rr=fmt_range(rng)
-        if rr: meta.append('Range: '+rr)
+        if rr: meta.append('Faixa: '+rr)
         L.append('**%s** — %s  '%(key,' · '.join(meta)))
         L.append(desc)
         if dv is None:
             v=d.strip()[1:-1]
             if key=='MeadFocus': v=v.replace('; ',';\n')
-            L.append('\nDefault value:\n\n```\n%s\n```'%v)
+            L.append('\nValor padrão:\n\n```\n%s\n```'%v)
         L.append('')
-open(out,'w').write('\n'.join(L).rstrip()+'\n')
+io.open(out,'w',encoding='utf-8').write('\n'.join(L).rstrip()+'\n')
 print(len(rows),'settings',len(order),'sections')

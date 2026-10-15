@@ -1,443 +1,443 @@
-# Offline Companions Reborn — Companion Guide
+# ModAI-BR-Companions — Guia do companheiro
 
-How your companions work: what each job does, how to set it up, and what to expect. If you're wondering why a companion did (or didn't do) something, it's probably explained here.
+Como os seus companheiros funcionam: o que cada trabalho faz, como preparar e o que esperar. Se você ficou se perguntando por que um companheiro fez (ou não fez) alguma coisa, a resposta provavelmente está aqui.
 
-Most numbers below are the defaults and can be changed in the settings (see `CONFIGURATION.md`, or press `F8` in game).
+A maioria dos números abaixo são os padrões e podem ser mudados nas configurações (veja `CONFIGURATION.md`, ou aperte `F8` no jogo).
 
-## Contents
+## Conteúdo
 
-1. [Getting started](#getting-started)
-2. [Talking to your companion](#talking-to-your-companion)
-3. [The command wheel](#the-command-wheel)
-4. [Pointing and commanding](#pointing-and-commanding)
-5. [Home](#home)
-6. [Following you](#following-you)
-7. [Jobs](#jobs)
-   - [Wood, Stone, Ore and Forage](#wood-stone-ore-and-forage)
-   - [Hunt](#hunt)
-   - [Fish](#fish)
-   - [Farm (and how to mark farm zones)](#farm)
-   - [Smelt](#smelt)
-   - [Cook](#cook)
-   - [Repair and Restock](#repair-and-restock)
-8. [When there's nothing to do](#when-theres-nothing-to-do)
-9. [Tools, chests and carrying](#tools-chests-and-carrying)
-10. [Combat](#combat)
-11. [Food, stamina and health](#food-stamina-and-health)
-12. [Sleeping, resting and beds](#sleeping-resting-and-beds)
-13. [Death and coming back](#death-and-coming-back)
-14. [Getting around](#getting-around)
-15. [Skills](#skills)
+1. [Primeiros passos](#primeiros-passos)
+2. [Conversando com o companheiro](#conversando-com-o-companheiro)
+3. [A roda de comandos](#a-roda-de-comandos)
+4. [Apontar e comandar](#apontar-e-comandar)
+5. [Casa](#casa)
+6. [Seguindo você](#seguindo-você)
+7. [Trabalhos](#trabalhos)
+   - [Madeira, pedra, minério e forrageio](#madeira-pedra-minério-e-forrageio)
+   - [Caça](#caça)
+   - [Pesca](#pesca)
+   - [Fazenda (e como marcar as zonas de fazenda)](#fazenda)
+   - [Fundição](#fundição)
+   - [Cozinha](#cozinha)
+   - [Reparar e reabastecer](#reparar-e-reabastecer)
+8. [Quando não há nada para fazer](#quando-não-há-nada-para-fazer)
+9. [Ferramentas, baús e carga](#ferramentas-baús-e-carga)
+10. [Combate](#combate)
+11. [Comida, stamina e vida](#comida-stamina-e-vida)
+12. [Dormir, descansar e camas](#dormir-descansar-e-camas)
+13. [Morte e volta](#morte-e-volta)
+14. [Locomoção](#locomoção)
+15. [Habilidades](#habilidades)
 16. [Multiplayer](#multiplayer)
-17. [Troubleshooting](#troubleshooting)
+17. [Solução de problemas](#solução-de-problemas)
 
 ---
 
-## Getting started
+## Primeiros passos
 
-- The first time you enter a world with a character, you're offered a free companion.
-- Ways to get more companions are coming soon.
-- A new companion follows you. Give it some gear and food: it equips the best weapon, shield and armor it's carrying, and eats from its own inventory.
-- To give it a job, open the command wheel (below) and pick one. Most jobs work best once you've set its **home**.
+- Na primeira vez que você entra num mundo com um personagem, é oferecido um companheiro de graça.
+- Outras formas de conseguir mais companheiros estão por vir.
+- Um companheiro novo já segue você. Dê a ele equipamento e comida: ele equipa a melhor arma, escudo e armadura que estiver carregando, e come do próprio inventário.
+- Para dar um trabalho a ele, abra a roda de comandos (abaixo) e escolha um. A maioria dos trabalhos funciona melhor depois que você define a **casa** dele.
 
-## Talking to your companion
+## Conversando com o companheiro
 
-**Tap** the interact key (`E`) while looking at a companion to open its **panel**:
+**Toque** a tecla de interagir (`E`) olhando para um companheiro para abrir o **painel** dele:
 
-- its inventory and equipment
-- its food
-- its name (you can rename it)
+- o inventário e o equipamento dele
+- a comida dele
+- o nome dele (você pode renomear)
 
-Drag items in and out like a chest. Anything you give it counts as its own: it keeps it and doesn't put it away in a chest.
+Arraste itens para dentro e para fora como num baú. Tudo o que você dá a ele é dele: ele guarda e não coloca num baú.
 
-## The command wheel
+## A roda de comandos
 
-**Hold** the interact key (`E`) while looking at a companion to open its **command wheel**. Move the mouse (or stick) to a slice and click.
+**Segure** a tecla de interagir (`E`) olhando para um companheiro para abrir a **roda de comandos** dele. Leve o mouse (ou o analógico) até uma fatia e clique.
 
-| Slice | What it does |
+| Fatia | O que faz |
 |:---|:---|
-| **Follow** | Turn following you on or off |
-| **Wood / Stone / Ore / Forage** | Gathering jobs |
-| **Hunt** | Hunting job |
-| **Fish** | Fishing job |
-| **Farm** | Farming job (right-click it to open the farm zone editor) |
-| **Smelt** | Smelting job |
-| **Cook** | Cooking and brewing job |
-| **Repair and Restock** | Looks after your base |
-| **Set Home** | Makes the spot where the companion stands its home |
-| **Wander** | While following: on = it moves around and looks about when you stop, off = it keeps one spot and stands still |
-| **Pickup** | Picks up items as it goes, and after kills (like auto-pickup) |
-| **Command** | Whether this companion answers the command key (pointing and recall) |
-| **Despawn** | Removes the companion (asks first) |
+| **Seguir** | Liga ou desliga o seguir você |
+| **Madeira / Pedra / Minério / Coleta** | Trabalhos de coleta (a fatia **Coleta** é o forrageio) |
+| **Caçar** | Trabalho de caça |
+| **Pescar** | Trabalho de pesca |
+| **Plantar** | Trabalho de fazenda (clique com o botão direito para abrir o editor de zonas de plantio) |
+| **Fundir** | Trabalho de fundição |
+| **Cozinhar** | Trabalho de cozinha e preparo de bebidas |
+| **Reparar e Reabastecer** | Cuida da sua base |
+| **Definir Casa** | Marca como casa o lugar onde o companheiro está |
+| **Vagar** | Seguindo você: ligado = ele se movimenta e olha em volta quando você para; desligado = ele fica num lugar só, parado |
+| **Recolher** | Recolhe itens pelo caminho e depois dos abates (como o auto-pickup) |
+| **Comando** | Se este companheiro responde à tecla de comando (apontar e chamar) |
+| **Dispensar** | Remove o companheiro (pergunta antes) |
 
-Picking a job again, or picking **Follow**, turns the job off. The **inner ring** holds the [combat stances](#combat).
+Escolher um trabalho de novo, ou escolher **Seguir**, desliga o trabalho. O **anel interno** tem as [posturas de combate](#combate).
 
-**Jobs and Follow:**
-- **Wood, Stone, Ore, Forage and Hunt** can run with Follow on or off. With Follow on they only go for things close to you as you travel. With Follow off they work an area.
-- **The other jobs** (Fish, Farm, Smelt, Cook, Repair and Restock) turn Follow off when you pick them, and turn it back on when the job ends.
+**Trabalhos e Seguir:**
+- **Madeira, Pedra, Minério, Coleta e Caçar** podem rodar com Seguir ligado ou desligado. Com Seguir ligado, eles só vão atrás do que está perto de você conforme vocês andam. Com Seguir desligado, eles trabalham uma área.
+- **Os outros trabalhos** (Pescar, Plantar, Fundir, Cozinhar, Reparar e Reabastecer) desligam o Seguir quando você os escolhe, e o religam quando o trabalho termina.
 
-## Pointing and commanding
+## Apontar e comandar
 
-Look at something and press the **command key** (`Z`). Your nearby companions do what makes sense for what you're pointing at:
+Olhe para alguma coisa e aperte a **tecla de comando** (`Z`). Os companheiros por perto fazem o que faz sentido para o que você está apontando:
 
-| Point at… | They… |
+| Aponte para… | Eles… |
 |:---|:---|
-| An enemy | Attack it |
-| A tree, rock or ore | Gather it |
-| A cart | Hitch up and pull it (point again to unhitch) |
-| A ship | Board it and take a seat |
-| A bed | Go to sleep in it (point again to wake them) |
-| A fire | Sit by it (point again to get up) |
-| A closed door | Open it |
-| A chest | Put what they've picked up into it |
-| A crafting station | Repair their gear there |
-| Their tombstone | Go and collect their things |
-| The ground | Walk there and wait |
+| Um inimigo | Atacam ele |
+| Uma árvore, rocha ou minério | Coletam |
+| Uma carroça | Engatam e puxam (aponte de novo para soltar) |
+| Um navio | Embarcam e sentam num lugar |
+| Uma cama | Vão dormir nela (aponte de novo para acordá-los) |
+| Um fogo | Sentam ao lado (aponte de novo para se levantar) |
+| Uma porta fechada | Abrem |
+| Um baú | Guardam o que recolheram |
+| Uma bancada | Consertam o equipamento ali |
+| A lápide dele | Vão buscar as coisas dele |
+| O chão | Andam até lá e esperam |
 
-- **Hold** the command key to call your companions to you.
-- **Keep holding** for about 2 seconds to call **every** companion, however far away, including ones with Command switched off.
-- Only companions within 40 m answer a normal command or recall.
+- **Segure** a tecla de comando para chamar os seus companheiros até você.
+- **Continue segurando** por cerca de 2 segundos para chamar **todos** os companheiros, por mais longe que estejam, inclusive os que estão com Comando desligado.
+- Só companheiros a até 40 m atendem a um comando normal ou a um chamado.
 
-**Orders come first.** While a companion carries out your order, its job waits. Afterwards it goes back to what it was doing. A Repair and Restock companion stays where you sent it for 30 seconds before going back to its chores.
+**As ordens vêm primeiro.** Enquanto um companheiro cumpre a sua ordem, o trabalho dele espera. Depois ele volta ao que estava fazendo. Um companheiro de Reparar e Reabastecer fica onde você o mandou por 30 segundos antes de voltar às tarefas dele.
 
-## Home
+## Casa
 
-**Set Home** (on the command wheel) marks where the companion stands as its home and opens the home panel, where you can change the size of the home area.
+**Definir Casa** (na roda de comandos) marca como casa o lugar onde o companheiro está e abre o painel da casa, onde você pode mudar o tamanho da área da casa.
 
-Home matters because companions:
+A casa importa porque os companheiros:
 
-- **claim a bed** inside the home area (shown with their name)
-- **fetch tools** from the chests around home and put borrowed ones back (take a tool out of its pack and it works without one for that job)
-- **empty their bags** into the chests around home when they come back or change jobs
-- **work around home** when a job is started near it
-- **repair gear** a bit sooner at home, where a workbench is close
+- **reivindicam uma cama** dentro da área da casa (mostrada com o nome deles)
+- **buscam ferramentas** nos baús em volta de casa e devolvem as emprestadas (tire uma ferramenta da mochila dele e ele trabalha sem ela naquele trabalho)
+- **esvaziam as bolsas** nos baús em volta de casa quando voltam ou trocam de trabalho
+- **trabalham em volta de casa** quando um trabalho é iniciado perto dela
+- **consertam o equipamento** um pouco mais cedo em casa, onde uma bancada está perto
 
-"Around home" means within 60 m of the home spot (the `HomeTripRange` setting).
+"A volta de casa" significa dentro de 60 m do ponto de casa (a opção `HomeTripRange`).
 
-## Following you
+## Seguindo você
 
-- A following companion picks its own spot near you: beside, behind, sometimes ahead. It moves when you get more than 10 m away (4 m indoors).
-- **Stand still for 45 seconds** and your companions come back and wait close to you.
-- **Stop indoors** and they sit down near you: on a free chair or bench, otherwise the floor. Near home, they empty their bags first.
-- If a companion falls far behind (50 m) and can't see you, it catches up by appearing next to you.
-- They go through portals with you.
+- Um companheiro que segue você escolhe o próprio lugar perto de você: ao lado, atrás, às vezes à frente. Ele se move quando você se afasta mais de 10 m (4 m em lugares fechados).
+- **Fique parado por 45 segundos** e os seus companheiros voltam e esperam pertinho de você.
+- **Pare num lugar fechado** e eles sentam perto de você: numa cadeira ou banco livre, senão no chão. Perto de casa, eles esvaziam as bolsas primeiro.
+- Se um companheiro ficar muito para trás (50 m) e não conseguir te ver, ele alcança você aparecendo do seu lado.
+- Eles atravessam portais com você.
 
-## Jobs
+## Trabalhos
 
-Every job pauses for a fight, your orders, bedtime and picking up loot, then carries on. When a job runs out of work, see [When there's nothing to do](#when-theres-nothing-to-do).
+Todo trabalho pausa para uma luta, para as suas ordens, para a hora de dormir e para pegar o saque, e depois continua. Quando um trabalho fica sem serviço, veja [Quando não há nada para fazer](#quando-não-há-nada-para-fazer).
 
-> **Companions only work while you're nearby.** The game unloads the parts of the world that no player is near, and everything in them freezes, companions included. A companion working at home while you're far away exploring isn't working; it carries on when you come back. In multiplayer, the area stays loaded while any player is near it.
+> **Os companheiros só trabalham enquanto você está perto.** O jogo descarrega as partes do mundo onde não há nenhum jogador, e tudo nelas congela, companheiros incluídos. Um companheiro trabalhando em casa enquanto você está longe explorando não está trabalhando; ele continua quando você volta. No multiplayer, a área fica carregada enquanto qualquer jogador estiver perto dela.
 
-### Wood, Stone, Ore and Forage
+### Madeira, pedra, minério e forrageio
 
-**Where they work**
-- **Follow on:** only trees, rocks or plants within 10 m of you, as you travel. Nothing that close? They just follow you. Think of it as "we passed some raspberries, let's grab them".
-- **Follow off:** they work an area. That's around home if the job was started near home, otherwise around where you left them, up to 40 m out. They keep working there when you leave.
+**Onde eles trabalham**
+- **Seguir ligado:** só árvores, rochas ou plantas dentro de 25 m de você (20 m para o forrageio), conforme vocês andam. Nada tão perto? Eles só seguem você. Pense nisso como "passamos por umas framboesas, vamos pegar".
+- **Seguir desligado:** eles trabalham uma área. Em volta de casa, se o trabalho começou perto dela; senão, em volta de onde você os deixou, até 60 m de distância. Eles continuam trabalhando ali quando você vai embora.
 
-**What they collect**
-- Each job has a list of what to gather and how much to keep (500 of each by default, counting the companion's pack and the chests at home). Once there's enough, they stop.
-- Things not on the list (like stone from a copper deposit) are left on the ground.
-- **Wood:** fells trees and chops logs and stumps. It skips Oak by default, and won't fell trees within 10 m of anything you've built. It also steps aside from falling trees.
-- **Stone:** mines rocks for stone, flint and the like.
-- **Ore:** mines ore deposits. Spare stone from the deposit is dropped in a pile away from the ore, so it doesn't bury it.
-- **Forage:** picks berries, mushrooms, flowers and the like. No tool needed.
+**O que eles coletam**
+- Cada trabalho tem uma lista do que coletar e de quanto manter (500 de cada por padrão, contando a mochila do companheiro e os baús em casa). Quando já tem o suficiente, eles param.
+- Coisas que não estão na lista (como pedra de um veio de cobre) ficam no chão.
+- **Madeira:** derruba árvores e corta toras e tocos. Por padrão ele ignora **Carvalho** (a opção `WoodSkipTrees`) e não derruba árvores a menos de 10 m de qualquer coisa que você construiu. Ele também sai da frente de árvores caindo.
+- **Pedra:** minera rochas para conseguir pedra, sílex e coisas do tipo.
+- **Minério:** minera veios de minério. A pedra que sobra do veio é jogada numa pilha longe do minério, para não enterrá-lo.
+- **Coleta (forrageio):** pega frutinhas, cogumelos, flores e coisas do tipo. Não precisa de ferramenta.
 
-**Early in the game**
-If there's no bronze (or better) axe anywhere and no forge at home to make one, the Wood and Stone jobs also pick up branches, stones and flint lying on the ground. A companion with no axe or pickaxe at all only picks things up.
+**No início do jogo**
+Se não houver machado de bronze (ou melhor) em lugar nenhum e nem uma forja em casa para fazer um, os trabalhos de Madeira e Pedra também pegam galhos, pedras e sílex do chão. Um companheiro sem machado nem picareta nenhuma só pega coisas do chão.
 
-**Tools**
-They need an axe for Wood and a pickaxe for Stone and Ore. A missing tool is fetched from the chests at home. If the tool can't cut what's there (a stone axe on an old tree, say), you get a message.
+**Ferramentas**
+Eles precisam de um machado para Madeira e de uma picareta para Pedra e Minério. A ferramenta que falta é buscada nos baús de casa. Se a ferramenta não cortar o que está ali (um machado de pedra numa árvore antiga, por exemplo), você recebe uma mensagem.
 
-**When the pack is full**
-- Near home: they unload into the chests at home.
-- Away from home: they unload into a chest, cart or ship within 30 m.
-- If there's nowhere to unload, they drop junk they don't need (not gear, food, tools or anything on their lists).
+**Quando a mochila enche**
+- Perto de casa: eles descarregam nos baús de casa.
+- Longe de casa: eles descarregam num baú, carroça ou navio a até 30 m.
+- Se não houver onde descarregar, eles jogam fora as tranqueiras de que não precisam (nada de equipamento, comida, ferramentas ou qualquer coisa nas listas deles).
 
-### Hunt
+### Caça
 
-- **What:** creatures that drop meat, until there's enough of each kind of meat (100 by default, counting pack and chests at home). Leather and other drops are picked up as a bonus. Tamed animals, bosses and other companions are never hunted.
-- **Sneaking:** they walk quietly up to skittish game like deer and hares, then sneak the last 20 m crouched (Hunting > SneakFrom), so it doesn't bolt. Sneaking costs stamina like a player's: when they run low they stop, stay crouched and get their breath back (Hunting > SneakRestStamina). They wade shallow water instead of jumping it while sneaking. Chasing prey that bolted, they only run while they have stamina to spare (Hunting > ChaseRunStamina).
-- **Weapons:** a bow or crossbow with ammo comes first. Without one they hunt with a melee weapon: they sneak right up and strike.
-- **Throwing spears:** a hunter holding a spear throws it at skittish game from up to 12 m (Hunting > ThrowRange), as long as it has another weapon in its pack to fight on with - or, with the spear as its only weapon, once the prey has noticed it (then it fetches the spear before hunting on). It sneaks only to throwing distance (Hunting > ThrowStandoff, 10 m), stops and throws, and waits for the stamina the throw needs rather than walking in to stab. After the hunt it walks over and picks the spear back up. Turn this off with Hunting > ThrowSpear.
-- **Birds:** with a bow or crossbow and ammo, they shoot crows and gulls for feathers.
-- **Follow on:** they hunt within 40 m of you (Hunting > FollowRange). **Follow off:** they hunt up to 40 m around where they were set to work.
-- **Chasing:** they chase prey that runs, up to 15 m further, then let it go.
-- **Full pack:** with Follow off and a home set, they bring the catch home and go back out.
+- **O quê:** criaturas que derrubam carne, até ter o suficiente de cada tipo de carne (100 por padrão, contando a mochila e os baús de casa). Couro e outros drops são pegos de brinde. Animais domados, chefes e outros companheiros nunca são caçados.
+- **Chegando de mansinho:** eles andam em silêncio até bichos ariscos como cervos e lebres, e depois se esgueiram agachados nos últimos 20 m (Hunting > SneakFrom), para o bicho não disparar. Esgueirar-se gasta stamina como a de um jogador: quando ela fica baixa, eles param, continuam agachados e recuperam o fôlego (Hunting > SneakRestStamina). Esgueirando-se, eles atravessam água rasa a pé em vez de pular. Perseguindo uma presa que disparou, eles só correm enquanto têm stamina de sobra (Hunting > ChaseRunStamina).
+- **Armas:** um arco ou besta com munição vem primeiro. Sem nenhum, eles caçam com uma arma de corpo a corpo: chegam de mansinho e golpeiam.
+- **Lanças de arremesso:** um caçador com uma lança na mão a arremessa em bichos ariscos de até 12 m (Hunting > ThrowRange), desde que tenha outra arma na mochila para continuar a luta — ou, com a lança como única arma, quando a presa já o notou (aí ele pega a lança antes de continuar a caça). Ele se esgueira só até a distância de arremesso (Hunting > ThrowStandoff, 10 m), para e arremessa, e espera a stamina que o arremesso precisa em vez de andar até lá para esfaquear. Depois da caça ele anda até lá e pega a lança de volta. Desligue isso em Hunting > ThrowSpear.
+- **Pássaros:** com arco ou besta e munição, eles atiram em corvos e gaivotas pelas penas.
+- **Seguir ligado:** eles caçam a até 40 m de você (Hunting > FollowRange). **Seguir desligado:** eles caçam a até 40 m em volta de onde foram postos a trabalhar.
+- **Perseguição:** eles perseguem uma presa que corre, até 15 m mais longe, e depois deixam ela ir.
+- **Mochila cheia:** com Seguir desligado e uma casa definida, eles trazem a caça para casa e voltam para o mato.
 
-### Fish
+### Pesca
 
-**Setting up**
-- Give the companion a **fishing rod** and **bait**, and stand it near water.
-- It fishes around the spot where you started the job, up to 30 m out.
+**Como preparar**
+- Dê ao companheiro uma **vara de pesca** e **isca**, e deixe ele perto da água.
+- Ele pesca em volta do lugar onde você iniciou o trabalho, até 30 m de distância.
 
-**How it fishes**
-- It looks for fish in range and picks a spot on the bank.
-- It uses the best bait it has for those fish, casts at the right distance, and waits up to 60 seconds for a bite.
-- When a fish bites it strikes, then reels in carefully, easing off when the line is tight.
+**Como ele pesca**
+- Ele procura peixes ao alcance e escolhe um lugar na margem.
+- Ele usa a melhor isca que tem para aqueles peixes, lança na distância certa e espera até 60 segundos por uma fisgada.
+- Quando um peixe fisga, ele dá o golpe e depois recolhe com cuidado, aliviando quando a linha estica.
 
-**Limits**
-- Each kind of fish has a target (100 by default, counting its pack and the chests at home). Once that's reached, it leaves that kind alone.
-- Near home, it brings its catch home when its pack is nearly full.
+**Limites**
+- Cada tipo de peixe tem uma meta (100 por padrão, contando a mochila dele e os baús de casa). Quando ela é atingida, ele deixa aquele tipo em paz.
+- Perto de casa, ele traz a pesca para casa quando a mochila está quase cheia.
 
-### Farm
+### Fazenda
 
-The farmer **plants** in farm zones you mark, and **harvests** ripe crops nearby.
+O fazendeiro **planta** nas zonas de plantio que você marca e **colhe** as plantações maduras por perto.
 
-**How to mark a farm zone**
+**Como marcar uma zona de plantio**
 
-1. **Till the ground first**, with a cultivator, like you would to plant yourself. The farmer plants only on cultivated ground, and doesn't till ground itself yet.
-2. **Open the farm zone editor**, either way:
-   - Stand near your farmer and press `Left Alt` + `Z`. This opens the editor for the nearest companion.
-   - Or right-click **Farm** on its command wheel.
-3. A green square shows where the zone would go. Controls:
+1. **Cultive a terra primeiro**, com um cultivador, como você faria para plantar você mesmo. O fazendeiro só planta em terra cultivada, e ainda não cultiva a terra sozinho.
+2. **Abra o editor de zonas de plantio**, de uma das duas formas:
+   - Fique perto do seu fazendeiro e aperte `Left Alt` + `Z`. Isso abre o editor do companheiro mais próximo.
+   - Ou clique com o botão direito em **Plantar** na roda de comandos dele.
+3. Um quadrado verde mostra onde a zona ficaria. Controles:
 
-   | Mouse and keyboard | Controller | Action |
+   | Mouse e teclado | Controle | Ação |
    |:---|:---|:---|
-   | Left-click | A | Place the zone |
-   | Right-click on a zone | X | Remove it |
-   | Mouse wheel | Bumpers | Make it bigger or smaller (4 m to 30 m across) |
-   | Hold right-click + mouse wheel | D-pad | Rotate it |
-   | Esc (or `Left Alt` + `Z` again) | Start | Close the editor |
+   | Botão esquerdo | A | Coloca a zona |
+   | Botão direito numa zona | X | Remove ela |
+   | Scroll do mouse | Bumpers | Aumenta ou diminui (de 4 m a 30 m de lado) |
+   | Segurar botão direito + scroll | D-pad | Gira a zona |
+   | Esc (ou `Left Alt` + `Z` de novo) | Start | Fecha o editor |
 
-4. After placing a zone, pick the **crop** for it, or **Any Crop**.
-5. Each companion can have up to **4 zones**. Then set the companion to the **Farm** job.
+4. Depois de colocar uma zona, escolha a **cultura** dela, ou **Qualquer Cultura**.
+5. Cada companheiro pode ter até **4 zonas**. Depois coloque o companheiro no trabalho de **Plantar**.
 
-**Planting**
-- **A zone with a crop:** the farmer plants that crop there.
-- **An "Any Crop" zone:** it plants from the `PlantAny` list (carrots, turnips, onions, barley, flax, mushrooms, vineberries by default). It plants in small blocks of 4 of each, so the field ends up mixed but tidy. Tree saplings are never planted in an "any" zone.
-- It spaces plants so each has room to grow, and won't plant inside a ward that doesn't let it in.
+**Plantar**
+- **Uma zona com cultura:** o fazendeiro planta aquela cultura ali.
+- **Uma zona "Qualquer Cultura":** ele planta da lista `PlantAny` (cenoura, nabo, cebola, cevada, linho, cogumelos e frutinhas de videira por padrão). Ele planta em blocos pequenos de 4 de cada, então o campo fica misturado mas organizado. Mudas de árvore nunca são plantadas numa zona "qualquer".
+- Ele espaça as plantas para cada uma ter espaço para crescer, e não planta dentro de uma área protegida que não deixa ele entrar.
 
-**Seeds**
-- It carries up to 40 of each seed, taken from the chests.
-- It always keeps at least 20 of each seed and won't plant the last ones.
-- When a seed runs below 100, it plants some seed plants (carrots, turnips, onions…) alongside the crops to build the stock back up.
+**Sementes**
+- Ele carrega até 40 de cada semente, pegas dos baús.
+- Ele sempre mantém pelo menos 20 de cada semente e não planta as últimas.
+- Quando uma semente cai abaixo de 100, ele planta algumas plantas de semente (cenoura, nabo, cebola…) junto das culturas para repor o estoque.
 
-**Harvesting**
-It picks ripe crops, going straight to the next ripe one nearby like working down a row, and stores the harvest in a chest.
+**Colher**
+Ele pega as plantações maduras, indo direto para a próxima madura por perto como quem trabalha uma fileira, e guarda a colheita num baú.
 
-### Smelt
+### Fundição
 
-- **Feeding:** keeps kilns, smelters, furnaces, blast furnaces and the like fed. It brings input (ore, wood for the kiln…) and fuel (coal, wood) from the chests nearby, and from the chests at home when it's near home.
-- **Output:** collects what comes out and stores it.
-- **No fuel in the chests:** it can take down a wood pile with a hammer and use that wood. It needs a hammer in its pack.
-- **Trip size:** it carries up to 20 input and 40 fuel per trip.
+- **Abastecer:** mantém fornos de carvão, fornalhas, fornos e altos-fornos alimentados. Ele traz o insumo (minério, madeira para o forno de carvão…) e o combustível (carvão, madeira) dos baús por perto, e dos baús de casa quando está perto de casa.
+- **Produção:** recolhe o que sai e guarda.
+- **Sem combustível nos baús:** ele pode desmontar uma pilha de madeira com um martelo e usar aquela madeira. Precisa de um martelo na mochila.
+- **Tamanho da viagem:** ele carrega até 20 de insumo e 40 de combustível por viagem.
 
-### Cook
+### Cozinha
 
-**Stations it uses**
-- cauldron
-- food preparation table
-- mead ketill
-- cooking station and spit
-- iron cooking station
-- oven
-- fermenters
-- beehives
+**Estações que ele usa**
+- caldeirão
+- mesa de preparo de comida
+- alambique de hidromel
+- estação de cozinha e espeto
+- estação de cozinha de ferro
+- forno de pedra
+- barris de fermentação
+- colmeias
 
-Each kind can be switched off in the settings. It only uses recipes you know.
+Cada tipo pode ser desligado nas configurações. Ele só usa receitas que você conhece.
 
-**What it makes**
-- **Food:** cooks each food until the chests nearby (and at home) hold 20 of it. It cooks in batches of 5, like a player.
-- **Reserve:** it always leaves at least 20 of each raw ingredient, so there's some left for you.
-- **Mead:** brews mead bases, fills the fermenters and taps the finished mead, until there are 10 of each base and 20 of each mead. Don't want mead? Turn off `MakeMead` and it cooks food only.
-- **Your progress:** it brews the mead bases you'll need for your next boss first. For example, after Bonemass that's frost resistance and medium healing and stamina.
-- **Storing:** cooked food goes into a chest that already holds that food (or other cooked food).
+**O que ele faz**
+- **Comida:** cozinha cada comida até os baús por perto (e os de casa) terem 20 dela. Ele cozinha em fornadas de 5, como um jogador.
+- **Reserva:** ele sempre deixa pelo menos 20 de cada ingrediente cru, para sobrar para você.
+- **Hidromel:** prepara bases de hidromel, enche os barris de fermentação e tira o hidromel pronto, até ter 10 de cada base e 20 de cada hidromel. Não quer hidromel? Desligue `MakeMead` e ele só cozinha comida.
+- **O seu progresso:** ele prepara primeiro as bases de hidromel que você vai precisar para o próximo chefe. Por exemplo, depois do Bonemass são resistência ao gelo e cura e stamina médias.
+- **Guardar:** a comida cozida vai para um baú que já tem aquela comida (ou outras comidas cozidas).
 
-**Fires and honey**
-- It keeps the fires under its cooking stations and the oven at about half full, and tops them up when they run low.
-- With no wood in the chests, it can take down a wood pile.
-- It collects honey from beehives for its recipes.
+**Fogos e mel**
+- Ele mantém os fogos embaixo das estações de cozinha que usa e o forno em cerca de metade da capacidade, e reabastece quando ficam baixos.
+- Sem madeira nos baús, ele pode desmontar uma pilha de madeira.
+- Ele recolhe mel das colmeias para as receitas dele.
 
-### Repair and Restock
+### Reparar e reabastecer
 
-The job for a companion you leave to look after a base. Start it near home and it works around home. Start it anywhere else (an outpost, say) and it works within 30 m of where you started it.
+O trabalho para um companheiro que você deixa cuidando de uma base. Inicie perto de casa e ele trabalha em volta de casa. Inicie em qualquer outro lugar (num posto avançado, digamos) e ele trabalha dentro de 30 m de onde você iniciou.
 
-In order of priority:
+Em ordem de prioridade:
 
-1. **Repair:** fixes building pieces below 75% health with a hammer, one swing each. It needs the piece's crafting station nearby and ward access, like a player.
-2. **Restock:** keeps fires fuelled, adding fuel one piece at a time and topping up anything below 80%. Each of these can be switched on or off:
-   - campfires and fire pits
-   - hearths
-   - braziers
-   - standing torches
-   - wall torches and sconces
-   - hot tubs
-   - anything else that burns fuel
+1. **Reparar:** conserta peças de construção abaixo de 75% de vida com um martelo, um golpe em cada. Ele precisa da bancada da peça por perto e de acesso à área protegida, como um jogador.
+2. **Reabastecer:** mantém os fogos abastecidos, colocando combustível um pedaço por vez e completando qualquer um que esteja abaixo de 80%. Cada um destes pode ser ligado ou desligado:
+   - fogueiras e fogos de chão
+   - lareiras
+   - braseiros
+   - tochas de pé
+   - tochas de parede e arandelas
+   - banheiras quentes
+   - qualquer outra coisa que queime combustível
 
-   It doesn't fill kilns or smelters; that's the Smelt job.
-3. **Beehives:** empties hives that are at least half full and puts the honey with the rest of your honey.
-4. **Piles:** keeps 100 of each building material (wood, stone…) in the chests. The surplus goes into piles (Stack of Wood, Stone Pile…), built next to piles you've already made. It never starts a new pile spot on its own. When the chests drop below 100, it takes a pile down to refill them.
-5. **Sorting:** sorts the chests like with like, carrying each item to the chest that already holds the most of it and merging part stacks. Gear (weapons, armor, tools) isn't moved unless you turn that on.
+   Ele não abastece fornos de carvão nem fornalhas; isso é o trabalho de Fundição.
+3. **Colmeias:** esvazia colmeias que estejam pelo menos na metade e junta o mel com o resto do seu mel.
+4. **Pilhas:** mantém 100 de cada material de construção (madeira, pedra…) nos baús. O excedente vira pilhas (Pilha de Madeira, Pilha de Pedra…), construídas ao lado de pilhas que você já fez. Ele nunca começa um lugar de pilha nova sozinho. Quando os baús caem abaixo de 100, ele desmonta uma pilha para reabastecê-los.
+5. **Organizar:** arruma os baús igual com igual, levando cada item para o baú que já tem mais dele e juntando pilhas parciais. Equipamento (armas, armaduras, ferramentas) não é movido, a não ser que você ligue isso.
 
-It fetches a hammer and fuel from the chests if it needs them, and puts leftovers back.
+Ele busca um martelo e combustível nos baús se precisar, e devolve o que sobra.
 
-## When there's nothing to do
+## Quando não há nada para fazer
 
-If a companion has had nothing to do for 10 seconds and isn't following you, it idles within 8 m of its job instead of standing still. It might:
+Se um companheiro fica 10 segundos sem nada para fazer e não está seguindo você, ele fica à toa dentro de 8 m do trabalho dele em vez de ficar parado. Ele pode:
 
-- **do a small chore nearby:** repair a piece, top up a fire, collect honey, put away what it's carrying
-- **sit down** on a free chair or bench (or the ground) for a while
-- **wander** over to a station or chest to check on it
-- **chat:** go over to you or another companion and talk
+- **fazer uma pequena tarefa por perto:** consertar uma peça, reabastecer um fogo, recolher mel, guardar o que está carregando
+- **sentar** numa cadeira ou banco livre (ou no chão) por um tempo
+- **dar uma volta** até uma estação ou baú para dar uma olhada
+- **conversar:** ir até você ou outro companheiro e puxar assunto
 
-Now and then (at most every 5 minutes) it tells you why it's idle, for example "Nothing to cook right now." or "Waiting for the crops to grow."
+De vez em quando (no máximo a cada 5 minutos) ele diz por que está à toa, por exemplo "Nada para cozinhar agora." ou "Esperando as plantações crescerem."
 
-The moment its job has something to do, it gets back to work. It also stops idling for a fight, your orders, bedtime, or you opening its panel or wheel.
+No instante em que o trabalho dele tem algo para fazer, ele volta ao serviço. Ele também para de ficar à toa por causa de uma luta, das suas ordens, da hora de dormir, ou de você abrir o painel ou a roda dele.
 
-## Tools, chests and carrying
+## Ferramentas, baús e carga
 
-**Tools**
-- Jobs fetch the tool they need from the chests at home: axe, pickaxe, cultivator, rod and bait, hammer, bow and arrows.
-- When the job ends, the borrowed tool goes back to its chest.
+**Ferramentas**
+- Os trabalhos buscam a ferramenta de que precisam nos baús de casa: machado, picareta, cultivador, vara e isca, martelo, arco e flechas.
+- Quando o trabalho termina, a ferramenta emprestada volta para o baú dela.
 
-**Repairing gear**
-- A companion takes worn gear to a crafting station when anything drops below 50%, or below 80% at home.
-- It only uses stations a player could use right now: under a roof, with a fire if needed.
-- If no station nearby can repair an item (for example, it needs a black forge you haven't built), that item is left alone for 10 minutes instead of being tried again and again.
+**Consertar equipamento**
+- Um companheiro leva o equipamento gasto até uma bancada quando algo cai abaixo de 50%, ou abaixo de 80% em casa.
+- Ele só usa bancadas que um jogador poderia usar naquele momento: sob um teto, com fogo se precisar.
+- Se nenhuma bancada por perto puder consertar um item (por exemplo, ele precisa de uma forja negra que você não construiu), esse item fica de lado por 10 minutos em vez de ser tentado de novo e de novo.
 
-**Emptying bags**
-- When you change a companion's job, or it comes home, it puts away what it picked up while working.
-- What you gave it, it keeps.
+**Esvaziar as bolsas**
+- Quando você troca o trabalho de um companheiro, ou ele volta para casa, ele guarda o que pegou enquanto trabalhava.
+- O que você deu a ele, ele mantém.
 
-**Which chests it uses**
-- Companions use chests like a player. They won't use a chest someone has open, another player's private chest, or a chest behind a ward they can't open.
-- Jobs looking for a chest don't use carts or ship holds. The exceptions: a full gatherer away from home can unload into one, and you can always point a companion at one.
+**Quais baús ele usa**
+- Os companheiros usam baús como um jogador. Eles não usam um baú que alguém deixou aberto, o baú privado de outro jogador, nem um baú atrás de uma área protegida que eles não podem abrir.
+- Trabalhos que procuram um baú não usam carroças nem porões de navio. As exceções: um coletor com a mochila cheia e longe de casa pode descarregar num deles, e você sempre pode apontar um companheiro para um.
 
-**Carrying**
-A companion can carry 300 weight, the same as a player.
+**Carga**
+Um companheiro consegue carregar 300 de peso, igual a um jogador.
 
-## Combat
+## Combate
 
-**Stances** (inner ring of the command wheel; on a controller, push the stick partway toward one):
+**Posturas** (anel interno da roda de comandos; no controle, empurre o analógico até a metade em direção a uma):
 
-| Stance | Behavior |
+| Postura | Comportamento |
 |:---|:---|
-| **Balanced** | Chooses melee or a bow/crossbow depending on distance |
-| **Passive** | Never starts a fight; just follows or works |
-| **Ranged** | Prefers a bow or crossbow and keeps its distance |
-| **Melee** | Sticks to melee weapons |
+| **Equilibrado** | Escolhe corpo a corpo ou arco/besta conforme a distância |
+| **Passivo** | Nunca começa briga; só segue ou trabalha |
+| **À distância** | Prefere arco ou besta e mantém distância |
+| **Corpo a corpo** | Fica nas armas de perto |
 
-**When they fight**
-- They attack a creature once it has noticed you or them. With the `EngageOnNotice` setting off, they wait until it's actually coming for you.
-- They leave alone animals that never attack, like deer. Hunt goes after game on purpose.
-- Anything that attacks them is always fought back.
+**Quando eles lutam**
+- Eles atacam uma criatura depois que ela percebe você ou eles. Com a opção `EngageOnNotice` desligada, eles esperam até ela vir de fato para cima de você.
+- Eles deixam em paz os animais que nunca atacam, como cervos. A Caça vai atrás de bicho de propósito.
+- Qualquer coisa que os ataque é sempre revidada.
 
-**How they fight**
-- **Blocking:** they block with a shield, parry and counter-attack.
-- **Several attackers:** they switch to their best blocking shield (a tower shield, say) when 3 or more enemies attack at once.
-- **Weapon choice:** they pick the weapon that does the most damage to *this* enemy, using its weaknesses and resistances.
-- **Fire:** they open with a torch against enemies weak to fire, then switch back.
-- **Bows and crossbows:** used only when they carry the matching ammo, at 15 m and beyond. Under 12 m they switch back to melee.
-- **Low health:** below 30% they fight defensively, and below 15% they run.
-- **Backstabs:** companions don't take backstab damage.
+**Como eles lutam**
+- **Bloqueio:** eles bloqueiam com escudo, dão parry e contra-atacam.
+- **Vários atacantes:** eles trocam para o melhor escudo de bloqueio (um escudo torre, digamos) quando 3 ou mais inimigos atacam ao mesmo tempo.
+- **Escolha da arma:** eles escolhem a arma que faz mais dano a *este* inimigo, usando as fraquezas e resistências dele.
+- **Fogo:** eles abrem com uma tocha contra inimigos fracos a fogo, e depois voltam.
+- **Arcos e bestas:** só são usados quando eles carregam a munição certa, a 15 m ou mais. Abaixo de 12 m eles voltam para o corpo a corpo.
+- **Vida baixa:** abaixo de 30% eles lutam na defensiva, e abaixo de 15% eles correm.
+- **Ataques pelas costas:** companheiros não tomam dano de ataque pelas costas.
 
-**After the fight**
-With Pickup on, they go and pick up what the kill dropped (within 30 m). They won't swim for it.
+**Depois da luta**
+Com Recolher ligado, eles vão pegar o que o abate deixou (a até 30 m). Eles não nadam para pegar.
 
-## Food, stamina and health
+## Comida, stamina e vida
 
-- **Food:** companions have 3 food slots like a player and eat from their own inventory when a slot is empty. Food adds health and stamina the same way it does for you.
-- **Base health and stamina:** 25 health and 50 stamina before food, the same as a player.
-- **Meads:** they drink a healing mead below 50% health and a stamina mead below 25% stamina.
-- **Status effects:** being wet, cold, rested and the like change their regeneration just like yours.
-- **Running and swimming:** both cost stamina. A swimming companion low on stamina (25%) heads for the shore.
+- **Comida:** os companheiros têm 3 espaços de comida como um jogador e comem do próprio inventário quando um espaço fica vazio. A comida dá vida e stamina do mesmo jeito que dá para você.
+- **Vida e stamina base:** 25 de vida e 50 de stamina antes da comida, igual a um jogador.
+- **Hidroméis:** eles bebem um hidromel de cura abaixo de 50% de vida e um hidromel de stamina abaixo de 25% de stamina.
+- **Efeitos de status:** estar molhado, com frio, descansado e coisas do tipo mudam a regeneração deles como mudam a sua.
+- **Correr e nadar:** os dois gastam stamina. Um companheiro nadando com pouca stamina (25%) vai para a margem.
 
-## Sleeping, resting and beds
+## Dormir, descansar e camas
 
-**Beds**
-- Each companion claims a free bed in its home area. The bed shows its name.
-- It can also use one of your beds, as long as it isn't your spawn point. So clicking a companion's bed by accident doesn't take it away (the bed still shows the companion's name). Sleeping in it does, because that makes it your spawn point. It never uses another player's bed.
-- Without a home set, it only takes a bed within 20 m of a bed of yours.
-- It keeps the bed through death and when you log out and back in.
-- Point the command key at a bed to send a companion to sleep in it.
+**Camas**
+- Cada companheiro reivindica uma cama livre na área da casa dele. A cama mostra o nome dele.
+- Ele também pode usar uma das suas camas, desde que não seja o seu ponto de renascimento. Assim, clicar na cama de um companheiro por acidente não a toma dele (a cama continua mostrando o nome do companheiro). Dormir nela toma, porque isso a transforma no seu ponto de renascimento. Ele nunca usa a cama de outro jogador.
+- Sem uma casa definida, ele só pega uma cama a até 20 m de uma cama sua.
+- Ele mantém a cama depois de morrer e quando você sai e volta ao jogo.
+- Aponte a tecla de comando para uma cama para mandar um companheiro dormir nela.
 
-**Sleeping**
-- **At night:** a companion within 50 m of its bed stops what it's doing and goes to bed. That includes companions working a job. It goes back to work in the morning.
-- **When you sleep:** your companions go to bed too, even in the evening. The night skip waits up to 30 seconds for them.
+**Dormir**
+- **À noite:** um companheiro a até 50 m da cama dele para o que está fazendo e vai dormir. Isso inclui companheiros trabalhando. Ele volta ao trabalho de manhã.
+- **Quando você dorme:** os seus companheiros vão dormir também, mesmo que ainda não seja noite. O pulo da noite espera até 30 segundos por eles.
 
-**Resting by a fire**
-- When you sit down near a fire, companions nearby with no job sit down too.
-- After 20 seconds by a fire they get the Rested buff. Sitting also heals them.
-- When you send a companion to sit by a fire with the command key, it stays there for up to 5 minutes, or until you point at the fire again.
+**Descansar perto de um fogo**
+- Quando você senta perto de um fogo, companheiros por perto sem trabalho sentam também.
+- Depois de 20 segundos perto de um fogo eles ganham o efeito *Descansado*. Sentar também cura.
+- Quando você manda um companheiro sentar perto de um fogo com a tecla de comando, ele fica ali até 5 minutos, ou até você apontar para o fogo de novo.
 
-## Death and coming back
+## Morte e volta
 
-- **Tombstone:** a companion that dies leaves a tombstone, marked on your map until it's emptied.
-- **What it loses:** this follows your world's death penalty setting, like a player. You can change this (keep everything, keep equipped gear, or drop everything).
-- **Coming back:** after 5 minutes it comes back by itself at its bed, or next to you if it has no bed. The timer keeps counting while you're away or offline.
-- **Its things:** once it's back near its tombstone it walks over and collects its own things. You can also point the command key at the tombstone.
-- **Skills:** it loses 25% of its skill progress, a bit like a player.
+- **Lápide:** um companheiro que morre deixa uma lápide, marcada no seu mapa até ser esvaziada.
+- **O que ele perde:** isso segue a opção de penalidade de morte do seu mundo, como para um jogador. Você pode mudar isso (manter tudo, manter o equipamento vestido, ou largar tudo).
+- **Volta:** depois de 5 minutos ele volta sozinho na cama dele, ou do seu lado se não tiver cama. O tempo continua contando enquanto você está fora ou offline.
+- **As coisas dele:** quando ele volta e está perto da própria lápide, ele anda até lá e recolhe as coisas dele. Você também pode apontar a tecla de comando para a lápide.
+- **Habilidades:** ele perde 25% do progresso das habilidades, mais ou menos como um jogador.
 
-### Recovering a lost companion
+### Recuperando um companheiro perdido
 
-Your game keeps a roster of your companions in each world, saving each one's gear and settings every minute while it's near you, and whenever the game saves your character (including when you log out or quit). If a companion goes missing for good (for example deleted by a server without the mod), you can bring it back.
+O seu jogo mantém uma lista dos seus companheiros em cada mundo, salvando o equipamento e as configurações de cada um a cada minuto enquanto ele está perto de você, e sempre que o jogo salva o seu personagem (inclusive quando você sai ou fecha o jogo). Se um companheiro sumir de vez (por exemplo, apagado por um servidor sem o mod), você pode trazê-lo de volta.
 
-**Odin's Shrine.** Build one with the hammer (Misc tab, next to a workbench) for 10 stone, 5 wood and 3 greydwarf eyes. It looks like a gravestone (or a ward stone, with Death > ShrineModel). Use it to see your companions in this world and their status. For each one that's Lost or Unknown it asks whether to bring it back; say Yes and it appears next to the shrine, say No to move on to the next one. You can change the cost with Death > ShrineRecipe, or turn the shrine off with Death > ShrineBuildable.
+**Santuário de Odin.** Construa um com o martelo (aba Diversos, perto de uma bancada) por 10 pedras, 5 madeiras e 3 olhos de greydwarf. Ele parece uma lápide (ou uma pedra de área protegida, com Death > ShrineModel). Use-o para ver os seus companheiros neste mundo e o status de cada um. Para cada um que estiver Perdido ou Desconhecido ele pergunta se deve trazê-lo de volta; diga Sim e ele aparece ao lado do santuário, diga Não para passar ao próximo. Você pode mudar o custo em Death > ShrineRecipe, ou desligar o santuário em Death > ShrineBuildable.
 
-**From the config** (no shrine needed):
+**Pela configuração** (sem precisar de santuário):
 
-- **See their status:** turn on **General > ShowCompanionRoster** in the config. You'll see each companion as **Alive**, **Dead** (its tombstone will bring it back), **Lost** (nothing left of it, so it can be recovered) or **Unknown**.
-- **Bring one back:** turn on **General > RecoverLostCompanion**. The first Lost companion appears next to you with its gear and settings from the last roster save. Both settings turn themselves back off.
+- **Ver o status:** ligue **General > ShowCompanionRoster** na configuração. Você verá cada companheiro como **Vivo**, **Morto** (a lápide dele vai trazê-lo de volta), **Perdido** (não sobrou nada dele, então pode ser recuperado) ou **Desconhecido**.
+- **Trazer um de volta:** ligue **General > RecoverLostCompanion**. O primeiro companheiro Perdido aparece do seu lado com o equipamento e as configurações do último salvamento da lista. As duas opções se desligam sozinhas depois.
 
-What the statuses mean:
+O que os status significam:
 
-- **Unknown:** on a dedicated server your game can only check the area around you, so a companion that isn't nearby is Unknown. It may still be alive somewhere. The shrine adds a warning when it asks; from the config, turn RecoverLostCompanion on a second time within 60 seconds to recover it anyway. If it had died, its tombstone keeps whatever was in it too.
-- **No doubles:** if the old companion turns up later, it's removed, and its old tombstone won't bring it back.
-- **Old tombstones:** a recovered companion still knows its own tombstones. Like a respawned one, it walks over and collects its things when it's near one (within Death > TombstoneRecoveryRange, 50 m). You can also empty it yourself.
-- A companion only joins the roster once it's been near you with version 1.5.1 or later. A despawned companion is taken off the roster.
+- **Desconhecido:** num servidor dedicado o seu jogo só consegue verificar a área em volta de você, então um companheiro que não está por perto fica Desconhecido. Ele pode ainda estar vivo em algum lugar. O santuário acrescenta um aviso quando pergunta; pela configuração, ligue RecoverLostCompanion uma segunda vez em até 60 segundos para recuperá-lo assim mesmo. Se ele tiver morrido, a lápide dele também guarda o que estava nele.
+- **Sem duplicatas:** se o companheiro antigo aparecer depois, ele é removido, e a lápide antiga dele não vai trazê-lo de volta.
+- **Lápides antigas:** um companheiro recuperado ainda conhece as próprias lápides. Como um que renasceu, ele anda até lá e recolhe as coisas quando está perto de uma (dentro de Death > TombstoneRecoveryRange, 50 m). Você também pode esvaziá-la você mesmo.
+- Um companheiro só entra na lista depois de ficar perto de você na versão 1.5.1 ou mais nova. Um companheiro dispensado sai da lista.
 
-## Getting around
+## Locomoção
 
-Companions find their own way:
+Os companheiros acham o próprio caminho:
 
-- **Doors:** they open doors and gates as they reach them, line up with the doorway, and close the door behind them.
-- **Steps and ledges:** they hop up steps and drop off ledges up to 3 m (no fall damage) when that's much shorter than going round.
-- **Ladders:** to get up to where you are (a tower, a platform), they climb a wooden ladder like you would: walk to its foot and into it, and the ladder lifts them up. If the ladder starts above the ground, or pushing into it doesn't lift them, they jump onto it; after a few jumps that don't get them on, they try another way up. A ladder that starts from a floor is climbed from that floor, not jumped at from underneath it. Ladders stacked on top of each other are climbed all the way up. If the ladder stops a little short, they jump from the top onto the floor or ledge next to it, or up onto the top of a wall and from there onto the floor. A tower of short ladders with landings between is climbed as one staircase: they plan the whole chain first, go from each top straight to the next foot, and remember chains that worked (after a fall they get straight back on). Going down works the same way. They pick a ladder whose foot they can walk to on their own level and whose top gets them closest to where they're going, and go up a chain of ladders one after another. A ladder that didn't work, or keeps landing them back where they started, is left alone for a few minutes.
-- **Following your path:** when you're on another floor and they can't find a way there themselves (a tight tower of short ladders and small floors), they go to the last spot where you were on their level and follow your exact steps from there, into each ladder the way you went and jumping where you jumped. If you jumped down something that would cost them more than 30% of their health, they find another way down instead.
-- **Edges:** they don't walk off a drop of more than 3 m (Movement > MaxDrop) onto dry ground - they stop at the edge and look for a ladder, stairs or a safe drop instead.
-- **Getting down:** they take the stairs or the way round when there is one, or go back down the ladder they came up. Only when there's no other way down do they jump down a drop, up to 8 m (Movement > StuckDrop) and never one that would cost more than 30% of their health right now A gap over a harmful drop is only jumped with room to spare.
-- **Fall damage:** companions take fall damage like a player: none up to 4 m, more the further they fall (Feather Fall helps them too).
-- **Water:** they jump narrow streams and small gaps. They walk around water when the dry way isn't much longer, and otherwise swim.
-- **Walking or running:** they walk while working and run when what they're heading for is more than 25 m away.
-- **Fire and tar:** they avoid fire and tar pits.
+- **Portas:** eles abrem portas e portões ao chegar, se alinham com o vão e fecham a porta atrás de si.
+- **Degraus e beiradas:** eles pulam degraus e descem de beiradas de até 3 m (sem dano de queda) quando isso é bem mais curto do que dar a volta.
+- **Escadas de mão:** para subir até onde você está (uma torre, uma plataforma), eles sobem uma escada de madeira como você faria: andam até o pé dela e entram nela, e a escada os levanta. Se a escada começa acima do chão, ou empurrar contra ela não os levanta, eles pulam para dentro dela; depois de alguns pulos que não dão certo, eles tentam outro jeito de subir. Uma escada que começa de um piso é subida a partir daquele piso, não é pulada de baixo. Escadas empilhadas uma em cima da outra são subidas até o topo. Se a escada para um pouco antes, eles pulam do topo para o piso ou a beirada ao lado, ou para cima de um muro e de lá para o piso. Uma torre de escadas curtas com patamares no meio é subida como uma escada só: eles planejam a corrente inteira primeiro, vão de cada topo direto para o pé seguinte, e lembram as correntes que funcionaram (depois de uma queda eles voltam direto para cima). Descer funciona do mesmo jeito. Eles escolhem uma escada cujo pé eles consigam alcançar andando no próprio nível e cujo topo os deixe o mais perto possível de onde vão, e sobem uma corrente de escadas uma atrás da outra. Uma escada que não funcionou, ou que sempre os deixa de volta onde começaram, fica de lado por alguns minutos.
+- **Seguindo o seu caminho:** quando você está em outro andar e eles não conseguem achar o caminho sozinhos (uma torre apertada de escadas curtas e pisos pequenos), eles vão até o último lugar onde você estava no nível deles e seguem os seus passos exatos dali, entrando em cada escada do jeito que você entrou e pulando onde você pulou. Se você pulou de algo que custaria a eles mais de 30% da vida, eles procuram outro jeito de descer.
+- **Beiradas:** eles não andam para fora de uma queda de mais de 3 m (Movement > MaxDrop) sobre chão seco — eles param na beirada e procuram uma escada, degraus ou uma queda segura.
+- **Descer:** eles usam a escada ou dão a volta quando existe, ou descem pela escada de mão por onde subiram. Só quando não há outro jeito de descer eles pulam uma queda, de até 8 m (Movement > StuckDrop) e nunca uma que custaria mais de 30% da vida deles naquele momento. Um vão sobre uma queda perigosa só é saltado com folga.
+- **Dano de queda:** companheiros tomam dano de queda como um jogador: nenhum até 4 m, e maior quanto mais longe caírem (o efeito Feather Fall ajuda eles também).
+- **Água:** eles pulam riachos estreitos e vãos pequenos. Eles contornam a água quando o caminho seco não é muito mais longo, e senão nadam.
+- **Andar ou correr:** eles andam enquanto trabalham e correm quando o que estão indo buscar está a mais de 25 m.
+- **Fogo e piche:** eles evitam fogo e poços de piche.
 
-## Skills
+## Habilidades
 
-Companions get better at what they do, like a player. Fighting raises their weapon skills, and jobs raise the matching skills (woodcutting, pickaxes, fishing, sneaking…). When a skill levels up, you get a message.
+Os companheiros ficam melhores no que fazem, como um jogador. Lutar aumenta as habilidades de arma deles, e os trabalhos aumentam as habilidades correspondentes (corte de madeira, picaretas, pesca, furtividade…). Quando uma habilidade sobe de nível, você recebe uma mensagem.
 
 ## Multiplayer
 
-- **Your companion stays yours.** Sometimes another player's game runs your companion (the game hands characters to whichever nearby player's computer it likes). Even then, it follows you, sleeps when you sleep and sits when you sit.
-- **Your orders always work.** When you give an order or open its wheel, your game takes over running it.
-- **Shared chests are safe.** Items a companion moves are saved properly, with no losses or duplicates. It won't use a chest another player has open.
-- **Credit goes to the owner.** Crops it plants and piles it builds count as built by its owner.
-- **Everyone needs the mod, including the server.** On a dedicated server, install the mod on the server as well as on every player's game. A server (or a host) without the mod deletes any companion it loads. You can bring a deleted companion back from the roster (see [Recovering a lost companion](#recovering-a-lost-companion)), but it's better not to lose it in the first place. A dedicated server always keeps the area around the middle of the world loaded, so companions near the world spawn are at risk even while everyone is online. Players without the mod simply can't see companions.
+- **O seu companheiro continua seu.** Às vezes o jogo de outro jogador é quem roda o seu companheiro (o jogo entrega os personagens para o computador do jogador por perto que ele quiser). Mesmo assim, ele segue você, dorme quando você dorme e senta quando você senta.
+- **As suas ordens sempre funcionam.** Quando você dá uma ordem ou abre a roda dele, o seu jogo assume o controle dele.
+- **Baús compartilhados são seguros.** Itens que um companheiro move são salvos corretamente, sem perdas nem duplicação. Ele não usa um baú que outro jogador deixou aberto.
+- **O crédito vai para o dono.** As plantações que ele planta e as pilhas que ele constrói contam como construídas pelo dono dele.
+- **Todo mundo precisa do mod, inclusive o servidor.** Num servidor dedicado, instale o mod no servidor e no jogo de cada jogador. Um servidor (ou um anfitrião) sem o mod apaga qualquer companheiro que carregar. Você pode trazer um companheiro apagado de volta pela lista (veja [Recuperando um companheiro perdido](#recuperando-um-companheiro-perdido)), mas é melhor não perdê-lo. Um servidor dedicado sempre mantém carregada a área em volta do centro do mundo, então companheiros perto do ponto inicial do mundo correm risco mesmo com todo mundo online. Jogadores sem o mod simplesmente não conseguem ver os companheiros.
 
-## Troubleshooting
+## Solução de problemas
 
-**My companion is just standing there.**
-Usually its job has nothing to do, and it will start idling within a few seconds. Common reasons:
-- **Cook:** it's leaving the ingredient reserve for you.
-- **Gathering:** the items have reached their limits.
-- **Farm:** there's no cultivated ground in its zones.
-- **Smelt:** it has no input in the chests.
+**O meu companheiro só está parado ali.**
+Normalmente o trabalho dele não tem nada para fazer, e ele começa a ficar à toa em alguns segundos. Motivos comuns:
+- **Cozinhar:** ele está deixando a reserva de ingredientes para você.
+- **Coleta:** os itens chegaram aos limites.
+- **Plantar:** não há terra cultivada nas zonas dele.
+- **Fundir:** ele não tem insumo nos baús.
 
-Check the log (below) for the reason.
+Confira o log (abaixo) para saber o motivo.
 
-**My companion has disappeared.**
-Use Odin's Shrine, or turn on **General > ShowCompanionRoster**, to see its status. If it's Lost or Unknown, see [Recovering a lost companion](#recovering-a-lost-companion).
+**O meu companheiro sumiu.**
+Use o Santuário de Odin, ou ligue **General > ShowCompanionRoster**, para ver o status dele. Se estiver Perdido ou Desconhecido, veja [Recuperando um companheiro perdido](#recuperando-um-companheiro-perdido).
 
-**It didn't get anything done while I was away.**
-The game unloads parts of the world that no player is near, and companions there freeze until someone comes back. A companion only works while you (or another player) are close enough for its area to stay loaded.
+**Ele não fez nada enquanto eu estava fora.**
+O jogo descarrega as partes do mundo onde não há nenhum jogador, e os companheiros ali congelam até alguém voltar. Um companheiro só trabalha enquanto você (ou outro jogador) está perto o bastante para a área dele ficar carregada.
 
-**It won't go to bed.**
-It needs a free bed in its home area (set a home first), and it has to be within 50 m of the bed.
+**Ele não vai dormir.**
+Ele precisa de uma cama livre na área da casa dele (defina uma casa primeiro) e tem que estar a até 50 m da cama.
 
-**It keeps walking to a station to repair.**
-At home, gear is repaired once it drops below 80%. You can change `HomeThreshold` in the Gear Repair settings.
+**Ele vive indo até uma bancada para consertar.**
+Em casa, o equipamento é consertado quando cai abaixo de 80%. Você pode mudar `HomeThreshold` nas configurações de conserto de equipamento.
 
-**It ignores a chest.**
-That chest may be open, private (built by another player), behind a ward, or outside its range.
+**Ele ignora um baú.**
+Esse baú pode estar aberto, ser privado (construído por outro jogador), estar atrás de uma área protegida, ou fora do alcance dele.
 
-**Reading the log**
-Companions write what they're doing and why to `BepInEx/LogOutput.log`, for example "Nothing to cook right now" or "No station within 20m can repair…". If something seems wrong, that file is the best thing to include in a bug report.
+**Lendo o log**
+Os companheiros escrevem o que estão fazendo e por quê em `BepInEx/LogOutput.log`, por exemplo "Nothing to cook right now" ou "No station within 20m can repair…". Se algo parecer errado, esse arquivo é a melhor coisa para incluir num relato de bug.
