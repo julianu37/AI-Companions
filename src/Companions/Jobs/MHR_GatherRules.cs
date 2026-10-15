@@ -12,6 +12,9 @@ namespace Companions
             public int LimitRejects, OtherRejects;
             // Fase 3.2: candidates this frame's scan turned away because an order's target was met (see CapReject)
             public int CapRejects; public int CapFrame;
+            // Fase 3.3d: is the number an order asked for already in the pack? Decided once per frame per mode (see
+            // OrderMet), so the scan's walk over the candidates costs one inventory count, not one per candidate.
+            public bool OrderFull; public int OrderFullFrame = -1; public int OrderFullMode = -1;
             public float NextPlenty;
             public bool PackFull;
             public float DodgeUntil; public Vector3 DodgePoint;
@@ -117,19 +120,36 @@ namespace Companions
             int id = go.GetInstanceID();
             if (s_dropsCache.TryGetValue(id, out l)) return l;
             l = new List<string>();
-            TreeBase tb = go.GetComponent<TreeBase>();
-            if (tb != null) { AddTable(tb.m_dropWhenDestroyed, l); AddLog(tb.m_logPrefab, l, 0); }
-            TreeLog tl = go.GetComponent<TreeLog>();
-            if (tl != null) { AddTable(tl.m_dropWhenDestroyed, l); AddLog(tl.m_subLogPrefab, l, 0); }
-            MineRock mr = go.GetComponent<MineRock>();
-            if (mr != null) AddTable(mr.m_dropItems, l);
-            MineRock5 mr5 = go.GetComponent<MineRock5>();
-            if (mr5 != null) AddTable(mr5.m_dropItems, l);
-            DropOnDestroyed dod = go.GetComponent<DropOnDestroyed>();
-            if (dod != null) AddTable(dod.m_dropWhenDestroyed, l);
+            AddDrops(go, l, 0);
             if (s_dropsCache.Count > 2000) s_dropsCache.Clear();
             s_dropsCache[id] = l;
             return l;
+        }
+        // Fase 3.3d: what a thing leaves behind when it breaks is often where the loot really is. Rock_3 has no drop
+        // table at all (health 1) - its stone comes from the Rock_3_frac it spawns when destroyed (a MineRock5, 3-6
+        // Stone per hit area). Judged only by its own components the rock looked like it drops nothing, and a target
+        // with no known drops is never blocked ("unknown drops: don't block it"), so a stone order was never capped
+        // there. Depth-limited (a spawn chain, never a loop) and cached per target by DropsOf, so it costs nothing
+        // per frame - once per target, and only for things that actually spawn something.
+        static void AddDrops(GameObject go, List<string> outList, int depth)
+        {
+            if (go == null || depth > 3) return;
+            TreeBase tb = go.GetComponent<TreeBase>();
+            if (tb != null) { AddTable(tb.m_dropWhenDestroyed, outList); AddLog(tb.m_logPrefab, outList, 0); }
+            TreeLog tl = go.GetComponent<TreeLog>();
+            if (tl != null) { AddTable(tl.m_dropWhenDestroyed, outList); AddLog(tl.m_subLogPrefab, outList, 0); }
+            MineRock mr = go.GetComponent<MineRock>();
+            if (mr != null) AddTable(mr.m_dropItems, outList);
+            MineRock5 mr5 = go.GetComponent<MineRock5>();
+            if (mr5 != null) AddTable(mr5.m_dropItems, outList);
+            DropOnDestroyed dod = go.GetComponent<DropOnDestroyed>();
+            if (dod != null) AddTable(dod.m_dropWhenDestroyed, outList);
+            Destructible des = go.GetComponent<Destructible>();
+            if (des != null)
+            {
+                AddDrops(des.m_spawnWhenDestroyed, outList, depth + 1);
+                AddDrops(des.m_spawnWhenDamaged, outList, depth + 1);
+            }
         }
 
         // ---------- stock counting ----------
@@ -216,6 +236,29 @@ namespace Companions
             return (h != null && !h.IsDirectedHarvest) ? CompanionSetup.OrderCapItem(h, mode) : "";
         }
 
+        // Fase 3.3d: the item an order named is already in the companion's own pack at the number asked, so from
+        // here on EVERY target of that mode is turned away - not only the ones the classifier knows produce that
+        // item. Without it a target whose drops it cannot see (a rock that only carries loot in what it spawns when
+        // it breaks, see AddDrops) kept the job alive after the number was reached: the order never ended and the
+        // companion mined stone well past "colete 10 pedras". Judged on the same count as the rest of Fase 3.2c -
+        // the pack, remembering the highest it has held (OrderSeen), so unloading into a chest doesn't start the
+        // order over - and never for a target the player pointed at on the radial (that is not a chat order).
+        // The answer is remembered for the frame (and the mode), so a scan pays for it once, not per candidate.
+        static bool OrderMet(HarvestController h, int mode)
+        {
+            if (h == null) return false;
+            Per p = P(h);
+            if (p.OrderFullFrame != Time.frameCount || p.OrderFullMode != mode)
+            {
+                p.OrderFullFrame = Time.frameCount;
+                p.OrderFullMode = mode;
+                string ordered = OrderedItem(h, mode);
+                // "" = no order for this job, another mode's order, or a target the player pointed at on the radial
+                p.OrderFull = ordered.Length > 0 && CompanionSetup.OrderSeen(h, Bag(h, ordered)) >= CompanionSetup.OrderCap(h, mode);
+            }
+            return p.OrderFull;
+        }
+
         // Fase 3.2c: what the companion is carrying in its OWN pack. An order's number is a total counted here -
         // not in the chests near home or in the wood/stone piles, which is what Stock() counts for the config's own
         // limits (WoodLimit & co. mean "we have plenty"; the player's order means "have this much on you").
@@ -265,17 +308,44 @@ namespace Companions
                 Per p;
                 // the rejection has to be from this frame's scan - a stale count must never end an order
                 if (!s_per.TryGetValue(h.GetInstanceID(), out p) || p.CapRejects <= 0 || p.CapFrame != Time.frameCount) return false;
-                int cap = CompanionSetup.OrderCap(h, mode);
-                if (cap <= 0) return false;
+                if (CompanionSetup.OrderCap(h, mode) <= 0) return false;
                 p.CapRejects = 0;
-                string item = CompanionSetup.OrderCapItem(h, mode);
-                Info("Order target reached (" + cap + " " + (item.Length > 0 ? item + " in the pack" : (mode == 1 ? "wood" : mode == 2 ? "stone" : "ore")) + ") - order done, back to following");
-                CompanionTalk talk = h.GetComponent<CompanionTalk>();
-                if (talk != null) talk.Say(ModLocalization.Loc(mode == 1 ? "hc_speech_plenty_wood" : mode == 2 ? "hc_speech_plenty_stone" : "hc_speech_plenty_ore"), false);
-                CompanionSetup.CompleteOrderCap(h);
-                return true;
+                return FinishOrder(h, mode);
             }
             catch (Exception e) { Warn("OrderDone: " + e.Message); return false; }
+        }
+
+        // Fase 3.3d: the same ending, but decided on the pack alone - for the case the number asked for is reached
+        // while the companion is still working a target. The scan between targets (OrderDone) catches that too, only
+        // it may take a whole rock to get there: a stone rock's loot comes from what it spawns when it breaks (see
+        // AddDrops), so "colete 10 pedras" could go on for 20 or 30 before the next scan ever ran. Called by
+        // HarvestController while it is moving to or working a target - never while it is picking up what that target
+        // dropped, so nothing it has just mined is left lying on the ground.
+        public static bool OrderDoneNow(HarvestController h, int mode)
+        {
+            try
+            {
+                if (h == null || mode < 1 || mode > 3) return false;
+                if (h.IsDirectedHarvest) return false;
+                if (!OrderMet(h, mode)) return false;
+                Per p;
+                if (s_per.TryGetValue(h.GetInstanceID(), out p)) p.CapRejects = 0;
+                return FinishOrder(h, mode);
+            }
+            catch (Exception e) { Warn("OrderDoneNow: " + e.Message); return false; }
+        }
+
+        // The order is met: say so once, forget the number and go back to following, exactly like "stop".
+        static bool FinishOrder(HarvestController h, int mode)
+        {
+            int cap = CompanionSetup.OrderCap(h, mode);
+            if (cap <= 0) return false;
+            string item = CompanionSetup.OrderCapItem(h, mode);
+            Info("Order target reached (" + cap + " " + (item.Length > 0 ? item + " in the pack" : (mode == 1 ? "wood" : mode == 2 ? "stone" : "ore")) + ") - order done, back to following");
+            CompanionTalk talk = h.GetComponent<CompanionTalk>();
+            if (talk != null) talk.Say(ModLocalization.Loc(mode == 1 ? "hc_speech_plenty_wood" : mode == 2 ? "hc_speech_plenty_stone" : "hc_speech_plenty_ore"), false);
+            CompanionSetup.CompleteOrderCap(h);
+            return true;
         }
 
         public static bool AllowTarget(HarvestController h, GameObject go, int mode)
@@ -284,6 +354,11 @@ namespace Companions
             {
                 if (go == null || mode < 1 || mode > 3) return true;
                 Per p = P(h);
+                // Fase 3.3d: the order's number is already in the pack - nothing of this mode is worked any more, so
+                // the scan comes up empty and OrderDone ends the order (once) and sends the companion back to
+                // following, exactly like "stop". Counted as a ceiling rejection, not as a limit one: the config's
+                // "at its limit - waiting" line is not about a player order.
+                if (OrderMet(h, mode)) { CapReject(p); return false; }
                 bool standingTree = go.GetComponent<TreeBase>() != null;
                 if (standingTree)
                 {
@@ -311,13 +386,9 @@ namespace Companions
                 if (!listed) { p.OtherRejects++; return false; }
                 // Fase 3.2c: when the order named this item and the target drops it, the order decides alone - a tree
                 // is not chopped just because its resin is still under WoodLimit (the Wood list carries Resin too,
-                // and before this phase the target was kept for it). The number is a total counted in the pack.
-                if (orderedHere)
-                {
-                    if (CompanionSetup.OrderSeen(h, Bag(h, ordered)) < CompanionSetup.OrderCap(h, mode)) return true;
-                    CapReject(p);
-                    return false;
-                }
+                // and before this phase the target was kept for it). The number itself is judged at the top of this
+                // method (OrderMet): this is only reached while the pack is still short of what was asked.
+                if (orderedHere) return true;
                 for (int i = 0; i < drops.Count; i++)
                 {
                     if (!list.Allows(drops[i], ItemLocal(drops[i]))) continue;
@@ -370,17 +441,16 @@ namespace Companions
                 if (pick == null || pick.m_itemPrefab == null) return false;
                 string item = pick.m_itemPrefab.name;
                 if (!LooseItem(mode, item)) return false;
+                // Fase 3.3d: the order's number is already in the pack - what is lying on the ground is left there
+                // too, so the loose scan ends the order the same way a target does (see OrderMet).
+                if (OrderMet(h, mode)) { CapReject(P(h)); return false; }
                 MHR_List list = Parse(mode);
                 if (list == null) return true;
                 if (!list.Allows(item, ItemLocal(item))) return false;
                 // Fase 3.2c: an order that named this item counts it in the pack, so "colete 10 madeiras" stops
-                // picking branches up at 10 in the pack even with a chest full of wood at home.
-                if (string.Equals(item, OrderedItem(h, mode), StringComparison.OrdinalIgnoreCase))
-                {
-                    if (CompanionSetup.OrderSeen(h, Bag(h, item)) < CompanionSetup.OrderCap(h, mode)) return true;
-                    CapReject(P(h));
-                    return false;
-                }
+                // picking branches up at 10 in the pack even with a chest full of wood at home. The number itself is
+                // judged at the top of this method (OrderMet): this is only reached while the pack is short of it.
+                if (string.Equals(item, OrderedItem(h, mode), StringComparison.OrdinalIgnoreCase)) return true;
                 // Fase 3.2: an order that named no item the game knows caps this too, so "colete 5" also stops
                 // picking things up at 5 (Fase 3.2c: counted in the pack, see Have).
                 bool capped;

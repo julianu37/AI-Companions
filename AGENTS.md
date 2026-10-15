@@ -60,7 +60,7 @@ skills em `.opencode/skills/`. Leia este arquivo antes de agir.
 
 Notas de desenvolvimento do upstream: `docs/DEV_NOTES.md`; handoff: `docs/SESSION_HANDOFF.md`.
 
-## Camada de IA (Fase 3.1 — ordens por texto no chat; Fase 3.2/3.2c — o número da ordem é um alvo total contado no inventário do companheiro; Fase 3.5 — personalidade, memória e conversa livre; Fase 3.6 — ordens com alvo: atacar/equipar/largar; Fase 3.3 — ordens por voz: push-to-talk + STT local; Fase 3.3c — raio de coleta maior e chatter aleatório desligado)
+## Camada de IA (Fase 3.1 — ordens por texto no chat; Fase 3.2/3.2c — o número da ordem é um alvo total contado no inventário do companheiro; Fase 3.5 — personalidade, memória e conversa livre; Fase 3.6 — ordens com alvo: atacar/equipar/largar; Fase 3.3 — ordens por voz: push-to-talk + STT local; Fase 3.3c — raio de coleta maior e chatter aleatório desligado; Fase 3.3d — o teto da ordem vale para todo alvo do modo e a voz sai no balão do jogador)
 
 O jogador digita no chat do jogo (`colete 20 de madeira`, `segue`, `para`, `ataca o greydwarf`,
 `equipa o machado de bronze`, `larga a pedra`, `bom dia`) e um **LLM local** (API compatível com a OpenAI:
@@ -144,6 +144,27 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   raios são atualizados **só** se estiverem exatamente no default antigo (`MovedDefault`, log explicando), depois do
   `MigrateAndClean` (cobre nomes pré-1.4.149); a chave nova é criada pelo BepInEx com `false`. Detalhes:
   `docs/roadmap.md` (Fase 3.3c).
+- **Fase 3.3d — a ordem de pedra para no alvo + o texto da voz no balão do jogador:** (1) **causa raiz confirmada nos
+  assets do jogo:** `Rock_3` é um `Destructible` com `health = 1` e **nenhuma tabela de drop** — a pedra vem do
+  `Rock_3_frac` que ele **spawna ao quebrar** (`m_spawnWhenDestroyed`), um `MineRock5` com `Stone` 3–6 por área (5
+  áreas ≈ 15–30 por rocha); como o `MHR_GatherRules.DropsOf` só olhava os componentes do próprio alvo, `Rock_3`
+  parecia "não dropa nada" e o `AllowTarget` caía no `drops.Count == 0 → "unknown drops: don't block it"` — **o teto
+  da ordem (e o `StoneLimit`) não valia para ele** e o companheiro minerava para sempre (log: 10+ pedras com a ordem
+  de 2, Pickaxes 6→8, sem linha de "alvo atingido" para pedra; a de **madeira** encerrava normal). **Correção:**
+  (a) `DropsOf` **segue o que o alvo spawna** (`Destructible.m_spawnWhenDestroyed`/`m_spawnWhenDamaged`, profundidade
+  ≤ 3, cache por alvo que já existia) — `AddDrops`; (b) novo `MHR_GatherRules.OrderMet`: com **ordem ativa para o
+  modo** + **item pedido conhecido** + **`OrderSeen(Bag(item)) >= cap`** (contagem da 3.2c, no inventário do
+  companheiro), **TODOS** os alvos daquele modo são recusados (não só os que produzem o item) em `AllowTarget` **e**
+  `AllowLoose`, cada recusa contando `CapReject` → o caminho `OrderDone`/`CompleteOrderCap` que já existia encerra a
+  ordem **uma vez** e volta a seguir; resposta cacheada por frame/modo (`Per.OrderFull*`); (c) novo
+  `OrderDoneNow` chamado pelo `HarvestController.Update` enquanto o companheiro está `Moving`/`Attacking` (nunca em
+  `CollectingDrops`, para não deixar o drop no chão) — antes o número só era conferido no *scan* entre alvos.
+  **Não muda:** sem ordem tudo é como antes, alvo do **radial** (`IsDirectedHarvest`) ignora o teto, limites da
+  config intactos. (2) **Balão da voz:** `HeardByVoice` não manda mais o companheiro repetir a transcrição; ela vai
+  para o balão do **jogador** via `CompanionTalk.SayAsPlayer` (`Chat.instance.SetNpcText(Player.m_localPlayer.gameObject,
+  Vector3.up * 2f, SpeechCullDistance, SpeechDuration, "", texto, false)`, mesmo offset/cull/duração, sem cooldown,
+  null-safe) — o chat/HUD continua com "Entendi: …" e as respostas do companheiro (conversa, "Deixa comigo!") seguem no
+  balão **dele**. Detalhes: `docs/roadmap.md` (Fase 3.3d) e `docs/re/harvesting-notes.md` (§2.1).
 - Backend/contrato de referência: `docs/re/backend-contract.md`; mapa da fase: `docs/roadmap.md` (Trilha D);
   pipeline de voz: `docs/re/stt-voz-pipeline.md`.
 

@@ -2,7 +2,39 @@
 
 All notable changes to this fork of ProfMags' Offline Companions. Versions before 1.4.0 are the original mod (see [ProfMags' Thunderstore page](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) for that history) plus the initial batch of Valheim 1.0 API-compatibility fixes that let the mod load and run at all on 1.0.
 
-## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Fase 3.3c: raio de coleta maior e chatter aleatório desligado + Tradução PT-BR (fork ModAI-BR-Companions)
+## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Fase 3.3c: raio de coleta maior e chatter aleatório desligado + Fase 3.3d: a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador + Tradução PT-BR (fork ModAI-BR-Companions)
+- **Fase 3.3d — a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador.** Dois problemas do teste
+  em jogo, sem lógica nova de ordem/job/UI/STT (nada de radial, IA ou raios da 3.3c foi tocado).
+  - **`colete 10 pedras` nunca parava.** Causa confirmada no jogo (bundle `c4210710`, `Assets/world/Props/Rock_3.prefab`)
+    e no log: `Rock_3` é um **`Destructible` com `health = 1` e NENHUMA tabela de drop** — a pedra vem do
+    `Rock_3_frac` que ele **spawna ao ser destruído** (`m_spawnWhenDestroyed`), e esse frac é um **`MineRock5`** com
+    3-6 `Stone` por área de golpe (5 áreas ≈ 15-30 pedras por rocha). Como o `MHR_GatherRules.DropsOf` só olhava os
+    componentes do próprio alvo, `Rock_3` parecia "não dropa nada" → o `AllowTarget` caía no
+    `drops.Count == 0 → "unknown drops: don't block it"` → **o teto da ordem (e o próprio `StoneLimit`) não valia
+    para ele**, então o companheiro minerava para sempre (no log: 10+ pedras com a ordem de 2, Pickaxes 6→7→8 e
+    nenhuma linha de "alvo atingido" para pedra; a ordem de **madeira** parava normalmente).
+    - **Na raiz:** `DropsOf` agora **segue o que o alvo spawna** ao quebrar (`Destructible.m_spawnWhenDestroyed` e
+      `m_spawnWhenDamaged`, com limite de profundidade 3 e cache por alvo que já existia) — `Rock_3` passa a ser
+      julgado pelas pedras do frac dele, como já era o caso do `Rock_4` (que tem `DropOnDestroyed` com 3-6 pedras).
+    - **Rede de segurança (o pedido do jogador):** novo `MHR_GatherRules.OrderMet` — quando há **ordem ativa para o
+      modo** e o **item pedido é conhecido** e o **inventário do companheiro já tem o número** (contado como na
+      3.2c, `OrderSeen(Bag)`, teto do que ele já teve), **TODOS** os alvos daquele modo são recusados, não só os que
+      produzem o item. Vale para `AllowTarget` **e** `AllowLoose`; cada recusa conta como `CapReject`, então o
+      caminho de `OrderDone`/`CapRejects` que já existia encerra a ordem **uma vez** ("Order target reached … - order
+      done, back to following") e o companheiro volta a seguir. Sem ordem, o comportamento é o de sempre; alvo
+      apontado no **radial** (`IsDirectedHarvest`) **ignora** o teto, como antes.
+    - **Ele para na hora:** `HarvestController.Update` chama o novo `MHR_GatherRules.OrderDoneNow` enquanto está
+      **indo ou trabalhando** um alvo (nunca durante a coleta do que aquele alvo dropou, para não deixar pedra no
+      chão) — sem isso o número só era conferido no próximo *scan*, e uma rocha de pedra pode render uma rocha
+      inteira antes disso. Custo: uma contagem do inventário por frame (a mesma que o `IsOverweight()` já faz), e só
+      com ordem ativa.
+  - **O texto da voz aparece sob a cabeça do JOGADOR.** A transcrição do push-to-talk (`HeardByVoice`) era repetida
+    pelo companheiro mais próximo (`Speak(PickSpeaker(), texto)`), o que punha a **fala do jogador** no balão do
+    companheiro. Agora ela vai para o balão do **jogador** (`CompanionTalk.SayAsPlayer` →
+    `Chat.instance.SetNpcText(Player.m_localPlayer.gameObject, Vector3.up * 2f, SpeechCullDistance, SpeechDuration,
+    "", texto, false)` — mesmo offset/distância/duração do balão do companheiro, sem cooldown) e o feedback
+    "Entendi: …" continua no **chat/HUD**. `Player.m_localPlayer == null` não faz nada. As respostas do companheiro
+    (conversa da IA, "Deixa comigo!", "já temos de sobra") **continuam** no balão dele.
 - **Fase 3.3c — raio de coleta maior e chatter aleatório desligado.** Dois pedidos do jogador, sem lógica nova (nenhuma
   ordem, job, radial, UI, IA ou STT foi tocado).
   - **O companheiro procura e trabalha mais longe.** Os cinco raios da coleta subiram de default:

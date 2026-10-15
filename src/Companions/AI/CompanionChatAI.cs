@@ -25,7 +25,9 @@ namespace Companions;
 /// Fase 3.3 adds the VOICE source: the text the microphone produced (see VoiceInput/WhisperStt) is handed to the same
 /// <see cref="Submit"/> the chat uses, so a spoken order is the same order - nothing is duplicated for it here. The
 /// only voice-specific bits are the lines the pipeline itself shows ("Ouvindo...", "Entendi: ...") and the refusal
-/// notice when the AI is off, on cooldown or still busy.
+/// notice when the AI is off, on cooldown or still busy. Fase 3.3d: the "Entendi: ..." line is what the PLAYER said,
+/// so its speech bubble goes under the player's head (CompanionTalk.SayAsPlayer) - the companion's own answers keep
+/// speaking in their own bubble (Speak).
 /// </summary>
 internal static class CompanionChatAI
 {
@@ -254,8 +256,11 @@ internal static class CompanionChatAI
 	}
 
 	/// <summary>
-	/// Fase 3.3: shows what the microphone understood ("Entendi: ...") and has the nearest companion repeat it out
-	/// loud, exactly like the chat path confirms an order. Called on the main thread, once per transcription.
+	/// Fase 3.3: shows what the microphone understood ("Entendi: ...") in the HUD and the chat. Fase 3.3d: the line
+	/// itself is the PLAYER's, so the speech bubble goes under the player's own head (CompanionTalk.SayAsPlayer) -
+	/// before this the nearest companion repeated it, which put the player's words over the companion. The
+	/// companion's own answers are unaffected: they still speak in their own bubble (see Speak). Called on the main
+	/// thread, once per transcription.
 	/// </summary>
 	internal static void HeardByVoice(string text)
 	{
@@ -264,7 +269,11 @@ internal static class CompanionChatAI
 			return;
 		}
 		Notify(ModLocalization.LocFmt("hc_ai_voice_heard", text));
-		Speak(PickSpeaker(), text);
+		Player player = Player.m_localPlayer;
+		if (player != null)
+		{
+			CompanionTalk.SayAsPlayer(player.gameObject, text);
+		}
 	}
 
 	/// <summary>

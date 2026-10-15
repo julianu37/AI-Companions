@@ -614,7 +614,8 @@ caminho das ordens do chat** — ordem, conversa, personalidade, memória: tudo 
 - **Guardas:** sem microfone, sem modelo, jogo sem foco, janela aberta (inventário/mapa/menu/chat/console/painéis do
   mod) ou uma transcrição/pedido ainda em andamento — em todos os casos o mod **avisa no chat/HUD** em vez de gravar.
 - **O texto entra no pipeline do chat:** `VoiceInput.HandleTranscript` → `CompanionChatAI.HeardByVoice(texto)` (mostra
-  `Entendi: "..."` e o companheiro repete no balão) → **`CompanionChatAI.Submit(texto, "voz", true)`**, a mesma
+  `Entendi: "..."` e, desde a 3.3d, põe o texto reconhecido no balão do **jogador**) → **`CompanionChatAI.Submit(texto,
+  "voz", true)`**, a mesma
   função que o patch de `Chat.SendText` chama. Nenhuma lógica de ordem foi duplicada; o prefixo `[IA] Prefixo` **não**
   se aplica à voz (ele é um filtro do chat).
 - **Por que `UnityEngine.AudioModule` por reflexão:** o mod compila em **net472** e referencia o pacote **Whisper.net**
@@ -818,4 +819,93 @@ sao procurados ate 25 m de voce, em vez de 10 m. Coloque 10 de volta se preferir
    conferir que a fala **contextual** continua: **"Deixa comigo!"** na troca de modo e a linha da ordem no chat/balão.
    Falar por voz (`bom dia`) e conferir que a resposta da IA continua aparecendo.
 4. **Voltar ao antigo:** `[Speech] Chatter = true` e o chatter de 15–30 s volta.
+
+### Fase 3.3d — a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador (✅ — build; teste em jogo pendente)
+
+Dois problemas do teste em jogo da 3.3c: (1) `colete 10 pedras` **nunca parava**; (2) a transcrição da voz aparecia no
+balão do **companheiro** em vez do **jogador**. Nada de ordem, job, radial, UI, STT ou dos raios/chatter da 3.3c foi
+tocado.
+
+#### 1. `colete 10 pedras` nunca parava (causa raiz confirmada)
+
+Evidência do teste (`BepInEx\LogOutput.log`, 12:59–13:02): a ordem de **madeira** (`x10`) encerrava normalmente
+(`[Gather] Order target reached (10 Wood in the pack) - order done, back to following`), a de **pedra** nunca — e o
+companheiro subiu Pickaxes de 6 para 8 minerando `Rock_3(Clone)`/`Rock_4(Clone)` com `hit mine rock 0..4` no log do
+jogo.
+
+Lido direto dos assets do jogo (bundle `c4210710` do SoftRef, via UnityPy):
+
+| Prefab | Componente | Drops |
+|---|---|---|
+| `Rock_3` | **`Destructible`**, `m_health = 1`, `m_spawnWhenDestroyed = Rock_3_frac` | **nenhuma tabela de drop** |
+| `Rock_3_frac` | **`MineRock5`**, 5 áreas, `m_health = 30` | `m_dropItems` = **`Stone` 3–6** por área |
+| `Rock_4` | `Destructible` (30 HP) + **`DropOnDestroyed`** | **`Stone` 3–6** |
+
+Ou seja: **a pedra do `Rock_3` vem do `Rock_3_frac` que ele spawna ao quebrar** (um `MineRock5` que rende ~15–30 pedras
+por rocha). Como o `MHR_GatherRules.DropsOf` só olhava os componentes do **próprio** alvo, `Rock_3` parecia **não
+dropar nada** → o `AllowTarget` caía no `drops.Count == 0` → `"unknown drops: don't block it"` → **o teto da ordem não
+valia para ele** (nem o `StoneLimit` da config). O companheiro então ia de rocha em rocha (`Rock_3` → frac → `Rock_3` →
+…) sem nunca consultar o número pedido; quando a rocha quebrava, o `TryFollowCrackedRock` continuava no frac **sem
+passar por um novo scan**, então também não havia conferência ali. O `Rock_4`, que tem `DropOnDestroyed`, era barrado
+corretamente — por isso o inventário enchia (o log mostra `already has 10+ Stone in its pack`) e a ordem ainda assim
+não encerrava.
+
+**Correção, em três partes (todas com custo por alvo/por frame, nada de alocação por frame):**
+
+1. **Na raiz — `DropsOf` segue o que o alvo spawna.** `MHR_GatherRules.AddDrops` (novo) além dos componentes do alvo
+   (`TreeBase`/`TreeLog`/`MineRock`/`MineRock5`/`DropOnDestroyed`) entra em `Destructible.m_spawnWhenDestroyed` e
+   `m_spawnWhenDamaged`, com **profundidade máxima 3** (cadeia de spawn, nunca laço) e o cache por alvo que já existia
+   (`s_dropsCache`). Com isso o `Rock_3` passa a ser julgado pelas pedras do frac dele — o teto da ordem **e** os
+   limites da config voltam a valer.
+2. **Rede de segurança — `MHR_GatherRules.OrderMet` (novo).** Se existe **ordem ativa para o modo** e o **item pedido é
+   conhecido** e o **inventário do companheiro já tem o número** (contado como na 3.2c: `OrderSeen(Bag(item))`, o teto
+   do que ele já teve, para descarregar num baú não reiniciar a ordem), **TODOS** os alvos daquele modo são recusados —
+   não só os que o classificador reconhece como produtores do item. Aplicado em `AllowTarget` **e** `AllowLoose`; cada
+   recusa conta `CapReject`, então o caminho que já existia (`OrderDone` → `CompleteOrderCap`) encerra a ordem **uma
+   vez** (linha `Order target reached (N Stone in the pack) - order done, back to following` + fala `hc_speech_plenty_*`)
+   e o companheiro volta a seguir. A resposta fica **cacheada por frame e por modo** (`Per.OrderFull*`), então um scan
+   paga uma contagem do inventário, não uma por candidato.
+3. **Ele para na hora — `MHR_GatherRules.OrderDoneNow` (novo) chamado pelo `HarvestController.Update`.** O número só era
+   conferido no *scan* (entre alvos), e uma rocha de pedra pode render uma rocha inteira antes disso. Agora, enquanto o
+   companheiro está **indo (`Moving`) ou trabalhando (`Attacking`) um alvo**, o `Update` encerra a ordem assim que o
+   inventário tem o número pedido. **Nunca** durante `CollectingDrops`: o que aquele alvo acabou de dropar é catado
+   primeiro, para não deixar pedra no chão.
+
+**O que NÃO muda:** sem ordem (nenhum teto) tudo é como antes; alvo apontado no **radial** (`IsDirectedHarvest`) ignora
+o teto, como já ignorava; `LimitFor`/`Have`/`Stock` (limites da config) continuam iguais; ordens por chat/voz, jobs,
+UI e STT intactos. **Efeito colateral assumido:** o alvo que ele já estava trabalhando ainda é terminado (é o
+"a última árvore pode passar" da 3.2c) — mas agora a ordem **encerra**, em vez de continuar para sempre.
+
+#### 2. O texto da voz vai para o balão do jogador
+
+`CompanionChatAI.HeardByVoice(texto)` mostrava a transcrição no chat/HUD ("Entendi: …") e mandava o **companheiro mais
+próximo** repetir o texto (`Speak(PickSpeaker(), texto)` → `CompanionTalk.Say` → balão do companheiro). A fala é do
+**jogador**, então agora:
+
+- `CompanionTalk.SayAsPlayer(GameObject, texto)` (novo, `internal static`) usa a mesma API do balão do companheiro —
+  `Chat.instance.SetNpcText(talker, Vector3.up * 2f, SpeechCullDistance, SpeechDuration, "", texto, false)` — no
+  `Player.m_localPlayer.gameObject`. Mesmo offset (`SpeechOffset` = 2 m), mesma `CullDistance` e mesma duração; sem
+  cooldown (o jogador apertou a tecla, a linha tem de aparecer) e `try/catch` para nunca quebrar o jogo.
+- `Player.m_localPlayer == null` → não faz nada (só o chat/HUD).
+- **As respostas do companheiro continuam no balão dele**: conversa da IA, "Deixa comigo!", "já temos de sobra" seguem
+  por `Speak(...)`/`CompanionTalk.Say`.
+
+#### Receita de teste
+
+1. **Build:** `dotnet build Companions.sln -c Release` → 0 erros, DLL copiada para
+   `BepInEx\plugins\ModAI-BR-Companions` (feito).
+2. **Pedra para no alvo:** com o companheiro **sem pedra** no inventário, falar/digitar `pega 10 pedras`. Ele deve
+   minerar e **parar** com ~10 no inventário (pode passar um pouco se a pedra que ele já estava quebrando terminar
+   depois), com **uma** linha no log
+   `[Gather] Order target reached (10 Stone in the pack) - order done, back to following` e a fala "já temos o
+   suficiente" — e **voltar a seguir você** (não fica minerando a próxima rocha). Pedir de novo `pega 10 pedras` sem
+   tirar a pedra do inventário deve responder que **já tem** o suficiente, sem iniciar a ordem.
+3. **Madeira e minério (mesma regra):** `colete 10 madeiras` e `minere 10 ferro` devem encerrar do mesmo jeito (a de
+   madeira já encerrava; a de minério usa o mesmo caminho).
+4. **Sem ordem nada muda:** apagar o teto com `para`/`segue` e mandar `colete pedra` **sem número** — ele volta ao
+   comportamento antigo (coleta até o `StoneLimit` da config). Um alvo apontado no **radial** também ignora qualquer
+   teto.
+5. **Voz sob a cabeça do jogador:** segurar `V`, falar `pega duas pedras` e soltar — o texto reconhecido deve aparecer
+   no **balão do jogador** (e "Entendi: …" no chat/HUD). A resposta do companheiro ("Ok: coletar pedra (2)" /
+   conversa) deve continuar aparecendo no balão **dele**.
 

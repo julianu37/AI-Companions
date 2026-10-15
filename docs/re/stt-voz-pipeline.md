@@ -36,7 +36,7 @@ WhisperStt.Request(wav)                       <- main thread só enfileira e vol
       ▼
 fila thread-safe (SttResult)
       ▼  drenada no Update (VoiceInput.Tick)
-"Entendi: \"colete 10 madeiras\"" (chat/HUD) + companheiro repete no balão
+"Entendi: \"colete 10 madeiras\"" (chat/HUD) + o texto no balão do JOGADOR (3.3d)
       ▼
 CompanionChatAI.Submit(texto, "voz", announceRefusal: true)     <- MESMA função do chat
       │  cooldown, escolha do companheiro, personalidade, memória, prompt PT-BR
@@ -111,7 +111,7 @@ Nenhuma lógica de ordem foi duplicada: o patch de `Chat.SendText` (Fase 3.1) e 
 | `VozPromptInicial` | vocabulário das ordens (PT-BR) | **3.3b:** prompt inicial (`WithPrompt`) que enviesa o vocabulário do Whisper; vazio desliga |
 | `SttModelo` | `whisper\ggml-small-q5_1.bin` | **3.3b:** modelo do Whisper (181 MB). O `ggml-base-q5_1.bin` (57 MB) continua em disco para quem preferir velocidade |
 | `VozDispositivo` | `0` | índice do microfone na lista que o log imprime no início (0 = o primeiro, o padrão do Windows) |
-| `VozMostrarTexto` | `true` | mostrar `Entendi: "..."` no chat/HUD + balão do companheiro |
+| `VozMostrarTexto` | `true` | mostrar `Entendi: "..."` no chat/HUD + o texto reconhecido no balão do **jogador** (`CompanionTalk.SayAsPlayer`, 3.3d) |
 
 ## 6. Por que `UnityEngine.AudioModule` é acessado por reflexão
 
@@ -154,7 +154,7 @@ Nenhuma referência nova no `.csproj`, nenhuma segunda BCL dentro do Mono do jog
    [STT] CONFLITO DE TECLA: o auto-pickup do jogo esta em "<Keyboard>/V" ... (na primeira consulta do jogo)
    ```
 3. **Segurar `V`**, dizer **"colete 10 madeiras"** e **soltar**. No HUD/chat, em ordem:
-   `Ouvindo...` → `Entendi: "colete 10 madeiras"` (e o companheiro repete no balão) → `Pensando...` →
+   `Ouvindo...` → `Entendi: "colete 10 madeiras"` (e o texto no **balão do jogador**, 3.3d) → `Pensando...` →
    `Ok: coletar madeira (10)`. O companheiro deve sair coletando. **O auto-pickup não deve alternar** (nenhuma
    mensagem `Auto-Pickup: On/Off`).
 4. **No log**, a cada ordem:

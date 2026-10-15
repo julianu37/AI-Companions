@@ -81,8 +81,30 @@ public class CompanionTalk : MonoBehaviour
 			{
 				_lastSayTime = time;
 				_globalLastSpeechTime = time;
-				Chat.instance.SetNpcText(base.gameObject, Vector3.up * 2f, CullDistance, SpeechTTL, "", text, large: false);
+				Chat.instance.SetNpcText(base.gameObject, Vector3.up * SpeechOffset, CullDistance, SpeechTTL, "", text, large: false);
 			}
+		}
+	}
+
+	/// <summary>
+	/// Fase 3.3d: the same bubble, but under the head of whoever is speaking - used for the PLAYER's own line (the
+	/// text the microphone recognized, see CompanionChatAI.HeardByVoice). What the player said out loud belongs over
+	/// the player, not over the companion it was said to. Same offset, cull distance and duration as the companion's
+	/// own bubble, and no cooldown: the player pressed a key, the answer must show.
+	/// </summary>
+	internal static void SayAsPlayer(GameObject talker, string text)
+	{
+		if (talker == null || string.IsNullOrEmpty(text) || Chat.instance == null)
+		{
+			return;
+		}
+		try
+		{
+			Chat.instance.SetNpcText(talker, Vector3.up * SpeechOffset, CullDistance, SpeechTTL, "", text, large: false);
+		}
+		catch (System.Exception ex)
+		{
+			CompanionsPlugin.Log?.LogDebug("[Speech] Player bubble failed: " + ex.Message);
 		}
 	}
 

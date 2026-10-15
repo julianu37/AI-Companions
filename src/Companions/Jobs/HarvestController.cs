@@ -690,6 +690,15 @@ public class HarvestController : MonoBehaviour
 			_heartbeatTimer = 5f;
 			LogHeartbeat();
 		}
+		// Fase 3.3d: the number an order asked for is already in the pack - end it right here instead of working on.
+		// The scan between targets catches the same thing (MHR_GatherRules.OrderDone), but a stone rock hands its
+		// stone over in what it spawns when it breaks (see AddDrops), so "colete 10 pedras" could carry on for a
+		// whole rock's worth of stone before the next scan ever ran. Only while it is walking to or working a target:
+		// what that target just dropped is picked up first, so nothing the companion mined is left on the ground.
+		if ((_state == HarvestState.Moving || _state == HarvestState.Attacking) && MHR_GatherRules.OrderDoneNow(this, mode))
+		{
+			return;
+		}
 		switch (_state)
 		{
 		case HarvestState.Idle:
