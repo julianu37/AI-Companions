@@ -1147,6 +1147,10 @@ public class CompanionInteractPanel : MonoBehaviour
 			font = GetFont();
 		}
 		GameObject gameObject = new GameObject("NameInput", typeof(RectTransform), typeof(Image));
+		// inactive until the TMP_InputField below is fully assigned: its OnEnable is what creates the object TMP draws
+		// the caret and the selection with, and it only does that when the text component is already set (same reason
+		// and same trick as CompanionAiPanel.CreateInputField)
+		gameObject.SetActive(false);
 		gameObject.transform.SetParent(parent, worldPositionStays: false);
 		RectTransform component2 = gameObject.GetComponent<RectTransform>();
 		component2.anchorMin = new Vector2(0f, 1f);
@@ -1212,6 +1216,10 @@ public class CompanionInteractPanel : MonoBehaviour
 		textMeshProUGUI2.raycastTarget = false;
 		StretchFill(gameObject4.GetComponent<RectTransform>());
 		_nameInput.placeholder = textMeshProUGUI2;
+		// the field is complete: activate it, so TMP's OnEnable builds the caret/selection (see the note above)
+		gameObject.SetActive(true);
+		// Fase 3.7: while this box has the focus the game's own keys must not fire (Patches/TextInputKeyGuard.cs)
+		ModTextInputFocus.Register(_nameInput);
 	}
 
 	private void BuildWeightAndArmor(InventoryGui gui)

@@ -439,7 +439,9 @@ public static class ModLocalization
 			{ "hc_ai_panel_tts_off", "The voice is off ([IA] TtsLigado = false)." },
 			{ "hc_ai_panel_tts_missing", "The voice isn't ready (is the Kokoro model missing?)." },
 			{ "hc_ai_panel_no_companion", "No companion nearby to talk." },
-			{ "hc_ai_panel_status_fmt", "Personality: {0}  •  Voice: {1}  •  Push-to-talk: {2}" },
+			// the footer summary is built from these two lines (the block is two lines tall) - see RefreshStatus
+			{ "hc_ai_panel_status_personality", "Personality: {0}" },
+			{ "hc_ai_panel_status_voice", "Voice: {0}  \u2022  Push-to-talk: {1}" },
 			{ "hc_ai_voice_42", "pf_dora (feminine)" },
 			{ "hc_ai_voice_43", "pm_alex (masculine)" },
 			{ "hc_ai_voice_44", "pm_santa (masculine)" },

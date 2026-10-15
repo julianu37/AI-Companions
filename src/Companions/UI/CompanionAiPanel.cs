@@ -48,7 +48,7 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 	private const float PanelW = 680f;
 
-	private const float PanelH = 470f;
+	private const float PanelH = 516f;
 
 	/// <summary>Height of a control row (the row backgrounds are the same height).</summary>
 	private const float RowH = 34f;
@@ -86,9 +86,15 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 	private const float RowSpeed = 376f;
 
-	private const float RowStatus = 412f;
+	// The footer is two two-line blocks over their own dark strip (see BuildFooter): the summary of what is in use
+	// right now and the hint line. It used to be two 11px dark-grey single lines that were unreadable over the wooden
+	// panel - and the second one was clipped by the bottom edge of the panel.
+	private const float RowStatus = 418f;
 
-	private const float RowHint = 436f;
+	private const float RowHint = 462f;
+
+	/// <summary>Height of one line of the footer (the blocks are two lines tall).</summary>
+	private const float FooterLineH = 18f;
 
 	/// <summary>How often the status line and the "Ouvir" button are refreshed (never per frame).</summary>
 	private const float StatusInterval = 0.5f;
@@ -119,6 +125,15 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	private static readonly Color OffColor = new Color(0.3f, 0.3f, 0.33f, 0.95f);
 
 	private static readonly Color HandleColor = new Color(0.95f, 0.85f, 0.65f, 1f);
+
+	/// <summary>Footer text (the "what is in use right now" summary): warm near-white, readable over the dark strip.</summary>
+	private static readonly Color FooterColor = new Color(1f, 0.94f, 0.8f, 1f);
+
+	/// <summary>Footer hint line: a touch dimmer than the summary, still clearly readable.</summary>
+	private static readonly Color FooterHintColor = new Color(0.86f, 0.86f, 0.88f, 1f);
+
+	/// <summary>The dark strip behind the footer, so the text never sits straight on the wooden panel.</summary>
+	private static readonly Color FooterBackColor = new Color(0.04f, 0.04f, 0.05f, 0.82f);
 
 	// ------------------------------------------------------------------ state
 
@@ -403,7 +418,10 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		if (_status != null)
 		{
 			string key = ModConfig.VozTecla != null ? ModConfig.VozTecla.Value.ToString() : "?";
-			_status.text = ModLocalization.LocFmt("hc_ai_panel_status_fmt", EffectivePersonalityLabel(), CurrentVoiceLabel(), key);
+			// two localized lines instead of one long line: the personality on the first, the voice and the
+			// push-to-talk key on the second (the footer block is two lines tall)
+			_status.text = ModLocalization.LocFmt("hc_ai_panel_status_personality", EffectivePersonalityLabel())
+				+ "\n" + ModLocalization.LocFmt("hc_ai_panel_status_voice", CurrentVoiceLabel(), key);
 		}
 	}
 
@@ -640,12 +658,40 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		_speedLabel = CreateText(_root.transform, "", RightEdge - 60f, RowSpeed + 6f, 60f, 22f, 12f, ValueColor, TextAlignmentOptions.MidlineRight);
 	}
 
+	/// <summary>
+	/// The footer: the summary of what is in use right now plus the hint line, both on their own dark strip.
+	///
+	/// <para>
+	/// What changed (the report was "the text at the bottom where it shows the current configs is very hard to see"):
+	/// the two blocks used to be 11px <see cref="DimColor"/> lines drawn straight on the wooden panel - dark grey on
+	/// dark wood - and the hint line ended up clipped by the bottom edge of the panel. Now they sit on a dark
+	/// translucent strip (<see cref="FooterBackColor"/>, the same trick the setting rows use), the text is a warm
+	/// near-white at 12.5/12px, the summary is <b>two</b> lines instead of one long line, and the panel grew
+	/// (470 -> 516) so the strip and both blocks fit with room to spare above the bottom edge.
+	/// </para>
+	///
+	/// The strip is one extra Image created <b>once</b>, at build time: the twice-a-second refresh only rewrites the
+	/// text of the two blocks, exactly as before.
+	/// </summary>
 	private void BuildFooter()
 	{
-		_status = CreateText(_root.transform, "", LeftX, RowStatus, RightEdge - LeftX, 22f, 11f, DimColor, TextAlignmentOptions.MidlineLeft);
+		// the dark strip behind both blocks (the rows above use the same primitive for the same reason)
+		GameObject strip = new GameObject("Footer", typeof(RectTransform), typeof(Image));
+		strip.transform.SetParent(_root.transform, worldPositionStays: false);
+		Place(strip.GetComponent<RectTransform>(), 4f, RowStatus - 6f, RightEdge - 8f, RowHint - RowStatus + 2f * FooterLineH + 12f);
+		Image stripImage = strip.GetComponent<Image>();
+		stripImage.color = FooterBackColor;
+		stripImage.raycastTarget = false;
+
+		_status = CreateText(_root.transform, "", LeftX + 4f, RowStatus, RightEdge - LeftX - 8f, 2f * FooterLineH, 12.5f,
+			FooterColor, TextAlignmentOptions.TopLeft);
+		// the summary is built from two localized lines (see RefreshStatus): never truncated, never one long line
+		_status.overflowMode = TextOverflowModes.Overflow;
+
 		string key = ModConfig.AiPanelKey != null ? ModConfig.AiPanelKey.Value.ToString() : "?";
-		CreateText(_root.transform, ModLocalization.LocFmt("hc_ai_panel_hint_fmt", key), LeftX, RowHint, RightEdge - LeftX, 22f, 11f,
-			new Color(0.55f, 0.55f, 0.55f, 0.9f), TextAlignmentOptions.MidlineLeft);
+		TMP_Text hint = CreateText(_root.transform, ModLocalization.LocFmt("hc_ai_panel_hint_fmt", key), LeftX + 4f, RowHint,
+			RightEdge - LeftX - 8f, 2f * FooterLineH, 12f, FooterHintColor, TextAlignmentOptions.TopLeft);
+		hint.overflowMode = TextOverflowModes.Overflow;
 	}
 
 	/// <summary>
@@ -1279,9 +1325,37 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		return slider;
 	}
 
+	/// <summary>
+	/// The hand-built single-line text box (the free-text personality).
+	///
+	/// <para>
+	/// The important part is the <b>order</b>: the GameObject is created <b>inactive</b> and is only activated after
+	/// every property is assigned, because <c>TMP_InputField.OnEnable</c> is where TMP creates the "Caret" object it
+	/// draws the caret and the selection with (<c>m_CachedInputRenderer</c> comes from that child's CanvasRenderer) -
+	/// and it only does that when <c>textComponent</c> is already set. Adding the component with <c>AddComponent</c>
+	/// on an active object ran <c>OnEnable</c> while the component was still empty, so the caret object was never
+	/// created and the field had <b>no caret and no selection highlight at all</b> (the "buggy" box of the report:
+	/// nothing showing where the text would go). Assigning everything before the first activation fixes both.
+	/// </para>
+	///
+	/// <para>
+	/// The rest is what a real TMP input prefab has and a hand-built one usually misses: the text <b>overflows</b> (it
+	/// is the viewport mask that clips it, and TMP scrolls the text rect horizontally to follow the caret - with the
+	/// ellipsis overflow mode of <see cref="CreateText"/> long text was truncated with "…" and appeared to jump), the
+	/// caret is explicitly white and 2px wide (TMP would use the text colour), the selection colour is set for the
+	/// dark box, rich text is off (the personality is plain text for the prompt), and <b>Enter applies</b> the text
+	/// like the "Aplicar" button (<c>onSubmit</c> - Esc, which TMP treats as a cancel, does not apply anything).
+	/// </para>
+	///
+	/// The field is also registered in <see cref="ModTextInputFocus"/>, which is what stops the game's own keys from
+	/// firing while the player types (an "m" used to open the map - see <c>Patches/TextInputKeyGuard.cs</c>).
+	/// </summary>
 	private TMP_InputField CreateInputField(string name, float x, float y, float w, float h, string placeholder, int limit)
 	{
 		GameObject go = new GameObject(name, typeof(RectTransform), typeof(Image));
+		// inactive until the very end: the TMP_InputField added below has to see its text component already assigned
+		// when its OnEnable runs, or the caret/selection object is never created (see the summary above)
+		go.SetActive(false);
 		go.transform.SetParent(_root.transform, worldPositionStays: false);
 		Place(go.GetComponent<RectTransform>(), x, y, w, h);
 		Image image = go.GetComponent<Image>();
@@ -1297,9 +1371,15 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		area.AddComponent<RectMask2D>();
 
 		TMP_Text text = CreateText(area.transform, "", 0f, 0f, w - 16f, h - 6f, 13f, Color.white, TextAlignmentOptions.MidlineLeft);
+		// the viewport mask is what clips the text; the text itself must overflow (no ellipsis, no wrapping), which is
+		// what lets TMP scroll it horizontally to keep the caret in sight
+		text.overflowMode = TextOverflowModes.Overflow;
+		text.textWrappingMode = TextWrappingModes.PreserveWhitespaceNoWrap;
+
 		TMP_Text placeholderLabel = CreateText(area.transform, placeholder, 0f, 0f, w - 16f, h - 6f, 13f,
 			new Color(0.6f, 0.6f, 0.6f, 0.7f), TextAlignmentOptions.MidlineLeft);
 		placeholderLabel.fontStyle = FontStyles.Italic;
+		placeholderLabel.textWrappingMode = TextWrappingModes.PreserveWhitespaceNoWrap;
 
 		TMP_InputField input = go.AddComponent<TMP_InputField>();
 		input.targetGraphic = image;
@@ -1309,7 +1389,29 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		input.characterLimit = limit;
 		input.contentType = TMP_InputField.ContentType.Standard;
 		input.lineType = TMP_InputField.LineType.SingleLine;
-		input.onFocusSelectAll = false;
+		input.richText = false;
+		input.onFocusSelectAll = false;   // clicking puts the caret where the player clicked, it does not select all
+		input.customCaretColor = true;    // the caret is ours (white), not the text colour
+		input.caretColor = new Color(1f, 0.95f, 0.85f, 1f);
+		input.caretWidth = 2;
+		input.selectionColor = new Color(0.55f, 0.72f, 1f, 0.55f);
+		// Enter = the "Aplicar" button (TMP sends onSubmit on Enter and onEndEdit on Esc/focus loss, so Esc cancels)
+		input.onSubmit.AddListener(delegate
+		{
+			ApplyPersonality();
+		});
+
+		go.SetActive(true);   // OnEnable runs here: TMP creates its caret object and caches its renderer
+
+		// TMP creates that caret as the FIRST child of the text's parent, so the caret was drawn behind the text and
+		// the placeholder; as the last child it is always on top of both
+		Transform caret = area.transform.Find("Caret");
+		if (caret != null)
+		{
+			caret.SetAsLastSibling();
+		}
+
+		ModTextInputFocus.Register(input);
 		return input;
 	}
 

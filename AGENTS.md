@@ -262,6 +262,26 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   segredos. PT-BR: 33 chaves
   `hc_ai_panel_*` / `hc_ai_voice_*` no `ModLocalization` **e** no `Translations/Portuguese_Brazilian.json`.
   Detalhes: `docs/roadmap.md` (Fase 3.7 — inclui a correção da lista que aparecia atrás dos controles).
+- **Fase 3.7 — correções do teste em jogo (teclas do jogo digitando no campo, caixa de texto e rodapé):** (1) novo
+  `Patches/TextInputKeyGuard.cs`: `ModTextInputFocus` (registro dos campos de texto do mod + "algum em foco?"
+  **cacheado por frame**) e **prefixos Harmony** em `ZInput.GetButtonDown(string)`/`GetButton`/`GetButtonUp`/
+  `GetKeyDown(KeyCode)`/`GetKey`/`GetKeyUp` que devolvem `false` enquanto um campo de texto do mod está em foco — é o
+  que impede as teclas do jogo de dispararem ao digitar (o `m` abria o mapa: `Minimap.Update` lê
+  `ZInput.GetButtonDown("Map")` e **não** passa pelo `Player.TakeInput`, que é o que os guardas antigos barravam).
+  Mesmo espírito do `AutoPickupKeyConflict` (condicional e *fail-open*); gamepad (`"Joy*"`, `JoystickButton0+`) e os
+  métodos de mouse **passam** (o painel fecha com `JoyBack`/`JoyButtonB` e o clique na UI é do `EventSystem`); o
+  `TMP_InputField` e os painéis do mod leem teclas pelo `Input`/`Event` legado, então digitar, Ctrl+A/C/V/X, Enter, Esc
+  e o *key bind listener* seguem iguais. Os dois campos de texto do mod são registrados (`CompanionAiPanel` e o nome do
+  companheiro em `CompanionInteractPanel`). (2) `CreateInputField` do painel monta o `TMP_InputField` com o GameObject
+  **inativo** e só o ativa depois de `textComponent`/`textViewport`/`placeholder` estarem atribuídos (o `OnEnable` é
+  onde o TMP cria o objeto `"Caret"` que desenha cursor e seleção — antes ele rodava com o componente vazio e o campo
+  ficava **sem cursor e sem seleção**), o `"Caret"` vai para último filho, o texto usa `Overflow` +
+  `PreserveWhitespaceNoWrap` (o `RectMask2D` do viewport recorta e o TMP rola na horizontal em vez de truncar com "…"),
+  cursor claro de 2 px + `selectionColor`, `richText = false` e `onSubmit` → `ApplyPersonality()` (Enter aplica). O
+  campo de nome do companheiro ganhou a mesma correção de `OnEnable`. (3) o rodapé do painel ganhou **faixa escura**
+  própria, resumo em **duas linhas** localizadas (`hc_ai_panel_status_personality` + `hc_ai_panel_status_voice`, 12,5 px
+  quase branco, `Overflow`), dica em 12 px e o painel cresceu **470 → 516** (nada cortado na borda). Detalhes:
+  `docs/roadmap.md` (Fase 3.7 — correções do teste em jogo).
 - **Correções da auditoria das Fases 3.4/3.7 (A1–A4, B1, C2, D2, E1, E2):** endurecimento do TTS e do painel, sem
   mudar comportamento. `CompanionTts`: `Shutdown` **espera a thread** (`Join(5000)`) antes de `Dispose` e
   `Process`/`TryGetTts`/`Speak` recusam trabalhar depois de `_stopping` (A1/A3); `audio.Handle != IntPtr.Zero`

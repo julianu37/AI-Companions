@@ -1257,5 +1257,60 @@ frente" no *raycast*.
 - **Não mudou:** TTS, STT, ordens, jobs, patches de input e o resto do painel. Sem alocação por frame, sem `Find*`/LINQ,
   null-safe.
 
+### Fase 3.7 — correções do teste em jogo: as teclas do jogo digitando no campo, a caixa de texto e o rodapé (✅ build 0 erros — teste em jogo pendente)
+
+**Relato (3 problemas):** (1) *"ao digitar 'm' na caixa de texto abre o mapa"* — com o painel aberto e o campo de texto
+livre da personalidade em foco, **as teclas do jogo continuavam valendo** (`M` = mapa, `Tab` = inventário, `F5` =
+console, `Enter` = chat, `C`, `R`, `G`, `X`, `B`, `Z`, `Q`, `F`, `E`, `V`, os dígitos do hotbar…); (2) a caixa de texto
+"estava meio bugada" (o usuário acabou **colando** o texto); (3) *"o texto na parte de baixo onde diz as configs atuais
+está muito ruim de visualizar"* — o rodapé em cinza escuro sobre madeira escura, fonte 11, com a última linha cortada
+pela borda do painel.
+
+**Causa raiz 1 — o `TakeInput` não cobre o que o jogo lê fora dele.** Os guardas que o mod já tinha
+(`Player.TakeInput`/`PlayerController.TakeInput`, `Hud.InRadial`, `VoiceInput.BlockedByUi`) só valem para o que passa
+por eles. O mapa é alternado em **`Minimap.Update`**, que lê `ZInput.GetButtonDown("Map")` e é barrado apenas por
+*chat/console/TextInput/menu/inventário/busca do build* — **nunca** por `Player.TakeInput()`. Mesma coisa para o
+inventário (`InventoryGui.Update` → `GetButtonDown("Inventory")`), o console (`Console.Update` → `"Console"`), o chat
+(`Chat` → `"Chat"`) e os demais. E um `TMP_InputField` só come as teclas que ele mesmo trata (digitação, setas,
+Ctrl+A/C/V/X, Esc, Enter) — todo o resto continua indo para o jogo.
+
+**Causa raiz 2 — a caixa de texto nunca teve cursor nem seleção.** `TMP_InputField.OnEnable` é onde o TMP cria o
+objeto `"Caret"` (um `TMP_SelectionCaret`) cujo `CanvasRenderer` ele guarda em `m_CachedInputRenderer` — é com ele que
+**o cursor e a seleção são desenhados** (`UpdateGeometry` → `OnFillVBO` → `GenerateCaret`/`GenerateHighlight`), e o
+TMP só faz isso **se o `textComponent` já estiver atribuído**. O painel montava o campo à mão com
+`go.AddComponent<TMP_InputField>()` num GameObject **ativo** e atribuía `textComponent` **depois**: o `OnEnable` rodou
+com o componente vazio, o objeto do cursor nunca foi criado e `UpdateGeometry` passou a sair cedo para sempre —
+**sem cursor e sem destaque de seleção**. De quebra: o texto era criado com `overflowMode = Ellipsis` (o
+`CreateText` do painel) e a caixa é de **uma linha**, então texto longo era **truncado com "…"** em vez de rolar; o
+cursor era criado como **primeiro filho** (desenhava atrás do texto/placeholder); e `Enter` não aplicava nada.
+
+**Causa raiz 3 — o rodapé.** Duas linhas de 11 px em `DimColor` (0,62) e (0,55) **direto sobre a madeira**, com a
+segunda em `RowHint = 436` num painel de `PanelH = 470` — praticamente na borda inferior.
+
+**Correção:**
+
+| # | O que mudou | Por que resolve |
+|---|---|---|
+| 1 | **novo `Patches/TextInputKeyGuard.cs`**: `ModTextInputFocus` (registro dos campos de texto do mod + resposta *"algum em foco?"* **cacheada por frame**) e **prefixos Harmony** em `ZInput.GetButtonDown(string)`, `GetButton`, `GetButtonUp`, `GetKeyDown(KeyCode)`, `GetKey` e `GetKeyUp` que devolvem `false` enquanto um campo do mod está em foco | é o **único** ponto por onde passam as teclas do jogo (as que o `TakeInput` não cobre inclusive): o `m` do mapa, o `Tab`, o `F5`, o `Enter`, o hotbar… todos morrem aqui. Mesmo espírito do `AutoPickupKeyConflict` (prefixo condicional num leitor do `ZInput`, que **nunca** interfere quando não é o caso dele): sem campo em foco o caminho é **uma comparação de `int`** (o frame) e o método original roda igual |
+| 2 | o guarda **deixa passar** os botões/teclas de **gamepad** (`"Joy*"`, `KeyCode >= JoystickButton0`) e os métodos de **mouse** (`GetMouseButton*` **não** são patchados) | o próprio painel lê `ZInput.GetButtonDown("JoyBack")`/`"JoyButtonB"` para fechar: bloquear o gamepad prenderia o jogador de controle dentro do painel. O mouse continua funcionando porque o clique na UI passa pelo `EventSystem`, não pelo `ZInput` |
+| 3 | o que a UI precisa **não** é afetado: o `TMP_InputField` lê suas teclas pelo **`Input`/`Event` legado** (TMP `OnUpdateSelected` → `Event.PopEvent`) e os painéis do mod leem as deles com `Input.GetKeyDown` — nenhum dos dois passa pelo `ZInput` | digitar continua digitando o caractere, o Ctrl+A/C/V/X, o Enter, o Esc e o *key bind listener* do push-to-talk seguem iguais. O push-to-talk (`V`) já era bloqueado com o painel aberto pelo `VoiceInput.BlockedByUi`, então digitar `v` no campo **não** começa a gravar |
+| 4 | `UI/CompanionAiPanel.CreateInputField` (**reescrito**): o GameObject nasce **inativo** (`SetActive(false)`) e só é ativado **depois** de `textComponent`/`textViewport`/`placeholder`/… estarem atribuídos; o `"Caret"` que o TMP cria no `OnEnable` é movido para **último filho** do `TextArea` | com o componente completo no primeiro `OnEnable` o TMP cria o objeto do cursor: **cursor piscando e seleção voltam a existir**. O cursor como último filho deixa de ser desenhado atrás do texto/placeholder |
+| 5 | mais na caixa de texto: texto com `overflowMode = Overflow` + `textWrappingMode = PreserveWhitespaceNoWrap` (o `RectMask2D` do *viewport* é quem recorta e o TMP rola o texto na horizontal para seguir o cursor), `customCaretColor = true` + `caretColor` claro + `caretWidth = 2`, `selectionColor` azulada, `richText = false` (a personalidade é texto puro para o prompt), `onFocusSelectAll = false` (o clique posiciona o cursor — `OnPointerDown` → `TMP_TextUtilities.GetCursorIndexFromPosition`) e `onSubmit` → **`ApplyPersonality()`** | texto longo **rola** em vez de ser truncado com "…", o cursor aparece branco sobre a caixa escura, a seleção é visível, e **Enter aplica** como o botão *Aplicar* (o Esc do TMP é *cancel*, então não aplica) |
+| 6 | rodapé (`BuildFooter`): **faixa escura** própria (`FooterBackColor`, o mesmo truque das linhas), resumo em **duas linhas** localizadas (`hc_ai_panel_status_personality` + `hc_ai_panel_status_voice`, 12,5 px, `FooterColor` quase branco, `TopLeft`), dica em 12 px (`FooterHintColor`), `overflowMode = Overflow`, e o painel cresceu **470 → 516** (`RowStatus` 412→418, `RowHint` 436→462) | o texto sai de cima da madeira (contraste de verdade), deixa de ser uma linha única gigante, e a última linha deixa de ser cortada pela borda inferior (o conteúdo termina ~18 px acima do fim do painel). O custo por frame **não** mudou: a faixa é criada **uma vez** e o *refresh* 2×/s só reescreve o texto |
+| 7 | o **mesmo** guarda cobre o outro campo de texto do mod: `CompanionInteractPanel.BuildNameInput` ganhou a mesma correção de `OnEnable` (inativo → atribui → ativa) e `ModTextInputFocus.Register(_nameInput)` | o campo de nome do companheiro tinha o mesmo defeito (sem cursor/seleção) e, com o registro, digitar o nome também não dispara mais as teclas do jogo |
+
+- **O que foi conferido na fonte (decompilado):** `Minimap.Update` lê `"Map"` sem `TakeInput` (por isso o relato);
+  `ZInput.GetButtonDown/GetButton/GetButtonUp/GetKeyDown/GetKey/GetKeyUp` são estáticos e só consultam o estado do
+  botão; `TMP_InputField.OnEnable` cria o `"Caret"` **apenas** com `m_TextComponent != null`; `UpdateGeometry` sai cedo
+  sem `m_CachedInputRenderer`; `caretColor` devolve a cor do texto quando `customCaretColor` é falso; `Escape` no
+  `KeyPressed` devolve `EditState.Finish` com `m_WasCanceled = true` (não chama `onSubmit`); Ctrl+A/C/V/X são tratados
+  no mesmo `OnUpdateSelected`; `AdjustRectTransformRelativeToViewport` é quem rola o texto de uma linha.
+- **Não mudou:** TTS, STT, ordens, jobs, comportamento do companheiro, o resto do painel e o do F8 (o `ConfigPanel`
+  **não** tem campo de texto — só sliders, toggles e *key bind listeners* —, então não sofria do problema 1).
+- **Arquivos:** `Patches/TextInputKeyGuard.cs` (novo), `UI/CompanionAiPanel.cs`, `UI/CompanionInteractPanel.cs`
+  (registro + cursor), `Core/ModLocalization.cs` + `Translations/Portuguese_Brazilian.json` (as duas chaves novas;
+  a antiga `hc_ai_panel_status_fmt` saiu).
+
+
 
 

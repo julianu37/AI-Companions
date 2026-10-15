@@ -3,6 +3,40 @@
 All notable changes to this fork of ProfMags' Offline Companions. Versions before 1.4.0 are the original mod (see [ProfMags' Thunderstore page](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) for that history) plus the initial batch of Valheim 1.0 API-compatibility fixes that let the mod load and run at all on 1.0.
 
 ## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.6b: a ordem sem alvo do modelo (drop/equip/attack caem para as palavras do jogador) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Fase 3.3c: raio de coleta maior e chatter aleatório desligado + Fase 3.3d: a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador + Fase 3.8: o companheiro abre o próprio inventário por voz/chat + Fase 3.4: o companheiro FALA (TTS local, Kokoro-82M via sherpa-onnx) + Fase 3.7: painel da IA no jogo (personalidade, voz com Ouvir, push-to-talk) + Tradução PT-BR (fork ModAI-BR-Companions)
+- **Correções do teste em jogo do painel da IA (Fase 3.7) — as teclas do jogo digitando no campo, a caixa de texto e o
+  rodapé.** Três relatos do teste em jogo, três causas raiz:
+  - **digitar `m` na caixa de texto abria o mapa** (e o mesmo valia para `Tab`, `F5`, `Enter`, `C`, `R`, `G`, `X`, `B`,
+    `Z`, `Q`, `F`, `E`, `V` e os dígitos do hotbar). Os guardas de input que o mod já tinha (`Player.TakeInput`,
+    `PlayerController.TakeInput`, `Hud.InRadial`, `VoiceInput.BlockedByUi`) só barram o que **passa por eles** — e o
+    mapa é alternado em **`Minimap.Update`**, que lê `ZInput.GetButtonDown("Map")` e **nunca** consulta
+    `Player.TakeInput()` (o mesmo vale para o inventário, o console e o chat). Além disso, um `TMP_InputField` só come
+    as teclas que ele mesmo trata. **Correção:** novo `Patches/TextInputKeyGuard.cs` — `ModTextInputFocus` (registro dos
+    campos de texto do mod + resposta "algum em foco?" **cacheada por frame**) e **prefixos Harmony** em
+    `ZInput.GetButtonDown/GetButton/GetButtonUp/GetKeyDown/GetKey/GetKeyUp` que devolvem `false` enquanto um campo do
+    mod está em foco (mesmo espírito do `AutoPickupKeyConflict`: sem campo em foco o caminho é **uma comparação de
+    `int`** e o jogo roda exatamente igual). Ficam de fora os botões/teclas de **gamepad** (`"Joy*"`, `JoystickButton0`
+    para cima) e os métodos de **mouse** — o painel lê `ZInput.GetButtonDown("JoyBack")`/`"JoyButtonB"` para fechar e o
+    clique na UI passa pelo `EventSystem`. Digitar continua digitando o caractere (o `TMP_InputField` lê suas teclas
+    pelo `Input`/`Event` legado, nunca pelo `ZInput`) e o push-to-talk segue bloqueado com o painel aberto pelo
+    `VoiceInput.BlockedByUi` (a tecla `V` só escreve `v` no campo).
+  - **a caixa de texto "meio bugada" (sem cursor e sem seleção).** `TMP_InputField.OnEnable` é onde o TMP cria o objeto
+    `"Caret"` cujo `CanvasRenderer` (`m_CachedInputRenderer`) desenha **o cursor e a seleção** — e ele só faz isso se o
+    `textComponent` **já estiver atribuído**. O painel montava o campo com `AddComponent<TMP_InputField>()` num
+    GameObject **ativo** e atribuía o `textComponent` **depois**: o cursor nunca foi criado e `UpdateGeometry` passou a
+    sair cedo para sempre. **Correção:** o GameObject nasce **inativo** e só é ativado **depois** de tudo atribuído (o
+    `"Caret"` é movido para último filho, para não desenhar atrás do texto); o texto passou a usar `Overflow` +
+    `PreserveWhitespaceNoWrap` (o `RectMask2D` do viewport recorta e o TMP rola o texto na horizontal — antes o
+    `Ellipsis` truncava com "..." e o texto parecia pular), cursor claro de 2 px, `selectionColor`, `richText = false`,
+    o clique posicionando o cursor e **Enter aplicando** como o botão *Aplicar*. O campo de **nome do companheiro**
+    (`CompanionInteractPanel.BuildNameInput`) tinha o mesmo defeito e ganhou a mesma correção.
+  - **o rodapé do painel estava ilegível.** Eram duas linhas de 11 px em cinza escuro **direto sobre a madeira**, com a
+    segunda praticamente na borda inferior do painel. **Correção:** faixa escura própria (o mesmo truque das linhas de
+    configuração), resumo em **duas linhas** localizadas (`hc_ai_panel_status_personality` + `hc_ai_panel_status_voice`,
+    12,5 px quase branco) e dica em 12 px, e o painel cresceu **470 -> 516** para nada ficar cortado. A faixa é criada
+    uma vez só e o *refresh* continua 2x/s.
+  Nada de TTS/STT/ordens/jobs/comportamento do companheiro mudou. Arquivos: `Patches/TextInputKeyGuard.cs` (novo),
+  `UI/CompanionAiPanel.cs`, `UI/CompanionInteractPanel.cs`, `Core/ModLocalization.cs`,
+  `Translations/Portuguese_Brazilian.json`.
 - **Correção — a lista do dropdown do painel da IA aparecia ATRÁS dos controles (Fase 3.7).** Ao abrir o dropdown de
   **Personalidade**, a lista saía desenhada **por trás** do campo do dropdown de **Voz**, do campo *Nas suas palavras*
   e do botão **Aplicar** (relato com screenshot). No uGUI a ordem de desenho é a **ordem dos irmãos** na hierarquia e
