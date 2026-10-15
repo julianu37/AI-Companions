@@ -1,262 +1,285 @@
-# Offline Companions Reborn
+# ModAI-BR-Companions
 
-A Valheim **1.0** update of **[Offline Companions](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) by [ProfMags](https://thunderstore.io/c/valheim/p/ProfMags/)**.
+Um **companheiro NPC com IA** para **Valheim 1.0**, **em português do Brasil** — você **fala ou digita** e ele
+entende e executa.
 
-**All credit for the original concept, design, and the original code goes to ProfMags.** This update started because the original mod predates Valheim 1.0 and needed API fixes to keep working. It has since grown into a large rework of how companions move, work and think, aiming to make them act like another player rather than a bot. If you're not on Valheim 1.0, or ProfMags ships an official 1.0 update, use the original mod instead — go show it (and them) some love.
+Este é um **fork** de **[Offline Companions Reborn](https://github.com/MaddhattrRocks/Offline-Companions-Reborn)**
+(de [Maddhattr](https://thunderstore.io/c/valheim/p/Maddhattr/)), que por sua vez é a atualização para o Valheim 1.0
+do **[Offline Companions](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) de
+[ProfMags](https://thunderstore.io/c/valheim/p/ProfMags/)**.
 
-> Please go check out ProfMags' other work too: [Thunderstore profile](https://thunderstore.io/c/valheim/p/ProfMags/) · [Patreon](https://www.patreon.com/c/ProfMags)
+> **Todo o crédito do conceito, do design e do código original é do ProfMags** (e da atualização, do Maddhattr).
+> O companheiro, os trabalhos, a IA de movimento/combate, a interface e a base de tudo isso vêm de lá.
+> **O que é nosso:** a **tradução completa para PT-BR** e a **camada de IA** (LLM + voz).
 
-> **GitHub:** [MaddhattrRocks/Offline-Companions-Reborn](https://github.com/MaddhattrRocks/Offline-Companions-Reborn) — source code, the full guide and settings reference, and bug reports.
+> **Código-fonte:** [julianu37/ModAI-BR-Companions](https://github.com/julianu37/ModAI-BR-Companions)
+> — guia, referência de configurações e relato de bugs.
 
-> **Found a bug?** Please report it on [GitHub Issues](https://github.com/MaddhattrRocks/Offline-Companions-Reborn/issues) with your BepInEx `LogOutput.log` attached (in `BepInEx/` inside your Valheim or mod-manager profile folder) — companions log what they're doing and why, which makes problems much easier to track down.
+---
 
-## Recent Highlights (v1.5.4)
+## 🇧🇷 O que nós adicionamos
 
-This is a big update. With working jobs! The short version:
+### 🗣️ Ordens por voz e por texto (IA)
 
-- **New movement.** Companions find their own way around your base like a player: opening and closing doors as they go, lining up with doorways, hopping steps, dropping off ledges, jumping streams and small gaps, and walking around water instead of swimming when the dry way isn't much longer.
-- **Idle behaviour.** A companion whose job has nothing to do no longer just stands there. It does small chores nearby, sits down, wanders over to check on stations and chests, or comes over for a chat — and gets straight back to work the moment there's something to do.
-- **Repair and Restock.** A new job that keeps your base running: repairs damaged building pieces with a hammer, keeps fires, torches, braziers and hot tubs fuelled, empties beehives, stacks surplus wood and stone into piles, and sorts your chests.
-- **Cooking.** Cooks and brews at every kind of cooking station like a player: cauldron, prep table, mead ketill, spit, iron cooking station, oven and fermenters, keeping its own fires lit and brewing the meads you'll need for the next boss first.
-- **Gathering works like Hunt.** With Follow on, Wood, Stone, Ore and Forage only go for what's close to you as you travel. With Follow off they work an area. Early in the game they also pick up branches, stones and flint by hand.
-- **Your orders come first.** Every order you give takes priority over the companion's job, and the job picks up where it left off afterwards.
-- **Multiplayer.** A companion always treats its owner as its player, even when another player's game happens to be running it. It uses chests safely (no lost or duplicated items) and respects wards and private chests.
-- **Companion recovery (1.5.1).** Your game keeps a roster of your companions. General > ShowCompanionRoster shows whether each one is Alive, Dead, Lost or Unknown, and General > RecoverLostCompanion brings a lost one back with its gear. Or build Odin's Shrine (cheap, early game) to see them and bring one back.
-- **Ladders and safer movement (1.5.3).** Companions climb ladders like a player, including towers of short ladders and ladders in world ruins, and follow your exact path up a tight tower when they can't find their own way. They stop at the edge of drops that would hurt and take fall damage like a player.
-- **Stays where you left it (1.5.3).** A companion with Follow off no longer follows you after loading in, and with nothing to do it idles where it is instead of wandering back to where it first appeared or to a far-off home.
-- **Better hunting (1.5.4).** Hunters walk up quietly, sneak the last stretch and stop for breath when they need to. With a spear they throw from range and go pick it back up, and they switch to a closer animal before striking.
-- **Cleaned-up settings.** The config file has been reorganised into clear sections with plain-language descriptions. Settings you'd already changed are carried over automatically.
+**Segure `V`**, fale e solte — ou digite no chat. A fala é transcrita **dentro do jogo** e o texto entra no
+mesmo caminho das ordens digitadas. Exemplos:
 
-See `CHANGELOG.md` for the version-by-version detail.
+`colete 10 madeiras` · `pega 10 pedras` · `minere ferro` · `segue` · `para` · `para de me seguir` · `vem cá` ·
+`ataca o greydwarf` · `mata o javali` · `equipa o machado de bronze` · `pega a picareta` · `larga a pedra` ·
+`joga fora 5 madeira` · `fica na defensiva` · `bom dia` · `como você está?`
 
-## Support
+- O número da ordem é um **alvo** contado no **inventário dele**: se ele já tem 10 madeiras e você pede 10,
+  ele avisa *"Já temos o suficiente."* e não sai para coletar.
+- **Tudo local:** o LLM (LM Studio) e o reconhecimento de voz rodam **na sua máquina** — nada é enviado para fora.
 
-If you like this mod and would like to support its ongoing development or any of my other work: [Patreon](https://www.patreon.com/cw/MaddHattr) · [Buy Maddhattr a Coffee](https://ko-fi.com/maddhattr).
+### 🧠 Personalidade, memória e conversa
 
-## What This Mod Does
+- **Personalidade** por preset (`viking`, `mago`, `sarcastico`, `guia`) ou **texto livre** — ele responde no tom.
+- **Memória curta** das últimas trocas, por companheiro.
+- **Conversa livre:** pergunte algo e ele responde como personagem.
 
-Offline Companions Reborn adds persistent NPC allies to Valheim. A companion is offered to you the first time you enter a world. Ways to get more companions are coming soon.
+### ⚙️ Ajustes nossos
 
-Companions aren't pets — they're teammates with their own inventory, gear, food, stamina, skills and speech. Point them at your work and they'll actually do it: fight beside you, chop wood, mine, forage, farm, fish, hunt, cook and brew, run your smelters, look after your base, haul your cart, sit by the fire, sleep in beds, and follow you through portals.
+- **Raio de coleta maior** (madeira/pedra/minério até 25 m de você; drops catados até 12 m).
+- **Sem falinhas aleatórias** a cada 15–30 s (as falas úteis continuam).
+- **A tecla `V` é do push-to-talk** e não dispara o *Toggle Auto-Pickup* do jogo.
+- **Interface, menus e falas 100% em PT-BR.**
 
-Everything (appearance, inventory, gear, job, home, skills, ownership) is saved with the world and survives sessions, zone changes, server restarts and deaths.
+---
 
-Click a section below for the details. For the full picture, see the **Companion Guide** (`GUIDE.md`) and the **Settings Reference** (`CONFIGURATION.md`), included with the mod and on [GitHub](https://github.com/MaddhattrRocks/Offline-Companions-Reborn/tree/main/package).
+## O que este mod faz
+
+Ele adiciona **aliados NPC persistentes** ao Valheim. Um companheiro é oferecido a você na primeira vez que
+entra num mundo.
+
+Companheiros **não são bichinhos de estimação** — são colegas de equipe com inventário, equipamento, comida,
+resistência, habilidades e fala próprios. Aponte para o trabalho e eles fazem: lutam ao seu lado, cortam lenha,
+mineram, coletam, cultivam, pescam, caçam, cozinham e preparam bebidas, operam suas fundições, cuidam da sua base,
+puxam sua carroça, sentam perto da fogueira, dormem em camas e seguem você através de portais.
+
+Tudo (aparência, inventário, equipamento, trabalho, casa, habilidades, propriedade) é **salvo com o mundo** e
+sobrevive a sessões, trocas de zona, reinícios de servidor e mortes.
+
+O guia completo está em `GUIDE.md` e a referência de todas as configurações em `CONFIGURATION.md`.
 
 <details>
-<summary><b>Commanding your companions</b></summary>
+<summary><b>Comandando seus companheiros</b></summary>
 
-- **Tap** the interact key on a companion to open its panel: inventory, gear, food and name.
-- **Hold** the interact key to open the **command wheel**. Pick a job, switch Follow on or off, set its home, and toggle Wander, Pickup and Command. The inner ring holds the combat stances.
-- **Point and command:** aim at something and press the command key (`Z` by default). Companions work out what you mean from context:
-  - an enemy — attack it
-  - a resource — gather it
-  - a cart — haul it
-  - a ship — board it
-  - a bed — sleep in it
-  - a fire — sit by it
-  - a door — open it
-  - a chest — put their things in it
-  - a crafting station — repair their gear there
-  - a tombstone — recover it
-  - the ground — walk there
-- **Hold** the command key to call nearby companions to you. Keep holding for a couple of seconds to recall every companion at any distance.
-- **Your orders come first.** While a companion carries out an order, its job waits, then picks up where it left off.
-- **Set Home** marks where a companion lives. It claims a bed nearby, brings tools back there, empties its bags there and works around it.
+- **Toque** a tecla de interagir num companheiro para abrir o painel dele: inventário, equipamento, comida e nome.
+- **Segure** a tecla de interagir para abrir a **roda de comandos**: escolha um trabalho, ligue/desligue o
+  *seguir*, defina a casa dele e alterne *Vagar*, *Recolher* e *Comando*. O anel interno tem as posturas de combate.
+- **Aponte e mande:** mire em algo e aperte a tecla de comando (`Z` por padrão). Ele deduz pelo contexto:
+  inimigo — atacar · recurso — coletar · carroça — puxar · navio — embarcar · cama — dormir · fogueira — sentar ·
+  porta — abrir · baú — guardar as coisas · bancada — consertar o equipamento · lápide — recuperar · chão — ir até lá.
+- **Segure** a tecla de comando para chamar os companheiros próximos; continue segurando por alguns segundos para
+  chamar **todos**, a qualquer distância.
+- **Suas ordens vêm primeiro:** enquanto ele cumpre uma ordem, o trabalho espera e retoma depois.
+- **Definir casa** marca onde ele mora: ele reivindica uma cama perto, traz ferramentas para lá, esvazia as bolsas
+  e trabalha em volta.
 
 </details>
 
 <details>
-<summary><b>Combat</b></summary>
+<summary><b>Combate</b></summary>
 
-Companions fight with a defensive-minded combat AI. They raise a shield and block incoming hits, parry and counter-attack, and switch to their best blocking shield when several enemies attack at once. They pick their weapon based on the enemy they're facing — its actual weaknesses and resistances — rather than raw damage. They also open with a torch against fire-weak enemies.
+Os companheiros lutam com uma IA defensiva: levantam o escudo e bloqueiam, dão parry e contra-atacam, e trocam para
+o melhor escudo de bloqueio quando vários inimigos atacam ao mesmo tempo. Escolhem a arma pelas **fraquezas e
+resistências** do inimigo, não pelo dano bruto, e abrem com tocha contra inimigos fracos a fogo.
 
-Bows and crossbows are used when the companion carries the matching ammo. They load and fire crossbows properly, and switch to melee when an enemy closes in.
+Arcos e bestas são usados quando há munição; bestas são carregadas corretamente, e eles voltam para o corpo a corpo
+quando o inimigo se aproxima.
 
-Companions don't pick fights with creatures minding their own business. By default they attack a creature once it has noticed you or them. With `[Combat] EngageOnNotice` off, they wait until it's actually coming for you. Anything that attacks them is always fought back. Below a set health level they fight defensively, and at very low health they run.
+Eles não arrumam briga com criaturas que estão na delas: por padrão atacam depois que a criatura percebe você ou
+ele. Qualquer coisa que os ataque é revidada. Abaixo de certo nível de vida lutam na defensiva; com vida muito
+baixa, correm.
 
-Combat stances (inner ring of the command wheel; on a controller, push the stick partway toward one):
+**Posturas** (anel interno da roda):
 
-| Stance | Behavior |
+| Postura | Comportamento |
 |:---|:---|
-| **Balanced** | Picks melee or ranged depending on the situation |
-| **Passive** | Never starts a fight; just follows or works |
-| **Ranged** | Prefers a bow or crossbow and keeps its distance |
-| **Melee** | Sticks to melee weapons |
+| **Equilibrado** | Escolhe corpo a corpo ou à distância conforme a situação |
+| **Passivo** | Nunca começa briga; só segue ou trabalha |
+| **À distância** | Prefere arco/besta e mantém distância |
+| **Corpo a corpo** | Fica nas armas de perto |
 
-After a fight, a companion goes over and picks up what the kill dropped (with Pickup on).
-
-</details>
-
-<details>
-<summary><b>Gathering: Wood, Stone, Ore and Forage</b></summary>
-
-- **With Follow on**, a gathering companion works like Hunt. It goes for trees, rocks or plants close to you (10 m by default) as you travel, and otherwise follows you. Forage is about the berries you happen to walk past, not clearing the whole area.
-- **With Follow off**, it works an area: around home if it was started near home, otherwise around where you left it.
-- **What and how much:** gather lists and amounts decide what it collects and stops at — wood types, stone and flint, each ore, each forage item. Items not on the list are left on the ground. Amounts count what's in its pack plus the chests at home.
-- **Early game:** with no bronze axe anywhere and no forge to make one, the Wood and Stone jobs also pick up branches, stones and flint lying around.
-- **Safety:** it steps aside from falling trees and won't fell trees right next to your buildings. Certain trees can be left alone entirely (Oak by default).
-- **Full pack:** it unloads into a chest. Away from home it can also use a cart or ship nearby. If there's nowhere to unload, it can drop junk it doesn't need.
+Depois da luta, ele vai buscar o que o abate deixou (com *Recolher* ligado).
 
 </details>
 
 <details>
-<summary><b>Hunting and Fishing</b></summary>
+<summary><b>Coleta: madeira, pedra, minério e forrageio</b></summary>
 
-**Hunt**
-- Goes after creatures that drop meat, until it has enough of each kind of meat. Tamed animals, bosses and companions are never hunted.
-- Sneaks up on skittish game like deer to catch them off guard.
-- Shoots birds for feathers (bow or crossbow needed).
-- Picks up the drops, and brings the catch home when its pack is full.
-- With Follow on it hunts near you; with Follow off, around where it was set to work.
-
-**Fish**
-- Casts with a rod and bait, picking the best bait for the fish nearby.
-- Waits for a bite, strikes, and reels the fish in while watching the line.
-- Brings the catch home when its pack is full.
-- Each kind of fish has a target, so it stops when you have enough.
+- **Seguindo você**, ele vai atrás de árvores, rochas ou plantas **perto de você** enquanto vocês andam
+  (até 25 m por padrão) — e segue você quando não há nada por perto.
+- **Sem seguir**, ele trabalha uma **área**: em volta de casa, se o trabalho começou perto dela; senão, em volta
+  de onde você o deixou (até 60 m).
+- **O quê e quanto:** as listas e quantidades decidem o que ele coleta e onde para. Itens fora da lista ficam no chão.
+- **Início de jogo:** sem machado de bronze e sem forja, ele também recolhe **galhos, pedras e sílex** do chão.
+- **Segurança:** ele se afasta de árvores caindo e não derruba árvores coladas nas suas construções.
+- **Bolsa cheia:** ele descarrega num baú (ou carroça/navio por perto).
 
 </details>
 
 <details>
-<summary><b>Farming</b></summary>
+<summary><b>Caça e pesca</b></summary>
 
-- Picks ripe crops, working down the rows, and stores the harvest.
-- Replants in the farm zones you mark out with the farm zone editor (`Left Alt` + `Z` by default). A zone can be set to a particular crop or to "any".
-- Keeps a seed reserve. It grows seed plants (carrots, turnips, onions…) alongside crops to build the stock back up, and never plants your last seeds.
-- Plants in small blocks of each crop and never plants tree saplings in an "any" zone.
-- Respects wards, like a player building.
+**Caçar**
+- Vai atrás de criaturas que dão carne, até ter o suficiente de cada tipo. Nunca caça animais domados, chefes nem
+  outros companheiros.
+- Chega de mansinho em bichos ariscos (como cervos).
+- Atira em pássaros por penas (precisa de arco/besta).
+- Recolhe o que caiu e leva para casa quando a bolsa enche.
 
-</details>
-
-<details>
-<summary><b>Smelting and Cooking</b></summary>
-
-**Smelt**
-- Keeps kilns, smelters, furnaces and the like fed with ore and fuel from nearby chests (and the chests at home).
-- Collects the output and stores it.
-- With no fuel in the chests, it can take down a wood pile with a hammer and use that.
-
-**Cook**
-- Uses every kind of cooking station like a player: cauldron, food preparation table, mead ketill, spit and cooking station, iron cooking station, oven, fermenters and beehives. Each one can be switched off in the settings.
-- Cooks until each food reaches its target and always leaves a reserve of ingredients for you.
-- Brews mead bases in batches, fills and taps fermenters, and puts cooked food with food of the same kind. Mead making can be switched off.
-- **Brews for your progress:** mead bases are prioritised by the last boss you beat, to get you ready for the next one.
-- Keeps the fires under its cooking stations and the oven fuelled — just enough to cook with.
+**Pescar**
+- Lança com vara e isca, escolhendo a melhor isca para os peixes por perto.
+- Espera o fisgar, dá o golpe e recolhe olhando a linha.
+- Cada tipo de peixe tem uma meta — ele para quando você já tem o suficiente.
 
 </details>
 
 <details>
-<summary><b>Repair and Restock (looking after your base)</b></summary>
+<summary><b>Fazenda</b></summary>
 
-A job for the companion you leave at home (or at an outpost). It keeps an area running on its own, as long as you (or another player) are close enough for the game to keep that area loaded — companions in unloaded areas freeze until someone comes back:
-
-- **Repair:** fixes damaged building pieces with a hammer, one swing at a time like a player. It needs the right crafting station nearby and ward access.
-- **Restock:** keeps campfires, hearths, braziers, torches, sconces and hot tubs fuelled. Each kind can be switched on or off.
-- **Beehives:** empties them and puts the honey away.
-- **Piles:** stacks surplus wood, stone and the like from the chests into piles next to the piles you've already built, keeping a set amount in the chests for building. When the chests run low, it takes a pile down to refill them.
-- **Sorting:** sorts the chests like with like, carrying each item to the chest that already holds the most of it.
-
-It fetches what it needs (a hammer, fuel) from the chests and puts leftovers back. If you send it somewhere, it waits there a little while before going back to its chores.
+- Colhe as plantações maduras, fileira por fileira, e guarda a colheita.
+- Replanta nas **zonas de fazenda** que você marca com o editor (`LeftAlt` + `Z` por padrão). A zona pode ser de
+  uma cultura específica ou "qualquer".
+- Mantém uma **reserva de sementes** — planta sementes para repor o estoque e nunca usa as suas últimas.
+- Respeita as áreas protegidas (wards), como um jogador construindo.
 
 </details>
 
 <details>
-<summary><b>When there's nothing to do (idle behaviour)</b></summary>
+<summary><b>Fundição e cozinha</b></summary>
 
-When a companion's job runs out of work and it isn't following you, it idles near its job instead of standing still. It might:
+**Fundir**
+- Mantém fornos, fundições e carvoeiras abastecidos com minério e combustível dos baús próximos (e de casa).
+- Recolhe o produto e guarda.
 
-- do small chores nearby: repair a piece, top up a fire, collect honey, put away what it's carrying
-- sit down on a chair or bench (or the ground) for a while
-- wander over to check on a station or chest
-- go over to you or another companion and chat
-
-Now and then it tells you why it's idle ("Waiting for the crops to grow."). It gets straight back to work the moment the job has something to do. It also stops idling for a fight, an order, bedtime, or you opening its menu.
-
-</details>
-
-<details>
-<summary><b>Gear, tools and repair</b></summary>
-
-- Each companion has a full inventory and equips the best weapon, shield and armor it's carrying. Durability works like a player's.
-- **Tools:** jobs fetch the tool they need (axe, pickaxe, cultivator, rod and bait, hammer…) from the chests at home and put borrowed ones back afterwards. A broken tool is repaired or replaced.
-- **Gear repair:** worn gear is taken to a crafting station a player could use (roof and fire where needed). At home this happens a bit sooner. An item no station nearby can repair is left alone for a while instead of being tried over and over.
-- **Bags:** when you change a companion's job, or it comes home, it empties what it picked up into the chests.
+**Cozinhar**
+- Usa **todos** os tipos de estação como um jogador: caldeirão, mesa de preparo, alambique de hidromel, espeto,
+  estação de ferro, forno, barris fermentadores e colmeias.
+- Cozinha até cada comida atingir a meta e sempre deixa uma reserva de ingredientes para você.
+- Prepara hidromel em lotes, enche e tira dos barris, e organiza a comida cozida junto da mesma espécie.
 
 </details>
 
 <details>
-<summary><b>Food, rest, beds and death</b></summary>
+<summary><b>Reparar e reabastecer (cuidando da sua base)</b></summary>
 
-- **Food:** companions eat from up to three food slots like a player, from their own inventory. They drink healing and stamina meads when they need them.
-- **Rest:** they get the Rested buff by a fire, and when you sit down near a fire, companions nearby sit down with you.
-- **Beds:** each companion claims a bed like a player, which shows its name. It goes to bed at night (and when you do), then back to its job in the morning.
-- **Death:** a companion that dies leaves a tombstone that stays on your map until it's emptied. It comes back after a while at its bed (or next to you) and collects its own gear when it's near its tombstone.
-- **Death penalty:** what it loses on death follows your world's setting by default, and can be changed.
+Um trabalho para o companheiro que fica em casa (ou num posto avançado) — desde que você (ou outro jogador) esteja
+perto o bastante para a área continuar carregada:
+
+- **Reparar:** conserta peças danificadas com um martelo, um golpe por vez, como um jogador.
+- **Reabastecer:** mantém fogueiras, braseiros, tochas e banheiras quentes abastecidos.
+- **Colmeias:** esvazia e guarda o mel.
+- **Pilhas:** empilha madeira e pedra sobrando dos baús junto das pilhas que você já fez.
+- **Organizar:** arruma os baús "igual com igual", levando cada item para o baú que já tem mais daquele item.
+
+Ele busca o que precisa (martelo, combustível) nos baús e devolve o que sobra.
+
+</details>
+
+<details>
+<summary><b>Quando não há nada para fazer</b></summary>
+
+Quando o trabalho acaba e ele não está seguindo você, ele fica por perto em vez de parar no lugar: faz pequenas
+tarefas, senta numa cadeira ou no chão, dá uma volta olhando as estações e baús, ou vem conversar. Ele volta ao
+trabalho no instante em que houver algo a fazer.
+
+</details>
+
+<details>
+<summary><b>Equipamento, ferramentas e conserto</b></summary>
+
+- Cada companheiro tem inventário completo e equipa a melhor arma, escudo e armadura que carrega.
+- **Ferramentas:** os trabalhos pegam a ferramenta que precisam (machado, picareta, cultivador, vara e isca,
+  martelo…) nos baús de casa e devolvem depois.
+- **Conserto:** equipamento gasto é levado a uma bancada que um jogador poderia usar.
+- **Bolsas:** ao trocar de trabalho ou voltar para casa, ele esvazia o que recolheu nos baús.
+
+</details>
+
+<details>
+<summary><b>Comida, descanso, camas e morte</b></summary>
+
+- **Comida:** ele come em até três espaços, como um jogador, usando a comida do próprio inventário. Bebe hidroméis
+  de cura e resistência quando precisa.
+- **Descanso:** ganha o efeito *Descansado* perto de uma fogueira — e senta com você quando você senta.
+- **Camas:** cada companheiro reivindica uma cama, que mostra o nome dele. Vai dormir à noite (e quando você dorme)
+  e volta ao trabalho de manhã.
+- **Morte:** deixa uma lápide no mapa até ser esvaziada; volta depois de um tempo na cama (ou ao seu lado) e
+  recolhe o próprio equipamento quando chega perto da lápide.
 
 </details>
 
 <details>
 <summary><b>Multiplayer</b></summary>
 
-- **Your companion stays yours.** In multiplayer, the game sometimes hands a companion to whichever nearby player's computer it likes. A companion still treats its owner as its player: it follows you, sleeps when you sleep, and carries out your orders, whoever's game is running it.
-- **Chests are safe to share.** A companion won't use a chest someone has open, another player's private chest, or a chest behind a ward it can't open. Items it moves are saved properly, with no losses or duplicates.
-- **Credit goes to the owner.** Crops and piles a companion makes count as built by its owner.
-- **Night skip:** companions hold the night skip (up to 30 s) while they walk to bed.
-- **Install it everywhere.** On a dedicated server, the server needs the mod too. A server or host without it deletes companions it loads (especially near the world spawn). A deleted companion can be brought back with General > RecoverLostCompanion (see the guide), but it's better not to lose it.
+- **Seu companheiro continua seu:** ele trata o dono como o seu jogador — segue você, dorme quando você dorme e
+  cumpre as suas ordens, não importa qual computador o esteja rodando.
+- **Baús são seguros de compartilhar:** ele não usa baú aberto, baú privado de outro jogador nem baú atrás de uma
+  área protegida que ele não pode abrir. Itens movidos são salvos corretamente, sem perdas nem duplicação.
+- **Instale em todo lugar:** num servidor dedicado, o servidor também precisa do mod.
 
 </details>
 
 <details>
-<summary><b>Settings</b></summary>
+<summary><b>Configurações</b></summary>
 
-All settings are in `BepInEx/config/Maddhattr.OfflineCompanionsReborn.cfg`. They can also be changed in game with the settings panel (`F8` by default). Each setting has a plain-language description.
+Tudo fica em `BepInEx/config/Maddhattr.OfflineCompanionsReborn.cfg` e também pode ser mudado **em jogo** com o
+painel de configurações (**`F8`** por padrão). Cada opção tem descrição clara.
 
-They're grouped into: **General, Controls, Follow, Movement, Combat, Food, Stamina, Rest, Death, Looting, Gear Repair**, one section per job (**Gathering, Hunting, Fishing, Farming, Smelting, Cooking, Repair and Restock**), **Idle, Speech**, and **Advanced** (fine-tuning most players won't need).
+As seções incluem **General, Controls, Follow, Movement, Combat, Food, Stamina, Rest, Death, Looting, Gear Repair**,
+uma por trabalho (**Gathering, Hunting, Fishing, Farming, Smelting, Cooking, Repair and Restock**), **Idle,
+Speech** e **Advanced** — além das nossas em **`[IA]`** (ordens por texto/voz, personalidade, memória, Whisper).
 
-**List settings** (what to gather, cook, hunt, plant…) all use the same format:
-- `*` = everything
-- `Name` = this one
-- `-Name` = never this one
-- `Name:Number` = this one, with its own amount
+**Listas** (o que coletar, cozinhar, caçar, plantar…) usam o mesmo formato:
+- `*` = tudo
+- `Nome` = só esse
+- `-Nome` = nunca esse
+- `Nome:Número` = esse, com a sua própria quantidade
 
-The names you can use are written to `OfflineCompanionsReborn.Cooking.txt`, `.Hunting.txt` and `.Fishing.txt` in the config folder at startup.
-
-Updating from an older version? Your changed settings are carried over to their new names automatically the first time you load in.
+Ao atualizar de uma versão antiga, as opções que você mudou são migradas automaticamente.
 
 </details>
 
-## Installation
+---
 
-Install with a mod manager (recommended), or manually drop `Companions.dll` into your `BepInEx/plugins/` folder.
+## Instalação
 
-**Multiplayer:** every player needs the mod, and so does a dedicated server. A server without it deletes companions.
+1. Instale o **[BepInExPack_Valheim](https://thunderstore.io/c/valheim/p/denikson/BepInExPack_Valheim/)**.
+2. Copie a pasta do mod para `BepInEx/plugins/ModAI-BR-Companions` (ou use um gerenciador de mods).
+3. **Para as ordens por voz:** deixe um modelo do Whisper (ex. `ggml-small-q5_1.bin`) em
+   `.../ModAI-BR-Companions/whisper/`.
+4. **Para a IA:** instale o **[LM Studio](https://lmstudio.ai/)**, carregue um modelo e ligue o servidor local
+   (padrão `http://localhost:1234/v1`). Ajuste em `[IA] BaseUrl` / `[IA] Modelo` se precisar.
 
-**Remove ProfMags' original Offline Companions first.** It doesn't work on Valheim 1.0, and Reborn won't start while it's installed (the BepInEx log says so).
+**Requisitos:** Valheim **1.0.x** + BepInEx (o BepInExPack já traz o Harmony). As ordens por voz exigem
+**Windows x64** e um **microfone**.
 
-**Requires:** [BepInEx](https://valheim.hexium.gg/mods/denikson/BepInExPack_Valheim) and [Harmony](https://github.com/pardeike/Harmony) — both pulled in automatically by BepInExPack.
+**Multiplayer:** todo jogador precisa do mod, e o servidor dedicado também.
 
-## Future Plans
+## Planos futuros
 
-- Keep developing the companion AI so it behaves more like another player.
-- More multiplayer features.
-- A review of skills and stats (health, regen, stamina, skill gains) against a player's.
-- Combat improvements.
-- A full ship and cart review.
-- Outposts: a way for companions to treat a second base like home.
-- Smarter chest organisation (ore near the smelter, food near the cooking stations…).
-- Add a way to recruit companions from Haldor's shop.
+- Continuar melhorando a IA do companheiro e as ordens em linguagem natural.
+- Mais recursos de voz (ele **falar** as respostas — TTS) e um menu de personalidade/voz em jogo.
+- Mais recursos de multiplayer.
+- Revisão de habilidades e atributos em cima dos de um jogador.
 
-## Source
+## Código-fonte
 
-The full source code is on GitHub: [MaddhattrRocks/Offline-Companions-Reborn](https://github.com/MaddhattrRocks/Offline-Companions-Reborn).
+Código completo no GitHub: **[julianu37/ModAI-BR-Companions](https://github.com/julianu37/ModAI-BR-Companions)**.
 
-## License
+## Licença
 
-MIT — see `LICENSE`. This is the same license the original Offline Companions mod is released under; this update keeps ProfMags' copyright notice in place per the license terms, alongside the additional changes made here.
+**MIT** — ver `LICENSE`. É a mesma licença do Offline Companions original; mantemos o aviso de copyright do
+ProfMags (e do Maddhattr) junto das nossas mudanças, como manda a licença.
 
-## Disclaimer
+## Aviso
 
-This is an unofficial, community update made to keep a great mod working on Valheim 1.0. It is not affiliated with or endorsed by ProfMags. If ProfMags ever wants this taken down, merged, or handled differently, just ask — happy to work it out.
+Este é um **fork não oficial** de um mod da comunidade, mantido para uso pessoal/estudo em PT-BR, com a nossa
+camada de IA por cima. Não é afiliado nem endossado pelo ProfMags, pelo Maddhattr ou pela Iron Gate.
+Se algum dos autores quiser que algo seja removido, alterado ou incorporado, é só pedir.
 
-Parts of the code for this mod have been updated and created using AI tools to assist. This is done with specific instruction, code review, and rigorous and repeat testing before releasing a new version. AI tools just allow the work to be done faster and have no impact on creative direction.
+Parte do código foi escrita com auxílio de ferramentas de IA, com instrução específica, revisão e testes antes de
+cada versão.
