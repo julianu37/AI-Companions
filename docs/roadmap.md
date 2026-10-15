@@ -973,3 +973,109 @@ próximo** repetir o texto (`Speak(PickSpeaker(), texto)` → `CompanionTalk.Say
    no **balão do jogador** (e "Entendi: …" no chat/HUD). A resposta do companheiro ("Ok: coletar pedra (2)" /
    conversa) deve continuar aparecendo no balão **dele**.
 
+### Fase 3.8 — o companheiro abre o próprio inventário por voz/chat (✅ — build; teste em jogo pendente)
+
+Pedido do jogador: *"seria possível fazer o companion abrir o inventário quando solicitado?"* — falar/digitar
+`abre o teu inventário`, `mostra o inventário`, `mostra o que você carrega` e a **janela do inventário do
+companheiro** abrir para o jogador. Nada de ordem, job, radial, UI, STT, balão do jogador ou dos raios/chatter foi
+tocado: a ordem entra pela **mesma** caixa (`CompanionChatAI.Submit`, chat **e** voz) e termina na **mesma** chamada
+que o **toque na tecla de interagir** já usa.
+
+#### 1. Contrato do LLM: as ações `inventory` e `inventory_close`
+
+- `CompanionChatAI.Contract` ganhou `inventory (abrir o inventário do companheiro para o jogador ver o que ele
+  carrega)` na lista de ações, a regra (`inventory` quando o jogador pedir para **ver** o que ele carrega — *isso não
+  é conversa*) e **2 exemplos**: `"abre o teu inventário"` e `"mostra o que você carrega"` →
+  `{"action":"inventory",…}`. A parte fixa continua no começo do prompt (cacheável pelo servidor).
+- `LlmIntent`: `inventory`/`inventory_close` são ações canônicas. O parser é tolerante em **duas** camadas, porque um
+  modelo pequeno escreve a mesma ordem de muitas formas: (a) **aliases** exatos (`inventory`, `inventario`,
+  `abrir_inventario`, `abre_o_teu_inventario`, `mostra_o_inventario`, `mochila`, `bolsa`, `bag`, `abre`, `abrir`,
+  `open`, `mostra`, `mostrar`; e `fechar_inventario`, `fecha_inventario`, `fechar`, `fecha`, `close` para fechar);
+  (b) **qualquer palavra da ação que carregue o nome da mochila** (`invent*`, `mochila`, `bolsa`, `bag`) — assim
+  `abre_o_teu_inventario`, `open_bag` e `mostra_o_teu_inventario` caem na ação certa sem estarem na lista. A frase
+  que só diz "carrega" só conta quando também pede para **ver** (`mostrar_o_que_voce_carrega`): `carregar_madeira`
+  **não** é esta ordem (seria uma coleta) e continua caindo no que caía antes. `fech*`/`close*`/`escond*` na mesma
+  ação viram `inventory_close`.
+
+#### 2. `CompanionOrders.Inventory`: qual companheiro, e como a janela abre
+
+- **Um só companheiro**, nunca todos (uma janela mostra uma mochila): o **companheiro a quem a mensagem foi
+  dirigida** — `CompanionChatAI.PendingSpeaker`, o mesmo `PickSpeaker()` que já escolhe com quem o jogador está
+  falando (o mais próximo dos seus, dentro do `[RecallRange]`, com os comandos ligados) — e, se ele já não existir
+  quando a resposta chega, o **mais próximo que pode receber ordem** (a mesma regra, lida de novo). A escolha
+  **não** toma posse dele por conta própria; quem toma é o painel do companheiro, no `Show` (como no toque).
+- `companion.GetComponent<Container>()` → `CompanionInteract.RequestCompanionInventory(companion, container, player)`,
+  que chama o **`CompanionInteract.OpenCompanionInventory`** (agora devolvendo `InventoryOpenResult`): o
+  `InventoryGui.instance.Show(container)` + `CompanionInteractPanel.Instance?.Show(setup)` do toque. Ou seja: a
+  janela, o campo de **nome**, os espaços de **comida** e o painel de **equipamento** são exatamente os que o
+  jogador já vê ao interagir — nada de uma segunda janela.
+- Feedback PT-BR (o companheiro também **fala** a linha do "abriu"): `hc_ai_inventory_open` = *"Abrindo o
+  inventário."*; sem companheiro → `hc_ai_no_companion` (*"Nenhum companheiro seu está perto o bastante…"*); sem
+  container → `hc_ai_no_container` (*"Não achei o inventário de {0}."*); sem `InventoryGui` (resposta chegando
+  enquanto o mundo carrega) → `hc_ai_inventory_no_gui`; **nunca** quebra (`InventoryGui.instance == null` já era
+  checado pelo próprio método).
+
+#### 3. A posse do container (multiplayer): pede uma vez e abre sozinho
+
+O caminho do toque, quando o container **não é nosso**, só pede a posse e avisa *"Requesting container access -
+interact again in a moment"* — o jogador tem de interagir de novo. Numa ordem isso seria uma resposta ruim (o
+jogador pediu **uma** vez, por voz):
+
+- `OpenCompanionInventory` passou a **devolver** o que aconteceu (`Opened` / `Requesting` / `NoGui` / `NoContainer`)
+  — os dois chamadores do toque ignoram o retorno, então nada mudou para eles.
+- `RequestCompanionInventory` **guarda** o container quando a resposta é `Requesting` e o novo
+  **`CompanionInteract.TickPendingInventoryOpen`** (chamado no `Update` do `CompanionInteract`, **uma vez por frame**
+  — o primeiro que rodar no frame faz, guarda por `Time.frameCount`) abre a janela assim que a posse chega. O
+  `ClaimOwnership` é chamado **uma única vez** (o retry só **lê** `IsOwner`), não a cada frame.
+- Desiste depois de **5 s** com um aviso no HUD/chat (`hc_ai_inventory_timeout`), e larga o pedido em silêncio se o
+  companheiro sumiu (morte/dispensa) ou se o jogador abriu **outra** janela nesse meio tempo — nunca rouba o foco.
+- Custo: **zero** quando não há pedido pendente (uma comparação com `null` por frame).
+
+#### 4. A ordem sem alvo do modelo (`none`): as palavras do jogador (rede de segurança)
+
+Se o modelo responder `{"action":"none","reply":"…"}` para `abre o teu inventário` (a 3.5 trataria como conversa e
+o jogador ficaria conversando com uma janela que nunca abre), o texto do jogador é lido por
+`CompanionOrders.IsInventoryRequest` (novo) **antes** de virar conversa: ele exige uma **palavra da mochila**
+(`inventário`, `mochila`, `bolsa`, `bag`, ou `carrega` em "mostra o que você carrega") **e** um **verbo de abrir ou
+fechar** — por isso `o que tem no teu inventário?`, `quanto pesa a tua mochila?` e `abre a porta` continuam
+**conversa/nenhuma ordem**, e `fecha o inventário` vira `inventory_close`. O `reply` do modelo é mantido só no log
+(a linha localizada ganha, como em toda ordem).
+
+#### 5. `fecha o inventário` (bônus)
+
+`inventory_close` chama `InventoryGui.instance.Hide()` — exatamente o que o **ESC** faz; o painel do companheiro se
+esconde sozinho no frame seguinte (o `Update` dele vigia o container do jogo). Sem janela aberta, avisa
+(`hc_ai_inventory_none_open`) em vez de quebrar.
+
+#### 6. Verificação fora do jogo (harness)
+
+O **`LlmIntent.cs` real** e o **`IsInventoryRequest` real** (recortado verbatim do `CompanionOrders.cs`) foram
+compilados num harness de console (net472, stubs de `CompanionsPlugin.Log`) e alimentados com 45 casos: 12 formas de
+resposta do modelo para o inventário (todas → `inventory`/`inventory_close`), 8 respostas que já funcionavam
+(`wood`/`follow`/`attack`/`equip`/`drop`/`stance_passive`/`none` — nenhuma mudou), `carregar_madeira`/
+`carregar_pedra` (continuam **nenhuma ordem**, não viram inventário) e 19 mensagens de jogador para o fallback (10
+que **devem** abrir/fechar e 9 que **devem** continuar conversa). Resultado: **ALL CHECKS PASSED**.
+
+#### O que NÃO muda
+
+Ordens por chat/voz, coleta com alvo no inventário (3.2/3.2c), atacar/equipar/largar (3.6/3.6b),
+personalidade/memória/conversa (3.5), jobs, UI, radial, STT (3.3/3.3b), raios e chatter (3.3c), balão do jogador
+(3.3d) e o caminho do toque na tecla de interagir — este último **idêntico** (o retorno novo do
+`OpenCompanionInventory` é ignorado por ele).
+
+#### Receita de teste
+
+1. **Build:** `dotnet build Companions.sln -c Release` → 0 erros, DLL + `Translations\Portuguese_Brazilian.json`
+   copiados para `BepInEx\plugins\ModAI-BR-Companions` (feito).
+2. **Chat:** digitar `abre o teu inventário` → o companheiro mais próximo responde *"Abrindo o inventário."* e a
+   **janela do inventário dele** abre (mesmo painel do toque na tecla de interagir, com nome/comida/equipamento).
+   No log: `[IA] Order "inventory": <nome>'s window is open`.
+3. **Voz:** segurar `V`, falar `mostra o que você carrega` e soltar → mesmo resultado (o texto reconhecido aparece no
+   balão do **jogador**, "Entendi: …" no chat/HUD, e a janela abre).
+4. **Fechar (bônus):** com a janela aberta, `fecha o inventário` → fecha; com nada aberto → *"Nenhum inventário está
+   aberto."*.
+5. **Conversa preservada:** `o que tem no teu inventário?` deve ser **respondido** pelo companheiro (balão dele), sem
+   abrir janela.
+6. **Sem companheiro por perto:** afastar-se além do `[RecallRange]` (ou desligar os comandos dele no radial) e pedir
+   → *"Nenhum companheiro seu está perto o bastante para receber essa ordem."*.
+

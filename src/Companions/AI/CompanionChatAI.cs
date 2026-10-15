@@ -46,6 +46,7 @@ internal static class CompanionChatAI
 		+ "forage (colher plantas, frutas, cogumelos), smelt (fundir minério no forno), hunt (caçar animais),\n"
 		+ "attack (atacar/matar UMA criatura citada pelo jogador), equip (equipar um item que o companheiro já tem),\n"
 		+ "drop (largar/jogar fora um item que o companheiro já tem),\n"
+		+ "inventory (abrir o inventário do companheiro para o jogador ver o que ele carrega),\n"
 		+ "farm (cuidar da plantação), fish (pescar), repair (reparar construções e reabastecer),\n"
 		+ "cook (cozinhar comida), stop (parar o que está fazendo e voltar a seguir), come (vir até o jogador),\n"
 		+ "sethome (definir a casa aqui), wander (vagar por perto), nowander (parar de vagar),\n"
@@ -64,6 +65,8 @@ internal static class CompanionChatAI
 		+ "- \"amount\" é a quantidade pedida (\"colete 20 de madeira\" -> 20); use null quando o jogador não disser.\n"
 		+ "- attack SÓ quando o jogador citar a criatura; \"atacar\"/\"matar\" sem criatura citada é hunt.\n"
 		+ "- equip e drop valem só para o que o companheiro já carrega no inventário dele; o item vai SEMPRE em \"target\", nunca em \"resource\".\n"
+		+ "- inventory quando o jogador pedir para VER o que o companheiro carrega (\"abre o teu inventário\", \"mostra o que você\n"
+		+ "  carrega\"): você abre a sua mochila para ele, com as duas mãos - isso não é conversa.\n"
 		+ "- Use \"none\" sempre que não tiver certeza: conversa, dúvida ou pedido que não é uma das ações acima.\n"
 		+ "Exemplos:\n"
 		+ "\"colete 20 de madeira\" -> {\"action\":\"wood\",\"reply\":\"Vou buscar madeira.\",\"target\":null,\"resource\":\"wood\",\"amount\":20}\n"
@@ -77,6 +80,8 @@ internal static class CompanionChatAI
 		+ "\"larga a pedra\" -> {\"action\":\"drop\",\"reply\":\"Largando.\",\"target\":\"pedra\",\"resource\":null,\"amount\":null}\n"
 		+ "\"joga essas pedras que você pegou\" -> {\"action\":\"drop\",\"reply\":\"Largando as pedras.\",\"target\":\"pedra\",\"resource\":null,\"amount\":null}\n"
 		+ "\"joga 10 pedras no chão\" -> {\"action\":\"drop\",\"reply\":\"Jogando fora.\",\"target\":\"pedra\",\"resource\":null,\"amount\":10}\n"
+		+ "\"abre o teu inventário\" -> {\"action\":\"inventory\",\"reply\":\"Aqui está, chefe.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
+		+ "\"mostra o que você carrega\" -> {\"action\":\"inventory\",\"reply\":\"Dá uma olhada.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"segue\" -> {\"action\":\"follow\",\"reply\":\"Estou com você.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"para\" -> {\"action\":\"stop\",\"reply\":\"Parando.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"vem cá\" -> {\"action\":\"come\",\"reply\":\"Já vou.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
@@ -295,12 +300,18 @@ internal static class CompanionChatAI
 		return builder.ToString();
 	}
 
+	/// <summary>Fase 3.8: the companion the message in flight was addressed to (chosen by <see cref="PickSpeaker"/>
+	/// when the message was sent). Read when the answer arrives, so an order that has to pick ONE companion - the
+	/// inventory, which can only be one window - uses the very same one the player was talking to.</summary>
+	internal static CompanionSetup PendingSpeaker => _pendingSpeaker;
+
 	/// <summary>
 	/// The companion the player is talking to: the nearest one of theirs that can take an order and is within the
 	/// recall range (the same leash orders use). Null when there is none - the answer still comes back in the chat,
 	/// just without a speech bubble. Runs once per chat message, so the walk over the companions is free.
+	/// Fase 3.8: also used by CompanionOrders when the speaker of the message is gone by the time the answer lands.
 	/// </summary>
-	private static CompanionSetup PickSpeaker()
+	internal static CompanionSetup PickSpeaker()
 	{
 		Player player = Player.m_localPlayer;
 		if (player == null)
@@ -375,6 +386,17 @@ internal static class CompanionChatAI
 		}
 
 		LlmIntent intent = result.Intent;
+		// Fase 3.8: a small model files "abre o teu inventário" as conversation ("none" plus a reply about the pack),
+		// and the player was left talking to a window that never opened. The player's own words are read for that one
+		// order when the model understood nothing else - CompanionOrders.IsInventoryRequest is deliberately narrow
+		// (an open/close verb AND a word for the pack), so "o que tem no teu inventário?" stays a conversation.
+		if (intent != null && intent.IsNone && CompanionOrders.IsInventoryRequest(result.UserText, out bool closeInventory))
+		{
+			CompanionsPlugin.Log?.LogInfo($"[IA] The model answered \"{intent.Action}\" for \"{result.UserText}\", which asks for the inventory - taking it as the {(closeInventory ? "close" : "open")} order (Fase 3.8 fallback)");
+			intent.Action = closeInventory ? "inventory_close" : "inventory";
+			intent.Target = null;
+			intent.Resource = null;
+		}
 		string reply = intent != null ? intent.Reply : null;
 		// what the companion actually said (or did), kept in its memory so it can follow the thread
 		string spoken = null;
@@ -400,7 +422,7 @@ internal static class CompanionChatAI
 		{
 			// Fase 3.6: attack/equip/drop have their own wording ("Atacando o troll.", "Não tenho picareta."), because
 			// the feedback has to say WHICH creature or item it was about - the generic "Ok: ..." line can't.
-			CompanionOrders.OrderOutcome outcome = CompanionOrders.Run(intent, result.UserText);
+			CompanionOrders.OrderOutcome outcome = CompanionOrders.Run(intent, result.UserText, _pendingSpeaker);
 			if (outcome == null || !outcome.Understood)
 			{
 				Notify(ModLocalization.Loc("hc_ai_not_understood"));

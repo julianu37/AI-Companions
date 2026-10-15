@@ -180,6 +180,25 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   Vector3.up * 2f, SpeechCullDistance, SpeechDuration, "", texto, false)`, mesmo offset/cull/duração, sem cooldown,
   null-safe) — o chat/HUD continua com "Entendi: …" e as respostas do companheiro (conversa, "Deixa comigo!") seguem no
   balão **dele**. Detalhes: `docs/roadmap.md` (Fase 3.3d) e `docs/re/harvesting-notes.md` (§2.1).
+- **Fase 3.8 — o companheiro abre o próprio inventário por voz/chat:** `abre o teu inventário` / `mostra o que você
+  carrega` (e `fecha o inventário`, de bônus) viram as ações `inventory`/`inventory_close` do contrato
+  (`CompanionChatAI.Contract`: lista de ações + regra + 2 exemplos) e o parser tolera as muitas formas do modelo
+  (`LlmIntent`: aliases exatos **e** qualquer ação que carregue o nome da mochila — `invent*`, `mochila`, `bolsa`,
+  `bag`; `carregar_madeira` **não** é esta ordem). `CompanionOrders.Inventory` escolhe **um** companheiro (o
+  `CompanionChatAI.PendingSpeaker`, isto é, o `PickSpeaker()` de quem o jogador falou; se ele sumiu, o mais próximo
+  que pode receber ordem) e chama **`CompanionInteract.OpenCompanionInventory`** (o **mesmo** caminho do toque na
+  tecla de interagir: `InventoryGui.instance.Show(container)` + `CompanionInteractPanel.Instance?.Show(setup)`) via
+  `CompanionInteract.RequestCompanionInventory`. O método agora **devolve** `InventoryOpenResult`
+  (`Opened`/`Requesting`/`NoGui`/`NoContainer`; os chamadores do toque ignoram o retorno) e, quando o container não é
+  nosso, a ordem **pede a posse uma vez** e o novo `CompanionInteract.TickPendingInventoryOpen` (no `Update`, **uma
+  vez por frame**, `ClaimOwnership` **uma única vez**, timeout de **5 s**) abre a janela sozinha quando a posse chega —
+  desistindo com aviso, ou em silêncio se o companheiro sumiu / o jogador abriu outra janela. Rede de segurança igual à
+  da 3.6b: se o modelo responder `none`, `CompanionOrders.IsInventoryRequest` lê as **palavras do jogador** (palavra da
+  mochila **e** verbo de abrir/fechar — `o que tem no teu inventário?` continua conversa). PT-BR:
+  `hc_ai_inventory_open` (*"Abrindo o inventário."*, também falado), `hc_ai_inventory_requesting`,
+  `hc_ai_inventory_timeout`, `hc_ai_inventory_no_gui`, `hc_ai_inventory_closed`, `hc_ai_inventory_none_open`,
+  `hc_ai_no_container`, `hc_ai_order_inventory(_close)`. Verificado num harness fora do jogo (45 casos, com o
+  `LlmIntent.cs` e o `IsInventoryRequest` **reais**): **ALL CHECKS PASSED**. Detalhes: `docs/roadmap.md` (Fase 3.8).
 - Backend/contrato de referência: `docs/re/backend-contract.md`; mapa da fase: `docs/roadmap.md` (Trilha D);
   pipeline de voz: `docs/re/stt-voz-pipeline.md`.
 

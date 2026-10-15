@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -36,8 +37,10 @@ internal static class CompanionOrders
 	}
 
 	/// <summary>Runs one order. <paramref name="userText"/> is what the player actually said (typed in the chat or
-	/// spoken): Fase 3.6b uses it as the safety net for attack/equip/drop when the model answered "target": null.</summary>
-	internal static OrderOutcome Run(LlmIntent intent, string userText)
+	/// spoken): Fase 3.6b uses it as the safety net for attack/equip/drop when the model answered "target": null.
+	/// <paramref name="speaker"/> (Fase 3.8) is the companion the message was addressed to, when the caller knows it -
+	/// the inventory order opens the window of that one companion.</summary>
+	internal static OrderOutcome Run(LlmIntent intent, string userText, CompanionSetup speaker = null)
 	{
 		OrderOutcome outcome = new OrderOutcome();
 		if (intent == null || intent.IsNone)
@@ -88,6 +91,16 @@ internal static class CompanionOrders
 		if (action == "drop")
 		{
 			return Drop(intent, userText, outcome);
+		}
+
+		// Fase 3.8: the one order that is about ONE companion - the player sees its pack
+		if (action == "inventory")
+		{
+			return Inventory(player, speaker, outcome);
+		}
+		if (action == "inventory_close")
+		{
+			return CloseInventory(outcome);
 		}
 
 		foreach (CompanionSetup companion2 in CompanionSetup.AllCompanions)
@@ -329,6 +342,154 @@ internal static class CompanionOrders
 		CompanionsPlugin.Log?.LogInfo($"[IA] Order \"drop\" \"{target}\": none of the companions has it");
 		return outcome;
 	}
+
+	// ---- Fase 3.8: the companion's own inventory, opened for the player ----
+
+	/// <summary>"abre o teu inventário" / "mostra o que você carrega": the player gets the companion's own window,
+	/// exactly as if he had walked up to it and pressed the interact key - the order goes through the very same
+	/// CompanionInteract.OpenCompanionInventory the tap uses (InventoryGui.Show + the mod's companion panel), so the
+	/// window, the name field, the food slots and the gear panel are the ones the mod already shows.
+	///
+	/// ONE companion is picked, never all of them: the one the message was addressed to
+	/// (<paramref name="speaker"/>, chosen by CompanionChatAI.PickSpeaker when the player spoke) and, when that one
+	/// is gone by the time the answer lands, the nearest one that could take the order (the same rule, read again).
+	///
+	/// When the container isn't ours yet (multiplayer: another client holds the companion), the ownership is asked
+	/// for - the same call the interact key makes - and the window opens by itself as soon as it arrives
+	/// (CompanionInteract.RequestCompanionInventory → TickPendingInventoryOpen): the player asked once.</summary>
+	private static OrderOutcome Inventory(Player player, CompanionSetup speaker, OrderOutcome outcome)
+	{
+		CompanionSetup companion = IsUsable(speaker) ? speaker : CompanionChatAI.PickSpeaker();
+		if (companion == null)
+		{
+			outcome.Message = ModLocalization.Loc("hc_ai_no_companion");
+			CompanionsPlugin.Log?.LogInfo("[IA] Order \"inventory\": no companion to open (none of yours is in range, or their Command switch is off)");
+			return outcome;
+		}
+		Container container = companion.GetComponent<Container>();
+		if (container == null)
+		{
+			outcome.Message = ModLocalization.LocFmt("hc_ai_no_container", NameOf(companion));
+			CompanionsPlugin.Log?.LogInfo($"[IA] Order \"inventory\": {NameOf(companion)} has no Container - nothing to open");
+			return outcome;
+		}
+		switch (CompanionInteract.RequestCompanionInventory(companion, container, player))
+		{
+		case CompanionInteract.InventoryOpenResult.Opened:
+			outcome.Count = 1;
+			outcome.Message = ModLocalization.Loc("hc_ai_inventory_open");
+			companion.GetComponent<CompanionTalk>()?.Say(outcome.Message, true);
+			CompanionsPlugin.Log?.LogInfo($"[IA] Order \"inventory\": {NameOf(companion)}'s window is open");
+			break;
+		case CompanionInteract.InventoryOpenResult.Requesting:
+			// the ownership was asked for; the window opens on its own as soon as it arrives
+			outcome.Count = 1;
+			outcome.Message = ModLocalization.LocFmt("hc_ai_inventory_requesting", NameOf(companion));
+			CompanionsPlugin.Log?.LogInfo($"[IA] Order \"inventory\": {NameOf(companion)}'s container isn't ours - ownership requested, the window opens when it arrives");
+			break;
+		case CompanionInteract.InventoryOpenResult.NoGui:
+			// InventoryGui.instance == null: no world yet (the answer landed while the game was still loading)
+			outcome.Message = ModLocalization.Loc("hc_ai_inventory_no_gui");
+			CompanionsPlugin.Log?.LogInfo("[IA] Order \"inventory\": no InventoryGui in this scene - nothing was opened");
+			break;
+		default:
+			outcome.Message = ModLocalization.LocFmt("hc_ai_no_container", NameOf(companion));
+			CompanionsPlugin.Log?.LogInfo("[IA] Order \"inventory\": the container could not be opened");
+			break;
+		}
+		return outcome;
+	}
+
+	/// <summary>"fecha o inventário" (bonus of Fase 3.8): closes the window the mod opened. The companion panel hides
+	/// itself on the next frame - its own Update watches the game's container - so only the game's window is closed
+	/// here, which is exactly what ESC does.</summary>
+	private static OrderOutcome CloseInventory(OrderOutcome outcome)
+	{
+		InventoryGui gui = InventoryGui.instance;
+		if (gui == null || !InventoryGui.IsVisible())
+		{
+			outcome.Message = ModLocalization.Loc("hc_ai_inventory_none_open");
+			CompanionsPlugin.Log?.LogInfo("[IA] Order \"inventory_close\": no inventory window was open");
+			return outcome;
+		}
+		gui.Hide();
+		outcome.Count = 1;
+		outcome.Message = ModLocalization.Loc("hc_ai_inventory_closed");
+		CompanionsPlugin.Log?.LogInfo("[IA] Order \"inventory_close\": window closed");
+		return outcome;
+	}
+
+	/// <summary>Fase 3.8: can this companion still be handed an order? (still ours, still there). Read without taking
+	/// it over, exactly like the speaker pick does.</summary>
+	private static bool IsUsable(CompanionSetup companion)
+	{
+		return companion != null && MHR_Owner.IsMine(companion) && companion.GetComponent<ZNetView>()?.GetZDO() != null;
+	}
+
+	/// <summary>
+	/// Fase 3.8: does the player's OWN message ask for the companion's inventory? The fallback for the model that
+	/// files "abre o teu inventário" as conversation ("none" + a reply about the pack) and leaves the player talking
+	/// to a window that never opens - the same safety net of Fase 3.6b, for the one order that is unmistakable in
+	/// the words themselves.
+	///
+	/// Deliberately narrow: the message has to carry a word for the pack (inventário/mochila/bolsa/bag, or "carrega"
+	/// in "mostra o que você carrega") AND a verb of opening or closing, so "o que tem no teu inventário?" and
+	/// "quanto pesa a tua mochila?" stay conversation, and "abre a porta" is not an inventory either.
+	/// </summary>
+	/// <param name="close">true when the message asks to CLOSE the window instead of opening it.</param>
+	internal static bool IsInventoryRequest(string message, out bool close)
+	{
+		close = false;
+		if (string.IsNullOrEmpty(message))
+		{
+			return false;
+		}
+		string text = LlmIntent.Normalize(message);
+		if (text.Length == 0)
+		{
+			return false;
+		}
+		bool pack = false;
+		bool verb = false;
+		string[] words = text.Split('_');
+		for (int i = 0; i < words.Length; i++)
+		{
+			string word = words[i];
+			if (PackWords.Contains(word))
+			{
+				pack = true;
+			}
+			else if (CloseWords.Contains(word))
+			{
+				verb = true;
+				close = true;
+			}
+			else if (OpenWords.Contains(word))
+			{
+				verb = true;
+			}
+		}
+		return pack && verb;
+	}
+
+	/// <summary>The words that name the companion's pack ("mostra o que você carrega").</summary>
+	private static readonly HashSet<string> PackWords = new HashSet<string>(StringComparer.Ordinal)
+	{
+		"inventario", "inventarios", "invent", "inventory", "mochila", "bolsa", "bag", "carrega", "carregas"
+	};
+
+	/// <summary>The verbs that ask to SEE it.</summary>
+	private static readonly HashSet<string> OpenWords = new HashSet<string>(StringComparer.Ordinal)
+	{
+		"abre", "abrir", "abra", "abram", "mostra", "mostrar", "mostre", "olha", "olhar", "olhe", "exibe", "exibir",
+		"ver", "veja", "ve", "open", "show"
+	};
+
+	/// <summary>The verbs that ask to CLOSE it.</summary>
+	private static readonly HashSet<string> CloseWords = new HashSet<string>(StringComparer.Ordinal)
+	{
+		"fecha", "fechar", "feche", "fechem", "esconde", "esconder", "esconda", "close"
+	};
 
 	// ---- Fase 3.6b: what to act on when the model named nothing ----
 

@@ -604,6 +604,8 @@ public class CompanionInteract : MonoBehaviour
 
 	private void Update()
 	{
+		// Fase 3.8: opens the container an AI order is waiting for (once per frame, first instance wins)
+		TickPendingInventoryOpen();
 		HandleDirectCommand();
 		if (ZInput.IsGamepadActive())
 		{
@@ -1908,23 +1910,138 @@ public class CompanionInteract : MonoBehaviour
 		_gamepadReleaseDetected = false;
 	}
 
-	internal static void OpenCompanionInventory(CompanionSetup setup, Container container, Player player)
+	/// <summary>Fase 3.8: what came of a request to open a companion's inventory. Read by the AI order ("abre o teu
+	/// inventário"), which has to tell the player what happened; the interact key ignores it.</summary>
+	internal enum InventoryOpenResult
 	{
-		if (!(InventoryGui.instance == null))
+		/// <summary>The game's window is showing the companion's pack (and the mod's panel with it).</summary>
+		Opened,
+
+		/// <summary>The container wasn't ours: its ownership was asked for and the window opens as soon as it arrives
+		/// (the interact key's own "interact again in a moment", which an order retries by itself).</summary>
+		Requesting,
+
+		/// <summary>No InventoryGui in this scene - there is no world to show a window in.</summary>
+		NoGui,
+
+		/// <summary>Nothing to open (no container).</summary>
+		NoContainer
+	}
+
+	internal static InventoryOpenResult OpenCompanionInventory(CompanionSetup setup, Container container, Player player)
+	{
+		if (InventoryGui.instance == null)
 		{
-			ZNetView component = container.GetComponent<ZNetView>();
-			if (component != null && !component.IsOwner())
-			{
-				component.ClaimOwnership();
-				CompanionsPlugin.Log.LogInfo("[Companion] Requesting container access - interact again in a moment");
-			}
-			else
-			{
-				InventoryGui.instance.Show(container);
-				CompanionInteractPanel.EnsureInstance();
-				CompanionInteractPanel.Instance?.Show(setup);
-			}
+			return InventoryOpenResult.NoGui;
 		}
+		if (container == null)
+		{
+			return InventoryOpenResult.NoContainer;
+		}
+		ZNetView component = container.GetComponent<ZNetView>();
+		if (component != null && !component.IsOwner())
+		{
+			component.ClaimOwnership();
+			CompanionsPlugin.Log.LogInfo("[Companion] Requesting container access - interact again in a moment");
+			return InventoryOpenResult.Requesting;
+		}
+		ShowCompanionInventory(setup, container);
+		return InventoryOpenResult.Opened;
+	}
+
+	/// <summary>Shows a companion's container in the game's window and brings the mod's own panel along with it (the
+	/// one with the name, the food slots and the gear). The ownership is NOT looked at here - the caller does that.</summary>
+	private static void ShowCompanionInventory(CompanionSetup setup, Container container)
+	{
+		InventoryGui.instance.Show(container);
+		CompanionInteractPanel.EnsureInstance();
+		CompanionInteractPanel.Instance?.Show(setup);
+	}
+
+	// ---- Fase 3.8: the AI order that opens the companion's inventory ----
+
+	/// <summary>The container an AI order asked for, while its ownership is on its way, and how long we wait for it.</summary>
+	private static Container _aiOpenContainer;
+
+	private static CompanionSetup _aiOpenSetup;
+
+	private static float _aiOpenDeadline;
+
+	private static int _aiOpenFrame = -1;
+
+	private const float AiOpenTimeoutSeconds = 5f;
+
+	/// <summary>
+	/// Fase 3.8: opens a companion's inventory for an AI order ("abre o teu inventário"). Exactly the call the
+	/// interact key makes, plus one thing the key does not need: when the container isn't ours yet the ownership is
+	/// asked for AND remembered, so the window opens by itself as soon as the ownership arrives
+	/// (<see cref="TickPendingInventoryOpen"/>) - the player asked once, and being told to ask again would be a poor
+	/// answer to a spoken order.
+	/// </summary>
+	internal static InventoryOpenResult RequestCompanionInventory(CompanionSetup setup, Container container, Player player)
+	{
+		InventoryOpenResult result = OpenCompanionInventory(setup, container, player);
+		if (result == InventoryOpenResult.Requesting)
+		{
+			_aiOpenContainer = container;
+			_aiOpenSetup = setup;
+			_aiOpenDeadline = Time.time + AiOpenTimeoutSeconds;
+		}
+		return result;
+	}
+
+	/// <summary>
+	/// Fase 3.8: opens the container an AI order is waiting for, once its ownership has arrived. Runs once per frame
+	/// (the first CompanionInteract instance of the frame does it) and does nothing at all when no order is waiting.
+	/// Gives up after <see cref="AiOpenTimeoutSeconds"/> and says so, so a request that can never be granted does not
+	/// leave the player waiting for a window that never comes.
+	/// </summary>
+	internal static void TickPendingInventoryOpen()
+	{
+		if (_aiOpenContainer == null || Time.frameCount == _aiOpenFrame)
+		{
+			return;
+		}
+		_aiOpenFrame = Time.frameCount;
+		if (Time.time > _aiOpenDeadline)
+		{
+			CompanionsPlugin.Log.LogWarning("[IA] Inventory: the container's ownership never arrived - giving up on opening it");
+			ClearPendingInventoryOpen();
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_inventory_timeout"));
+			return;
+		}
+		CompanionSetup setup = _aiOpenSetup;
+		ZNetView nview = setup != null ? setup.GetComponent<ZNetView>() : null;
+		if (nview == null || nview.GetZDO() == null)
+		{
+			// the companion is gone (dismissed, dead, unloaded): nothing to show any more
+			CompanionsPlugin.Log.LogInfo("[IA] Inventory: the companion is gone - the pending open was dropped");
+			ClearPendingInventoryOpen();
+			return;
+		}
+		if (InventoryGui.IsVisible())
+		{
+			// the player opened something else in the meantime: leave it alone, the order is dropped silently
+			CompanionsPlugin.Log.LogInfo("[IA] Inventory: another window is open - the pending open was dropped");
+			ClearPendingInventoryOpen();
+			return;
+		}
+		Container container = _aiOpenContainer;
+		ZNetView containerView = container != null ? container.GetComponent<ZNetView>() : null;
+		if (containerView != null && !containerView.IsOwner())
+		{
+			// still waiting for the ownership the order asked for (never claimed again here: once is enough)
+			return;
+		}
+		ShowCompanionInventory(setup, container);
+		CompanionsPlugin.Log.LogInfo("[IA] Inventory: ownership arrived - the companion's window is open");
+		ClearPendingInventoryOpen();
+	}
+
+	private static void ClearPendingInventoryOpen()
+	{
+		_aiOpenContainer = null;
+		_aiOpenSetup = null;
 	}
 
 	internal string GetHoverText()

@@ -30,10 +30,15 @@ ordens digitadas: ordem, conversa, personalidade e memória funcionam igual.
 **Exemplos que funcionam hoje:**
 `colete 10 madeiras` · `pega 10 pedras` · `minere ferro` · `segue` · `para` · `para de me seguir` ·
 `vem cá` · `ataca o greydwarf` · `mata o javali` · `equipa o machado de bronze` · `pega a picareta` ·
-`larga a pedra` · `joga fora 5 madeira` · `fica na defensiva` · `bom dia` · `como você está?`
+`larga a pedra` · `joga fora 5 madeira` · `abre o teu inventário` · `fica na defensiva` · `bom dia` ·
+`como você está?`
 
 > O número da ordem é um **alvo** contado no **inventário dele**: se ele já tem 10 madeiras e você pede 10,
 > ele avisa *"Já temos o suficiente."* e não sai para coletar.
+
+> Peça para ver o que ele carrega (*"abre o teu inventário"*, *"mostra o que você carrega"*) e a **janela do
+> inventário do companheiro** abre para você — a mesma do toque na tecla de interagir, com nome, comida e
+> equipamento. *"Fecha o inventário"* fecha.
 
 ### 🧠 Personalidade, memória e conversa
 

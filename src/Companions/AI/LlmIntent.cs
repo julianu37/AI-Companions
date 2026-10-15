@@ -218,6 +218,14 @@ internal sealed class LlmIntent
 			return ActionNone;
 		}
 
+		// Fase 3.8: the inventory order, which the model writes in a dozen shapes ("inventory", "abrir_inventario",
+		// "mostra_o_teu_inventario", "open bag"). Anything carrying the name of the pack is read as it; the aliases
+		// below only cover the exact spellings.
+		if (IsInventoryWord(normalizedAction))
+		{
+			return IsCloseWord(normalizedAction) ? "inventory_close" : "inventory";
+		}
+
 		// an explicit "stance" field ("balanced", "defensive"...) turns the action into a stance order
 		if (!string.IsNullOrEmpty(normalizedStance) && string.IsNullOrEmpty(normalizedAction))
 		{
@@ -297,6 +305,52 @@ internal sealed class LlmIntent
 	private static string Singular(string word)
 	{
 		return (word.Length > 3 && word[word.Length - 1] == 's') ? word.Substring(0, word.Length - 1) : word;
+	}
+
+	/// <summary>Fase 3.8: does this action word name the companion's pack ("inventario", "mochila", "bag")? A phrase
+	/// that only says "carrega" counts when it also asks to SEE it ("mostrar_o_que_voce_carrega"); a bare
+	/// "carregar_madeira" is not this order and is left to the aliases.</summary>
+	private static bool IsInventoryWord(string action)
+	{
+		if (action.Contains("invent"))
+		{
+			return true;
+		}
+		string[] words = action.Split('_');
+		bool carries = false;
+		bool see = false;
+		for (int i = 0; i < words.Length; i++)
+		{
+			string word = words[i];
+			if (word == "mochila" || word == "bolsa" || word == "bag")
+			{
+				return true;
+			}
+			if (word.StartsWith("carrega"))
+			{
+				carries = true;
+			}
+			else if (IsSeeWord(word))
+			{
+				see = true;
+			}
+		}
+		return carries && see;
+	}
+
+	/// <summary>Fase 3.8: the verbs that ask to SEE something ("abre", "mostra", "open").</summary>
+	private static bool IsSeeWord(string word)
+	{
+		return word == "abre" || word == "abrir" || word == "abra" || word == "mostra" || word == "mostrar"
+			|| word == "mostre" || word == "olha" || word == "olhar" || word == "ver" || word == "veja" || word == "ve"
+			|| word == "open" || word == "show" || word == "exibe" || word == "exibir";
+	}
+
+	/// <summary>Fase 3.8: is the pack order about CLOSING the window ("fecha o inventário")? Only read when the
+	/// action also named the pack, so a bare "fecha" is never taken as this.</summary>
+	private static bool IsCloseWord(string action)
+	{
+		return action.Contains("fech") || action.Contains("close") || action.Contains("escond");
 	}
 
 	private static string StanceForName(string name)
@@ -394,6 +448,10 @@ internal sealed class LlmIntent
 		Add(map, "stance_passive", "stance_passive", "passive", "passivo", "defensivo", "defensive", "postura_passiva", "postura_defensiva", "defender", "defender_se", "nao_atacar", "pacifico", "cuidado");
 		Add(map, "stance_ranged", "stance_ranged", "ranged", "distancia", "a_distancia", "postura_a_distancia", "arco", "arqueiro", "usar_arco", "besta", "crossbow");
 		Add(map, "stance_melee", "stance_melee", "melee", "corpo_a_corpo", "postura_corpo_a_corpo", "espada", "corpo", "espadachim");
+		// Fase 3.8: "abre o teu inventário", "mostra o que você carrega" - the companion opens its own pack for the
+		// player. The bare verbs ("abre", "mostra") are here too: they mean nothing else to us.
+		Add(map, "inventory", "inventory", "inventario", "inventarios", "inventario_do_companheiro", "abrir_inventario", "abre_inventario", "abre_o_inventario", "abre_o_teu_inventario", "abre_teu_inventario", "abrir_o_inventario", "abrir_o_teu_inventario", "mostra_inventario", "mostra_o_inventario", "mostra_o_teu_inventario", "mostrar_inventario", "mostrar_o_inventario", "ver_inventario", "ver_o_inventario", "abre", "abrir", "abra", "open", "mostra", "mostrar", "mostre", "mochila", "bolsa", "bag");
+		Add(map, "inventory_close", "inventory_close", "close_inventory", "fechar_inventario", "fecha_inventario", "fechar_o_inventario", "fecha_o_inventario", "fechar_janela", "fecha_janela", "fechar", "fecha", "feche", "close", "esconder_inventario");
 		Add(map, "none", "none", "null", "nada", "nenhuma", "nenhum", "n_a", "conversa", "conversation", "chat", "saudacao", "oi", "ola", "bom_dia", "boa_tarde", "boa_noite", "obrigado", "obrigada", "valeu", "hello", "hi", "hey", "thanks", "pergunta", "duvida");
 		// verbs that mean "go and collect something": the job comes from the resource field
 		Add(map, "#gather", "gather", "collect", "coletar", "colete", "coletem", "peguem", "apanhar", "apanha", "minerar_tudo", "juntar", "junta");

@@ -2,7 +2,45 @@
 
 All notable changes to this fork of ProfMags' Offline Companions. Versions before 1.4.0 are the original mod (see [ProfMags' Thunderstore page](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) for that history) plus the initial batch of Valheim 1.0 API-compatibility fixes that let the mod load and run at all on 1.0.
 
-## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.6b: a ordem sem alvo do modelo (drop/equip/attack caem para as palavras do jogador) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Fase 3.3c: raio de coleta maior e chatter aleatório desligado + Fase 3.3d: a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador + Tradução PT-BR (fork ModAI-BR-Companions)
+## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.6b: a ordem sem alvo do modelo (drop/equip/attack caem para as palavras do jogador) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Fase 3.3c: raio de coleta maior e chatter aleatório desligado + Fase 3.3d: a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador + Fase 3.8: o companheiro abre o próprio inventário por voz/chat + Tradução PT-BR (fork ModAI-BR-Companions)
+- **Fase 3.8 — "abre o teu inventário": o companheiro abre o próprio inventário para o jogador.** Pedido do jogador:
+  *"seria possível fazer o companion abrir o inventário quando solicitado?"*. Falar/digitar `abre o teu inventário`,
+  `mostra o inventário`, `mostra o que você carrega` (ou `fecha o inventário`, de bônus) e a **janela do inventário
+  do companheiro** abre — a **mesma** do toque na tecla de interagir, com nome, comida e equipamento. A ordem entra
+  pela **mesma** caixa das outras (`CompanionChatAI.Submit` — chat **e** voz) e termina na **mesma** chamada que o
+  toque usa (`CompanionInteract.OpenCompanionInventory` → `InventoryGui.Show(container)` +
+  `CompanionInteractPanel.Show(setup)`). Nada de ordem, job, radial, UI, STT, balão do jogador ou dos raios/chatter
+  foi tocado:
+  - **Contrato do LLM:** nova ação `inventory` (`inventory_close` para fechar) na lista de ações, na regra e em **2
+    exemplos** do system prompt (`"abre o teu inventário"`, `"mostra o que você carrega"`). O parser (`LlmIntent`)
+    aceita a ordem em muitas formas: aliases exatos (`inventario`, `abrir_inventario`, `abre_o_teu_inventario`,
+    `mostra_o_inventario`, `mochila`, `bolsa`, `bag`, `abre`, `abrir`, `open`, `mostra`, `mostrar`; `fecha*`/`close*`
+    para fechar) **e** qualquer ação que carregue o nome da mochila (`invent*`, `mochila`, `bolsa`, `bag`) —
+    `open_bag` e `mostrar_o_que_voce_carrega` caem na ação certa. A frase que só diz "carrega" precisa também pedir
+    para **ver**: `carregar_madeira` **não** vira inventário (continua uma coleta/nenhuma ordem).
+  - **Um companheiro só** (uma janela mostra uma mochila): o companheiro a quem a mensagem foi dirigida
+    (`CompanionChatAI.PendingSpeaker`, o `PickSpeaker()` que já escolhe com quem o jogador fala) e, se ele já não
+    existir quando a resposta chega, o mais próximo que pode receber ordem. A escolha **não** toma posse dele — quem
+    toma é o painel do companheiro no `Show`, como no toque.
+  - **Posse do container (multiplayer):** quando o container não é nosso, o caminho do toque só pedia a posse e
+    mandava o jogador interagir de novo. `OpenCompanionInventory` passou a **devolver** o resultado (`Opened`/
+    `Requesting`/`NoGui`/`NoContainer` — os chamadores do toque ignoram, então nada mudou para eles) e a ordem
+    **pede uma vez e abre sozinha** quando a posse chega: `CompanionInteract.RequestCompanionInventory` guarda o
+    container e `TickPendingInventoryOpen` (no `Update`, **uma vez por frame**, `ClaimOwnership` **uma única vez**)
+    abre a janela assim que `IsOwner` responde; desiste em **5 s** com aviso, e larga o pedido em silêncio se o
+    companheiro sumiu ou se o jogador abriu outra janela. Custo **zero** quando não há pedido pendente.
+  - **Rede de segurança (como a 3.6b):** se o modelo responder `none` para `abre o teu inventário`,
+    `CompanionOrders.IsInventoryRequest` lê as **palavras do jogador** e exige uma palavra da mochila **e** um verbo
+    de abrir/fechar — `o que tem no teu inventário?`, `quanto pesa a tua mochila?` e `abre a porta` continuam
+    conversa/nenhuma ordem.
+  - **PT-BR:** `hc_ai_inventory_open` (*"Abrindo o inventário."*, também falado no balão do companheiro),
+    `hc_ai_inventory_requesting`, `hc_ai_inventory_timeout`, `hc_ai_inventory_no_gui`, `hc_ai_inventory_closed`,
+    `hc_ai_inventory_none_open`, `hc_ai_no_container`, `hc_ai_order_inventory(_close)`.
+  - **Verificação:** o `LlmIntent.cs` **real** e o `IsInventoryRequest` **real** (recortado verbatim) compilados num
+    harness de console (net472) e exercitados com **45 casos** (12 formas de resposta do modelo, 8 respostas que já
+    funcionavam, `carregar_madeira`/`carregar_pedra` que **não** podem virar inventário e 19 mensagens de jogador para
+    o fallback): **ALL CHECKS PASSED**. Receita em jogo: `abre o teu inventário` (chat), `mostra o que você carrega`
+    (voz) e `fecha o inventário`.
 - **Fase 3.6b — a ordem sem alvo: o modelo responde `"target": null`.** Relato do jogador: "o comando pra dropar não
   funcionou". No log (voz), o modelo acertou a ação e a quantidade mas devolveu `"target": null` nos dois pedidos
   (`"Joga essas pedras que tu pegou no chao."` e `"Joga 10 pedras no chao."`) e a Fase 3.6 só sabia largar o que o

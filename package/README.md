@@ -26,10 +26,12 @@ mesmo caminho das ordens digitadas. Exemplos:
 
 `colete 10 madeiras` · `pega 10 pedras` · `minere ferro` · `segue` · `para` · `para de me seguir` · `vem cá` ·
 `ataca o greydwarf` · `mata o javali` · `equipa o machado de bronze` · `pega a picareta` · `larga a pedra` ·
-`joga fora 5 madeira` · `fica na defensiva` · `bom dia` · `como você está?`
+`joga fora 5 madeira` · `abre o teu inventário` · `fica na defensiva` · `bom dia` · `como você está?`
 
 - O número da ordem é um **alvo** contado no **inventário dele**: se ele já tem 10 madeiras e você pede 10,
   ele avisa *"Já temos o suficiente."* e não sai para coletar.
+- **Ver o que ele carrega:** `abre o teu inventário` / `mostra o que você carrega` abre a **janela do inventário
+  do companheiro** (a mesma do toque na tecla de interagir); `fecha o inventário` fecha.
 - **Tudo local:** o LLM (LM Studio) e o reconhecimento de voz rodam **na sua máquina** — nada é enviado para fora.
 
 ### 🧠 Personalidade, memória e conversa
