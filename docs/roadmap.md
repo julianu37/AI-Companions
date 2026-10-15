@@ -340,7 +340,7 @@ Ordens em **linguagem natural** por cima do mod do upstream. O companheiro conti
 | **3.2c** | **Correção final da quantidade**: o número é um **ALVO TOTAL contado no inventário do companheiro**, só para o recurso pedido; com o alvo já na mochila ele nem começa e avisa | ✅ validado em jogo |
 | 3.3 | Voz: captura com `Microphone` → STT (backend) → mesma caixa de ordens | ⏳ |
 | 3.4 | TTS: o companheiro **fala** a confirmação (áudio do backend, `AudioSource`) | ⏳ |
-| 3.5 | Personalidade/memória: preset + texto livre no contexto do LLM | ✅ (build; teste em jogo pendente) |
+| 3.5 | Personalidade/memória: preset + texto livre no contexto do LLM | ✅ validado em jogo |
 | 3.6 | **Ordens com alvo**: `ataca o greydwarf` (engaja a criatura), `equipa o machado de bronze` (equipa do inventário dele), `larga a pedra` (joga fora) | ✅ validado em jogo |
 | 3.7 | UI do NPC: menu de personalidade/voz + keybind de push-to-talk | ⏳ |
 
