@@ -56,12 +56,14 @@ internal static class CompanionChatAI
 		+ "Regras:\n"
 		+ "- \"reply\" é SEMPRE a sua fala, em português, curta (uma frase), no seu jeito de falar: numa ORDEM é a confirmação\n"
 		+ "  (\"Deixa comigo.\"); quando NÃO é ordem é a sua resposta de conversa, respondendo de verdade o que o jogador perguntou.\n"
-		+ "- \"target\" é a criatura ou o item citado pela ordem, com as MESMAS PALAVRAS do jogador, em português, SEM traduzir:\n"
-		+ "  \"ataca aquele greydwarf\" -> \"greydwarf\"; \"equipa o machado de bronze\" -> \"machado de bronze\". Use null quando não citar nada.\n"
+		+ "- \"target\" é OBRIGATÓRIO em attack, equip e drop: é o NOME da criatura ou do item citado pela ordem, com as MESMAS\n"
+		+ "  PALAVRAS do jogador, em português, SEM traduzir e NUNCA null (nem vazio). \"ataca o greydwarf\" -> \"greydwarf\";\n"
+		+ "  \"joga essas pedras que você pegou\" -> \"pedra\"; \"joga 10 pedras no chão\" -> \"pedra\"; \"larga a madeira\" -> \"madeira\";\n"
+		+ "  \"equipa o machado de bronze\" -> \"machado de bronze\". Nas outras ações use null quando o jogador não citar nada.\n"
 		+ "- \"resource\" é o recurso que o trabalho vai coletar, em inglês, quando houver (wood, stone, ore, raspberry); use null quando não houver.\n"
 		+ "- \"amount\" é a quantidade pedida (\"colete 20 de madeira\" -> 20); use null quando o jogador não disser.\n"
 		+ "- attack SÓ quando o jogador citar a criatura; \"atacar\"/\"matar\" sem criatura citada é hunt.\n"
-		+ "- equip e drop valem só para o que o companheiro já carrega no inventário dele.\n"
+		+ "- equip e drop valem só para o que o companheiro já carrega no inventário dele; o item vai SEMPRE em \"target\", nunca em \"resource\".\n"
 		+ "- Use \"none\" sempre que não tiver certeza: conversa, dúvida ou pedido que não é uma das ações acima.\n"
 		+ "Exemplos:\n"
 		+ "\"colete 20 de madeira\" -> {\"action\":\"wood\",\"reply\":\"Vou buscar madeira.\",\"target\":null,\"resource\":\"wood\",\"amount\":20}\n"
@@ -73,7 +75,8 @@ internal static class CompanionChatAI
 		+ "\"equipa o machado de bronze\" -> {\"action\":\"equip\",\"reply\":\"Machado na mão.\",\"target\":\"machado de bronze\",\"resource\":null,\"amount\":null}\n"
 		+ "\"pega a picareta\" -> {\"action\":\"equip\",\"reply\":\"Peguei a picareta.\",\"target\":\"picareta\",\"resource\":null,\"amount\":null}\n"
 		+ "\"larga a pedra\" -> {\"action\":\"drop\",\"reply\":\"Largando.\",\"target\":\"pedra\",\"resource\":null,\"amount\":null}\n"
-		+ "\"joga fora 5 madeira\" -> {\"action\":\"drop\",\"reply\":\"Jogando fora.\",\"target\":\"madeira\",\"resource\":null,\"amount\":5}\n"
+		+ "\"joga essas pedras que você pegou\" -> {\"action\":\"drop\",\"reply\":\"Largando as pedras.\",\"target\":\"pedra\",\"resource\":null,\"amount\":null}\n"
+		+ "\"joga 10 pedras no chão\" -> {\"action\":\"drop\",\"reply\":\"Jogando fora.\",\"target\":\"pedra\",\"resource\":null,\"amount\":10}\n"
 		+ "\"segue\" -> {\"action\":\"follow\",\"reply\":\"Estou com você.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"para\" -> {\"action\":\"stop\",\"reply\":\"Parando.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"vem cá\" -> {\"action\":\"come\",\"reply\":\"Já vou.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
@@ -397,7 +400,7 @@ internal static class CompanionChatAI
 		{
 			// Fase 3.6: attack/equip/drop have their own wording ("Atacando o troll.", "Não tenho picareta."), because
 			// the feedback has to say WHICH creature or item it was about - the generic "Ok: ..." line can't.
-			CompanionOrders.OrderOutcome outcome = CompanionOrders.Run(intent);
+			CompanionOrders.OrderOutcome outcome = CompanionOrders.Run(intent, result.UserText);
 			if (outcome == null || !outcome.Understood)
 			{
 				Notify(ModLocalization.Loc("hc_ai_not_understood"));

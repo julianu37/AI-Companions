@@ -2,7 +2,41 @@
 
 All notable changes to this fork of ProfMags' Offline Companions. Versions before 1.4.0 are the original mod (see [ProfMags' Thunderstore page](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) for that history) plus the initial batch of Valheim 1.0 API-compatibility fixes that let the mod load and run at all on 1.0.
 
-## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Fase 3.3c: raio de coleta maior e chatter aleatório desligado + Fase 3.3d: a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador + Tradução PT-BR (fork ModAI-BR-Companions)
+## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.6b: a ordem sem alvo do modelo (drop/equip/attack caem para as palavras do jogador) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Fase 3.3c: raio de coleta maior e chatter aleatório desligado + Fase 3.3d: a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador + Tradução PT-BR (fork ModAI-BR-Companions)
+- **Fase 3.6b — a ordem sem alvo: o modelo responde `"target": null`.** Relato do jogador: "o comando pra dropar não
+  funcionou". No log (voz), o modelo acertou a ação e a quantidade mas devolveu `"target": null` nos dois pedidos
+  (`"Joga essas pedras que tu pegou no chao."` e `"Joga 10 pedras no chao."`) e a Fase 3.6 só sabia largar o que o
+  **campo do modelo** nomeasse — resultado: `[IA] "drop" -> 0 companion(s)` e "Não entendi qual item.". O mesmo valia
+  para `equip` e para `attack` (`ataca o greydwarf` não engajava nada quando o campo vinha vazio). Duas frentes, sem
+  tocar em nada do que já funcionava (coleta/alvo no inventário, jobs, radial, UI, STT, raios/chatter, personalidade/
+  memória/conversa e o balão do jogador seguem idênticos):
+  - **Fallback pelas palavras do jogador (o principal).** `CompanionOrders.Run` passa a receber o texto do jogador
+    (`result.UserText` — vale para o chat **e** para a voz, que entram pelo mesmo `Submit`). Quando o modelo não
+    nomeia o alvo, o novo `OrderTargets.Phrases(mensagem)` extrai as frases de nome do que o jogador disse — só as
+    palavras que **podem** ser nome entram: os verbos da ordem (`joga`, `larga`, `equipa`, `pega`, `ataca`), pronomes
+    e demonstrativos (`essas`, `aquele`, `que tu pegou`), enchimentos (`coisa`, `lixo`, `isso`), números escritos e
+    **dígitos** (`10` é o `amount`) e lugares/direções (`chão`, `fora`, `mão`, `perto`, `pra`/`pro`/`ao`) são
+    descartados; o resto vira nomes de até 3 palavras, **do mais longo para o mais curto** (para `machado de bronze`
+    ganhar de um `machado` solto, que casaria com qualquer machado). Cada frase é então **validada** contra as
+    mochilas (`OrderTargets.FindItem`, o mesmo casador da 3.6) ou contra as criaturas no raio
+    (`OrderTargets.FindCreatureByWords` → `ClosestByName`), com uma barra **mais alta** que a do resto
+    (`MinPhraseScore = 900`, contra `MinScore = 450`): sem isso `"larga a pedra e a madeira"` viraria `pedramadeira`
+    e casaria por **substring** com `Madeira`, largando o item errado em silêncio. O `target` do modelo continua
+    ganhando sempre que casa com algo que o companheiro carrega; se nem a mensagem resolver, o aviso antigo continua
+    (`hc_ai_need_item`/`hc_ai_no_item`) e o log explica. Em `attack` a mensagem é lida **antes** da mira, e só quando
+    o modelo não nomeou nada: `ataca aquele` (que não nomeia nada) continua indo para a mira, como na 3.6.
+  - **Prompt reforçado.** `[IA]` system prompt (`CompanionChatAI.Contract`): `target` é **OBRIGATÓRIO** em
+    `attack`/`equip`/`drop`, com as mesmas palavras do jogador e **nunca** `null`/vazio, mais 2 exemplos explícitos de
+    `drop` (`"joga essas pedras que você pegou"` → `"pedra"`, `"joga 10 pedras no chão"` → `"pedra"` + `amount: 10`)
+    e a nota de que o item vai **sempre** em `target`, nunca em `resource`. O prompt continua enxuto (3 linhas a mais)
+    e a parte fixa continua no começo, cacheável pelo servidor.
+  - **Confirmado:** o parser da 3.6 já aceitava o item em `resource` quando `target` vinha nulo
+    (`LlmIntent.Parse`, bloco `NeedsTarget`) — nada foi mudado aí.
+  - **Verificação:** as peças novas foram exercitadas contra o **próprio** `OrderTargets.cs` compilado num harness
+    fora do jogo (stubs de Unity), com 22 mensagens e uma mochila realista — as receitas casaram o item/criatura certo
+    e os casos que **devem** ser recusados foram recusados (`joga o lixo fora`, `joga essas coisas no chão`,
+    `ataca aquele`). Receita de teste em jogo: `joga 10 pedras no chão` (larga 10), `joga essas pedras` (larga o
+    stack), `larga a madeira`, `equipa o machado de bronze`, `ataca o greydwarf`.
 - **Fase 3.3d — a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador.** Dois problemas do teste
   em jogo, sem lógica nova de ordem/job/UI/STT (nada de radial, IA ou raios da 3.3c foi tocado).
   - **`colete 10 pedras` nunca parava.** Causa confirmada no jogo (bundle `c4210710`, `Assets/world/Props/Rock_3.prefab`)

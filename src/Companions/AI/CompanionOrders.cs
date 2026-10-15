@@ -35,7 +35,9 @@ internal static class CompanionOrders
 		internal string Message;
 	}
 
-	internal static OrderOutcome Run(LlmIntent intent)
+	/// <summary>Runs one order. <paramref name="userText"/> is what the player actually said (typed in the chat or
+	/// spoken): Fase 3.6b uses it as the safety net for attack/equip/drop when the model answered "target": null.</summary>
+	internal static OrderOutcome Run(LlmIntent intent, string userText)
 	{
 		OrderOutcome outcome = new OrderOutcome();
 		if (intent == null || intent.IsNone)
@@ -72,18 +74,20 @@ internal static class CompanionOrders
 			return outcome;
 		}
 
-		// Fase 3.6: the orders that point at one creature or one item in the companion's pack
+		// Fase 3.6: the orders that point at one creature or one item in the companion's pack. Fase 3.6b: the
+		// player's own message goes with them, because the model does not always fill in "target" (see
+		// ResolveItemTarget / Attack).
 		if (action == "attack")
 		{
-			return Attack(player, intent, outcome);
+			return Attack(player, intent, userText, outcome);
 		}
 		if (action == "equip")
 		{
-			return Equip(intent, outcome);
+			return Equip(intent, userText, outcome);
 		}
 		if (action == "drop")
 		{
-			return Drop(intent, outcome);
+			return Drop(intent, userText, outcome);
 		}
 
 		foreach (CompanionSetup companion2 in CompanionSetup.AllCompanions)
@@ -108,17 +112,44 @@ internal static class CompanionOrders
 	/// player's crosshair first (point at it and say "ataca aquele"), then among the creatures within
 	/// [IA] RaioDeAlvo of the player by name. When nothing matches, the player is told - nothing is engaged.
 	/// The order goes through CompanionAI.DirectEngage, the very path the radial menu's attack uses, so hunting
-	/// gear, sneaking and looting of harmless game stay exactly the same.</summary>
-	private static OrderOutcome Attack(Player player, LlmIntent intent, OrderOutcome outcome)
+	/// gear, sneaking and looting of harmless game stay exactly the same.
+	///
+	/// Fase 3.6b: the model sometimes answers "target": null even though the player named the creature ("ataca o
+	/// greydwarf" came back empty and nothing was engaged). The player's OWN words are then read for a creature
+	/// name (<see cref="OrderTargets.FindCreatureByWords"/>) before the aim is used, so a spoken/typed order works
+	/// even when the model drops the field. Only a real name match counts; "ataca aquele" names nothing and still
+	/// goes to the crosshair.</summary>
+	private static OrderOutcome Attack(Player player, LlmIntent intent, string message, OrderOutcome outcome)
 	{
 		float range = ModConfig.AiTargetRange != null ? ModConfig.AiTargetRange.Value : 40f;
-		Character creature = OrderTargets.FindCreature(intent.Target, player, range);
+		string target = intent.Target;
+		Character creature = null;
+		if (!string.IsNullOrEmpty(target))
+		{
+			creature = OrderTargets.FindCreature(target, player, range);
+		}
 		if (creature == null)
 		{
-			outcome.Message = string.IsNullOrEmpty(intent.Target)
+			creature = OrderTargets.FindCreatureByWords(message, player, range, out string phrase);
+			if (creature != null)
+			{
+				CompanionsPlugin.Log?.LogInfo($"[IA] Order \"attack\": the model named "
+					+ (string.IsNullOrEmpty(target) ? "nothing" : $"\"{target}\", which isn't around")
+					+ $" - the player's own words named \"{phrase}\" (Fase 3.6b fallback)");
+				target = phrase;
+			}
+			else if (string.IsNullOrEmpty(target))
+			{
+				// nothing named anywhere: the creature under the crosshair, exactly as in Fase 3.6 ("ataca aquele")
+				creature = OrderTargets.FindCreature(null, player, range);
+			}
+		}
+		if (creature == null)
+		{
+			outcome.Message = string.IsNullOrEmpty(target)
 				? ModLocalization.Loc("hc_ai_no_aim")
-				: ModLocalization.LocFmt("hc_ai_no_target", Spoken(intent.Target));
-			CompanionsPlugin.Log?.LogInfo($"[IA] Order \"attack\" \"{intent.Target}\": no creature matched within {range:F0} m");
+				: ModLocalization.LocFmt("hc_ai_no_target", Spoken(target));
+			CompanionsPlugin.Log?.LogInfo($"[IA] Order \"attack\" \"{target}\": no creature matched within {range:F0} m");
 			return outcome;
 		}
 		string name = OrderTargets.NameOf(creature);
@@ -168,12 +199,17 @@ internal static class CompanionOrders
 	/// <summary>"equipa o machado de bronze": the item is looked for in the companion's OWN pack (by prefab name,
 	/// by the in-game name in either language) and equipped with Humanoid.EquipItem - the same call the mod's own
 	/// gear handling uses. Note that auto-equip may later swap it back for the best weapon for the job at hand;
-	/// the order does not change any setting, it only puts the item in its hand now.</summary>
-	private static OrderOutcome Equip(LlmIntent intent, OrderOutcome outcome)
+	/// the order does not change any setting, it only puts the item in its hand now.
+	///
+	/// Fase 3.6b: when the model left "target" empty (or named something no companion carries), the player's own
+	/// words are read for the item (see ResolveItemTarget).</summary>
+	private static OrderOutcome Equip(LlmIntent intent, string message, OrderOutcome outcome)
 	{
-		if (string.IsNullOrEmpty(intent.Target))
+		string target = ResolveItemTarget(intent.Target, message, "equip");
+		if (string.IsNullOrEmpty(target))
 		{
 			outcome.Message = ModLocalization.Loc("hc_ai_need_item");
+			CompanionsPlugin.Log?.LogInfo("[IA] Order \"equip\": the model named no item and nothing in the player's message answers one the companions carry");
 			return outcome;
 		}
 		string found = null;
@@ -190,7 +226,7 @@ internal static class CompanionOrders
 			{
 				continue;
 			}
-			ItemDrop.ItemData item = OrderTargets.FindItem(humanoid, intent.Target, out int score);
+			ItemDrop.ItemData item = OrderTargets.FindItem(humanoid, target, out int score);
 			if (item == null)
 			{
 				continue;
@@ -226,20 +262,26 @@ internal static class CompanionOrders
 		}
 		outcome.Message = notEquipable
 			? ModLocalization.LocFmt("hc_ai_not_equipable", found)
-			: ModLocalization.LocFmt("hc_ai_no_item", Spoken(intent.Target));
-		CompanionsPlugin.Log?.LogInfo($"[IA] Order \"equip\" \"{intent.Target}\": {(notEquipable ? "the item can't be equipped" : "none of the companions has it")}");
+			: ModLocalization.LocFmt("hc_ai_no_item", Spoken(target));
+		CompanionsPlugin.Log?.LogInfo($"[IA] Order \"equip\" \"{target}\": {(notEquipable ? "the item can't be equipped" : "none of the companions has it")}");
 		return outcome;
 	}
 
 	/// <summary>"larga a pedra" / "joga fora 5 madeira": the item is dropped out of the companion's own pack, in
 	/// front of it. Without a number the WHOLE stack goes (the order is "get rid of it", and that is also what the
 	/// mod does with junk it clears out - see MHR_GatherRules.TryMakeRoom); with a number, at most that many. The
-	/// pile is taken out of the auto-pickup layer so the companion doesn't pick its own order back up.</summary>
-	private static OrderOutcome Drop(LlmIntent intent, OrderOutcome outcome)
+	/// pile is taken out of the auto-pickup layer so the companion doesn't pick its own order back up.
+	///
+	/// Fase 3.6b: this is the order the bug report was about ("Joga essas pedras que tu pegou no chão" and "Joga 10
+	/// pedras no chão" both came back from the model with "target": null, so there was no item to drop and nothing
+	/// happened). The player's own words are now read for the item, exactly as for equip.</summary>
+	private static OrderOutcome Drop(LlmIntent intent, string message, OrderOutcome outcome)
 	{
-		if (string.IsNullOrEmpty(intent.Target))
+		string target = ResolveItemTarget(intent.Target, message, "drop");
+		if (string.IsNullOrEmpty(target))
 		{
 			outcome.Message = ModLocalization.Loc("hc_ai_need_item");
+			CompanionsPlugin.Log?.LogInfo("[IA] Order \"drop\": the model named no item and nothing in the player's message answers one the companions carry");
 			return outcome;
 		}
 		string found = null;
@@ -257,7 +299,7 @@ internal static class CompanionOrders
 			{
 				continue;
 			}
-			int dropped = DropNamed(humanoid, inventory, intent.Target, intent.Amount, out string itemName);
+			int dropped = DropNamed(humanoid, inventory, target, intent.Amount, out string itemName);
 			if (dropped <= 0)
 			{
 				continue;
@@ -283,9 +325,78 @@ internal static class CompanionOrders
 			}
 			return outcome;
 		}
-		outcome.Message = ModLocalization.LocFmt("hc_ai_no_item", Spoken(intent.Target));
-		CompanionsPlugin.Log?.LogInfo($"[IA] Order \"drop\" \"{intent.Target}\": none of the companions has it");
+		outcome.Message = ModLocalization.LocFmt("hc_ai_no_item", Spoken(target));
+		CompanionsPlugin.Log?.LogInfo($"[IA] Order \"drop\" \"{target}\": none of the companions has it");
 		return outcome;
+	}
+
+	// ---- Fase 3.6b: what to act on when the model named nothing ----
+
+	/// <summary>
+	/// Fase 3.6b: the item an equip/drop order is about.
+	///
+	/// The model's "target" wins whenever it really answers something a companion carries. When it doesn't - the
+	/// reported bug: "target": null, with the item right there in the player's sentence - the PLAYER'S OWN WORDS are
+	/// read instead: <see cref="OrderTargets.Phrases"/> turns "Joga 10 pedras no chão" into pedras (the order's
+	/// verbs, pronouns, numbers and places are dropped) and every phrase is matched against the packs with the very
+	/// same matcher the rest of Fase 3.6 uses, only with the higher bar of
+	/// <see cref="OrderTargets.MinPhraseScore"/>. Nothing is invented: a phrase that answers no item is refused, and
+	/// when even that fails the model's own name is handed back so the player keeps the old warning ("Não entendi
+	/// qual item." with no name at all, "Não tenho X." with one).
+	/// </summary>
+	/// <param name="action">The canonical action, for the log.</param>
+	private static string ResolveItemTarget(string modelTarget, string message, string action)
+	{
+		if (ItemMatchInPacks(modelTarget) >= OrderTargets.MinScore)
+		{
+			return modelTarget;
+		}
+		List<string> phrases = OrderTargets.Phrases(message);
+		for (int i = 0; i < phrases.Count; i++)
+		{
+			int score = ItemMatchInPacks(phrases[i]);
+			if (score < OrderTargets.MinPhraseScore)
+			{
+				continue;
+			}
+			CompanionsPlugin.Log?.LogInfo($"[IA] Order \"{action}\": the model named "
+				+ (string.IsNullOrEmpty(modelTarget) ? "no item" : $"\"{modelTarget}\", which no companion carries")
+				+ $" - the player's own words named \"{phrases[i]}\" (match {score}, Fase 3.6b fallback)");
+			return phrases[i];
+		}
+		return modelTarget;
+	}
+
+	/// <summary>How well a name answers something the companions actually carry, 0 when nobody has it. Only the
+	/// packs are looked at (never chests), and only companions that could take an order at all - the ownership and
+	/// Command checks are read without taking the companion over (unlike MHR_InScope, which does).</summary>
+	private static int ItemMatchInPacks(string target)
+	{
+		if (string.IsNullOrEmpty(target))
+		{
+			return 0;
+		}
+		int best = 0;
+		IReadOnlyList<CompanionSetup> all = CompanionSetup.AllCompanions;
+		for (int i = 0; i < all.Count; i++)
+		{
+			CompanionSetup companion = all[i];
+			if (companion == null || !MHR_Owner.IsMine(companion) || !companion.GetIsCommandable())
+			{
+				continue;
+			}
+			Humanoid humanoid = companion.GetComponent<Humanoid>();
+			if (humanoid == null)
+			{
+				continue;
+			}
+			ItemDrop.ItemData item = OrderTargets.FindItem(humanoid, target, out int score);
+			if (item != null && score > best)
+			{
+				best = score;
+			}
+		}
+		return best;
 	}
 
 	/// <summary>Drops what the order named out of one companion's pack and returns how many units went out.

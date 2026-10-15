@@ -60,7 +60,7 @@ skills em `.opencode/skills/`. Leia este arquivo antes de agir.
 
 Notas de desenvolvimento do upstream: `docs/DEV_NOTES.md`; handoff: `docs/SESSION_HANDOFF.md`.
 
-## Camada de IA (Fase 3.1 — ordens por texto no chat; Fase 3.2/3.2c — o número da ordem é um alvo total contado no inventário do companheiro; Fase 3.5 — personalidade, memória e conversa livre; Fase 3.6 — ordens com alvo: atacar/equipar/largar; Fase 3.3 — ordens por voz: push-to-talk + STT local; Fase 3.3c — raio de coleta maior e chatter aleatório desligado; Fase 3.3d — o teto da ordem vale para todo alvo do modo e a voz sai no balão do jogador)
+## Camada de IA (Fase 3.1 — ordens por texto no chat; Fase 3.2/3.2c — o número da ordem é um alvo total contado no inventário do companheiro; Fase 3.5 — personalidade, memória e conversa livre; Fase 3.6 — ordens com alvo: atacar/equipar/largar; Fase 3.6b — a ordem sem alvo do modelo cai para as palavras do jogador; Fase 3.3 — ordens por voz: push-to-talk + STT local; Fase 3.3c — raio de coleta maior e chatter aleatório desligado; Fase 3.3d — o teto da ordem vale para todo alvo do modo e a voz sai no balão do jogador)
 
 O jogador digita no chat do jogo (`colete 20 de madeira`, `segue`, `para`, `ataca o greydwarf`,
 `equipa o machado de bronze`, `larga a pedra`, `bom dia`) e um **LLM local** (API compatível com a OpenAI:
@@ -94,6 +94,21 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   engajada **mesmo na postura Passiva** — a postura não muda); `equip` por `Humanoid.EquipItem`; `drop` por
   `ItemDrop.DropItem` + `Inventory.RemoveItem` (sem número = stack inteiro; a pilha sai do auto-pickup e item de
   missão nunca cai). "Pegar" é lido pelo objeto: `pega a picareta` → equipar, `pega madeira` → coleta.
+- **Fase 3.6b — a ordem sem alvo (o modelo responde `"target": null`):** o relato "o comando pra dropar não
+  funcionou" era isto — o modelo acertava `action` e `amount` e devolvia `target` nulo, e a 3.6 só sabia largar/
+  equipar o que o **campo do modelo** nomeasse (0 companheiros, "Não entendi qual item."). Agora `Run(intent,
+  userText)` leva o **texto do jogador** (chat **ou** voz) junto da ordem: quando o modelo não nomeia o alvo (ou
+  nomeia algo que o companheiro não carrega), `OrderTargets.Phrases(mensagem)` extrai as frases de nome do que o
+  jogador disse e cada uma é **validada** contra as mochilas (`FindItem`) ou as criaturas no raio
+  (`FindCreatureByWords` → `ClosestByName`) — nunca se inventa item. `Phrases` descarta os verbos da ordem (`joga`,
+  `larga`, `equipa`, `pega`, `ataca`), pronomes/demonstrativos (`essas`, `aquele`, `que tu pegou`), enchimentos
+  (`coisa`, `lixo`), números e dígitos (`10` = `amount`) e lugares (`chão`, `fora`, `mão`, `perto`, `pra`/`pro`/`ao`),
+  e monta nomes de até 3 palavras, **do mais longo para o mais curto**; a barra do fallback é `MinPhraseScore = 900`
+  (contra os 450 do resto) para uma frase composta não casar por **substring** e largar o item errado. O `target` do
+  modelo continua ganhando quando casa (critério da 3.6) e, sem nada encontrado, o aviso antigo continua. Em
+  `attack` a mensagem é lida **antes** da mira e só quando o modelo não nomeou nada (`ataca aquele` segue na mira).
+  O prompt (`CompanionChatAI.Contract`) passou a exigir `target` em `attack`/`equip`/`drop` (nunca `null`), com 2
+  exemplos de `drop`. Detalhes: `docs/roadmap.md` (Fase 3.6b).
 - **Fase 3.5 — personalidade, memória e conversa:** `CompanionPersona` (presets PT-BR embutidos + resolução do
   texto livre, que **ganha** do preset) e `CompanionMemory` (últimas `Memoria` trocas **por companheiro**, teto de
   `2 × Memoria` mensagens, 240 caracteres cada, no máximo 8 conversas; limpa na morte, no dismiss e na troca de

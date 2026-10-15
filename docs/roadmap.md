@@ -53,7 +53,7 @@ Legenda: ✅ concluído · 🔄 em andamento · ⏳ pendente
 | 2.18b | **Seguir pelo portal** (`CompanionPortalFollow` + `[Portal]`): ele anda até o portal e é levado para junto de você quando o seu teleporte termina | ✅ (v0.4.6) |
 | 2.18c | **Carroça** (`CompanionCart` + `[Carroca]`): `modia_cart pull\|release` — ele anda até o engate do `Vagon` e puxa a carroça pelo `ConfigurableJoint` do jogo | ✅ (v0.4.6) |
 | 2.5 | Multiplayer (ZNetView/ZDO, testes com cliente/servidor) | ⏳ |
-| **3** | IA e voz: comandos por voz/chat, STT, TTS, personalidade — **no fork, ver Trilha D** | 🔄 (3.1, 3.2, 3.2c, 3.3, 3.5, 3.6 ✅) |
+| **3** | IA e voz: comandos por voz/chat, STT, TTS, personalidade — **no fork, ver Trilha D** | 🔄 (3.1, 3.2, 3.2c, 3.3, 3.5, 3.6, 3.6b ✅) |
 | **4** | Backend híbrido (LLM local + API), endpoints do "cérebro" | ⏳ |
 | **5** | Empacotamento (manifest, README, ícone) + revisão final | ⏳ |
 
@@ -345,6 +345,7 @@ Ordens em **linguagem natural** por cima do mod do upstream. O companheiro conti
 | 3.4 | TTS: o companheiro **fala** a confirmação (áudio do backend, `AudioSource`) | ⏳ |
 | 3.5 | Personalidade/memória: preset + texto livre no contexto do LLM | ✅ validado em jogo |
 | 3.6 | **Ordens com alvo**: `ataca o greydwarf` (engaja a criatura), `equipa o machado de bronze` (equipa do inventário dele), `larga a pedra` (joga fora) | ✅ validado em jogo |
+| 3.6b | **Correção da ordem sem alvo**: quando o modelo responde `"target": null`, o item/criatura é lido das **palavras do próprio jogador**; o prompt passa a exigir `target` em `attack`/`equip`/`drop` | ✅ build 0 erros + DLL no plugin (teste em jogo pendente) |
 | 3.7 | UI do NPC: menu de personalidade/voz + keybind de push-to-talk | ⏳ |
 
 ### Fase 3.1 — ordem por texto no chat (✅ — Unreleased)
@@ -528,6 +529,69 @@ O jogador aponta e digita: **`ataca o greydwarf`**, **`equipa o machado de bronz
 - **Verificação:** as duas partes mais arriscadas (casamento de nomes e o parser) foram exercitadas contra o DLL
   compilado — 45 casos de nome (criaturas e itens, PT-BR e EN, e 5 que **não** podem casar) e 30 de JSON
   (ordens novas + as que já existiam), todos passando.
+
+### Fase 3.6b — a ordem sem alvo: o modelo responde `"target": null` (✅ — build; teste em jogo pendente)
+
+**Relato do jogador:** "o comando pra dropar não funcionou". No log, com voz:
+
+```
+[IA] Order from voz: "Joga essas pedras que tu pegou no chao."
+  modelo -> {"action":"drop","reply":"Largando as pedras, chefe.","target":null,"resource":null,"amount":null}
+[IA] "drop" -> 0 companion(s)
+[IA] Order from voz: "Joga 10 pedras no chao."
+  modelo -> {"action":"drop","reply":"Jogando fora as pedras, chefe.","target":null,"resource":null,"amount":10}
+[IA] "drop" -> 0 companion(s)
+```
+
+O modelo **acertou a ação** (`drop`) e até a quantidade (`10`), mas devolveu **`target` nulo** — e a Fase 3.6 só
+sabia largar/equipar o que o **campo do modelo** nomeasse (`if (string.IsNullOrEmpty(intent.Target))` → "Não
+entendi qual item."). O mesmo risco valia para `equip` e para `attack` (que nesse caso ainda caía na mira, o que
+salvava `ataca aquele`, mas não `ataca o greydwarf`).
+
+| Peça | Arquivo | O que faz |
+|---|---|---|
+| Palavras do jogador | `src/Companions/AI/OrderTargets.cs` | novo `Phrases(mensagem)`: as frases de nome do que o jogador disse, da mais específica para a mais curta; novo `FindCreatureByWords` (criatura a partir da mensagem); novo `MinPhraseScore` (900) |
+| Alvo do item | `src/Companions/AI/CompanionOrders.cs` | novo `ResolveItemTarget`/`ItemMatchInPacks`: o `target` do modelo ganha **quando casa com algo que ele carrega**; quando não, a mensagem do jogador é lida e o alvo validado contra as mochilas |
+| Assinatura | `src/Companions/AI/CompanionOrders.cs` + `CompanionChatAI.cs` | `Run(intent, userText)`: o texto do jogador (chat **ou** voz) passa a acompanhar a ordem; o `attack` lê a mensagem antes de cair na mira |
+| Prompt | `src/Companions/AI/CompanionChatAI.cs` | `target` passa a ser **OBRIGATÓRIO** em `attack`/`equip`/`drop` (nunca `null`), com 2 exemplos novos de `drop` ("joga essas pedras que você pegou", "joga 10 pedras no chão") |
+
+- **O que o fallback lê:** `Phrases` normaliza a mensagem (minúsculas, sem acento, `_` entre palavras) e **descarta
+  o que nunca é nome**: os verbos da própria ordem (`joga`, `larga`, `equipa`, `pega`, `ataca` — nas formas que o
+  jogador digita), pronomes e demonstrativos (`essas`, `aquele`, `que tu pegou`), enchimentos (`coisa`, `lixo`,
+  `isso`), números escritos e **dígitos** (`10` é o `amount`), e lugares/direções (`chão`, `fora`, `mão`, `perto`,
+  `pra`/`pro`/`ao`). O que sobra vira nomes de até 3 palavras, **do mais longo para o mais curto** — `machado de
+  bronze` precisa ganhar de um `machado` solto, que casaria com qualquer machado. Exemplos reais (harness):
+  `"Joga 10 pedras no chão."` → `pedras`; `"equipa o machado de bronze"` → `machado_bronze | machado | bronze`;
+  `"ataca o javali perto da minha casa"` → `javali_casa | javali | casa`; `"joga o lixo fora"` → **nenhuma**.
+- **Nada é inventado:** cada frase só é aceita se **casar de verdade** com um item de alguma mochila
+  (`OrderTargets.FindItem`, o mesmo casador da 3.6: prefab, nome localizado, PT-BR/EN, singular/plural) ou com uma
+  criatura no raio (`ClosestByName`). E a barra é **mais alta** para as palavras do jogador: `MinPhraseScore = 900`
+  (casa palavra por palavra), contra os 450 do resto — sem isso, `"larga a pedra e a madeira"` viraria
+  `pedramadeira` e casaria por **substring** com `Madeira`, e a ordem largaria o item errado em silêncio.
+- **`target` do modelo continua ganhando** quando ele responde algo que o companheiro **tem** (`ItemMatchInPacks` ≥
+  450, exatamente o critério da 3.6) — o fallback só entra quando o campo vem vazio ou quando o nome dele não casa
+  com nada que o companheiro carregue. Se nem a mensagem resolver, o aviso antigo continua (`hc_ai_need_item` /
+  `hc_ai_no_item`), e o log diz por quê (`the model named no item and nothing in the player's message answers one
+  the companions carry`).
+- **`attack` sem alvo:** a mensagem do jogador é lida **antes** da mira, e só quando o modelo não nomeou nada (ou
+  nomeou algo que não está por perto). `"ataca aquele"` não nomeia nada (o demonstrativo é descartado) e continua
+  indo para a **mira**, como na 3.6; `"ataca o greydwarf"` com `target: null` passa a engajar o greydwarf.
+- **`resource` como reserva:** confirmado — o parser da 3.6 já move `resource`/`item` para `target` quando a ação
+  precisa de alvo (`LlmIntent.Parse`, bloco `NeedsTarget`), então um modelo que responda
+  `{"action":"drop","resource":"pedra"}` funciona desde antes; nada foi mudado aí.
+- **O que NÃO mudou:** coleta/alvo no inventário (3.2c), `follow`/`stop`/`come`/posturas/jobs, radial, UI, STT,
+  raios e chatter (3.3c), personalidade/memória/conversa (3.5) e o balão do jogador (3.3d) — `Run` só ganhou o
+  texto do jogador como parâmetro extra, e o `Phrases`/`FindCreatureByWords` **só rodam quando o modelo não nomeia
+  o alvo** (uma vez por ordem, nunca por frame; nenhum `Find*`/LINQ novo em `Update`).
+- **Verificação:** as duas peças novas foram exercitadas contra o **próprio** `OrderTargets.cs` compilado num
+  harness fora do jogo (stubs de Unity, `net8.0`), com 22 mensagens e uma mochila realista: as 6 receitas de teste
+  casaram o item certo (pedra/madeira/machado de bronze/picareta/tocha/couro de cervo), as criaturas casaram
+  (greydwarf/javali/troll) e os casos que **devem** ser recusados foram recusados (`joga o lixo fora`,
+  `joga essas coisas no chão`, `ataca aquele`).
+- **Receita de teste (voz ou chat):** `joga 10 pedras no chão` → deve largar **10** pedras (log: `Order "drop": the
+  model named no item ... the player's own words named "pedras"`); `joga essas pedras` → larga o **stack inteiro**;
+  `larga a madeira` → larga a madeira; `equipa o machado de bronze` → equipa; `ataca o greydwarf` → engaja;
+  `joga o lixo fora` → continua "Não entendi qual item." (nada é inventado).
 
 ### Fase 3.5 — personalidade, memória e conversa livre (✅ — build; teste em jogo pendente)
 

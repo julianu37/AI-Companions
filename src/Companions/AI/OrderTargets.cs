@@ -26,6 +26,12 @@ internal static class OrderTargets
 	/// <summary>How good a name match has to be to be used at all. Partial, single-word hits stay below it.</summary>
 	internal const int MinScore = 450;
 
+	/// <summary>Fase 3.6b: the bar the player's own words have to clear to be used as a name, which is higher than
+	/// <see cref="MinScore"/> on purpose. A message is not a name: two things named in one sentence ("larga a pedra
+	/// e a madeira") would otherwise be read as one word ("pedramadeira") and matched by mere substring, and the
+	/// order would silently land on the wrong one. Only a real word-for-word match (900 and up) counts here.</summary>
+	internal const int MinPhraseScore = 900;
+
 	private const float AimRange = 60f;
 
 	private static int _aimMask = -1;
@@ -61,41 +67,7 @@ internal static class OrderTargets
 				return null;
 			}
 			// 2. the closest creature whose name matches
-			Vector3 me = player.transform.position;
-			List<Character> all = Character.GetAllCharacters();
-			if (all == null)
-			{
-				return null;
-			}
-			Character best = null;
-			int bestScore = 0;
-			float bestDist = float.MaxValue;
-			int seen = 0;
-			for (int i = 0; i < all.Count; i++)
-			{
-				Character c = all[i];
-				if (!Usable(c, player))
-				{
-					continue;
-				}
-				float dist = Vector3.Distance(me, c.transform.position);
-				if (dist > range)
-				{
-					continue;
-				}
-				seen++;
-				int score = Score(target, NameOf(c), PrefabName(c));
-				if (score < MinScore)
-				{
-					continue;
-				}
-				if (best == null || score > bestScore || (score == bestScore && dist < bestDist))
-				{
-					best = c;
-					bestScore = score;
-					bestDist = dist;
-				}
-			}
+			Character best = ClosestByName(target, player, range, out int seen, out int bestScore, out float bestDist);
 			if (best == null)
 			{
 				Log($"Order target \"{target}\": no match among {seen} creature(s) within {range:F0} m");
@@ -109,6 +81,100 @@ internal static class OrderTargets
 			CompanionsPlugin.Log?.LogWarning("[IA] Couldn't look for the creature an order named: " + e.Message);
 			return null;
 		}
+	}
+
+	/// <summary>The closest creature within <paramref name="range"/> whose name answers to <paramref name="target"/>,
+	/// or null. The player, their companions, anything dead and anything the net doesn't own are never candidates.
+	/// <paramref name="seen"/> is how many creatures were looked at (for the log); <paramref name="score"/> and
+	/// <paramref name="distance"/> describe the winner. Never logs by itself - the callers own the wording.</summary>
+	private static Character ClosestByName(string target, Player player, float range, out int seen, out int score, out float distance)
+	{
+		seen = 0;
+		score = 0;
+		distance = float.MaxValue;
+		if (player == null || string.IsNullOrEmpty(target))
+		{
+			return null;
+		}
+		Vector3 me = player.transform.position;
+		List<Character> all = Character.GetAllCharacters();
+		if (all == null)
+		{
+			return null;
+		}
+		Character best = null;
+		int bestScore = 0;
+		float bestDist = float.MaxValue;
+		for (int i = 0; i < all.Count; i++)
+		{
+			Character c = all[i];
+			if (!Usable(c, player))
+			{
+				continue;
+			}
+			float dist = Vector3.Distance(me, c.transform.position);
+			if (dist > range)
+			{
+				continue;
+			}
+			seen++;
+			int candidate = Score(target, NameOf(c), PrefabName(c));
+			if (candidate < MinScore)
+			{
+				continue;
+			}
+			if (best == null || candidate > bestScore || (candidate == bestScore && dist < bestDist))
+			{
+				best = c;
+				bestScore = candidate;
+				bestDist = dist;
+			}
+		}
+		if (best != null)
+		{
+			score = bestScore;
+			distance = bestDist;
+		}
+		return best;
+	}
+
+	/// <summary>
+	/// Fase 3.6b: the creature the player's OWN words named, for when the model answered "target": null (the reported
+	/// bug: "ataca o greydwarf" came back with no target, so nothing was engaged).
+	///
+	/// Only the name search runs here: the creature under the crosshair is the caller's own fallback, so "ataca
+	/// aquele" keeps working exactly as it did in Fase 3.6. Nothing is guessed either - every phrase of the message
+	/// has to answer a creature's name with a score over <see cref="MinPhraseScore"/>, so "ataca aquele" and "ataca
+	/// perto de casa" name nothing and the caller falls back to the aim.
+	/// </summary>
+	/// <param name="phrase">The piece of the message that matched ("greydwarf"), for the log and the feedback line.</param>
+	internal static Character FindCreatureByWords(string message, Player player, float range, out string phrase)
+	{
+		phrase = null;
+		if (player == null)
+		{
+			return null;
+		}
+		try
+		{
+			List<string> phrases = Phrases(message);
+			for (int i = 0; i < phrases.Count; i++)
+			{
+				Character found = ClosestByName(phrases[i], player, range, out int seen, out int score, out float dist);
+				if (found == null || score < MinPhraseScore)
+				{
+					continue;
+				}
+				phrase = phrases[i];
+				Log($"Order target from the player's own words: \"{phrase}\" -> \"{NameOf(found)}\" ({dist:F1} m, score {score}, {seen} creature(s) in range)");
+				return found;
+			}
+		}
+		catch (Exception e)
+		{
+			CompanionsPlugin.Log?.LogWarning("[IA] Couldn't look for the creature the player named: " + e.Message);
+		}
+		return null;
 	}
 
 	/// <summary>The creature under the player's crosshair, or null. Uses the same layers as the mod's own command ray.</summary>
@@ -276,6 +342,128 @@ internal static class OrderTargets
 		{
 			return token;
 		}
+	}
+
+	// ---------------------------------------------------------------- Fase 3.6b: the player's own words
+
+	/// <summary>How many words of a message a name may span ("machado de bronze" is two).</summary>
+	private const int MaxWindow = 3;
+
+	/// <summary>How many phrases of each length are tried, so a long message can't turn into a long search.</summary>
+	private const int MaxPerSize = 4;
+
+	/// <summary>
+	/// Fase 3.6b: the noun phrases of what the PLAYER said, most specific first, for when the model answered
+	/// "target": null. "Joga essas pedras que tu pegou no chão" -> pedras; "equipa o machado de bronze" ->
+	/// machado_bronze, machado, bronze; "ataca o greydwarf" -> greydwarf.
+	///
+	/// Only the words that carry meaning are used: the order's own verbs ("joga", "larga", "equipa", "pega"),
+	/// pronouns ("essas", "aquele", "que tu pegou"), fillers ("coisa", "isso"), numbers ("10") and places
+	/// ("chão", "fora") are dropped (see <see cref="Filler"/>), and so are the articles/prepositions
+	/// <see cref="Score"/> already ignores. Whatever is left is combined into names of up to
+	/// <see cref="MaxWindow"/> words, longest first, because "machado de bronze" must win over a bare "machado"
+	/// (which would answer any axe). Nothing here decides anything by itself: every phrase still has to match a
+	/// real item in a pack or a real creature in the world, so a stray word is refused by the caller.
+	///
+	/// Runs once per order, and only when the model named nothing - never per frame.
+	/// </summary>
+	internal static List<string> Phrases(string message)
+	{
+		List<string> phrases = new List<string>(MaxWindow * MaxPerSize + 1);
+		if (string.IsNullOrEmpty(message))
+		{
+			return phrases;
+		}
+		try
+		{
+			string normalized = LlmIntent.Normalize(message);
+			if (normalized.Length == 0)
+			{
+				return phrases;
+			}
+			string[] tokens = normalized.Split('_');
+			List<string> words = new List<string>(tokens.Length);
+			for (int i = 0; i < tokens.Length; i++)
+			{
+				if (Meaningful(tokens[i]))
+				{
+					words.Add(tokens[i]);
+				}
+			}
+			if (words.Count == 0)
+			{
+				return phrases;
+			}
+			// everything the player said that means something, as one name ("picareta de ferro" -> picareta_ferro)
+			if (words.Count > MaxWindow)
+			{
+				AddPhrase(phrases, Join(words, 0, words.Count));
+			}
+			for (int size = Math.Min(MaxWindow, words.Count); size >= 1; size--)
+			{
+				int taken = 0;
+				for (int start = 0; start + size <= words.Count && taken < MaxPerSize; start++)
+				{
+					if (AddPhrase(phrases, Join(words, start, size)))
+					{
+						taken++;
+					}
+				}
+			}
+			return phrases;
+		}
+		catch (Exception e)
+		{
+			CompanionsPlugin.Log?.LogDebug("[IA] Couldn't read the player's own words: " + e.Message);
+			return phrases;
+		}
+	}
+
+	/// <summary>Is this word of a message a possible name? Numbers, the order's own verbs, pronouns, fillers and
+	/// places are not (they are what made "joga 10 pedras no chão" unreadable as a name).</summary>
+	private static bool Meaningful(string word)
+	{
+		if (string.IsNullOrEmpty(word) || word.Length < 3)
+		{
+			return false;
+		}
+		if (Stopwords.Contains(word) || Filler.Contains(word) || Filler.Contains(Stem(word)))
+		{
+			return false;
+		}
+		for (int i = 0; i < word.Length; i++)
+		{
+			if (!char.IsDigit(word[i]))
+			{
+				return true;
+			}
+		}
+		return false;   // all digits: that is the amount, never a name
+	}
+
+	private static string Join(List<string> words, int start, int count)
+	{
+		StringBuilder builder = new StringBuilder(count * 8);
+		for (int i = 0; i < count; i++)
+		{
+			if (i > 0)
+			{
+				builder.Append('_');
+			}
+			builder.Append(words[start + i]);
+		}
+		return builder.ToString();
+	}
+
+	/// <summary>Keeps the phrase when it is new and there is room; true when it was kept.</summary>
+	private static bool AddPhrase(List<string> phrases, string phrase)
+	{
+		if (string.IsNullOrEmpty(phrase) || phrases.Count >= MaxWindow * MaxPerSize + 1 || phrases.Contains(phrase))
+		{
+			return false;
+		}
+		phrases.Add(phrase);
+		return true;
 	}
 
 	// ---------------------------------------------------------------- matching
@@ -557,6 +745,60 @@ internal static class OrderTargets
 		"o", "a", "os", "as", "um", "uma", "de", "da", "do", "das", "dos", "em", "no", "na", "nos", "nas",
 		"e", "com", "para", "por", "que", "meu", "minha", "seu", "sua", "the", "of", "an", "and", "with", "for",
 		"item", "enemy", "animal", "piece", "se", "tier", "level"
+	};
+
+	/// <summary>
+	/// Fase 3.6b: the words of a message that are NEVER the name of an item or a creature, so the fallback that reads
+	/// the player's own words can't take one of them for one. They are the order's own verbs ("joga", "larga",
+	/// "equipa", "pega", "ataca", in the forms a player actually types), pronouns and demonstratives ("essas",
+	/// "aquele", "que tu pegou"), fillers ("coisa", "lixo", "isso"), numbers written out ("dez") and the places and
+	/// directions an order talks about ("chão", "fora", "mão", "perto"). Digits are dropped separately.
+	///
+	/// Kept deliberately conservative: a word that could name something ("pedra", "madeira", "machado", "troll") is
+	/// not here. And even a word that slips through cannot invent an item - every phrase still has to answer a real
+	/// item in a companion's pack or a real creature in the world (see Phrases and its callers).
+	/// </summary>
+	private static readonly HashSet<string> Filler = new HashSet<string>(StringComparer.Ordinal)
+	{
+		// the order's own verbs - dropping/leaving ("joga 10 pedras no chão")
+		"drop", "dropar", "dropa", "drope", "dropei", "dropou", "dropando", "larga", "largar", "largue", "larguem",
+		"largou", "largando", "joga", "jogar", "jogue", "jogou", "jogam", "jogando", "solta", "soltar", "solte",
+		"soltem", "soltou", "soltando", "deixa", "deixar", "deixe", "deixem", "deixou", "deixando", "descarta",
+		"descartar", "descarte", "descartou", "dispensa", "dispensar", "dispense", "dispensou", "remove", "remover",
+		"remova", "removeu", "tira", "tirar", "tire", "tirou", "livrar", "livra", "livre", "livrou", "limpa",
+		"limpar", "limpe", "limpou", "manda", "mandar", "mande", "mandou", "arremessa", "arremessar", "arremesse",
+		// taking/holding ("pega a picareta", "equipa o machado")
+		"pega", "pegar", "pegue", "peguem", "pegou", "pegam", "pegando", "busca", "buscar", "busque", "buscou",
+		"traz", "traga", "trazer", "trouxe", "trazendo", "apanha", "apanhar", "apanhe", "apanhou", "recolhe",
+		"recolher", "recolha", "recolheu", "cata", "catar", "cate", "catou", "junta", "juntar", "junte", "juntou",
+		"coleta", "coletar", "colete", "coletem", "coletou", "coletando", "equipa", "equipar", "equipe", "equipem",
+		"equipou", "equipando", "empunha", "empunhar", "empunhe", "empunhou", "veste", "vestir", "vista", "vestiu",
+		"calca", "calcar", "calce", "calcou", "poe", "poem", "coloca", "colocar", "coloque", "colocou", "colocando",
+		"usa", "usar", "use", "usou", "usando", "segura", "segurar", "segure", "guarda", "guardar", "guarde",
+		// attacking ("ataca o greydwarf")
+		"ataca", "atacar", "ataque", "ataquem", "atacou", "atacam", "atacando", "mata", "matar", "mate", "matem",
+		"matou", "matam", "matando", "abate", "abater", "abateu", "elimina", "eliminar", "elimine", "eliminou",
+		"destruir", "destroi", "destruiu", "engaja", "engajar", "engaje", "engajou", "caca", "cacar", "cace",
+		"cacou", "persegue", "perseguir", "persiga",
+		// English, for a player who mixes the two
+		"kill", "attack", "take", "equip", "gather", "collect", "wear", "hold", "throw", "away", "out", "that",
+		"those", "these", "this", "them", "please", "just", "now", "all", "some", "any", "there", "give",
+		// pronouns, demonstratives and fillers ("essas pedras que tu pegou")
+		"essas", "esse", "essa", "esses", "isso", "isto", "este", "esta", "estes", "estas", "aquele", "aquela",
+		"aquilo", "aqueles", "aquelas", "tu", "voce", "voces", "vcs", "eu", "ele", "ela", "eles", "elas", "mim",
+		"comigo", "te", "ti", "lhe", "lhes", "nosso", "nossa", "dele", "dela", "mesmo", "mesma", "tal", "tais",
+		"coisa", "coisas", "treco", "troco", "negocio", "bagulho", "trem", "lixo", "sobra", "sobrando", "sobrar",
+		"sobraram", "extra", "tudo", "toda", "todo", "todas", "todos", "nenhum", "nenhuma", "algum", "alguma",
+		"alguns", "algumas", "outro", "outra", "outros", "outras", "mais", "menos", "metade", "pouco", "pouca",
+		"muito", "muita", "muitos", "muitas", "apenas", "somente", "ainda", "tambem", "agora", "depois", "entao",
+		"rapido", "devagar",
+		// places and directions the order talks about
+		"chao", "mao", "fora", "dentro", "perto", "longe", "aqui", "ali", "acola", "terra", "baixo", "cima",
+		"frente", "tras", "lado", "pra", "pro", "ao", "aos", "pelo", "pela", "num", "numa", "sobre", "sem", "ate",
+		// numbers written out and units
+		"dois", "duas", "tres", "quatro", "cinco", "seis", "sete", "oito", "nove", "dez", "onze", "doze", "vinte",
+		"trinta", "quarenta", "cinquenta", "cem", "cento", "mil", "duzia", "unidade", "unidades", "peca", "pecas",
+		"pedaco", "pedacos", "pilha", "pilhas", "monte", "montes", "stack", "stacks", "bocado", "bocados"
 	};
 
 	/// <summary>Words that mean the same thing in the two languages the model mixes (PT-BR and the game's English).
