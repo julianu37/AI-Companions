@@ -60,7 +60,7 @@ skills em `.opencode/skills/`. Leia este arquivo antes de agir.
 
 Notas de desenvolvimento do upstream: `docs/DEV_NOTES.md`; handoff: `docs/SESSION_HANDOFF.md`.
 
-## Camada de IA (Fase 3.1 — ordens por texto no chat; Fase 3.2/3.2c — o número da ordem é um alvo total contado no inventário do companheiro; Fase 3.5 — personalidade, memória e conversa livre; Fase 3.6 — ordens com alvo: atacar/equipar/largar)
+## Camada de IA (Fase 3.1 — ordens por texto no chat; Fase 3.2/3.2c — o número da ordem é um alvo total contado no inventário do companheiro; Fase 3.5 — personalidade, memória e conversa livre; Fase 3.6 — ordens com alvo: atacar/equipar/largar; Fase 3.3 — ordens por voz: push-to-talk + STT local)
 
 O jogador digita no chat do jogo (`colete 20 de madeira`, `segue`, `para`, `ataca o greydwarf`,
 `equipa o machado de bronze`, `larga a pedra`, `bom dia`) e um **LLM local** (API compatível com a OpenAI:
@@ -104,7 +104,21 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   numa **ordem** a linha localizada do mod **ganha** e o `reply` é só logado (nada de mensagem duplicada). Quem
   fala é o companheiro **mais próximo** que pode receber ordem, e a conversa **não** toma posse dele
   (`MHR_Owner.TakeControl` continua só nas ordens).
-- Backend/contrato de referência: `docs/re/backend-contract.md`; mapa da fase: `docs/roadmap.md` (Trilha D).
+- **Fase 3.3 — ordens por voz (push-to-talk + STT local):** segurar `[IA] VozTecla` (**V**) e falar; ao soltar, o
+  áudio é transcrito **dentro do jogo** (`WhisperStt`, Whisper.net in-process, sem HTTP) e o texto entra no
+  **mesmo** `CompanionChatAI.Submit(mensagem, origem, announceRefusal)` que o chat usa — ordem, conversa,
+  personalidade e memória são idênticas às do texto digitado (nada de lógica duplicada; `[IA] Prefixo` é só do chat).
+  `VoiceInput` cuida da captura (`Microphone.Start` **16 kHz mono**, `loop: false`), do trim de silêncio e do
+  **WAV PCM 16-bit mono em memória**; `WhisperStt` carrega o modelo **uma vez** e o mantém carregado (pre-warm em
+  segundo plano), transcreve numa `Task` de fundo com fila thread-safe drenada no `Update` e serializa o uso do
+  nativo (`NativeGate`, compartilhado com o spike `modia_stt_teste` — o modelo **não** é carregado duas vezes).
+  Config `[IA]`: `VozLigada` (true), `VozTecla` (V), `VozIdioma` (pt), `VozDuracaoMaxima` (10 s),
+  `VozLimiarSilencio` (0.02), `VozDispositivo` (0) e `VozMostrarTexto` (true). O microfone é acessado por
+  **reflexão** (`VoiceInput.Mic`, 8 membros, uma vez só) porque `UnityEngine.AudioModule` não pode ser referenciado
+  neste projeto: Whisper.net fixa a fachada netstandard 2.0 e o módulo do Unity 6 é netstandard 2.1 (CS1705); a
+  fachada 2.1 do jogo resolve o CS1705 mas quebra `AudioClip.GetData` (CS7069, `Span<T>` no mscorlib).
+- Backend/contrato de referência: `docs/re/backend-contract.md`; mapa da fase: `docs/roadmap.md` (Trilha D);
+  pipeline de voz: `docs/re/stt-voz-pipeline.md`.
 
 ## Nossas docs
 
@@ -113,6 +127,8 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
 - `docs/plan-fases.md` — plano das fases com mapa do upstream.
 - `docs/audit-vs-offline-companions.md` — auditoria do nosso mod anterior vs o upstream.
 - `docs/re/` — engenharia reversa do Valheim 1.0 (APIs, diff de versão).
+- `docs/re/stt-whisper-net-spike.md` — o spike do STT local (Whisper.net in-process) e o loader nativo.
+- `docs/re/stt-voz-pipeline.md` — o pipeline de voz da Fase 3.3 (push-to-talk → STT → ordens) e a receita de teste.
 - `docs/references.md` — fontes de terceiros e licenças.
 
 ## Skills (carregue antes de escrever/revisar código)

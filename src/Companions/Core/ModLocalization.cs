@@ -383,7 +383,20 @@ public static class ModLocalization
 			{ "hc_ai_preset_viking", "Loyal Viking" },
 			{ "hc_ai_preset_mago", "Sarcastic Mage" },
 			{ "hc_ai_preset_sarcastico", "Sarcastic" },
-			{ "hc_ai_preset_guia", "Patient Guide" }
+			{ "hc_ai_preset_guia", "Patient Guide" },
+			// Fase 3.3: voice orders (push-to-talk + local STT) - what the pipeline itself says
+			{ "hc_ai_voice_listening", "Listening..." },
+			{ "hc_ai_voice_heard", "Got it: \"{0}\"" },
+			{ "hc_ai_voice_nothing", "I didn't hear anything." },
+			{ "hc_ai_voice_short", "That was too short - hold the key and speak." },
+			{ "hc_ai_voice_busy", "Still working on the last thing you said." },
+			{ "hc_ai_voice_timeout", "Maximum recording time reached ({0}s)." },
+			{ "hc_ai_voice_error", "I couldn't make out the speech: {0}" },
+			{ "hc_ai_voice_no_mic", "No microphone found (voice orders are off)." },
+			{ "hc_ai_voice_unavailable", "Speech recognition isn't ready (the Whisper model is missing?)." },
+			{ "hc_ai_voice_ui_open", "Close the window before speaking." },
+			{ "hc_ai_voice_cancelled", "Recording cancelled." },
+			{ "hc_ai_voice_disabled", "Voice orders are off ([IA] VozLigada = false)." }
 		};
 	}
 

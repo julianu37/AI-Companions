@@ -21,6 +21,11 @@ namespace Companions;
 ///   spoken by the companion (speech bubble) and shown in the chat. An order keeps working exactly as before and
 ///   the mod's own, localized feedback line wins - the model's "reply" is only logged for orders, so nothing is said
 ///   twice (and the confirmation for attack/equip/drop still names the creature/item, which a free text could not).
+///
+/// Fase 3.3 adds the VOICE source: the text the microphone produced (see VoiceInput/WhisperStt) is handed to the same
+/// <see cref="Submit"/> the chat uses, so a spoken order is the same order - nothing is duplicated for it here. The
+/// only voice-specific bits are the lines the pipeline itself shows ("Ouvindo...", "Entendi: ...") and the refusal
+/// notice when the AI is off, on cooldown or still busy.
 /// </summary>
 internal static class CompanionChatAI
 {
@@ -165,34 +170,101 @@ internal static class CompanionChatAI
 				}
 				return;
 			}
-			float cooldown = ModConfig.AiCooldown != null ? ModConfig.AiCooldown.Value : 3f;
-			float now = Time.realtimeSinceStartup;
-			if (now - _lastOrderTime < cooldown)
-			{
-				CompanionsPlugin.Log?.LogInfo("[IA] Cooldown still running - message not sent to the model");
-				return;
-			}
-			if (LlmClient.Busy)
-			{
-				CompanionsPlugin.Log?.LogInfo("[IA] The previous order is still being worked out - message not sent");
-				return;
-			}
-			_lastOrderTime = now;
-
-			// Fase 3.5: the companion being talked to is the nearest one that can take an order. It is NOT taken over
-			// here (that is what MHR_InScope does for orders): a chat message must not change who runs the companion.
-			CompanionSetup speaker = PickSpeaker();
-			_pendingSpeaker = speaker;
-			_pendingName = NameOf(speaker);
-			_pendingKey = KeyFor(speaker, _pendingName);
-
-			Notify(ModLocalization.Loc("hc_ai_thinking"));
-			LlmClient.Request(message, BuildPrompt(_pendingName, CompanionPersona.Resolve(), _pendingKey));
+			// a chat message stays silent when the AI is off or the model is busy: only a message the player
+			// deliberately addressed to the companion (with the prefix) says why nothing happened.
+			Submit(message, "chat", announceRefusal: !string.IsNullOrEmpty(prefix));
 		}
 		catch (Exception ex)
 		{
 			CompanionsPlugin.Log?.LogWarning("[IA] Couldn't handle the chat message: " + ex);
 		}
+	}
+
+	/// <summary>
+	/// Fase 3.3: the ONE place an order enters, whatever its source - the chat (Fase 3.1) or the microphone
+	/// (<see cref="VoiceInput"/>). Everything from here on is identical for both: the cooldown, the companion being
+	/// talked to, its personality, its memory, the prompt, the model call and the answer in Update(). The voice path
+	/// adds nothing of its own, so an order spoken out loud behaves exactly like the same order typed.
+	///
+	/// Called on the main thread. Returns false when the order was refused; <paramref name="announceRefusal"/> makes it
+	/// say why in the HUD and the chat (the voice path wants that - the player pressed a key and has to know what
+	/// happened; a chat message does not, or an idle chat would fill up with warnings).
+	/// </summary>
+	internal static bool Submit(string message, string source, bool announceRefusal)
+	{
+		if (string.IsNullOrEmpty(message))
+		{
+			return false;
+		}
+		if (Player.m_localPlayer == null)
+		{
+			return false;
+		}
+		if (ModConfig.AiEnabled == null || !ModConfig.AiEnabled.Value)
+		{
+			CompanionsPlugin.Log?.LogInfo("[IA] The AI is off ([IA] Ligado = false) - message not sent");
+			if (announceRefusal)
+			{
+				Notify(ModLocalization.Loc("hc_ai_disabled"));
+			}
+			return false;
+		}
+		float cooldown = ModConfig.AiCooldown != null ? ModConfig.AiCooldown.Value : 3f;
+		float now = Time.realtimeSinceStartup;
+		if (now - _lastOrderTime < cooldown)
+		{
+			CompanionsPlugin.Log?.LogInfo($"[IA] Cooldown still running ({now - _lastOrderTime:0.0}s of {cooldown:0.0}s) - message not sent to the model");
+			if (announceRefusal)
+			{
+				Notify(ModLocalization.Loc("hc_ai_voice_busy"));
+			}
+			return false;
+		}
+		if (LlmClient.Busy)
+		{
+			CompanionsPlugin.Log?.LogInfo("[IA] The previous order is still being worked out - message not sent");
+			if (announceRefusal)
+			{
+				Notify(ModLocalization.Loc("hc_ai_voice_busy"));
+			}
+			return false;
+		}
+		_lastOrderTime = now;
+		CompanionsPlugin.Log?.LogInfo($"[IA] Order from {source}: \"{message}\"");
+
+		// Fase 3.5: the companion being talked to is the nearest one that can take an order. It is NOT taken over
+		// here (that is what MHR_InScope does for orders): a message must not change who runs the companion.
+		CompanionSetup speaker = PickSpeaker();
+		_pendingSpeaker = speaker;
+		_pendingName = NameOf(speaker);
+		_pendingKey = KeyFor(speaker, _pendingName);
+
+		Notify(ModLocalization.Loc("hc_ai_thinking"));
+		LlmClient.Request(message, BuildPrompt(_pendingName, CompanionPersona.Resolve(), _pendingKey));
+		return true;
+	}
+
+	/// <summary>
+	/// Fase 3.3: a line the voice pipeline has to show (listening, no microphone, an error) - same HUD + chat feedback
+	/// the orders get, so everything the companion "hears" is visible in one place.
+	/// </summary>
+	internal static void Announce(string text)
+	{
+		Notify(text);
+	}
+
+	/// <summary>
+	/// Fase 3.3: shows what the microphone understood ("Entendi: ...") and has the nearest companion repeat it out
+	/// loud, exactly like the chat path confirms an order. Called on the main thread, once per transcription.
+	/// </summary>
+	internal static void HeardByVoice(string text)
+	{
+		if (string.IsNullOrEmpty(text))
+		{
+			return;
+		}
+		Notify(ModLocalization.LocFmt("hc_ai_voice_heard", text));
+		Speak(PickSpeaker(), text);
 	}
 
 	/// <summary>

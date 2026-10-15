@@ -103,6 +103,8 @@ public class CompanionsPlugin : BaseUnityPlugin
 		ModLocalization.EnsureDefaultFile();
 		CompanionChatAI.Init();
 		WhisperSpike.Init();
+		WhisperStt.Init();
+		VoiceInput.Init();
 		SceneManager.sceneLoaded += OnSceneLoaded;
 		Game.m_playerInitialSpawn += CompanionManager.MHR_StarterOnce;
 		ConfigPanel.Create();
@@ -130,6 +132,9 @@ public class CompanionsPlugin : BaseUnityPlugin
 		_started = false;
 		SceneManager.sceneLoaded -= OnSceneLoaded;
 		Game.m_playerInitialSpawn -= CompanionManager.MHR_StarterOnce;
+		// Fase 3.3: stop recording (and free the microphone clip) and release the native Whisper model
+		VoiceInput.Shutdown();
+		WhisperStt.Shutdown();
 		_harmony?.UnpatchSelf();
 		if (ConfigPanel.Instance != null)
 		{
@@ -190,6 +195,15 @@ public class CompanionsPlugin : BaseUnityPlugin
 		catch (Exception ex4)
 		{
 			Log.LogWarning("[STT] Error: " + ex4.ToString());
+		}
+		try
+		{
+			// Fase 3.3: push-to-talk + drains the finished transcriptions (never blocks, never allocates when idle)
+			VoiceInput.Tick();
+		}
+		catch (Exception ex5)
+		{
+			Log.LogWarning("[STT] Error: " + ex5.ToString());
 		}
 	}
 

@@ -1,7 +1,10 @@
 # Spike — STT local: Whisper.net in-process (Valheim 1.0 / Unity 6 / net472)
 
-**Status:** implementado, build 0 erros, aguardando validação in-game (`modia_stt_teste` ou `[IA] SttTeste = true`).
-**Decisão pendente:** (A) Whisper.net in-process **vs** (B) `whisper-server.exe` como processo filho.
+**Status:** implementado, build 0 erros, **validado em jogo** (`modia_stt_teste` / `[IA] SttTeste = true`).
+**Decisão:** **(A) Whisper.net in-process** — sem crash do jogo, sem conflito de assembly, 1,4 s para transcrever
+11 s de áudio. Desde a **Fase 3.3** o spike **compartilha o modelo** com o pipeline de voz
+(`AI/WhisperStt.cs`, ver `stt-voz-pipeline.md`): o `WhisperFactory` é carregado uma vez e **mantido carregado**, e
+as duas coisas passam pelo mesmo `NativeGate` — o modelo **não** é carregado duas vezes.
 
 Arquivos: `src/Companions/Diagnostics/WhisperSpike.cs`, `src/Companions/Companions.csproj`
 (`PackageReference` + target `DeployWhisperNet`), `src/Companions/Core/ModConfig.cs` (3 configs `[IA]`),
@@ -117,12 +120,12 @@ Só `win-x64` (12 nativos de 3 arquiteturas ficariam ~10 MB à toa).
   (AVX/AVX2/FMA) via `whisper_print_system_info`.
 - `LogProvider.AddLogger` joga o log do próprio loader do Whisper.net (`Debug`) no log do BepInEx — é o que
   mostra **em que pasta** ele procurou o `whisper.dll`.
-- `WhisperFactory.FromPath(model, new WhisperFactoryOptions { UseGpu = false, DelayInitialization = false })` →
-  mede o **tempo de CARGA do modelo** (carga ansiosa, é o que interessa medir).
+- O factory vem de `WhisperStt.TryGetFactory` (**Fase 3.3**): o modelo é carregado **uma vez** e **mantido
+  carregado** (o tempo de carga é medido lá, no primeiro uso de qualquer origem — spike ou voz). O spike **não**
+  descarrega mais nada no fim; a transcrição roda sob `WhisperStt.NativeGate`.
 - `CreateBuilder().WithLanguageDetection().WithThreads(núcleos-1, teto 8).WithNoContext()` +
   `WithSegmentEventHandler` → `processor.Process(stream)` (síncrono, mas já estamos fora da main thread) →
   mede o **tempo de TRANSCRIÇÃO**, conta segmentos e concatena o texto.
-- No fim, `WhisperFactory.Dispose` libera o contexto nativo.
 
 ### Gatilhos
 
@@ -149,20 +152,25 @@ Procure por `[STT]`. Sequência esperada:
 [STT] Loader nativo apontado para a pasta do plugin: RuntimeOptions.LibraryPath="...\Whisper.net.dll" (...)
 [STT] Runtime nativo OK: biblioteca=Cpu | ordem=Cpu | LibraryPath="..."
 [STT] whisper_print_system_info: ... AVX = 1 | AVX2 = 1 | FMA = 1 ...
-[STT] Modelo CARREGADO em NNN ms (...)
+[STT] Usando o modelo COMPARTILHADO com as ordens por voz (...) - sem carregar de novo.
 [STT] TRANSCRICAO em NNN ms | threads=7 | idioma=en | 1 segmento(s)
 [STT] TEXTO: "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country."
+[STT] O modelo continua carregado (o pipeline de voz usa o mesmo).
 [STT] Span<T> veio de: System.Memory 4.0.5.0 [C:\...\plugins\ModAI-BR-Companions\System.Memory.dll]
 [STT] Whisper.net.dll carregado de: 1.9.1.0 [C:\...\plugins\ModAI-BR-Companions\Whisper.net.dll]
 [STT] Teste do Whisper.net encerrado (a thread de fundo terminou).
 ```
+
+> Se a linha do modelo **não** aparecer, é porque o modelo já tinha sido carregado (pelo pre-warm da voz ou por uma
+> ordem anterior): a linha `Modelo CARREGADO em NNN ms e MANTIDO carregado` aparece **uma vez** no log, na primeira
+> necessidade.
 
 Sinais de problema e o que significam:
 
 | Log | Significado |
 |---|---|
 | `FALHOU ao carregar a biblioteca nativa do whisper ... Failed to load native whisper library` | nativos não encontrados/carregados; a mensagem completa + stack vêm em seguida. Ajustar `LibraryPath`/`runtimes\win-x64` (ou VC++ Redist). |
-| `TypeLoadException` / `MissingMethodException` com `System.Memory` | conflito com o *stub* do jogo — é o cenário que decide a favor de (B). |
+| `TypeLoadException` / `MissingMethodException` com `System.Memory` | conflito com o *stub* do jogo — seria o cenário que decidiria a favor de (B); **não aconteceu** (a decisão foi (A)). |
 | `FileNotFoundException` com `Microsoft.Extensions.AI` | algum caminho tocou o `WhisperSpeechToTextClient`; ver §1. |
 | `TRANSCRICAO ... 0 segmento(s)` / `TEXTO: ""` | nativo carregou mas o áudio/modelo não deu texto. |
 | Log sem `[STT]` nenhum | o plugin não chegou no `WhisperSpike.Init` — ver o começo do log. |

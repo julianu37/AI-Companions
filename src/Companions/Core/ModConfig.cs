@@ -517,6 +517,21 @@ internal static class ModConfig
 
 	internal static ConfigEntry<string> SttWav;
 
+	// [IA] - Fase 3.3: ordens por voz (push-to-talk + STT local com Whisper.net). Ver AI/VoiceInput.cs.
+	internal static ConfigEntry<bool> VozEnabled;
+
+	internal static ConfigEntry<KeyCode> VozTecla;
+
+	internal static ConfigEntry<string> VozLanguage;
+
+	internal static ConfigEntry<float> VozMaxSeconds;
+
+	internal static ConfigEntry<float> VozSilenceThreshold;
+
+	internal static ConfigEntry<int> VozDevice;
+
+	internal static ConfigEntry<bool> VozShowText;
+
 	internal static void Init(ConfigFile cfg)
 	{
 		// [General]
@@ -785,6 +800,16 @@ internal static class ModConfig
 		SttTest = Bind(cfg, "IA", "SttTeste", defaultValue: false, "SPIKE (teste): run the in-process Whisper.net speech-to-text test by itself about 25 seconds after the plugin loads, and write the result to the log. Off = only the console command \"modia_stt_teste\" runs it. It is a plain test: it does not listen to the microphone and does not change any companion behaviour.");
 		SttModel = Bind(cfg, "IA", "SttModelo", @"whisper\ggml-base-q5_1.bin", "SPIKE (teste): the ggml Whisper model to load, relative to the plugin folder (or an absolute path). Text setting: edit it in the .cfg file.");
 		SttWav = Bind(cfg, "IA", "SttWavTeste", @"whisper\jfk.wav", "SPIKE (teste): the WAV file to transcribe, relative to the plugin folder (or an absolute path). Needs to be PCM WAV (16 kHz mono is ideal). Text setting: edit it in the .cfg file.");
+
+		// [IA] - Fase 3.3: ordens por voz (push-to-talk + STT local com Whisper.net). O texto reconhecido entra no
+		// MESMO caminho das ordens do chat. Ver AI/VoiceInput.cs e AI/WhisperStt.cs.
+		VozEnabled = Bind(cfg, "IA", "VozLigada", defaultValue: true, "Fase 3.3: hold VozTecla and talk, and the companion takes what you said - the same orders you can type in the chat (\"colete 10 madeiras\", \"segue\", \"ataca o greydwarf\"). The speech is recognised locally, inside the game, by Whisper.net with the model from SttModelo: nothing is sent anywhere. Off = the key does nothing.");
+		VozTecla = Bind(cfg, "IA", "VozTecla", KeyCode.V, "Fase 3.3: push-to-talk key. Hold it while you speak, release it to have the speech recognised and carried out. It only works with the game in focus and with no window open (inventory, map, menu, chat, console, the mod's own panels).");
+		VozLanguage = Bind(cfg, "IA", "VozIdioma", "pt", "Fase 3.3: language of the speech, as a Whisper code (pt, en, es...). Empty or \"auto\" lets the model detect it. Text setting: edit it in the .cfg file.");
+		VozMaxSeconds = Bind(cfg, "IA", "VozDuracaoMaxima", 10f, "Fase 3.3: longest recording (seconds) for one voice order. Holding the key longer than this stops the recording and transcribes what was captured.", new AcceptableValueRange<float>(1f, 30f));
+		VozSilenceThreshold = Bind(cfg, "IA", "VozLimiarSilencio", 0.02f, "Fase 3.3: how loud the audio has to be (peak level of a 10 ms window, from 0 to 1) to count as speech when the silence at the start and the end of the recording is trimmed. Raise it if your microphone picks up a lot of room noise.", new AcceptableValueRange<float>(0f, 0.5f));
+		VozDevice = Bind(cfg, "IA", "VozDispositivo", 0, "Fase 3.3: which microphone to record from, as the index of the list the log prints at startup ([STT] Push-to-talk: ... 0: name, 1: name). 0 = the first one (the Windows default).", new AcceptableValueRange<int>(0, 8));
+		VozShowText = Bind(cfg, "IA", "VozMostrarTexto", defaultValue: true, "Fase 3.3: show what the microphone heard (\"Entendi: \"colete 10 madeiras\"\") in the chat and on the HUD, and have the companion repeat it, so a wrong transcription is easy to spot. Off = the recognised text is only written to the log.");
 
 		// 1.4.149: settings moved/renamed in the config clean-up keep the values players set; leftovers are removed.
 		// 1.4.150: the fix-ups below only run on such an upgrade (a file from before the clean-up), not on every start -

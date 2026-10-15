@@ -21,6 +21,10 @@ namespace Companions;
 /// log. Serve para decidir entre (A) Whisper.net in-process e (B) whisper-server.exe como processo filho: se o
 /// in-process der crash do jogo ou conflito de assembly, a decisão é (B).
 ///
+/// Desde a Fase 3.3 o pipeline de voz (<see cref="VoiceInput"/>/<see cref="WhisperStt"/>) usa o <b>mesmo</b> modelo:
+/// o factory vem de <see cref="WhisperStt.TryGetFactory"/> (carregado uma vez, mantido carregado) e a transcrição
+/// roda sob <see cref="WhisperStt.NativeGate"/> - o spike é só diagnóstico e não carrega nada por conta própria.
+///
 /// Nada de pipeline de voz aqui (push-to-talk, captura, encode, TTS): é só o teste.
 ///
 /// Garantias:
@@ -42,8 +46,6 @@ internal static class WhisperSpike
 
 	/// <summary>Espera antes do gatilho automático, para o mundo estar carregado.</summary>
 	private const float AutoDelaySeconds = 25f;
-
-	private const string DefaultModelRelative = @"whisper\ggml-base-q5_1.bin";
 
 	private const string DefaultWavRelative = @"whisper\jfk.wav";
 
@@ -84,11 +86,12 @@ internal static class WhisperSpike
 				_autoArmed = true;
 				_autoAt = Time.realtimeSinceStartup + AutoDelaySeconds;
 			}
-			string model = ModConfig.SttModel != null ? ModConfig.SttModel.Value : DefaultModelRelative;
+			string model = WhisperStt.ModelPath;
 			string wav = ModConfig.SttWav != null ? ModConfig.SttWav.Value : DefaultWavRelative;
 			CompanionsPlugin.Log?.LogInfo($"[STT] Spike do Whisper.net in-process pronto (Whisper.net 1.9.1 + Whisper.net.Runtime 1.9.1, CPU). "
 				+ $"Comando de console: \"{CommandName}\". Gatilho automatico: {(auto ? $"LIGADO, em {AutoDelaySeconds:0} s" : "desligado ([IA] SttTeste = false)")}. "
-				+ $"Modelo: \"{model}\" | WAV: \"{wav}\" (relativos a pasta do plugin quando nao forem caminho absoluto).");
+				+ $"Modelo: \"{model}\" | WAV: \"{wav}\" (relativos a pasta do plugin quando nao forem caminho absoluto). "
+				+ "O modelo e compartilhado com as ordens por voz (AI/WhisperStt.cs): ele e carregado uma vez so.");
 		}
 		catch (Exception ex)
 		{
@@ -149,12 +152,12 @@ internal static class WhisperSpike
 		ManualLogSource log = CompanionsPlugin.Log;
 		log?.LogInfo($"[STT] ===== Whisper.net in-process: teste ({reason}) =====");
 
-		string pluginDir = PluginDirectory();
+		string pluginDir = WhisperStt.PluginDirectory();
 		log?.LogInfo($"[STT] Pasta do plugin: \"{pluginDir}\"");
 		log?.LogInfo($"[STT] Thread de fundo: {Thread.CurrentThread.ManagedThreadId} | Processador: {Environment.ProcessorCount} nucleos");
 
-		string modelPath = ResolvePath(pluginDir, ModConfig.SttModel != null ? ModConfig.SttModel.Value : null, DefaultModelRelative);
-		string wavPath = ResolvePath(pluginDir, ModConfig.SttWav != null ? ModConfig.SttWav.Value : null, DefaultWavRelative);
+		string modelPath = WhisperStt.ModelPath;
+		string wavPath = WhisperStt.ResolvePath(pluginDir, ModConfig.SttWav != null ? ModConfig.SttWav.Value : null, DefaultWavRelative);
 		log?.LogInfo($"[STT] Modelo: \"{modelPath}\" ({DescribeFile(modelPath)})");
 		log?.LogInfo($"[STT] WAV de teste: \"{wavPath}\" ({DescribeFile(wavPath)})");
 
@@ -173,7 +176,7 @@ internal static class WhisperSpike
 		}
 
 		// A partir daqui qualquer coisa que falhe é do Whisper.net/nativo: reportamos tudo e paramos.
-		PrepareNativeLibraryPath(pluginDir);
+		WhisperStt.PrepareNativeLibraryPath();
 
 		IDisposable whisperLogger = null;
 		try
@@ -226,7 +229,12 @@ internal static class WhisperSpike
 		}
 	}
 
-	/// <summary>Carrega o modelo, transcreve o WAV e loga tempos e texto.</summary>
+	/// <summary>
+	/// Transcreve o WAV de teste com o <b>mesmo</b> modelo do pipeline de voz: o factory vem de
+	/// <see cref="WhisperStt.TryGetFactory"/> (carregado uma vez e mantido carregado - o spike não carrega nem
+	/// descarrega mais nada). A transcrição em si roda sob o <see cref="WhisperStt.NativeGate"/>, o mesmo cadeado das
+	/// ordens por voz, para as duas coisas nunca usarem o modelo nativo ao mesmo tempo.
+	/// </summary>
 	private static void Transcribe(ManualLogSource log, string modelPath, string wavPath)
 	{
 		int threads = Mathf.Clamp(Environment.ProcessorCount - 1, 1, 8);
@@ -234,12 +242,15 @@ internal static class WhisperSpike
 		int segments = 0;
 		string language = null;
 
-		Stopwatch loadWatch = Stopwatch.StartNew();
-		using (WhisperFactory factory = WhisperFactory.FromPath(modelPath, new WhisperFactoryOptions { UseGpu = false, DelayInitialization = false }))
+		if (!WhisperStt.TryGetFactory(out WhisperFactory factory, out string error))
 		{
-			loadWatch.Stop();
-			log?.LogInfo($"[STT] Modelo CARREGADO em {loadWatch.ElapsedMilliseconds} ms ({modelPath})");
+			log?.LogError($"[STT] Nao consegui obter o modelo compartilhado ({modelPath}): {error}");
+			return;
+		}
+		log?.LogInfo($"[STT] Usando o modelo COMPARTILHADO com as ordens por voz ({modelPath}) - sem carregar de novo.");
 
+		lock (WhisperStt.NativeGate)
+		{
 			using (WhisperProcessor processor = factory.CreateBuilder()
 				.WithLanguageDetection()   // deixa o modelo decidir o idioma: serve tanto para o jfk.wav (en) quanto para um WAV em PT-BR
 				.WithThreads(threads)
@@ -272,76 +283,13 @@ internal static class WhisperSpike
 				}
 			}
 		}
-		log?.LogInfo($"[STT] Modelo descarregado (WhisperFactory.Dispose). Tempo total de carga+transcricao: {loadWatch.ElapsedMilliseconds} ms");
-	}
-
-	/// <summary>
-	/// Aponta o loader nativo do Whisper.net para a NOSSA pasta.
-	///
-	/// No netstandard2.0 (o alvo que o net472 resolve) o Whisper.net 1.9.1 usa
-	/// <c>NativeLibraryLoader.GetRuntimePaths()</c>, que monta a lista de pastas assim:
-	/// <code>
-	/// var assemblySearchPaths = new[] {
-	///     GetSafeDirectoryName(RuntimeOptions.LibraryPath),   // = Path.GetDirectoryName(LibraryPath)
-	///     AppDomain.CurrentDomain.RelativeSearchPath,
-	///     AppDomain.CurrentDomain.BaseDirectory,              // no Unity = a pasta do JOGO
-	///     GetSafeDirectoryName(assemblyLocation),             // = pasta do Whisper.net.dll
-	///     ...
-	/// };
-	/// // e para cada uma procura: &lt;pasta&gt;\runtimes\win-x64\whisper.dll (+ ggml-*.dll)
-	/// </code>
-	/// Ou seja: <c>RuntimeOptions.LibraryPath</c> é tratado como um <b>caminho de arquivo</b> e o que vale é a pasta
-	/// dele (<c>Path.GetDirectoryName</c>). Passando o caminho do Whisper.net.dll (que fica na pasta do plugin), a
-	/// PRIMEIRA pasta procurada passa a ser a do plugin - e não a pasta do jogo (AppContext.BaseDirectory).
-	///
-	/// Também travamos a ordem de runtimes em CPU: só existe <c>runtimes\win-x64</c> no pacote CPU, então não faz
-	/// sentido sondar CUDA/Vulkan/CoreML/OpenVINO antes (cada sonda pode tentar abrir driver de GPU).
-	///
-	/// Precisa ser chamado ANTES de qualquer WhisperFactory/uso nativo (a documentação do RuntimeOptions diz isso).
-	/// </summary>
-	private static void PrepareNativeLibraryPath(string pluginDir)
-	{
-		string managedDll = Path.Combine(pluginDir, "Whisper.net.dll");
-		RuntimeOptions.LibraryPath = managedDll;
-		RuntimeOptions.RuntimeLibraryOrder = new List<RuntimeLibrary> { RuntimeLibrary.Cpu };
-		CompanionsPlugin.Log?.LogInfo($"[STT] Loader nativo apontado para a pasta do plugin: RuntimeOptions.LibraryPath=\"{managedDll}\" "
-			+ $"(a pasta procurada sera \"{Path.Combine(pluginDir, "runtimes", "win-x64")}\") | ordem de runtimes: CPU");
+		log?.LogInfo("[STT] O modelo continua carregado (o pipeline de voz usa o mesmo).");
 	}
 
 	/// <summary>Pasta do plugin: a pasta do Companions.dll (onde estão Whisper.net.dll e runtimes\).</summary>
 	private static string PluginDirectory()
 	{
-		try
-		{
-			string location = Assembly.GetExecutingAssembly().Location;
-			if (!string.IsNullOrEmpty(location))
-			{
-				string dir = Path.GetDirectoryName(location);
-				if (!string.IsNullOrEmpty(dir))
-				{
-					return dir;
-				}
-			}
-		}
-		catch (Exception ex)
-		{
-			CompanionsPlugin.Log?.LogWarning("[STT] Nao consegui descobrir a pasta do plugin pelo Assembly.Location: " + ex.Message);
-		}
-		return Directory.GetCurrentDirectory();
-	}
-
-	/// <summary>Config (relativa à pasta do plugin, ou absoluta) -> caminho completo.</summary>
-	private static string ResolvePath(string pluginDir, string configured, string fallbackRelative)
-	{
-		string value = string.IsNullOrWhiteSpace(configured) ? fallbackRelative : configured.Trim().Trim('"');
-		try
-		{
-			return Path.IsPathRooted(value) ? Path.GetFullPath(value) : Path.GetFullPath(Path.Combine(pluginDir, value));
-		}
-		catch (Exception)
-		{
-			return Path.Combine(pluginDir, fallbackRelative);
-		}
+		return WhisperStt.PluginDirectory();
 	}
 
 	private static string DescribeFile(string path)

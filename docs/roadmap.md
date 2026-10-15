@@ -53,7 +53,7 @@ Legenda: ✅ concluído · 🔄 em andamento · ⏳ pendente
 | 2.18b | **Seguir pelo portal** (`CompanionPortalFollow` + `[Portal]`): ele anda até o portal e é levado para junto de você quando o seu teleporte termina | ✅ (v0.4.6) |
 | 2.18c | **Carroça** (`CompanionCart` + `[Carroca]`): `modia_cart pull\|release` — ele anda até o engate do `Vagon` e puxa a carroça pelo `ConfigurableJoint` do jogo | ✅ (v0.4.6) |
 | 2.5 | Multiplayer (ZNetView/ZDO, testes com cliente/servidor) | ⏳ |
-| **3** | IA e voz: comandos por voz/chat, STT, TTS, personalidade — **no fork, ver Trilha D** | 🔄 (3.1, 3.2, 3.5, 3.6 ✅) |
+| **3** | IA e voz: comandos por voz/chat, STT, TTS, personalidade — **no fork, ver Trilha D** | 🔄 (3.1, 3.2, 3.2c, 3.3, 3.5, 3.6 ✅) |
 | **4** | Backend híbrido (LLM local + API), endpoints do "cérebro" | ⏳ |
 | **5** | Empacotamento (manifest, README, ícone) + revisão final | ⏳ |
 
@@ -338,8 +338,8 @@ Ordens em **linguagem natural** por cima do mod do upstream. O companheiro conti
 | **3.2** | **Alvo da ordem**: `colete 5 madeiras` para em 5 (madeira/pedra/minério) e volta a seguir | ✅ validado em jogo |
 | **3.2b** | Correção da 3.2: o número virou um **DELTA** | ❌ revertida pela 3.2c |
 | **3.2c** | **Correção final da quantidade**: o número é um **ALVO TOTAL contado no inventário do companheiro**, só para o recurso pedido; com o alvo já na mochila ele nem começa e avisa | ✅ validado em jogo |
-| 3.3 | Voz: captura com `Microphone` → STT (backend) → mesma caixa de ordens | ⏳ |
-| 3.3-spike | **SPIKE STT local**: Whisper.net **in-process** (NuGet, thread de fundo) x `whisper-server.exe` filho — teste mínimo, gatilhos `modia_stt_teste` / `[IA] SttTeste` | 🔄 aguardando validação em jogo (`docs/re/stt-whisper-net-spike.md`) |
+| 3.3 | **Ordens por voz**: push-to-talk (`Microphone`, 16 kHz mono) → **STT local** (Whisper.net) → **mesma caixa de ordens** do chat | ✅ build 0 erros + DLL no plugin (teste em jogo pendente) |
+| 3.3-spike | **SPIKE STT local**: Whisper.net **in-process** (NuGet, thread de fundo) x `whisper-server.exe` filho — teste mínimo, gatilhos `modia_stt_teste` / `[IA] SttTeste` | ✅ validado em jogo (`docs/re/stt-whisper-net-spike.md`) |
 | 3.4 | TTS: o companheiro **fala** a confirmação (áudio do backend, `AudioSource`) | ⏳ |
 | 3.5 | Personalidade/memória: preset + texto livre no contexto do LLM | ✅ validado em jogo |
 | 3.6 | **Ordens com alvo**: `ataca o greydwarf` (engaja a criatura), `equipa o machado de bronze` (equipa do inventário dele), `larga a pedra` (joga fora) | ✅ validado em jogo |
@@ -579,4 +579,56 @@ executando a **mesma ação** do radial, com a **mesma** linha de feedback.
   minha casa?` deve responder no tom; `colete 20 de madeira` deve continuar funcionando igual (Ok: coletar madeira
   (20)); `Conversa = false` deve voltar ao silêncio para conversa; `Memoria = 0` deve fazer ele esquecer a cada
   mensagem; matar/dispensar o companheiro deve zerar a memória (linha `[IA] Memory:` no `LogOutput.log`).
+
+### Fase 3.3 — ordens por voz (push-to-talk + STT local) (✅ — build; teste em jogo pendente)
+
+O jogador **segura uma tecla e fala** (`colete 10 madeiras`, `segue`, `ataca o greydwarf`, `bom dia`); ao soltar, o
+áudio é transcrito **localmente** (Whisper.net, dentro do jogo, sem HTTP) e o **texto entra exatamente no mesmo
+caminho das ordens do chat** — ordem, conversa, personalidade, memória: tudo igual, porque é a **mesma função**.
+
+| Peça | Arquivo | O que faz |
+|---|---|---|
+| STT reutilizável | `src/Companions/AI/WhisperStt.cs` (novo) | o spike virou serviço: **um** `WhisperFactory` carregado uma vez e **mantido carregado** (pre-warm em segundo plano), transcrição numa `Task` de fundo + `ConcurrentQueue` drenada no `Update`, watchdog, `NativeGate` (uma transcrição por vez, compartilhado com o spike) |
+| Captura | `src/Companions/AI/VoiceInput.cs` (novo) | push-to-talk (`Microphone.Start` **16 kHz mono**, `loop: false`, teto `VozDuracaoMaxima`), trim de silêncio, WAV PCM 16-bit mono **em memória**, feedback PT-BR, guardas de UI/foco |
+| Entrada única | `src/Companions/AI/CompanionChatAI.cs` | novo **`Submit(mensagem, origem, announceRefusal)`**: o chat (3.1) e a voz (3.3) entram por ele — cooldown, escolha do companheiro, prompt, `LlmClient`, resposta no `Update`. Mais `Announce()` e `HeardByVoice()` (o "Entendi: ..." + balão) |
+| Ponte do microfone | `src/Companions/AI/VoiceInput.cs` (`Mic`) | os 8 membros de `UnityEngine.AudioModule` que o mod usa, por **reflexão** (uma vez só): ver a nota abaixo |
+| Config | `src/Companions/Core/ModConfig.cs` | **`[IA] VozLigada`** (true), **`VozTecla`** (V), **`VozIdioma`** ("pt"), **`VozDuracaoMaxima`** (10 s), **`VozLimiarSilencio`** (0.02), **`VozDispositivo`** (0), **`VozMostrarTexto`** (true) |
+| Textos | `ModLocalization.cs` + `Translations/Portuguese_Brazilian.json` | `hc_ai_voice_listening/heard/nothing/short/busy/timeout/error/no_mic/unavailable/ui_open/cancelled/disabled` |
+| Ciclo de vida | `src/Companions/Core/CompanionsPlugin.cs` | `WhisperStt.Init`/`VoiceInput.Init` no `Awake`, `VoiceInput.Tick` no `Update`, `VoiceInput.Shutdown`/`WhisperStt.Shutdown` no `Shutdown` |
+
+- **Formato do áudio:** `Microphone.Start(dispositivo, loop: false, duração, **16000**)` — **16 kHz mono**, o que o
+  Whisper espera (o Thrall antigo gravava 8-bit a 22050 Hz e tinha de converter). O clipe é lido só até
+  `Microphone.GetPosition` (o resto do buffer circular é silêncio), passa por um trim de silêncio nas pontas
+  (janelas de 10 ms acima de `VozLimiarSilencio`, com 0,125 s de folga) e vira **WAV PCM 16-bit mono** montado à mão
+  na memória (sem arquivo temporário). O `AudioClip` do microfone é **destruído** no fim (vazamento clássico).
+- **A tecla V:** `DirectTargetKey`/`FarmZoneKey` usam `Z`, `RadialMenuKey` usa `E` (que também é o *Use* do jogo),
+  `ConfigPanelKey` usa `F8`, o editor de zona usa `LeftAlt`, `F5` é o console e `F7` o reposicionamento de UI —
+  **V** não é usada nem pelo mod nem pelo jogo, e fica ao lado das teclas de movimento.
+- **Sem travar nada:** a transcrição é uma `Task` de fundo (nada de `.Result`), o resultado volta por fila drenada no
+  `Update`, e o push-to-talk só faz trabalho enquanto a tecla está segurada. O modelo é carregado **uma vez**
+  (`TryGetFactory`, sob lock) e **pre-carregado** em segundo plano quando o jogador entra no mundo, para a primeira
+  ordem não ser mais lenta. **Nada de alocação por frame.**
+- **Guardas:** sem microfone, sem modelo, jogo sem foco, janela aberta (inventário/mapa/menu/chat/console/painéis do
+  mod) ou uma transcrição/pedido ainda em andamento — em todos os casos o mod **avisa no chat/HUD** em vez de gravar.
+- **O texto entra no pipeline do chat:** `VoiceInput.HandleTranscript` → `CompanionChatAI.HeardByVoice(texto)` (mostra
+  `Entendi: "..."` e o companheiro repete no balão) → **`CompanionChatAI.Submit(texto, "voz", true)`**, a mesma
+  função que o patch de `Chat.SendText` chama. Nenhuma lógica de ordem foi duplicada; o prefixo `[IA] Prefixo` **não**
+  se aplica à voz (ele é um filtro do chat).
+- **Por que `UnityEngine.AudioModule` por reflexão:** o mod compila em **net472** e referencia o pacote **Whisper.net**
+  (assets `netstandard2.0`), o que fixa a fachada **netstandard 2.0**. Todo módulo do Unity 6 é construído contra
+  **netstandard 2.1**, e um módulo que **não** está na closure do jogo (`AudioModule` não está — `CoreModule`,
+  `AIModule`, `AnimationModule`... estão, via `assembly_valheim`/`Assembly-CSharp`) dá **CS1705** contra essa fachada
+  mais antiga. Apontar o `netstandard` para a fachada 2.1 do jogo resolve o CS1705 e quebra do outro lado: com ela,
+  `AudioClip.GetData(Span<float>, int)` resolve `Span<T>` no **mscorlib** (CS7069), que os *reference assemblies* do
+  .NET Framework não têm. Referenciar nada e buscar os **8 membros** em runtime (`Mic`, uma vez só, nunca por frame)
+  é o que mantém o build limpo sem arrastar uma segunda BCL para dentro do Mono do jogo.
+- **O spike não carrega mais o modelo:** `WhisperSpike` passou a usar `WhisperStt.TryGetFactory` + `WhisperStt.NativeGate`
+  (e os helpers de caminho/loader compartilhados), então **o modelo é carregado uma vez só**, seja o gatilho
+  `modia_stt_teste` ou uma ordem por voz. O spike continua sendo diagnóstico.
+- **Receita de teste:** entrar no mundo (o log deve mostrar `[STT] Push-to-talk: LIGADO | segure V ...` e
+  `[STT] Modelo CARREGADO ... e MANTIDO carregado`), **segurar V**, falar `colete 10 madeiras`, soltar — devem
+  aparecer `Ouvindo...`, `Entendi: "colete 10 madeiras"`, `Pensando...` e `Ok: coletar madeira (10)`, e o companheiro
+  deve ir coletar madeira. Conferir no `LogOutput.log`: `Audio gravado: N s ... WAV PCM 16-bit mono 16000 Hz`,
+  `Voz #1 (push-to-talk): ... KB de audio` e `TRANSCRICAO em N ms ... TEXTO: "..."`. Falar `bom dia` deve virar
+  conversa; `ataca o greydwarf` deve engajar a criatura.
 

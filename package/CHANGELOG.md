@@ -2,7 +2,35 @@
 
 All notable changes to this fork of ProfMags' Offline Companions. Versions before 1.4.0 are the original mod (see [ProfMags' Thunderstore page](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) for that history) plus the initial batch of Valheim 1.0 API-compatibility fixes that let the mod load and run at all on 1.0.
 
-## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.5: personalidade, memória e conversa livre + Tradução PT-BR (fork ModAI-BR-Companions)
+## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Tradução PT-BR (fork ModAI-BR-Companions)
+- **Fase 3.3 — ordens por voz (push-to-talk + STT local com Whisper.net).** Segure **V** e fale (`colete 10 madeiras`,
+  `segue`, `ataca o greydwarf`, `bom dia`); ao soltar, o áudio é transcrito **dentro do jogo** (Whisper.net, sem HTTP,
+  nada sai da máquina) e o **texto entra exatamente no mesmo caminho das ordens do chat** — ordem, conversa,
+  personalidade e memória iguais, porque é a **mesma função** (`CompanionChatAI.Submit`).
+  - **Captura:** `Microphone.Start(dispositivo, loop: false, duração, 16000)` — **16 kHz mono**, o formato que o
+    Whisper espera (nada de 8-bit/22050 Hz como no Thrall antigo). O clipe é lido só até `Microphone.GetPosition`,
+    o silêncio das pontas é cortado (janelas de 10 ms acima de `[IA] VozLimiarSilencio`, com folga de 0,125 s) e o
+    áudio vira **WAV PCM 16-bit mono montado em memória** (sem arquivo temporário). O `AudioClip` é destruído no fim.
+  - **STT reutilizável (`AI/WhisperStt.cs`):** o spike virou serviço — o modelo é carregado **uma vez** e **mantido
+    carregado** (pre-carregado em segundo plano ao entrar no mundo), a transcrição roda numa `Task` de fundo e volta
+    por uma fila thread-safe drenada no `Update`, com watchdog e `NativeGate` (uma transcrição por vez). **A main
+    thread nunca espera** e nada é alocado por frame. O spike (`modia_stt_teste`) passou a usar o **mesmo** modelo,
+    então ele **não** é carregado duas vezes.
+  - **Feedback:** `Ouvindo...` ao começar; ao terminar, `Entendi: "colete 10 madeiras"` no chat/HUD e o companheiro
+    **repete no balão**; depois `Pensando...` e a linha de sempre (`Ok: coletar madeira (10)`). Nada reconhecido,
+    gravação curta demais, sem microfone, sem modelo, janela aberta, jogo sem foco, pedido anterior em andamento —
+    tudo isso **avisa** em PT-BR em vez de gravar.
+  - **Configs novas em `[IA]`:** `VozLigada` (true), `VozTecla` (**V**), `VozIdioma` (`pt`), `VozDuracaoMaxima`
+    (10 s), `VozLimiarSilencio` (0.02), `VozDispositivo` (0 = o primeiro) e `VozMostrarTexto` (true).
+  - **`UnityEngine.AudioModule` por reflexão (8 membros, uma vez só):** o mod compila em net472 e referencia o pacote
+    Whisper.net (assets netstandard2.0), o que fixa a fachada **netstandard 2.0**; todo módulo do Unity 6 é
+    construído contra **netstandard 2.1** e um módulo fora da closure do jogo (`AudioModule` está fora) dá **CS1705**
+    contra ela. Apontar o netstandard para a fachada 2.1 do jogo resolve o CS1705 mas quebra `AudioClip.GetData`
+    (`Span<T>` no mscorlib, CS7069). A ponte por reflexão é o que mantém o build limpo sem levar uma segunda BCL
+    para dentro do Mono. Nenhuma referência nova no `.csproj`.
+  - **Nada quebrado:** adição pura (nenhuma mudança em ordens por chat, IA, jobs, UI ou radial); o único ponto novo
+    no código existente é o `Submit` compartilhado (o patch de `Chat.SendText` passou a chamá-lo, com o mesmo
+    comportamento de antes) e duas chamadas novas no `Awake`/`Update`/`Shutdown` do plugin.
 - **SPIKE — STT local: Whisper.net in-process (teste, nada de pipeline de voz).** Prova de conceito para decidir
   entre o Whisper.net dentro do jogo e um `whisper-server.exe` como processo filho. Roda o modelo de verdade numa
   **thread de fundo** (a main thread nunca espera), transcreve um WAV de teste e escreve tudo no log:

@@ -315,6 +315,18 @@
         { "key": "hc_ai_preset_viking", "value": "Viking leal" },
         { "key": "hc_ai_preset_mago", "value": "Mago sarcástico" },
         { "key": "hc_ai_preset_sarcastico", "value": "Sarcástico" },
-        { "key": "hc_ai_preset_guia", "value": "Guia paciente" }
+        { "key": "hc_ai_preset_guia", "value": "Guia paciente" },
+        { "key": "hc_ai_voice_listening", "value": "Ouvindo..." },
+        { "key": "hc_ai_voice_heard", "value": "Entendi: \"{0}\"" },
+        { "key": "hc_ai_voice_nothing", "value": "Não ouvi nada." },
+        { "key": "hc_ai_voice_short", "value": "Foi rápido demais - segure a tecla e fale." },
+        { "key": "hc_ai_voice_busy", "value": "Ainda estou cuidando do que você disse." },
+        { "key": "hc_ai_voice_timeout", "value": "Tempo máximo de gravação atingido ({0}s)." },
+        { "key": "hc_ai_voice_error", "value": "Não consegui entender a fala: {0}" },
+        { "key": "hc_ai_voice_no_mic", "value": "Nenhum microfone encontrado (as ordens por voz estão desligadas)." },
+        { "key": "hc_ai_voice_unavailable", "value": "O reconhecimento de voz não está pronto (falta o modelo do Whisper?)." },
+        { "key": "hc_ai_voice_ui_open", "value": "Feche a janela antes de falar." },
+        { "key": "hc_ai_voice_cancelled", "value": "Gravação cancelada." },
+        { "key": "hc_ai_voice_disabled", "value": "As ordens por voz estão desligadas ([IA] VozLigada = false)." }
     ]
 }
