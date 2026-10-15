@@ -1061,6 +1061,13 @@ public class CompanionAI : BaseAI
 
 	public void DirectEngage(Character target)
 	{
+		DirectEngage(target, byOrder: false);
+	}
+
+	/// <summary>Fase 3.6: <paramref name="byOrder"/> is the chat order "ataca o troll" - an explicit order for that
+	/// one creature, which is carried out even on the Passive stance (the stance itself is not changed).</summary>
+	public void DirectEngage(Character target, bool byOrder)
+	{
 		SetAlerted(alert: true);
 		CompanionCombatAI combatAI = _combatAI;
 		if ((object)combatAI == null)
@@ -1072,7 +1079,18 @@ public class CompanionAI : BaseAI
 		// order was ignored (user: "did not want to sneak up on deer even when I tried to command it")
 		else if (MHR_Threat.IsPassive(target))
 		{
-			combatAI.EngagePrey(target);
+			if (byOrder)
+			{
+				combatAI.EngagePreyByOrder(target);
+			}
+			else
+			{
+				combatAI.EngagePrey(target);
+			}
+		}
+		else if (byOrder)
+		{
+			combatAI.EngageByOrder(target);
 		}
 		else
 		{

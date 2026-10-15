@@ -499,6 +499,8 @@ internal static class ModConfig
 
 	internal static ConfigEntry<float> AiCooldown;
 
+	internal static ConfigEntry<float> AiTargetRange;
+
 	internal static void Init(ConfigFile cfg)
 	{
 		// [General]
@@ -757,6 +759,7 @@ internal static class ModConfig
 		AiPrefix = Bind(cfg, "IA", "Prefixo", "", "Only chat messages starting with this go to the model (for example /c). Empty = every chat message is sent. Text setting: edit it in the .cfg file.");
 		AiShowResponse = Bind(cfg, "IA", "MostrarRespostaNoChat", defaultValue: true, "Show the model's raw answer in the chat, so you can see what it understood. Useful while testing; turn off for a cleaner chat.");
 		AiCooldown = Bind(cfg, "IA", "CooldownSegundos", 3f, "Shortest time (seconds) between two orders, so a burst of chat messages can't flood the model.", new AcceptableValueRange<float>(0f, 60f));
+		AiTargetRange = Bind(cfg, "IA", "RaioDeAlvo", 40f, "Fase 3.6: how far from you (in meters) an order that names a creature looks for it (\"ataca o greydwarf\"). A creature you are aiming at is always taken, however far it is. 40 m is the same leash the combat code drops a target at.", new AcceptableValueRange<float>(5f, 200f));
 
 		// 1.4.149: settings moved/renamed in the config clean-up keep the values players set; leftovers are removed.
 		// 1.4.150: the fix-ups below only run on such an upgrade (a file from before the clean-up), not on every start -

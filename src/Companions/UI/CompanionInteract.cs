@@ -1821,7 +1821,9 @@ public class CompanionInteract : MonoBehaviour
 		}
 	}
 
-	private static void CancelExistingActions(CompanionSetup setup, bool cancelRest = true)
+	// Fase 3.6: internal so a chat order that points at a creature ("ataca o greydwarf") can drop whatever the
+	// companion was on its way to do, exactly like the radial menu's attack does.
+	internal static void CancelExistingActions(CompanionSetup setup, bool cancelRest = true)
 	{
 		// 1.4.152: an order from its player - that player's game runs the companion from now on, so the order (kept in
 		// memory) is carried out (on another player's game it was silently lost)

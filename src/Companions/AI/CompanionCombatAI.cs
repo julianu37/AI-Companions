@@ -426,6 +426,18 @@ public class CompanionCombatAI : MonoBehaviour
 	internal void EngagePrey(Character prey)
 	{
 		Engage(prey);
+		MarkPrey(prey);
+	}
+
+	/// <summary>Fase 3.6: harmless game an ORDER named ("ataca o cervo") - engaged even on the Passive stance.</summary>
+	internal void EngagePreyByOrder(Character prey)
+	{
+		EngageByOrder(prey);
+		MarkPrey(prey);
+	}
+
+	private void MarkPrey(Character prey)
+	{
 		if (_engaged && _targetCreature == prey)
 		{
 			_huntPrey = prey;
@@ -436,33 +448,58 @@ public class CompanionCombatAI : MonoBehaviour
 
 	internal Character TargetCreature => _targetCreature;
 
+	/// <summary>Fase 3.6: the one creature a chat order told it to attack. It is the only target the Passive stance
+	/// does not drop, so "ataca o troll" works on a companion that never starts fights on its own - and the stance
+	/// stays Passive, so as soon as this creature is gone the companion goes back to not fighting.</summary>
+	private Character _orderTarget;
+
+	/// <summary>Fase 3.6: engage the creature an order named. Same as Engage, but the Passive stance does not
+	/// refuse it (see _orderTarget).</summary>
+	internal void EngageByOrder(Character target)
+	{
+		if (target == null || target.GetHealth() <= 0f)
+		{
+			return;
+		}
+		_orderTarget = target;
+		StartEngage(target);
+	}
+
 	internal void Engage(Character target)
 	{
-		if (!(target == null) && !(target.GetHealth() <= 0f))
+		if (target == null || target.GetHealth() <= 0f)
 		{
-			_stance = _setup?.GetCombatStance() ?? 0;
-			if (_stance != 1)
-			{
-				_targetCreature = target;
-				_targetStatic = null;
-				_lastKnownTargetPos = target.transform.position;
-				_beenAtLastPos = false;
-				_timeSinceAttacking = 0f;
-				_timeSinceSensedTarget = 0f;
-				_updateTargetTimer = 0f;
-				_updateWeaponTimer = 0f;
-				_weaponSwitchCooldown = 0f;
-				_pauseTimer = Random.Range(0f, 3f);
-				_interceptTime = Random.Range(0f, 4f);
-				_unableToAttackTargetTimer = 0f;
-				_parryAttackCount = 0;
-				_engaged = true;
-				_attackedTarget = false;
-				Character after = target.GetBaseAI()?.GetTargetCreature();
-				CompanionsPlugin.Log.LogDebug($"[Combat] Engage -> target=\"{target.m_name}\" stance={_stance} dist={Vector3.Distance(base.transform.position, target.transform.position):F1}m its target=\"{(after != null ? after.m_name : "none")}\" alerted={target.GetBaseAI()?.IsAlerted() ?? false}");
-				_ai.SetAlerted(alert: true);
-			}
+			return;
 		}
+		_stance = _setup?.GetCombatStance() ?? 0;
+		if (_stance == 1)
+		{
+			return;
+		}
+		StartEngage(target);
+	}
+
+	/// <summary>The engage itself, without the stance question (both Engage and EngageByOrder end up here).</summary>
+	private void StartEngage(Character target)
+	{
+		_targetCreature = target;
+		_targetStatic = null;
+		_lastKnownTargetPos = target.transform.position;
+		_beenAtLastPos = false;
+		_timeSinceAttacking = 0f;
+		_timeSinceSensedTarget = 0f;
+		_updateTargetTimer = 0f;
+		_updateWeaponTimer = 0f;
+		_weaponSwitchCooldown = 0f;
+		_pauseTimer = Random.Range(0f, 3f);
+		_interceptTime = Random.Range(0f, 4f);
+		_unableToAttackTargetTimer = 0f;
+		_parryAttackCount = 0;
+		_engaged = true;
+		_attackedTarget = false;
+		Character after = target.GetBaseAI()?.GetTargetCreature();
+		CompanionsPlugin.Log.LogDebug($"[Combat] Engage -> target=\"{target.m_name}\" stance={_stance} dist={Vector3.Distance(base.transform.position, target.transform.position):F1}m its target=\"{(after != null ? after.m_name : "none")}\" alerted={target.GetBaseAI()?.IsAlerted() ?? false}");
+		_ai.SetAlerted(alert: true);
 	}
 
 	internal bool UpdateCombat(float dt)
@@ -483,8 +520,16 @@ public class CompanionCombatAI : MonoBehaviour
 		_stance = _setup?.GetCombatStance() ?? 0;
 		if (_stance == 1)
 		{
-			Disengage();
-			return false;
+			// Fase 3.6: the one creature a chat order named is fought even on the Passive stance (EngageByOrder).
+			// The setting stays Passive - only this fight behaves like a normal one, so the companion doesn't
+			// circle the target the way the ranged stance does. Once this creature is gone, Disengage clears the
+			// order and the companion goes back to not starting fights.
+			if (_targetCreature != _orderTarget)
+			{
+				Disengage();
+				return false;
+			}
+			_stance = 0;
 		}
 		UpdateTarget(dt, out var canHearTarget, out var canSeeTarget);
 		if (_targetCreature == null && _targetStatic == null)
@@ -791,6 +836,8 @@ public class CompanionCombatAI : MonoBehaviour
 			_targetCreature = null;
 			_targetStatic = null;
 			_engaged = false;
+			// Fase 3.6: the order is over once it lets the creature go (dead, gone, out of the leash...)
+			_orderTarget = null;
 			_ai.m_targetCreature = null;
 			_ai.m_targetStatic = null;
 			_ai.SetAlerted(alert: false);

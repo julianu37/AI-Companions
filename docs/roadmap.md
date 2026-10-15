@@ -53,7 +53,7 @@ Legenda: ✅ concluído · 🔄 em andamento · ⏳ pendente
 | 2.18b | **Seguir pelo portal** (`CompanionPortalFollow` + `[Portal]`): ele anda até o portal e é levado para junto de você quando o seu teleporte termina | ✅ (v0.4.6) |
 | 2.18c | **Carroça** (`CompanionCart` + `[Carroca]`): `modia_cart pull\|release` — ele anda até o engate do `Vagon` e puxa a carroça pelo `ConfigurableJoint` do jogo | ✅ (v0.4.6) |
 | 2.5 | Multiplayer (ZNetView/ZDO, testes com cliente/servidor) | ⏳ |
-| **3** | IA e voz: comandos por voz/chat, STT, TTS, personalidade — **no fork, ver Trilha D** | 🔄 (3.1, 3.2 ✅) |
+| **3** | IA e voz: comandos por voz/chat, STT, TTS, personalidade — **no fork, ver Trilha D** | 🔄 (3.1, 3.2, 3.6 ✅) |
 | **4** | Backend híbrido (LLM local + API), endpoints do "cérebro" | ⏳ |
 | **5** | Empacotamento (manifest, README, ícone) + revisão final | ⏳ |
 
@@ -341,7 +341,7 @@ Ordens em **linguagem natural** por cima do mod do upstream. O companheiro conti
 | 3.3 | Voz: captura com `Microphone` → STT (backend) → mesma caixa de ordens | ⏳ |
 | 3.4 | TTS: o companheiro **fala** a confirmação (áudio do backend, `AudioSource`) | ⏳ |
 | 3.5 | Personalidade/memória: preset + texto livre no contexto do LLM | ⏳ |
-| 3.6 | Ordens com alvo (`atacar <criatura>`, `equipar <item>`, `largar <item>`) | ⏳ |
+| 3.6 | **Ordens com alvo**: `ataca o greydwarf` (engaja a criatura), `equipa o machado de bronze` (equipa do inventário dele), `larga a pedra` (joga fora) | ✅ (build 0 erros; teste em jogo pendente) |
 | 3.7 | UI do NPC: menu de personalidade/voz + keybind de push-to-talk | ⏳ |
 
 ### Fase 3.1 — ordem por texto no chat (✅ — Unreleased)
@@ -482,4 +482,47 @@ Ou seja: **o número é um alvo total, contado APENAS na mochila do companheiro*
   Fase 3.2 e está documentada de propósito.
 - **Coleta normal, radial e directed continuam iguais:** sem ordem no ZDO, tudo é a config pura (`Stock`);
   alvo apontado no radial (`SetDirectedTarget`) nunca tem alvo de ordem (`IsDirectedHarvest`).
+
+### Fase 3.6 — ordens com alvo: atacar, equipar e largar (✅ — build; teste em jogo pendente)
+
+O jogador aponta e digita: **`ataca o greydwarf`**, **`equipa o machado de bronze`**, **`larga a pedra`**
+(e `joga fora 5 madeira`). São as **mesmas ações** do radial/tecla de comando — nada de novo dirige o NPC.
+
+| Peça | Arquivo | O que faz |
+|---|---|---|
+| Contrato | `src/Companions/AI/LlmIntent.cs` | novo campo **`target`** (aceita `alvo`/`target_name`/`creature`/`item_name`) e as ações **`attack`**, **`equip`**, **`drop`**; `resource`/`amount` seguem iguais |
+| Alvo (nome → coisa) | `src/Companions/AI/OrderTargets.cs` (novo) | acha a **criatura** (mira do jogador → a mais próxima no raio) e o **item** (no inventário do companheiro), casando nomes em PT-BR/EN, prefab e nome localizado |
+| Intenção → ação | `src/Companions/AI/CompanionOrders.cs` | `attack` → `CompanionAI.DirectEngage(..., byOrder)`; `equip` → `Humanoid.EquipItem`; `drop` → `ItemDrop.DropItem` + `Inventory.RemoveItem` |
+| Combate | `src/Companions/AI/CompanionCombatAI.cs` | `EngageByOrder`/`EngagePreyByOrder`: a criatura **nomeada numa ordem** é engajada mesmo na postura **Passiva** (a postura não muda) |
+| Prompt/feedback | `src/Companions/AI/CompanionChatAI.cs` | system prompt PT-BR com `target` e exemplos; a resposta mostra a linha da própria ação (`hc_ai_attacking`, `hc_ai_equipped`, `hc_ai_dropped`...) |
+| Config | `src/Companions/Core/ModConfig.cs` | **`[IA] RaioDeAlvo`** (padrão 40 m): até onde procurar a criatura citada; a que estiver **na mira** vale sempre |
+| Textos | `ModLocalization.cs` + `Translations/Portuguese_Brazilian.json` | `hc_ai_attacking`, `hc_ai_no_target`, `hc_ai_no_aim`, `hc_ai_equipped`, `hc_ai_no_item`, `hc_ai_not_equipable`, `hc_ai_dropped`, `hc_ai_need_item` + os rótulos `hc_ai_order_attack/equip/drop` |
+
+- **Como a criatura é resolvida:** (1) a que estiver **sob a mira** do jogador (raycast da câmera nas camadas
+  `character*`, o mesmo caminho do comando por tecla), quando ela **casa** com o nome citado (ou quando a ordem
+  não citou nome); (2) senão a **mais próxima que casa**, dentro de `[IA] RaioDeAlvo` (40 m por padrão — a mesma
+  "coleira" que o combate usa para largar um alvo). Jogadores, companheiros e mortos nunca entram.
+- **Como o item é resolvido:** só o **inventário do próprio companheiro** (nunca baús/pilhas), casando o nome dito
+  contra o **prefab** (`AxeBronze`), o nome localizado (`Machado de bronze`) e as palavras de cada um
+  (`AxeBronze` → axe + bronze), com **dicionário PT-BR/EN** (machado↔axe, picareta↔pickaxe, sucata↔scrap...),
+  singular/plural e palavras vazias (`de`, `da`, `the`...) ignoradas. Empate: a primeira ocorrência no inventário.
+- **Passiva + ordem de ataque:** a ordem é explícita e vale para **aquela** criatura; a postura **não é alterada**
+  (o `CompanionCombatAI` só ignora a Passiva para o alvo da ordem, e volta a "não começa briga" assim que ele
+  morre/some). Sem isso a ordem seria engolida em silêncio, porque a Passiva é literalmente "nunca começa uma briga".
+- **`drop` sem número larga o STACK INTEIRO** ("larga a pedra" = livrar-se dela; é o mesmo que o mod faz com o lixo
+  que ele descarta para abrir espaço — `MHR_GatherRules.TryMakeRoom`). Com número (`joga fora 5 madeira`), no
+  máximo esse tanto, somando vários stacks. A pilha largada sai do **auto-pickup** (`m_autoPickup = false`) para
+  ele não pegar a própria ordem de volta, itens equipados são desequipados antes e **itens de missão não caem**.
+- **`equip`:** equipa com o `Humanoid.EquipItem` do jogo; item que **não** é equipável avisa (`hc_ai_not_equipable`).
+  O auto-equip do mod pode depois trocar a arma de volta (é ele que escolhe a melhor arma para o trabalho/luta) —
+  a ordem não mexe em nenhuma configuração.
+- **`pega a picareta` = equipar:** o verbo "pegar" é lido como coleta quando o objeto é recurso (`pega madeira`) e
+  como equipar quando é equipamento (`GearWords` em `LlmIntent`), então nada que já funcionava mudou.
+- **Ordens antigas intactas:** `colete 20 de madeira`, `segue`, `para`, `vem cá`, posturas, `pega pedra`... —
+  o `target` do JSON é ignorado por elas e o `resource` continua sendo o item do trabalho.
+- **Multiplayer/reload:** nada novo é gravado no ZDO — a ordem é aplicada no instante em que chega (o alvo de
+  ataque vive na memória do combate, como o ataque do radial).
+- **Verificação:** as duas partes mais arriscadas (casamento de nomes e o parser) foram exercitadas contra o DLL
+  compilado — 45 casos de nome (criaturas e itens, PT-BR e EN, e 5 que **não** podem casar) e 30 de JSON
+  (ordens novas + as que já existiam), todos passando.
 

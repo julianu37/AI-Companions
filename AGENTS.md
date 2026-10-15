@@ -60,17 +60,20 @@ skills em `.opencode/skills/`. Leia este arquivo antes de agir.
 
 Notas de desenvolvimento do upstream: `docs/DEV_NOTES.md`; handoff: `docs/SESSION_HANDOFF.md`.
 
-## Camada de IA (Fase 3.1 — ordens por texto no chat; Fase 3.2/3.2c — o número da ordem é um alvo total contado no inventário do companheiro)
+## Camada de IA (Fase 3.1 — ordens por texto no chat; Fase 3.2/3.2c — o número da ordem é um alvo total contado no inventário do companheiro; Fase 3.6 — ordens com alvo: atacar/equipar/largar)
 
-O jogador digita a ordem no chat do jogo (`colete 20 de madeira`, `segue`, `para`) e um **LLM local**
-(API compatível com a OpenAI: `POST {BaseUrl}/chat/completions`) devolve a intenção em JSON, que vira a
-**mesma ação** do menu radial / tecla de comando. Fluxo: `CompanionChatAI` (patch Harmony em
-`Chat.SendText` + system prompt PT-BR) → `LlmClient` (POST em `Task` de fundo + fila thread-safe drenada
-no `Update`) → `LlmIntent` (parser tolerante) → `CompanionOrders` (intenção → `CompanionSetup.ApplyActionMode`,
-`SetCombatStance`, `MHR_JobRules`, recall...).
+O jogador digita a ordem no chat do jogo (`colete 20 de madeira`, `segue`, `para`, `ataca o greydwarf`,
+`equipa o machado de bronze`, `larga a pedra`) e um **LLM local** (API compatível com a OpenAI:
+`POST {BaseUrl}/chat/completions`) devolve a intenção em JSON, que vira a **mesma ação** do menu radial /
+tecla de comando. Fluxo: `CompanionChatAI` (patch Harmony em `Chat.SendText` + system prompt PT-BR) →
+`LlmClient` (POST em `Task` de fundo + fila thread-safe drenada no `Update`) → `LlmIntent` (parser
+tolerante: `action`, `target`, `resource`, `amount`) → `CompanionOrders` (intenção →
+`CompanionSetup.ApplyActionMode`, `SetCombatStance`, `MHR_JobRules`, `DirectEngage`, `EquipItem`,
+`ItemDrop.DropItem`, recall...).
 
 - Config `[IA]` no `.cfg` (sem segredos no código): `Ligado`, `BaseUrl`, `Modelo`, `ApiKey`, `Temperatura`,
-  `TimeoutSegundos`, `Prefixo`, `MostrarRespostaNoChat`, `CooldownSegundos`.
+  `TimeoutSegundos`, `Prefixo`, `MostrarRespostaNoChat`, `CooldownSegundos`, `RaioDeAlvo` (até onde procurar a
+  criatura citada numa ordem de ataque; a que estiver na mira vale sempre).
 - `Chat.SendText(Talker.Type, string)` é o caminho da mensagem **do próprio jogador** (as recebidas entram
   por `Chat.OnNewChatMessage`) — é o único ponto capturado.
 - `despawn` não é exposto ao modelo. O `amount` é um **ALVO TOTAL** para madeira/pedra/minério (Fase 3.2,
@@ -82,6 +85,13 @@ no `Update`) → `LlmIntent` (parser tolerante) → `CompanionOrders` (intençã
   (`OrderItems.Resolve` traduz "madeira"/"wood" → `Wood`); se o recurso não for reconhecido, vale para o modo
   inteiro (comportamento de reserva, como na 3.2). Ao bater o alvo ele encerra a ordem e volta a seguir. Para os
   outros jobs o número segue sendo só informativo.
+- **Fase 3.6 — ordens com alvo:** `attack`/`equip`/`drop` usam o campo `target` do JSON e o
+  `OrderTargets` (novo) para transformar **nome → criatura** (mira do jogador primeiro, depois a mais próxima
+  dentro de `[IA] RaioDeAlvo`) e **nome → item do inventário do companheiro** (prefab, nome localizado, PT-BR/EN,
+  singular/plural). `attack` passa por `CompanionAI.DirectEngage(..., byOrder: true)` (a criatura nomeada é
+  engajada **mesmo na postura Passiva** — a postura não muda); `equip` por `Humanoid.EquipItem`; `drop` por
+  `ItemDrop.DropItem` + `Inventory.RemoveItem` (sem número = stack inteiro; a pilha sai do auto-pickup e item de
+  missão nunca cai). "Pegar" é lido pelo objeto: `pega a picareta` → equipar, `pega madeira` → coleta.
 - Backend/contrato de referência: `docs/re/backend-contract.md`; mapa da fase: `docs/roadmap.md` (Trilha D).
 
 ## Nossas docs

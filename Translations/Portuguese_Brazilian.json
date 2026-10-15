@@ -297,6 +297,17 @@
         { "key": "hc_ai_order_stance_balanced", "value": "postura equilibrada" },
         { "key": "hc_ai_order_stance_passive", "value": "postura defensiva" },
         { "key": "hc_ai_order_stance_ranged", "value": "postura à distância" },
-        { "key": "hc_ai_order_stance_melee", "value": "postura corpo a corpo" }
+        { "key": "hc_ai_order_stance_melee", "value": "postura corpo a corpo" },
+        { "key": "hc_ai_order_attack", "value": "atacar o alvo" },
+        { "key": "hc_ai_order_equip", "value": "equipar o item" },
+        { "key": "hc_ai_order_drop", "value": "largar o item" },
+        { "key": "hc_ai_attacking", "value": "Atacando {0}." },
+        { "key": "hc_ai_no_target", "value": "Não vejo nenhum {0} por perto." },
+        { "key": "hc_ai_no_aim", "value": "Não vejo nenhuma criatura na sua mira." },
+        { "key": "hc_ai_equipped", "value": "Equipei {0}." },
+        { "key": "hc_ai_no_item", "value": "Não tenho {0}." },
+        { "key": "hc_ai_not_equipable", "value": "Não dá para equipar {0}." },
+        { "key": "hc_ai_dropped", "value": "Larguei {0} ({1})." },
+        { "key": "hc_ai_need_item", "value": "Não entendi qual item." }
     ]
 }

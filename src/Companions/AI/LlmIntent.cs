@@ -15,11 +15,16 @@ internal sealed class LlmIntent
 {
 	internal const string ActionNone = "none";
 
-	/// <summary>Canonical action ("wood", "follow", "stance_passive"...). Never null; "none" when nothing was understood.</summary>
+	/// <summary>Canonical action ("wood", "follow", "attack", "stance_passive"...). Never null; "none" when nothing was understood.</summary>
 	internal string Action = ActionNone;
 
 	/// <summary>Item/creature named in the order, normalized, or null.</summary>
 	internal string Resource;
+
+	/// <summary>Fase 3.6: the creature or item the order pointed at ("troll", "machado_de_bronze"), normalized, or
+	/// null. Used by attack/equip/drop; when the model answered with "resource"/"item" instead, that is taken as
+	/// the target (see Parse).</summary>
+	internal string Target;
 
 	/// <summary>How many were asked for, or 0 when the order didn't say.</summary>
 	internal int Amount;
@@ -35,7 +40,11 @@ internal sealed class LlmIntent
 
 	private static readonly Regex ActionFieldRegex = new Regex("\"(?:action|acao|command|comando|intent|intencao)\"\\s*:\\s*(?:\"((?:[^\"\\\\]|\\\\.)*)\"|([^,}}\\s\\]]+))", RegexOptions.Compiled | RegexOptions.Singleline);
 
-	private static readonly Regex ResourceFieldRegex = new Regex("\"(?:resource|recurso|item|target|alvo|object|objeto)\"\\s*:\\s*(?:\"((?:[^\"\\\\]|\\\\.)*)\"|([^,}}\\s\\]]+))", RegexOptions.Compiled | RegexOptions.Singleline);
+	private static readonly Regex ResourceFieldRegex = new Regex("\"(?:resource|recurso|item|object|objeto)\"\\s*:\\s*(?:\"((?:[^\"\\\\]|\\\\.)*)\"|([^,}}\\s\\]]+))", RegexOptions.Compiled | RegexOptions.Singleline);
+
+	// Fase 3.6: the creature/item an attack/equip/drop order points at. Kept apart from "resource" (the item a
+	// gathering job is about) so the same JSON can carry both without one overwriting the other.
+	private static readonly Regex TargetFieldRegex = new Regex("\"(?:target|alvo|target_name|nome_alvo|creature|item_name)\"\\s*:\\s*(?:\"((?:[^\"\\\\]|\\\\.)*)\"|([^,}}\\s\\]]+))", RegexOptions.Compiled | RegexOptions.Singleline);
 
 	private static readonly Regex StanceFieldRegex = new Regex("\"(?:stance|postura)\"\\s*:\\s*(?:\"((?:[^\"\\\\]|\\\\.)*)\"|([^,}}\\s\\]]+))", RegexOptions.Compiled | RegexOptions.Singleline);
 
@@ -82,6 +91,7 @@ internal sealed class LlmIntent
 			}
 			string action = ReadField(ActionFieldRegex, body, noneIsNull: false);
 			string resource = ReadField(ResourceFieldRegex, body, noneIsNull: true);
+			string target = ReadField(TargetFieldRegex, body, noneIsNull: true);
 			string stance = ReadField(StanceFieldRegex, body, noneIsNull: true);
 
 			Match amountMatch = AmountRegex.Match(body);
@@ -97,7 +107,26 @@ internal sealed class LlmIntent
 			}
 
 			intent.Resource = string.IsNullOrEmpty(resource) ? null : Normalize(resource);
-			intent.Action = Canonicalize(action, stance, intent.Resource);
+			intent.Target = string.IsNullOrEmpty(target) ? null : Normalize(target);
+			intent.Action = Canonicalize(action, stance, intent.Resource, intent.Target);
+
+			// Fase 3.6: the model often files the named creature/item under the wrong field. An order that needs a
+			// target takes "resource"/"item" when "target" is empty, and a gathering order takes "target" as its
+			// resource - either way the order still lands on the right action instead of being thrown away.
+			if (NeedsTarget(intent.Action))
+			{
+				if (intent.Target == null)
+				{
+					intent.Target = intent.Resource;
+				}
+				// the name is the target now: "resource" is documented as the item a gathering job is about, and
+				// attack/equip/drop never read it, so keeping a copy would only be confusing in the log
+				intent.Resource = null;
+			}
+			else if (intent.Resource == null && intent.Target != null)
+			{
+				intent.Resource = intent.Target;
+			}
 		}
 		catch (Exception ex)
 		{
@@ -153,7 +182,13 @@ internal sealed class LlmIntent
 		return text.Trim('_');
 	}
 
-	private static string Canonicalize(string action, string stance, string resource)
+	/// <summary>Fase 3.6: actions that need to know what they point at (a creature, an item).</summary>
+	internal static bool NeedsTarget(string action)
+	{
+		return action == "attack" || action == "equip" || action == "drop";
+	}
+
+	private static string Canonicalize(string action, string stance, string resource, string target)
 	{
 		string normalizedAction = Normalize(action);
 		string normalizedStance = Normalize(stance);
@@ -181,6 +216,23 @@ internal sealed class LlmIntent
 				// "colete/pega/gather": which job it means comes from what was named, generic collecting otherwise
 				return resource != null ? JobForResource(resource) : "forage";
 			}
+			if (canonical == "#take")
+			{
+				// Fase 3.6: "pega a picareta" hands over a tool it carries, "pega madeira" is the gathering job.
+				// A verb that takes an object only means "equip" when the object is gear - see GearWords. The model
+				// may file the name under "resource" or under "target", so both are looked at.
+				string named = resource ?? target;
+				if (LooksLikeGear(named))
+				{
+					return "equip";
+				}
+				return named != null ? JobForResource(named) : "forage";
+			}
+			if (canonical == "#attack")
+			{
+				// Fase 3.6: "ataca o troll" fights that one creature; "ataca" alone is still the hunting job
+				return (resource != null || target != null) ? "attack" : "hunt";
+			}
 			if (canonical == "#stance")
 			{
 				return StanceForName(normalizedAction);
@@ -192,11 +244,40 @@ internal sealed class LlmIntent
 
 	private static string JobForResource(string resource)
 	{
+		if (string.IsNullOrEmpty(resource))
+		{
+			return "forage";
+		}
 		if (Resources.TryGetValue(resource, out string job))
 		{
 			return job;
 		}
+		// the player types plurals and longer names ("pega 10 madeiras", "corta madeira de carvalho"): the job is
+		// still in there, so the whole name is tried without its plural and then word by word
+		string singular = Singular(resource);
+		if (singular != resource && Resources.TryGetValue(singular, out job))
+		{
+			return job;
+		}
+		foreach (string word in resource.Split('_'))
+		{
+			if (Resources.TryGetValue(word, out job))
+			{
+				return job;
+			}
+			string stem = Singular(word);
+			if (stem != word && Resources.TryGetValue(stem, out job))
+			{
+				return job;
+			}
+		}
 		return "forage";
+	}
+
+	/// <summary>singular/plural, the cheap way: "madeiras" and "madeira" are the same word to us.</summary>
+	private static string Singular(string word)
+	{
+		return (word.Length > 3 && word[word.Length - 1] == 's') ? word.Substring(0, word.Length - 1) : word;
 	}
 
 	private static string StanceForName(string name)
@@ -272,7 +353,12 @@ internal sealed class LlmIntent
 		Add(map, "ore", "ore", "minerio", "minerios", "mina", "minerar", "cobre", "copper", "ferro", "iron", "prata", "silver", "estanho", "tin", "metal", "scrap");
 		Add(map, "forage", "forage", "coleta", "coletar_plantas", "colher", "colheita", "plantas", "frutas", "fruta", "bagas", "berries", "berry", "cogumelos", "mushroom", "forragear", "forrageiro");
 		Add(map, "smelt", "smelt", "fundir", "fundicao", "forno", "refinar", "derreter", "fundidor");
-		Add(map, "hunt", "hunt", "cacar", "caca", "atacar", "attack", "matar", "kill", "abater", "hunting", "perseguir");
+		Add(map, "hunt", "hunt", "cacar", "caca", "hunting", "perseguir", "cacar_animais");
+		// Fase 3.6: "atacar/matar" WITH a named creature is a direct attack on that one; without a name it stays
+		// the hunting job (the behaviour of Fase 3.1) - see Canonicalize.
+		Add(map, "#attack", "attack", "atacar", "ataca", "ataque", "atacam", "matar", "mata", "mate", "matem", "kill", "abater", "abate", "eliminar", "elimina", "destruir", "engajar", "engage", "acabar_com");
+		Add(map, "equip", "equip", "equipar", "equipa", "equipe", "equipem", "wield", "empunhar", "empunha", "vestir", "veste", "calcar", "por", "poe", "poem", "colocar", "coloca", "usar", "usa", "use");
+		Add(map, "drop", "drop", "dropar", "drope", "largar", "larga", "largue", "larguem", "jogar_fora", "joga_fora", "jogue_fora", "jogar", "descartar", "descarta", "descarte", "soltar", "solta", "deixar", "deixa", "dispensar", "dispensa", "remover", "remove", "tirar", "tira", "livrar_se");
 		Add(map, "farm", "farm", "fazenda", "plantar", "plantacao", "agricultura", "farmar", "cultivar", "colher_plantacao");
 		Add(map, "fish", "fish", "pescar", "pesca", "peixe", "pescaria");
 		Add(map, "repair", "repair", "reparar", "consertar", "reparo", "reabastecer", "restock", "manutencao", "manter", "arrumar");
@@ -291,7 +377,10 @@ internal sealed class LlmIntent
 		Add(map, "stance_melee", "stance_melee", "melee", "corpo_a_corpo", "postura_corpo_a_corpo", "espada", "corpo", "espadachim");
 		Add(map, "none", "none", "null", "nada", "nenhuma", "nenhum", "n_a", "conversa", "conversation", "chat", "saudacao", "oi", "ola", "bom_dia", "boa_tarde", "boa_noite", "obrigado", "obrigada", "valeu", "hello", "hi", "hey", "thanks", "pergunta", "duvida");
 		// verbs that mean "go and collect something": the job comes from the resource field
-		Add(map, "#gather", "gather", "collect", "coletar", "colete", "coletem", "pegar", "pega", "pegue", "peguem", "buscar", "busca", "busque", "trazer", "traz", "traga", "apanhar", "apanha", "minerar_tudo", "juntar", "junta");
+		Add(map, "#gather", "gather", "collect", "coletar", "colete", "coletem", "peguem", "apanhar", "apanha", "minerar_tudo", "juntar", "junta");
+		// Fase 3.6: verbs that take an object - a resource to gather ("pega madeira") or a tool to hold ("pega a
+		// picareta"); which one it is comes from the word itself (see GearWords)
+		Add(map, "#take", "take", "pega", "pegue", "pegar", "buscar", "busca", "busque", "trazer", "traz", "traga", "pegar_item", "buscar_item");
 		return map;
 	}
 
@@ -301,6 +390,53 @@ internal sealed class LlmIntent
 		{
 			map[Normalize(alias)] = canonical;
 		}
+	}
+
+	/// <summary>Fase 3.6: words that name a piece of gear the companion can hold, so "pega a picareta" is read as
+	/// "equip the pickaxe" while "pega madeira" stays the gathering job. Materials, food and potions are absent on
+	/// purpose - those are never equipped. Matched against the whole name and against each of its words, so
+	/// "pega o machado de bronze" counts as gear too.</summary>
+	private static readonly HashSet<string> GearWords = BuildGearWords();
+
+	/// <summary>Is this the name of something the companion can hold? ("machado de bronze" -> yes)</summary>
+	private static bool LooksLikeGear(string name)
+	{
+		if (string.IsNullOrEmpty(name))
+		{
+			return false;
+		}
+		if (GearWords.Contains(name))
+		{
+			return true;
+		}
+		foreach (string word in name.Split('_'))
+		{
+			if (GearWords.Contains(word) || GearWords.Contains(Singular(word)))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static HashSet<string> BuildGearWords()
+	{
+		HashSet<string> set = new HashSet<string>(StringComparer.Ordinal);
+		string[] words = new string[68]
+		{
+			"machado", "axe", "picareta", "pickaxe", "espada", "sword", "faca", "knife", "adaga", "dagger",
+			"lanca", "spear", "arpao", "harpoon", "arco", "bow", "besta", "crossbow", "escudo", "shield",
+			"broquel", "buckler", "elmo", "helmet", "capacete", "armadura", "armor", "peitoral", "chest",
+			"calcas", "pernas", "legs", "perneiras", "capa", "cape", "manto", "cloak", "tocha", "torch",
+			"cajado", "staff", "martelo", "hammer", "maca", "mace", "porrete", "club", "marreta", "sledge",
+			"atgeir", "atgedir", "vara", "fishingrod", "trinket", "amulet", "amuleto", "anel", "ring",
+			"cinto", "belt", "ferramenta", "tool", "arma", "weapon", "flecha", "arrow", "virote", "bolt"
+		};
+		for (int i = 0; i < words.Length; i++)
+		{
+			set.Add(Normalize(words[i]));
+		}
+		return set;
 	}
 
 	private static readonly Dictionary<string, string> Resources = BuildResources();

@@ -362,7 +362,20 @@ public static class ModLocalization
 			{ "hc_ai_order_stance_balanced", "balanced stance" },
 			{ "hc_ai_order_stance_passive", "defensive stance" },
 			{ "hc_ai_order_stance_ranged", "ranged stance" },
-			{ "hc_ai_order_stance_melee", "melee stance" }
+			{ "hc_ai_order_stance_melee", "melee stance" },
+			// Fase 3.6: orders that name a creature or an item (attack/equip/drop) have their own wording, so the
+			// answer says which creature or which item it was about
+			{ "hc_ai_order_attack", "attack the target" },
+			{ "hc_ai_order_equip", "equip the item" },
+			{ "hc_ai_order_drop", "drop the item" },
+			{ "hc_ai_attacking", "Attacking {0}." },
+			{ "hc_ai_no_target", "I don't see any {0} nearby." },
+			{ "hc_ai_no_aim", "I don't see a creature in your sights." },
+			{ "hc_ai_equipped", "Equipped {0}." },
+			{ "hc_ai_no_item", "I don't have {0}." },
+			{ "hc_ai_not_equipable", "I can't equip {0}." },
+			{ "hc_ai_dropped", "Dropped {0} ({1})." },
+			{ "hc_ai_need_item", "I didn't catch which item." }
 		};
 	}
 

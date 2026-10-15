@@ -2,7 +2,37 @@
 
 All notable changes to this fork of ProfMags' Offline Companions. Versions before 1.4.0 are the original mod (see [ProfMags' Thunderstore page](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) for that history) plus the initial batch of Valheim 1.0 API-compatibility fixes that let the mod load and run at all on 1.0.
 
-## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Tradução PT-BR (fork ModAI-BR-Companions)
+## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Tradução PT-BR (fork ModAI-BR-Companions)
+- **Fase 3.6 — ordens com alvo: o companheiro ataca a criatura que você nomeou, equipa o item que ele tem e
+  larga o que você mandar.** `ataca o greydwarf`, `mata o javali`, `equipa o machado de bronze`, `pega a
+  picareta`, `larga a pedra`, `joga fora 5 madeira`.
+  - **Contrato novo do modelo:** o JSON ganhou o campo **`target`** (aceita `alvo`, `target_name`, `creature`,
+    `item_name`) e as ações **`attack`**, **`equip`** e **`drop`**; `resource`/`amount` continuam iguais e o
+    system prompt (PT-BR) explica as três, com exemplos, pedindo o alvo **nas palavras do jogador**.
+  - **Como a criatura é achada:** primeiro a que está **na sua mira** (raycast da câmera, o mesmo caminho do
+    comando por tecla) quando ela casa com o nome dito — aponte e diga "ataca aquele"; senão a **mais próxima
+    que casa** dentro do novo **`[IA] RaioDeAlvo`** (40 m por padrão, a mesma coleira que o combate usa).
+    Jogadores, companheiros e mortos nunca entram. Nada achado = **"Não vejo nenhum X por perto."**.
+  - **Como o item é achado:** só no **inventário do companheiro** (nunca baús), casando o nome dito contra o
+    prefab (`AxeBronze`), o nome localizado (`Machado de bronze`) e as palavras de cada um, com dicionário
+    PT-BR/EN (machado↔axe, picareta↔pickaxe, sucata↔scrap...), singular/plural e palavras vazias ignoradas.
+  - **Passiva:** uma ordem explícita de ataque vale **para aquela criatura mesmo na postura Passiva** — e a
+    postura **não muda** (ele volta a "não começa briga" assim que o alvo morre/some). Sem isso a ordem seria
+    engolida em silêncio, porque Passiva é literalmente "nunca começa uma briga".
+  - **`drop` sem número larga o stack inteiro** ("larga a pedra" = livrar-se dela — o mesmo que o mod faz com o
+    lixo que descarta para abrir espaço); com número, no máximo esse tanto. A pilha largada sai do auto-pickup
+    (`m_autoPickup = false`) para ele não pegar a própria ordem de volta, item equipado é desequipado antes e
+    **item de missão não cai**.
+  - **`equip`** usa o `Humanoid.EquipItem` do jogo (item que não é equipável avisa). O auto-equip do mod pode
+    depois trocar a arma de volta — é ele que escolhe a melhor arma para o trabalho/luta; a ordem não mexe em
+    nenhuma configuração.
+  - **`pega a picareta` = equipar, `pega madeira` = coletar:** o verbo "pegar" é lido pelo objeto (equipamento
+    → equipar; recurso → trabalho de coleta), então **nada que já funcionava mudou**.
+  - **Feedback próprio** em PT-BR (`hc_ai_attacking`, `hc_ai_no_target`, `hc_ai_no_aim`, `hc_ai_equipped`,
+    `hc_ai_no_item`, `hc_ai_not_equipable`, `hc_ai_dropped`, `hc_ai_need_item`) no HUD/chat, e o companheiro
+    **fala** a confirmação ("Atacando o troll.", "Equipei Machado de bronze.", "Larguei Pedra (5).").
+  - **Novo arquivo:** `src/Companions/AI/OrderTargets.cs` (nome → criatura/item). O combate ganhou
+    `EngageByOrder`/`EngagePreyByOrder`; o radial e as ordens antigas ficaram **iguais**.
 - **Fase 3.1 — o jogador digita a ordem no chat do jogo e o companheiro executa.** `colete 20 de madeira`,
   `segue`, `para`, `vem cá`, `minere ferro`, `fica na defensiva`... A frase vai para um **LLM local** por uma
   API compatível com a OpenAI (`POST {BaseUrl}/chat/completions`; LM Studio, Ollama, llama.cpp, vLLM) e a
