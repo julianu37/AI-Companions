@@ -55,8 +55,17 @@ internal static class WhisperStt
 	/// <summary>The sample rate the whole voice pipeline works at: 16 kHz mono, which is what Whisper expects.</summary>
 	internal const int SampleRate = 16000;
 
-	/// <summary>Where the ggml model is expected when [IA] SttModelo is left at its default (relative to the plugin folder).</summary>
-	internal const string DefaultModelRelative = @"whisper\ggml-base-q5_1.bin";
+	/// <summary>
+	/// Where the ggml model is expected when [IA] SttModelo is left at its default (relative to the plugin folder).
+	/// Fase 3.3b: <b>small-q5_1</b> (181 MB) instead of base-q5_1 (57 MB) - the short clips of a voice order ("colete
+	/// 10 madeiras") came back wrong far too often with base, and small is markedly better in PT-BR. It costs roughly
+	/// 2-3x the CPU time per transcription (still well under a second for a 2 s clip on a 8-thread CPU, and it never
+	/// blocks the game: the transcription runs on a background task).
+	/// </summary>
+	internal const string DefaultModelRelative = @"whisper\ggml-small-q5_1.bin";
+
+	/// <summary>The model the default replaced (Fase 3.3): kept on disk, and [IA] SttModelo can still point at it.</summary>
+	internal const string PreviousModelRelative = @"whisper\ggml-base-q5_1.bin";
 
 	/// <summary>Finished transcriptions, waiting for the main thread to read them.</summary>
 	private static readonly ConcurrentQueue<SttResult> _finished = new ConcurrentQueue<SttResult>();
@@ -106,6 +115,19 @@ internal static class WhisperStt
 		}
 	}
 
+	/// <summary>
+	/// Fase 3.3b: the initial prompt (vocabulary bias) for the decoder, from [IA] VozPromptInicial. Empty = none.
+	/// Read on the main thread (<see cref="Request"/>) and carried to the background task.
+	/// </summary>
+	internal static string Prompt
+	{
+		get
+		{
+			string value = ModConfig.VozPromptInitial != null ? ModConfig.VozPromptInitial.Value : null;
+			return string.IsNullOrWhiteSpace(value) ? "" : value.Trim();
+		}
+	}
+
 	/// <summary>True when a transcription could be attempted right now (the model file is there and nothing failed before).</summary>
 	internal static bool Ready
 	{
@@ -135,9 +157,19 @@ internal static class WhisperStt
 		try
 		{
 			string language = NormalizeLanguage(ModConfig.VozLanguage != null ? ModConfig.VozLanguage.Value : null);
+			string prompt = Prompt;
 			CompanionsPlugin.Log?.LogInfo($"[STT] STT local (Whisper.net in-process, CPU) pronto para as ordens por voz: "
 				+ $"modelo \"{ModelPath}\" ({DescribeFile(ModelPath)}) | idioma {(language ?? "detectado pelo modelo")} | "
 				+ $"{Threads} thread(s) | audio {SampleRate} Hz mono. O modelo e carregado UMA vez e fica carregado.");
+			if (prompt.Length > 0)
+			{
+				CompanionsPlugin.Log?.LogInfo($"[STT] Prompt inicial do Whisper ([IA] VozPromptInicial, {prompt.Length} caracteres): \"{prompt}\" "
+					+ "- ele enviesa o vocabulario das ordens; vazio desliga o vies.");
+			}
+			else
+			{
+				CompanionsPlugin.Log?.LogInfo("[STT] Prompt inicial do Whisper desligado ([IA] VozPromptInicial vazio).");
+			}
 		}
 		catch (Exception ex)
 		{
@@ -193,14 +225,16 @@ internal static class WhisperStt
 		// every config value is read here, on the main thread (the same care LlmClient takes)
 		_busySince = UnityEngine.Time.realtimeSinceStartup;
 		string language = NormalizeLanguage(ModConfig.VozLanguage != null ? ModConfig.VozLanguage.Value : null);
+		string prompt = Prompt;
 		int threads = Threads;
 		int job = Interlocked.Increment(ref _jobs);
 
 		CompanionsPlugin.Log?.LogInfo($"[STT] Voz #{job} ({reason}): {wav.Length / 1024} KB de audio, idioma {(language ?? "automatico")}, "
-			+ $"{threads} thread(s) - transcrevendo em thread de fundo, o jogo nao para.");
+			+ $"{threads} thread(s), prompt inicial {(prompt.Length > 0 ? $"{prompt.Length} caracteres" : "desligado")} "
+			+ $"- transcrevendo em thread de fundo, o jogo nao para.");
 		Task.Run(delegate
 		{
-			Work(wav, reason, language, threads);
+			Work(wav, reason, language, prompt, threads);
 		});
 		return true;
 	}
@@ -279,7 +313,7 @@ internal static class WhisperStt
 				{
 					_loadFailed = true;
 					_loadError = $"modelo nao encontrado em \"{modelPath}\"";
-					CompanionsPlugin.Log?.LogError($"[STT] {_loadError}. Coloque o ggml (ex.: ggml-base-q5_1.bin) na pasta whisper\\ do plugin ou ajuste [IA] SttModelo.");
+					CompanionsPlugin.Log?.LogError($"[STT] {_loadError}. Coloque o ggml (ex.: ggml-small-q5_1.bin) na pasta whisper\\ do plugin ou ajuste [IA] SttModelo.");
 					error = _loadError;
 					return false;
 				}
@@ -313,7 +347,7 @@ internal static class WhisperStt
 	/// The transcription itself, already off the main thread. Anything that fails is turned into a result: no exception
 	/// ever escapes to the Unity side.
 	/// </summary>
-	private static void Work(byte[] wav, string reason, string language, int threads)
+	private static void Work(byte[] wav, string reason, string language, string prompt, int threads)
 	{
 		SttResult result = new SttResult
 		{
@@ -346,6 +380,13 @@ internal static class WhisperStt
 							}
 							text.Append(segment.Text);
 						});
+					if (!string.IsNullOrEmpty(prompt))
+					{
+						// Fase 3.3b: the initial prompt (vocabulary bias). It survives WithNoContext on purpose:
+						// whisper.cpp clears the *accumulated* past text first and prepends the initial prompt after
+						// that, so no_context only means "don't condition on what this recording already produced".
+						builder = builder.WithPrompt(prompt);
+					}
 					builder = string.IsNullOrEmpty(language) ? builder.WithLanguageDetection() : builder.WithLanguage(language);
 					using (WhisperProcessor processor = builder.Build())
 					using (MemoryStream stream = new MemoryStream(wav, false))
@@ -357,6 +398,14 @@ internal static class WhisperStt
 				result.Text = text.ToString().Trim();
 				result.Language = detected[0];
 				result.Segments = segments[0];
+				if (IsPromptEcho(result.Text, prompt))
+				{
+					// the classic downside of an initial prompt: with audio that has no clear speech the model can
+					// simply repeat the prompt back. It never looks like a real order (nobody says "Ordens para o
+					// companheiro..."), so it is thrown away instead of becoming a bogus order.
+					CompanionsPlugin.Log?.LogInfo("[STT] O Whisper repetiu o prompt inicial (audio sem fala clara) - tratando como nenhuma fala.");
+					result.Text = "";
+				}
 			}
 		}
 		catch (Exception ex)
@@ -369,7 +418,7 @@ internal static class WhisperStt
 		if (result.Ok)
 		{
 			CompanionsPlugin.Log?.LogInfo($"[STT] TRANSCRICAO em {result.ElapsedMs} ms ({reason}) | idioma={Value(result.Language)} | "
-				+ $"{result.Segments} segmento(s) | TEXTO: \"{result.Text}\"");
+				+ $"{result.Segments} segmento(s) | prompt={(string.IsNullOrEmpty(prompt) ? "desligado" : prompt.Length + " car.")} | TEXTO: \"{result.Text}\"");
 		}
 		else
 		{
@@ -381,6 +430,29 @@ internal static class WhisperStt
 	private static float WatchdogSeconds => 60f;
 
 	private static int Threads => Math.Min(Math.Max(Environment.ProcessorCount - 1, 1), 8);
+
+	/// <summary>How many characters a transcription has to share with the START of the prompt to count as an echo.</summary>
+	private const int PromptEchoMinChars = 12;
+
+	/// <summary>
+	/// True when the transcription is just the initial prompt being read back (the model does that on audio with no
+	/// clear speech). Only the <b>beginning</b> of the prompt counts - nobody says "Ordens para o companheiro" - so a
+	/// real order ("colete madeira, pedra...") can never be thrown away by this.
+	/// </summary>
+	private static bool IsPromptEcho(string text, string prompt)
+	{
+		if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(prompt))
+		{
+			return false;
+		}
+		int limit = Math.Min(text.Length, prompt.Length);
+		int run = 0;
+		while (run < limit && char.ToLowerInvariant(text[run]) == char.ToLowerInvariant(prompt[run]))
+		{
+			run++;
+		}
+		return run >= PromptEchoMinChars;
+	}
 
 	private static string Value(string text)
 	{

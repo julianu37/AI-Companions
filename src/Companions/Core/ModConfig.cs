@@ -528,6 +528,8 @@ internal static class ModConfig
 
 	internal static ConfigEntry<float> VozSilenceThreshold;
 
+	internal static ConfigEntry<string> VozPromptInitial;
+
 	internal static ConfigEntry<int> VozDevice;
 
 	internal static ConfigEntry<bool> VozShowText;
@@ -793,23 +795,29 @@ internal static class ModConfig
 		AiTargetRange = Bind(cfg, "IA", "RaioDeAlvo", 40f, "Fase 3.6: how far from you (in meters) an order that names a creature looks for it (\"ataca o greydwarf\"). A creature you are aiming at is always taken, however far it is. 40 m is the same leash the combat code drops a target at.", new AcceptableValueRange<float>(5f, 200f));
 		AiPersonality = Bind(cfg, "IA", "Personalidade", "", "Fase 3.5: your companion's personality in your own words, in Portuguese - how it talks and behaves (\"fala como um viking leal e direto\", \"é um mago sarcástico que reclama do frio\"). It goes into the model's instructions, so the companion answers in that tone. When this is filled in it wins over PresetPersonalidade. Up to 600 characters. Text setting: edit it in the .cfg file.");
 		AiPersonalityPreset = Bind(cfg, "IA", "PresetPersonalidade", "", "Fase 3.5: a ready-made personality, written in Portuguese inside the mod: viking (leal e destemido), mago (velho e sarcástico), sarcastico (piadas secas), guia (paciente e didático), or custom (use Personalidade). Empty or unknown = the default (a loyal, practical companion). Text setting: edit it in the .cfg file.");
-		AiMemory = Bind(cfg, "IA", "Memoria", 6, "Fase 3.5: how many recent exchanges (one message from you + one from the companion) the companion remembers and sends along with the next message, so it follows the thread of the conversation. 0 = no memory. Kept per companion, in memory only (nothing is saved to the world) and forgotten when the companion dies or is dismissed.", new AcceptableValueRange<int>(0, 12));
+		AiMemory = Bind(cfg, "IA", "Memoria", 4, "Fase 3.5: how many recent exchanges (one message from you + one from the companion) the companion remembers and sends along with the next message, so it follows the thread of the conversation. 0 = no memory. Kept per companion, in memory only (nothing is saved to the world) and forgotten when the companion dies or is dismissed. Every exchange makes the prompt the model has to read bigger, so keep it small for the fastest answers (Fase 3.3b: 4, was 6).", new AcceptableValueRange<int>(0, 12));
 		AiConversation = Bind(cfg, "IA", "Conversa", defaultValue: true, "Fase 3.5: when the message is NOT an order (\"bom dia\", \"como você está?\", \"o que achou da minha casa?\"), the companion answers as conversation: it says the answer out loud (speech bubble) and shows it in the chat. Orders keep working exactly as before. Off = only orders are understood, as in Fase 3.1.");
 
 		// [IA] - STT local (spike do Whisper.net in-process, Fase 3.x): só teste, não faz parte do pipeline de voz.
 		SttTest = Bind(cfg, "IA", "SttTeste", defaultValue: false, "SPIKE (teste): run the in-process Whisper.net speech-to-text test by itself about 25 seconds after the plugin loads, and write the result to the log. Off = only the console command \"modia_stt_teste\" runs it. It is a plain test: it does not listen to the microphone and does not change any companion behaviour.");
-		SttModel = Bind(cfg, "IA", "SttModelo", @"whisper\ggml-base-q5_1.bin", "SPIKE (teste): the ggml Whisper model to load, relative to the plugin folder (or an absolute path). Text setting: edit it in the .cfg file.");
+		SttModel = Bind(cfg, "IA", "SttModelo", @"whisper\ggml-small-q5_1.bin", "Whisper model the speech recognition loads (the voice orders AND the \"modia_stt_teste\" console command), relative to the plugin folder or an absolute path. Default whisper\\ggml-small-q5_1.bin (181 MB, Fase 3.3b - much better in Portuguese than the old whisper\\ggml-base-q5_1.bin, 57 MB, which is still on disk if you want it back: measured on a 16-core CPU with 8 threads, 638 ms per 2 s clip with base against 2187 ms with small, and the time barely changes with the clip length because the encoder always works on a 30 s window). Text setting: edit it in the .cfg file.");
 		SttWav = Bind(cfg, "IA", "SttWavTeste", @"whisper\jfk.wav", "SPIKE (teste): the WAV file to transcribe, relative to the plugin folder (or an absolute path). Needs to be PCM WAV (16 kHz mono is ideal). Text setting: edit it in the .cfg file.");
 
 		// [IA] - Fase 3.3: ordens por voz (push-to-talk + STT local com Whisper.net). O texto reconhecido entra no
 		// MESMO caminho das ordens do chat. Ver AI/VoiceInput.cs e AI/WhisperStt.cs.
-		VozEnabled = Bind(cfg, "IA", "VozLigada", defaultValue: true, "Fase 3.3: hold VozTecla and talk, and the companion takes what you said - the same orders you can type in the chat (\"colete 10 madeiras\", \"segue\", \"ataca o greydwarf\"). The speech is recognised locally, inside the game, by Whisper.net with the model from SttModelo: nothing is sent anywhere. Off = the key does nothing.");
-		VozTecla = Bind(cfg, "IA", "VozTecla", KeyCode.V, "Fase 3.3: push-to-talk key. Hold it while you speak, release it to have the speech recognised and carried out. It only works with the game in focus and with no window open (inventory, map, menu, chat, console, the mod's own panels).");
+		VozEnabled = Bind(cfg, "IA", "VozLigada", defaultValue: true, "Fase 3.3: hold VozTecla and talk, and the companion takes what you said - the same orders you can type in the chat (\"colete 10 madeiras\", \"segue\", \"ataca o greydwarf\"). The speech is recognised locally, inside the game, by Whisper.net with the model from SttModelo: nothing is sent anywhere. Off = the key does nothing (and, Fase 3.3b, the key goes back to whatever the game uses it for).");
+		VozTecla = Bind(cfg, "IA", "VozTecla", KeyCode.V, "Fase 3.3: push-to-talk key. Hold it while you speak, release it to have the speech recognised and carried out. It only works with the game in focus and with no window open (inventory, map, menu, chat, console, the mod's own panels). NOTE (Fase 3.3b): V is also the game's \"Toggle Auto-Pickup\". While VozLigada is on, the mod blocks that toggle when the game's auto-pickup is bound to this same key, so the key is free for talking - rebind the auto-pickup in the game's own controls screen (or pick another key here) if you want it back.");
 		VozLanguage = Bind(cfg, "IA", "VozIdioma", "pt", "Fase 3.3: language of the speech, as a Whisper code (pt, en, es...). Empty or \"auto\" lets the model detect it. Text setting: edit it in the .cfg file.");
 		VozMaxSeconds = Bind(cfg, "IA", "VozDuracaoMaxima", 10f, "Fase 3.3: longest recording (seconds) for one voice order. Holding the key longer than this stops the recording and transcribes what was captured.", new AcceptableValueRange<float>(1f, 30f));
-		VozSilenceThreshold = Bind(cfg, "IA", "VozLimiarSilencio", 0.02f, "Fase 3.3: how loud the audio has to be (peak level of a 10 ms window, from 0 to 1) to count as speech when the silence at the start and the end of the recording is trimmed. Raise it if your microphone picks up a lot of room noise.", new AcceptableValueRange<float>(0f, 0.5f));
+		VozSilenceThreshold = Bind(cfg, "IA", "VozLimiarSilencio", 0.01f, "Fase 3.3: how loud the audio has to be (peak level of a 10 ms window, from 0 to 1) to count as speech when the silence at the start and the end of the recording is trimmed. Fase 3.3b: 0.01 (was 0.02) - at 0.02 the quiet start of a word was often cut off, which is what made short orders come back wrong. Raise it if your microphone picks up a lot of room noise.", new AcceptableValueRange<float>(0f, 0.5f));
+		VozPromptInitial = Bind(cfg, "IA", "VozPromptInicial", "Ordens para o companheiro: colete madeira, pedra, minerio, ferro, segue, para, vem ca, ataca o greydwarf, equipa o machado de bronze, larga a pedra, descansa, bom dia.", "Fase 3.3b: initial prompt sent to Whisper before every transcription. It biases the vocabulary, which is what makes short orders (\"colete 10 madeiras\") come out right instead of guessed. Put the words you actually say (the orders, the names of creatures and items); empty = no bias. Text setting: edit it in the .cfg file.");
 		VozDevice = Bind(cfg, "IA", "VozDispositivo", 0, "Fase 3.3: which microphone to record from, as the index of the list the log prints at startup ([STT] Push-to-talk: ... 0: name, 1: name). 0 = the first one (the Windows default).", new AcceptableValueRange<int>(0, 8));
 		VozShowText = Bind(cfg, "IA", "VozMostrarTexto", defaultValue: true, "Fase 3.3: show what the microphone heard (\"Entendi: \"colete 10 madeiras\"\") in the chat and on the HUD, and have the companion repeat it, so a wrong transcription is easy to spot. Off = the recognised text is only written to the log.");
+
+		// Fase 3.3b: the voice defaults changed after the first test in game. A .cfg written before this version still
+		// holds the old values and BepInEx keeps whatever is in the file, so a value that is EXACTLY the old default is
+		// moved to the new one (and said so in the log). Anything else was chosen by the player and is left alone.
+		ApplyVoiceDefaultsPhase33b();
 
 		// 1.4.149: settings moved/renamed in the config clean-up keep the values players set; leftovers are removed.
 		// 1.4.150: the fix-ups below only run on such an upgrade (a file from before the clean-up), not on every start -
@@ -830,6 +838,45 @@ internal static class ModConfig
 		if (CookMeadFocus.Value == "start: MeadBaseHealthMinor, MeadBaseStaminaMinor; eikthyr: MeadBaseHealthMinor, MeadBaseStaminaMinor, MeadBasePoisonResist; gdking: MeadBaseHealthMinor, MeadBaseStaminaMinor, MeadBasePoisonResist; bonemass: MeadBaseHealthMedium, MeadBaseStaminaMedium, MeadBaseFrostResist; dragon: MeadBaseHealthMedium, MeadBaseStaminaMedium, MeadBaseFrostResist, BarleyWineBase; goblinking: MeadBaseHealthMajor, MeadBaseStaminaMedium, MeadBaseEitrMinor, BarleyWineBase; queen: MeadBaseHealthMajor, MeadBaseStaminaLingering, MeadBaseEitrMinor, BarleyWineBase; fader: MeadBaseHealthMajor, MeadBaseHealthLingering, MeadBaseStaminaLingering, MeadBaseEitrMinor, BarleyWineBase")
 		{
 			CookMeadFocus.Value = "start: MeadBaseHealthMinor, MeadBaseStaminaMinor; eikthyr: MeadBaseHealthMinor, MeadBaseStaminaMinor, MeadBasePoisonResist; gdking: MeadBasePoisonResist, MeadBaseHealthMedium, MeadBaseStaminaMinor; bonemass: MeadBaseFrostResist, MeadBaseHealthMedium, MeadBaseStaminaMedium; dragon: MeadBaseHealthMedium, MeadBaseStaminaMedium, MeadBaseTasty, BarleyWineBase; goblinking: MeadBaseHealthMajor, MeadBaseStaminaMedium, MeadBaseEitrMinor, MeadBaseLightfoot; queen: BarleyWineBase, MeadBaseHealthMajor, MeadBaseStaminaLingering, MeadBaseHealthLingering, MeadBaseEitrMinor; fader: MeadBaseFrostResist, MeadBaseHealthMajor, MeadBaseHealthLingering, MeadBaseStaminaLingering, MeadBaseEitrMinor; kall: MeadBaseFrostResist, MeadBaseHealthMajor, MeadBaseHealthLingering, MeadBaseStaminaLingering, MeadBaseEitrMinor";
+		}
+	}
+
+	/// <summary>
+	/// Fase 3.3b: three voice defaults changed after the first test in game (the model, the silence threshold and the
+	/// memory size). A config file written before this version still holds the old value, and BepInEx keeps whatever
+	/// is in the file - so a value that is <b>exactly the old default</b> is moved to the new one (and the log says
+	/// so). A value the player picked is never touched.
+	/// </summary>
+	private static void ApplyVoiceDefaultsPhase33b()
+	{
+		// the model: only switch when the new file is really on disk, otherwise the voice orders would stop working
+		if (SttModel != null && string.Equals(SttModel.Value, WhisperStt.PreviousModelRelative, StringComparison.OrdinalIgnoreCase))
+		{
+			string next = (string)SttModel.DefaultValue;
+			string path = WhisperStt.ResolvePath(WhisperStt.PluginDirectory(), next, next);
+			if (System.IO.File.Exists(path))
+			{
+				SttModel.Value = next;
+				CompanionsPlugin.Log?.LogInfo($"[IA] Fase 3.3b: [IA] SttModelo estava no valor antigo ({WhisperStt.PreviousModelRelative}) e o modelo novo esta no disco - "
+					+ $"passando para \"{next}\" (bem mais preciso em PT-BR; o base continua em disco se voce quiser voltar).");
+			}
+			else
+			{
+				CompanionsPlugin.Log?.LogWarning($"[IA] Fase 3.3b: [IA] SttModelo continua em \"{WhisperStt.PreviousModelRelative}\" porque o modelo novo nao esta em \"{path}\". "
+					+ "Baixe o ggml-small-q5_1.bin para a pasta whisper\\ do plugin para usar o modelo mais preciso.");
+			}
+		}
+		if (VozSilenceThreshold != null && Mathf.Approximately(VozSilenceThreshold.Value, 0.02f))
+		{
+			VozSilenceThreshold.Value = (float)VozSilenceThreshold.DefaultValue;
+			CompanionsPlugin.Log?.LogInfo($"[IA] Fase 3.3b: [IA] VozLimiarSilencio estava no valor antigo (0.02) - agora {VozSilenceThreshold.Value:0.###}, "
+				+ "porque 0.02 cortava o comeco de palavras faladas baixinho (era uma das causas das transcricoes erradas).");
+		}
+		if (AiMemory != null && AiMemory.Value == 6)
+		{
+			AiMemory.Value = (int)AiMemory.DefaultValue;
+			CompanionsPlugin.Log?.LogInfo($"[IA] Fase 3.3b: [IA] Memoria estava no valor antigo (6) - agora {AiMemory.Value} trocas: cada troca entra no prompt, "
+				+ "entao menos memoria = prompt menor = resposta mais rapida. Coloque 6 de volta se preferir a memoria longa.");
 		}
 	}
 

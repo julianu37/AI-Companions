@@ -166,7 +166,7 @@ internal static class WhisperSpike
 
 		if (!File.Exists(modelPath))
 		{
-			log?.LogError($"[STT] Modelo nao encontrado em \"{modelPath}\". Coloque o ggml (ex.: ggml-base-q5_1.bin) na pasta whisper\\ do plugin ou ajuste [IA] SttModelo.");
+			log?.LogError($"[STT] Modelo nao encontrado em \"{modelPath}\". Coloque o ggml (ex.: ggml-small-q5_1.bin) na pasta whisper\\ do plugin ou ajuste [IA] SttModelo.");
 			return;
 		}
 		if (!File.Exists(wavPath))
@@ -279,7 +279,7 @@ internal static class WhisperSpike
 				log?.LogInfo($"[STT] TEXTO: \"{result}\"");
 				if (result.Length == 0)
 				{
-					log?.LogWarning("[STT] A transcricao voltou vazia - o WAV pode nao ter fala, ou o modelo pode estar errado (o ggml-base-q5_1.bin e um modelo valido?).");
+					log?.LogWarning("[STT] A transcricao voltou vazia - o WAV pode nao ter fala, ou o modelo pode estar errado (o ggml-small-q5_1.bin e um modelo valido?).");
 				}
 			}
 		}

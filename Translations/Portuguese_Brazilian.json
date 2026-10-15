@@ -327,6 +327,7 @@
         { "key": "hc_ai_voice_unavailable", "value": "O reconhecimento de voz não está pronto (falta o modelo do Whisper?)." },
         { "key": "hc_ai_voice_ui_open", "value": "Feche a janela antes de falar." },
         { "key": "hc_ai_voice_cancelled", "value": "Gravação cancelada." },
-        { "key": "hc_ai_voice_disabled", "value": "As ordens por voz estão desligadas ([IA] VozLigada = false)." }
+        { "key": "hc_ai_voice_disabled", "value": "As ordens por voz estão desligadas ([IA] VozLigada = false)." },
+        { "key": "hc_ai_voice_key_conflict", "value": "A tecla {0} agora é o push-to-talk: o auto-pickup do jogo não alterna mais com ela. Reatribua o auto-pickup nas configurações do jogo (Controles) se quiser usá-lo." }
     ]
 }

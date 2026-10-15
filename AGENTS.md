@@ -75,7 +75,7 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   `TimeoutSegundos`, `Prefixo`, `MostrarRespostaNoChat`, `CooldownSegundos`, `RaioDeAlvo` (até onde procurar a
   criatura citada numa ordem de ataque; a que estiver na mira vale sempre), `Personalidade` (texto livre do
   jogador, PT-BR, até 600 caracteres), `PresetPersonalidade` (`viking`, `mago`, `sarcastico`, `guia`, `custom`;
-  vazio = padrão), `Memoria` (6; 0 = desligada, teto 12) e `Conversa` (true).
+  vazio = padrão), `Memoria` (4 — era 6 até a 3.3b; 0 = desligada, teto 12) e `Conversa` (true).
 - `Chat.SendText(Talker.Type, string)` é o caminho da mensagem **do próprio jogador** (as recebidas entram
   por `Chat.OnNewChatMessage`) — é o único ponto capturado.
 - `despawn` não é exposto ao modelo. O `amount` é um **ALVO TOTAL** para madeira/pedra/minério (Fase 3.2,
@@ -113,10 +113,22 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   segundo plano), transcreve numa `Task` de fundo com fila thread-safe drenada no `Update` e serializa o uso do
   nativo (`NativeGate`, compartilhado com o spike `modia_stt_teste` — o modelo **não** é carregado duas vezes).
   Config `[IA]`: `VozLigada` (true), `VozTecla` (V), `VozIdioma` (pt), `VozDuracaoMaxima` (10 s),
-  `VozLimiarSilencio` (0.02), `VozDispositivo` (0) e `VozMostrarTexto` (true). O microfone é acessado por
+  `VozLimiarSilencio` (0.01 — era 0.02 até a 3.3b), `VozPromptInicial` (vocabulário das ordens, novo na 3.3b),
+  `VozDispositivo` (0) e `VozMostrarTexto` (true). O microfone é acessado por
   **reflexão** (`VoiceInput.Mic`, 8 membros, uma vez só) porque `UnityEngine.AudioModule` não pode ser referenciado
   neste projeto: Whisper.net fixa a fachada netstandard 2.0 e o módulo do Unity 6 é netstandard 2.1 (CS1705); a
   fachada 2.1 do jogo resolve o CS1705 mas quebra `AudioClip.GetData` (CS7069, `Span<T>` no mscorlib).
+- **Fase 3.3b — correções do teste da voz:** (1) **a tecla V é também o *Toggle Auto-Pickup* do Valheim**
+  (`ZInput.Reset` → `AddButton("AutoPickup", KeyToPath(Key.V))`; **único** leitor: `Player.Update` →
+  `ZInput.GetButtonDown("AutoPickup")`), então `Patches/AutoPickupKeyConflict.cs` põe um **prefixo Harmony em
+  `ZInput.GetButtonDown(string)`** que responde `false` só para `"AutoPickup"` e só quando `[IA] VozLigada` está
+  ligado **e** o binding efetivo do jogo aponta para `[IA] VozTecla` (lido por
+  `GetButtonDef("AutoPickup").GetActionPath()`); reatribuir o auto-pickup no jogo, `VozLigada = false`, tecla
+  desconhecida ou exceção ⇒ **não** bloqueia (o jogo fica intacto) e o jogador é avisado uma vez (log + chat/HUD).
+  (2) **STT:** modelo default `whisper\ggml-small-q5_1.bin` (181 MB; o `base` fica em disco), prompt inicial
+  (`WithPrompt`, sobrevive ao `WithNoContext`) e trim com limiar `0.01` + folga de `0,2 s`.
+  (3) **Latência do LLM medida:** `[IA] Prompt:` (car./tokens) e `[IA] Tempo:` (ms, tokens/s, aviso a partir de 5 s),
+  e `[IA] Memoria` default **4**. Detalhes: `docs/roadmap.md` (Fase 3.3b) e `docs/re/stt-voz-pipeline.md`.
 - Backend/contrato de referência: `docs/re/backend-contract.md`; mapa da fase: `docs/roadmap.md` (Trilha D);
   pipeline de voz: `docs/re/stt-voz-pipeline.md`.
 

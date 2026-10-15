@@ -340,6 +340,7 @@ Ordens em **linguagem natural** por cima do mod do upstream. O companheiro conti
 | **3.2c** | **Correção final da quantidade**: o número é um **ALVO TOTAL contado no inventário do companheiro**, só para o recurso pedido; com o alvo já na mochila ele nem começa e avisa | ✅ validado em jogo |
 | 3.3 | **Ordens por voz**: push-to-talk (`Microphone`, 16 kHz mono) → **STT local** (Whisper.net) → **mesma caixa de ordens** do chat | ✅ build 0 erros + DLL no plugin (teste em jogo pendente) |
 | 3.3-spike | **SPIKE STT local**: Whisper.net **in-process** (NuGet, thread de fundo) x `whisper-server.exe` filho — teste mínimo, gatilhos `modia_stt_teste` / `[IA] SttTeste` | ✅ validado em jogo (`docs/re/stt-whisper-net-spike.md`) |
+| 3.3b | **Correções do teste da voz**: conflito da tecla **V** com o *Toggle Auto-Pickup* do jogo, qualidade do STT (modelo `small` + prompt inicial + trim) e medição da latência do LLM | ✅ build 0 erros + DLL/modelo no plugin (teste em jogo pendente) |
 | 3.4 | TTS: o companheiro **fala** a confirmação (áudio do backend, `AudioSource`) | ⏳ |
 | 3.5 | Personalidade/memória: preset + texto livre no contexto do LLM | ✅ validado em jogo |
 | 3.6 | **Ordens com alvo**: `ataca o greydwarf` (engaja a criatura), `equipa o machado de bronze` (equipa do inventário dele), `larga a pedra` (joga fora) | ✅ validado em jogo |
@@ -602,8 +603,9 @@ caminho das ordens do chat** — ordem, conversa, personalidade, memória: tudo 
   (janelas de 10 ms acima de `VozLimiarSilencio`, com 0,125 s de folga) e vira **WAV PCM 16-bit mono** montado à mão
   na memória (sem arquivo temporário). O `AudioClip` do microfone é **destruído** no fim (vazamento clássico).
 - **A tecla V:** `DirectTargetKey`/`FarmZoneKey` usam `Z`, `RadialMenuKey` usa `E` (que também é o *Use* do jogo),
-  `ConfigPanelKey` usa `F8`, o editor de zona usa `LeftAlt`, `F5` é o console e `F7` o reposicionamento de UI —
-  **V** não é usada nem pelo mod nem pelo jogo, e fica ao lado das teclas de movimento.
+  `ConfigPanelKey` usa `F8`, o editor de zona usa `LeftAlt`, `F5` é o console e `F7` o reposicionamento de UI.
+  **Correção (Fase 3.3b):** a 3.3 dizia que **V** não era usada pelo jogo — **era**: `V` é o *Toggle Auto-Pickup* do
+  Valheim (ver a seção 3.3b abaixo), e por isso o toggle do auto-pickup foi bloqueado enquanto a voz estiver ligada.
 - **Sem travar nada:** a transcrição é uma `Task` de fundo (nada de `.Result`), o resultado volta por fila drenada no
   `Update`, e o push-to-talk só faz trabalho enquanto a tecla está segurada. O modelo é carregado **uma vez**
   (`TryGetFactory`, sob lock) e **pre-carregado** em segundo plano quando o jogador entra no mundo, para a primeira
@@ -631,4 +633,86 @@ caminho das ordens do chat** — ordem, conversa, personalidade, memória: tudo 
   deve ir coletar madeira. Conferir no `LogOutput.log`: `Audio gravado: N s ... WAV PCM 16-bit mono 16000 Hz`,
   `Voz #1 (push-to-talk): ... KB de audio` e `TRANSCRICAO em N ms ... TEXTO: "..."`. Falar `bom dia` deve virar
   conversa; `ataca o greydwarf` deve engajar a criatura.
+
+### Fase 3.3b — correções do teste da voz (tecla V, qualidade do STT, latência do LLM) (✅ — build; teste em jogo pendente)
+
+Três problemas do primeiro teste em jogo da 3.3, com a evidência do log do jogador:
+`Voz #1: 1,1 s -> "Coleta deis mandem."` / `Voz #2: 0,7 s -> "O leta deles."` / `Voz #3: 1,5 s -> "coleta 10 madeira."`
+(e a conversa levando `[IA] Conversation (10237 ms)` contra ~3 s das ordens).
+
+**1. Conflito da tecla V com o auto-pickup do jogo.** No Valheim 1.0.17 (`assembly_utils` + `assembly_valheim`):
+
+- `ZInput.Reset()` cria o botão com `AddButton("AutoPickup", KeyToPath(Key.V), rebindable: true)` → **V** é o default
+  vanilla e o jogador pode reatribuir (o jogo salva como `kbmBinding_AutoPickup`);
+- **`Player.Update` é o único lugar do jogo inteiro** que lê esse botão:
+  `if (ZInput.GetButtonDown("AutoPickup") || flag7) { m_enableAutoPickup = !m_enableAutoPickup; Message(... "$hud_autopickup:" ...); }`;
+- `ZInput.GetButtonDown(string)` (estático, em `assembly_utils`) só consulta o estado do botão.
+
+**Solução (`src/Companions/Patches/AutoPickupKeyConflict.cs`, novo):** um **prefixo Harmony em
+`ZInput.GetButtonDown(string)`** que responde `false` para `"AutoPickup"` — e só para ele — quando
+`[IA] VozLigada = true` **e** o binding do jogo realmente aponta para `[IA] VozTecla`. A tecla é lida **do próprio
+jogo** (`ZInput.instance.GetButtonDef("AutoPickup").GetActionPath()`, o caminho *efetivo*, então uma reatribuição
+conta) e comparada com o nome Unity Input System da nossa tecla (tabela `InputKeyName`; tecla desconhecida = **não
+bloqueia**). Escolhas:
+
+| Por quê | Detalhe |
+|---|---|
+| Não mexe no input do jogo | o botão continua existindo, sendo pressionado e aparecendo na tela de controles; só **uma consulta** passa a responder "não" |
+| Escopo mínimo | a guarda é **uma comparação de string** para todos os outros botões (o jogo consulta dezenas por frame) e `"AutoPickup"` tem **um** call site em todo o jogo |
+| Condicional | nada acontece se o jogador reatribuir o auto-pickup para outra tecla, ou se `[IA] VozLigada = false` |
+| Fail-open | sem `ZInput`/binding/tecla reconhecida ou com exceção → **não bloqueia** (o jogo fica como sempre foi) e o log diz o motivo |
+
+O jogador é avisado **uma vez** (log + uma linha no chat/HUD, `hc_ai_voice_key_conflict`) de que V agora é o
+push-to-talk e de que o auto-pickup pode ser reatribuído nas configurações do jogo. O push-to-talk **não** mudou
+(segurar/soltar V, `VoiceInput.Key`).
+
+**2. Qualidade da transcrição.** Três mudanças:
+
+| Mudança | Antes | Agora | Por quê |
+|---|---|---|---|
+| Modelo | `whisper\ggml-base-q5_1.bin` (57 MB) | **`whisper\ggml-small-q5_1.bin`** (181 MB) | `base` erra muito em PT-BR em clipes curtos; `small` é bem melhor. O `base` **continua em disco**: dá para voltar pelo `[IA] SttModelo` |
+| Prompt inicial | — | `[IA] VozPromptInicial` (default: `Ordens para o companheiro: colete madeira, pedra, minerio, ferro, segue, para, vem ca, ataca o greydwarf, equipa o machado de bronze, larga a pedra, descansa, bom dia.`) | `WhisperProcessorBuilder.WithPrompt(...)` = `initial_prompt` do whisper.cpp: enviesa o vocabulário das ordens. Confirmado no whisper.cpp v1.7.4 que ele **sobrevive ao `WithNoContext()`** (o `no_context` limpa o texto *acumulado* antes, e o prompt inicial é prependado depois) |
+| Trim | limiar `0.02`, folga `0,125 s` | limiar **`0.01`**, folga **`0,2 s`** | `0,02` cortava o começo de palavras faladas baixinho (o ataque de "co-"/"ata-" ainda está abaixo do limiar) — é o que produz transcrições como `"O leta deles."`. A folga maior garante que o trim não coma a primeira sílaba |
+
+**Custo medido do modelo (Whisper.net 1.9.1, os mesmos nativos do mod, CPU de 16 núcleos com 8 threads — a mesma
+máquina do jogo; melhor de 3 passadas, `WithNoContext` + idioma fixo):**
+
+| Áudio | `base-q5_1` | `small-q5_1` | Diferença |
+|---|---|---|---|
+| carga do modelo | 88 ms | 159 ms | +71 ms (uma vez, no pre-start em segundo plano) |
+| clipe de **2,0 s** | **638 ms** | **2187 ms** | +1,5 s por ordem |
+| áudio de 11,0 s | 710 ms | 2320 ms | +1,6 s |
+| com prompt inicial | +3 a +5% | +3 a +5% | desprezível |
+
+> O tempo **quase não depende do tamanho do clipe**: o whisper.cpp sempre preenche a janela de 30 s do encoder, então
+> um pedido de 2 s custa praticamente o mesmo que um de 11 s. Ou seja, `small` custa **~1,5 s a mais por ordem por voz**
+> nesta máquina (e um pouco mais com o jogo ocupando a CPU) — em troca de acertar clipes curtos em PT-BR. A transcrição
+> roda em `Task` de fundo (o jogo não trava; o que o jogador sente é o `Entendi: "..."` demorando um pouco mais). Se
+> preferir a resposta rápida, `[IA] SttModelo = whisper\ggml-base-q5_1.bin` volta ao modelo antigo sem reinstalar nada.
+
+**3. Latência do LLM.** O mod agora **mede** o que importa, para a próxima resposta não ser um chute:
+`[IA] Prompt: instrucoes N car. (~N tokens) + mensagem N car. = N car. (~N tokens); corpo JSON N car.` antes do
+POST e `[IA] Tempo: N ms no total, resposta com N car. (~N tokens, ~N tok/s ...)` depois, com um **aviso** a partir de
+5 s dizendo que o gargalo é o modelo local (não o mod). Além disso o default de **`[IA] Memoria` caiu de 6 para 4**
+trocas (cada troca entra no prompt; 12 mensagens de até 240 caracteres ≈ 700 tokens de prefill) — é uma economia
+modesta, porque o custo dominante é a **geração** da resposta, não o prefill.
+
+> **Hipóteses para os 10 s da conversa (a medir no próximo teste):** (a) resposta longa demais — a conversa gera uma
+> frase inteira, a ordem gera um JSON curto; (b) **carga/JIT do modelo** no LM Studio se aquela foi a primeira
+> requisição depois de um tempo parado (o log antigo não distinguia); (c) prefill de um prompt maior (memória cheia +
+> personalidade). O mod **não** troca o modelo do jogador: se a linha `[IA] Tempo:` mostrar poucos tok/s, a sugestão é
+> um modelo menor/mais rápido (ou GPU) no servidor.
+
+**Configs novas/alteradas em `[IA]`:** `VozPromptInicial` (novo), `SttModelo` (default `whisper\ggml-small-q5_1.bin`),
+`VozLimiarSilencio` (default `0.01`), `Memoria` (default `4`), e os textos de `VozTecla`/`VozLigada` explicando o
+auto-pickup. **Migração:** um `.cfg` antigo que ainda esteja **exatamente** nos defaults antigos (`ggml-base-q5_1.bin`,
+`0.02`, `6`) é atualizado com uma linha no log (o modelo só troca se o arquivo novo existir no disco); qualquer outro
+valor foi escolhido pelo jogador e **não** é tocado.
+
+**Receita de teste:** entrar no mundo e conferir no log `[STT] Prompt inicial do Whisper ...`,
+`[STT] Modelo CARREGADO ... ggml-small-q5_1.bin` e, na primeira vez que o jogo consultar o auto-pickup,
+`[STT] CONFLITO DE TECLA: ...` (mais a linha no chat/HUD). Segurar **V** e falar: o **auto-pickup não deve mais
+alternar** (nenhuma mensagem `Auto-Pickup: On/Off` no HUD) e `colete 10 madeiras` deve sair certo com mais frequência
+(`TRANSCRICAO ... TEXTO: "colete 10 madeiras"`). Reatribuir o auto-pickup para outra tecla nas configurações do jogo
+e reentrar: o log deve passar a dizer `[STT] Sem conflito de tecla: ...` e o auto-pickup volta a funcionar.
 

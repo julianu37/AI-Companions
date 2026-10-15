@@ -2,7 +2,34 @@
 
 All notable changes to this fork of ProfMags' Offline Companions. Versions before 1.4.0 are the original mod (see [ProfMags' Thunderstore page](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) for that history) plus the initial batch of Valheim 1.0 API-compatibility fixes that let the mod load and run at all on 1.0.
 
-## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Tradução PT-BR (fork ModAI-BR-Companions)
+## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Tradução PT-BR (fork ModAI-BR-Companions)
+- **Fase 3.3b — correções do teste da voz (tecla V, qualidade do STT e latência do LLM).** Três problemas do
+  primeiro teste em jogo, com evidência no log (`"Coleta deis mandem."` para 1,1 s de fala; `"O leta deles."` para
+  0,7 s; conversa em `10237 ms` contra ~3 s das ordens).
+  - **A tecla V não alterna mais o auto-pickup do jogo.** `V` é o *Toggle Auto-Pickup* do Valheim 1.0.17
+    (`ZInput.Reset()` → `AddButton("AutoPickup", KeyToPath(Key.V))`; lido em **um** lugar: `Player.Update`). Novo
+    `Patches/AutoPickupKeyConflict.cs`: um prefixo Harmony em **`ZInput.GetButtonDown(string)`** responde `false` só
+    para `"AutoPickup"`, e só quando `[IA] VozLigada = true` **e** o binding do jogo (lido do próprio jogo,
+    `GetButtonDef("AutoPickup").GetActionPath()`) aponta para `[IA] VozTecla` — reatribuir o auto-pickup no jogo
+    desliga o bloqueio automaticamente, e qualquer dúvida (tecla desconhecida, exceção) deixa o jogo como está. O
+    jogador é avisado **uma vez** (log + uma linha no chat/HUD) de que pode reatribuir o auto-pickup nas
+    configurações. O push-to-talk continua igual (segurar/soltar **V**).
+  - **Transcrição melhor em PT-BR:** modelo default passa de `whisper\ggml-base-q5_1.bin` (57 MB) para
+    **`whisper\ggml-small-q5_1.bin`** (181 MB, baixado de `ggerganov/whisper.cpp`; o `base` **fica em disco** para
+    quem quiser voltar pelo `[IA] SttModelo` — medido nesta máquina, 8 threads: **638 ms (base) x 2187 ms (small)** para
+    um clipe de 2 s, sempre em `Task` de fundo, sem travar o jogo); **prompt inicial** novo
+    (`[IA] VozPromptInicial`, `WhisperProcessorBuilder.WithPrompt`, +3-5% de tempo) com o vocabulário das
+    ordens, para o modelo não "adivinhar" clipes curtos (e um descarte do prompt quando o modelo o repete de volta);
+    e o **trim** ficou mais conservador (`VozLimiarSilencio` default `0.01` em vez de `0.02`, folga de `0,2 s` em vez
+    de `0,125 s`), porque o limiar antigo cortava o começo de palavras faladas baixinho.
+  - **Latência do LLM medida:** o log agora mostra o tamanho real do prompt
+    (`[IA] Prompt: instrucoes N car. (~N tokens) + mensagem N car. ...`) e o tempo com a resposta
+    (`[IA] Tempo: N ms no total, resposta com N car. (~N tokens, ~N tok/s ...)`), com aviso a partir de 5 s apontando
+    o modelo local como gargalo; `[IA] Memoria` default caiu de **6 para 4** trocas (prompt menor). O mod **não**
+    troca o modelo do jogador.
+  - **Migração:** um `.cfg` antigo que ainda esteja exatamente nos defaults antigos (`ggml-base-q5_1.bin`, `0.02`,
+    `6`) é atualizado com uma linha no log (o modelo só troca se o arquivo novo estiver no disco); valores escolhidos
+    pelo jogador não são tocados. Nada mais muda: ordens por chat, IA, jobs, UI, radial e o resto do STT ficam iguais.
 - **Fase 3.3 — ordens por voz (push-to-talk + STT local com Whisper.net).** Segure **V** e fale (`colete 10 madeiras`,
   `segue`, `ataca o greydwarf`, `bom dia`); ao soltar, o áudio é transcrito **dentro do jogo** (Whisper.net, sem HTTP,
   nada sai da máquina) e o **texto entra exatamente no mesmo caminho das ordens do chat** — ordem, conversa,

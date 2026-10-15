@@ -13,6 +13,10 @@ namespace Companions;
 /// which transcribes it on a background thread. The text then goes into the <b>same order box as the chat</b>
 /// (<see cref="CompanionChatAI.Submit"/>): orders, conversation, personality, memory - all identical to typing it.
 ///
+/// Fase 3.3b: V is also the game's "Toggle Auto-Pickup" key. While <c>[IA] VozLigada</c> is on and the game's
+/// auto-pickup is bound to the same key, the mod swallows that toggle (<see cref="AutoPickupKeyConflict"/>) so the key
+/// belongs to the push-to-talk - the player can move the auto-pickup to another key in the game's own controls screen.
+///
 /// What this class does per frame while idle: drains finished transcriptions, reads the key and, when it is pressed,
 /// runs the guards below. Nothing here allocates or blocks: the microphone only runs while the key is held, and the
 /// only heavy work (the transcription) is off the main thread.
@@ -33,8 +37,13 @@ internal static class VoiceInput
 	/// <summary>10 ms windows when looking for the speech inside the recording.</summary>
 	private const int WindowSamples = SampleRate / 100;
 
-	/// <summary>0.125 s kept before and after the speech, so the trim never clips a word.</summary>
-	private const int PadSamples = SampleRate / 8;
+	/// <summary>
+	/// 0.2 s kept before and after the speech, so the trim never clips a word. Fase 3.3b: this was 0.125 s and short
+	/// clips came back with the first syllable missing ("O leta deles." for a 0.7 s recording), which is exactly what a
+	/// pad that is too short looks like - the trim starts at the first window that crosses the threshold, and the
+	/// onset of a word ("co-", "ata-") is often still below it.
+	/// </summary>
+	private const int PadSamples = SampleRate / 5;
 
 	/// <summary>Anything shorter than ~0.33 s of speech is a click or a cough, not an order.</summary>
 	private const int MinSpeechSamples = SampleRate / 3;
@@ -64,14 +73,17 @@ internal static class VoiceInput
 	private static float[] _mono;
 
 	/// <summary>[IA] VozLigada.</summary>
-	private static bool Enabled => ModConfig.VozEnabled == null || ModConfig.VozEnabled.Value;
+	internal static bool Enabled => ModConfig.VozEnabled == null || ModConfig.VozEnabled.Value;
+
+	/// <summary>[IA] VozTecla - the push-to-talk key (V by default). Also read by <see cref="AutoPickupKeyConflict"/>.</summary>
+	internal static KeyCode Key => ModConfig.VozTecla != null ? ModConfig.VozTecla.Value : KeyCode.V;
 
 	/// <summary>Called once from the plugin's Awake (main thread): reports the key, the microphones and the model.</summary>
 	internal static void Init()
 	{
 		try
 		{
-			KeyCode key = ModConfig.VozTecla != null ? ModConfig.VozTecla.Value : KeyCode.V;
+			KeyCode key = Key;
 			string[] devices = Mic.Available ? Mic.Devices() : null;
 			CompanionsPlugin.Log?.LogInfo($"[STT] Push-to-talk: {(Enabled ? "LIGADO" : "desligado ([IA] VozLigada = false)")} | "
 				+ $"segure {key} para falar | {devices?.Length ?? 0} microfone(s){DescribeDevices(devices)} | "
@@ -119,7 +131,7 @@ internal static class VoiceInput
 					CancelRecording("o jogo perdeu o foco");
 					return;
 				}
-				if (!Input.GetKey(ModConfig.VozTecla.Value))
+				if (!Input.GetKey(Key))
 				{
 					StopRecording(cutByTime: false);
 				}
@@ -130,7 +142,7 @@ internal static class VoiceInput
 				return;
 			}
 
-			if (!Input.GetKeyDown(ModConfig.VozTecla.Value) || !Application.isFocused)
+			if (!Input.GetKeyDown(Key) || !Application.isFocused)
 			{
 				return;
 			}
@@ -221,7 +233,7 @@ internal static class VoiceInput
 			{
 				_warnedMissingModel = true;
 				CompanionsPlugin.Log?.LogWarning($"[STT] O modelo do Whisper nao esta em \"{WhisperStt.ModelPath}\" - as ordens por voz nao funcionam. "
-					+ "Coloque o ggml na pasta whisper\\ do plugin ou ajuste [IA] SttModelo.");
+					+ "Coloque o ggml (ex.: ggml-small-q5_1.bin) na pasta whisper\\ do plugin ou ajuste [IA] SttModelo.");
 			}
 			Announce("hc_ai_voice_unavailable");
 			return;
@@ -304,7 +316,7 @@ internal static class VoiceInput
 			{
 				samples = Resample(samples, frequency, SampleRate);
 			}
-			float threshold = ModConfig.VozSilenceThreshold != null ? ModConfig.VozSilenceThreshold.Value : 0.02f;
+			float threshold = ModConfig.VozSilenceThreshold != null ? ModConfig.VozSilenceThreshold.Value : 0.01f;
 			float[] speech = TrimSilence(samples, threshold);
 			if (speech == null)
 			{

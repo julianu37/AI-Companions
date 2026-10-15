@@ -89,6 +89,10 @@ internal static class LlmClient
 
 		string body = BuildRequestBody(model, systemPrompt, userText, temperature);
 		CompanionsPlugin.Log?.LogInfo($"[IA] Request -> {url} (model \"{model}\", timeout {timeoutSeconds}s) :: {userText}");
+		// Fase 3.3b: how big the prompt really is. The model pays for every character it has to read before it can
+		// answer, so this line is what tells whether a slow answer is a big prompt or a slow model.
+		CompanionsPlugin.Log?.LogInfo($"[IA] Prompt: instrucoes {systemPrompt.Length} car. (~{EstimateTokens(systemPrompt.Length)} tokens) + mensagem {userText.Length} car. "
+			+ $"= {systemPrompt.Length + userText.Length} car. (~{EstimateTokens(systemPrompt.Length + userText.Length)} tokens); corpo JSON {body.Length} car.");
 
 		Task.Run(delegate
 		{
@@ -194,7 +198,32 @@ internal static class LlmClient
 			CompanionsPlugin.Log?.LogWarning("[IA] Request failed: " + ex);
 		}
 		result.ElapsedMs = (int)((DateTime.UtcNow.Ticks - started) / TimeSpan.TicksPerMillisecond);
+		if (result.Ok)
+		{
+			int outChars = result.Content != null ? result.Content.Length : 0;
+			double seconds = Math.Max(0.001, result.ElapsedMs / 1000.0);
+			CompanionsPlugin.Log?.LogInfo($"[IA] Tempo: {result.ElapsedMs} ms no total, resposta com {outChars} car. (~{EstimateTokens(outChars)} tokens, "
+				+ $"~{EstimateTokens(outChars) / seconds:0.0} tokens/s contando prompt e resposta juntos).");
+			if (result.ElapsedMs >= SlowRequestMs)
+			{
+				CompanionsPlugin.Log?.LogWarning($"[IA] Resposta lenta ({result.ElapsedMs} ms). Se isso se repetir, o gargalo e o modelo local, nao o mod: "
+					+ "um modelo menor/mais rapido (ou com GPU ligada) responde bem mais depressa. Para comparar, veja a linha \"[IA] Prompt:\" acima "
+					+ "e o tamanho da resposta.");
+			}
+		}
 		return result;
+	}
+
+	/// <summary>Above this, the log says out loud that the model is the bottleneck (Fase 3.3b).</summary>
+	private const int SlowRequestMs = 5000;
+
+	/// <summary>
+	/// Rough token count of a text, only for the log (Portuguese runs about 3.5-4 characters per token with these
+	/// tokenizers). Never used for anything but saying how big the prompt is.
+	/// </summary>
+	internal static int EstimateTokens(int chars)
+	{
+		return chars <= 0 ? 0 : (chars + 3) / 4;
 	}
 
 	private static string ReadWebException(WebException wex)
