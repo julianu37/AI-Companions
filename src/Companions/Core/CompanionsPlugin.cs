@@ -17,9 +17,12 @@ namespace Companions;
 [BepInDependency("com.haldor.bounties", BepInDependency.DependencyFlags.SoftDependency)]
 public class CompanionsPlugin : BaseUnityPlugin
 {
+	// The GUID is deliberately kept as the upstream's: it names the config file
+	// (BepInEx/config/Maddhattr.OfflineCompanionsReborn.cfg) and the companion's network identity. Renaming it
+	// would move the config (losing the player's settings) for no gain - the display name below is what shows.
 	public const string PluginGUID = "Maddhattr.OfflineCompanionsReborn";
 
-	public const string PluginName = "Offline Companions Reborn";
+	public const string PluginName = "ModAI-BR-Companions";
 
 	public const string PluginVersion = "1.5.4";
 

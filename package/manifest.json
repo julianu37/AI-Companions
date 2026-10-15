@@ -1,7 +1,7 @@
 {
-  "name": "Offline_Companions_Reborn",
-  "description": "Persistent NPC companions that fight, gather, farm, fish, hunt, cook, smelt and look after your base — acting like another player. Valheim 1.0 rework of ProfMags' Offline Companions; full credit to ProfMags for the original.",
+  "name": "ModAI_BR_Companions",
+  "description": "Companheiro NPC com IA para Valheim 1.0, em portugues do Brasil: fale ou digite e ele obedece (LLM e voz locais). Fork PT-BR do Offline Companions Reborn (MIT) - creditos ao ProfMags e ao Maddhattr.",
   "version_number": "1.5.4",
-  "website_url": "https://github.com/MaddhattrRocks/Offline-Companions-Reborn",
+  "website_url": "https://github.com/julianu37/ModAI-BR-Companions",
   "dependencies": []
 }
