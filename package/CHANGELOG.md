@@ -3,6 +3,19 @@
 All notable changes to this fork of ProfMags' Offline Companions. Versions before 1.4.0 are the original mod (see [ProfMags' Thunderstore page](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) for that history) plus the initial batch of Valheim 1.0 API-compatibility fixes that let the mod load and run at all on 1.0.
 
 ## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.6b: a ordem sem alvo do modelo (drop/equip/attack caem para as palavras do jogador) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Fase 3.3c: raio de coleta maior e chatter aleatório desligado + Fase 3.3d: a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador + Fase 3.8: o companheiro abre o próprio inventário por voz/chat + Fase 3.4: o companheiro FALA (TTS local, Kokoro-82M via sherpa-onnx) + Fase 3.7: painel da IA no jogo (personalidade, voz com Ouvir, push-to-talk) + Fase 3.4 (parte 3): o eco do TTS RESOLVIDO — era a zona de reverb global do jogo (a voz sai seca) + Fase 3.1: saída estruturada (JSON schema) — destrava modelos pequenos + Tradução PT-BR (fork ModAI-BR-Companions)
+- **O prompt agora ensina que `action` e `resource` têm que combinar (Fase 3.1 — a outra metade do achado do teste).**
+  Com o `qwen2.5-3b-instruct`, `colete 5 pedras` voltou como `{"action":"wood","resource":"wood"}`: o modelo copiava o
+  `action:"wood"` do exemplo `"colete 20 de madeira"` do contrato (o verbo **`colete`** era o gatilho) e ignorava a
+  pedra, mesmo com a regra do `resource` já existindo — *few-shot overfitting*, o jeito típico de um 3B errar.
+  - **O `Contract` ganhou uma regra curta** (`pedra` → `action:"stone"` + `resource:"stone"`; `madeira` → `wood`/`wood`;
+    `minério` → `ore`/`ore`; "NUNCA use action \"wood\" para pedra") **e 2 exemplos com pedra e o verbo `colete`**,
+    logo **depois** do exemplo de madeira que causava a cópia.
+  - **O resto do contrato ficou intacto** (as 29 ações, o `target` obrigatório em `attack`/`equip`/`drop`, os outros
+    exemplos) e o prompt cresceu **3 linhas** (~+60 tokens sobre os ~1766 medidos), porque ele está calibrado para o
+    `gemma-4-e4b` e para o 3B.
+  - **Nada mais mudou** (schema/`ValidActions`, `LlmIntent`, `LlmClient`, personalidade/memória, TTS, painel, STT,
+    ordens): a correção acima continua sendo a rede de segurança para quando o modelo insistir em trocar os campos.
+    Se o 3B **deixa** de errar com o prompt novo é o teste em jogo do jogador.
 - **O recurso manda: `colete 10 pedras` não vira mais coleta de madeira (Fase 3.1 — correção do teste em jogo).** No
   teste com o **`qwen2.5-3b-instruct`** o companheiro foi **coletar madeira** quando o jogador pediu `colete 10 pedras`.
   A causa tinha duas partes: **nossa** — com `action` e `resource` inconsistentes (`{"action":"wood","resource":"stone"}`)

@@ -361,6 +361,12 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   recurso é da lista do próprio trabalho) **não** é mexido e lista `*` não decide nada. Ficam como estavam: o teto da
   3.2c e a contagem na mochila, o `Resolve`, o alvo do radial e o fallback da 3.6b. Verificado fora do jogo (harness com
   os arquivos reais): **60 casos, ALL CHECKS PASSED**. Detalhes: `docs/roadmap.md` (Fase 3.1 — §6).
+  A outra metade do achado é **do modelo**, e o **`Contract`** mudou por causa dela: o 3B copiava o `action:"wood"` do
+  exemplo `"colete 20 de madeira"` para `colete N pedras` (o verbo `colete` era o gatilho — *few-shot overfitting*), então
+  entrou **uma regra curta** dizendo que `action` e `resource` **combinam** (pedra → `stone`/`stone`, madeira →
+  `wood`/`wood`, minério → `ore`/`ore`) **e 2 exemplos** de `colete N pedras` → `stone`, logo depois do exemplo de
+  madeira. O resto do contrato (as 29 ações, o `target` obrigatório, os outros exemplos) ficou **intacto** e o prompt
+  cresceu **3 linhas** (~+60 tokens sobre os ~1766 medidos). Detalhes: `docs/roadmap.md` (Fase 3.1 — §7).
 - Backend/contrato de referência: `docs/re/backend-contract.md`; mapa da fase: `docs/roadmap.md` (Trilha D);
   pipeline de voz: `docs/re/stt-voz-pipeline.md`; fala do companheiro: `docs/re/tts-kokoro-sherpa-onnx.md`.
 

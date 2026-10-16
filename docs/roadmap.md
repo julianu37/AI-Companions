@@ -349,6 +349,7 @@ Ordens em **linguagem natural** por cima do mod do upstream. O companheiro conti
 | 3.7 | **Painel da IA no jogo** (personalidade + voz com *Ouvir* + push-to-talk + toggles, tecla `I`) | ✅ build 0 erros + DLL no plugin (teste em jogo pendente) |
 | 3.1 | **Saída estruturada** (`response_format`/JSON schema): garante JSON válido e destrava modelos pequenos (3B) | ✅ build 0 erros + DLL no plugin (teste em jogo pendente) |
 | 3.1b | **O recurso manda** (correção do teste em jogo): com `action` e `resource` inconsistentes (`colete 10 pedras` voltou como `wood`/`stone`) a ordem usa o **recurso** — o campo específico — e não a ação genérica | ✅ build 0 erros + harness de 60 casos (fora do jogo) |
+| 3.1c | **O contrato ensina que `action` e `resource` combinam** (a outra metade do achado): regra curta + 2 exemplos de `colete N pedras` → `stone`, porque o 3B copiava o `action:"wood"` do exemplo `colete 20 de madeira` | ✅ build 0 erros (o prompt não foi medido contra nenhum modelo) |
 
 ### Fase 3.1 — ordem por texto no chat (✅ — Unreleased)
 
@@ -1543,6 +1544,33 @@ antes de montar o rótulo/log da ordem, e — quando ela devolve algo — troca 
   do log (`action="wood"` + `resource="stone"` → `stone`), o espelho, os pares coerentes, recurso nulo/desconhecido,
   todas as ações que não são de coleta e as listas `*`/personalizadas/nomeadas em PT-BR. **O teste em jogo é do
   jogador.**
+
+#### 7. O teste em jogo (modelo pequeno): o contrato ensina que `action` e `resource` combinam
+
+A outra metade do mesmo achado é do **modelo**, não nossa: nas duas últimas linhas da tabela da seção 6 o
+`qwen2.5-3b-instruct` devolveu `action:"wood"` **com** `resource:"wood"` para `colete 5 pedras` e `colete 10 pedras` —
+ou seja, ele copiou o `action:"wood"` do exemplo **`"colete 20 de madeira"`** do contrato (o verbo `colete` era o
+gatilho) e ignorou a pedra, apesar de a regra do `resource` já existir. É *few-shot overfitting*, o modo de errar típico
+de um 3B: o exemplo pesa mais que a regra.
+
+**O que mudou (só no `Contract`):** **uma** regra curta dizendo que os dois campos **têm que combinar**
+(`pedra` → `action:"stone"` + `resource:"stone"`; `madeira` → `wood`/`wood`; `minério` → `ore`/`ore`; "NUNCA use action
+\"wood\" para pedra") e **2 exemplos com pedra e o verbo `colete`**, logo **depois** do exemplo de madeira que causava a
+cópia:
+
+```
+"colete 10 pedras" -> {"action":"stone","reply":"Vou buscar pedra.","target":null,"resource":"stone","amount":10}
+"colete 5 pedras"  -> {"action":"stone","reply":"Vou buscar pedra.","target":null,"resource":"stone","amount":5}
+```
+
+- **O resto do contrato ficou intacto** (as 29 ações, o `target` obrigatório em `attack`/`equip`/`drop`, as regras do
+  `amount`/`none`, os outros 19 exemplos) e o prompt cresceu **3 linhas** (~+60 tokens sobre os ~1766 medidos), porque
+  ele está calibrado para o `google/gemma-4-e4b` e para o 3B.
+- **Nada mais mudou:** `ValidActions`/schema, o `LlmIntent`, o `LlmClient`, a personalidade/memória, o TTS, o painel, o
+  STT e as ordens ficaram iguais. A correção da seção 6 continua sendo a rede de segurança para quando o modelo insistir
+  em mandar os campos trocados.
+- **Não verificado:** se o 3B **deixa** de errar com o prompt novo — isso é o teste em jogo do jogador (o prompt maior
+  não foi medido contra nenhum modelo aqui).
 
 
 
