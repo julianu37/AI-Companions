@@ -920,3 +920,54 @@ Fase 3.3: de qual microfone gravar, como o índice da lista que o log imprime na
 
 **VozMostrarTexto** — Padrão: Ligado  
 Fase 3.3: mostra o que o microfone ouviu ("Entendi: "colete 10 madeiras"") no chat e no HUD, e faz o companheiro repetir, para uma transcrição errada ser fácil de notar. Desligado = o texto reconhecido só é escrito no log.
+
+**PainelTecla** — Padrão: `I`  
+Fase 3.7: abre o painel da IA no jogo, onde a personalidade (preset ou texto livre), a voz do companheiro (com o botão Ouvir), o volume, a velocidade da fala, a memória, a conversa e a tecla do push-to-talk são mudados sem editar este arquivo. Cada mudança é salva na hora. O padrão é I: o jogo e o mod não usam essa tecla. A tecla não é roubada de uma caixa de texto (o chat, o console e o campo de busca ficam em paz). Opção de tecla: edite no arquivo .cfg ou clique nela no painel F8.
+
+**TtsLigado** — Padrão: Ligado  
+Fase 3.4: o companheiro FALA as respostas em voz alta. A fala é sintetizada no seu computador pelo Kokoro-82M (via sherpa-onnx, dentro do jogo, sem processo filho e sem nada sair da sua máquina), na voz de TtsVoz, e sai no lugar onde o companheiro está (não no centro da tela). Desligado = ele só mostra o balão e o chat, como antes. A primeira fala de cada sessão espera o modelo carregar (~1 s, em segundo plano, quando você entra no mundo).
+
+**TtsVoz** — Padrão: 42 · Faixa: 0 – 100  
+Fase 3.4: qual voz do Kokoro usar. As vozes em português do Brasil deste modelo são: 42 = pf_dora (feminina, o padrão), 43 = pm_alex (masculina) e 44 = pm_santa (masculina). Os outros números são de outros idiomas (45, por exemplo, soa chinês).
+
+**TtsVelocidade** — Padrão: 1 · Faixa: 0.5 – 2  
+Fase 3.4: a que velocidade o companheiro fala (1 = normal; acima de 1 fala mais rápido). Também deixa a fala mais curta.
+
+**TtsThreads** — Padrão: 4 · Faixa: 1 – 16  
+Fase 3.4: quantos núcleos da CPU a síntese da fala pode usar. Medido nesta máquina (Ryzen 7 5700X): 4 threads geram mais rápido do que o tempo real (RTF ~0,83), então a fala sai na frente do companheiro; mais threads não aceleram e competem com o jogo.
+
+**TtsVolume** — Padrão: 1 · Faixa: 0 – 1  
+Fase 3.4: volume da voz do companheiro (0 = mudo, 1 = volume normal do jogo).
+
+**TtsModelo** — Padrão: `tts\kokoro\model.int8.onnx`  
+Fase 3.4: o modelo do Kokoro que o companheiro fala (relativo à pasta do plugin, ou um caminho absoluto). As vozes (voices.bin), os tokens (tokens.txt) e o espeak-ng-data são procurados na MESMA pasta do modelo. Opção de texto: edite no arquivo .cfg.
+
+**TtsIdioma** — Padrão: `pt-br`  
+Fase 3.4: idioma do texto falado, no formato que o Kokoro espera. Este modelo é multi-lingue e EXIGE um idioma: "pt-br" é português do Brasil ("pt" sozinho é português de Portugal). Vazio volta para "pt-br". Opção de texto: edite no arquivo .cfg.
+
+**TtsCache** — Padrão: Ligado  
+Fase 3.4: guarda as falas já sintetizadas (texto + voz + velocidade) para tocar de novo na hora. As falas fixas do mod ("Já temos o suficiente.") saem instantâneas; a memória usada é pequena. Desligado = toda fala é sintetizada de novo.
+
+**TtsFalarRespostas** — Padrão: Ligado  
+Fase 3.4: fala em voz alta a resposta do modelo (o campo "reply"). Numa conversa é a resposta dele; numa ordem, quando TtsFalarFalasDoMod está desligado, é a confirmação no jeito dele ("Deixa comigo.").
+
+**TtsFalarFalasDoMod** — Padrão: Ligado  
+Fase 3.4: fala em voz alta a linha do próprio mod que aparece no chat/HUD ("Ok: coletar madeira (10).", "Atacando o troll.", "Já temos o suficiente."). Numa ORDEM ela ganha da resposta do modelo (a voz acompanha o que está escrito na tela); desligue para ouvir a resposta do modelo no lugar dela. Nada é falado duas vezes: com as duas opções ligadas, a linha que não é falada vai só para o log.
+
+**EcoDiag** — Padrão: Desligado  
+TESTE DO ECO: ligado, escreve no log (uma vez por sessão) os efeitos de áudio da cena, as zonas de reverb e como as fontes do próprio jogo estão configuradas. Não muda o som - só diagnostica.
+
+**TtsReverbZoneMix** — Padrão: 1 · Faixa: 0 – 1  
+TESTE DO ECO: quanto das zonas de reverb do mundo entra na voz do companheiro (1 = tudo, como está hoje; 0 = nenhuma). Se o eco sumir com 0, era isso. Vale na próxima frase, sem reiniciar.
+
+**TtsBypassReverbZones** — Padrão: Desligado  
+TESTE DO ECO: ligado, a voz ignora as zonas de reverb do mundo. Ligue, ouça uma frase e diga se o eco sumiu. Desligado = como está hoje.
+
+**TtsBypassListenerEffects** — Padrão: Desligado  
+TESTE DO ECO: ligado, a voz ignora os efeitos aplicados no ouvinte da cena (reverb/filtro global do ambiente). É o suspeito principal. Desligado = como está hoje.
+
+**TtsBypassEffects** — Padrão: Desligado  
+TESTE DO ECO: ligado, a voz ignora os filtros da própria fonte de áudio. Desligado = como está hoje.
+
+**TtsDoppler** — Padrão: Ligado  
+TESTE DO ECO: ligado (padrão, como está hoje), a voz sofre o efeito Doppler do Unity. Desligue, ouça uma frase e diga se o eco mudou - a fonte segue o companheiro e a posição é reescrita a cada frame, então o Doppler é um suspeito. Vale na próxima frase, sem reiniciar.

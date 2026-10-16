@@ -1311,6 +1311,97 @@ segunda em `RowHint = 436` num painel de `PanelH = 470` — praticamente na bord
   (registro + cursor), `Core/ModLocalization.cs` + `Translations/Portuguese_Brazilian.json` (as duas chaves novas;
   a antiga `hc_ai_panel_status_fmt` saiu).
 
+### Fase 3.4 — o eco (parte 3): interruptores de teste e diagnóstico (✅ build 0 erros — branch `fix/eco-voz`; teste em jogo pendente)
+
+**Relato:** a voz do companheiro sai com **eco**, "como falar num lugar grande". O que já está estabelecido e
+descarta as hipóteses fáceis:
+
+| Fato | O que descarta |
+|---|---|
+| a síntese está **limpa** (o WAV gerado fora do jogo é idêntico) | não é o Kokoro/sherpa-onnx |
+| **só a voz do companheiro** ecoa (música e SFX do jogo são normais) | não é o áudio do sistema, os drivers, o fone nem um efeito global do Windows |
+| o eco é **idêntico em qualquer lugar**, de perto ou de longe, e com as **3 vozes** (42/43/44) | não é distância, nem posição, nem o timbre |
+| acontece com **uma única frase** | não é sobreposição da nossa fila/cache |
+
+Conclusão: é um **processamento fixo da engine** aplicado à nossa `AudioSource`. Quem sabe **qual** é o ouvido do
+jogador — então esta parte entrega **instrumentação**, não uma correção: seis interruptores, um por vez, e um
+diagnóstico que fotografa a cena.
+
+**Nada muda por padrão.** Com todos os interruptores no valor padrão, **nada é escrito na fonte de áudio** (o
+`ApplyEcoTestSwitches` sai **antes do primeiro setter**) e o som sai exatamente como antes desta fase. O único código
+novo que roda sempre é o da leitura das configs.
+
+**Arquivos:** `src/Companions/AI/CompanionTts.cs` (interruptores + diagnóstico), `src/Companions/Core/ModConfig.cs`
+(as 6 chaves), `package/CONFIGURATION.md` (regerado). Nada mais foi tocado: `spatialBlend`, o gate de fim de fala
+(`_currentEndsAt`/relógio), `StopSource`, cache, fila, síntese, prompt, painel, STT e ordens ficaram **intactos**.
+
+#### 1. As seis chaves novas (`[IA]`, todas com o padrão = como está hoje)
+
+| Chave | Tipo | Padrão | O que faz |
+|---|---|---|---|
+| `EcoDiag` | bool | **false** | liga o diagnóstico (só log, uma vez por sessão) |
+| `TtsReverbZoneMix` | float 0–1 | **1.0** | quanto das zonas de reverb do mundo entra na voz (`0` = nenhuma) |
+| `TtsBypassReverbZones` | bool | **false** | a voz ignora as zonas de reverb do mundo |
+| `TtsBypassListenerEffects` | bool | **false** | a voz ignora os efeitos aplicados no `AudioListener` (reverb/filtro global do ambiente) — **o suspeito principal** |
+| `TtsBypassEffects` | bool | **false** | a voz ignora os filtros da própria fonte |
+| `TtsDoppler` | bool | **true** | desligado, escreve `dopplerLevel = 0` (a fonte segue o companheiro e a posição é reescrita a cada frame) |
+
+As descrições (PT-BR, para leigo) estão nas `ConfigEntry`, como as outras de `[IA]`, e aparecem **no painel F8** (aba
+**IA**, no fim da lista): o `ConfigPanel` monta as linhas a partir de `ModConfig.Categories[<seção>]`, que o `Bind`
+alimenta — **nenhuma mudança no painel foi necessária**. Slider para o `float` com faixa, toggle para os `bool`.
+Trocar no painel **vale na próxima frase**, sem reiniciar (é por isso que a aplicação é por frase).
+
+#### 2. Aplicação por frase (`StartChunk`)
+
+Um método único, `ApplyEcoTestSwitches(source)`, chamado **uma vez por frase** logo antes de `Play` (a `AudioSource` é
+criada uma vez só, então a leitura da config a cada frase é o que faz o interruptor valer na hora):
+
+- só escreve um valor que **difere do padrão do Unity** (um setter redundante é um efeito colateral à espera de
+  acontecer) — `reverbZoneMix`, `bypassReverbZones`, `bypassListenerEffects`, `bypassEffects`, `dopplerLevel`;
+- quando **algum** valor difere, sai **uma linha por frase** no log:
+  `[TTS] Modo de audio da frase: reverbZoneMix=0, bypassListenerEffects=true` (é a prova de que o interruptor pegou);
+- com tudo no padrão, **nenhuma linha** e **nenhum setter**.
+
+#### 3. Diagnóstico (`EcoDiag = true`), uma vez por sessão, na primeira frase
+
+Na main thread, no primeiro `StartChunk`, com `try/catch` e linhas curtas (prefixo `[ECO]`):
+
+1. **`AudioListener`**: nome do GameObject e se ele tem `AudioReverbFilter` e/ou `AudioLowPassFilter`, com os valores
+   principais (`reverbPreset`/`dryLevel`/`room`/`decayTime` e `cutoffFrequency`).
+2. **Todas as `AudioReverbZone` da cena**: `reverbPreset`, `minDistance`, `maxDistance`, `decayTime`, `room` e **se o
+   jogador e/ou o companheiro estão dentro** do raio (distância entre a zona e cada um).
+3. **A receita do jogo**: uma amostra de até **20** `AudioSource` da cena (**a nossa fica de fora**), com
+   `spatialBlend`, `reverbZoneMix`, `bypassReverbZones`, `bypassEffects`, `bypassListenerEffects`, `dopplerLevel`,
+   `spatialize` e o **nome do mixer group** (`outputAudioMixerGroup`) — é o que mostra se o jogo usa um grupo de mixer
+   ou um `bypass*` que a gente não usa.
+
+As buscas usam `Resources.FindObjectsOfTypeAll(Type)` (não obsoleta, também vê objetos inativos) filtrado por
+`gameObject.scene.IsValid()` (descarta prefabs/assets que só existem na memória). É caro — e é exatamente por isso que
+roda **uma vez por sessão**, nunca por frame, e **nunca** com a flag desligada.
+
+#### 4. Reflexão: o núcleo obrigatório continua obrigatório
+
+Os **11 membros** que o `CompanionTts.Audio` já resolvia continuam sendo o núcleo (sem eles não há voz). Foram
+acrescentados como **opcionais** (cada um com `try/catch` próprio, resolvido **uma vez**):
+`reverbZoneMix`, `bypassReverbZones`, `bypassEffects`, `bypassListenerEffects`, `dopplerLevel`, `spread`,
+`spatialize` e `outputAudioMixerGroup`. Um membro que não exista **só faz o interruptor dele inerte** (uma linha de
+aviso no `Resolve`, com os nomes faltantes) — nunca derruba a voz. Os nomes foram conferidos no
+`UnityEngine.AudioModule.dll` do jogo (todos existem em `AudioSource`; `AudioReverbZone.room` é `int` e
+`decayTime` é `float`; `AudioReverbFilter` tem `dryLevel`/`room`/`decayTime`; `AudioLowPassFilter` tem
+`cutoffFrequency`).
+
+#### 5. Receita de teste (o jogador alterna **um** interruptor por vez)
+
+1. No jogo, **F8** → aba **IA** → `EcoDiag` **ligado**; falar uma frase (`modia_tts_teste` no console F5 também
+   serve) e mandar o log. A foto da cena já pode responder sozinha (zona de reverb onde a voz toca? filtro no
+   ouvinte? mixer group nas fontes do jogo?).
+2. `TtsBypassListenerEffects` **ligado** → ouvir uma frase. Se o eco sumiu, era o efeito no ouvinte.
+3. Se não, `TtsReverbZoneMix` = **0** (ou `TtsBypassReverbZones` ligado) → ouvir. Se sumiu, era zona de reverb.
+4. Se não, `TtsDoppler` **desligado** → ouvir. Se sumiu, era Doppler.
+5. Se não, `TtsBypassEffects` **ligado** → ouvir.
+6. Deixar **tudo no padrão** ao terminar (é o som de hoje) e mandar o log com as linhas `[TTS] Modo de audio da frase`
+   e `[ECO]` — cada tentativa é reconhecível pelo que foi aplicado.
+
 
 
 

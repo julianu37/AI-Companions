@@ -214,6 +214,10 @@ reflexão e sem alocação.
 | `TtsFalarRespostas` | `true` | falar a resposta do modelo (`reply`) |
 | `TtsFalarFalasDoMod` | `true` | falar a linha do mod que aparece no chat (numa **ordem** ela ganha) |
 
+**Interruptores de teste do eco (parte 3, todos com o default = como está hoje):** `EcoDiag` (`false`), `TtsReverbZoneMix`
+(`1`), `TtsBypassReverbZones` (`false`), `TtsBypassListenerEffects` (`false`), `TtsBypassEffects` (`false`) e
+`TtsDoppler` (`true`). Ver a seção 13.
+
 ## 10. Receita de teste in-game
 
 1. **Preparo:** o modelo já está em `<plugin>\tts\kokoro\` (`model.int8.onnx` 109 MB, `voices.bin` 27 MB,
@@ -271,3 +275,66 @@ Revisão dos commits `675a56f`/`758bec0`. Nada de comportamento visível mudou, 
 | D2 | (painel 3.7) a tecla abria o painel por cima do inventário/menu/F8 | a tecla é recusada com `InventoryGui`/`Menu`/`Minimap`/`ConfigPanel` visíveis, e o `ConfigPanel` não abre com o painel da IA visível |
 | E1/E2 | `hc_ai_voice_key_conflict` só no JSON PT-BR; slider de velocidade 0,5–1,5 contra 0,5–2,0 na config | par em inglês nos padrões; `MinSpeed`/`MaxSpeed` compartilhados |
 | D3 | cursor não restaurado no `Hide()` do painel | **nada a fazer**: `GameCamera.UpdateMouseCapture` (decompilado) trava o cursor a cada frame quando não há janela aberta — e deixa livre de propósito para quem desliga a captura com `Ctrl+F1` |
+
+## 13. O eco da voz (parte 3) — instrumentação, não correção
+
+**Sintoma:** a voz do companheiro sai com eco, "como falar num lugar grande". **Só** ela: música e SFX do jogo são
+normais. A síntese está limpa (o WAV gerado fora do jogo é idêntico), o eco é idêntico em qualquer lugar, de perto ou
+de longe e com as 3 vozes (42/43/44), e acontece com **uma única frase** — logo não é a fila, o cache, a distância, o
+timbre nem o áudio do sistema. É um **processamento fixo da engine** aplicado à nossa `AudioSource`; **qual** deles é
+o ouvido do jogador que decide, e é para isso que esta parte existe.
+
+### 13.1 Os seis interruptores (`[IA]`, default = como está hoje)
+
+| Chave | Tipo | Default | Escrito na fonte quando difere do default |
+|---|---|---|---|
+| `EcoDiag` | bool | `false` | — (só log) |
+| `TtsReverbZoneMix` | float 0–1 | `1` | `reverbZoneMix` |
+| `TtsBypassReverbZones` | bool | `false` | `bypassReverbZones = true` |
+| `TtsBypassListenerEffects` | bool | `false` | `bypassListenerEffects = true` (**suspeito principal**) |
+| `TtsBypassEffects` | bool | `false` | `bypassEffects = true` |
+| `TtsDoppler` | bool | `true` | `dopplerLevel = 0` |
+
+`ApplyEcoTestSwitches(source)` é chamado **uma vez por frase** (`StartChunk`, antes do `Play`) — a `AudioSource` é
+criada uma vez só, então reler a config a cada frase é o que faz um interruptor mexido no painel F8 valer **na próxima
+frase**, sem reiniciar. Com tudo no default o método **sai antes do primeiro setter**: nenhum setter, nenhuma linha de
+log, som idêntico ao de antes desta parte. Com algum valor diferente sai uma linha por frase
+(`[TTS] Modo de audio da frase: reverbZoneMix=0, bypassListenerEffects=true`), que é a prova de que o interruptor
+chegou na fonte. Se um membro opcional não existir neste Unity, o interruptor dele fica inerte e a linha diz
+`(sem efeito: este Unity nao tem o membro)`.
+
+### 13.2 Diagnóstico (`EcoDiag = true`), uma vez por sessão
+
+Na main thread, no **primeiro** `StartChunk`, prefixo `[ECO]`, tudo em `try/catch` (nada aqui pode derrubar a voz):
+
+| Bloco | O que sai |
+|---|---|
+| Ouvinte | nome do GameObject do `AudioListener` e se ele tem `AudioReverbFilter` (`reverbPreset`, `dryLevel`, `room`, `decayTime`) e/ou `AudioLowPassFilter` (`cutoffFrequency`) |
+| Zonas | **todas** as `AudioReverbZone` da cena: `reverbPreset`, `minDistance`, `maxDistance`, `decayTime`, `room` e **se o jogador e/ou o companheiro estão dentro** do raio |
+| Receita | amostra de até **20** `AudioSource` da cena (**a nossa fora**): `spatialBlend`, `reverbZoneMix`, `bypassReverbZones`, `bypassEffects`, `bypassListenerEffects`, `dopplerLevel`, `spatialize` e o **nome do mixer group** |
+
+Busca: `Resources.FindObjectsOfTypeAll(Type)` filtrado por `gameObject.scene.IsValid()` (descarta prefabs/assets que
+só existem na memória). É caro de propósito — **uma vez por sessão**, nunca por frame, e **nunca** com a flag
+desligada.
+
+### 13.3 API conferida no `UnityEngine.AudioModule.dll` do jogo
+
+`AudioSource`: `reverbZoneMix`, `bypassReverbZones`, `bypassEffects`, `bypassListenerEffects`, `dopplerLevel`,
+`spread`, `spatialize` (bool), `outputAudioMixerGroup` (`AudioMixerGroup`) — todos existem, todos resolvidos **uma
+vez** por reflexão e todos **opcionais** (o núcleo obrigatório segue sendo os 11 membros de sempre).
+`AudioReverbZone`: `reverbPreset` (`AudioReverbPreset`), `minDistance`/`maxDistance`/`decayTime` (**float**),
+`room` (**int**). `AudioReverbFilter`: `reverbPreset`, `dryLevel`, `room`, `decayTime`. `AudioLowPassFilter`:
+`cutoffFrequency`. `Resources.FindObjectsOfTypeAll(Type)` → `Object[]` (não obsoleta; a `Object.FindObjectsOfType`
+equivalente está marcada `[Obsolete]` no Unity 6).
+
+### 13.4 Receita de teste
+
+Um interruptor por vez, uma frase entre cada um, e o log com as linhas `[TTS] Modo de audio da frase` / `[ECO]`:
+
+1. `EcoDiag` ligado → falar uma frase → mandar o log (a foto da cena já pode responder sozinha).
+2. `TtsBypassListenerEffects` ligado → o eco sumiu? era o efeito no ouvinte.
+3. Senão `TtsReverbZoneMix` = 0 (ou `TtsBypassReverbZones`) → sumiu? era zona de reverb.
+4. Senão `TtsDoppler` desligado → sumiu? era Doppler.
+5. Senão `TtsBypassEffects` ligado.
+6. Deixar **tudo no default** ao terminar (é o som de hoje).
+

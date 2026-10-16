@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -252,6 +253,9 @@ internal static class CompanionTts
 
 	private static bool _playing;
 
+	/// <summary>True once the <c>[IA] EcoDiag</c> block has run: it is a once-per-session thing (first sentence).</summary>
+	private static bool _ecoDiagDone;
+
 	/// <summary>[IA] TtsLigado.</summary>
 	internal static bool Enabled => ModConfig.TtsEnabled == null || ModConfig.TtsEnabled.Value;
 
@@ -262,6 +266,41 @@ internal static class CompanionTts
 	internal static bool SpeakModLines => ModConfig.TtsSpeakModLines == null || ModConfig.TtsSpeakModLines.Value;
 
 	private static bool CacheEnabled => ModConfig.TtsCache == null || ModConfig.TtsCache.Value;
+
+	// ------------------------------------------------------------------ Fase 3.4 (parte 3): teste do eco
+	//
+	// Tudo aqui e INSTRUMENTACAO. Cada interruptor tem como valor padrao exatamente o que o codigo ja fazia antes
+	// desta fase e, com todos no padrao, NADA e escrito na fonte de audio (ApplyEcoTestSwitches sai antes do
+	// primeiro setter). O objetivo e o jogador ligar UM de cada vez no painel F8, ouvir uma frase e dizer o que
+	// mudou - o eco e um processamento da engine, entao quem diz qual e o ouvido dele.
+
+	/// <summary>[IA] EcoDiag: write the one-shot echo diagnosis to the log (see <see cref="RunEcoDiagnosticsOnce"/>).</summary>
+	private static bool EcoDiagnostics => ModConfig.TtsEcoDiag != null && ModConfig.TtsEcoDiag.Value;
+
+	/// <summary>Unity's own default for <c>AudioSource.reverbZoneMix</c> (1 = the whole reverb zone reaches the source).</summary>
+	private const float DefaultReverbZoneMix = 1f;
+
+	/// <summary>[IA] TtsReverbZoneMix: how much of the world's reverb zones reaches the companion's voice.</summary>
+	private static float ReverbZoneMix
+	{
+		get
+		{
+			float value = ModConfig.TtsReverbZoneMix != null ? ModConfig.TtsReverbZoneMix.Value : DefaultReverbZoneMix;
+			return Mathf.Clamp01(value);
+		}
+	}
+
+	/// <summary>[IA] TtsBypassReverbZones: the voice ignores the world's reverb zones (Unity's default is false).</summary>
+	private static bool BypassReverbZones => ModConfig.TtsBypassReverbZones != null && ModConfig.TtsBypassReverbZones.Value;
+
+	/// <summary>[IA] TtsBypassListenerEffects: the voice ignores the effects applied on the scene's AudioListener.</summary>
+	private static bool BypassListenerEffects => ModConfig.TtsBypassListenerEffects != null && ModConfig.TtsBypassListenerEffects.Value;
+
+	/// <summary>[IA] TtsBypassEffects: the voice ignores the filters on its own source.</summary>
+	private static bool BypassEffects => ModConfig.TtsBypassEffects != null && ModConfig.TtsBypassEffects.Value;
+
+	/// <summary>[IA] TtsDoppler: false writes <c>dopplerLevel = 0</c> (Unity's default, and today's behaviour, is 1).</summary>
+	private static bool Doppler => ModConfig.TtsDoppler == null || ModConfig.TtsDoppler.Value;
 
 	/// <summary>[IA] TtsVoz: the Kokoro speaker id (42/43/44 are the pt-BR voices).</summary>
 	internal static int Voice
@@ -1178,6 +1217,14 @@ internal static class CompanionTts
 		{
 			return false;
 		}
+		// Fase 3.4 (parte 3): the echo test switches, applied per SENTENCE (the source itself is created once), so a
+		// switch flipped in the F8 panel is heard on the very next sentence without a restart. With everything at its
+		// default this writes nothing at all - the sound is exactly what it was before this phase.
+		ApplyEcoTestSwitches(_source);
+		if (EcoDiagnostics)
+		{
+			RunEcoDiagnosticsOnce(chunk.Speaker);
+		}
 		object clip = null;
 		try
 		{
@@ -1285,6 +1332,384 @@ internal static class CompanionTts
 			return Mathf.Clamp(value, 5f, 120f);
 		}
 	}
+
+	// ---------------------------------------------------------------- teste do eco (Fase 3.4, parte 3)
+
+	/// <summary>
+	/// The echo test switches, applied to the source <b>once per sentence</b>.
+	///
+	/// <b>With every switch at its default this method returns before the first setter</b>: nothing is written to the
+	/// <c>AudioSource</c> and the sound is byte for byte what it was before this phase. Only a value that really
+	/// differs from Unity's own default is set (never the same value again - a redundant setter is a side effect
+	/// waiting to happen), and each sentence then says in the log what was applied, which is how we know the switch
+	/// really got through. A member this Unity build does not have makes its switch inert and says so in the line.
+	/// </summary>
+	private static void ApplyEcoTestSwitches(Component source)
+	{
+		if (source == null)
+		{
+			return;
+		}
+		try
+		{
+			float mix = ReverbZoneMix;
+			bool bypassZones = BypassReverbZones;
+			bool bypassListener = BypassListenerEffects;
+			bool bypassSource = BypassEffects;
+			bool doppler = Doppler;
+			if (Mathf.Approximately(mix, DefaultReverbZoneMix) && !bypassZones && !bypassListener && !bypassSource && doppler)
+			{
+				// tudo no padrao (= como era antes desta fase): nao encosta na fonte
+				return;
+			}
+			StringBuilder applied = new StringBuilder();
+			if (!Mathf.Approximately(mix, DefaultReverbZoneMix))
+			{
+				AppendApplied(applied, "reverbZoneMix=" + mix.ToString("0.##", CultureInfo.InvariantCulture), Audio.SetReverbZoneMix(source, mix));
+			}
+			if (bypassZones)
+			{
+				AppendApplied(applied, "bypassReverbZones=true", Audio.SetBypassReverbZones(source, true));
+			}
+			if (bypassListener)
+			{
+				AppendApplied(applied, "bypassListenerEffects=true", Audio.SetBypassListenerEffects(source, true));
+			}
+			if (bypassSource)
+			{
+				AppendApplied(applied, "bypassEffects=true", Audio.SetBypassEffects(source, true));
+			}
+			if (!doppler)
+			{
+				AppendApplied(applied, "dopplerLevel=0", Audio.SetDopplerLevel(source, 0f));
+			}
+			CompanionsPlugin.Log?.LogInfo("[TTS] Modo de audio da frase: " + applied.ToString());
+		}
+		catch (Exception ex)
+		{
+			CompanionsPlugin.Log?.LogWarning("[TTS] Nao consegui aplicar os interruptores de teste do eco: " + Audio.Describe(ex));
+		}
+	}
+
+	/// <summary>Adds one applied switch to the line (and says so when the Unity member behind it does not exist).</summary>
+	private static void AppendApplied(StringBuilder builder, string text, bool applied)
+	{
+		if (builder.Length > 0)
+		{
+			builder.Append(", ");
+		}
+		builder.Append(text);
+		if (!applied)
+		{
+			builder.Append(" (sem efeito: este Unity nao tem o membro)");
+		}
+	}
+
+	/// <summary>
+	/// The one-shot diagnosis of the echo (<c>[IA] EcoDiag</c>), on the main thread and on the <b>first sentence</b>.
+	/// It answers what the switches cannot: is there a reverb zone where the voice plays, does the <c>AudioListener</c>
+	/// carry a reverb/low-pass filter, and how does the game configure its <b>own</b> sources (mixer group, bypass
+	/// flags, reverb zone mix)? That last one is the recipe we are trying to match.
+	///
+	/// The searches here walk every loaded object of a type, which is exactly why this runs <b>once per session</b>,
+	/// never per frame - and never at all with the flag off. It only writes to the log: no sound is touched.
+	/// </summary>
+	private static void RunEcoDiagnosticsOnce(GameObject speaker)
+	{
+		if (_ecoDiagDone)
+		{
+			return;
+		}
+		_ecoDiagDone = true;
+		try
+		{
+			CompanionsPlugin.Log?.LogInfo("[ECO] Diagnostico do eco LIGADO ([IA] EcoDiag = true): nada muda no som, isto so escreve no log, uma vez por sessao.");
+			LogEcoListener();
+			LogEcoReverbZones(speaker);
+			LogEcoSources();
+			CompanionsPlugin.Log?.LogInfo("[ECO] Fim do diagnostico do eco.");
+		}
+		catch (Exception ex)
+		{
+			CompanionsPlugin.Log?.LogWarning("[ECO] O diagnostico do eco falhou: " + ex);
+		}
+	}
+
+	/// <summary>Does the scene's listener carry a reverb/low-pass filter (a filter there would colour everything)?</summary>
+	private static void LogEcoListener()
+	{
+		Type type = Audio.FindType(AudioListenerTypeName);
+		if (type == null)
+		{
+			CompanionsPlugin.Log?.LogInfo($"[ECO] Ouvinte: {AudioListenerTypeName} nao existe neste Unity.");
+			return;
+		}
+		UnityEngine.Object[] listeners = FindLoaded(type);
+		if (listeners.Length == 0)
+		{
+			CompanionsPlugin.Log?.LogInfo("[ECO] Ouvinte: nenhum AudioListener carregado.");
+			return;
+		}
+		CompanionsPlugin.Log?.LogInfo($"[ECO] Ouvinte: {listeners.Length} AudioListener carregado(s).");
+		for (int i = 0; i < listeners.Length; i++)
+		{
+			Component listener = listeners[i] as Component;
+			if (listener == null)
+			{
+				continue;
+			}
+			GameObject holder = listener.gameObject;
+			Component reverb = FindComponent(holder, Audio.FindType(ReverbFilterTypeName));
+			Component lowPass = FindComponent(holder, Audio.FindType(LowPassFilterTypeName));
+			string reverbInfo = reverb != null
+				? $" (preset={Member(reverb, "reverbPreset")}, dryLevel={Member(reverb, "dryLevel")}, room={Member(reverb, "room")}, decayTime={Member(reverb, "decayTime")})"
+				: "";
+			string lowPassInfo = lowPass != null ? $" (cutoff={Member(lowPass, "cutoffFrequency")})" : "";
+			CompanionsPlugin.Log?.LogInfo($"[ECO]   ouvinte \"{holder.name}\": AudioReverbFilter={(reverb != null ? "SIM" : "nao")}{reverbInfo}, "
+				+ $"AudioLowPassFilter={(lowPass != null ? "SIM" : "nao")}{lowPassInfo}");
+		}
+	}
+
+	/// <summary>Every reverb zone in the scene, and whether the player and the companion are inside each one.</summary>
+	private static void LogEcoReverbZones(GameObject speaker)
+	{
+		Type type = Audio.FindType(ReverbZoneTypeName);
+		if (type == null)
+		{
+			CompanionsPlugin.Log?.LogInfo($"[ECO] Zonas de reverb: {ReverbZoneTypeName} nao existe neste Unity (nao ha como o eco vir de uma zona).");
+			return;
+		}
+		UnityEngine.Object[] zones = FindLoaded(type);
+		if (zones.Length == 0)
+		{
+			CompanionsPlugin.Log?.LogInfo("[ECO] Zonas de reverb: nenhuma carregada (o eco NAO vem de uma zona de reverb).");
+			return;
+		}
+		GameObject player = Player.m_localPlayer != null ? Player.m_localPlayer.gameObject : null;
+		CompanionsPlugin.Log?.LogInfo($"[ECO] Zonas de reverb: {zones.Length} carregada(s).");
+		int inScene = 0;
+		int shown = 0;
+		for (int i = 0; i < zones.Length; i++)
+		{
+			Component zone = zones[i] as Component;
+			if (zone == null || !InScene(zone))
+			{
+				continue;
+			}
+			inScene++;
+			if (shown >= EcoDiagSampleSize)
+			{
+				continue;
+			}
+			shown++;
+			float maxDistance = MemberFloat(zone, "maxDistance");
+			CompanionsPlugin.Log?.LogInfo($"[ECO]   zona \"{zone.gameObject.name}\": preset={Member(zone, "reverbPreset")}, "
+				+ $"minDistance={Member(zone, "minDistance")}, maxDistance={Member(zone, "maxDistance")}, "
+				+ $"decayTime={Member(zone, "decayTime")}, room={Member(zone, "room")}, "
+				+ $"dentro: jogador={(IsWithin(zone, player, maxDistance) ? "SIM" : "nao")}, "
+				+ $"companheiro={(IsWithin(zone, speaker, maxDistance) ? "SIM" : "nao")}");
+		}
+		CompanionsPlugin.Log?.LogInfo($"[ECO] Zonas de reverb: {inScene} na cena, {shown} mostrada(s).");
+	}
+
+	/// <summary>
+	/// A sample of the game's <b>own</b> AudioSources (ours is left out): this is the recipe to compare against. If
+	/// the game always plays through a mixer group, or always with a bypass flag set, that is the difference we are
+	/// looking for.
+	/// </summary>
+	private static void LogEcoSources()
+	{
+		Type type = Audio.SourceType;
+		if (type == null)
+		{
+			CompanionsPlugin.Log?.LogInfo("[ECO] Fontes do jogo: o tipo AudioSource ainda nao esta resolvido.");
+			return;
+		}
+		UnityEngine.Object[] all = FindLoaded(type);
+		CompanionsPlugin.Log?.LogInfo($"[ECO] Fontes do jogo: {all.Length} AudioSource carregado(s); amostra de ate {EcoDiagSampleSize} da cena (a nossa fica de fora).");
+		int inScene = 0;
+		int shown = 0;
+		for (int i = 0; i < all.Length; i++)
+		{
+			Component source = all[i] as Component;
+			if (source == null || source == _source || !InScene(source))
+			{
+				continue;
+			}
+			inScene++;
+			if (shown >= EcoDiagSampleSize)
+			{
+				continue;
+			}
+			shown++;
+			CompanionsPlugin.Log?.LogInfo($"[ECO]   fonte \"{source.gameObject.name}\" (pai \"{ParentName(source)}\"): " + Audio.DescribeSource(source));
+		}
+		CompanionsPlugin.Log?.LogInfo($"[ECO] Fontes do jogo: {inScene} na cena, {shown} mostrada(s).");
+	}
+
+	/// <summary>Every loaded object of a type (<c>Resources.FindObjectsOfTypeAll</c> - non-obsolete and also sees inactive ones).</summary>
+	private static UnityEngine.Object[] FindLoaded(Type type)
+	{
+		if (type == null)
+		{
+			return EmptyObjects;
+		}
+		try
+		{
+			return Resources.FindObjectsOfTypeAll(type) ?? EmptyObjects;
+		}
+		catch (Exception ex)
+		{
+			CompanionsPlugin.Log?.LogInfo($"[ECO] Nao consegui listar os objetos de {type.Name}: " + Audio.Describe(ex));
+			return EmptyObjects;
+		}
+	}
+
+	/// <summary>Is this object really in the loaded scene (and not a prefab/asset that only lives in memory)?</summary>
+	private static bool InScene(Component component)
+	{
+		try
+		{
+			return component != null && component.gameObject.scene.IsValid();
+		}
+		catch (Exception)
+		{
+			return false;
+		}
+	}
+
+	/// <summary>The first component of that type on the object, or null (the diagnosis never throws).</summary>
+	private static Component FindComponent(GameObject holder, Type type)
+	{
+		if (holder == null || type == null)
+		{
+			return null;
+		}
+		try
+		{
+			return holder.GetComponent(type);
+		}
+		catch (Exception)
+		{
+			return null;
+		}
+	}
+
+	/// <summary>The value of a member of an arbitrary Unity component, as text ("?" when it is not readable).</summary>
+	private static string Member(object instance, string name)
+	{
+		object value = ReadMember(instance, name);
+		if (value == null)
+		{
+			return "?";
+		}
+		try
+		{
+			if (value is bool flag)
+			{
+				return flag ? "true" : "false";
+			}
+			return Convert.ToString(value, CultureInfo.InvariantCulture) ?? "?";
+		}
+		catch (Exception)
+		{
+			return "?";
+		}
+	}
+
+	/// <summary>The same, as a number (NaN when the member is not readable) - used for the "inside the zone" check.</summary>
+	private static float MemberFloat(object instance, string name)
+	{
+		object value = ReadMember(instance, name);
+		if (value == null)
+		{
+			return float.NaN;
+		}
+		try
+		{
+			return Convert.ToSingle(value, CultureInfo.InvariantCulture);
+		}
+		catch (Exception)
+		{
+			return float.NaN;
+		}
+	}
+
+	/// <summary>
+	/// Reads a public member (property first, then field) of an arbitrary Unity component. The diagnosis must never
+	/// fail because this Unity build names something differently, so anything unreadable comes back as null.
+	/// </summary>
+	private static object ReadMember(object instance, string name)
+	{
+		if (instance == null || string.IsNullOrEmpty(name))
+		{
+			return null;
+		}
+		try
+		{
+			Type type = instance.GetType();
+			PropertyInfo property = type.GetProperty(name, BindingFlags.Public | BindingFlags.Instance);
+			if (property != null)
+			{
+				return property.GetValue(instance, null);
+			}
+			FieldInfo field = type.GetField(name, BindingFlags.Public | BindingFlags.Instance);
+			if (field != null)
+			{
+				return field.GetValue(instance);
+			}
+		}
+		catch (Exception)
+		{
+			// um membro ilegivel e "?" - o diagnostico nunca vira erro
+		}
+		return null;
+	}
+
+	/// <summary>Is the target inside the radius of a reverb zone? (an unreadable radius counts as "no").</summary>
+	private static bool IsWithin(Component zone, GameObject target, float maxDistance)
+	{
+		if (zone == null || target == null || float.IsNaN(maxDistance) || maxDistance < 0f)
+		{
+			return false;
+		}
+		try
+		{
+			return (zone.transform.position - target.transform.position).sqrMagnitude <= maxDistance * maxDistance;
+		}
+		catch (Exception)
+		{
+			return false;
+		}
+	}
+
+	/// <summary>The name of the object this one hangs from (it is what tells two SFX of the same name apart).</summary>
+	private static string ParentName(Component component)
+	{
+		try
+		{
+			Transform parent = component.transform.parent;
+			return parent != null ? parent.name : "(sem pai)";
+		}
+		catch (Exception)
+		{
+			return "?";
+		}
+	}
+
+	/// <summary>How many objects each block of the echo diagnosis lists (it is a log, not a dump).</summary>
+	private const int EcoDiagSampleSize = 20;
+
+	private const string AudioListenerTypeName = "UnityEngine.AudioListener";
+
+	private const string ReverbZoneTypeName = "UnityEngine.AudioReverbZone";
+
+	private const string ReverbFilterTypeName = "UnityEngine.AudioReverbFilter";
+
+	private const string LowPassFilterTypeName = "UnityEngine.AudioLowPassFilter";
+
+	/// <summary>An empty result for <see cref="FindLoaded"/> (never null, so the callers never have to check).</summary>
+	private static readonly UnityEngine.Object[] EmptyObjects = new UnityEngine.Object[0];
 
 	// ---------------------------------------------------------------- cache
 
@@ -1699,6 +2124,24 @@ internal static class CompanionTts
 
 		private static PropertyInfo _playOnAwake;
 
+		// Fase 3.4 (parte 3): OPTIONAL members. The 11 above are the core (without any of them there is no voice);
+		// these only drive the echo test switches and the diagnosis, so a missing one is a warning, never a failure.
+		private static PropertyInfo _reverbZoneMix;
+
+		private static PropertyInfo _bypassReverbZones;
+
+		private static PropertyInfo _bypassEffects;
+
+		private static PropertyInfo _bypassListenerEffects;
+
+		private static PropertyInfo _dopplerLevel;
+
+		private static PropertyInfo _spread;
+
+		private static PropertyInfo _spatialize;
+
+		private static PropertyInfo _outputAudioMixerGroup;
+
 		private static MethodInfo _play;
 
 		private static MethodInfo _stop;
@@ -1785,9 +2228,173 @@ internal static class CompanionTts
 			_stop.Invoke(source, null);
 		}
 
+		/// <summary>
+		/// Fase 3.4 (parte 3): the <b>optional</b> members of the echo test. Each one returns false when this Unity
+		/// build does not have the member, and the caller says so in the log (its switch is simply inert) - the voice
+		/// itself keeps working, which is the whole point of keeping them out of the required set above.
+		/// </summary>
+		internal static bool SetReverbZoneMix(Component source, float value)
+		{
+			return SetIfPresent(source, _reverbZoneMix, value);
+		}
+
+		internal static bool SetBypassReverbZones(Component source, bool value)
+		{
+			return SetIfPresent(source, _bypassReverbZones, value);
+		}
+
+		internal static bool SetBypassListenerEffects(Component source, bool value)
+		{
+			return SetIfPresent(source, _bypassListenerEffects, value);
+		}
+
+		internal static bool SetBypassEffects(Component source, bool value)
+		{
+			return SetIfPresent(source, _bypassEffects, value);
+		}
+
+		internal static bool SetDopplerLevel(Component source, float value)
+		{
+			return SetIfPresent(source, _dopplerLevel, value);
+		}
+
+		/// <summary>The AudioSource type, already resolved (the echo diagnosis samples the game's own sources with it).</summary>
+		internal static Type SourceType
+		{
+			get
+			{
+				return _sourceType;
+			}
+		}
+
+		/// <summary>
+		/// One line of the "game recipe" diagnosis: how one of the game's <b>own</b> sources is configured. This is
+		/// the comparison that shows whether the game plays through a mixer group, or with a bypass flag set, that
+		/// our source does not use.
+		/// </summary>
+		internal static string DescribeSource(object source)
+		{
+			return $"spatialBlend={Read(source, _spatialBlend)}, reverbZoneMix={Read(source, _reverbZoneMix)}, "
+				+ $"bypassReverbZones={Read(source, _bypassReverbZones)}, bypassEffects={Read(source, _bypassEffects)}, "
+				+ $"bypassListenerEffects={Read(source, _bypassListenerEffects)}, dopplerLevel={Read(source, _dopplerLevel)}, "
+				+ $"spatialize={Read(source, _spatialize)}, mixer={MixerName(source)}";
+		}
+
 		private static void Set(Component source, PropertyInfo property, object value)
 		{
 			property.SetValue(source, value, null);
+		}
+
+		/// <summary>Writes an optional member; false when the member does not exist in this Unity (nothing was written).</summary>
+		private static bool SetIfPresent(Component source, PropertyInfo property, object value)
+		{
+			if (source == null || property == null)
+			{
+				return false;
+			}
+			try
+			{
+				property.SetValue(source, value, null);
+				return true;
+			}
+			catch (Exception ex)
+			{
+				CompanionsPlugin.Log?.LogDebug($"[TTS] Nao consegui aplicar \"{property.Name}\": " + Describe(ex));
+				return false;
+			}
+		}
+
+		/// <summary>Reads an optional member as text ("?" when it is missing or unreadable) - never a guess.</summary>
+		private static string Read(object instance, PropertyInfo property)
+		{
+			if (instance == null || property == null)
+			{
+				return "?";
+			}
+			try
+			{
+				object value = property.GetValue(instance, null);
+				if (value == null)
+				{
+					return "null";
+				}
+				if (value is bool flag)
+				{
+					return flag ? "true" : "false";
+				}
+				return Convert.ToString(value, CultureInfo.InvariantCulture) ?? "?";
+			}
+			catch (Exception)
+			{
+				return "?";
+			}
+		}
+
+		/// <summary>The name of the mixer group this source outputs to (none = the AudioListener's own default).</summary>
+		private static string MixerName(object source)
+		{
+			if (source == null || _outputAudioMixerGroup == null)
+			{
+				return "(sem membro)";
+			}
+			try
+			{
+				object group = _outputAudioMixerGroup.GetValue(source, null);
+				if (group == null)
+				{
+					return "(nenhum)";
+				}
+				return group is UnityEngine.Object unityObject ? unityObject.name : "(?)";
+			}
+			catch (Exception)
+			{
+				return "?";
+			}
+		}
+
+		/// <summary>
+		/// Looks up one of the optional members. A lookup that throws (an ambiguous name, a build without it) must
+		/// not reach the <c>Resolve</c> catch - that would turn a missing test switch into "no voice at all".
+		/// </summary>
+		private static PropertyInfo OptionalProperty(string name)
+		{
+			try
+			{
+				return _sourceType.GetProperty(name, BindingFlags.Public | BindingFlags.Instance);
+			}
+			catch (Exception ex)
+			{
+				CompanionsPlugin.Log?.LogDebug($"[TTS] Membro opcional \"{name}\" nao pode ser procurado: " + ex.Message);
+				return null;
+			}
+		}
+
+		/// <summary>The names of the optional members this Unity does not have, or null when it has all of them.</summary>
+		private static string MissingOptional()
+		{
+			StringBuilder missing = new StringBuilder();
+			AppendMissing(missing, "reverbZoneMix", _reverbZoneMix);
+			AppendMissing(missing, "bypassReverbZones", _bypassReverbZones);
+			AppendMissing(missing, "bypassEffects", _bypassEffects);
+			AppendMissing(missing, "bypassListenerEffects", _bypassListenerEffects);
+			AppendMissing(missing, "dopplerLevel", _dopplerLevel);
+			AppendMissing(missing, "spread", _spread);
+			AppendMissing(missing, "spatialize", _spatialize);
+			AppendMissing(missing, "outputAudioMixerGroup", _outputAudioMixerGroup);
+			return missing.Length == 0 ? null : missing.ToString();
+		}
+
+		private static void AppendMissing(StringBuilder builder, string name, PropertyInfo property)
+		{
+			if (property != null)
+			{
+				return;
+			}
+			if (builder.Length > 0)
+			{
+				builder.Append(", ");
+			}
+			builder.Append(name);
 		}
 
 		/// <summary>The real message of a reflection failure (Invoke wraps everything in TargetInvocationException).</summary>
@@ -1837,6 +2444,23 @@ internal static class CompanionTts
 					Fail("membro da API de audio nao encontrado (a API do Unity mudou?)");
 					return;
 				}
+				// Fase 3.4 (parte 3): the optional ones (the echo test switches and the diagnosis). Each lookup is
+				// wrapped on its own: a member this Unity build does not have must only make its switch inert, never
+				// take the voice down with it.
+				_reverbZoneMix = OptionalProperty("reverbZoneMix");
+				_bypassReverbZones = OptionalProperty("bypassReverbZones");
+				_bypassEffects = OptionalProperty("bypassEffects");
+				_bypassListenerEffects = OptionalProperty("bypassListenerEffects");
+				_dopplerLevel = OptionalProperty("dopplerLevel");
+				_spread = OptionalProperty("spread");
+				_spatialize = OptionalProperty("spatialize");
+				_outputAudioMixerGroup = OptionalProperty("outputAudioMixerGroup");
+				string missingOptional = MissingOptional();
+				if (missingOptional != null)
+				{
+					CompanionsPlugin.Log?.LogWarning("[TTS] Membros de audio OPCIONAIS que este Unity nao tem "
+						+ "(os interruptores de teste do eco ligados a eles ficam sem efeito): " + missingOptional);
+				}
 				_resolved = true;
 				_error = null;
 				CompanionsPlugin.Log?.LogInfo($"[TTS] Audio do Unity acessivel por reflexao ({_clipType.Assembly.GetName().Name} "
@@ -1861,9 +2485,10 @@ internal static class CompanionTts
 
 		/// <summary>
 		/// The type by its assembly-qualified name first (the game's audio module is loaded at startup), and by a walk
-		/// over the loaded assemblies if that fails.
+		/// over the loaded assemblies if that fails. <c>internal</c> (not private) because the echo diagnosis of the
+		/// outer class also needs it: the accessibility domain of a private member stops at the type that declares it.
 		/// </summary>
-		private static Type FindType(string name)
+		internal static Type FindType(string name)
 		{
 			Type type = Type.GetType(name + ", UnityEngine.AudioModule", false);
 			if (type != null)

@@ -26,3 +26,6 @@ packages/
 # OS
 .DS_Store
 Thumbs.db
+
+# Backups locais (DLL implantada + .cfg) antes de mexer no audio do TTS
+.backup-eco/
