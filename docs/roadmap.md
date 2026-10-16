@@ -53,7 +53,7 @@ Legenda: ✅ concluído · 🔄 em andamento · ⏳ pendente
 | 2.18b | **Seguir pelo portal** (`CompanionPortalFollow` + `[Portal]`): ele anda até o portal e é levado para junto de você quando o seu teleporte termina | ✅ (v0.4.6) |
 | 2.18c | **Carroça** (`CompanionCart` + `[Carroca]`): `modia_cart pull\|release` — ele anda até o engate do `Vagon` e puxa a carroça pelo `ConfigurableJoint` do jogo | ✅ (v0.4.6) |
 | 2.5 | Multiplayer (ZNetView/ZDO, testes com cliente/servidor) | ⏳ |
-| **3** | IA e voz: comandos por voz/chat, STT, TTS, personalidade — **no fork, ver Trilha D** | 🔄 (3.1, 3.2, 3.2c, 3.3, 3.3b, 3.4, 3.5, 3.6, 3.6b, 3.8 ✅) |
+| **3** | IA e voz: comandos por voz/chat, STT, TTS, personalidade — **no fork, ver Trilha D** | 🔄 (3.1, 3.1-saída estruturada, 3.1d, 3.2, 3.2c, 3.3, 3.3b, 3.3c, 3.3d, 3.4, 3.5, 3.6, 3.6b, 3.7, 3.8 ✅ **validados em jogo**; 3.1b/3.1c ✅ fora do jogo) |
 | **4** | Backend híbrido (LLM local + API), endpoints do "cérebro" | ⏳ |
 | **5** | Empacotamento (manifest, README, ícone) + revisão final | ⏳ |
 
@@ -332,25 +332,44 @@ Idioma do jogo em PT-BR = **`Portuguese_Brazilian`**.
 Ordens em **linguagem natural** por cima do mod do upstream. O companheiro continua sendo o do upstream
 (radial, jobs, combate); a IA é só uma **nova entrada** para as mesmas ações — nada de novo dirige o NPC.
 
+> **Legenda de status:** `✅ validado em jogo` = o **jogador** testou e confirmou, com evidência no `LogOutput.log`
+> (a citação curta vai no status); `✅ build 0 erros ...` = verificado **só fora do jogo** (build/harness). O que
+> continua aberto está em *Pendências conhecidas*, logo abaixo da tabela.
+
 | Fase | Descrição | Status |
 |---|---|---|
 | **3.1** | **Ordem por texto no chat** (LLM local, API OpenAI-compatible) | ✅ validado em jogo |
 | **3.2** | **Alvo da ordem**: `colete 5 madeiras` para em 5 (madeira/pedra/minério) e volta a seguir | ✅ validado em jogo |
 | **3.2b** | Correção da 3.2: o número virou um **DELTA** | ❌ revertida pela 3.2c |
 | **3.2c** | **Correção final da quantidade**: o número é um **ALVO TOTAL contado no inventário do companheiro**, só para o recurso pedido; com o alvo já na mochila ele nem começa e avisa | ✅ validado em jogo |
-| 3.3 | **Ordens por voz**: push-to-talk (`Microphone`, 16 kHz mono) → **STT local** (Whisper.net) → **mesma caixa de ordens** do chat | ✅ build 0 erros + DLL no plugin (teste em jogo pendente) |
+| 3.3 | **Ordens por voz**: push-to-talk (`Microphone`, 16 kHz mono) → **STT local** (Whisper.net) → **mesma caixa de ordens** do chat | ✅ validado em jogo (`[STT] TRANSCRICAO em ~2900 ms ... TEXTO: "..."` → ordem aplicada; **11 transcrições** push-to-talk no log do jogador) |
 | 3.3-spike | **SPIKE STT local**: Whisper.net **in-process** (NuGet, thread de fundo) x `whisper-server.exe` filho — teste mínimo, gatilhos `modia_stt_teste` / `[IA] SttTeste` | ✅ validado em jogo (`docs/re/stt-whisper-net-spike.md`) |
-| 3.3b | **Correções do teste da voz**: conflito da tecla **V** com o *Toggle Auto-Pickup* do jogo, qualidade do STT (modelo `small` + prompt inicial + trim) e medição da latência do LLM | ✅ build 0 erros + DLL/modelo no plugin (teste em jogo pendente) |
-| 3.3c | **Raio de coleta maior** (procura, alcance seguindo você, área com Follow off e drops) + **chatter aleatório desligado** por padrão (`[Speech] Chatter`) | ✅ build 0 erros + DLL no plugin (teste em jogo pendente) |
-| 3.4 | TTS: o companheiro **fala** as respostas (Kokoro-82M local, `sherpa-onnx` + `AudioSource` 3D) | ✅ build 0 erros + DLL/nativos/modelo no plugin (teste em jogo pendente) |
+| 3.3b | **Correções do teste da voz**: conflito da tecla **V** com o *Toggle Auto-Pickup* do jogo, qualidade do STT (modelo `small` + prompt inicial + trim) e medição da latência do LLM | ✅ validado em jogo (o log trouxe `[STT] CONFLITO DE TECLA: o auto-pickup do jogo esta em "<Keyboard>/V"`, as transcrições funcionaram e a latência passou a ser medida — `[IA] Tempo:`) |
+| 3.3c | **Raio de coleta maior** (procura, alcance seguindo você, área com Follow off e drops) + **chatter aleatório desligado** por padrão (`[Speech] Chatter`) | ✅ validado em jogo (a coleta com o raio maior foi usada nos testes seguintes do jogador e o chatter aleatório parou — só aparecem as falas forçadas/por ordem) |
+| 3.3d | **A ordem de pedra para no alvo** (`DropsOf` segue o `Destructible.m_spawnWhenDestroyed` + `OrderMet`/`OrderDoneNow`) e o texto da voz vai para o **balão do jogador** | ✅ validado em jogo (`Order target: mode 2 stops at 10 Stone in the pack` + `Order "stone" (x10)`; o balão do jogador foi testado pelo jogador) |
+| 3.4 | TTS: o companheiro **fala** as respostas (Kokoro-82M local, `sherpa-onnx` + `AudioSource` 3D) | ✅ validado em jogo (`[TTS] Tocando ... na posicao de "HC_Companion(Clone)"`, `CACHE (0 ms)`, `RTF 0,83`; desligamento sem crash — `[TTS] Thread de sintese encerrada.`) |
 | 3.5 | Personalidade/memória: preset + texto livre no contexto do LLM | ✅ validado em jogo |
 | 3.6 | **Ordens com alvo**: `ataca o greydwarf` (engaja a criatura), `equipa o machado de bronze` (equipa do inventário dele), `larga a pedra` (joga fora) | ✅ validado em jogo |
-| 3.6b | **Correção da ordem sem alvo**: quando o modelo responde `"target": null`, o item/criatura é lido das **palavras do próprio jogador**; o prompt passa a exigir `target` em `attack`/`equip`/`drop` | ✅ build 0 erros + DLL no plugin (teste em jogo pendente) |
-| 3.7 | **Painel da IA no jogo** (personalidade + voz com *Ouvir* + push-to-talk + toggles, tecla `I`) | ✅ build 0 erros + DLL no plugin (teste em jogo pendente) |
-| 3.1 | **Saída estruturada** (`response_format`/JSON schema): garante JSON válido e destrava modelos pequenos (3B) | ✅ build 0 erros + DLL no plugin (teste em jogo pendente) |
-| 3.1b | **O recurso manda** (correção do teste em jogo): com `action` e `resource` inconsistentes (`colete 10 pedras` voltou como `wood`/`stone`) a ordem usa o **recurso** — o campo específico — e não a ação genérica | ✅ build 0 erros + harness de 60 casos (fora do jogo) |
-| 3.1c | **O contrato ensina que `action` e `resource` combinam** (a outra metade do achado): regra curta + 2 exemplos de `colete N pedras` → `stone`, porque o 3B copiava o `action:"wood"` do exemplo `colete 20 de madeira` | ✅ build 0 erros (o prompt não foi medido contra nenhum modelo) |
-| 3.1d | **A ação de recolher os itens do chão** (`Jobs/MHR_Collect.cs`): a ordem `pickup` era **só um flag** - agora o companheiro **anda até o item no chão e pega** (inclusive o que ele/você largou, que é `m_autoPickup = false`), e o botão **Recolher** da roda passa a desligar mesmo o ímã | ✅ build 0 erros + DLL no plugin (teste em jogo pendente) |
+| 3.6b | **Correção da ordem sem alvo**: quando o modelo responde `"target": null`, o item/criatura é lido das **palavras do próprio jogador**; o prompt passa a exigir `target` em `attack`/`equip`/`drop` | ✅ validado em jogo (`Order "equip": the model named no item - the player's own words named "picareta" (match 935, Fase 3.6b fallback)` → equipou) |
+| 3.7 | **Painel da IA no jogo** (personalidade + voz com *Ouvir* + push-to-talk + toggles, tecla `I`) | ✅ validado em jogo (o jogador usou o painel: dropdown, teclas do jogo sem disparar, cursor/seleção e rodapé) — **ressalva:** o bug aberto do clique no painel **F8** (ver *Pendências conhecidas* abaixo) |
+| 3.8 | **O companheiro abre o próprio inventário** por voz/chat (`inventory`/`inventory_close`) | ✅ validado em jogo (`Order from chat: "abre o inventario"` → `Order "inventory": Companion's window is open`) |
+| 3.1 | **Saída estruturada** (`response_format`/JSON schema): garante JSON válido e destrava modelos pequenos (3B) | ✅ validado em jogo (`[IA] Saida estruturada ligada ([IA] SaidaEstruturada): ... corpo JSON de 6955 car.` + ordens funcionando com o 3B) |
+| 3.1 (3B) | **Velocidade do 3B em jogo** (o modelo que a saída estruturada destravou) | ✅ validado em jogo (`[IA] Tempo: 401 ms / 340 ms / 388 ms`, contra ~3100 ms do `gemma` — **~8x mais rápido**) |
+| 3.1b | **O recurso manda** (correção do teste em jogo): com `action` e `resource` inconsistentes (`colete 10 pedras` voltou como `wood`/`stone`) a ordem usa o **recurso** — o campo específico — e não a ação genérica | ✅ build 0 erros + harness de 60 casos (fora do jogo) — **o teste em jogo do `colete 10 pedras` ficou pendente de confirmação explícita do jogador** |
+| 3.1c | **O contrato ensina que `action` e `resource` combinam** (a outra metade do achado): regra curta + 2 exemplos de `colete N pedras` → `stone`, porque o 3B copiava o `action:"wood"` do exemplo `colete 20 de madeira` | ✅ build 0 erros (o prompt não foi medido contra nenhum modelo) — **o teste em jogo do `colete 10 pedras` ficou pendente de confirmação explícita do jogador** |
+| 3.1d | **A ação de recolher os itens do chão** (`Jobs/MHR_Collect.cs`): a ordem `pickup` era **só um flag** - agora o companheiro **anda até o item no chão e pega** (inclusive o que ele/você largou, que é `m_autoPickup = false`), e o botão **Recolher** da roda passa a desligar mesmo o ímã | ✅ validado em jogo (teste final do jogador: *"pra mim parece excelente"*) |
+
+#### Pendências conhecidas (estado em out/2026)
+
+O que **não** está fechado nesta trilha, listado sem enfeite:
+
+| # | Pendência | Detalhe |
+|---|---|---|
+| 1 | **Bug do clique no painel F8** | há algo **invisível** na frente de uma **faixa** dos controles do painel **F8** (`ConfigPanel`) engolindo o clique — os controles daquela faixa não respondem ao mouse. O **painel da IA** (`CompanionAiPanel`, tecla `I`) **não** tem o problema (foi ele que recebeu o *overlay* com `Canvas`/`GraphicRaycaster` próprios na correção da lista atrás dos controles). **Aberto, sem correção** — exigiria a mesma investigação de ordem de *raycast* no `ConfigPanel` |
+| 2 | **Release / empacotamento** | a versão e o `CHANGELOG` do fork **não** foram fechados e o pacote **não cabe num Thunderstore normal**: a pasta do plugin tem **~428 MB** (modelos do Whisper — `small` = 181 MB —, do Kokoro e os nativos do `sherpa-onnx`/`onnxruntime`). Falta decidir o que entra no pacote (mod sem modelos + instruções de download?) e revisar `package/manifest.json`/`package/README.md` |
+| 3 | **A voz não passa pelo mixer do jogo** | a `AudioSource` da fala não tem `outputAudioMixerGroup`: por isso ela **ignora os sliders de volume do Valheim** (música/SFX) e só obedece a `[IA] TtsVolume`. Roteá-la para o grupo `SFX` fica para depois — não era necessário para o eco, resolvido com `reverbZoneMix = 0` |
+| 4 | **`colete 10 pedras` (3.1b/3.1c)** | a correção "o recurso manda" e a regra nova do contrato foram verificadas **fora do jogo** (harness de 60 casos + 30 frases com 100%); o teste em jogo com o 3B **ficou pendente de confirmação explícita do jogador** |
+| 5 | **`origin/claude/relaxed-archimedes-ecoh6h`** | branch que existe no GitHub com **código do upstream** (`MaddhattrRocks/Offline-Companions-Reborn`), **não nosso**: não faz parte do fork e não deve ser mesclado/mexido por aqui |
 
 ### Fase 3.1 — ordem por texto no chat (✅ — Unreleased)
 
@@ -381,8 +400,9 @@ O jogador digita `colete 20 de madeira` (ou `segue`, `para`, `vem cá`, `minere 
   `fish`(9) `repair`(15) `cook`(17); `stop` → modo 0 + limpa alvo de combate; `come` → recall do mod;
   `sethome`(11) `wander`(12) `pickup`(13) `command`(14) e suas negações; posturas 20–23 → `SetCombatStance`.
   `none` = não é ordem. `despawn` **não** é exposto ao modelo (de propósito).
-- **Pendências conhecidas:** ordens com alvo (`atacar X`, `equipar Y`) ainda não têm efeito além do job
-  (Fase 3.6). O número da ordem **limita** madeira/pedra/minério desde a Fase 3.2 e é, desde a Fase 3.2c, um
+- **Pendências conhecidas (nota de status, atualizada):** a pendência de então — ordens com alvo (`atacar X`,
+  `equipar Y`) ainda não têm efeito além do job — foi resolvida na **Fase 3.6** e no fallback da **3.6b**, os dois
+  **validados em jogo**. O número da ordem **limita** madeira/pedra/minério desde a Fase 3.2 e é, desde a Fase 3.2c, um
   **alvo total contado no inventário do companheiro** ("colete 10" = ter 10 na mochila — ver abaixo).
 
 ### Fase 3.2 — o número da ordem limita o trabalho (✅ — Unreleased)
@@ -491,7 +511,7 @@ Ou seja: **o número é um alvo total, contado APENAS na mochila do companheiro*
 - **Coleta normal, radial e directed continuam iguais:** sem ordem no ZDO, tudo é a config pura (`Stock`);
   alvo apontado no radial (`SetDirectedTarget`) nunca tem alvo de ordem (`IsDirectedHarvest`).
 
-### Fase 3.6 — ordens com alvo: atacar, equipar e largar (✅ — build; teste em jogo pendente)
+### Fase 3.6 — ordens com alvo: atacar, equipar e largar (✅ — validado em jogo)
 
 O jogador aponta e digita: **`ataca o greydwarf`**, **`equipa o machado de bronze`**, **`larga a pedra`**
 (e `joga fora 5 madeira`). São as **mesmas ações** do radial/tecla de comando — nada de novo dirige o NPC.
@@ -534,7 +554,7 @@ O jogador aponta e digita: **`ataca o greydwarf`**, **`equipa o machado de bronz
   compilado — 45 casos de nome (criaturas e itens, PT-BR e EN, e 5 que **não** podem casar) e 30 de JSON
   (ordens novas + as que já existiam), todos passando.
 
-### Fase 3.6b — a ordem sem alvo: o modelo responde `"target": null` (✅ — build; teste em jogo pendente)
+### Fase 3.6b — a ordem sem alvo: o modelo responde `"target": null` (✅ — validado em jogo)
 
 **Relato do jogador:** "o comando pra dropar não funcionou". No log, com voz:
 
@@ -597,7 +617,7 @@ salvava `ataca aquele`, mas não `ataca o greydwarf`).
   `larga a madeira` → larga a madeira; `equipa o machado de bronze` → equipa; `ataca o greydwarf` → engaja;
   `joga o lixo fora` → continua "Não entendi qual item." (nada é inventado).
 
-### Fase 3.5 — personalidade, memória e conversa livre (✅ — build; teste em jogo pendente)
+### Fase 3.5 — personalidade, memória e conversa livre (✅ — validado em jogo)
 
 O companheiro deixa de ser só um tradutor de ordens: ele **tem um jeito de falar** (preset ou texto livre do
 jogador), **lembra das últimas trocas** e, quando a mensagem **não é uma ordem**, **responde como conversa** —
@@ -650,7 +670,7 @@ executando a **mesma ação** do radial, com a **mesma** linha de feedback.
   (20)); `Conversa = false` deve voltar ao silêncio para conversa; `Memoria = 0` deve fazer ele esquecer a cada
   mensagem; matar/dispensar o companheiro deve zerar a memória (linha `[IA] Memory:` no `LogOutput.log`).
 
-### Fase 3.3 — ordens por voz (push-to-talk + STT local) (✅ — build; teste em jogo pendente)
+### Fase 3.3 — ordens por voz (push-to-talk + STT local) (✅ — validado em jogo)
 
 O jogador **segura uma tecla e fala** (`colete 10 madeiras`, `segue`, `ataca o greydwarf`, `bom dia`); ao soltar, o
 áudio é transcrito **localmente** (Whisper.net, dentro do jogo, sem HTTP) e o **texto entra exatamente no mesmo
@@ -705,7 +725,7 @@ caminho das ordens do chat** — ordem, conversa, personalidade, memória: tudo 
   `Voz #1 (push-to-talk): ... KB de audio` e `TRANSCRICAO em N ms ... TEXTO: "..."`. Falar `bom dia` deve virar
   conversa; `ataca o greydwarf` deve engajar a criatura.
 
-### Fase 3.3b — correções do teste da voz (tecla V, qualidade do STT, latência do LLM) (✅ — build; teste em jogo pendente)
+### Fase 3.3b — correções do teste da voz (tecla V, qualidade do STT, latência do LLM) (✅ — validado em jogo)
 
 Três problemas do primeiro teste em jogo da 3.3, com a evidência do log do jogador:
 `Voz #1: 1,1 s -> "Coleta deis mandem."` / `Voz #2: 0,7 s -> "O leta deles."` / `Voz #3: 1,5 s -> "coleta 10 madeira."`
@@ -787,7 +807,7 @@ alternar** (nenhuma mensagem `Auto-Pickup: On/Off` no HUD) e `colete 10 madeiras
 (`TRANSCRICAO ... TEXTO: "colete 10 madeiras"`). Reatribuir o auto-pickup para outra tecla nas configurações do jogo
 e reentrar: o log deve passar a dizer `[STT] Sem conflito de tecla: ...` e o auto-pickup volta a funcionar.
 
-### Fase 3.3c — raio de coleta maior e chatter aleatório desligado (✅ — build; teste em jogo pendente)
+### Fase 3.3c — raio de coleta maior e chatter aleatório desligado (✅ — validado em jogo)
 
 Dois pedidos do jogador, sem lógica nova: (1) o companheiro **procura e trabalha mais longe** quando você manda
 coletar; (2) **sem comentários aleatórios** — as falas **contextuais** continuam. Nada de ordem, job, radial, UI, IA
@@ -889,7 +909,7 @@ sao procurados ate 25 m de voce, em vez de 10 m. Coloque 10 de volta se preferir
    Falar por voz (`bom dia`) e conferir que a resposta da IA continua aparecendo.
 4. **Voltar ao antigo:** `[Speech] Chatter = true` e o chatter de 15–30 s volta.
 
-### Fase 3.3d — a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador (✅ — build; teste em jogo pendente)
+### Fase 3.3d — a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador (✅ — validado em jogo)
 
 Dois problemas do teste em jogo da 3.3c: (1) `colete 10 pedras` **nunca parava**; (2) a transcrição da voz aparecia no
 balão do **companheiro** em vez do **jogador**. Nada de ordem, job, radial, UI, STT ou dos raios/chatter da 3.3c foi
@@ -978,7 +998,7 @@ próximo** repetir o texto (`Speak(PickSpeaker(), texto)` → `CompanionTalk.Say
    no **balão do jogador** (e "Entendi: …" no chat/HUD). A resposta do companheiro ("Ok: coletar pedra (2)" /
    conversa) deve continuar aparecendo no balão **dele**.
 
-### Fase 3.8 — o companheiro abre o próprio inventário por voz/chat (✅ — build; teste em jogo pendente)
+### Fase 3.8 — o companheiro abre o próprio inventário por voz/chat (✅ — validado em jogo)
 
 Pedido do jogador: *"seria possível fazer o companion abrir o inventário quando solicitado?"* — falar/digitar
 `abre o teu inventário`, `mostra o inventário`, `mostra o que você carrega` e a **janela do inventário do
@@ -1086,7 +1106,7 @@ personalidade/memória/conversa (3.5), jobs, UI, radial, STT (3.3/3.3b), raios e
 
 ---
 
-### Fase 3.4 — o companheiro FALA (TTS local, Kokoro-82M via sherpa-onnx) (✅ build 0 erros — teste em jogo pendente)
+### Fase 3.4 — o companheiro FALA (TTS local, Kokoro-82M via sherpa-onnx) (✅ validado em jogo — `[TTS] Tocando ... na posicao de "HC_Companion(Clone)"`, `CACHE (0 ms)`, `RTF 0,83`; desligamento sem crash)
 
 O companheiro **fala em voz alta** as respostas, **na posição dele** no mundo. A voz é sintetizada **dentro do
 jogo** (sem HTTP, sem processo filho, nada sai da máquina) pelo **Kokoro-82M** através do **`sherpa-onnx`**
@@ -1136,7 +1156,7 @@ chatter seguem iguais. A integração são só 5 chamadas de `SpeakOutLoud(...)`
 (conversa, ordem com linha própria, ordem genérica, recusa/"já temos", "não entendi") + `Init`/`Tick`/`Shutdown`
 no plugin.
 
-### Fase 3.7 — painel da IA no jogo: personalidade, voz e push-to-talk (✅ build 0 erros — teste em jogo pendente)
+### Fase 3.7 — painel da IA no jogo: personalidade, voz e push-to-talk (✅ validado em jogo — **com a ressalva** do bug aberto do clique no painel **F8**, que não é o deste painel; ver *Pendências conhecidas*)
 
 Tudo o que a camada de IA lê do `.cfg` passou a ser ajustável **em jogo**, num painel próprio do mod — sem editar o
 arquivo à mão e sem reiniciar nada.
@@ -1196,7 +1216,7 @@ hora — `ConfigFile.SaveOnConfigSet`, confirmado na fonte do BepInEx):
   o log do *Ouvir*), o `AutoPickupKeyConflict.Reset()`, a entrada na lista de UI bloqueada (4 arquivos) e
   `Create`/`Destroy` no plugin.
 
-### Fase 3.4/3.7 — correções da auditoria do TTS e do painel (✅ build 0 erros — teste em jogo pendente)
+### Fase 3.4/3.7 — correções da auditoria do TTS e do painel (✅ build 0 erros — validado em jogo o que é observável: o desligamento do TTS sem crash e o painel em uso; o resto é endurecimento interno)
 
 Revisão dos commits `675a56f` (Fase 3.4, `CompanionTts.cs`) e `758bec0` (Fase 3.7, `CompanionAiPanel.cs`). Nada de
 comportamento visível mudou **exceto** onde a correção era exatamente isso (o teto do cache, a faixa do slider de
@@ -1230,7 +1250,7 @@ velocidade e as guardas de abertura do painel).
 - **Arquivos:** `AI/CompanionTts.cs` (A1, A2, A3, A4, B1, C2, E2), `AI/CompanionChatAI.cs` (C2), `UI/CompanionAiPanel.cs`
   (D2, E2, defensivo), `UI/ConfigPanel.cs` (D2), `Core/ModLocalization.cs` (E1).
 
-### Fase 3.7 — correção: a lista do dropdown do painel aparecia atrás dos controles (✅ build 0 erros — teste em jogo pendente)
+### Fase 3.7 — correção: a lista do dropdown do painel aparecia atrás dos controles (✅ validado em jogo)
 
 **Relato (com screenshot):** ao abrir o dropdown de **Personalidade**, a lista (*Padrão*, *Viking leal*, *Mago
 sarcástico*, …) saía **atrás** do campo do dropdown de **Voz** (`pf_dora (feminina)`), do campo *Nas suas palavras* e
@@ -1261,7 +1281,7 @@ frente" no *raycast*.
 - **Não mudou:** TTS, STT, ordens, jobs, patches de input e o resto do painel. Sem alocação por frame, sem `Find*`/LINQ,
   null-safe.
 
-### Fase 3.7 — correções do teste em jogo: as teclas do jogo digitando no campo, a caixa de texto e o rodapé (✅ build 0 erros — teste em jogo pendente)
+### Fase 3.7 — correções do teste em jogo: as teclas do jogo digitando no campo, a caixa de texto e o rodapé (✅ validado em jogo)
 
 **Relato (3 problemas):** (1) *"ao digitar 'm' na caixa de texto abre o mapa"* — com o painel aberto e o campo de texto
 livre da personalidade em foco, **as teclas do jogo continuavam valendo** (`M` = mapa, `Tab` = inventário, `F5` =
@@ -1404,7 +1424,7 @@ Os interruptores ficaram **no padrão** ao terminar o teste, e a correção viro
 
 
 
-### Fase 3.1 — saída estruturada (JSON schema): o que permite modelos pequenos (✅ build 0 erros + teste em jogo com o `qwen2.5-3b-instruct` — branch `feat/json-schema`; as correções que vieram do teste estão nas seções 6 e 7)
+### Fase 3.1 — saída estruturada (JSON schema): o que permite modelos pequenos (✅ validado em jogo com o `qwen2.5-3b-instruct` — `[IA] Saida estruturada ligada ([IA] SaidaEstruturada): ... corpo JSON de 6955 car.` — branch `feat/json-schema`; as correções que vieram do teste estão nas seções 6, 7 e 8)
 
 O pedido ao modelo passou a levar **`response_format`**, pedindo ao servidor que **force** a forma da resposta: um
 objeto JSON com as cinco chaves do contrato e a lista fechada de ações. É a única mudança desta fase — o prompt
@@ -1492,12 +1512,15 @@ Nem todo servidor aceita `json_schema`, então o mod **nunca quebra** por causa 
 4. Para conferir o fallback: apontar para um servidor que recuse `response_format` (ou `SaidaEstruturada` desligado) e
    ver as linhas de queda no log sem nenhum erro no jogo.
 
-#### 5. O que não foi verificado
+#### 5. O que foi verificado (e o que não foi)
 
-O **comportamento em jogo** (o build e o JSON do corpo foram conferidos fora do jogo: o corpo gerado é JSON válido, com
-29 ações, `strict`, `required` e `additionalProperties:false`; a lista do `enum` foi conferida contra o `Contract`).
-Os **números 0/6 x 6/6** são medição do jogador, não do agente. Os **fallbacks** foram revisados no código, mas não
-foram exercitados contra um servidor que realmente recuse o schema.
+O **comportamento em jogo** foi **validado pelo jogador**: com a saída estruturada ligada o log traz
+`[IA] Saida estruturada ligada ([IA] SaidaEstruturada): ... corpo JSON de 6955 car.` e as ordens passaram a funcionar
+com o **`qwen2.5-3b-instruct`** (o modelo pequeno que respondia texto solto antes), a ~340–400 ms por ordem — o que
+também **confirma na prática** a lista do `enum` contra o `Contract`. Fora do jogo (agente): o build e o JSON do corpo
+(o corpo gerado é JSON válido, com 29 ações, `strict`, `required` e `additionalProperties:false`). Os **números
+0/6 x 6/6** são medição do jogador, não do agente. Os **fallbacks** foram revisados no código, mas **não** foram
+exercitados contra um servidor que realmente recuse o schema.
 
 #### 6. O teste em jogo (modelo pequeno): `action` e `resource` inconsistentes — **o recurso manda**
 
@@ -1543,8 +1566,9 @@ antes de montar o rótulo/log da ordem, e — quando ela devolve algo — troca 
 - **Verificado fora do jogo** com um harness que compila os arquivos **reais** (`OrderItems`, `LlmIntent`, `MHR_List`;
   `CompanionOrders.JobMode` e as quatro listas entram como stubs): **60 casos, ALL CHECKS PASSED** — inclusive o caso
   do log (`action="wood"` + `resource="stone"` → `stone`), o espelho, os pares coerentes, recurso nulo/desconhecido,
-  todas as ações que não são de coleta e as listas `*`/personalizadas/nomeadas em PT-BR. **O teste em jogo é do
-  jogador.**
+  todas as ações que não são de coleta e as listas `*`/personalizadas/nomeadas em PT-BR. **O teste em jogo do
+  `colete 10 pedras` ficou pendente de confirmação explícita do jogador** (o teste em jogo que revelou o erro foi com o
+  modelo; a re-tentativa depois desta correção não foi confirmada).
 
 #### 7. O teste em jogo (modelo pequeno): o contrato ensina que `action` e `resource` combinam
 
@@ -1570,8 +1594,8 @@ cópia:
 - **Nada mais mudou:** `ValidActions`/schema, o `LlmIntent`, o `LlmClient`, a personalidade/memória, o TTS, o painel, o
   STT e as ordens ficaram iguais. A correção da seção 6 continua sendo a rede de segurança para quando o modelo insistir
   em mandar os campos trocados.
-- **Não verificado:** se o 3B **deixa** de errar com o prompt novo — isso é o teste em jogo do jogador (o prompt maior
-  não foi medido contra nenhum modelo aqui).
+- **Não verificado:** se o 3B **deixa** de errar com o prompt novo (o prompt maior não foi medido contra nenhum modelo
+  aqui) — **o teste em jogo do `colete 10 pedras` ficou pendente de confirmação explícita do jogador.**
 
 #### 8. O teste em jogo (modelo pequeno): as ações vizinhas — `drop`, `pickup` e `nopickup`
 
@@ -1650,7 +1674,7 @@ madeira** (e o log traz a linha da 8.2 quando o modelo insistir em `nopickup`); 
 `equipe a picareta` deve equipar a **picareta** (com o contrato novo, o `target` do modelo já deve vir certo — o
 fallback da 3.6b continua sendo a rede).
 
-### Fase 3.1 — a ação de recolher os itens do chão (o que faltava) (✅ build 0 erros + DLL no plugin — branch `feat/recolher`; teste em jogo pendente)
+### Fase 3.1 — a ação de recolher os itens do chão (o que faltava) (✅ validado em jogo — branch `feat/recolher`; teste final do jogador: *"pra mim parece excelente"*)
 
 O jogador largou o machado (`jogue seu machado no chão` → `[IA] Order "drop": Companion dropped 1 x "Machado Nordico"`) e
 depois pediu para pegar de volta (`pegue o machado nordico do chão`, `junte o machado`, `recolhe os itens`). O modelo
@@ -1737,9 +1761,9 @@ o flag ligado — `pickupZdo == null || pickupZdo.GetBool(CompanionSetup.AutoPic
    para). Ligar de volta → volta.
 5. `para de recolher` (`nopickup`) e depois `recolhe os itens` → o flag volta e ele cata de novo.
 
-**Não verificado:** tudo o que acontece **em jogo** (andar, pegar, a fala, a coleira, o botão da roda) — o teste em jogo é
-do jogador. Verificado aqui: o build (0 erros, 0 avisos), a `Humanoid.Pickup`/`ItemDrop.CanPickup`/`OnPlayerDrop`/
-`CanAddItem` no jogo decompilado, e os pontos de chamada do ímã e do `MHR_Loot` no código.
+**Teste em jogo:** o jogador confirmou o teste final da fase (*"pra mim parece excelente"*). Verificado aqui antes: o
+build (0 erros, 0 avisos), a `Humanoid.Pickup`/`ItemDrop.CanPickup`/`OnPlayerDrop`/`CanAddItem` no jogo decompilado, e os
+pontos de chamada do ímã e do `MHR_Loot` no código.
 
 
 

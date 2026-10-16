@@ -285,9 +285,17 @@ Ao atualizar de uma versão antiga, as opções que você mudou são migradas au
 ## Planos futuros
 
 - Continuar melhorando a IA do companheiro e as ordens em linguagem natural.
-- Mais recursos de voz: **mais vozes**, escolha de voz pelo menu radial e um menu de personalidade/voz em jogo.
+- Mais recursos de voz: **mais vozes** e escolha de voz pelo menu radial (o **painel da IA**, tecla `I`, já permite
+  escolher a voz e a personalidade **em jogo** desde a Fase 3.7).
 - Mais recursos de multiplayer.
 - Revisão de habilidades e atributos em cima dos de um jogador.
+
+## Problemas conhecidos
+
+- **Painel `F8`:** numa faixa dos controles o **clique do mouse não responde** (há algo invisível na frente deles). O
+  **painel da IA** (tecla `I`) **não** tem esse problema. **Em aberto** — sem correção até agora.
+- **Volume da voz:** a fala do companheiro **não** passa pelo mixer do jogo, então ela **ignora os sliders de volume do
+  Valheim** (música/SFX). Quem manda no volume dela é o `[IA] TtsVolume` (ou o slider do painel da IA).
 
 ## Código-fonte
 
