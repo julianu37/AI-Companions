@@ -107,7 +107,7 @@ public static class CompanionManager
 			localPlayer.m_customData["TraderSharedBank_Balance"] = bankBalance.ToString();
 			return false;
 		}
-		MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, ModLocalization.LocFmt("hc_msg_arrived", def.DisplayName.ToLower()));
+		MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, ModLocalization.LocFmt("hc_msg_arrived", CompanionTierData.LocalName(def).ToLower()));
 		return true;
 	}
 

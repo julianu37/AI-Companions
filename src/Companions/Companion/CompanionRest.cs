@@ -1610,7 +1610,7 @@ public class CompanionRest : MonoBehaviour
 		CompanionInteract component = GetComponent<CompanionInteract>();
 		if ((object)component == null)
 		{
-			return "Companion";
+			return ModLocalization.Loc("hc_msg_name_default");
 		}
 		return component.GetCompanionName();
 	}

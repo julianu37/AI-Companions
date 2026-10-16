@@ -87,6 +87,16 @@ public static class ModLocalization
 			{ "hc_ui_desc_trader", "Hire a loyal companion to join your journey. They will follow you across the world and fight by your side against any threat.\n\nEach companion has their own health, stamina and inventory. You will need to equip them with gear and keep them fed to stay battle-ready.\n\nInteract with your companion to open their panel, where you can manage their equipment and issue commands.\n\nCustomise their appearance on the left, then confirm your purchase." },
 			{ "hc_ui_placeholder_name", "Enter name..." },
 			{ "hc_ui_label_food", "Food" },
+			// Traducao PT-BR - auditoria de cobertura: the tier names the player reads (the trader panel's Sub-Type
+			// buttons, the buy button and the "your new X has arrived" line). CompanionTierDef.DisplayName stays in
+			// English for the logs; CompanionTierData.LocalName resolves these keys (with the English name as the
+			// fallback, the same pattern MHR_Shrine uses).
+			{ "hc_tier_companion", "Companion" },
+			{ "hc_tier_warrior", "Warrior" },
+			{ "hc_tier_mage", "Mage" },
+			{ "hc_tier_fire_mage", "Fire Mage" },
+			{ "hc_tier_ice_mage", "Ice Mage" },
+			{ "hc_tier_support", "Support" },
 			{ "hc_radial_follow", "Follow" },
 			{ "hc_radial_wood", "Wood" },
 			{ "hc_radial_stone", "Stone" },
@@ -110,6 +120,10 @@ public static class ModLocalization
 			{ "hc_radial_cook", "Cook" },
 			{ "hc_radial_repair", "Repair and Restock" },
 			{ "hc_radial_despawn", "Despawn" },
+			// Traducao PT-BR - auditoria de cobertura: this key is referenced by the radial's (dead) UpdateDespawnLabel
+			// and had no default since the despawn confirmation became a YesNoPopup, so the label would have shown the
+			// raw token if that path ever came back to life.
+			{ "hc_radial_despawn_confirm", "Confirm?" },
 			{ "hc_despawn_popup_title", "Despawn Companion" },
 			{ "hc_despawn_popup_text", "Permanently remove {0}? Anything they're carrying will be left in a tombstone." },
 			{ "hc_radial_active", "ACTIVE" },
@@ -117,6 +131,8 @@ public static class ModLocalization
 			{ "hc_radial_off", "OFF" },
 			{ "hc_hover_inventory", "Inventory" },
 			{ "hc_hover_commands", "Commands" },
+			// the "hold" word of the companion's hover line ([Hold E] Commands) - it was hardcoded in GetHoverText
+			{ "hc_hover_hold", "Hold" },
 			{ "hc_msg_not_yours", "This is not your companion." },
 			{ "hc_msg_need_coins", "Not enough coins in bank! Need {0}" },
 			{ "hc_msg_arrived", "Your new {0} has arrived!" },
@@ -135,6 +151,8 @@ public static class ModLocalization
 			{ "hc_msg_reposition_on", "UI Reposition Mode — drag to move, F7 to confirm" },
 			{ "hc_msg_reposition_off", "UI position saved" },
 			{ "hc_msg_commanded", "Moving to position." },
+			// the tombstone's "X has been resurrected!" - it was hardcoded in CompanionTombstoneResurrect
+			{ "hc_msg_resurrected", "{0} has been resurrected!" },
 			{ "hc_speech_repair_start", "Time for repairs." },
 			{ "hc_speech_repair_done", "All fixed up!" },
 			{ "hc_speech_smelt_monitoring", "Everything's running. I'll keep watch." },
@@ -208,6 +226,11 @@ public static class ModLocalization
 			{ "hc_cmd_comehere_1", "Coming!" },
 			{ "hc_cmd_comehere_2", "On my way back!" },
 			{ "hc_cmd_comehere_3", "Right behind you." },
+			// Traducao PT-BR - auditoria de cobertura: the greetings ReturnLogic speaks when it brings a companion
+			// that was left behind back to you (they were hardcoded English in ReturnLogic)
+			{ "hc_cmd_return_1", "I've been looking for you!" },
+			{ "hc_cmd_return_2", "There you are!" },
+			{ "hc_cmd_return_3", "Finally found you!" },
 			{ "hc_cmd_attack_1", "On it!" },
 			{ "hc_cmd_attack_2", "Going in!" },
 			{ "hc_cmd_attack_3", "I'll take them down!" },

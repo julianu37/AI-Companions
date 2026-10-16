@@ -763,7 +763,7 @@ public class CompanionInteractPanel : MonoBehaviour
 			_companionNview.GetZDO().Set(CompanionSetup.NameHash, newName);
 			if (_companionChar != null)
 			{
-				_companionChar.m_name = (string.IsNullOrEmpty(newName) ? "Companion" : newName);
+				_companionChar.m_name = (string.IsNullOrEmpty(newName) ? ModLocalization.Loc("hc_msg_name_default") : newName);
 			}
 		}
 	}

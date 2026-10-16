@@ -327,7 +327,7 @@ internal static class MHR_Roster
 		foreach (CompanionSetup item in list)
 		{
 			ZDO zDO = item.GetComponent<ZNetView>().GetZDO();
-			string text = zDO.GetString(CompanionSetup.NameHash, "Companion");
+			string text = zDO.GetString(CompanionSetup.NameHash, ModLocalization.Loc("hc_msg_name_default"));
 			CompanionsPlugin.Log.LogWarning($"[Roster] Found an old copy of \"{text}\" at {item.transform.position:F1} (copy {zDO.GetInt(GenHash)}, the recovered one is copy {Find(zDO.GetString(CompanionSetup.MHR_CompanionIdHash)).Gen}) - removing it");
 			MessageHud.instance?.ShowMessage(MessageHud.MessageType.TopLeft, ModLocalization.LocFmt("hc_roster_old_copy", text));
 			item._mhrStale = true;
@@ -400,7 +400,7 @@ internal static class MHR_Roster
 			CompanionsPlugin.Log.LogInfo(string.Format("[Roster] Added \"{0}\" to your companion roster for this world ({1} item(s))", zdo.GetString(CompanionSetup.NameHash, "Companion"), c.GetComponent<Humanoid>()?.GetInventory()?.NrOfItems() ?? 0));
 		}
 		entry.Gen = zdo.GetInt(GenHash);
-		entry.Name = zdo.GetString(CompanionSetup.NameHash, "Companion");
+		entry.Name = zdo.GetString(CompanionSetup.NameHash, ModLocalization.Loc("hc_msg_name_default"));
 		GameObject prefab = ZNetScene.instance.GetPrefab(zdo.GetPrefab());
 		entry.Prefab = ((prefab != null) ? prefab.name : CompanionTierData.Companion.PrefabName);
 		entry.Appearance = zdo.GetString(CompanionSetup.AppearanceHash);

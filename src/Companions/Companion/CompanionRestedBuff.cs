@@ -230,7 +230,7 @@ public class CompanionRestedBuff : MonoBehaviour
 
 	private string GetCompanionName()
 	{
-		string result = ((_character != null) ? _character.m_name : "Companion");
+		string result = ((_character != null) ? _character.m_name : ModLocalization.Loc("hc_msg_name_default"));
 		if (_nview?.GetZDO() != null)
 		{
 			string text = _nview.GetZDO().GetString(CompanionSetup.NameHash);

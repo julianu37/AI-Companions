@@ -460,6 +460,20 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   lógica saiu para `src/Companions/UI/ModUiAudit.cs` e agora roda para o painel F8 **e** para o painel da IA, uma vez por
   sessão (nunca por frame). Ver `docs/roadmap.md` (*Correção — o clique engolido no painel F8 e o texto do centro da
   roda: a camada era a causa*) e `package/CHANGELOG.md`.
+- **Tradução PT-BR — auditoria de cobertura (branch `fix/traducao`):** varredura de **todo texto que o jogador pode
+  ver** — chaves de UI (`ModLocalization` × `Translations/Portuguese_Brazilian.json`), falas
+  (`Speech/Portuguese_Brazilian.json`), chamadas `Loc`/`LocFmt`/`LocOr` do `src/`, literais em inglês nos caminhos de
+  UI/HUD/hover/fala e os docs. **374 → 386 chaves de UI (0 ausentes, 0 em inglês)** e **15 categorias de fala / 186
+  linhas (0 ausentes)**. Os **textos em inglês que apareciam** viraram chaves: o **nome do companheiro e dos tipos**
+  (`CompanionPrefabs` escrevia `m_name = def.DisplayName`, e era isso que o HUD/hover/roda mostravam —
+  `CompanionTierData.LocalName` resolve `hc_tier_*`), **"X has been resurrected!"** (`hc_msg_resurrected`), o
+  **"Hold"** do hover (`hc_hover_hold`), os **três cumprimentos do recall** que estavam hardcoded no `ReturnLogic`
+  (`hc_cmd_return_1..3`), **"ON"/"OFF"** do painel F8 (chaves do radial), **"Push-to-talk"** → **"Aperte para falar"**
+  e os reservas **"Companion"** que sobravam em caminhos visíveis (`hc_msg_name_default`). A chave **órfã**
+  `hc_radial_despawn_confirm` voltou aos dois lados. **Não é nosso** (fica como está): nomes de item/criatura/cultura
+  dos assets do jogo, tokens `$...` do jogo, chaves de configuração e as ~1500 linhas de log/diagnóstico — o
+  `CHANGELOG` mantém o histórico do upstream (abaixo de 1.5.4) em inglês de propósito. Números e método:
+  `docs/roadmap.md` (*Tradução PT-BR — auditoria de cobertura*) e `package/CHANGELOG.md`.
 - **Pendências conhecidas (abertas):** o **release/empacotamento** (versão e `CHANGELOG`
   não fechados e a pasta do plugin tem **~428 MB** — não cabe num pacote Thunderstore normal); a **voz não passa pelo
   mixer do jogo** (por isso ignora os sliders de volume do Valheim e só obedece `[IA] TtsVolume`); e a branch

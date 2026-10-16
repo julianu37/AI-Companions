@@ -1127,7 +1127,7 @@ public class ConfigPanel : MonoBehaviour
 		{
 			btnImg.color = (typed.Value ? GoldColor : TabInactive);
 		}
-		GameObject gameObject4 = CreateLabel(gameObject3.transform, typed.Value ? "ON" : "OFF", 11f, Color.white);
+		GameObject gameObject4 = CreateLabel(gameObject3.transform, OnOff(typed.Value), 11f, Color.white);
 		RectTransform component3 = gameObject4.GetComponent<RectTransform>();
 		component3.anchorMin = Vector2.zero;
 		component3.anchorMax = Vector2.one;
@@ -1140,13 +1140,13 @@ public class ConfigPanel : MonoBehaviour
 		{
 			typed.Value = !typed.Value;
 			btnImg.color = (typed.Value ? GoldColor : (hasToggleSprite ? Color.white : TabInactive));
-			btnTMP.text = (typed.Value ? "ON" : "OFF");
+			btnTMP.text = OnOff(typed.Value);
 		});
 		CreateDefaultButton(gameObject.transform, entry, delegate
 		{
 			typed.Value = (bool)entry.DefaultValue;
 			btnImg.color = (typed.Value ? GoldColor : (hasToggleSprite ? Color.white : TabInactive));
-			btnTMP.text = (typed.Value ? "ON" : "OFF");
+			btnTMP.text = OnOff(typed.Value);
 		});
 		_entryData.Add(entry);
 		_entrySliders.Add(null);
@@ -1154,7 +1154,7 @@ public class ConfigPanel : MonoBehaviour
 		{
 			typed.Value = (bool)entry.DefaultValue;
 			btnImg.color = (typed.Value ? GoldColor : (hasToggleSprite ? Color.white : TabInactive));
-			btnTMP.text = (typed.Value ? "ON" : "OFF");
+			btnTMP.text = OnOff(typed.Value);
 		});
 		return gameObject;
 	}
@@ -1242,6 +1242,13 @@ public class ConfigPanel : MonoBehaviour
 		rowImage.color = RowBg;
 		rowImage.raycastTarget = false;
 		return gameObject;
+	}
+
+	// Traducao PT-BR - auditoria de cobertura: the toggle labels were hardcoded "ON"/"OFF" here. They reuse the
+	// radial's own keys (hc_radial_on/hc_radial_off), which are already localized in every language file.
+	private static string OnOff(bool on)
+	{
+		return ModLocalization.Loc(on ? "hc_radial_on" : "hc_radial_off");
 	}
 
 	private GameObject CreateLabel(Transform parent, string text, float size, Color color)

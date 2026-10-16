@@ -2055,7 +2055,7 @@ public class CompanionInteract : MonoBehaviour
 		string text3 = ((!ZInput.IsGamepadActive()) ? ZInput.instance.GetBoundKeyString("Use") : ZInput.instance.GetBoundKeyString("JoyUse"));
 		if (IsRadialKeyUse)
 		{
-			return companionName + "\n[<color=yellow><b>" + text3 + "</b></color>] " + text + "\n[<color=yellow>Hold <b>" + text3 + "</b></color>] " + text2;
+			return companionName + "\n[<color=yellow><b>" + text3 + "</b></color>] " + text + "\n[<color=yellow>" + ModLocalization.Loc("hc_hover_hold") + " <b>" + text3 + "</b></color>] " + text2;
 		}
 		string text4 = ((!ZInput.IsGamepadActive()) ? ModConfig.RadialMenuKey.Value.ToString() : text3);
 		return companionName + "\n[<color=yellow><b>" + text3 + "</b></color>] " + text + "\n[<color=yellow><b>" + text4 + "</b></color>] " + text2;

@@ -41,7 +41,7 @@ public class CompanionHudPanel : MonoBehaviour
 			CompanionFood component5 = comp.GetComponent<CompanionFood>();
 			if (_nameText != null)
 			{
-				_nameText.text = ((component != null && !string.IsNullOrEmpty(component.m_name)) ? component.m_name : "Companion");
+				_nameText.text = ((component != null && !string.IsNullOrEmpty(component.m_name)) ? component.m_name : ModLocalization.Loc("hc_msg_name_default"));
 			}
 			float num = ((component != null) ? component.GetHealth() : 0f);
 			float num2 = ((component != null) ? component.GetMaxHealth() : 1f);
@@ -207,7 +207,7 @@ public class CompanionHudPanel : MonoBehaviour
 				gameObject4.SetActive(value: false);
 				_seIconSlots[j] = image2;
 			}
-			_nameText = MakeText(RowRoot, "Name", "Companion", font, 10f, ColName, TextAlignmentOptions.Center);
+			_nameText = MakeText(RowRoot, "Name", ModLocalization.Loc("hc_msg_name_default"), font, 10f, ColName, TextAlignmentOptions.Center);
 			RectTransform component4 = _nameText.GetComponent<RectTransform>();
 			component4.anchorMin = new Vector2(0f, 1f);
 			component4.anchorMax = new Vector2(1f, 1f);

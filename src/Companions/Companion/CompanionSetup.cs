@@ -608,7 +608,7 @@ public class CompanionSetup : MonoBehaviour
 				CompanionInteractPanel.Instance?.Hide();
 				InventoryGui.instance?.Hide();
 			}
-			string text = ((_humanoid != null) ? _humanoid.m_name : "Companion");
+			string text = ((_humanoid != null) ? _humanoid.m_name : ModLocalization.Loc("hc_msg_name_default"));
 			string text2 = zDO.GetString(NameHash);
 			if (!string.IsNullOrEmpty(text2))
 			{
@@ -1613,7 +1613,7 @@ public class CompanionSetup : MonoBehaviour
 		{
 			return;
 		}
-		string companionName = _humanoid.m_name ?? "Companion";
+		string companionName = _humanoid.m_name ?? ModLocalization.Loc("hc_msg_name_default");
 		ZDO zDO = _nview?.GetZDO();
 		if (zDO != null)
 		{

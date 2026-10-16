@@ -290,7 +290,7 @@ public class CompanionSkills : MonoBehaviour
 		{
 			return;
 		}
-		string text = ((_character != null) ? _character.m_name : "Companion");
+		string text = ((_character != null) ? _character.m_name : ModLocalization.Loc("hc_msg_name_default"));
 		if (_nview?.GetZDO() != null)
 		{
 			string text2 = _nview.GetZDO().GetString(CompanionSetup.NameHash);

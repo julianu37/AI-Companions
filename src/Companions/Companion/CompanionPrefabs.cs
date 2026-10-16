@@ -199,7 +199,7 @@ public static class CompanionPrefabs
 
 	private static void SetupHumanoid(Humanoid h, ZNetScene scene, CompanionTierDef def)
 	{
-		h.m_name = def.DisplayName;
+		h.m_name = CompanionTierData.LocalName(def);
 		h.m_group = "HC_Companion";
 		h.m_faction = Character.Faction.Players;
 		h.m_boss = false;
@@ -292,7 +292,7 @@ public static class CompanionPrefabs
 		go.AddComponent<CompanionSetup>();
 		CompanionsPlugin.Log.LogInfo("[CompanionPrefabs]   + CompanionSetup (" + def.PrefabName + ")");
 		Container container = go.AddComponent<Container>();
-		container.m_name = def.DisplayName;
+		container.m_name = CompanionTierData.LocalName(def);
 		container.m_width = 8;
 		container.m_height = 4;
 		container.m_privacy = Container.PrivacySetting.Public;

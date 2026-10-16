@@ -24,6 +24,25 @@ public static class CompanionTierData
 
 	public static float MaxCarryWeight => ModConfig.MaxCarryWeight.Value;
 
+	// Traducao PT-BR - auditoria de cobertura: the tier name as the player reads it. The localized text is written in
+	// directly (the same thing MHR_Shrine does for the shrine's piece name), with the English data name as the
+	// fallback for the (unlikely) case of the dictionary not being up yet - LocOr alone would return the raw key
+	// while Localization.instance is null.
+	public static string LocalName(CompanionTierDef def)
+	{
+		string key = ((def != null) ? def.NameKey : null);
+		string fallback = ((def != null) ? def.DisplayName : null);
+		if (string.IsNullOrEmpty(fallback))
+		{
+			fallback = "Companion";
+		}
+		if (Localization.instance == null || string.IsNullOrEmpty(key))
+		{
+			return fallback;
+		}
+		return ModLocalization.LocOr(key, fallback);
+	}
+
 	public static bool IsDvergerVariant(int prefabHash)
 	{
 		return _dvergerHashes.Contains(prefabHash);
@@ -35,6 +54,7 @@ public static class CompanionTierData
 		{
 			PrefabName = "HC_Companion",
 			DisplayName = "Companion",
+			NameKey = "hc_tier_companion",
 			SourcePrefab = "Player",
 			Health = 25f,
 			WalkSpeed = 2f,
@@ -46,6 +66,7 @@ public static class CompanionTierData
 		{
 			PrefabName = "HC_DvergerWarrior",
 			DisplayName = "Warrior",
+			NameKey = "hc_tier_warrior",
 			SourcePrefab = "Dverger",
 			Health = 25f,
 			WalkSpeed = 2f,
@@ -57,6 +78,7 @@ public static class CompanionTierData
 		{
 			PrefabName = "HC_Dverger",
 			DisplayName = "Mage",
+			NameKey = "hc_tier_mage",
 			SourcePrefab = "DvergerMage",
 			Health = 25f,
 			WalkSpeed = 2f,
@@ -68,6 +90,7 @@ public static class CompanionTierData
 		{
 			PrefabName = "HC_DvergerFire",
 			DisplayName = "Fire Mage",
+			NameKey = "hc_tier_fire_mage",
 			SourcePrefab = "DvergerMageFire",
 			Health = 25f,
 			WalkSpeed = 2f,
@@ -79,6 +102,7 @@ public static class CompanionTierData
 		{
 			PrefabName = "HC_DvergerIce",
 			DisplayName = "Ice Mage",
+			NameKey = "hc_tier_ice_mage",
 			SourcePrefab = "DvergerMageIce",
 			Health = 25f,
 			WalkSpeed = 2f,
@@ -90,6 +114,7 @@ public static class CompanionTierData
 		{
 			PrefabName = "HC_DvergerSupport",
 			DisplayName = "Support",
+			NameKey = "hc_tier_support",
 			SourcePrefab = "DvergerMageSupport",
 			Health = 25f,
 			WalkSpeed = 2f,

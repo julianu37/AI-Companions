@@ -452,7 +452,7 @@ public class CompanionPanel
 			Button item = AddToggleButton(parent2, v.DisplayName, buttonTemplate, new Vector2(0.01f, 0f), new Vector2(0.99f, 1f), delegate
 			{
 				SetDvergerVariant(v);
-			});
+			}, CompanionTierData.LocalName(v));
 			_variantButtons.Add(item);
 		}
 		float num11 = 0f - y3;
@@ -513,7 +513,7 @@ public class CompanionPanel
 		}
 		if (buttonTemplate != null)
 		{
-			string label = (StarterMode ? ModLocalization.Loc("hc_ui_btn_spawn") : ModLocalization.LocFmt("hc_ui_btn_buy", "Companion", CompanionTierData.Price.ToString("N0")));
+			string label = (StarterMode ? ModLocalization.Loc("hc_ui_btn_spawn") : ModLocalization.LocFmt("hc_ui_btn_buy", CompanionTierData.LocalName(CompanionTierData.Companion), CompanionTierData.Price.ToString("N0")));
 			GameObject gameObject2 = CreateActionButton(buttonTemplate, col, "BuyButton", label);
 			_buyButton = gameObject2.GetComponent<Button>();
 			if (_buyButton != null)
@@ -1076,7 +1076,7 @@ public class CompanionPanel
 		}
 		if (_buyButtonLabel != null)
 		{
-			string text = _selectedTier?.DisplayName ?? "Companion";
+			string text = CompanionTierData.LocalName(_selectedTier);
 			_buyButtonLabel.text = ((bankBalance >= price) ? ModLocalization.LocFmt("hc_ui_btn_buy", text, price.ToString("N0")) : ModLocalization.LocFmt("hc_ui_btn_need", price.ToString("N0")));
 		}
 	}
@@ -1451,7 +1451,7 @@ public class CompanionPanel
 	{
 		if (_buyButtonLabel != null)
 		{
-			_buyButtonLabel.text = ModLocalization.LocFmt("hc_ui_btn_buy", _selectedTier.DisplayName, CompanionTierData.Price.ToString("N0"));
+			_buyButtonLabel.text = ModLocalization.LocFmt("hc_ui_btn_buy", CompanionTierData.LocalName(_selectedTier), CompanionTierData.Price.ToString("N0"));
 		}
 	}
 

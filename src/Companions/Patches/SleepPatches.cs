@@ -146,7 +146,7 @@ public static class SleepPatches
 		Character component2 = rest.GetComponent<Character>();
 		if (!(component2 != null))
 		{
-			return "Companion";
+			return ModLocalization.Loc("hc_msg_name_default");
 		}
 		return component2.m_name;
 	}

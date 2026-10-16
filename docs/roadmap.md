@@ -311,19 +311,40 @@ arquivos JSON ao lado do DLL:
 | Sistema | Arquivo | O que cobre |
 |---|---|---|
 | `ModLocalization` (UI) | `Translations/<Idioma>.json` | Painéis, menu radial, hover, HUD, mensagens do HUD, localização do Santuário/lista |
-| `SpeechConfig` (falas) | `Translations/speech/<Idioma>.json` | As falas do companheiro (saudações, conversa fiada, combate, fome, trabalho...) |
+| `SpeechConfig` (falas) | `Speech/<Idioma>.json` (o `SpeechConfig.Load` monta `<pasta do plugin>/Speech/<Idioma>.json`; o `speech.json` da pasta do plugin é o reserva) | As falas do companheiro (saudações, conversa fiada, combate, fome, trabalho...) |
 
 Idioma do jogo em PT-BR = **`Portuguese_Brazilian`**.
 
 | Item | Status |
 |---|---|
-| `Translations/Portuguese_Brazilian.json` — **263 chaves** (204 do upstream + 59 novas para textos que estavam em inglês no código) | ✅ |
-| `Translations/speech/Portuguese_Brazilian.json` — **186 falas** (15 categorias, mesmas do `SpeechConfig.Defaults`) | ✅ |
-| Cópia no build (`Companions.csproj` → alvo `DeployTranslations`, `Translations\**\*.json` → `$(DeployDir)\Translations\`) | ✅ |
-| Textos fixos em inglês que o jogador vê (painel F8 + abas, painel da casa, HUD, hover do túmulo/cama, recall, Santuário/lista) localizados via `ModLocalization.Loc/LocFmt/LocOr` | ✅ |
+| `Translations/Portuguese_Brazilian.json` — **386 chaves** (todas as do `ModLocalization`, 1:1) | ✅ |
+| `Speech/Portuguese_Brazilian.json` — **186 falas** (15 categorias, mesmas do `SpeechConfig.Defaults`) | ✅ |
+| Cópia no build (`Companions.csproj` → alvo `DeployTranslations`, `Translations\**\*.json` → `$(DeployDir)\Translations\` e `Speech\**\*.json` → `$(DeployDir)\Speech\`) | ✅ |
+| Textos fixos em inglês que o jogador vê (painel F8 + abas, painel da casa, HUD, hover do túmulo/cama/companheiro, recall, Santuário/lista, nomes de tipo do companheiro) localizados via `ModLocalization.Loc/LocFmt/LocOr` | ✅ |
 | Descrições das configurações (~250) — só aparecem no `BepInEx\config\*.cfg`; o painel F8 mostra as chaves | ⏳ (fora do escopo; exigiria ~250 chaves novas) |
 | Nomes técnicos das configurações no painel F8 (ex.: `MaxCarryWeight`) | ⏳ (mantidos iguais ao `.cfg`, por rastreabilidade) |
-| Linhas de log/diagnóstico (`[Roster]`, `[Shrine]`, `[Direct]`...) | ⏳ (mantidas em inglês de propósito, para suporte) |
+| Linhas de log/diagnóstico (`[Roster]`, `[Shrine]`, `[Direct]`, `[IA]`, `[TTS]`, `[STT]`, `[UiDiag]`, `[Collect]`, `[ECO]`...) | ⏳ (mantidas em inglês de propósito, para suporte) |
+
+### Tradução PT-BR — auditoria de cobertura (branch `fix/traducao`)
+
+Auditoria de **todo texto que o jogador pode ver**, com números (o método e os `grep`s estão no
+`package/CHANGELOG.md` e nos commits da branch):
+
+| Superfície | Antes | Depois |
+|---|---|---|
+| Chaves de UI (`ModLocalization` × `Translations/Portuguese_Brazilian.json`) | 374 chaves · **0 ausentes** · 7 com valor igual ao inglês (6 legítimas + `Push-to-talk`) | **386** chaves · 0 ausentes · 0 em inglês (as 6 que batem são legítimas: `Dverger`, `Stamina`, `Ok`, `Volume`) |
+| Falas (`Speech/Portuguese_Brazilian.json`) | 15 categorias / 186 linhas · 0 ausentes | igual (só o `"Skål!"` é igual ao inglês — é um brinde) |
+| Chamadas `Loc`/`LocFmt`/`LocOr` no `src/` | 251 chaves referenciadas · 1 **órfã** (`hc_radial_despawn_confirm`, num método morto) | 256 referências · **0 órfãs** (as 4 "faltantes" que o script acusa são prefixos de concatenação: `hc_cat_`, `hc_roster_`, `hc_idle_chat_`, `hc_ai_voice_`) |
+| Textos em inglês **hardcoded** em caminhos visíveis | 6 grupos (nome do companheiro e dos tipos, "has been resurrected!", "Hold", os 3 cumprimentos do recall, "ON"/"OFF" do F8, "Push-to-talk") | **0** (todos em chaves) |
+| Docs (`README.md`, `package/README.md`, `package/GUIDE.md`, `package/CONFIGURATION.md`) | PT-BR | PT-BR (o `CHANGELOG` mantém o histórico do upstream, abaixo de 1.5.4, em inglês de propósito) |
+
+**O que não dá para traduzir (não é nosso):** nomes de **item/criatura/cultura/cabelo/barba** (vêm dos assets do
+jogo, o próprio Valheim localiza), os **tokens `$...`** do jogo (`$KEY_Use`, `$msg_skillup`, `$skill_*`, `$se_rested`),
+as **chaves de configuração** (nomes internos do `.cfg`, mostrados no F8 por rastreabilidade) e as **~1500 linhas de
+log/diagnóstico**, que só aparecem se o jogador abrir o `LogOutput.log`.
+
+**Ficou de fora (de propósito):** o **histórico do upstream** no `package/CHANGELOG.md` (abaixo de 1.5.4, ~1270
+linhas em inglês — é o registro dele) e o **texto do próprio jogo** (vanilla).
 
 ---
 

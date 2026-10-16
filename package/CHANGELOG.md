@@ -1,8 +1,41 @@
 # Changelog
 
-All notable changes to this fork of ProfMags' Offline Companions. Versions before 1.4.0 are the original mod (see [ProfMags' Thunderstore page](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) for that history) plus the initial batch of Valheim 1.0 API-compatibility fixes that let the mod load and run at all on 1.0.
+Todas as mudanças deste fork do Offline Companions, do ProfMags. As versões anteriores à 1.4.0 são o mod original (veja a [página do ProfMags na Thunderstore](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) para esse histórico) mais o primeiro lote de correções de compatibilidade com a API do Valheim 1.0 que fizeram o mod carregar e rodar. **As entradas abaixo de 1.5.4 são o histórico do upstream e ficam como estão (em inglês) — só a nossa seção "Unreleased" é nossa.**
 
-## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.6b: a ordem sem alvo do modelo (drop/equip/attack caem para as palavras do jogador) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Fase 3.3c: raio de coleta maior e chatter aleatório desligado + Fase 3.3d: a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador + Fase 3.8: o companheiro abre o próprio inventário por voz/chat + Fase 3.4: o companheiro FALA (TTS local, Kokoro-82M via sherpa-onnx) + Fase 3.7: painel da IA no jogo (personalidade, voz com Ouvir, push-to-talk) + Fase 3.4 (parte 3): o eco do TTS RESOLVIDO — era a zona de reverb global do jogo (a voz sai seca) + Fase 3.1: saída estruturada (JSON schema) — destrava modelos pequenos + Tradução PT-BR (fork ModAI-BR-Companions) + correção: o painel F8 não engole mais cliques (camada 31→33 + raycast dos decorativos) + correção (a de verdade): os painéis e a roda do mod vão para a faixa **1701+** — **a camada era a causa** do clique engolido no F8 (o HUD do jogo está em 400; o 31→33 era insuficiente)
+## Unreleased — Tradução PT-BR: auditoria de cobertura (o que o jogador lê, em inglês, era bug) + Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.6b: a ordem sem alvo do modelo (drop/equip/attack caem para as palavras do jogador) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Fase 3.3c: raio de coleta maior e chatter aleatório desligado + Fase 3.3d: a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador + Fase 3.8: o companheiro abre o próprio inventário por voz/chat + Fase 3.4: o companheiro FALA (TTS local, Kokoro-82M via sherpa-onnx) + Fase 3.7: painel da IA no jogo (personalidade, voz com Ouvir, push-to-talk) + Fase 3.4 (parte 3): o eco do TTS RESOLVIDO — era a zona de reverb global do jogo (a voz sai seca) + Fase 3.1: saída estruturada (JSON schema) — destrava modelos pequenos + Tradução PT-BR (fork ModAI-BR-Companions) + correção: o painel F8 não engole mais cliques (camada 31→33 + raycast dos decorativos) + correção (a de verdade): os painéis e a roda do mod vão para a faixa **1701+** — **a camada era a causa** do clique engolido no F8 (o HUD do jogo está em 400; o 31→33 era insuficiente)
+- **Tradução PT-BR — auditoria de cobertura (branch `fix/traducao`).** Auditoria de **todo texto que o jogador pode
+  ver**: as chaves de UI (`ModLocalization` × `Translations/Portuguese_Brazilian.json`), as falas
+  (`Speech/Portuguese_Brazilian.json`), os painéis, os hovers, as mensagens do `MessageHud` e os docs. **374 chaves de
+  UI: 0 ausentes, 0 em inglês** (as 7 que batiam com o inglês eram legítimas) → **386 chaves: 0 ausentes, 0 em
+  inglês** depois das 12 novas; **15 categorias de fala / 186 linhas: 0 ausentes** (só o "Skål!" é igual ao inglês, é
+  um brinde). **Os textos em inglês que apareciam para o jogador foram para a localização** (chave nova em PT-BR **e**
+  o par em inglês no `ModLocalization`):
+  - **o nome do companheiro** — `CompanionPrefabs` escrevia `m_name = def.DisplayName` ("Companion", "Warrior",
+    "Mage"...) no prefab, e era isso que o **HUD**, o **hover** e a **roda** mostravam num companheiro sem nome
+    próprio. Agora `CompanionTierData.LocalName(def)` resolve as chaves novas `hc_tier_companion` /
+    `_warrior` / `_mage` / `_fire_mage` / `_ice_mage` / `_support` (**Companheiro**, **Guerreiro**, **Mago**, **Mago
+    de Fogo**, **Mago de Gelo**, **Suporte**), com o nome em inglês como reserva — o mesmo padrão que o `MHR_Shrine`
+    já usava. Vale também para os botões de **Sub-Tipo**, o botão de **compra** ("Comprar Mago de Gelo (500)"), o
+    nome do **baú** do companheiro e a mensagem "Seu novo mago chegou!";
+  - **"X has been resurrected!"** do túmulo → `hc_msg_resurrected` (*"{0} foi ressuscitado!"*);
+  - **"Hold"** do hover do companheiro (`[Hold E] Comandos`) → `hc_hover_hold` (*"Segure"*);
+  - **os três cumprimentos do recall** ("I've been looking for you!" / "There you are!" / "Finally found you!"),
+    que estavam em inglês **no código** do `ReturnLogic` e o companheiro **falava** → `hc_cmd_return_1..3`
+    (*"Estive te procurando!"*, *"Aí está você!"*, *"Finalmente te encontrei!"*);
+  - **"ON"/"OFF"** dos toggles do painel **F8** → as chaves do radial (`hc_radial_on`/`hc_radial_off`, *LIGADO* /
+    *DESLIGADO*);
+  - **"Push-to-talk"** (rótulo, rodapé e o aviso do conflito com o auto-pickup do jogo) → **"Aperte para falar"**;
+  - os reservas **"Companion"** que ainda sobravam em caminhos visíveis (`CompanionHudPanel`, o campo de nome do
+    painel, o nome do túmulo, o nome do companheiro na lista do santuário, o nome do efeito *Rested*, a mensagem de
+    espera do sono) → `hc_msg_name_default` (*"Companheiro"*);
+  - **`hc_radial_despawn_confirm`** era uma chave **órfã**: o `CompanionRadialMenu` ainda a referencia (num método
+    morto desde que a confirmação virou `YesNoPopup`) e ela não existia em nenhum dos dois lados — voltou com
+    *"Confirmar?"*, para o token cru nunca aparecer se aquele caminho voltar à vida.
+  - **Fora do escopo (não é nosso):** os nomes de **item/criatura/estilo de cabelo e barba** vêm dos assets do jogo
+    (localizados pelo próprio Valheim), os **tokens `$...`** do jogo, as **chaves de configuração** (nomes internos
+    do `.cfg`) e as ~1500 linhas de **log/diagnóstico** (`[IA]`, `[TTS]`, `[STT]`, `[UiDiag]`, `[Collect]`, `[ECO]`,
+    `[Move]`, `[Direct]`, ...) que o jogador só vê se abrir o `LogOutput.log`. O **`CHANGELOG`** mantém o histórico do
+    upstream (abaixo de 1.5.4) em inglês de propósito — é o registro dele.
 - **Os painéis e a roda do mod agora ficam ACIMA do HUD do jogo — o clique engolido no painel F8 e o texto do centro da
   roda, resolvidos pela camada (branch `fix/camadas-ui`).** O jogador reabriu o bug depois da `fix/clique-f8` (*"está a
   mesma merda"*), e estava certo: aquela correção acertou os **decorativos** (problema real, continua consertado) mas

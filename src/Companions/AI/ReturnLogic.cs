@@ -74,7 +74,26 @@ internal static class ReturnLogic
 
 	private static MethodInfo _sayM;
 
-	private static readonly string[] _greetings = new string[3] { "I've been looking for you!", "There you are!", "Finally found you!" };
+	// Traducao PT-BR - auditoria de cobertura: the recall greeting used to be hardcoded English here. Built lazily
+	// (like CompanionInteract's line pools) so the text is resolved when it is spoken, with the dictionary already up.
+	private static string[] _greetings;
+
+	private static string[] Greetings
+	{
+		get
+		{
+			if (_greetings == null)
+			{
+				_greetings = new string[3]
+				{
+					ModLocalization.Loc("hc_cmd_return_1"),
+					ModLocalization.Loc("hc_cmd_return_2"),
+					ModLocalization.Loc("hc_cmd_return_3")
+				};
+			}
+			return _greetings;
+		}
+	}
 
 	private static readonly System.Random _rng = new System.Random();
 
@@ -716,7 +735,7 @@ internal static class ReturnLogic
 							typeof(bool)
 						});
 					}
-					string text = _greetings[_rng.Next(_greetings.Length)];
+					string text = Greetings[_rng.Next(Greetings.Length)];
 					try
 					{
 						if (_sayM != null)

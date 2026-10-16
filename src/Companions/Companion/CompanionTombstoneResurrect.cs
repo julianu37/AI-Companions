@@ -134,7 +134,7 @@ public class CompanionTombstoneResurrect : MonoBehaviour
 		{
 			return null;
 		}
-		string text4 = (string.IsNullOrEmpty(text) ? "Companion" : text);
+		string text4 = (string.IsNullOrEmpty(text) ? ModLocalization.Loc("hc_msg_name_default") : text);
 		if (_isHolding)
 		{
 			float num = Time.time - _holdStartTime;
@@ -489,7 +489,7 @@ public class CompanionTombstoneResurrect : MonoBehaviour
 		{
 			MHR_RemoveGravePinNear(tombZdo.GetPosition());
 		}
-		MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, text2 + " has been resurrected!");
+		MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, ModLocalization.LocFmt("hc_msg_resurrected", text2));
 		CompanionsPlugin.Log.LogInfo($"[Resurrect] \"{text2}\" resurrected at {vector:F1}");
 		tombZdo.SetOwner(ZDOMan.GetSessionID());
 		if (flag5)
