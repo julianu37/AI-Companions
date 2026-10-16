@@ -80,6 +80,14 @@ internal static class CompanionOrders
 		outcome.LabelKey = "hc_ai_order_" + action;
 		outcome.Amount = intent.Amount;
 
+		// Fase 3.1: "recolhe os itens do chão" é uma ordem de UM TIRO (MHR_Collect), então qualquer outra ordem a
+		// derruba - feito aqui, uma vez por mensagem, para que até as ordens que nunca chegam ao Apply
+		// (attack/equip/drop/inventory) a parem. A roda faz o mesmo por CompanionInteract.CancelExistingActions.
+		if (action != "pickup")
+		{
+			MHR_Collect.CancelAll();
+		}
+
 		if (action == "come")
 		{
 			// reuse the mod's own "call everyone here" order (holding the command key)
@@ -699,6 +707,10 @@ internal static class CompanionOrders
 			return true;
 		case "pickup":
 			SetAutoPickup(companion, true);
+			// Fase 3.1: até aqui a ordem era só um flag (o ímã e o MHR_Loot pulam de propósito o que foi largado, e
+			// nada mais no mod andava até um item no chão), então o companheiro agora vai mesmo catar o que está
+			// espalhado por perto - ver MHR_Collect.
+			MHR_Collect.Start(companion);
 			return true;
 		case "nopickup":
 			SetAutoPickup(companion, false);

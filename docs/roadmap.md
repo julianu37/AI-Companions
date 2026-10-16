@@ -350,6 +350,7 @@ Ordens em **linguagem natural** por cima do mod do upstream. O companheiro conti
 | 3.1 | **Saída estruturada** (`response_format`/JSON schema): garante JSON válido e destrava modelos pequenos (3B) | ✅ build 0 erros + DLL no plugin (teste em jogo pendente) |
 | 3.1b | **O recurso manda** (correção do teste em jogo): com `action` e `resource` inconsistentes (`colete 10 pedras` voltou como `wood`/`stone`) a ordem usa o **recurso** — o campo específico — e não a ação genérica | ✅ build 0 erros + harness de 60 casos (fora do jogo) |
 | 3.1c | **O contrato ensina que `action` e `resource` combinam** (a outra metade do achado): regra curta + 2 exemplos de `colete N pedras` → `stone`, porque o 3B copiava o `action:"wood"` do exemplo `colete 20 de madeira` | ✅ build 0 erros (o prompt não foi medido contra nenhum modelo) |
+| 3.1d | **A ação de recolher os itens do chão** (`Jobs/MHR_Collect.cs`): a ordem `pickup` era **só um flag** - agora o companheiro **anda até o item no chão e pega** (inclusive o que ele/você largou, que é `m_autoPickup = false`), e o botão **Recolher** da roda passa a desligar mesmo o ímã | ✅ build 0 erros + DLL no plugin (teste em jogo pendente) |
 
 ### Fase 3.1 — ordem por texto no chat (✅ — Unreleased)
 
@@ -1648,6 +1649,97 @@ madeira** (e o log traz a linha da 8.2 quando o modelo insistir em `nopickup`); 
 **religar** a coleta automática; `pare de recolher` deve continuar **desligando** a coleta (é o `nopickup` de verdade); e
 `equipe a picareta` deve equipar a **picareta** (com o contrato novo, o `target` do modelo já deve vir certo — o
 fallback da 3.6b continua sendo a rede).
+
+### Fase 3.1 — a ação de recolher os itens do chão (o que faltava) (✅ build 0 erros + DLL no plugin — branch `feat/recolher`; teste em jogo pendente)
+
+O jogador largou o machado (`jogue seu machado no chão` → `[IA] Order "drop": Companion dropped 1 x "Machado Nordico"`) e
+depois pediu para pegar de volta (`pegue o machado nordico do chão`, `junte o machado`, `recolhe os itens`). O modelo
+acertou (`[IA] Order "pickup" -> 1 companion(s)`, `Ok: recolher itens do chao`) e **nada aconteceu**: o machado ficou no
+chão.
+
+#### 1. O achado: a ordem `pickup` era só um flag
+
+| # | Achado | Consequência |
+|---|---|---|
+| 1 | `CompanionOrders` (`case "pickup"`) só chamava `SetAutoPickup(companion, true)` — um flag no ZDO do companheiro (`CompanionSetup.AutoPickupHash`) | **Não existia ação nenhuma**: nenhum job do mod andava até um item no chão e o pegava. O único "pega item" automático era o ímã de 2 m do `CompanionAI.AutoPickup` |
+| 2 | O que o companheiro larga é marcado `m_autoPickup = false` de propósito (`CompanionOrders.DropNamed`, `MHR_GatherRules` — *"so neither it nor anyone's auto-pickup grabs it straight back"*), que é o que o **próprio jogo** faz em `ItemDrop.OnPlayerDrop()` | O ímã (`if (component == null \|\| !component.m_autoPickup) continue;`) **e** o `MHR_Loot` (o `DropOf` dele exige `m_autoPickup`) pulam exatamente o item que o jogador pediu para pegar |
+| 3 | O flag só era lido pelo `MHR_Loot` (e pelo rótulo do menu radial) | O botão **Recolher** da roda **não desligava o ímã**: o interruptor parecia quebrado (igual no upstream — não é regressão nossa) |
+
+Os três se somam: o item largado é justamente o que ninguém pega.
+
+#### 2. O job novo: `src/Companions/Jobs/MHR_Collect.cs`
+
+Mesmo padrão do `MHR_Loot` (que já fazia "andar até um ponto e pegar o que há lá"): estado por companheiro
+(`Dictionary<int, State>`), `Start(CompanionSetup)` chamado pela ordem e `Drive(CompanionAI, float dt)` chamado por frame.
+
+- **Quem chama por frame:** `CompanionAI.UpdateAI`, **antes** do `MHR_Loot.Drive` — uma ordem explícita ganha o movimento,
+  e o relógio do job de abate pausa sozinho enquanto ele não é dirigido (regra que o `MHR_Loot` já tinha).
+- **A ordem inicia:** `CompanionOrders.Apply`, `case "pickup"` — que agora faz **as duas coisas**: liga o flag (como antes)
+  **e** chama `MHR_Collect.Start(companion)`. O `nopickup` continua só desligando o flag (e desligar o flag **para** um
+  recolhimento em andamento).
+- **O que ele faz:** acha o item solto **mais próximo** dentro de `[Looting] CollectRadius` (novo, padrão **10**, faixa
+  1..30, medido **do companheiro**), anda até ele com o `MHR_Mover` (tag `Collect`, o mesmo mover de todos os jobs) e pega
+  com `Humanoid.Pickup(..., autoequip: false, autoPickupDelay: false)`. Repete com o próximo até não sobrar nada no raio,
+  a mochila encher ou a ordem passar de **30 s** (tempo em que ele **não** foi dirigido — briga, descanso — não conta).
+- **Por que `Humanoid.Pickup` e não o "puxão" de 15 m/s do ímã:** conferido no jogo decompilado — `Humanoid.Pickup` **não
+  olha** `m_autoPickup` (só `ItemDrop.CanPickup` — o atraso de 0,5 s do spawn —, a mochila e o item de missão), e é a mesma
+  chamada do `MHR_Loot`, do `MHR_PileTaker`, do `UpkeepPiles`, do `UpkeepHoney` e do `MHR_SpearThrow`. O ímã, além de só
+  alcançar 2 m, é **filtrado** por `m_autoPickup` — ele nunca resolveria o caso relatado.
+- **O que ele aceita:** itens soltos válidos (`ZNetView` válido), `!InTar()`, que caibam na mochila — **incluindo
+  `m_autoPickup == false`** (os que o companheiro ou o jogador largaram de propósito), que é o pedido.
+- **O que ele recusa:** item de missão (`m_shared.m_questItem`, a mesma regra que o `drop` aplica), `ItemDrop` que é peça
+  (`IsPiece()` — o auto-pickup do próprio jogador também recusa), posição na *blacklist* do `CompanionAI`
+  (`IsPositionBlacklisted`), água funda (`MHR_Water.WouldSwim` — a regra "nunca nadar por loot" de 1.4.97, valendo para
+  todo mundo) e o que **não couber inteiro** na mochila (`Inventory.CanAddItem(item)` sem número, que é exatamente a
+  pergunta que o `Pickup` faz; sem isso um item que não cabe seria escolhido como alvo de novo a cada frame).
+- **Pega e para:** outra ordem (o `CompanionOrders.Run` derruba o recolhimento em andamento para **qualquer** ordem que não
+  seja `pickup`, e o `CompanionInteract.CancelExistingActions` — o funil que a roda usa — faz o mesmo), troca de trabalho
+  (o modo de trabalho mudou para um job), `Recolher` desligado, mochila cheia, morte, posse perdida (outro jogador passou a
+  rodar o companheiro) e a **coleira** (`[Looting] MaxDistance`, a mesma que o `MHR_Loot` usa: você se afastou e o item
+  ficou para trás).
+- **Os jobs esperam:** `MHR_JobRules.OtherOrder` passou a responder `true` enquanto o recolhimento está em andamento, então
+  os controladores de trabalho (`HarvestController`, `FarmController`, `CookController`, ...) **param** enquanto ele anda —
+  todos dirigem pelo mesmo `MHR_Mover`, e dois tags steerando ao mesmo tempo reiniciam a rota um do outro a cada frame.
+- **Logs (com o nome do companheiro, para logs com vários deles):** `[Collect] Thorin: Going to pick up "Machado Nordico"
+  (3 m away)`, `[Collect] Thorin: Done: 1 item(s) picked up`, `[Collect] Thorin: nothing on the ground within 10 m -
+  nothing to pick up`, e uma linha por parada (`Stopped: another order came in`, `... Recolher was turned off`, `... another
+  job was picked`, `... the order took too long`, `... you've moved on`).
+- **Fala:** quando não há nada no chão, o companheiro **diz** `hc_ai_collect_nothing` ("Não tem nada no chão por perto.");
+  com a mochila cheia, `hc_ai_collect_full` ("Minha mochila está cheia.") — as **duas chaves novas**, no
+  `Translations/Portuguese_Brazilian.json` (PT-BR) e no dicionário em inglês do `ModLocalization` (para outra língua não
+  mostrar o token cru). A confirmação da ordem continua sendo a chave que já existia (`hc_ai_order_pickup`).
+
+#### 3. O ímã e o `MHR_Loot` continuam protegidos
+
+Nada mudou neles: o ímã mantém `if (component == null || !component.m_autoPickup) continue;` e o `MHR_Loot` mantém o
+filtro no `DropOf` (`if (d == null || !d.m_autoPickup) return null;`). **Só** esta ordem explícita aceita o que foi
+largado de propósito — a proteção do "larga pra dar" fica intacta.
+
+#### 4. O botão Recolher da roda passa a valer
+
+`CompanionAI.UpdateAI` deixou de chamar `AutoPickup(dt)` direto: ele lê o ZDO **uma vez** por frame e só chama o ímã com
+o flag ligado — `pickupZdo == null || pickupZdo.GetBool(CompanionSetup.AutoPickupHash, defaultValue: true)`.
+
+- **Com o padrão (`true`) nada muda:** é o valor lido quando a chave não existe no ZDO, então um companheiro que nunca
+  mexeu no botão **Recolher** (e um companheiro sem ZDO) continua com o ímã exatamente como hoje.
+- Os jobs que pegam coisas **não** passam pelo ímã: `MHR_PileTaker`, `UpkeepPiles`, `UpkeepHoney`, `MHR_SpearThrow` e o
+  `HarvestController` chamam `Humanoid.Pickup` direto (conferido no código), então desligar o Recolher não quebra nenhum
+  deles.
+
+#### Receita de teste (para o jogador)
+
+1. Com o companheiro carregando um machado, `jogue seu machado no chão` (ou `larga o machado`) → o machado cai e fica no chão.
+2. `pegue o machado nordico do chão` (ou `junte o machado`, `recolhe os itens`) → ele **anda até o machado e pega**
+   (`[Collect] ... Going to pick up "Machado Nordico" (N m away)` e depois `Done: 1 item(s) picked up`).
+3. `recolhe os itens` sem nada no chão → ele diz **"Não tem nada no chão por perto."** e o log traz a linha do nada
+   encontrado (antes: silêncio absoluto).
+4. **Recolher** desligado na roda → o ímã de 2 m para de pegar itens ao passar por cima (e um recolhimento em andamento
+   para). Ligar de volta → volta.
+5. `para de recolher` (`nopickup`) e depois `recolhe os itens` → o flag volta e ele cata de novo.
+
+**Não verificado:** tudo o que acontece **em jogo** (andar, pegar, a fala, a coleira, o botão da roda) — o teste em jogo é
+do jogador. Verificado aqui: o build (0 erros, 0 avisos), a `Humanoid.Pickup`/`ItemDrop.CanPickup`/`OnPlayerDrop`/
+`CanAddItem` no jogo decompilado, e os pontos de chamada do ímã e do `MHR_Loot` no código.
 
 
 

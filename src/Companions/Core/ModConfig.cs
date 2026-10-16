@@ -237,6 +237,8 @@ internal static class ModConfig
 
 	internal static ConfigEntry<float> LootMaxDistance;
 
+	internal static ConfigEntry<float> CollectRadius;
+
 	internal static ConfigEntry<float> FollowMaxDistance;
 
 	internal static ConfigEntry<float> FollowIndoorDistance;
@@ -673,6 +675,7 @@ internal static class ModConfig
 		LootRadius = Bind(cfg, "Looting", "Radius", 6f, "A que distância em volta do abate (em metros) os drops são procurados.", new AcceptableValueRange<float>(2f, 20f));
 		LootWait = Bind(cfg, "Looting", "WaitSeconds", 10f, "Tempo máximo de espera (em segundos) ao lado do corpo para os drops saírem.", new AcceptableValueRange<float>(2f, 60f));
 		LootMaxDistance = Bind(cfg, "Looting", "MaxDistance", 30f, "Abates mais longe do que isso (em metros), ou dos quais você se afastou esta distância enquanto ele te segue, ficam para trás.", new AcceptableValueRange<float>(5f, 100f));
+		CollectRadius = Bind(cfg, "Looting", "CollectRadius", 10f, "Com a ordem \"recolhe os itens do chão\", a que distância (em metros) do companheiro ele procura coisas soltas no chão - inclusive o que você ou ele largou de propósito. Ele anda até cada item e pega um por um, até não sobrar nada no raio, a mochila encher ou a ordem passar de 30 segundos.", new AcceptableValueRange<float>(1f, 30f));
 		AutoPickupRange = Bind(cfg, "Looting", "AutoPickupRange", 2f, "Com Recolher ligado na roda, um companheiro pega itens dentro desta quantidade de metros dele enquanto anda, como o auto-pickup de um jogador.", new AcceptableValueRange<float>(0.5f, 10f));
 		// [GearRepair]
 		RepairDurabilityThreshold = Bind(cfg, "GearRepair", "DurabilityThreshold", 0.5f, "Um companheiro leva o equipamento até uma bancada para consertar quando algo cai abaixo desta fração de durabilidade (0.5 = 50%).", new AcceptableValueRange<float>(0.1f, 0.9f));

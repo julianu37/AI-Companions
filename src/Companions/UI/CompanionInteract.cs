@@ -1851,6 +1851,9 @@ public class CompanionInteract : MonoBehaviour
 				component2.DetachFromShip();
 			}
 		}
+		// Fase 3.1: the wheel's orders drop a "recolhe os itens do chão" that is running (a one-shot order, like the
+		// ones above) - the chat path does the same in CompanionOrders.Run.
+		MHR_Collect.Cancel(setup);
 		setup.GetComponent<HarvestController>()?.CancelDirectedTarget();
 		setup.GetComponent<DoorHandler>()?.Cancel();
 		RepairController component3 = setup.GetComponent<RepairController>();

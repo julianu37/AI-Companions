@@ -357,6 +357,10 @@ public static class ModLocalization
 			{ "hc_ai_order_nowander", "stop wandering" },
 			{ "hc_ai_order_pickup", "pick up items" },
 			{ "hc_ai_order_nopickup", "stop picking up items" },
+			// Fase 3.1: the "recolhe os itens do chão" order (MHR_Collect) - what it says when it comes back with
+			// nothing (before this the order answered "Ok" and stayed silent while nothing happened)
+			{ "hc_ai_collect_nothing", "There's nothing on the ground nearby." },
+			{ "hc_ai_collect_full", "My pack is full." },
 			{ "hc_ai_order_command", "take orders" },
 			{ "hc_ai_order_nocommand", "ignore orders" },
 			{ "hc_ai_order_stance_balanced", "balanced stance" },

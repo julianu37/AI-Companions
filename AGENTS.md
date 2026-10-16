@@ -391,6 +391,35 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   validação contra a mochila) — nada de extração de nome nova; o `pickup` é o mesmo toggle do radial (`SetAutoPickup`).
   Log: `[IA] O modelo devolveu "nopickup" mas o jogador pediu para largar - usei "drop".` Verificado fora do jogo (harness
   com os arquivos reais): **58 casos, ALL CHECKS PASSED**. Detalhes: `docs/roadmap.md` (Fase 3.1 — §8.2).
+- **Fase 3.1 — a ação de recolher os itens do chão (o que faltava) + o botão Recolher da roda passa a valer:** o jogador
+  largava o machado (`jogue seu machado no chão`) e depois pedia para pegar de volta (`pegue o machado nordico do chão`,
+  `junte o machado`, `recolhe os itens`); o modelo acertava (`Order "pickup" -> 1 companion(s)`, `Ok: recolher itens do
+  chao`) e **nada acontecia**. O achado são três coisas que se somam: (1) a ação `pickup` **só setava um flag** no ZDO
+  (`CompanionSetup.AutoPickupHash`) e **nenhuma** ação do mod andava até um item no chão para pegá-lo (o único "pega item"
+  era o ímã de 2 m do `CompanionAI.AutoPickup`); (2) o que o companheiro larga é marcado `m_autoPickup = false` **de
+  propósito** (é o que o próprio jogo faz em `ItemDrop.OnPlayerDrop()`), e o ímã **e** o `MHR_Loot` pulam esses itens de
+  propósito — justamente o que o jogador pediu para pegar; (3) o flag só era lido pelo `MHR_Loot` e pelo rótulo da roda,
+  então o botão **Recolher** não desligava o ímã (igual no upstream). **Novo `Jobs/MHR_Collect.cs`** (mesmo padrão do
+  `MHR_Loot`: estado por companheiro, `Start(CompanionSetup)` pela ordem e `Drive(CompanionAI, dt)` por frame pelo
+  `CompanionAI.UpdateAI`, **antes** do `MHR_Loot.Drive`): acha o item solto mais próximo dentro de `[Looting] CollectRadius`
+  (**novo, padrão 10**, faixa 1..30), **anda até ele** com o `MHR_Mover` (tag `Collect`) e pega com `Humanoid.Pickup` — que
+  **não olha `m_autoPickup`** (conferido no decompilado: só `ItemDrop.CanPickup` — o atraso de 0,5 s do spawn —, a mochila e
+  o item de missão), então **inclusive o que foi largado de propósito** volta. Repete com o próximo até não sobrar nada no
+  raio, a mochila encher ou a ordem passar de **30 s** (tempo não dirigido — briga, descanso — não conta). **Recusa:** item
+  de missão (`m_shared.m_questItem`, a regra do `drop`), peça (`IsPiece()`), posição na *blacklist* do `CompanionAI`, água
+  funda (`MHR_Water.WouldSwim`, "nunca nadar por loot") e o que não couber **inteiro** na mochila (`Inventory.CanAddItem(item)`
+  sem número — sem isso o alvo seria reescolhido a cada frame). **Para** com outra ordem (o `CompanionOrders.Run` derruba o
+  recolhimento para qualquer ordem que não seja `pickup` e o `CompanionInteract.CancelExistingActions` faz o mesmo para a
+  roda), troca de trabalho (modo virou um job), `Recolher` desligado, mochila cheia, morte, posse perdida ou a **coleira**
+  (`[Looting] MaxDistance`, a mesma do `MHR_Loot`); e os **jobs esperam** enquanto ele anda (`MHR_JobRules.OtherOrder`
+  responde `true` — todos dirigem pelo mesmo `MHR_Mover`). A ordem faz **as duas coisas** (`Apply`, `case "pickup"`: liga o
+  flag **e** `MHR_Collect.Start`); o `nopickup` continua só desligando o flag, e o ímã/`MHR_Loot` **não mudaram** (a proteção
+  do "larga pra dar" fica intacta). **O ímã agora respeita o flag** (lido **uma vez** por frame em `UpdateAI`, padrão `true` —
+  quem nunca mexeu no botão Recolher fica exatamente como hoje; `MHR_PileTaker`/`UpkeepPiles`/`UpkeepHoney`/`MHR_SpearThrow`/
+  `HarvestController` chamam `Humanoid.Pickup` direto e não dependem dele). Falas novas: `hc_ai_collect_nothing` ("Não tem nada
+  no chão por perto.") e `hc_ai_collect_full` ("Minha mochila está cheia.") — PT-BR + dicionário em inglês; logs
+  `[Collect] <Nome>: Going to pick up "X" (N m away)`, `Done: N item(s) picked up`, `nothing on the ground within N m`.
+  Detalhes: `docs/roadmap.md` (Fase 3.1 — a ação de recolher os itens do chão).
 - Backend/contrato de referência: `docs/re/backend-contract.md`; mapa da fase: `docs/roadmap.md` (Trilha D);
   pipeline de voz: `docs/re/stt-voz-pipeline.md`; fala do companheiro: `docs/re/tts-kokoro-sherpa-onnx.md`.
 

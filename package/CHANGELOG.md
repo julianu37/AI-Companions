@@ -3,6 +3,35 @@
 All notable changes to this fork of ProfMags' Offline Companions. Versions before 1.4.0 are the original mod (see [ProfMags' Thunderstore page](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) for that history) plus the initial batch of Valheim 1.0 API-compatibility fixes that let the mod load and run at all on 1.0.
 
 ## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.6b: a ordem sem alvo do modelo (drop/equip/attack caem para as palavras do jogador) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Fase 3.3c: raio de coleta maior e chatter aleatório desligado + Fase 3.3d: a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador + Fase 3.8: o companheiro abre o próprio inventário por voz/chat + Fase 3.4: o companheiro FALA (TTS local, Kokoro-82M via sherpa-onnx) + Fase 3.7: painel da IA no jogo (personalidade, voz com Ouvir, push-to-talk) + Fase 3.4 (parte 3): o eco do TTS RESOLVIDO — era a zona de reverb global do jogo (a voz sai seca) + Fase 3.1: saída estruturada (JSON schema) — destrava modelos pequenos + Tradução PT-BR (fork ModAI-BR-Companions)
+- **A ordem "recolhe os itens do chão" finalmente recolhe (Fase 3.1 — `MHR_Collect`: o que faltava).** O jogador largou o
+  machado (`jogue seu machado no chão` → `Order "drop": Companion dropped 1 x "Machado Nordico"`) e depois pediu para pegar
+  de volta (`pegue o machado nordico do chão`, `junte o machado`, `recolhe os itens`): o modelo acertava a ordem
+  (`Order "pickup" -> 1 companion(s)`, `Ok: recolher itens do chao`) e **nada acontecia** — o machado ficava no chão.
+  - **O achado (três coisas que se somam):** (1) a ação `pickup` **só setava um flag** no ZDO do companheiro e **nenhuma**
+    ação do mod andava até um item no chão para pegá-lo (o único "pega item" era o ímã de 2 m do `CompanionAI.AutoPickup`);
+    (2) o que o companheiro larga é marcado `m_autoPickup = false` de propósito (é o que o próprio jogo faz em
+    `ItemDrop.OnPlayerDrop()`), e o ímã **e** o `MHR_Loot` pulam esses itens de propósito — justamente o que o jogador
+    pediu para pegar; (3) o flag só era lido pelo `MHR_Loot` e pelo rótulo da roda, então o botão **Recolher** não
+    desligava o ímã.
+  - **Novo `src/Companions/Jobs/MHR_Collect.cs`** (mesmo padrão do `MHR_Loot`: estado por companheiro, `Start` pela ordem e
+    `Drive` por frame pelo `CompanionAI.UpdateAI`, antes do `MHR_Loot.Drive`): acha o item solto mais próximo dentro de
+    `[Looting] CollectRadius` (**novo, padrão 10**, faixa 1..30), **anda até ele** com o `MHR_Mover` e pega com
+    `Humanoid.Pickup` — que **não olha `m_autoPickup`** (conferido no jogo decompilado), então **inclusive o que foi largado
+    de propósito** volta. Repete com o próximo até não sobrar nada no raio, a mochila encher ou a ordem passar de **30 s**.
+  - **Recusa:** item de missão (a regra do `drop`), peça (`IsPiece()`), posição na *blacklist* do `CompanionAI`, água funda
+    (nunca nadar por loot) e o que não couber **inteiro** na mochila. **Para** com outra ordem (chat **e** roda), troca de
+    trabalho, `Recolher` desligado, mochila cheia, morte, posse perdida ou a coleira (`[Looting] MaxDistance`); e os
+    **jobs esperam** enquanto ele anda (`MHR_JobRules.OtherOrder`).
+  - **A ordem faz as duas coisas:** `pickup` liga o flag (como antes) **e** inicia o recolhimento; `nopickup` continua só
+    desligando o flag. O ímã e o `MHR_Loot` **não mudaram** (a proteção do "larga pra dar" fica intacta).
+  - **O botão Recolher da roda passa a valer:** o ímã agora é condicionado ao flag (lido **uma vez** por frame), com o
+    padrão `true` — um companheiro que nunca mexeu no botão fica exatamente como hoje. Os jobs que pegam coisas
+    (`MHR_PileTaker`, `UpkeepPiles`, `UpkeepHoney`, `MHR_SpearThrow`, `HarvestController`) chamam `Humanoid.Pickup` direto
+    e não dependem do ímã.
+  - **Fala nova** (quando não há nada no chão e quando a mochila está cheia): `hc_ai_collect_nothing` /
+    `hc_ai_collect_full`, em PT-BR e no dicionário em inglês. Logs: `[Collect] <Nome>: Going to pick up "X" (N m away)`,
+    `Done: N item(s) picked up`, `nothing on the ground within N m`.
+  - Build: **0 erros, 0 avisos**. O teste em jogo é do jogador.
 - **"Jogue fora" vira `drop` mesmo quando o modelo diz `nopickup` (Fase 3.1 — rede de segurança).** O mesmo teste em jogo
   mostrou que o contrato sozinho não bastava: quando o modelo **insiste** em `nopickup` para uma ordem de largar (ou de
   recolher), as **palavras do jogador** decidem — o mesmo raciocínio do "o recurso manda".

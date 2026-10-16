@@ -343,6 +343,9 @@ Tempo máximo de espera (em segundos) ao lado do corpo para os drops saírem.
 **MaxDistance** — Padrão: 30 · Faixa: 5 – 100  
 Abates mais longe do que isso (em metros), ou dos quais você se afastou esta distância enquanto ele te segue, ficam para trás.
 
+**CollectRadius** — Padrão: 10 · Faixa: 1 – 30  
+Com a ordem "recolhe os itens do chão", a que distância (em metros) do companheiro ele procura coisas soltas no chão - inclusive o que você ou ele largou de propósito. Ele anda até cada item e pega um por um, até não sobrar nada no raio, a mochila encher ou a ordem passar de 30 segundos.
+
 **AutoPickupRange** — Padrão: 2 · Faixa: 0.5 – 10  
 Com Recolher ligado na roda, um companheiro pega itens dentro desta quantidade de metros dele enquanto anda, como o auto-pickup de um jogador.
 

@@ -1171,7 +1171,16 @@ public class CompanionAI : BaseAI
 			_continuousSwimTimer = 0f;
 		}
 		CleanupBlacklist(dt);
-		AutoPickup(dt);
+		// Fase 3.1: the wheel's Recolher switch now really turns the magnet off. The flag was only read by MHR_Loot
+		// (and by the wheel's own label), so switching Recolher off left the magnet pulling items in - the switch
+		// looked broken. The default is true, so a companion nobody switched off behaves exactly as before. One ZDO
+		// read per frame; the jobs that take things out of a pile or fetch a thrown spear call Humanoid.Pickup
+		// themselves and don't go through here.
+		ZDO pickupZdo = m_nview != null ? m_nview.GetZDO() : null;
+		if (pickupZdo == null || pickupZdo.GetBool(CompanionSetup.AutoPickupHash, defaultValue: true))
+		{
+			AutoPickup(dt);
+		}
 		if (!MHR_Mover.OwnsMovement(this))
 		{
 			UpdateFurnitureUnstuck(dt);
@@ -1562,6 +1571,13 @@ public class CompanionAI : BaseAI
 		}
 		if (MHR_ToolKeeper.Drive(this, dt))
 		{
+			return true;
+		}
+		// Fase 3.1: the player's own "go and pick up what's on the ground" order (MHR_Collect). Before MHR_Loot: an
+		// explicit order wins, and the kill-loot job's own clock pauses while it isn't being driven.
+		if (MHR_Collect.Drive(this, dt))
+		{
+			ClearFollowMovementOverrides();
 			return true;
 		}
 		// 1.4.94: go and pick up what the last kill dropped

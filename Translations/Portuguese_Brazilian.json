@@ -292,6 +292,8 @@
         { "key": "hc_ai_order_nowander", "value": "parar de vagar" },
         { "key": "hc_ai_order_pickup", "value": "recolher itens do chão" },
         { "key": "hc_ai_order_nopickup", "value": "parar de recolher itens" },
+        { "key": "hc_ai_collect_nothing", "value": "Não tem nada no chão por perto." },
+        { "key": "hc_ai_collect_full", "value": "Minha mochila está cheia." },
         { "key": "hc_ai_order_command", "value": "aceitar comandos" },
         { "key": "hc_ai_order_nocommand", "value": "ignorar comandos" },
         { "key": "hc_ai_order_stance_balanced", "value": "postura equilibrada" },
