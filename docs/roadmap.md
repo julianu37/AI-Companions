@@ -334,7 +334,7 @@ Auditoria de **todo texto que o jogador pode ver**, com números (o método e os
 |---|---|---|
 | Chaves de UI (`ModLocalization` × `Translations/Portuguese_Brazilian.json`) | 374 chaves · **0 ausentes** · 7 com valor igual ao inglês (6 legítimas + `Push-to-talk`) | **386** chaves · 0 ausentes · 0 em inglês (as 6 que batem são legítimas: `Dverger`, `Stamina`, `Ok`, `Volume`) |
 | Falas (`Speech/Portuguese_Brazilian.json`) | 15 categorias / 186 linhas · 0 ausentes | igual (só o `"Skål!"` é igual ao inglês — é um brinde) |
-| Chamadas `Loc`/`LocFmt`/`LocOr` no `src/` | 251 chaves referenciadas · 1 **órfã** (`hc_radial_despawn_confirm`, num método morto) | 256 referências · **0 órfãs** (as 4 "faltantes" que o script acusa são prefixos de concatenação: `hc_cat_`, `hc_roster_`, `hc_idle_chat_`, `hc_ai_voice_`) |
+| Chamadas `Loc`/`LocFmt`/`LocOr` no `src/` | 251 referências · 1 **órfã** (`hc_radial_despawn_confirm`, num método morto) | **252 chaves literais + 4 prefixos de concatenação** (256 referências) · **0 órfãs** · **0 chaves definidas e nunca citadas** |
 | Textos em inglês **hardcoded** em caminhos visíveis | 6 grupos (nome do companheiro e dos tipos, "has been resurrected!", "Hold", os 3 cumprimentos do recall, "ON"/"OFF" do F8, "Push-to-talk") | **0** (todos em chaves) |
 | Docs (`README.md`, `package/README.md`, `package/GUIDE.md`, `package/CONFIGURATION.md`) | PT-BR | PT-BR (o `CHANGELOG` mantém o histórico do upstream, abaixo de 1.5.4, em inglês de propósito) |
 

@@ -106,8 +106,8 @@ def translation_file(rel):
 
 
 def code_keys():
-    """(chaves literais usadas em Loc, prefixos usados em concatenacao) em todo o src/."""
-    used, prefixes = set(), set()
+    """(chaves literais usadas em Loc, prefixos de concatenacao, todos os literais 'hc_*' do codigo)."""
+    used, prefixes, literals = set(), set(), set()
     src = os.path.join(ROOT, 'src', 'Companions')
     for dirpath, _dirs, files in os.walk(src):
         if 'obj' in dirpath or 'bin' in dirpath:
@@ -116,12 +116,15 @@ def code_keys():
             if not fn.endswith('.cs'):
                 continue
             for line in open(os.path.join(dirpath, fn), encoding='utf-8'):
+                for lit in STRING_LIT.findall(line):
+                    if lit.startswith('hc_'):
+                        literals.add(lit)
                 for key in LOC_CALL.findall(line):
                     if line.rstrip().endswith('+') or ('"' + key + '" +') in line:
                         prefixes.add(key)
                     else:
                         used.add(key)
-    return used, prefixes
+    return used, prefixes, literals
 
 
 def speech_defaults():
@@ -189,13 +192,13 @@ def report():
     gaps += len(missing) + len(extra)
 
     print('== codigo ==')
-    used, prefixes = code_keys()
+    used, prefixes, literals = code_keys()
     orphans = sorted(k for k in used if k not in en and k not in pt)
-    unused = sorted(k for k in en if k not in used)
+    unused = sorted(k for k in en if k not in used and k not in literals and not any(k.startswith(p) for p in prefixes))
     print('   chaves literais em Loc/LocFmt/LocOr: %d' % len(used))
     print('   prefixos de concatenacao: %d -> %s' % (len(prefixes), ', '.join(sorted(prefixes))))
     print('   chaves orfas (nao existem nos dois lados): %d%s' % (len(orphans), (' -> ' + ', '.join(orphans)) if orphans else ''))
-    print('   definidas e nunca usadas no codigo: %d' % len(unused))
+    print('   definidas e nunca citadas no codigo (nem por concatenacao): %d%s' % (len(unused), (' -> ' + ', '.join(unused)) if unused else ''))
     gaps += len(orphans)
 
     print('== falas ==')
