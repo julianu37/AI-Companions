@@ -98,7 +98,7 @@ public class FarmZoneCropPicker : MonoBehaviour
 		gameObject.transform.SetParent(base.transform, worldPositionStays: false);
 		_canvas = gameObject.GetComponent<Canvas>();
 		_canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-		_canvas.sortingOrder = 31;
+		_canvas.sortingOrder = ModUiLayers.FarmZoneCropPicker;
 		CanvasScaler component = gameObject.GetComponent<CanvasScaler>();
 		component.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
 		component.referenceResolution = new Vector2(1920f, 1080f);

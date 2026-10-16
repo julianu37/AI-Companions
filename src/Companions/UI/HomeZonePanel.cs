@@ -137,7 +137,7 @@ public class HomeZonePanel : MonoBehaviour
 	{
 		_canvas = base.gameObject.AddComponent<Canvas>();
 		_canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-		_canvas.sortingOrder = 29;
+		_canvas.sortingOrder = ModUiLayers.HomeZonePanel;
 		CanvasScaler canvasScaler = base.gameObject.AddComponent<CanvasScaler>();
 		canvasScaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
 		canvasScaler.referenceResolution = new Vector2(1920f, 1080f);

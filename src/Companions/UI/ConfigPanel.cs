@@ -85,15 +85,13 @@ public class ConfigPanel : MonoBehaviour
 	private const float TitleH = 32f;
 
 	/// <summary>
-	/// Sorting order of the panel's own canvas. It used to be <b>31</b>, the same layer as the game's own UI, and
-	/// something invisible in that layer ate the clicks of a horizontal <b>band</b> of the controls (the report:
-	/// clicking the ON/OFF of a row did nothing until the row was scrolled out of the band). The AI panel - the same
-	/// kind of full screen modal window - has always been at <see cref="CompanionAiPanel"/>'s 33 and has never had
-	/// the problem, and the two panels refuse to be open at the same time, so the config panel moves to the same
-	/// layer: <b>above</b> whatever sits at 31/32 instead of tied with it. In a tie uGUI compares the raycasters by
-	/// registration order (<c>RaycasterManager</c>), i.e. the game's canvas - registered long before this one - wins.
+	/// Sorting order of the panel's own canvas, from <see cref="ModUiLayers"/> - the one place where the whole band
+	/// of the mod's UI is documented. It used to be <b>31</b> and then <b>33</b>, and the invisible band that ate
+	/// the clicks of the controls (the report: clicking the ON/OFF of a row did nothing until the row was scrolled
+	/// out of the band) survived both, because the culprit is the game's play HUD at <b>400</b>: any value below 400
+	/// loses the raycast to it, tie or not.
 	/// </summary>
-	private const int PanelSortingOrder = 33;
+	private const int PanelSortingOrder = ModUiLayers.ConfigPanel;
 
 	private static Sprite _panelBgSprite;
 
@@ -160,15 +158,10 @@ public class ConfigPanel : MonoBehaviour
 
 	/// <summary>
 	/// One shot per session, on the first open: the raycast audit of the panel, i.e. the answer to "who is in front
-	/// of the controls?" - the only question that matters when a click is swallowed again. It reports
-	/// <list type="bullet">
-	/// <item>every raycast target of this panel that is <b>not</b> a control (a <see cref="Selectable"/> in its
-	/// parents): there should be none, the backdrop and the two scroll areas are the only documented exceptions;</item>
-	/// <item>every other <b>active</b> canvas of the scene with its sorting order - the layer data - and, for the
-	/// ones at this layer or above (a lower one can never win), any of its raycast targets whose screen rect covers
-	/// the column of controls of this panel, probed at eleven heights. A hit there <b>is</b> the invisible band.</item>
-	/// </list>
-	/// It runs once, never per frame, and never throws into <see cref="Show"/>.
+	/// of the controls?" - the only question that matters when a click is swallowed again. The audit itself lives in
+	/// <see cref="ModUiAudit"/> (shared with the AI panel, which needs the same answer about the same band of
+	/// layers); here only the geometry of <b>this</b> panel is given to it. It runs once, never per frame, and never
+	/// throws into <see cref="Show"/>.
 	/// </summary>
 	private void LogRaycastAudit()
 	{
@@ -177,156 +170,8 @@ public class ConfigPanel : MonoBehaviour
 			return;
 		}
 		_raycastAudited = true;
-		try
-		{
-			// 1. the panel itself: every raycast target that is not a control
-			Graphic[] graphics = base.gameObject.GetComponentsInChildren<Graphic>(includeInactive: true);
-			int controls = 0;
-			int unexpected = 0;
-			List<string> onPurpose = new List<string>();
-			for (int i = 0; i < graphics.Length; i++)
-			{
-				Graphic graphic = graphics[i];
-				if (graphic == null || !graphic.raycastTarget)
-				{
-					continue;
-				}
-				string reason = NonControlRaycastReason(graphic);
-				if (reason == null)
-				{
-					controls++;
-				}
-				else if (reason.Length == 0)
-				{
-					onPurpose.Add(Path(graphic.transform));
-				}
-				else
-				{
-					unexpected++;
-					CompanionsPlugin.Log?.LogWarning("[UiDiag] F8 raycast audit: UNEXPECTED raycast target inside the panel: "
-						+ Path(graphic.transform) + " (" + reason + ")");
-				}
-			}
-			// 2. the rest of the scene: the layers, and what sits over the controls of this panel
-			string others = "";
-			int canvases = 0;
-			int over = 0;
-			Canvas[] all = Resources.FindObjectsOfTypeAll<Canvas>();
-			for (int i = 0; i < all.Length; i++)
-			{
-				Canvas canvas = all[i];
-				if (canvas == null || canvas == _canvas || !canvas.gameObject.scene.IsValid() || !canvas.isActiveAndEnabled)
-				{
-					continue;
-				}
-				canvases++;
-				if (others.Length > 0)
-				{
-					others += ", ";
-				}
-				others += canvas.name + "=" + canvas.sortingOrder + (canvas.overrideSorting ? "(override)" : "");
-				if (canvas.sortingOrder >= PanelSortingOrder)
-				{
-					over += LogCanvasOverPanel(canvas);
-				}
-			}
-			CompanionsPlugin.Log?.LogInfo("[UiDiag] F8 raycast audit: panel order=" + PanelSortingOrder + ", "
-				+ controls + " control raycast target(s), " + onPurpose.Count + " on purpose ("
-				+ string.Join(", ", onPurpose.ToArray()) + "), " + unexpected + " unexpected"
-				+ "; " + canvases + " other active canvas(es): " + others
-				+ "; " + over + " raycast target(s) of another canvas over the controls.");
-		}
-		catch (Exception ex)
-		{
-			CompanionsPlugin.Log?.LogWarning("[UiDiag] F8 raycast audit failed: " + ex.Message);
-		}
-	}
-
-	/// <summary>
-	/// Classifies a raycast target of this panel: <c>null</c> for a control (a <see cref="Selectable"/> in its
-	/// parents), an empty string for a documented exception (the modal backdrop and the two scroll areas, the
-	/// GameObjects the <see cref="ScrollRect"/>s live on - the wheel and the drag are received there), otherwise a
-	/// short reason why it is a suspect.
-	/// </summary>
-	private string NonControlRaycastReason(Graphic graphic)
-	{
-		if (graphic.gameObject == _backdrop)
-		{
-			return string.Empty;
-		}
-		bool selectable = false;
-		bool scrollbar = false;
-		for (Transform walk = graphic.transform; walk != null; walk = walk.parent)
-		{
-			if (walk.GetComponent<ScrollRect>() != null)
-			{
-				return string.Empty;
-			}
-			if (walk.GetComponent<Scrollbar>() != null)
-			{
-				scrollbar = true;
-			}
-			if (walk.GetComponent<Selectable>() != null)
-			{
-				selectable = true;
-			}
-			if (walk.GetComponent<ConfigPanel>() != null)
-			{
-				break;
-			}
-		}
-		if (scrollbar)
-		{
-			return "inside a Scrollbar (an invisible bar must not be a raycast target)";
-		}
-		if (selectable)
-		{
-			return null;
-		}
-		return "no Selectable in its parents (decorative)";
-	}
-
-	/// <summary>
-	/// Logs every raycast target of <paramref name="canvas"/> that covers the column of controls of this panel and
-	/// returns how many there were. Only canvases at this sorting order or above reach this point: a lower one can
-	/// never be in front of the panel.
-	/// </summary>
-	private int LogCanvasOverPanel(Canvas canvas)
-	{
-		Camera camera = ((canvas.renderMode == RenderMode.ScreenSpaceOverlay) ? null : canvas.worldCamera);
-		Graphic[] graphics = canvas.GetComponentsInChildren<Graphic>(includeInactive: true);
-		int hits = 0;
-		for (int i = 0; i < graphics.Length; i++)
-		{
-			Graphic graphic = graphics[i];
-			if (graphic == null || !graphic.raycastTarget || !graphic.isActiveAndEnabled)
-			{
-				continue;
-			}
-			for (int p = 0; p < ProbePoints.Length; p++)
-			{
-				if (!RectTransformUtility.RectangleContainsScreenPoint(graphic.rectTransform, ProbeScreenPoint(ProbePoints[p]), camera))
-				{
-					continue;
-				}
-				hits++;
-				Rect rect = graphic.rectTransform.rect;
-				CompanionsPlugin.Log?.LogWarning("[UiDiag] F8 raycast audit: canvas \"" + canvas.name + "\" (order="
-					+ canvas.sortingOrder + (canvas.overrideSorting ? ", overrideSorting" : "")
-					+ ") has a raycast target over the controls of the panel: " + Path(graphic.transform) + " ("
-					+ graphic.GetType().Name + " " + Mathf.RoundToInt(rect.width) + "x" + Mathf.RoundToInt(rect.height)
-					+ ") at the panel point " + ProbePoints[p].x + "," + ProbePoints[p].y);
-				break;
-			}
-		}
-		return hits;
-	}
-
-	/// <summary>Screen point of a panel-local point. The panel's canvas is Screen Space Overlay, so the world position
-	/// of a UI element already is its screen position and no camera is needed.</summary>
-	private Vector2 ProbeScreenPoint(Vector2 panelLocal)
-	{
-		return RectTransformUtility.WorldToScreenPoint(null, _root.transform.TransformPoint(panelLocal));
+		ModUiAudit.Log("F8 raycast audit", PanelSortingOrder, _canvas, _root != null ? _root.GetComponent<RectTransform>() : null,
+			ProbePoints, _backdrop, this);
 	}
 
 	/// <summary>The probed points (panel-local; the panel is 700x500 with a centre pivot): the middle of the column of
@@ -345,16 +190,6 @@ public class ConfigPanel : MonoBehaviour
 		new Vector2(196f, -184f),
 		new Vector2(196f, -230f)
 	};
-
-	private static string Path(Transform node)
-	{
-		string text = node.name;
-		for (Transform parent = node.parent; parent != null; parent = parent.parent)
-		{
-			text = parent.name + "/" + text;
-		}
-		return text;
-	}
 
 	private static Sprite GetPanelBgSprite()
 	{

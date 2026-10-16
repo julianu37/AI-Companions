@@ -442,6 +442,24 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   os alvos não-interativos do painel e **as outras camadas ativas da cena** (`nome=sortingOrder`) mais qualquer alvo que
   cubra a coluna de controles — se o bug voltar, o log diz quem é. Ver `docs/roadmap.md` (*Pendências conhecidas*) e
   `package/CHANGELOG.md`.
+- **Correção (branch `fix/camadas-ui`) — os painéis e a roda do mod vão para a faixa de camadas 1701+; era isso o clique
+  engolido no F8.** A correção anterior (`fix/clique-f8`) era **insuficiente**: subir o `ConfigPanel` de 31 para **33**
+  não resolve nada porque **o HUD do jogo está em `sortingOrder = 400`** — o `[UiDiag]` que ela mesma deixou no painel
+  mediu isso (`canvas "HUD" (order=400, overrideSorting) ... crosshair/HoverName (TextMeshProUGUI 350x150) at the panel
+  point 196,-46`), e **qualquer valor abaixo de 400 perde o clique** para o HUD. Agora **todos** os canvases do mod saem
+  de 28..34 para **1701..1708** (`src/Companions/UI/ModUiLayers.cs`, **fonte única**: `FarmZonePlacer` 1701,
+  `HomeZonePanel` 1702, `CompanionRadialMenu` 1703, `StarterCompanionPanel` 1704, `FarmZoneCropPicker` 1705,
+  `ConfigPanel` 1706, `CompanionAiPanel` 1707, overlay do dropdown 1708), **mantendo a ordem relativa** entre eles. A
+  faixa foi escolhida assim: **acima** do HUD (400), do `HudMessage` (1000) e do `Menu` (1700); **abaixo** do
+  `UnifiedPopup` (**1900** — popup modal **do jogo**, classe vanilla de `assembly_valheim`, que **não** é nossa e não
+  pode ser movida: um modal tem que ficar na frente de uma janela) e do `LongPressRadial` (2000 — evitar o **empate**,
+  que o jogo ganha pela ordem de registro dos raycasters); e muito abaixo do console (5000) e do `SwitchCursor` (12000).
+  Os painéis do mod continuam bloqueando inventário/loja/menu (`Hud.InRadial`), então esses nunca ficam atrás de nós. O
+  mesmo `sortingOrder` alto resolve o **outro** sintoma relatado — o **texto do centro da roda** embaralhado com o
+  `crosshair/HoverName` do jogo, que desenhava por cima dos rótulos do centro. O audit foi **mantido e generalizado**: a
+  lógica saiu para `src/Companions/UI/ModUiAudit.cs` e agora roda para o painel F8 **e** para o painel da IA, uma vez por
+  sessão (nunca por frame). Ver `docs/roadmap.md` (*Correção — o clique engolido no painel F8 e o texto do centro da
+  roda: a camada era a causa*) e `package/CHANGELOG.md`.
 - **Pendências conhecidas (abertas):** o **release/empacotamento** (versão e `CHANGELOG`
   não fechados e a pasta do plugin tem **~428 MB** — não cabe num pacote Thunderstore normal); a **voz não passa pelo
   mixer do jogo** (por isso ignora os sliders de volume do Valheim e só obedece `[IA] TtsVolume`); e a branch

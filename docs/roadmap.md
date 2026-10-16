@@ -365,7 +365,7 @@ O que **não** está fechado nesta trilha, listado sem enfeite:
 
 | # | Pendência | Detalhe |
 |---|---|---|
-| 1 | ~~**Bug do clique no painel F8**~~ **✅ corrigido na branch `fix/clique-f8`** | **O que foi descartado (com prova):** *nada dentro do painel* podia bloquear aqueles controles. No uGUI, dentro de um canvas, o clique vai para o gráfico de **maior profundidade de render** (a ordem dos irmãos), então um gráfico **ancestral** (o fundo do painel, o container da linha, o viewport do `ScrollRect`) **nunca** fica na frente dos próprios filhos — e isso está confirmado no próprio painel: o fundo da coluna de abas é `raycastTarget = true` e os **botões de aba** (filhos dele) sempre responderam, inclusive no teste do jogador (ele trocou para a aba `IA`). As duas barras de scroll invisíveis **estão** acima das linhas (são os últimos irmãos do viewport), mas têm **10 px** de largura na borda direita — não cobrem o botão ON/OFF (x ≈ 491–600 de 700). **A causa (a faixa só se explica por uma camada por cima do canvas do painel):** o canvas do `ConfigPanel` estava em **31**, a **mesma** camada do UI do jogo; num empate de `sortingOrder` o uGUI desempata pela **ordem de registro dos raycasters** (`RaycasterManager`), que o canvas do jogo — registrado muito antes — ganha, e o `GraphicRaycaster` dele entrega o clique a um alvo **invisível** seu (texto de `MessageHud`/HUD apagado com `canvasRenderer.SetAlpha(0f)`, que **continua** recebendo clique, numa **faixa fixa no centro da tela** — o painel é centralizado, então **rolar o painel tira o controle da faixa** e ele volta a responder). O **painel da IA** (tecla `I`) nunca teve o problema porque sempre esteve em **33**. **Correção:** o canvas do `ConfigPanel` foi para **33** (a camada do painel da IA; os dois recusam abrir juntos) e todo `Graphic` **decorativo** do painel virou `raycastTarget = false` (fundo do painel, faixas das linhas, a barra de scroll invisível **e o handle** — os gráficos mais acima de todo o painel, agora os primeiros irmãos), ficando `raycastTarget = true` **só** nos controles (abas, ON/OFF, Padrão, slider fundo+handle, *key bind*, X) e nas duas **áreas de scroll** (o viewport do conteúdo e a coluna de abas — os GameObjects onde vivem os `ScrollRect`s). **Diagnóstico novo:** na primeira abertura da sessão o painel loga `[UiDiag] F8 raycast audit: ...` — os alvos não-interativos dele e **as outras camadas ativas da cena** (`nome=sortingOrder`) com qualquer alvo que cubra a coluna de controles (11 pontos). Se a faixa voltar, o log diz **quem** é. Build **0/0**; **o teste em jogo é do jogador** |
+| 1 | ~~**Bug do clique no painel F8**~~ **✅ corrigido de verdade na branch `fix/camadas-ui` (a correção anterior, `fix/clique-f8`, era insuficiente)** | **A causa medida (o `[UiDiag]` do próprio painel achou):** o HUD do jogo é um canvas em **`sortingOrder = 400`** (`HUD`, com `overrideSorting`), o `EnemyHud` em 200 e o `HudMessage` em 1000 — e **todos** os canvases do mod estavam em **28..34**, isto é, **atrás** de tudo isso. O alvo que engolia o clique é o `HUD/hudroot/crosshair/HoverName` (um `TextMeshProUGUI` de **350x150** morto no **centro** da tela, exatamente onde o painel está), e ele **continua recebendo clique** mesmo invisível (o jogo o apaga com `canvasRenderer.SetAlpha(0f)`) — o que explica a **faixa** e por que rolar o painel tirava o controle dela. **Por que a tentativa anterior (31 → 33) não bastou:** **33 continua abaixo de 400**; subir um degrau dentro da mesma faixa não muda nada contra um canvas 367 degraus acima, e em empate de `sortingOrder` o uGUI desempata pela **ordem de registro dos raycasters** (`RaycasterManager`), que o canvas do jogo — registrado muito antes — ganha. O diagnóstico só ficou claro quando o audit passou a **listar as camadas da cena**: o log do jogador trouxe `HUD=400(override)`, `HudMessage=1000(override)`, `Menu=1700(override)`, `UnifiedPopup=1900(override)`, `LongPressRadial=2000(override)`, `_Console(Clone)=5000`. **Correção:** todos os canvases do mod foram para a faixa **1701..1708** (`src/Companions/UI/ModUiLayers.cs`, **fonte única** dos números) — **acima de todo o HUD do jogo** e ainda **abaixo** do `UnifiedPopup` (1900: o diálogo modal **do jogo**, uma classe vanilla de `assembly_valheim` que **não** é nossa e não pode ser movida, e um modal tem que ficar na frente de uma janela) e do `LongPressRadial` (2000: evitar o **empate** com um canvas do jogo) e muito abaixo do console (5000) e do `SwitchCursor` (12000). O mesmo `sortingOrder` alto resolve o **segundo** sintoma relatado, o **texto do centro da roda embaralhado com o hover do jogo** — o `crosshair/HoverName` desenhava **por cima** dos rótulos `_centerName`/`_centerAction`/`_centerState` do `CompanionRadialMenu`, que ficam no centro da tela. O `raycastTarget = false` dos decorativos (da correção anterior) **continua** valendo e continua certo. **O que foi descartado (com prova):** *nada dentro do painel* podia bloquear aqueles controles — no uGUI o clique vai para o gráfico de maior profundidade de render (a ordem dos irmãos), então um gráfico **ancestral** (o fundo do painel, o container da linha, o viewport do `ScrollRect`) **nunca** fica na frente dos próprios filhos; e as duas barras de scroll invisíveis, embora estejam acima das linhas, têm **10 px** de largura na borda direita e não cobrem o botão ON/OFF. **Não é regressão nossa:** as camadas 28..34 são **do upstream** (idênticas no repo de referência) e o `docs/DEV_NOTES.md` de lá registra o bug do F8 **sem solução**. **O audit (mantido e generalizado):** `[UiDiag] F8 raycast audit` — e agora também `[UiDiag] AI panel raycast audit` — roda **uma vez por sessão**, na primeira abertura do painel (nunca por frame), e reporta os alvos de clique **não-control** dentro do painel, **todas** as camadas ativas da cena (`nome=ordem`) e, para cada canvas **acima** do painel (exceto os do próprio mod, que são listados mas não sondados), os alvos que cobrem a coluna de controles do painel (11 pontos). Se a faixa voltar, o log diz **quem** é. Build: **0 erros, 0 avisos** + DLL implantada. **O teste em jogo é do jogador.** |
 | 2 | **Release / empacotamento** | a versão e o `CHANGELOG` do fork **não** foram fechados e o pacote **não cabe num Thunderstore normal**: a pasta do plugin tem **~428 MB** (modelos do Whisper — `small` = 181 MB —, do Kokoro e os nativos do `sherpa-onnx`/`onnxruntime`). Falta decidir o que entra no pacote (mod sem modelos + instruções de download?) e revisar `package/manifest.json`/`package/README.md` |
 | 3 | **A voz não passa pelo mixer do jogo** | a `AudioSource` da fala não tem `outputAudioMixerGroup`: por isso ela **ignora os sliders de volume do Valheim** (música/SFX) e só obedece a `[IA] TtsVolume`. Roteá-la para o grupo `SFX` fica para depois — não era necessário para o eco, resolvido com `reverbZoneMix = 0` |
 | 4 | **`origin/claude/relaxed-archimedes-ecoh6h`** | branch que existe no GitHub com **código do upstream** (`MaddhattrRocks/Offline-Companions-Reborn`), **não nosso**: não faz parte do fork e não deve ser mesclado/mexido por aqui |
@@ -1155,7 +1155,7 @@ chatter seguem iguais. A integração são só 5 chamadas de `SpeakOutLoud(...)`
 (conversa, ordem com linha própria, ordem genérica, recusa/"já temos", "não entendi") + `Init`/`Tick`/`Shutdown`
 no plugin.
 
-### Fase 3.7 — painel da IA no jogo: personalidade, voz e push-to-talk (✅ validado em jogo — **com a ressalva** do bug aberto do clique no painel **F8**, que não é o deste painel; ver *Pendências conhecidas*)
+### Fase 3.7 — painel da IA no jogo: personalidade, voz e push-to-talk (✅ validado em jogo — o bug do clique no painel **F8** foi corrigido de verdade na branch `fix/camadas-ui`, que subiu **este** painel junto; ver *Pendências conhecidas* e a seção *Correção — o clique engolido no painel F8* no fim do arquivo)
 
 Tudo o que a camada de IA lê do `.cfg` passou a ser ajustável **em jogo**, num painel próprio do mod — sem editar o
 arquivo à mão e sem reiniciar nada.
@@ -1767,6 +1767,110 @@ o flag ligado — `pickupZdo == null || pickupZdo.GetBool(CompanionSetup.AutoPic
 **Teste em jogo:** o jogador confirmou o teste final da fase (*"pra mim parece excelente"*). Verificado aqui antes: o
 build (0 erros, 0 avisos), a `Humanoid.Pickup`/`ItemDrop.CanPickup`/`OnPlayerDrop`/`CanAddItem` no jogo decompilado, e os
 pontos de chamada do ímã e do `MHR_Loot` no código.
+
+### Correção — o clique engolido no painel F8 e o texto do centro da roda: **a camada era a causa** (✅ build 0 erros, 0 avisos — branch `fix/camadas-ui`; **o teste em jogo é do jogador**)
+
+O jogador reabriu o bug depois da `fix/clique-f8`: *"está a mesma merda"*. Estava mesmo — aquela correção tinha
+consertado os **decorativos** do painel (que era um problema real e continua consertado), mas **não** a causa
+principal. O diagnóstico `[UiDiag]` que ela mesma deixou no `ConfigPanel` achou o culpado na primeira abertura:
+
+```
+[UiDiag] F8 raycast audit: canvas "HUD" (order=400, overrideSorting) has a raycast target over the controls of the panel:
+         .../IngameGui/HUD/hudroot/crosshair/HoverName (TextMeshProUGUI 350x150) at the panel point 196,-46
+[UiDiag] F8 raycast audit: canvas "EnemyHud" (order=200) ... HudBase(Clone)/Name (TextMeshProUGUI 400x52) at the panel point 196,230
+[UiDiag] F8 raycast audit: panel order=33, ... 27 other active canvas(es): HC_RadialCanvas=30, ..., EnemyHud=200,
+         HudMessage=1000(override), HUD=400(override), Menu=1700(override), UnifiedPopup=1900(override), ...
+```
+
+**A causa:** o HUD do jogo é um canvas em **`sortingOrder = 400`** (com `overrideSorting`) e **todos** os canvases do
+mod estavam em **28..34** — atrás dele. O alvo que engolia o clique é o **`crosshair/HoverName`** (350x150 **no centro
+da tela**, onde o painel está), e ele **recebe clique mesmo invisível** (o jogo o apaga com
+`canvasRenderer.SetAlpha(0f)` e **não** desliga o `raycastTarget`) — daí a **faixa** e daí rolar o painel resolver.
+**Por que 31 → 33 não bastou:** 33 continua **abaixo de 400**. E em **empate** de `sortingOrder` o uGUI desempata pela
+ordem de registro dos raycasters (`RaycasterManager`), que o canvas do jogo — registrado muito antes — ganha.
+
+#### 1. As camadas, antes → depois (`src/Companions/UI/ModUiLayers.cs`, fonte única)
+
+| Canvas do mod | Antes | Depois | Onde |
+|---|---|---|---|
+| `HC_FarmZoneHud` (`FarmZonePlacer`) | 28 | **1701** | `FarmZonePlacer.BuildHud` |
+| `HC_HomeZonePanel` (`HomeZonePanel`) | 29 | **1702** | `HomeZonePanel.Build` |
+| `HC_RadialCanvas` (`CompanionRadialMenu`) | 30 | **1703** | `CompanionRadialMenu.BuildUI` |
+| `HC_StarterCompanionPanel` (`StarterCompanionPanel`) | 30 | **1704** | `StarterCompanionPanel.Awake` |
+| `CropPickerCanvas` (`FarmZoneCropPicker`) | 31 | **1705** | `FarmZoneCropPicker` |
+| `HC_ConfigPanel` (`ConfigPanel`) | 31 → 33 | **1706** | `ConfigPanel.Build` |
+| `HC_AiPanel` (`CompanionAiPanel`) | 33 | **1707** | `CompanionAiPanel.Build` |
+| `Overlay` (o canvas do dropdown do painel da IA) | 34 | **1708** | `CompanionAiPanel.Build` |
+
+A ordem **relativa** entre os nossos é a de antes; mudou só a faixa. As camadas do jogo que importam, medidas no
+`[UiDiag]` do log do jogador: `EnemyHud` 200, `Chat` 300, `HUD`/`MiniMap`/`wind_marker` **400**, `TopLeftMessage` 500,
+`Inventory_screen` 600, `Store_Screen` 700, `BarberGui` 800, `HudMessage` **1000**, `TextInput` 1100, `TextViewer` 1200,
+`ConnectionPanel` 1300, `Tutorial` 1400, `Captions_DirectionIndicators` 1500, `ClosedCaptions` 1600, `JoinCodeOverlay`
+1650, `Menu` **1700**, `UnifiedPopup` **1900**, `LongPressRadial` **2000**, `_Console(Clone)` **5000**, `SwitchCursor`
+12000.
+
+**Por que 1701 e não 2000** (a sugestão inicial):
+
+- **1701 está acima de tudo o que pode roubar o clique:** o HUD (400), o `HudMessage` (1000) e o `Menu` (1700). Os
+  últimos três — inventário (600), loja (700), barbeiro (800), entrada de texto (1100) e menu (1700) — **não** podem
+  abrir com um painel nosso na tela: os prefixos Harmony do mod em `Hud.InRadial` respondem `true` enquanto um painel
+  está visível, e é isso que o jogo consulta (`InventoryGui.Update`: `... && !Hud.InRadial() && !Hud.InBuildUi()`;
+  `Menu.Update`: `... && !Hud.InRadial()` — conferido no `assembly_valheim` decompilado).
+- **Para em 1899 porque o `UnifiedPopup` está em 1900 e é do jogo.** Ele é uma classe vanilla de `assembly_valheim`
+  (o popup modal que o mod usa para confirmar o *despawn* e a recuperação no santuário) e a ordem vem do prefab do
+  jogo: **não dá para movê-lo**. A regra que fica é a certa de qualquer UI: um **diálogo modal** sempre na frente de
+  uma **janela**.
+- **2000 exatamente seria um empate** com o `LongPressRadial` do jogo — e empate o jogo ganha (ordem de registro dos
+  raycasters). A faixa 2001+ funcionaria, mas deixaria o popup modal do jogo **atrás** dos nossos painéis.
+- Continua muito abaixo do console (5000) e do `SwitchCursor` (12000).
+
+#### 2. O segundo sintoma, o mesmo remédio: o texto do centro da roda
+
+O `CompanionRadialMenu` desenha `_centerName`/`_centerAction`/`_centerState` no **centro** da roda — que é o centro da
+tela, exatamente onde vive o `crosshair/HoverName` do jogo. Com o canvas do radial em 30 e o HUD em 400, o jogo
+desenhava **por cima** e os dois textos se misturavam (o relato: *"ficou todo bugado o texto ... tipo com quebra de
+linha nada a ver"*). Com o radial em **1703** a roda desenha por cima do hover do jogo. (O radial já esconde o
+crosshair enquanto está aberto — `Hud.UpdateCrosshair` — mas **não** apagava o `HoverName` do desenho.)
+
+#### 3. O audit: mantido e generalizado
+
+- A lógica saiu do `ConfigPanel` para **`src/Companions/UI/ModUiAudit.cs`** e os dois painéis de tela cheia a chamam
+  **uma vez por sessão**, na primeira abertura (`[UiDiag] F8 raycast audit` e `[UiDiag] AI panel raycast audit`) —
+  **nunca por frame**, e nada é alocado por frame.
+- O que ele reporta: (a) todo alvo de clique **dentro** do painel que **não** seja um controle (com a razão: decorativo
+  sem `Selectable`, ou barra de scroll invisível) — os "on purpose" (o backdrop modal e as áreas de scroll) saem
+  listados; (b) **todas** as camadas ativas da cena, `nome=ordem(override)`; (c) para cada canvas **acima** do painel,
+  os alvos que cobrem a coluna de controles (11 pontos amostrados) — **um aviso por alvo**, com o caminho completo, o
+  tipo e o tamanho. Um hit ali **é** a faixa invisível.
+- Novidade: os canvases **do próprio mod** continuam **listados** (fazem parte do quadro) mas **não** são sondados —
+  dois painéis nossos nunca ficam um sobre o outro (todos recusam abrir juntos), então um hit ali seria o audit
+  achando a si mesmo.
+
+#### 4. O que **não** mudou
+
+Nada de lógica, layout, texto, LLM, TTS, ordens, jobs ou STT. Nada de posição/tamanho de nada: só o `sortingOrder`
+dos oito canvases e o audit. `raycastTarget` dos controles, `Esc`, o X, as abas, os ON/OFF, o *Padrão*, os sliders, o
+*key bind*, o scroll do F8, o dropdown/Ouvir/push-to-talk do painel da IA e o abrir/fechar/escolher setor da roda
+seguem exatamente iguais — o que mudou para eles é **só quem está na frente de quem**.
+
+#### 5. Receita de teste (para o jogador)
+
+1. **F8** → clicar no ON/OFF de uma linha no **meio** do painel, sem rolar: tem que responder na hora (era isso que
+   não respondia). Testar também **Padrão**, um slider, o *key bind*, a troca de aba e o X.
+2. **F8** com o painel aberto → rolar o conteúdo: o scroll continua funcionando.
+3. Segurar a tecla da **roda** num companheiro: os rótulos do **centro** (nome / ação / estado) têm que sair limpos,
+   sem o texto do hover do jogo por cima; escolher um setor e soltar continua igual.
+4. **Painel da IA** (tecla `I`) → dropdown de personalidade/voz (a lista tem que abrir **por cima** dos controles e
+   receber o clique), **Ouvir**, push-to-talk, e **Esc** fechando.
+5. `BepInEx\LogOutput.log` → uma linha `[UiDiag] F8 raycast audit: panel order=1706, ...` e uma
+   `[UiDiag] AI panel raycast audit: panel order=1707, ...`. **Não deve haver nenhum aviso**
+   `has a raycast target over the controls of the panel` (se houver, ele nomeia quem é).
+
+**O que não foi possível verificar aqui (é do jogador):** tudo o que depende do jogo rodando — o clique em si, o
+desenho do radial, o dropdown do painel da IA e o conteúdo do `[UiDiag]` em jogo. Verificado **por leitura de código**
+(compilado, 0 erros, 0 avisos): as camadas do jogo e as do mod, o portão `Hud.InRadial` do `InventoryGui`/`Menu` no
+`assembly_valheim` decompilado, e que o `UnifiedPopup` é classe vanilla (não é nossa e não foi tocada).
+
 
 
 

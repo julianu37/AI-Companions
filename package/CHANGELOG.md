@@ -2,7 +2,43 @@
 
 All notable changes to this fork of ProfMags' Offline Companions. Versions before 1.4.0 are the original mod (see [ProfMags' Thunderstore page](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) for that history) plus the initial batch of Valheim 1.0 API-compatibility fixes that let the mod load and run at all on 1.0.
 
-## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.6b: a ordem sem alvo do modelo (drop/equip/attack caem para as palavras do jogador) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Fase 3.3c: raio de coleta maior e chatter aleatório desligado + Fase 3.3d: a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador + Fase 3.8: o companheiro abre o próprio inventário por voz/chat + Fase 3.4: o companheiro FALA (TTS local, Kokoro-82M via sherpa-onnx) + Fase 3.7: painel da IA no jogo (personalidade, voz com Ouvir, push-to-talk) + Fase 3.4 (parte 3): o eco do TTS RESOLVIDO — era a zona de reverb global do jogo (a voz sai seca) + Fase 3.1: saída estruturada (JSON schema) — destrava modelos pequenos + Tradução PT-BR (fork ModAI-BR-Companions) + correção: o painel F8 não engole mais cliques (camada 31→33 + raycast dos decorativos)
+## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.6b: a ordem sem alvo do modelo (drop/equip/attack caem para as palavras do jogador) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Fase 3.3c: raio de coleta maior e chatter aleatório desligado + Fase 3.3d: a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador + Fase 3.8: o companheiro abre o próprio inventário por voz/chat + Fase 3.4: o companheiro FALA (TTS local, Kokoro-82M via sherpa-onnx) + Fase 3.7: painel da IA no jogo (personalidade, voz com Ouvir, push-to-talk) + Fase 3.4 (parte 3): o eco do TTS RESOLVIDO — era a zona de reverb global do jogo (a voz sai seca) + Fase 3.1: saída estruturada (JSON schema) — destrava modelos pequenos + Tradução PT-BR (fork ModAI-BR-Companions) + correção: o painel F8 não engole mais cliques (camada 31→33 + raycast dos decorativos) + correção (a de verdade): os painéis e a roda do mod vão para a faixa **1701+** — **a camada era a causa** do clique engolido no F8 (o HUD do jogo está em 400; o 31→33 era insuficiente)
+- **Os painéis e a roda do mod agora ficam ACIMA do HUD do jogo — o clique engolido no painel F8 e o texto do centro da
+  roda, resolvidos pela camada (branch `fix/camadas-ui`).** O jogador reabriu o bug depois da `fix/clique-f8` (*"está a
+  mesma merda"*), e estava certo: aquela correção acertou os **decorativos** (problema real, continua consertado) mas
+  **não** a causa principal. O diagnóstico `[UiDiag]` que ela mesma deixou no painel achou o culpado:
+  ```
+  [UiDiag] F8 raycast audit: canvas "HUD" (order=400, overrideSorting) has a raycast target over the controls of the panel:
+           .../IngameGui/HUD/hudroot/crosshair/HoverName (TextMeshProUGUI 350x150) at the panel point 196,-46
+  [UiDiag] F8 raycast audit: panel order=33, ... EnemyHud=200, HudMessage=1000(override), HUD=400(override),
+           Menu=1700(override), UnifiedPopup=1900(override), ...
+  ```
+  - **A causa:** o HUD do jogo é um canvas em **`sortingOrder = 400`** (com `overrideSorting`) e **todos** os canvases
+    do mod estavam em **28..34** — atrás dele. O alvo que engolia o clique é o **`crosshair/HoverName`** (350x150 no
+    **centro** da tela, onde o painel está), e ele **recebe clique mesmo invisível** (o jogo o apaga com
+    `canvasRenderer.SetAlpha(0f)` e **não** desliga o `raycastTarget`) — daí a **faixa** e daí rolar o painel resolver.
+    **Por que 31 → 33 não bastou:** 33 continua **abaixo de 400** (e em empate de `sortingOrder` o uGUI desempata pela
+    ordem de registro dos raycasters, que o canvas do jogo ganha).
+  - **A correção:** todos os canvases do mod foram para a faixa **1701..1708**, com os números numa **fonte única**
+    (`src/Companions/UI/ModUiLayers.cs`): `FarmZonePlacer` 28→**1701**, `HomeZonePanel` 29→**1702**,
+    `CompanionRadialMenu` 30→**1703**, `StarterCompanionPanel` 30→**1704**, `FarmZoneCropPicker` 31→**1705**,
+    `ConfigPanel` 33→**1706**, `CompanionAiPanel` 33→**1707** e o overlay do dropdown 34→**1708**. A ordem relativa
+    entre os nossos é a de antes.
+  - **Por que 1701 e não 2000:** 1701 já está acima do HUD (400), do `HudMessage` (1000) e do `Menu` (1700), e para
+    **abaixo** do `UnifiedPopup` (1900) — o popup modal **do jogo** (classe vanilla de `assembly_valheim`, não é nossa e
+    não pode ser movida): um modal tem que ficar na frente de uma janela. E 2000 seria **empate** com o
+    `LongPressRadial` do jogo, empate que o jogo ganha. Continua muito abaixo do console (5000) e do `SwitchCursor`
+    (12000). Os painéis do mod seguem bloqueando inventário/loja/menu (`Hud.InRadial`), então esses nunca ficam atrás
+    de nós.
+  - **O segundo sintoma, o mesmo remédio:** o radial desenha `_centerName`/`_centerAction`/`_centerState` no **centro**
+    da tela, onde vive o `crosshair/HoverName`; com o radial em 30 e o HUD em 400 o jogo desenhava por cima e os textos
+    se misturavam. Com o radial em **1703**, não mais.
+  - **Audit mantido e generalizado:** a lógica saiu do `ConfigPanel` para `src/Companions/UI/ModUiAudit.cs`; agora
+    `[UiDiag] F8 raycast audit` **e** `[UiDiag] AI panel raycast audit` rodam **uma vez por sessão** (nunca por frame) e
+    reportam os alvos de clique não-control dentro do painel, **todas** as camadas ativas da cena e quem, acima do
+    painel, cobre a coluna de controles. Os canvases do próprio mod são listados mas não sondados.
+  - **Não mudou nada de lógica, layout, texto, LLM, TTS, ordens, jobs ou STT** — só o `sortingOrder` dos oito canvases
+    e o audit. Build: **0 erros, 0 avisos** + DLL implantada. **O teste em jogo é do jogador.**
 - **O painel F8 não engole mais cliques (branch `fix/clique-f8`).** O relato do jogador ("há algo invisível na frente
   dos controles numa **faixa** — clicar no ON/OFF de uma linha não fazia nada; depois de rolar o painel o mesmo botão
   funcionava") tinha **duas** coisas somadas, e as duas valiam para o mesmo sintoma:

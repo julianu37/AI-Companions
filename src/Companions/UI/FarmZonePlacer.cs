@@ -221,7 +221,7 @@ public class FarmZonePlacer : MonoBehaviour
 		gameObject.transform.SetParent(base.transform, worldPositionStays: false);
 		_hudCanvas = gameObject.GetComponent<Canvas>();
 		_hudCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
-		_hudCanvas.sortingOrder = 28;
+		_hudCanvas.sortingOrder = ModUiLayers.FarmZonePlacer;
 		CanvasScaler component = gameObject.GetComponent<CanvasScaler>();
 		component.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
 		component.referenceResolution = new Vector2(1920f, 1080f);

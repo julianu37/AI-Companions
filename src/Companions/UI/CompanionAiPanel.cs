@@ -99,12 +99,14 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	/// <summary>How often the status line and the "Ouvir" button are refreshed (never per frame).</summary>
 	private const float StatusInterval = 0.5f;
 
-	/// <summary>Sorting order of the panel's own canvas (it is the whole mod UI layer: 33).</summary>
-	private const int PanelSortingOrder = 33;
+	/// <summary>Sorting order of the panel's own canvas, from <see cref="ModUiLayers"/> - the one place where the
+	/// whole band of the mod's UI is documented (the game's play HUD is at 400, so 33 - the number this panel has
+	/// always had - is behind it).</summary>
+	private const int PanelSortingOrder = ModUiLayers.AiPanel;
 
 	/// <summary>Sorting order of the overlay canvas that holds the dropdown lists: one step above the panel, so the
 	/// list of an open dropdown is drawn - and clicked - above every control of the panel.</summary>
-	private const int OverlaySortingOrder = PanelSortingOrder + 1;
+	private const int OverlaySortingOrder = ModUiLayers.AiPanelOverlay;
 
 	// ------------------------------------------------------------------ colours
 
@@ -194,6 +196,9 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 	private float _nextStatus;
 
+	/// <summary>The raycast audit of this panel runs once per session (the first open), never per frame.</summary>
+	private static bool _raycastAudited;
+
 	public static CompanionAiPanel Instance { get; private set; }
 
 	public bool IsVisible => _visible;
@@ -273,7 +278,45 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		Cursor.lockState = CursorLockMode.None;
 		Cursor.visible = true;
 		EnsureEventSystem();
+		LogRaycastAudit();
 	}
+
+	/// <summary>
+	/// One shot per session, on the first open: the raycast audit of this panel - the same one the F8 panel runs
+	/// (<see cref="ModUiAudit"/>), with the geometry of <b>this</b> panel. It answers "who is in front of the
+	/// controls?" with the layers of the scene, and it is the cheap insurance against the swallowed click coming
+	/// back: this panel used to be at 33, behind the game's play HUD at 400, and the audit is what says so out loud.
+	/// Once, never per frame.
+	/// </summary>
+	private void LogRaycastAudit()
+	{
+		if (_raycastAudited)
+		{
+			return;
+		}
+		_raycastAudited = true;
+		ModUiAudit.Log("AI panel raycast audit", PanelSortingOrder, GetComponent<Canvas>(),
+			_root != null ? _root.GetComponent<RectTransform>() : null, ProbePoints, _backdrop, this);
+	}
+
+	/// <summary>The probed points (panel-local; the panel is 680x516 with a centre pivot): the middle of the column
+	/// of controls, at eleven heights, so a band anywhere over the controls is caught. The column starts at
+	/// <c>FieldX</c> (166 from the left edge) and stops at <c>RightEdge</c> (672), so its centre is 419 from the left
+	/// edge - i.e. 79 from the centre pivot - and the rows run from 40 to 410 from the top.</summary>
+	private static readonly Vector2[] ProbePoints = new Vector2[11]
+	{
+		new Vector2(79f, 235f),
+		new Vector2(79f, 198f),
+		new Vector2(79f, 161f),
+		new Vector2(79f, 124f),
+		new Vector2(79f, 87f),
+		new Vector2(79f, 50f),
+		new Vector2(79f, 13f),
+		new Vector2(79f, -24f),
+		new Vector2(79f, -61f),
+		new Vector2(79f, -98f),
+		new Vector2(79f, -135f)
+	};
 
 	public void Hide()
 	{

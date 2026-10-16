@@ -63,7 +63,7 @@ public class StarterCompanionPanel : MonoBehaviour
 	{
 		_canvas = base.gameObject.AddComponent<Canvas>();
 		_canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-		_canvas.sortingOrder = 30;
+		_canvas.sortingOrder = ModUiLayers.StarterCompanionPanel;
 		base.gameObject.AddComponent<CanvasScaler>().uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
 		base.gameObject.GetComponent<CanvasScaler>().referenceResolution = new Vector2(1920f, 1080f);
 		base.gameObject.AddComponent<GraphicRaycaster>();
