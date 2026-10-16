@@ -2,7 +2,32 @@
 
 All notable changes to this fork of ProfMags' Offline Companions. Versions before 1.4.0 are the original mod (see [ProfMags' Thunderstore page](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) for that history) plus the initial batch of Valheim 1.0 API-compatibility fixes that let the mod load and run at all on 1.0.
 
-## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.6b: a ordem sem alvo do modelo (drop/equip/attack caem para as palavras do jogador) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Fase 3.3c: raio de coleta maior e chatter aleatório desligado + Fase 3.3d: a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador + Fase 3.8: o companheiro abre o próprio inventário por voz/chat + Fase 3.4: o companheiro FALA (TTS local, Kokoro-82M via sherpa-onnx) + Fase 3.7: painel da IA no jogo (personalidade, voz com Ouvir, push-to-talk) + Fase 3.4 (parte 3): o eco do TTS RESOLVIDO — era a zona de reverb global do jogo (a voz sai seca) + Fase 3.1: saída estruturada (JSON schema) — destrava modelos pequenos + Tradução PT-BR (fork ModAI-BR-Companions)
+## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.6b: a ordem sem alvo do modelo (drop/equip/attack caem para as palavras do jogador) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Fase 3.3c: raio de coleta maior e chatter aleatório desligado + Fase 3.3d: a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador + Fase 3.8: o companheiro abre o próprio inventário por voz/chat + Fase 3.4: o companheiro FALA (TTS local, Kokoro-82M via sherpa-onnx) + Fase 3.7: painel da IA no jogo (personalidade, voz com Ouvir, push-to-talk) + Fase 3.4 (parte 3): o eco do TTS RESOLVIDO — era a zona de reverb global do jogo (a voz sai seca) + Fase 3.1: saída estruturada (JSON schema) — destrava modelos pequenos + Tradução PT-BR (fork ModAI-BR-Companions) + correção: o painel F8 não engole mais cliques (camada 31→33 + raycast dos decorativos)
+- **O painel F8 não engole mais cliques (branch `fix/clique-f8`).** O relato do jogador ("há algo invisível na frente
+  dos controles numa **faixa** — clicar no ON/OFF de uma linha não fazia nada; depois de rolar o painel o mesmo botão
+  funcionava") tinha **duas** coisas somadas, e as duas valiam para o mesmo sintoma:
+  - **A camada.** O canvas do `ConfigPanel` estava em **31** — a **mesma** camada do UI do jogo. Num empate de
+    `sortingOrder` o uGUI desempata pela **ordem de registro dos raycasters** (`RaycasterManager`), e o canvas do jogo
+    (registrado muito antes) ganha: o `GraphicRaycaster` dele entrega o clique a um alvo **invisível** seu (texto de
+    `MessageHud`/HUD apagado com `canvasRenderer.SetAlpha(0f)`, que **continua** recebendo clique) numa **faixa fixa no
+    centro da tela**. O painel é centralizado, então rolar o painel tira o controle da faixa — exatamente o que o
+    jogador viu. O **painel da IA** (tecla `I`) nunca teve o problema porque sempre esteve em **33**. O `ConfigPanel`
+    foi para **33** (a mesma camada; os dois painéis recusam abrir juntos).
+  - **Os decorativos.** Todo `Graphic` decorativo do painel era `raycastTarget = true` (padrão do uGUI): o fundo do
+    painel, as faixas das linhas, o viewport do `ScrollRect` e — os piores, por serem os **últimos irmãos do viewport**,
+    ou seja os gráficos **mais acima de todo o painel** — a barra de scroll **invisível** e o **handle** dela (10 px na
+    borda direita). Agora **só** os controles (abas, ON/OFF, Padrão, slider fundo+handle, *key bind*, X) e as duas
+    **áreas de scroll** (o viewport do conteúdo e a coluna de abas — os GameObjects onde vivem os `ScrollRect`s, que
+    precisam do alvo para a roda do mouse e o arrasto) continuam com `raycastTarget = true`; a barra invisível e o
+    handle viraram `false` **e** passaram a ser os **primeiros** irmãos do viewport (o `ScrollRect` os guarda por
+    referência, então nada muda para a roda/arrasto). O que foi **descartado com prova** está no `docs/roadmap.md`
+    (*Pendências conhecidas*): no uGUI um gráfico **ancestral** nunca fica na frente dos próprios filhos (o fundo da
+    coluna de abas é um alvo de clique e os botões de aba sempre responderam).
+  - **Diagnóstico (uma vez por sessão, na primeira abertura).** `[UiDiag] F8 raycast audit: panel order=33, N control
+    raycast target(s), M on purpose (...), 0 unexpected; K other active canvas(es): <nome=sortingOrder, ...>; 0 raycast
+    target(s) of another canvas over the controls.` — e, se houver, um **aviso por alvo de outra camada** que cubra a
+    coluna de controles do painel (11 pontos amostrados). Se a faixa voltar, o log diz **quem** é.
+  - Build: **0 erros, 0 avisos** + DLL implantada. **O teste em jogo é do jogador.**
 - **A ordem "recolhe os itens do chão" finalmente recolhe (Fase 3.1 — `MHR_Collect`: o que faltava).** O jogador largou o
   machado (`jogue seu machado no chão` → `Order "drop": Companion dropped 1 x "Machado Nordico"`) e depois pediu para pegar
   de volta (`pegue o machado nordico do chão`, `junte o machado`, `recolhe os itens`): o modelo acertava a ordem

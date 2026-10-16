@@ -426,8 +426,23 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   estruturada, 3.1b, 3.1c, 3.1d, 3.2, 3.2c, 3.3, 3.3b, 3.3c, 3.3d, 3.4, 3.5, 3.6, 3.6b, 3.7, 3.8 — com a evidência
   citada na tabela da Trilha D do `docs/roadmap.md`). A **3.1b/3.1c** (`colete 10 pedras`) também foi confirmada em
   jogo: o `qwen2.5-3b-instruct` devolveu `stone`/`stone` e a ordem aplicou o teto de 10 de pedra em ~378 ms.
-- **Pendências conhecidas (abertas):** o **bug do clique no painel F8** (algo invisível engolindo o clique numa faixa
-  dos controles; o painel da IA, tecla `I`, **não** tem o problema); o **release/empacotamento** (versão e `CHANGELOG`
+- **Correção (branch `fix/clique-f8`) — o painel F8 não engole mais cliques.** O relato ("algo invisível na frente dos
+  controles numa **faixa**") tinha **duas** coisas somadas: (1) o canvas do `ConfigPanel` estava em **31**, a **mesma
+  camada** do UI do jogo, e num empate de `sortingOrder` o uGUI desempata pela **ordem de registro dos raycasters**
+  (`RaycasterManager`) — a do jogo vence, e um alvo de clique **invisível** dele (texto de `MessageHud`/HUD apagado com
+  `canvasRenderer.SetAlpha(0f)`, que continua recebendo clique) numa **faixa fixa no centro da tela** engolia os cliques
+  daquela faixa; o painel da IA (tecla `I`) **nunca** teve o problema porque sempre esteve em **33**. (2) Os elementos
+  **decorativos** do painel eram `raycastTarget = true` (fundo do painel, faixas das linhas, o viewport do `ScrollRect`
+  e — os piores, por serem os **últimos irmãos** do viewport, isto é os gráficos mais acima de todo o painel — a barra
+  de scroll **invisível** e o **handle** dela). **Correção:** a camada foi para **33** (a mesma do painel da IA; os dois
+  recusam abrir juntos) e todo gráfico decorativo virou `raycastTarget = false`, ficando `raycastTarget = true` **só**
+  nos controles (abas, ON/OFF, Padrão, slider fundo+handle, *key bind*, X) e nas duas **áreas de scroll** (o viewport do
+  conteúdo e a coluna de abas, os GameObjects onde vivem os `ScrollRect`s); a barra invisível virou **primeiro** irmão do
+  viewport. Um **diagnóstico** novo (uma vez por sessão, na primeira abertura) loga `[UiDiag] F8 raycast audit: ...` com
+  os alvos não-interativos do painel e **as outras camadas ativas da cena** (`nome=sortingOrder`) mais qualquer alvo que
+  cubra a coluna de controles — se o bug voltar, o log diz quem é. Ver `docs/roadmap.md` (*Pendências conhecidas*) e
+  `package/CHANGELOG.md`.
+- **Pendências conhecidas (abertas):** o **release/empacotamento** (versão e `CHANGELOG`
   não fechados e a pasta do plugin tem **~428 MB** — não cabe num pacote Thunderstore normal); a **voz não passa pelo
   mixer do jogo** (por isso ignora os sliders de volume do Valheim e só obedece `[IA] TtsVolume`); e a branch
   `origin/claude/relaxed-archimedes-ecoh6h` no GitHub, que é **código do upstream**, não nosso. Detalhes na
