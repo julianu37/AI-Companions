@@ -348,6 +348,7 @@ Ordens em **linguagem natural** por cima do mod do upstream. O companheiro conti
 | 3.6b | **Correção da ordem sem alvo**: quando o modelo responde `"target": null`, o item/criatura é lido das **palavras do próprio jogador**; o prompt passa a exigir `target` em `attack`/`equip`/`drop` | ✅ build 0 erros + DLL no plugin (teste em jogo pendente) |
 | 3.7 | **Painel da IA no jogo** (personalidade + voz com *Ouvir* + push-to-talk + toggles, tecla `I`) | ✅ build 0 erros + DLL no plugin (teste em jogo pendente) |
 | 3.1 | **Saída estruturada** (`response_format`/JSON schema): garante JSON válido e destrava modelos pequenos (3B) | ✅ build 0 erros + DLL no plugin (teste em jogo pendente) |
+| 3.1b | **O recurso manda** (correção do teste em jogo): com `action` e `resource` inconsistentes (`colete 10 pedras` voltou como `wood`/`stone`) a ordem usa o **recurso** — o campo específico — e não a ação genérica | ✅ build 0 erros + harness de 60 casos (fora do jogo) |
 
 ### Fase 3.1 — ordem por texto no chat (✅ — Unreleased)
 
@@ -1401,7 +1402,7 @@ Os interruptores ficaram **no padrão** ao terminar o teste, e a correção viro
 
 
 
-### Fase 3.1 — saída estruturada (JSON schema): o que permite modelos pequenos (✅ build 0 erros — branch `feat/json-schema`; teste em jogo pendente)
+### Fase 3.1 — saída estruturada (JSON schema): o que permite modelos pequenos (✅ build 0 erros + teste em jogo com o `qwen2.5-3b-instruct` — branch `feat/json-schema`; as correções que vieram do teste estão nas seções 6 e 7)
 
 O pedido ao modelo passou a levar **`response_format`**, pedindo ao servidor que **force** a forma da resposta: um
 objeto JSON com as cinco chaves do contrato e a lista fechada de ações. É a única mudança desta fase — o prompt
@@ -1495,6 +1496,53 @@ O **comportamento em jogo** (o build e o JSON do corpo foram conferidos fora do 
 29 ações, `strict`, `required` e `additionalProperties:false`; a lista do `enum` foi conferida contra o `Contract`).
 Os **números 0/6 x 6/6** são medição do jogador, não do agente. Os **fallbacks** foram revisados no código, mas não
 foram exercitados contra um servidor que realmente recuse o schema.
+
+#### 6. O teste em jogo (modelo pequeno): `action` e `resource` inconsistentes — **o recurso manda**
+
+O teste em jogo com o **`qwen2.5-3b-instruct`** (o caso que a saída estruturada destravou) achou um erro nosso. O
+jogador pediu `colete 10 pedras` e o companheiro foi **coletar madeira**. O log do teste:
+
+| Frase do jogador | O que o modelo devolveu | O que o mod fez |
+|---|---|---|
+| `colete 10 madeiras` | `{"action":"wood","resource":"wood","amount":10}` | madeira ✅ |
+| `colete 10 pedras` | `{"action":"stone","resource":"pedra","amount":10}` | pedra ✅ |
+| `colete 5 pedras` | `{"action":"wood","resource":"stone","amount":5}` | **madeira ❌** (`Order target: mode 1 stops at 5 Stone in the pack` + `Order "wood" (x5)`) |
+| `colete 5 pedras` | `{"action":"wood","resource":"wood","amount":5}` | madeira ❌ (confusão do modelo) |
+| `colete 10 pedras` | `{"action":"wood","resource":"wood","amount":10}` | madeira ❌ (confusão do modelo) |
+
+São **dois problemas**: (1) **nosso** — com os dois campos inconsistentes o mod obedecia ao `action` **genérico** e
+**ignorava o `resource`**, que é o campo específico e o que já tinha sido resolvido para o item que o trabalho conta
+(era ele que aparecia no log do teto, "stops at 5 **Stone**", enquanto o modo aplicado era o de madeira); (2) **do
+modelo pequeno** — em `colete N <coisa>` ele copia o `action:"wood"` do exemplo `"colete 20 de madeira"` do contrato
+(*few-shot overfitting*, típico de 3B) — tratado na seção 7.
+
+**Correção (defensiva):** `OrderItems.GatherAction(action, resource)` (novo) responde **qual ação de coleta o
+`resource` indica**, ou `null` quando não há nada a corrigir. `CompanionOrders.Run` a chama **uma vez por mensagem**,
+antes de montar o rótulo/log da ordem, e — quando ela devolve algo — troca o `action` e escreve **uma linha** no log:
+
+```
+[IA] O modelo devolveu action="wood" com resource="stone" - usei "stone" (o recurso manda).
+```
+
+- **Só as ordens de coleta** (`wood`, `stone`, `ore`, `forage`) são olhadas: `attack`/`equip`/`drop`/`inventory` e
+  todas as outras passam intactas. Sem `resource` (nulo/vazio) nada muda — o comportamento de reserva da 3.2 continua.
+- **Nada de tabela nova:** o nome do recurso passa pelo **mesmo** mapa de apelidos que o `OrderItems.Resolve` já usa
+  (`pedra`/`stone` → `Stone`; `ferro`/`iron` → `IronScrap`) e o item é procurado entre as **entradas nomeadas das
+  quatro listas que os próprios trabalhos leem** (`[Gathering] GatherWood`/`GatherStone`/`GatherOre` e
+  `[Gathering] ForageItems`) — por nome de prefab **ou** pelo nome do jogo (`ItemLocal`), do mesmo jeito que as listas
+  casam nomes. O mapeamento item → trabalho é a configuração do jogador, então não há uma segunda tabela para manter
+  em sincronia. Uma lista que diz `*` **não nomeia item nenhum** e não decide nada.
+- **Conservador:** se o recurso já é um item **da lista do próprio trabalho** da ação (par coerente), não se mexe —
+  então uma lista personalizada nunca é sobreposta. `ore` continua sem item próprio ("minério" = cobre, ferro, prata e
+  estanho), como na 3.2.
+- **O que fica como está:** o teto da ordem (3.2c) e a contagem na mochila, o `OrderItems.Resolve`, o alvo do menu
+  radial e o fallback da 3.6b (que lê as palavras do jogador). Com a ação corrigida, o `mode` aplicado e o item do
+  teto passam a ser **o mesmo trabalho** (antes: modo de madeira + teto contando pedra).
+- **Verificado fora do jogo** com um harness que compila os arquivos **reais** (`OrderItems`, `LlmIntent`, `MHR_List`;
+  `CompanionOrders.JobMode` e as quatro listas entram como stubs): **60 casos, ALL CHECKS PASSED** — inclusive o caso
+  do log (`action="wood"` + `resource="stone"` → `stone`), o espelho, os pares coerentes, recurso nulo/desconhecido,
+  todas as ações que não são de coleta e as listas `*`/personalizadas/nomeadas em PT-BR. **O teste em jogo é do
+  jogador.**
 
 
 

@@ -53,6 +53,17 @@ internal static class CompanionOrders
 			return outcome;
 		}
 		string action = intent.Action;
+		// Fase 3.1 (correção do teste em jogo): um modelo pequeno às vezes devolve "action" e "resource"
+		// inconsistentes ("colete 10 pedras" voltou como action "wood" com resource "stone") e o mod obedecia ao
+		// "action" genérico e ignorava o recurso - que é o campo específico, o que já foi resolvido para o item que
+		// o trabalho conta. Quando os dois discordam sobre QUAL trabalho é, o recurso manda (só nas ordens de coleta;
+		// ver OrderItems.GatherAction). Corrigido aqui, uma vez por mensagem, para o log sair uma linha só.
+		string byResource = OrderItems.GatherAction(action, intent.Resource);
+		if (byResource != null)
+		{
+			CompanionsPlugin.Log?.LogInfo($"[IA] O modelo devolveu action=\"{action}\" com resource=\"{intent.Resource}\" - usei \"{byResource}\" (o recurso manda).");
+			action = byResource;
+		}
 		outcome.Understood = true;
 		outcome.LabelKey = "hc_ai_order_" + action;
 		outcome.Amount = intent.Amount;

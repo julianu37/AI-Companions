@@ -3,6 +3,24 @@
 All notable changes to this fork of ProfMags' Offline Companions. Versions before 1.4.0 are the original mod (see [ProfMags' Thunderstore page](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) for that history) plus the initial batch of Valheim 1.0 API-compatibility fixes that let the mod load and run at all on 1.0.
 
 ## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.6b: a ordem sem alvo do modelo (drop/equip/attack caem para as palavras do jogador) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Fase 3.3c: raio de coleta maior e chatter aleatório desligado + Fase 3.3d: a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador + Fase 3.8: o companheiro abre o próprio inventário por voz/chat + Fase 3.4: o companheiro FALA (TTS local, Kokoro-82M via sherpa-onnx) + Fase 3.7: painel da IA no jogo (personalidade, voz com Ouvir, push-to-talk) + Fase 3.4 (parte 3): o eco do TTS RESOLVIDO — era a zona de reverb global do jogo (a voz sai seca) + Fase 3.1: saída estruturada (JSON schema) — destrava modelos pequenos + Tradução PT-BR (fork ModAI-BR-Companions)
+- **O recurso manda: `colete 10 pedras` não vira mais coleta de madeira (Fase 3.1 — correção do teste em jogo).** No
+  teste com o **`qwen2.5-3b-instruct`** o companheiro foi **coletar madeira** quando o jogador pediu `colete 10 pedras`.
+  A causa tinha duas partes: **nossa** — com `action` e `resource` inconsistentes (`{"action":"wood","resource":"stone"}`)
+  o mod obedecia ao `action` **genérico** e **ignorava o `resource`**, que é o campo específico (era ele que aparecia
+  no log do teto, "stops at 5 **Stone**", enquanto o trabalho aplicado era o de madeira); e **do modelo pequeno**, que
+  em `colete N <coisa>` copia o `action:"wood"` do exemplo do contrato. Esta parte corrige a nossa:
+  - **O `resource` ganha quando os dois discordam sobre qual trabalho é** (`OrderItems.GatherAction`, novo, chamado
+    uma vez por mensagem pelo `CompanionOrders.Run`): o log mostra a correção em **uma linha**
+    (`[IA] O modelo devolveu action="wood" com resource="stone" - usei "stone" (o recurso manda).`).
+  - **Só nas ordens de coleta** (`wood`/`stone`/`ore`/`forage`), e só quando o recurso é item de **outro** trabalho:
+    `attack`, `equip`, `drop`, `inventory` e as demais não são tocadas, e um `resource` nulo/desconhecido mantém o
+    comportamento de sempre.
+  - **Sem tabela nova:** o recurso passa pelo mesmo mapa de apelidos que o `OrderItems.Resolve` já usa e o item é
+    procurado nas **entradas nomeadas das quatro listas que os trabalhos leem** (`GatherWood`/`GatherStone`/`GatherOre`
+    /`ForageItems`), por prefab ou pelo nome do jogo. Par já coerente (o recurso é da lista do próprio trabalho) não é
+    mexido; lista `*` não decide nada.
+  - **O teto da ordem, a contagem na mochila, o `Resolve`, o alvo do radial e o fallback das palavras do jogador ficam
+    como estavam.** Verificado fora do jogo (harness com os arquivos reais): **60 casos, ALL CHECKS PASSED**.
 - **A resposta do modelo agora é garantidamente um JSON (Fase 3.1 — saída estruturada).** O pedido ao modelo passou a
   levar `response_format` com um **JSON schema** (`companion_intent`) que fixa as cinco chaves do contrato e a **lista
   fechada das 29 ações** — é isso que impede a resposta em texto solto, que o prompt sozinho não conseguia evitar. O

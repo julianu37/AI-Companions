@@ -346,6 +346,21 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   **true**; aparece sozinha no painel F8). Os três corpos são montados **na main thread** (a `Task` só envia). **Não
   mudou:** o `Contract`, o `LlmIntent`, o fallback da 3.6b, a personalidade/memória, o `KeepAlive`, o `BaseUrl`, o TTS,
   o painel, o STT e as ordens. Detalhes: `docs/roadmap.md` (Fase 3.1 — saída estruturada).
+- **Fase 3.1 — o teste em jogo com o `qwen2.5-3b-instruct` e a correção "o recurso manda":** o teste achou o companheiro
+  **coletando madeira** para `colete 10 pedras`. O log mostrou o modelo devolvendo `action` e `resource`
+  **inconsistentes** (`{"action":"wood","resource":"stone"}`) e o mod obedecendo ao `action` **genérico**, ignorando o
+  `resource` — que é o campo específico e o que já tinha sido resolvido para o item do teto (`Order target: mode 1
+  stops at 5 Stone` + `Order "wood" (x5)`). Correção: **`OrderItems.GatherAction(action, resource)`** (novo) diz **qual
+  ação de coleta o `resource` indica**, e o **`CompanionOrders.Run`** a chama **uma vez por mensagem** — quando os dois
+  discordam sobre qual trabalho é, **o recurso manda** e sai **uma linha** no log (`[IA] O modelo devolveu action="wood"
+  com resource="stone" - usei "stone" (o recurso manda).`). **Só as ordens de coleta** (`wood`/`stone`/`ore`/`forage`):
+  `attack`/`equip`/`drop`/`inventory` e as demais passam intactas, e `resource` nulo/desconhecido mantém tudo como
+  antes. **Sem tabela nova:** o nome passa pelo **mesmo** mapa de apelidos do `OrderItems.Resolve` (`pedra`→`Stone`) e o
+  item é procurado entre as **entradas nomeadas das quatro listas que os trabalhos leem**
+  (`GatherWood`/`GatherStone`/`GatherOre`/`ForageItems`), por prefab **ou** pelo nome do jogo; par já coerente (o
+  recurso é da lista do próprio trabalho) **não** é mexido e lista `*` não decide nada. Ficam como estavam: o teto da
+  3.2c e a contagem na mochila, o `Resolve`, o alvo do radial e o fallback da 3.6b. Verificado fora do jogo (harness com
+  os arquivos reais): **60 casos, ALL CHECKS PASSED**. Detalhes: `docs/roadmap.md` (Fase 3.1 — §6).
 - Backend/contrato de referência: `docs/re/backend-contract.md`; mapa da fase: `docs/roadmap.md` (Trilha D);
   pipeline de voz: `docs/re/stt-voz-pipeline.md`; fala do companheiro: `docs/re/tts-kokoro-sherpa-onnx.md`.
 

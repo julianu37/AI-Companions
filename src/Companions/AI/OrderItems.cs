@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using BepInEx.Configuration;
 using UnityEngine;
 
 namespace Companions;
@@ -49,6 +50,154 @@ internal static class OrderItems
 			return null;
 		}
 	}
+
+	/// <summary>Fase 3.1 (correção do teste em jogo): the gather action the order's "resource" points at, or null when
+	/// there is nothing to correct. A small model mixes the two fields up ("colete 10 pedras" came back as action
+	/// "wood" with resource "stone", and the mod obeyed the generic action, chopping wood while counting stone), and
+	/// the resource is the specific field - the one already resolved into the item the job counts - so when the two
+	/// disagree about WHICH job it is, the resource wins. Only the gather actions are looked at, and only when the
+	/// resource is one of another gather job's own items: attack/equip/drop/inventory, a null/unknown resource and an
+	/// already coherent pair are left exactly as they were.</summary>
+	/// <param name="action">The canonical action the model answered ("wood", "stone", "ore", "forage"...).</param>
+	/// <param name="resource">What the model answered in "resource", or null.</param>
+	internal static string GatherAction(string action, string resource)
+	{
+		try
+		{
+			int mode = CompanionOrders.JobMode(action);
+			if (!IsGather(mode))
+			{
+				return null;   // not one of the four gathering jobs: nothing here has an opinion about it
+			}
+			string key = LlmIntent.Normalize(resource);
+			if (key.Length == 0)
+			{
+				return null;   // no resource named: everything works as before
+			}
+			if (OnListOf(mode, key))
+			{
+				return null;   // coherent: the resource is one of the job's own items
+			}
+			string byResource = ActionOf(ModeOf(key));   // some other gathering job the resource belongs to
+			return byResource != null && byResource != action ? byResource : null;
+		}
+		catch (Exception e)
+		{
+			CompanionsPlugin.Log?.LogDebug("[IA] Couldn't tell which job the order's resource belongs to: " + e.Message);
+			return null;
+		}
+	}
+
+	/// <summary>The four orders that turn into a gathering job (the modes, so the caller's own action -> mode table
+	/// stays the single source of that mapping).</summary>
+	private static bool IsGather(int mode)
+	{
+		return mode == CompanionSetup.ModeGatherWood || mode == CompanionSetup.ModeGatherStone
+			|| mode == CompanionSetup.ModeGatherOre || mode == CompanionSetup.ModeForage;
+	}
+
+	/// <summary>The gather action a mode stands for.</summary>
+	private static string ActionOf(int mode)
+	{
+		switch (mode)
+		{
+		case CompanionSetup.ModeGatherWood:
+			return "wood";
+		case CompanionSetup.ModeGatherStone:
+			return "stone";
+		case CompanionSetup.ModeGatherOre:
+			return "ore";
+		case CompanionSetup.ModeForage:
+			return "forage";
+		default:
+			return null;
+		}
+	}
+
+	/// <summary>The gathering job a named resource belongs to, as its mode, or -1 when it can't be told. The name is
+	/// first put through the same alias map Resolve uses ("pedra" and "stone" both become "Stone"), then looked for
+	/// among the named entries of the four gather lists the jobs themselves read (GatherWood/GatherStone/GatherOre/
+	/// ForageItems) - the item -> job mapping is the player's own configuration, so there is no second table here to
+	/// keep in sync. A list that says "*" names no item and tells us nothing.</summary>
+	private static int ModeOf(string key)
+	{
+		string prefab;
+		if (Aliases.TryGetValue(key, out prefab) && prefab != null)
+		{
+			int byPrefab = ModeOfName(prefab);
+			if (byPrefab >= 0)
+			{
+				return byPrefab;
+			}
+		}
+		// the lists may name it themselves: a forage item ("raspberry", "cogumelo"), a custom entry of the player's
+		return ModeOfName(key);
+	}
+
+	/// <summary>Which of the four gather lists names this item, as a mode, or -1 when none does.</summary>
+	private static int ModeOfName(string name)
+	{
+		string key = LlmIntent.Normalize(name);
+		if (key.Length == 0)
+		{
+			return -1;
+		}
+		for (int i = 0; i < GatherModes.Length; i++)
+		{
+			if (OnListOf(GatherModes[i], key))
+			{
+				return GatherModes[i];
+			}
+		}
+		return -1;
+	}
+
+	/// <summary>Is this item one of the named entries of that job's list? By prefab name or by the in-game name the
+	/// player sees ("cogumelo" -> Mushroom), exactly how the lists match names themselves.</summary>
+	private static bool OnListOf(int mode, string key)
+	{
+		switch (mode)
+		{
+		case CompanionSetup.ModeGatherWood:
+			return OnList(ModConfig.GatherWood, key);
+		case CompanionSetup.ModeGatherStone:
+			return OnList(ModConfig.GatherStone, key);
+		case CompanionSetup.ModeGatherOre:
+			return OnList(ModConfig.GatherOre, key);
+		case CompanionSetup.ModeForage:
+			return OnList(ModConfig.ForageItems, key);
+		default:
+			return false;
+		}
+	}
+
+	/// <summary>Walks the named entries of a list ("*" and the "-Name" ones are not named entries and never match).</summary>
+	private static bool OnList(ConfigEntry<string> entry, string key)
+	{
+		if (entry == null)
+		{
+			return false;
+		}
+		MHR_List list = MHR_List.Get(entry.Value);
+		for (int i = 0; i < list.Order.Count; i++)
+		{
+			string name = list.Order[i];
+			if (Same(name, key) || Same(MHR_GatherRules.ItemLocal(name), key))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/// <summary>The four gathering jobs, in the order a resource is looked for among their lists.</summary>
+	private static readonly int[] GatherModes = new int[]
+	{
+		CompanionSetup.ModeGatherWood,
+		CompanionSetup.ModeGatherStone,
+		CompanionSetup.ModeGatherOre,
+		CompanionSetup.ModeForage
+	};
 
 	/// <summary>The item an action alone stands for. "ore" is deliberately absent: it is copper, iron, silver and
 	/// tin at once, so an order that only says "minério" keeps the Fase 3.2 behaviour (the whole job).</summary>
