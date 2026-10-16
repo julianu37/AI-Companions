@@ -460,6 +460,24 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   lógica saiu para `src/Companions/UI/ModUiAudit.cs` e agora roda para o painel F8 **e** para o painel da IA, uma vez por
   sessão (nunca por frame). Ver `docs/roadmap.md` (*Correção — o clique engolido no painel F8 e o texto do centro da
   roda: a camada era a causa*) e `package/CHANGELOG.md`.
+- **Correção (branch `fix/uidiag`) — o diagnóstico de raycast vira opt-in (`[Advanced] UiDiag`, padrão desligado) e para
+  de avisar sobre os alvos de clique intencionais do painel da IA.** O audit `[UiDiag]` (`UI/ModUiAudit.cs`) **continua
+  no mod** — foi ele que achou o `HUD` do jogo em 400 engolindo os cliques —, mas ele rodava **sempre** e uma sessão
+  saía com **6 linhas / 7.132 caracteres**, das quais **três** eram **falsos positivos** do painel da IA
+  (`HC_AiPanel/AiRoot`, `HC_AiPanel/AiRoot/KeyBox`, `HC_AiPanel/AiRoot/Overlay/PersonalityList`). Agora: **config nova
+  `[Advanced] UiDiag`** (bool, **`false`**; na `[Advanced]` e **não** na `[IA]` porque ele audita a **UI do mod** — os
+  dois painéis e a faixa de `UI/ModUiLayers.cs` —, enquanto o `[IA] EcoDiag` diagnostica um componente da IA, a voz);
+  **desligado = zero linha e zero custo** (os dois chamadores, `ConfigPanel.LogRaycastAudit` e
+  `CompanionAiPanel.LogRaycastAudit`, saem antes de entrar no `ModUiAudit` — e o flag de "uma vez por sessão" só é
+  marcado quando o audit **roda**, então ligar a opção no meio da sessão vale na próxima abertura); **ligado = compacto**
+  (uma linha de aviso de que está ligado, uma **linha de resumo por painel** com **contagens** — os nomes dos alvos
+  decorativos saíram —, a lista de camadas da cena numa linha e os **avisos** linha por linha com caminho + tipo +
+  tamanho + ponto). Os falsos positivos: `AiRoot` (fundo do painel) e `KeyBox` (caixa da tecla) viraram
+  **`raycastTarget = false`** (decoração, e o `Backdrop` do painel — tela cheia, criado antes do root — já é o catcher
+  modal; é o que o `ConfigRoot` do F8 já fazia), e as **barras de fundo das listas do dropdown** (`Overlay/PersonalityList`
+  e `Overlay/VoiceList`) **continuam alvos de propósito** (o clique na borda de 2 px da lista tem que morrer nela, senão
+  chega ao `ListCatcher` e fecha a lista) numa **allow-list documentada** (`ModUiAudit.Intentional`, casada pelo fim do
+  caminho + motivo). Ver `docs/roadmap.md` (§3.1 da correção das camadas) e `package/CHANGELOG.md`.
 - **Tradução PT-BR — auditoria de cobertura (branch `fix/traducao`):** varredura de **todo texto que o jogador pode
   ver** — chaves de UI (`ModLocalization` × `Translations/Portuguese_Brazilian.json`), falas
   (`Speech/Portuguese_Brazilian.json`), chamadas `Loc`/`LocFmt`/`LocOr` do `src/`, literais em inglês nos caminhos de

@@ -287,10 +287,14 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	/// controls?" with the layers of the scene, and it is the cheap insurance against the swallowed click coming
 	/// back: this panel used to be at 33, behind the game's play HUD at 400, and the audit is what says so out loud.
 	/// Once, never per frame.
+	///
+	/// <para>It only runs with <c>[Advanced] UiDiag = true</c> (off by default): while it is off nothing is built and
+	/// nothing is walked. The one-shot flag is only set when it really runs, so turning the switch on later in the
+	/// session still gets the audit on the next open.</para>
 	/// </summary>
 	private void LogRaycastAudit()
 	{
-		if (_raycastAudited)
+		if (_raycastAudited || !ModUiAudit.Enabled)
 		{
 			return;
 		}
@@ -495,6 +499,10 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		backdropRT.anchorMax = Vector2.one;
 		backdropRT.offsetMin = Vector2.zero;
 		backdropRT.offsetMax = Vector2.zero;
+		// The backdrop is the modal click catcher, the same one the F8 panel has: it stays a raycast target (the
+		// default of a uGUI Image) so a click outside the panel hits this - and does nothing - instead of the game's
+		// UI behind it. It is created BEFORE the panel root, so its render depth, and therefore its raycast priority,
+		// is strictly lower than every control: the controls always win, and this is what catches everything else.
 		_backdrop.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.7f);
 
 		_root = new GameObject("AiRoot", typeof(RectTransform), typeof(Image));
@@ -516,7 +524,12 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		{
 			rootImage.color = new Color(0.06f, 0.05f, 0.04f, 0.96f);
 		}
-		rootImage.raycastTarget = true;
+		// The panel's own background is decorative, exactly like the F8 panel's (ConfigPanel.Build says the same
+		// thing): it is the parent of every control, so it can never be in front of one, and a click on the padding
+		// is better left to the backdrop - the modal click catcher created just before this root - than to die here.
+		// (It used to be raycastTarget = true; the raycast audit reported it as a false positive of this panel the
+		// first time it ran with [Advanced] UiDiag on.)
+		rootImage.raycastTarget = false;
 
 		BuildHeader();
 		BuildRowBackgrounds();
@@ -644,7 +657,12 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		GameObject keyBox = new GameObject("KeyBox", typeof(RectTransform), typeof(Image));
 		keyBox.transform.SetParent(_root.transform, worldPositionStays: false);
 		Place(keyBox.GetComponent<RectTransform>(), FieldX, RowKey, 170f, RowH);
-		keyBox.GetComponent<Image>().color = new Color(0.12f, 0.12f, 0.15f, 0.9f);
+		Image keyBoxImage = keyBox.GetComponent<Image>();
+		keyBoxImage.color = new Color(0.12f, 0.12f, 0.15f, 0.9f);
+		// Decorative: it is the dark box the key is drawn in, there is nothing to click on it (the "Alterar" button is
+		// its own GameObject right next to it), so it does not eat a click - the backdrop, right behind the panel,
+		// catches whatever lands here. It was reported as a false positive of the panel by the raycast audit.
+		keyBoxImage.raycastTarget = false;
 		_keyLabel = CreateText(keyBox.transform, "?", 0f, 0f, 170f, RowH, 13f, ValueColor, TextAlignmentOptions.Center);
 
 		// The same KeyBindListener the F8 panel uses: click "Alterar", press a key, and it lands in [IA] VozTecla.
@@ -1288,6 +1306,11 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		GameObject listRoot = new GameObject(name + "List", typeof(RectTransform), typeof(Image));
 		listRoot.transform.SetParent(_overlay, worldPositionStays: false);
 		Place(listRoot.GetComponent<RectTransform>(), x, y + h, w, labels.Length * ItemH);
+		// The list background stays a raycast target on purpose (and the raycast audit allow-lists it by name): the
+		// option buttons are 2 px smaller than the list, so a click on that border - or on the sliver under the last
+		// option - would fall through to whatever is behind the open list. With this target the list itself swallows
+		// it, which is what an open dropdown does (and the ListCatcher below only gets the clicks outside the list).
+		// The list is only active while it is open, so it never eats a click otherwise.
 		listRoot.GetComponent<Image>().color = new Color(0.05f, 0.05f, 0.06f, 0.99f);
 		for (int i = 0; i < labels.Length; i++)
 		{

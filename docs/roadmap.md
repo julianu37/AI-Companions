@@ -1867,6 +1867,53 @@ crosshair enquanto está aberto — `Hud.UpdateCrosshair` — mas **não** apaga
   dois painéis nossos nunca ficam um sobre o outro (todos recusam abrir juntos), então um hit ali seria o audit
   achando a si mesmo.
 
+#### 3.1. O audit vira **opt-in** (`[Advanced] UiDiag`, desligado por padrão)
+
+O audit cumpriu o papel dele (achou o `HUD` em 400 e o `crosshair/HoverName` em cima dos controles) e **não** foi
+removido — mas **uma sessão dele saiu com 6 linhas / 7.132 caracteres**, e **três** dessas linhas eram **falsos
+positivos** do painel da IA:
+
+```
+[UiDiag] AI panel raycast audit: UNEXPECTED raycast target inside the panel: HC_AiPanel/AiRoot (no Selectable in its parents (decorative))
+[UiDiag] AI panel raycast audit: UNEXPECTED raycast target inside the panel: HC_AiPanel/AiRoot/KeyBox (no Selectable in its parents (decorative))
+[UiDiag] AI panel raycast audit: UNEXPECTED raycast target inside the panel: HC_AiPanel/AiRoot/Overlay/PersonalityList (no Selectable in its parents (decorative))
+```
+
+- **A config:** `[Advanced] UiDiag` (bool, **`false`**). Ficou na `[Advanced]` e **não** na `[IA]` porque ele **não é
+  da camada de IA**: ele audita a **UI do mod** — o painel F8 **e** o painel da IA, e a faixa de camadas que os dois
+  compartilham (`UI/ModUiLayers.cs`). O `[IA] EcoDiag` está na `[IA]` porque diagnostica um componente da IA (a voz do
+  companheiro); este é um diagnóstico de UI, e `[Advanced]` é o balde dos ajustes que ninguém mexe no dia a dia, que é
+  exatamente o caso de um despejo de diagnóstico. (A descrição da config diz o que ele loga, quando ligar e que não
+  muda nada no jogo.)
+- **Desligado (padrão): zero linhas e zero custo.** Os dois chamadores (`ConfigPanel.LogRaycastAudit` e
+  `CompanionAiPanel.LogRaycastAudit`) saem **antes** de entrar no `ModUiAudit` — nada de montar lista, nada de
+  percorrer a cena (`Resources.FindObjectsOfTypeAll<Canvas>()`) e nada de varrer os `Graphic` do painel. O flag de
+  "uma vez por sessão" só é marcado quando o audit **roda de verdade**, então ligar a opção no meio da sessão (o
+  toggle aparece na aba *Avançado* do F8) faz o audit sair na próxima abertura do painel, sem reiniciar o jogo.
+- **Ligado, compacto:** **duas** linhas iniciais, uma vez por sessão (a de que o audit está ligado, o mesmo padrão do
+  `[ECO]`, e a da allow-list — o que o audit **nunca** reporta, e por quê) e **uma linha de resumo por painel**, com
+  **contagens** — os nomes dos alvos "de propósito" e dos controles (que eram o grosso do log) **não** são mais
+  listados. A **lista de camadas da cena continua em uma linha**: foi ela que nomeou o `HUD` em 400, é a parte que se
+  paga. Os **avisos** continuam **linha por linha**, com caminho + tipo + tamanho + o ponto sondado.
+- **Os três falsos positivos do painel da IA:**
+  1. **`AiRoot`** (o fundo do painel) → **`raycastTarget = false`**: é decoração e é **pai de todo controle** (nunca
+     pode ficar na frente de um), e o **`Backdrop` do próprio painel** (criado **antes** do root, tela cheia, alvo de
+     clique **de propósito**) já é o catcher modal — o alvo no fundo era **redundante**. É exatamente o que o
+     `ConfigRoot` do painel F8 já fazia (`ConfigPanel.Build`, com o mesmo comentário).
+  2. **`KeyBox`** (a caixa escura onde a tecla do push-to-talk é desenhada) → **`raycastTarget = false`**: também é
+     decoração — não há nada para clicar nela (o botão *Alterar* é um GameObject à parte, ao lado) — e o clique que
+     caía nela não fazia nada; agora quem o pega é o `Backdrop`, que também não faz nada.
+  3. **`Overlay/PersonalityList`** e **`Overlay/VoiceList`** (o fundo das listas do dropdown) → **continuam alvos de
+     clique, de propósito**, e entraram numa **allow-list documentada** do audit (`ModUiAudit.Intentional`, casada pelo
+     **fim do caminho** + o motivo): os botões de opção são **2 px menores** que a lista, então o clique nessa borda (ou
+     na sobra embaixo da última opção) cairia no `ListCatcher` — que **fecha** a lista — ou num controle atrás dela. A
+     lista tem que engolir esse clique, que é o que um dropdown aberto faz. (As duas listas são construídas pelo mesmo
+     `CreateDropdown`, então as duas aparecem no audit: o log do jogador citou uma e a `VoiceList` é idêntica.)
+- **O que não mudou:** a lógica, o layout, as cores, os textos e as camadas dos painéis; o `Backdrop` continua o
+  catcher modal (um clique **fora** do painel não chega ao jogo), a lista aberta continua engolindo o clique que não é
+  de uma opção, e o bloqueio de atacar/andar com o painel aberto continua sendo o dos patches de input
+  (`Hud.InRadial` / `Player.TakeInput` / `PlayerController.TakeInput`), **não** o alvo de clique do fundo do painel.
+
 #### 4. O que **não** mudou
 
 Nada de lógica, layout, texto, LLM, TTS, ordens, jobs ou STT. Nada de posição/tamanho de nada: só o `sortingOrder`
@@ -1883,14 +1930,24 @@ seguem exatamente iguais — o que mudou para eles é **só quem está na frente
    sem o texto do hover do jogo por cima; escolher um setor e soltar continua igual.
 4. **Painel da IA** (tecla `I`) → dropdown de personalidade/voz (a lista tem que abrir **por cima** dos controles e
    receber o clique), **Ouvir**, push-to-talk, e **Esc** fechando.
-5. `BepInEx\LogOutput.log` → uma linha `[UiDiag] F8 raycast audit: panel order=1706, ...` e uma
-   `[UiDiag] AI panel raycast audit: panel order=1707, ...`. **Não deve haver nenhum aviso**
-   `has a raycast target over the controls of the panel` (se houver, ele nomeia quem é).
+5. `BepInEx\LogOutput.log` → com `[Advanced] UiDiag` **desligado (o padrão)** **não** deve haver **nenhuma** linha
+   `[UiDiag]`. Ligando a opção (aba *Avançado* do F8) e abrindo os dois painéis, saem uma linha
+   `[UiDiag] Raycast audit enabled ([Advanced] UiDiag = true): ...`, uma
+   `[UiDiag] F8 raycast audit: panel order=1706, N raycast target(s) (...), 0 unexpected; K other active canvas(es): ...`
+   e uma `[UiDiag] AI panel raycast audit: panel order=1707, ...` com `0 unexpected`. **Não deve haver nenhum aviso**
+   `UNEXPECTED raycast target inside the panel` nem `has a raycast target over the controls of the panel` (se houver,
+   ele nomeia quem é).
+6. **Painel da IA** com um dropdown **aberto** → clicar na **borda** da lista (2 px) não pode fechar a lista nem
+   acionar um controle atrás dela; clicar no painel **fora** da lista fecha a lista; clicar **fora do painel** não pode
+   chegar ao jogo (nem andar, nem atacar) — quem pega é o `Backdrop`, como antes.
 
 **O que não foi possível verificar aqui (é do jogador):** tudo o que depende do jogo rodando — o clique em si, o
-desenho do radial, o dropdown do painel da IA e o conteúdo do `[UiDiag]` em jogo. Verificado **por leitura de código**
-(compilado, 0 erros, 0 avisos): as camadas do jogo e as do mod, o portão `Hud.InRadial` do `InventoryGui`/`Menu` no
-`assembly_valheim` decompilado, e que o `UnifiedPopup` é classe vanilla (não é nossa e não foi tocada).
+desenho do radial, o dropdown do painel da IA, o comportamento de clique do painel da IA depois dos dois
+`raycastTarget = false` (fundo e caixa da tecla) e o conteúdo do `[UiDiag]` em jogo (ligado e desligado). Verificado
+**por leitura de código** (compilado, 0 erros, 0 avisos): as camadas do jogo e as do mod, o portão `Hud.InRadial` do
+`InventoryGui`/`Menu` no `assembly_valheim` decompilado, que o `UnifiedPopup` é classe vanilla (não é nossa e não foi
+tocada), e que o bloqueio de input do painel da IA vem dos patches (`Hud.InRadial`, `Player.TakeInput`,
+`PlayerController.TakeInput`) e não do alvo de clique do fundo do painel.
 
 
 

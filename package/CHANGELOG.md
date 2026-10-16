@@ -2,7 +2,33 @@
 
 Todas as mudanças deste fork do Offline Companions, do ProfMags. As versões anteriores à 1.4.0 são o mod original (veja a [página do ProfMags na Thunderstore](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) para esse histórico) mais o primeiro lote de correções de compatibilidade com a API do Valheim 1.0 que fizeram o mod carregar e rodar. **As entradas abaixo de 1.5.4 são o histórico do upstream e ficam como estão (em inglês) — só a nossa seção "Unreleased" é nossa.**
 
-## Unreleased — Tradução PT-BR: auditoria de cobertura (o que o jogador lê, em inglês, era bug) + Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.6b: a ordem sem alvo do modelo (drop/equip/attack caem para as palavras do jogador) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Fase 3.3c: raio de coleta maior e chatter aleatório desligado + Fase 3.3d: a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador + Fase 3.8: o companheiro abre o próprio inventário por voz/chat + Fase 3.4: o companheiro FALA (TTS local, Kokoro-82M via sherpa-onnx) + Fase 3.7: painel da IA no jogo (personalidade, voz com Ouvir, push-to-talk) + Fase 3.4 (parte 3): o eco do TTS RESOLVIDO — era a zona de reverb global do jogo (a voz sai seca) + Fase 3.1: saída estruturada (JSON schema) — destrava modelos pequenos + Tradução PT-BR (fork ModAI-BR-Companions) + correção: o painel F8 não engole mais cliques (camada 31→33 + raycast dos decorativos) + correção (a de verdade): os painéis e a roda do mod vão para a faixa **1701+** — **a camada era a causa** do clique engolido no F8 (o HUD do jogo está em 400; o 31→33 era insuficiente)
+## Unreleased — Tradução PT-BR: auditoria de cobertura (o que o jogador lê, em inglês, era bug) + Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.6b: a ordem sem alvo do modelo (drop/equip/attack caem para as palavras do jogador) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Fase 3.3c: raio de coleta maior e chatter aleatório desligado + Fase 3.3d: a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador + Fase 3.8: o companheiro abre o próprio inventário por voz/chat + Fase 3.4: o companheiro FALA (TTS local, Kokoro-82M via sherpa-onnx) + Fase 3.7: painel da IA no jogo (personalidade, voz com Ouvir, push-to-talk) + Fase 3.4 (parte 3): o eco do TTS RESOLVIDO — era a zona de reverb global do jogo (a voz sai seca) + Fase 3.1: saída estruturada (JSON schema) — destrava modelos pequenos + Tradução PT-BR (fork ModAI-BR-Companions) + correção: o painel F8 não engole mais cliques (camada 31→33 + raycast dos decorativos) + correção (a de verdade): os painéis e a roda do mod vão para a faixa **1701+** — **a camada era a causa** do clique engolido no F8 (o HUD do jogo está em 400; o 31→33 era insuficiente) + correção: o diagnóstico de raycast vira opt-in (`[Advanced] UiDiag`, padrão desligado — eram ~7 KB por sessão) e para de avisar sobre os alvos de clique intencionais do painel da IA
+- **O diagnóstico de raycast vira opt-in e para de avisar sobre alvos intencionais (branch `fix/uidiag`).** O audit
+  `[UiDiag]` (o que achou o `HUD` do jogo em 400 engolindo os cliques do F8) **não** foi removido — ele é a resposta
+  para "quem está na frente dos controles?" — mas uma sessão dele saiu com **6 linhas / 7.132 caracteres** e **três**
+  dessas linhas eram **falsos positivos** do painel da IA (`HC_AiPanel/AiRoot`, `HC_AiPanel/AiRoot/KeyBox`,
+  `HC_AiPanel/AiRoot/Overlay/PersonalityList`).
+  - **Config nova: `[Advanced] UiDiag`** (bool, **desligado**). Ficou na `[Advanced]` e não na `[IA]` porque **não é da
+    camada de IA**: ele audita a UI do mod inteira (o painel F8 **e** o da IA, e a faixa de camadas de
+    `UI/ModUiLayers.cs`) — o `[IA] EcoDiag` está na `[IA]` porque diagnostica um componente da IA (a voz). A descrição
+    diz o que ele loga, quando ligar (investigar clique/UI estranha) e que não muda nada no jogo.
+  - **Desligado (padrão): zero linhas e zero custo.** Os dois chamadores (`ConfigPanel` e `CompanionAiPanel`) saem
+    **antes** de entrar no `ModUiAudit`: nada de montar lista, nada de percorrer a cena. O flag de "uma vez por sessão"
+    só é marcado quando o audit roda de verdade, então ligar a opção no meio da sessão vale na próxima abertura.
+  - **Ligado, compacto:** duas linhas iniciais, uma vez por sessão (a de que o audit está ligado e a da allow-list — o
+    que ele **nunca** reporta) e **uma linha de resumo por painel** com **contagens** (controles / de propósito /
+    unexpected) — os **nomes** dos alvos decorativos, que eram o grosso do log, saíram. A **lista de camadas da cena
+    continua em uma linha** (foi ela que nomeou o `HUD` em 400) e os **avisos** continuam **linha por linha** (caminho +
+    tipo + tamanho + o ponto sondado).
+  - **Os falsos positivos:** `AiRoot` (fundo do painel) e `KeyBox` (a caixa da tecla) viraram `raycastTarget = false` —
+    são **decoração**, nunca podem ficar na frente de um controle (o fundo é pai de todos) e o **`Backdrop`** do painel
+    (tela cheia, criado antes do root, alvo de clique **de propósito**) já é o catcher modal; era o mesmo que o
+    `ConfigRoot` do F8 já fazia. As **barras de fundo das listas do dropdown** (`Overlay/PersonalityList` e
+    `Overlay/VoiceList`) **continuam alvos de propósito** (os itens são 2 px menores que a lista e o clique nessa borda
+    tem que morrer na lista, senão chega ao `ListCatcher` e **fecha** a lista) e entraram numa **allow-list documentada**
+    do audit (`ModUiAudit.Intentional`, casada pelo fim do caminho + o motivo).
+  - **Nada de lógica/layout/texto mudou** (nem LLM, TTS, STT, ordens, jobs, tradução ou camadas). Build: **0 erros,
+    0 avisos** + DLL implantada. **O teste em jogo é do jogador.**
 - **Tradução PT-BR — auditoria de cobertura (branch `fix/traducao`).** Auditoria de **todo texto que o jogador pode
   ver**: as chaves de UI (`ModLocalization` × `Translations/Portuguese_Brazilian.json`), as falas
   (`Speech/Portuguese_Brazilian.json`), os painéis, os hovers, as mensagens do `MessageHud` e os docs. **374 chaves de

@@ -839,6 +839,9 @@ Morte: segundos entre as procuras pela própria lápide que sobrou por perto.
 **TombstoneNavTimeout** — Padrão: 120 · Faixa: 10 – 600  
 Morte: segundos que um companheiro continua tentando chegar à própria lápide antes de desistir.
 
+**UiDiag** — Padrão: Desligado  
+Diagnóstico de UI: ligado, escreve no log o que está na frente dos controles do painel F8 e do painel da IA (uma vez por sessão, na primeira vez que cada painel é aberto): quantos alvos de clique cada painel tem (os controles e os que são de propósito), todas as camadas ativas da cena (nome e ordem) e, para cada canvas acima do painel, os alvos que cobrem a coluna de controles. É o que se liga quando um clique ou uma UI parece estranha (um botão que não responde, um texto por cima, um clique engolido): o log diz quem está na frente. Desligado (padrão) não escreve nada e não custa nada; ligado o log cresce bastante (uma linha de resumo por painel, mais uma linha por alvo suspeito). Não muda nada no jogo - só diagnostica.
+
 ## IA
 
 A camada de IA do fork: ordens por texto e por voz, personalidade, memória e o reconhecimento de voz local.

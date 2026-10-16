@@ -105,6 +105,12 @@ internal static class ModConfig
 
 	internal static ConfigEntry<float> TombstoneNavTimeout;
 
+	// [Advanced] - o diagnostico de UI do mod ([UiDiag]): os alvos de clique de dentro de um painel que nao sao
+	// controles, as camadas ativas da cena e quem, acima do painel, cobre a coluna de controles. Fica desligado por
+	// padrao porque o log dele e grande (uma sessao de teste deu ~7 KB em 6 linhas, e 3 delas eram falsos positivos
+	// do painel da IA) e so serve para investigar clique/UI estranha. Ver UI/ModUiAudit.cs.
+	internal static ConfigEntry<bool> UiDiag;
+
 	internal static ConfigEntry<bool> AutoRespawnEnabled;
 
 	internal static ConfigEntry<float> AutoRespawnDelaySeconds;
@@ -824,6 +830,12 @@ internal static class ModConfig
 		ConsumeCheckInterval = Bind(cfg, "Advanced", "FoodCheckInterval", 1f, "Comida: segundos entre as verificações se um companheiro deve comer ou beber.", new AcceptableValueRange<float>(0.5f, 10f));
 		TombstoneScanInterval = Bind(cfg, "Advanced", "TombstoneScanInterval", 5f, "Morte: segundos entre as procuras pela própria lápide que sobrou por perto.", new AcceptableValueRange<float>(1f, 30f));
 		TombstoneNavTimeout = Bind(cfg, "Advanced", "TombstoneNavTimeout", 120f, "Morte: segundos que um companheiro continua tentando chegar à própria lápide antes de desistir.", new AcceptableValueRange<float>(10f, 600f));
+		// O diagnostico de UI: ligado, o log diz quem esta na frente dos controles (ver UI/ModUiAudit.cs). Fica na
+		// [Advanced] e nao na [IA] porque ele nao e da camada de IA: ele audita a UI do mod inteira - o painel F8 e
+		// o painel da IA, e a faixa de camadas que os dois compartilham (UI/ModUiLayers.cs). O [IA] EcoDiag esta la
+		// porque diagnostica um componente da IA (a voz do companheiro); este e o bucket dos ajustes que ninguem
+		// mexe no dia a dia, que e o caso de um despejo de diagnostico.
+		UiDiag = Bind(cfg, "Advanced", "UiDiag", defaultValue: false, "Diagnóstico de UI: ligado, escreve no log o que está na frente dos controles do painel F8 e do painel da IA (uma vez por sessão, na primeira vez que cada painel é aberto): quantos alvos de clique cada painel tem (os controles e os que são de propósito), todas as camadas ativas da cena (nome e ordem) e, para cada canvas acima do painel, os alvos que cobrem a coluna de controles. É o que se liga quando um clique ou uma UI parece estranha (um botão que não responde, um texto por cima, um clique engolido): o log diz quem está na frente. Desligado (padrão) não escreve nada e não custa nada; ligado o log cresce bastante (uma linha de resumo por painel, mais uma linha por alvo suspeito). Não muda nada no jogo - só diagnostica.");
 
 		// [IA] - Fase 3.1: the player types an order in the game chat and a local LLM (LM Studio / Ollama / any
 		// OpenAI-compatible /chat/completions endpoint) turns it into an action for the companions. See CompanionChatAI.

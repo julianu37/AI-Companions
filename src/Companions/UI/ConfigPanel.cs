@@ -162,10 +162,14 @@ public class ConfigPanel : MonoBehaviour
 	/// <see cref="ModUiAudit"/> (shared with the AI panel, which needs the same answer about the same band of
 	/// layers); here only the geometry of <b>this</b> panel is given to it. It runs once, never per frame, and never
 	/// throws into <see cref="Show"/>.
+	///
+	/// <para>It only runs with <c>[Advanced] UiDiag = true</c> (off by default), and while it is off nothing at all is
+	/// built or walked. The one-shot flag is only set when it really runs, so turning the switch on later in the
+	/// session still gets the audit on the next open.</para>
 	/// </summary>
 	private void LogRaycastAudit()
 	{
-		if (_raycastAudited)
+		if (_raycastAudited || !ModUiAudit.Enabled)
 		{
 			return;
 		}
