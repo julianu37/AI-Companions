@@ -423,9 +423,9 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
 - Backend/contrato de referência: `docs/re/backend-contract.md`; mapa da fase: `docs/roadmap.md` (Trilha D);
   pipeline de voz: `docs/re/stt-voz-pipeline.md`; fala do companheiro: `docs/re/tts-kokoro-sherpa-onnx.md`.
 - **Status (out/2026):** as fases da camada de IA estão **validadas em jogo** pelo jogador (3.1, 3.1-saída
-  estruturada, 3.1d, 3.2, 3.2c, 3.3, 3.3b, 3.3c, 3.3d, 3.4, 3.5, 3.6, 3.6b, 3.7, 3.8 — com a evidência citada na
-  tabela da Trilha D do `docs/roadmap.md`); a **3.1b/3.1c** (`colete 10 pedras`) foi verificada só **fora do jogo**
-  (harness de 60 casos) e o teste em jogo ficou pendente de confirmação explícita.
+  estruturada, 3.1b, 3.1c, 3.1d, 3.2, 3.2c, 3.3, 3.3b, 3.3c, 3.3d, 3.4, 3.5, 3.6, 3.6b, 3.7, 3.8 — com a evidência
+  citada na tabela da Trilha D do `docs/roadmap.md`). A **3.1b/3.1c** (`colete 10 pedras`) também foi confirmada em
+  jogo: o `qwen2.5-3b-instruct` devolveu `stone`/`stone` e a ordem aplicou o teto de 10 de pedra em ~378 ms.
 - **Pendências conhecidas (abertas):** o **bug do clique no painel F8** (algo invisível engolindo o clique numa faixa
   dos controles; o painel da IA, tecla `I`, **não** tem o problema); o **release/empacotamento** (versão e `CHANGELOG`
   não fechados e a pasta do plugin tem **~428 MB** — não cabe num pacote Thunderstore normal); a **voz não passa pelo

@@ -53,7 +53,7 @@ Legenda: ✅ concluído · 🔄 em andamento · ⏳ pendente
 | 2.18b | **Seguir pelo portal** (`CompanionPortalFollow` + `[Portal]`): ele anda até o portal e é levado para junto de você quando o seu teleporte termina | ✅ (v0.4.6) |
 | 2.18c | **Carroça** (`CompanionCart` + `[Carroca]`): `modia_cart pull\|release` — ele anda até o engate do `Vagon` e puxa a carroça pelo `ConfigurableJoint` do jogo | ✅ (v0.4.6) |
 | 2.5 | Multiplayer (ZNetView/ZDO, testes com cliente/servidor) | ⏳ |
-| **3** | IA e voz: comandos por voz/chat, STT, TTS, personalidade — **no fork, ver Trilha D** | 🔄 (3.1, 3.1-saída estruturada, 3.1d, 3.2, 3.2c, 3.3, 3.3b, 3.3c, 3.3d, 3.4, 3.5, 3.6, 3.6b, 3.7, 3.8 ✅ **validados em jogo**; 3.1b/3.1c ✅ fora do jogo) |
+| **3** | IA e voz: comandos por voz/chat, STT, TTS, personalidade — **no fork, ver Trilha D** | ✅ (3.1, 3.1-saída estruturada, 3.1b, 3.1c, 3.1d, 3.2, 3.2c, 3.3, 3.3b, 3.3c, 3.3d, 3.4, 3.5, 3.6, 3.6b, 3.7, 3.8 — **todas validadas em jogo**) |
 | **4** | Backend híbrido (LLM local + API), endpoints do "cérebro" | ⏳ |
 | **5** | Empacotamento (manifest, README, ícone) + revisão final | ⏳ |
 
@@ -355,8 +355,8 @@ Ordens em **linguagem natural** por cima do mod do upstream. O companheiro conti
 | 3.8 | **O companheiro abre o próprio inventário** por voz/chat (`inventory`/`inventory_close`) | ✅ validado em jogo (`Order from chat: "abre o inventario"` → `Order "inventory": Companion's window is open`) |
 | 3.1 | **Saída estruturada** (`response_format`/JSON schema): garante JSON válido e destrava modelos pequenos (3B) | ✅ validado em jogo (`[IA] Saida estruturada ligada ([IA] SaidaEstruturada): ... corpo JSON de 6955 car.` + ordens funcionando com o 3B) |
 | 3.1 (3B) | **Velocidade do 3B em jogo** (o modelo que a saída estruturada destravou) | ✅ validado em jogo (`[IA] Tempo: 401 ms / 340 ms / 388 ms`, contra ~3100 ms do `gemma` — **~8x mais rápido**) |
-| 3.1b | **O recurso manda** (correção do teste em jogo): com `action` e `resource` inconsistentes (`colete 10 pedras` voltou como `wood`/`stone`) a ordem usa o **recurso** — o campo específico — e não a ação genérica | ✅ build 0 erros + harness de 60 casos (fora do jogo) — **o teste em jogo do `colete 10 pedras` ficou pendente de confirmação explícita do jogador** |
-| 3.1c | **O contrato ensina que `action` e `resource` combinam** (a outra metade do achado): regra curta + 2 exemplos de `colete N pedras` → `stone`, porque o 3B copiava o `action:"wood"` do exemplo `colete 20 de madeira` | ✅ build 0 erros (o prompt não foi medido contra nenhum modelo) — **o teste em jogo do `colete 10 pedras` ficou pendente de confirmação explícita do jogador** |
+| 3.1b | **O recurso manda** (correção do teste em jogo): com `action` e `resource` inconsistentes (`colete 10 pedras` voltou como `wood`/`stone`) a ordem usa o **recurso** — o campo específico — e não a ação genérica | ✅ **validado em jogo** — log do jogador: `colete 10 pedras` → o modelo devolveu `{"action":"stone","resource":"stone","amount":10}` e o mod aplicou `Order "stone" (x10)` com `Order target: mode 2 stops at 10 Stone in the pack` em **378 ms**; + harness de 60 casos (fora do jogo) |
+| 3.1c | **O contrato ensina que `action` e `resource` combinam** (a outra metade do achado): regra curta + 2 exemplos de `colete N pedras` → `stone`, porque o 3B copiava o `action:"wood"` do exemplo `colete 20 de madeira` | ✅ **validado em jogo** — depois da regra + dos 2 exemplos, o 3B passou a devolver `stone`/`stone` para `colete N pedras` (mesmo log da 3.1b) |
 | 3.1d | **A ação de recolher os itens do chão** (`Jobs/MHR_Collect.cs`): a ordem `pickup` era **só um flag** - agora o companheiro **anda até o item no chão e pega** (inclusive o que ele/você largou, que é `m_autoPickup = false`), e o botão **Recolher** da roda passa a desligar mesmo o ímã | ✅ validado em jogo (teste final do jogador: *"pra mim parece excelente"*) |
 
 #### Pendências conhecidas (estado em out/2026)
@@ -368,8 +368,7 @@ O que **não** está fechado nesta trilha, listado sem enfeite:
 | 1 | **Bug do clique no painel F8** | há algo **invisível** na frente de uma **faixa** dos controles do painel **F8** (`ConfigPanel`) engolindo o clique — os controles daquela faixa não respondem ao mouse. O **painel da IA** (`CompanionAiPanel`, tecla `I`) **não** tem o problema (foi ele que recebeu o *overlay* com `Canvas`/`GraphicRaycaster` próprios na correção da lista atrás dos controles). **Aberto, sem correção** — exigiria a mesma investigação de ordem de *raycast* no `ConfigPanel` |
 | 2 | **Release / empacotamento** | a versão e o `CHANGELOG` do fork **não** foram fechados e o pacote **não cabe num Thunderstore normal**: a pasta do plugin tem **~428 MB** (modelos do Whisper — `small` = 181 MB —, do Kokoro e os nativos do `sherpa-onnx`/`onnxruntime`). Falta decidir o que entra no pacote (mod sem modelos + instruções de download?) e revisar `package/manifest.json`/`package/README.md` |
 | 3 | **A voz não passa pelo mixer do jogo** | a `AudioSource` da fala não tem `outputAudioMixerGroup`: por isso ela **ignora os sliders de volume do Valheim** (música/SFX) e só obedece a `[IA] TtsVolume`. Roteá-la para o grupo `SFX` fica para depois — não era necessário para o eco, resolvido com `reverbZoneMix = 0` |
-| 4 | **`colete 10 pedras` (3.1b/3.1c)** | a correção "o recurso manda" e a regra nova do contrato foram verificadas **fora do jogo** (harness de 60 casos + 30 frases com 100%); o teste em jogo com o 3B **ficou pendente de confirmação explícita do jogador** |
-| 5 | **`origin/claude/relaxed-archimedes-ecoh6h`** | branch que existe no GitHub com **código do upstream** (`MaddhattrRocks/Offline-Companions-Reborn`), **não nosso**: não faz parte do fork e não deve ser mesclado/mexido por aqui |
+| 4 | **`origin/claude/relaxed-archimedes-ecoh6h`** | branch que existe no GitHub com **código do upstream** (`MaddhattrRocks/Offline-Companions-Reborn`), **não nosso**: não faz parte do fork e não deve ser mesclado/mexido por aqui |
 
 ### Fase 3.1 — ordem por texto no chat (✅ — Unreleased)
 
@@ -1566,9 +1565,12 @@ antes de montar o rótulo/log da ordem, e — quando ela devolve algo — troca 
 - **Verificado fora do jogo** com um harness que compila os arquivos **reais** (`OrderItems`, `LlmIntent`, `MHR_List`;
   `CompanionOrders.JobMode` e as quatro listas entram como stubs): **60 casos, ALL CHECKS PASSED** — inclusive o caso
   do log (`action="wood"` + `resource="stone"` → `stone`), o espelho, os pares coerentes, recurso nulo/desconhecido,
-  todas as ações que não são de coleta e as listas `*`/personalizadas/nomeadas em PT-BR. **O teste em jogo do
-  `colete 10 pedras` ficou pendente de confirmação explícita do jogador** (o teste em jogo que revelou o erro foi com o
-  modelo; a re-tentativa depois desta correção não foi confirmada).
+  todas as ações que não são de coleta e as listas `*`/personalizadas/nomeadas em PT-BR. **E confirmado em jogo**
+  (teste do jogador com o `qwen2.5-3b-instruct`): `colete 10 pedras` → o modelo devolveu
+  `{"action":"stone","reply":"Vou buscar pedra.","target":null,"resource":"stone","amount":10}`, o mod aplicou
+  `Order "stone" (x10)` com `Order target: mode 2 stops at 10 Stone in the pack` e respondeu em **378 ms**; na
+  tentativa seguinte, com a mochila já com 10 de pedra, a ordem **nem começou**
+  (`Order "stone" (x10) -> 0 companion(s) (and at least one already had enough)`) — o teto da 3.2c junto.
 
 #### 7. O teste em jogo (modelo pequeno): o contrato ensina que `action` e `resource` combinam
 
@@ -1594,8 +1596,9 @@ cópia:
 - **Nada mais mudou:** `ValidActions`/schema, o `LlmIntent`, o `LlmClient`, a personalidade/memória, o TTS, o painel, o
   STT e as ordens ficaram iguais. A correção da seção 6 continua sendo a rede de segurança para quando o modelo insistir
   em mandar os campos trocados.
-- **Não verificado:** se o 3B **deixa** de errar com o prompt novo (o prompt maior não foi medido contra nenhum modelo
-  aqui) — **o teste em jogo do `colete 10 pedras` ficou pendente de confirmação explícita do jogador.**
+- **Verificado em jogo:** o 3B **deixou** de errar com o prompt novo — o teste do jogador (`colete 10 pedras`) voltou
+  `stone`/`stone` e a ordem foi aplicada (o log está na seção 6). A correção da seção 6 continua sendo a rede de
+  segurança para quando o modelo insistir em mandar os campos trocados.
 
 #### 8. O teste em jogo (modelo pequeno): as ações vizinhas — `drop`, `pickup` e `nopickup`
 
