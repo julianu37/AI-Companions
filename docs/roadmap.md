@@ -1612,6 +1612,44 @@ recolher ("pare de recolher", "não pegue nada") — e **3 exemplos novos**, log
 - **Não verificado:** se o 3B **deixa** de errar com o prompt novo — é o teste em jogo do jogador (o prompt maior não foi
   medido contra nenhum modelo aqui). O erro de digitação (`jugue`) não é ensinável por prompt: quem o cobre é a 8.2.
 
+##### 8.2 A rede de segurança: as palavras do jogador mandam quando a ação é vizinha
+
+Mesmo raciocínio do "o recurso manda" (§6): `CompanionOrders.Run` chama **uma vez por mensagem**, no mesmo lugar,
+**`PickupIntent.NeighborAction(action, userText)`** — novo `AI/PickupIntent.cs`, **puro** (sem Unity, sem config, sem
+mundo, sem alocação por frame). Ele só olha a ação **exatamente `nopickup`** e devolve a ação que as palavras do jogador
+pedem, ou `null` quando não há gatilho (e aí **tudo fica exatamente como estava**):
+
+| O que o jogador disse | Gatilho | Ação usada |
+|---|---|---|
+| `jogue fora a madeira`, `jogue a madeira fora`, `joga no chão`, `larga`, `largar`, `descarta`, `soltar`, `deixa no chão` | verbo de largar/descartar (sozinho) **ou** verbo de jogar + `fora`/`no chão` **ou** verbo de deixar + `no chão` | **`drop`** |
+| `junta`, `junte`, `juntar`, `apanha`, `apanhar` | verbo sozinho | **`pickup`** |
+| `recolhe do chão`, `pega do chão`, `junta do chão`, `cata do chão` | verbo de pegar/recolher + `do chão` | **`pickup`** |
+
+- **Guarda-corpos:** só com a ação **exatamente `nopickup`** (nenhuma outra é tocada); a intenção **legítima** do
+  `nopickup` manda — um verbo de parar (`para`, `pare`, `parar`...) ou um `não pegue`/`não recolha` **desliga** a
+  correção; e o casamento é feito **entre separadores** (`_larga_`), então `largada`/`jogada` não disparam nada. Sem
+  gatilho, o comportamento é **idêntico** ao de hoje.
+- **O alvo do `drop` não sai daqui:** quem o resolve continua sendo o caminho da Fase 3.6b — `OrderTargets.Phrases` lê as
+  palavras do jogador e cada frase é **validada contra a mochila** (`OrderTargets.FindItem`, barra de
+  `MinPhraseScore`). Nada de extração de nome nova, e nada é inventado: sem o item na mochila, o aviso antigo continua.
+- O `drop` resultante continua respeitando as regras dele (item de missão nunca cai, sem número = pilha inteira, a pilha
+  sai do auto-pickup) e o `pickup` é o **mesmo** toggle do menu radial (`SetAutoPickup`).
+- **Uma troca deliberada:** `para` é palavra comum em português, então `joga a pedra para o chão` **não** é corrigido (o
+  guarda-corpo ganha). O caso é raro e ficar quieto é mais seguro do que largar o item errado.
+- **Log:** uma linha por mensagem corrigida —
+  `[IA] O modelo devolveu "nopickup" mas o jogador pediu para largar - usei "drop".`
+- **Verificado fora do jogo** com um harness que compila os arquivos **reais** (`PickupIntent` e `LlmIntent`; só o
+  `CompanionsPlugin.Log` entra como stub): **58 casos, ALL CHECKS PASSED** — as três formas do log (inclusive a do erro de
+  digitação), os três gatilhos de `drop`, os três de `pickup`, os guarda-corpos do `nopickup` legítimo, as ações que não
+  são `nopickup` e as mensagens sem gatilho. **O teste em jogo é do jogador.**
+
+**Receita de teste (para o jogador):** com o companheiro carregando madeira, `jogue fora sua madeira` deve **largar a
+madeira** (e o log traz a linha da 8.2 quando o modelo insistir em `nopickup`); `junte a madeira do chão` deve
+**religar** a coleta automática; `pare de recolher` deve continuar **desligando** a coleta (é o `nopickup` de verdade); e
+`equipe a picareta` deve equipar a **picareta** (com o contrato novo, o `target` do modelo já deve vir certo — o
+fallback da 3.6b continua sendo a rede).
+
+
 
 
 

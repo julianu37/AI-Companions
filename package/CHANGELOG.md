@@ -3,6 +3,19 @@
 All notable changes to this fork of ProfMags' Offline Companions. Versions before 1.4.0 are the original mod (see [ProfMags' Thunderstore page](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) for that history) plus the initial batch of Valheim 1.0 API-compatibility fixes that let the mod load and run at all on 1.0.
 
 ## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.6b: a ordem sem alvo do modelo (drop/equip/attack caem para as palavras do jogador) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Fase 3.3c: raio de coleta maior e chatter aleatório desligado + Fase 3.3d: a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador + Fase 3.8: o companheiro abre o próprio inventário por voz/chat + Fase 3.4: o companheiro FALA (TTS local, Kokoro-82M via sherpa-onnx) + Fase 3.7: painel da IA no jogo (personalidade, voz com Ouvir, push-to-talk) + Fase 3.4 (parte 3): o eco do TTS RESOLVIDO — era a zona de reverb global do jogo (a voz sai seca) + Fase 3.1: saída estruturada (JSON schema) — destrava modelos pequenos + Tradução PT-BR (fork ModAI-BR-Companions)
+- **"Jogue fora" vira `drop` mesmo quando o modelo diz `nopickup` (Fase 3.1 — rede de segurança).** O mesmo teste em jogo
+  mostrou que o contrato sozinho não bastava: quando o modelo **insiste** em `nopickup` para uma ordem de largar (ou de
+  recolher), as **palavras do jogador** decidem — o mesmo raciocínio do "o recurso manda".
+  - **`PickupIntent.NeighborAction`** (novo, `AI/PickupIntent.cs`, **puro**) é chamado **uma vez por mensagem** pelo
+    `CompanionOrders.Run`, no mesmo lugar da correção do `resource`: com a ação **exatamente `nopickup`** e um verbo claro
+    de largar (`joga fora`, `jogue a madeira fora`, `larga`, `largar`, `descarta`, `soltar`, `deixa no chão`...) a ordem
+    vira **`drop`**; com um verbo claro de recolher (`junta`, `junte`, `apanha`, `recolhe do chão`, `pega do chão`...) vira
+    **`pickup`**. O log mostra a troca em uma linha.
+  - **Guarda-corpos:** o `nopickup` **legítimo** é preservado (`para`/`pare`/`parar` ou `não pegue`/`não recolha` desligam
+    a correção), só a ação `nopickup` é olhada e, sem gatilho, o comportamento é idêntico ao de hoje.
+  - **O alvo do `drop` continua vindo do caminho da Fase 3.6b** (as palavras do jogador lidas pelo `OrderTargets.Phrases`
+    e validadas contra a mochila) — nada de extração de nome nova, e o item de missão continua nunca caindo.
+  - Verificado fora do jogo (harness com os arquivos reais): **58 casos, ALL CHECKS PASSED**.
 - **O contrato separa largar, recolher e parar de recolher (Fase 3.1 — teste em jogo com o 3B).** O
   `qwen2.5-3b-instruct` confunde **ações vizinhas**: `jogue fora sua madeira` (e as variantes `jogue sua madeira fora` e
   `jugue a madeira fora`, com erro de digitação) voltava como **`nopickup`** — o companheiro **desligava a coleta

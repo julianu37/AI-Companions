@@ -378,6 +378,19 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   tinha exemplo) e `"equipe a picareta"`→`equip` (só existia `"pega a picareta"`, e foi a forma com `equipe` que falhou);
   **6 linhas** (~+120 tokens sobre os ~1766 medidos), com `ValidActions`/schema, `LlmIntent`, `LlmClient`,
   personalidade/memória, TTS, painel, STT e ordens **intactos**. Detalhes: `docs/roadmap.md` (Fase 3.1 — §8.1).
+- **Fase 3.1 — a rede de segurança das ações vizinhas (`"jogue fora"` vira `drop` mesmo se o modelo disser `nopickup`):**
+  o contrato sozinho não bastava (o 3B insiste em `nopickup` em parte das tentativas), então as **palavras do jogador**
+  mandam — mesmo raciocínio do "o recurso manda". **`PickupIntent.NeighborAction(action, userText)`** (novo
+  `AI/PickupIntent.cs`, **puro**: sem Unity/config/mundo) é chamado **uma vez por mensagem** pelo `CompanionOrders.Run`,
+  no mesmo lugar da correção do `resource`: só com a ação **exatamente `nopickup`**, um verbo claro de **largar** (`joga
+  fora`, `jogue a madeira fora`, `larga`, `largar`, `descarta`, `soltar`, `deixa no chão`...) troca a ação por **`drop`**,
+  e um verbo claro de **recolher** (`junta`, `junte`, `apanha`, `recolhe do chão`, `pega do chão`...) por **`pickup`** —
+  guarda-corpos: o `nopickup` **legítimo** ganha (`para`/`pare`/`parar` ou `não pegue`/`não recolha` desligam a correção),
+  nenhuma outra ação é tocada, o casamento é entre separadores (`_larga_` não casa `largada`) e, sem gatilho, o
+  comportamento é idêntico ao de hoje. O **alvo do `drop`** continua vindo do caminho da 3.6b (`OrderTargets.Phrases` +
+  validação contra a mochila) — nada de extração de nome nova; o `pickup` é o mesmo toggle do radial (`SetAutoPickup`).
+  Log: `[IA] O modelo devolveu "nopickup" mas o jogador pediu para largar - usei "drop".` Verificado fora do jogo (harness
+  com os arquivos reais): **58 casos, ALL CHECKS PASSED**. Detalhes: `docs/roadmap.md` (Fase 3.1 — §8.2).
 - Backend/contrato de referência: `docs/re/backend-contract.md`; mapa da fase: `docs/roadmap.md` (Trilha D);
   pipeline de voz: `docs/re/stt-voz-pipeline.md`; fala do companheiro: `docs/re/tts-kokoro-sherpa-onnx.md`.
 

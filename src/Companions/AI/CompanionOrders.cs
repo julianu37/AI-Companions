@@ -64,6 +64,18 @@ internal static class CompanionOrders
 			CompanionsPlugin.Log?.LogInfo($"[IA] O modelo devolveu action=\"{action}\" com resource=\"{intent.Resource}\" - usei \"{byResource}\" (o recurso manda).");
 			action = byResource;
 		}
+		// Fase 3.1 (3ª correção do teste em jogo): "drop", "pickup" e "nopickup" são ações vizinhas e o modelo
+		// pequeno troca as três ("jogue fora sua madeira" voltou como "nopickup", que DESLIGA a coleta automática
+		// em vez de largar a madeira). Mesma ideia do "o recurso manda": quando o modelo devolve "nopickup" mas o
+		// jogador pediu claramente para largar ou para recolher, as palavras do jogador mandam. Uma chamada por
+		// mensagem; sem gatilho, tudo fica exatamente como estava. O alvo do "drop" continua vindo do caminho da
+		// Fase 3.6b (as palavras do jogador, validadas contra a mochila) - nada de extração de nome nova.
+		string byWords = PickupIntent.NeighborAction(action, userText);
+		if (byWords != null)
+		{
+			CompanionsPlugin.Log?.LogInfo($"[IA] O modelo devolveu \"{action}\" mas o jogador pediu para {(byWords == PickupIntent.DropAction ? "largar" : "recolher")} - usei \"{byWords}\".");
+			action = byWords;
+		}
 		outcome.Understood = true;
 		outcome.LabelKey = "hc_ai_order_" + action;
 		outcome.Amount = intent.Amount;
