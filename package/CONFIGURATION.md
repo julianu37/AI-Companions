@@ -882,6 +882,9 @@ Fase 3.5: quantas trocas recentes (uma mensagem sua + uma do companheiro) o comp
 **Conversa** — Padrão: Ligado  
 Fase 3.5: quando a mensagem NÃO é uma ordem ("bom dia", "como você está?", "o que achou da minha casa?"), o companheiro responde como conversa: fala a resposta em voz alta (balão de fala) e a mostra no chat. As ordens continuam funcionando exatamente como antes. Desligado = só ordens são entendidas, como na Fase 3.1.
 
+**SaidaEstruturada** — Padrão: Ligado  
+Pede ao servidor para forçar o formato JSON (response_format/json_schema). Deixa a resposta do modelo sempre válida e é o que permite usar modelos pequenos e rápidos (ex.: um 3B) sem ele responder texto solto. Desligue se o seu servidor não suportar - o mod cai sozinho no formato antigo e avisa no log.
+
 **SttTeste** — Padrão: Desligado  
 SPIKE (teste): roda o teste de reconhecimento de voz do Whisper.net in-process sozinho, cerca de 25 segundos depois de o plugin carregar, e escreve o resultado no log. Desligado = só o comando de console "modia_stt_teste" o executa. É um teste simples: não ouve o microfone e não muda nenhum comportamento dos companheiros.
 

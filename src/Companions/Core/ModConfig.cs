@@ -514,6 +514,9 @@ internal static class ModConfig
 
 	internal static ConfigEntry<bool> AiConversation;
 
+	// [IA] - Fase 3.1 (saída estruturada): response_format/json_schema no pedido, para o modelo sempre responder JSON
+	internal static ConfigEntry<bool> AiStructuredOutput;
+
 	// [IA] - STT local (spike): teste do Whisper.net in-process. Ver Diagnostics/WhisperSpike.cs.
 	internal static ConfigEntry<bool> SttTest;
 
@@ -835,6 +838,7 @@ internal static class ModConfig
 		AiPersonalityPreset = Bind(cfg, "IA", "PresetPersonalidade", "", "Fase 3.5: uma personalidade pronta, escrita em português dentro do mod: viking (leal e destemido), mago (velho e sarcástico), sarcastico (piadas secas), guia (paciente e didático), ou custom (usa a Personalidade). Vazio ou desconhecido = o padrão (um companheiro leal e prático). Opção de texto: edite no arquivo .cfg.");
 		AiMemory = Bind(cfg, "IA", "Memoria", 4, "Fase 3.5: quantas trocas recentes (uma mensagem sua + uma do companheiro) o companheiro lembra e envia junto com a próxima mensagem, para seguir o fio da conversa. 0 = sem memória. Guardada por companheiro, só na memória (nada é salvo no mundo) e esquecida quando o companheiro morre ou é dispensado. Cada troca deixa o prompt que o modelo precisa ler maior, então mantenha pequeno para as respostas mais rápidas (Fase 3.3b: 4, era 6).", new AcceptableValueRange<int>(0, 12));
 		AiConversation = Bind(cfg, "IA", "Conversa", defaultValue: true, "Fase 3.5: quando a mensagem NÃO é uma ordem (\"bom dia\", \"como você está?\", \"o que achou da minha casa?\"), o companheiro responde como conversa: fala a resposta em voz alta (balão de fala) e a mostra no chat. As ordens continuam funcionando exatamente como antes. Desligado = só ordens são entendidas, como na Fase 3.1.");
+		AiStructuredOutput = Bind(cfg, "IA", "SaidaEstruturada", defaultValue: true, "Pede ao servidor para forçar o formato JSON (response_format/json_schema). Deixa a resposta do modelo sempre válida e é o que permite usar modelos pequenos e rápidos (ex.: um 3B) sem ele responder texto solto. Desligue se o seu servidor não suportar - o mod cai sozinho no formato antigo e avisa no log.");
 
 		// [IA] - STT local (spike do Whisper.net in-process, Fase 3.x): só teste, não faz parte do pipeline de voz.
 		SttTest = Bind(cfg, "IA", "SttTeste", defaultValue: false, "SPIKE (teste): roda o teste de reconhecimento de voz do Whisper.net in-process sozinho, cerca de 25 segundos depois de o plugin carregar, e escreve o resultado no log. Desligado = só o comando de console \"modia_stt_teste\" o executa. É um teste simples: não ouve o microfone e não muda nenhum comportamento dos companheiros.");

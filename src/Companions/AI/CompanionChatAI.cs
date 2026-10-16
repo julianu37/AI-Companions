@@ -91,6 +91,19 @@ internal static class CompanionChatAI
 		+ "\"bom dia, tudo bem?\" -> {\"action\":\"none\",\"reply\":\"Bom dia! Tudo bem, e você?\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"o que achou da minha casa?\" -> {\"action\":\"none\",\"reply\":\"Boa casa! Só falta uma fogueira acesa.\",\"target\":null,\"resource\":null,\"amount\":null}";
 
+	/// <summary>
+	/// Fase 3.1 (saída estruturada): the actions the model may answer with, in the mod's own vocabulary. This is the
+	/// single source of the "enum" in the JSON schema sent as response_format (see LlmClient), so the schema and the
+	/// vocabulary can't drift apart. It HAS to follow <see cref="Contract"/>: every action named there has to be
+	/// here, and nothing else. Adding or renaming an action means editing both.
+	/// </summary>
+	internal static readonly string[] ValidActions = new string[]
+	{
+		"follow", "wood", "stone", "ore", "forage", "smelt", "hunt", "attack", "equip", "drop", "inventory",
+		"farm", "fish", "repair", "cook", "stop", "come", "sethome", "wander", "nowander", "pickup", "nopickup",
+		"command", "nocommand", "stance_balanced", "stance_passive", "stance_ranged", "stance_melee", "none"
+	};
+
 	private const int MaxRawShown = 400;
 
 	/// <summary>Longest reply the companion will say out loud, so a runaway model can't fill the screen.</summary>

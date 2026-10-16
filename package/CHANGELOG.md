@@ -2,7 +2,21 @@
 
 All notable changes to this fork of ProfMags' Offline Companions. Versions before 1.4.0 are the original mod (see [ProfMags' Thunderstore page](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) for that history) plus the initial batch of Valheim 1.0 API-compatibility fixes that let the mod load and run at all on 1.0.
 
-## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.6b: a ordem sem alvo do modelo (drop/equip/attack caem para as palavras do jogador) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Fase 3.3c: raio de coleta maior e chatter aleatório desligado + Fase 3.3d: a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador + Fase 3.8: o companheiro abre o próprio inventário por voz/chat + Fase 3.4: o companheiro FALA (TTS local, Kokoro-82M via sherpa-onnx) + Fase 3.7: painel da IA no jogo (personalidade, voz com Ouvir, push-to-talk) + Fase 3.4 (parte 3): o eco do TTS RESOLVIDO — era a zona de reverb global do jogo (a voz sai seca) + Tradução PT-BR (fork ModAI-BR-Companions)
+## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.6b: a ordem sem alvo do modelo (drop/equip/attack caem para as palavras do jogador) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Fase 3.3c: raio de coleta maior e chatter aleatório desligado + Fase 3.3d: a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador + Fase 3.8: o companheiro abre o próprio inventário por voz/chat + Fase 3.4: o companheiro FALA (TTS local, Kokoro-82M via sherpa-onnx) + Fase 3.7: painel da IA no jogo (personalidade, voz com Ouvir, push-to-talk) + Fase 3.4 (parte 3): o eco do TTS RESOLVIDO — era a zona de reverb global do jogo (a voz sai seca) + Fase 3.1: saída estruturada (JSON schema) — destrava modelos pequenos + Tradução PT-BR (fork ModAI-BR-Companions)
+- **A resposta do modelo agora é garantidamente um JSON (Fase 3.1 — saída estruturada).** O pedido ao modelo passou a
+  levar `response_format` com um **JSON schema** (`companion_intent`) que fixa as cinco chaves do contrato e a **lista
+  fechada das 29 ações** — é isso que impede a resposta em texto solto, que o prompt sozinho não conseguia evitar. O
+  ganho prático é poder usar um **modelo pequeno e rápido**: medido com o prompt atual (~1766 tokens), o
+  `qwen2.5-3b-instruct` acertava **0 de 6** respostas em JSON (repetia frases do prompt) e passou a acertar **6 de 6**,
+  inclusive o alvo em `atacar`/`equipar`/`largar`; o `google/gemma-4-e4b` (o padrão) continua igual.
+  - **`[IA] SaidaEstruturada`** (novo, **ligado** por padrão) é a opção: aparece sozinha no painel F8, aba IA, e
+    desligá-la volta exatamente ao pedido de antes.
+  - **Nenhum servidor fica de fora:** se o servidor recusar o schema (**HTTP 400**, ou erro citando
+    `response_format`/`json_schema`), o mod tenta **uma vez** com `{"type":"json_object"}` e, se falhar de novo,
+    **uma vez sem `response_format`** (o comportamento antigo), avisando **uma vez no log**. Erro de rede ou timeout
+    **não** são repetidos: o mesmo pedido nunca é enviado duas vezes e o mod nunca quebra por causa disso.
+  - **Nada mais mudou:** o prompt, o parser, a personalidade/memória, o TTS, o painel, o STT e as ordens ficaram
+    iguais.
 - **O eco da voz do companheiro está CORRIGIDO (Fase 3.4, parte 3).** O diagnóstico (`EcoDiag = true`) mostrou a
   causa na primeira tentativa: o Valheim tem **uma zona de reverb global**, no **próprio objeto do ouvinte**, com
   raio de **1000 m**, **4 s** de cauda e `room` de **−10 dB** — ou seja, **tudo** dentro de 1 km levava essa cauda de

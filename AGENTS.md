@@ -326,6 +326,26 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   - **Não mudou:** `spatialBlend`, o gate de fim de fala (`_currentEndsAt`), `StopSource`, cache, fila, síntese,
     prompt, painel, STT, ordens e jobs.
   Detalhes: `docs/roadmap.md` (Fase 3.4 — o eco, parte 3) e `docs/re/tts-kokoro-sherpa-onnx.md`.
+- **Fase 3.1 — saída estruturada (JSON schema): o que permite modelos pequenos:** o pedido ao LLM passou a levar
+  **`response_format`** com um **JSON schema** (`companion_intent`, `strict`, `additionalProperties: false`) que fixa as
+  cinco chaves do contrato e a **lista fechada de ações** — o `enum` sai de **`CompanionChatAI.ValidActions`** (fonte
+  única, ao lado do `Contract`, com comentário dizendo que **tem** que acompanhar o `Contract`: 29 ações, de `follow` a
+  `none`), montado **uma vez** em `LlmClient.JsonSchemaFormat`. É o que elimina a classe de erro "o modelo respondeu
+  texto solto" e o que **destrava modelos pequenos**: medido com o prompt atual (~1766 tokens), o
+  `qwen2.5-3b-instruct` dava **0/6** respostas em JSON e passou a **6/6** (inclusive `target` em
+  `attack`/`equip`/`drop`); o `google/gemma-4-e4b` continua igual. **Cadeia de fallback, 1 tentativa cada**
+  (`LlmClient.Post`): `json_schema` → `{"type":"json_object"}` → **sem** `response_format` (como era antes); só uma
+  **recusa do formato** dispara a próxima (`RejectedFormat`: **HTTP 400** ou erro citando
+  `response_format`/`json_schema`) — timeout, socket morto, 500 e erro de rede **não** são repetidos, e o mesmo corpo
+  nunca é enviado duas vezes. Logs: uma linha na 1ª mensagem dizendo que a saída estruturada está ligada (schema, nº de
+  ações, tamanho do corpo), uma por queda e **um único aviso** (`WarnNoStructuredOnce`) ao chegar no formato antigo.
+  Cada tentativa tem o **seu** `Timeout`/`ReadWriteTimeout` = `[IA] TimeoutSegundos` (não dividido: o caminho normal é
+  a tentativa 1 e um modelo lento é o caso comum; um 400 volta em ms, então a cadeia quase não custa tempo) e o
+  **watchdog** do slot em voo passou a cobrir as 3 (`TimeoutSegundos × 3 + 10 s` com a saída estruturada ligada, igual
+  a antes quando desligada) para não liberar o slot no meio de um fallback. Config nova `[IA] SaidaEstruturada` (bool,
+  **true**; aparece sozinha no painel F8). Os três corpos são montados **na main thread** (a `Task` só envia). **Não
+  mudou:** o `Contract`, o `LlmIntent`, o fallback da 3.6b, a personalidade/memória, o `KeepAlive`, o `BaseUrl`, o TTS,
+  o painel, o STT e as ordens. Detalhes: `docs/roadmap.md` (Fase 3.1 — saída estruturada).
 - Backend/contrato de referência: `docs/re/backend-contract.md`; mapa da fase: `docs/roadmap.md` (Trilha D);
   pipeline de voz: `docs/re/stt-voz-pipeline.md`; fala do companheiro: `docs/re/tts-kokoro-sherpa-onnx.md`.
 

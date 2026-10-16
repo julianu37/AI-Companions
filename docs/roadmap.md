@@ -347,6 +347,7 @@ Ordens em **linguagem natural** por cima do mod do upstream. O companheiro conti
 | 3.6 | **Ordens com alvo**: `ataca o greydwarf` (engaja a criatura), `equipa o machado de bronze` (equipa do inventário dele), `larga a pedra` (joga fora) | ✅ validado em jogo |
 | 3.6b | **Correção da ordem sem alvo**: quando o modelo responde `"target": null`, o item/criatura é lido das **palavras do próprio jogador**; o prompt passa a exigir `target` em `attack`/`equip`/`drop` | ✅ build 0 erros + DLL no plugin (teste em jogo pendente) |
 | 3.7 | **Painel da IA no jogo** (personalidade + voz com *Ouvir* + push-to-talk + toggles, tecla `I`) | ✅ build 0 erros + DLL no plugin (teste em jogo pendente) |
+| 3.1 | **Saída estruturada** (`response_format`/JSON schema): garante JSON válido e destrava modelos pequenos (3B) | ✅ build 0 erros + DLL no plugin (teste em jogo pendente) |
 
 ### Fase 3.1 — ordem por texto no chat (✅ — Unreleased)
 
@@ -1397,6 +1398,104 @@ roda **uma vez por sessão**, nunca por frame, e **nunca** com a flag desligada.
    nunca chegaram a ser necessários — por isso saíram.)
 
 Os interruptores ficaram **no padrão** ao terminar o teste, e a correção virou o padrão.
+
+
+
+### Fase 3.1 — saída estruturada (JSON schema): o que permite modelos pequenos (✅ build 0 erros — branch `feat/json-schema`; teste em jogo pendente)
+
+O pedido ao modelo passou a levar **`response_format`**, pedindo ao servidor que **force** a forma da resposta: um
+objeto JSON com as cinco chaves do contrato e a lista fechada de ações. É a única mudança desta fase — o prompt
+(`Contract`), o parser (`LlmIntent`), a personalidade/memória, o TTS, o painel, o STT e as ordens ficaram **intactos**.
+
+**Por que:** o parser do mod sempre foi tolerante, mas a classe de erro "o modelo respondeu texto solto" não tinha
+como ser evitada por prompt. Com o formato forçado pelo servidor, ela deixa de existir — e isso é o que **destrava
+modelos pequenos**, que são os que respondem rápido numa CPU.
+
+| Modelo | Prompt atual (~1766 tokens) | Com JSON schema |
+|---|---|---|
+| `qwen2.5-3b-instruct` | **0/6** respostas em JSON (repetia frases do prompt) | **6/6**, inclusive `target` em `attack`/`equip`/`drop` |
+| `google/gemma-4-e4b` (o atual) | 6/6 | 6/6 (igual) |
+
+(Números medidos pelo jogador, com o prompt do mod; o teste em jogo com o 3B é dele.)
+
+#### 1. O corpo do pedido
+
+O `LlmClient` monta o `response_format` a partir de **uma lista única de ações** —
+`CompanionChatAI.ValidActions` (novo, ao lado do `Contract`, com comentário dizendo que **tem** que acompanhar o
+`Contract`: 29 ações, de `follow` a `none`) — então o schema não pode divergir do que o mod entende. O JSON vai no
+fim do corpo, depois de `messages` (nada mais mudou na ordem dos campos):
+
+```json
+{"model":"...","temperature":0.1,"stream":false,"messages":[{"role":"system","content":"..."},{"role":"user","content":"..."}],
+ "response_format":{"type":"json_schema","json_schema":{"name":"companion_intent","strict":true,"schema":{
+   "type":"object",
+   "properties":{
+     "action":{"type":"string","enum":["follow","wood", ... ,"none"]},
+     "reply":{"type":"string"},
+     "target":{"type":["string","null"]},
+     "resource":{"type":["string","null"]},
+     "amount":{"type":["integer","null"]}},
+   "required":["action","reply","target","resource","amount"],
+   "additionalProperties":false}}}}
+```
+
+O schema é montado **uma vez** (`JsonSchemaFormat`, cacheado) e os três corpos da cadeia de fallback são montados
+**na main thread**, junto com os outros valores de config (a `Task` de fundo só envia). O log mostra o corpo real:
+`[IA] Prompt: ... corpo JSON N car.` (com o schema, ~+680 car. sobre o corpo antigo).
+
+#### 2. A cadeia de fallback (1 tentativa cada)
+
+Nem todo servidor aceita `json_schema`, então o mod **nunca quebra** por causa disso:
+
+| # | `response_format` | Quando é usada |
+|---|---|---|
+| 1 | `{"type":"json_schema", ...}` | sempre (com `[IA] SaidaEstruturada` ligado) |
+| 2 | `{"type":"json_object"}` | só se a 1ª foi **recusada pelo formato** |
+| 3 | *sem* `response_format` (comportamento antigo) | só se a 2ª também foi recusada pelo formato |
+
+- **O que dispara uma nova tentativa:** **HTTP 400** ou o erro **citando `response_format`/`json_schema`**
+  (`RejectedFormat`). **Nada mais** — timeout, socket morto, 500 e erro de rede **não** são repetidos: repetir só
+  faria o jogador esperar duas vezes pelo mesmo erro. O mesmo corpo nunca é enviado duas vezes.
+- **Log:** na 1ª mensagem, uma linha dizendo que a saída estruturada está ligada (nome do schema, nº de ações, tamanho
+  do corpo); a cada queda, uma linha com o motivo (`... recusada pelo servidor: HTTP 400 ...`); ao chegar no formato
+  antigo, **um único aviso** (`WarnNoStructuredOnce`) de que o servidor não suporta saída estruturada e que o mod segue
+  sem ela; se uma tentativa posterior **funcionar**, uma linha dizendo com qual formato a resposta veio.
+- **Timeout:** cada tentativa tem o seu próprio `Timeout`/`ReadWriteTimeout` = `[IA] TimeoutSegundos` (não foi
+  dividido). Motivo: o caminho **normal** é a tentativa 1 e ela tem que continuar com o orçamento inteiro — um modelo
+  local lento é o caso comum, e cortar o tempo dele para reservar tempo a fallbacks que quase nunca acontecem pioraria
+  o caso real. Na prática a cadeia não custa quase nada, porque um 400 volta em milissegundos (o servidor recusa antes
+  de gerar). O **watchdog** do slot "em voo" (`Tick`) foi estendido para cobrir as 3 tentativas
+  (`TimeoutSegundos × 3 + 10 s` com a saída estruturada ligada, igual a antes quando desligada), senão ele liberaria o
+  slot enquanto um fallback ainda estivesse rodando e a próxima mensagem começaria por cima.
+- **Desligado** (`[IA] SaidaEstruturada = false`): uma única tentativa, exatamente o pedido de hoje.
+
+#### 3. Config e arquivos
+
+| Item | Onde |
+|---|---|
+| `[IA] SaidaEstruturada` (bool, **true**) | `src/Companions/Core/ModConfig.cs` — aparece sozinha no painel F8, aba IA |
+| Corpo + cadeia + schema | `src/Companions/AI/LlmClient.cs` |
+| `ValidActions` (fonte única do `enum`) | `src/Companions/AI/CompanionChatAI.cs` |
+| Doc da config | `package/CONFIGURATION.md` (regerado: 263 opções) |
+
+#### 4. Receita de teste
+
+1. F8 → aba **IA**: `SaidaEstruturada` **ligado** (padrão). Na primeira mensagem, o log traz a linha da saída
+   estruturada ligada.
+2. No log, conferir que o corpo enviado tem `response_format` (`[IA] Prompt: ... corpo JSON N car.`, maior que o
+   normal) e que a resposta é um JSON com as 5 chaves.
+3. Trocar o modelo para um **3B** (`[IA] Modelo`) e repetir as mesmas ordens do teste da 3.6
+   (`colete 20 de madeira`, `ataca o gregdwarf`, `equipa o machado de bronze`, `larga a pedra`) e as de conversa.
+4. Para conferir o fallback: apontar para um servidor que recuse `response_format` (ou `SaidaEstruturada` desligado) e
+   ver as linhas de queda no log sem nenhum erro no jogo.
+
+#### 5. O que não foi verificado
+
+O **comportamento em jogo** (o build e o JSON do corpo foram conferidos fora do jogo: o corpo gerado é JSON válido, com
+29 ações, `strict`, `required` e `additionalProperties:false`; a lista do `enum` foi conferida contra o `Contract`).
+Os **números 0/6 x 6/6** são medição do jogador, não do agente. Os **fallbacks** foram revisados no código, mas não
+foram exercitados contra um servidor que realmente recuse o schema.
+
 
 
 
