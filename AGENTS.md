@@ -293,27 +293,38 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   abrir com o painel da IA visível (D2); `hc_ai_voice_key_conflict` ganhou o par em inglês (E1); **D3** (cursor no
   `Hide`) não foi mexido de propósito — quem devolve o cursor é o `GameCamera.UpdateMouseCapture` do próprio jogo.
   Detalhes: `docs/roadmap.md` (Fase 3.4/3.7 — correções da auditoria) e `docs/re/tts-kokoro-sherpa-onnx.md`.
-- **Fase 3.4 (parte 3) — o eco da voz: interruptores de teste e diagnóstico (branch `fix/eco-voz`; NADA muda por
-  padrão):** a voz do companheiro sai com eco e o que já está estabelecido aponta para um **processamento fixo da
-  engine** na nossa `AudioSource` (síntese limpa, só a voz do companheiro, idêntico em qualquer lugar/distância/voz,
-  e com uma única frase). Esta parte é **instrumentação**: seis chaves novas em `[IA]`, todas com o padrão = como está
-  hoje — `EcoDiag` (false; diagnóstico só no log), `TtsReverbZoneMix` (1.0, 0–1), `TtsBypassReverbZones` (false),
-  `TtsBypassListenerEffects` (false; **o suspeito principal**), `TtsBypassEffects` (false) e `TtsDoppler` (true).
-  Elas aparecem **no painel F8 (aba IA)** sem nenhuma mudança no painel (o `Bind` já alimenta `ModConfig.Categories`)
-  e valem **na próxima frase**. `ApplyEcoTestSwitches(source)` roda **uma vez por frase** (`StartChunk`, antes do
-  `Play`) e **só escreve um valor que difere do padrão do Unity**: com tudo no padrão ele sai **antes do primeiro
-  setter** (nenhum setter, nenhuma linha de log — o som é o de antes desta fase); quando algum difere, sai uma linha
-  por frase (`[TTS] Modo de audio da frase: reverbZoneMix=0, bypassListenerEffects=true`) como prova de que pegou.
-  Com `EcoDiag = true`, **uma vez por sessão** na primeira frase (prefixo `[ECO]`, `try/catch`, na main thread):
-  o `AudioListener` (nome + `AudioReverbFilter`/`AudioLowPassFilter` e valores), **todas as `AudioReverbZone`** da
-  cena (`reverbPreset`/`minDistance`/`maxDistance`/`decayTime`/`room` + se o jogador e o companheiro estão **dentro**
-  do raio) e **a receita do jogo** — amostra de até 20 `AudioSource` da cena (a nossa fora) com `spatialBlend`,
-  `reverbZoneMix`, os `bypass*`, `dopplerLevel`, `spatialize` e o **nome do mixer group**
-  (`Resources.FindObjectsOfTypeAll(Type)` filtrado por `gameObject.scene.IsValid()`, nunca por frame). Na reflexão, o
-  núcleo obrigatório (11 membros) continua igual e os novos (`reverbZoneMix`, `bypassReverbZones`, `bypassEffects`,
-  `bypassListenerEffects`, `dopplerLevel`, `spread`, `spatialize`, `outputAudioMixerGroup`) são **opcionais**: um que
-  não exista só deixa o interruptor dele inerte (com aviso no log), nunca derruba a voz. **Não mudou:** `spatialBlend`,
-  o gate de fim de fala (`_currentEndsAt`), `StopSource`, cache, fila, síntese, prompt, painel, STT, ordens e jobs.
+- **Fase 3.4 (parte 3) — o eco da voz: RESOLVIDO (branch `fix/eco-voz`). O eco era a zona de reverb global do
+  Valheim:** o diagnóstico (`EcoDiag = true`) achou a causa na primeira tentativa. O jogo tem **UMA `AudioReverbZone`
+  global**, no **próprio objeto do `AudioListener`** (`[ECO] zona "Listner": preset=User, minDistance=1000,
+  maxDistance=1000, decayTime=4, room=-1000, dentro: jogador=SIM, companheiro=SIM`) — raio de **1000 m**, **4 s** de
+  cauda e `room = −10 dB`, ou seja, **tudo** dentro de 1 km levava essa cauda (o ouvinte **não** tem
+  `AudioReverbFilter`/`AudioLowPassFilter`: não era filtro no ouvinte nem Doppler). As fontes do **jogo fogem** dela
+  (música `reverbZoneMix = 0`, ambiente `0,1876583` no mixer `SFX`; as de SFX curtas usam 1 e num som curto/repetitivo
+  não se nota), mas a **nossa** `AudioSource` estava no **padrão do Unity (`reverbZoneMix = 1`)** e sem mixer group —
+  a fala pegava a cauda inteira. **Correção (ouvida e aprovada em jogo: "limpou"): `reverbZoneMix = 0`** — a voz sai
+  **seca**, como a música. O que ficou:
+  - **`[IA] TtsReverbZoneMix`** (float 0–1, **padrão 0** = voz seca) é a opção de verdade: `0,19` (o valor do ambiente
+    do jogo) dá um "espaço" sutil, se o jogador quiser. `ApplyReverbZoneMix(source)` roda em `StartChunk` e escreve
+    **só quando o valor muda** (a `AudioSource` é criada uma vez e fica na sessão) — vale **na próxima frase**, sem
+    reiniciar, e a primeira frase já aplica o 0.
+  - **Os 4 interruptores de exploração foram removidos** (`TtsBypassReverbZones`, `TtsBypassListenerEffects`,
+    `TtsBypassEffects`, `TtsDoppler`: campos, `Bind`, propriedades e o código de aplicação) — cumpriram o papel, e o
+    `.cfg` do jogo perde as chaves sozinho.
+  - **`[IA] EcoDiag`** (bool, `false`) **ficou**, agora como **diagnóstico de áudio geral**: **uma vez por sessão** na
+    primeira frase (prefixo `[ECO]`, `try/catch`, na main thread) escreve o `AudioListener` (nome +
+    `AudioReverbFilter`/`AudioLowPassFilter` e valores), **todas as `AudioReverbZone`** da cena
+    (`reverbPreset`/`minDistance`/`maxDistance`/`decayTime`/`room` + se o jogador e o companheiro estão **dentro** do
+    raio) e **a receita do jogo** — amostra de até 20 `AudioSource` da cena (a nossa fora) com `spatialBlend`,
+    `reverbZoneMix`, os `bypass*`, `dopplerLevel`, `spatialize` e o **nome do mixer group**
+    (`Resources.FindObjectsOfTypeAll(Type)` filtrado por `gameObject.scene.IsValid()`, nunca por frame). **Não muda o
+    som.**
+  - **Reflexão:** o núcleo obrigatório (11 membros) continua igual; `reverbZoneMix` é o único membro **opcional** que
+    a voz escreve; `bypassReverbZones`/`bypassEffects`/`bypassListenerEffects`/`dopplerLevel`/`spread`/`spatialize`/
+    `outputAudioMixerGroup` continuam resolvidos e são usados **só de leitura** pelo diagnóstico (`DescribeSource`).
+  - **Pendência conhecida:** a voz **não** passa por um **mixer group** do jogo (a música e o ambiente passam); roteá-la
+    para o `SFX` fica para depois — não é necessário para o eco.
+  - **Não mudou:** `spatialBlend`, o gate de fim de fala (`_currentEndsAt`), `StopSource`, cache, fila, síntese,
+    prompt, painel, STT, ordens e jobs.
   Detalhes: `docs/roadmap.md` (Fase 3.4 — o eco, parte 3) e `docs/re/tts-kokoro-sherpa-onnx.md`.
 - Backend/contrato de referência: `docs/re/backend-contract.md`; mapa da fase: `docs/roadmap.md` (Trilha D);
   pipeline de voz: `docs/re/stt-voz-pipeline.md`; fala do companheiro: `docs/re/tts-kokoro-sherpa-onnx.md`.

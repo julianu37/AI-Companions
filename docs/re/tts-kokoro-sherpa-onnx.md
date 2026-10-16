@@ -214,9 +214,8 @@ reflexão e sem alocação.
 | `TtsFalarRespostas` | `true` | falar a resposta do modelo (`reply`) |
 | `TtsFalarFalasDoMod` | `true` | falar a linha do mod que aparece no chat (numa **ordem** ela ganha) |
 
-**Interruptores de teste do eco (parte 3, todos com o default = como está hoje):** `EcoDiag` (`false`), `TtsReverbZoneMix`
-(`1`), `TtsBypassReverbZones` (`false`), `TtsBypassListenerEffects` (`false`), `TtsBypassEffects` (`false`) e
-`TtsDoppler` (`true`). Ver a seção 13.
+**Áudio da voz (parte 3):** `TtsReverbZoneMix` (**`0`** = voz seca — ver a seção 13) e `EcoDiag` (`false`,
+diagnóstico de áudio). Os 4 interruptores de exploração do eco foram **removidos** depois da correção.
 
 ## 10. Receita de teste in-game
 
@@ -276,34 +275,67 @@ Revisão dos commits `675a56f`/`758bec0`. Nada de comportamento visível mudou, 
 | E1/E2 | `hc_ai_voice_key_conflict` só no JSON PT-BR; slider de velocidade 0,5–1,5 contra 0,5–2,0 na config | par em inglês nos padrões; `MinSpeed`/`MaxSpeed` compartilhados |
 | D3 | cursor não restaurado no `Hide()` do painel | **nada a fazer**: `GameCamera.UpdateMouseCapture` (decompilado) trava o cursor a cada frame quando não há janela aberta — e deixa livre de propósito para quem desliga a captura com `Ctrl+F1` |
 
-## 13. O eco da voz (parte 3) — instrumentação, não correção
+## 13. O eco da voz (parte 3) — RESOLVIDO: era a zona de reverb global do jogo
 
-**Sintoma:** a voz do companheiro sai com eco, "como falar num lugar grande". **Só** ela: música e SFX do jogo são
-normais. A síntese está limpa (o WAV gerado fora do jogo é idêntico), o eco é idêntico em qualquer lugar, de perto ou
-de longe e com as 3 vozes (42/43/44), e acontece com **uma única frase** — logo não é a fila, o cache, a distância, o
-timbre nem o áudio do sistema. É um **processamento fixo da engine** aplicado à nossa `AudioSource`; **qual** deles é
-o ouvido do jogador que decide, e é para isso que esta parte existe.
+**Sintoma:** a voz do companheiro saía com eco, "como falar num lugar grande". **Só** ela: música e SFX do jogo eram
+normais. A síntese está limpa (o WAV gerado fora do jogo é idêntico), o eco era idêntico em qualquer lugar, de perto
+ou de longe e com as 3 vozes (42/43/44), e acontecia com **uma única frase** — logo não era a fila, o cache, a
+distância, o timbre nem o áudio do sistema: era um **processamento fixo da engine** aplicado à nossa `AudioSource`.
 
-### 13.1 Os seis interruptores (`[IA]`, default = como está hoje)
+### 13.1 A causa raiz (evidência do diagnóstico em jogo)
 
-| Chave | Tipo | Default | Escrito na fonte quando difere do default |
+O log do jogador com `EcoDiag = true` (`BepInEx\LogOutput.log`):
+
+```
+[ECO] ouvinte "Listner": AudioReverbFilter=nao, AudioLowPassFilter=nao
+[ECO] Zonas de reverb: 1 carregada(s).
+[ECO]   zona "Listner": preset=User, minDistance=1000, maxDistance=1000, decayTime=4, room=-1000, dentro: jogador=SIM, companheiro=SIM
+```
+
+O Valheim tem **UMA `AudioReverbZone`**, no **próprio GameObject do `AudioListener`** (daí o nome `"Listner"`, o
+mesmo do ouvinte), com:
+
+| Campo | Valor | Leitura |
+|---|---|---|
+| `minDistance` / `maxDistance` | **1000 / 1000 m** | o raio cobre **o mundo inteiro** (1 km) — não há como "sair" da zona |
+| `decayTime` | **4 s** | a cauda de reverb é longa e **constante** (por isso o eco soava igual em todo lugar) |
+| `room` | **-1000** (−10 dB) | o quanto do sinal passa pela "sala" (a `AudioReverbZone` mapeia `room` para `reverbZoneMix`/nível da sala) |
+| `preset` | `User` | parâmetros manuais, não um preset pronto |
+| `dentro: jogador=SIM, companheiro=SIM` | — | **toda** fonte dentro do raio (a 1 m ou a 50 m) recebe a mesma cauda |
+
+O ouvinte **não** tem `AudioReverbFilter` nem `AudioLowPassFilter` — ou seja, **não** era filtro no ouvinte nem efeito
+global de ambiente (a hipótese "suspeito principal" do teste caiu aqui). Também não era Doppler (o eco era igual
+parado e andando).
+
+**Como o jogo foge dela** (a "receita" que o bloco *Receita* do diagnóstico mostrou): a **música** usa
+`reverbZoneMix = 0`, o **ambiente** `reverbZoneMix = 0,1876583` e toca pelo mixer **`SFX`**; as fontes de SFX curtas
+(fogueira, abelha) usam `reverbZoneMix = 1`, mas num som curto e repetitivo a cauda de 4 s não é percebida. A **nossa**
+`AudioSource` estava no **padrão do Unity** (`reverbZoneMix = 1`) e **sem mixer group** — a fala pegava a cauda inteira.
+
+### 13.2 A correção
+
+`reverbZoneMix = 0` na nossa fonte: a voz sai **seca**, exatamente como a música do jogo. Ouvido em jogo e aprovado
+("limpou"). O que ficou na config:
+
+| Chave | Tipo | Padrão | Efeito |
 |---|---|---|---|
-| `EcoDiag` | bool | `false` | — (só log) |
-| `TtsReverbZoneMix` | float 0–1 | `1` | `reverbZoneMix` |
-| `TtsBypassReverbZones` | bool | `false` | `bypassReverbZones = true` |
-| `TtsBypassListenerEffects` | bool | `false` | `bypassListenerEffects = true` (**suspeito principal**) |
-| `TtsBypassEffects` | bool | `false` | `bypassEffects = true` |
-| `TtsDoppler` | bool | `true` | `dopplerLevel = 0` |
+| `TtsReverbZoneMix` | float 0–1 | **`0`** | `reverbZoneMix` da nossa fonte: `0` = voz seca; `0,19` ≈ o ambiente do jogo (um "espaço" sutil); `1` = o eco de antes |
+| `EcoDiag` | bool | `false` | diagnóstico de áudio no log (ver 13.4) — **não muda o som** |
 
-`ApplyEcoTestSwitches(source)` é chamado **uma vez por frase** (`StartChunk`, antes do `Play`) — a `AudioSource` é
-criada uma vez só, então reler a config a cada frase é o que faz um interruptor mexido no painel F8 valer **na próxima
-frase**, sem reiniciar. Com tudo no default o método **sai antes do primeiro setter**: nenhum setter, nenhuma linha de
-log, som idêntico ao de antes desta parte. Com algum valor diferente sai uma linha por frase
-(`[TTS] Modo de audio da frase: reverbZoneMix=0, bypassListenerEffects=true`), que é a prova de que o interruptor
-chegou na fonte. Se um membro opcional não existir neste Unity, o interruptor dele fica inerte e a linha diz
-`(sem efeito: este Unity nao tem o membro)`.
+`ApplyReverbZoneMix(source)` é chamado em `StartChunk` (antes do `Play`) e escreve **só quando o valor muda** — a
+`AudioSource` é criada uma vez e fica na sessão, então a primeira frase já aplica o `0` e um valor mexido no painel F8
+vale **na próxima frase**, sem reiniciar. Cada escrita sai no log:
+`[TTS] ReverbZoneMix da voz: reverbZoneMix=0` (com `(sem efeito: este Unity nao tem o membro)` se o membro não existir).
 
-### 13.2 Diagnóstico (`EcoDiag = true`), uma vez por sessão
+**Os 4 interruptores de exploração saíram** (`TtsBypassReverbZones`, `TtsBypassListenerEffects`, `TtsBypassEffects`,
+`TtsDoppler`): a causa já estava achada, e o `TtsBypassListenerEffects` (o "suspeito principal" do teste) nunca chegou
+a ser necessário. O `.cfg` do jogo perde as 4 chaves sozinho.
+
+**Pendência conhecida:** a voz **não** passa por um **mixer group** do jogo (a música e o ambiente passam:
+`Music`/`SFX`). Rotear para o `SFX` daria o volume/efeitos do grupo (é o que o jogo faz com o ambiente), mas não é
+necessário para o eco — fica para depois, se o jogador quiser.
+
+### 13.3 Diagnóstico (`EcoDiag = true`), uma vez por sessão
 
 Na main thread, no **primeiro** `StartChunk`, prefixo `[ECO]`, tudo em `try/catch` (nada aqui pode derrubar a voz):
 
@@ -315,26 +347,29 @@ Na main thread, no **primeiro** `StartChunk`, prefixo `[ECO]`, tudo em `try/catc
 
 Busca: `Resources.FindObjectsOfTypeAll(Type)` filtrado por `gameObject.scene.IsValid()` (descarta prefabs/assets que
 só existem na memória). É caro de propósito — **uma vez por sessão**, nunca por frame, e **nunca** com a flag
-desligada.
+desligada. O bloco *Zonas* foi o que resolveu o eco; os outros dois ficam como diagnóstico de áudio geral.
 
-### 13.3 API conferida no `UnityEngine.AudioModule.dll` do jogo
+### 13.4 API conferida no `UnityEngine.AudioModule.dll` do jogo
 
 `AudioSource`: `reverbZoneMix`, `bypassReverbZones`, `bypassEffects`, `bypassListenerEffects`, `dopplerLevel`,
 `spread`, `spatialize` (bool), `outputAudioMixerGroup` (`AudioMixerGroup`) — todos existem, todos resolvidos **uma
-vez** por reflexão e todos **opcionais** (o núcleo obrigatório segue sendo os 11 membros de sempre).
+vez** por reflexão e todos **opcionais** (o núcleo obrigatório segue sendo os 11 membros de sempre). Depois da
+correção, **`reverbZoneMix` é o único que a voz escreve**; os outros são **só de leitura**, usados pelo bloco
+*Receita* do diagnóstico (`Audio.DescribeSource`).
 `AudioReverbZone`: `reverbPreset` (`AudioReverbPreset`), `minDistance`/`maxDistance`/`decayTime` (**float**),
 `room` (**int**). `AudioReverbFilter`: `reverbPreset`, `dryLevel`, `room`, `decayTime`. `AudioLowPassFilter`:
 `cutoffFrequency`. `Resources.FindObjectsOfTypeAll(Type)` → `Object[]` (não obsoleta; a `Object.FindObjectsOfType`
 equivalente está marcada `[Obsolete]` no Unity 6).
 
-### 13.4 Receita de teste
+### 13.5 Receita de teste (histórica — foi assim que a causa foi achada)
 
-Um interruptor por vez, uma frase entre cada um, e o log com as linhas `[TTS] Modo de audio da frase` / `[ECO]`:
+1. `EcoDiag` ligado → falar uma frase → mandar o log. **A foto da cena respondeu sozinha**: uma `AudioReverbZone` de
+   `maxDistance = 1000`, `decayTime = 4` e `room = -1000` no próprio ouvinte, com o jogador e o companheiro **dentro**;
+   nenhum filtro no ouvinte.
+2. `TtsBypassListenerEffects` ligado → **não** mudou (confirmou: não havia efeito no ouvinte).
+3. `TtsReverbZoneMix` = **0** → **"limpou"**. Era a zona de reverb.
+4. (`TtsDoppler` e `TtsBypassEffects` nunca chegaram a ser necessários — por isso foram removidos.)
 
-1. `EcoDiag` ligado → falar uma frase → mandar o log (a foto da cena já pode responder sozinha).
-2. `TtsBypassListenerEffects` ligado → o eco sumiu? era o efeito no ouvinte.
-3. Senão `TtsReverbZoneMix` = 0 (ou `TtsBypassReverbZones`) → sumiu? era zona de reverb.
-4. Senão `TtsDoppler` desligado → sumiu? era Doppler.
-5. Senão `TtsBypassEffects` ligado.
-6. Deixar **tudo no default** ao terminar (é o som de hoje).
+Para conferir hoje: `[IA] TtsReverbZoneMix` no painel **F8** → aba **IA** (`0` = padrão, voz seca; `0,19` = um pouco
+de espaço; `1` = o eco de antes) e ouvir uma frase com `modia_tts_teste` (`F5`). Vale na frase seguinte, sem reiniciar.
 

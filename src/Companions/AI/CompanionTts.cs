@@ -256,6 +256,9 @@ internal static class CompanionTts
 	/// <summary>True once the <c>[IA] EcoDiag</c> block has run: it is a once-per-session thing (first sentence).</summary>
 	private static bool _ecoDiagDone;
 
+	/// <summary>The <c>reverbZoneMix</c> already written to the source (NaN = nothing written yet).</summary>
+	private static float _appliedReverbZoneMix = float.NaN;
+
 	/// <summary>[IA] TtsLigado.</summary>
 	internal static bool Enabled => ModConfig.TtsEnabled == null || ModConfig.TtsEnabled.Value;
 
@@ -267,20 +270,26 @@ internal static class CompanionTts
 
 	private static bool CacheEnabled => ModConfig.TtsCache == null || ModConfig.TtsCache.Value;
 
-	// ------------------------------------------------------------------ Fase 3.4 (parte 3): teste do eco
+	// ------------------------------------------------------------------ Fase 3.4 (parte 3): o eco da voz
 	//
-	// Tudo aqui e INSTRUMENTACAO. Cada interruptor tem como valor padrao exatamente o que o codigo ja fazia antes
-	// desta fase e, com todos no padrao, NADA e escrito na fonte de audio (ApplyEcoTestSwitches sai antes do
-	// primeiro setter). O objetivo e o jogador ligar UM de cada vez no painel F8, ouvir uma frase e dizer o que
-	// mudou - o eco e um processamento da engine, entao quem diz qual e o ouvido dele.
+	// O eco tinha UMA causa, confirmada em jogo com o diagnostico: o Valheim carrega UMA AudioReverbZone global
+	// (no proprio objeto do AudioListener, raio de 1000 m, decayTime de 4 s, room -1000) e a nossa AudioSource
+	// estava no padrao do Unity (reverbZoneMix = 1), entao a fala pegava a cauda inteira - o "eco de caverna".
+	// O jogo foge dela: a musica usa reverbZoneMix = 0 e o ambiente 0,1876583 (mixer SFX). ReverbZoneMix = 0
+	// (o padrao) deixa a voz seca e foi o que resolveu no teste; EcoDiag escreve a foto do audio no log, para
+	// investigar qualquer problema de som mais tarde (nunca por frame, so uma vez por sessao).
 
-	/// <summary>[IA] EcoDiag: write the one-shot echo diagnosis to the log (see <see cref="RunEcoDiagnosticsOnce"/>).</summary>
+	/// <summary>[IA] EcoDiag: write the one-shot audio diagnosis to the log (see <see cref="RunEcoDiagnosticsOnce"/>).</summary>
 	private static bool EcoDiagnostics => ModConfig.TtsEcoDiag != null && ModConfig.TtsEcoDiag.Value;
 
-	/// <summary>Unity's own default for <c>AudioSource.reverbZoneMix</c> (1 = the whole reverb zone reaches the source).</summary>
-	private const float DefaultReverbZoneMix = 1f;
+	/// <summary>
+	/// What the voice uses when <c>[IA] TtsReverbZoneMix</c> is missing: <b>0 = dry</b>. Unity's own default for
+	/// <c>AudioSource.reverbZoneMix</c> is 1, which is exactly what made the companion's speech pick up the world's
+	/// global reverb zone (1000 m of radius, 4 s of tail) and sound like a cave.
+	/// </summary>
+	private const float DefaultReverbZoneMix = 0f;
 
-	/// <summary>[IA] TtsReverbZoneMix: how much of the world's reverb zones reaches the companion's voice.</summary>
+	/// <summary>[IA] TtsReverbZoneMix: how much of the world's reverb zones reaches the companion's voice (0 = dry).</summary>
 	private static float ReverbZoneMix
 	{
 		get
@@ -289,18 +298,6 @@ internal static class CompanionTts
 			return Mathf.Clamp01(value);
 		}
 	}
-
-	/// <summary>[IA] TtsBypassReverbZones: the voice ignores the world's reverb zones (Unity's default is false).</summary>
-	private static bool BypassReverbZones => ModConfig.TtsBypassReverbZones != null && ModConfig.TtsBypassReverbZones.Value;
-
-	/// <summary>[IA] TtsBypassListenerEffects: the voice ignores the effects applied on the scene's AudioListener.</summary>
-	private static bool BypassListenerEffects => ModConfig.TtsBypassListenerEffects != null && ModConfig.TtsBypassListenerEffects.Value;
-
-	/// <summary>[IA] TtsBypassEffects: the voice ignores the filters on its own source.</summary>
-	private static bool BypassEffects => ModConfig.TtsBypassEffects != null && ModConfig.TtsBypassEffects.Value;
-
-	/// <summary>[IA] TtsDoppler: false writes <c>dopplerLevel = 0</c> (Unity's default, and today's behaviour, is 1).</summary>
-	private static bool Doppler => ModConfig.TtsDoppler == null || ModConfig.TtsDoppler.Value;
 
 	/// <summary>[IA] TtsVoz: the Kokoro speaker id (42/43/44 are the pt-BR voices).</summary>
 	internal static int Voice
@@ -1217,10 +1214,10 @@ internal static class CompanionTts
 		{
 			return false;
 		}
-		// Fase 3.4 (parte 3): the echo test switches, applied per SENTENCE (the source itself is created once), so a
-		// switch flipped in the F8 panel is heard on the very next sentence without a restart. With everything at its
-		// default this writes nothing at all - the sound is exactly what it was before this phase.
-		ApplyEcoTestSwitches(_source);
+		// Fase 3.4 (parte 3): the reverb zone mix of the voice. The source itself is created once, so this only
+		// writes when the value really changed - a value typed in the F8 panel is heard on the very next sentence,
+		// without a restart, and the default (0 = dry) is applied on the first sentence.
+		ApplyReverbZoneMix(_source);
 		if (EcoDiagnostics)
 		{
 			RunEcoDiagnosticsOnce(chunk.Speaker);
@@ -1333,61 +1330,41 @@ internal static class CompanionTts
 		}
 	}
 
-	// ---------------------------------------------------------------- teste do eco (Fase 3.4, parte 3)
+	// ---------------------------------------------------------------- o eco (Fase 3.4, parte 3)
 
 	/// <summary>
-	/// The echo test switches, applied to the source <b>once per sentence</b>.
+	/// The <c>reverbZoneMix</c> of the voice (<c>[IA] TtsReverbZoneMix</c>), written to the source whenever it
+	/// differs from the value already applied (the first sentence included). The source is created once and kept
+	/// for the session, so there is nothing to redo on the sentences that follow.
 	///
-	/// <b>With every switch at its default this method returns before the first setter</b>: nothing is written to the
-	/// <c>AudioSource</c> and the sound is byte for byte what it was before this phase. Only a value that really
-	/// differs from Unity's own default is set (never the same value again - a redundant setter is a side effect
-	/// waiting to happen), and each sentence then says in the log what was applied, which is how we know the switch
-	/// really got through. A member this Unity build does not have makes its switch inert and says so in the line.
+	/// Unity's default is 1, and the Valheim world carries a <b>global</b> reverb zone (1000 m of radius, 4 s of
+	/// tail) that then colours the whole sentence - the "cave echo" the players heard. The mod's default is 0
+	/// (dry), which is what the game itself does with the music (0) and the ambience (0,1876583). A Unity build
+	/// without the member leaves the voice as it is and says so in the log, once.
 	/// </summary>
-	private static void ApplyEcoTestSwitches(Component source)
+	private static void ApplyReverbZoneMix(Component source)
 	{
 		if (source == null)
 		{
 			return;
 		}
+		float mix = ReverbZoneMix;
+		if (!float.IsNaN(_appliedReverbZoneMix) && Mathf.Approximately(_appliedReverbZoneMix, mix))
+		{
+			return;
+		}
+		// Written down before the setter: a member this Unity does not have will not appear later, so there is no
+		// point in trying again on every sentence.
+		_appliedReverbZoneMix = mix;
 		try
 		{
-			float mix = ReverbZoneMix;
-			bool bypassZones = BypassReverbZones;
-			bool bypassListener = BypassListenerEffects;
-			bool bypassSource = BypassEffects;
-			bool doppler = Doppler;
-			if (Mathf.Approximately(mix, DefaultReverbZoneMix) && !bypassZones && !bypassListener && !bypassSource && doppler)
-			{
-				// tudo no padrao (= como era antes desta fase): nao encosta na fonte
-				return;
-			}
 			StringBuilder applied = new StringBuilder();
-			if (!Mathf.Approximately(mix, DefaultReverbZoneMix))
-			{
-				AppendApplied(applied, "reverbZoneMix=" + mix.ToString("0.##", CultureInfo.InvariantCulture), Audio.SetReverbZoneMix(source, mix));
-			}
-			if (bypassZones)
-			{
-				AppendApplied(applied, "bypassReverbZones=true", Audio.SetBypassReverbZones(source, true));
-			}
-			if (bypassListener)
-			{
-				AppendApplied(applied, "bypassListenerEffects=true", Audio.SetBypassListenerEffects(source, true));
-			}
-			if (bypassSource)
-			{
-				AppendApplied(applied, "bypassEffects=true", Audio.SetBypassEffects(source, true));
-			}
-			if (!doppler)
-			{
-				AppendApplied(applied, "dopplerLevel=0", Audio.SetDopplerLevel(source, 0f));
-			}
-			CompanionsPlugin.Log?.LogInfo("[TTS] Modo de audio da frase: " + applied.ToString());
+			AppendApplied(applied, "reverbZoneMix=" + mix.ToString("0.##", CultureInfo.InvariantCulture), Audio.SetReverbZoneMix(source, mix));
+			CompanionsPlugin.Log?.LogInfo("[TTS] ReverbZoneMix da voz: " + applied.ToString());
 		}
 		catch (Exception ex)
 		{
-			CompanionsPlugin.Log?.LogWarning("[TTS] Nao consegui aplicar os interruptores de teste do eco: " + Audio.Describe(ex));
+			CompanionsPlugin.Log?.LogWarning("[TTS] Nao consegui aplicar o reverbZoneMix da voz: " + Audio.Describe(ex));
 		}
 	}
 
@@ -1406,10 +1383,11 @@ internal static class CompanionTts
 	}
 
 	/// <summary>
-	/// The one-shot diagnosis of the echo (<c>[IA] EcoDiag</c>), on the main thread and on the <b>first sentence</b>.
-	/// It answers what the switches cannot: is there a reverb zone where the voice plays, does the <c>AudioListener</c>
-	/// carry a reverb/low-pass filter, and how does the game configure its <b>own</b> sources (mixer group, bypass
-	/// flags, reverb zone mix)? That last one is the recipe we are trying to match.
+	/// The one-shot audio diagnosis (<c>[IA] EcoDiag</c>), on the main thread and on the <b>first sentence</b>.
+	/// It writes the picture of the scene's audio to the log: does the <c>AudioListener</c> carry a reverb/low-pass
+	/// filter, which reverb zones are loaded (and how big they are, and whether the player and the companion are
+	/// inside each one), and how the game configures its <b>own</b> sources (mixer group, bypass flags, reverb zone
+	/// mix) - which is the recipe we matched to kill the echo (the global 1000 m zone, <c>reverbZoneMix = 0</c>).
 	///
 	/// The searches here walk every loaded object of a type, which is exactly why this runs <b>once per session</b>,
 	/// never per frame - and never at all with the flag off. It only writes to the log: no sound is touched.
@@ -1423,11 +1401,11 @@ internal static class CompanionTts
 		_ecoDiagDone = true;
 		try
 		{
-			CompanionsPlugin.Log?.LogInfo("[ECO] Diagnostico do eco LIGADO ([IA] EcoDiag = true): nada muda no som, isto so escreve no log, uma vez por sessao.");
+			CompanionsPlugin.Log?.LogInfo("[ECO] Diagnostico de audio LIGADO ([IA] EcoDiag = true): nada muda no som, isto so escreve no log, uma vez por sessao.");
 			LogEcoListener();
 			LogEcoReverbZones(speaker);
 			LogEcoSources();
-			CompanionsPlugin.Log?.LogInfo("[ECO] Fim do diagnostico do eco.");
+			CompanionsPlugin.Log?.LogInfo("[ECO] Fim do diagnostico de audio.");
 		}
 		catch (Exception ex)
 		{
@@ -2229,33 +2207,15 @@ internal static class CompanionTts
 		}
 
 		/// <summary>
-		/// Fase 3.4 (parte 3): the <b>optional</b> members of the echo test. Each one returns false when this Unity
-		/// build does not have the member, and the caller says so in the log (its switch is simply inert) - the voice
-		/// itself keeps working, which is the whole point of keeping them out of the required set above.
+		/// Fase 3.4 (parte 3): the <b>optional</b> members of the voice's audio configuration. <see cref="SetReverbZoneMix"/>
+		/// returns false when this Unity build does not have the member, and the caller says so in the log (the voice
+		/// itself keeps working, which is the whole point of keeping it out of the required set above). The rest of the
+		/// members are read-only here: <see cref="DescribeSource"/> samples the game's own sources with them, which is
+		/// how the diagnosis found the recipe that killed the echo.
 		/// </summary>
 		internal static bool SetReverbZoneMix(Component source, float value)
 		{
 			return SetIfPresent(source, _reverbZoneMix, value);
-		}
-
-		internal static bool SetBypassReverbZones(Component source, bool value)
-		{
-			return SetIfPresent(source, _bypassReverbZones, value);
-		}
-
-		internal static bool SetBypassListenerEffects(Component source, bool value)
-		{
-			return SetIfPresent(source, _bypassListenerEffects, value);
-		}
-
-		internal static bool SetBypassEffects(Component source, bool value)
-		{
-			return SetIfPresent(source, _bypassEffects, value);
-		}
-
-		internal static bool SetDopplerLevel(Component source, float value)
-		{
-			return SetIfPresent(source, _dopplerLevel, value);
 		}
 
 		/// <summary>The AudioSource type, already resolved (the echo diagnosis samples the game's own sources with it).</summary>

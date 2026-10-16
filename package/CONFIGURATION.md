@@ -954,20 +954,8 @@ Fase 3.4: fala em voz alta a resposta do modelo (o campo "reply"). Numa conversa
 **TtsFalarFalasDoMod** — Padrão: Ligado  
 Fase 3.4: fala em voz alta a linha do próprio mod que aparece no chat/HUD ("Ok: coletar madeira (10).", "Atacando o troll.", "Já temos o suficiente."). Numa ORDEM ela ganha da resposta do modelo (a voz acompanha o que está escrito na tela); desligue para ouvir a resposta do modelo no lugar dela. Nada é falado duas vezes: com as duas opções ligadas, a linha que não é falada vai só para o log.
 
+**TtsReverbZoneMix** — Padrão: 0 · Faixa: 0 – 1  
+Quanto das zonas de reverb do mundo entra na voz do companheiro. 0 (padrão) = voz seca. O Valheim tem uma zona de reverb global (raio de 1000 m, 4 s de cauda) que deixava a fala do companheiro 'ecoando como numa caverna' - a música do jogo usa 0 e o ambiente 0,19. Suba um pouco (ex.: 0,19) se quiser um 'espaço' sutil na voz. Vale na próxima frase, sem reiniciar.
+
 **EcoDiag** — Padrão: Desligado  
-TESTE DO ECO: ligado, escreve no log (uma vez por sessão) os efeitos de áudio da cena, as zonas de reverb e como as fontes do próprio jogo estão configuradas. Não muda o som - só diagnostica.
-
-**TtsReverbZoneMix** — Padrão: 1 · Faixa: 0 – 1  
-TESTE DO ECO: quanto das zonas de reverb do mundo entra na voz do companheiro (1 = tudo, como está hoje; 0 = nenhuma). Se o eco sumir com 0, era isso. Vale na próxima frase, sem reiniciar.
-
-**TtsBypassReverbZones** — Padrão: Desligado  
-TESTE DO ECO: ligado, a voz ignora as zonas de reverb do mundo. Ligue, ouça uma frase e diga se o eco sumiu. Desligado = como está hoje.
-
-**TtsBypassListenerEffects** — Padrão: Desligado  
-TESTE DO ECO: ligado, a voz ignora os efeitos aplicados no ouvinte da cena (reverb/filtro global do ambiente). É o suspeito principal. Desligado = como está hoje.
-
-**TtsBypassEffects** — Padrão: Desligado  
-TESTE DO ECO: ligado, a voz ignora os filtros da própria fonte de áudio. Desligado = como está hoje.
-
-**TtsDoppler** — Padrão: Ligado  
-TESTE DO ECO: ligado (padrão, como está hoje), a voz sofre o efeito Doppler do Unity. Desligue, ouça uma frase e diga se o eco mudou - a fonte segue o companheiro e a posição é reescrita a cada frame, então o Doppler é um suspeito. Vale na próxima frase, sem reiniciar.
+Diagnóstico de áudio: ligado, escreve no log (uma vez por sessão, na primeira frase falada) o AudioListener da cena, as zonas de reverb do mundo e como as fontes do próprio jogo estão configuradas (mixer, reverb, bypass). Serve para investigar qualquer problema de som do companheiro. Não muda o som - só diagnostica.

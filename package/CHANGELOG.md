@@ -2,32 +2,54 @@
 
 All notable changes to this fork of ProfMags' Offline Companions. Versions before 1.4.0 are the original mod (see [ProfMags' Thunderstore page](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) for that history) plus the initial batch of Valheim 1.0 API-compatibility fixes that let the mod load and run at all on 1.0.
 
-## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.6b: a ordem sem alvo do modelo (drop/equip/attack caem para as palavras do jogador) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Fase 3.3c: raio de coleta maior e chatter aleatório desligado + Fase 3.3d: a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador + Fase 3.8: o companheiro abre o próprio inventário por voz/chat + Fase 3.4: o companheiro FALA (TTS local, Kokoro-82M via sherpa-onnx) + Fase 3.7: painel da IA no jogo (personalidade, voz com Ouvir, push-to-talk) + Fase 3.4 (parte 3): interruptores de teste e diagnóstico do eco do TTS (nada muda por padrão) + Tradução PT-BR (fork ModAI-BR-Companions)
-- **O eco da voz do companheiro (Fase 3.4, parte 3) — interruptores de teste e diagnóstico, NADA muda por padrão.**
+## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.6b: a ordem sem alvo do modelo (drop/equip/attack caem para as palavras do jogador) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Fase 3.3c: raio de coleta maior e chatter aleatório desligado + Fase 3.3d: a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador + Fase 3.8: o companheiro abre o próprio inventário por voz/chat + Fase 3.4: o companheiro FALA (TTS local, Kokoro-82M via sherpa-onnx) + Fase 3.7: painel da IA no jogo (personalidade, voz com Ouvir, push-to-talk) + Fase 3.4 (parte 3): o eco do TTS RESOLVIDO — era a zona de reverb global do jogo (a voz sai seca) + Tradução PT-BR (fork ModAI-BR-Companions)
+- **O eco da voz do companheiro está CORRIGIDO (Fase 3.4, parte 3).** O diagnóstico (`EcoDiag = true`) mostrou a
+  causa na primeira tentativa: o Valheim tem **uma zona de reverb global**, no **próprio objeto do ouvinte**, com
+  raio de **1000 m**, **4 s** de cauda e `room` de **−10 dB** — ou seja, **tudo** dentro de 1 km levava essa cauda de
+  4 s, e a voz do companheiro era a única coisa que deixava isso evidente (a música e os sons do jogo são curtos ou
+  repetitivos). As fontes do próprio jogo **fogem** dela (a música usa `reverbZoneMix = 0`, o ambiente 0,19), mas a
+  nossa fonte estava no **padrão do Unity (`1`)** e pegava o eco inteiro. **Correção:** a voz agora sai **seca**
+  (`reverbZoneMix = 0`) — ouvido em jogo e aprovado ("limpou").
+  - **`[IA] TtsReverbZoneMix`** (novo, faixa 0–1, **padrão 0**) é a opção de verdade: `0` = voz seca; suba um pouco
+    (ex.: `0,19`, o valor que o ambiente do jogo usa) se quiser um "espaço" sutil na voz. Vale **na próxima frase**,
+    sem reiniciar.
+  - **Os 4 interruptores de teste do eco saíram** (`TtsBypassReverbZones`, `TtsBypassListenerEffects`,
+    `TtsBypassEffects` e `TtsDoppler`): cumpriram o papel. Eles desaparecem sozinhos do seu `.cfg` — as suas outras
+    opções não são afetadas.
+  - **`[IA] EcoDiag`** continua existindo (padrão desligado), agora como **diagnóstico de áudio**: uma vez por sessão,
+    na primeira frase falada, escreve no log o ouvinte da cena, as zonas de reverb do mundo e como as fontes do
+    próprio jogo estão configuradas. **Não muda o som** — serve para investigar qualquer problema de som no futuro.
+  - **Pendência conhecida** (para depois): a voz **não** passa por um grupo de mixer do jogo (a música e o ambiente
+    passam). Não é necessário para o eco, que já está resolvido.
+- **O caminho até a correção (Fase 3.4, parte 3) — interruptores de teste e diagnóstico.**
   A voz do companheiro sai com **eco** ("como falar num lugar grande"), e o que já está estabelecido descarta as
   hipóteses fáceis: a síntese está **limpa** (o WAV de fora do jogo é idêntico), **só a voz do companheiro** ecoa
   (música e SFX do jogo são normais), o eco é **idêntico em qualquer lugar, de perto ou de longe e com as 3 vozes
   (42/43/44)** e acontece com **uma única frase** (não é sobreposição da fila). É um **processamento fixo da engine**
-  na nossa `AudioSource`. Quem diz **qual** é o ouvido do jogador, então esta parte é **instrumentação**:
-  - **6 chaves novas em `[IA]`**, todas com o valor padrão = como está hoje: `EcoDiag` (false — diagnóstico só no
-    log), `TtsReverbZoneMix` (1.0, faixa 0–1), `TtsBypassReverbZones` (false), `TtsBypassListenerEffects` (false,
-    **o suspeito principal**), `TtsBypassEffects` (false) e `TtsDoppler` (true). Aparecem **no painel F8, aba IA**
-    (o `Bind` já alimenta `ModConfig.Categories`, nenhuma mudança no painel foi precisa) e valem **na próxima
-    frase**, sem reiniciar.
-  - **Aplicação por frase** (`StartChunk` → `ApplyEcoTestSwitches`): só escreve um valor que **difere do padrão do
-    Unity**; com tudo no padrão o método **sai antes do primeiro setter** — nenhum setter, nenhuma linha de log, e o
-    som sai exatamente como antes desta fase. Quando algum interruptor difere, sai uma linha por frase
-    (`[TTS] Modo de audio da frase: reverbZoneMix=0, bypassListenerEffects=true`) — é a prova de que pegou.
+  na nossa `AudioSource`. Quem diz **qual** é o ouvido do jogador, então esta parte começou como **instrumentação**
+  (interruptores, um por vez, e o diagnóstico acima). Resultado: **o diagnóstico respondeu na primeira tentativa** e
+  a correção virou uma linha (`reverbZoneMix = 0`). O registro do que foi feito na exploração:
+  - **6 chaves novas em `[IA]`** naquele momento, todas com o valor padrão = como era antes: `EcoDiag` (false —
+    diagnóstico só no log), `TtsReverbZoneMix` (1.0, faixa 0–1), `TtsBypassReverbZones` (false),
+    `TtsBypassListenerEffects` (false, o suspeito principal), `TtsBypassEffects` (false) e `TtsDoppler` (true).
+    Aparecem **no painel F8, aba IA** (o `Bind` já alimenta `ModConfig.Categories`, nenhuma mudança no painel foi
+    precisa) e valem **na próxima frase**, sem reiniciar. **No fim sobraram 2**: `TtsReverbZoneMix` (agora 0) e
+    `EcoDiag` — os outros 4 foram removidos.
+  - **Aplicação** (`StartChunk` → `ApplyReverbZoneMix`): a `AudioSource` é criada uma vez e fica na sessão, então o
+    `reverbZoneMix` é escrito **só quando o valor muda** — trocar no painel F8 vale na próxima frase, sem reiniciar,
+    e a primeira frase já aplica o padrão. Sai uma linha no log quando escreve
+    (`[TTS] ReverbZoneMix da voz: reverbZoneMix=0`).
   - **Diagnóstico** (`EcoDiag = true`), **uma vez por sessão** na primeira frase, prefixo `[ECO]`: o `AudioListener`
     (nome + `AudioReverbFilter`/`AudioLowPassFilter` e seus valores), **todas as `AudioReverbZone`** da cena
     (`reverbPreset`/`minDistance`/`maxDistance`/`decayTime`/`room` + se o jogador e o companheiro estão **dentro** do
     raio) e **a receita do jogo**: amostra de até 20 `AudioSource` da cena (a nossa fora) com `spatialBlend`,
     `reverbZoneMix`, os `bypass*`, `dopplerLevel`, `spatialize` e o **nome do mixer group**. É caro de propósito:
     roda uma vez por sessão, nunca por frame, e nunca com a flag desligada.
-  - **Reflexão:** o núcleo obrigatório (os 11 membros) continua igual; os novos (`reverbZoneMix`,
-    `bypassReverbZones`, `bypassEffects`, `bypassListenerEffects`, `dopplerLevel`, `spread`, `spatialize`,
-    `outputAudioMixerGroup`) são **opcionais** — um que não exista só deixa o interruptor dele inerte (com aviso no
-    log), nunca derruba a voz. Nomes conferidos no `UnityEngine.AudioModule.dll` do jogo.
+  - **Reflexão:** o núcleo obrigatório (os 11 membros) continua igual; `reverbZoneMix` é o único membro **opcional**
+    que a voz escreve; `bypassReverbZones`, `bypassEffects`, `bypassListenerEffects`, `dopplerLevel`, `spread`,
+    `spatialize` e `outputAudioMixerGroup` são **opcionais e só de leitura** — quem usa é o **diagnóstico**, para
+    fotografar as fontes do jogo. Um membro que não exista não derruba a voz (com aviso no log). Nomes conferidos no
+    `UnityEngine.AudioModule.dll` do jogo.
   - **Não mudou:** `spatialBlend`, o gate de fim de fala, `StopSource`, cache, fila, síntese, prompt, painel, STT,
     ordens e jobs. Branch: **`fix/eco-voz`**.
 - **Correções do teste em jogo do painel da IA (Fase 3.7) — as teclas do jogo digitando no campo, a caixa de texto e o

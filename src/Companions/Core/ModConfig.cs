@@ -562,20 +562,14 @@ internal static class ModConfig
 
 	internal static ConfigEntry<bool> TtsSpeakModLines;
 
-	// [IA] - Fase 3.4 (parte 3): interruptores de TESTE do eco da voz do companheiro. Sao INSTRUMENTACAO: com os
-	// valores padrao nada e escrito na fonte de audio (o som sai exatamente como antes desta fase); cada um existe
-	// para o jogador ligar um de cada vez, ouvir uma frase e dizer o que mudou. Ver AI/CompanionTts.cs.
-	internal static ConfigEntry<bool> TtsEcoDiag;
-
+	// [IA] - Fase 3.4 (parte 3): o audio da voz do companheiro. O eco tinha uma causa so: o Valheim carrega UMA
+	// AudioReverbZone global (no proprio objeto do AudioListener) com raio de 1000 m e 4 s de cauda, e a nossa
+	// AudioSource estava no padrao do Unity (reverbZoneMix = 1) - a fala pegava a cauda inteira. O jogo foge dela
+	// (a musica usa 0, o ambiente 0,19). TtsReverbZoneMix (0 = voz seca) e a opcao de verdade; EcoDiag e so o
+	// diagnostico de audio no log. Ver AI/CompanionTts.cs.
 	internal static ConfigEntry<float> TtsReverbZoneMix;
 
-	internal static ConfigEntry<bool> TtsBypassReverbZones;
-
-	internal static ConfigEntry<bool> TtsBypassListenerEffects;
-
-	internal static ConfigEntry<bool> TtsBypassEffects;
-
-	internal static ConfigEntry<bool> TtsDoppler;
+	internal static ConfigEntry<bool> TtsEcoDiag;
 
 	internal static void Init(ConfigFile cfg)
 	{
@@ -875,12 +869,8 @@ internal static class ModConfig
 		TtsSpeakModLines = Bind(cfg, "IA", "TtsFalarFalasDoMod", defaultValue: true, "Fase 3.4: fala em voz alta a linha do próprio mod que aparece no chat/HUD (\"Ok: coletar madeira (10).\", \"Atacando o troll.\", \"Já temos o suficiente.\"). Numa ORDEM ela ganha da resposta do modelo (a voz acompanha o que está escrito na tela); desligue para ouvir a resposta do modelo no lugar dela. Nada é falado duas vezes: com as duas opções ligadas, a linha que não é falada vai só para o log.");
 
 		// [IA] - Fase 3.4 (parte 3): os interruptores de TESTE do eco. Todos com o valor padrão = como está hoje.
-		TtsEcoDiag = Bind(cfg, "IA", "EcoDiag", defaultValue: false, "TESTE DO ECO: ligado, escreve no log (uma vez por sessão) os efeitos de áudio da cena, as zonas de reverb e como as fontes do próprio jogo estão configuradas. Não muda o som - só diagnostica.");
-		TtsReverbZoneMix = Bind(cfg, "IA", "TtsReverbZoneMix", 1f, "TESTE DO ECO: quanto das zonas de reverb do mundo entra na voz do companheiro (1 = tudo, como está hoje; 0 = nenhuma). Se o eco sumir com 0, era isso. Vale na próxima frase, sem reiniciar.", new AcceptableValueRange<float>(0f, 1f));
-		TtsBypassReverbZones = Bind(cfg, "IA", "TtsBypassReverbZones", defaultValue: false, "TESTE DO ECO: ligado, a voz ignora as zonas de reverb do mundo. Ligue, ouça uma frase e diga se o eco sumiu. Desligado = como está hoje.");
-		TtsBypassListenerEffects = Bind(cfg, "IA", "TtsBypassListenerEffects", defaultValue: false, "TESTE DO ECO: ligado, a voz ignora os efeitos aplicados no ouvinte da cena (reverb/filtro global do ambiente). É o suspeito principal. Desligado = como está hoje.");
-		TtsBypassEffects = Bind(cfg, "IA", "TtsBypassEffects", defaultValue: false, "TESTE DO ECO: ligado, a voz ignora os filtros da própria fonte de áudio. Desligado = como está hoje.");
-		TtsDoppler = Bind(cfg, "IA", "TtsDoppler", defaultValue: true, "TESTE DO ECO: ligado (padrão, como está hoje), a voz sofre o efeito Doppler do Unity. Desligue, ouça uma frase e diga se o eco mudou - a fonte segue o companheiro e a posição é reescrita a cada frame, então o Doppler é um suspeito. Vale na próxima frase, sem reiniciar.");
+		TtsReverbZoneMix = Bind(cfg, "IA", "TtsReverbZoneMix", 0f, "Quanto das zonas de reverb do mundo entra na voz do companheiro. 0 (padrão) = voz seca. O Valheim tem uma zona de reverb global (raio de 1000 m, 4 s de cauda) que deixava a fala do companheiro 'ecoando como numa caverna' - a música do jogo usa 0 e o ambiente 0,19. Suba um pouco (ex.: 0,19) se quiser um 'espaço' sutil na voz. Vale na próxima frase, sem reiniciar.", new AcceptableValueRange<float>(0f, 1f));
+		TtsEcoDiag = Bind(cfg, "IA", "EcoDiag", defaultValue: false, "Diagnóstico de áudio: ligado, escreve no log (uma vez por sessão, na primeira frase falada) o AudioListener da cena, as zonas de reverb do mundo e como as fontes do próprio jogo estão configuradas (mixer, reverb, bypass). Serve para investigar qualquer problema de som do companheiro. Não muda o som - só diagnostica.");
 
 		// Fase 3.3b: the voice defaults changed after the first test in game. A .cfg written before this version still
 		// holds the old values and BepInEx keeps whatever is in the file, so a value that is EXACTLY the old default is
