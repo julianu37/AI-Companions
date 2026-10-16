@@ -3,6 +3,19 @@
 All notable changes to this fork of ProfMags' Offline Companions. Versions before 1.4.0 are the original mod (see [ProfMags' Thunderstore page](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) for that history) plus the initial batch of Valheim 1.0 API-compatibility fixes that let the mod load and run at all on 1.0.
 
 ## Unreleased — Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.6b: a ordem sem alvo do modelo (drop/equip/attack caem para as palavras do jogador) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Fase 3.3c: raio de coleta maior e chatter aleatório desligado + Fase 3.3d: a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador + Fase 3.8: o companheiro abre o próprio inventário por voz/chat + Fase 3.4: o companheiro FALA (TTS local, Kokoro-82M via sherpa-onnx) + Fase 3.7: painel da IA no jogo (personalidade, voz com Ouvir, push-to-talk) + Fase 3.4 (parte 3): o eco do TTS RESOLVIDO — era a zona de reverb global do jogo (a voz sai seca) + Fase 3.1: saída estruturada (JSON schema) — destrava modelos pequenos + Tradução PT-BR (fork ModAI-BR-Companions)
+- **O contrato separa largar, recolher e parar de recolher (Fase 3.1 — teste em jogo com o 3B).** O
+  `qwen2.5-3b-instruct` confunde **ações vizinhas**: `jogue fora sua madeira` (e as variantes `jogue sua madeira fora` e
+  `jugue a madeira fora`, com erro de digitação) voltava como **`nopickup`** — o companheiro **desligava a coleta
+  automática** em vez de largar a madeira — e `junte a madeira do chão` ficava **50/50** entre `pickup` e `nopickup`.
+  - **Uma regra curta no `Contract`** separa as três: `drop` = largar/jogar fora o que o companheiro tem, `pickup` =
+    recolher itens do chão, e `nopickup` **só** quando o jogador pedir para PARAR de recolher ("pare de recolher", "não
+    pegue nada").
+  - **3 exemplos novos**, logo depois dos equivalentes: `"jogue fora a madeira"` → `drop`, `"junte a madeira do chão"` →
+    `pickup` (os dois não tinham exemplo nenhum) e **`"equipe a picareta"`** → `equip` (o contrato só tinha `"pega a
+    picareta"`, e foi a forma com `equipe` que falhou).
+  - **Só o `Contract` mudou** (`ValidActions`/schema, `LlmIntent`, `LlmClient`, personalidade/memória, TTS, painel, STT e
+    ordens intactos) e o prompt cresceu **6 linhas** (~+120 tokens). Se o 3B deixa de errar com o prompt novo é o teste em
+    jogo do jogador.
 - **O prompt agora ensina que `action` e `resource` têm que combinar (Fase 3.1 — a outra metade do achado do teste).**
   Com o `qwen2.5-3b-instruct`, `colete 5 pedras` voltou como `{"action":"wood","resource":"wood"}`: o modelo copiava o
   `action:"wood"` do exemplo `"colete 20 de madeira"` do contrato (o verbo **`colete`** era o gatilho) e ignorava a

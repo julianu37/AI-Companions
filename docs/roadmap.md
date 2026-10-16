@@ -1572,6 +1572,47 @@ cópia:
 - **Não verificado:** se o 3B **deixa** de errar com o prompt novo — isso é o teste em jogo do jogador (o prompt maior
   não foi medido contra nenhum modelo aqui).
 
+#### 8. O teste em jogo (modelo pequeno): as ações vizinhas — `drop`, `pickup` e `nopickup`
+
+O teste em jogo com o **`qwen2.5-3b-instruct`** (saída estruturada ligada, ~350 ms por ordem) achou a **mesma classe de
+erro** da seção 7 — o 3B **copia os exemplos** do contrato e **confunde ações vizinhas** —, agora entre **`drop`**,
+**`pickup`** e **`nopickup`**:
+
+| Frase do jogador | O que o modelo devolveu | O que acontecia |
+|---|---|---|
+| `jogue fora sua madeira` (3 de 4 tentativas) | `{"action":"nopickup",...,"resource":"wood"}` | **desligava a coleta automática** em vez de largar a madeira ❌ |
+| `jogue sua madeira fora` | `nopickup` | idem ❌ |
+| `jugue a madeira fora` (erro de digitação) | `nopickup` | idem ❌ |
+| `drop a madeira` | `drop` | largou a madeira ✅ |
+| `jogue fora as pedras` | `drop` | largou as pedras ✅ |
+| `junte a madeira do chão` (4 tentativas) | **50/50** entre `pickup` ✅ e `nopickup` ❌ | metade das vezes não recolhia |
+| `equipe a picareta` | `{"action":"equip","target":"machado de bronze"}` (copiou o exemplo do machado) | o fallback da 3.6b salvou (equipou a **picareta** certa), mas o alvo veio errado do modelo |
+
+São **duas** correções, no mesmo espírito da seção 7: **(8.1)** o contrato ensina as formas que falharam e **(8.2)** uma
+rede de segurança nas palavras do jogador.
+
+##### 8.1 O contrato ensina as formas que falharam
+
+**O que mudou (só no `Contract`):** **uma** regra curta separando as três ações vizinhas — `drop` = LARGAR/JOGAR FORA um
+item que o companheiro tem, `pickup` = RECOLHER itens do chão, e `nopickup` **só** quando o jogador pedir para PARAR de
+recolher ("pare de recolher", "não pegue nada") — e **3 exemplos novos**, logo depois dos equivalentes:
+
+```
+"jogue fora a madeira"     -> {"action":"drop","reply":"Largando.","target":"madeira","resource":null,"amount":null}
+"junte a madeira do chão"  -> {"action":"pickup","reply":"Recolhendo.","target":null,"resource":null,"amount":null}
+"equipe a picareta"        -> {"action":"equip","reply":"Picareta na mão.","target":"picareta","resource":null,"amount":null}
+```
+
+- O exemplo com **`equipe`** era o que faltava para o `equip`: o contrato só tinha **`"pega a picareta"`** (Fase 3.6), e
+  foi justamente a forma com **`equipe`** que falhou. E `pickup`/`nopickup` **não tinham exemplo nenhum** — os dois novos
+  são os primeiros deles.
+- **Só o `Contract` mudou:** `ValidActions`/schema, o `LlmIntent`, o `LlmClient`, a personalidade/memória, o TTS, o
+  painel, o STT e as ordens ficaram **intactos**. O prompt cresceu **6 linhas** (~+120 tokens sobre os ~1766 medidos,
+  estimativa).
+- **Não verificado:** se o 3B **deixa** de errar com o prompt novo — é o teste em jogo do jogador (o prompt maior não foi
+  medido contra nenhum modelo aqui). O erro de digitação (`jugue`) não é ensinável por prompt: quem o cobre é a 8.2.
+
+
 
 
 

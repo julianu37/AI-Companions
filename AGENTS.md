@@ -367,6 +367,17 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   `wood`/`wood`, minério → `ore`/`ore`) **e 2 exemplos** de `colete N pedras` → `stone`, logo depois do exemplo de
   madeira. O resto do contrato (as 29 ações, o `target` obrigatório, os outros exemplos) ficou **intacto** e o prompt
   cresceu **3 linhas** (~+60 tokens sobre os ~1766 medidos). Detalhes: `docs/roadmap.md` (Fase 3.1 — §7).
+- **Fase 3.1 — o teste em jogo com o `qwen2.5-3b-instruct` e as ações vizinhas (`drop`/`pickup`/`nopickup`):** o 3B
+  confunde as três — `jogue fora sua madeira` (e as variantes `jogue sua madeira fora` e `jugue a madeira fora`, com erro
+  de digitação) voltou como **`nopickup`**, isto é, o companheiro **DESLIGAVA a coleta automática** em vez de largar a
+  madeira, `junte a madeira do chão` ficou **50/50** entre `pickup` e `nopickup`, e `equipe a picareta` devolveu
+  `target:"machado de bronze"` (copiou o exemplo; o fallback da 3.6b equipou a picareta certa, mas o alvo veio errado do
+  modelo). **(1) O contrato** ganhou **uma regra curta** separando as três ações — `drop` = largar/jogar fora o que o
+  companheiro tem, `pickup` = recolher itens do chão, `nopickup` **só** para PARAR de recolher ("pare de recolher", "não
+  pegue nada") — e **3 exemplos**: `"jogue fora a madeira"`→`drop`, `"junte a madeira do chão"`→`pickup` (nenhum dos dois
+  tinha exemplo) e `"equipe a picareta"`→`equip` (só existia `"pega a picareta"`, e foi a forma com `equipe` que falhou);
+  **6 linhas** (~+120 tokens sobre os ~1766 medidos), com `ValidActions`/schema, `LlmIntent`, `LlmClient`,
+  personalidade/memória, TTS, painel, STT e ordens **intactos**. Detalhes: `docs/roadmap.md` (Fase 3.1 — §8.1).
 - Backend/contrato de referência: `docs/re/backend-contract.md`; mapa da fase: `docs/roadmap.md` (Trilha D);
   pipeline de voz: `docs/re/stt-voz-pipeline.md`; fala do companheiro: `docs/re/tts-kokoro-sherpa-onnx.md`.
 
