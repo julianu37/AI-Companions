@@ -24,7 +24,7 @@ skills em `.opencode/skills/`. Leia este arquivo antes de agir.
 - **BepInExPack_Valheim 5.4.2351** (BepInEx 5.4.23.5).
 - **Jotunn 2.30.2**.
 - Target: **.NET Framework 4.7.2 (net472)**, C#.
-- Versão atual do fork: **1.5.4** (ver `src/Companions/Core/CompanionsPlugin.cs` e `package/manifest.json`).
+- Versão atual do fork: **1.6.0** (ver `src/Companions/Core/CompanionsPlugin.cs` e `package/manifest.json`).
 
 ## Caminhos desta máquina
 
