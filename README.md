@@ -15,6 +15,13 @@ Este projeto é um **fork** de [Offline Companions Reborn](https://github.com/Ma
 O companheiro em si (trabalhos, comida, stamina, habilidades, casa, descanso, portais, carroça, menu radial)
 vem do upstream e continua funcionando igual — a IA é só uma **nova entrada** para as mesmas ações.
 
+## 🎬 Em ação
+
+[![Assista: "Esse mod muda TUDO no Valheim! ModAI-BR-Companions"](https://img.youtube.com/vi/40FnVEIbXyo/maxresdefault.jpg)](https://www.youtube.com/watch?v=40FnVEIbXyo)
+
+> 🎥 **"Esse mod muda TUDO no Valheim! ModAI-BR-Companions"** — vídeo do canal **SuaTV** mostrando o mod em jogo.
+> **[▶️ Assistir no YouTube](https://www.youtube.com/watch?v=40FnVEIbXyo)** (clique na imagem também abre)
+
 ---
 
 ## O que ele faz
