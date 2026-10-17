@@ -17,6 +17,21 @@ skills em `.opencode/skills/`. Leia este arquivo antes de agir.
 - Upstream (parent do fork): `MaddhattrRocks/Offline-Companions-Reborn` — **MIT**.
 - **Atribuição obrigatória**: ver `THIRD_PARTY_NOTICES.md` e `NOTICE.md`. Mantenha os avisos MIT.
 - Ao puxar mudanças do upstream: `git fetch upstream` (adicione o remote se não existir).
+- **⚠️ O alvo do sync é o `main` do upstream — NUNCA a `claude/relaxed-archimedes-ecoh6h`.** Essa branch é o
+  **WIP do próprio autor** (commits tipo *"Dev notes: backlog - multi-companion management panel"*, atualizada
+  várias vezes por dia) e a **numeração de versão dela não é release**: ela vai até `1.5.42` enquanto o `main`
+  publicado está na **`1.5.5`**. Ler os números de versão dela como "releases que estamos perdendo" já causou um
+  erro de avaliação uma vez (eu reportei "38 versões atrás" quando o real era **1 release**). **Não mergeie, não
+  rebaseie e não use como referência de comportamento** — só o `main` conta.
+- **Estado da divergência (verificado em 2026-10-17):** a nossa base é a **`1.5.4`** (`267b8fe`, o commit do
+  upstream — a nossa história **compartilha** a dele, então um `git merge` é o caminho) e o `main` está na
+  **`1.5.5`** (`3b4affe`, *"speech overhaul and status line, gear-first revive and stance keys, tilled-ground
+  farming"*). Ou seja: **1 release atrás** — 1 commit, 45 arquivos, ~3.165 linhas de `.cs` em 36 arquivos e 4
+  arquivos novos (`CompanionStatus.cs`, `MHR_Recover.cs`, `UI/MHR_StanceKeys.cs`, `Patches/MHR_PieceDamageLog.cs`).
+  O ponto delicado é o `CompanionTalk.cs` (**+440** na reforma da fala), que é onde o nosso TTS se pluga.
+- O upstream **não publica tags nem releases** no GitHub (a versão vive na mensagem do commit do `main`).
+  Para conferir o estado real: `gh api repos/MaddhattrRocks/Offline-Companions-Reborn/commits/main` (ou a branch
+  `main` do clone local em `~/.local/share/opencode/repos/github.com/MaddhattrRocks/Offline-Companions-Reborn`).
 
 ## Alvo e versões
 
@@ -499,9 +514,10 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   `docs/roadmap.md` (*Tradução PT-BR — auditoria de cobertura*) e `package/CHANGELOG.md`.
 - **Pendências conhecidas (abertas):** o **release/empacotamento** (versão e `CHANGELOG`
   não fechados e a pasta do plugin tem **~428 MB** — falta decidir o que entra no pacote); a **voz não passa pelo
-  mixer do jogo** (por isso ignora os sliders de volume do Valheim e só obedece `[IA] TtsVolume`); e a branch
-  `origin/claude/relaxed-archimedes-ecoh6h` no GitHub, que é **código do upstream**, não nosso. Detalhes na
-  subseção *Pendências conhecidas* do `docs/roadmap.md`.
+  mixer do jogo** (por isso ignora os sliders de volume do Valheim e só obedece `[IA] TtsVolume`); e o **sync com o
+  upstream** (estamos **1 release atrás**: base `1.5.4`, `main` na `1.5.5` — ver a seção *Upstream e licença*). A
+  branch `origin/claude/relaxed-archimedes-ecoh6h` **não** é pendência: é o **WIP do autor do upstream** e **não**
+  deve ser mergeada nem usada como referência. Detalhes na subseção *Pendências conhecidas* do `docs/roadmap.md`.
 
 ## Nossas docs
 
