@@ -275,9 +275,10 @@ Ao atualizar de uma versão antiga, as opções que você mudou são migradas au
    `.../ModAI-BR-Companions/whisper/`.
 4. **Para ele falar:** o modelo do Kokoro já vem no pacote, em `.../ModAI-BR-Companions/tts/kokoro/`.
 5. **Para a IA:** instale o **[LM Studio](https://lmstudio.ai/)**, carregue um modelo e ligue o servidor local
-   (padrão `http://localhost:1234/v1`). Ajuste em `[IA] BaseUrl` / `[IA] Modelo` se precisar.
+   (padrão `http://127.0.0.1:1234/v1`). Ajuste em `[IA] BaseUrl` / `[IA] Modelo` se precisar. Use **`127.0.0.1`** em
+   vez de `localhost`: em alguns Windows a resolução de IPv6 atrasa ou falha a conexão.
 
-**Requisitos:** Valheim **1.0.x** + BepInEx (o BepInExPack já traz o Harmony). As ordens por voz exigem
+**Requisitos:** Valheim **1.0.17** + BepInEx (o BepInExPack já traz o Harmony). As ordens por voz exigem
 **Windows x64** e um **microfone**.
 
 **Multiplayer:** todo jogador precisa do mod, e o servidor dedicado também.
@@ -292,10 +293,12 @@ Ao atualizar de uma versão antiga, as opções que você mudou são migradas au
 
 ## Problemas conhecidos
 
-- **Painel `F8`:** numa faixa dos controles o **clique do mouse não responde** (há algo invisível na frente deles). O
-  **painel da IA** (tecla `I`) **não** tem esse problema. **Em aberto** — sem correção até agora.
 - **Volume da voz:** a fala do companheiro **não** passa pelo mixer do jogo, então ela **ignora os sliders de volume do
   Valheim** (música/SFX). Quem manda no volume dela é o `[IA] TtsVolume` (ou o slider do painel da IA).
+- *(Corrigido na 1.6.0)* **Painel `F8`:** o clique do mouse não respondia numa faixa dos controles (havia um alvo de
+  clique invisível do HUD do jogo **na frente** do painel — o HUD usa `sortingOrder` 400 e os painéis do mod estavam
+  abaixo). Agora **todos** os canvases do mod ficam na faixa **1701+**, acima do HUD. O painel da IA (tecla `I`) nunca
+  teve o problema.
 
 ## Código-fonte
 
