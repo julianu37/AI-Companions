@@ -144,7 +144,16 @@
   <ItemGroup>
     <TranslationFiles Include="$(MSBuildThisFileDirectory)..\..\Translations\**\*.json" />
     <SpeechFiles Include="$(MSBuildThisFileDirectory)..\..\Speech\**\*.json" />
+    <LicenseFiles Include="$(MSBuildThisFileDirectory)..\..\LICENSES\**\*" />
   </ItemGroup>
+
+  <!-- The third-party licence texts travel WITH the binaries they cover (the package redistributes
+       Whisper.net/whisper.cpp/sherpa-onnx/onnxruntime and the Kokoro/espeak-ng data), so they are
+       deployed next to the DLL as <DeployDir>\LICENSES\. -->
+  <Target Name="DeployLicenses" AfterTargets="Build" Condition="'$(DeployDir)' != '' and '@(LicenseFiles)' != ''">
+    <Copy SourceFiles="@(LicenseFiles)" DestinationFiles="@(LicenseFiles->'$(DeployDir)\LICENSES\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <Message Importance="high" Text="Deployed @(LicenseFiles->Count()) third-party licence file(s) to $(DeployDir)\LICENSES" />
+  </Target>
 
   <Target Name="DeployTranslations" AfterTargets="Build" Condition="'$(DeployDir)' != '' and ('@(TranslationFiles)' != '' or '@(SpeechFiles)' != '')">
     <Copy SourceFiles="@(TranslationFiles)" DestinationFiles="@(TranslationFiles->'$(DeployDir)\Translations\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />

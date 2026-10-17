@@ -1,0 +1,46 @@
+================================================================================
+ LICENCAS DOS COMPONENTES DE TERCEIROS
+ ModAI-BR-Companions 1.6.0
+================================================================================
+
+Esta pasta acompanha os binarios e os modelos redistribuidos no pacote. Os
+textos de licenca abaixo sao os originais dos projetos de origem.
+
+O QUE ESTA AQUI (e o que cada coisa cobre)
+------------------------------------------
+Whisper.net-LICENSE.txt        MIT (c) 2024 sandrohanea
+                               O binding .NET usado pelo STT (Whisper.net.dll).
+whisper.cpp-LICENSE.txt        MIT (c) 2023-2026 The ggml authors
+                               O motor de reconhecimento de voz (whisper.dll,
+                               ggml*.dll), redistribuido pelo pacote
+                               Whisper.net.Runtime.
+openai-whisper-modelos-LICENSE.txt  MIT (c) 2022 OpenAI
+                               Os PESOS do modelo de voz (whisper\
+                               ggml-small-q5_1.bin), convertidos pelo projeto
+                               whisper.cpp a partir do modelo Whisper da OpenAI.
+sherpa-onnx-LICENSE.txt        Apache-2.0 (The Next-gen Kaldi development team)
+                               A sintese de voz (sherpa-onnx.dll e o nativo
+                               sherpa-onnx-c-api.dll).
+onnxruntime-LICENSE.txt        MIT (c) Microsoft Corporation
+                               O runtime de inferencia (onnxruntime.dll) usado
+                               pelo modelo de voz.
+Kokoro-82M-LICENSE.txt         Apache-2.0 (hexgrad)
+                               O modelo de voz (tts\kokoro\model.int8.onnx,
+                               voices.bin, espeak-ng-data). O espeak-ng-data
+                               vem do projeto espeak-ng (GPL-3.0); ele e usado
+                               apenas como DADOS de fonemizacao, nao como
+                               codigo ligado ao nosso plugin.
+ModAI-BR-Companions-LICENSE.txt  MIT (ProfMags / Maddhattr) + as nossas mudancas
+                               A licenca do mod em si (o fork do
+                               Offline Companions Reborn, que e MIT).
+
+O QUE **NAO** E REDISTRIBUIDO
+-----------------------------
+O mod "Thrall" (ego.ai) e citado apenas como REFERENCIA CONCEITUAL de estudo.
+Nenhum binario, arquivo ou codigo-fonte dele vem neste pacote.
+
+Este mod nao e afiliado nem endossado pela Iron Gate Studio, Coffee Stain
+Publishing, ProfMags ou Maddhattr. "Valheim" e marca dos seus donos.
+
+Se algum dos autores quiser que algo seja removido, alterado ou incorporado,
+e so pedir.

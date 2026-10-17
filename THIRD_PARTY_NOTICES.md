@@ -168,3 +168,33 @@ SOFTWARE.
 >   camadas, ao "dono único do movimento por frame"
 >   (`MovementOwner.Rest`/`Sleep`/`Portal`/`Cart`), ao `CompanionStamina`/`CompanionSkills` da Fase
 >   2.13 e às seções de config em PT-BR), sem cópia de arquivo.
+
+
+---
+
+## Bibliotecas e modelos redistribuídos no pacote (resumo e atribuição)
+
+O **pacote de release** (o `.zip` publicado no GitHub) redistribui, junto com o `Companions.dll`, os
+binários e os modelos que o mod carrega em runtime. Os **textos completos** viajam **dentro do
+pacote**, na pasta `LICENSES\` (ver [`LICENSES/LEIA-ME.txt`](../LICENSES/LEIA-ME.txt)) — o que está
+abaixo é o resumo e a atribuição de cada peça.
+
+| Componente | Onde (na pasta do plugin) | Licença | Texto no pacote |
+|---|---|---|---|
+| **Whisper.net** — Sandro Hanea | `Whisper.net.dll` | **MIT** | `LICENSES\Whisper.net-LICENSE.txt` |
+| **whisper.cpp / ggml** — The ggml authors | `runtimes\win-x64\whisper.dll`, `ggml*.dll` | **MIT** | `LICENSES\whisper.cpp-LICENSE.txt` |
+| **Pesos do Whisper** — OpenAI (convertidos pelo whisper.cpp) | `whisper\ggml-small-q5_1.bin` | **MIT** | `LICENSES\openai-whisper-modelos-LICENSE.txt` |
+| **sherpa-onnx** — The Next-gen Kaldi development team | `sherpa-onnx.dll`, `runtimes\win-x64\native\sherpa-onnx-c-api.dll` | **Apache-2.0** | `LICENSES\sherpa-onnx-LICENSE.txt` |
+| **onnxruntime** — Microsoft Corporation | `runtimes\win-x64\native\onnxruntime.dll` | **MIT** | `LICENSES\onnxruntime-LICENSE.txt` |
+| **Kokoro-82M** — hexgrad | `tts\kokoro\model.int8.onnx`, `tts\kokoro\voices.bin` | **Apache-2.0** | `LICENSES\Kokoro-82M-LICENSE.txt` |
+| **espeak-ng-data** — projeto espeak-ng | `tts\kokoro\espeak-ng-data\` | **GPL-3.0** | `LICENSES\espeak-ng-data-LICENSE.txt` |
+| **ModAI-BR-Companions** — este fork | `Companions.dll` | **MIT** (do upstream) | `LICENSES\ModAI-BR-Companions-LICENSE.txt` |
+
+> **A única peça copyleft é o `espeak-ng-data`** (GPL-3.0): ele é usado pelo modelo de voz como
+> **dados** (tabelas de fonemas do espeak-ng), **não** como biblioteca ligada ao nosso código — o
+> plugin não referencia nem linka nada do espeak-ng. O texto completo da GPL-3.0 acompanha o pacote.
+>
+> Os **modelos e binários de terceiros não estão versionados neste repositório** (ficam fora do git,
+> por tamanho): eles existem no **pacote de release** e na instalação local. O `LICENSES\` é gerado
+> pelo build (alvo `DeployLicenses` no `Companions.csproj`), a partir da pasta `LICENSES/` deste
+> repositório.

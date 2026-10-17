@@ -93,13 +93,17 @@ Este mod e um FORK nao oficial, de uso pessoal/estudo, do "Offline Companions
 Reborn" (MIT), de Maddhattr, que por sua vez e um fork de compatibilidade com o
 Valheim 1.0 do "Offline Companions", de ProfMags. Creditos a ambos. O aviso MIT
 e mantido junto das nossas mudancas, como manda a licenca.
-Componentes de terceiros redistribuidos no pacote (todos de licenca permissiva):
+Componentes de terceiros redistribuidos no pacote (licencas permissivas, e uma
+GPL apenas para DADOS):
 - Whisper.net e whisper.cpp - MIT (o reconhecimento de voz)
 - sherpa-onnx (k2-fsa) - Apache-2.0 (a sintese de voz)
 - onnxruntime - MIT (runtime do modelo de voz)
-- Kokoro-82M (hexgrad) - Apache-2.0 (o modelo de voz; veja o arquivo LICENSE na
-  pasta tts\kokoro)
-- Modelos do Whisper - distribuidos pelo projeto whisper.cpp / OpenAI
+- Kokoro-82M (hexgrad) - Apache-2.0 (o modelo de voz)
+- Modelos do Whisper - MIT (OpenAI, convertidos pelo projeto whisper.cpp)
+- espeak-ng-data - GPL-3.0 (usado so como DADOS de fonemizacao pelo modelo de
+  voz; nenhum codigo do espeak-ng e ligado a este mod)
+Os TEXTOS COMPLETOS de todas essas licencas vem no pacote, na pasta LICENSES\
+(do lado do Companions.dll). Veja tambem LICENSES\LEIA-ME.txt.
 Este mod nao e afiliado nem endossado pela Iron Gate Studio, Coffee Stain
 Publishing, ProfMags ou Maddhattr. "Valheim" e marca dos seus donos.
 

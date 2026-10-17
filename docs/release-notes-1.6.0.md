@@ -59,6 +59,11 @@ Os modelos, por dentro:
 
 ## Licenças e créditos
 
+**Os textos completos das licenças de terceiros viajam dentro do pacote**, na pasta **`LICENSES\`**
+(do lado do `Companions.dll`), junto com os binários e os modelos que eles cobrem — inclusive o texto
+da **GPL-3.0** do `espeak-ng-data` (usado apenas como **dados** de fonemização, nunca como código
+ligado ao mod). Ver também o `LICENSES\LEIA-ME.txt` e o `THIRD_PARTY_NOTICES.md` do repositório.
+
 - **Este mod: MIT** — é a licença do upstream, e o aviso de copyright do **ProfMags** e do **Maddhattr** é mantido junto das nossas mudanças, como manda a licença. Ver `THIRD_PARTY_NOTICES.md`, `NOTICE.md` e `LICENSE`.
 - **Offline Companions Reborn** (Maddhattr) e **Offline Companions** (ProfMags) — **MIT**.
 - **Whisper.net** (sandrohanea) + **whisper.cpp** (ggerganov) — **MIT** — redistribuídos (o STT).
