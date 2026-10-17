@@ -8,6 +8,24 @@ entende e executa.
 > Vídeo do canal **SuaTV**: **"Esse mod muda TUDO no Valheim! ModAI-BR-Companions"**.
 > **[Assistir no YouTube](https://www.youtube.com/watch?v=40FnVEIbXyo)** — clicar na imagem também abre.
 
+## Em ação
+
+**1. Uma ordem no chat** — `colete 10 madeiras`: a resposta dele e o balão de fala no mundo.
+
+![O chat com a ordem "colete 10 madeiras", a resposta do companheiro e o balão de fala](images/1-ordem-no-chat.jpg)
+
+**2. Painel da IA (tecla `I`)** — personalidade, voz (`pf_dora`), volume e o push-to-talk, tudo salvo na hora.
+
+![O painel da IA: personalidade "fala como uma viking", voz pf_dora, volume, push-to-talk e os toggles](images/2-painel-da-ia.jpg)
+
+**3. Painel `F8`, seção `[IA]`** — as opções da camada de IA, com os mesmos nomes de chave do `.cfg`.
+
+![O painel F8 aberto na seção [IA], com Ligado, Temperatura, TimeoutSegundos, Memoria, VozLigada e as demais chaves](images/3-painel-f8.jpg)
+
+**4. Menu radial (segure `E` olhando o companheiro)** — as ações dele à mão.
+
+![O menu radial aberto, com as ações em volta do centro](images/4-menu-radial.jpg)
+
 ## O que é
 
 Este projeto é um **fork** de [Offline Companions Reborn](https://github.com/MaddhattrRocks/Offline-Companions-Reborn)
@@ -67,12 +85,16 @@ vem do upstream e continua funcionando igual — a IA é só uma **nova entrada*
 | **Upstream (MIT)** | https://github.com/MaddhattrRocks/Offline-Companions-Reborn |
 | **Vídeo** | https://www.youtube.com/watch?v=40FnVEIbXyo |
 
-A release publicada mais recente é a **1.6.2**, com **dois** arquivos para escolher:
+A release publicada mais recente é a **1.6.3**, com **dois** arquivos para escolher:
 
 | Arquivo | Tamanho | O que vem |
 |---|---|---|
-| `ModAI-BR-Companions-1.6.2-completo.zip` | ~370,5 MB | O mod **e** os modelos de voz (STT + TTS) já prontos |
-| `ModAI-BR-Companions-1.6.2-sem-modelos.zip` | ~22,1 MB | Só o mod e as traduções — você baixa os modelos por fora |
+| `ModAI_BR_Companions-1.6.3.zip` | ~367,9 MB | O mod **e** os modelos de voz (STT + TTS) já prontos |
+| `ModAI_BR_Companions-1.6.3-sem-modelos.zip` | ~28,4 MB | Só o mod e as traduções — você baixa os modelos por fora |
 
 > **Qual escolher?** Se você quer só instalar e usar, pegue o **completo**. Se a sua internet é lenta (ou você já
 > tem os modelos), pegue o **sem-modelos** e siga a seção de modelos em **[Instalação](Instalacao)**.
+
+> A **1.6.2** foi a release anterior. A **1.6.3** mudou **só o empacotamento** — nada muda no jogo: a pasta do mod
+> já vem como `BepInEx\plugins\ModAI-BR-Companions\` dentro do zip, então dá para extrair direto na pasta do
+> Valheim (ou deixar o gerenciador de mods instalar).

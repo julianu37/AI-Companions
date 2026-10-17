@@ -20,6 +20,15 @@ Teclas, ordens por chat/voz e comandos de console.
 > fecha com **`Esc`** ou no **X**, e cada controle é gravado no `.cfg` no mesmo instante. Enquanto ele está
 > aberto, o seu personagem não responde aos controles.
 
+![O painel da IA: personalidade, voz pf_dora, volume, velocidade, push-to-talk e os toggles](images/2-painel-da-ia.jpg)
+
+### Menu radial (segure `E`)
+
+Segure **`E`** olhando um companheiro para abrir a roda de ações (mover, atacar, abrir porta, sentar, consertar…).
+Um **toque** em `E` abre o painel / inventário dele.
+
+![O menu radial aberto, com as ações em volta do centro](images/4-menu-radial.jpg)
+
 ---
 
 ## Ordens por chat e por voz

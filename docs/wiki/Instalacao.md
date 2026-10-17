@@ -37,42 +37,53 @@ Vá em **https://github.com/julianu37/ModAI-BR-Companions/releases** e baixe **u
 
 | Arquivo | Tamanho | Quando escolher |
 |---|---|---|
-| `ModAI-BR-Companions-1.6.2-completo.zip` | ~370,5 MB | **Recomendado.** Já vem com os modelos de voz (STT + TTS). Instala e usa |
-| `ModAI-BR-Companions-1.6.2-sem-modelos.zip` | ~22,1 MB | Internet lenta, ou você já tem os modelos e quer baixá-los separado |
+| `ModAI_BR_Companions-1.6.3.zip` | ~367,9 MB | **Recomendado.** Já vem com os modelos de voz (STT + TTS). Instala e usa |
+| `ModAI_BR_Companions-1.6.3-sem-modelos.zip` | ~28,4 MB | Internet lenta, ou você já tem os modelos e quer baixá-los separado |
 
 > A diferença é **só** os modelos de voz. O mod e as traduções são os mesmos nos dois.
+>
+> *(A **1.6.2** foi a release anterior; a **1.6.3** mudou só o empacotamento.)*
 
 ---
 
-## 4. Extraia para a pasta do mod
+## 4. Extraia na pasta do Valheim
 
-Extraia o conteúdo para dentro de `<Valheim>\BepInEx\plugins\ModAI-BR-Companions\`.
+O zip já vem com a estrutura de pastas pronta: dentro dele a pasta é `BepInEx\plugins\ModAI-BR-Companions\`.
+Então basta extrair **na raiz do Valheim** (`<Valheim>`) que cada arquivo cai no lugar certo. Se você usa um
+gerenciador de mods, aponte o zip para ele — o gerenciador instala direto, sem renomear nada.
 
-> Use esse nome de pasta (é a convenção do pacote). O BepInEx carrega plugins de **qualquer** subpasta de
-> `BepInEx\plugins\` — manter o nome só evita confusão na hora de atualizar.
+> Se preferir fazer à mão, o resultado final tem que ser
+> `<Valheim>\BepInEx\plugins\ModAI-BR-Companions\`, com o `Companions.dll` **dentro** dela. O BepInEx carrega
+> plugins de **qualquer** subpasta de `BepInEx\plugins\` — manter esse nome só evita confusão na hora de atualizar.
 
 No fim, a pasta deve ficar assim:
 
 ![A pasta do mod no Explorer, com os arquivos e as subpastas](images/pasta-do-mod.png)
 
 ```
-<Valheim>\BepInEx\plugins\ModAI-BR-Companions\
-├── LICENSES\
-├── runtimes\
-├── Speech\                     ← falas do companheiro em PT-BR
-├── Translations\               ← textos da interface em PT-BR
-├── tts\                        ← modelo do TTS (Kokoro)
-├── whisper\                    ← modelos do STT (Whisper)
-├── Companions.dll              ← o mod
-├── Microsoft.Bcl.AsyncInterfaces.dll
-├── sherpa-onnx.dll
-├── System.Buffers.dll
-├── System.Memory.dll
-├── System.Numerics.Vectors.dll
-├── System.Runtime.CompilerServices.Unsafe.dll
-├── System.Threading.Tasks.Extensions.dll
-└── Whisper.net.dll
+<Valheim>\
+└── BepInEx\
+    └── plugins\
+        └── ModAI-BR-Companions\
+            ├── LICENSES\
+            ├── runtimes\
+            ├── Speech\                     ← falas do companheiro em PT-BR
+            ├── Translations\               ← textos da interface em PT-BR
+            ├── tts\                        ← modelo do TTS (Kokoro)
+            ├── whisper\                    ← modelos do STT (Whisper)
+            ├── Companions.dll              ← o mod
+            ├── Microsoft.Bcl.AsyncInterfaces.dll
+            ├── sherpa-onnx.dll
+            ├── System.Buffers.dll
+            ├── System.Memory.dll
+            ├── System.Numerics.Vectors.dll
+            ├── System.Runtime.CompilerServices.Unsafe.dll
+            ├── System.Threading.Tasks.Extensions.dll
+            └── Whisper.net.dll
 ```
+
+> O zip também traz o `README.md`, o `CHANGELOG.md` e o `icon.png` na **raiz** — é o que o gerenciador de mods
+> mostra na ficha do mod.
 
 > Essas DLLs de `System.*` e as duas de voz (`Whisper.net.dll`, `sherpa-onnx.dll`) precisam ficar **junto do
 > `Companions.dll`** — elas são as dependências que o mod usa para o STT e o TTS.
@@ -89,6 +100,9 @@ Se você baixou o **sem-modelos**, coloque os arquivos assim:
 |---|---|
 | `...\ModAI-BR-Companions\whisper\` | `ggml-small-q5_1.bin` (181 MB) — o padrão do reconhecimento de voz |
 | `...\ModAI-BR-Companions\tts\kokoro\` | `model.int8.onnx` (109 MB), `voices.bin` (27 MB), `tokens.txt` e a pasta `espeak-ng-data\` |
+
+> No pacote **sem-modelos** o `tokens.txt` e a pasta `espeak-ng-data\` **já vêm** — faltam só o
+> `ggml-small-q5_1.bin` (Whisper) e o `model.int8.onnx` + `voices.bin` (Kokoro).
 
 Onde baixar:
 
@@ -124,13 +138,13 @@ O guia completo está em **[LLM no LM Studio](LLM-no-LM-Studio)**. Em resumo:
 3. Procure estas duas linhas:
 
 ```
-ModAI-BR-Companions v1.6.2 loading...
+ModAI-BR-Companions v1.6.3 loading...
 ModAI-BR-Companions loaded successfully! (N methods patched)
 ```
 
 Se elas aparecerem, o mod carregou.
 
-> O `v1.6.2` é a **versão que você instalou** (o número do zip que você baixou) e o `N` é quantos métodos do jogo
+> O `v1.6.3` é a **versão que você instalou** (o número do zip que você baixou) e o `N` é quantos métodos do jogo
 > o mod ajustou — esse número pode mudar de uma versão para outra.
 
 > **É normal** ver um erro de **PlayFab / NullReferenceException** no boot — ele **não** é do mod e não impede
@@ -157,7 +171,7 @@ Para ver todas as teclas e ordens, vá em **[Comandos](Comandos)**.
 
 - [ ] Valheim 1.0.x instalado
 - [ ] BepInEx 5.4.2351 extraído na raiz do jogo
-- [ ] Release baixada (completo ou sem-modelos)
+- [ ] Release **1.6.3** baixada (o pacote completo ou o sem-modelos)
 - [ ] Pasta `BepInEx\plugins\ModAI-BR-Companions\` criada com o `Companions.dll` e as dependências
 - [ ] Modelos de voz em `whisper\` e `tts\kokoro\`
 - [ ] LM Studio com o modelo carregado e o Local Server ligado na porta 1234

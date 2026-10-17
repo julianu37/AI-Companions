@@ -175,7 +175,7 @@ Se você reatribuir, o mod reavalia o conflito na hora. Veja **[Voz](Voz)**.
 
 | Onde olhar | O que procurar |
 |---|---|
-| `LogOutput.log` | `ModAI-BR-Companions v1.6.2 loading...` e `ModAI-BR-Companions loaded successfully! (N methods patched)` — o `v1.6.2` é a versão que você instalou |
+| `LogOutput.log` | `ModAI-BR-Companions v1.6.3 loading...` e `ModAI-BR-Companions loaded successfully! (N methods patched)` — o `v1.6.3` é a versão que você instalou |
 
 **Causas prováveis:**
 

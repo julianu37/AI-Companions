@@ -106,11 +106,15 @@ O **Jotunn não é requisito** — não adicione (o mod não usa nenhuma API del
 | # | Arquivo (no repositório) | Tamanho | O que é |
 |---|---|---|---|
 | **1 (principal)** | `docs\images\banner.png` | 1254×1254 · 2,7 MB | Arte do mod: os três companheiros + "AI COMPANIONS PT-BR" |
-| 2 | `docs\wiki\images\video-thumb.jpg` | 1280×720 · 73 KB | Miniatura do vídeo do canal SuaTV |
-| 3 | `docs\wiki\images\lmstudio-servidor.png` | 1200×760 · 85 KB | LM Studio com o Local Server ligado e o modelo carregado |
-| 4 | `docs\wiki\images\config-ia.png` | 1402×753 · 81 KB | A seção `[IA]` do `.cfg` (BaseUrl, Modelo, ApiKey) |
-| 5 | `docs\wiki\images\pasta-do-mod.png` | 1139×641 · 78 KB | A pasta do mod no Explorer (onde os arquivos ficam) |
-| 6 *(opcional)* | `package\icon.png` | 256×256 · 184 KB | O ícone do pacote (256×256) |
+| 2 | `docs\images\screenshots\1-ordem-no-chat.jpg` | 1913×1003 · 557 KB | **In-game:** a ordem no chat com a resposta e o balão dele |
+| 3 | `docs\images\screenshots\2-painel-da-ia.jpg` | 1907×1002 · 384 KB | **In-game:** o painel da IA (tecla `I`) |
+| 4 | `docs\images\screenshots\4-menu-radial.jpg` | 1896×991 · 462 KB | **In-game:** o menu radial (segure `E` olhando o companheiro) |
+| 5 | `docs\images\screenshots\3-painel-f8.jpg` | 1887×964 · 309 KB | **In-game:** a seção `[IA]` no painel F8 |
+| 6 | `docs\wiki\images\video-thumb.jpg` | 1280×720 · 73 KB | Miniatura do vídeo do canal SuaTV |
+| 7 | `docs\wiki\images\lmstudio-servidor.png` | 1200×760 · 85 KB | LM Studio com o Local Server ligado e o modelo carregado |
+| 8 | `docs\wiki\images\config-ia.png` | 1402×753 · 81 KB | A seção `[IA]` do `.cfg` (BaseUrl, Modelo, ApiKey) |
+| 9 | `docs\wiki\images\pasta-do-mod.png` | 1139×641 · 78 KB | A pasta do mod no Explorer (onde os arquivos ficam) |
+| 10 *(opcional)* | `package\icon.png` | 256×256 · 184 KB | O ícone do pacote (256×256) |
 
 Observações:
 
@@ -119,24 +123,22 @@ Observações:
   Decisão do dono (ver seção 10).
 - **`banner.png`, `video-thumb.jpg` e `icon.png` são arte de IA** → é isso que exige a tag **AI Media** (já prevista).
 
-### ⚠️ O que **falta** e o Nexus espera ver: screenshots in-game
+### Os screenshots in-game (capturados em 17/10/2026)
 
-Hoje **não temos nenhum screenshot de jogo** no repositório — só o banner, a miniatura do vídeo e capturas de
-tela do LM Studio / do `.cfg` / do Explorer. O Nexus (e quem vai baixar) espera ver o mod **rodando**.
-Lista de capturas sugeridas (nesta ordem de prioridade):
+Os quatro já estão no repositório, em `docs\images\screenshots\` (1920×1080 → JPEG q92):
 
-1. **O companheiro respondendo a uma ordem no chat** — com o balão de fala dele visível e o texto `Ok: coletar madeira (10).`
-   na tela. *(É a imagem que "prova" a camada de IA.)*
-2. **O painel da IA aberto (tecla `I`)** — personalidade, dropdown de voz, botão **Ouvir**, sliders.
-3. **A voz tocando** — o companheiro falando com o balão do chat + as legendas (ou o comando `modia_tts_teste` no console `F5`).
-4. **O menu radial aberto (segurando `E`)** — mostra que a base do upstream está inteira.
-5. **Uma ordem com alvo funcionando** — `ataca o greydwarf` ou `recolhe os itens` com o companheiro em ação.
-6. *(Se der)* **A janela do inventário do companheiro** aberta por ordem (`abre o teu inventário`).
+| Arquivo | O que mostra |
+|---|---|
+| `1-ordem-no-chat.jpg` | **A ordem no chat** — "colete 10 madeiras", a resposta do companheiro e o balão de fala |
+| `2-painel-da-ia.jpg` | **Painel da IA** (tecla `I`) — personalidade nas suas palavras, voz `pf_dora`, volume, push-to-talk e os toggles |
+| `3-painel-f8.jpg` | **Painel F8** aberto na seção `[IA]` |
+| `4-menu-radial.jpg` | **Menu radial** (segurando `E`) — a base do upstream inteira |
 
-> Dica de captura: HUD limpo, nada de mods de debug na tela, e **nome do mod visível em pelo menos uma**
-> (o chat com a resposta dele já mostra). Se o dono tiver um screenshot, ele vale mais que qualquer arte.
+> **Originais em PNG** (sem recompressão) em `C:\Users\revenda33\Pictures\Screenshots\`: `chat.png`,
+> `janela ia.png`, `f8.png` e `menu .png`. Se preferir subir o PNG, use esses.
 
-**Nenhuma dessas imagens deve ser gerada por IA** — se um dia forem, elas também caem na tag **AI Media**.
+> Os quatro são **capturas de jogo** (não são arte de IA) — a tag **AI Media** vem do banner, da miniatura do
+> vídeo e do ícone, que **são** arte de IA.
 
 ---
 

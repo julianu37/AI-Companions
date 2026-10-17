@@ -39,6 +39,22 @@ O número é um [b]alvo contado no inventário dele[/b]: pedir "colete 10" com 1
 
 [line]
 
+[size=5][b]Em ação[/b][/size]
+
+[img]https://raw.githubusercontent.com/julianu37/ModAI-BR-Companions/main/docs/images/screenshots/1-ordem-no-chat.jpg[/img]
+[i]A ordem no chat — você escreve "colete 10 madeiras" e o companheiro entende, responde e sai para coletar.[/i]
+
+[img]https://raw.githubusercontent.com/julianu37/ModAI-BR-Companions/main/docs/images/screenshots/2-painel-da-ia.jpg[/img]
+[i]Painel da IA (tecla I) — personalidade nas suas palavras, voz pt-BR, volume, memória e a tecla do push-to-talk.[/i]
+
+[img]https://raw.githubusercontent.com/julianu37/ModAI-BR-Companions/main/docs/images/screenshots/3-painel-f8.jpg[/img]
+[i]A seção [IA] no painel F8 — tudo configurável em jogo, sem editar arquivo.[/i]
+
+[img]https://raw.githubusercontent.com/julianu37/ModAI-BR-Companions/main/docs/images/screenshots/4-menu-radial.jpg[/img]
+[i]Menu radial (segure E olhando o companheiro) — as ordens que já existiam continuam funcionando como sempre.[/i]
+
+[line]
+
 [size=5][b]⚠️ Requisitos[/b][/size]
 
 [list]

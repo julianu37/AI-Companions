@@ -27,8 +27,8 @@ as **ordens por voz** (precisam de microfone). Você pode usar **só o chat**, d
 
 | O quê | Tamanho |
 |---|---|
-| Pacote **completo** (mod + modelos) | ~370,5 MB (zip) |
-| Pacote **sem-modelos** (mod + traduções) | ~22,1 MB (zip) |
+| Pacote **completo** (mod + modelos) | ~367,9 MB (zip) |
+| Pacote **sem-modelos** (mod + traduções) | ~28,4 MB (zip) |
 | Mod instalado (pasta do plugin) | ~428 MB |
 | Modelo do Whisper `ggml-small-q5_1.bin` (padrão do STT) | 181 MB |
 | Modelo do Whisper `ggml-base-q5_1.bin` (mais rápido, menos preciso) | 57 MB |

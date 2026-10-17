@@ -130,5 +130,7 @@ estranho.
 O painel **`F8`** mostra **todas** as seções do `.cfg`, com os mesmos nomes de chave e os mesmos limites de
 valor. É a forma mais rápida de conferir o que está valendo agora, sem sair do jogo.
 
+![O painel F8 aberto na seção [IA], com Ligado, Temperatura, TimeoutSegundos, Memoria, VozLigada e as demais chaves](images/3-painel-f8.jpg)
+
 > Os painéis do mod ficam **acima do HUD do jogo** na ordem de desenho — é o que garante que um clique no
 > painel chegue no painel, e não no HUD.
