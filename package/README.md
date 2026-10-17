@@ -1,5 +1,7 @@
 # ModAI-BR-Companions
 
+![ModAI-BR-Companions — companheiros NPC com IA para Valheim, em PT-BR](https://raw.githubusercontent.com/julianu37/ModAI-BR-Companions/main/docs/images/banner.png)
+
 Um **companheiro NPC com IA** para **Valheim 1.0**, **em português do Brasil** — você **fala ou digita** e ele
 entende e executa.
 

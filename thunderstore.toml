@@ -10,7 +10,7 @@ schemaVersion = "0.0.1"
 [package]
 namespace = "OpenCode"
 name = "ModAI_BR_Companions"
-versionNumber = "1.6.0"
+versionNumber = "1.6.2"
 description = "Companheiro NPC com IA para Valheim 1.0, em portugues do Brasil: fale ou digite e ele obedece (LLM e voz locais). Fork PT-BR do Offline Companions Reborn (MIT) - creditos ao ProfMags e ao Maddhattr."
 websiteUrl = "https://github.com/julianu37/ModAI-BR-Companions"
 containsNsfwContent = false
@@ -26,3 +26,9 @@ outdir = "./build"
 [publish]
 repository = "https://thunderstore.io"
 communities = [ "valheim", ]
+
+# Categorias da comunidade. `ai-generated` é OBRIGATÓRIA aqui: as regras globais do Thunderstore exigem a
+# categoria para pacotes com código/assets gerados por IA, e a comunidade Valheim tem essa categoria —
+# a primeira submissão (1.6.0) foi rejeitada ("Invalid submission") por ter subido com a lista vazia.
+[publish.categories]
+valheim = [ "ai-generated", "npcs", "language", ]
