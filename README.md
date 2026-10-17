@@ -136,6 +136,9 @@ chat do jogo ──────────────────────�
 
 ## Instalação
 
+> O passo a passo **detalhado, com imagens** (incluindo o LM Studio) está na
+> **[Wiki do projeto](https://github.com/julianu37/ModAI-BR-Companions/wiki/Instalacao)**. Resumo:
+
 1. Instale o **BepInExPack_Valheim** e copie a pasta do mod para `BepInEx\plugins\ModAI-BR-Companions`.
 2. (Opcional, para voz) deixe um modelo ggml do Whisper em `...\ModAI-BR-Companions\whisper\` — ex.
    `ggml-small-q5_1.bin`.
@@ -208,6 +211,9 @@ chat do jogo ──────────────────────�
 
 ## Documentação
 
+- **[Wiki](https://github.com/julianu37/ModAI-BR-Companions/wiki)** — o guia de quem vai instalar e usar: requisitos,
+  instalação passo a passo (com imagens), **configuração do LLM no LM Studio**, voz, comandos, configuração da IA e
+  problemas comuns. (A fonte das páginas está em [`docs/wiki/`](docs/wiki/).)
 - [`docs/roadmap.md`](docs/roadmap.md) — fases e status (Trilhas A–D).
 - [`docs/vision.md`](docs/vision.md) — o alvo do projeto.
 - [`docs/re/`](docs/re/) — engenharia reversa do Valheim 1.0 e notas do STT/voz.

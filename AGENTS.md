@@ -521,6 +521,12 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
 
 ## Nossas docs
 
+- `docs/wiki/` — **a fonte da GitHub Wiki** (o guia de instalação/uso para quem baixa o mod): `Home.md`,
+  `Requisitos.md`, `Instalacao.md`, `LLM-no-LM-Studio.md`, `Voz.md`, `Comandos.md`, `Configuracao.md`,
+  `Problemas-comuns.md`, `Como-funciona.md`, `Creditos-e-licenca.md`, `_Sidebar.md`, `_Footer.md` e `images/`.
+  A wiki publicada vive em **repositório git separado** (`https://github.com/julianu37/ModAI-BR-Companions.wiki.git`,
+  branch `master`): edite aqui e publique com `git clone <url>.wiki.git` + copiar os `.md` e a pasta `images/` +
+  commit/push. (O repositório da wiki só existe depois da 1ª página salva pelo site — não há API para isso.)
 - `docs/vision.md` — a visão/escopo (companheiro como membro da equipe) e o que falta.
 - `docs/roadmap.md` — fases e status.
 - `docs/plan-fases.md` — plano das fases com mapa do upstream.
