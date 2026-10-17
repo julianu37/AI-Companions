@@ -512,6 +512,15 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   dos assets do jogo, tokens `$...` do jogo, chaves de configuração e as ~1500 linhas de log/diagnóstico — o
   `CHANGELOG` mantém o histórico do upstream (abaixo de 1.5.4) em inglês de propósito. Números e método:
   `docs/roadmap.md` (*Tradução PT-BR — auditoria de cobertura*) e `package/CHANGELOG.md`.
+- **⭐ Prioridade da próxima sessão (combinado em 2026-10-17) — `inventory_close` fora do `ValidActions`:** a ação
+  **existe e funciona** no resto da cadeia (`LlmIntent` → `"inventory_close"`, `CompanionOrders.cs:132` fecha a
+  janela, `CompanionChatAI.cs:417-422` tem o fallback `IsInventoryRequest`), mas **não está na lista
+  `ValidActions`** (`CompanionChatAI.cs:110-115`, as **29** ações que viram o `enum` do JSON schema). Com
+  `[IA] SaidaEstruturada = true` (**o padrão**) o modelo **não pode** devolver a ação, então *"fecha o inventário"*
+  tende a ser entendido como `inventory` e a janela **abre** (o fechamento só vem do fallback, que roda quando o
+  modelo devolve `none`). **Correção (1 linha + contrato):** acrescentar `"inventory_close"` ao `ValidActions` (é
+  dele que sai o `enum` do schema) e citá-la no `Contract` + 1 exemplo. **Testar em jogo amanhã** (abrir → fechar,
+  com a saída estruturada ligada e desligada). Detalhes no item 3 das *Pendências conhecidas* do `docs/roadmap.md`.
 - **Pendências conhecidas (abertas):** o **release/empacotamento** (versão e `CHANGELOG`
   não fechados e a pasta do plugin tem **~428 MB** — falta decidir o que entra no pacote); a **voz não passa pelo
   mixer do jogo** (por isso ignora os sliders de volume do Valheim e só obedece `[IA] TtsVolume`); e o **sync com o
