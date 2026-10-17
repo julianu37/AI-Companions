@@ -101,7 +101,17 @@ O **Jotunn não é requisito** — não adicione (o mod não usa nenhuma API del
 
 ## 3. Imagens
 
-### O que subir e em que ordem
+### O campo **Header** (o banner do topo da página)
+
+| Arquivo | Tamanho | O que é |
+|---|---|---|
+| `docs\images\nexus\header-1300x372.png` | 1300×372 · 883 KB | A arte do mod em **faixa larga**, com o **lado esquerdo escurecido** |
+
+> **Por que o lado esquerdo é escuro:** o Nexus desenha o **título do mod** e o breadcrumb (`Games / Valheim / Mods`) **por cima do header**, na esquerda — foi o que a página do upstream mostrou (`nexusmods.com/valheim/mods/4047`). O gradiente escuro (e uma leve escurecida no topo) é o que deixa esse texto legível.
+>
+> Como foi feito: recorte da **faixa dos personagens** do `docs\images\banner.png` (`y 60..418`, escalado de 1254→1300, praticamente sem perda) + o gradiente. **Não é asset novo** — é a mesma arte, no formato que o Nexus pede.
+
+### A galeria de imagens (o que subir e em que ordem)
 
 | # | Arquivo (no repositório) | Tamanho | O que é |
 |---|---|---|---|
