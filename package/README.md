@@ -6,9 +6,8 @@ Um **companheiro NPC com IA** para **Valheim 1.0**, **em português do Brasil** 
 entende e executa.
 
 Este é um **fork** de **[Offline Companions Reborn](https://github.com/MaddhattrRocks/Offline-Companions-Reborn)**
-(de [Maddhattr](https://thunderstore.io/c/valheim/p/Maddhattr/)), que por sua vez é a atualização para o Valheim 1.0
-do **[Offline Companions](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) de
-[ProfMags](https://thunderstore.io/c/valheim/p/ProfMags/)**.
+(de **Maddhattr**), que por sua vez é a atualização para o Valheim 1.0
+do **Offline Companions** de **ProfMags**.
 
 > **Todo o crédito do conceito, do design e do código original é do ProfMags** (e da atualização, do Maddhattr).
 > O companheiro, os trabalhos, a IA de movimento/combate, a interface e a base de tudo isso vêm de lá.
@@ -271,7 +270,7 @@ Ao atualizar de uma versão antiga, as opções que você mudou são migradas au
 
 ## Instalação
 
-1. Instale o **[BepInExPack_Valheim](https://thunderstore.io/c/valheim/p/denikson/BepInExPack_Valheim/)**.
+1. Instale o **BepInExPack_Valheim** (BepInEx 5.4.23.5 para o Valheim 1.0.x).
 2. Copie a pasta do mod para `BepInEx/plugins/ModAI-BR-Companions` (ou use um gerenciador de mods).
 3. **Para as ordens por voz:** deixe um modelo do Whisper (ex. `ggml-small-q5_1.bin`) em
    `.../ModAI-BR-Companions/whisper/`.

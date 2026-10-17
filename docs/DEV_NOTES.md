@@ -9,8 +9,7 @@
 >
 > Everything below that talks about `Companions_source.il`, ilasm/monodis, `.maxstack`, branch checks,
 > the BepInPlugin byte blob or "transplanting" helpers describes the old IL workflow and no longer applies.
-> The version now lives in one place in code: `CompanionsPlugin.PluginVersion` (plus `package/manifest.json`
-> and `package/CHANGELOG.md`).
+> The version now lives in one place in code: `CompanionsPlugin.PluginVersion` (plus `package/CHANGELOG.md`).
 
 # Offline Companions (ProfMags) — Valheim 1.0 compatibility patch — progress notes
 
@@ -192,7 +191,7 @@ Previous version: **1.4.51** — build tag `v69-despawn-and-equip-flag-fix`. Ver
 - Related, for the ship/cart review: companions in open sea with no shore in reach (WaterSafety only seeks a shore nearby) - e.g. a sunk ship or falling off mid-voyage.
 
 ### 1.5.0 - major version (user, 2026-10-10: "bump the build to 1.5.00 so its clean and shows its a major version")
-- Version 1.5.0 (not 1.5.00: Thunderstore/BepInEx want Major.Minor.Patch without a leading zero). Same code as 1.4.156. CHANGELOG has a 1.5.0 entry pointing at the 1.4.x entries below it; README highlights header v1.5.0.
+- Version 1.5.0 (not 1.5.00: mod managers/BepInEx want Major.Minor.Patch without a leading zero). Same code as 1.4.156. CHANGELOG has a 1.5.0 entry pointing at the 1.4.x entries below it; README highlights header v1.5.0.
 
 ### 1.4.156 - [Cooking] MakeMead (user, 2026-10-10: "A setting to turn off making mead")
 - [Cooking] MakeMead (default on). Off: PickTask skips FillTask and both BrewTask passes, and HiveTask doesn't go for honey for priority mead bases (idle honey collection unchanged); finished fermenters are still tapped.
@@ -737,12 +736,12 @@ What was built (all items below):
 - Not in 1.4.75: moving Follow onto MHR_Mover is phase 2. Order after that: Follow (ask the user for their follow ideas first) -> jobs move over -> remove the old per-job stuck code.
 
 ### Packaging (agreed with the user)
-- Only `Companions.dll` is needed to run. Thunderstore needs `manifest.json`, `README.md`, `icon.png` (256x256) in the zip root; `CHANGELOG.md` is optional (shows as a Changelog tab). Hexium: packaged the same way as Thunderstore. Nexus: DLL only, the description lives on the page.
+- Only `Companions.dll` is needed to run. Mod managers need `manifest.json`, `README.md`, `icon.png` (256x256) in the zip root; `CHANGELOG.md` is optional (shows as a Changelog tab). Hexium: packaged the same way as a mod manager. Nexus: DLL only, the description lives on the page.
 - `LICENSE` goes in every package, Nexus included (MIT: ProfMags' copyright notice must ship with copies).
 - The source now lives in this GitHub repo. The user doesn't mind including source in packages but most players won't care. The repo is **private**, so don't point the README or Nexus at it unless the user makes it public.
 
 ### README / Nexus text (next update)
-- **Note 2** (already on Nexus, add to the Thunderstore/Hexium README): "Note 2: Smelting, Farming (still requires setting a zone with left-Alt + z), Wood, and Repair are mostly working now. There may still be some occasional odd behavior that will be cleaned up over the next few updates."
+- **Note 2** (already on Nexus, add to the mod manager/Hexium README): "Note 2: Smelting, Farming (still requires setting a zone with left-Alt + z), Wood, and Repair are mostly working now. There may still be some occasional odd behavior that will be cleaned up over the next few updates."
 - **Support section: DONE (1.5.0 README)** - user's wording: "If you like this mod and would like to support its ongoing development or any of my other work: Patreon · Buy Maddhattr a Coffee."
 
 ### Older findings
@@ -992,7 +991,7 @@ Previous version: **1.4.53** — build tag `v71-companion-id-config-starter`. Ve
 - **Config rename:** Awake calls `MHR_GetConfigFile()` -> try `MHR_OpenRebornConfig()` (Paths.ConfigPath/Maddhattr.OfflineCompanionsReborn.cfg; File.Copy from com.profmags.companions.cfg if new missing; `new ConfigFile(path, true, MetadataHelper.GetMetadata(this))`; reflection-set BaseUnityPlugin `<Config>k__BackingField` so F1 ConfigurationManager sees it) catch -> fall back to base.Config. GUID stays com.profmags.companions (protects against loading alongside the original; possible external GUID checks).
 - **Starter window + Valheim Plus:** user's reporter found V+ "disable I have arrived message" skips Game.UpdateRespawn's first-spawn block, which also contains the `Game.m_playerInitialSpawn` invoke we subscribe to. Subscription now points to `CompanionManager.MHR_StarterOnce()` (once per Game instance via `s_mhrStarterGame`); `MHR_StarterFallbackTick()` (from MHR_RespawnTracker.Tick, 1/s) calls it 5s after the local player exists, is alive and !InIntro() if the event never came.
 
-TODO (user, 1.4.54, not now): **compact bug-report file.** Mod writes e.g. `OfflineCompanions_Report.txt` (game version, mod version, loaded mod list, only this mod's warnings/errors - a few dozen lines) so players can paste it in Nexus/Thunderstore comments instead of the whole LogOutput.log. For now: ask reporters to upload LogOutput.log to https://mclo.gs or paste the first ~40 lines.
+TODO (user, 1.4.54, not now): **compact bug-report file.** Mod writes e.g. `OfflineCompanions_Report.txt` (game version, mod version, loaded mod list, only this mod's warnings/errors - a few dozen lines) so players can paste it in Nexus/mod manager comments instead of the whole LogOutput.log. For now: ask reporters to upload LogOutput.log to https://mclo.gs or paste the first ~40 lines.
 TODO (user, 1.4.50): add a way to recruit companions from Haldor's shop without Trader Overhaul (README no longer claims it; README Future Plans lists it).
 
 Current version: **1.4.50** — build tag `v68-wake-and-reequip-fix`. Verified: branches 0/1640, maxstack 0/1640, JIT 1587/1587, BepInPlugin 1.4.50. Untested in-game.
@@ -1051,11 +1050,11 @@ Previous version: **1.4.41** — fixed a Russian-locale startup freeze reported 
 
 
 ## IMPORTANT: version-bump checklist — THREE separate places, not one
-Hexium flagged the DLL as still reporting **1.4.37** while every log line and `manifest.json` said 1.4.40 - found the real cause: the version string BepInEx (and Hexium's/Thunderstore's own compatibility checkers) actually reads comes from the `[BepInPlugin(guid, name, version)]` custom attribute on `CompanionsPlugin` (near the top of `Companions_source.il`, a raw byte blob, not a normal string literal - easy to forget). That attribute had not been touched in several versions even though the log strings and changelog kept moving forward, so multiple past releases likely misreported their version to BepInEx/Hexium/Thunderstore without anyone noticing. **Every version bump must update all of the following, or the DLL will lie about its own version:**
+Hexium flagged the DLL as still reporting **1.4.37** while every log line and `manifest.json` said 1.4.40 - found the real cause: the version string BepInEx (and Hexium's/mod managers' own compatibility checkers) actually reads comes from the `[BepInPlugin(guid, name, version)]` custom attribute on `CompanionsPlugin` (near the top of `Companions_source.il`, a raw byte blob, not a normal string literal - easy to forget). That attribute had not been touched in several versions even though the log strings and changelog kept moving forward, so multiple past releases likely misreported their version to BepInEx/Hexium/mod managers without anyone noticing. **Every version bump must update all of the following, or the DLL will lie about its own version:**
 1. The `BepInPlugin` custom attribute byte blob (since 1.4.54 the GUID is Maddhattr.OfflineCompanionsReborn - see the 1.4.54 notes for the byte layout) (`.custom instance void class [BepInEx]BepInEx.BepInPlugin::'.ctor'` near the top of the file) - the actual bytes spelling out the version string. Same length in same-length version bumps (e.g. "1.4.40" is 6 bytes like "1.4.37" was) means only the ASCII bytes change, not the length-prefix byte before it - but always double check if the digit count changes (e.g. going from "1.4.9" to "1.4.10").
 2. The `PluginVersion` static literal field right below it (currently unused by BepInEx itself, but misleading garbage in the source if left stale - found sitting at "1.3.0" this round, wildly out of date).
 3. The `[BUILD]`/`"Offline Companions vX.Y.Z loading..."` log lines (near the top of `CompanionsPlugin::Awake`/cctor, the build-tag strings already tracked per-version in this doc).
-4. `manifest.json`'s `version_number` in both `thunderstore_package/` and `hexium_package/`.
+4. `manifest.json`'s `version_number` in both `mod_manager_package/` and `hexium_package/`.
 5. `CHANGELOG.md` in both packages.
 **After any version bump, verify the real embedded version independently of the log strings** - `monodis --customattr Companions.dll | grep -i BepInPlugin` (or `strings -e l Companions.dll | grep -E "^1\.[0-9]+\.[0-9]+$"`) - don't just trust that bumping the log line means the attribute moved too, since it doesn't.
 

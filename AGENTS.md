@@ -29,7 +29,7 @@ skills em `.opencode/skills/`. Leia este arquivo antes de agir.
   listar o Jotunn como requisito em release/README. (A skill `jotunn` da equipe continua no repositório como
   referência de framework, mas **não** se aplica a este mod.)
 - Target: **.NET Framework 4.7.2 (net472)**, C#.
-- Versão atual do fork: **1.6.3** (ver `src/Companions/Core/CompanionsPlugin.cs` e `package/manifest.json`).
+- Versão atual do fork: **1.6.3** (fonte única: `PluginVersion` em `src/Companions/Core/CompanionsPlugin.cs`).
 
 ## Caminhos desta máquina
 
@@ -498,7 +498,7 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   `CHANGELOG` mantém o histórico do upstream (abaixo de 1.5.4) em inglês de propósito. Números e método:
   `docs/roadmap.md` (*Tradução PT-BR — auditoria de cobertura*) e `package/CHANGELOG.md`.
 - **Pendências conhecidas (abertas):** o **release/empacotamento** (versão e `CHANGELOG`
-  não fechados e a pasta do plugin tem **~428 MB** — não cabe num pacote Thunderstore normal); a **voz não passa pelo
+  não fechados e a pasta do plugin tem **~428 MB** — falta decidir o que entra no pacote); a **voz não passa pelo
   mixer do jogo** (por isso ignora os sliders de volume do Valheim e só obedece `[IA] TtsVolume`); e a branch
   `origin/claude/relaxed-archimedes-ecoh6h` no GitHub, que é **código do upstream**, não nosso. Detalhes na
   subseção *Pendências conhecidas* do `docs/roadmap.md`.
@@ -518,7 +518,7 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
 
 ## Skills (carregue antes de escrever/revisar código)
 
-- `bepinex` · `jotunn` · `thunderstore-packaging` · `valheim-reverse-engineering` · `valheim-ai-backend` · `valheim-assets`
+- `bepinex` · `jotunn` · `valheim-reverse-engineering` · `valheim-ai-backend` · `valheim-assets`
 
 ## Regras de trabalho
 

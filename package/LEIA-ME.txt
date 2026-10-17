@@ -32,8 +32,7 @@ so nao instale pensando que este mod precisa.
 
 INSTALACAO
 ----------
-1. Instale o BepInExPack_Valheim (pela Thunderstore/r2modman ou manualmente, na
-   pasta do Valheim).
+1. Instale o BepInExPack_Valheim (manualmente, na pasta do Valheim).
 2. Extraia a pasta "ModAI-BR-Companions" deste zip para:
        ...\Valheim\BepInEx\plugins\
    O zip ja traz a pasta "ModAI-BR-Companions" na raiz, entao o caminho final

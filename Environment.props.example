@@ -11,7 +11,7 @@
     <!-- <BepInExCoreDir>$(ValheimDir)\BepInEx\core</BepInExCoreDir> -->
 
     <!-- Uncomment to copy Companions.dll into your plugins folder after every build.
-         For an r2modman/Thunderstore profile, point this at that profile's BepInEx\plugins folder. -->
+         Point this at your BepInEx\plugins folder (use a subfolder for this mod, e.g. the one below). -->
     <!-- <DeployDir>$(ValheimDir)\BepInEx\plugins\Maddhattr-Offline_Companions_Reborn</DeployDir> -->
   </PropertyGroup>
 </Project>

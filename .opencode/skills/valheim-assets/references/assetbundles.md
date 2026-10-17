@@ -74,7 +74,7 @@ Observações:
 
 ## 6. Ícones e áudio
 
-- **Ícone do mod:** **256×256 PNG** (use também no `icon.png` do pacote Thunderstore).
+- **Ícone do mod:** **256×256 PNG** (use também no `icon.png` do pacote).
 - **Áudio do NPC:** **WAV**; se criar `AudioClip` em runtime, **destrua** o objeto depois de
   tocar (`UnityEngine.Object.Destroy(clip)`) para não vazar.
 

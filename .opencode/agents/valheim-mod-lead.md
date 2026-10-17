@@ -13,7 +13,6 @@ permissions:
   - { action: "subagent", resource: "llm-backend-dev", effect: "allow" }
   - { action: "subagent", resource: "valheim-asset-dev", effect: "allow" }
   - { action: "subagent", resource: "valheim-mod-reviewer", effect: "allow" }
-  - { action: "subagent", resource: "thunderstore-packager", effect: "allow" }
   - { action: "skill", resource: "*", effect: "allow" }
   - { action: "read", resource: "*", effect: "allow" }
   - { action: "glob", resource: "*", effect: "allow" }
@@ -51,7 +50,6 @@ integra e verifica.
 - Serviço de IA (LLM/STT/TTS) → `llm-backend-dev`
 - AssetBundles/assets → `valheim-asset-dev`
 - Auditoria → `valheim-mod-reviewer`
-- Manifest/empacotamento → `thunderstore-packager`
 
 ## Conhecimento
 

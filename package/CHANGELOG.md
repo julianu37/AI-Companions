@@ -1,35 +1,30 @@
 # Changelog
 
-Todas as mudanças deste fork do Offline Companions, do ProfMags. As versões anteriores à 1.4.0 são o mod original (veja a [página do ProfMags na Thunderstore](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) para esse histórico) mais o primeiro lote de correções de compatibilidade com a API do Valheim 1.0 que fizeram o mod carregar e rodar. **As entradas abaixo de 1.5.4 são o histórico do upstream e ficam como estão (em inglês) — as nossas seções (a partir da 1.6.0) são nossas.**
+Todas as mudanças deste fork do Offline Companions, do ProfMags. As versões anteriores à 1.4.0 são o mod original (veja o histórico do mod original, do ProfMags, para essas versões) mais o primeiro lote de correções de compatibilidade com a API do Valheim 1.0 que fizeram o mod carregar e rodar. **As entradas abaixo de 1.5.4 são o histórico do upstream e ficam como estão (em inglês) — as nossas seções (a partir da 1.6.0) são nossas.**
 
 ## 1.6.3 — 17/10/2026
 
-**Versão para a publicação manual no Thunderstore.** Nada muda no jogo:
+**Reempacotado.** Nada muda no jogo:
 
-- Reempacotado para o **upload manual** (a listagem do pacote está em revisão desde a 1.6.0): mesmo conteúdo da
-  1.6.2, com `manifest.json`/`README.md`/`CHANGELOG.md`/`icon.png` na **raiz** do zip e o mod em
-  `BepInEx/plugins/ModAI-BR-Companions/`.
-- Categorias a marcar no upload: **AI Generated** (obrigatória para conteúdo gerado por IA), **NPCs** e **Language**.
+- Mesmo conteúdo da 1.6.2, com a pasta do mod em `BepInEx/plugins/ModAI-BR-Companions/` e o
+  `README.md`/`CHANGELOG.md`/`icon.png` na **raiz** do pacote.
+- O `.zip` passa a se chamar `ModAI_BR_Companions-1.6.3.zip` (nome exato `Nome-Versão`, sem sufixo).
 
 ## 1.6.2 — 17/10/2026
 
-**Ícone novo e pacote do Thunderstore enxuto.** Nada muda no jogo:
+**Ícone novo e pacote enxuto.** Nada muda no jogo:
 
-- **Ícone novo** — a arte do mod (os três companheiros + o "AI COMPANIONS PT-BR"), em **256×256** como o
-  Thunderstore exige. O banner completo está no repositório (`docs/images/banner.png`) e no topo do README.
-- O pacote do Thunderstore passa a ir **sem os modelos** (~20 MB, em vez de ~368 MB): o upload gigante era o
-  suspeito nº 1 da rejeição da listagem, e nenhum mod de Valheim tem esse tamanho. Os **modelos (STT e TTS)
+- **Ícone novo** — a arte do mod (os três companheiros + o "AI COMPANIONS PT-BR"), em **256×256**.
+  O banner completo está no repositório (`docs/images/banner.png`) e no topo do README.
+- O pacote passa a ir **sem os modelos** (~20 MB, em vez de ~368 MB). Os **modelos (STT e TTS)
   continuam no release do GitHub**, e o LEIA-ME/README dizem exatamente onde colocá-los (a pasta `whisper\` e a
   `tts\kokoro\`).
 
 ## 1.6.1 — 17/10/2026
 
-**Publicação no Thunderstore** (o mod passa a ser instalável pelo gerenciador de mods). Nada muda no jogo:
+**Pacote enxuto.** Nada muda no jogo:
 
-- O pacote foi marcado com a categoria **`AI Generated`** — as regras globais do Thunderstore exigem essa
-  categoria para pacotes com código/assets gerados por IA, e a comunidade Valheim tem essa categoria. A primeira
-  submissão (1.6.0) foi **rejeitada** (`Invalid submission`) por ter subido sem categoria.
-- O pacote **não leva mais o WAV de teste** (`whisper\jfk.wav`): a regra pede enviar só o que o mod precisa para
+- O pacote **não leva mais o WAV de teste** (`whisper\jfk.wav`): vai só o que o mod precisa para
   funcionar. O comando de console `modia_stt_teste` continua funcionando e aceita um caminho de WAV como argumento.
 - O `.zip` publicado passa a se chamar `ModAI_BR_Companions-1.6.1.zip` (nome exato `Nome-Versão`, sem sufixo).
 

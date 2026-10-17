@@ -195,7 +195,7 @@ chat do jogo ──────────────────────�
 | `src/Companions/` | O mod (C#, net472): `Core/`, `Companion/`, `AI/`, `Jobs/`, `UI/`, `Patches/`, `Diagnostics/` |
 | `src/Companions/AI/` | **A nossa camada de IA**: `LlmClient`, `LlmIntent`, `CompanionOrders`, `CompanionChatAI`, `WhisperStt`, `VoiceInput`, `CompanionTts`, `CompanionPersona`, `CompanionMemory` |
 | `Translations/`, `Speech/` | Traduções PT-BR (interface e falas) — o build copia para o plugin |
-| `package/` | Arquivos de pacote (manifest, ícone, README/CHANGELOG do Thunderstore) |
+| `package/` | Arquivos de pacote (ícone, README/CHANGELOG, guia e configuração) |
 | `docs/` | Roadmap, visão, plano de fases, engenharia reversa e notas técnicas |
 | `.opencode/` | A **equipe de agentes** usada para desenvolver o projeto |
 
