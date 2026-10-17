@@ -48,7 +48,8 @@ Vá em **https://github.com/julianu37/ModAI-BR-Companions/releases** e baixe **u
 
 Extraia o conteúdo para dentro de `<Valheim>\BepInEx\plugins\ModAI-BR-Companions\`.
 
-> O caminho exato da pasta é importante: o nome dela é **`ModAI-BR-Companions`**, dentro de `BepInEx\plugins\`.
+> Use esse nome de pasta (é a convenção do pacote). O BepInEx carrega plugins de **qualquer** subpasta de
+> `BepInEx\plugins\` — manter o nome só evita confusão na hora de atualizar.
 
 No fim, a pasta deve ficar assim:
 
@@ -123,11 +124,14 @@ O guia completo está em **[LLM no LM Studio](LLM-no-LM-Studio)**. Em resumo:
 3. Procure estas duas linhas:
 
 ```
-ModAI-BR-Companions v1.6.3 loading...
-ModAI-BR-Companions loaded successfully! (82 methods patched)
+ModAI-BR-Companions v1.6.2 loading...
+ModAI-BR-Companions loaded successfully! (N methods patched)
 ```
 
 Se elas aparecerem, o mod carregou.
+
+> O `v1.6.2` é a **versão que você instalou** (o número do zip que você baixou) e o `N` é quantos métodos do jogo
+> o mod ajustou — esse número pode mudar de uma versão para outra.
 
 > **É normal** ver um erro de **PlayFab / NullReferenceException** no boot — ele **não** é do mod e não impede
 > nada. Se quiser confirmar, veja **[Problemas comuns](Problemas-comuns)**.

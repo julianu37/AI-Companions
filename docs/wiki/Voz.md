@@ -145,6 +145,11 @@ Abra o console com **`F5`**:
 > `modia_stt_teste` transcreve o arquivo definido em `[IA] SttWavTeste` (padrão `whisper\jfk.wav`) e escreve o
 > resultado no log. É o teste certo para saber se o modelo do Whisper está carregando — útil quando as ordens
 > por voz não saem.
+>
+> **O pacote não traz esse WAV** (ele saiu do pacote para economizar espaço): ponha um arquivo seu em
+> `...\ModAI-BR-Companions\whisper\` e aponte `[IA] SttWavTeste` para ele (caminho relativo à pasta do plugin ou
+> absoluto). O comando **não** aceita o caminho como argumento — só a chave. Fala curta em inglês ou português,
+> WAV PCM 16 bits, é o que ele espera.
 
 O log mostra o tempo de síntese de cada frase e o **RTF** (fração do tempo real: abaixo de 1 é mais rápido que
 o tempo real).

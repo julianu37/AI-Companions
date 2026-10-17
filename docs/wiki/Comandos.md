@@ -34,7 +34,8 @@ mesma coisa de **várias formas** — não precisa decorar a frase exata.
 | `segue` | Volta a seguir você |
 | `para` / `para de me seguir` | Para o que está fazendo e fica parado |
 | `vem cá` | Vem até você |
-| `fica perto` | Segue de perto |
+
+> Não existe um "seguir de perto" separado: as opções são **seguir** você ou **parar**.
 
 ### Coletar
 
@@ -74,8 +75,8 @@ mesma coisa de **várias formas** — não precisa decorar a frase exata.
 
 | Você diz | O que ele faz |
 |---|---|
-| `recolhe os itens` / `junte a madeira do chão` | Anda até os itens soltos e pega um por um |
-| `pegue o machado do chão` | Recolhe o item citado |
+| `recolhe os itens` / `junte a madeira do chão` | Anda até os itens soltos e pega **um por um** |
+| `pega o que está no chão` | Idem — ele pega o que estiver **mais perto**, não um item escolhido pelo nome |
 | `pare de recolher` / `não pegue nada` | **Desliga** o recolhimento automático |
 
 > O recolhimento pega **inclusive o que ele mesmo largou de propósito** — que é justamente o que o ímã
@@ -86,7 +87,10 @@ mesma coisa de **várias formas** — não precisa decorar a frase exata.
 | Você diz | O que ele faz |
 |---|---|
 | `abre o teu inventário` / `mostra o que você carrega` | Abre a **janela do inventário dele** para você ver |
-| `fecha o inventário` | Fecha |
+| `fecha o inventário` | Fecha a janela (o **X** da janela fecha sempre) |
+
+> O **fechamento por ordem** depende de como o modelo interpreta a frase — se "fecha o inventário" acabar
+> abrindo a janela, use o **X** (ou o `Esc`).
 
 ### Postura de combate
 
@@ -134,6 +138,9 @@ mesma coisa de **várias formas** — não precisa decorar a frase exata.
 
 > `modia_stt_teste` transcreve o arquivo de `[IA] SttWavTeste` (padrão `whisper\jfk.wav`) e escreve o resultado
 > no log. Serve para checar se o modelo do Whisper está carregando, quando as ordens por voz não saem.
+>
+> **O pacote não traz esse WAV** (ele saiu do pacote para economizar espaço) — ponha um arquivo seu na pasta
+> `whisper\` e aponte `[IA] SttWavTeste` para ele. O comando **não** aceita o caminho como argumento.
 
 ---
 

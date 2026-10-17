@@ -123,7 +123,8 @@ na voz, use `0,19`. Vale na **próxima frase**, sem reiniciar. Veja **[Voz](Voz)
 6. **Teste isolado:** `modia_stt_teste` no console (**`F5`**) roda o Whisper sobre um WAV, **sem** microfone.
    Se ele transcrever, o modelo está bom e o problema é de captura.
 
-> **Windows x64 é obrigatório** para o STT: os nativos do whisper.cpp são `win-x64`.
+> **Windows x64 é obrigatório** para a voz: os nativos do **STT** (whisper.cpp) **e do TTS** (sherpa-onnx/onnxruntime)
+> são `win-x64`.
 
 ---
 
@@ -174,7 +175,7 @@ Se você reatribuir, o mod reavalia o conflito na hora. Veja **[Voz](Voz)**.
 
 | Onde olhar | O que procurar |
 |---|---|
-| `LogOutput.log` | `ModAI-BR-Companions v1.6.3 loading...` e `ModAI-BR-Companions loaded successfully! (82 methods patched)` |
+| `LogOutput.log` | `ModAI-BR-Companions v1.6.2 loading...` e `ModAI-BR-Companions loaded successfully! (N methods patched)` — o `v1.6.2` é a versão que você instalou |
 
 **Causas prováveis:**
 

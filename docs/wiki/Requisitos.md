@@ -11,7 +11,7 @@ as **ordens por voz** (precisam de microfone). Você pode usar **só o chat**, d
 |---|---|
 | **Valheim** | **1.0.x** (engine Unity 6 — testado na **1.0.17**) |
 | **BepInEx** | **BepInExPack_Valheim 5.4.2351** (BepInEx 5.4.23.5) — o mod é um plugin BepInEx 5 |
-| **Windows x64** | **Obrigatório** para a voz: os binários nativos do whisper.cpp (STT) são `win-x64`. Sem eles, as ordens por voz não funcionam |
+| **Windows x64** | **Obrigatório** para a voz: os binários nativos do **STT** (whisper.cpp) **e do TTS** (sherpa-onnx + onnxruntime) são `win-x64`. Sem eles, nem as ordens por voz nem a fala do companheiro funcionam |
 | **LM Studio + um modelo** | Para as ordens por texto/voz serem entendidas. Veja **[LLM no LM Studio](LLM-no-LM-Studio)** |
 | **Espaço em disco** | Veja a tabela abaixo |
 

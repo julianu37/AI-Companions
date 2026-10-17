@@ -74,7 +74,7 @@ perto** (é uma configuração global).
 | `SaidaEstruturada` | `true` | Pede ao servidor o formato JSON (`response_format`/`json_schema`). É o que permite usar modelos pequenos |
 | `SttTeste` | `false` | Teste: roda o reconhecimento do Whisper sozinho ~25 s após carregar e escreve no log |
 | `SttModelo` | `whisper\ggml-small-q5_1.bin` | Modelo do Whisper (relativo à pasta do plugin ou caminho absoluto) |
-| `SttWavTeste` | `whisper\jfk.wav` | WAV que o `modia_stt_teste` transcreve |
+| `SttWavTeste` | `whisper\jfk.wav` | WAV que o `modia_stt_teste` transcreve. **O pacote não traz esse arquivo** — aponte para um WAV seu |
 | `VozLigada` | `true` | Liga o push-to-talk |
 | `VozTecla` | `V` | Tecla do push-to-talk |
 | `VozIdioma` | `pt` | Idioma da fala (código do Whisper). Vazio ou `auto` detecta |
