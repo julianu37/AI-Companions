@@ -43,8 +43,8 @@ Os modelos são grandes e por isso o release vem em **dois pacotes**:
 
 | Pacote | Conteúdo | Tamanho |
 |---|---|---|
-| **Completo** | o mod + os modelos de voz e fala | ~**428 MB** |
-| **Sem modelos** | só o mod (você copia os seus) | ~**36 MB** |
+| **Completo** | o mod + os modelos de voz e fala | **368 MB** (zip) |
+| **Sem modelos** | só o mod (você copia os seus) | **20 MB** (zip) |
 
 Os modelos, por dentro:
 
