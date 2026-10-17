@@ -2,6 +2,15 @@
 
 Todas as mudanças deste fork do Offline Companions, do ProfMags. As versões anteriores à 1.4.0 são o mod original (veja a [página do ProfMags na Thunderstore](https://thunderstore.io/c/valheim/p/ProfMags/Offline_Companions/) para esse histórico) mais o primeiro lote de correções de compatibilidade com a API do Valheim 1.0 que fizeram o mod carregar e rodar. **As entradas abaixo de 1.5.4 são o histórico do upstream e ficam como estão (em inglês) — as nossas seções (a partir da 1.6.0) são nossas.**
 
+## 1.6.3 — 17/10/2026
+
+**Versão para a publicação manual no Thunderstore.** Nada muda no jogo:
+
+- Reempacotado para o **upload manual** (a listagem do pacote está em revisão desde a 1.6.0): mesmo conteúdo da
+  1.6.2, com `manifest.json`/`README.md`/`CHANGELOG.md`/`icon.png` na **raiz** do zip e o mod em
+  `BepInEx/plugins/ModAI-BR-Companions/`.
+- Categorias a marcar no upload: **AI Generated** (obrigatória para conteúdo gerado por IA), **NPCs** e **Language**.
+
 ## 1.6.2 — 17/10/2026
 
 **Ícone novo e pacote do Thunderstore enxuto.** Nada muda no jogo:

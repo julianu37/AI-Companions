@@ -29,7 +29,7 @@ skills em `.opencode/skills/`. Leia este arquivo antes de agir.
   listar o Jotunn como requisito em release/README. (A skill `jotunn` da equipe continua no repositório como
   referência de framework, mas **não** se aplica a este mod.)
 - Target: **.NET Framework 4.7.2 (net472)**, C#.
-- Versão atual do fork: **1.6.2** (ver `src/Companions/Core/CompanionsPlugin.cs` e `package/manifest.json`).
+- Versão atual do fork: **1.6.3** (ver `src/Companions/Core/CompanionsPlugin.cs` e `package/manifest.json`).
 
 ## Caminhos desta máquina
 
