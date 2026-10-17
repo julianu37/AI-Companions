@@ -52,7 +52,6 @@
         { "key": "hc_radial_cook", "value": "Cozinhar" },
         { "key": "hc_radial_repair", "value": "Reparar e Reabastecer" },
         { "key": "hc_radial_despawn", "value": "Dispensar" },
-        { "key": "hc_radial_despawn_confirm", "value": "Confirmar?" },
         { "key": "hc_despawn_popup_title", "value": "Dispensar Companheiro" },
         { "key": "hc_despawn_popup_text", "value": "Remover {0} para sempre? Tudo o que ele estiver carregando vai ficar numa lápide." },
         { "key": "hc_radial_active", "value": "ATIVO" },

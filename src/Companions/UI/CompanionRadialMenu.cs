@@ -1836,25 +1836,6 @@ public class CompanionRadialMenu : MonoBehaviour
 		CompanionsPlugin.Log.LogInfo("[Radial] Despawn cancelled");
 	}
 
-	private void UpdateDespawnLabel()
-	{
-		string text = ModLocalization.Loc("hc_radial_despawn_confirm");
-		for (int i = 0; i < _innerSegments.Count; i++)
-		{
-			if (_innerSegments[i].ActionId == 30 && i < _innerSegLabels.Count)
-			{
-				_innerSegLabels[i].text = text;
-			}
-		}
-		for (int j = 0; j < _segments.Count; j++)
-		{
-			if (_segments[j].ActionId == 30 && j < _segLabels.Count)
-			{
-				_segLabels[j].text = text;
-			}
-		}
-	}
-
 	private void DoRepairBuildings()
 	{
 		if (_companion == null)

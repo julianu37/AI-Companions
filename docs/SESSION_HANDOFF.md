@@ -6,7 +6,7 @@ Paste this into a new session to pick up where we left off. Details per version 
 - Repo: `MaddhattrRocks/Offline-Companions-Reborn` (private, going public soon). Fork of ProfMags' Offline Companions (MIT).
 - Work branch: `claude/relaxed-archimedes-ecoh6h`. PRs #1-#5 are merged into `main` (C# conversion, 1.4.75, 1.4.76, 1.4.77-1.4.85, 1.4.86-1.4.140). After a merge the branch is restarted from `main` under the same name.
 - The user builds the DLL (`dotnet build -c Release` on their PC, paths in the git-ignored `Environment.props`). Sessions only compile-check, never hand over DLLs unless asked. No game files in git.
-- Version lives in `src/Companions/Core/CompanionsPlugin.cs` (PluginVersion), `package/manifest.json`, `package/CHANGELOG.md` (one line per item, issue and fix together).
+- Version lives in `src/Companions/Core/CompanionsPlugin.cs` (PluginVersion) and `package/CHANGELOG.md` (one line per item, issue and fix together).
 - Check the user's suggestions against the game's real code/mechanics (decompiled source) before building an alternative; read how the game does a mechanic for the player before imitating it (ladder bump lesson, 2026-10-13).
 - Each version: user builds, tests, sends LogOutput.log; next version fixes what the log shows. Show the README "Recent Highlights" before any packaging (one bullet per feature: update an existing bullet, e.g. ladders, instead of adding a second one for a later version; keep bullets short); no packaged release until the movement update (phases 2-4) is done.
 

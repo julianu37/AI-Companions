@@ -120,10 +120,6 @@ public static class ModLocalization
 			{ "hc_radial_cook", "Cook" },
 			{ "hc_radial_repair", "Repair and Restock" },
 			{ "hc_radial_despawn", "Despawn" },
-			// Traducao PT-BR - auditoria de cobertura: this key is referenced by the radial's (dead) UpdateDespawnLabel
-			// and had no default since the despawn confirmation became a YesNoPopup, so the label would have shown the
-			// raw token if that path ever came back to life.
-			{ "hc_radial_despawn_confirm", "Confirm?" },
 			{ "hc_despawn_popup_title", "Despawn Companion" },
 			{ "hc_despawn_popup_text", "Permanently remove {0}? Anything they're carrying will be left in a tombstone." },
 			{ "hc_radial_active", "ACTIVE" },
