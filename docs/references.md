@@ -7,7 +7,7 @@ projetos de terceiros com licença permissiva. Leia as **regras de uso** no fim 
 |---|---|---|
 | **Offline Companions Reborn** (MaddhattrRocks) | **MIT** ✅ uso livre | Mod companheiro para **Valheim 1.0**: IA de movimento/combate, **jobs** (coleta de madeira/pedra/minério/forrageio, fazenda, pesca, caça, cozinha, fundição, reparo, reabastecimento, ordenar baús), **UI** (painéis, menu radial, HUD, painel de config), patches, "tool keeper" |
 | **BepInEx** | ver `LICENSE` do repo | Plugin, config, logging, Harmony |
-| **Jotunn** | ver `LICENSE` do repo | Managers, prefabs, GUI, localização |
+| **Jotunn** | ver `LICENSE` do repo | Managers, prefabs, GUI, localização — **não é usado por este mod** (0 uso no código, sem `[BepInDependency]`, sem referência no build; a única relação é defensiva: `Speech/` fica fora de `Translations/` por causa do carregador de localização dele). Fica aqui como referência de framework |
 | **Whisper.net** / **whisper.cpp** | **MIT** ✅ redistribuído | STT local das ordens por voz (`WhisperStt`, Fase 3.3) |
 | **sherpa-onnx** (k2-fsa) | **Apache-2.0** ✅ redistribuído | TTS local da fala do companheiro (`CompanionTts`, Fase 3.4) |
 | **Kokoro-82M** (hexgrad) | **Apache-2.0** ✅ redistribuído | O modelo de voz que o TTS usa (`tts\kokoro\`) |

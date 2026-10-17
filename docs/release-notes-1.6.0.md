@@ -23,7 +23,7 @@ Um fork em **PT-BR** do [Offline Companions Reborn](https://github.com/Maddhattr
 
 ## Instalação
 
-1. Tenha o **BepInExPack_Valheim 5.4.2351** e o **Jotunn 2.30.2** instalados.
+1. Tenha o **BepInExPack_Valheim 5.4.2351** instalado.
 2. Extraia a pasta `ModAI-BR-Companions` deste pacote para `...\Valheim\BepInEx\plugins\`.
 3. Os **modelos** (STT `whisper\` e TTS `tts\`) ficam **dentro** dessa pasta — o pacote **completo** já os traz; o **"sem modelos"** não.
 
@@ -32,7 +32,7 @@ O passo a passo completo, os requisitos, as teclas, a configuração do LLM, os 
 ## Requisitos
 
 - **Valheim 1.0.x** (alvo deste release: **1.0.17**).
-- **BepInExPack_Valheim 5.4.2351** (BepInEx 5.4.23.5) e **Jotunn 2.30.2**.
+- **BepInExPack_Valheim 5.4.2351** (BepInEx 5.4.23.5). **O Jotunn não é necessário** — este mod não referencia nenhuma API do framework (nem dependência declarada, nem referência no build).
 - **Windows x64** (as duas metades da voz usam binários nativos de Windows) e um **microfone** para as ordens por voz.
 - Para o companheiro **entender** ordens: um **servidor de LLM local** compatível com a API da OpenAI — o padrão é o **LM Studio** em `http://127.0.0.1:1234/v1` com um modelo pequeno (ex.: `qwen2.5-3b-instruct`), configurado em `[IA] BaseUrl` / `[IA] Modelo` no `.cfg`. O `BaseUrl` aceita Ollama, llama.cpp, vLLM etc.
 - **Multiplayer:** todo jogador precisa do mod; servidor dedicado também.

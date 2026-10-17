@@ -19,15 +19,21 @@ REQUISITOS
 ----------
 - Valheim 1.0.x (o alvo deste release e o 1.0.17)
 - BepInExPack_Valheim 5.4.2351 (BepInEx 5.4.23.5)
-- Jotunn 2.30.2
 - Windows x64 (as vozes usam binarios nativos de Windows) e um microfone
 - Para o companheiro ENTENDER ordens: um servidor de LLM local compativel com a
   API da OpenAI (veja "O CEREBRO (LLM)" abaixo)
 
+NAO PRECISA DE JOTUNN
+--------------------
+Este mod NAO usa o framework Jotunn: ele nao referencia nenhuma API do Jotunn
+(nao ha dependencia declarada no plugin, nem referencia no build). O Jotunn nao
+e necessario - se voce ja tem ele instalado por causa de outro mod, tudo bem;
+so nao instale pensando que este mod precisa.
+
 INSTALACAO
 ----------
-1. Instale o BepInExPack_Valheim e o Jotunn (pela Thunderstore/r2modman ou
-   manualmente, na pasta do Valheim).
+1. Instale o BepInExPack_Valheim (pela Thunderstore/r2modman ou manualmente, na
+   pasta do Valheim).
 2. Extraia a pasta "ModAI-BR-Companions" deste zip para:
        ...\Valheim\BepInEx\plugins\
    O zip ja traz a pasta "ModAI-BR-Companions" na raiz, entao o caminho final

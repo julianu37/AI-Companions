@@ -22,7 +22,12 @@ skills em `.opencode/skills/`. Leia este arquivo antes de agir.
 
 - **Valheim 1.0.17** — engine **Unity 6000.0.75f1 (Unity 6)**.
 - **BepInExPack_Valheim 5.4.2351** (BepInEx 5.4.23.5).
-- **Jotunn 2.30.2**.
+- **Jotunn: NÃO é usado por este mod.** O código não referencia nenhuma API do Jotunn (0 ocorrências de uso — só
+  comentários), o plugin **não** declara `[BepInDependency]` dele e o `.csproj` não o referencia; o upstream também não
+  o usa. A única relação é **defensiva**: a pasta `Speech/` fica fora de `Translations/` porque o carregador de
+  localização do Jotunn (se o jogador o tiver instalado) trataria `Translations\<pasta>\*.json` como um idioma. Não
+  listar o Jotunn como requisito em release/README. (A skill `jotunn` da equipe continua no repositório como
+  referência de framework, mas **não** se aplica a este mod.)
 - Target: **.NET Framework 4.7.2 (net472)**, C#.
 - Versão atual do fork: **1.6.0** (ver `src/Companions/Core/CompanionsPlugin.cs` e `package/manifest.json`).
 
