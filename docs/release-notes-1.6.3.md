@@ -53,9 +53,9 @@ Resumo: instale o BepInEx → extraia o pacote na raiz do Valheim → carregue o
 
 | | |
 |---|---|
-| ![Ordem no chat](https://raw.githubusercontent.com/julianu37/ModAI-BR-Companions/main/docs/images/screenshots/1-ordem-no-chat.jpg) | ![Painel da IA](https://raw.githubusercontent.com/julianu37/ModAI-BR-Companions/main/docs/images/screenshots/2-painel-da-ia.jpg) |
+| ![Ordem no chat](https://raw.githubusercontent.com/julianu37/ModAI-BR-Companions/main/docs/wiki/images/1-ordem-no-chat.jpg) | ![Painel da IA](https://raw.githubusercontent.com/julianu37/ModAI-BR-Companions/main/docs/wiki/images/2-painel-da-ia.jpg) |
 | **A ordem no chat** — o companheiro entende e responde | **Painel da IA** (tecla `I`) — personalidade, voz e push-to-talk |
-| ![Painel F8](https://raw.githubusercontent.com/julianu37/ModAI-BR-Companions/main/docs/images/screenshots/3-painel-f8.jpg) | ![Menu radial](https://raw.githubusercontent.com/julianu37/ModAI-BR-Companions/main/docs/images/screenshots/4-menu-radial.jpg) |
+| ![Painel F8](https://raw.githubusercontent.com/julianu37/ModAI-BR-Companions/main/docs/wiki/images/3-painel-f8.jpg) | ![Menu radial](https://raw.githubusercontent.com/julianu37/ModAI-BR-Companions/main/docs/wiki/images/4-menu-radial.jpg) |
 | **Seção `[IA]` no painel F8** — tudo configurável em jogo | **Menu radial** (segure `E` olhando o companheiro) |
 
 ## Créditos e licença
