@@ -1,6 +1,6 @@
 # Créditos e licença
 
-O **ModAI-BR-Companions** é um **fork** e existe em cima do trabalho de outras pessoas. Esta página diz quem
+O **ModAI-BR-Companions** é um **projeto independente** que existe em cima do trabalho de outras pessoas. Esta página diz quem
 fez o quê.
 
 ---
@@ -16,7 +16,7 @@ https://github.com/MaddhattrRocks/Offline-Companions-Reborn
 
 **Vem de lá:** o companheiro em si — os trabalhos (coleta, fazenda, pesca, caça, cozinha, fundição, reparo,
 loot), a comida e a stamina, as habilidades, a casa e o descanso, os portais e a carroça, a IA de movimento e
-combate, o menu radial e toda a UI base. A camada de IA do nosso fork é só uma **nova entrada** para essas
+combate, o menu radial e toda a UI base. A camada de IA do nosso projeto é só uma **nova entrada** para essas
 mesmas ações.
 
 > O Offline Companions Reborn, por sua vez, é um fork do *Offline Companions*, do **ProfMags**.
@@ -25,7 +25,7 @@ mesmas ações.
 
 ## O que é nosso
 
-O que o fork **ModAI-BR-Companions** acrescenta:
+O que o projeto **ModAI-BR-Companions** acrescenta:
 
 1. **Tradução completa para PT-BR** — 386 chaves de interface e 186 falas do companheiro, auditadas (sem
    texto em inglês visível ao jogador).

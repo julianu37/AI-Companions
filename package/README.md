@@ -5,7 +5,7 @@
 Um **companheiro NPC com IA** para **Valheim 1.0**, **em português do Brasil** — você **fala ou digita** e ele
 entende e executa.
 
-Este é um **fork** de **[Offline Companions Reborn](https://github.com/MaddhattrRocks/Offline-Companions-Reborn)**
+Este é um **projeto independente** baseado em **[Offline Companions Reborn](https://github.com/MaddhattrRocks/Offline-Companions-Reborn)**
 (de **Maddhattr**), que por sua vez é a atualização para o Valheim 1.0
 do **Offline Companions** de **ProfMags**.
 
@@ -312,7 +312,7 @@ ProfMags (e do Maddhattr) junto das nossas mudanças, como manda a licença.
 
 ## Aviso
 
-Este é um **fork não oficial** de um mod da comunidade, mantido para uso pessoal/estudo em PT-BR, com a nossa
+Este é uma **versão independente** de um mod da comunidade, mantido para uso pessoal/estudo em PT-BR, com a nossa
 camada de IA por cima. Não é afiliado nem endossado pelo ProfMags, pelo Maddhattr ou pela Iron Gate.
 Se algum dos autores quiser que algo seja removido, alterado ou incorporado, é só pedir.
 

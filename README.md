@@ -5,7 +5,7 @@
 > Um **companheiro NPC com IA** para **Valheim 1.0**, **em português do Brasil** — você **fala ou digita** e
 > ele entende e executa.
 
-Este projeto é um **fork** de [Offline Companions Reborn](https://github.com/MaddhattrRocks/Offline-Companions-Reborn)
+Este projeto é um **projeto independente** baseado em [Offline Companions Reborn](https://github.com/MaddhattrRocks/Offline-Companions-Reborn)
 (**MIT**) com duas coisas nossas por cima:
 
 1. **Tradução completa para PT-BR** (interface, menus, painéis e as falas do companheiro).

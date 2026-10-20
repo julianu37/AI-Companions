@@ -1,6 +1,6 @@
 # Changelog
 
-Todas as mudanças deste fork do Offline Companions, do ProfMags. As versões anteriores à 1.4.0 são o mod original (veja o histórico do mod original, do ProfMags, para essas versões) mais o primeiro lote de correções de compatibilidade com a API do Valheim 1.0 que fizeram o mod carregar e rodar. **As entradas abaixo de 1.5.4 são o histórico do upstream e ficam como estão (em inglês) — as nossas seções (a partir da 1.6.0) são nossas.**
+Todas as mudanças deste projeto, derivado do Offline Companions, do ProfMags. As versões anteriores à 1.4.0 são o mod original (veja o histórico do mod original, do ProfMags, para essas versões) mais o primeiro lote de correções de compatibilidade com a API do Valheim 1.0 que fizeram o mod carregar e rodar. **As entradas abaixo de 1.5.4 são o histórico do upstream e ficam como estão (em inglês) — as nossas seções (a partir da 1.6.0) são nossas.**
 
 ## 1.6.3 — 17/10/2026
 

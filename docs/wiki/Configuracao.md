@@ -101,7 +101,7 @@ perto** (é uma configuração global).
 
 ## O que **nós** mudamos em relação ao upstream
 
-Além da tradução e da camada de IA, o fork ajustou alguns padrões do upstream. Se você veio do Offline
+Além da tradução e da camada de IA, o projeto ajustou alguns padrões do upstream. Se você veio do Offline
 Companions Reborn, isto é o que mudou de valor:
 
 | Seção / chave | Padrão do upstream | Nosso padrão | Por quê |

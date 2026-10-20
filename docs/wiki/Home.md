@@ -28,7 +28,7 @@ entende e executa.
 
 ## O que é
 
-Este projeto é um **fork** de [Offline Companions Reborn](https://github.com/MaddhattrRocks/Offline-Companions-Reborn)
+Este projeto é um **projeto independente** baseado em [Offline Companions Reborn](https://github.com/MaddhattrRocks/Offline-Companions-Reborn)
 (**MIT**) — que por sua vez é um fork do *Offline Companions*, do **ProfMags** — com duas coisas nossas por cima:
 
 1. **Tradução completa para PT-BR** (interface, menus, painéis e as falas do companheiro).

@@ -11,7 +11,7 @@ plantam, cozinham, fundem, reparam a base), lutam ao seu lado, descansam,
 dormem, usam portais e carroca - e agora tambem ENTENDEM voce. Voce digita ou
 fala uma ordem em portugues ("colete 10 madeiras", "segue", "ataca o
 greydwarf") e ele obedece; ele responde, conversa e fala em voz alta. Este e um
-fork em PT-BR do mod "Offline Companions Reborn" (MIT), de Maddhattr e ProfMags,
+versão independente em PT-BR do mod "Offline Companions Reborn" (MIT), de Maddhattr e ProfMags,
 com uma camada de IA local por cima. Tudo roda na sua maquina: o modelo de
 linguagem, o reconhecimento de voz e a fala sao locais - nada sai do seu PC.
 
@@ -88,7 +88,7 @@ Sem argumento, o modia_tts_teste fala uma frase padrao.
 
 CREDITOS E LICENCAS
 -------------------
-Este mod e um FORK nao oficial, de uso pessoal/estudo, do "Offline Companions
+Este mod e um VERSAO independente, nao oficial, de uso pessoal/estudo, do "Offline Companions
 Reborn" (MIT), de Maddhattr, que por sua vez e um fork de compatibilidade com o
 Valheim 1.0 do "Offline Companions", de ProfMags. Creditos a ambos. O aviso MIT
 e mantido junto das nossas mudancas, como manda a licenca.

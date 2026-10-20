@@ -2,7 +2,7 @@
 
 Mod de **companheiro NPC com IA** para **Valheim 1.0**, em **PT-BR**.
 
-Este projeto é um **fork** de [Offline Companions Reborn](https://github.com/MaddhattrRocks/Offline-Companions-Reborn)
+Este projeto é um **projeto independente** baseado em [Offline Companions Reborn](https://github.com/MaddhattrRocks/Offline-Companions-Reborn)
 (**MIT**), que já implementa a visão de "companheiro como membro da equipe" (trabalhos, comida, stamina,
 skills, casa, dormir, portais, carroça, menu radial). Nosso trabalho aqui é:
 
@@ -14,7 +14,7 @@ skills em `.opencode/skills/`. Leia este arquivo antes de agir.
 
 ## Upstream e licença
 
-- Upstream (parent do fork): `MaddhattrRocks/Offline-Companions-Reborn` — **MIT**.
+- Upstream (projeto de origem): `MaddhattrRocks/Offline-Companions-Reborn` — **MIT**.
 - **Atribuição obrigatória**: ver `THIRD_PARTY_NOTICES.md` e `NOTICE.md`. Mantenha os avisos MIT.
 - Ao puxar mudanças do upstream: `git fetch upstream` (adicione o remote se não existir).
 - **⚠️ O alvo do sync é o `main` do upstream — NUNCA a `claude/relaxed-archimedes-ecoh6h`.** Essa branch é o
@@ -44,7 +44,7 @@ skills em `.opencode/skills/`. Leia este arquivo antes de agir.
   listar o Jotunn como requisito em release/README. (A skill `jotunn` da equipe continua no repositório como
   referência de framework, mas **não** se aplica a este mod.)
 - Target: **.NET Framework 4.7.2 (net472)**, C#.
-- Versão atual do fork: **1.6.3** (fonte única: `PluginVersion` em `src/Companions/Core/CompanionsPlugin.cs`).
+- Versão atual do projeto: **1.6.3** (fonte única: `PluginVersion` em `src/Companions/Core/CompanionsPlugin.cs`).
 
 ## Caminhos desta máquina
 
@@ -66,7 +66,7 @@ skills em `.opencode/skills/`. Leia este arquivo antes de agir.
 - **Teste:** iniciar o jogo e conferir `BepInEx\LogOutput.log` (deve listar
   `Loading [Offline Companions Reborn <versão>]`).
 
-## Arquitetura do fork (`src/Companions/`)
+## Arquitetura do projeto (`src/Companions/`)
 
 | Pasta | Conteúdo |
 |---|---|

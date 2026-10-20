@@ -26,7 +26,7 @@
 - **Ele fala** — voz sintetizada em PT-BR, saindo da posição dele no mundo (Kokoro-82M, dentro do jogo).
 - **Personalidade, memória e conversa livre** — presets em PT-BR ou um texto nas suas palavras.
 - **Painel da IA** (tecla **`I`**) — personalidade, voz (com **Ouvir**), volume, velocidade, memória e push-to-talk.
-- **Ajustes do fork** — raio de coleta maior, chatter aleatório desligado e a tecla **`V`** sem disparar o
+- **Ajustes do projeto** — raio de coleta maior, chatter aleatório desligado e a tecla **`V`** sem disparar o
   auto-pickup do jogo.
 
 ## O que você precisa
@@ -60,10 +60,10 @@ Resumo: instale o BepInEx → extraia o pacote na raiz do Valheim → carregue o
 
 ## Créditos e licença
 
-**Fork** do [Offline Companions Reborn](https://github.com/MaddhattrRocks/Offline-Companions-Reborn) (**MIT**),
+**Projeto independente** baseado no [Offline Companions Reborn](https://github.com/MaddhattrRocks/Offline-Companions-Reborn) (**MIT**),
 de **Maddhattr**, que é um fork do *Offline Companions*, de **ProfMags** (**MIT**). O companheiro em si (trabalhos,
 comida e stamina, habilidades, casa e descanso, portais e carroça, IA de movimento e combate, menu radial e a UI
-base) vem de lá. Nosso fork acrescenta a **tradução PT-BR** e a **camada de IA** (ordens por texto/voz, STT, TTS,
+base) vem de lá. Nosso projeto acrescenta a **tradução PT-BR** e a **camada de IA** (ordens por texto/voz, STT, TTS,
 personalidade e memória).
 
 Voz e reconhecimento usam [Whisper.net](https://github.com/sandrohanea/whisper.net) +
