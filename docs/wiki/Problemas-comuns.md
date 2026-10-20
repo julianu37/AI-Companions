@@ -33,11 +33,11 @@ e `[TTS]`.
 
 **Causas prováveis:**
 
-1. **Você está usando `localhost` no `BaseUrl`.** No Windows, `localhost` resolve primeiro para IPv6 (`::1`) e
-   o LM Studio só escuta IPv4 — cada ordem paga ~**2,5 s** de pedágio. Troque por
-   **`http://127.0.0.1:1234/v1`**.
-2. **O modelo é grande ou está na CPU.** Um 3B responde em ~0,35–0,4 s; o `google/gemma-4-e4b` leva ~3 s.
-   Modelos maiores praticamente exigem GPU.
+1. **O seu `.cfg` ainda está com `localhost` no `BaseUrl`.** O padrão desde a **1.6.4** é
+   `http://127.0.0.1:1234/v1`; se o arquivo é de uma versão anterior, troque. No Windows, `localhost` resolve
+   primeiro para IPv6 (`::1`) e o LM Studio só escuta IPv4 — cada ordem paga ~**2,5 s** de pedágio.
+2. **O modelo é grande ou está na CPU.** Um 3B (`qwen2.5-3b-instruct`, o padrão) responde em ~0,35–0,4 s; o
+   `google/gemma-4-e4b` leva ~3 s. Modelos maiores praticamente exigem GPU.
 3. **`[IA] Memoria` alta.** Cada troca lembrada aumenta o prompt que o modelo precisa ler. Reduza.
 4. **A primeira mensagem da sessão** inclui o carregamento do modelo do LM Studio — ela é naturalmente mais
    lenta.
@@ -175,7 +175,7 @@ Se você reatribuir, o mod reavalia o conflito na hora. Veja **[Voz](Voz)**.
 
 | Onde olhar | O que procurar |
 |---|---|
-| `LogOutput.log` | `ModAI-BR-Companions v1.6.3 loading...` e `ModAI-BR-Companions loaded successfully! (N methods patched)` — o `v1.6.3` é a versão que você instalou |
+| `LogOutput.log` | `ModAI-BR-Companions v1.6.4 loading...` e `ModAI-BR-Companions loaded successfully! (N methods patched)` — o `v1.6.4` é a versão que você instalou |
 
 **Causas prováveis:**
 

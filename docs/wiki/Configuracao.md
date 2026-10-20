@@ -58,8 +58,8 @@ perto** (é uma configuração global).
 | Chave | Padrão | O que faz |
 |---|---|---|
 | `Ligado` | `true` | Liga as ordens por texto. Desligado = nada é enviado ao modelo |
-| `BaseUrl` | `http://localhost:1234/v1` | Endpoint do LLM. `/chat/completions` é adicionado sozinho. **Recomendamos `http://127.0.0.1:1234/v1`** (veja **[LLM no LM Studio](LLM-no-LM-Studio)**) |
-| `Modelo` | `google/gemma-4-e4b` | Nome do modelo, como o servidor lista |
+| `BaseUrl` | `http://127.0.0.1:1234/v1` | Endpoint do LLM. `/chat/completions` é adicionado sozinho. Use **`127.0.0.1`** e **não** `localhost`: no Windows o `localhost` resolve primeiro para IPv6 e o servidor do LM Studio só escuta IPv4, o que custa ~**2,5 s** em cada ordem (veja **[LLM no LM Studio](LLM-no-LM-Studio)**) |
+| `Modelo` | `qwen2.5-3b-instruct` | Nome do modelo, como o servidor lista |
 | `ApiKey` | *(vazio)* | Chave de API, se o servidor pedir. Vazio para LM Studio/Ollama local |
 | `Temperatura` | `0.1` | O quanto o modelo improvisa. Mantenha baixo para a mesma ordem dar sempre o mesmo JSON |
 | `TimeoutSegundos` | `30` | Segundos de espera pelo modelo. O pedido roda em segundo plano |

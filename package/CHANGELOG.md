@@ -2,6 +2,15 @@
 
 Todas as mudanças deste projeto, derivado do Offline Companions, do ProfMags. As versões anteriores à 1.4.0 são o mod original (veja o histórico do mod original, do ProfMags, para essas versões) mais o primeiro lote de correções de compatibilidade com a API do Valheim 1.0 que fizeram o mod carregar e rodar. **As entradas abaixo de 1.5.4 são o histórico do upstream e ficam como estão (em inglês) — as nossas seções (a partir da 1.6.0) são nossas.**
 
+## 1.6.4 - 19/10/2026
+
+**Padroes do `[IA]` corretos e apresentacao como projeto independente.** Para quem ja configurou, nada muda no jogo:
+
+- **`[IA] BaseUrl` agora nasce `http://127.0.0.1:1234/v1`** (era `http://localhost:1234/v1`). No Windows o `localhost` resolve primeiro para IPv6 e o servidor do LM Studio so escuta IPv4 - cada ordem pagava cerca de 2,5 s de espera por causa disso. Quem ja tem o `.cfg` **nao** e afetado: o valor configurado continua valendo.
+- **`[IA] Modelo` agora nasce `qwen2.5-3b-instruct`** (era `google/gemma-4-e4b`) - o modelo medido em ~0,35-0,4 s por ordem com a saida estruturada.
+- O texto de ajuda do `BaseUrl` passou a explicar `127.0.0.1` vs `localhost`.
+- A documentacao (README, LEIA-ME, wiki e notas de release) deixa de se apresentar como "fork" e passa a "projeto independente baseado no Offline Companions Reborn". A atribuicao MIT continua obrigatoria e mantida.
+
 ## 1.6.3 — 17/10/2026
 
 **Reempacotado.** Nada muda no jogo:

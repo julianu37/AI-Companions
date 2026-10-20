@@ -85,16 +85,18 @@ vem do upstream e continua funcionando igual — a IA é só uma **nova entrada*
 | **Upstream (MIT)** | https://github.com/MaddhattrRocks/Offline-Companions-Reborn |
 | **Vídeo** | https://www.youtube.com/watch?v=40FnVEIbXyo |
 
-A release publicada mais recente é a **1.6.3**, com **dois** arquivos para escolher:
+A release publicada mais recente é a **1.6.4**, com **dois** arquivos para escolher:
 
 | Arquivo | Tamanho | O que vem |
 |---|---|---|
-| `ModAI_BR_Companions-1.6.3.zip` | ~367,9 MB | O mod **e** os modelos de voz (STT + TTS) já prontos |
-| `ModAI_BR_Companions-1.6.3-sem-modelos.zip` | ~28,4 MB | Só o mod e as traduções — você baixa os modelos por fora |
+| `ModAI_BR_Companions-1.6.4.zip` | ~367,9 MB | O mod **e** os modelos de voz (STT + TTS) já prontos |
+| `ModAI_BR_Companions-1.6.4-sem-modelos.zip` | ~28,4 MB | Só o mod e as traduções — você baixa os modelos por fora |
 
 > **Qual escolher?** Se você quer só instalar e usar, pegue o **completo**. Se a sua internet é lenta (ou você já
 > tem os modelos), pegue o **sem-modelos** e siga a seção de modelos em **[Instalação](Instalacao)**.
 
-> A **1.6.2** foi a release anterior. A **1.6.3** mudou **só o empacotamento** — nada muda no jogo: a pasta do mod
-> já vem como `BepInEx\plugins\ModAI-BR-Companions\` dentro do zip, então dá para extrair direto na pasta do
-> Valheim (ou deixar o gerenciador de mods instalar).
+> A **1.6.3** foi a release anterior (mudou **só o empacotamento**: a pasta do mod já vem como
+> `BepInEx\plugins\ModAI-BR-Companions\` dentro do zip, então dá para extrair direto na pasta do Valheim ou deixar
+> o gerenciador de mods instalar). A **1.6.4** mudou **só os padrões** da seção `[IA]` — nada muda no jogo para
+> quem já configurou: `BaseUrl` passou a `http://127.0.0.1:1234/v1` (em vez de `localhost`, que pagava ~2,5 s por
+> ordem no Windows) e `Modelo` passou a `qwen2.5-3b-instruct` (em vez de `google/gemma-4-e4b`).

@@ -37,12 +37,12 @@ Vá em **https://github.com/julianu37/ModAI-BR-Companions/releases** e baixe **u
 
 | Arquivo | Tamanho | Quando escolher |
 |---|---|---|
-| `ModAI_BR_Companions-1.6.3.zip` | ~367,9 MB | **Recomendado.** Já vem com os modelos de voz (STT + TTS). Instala e usa |
-| `ModAI_BR_Companions-1.6.3-sem-modelos.zip` | ~28,4 MB | Internet lenta, ou você já tem os modelos e quer baixá-los separado |
+| `ModAI_BR_Companions-1.6.4.zip` | ~367,9 MB | **Recomendado.** Já vem com os modelos de voz (STT + TTS). Instala e usa |
+| `ModAI_BR_Companions-1.6.4-sem-modelos.zip` | ~28,4 MB | Internet lenta, ou você já tem os modelos e quer baixá-los separado |
 
 > A diferença é **só** os modelos de voz. O mod e as traduções são os mesmos nos dois.
 >
-> *(A **1.6.2** foi a release anterior; a **1.6.3** mudou só o empacotamento.)*
+> *(A **1.6.3** foi a release anterior, de empacotamento; a **1.6.4** mudou só os padrões da seção `[IA]`.)*
 
 ---
 
@@ -138,13 +138,13 @@ O guia completo está em **[LLM no LM Studio](LLM-no-LM-Studio)**. Em resumo:
 3. Procure estas duas linhas:
 
 ```
-ModAI-BR-Companions v1.6.3 loading...
+ModAI-BR-Companions v1.6.4 loading...
 ModAI-BR-Companions loaded successfully! (N methods patched)
 ```
 
 Se elas aparecerem, o mod carregou.
 
-> O `v1.6.3` é a **versão que você instalou** (o número do zip que você baixou) e o `N` é quantos métodos do jogo
+> O `v1.6.4` é a **versão que você instalou** (o número do zip que você baixou) e o `N` é quantos métodos do jogo
 > o mod ajustou — esse número pode mudar de uma versão para outra.
 
 > **É normal** ver um erro de **PlayFab / NullReferenceException** no boot — ele **não** é do mod e não impede
@@ -171,7 +171,7 @@ Para ver todas as teclas e ordens, vá em **[Comandos](Comandos)**.
 
 - [ ] Valheim 1.0.x instalado
 - [ ] BepInEx 5.4.2351 extraído na raiz do jogo
-- [ ] Release **1.6.3** baixada (o pacote completo ou o sem-modelos)
+- [ ] Release **1.6.4** baixada (o pacote completo ou o sem-modelos)
 - [ ] Pasta `BepInEx\plugins\ModAI-BR-Companions\` criada com o `Companions.dll` e as dependências
 - [ ] Modelos de voz em `whisper\` e `tts\kokoro\`
 - [ ] LM Studio com o modelo carregado e o Local Server ligado na porta 1234

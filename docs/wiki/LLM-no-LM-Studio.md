@@ -72,8 +72,8 @@ SaidaEstruturada = true
 
 | Chave | Valor | Por quê |
 |---|---|---|
-| `BaseUrl` | `http://127.0.0.1:1234/v1` | Endereço do servidor do LM Studio. O `/chat/completions` é adicionado sozinho |
-| `Modelo` | `qwen2.5-3b-instruct` | O **API Model Identifier** que o LM Studio mostra |
+| `BaseUrl` | `http://127.0.0.1:1234/v1` | Endereço do servidor do LM Studio — **já é o padrão**. O `/chat/completions` é adicionado sozinho |
+| `Modelo` | `qwen2.5-3b-instruct` | O **API Model Identifier** que o LM Studio mostra — **já é o padrão** |
 | `ApiKey` | *(vazio)* | O LM Studio local não pede chave |
 | `SaidaEstruturada` | `true` | Pede o formato JSON ao servidor — é o que faz modelos pequenos funcionarem |
 
@@ -84,14 +84,15 @@ SaidaEstruturada = true
 
 ## 6. `127.0.0.1` vs `localhost` — use o IP
 
-O padrão do mod é `http://localhost:1234/v1`, e ele **funciona** — mas custa caro.
+O padrão do mod **já é** `http://127.0.0.1:1234/v1` (IPv4), então uma instalação nova não tem esse problema.
+Só se o seu `.cfg` veio de uma versão anterior e ainda está com `http://localhost:1234/v1` é que vale trocar.
 
 > **No Windows, o `localhost` resolve primeiro para o IPv6 (`::1`)**. O servidor do LM Studio só escuta **IPv4**,
 > então cada requisição tenta o IPv6 primeiro, espera o tempo limite e **só depois** cai para o IPv4. Isso
 > adiciona cerca de **2,5 s de pedágio em cada ordem**.
 
-Usando o endereço explícito **`http://127.0.0.1:1234/v1`** (IPv4), a resposta volta direto. **É por isso que
-recomendamos trocar `localhost` por `127.0.0.1`.**
+Com o endereço explícito **`http://127.0.0.1:1234/v1`** (IPv4), a resposta volta direto — é por isso que ele é o
+padrão desde a **1.6.4**. O texto de ajuda do `BaseUrl` no `.cfg` (e no painel `F8`) também explica a diferença.
 
 ---
 
