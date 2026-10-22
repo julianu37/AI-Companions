@@ -41,6 +41,13 @@ internal sealed class TtsRequest
 	internal string Text;
 
 	/// <summary>
+	/// The voice of this line, resolved on the <b>main thread</b> when the line is queued (0 = use
+	/// <c>[IA] TtsVoz</c>). Fase 3.10: a companion may have its own voice in its ZDO (<see cref="CompanionProfile"/>),
+	/// and the ZDO must never be read from the synthesis thread.
+	/// </summary>
+	internal int Voice;
+
+	/// <summary>
 	/// May the sentences of this line be kept in the cache? True for the mod's own lines (they repeat word for
 	/// word, which is what the cache is for) and false for the model's replies (new every time - caching them
 	/// would push the fixed lines out and grow the heap, see <see cref="MaxCacheBytes"/>).
@@ -408,6 +415,9 @@ internal static class CompanionTts
 				+ "aparece no chat e a que sai em voz; a outra so vai para o log (nada e falado duas vezes).");
 			CompanionsPlugin.Log?.LogInfo($"[TTS] Vozes em portugues do Brasil deste modelo: 42 = pf_dora (feminina), 43 = pm_alex (masculina), "
 				+ "44 = pm_santa (masculina). As outras sao de outros idiomas (45 soa chines).");
+			CompanionsPlugin.Log?.LogInfo("[TTS] Voz padrao (aba IA do painel, e de quem nao tem voz propria): " + Voice
+				+ ". Fase 3.10: cada companheiro pode ter a SUA voz, guardada no ZDO dele (aba dele no painel, e o painel do primeiro "
+				+ "companheiro) - a voz e resolvida na hora da fala e entra na chave do cache, entao cada voz tem o seu audio.");
 			if (!IsPortugueseVoice(Voice))
 			{
 				CompanionsPlugin.Log?.LogInfo($"[TTS] A voz {Voice} nao e uma das vozes pt-BR (42/43/44) - o companheiro vai falar com sotaque de outro idioma.");
@@ -508,19 +518,33 @@ internal static class CompanionTts
 
 	/// <summary>
 	/// The companion says something. Called on the main thread (from the AI layer); returns immediately - the line is
-	/// queued and synthesized on the background worker.
+	/// queued and synthesized on the background worker. Fase 3.10: the line is spoken with <b>this companion's</b>
+	/// voice (<see cref="CompanionProfile.GetVoice"/>), which is <c>[IA] TtsVoz</c> when it has none of its own.
 	/// </summary>
 	internal static void Speak(CompanionSetup companion, string text, bool cacheable = true)
 	{
-		Speak(companion != null ? companion.gameObject : null, text, cacheable);
+		Speak(companion != null ? companion.gameObject : null, text, cacheable,
+			companion != null ? CompanionProfile.GetVoice(companion) : 0);
 	}
 
 	/// <summary>
 	/// Same, for whoever is talking (a companion, or the player for the console test). <paramref name="talker"/> is
 	/// only used to place the 3D sound, so null is accepted (the sound then stays where it was).
 	/// <paramref name="cacheable"/> is false for the model's own replies (see <see cref="TtsRequest.Cacheable"/>).
+	/// The voice is <c>[IA] TtsVoz</c>: a caller that knows the companion (its tab in the panel, the starter preview)
+	/// passes the voice itself through <see cref="Speak(GameObject, string, bool, int)"/>.
 	/// </summary>
 	internal static void Speak(GameObject talker, string text, bool cacheable = true)
+	{
+		Speak(talker, text, cacheable, 0);
+	}
+
+	/// <summary>
+	/// Same, with the voice of the line decided by the caller: <paramref name="voice"/> 0 means "the default"
+	/// (<c>[IA] TtsVoz</c>), which is also what a caller that does not care passes. Used by the panels, whose
+	/// "Ouvir" has to preview the voice of the context - the companion's own on its tab, the global one on the AI tab.
+	/// </summary>
+	internal static void Speak(GameObject talker, string text, bool cacheable, int voice)
 	{
 		// after Shutdown the worker is gone: queueing here would leave the line in the queue forever (and the
 		// pending counter with it)
@@ -558,11 +582,13 @@ internal static class CompanionTts
 			CompanionsPlugin.Log?.LogInfo($"[TTS] Ja ha {MaxPendingRequests} falas na fila - esta foi descartada: \"{trimmed}\"");
 			return;
 		}
+		int lineVoice = Mathf.Max(0, voice);
 		_requests.Enqueue(new TtsRequest
 		{
 			Speaker = talker,
 			Text = trimmed,
-			Cacheable = cacheable
+			Cacheable = cacheable,
+			Voice = lineVoice
 		});
 		EnsureWorker();
 		try
@@ -573,7 +599,8 @@ internal static class CompanionTts
 		{
 			// impossible with the default max, but a dropped line must never throw at the caller
 		}
-		CompanionsPlugin.Log?.LogInfo($"[TTS] Fala enfileirada: \"{trimmed}\" ({Volatile.Read(ref _pending)} pedido(s) na fila).");
+		CompanionsPlugin.Log?.LogInfo($"[TTS] Fala enfileirada: \"{trimmed}\" (voz {(lineVoice > 0 ? lineVoice.ToString() : "padrao " + Voice)}, "
+			+ $"{Volatile.Read(ref _pending)} pedido(s) na fila).");
 	}
 
 	/// <summary>
@@ -743,7 +770,7 @@ internal static class CompanionTts
 			return;
 		}
 		int job = Interlocked.Increment(ref _jobs);
-		int voice = EffectiveVoice(tts);
+		int voice = EffectiveVoice(tts, request.Voice > 0 ? request.Voice : Voice);
 		float speed = Speed;
 		bool cache = CacheEnabled && request.Cacheable;
 		string[] sentences = SplitSentences(request.Text);
@@ -870,12 +897,13 @@ internal static class CompanionTts
 	}
 
 	/// <summary>
-	/// The voice actually used: <c>[IA] TtsVoz</c>, but never outside the loaded model - a speaker id the model does
-	/// not have would make the native call fail. <see cref="DefaultVoice"/> (pf_dora) is the fallback.
+	/// The voice actually used: the one the line carries (a companion's own voice, Fase 3.10) or <c>[IA] TtsVoz</c>,
+	/// but never outside the loaded model - a speaker id the model does not have would make the native call fail.
+	/// <see cref="DefaultVoice"/> (pf_dora) is the fallback.
 	/// </summary>
-	private static int EffectiveVoice(OfflineTts tts)
+	private static int EffectiveVoice(OfflineTts tts, int wanted)
 	{
-		int voice = Voice;
+		int voice = wanted;
 		if (tts != null && (voice < 0 || voice >= tts.NumSpeakers))
 		{
 			return tts.NumSpeakers > DefaultVoice ? DefaultVoice : 0;
@@ -2018,8 +2046,17 @@ internal static class CompanionTts
 		{
 			talker = Player.m_localPlayer.gameObject;
 		}
-		CompanionsPlugin.Log?.LogInfo($"[TTS] Teste do TTS pelo comando de console: \"{text}\"");
-		Speak(talker, text);
+		CompanionsPlugin.Log?.LogInfo($"[TTS] Teste do TTS pelo comando de console: \"{text}\""
+			+ (speaker != null ? $" (voz do companheiro mais proximo: {CompanionProfile.GetVoice(speaker)})" : $" (voz padrao: {Voice})"));
+		// Fase 3.10: with a companion next to the player the test speaks in ITS voice, like a normal line does
+		if (speaker != null)
+		{
+			Speak(speaker, text);
+		}
+		else
+		{
+			Speak(talker, text);
+		}
 	}
 
 	// ---------------------------------------------------------------- native entry points

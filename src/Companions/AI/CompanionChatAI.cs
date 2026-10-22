@@ -148,6 +148,9 @@ internal static class CompanionChatAI
 		// Fase 3.5: personality, memory and free conversation
 		CompanionsPlugin.Log?.LogInfo($"[IA] Personality: {CompanionPersona.Describe()} (presets: {CompanionPersona.Ids()}); "
 			+ $"memory: {CompanionMemory.Exchanges} exchange(s) per companion; conversation: {ConversationEnabled}");
+		CompanionsPlugin.Log?.LogInfo("[IA] Fase 3.10: a personalidade e a voz acima sao o PADRAO. Cada companheiro pode ter a sua, "
+			+ "guardada no ZDO dele (aba do companheiro no painel da IA, e o painel do primeiro companheiro) - quem nao tem nada "
+			+ "proprio segue exatamente estes valores.");
 	}
 
 	/// <summary>Called every frame from the plugin's Update: applies finished orders. Never blocks, never allocates when idle.</summary>
@@ -275,7 +278,9 @@ internal static class CompanionChatAI
 		_pendingKey = KeyFor(speaker, _pendingName);
 
 		Notify(ModLocalization.Loc("hc_ai_thinking"));
-		LlmClient.Request(message, BuildPrompt(_pendingName, CompanionPersona.Resolve(), _pendingKey));
+		// Fase 3.10: the personality of the companion being talked to - its own when the player gave it one, the
+		// global [IA] one otherwise (CompanionProfile is the single place that decides)
+		LlmClient.Request(message, BuildPrompt(_pendingName, CompanionProfile.PersonaText(speaker), _pendingKey));
 		return true;
 	}
 

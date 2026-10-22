@@ -224,18 +224,24 @@ internal static class ReturnLogic
 		}
 	}
 
-	internal static void Trigger(Component setupComp, GameObject playerGO)
+	/// <summary>
+	/// Starts the walk-in recall of one companion (the command key runs this for everyone in scope). Fase 3.9: it
+	/// returns whether it <b>really</b> started - it refuses to touch a companion that isn't in Follow mode, has
+	/// Follow switched off, or is beyond the safe chase range (there it only leaves its name on the waiting list),
+	/// and the AI panel's "Chamar" button has to say so instead of claiming the companion is coming.
+	/// </summary>
+	internal static bool Trigger(Component setupComp, GameObject playerGO)
 	{
 		try
 		{
 			if (setupComp == null || playerGO == null)
 			{
-				return;
+				return false;
 			}
 			if (!IsInFollowMode(setupComp))
 			{
 				Log("[Return] skipped for \"" + setupComp.name + "\" - not currently set to Follow, left alone");
-				return;
+				return false;
 			}
 			// 1.5.3: mode 0 with the Follow toggle off is "stay where it is", not following (user: "The NPC was following me
 			// even though follow was off" - Return switched follow on at load and never put it back)
@@ -243,7 +249,7 @@ internal static class ReturnLogic
 			if (csFollow != null && !csFollow.GetFollow())
 			{
 				Log("[Return] skipped for \"" + setupComp.name + "\" - Follow is off, left alone");
-				return;
+				return false;
 			}
 			int instanceID = setupComp.GetInstanceID();
 			_partyFollowActive[instanceID] = false;
@@ -295,14 +301,14 @@ internal static class ReturnLogic
 			catch (Exception)
 			{
 			}
-			if (num > 60f)
+			if (num > MaxChaseDistance)
 			{
 				if (_pendingSince[instanceID] == null)
 				{
 					_pendingSince[instanceID] = Time.time;
 				}
 				Log("[Return] \"" + setupComp.name + "\" is " + num.ToString("F0") + "m away - beyond safe chase range, waiting to walk in or be recalled.");
-				return;
+				return false;
 			}
 			_pendingSince.Remove(instanceID);
 			Component component = setupComp.GetComponent("CompanionAI");
@@ -387,11 +393,60 @@ internal static class ReturnLogic
 				}
 			}
 			Log("[Return] triggered for \"" + setupComp.name + "\"" + ((!flag2) ? "" : " - disengaged current fight (safe)"));
+			return true;
 		}
 		catch (Exception ex8)
 		{
 			Log("[Return] Trigger failed: " + ex8.Message);
 		}
+		return false;
+	}
+
+	/// <summary>
+	/// Fase 3.9: the "Chamar" button of the AI panel - brings <b>one</b> companion over through the recall machinery
+	/// the command key already uses, never through a new teleport of its own.
+	///
+	/// <para>Inside the safe chase range this is the normal walk-in (<see cref="Trigger"/>, which also keeps pulling
+	/// the companion until it is back within 18 m); further away than that <see cref="Trigger"/> would only set the
+	/// "waiting" timer, so the button runs the same <see cref="DoTeleportRecall"/> that timer runs after 87 s - with a
+	/// tighter radius, because the player asked for the companion to come to them. The caller is expected to have
+	/// taken control of the companion and set it to Follow first (that is what the come-to-me key does too, see
+	/// <c>CompanionInteract.RecallOne</c>), or <see cref="Trigger"/> would leave it alone by design.</para>
+	///
+	/// <para>The result is the real one, not a hopeful <c>true</c>: a teleport that could not run (this game isn't the
+	/// owner of the companion yet - the ownership request of a multiplayer session takes a moment) returns false, and
+	/// so does a walk-in that <see cref="Trigger"/> refused to start. The button's line depends on it.</para>
+	/// </summary>
+	internal static bool RecallToPlayer(Component setupComp, Player player)
+	{
+		if (setupComp == null || player == null)
+		{
+			return false;
+		}
+		float distance;
+		try
+		{
+			distance = Vector3.Distance(setupComp.transform.position, player.transform.position);
+		}
+		catch (Exception)
+		{
+			return false;
+		}
+		if (distance > MaxChaseDistance)
+		{
+			// the same teleport the 87 s timer runs, asked for now and ending closer (the companion walks the rest).
+			// It only runs where this game owns the companion; when it can't (the ownership request of a multiplayer
+			// session is still on its way, for instance) the walk-in below would only leave the companion on the
+			// "waiting" list, so the button reports the failure instead of claiming the companion is coming.
+			if (!DoTeleportRecall(setupComp, player, setupComp.GetInstanceID(), CloseRange * 2f,
+				"was called from the AI panel at " + distance.ToString("F0") + "m"))
+			{
+				return false;
+			}
+		}
+		// the walk-in is the success case of the near companion - and the bool is the truth: Trigger refuses a
+		// companion that isn't following or that moved out of range in the meantime
+		return Trigger(setupComp, player.gameObject);
 	}
 
 	private static bool IsInFollowMode(Component setupComp)
@@ -607,7 +662,27 @@ internal static class ReturnLogic
 		}
 	}
 
-	private static void DoTeleportRecall(Component setupComp, Player p, int id)
+	private static bool DoTeleportRecall(Component setupComp, Player p, int id)
+	{
+		return DoTeleportRecall(setupComp, p, id, TeleportRadius,
+			"was unreachable too long (" + TeleportGraceSeconds.ToString("F0") + "s)");
+	}
+
+	/// <summary>
+	/// The teleport recall itself: puts the companion down next to the player (within <paramref name="radius"/>,
+	/// snapped to the floor), moves its ZDO with it, hides its map pin for a moment and points it back at the player
+	/// with one of the <see cref="Greetings"/>. It only runs where this game owns the companion
+	/// (<c>ZNetView.IsOwner</c>) - the same condition the 87 s timer has always had.
+	///
+	/// <para>Fase 3.9: the radius and the reason of the log are parameters now, because the AI panel's "Chamar"
+	/// button asks for the very same recall with a tighter radius (the player asked for the companion to come to
+	/// them, not to 30 m away). The old 87 s timer keeps 30 m and its own line.</para>
+	///
+	/// <para>And it <b>returns</b> what happened: <c>true</c> only when the teleport really ran. The ownership check
+	/// below is a real early exit (a companion run by another player's game, or an ownership request still on its
+	/// way), so the button that asked for it must not treat that as a success.</para>
+	/// </summary>
+	private static bool DoTeleportRecall(Component setupComp, Player p, int id, float radius, string reason)
 	{
 		try
 		{
@@ -638,7 +713,8 @@ internal static class ReturnLogic
 			}
 			if (!flag)
 			{
-				return;
+				Log("[Return] \"" + setupComp.name + "\" is run by another player's game - the teleport recall was not run here");
+				return false;
 			}
 			if (_managerType == null)
 			{
@@ -658,7 +734,7 @@ internal static class ReturnLogic
 						vector = (Vector3)_findSpawnPosM.Invoke(null, new object[2]
 						{
 							p.transform.position,
-							30f
+							radius
 						});
 					}
 				}
@@ -748,11 +824,13 @@ internal static class ReturnLogic
 					}
 				}
 			}
-			Log("[Return] \"" + setupComp.name + "\" was unreachable too long (" + 87f.ToString("F0") + "s) - recalled to near the player and walking in.");
+			Log("[Return] \"" + setupComp.name + "\" " + reason + " - recalled to near the player and walking in.");
+			return true;
 		}
 		catch (Exception ex7)
 		{
 			Log("[Return] teleport recall failed: " + ex7.Message);
 		}
+		return false;
 	}
 }

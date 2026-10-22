@@ -49,6 +49,17 @@ public class CompanionTombstoneResurrect : MonoBehaviour
 
 	internal static readonly int RespawnInventoryHash = "HC_Respawn_Inventory".GetStableHashCode();
 
+	// Fase 3.10: the AI profile of the companion (the voice it speaks with and the personality it answers in, see
+	// CompanionProfile) travels with the tombstone, like the appearance and the name - a companion that dies and is
+	// brought back speaks and answers like itself instead of falling back to the [IA] defaults.
+	internal static readonly int RespawnAiVoiceHash = "HC_Respawn_AiVoice".GetStableHashCode();
+
+	internal static readonly int RespawnAiPersonaSetHash = "HC_Respawn_AiPersonaSet".GetStableHashCode();
+
+	internal static readonly int RespawnAiPresetHash = "HC_Respawn_AiPreset".GetStableHashCode();
+
+	internal static readonly int RespawnAiPersonaTextHash = "HC_Respawn_AiPersona".GetStableHashCode();
+
 	private const float ResurrectDuration = 7f;
 
 	private const float InteractRange = 3f;
@@ -186,6 +197,44 @@ public class CompanionTombstoneResurrect : MonoBehaviour
 		tombZdo.Set(RespawnBedPosHash, homeBedPos);
 		tombZdo.Set(RespawnInventoryHash, inventorySerialized);
 		tombZdo.Set(MHR_RespawnTracker.RespawnAtHash, MHR_RespawnTracker.ComputeRespawnAt());
+	}
+
+	/// <summary>
+	/// Fase 3.10: copies the AI profile from the companion's ZDO to the tombstone's. Written with the rest of the
+	/// respawn data (same place, same owner) and read back by <see cref="ReadAiProfile"/>. Nothing is copied for a
+	/// companion that has no profile of its own - it keeps following <c>[IA]</c> after coming back, exactly as it did
+	/// before dying.
+	/// </summary>
+	internal static void WriteAiProfile(ZDO tombZdo, ZDO companionZdo)
+	{
+		if (tombZdo == null || companionZdo == null)
+		{
+			return;
+		}
+		tombZdo.Set(RespawnAiVoiceHash, companionZdo.GetInt(CompanionProfile.VoiceHash, 0));
+		tombZdo.Set(RespawnAiPersonaSetHash, companionZdo.GetBool(CompanionProfile.PersonaSetHash, false));
+		tombZdo.Set(RespawnAiPresetHash, companionZdo.GetString(CompanionProfile.PresetHash, "") ?? "");
+		tombZdo.Set(RespawnAiPersonaTextHash, companionZdo.GetString(CompanionProfile.PersonaTextHash, "") ?? "");
+	}
+
+	/// <summary>The other half of <see cref="WriteAiProfile"/>: gives the resurrected companion its profile back.</summary>
+	internal static void ReadAiProfile(ZDO tombZdo, ZDO companionZdo)
+	{
+		if (tombZdo == null || companionZdo == null)
+		{
+			return;
+		}
+		int voice = tombZdo.GetInt(RespawnAiVoiceHash, 0);
+		if (voice > 0)
+		{
+			companionZdo.Set(CompanionProfile.VoiceHash, voice);
+		}
+		if (tombZdo.GetBool(RespawnAiPersonaSetHash, false))
+		{
+			companionZdo.Set(CompanionProfile.PresetHash, tombZdo.GetString(RespawnAiPresetHash, "") ?? "");
+			companionZdo.Set(CompanionProfile.PersonaTextHash, tombZdo.GetString(RespawnAiPersonaTextHash, "") ?? "");
+			companionZdo.Set(CompanionProfile.PersonaSetHash, true);
+		}
 	}
 
 	private void Awake()
@@ -341,6 +390,8 @@ public class CompanionTombstoneResurrect : MonoBehaviour
 		zDO2.Set(CompanionSetup.AppearanceHash, text3);
 		zDO2.Set(CompanionSetup.OwnerHash, text4);
 		zDO2.Set(CompanionSetup.NameHash, text2);
+		// Fase 3.10: the voice and the personality it had before dying (nothing is written when it had none)
+		ReadAiProfile(tombZdo, zDO2);
 		int value = tombZdo.GetInt(RespawnActionModeHash);
 		int value2 = tombZdo.GetInt(RespawnActionSchemaHash);
 		bool flag = tombZdo.GetBool(RespawnFollowHash, defaultValue: true);

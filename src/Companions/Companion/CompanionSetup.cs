@@ -30,6 +30,19 @@ public class CompanionSetup : MonoBehaviour
 
 	internal static readonly int NameHash = "HC_Name".GetStableHashCode();
 
+	// Fase 3.10: the AI profile of this companion - the voice it speaks with and the personality it answers in, kept
+	// in its own ZDO so several companions of the same player no longer talk and behave alike (see
+	// AI/CompanionProfile.cs, which reads and writes them). Every key means "the player chose this for THIS
+	// companion": a zero headcount/absent value is "follow the [IA] defaults", which is what an old save and every
+	// companion spawned without a choice have. Written by the owner only, like every other key here.
+	internal static readonly int AiVoiceHash = "HC_AiVoice".GetStableHashCode();
+
+	internal static readonly int AiPersonaSetHash = "HC_AiPersonaSet".GetStableHashCode();
+
+	internal static readonly int AiPresetHash = "HC_AiPreset".GetStableHashCode();
+
+	internal static readonly int AiPersonaTextHash = "HC_AiPersona".GetStableHashCode();
+
 	internal static readonly int ActionModeHash = "HC_ActionMode".GetStableHashCode();
 
 	internal static readonly int ActionModeSchemaHash = "HC_ActionModeSchema".GetStableHashCode();
@@ -384,6 +397,13 @@ public class CompanionSetup : MonoBehaviour
 		return (_nview?.GetZDO()?.GetInt(CombatStanceHash)).GetValueOrDefault();
 	}
 
+	/// <summary>
+	/// How many places the ring around the player has (Fase 3.9: it used to be 8, so the 9th companion and everyone
+	/// after it shared slot 0 - one on top of the other). <see cref="CompanionAI"/> lays the slots out by angle: 0-3
+	/// beside the player, 4-7 just behind, 8-31 on a wider ring (see its <c>GetFormationOffset</c>).
+	/// </summary>
+	private const int FormationSlotCount = 32;
+
 	internal int AssignFormationSlot()
 	{
 		ZDO zDO = _nview?.GetZDO();
@@ -419,7 +439,7 @@ public class CompanionSetup : MonoBehaviour
 				}
 			}
 		}
-		for (int i = 0; i < 8; i++)
+		for (int i = 0; i < FormationSlotCount; i++)
 		{
 			if (!hashSet.Contains(i))
 			{
@@ -427,6 +447,10 @@ public class CompanionSetup : MonoBehaviour
 				return i;
 			}
 		}
+		// every place of the ring is taken (33+ companions): sharing the first one is the only option left, and it is
+		// said out loud so it is not mistaken for the bug of the old 8-slot loop
+		CompanionsPlugin.Log.LogWarning("[Setup] Formation: all " + FormationSlotCount + " places are taken - \""
+			+ zDO.GetString(NameHash, "Companion") + "\" shares slot 0");
 		zDO.Set(FormationSlotHash, 0);
 		return 0;
 	}
@@ -1758,6 +1782,9 @@ public class CompanionSetup : MonoBehaviour
 				zDO.Set(MHR_TombItemsHash, inventory4.NrOfItems());
 			}
 			CompanionTombstoneResurrect.WriteRespawnData(zDO, prefabName, companionName, appearance, ownerId, actionMode, actionModeSchema, follow, stayHome, autoPickup, wander, commandable, formationSlot, skillsSerialized, hasHome, homePos, combatStance, hasHomeBed, homeBedPos, inventorySerialized);
+			// Fase 3.10: the AI profile (voice and personality) of this companion goes with the respawn data, so the
+			// companion that comes back is the same one in the way it talks - see CompanionTombstoneResurrect.
+			CompanionTombstoneResurrect.WriteAiProfile(zDO, _nview?.GetZDO());
 			// 1.4.150: also whether its job had turned Follow off (so turning the job off after a respawn turns it back on)
 			zDO.Set(CompanionTombstoneResurrect.RespawnFollowPausedHash, _nview?.GetZDO()?.GetBool(CompanionTombstoneResurrect.FollowPausedByJobHash) ?? false);
 			// 1.5.1: which copy of the companion this is - a tombstone of an older copy (the companion was recovered since) won't respawn it

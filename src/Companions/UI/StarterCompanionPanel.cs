@@ -81,7 +81,10 @@ public class StarterCompanionPanel : MonoBehaviour
 		component2.anchorMin = new Vector2(0.5f, 0.5f);
 		component2.anchorMax = new Vector2(0.5f, 0.5f);
 		component2.pivot = new Vector2(0.5f, 0.5f);
-		component2.sizeDelta = new Vector2(920f, 560f);
+		// Fase 3.10: 660 instead of 560 - the middle column now carries the AI section (voice, "Ouvir", personality)
+		// in a fixed band above "Invocar", and the description above it was raised by the same amount so it keeps
+		// roughly the room it had (it scrolls, so a long text is never cut)
+		component2.sizeDelta = new Vector2(920f, 660f);
 		Image component3 = _container.GetComponent<Image>();
 		Sprite panelBgSprite = GetPanelBgSprite();
 		if (panelBgSprite != null)
@@ -104,7 +107,7 @@ public class StarterCompanionPanel : MonoBehaviour
 		};
 		_panel.OnSpawnConfirmed = OnConfirm;
 		float num = 920f;
-		float panelHeight = 560f;
+		float panelHeight = 660f;
 		float num2 = 6f;
 		float num3 = 6f;
 		float num4 = (num - num2 * 2f - num3 * 2f) / 3f;
@@ -154,8 +157,14 @@ public class StarterCompanionPanel : MonoBehaviour
 
 	private void OnConfirm(CompanionAppearance appearance)
 	{
-		CompanionManager.SpawnStarterWithAppearance(appearance);
-		CompanionsPlugin.Log.LogInfo("[StarterPanel] Companion spawned — closing panel");
+		// Fase 3.10: the AI choices of the panel (voice + personality) go to the companion that is being born; the
+		// draft is written to its ZDO in the spawn, next to the name and the appearance
+		CompanionAiDraft aiDraft = _panel?.AiDraft();
+		CompanionManager.SpawnStarterWithAppearance(appearance, aiDraft);
+		CompanionsPlugin.Log.LogInfo("[StarterPanel] Companion spawned — closing panel"
+			+ (aiDraft != null && !aiDraft.IsEmpty
+				? $" (AI profile: voice {(aiDraft.Voice > 0 ? aiDraft.Voice.ToString() : "default")}, personality {(aiDraft.HasPersona ? "\"" + aiDraft.Preset + "\"" : "default")})"
+				: " (AI profile: the [IA] defaults)"));
 		Close();
 	}
 
@@ -242,6 +251,12 @@ public class StarterCompanionPanel : MonoBehaviour
 		}
 		if (Input.GetKeyDown(KeyCode.Escape) || ZInput.GetButtonDown("JoyBack"))
 		{
+			// Fase 3.10: a player typing the personality loses the text box first, and Esc only closes the panel on
+			// the next press (the same order the AI panel uses)
+			if (_panel != null && _panel.ReleaseTextFocus())
+			{
+				return;
+			}
 			CompanionsPlugin.Log.LogInfo("[StarterPanel] Skipped — will re-appear next session");
 			Close();
 		}

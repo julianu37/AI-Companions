@@ -83,7 +83,7 @@ public static class ModLocalization
 			{ "hc_ui_btn_companion", "Companion" },
 			{ "hc_ui_btn_dverger", "Dverger" },
 			{ "hc_ui_beard_none", "None" },
-			{ "hc_ui_desc_starter", "A loyal companion will join you on your journey. Customise their appearance on the left, then spawn them into the world.\n\nThey will follow you, fight by your side, and carry supplies. Equip them with gear and keep them fed to stay battle-ready.\n\nPress Escape to skip — the panel will appear again next session." },
+			{ "hc_ui_desc_starter", "A loyal companion will join you on your journey. Customise their appearance on the left, pick their voice and personality in the AI section, then spawn them into the world.\n\nThey will follow you, fight by your side, and carry supplies. Equip them with gear and keep them fed to stay battle-ready.\n\nPress Escape to skip — the panel will appear again next session." },
 			{ "hc_ui_desc_trader", "Hire a loyal companion to join your journey. They will follow you across the world and fight by your side against any threat.\n\nEach companion has their own health, stamina and inventory. You will need to equip them with gear and keep them fed to stay battle-ready.\n\nInteract with your companion to open their panel, where you can manage their equipment and issue commands.\n\nCustomise their appearance on the left, then confirm your purchase." },
 			{ "hc_ui_placeholder_name", "Enter name..." },
 			{ "hc_ui_label_food", "Food" },
@@ -137,6 +137,9 @@ public static class ModLocalization
 			{ "hc_msg_location_spawn", "the world spawn" },
 			{ "hc_msg_starter_joined", "A companion has joined you on your journey!" },
 			{ "hc_msg_name_default", "Companion" },
+			// Fase 3.9: the default name of a newly spawned companion when one already answers to the tier's name
+			// ("Guerreiro" -> "Guerreiro 2"). Visible text, so it lives here like every other name.
+			{ "hc_msg_name_numbered", "{0} {1}" },
 			{ "hc_menu_mod_options", "Mod Options" },
 			{ "hc_minimap_grave", "Grave" },
 			{ "hc_msg_sleep_waiting", "Waiting for {0} to sleep..." },
@@ -465,10 +468,37 @@ public static class ModLocalization
 			// the footer summary is built from these two lines (the block is two lines tall) - see RefreshStatus
 			{ "hc_ai_panel_status_personality", "Personality: {0}" },
 			{ "hc_ai_panel_status_voice", "Voice: {0}  \u2022  Push-to-talk: {1}" },
+			// Fase 3.9: the tabs and the summoner of the AI panel (see UI/CompanionAiPanel.cs). The tab of every
+			// companion carries the companion's own name, which is not a key - only the AI tab has one.
+			{ "hc_ai_tab_main", "AI" },
+			{ "hc_ai_spawn_title", "Summon a companion" },
+			{ "hc_ai_spawn_tier", "Tier" },
+			{ "hc_ai_spawn_button", "Summon" },
+			{ "hc_ai_spawn_count", "Companions: {0}" },
+			{ "hc_ai_spawn_failed", "I couldn't summon a companion right now (see the log)." },
+			{ "hc_ai_comp_name", "Name" },
+			{ "hc_ai_comp_tier", "Tier" },
+			{ "hc_ai_comp_tier_unknown", "Unknown" },
+			{ "hc_ai_comp_status", "Status" },
+			{ "hc_ai_comp_alive", "Alive" },
+			{ "hc_ai_comp_dead", "Dead" },
+			{ "hc_ai_comp_recall", "Call" },
+			{ "hc_ai_comp_recall_ok", "{0} is on the way." },
+			{ "hc_ai_comp_recall_failed", "I couldn't call {0} (see the log)." },
+			{ "hc_ai_comp_gone", "That companion isn't here anymore." },
+			{ "hc_ai_comp_hint", "Call brings the companion over to you: it walks in, and if it is too far away it comes back through the game's own recall." },
 			{ "hc_ai_voice_42", "pf_dora (feminine)" },
 			{ "hc_ai_voice_43", "pm_alex (masculine)" },
 			{ "hc_ai_voice_44", "pm_santa (masculine)" },
-			{ "hc_ai_voice_other", "voice {0} (another language)" }
+			{ "hc_ai_voice_other", "voice {0} (another language)" },
+			// Fase 3.10: voice and personality of ONE companion (its own ZDO), with the [IA] values as the default.
+			// Used by the companion tab of the AI panel and by the starter panel's "AI" section.
+			{ "hc_ai_profile_title", "Companion AI" },
+			{ "hc_ai_profile_inherit", "Follow the [IA] default" },
+			{ "hc_ai_profile_inherited", "{0} (default)" },
+			{ "hc_ai_profile_hint", "Voice and personality belong to this companion: left unset, it follows the [IA] settings (AI tab)." },
+			{ "hc_ai_comp_profile_title", "Voice and personality of this companion" },
+			{ "hc_ai_profile_save_failed", "I couldn't save the companion's profile (its data is not under my control right now). Try again in a moment." }
 		};
 	}
 

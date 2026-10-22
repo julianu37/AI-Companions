@@ -97,6 +97,35 @@ public class CompanionPanel
 
 	private GameObject _bankDisplayGO;
 
+	// ------------------------------------------------------------------ Fase 3.10: the AI section of the starter panel
+	//
+	// The voice and the personality of the companion that is about to be born. They cannot be written anywhere yet
+	// (the companion does not exist while this panel is open), so they are kept here and handed to the spawn as a
+	// CompanionAiDraft - see AiDraft(). The first entry of both pickers is "follow the [IA] default", which writes
+	// nothing: the companion then follows the global values, including any change made later.
+
+	private const float AiRowH = 32f;
+
+	private const float AiGap = 4f;
+
+	private TextMeshProUGUI _aiVoiceValue;
+
+	private TextMeshProUGUI _aiPresetValue;
+
+	private TMP_InputField _aiFreeText;
+
+	private int _aiVoiceIndex;
+
+	private int _aiPresetIndex;
+
+	private int[] _aiVoiceIds;
+
+	private string[] _aiVoiceLabels;
+
+	private string[] _aiPresetIds;
+
+	private string[] _aiPresetLabels;
+
 	private static readonly MethodInfo _updateVisuals = AccessTools.Method(typeof(VisEquipment), "UpdateVisuals");
 
 	private static readonly FieldInfo _currentModelIndex = AccessTools.Field(typeof(VisEquipment), "m_currentModelIndex");
@@ -529,12 +558,21 @@ public class CompanionPanel
 			component3.sizeDelta = new Vector2(-24f, btnH);
 			component3.anchoredPosition = new Vector2(0f, 8f);
 		}
+		// Fase 3.10: the AI section of the starter panel, in the fixed band right above "Invocar" (the description
+		// above it is the scroll, so the choices are never buried at the bottom of a long list). Only the starter has
+		// it: the Trader's tab is built by the same class and its flow (bank, price, purchase) is untouched.
+		float aiHeight = 0f;
+		if (StarterMode && buttonTemplate != null)
+		{
+			aiHeight = BuildAiSection(col.transform, font, buttonTemplate, 8f + btnH + 10f);
+		}
+		float descBottom = (aiHeight > 0f ? (8f + btnH + 10f + aiHeight + 10f) : y);
 		GameObject gameObject3 = new GameObject("DescScrollArea", typeof(RectTransform), typeof(Image), typeof(Mask));
 		gameObject3.transform.SetParent(col, worldPositionStays: false);
 		RectTransform component4 = gameObject3.GetComponent<RectTransform>();
 		component4.anchorMin = Vector2.zero;
 		component4.anchorMax = Vector2.one;
-		component4.offsetMin = new Vector2(8f, y);
+		component4.offsetMin = new Vector2(8f, descBottom);
 		component4.offsetMax = new Vector2(-14f, -38f);
 		gameObject3.GetComponent<Image>().color = new Color(1f, 1f, 1f, 0.003f);
 		gameObject3.GetComponent<Mask>().showMaskGraphic = false;
@@ -572,9 +610,279 @@ public class CompanionPanel
 		scrollRect.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
 	}
 
-	private void BuildPreviewColumn(RectTransform col, float colW, float colH)
+	// ------------------------------------------------------------------ the AI section (Fase 3.10)
+
+	/// <summary>
+	/// The "AI" section of the starter panel: the voice of the companion that is about to be born (with "Ouvir") and
+	/// its personality (a preset or the player's own words), plus a hint saying the <c>[IA]</c> values are what is
+	/// used when nothing is chosen here.
+	///
+	/// <para>It lives in the <b>middle column</b>, in the fixed band right above "Invocar": the left column is a
+	/// scroll with the appearance, and burying the AI choices at the bottom of it would hide the one thing that is
+	/// new. The controls are the panel's own idioms (the same <c>&lt; value &gt;</c> picker of hair and beard, the
+	/// same label, the same button), so nothing here depends on the AI panel's overlay dropdowns - which could not
+	/// work inside a scrolling column anyway (the field would move under an open list).</para>
+	///
+	/// <para>The height it used is returned so the description above can make room for it; called once, from
+	/// <see cref="BuildMiddleColumn"/>.</para>
+	/// </summary>
+	private float BuildAiSection(Transform parent, TMP_FontAsset font, GameObject buttonTemplate, float bottomY)
 	{
-		GameObject gameObject = new GameObject("PreviewImg", typeof(RectTransform));
+		_aiVoiceIds = CompanionProfile.VoiceIds(withInherit: true);
+		_aiVoiceLabels = CompanionProfile.VoiceLabels(withInherit: true);
+		_aiPresetIds = CompanionProfile.PresetIds(withInherit: true);
+		_aiPresetLabels = CompanionProfile.PresetLabels(withInherit: true);
+		_aiVoiceIndex = 0;
+		_aiPresetIndex = 0;
+
+		GameObject group = new GameObject("AiSection", typeof(RectTransform));
+		group.transform.SetParent(parent, worldPositionStays: false);
+		Transform content = group.transform;
+
+		// the group is anchored to the bottom of the column, its children are laid out from its top down
+		float y = 0f;
+		y = PlacePlainLabel(content, font, ModLocalization.Loc("hc_ai_profile_title"), y, 20f, "AiTitle");
+		y -= 2f;
+		y = PlacePlainLabel(content, font, ModLocalization.Loc("hc_ai_panel_voice"), y, 18f, "AiVoice");
+		y -= 2f;
+		BuildPickerRow(content, out _aiVoiceValue, _aiVoiceLabels[0], y, AiRowH, font, buttonTemplate,
+			delegate
+			{
+				CycleAiVoice(-1);
+			}, delegate
+			{
+				CycleAiVoice(1);
+			});
+		y -= AiRowH + AiGap;
+		Transform listenRow = MakeAnchoredRow(content, y, AiRowH);
+		AddToggleButton(listenRow, "AiListen", buttonTemplate, Vector2.zero, Vector2.one, PreviewStarterVoice,
+			ModLocalization.Loc("hc_ai_panel_listen"));
+		y -= AiRowH + AiGap;
+		y = PlacePlainLabel(content, font, ModLocalization.Loc("hc_ai_panel_personality"), y, 18f, "AiPersonality");
+		y -= 2f;
+		BuildPickerRow(content, out _aiPresetValue, _aiPresetLabels[0], y, AiRowH, font, buttonTemplate,
+			delegate
+			{
+				CycleAiPreset(-1);
+			}, delegate
+			{
+				CycleAiPreset(1);
+			});
+		y -= AiRowH + AiGap;
+		y = PlacePlainLabel(content, font, ModLocalization.Loc("hc_ai_panel_free_text"), y, 18f, "AiWords");
+		y -= 2f;
+		_aiFreeText = BuildAiTextField(content, font, y, AiRowH);
+		y -= AiRowH + AiGap;
+		TMP_Text hint = MakeText(content, "AiHint", ModLocalization.Loc("hc_ai_profile_hint"), font, 11f, LabelText, TextAlignmentOptions.TopLeft);
+		RectTransform hintRT = hint.GetComponent<RectTransform>();
+		hintRT.anchorMin = new Vector2(0f, 1f);
+		hintRT.anchorMax = new Vector2(1f, 1f);
+		hintRT.pivot = new Vector2(0f, 1f);
+		hintRT.sizeDelta = new Vector2(-8f, 46f);
+		hintRT.anchoredPosition = new Vector2(4f, y);
+		hint.textWrappingMode = TextWrappingModes.Normal;
+		hint.overflowMode = TextOverflowModes.Overflow;
+		y -= 46f;
+
+		float height = 0f - y;
+		RectTransform rt = group.GetComponent<RectTransform>();
+		rt.anchorMin = new Vector2(0f, 0f);
+		rt.anchorMax = new Vector2(1f, 0f);
+		rt.pivot = new Vector2(0.5f, 0f);
+		rt.sizeDelta = new Vector2(-24f, height);
+		rt.anchoredPosition = new Vector2(0f, bottomY);
+		return height;
+	}
+
+	/// <summary>The voice picker of the AI section: one step through the list, wrapping ("follow the default", 42,
+	/// 43, 44).</summary>
+	private void CycleAiVoice(int dir)
+	{
+		if (_aiVoiceIds == null || _aiVoiceIds.Length == 0)
+		{
+			return;
+		}
+		_aiVoiceIndex = (_aiVoiceIndex + dir + _aiVoiceIds.Length) % _aiVoiceIds.Length;
+		if (_aiVoiceValue != null)
+		{
+			_aiVoiceValue.text = _aiVoiceLabels[_aiVoiceIndex];
+		}
+		CompanionsPlugin.Log.LogDebug("[StarterPanel] AI voice: " + (_aiVoiceIds[_aiVoiceIndex] > 0
+			? _aiVoiceIds[_aiVoiceIndex] + " (" + _aiVoiceLabels[_aiVoiceIndex] + ")"
+			: "default ([IA])"));
+	}
+
+	/// <summary>The personality picker of the AI section: one step through "follow the default", the presets and the
+	/// free-text entry.</summary>
+	private void CycleAiPreset(int dir)
+	{
+		if (_aiPresetIds == null || _aiPresetIds.Length == 0)
+		{
+			return;
+		}
+		_aiPresetIndex = (_aiPresetIndex + dir + _aiPresetIds.Length) % _aiPresetIds.Length;
+		if (_aiPresetValue != null)
+		{
+			_aiPresetValue.text = _aiPresetLabels[_aiPresetIndex];
+		}
+		CompanionsPlugin.Log.LogDebug("[StarterPanel] AI personality: " + _aiPresetLabels[_aiPresetIndex]);
+	}
+
+	/// <summary>
+	/// Fase 3.10: the "Ouvir" of the AI section - the real synthesis pipeline (the same worker and the same 3D
+	/// playback), with the voice this picker shows and the vol/voz/speed of <c>[IA]</c>. The companion does not exist
+	/// yet, so the sample plays at the player.
+	/// </summary>
+	private void PreviewStarterVoice()
+	{
+		if (!CompanionTts.Enabled)
+		{
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_panel_tts_off"));
+			return;
+		}
+		if (!CompanionTts.Ready)
+		{
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_panel_tts_missing"));
+			return;
+		}
+		Player player = Player.m_localPlayer;
+		if (player == null)
+		{
+			return;
+		}
+		int voice = (_aiVoiceIds != null && _aiVoiceIndex >= 0 && _aiVoiceIndex < _aiVoiceIds.Length) ? _aiVoiceIds[_aiVoiceIndex] : 0;
+		string text = ModLocalization.Loc("hc_ai_panel_tts_sample");
+		CompanionsPlugin.Log.LogInfo($"[StarterPanel] Ouvir -> voz {(voice > 0 ? voice.ToString() : CompanionTts.Voice + " (padrao [IA])")}, "
+			+ $"volume {CompanionTts.Volume:0.##}, velocidade {CompanionTts.Speed:0.##} | \"{text}\"");
+		CompanionTts.Speak(player.gameObject, text, true, voice);
+	}
+
+	/// <summary>
+	/// The AI choices of the panel, for the companion that is about to be born. "Follow the [IA] default" in both
+	/// pickers and an empty text box is the normal case: an empty draft, i.e. a companion that follows the global
+	/// values (and keeps following them when they change).
+	/// </summary>
+	internal CompanionAiDraft AiDraft()
+	{
+		CompanionAiDraft draft = new CompanionAiDraft();
+		if (!StarterMode || _aiVoiceIds == null || _aiPresetIds == null)
+		{
+			return draft;
+		}
+		if (_aiVoiceIndex > 0 && _aiVoiceIndex < _aiVoiceIds.Length)
+		{
+			draft.Voice = _aiVoiceIds[_aiVoiceIndex];
+		}
+		string preset = (_aiPresetIndex >= 0 && _aiPresetIndex < _aiPresetIds.Length) ? _aiPresetIds[_aiPresetIndex] : CompanionProfile.InheritId;
+		string text = _aiFreeText != null && _aiFreeText.text != null ? _aiFreeText.text.Trim() : "";
+		bool inherit = string.IsNullOrEmpty(preset) ? _aiPresetIndex <= 0 : string.Equals(preset, CompanionProfile.InheritId, StringComparison.Ordinal);
+		if (!inherit || text.Length > 0)
+		{
+			draft.HasPersona = true;
+			draft.Preset = inherit ? "" : preset;
+			draft.FreeText = text;
+		}
+		return draft;
+	}
+
+	/// <summary>
+	/// Releases the text box of the AI section when it has the focus, and says whether it did. The starter panel
+	/// closes on Esc, and a player typing the personality must lose the focus first (the same order the AI panel
+	/// uses for its own text box).
+	/// </summary>
+	internal bool ReleaseTextFocus()
+	{
+		if (_aiFreeText != null && _aiFreeText.isFocused)
+		{
+			_aiFreeText.DeactivateInputField();
+			return true;
+		}
+		return false;
+	}
+
+	/// <summary>
+	/// The single-line text box of the AI section (the player's own words for the personality).
+	///
+	/// <para>The order matters: the GameObject is created <b>inactive</b> and only activated after its properties are
+	/// assigned, because <c>TMP_InputField.OnEnable</c> is where TMP creates the "Caret" it draws the caret and the
+	/// selection with - with the component still empty there is no caret and no selection at all (the same lesson as
+	/// <c>CompanionAiPanel.CreateInputField</c>). The field is registered in <see cref="ModTextInputFocus"/>, so the
+	/// game's own keys (m for the map, Tab for the inventory...) do not fire while the player types.</para>
+	/// </summary>
+	private TMP_InputField BuildAiTextField(Transform parent, TMP_FontAsset font, float y, float h)
+	{
+		Transform row = MakeAnchoredRow(parent, y, h);
+		GameObject go = new GameObject("AiFreeText", typeof(RectTransform), typeof(Image));
+		go.SetActive(false);
+		go.transform.SetParent(row, worldPositionStays: false);
+		RectTransform rt = go.GetComponent<RectTransform>();
+		rt.anchorMin = Vector2.zero;
+		rt.anchorMax = Vector2.one;
+		rt.offsetMin = new Vector2(2f, 0f);
+		rt.offsetMax = new Vector2(-2f, 0f);
+		Image image = go.GetComponent<Image>();
+		image.color = new Color(0.1f, 0.1f, 0.12f, 0.92f);
+
+		GameObject area = new GameObject("TextArea", typeof(RectTransform));
+		area.transform.SetParent(go.transform, worldPositionStays: false);
+		RectTransform areaRT = area.GetComponent<RectTransform>();
+		areaRT.anchorMin = Vector2.zero;
+		areaRT.anchorMax = Vector2.one;
+		areaRT.offsetMin = new Vector2(8f, 3f);
+		areaRT.offsetMax = new Vector2(-8f, -3f);
+		area.AddComponent<RectMask2D>();
+
+		TextMeshProUGUI text = MakeText(area.transform, "Text", "", font, 13f, Color.white, TextAlignmentOptions.MidlineLeft);
+		RectTransform textRT = text.GetComponent<RectTransform>();
+		textRT.anchorMin = Vector2.zero;
+		textRT.anchorMax = Vector2.one;
+		textRT.offsetMin = Vector2.zero;
+		textRT.offsetMax = Vector2.zero;
+		// the viewport mask clips it; the text itself must overflow, which is what lets TMP scroll it to the caret
+		text.overflowMode = TextOverflowModes.Overflow;
+		text.textWrappingMode = TextWrappingModes.PreserveWhitespaceNoWrap;
+
+		TextMeshProUGUI placeholder = MakeText(area.transform, "Placeholder", ModLocalization.Loc("hc_ai_panel_free_placeholder"), font, 13f,
+			new Color(0.6f, 0.6f, 0.6f, 0.7f), TextAlignmentOptions.MidlineLeft);
+		placeholder.fontStyle = FontStyles.Italic;
+		placeholder.textWrappingMode = TextWrappingModes.PreserveWhitespaceNoWrap;
+		RectTransform placeholderRT = placeholder.GetComponent<RectTransform>();
+		placeholderRT.anchorMin = Vector2.zero;
+		placeholderRT.anchorMax = Vector2.one;
+		placeholderRT.offsetMin = Vector2.zero;
+		placeholderRT.offsetMax = Vector2.zero;
+
+		TMP_InputField input = go.AddComponent<TMP_InputField>();
+		input.targetGraphic = image;
+		input.textComponent = text;
+		input.textViewport = areaRT;
+		input.placeholder = placeholder;
+		input.characterLimit = CompanionPersona.MaxFreeTextLength;
+		input.contentType = TMP_InputField.ContentType.Standard;
+		input.lineType = TMP_InputField.LineType.SingleLine;
+		input.richText = false;
+		input.onFocusSelectAll = false;
+		input.customCaretColor = true;
+		input.caretColor = new Color(1f, 0.95f, 0.85f, 1f);
+		input.caretWidth = 2;
+		input.selectionColor = new Color(0.55f, 0.72f, 1f, 0.55f);
+
+		go.SetActive(true);
+
+		// TMP creates the caret as the FIRST child of the text's parent, i.e. behind the text: as the last child it is
+		// always on top of both
+		Transform caret = area.transform.Find("Caret");
+		if (caret != null)
+		{
+			caret.SetAsLastSibling();
+		}
+
+		ModTextInputFocus.Register(input);
+		return input;
+	}
+
+	private void BuildPreviewColumn(RectTransform col, float colW, float colH)
+	{		GameObject gameObject = new GameObject("PreviewImg", typeof(RectTransform));
 		gameObject.transform.SetParent(col, worldPositionStays: false);
 		RectTransform component = gameObject.GetComponent<RectTransform>();
 		component.anchorMin = Vector2.zero;

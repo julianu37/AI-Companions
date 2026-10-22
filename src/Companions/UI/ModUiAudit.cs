@@ -192,7 +192,15 @@ internal static class ModUiAudit
 			+ "border would fall through to the list catcher (which closes the list) or to a control behind it - the "
 			+ "list must swallow it, and it is only active while the list is open"),
 		new IntentionalTarget("Overlay/VoiceList",
-			"the background of an open dropdown list, same as Overlay/PersonalityList")
+			"the background of an open dropdown list, same as Overlay/PersonalityList"),
+		new IntentionalTarget("Overlay/TierList",
+			"the background of an open dropdown list, same as Overlay/PersonalityList"),
+		new IntentionalTarget("Overlay/CompPersonalityList",
+			"the background of an open dropdown list, same as Overlay/PersonalityList (Fase 3.10: the personality of a "
+			+ "companion, on its own tab)"),
+		new IntentionalTarget("Overlay/CompVoiceList",
+			"the background of an open dropdown list, same as Overlay/PersonalityList (Fase 3.10: the voice of a "
+			+ "companion, on its own tab)")
 	};
 
 	/// <summary>
