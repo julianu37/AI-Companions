@@ -466,10 +466,14 @@ internal static class LlmClient
 			+ "\"type\":\"object\",\"properties\":{"
 			+ "\"action\":{\"type\":\"string\",\"enum\":[" + actions + "]},"
 			+ "\"reply\":{\"type\":\"string\"},"
+			// Fase 3.11: the companion the message is addressed to - nullable like "target", and required (strict
+			// mode wants every property in "required"), so a server that enforces the schema always sends the key
+			// and the model has to decide between a name and null.
+			+ "\"companion\":{\"type\":[\"string\",\"null\"]},"
 			+ "\"target\":{\"type\":[\"string\",\"null\"]},"
 			+ "\"resource\":{\"type\":[\"string\",\"null\"]},"
 			+ "\"amount\":{\"type\":[\"integer\",\"null\"]}},"
-			+ "\"required\":[\"action\",\"reply\",\"target\",\"resource\",\"amount\"],"
+			+ "\"required\":[\"action\",\"reply\",\"companion\",\"target\",\"resource\",\"amount\"],"
 			+ "\"additionalProperties\":false}}}";
 	}
 

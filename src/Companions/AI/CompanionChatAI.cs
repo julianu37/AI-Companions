@@ -32,6 +32,15 @@ namespace Companions;
 internal static class CompanionChatAI
 {
 	/// <summary>
+	/// The name the "addressed" example of the contract uses. It is a placeholder on purpose - a name that reads
+	/// like a character, not like a command - so the model learns the SHAPE of the field and not one of the player's
+	/// real companions. A model that copies it can never block an order the player addressed by name: the player's
+	/// own words win over the model's field (see HandleResult), and with no name in the message the rule and the
+	/// example right after it say "null".
+	/// </summary>
+	private const string CompanionExampleName = "Borin";
+
+	/// <summary>
 	/// The instruction sent with every message: who the model is talking to, the JSON contract and the actions it may
 	/// answer with. Kept in Portuguese: the player types Portuguese in this mod. The companion's name, its personality
 	/// and the recent conversation are added in front of/behind it by BuildPrompt - everything here is fixed, so the
@@ -40,7 +49,7 @@ internal static class CompanionChatAI
 	internal const string Contract = "Você é um companheiro NPC de Valheim e o jogador é o seu DONO: você obedece a ele.\n"
 		+ "A mensagem do usuário é o que o JOGADOR falou para você no chat do jogo.\n"
 		+ "Responda SOMENTE com um JSON compacto, em uma linha, sem markdown e sem nenhum texto em volta.\n"
-		+ "Formato exato: {\"action\":\"<acao>\",\"reply\":\"<o que voce diz ao jogador>\",\"target\":\"<alvo ou null>\",\"resource\":\"<recurso ou null>\",\"amount\":<numero ou null>}\n"
+		+ "Formato exato: {\"action\":\"<acao>\",\"reply\":\"<o que voce diz ao jogador>\",\"companion\":\"<nome do companheiro ou null>\",\"target\":\"<alvo ou null>\",\"resource\":\"<recurso ou null>\",\"amount\":<numero ou null>}\n"
 		+ "Ações válidas:\n"
 		+ "follow (seguir o jogador), wood (coletar madeira/derrubar árvores), stone (coletar pedra), ore (minerar minério),\n"
 		+ "forage (colher plantas, frutas, cogumelos), smelt (fundir minério no forno), hunt (caçar animais),\n"
@@ -63,6 +72,9 @@ internal static class CompanionChatAI
 		+ "  PALAVRAS do jogador, em português, SEM traduzir e NUNCA null (nem vazio). \"ataca o greydwarf\" -> \"greydwarf\";\n"
 		+ "  \"joga essas pedras que você pegou\" -> \"pedra\"; \"joga 10 pedras no chão\" -> \"pedra\"; \"larga a madeira\" -> \"madeira\";\n"
 		+ "  \"equipa o machado de bronze\" -> \"machado de bronze\". Nas outras ações use null quando o jogador não citar nada.\n"
+		+ "- \"companion\" é o nome do companheiro A QUEM o jogador está falando: preencha SÓ quando a mensagem COMEÇAR com o\n"
+		+ "  nome de um dos companheiros da lista; sem nome no começo da mensagem use null, e a ordem vale para todos. NUNCA\n"
+		+ "  invente um nome fora da lista.\n"
 		+ "- \"resource\" é o recurso que o trabalho vai coletar, em inglês, quando houver (wood, stone, ore, raspberry); use null quando não houver.\n"
 		+ "- \"action\" e \"resource\" TÊM QUE COMBINAR (e o \"resource\" vai em inglês): pedra -> action \"stone\" com resource\n"
 		+ "  \"stone\"; madeira -> \"wood\"/\"wood\"; minério -> \"ore\"/\"ore\". NUNCA use action \"wood\" para pedra.\n"
@@ -78,7 +90,8 @@ internal static class CompanionChatAI
 		+ "Exemplos:\n"
 		+ "\"colete 20 de madeira\" -> {\"action\":\"wood\",\"reply\":\"Vou buscar madeira.\",\"target\":null,\"resource\":\"wood\",\"amount\":20}\n"
 		+ "\"colete 10 pedras\" -> {\"action\":\"stone\",\"reply\":\"Vou buscar pedra.\",\"target\":null,\"resource\":\"stone\",\"amount\":10}\n"
-		+ "\"colete 5 pedras\" -> {\"action\":\"stone\",\"reply\":\"Vou buscar pedra.\",\"target\":null,\"resource\":\"stone\",\"amount\":5}\n"
+		+ "\"" + CompanionExampleName + ", colete 5 pedras\" -> {\"action\":\"stone\",\"reply\":\"Vou buscar pedra.\",\"companion\":\"" + CompanionExampleName + "\",\"target\":null,\"resource\":\"stone\",\"amount\":5}\n"
+		+ "\"colete 5 pedras\" -> {\"action\":\"stone\",\"reply\":\"Vou buscar pedra.\",\"companion\":null,\"target\":null,\"resource\":\"stone\",\"amount\":5}\n"
 		+ "\"vai pegar pedra\" -> {\"action\":\"stone\",\"reply\":\"Deixa comigo.\",\"target\":null,\"resource\":\"stone\",\"amount\":null}\n"
 		+ "\"minere ferro\" -> {\"action\":\"ore\",\"reply\":\"Já vou minerar.\",\"target\":null,\"resource\":\"iron\",\"amount\":null}\n"
 		+ "\"ataca aquele greydwarf\" -> {\"action\":\"attack\",\"reply\":\"Atacando!\",\"target\":\"greydwarf\",\"resource\":null,\"amount\":null}\n"
@@ -130,6 +143,14 @@ internal static class CompanionChatAI
 
 	private static CompanionSetup _pendingSpeaker;
 
+	/// <summary>
+	/// Fase 3.11: the companion the player NAMED in the message that is in flight ("Gruncha, colete 10 pedras"), or
+	/// null when the message named nobody (which is the old, every-companion behaviour). Read from the player's own
+	/// words at <see cref="Submit"/> time (<see cref="CompanionNames.FromMessage"/>), so it does not depend on the
+	/// model filling the "companion" key.
+	/// </summary>
+	private static CompanionSetup _pendingAddressee;
+
 	/// <summary>Postfix on the player's own outgoing chat message.</summary>
 	[HarmonyPatch(typeof(Chat), "SendText")]
 	private static class ChatSendText_Patch
@@ -151,6 +172,11 @@ internal static class CompanionChatAI
 		CompanionsPlugin.Log?.LogInfo("[IA] Fase 3.10: a personalidade e a voz acima sao o PADRAO. Cada companheiro pode ter a sua, "
 			+ "guardada no ZDO dele (aba do companheiro no painel da IA, e o painel do primeiro companheiro) - quem nao tem nada "
 			+ "proprio segue exatamente estes valores.");
+		// Fase 3.11: whoever the message is addressed to
+		CompanionsPlugin.Log?.LogInfo("[IA] Fase 3.11: uma mensagem que comeca com o nome de um companheiro (\""
+			+ CompanionExampleName + ", colete 10 pedras\") vale SO para ele (ordem ou conversa, no chat e na voz); sem nome, "
+			+ "a ordem continua indo para todos, como antes. Os nomes dos seus companheiros entram no prompt a cada mensagem, e as "
+			+ "palavras do jogador sao lidas como rede de seguranca quando o modelo nao devolve o nome.");
 	}
 
 	/// <summary>Called every frame from the plugin's Update: applies finished orders. Never blocks, never allocates when idle.</summary>
@@ -272,8 +298,18 @@ internal static class CompanionChatAI
 
 		// Fase 3.5: the companion being talked to is the nearest one that can take an order. It is NOT taken over
 		// here (that is what MHR_InScope does for orders): a message must not change who runs the companion.
-		CompanionSetup speaker = PickSpeaker();
+		// Fase 3.11: when the message OPENs with the name of one of the player's companions ("Gruncha, colete 10
+		// pedras"), that one is the addressee from here on - the prompt is built with HER name and personality, the
+		// conversation memory is filed under her and the order is routed to her only (see HandleResult). This is read
+		// from the player's own words, so it also works with a model that never fills the "companion" key.
+		CompanionSetup addressee = CompanionNames.FromMessage(message, out string addresseeName);
+		if (addressee != null)
+		{
+			CompanionsPlugin.Log?.LogInfo($"[IA] The message is addressed to \"{addresseeName}\" - the prompt and the order go to that companion");
+		}
+		CompanionSetup speaker = addressee ?? PickSpeaker();
 		_pendingSpeaker = speaker;
+		_pendingAddressee = addressee;
 		_pendingName = NameOf(speaker);
 		_pendingKey = KeyFor(speaker, _pendingName);
 
@@ -316,16 +352,21 @@ internal static class CompanionChatAI
 
 	/// <summary>
 	/// The instructions for this message: who the companion is, how it talks, the fixed contract and (Fase 3.5) the
-	/// recent conversation. Built on the main thread, once per chat message - never per frame.
+	/// recent conversation. Built on the main thread, once per chat message - never per frame. Fase 3.11: it also
+	/// lists the player's companions by name, which is what lets the model fill the "companion" key ("Gruncha,
+	/// colete 10 pedras").
 	/// </summary>
 	private static string BuildPrompt(string companionName, string personality, string memoryKey)
 	{
 		string name = string.IsNullOrEmpty(companionName) ? ModLocalization.Loc("hc_ai_default_name") : companionName;
-		StringBuilder builder = new StringBuilder(Contract.Length + 320);
+		StringBuilder builder = new StringBuilder(Contract.Length + 400);
 		builder.Append("Você é ").Append(name).Append(", o companheiro NPC do jogador, e ele é o seu dono.\n");
 		builder.Append("Seu jeito de falar e de agir: ").Append(personality).Append('\n');
 		builder.Append("Fale sempre em português, no seu jeito, com UMA frase curta, e trate o jogador como seu dono.\n");
 		builder.Append("A sua fala é lida em voz alta para o jogador: uma frase curta sai na hora, uma frase longa faz ele esperar.\n");
+		// Fase 3.11: who the player has, by name - the only names the model may put in "companion". Empty when there
+		// is nobody (the line is simply not there), and short by design: this is sent with every message.
+		builder.Append(CompanionNames.PromptLine());
 		builder.Append(Contract);
 		CompanionMemory.AppendTo(builder, memoryKey, name);
 		return builder.ToString();
@@ -395,8 +436,8 @@ internal static class CompanionChatAI
 	/// <summary>The companion's name, for the prompt ("Thorin: ..." in the conversation).</summary>
 	private static string NameOf(CompanionSetup companion)
 	{
-		ZDO zdo = companion != null ? companion.GetComponent<ZNetView>()?.GetZDO() : null;
-		return zdo != null ? zdo.GetString(CompanionSetup.NameHash, "") : "";
+		// the same name the player reads everywhere (ZDO -> Character), so the prompt and the memory use it too
+		return CompanionNames.NameOf(companion);
 	}
 
 	private static void HandleResult(LlmResult result)
@@ -432,6 +473,24 @@ internal static class CompanionChatAI
 		// what the companion actually said (or did), kept in its memory so it can follow the thread
 		string spoken = null;
 
+		// Fase 3.11: who takes this answer. The player's own words win ("Gruncha, ..."), then the model's
+		// "companion" key; a name the model invented is refused instead of being handed to everybody (see
+		// ResolveAddressee). Null = nobody was named -> exactly the old behaviour (every companion).
+		CompanionSetup addressee = ResolveAddressee(intent, out bool stop);
+		if (stop)
+		{
+			return;
+		}
+		// Fase 3.11: everything the companion says or does from here belongs to the named one; without a name it is
+		// the speaker of the message, i.e. the old flow.
+		CompanionSetup speaker = addressee ?? _pendingSpeaker;
+		if (addressee != null && addressee != _pendingSpeaker)
+		{
+			// the model named a companion the message itself didn't ("manda o Gruncho coletar pedra"): what that one
+			// answers is filed under IT, not under the nearest companion
+			_pendingKey = KeyFor(addressee, NameOf(addressee));
+		}
+
 		if (intent == null || intent.IsNone)
 		{
 			// Fase 3.5: not an order - the companion answers as conversation, out loud and in the chat
@@ -439,11 +498,11 @@ internal static class CompanionChatAI
 			{
 				string line = Shorten(reply, MaxReplyShown);
 				CompanionsPlugin.Log?.LogInfo($"[IA] Conversation ({result.ElapsedMs} ms): \"{line}\"");
-				Speak(_pendingSpeaker, line);
+				Speak(speaker, line);
 				Notify(line);
 				// Fase 3.4: the same line is spoken (the reply is the whole line of a conversation, so there is no
 				// "mod line" here to win over it)
-				SpeakOutLoud(_pendingSpeaker, null, line);
+				SpeakOutLoud(speaker, null, line);
 				spoken = line;
 			}
 			else
@@ -451,33 +510,40 @@ internal static class CompanionChatAI
 				CompanionsPlugin.Log?.LogInfo($"[IA] Not an order (action \"{intent?.Action}\") - nothing done");
 				string line2 = ModLocalization.Loc("hc_ai_not_understood");
 				Notify(line2);
-				SpeakOutLoud(_pendingSpeaker, line2, reply);
+				SpeakOutLoud(speaker, line2, reply);
 			}
 		}
 		else
 		{
 			// Fase 3.6: attack/equip/drop have their own wording ("Atacando o troll.", "Não tenho picareta."), because
 			// the feedback has to say WHICH creature or item it was about - the generic "Ok: ..." line can't.
-			CompanionOrders.OrderOutcome outcome = CompanionOrders.Run(intent, result.UserText, _pendingSpeaker);
+			// Fase 3.11: a named companion is the only one the order reaches (addressee null = all of them, as before).
+			CompanionOrders.OrderOutcome outcome = CompanionOrders.Run(intent, result.UserText, speaker, addressee);
 			if (outcome == null || !outcome.Understood)
 			{
 				string line3 = ModLocalization.Loc("hc_ai_not_understood");
 				Notify(line3);
-				SpeakOutLoud(_pendingSpeaker, line3, reply);
+				SpeakOutLoud(speaker, line3, reply);
 			}
 			else if (!string.IsNullOrEmpty(outcome.Message))
 			{
 				CompanionsPlugin.Log?.LogInfo($"[IA] \"{intent.Action}\"{(string.IsNullOrEmpty(intent.Target) ? "" : $" target=\"{intent.Target}\"")} -> {outcome.Count} companion(s) in {result.ElapsedMs} ms");
 				Notify(outcome.Message);
-				SpeakOutLoud(_pendingSpeaker, outcome.Message, reply);
+				SpeakOutLoud(speaker, outcome.Message, reply);
 				spoken = outcome.Message;
 			}
 			else if (outcome.Count == 0)
 			{
-				// Fase 3.2c: "colete 10 madeiras" with 15 already in the pack - the order was never started
-				string line4 = ModLocalization.Loc(outcome.AlreadyHave ? "hc_ai_already_have" : "hc_ai_no_companion");
+				// Fase 3.2c: "colete 10 madeiras" with 15 already in the pack - the order was never started.
+				// Fase 3.11: with a name the line says WHICH companion didn't take it (out of reach / orders off),
+				// instead of the generic "no companion answered".
+				string line4 = outcome.AlreadyHave
+					? ModLocalization.Loc("hc_ai_already_have")
+					: (addressee != null
+						? ModLocalization.LocFmt("hc_ai_companion_not_available", CompanionNames.NameOf(addressee))
+						: ModLocalization.Loc("hc_ai_no_companion"));
 				Notify(line4);
-				SpeakOutLoud(_pendingSpeaker, line4, reply);
+				SpeakOutLoud(speaker, line4, reply);
 			}
 			else
 			{
@@ -487,7 +553,7 @@ internal static class CompanionChatAI
 					: ModLocalization.LocFmt("hc_ai_ok", label);
 				CompanionsPlugin.Log?.LogInfo($"[IA] Applied \"{intent.Action}\" to {outcome.Count} companion(s) in {result.ElapsedMs} ms");
 				Notify(feedback);
-				SpeakOutLoud(_pendingSpeaker, feedback, reply);
+				SpeakOutLoud(speaker, feedback, reply);
 				spoken = feedback;
 			}
 			// Fase 3.5: for an ORDER the mod's own line wins and the model's "reply" is NOT shown - the companion would
@@ -506,6 +572,70 @@ internal static class CompanionChatAI
 			CompanionMemory.Remember(_pendingKey, fromPlayer: false, spoken);
 			CompanionsPlugin.Log?.LogInfo($"[IA] Memory: {CompanionMemory.Count(_pendingKey)} message(s) kept for this companion");
 		}
+	}
+
+	/// <summary>
+	/// Fase 3.11: the companion this answer is for, or null when nobody was named (the old, every-companion
+	/// behaviour). The player's own words win when they named someone (<see cref="_pendingAddressee"/>), because they
+	/// are the ground truth and because a small model copies example names: a model name that no companion answers to
+	/// must never block an order the player addressed by name.
+	///
+	/// <para>When neither the player nor the model named a real companion - the model invented a name in a message
+	/// that names nobody - nothing is ordered: the player is told which name wasn't found and <paramref name="stop"/>
+	/// comes back true, so one stray name can never become an order for everyone.</para>
+	/// </summary>
+	/// <param name="stop">true = say nothing else, apply nothing (the name doesn't exist).</param>
+	private static CompanionSetup ResolveAddressee(LlmIntent intent, out bool stop)
+	{
+		stop = false;
+		CompanionSetup pending = Live(_pendingAddressee);
+		if (_pendingAddressee != null && pending == null)
+		{
+			// the companion the player named left the world while the model was thinking (dismissed, dead and
+			// destroyed, world change): say so instead of handing the order to everybody else
+			Notify(ModLocalization.Loc("hc_ai_comp_gone"));
+			CompanionsPlugin.Log?.LogInfo("[IA] The companion the message was addressed to is gone - nothing was ordered");
+			stop = true;
+			return null;
+		}
+		string modelName = intent != null ? intent.Companion : null;
+		if (string.IsNullOrEmpty(modelName))
+		{
+			return pending;
+		}
+		CompanionSetup fromModel = Live(CompanionNames.Find(modelName));
+		if (pending != null)
+		{
+			string playerName = CompanionNames.NameOf(pending);
+			if (fromModel != null && fromModel != pending)
+			{
+				CompanionsPlugin.Log?.LogInfo($"[IA] The model named \"{modelName}\" but the player's message starts with \"{playerName}\" - the player's words win");
+			}
+			else if (fromModel == null)
+			{
+				CompanionsPlugin.Log?.LogInfo($"[IA] The model named \"{modelName}\", which isn't a companion - the player's message starts with \"{playerName}\", so that is the addressee");
+			}
+			return pending;
+		}
+		if (fromModel != null)
+		{
+			CompanionsPlugin.Log?.LogInfo($"[IA] The model named \"{modelName}\" - the order goes to that companion only");
+			return fromModel;
+		}
+		// nobody the model named exists, and the player named nobody either: refuse instead of ordering everybody
+		Notify(ModLocalization.LocFmt("hc_ai_unknown_companion", modelName));
+		CompanionsPlugin.Log?.LogInfo($"[IA] The model answered companion=\"{modelName}\", which isn't one of the player's companions - nothing was ordered");
+		stop = true;
+		return null;
+	}
+
+	/// <summary>
+	/// The companion, unless it is gone. Unity answers "null" for a destroyed object through its own <c>==</c>
+	/// operator, which <c>??</c> does not use - so a field kept across the model call has to be asked this way.
+	/// </summary>
+	private static CompanionSetup Live(CompanionSetup companion)
+	{
+		return (companion != null) ? companion : null;
 	}
 
 	/// <summary>The companion says it out loud (speech bubble), forced: the player asked it directly.</summary>

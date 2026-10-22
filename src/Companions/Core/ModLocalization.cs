@@ -354,6 +354,9 @@ public static class ModLocalization
 			{ "hc_ai_thinking", "Thinking..." },
 			{ "hc_ai_not_understood", "I didn't understand that order." },
 			{ "hc_ai_no_companion", "None of your companions is close enough to take that order." },
+			// Fase 3.11: orders addressed to one companion by name ("Gruncha, colete 10 pedras")
+			{ "hc_ai_unknown_companion", "I don't know any companion called \"{0}\"." },
+			{ "hc_ai_companion_not_available", "{0} isn't within reach (or its orders are switched off)." },
 			{ "hc_ai_disabled", "Companion AI is off ([IA] Ligado = false)." },
 			{ "hc_ai_error", "The AI didn't answer: {0}" },
 			{ "hc_ai_raw", "AI: {0}" },

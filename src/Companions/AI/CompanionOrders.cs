@@ -39,8 +39,15 @@ internal static class CompanionOrders
 	/// <summary>Runs one order. <paramref name="userText"/> is what the player actually said (typed in the chat or
 	/// spoken): Fase 3.6b uses it as the safety net for attack/equip/drop when the model answered "target": null.
 	/// <paramref name="speaker"/> (Fase 3.8) is the companion the message was addressed to, when the caller knows it -
-	/// the inventory order opens the window of that one companion.</summary>
-	internal static OrderOutcome Run(LlmIntent intent, string userText, CompanionSetup speaker = null)
+	/// the inventory order opens the window of that one companion.
+	///
+	/// <para>Fase 3.11: <paramref name="addressee"/> is the companion the player NAMED ("Gruncha, colete 10 pedras"),
+	/// or null when nobody was named. When it is set the order reaches <b>that one only</b>: every loop below skips
+	/// the others <b>before</b> touching them (no <c>MHR_InScope</c>, so no take-over, no work cancelled, no mode
+	/// changed), and the "come here" and "recolher" orders are restricted the same way. Null keeps the old behaviour
+	/// byte for byte - the order goes to every companion that can take it.</para>
+	/// </summary>
+	internal static OrderOutcome Run(LlmIntent intent, string userText, CompanionSetup speaker = null, CompanionSetup addressee = null)
 	{
 		OrderOutcome outcome = new OrderOutcome();
 		if (intent == null || intent.IsNone)
@@ -83,13 +90,31 @@ internal static class CompanionOrders
 		// Fase 3.1: "recolhe os itens do chão" é uma ordem de UM TIRO (MHR_Collect), então qualquer outra ordem a
 		// derruba - feito aqui, uma vez por mensagem, para que até as ordens que nunca chegam ao Apply
 		// (attack/equip/drop/inventory) a parem. A roda faz o mesmo por CompanionInteract.CancelExistingActions.
+		// Fase 3.11: uma ordem dirigida só derruba o recolhimento DAQUELE companheiro (os outros não são tocados).
 		if (action != "pickup")
 		{
-			MHR_Collect.CancelAll();
+			if (addressee != null)
+			{
+				MHR_Collect.Cancel(addressee);
+			}
+			else
+			{
+				MHR_Collect.CancelAll();
+			}
 		}
 
 		if (action == "come")
 		{
+			if (addressee != null)
+			{
+				// Fase 3.11: "Gruncha, vem cá" chama só a Gruncha, pelo mesmo caminho do botão "Chamar" da aba dela
+				if (CompanionInteract.RecallOne(addressee, player))
+				{
+					outcome.Count = 1;
+				}
+				CompanionsPlugin.Log?.LogInfo($"[IA] Order \"come\" addressed to \"{CompanionNames.NameOf(addressee)}\" -> {(outcome.Count > 0 ? "recalled" : "not recalled (dead, not yours, or the recall didn't start)")}");
+				return outcome;
+			}
 			// reuse the mod's own "call everyone here" order (holding the command key)
 			int inScope = 0;
 			foreach (CompanionSetup companion in CompanionSetup.AllCompanions)
@@ -110,24 +135,24 @@ internal static class CompanionOrders
 
 		// Fase 3.6: the orders that point at one creature or one item in the companion's pack. Fase 3.6b: the
 		// player's own message goes with them, because the model does not always fill in "target" (see
-		// ResolveItemTarget / Attack).
+		// ResolveItemTarget / Attack). Fase 3.11: with a name, only that companion's pack/world counts.
 		if (action == "attack")
 		{
-			return Attack(player, intent, userText, outcome);
+			return Attack(player, intent, userText, outcome, addressee);
 		}
 		if (action == "equip")
 		{
-			return Equip(intent, userText, outcome);
+			return Equip(intent, userText, outcome, addressee);
 		}
 		if (action == "drop")
 		{
-			return Drop(intent, userText, outcome);
+			return Drop(intent, userText, outcome, addressee);
 		}
 
 		// Fase 3.8: the one order that is about ONE companion - the player sees its pack
 		if (action == "inventory")
 		{
-			return Inventory(player, speaker, outcome);
+			return Inventory(player, addressee ?? speaker, outcome, addressee != null);
 		}
 		if (action == "inventory_close")
 		{
@@ -136,6 +161,11 @@ internal static class CompanionOrders
 
 		foreach (CompanionSetup companion2 in CompanionSetup.AllCompanions)
 		{
+			// Fase 3.11: a named order skips the others before anything is read or taken over
+			if (addressee != null && companion2 != addressee)
+			{
+				continue;
+			}
 			if (companion2 != null && Apply(companion2, action, intent.Amount, intent.Resource, outcome))
 			{
 				outcome.Count++;
@@ -163,7 +193,7 @@ internal static class CompanionOrders
 	/// name (<see cref="OrderTargets.FindCreatureByWords"/>) before the aim is used, so a spoken/typed order works
 	/// even when the model drops the field. Only a real name match counts; "ataca aquele" names nothing and still
 	/// goes to the crosshair.</summary>
-	private static OrderOutcome Attack(Player player, LlmIntent intent, string message, OrderOutcome outcome)
+	private static OrderOutcome Attack(Player player, LlmIntent intent, string message, OrderOutcome outcome, CompanionSetup addressee)
 	{
 		float range = ModConfig.AiTargetRange != null ? ModConfig.AiTargetRange.Value : 40f;
 		string target = intent.Target;
@@ -200,6 +230,11 @@ internal static class CompanionOrders
 		CompanionTalk talk = null;
 		foreach (CompanionSetup companion in CompanionSetup.AllCompanions)
 		{
+			// Fase 3.11: with a name, only that companion fights (the others are skipped before anything is touched)
+			if (addressee != null && companion != addressee)
+			{
+				continue;
+			}
 			if (companion == null || !CompanionInteract.MHR_InScope(companion))
 			{
 				continue;
@@ -227,7 +262,10 @@ internal static class CompanionOrders
 		}
 		if (outcome.Count == 0)
 		{
-			outcome.Message = ModLocalization.Loc("hc_ai_no_companion");
+			// Fase 3.11: with a name, say WHICH companion didn't take it instead of "no companion answered"
+			outcome.Message = addressee != null
+				? ModLocalization.LocFmt("hc_ai_companion_not_available", CompanionNames.NameOf(addressee))
+				: ModLocalization.Loc("hc_ai_no_companion");
 			CompanionsPlugin.Log?.LogInfo("[IA] Order \"attack\": no companion took it (out of range or Command off)");
 			return outcome;
 		}
@@ -247,9 +285,9 @@ internal static class CompanionOrders
 	///
 	/// Fase 3.6b: when the model left "target" empty (or named something no companion carries), the player's own
 	/// words are read for the item (see ResolveItemTarget).</summary>
-	private static OrderOutcome Equip(LlmIntent intent, string message, OrderOutcome outcome)
+	private static OrderOutcome Equip(LlmIntent intent, string message, OrderOutcome outcome, CompanionSetup addressee)
 	{
-		string target = ResolveItemTarget(intent.Target, message, "equip");
+		string target = ResolveItemTarget(intent.Target, message, "equip", addressee);
 		if (string.IsNullOrEmpty(target))
 		{
 			outcome.Message = ModLocalization.Loc("hc_ai_need_item");
@@ -261,6 +299,11 @@ internal static class CompanionOrders
 		CompanionTalk talk = null;
 		foreach (CompanionSetup companion in CompanionSetup.AllCompanions)
 		{
+			// Fase 3.11: "Gruncha, equipa a picareta" is Gruncha's order only
+			if (addressee != null && companion != addressee)
+			{
+				continue;
+			}
 			if (companion == null || !CompanionInteract.MHR_InScope(companion))
 			{
 				continue;
@@ -319,9 +362,9 @@ internal static class CompanionOrders
 	/// Fase 3.6b: this is the order the bug report was about ("Joga essas pedras que tu pegou no chão" and "Joga 10
 	/// pedras no chão" both came back from the model with "target": null, so there was no item to drop and nothing
 	/// happened). The player's own words are now read for the item, exactly as for equip.</summary>
-	private static OrderOutcome Drop(LlmIntent intent, string message, OrderOutcome outcome)
+	private static OrderOutcome Drop(LlmIntent intent, string message, OrderOutcome outcome, CompanionSetup addressee)
 	{
-		string target = ResolveItemTarget(intent.Target, message, "drop");
+		string target = ResolveItemTarget(intent.Target, message, "drop", addressee);
 		if (string.IsNullOrEmpty(target))
 		{
 			outcome.Message = ModLocalization.Loc("hc_ai_need_item");
@@ -333,6 +376,11 @@ internal static class CompanionOrders
 		CompanionTalk talk = null;
 		foreach (CompanionSetup companion in CompanionSetup.AllCompanions)
 		{
+			// Fase 3.11: "Gruncha, larga a pedra" is Gruncha's order only
+			if (addressee != null && companion != addressee)
+			{
+				continue;
+			}
 			if (companion == null || !CompanionInteract.MHR_InScope(companion))
 			{
 				continue;
@@ -387,13 +435,18 @@ internal static class CompanionOrders
 	///
 	/// When the container isn't ours yet (multiplayer: another client holds the companion), the ownership is asked
 	/// for - the same call the interact key makes - and the window opens by itself as soon as it arrives
-	/// (CompanionInteract.RequestCompanionInventory → TickPendingInventoryOpen): the player asked once.</summary>
-	private static OrderOutcome Inventory(Player player, CompanionSetup speaker, OrderOutcome outcome)
+	/// (CompanionInteract.RequestCompanionInventory → TickPendingInventoryOpen): the player asked once.
+	///
+	/// Fase 3.11: <paramref name="directed"/> means the player named that companion, so there is no falling back to
+	/// "the nearest one" - the player asked for Gruncha's pack, not for anybody's.</summary>
+	private static OrderOutcome Inventory(Player player, CompanionSetup speaker, OrderOutcome outcome, bool directed)
 	{
-		CompanionSetup companion = IsUsable(speaker) ? speaker : CompanionChatAI.PickSpeaker();
+		CompanionSetup companion = IsUsable(speaker) ? speaker : (directed ? null : CompanionChatAI.PickSpeaker());
 		if (companion == null)
 		{
-			outcome.Message = ModLocalization.Loc("hc_ai_no_companion");
+			outcome.Message = (directed && speaker != null)
+				? ModLocalization.LocFmt("hc_ai_companion_not_available", CompanionNames.NameOf(speaker))
+				: ModLocalization.Loc("hc_ai_no_companion");
 			CompanionsPlugin.Log?.LogInfo("[IA] Order \"inventory\": no companion to open (none of yours is in range, or their Command switch is off)");
 			return outcome;
 		}
@@ -537,16 +590,18 @@ internal static class CompanionOrders
 	/// qual item." with no name at all, "Não tenho X." with one).
 	/// </summary>
 	/// <param name="action">The canonical action, for the log.</param>
-	private static string ResolveItemTarget(string modelTarget, string message, string action)
+	/// <param name="addressee">Fase 3.11: the companion the order is addressed to, when the player named one - then
+	/// only ITS pack answers the name (an item that only another companion carries is not this order's).</param>
+	private static string ResolveItemTarget(string modelTarget, string message, string action, CompanionSetup addressee = null)
 	{
-		if (ItemMatchInPacks(modelTarget) >= OrderTargets.MinScore)
+		if (ItemMatchInPacks(modelTarget, addressee) >= OrderTargets.MinScore)
 		{
 			return modelTarget;
 		}
 		List<string> phrases = OrderTargets.Phrases(message);
 		for (int i = 0; i < phrases.Count; i++)
 		{
-			int score = ItemMatchInPacks(phrases[i]);
+			int score = ItemMatchInPacks(phrases[i], addressee);
 			if (score < OrderTargets.MinPhraseScore)
 			{
 				continue;
@@ -562,7 +617,7 @@ internal static class CompanionOrders
 	/// <summary>How well a name answers something the companions actually carry, 0 when nobody has it. Only the
 	/// packs are looked at (never chests), and only companions that could take an order at all - the ownership and
 	/// Command checks are read without taking the companion over (unlike MHR_InScope, which does).</summary>
-	private static int ItemMatchInPacks(string target)
+	private static int ItemMatchInPacks(string target, CompanionSetup addressee)
 	{
 		if (string.IsNullOrEmpty(target))
 		{
@@ -573,6 +628,10 @@ internal static class CompanionOrders
 		for (int i = 0; i < all.Count; i++)
 		{
 			CompanionSetup companion = all[i];
+			if (addressee != null && companion != addressee)
+			{
+				continue;
+			}
 			if (companion == null || !MHR_Owner.IsMine(companion) || !companion.GetIsCommandable())
 			{
 				continue;

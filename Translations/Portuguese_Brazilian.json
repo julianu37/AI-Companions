@@ -280,6 +280,8 @@
         { "key": "hc_ai_thinking", "value": "Pensando..." },
         { "key": "hc_ai_not_understood", "value": "Não entendi a ordem." },
         { "key": "hc_ai_no_companion", "value": "Nenhum companheiro seu está perto o bastante para receber essa ordem." },
+        { "key": "hc_ai_unknown_companion", "value": "Não conheço nenhum companheiro chamado \"{0}\"." },
+        { "key": "hc_ai_companion_not_available", "value": "{0} não está ao seu alcance (ou está com os comandos desligados)." },
         { "key": "hc_ai_disabled", "value": "A IA dos companheiros está desligada ([IA] Ligado = false)." },
         { "key": "hc_ai_error", "value": "A IA não respondeu: {0}" },
         { "key": "hc_ai_raw", "value": "IA: {0}" },
