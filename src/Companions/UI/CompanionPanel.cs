@@ -2411,6 +2411,11 @@ public class CompanionPanel
 		if (component != null)
 		{
 			component.onClick.RemoveAllListeners();
+			// the template is the inventory's craft button (InventoryGui.m_craftButton), and the game leaves that
+			// button interactable=false whenever nothing is craftable - which is the normal state after the
+			// inventory has been opened once. A clone would inherit it and silently ignore every click (the
+			// starter panel only worked because it opens before the first inventory). Always enable the clone.
+			component.interactable = true;
 			component.navigation = new Navigation
 			{
 				mode = Navigation.Mode.None
