@@ -64,7 +64,18 @@ skills em `.opencode/skills/`. Leia este arquivo antes de agir.
 - **Build:** `dotnet build Companions.sln -c Release` → gera `src/Companions/bin/Release/net472/Companions.dll`
   e copia para `DeployDir`.
 - **Teste:** iniciar o jogo e conferir `BepInEx\LogOutput.log` (deve listar
-  `Loading [Offline Companions Reborn <versão>]`).
+  `Loading [ModAI-BR-Companions <versão>]` + `loaded successfully! (N methods patched)`).
+- **Pasta de deploy:** o build copia para `DeployDir` = `...\BepInEx\plugins\ModAI-BR-Companions\`. **Não** deixe
+  outra cópia do mod instalada ao mesmo tempo (ex.: o Vortex deploya em `plugins\Companions\`, usando o **nome do
+  mod** como pasta): duas cópias = o mesmo GUID carregado duas vezes. Se um gerenciador cuidar da pasta dele,
+  aponte o `DeployDir` para ela **ou** remova a outra.
+- **Console do BepInEx:** vem **desligado** no `BepInEx.cfg` novo. Para abrir a janela do console, use
+  `[Logging.Console] Enabled = true` em `...\BepInEx\config\BepInEx.cfg` (lido no próximo boot). O
+  `LogOutput.log` (disco) continua sempre ligado.
+- **BepInEx manual (sem gerenciador):** BepInEx **5.4.23.5** (o pack do Nexus é o `5.4.2351`), extraído na raiz do
+  jogo: `winhttp.dll` + `doorstop_config.ini` (`target_assembly=BepInEx\core\BepInEx.Preloader.dll`) +
+  `.doorstop_version` + `BepInEx\core\`. O `.cfg` do mod e a pasta `plugins\` **sobrevivem** a reinstalar o
+  BepInEx.
 
 ## Arquitetura do projeto (`src/Companions/`)
 
@@ -560,9 +571,12 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
    UI/hover/HUD — e `Translations/speech/<Idioma>.json` para as falas (`SpeechConfig`).
    Não hardcode PT-BR no código quando houver token de localização.
 4. **Sem segredos** hardcoded (chaves de LLM/API via `ConfigEntry` ou variável de ambiente).
-5. **Sempre commitar e dar push** ao terminar (`git add -A && git commit && git push`), mensagem no padrão
+5. **Código vai em branch, não direto na `main`** (combinado em 22/10/2026): `feat/<tema>` ou `fix/<tema>` →
+   **o jogador testa em jogo** → merge na `main`. **Um commit por hipótese** (não junte coisas independentes num
+   commit só). Docs e release podem ir direto na `main`.
+6. **Sempre commitar e dar push** ao terminar (`git add -A && git commit && git push`), mensagem no padrão
    `tipo(escopo): resumo`.
-6. Atualize a documentação correspondente (`README.md`, `package/CHANGELOG.md`, `docs/roadmap.md`,
+7. Atualize a documentação correspondente (`README.md`, `package/CHANGELOG.md`, `docs/roadmap.md`,
    `AGENTS.md`) quando algo mudar.
 
 ## MCP servers disponíveis
