@@ -143,6 +143,6 @@ deve ficar só no `.cfg` local.
 
 O detalhe de cada fase (o porquê de cada decisão) está no repositório:
 
-- Roadmap e fases: https://github.com/julianu37/ModAI-BR-Companions/blob/main/docs/roadmap.md
-- Notas de engenharia reversa do Valheim 1.0: https://github.com/julianu37/ModAI-BR-Companions/tree/main/docs/re
-- Changelog: https://github.com/julianu37/ModAI-BR-Companions/blob/main/package/CHANGELOG.md
+- Roadmap e fases: https://github.com/julianu37/AI-Companions/blob/main/docs/roadmap.md
+- Notas de engenharia reversa do Valheim 1.0: https://github.com/julianu37/AI-Companions/tree/main/docs/re
+- Changelog: https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md

@@ -175,12 +175,12 @@ Se você reatribuir, o mod reavalia o conflito na hora. Veja **[Voz](Voz)**.
 
 | Onde olhar | O que procurar |
 |---|---|
-| `LogOutput.log` | `ModAI-BR-Companions v1.6.4 loading...` e `ModAI-BR-Companions loaded successfully! (N methods patched)` — o `v1.6.4` é a versão que você instalou |
+| `LogOutput.log` | `AI Companions v1.6.4 loading...` e `AI Companions loaded successfully! (N methods patched)` — o `v1.6.4` é a versão que você instalou |
 
 **Causas prováveis:**
 
 1. **A pasta está no lugar errado.** O caminho tem que ser
-   `<Valheim>\BepInEx\plugins\ModAI-BR-Companions\` — com o `Companions.dll` **dentro** dela.
+   `<Valheim>\BepInEx\plugins\AI-Companions\` — com o `Companions.dll` **dentro** dela.
 2. **Faltam as DLLs de dependência.** `Whisper.net.dll`, `sherpa-onnx.dll` e as `System.*` precisam estar
    junto do `Companions.dll`.
 3. **O BepInEx não está instalado** (ou está numa versão incompatível). Use o **BepInExPack_Valheim 5.4.2351**.
@@ -193,7 +193,7 @@ Se você reatribuir, o mod reavalia o conflito na hora. Veja **[Voz](Voz)**.
 ## Ainda não resolveu?
 
 Junte estas informações e abra uma issue em
-https://github.com/julianu37/ModAI-BR-Companions/issues :
+https://github.com/julianu37/AI-Companions/issues :
 
 - O trecho do `LogOutput.log` em volta do problema (as linhas `[IA]`, `[STT]` ou `[TTS]`).
 - A versão do mod (aparece no boot do log) e a versão do Valheim.

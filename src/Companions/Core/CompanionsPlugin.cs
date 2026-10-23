@@ -22,7 +22,7 @@ public class CompanionsPlugin : BaseUnityPlugin
 	// would move the config (losing the player's settings) for no gain - the display name below is what shows.
 	public const string PluginGUID = "Maddhattr.OfflineCompanionsReborn";
 
-	public const string PluginName = "ModAI-BR-Companions";
+	public const string PluginName = "AI Companions";
 
 	public const string PluginVersion = "1.7.0";
 

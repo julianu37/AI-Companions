@@ -188,7 +188,7 @@ abaixo é o resumo e a atribuição de cada peça.
 | **onnxruntime** — Microsoft Corporation | `runtimes\win-x64\native\onnxruntime.dll` | **MIT** | `LICENSES\onnxruntime-LICENSE.txt` |
 | **Kokoro-82M** — hexgrad | `tts\kokoro\model.int8.onnx`, `tts\kokoro\voices.bin` | **Apache-2.0** | `LICENSES\Kokoro-82M-LICENSE.txt` |
 | **espeak-ng-data** — projeto espeak-ng | `tts\kokoro\espeak-ng-data\` | **GPL-3.0** | `LICENSES\espeak-ng-data-LICENSE.txt` |
-| **ModAI-BR-Companions** — este fork | `Companions.dll` | **MIT** (do upstream) | `LICENSES\ModAI-BR-Companions-LICENSE.txt` |
+| **AI Companions** — este projeto | `Companions.dll` | **MIT** (do upstream) | `LICENSES\AI_Companions-LICENSE.txt` |
 
 > **A única peça copyleft é o `espeak-ng-data`** (GPL-3.0): ele é usado pelo modelo de voz como
 > **dados** (tabelas de fonemas do espeak-ng), **não** como biblioteca ligada ao nosso código — o

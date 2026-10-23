@@ -15,9 +15,9 @@ Todas as mudanças deste projeto, derivado do Offline Companions, do ProfMags. A
 
 **Reempacotado.** Nada muda no jogo:
 
-- Mesmo conteúdo da 1.6.2, com a pasta do mod em `BepInEx/plugins/ModAI-BR-Companions/` e o
+- Mesmo conteúdo da 1.6.2, com a pasta do mod em `BepInEx/plugins/AI-Companions/` e o
   `README.md`/`CHANGELOG.md`/`icon.png` na **raiz** do pacote.
-- O `.zip` passa a se chamar `ModAI_BR_Companions-1.6.3.zip` (nome exato `Nome-Versão`, sem sufixo).
+- O `.zip` passa a se chamar `AI_Companions-1.6.3.zip` (nome exato `Nome-Versão`, sem sufixo).
 
 ## 1.6.2 — 17/10/2026
 
@@ -35,11 +35,11 @@ Todas as mudanças deste projeto, derivado do Offline Companions, do ProfMags. A
 
 - O pacote **não leva mais o WAV de teste** (`whisper\jfk.wav`): vai só o que o mod precisa para
   funcionar. O comando de console `modia_stt_teste` continua funcionando e aceita um caminho de WAV como argumento.
-- O `.zip` publicado passa a se chamar `ModAI_BR_Companions-1.6.1.zip` (nome exato `Nome-Versão`, sem sufixo).
+- O `.zip` publicado passa a se chamar `AI_Companions-1.6.1.zip` (nome exato `Nome-Versão`, sem sufixo).
 
 ## 1.6.0 — 16/10/2026
 
-**A camada de IA: ordens por chat e por voz, o companheiro fala, personalidade/memória e um painel no jogo — tudo local, em PT-BR.** Este é o primeiro release do fork com a IA (Fases 3.1 a 3.8); o detalhe técnico de cada uma está nas seções abaixo.
+**A camada de IA: ordens por chat e por voz, o companheiro fala, personalidade/memória e um painel no jogo — tudo local, em PT-BR.** Este é o primeiro release do projeto com a IA (Fases 3.1 a 3.8); o detalhe técnico de cada uma está nas seções abaixo.
 
 **Destaques:**
 - **Ordens por texto no chat:** `colete 10 madeiras`, `segue`, `para`, `minere ferro` — um **LLM local** (API compatível com a OpenAI) devolve a intenção e o companheiro executa a mesma ação do menu radial.
@@ -54,7 +54,7 @@ Todas as mudanças deste projeto, derivado do Offline Companions, do ProfMags. A
 
 #### Fases incluídas neste release
 
-Tradução PT-BR: auditoria de cobertura (o que o jogador lê, em inglês, era bug) + Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.6b: a ordem sem alvo do modelo (drop/equip/attack caem para as palavras do jogador) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Fase 3.3c: raio de coleta maior e chatter aleatório desligado + Fase 3.3d: a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador + Fase 3.8: o companheiro abre o próprio inventário por voz/chat + Fase 3.4: o companheiro FALA (TTS local, Kokoro-82M via sherpa-onnx) + Fase 3.7: painel da IA no jogo (personalidade, voz com Ouvir, push-to-talk) + Fase 3.4 (parte 3): o eco do TTS RESOLVIDO — era a zona de reverb global do jogo (a voz sai seca) + Fase 3.1: saída estruturada (JSON schema) — destrava modelos pequenos + Tradução PT-BR (fork ModAI-BR-Companions) + correção: o painel F8 não engole mais cliques (camada 31→33 + raycast dos decorativos) + correção (a de verdade): os painéis e a roda do mod vão para a faixa **1701+** — **a camada era a causa** do clique engolido no F8 (o HUD do jogo está em 400; o 31→33 era insuficiente) + correção: o diagnóstico de raycast vira opt-in (`[Advanced] UiDiag`, padrão desligado — eram ~7 KB por sessão) e para de avisar sobre os alvos de clique intencionais do painel da IA
+Tradução PT-BR: auditoria de cobertura (o que o jogador lê, em inglês, era bug) + Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.6b: a ordem sem alvo do modelo (drop/equip/attack caem para as palavras do jogador) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Fase 3.3c: raio de coleta maior e chatter aleatório desligado + Fase 3.3d: a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador + Fase 3.8: o companheiro abre o próprio inventário por voz/chat + Fase 3.4: o companheiro FALA (TTS local, Kokoro-82M via sherpa-onnx) + Fase 3.7: painel da IA no jogo (personalidade, voz com Ouvir, push-to-talk) + Fase 3.4 (parte 3): o eco do TTS RESOLVIDO — era a zona de reverb global do jogo (a voz sai seca) + Fase 3.1: saída estruturada (JSON schema) — destrava modelos pequenos + Tradução PT-BR (projeto AI Companions) + correção: o painel F8 não engole mais cliques (camada 31→33 + raycast dos decorativos) + correção (a de verdade): os painéis e a roda do mod vão para a faixa **1701+** — **a camada era a causa** do clique engolido no F8 (o HUD do jogo está em 400; o 31→33 era insuficiente) + correção: o diagnóstico de raycast vira opt-in (`[Advanced] UiDiag`, padrão desligado — eram ~7 KB por sessão) e para de avisar sobre os alvos de clique intencionais do painel da IA
 - **O diagnóstico de raycast vira opt-in e para de avisar sobre alvos intencionais (branch `fix/uidiag`).** O audit
   `[UiDiag]` (o que achou o `HUD` do jogo em 400 engolindo os cliques do F8) **não** foi removido — ele é a resposta
   para "quem está na frente dos controles?" — mas uma sessão dele saiu com **6 linhas / 7.132 caracteres** e **três**

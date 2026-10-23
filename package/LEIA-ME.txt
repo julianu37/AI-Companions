@@ -1,5 +1,5 @@
 ================================================================================
- ModAI-BR-Companions 1.6.0
+ AI Companions 1.6.0
  Companheiro NPC com IA para Valheim 1.0 - em portugues do Brasil
 ================================================================================
 
@@ -33,18 +33,18 @@ so nao instale pensando que este mod precisa.
 INSTALACAO
 ----------
 1. Instale o BepInExPack_Valheim (manualmente, na pasta do Valheim).
-2. Extraia a pasta "ModAI-BR-Companions" deste zip para:
+2. Extraia a pasta "AI-Companions" deste zip para:
        ...\Valheim\BepInEx\plugins\
-   O zip ja traz a pasta "ModAI-BR-Companions" na raiz, entao o caminho final
+   O zip ja traz a pasta "AI-Companions" na raiz, entao o caminho final
    fica assim:
-       ...\Valheim\BepInEx\plugins\ModAI-BR-Companions\Companions.dll
+       ...\Valheim\BepInEx\plugins\AI-Companions\Companions.dll
 3. Os MODELOS (a voz e a fala) vao DENTRO dessa mesma pasta:
-       ...\BepInEx\plugins\ModAI-BR-Companions\whisper\   (STT - o que ele ouve)
-       ...\BepInEx\plugins\ModAI-BR-Companions\tts\       (TTS - o que ele fala)
+       ...\BepInEx\plugins\AI-Companions\whisper\   (STT - o que ele ouve)
+       ...\BepInEx\plugins\AI-Companions\tts\       (TTS - o que ele fala)
    O pacote "completo" ja traz os modelos prontos; o pacote "sem modelos" (bem
    menor) nao traz - copie os seus para as pastas acima.
 4. Entre no jogo. Se o BepInEx carregar o mod, o BepInEx\LogOutput.log mostra
-   "Loading [ModAI-BR-Companions 1.6.0]".
+   "Loading [AI Companions 1.6.0]".
 
 COMO USAR
 ---------

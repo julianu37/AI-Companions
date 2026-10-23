@@ -1,6 +1,6 @@
 ================================================================================
  LICENCAS DOS COMPONENTES DE TERCEIROS
- ModAI-BR-Companions 1.6.0
+ AI Companions 1.6.0
 ================================================================================
 
 Esta pasta acompanha os binarios e os modelos redistribuidos no pacote. Os
@@ -30,7 +30,7 @@ Kokoro-82M-LICENSE.txt         Apache-2.0 (hexgrad)
                                vem do projeto espeak-ng (GPL-3.0); ele e usado
                                apenas como DADOS de fonemizacao, nao como
                                codigo ligado ao nosso plugin.
-ModAI-BR-Companions-LICENSE.txt  MIT (ProfMags / Maddhattr) + as nossas mudancas
+AI_Companions-LICENSE.txt       MIT (ProfMags / Maddhattr) + as nossas mudancas
                                A licenca do mod em si (o fork do
                                Offline Companions Reborn, que e MIT).
 

@@ -53,7 +53,7 @@ Legenda: ✅ concluído · 🔄 em andamento · ⏳ pendente
 | 2.18b | **Seguir pelo portal** (`CompanionPortalFollow` + `[Portal]`): ele anda até o portal e é levado para junto de você quando o seu teleporte termina | ✅ (v0.4.6) |
 | 2.18c | **Carroça** (`CompanionCart` + `[Carroca]`): `modia_cart pull\|release` — ele anda até o engate do `Vagon` e puxa a carroça pelo `ConfigurableJoint` do jogo | ✅ (v0.4.6) |
 | 2.5 | Multiplayer (ZNetView/ZDO, testes com cliente/servidor) | ⏳ |
-| **3** | IA e voz: comandos por voz/chat, STT, TTS, personalidade — **no fork, ver Trilha D** | ✅ (3.1, 3.1-saída estruturada, 3.1b, 3.1c, 3.1d, 3.2, 3.2c, 3.3, 3.3b, 3.3c, 3.3d, 3.4, 3.5, 3.6, 3.6b, 3.7, 3.8 — **todas validadas em jogo**) |
+| **3** | IA e voz: comandos por voz/chat, STT, TTS, personalidade — **neste projeto, ver Trilha D** | ✅ (3.1, 3.1-saída estruturada, 3.1b, 3.1c, 3.1d, 3.2, 3.2c, 3.3, 3.3b, 3.3c, 3.3d, 3.4, 3.5, 3.6, 3.6b, 3.7, 3.8 — **todas validadas em jogo**) |
 | **4** | Backend híbrido (LLM local + API), endpoints do "cérebro" | ⏳ |
 | **5** | Empacotamento (README, ícone) + revisão final | ⏳ |
 
@@ -303,7 +303,7 @@ Legenda: ✅ concluído · 🔄 em andamento · ⏳ pendente
 
 ---
 
-## Trilha C — Tradução PT-BR (fork)
+## Trilha C — Tradução PT-BR (nosso projeto)
 
 O upstream (Offline Companions Reborn) tem **dois** sistemas próprios de tradução, os dois alimentados por
 arquivos JSON ao lado do DLL:
@@ -348,7 +348,7 @@ linhas em inglês — é o registro dele) e o **texto do próprio jogo** (vanill
 
 ---
 
-## Trilha D — Camada de IA (fork)
+## Trilha D — Camada de IA (nosso projeto)
 
 Ordens em **linguagem natural** por cima do mod do upstream. O companheiro continua sendo o do upstream
 (radial, jobs, combate); a IA é só uma **nova entrada** para as mesmas ações — nada de novo dirige o NPC.
@@ -921,7 +921,7 @@ sao procurados ate 25 m de voce, em vez de 10 m. Coloque 10 de volta se preferir
 #### Receita de teste
 
 1. **Build:** `dotnet build Companions.sln -c Release` → 0 erros, DLL copiada para
-   `BepInEx\plugins\ModAI-BR-Companions` (feito).
+   `BepInEx\plugins\AI-Companions` (feito).
 2. **Raio maior:** entrar no mundo, mandar `colete 20 de madeira` (chat ou voz, ou o radial) e andar — o companheiro
    deve **se afastar bem mais de você** (até ~25 m) para achar a próxima árvore, em vez de parar na de sempre, e
    voltar para o seu lado quando não houver mais nada por perto. Com Follow **desligado** (`[Gathering] Range`), a área
@@ -1008,7 +1008,7 @@ próximo** repetir o texto (`Speak(PickSpeaker(), texto)` → `CompanionTalk.Say
 #### Receita de teste
 
 1. **Build:** `dotnet build Companions.sln -c Release` → 0 erros, DLL copiada para
-   `BepInEx\plugins\ModAI-BR-Companions` (feito).
+   `BepInEx\plugins\AI-Companions` (feito).
 2. **Pedra para no alvo:** com o companheiro **sem pedra** no inventário, falar/digitar `pega 10 pedras`. Ele deve
    minerar e **parar** com ~10 no inventário (pode passar um pouco se a pedra que ele já estava quebrando terminar
    depois), com **uma** linha no log
@@ -1117,7 +1117,7 @@ personalidade/memória/conversa (3.5), jobs, UI, radial, STT (3.3/3.3b), raios e
 #### Receita de teste
 
 1. **Build:** `dotnet build Companions.sln -c Release` → 0 erros, DLL + `Translations\Portuguese_Brazilian.json`
-   copiados para `BepInEx\plugins\ModAI-BR-Companions` (feito).
+   copiados para `BepInEx\plugins\AI-Companions` (feito).
 2. **Chat:** digitar `abre o teu inventário` → o companheiro mais próximo responde *"Abrindo o inventário."* e a
    **janela do inventário dele** abre (mesmo painel do toque na tecla de interagir, com nome/comida/equipamento).
    No log: `[IA] Order "inventory": <nome>'s window is open`.

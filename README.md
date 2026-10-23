@@ -1,6 +1,6 @@
-# ModAI-BR-Companions
+# AI Companions
 
-![ModAI-BR-Companions — companheiros NPC com IA para Valheim, em PT-BR](docs/images/banner.png)
+![AI Companions — companheiros NPC com IA para Valheim, em PT-BR](docs/images/banner.png)
 
 > Um **companheiro NPC com IA** para **Valheim 1.0**, **em português do Brasil** — você **fala ou digita** e
 > ele entende e executa.
@@ -17,9 +17,9 @@ vem do upstream e continua funcionando igual — a IA é só uma **nova entrada*
 
 ## 🎬 Em ação
 
-[![Assista: "Esse mod muda TUDO no Valheim! ModAI-BR-Companions"](docs/images/video-thumb.jpg)](https://www.youtube.com/watch?v=40FnVEIbXyo)
+[![Assista: "Esse mod muda TUDO no Valheim! AI Companions"](docs/images/video-thumb.jpg)](https://www.youtube.com/watch?v=40FnVEIbXyo)
 
-> 🎥 **"Esse mod muda TUDO no Valheim! ModAI-BR-Companions"** — vídeo do canal **SuaTV** mostrando o mod em jogo.
+> 🎥 **"Esse mod muda TUDO no Valheim! AI Companions"** — vídeo do canal **SuaTV** mostrando o mod em jogo.
 > **[▶️ Assistir no YouTube](https://www.youtube.com/watch?v=40FnVEIbXyo)** (clique na imagem também abre)
 
 ---
@@ -137,12 +137,12 @@ chat do jogo ──────────────────────�
 ## Instalação
 
 > O passo a passo **detalhado, com imagens** (incluindo o LM Studio) está na
-> **[Wiki do projeto](https://github.com/julianu37/ModAI-BR-Companions/wiki/Instalacao)**. Resumo:
+> **[Wiki do projeto](https://github.com/julianu37/AI-Companions/wiki/Instalacao)**. Resumo:
 
-1. Instale o **BepInExPack_Valheim** e copie a pasta do mod para `BepInEx\plugins\ModAI-BR-Companions`.
-2. (Opcional, para voz) deixe um modelo ggml do Whisper em `...\ModAI-BR-Companions\whisper\` — ex.
+1. Instale o **BepInExPack_Valheim** e copie a pasta do mod para `BepInEx\plugins\AI-Companions`.
+2. (Opcional, para voz) deixe um modelo ggml do Whisper em `...\AI-Companions\whisper\` — ex.
    `ggml-small-q5_1.bin`.
-3. (Opcional, para ele **falar**) deixe o modelo do Kokoro em `...\ModAI-BR-Companions\tts\kokoro\`
+3. (Opcional, para ele **falar**) deixe o modelo do Kokoro em `...\AI-Companions\tts\kokoro\`
    (`model.int8.onnx`, `voices.bin`, `tokens.txt`, `espeak-ng-data\`) — já vem no pacote.
 4. No LM Studio: carregue um modelo, ligue o servidor local e confira a URL em `[IA] BaseUrl`.
 5. Entre no mundo. No chat: `colete 10 madeiras`. Ou segure **`V`** e fale. Ele responde **em voz alta**.
@@ -211,7 +211,7 @@ chat do jogo ──────────────────────�
 
 ## Documentação
 
-- **[Wiki](https://github.com/julianu37/ModAI-BR-Companions/wiki)** — o guia de quem vai instalar e usar: requisitos,
+- **[Wiki](https://github.com/julianu37/AI-Companions/wiki)** — o guia de quem vai instalar e usar: requisitos,
   instalação passo a passo (com imagens), **configuração do LLM no LM Studio**, voz, comandos, configuração da IA e
   problemas comuns. (A fonte das páginas está em [`docs/wiki/`](docs/wiki/).)
 - [`docs/roadmap.md`](docs/roadmap.md) — fases e status (Trilhas A–D).

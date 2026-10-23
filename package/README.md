@@ -1,6 +1,6 @@
-# ModAI-BR-Companions
+# AI Companions
 
-![ModAI-BR-Companions — companheiros NPC com IA para Valheim, em PT-BR](https://raw.githubusercontent.com/julianu37/ModAI-BR-Companions/main/docs/images/banner.png)
+![AI Companions — companheiros NPC com IA para Valheim, em PT-BR](https://raw.githubusercontent.com/julianu37/AI-Companions/main/docs/images/banner.png)
 
 Um **companheiro NPC com IA** para **Valheim 1.0**, **em português do Brasil** — você **fala ou digita** e ele
 entende e executa.
@@ -13,7 +13,7 @@ do **Offline Companions** de **ProfMags**.
 > O companheiro, os trabalhos, a IA de movimento/combate, a interface e a base de tudo isso vêm de lá.
 > **O que é nosso:** a **tradução completa para PT-BR** e a **camada de IA** (LLM + voz).
 
-> **Código-fonte:** [julianu37/ModAI-BR-Companions](https://github.com/julianu37/ModAI-BR-Companions)
+> **Código-fonte:** [julianu37/AI-Companions](https://github.com/julianu37/AI-Companions)
 > — guia, referência de configurações e relato de bugs.
 
 ---
@@ -271,10 +271,10 @@ Ao atualizar de uma versão antiga, as opções que você mudou são migradas au
 ## Instalação
 
 1. Instale o **BepInExPack_Valheim** (BepInEx 5.4.23.5 para o Valheim 1.0.x).
-2. Copie a pasta do mod para `BepInEx/plugins/ModAI-BR-Companions` (ou use um gerenciador de mods).
+2. Copie a pasta do mod para `BepInEx/plugins/AI-Companions` (ou use um gerenciador de mods).
 3. **Para as ordens por voz:** deixe um modelo do Whisper (ex. `ggml-small-q5_1.bin`) em
-   `.../ModAI-BR-Companions/whisper/`.
-4. **Para ele falar:** o modelo do Kokoro já vem no pacote, em `.../ModAI-BR-Companions/tts/kokoro/`.
+   `.../AI-Companions/whisper/`.
+4. **Para ele falar:** o modelo do Kokoro já vem no pacote, em `.../AI-Companions/tts/kokoro/`.
 5. **Para a IA:** instale o **[LM Studio](https://lmstudio.ai/)**, carregue um modelo e ligue o servidor local
    (padrão `http://127.0.0.1:1234/v1`). Ajuste em `[IA] BaseUrl` / `[IA] Modelo` se precisar. Use **`127.0.0.1`** em
    vez de `localhost`: em alguns Windows a resolução de IPv6 atrasa ou falha a conexão.
@@ -303,7 +303,7 @@ Ao atualizar de uma versão antiga, as opções que você mudou são migradas au
 
 ## Código-fonte
 
-Código completo no GitHub: **[julianu37/ModAI-BR-Companions](https://github.com/julianu37/ModAI-BR-Companions)**.
+Código completo no GitHub: **[julianu37/AI-Companions](https://github.com/julianu37/AI-Companions)**.
 
 ## Licença
 

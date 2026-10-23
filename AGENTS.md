@@ -1,4 +1,4 @@
-# AGENTS.md — ModAI-BR-Companions
+# AGENTS.md — AI Companions
 
 Mod de **companheiro NPC com IA** para **Valheim 1.0**, em **PT-BR**.
 
@@ -11,6 +11,14 @@ skills, casa, dormir, portais, carroça, menu radial). Nosso trabalho aqui é:
 
 O trabalho é feito pela equipe de agentes em `.opencode/agents/` (comandada por `valheim-mod-lead`) e pelas
 skills em `.opencode/skills/`. Leia este arquivo antes de agir.
+
+## Nome e repositório (renomeação de 23/10/2026)
+
+O mod se chama **AI Companions** (até 23/10/2026 era **ModAI-BR-Companions**): repositório
+`https://github.com/julianu37/AI-Companions` (a wiki é `AI-Companions.wiki`), pasta de deploy
+`BepInEx\plugins\AI-Companions\` e pacotes `AI_Companions-<versão>.zip`. **Preservados de propósito** (o jogo, os
+saves e a config dependem deles): o GUID e o nome do `.cfg` `Maddhattr.OfflineCompanionsReborn`, o `Companions.dll`,
+o `Companions.csproj`, as chaves `HC_*` e os créditos/avisos do upstream (**MIT**).
 
 ## Upstream e licença
 
@@ -49,10 +57,10 @@ skills em `.opencode/skills/`. Leia este arquivo antes de agir.
 
 ## Caminhos desta máquina
 
-- Repositório: `C:\Users\revenda33\Desktop\ModAI-BR-Companions`
+- Repositório: `C:\Users\revenda33\Desktop\AI-Companions`
 - Jogo: `C:\Program Files (x86)\Steam\steamapps\common\Valheim`
-- Plugins: `...\BepInEx\plugins\ModAI-BR-Companions`
-- Traduções (runtime): `...\BepInEx\plugins\ModAI-BR-Companions\Translations\*.json` (UI) e
+- Plugins: `...\BepInEx\plugins\AI-Companions`
+- Traduções (runtime): `...\BepInEx\plugins\AI-Companions\Translations\*.json` (UI) e
   `...\Speech\*.json` (falas do companheiro). As fontes ficam em `Translations/` e `Speech/` na raiz do
   repositório e o build as copia (`Companions.csproj` → alvo `DeployTranslations`).
 - Idioma do jogo em PT-BR: **`Portuguese_Brazilian`** (os arquivos são `Translations/Portuguese_Brazilian.json`
@@ -65,8 +73,8 @@ skills em `.opencode/skills/`. Leia este arquivo antes de agir.
 - **Build:** `dotnet build Companions.sln -c Release` → gera `src/Companions/bin/Release/net472/Companions.dll`
   e copia para `DeployDir`.
 - **Teste:** iniciar o jogo e conferir `BepInEx\LogOutput.log` (deve listar
-  `Loading [ModAI-BR-Companions <versão>]` + `loaded successfully! (N methods patched)`).
-- **Pasta de deploy:** o build copia para `DeployDir` = `...\BepInEx\plugins\ModAI-BR-Companions\`. **Não** deixe
+  `Loading [AI Companions <versão>]` + `loaded successfully! (N methods patched)`).
+- **Pasta de deploy:** o build copia para `DeployDir` = `...\BepInEx\plugins\AI-Companions\`. **Não** deixe
   outra cópia do mod instalada ao mesmo tempo (ex.: o Vortex deploya em `plugins\Companions\`, usando o **nome do
   mod** como pasta): duas cópias = o mesmo GUID carregado duas vezes. Se um gerenciador cuidar da pasta dele,
   aponte o `DeployDir` para ela **ou** remova a outra.
@@ -588,7 +596,7 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
 - `docs/wiki/` — **a fonte da GitHub Wiki** (o guia de instalação/uso para quem baixa o mod): `Home.md`,
   `Requisitos.md`, `Instalacao.md`, `LLM-no-LM-Studio.md`, `Voz.md`, `Comandos.md`, `Configuracao.md`,
   `Problemas-comuns.md`, `Como-funciona.md`, `Creditos-e-licenca.md`, `_Sidebar.md`, `_Footer.md` e `images/`.
-  A wiki publicada vive em **repositório git separado** (`https://github.com/julianu37/ModAI-BR-Companions.wiki.git`,
+  A wiki publicada vive em **repositório git separado** (`https://github.com/julianu37/AI-Companions.wiki.git`,
   branch `master`): edite aqui e publique com `git clone <url>.wiki.git` + copiar os `.md` e a pasta `images/` +
   commit/push. (O repositório da wiki só existe depois da 1ª página salva pelo site — não há API para isso.)
 - `docs/vision.md` — a visão/escopo (companheiro como membro da equipe) e o que falta.

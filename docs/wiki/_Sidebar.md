@@ -1,4 +1,4 @@
-**ModAI-BR-Companions**
+**AI Companions**
 
 - [Início](Home)
 - [Requisitos](Requisitos)

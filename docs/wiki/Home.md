@@ -1,11 +1,11 @@
-# ModAI-BR-Companions
+# AI Companions
 
 Um **companheiro NPC com IA** para **Valheim 1.0**, em **português do Brasil** — você **fala ou digita** e ele
 entende e executa.
 
-[![Assista: "Esse mod muda TUDO no Valheim! ModAI-BR-Companions"](images/video-thumb.jpg)](https://www.youtube.com/watch?v=40FnVEIbXyo)
+[![Assista: "Esse mod muda TUDO no Valheim! AI Companions"](images/video-thumb.jpg)](https://www.youtube.com/watch?v=40FnVEIbXyo)
 
-> Vídeo do canal **SuaTV**: **"Esse mod muda TUDO no Valheim! ModAI-BR-Companions"**.
+> Vídeo do canal **SuaTV**: **"Esse mod muda TUDO no Valheim! AI Companions"**.
 > **[Assistir no YouTube](https://www.youtube.com/watch?v=40FnVEIbXyo)** — clicar na imagem também abre.
 
 ## Em ação
@@ -79,9 +79,9 @@ vem do upstream e continua funcionando igual — a IA é só uma **nova entrada*
 
 | O quê | Onde |
 |---|---|
-| **Releases (download)** | https://github.com/julianu37/ModAI-BR-Companions/releases |
-| **Repositório** | https://github.com/julianu37/ModAI-BR-Companions |
-| **Changelog** | https://github.com/julianu37/ModAI-BR-Companions/blob/main/package/CHANGELOG.md |
+| **Releases (download)** | https://github.com/julianu37/AI-Companions/releases |
+| **Repositório** | https://github.com/julianu37/AI-Companions |
+| **Changelog** | https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md |
 | **Upstream (MIT)** | https://github.com/MaddhattrRocks/Offline-Companions-Reborn |
 | **Vídeo** | https://www.youtube.com/watch?v=40FnVEIbXyo |
 
@@ -89,14 +89,14 @@ A release publicada mais recente é a **1.6.4**, com **dois** arquivos para esco
 
 | Arquivo | Tamanho | O que vem |
 |---|---|---|
-| `ModAI_BR_Companions-1.6.4.zip` | ~367,9 MB | O mod **e** os modelos de voz (STT + TTS) já prontos |
-| `ModAI_BR_Companions-1.6.4-sem-modelos.zip` | ~28,4 MB | Só o mod e as traduções — você baixa os modelos por fora |
+| `AI_Companions-1.6.4.zip` | ~367,9 MB | O mod **e** os modelos de voz (STT + TTS) já prontos |
+| `AI_Companions-1.6.4-sem-modelos.zip` | ~28,4 MB | Só o mod e as traduções — você baixa os modelos por fora |
 
 > **Qual escolher?** Se você quer só instalar e usar, pegue o **completo**. Se a sua internet é lenta (ou você já
 > tem os modelos), pegue o **sem-modelos** e siga a seção de modelos em **[Instalação](Instalacao)**.
 
 > A **1.6.3** foi a release anterior (mudou **só o empacotamento**: a pasta do mod já vem como
-> `BepInEx\plugins\ModAI-BR-Companions\` dentro do zip, então dá para extrair direto na pasta do Valheim ou deixar
+> `BepInEx\plugins\AI-Companions\` dentro do zip, então dá para extrair direto na pasta do Valheim ou deixar
 > o gerenciador de mods instalar). A **1.6.4** mudou **só os padrões** da seção `[IA]` — nada muda no jogo para
 > quem já configurou: `BaseUrl` passou a `http://127.0.0.1:1234/v1` (em vez de `localhost`, que pagava ~2,5 s por
 > ordem no Windows) e `Modelo` passou a `qwen2.5-3b-instruct` (em vez de `google/gemma-4-e4b`).

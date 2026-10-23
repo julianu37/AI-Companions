@@ -1,6 +1,6 @@
 # 1.6.4 — padrões do `[IA]` corretos e projeto independente
 
-![ModAI-BR-Companions — companheiros NPC com IA para Valheim, em PT-BR](https://raw.githubusercontent.com/julianu37/ModAI-BR-Companions/main/docs/images/banner.png)
+![AI Companions — companheiros NPC com IA para Valheim, em PT-BR](https://raw.githubusercontent.com/julianu37/AI-Companions/main/docs/images/banner.png)
 
 > **Quem já tem o mod configurado não precisa fazer nada:** esta versão só muda o que uma instalação **nova** recebe.
 
@@ -19,8 +19,8 @@
 
 | Arquivo | Tamanho | O que vem |
 |---|---|---|
-| `ModAI_BR_Companions-1.6.4.zip` | ~368 MB | O mod **e** os modelos de voz (STT + TTS) — **recomendado** |
-| `ModAI_BR_Companions-1.6.4-sem-modelos.zip` | ~28 MB | Só o mod e as traduções (o pacote traz `tokens.txt` e `espeak-ng-data\`) |
+| `AI_Companions-1.6.4.zip` | ~368 MB | O mod **e** os modelos de voz (STT + TTS) — **recomendado** |
+| `AI_Companions-1.6.4-sem-modelos.zip` | ~28 MB | Só o mod e as traduções (o pacote traz `tokens.txt` e `espeak-ng-data\`) |
 
 ## Requisitos e instalação
 
@@ -28,15 +28,15 @@
 - **LM Studio** com um modelo local (`qwen2.5-3b-instruct`) — ou qualquer servidor compatível com a API da OpenAI.
 - **Windows x64** para as duas partes de voz; **microfone** só para as ordens por voz.
 
-Passo a passo completo, **com imagens**: https://github.com/julianu37/ModAI-BR-Companions/wiki/Instalacao
+Passo a passo completo, **com imagens**: https://github.com/julianu37/AI-Companions/wiki/Instalacao
 
 ## Em ação
 
 | | |
 |---|---|
-| ![Ordem no chat](https://raw.githubusercontent.com/julianu37/ModAI-BR-Companions/main/docs/wiki/images/1-ordem-no-chat.jpg) | ![Painel da IA](https://raw.githubusercontent.com/julianu37/ModAI-BR-Companions/main/docs/wiki/images/2-painel-da-ia.jpg) |
+| ![Ordem no chat](https://raw.githubusercontent.com/julianu37/AI-Companions/main/docs/wiki/images/1-ordem-no-chat.jpg) | ![Painel da IA](https://raw.githubusercontent.com/julianu37/AI-Companions/main/docs/wiki/images/2-painel-da-ia.jpg) |
 | **A ordem no chat** — ele entende e responde | **Painel da IA** (tecla `I`) |
-| ![Painel F8](https://raw.githubusercontent.com/julianu37/ModAI-BR-Companions/main/docs/wiki/images/3-painel-f8.jpg) | ![Menu radial](https://raw.githubusercontent.com/julianu37/ModAI-BR-Companions/main/docs/wiki/images/4-menu-radial.jpg) |
+| ![Painel F8](https://raw.githubusercontent.com/julianu37/AI-Companions/main/docs/wiki/images/3-painel-f8.jpg) | ![Menu radial](https://raw.githubusercontent.com/julianu37/AI-Companions/main/docs/wiki/images/4-menu-radial.jpg) |
 | **Seção `[IA]` no painel F8** | **Menu radial** (segure `E`) |
 
 ## Créditos e licença
@@ -51,6 +51,6 @@ Voz e reconhecimento usam [Whisper.net](https://github.com/sandrohanea/whisper.n
 (Apache-2.0), [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) (Apache-2.0) e
 [onnxruntime](https://github.com/microsoft/onnxruntime) (MIT). Os textos das licenças viajam no pacote, em `LICENSES\`.
 
-Licença: **MIT** — ver [`LICENSE`](https://github.com/julianu37/ModAI-BR-Companions/blob/main/LICENSE),
-[`NOTICE.md`](https://github.com/julianu37/ModAI-BR-Companions/blob/main/NOTICE.md) e
-[`THIRD_PARTY_NOTICES.md`](https://github.com/julianu37/ModAI-BR-Companions/blob/main/THIRD_PARTY_NOTICES.md).
+Licença: **MIT** — ver [`LICENSE`](https://github.com/julianu37/AI-Companions/blob/main/LICENSE),
+[`NOTICE.md`](https://github.com/julianu37/AI-Companions/blob/main/NOTICE.md) e
+[`THIRD_PARTY_NOTICES.md`](https://github.com/julianu37/AI-Companions/blob/main/THIRD_PARTY_NOTICES.md).

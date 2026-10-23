@@ -61,13 +61,13 @@ INTRO={
 'Idle':'O que um companheiro faz quando o trabalho dele não tem nada para fazer.',
 'Speech':'Com que frequência os companheiros falam e quanto tempo as falas ficam na tela.',
 'Advanced':'Ajustes finos de tempos e distâncias. A maioria dos jogadores nunca precisa mexer nisso.',
-'IA':'A camada de IA do fork: ordens por texto e por voz, personalidade, memória e o reconhecimento de voz local.',
+'IA':'A camada de IA do projeto: ordens por texto e por voz, personalidade, memória e o reconhecimento de voz local.',
 }
 order=[]
 for r in rows:
     if r[0] not in order: order.append(r[0])
 L=[]
-L.append('# ModAI-BR-Companions — Referência de configurações\n')
+L.append('# AI Companions — Referência de configurações\n')
 L.append('Todas as configurações do mod: o que cada uma faz e com que valor ela começa.\n')
 L.append('**Onde mudar:** no jogo, aperte `F8` para abrir o painel de configurações. Você também pode editar `BepInEx/config/Maddhattr.OfflineCompanionsReborn.cfg` com qualquer editor de texto, com o jogo fechado.\n')
 L.append('**Dicas**\n')

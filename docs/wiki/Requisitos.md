@@ -1,6 +1,6 @@
 # Requisitos
 
-O que você precisa ter antes de instalar o **ModAI-BR-Companions**.
+O que você precisa ter antes de instalar o **AI Companions**.
 
 O mod funciona em **duas camadas independentes**: as **ordens por texto no chat** (precisam de um LLM local) e
 as **ordens por voz** (precisam de microfone). Você pode usar **só o chat**, digitando — a voz é opcional.

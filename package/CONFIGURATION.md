@@ -1,4 +1,4 @@
-# ModAI-BR-Companions — Referência de configurações
+# AI Companions — Referência de configurações
 
 Todas as configurações do mod: o que cada uma faz e com que valor ela começa.
 
@@ -844,7 +844,7 @@ Diagnóstico de UI: ligado, escreve no log o que está na frente dos controles d
 
 ## IA
 
-A camada de IA do fork: ordens por texto e por voz, personalidade, memória e o reconhecimento de voz local.
+A camada de IA do projeto: ordens por texto e por voz, personalidade, memória e o reconhecimento de voz local.
 
 **Ligado** — Padrão: Ligado  
 Fase 3.1: digite uma ordem no chat do jogo ("colete 20 de madeira", "segue", "para") e os companheiros a executam. A ordem é interpretada por um LLM local através de uma API compatível com a OpenAI. Desligado = nada é enviado ao modelo.
