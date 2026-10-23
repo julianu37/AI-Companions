@@ -473,23 +473,20 @@ internal static class CompanionChatAI
 		// what the companion actually said (or did), kept in its memory so it can follow the thread
 		string spoken = null;
 
-		// Fase 3.11: who takes this answer. The player's own words win ("Gruncha, ..."), then the model's
-		// "companion" key; a name the model invented is refused instead of being handed to everybody (see
-		// ResolveAddressee). Null = nobody was named -> exactly the old behaviour (every companion).
-		CompanionSetup addressee = ResolveAddressee(intent, out bool stop);
+		// Fase 3.11: who takes this answer (see ResolveAddressee: the player's words decide, the model's field is only
+		// trusted when the message itself named somebody). Null = nobody was named -> exactly the old behaviour.
+		CompanionSetup addressee = ResolveAddressee(intent, result.UserText, out bool stop);
 		if (stop)
 		{
 			return;
 		}
-		// Fase 3.11: everything the companion says or does from here belongs to the named one; without a name it is
-		// the speaker of the message, i.e. the old flow.
-		CompanionSetup speaker = addressee ?? _pendingSpeaker;
-		if (addressee != null && addressee != _pendingSpeaker)
-		{
-			// the model named a companion the message itself didn't ("manda o Gruncho coletar pedra"): what that one
-			// answers is filed under IT, not under the nearest companion
-			_pendingKey = KeyFor(addressee, NameOf(addressee));
-		}
+		// Fase 3.11/3.12: everything the companion says or does from here belongs to the named one; without a name it
+		// is the speaker of the message, i.e. the old flow. Fase 3.12 (auditoria): the fallback goes through Live(),
+		// because "??" does not use Unity's "destroyed == null" - a stale speaker would be used as if it were alive.
+		// The memory key is NOT rewritten here any more: whoever speaks is the speaker of the turn (the named
+		// companion is already the speaker since Submit), so the tone and the memory can never belong to two
+		// different companions.
+		CompanionSetup speaker = ReferenceEquals(addressee, null) ? Live(_pendingSpeaker) : addressee;
 
 		if (intent == null || intent.IsNone)
 		{
@@ -575,22 +572,38 @@ internal static class CompanionChatAI
 	}
 
 	/// <summary>
-	/// Fase 3.11: the companion this answer is for, or null when nobody was named (the old, every-companion
-	/// behaviour). The player's own words win when they named someone (<see cref="_pendingAddressee"/>), because they
-	/// are the ground truth and because a small model copies example names: a model name that no companion answers to
-	/// must never block an order the player addressed by name.
+	/// Fase 3.11 / 3.12: the companion this answer is for, and the single place the three cases are decided.
 	///
-	/// <para>When neither the player nor the model named a real companion - the model invented a name in a message
-	/// that names nobody - nothing is ordered: the player is told which name wasn't found and <paramref name="stop"/>
-	/// comes back true, so one stray name can never become an order for everyone.</para>
+	/// <list type="number">
+	/// <item><b>the player named a real companion</b> ("Gruncha, colete 10 pedras", found by
+	/// <see cref="CompanionNames.FromMessage"/> when the message was sent): that one, always - the model's
+	/// <c>companion</c> key is not consulted (it can only confirm or disagree, and a small model copies example names);
+	/// if it disagrees, that is one log line and nothing else. A companion that was destroyed between the message and
+	/// the answer is reported ("that companion isn't here anymore") and nothing is ordered, instead of the order
+	/// falling through to everybody;</item>
+	/// <item><b>the message opens with a call to somebody who doesn't exist</b> ("Fulano, colete 10 pedras"): the
+	/// player is told which name wasn't found and <paramref name="stop"/> comes back true - the order is not handed to
+	/// every companion. The call is recognized by <see cref="CompanionNames.UnknownAddress"/>, which refuses order
+	/// verbs, greetings and fillers ("bom dia, tudo bem?", "para, obrigado"), so ordinary talk is never caught
+	/// here;</item>
+	/// <item><b>the message names nobody</b> ("colete 10 pedras"): the model's <c>companion</c> key is <b>ignored</b>
+	/// (one log line) and null comes back, i.e. exactly the behaviour before this feature - the order goes to every
+	/// companion that can take it. A name the model invented, a "todos" or a "você" can never block an order the
+	/// player did not address to anyone.</item>
+	/// </list>
 	/// </summary>
-	/// <param name="stop">true = say nothing else, apply nothing (the name doesn't exist).</param>
-	private static CompanionSetup ResolveAddressee(LlmIntent intent, out bool stop)
+	/// <param name="userText">What the player said (typed or spoken), for case 2.</param>
+	/// <param name="stop">true = say nothing else and apply nothing (the call named somebody that doesn't exist).</param>
+	private static CompanionSetup ResolveAddressee(LlmIntent intent, string userText, out bool stop)
 	{
 		stop = false;
+		bool namedByPlayer = !ReferenceEquals(_pendingAddressee, null);
 		CompanionSetup pending = Live(_pendingAddressee);
-		if (_pendingAddressee != null && pending == null)
+		if (namedByPlayer && ReferenceEquals(pending, null))
 		{
+			// Fase 3.12 (auditoria): the ReferenceEquals above is what makes this branch reachable at all - Unity's
+			// own != answers false for a DESTROYED object, so comparing it with == null never fired and the order
+			// silently fell through to everybody.
 			// the companion the player named left the world while the model was thinking (dismissed, dead and
 			// destroyed, world change): say so instead of handing the order to everybody else
 			Notify(ModLocalization.Loc("hc_ai_comp_gone"));
@@ -599,33 +612,30 @@ internal static class CompanionChatAI
 			return null;
 		}
 		string modelName = intent != null ? intent.Companion : null;
-		if (string.IsNullOrEmpty(modelName))
+		if (!ReferenceEquals(pending, null))
 		{
-			return pending;
-		}
-		CompanionSetup fromModel = Live(CompanionNames.Find(modelName));
-		if (pending != null)
-		{
-			string playerName = CompanionNames.NameOf(pending);
-			if (fromModel != null && fromModel != pending)
+			// case 1: the player named this one (the prompt, the persona and the memory are already its own)
+			if (!string.IsNullOrEmpty(modelName) && !CompanionNameMatch.Same(modelName, CompanionNames.NameOf(pending)))
 			{
-				CompanionsPlugin.Log?.LogInfo($"[IA] The model named \"{modelName}\" but the player's message starts with \"{playerName}\" - the player's words win");
-			}
-			else if (fromModel == null)
-			{
-				CompanionsPlugin.Log?.LogInfo($"[IA] The model named \"{modelName}\", which isn't a companion - the player's message starts with \"{playerName}\", so that is the addressee");
+				string known = ReferenceEquals(CompanionNames.Find(modelName), null) ? "isn't a companion" : "is another companion";
+				CompanionsPlugin.Log?.LogInfo($"[IA] The model named \"{modelName}\" ({known}) but the player's message starts with \"{CompanionNames.NameOf(pending)}\" - the player's words win");
 			}
 			return pending;
 		}
-		if (fromModel != null)
+		string unknownCall = CompanionNames.UnknownAddress(userText);
+		if (!string.IsNullOrEmpty(unknownCall))
 		{
-			CompanionsPlugin.Log?.LogInfo($"[IA] The model named \"{modelName}\" - the order goes to that companion only");
-			return fromModel;
+			// case 2: the message calls somebody the mod doesn't know - say it, and order nothing
+			Notify(ModLocalization.LocFmt("hc_ai_unknown_companion", unknownCall));
+			CompanionsPlugin.Log?.LogInfo($"[IA] The message is addressed to \"{unknownCall}\", which isn't one of the player's companions - nothing was ordered");
+			stop = true;
+			return null;
 		}
-		// nobody the model named exists, and the player named nobody either: refuse instead of ordering everybody
-		Notify(ModLocalization.LocFmt("hc_ai_unknown_companion", modelName));
-		CompanionsPlugin.Log?.LogInfo($"[IA] The model answered companion=\"{modelName}\", which isn't one of the player's companions - nothing was ordered");
-		stop = true;
+		if (!string.IsNullOrEmpty(modelName))
+		{
+			// case 3: the player named nobody, so the model's field is not trusted (see the summary above)
+			CompanionsPlugin.Log?.LogInfo($"[IA] The model answered companion=\"{modelName}\" but the message names nobody - ignoring it and running the order for all companions");
+		}
 		return null;
 	}
 

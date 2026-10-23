@@ -419,6 +419,9 @@ public static class ModLocalization
 			// Fase 3.5: personality presets (shown in the log), free conversation and the memory
 			{ "hc_ai_default_name", "Companion" },
 			{ "hc_ai_preset_default", "Default" },
+			// Fase 3.12: the "default personality" entry of a COMPANION's list, which also has "follow the [IA]
+			// default" right above it - two different choices, so they must not read the same
+			{ "hc_ai_preset_neutral", "Neutral (the default)" },
 			{ "hc_ai_preset_custom", "Free text" },
 			{ "hc_ai_preset_viking", "Loyal Viking" },
 			{ "hc_ai_preset_mago", "Sarcastic Mage" },

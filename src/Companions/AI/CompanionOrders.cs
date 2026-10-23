@@ -36,6 +36,24 @@ internal static class CompanionOrders
 		internal string Message;
 	}
 
+	// ---- Fase 3.11/3.12: "this order is addressed to ONE companion" ----
+
+	/// <summary>
+	/// Fase 3.12 (auditoria): is this a directed order? Deliberately <b>not</b> <c>addressee != null</c>: Unity's
+	/// <c>==</c>/<c>!=</c> answer "null"/false for a <b>destroyed</b> object, which would silently turn a directed
+	/// order into "everybody" - the guarantee of who is skipped must not depend on that operator.
+	/// </summary>
+	private static bool IsDirected(CompanionSetup addressee)
+	{
+		return !ReferenceEquals(addressee, null);
+	}
+
+	/// <summary>Is this companion one the directed order must leave alone?</summary>
+	private static bool IsNotAddressee(CompanionSetup addressee, CompanionSetup companion)
+	{
+		return IsDirected(addressee) && !ReferenceEquals(companion, addressee);
+	}
+
 	/// <summary>Runs one order. <paramref name="userText"/> is what the player actually said (typed in the chat or
 	/// spoken): Fase 3.6b uses it as the safety net for attack/equip/drop when the model answered "target": null.
 	/// <paramref name="speaker"/> (Fase 3.8) is the companion the message was addressed to, when the caller knows it -
@@ -93,7 +111,7 @@ internal static class CompanionOrders
 		// Fase 3.11: uma ordem dirigida só derruba o recolhimento DAQUELE companheiro (os outros não são tocados).
 		if (action != "pickup")
 		{
-			if (addressee != null)
+			if (IsDirected(addressee))
 			{
 				MHR_Collect.Cancel(addressee);
 			}
@@ -105,7 +123,7 @@ internal static class CompanionOrders
 
 		if (action == "come")
 		{
-			if (addressee != null)
+			if (IsDirected(addressee))
 			{
 				// Fase 3.11: "Gruncha, vem cá" chama só a Gruncha, pelo mesmo caminho do botão "Chamar" da aba dela
 				if (CompanionInteract.RecallOne(addressee, player))
@@ -152,7 +170,9 @@ internal static class CompanionOrders
 		// Fase 3.8: the one order that is about ONE companion - the player sees its pack
 		if (action == "inventory")
 		{
-			return Inventory(player, addressee ?? speaker, outcome, addressee != null);
+			// Fase 3.12: no "??" with Unity objects - a directed order asks for THAT companion, anything else falls
+			// back to the speaker of the message
+			return Inventory(player, IsDirected(addressee) ? addressee : speaker, outcome, IsDirected(addressee));
 		}
 		if (action == "inventory_close")
 		{
@@ -162,7 +182,7 @@ internal static class CompanionOrders
 		foreach (CompanionSetup companion2 in CompanionSetup.AllCompanions)
 		{
 			// Fase 3.11: a named order skips the others before anything is read or taken over
-			if (addressee != null && companion2 != addressee)
+			if (IsNotAddressee(addressee, companion2))
 			{
 				continue;
 			}
@@ -231,7 +251,7 @@ internal static class CompanionOrders
 		foreach (CompanionSetup companion in CompanionSetup.AllCompanions)
 		{
 			// Fase 3.11: with a name, only that companion fights (the others are skipped before anything is touched)
-			if (addressee != null && companion != addressee)
+			if (IsNotAddressee(addressee, companion))
 			{
 				continue;
 			}
@@ -263,7 +283,7 @@ internal static class CompanionOrders
 		if (outcome.Count == 0)
 		{
 			// Fase 3.11: with a name, say WHICH companion didn't take it instead of "no companion answered"
-			outcome.Message = addressee != null
+			outcome.Message = IsDirected(addressee)
 				? ModLocalization.LocFmt("hc_ai_companion_not_available", CompanionNames.NameOf(addressee))
 				: ModLocalization.Loc("hc_ai_no_companion");
 			CompanionsPlugin.Log?.LogInfo("[IA] Order \"attack\": no companion took it (out of range or Command off)");
@@ -300,7 +320,7 @@ internal static class CompanionOrders
 		foreach (CompanionSetup companion in CompanionSetup.AllCompanions)
 		{
 			// Fase 3.11: "Gruncha, equipa a picareta" is Gruncha's order only
-			if (addressee != null && companion != addressee)
+			if (IsNotAddressee(addressee, companion))
 			{
 				continue;
 			}
@@ -377,7 +397,7 @@ internal static class CompanionOrders
 		foreach (CompanionSetup companion in CompanionSetup.AllCompanions)
 		{
 			// Fase 3.11: "Gruncha, larga a pedra" is Gruncha's order only
-			if (addressee != null && companion != addressee)
+			if (IsNotAddressee(addressee, companion))
 			{
 				continue;
 			}
@@ -628,7 +648,7 @@ internal static class CompanionOrders
 		for (int i = 0; i < all.Count; i++)
 		{
 			CompanionSetup companion = all[i];
-			if (addressee != null && companion != addressee)
+			if (IsNotAddressee(addressee, companion))
 			{
 				continue;
 			}

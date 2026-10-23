@@ -255,7 +255,9 @@ internal static class CompanionProfile
 		return ids;
 	}
 
-	/// <summary>The localized names of <see cref="PresetIds"/>, index for index.</summary>
+	/// <summary>The localized names of <see cref="PresetIds"/>, index for index. With <paramref name="withInherit"/>
+	/// the "default personality" entry gets its own wording ("neutral personality"), so it is never confused with the
+	/// "follow the [IA] default" entry right above it (Fase 3.12).</summary>
 	internal static string[] PresetLabels(bool withInherit)
 	{
 		CompanionPersona.Preset[] presets = CompanionPersona.Presets;
@@ -265,7 +267,7 @@ internal static class CompanionProfile
 		{
 			labels[0] = ModLocalization.Loc("hc_ai_profile_inherit");
 		}
-		labels[offset] = ModLocalization.Loc("hc_ai_preset_default");
+		labels[offset] = ModLocalization.Loc(withInherit ? "hc_ai_preset_neutral" : "hc_ai_preset_default");
 		for (int i = 0; i < presets.Length; i++)
 		{
 			labels[offset + 1 + i] = ModLocalization.Loc(presets[i].NameKey);
@@ -340,6 +342,10 @@ internal static class CompanionProfile
 	/// ZDO first, exactly like <see cref="MHR_Owner.TakeControl"/> does for an order, and only gives up when the
 	/// claim does not stick (in multiplayer the previous owner's game may still hold it for a moment). A failed
 	/// write is logged and returns false; the panels say so instead of showing a choice that was not saved.
+	///
+	/// <para>Fase 3.12 (auditoria): the ZDO is read <b>again</b> after the claim. Claiming can hand this game a new
+	/// ZDO instance (the old one is a replica), and writing to the instance read before the claim would be lost while
+	/// this method still answered "true". No ZDO after the claim = the write did not happen.</para>
 	/// </summary>
 	private static bool Write(Component c, Action<ZDO> write)
 	{
@@ -351,7 +357,10 @@ internal static class CompanionProfile
 		if (!nv.IsOwner())
 		{
 			nv.ClaimOwnership();
-			if (!nv.IsOwner())
+			// the claim may have replaced the ZDO this game was holding: whatever we write has to go to the one the
+			// ZNetView has NOW, and only if the ownership really arrived
+			zdo = nv.IsValid() ? nv.GetZDO() : null;
+			if (!nv.IsOwner() || zdo == null)
 			{
 				CompanionsPlugin.Log?.LogWarning("[IA] Perfil do companheiro: sem posse do ZDO - a escolha nao foi gravada (tente de novo em instantes)");
 				return false;

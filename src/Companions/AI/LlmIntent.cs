@@ -222,6 +222,34 @@ internal sealed class LlmIntent
 		return action == "attack" || action == "equip" || action == "drop";
 	}
 
+	/// <summary>
+	/// Fase 3.12: is this word/phrase one the parser already knows - an order verb ("colete", "para", "segue"), a
+	/// stance, a resource, or a greeting/filler of the "none" group ("bom dia", "valeu")? It is what tells an address
+	/// ("Fulano, colete 10 pedras") from an order or a greeting that happens to come before a comma ("para, obrigado"
+	/// / "bom dia, tudo bem?"), using the very same table the parser uses, so the two can never drift apart.
+	/// </summary>
+	internal static bool IsIntentWord(string value)
+	{
+		string normalized = Normalize(value);
+		if (normalized.Length == 0)
+		{
+			return false;
+		}
+		if (Aliases.ContainsKey(normalized) || Resources.ContainsKey(normalized))
+		{
+			return true;
+		}
+		// a phrase ("pega a picareta") whose words are all in the table is still an order
+		foreach (string word in normalized.Split('_'))
+		{
+			if (Aliases.ContainsKey(word) || Resources.ContainsKey(word))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
 	private static string Canonicalize(string action, string stance, string resource, string target)
 	{
 		string normalizedAction = Normalize(action);

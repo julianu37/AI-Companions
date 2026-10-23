@@ -336,6 +336,7 @@
         { "key": "hc_ai_no_container", "value": "Não achei o inventário de {0}." },
         { "key": "hc_ai_default_name", "value": "Companheiro" },
         { "key": "hc_ai_preset_default", "value": "Padrão" },
+        { "key": "hc_ai_preset_neutral", "value": "Neutra (o padrão)" },
         { "key": "hc_ai_preset_custom", "value": "Texto livre" },
         { "key": "hc_ai_preset_viking", "value": "Viking leal" },
         { "key": "hc_ai_preset_mago", "value": "Mago sarcástico" },

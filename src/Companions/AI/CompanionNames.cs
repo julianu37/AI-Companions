@@ -184,12 +184,14 @@ internal static class CompanionNames
 			return null;
 		}
 		matchedName = matched;
-		// the same name on two companions: the first one wins (the same rule as Find), and the tie is logged
+		// the same name on two companions: the first one wins (the same rule as Find), and the tie is logged.
+		// Fase 3.12: the count uses Same (case/accents ignored), like the match itself - two companions "Gruncha" and
+		// "Grüncha" are the same name to the player, and an exact comparison would miss the tie.
 		int matches = 0;
 		CompanionSetup found = null;
 		for (int i = 0; i < mine.Count; i++)
 		{
-			if (!string.Equals(names[i], matched, StringComparison.Ordinal))
+			if (!CompanionNameMatch.Same(names[i], matched))
 			{
 				continue;
 			}
@@ -204,6 +206,28 @@ internal static class CompanionNames
 			LogTie(matched, matches, found);
 		}
 		return found;
+	}
+
+	/// <summary>
+	/// Fase 3.12: the opening of the message that <b>looks like a call to someone the mod doesn't know</b> ("Fulano" in
+	/// "Fulano, colete 10 pedras"), or null when the message opens with an order, a greeting, or the name of a real
+	/// companion. It is what lets the caller say "I don't know any companion called Fulano" instead of quietly
+	/// handing the order to everybody - and, on the other side, what keeps a message that names nobody ("colete 10
+	/// pedras") on the old, every-companion path.
+	/// </summary>
+	internal static string UnknownAddress(string message)
+	{
+		if (string.IsNullOrEmpty(message))
+		{
+			return null;
+		}
+		// a real companion answers first: then this is not an unknown name
+		if (FromMessage(message, out _) != null)
+		{
+			return null;
+		}
+		string candidate = CompanionNameMatch.AddressCandidate(message);
+		return candidate;
 	}
 
 	private static void LogTie(string spoken, int matches, CompanionSetup found)
@@ -231,8 +255,18 @@ internal static class CompanionNameMatch
 	/// <summary>Longest name, in words, looked for in the player's message ("Gruncha" is 1, "Ana Maria" is 2).</summary>
 	internal const int MaxNameWords = 4;
 
+	/// <summary>
+	/// Shortest name accepted <b>from the message</b> (Fase 3.12): a one or two letter name ("Lu", "Bo") would answer
+	/// every "oi", "a", "já" of a normal sentence, so the message route needs three letters. The model's field is
+	/// still matched against the full name (<see cref="Same"/>), because there the name was written on purpose.
+	/// </summary>
+	internal const int MinMessageNameLength = 3;
+
 	/// <summary>Where the addressed part of a message ends: "Gruncha, colete 10 pedras" / "Ei, Gruncha, ...".</summary>
 	private static readonly char[] SegmentSeparators = new char[3] { ',', ';', ':' };
+
+	/// <summary>What separates the words of an address ("Ana Maria, ...").</summary>
+	private static readonly char[] WordSeparators = new char[3] { ' ', '\t', '\n' };
 
 	/// <summary>The articles a name may be preceded by, in the model's field or in the player's words ("o Gruncha").</summary>
 	private static readonly HashSet<string> Articles = new HashSet<string>(StringComparer.Ordinal)
@@ -243,12 +277,88 @@ internal static class CompanionNameMatch
 	/// <summary>
 	/// The words an address may open with before the name ("ei Gruncha, ...", "olha Gruncha, ..."). One of them is
 	/// skipped before the name is looked for, so the very common "ei, Gruncha" works with or without a comma - and
-	/// only one, so a full sentence never becomes an address by accident.
+	/// only one, so a full sentence never becomes an address by accident. They are also never accepted AS a name read
+	/// from the message (Fase 3.12): a companion called "Olha" must not hijack "olha, o greydwarf está atacando".
 	/// </summary>
 	private static readonly HashSet<string> AddressPrefixes = new HashSet<string>(StringComparer.Ordinal)
 	{
 		"ei", "oi", "ola", "hey", "ah", "oh", "psiu", "escuta", "olha", "entao", "opa", "alo"
 	};
+
+	/// <summary>
+	/// Openings that are not an address to anyone, even when they come before a comma (Fase 3.12): greetings,
+	/// fillers and politeness. They are what keeps "bom dia, tudo bem?", "certo, colete 10 pedras" and
+	/// "por favor, segue" from being read as a call to a companion nobody knows. The order verbs and the greetings
+	/// the parser already knows are covered separately (<see cref="LlmIntent.IsIntentWord"/>), so this list only adds
+	/// the social words that never reach the parser.
+	/// </summary>
+	private static readonly HashSet<string> NotAnAddress = new HashSet<string>(StringComparer.Ordinal)
+	{
+		"bom_dia", "boa_tarde", "boa_noite", "tudo_bem", "tudo_bom", "e_ai", "eai", "beleza", "blz", "tranquilo",
+		"valeu", "obrigado", "obrigada", "desculpa", "desculpe", "por_favor", "please", "thanks", "hello", "hi",
+		"ok", "okay", "certo", "claro", "sim", "nao", "tudo_certo", "como_vai", "como_esta", "calma", "espera",
+		"cuidado", "socorro", "ajuda", "vamos", "rapido", "agora", "forca",
+		// the openers a player uses to call the ATTENTION of the world, not of one companion
+		"atencao", "galera", "pessoal", "gente", "rapaziada", "amigo", "amiga", "chefe", "patrao", "senhor",
+		"senhora", "veja", "olhe", "escuta", "psiuzinho"
+	};
+
+	/// <summary>Longest address candidate accepted by <see cref="AddressCandidate"/>, in characters (a call is short).</summary>
+	private const int MaxAddressChars = 24;
+
+	/// <summary>
+	/// Fase 3.12: the part of the message that <b>looks like a call to someone</b> ("Fulano" in "Fulano, colete 10
+	/// pedras"), or null when the message doesn't open with one. It answers "is this message addressed to somebody?"
+	/// for names the mod doesn't know - and it is deliberately narrow, because a false positive here means an order
+	/// that is refused:
+	/// <list type="bullet">
+	/// <item>the call has to be followed by a comma, a semicolon or a colon - without a separator "colete 10 pedras"
+	/// is an order, not an address;</item>
+	/// <item>it has to be short (1 to <see cref="MaxNameWords"/> words, <see cref="MaxAddressChars"/> characters at
+	/// most): a whole sentence before the comma is not a name;</item>
+	/// <item>it cannot be a word the mod already knows (an order verb, a greeting: <see cref="LlmIntent.IsIntentWord"/>),
+	/// a social word (<see cref="NotAnAddress"/>), an article or a lone address prefix ("ei," / "olha,") - those are
+	/// how people talk, not a name.</item>
+	/// </list>
+	/// </summary>
+	internal static string AddressCandidate(string message)
+	{
+		if (string.IsNullOrEmpty(message))
+		{
+			return null;
+		}
+		int cut = message.IndexOfAny(SegmentSeparators);
+		if (cut <= 0)
+		{
+			return null;
+		}
+		string head = message.Substring(0, cut).Trim();
+		if (head.Length < MinMessageNameLength || head.Length > MaxAddressChars)
+		{
+			return null;
+		}
+		string[] words = head.Split(WordSeparators, StringSplitOptions.RemoveEmptyEntries);
+		if (words.Length == 0 || words.Length > MaxNameWords)
+		{
+			return null;
+		}
+		string key = Key(head);
+		if (key.Length < MinMessageNameLength)
+		{
+			return null;
+		}
+		if (NotAnAddress.Contains(key) || AddressPrefixes.Contains(key) || Articles.Contains(key))
+		{
+			return null;
+		}
+		if (LlmIntent.IsIntentWord(head))
+		{
+			return null;
+		}
+		// everything before the separator is an address-looking name: hand it back exactly as the player wrote it,
+		// so the warning can quote it
+		return head;
+	}
 
 	/// <summary>
 	/// The name of the companion the message is addressed to, or null. <paramref name="names"/> is what the player sees
@@ -260,12 +370,28 @@ internal static class CompanionNameMatch
 		{
 			return null;
 		}
+		// Fase 3.12: only the names a message may really be calling - three letters at least, and never one of the
+		// words people open a sentence with (see AddressPrefixes)
+		List<string> usable = new List<string>(names.Count);
+		for (int i = 0; i < names.Count; i++)
+		{
+			string nameKey = Key(names[i]);
+			if (nameKey.Length < MinMessageNameLength || AddressPrefixes.Contains(nameKey) || Articles.Contains(nameKey))
+			{
+				continue;
+			}
+			usable.Add(names[i]);
+		}
+		if (usable.Count == 0)
+		{
+			return null;
+		}
 		// "Gruncha, colete" and "Ei, Gruncha, colete": the name is the whole first part, or the second one
 		string[] segments = message.Split(SegmentSeparators, 3);
 		int scanned = Math.Min(segments.Length, 2);
 		for (int i = 0; i < scanned; i++)
 		{
-			string found = InSegment(segments[i], names);
+			string found = InSegment(segments[i], usable);
 			if (found != null)
 			{
 				return found;

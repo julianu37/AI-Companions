@@ -306,13 +306,15 @@ internal static class CompanionTts
 		}
 	}
 
-	/// <summary>[IA] TtsVoz: the Kokoro speaker id (42/43/44 are the pt-BR voices).</summary>
+	/// <summary>[IA] TtsVoz: the Kokoro speaker id (42/43/44 are the pt-BR voices). Fase 3.12 (auditoria): 0 (the
+	/// config's floor) is treated as "not chosen" and answered with <see cref="DefaultVoice"/> - it used to be passed
+	/// to the model, which meant speaker 0, i.e. another language.</summary>
 	internal static int Voice
 	{
 		get
 		{
 			int value = ModConfig.TtsVoice != null ? ModConfig.TtsVoice.Value : DefaultVoice;
-			return value < 0 ? DefaultVoice : value;
+			return value <= 0 ? DefaultVoice : value;
 		}
 	}
 
@@ -533,10 +535,14 @@ internal static class CompanionTts
 	/// <paramref name="cacheable"/> is false for the model's own replies (see <see cref="TtsRequest.Cacheable"/>).
 	/// The voice is <c>[IA] TtsVoz</c>: a caller that knows the companion (its tab in the panel, the starter preview)
 	/// passes the voice itself through <see cref="Speak(GameObject, string, bool, int)"/>.
+	///
+	/// <para>Fase 3.12 (auditoria): the voice is resolved <b>here</b>, on the main thread, and travels with the line.
+	/// It used to be read by the synthesis thread, which is the one place in the mod that must never touch the config
+	/// (or anything else that belongs to the main thread).</para>
 	/// </summary>
 	internal static void Speak(GameObject talker, string text, bool cacheable = true)
 	{
-		Speak(talker, text, cacheable, 0);
+		Speak(talker, text, cacheable, Voice);
 	}
 
 	/// <summary>
@@ -582,7 +588,7 @@ internal static class CompanionTts
 			CompanionsPlugin.Log?.LogInfo($"[TTS] Ja ha {MaxPendingRequests} falas na fila - esta foi descartada: \"{trimmed}\"");
 			return;
 		}
-		int lineVoice = Mathf.Max(0, voice);
+		int lineVoice = voice > 0 ? voice : Voice;
 		_requests.Enqueue(new TtsRequest
 		{
 			Speaker = talker,
@@ -770,7 +776,9 @@ internal static class CompanionTts
 			return;
 		}
 		int job = Interlocked.Increment(ref _jobs);
-		int voice = EffectiveVoice(tts, request.Voice > 0 ? request.Voice : Voice);
+		// Fase 3.12: the line carries its voice (resolved on the main thread when it was queued); the config is never
+		// read from this thread. 0/negative would be speaker 0 (another language), so the default answers for it.
+		int voice = EffectiveVoice(tts, request.Voice > 0 ? request.Voice : DefaultVoice);
 		float speed = Speed;
 		bool cache = CacheEnabled && request.Cacheable;
 		string[] sentences = SplitSentences(request.Text);

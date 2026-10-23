@@ -354,6 +354,15 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	/// refilled when the tab really changes (a twice-a-second refill would fight the text box being typed in).</summary>
 	private CompanionSetup _compFormFor;
 
+	/// <summary>
+	/// Fase 3.12 (auditoria): the two footer labels of the open companion, computed when its tab loads (and after every
+	/// change made on it), never on the twice-a-second refresh - reading them live meant four ZDO keys per half
+	/// second for a text that only changes when the player changes something.
+	/// </summary>
+	private string _compStatusPersonality;
+
+	private string _compStatusVoice;
+
 	/// <summary>The dropdown whose list is open right now (only one at a time), or null.</summary>
 	private AiDropdown _openList;
 
@@ -690,8 +699,8 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 			// push-to-talk key on the second (the footer block is two lines tall). Fase 3.10: the summary follows the
 			// open tab - a companion's own values on its tab, the global ones on the AI tab - and says "(padrão)"
 			// when what is in use is the global value, so it is never a mystery whose voice is about to be heard.
-			_status.text = ModLocalization.LocFmt("hc_ai_panel_status_personality", EffectivePersonalityLabel(selected))
-				+ "\n" + ModLocalization.LocFmt("hc_ai_panel_status_voice", CurrentVoiceLabel(selected), key);
+			_status.text = ModLocalization.LocFmt("hc_ai_panel_status_personality", PersonalityStatusLabel(selected))
+				+ "\n" + ModLocalization.LocFmt("hc_ai_panel_status_voice", VoiceStatusLabel(selected), key);
 		}
 		// Fase 3.9: a companion's tab shows whether it is alive, so it follows the companion with this same tick - one
 		// health read twice a second, and the texts only change when they really change (TMP compares the string)
@@ -1482,6 +1491,7 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 			SetRecallEnabled(false);
 			SetCompProfileEnabled(false);
 			_compFormFor = null;
+			CacheCompanionStatus(null);
 			return;
 		}
 		Character character = setup.GetComponent<Character>();
@@ -1552,6 +1562,8 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		{
 			SetDropdown(_compVoice, voiceIndex);
 		}
+		// Fase 3.12: the footer line of this companion is computed here, once per tab load (see CacheCompanionStatus)
+		CacheCompanionStatus(setup);
 	}
 
 	// ------------------------------------------------------------------ Fase 3.10: the handlers of the profile
@@ -1571,6 +1583,7 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		{
 			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_profile_save_failed"));
 			RefreshCompanionProfile(setup);
+			CacheCompanionStatus(setup);
 			return;
 		}
 		if (string.Equals(id, CompanionProfile.InheritId, StringComparison.Ordinal))
@@ -1592,6 +1605,7 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 				CompanionChatAI.Announce(ModLocalization.LocFmt("hc_ai_panel_preset_shadowed", CompanionProfile.DescribePersona(setup)));
 			}
 		}
+		CacheCompanionStatus(setup);
 		RefreshStatus();
 	}
 
@@ -1608,11 +1622,13 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		{
 			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_profile_save_failed"));
 			RefreshCompanionProfile(setup);
+			CacheCompanionStatus(setup);
 			return;
 		}
 		CompanionsPlugin.Log?.LogInfo(voice > 0
 			? $"[IA] Painel: voz de \"{NameOf(setup)}\" = {voice} ({_compVoice.LabelAt(index)}) - vale na proxima fala dele. O cache guarda por voz."
 			: $"[IA] Painel: \"{NameOf(setup)}\" volta a usar a voz padrao de [IA] ({CompanionTts.Voice}).");
+		CacheCompanionStatus(setup);
 		RefreshStatus();
 	}
 
@@ -1636,14 +1652,19 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		}
 		string id = IdAt(_compPersonalityIds, _compPersonality != null ? _compPersonality.Index : 0);
 		bool inherit = string.Equals(id, CompanionProfile.InheritId, StringComparison.Ordinal);
-		if (inherit && text.Length == 0)
-		{
+		// Fase 3.12 (auditoria): a failed write is not a success - the same check the two dropdown handlers do. The
+		// ZDO can be held by another game right then (multiplayer), and saying "applied" would leave the player with a
+		// personality that was never stored.
+		bool saved = (inherit && text.Length == 0)
 			// nothing chosen at all: back to the [IA] values (the same as picking the first entry)
-			CompanionProfile.ClearPersona(setup);
-		}
-		else
+			? CompanionProfile.ClearPersona(setup)
+			: CompanionProfile.SetPersona(setup, inherit ? "" : id, text);
+		if (!saved)
 		{
-			CompanionProfile.SetPersona(setup, inherit ? "" : id, text);
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_profile_save_failed"));
+			RefreshCompanionProfile(setup);
+			CacheCompanionStatus(setup);
+			return;
 		}
 		string effective = CompanionProfile.DescribePersona(setup);
 		CompanionsPlugin.Log?.LogInfo($"[IA] Painel: personalidade de \"{NameOf(setup)}\" aplicada ({(text.Length > 0 ? text.Length + " caracteres de texto livre" : "sem texto livre")}) "
@@ -1823,7 +1844,9 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	{
 		SetDropdown(_personality, Mathf.Max(0, IndexOf(_personalityIds, Trimmed(ModConfig.AiPersonalityPreset))));
 
-		int voice = ModConfig.TtsVoice != null ? ModConfig.TtsVoice.Value : CompanionTts.DefaultVoice;
+		// Fase 3.12: the global voice as the TTS really uses it ([IA] TtsVoz 0/negativo = a padrão), so the panel never
+		// shows "voice 0 (another language)" while the companion speaks 42
+		int voice = CompanionTts.Voice;
 		int voiceIndex = IndexOf(_voiceIds, voice);
 		if (voiceIndex < 0)
 		{
@@ -2185,6 +2208,43 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	}
 
 	/// <summary>
+	/// Fase 3.12 (auditoria): the footer line of the open companion, from the cache filled when its tab loaded (and
+	/// after every change made there). Only the AI tab (no companion) reads the values live, which costs nothing.
+	/// </summary>
+	private string PersonalityStatusLabel(CompanionSetup setup)
+	{
+		if (setup == null)
+		{
+			return EffectivePersonalityLabel(null);
+		}
+		return _compStatusPersonality ?? EffectivePersonalityLabel(setup);
+	}
+
+	/// <summary>The same for the voice line of the footer (see <see cref="PersonalityStatusLabel"/>).</summary>
+	private string VoiceStatusLabel(CompanionSetup setup)
+	{
+		if (setup == null)
+		{
+			return CurrentVoiceLabel(null);
+		}
+		return _compStatusVoice ?? CurrentVoiceLabel(setup);
+	}
+
+	/// <summary>Fills the footer cache of <paramref name="setup"/>: when its tab loads and after a change made on that
+	/// tab - never per frame.</summary>
+	private void CacheCompanionStatus(CompanionSetup setup)
+	{
+		if (setup == null)
+		{
+			_compStatusPersonality = null;
+			_compStatusVoice = null;
+			return;
+		}
+		_compStatusPersonality = EffectivePersonalityLabel(setup);
+		_compStatusVoice = CurrentVoiceLabel(setup);
+	}
+
+	/// <summary>
 	/// What the player would hear: the free text wins over the preset (see CompanionPersona.Resolve). With a companion
 	/// on the tab (Fase 3.10) it is <b>its</b> personality, and "(padrão)" is appended when the value in use is the
 	/// global one it inherits.
@@ -2219,7 +2279,7 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	{
 		int voice = setup != null
 			? CompanionProfile.GetVoice(setup)
-			: (ModConfig.TtsVoice != null ? ModConfig.TtsVoice.Value : CompanionTts.DefaultVoice);
+			: CompanionTts.Voice;
 		string label = IndexOf(_voiceIds, voice) < 0
 			? ModLocalization.LocFmt("hc_ai_voice_other", voice)
 			: ModLocalization.Loc("hc_ai_voice_" + voice);
