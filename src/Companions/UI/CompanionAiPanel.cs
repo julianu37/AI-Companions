@@ -1526,7 +1526,13 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		}
 		Character character = setup.GetComponent<Character>();
 		bool alive = character != null && character.GetHealth() > 0f;
-		_compAlive = alive;
+		if (alive != _compAlive)
+		{
+			// Fase 3.19 (auditoria): the tier button follows life and death - it used to be painted only on a tab
+			// change, so a companion that died with the tab open still looked changeable
+			_compAlive = alive;
+			RefreshCompTierPicker();
+		}
 		_compStatus.text = ModLocalization.Loc(alive ? "hc_ai_comp_alive" : "hc_ai_comp_dead");
 		_compStatus.color = alive ? GoldColor : DimColor;
 		SetRecallEnabled(alive);
@@ -1715,6 +1721,15 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		CompanionTierDef def = TierAt(_compTierIndex);
 		if (setup == null || def == null || TierIndexOf(setup) == _compTierIndex)
 		{
+			return;
+		}
+		// Fase 3.19 (auditoria): the button is only repainted on a tab change, so a companion that died while the
+		// tab was open could still be "changed" - ChangeTier refuses it, but the player got a confirmation popup
+		// for nothing. Checked here, with the same line the name field uses for a dead companion.
+		if (!_compAlive)
+		{
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_comp_tier_dead"));
+			RefreshCompTierPicker();
 			return;
 		}
 		string name = NameOf(setup);
@@ -2303,6 +2318,13 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		{
 			return EffectivePersonalityLabel(null);
 		}
+		// Fase 3.19 (auditoria): a companion that INHERITS the global value has to show what the F8 panel has right
+		// now - the cached line was computed when the tab loaded, so changing the global setting left the footer
+		// showing the old value until the tab was reopened
+		if (!CompanionProfile.HasPersona(setup))
+		{
+			return EffectivePersonalityLabel(setup);
+		}
 		return _compStatusPersonality ?? EffectivePersonalityLabel(setup);
 	}
 
@@ -2312,6 +2334,11 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		if (setup == null)
 		{
 			return CurrentVoiceLabel(null);
+		}
+		// Fase 3.19: same reason as the personality above
+		if (!CompanionProfile.HasVoice(setup))
+		{
+			return CurrentVoiceLabel(setup);
 		}
 		return _compStatusVoice ?? CurrentVoiceLabel(setup);
 	}

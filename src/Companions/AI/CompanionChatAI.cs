@@ -56,6 +56,7 @@ internal static class CompanionChatAI
 		+ "attack (atacar/matar UMA criatura citada pelo jogador), equip (equipar um item que o companheiro já tem),\n"
 		+ "drop (largar/jogar fora um item que o companheiro já tem),\n"
 		+ "inventory (abrir o inventário do companheiro para o jogador ver o que ele carrega),\n"
+		+ "inventory_close (fechar a janela do inventário que está aberta),\n"
 		+ "farm (cuidar da plantação), fish (pescar), repair (reparar construções e reabastecer),\n"
 		+ "cook (cozinhar comida), stop (parar o que está fazendo e voltar a seguir), come (vir até o jogador),\n"
 		+ "sethome (definir a casa aqui), wander (vagar por perto), nowander (parar de vagar),\n"
@@ -86,6 +87,8 @@ internal static class CompanionChatAI
 		+ "  \"nopickup\". \"nopickup\" é SÓ quando o jogador pedir para PARAR de recolher (\"pare de recolher\", \"não pegue nada\").\n"
 		+ "- inventory quando o jogador pedir para VER o que o companheiro carrega (\"abre o teu inventário\", \"mostra o que você\n"
 		+ "  carrega\"): você abre a sua mochila para ele, com as duas mãos - isso não é conversa.\n"
+		+ "- inventory_close quando o jogador pedir para FECHAR a janela (\"fecha o inventário\", \"fecha a mochila\"): nunca use\n"
+		+ "  \"inventory\" para isso - abrir de novo é o contrário do que ele pediu.\n"
 		+ "- Use \"none\" sempre que não tiver certeza: conversa, dúvida ou pedido que não é uma das ações acima.\n"
 		+ "Exemplos:\n"
 		+ "\"colete 20 de madeira\" -> {\"action\":\"wood\",\"reply\":\"Vou buscar madeira.\",\"target\":null,\"resource\":\"wood\",\"amount\":20}\n"
@@ -107,6 +110,7 @@ internal static class CompanionChatAI
 		+ "\"junte a madeira do chão\" -> {\"action\":\"pickup\",\"reply\":\"Recolhendo.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"abre o teu inventário\" -> {\"action\":\"inventory\",\"reply\":\"Aqui está, chefe.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"mostra o que você carrega\" -> {\"action\":\"inventory\",\"reply\":\"Dá uma olhada.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
+		+ "\"fecha o inventário\" -> {\"action\":\"inventory_close\",\"reply\":\"Fechando.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"segue\" -> {\"action\":\"follow\",\"reply\":\"Estou com você.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"para\" -> {\"action\":\"stop\",\"reply\":\"Parando.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"vem cá\" -> {\"action\":\"come\",\"reply\":\"Já vou.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
@@ -123,6 +127,7 @@ internal static class CompanionChatAI
 	internal static readonly string[] ValidActions = new string[]
 	{
 		"follow", "wood", "stone", "ore", "forage", "smelt", "hunt", "attack", "equip", "drop", "inventory",
+		"inventory_close",
 		"farm", "fish", "repair", "cook", "stop", "come", "sethome", "wander", "nowander", "pickup", "nopickup",
 		"command", "nocommand", "stance_balanced", "stance_passive", "stance_ranged", "stance_melee", "none"
 	};
@@ -142,6 +147,13 @@ internal static class CompanionChatAI
 	private static string _pendingName = "";
 
 	private static CompanionSetup _pendingSpeaker;
+
+	/// <summary>Fase 3.19: the id of the request in flight and whether an answer is still wanted. The answer of a
+	/// request that the watchdog gave up on (<see cref="LlmClient.Tick"/>) is thrown away instead of being applied
+	/// with the personality/speaker of whatever message came after it.</summary>
+	private static int _pendingRequestId;
+
+	private static bool _awaitingResult;
 
 	/// <summary>
 	/// Fase 3.11: the companion the player NAMED in the message that is in flight ("Gruncha, colete 10 pedras"), or
@@ -164,7 +176,7 @@ internal static class CompanionChatAI
 	internal static void Init()
 	{
 		CompanionsPlugin.Log?.LogInfo($"[IA] Chat orders ready: enabled={ModConfig.AiEnabled?.Value ?? true}, "
-			+ $"endpoint={LlmClient.Endpoint}, model=\"{ModConfig.AiModel?.Value}\", "
+			+ $"endpoint={LlmClient.SafeEndpoint}, model=\"{ModConfig.AiModel?.Value}\", "
 			+ $"prefix=\"{ModConfig.AiPrefix?.Value}\", timeout={ModConfig.AiTimeoutSeconds?.Value ?? 30}s");
 		// Fase 3.5: personality, memory and free conversation
 		CompanionsPlugin.Log?.LogInfo($"[IA] Personality: {CompanionPersona.Describe()} (presets: {CompanionPersona.Ids()}); "
@@ -186,7 +198,16 @@ internal static class CompanionChatAI
 		{
 			while (LlmClient.TryDequeue(out LlmResult result))
 			{
-				LlmClient.MarkDone();
+				LlmClient.MarkDone(result.Id);
+				// Fase 3.19: an answer whose request is no longer the pending one is dropped - applying it would use
+				// the personality, the speaker and the memory key of a DIFFERENT message (the one in flight now)
+				if (!_awaitingResult || result.Id != _pendingRequestId)
+				{
+					CompanionsPlugin.Log?.LogWarning($"[IA] Resultado da requisicao #{result.Id} descartado: a requisicao pendente e "
+						+ $"#{_pendingRequestId} ({(_awaitingResult ? "outra mensagem" : "nenhuma")}) - nada foi aplicado");
+					continue;
+				}
+				_awaitingResult = false;
 				HandleResult(result);
 			}
 			LlmClient.Tick();
@@ -316,7 +337,18 @@ internal static class CompanionChatAI
 		Notify(ModLocalization.Loc("hc_ai_thinking"));
 		// Fase 3.10: the personality of the companion being talked to - its own when the player gave it one, the
 		// global [IA] one otherwise (CompanionProfile is the single place that decides)
-		LlmClient.Request(message, BuildPrompt(_pendingName, CompanionProfile.PersonaText(speaker), _pendingKey));
+		// Fase 3.19: the id comes back with the answer, so a late one can be recognized (see Tick)
+		_pendingRequestId = LlmClient.Request(message, BuildPrompt(_pendingName, CompanionProfile.PersonaText(speaker), _pendingKey));
+		_awaitingResult = _pendingRequestId > 0;
+		if (!_awaitingResult)
+		{
+			CompanionsPlugin.Log?.LogWarning("[IA] A mensagem nao pode ir para o modelo: ja havia uma requisicao em andamento");
+			if (announceRefusal)
+			{
+				Notify(ModLocalization.Loc("hc_ai_voice_busy"));
+			}
+			return false;
+		}
 		return true;
 	}
 
@@ -462,12 +494,19 @@ internal static class CompanionChatAI
 		// and the player was left talking to a window that never opened. The player's own words are read for that one
 		// order when the model understood nothing else - CompanionOrders.IsInventoryRequest is deliberately narrow
 		// (an open/close verb AND a word for the pack), so "o que tem no teu inventário?" stays a conversation.
-		if (intent != null && intent.IsNone && CompanionOrders.IsInventoryRequest(result.UserText, out bool closeInventory))
+		// Fase 3.19: the same words also FIX the opposite answer - the model has "inventory" as an action and used to
+		// answer "inventory" for "fecha o inventário", which opened the window the player asked to close.
+		if (intent != null && CompanionOrders.IsInventoryRequest(result.UserText, out bool closeInventory))
 		{
-			CompanionsPlugin.Log?.LogInfo($"[IA] The model answered \"{intent.Action}\" for \"{result.UserText}\", which asks for the inventory - taking it as the {(closeInventory ? "close" : "open")} order (Fase 3.8 fallback)");
-			intent.Action = closeInventory ? "inventory_close" : "inventory";
-			intent.Target = null;
-			intent.Resource = null;
+			bool guessed = intent.IsNone;
+			bool wrongWay = closeInventory && string.Equals(intent.Action, "inventory", StringComparison.Ordinal);
+			if (guessed || wrongWay)
+			{
+				CompanionsPlugin.Log?.LogInfo($"[IA] The model answered \"{intent.Action}\" for \"{result.UserText}\", which asks to {(closeInventory ? "close" : "open")} the inventory - taking it as the \"{(closeInventory ? "inventory_close" : "inventory")}\" order (Fase 3.8/3.19 fallback)");
+				intent.Action = closeInventory ? "inventory_close" : "inventory";
+				intent.Target = null;
+				intent.Resource = null;
+			}
 		}
 		string reply = intent != null ? intent.Reply : null;
 		// what the companion actually said (or did), kept in its memory so it can follow the thread

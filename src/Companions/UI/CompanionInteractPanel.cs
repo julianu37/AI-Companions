@@ -290,7 +290,14 @@ public class CompanionInteractPanel : MonoBehaviour
 		{
 			_nameInput.onValueChanged.RemoveAllListeners();
 			_nameInput.text = text;
-			_nameInput.onValueChanged.AddListener(OnNameChanged);
+			// Fase 3.19 (auditoria): the name used to be written to the ZDO on EVERY keystroke, without asking for
+			// ownership first. Now it is saved when the field is done (Enter or leaving the field) through
+			// CompanionSetup.Rename, which claims and checks ownership exactly like the AI panel does.
+			_nameInput.onEndEdit.RemoveAllListeners();
+			_nameInput.onEndEdit.AddListener(delegate
+			{
+				SaveAndDeselectName();
+			});
 		}
 		if (_foodSlotsContainer != null)
 		{
@@ -755,15 +762,27 @@ public class CompanionInteractPanel : MonoBehaviour
 		CompanionsPlugin.Log.LogInfo("[UI] BuildUI â€” Cloned container panel successfully");
 	}
 
+	/// <summary>Fase 3.19 (auditoria): saves the name typed in the field. Called when the field is done (onEndEdit) and
+	/// when the game's inventory window hides (InventoryGuiHidePatch) - never per keystroke. The write goes through
+	/// <see cref="CompanionSetup.Rename"/>, so it claims the ZDO and refuses a companion that isn't this player's,
+	/// instead of writing into a ZDO this game doesn't own (which is lost in multiplayer).</summary>
 	private void OnNameChanged(string newName)
 	{
-		EnsureCompanionOwnership();
-		if (!(_companionNview == null) && _companionNview.GetZDO() != null)
+		CompanionSetup setup = _companion;
+		string current = _companionNview != null && _companionNview.GetZDO() != null
+			? _companionNview.GetZDO().GetString(CompanionSetup.NameHash, "")
+			: "";
+		if (newName != null) newName = newName.Trim();
+		if (setup == null || string.Equals(newName ?? "", current ?? "", StringComparison.Ordinal))
 		{
-			_companionNview.GetZDO().Set(CompanionSetup.NameHash, newName);
-			if (_companionChar != null)
+			return;
+		}
+		if (!setup.Rename(newName))
+		{
+			CompanionsPlugin.Log.LogWarning("[UI] The name could not be written (not this player's companion, or no ownership yet)");
+			if (_nameInput != null)
 			{
-				_companionChar.m_name = (string.IsNullOrEmpty(newName) ? ModLocalization.Loc("hc_msg_name_default") : newName);
+				_nameInput.SetTextWithoutNotify(current);
 			}
 		}
 	}

@@ -44,7 +44,8 @@ skills em `.opencode/skills/`. Leia este arquivo antes de agir.
   listar o Jotunn como requisito em release/README. (A skill `jotunn` da equipe continua no repositório como
   referência de framework, mas **não** se aplica a este mod.)
 - Target: **.NET Framework 4.7.2 (net472)**, C#.
-- Versão atual do projeto: **1.6.3** (fonte única: `PluginVersion` em `src/Companions/Core/CompanionsPlugin.cs`).
+- Versão: **1.7.0** nesta branch (`feat/multi-companheiro`); a `main` está na **1.6.4** (fonte única:
+  `PluginVersion` em `src/Companions/Core/CompanionsPlugin.cs`).
 
 ## Caminhos desta máquina
 
@@ -91,7 +92,7 @@ skills em `.opencode/skills/`. Leia este arquivo antes de agir.
 
 Notas de desenvolvimento do upstream: `docs/DEV_NOTES.md`; handoff: `docs/SESSION_HANDOFF.md`.
 
-## Camada de IA (Fase 3.1 — ordens por texto no chat; Fase 3.2/3.2c — o número da ordem é um alvo total contado no inventário do companheiro; Fase 3.5 — personalidade, memória e conversa livre; Fase 3.6 — ordens com alvo: atacar/equipar/largar; Fase 3.6b — a ordem sem alvo do modelo cai para as palavras do jogador; Fase 3.3 — ordens por voz: push-to-talk + STT local; Fase 3.3c — raio de coleta maior e chatter aleatório desligado; Fase 3.3d — o teto da ordem vale para todo alvo do modo e a voz sai no balão do jogador; Fase 3.4 — o companheiro FALA: TTS local (Kokoro-82M via sherpa-onnx); Fase 3.7 — painel da IA no jogo: personalidade, voz com Ouvir e push-to-talk)
+## Camada de IA (Fase 3.1 — ordens por texto no chat; Fase 3.2/3.2c — o número da ordem é um alvo total contado no inventário do companheiro; Fase 3.5 — personalidade, memória e conversa livre; Fase 3.6 — ordens com alvo: atacar/equipar/largar; Fase 3.6b — a ordem sem alvo do modelo cai para as palavras do jogador; Fase 3.3 — ordens por voz: push-to-talk + STT local; Fase 3.3c — raio de coleta maior e chatter aleatório desligado; Fase 3.3d — o teto da ordem vale para todo alvo do modo e a voz sai no balão do jogador; Fase 3.4 — o companheiro FALA: TTS local (Kokoro-82M via sherpa-onnx); Fase 3.7 — painel da IA no jogo: abas por companheiro, voz com Ouvir e push-to-talk; Fases 3.9–3.17 — invocador/abas, nome no comando, perfil de IA por companheiro no ZDO, nome/tipo editáveis, a voz acompanhando o balão; Fase 3.19 — a rodada de correções da revisão completa e o teto de 10 companheiros)
 
 O jogador digita no chat do jogo (`colete 20 de madeira`, `segue`, `para`, `ataca o greydwarf`,
 `equipa o machado de bronze`, `larga a pedra`, `bom dia`) e um **LLM local** (API compatível com a OpenAI:
@@ -269,7 +270,7 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   [texto]`**. PT-BR: `hc_ai_tts_unavailable`. Verificado fora do jogo: `SplitSentences` **real** (17 casos) +
   `PickSpokenText` **real** (14 casos) → **ALL CHECKS PASSED**, e um harness que sintetizou áudio de verdade com os
   nativos carregados por esse caminho. Detalhes: `docs/re/tts-kokoro-sherpa-onnx.md`.
-- **Fase 3.7 — painel da IA no jogo (personalidade + voz + push-to-talk):** novo `UI/CompanionAiPanel.cs`, aberto pela
+- **Fase 3.7 — painel da IA no jogo (abas por companheiro + push-to-talk):** novo `UI/CompanionAiPanel.cs`, aberto pela
   tecla **`[IA] PainelTecla`** (novo `ConfigEntry<KeyCode>`, padrão **`I`** — livre no jogo e no mod; como é uma letra,
   a tecla é ignorada quando o chat/console/entrada de texto/busca do comerciante está ativo, e a tecla **também** é
   recusada com o inventário, o mapa, o menu ou o painel **F8** abertos — e o `ConfigPanel` recusa abrir enquanto este
@@ -278,21 +279,53 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   **X**, entra na lista de UI que bloqueia o input (os dois prefixos de `TakeInput`, `Hud.InRadial` e
   `VoiceInput.BlockedByUi`) e se fecha sozinho quando o jogador morre ou sai do mundo. **Não precisa de companheiro
   perto** (config global). Controles (todos gravam no `ConfigEntry` e o BepInEx salva o `.cfg` na hora):
-  **personalidade** (dropdown dos presets de `CompanionPersona` + campo de texto livre + **Aplicar** →
-  `PresetPersonalidade`/`Personalidade`, valendo na próxima mensagem); **voz** (dropdown das 3 vozes pt-BR 42/43/44 +
-  botão **Ouvir** que fala uma frase de exemplo pelo **mesmo** `CompanionTts` — worker/cache/playback 3D — e fica
-  desabilitado sem TTS ou sem modelo + sliders de `TtsVolume` e `TtsVelocidade` — o de velocidade vai de **0,5 a 2,0**,
-  o mesmo intervalo do `.cfg` (`CompanionTts.MinSpeed/MaxSpeed`)); **push-to-talk** (mostra
-  `VozTecla` + botão **Alterar** com o **mesmo** `KeyBindListener` do painel F8 + toggle `VozLigada`; ao trocar a
-  tecla o `AutoPickupKeyConflict.Reset()` reavalia o conflito com o auto-pickup do jogo); toggles `TtsLigado`,
-  `TtsFalarRespostas`, `TtsFalarFalasDoMod`, `Conversa` e o slider de `Memoria` (0..12). O dropdown é **feito à mão**
+  a **aba IA** tem o invocador de companheiros de graça, os sliders de `TtsVolume` e `TtsVelocidade` (0,5 a 2,0, o
+  mesmo intervalo do `.cfg` — `CompanionTts.MinSpeed/MaxSpeed`), os toggles `TtsLigado`/`TtsFalarRespostas`/
+  `TtsFalarFalasDoMod`/`Conversa`, o slider de `Memoria` (0..12) e o **push-to-talk** (mostra `VozTecla` + botão
+  **Alterar** com o **mesmo** `KeyBindListener` do painel F8 + toggle `VozLigada`; ao trocar a tecla o
+  `AutoPickupKeyConflict.Reset()` reavalia o conflito com o auto-pickup do jogo). **Fase 3.10/3.15: a personalidade e a
+  voz globais NÃO são editadas aqui** — elas vivem no `.cfg` e no painel **F8**; o painel `I` tem **uma aba por
+  companheiro**, com a voz (com o botão **Ouvir**, que fala pelo **mesmo** `CompanionTts` — worker/cache/playback 3D)
+  e a personalidade **daquele** companheiro, guardadas no ZDO dele, além do **nome** (campo + Aplicar) e do **tipo**
+  (picker + "Trocar tipo (renasce)"). O dropdown é **feito à mão**
   (botão-campo + lista de botões numa camada overlay que é o último filho do painel e que tem **`Canvas` próprio** com
-  `overrideSorting`/`sortingOrder` 34 + `GraphicRaycaster`, com um *catcher* invisível que fecha a lista ao clicar
+  `overrideSorting`/`sortingOrder` **1708** + `GraphicRaycaster`, com um *catcher* invisível que fecha a lista ao clicar
   fora) porque um `TMP_Dropdown` exige um template inteiro e o `Dropdown` legado usa o `Text` legado (sem a fonte do
   Valheim). Sem bloqueio de main thread, sem alocação por frame (por frame: tecla + cursor + status 2×/s) e sem
   segredos. PT-BR: 33 chaves
   `hc_ai_panel_*` / `hc_ai_voice_*` no `ModLocalization` **e** no `Translations/Portuguese_Brazilian.json`.
   Detalhes: `docs/roadmap.md` (Fase 3.7 — inclui a correção da lista que aparecia atrás dos controles).
+- **Fases 3.9–3.17 — o companheiro como vários, com identidade própria (branch `feat/multi-companheiro`, versão 1.7.0,
+  **em teste**):**
+  - **3.9 — invocador e abas:** a aba IA invoca companheiros de graça (`CompanionManager.SpawnFree`, o **mesmo**
+    `SpawnCompanion` do Trader, sem cobrar) e o painel ganhou **uma aba por companheiro** (o nome é o título), com
+    Chamar/recall e os controles daquele companheiro; o nome padrão de um spawn novo passou a ser o nome do tipo com
+    número ("Guerreiro 2") para duas abas não ficarem idênticas.
+  - **3.11 — nome no comando:** `AI/CompanionNames.cs` — uma mensagem que **começa** com o nome de um companheiro real
+    (`"Gruncha, colete 10 pedras"`) vale só para ele (prompt, persona, memória e ordem); o nome sai das **palavras do
+    jogador**, não do campo do modelo, e a lista de nomes entra no prompt. Sem nome, a ordem continua indo para todos.
+    Um nome inexistente **que parece nome** ("Fulano, colete…") é avisado e nada é ordenado — desde a **3.19** só conta
+    como nome um começo **capitalizado** e que não seja forma de tratamento ("mano", "companheiro", "bora"...); na
+    dúvida a ordem segue normal.
+  - **3.10 — perfil de IA no ZDO:** `AI/CompanionProfile.cs` — voz (`HC_AiVoice`, 0 = padrão) e personalidade
+    (`HC_AiPersonaSet`/`HC_AiPreset`/`HC_AiPersona`) **por companheiro**, no ZDO dele; os valores `[IA]` viraram o
+    **padrão** de quem não tem escolha própria (a primeira entrada das listas é "seguir o padrão"). Lido no prompt e na
+    fala; escrito só pelo dono (claim → `IsOwner()` → escrever).
+  - **3.10 (lápide) — o perfil sobrevive à morte:** `WriteAiProfile`/`ReadAiProfile` em
+    `CompanionTombstoneResurrect` copiam voz e personalidade para a lápide e de volta no respawn.
+  - **3.13/3.15 — nome e tipo editáveis:** a aba do companheiro tem o **nome** (texto + Aplicar → `CompanionSetup.Rename`,
+    que escreve `HC_Name` + `Character.m_name`; recusado para companheiro morto, porque a lápide guardaria o nome antigo)
+    e o **tipo** (picker + confirmação → `CompanionManager.ChangeTier`: respawn com nome, inventário, equipamento
+    (flags `m_equipped` limpos), aparência, casa/cama, skills, perfil de IA, `HC_CompanionId`/geração, alvo da ordem,
+    **ledger do cozinheiro, ferramentas emprestadas e stamina** preservados).
+  - **3.17 — a voz acompanha o balão:** `CompanionTalk.Say` passou a falar a linha que mostra (mesma string, voz **do**
+    companheiro, cacheável) quando `TtsLigado` + `TtsFalarFalasDoMod` + modelo pronto; a deduplicação é um flag por
+    chamada (`withVoice: false`) nos caminhos que já falam pela IA (`CompanionChatAI`/`CompanionOrders`), e `SayAsPlayer`
+    nunca é falado. `[Speech] Chatter = false` segue valendo: o que não aparece não é falado.
+  - **3.19 — teto de 10 (`[General] MaxCompanions`):** `CompanionManager.CanAddCompanion` barra o `SpawnCompanion`
+    (Trader, invocador e companheiro inicial) quando o jogador já tem o limite; a conta é a do **roster** (`MHR_Roster.
+    CountMine`: vivos + mortos + perdidos), então morrer não abre vaga; o Santuário continua recuperando os mortos e a
+    recusa é avisada (HUD/chat) + log.
 - **Fase 3.7 — correções do teste em jogo (teclas do jogo digitando no campo, caixa de texto e rodapé):** (1) novo
   `Patches/TextInputKeyGuard.cs`: `ModTextInputFocus` (registro dos campos de texto do mod + "algum em foco?"
   **cacheado por frame**) e **prefixos Harmony** em `ZInput.GetButtonDown(string)`/`GetButton`/`GetButtonUp`/
@@ -523,15 +556,26 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   dos assets do jogo, tokens `$...` do jogo, chaves de configuração e as ~1500 linhas de log/diagnóstico — o
   `CHANGELOG` mantém o histórico do upstream (abaixo de 1.5.4) em inglês de propósito. Números e método:
   `docs/roadmap.md` (*Tradução PT-BR — auditoria de cobertura*) e `package/CHANGELOG.md`.
-- **⭐ Prioridade da próxima sessão (combinado em 2026-10-17) — `inventory_close` fora do `ValidActions`:** a ação
-  **existe e funciona** no resto da cadeia (`LlmIntent` → `"inventory_close"`, `CompanionOrders.cs:132` fecha a
-  janela, `CompanionChatAI.cs:417-422` tem o fallback `IsInventoryRequest`), mas **não está na lista
-  `ValidActions`** (`CompanionChatAI.cs:110-115`, as **29** ações que viram o `enum` do JSON schema). Com
-  `[IA] SaidaEstruturada = true` (**o padrão**) o modelo **não pode** devolver a ação, então *"fecha o inventário"*
-  tende a ser entendido como `inventory` e a janela **abre** (o fechamento só vem do fallback, que roda quando o
-  modelo devolve `none`). **Correção (1 linha + contrato):** acrescentar `"inventory_close"` ao `ValidActions` (é
-  dele que sai o `enum` do schema) e citá-la no `Contract` + 1 exemplo. **Testar em jogo amanhã** (abrir → fechar,
-  com a saída estruturada ligada e desligada). Detalhes no item 3 das *Pendências conhecidas* do `docs/roadmap.md`.
+- **Fase 3.19 — a rodada de correções da revisão completa (branch `feat/multi-companheiro`, 1.7.0):** `inventory_close`
+  entrou no **`ValidActions`** (agora **30** ações — é dele que sai o `enum` do schema), o `Contract` a cita com regra +
+  exemplo e o fallback `IsInventoryRequest` roda também quando o modelo devolve `inventory` **e** o texto tem verbo de
+  fechar (`"fecha o inventário"` não abre mais a janela); o endereço desconhecido virou **conservador** (só conta como
+  nome um começo capitalizado que não seja forma de tratamento, então `"mano, colete 10 pedras"` volta a ordenar — e
+  `"Fulano, colete 10 pedras"` continua avisando); o nome do painel de interação é gravado **no `onEndEdit`** por
+  `CompanionSetup.Rename` (claim + dono), não a cada tecla; a **troca de tipo** recusa companheiro morto e o botão se
+  repinta quando ele morre/renasce; as ordens gravam no ZDO só com posse e **repetem no Update** (`MHR_WriteOrQueue`,
+  com aviso se a posse não chegar em 5 s); o LLM ganhou **id de requisição** (`LlmResult.Id`, watchdog enfileira erro em
+  vez de só liberar o slot e a resposta atrasada é descartada); a **lápide e o `DoRespawn`** comparam
+  `HC_CompanionId`/lápide antes do nome (dois companheiros com o mesmo nome), o roster indexa por id e o
+  `RemoveStaleCopies` passou a rodar num portão de **1 s** (e **dropa** o inventário da cópia velha antes de destruí-la); os
+  caches de estoque de `MHR_GatherRules`/`MHR_SeedRules` são **por companheiro** (`MHR_StockKey`); `SuppressAutoEquip`
+  da lápide está em `try/finally`; a localização se reinjeta quando o `Localization` é recriado (instância + idioma); o
+  `ChangeTier` copia `HC_CookLedger`/`HC_Borrowed`/`HC_Stamina` (`CopyCarriedKeys`, lista explícita); `LogWarn`/
+  `LogInventoryContents`/`LogHeartbeat` do coletor logam de verdade; "para" no meio (preposição) não é mais verbo de parar
+  no `PickupIntent`; o push-to-talk respeita o painel do starter e o da casa; o endpoint do LLM é logado **sem query**; a
+  memória cai para 4 quando o config não está pronto; o `UiDiag` perdeu as duas entradas mortas; o rodapé do companheiro
+  recalcula quando ele herda o valor global; o banco do Trader é lido 2×/s; e o teto de **`[General] MaxCompanions = 10`**
+  barra os três caminhos de criação com aviso localizado. Detalhes: `docs/roadmap.md` (Fase 3.19).
 - **Pendências conhecidas (abertas):** o **release/empacotamento** (versão e `CHANGELOG`
   não fechados e a pasta do plugin tem **~428 MB** — falta decidir o que entra no pacote); a **voz não passa pelo
   mixer do jogo** (por isso ignora os sliders de volume do Valheim e só obedece `[IA] TtsVolume`); e o **sync com o

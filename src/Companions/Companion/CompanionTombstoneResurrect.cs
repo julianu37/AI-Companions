@@ -340,9 +340,10 @@ public class CompanionTombstoneResurrect : MonoBehaviour
 			{
 				continue;
 			}
-			string text5 = zDO.GetString(CompanionSetup.OwnerHash);
-			string text6 = zDO.GetString(CompanionSetup.NameHash);
-			if (text5 == text4 && text6 == text2)
+			// Fase 3.19 (auditoria): the tombstone knows which companion it belongs to (HC_TombCompanionId), so two
+			// companions with the same name no longer block each other - only the one that really is already alive
+			// blocks the resurrection (see CompanionManager.IsSameCompanion)
+			if (CompanionManager.IsSameCompanion(zDO, text4, text2, mhrId, 0L))
 			{
 				Character component = allCompanion.GetComponent<Character>();
 				if (component != null && component.GetHealth() > 0f)

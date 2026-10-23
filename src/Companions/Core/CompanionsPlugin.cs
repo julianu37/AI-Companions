@@ -24,7 +24,7 @@ public class CompanionsPlugin : BaseUnityPlugin
 
 	public const string PluginName = "ModAI-BR-Companions";
 
-	public const string PluginVersion = "1.6.4";
+	public const string PluginVersion = "1.7.0";
 
 	private static Harmony _harmony;
 

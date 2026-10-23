@@ -21,6 +21,11 @@ public static class ModLocalization
 
 	private static string _lastInjectedLanguage;
 
+	/// <summary>Fase 3.19 (auditoria): the instance the translations were injected into. Comparing only the language
+	/// name skipped the injection when the game recreated its <see cref="Localization"/> (world reload) with the same
+	/// language: the new dictionary came back with the game's own keys and none of the mod's.</summary>
+	private static object _lastInjectedInstance;
+
 	private static readonly Regex EntryRegex = new Regex("\"key\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"[^\"]*\"value\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"", RegexOptions.Compiled);
 
 	private static readonly FieldInfo InstanceField = AccessTools.Field(typeof(Localization), "m_instance");
@@ -133,6 +138,7 @@ public static class ModLocalization
 			{ "hc_hover_hold", "Hold" },
 			{ "hc_msg_not_yours", "This is not your companion." },
 			{ "hc_msg_need_coins", "Not enough coins in bank! Need {0}" },
+			{ "hc_msg_companion_limit", "You already have {0} companion(s) (the limit is {1}). Dismiss one, or recover a tombstone." },
 			{ "hc_msg_arrived", "Your new {0} has arrived!" },
 			{ "hc_msg_returned", "{0} has returned at {1}!" },
 			{ "hc_msg_location_home", "home" },
@@ -361,6 +367,7 @@ public static class ModLocalization
 			{ "hc_ai_companion_not_available", "{0} isn't within reach (or its orders are switched off)." },
 			{ "hc_ai_disabled", "Companion AI is off ([IA] Ligado = false)." },
 			{ "hc_ai_error", "The AI didn't answer: {0}" },
+			{ "hc_ai_error_timeout", "timed out" },
 			{ "hc_ai_raw", "AI: {0}" },
 			{ "hc_ai_ok", "Ok: {0}" },
 			{ "hc_ai_ok_amount", "Ok: {0} ({1})" },
@@ -504,6 +511,7 @@ public static class ModLocalization
 			{ "hc_ai_comp_tier_popup_title", "Change the companion's tier?" },
 			{ "hc_ai_comp_tier_popup_text", "{0} will be reborn as {1} (it is {2} now).\n\nKept: name, inventory, equipment, appearance, voice, personality, home, bed, position, skills and the companion's history. The job it is doing starts over, and a dverger tier cannot wear armor (the pieces stay in its pack)." },
 			{ "hc_ai_comp_tier_ok", "{0} is now {1}." },
+			{ "hc_ai_comp_tier_dead", "I can't change the type of a dead companion - bring it back first." },
 			{ "hc_ai_comp_tier_failed", "I couldn't change the tier (see the log)." },
 			{ "hc_ai_voice_42", "pf_dora (feminine)" },
 			{ "hc_ai_voice_43", "pm_alex (masculine)" },
@@ -538,11 +546,13 @@ public static class ModLocalization
 			return;
 		}
 		string selectedLanguage = loc.GetSelectedLanguage();
-		if (selectedLanguage == _lastInjectedLanguage)
+		// Fase 3.19: the instance matters as much as the language - see _lastInjectedInstance
+		if (selectedLanguage == _lastInjectedLanguage && ReferenceEquals(_lastInjectedInstance, loc))
 		{
 			return;
 		}
 		_lastInjectedLanguage = selectedLanguage;
+		_lastInjectedInstance = loc;
 		if (!(TranslationsField?.GetValue(loc) is Dictionary<string, string> dictionary))
 		{
 			return;

@@ -7,8 +7,17 @@ namespace Companions
     // ---- 1.4.62/1.4.65: seed stock rules for the farmer ----
     public static class MHR_SeedRules
     {
-        static readonly Dictionary<string, float> s_countTime = new Dictionary<string, float>();
-        static readonly Dictionary<string, int> s_countVal = new Dictionary<string, int>();
+        // Fase 3.19 (auditoria): per companion - the total includes the companion's own pack (see MHR_StockKey)
+        static readonly Dictionary<MHR_StockKey, float> s_countTime = new Dictionary<MHR_StockKey, float>();
+        static readonly Dictionary<MHR_StockKey, int> s_countVal = new Dictionary<MHR_StockKey, int>();
+
+        /// <summary>Fase 3.19: forgets every cached total. The cache is keyed by (companion, item), so a change in one
+        /// pack can't be invalidated by name any more - and this only runs after the farm moved something.</summary>
+        static void InvalidateCount()
+        {
+            s_countTime.Clear();
+            s_countVal.Clear();
+        }
 
         // What planting this item grows into (the item the grown plant drops), or null.
         static string OutputOf(string item)
@@ -301,7 +310,7 @@ namespace Companions
                         if (!pack.CanAddItem(part, n) || !pack.AddItem(part)) break;
                         if (n >= it.m_stack) chest.RemoveItem(it); else chest.RemoveItem(it, n);
                         need -= n; took += n;
-                        s_countTime.Remove(name);
+                        InvalidateCount();
                         if (CompanionsPlugin.Log != null) CompanionsPlugin.Log.LogDebug("[Farm]   Also took " + n + "x \"" + name + "\"");
                     }
                 }
@@ -315,7 +324,7 @@ namespace Companions
             try
             {
                 if (farm == null || item == null) return;
-                s_countTime.Remove(item);
+                InvalidateCount();
                 Dictionary<string, Rot> d;
                 if (!s_rot.TryGetValue(farm.GetInstanceID(), out d)) return;
                 foreach (Rot r in d.Values) if (r.Cur == item) r.Count++;
@@ -358,7 +367,7 @@ namespace Companions
                     part.m_stack = n;
                     if (!chest.CanAddItem(part, n) || !chest.AddItem(part)) continue;
                     if (n >= it.m_stack) pack.RemoveItem(it); else pack.RemoveItem(it, n);
-                    s_countTime.Remove(name);
+                    InvalidateCount();
                     stored++;
                     if (CompanionsPlugin.Log != null) CompanionsPlugin.Log.LogDebug("[Farm]   Stored \"" + name + "\" x" + n);
                 }
@@ -369,8 +378,10 @@ namespace Companions
 
         static int CountNear(Component farm, string prefab)
         {
+            // Fase 3.19 (auditoria): the total carries the companion's own pack, so the cache is per companion
+            MHR_StockKey key = new MHR_StockKey(farm.GetInstanceID(), prefab);
             float t;
-            if (s_countTime.TryGetValue(prefab, out t) && Time.time - t < 10f) return s_countVal[prefab];
+            if (s_countTime.TryGetValue(key, out t) && Time.time - t < 10f) return s_countVal[key];
             int total = 0;
             Humanoid h = farm.GetComponent<Humanoid>();
             if (h != null && h.GetInventory() != null) total += CountIn(h.GetInventory(), prefab);
@@ -383,7 +394,7 @@ namespace Companions
                 if (c == null || c.GetComponentInParent<Character>() != null || c.GetComponent<TombStone>() != null) continue;
                 if (c.GetInventory() != null) total += CountIn(c.GetInventory(), prefab);
             }
-            s_countTime[prefab] = Time.time; s_countVal[prefab] = total;
+            s_countTime[key] = Time.time; s_countVal[key] = total;
             return total;
         }
         static int CountIn(Inventory inv, string prefab)

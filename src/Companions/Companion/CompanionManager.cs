@@ -15,6 +15,10 @@ public static class CompanionManager
 
 		public string OwnerId;
 
+		/// <summary>Fase 3.19 (auditoria): the companion's permanent id (HC_CompanionId), when the caller knows it.
+		/// It is what tells two companions with the same name apart when a respawn checks whether it already happened.</summary>
+		public string CompanionId;
+
 		public int ActionMode;
 
 		public int ActionModeSchema;
@@ -79,6 +83,33 @@ public static class CompanionManager
 	public static bool CanAfford()
 	{
 		return GetBankBalance() >= CompanionTierData.Price;
+	}
+
+	/// <summary>
+	/// Fase 3.19: the <c>[General] MaxCompanions</c> ceiling (10 by default). Counted on the roster - the companions of
+	/// this player in this world, <b>alive, dead and lost</b> - so dying does not free a place (the tombstone brings the
+	/// same companion back, it does not create one). The Shrine keeps being able to recover the dead ones: refusing
+	/// here only blocks creating a NEW companion.
+	///
+	/// <para>When the ceiling is reached the player is told (HUD + chat) and nothing is spawned; every creation path
+	/// goes through <see cref="SpawnCompanion"/>, which is where this is called.</para>
+	/// </summary>
+	internal static bool CanAddCompanion()
+	{
+		int limit = ModConfig.MaxCompanions != null ? ModConfig.MaxCompanions.Value : 10;
+		if (limit <= 0)
+		{
+			return true;
+		}
+		int count = MHR_Roster.CountMine();
+		if (count < limit)
+		{
+			return true;
+		}
+		CompanionsPlugin.Log?.LogWarning($"[Spawn] Refused: the player already has {count} companion(s) in this world and "
+			+ $"[General] MaxCompanions is {limit} - nothing was created (dismiss one, or recover a tombstone)");
+		CompanionChatAI.Announce(ModLocalization.LocFmt("hc_msg_companion_limit", count, limit));
+		return false;
 	}
 
 	public static bool Purchase(CompanionAppearance appearance, CompanionTierDef def = null)
@@ -162,6 +193,13 @@ public static class CompanionManager
 
 	private static bool SpawnCompanion(CompanionAppearance appearance, CompanionTierDef def, CompanionAiDraft aiDraft = null)
 	{
+		// Fase 3.19: the ceiling counts every companion of this player (alive, dead and lost) - see CanAddCompanion.
+		// It is checked here because every creation path goes through this method (the Trader's purchase, the AI
+		// panel's summoner and the starter companion).
+		if (!CanAddCompanion())
+		{
+			return false;
+		}
 		GameObject gameObject = ZNetScene.instance?.GetPrefab(def.PrefabName);
 		if (gameObject == null)
 		{
@@ -445,6 +483,10 @@ public static class CompanionManager
 				zdo.Set(CompanionProfile.PersonaTextHash, personaText);
 				zdo.Set(CompanionProfile.PersonaSetHash, true);
 			}
+			// Fase 3.19 (auditoria): the companion's own state that is not in the list above. It was silently lost on
+			// a tier change - the cook forgot what it had already produced for the job (and ate its food), the
+			// borrowed tools never came back and the stamina started over.
+			CopyCarriedKeys(old, zdo);
 			zdo.Persistent = true;
 
 			// auto-equip is held off until the pack is in place: OnInventoryChanged runs from inside Inventory.Load,
@@ -575,6 +617,56 @@ public static class CompanionManager
 			+ $"inventory={items} item(s), equipped={equippedCount}");
 		return spawned.GetComponent<CompanionSetup>();
 	}
+
+	/// <summary>
+	/// Fase 3.19 (auditoria): copies the companion's own <c>HC_*</c> state that a tier change used to forget. The list
+	/// is explicit on purpose: when a new key is added to a companion, it belongs here (or in the block in
+	/// <see cref="ChangeTier"/>, when it needs more than a copy).
+	/// <list type="bullet">
+	/// <item><b>HC_CookLedger</b> (string) - what the cook already produced for its job; without it the job starts over
+	/// and the companion eats the food it was supposed to cook;</item>
+	/// <item><b>HC_Borrowed</b> (string) - the tools it borrowed from nearby chests; without it they are never returned;</item>
+	/// <item><b>HC_Stamina</b> (float) - a tired companion came back with a full bar.</item>
+	/// </list>
+	/// </summary>
+	private static void CopyCarriedKeys(ZDO from, ZDO to)
+	{
+		if (from == null || to == null)
+		{
+			return;
+		}
+		for (int i = 0; i < CarriedStringKeys.Length; i++)
+		{
+			int hash = CarriedStringKeys[i];
+			string value = from.GetString(hash, "");
+			if (!string.IsNullOrEmpty(value))
+			{
+				to.Set(hash, value);
+			}
+		}
+		for (int i = 0; i < CarriedFloatKeys.Length; i++)
+		{
+			int hash = CarriedFloatKeys[i];
+			float value = from.GetFloat(hash, float.NaN);
+			if (!float.IsNaN(value))
+			{
+				to.Set(hash, value);
+			}
+		}
+	}
+
+	/// <summary>String keys of <see cref="CopyCarriedKeys"/> - written by their owners, copied here verbatim.</summary>
+	private static readonly int[] CarriedStringKeys = new int[2]
+	{
+		"HC_CookLedger".GetStableHashCode(),   // Jobs/CookController.cs
+		"HC_Borrowed".GetStableHashCode()      // Jobs/MHR_ToolKeeper.cs
+	};
+
+	/// <summary>Float keys of <see cref="CopyCarriedKeys"/>.</summary>
+	private static readonly int[] CarriedFloatKeys = new int[1]
+	{
+		CompanionSetup.StaminaHash   // Companion/CompanionStamina.cs
+	};
 
 	/// <summary>The tier a prefab hash belongs to (the same table the UI lists), or null when it isn't one of ours.</summary>
 	internal static CompanionTierDef TierOf(int prefabHash)
@@ -709,6 +801,32 @@ public static class CompanionManager
 		}
 	}
 
+	/// <summary>
+	/// Fase 3.19 (auditoria): is this ZDO the companion the respawn data is about? The permanent id answers whenever
+	/// both sides have one, then the tombstone it came from; the name is only the fallback of an old save that has
+	/// neither. Comparing names alone blocked the second of two companions that share a name.
+	/// </summary>
+	/// <param name="companionId">Id of the companion being brought back (""/null when the caller doesn't know it).</param>
+	/// <param name="tombstoneId">The tombstone that respawned it (0 when there is none).</param>
+	internal static bool IsSameCompanion(ZDO zdo, string ownerId, string name, string companionId, long tombstoneId)
+	{
+		if (zdo == null || zdo.GetString(CompanionSetup.OwnerHash) != ownerId)
+		{
+			return false;
+		}
+		string otherId = zdo.GetString(CompanionSetup.MHR_CompanionIdHash, "");
+		if (!string.IsNullOrEmpty(companionId) && !string.IsNullOrEmpty(otherId))
+		{
+			return otherId == companionId;
+		}
+		long otherTomb = zdo.GetLong(CompanionSetup.TombstoneIdHash, 0L);
+		if (tombstoneId != 0L && otherTomb != 0L)
+		{
+			return otherTomb == tombstoneId;
+		}
+		return zdo.GetString(CompanionSetup.NameHash) == name;
+	}
+
 	private static void DoRespawn(RespawnData data)
 	{
 		CompanionsPlugin.Log.LogInfo("[CompanionManager] Processing respawn for \"" + data.Name + "\" — prefab=" + data.PrefabName);
@@ -726,9 +844,9 @@ public static class CompanionManager
 			{
 				continue;
 			}
-			string text = zDO.GetString(CompanionSetup.OwnerHash);
-			string text2 = zDO.GetString(CompanionSetup.NameHash);
-			if (text == data.OwnerId && text2 == data.Name)
+			// Fase 3.19 (auditoria): the comparison used owner+name, so a second companion with the same name could
+			// never come back (the first one "already exists"). See IsSameCompanion.
+			if (IsSameCompanion(zDO, data.OwnerId, data.Name, data.CompanionId, data.TombstoneId))
 			{
 				Character component = allCompanion.GetComponent<Character>();
 				if (component != null && component.GetHealth() > 0f)

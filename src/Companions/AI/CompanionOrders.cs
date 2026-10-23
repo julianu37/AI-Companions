@@ -908,7 +908,8 @@ internal static class CompanionOrders
 
 	private static void SetAutoPickup(CompanionSetup companion, bool value)
 	{
-		companion.GetComponent<ZNetView>()?.GetZDO()?.Set(CompanionSetup.AutoPickupHash, value);
+		// Fase 3.19: the setter claims/queues like every other order key (the ZDO write used to be unconditional)
+		companion.SetAutoPickup(value);
 	}
 
 	/// <summary>The companion's name, for the log.</summary>

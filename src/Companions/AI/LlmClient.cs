@@ -16,6 +16,11 @@ internal sealed class LlmResult
 {
 	internal bool Ok;
 
+	/// <summary>Fase 3.19: the request this answer belongs to (see <see cref="LlmClient.Request"/>). The chat applies an
+	/// answer only when it is the answer to the message that is still pending - a late answer to a request the
+	/// watchdog had already given up on used to be applied with the personality/speaker of the NEW message.</summary>
+	internal int Id;
+
 	internal string Error;
 
 	internal string UserText;
@@ -42,6 +47,12 @@ internal static class LlmClient
 
 	private static int _busy;
 
+	/// <summary>Fase 3.19: the id of the request in flight (0 = none). Handed to <see cref="LlmResult.Id"/>, so an
+	/// answer that arrives after its request was given up on can be told apart from the answer of a newer one.</summary>
+	private static int _busyId;
+
+	private static int _nextId;
+
 	private static float _busySince;
 
 	/// <summary>Fase 3.1 (saída estruturada): said once, on the first message that goes out with it.</summary>
@@ -63,6 +74,33 @@ internal static class LlmClient
 		}
 	}
 
+	/// <summary>Fase 3.19 (auditoria): the endpoint for the log - scheme, host, port and path only. A key written in the
+	/// URL (some remote server setups do that) must never reach the log.</summary>
+	internal static string SafeEndpoint => DescribeEndpoint(Endpoint);
+
+	/// <summary>Strips the query, the fragment and any user:password from a URL. Never throws.</summary>
+	internal static string DescribeEndpoint(string url)
+	{
+		if (string.IsNullOrEmpty(url))
+		{
+			return "";
+		}
+		try
+		{
+			UriBuilder builder = new UriBuilder(url);
+			builder.Query = "";
+			builder.Fragment = "";
+			builder.UserName = "";
+			builder.Password = "";
+			return builder.Uri.GetLeftPart(UriPartial.Path);
+		}
+		catch
+		{
+			int cut = url.IndexOfAny(new char[2] { '?', '#' });
+			return cut < 0 ? url : url.Substring(0, cut);
+		}
+	}
+
 	internal static string BuildEndpoint(string baseUrl)
 	{
 		if (string.IsNullOrEmpty(baseUrl))
@@ -78,16 +116,20 @@ internal static class LlmClient
 	}
 
 	/// <summary>
-	/// Sends one order to the model. Returns immediately: the POST happens on a thread pool task.
+	/// Sends one order to the model. Returns immediately: the POST happens on a thread pool task. The returned id is
+	/// what the caller has to look at when the answer comes back (<see cref="LlmResult.Id"/>); -1 means "not sent"
+	/// (another request was in flight).
 	/// Called on the main thread, so every config value is read here.
 	/// </summary>
-	internal static void Request(string userText, string systemPrompt)
+	internal static int Request(string userText, string systemPrompt)
 	{
 		if (Interlocked.CompareExchange(ref _busy, 1, 0) != 0)
 		{
 			CompanionsPlugin.Log?.LogInfo("[IA] A request is already in flight - ignoring this message");
-			return;
+			return -1;
 		}
+		int id = Interlocked.Increment(ref _nextId);
+		_busyId = id;
 		_busySince = Time.realtimeSinceStartup;
 
 		string url = Endpoint;
@@ -102,7 +144,7 @@ internal static class LlmClient
 		// config value - the background task only sends them. The first one is the request that normally goes out.
 		LlmAttempt[] attempts = BuildAttempts(model, systemPrompt, userText, temperature, structured);
 		string body = attempts[0].Body;
-		CompanionsPlugin.Log?.LogInfo($"[IA] Request -> {url} (model \"{model}\", timeout {timeoutSeconds}s) :: {userText}");
+		CompanionsPlugin.Log?.LogInfo($"[IA] Request #{id} -> {DescribeEndpoint(url)} (model \"{model}\", timeout {timeoutSeconds}s) :: {userText}");
 		if (structured)
 		{
 			LogStructuredOnce(body.Length);
@@ -128,8 +170,10 @@ internal static class LlmClient
 					Error = ex.Message
 				};
 			}
+			result.Id = id;
 			_finished.Enqueue(result);
 		});
+		return id;
 	}
 
 	/// <summary>Called from Update(). Hands back one finished call, or false when there is nothing to do.</summary>
@@ -141,19 +185,36 @@ internal static class LlmClient
 	/// <summary>
 	/// Called from Update() right after TryDequeue returns false: releases the in-flight slot. Normally the slot is
 	/// released when the result is read, but a request that hangs past its timeout (a stalled socket) must not lock
-	/// the feature out forever.
+	/// the feature out forever. Fase 3.19: the watchdog now hands an ERROR to the chat instead of only freeing the
+	/// slot - the player was left without any answer at all - and the answer of the request it gave up on is dropped
+	/// when (if) it finally arrives (see <see cref="LlmResult.Id"/>).
 	/// </summary>
 	internal static void Tick()
 	{
 		if (Busy && Time.realtimeSinceStartup - _busySince > WatchdogSeconds())
 		{
-			CompanionsPlugin.Log?.LogWarning("[IA] Request timed out without an answer - clearing the in-flight slot");
+			int id = _busyId;
+			CompanionsPlugin.Log?.LogWarning($"[IA] Request #{id} timed out without an answer - the in-flight slot was freed and the chat was told");
+			_finished.Enqueue(new LlmResult
+			{
+				Id = id,
+				Ok = false,
+				Error = ModLocalization.Loc("hc_ai_error_timeout")
+			});
 			Interlocked.Exchange(ref _busy, 0);
+			_busyId = 0;
 		}
 	}
 
-	internal static void MarkDone()
+	/// <summary>Releases the in-flight slot, but only for the request that owns it (Fase 3.19: the answer of a request
+	/// the watchdog already gave up on must not release the slot of the one that is running now).</summary>
+	internal static void MarkDone(int id)
 	{
+		if (_busyId != 0 && _busyId != id)
+		{
+			return;
+		}
+		_busyId = 0;
 		Interlocked.Exchange(ref _busy, 0);
 	}
 

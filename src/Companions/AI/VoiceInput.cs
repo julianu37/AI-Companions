@@ -212,7 +212,21 @@ internal static class VoiceInput
 		{
 			return true;
 		}
-		return FarmZoneCropPicker.IsOpen;
+		if (FarmZoneCropPicker.IsOpen)
+		{
+			return true;
+		}
+		// Fase 3.19 (auditoria): the starter panel and the home zone panel own the keyboard too - they were missing
+		// here, so push-to-talk started recording under them (and the voice path could see the keys they use)
+		if (StarterCompanionPanel.Instance != null && StarterCompanionPanel.Instance.IsVisible)
+		{
+			return true;
+		}
+		if (HomeZonePanel.Instance != null && HomeZonePanel.Instance.IsVisible)
+		{
+			return true;
+		}
+		return false;
 	}
 
 	private static void StartRecording()

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -806,6 +807,18 @@ public class HarvestController : MonoBehaviour
 
 	private void LogHeartbeat()
 	{
+		// Fase 3.19 (auditoria): it was empty - the "the companion has been in this state for a while" trail never
+		// existed. Debug level on purpose: every 5 s would be noise in a normal log.
+		if (_state == HarvestState.Idle)
+		{
+			LogDebug("heartbeat: idle");
+			return;
+		}
+		Vector3 target = GetEffectiveTargetPosition();
+		float dist = Vector3.Distance(base.transform.position, target);
+		string targetName = _target != null ? _target.name : "none";
+		LogDebug($"heartbeat: state={_state} target=\"{targetName}\" dist={dist:F1}m type={_targetType ?? "?"} "
+			+ $"swings={_swingCount}/{_totalAttempts}");
 	}
 
 	private void UpdateIdle(int mode)
@@ -1966,12 +1979,46 @@ public class HarvestController : MonoBehaviour
 		CompanionsPlugin.Log.LogDebug("[Gather|" + text + "] " + msg);
 	}
 
+	/// <summary>Fase 3.19 (auditoria): real warnings, on the same <c>[Gather|name]</c> prefix the info lines use. This
+	/// method was empty, so every diagnostic built on it (STUCK timeout, Attack FAILED, Bailout, No tool) was thrown
+	/// away and a companion that couldn't work just stood there silently.</summary>
 	private void LogWarn(string msg)
 	{
+		string text = _character?.m_name ?? "?";
+		CompanionsPlugin.Log.LogWarning("[Gather|" + text + "] " + msg);
 	}
 
+	/// <summary>Fase 3.19: the pack that FindBestTool was looking at, for the "no tool" warning. Debug level - it is a
+	/// long list and only wanted while a job is being investigated.</summary>
 	private void LogInventoryContents()
 	{
+		Humanoid humanoid = GetComponent<Humanoid>();
+		Inventory inventory = humanoid != null ? humanoid.GetInventory() : null;
+		if (inventory == null)
+		{
+			LogDebug("inventory: none");
+			return;
+		}
+		List<ItemDrop.ItemData> items = inventory.GetAllItems();
+		StringBuilder builder = new StringBuilder();
+		for (int i = 0; i < items.Count; i++)
+		{
+			ItemDrop.ItemData item = items[i];
+			if (item?.m_shared == null)
+			{
+				continue;
+			}
+			if (builder.Length > 0)
+			{
+				builder.Append(", ");
+			}
+			builder.Append('"').Append(item.m_shared.m_name).Append('"');
+			if (!string.IsNullOrEmpty(item.m_dropPrefab?.name))
+			{
+				builder.Append(" (").Append(item.m_dropPrefab.name).Append(')');
+			}
+		}
+		LogDebug("inventory: " + (builder.Length > 0 ? builder.ToString() : "empty"));
 	}
 
 	private static bool IsTargetValid(GameObject target)

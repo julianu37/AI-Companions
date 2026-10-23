@@ -47,6 +47,9 @@ public class CompanionPanel
 
 	private CompanionTierDef _selectedTier;
 
+	/// <summary>Fase 3.19: when the bank line was last rebuilt (see UpdatePerFrame - twice a second, not every frame).</summary>
+	private float _bankRefreshAt;
+
 	private List<string> _hairs = new List<string>();
 
 	private List<string> _beards = new List<string>();
@@ -289,7 +292,15 @@ public class CompanionPanel
 	{
 		UpdatePreviewRotation();
 		UpdatePreviewCamera();
-		RefreshBankDisplay();
+		// Fase 3.19 (auditoria): the bank line was rebuilt every frame (a balance lookup plus two formatted strings,
+		// 60x a second). Twice a second is plenty - and the tier click repaints the button itself (SetType ->
+		// RefreshBuyButtonLabel).
+		float now = Time.unscaledTime;
+		if (now - _bankRefreshAt >= 0.5f)
+		{
+			_bankRefreshAt = now;
+			RefreshBankDisplay();
+		}
 		if (_cam == null)
 		{
 			return;

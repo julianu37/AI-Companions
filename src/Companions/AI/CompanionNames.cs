@@ -307,6 +307,25 @@ internal static class CompanionNameMatch
 	private const int MaxAddressChars = 24;
 
 	/// <summary>
+	/// Fase 3.19 (auditoria): the forms of address and the fillers that are <b>never</b> a companion's name, even
+	/// capitalized and followed by a comma ("Mano, colete 10 pedras", "Companheiro, segue", "Bora, ..."). The
+	/// candidate used to be refused only when it was in <see cref="NotAnAddress"/>, so an ordinary "mano," made the
+	/// mod answer "I don't know that companion" and order nothing. A real companion with one of these names is still
+	/// recognized, because the name lookup runs first (see <see cref="CompanionNames.UnknownAddress"/>).
+	/// </summary>
+	private static readonly HashSet<string> CommonAddressWords = new HashSet<string>(StringComparer.Ordinal)
+	{
+		"mano", "mana", "manos", "manas", "maninho", "companheiro", "companheira", "companheiros", "companheiras",
+		"parceiro", "parceira", "parca", "cara", "cria", "vei", "veio", "bro", "brow", "bru", "mermao", "meu", "minha",
+		"irmao", "irma", "tio", "tia", "filho", "filha", "garoto", "garota", "moleque", "molecada", "turma", "mocada",
+		"time", "equipe", "galera", "pessoal", "gente", "rapaziada", "bora", "vamos", "vamo", "dale", "partiu",
+		"guerreiro", "guerreiros", "guerreira", "soldado", "soldados", "camarada", "camaradas", "chefe", "patrao",
+		"senhor", "senhora", "doutor", "doutora", "professor", "professora", "amigo", "amiga", "amigos", "amigas",
+		"querido", "querida", "lindo", "linda", "criatura", "bicho", "rapaz", "moca", "jovem", "velho", "velha",
+		"campeao", "campeoes", "mestre", "mestres", "vizinho", "vizinha", "chefao", "nobre", "senhorio", "colega", "colegas"
+	};
+
+	/// <summary>
 	/// Fase 3.12: the part of the message that <b>looks like a call to someone</b> ("Fulano" in "Fulano, colete 10
 	/// pedras"), or null when the message doesn't open with one. It answers "is this message addressed to somebody?"
 	/// for names the mod doesn't know - and it is deliberately narrow, because a false positive here means an order
@@ -320,6 +339,11 @@ internal static class CompanionNameMatch
 	/// a social word (<see cref="NotAnAddress"/>), an article or a lone address prefix ("ei," / "olha,") - those are
 	/// how people talk, not a name.</item>
 	/// </list>
+	///
+	/// <para>Fase 3.19 (auditoria): on top of that, the opening has to <b>look like a name</b> - capitalized and not one
+	/// of the common forms of address (<see cref="CommonAddressWords"/>). Before this, "mano, colete 10 pedras" and
+	/// "companheiro, segue" were read as a call to a companion nobody knows, and the order was refused instead of
+	/// going to everybody. When in doubt the message is <b>not</b> an address: the order runs as usual.</para>
 	/// </summary>
 	internal static string AddressCandidate(string message)
 	{
@@ -355,9 +379,34 @@ internal static class CompanionNameMatch
 		{
 			return null;
 		}
+		// Fase 3.19: and it has to look like a name (see the summary above) - "mano," is how a player opens a sentence
+		if (!LooksLikeName(head, key))
+		{
+			return null;
+		}
 		// everything before the separator is an address-looking name: hand it back exactly as the player wrote it,
 		// so the warning can quote it
 		return head;
+	}
+
+	/// <summary>Fase 3.19: the shape of a name - it opens with a capital letter and none of its words is a common form
+	/// of address ("Mano", "Companheiro", "Bora"). A name the player really gave a companion is matched before this
+	/// (<see cref="InMessage"/>), so a companion called "Mano" still answers to "Mano, ...".</summary>
+	private static bool LooksLikeName(string head, string key)
+	{
+		if (head.Length == 0 || !char.IsUpper(head[0]))
+		{
+			return false;
+		}
+		string[] parts = key.Split('_');
+		for (int i = 0; i < parts.Length; i++)
+		{
+			if (CommonAddressWords.Contains(parts[i]))
+			{
+				return false;
+			}
+		}
+		return !CommonAddressWords.Contains(key);
 	}
 
 	/// <summary>

@@ -49,7 +49,7 @@ internal static class CompanionMemory
 	{
 		get
 		{
-			int value = ModConfig.AiMemory != null ? ModConfig.AiMemory.Value : 6;
+			int value = ModConfig.AiMemory != null ? ModConfig.AiMemory.Value : 4;
 			return Math.Max(0, Math.Min(MaxExchanges, value));
 		}
 	}

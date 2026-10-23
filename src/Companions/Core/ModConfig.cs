@@ -14,6 +14,9 @@ internal static class ModConfig
 
 	internal static ConfigEntry<int> CompanionPrice;
 
+	/// <summary>Fase 3.19: the ceiling of companions per player in a world (see CompanionManager.CanAddCompanion).</summary>
+	internal static ConfigEntry<int> MaxCompanions;
+
 	internal static ConfigEntry<bool> SpawnStarterCompanion;
 
 	internal static ConfigEntry<bool> ResetStarterFlag;
@@ -585,7 +588,8 @@ internal static class ModConfig
 	internal static void Init(ConfigFile cfg)
 	{
 		// [General]
-		CompanionPrice = Bind(cfg, "General", "CompanionPrice", 2000, "O preço de um companheiro extra, para conseguir mais companheiros (em breve).", new AcceptableValueRange<int>(0, 50000));
+		CompanionPrice = Bind(cfg, "General", "CompanionPrice", 2000, "O preço de um companheiro extra no Trader, em moedas do banco compartilhado. 0 = de graça.", new AcceptableValueRange<int>(0, 50000));
+		MaxCompanions = Bind(cfg, "General", "MaxCompanions", 10, "Fase 3.19: o número máximo de companheiros que você pode ter neste mundo (10 é o teto). A conta inclui os mortos e os perdidos: a lápide traz o MESMO companheiro de volta, então morrer não abre vaga. Ao chegar no limite, o Trader, o invocador do painel da IA e o companheiro inicial recusam criar outro (o Santuário continua podendo recuperar um companheiro morto). Para abrir vaga, dispense um pelo menu da roda (Dispensar).", new AcceptableValueRange<int>(1, 10));
 		SpawnStarterCompanion = Bind(cfg, "General", "SpawnStarterCompanion", defaultValue: true, "Na primeira vez que você entra num mundo com um personagem, é oferecido um companheiro de graça.");
 		ResetStarterFlag = Bind(cfg, "General", "ResetStarterFlag", defaultValue: false, "Coloque true para receber de novo a oferta do companheiro inicial grátis no mundo atual (no próximo carregamento do mundo). Ele volta sozinho para false.");
 		ShowCompanionRoster = Bind(cfg, "General", "ShowCompanionRoster", defaultValue: false, "Coloque true para listar os seus companheiros neste mundo e o status de cada um: Vivo, Morto (a lápide dele vai trazê-lo de volta), Perdido (não sobrou nada dele - dá para recuperar) ou Desconhecido (num servidor dedicado, um companheiro que não está por perto não pode ser verificado). Ele volta sozinho para false.");
@@ -869,10 +873,12 @@ internal static class ModConfig
 		VozSilenceThreshold = Bind(cfg, "IA", "VozLimiarSilencio", 0.01f, "Fase 3.3: o quão alto o áudio precisa ser (nível de pico de uma janela de 10 ms, de 0 a 1) para contar como fala quando o silêncio do começo e do fim da gravação é cortado. Fase 3.3b: 0.01 (era 0.02) - com 0.02 o começo baixinho de uma palavra era cortado com frequência, e era isso que fazia ordens curtas voltarem erradas. Aumente se o seu microfone capta muito ruído do ambiente.", new AcceptableValueRange<float>(0f, 0.5f));
 		VozPromptInitial = Bind(cfg, "IA", "VozPromptInicial", "Ordens para o companheiro: colete madeira, pedra, minerio, ferro, segue, para, vem ca, ataca o greydwarf, equipa o machado de bronze, larga a pedra, descansa, bom dia.", "Fase 3.3b: prompt inicial enviado ao Whisper antes de cada transcrição. Ele enviesa o vocabulário, e é isso que faz ordens curtas (\"colete 10 madeiras\") saírem certas em vez de adivinhadas. Coloque as palavras que você realmente fala (as ordens, os nomes de criaturas e itens); vazio = sem viés. Opção de texto: edite no arquivo .cfg.");
 		VozDevice = Bind(cfg, "IA", "VozDispositivo", 0, "Fase 3.3: de qual microfone gravar, como o índice da lista que o log imprime na inicialização ([STT] Push-to-talk: ... 0: nome, 1: nome). 0 = o primeiro (o padrão do Windows).", new AcceptableValueRange<int>(0, 8));
-		VozShowText = Bind(cfg, "IA", "VozMostrarTexto", defaultValue: true, "Fase 3.3: mostra o que o microfone ouviu (\"Entendi: \"colete 10 madeiras\"\") no chat e no HUD, e faz o companheiro repetir, para uma transcrição errada ser fácil de notar. Desligado = o texto reconhecido só é escrito no log.");
+		VozShowText = Bind(cfg, "IA", "VozMostrarTexto", defaultValue: true, "Fase 3.3: mostra o que o microfone ouviu (\"Entendi: \"colete 10 madeiras\"\") no chat e no HUD. Fase 3.3d: a transcrição aparece no balão do PRÓPRIO JOGADOR (não no do companheiro), para uma transcrição errada ser fácil de notar - quem responde é o companheiro, com o balão e A VOZ dele. Desligado = o texto reconhecido só é escrito no log.");
 
-		// [IA] - Fase 3.7: the in-game AI panel (personality, voice, push-to-talk, toggles). See UI/CompanionAiPanel.cs.
-		AiPanelKey = Bind(cfg, "IA", "PainelTecla", KeyCode.I, "Fase 3.7: abre o painel da IA no jogo, onde a personalidade (preset ou texto livre), a voz do companheiro (com o botão Ouvir), o volume, a velocidade da fala, a memória, a conversa e a tecla do push-to-talk são mudados sem editar este arquivo. Cada mudança é salva na hora. O padrão é I: o jogo e o mod não usam essa tecla. A tecla não é roubada de uma caixa de texto (o chat, o console e o campo de busca ficam em paz). Opção de tecla: edite no arquivo .cfg ou clique nela no painel F8.");
+		// [IA] - Fase 3.7: the in-game AI panel. See UI/CompanionAiPanel.cs. Fase 3.10/3.15: the panel has one tab per
+		// companion (voice, personality, name and tier of that companion) plus the AI tab (summoner, volume, speed,
+		// memory, conversation, push-to-talk). The global personality and voice live in this file / the F8 panel.
+		AiPanelKey = Bind(cfg, "IA", "PainelTecla", KeyCode.I, "Fase 3.7: abre o painel da IA no jogo. A aba IA tem o invocador de companheiros de graça, o volume e a velocidade da fala, a memória, a conversa e a tecla do push-to-talk. Cada companheiro tem a sua aba, com o nome, o tipo (renascer), a voz (com o botão Ouvir) e a personalidade DELE - os valores de [IA] abaixo são o padrão de quem não tem escolha própria. Cada mudança é salva na hora. O padrão é I: o jogo e o mod não usam essa tecla. A tecla não é roubada de uma caixa de texto (o chat, o console e o campo de busca ficam em paz). Opção de tecla: edite no arquivo .cfg ou clique nela no painel F8.");
 
 		// [IA] - Fase 3.4: TTS local (Kokoro-82M via sherpa-onnx, in-process). O companheiro fala as respostas em
 		// voz alta, na posição dele. Ver AI/CompanionTts.cs.
