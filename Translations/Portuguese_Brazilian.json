@@ -367,7 +367,7 @@
         { "key": "hc_ai_tts_unavailable", "value": "A voz do companheiro não está pronta (falta o modelo do Kokoro?)." },
         { "key": "hc_ai_panel_title", "value": "Painel da IA" },
         { "key": "hc_ai_panel_title_named", "value": "Painel da IA — {0}" },
-        { "key": "hc_ai_panel_hint_fmt", "value": "Esc fecha  •  {0} abre este painel  •  tudo é salvo na hora" },
+        { "key": "hc_ai_panel_hint_fmt", "value": "Esc fecha  •  {0} abre este painel  •  tudo é salvo na hora  ·  opções avançadas: F8" },
         { "key": "hc_ai_panel_personality", "value": "Personalidade" },
         { "key": "hc_ai_panel_free_text", "value": "Nas suas palavras" },
         { "key": "hc_ai_panel_free_placeholder", "value": "ex.: fala como um viking leal" },

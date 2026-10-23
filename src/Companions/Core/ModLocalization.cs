@@ -463,7 +463,7 @@ public static class ModLocalization
 			// Fase 3.7: the in-game AI panel (personality, voice, push-to-talk). See UI/CompanionAiPanel.cs.
 			{ "hc_ai_panel_title", "AI Panel" },
 			{ "hc_ai_panel_title_named", "AI Panel — {0}" },
-			{ "hc_ai_panel_hint_fmt", "Esc closes  •  {0} opens this panel  •  everything is saved right away" },
+			{ "hc_ai_panel_hint_fmt", "Esc closes  •  {0} opens this panel  •  everything is saved right away  ·  advanced options: F8" },
 			{ "hc_ai_panel_personality", "Personality" },
 			{ "hc_ai_panel_free_text", "In your own words" },
 			{ "hc_ai_panel_free_placeholder", "e.g. talks like a loyal viking" },
