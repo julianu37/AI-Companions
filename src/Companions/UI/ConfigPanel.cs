@@ -401,9 +401,10 @@ public class ConfigPanel : MonoBehaviour
 			{
 				Hide();
 			}
-			else if (CompanionAiPanel.Instance == null || !CompanionAiPanel.Instance.IsVisible)
+			else if ((CompanionAiPanel.Instance == null || !CompanionAiPanel.Instance.IsVisible) && !CompanionAppearancePanel.IsOpen)
 			{
-				// Fase 3.7: never on top of the AI panel (the AI panel refuses to open while this one is visible)
+				// Fase 3.7: never on top of the AI panel (the AI panel refuses to open while this one is visible).
+				// Fase 3.20: nor on top of the appearance editor, which is opened from that panel.
 				Show();
 			}
 		}

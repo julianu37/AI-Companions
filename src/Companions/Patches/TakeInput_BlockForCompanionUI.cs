@@ -45,6 +45,12 @@ internal static class TakeInput_BlockForCompanionUI
 		if (instance6 != null && instance6.IsVisible)
 		{
 			__result = false;
+			return;
+		}
+		// Fase 3.20: the appearance editor (a modal window of its own, above the AI panel)
+		if (CompanionAppearancePanel.IsOpen)
+		{
+			__result = false;
 		}
 	}
 }

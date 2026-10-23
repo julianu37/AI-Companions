@@ -59,4 +59,9 @@ internal static class ModUiLayers
 
 	/// <summary>The dropdown-list overlay of the AI panel: one step above its panel, never below (was 34).</summary>
 	internal const int AiPanelOverlay = Base + 7;
+
+	/// <summary>The appearance editor of a companion that already exists: a window opened from a companion's tab in the
+	/// AI panel, so it has to be above that panel - and above its dropdown overlay too, which is closed when it opens
+	/// (the editor is a window, and the overlay of the window behind it must not draw over it).</summary>
+	internal const int CompanionAppearancePanel = Base + 8;
 }

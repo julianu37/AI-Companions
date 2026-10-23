@@ -90,6 +90,15 @@ public static class ModLocalization
 			{ "hc_ui_btn_companion", "Companion" },
 			{ "hc_ui_btn_dverger", "Dverger" },
 			{ "hc_ui_beard_none", "None" },
+			// Fase 3.20: the appearance editor of a companion that already exists (the starter's column and preview, opened
+			// from a companion's tab in the AI panel). The title, the line naming whose look is being edited, the two
+			// buttons and the two messages (the change went through / the companion is dead).
+			{ "hc_ui_title_appearance", "Appearance" },
+			{ "hc_ui_editing_appearance", "Editing the appearance of {0}" },
+			{ "hc_ui_btn_apply", "Apply" },
+			{ "hc_ui_btn_cancel", "Cancel" },
+			{ "hc_ui_appearance_applied", "Appearance of {0} updated." },
+			{ "hc_ui_appearance_dead", "I can't change the appearance of a dead companion - bring it back first." },
 			{ "hc_ui_desc_starter", "A loyal companion will join you on your journey. Customise their appearance on the left, pick their voice and personality in the AI section, then spawn them into the world.\n\nThey will follow you, fight by your side, and carry supplies. Equip them with gear and keep them fed to stay battle-ready.\n\nPress Escape to skip — the panel will appear again next session." },
 			{ "hc_ui_desc_trader", "Hire a loyal companion to join your journey. They will follow you across the world and fight by your side against any threat.\n\nEach companion has their own health, stamina and inventory. You will need to equip them with gear and keep them fed to stay battle-ready.\n\nInteract with your companion to open their panel, where you can manage their equipment and issue commands.\n\nCustomise their appearance on the left, then confirm your purchase." },
 			{ "hc_ui_placeholder_name", "Enter name..." },
@@ -498,6 +507,8 @@ public static class ModLocalization
 			{ "hc_ai_comp_alive", "Alive" },
 			{ "hc_ai_comp_dead", "Dead" },
 			{ "hc_ai_comp_recall", "Call" },
+			// Fase 3.20: the button on a companion's tab that opens the appearance editor of that companion
+			{ "hc_ai_comp_appearance", "Appearance" },
 			{ "hc_ai_comp_recall_ok", "{0} is on the way." },
 			{ "hc_ai_comp_recall_failed", "I couldn't call {0} (see the log)." },
 			{ "hc_ai_comp_gone", "That companion isn't here anymore." },

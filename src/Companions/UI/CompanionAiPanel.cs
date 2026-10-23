@@ -340,6 +340,10 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 	private AiButton _recall;
 
+	/// <summary>Fase 3.20: opens the appearance editor of the companion on the tab (the starter's column + 3D preview).
+	/// Kept so it can follow life and death, like "Chamar".</summary>
+	private AiButton _compAppearance;
+
 	// ------------------------------------------------------------------ Fase 3.10: the profile of the open companion
 
 	/// <summary>The personality dropdown of a companion's tab: the "follow the [IA] default" entry, the default
@@ -563,6 +567,12 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 			}
 			return;
 		}
+		// Fase 3.20: the appearance editor opens on top of this panel and owns the keyboard while it is up - Esc closes
+		// the editor only, never both windows at once (the editor calls Hide() itself if it ever needs to).
+		if (CompanionAppearancePanel.IsOpen)
+		{
+			return;
+		}
 		if (Input.GetKeyDown(KeyCode.Escape) || ZInput.GetButtonDown("JoyBack") || ZInput.GetButtonDown("JoyButtonB"))
 		{
 			// Esc first leaves the text box, then closes the open list, then the panel - never all at once
@@ -633,6 +643,11 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		// nor on top of the starter companion picker of the first spawn: that one is choosing the very companion this
 		// panel could now summon (Fase 3.9), and stacking two of the mod's panels is never what the player meant
 		if (StarterCompanionPanel.Instance != null && StarterCompanionPanel.Instance.IsVisible)
+		{
+			return false;
+		}
+		// nor while the appearance editor (opened by this panel) is up: it is the window in front
+		if (CompanionAppearancePanel.IsOpen)
 		{
 			return false;
 		}
@@ -1446,6 +1461,13 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 		_recall = CreateButton(Page, "Recall", FieldX, RowCompRecall, 200f, RowH, ModLocalization.Loc("hc_ai_comp_recall"), RecallSelected);
 
+		// Fase 3.20: the look of THIS companion. The window it opens is a mode of the starter panel's own panel
+		// (CompanionPanel.AppearanceEditMode), so the preview, the hair/beard lists and the colour sliders are the very
+		// same ones the player saw when the companion was created - there is no second customisation UI to keep in sync.
+		float appearanceX = FieldX + 208f;
+		_compAppearance = CreateButton(Page, "CompAppearance", appearanceX, RowCompRecall, RightEdge - appearanceX, RowH,
+			ModLocalization.Loc("hc_ai_comp_appearance"), OpenAppearance);
+
 		// Fase 3.10: the profile of the companion - a section title, the two dropdowns (built in
 		// BuildCompanionDropdowns), the free text with the "Aplicar" button and the hint that says the global values
 		// are only the default.
@@ -1519,6 +1541,7 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		{
 			_compStatus.text = "";
 			SetRecallEnabled(false);
+			SetAppearanceEnabled(false);
 			SetCompProfileEnabled(false);
 			_compFormFor = null;
 			CacheCompanionStatus(null);
@@ -1536,6 +1559,7 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		_compStatus.text = ModLocalization.Loc(alive ? "hc_ai_comp_alive" : "hc_ai_comp_dead");
 		_compStatus.color = alive ? GoldColor : DimColor;
 		SetRecallEnabled(alive);
+		SetAppearanceEnabled(alive);
 		SetCompProfileEnabled(true);
 		if (setup != _compFormFor)
 		{
@@ -1979,6 +2003,51 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		{
 			_recall.Label.color = enabled ? Color.white : DimColor;
 		}
+	}
+
+	/// <summary>Fase 3.20: "Aparência" follows the same rule as "Chamar" - a dead companion's look is already written
+	/// into its tombstone, so the editor is refused (and greyed out) until it is back.</summary>
+	private void SetAppearanceEnabled(bool enabled)
+	{
+		if (_compAppearance == null)
+		{
+			return;
+		}
+		_compAppearance.Button.interactable = enabled;
+		if (_compAppearance.Image != null)
+		{
+			_compAppearance.Image.color = enabled ? ButtonColor : OffColor;
+		}
+		if (_compAppearance.Label != null)
+		{
+			_compAppearance.Label.color = enabled ? Color.white : DimColor;
+		}
+	}
+
+	/// <summary>
+	/// Fase 3.20: opens the appearance editor for the companion on the tab. The editor is a window of its own, one layer
+	/// above this panel (which stays open behind it, with its tab), so nothing here is rebuilt and nothing is lost on the
+	/// way back. A dead companion is refused with a localized message - the check is also in
+	/// <see cref="CompanionAppearancePanel.Open"/>, which is the one that has to hold for every door.
+	/// </summary>
+	private void OpenAppearance()
+	{
+		CompanionSetup setup = SelectedCompanion();
+		if (setup == null)
+		{
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_comp_gone"));
+			RefreshCompanionPage();
+			return;
+		}
+		if (!_compAlive)
+		{
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ui_appearance_dead"));
+			return;
+		}
+		// an open dropdown would stay drawn above the editor (its overlay is a sibling canvas of this panel)
+		CloseLists();
+		CompanionsPlugin.Log?.LogInfo($"[IA] Painel: abrindo o editor de aparencia de \"{NameOf(setup)}\"");
+		CompanionAppearancePanel.Open(setup);
 	}
 
 	/// <summary>Fase 3.10: the profile controls only make sense with a companion on the tab - the page is hidden

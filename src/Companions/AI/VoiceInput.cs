@@ -226,6 +226,12 @@ internal static class VoiceInput
 		{
 			return true;
 		}
+		// Fase 3.20: the appearance editor of an existing companion owns the keyboard too (it has no text box, but the
+		// push-to-talk key must not start a recording under it)
+		if (CompanionAppearancePanel.IsOpen)
+		{
+			return true;
+		}
 		return false;
 	}
 

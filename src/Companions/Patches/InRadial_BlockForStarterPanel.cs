@@ -33,6 +33,12 @@ internal static class InRadial_BlockForStarterPanel
 		if (instance4 != null && instance4.IsVisible)
 		{
 			__result = true;
+			return;
+		}
+		// Fase 3.20: the appearance editor (a modal window of its own, above the AI panel)
+		if (CompanionAppearancePanel.IsOpen)
+		{
+			__result = true;
 		}
 	}
 }

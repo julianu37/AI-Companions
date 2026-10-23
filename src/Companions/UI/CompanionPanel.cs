@@ -98,6 +98,28 @@ public class CompanionPanel
 
 	internal Action<CompanionAppearance> OnSpawnConfirmed;
 
+	// ------------------------------------------------------------------ the appearance editor (a companion that exists)
+	//
+	// The same panel in a second mode: the left column (gender, hair, beard, colours) and the 3D preview are the very
+	// ones of the starter - there is only one implementation of them - and the middle column is replaced by a short
+	// line saying whose look is being edited and the two buttons ("Aplicar" / "Cancelar").
+	//
+	// Nothing here touches the companion. The appearance being edited is a COPY read from the target's ZDO
+	// (ReadTargetAppearance), the preview is the visual clone (never the real object), and writing anything belongs to
+	// the host (UI/CompanionAppearancePanel.cs): the panel only says "this is what the player built".
+
+	/// <summary>True while the panel edits the look of a companion that already exists (no AI section, no "Invocar").</summary>
+	internal bool AppearanceEditMode;
+
+	/// <summary>The companion being edited (AppearanceEditMode only). Only read here - its ZDO is written by the host.</summary>
+	internal CompanionSetup EditTarget;
+
+	/// <summary>"Aplicar": the appearance built in the panel. Applying it (and writing the ZDO) belongs to the host.</summary>
+	internal Action<CompanionAppearance> OnAppearanceConfirmed;
+
+	/// <summary>"Cancelar": the player gave up. Nothing was written, and the host closes the window.</summary>
+	internal Action OnAppearanceCancelled;
+
 	private GameObject _bankDisplayGO;
 
 	// ------------------------------------------------------------------ Fase 3.10: the AI section of the starter panel
@@ -246,8 +268,11 @@ public class CompanionPanel
 
 	public void Build(Transform parent, float colTopInset, float bottomPad, TMP_FontAsset font, GameObject buttonTemplate, float buttonHeight, float leftXL, float leftXR, float midXL, float midXR, float rightXL, float rightXR, float panelHeight)
 	{
-		_current = CompanionAppearance.Default();
-		_selectedTier = CompanionTierData.Companion;
+		// the editor starts from the look the companion already has (its HC_Appearance), never from Default(): the panel
+		// has to show what is there before the player changes it. The tier is only used for the preview prefab and for
+		// whether the appearance even applies (a dverger's look is its prefab), so it is read from the target too.
+		_current = AppearanceEditMode ? ReadTargetAppearance() : CompanionAppearance.Default();
+		_selectedTier = (AppearanceEditMode ? TierOfTarget() : null) ?? CompanionTierData.Companion;
 		if (buttonHeight <= 0f)
 		{
 			buttonHeight = 30f;
@@ -273,8 +298,21 @@ public class CompanionPanel
 		float colW = rightXR - rightXL;
 		float colH = panelHeight - colTopInset - bottomPad;
 		BuildCustomColumn(col, font, buttonTemplate);
-		BuildMiddleColumn(col2, font, buttonTemplate, buttonHeight);
+		if (AppearanceEditMode)
+		{
+			BuildEditColumn(col2, font, buttonTemplate, buttonHeight);
+		}
+		else
+		{
+			BuildMiddleColumn(col2, font, buttonTemplate, buttonHeight);
+		}
 		BuildPreviewColumn(col3, colW, colH);
+		if (AppearanceEditMode)
+		{
+			// BuildCustomColumn leaves the controls on the starter's defaults (its sliders are born there): the stored
+			// appearance goes back on them - sliders included - before the first frame of the editor
+			ApplyAppearanceToControls();
+		}
 		Root.SetActive(value: false);
 	}
 
@@ -285,7 +323,10 @@ public class CompanionPanel
 			LoadHairBeardLists();
 		}
 		SetupPreviewClone();
-		RefreshBankDisplay();
+		if (!AppearanceEditMode)
+		{
+			RefreshBankDisplay();
+		}
 	}
 
 	public void UpdatePerFrame()
@@ -294,9 +335,10 @@ public class CompanionPanel
 		UpdatePreviewCamera();
 		// Fase 3.19 (auditoria): the bank line was rebuilt every frame (a balance lookup plus two formatted strings,
 		// 60x a second). Twice a second is plenty - and the tier click repaints the button itself (SetType ->
-		// RefreshBuyButtonLabel).
+		// RefreshBuyButtonLabel). The appearance editor has no bank line at all (it edits a companion that is already
+		// paid for), so the tick costs nothing there.
 		float now = Time.unscaledTime;
-		if (now - _bankRefreshAt >= 0.5f)
+		if (!AppearanceEditMode && now - _bankRefreshAt >= 0.5f)
 		{
 			_bankRefreshAt = now;
 			RefreshBankDisplay();
@@ -371,14 +413,18 @@ public class CompanionPanel
 		return _genderBtnSprite;
 	}
 
+	/// <summary>
+	/// Releases one of the panel's own sprites. The <b>texture is not ours</b>: it comes from
+	/// <see cref="TextureLoader.LoadUITexture"/>, which caches it by name and hands the very same one to every panel of
+	/// the mod - destroying it here would leave a destroyed texture in that cache for whoever asks next. That used to be
+	/// invisible (the panel was built once and torn down at the end of the session), but the appearance editor
+	/// (Fase 3.20) opens and closes this panel whenever the player wants, one right after the other - so only the sprite
+	/// goes, which is what <c>CompanionAiPanel</c> already does for the same reason.
+	/// </summary>
 	private static void DestroySprite(ref Sprite sprite)
 	{
 		if (sprite != null)
 		{
-			if (sprite.texture != null)
-			{
-				UnityEngine.Object.Destroy(sprite.texture);
-			}
 			UnityEngine.Object.Destroy(sprite);
 			sprite = null;
 		}
@@ -696,6 +742,185 @@ public class CompanionPanel
 		{
 			LogMiddleColumnLayout(btnH, buyTop, aiBottom, aiTop, nameBottom, nameHeight, descBottom);
 		}
+	}
+
+	// ------------------------------------------------------------------ the middle column of the appearance editor
+
+	/// <summary>Room between "Aplicar" and "Cancelar" of the editor.</summary>
+	private const float EditButtonGap = 8f;
+
+	/// <summary>How far below the title the "Editando a aparência de ..." line starts, and how tall it may grow before it
+	/// would run into the buttons (the log says how much room is left between the two).</summary>
+	private const float EditTextTop = 44f;
+
+	private const float EditTextH = 72f;
+
+	/// <summary>
+	/// The middle column of the appearance editor: the title, one line saying whose look is being edited and the two
+	/// buttons, nothing else. It is much shorter than the starter's column on purpose - there is no AI section, no name
+	/// field and no description, because nothing but the look is touched here (the tier, the name, the AI profile, the
+	/// inventory, the equipment and the position all stay as they are).
+	///
+	/// <para>The buttons are built exactly like the starter's "Invocar" (an explicit rect anchored to both sides of the
+	/// column), so their size comes from the column and not from a helper row - the same lesson as the AI section's
+	/// "Ouvir". The numbers are written to the log once (see <see cref="LogEditColumnLayout"/>).</para>
+	/// </summary>
+	private void BuildEditColumn(RectTransform col, TMP_FontAsset font, GameObject buttonTemplate, float btnH)
+	{
+		GameObject titleGO = new GameObject("Title", typeof(RectTransform));
+		titleGO.transform.SetParent(col, worldPositionStays: false);
+		TextMeshProUGUI title = titleGO.AddComponent<TextMeshProUGUI>();
+		if (font != null)
+		{
+			title.font = font;
+		}
+		title.fontSize = 24f;
+		title.color = Color.white;
+		title.alignment = TextAlignmentOptions.Center;
+		title.text = ModLocalization.Loc("hc_ui_title_appearance");
+		title.raycastTarget = false;
+		RectTransform titleRT = titleGO.GetComponent<RectTransform>();
+		titleRT.anchorMin = new Vector2(0f, 1f);
+		titleRT.anchorMax = new Vector2(1f, 1f);
+		titleRT.pivot = new Vector2(0.5f, 1f);
+		titleRT.sizeDelta = new Vector2(-20f, 32f);
+		titleRT.anchoredPosition = new Vector2(0f, -4f);
+
+		// "Editando a aparência de X" - the one thing the player must be able to read with two companions around
+		TextMeshProUGUI who = MakeText(col, "EditingFor", ModLocalization.LocFmt("hc_ui_editing_appearance", TargetName()), font,
+			17f, LabelText, TextAlignmentOptions.Top);
+		who.textWrappingMode = TextWrappingModes.Normal;
+		who.overflowMode = TextOverflowModes.Overflow;
+		RectTransform whoRT = who.GetComponent<RectTransform>();
+		whoRT.anchorMin = new Vector2(0f, 1f);
+		whoRT.anchorMax = new Vector2(1f, 1f);
+		whoRT.pivot = new Vector2(0.5f, 1f);
+		whoRT.sizeDelta = new Vector2(-26f, EditTextH);
+		whoRT.anchoredPosition = new Vector2(0f, 0f - EditTextTop);
+
+		float applyBottom = MiddleBuyBottom;
+		float cancelBottom = applyBottom + btnH + EditButtonGap;
+		if (buttonTemplate != null)
+		{
+			GameObject apply = CreateActionButton(buttonTemplate, col, "AppearanceApply", ModLocalization.Loc("hc_ui_btn_apply"));
+			RectTransform applyRT = apply.GetComponent<RectTransform>();
+			applyRT.anchorMin = new Vector2(0f, 0f);
+			applyRT.anchorMax = new Vector2(1f, 0f);
+			applyRT.pivot = new Vector2(0.5f, 0f);
+			applyRT.sizeDelta = new Vector2(-24f, btnH);
+			applyRT.anchoredPosition = new Vector2(0f, applyBottom);
+			Button applyBtn = apply.GetComponent<Button>();
+			if (applyBtn != null)
+			{
+				applyBtn.onClick.AddListener(delegate
+				{
+					OnApplyClicked();
+				});
+			}
+
+			GameObject cancel = CreateActionButton(buttonTemplate, col, "AppearanceCancel", ModLocalization.Loc("hc_ui_btn_cancel"));
+			RectTransform cancelRT = cancel.GetComponent<RectTransform>();
+			cancelRT.anchorMin = new Vector2(0f, 0f);
+			cancelRT.anchorMax = new Vector2(1f, 0f);
+			cancelRT.pivot = new Vector2(0.5f, 0f);
+			cancelRT.sizeDelta = new Vector2(-24f, btnH);
+			cancelRT.anchoredPosition = new Vector2(0f, cancelBottom);
+			Button cancelBtn = cancel.GetComponent<Button>();
+			if (cancelBtn != null)
+			{
+				cancelBtn.onClick.AddListener(delegate
+				{
+					OnCancelClicked();
+				});
+			}
+		}
+		else
+		{
+			CompanionsPlugin.Log?.LogWarning("[AppearancePanel] no button template - the editor has no Aplicar/Cancelar (Esc still closes it)");
+		}
+		LogEditColumnLayout(btnH, applyBottom, cancelBottom);
+	}
+
+	/// <summary>
+	/// One line with the geometry of the editor's middle column, written once when the panel is built - the same idea as
+	/// <see cref="LogMiddleColumnLayout"/> for the starter: the panel, the column, the two buttons and the room the text
+	/// band gets. Every number is measured from the bottom of the column except the widths and the panel height, and
+	/// they are the very numbers the rects above were built with.
+	/// </summary>
+	private void LogEditColumnLayout(float btnH, float applyBottom, float cancelBottom)
+	{
+		// the text band is anchored to the top of the column and the buttons to its bottom: the free band between them is
+		// what a longer line ("Editando a aparência de ...") would have before it would have to be shortened
+		float textBottom = EditTextTop + EditTextH;
+		float cancelTop = cancelBottom + btnH;
+		float free = Mathf.Max(0f, _columnHeight - textBottom - cancelTop);
+		CompanionsPlugin.Log?.LogInfo($"[AppearancePanel] Layout da coluna do meio: painel={_panelHeight:0} coluna={_columnHeight:0} largura={_middleWidth:0} | "
+			+ $"alvo=\"{TargetName()}\" | Aplicar: base={applyBottom:0} altura={btnH:0} topo={applyBottom + btnH:0} | "
+			+ $"Cancelar: base={cancelBottom:0} topo={cancelTop:0} | texto: topo={EditTextTop:0} altura={EditTextH:0} (do topo) | faixa livre={free:0}");
+	}
+
+	/// <summary>"Aplicar": hands the appearance being edited to the host (which applies it and writes the ZDO).</summary>
+	private void OnApplyClicked()
+	{
+		CompanionsPlugin.Log?.LogInfo($"[AppearancePanel] Aplicar: gender={_current.ModelIndex}, hair={_current.HairItem}, beard={_current.BeardItem}");
+		OnAppearanceConfirmed?.Invoke(_current);
+	}
+
+	/// <summary>"Cancelar": nothing is written; the host closes the window.</summary>
+	private void OnCancelClicked()
+	{
+		CompanionsPlugin.Log?.LogInfo("[AppearancePanel] Cancelar: nada foi gravado");
+		OnAppearanceCancelled?.Invoke();
+	}
+
+	/// <summary>The look the companion has now, read from its ZDO (a copy - the panel never writes it).</summary>
+	private CompanionAppearance ReadTargetAppearance()
+	{
+		string data = EditTarget != null ? EditTarget.GetComponent<ZNetView>()?.GetZDO()?.GetString(CompanionSetup.AppearanceHash) : null;
+		return string.IsNullOrEmpty(data) ? CompanionAppearance.Default() : CompanionAppearance.Deserialize(data);
+	}
+
+	/// <summary>
+	/// The tier of the companion being edited, from the prefab the ZDO was spawned with (the same way the AI panel's tab
+	/// reads it). It only decides the preview prefab - and, through <see cref="CompanionTierDef.CanWearArmor"/>, whether
+	/// the appearance even shows (a dverger's look is its prefab; the values are still kept for a future tier change).
+	/// </summary>
+	private CompanionTierDef TierOfTarget()
+	{
+		ZDO zdo = EditTarget != null ? EditTarget.GetComponent<ZNetView>()?.GetZDO() : null;
+		if (zdo != null)
+		{
+			int prefab = zdo.GetPrefab();
+			CompanionTierDef[] all = CompanionTierData.All;
+			for (int i = 0; i < all.Length; i++)
+			{
+				if (all[i].PrefabName.GetStableHashCode() == prefab)
+				{
+					return all[i];
+				}
+			}
+		}
+		return CompanionTierData.Companion;
+	}
+
+	/// <summary>The name of the companion being edited, for the "Editando a aparência de ..." line.</summary>
+	private string TargetName()
+	{
+		if (EditTarget == null)
+		{
+			return "";
+		}
+		string stored = EditTarget.GetComponent<ZNetView>()?.GetZDO()?.GetString(CompanionSetup.NameHash);
+		if (!string.IsNullOrEmpty(stored))
+		{
+			return stored;
+		}
+		Character character = EditTarget.GetComponent<Character>();
+		if (character != null && !string.IsNullOrEmpty(character.m_name))
+		{
+			return character.m_name;
+		}
+		return ModLocalization.Loc("hc_msg_name_default");
 	}
 
 	/// <summary>
@@ -1494,6 +1719,83 @@ public class CompanionPanel
 		Color c = Color.Lerp(HairBlonde, HairDark, t) * Mathf.Lerp(0.1f, 1f, t2);
 		_current.HairColor = Utils.ColorToVec3(c);
 		RefreshPreviewAppearance();
+	}
+
+	/// <summary>
+	/// Edit mode: puts the appearance being edited back on the controls. <see cref="BuildCustomColumn"/> writes the
+	/// starter's defaults into <see cref="_current"/> (its sliders are born on those values), so the stored colours are
+	/// restored here and the three sliders are moved to the nearest point of their own gradient - that way the panel
+	/// opens showing the companion's colours, and the first touch of a slider does not jump the colour somewhere else.
+	///
+	/// <para>Runs once, when the panel is built (never per frame), and only in the editor: the starter keeps its own
+	/// defaults, byte for byte.</para>
+	/// </summary>
+	private void ApplyAppearanceToControls()
+	{
+		RefreshGenderButtons();
+		if (_beardGroup != null)
+		{
+			_beardGroup.SetActive(_current.ModelIndex == 0);
+		}
+		// SetValueWithoutNotify does not raise onValueChanged, so _current keeps exactly the stored colours (the sliders
+		// only become the way back to them, and the moment the player moves one the gradient takes over)
+		if (_skinSlider != null)
+		{
+			_skinSlider.SetValueWithoutNotify(NearestSkinT(_current.SkinColor));
+		}
+		if (_hairHueSlider != null && _hairBrightSlider != null)
+		{
+			NearestHairTone(_current.HairColor, out float hue, out float bright);
+			_hairHueSlider.SetValueWithoutNotify(hue);
+			_hairBrightSlider.SetValueWithoutNotify(bright);
+		}
+	}
+
+	/// <summary>The point of the skin gradient (<see cref="SkinLight"/> to <see cref="SkinDark"/>) closest to a stored
+	/// colour. A grid search, because Color.Lerp per channel cannot be inverted exactly; 21 samples once per open.</summary>
+	private static float NearestSkinT(Vector3 stored)
+	{
+		const int steps = 20;
+		float best = float.MaxValue;
+		float bestT = 0.05f;
+		for (int i = 0; i <= steps; i++)
+		{
+			float t = (float)i / steps;
+			float distance = (Utils.ColorToVec3(Color.Lerp(SkinLight, SkinDark, t)) - stored).sqrMagnitude;
+			if (distance < best)
+			{
+				best = distance;
+				bestT = t;
+			}
+		}
+		return bestT;
+	}
+
+	/// <summary>The (tone, shade) pair of <see cref="UpdateHairColor"/>'s own formula closest to a stored colour: the
+	/// hue slider runs the palette from blond to dark and the shade slider scales it, and the multiplication makes the
+	/// pair impossible to invert channel by channel - so it is a 21x21 grid search, once per open.</summary>
+	private static void NearestHairTone(Vector3 stored, out float hue, out float bright)
+	{
+		const int steps = 20;
+		float best = float.MaxValue;
+		hue = 0.45f;
+		bright = 0.85f;
+		for (int i = 0; i <= steps; i++)
+		{
+			float t = (float)i / steps;
+			for (int j = 0; j <= steps; j++)
+			{
+				float b = (float)j / steps;
+				Color c = Color.Lerp(HairBlonde, HairDark, t) * Mathf.Lerp(0.1f, 1f, b);
+				float distance = (Utils.ColorToVec3(c) - stored).sqrMagnitude;
+				if (distance < best)
+				{
+					best = distance;
+					hue = t;
+					bright = b;
+				}
+			}
+		}
 	}
 
 	private void RefreshTypeButtons()

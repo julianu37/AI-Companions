@@ -153,6 +153,12 @@ public class CompanionsPlugin : BaseUnityPlugin
 		{
 			UnityEngine.Object.Destroy(CompanionAiPanel.Instance.gameObject);
 		}
+		// Fase 3.20: the appearance editor (it owns a camera, a RenderTexture and the preview clone - Teardown runs with
+		// the GameObject, so unloading the plugin mid-edit does not leave them behind)
+		if (CompanionAppearancePanel.Instance != null)
+		{
+			UnityEngine.Object.Destroy(CompanionAppearancePanel.Instance.gameObject);
+		}
 		if (FarmZonePlacer.Instance != null)
 		{
 			UnityEngine.Object.Destroy(FarmZonePlacer.Instance.gameObject);
