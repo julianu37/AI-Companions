@@ -222,6 +222,351 @@ public static class CompanionManager
 	}
 
 	/// <summary>
+	/// Fase 3.14: changes the TIER of a companion that already exists. A tier is a prefab, so there is no way to keep
+	/// the same object: this respawns the companion as the new prefab, on the same spot, and carries everything that
+	/// makes it <b>that</b> companion across:
+	///
+	/// <list type="bullet">
+	/// <item><b>the name</b> (<c>HC_Name</c>, typed by the player) and the <b>appearance</b> (<c>HC_Appearance</c>);</item>
+	/// <item><b>the whole inventory</b> (serialized with <c>Inventory.Save</c>/<c>Load</c>, the same pair the roster and
+	/// the tombstone use) and the <b>equipment</b> that was in hand/worn (re-equipped by grid position after the load);</item>
+	/// <item><b>the AI profile</b> of Fase 3.10 (voice + personality keys), read/written through
+	/// <see cref="CompanionProfile"/>'s hashes;</item>
+	/// <item><b>the companion id</b> (<c>HC_CompanionId</c>), the roster generation (<c>HC_Gen</c>) and the tombstone id,
+	/// so the roster, the Shrine and the bed claim keep pointing at the same companion;</item>
+	/// <item>owner, action mode + schema, follow / follow-paused, stay home, auto-pickup, wander, commandable, combat
+	/// stance, formation slot, home position + flag, home bed position + flag, the order target of Fase 3.2c and the
+	/// <b>skills</b> (<see cref="CompanionSkills"/> serialized string).</item>
+	/// </list>
+	///
+	/// <para>What does NOT survive (it is not part of the ZDO): the conversation memory of the session (it is cleared
+	/// when the old object is destroyed), the job's current step (the mode is kept, so the job starts over from a new
+	/// scan), a cart being pulled, a tombstone recovery in progress and the combat target. A tier that cannot wear armor
+	/// (the dverger ones) keeps the armor pieces in its pack instead of wearing them - that is the tier, not this
+	/// method.</para>
+	///
+	/// <para>Multiplayer: only the owner of the companion runs this (the ZDO is claimed first, like an order). The old
+	/// object is marked stale before it is destroyed, so <see cref="MHR_DeleteGuard"/> lets it go and the roster does
+	/// not treat it as an old copy of itself; the new object is born with the old <c>HC_Owner</c>. Every step is logged
+	/// under <c>[Tier]</c>, and <c>null</c> means nothing was changed (the old companion is still there).</para>
+	/// </summary>
+	internal static CompanionSetup ChangeTier(CompanionSetup companion, CompanionTierDef def)
+	{
+		if (companion == null || def == null)
+		{
+			return null;
+		}
+		ZNetView nv = companion.GetComponent<ZNetView>();
+		ZDO old = (nv != null && nv.IsValid()) ? nv.GetZDO() : null;
+		Player player = Player.m_localPlayer;
+		if (old == null || player == null)
+		{
+			CompanionsPlugin.Log?.LogWarning("[Tier] Change cancelled: the companion has no ZDO (or there is no local player)");
+			return null;
+		}
+		if (!MHR_Owner.IsMine(companion))
+		{
+			CompanionsPlugin.Log?.LogWarning("[Tier] Change cancelled: that companion isn't yours");
+			return null;
+		}
+		// a dead companion is under the tombstone/respawn flow: spawning a live copy of it now would leave the tombstone
+		// able to bring ANOTHER copy back later, so the swap waits for the resurrection
+		Character oldCharacter = companion.GetComponent<Character>();
+		if (oldCharacter != null && oldCharacter.GetHealth() <= 0f)
+		{
+			CompanionsPlugin.Log?.LogWarning("[Tier] Change cancelled: the companion is dead - bring it back first");
+			return null;
+		}
+		if (!nv.IsOwner())
+		{
+			nv.ClaimOwnership();
+			if (!nv.IsOwner())
+			{
+				CompanionsPlugin.Log?.LogWarning("[Tier] Change cancelled: this game doesn't own the companion's data yet (try again in a moment)");
+				return null;
+			}
+		}
+		string oldName = old.GetString(CompanionSetup.NameHash, ModLocalization.Loc("hc_msg_name_default"));
+		CompanionTierDef oldDef = TierOf(old.GetPrefab());
+		if (old.GetPrefab() == def.PrefabName.GetStableHashCode())
+		{
+			CompanionsPlugin.Log?.LogInfo($"[Tier] \"{oldName}\" is already \"{CompanionTierData.LocalName(def)}\" - nothing was changed");
+			return companion;
+		}
+		GameObject prefab = ZNetScene.instance?.GetPrefab(def.PrefabName);
+		if (prefab == null)
+		{
+			CompanionsPlugin.Log?.LogError("[Tier] Change cancelled: prefab not found: " + def.PrefabName);
+			return null;
+		}
+
+		// ---- everything the new companion has to carry over, read while the old one is still alive ----
+		string appearance = old.GetString(CompanionSetup.AppearanceHash);
+		string owner = old.GetString(CompanionSetup.OwnerHash);
+		int mode = old.GetInt(CompanionSetup.ActionModeHash);
+		int schema = old.GetInt(CompanionSetup.ActionModeSchemaHash);
+		bool follow = old.GetBool(CompanionSetup.FollowHash, defaultValue: true);
+		bool followPaused = old.GetBool(CompanionTombstoneResurrect.FollowPausedByJobHash);
+		bool stayHome = old.GetBool(CompanionSetup.StayHomeHash);
+		bool autoPickup = old.GetBool(CompanionSetup.AutoPickupHash, defaultValue: true);
+		bool wander = old.GetBool(CompanionSetup.WanderHash);
+		int commandable = old.GetInt(CompanionSetup.IsCommandableHash, 1);
+		int formation = old.GetInt(CompanionSetup.FormationSlotHash, -1);
+		Vector3 home = old.GetVec3(CompanionSetup.HomePosHash, Vector3.zero);
+		bool hasHome = old.GetBool(CompanionSetup.HomePosSetHash) || home != Vector3.zero;
+		int stance = old.GetInt(CompanionSetup.CombatStanceHash);
+		bool hasBed = old.GetBool(CompanionSetup.HasHomeBedHash);
+		Vector3 bed = old.GetVec3(CompanionSetup.HomeBedPosHash, Vector3.zero);
+		string skills = companion.GetComponent<CompanionSkills>()?.SerializeSkills() ?? old.GetString(CompanionSkills.SkillsHash);
+		string companionId = companion.MHR_EnsureCompanionId();
+		int gen = old.GetInt(MHR_Roster.GenHash);
+		long tombstoneId = old.GetLong(CompanionSetup.TombstoneIdHash, 0L);
+		int cap = old.GetInt(CompanionSetup.OrderCapHash, 0);
+		int capMode = old.GetInt(CompanionSetup.OrderCapModeHash, 0);
+		string capItem = old.GetString(CompanionSetup.OrderCapItemHash, "");
+		int aiVoice = old.GetInt(CompanionProfile.VoiceHash, 0);
+		bool personaSet = old.GetBool(CompanionProfile.PersonaSetHash, false);
+		string personaPreset = old.GetString(CompanionProfile.PresetHash, "");
+		string personaText = old.GetString(CompanionProfile.PersonaTextHash, "");
+
+		// the inventory and what was equipped, by grid position (Inventory.Load puts every item back where it was)
+		string inventoryData = "";
+		List<Vector2i> equipped = new List<Vector2i>();
+		Humanoid oldHumanoid = companion.GetComponent<Humanoid>();
+		Inventory oldInventory = oldHumanoid != null ? oldHumanoid.GetInventory() : null;
+		int items = 0;
+		if (oldInventory != null)
+		{
+			try
+			{
+				foreach (ItemDrop.ItemData item in oldInventory.GetAllItems())
+				{
+					if (item == null)
+					{
+						continue;
+					}
+					items++;
+					if (item.m_equipped)
+					{
+						equipped.Add(item.m_gridPos);
+					}
+				}
+				ZPackage package = new ZPackage();
+				oldInventory.Save(package);
+				inventoryData = package.GetBase64();
+			}
+			catch (System.Exception ex)
+			{
+				// without a safe copy of the pack nothing else matters: the old companion stays as it is
+				CompanionsPlugin.Log?.LogError("[Tier] Change cancelled: the inventory could not be read: " + ex);
+				return null;
+			}
+		}
+		Vector3 position = companion.transform.position;
+		Quaternion rotation = companion.transform.rotation;
+
+		// ---- the new companion is born first, so a failure below can still leave the old one untouched ----
+		GameObject spawned;
+		try
+		{
+			spawned = Object.Instantiate(prefab, position, rotation);
+		}
+		catch (System.Exception ex)
+		{
+			CompanionsPlugin.Log?.LogError("[Tier] Change cancelled: the new companion could not be spawned: " + ex);
+			return null;
+		}
+		ZNetView newNv = spawned.GetComponent<ZNetView>();
+		ZDO zdo = (newNv != null && newNv.IsValid()) ? newNv.GetZDO() : null;
+		if (zdo == null)
+		{
+			CompanionsPlugin.Log?.LogError("[Tier] Change cancelled: the new companion has no ZDO");
+			Object.Destroy(spawned);
+			return null;
+		}
+		int equippedCount = 0;
+		try
+		{
+			zdo.Set(CompanionSetup.NameHash, oldName);
+			zdo.Set(CompanionSetup.AppearanceHash, appearance);
+			zdo.Set(CompanionSetup.OwnerHash, owner);
+			zdo.Set(CompanionSetup.ActionModeHash, mode);
+			zdo.Set(CompanionSetup.ActionModeSchemaHash, schema);
+			zdo.Set(CompanionSetup.FollowHash, follow);
+			zdo.Set(CompanionTombstoneResurrect.FollowPausedByJobHash, followPaused);
+			zdo.Set(CompanionSetup.StayHomeHash, stayHome);
+			zdo.Set(CompanionSetup.AutoPickupHash, autoPickup);
+			zdo.Set(CompanionSetup.WanderHash, wander);
+			zdo.Set(CompanionSetup.IsCommandableHash, commandable);
+			if (formation >= 0)
+			{
+				zdo.Set(CompanionSetup.FormationSlotHash, formation);
+			}
+			if (hasHome)
+			{
+				zdo.Set(CompanionSetup.HomePosHash, home);
+				zdo.Set(CompanionSetup.HomePosSetHash, value: true);
+			}
+			zdo.Set(CompanionSetup.CombatStanceHash, stance);
+			zdo.Set(CompanionSetup.HasHomeBedHash, hasBed);
+			if (hasBed)
+			{
+				zdo.Set(CompanionSetup.HomeBedPosHash, bed);
+			}
+			if (!string.IsNullOrEmpty(skills))
+			{
+				zdo.Set(CompanionSkills.SkillsHash, skills);
+			}
+			if (!string.IsNullOrEmpty(companionId))
+			{
+				// the id is what the roster/Shrine/bed claim know this companion by - it must survive the swap
+				zdo.Set(CompanionSetup.MHR_CompanionIdHash, companionId);
+			}
+			zdo.Set(MHR_Roster.GenHash, gen);
+			if (tombstoneId != 0L)
+			{
+				zdo.Set(CompanionSetup.TombstoneIdHash, tombstoneId);
+			}
+			if (cap > 0)
+			{
+				// Fase 3.2c: a "colete 10 pedras" that was running keeps its target
+				zdo.Set(CompanionSetup.OrderCapHash, cap);
+				zdo.Set(CompanionSetup.OrderCapModeHash, capMode);
+				zdo.Set(CompanionSetup.OrderCapItemHash, capItem);
+			}
+			// Fase 3.10: the AI profile of this companion (voice + personality), or "follow the [IA] default" when unused
+			if (aiVoice > 0)
+			{
+				zdo.Set(CompanionProfile.VoiceHash, aiVoice);
+			}
+			if (personaSet)
+			{
+				zdo.Set(CompanionProfile.PresetHash, personaPreset);
+				zdo.Set(CompanionProfile.PersonaTextHash, personaText);
+				zdo.Set(CompanionProfile.PersonaSetHash, true);
+			}
+			zdo.Persistent = true;
+
+			Humanoid newHumanoid = spawned.GetComponent<Humanoid>();
+			Inventory newInventory = newHumanoid != null ? newHumanoid.GetInventory() : null;
+			if (newInventory != null && !string.IsNullOrEmpty(inventoryData))
+			{
+				newInventory.Load(new ZPackage(inventoryData));
+				// put back in hand/worn exactly what was equipped (by grid position, which Load restores): the mod's
+				// automatic equipment may re-pick a weapon on the next inventory change, as it always does.
+				// A tier that cannot wear armor (the dverger ones) keeps the armor pieces in the pack - that is what
+				// the confirmation says, and equipping them would only put invisible gear in its slots.
+				bool canWearArmor = def.CanWearArmor;
+				for (int i = 0; i < equipped.Count; i++)
+				{
+					ItemDrop.ItemData item = newInventory.GetItemAt(equipped[i].x, equipped[i].y);
+					if (item == null || item.m_shared == null)
+					{
+						continue;
+					}
+					if (!canWearArmor && IsArmorPiece(item))
+					{
+						continue;
+					}
+					if (newHumanoid.EquipItem(item, triggerEquipEffects: false))
+					{
+						equippedCount++;
+					}
+				}
+				// no extra m_onChanged here on purpose: Inventory.Load already notifies (and the mod's automatic
+				// equipment runs on that notice, BEFORE these equips) - firing it again would let the auto-pick put a
+				// different weapon in its hand right after we restored the player's loadout
+			}
+
+			CompanionSetup newSetup = spawned.GetComponent<CompanionSetup>();
+			if (newSetup != null)
+			{
+				CompanionAppearance applied = CompanionAppearance.Deserialize(appearance);
+				newSetup.ApplyAppearance(applied);
+				// the pack is already in place: the roster may snapshot this companion without waiting the load settle
+				newSetup._mhrAwakeTime = Time.time - 11f;
+			}
+			Character character = spawned.GetComponent<Character>();
+			if (character != null)
+			{
+				character.m_name = oldName;
+			}
+			CompanionAI ai = spawned.GetComponent<CompanionAI>();
+			if (ai != null)
+			{
+				if (hasHome)
+				{
+					ai.SetPatrolPointAt(home);
+				}
+				if (stayHome && hasHome)
+				{
+					ai.SetFollowTarget(null);
+				}
+				else if (follow)
+				{
+					ai.SetFollowTarget(player.gameObject);
+				}
+			}
+		}
+		catch (System.Exception ex)
+		{
+			CompanionsPlugin.Log?.LogError("[Tier] Change cancelled: the new companion could not be filled with the old data: " + ex);
+			Object.Destroy(spawned);
+			return null;
+		}
+
+		// ---- the old object goes, without a tombstone and without being mistaken for an old copy of the new one ----
+		companion._mhrStale = true;
+		Humanoid humanoid = companion.GetComponent<Humanoid>();
+		if (humanoid != null)
+		{
+			humanoid.m_onDeath = null;
+		}
+		companion.HidePinFor(5f);
+		nv.Destroy();
+
+		CompanionsPlugin.Log?.LogInfo($"[Tier] \"{oldName}\" respawned as \"{CompanionTierData.LocalName(def)}\" (was \""
+			+ (oldDef != null ? CompanionTierData.LocalName(oldDef) : "?") + "\") at {position:F1} - kept: name, appearance, "
+			+ $"owner, mode={mode}, follow={follow}, stayHome={stayHome}, autoPickup={autoPickup}, wander={wander}, "
+			+ $"commandable={commandable}, stance={stance}, formation={formation}, home={(hasHome ? "yes" : "no")}, "
+			+ $"bed={(hasBed ? "yes" : "no")}, skills={(string.IsNullOrEmpty(skills) ? "none" : "yes")}, "
+			+ $"companionId={(string.IsNullOrEmpty(companionId) ? "none" : companionId)}, gen={gen}, "
+			+ $"orderCap={(cap > 0 ? cap + " " + capItem : "none")}, aiVoice={(aiVoice > 0 ? aiVoice.ToString() : "default")}, "
+			+ $"personality={(personaSet ? "\"" + personaPreset + "\"" : "default ([IA])")}, "
+			+ $"inventory={items} item(s), equipped={equippedCount}");
+		return spawned.GetComponent<CompanionSetup>();
+	}
+
+	/// <summary>The tier a prefab hash belongs to (the same table the UI lists), or null when it isn't one of ours.</summary>
+	internal static CompanionTierDef TierOf(int prefabHash)
+	{
+		CompanionTierDef[] defs = CompanionTierData.All;
+		for (int i = 0; i < defs.Length; i++)
+		{
+			if (defs[i].PrefabName.GetStableHashCode() == prefabHash)
+			{
+				return defs[i];
+			}
+		}
+		return null;
+	}
+
+	/// <summary>Is this one of the armor slots (the pieces a tier without <c>CanWearArmor</c> cannot wear)?</summary>
+	private static bool IsArmorPiece(ItemDrop.ItemData item)
+	{
+		switch (item.m_shared.m_itemType)
+		{
+		case ItemDrop.ItemData.ItemType.Chest:
+		case ItemDrop.ItemData.ItemType.Legs:
+		case ItemDrop.ItemData.ItemType.Helmet:
+		case ItemDrop.ItemData.ItemType.Shoulder:
+			return true;
+		default:
+			return false;
+		}
+	}
+
+	/// <summary>
 	/// Fase 3.9: the name a newly spawned companion gets - the tier's localized name (<see cref="CompanionTierData.LocalName"/>,
 	/// the same one the hover shows) and, when a companion in the scene already answers to it, the first free number
 	/// after it ("Guerreiro 2", "Guerreiro 3"...). The number goes through the localization dictionary
