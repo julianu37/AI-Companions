@@ -108,6 +108,23 @@ public class CompanionPanel
 
 	private const float AiGap = 4f;
 
+	// Middle column geometry (Fase 3.12), all measured from the bottom of the column. The AI section and the
+	// description are stacked from there, so the description can only be as tall as what the three bands leave - and
+	// the numbers are logged at build time (LogMiddleColumnLayout) instead of being guessed from a screenshot.
+	private const float MiddleBuyBottom = 8f;
+
+	/// <summary>Room between "Invocar" and the AI section.</summary>
+	private const float MiddleSectionGap = 12f;
+
+	/// <summary>Room between the AI section and the description scroll view.</summary>
+	private const float MiddleDescGap = 12f;
+
+	/// <summary>Room kept at the top of the column for the panel title ("Escolha seu Companheiro").</summary>
+	private const float MiddleDescTop = 38f;
+
+	/// <summary>Height of the name band of the starter (its label, the 2px gap and the field itself).</summary>
+	private const float MiddleNameH = 18f + 2f + AiRowH;
+
 	private TextMeshProUGUI _aiVoiceValue;
 
 	private TextMeshProUGUI _aiPresetValue;
@@ -125,6 +142,40 @@ public class CompanionPanel
 	private string[] _aiPresetIds;
 
 	private string[] _aiPresetLabels;
+
+	// ------------------------------------------------------------------ Fase 3.13: the name of the first companion
+
+	/// <summary>The name field of the starter panel: the player's own name for the companion that is about to be born.</summary>
+	private TMP_InputField _nameField;
+
+	/// <summary>The default the field currently carries (the localized name of the chosen tier).</summary>
+	private string _nameDefault = "";
+
+	/// <summary>
+	/// Has the player typed something that is not the default? While it is false the field follows the chosen tier
+	/// ("Companheiro", "Guerreiro"...); once it is true the player's text is kept, even if the tier changes. Clearing
+	/// the field (empty/only spaces) puts it back to following the default.
+	/// </summary>
+	private bool _nameEdited;
+
+	/// <summary>Fase 3.12: "Ouvir" of the AI section, kept so its geometry can be written to the log (and so a future
+	/// change can enable/disable it without hunting for it).</summary>
+	private Button _aiListenButton;
+
+	/// <summary>Where the "Ouvir" button sits, measured from the panel's bottom (filled by BuildAiSection).</summary>
+	private float _aiListenBottom;
+
+	/// <summary>The height of the AI section, as returned to BuildMiddleColumn (filled by BuildAiSection).</summary>
+	private float _aiHeight;
+
+	// The panel geometry the middle column lays itself out with (set by Build, from the arguments the caller passed):
+	// the layout is computed by hand here, so these are the numbers that have to be logged and reasoned about. The
+	// values below are only placeholders until Build runs (it always runs before anything reads them).
+	private float _panelHeight = 660f;
+
+	private float _columnHeight = 648f;
+
+	private float _middleWidth = 299f;
 
 	private static readonly MethodInfo _updateVisuals = AccessTools.Method(typeof(VisEquipment), "UpdateVisuals");
 
@@ -198,6 +249,13 @@ public class CompanionPanel
 		{
 			buttonHeight = 30f;
 		}
+		// Fase 3.12 (bug de layout): the numbers the middle column lays itself out with, kept so the geometry can be
+		// written in one line to the log at build time - see LogMiddleColumnLayout. Nothing reads the RectTransform
+		// here on purpose: at build time the layout has not run yet, and the panel's own measurements are the ones
+		// that matter.
+		_panelHeight = panelHeight;
+		_columnHeight = panelHeight - colTopInset - bottomPad;
+		_middleWidth = midXR - midXL;
 		Root = new GameObject("CompanionContent", typeof(RectTransform));
 		Root.transform.SetParent(parent, worldPositionStays: false);
 		RectTransform component = Root.GetComponent<RectTransform>();
@@ -556,26 +614,41 @@ public class CompanionPanel
 			component3.anchorMax = new Vector2(1f, 0f);
 			component3.pivot = new Vector2(0.5f, 0f);
 			component3.sizeDelta = new Vector2(-24f, btnH);
-			component3.anchoredPosition = new Vector2(0f, 8f);
+			component3.anchoredPosition = new Vector2(0f, MiddleBuyBottom);
 		}
-		// Fase 3.10: the AI section of the starter panel, in the fixed band right above "Invocar" (the description
-		// above it is the scroll, so the choices are never buried at the bottom of a long list). Only the starter has
-		// it: the Trader's tab is built by the same class and its flow (bank, price, purchase) is untouched.
-		float aiHeight = 0f;
+		// Fase 3.10/3.13: the bands of the middle column, from the bottom up: "Invocar", the AI section (starter only),
+		// the name of the companion (starter only) and the description scroll view, which gets whatever is left between
+		// the name band and the title. The heights the builders report are what reserve their space - nothing overlaps,
+		// and the numbers are written to the log below so the account can be checked without opening the game.
+		float buyTop = MiddleBuyBottom + (buttonTemplate != null ? btnH : 0f);
+		float aiBottom = buyTop + MiddleSectionGap;
+		_aiHeight = 0f;
 		if (StarterMode && buttonTemplate != null)
 		{
-			aiHeight = BuildAiSection(col.transform, font, buttonTemplate, 8f + btnH + 10f);
+			_aiHeight = BuildAiSection(col.transform, font, buttonTemplate, aiBottom);
 		}
-		float descBottom = (aiHeight > 0f ? (8f + btnH + 10f + aiHeight + 10f) : y);
-		GameObject gameObject3 = new GameObject("DescScrollArea", typeof(RectTransform), typeof(Image), typeof(Mask));
+		float aiTop = aiBottom + _aiHeight;
+		float nameBottom = aiTop + MiddleDescGap;
+		float nameHeight = 0f;
+		if (StarterMode && buttonTemplate != null)
+		{
+			nameHeight = BuildNameField(col.transform, font, nameBottom);
+		}
+		float descBottom = (nameHeight > 0f) ? (nameBottom + nameHeight + MiddleDescGap) : (_aiHeight > 0f ? (aiTop + MiddleDescGap) : y);
+		GameObject gameObject3 = new GameObject("DescScrollArea", typeof(RectTransform), typeof(Image), typeof(RectMask2D));
 		gameObject3.transform.SetParent(col, worldPositionStays: false);
 		RectTransform component4 = gameObject3.GetComponent<RectTransform>();
 		component4.anchorMin = Vector2.zero;
 		component4.anchorMax = Vector2.one;
 		component4.offsetMin = new Vector2(8f, descBottom);
-		component4.offsetMax = new Vector2(-14f, -38f);
+		component4.offsetMax = new Vector2(-14f, 0f - MiddleDescTop);
 		gameObject3.GetComponent<Image>().color = new Color(1f, 1f, 1f, 0.003f);
-		gameObject3.GetComponent<Mask>().showMaskGraphic = false;
+		// RectMask2D, not Mask (Fase 3.12 - the reported bug): the description text was drawing its last lines OUTSIDE
+		// the viewport, over the top of the AI section (the "two overlapping texts" of the screenshot). A Mask clips
+		// through a stencil written by the Image's material; RectMask2D clips by rectangle, with no stencil and no
+		// material involved, so text longer than the viewport can only ever be scrolled - it is the same component the
+		// mod's own text boxes use for the same reason.
+		gameObject3.GetComponent<RectMask2D>().padding = Vector4.zero;
 		GameObject gameObject4 = new GameObject("DescText", typeof(RectTransform));
 		gameObject4.transform.SetParent(gameObject3.transform, worldPositionStays: false);
 		TextMeshProUGUI textMeshProUGUI2 = gameObject4.AddComponent<TextMeshProUGUI>();
@@ -608,6 +681,113 @@ public class CompanionPanel
 		scrollRect.scrollSensitivity = 40f;
 		scrollRect.verticalScrollbar = verticalScrollbar;
 		scrollRect.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
+		if (StarterMode)
+		{
+			LogMiddleColumnLayout(btnH, buyTop, aiBottom, aiTop, nameBottom, nameHeight, descBottom);
+		}
+	}
+
+	/// <summary>
+	/// Fase 3.13: the name of the companion the starter is about to spawn - a label and the panel's own text field,
+	/// pre-filled with the localized name of the chosen tier ("Companheiro"). While the player has not typed anything the
+	/// field follows the tier (see <see cref="RefreshNameDefault"/>); once the player types, the text is theirs. The
+	/// value is read once, at spawn, by <see cref="AiDraft"/>.
+	/// </summary>
+	private float BuildNameField(Transform parent, TMP_FontAsset font, float bottomY)
+	{
+		GameObject group = new GameObject("NameSection", typeof(RectTransform));
+		group.transform.SetParent(parent, worldPositionStays: false);
+		RectTransform rt = group.GetComponent<RectTransform>();
+		rt.anchorMin = new Vector2(0f, 0f);
+		rt.anchorMax = new Vector2(1f, 0f);
+		rt.pivot = new Vector2(0.5f, 0f);
+		rt.sizeDelta = new Vector2(-24f, MiddleNameH);
+		rt.anchoredPosition = new Vector2(0f, bottomY);
+		Transform content = group.transform;
+
+		float y = 0f;
+		y = PlacePlainLabel(content, font, ModLocalization.Loc("hc_ui_name"), y, 18f, "NameLabel");
+		y -= 2f;
+		_nameField = BuildTextField(content, font, y, AiRowH, "NameField",
+			ModLocalization.Loc("hc_ui_placeholder_name"), CompanionAiDraft.MaxNameLength);
+		_nameDefault = CompanionTierData.LocalName(_selectedTier);
+		_nameEdited = false;
+		if (_nameField != null)
+		{
+			// SetTextWithoutNotify does not raise onValueChanged, so the pre-filled default does not count as "typed"
+			_nameField.SetTextWithoutNotify(_nameDefault);
+			_nameField.onValueChanged.AddListener(OnNameChanged);
+			// Enter cleans the field up (trim/limit) instead of leaving a name with spaces around it for the spawn
+			_nameField.onSubmit.AddListener(delegate
+			{
+				NormalizeNameField();
+			});
+		}
+		return MiddleNameH;
+	}
+
+	/// <summary>Keeps track of whether the name in the field is the player's or still the default of the tier.</summary>
+	private void OnNameChanged(string value)
+	{
+		string text = value == null ? "" : value.Trim();
+		_nameEdited = text.Length > 0 && !string.Equals(text, _nameDefault, StringComparison.OrdinalIgnoreCase);
+	}
+
+	/// <summary>
+	/// Makes the field follow the chosen tier, as long as the player has not typed a name of their own: the starter
+	/// offers "Companheiro" and the dverger tiers, and the default has to be the name of the one that is selected now.
+	/// A typed name is never overwritten (the only way to get the default back is to clear the field).
+	/// </summary>
+	private void RefreshNameDefault()
+	{
+		string next = CompanionTierData.LocalName(_selectedTier);
+		bool follow = !_nameEdited;
+		_nameDefault = next;
+		if (follow && _nameField != null)
+		{
+			_nameField.SetTextWithoutNotify(next);
+		}
+	}
+
+	/// <summary>Trims the name field and cuts it at the limit, so what the player sees is exactly what will be spawned.</summary>
+	private void NormalizeNameField()
+	{
+		if (_nameField == null)
+		{
+			return;
+		}
+		string cleaned = CompanionAiDraft.CleanName(_nameField.text);
+		if (!string.Equals(cleaned, _nameField.text, StringComparison.Ordinal))
+		{
+			_nameField.SetTextWithoutNotify(cleaned);
+		}
+		OnNameChanged(cleaned);
+	}
+
+	/// <summary>
+	/// Fase 3.12/3.13: one line with the geometry of the middle column, written once when the panel is built, so the
+	/// account can be checked from <c>LogOutput.log</c> without opening the game: the panel, the column, the four bands
+	/// ("Invocar", the AI section, the name and the description) and the "Ouvir" button. Every number is measured from
+	/// the bottom of the column except the widths and the panel height, and they are the very numbers the rects above
+	/// were built with.
+	/// </summary>
+	private void LogMiddleColumnLayout(float btnH, float buyTop, float aiBottom, float aiTop, float nameBottom, float nameHeight, float descBottom)
+	{
+		float descTop = _columnHeight - MiddleDescTop;
+		float descHeight = Mathf.Max(0f, descTop - descBottom);
+		string listen = _aiListenButton == null
+			? "AUSENTE"
+			: $"{_aiListenBottom:0} base, {AiRowH:0} altura, {_middleWidth - 4f:0} largura";
+		string name = nameHeight > 0f
+			? $"base={nameBottom:0} topo={nameBottom + nameHeight:0} altura={nameHeight:0} "
+				+ $"(campo {nameBottom:0}..{nameBottom + AiRowH:0}, padrao \"{_nameDefault}\", digitado={(_nameEdited ? "sim" : "nao")})"
+			: "ausente (Trader)";
+		CompanionsPlugin.Log?.LogInfo($"[StarterPanel] Layout da coluna do meio: painel={_panelHeight:0} coluna={_columnHeight:0} largura={_middleWidth:0} | "
+			+ $"Invocar: base={MiddleBuyBottom:0} altura={btnH:0} topo={buyTop:0} | "
+			+ $"secao IA: base={aiBottom:0} altura={_aiHeight:0} topo={aiTop:0} | "
+			+ $"nome: {name} | "
+			+ $"descricao: base={descBottom:0} topo={descTop:0} altura={descHeight:0} | "
+			+ $"Ouvir: {listen}");
 	}
 
 	// ------------------------------------------------------------------ the AI section (Fase 3.10)
@@ -623,8 +803,8 @@ public class CompanionPanel
 	/// same label, the same button), so nothing here depends on the AI panel's overlay dropdowns - which could not
 	/// work inside a scrolling column anyway (the field would move under an open list).</para>
 	///
-	/// <para>The height it used is returned so the description above can make room for it; called once, from
-	/// <see cref="BuildMiddleColumn"/>.</para>
+	/// <para>The height it used is returned so <see cref="BuildMiddleColumn"/> can reserve exactly that much for it
+	/// (the description above is placed from that number - Fase 3.12, the layout bug).</para>
 	/// </summary>
 	private float BuildAiSection(Transform parent, TMP_FontAsset font, GameObject buttonTemplate, float bottomY)
 	{
@@ -634,6 +814,8 @@ public class CompanionPanel
 		_aiPresetLabels = CompanionProfile.PresetLabels(withInherit: true);
 		_aiVoiceIndex = 0;
 		_aiPresetIndex = 0;
+		_aiListenButton = null;
+		_aiListenBottom = 0f;
 
 		GameObject group = new GameObject("AiSection", typeof(RectTransform));
 		group.transform.SetParent(parent, worldPositionStays: false);
@@ -654,9 +836,45 @@ public class CompanionPanel
 				CycleAiVoice(1);
 			});
 		y -= AiRowH + AiGap;
-		Transform listenRow = MakeAnchoredRow(content, y, AiRowH);
-		AddToggleButton(listenRow, "AiListen", buttonTemplate, Vector2.zero, Vector2.one, PreviewStarterVoice,
-			ModLocalization.Loc("hc_ai_panel_listen"));
+		// Fase 3.12 (the reported bug): "Ouvir" is built exactly like the panel's other action button ("Invocar") -
+		// an explicit rect anchored to both sides of the section. The old version put it on a MakeAnchoredRow row and
+		// handed it Vector2.zero/one anchors, and in game the button was never visible; this way its size comes from
+		// the section itself and depends on no helper row.
+		float listenY = y;
+		GameObject listen = CreateActionButton(buttonTemplate, content, "AiListen", ModLocalization.Loc("hc_ai_panel_listen"));
+		RectTransform listenRT = listen.GetComponent<RectTransform>();
+		listenRT.anchorMin = new Vector2(0f, 1f);
+		listenRT.anchorMax = new Vector2(1f, 1f);
+		listenRT.pivot = new Vector2(0.5f, 1f);
+		listenRT.sizeDelta = new Vector2(-4f, AiRowH);
+		listenRT.anchoredPosition = new Vector2(0f, listenY);
+		Image listenImage = listen.GetComponent<Image>();
+		if (listenImage != null)
+		{
+			// an explicit tint, so the button is visible whatever the template's own colour is
+			listenImage.color = Color.white;
+			listenImage.raycastTarget = true;
+		}
+		_aiListenButton = listen.GetComponent<Button>();
+		if (_aiListenButton != null)
+		{
+			_aiListenButton.onClick.RemoveAllListeners();
+			_aiListenButton.onClick.AddListener(PreviewStarterVoice);
+			_aiListenButton.navigation = new Navigation
+			{
+				mode = Navigation.Mode.None
+			};
+			_aiListenButton.interactable = true;
+		}
+		TMP_Text listenLabel = listen.GetComponentInChildren<TMP_Text>(includeInactive: true);
+		if (listenLabel != null)
+		{
+			listenLabel.fontSize = 16f;
+			listenLabel.color = Color.white;
+			listenLabel.alignment = TextAlignmentOptions.Center;
+			listenLabel.raycastTarget = false;
+			listenLabel.gameObject.SetActive(value: true);
+		}
 		y -= AiRowH + AiGap;
 		y = PlacePlainLabel(content, font, ModLocalization.Loc("hc_ai_panel_personality"), y, 18f, "AiPersonality");
 		y -= 2f;
@@ -671,7 +889,8 @@ public class CompanionPanel
 		y -= AiRowH + AiGap;
 		y = PlacePlainLabel(content, font, ModLocalization.Loc("hc_ai_panel_free_text"), y, 18f, "AiWords");
 		y -= 2f;
-		_aiFreeText = BuildAiTextField(content, font, y, AiRowH);
+		_aiFreeText = BuildTextField(content, font, y, AiRowH, "AiFreeText",
+			ModLocalization.Loc("hc_ai_panel_free_placeholder"), CompanionPersona.MaxFreeTextLength);
 		y -= AiRowH + AiGap;
 		TMP_Text hint = MakeText(content, "AiHint", ModLocalization.Loc("hc_ai_profile_hint"), font, 11f, LabelText, TextAlignmentOptions.TopLeft);
 		RectTransform hintRT = hint.GetComponent<RectTransform>();
@@ -691,6 +910,10 @@ public class CompanionPanel
 		rt.pivot = new Vector2(0.5f, 0f);
 		rt.sizeDelta = new Vector2(-24f, height);
 		rt.anchoredPosition = new Vector2(0f, bottomY);
+		// where the "Ouvir" button really sits, measured from the panel's bottom (for LogMiddleColumnLayout): the
+		// group's bottom plus its height, minus the rows above the button (listenY is negative, measured from the
+		// group's top) and minus the button itself
+		_aiListenBottom = bottomY + height + listenY - AiRowH;
 		return height;
 	}
 
@@ -782,16 +1005,25 @@ public class CompanionPanel
 			draft.Preset = inherit ? "" : preset;
 			draft.FreeText = text;
 		}
+		// Fase 3.13: the name typed in the panel (clean = trimmed and limited; "" when the player left it empty, and
+		// then the spawn keeps its own default). Read here, once, on Invocar.
+		draft.Name = CompanionAiDraft.CleanName(_nameField != null ? _nameField.text : null);
 		return draft;
 	}
 
 	/// <summary>
-	/// Releases the text box of the AI section when it has the focus, and says whether it did. The starter panel
-	/// closes on Esc, and a player typing the personality must lose the focus first (the same order the AI panel
-	/// uses for its own text box).
+	/// Releases a text box of the panel when it has the focus, and says whether it did. The starter panel closes on Esc,
+	/// and a player typing the name or the personality must lose the focus first (the same order the AI panel uses for
+	/// its own text box).
 	/// </summary>
 	internal bool ReleaseTextFocus()
 	{
+		if (_nameField != null && _nameField.isFocused)
+		{
+			NormalizeNameField();
+			_nameField.DeactivateInputField();
+			return true;
+		}
 		if (_aiFreeText != null && _aiFreeText.isFocused)
 		{
 			_aiFreeText.DeactivateInputField();
@@ -801,7 +1033,8 @@ public class CompanionPanel
 	}
 
 	/// <summary>
-	/// The single-line text box of the AI section (the player's own words for the personality).
+	/// The single-line text box of this panel (the name of the companion and the player's own words for its
+	/// personality), with the placeholder and the character limit the caller asks for.
 	///
 	/// <para>The order matters: the GameObject is created <b>inactive</b> and only activated after its properties are
 	/// assigned, because <c>TMP_InputField.OnEnable</c> is where TMP creates the "Caret" it draws the caret and the
@@ -809,10 +1042,10 @@ public class CompanionPanel
 	/// <c>CompanionAiPanel.CreateInputField</c>). The field is registered in <see cref="ModTextInputFocus"/>, so the
 	/// game's own keys (m for the map, Tab for the inventory...) do not fire while the player types.</para>
 	/// </summary>
-	private TMP_InputField BuildAiTextField(Transform parent, TMP_FontAsset font, float y, float h)
+	private TMP_InputField BuildTextField(Transform parent, TMP_FontAsset font, float y, float h, string objectName, string placeholderText, int limit)
 	{
 		Transform row = MakeAnchoredRow(parent, y, h);
-		GameObject go = new GameObject("AiFreeText", typeof(RectTransform), typeof(Image));
+		GameObject go = new GameObject(objectName, typeof(RectTransform), typeof(Image));
 		go.SetActive(false);
 		go.transform.SetParent(row, worldPositionStays: false);
 		RectTransform rt = go.GetComponent<RectTransform>();
@@ -842,7 +1075,7 @@ public class CompanionPanel
 		text.overflowMode = TextOverflowModes.Overflow;
 		text.textWrappingMode = TextWrappingModes.PreserveWhitespaceNoWrap;
 
-		TextMeshProUGUI placeholder = MakeText(area.transform, "Placeholder", ModLocalization.Loc("hc_ai_panel_free_placeholder"), font, 13f,
+		TextMeshProUGUI placeholder = MakeText(area.transform, "Placeholder", placeholderText, font, 13f,
 			new Color(0.6f, 0.6f, 0.6f, 0.7f), TextAlignmentOptions.MidlineLeft);
 		placeholder.fontStyle = FontStyles.Italic;
 		placeholder.textWrappingMode = TextWrappingModes.PreserveWhitespaceNoWrap;
@@ -857,7 +1090,7 @@ public class CompanionPanel
 		input.textComponent = text;
 		input.textViewport = areaRT;
 		input.placeholder = placeholder;
-		input.characterLimit = CompanionPersona.MaxFreeTextLength;
+		input.characterLimit = limit;
 		input.contentType = TMP_InputField.ContentType.Standard;
 		input.lineType = TMP_InputField.LineType.SingleLine;
 		input.richText = false;
@@ -882,7 +1115,8 @@ public class CompanionPanel
 	}
 
 	private void BuildPreviewColumn(RectTransform col, float colW, float colH)
-	{		GameObject gameObject = new GameObject("PreviewImg", typeof(RectTransform));
+	{
+		GameObject gameObject = new GameObject("PreviewImg", typeof(RectTransform));
 		gameObject.transform.SetParent(col, worldPositionStays: false);
 		RectTransform component = gameObject.GetComponent<RectTransform>();
 		component.anchorMin = Vector2.zero;
@@ -1752,6 +1986,8 @@ public class CompanionPanel
 		{
 			RefreshVariantButtons();
 		}
+		// Fase 3.13: the default name follows the chosen type while the player hasn't typed one
+		RefreshNameDefault();
 		SetupPreviewClone();
 	}
 
@@ -1778,6 +2014,8 @@ public class CompanionPanel
 		_selectedTier = variant;
 		RefreshVariantButtons();
 		RefreshBuyButtonLabel();
+		// Fase 3.13: same as SetType - the default name follows the type until the player types one
+		RefreshNameDefault();
 		SetupPreviewClone();
 	}
 

@@ -185,7 +185,12 @@ public static class CompanionManager
 		// is written here, once, for every spawn (the Trader's purchase included): the tier's localized name, and a
 		// number when it is already taken ("Guerreiro 2"). CompanionSetup.RestoreName applies it to the Character on
 		// init, and the player can still rename it in the interact panel.
-		zDO.Set(CompanionSetup.NameHash, NextDefaultName(def));
+		// Fase 3.13: the starter panel has a name field now, and a name typed there wins (trimmed and limited by
+		// CompanionAiDraft.CleanName). Nothing typed = the default above, byte for byte - the Trader's purchase and
+		// the AI panel's summoner (no draft) keep the old behaviour.
+		string typedName = CompanionAiDraft.CleanName(aiDraft != null ? aiDraft.Name : null);
+		string companionName = typedName.Length > 0 ? typedName : NextDefaultName(def);
+		zDO.Set(CompanionSetup.NameHash, companionName);
 		zDO.Set(CompanionSetup.AppearanceHash, appearance.Serialize());
 		zDO.Set(CompanionSetup.OwnerHash, localPlayer.GetPlayerID().ToString());
 		// Fase 3.10: the AI profile the player chose in the starter panel (voice and personality of THIS companion).
@@ -203,6 +208,8 @@ public static class CompanionManager
 						: " | personality: default ([IA])"));
 			}
 		}
+		CompanionsPlugin.Log.LogInfo($"[CompanionManager] Name of the new companion: \"{companionName}\" "
+			+ (typedName.Length > 0 ? "(typed in the starter panel)" : "(default of the tier)"));
 		zDO.Persistent = true;
 		CompanionSetup component2 = gameObject2.GetComponent<CompanionSetup>();
 		if (component2 != null)

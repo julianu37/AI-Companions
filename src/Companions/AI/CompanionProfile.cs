@@ -382,6 +382,16 @@ internal static class CompanionProfile
 /// </summary>
 internal sealed class CompanionAiDraft
 {
+	/// <summary>Longest name the starter accepts: the HUD, the tabs of the AI panel and the hover all show it.</summary>
+	internal const int MaxNameLength = 24;
+
+	/// <summary>
+	/// The name the player typed in the starter panel, or "" when the field was left empty (Fase 3.13). The spawn
+	/// writes it as the companion's <c>HC_Name</c> when it has something in it; empty falls back to the default name of
+	/// the tier, with the usual number when it is already taken (see <c>CompanionManager.NextDefaultName</c>).
+	/// </summary>
+	internal string Name = "";
+
 	/// <summary>The voice the player picked (0 = follow <c>[IA] TtsVoz</c>).</summary>
 	internal int Voice;
 
@@ -393,6 +403,20 @@ internal sealed class CompanionAiDraft
 
 	/// <summary>The player's own words (wins over the preset; only meaningful with <see cref="HasPersona"/>).</summary>
 	internal string FreeText = "";
+
+	/// <summary>
+	/// A typed name as it will be written: trimmed, and cut at <see cref="MaxNameLength"/>. A name of only spaces comes
+	/// back as "", i.e. "the player left it empty" - the caller then keeps the default one.
+	/// </summary>
+	internal static string CleanName(string value)
+	{
+		string text = value == null ? "" : value.Trim();
+		if (text.Length > MaxNameLength)
+		{
+			text = text.Substring(0, MaxNameLength).Trim();
+		}
+		return text;
+	}
 
 	/// <summary>Writes the draft into the ZDO of the companion that is being spawned.</summary>
 	internal void WriteTo(ZDO zdo)

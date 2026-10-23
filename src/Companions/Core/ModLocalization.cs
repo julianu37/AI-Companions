@@ -71,6 +71,8 @@ public static class ModLocalization
 			{ "hc_ui_btn_need", "Need {0}" },
 			{ "hc_ui_bank", "Bank: {0}" },
 			{ "hc_ui_label_type", "Type" },
+			// Fase 3.13: the name field of the starter panel (the placeholder reuses hc_ui_placeholder_name)
+			{ "hc_ui_name", "Name" },
 			{ "hc_ui_label_gender", "Gender" },
 			{ "hc_ui_label_hair", "Hair Style" },
 			{ "hc_ui_label_beard", "Beard Style" },

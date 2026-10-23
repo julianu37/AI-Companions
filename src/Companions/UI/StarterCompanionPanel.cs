@@ -81,10 +81,9 @@ public class StarterCompanionPanel : MonoBehaviour
 		component2.anchorMin = new Vector2(0.5f, 0.5f);
 		component2.anchorMax = new Vector2(0.5f, 0.5f);
 		component2.pivot = new Vector2(0.5f, 0.5f);
-		// Fase 3.10: 660 instead of 560 - the middle column now carries the AI section (voice, "Ouvir", personality)
-		// in a fixed band above "Invocar", and the description above it was raised by the same amount so it keeps
-		// roughly the room it had (it scrolls, so a long text is never cut)
-		component2.sizeDelta = new Vector2(920f, 660f);
+		// Fase 3.13: 860 instead of 800 - the middle column gained the name band (label + field, 52px) and the
+		// description still gets ~394px, so the starter text fits without being squeezed (see the layout log).
+		component2.sizeDelta = new Vector2(920f, 860f);
 		Image component3 = _container.GetComponent<Image>();
 		Sprite panelBgSprite = GetPanelBgSprite();
 		if (panelBgSprite != null)
@@ -107,7 +106,7 @@ public class StarterCompanionPanel : MonoBehaviour
 		};
 		_panel.OnSpawnConfirmed = OnConfirm;
 		float num = 920f;
-		float panelHeight = 660f;
+		float panelHeight = 860f;
 		float num2 = 6f;
 		float num3 = 6f;
 		float num4 = (num - num2 * 2f - num3 * 2f) / 3f;

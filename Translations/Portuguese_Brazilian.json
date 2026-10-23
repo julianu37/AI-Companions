@@ -7,6 +7,7 @@
         { "key": "hc_ui_btn_need", "value": "Faltam {0}" },
         { "key": "hc_ui_bank", "value": "Banco: {0}" },
         { "key": "hc_ui_label_type", "value": "Tipo" },
+        { "key": "hc_ui_name", "value": "Nome" },
         { "key": "hc_ui_label_gender", "value": "Gênero" },
         { "key": "hc_ui_label_hair", "value": "Corte de Cabelo" },
         { "key": "hc_ui_label_beard", "value": "Estilo de Barba" },
