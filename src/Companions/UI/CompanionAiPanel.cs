@@ -76,7 +76,12 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 	private const float PanelW = 680f;
 
-	private const float PanelH = 650f;
+	/// <summary>
+	/// Height of the panel. 650 until Fase 3.20: the LLM section of the AI tab needs eleven controls, and they are laid
+	/// out as a <b>two-column grid</b> under the summoner (see the RowLlm* constants) so the panel stops at 900 - one
+	/// row per control would have pushed it past 1080p.
+	/// </summary>
+	private const float PanelH = 900f;
 
 	/// <summary>Height of a control row (the row backgrounds are the same height).</summary>
 	private const float RowH = 34f;
@@ -145,6 +150,44 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	/// <summary>Fase 3.9: the shortest gap between two summons, so a double click can't create two companions.</summary>
 	private const float SummonInterval = 0.5f;
 
+	// ------------------------------------------------------------------ the LLM settings (Fase 3.20)
+	// A two-column grid right under the summoner: the three toggles and the four text fields on the left, the four
+	// sliders (with their value) and the two buttons on the right. Eleven controls in one column would have made the
+	// panel taller than the screen; two columns keep it at 900 with every control at a usable width.
+	private const float RowLlmTitle = 458f;
+
+	private const float RowLlmFirst = 482f;
+
+	/// <summary>Vertical step of the grid (34px row + 4px gap).</summary>
+	private const float LlmStep = 38f;
+
+	/// <summary>Left edge of the right column (the left column runs from LeftX to here).</summary>
+	private const float LlmRightX = 340f;
+
+	/// <summary>Width of the name column inside the grid (narrower than the page's LabelW, to leave room for the
+	/// field: the page keeps 150 for its full-width rows).</summary>
+	private const float LlmLabelW = 120f;
+
+	private const float LlmFieldX = LeftX + LlmLabelW + 8f;
+
+	private const float LlmFieldW = LlmRightX - 8f - LlmFieldX;
+
+	private const float LlmRightLabelW = 96f;
+
+	private const float LlmSliderX = LlmRightX + 100f;
+
+	private const float LlmSliderW = 160f;
+
+	private const float LlmValueX = RightEdge - 64f;
+
+	private const float LlmValueW = 64f;
+
+	/// <summary>Rows of the left column (three toggles + four text fields).</summary>
+	private const int LlmRows = 7;
+
+	/// <summary>Rows of the right column (four sliders + Aplicar + Testar conexão).</summary>
+	private const int LlmRightRows = 6;
+
 	// Fase 3.9: the page of a companion's tab (same coordinates: the page fills the whole panel).
 	// Fase 3.15: the name and the tier are editable now, so their rows carry a field/a picker plus a button, and the
 	// profile block (Fase 3.10) moved down as a whole.
@@ -174,9 +217,11 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	// right now and the hint line. It used to be two 11px dark-grey single lines that were unreadable over the wooden
 	// panel - and the second one was clipped by the bottom edge of the panel.
 	// Fase 3.15: it moved up with the page (the block that left it freed ~210px at the top).
-	private const float RowStatus = 490f;
+	// Fase 3.20: it moved down again for the LLM section (which ends at 744): the strip keeps its own 6px of breathing
+	// room above and the panel grew to 900, so the hint has 32px below it.
+	private const float RowStatus = 782f;
 
-	private const float RowHint = 534f;
+	private const float RowHint = 826f;
 
 	/// <summary>Height of one line of the footer (the blocks are two lines tall).</summary>
 	private const float FooterLineH = 18f;
@@ -313,6 +358,33 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 	/// <summary>Fase 3.9: the earliest moment the next summon may run (see <see cref="Summon"/>).</summary>
 	private float _nextSummonAt;
+
+	// ---- Fase 3.20: the LLM settings of the AI tab ----
+	// The four text boxes are applied by the section's "Aplicar" (never per keystroke), they are registered in
+	// ModTextInputFocus by CreateInputField and Esc leaves them before the panel closes.
+	private TMP_InputField _llmBaseUrl;
+
+	private TMP_InputField _llmModel;
+
+	private TMP_InputField _llmApiKey;
+
+	private TMP_InputField _llmPrefix;
+
+	private Slider _llmTemperature;
+
+	private TMP_Text _llmTemperatureLabel;
+
+	private Slider _llmTimeout;
+
+	private TMP_Text _llmTimeoutLabel;
+
+	private Slider _llmCooldown;
+
+	private TMP_Text _llmCooldownLabel;
+
+	private Slider _llmTargetRange;
+
+	private TMP_Text _llmTargetRangeLabel;
 
 	/// <summary>
 	/// Fase 3.15: the name field of the open companion (editable now). It replaces the read-only "Nome" line; the
@@ -547,6 +619,8 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		{
 			_compFreeText.DeactivateInputField();
 		}
+		// Fase 3.20: and so are the four LLM boxes
+		DeactivateLlmFields();
 		if (_root != null)
 		{
 			_root.SetActive(false);
@@ -584,6 +658,12 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 			if (_compFreeText != null && _compFreeText.isFocused)
 			{
 				_compFreeText.DeactivateInputField();
+				return;
+			}
+			// Fase 3.20: the LLM boxes of the AI tab, same rule (Esc leaves the box, the next Esc closes the panel)
+			if (LlmFieldFocused())
+			{
+				DeactivateLlmFields();
 				return;
 			}
 			if (_openList != null)
@@ -660,6 +740,11 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 			return false;
 		}
 		if (_compFreeText != null && _compFreeText.isFocused)
+		{
+			return false;
+		}
+		// Fase 3.20: typing in the LLM boxes must not close the panel with the panel key
+		if (LlmFieldFocused())
 		{
 			return false;
 		}
@@ -817,6 +902,7 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		BuildToggles();
 		BuildNumbers();
 		BuildSpawner();
+		BuildLlmSettings();
 		BuildFooter();
 		_compPage = CreatePage("CompanionPage");
 		_page = _compPage.transform;
@@ -1374,6 +1460,314 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		}
 		RebuildTabs();
 		RefreshSpawnCount();
+	}
+
+	// ------------------------------------------------------------------ the LLM settings (Fase 3.20)
+
+	/// <summary>
+	/// The <b>"Configurações do LLM"</b> section of the AI tab, right below the summoner: everything of the
+	/// <c>[IA]</c> section that shapes how the model is called, editable without leaving the game. The values are the
+	/// same <see cref="ConfigEntry"/> objects the <c>.cfg</c> shows (BepInEx rewrites the file on every set, like the
+	/// rest of this panel), and they take effect on the <b>next message</b> because <see cref="LlmClient"/> reads the
+	/// config on each request.
+	///
+	/// <para>Layout: a <b>two-column grid</b> (see the RowLlm* constants). Left: the three toggles and the four text
+	/// boxes, applied by the section's "Aplicar" (one click, not per keystroke - they are real text fields, so they
+	/// are registered in <see cref="ModTextInputFocus"/> and Esc leaves them before the panel closes). Right: the four
+	/// sliders with their value and the two buttons ("Aplicar" and "Testar conexão"). The grid is what keeps the panel
+	/// at 900 px; the row backgrounds are drawn per line, both columns sharing the same y.</para>
+	///
+	/// <para>The API key is a <c>Password</c> field: it is masked on screen and its value never reaches the log - the
+	/// log line at the end of <see cref="ApplyLlmSettings"/> says only "informada/vazia".</para>
+	/// </summary>
+	private void BuildLlmSettings()
+	{
+		TMP_Text title = CreateText(Page, ModLocalization.Loc("hc_ai_llm_title"), LeftX, RowLlmTitle,
+			RightEdge - LeftX, 20f, 14f, LabelColor, TextAlignmentOptions.MidlineLeft);
+		title.fontStyle = FontStyles.Bold;
+		title.overflowMode = TextOverflowModes.Overflow;
+
+		// one dark row background per line, the two columns sharing the same y (the right column stops at its sixth)
+		for (int i = 0; i < LlmRows; i++)
+		{
+			GameObject row = new GameObject("RowLlm" + i, typeof(RectTransform), typeof(Image));
+			row.transform.SetParent(Page, worldPositionStays: false);
+			Place(row.GetComponent<RectTransform>(), 4f, RowLlmFirst + i * LlmStep, RightEdge - 4f, RowH);
+			Image image = row.GetComponent<Image>();
+			image.color = RowColor;
+			image.raycastTarget = false;
+		}
+
+		// ---- left column: the three toggles ----
+		float toggleTextW = 150f;
+		float toggleX = LeftX + toggleTextW + 8f;
+		float toggleW = LlmRightX - 8f - toggleX;
+		CreateToggle(LeftX, toggleTextW, RowLlm(0), toggleX, toggleW, ModLocalization.Loc("hc_ai_llm_enabled"), ModConfig.AiEnabled);
+		CreateToggle(LeftX, toggleTextW, RowLlm(1), toggleX, toggleW, ModLocalization.Loc("hc_ai_llm_structured"), ModConfig.AiStructuredOutput);
+		CreateToggle(LeftX, toggleTextW, RowLlm(2), toggleX, toggleW, ModLocalization.Loc("hc_ai_llm_show_raw"), ModConfig.AiShowResponse);
+
+		// ---- left column: the four text boxes (applied by the section's "Aplicar") ----
+		_llmBaseUrl = CreateLlmField(3, "hc_ai_llm_base_url", 200, "http://127.0.0.1:1234/v1");
+		_llmModel = CreateLlmField(4, "hc_ai_llm_model", 120, "qwen2.5-3b-instruct");
+		_llmApiKey = CreateLlmField(5, "hc_ai_llm_api_key", 200, "");
+		_llmPrefix = CreateLlmField(6, "hc_ai_llm_prefix", 40, "/c");
+		if (_llmApiKey != null)
+		{
+			// the key is never shown in clear: the field masks what is typed (and what came from the .cfg)
+			_llmApiKey.contentType = TMP_InputField.ContentType.Password;
+			_llmApiKey.asteriskChar = '*';
+		}
+
+		// ---- right column: the four sliders, each with its value on the right ----
+		_llmTemperature = CreateLlmSlider(0, "hc_ai_llm_temperature", "LlmTemperature", 0f, 1f, false, out _llmTemperatureLabel);
+		_llmTimeout = CreateLlmSlider(1, "hc_ai_llm_timeout", "LlmTimeout", 5f, 120f, true, out _llmTimeoutLabel);
+		_llmCooldown = CreateLlmSlider(2, "hc_ai_llm_cooldown", "LlmCooldown", 0f, 30f, true, out _llmCooldownLabel);
+		_llmTargetRange = CreateLlmSlider(3, "hc_ai_llm_target_range", "LlmTargetRange", 0f, 80f, true, out _llmTargetRangeLabel);
+		if (_llmTemperature != null)
+		{
+			_llmTemperature.onValueChanged.AddListener(OnLlmTemperatureChanged);
+		}
+		if (_llmTimeout != null)
+		{
+			_llmTimeout.onValueChanged.AddListener(OnLlmTimeoutChanged);
+		}
+		if (_llmCooldown != null)
+		{
+			_llmCooldown.onValueChanged.AddListener(OnLlmCooldownChanged);
+		}
+		if (_llmTargetRange != null)
+		{
+			_llmTargetRange.onValueChanged.AddListener(OnLlmTargetRangeChanged);
+		}
+
+		// ---- right column: the two buttons of the section ----
+		CreateButton(Page, "LlmApply", LlmSliderX, RowLlm(4), RightEdge - LlmSliderX - 8f, RowH,
+			ModLocalization.Loc("hc_ai_llm_apply"), ApplyLlmSettings);
+		CreateButton(Page, "LlmTest", LlmSliderX, RowLlm(5), RightEdge - LlmSliderX - 8f, RowH,
+			ModLocalization.Loc("hc_ai_llm_test"), TestLlmConnection);
+
+		// one line with the bands, so the layout can be checked from the log without opening the game
+		CompanionsPlugin.Log?.LogInfo($"[IA] Painel: secao do LLM em y={RowLlmTitle:0}..{RowLlm(LlmRows - 1) + RowH:0} "
+			+ $"(esquerda: 3 alternadores + 4 campos, {LlmRows} linhas; direita: 4 sliders + 2 botoes, {LlmRightRows} linhas), "
+			+ $"colunas em x={LeftX:0}..{LlmRightX - 8f:0} e {LlmRightX:0}..{RightEdge:0}, "
+			+ $"rodape em y={RowStatus:0} e {RowHint:0} (faixa {RowStatus - 6f:0}..{RowStatus - 6f + (RowHint - RowStatus) + 2f * FooterLineH + 12f:0}), "
+			+ $"painel {PanelW:0}x{PanelH:0}");
+	}
+
+	/// <summary>The y of a row of the LLM grid (shared by both columns).</summary>
+	private static float RowLlm(int index)
+	{
+		return RowLlmFirst + index * LlmStep;
+	}
+
+	/// <summary>One "name + text box" line of the LLM grid (the value is filled by <see cref="RefreshFromConfig"/>).</summary>
+	private TMP_InputField CreateLlmField(int row, string labelKey, int limit, string placeholder)
+	{
+		float y = RowLlm(row);
+		CreateText(Page, ModLocalization.Loc(labelKey), LeftX, y + 6f, LlmLabelW, 22f, 13f, LabelColor, TextAlignmentOptions.MidlineLeft);
+		return CreateInputField("Llm" + labelKey, LlmFieldX, y, LlmFieldW, RowH, placeholder, limit);
+	}
+
+	/// <summary>One "name + slider + value" line of the LLM grid's right column.</summary>
+	private Slider CreateLlmSlider(int row, string labelKey, string name, float min, float max, bool whole, out TMP_Text value)
+	{
+		float y = RowLlm(row);
+		CreateText(Page, ModLocalization.Loc(labelKey), LlmRightX, y + 6f, LlmRightLabelW, 22f, 13f, LabelColor, TextAlignmentOptions.MidlineLeft);
+		Slider slider = CreateSlider(name, LlmSliderX, y, LlmSliderW, RowH, min, max, min, whole, null);
+		value = CreateText(Page, "", LlmValueX, y + 6f, LlmValueW, 22f, 12f, ValueColor, TextAlignmentOptions.MidlineRight);
+		return slider;
+	}
+
+	/// <summary>
+	/// The "Aplicar" of the section: the four text boxes go into the <c>[IA]</c> entries, with the light validation the
+	/// section promises - an empty URL/model is refused (and nothing is written), and a URL without a scheme is refused
+	/// because <see cref="LlmClient"/> would build an unusable endpoint from it. The key is never logged.
+	/// </summary>
+	private void ApplyLlmSettings()
+	{
+		string url = _llmBaseUrl != null ? _llmBaseUrl.text.Trim() : "";
+		string model = _llmModel != null ? _llmModel.text.Trim() : "";
+		string key = _llmApiKey != null ? _llmApiKey.text.Trim() : "";
+		string prefix = _llmPrefix != null ? _llmPrefix.text.Trim() : "";
+		if (url.Length == 0)
+		{
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_llm_need_url"));
+			return;
+		}
+		if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+		{
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_llm_bad_url"));
+			return;
+		}
+		if (model.Length == 0)
+		{
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_llm_need_model"));
+			return;
+		}
+		if (ModConfig.AiBaseUrl != null)
+		{
+			ModConfig.AiBaseUrl.Value = url;
+		}
+		if (ModConfig.AiModel != null)
+		{
+			ModConfig.AiModel.Value = model;
+		}
+		if (ModConfig.AiApiKey != null)
+		{
+			ModConfig.AiApiKey.Value = key;
+		}
+		if (ModConfig.AiPrefix != null)
+		{
+			ModConfig.AiPrefix.Value = prefix;
+		}
+		// the boxes show the trimmed value that was actually stored
+		SetFieldText(_llmBaseUrl, url);
+		SetFieldText(_llmModel, model);
+		SetFieldText(_llmApiKey, key);
+		SetFieldText(_llmPrefix, prefix);
+		CompanionsPlugin.Log?.LogInfo($"[IA] Painel: LLM salvo - {LlmClient.SafeEndpoint}, modelo \"{model}\", "
+			+ $"chave {(key.Length > 0 ? "informada" : "vazia")}, prefixo \"{prefix}\", timeout "
+			+ $"{ModConfig.AiTimeoutSeconds?.Value ?? 30}s, cooldown {ModConfig.AiCooldown?.Value ?? 3f:0.#}s, "
+			+ $"raio de alvo {ModConfig.AiTargetRange?.Value ?? 40f:0}m (vale na proxima mensagem)");
+		CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_llm_apply_ok"));
+	}
+
+	/// <summary>
+	/// The "Testar conexão": one background probe of the URL <b>in the box</b> (not the saved one, so it can be tried
+	/// before applying), with the same validation as "Aplicar". The result is announced by
+	/// <see cref="LlmConnectionTest.Tick"/>, so it reaches the player even if the panel is closed meanwhile.
+	/// </summary>
+	private void TestLlmConnection()
+	{
+		string url = _llmBaseUrl != null ? _llmBaseUrl.text.Trim() : "";
+		string model = _llmModel != null ? _llmModel.text.Trim() : "";
+		if (url.Length == 0)
+		{
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_llm_need_url"));
+			return;
+		}
+		if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+		{
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_llm_bad_url"));
+			return;
+		}
+		string key = _llmApiKey != null ? _llmApiKey.text.Trim() : "";
+		if (model.Length == 0 && ModConfig.AiModel != null)
+		{
+			// nothing typed in the box yet: check the model that is saved, so the answer can still say whether it is
+			// in the server's list
+			model = ModConfig.AiModel.Value;
+		}
+		int timeout = ModConfig.AiTimeoutSeconds != null ? ModConfig.AiTimeoutSeconds.Value : 30;
+		if (!LlmConnectionTest.Start(url, model, key, timeout))
+		{
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_llm_test_busy"));
+		}
+	}
+
+	private void OnLlmTemperatureChanged(float value)
+	{
+		// step of 0.05 (the slider itself is continuous): 20 steps over 0..1
+		float temperature = Mathf.Round(Mathf.Clamp01(value) * 20f) / 20f;
+		if (ModConfig.AiTemperature != null)
+		{
+			ModConfig.AiTemperature.Value = temperature;
+		}
+		SetSlider(_llmTemperature, temperature);
+		UpdateLlmValueLabels();
+	}
+
+	private void OnLlmTimeoutChanged(float value)
+	{
+		int seconds = Mathf.Clamp(Mathf.RoundToInt(value), 5, 120);
+		if (ModConfig.AiTimeoutSeconds != null)
+		{
+			ModConfig.AiTimeoutSeconds.Value = seconds;
+		}
+		UpdateLlmValueLabels();
+	}
+
+	private void OnLlmCooldownChanged(float value)
+	{
+		float seconds = Mathf.Clamp(Mathf.Round(value), 0f, 30f);
+		if (ModConfig.AiCooldown != null)
+		{
+			ModConfig.AiCooldown.Value = seconds;
+		}
+		UpdateLlmValueLabels();
+	}
+
+	private void OnLlmTargetRangeChanged(float value)
+	{
+		// the entry's own range starts at 5m: the label shows what the .cfg really got, so a "0" reading 5 is visible
+		float range = Mathf.Clamp(Mathf.Round(value), 0f, 80f);
+		if (ModConfig.AiTargetRange != null)
+		{
+			ModConfig.AiTargetRange.Value = range;
+			range = ModConfig.AiTargetRange.Value;
+		}
+		SetSlider(_llmTargetRange, range);
+		UpdateLlmValueLabels();
+	}
+
+	/// <summary>The numbers of the four sliders (and the text boxes, on every open of the panel).</summary>
+	private void UpdateLlmValueLabels()
+	{
+		if (_llmTemperatureLabel != null)
+		{
+			_llmTemperatureLabel.text = (ModConfig.AiTemperature != null ? ModConfig.AiTemperature.Value : 0.1f).ToString("0.00");
+		}
+		if (_llmTimeoutLabel != null)
+		{
+			_llmTimeoutLabel.text = (ModConfig.AiTimeoutSeconds != null ? ModConfig.AiTimeoutSeconds.Value : 30).ToString();
+		}
+		if (_llmCooldownLabel != null)
+		{
+			_llmCooldownLabel.text = (ModConfig.AiCooldown != null ? ModConfig.AiCooldown.Value : 3f).ToString("0.#");
+		}
+		if (_llmTargetRangeLabel != null)
+		{
+			_llmTargetRangeLabel.text = (ModConfig.AiTargetRange != null ? ModConfig.AiTargetRange.Value : 40f).ToString("0");
+		}
+	}
+
+	private static void SetFieldText(TMP_InputField field, string text)
+	{
+		if (field != null)
+		{
+			field.SetTextWithoutNotify(text ?? "");
+		}
+	}
+
+	/// <summary>
+	/// Fase 3.20: is one of the LLM text boxes focused? Esc has to leave the box before closing the panel and the panel
+	/// key must not close it while the player is typing (same rule as the name and the free-text boxes).
+	/// </summary>
+	private bool LlmFieldFocused()
+	{
+		return FieldFocused(_llmBaseUrl) || FieldFocused(_llmModel) || FieldFocused(_llmApiKey) || FieldFocused(_llmPrefix);
+	}
+
+	private static bool FieldFocused(TMP_InputField field)
+	{
+		return field != null && field.isFocused;
+	}
+
+	/// <summary>Takes the focus out of every LLM text box (Esc, and closing the panel).</summary>
+	private void DeactivateLlmFields()
+	{
+		DeactivateField(_llmBaseUrl);
+		DeactivateField(_llmModel);
+		DeactivateField(_llmApiKey);
+		DeactivateField(_llmPrefix);
+	}
+
+	private static void DeactivateField(TMP_InputField field)
+	{
+		if (field != null && field.isFocused)
+		{
+			field.DeactivateInputField();
+		}
 	}
 
 	/// <summary>The tier at an index of the dropdown (the plain Companion for anything out of range).</summary>
@@ -2151,6 +2545,16 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		SetSlider(_volume, ModConfig.TtsVolume != null ? ModConfig.TtsVolume.Value : 1f);
 		SetSlider(_speed, ModConfig.TtsSpeed != null ? ModConfig.TtsSpeed.Value : 1f);
 		SetSlider(_memory, ModConfig.AiMemory != null ? ModConfig.AiMemory.Value : 4);
+		// Fase 3.20: the LLM section - the sliders and the four text boxes (the toggles below read their entries)
+		SetSlider(_llmTemperature, ModConfig.AiTemperature != null ? ModConfig.AiTemperature.Value : 0.1f);
+		SetSlider(_llmTimeout, ModConfig.AiTimeoutSeconds != null ? ModConfig.AiTimeoutSeconds.Value : 30);
+		SetSlider(_llmCooldown, ModConfig.AiCooldown != null ? ModConfig.AiCooldown.Value : 3f);
+		SetSlider(_llmTargetRange, ModConfig.AiTargetRange != null ? ModConfig.AiTargetRange.Value : 40f);
+		SetFieldText(_llmBaseUrl, ModConfig.AiBaseUrl != null ? ModConfig.AiBaseUrl.Value : "");
+		SetFieldText(_llmModel, ModConfig.AiModel != null ? ModConfig.AiModel.Value : "");
+		SetFieldText(_llmApiKey, ModConfig.AiApiKey != null ? ModConfig.AiApiKey.Value : "");
+		SetFieldText(_llmPrefix, ModConfig.AiPrefix != null ? ModConfig.AiPrefix.Value : "");
+		UpdateLlmValueLabels();
 		for (int i = 0; i < _toggles.Count; i++)
 		{
 			ApplyToggleVisual(_toggles[i]);
