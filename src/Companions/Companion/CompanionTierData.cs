@@ -19,9 +19,11 @@ public static class CompanionTierData
 	public static readonly CompanionTierDef[] DvergerVariants;
 
 	/// <summary>
-	/// Every tier, in the order the panels offer it (Fase 3.14): the plain Companion first, then the dverger ones. The
-	/// starter's type picker and the AI panel's "trocar tipo" picker read this list, and
-	/// <see cref="CompanionManager.ChangeTier"/> maps a prefab hash back to its tier with it.
+	/// Every tier the mod offers, in the order the AI panel lists it (Fase 3.14): the plain Companion first, then the
+	/// dverger ones - the old "Dverger" mage included, because its prefab is registered too (Fase 3.16).
+	/// <see cref="CompanionManager.ChangeTier"/> maps a prefab hash back to its tier with this list. The <b>starter</b>
+	/// panel does not read it: its type buttons use <see cref="Companion"/>, <see cref="Dverger"/> and
+	/// <see cref="DvergerVariants"/> (and that row is hidden in the starter anyway).
 	/// </summary>
 	public static readonly CompanionTierDef[] All;
 

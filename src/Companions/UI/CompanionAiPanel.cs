@@ -48,9 +48,10 @@ namespace Companions;
 /// Fase 3.10 - <b>the profile of each companion</b>: the voice and the personality stopped being one global setting
 /// for the whole world. A companion's tab carries its own "voice and personality" section (the same hand-built
 /// dropdowns, the same "Ouvir", the same "Aplicar"), and those controls write into <b>that companion's ZDO</b> through
-/// <see cref="CompanionProfile"/>. The <c>[IA]</c> values are the <b>default</b> of every companion that has nothing of
-/// its own, and the first entries of both lists are explicit: "Follow the [IA] default" clears what that companion
-/// stores. The footer says "(padrão)" when the value in use is the global one.
+/// <see cref="CompanionProfile"/>. The <c>[IA]</c> values remain the <b>default</b> of every companion that has nothing
+/// of its own, but the panel no longer edits them - they live in the .cfg and in the F8 panel. The first entries of both
+/// lists are explicit: "Follow the [IA] default" clears what that companion stores, and the footer says "(padrão)"
+/// when the value in use is the global one.
 ///
 /// Fase 3.15 - <b>the identity of the companion is editable</b>: the tab's name is a text box with "Aplicar" (the same
 /// <see cref="CompanionSetup.Rename"/> path the interact panel uses), and the tier is a picker whose "Trocar tipo
@@ -406,10 +407,10 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		UnityEngine.Object.DontDestroyOnLoad(holder);
 		Instance = holder.AddComponent<CompanionAiPanel>();
 		string key = ModConfig.AiPanelKey != null ? ModConfig.AiPanelKey.Value.ToString() : "?";
-		CompanionsPlugin.Log?.LogInfo($"[IA] Painel da IA pronto: abre/fecha com {key} ([IA] PainelTecla) ou Esc. Personalidade, voz (com Ouvir), "
-			+ "volume, velocidade, memoria, conversa e o push-to-talk ficam todos ali, e cada mudanca e salva na hora no .cfg. "
-			+ "A aba IA tambem invoca companheiros de graca (sem moedas) e cada companheiro tem a sua aba, com o botao Chamar "
-			+ "e a voz e a personalidade DELE (guardadas no ZDO dele; a aba IA e o padrao de quem nao tem escolha propria).");
+		CompanionsPlugin.Log?.LogInfo($"[IA] Painel da IA pronto: abre/fecha com {key} ([IA] PainelTecla) ou Esc. Volume, velocidade, memoria, "
+			+ "conversa e o push-to-talk ficam na aba IA, e cada mudanca e salva na hora no .cfg. A aba IA tambem invoca companheiros de "
+			+ "graca (sem moedas); cada companheiro tem a sua aba, com o botao Chamar, o NOME e o TIPO editaveis ali (o tipo renasce o "
+			+ "companheiro) e a voz e a personalidade DELE (guardadas no ZDO dele; o .cfg e o padrao de quem nao tem escolha propria).");
 	}
 
 	private void Awake()
@@ -524,6 +525,13 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	public void Hide()
 	{
 		_visible = false;
+		// Fase 3.16 (auditoria): a tier-change confirmation left open while the panel goes away must not run later on
+		// a companion the player is no longer looking at (or that may even be gone). Cancelling also takes the popup
+		// off the screen, because that popup can only be the one we pushed.
+		if (_pendingTierTarget != null || _pendingTierDef != null)
+		{
+			CancelTierChange();
+		}
 		CloseLists();
 		_listeningKey = false;
 		if (_compNameInput != null && _compNameInput.isFocused)
@@ -1611,6 +1619,14 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 			return;
 		}
 		string name = CompanionAiDraft.CleanName(_compNameInput.text);
+		if (!_compAlive)
+		{
+			// Fase 3.16 (auditoria): a dead companion's name is already written into its tombstone (HC_Respawn_Name),
+			// and the resurrection would put the old one back - so the rename waits for it to be alive again
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_comp_rename_dead"));
+			_compNameInput.SetTextWithoutNotify(NameOf(setup));
+			return;
+		}
 		if (name.Length == 0)
 		{
 			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_comp_name_required"));
@@ -1706,9 +1722,12 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		string current = currentIndex >= 0 ? CompanionTierData.LocalName(TierAt(currentIndex)) : TierName(setup);
 		_pendingTierTarget = setup;
 		_pendingTierDef = def;
-		if (!UnifiedPopup.IsAvailable())
+		// Fase 3.16 (auditoria): the same guard the Shrine uses - a popup that is unavailable or already showing
+		// (another window's confirmation) must not be stacked. Without a popup the change runs straight away, which is
+		// what the wheel's despawn does in the same situation.
+		if (!UnifiedPopup.IsAvailable() || UnifiedPopup.IsVisible())
 		{
-			CompanionsPlugin.Log?.LogInfo("[IA] Painel: sem popup de confirmacao disponivel - trocando o tipo direto");
+			CompanionsPlugin.Log?.LogInfo("[IA] Painel: sem popup de confirmacao livre - trocando o tipo direto");
 			ConfirmTierChange();
 			return;
 		}
@@ -1741,6 +1760,14 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		{
 			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_comp_tier_failed"));
 			RefreshCompanionPage();
+			RefreshCompTierPicker();
+			return;
+		}
+		if (ReferenceEquals(changed, target))
+		{
+			// Fase 3.16 (auditoria): ChangeTier answers with the same companion when it is ALREADY that tier (the
+			// button is disabled there, so this is the defensive path) - nothing was respawned, so no success line
+			CompanionsPlugin.Log?.LogInfo($"[IA] Painel: \"{name}\" ja era \"{CompanionTierData.LocalName(def)}\" - nada mudou");
 			RefreshCompTierPicker();
 			return;
 		}
@@ -1894,6 +1921,14 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		CompanionSetup setup = SelectedCompanion();
 		Player player = Player.m_localPlayer;
 		if (player == null)
+		{
+			// Fase 3.16 (auditoria): the message was about a missing companion while the guard was about a missing
+			// PLAYER. Without a local player there is nobody to hear the sample either, so this is silent (the panel
+			// hides itself as soon as RefreshStatus sees it, so it can only happen on the very frame the player leaves).
+			CompanionsPlugin.Log?.LogDebug("[IA] Painel: Ouvir sem jogador local - nada a tocar");
+			return;
+		}
+		if (setup == null)
 		{
 			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_panel_no_companion"));
 			return;

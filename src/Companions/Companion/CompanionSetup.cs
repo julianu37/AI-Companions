@@ -1552,15 +1552,22 @@ public class CompanionSetup : MonoBehaviour
 	/// <summary>
 	/// Fase 3.14: renames the companion - the same two steps the interact panel does when the player edits the name box
 	/// (<c>HC_Name</c> in the ZDO, which every tab/hover/wheel/name order reads, and the <c>Character.m_name</c> that the
-	/// game shows). Written by the owner only: the claim is the same one an order makes, so a rename from a panel works
-	/// in multiplayer too. <paramref name="newName"/> is expected already trimmed and limited by the caller; an empty
-	/// value is accepted (the companion then shows the generic name, exactly like the interact panel's empty box).
+	/// game shows). Only the player the companion belongs to may rename it (Fase 3.16: the same <see cref="MHR_Owner"/>
+	/// check <see cref="CompanionManager.ChangeTier"/> uses - a claim alone could take over another player's companion);
+	/// the claim is the same one an order makes, so a rename from a panel works in multiplayer too.
+	/// <paramref name="newName"/> is expected already trimmed and limited by the caller; an empty value is accepted
+	/// (the companion then shows the generic name, exactly like the interact panel's empty box).
 	/// </summary>
 	internal bool Rename(string newName)
 	{
 		ZDO zdo = _nview?.GetZDO();
 		if (zdo == null)
 		{
+			return false;
+		}
+		if (!MHR_Owner.IsMine(this))
+		{
+			CompanionsPlugin.Log?.LogWarning("[Rename] The companion isn't this player's - the name was not written");
 			return false;
 		}
 		if (!_nview.IsOwner())

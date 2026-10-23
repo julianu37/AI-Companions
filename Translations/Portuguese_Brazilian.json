@@ -407,6 +407,7 @@
         { "key": "hc_ai_comp_name_required", "value": "Escreva um nome antes de aplicar." },
         { "key": "hc_ai_comp_rename_ok", "value": "Nome alterado para \"{0}\"." },
         { "key": "hc_ai_comp_rename_failed", "value": "Não consegui renomear (o companheiro não está sob meu controle agora)." },
+        { "key": "hc_ai_comp_rename_dead", "value": "Não posso renomear um companheiro morto - traga ele de volta primeiro." },
         { "key": "hc_ai_comp_tier_change", "value": "Trocar tipo (renasce)" },
         { "key": "hc_ai_comp_tier_popup_title", "value": "Trocar o tipo do companheiro?" },
         { "key": "hc_ai_comp_tier_popup_text", "value": "{0} vai renascer como {1} (agora é {2}).\n\nFica tudo: nome, inventário, equipamento, aparência, voz, personalidade, casa, cama, posição, skills e o histórico do companheiro. O trabalho em andamento recomeça, e um tipo Dverger não veste armadura (as peças ficam na mochila)." },

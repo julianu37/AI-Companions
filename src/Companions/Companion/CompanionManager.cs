@@ -447,13 +447,30 @@ public static class CompanionManager
 			}
 			zdo.Persistent = true;
 
+			// auto-equip is held off until the pack is in place: OnInventoryChanged runs from inside Inventory.Load,
+			// and it would both fight our loadout and leave flags behind (see the flag handling below)
+			CompanionSetup newSetup = spawned.GetComponent<CompanionSetup>();
+			if (newSetup != null)
+			{
+				newSetup.SuppressAutoEquip = true;
+			}
 			Humanoid newHumanoid = spawned.GetComponent<Humanoid>();
 			Inventory newInventory = newHumanoid != null ? newHumanoid.GetInventory() : null;
 			if (newInventory != null && !string.IsNullOrEmpty(inventoryData))
 			{
 				newInventory.Load(new ZPackage(inventoryData));
-				// put back in hand/worn exactly what was equipped (by grid position, which Load restores): the mod's
-				// automatic equipment may re-pick a weapon on the next inventory change, as it always does.
+				// Fase 3.16 (auditoria): the serialized items bring their own m_equipped flags, and a flag left set on
+				// something that is NOT in a hand/slot makes MHR_ToolKeeper/MHR_GatherRules skip that item for good
+				// (the companion would stop equipping its pickaxe/axe after the swap). Clear them all first, the same
+				// thing MHR_Roster does when it restores a pack, and only the items below get the flag back.
+				foreach (ItemDrop.ItemData item in newInventory.GetAllItems())
+				{
+					if (item != null)
+					{
+						item.m_equipped = false;
+					}
+				}
+				// then put back in hand/worn exactly what was equipped (by grid position, which Load restores)
 				// A tier that cannot wear armor (the dverger ones) keeps the armor pieces in the pack - that is what
 				// the confirmation says, and equipping them would only put invisible gear in its slots.
 				bool canWearArmor = def.CanWearArmor;
@@ -473,14 +490,21 @@ public static class CompanionManager
 						equippedCount++;
 					}
 				}
-				// no extra m_onChanged here on purpose: Inventory.Load already notifies (and the mod's automatic
-				// equipment runs on that notice, BEFORE these equips) - firing it again would let the auto-pick put a
-				// different weapon in its hand right after we restored the player's loadout
+				// and nothing else may stay flagged: EquipItem only flags what it took, but a slot the new prefab
+				// refused would otherwise keep the flag from the loop above
+				foreach (ItemDrop.ItemData item in newInventory.GetAllItems())
+				{
+					if (item != null && !newHumanoid.IsItemEquiped(item))
+					{
+						item.m_equipped = false;
+					}
+				}
+				// no extra m_onChanged here on purpose: the inventory is already whole and the equipment is decided;
+				// the mod's automatic equipment runs on the next real inventory change, as it always does
 			}
-
-			CompanionSetup newSetup = spawned.GetComponent<CompanionSetup>();
 			if (newSetup != null)
 			{
+				newSetup.SuppressAutoEquip = false;
 				CompanionAppearance applied = CompanionAppearance.Deserialize(appearance);
 				newSetup.ApplyAppearance(applied);
 				// the pack is already in place: the roster may snapshot this companion without waiting the load settle
@@ -511,7 +535,22 @@ public static class CompanionManager
 		catch (System.Exception ex)
 		{
 			CompanionsPlugin.Log?.LogError("[Tier] Change cancelled: the new companion could not be filled with the old data: " + ex);
-			Object.Destroy(spawned);
+			// Fase 3.16 (auditoria): the ZDO is already Persistent, so Object.Destroy would leave it behind. Tear the
+			// half-built companion down the same way a successful swap removes the old one: mark it stale (that is what
+			// MHR_DeleteGuard looks at) and go through ZNetView.Destroy, i.e. ZNetScene.Destroy.
+			CompanionSetup broken = spawned.GetComponent<CompanionSetup>();
+			if (broken != null)
+			{
+				broken._mhrStale = true;
+			}
+			if (newNv != null && newNv.IsValid())
+			{
+				newNv.Destroy();
+			}
+			else
+			{
+				Object.Destroy(spawned);
+			}
 			return null;
 		}
 
@@ -526,7 +565,7 @@ public static class CompanionManager
 		nv.Destroy();
 
 		CompanionsPlugin.Log?.LogInfo($"[Tier] \"{oldName}\" respawned as \"{CompanionTierData.LocalName(def)}\" (was \""
-			+ (oldDef != null ? CompanionTierData.LocalName(oldDef) : "?") + "\") at {position:F1} - kept: name, appearance, "
+			+ (oldDef != null ? CompanionTierData.LocalName(oldDef) : "?") + $"\") at {position:F1} - kept: name, appearance, "
 			+ $"owner, mode={mode}, follow={follow}, stayHome={stayHome}, autoPickup={autoPickup}, wander={wander}, "
 			+ $"commandable={commandable}, stance={stance}, formation={formation}, home={(hasHome ? "yes" : "no")}, "
 			+ $"bed={(hasBed ? "yes" : "no")}, skills={(string.IsNullOrEmpty(skills) ? "none" : "yes")}, "

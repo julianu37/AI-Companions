@@ -499,6 +499,7 @@ public static class ModLocalization
 			{ "hc_ai_comp_name_required", "Type a name before applying." },
 			{ "hc_ai_comp_rename_ok", "Renamed to \"{0}\"." },
 			{ "hc_ai_comp_rename_failed", "I couldn't rename it (the companion isn't under my control right now)." },
+			{ "hc_ai_comp_rename_dead", "I can't rename a dead companion - bring it back first." },
 			{ "hc_ai_comp_tier_change", "Change tier (respawns)" },
 			{ "hc_ai_comp_tier_popup_title", "Change the companion's tier?" },
 			{ "hc_ai_comp_tier_popup_text", "{0} will be reborn as {1} (it is {2} now).\n\nKept: name, inventory, equipment, appearance, voice, personality, home, bed, position, skills and the companion's history. The job it is doing starts over, and a dverger tier cannot wear armor (the pieces stay in its pack)." },
