@@ -660,7 +660,8 @@ internal static class CompanionChatAI
 			CompanionTalk talk = companion.GetComponent<CompanionTalk>();
 			if (talk != null)
 			{
-				talk.Say(text, force: true);
+				// Fase 3.17: the AI path already sent this line to the TTS (SpeakOutLoud), so only the bubble is wanted
+				talk.Say(text, force: true, withVoice: false);
 			}
 		}
 		catch (Exception ex)

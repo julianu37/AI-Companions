@@ -292,7 +292,8 @@ internal static class CompanionOrders
 		outcome.Message = ModLocalization.LocFmt("hc_ai_attacking", name);
 		if (talk != null)
 		{
-			talk.Say(outcome.Message, true);
+			// Fase 3.17: the AI path already speaks this line (SpeakOutLoud) - only the bubble here
+			talk.Say(outcome.Message, true, withVoice: false);
 		}
 		CompanionsPlugin.Log?.LogInfo($"[IA] Order \"attack\" -> \"{name}\" ({outcome.Count} companion(s))");
 		return outcome;
@@ -363,7 +364,8 @@ internal static class CompanionOrders
 			outcome.Message = ModLocalization.LocFmt("hc_ai_equipped", found);
 			if (talk != null)
 			{
-				talk.Say(outcome.Message, true);
+				// Fase 3.17: the AI path already speaks this line (SpeakOutLoud) - only the bubble here
+				talk.Say(outcome.Message, true, withVoice: false);
 			}
 			return outcome;
 		}
@@ -433,7 +435,8 @@ internal static class CompanionOrders
 			outcome.Message = ModLocalization.LocFmt("hc_ai_dropped", found, total);
 			if (talk != null)
 			{
-				talk.Say(outcome.Message, true);
+				// Fase 3.17: the AI path already speaks this line (SpeakOutLoud) - only the bubble here
+				talk.Say(outcome.Message, true, withVoice: false);
 			}
 			return outcome;
 		}
@@ -482,7 +485,7 @@ internal static class CompanionOrders
 		case CompanionInteract.InventoryOpenResult.Opened:
 			outcome.Count = 1;
 			outcome.Message = ModLocalization.Loc("hc_ai_inventory_open");
-			companion.GetComponent<CompanionTalk>()?.Say(outcome.Message, true);
+			companion.GetComponent<CompanionTalk>()?.Say(outcome.Message, true, withVoice: false);
 			CompanionsPlugin.Log?.LogInfo($"[IA] Order \"inventory\": {NameOf(companion)}'s window is open");
 			break;
 		case CompanionInteract.InventoryOpenResult.Requesting:
@@ -826,7 +829,7 @@ internal static class CompanionOrders
 				CompanionTalk talk = companion.GetComponent<CompanionTalk>();
 				if (talk != null)
 				{
-					talk.Say(ModLocalization.Loc("hc_ai_already_have"), true);
+					talk.Say(ModLocalization.Loc("hc_ai_already_have"), true, withVoice: false);
 				}
 				return false;
 			}
