@@ -477,7 +477,6 @@ public static class ModLocalization
 			{ "hc_ai_panel_voice", "Voice" },
 			{ "hc_ai_panel_listen", "Listen" },
 			{ "hc_ai_panel_volume", "Volume" },
-			{ "hc_ai_panel_speed", "Speech speed" },
 			{ "hc_ai_panel_memory", "Memory" },
 			{ "hc_ai_panel_memory_fmt", "{0} exchanges" },
 			{ "hc_ai_panel_push_to_talk", "Push-to-talk" },
