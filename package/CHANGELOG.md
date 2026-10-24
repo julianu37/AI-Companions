@@ -2,6 +2,38 @@
 
 Todas as mudanças deste projeto, derivado do Offline Companions, do ProfMags. As versões anteriores à 1.4.0 são o mod original (veja o histórico do mod original, do ProfMags, para essas versões) mais o primeiro lote de correções de compatibilidade com a API do Valheim 1.0 que fizeram o mod carregar e rodar. **As entradas abaixo de 1.5.4 são o histórico do upstream e ficam como estão (em inglês) — as nossas seções (a partir da 1.6.0) são nossas.**
 
+## 1.8.2 — 24/10/2026
+
+**Escolher o provedor de LLM virou um clique.** A seção *Configurações do LLM* do painel `I` ganhou um **seletor de
+provedor** acima da URL do servidor: escolher **Groq**, **LM Studio** ou **OpenRouter** preenche a **URL** e o
+**modelo** sozinho (a chave continua com você) — e, ao lado do campo da **Chave de API**, um botão
+**"Crie sua Chave de API Grátis AQUI"** abre no navegador a página de chaves do provedor escolhido.
+
+### Painel da IA (tecla `I`)
+
+- **Seletor "Selecione seu Provedor LLM"** — o mesmo dropdown do "Tipo" do invocador, já aberto no provedor que o seu
+  `.cfg` usa:
+  **Groq** → `https://api.groq.com/openai/v1` + `openai/gpt-oss-20b`;
+  **LM Studio** → `http://127.0.0.1:1234/v1` + `qwen2.5-3b-instruct`;
+  **OpenRouter** → `https://openrouter.ai/api/v1` + `openrouter/free`.
+  Escolher **preenche os campos**; nada é gravado até o **Aplicar**, e a **chave nunca é tocada** (nem apagada, nem
+  preenchida).
+- **"Personalizado (URL manual)"** — quando a URL do `.cfg` não é de nenhum dos três (Ollama, servidor próprio…), o
+  seletor mostra essa opção e **não mexe em nada**: ele nunca mente sobre o que está configurado. A escolha é sempre
+  deduzida da própria URL, então não existe um segundo lugar que possa divergir do `.cfg`.
+- **Botão "Crie sua Chave de API Grátis AQUI"**, na linha da chave: dourado como os botões *Ligado*, com o **realce
+  suave** no hover e **sem** virar "Desligado" depois do clique (é uma ação, não um seletor). Abre
+  `console.groq.com/keys` no Groq e `openrouter.ai/keys` no OpenRouter; **some** no LM Studio e no personalizado, que
+  não têm chave para criar. A URL é fixa no código, nunca montada com o que o jogador digitou.
+- **A "Velocidade da fala" saiu do painel `I`** e ficou **só no painel F8** — a opção continua a mesma
+  (`[IA] TtsVelocidade`) e o botão **Ouvir** usa o valor de lá. Com isso o painel ficou **42 px mais baixo** e sem
+  espaço vazio no meio.
+
+### Para quem já tem o mod
+
+Nada muda sozinho: o `.cfg` não é reescrito, o provedor continua o que você configurou (o seletor apenas **mostra**
+qual é) e a velocidade da fala continua no valor que você deixou.
+
 ## 1.8.1 — 24/10/2026
 
 **Novo padrão de LLM: Groq — grátis e rápido.** O padrão passa a ser `[IA] BaseUrl` = `https://api.groq.com/openai/v1` e
