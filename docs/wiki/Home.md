@@ -38,9 +38,10 @@ Este projeto é um **projeto independente** baseado em [Offline Companions Rebor
 O companheiro em si (trabalhos, comida, stamina, habilidades, casa, descanso, portais, carroça, menu radial)
 vem do upstream e continua funcionando igual — a IA é só uma **nova entrada** para as mesmas ações.
 
-> **Tudo roda na sua máquina.** Por padrão, o entendimento das ordens (LLM), o reconhecimento da fala (STT) e a
-> voz sintetizada (TTS) são **100% locais**. Nada é enviado para a internet e nenhum serviço externo é usado.
-> Um provedor remoto pode ser configurado, se você quiser.
+> **A voz roda toda na sua máquina.** O reconhecimento da fala (STT) e a voz sintetizada (TTS) são **100%
+> locais**: nada é enviado. O entendimento das ordens usa um **LLM** — por padrão o **OpenRouter**, que é um
+> **serviço remoto** (o texto das ordens e da conversa **sai da sua máquina**). Para não enviar nada, troque-o
+> pela opção local, **LM Studio** (ou Ollama). Veja **[LLM (OpenRouter ou LM Studio)](LLM-no-LM-Studio)**.
 
 ## O que ele faz
 
@@ -51,13 +52,23 @@ vem do upstream e continua funcionando igual — a IA é só uma **nova entrada*
 | **Ele fala** | Voz sintetizada em PT-BR, saindo **da posição dele** no mundo |
 | **Personalidade** | Presets (`viking`, `mago`, `sarcastico`, `guia`) ou as suas palavras |
 | **Memória e conversa** | `bom dia`, `como você está?` — ele responde como personagem e lembra da conversa |
-| **Painel da IA** | Tecla **`I`**: personalidade, voz, volume, velocidade e push-to-talk, tudo salvo na hora |
+| **Painel da IA** | Tecla **`I`**: personalidade, voz, volume, velocidade, push-to-talk e as **configurações do LLM**, tudo salvo na hora |
+
+## Requisitos em resumo
+
+| Item | Detalhe |
+|---|---|
+| **Valheim 1.0.x** + **BepInEx 5.4.2351** | A base de tudo — passo a passo em **[Instalação](Instalacao)** |
+| **Um LLM** | **OpenRouter** (padrão): só a **chave gratuita** (https://openrouter.ai/keys) e internet — o texto das ordens **sai da sua máquina**. A opção local, **LM Studio** ou Ollama, é **opcional** e não envia nada |
+| **Windows x64** | Obrigatório para a voz (os binários nativos são `win-x64`) |
+| **Microfone** | Só para as ordens por voz |
 
 ## Começando
 
 1. Veja o que você precisa em **[Requisitos](Requisitos)**.
 2. Siga o passo a passo de **[Instalação](Instalacao)**.
-3. Configure o LLM em **[LLM no LM Studio](LLM-no-LM-Studio)**.
+3. Configure o LLM em **[LLM (OpenRouter ou LM Studio)](LLM-no-LM-Studio)** — o padrão é o **OpenRouter**
+   (só a chave gratuita); o **LM Studio** local é opcional.
 4. Veja as teclas e as ordens em **[Comandos](Comandos)**.
 5. Se algo não funcionar, vá em **[Problemas comuns](Problemas-comuns)**.
 
@@ -67,7 +78,7 @@ vem do upstream e continua funcionando igual — a IA é só uma **nova entrada*
 |---|---|
 | **[Requisitos](Requisitos)** | O que é obrigatório e o que é opcional |
 | **[Instalação](Instalacao)** | Passo a passo com imagens |
-| **[LLM no LM Studio](LLM-no-LM-Studio)** | Instalar o LM Studio, baixar o modelo e ligar o servidor |
+| **[LLM (OpenRouter ou LM Studio)](LLM-no-LM-Studio)** | O OpenRouter como padrão (chave gratuita) e o LM Studio local como opção |
 | **[Voz](Voz)** | STT (Whisper) e TTS (Kokoro): como funcionam e como ajustar |
 | **[Comandos](Comandos)** | Teclas, ordens de chat/voz e comandos de console |
 | **[Configuração](Configuracao)** | O `.cfg`, a seção `[IA]` e os painéis `F8` e `I` |

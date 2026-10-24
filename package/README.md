@@ -33,8 +33,10 @@ mesmo caminho das ordens digitadas. Exemplos:
   ele avisa *"Já temos o suficiente."* e não sai para coletar.
 - **Ver o que ele carrega:** `abre o teu inventário` / `mostra o que você carrega` abre a **janela do inventário
   do companheiro** (a mesma do toque na tecla de interagir); `fecha o inventário` fecha.
-- **Tudo local:** o LLM (LM Studio), o reconhecimento de voz e a **voz do companheiro** rodam **na sua máquina**
-  — nada é enviado para fora.
+- **A voz é local:** o reconhecimento de fala e a **voz do companheiro** rodam **na sua máquina** — nada disso
+  é enviado para fora. O **LLM** (que entende a ordem) usa o **OpenRouter** por padrão, um **serviço remoto**:
+  o texto das ordens e da conversa **sai da sua máquina**. Para não enviar nada, use o **LM Studio** local
+  (`[IA] BaseUrl = http://127.0.0.1:1234/v1`).
 
 ### 🔊 Ele fala (voz sintetizada local)
 
@@ -247,9 +249,10 @@ trabalho no instante em que houver algo a fazer.
 Tudo fica em `BepInEx/config/Maddhattr.OfflineCompanionsReborn.cfg` e também pode ser mudado **em jogo** com o
 painel de configurações (**`F8`** por padrão). Cada opção tem descrição clara.
 
-A camada de IA tem o seu **próprio painel** (tecla **`I`** por padrão, mudável em `[IA] PainelTecla`): personalidade
-(preset ou texto livre), voz do companheiro (com o botão **Ouvir**), volume, velocidade da fala, memória, conversa
-livre, os toggles do que é falado e a tecla do **push-to-talk** (botão *Alterar*). Tudo é salvo no `.cfg` na hora.
+A camada de IA tem o seu **próprio painel** (tecla **`I`** por padrão, mudável em `[IA] PainelTecla`): as
+**configurações do LLM** (URL, modelo, chave e o **Testar conexão**), personalidade (preset ou texto livre), voz
+do companheiro (com o botão **Ouvir**), volume, velocidade da fala, memória, conversa livre, os toggles do que é
+falado e a tecla do **push-to-talk** (botão *Alterar*). Tudo é salvo no `.cfg` na hora.
 Ele abre sem precisar de companheiro perto e fecha com `Esc`.
 
 As seções incluem **General, Controls, Follow, Movement, Combat, Food, Stamina, Rest, Death, Looting, Gear Repair**,
@@ -275,12 +278,16 @@ Ao atualizar de uma versão antiga, as opções que você mudou são migradas au
 3. **Para as ordens por voz:** deixe um modelo do Whisper (ex. `ggml-small-q5_1.bin`) em
    `.../AI-Companions/whisper/`.
 4. **Para ele falar:** o modelo do Kokoro já vem no pacote, em `.../AI-Companions/tts/kokoro/`.
-5. **Para a IA:** instale o **[LM Studio](https://lmstudio.ai/)**, carregue um modelo e ligue o servidor local
-   (padrão `http://127.0.0.1:1234/v1`). Ajuste em `[IA] BaseUrl` / `[IA] Modelo` se precisar. Use **`127.0.0.1`** em
-   vez de `localhost`: em alguns Windows a resolução de IPv6 atrasa ou falha a conexão.
+5. **Para a IA:** crie a **chave gratuita** em **[openrouter.ai/keys](https://openrouter.ai/keys)** e cole em
+   `[IA] ApiKey`. O `BaseUrl` (`https://openrouter.ai/api/v1`) e o `Modelo` (`openrouter/free`) **já vêm
+   configurados**. Quer rodar local? Instale o **[LM Studio](https://lmstudio.ai/)**, carregue o
+   `qwen2.5-3b-instruct`, ligue o servidor e use `[IA] BaseUrl = http://127.0.0.1:1234/v1` com o `ApiKey`
+   **vazio**. No jogo, o **Testar conexão** (painel `I`) diz se a URL responde; a **chave** só é validada numa
+   ordem de verdade.
 
-**Requisitos:** Valheim **1.0.17** + BepInEx (o BepInExPack já traz o Harmony). As ordens por voz exigem
-**Windows x64** e um **microfone**.
+**Requisitos:** Valheim **1.0.17** + BepInEx (o BepInExPack já traz o Harmony). Para as ordens, um **LLM**:
+**OpenRouter** (só a chave gratuita e internet) ou **LM Studio** local. As ordens por voz exigem **Windows x64** e
+um **microfone**.
 
 **Multiplayer:** todo jogador precisa do mod, e o servidor dedicado também.
 

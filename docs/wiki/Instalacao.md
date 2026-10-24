@@ -115,19 +115,33 @@ Onde baixar:
 
 ---
 
-## 6. Configure o LLM (LM Studio)
+## 6. Configure o LLM (OpenRouter)
 
-As ordens são entendidas por um **LLM local**. O caminho mais simples é o **LM Studio** com o modelo
-`qwen2.5-3b-instruct` e o servidor local ligado.
+As ordens são entendidas por um **LLM**. O mod já vem apontado para o **OpenRouter**, que é o caminho mais
+simples: não há nada para instalar — só a **chave gratuita** e internet.
 
-O guia completo está em **[LLM no LM Studio](LLM-no-LM-Studio)**. Em resumo:
+1. Crie a conta e a chave em **https://openrouter.ai/keys**.
+2. Em `<Valheim>\BepInEx\config\Maddhattr.OfflineCompanionsReborn.cfg`, seção `[IA]`, confira os três valores
+   (os dois primeiros **já são o padrão**; só a chave é que você preenche):
 
-1. Instale o LM Studio: https://lmstudio.ai
-2. Baixe e carregue o `qwen2.5-3b-instruct` (Q4_K_M).
-3. Ligue o **Local Server** (porta **1234**).
-4. Confira no `.cfg` (`[IA]`): `BaseUrl = http://127.0.0.1:1234/v1` e `Modelo = qwen2.5-3b-instruct`.
+   ```ini
+   BaseUrl = https://openrouter.ai/api/v1
+   Modelo = openrouter/free
+   ApiKey = <a sua chave>
+   ```
 
-![O LM Studio com o Local Server ligado e o modelo carregado](images/lmstudio-servidor.png)
+3. Em jogo, aperte **`I`** → aba **IA** → **Configurações do LLM** → **Testar conexão** (também dá para colar a
+   chave e trocar a URL/modelo ali mesmo, sem abrir o arquivo).
+
+![O painel da IA, aba IA: em Configurações do LLM, a URL do OpenRouter, o modelo openrouter/free e a chave de API mascarada](images/painel-llm-openrouter.png)
+
+> **Com o OpenRouter, o texto das ordens sai da sua máquina** (é um serviço remoto) e o tier gratuito tem fila e
+> limite diário de pedidos. Para rodar **tudo local** — e **nada** sair — use o **LM Studio** como **alternativa
+> opcional**: instale em https://lmstudio.ai, baixe o `qwen2.5-3b-instruct` (Q4_K_M), ligue o **Local Server**
+> (porta **1234**) e troque no `.cfg`: `BaseUrl = http://127.0.0.1:1234/v1` e `Modelo = qwen2.5-3b-instruct`
+> (com o `ApiKey` **vazio**).
+
+O guia completo dos dois caminhos está em **[LLM (OpenRouter ou LM Studio)](LLM-no-LM-Studio)**.
 
 ---
 
@@ -174,8 +188,9 @@ Para ver todas as teclas e ordens, vá em **[Comandos](Comandos)**.
 - [ ] Release **1.6.4** baixada (o pacote completo ou o sem-modelos)
 - [ ] Pasta `BepInEx\plugins\AI-Companions\` criada com o `Companions.dll` e as dependências
 - [ ] Modelos de voz em `whisper\` e `tts\kokoro\`
-- [ ] LM Studio com o modelo carregado e o Local Server ligado na porta 1234
+- [ ] Chave gratuita do OpenRouter criada e `[IA] ApiKey` preenchida (ou o LM Studio local configurado)
 - [ ] `[IA] BaseUrl` e `[IA] Modelo` conferidos no `.cfg`
+- [ ] **Testar conexão** (painel `I`) respondendo `Conexão OK`
 - [ ] Log com `AI Companions loaded successfully!`
 - [ ] `colete 10 madeiras` no chat funciona
 - [ ] Segurar `V` e falar funciona

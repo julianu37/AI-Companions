@@ -11,15 +11,15 @@ executar.
 voz (Microphone 16 kHz) ──► Whisper.net (STT, whisper.cpp in-process, CPU) ─┐
                                                                             ├─► mesma caixa de ordens ─► CompanionOrders ─► o companheiro executa
 chat do jogo ───────────────────────────────────────────────────────────────┘            │
-                                                                                          ├─► LLM local (LM Studio, API OpenAI-compatible) ─► ação + resposta
+                                                                                          ├─► LLM (OpenRouter por padrão, ou LM Studio/Ollama local) ─► ação + resposta
                                                                                           └─► Kokoro-82M (TTS, sherpa-onnx in-process, CPU) ─► ele FALA na posição dele
 ```
 
-Três peças de IA, todas **locais** e todas em **threads de fundo**:
+Três peças de IA, todas em **threads de fundo** (o LLM pode ser remoto; o STT e o TTS são sempre locais):
 
 | Peça | O que é | Onde roda |
 |---|---|---|
-| **LLM** | Entende a ordem e conversa | LM Studio (ou qualquer endpoint OpenAI-compatible) |
+| **LLM** | Entende a ordem e conversa | **OpenRouter** (padrão, remoto) ou LM Studio/Ollama (local) — qualquer endpoint OpenAI-compatible |
 | **STT** | Transcreve a sua fala | `Whisper.net` (whisper.cpp) dentro do jogo |
 | **TTS** | Faz o companheiro falar | `sherpa-onnx` + Kokoro-82M dentro do jogo |
 
@@ -31,8 +31,8 @@ Três peças de IA, todas **locais** e todas em **threads de fundo**:
    entrada — não há lógica duplicada entre chat e voz.
 2. **Prompt.** O mod monta o prompt da mensagem: o **contrato** fixo + o **nome** do companheiro + a
    **personalidade** + a **memória** recente.
-3. **LLM.** O texto vai para o servidor local (`POST {BaseUrl}/chat/completions`) numa **Task de fundo** — o
-   jogo nunca espera.
+3. **LLM.** O texto vai para o servidor configurado (`POST {BaseUrl}/chat/completions`) numa **Task de fundo** —
+   o jogo nunca espera.
 4. **JSON da intenção.** O modelo devolve uma intenção estruturada com cinco campos:
 
 ```json
@@ -114,14 +114,16 @@ Este é um requisito de projeto, não um detalhe:
 
 ## Privacidade
 
-**Por padrão, nada sai da sua máquina:**
+**A voz e a transcrição nunca saem da sua máquina:**
 
-- O LLM roda **local** (LM Studio/Ollama).
-- A sua fala é transcrita **dentro do jogo**.
-- A voz do companheiro é sintetizada **dentro do jogo**.
+- A sua fala é transcrita **dentro do jogo** (Whisper, local).
+- A voz do companheiro é sintetizada **dentro do jogo** (Kokoro, local).
+- O **LLM** é o único que pode ser remoto: por padrão é o **OpenRouter**, e aí o texto das ordens e da conversa
+  **sai da sua máquina**. Para não enviar nada, use o **LM Studio/Ollama** local
+  (**[LLM (OpenRouter ou LM Studio)](LLM-no-LM-Studio)**).
 
-Se você configurar um `BaseUrl` remoto (uma API paga, por exemplo), aí sim as mensagens saem — e o `ApiKey`
-deve ficar só no `.cfg` local.
+O `ApiKey`, quando existe, fica só no `.cfg` local — nunca versione nem compartilhe esse arquivo com a chave
+preenchida.
 
 ---
 

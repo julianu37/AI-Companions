@@ -54,6 +54,7 @@ O que o projeto **AI Companions** acrescenta:
 | **Kokoro-82M** | O modelo de voz que o companheiro usa | Apache-2.0 — https://huggingface.co/hexgrad/Kokoro-82M |
 | **onnxruntime** | O runtime que executa os modelos ONNX (vem junto do sherpa-onnx) | MIT — https://github.com/microsoft/onnxruntime |
 | **espeak-ng** | Fonemização usada pelo Kokoro (vai como **dados**, em `espeak-ng-data\`) | GPL-3.0, só os dados — https://github.com/espeak-ng/espeak-ng |
+| **OpenRouter** | O serviço que serve o LLM gratuito por padrão (nada dele é redistribuído) | https://openrouter.ai — uso sujeito aos termos do serviço |
 | **LM Studio** | O aplicativo que serve o LLM local | https://lmstudio.ai |
 | **Qwen2.5** | A família do modelo recomendado (`qwen2.5-3b-instruct`) | Apache-2.0 — https://huggingface.co/Qwen |
 
