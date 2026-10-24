@@ -1,5 +1,5 @@
 ================================================================================
- AI Companions 1.8.1
+ AI Companions 1.8.2
  Companheiro NPC com IA para Valheim 1.0 - em portugues do Brasil
 ================================================================================
 
@@ -49,7 +49,7 @@ INSTALACAO
    O pacote "completo" ja traz os modelos prontos; o pacote "sem modelos" (bem
    menor) nao traz - copie os seus para as pastas acima.
 4. Entre no jogo. Se o BepInEx carregar o mod, o BepInEx\LogOutput.log mostra
-   "Loading [AI Companions 1.8.1]".
+   "Loading [AI Companions 1.8.2]".
 
 COMO USAR
 ---------
@@ -64,15 +64,18 @@ COMO USAR
       bom dia                  - conversa (ele responde como personagem)
 - VOZ: segure a tecla V, fale e solte. O texto e transcrito dentro do jogo e
   entra no mesmo caminho do chat.
-- PAINEL DA IA (tecla I): personalidade, voz (com o botao "Ouvir"), volume e
-  velocidade da fala, tecla do push-to-talk, memoria, conversa e as configuracoes
-  do LLM (URL, modelo e chave).
+- PAINEL DA IA (tecla I): personalidade, voz (com o botao "Ouvir"), volume,
+  tecla do push-to-talk, memoria, conversa e as configuracoes do LLM (URL,
+  modelo e chave). A velocidade da fala fica so no painel F8.
 - CONFIGURACOES (tecla F8): todas as opcoes do mod, inclusive a secao [IA].
 
 O CEREBRO (LLM)
 ---------------
 Para ENTENDER as ordens, o mod manda o texto para um LLM por uma API compativel
-com a da OpenAI. Ha tres caminhos (em ordem de preferencia):
+com a da OpenAI. Ha tres caminhos (em ordem de preferencia).
+Dica: no painel da IA (tecla I), o dropdown "Selecione seu Provedor LLM" preenche
+a URL e o modelo do provedor escolhido, e o botao "Crie sua Chave de API Gratis
+AQUI" abre a pagina da chave no navegador (some no LM Studio).
 
 A) GROQ (padrao - o mais facil e o mais rapido, nao instala nada)
 1. Crie a conta e a chave gratuita em https://console.groq.com/keys.

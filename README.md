@@ -88,7 +88,9 @@ Aperte **`I`** a qualquer momento (não precisa de companheiro perto) para ajust
 |---|---|
 | **Personalidade** | Escolha um **preset** (Padrão, Viking leal, Mago sarcástico, Sarcástico, Guia paciente) ou escreva nas **suas palavras** e clique em **Aplicar** — vale na próxima resposta |
 | **Voz** | Escolha entre as 3 vozes pt-BR e aperte **Ouvir** para escutar uma frase de exemplo na hora |
-| **Volume / Velocidade** | Sliders (o volume vale no próximo áudio, a velocidade na próxima fala) |
+| **Selecione seu Provedor LLM** | O dropdown acima da **URL do servidor**: **Groq**, **LM Studio** ou **OpenRouter** preenchem a **URL e o modelo** (vale depois do **Aplicar**; a chave não é tocada). Uma URL de Ollama/servidor próprio aparece como **Personalizado** e nada é mexido |
+| **Crie sua Chave de API Grátis AQUI** | Botão ao lado da **Chave de API**: abre no navegador a página da chave do provedor escolhido (`console.groq.com/keys` no Groq, `openrouter.ai/keys` no OpenRouter). Some no LM Studio/personalizado |
+| **Volume** | Slider (vale no próximo áudio). A **velocidade da fala** fica **só no `F8`** (`[IA] TtsVelocidade`) |
 | **Push-to-talk** | Veja a tecla atual e aperte **Alterar** para capturar outra |
 | **Liga/desliga** | Companheiro fala, falar respostas da IA, falar falas do mod, conversa livre e ordens por voz |
 | **Memória** | Quantas trocas recentes ele lembra (0–12) |
@@ -117,7 +119,8 @@ chat do jogo ──────────────────────�
 
 - **LLM**: **Groq** por padrão (API compatível com OpenAI; só precisa da **chave gratuita**), um
   servidor **local** (LM Studio/Ollama) como opção ou o **OpenRouter** como alternativa — usado para **entender**
-  a ordem e **conversar**.
+  a ordem e **conversar**. No painel `I`, o dropdown **"Selecione seu Provedor LLM"** preenche a URL e o modelo
+  do provedor escolhido, e o botão **"Crie sua Chave de API Grátis AQUI"** abre a página da chave no navegador.
 - **STT local**: `Whisper.net` (whisper.cpp) rodando **dentro do jogo**, com o modelo carregado uma vez.
 - **TTS local**: `sherpa-onnx` com o modelo **Kokoro-82M** — o companheiro **fala** a resposta dentro do jogo,
   na posição dele, sem serviço externo.
@@ -166,7 +169,7 @@ chat do jogo ──────────────────────�
 | **`Z`** | Tecla de comando: olhe para algo e toque para mandar os companheiros (mover/atacar/abrir porta/sentar/consertar). Segure para chamá-los |
 | **`E`** | Segure olhando um companheiro para abrir o **menu radial**; toque para abrir o painel/inventário dele |
 | **`LeftAlt` + `Z`** | Editor de zona de fazenda |
-| **`I`** | **Painel da IA**: personalidade, voz (com **Ouvir**), volume, velocidade, memória, conversa e a tecla do push-to-talk — tudo salvo na hora |
+| **`I`** | **Painel da IA**: personalidade, voz (com **Ouvir**), volume, memória, conversa, a tecla do push-to-talk e as **configurações do LLM** (com o seletor de provedor) — tudo salvo na hora |
 | **`F8`** | Painel de configurações do mod (todas as opções, em jogo) |
 
 > O painel da IA (tecla **`I`**, mudável em `[IA] PainelTecla`) abre sem precisar de companheiro perto, fecha com

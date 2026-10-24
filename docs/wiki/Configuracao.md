@@ -48,13 +48,35 @@ companheiro fica na **aba dele**.
 |---|---|
 | **Invocar novo companheiro** | Escolha o **Tipo** e aperte **Invocar**: ele nasce **de graça**, sem passar pelo Trader, com o nome do tipo numerado ("Guerreiro 2"). O contador abaixo mostra quantos estão **na cena**; o teto é `[General] MaxCompanions` (padrão **10**, contando **vivos + mortos + perdidos**) |
 | **Configurações do LLM** | Os toggles **Ligado**, **Saída estruturada** e **Mostrar resposta no chat**; os campos **URL do servidor**, **Modelo**, **Chave de API** (**mascarada**) e **Prefixo**; os sliders **Temperatura**, **Timeout (s)**, **Cooldown (s)** e **Raio de alvo (m)**; e os botões **Aplicar** e **Testar conexão** |
-| **Volume / Velocidade da fala** | Sliders do TTS (`[IA] TtsVolume` e `[IA] TtsVelocidade`) |
+| **Selecione seu Provedor LLM** | O dropdown logo **acima da URL do servidor**: escolher **Groq**, **LM Studio** ou **OpenRouter** **preenche** a URL e o modelo (veja a tabela abaixo). **Personalizado (URL manual)** não mexe em nada |
+| **Volume da fala** | O slider do TTS (`[IA] TtsVolume`). A **velocidade da fala** fica **só no painel `F8`** (`[IA] TtsVelocidade`) — o botão **Ouvir** usa o valor de lá |
 | **Aperte para falar** | A tecla do push-to-talk (padrão **`V`**), o botão **Alterar** para trocar e o toggle **Ordens por voz** |
 | **Companheiro fala / Falar respostas da IA / Falar falas do mod / Conversa livre** | Os toggles da voz e da conversa (`TtsLigado`, `TtsFalarRespostas`, `TtsFalarFalasDoMod`, `Conversa`) |
 | **Memória** | Quantas trocas recentes ele lembra (0–12) |
 
 > Os campos de texto (URL, modelo, chave, prefixo) só valem depois do **Aplicar** — e na **próxima mensagem**,
 > sem reiniciar o jogo. A chave nunca vai para o log.
+
+**Seletor de provedor** (o subtítulo **"Selecione seu Provedor LLM"**, com o mesmo dropdown do **Tipo** do
+invocador) — ele **abre já no provedor que o seu `.cfg` usa** e, ao escolher, preenche os campos:
+
+| Provedor | URL | Modelo |
+|---|---|---|
+| **Groq** (padrão) | `https://api.groq.com/openai/v1` | `openai/gpt-oss-20b` |
+| **LM Studio** | `http://127.0.0.1:1234/v1` | `qwen2.5-3b-instruct` |
+| **OpenRouter** | `https://openrouter.ai/api/v1` | `openrouter/free` |
+| **Personalizado (URL manual)** | *(não mexe em nada)* | *(não mexe em nada)* |
+
+> Escolher no seletor **só preenche os campos**: vale depois do **Aplicar**, como qualquer edição ali. A
+> **`ApiKey` nunca é tocada** (nem preenchida, nem apagada) — ela continua sendo sua. E o seletor **não é uma
+> config nova**: ele **deduz** o provedor da própria `[IA] BaseUrl`, então uma URL de **Ollama** ou de um servidor
+> seu aparece como **Personalizado (URL manual)** e nada é sobrescrito — não existe um segundo lugar que possa
+> divergir do `.cfg`.
+
+**Botão "Crie sua Chave de API Grátis AQUI"** — na linha da **Chave de API**, na metade direita: ele **abre o
+navegador** na página de chaves do provedor escolhido (**Groq** → `console.groq.com/keys`; **OpenRouter** →
+`openrouter.ai/keys`), para você pegar a chave sem sair do jogo. Ele **não aparece** no **LM Studio** nem no
+**Personalizado** (esses não têm chave) e **não é um seletor**: clicar não muda estado nenhum depois.
 
 ![O painel da IA na aba IA: as abas de cada companheiro no topo, o invocador de companheiros e as Configurações do LLM (aqui com o OpenRouter de exemplo: URL, modelo e a chave mascarada) e o botão Testar conexão](images/3-invocar-e-llm.jpg)
 

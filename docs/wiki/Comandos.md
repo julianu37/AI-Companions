@@ -12,7 +12,7 @@ Teclas, ordens por chat/voz e comandos de console.
 | **`Z`** | **Tecla de comando**: olhe para algo e toque para mandar os companheiros (mover / atacar / abrir porta / sentar / consertar). **Segure** para chamá-los |
 | **`E`** | **Segure** olhando um companheiro para abrir o **menu radial**; **toque** para abrir o painel / inventário dele |
 | **`LeftAlt` + `Z`** | Editor de zona de fazenda |
-| **`I`** | **Painel da IA**: uma **aba por companheiro** (nome, tipo, Chamar, Aparência, voz e personalidade dele) e a **aba IA** (invocador de companheiros, Configurações do LLM, volume, velocidade, memória, conversa e push-to-talk) — tudo salvo na hora |
+| **`I`** | **Painel da IA**: uma **aba por companheiro** (nome, tipo, Chamar, Aparência, voz e personalidade dele) e a **aba IA** (invocador de companheiros, Configurações do LLM com o **seletor de provedor**, volume, memória, conversa e push-to-talk) — tudo salvo na hora. A **velocidade da fala** fica no **`F8`** |
 | **`F8`** | Painel de configurações do mod (todas as opções, em jogo) |
 | **`F5`** | Console do jogo (para os comandos de teste do mod) |
 

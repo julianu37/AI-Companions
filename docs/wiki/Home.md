@@ -61,7 +61,7 @@ vem do upstream e continua funcionando igual — a IA é só uma **nova entrada*
 | **Vários companheiros** | Até **10**, cada um com a sua aba no painel `I`; o invocador cria um novo **de graça** (sem o Trader) |
 | **Ordem pelo nome** | `Gruncha, colete 10 pedras` vale **só** para ele; sem o nome, a ordem vale para todos |
 | **Aparência** | Editor com **preview 3D**: gênero, cabelo, barba, pele e tom do cabelo, sem respawn |
-| **Painel da IA** | Tecla **`I`**: uma aba por companheiro (nome, tipo, Chamar, Aparência, voz e personalidade), o invocador, volume, velocidade, push-to-talk e as **configurações do LLM** — tudo salvo na hora |
+| **Painel da IA** | Tecla **`I`**: uma aba por companheiro (nome, tipo, Chamar, Aparência, voz e personalidade), o invocador, volume, push-to-talk e as **configurações do LLM** (com o **seletor de provedor**) — tudo salvo na hora |
 
 ## Requisitos em resumo
 
@@ -105,12 +105,12 @@ vem do upstream e continua funcionando igual — a IA é só uma **nova entrada*
 | **Upstream (MIT)** | https://github.com/MaddhattrRocks/Offline-Companions-Reborn |
 | **Vídeo** | https://www.youtube.com/watch?v=40FnVEIbXyo |
 
-A release publicada mais recente é a **1.8.1** (24/10/2026), com **dois** arquivos para escolher:
+A release publicada mais recente é a **1.8.2** (24/10/2026), com **dois** arquivos para escolher:
 
 | Arquivo | Tamanho | O que vem |
 |---|---|---|
-| `AI_Companions-1.8.1.zip` | ~368 MB | O mod **e** os modelos de voz (STT + TTS) já prontos |
-| `AI_Companions-1.8.1-sem-modelos.zip` | ~28,4 MB | Só o mod e as traduções — você baixa os modelos por fora |
+| `AI_Companions-1.8.2.zip` | ~368 MB | O mod **e** os modelos de voz (STT + TTS) já prontos |
+| `AI_Companions-1.8.2-sem-modelos.zip` | ~28,5 MB | Só o mod e as traduções — você baixa os modelos por fora |
 
 > **Qual escolher?** Se você quer só instalar e usar, pegue o **completo**. Se a sua internet é lenta (ou você já
 > tem os modelos), pegue o **sem-modelos** e siga a seção de modelos em **[Instalação](Instalacao)**.
@@ -121,6 +121,11 @@ A release publicada mais recente é a **1.8.1** (24/10/2026), com **dois** arqui
 > o `.cfg` (`Maddhattr.OfflineCompanionsReborn.cfg`), o save, os companheiros, a casa e o inventário continuam
 > valendo (o GUID do plugin e as chaves `HC_*` foram preservados de propósito).
 
+> A **1.8.2** deixa a escolha do LLM a um clique: na seção **Configurações do LLM** do painel `I`, o dropdown
+> **"Selecione seu Provedor LLM"** preenche a **URL e o modelo** de **Groq**, **LM Studio** ou **OpenRouter** (a
+> chave continua com você), e o botão **"Crie sua Chave de API Grátis AQUI"** abre a página da chave no navegador.
+> A **velocidade da fala** ficou **só no painel `F8`**.
+>
 > A **1.8.1** traz o **Groq como LLM padrão** (grátis e rápido: a chave sai em `console.groq.com/keys`), com o
 > **LM Studio/Ollama** como opção local e o **OpenRouter** ainda disponível — só que o tier gratuito dele é mais lento.
 > E mantém tudo o que a **1.8.0** trouxe: **vários companheiros**, cada um com a sua aba no painel `I` (nome, tipo,

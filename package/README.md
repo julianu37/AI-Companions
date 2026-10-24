@@ -251,9 +251,15 @@ painel de configurações (**`F8`** por padrão). Cada opção tem descrição c
 
 A camada de IA tem o seu **próprio painel** (tecla **`I`** por padrão, mudável em `[IA] PainelTecla`): as
 **configurações do LLM** (URL, modelo, chave e o **Testar conexão**), personalidade (preset ou texto livre), voz
-do companheiro (com o botão **Ouvir**), volume, velocidade da fala, memória, conversa livre, os toggles do que é
+do companheiro (com o botão **Ouvir**), volume, memória, conversa livre, os toggles do que é
 falado e a tecla do **push-to-talk** (botão *Alterar*). Tudo é salvo no `.cfg` na hora.
 Ele abre sem precisar de companheiro perto e fecha com `Esc`.
+
+Na seção **Configurações do LLM**, o dropdown **"Selecione seu Provedor LLM"** (acima da URL do servidor)
+**preenche a URL e o modelo** de **Groq**, **LM Studio** ou **OpenRouter** — a chave não é tocada e nada vale antes
+do **Aplicar**; uma URL de Ollama/servidor próprio aparece como **Personalizado (URL manual)**. Ao lado do campo da
+**Chave de API**, o botão **"Crie sua Chave de API Grátis AQUI"** abre a página da chave no navegador (some no LM
+Studio, que não tem chave). A **velocidade da fala** ficou **só no painel `F8`**.
 
 As seções incluem **General, Controls, Follow, Movement, Combat, Food, Stamina, Rest, Death, Looting, Gear Repair**,
 uma por trabalho (**Gathering, Hunting, Fishing, Farming, Smelting, Cooking, Repair and Restock**), **Idle,

@@ -54,7 +54,15 @@ SaidaEstruturada = true
 
 Você também pode fazer isso **em jogo**, sem abrir o arquivo: tecla **`I`** → aba **IA** → **Configurações do
 LLM**. É onde ficam a **URL do servidor**, o **Modelo**, a **Chave de API** e os botões **Aplicar** e **Testar
-conexão**:
+conexão** — e, **acima da URL**, o dropdown **"Selecione seu Provedor LLM"**: escolher **Groq**, **LM Studio** ou
+**OpenRouter** **preenche a URL e o modelo** sozinho (a **chave não é tocada** e nada é gravado antes do
+**Aplicar**). Na linha da **Chave de API** há o botão **"Crie sua Chave de API Grátis AQUI"**, que **abre no
+navegador** a página de chaves do provedor escolhido (`console.groq.com/keys` no Groq, `openrouter.ai/keys` no
+OpenRouter) — some no LM Studio, que não tem chave.
+
+> Os dois são **só um atalho**: o `.cfg` continua valendo e é ele que manda. O seletor **deduz** o provedor da
+> própria `BaseUrl`, então uma URL de **Ollama** ou de um servidor seu aparece como **Personalizado (URL manual)**
+> e nada é sobrescrito.
 
 ![O painel da IA (tecla I), aba IA: em Configurações do LLM, a URL do servidor, o modelo e a chave de API mascarada](images/painel-llm-openrouter.png)
 

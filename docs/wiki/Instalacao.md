@@ -37,12 +37,13 @@ Vá em **https://github.com/julianu37/AI-Companions/releases** e baixe **um** do
 
 | Arquivo | Tamanho | Quando escolher |
 |---|---|---|
-| `AI_Companions-1.8.1.zip` | ~368 MB | **Recomendado.** Já vem com os modelos de voz (STT + TTS). Instala e usa |
-| `AI_Companions-1.8.1-sem-modelos.zip` | ~28,4 MB | Internet lenta, ou você já tem os modelos e quer baixá-los separado |
+| `AI_Companions-1.8.2.zip` | ~368 MB | **Recomendado.** Já vem com os modelos de voz (STT + TTS). Instala e usa |
+| `AI_Companions-1.8.2-sem-modelos.zip` | ~28,5 MB | Internet lenta, ou você já tem os modelos e quer baixá-los separado |
 
 > A diferença é **só** os modelos de voz. O mod e as traduções são os mesmos nos dois.
 >
-> *(A **1.8.0** trouxe a correção do peso — o **Megingjord** +150 passa a somar no teto do companheiro — e a
+> *(A **1.8.2** põe um **seletor de provedor de LLM** e o botão da **chave de API** no painel `I`. A **1.8.0**
+> trouxe a correção do peso — o **Megingjord** +150 passa a somar no teto do companheiro — e a
 > **1.8.1** troca o LLM padrão para o **Groq** (grátis e rápido), mantendo o LM Studio como opção local e o
 > OpenRouter como alternativa. A **1.7.0** foi a release que renomeou o mod para **AI Companions**.)*
 
@@ -140,6 +141,12 @@ nada para instalar — só a **chave gratuita** e internet.
 3. Em jogo, aperte **`I`** → aba **IA** → **Configurações do LLM** → **Testar conexão** (também dá para colar a
    chave e trocar a URL/modelo ali mesmo, sem abrir o arquivo).
 
+> **Sem editar o arquivo:** acima da **URL do servidor** há o dropdown **"Selecione seu Provedor LLM"** —
+> escolher **Groq**, **LM Studio** ou **OpenRouter** **preenche a URL e o modelo** (a chave não é tocada; vale
+> depois do **Aplicar**). E, na linha da **Chave de API**, o botão **"Crie sua Chave de API Grátis AQUI"** abre a
+> página da chave no navegador (`console.groq.com/keys` no Groq). A velocidade da fala, que saiu deste painel,
+> fica no **`F8`**.
+
 ![O painel da IA, aba IA: em Configurações do LLM, a URL do servidor, o modelo e a chave de API mascarada](images/painel-llm-openrouter.png)
 
 > No print os campos mostram uma configuração de exemplo com o **OpenRouter**; com o Groq a URL é
@@ -163,13 +170,13 @@ O guia completo dos três caminhos (Groq → LM Studio local → OpenRouter) est
 3. Procure estas duas linhas:
 
 ```
-AI Companions v1.8.1 loading...
+AI Companions v1.8.2 loading...
 AI Companions loaded successfully! (N methods patched)
 ```
 
 Se elas aparecerem, o mod carregou.
 
-> O `v1.8.1` é a **versão que você instalou** (o número do zip que você baixou) e o `N` é quantos métodos do jogo
+> O `v1.8.2` é a **versão que você instalou** (o número do zip que você baixou) e o `N` é quantos métodos do jogo
 > o mod ajustou — esse número pode mudar de uma versão para outra.
 
 > **É normal** ver um erro de **PlayFab / NullReferenceException** no boot — ele **não** é do mod e não impede
@@ -196,7 +203,7 @@ Para ver todas as teclas e ordens, vá em **[Comandos](Comandos)**.
 
 - [ ] Valheim 1.0.x instalado
 - [ ] BepInEx 5.4.2351 extraído na raiz do jogo
-- [ ] Release **1.8.1** baixada (o pacote completo ou o sem-modelos)
+- [ ] Release **1.8.2** baixada (o pacote completo ou o sem-modelos)
 - [ ] Pasta `BepInEx\plugins\AI-Companions\` criada com o `Companions.dll` e as dependências
 - [ ] Modelos de voz em `whisper\` e `tts\kokoro\`
 - [ ] Chave gratuita do Groq criada e `[IA] ApiKey` preenchida (ou o LM Studio local configurado)
