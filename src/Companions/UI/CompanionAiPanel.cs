@@ -79,9 +79,11 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	/// <summary>
 	/// Height of the panel. 650 until Fase 3.20: the LLM section of the AI tab needs eleven controls, and they are laid
 	/// out as a <b>two-column grid</b> under the summoner (see the RowLlm* constants) so the panel stops at 900 - one
-	/// row per control would have pushed it past 1080p.
+	/// row per control would have pushed it past 1080p. Fase 3.21: the provider dropdown (a subtitle plus the field,
+	/// right above the URL) added two rows to that grid and pushed the footer down, so the panel grew to 976 - still
+	/// 52px of margin above and below on a 1080p screen.
 	/// </summary>
-	private const float PanelH = 900f;
+	private const float PanelH = 976f;
 
 	/// <summary>Height of a control row (the row backgrounds are the same height).</summary>
 	private const float RowH = 34f;
@@ -182,11 +184,23 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 	private const float LlmValueW = 64f;
 
-	/// <summary>Rows of the left column (three toggles + four text fields).</summary>
-	private const int LlmRows = 7;
+	/// <summary>Rows of the left column (three toggles + the provider subtitle + the provider dropdown + four text
+	/// fields).</summary>
+	private const int LlmRows = 9;
 
 	/// <summary>Rows of the right column (four sliders + Aplicar + Testar conexão).</summary>
 	private const int LlmRightRows = 6;
+
+	// Fase 3.21: the provider of the LLM sits immediately above the "URL do servidor" field - a subtitle (row 3, with
+	// no row background: it is a heading, not a control) on one line and the dropdown on the next one (row 4). The
+	// dropdown takes the whole left column, because the right column already has the "Aplicar"/"Testar conexão" of
+	// the section at that same height.
+	private const int LlmProviderTitleRow = 3;
+
+	private const int LlmProviderRow = 4;
+
+	/// <summary>Width of the provider dropdown: the whole left column (the subtitle above it is its label).</summary>
+	private const float LlmProviderW = LlmRightX - 8f - LeftX;
 
 	// Fase 3.9: the page of a companion's tab (same coordinates: the page fills the whole panel).
 	// Fase 3.15: the name and the tier are editable now, so their rows carry a field/a picker plus a button, and the
@@ -217,11 +231,12 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	// right now and the hint line. It used to be two 11px dark-grey single lines that were unreadable over the wooden
 	// panel - and the second one was clipped by the bottom edge of the panel.
 	// Fase 3.15: it moved up with the page (the block that left it freed ~210px at the top).
-	// Fase 3.20: it moved down again for the LLM section (which ends at 744): the strip keeps its own 6px of breathing
-	// room above and the panel grew to 900, so the hint has 32px below it.
-	private const float RowStatus = 782f;
+	// Fase 3.20: it moved down again for the LLM section (which ends at 744). Fase 3.21: and once more for the two
+	// provider rows (the section ends at 820): the strip keeps its own 6px of breathing room above (852) and the
+	// panel grew to 976, so the hint still has 32px below it (944..976).
+	private const float RowStatus = 858f;
 
-	private const float RowHint = 826f;
+	private const float RowHint = 902f;
 
 	/// <summary>Height of one line of the footer (the blocks are two lines tall).</summary>
 	private const float FooterLineH = 18f;
@@ -369,6 +384,14 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	private TMP_InputField _llmApiKey;
 
 	private TMP_InputField _llmPrefix;
+
+	/// <summary>
+	/// Fase 3.21: the provider dropdown of the LLM section ("Selecione seu Provedor LLM"), right above the URL field.
+	/// It is a <b>shortcut, not a setting</b>: the index is derived from <c>[IA] BaseUrl</c> every time the panel
+	/// opens, and picking an entry only fills the URL and the model boxes - the key is never touched and nothing is
+	/// written to the <c>.cfg</c> until the player clicks "Aplicar" (see <see cref="LlmProviders"/>).
+	/// </summary>
+	private AiDropdown _llmProvider;
 
 	private Slider _llmTemperature;
 
@@ -578,24 +601,26 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 			_root != null ? _root.GetComponent<RectTransform>() : null, ProbePoints, _backdrop, this);
 	}
 
-	/// <summary>The probed points (panel-local; the panel is 680x650 with a centre pivot): the middle of the column
-	/// of controls, at eleven heights, so a band anywhere over the controls is caught. The column starts at
-	/// <c>FieldX</c> (166 from the left edge) and stops at <c>RightEdge</c> (672), so its centre is 419 from the left
-	/// edge - i.e. 79 from the centre pivot - and the rows run from 80 to 590 from the top (the strip of tabs and the
-	/// summoner of Fase 3.9 moved everything below the title down).</summary>
+	/// <summary>The probed points (panel-local; the panel is 680x976 with a centre pivot): the middle of the column
+	/// of controls, at eleven heights that cover the whole page, so a band anywhere over the controls is caught. The
+	/// column starts at <c>FieldX</c> (166 from the left edge) and stops at <c>RightEdge</c> (672), so its centre is
+	/// 419 from the left edge - i.e. 79 from the centre pivot - and the rows run from 80 to 902 from the top (the
+	/// strip of tabs, the summoner and the LLM grid of Fase 3.9/3.20/3.21 moved everything below the title down).
+	/// The y values are the centre of the panel (488) minus the height from the top, so they follow every growth of
+	/// <see cref="PanelH"/>.</summary>
 	private static readonly Vector2[] ProbePoints = new Vector2[11]
 	{
-		new Vector2(79f, 245f),
-		new Vector2(79f, 194f),
-		new Vector2(79f, 143f),
-		new Vector2(79f, 92f),
-		new Vector2(79f, 41f),
-		new Vector2(79f, -10f),
-		new Vector2(79f, -61f),
-		new Vector2(79f, -112f),
-		new Vector2(79f, -163f),
-		new Vector2(79f, -214f),
-		new Vector2(79f, -265f)
+		new Vector2(79f, 338f),
+		new Vector2(79f, 270f),
+		new Vector2(79f, 202f),
+		new Vector2(79f, 134f),
+		new Vector2(79f, 66f),
+		new Vector2(79f, -2f),
+		new Vector2(79f, -70f),
+		new Vector2(79f, -138f),
+		new Vector2(79f, -206f),
+		new Vector2(79f, -274f),
+		new Vector2(79f, -342f)
 	};
 
 	public void Hide()
@@ -932,6 +957,9 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		// the fields of the dropdowns belong to the page they are shown on (only the lists float)
 		_page = _aiPage.transform;
 		BuildSpawnerDropdown();
+		// Fase 3.21: the provider dropdown of the LLM section - same overlay, same page (its list needs the overlay,
+		// which is why the field is not built together with the rest of the LLM grid)
+		BuildLlmProviderDropdown();
 		// Fase 3.10/3.15: and the two dropdowns of a companion's profile, on its own page (the lists go to the same
 		// overlay, which is why this happens after it exists)
 		_page = _compPage.transform;
@@ -1471,11 +1499,12 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	/// rest of this panel), and they take effect on the <b>next message</b> because <see cref="LlmClient"/> reads the
 	/// config on each request.
 	///
-	/// <para>Layout: a <b>two-column grid</b> (see the RowLlm* constants). Left: the three toggles and the four text
-	/// boxes, applied by the section's "Aplicar" (one click, not per keystroke - they are real text fields, so they
-	/// are registered in <see cref="ModTextInputFocus"/> and Esc leaves them before the panel closes). Right: the four
-	/// sliders with their value and the two buttons ("Aplicar" and "Testar conexão"). The grid is what keeps the panel
-	/// at 900 px; the row backgrounds are drawn per line, both columns sharing the same y.</para>
+	/// <para>Layout: a <b>two-column grid</b> (see the RowLlm* constants). Left: the three toggles, the <b>provider
+	/// dropdown</b> (Fase 3.21, right above the URL) and the four text boxes, applied by the section's "Aplicar" (one
+	/// click, not per keystroke - they are real text fields, so they are registered in
+	/// <see cref="ModTextInputFocus"/> and Esc leaves them before the panel closes). Right: the four sliders with their
+	/// value and the two buttons ("Aplicar" and "Testar conexão"). The grid is what keeps the panel at a sane height
+	/// (976 since the two provider rows); the row backgrounds are drawn per line, both columns sharing the same y.</para>
 	///
 	/// <para>The API key is a <c>Password</c> field: it is masked on screen and its value never reaches the log - the
 	/// log line at the end of <see cref="ApplyLlmSettings"/> says only "informada/vazia".</para>
@@ -1487,9 +1516,14 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		title.fontStyle = FontStyles.Bold;
 		title.overflowMode = TextOverflowModes.Overflow;
 
-		// one dark row background per line, the two columns sharing the same y (the right column stops at its sixth)
+		// one dark row background per line, the two columns sharing the same y (the right column stops at its sixth).
+		// Fase 3.21: the row of the provider subtitle has no background - it is a heading, not a control row.
 		for (int i = 0; i < LlmRows; i++)
 		{
+			if (i == LlmProviderTitleRow)
+			{
+				continue;
+			}
 			GameObject row = new GameObject("RowLlm" + i, typeof(RectTransform), typeof(Image));
 			row.transform.SetParent(Page, worldPositionStays: false);
 			Place(row.GetComponent<RectTransform>(), 4f, RowLlmFirst + i * LlmStep, RightEdge - 4f, RowH);
@@ -1506,11 +1540,19 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		CreateToggle(LeftX, toggleTextW, RowLlm(1), toggleX, toggleW, ModLocalization.Loc("hc_ai_llm_structured"), ModConfig.AiStructuredOutput);
 		CreateToggle(LeftX, toggleTextW, RowLlm(2), toggleX, toggleW, ModLocalization.Loc("hc_ai_llm_show_raw"), ModConfig.AiShowResponse);
 
-		// ---- left column: the four text boxes (applied by the section's "Aplicar") ----
-		_llmBaseUrl = CreateLlmField(3, "hc_ai_llm_base_url", 200, "http://127.0.0.1:1234/v1");
-		_llmModel = CreateLlmField(4, "hc_ai_llm_model", 120, "qwen2.5-3b-instruct");
-		_llmApiKey = CreateLlmField(5, "hc_ai_llm_api_key", 200, "");
-		_llmPrefix = CreateLlmField(6, "hc_ai_llm_prefix", 40, "/c");
+		// ---- Fase 3.21: the provider, right above the URL - the subtitle here and the dropdown built by
+		// BuildLlmProviderDropdown (its list lives on the overlay, which does not exist yet when this method runs) ----
+		TMP_Text providerTitle = CreateText(Page, ModLocalization.Loc("hc_ai_llm_provider"), LeftX,
+			RowLlm(LlmProviderRow) - 24f, RightEdge - LeftX, 22f, 13f, LabelColor, TextAlignmentOptions.MidlineLeft);
+		providerTitle.fontStyle = FontStyles.Bold;
+		providerTitle.overflowMode = TextOverflowModes.Overflow;
+
+		// ---- left column: the four text boxes (applied by the section's "Aplicar") - Fase 3.21: they moved two rows
+		// down to leave the provider block immediately above the URL field ----
+		_llmBaseUrl = CreateLlmField(LlmProviderRow + 1, "hc_ai_llm_base_url", 200, "http://127.0.0.1:1234/v1");
+		_llmModel = CreateLlmField(LlmProviderRow + 2, "hc_ai_llm_model", 120, "qwen2.5-3b-instruct");
+		_llmApiKey = CreateLlmField(LlmProviderRow + 3, "hc_ai_llm_api_key", 200, "");
+		_llmPrefix = CreateLlmField(LlmProviderRow + 4, "hc_ai_llm_prefix", 40, "/c");
 		if (_llmApiKey != null)
 		{
 			// the key is never shown in clear: the field masks what is typed (and what came from the .cfg)
@@ -1548,7 +1590,8 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 		// one line with the bands, so the layout can be checked from the log without opening the game
 		CompanionsPlugin.Log?.LogInfo($"[IA] Painel: secao do LLM em y={RowLlmTitle:0}..{RowLlm(LlmRows - 1) + RowH:0} "
-			+ $"(esquerda: 3 alternadores + 4 campos, {LlmRows} linhas; direita: 4 sliders + 2 botoes, {LlmRightRows} linhas), "
+			+ $"(esquerda: 3 alternadores + provedor + 4 campos, {LlmRows} linhas; direita: 4 sliders + 2 botoes, {LlmRightRows} linhas), "
+			+ $"provedor em y={RowLlm(LlmProviderRow) - 24f:0}..{RowLlm(LlmProviderRow) + RowH:0} (x={LeftX:0}..{LeftX + LlmProviderW:0}), "
 			+ $"colunas em x={LeftX:0}..{LlmRightX - 8f:0} e {LlmRightX:0}..{RightEdge:0}, "
 			+ $"rodape em y={RowStatus:0} e {RowHint:0} (faixa {RowStatus - 6f:0}..{RowStatus - 6f + (RowHint - RowStatus) + 2f * FooterLineH + 12f:0}), "
 			+ $"painel {PanelW:0}x{PanelH:0}");
@@ -1558,6 +1601,65 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	private static float RowLlm(int index)
 	{
 		return RowLlmFirst + index * LlmStep;
+	}
+
+	/// <summary>
+	/// Fase 3.21: the provider dropdown of the LLM section - the same hand-built dropdown (and the same overlay
+	/// canvas) the summoner's "Tipo" uses, with the subtitle of <see cref="BuildLlmSettings"/> right above it.
+	///
+	/// <para>It is built <b>after</b> the overlay exists (like <see cref="BuildSpawnerDropdown"/>), because the list of
+	/// an open dropdown lives on that overlay - and the field itself is created on the AI page, so it is created after
+	/// the overlay in the hierarchy too (<c>Build</c> puts the overlay back as the last child right after this).</para>
+	///
+	/// <para>The starting index is <b>derived</b> from the URL that is in use
+	/// (<see cref="LlmProviders.Suggest"/>) - the <c>.cfg</c> stays the source of the truth and there is no new
+	/// config entry. <see cref="RefreshProviderDropdown"/> recomputes it on every open, so a <c>.cfg</c> edited
+	/// between two openings is never lied about.</para>
+	/// </summary>
+	private void BuildLlmProviderDropdown()
+	{
+		string[] labels = new string[LlmProviders.Count];
+		for (int i = 0; i < labels.Length; i++)
+		{
+			labels[i] = ModLocalization.Loc(LlmProviders.LabelKeyAt(i));
+		}
+		int index = LlmProviders.Suggest(ModConfig.AiBaseUrl != null ? ModConfig.AiBaseUrl.Value : "");
+		// the list opens downwards: the field sits in the middle of the page (four rows below it are the four text
+		// boxes, which the list covers while it is open - and only while it is open)
+		_llmProvider = CreateDropdown("LlmProvider", LeftX, RowLlm(LlmProviderRow), LlmProviderW, RowH, labels, index,
+			OnProviderPicked);
+		SetDropdown(_llmProvider, index);
+	}
+
+	/// <summary>The dropdown follows the URL in use: called when the panel opens and after "Aplicar", never per frame.</summary>
+	private void RefreshProviderDropdown()
+	{
+		if (_llmProvider == null)
+		{
+			return;
+		}
+		SetDropdown(_llmProvider, LlmProviders.Suggest(ModConfig.AiBaseUrl != null ? ModConfig.AiBaseUrl.Value : ""));
+	}
+
+	/// <summary>
+	/// Picking a provider <b>fills the two text boxes</b> - and nothing else: the ApiKey box is never touched (the
+	/// player may have pasted the key before choosing, and every provider has its own key), the <c>ConfigEntry</c>s are
+	/// not written (the fields of this section only count on "Aplicar", which is the rule of the section) and "Aplicar"
+	/// is not run here either. "Personalizado" fills nothing, so the URL the player typed stays as it is.
+	/// </summary>
+	private void OnProviderPicked(int index)
+	{
+		if (!LlmProviders.Fills(index))
+		{
+			CompanionsPlugin.Log?.LogInfo("[IA] Provedor: personalizado (URL mantida)");
+			return;
+		}
+		string url = LlmProviders.BaseUrlAt(index);
+		string model = LlmProviders.ModelAt(index);
+		SetFieldText(_llmBaseUrl, url);
+		SetFieldText(_llmModel, model);
+		CompanionsPlugin.Log?.LogInfo($"[IA] Provedor: {LlmProviders.IdAt(index)} -> {url} | {model} "
+			+ "(clique em Aplicar para valer)");
 	}
 
 	/// <summary>One "name + text box" line of the LLM grid (the value is filled by <see cref="RefreshFromConfig"/>).</summary>
@@ -1625,6 +1727,9 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		SetFieldText(_llmModel, model);
 		SetFieldText(_llmApiKey, key);
 		SetFieldText(_llmPrefix, prefix);
+		// Fase 3.21: what was just stored may be a URL the table knows (or one it doesn't) - the provider dropdown
+		// follows it, so it never shows a provider that is no longer the one in use
+		RefreshProviderDropdown();
 		CompanionsPlugin.Log?.LogInfo($"[IA] Painel: LLM salvo - {LlmClient.SafeEndpoint}, modelo \"{model}\", "
 			+ $"chave {(key.Length > 0 ? "informada" : "vazia")}, prefixo \"{prefix}\", timeout "
 			+ $"{ModConfig.AiTimeoutSeconds?.Value ?? 30}s, cooldown {ModConfig.AiCooldown?.Value ?? 3f:0.#}s, "
@@ -2554,6 +2659,9 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		SetFieldText(_llmModel, ModConfig.AiModel != null ? ModConfig.AiModel.Value : "");
 		SetFieldText(_llmApiKey, ModConfig.AiApiKey != null ? ModConfig.AiApiKey.Value : "");
 		SetFieldText(_llmPrefix, ModConfig.AiPrefix != null ? ModConfig.AiPrefix.Value : "");
+		// Fase 3.21: the provider dropdown never lies - its index is derived from the [IA] BaseUrl on every open
+		// (a .cfg edited between two openings shows up here)
+		RefreshProviderDropdown();
 		UpdateLlmValueLabels();
 		for (int i = 0; i < _toggles.Count; i++)
 		{
