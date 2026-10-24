@@ -398,6 +398,17 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	/// </summary>
 	private AiDropdown _llmProvider;
 
+	/// <summary>
+	/// Fase 3.21c: the "Crie sua Chave de API Grátis AQUI" link, on the free right half of the "Chave de API" line
+	/// (from <c>LlmRightX + 8</c> to <c>RightEdge - 8</c>, i.e. the half the grid never used at that height). It is a
+	/// <see cref="Button"/> with <b>no wood</b>: a fully transparent Image (which stays a raycast target, so it takes
+	/// the click - the same trick as the dropdown's list catcher) under a gold underlined label, so it reads as a link
+	/// and not as one of the action buttons of the section. It is only active while the provider of the dropdown has a
+	/// key page (<see cref="LlmProviders.KeyUrlAt"/>), i.e. Groq and OpenRouter; LM Studio and "Personalizado" show
+	/// nothing there.
+	/// </summary>
+	private AiButton _llmKeyLink;
+
 	private Slider _llmTemperature;
 
 	private TMP_Text _llmTemperatureLabel;
@@ -1563,6 +1574,26 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 			_llmApiKey.asteriskChar = '*';
 		}
 
+		// ---- Fase 3.21c: the free-key link, on the free right half of the "Chave de API" line ----
+		// A Button with no wood: the Image is fully transparent (and stays a raycast target, exactly like the list
+		// catcher of the dropdowns, which is how an invisible target still takes the click) and the label is gold and
+		// underlined, so it reads as a link. `transition = None` is what stops the Selectable from tinting that image
+		// on hover/press - there is nothing to light up. It starts hidden: RefreshProviderDropdown (every open) shows
+		// it only for the providers that have a key page.
+		float keyLinkX = LlmRightX + 8f;
+		_llmKeyLink = CreateButton(Page, "LlmKeyLink", keyLinkX, RowLlm(LlmProviderRow + 3),
+			RightEdge - 8f - keyLinkX, RowH, ModLocalization.Loc("hc_ai_llm_key_link"), OpenLlmKeyPage);
+		_llmKeyLink.Button.transition = Selectable.Transition.None;
+		_llmKeyLink.Image.color = new Color(0f, 0f, 0f, 0f);
+		_llmKeyLink.Label.alignment = TextAlignmentOptions.MidlineLeft;
+		_llmKeyLink.Label.fontSize = 13f;
+		_llmKeyLink.Label.fontStyle = FontStyles.Underline;
+		_llmKeyLink.Label.color = LabelColor;
+		// the row is 316 wide and the text takes ~215 at 13px, so nothing is ever cut - and overflow keeps a longer
+		// translation readable instead of cutting it with "..."
+		_llmKeyLink.Label.overflowMode = TextOverflowModes.Overflow;
+		_llmKeyLink.Button.gameObject.SetActive(false);
+
 		// ---- right column: the four sliders, each with its value on the right ----
 		_llmTemperature = CreateLlmSlider(0, "hc_ai_llm_temperature", "LlmTemperature", 0f, 1f, false, out _llmTemperatureLabel);
 		_llmTimeout = CreateLlmSlider(1, "hc_ai_llm_timeout", "LlmTimeout", 5f, 120f, true, out _llmTimeoutLabel);
@@ -1642,6 +1673,57 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 			return;
 		}
 		SetDropdown(_llmProvider, LlmProviders.Suggest(ModConfig.AiBaseUrl != null ? ModConfig.AiBaseUrl.Value : ""));
+		// Fase 3.21c: the key link follows the provider the dropdown is showing now
+		UpdateLlmKeyLink(_llmProvider.Index);
+	}
+
+	/// <summary>
+	/// Fase 3.21c: shows the "Crie sua Chave de API Grátis AQUI" link only for the providers that have a key page
+	/// (<see cref="LlmProviders.KeyUrlAt"/> - Groq and OpenRouter), and hides it for LM Studio and for the
+	/// "Personalizado". Called when the panel opens and when the player picks a provider; never per frame, and the
+	/// only thing it ever changes is the active state of the link (and only when the provider really changed).
+	/// </summary>
+	private void UpdateLlmKeyLink(int index)
+	{
+		if (_llmKeyLink == null || _llmKeyLink.Button == null)
+		{
+			return;
+		}
+		bool show = LlmProviders.KeyUrlAt(index).Length > 0;
+		GameObject link = _llmKeyLink.Button.gameObject;
+		if (link.activeSelf != show)
+		{
+			link.SetActive(show);
+		}
+	}
+
+	/// <summary>
+	/// Fase 3.21c: the click of the key link - it opens the key page of the <b>selected</b> provider in the browser.
+	/// The URL is read from <see cref="LlmProviders"/> at click time (a constant of the table, never anything the
+	/// player typed), and there is no network call, no config write and no "Aplicar" here: the panel stays open and the
+	/// game keeps running. <c>OpenURL</c> is wrapped because it can throw on a machine with no browser association.
+	/// </summary>
+	private void OpenLlmKeyPage()
+	{
+		int index = _llmProvider != null
+			? _llmProvider.Index
+			: LlmProviders.Suggest(ModConfig.AiBaseUrl != null ? ModConfig.AiBaseUrl.Value : "");
+		string url = LlmProviders.KeyUrlAt(index);
+		if (url.Length == 0)
+		{
+			// defensive: the link is hidden when there is no page, so this only happens if it is ever shown by hand
+			return;
+		}
+		try
+		{
+			Application.OpenURL(url);
+			CompanionsPlugin.Log?.LogInfo($"[IA] Painel: abrindo {url} no navegador");
+		}
+		catch (Exception exception)
+		{
+			CompanionsPlugin.Log?.LogWarning($"[IA] Painel: nao consegui abrir {url} no navegador ({exception.Message}) - "
+				+ "copie o endereco e abra na mao.");
+		}
 	}
 
 	/// <summary>
@@ -1652,6 +1734,8 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	/// </summary>
 	private void OnProviderPicked(int index)
 	{
+		// Fase 3.21c: the key link belongs to the provider, so it changes here (and only here)
+		UpdateLlmKeyLink(index);
 		if (!LlmProviders.Fills(index))
 		{
 			CompanionsPlugin.Log?.LogInfo("[IA] Provedor: personalizado (URL mantida)");

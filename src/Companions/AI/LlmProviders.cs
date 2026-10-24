@@ -26,7 +26,8 @@ internal static class LlmProviders
 	/// <summary>
 	/// Um provedor da tabela: o nome que sai no log (<see cref="Id"/>), a chave de localizacao do rotulo do dropdown
 	/// (<see cref="LabelKey"/> - o texto em si vem do <see cref="ModLocalization"/>, para esta classe seguir sem
-	/// dependencia de UI) e o que ele preenche (<see cref="BaseUrl"/> e <see cref="Model"/>).
+	/// dependencia de UI), o que ele preenche (<see cref="BaseUrl"/> e <see cref="Model"/>) e a pagina onde o jogador
+	/// cria a chave dele (<see cref="KeyUrl"/>).
 	/// </summary>
 	internal struct LlmProvider
 	{
@@ -42,6 +43,16 @@ internal static class LlmProviders
 		/// <c>localhost</c> e as duas formas sao o mesmo servidor - em qualquer outro caso elas seriam servidores
 		/// diferentes, entao a equivalencia mora aqui e nao no casamento de URL (ver <see cref="Key"/>).</summary>
 		internal string Alias;
+
+		/// <summary>
+		/// A pagina de chaves do provedor, aberta no navegador pelo link "Crie sua Chave de API Grátis AQUI" do painel
+		/// - ou "" quando nao ha pagina (o LM Studio roda na maquina do jogador e nao pede chave, e o "Personalizado"
+		/// pode ser qualquer servidor). E uma <b>constante desta tabela</b>, escrita aqui e em nenhum outro lugar: o
+		/// link nunca monta a URL com nada que o jogador tenha digitado, que e a regra de seguranca do
+		/// <c>Application.OpenURL</c> (so abre o que o mod conhece). Por isso o link so aparece nos provedores que tem
+		/// uma - ver <see cref="KeyUrlAt"/>.
+		/// </summary>
+		internal string KeyUrl;
 	}
 
 	/// <summary>
@@ -56,7 +67,8 @@ internal static class LlmProviders
 			Id = "Groq",
 			LabelKey = "hc_ai_llm_provider_groq",
 			BaseUrl = "https://api.groq.com/openai/v1",
-			Model = "openai/gpt-oss-20b"
+			Model = "openai/gpt-oss-20b",
+			KeyUrl = "https://console.groq.com/keys"
 		},
 		new LlmProvider
 		{
@@ -65,16 +77,19 @@ internal static class LlmProviders
 			BaseUrl = "http://127.0.0.1:1234/v1",
 			Model = "qwen2.5-3b-instruct",
 			Alias = "http://localhost:1234/v1"
+			// sem KeyUrl: o LM Studio roda na maquina do jogador e nao tem chave para criar
 		},
 		new LlmProvider
 		{
 			Id = "OpenRouter",
 			LabelKey = "hc_ai_llm_provider_openrouter",
 			BaseUrl = "https://openrouter.ai/api/v1",
-			Model = "openrouter/free"
+			Model = "openrouter/free",
+			KeyUrl = "https://openrouter.ai/keys"
 		},
 		// nao preenche nada: existe para o dropdown dizer a verdade quando a URL do .cfg nao e de nenhum dos tres
-		// (Ollama, um servidor proprio...) - e para o jogador poder deixar os campos como estao
+		// (Ollama, um servidor proprio...) - e para o jogador poder deixar os campos como estao. Sem KeyUrl: nao ha
+		// pagina de chaves para um servidor que o mod nao conhece.
 		new LlmProvider
 		{
 			Id = "personalizado",
@@ -117,6 +132,13 @@ internal static class LlmProviders
 	internal static string ModelAt(int index)
 	{
 		return At(index).Model ?? "";
+	}
+
+	/// <summary>A pagina de chaves do provedor (constante da tabela), ou "" quando ele nao tem uma - o painel usa isso
+	/// para decidir se mostra o link "Crie sua Chave de API Grátis AQUI".</summary>
+	internal static string KeyUrlAt(int index)
+	{
+		return At(index).KeyUrl ?? "";
 	}
 
 	/// <summary>O item preenche a URL e o modelo? (falso so no "Personalizado")</summary>

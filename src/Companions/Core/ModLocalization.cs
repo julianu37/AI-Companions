@@ -519,6 +519,8 @@ public static class ModLocalization
 			{ "hc_ai_llm_base_url", "Server URL" },
 			{ "hc_ai_llm_model", "Model" },
 			{ "hc_ai_llm_api_key", "API key" },
+			// Fase 3.21c: the link on the right half of the key row that opens the provider's key page in the browser
+			{ "hc_ai_llm_key_link", "Create your free API key HERE" },
 			{ "hc_ai_llm_prefix", "Prefix" },
 			{ "hc_ai_llm_temperature", "Temperature" },
 			{ "hc_ai_llm_timeout", "Timeout (s)" },

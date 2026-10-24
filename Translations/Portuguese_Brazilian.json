@@ -413,6 +413,7 @@
         { "key": "hc_ai_llm_base_url", "value": "URL do servidor" },
         { "key": "hc_ai_llm_model", "value": "Modelo" },
         { "key": "hc_ai_llm_api_key", "value": "Chave de API" },
+        { "key": "hc_ai_llm_key_link", "value": "Crie sua Chave de API Grátis AQUI" },
         { "key": "hc_ai_llm_prefix", "value": "Prefixo" },
         { "key": "hc_ai_llm_temperature", "value": "Temperatura" },
         { "key": "hc_ai_llm_timeout", "value": "Timeout (s)" },
