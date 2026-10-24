@@ -298,17 +298,48 @@ public class CompanionSetup : MonoBehaviour
 
 	internal void ApplyAppearance(CompanionAppearance a)
 	{
-		if (CanWearArmor() && _visEquip != null)
+		if (a == null)
 		{
+			return;
+		}
+		bool canWearArmor = CanWearArmor();
+		int hairHash = (string.IsNullOrEmpty(a.HairItem) ? "Hair1" : a.HairItem).GetStableHashCode();
+		int beardHash = ((a.ModelIndex == 0) ? (a.BeardItem ?? "") : "").GetStableHashCode();
+		if (canWearArmor && _visEquip != null)
+		{
+			// Fase 3.21 (bug do cabelo/barba): the game caches the hash it last handled in m_currentHairItemHash /
+			// m_currentBeardItemHash and SetHairEquipped stores it BEFORE creating the object - when the creation fails
+			// (prefab or joint missing, ObjectDB not ready) the hash stays cached and every later apply is a no-op for
+			// ever. Clearing it first makes each apply a real attach (see ResetVisualItemCache).
+			// Fase 3.21 (bug do cabelo/barba): see PrepareVisualAttach - the game's attach cache is cleared and the
+			// helmet joint (what the hair/beard hang from) is made sure before the setters run.
+			PrepareVisualAttach(_visEquip);
 			_visEquip.SetModel(a.ModelIndex);
-			_visEquip.SetHairItem((string.IsNullOrEmpty(a.HairItem) ? "Hair1" : a.HairItem).GetStableHashCode());
-			_visEquip.SetBeardItem(((a.ModelIndex == 0) ? (a.BeardItem ?? "") : "").GetStableHashCode());
+			_visEquip.SetHairItem(hairHash);
+			_visEquip.SetBeardItem(beardHash);
 			_visEquip.SetSkinColor(a.SkinColor);
 			_visEquip.SetHairColor(a.HairColor);
 		}
 		if (_visEquip != null)
 		{
 			_updateVisuals?.Invoke(_visEquip, null);
+			string state = DescribeVisualState(_visEquip, hairHash, beardHash);
+			CompanionsPlugin.Log?.LogInfo($"[AppearanceDiag] \"{NameForLog()}\": ApplyAppearance gender={a.ModelIndex} "
+				+ $"hair={a.HairItem ?? ""}({hairHash}) beard={a.BeardItem ?? ""}({beardHash}) canWearArmor={canWearArmor} "
+				+ $"visEquip=True | depois: {state}");
+			if (canWearArmor && (hairHash != 0 || beardHash != 0) && state.Contains("Inst=False"))
+			{
+				// the hash was requested, the prefab may exist and the object did not appear: the game's own log
+				// (Unity) has the reason - "Missing attach item"/a MagicaCloth exception inside AttachItem
+				CompanionsPlugin.Log?.LogWarning($"[AppearanceDiag] \"{NameForLog()}\": o cabelo/barba nao foi anexado "
+					+ $"({state}) - procure \"Missing attach item\" ou uma excecao do MagicaCloth no log do Unity");
+			}
+		}
+		else
+		{
+			CompanionsPlugin.Log?.LogWarning($"[AppearanceDiag] \"{NameForLog()}\": ApplyAppearance gender={a.ModelIndex} "
+				+ $"hair={a.HairItem ?? ""} beard={a.BeardItem ?? ""} canWearArmor={canWearArmor} visEquip=False "
+				+ "- nada foi aplicado (sem VisEquipment neste companheiro)");
 		}
 		int num = LayerMask.NameToLayer("character");
 		if (num < 0)
@@ -320,6 +351,170 @@ public class CompanionSetup : MonoBehaviour
 		{
 			transform.gameObject.layer = num;
 		}
+	}
+
+	// ---- Fase 3.21: the hair/beard attach, seen from the outside ----
+
+	/// <summary>The game's cache of the last hair hash it handled (see <see cref="ResetVisualItemCache"/>).</summary>
+	private static readonly FieldInfo _visCurrentHairHash = AccessTools.Field(typeof(VisEquipment), "m_currentHairItemHash");
+
+	/// <summary>The game's cache of the last beard hash it handled.</summary>
+	private static readonly FieldInfo _visCurrentBeardHash = AccessTools.Field(typeof(VisEquipment), "m_currentBeardItemHash");
+
+	private static readonly FieldInfo _visHairInstance = AccessTools.Field(typeof(VisEquipment), "m_hairItemInstance");
+
+	private static readonly FieldInfo _visBeardInstance = AccessTools.Field(typeof(VisEquipment), "m_beardItemInstance");
+
+	/// <summary>The joint the hair, the beard and the helmet hang from (see <see cref="PrepareVisualAttach"/>).</summary>
+	private static readonly FieldInfo _visHelmet = AccessTools.Field(typeof(VisEquipment), "m_helmet");
+
+	/// <summary>
+	/// Fase 3.21: prepares a <c>VisEquipment</c> for a <b>fresh</b> hair/beard attach, and it is needed for two reasons
+	/// found in the decompiled game:
+	/// <list type="bullet">
+	/// <item><c>SetHairEquipped</c>/<c>SetBeardEquipped</c> store the hash <b>before</b> calling <c>AttachItem</c> and
+	/// return early when the hash is the cached one - one failed attach (missing prefab/joint) makes every later change
+	/// of that item a silent no-op, so the cache is cleared here;</item>
+	/// <item>the object is hung from <c>m_helmet</c> (the same joint the helmet uses). A companion/clone whose bones were
+	/// not mapped can have it null, and then <c>AttachItem</c> parents the hair to <b>nothing</b>: the object exists, is
+	/// not on the head and never shows - the joint is looked up by name when that happens.</item>
+	/// </list>
+	/// </summary>
+	internal static void PrepareVisualAttach(VisEquipment vis)
+	{
+		if (vis == null)
+		{
+			return;
+		}
+		ResetVisualItemCache(vis);
+		try
+		{
+			if (_visHelmet?.GetValue(vis) is Transform)
+			{
+				return;
+			}
+			Transform helmet = FindBone(vis.transform, "Helmet") ?? FindBone(vis.transform, "helmet")
+				?? FindBone(vis.transform, "Head") ?? FindBone(vis.transform, "head");
+			if (helmet != null)
+			{
+				_visHelmet?.SetValue(vis, helmet);
+				CompanionsPlugin.Log?.LogDebug($"[AppearanceDiag] joint do cabelo/barba recuperado por nome: \"{helmet.name}\"");
+			}
+		}
+		catch (Exception ex)
+		{
+			CompanionsPlugin.Log?.LogDebug("[AppearanceDiag] could not check the helmet joint: " + ex.Message);
+		}
+	}
+
+	/// <summary>The first child with that name (case-insensitive), for the joint fallback above.</summary>
+	private static Transform FindBone(Transform root, string boneName)
+	{
+		if (root == null)
+		{
+			return null;
+		}
+		Transform[] all = root.GetComponentsInChildren<Transform>(includeInactive: true);
+		for (int i = 0; i < all.Length; i++)
+		{
+			if (string.Equals(all[i].name, boneName, StringComparison.OrdinalIgnoreCase))
+			{
+				return all[i];
+			}
+		}
+		return null;
+	}
+
+	/// <summary>
+	/// Fase 3.21: clears the hashes <c>VisEquipment</c> remembers as "already attached" (see
+	/// <see cref="PrepareVisualAttach"/> for the why).
+	/// </summary>
+	internal static void ResetVisualItemCache(VisEquipment vis)
+	{
+		if (vis == null)
+		{
+			return;
+		}
+		try
+		{
+			_visCurrentHairHash?.SetValue(vis, 0);
+			_visCurrentBeardHash?.SetValue(vis, 0);
+		}
+		catch (Exception ex)
+		{
+			CompanionsPlugin.Log?.LogDebug("[AppearanceDiag] could not clear the visual cache: " + ex.Message);
+		}
+	}
+
+	/// <summary>
+	/// Fase 3.21: what the game ended up with after an apply - the one line that tells the next report whether the
+	/// hair/beard failed in the prefab lookup, in the attach (no object) or in the ZDO (not owner). Also used by the
+	/// preview clone of the editor (see <see cref="CompanionPanel"/>).
+	/// </summary>
+	internal static string DescribeVisualState(VisEquipment vis, int hairHash, int beardHash)
+	{
+		if (vis == null)
+		{
+			return "visEquip=null";
+		}
+		try
+		{
+			bool hairAttached = IsAlive(_visHairInstance?.GetValue(vis));
+			bool beardAttached = IsAlive(_visBeardInstance?.GetValue(vis));
+			bool hairPrefab = HasItemPrefab(hairHash);
+			bool beardPrefab = HasItemPrefab(beardHash);
+			// where the objects ended up: "parent=None" means the game hung them from a null joint (the object exists
+			// and is not on the head - the other way this feature fails without an error)
+			string hairParent = ParentName(_visHairInstance?.GetValue(vis));
+			Transform joint = _visHelmet?.GetValue(vis) as Transform;
+			ZNetView nv = vis.GetComponent<ZNetView>();
+			ZDO zdo = nv != null ? nv.GetZDO() : null;
+			string zdoText = zdo != null
+				? $"zdoHair={zdo.GetInt(ZDOVars.s_hairItem)} zdoBeard={zdo.GetInt(ZDOVars.s_beardItem)} "
+					+ $"zdoModel={zdo.GetInt(ZDOVars.s_modelIndex)} owner={nv.IsOwner()}"
+				: "zdo=null";
+			return $"hairInst={hairAttached} beardInst={beardAttached} prefabHair={hairPrefab} prefabBeard={beardPrefab} "
+				+ $"hairParent={(hairParent.Length > 0 ? hairParent : "-")} joint={(joint != null ? joint.name : "NULL")} "
+				+ $"isPlayer={vis.m_isPlayer} armorStand={vis.m_isArmorStand} {zdoText}";
+		}
+		catch (Exception ex)
+		{
+			return "diagnostico falhou: " + ex.Message;
+		}
+	}
+
+	/// <summary>Would <c>AttachItem</c> find this hash? (hair/beard are ObjectDB items of type Customization)</summary>
+	private static bool HasItemPrefab(int hash)
+	{
+		return hash != 0 && ObjectDB.instance != null && ObjectDB.instance.GetItemPrefab(hash) != null;
+	}
+
+	/// <summary>A reflected Unity object that still exists (a destroyed one is "not alive" but not a null reference).</summary>
+	private static bool IsAlive(object value)
+	{
+		return value is GameObject gameObject && gameObject != null;
+	}
+
+	/// <summary>The parent's name of a reflected GameObject ("None" when it has none - see the diagnostic).</summary>
+	private static string ParentName(object value)
+	{
+		if (value is GameObject gameObject && gameObject != null)
+		{
+			return gameObject.transform.parent != null ? gameObject.transform.parent.name : "None";
+		}
+		return "";
+	}
+
+	/// <summary>The companion's name for the diagnostic line (never per frame).</summary>
+	private string NameForLog()
+	{
+		string stored = _nview?.GetZDO()?.GetString(NameHash, "");
+		if (!string.IsNullOrEmpty(stored))
+		{
+			return stored;
+		}
+		Character character = GetComponent<Character>();
+		return character != null && !string.IsNullOrEmpty(character.m_name) ? character.m_name : name;
 	}
 
 	internal float GetTotalArmor()

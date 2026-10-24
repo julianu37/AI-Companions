@@ -251,14 +251,14 @@ internal sealed class CompanionAppearancePanel : MonoBehaviour
 			Close();
 			return;
 		}
-		// the local effect first (the companion changes in front of the player, through the game's own VisEquipment
-		// setters, which are the networked ones), then the durable write
-		setup.ApplyAppearance(appearance);
+		// Fase 3.21: the game's own setters (VisEquipment.SetHairItem/SetBeardItem/SetModel/SetSkinColor/SetHairColor)
+		// write the look into the ZDO themselves, but only when this game owns it - so the claim comes first and the
+		// visual apply travels with the durable write (if the claim hasn't arrived yet, both run on the next tick).
 		string data = appearance.Serialize();
-		ZNetView nv = setup.GetComponent<ZNetView>();
 		bool written = setup.MHR_WriteOrQueue(delegate
 		{
-			nv?.GetZDO()?.Set(CompanionSetup.AppearanceHash, data);
+			setup.ApplyAppearance(appearance);
+			setup.GetComponent<ZNetView>()?.GetZDO()?.Set(CompanionSetup.AppearanceHash, data);
 		});
 		CompanionsPlugin.Log?.LogInfo($"[AppearancePanel] \"{who}\": aparencia aplicada (gender={appearance.ModelIndex}, "
 			+ $"hair={appearance.HairItem}, beard={appearance.BeardItem}); HC_Appearance "

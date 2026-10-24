@@ -88,6 +88,26 @@ public class CompanionPanel
 
 	private Slider _hairBrightSlider;
 
+	/// <summary>
+	/// Fase 3.21 (bug dos sliders): the colours the companion already had when the editor opened, kept aside because
+	/// <see cref="BuildCustomColumn"/> ends by writing the starter's own defaults into <see cref="_current"/> (its
+	/// sliders are born on those values, which is right for the starter). In edit mode the stored colours are the truth,
+	/// and <see cref="ApplyAppearanceToControls"/> puts them back before moving the sliders - without this the editor
+	/// reopened showing the default colours (the sliders "went back to the start") and the stored ones were lost.
+	/// </summary>
+	private Vector3 _storedSkinColor;
+
+	private Vector3 _storedHairColor;
+
+	/// <summary>The last (hair, beard) pair logged by the preview diagnostic, so a slider drag logs once per item.</summary>
+	private string _lastPreviewHairLog;
+
+	/// <summary>The haircut/beard hashes last applied to the preview clone: the game's attach cache is only cleared when
+	/// one of them really changed (see <see cref="ApplyCurrentToClone"/>).</summary>
+	private int _lastPreviewHairHash = int.MinValue;
+
+	private int _lastPreviewBeardHash = int.MinValue;
+
 	private GameObject _dvergerGroup;
 
 	private CompanionTierDef _selectedDvergerVariant;
@@ -273,6 +293,9 @@ public class CompanionPanel
 		// whether the appearance even applies (a dverger's look is its prefab), so it is read from the target too.
 		_current = AppearanceEditMode ? ReadTargetAppearance() : CompanionAppearance.Default();
 		_selectedTier = (AppearanceEditMode ? TierOfTarget() : null) ?? CompanionTierData.Companion;
+		// Fase 3.21: the colours the companion already has, kept before anything touches _current (see the fields below)
+		_storedSkinColor = _current.SkinColor;
+		_storedHairColor = _current.HairColor;
 		if (buttonHeight <= 0f)
 		{
 			buttonHeight = 30f;
@@ -605,9 +628,15 @@ public class CompanionPanel
 		float num12 = Mathf.Max(num9, num11);
 		num -= num12;
 		component2.sizeDelta = new Vector2(0f, 0f - num + 8f);
-		float t = ((_skinSlider != null) ? _skinSlider.value : 0.05f);
-		_current.SkinColor = Utils.ColorToVec3(Color.Lerp(SkinLight, SkinDark, t));
-		UpdateHairColor();
+		// Fase 3.21 (bug dos sliders): writing _current from the sliders that were just born is the starter's job only.
+		// In the editor it threw away the stored colours (they were read from the ZDO at the top of Build), so the
+		// "nearest point" of the next step was always the default one and the panel reopened on the start positions.
+		if (!AppearanceEditMode)
+		{
+			float t = ((_skinSlider != null) ? _skinSlider.value : 0.05f);
+			_current.SkinColor = Utils.ColorToVec3(Color.Lerp(SkinLight, SkinDark, t));
+			UpdateHairColor();
+		}
 		RefreshTypeButtons();
 		RefreshGenderButtons();
 	}
@@ -877,7 +906,14 @@ public class CompanionPanel
 	private CompanionAppearance ReadTargetAppearance()
 	{
 		string data = EditTarget != null ? EditTarget.GetComponent<ZNetView>()?.GetZDO()?.GetString(CompanionSetup.AppearanceHash) : null;
-		return string.IsNullOrEmpty(data) ? CompanionAppearance.Default() : CompanionAppearance.Deserialize(data);
+		CompanionAppearance appearance = string.IsNullOrEmpty(data) ? CompanionAppearance.Default() : CompanionAppearance.Deserialize(data);
+		// Fase 3.21 (bug dos sliders): the raw value and what came out of it, once per open - it is what tells whether
+		// the panel is showing what the ZDO holds (and it is the only place the string is available)
+		CompanionsPlugin.Log?.LogInfo($"[AppearanceDiag] abrindo o editor: HC_Appearance "
+			+ (string.IsNullOrEmpty(data) ? "(vazia - usando o padrao)" : $"\"{data}\"")
+			+ $" -> gender={appearance.ModelIndex} hair=\"{appearance.HairItem}\" beard=\"{appearance.BeardItem}\" "
+			+ $"skin={Vec(appearance.SkinColor)} cabelo={Vec(appearance.HairColor)}");
+		return appearance;
 	}
 
 	/// <summary>
@@ -1737,8 +1773,15 @@ public class CompanionPanel
 		{
 			_beardGroup.SetActive(_current.ModelIndex == 0);
 		}
-		// SetValueWithoutNotify does not raise onValueChanged, so _current keeps exactly the stored colours (the sliders
-		// only become the way back to them, and the moment the player moves one the gradient takes over)
+		// Fase 3.21: the stored colours win over anything the starter's defaults may have written into _current (see
+		// _storedSkinColor). SetValueWithoutNotify does not raise onValueChanged, so _current keeps exactly the stored
+		// colours (the sliders only become the way back to them, and the moment the player moves one the gradient takes
+		// over).
+		if (AppearanceEditMode)
+		{
+			_current.SkinColor = _storedSkinColor;
+			_current.HairColor = _storedHairColor;
+		}
 		if (_skinSlider != null)
 		{
 			_skinSlider.SetValueWithoutNotify(NearestSkinT(_current.SkinColor));
@@ -1749,6 +1792,16 @@ public class CompanionPanel
 			_hairHueSlider.SetValueWithoutNotify(hue);
 			_hairBrightSlider.SetValueWithoutNotify(bright);
 		}
+		CompanionsPlugin.Log?.LogInfo($"[AppearanceDiag] painel da aparencia ({(AppearanceEditMode ? "edicao" : "starter")}): "
+			+ $"cor guardada skin={Vec(_storedSkinColor)} cabelo={Vec(_storedHairColor)} -> sliders skin={_skinSlider?.value:0.00} "
+			+ $"tom={_hairHueSlider?.value:0.00} brilho={_hairBrightSlider?.value:0.00}; hair=\"{_current.HairItem}\" "
+			+ $"beard=\"{_current.BeardItem}\" gender={_current.ModelIndex}");
+	}
+
+	/// <summary>A colour for the log ("0.951,0.820,0.680").</summary>
+	private static string Vec(Vector3 v)
+	{
+		return v.x.ToString("0.000") + "," + v.y.ToString("0.000") + "," + v.z.ToString("0.000");
 	}
 
 	/// <summary>The point of the skin gradient (<see cref="SkinLight"/> to <see cref="SkinDark"/>) closest to a stored
@@ -1842,6 +1895,11 @@ public class CompanionPanel
 		_beardIndex = Mathf.Max(0, _beards.IndexOf(_current.BeardItem));
 		RefreshPickerLabels();
 		_listsLoaded = true;
+		// Fase 3.21: the indices the pickers show, once per open - "index 0" for a stored name that is not in the list
+		// is what would make the picker label say Hair1 while the stored one was something else
+		CompanionsPlugin.Log?.LogInfo($"[AppearanceDiag] listas: {_hairs.Count} cabelos, {_beards.Count - 1} barbas "
+			+ $"(+ nenhuma); guardado hair=\"{_current.HairItem}\" -> indice {_hairIndex}, beard=\"{_current.BeardItem}\" "
+			+ $"-> indice {_beardIndex}");
 	}
 
 	private void SetupPreviewClone()
@@ -2105,12 +2163,27 @@ public class CompanionPanel
 				CompanionsPlugin.Log.LogWarning("[Panel] ApplyCurrentToClone — NO Humanoid on clone!");
 			}
 		}
-		else
+		int hairHash = 0;
+		int beardHash = 0;
+		if (_selectedTier.CanWearArmor)
 		{
+			hairHash = (string.IsNullOrEmpty(_current.HairItem) ? "Hair1" : _current.HairItem).GetStableHashCode();
+			beardHash = ((_current.ModelIndex == 0) ? (_current.BeardItem ?? "") : "").GetStableHashCode();
+			// Fase 3.21 (bug do cabelo/barba): the same cache the real companion needs cleared (see
+			// CompanionSetup.ResetVisualItemCache) - the clone's VisEquipment remembers the hash it "already" attached
+			// and never tries the object again after one failed attempt, so the preview kept the first haircut for ever.
+			// Only when the haircut/beard really changed: this method also runs on every slider frame, and re-attaching
+			// the hair there would throw the object away and rebuild it 60 times a second.
+			if (hairHash != _lastPreviewHairHash || beardHash != _lastPreviewBeardHash)
+			{
+				CompanionSetup.PrepareVisualAttach(component);
+				_lastPreviewHairHash = hairHash;
+				_lastPreviewBeardHash = beardHash;
+			}
 			_currentModelIndex?.SetValue(component, -1);
 			component.SetModel(_current.ModelIndex);
-			component.SetHairItem((string.IsNullOrEmpty(_current.HairItem) ? "Hair1" : _current.HairItem).GetStableHashCode());
-			component.SetBeardItem(((_current.ModelIndex == 0) ? (_current.BeardItem ?? "") : "").GetStableHashCode());
+			component.SetHairItem(hairHash);
+			component.SetBeardItem(beardHash);
 			component.SetSkinColor(_current.SkinColor);
 			component.SetHairColor(_current.HairColor);
 		}
@@ -2130,6 +2203,19 @@ public class CompanionPanel
 		foreach (Transform transform in componentsInChildren)
 		{
 			transform.gameObject.layer = num6;
+		}
+		if (_selectedTier.CanWearArmor)
+		{
+			// Fase 3.21: one line per change of haircut/beard (a slider drag must not fill the log) - it proves whether
+			// the clone got the objects and whether the prefab of that hash exists at all
+			string pair = _current.ModelIndex + ":" + hairHash + ":" + beardHash;
+			if (pair != _lastPreviewHairLog)
+			{
+				_lastPreviewHairLog = pair;
+				CompanionsPlugin.Log?.LogInfo($"[AppearanceDiag] preview: gender={_current.ModelIndex} "
+					+ $"hair=\"{_current.HairItem}\"({hairHash}) beard=\"{_current.BeardItem}\"({beardHash}) | depois: "
+					+ CompanionSetup.DescribeVisualState(component, hairHash, beardHash));
+			}
 		}
 	}
 
@@ -2512,6 +2598,10 @@ public class CompanionPanel
 		if (component4 != null)
 		{
 			component4.onClick.RemoveAllListeners();
+			// the same trap as CreateButton: the craft-button template can come interactable=false (the game
+			// disables it whenever nothing is craftable), and a clone would silently ignore every click - the
+			// hair/beard arrows stopped responding after the first inventory open because of this
+			component4.interactable = true;
 			component4.transition = Selectable.Transition.None;
 			component4.navigation = new Navigation
 			{
