@@ -96,7 +96,7 @@ public partial class UpkeepController
 			}
 			// as many as it can carry in one go, from the chest holding the most
 			float w = WeightOf(from, k.Shared);
-			int carry = w > 0f ? Mathf.FloorToInt((CompanionTierData.MaxCarryWeight - _humanoid.GetInventory().GetTotalWeight()) / (w * k.Cost)) : piles;
+			int carry = w > 0f ? Mathf.FloorToInt((CompanionCarry.Max(_humanoid) - _humanoid.GetInventory().GetTotalWeight()) / (w * k.Cost)) : piles;
 			int take = Mathf.Min(piles, Mathf.Min(carry, most / k.Cost)) * k.Cost;
 			if (take < k.Cost)
 			{

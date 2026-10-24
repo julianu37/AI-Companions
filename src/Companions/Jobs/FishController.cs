@@ -1096,7 +1096,7 @@ public class FishController : MonoBehaviour
 			return false;
 		}
 		float full = ModConfig.FishBagFull?.Value ?? 0.9f;
-		return inv.GetEmptySlots() == 0 || inv.GetTotalWeight() >= CompanionTierData.MaxCarryWeight * full;
+		return inv.GetEmptySlots() == 0 || inv.GetTotalWeight() >= CompanionCarry.Max(inv) * full;
 	}
 
 	// ------------------------------------------------------------------ counts and targets

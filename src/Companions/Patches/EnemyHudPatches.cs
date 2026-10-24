@@ -68,7 +68,7 @@ public static class EnemyHudPatches
 				if (component2 != null)
 				{
 					Inventory inventory = component2.GetInventory();
-					float value = ((inventory != null) ? Mathf.Clamp01(inventory.GetTotalWeight() / CompanionTierData.MaxCarryWeight) : 0f);
+					float value = CompanionCarry.Fraction(inventory);
 					guiBar2.SetValue(value);
 				}
 			}
@@ -126,7 +126,7 @@ public static class EnemyHudPatches
 					if (humanoid != null)
 					{
 						Inventory inventory = humanoid.GetInventory();
-						float value3 = ((inventory != null) ? Mathf.Clamp01(inventory.GetTotalWeight() / CompanionTierData.MaxCarryWeight) : 0f);
+						float value3 = CompanionCarry.Fraction(inventory);
 						value2.WeightBar.SetValue(value3);
 						OverheadStats.Update(value, value2.StaminaBar, value2.StaminaComp);
 					}

@@ -31,6 +31,14 @@ public static class CompanionTierData
 
 	public static int Price => ModConfig.CompanionPrice.Value;
 
+	/// <summary>
+	/// The <b>base</b> carry ceiling: <c>[General] MaxCarryWeight</c> (300 by default, like a player). It is NOT the
+	/// ceiling a companion actually has - items that add carry weight (the Megingjord and anything built the same way)
+	/// add on top of it even with nothing equipped, and the game's own <c>Player.GetMaxCarryWeight</c> is never asked
+	/// for a companion. <b>Use <see cref="CompanionCarry.Max(Inventory)"/> (or its <see cref="Humanoid"/> /
+	/// <see cref="CompanionSetup"/> overloads) whenever an inventory is at hand</b>; this value stays as the base that
+	/// <see cref="CompanionCarry"/> adds to.
+	/// </summary>
 	public static float MaxCarryWeight => ModConfig.MaxCarryWeight.Value;
 
 	// Traducao PT-BR - auditoria de cobertura: the tier name as the player reads it. The localized text is written in

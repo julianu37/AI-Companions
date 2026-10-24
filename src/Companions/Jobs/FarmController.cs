@@ -1158,7 +1158,7 @@ public class FarmController : MonoBehaviour
 		{
 			return true;
 		}
-		return inventory.GetTotalWeight() >= ModConfig.HarvestOverweightThreshold.Value;
+		return inventory.GetTotalWeight() >= CompanionCarry.UnloadThreshold(inventory);
 	}
 
 	private bool HasCropOutput()

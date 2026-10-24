@@ -176,7 +176,10 @@ public class HarvestController : MonoBehaviour
 
 	private static float DropScanRadius => ModConfig.HarvestDropScanRadius.Value;
 
-	private static float OverweightThreshold => ModConfig.HarvestOverweightThreshold.Value;
+	// Where a gathering companion goes home to unload: [Gathering] OverweightThreshold is the BASE and the item bonus
+	// adds on top of it (a Megingjord in the pack turns 298 into 448), the same rule as the carry ceiling
+	// (CompanionCarry.Max). Instance, not static: it needs this companion's inventory.
+	private float OverweightThreshold => CompanionCarry.UnloadThreshold(_humanoid?.GetInventory());
 
 	public bool IsInGatherMode { get; private set; }
 

@@ -1851,7 +1851,7 @@ public class CompanionAI : BaseAI
 					continue;
 				}
 				float num2 = inventory.GetTotalWeight() + component.m_itemData.GetWeight();
-				if (!(num2 > CompanionTierData.MaxCarryWeight))
+				if (!(num2 > CompanionCarry.Max(humanoid)))
 				{
 					float num3 = Vector3.Distance(component.transform.position, vector);
 					if (num3 < 0.3f)
