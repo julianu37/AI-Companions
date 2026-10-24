@@ -52,10 +52,10 @@ o `Companions.csproj`, as chaves `HC_*` e os créditos/avisos do upstream (**MIT
   listar o Jotunn como requisito em release/README. (A skill `jotunn` da equipe continua no repositório como
   referência de framework, mas **não** se aplica a este mod.)
 - Target: **.NET Framework 4.7.2 (net472)**, C#.
-- Versão: **1.8.0** — **mergeada e publicada na `main`** em 24/10/2026 (fonte única: `PluginVersion` em
-  `src/Companions/Core/CompanionsPlugin.cs`). A `1.7.0` saiu em 23/10 e a **1.7.1 foi pulada de propósito** (pedido do
-  jogador); a `feat/multi-companheiro` e a `fix/peso-cinto` foram mergeadas (`--no-ff`) e podem ser apagadas — a `main`
-  é a linha de release.
+- Versão: **1.8.1** — **mergeada e publicada na `main`** em 24/10/2026 (fonte única: `PluginVersion` em
+  `src/Companions/Core/CompanionsPlugin.cs`). A `1.7.0` saiu em 23/10, a `1.8.0` em 24/10 e a **1.7.1 foi pulada de
+  propósito** (pedido do jogador); as branches `feat/multi-companheiro`, `fix/peso-cinto` e `feat/llm-groq` foram
+  mergeadas (`--no-ff`) e podem ser apagadas — a `main` é a linha de release.
 
 ## Caminhos desta máquina
 
@@ -113,11 +113,17 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
 `amount`) → `CompanionOrders` (intenção → `CompanionSetup.ApplyActionMode`, `SetCombatStance`, `MHR_JobRules`,
 `DirectEngage`, `EquipItem`, `ItemDrop.DropItem`, recall...).
 
-- **Endpoint (desde a 1.7.0): `[IA] BaseUrl` = `https://openrouter.ai/api/v1` e `[IA] Modelo` = `openrouter/free`**
-  (**OpenRouter é o padrão**; a `ApiKey` é **obrigatória** — a chave gratuita sai em `openrouter.ai/keys`). **LM Studio
-  e Ollama continuam suportados** como opção local/offline (`http://127.0.0.1:1234/v1` + `qwen2.5-3b-instruct`;
-  `127.0.0.1` e **não** `localhost`, que resolve IPv6 primeiro e custa ~2,5 s por ordem). O teste em jogo da 1.7.0 foi
-  feito com o OpenRouter. Privacidade: com OpenRouter o texto da ordem **sai da máquina**; com LM Studio/Ollama, não.
+- **Endpoint (desde a 1.8.1): `[IA] BaseUrl` = `https://api.groq.com/openai/v1` e `[IA] Modelo` = `openai/gpt-oss-20b`**
+  (**Groq é o padrão**; a `ApiKey` é **obrigatória** — a chave gratuita sai em `console.groq.com/keys`). **Ordem de
+  preferência: Groq → LM Studio/Ollama (local) → OpenRouter.** O **LM Studio/Ollama continua suportado** como opção
+  local/offline (`http://127.0.0.1:1234/v1` + `qwen2.5-3b-instruct`; `127.0.0.1` e **não** `localhost`, que resolve IPv6
+  primeiro e custa ~2,5 s por ordem) e o **OpenRouter** (`https://openrouter.ai/api/v1` + `openrouter/free`) **continua
+  funcionando e documentado**, mas foi rebaixado para último porque o tier gratuito é lento/imprevisível. Limites do
+  tier gratuito do Groq para o `gpt-oss-20b` (fonte: `console.groq.com/docs/rate-limits`): **30 RPM, 1.000 RPD, 8.000 TPM,
+  200.000 TPD** — com ~1.800 tokens por ordem o TPM dá **~4 ordens/min** e o excedente volta **429**. Structured outputs:
+  o `gpt-oss-20b` suporta `json_schema` **strict** (o modo que usamos); streaming/tool use não, e o mod não usa nenhum.
+  Privacidade: com Groq/OpenRouter o texto da ordem **sai da máquina**; com LM Studio/Ollama, não. A **voz** é local nos
+  três casos. (A 1.7.0 tinha aberto o OpenRouter como padrão; a 1.8.1 trocou.)
 - Config `[IA]` no `.cfg` (sem segredos no código): `Ligado`, `BaseUrl`, `Modelo`, `ApiKey`, `Temperatura`,
   `TimeoutSegundos`, `Prefixo`, `MostrarRespostaNoChat`, `CooldownSegundos`, `RaioDeAlvo` (até onde procurar a
   criatura citada numa ordem de ataque; a que estiver na mira vale sempre), `Personalidade` (texto livre do
