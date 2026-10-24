@@ -405,9 +405,10 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	/// <para>It is drawn as a toggle that is <b>on</b> (<see cref="GoldColor"/>, the very colour
 	/// <see cref="ApplyToggleVisual"/> paints a live toggle with, and a white centered label), because the player asked
 	/// for it to look like the rest of the section - but it is <b>an action, not a selector</b>: the look is
-	/// <b>fixed</b> (no "Desligado", no colour change after the click) and <c>transition = None</c> is what keeps the
-	/// <see cref="Selectable"/> from tinting the gold grey on hover/press, which is how a <see cref="Button"/> would
-	/// normally answer. The Image still is a raycast target, so the whole block takes the click.</para>
+	/// <b>fixed</b> (no "Desligado", no colour change after the click), while the default <see cref="ColorTint"/>
+	/// transition is left on exactly like the toggle buttons, which gives the same <b>soft highlight</b> on hover and
+	/// the momentary press tint - neither of them persists, because nothing here stores a state. The Image still is a
+	/// raycast target, so the whole block takes the click.</para>
 	///
 	/// <para>It is only active while the provider of the dropdown has a key page
 	/// (<see cref="LlmProviders.KeyUrlAt"/>), i.e. Groq and OpenRouter; LM Studio and "Personalizado" show nothing
@@ -1582,15 +1583,15 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 		// ---- Fase 3.21c: the free-key link, on the free right half of the "Chave de API" line ----
 		// It looks exactly like a toggle that is ON - the same GoldColor of ApplyToggleVisual and a white centered
-		// label, no underline - because that is the visual language of this section. It is an ACTION, not a selector,
-		// so the look never changes: `transition = None` is what stops the Selectable from greying the gold on
-		// hover/press (a plain Button would paint its pressed/disabled tint over the Image), and nothing here follows
-		// the click. The Image stays a raycast target so the whole block is clickable. It starts hidden:
-		// RefreshProviderDropdown (every open) shows it only for the providers that have a key page.
+		// label, no underline - because that is the visual language of this section. It is an ACTION, not a selector:
+		// nothing here follows the click, so the gold never becomes "Desligado". The transition is left at the default
+		// ColorTint on purpose - it is what gives the SAME soft highlight the toggle buttons have on hover (plus the
+		// momentary press tint), and none of it persists. The Image stays a raycast target so the whole block is
+		// clickable. It starts hidden: RefreshProviderDropdown (every open) shows it only for the providers that have
+		// a key page.
 		float keyLinkX = LlmRightX + 8f;
 		_llmKeyLink = CreateButton(Page, "LlmKeyLink", keyLinkX, RowLlm(LlmProviderRow + 3),
 			RightEdge - 8f - keyLinkX, RowH, ModLocalization.Loc("hc_ai_llm_key_link"), OpenLlmKeyPage);
-		_llmKeyLink.Button.transition = Selectable.Transition.None;
 		_llmKeyLink.Button.interactable = true;
 		_llmKeyLink.Image.color = GoldColor;
 		_llmKeyLink.Label.alignment = TextAlignmentOptions.Center;
