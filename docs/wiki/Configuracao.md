@@ -133,6 +133,29 @@ primeiro companheiro abertos; e o painel **se fecha sozinho** quando você morre
 
 ---
 
+## Peso e capacidade de carga
+
+O limite de peso do companheiro é **do mod**, não do jogo: o vanilla **não** impõe teto a um `Humanoid` que não é
+jogador. Duas chaves decidem o comportamento e **as duas são o valor base** — itens com **bônus de carga** somam
+**por cima** delas:
+
+| Seção / chave | Padrão | O que faz |
+|---|---|---|
+| `[General] MaxCarryWeight` | `300` | O teto **base** de peso do companheiro (50–2000). É o `x/300` do painel e da barra do **HUD** e o que dispara o **`Encumbered`** (andar lento). O **Megingjord** (+150) soma por cima: no padrão, o teto efetivo dele vira **450** |
+| `[Gathering] OverweightThreshold` | `298` | O peso **base** em que o companheiro de **coleta** (madeira, pedra, minério, forragem e a roça da horta) para de pegar e volta para casa para descarregar (50–500). Com o **Megingjord** na mochila ele só volta perto de **448**. **Caça e pesca não usam esta chave** (elas têm as próprias opções de mochila cheia) |
+
+> **O bônus vale com o item em qualquer lugar da mochila** — não precisa equipar no slot de utilidade (num
+> `Humanoid` que não é jogador ele nem sobrevive ao reload). E vale **uma vez só**: dois cintos iguais **não somam**,
+> como o jogo trata os efeitos de equipamento. O valor é lido do **asset** (`SE_Stats.m_addMaxCarryWeight`), nunca
+> de um `150` fixo — um cinto modificado para +250 funciona igual.
+>
+> O teto efetivo vale no **`Encumbered`**, no `x/450` do **painel do companheiro** e da barra do **HUD**, na recusa
+> de **loot** e do **recolhimento do chão**, no **ferreiro**, no **upkeep**, no "mochila cheia" da **pesca/caça** e
+> no aviso de "estou cheio". Cada mudança de bônus escreve **uma linha** no log (nunca por frame):
+> `[Carry] "Thorin": +150 de capacidade (Megingjord) - teto 450`.
+
+---
+
 ## O que **nós** mudamos em relação ao upstream
 
 Além da tradução e da camada de IA, o projeto ajustou alguns padrões do upstream. Se você veio do Offline

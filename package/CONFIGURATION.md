@@ -47,7 +47,10 @@ Todas as configurações do mod: o que cada uma faz e com que valor ela começa.
 O básico: quanto custa um companheiro, a vida, a stamina e os limites de carga dele, e até onde vai a "casa".
 
 **CompanionPrice** — Padrão: 2000 · Faixa: 0 – 50000  
-O preço de um companheiro extra, para conseguir mais companheiros (em breve).
+O preço de um companheiro extra no Trader, em moedas do banco compartilhado. 0 = de graça.
+
+**MaxCompanions** — Padrão: 10 · Faixa: 1 – 10  
+Fase 3.19: o número máximo de companheiros que você pode ter neste mundo (10 é o teto). A conta inclui os mortos e os perdidos: a lápide traz o MESMO companheiro de volta, então morrer não abre vaga. Ao chegar no limite, o Trader, o invocador do painel da IA e o companheiro inicial recusam criar outro (o Santuário continua podendo recuperar um companheiro morto). Para abrir vaga, dispense um pelo menu da roda (Dispensar).
 
 **SpawnStarterCompanion** — Padrão: Ligado  
 Na primeira vez que você entra num mundo com um personagem, é oferecido um companheiro de graça.
@@ -71,7 +74,7 @@ Mostra o painel de status dos companheiros embaixo do minimapa.
 Mostra as barras de vida e stamina em cima da cabeça de cada companheiro.
 
 **MaxCarryWeight** — Padrão: 300 · Faixa: 50 – 2000  
-Quanto peso um companheiro consegue carregar (um jogador carrega 300). Companheiros de coleta e de caça voltam para casa para descarregar antes de chegar nesse limite.
+O peso BASE que um companheiro consegue carregar (um jogador carrega 300). Companheiros de coleta e de caça voltam para casa para descarregar antes de chegar nesse limite. Itens que aumentam a capacidade de carga somam por cima deste valor: o Megingjord, por exemplo, dá +150 e vale com o cinto em qualquer lugar da mochila do companheiro (não precisa equipar), então com este valor em 300 o teto dele passa a 450. Dois cintos iguais não somam: o bônus conta uma vez só, como no jogo.
 
 **BaseHealth** — Padrão: 25 · Faixa: 1 – 500  
 A vida de um companheiro antes da comida (um jogador tem 25).
@@ -433,7 +436,7 @@ Quando a mochila de um companheiro de coleta está cheia e ele não tem baú de 
 Itens que a limpeza de tranqueiras nunca joga fora, comparados por parte do nome do item.
 
 **OverweightThreshold** — Padrão: 298 · Faixa: 50 – 500  
-Um companheiro de coleta para de pegar coisas neste peso de carga.
+O peso (valor BASE) em que um companheiro de coleta - madeira, pedra, minério, forragem e a roça da horta - para de pegar coisas e volta para casa para descarregar. Itens que aumentam a capacidade de carga somam por cima deste valor, como no MaxCarryWeight: com o Megingjord na mochila (+150) e este valor em 298, ele só volta para casa perto de 448. Caça e pesca não usam este limite (elas têm as próprias opções de mochila cheia).
 
 ## Hunting
 
@@ -847,16 +850,16 @@ Diagnóstico de UI: ligado, escreve no log o que está na frente dos controles d
 A camada de IA do projeto: ordens por texto e por voz, personalidade, memória e o reconhecimento de voz local.
 
 **Ligado** — Padrão: Ligado  
-Fase 3.1: digite uma ordem no chat do jogo ("colete 20 de madeira", "segue", "para") e os companheiros a executam. A ordem é interpretada por um LLM local através de uma API compatível com a OpenAI. Desligado = nada é enviado ao modelo.
+Fase 3.1: digite uma ordem no chat do jogo ("colete 20 de madeira", "segue", "para") e os companheiros a executam. A ordem é interpretada por um LLM (OpenRouter por padrão, ou um servidor local) através de uma API compatível com a OpenAI. Desligado = nada é enviado ao modelo.
 
-**BaseUrl** — Padrão: `http://localhost:1234/v1`  
-URL base do servidor compatível com a OpenAI (LM Studio: http://localhost:1234/v1, Ollama: http://localhost:11434/v1). /chat/completions é adicionado automaticamente. Esta é uma opção de texto: edite no arquivo .cfg.
+**BaseUrl** — Padrão: `https://openrouter.ai/api/v1`  
+URL base do servidor compatível com a OpenAI. Padrão: OpenRouter (https://openrouter.ai/api/v1), que pede a ApiKey - a chave gratuita sai em openrouter.ai/keys. Para rodar tudo local: LM Studio (http://127.0.0.1:1234/v1) ou Ollama (http://127.0.0.1:11434/v1); nesses dois use 127.0.0.1 em vez de localhost (no Windows o localhost resolve primeiro para IPv6 e o servidor só escuta IPv4, o que custa cerca de 2,5 s por ordem). /chat/completions é adicionado automaticamente. Esta é uma opção de texto: edite no arquivo .cfg.
 
-**Modelo** — Padrão: `google/gemma-4-e4b`  
-Nome do modelo a enviar ao servidor (o nome que o servidor lista para o modelo carregado). Opção de texto: edite no arquivo .cfg.
+**Modelo** — Padrão: `openrouter/free`  
+Nome do modelo a enviar ao servidor. Padrão: openrouter/free (OpenRouter, sem custo). No LM Studio use o nome que o servidor lista (ex.: qwen2.5-3b-instruct). Opção de texto: edite no arquivo .cfg.
 
 **ApiKey** — Padrão: ``  
-Chave de API, se o servidor pedir uma. Deixe vazio para LM Studio/Ollama em localhost. Opção de texto: edite no arquivo .cfg. Nunca coloque uma chave num config compartilhado.
+Chave de API, se o servidor pedir uma. No OpenRouter é obrigatória (a gratuita sai em openrouter.ai/keys). Deixe vazio para LM Studio/Ollama rodando na sua máquina. Opção de texto: edite no arquivo .cfg. Nunca coloque uma chave num config compartilhado.
 
 **Temperatura** — Padrão: 0.1 · Faixa: 0 – 1  
 O quanto o modelo pode improvisar. Mantenha baixo para que a mesma ordem dê sempre o mesmo JSON.
@@ -928,16 +931,16 @@ Ordens para o companheiro: colete madeira, pedra, minerio, ferro, segue, para, v
 Fase 3.3: de qual microfone gravar, como o índice da lista que o log imprime na inicialização ([STT] Push-to-talk: ... 0: nome, 1: nome). 0 = o primeiro (o padrão do Windows).
 
 **VozMostrarTexto** — Padrão: Ligado  
-Fase 3.3: mostra o que o microfone ouviu ("Entendi: "colete 10 madeiras"") no chat e no HUD, e faz o companheiro repetir, para uma transcrição errada ser fácil de notar. Desligado = o texto reconhecido só é escrito no log.
+Fase 3.3: mostra o que o microfone ouviu ("Entendi: "colete 10 madeiras"") no chat e no HUD. Fase 3.3d: a transcrição aparece no balão do PRÓPRIO JOGADOR (não no do companheiro), para uma transcrição errada ser fácil de notar - quem responde é o companheiro, com o balão e A VOZ dele. Desligado = o texto reconhecido só é escrito no log.
 
 **PainelTecla** — Padrão: `I`  
-Fase 3.7: abre o painel da IA no jogo, onde a personalidade (preset ou texto livre), a voz do companheiro (com o botão Ouvir), o volume, a velocidade da fala, a memória, a conversa e a tecla do push-to-talk são mudados sem editar este arquivo. Cada mudança é salva na hora. O padrão é I: o jogo e o mod não usam essa tecla. A tecla não é roubada de uma caixa de texto (o chat, o console e o campo de busca ficam em paz). Opção de tecla: edite no arquivo .cfg ou clique nela no painel F8.
+Fase 3.7: abre o painel da IA no jogo. A aba IA tem o invocador de companheiros de graça, o volume e a velocidade da fala, a memória, a conversa e a tecla do push-to-talk. Cada companheiro tem a sua aba, com o nome, o tipo (renascer), a voz (com o botão Ouvir) e a personalidade DELE - os valores de [IA] abaixo são o padrão de quem não tem escolha própria. Cada mudança é salva na hora. O padrão é I: o jogo e o mod não usam essa tecla. A tecla não é roubada de uma caixa de texto (o chat, o console e o campo de busca ficam em paz). Opção de tecla: edite no arquivo .cfg ou clique nela no painel F8.
 
 **TtsLigado** — Padrão: Ligado  
 Fase 3.4: o companheiro FALA as respostas em voz alta. A fala é sintetizada no seu computador pelo Kokoro-82M (via sherpa-onnx, dentro do jogo, sem processo filho e sem nada sair da sua máquina), na voz de TtsVoz, e sai no lugar onde o companheiro está (não no centro da tela). Desligado = ele só mostra o balão e o chat, como antes. A primeira fala de cada sessão espera o modelo carregar (~1 s, em segundo plano, quando você entra no mundo).
 
 **TtsVoz** — Padrão: 42 · Faixa: 0 – 100  
-Fase 3.4: qual voz do Kokoro usar. As vozes em português do Brasil deste modelo são: 42 = pf_dora (feminina, o padrão), 43 = pm_alex (masculina) e 44 = pm_santa (masculina). Os outros números são de outros idiomas (45, por exemplo, soa chinês).
+Fase 3.4: qual voz do Kokoro usar. As vozes em português do Brasil deste modelo são: 42 = pf_dora (feminina, o padrão), 43 = pm_alex (masculina) e 44 = pm_santa (masculina). Os outros números são de outros idiomas (45, por exemplo, soa chinês). 0 (ou qualquer valor negativo) = a voz padrão (42).
 
 **TtsVelocidade** — Padrão: 1 · Faixa: 0.5 – 2  
 Fase 3.4: a que velocidade o companheiro fala (1 = normal; acima de 1 fala mais rápido). Também deixa a fala mais curta.

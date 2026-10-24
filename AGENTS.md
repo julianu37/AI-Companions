@@ -52,9 +52,10 @@ o `Companions.csproj`, as chaves `HC_*` e os créditos/avisos do upstream (**MIT
   listar o Jotunn como requisito em release/README. (A skill `jotunn` da equipe continua no repositório como
   referência de framework, mas **não** se aplica a este mod.)
 - Target: **.NET Framework 4.7.2 (net472)**, C#.
-- Versão: **1.7.0** — **mergeada e publicada na `main`** em 23/10/2026 (fonte única: `PluginVersion` em
-  `src/Companions/Core/CompanionsPlugin.cs`). A branch `feat/multi-companheiro` foi mergeada (`--no-ff`) e pode ser
-  apagada; a `main` é a linha de release.
+- Versão: **1.8.0** — **mergeada e publicada na `main`** em 24/10/2026 (fonte única: `PluginVersion` em
+  `src/Companions/Core/CompanionsPlugin.cs`). A `1.7.0` saiu em 23/10 e a **1.7.1 foi pulada de propósito** (pedido do
+  jogador); a `feat/multi-companheiro` e a `fix/peso-cinto` foram mergeadas (`--no-ff`) e podem ser apagadas — a `main`
+  é a linha de release.
 
 ## Caminhos desta máquina
 
@@ -366,6 +367,25 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
     no companheiro) para não precisar adivinhar se voltar.
   - **Correção da 1.7.0 — a introdução do OpenRouter:** ver a seção *Camada de IA* (`[IA] BaseUrl`/`Modelo`) e
     `docs/wiki/LLM-no-LM-Studio.md` (a página cobre OpenRouter primeiro e o LM Studio como alternativa local).
+- **Fase 3.22 — o peso efetivo do companheiro (1.8.0, branch `fix/peso-cinto`): o Megingjord soma de verdade.** O relato
+  do Nexus (*"coloco a megingjord no inventário do companion e ela não aumenta o peso em 150"*) tinha três causas
+  somadas: (1) o limite de peso é **nosso** (`[General] MaxCarryWeight`, 300) — o vanilla **não** limita um `Humanoid` que
+  não é `Player` (`Inventory.CanAddItem` só olha grade; não existe `m_maxWeight` na 1.0); (2) o `+150` do cinto é um
+  **status effect** (`item.m_shared.m_equipStatusEffect` → asset `SE_Stats` → **`m_addMaxCarryWeight` = 150, serializado
+  no asset**) e o **único consumidor** é `Player.GetMaxCarryWeight()`; (3) o `AutoEquipBest` escolhe `Utility` por
+  `GetArmor()` e o cinto tem armor 0, então ele nem equipava. **Correção:** novo `Companion/CompanionCarry.cs` —
+  `Base` (config) + `Bonus(inv)` lido **do asset** (`SE_Stats.m_addMaxCarryWeight`, nunca 150 chumbado), com o item em
+  **qualquer lugar da mochila** (decisão do jogador: `m_utilityItem` não persiste num `Humanoid` não-`Player`),
+  **deduplicado por referência do `StatusEffect`** (a mesma regra do `HashSet` de `Humanoid.UpdateEquipmentStatusEffects`
+  — dois cintos não somam), tudo cacheado por inventário (o `GetAllItems()` aloca; valida por `NrOfItems()` +
+  `GetTotalWeight()`, 0,5 s de gate, re-scan completo a cada 10 s, 12 entradas, `Reset()` no `OnSceneLoaded`) para
+  **zero alocação por frame** no caminho sem cinto. `Max(...)`/`Fraction(...)` passaram a valer em ~15 pontos
+  (Encumbered no `CompanionSetup`, `CompanionAI` do ímã, loot/recolher, pesca, caça, ferreiro, upkeep, HUD de cima,
+  painel do inventário), o `298f` fixo do "estou cheio" (`CompanionTalk`) virou `Max - 2`, e o
+  **`[Gathering] OverweightThreshold`** virou **base** (`UnloadThreshold = config + Bonus`): a coleta agora só volta
+  para casa perto de **448** com o cinto (298 + 150), continuando acima de 300. `CONFIGURATION.md` é **gerado** de
+  `ModConfig.cs` (`tools/gen_config_doc.py`) — regenerar sempre que o texto de uma config mudar. Teste em jogo do
+  jogador: *"ficou perfeito a correção do bug do usuário"*.
 - **Fase 3.7 — correções do teste em jogo (teclas do jogo digitando no campo, caixa de texto e rodapé):** (1) novo
   `Patches/TextInputKeyGuard.cs`: `ModTextInputFocus` (registro dos campos de texto do mod + "algum em foco?"
   **cacheado por frame**) e **prefixos Harmony** em `ZInput.GetButtonDown(string)`/`GetButton`/`GetButtonUp`/

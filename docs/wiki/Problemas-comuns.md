@@ -209,11 +209,35 @@ Se você reatribuir, o mod reavalia o conflito na hora. Veja **[Voz](Voz)**.
 
 ---
 
+## Dei o Megingjord ao companheiro e o peso não mudou
+
+| Onde olhar | O que procurar |
+|---|---|
+| Painel **`I`** (aba do companheiro) e barra do **HUD** | O peso continua `…/300` (ou o valor que você pôs em `[General] MaxCarryWeight`) mesmo com o cinto na mochila |
+| Coleta | Ele volta para casa para descarregar em **298** em vez de perto de **448** |
+
+**Causa:** em versões **anteriores à 1.8.0** o bônus do cinto não era lido. O limite de peso do companheiro é
+**do mod** (`[General] MaxCarryWeight`, 300 por padrão), não do jogo, e o `+150` do Megingjord é um *status effect*
+cujo único leitor no vanilla é o `Player`. Como o companheiro não é um jogador, o cinto só ocupava espaço e pesava.
+
+**O que fazer:** **atualize para a 1.8.0**. Depois disso o `/450` aparece em ~**0,5 s** (com o `300` padrão), e esta
+linha confirma no `LogOutput.log`:
+
+```
+[Carry] "Thorin": +150 de capacidade (Megingjord) - teto 450
+```
+
+> O cinto **não precisa ser equipado** — vale com ele em qualquer lugar da mochila (num `Humanoid` que não é jogador
+> o slot de utilidade nem sobrevive ao reload). E **dois** cintos **não somam**: o bônus conta uma vez só. Os detalhes
+> das duas chaves estão em **[Configuração](Configuracao)**.
+
+---
+
 ## O jogo não carrega o mod
 
 | Onde olhar | O que procurar |
 |---|---|
-| `LogOutput.log` | `AI Companions v1.7.0 loading...` e `AI Companions loaded successfully! (N methods patched)` — o `v1.7.0` é a versão que você instalou |
+| `LogOutput.log` | `AI Companions v1.8.0 loading...` e `AI Companions loaded successfully! (N methods patched)` — o `v1.8.0` é a versão que você instalou |
 
 **Causas prováveis:**
 

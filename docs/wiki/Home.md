@@ -105,12 +105,12 @@ vem do upstream e continua funcionando igual — a IA é só uma **nova entrada*
 | **Upstream (MIT)** | https://github.com/MaddhattrRocks/Offline-Companions-Reborn |
 | **Vídeo** | https://www.youtube.com/watch?v=40FnVEIbXyo |
 
-A release publicada mais recente é a **1.7.0** (23/10/2026), com **dois** arquivos para escolher:
+A release publicada mais recente é a **1.8.0** (24/10/2026), com **dois** arquivos para escolher:
 
 | Arquivo | Tamanho | O que vem |
 |---|---|---|
-| `AI_Companions-1.7.0.zip` | ~368 MB | O mod **e** os modelos de voz (STT + TTS) já prontos |
-| `AI_Companions-1.7.0-sem-modelos.zip` | ~28,4 MB | Só o mod e as traduções — você baixa os modelos por fora |
+| `AI_Companions-1.8.0.zip` | ~368 MB | O mod **e** os modelos de voz (STT + TTS) já prontos |
+| `AI_Companions-1.8.0-sem-modelos.zip` | ~28,4 MB | Só o mod e as traduções — você baixa os modelos por fora |
 
 > **Qual escolher?** Se você quer só instalar e usar, pegue o **completo**. Se a sua internet é lenta (ou você já
 > tem os modelos), pegue o **sem-modelos** e siga a seção de modelos em **[Instalação](Instalacao)**.
@@ -121,8 +121,10 @@ A release publicada mais recente é a **1.7.0** (23/10/2026), com **dois** arqui
 > o `.cfg` (`Maddhattr.OfflineCompanionsReborn.cfg`), o save, os companheiros, a casa e o inventário continuam
 > valendo (o GUID do plugin e as chaves `HC_*` foram preservados de propósito).
 
-> A **1.7.0** traz **vários companheiros**, cada um com a sua aba no painel `I` (nome, tipo, aparência, voz e
+> A **1.8.0** traz **vários companheiros**, cada um com a sua aba no painel `I` (nome, tipo, aparência, voz e
 > personalidade próprias, ordem pelo nome e um teto de 10), o **editor de aparência com preview 3D** e o
-> **OpenRouter como padrão** da IA — mais a seção **Configurações do LLM** no painel `I`. A **1.6.4** foi a
-> release anterior: mexeu **só nos padrões** da seção `[IA]` daquela versão (quem já tinha um valor configurado
-> nunca é afetado — o `.cfg` não é sobrescrito).
+> **OpenRouter como padrão** da IA — mais a seção **Configurações do LLM** no painel `I`.
+>
+> E corrige o **peso**: o **Megingjord** (+150) e os demais itens com bônus de carga agora **somam** no teto do
+> companheiro (o `/300` vira `/450`), valendo com o cinto em **qualquer lugar da mochila** — não precisa equipar —
+> e **uma vez só** (dois cintos não empilham). A **1.7.0** foi a release anterior.

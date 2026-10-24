@@ -2,6 +2,39 @@
 
 Todas as mudanças deste projeto, derivado do Offline Companions, do ProfMags. As versões anteriores à 1.4.0 são o mod original (veja o histórico do mod original, do ProfMags, para essas versões) mais o primeiro lote de correções de compatibilidade com a API do Valheim 1.0 que fizeram o mod carregar e rodar. **As entradas abaixo de 1.5.4 são o histórico do upstream e ficam como estão (em inglês) — as nossas seções (a partir da 1.6.0) são nossas.**
 
+## 1.8.0 — 24/10/2026
+
+**O que o companheiro carrega agora é o que ele tem na mochila: o Megingjord soma de verdade.** Correção do relato
+enviado no Nexus (*"quando eu coloco a megingjord no inventário do companion ela não aumenta o peso em 150"*) — e um
+teto de peso que passa a respeitar o equipamento. **Esta release inclui tudo da 1.7.0** (vários companheiros com aba
+própria, editor de aparência com preview 3D, OpenRouter como padrão da IA); quem vem de uma versão anterior encontra o
+conjunto completo aqui.
+
+### Peso e capacidade de carga
+
+- **Itens com bônus de carga passam a contar** — o Megingjord (+150) e qualquer item construído do mesmo jeito no jogo.
+  O teto efetivo do companheiro é `[General] MaxCarryWeight` **+ bônus**, e o valor é lido do **asset**
+  (`SE_Stats.m_addMaxCarryWeight`), **nunca** de um `150` fixo: um cinto modificado para +250 funciona igual.
+- **Vale com o cinto em qualquer lugar da mochila** — não precisa equipar no slot de utilidade (num `Humanoid` que não é
+  jogador ele nem sobrevive ao reload). E continua valendo **uma vez só**: dois cintos iguais não somam, exatamente como
+  o jogo trata os efeitos de equipamento.
+- **Onde o teto novo vale:** o **`Encumbered`** (andar lento), o `x/450` do **painel do companheiro** e a barra do
+  **HUD**, a recusa de **loot** e do **recolhimento do chão**, o **ferreiro**, o **upkeep**, o "mochila cheia" da
+  **pesca/caça** e o aviso de "estou cheio".
+- **A coleta também soma:** `[Gathering] OverweightThreshold` passou a ser o valor **base** (298 por padrão) e o bônus
+  entra por cima — com o Megingjord na mochila o companheiro de coleta só volta para casa perto de **448** e continua
+  coletando acima de 300. Sem o cinto, tudo como antes (298).
+- **Uma linha de log por mudança** (nunca por frame): `[Carry] "Thorin": +150 de capacidade (Megingjord) - teto 450`.
+- **Sem custo por frame:** o bônus é cacheado por inventário e só é recalculado quando a mochila muda (o caminho sem
+  cinto não aloca nada).
+
+### Por que não funcionava antes
+
+O limite de peso do companheiro é **do mod** (`[General] MaxCarryWeight`, 300 por padrão), não do jogo — o vanilla
+**não** impõe limite a um `Humanoid` que não é jogador (`Inventory.CanAddItem` só olha espaço de grade e não existe
+`m_maxWeight` na 1.0). E o `+150` do cinto é um **status effect** cujo **único leitor** é `Player.GetMaxCarryWeight()`;
+o companheiro nunca passava por ali, então o cinto só ocupava espaço e pesava.
+
 ## 1.7.0 — 23/10/2026
 
 **Vários companheiros, cada um com identidade própria — e o companheiro entra no jogo pronto para usar.** O mod agora
