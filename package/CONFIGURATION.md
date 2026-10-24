@@ -850,16 +850,16 @@ Diagnóstico de UI: ligado, escreve no log o que está na frente dos controles d
 A camada de IA do projeto: ordens por texto e por voz, personalidade, memória e o reconhecimento de voz local.
 
 **Ligado** — Padrão: Ligado  
-Fase 3.1: digite uma ordem no chat do jogo ("colete 20 de madeira", "segue", "para") e os companheiros a executam. A ordem é interpretada por um LLM (OpenRouter por padrão, ou um servidor local) através de uma API compatível com a OpenAI. Desligado = nada é enviado ao modelo.
+Fase 3.1: digite uma ordem no chat do jogo ("colete 20 de madeira", "segue", "para") e os companheiros a executam. A ordem é interpretada por um LLM (Groq por padrão, ou um servidor local, ou o OpenRouter) através de uma API compatível com a OpenAI. Desligado = nada é enviado ao modelo.
 
-**BaseUrl** — Padrão: `https://openrouter.ai/api/v1`  
-URL base do servidor compatível com a OpenAI. Padrão: OpenRouter (https://openrouter.ai/api/v1), que pede a ApiKey - a chave gratuita sai em openrouter.ai/keys. Para rodar tudo local: LM Studio (http://127.0.0.1:1234/v1) ou Ollama (http://127.0.0.1:11434/v1); nesses dois use 127.0.0.1 em vez de localhost (no Windows o localhost resolve primeiro para IPv6 e o servidor só escuta IPv4, o que custa cerca de 2,5 s por ordem). /chat/completions é adicionado automaticamente. Esta é uma opção de texto: edite no arquivo .cfg.
+**BaseUrl** — Padrão: `https://api.groq.com/openai/v1`  
+URL base do servidor compatível com a OpenAI. Padrão: Groq (https://api.groq.com/openai/v1), que pede a ApiKey - a chave gratuita sai em console.groq.com/keys. Alternativas: LM Studio (http://127.0.0.1:1234/v1) ou Ollama (http://127.0.0.1:11434/v1) para rodar tudo local - nesses dois use 127.0.0.1 em vez de localhost (no Windows o localhost resolve primeiro para IPv6 e o servidor só escuta IPv4, o que custa cerca de 2,5 s por ordem); ou OpenRouter (https://openrouter.ai/api/v1), que funciona mas o tier gratuito costuma ser bem mais lento. /chat/completions é adicionado automaticamente. Esta é uma opção de texto: edite no arquivo .cfg.
 
-**Modelo** — Padrão: `openrouter/free`  
-Nome do modelo a enviar ao servidor. Padrão: openrouter/free (OpenRouter, sem custo). No LM Studio use o nome que o servidor lista (ex.: qwen2.5-3b-instruct). Opção de texto: edite no arquivo .cfg.
+**Modelo** — Padrão: `openai/gpt-oss-20b`  
+Nome do modelo a enviar ao servidor. Padrão: openai/gpt-oss-20b (Groq, tier gratuito). Outros: openrouter/free no OpenRouter; no LM Studio use o nome que o servidor lista (ex.: qwen2.5-3b-instruct). Opção de texto: edite no arquivo .cfg.
 
 **ApiKey** — Padrão: ``  
-Chave de API, se o servidor pedir uma. No OpenRouter é obrigatória (a gratuita sai em openrouter.ai/keys). Deixe vazio para LM Studio/Ollama rodando na sua máquina. Opção de texto: edite no arquivo .cfg. Nunca coloque uma chave num config compartilhado.
+Chave de API, se o servidor pedir uma. No Groq é obrigatória (a gratuita sai em console.groq.com/keys) e no OpenRouter também (openrouter.ai/keys). Deixe vazio para LM Studio/Ollama rodando na sua máquina. Opção de texto: edite no arquivo .cfg. Nunca coloque uma chave num config compartilhado.
 
 **Temperatura** — Padrão: 0.1 · Faixa: 0 – 1  
 O quanto o modelo pode improvisar. Mantenha baixo para que a mesma ordem dê sempre o mesmo JSON.
