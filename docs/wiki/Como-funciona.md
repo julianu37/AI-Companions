@@ -51,7 +51,7 @@ Três peças de IA, todas em **threads de fundo** (o LLM pode ser remoto; o STT 
 ## A saída estruturada (JSON schema)
 
 O pedido ao LLM leva um **JSON schema** (`response_format`) que fixa as cinco chaves e a **lista fechada de
-29 ações** — a mesma lista do contrato, de `follow` a `none`.
+30 ações** — a mesma lista do contrato, de `follow` a `none`.
 
 É isso que **destrava modelos pequenos**: com o schema, o servidor é obrigado a responder no formato certo.
 Medido com o prompt atual, o `qwen2.5-3b-instruct` dava **0/6** respostas em JSON e passou a **6/6**.

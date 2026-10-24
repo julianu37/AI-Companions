@@ -213,7 +213,7 @@ Se você reatribuir, o mod reavalia o conflito na hora. Veja **[Voz](Voz)**.
 
 | Onde olhar | O que procurar |
 |---|---|
-| `LogOutput.log` | `AI Companions v1.6.4 loading...` e `AI Companions loaded successfully! (N methods patched)` — o `v1.6.4` é a versão que você instalou |
+| `LogOutput.log` | `AI Companions v1.7.0 loading...` e `AI Companions loaded successfully! (N methods patched)` — o `v1.7.0` é a versão que você instalou |
 
 **Causas prováveis:**
 

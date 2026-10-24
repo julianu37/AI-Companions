@@ -33,24 +33,57 @@ Você não precisa abrir o `.cfg` no bloco de notas para as coisas do dia a dia:
 | Painel | Tecla | O que edita |
 |---|---|---|
 | **Configurações do mod** | **`F8`** | **Todas** as opções do mod, em jogo |
-| **Painel da IA** | **`I`** | A camada de IA: **Configurações do LLM** (URL, modelo, chave), personalidade, voz, volume, velocidade, memória, conversa e push-to-talk |
+| **Painel da IA** | **`I`** | A camada de IA e **cada companheiro**: a **aba IA** (invocador, Configurações do LLM, voz global e push-to-talk) e **uma aba por companheiro** (nome, tipo, aparência, voz e personalidade dele) |
 
 ### Painel da IA (tecla `I`)
 
+O painel abre na **aba IA** (sem precisar de companheiro perto) e tem, no topo, **uma aba por companheiro** — quando
+uma dessas abas está aberta, o título passa a ser o **nome dele**. As abas rolam na horizontal quando há muitos
+companheiros. Tudo é salvo **na hora**: as opções que valem para todos ficam na **aba IA**, e o que é de um
+companheiro fica na **aba dele**.
+
+#### Aba IA
+
 | O que | Como |
 |---|---|
-| **Personalidade** | Escolha um **preset** (Padrão, Viking leal, Mago sarcástico, Sarcástico, Guia paciente) ou escreva nas **suas palavras** e clique em **Aplicar** — vale na próxima resposta |
-| **Voz** | Escolha entre as **3 vozes pt-BR** e aperte **Ouvir** para escutar uma frase de exemplo na hora |
-| **Volume / Velocidade** | Sliders (o volume vale no próximo áudio, a velocidade na próxima fala) |
-| **Push-to-talk** | Veja a tecla atual e aperte **Alterar** para capturar outra; um toggle liga/desliga as ordens por voz |
-| **Liga/desliga** | Companheiro falar, falar respostas da IA, falar falas do mod, conversa livre |
+| **Invocar novo companheiro** | Escolha o **Tipo** e aperte **Invocar**: ele nasce **de graça**, sem passar pelo Trader, com o nome do tipo numerado ("Guerreiro 2"). O contador abaixo mostra quantos estão **na cena**; o teto é `[General] MaxCompanions` (padrão **10**, contando **vivos + mortos + perdidos**) |
+| **Configurações do LLM** | Os toggles **Ligado**, **Saída estruturada** e **Mostrar resposta no chat**; os campos **URL do servidor**, **Modelo**, **Chave de API** (**mascarada**) e **Prefixo**; os sliders **Temperatura**, **Timeout (s)**, **Cooldown (s)** e **Raio de alvo (m)**; e os botões **Aplicar** e **Testar conexão** |
+| **Volume / Velocidade da fala** | Sliders do TTS (`[IA] TtsVolume` e `[IA] TtsVelocidade`) |
+| **Aperte para falar** | A tecla do push-to-talk (padrão **`V`**), o botão **Alterar** para trocar e o toggle **Ordens por voz** |
+| **Companheiro fala / Falar respostas da IA / Falar falas do mod / Conversa livre** | Os toggles da voz e da conversa (`TtsLigado`, `TtsFalarRespostas`, `TtsFalarFalasDoMod`, `Conversa`) |
 | **Memória** | Quantas trocas recentes ele lembra (0–12) |
 
-Tudo é salvo no `.cfg` **na hora**. O painel fecha com **`Esc`** ou no **X**, e **não precisa de companheiro
-perto** (é uma configuração global).
+> Os campos de texto (URL, modelo, chave, prefixo) só valem depois do **Aplicar** — e na **próxima mensagem**,
+> sem reiniciar o jogo. A chave nunca vai para o log.
 
-> As chaves de **texto** (`BaseUrl`, `Modelo`, `Personalidade`…) e as de **tecla** também aparecem no `F8`, mas
-> o próprio mod avisa: para texto longo, editar o `.cfg` é mais confortável.
+#### Aba do companheiro
+
+| O que | Como |
+|---|---|
+| **Nome** | O campo com o nome atual + **Aplicar** (o **Enter** também aplica). O nome vale no HUD, no hover, na roda e nas ordens pelo nome. Companheiro **morto** não pode ser renomeado |
+| **Tipo** | As setas `<` `>` escolhem e **Trocar tipo (renasce)** aplica, **com confirmação**: ele renasce como o tipo novo e **fica tudo** (nome, inventário, equipamento, aparência, voz, personalidade, casa, cama, skills) — só o **trabalho em andamento** recomeça |
+| **Estado** | **Vivo** ou **Morto** — e morrer **não** abre vaga no teto |
+| **Chamar** | Traz o companheiro para perto de você: ele vem andando e, se estiver longe demais, volta pelo mesmo chamado do jogo |
+| **Aparência** | Abre o **editor de aparência** (logo abaixo) |
+| **Personalidade** | A lista com **"Seguir o padrão ([IA])"** na frente e os presets (`viking`, `mago`, `sarcastico`, `guia`) — **escolher já salva**. **Nas suas palavras** é o campo livre, aplicado pelo **Aplicar** ao lado |
+| **Voz** | A lista com **"Seguir o padrão ([IA])"** na frente e as **3 vozes pt-BR** — escolher já salva e vale na **próxima fala**; **Ouvir** toca uma frase de exemplo na hora |
+
+> A voz e a personalidade escolhidas aqui são **deste** companheiro, guardadas no **ZDO** dele: elas viajam na
+> **lápide** e voltam no respawn. Quem está em "seguir o padrão" obedece ao que está na **aba IA** — mudar o global
+> alcança todos os que não têm escolha própria. **Chamar** e **Aparência** ficam desabilitados com o companheiro
+> morto.
+
+**Editor de aparência** (o botão **Aparência**): gênero, corte de cabelo, estilo de barba, tom de pele, tom e
+sombra do cabelo, com um **boneco 3D** que muda ao vivo enquanto você escolhe. **Aplicar** grava no companheiro
+**sem respawn**; **Cancelar** fecha sem mudar nada.
+
+O painel fecha com **`I`**, com o **`Esc`** ou no **X** — e o `Esc` primeiro sai de um campo de texto e fecha uma
+lista aberta, depois o painel. A tecla **`I`** é ignorada enquanto você digita (chat, console, busca do comerciante,
+os campos do próprio painel) e com o **inventário**, o **mapa**, o **menu**, o painel **`F8`** ou o seletor do
+primeiro companheiro abertos; e o painel **se fecha sozinho** quando você morre ou sai do mundo.
+
+> O que não está no painel `I` continua no **`F8`**, que edita **todas** as seções do `.cfg` com os mesmos nomes de
+> chave — a dica no rodapé do painel diz exatamente isso.
 
 ---
 
@@ -113,6 +146,7 @@ Companions Reborn, isto é o que mudou de valor:
 | `[Gathering] Range` | 40 | **60** | Alcance da coleta com **Seguir desligado** |
 | `[Advanced] GatheringDropRadius` | 8 | **12** | Uma árvore pode cair mais longe que 8 m; os drops ficavam para trás |
 | `[Looting] CollectRadius` | *(novo)* | **10** | Raio da ordem "recolhe os itens do chão" |
+| `[General] MaxCompanions` | *(novo)* | **10** | Teto de companheiros por jogador, contando **vivos + mortos + perdidos** (morrer não abre vaga) |
 | `[Speech] Chatter` | `true` | **`false`** | O chatter aleatório (falinhas a cada 15–30 s) vinha só de um timer. As falas úteis continuam |
 | `[Advanced] UiDiag` | *(novo)* | **`false`** | Diagnóstico de UI (cliques/camadas): opt-in, zero custo desligado |
 | `[IA] EcoDiag` | *(novo)* | **`false`** | Diagnóstico de áudio do companheiro: opt-in |

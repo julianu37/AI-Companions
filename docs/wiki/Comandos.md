@@ -12,15 +12,16 @@ Teclas, ordens por chat/voz e comandos de console.
 | **`Z`** | **Tecla de comando**: olhe para algo e toque para mandar os companheiros (mover / atacar / abrir porta / sentar / consertar). **Segure** para chamá-los |
 | **`E`** | **Segure** olhando um companheiro para abrir o **menu radial**; **toque** para abrir o painel / inventário dele |
 | **`LeftAlt` + `Z`** | Editor de zona de fazenda |
-| **`I`** | **Painel da IA**: personalidade, voz (com **Ouvir**), volume, velocidade, memória, conversa e a tecla do push-to-talk — tudo salvo na hora |
+| **`I`** | **Painel da IA**: uma **aba por companheiro** (nome, tipo, Chamar, Aparência, voz e personalidade dele) e a **aba IA** (invocador de companheiros, Configurações do LLM, volume, velocidade, memória, conversa e push-to-talk) — tudo salvo na hora |
 | **`F8`** | Painel de configurações do mod (todas as opções, em jogo) |
 | **`F5`** | Console do jogo (para os comandos de teste do mod) |
 
-> O painel da IA (tecla **`I`**, mudável em `[IA] PainelTecla`) abre **sem precisar de companheiro perto**,
-> fecha com **`Esc`** ou no **X**, e cada controle é gravado no `.cfg` no mesmo instante. Enquanto ele está
-> aberto, o seu personagem não responde aos controles.
+> O painel da IA (tecla **`I`**, mudável em `[IA] PainelTecla`) abre **sem precisar de companheiro perto**, fecha
+> com **`I`**, **`Esc`** ou no **X**, e cada controle é gravado na hora (no `.cfg`, quando é uma opção global; no
+> companheiro, quando é da aba dele). Enquanto ele está aberto, o seu personagem não responde aos controles, e a
+> tecla é ignorada com o inventário, o mapa, o menu ou o painel `F8` abertos.
 
-![O painel da IA: personalidade, voz pf_dora, volume, velocidade, push-to-talk e os toggles](images/2-painel-da-ia.jpg)
+![O painel da IA na aba de um companheiro: as abas no topo (IA e uma por companheiro), o Nome e o Tipo com Trocar tipo, o Estado, Chamar e Aparência, e "Voz e personalidade deste companheiro" com a voz e o botão Ouvir](images/1-abas-do-companheiro.jpg)
 
 ### Menu radial (segure `E`)
 
@@ -36,12 +37,21 @@ Um **toque** em `E` abre o painel / inventário dele.
 Você digita no chat do jogo **ou** fala segurando **`V`**. A ordem é interpretada por um LLM: você pode dizer a
 mesma coisa de **várias formas** — não precisa decorar a frase exata.
 
+### Pelo nome
+
+Comece a mensagem com o **nome** de um companheiro para falar **só** com ele: `Gruncha, colete 10 pedras` (o
+prompt, a personalidade, a memória e a ordem são os dele). **Sem** o nome, a ordem vale para **todos** os que
+puderem atendê-la. Um começo que parece nome e não existe (`Fulano, colete 10 pedras`) é avisado — e nada é
+ordenado —, mas uma forma de tratamento continua valendo (`mano, colete 10 pedras`).
+
+> O nome é o que você deu na **aba do companheiro** (painel **`I`**) ou o nome do tipo, se ele nunca foi renomeado.
+
 ### Seguir e parar
 
 | Você diz | O que ele faz |
 |---|---|
 | `segue` | Volta a seguir você |
-| `para` / `para de me seguir` | Para o que está fazendo e fica parado |
+| `para` / `para de me seguir` | Para o que está fazendo e fica parado — e a resposta diz **o trabalho** que ele parou ("parar de coletar madeira", "parar de cozinhar") |
 | `vem cá` | Vem até você |
 
 > Não existe um "seguir de perto" separado: as opções são **seguir** você ou **parar**.
@@ -98,8 +108,10 @@ mesma coisa de **várias formas** — não precisa decorar a frase exata.
 | `abre o teu inventário` / `mostra o que você carrega` | Abre a **janela do inventário dele** para você ver |
 | `fecha o inventário` | Fecha a janela (o **X** da janela fecha sempre) |
 
-> O **fechamento por ordem** depende de como o modelo interpreta a frase — se "fecha o inventário" acabar
-> abrindo a janela, use o **X** (ou o `Esc`).
+> Fechar é uma ação própria (`inventory_close`): se o modelo devolver "abrir" para uma frase com verbo de fechar,
+> o mod corrige pela **sua** frase. O **X** da janela e o `Esc` fecham sempre.
+
+![O inventário do companheiro aberto: a janela "Companheira" com o que ela carrega e os quatro espaços de Comida, ao lado do seu inventário e do painel de produção; no meio, o hover com [E] Inventário e [Segure E] Comandos](images/5-inventario-do-companheiro.jpg)
 
 ### Postura de combate
 

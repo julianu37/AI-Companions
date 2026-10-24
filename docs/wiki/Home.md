@@ -14,15 +14,21 @@ entende e executa.
 
 ![O chat com a ordem "colete 10 madeiras", a resposta do companheiro e o balão de fala](images/1-ordem-no-chat.jpg)
 
-**2. Painel da IA (tecla `I`)** — personalidade, voz (`pf_dora`), volume e o push-to-talk, tudo salvo na hora.
+**2. Uma aba por companheiro (tecla `I`)** — nome, tipo, Chamar, Aparência e a voz/personalidade **daquele**
+companheiro.
 
-![O painel da IA: personalidade "fala como uma viking", voz pf_dora, volume, push-to-talk e os toggles](images/2-painel-da-ia.jpg)
+![O painel da IA com uma aba por companheiro (Bruxinho, Companheira, Companheiro, Xuxa, Zé): nome, tipo, Trocar tipo, Chamar, Aparência, personalidade e voz com o botão Ouvir](images/1-abas-do-companheiro.jpg)
 
-**3. Painel `F8`, seção `[IA]`** — as opções da camada de IA, com os mesmos nomes de chave do `.cfg`.
+**3. Editor de aparência** — gênero, corte de cabelo, barba, pele, tom e sombra do cabelo, com o boneco mudando
+**ao vivo** enquanto você escolhe.
+
+![O editor de aparência: gênero masculino/feminino, corte de cabelo, estilo de barba, tom de pele, tom e sombra do cabelo, com o preview 3D do companheiro](images/2-editor-de-aparencia.jpg)
+
+**4. Painel `F8`, seção `[IA]`** — as opções da camada de IA, com os mesmos nomes de chave do `.cfg`.
 
 ![O painel F8 aberto na seção [IA], com Ligado, Temperatura, TimeoutSegundos, Memoria, VozLigada e as demais chaves](images/3-painel-f8.jpg)
 
-**4. Menu radial (segure `E` olhando o companheiro)** — as ações dele à mão.
+**5. Menu radial (segure `E` olhando o companheiro)** — as ações dele à mão.
 
 ![O menu radial aberto, com as ações em volta do centro](images/4-menu-radial.jpg)
 
@@ -52,7 +58,10 @@ vem do upstream e continua funcionando igual — a IA é só uma **nova entrada*
 | **Ele fala** | Voz sintetizada em PT-BR, saindo **da posição dele** no mundo |
 | **Personalidade** | Presets (`viking`, `mago`, `sarcastico`, `guia`) ou as suas palavras |
 | **Memória e conversa** | `bom dia`, `como você está?` — ele responde como personagem e lembra da conversa |
-| **Painel da IA** | Tecla **`I`**: personalidade, voz, volume, velocidade, push-to-talk e as **configurações do LLM**, tudo salvo na hora |
+| **Vários companheiros** | Até **10**, cada um com a sua aba no painel `I`; o invocador cria um novo **de graça** (sem o Trader) |
+| **Ordem pelo nome** | `Gruncha, colete 10 pedras` vale **só** para ele; sem o nome, a ordem vale para todos |
+| **Aparência** | Editor com **preview 3D**: gênero, cabelo, barba, pele e tom do cabelo, sem respawn |
+| **Painel da IA** | Tecla **`I`**: uma aba por companheiro (nome, tipo, Chamar, Aparência, voz e personalidade), o invocador, volume, velocidade, push-to-talk e as **configurações do LLM** — tudo salvo na hora |
 
 ## Requisitos em resumo
 
@@ -96,18 +105,24 @@ vem do upstream e continua funcionando igual — a IA é só uma **nova entrada*
 | **Upstream (MIT)** | https://github.com/MaddhattrRocks/Offline-Companions-Reborn |
 | **Vídeo** | https://www.youtube.com/watch?v=40FnVEIbXyo |
 
-A release publicada mais recente é a **1.6.4**, com **dois** arquivos para escolher:
+A release publicada mais recente é a **1.7.0** (23/10/2026), com **dois** arquivos para escolher:
 
 | Arquivo | Tamanho | O que vem |
 |---|---|---|
-| `AI_Companions-1.6.4.zip` | ~367,9 MB | O mod **e** os modelos de voz (STT + TTS) já prontos |
-| `AI_Companions-1.6.4-sem-modelos.zip` | ~28,4 MB | Só o mod e as traduções — você baixa os modelos por fora |
+| `AI_Companions-1.7.0.zip` | ~368 MB | O mod **e** os modelos de voz (STT + TTS) já prontos |
+| `AI_Companions-1.7.0-sem-modelos.zip` | ~28,4 MB | Só o mod e as traduções — você baixa os modelos por fora |
 
 > **Qual escolher?** Se você quer só instalar e usar, pegue o **completo**. Se a sua internet é lenta (ou você já
 > tem os modelos), pegue o **sem-modelos** e siga a seção de modelos em **[Instalação](Instalacao)**.
 
-> A **1.6.3** foi a release anterior (mudou **só o empacotamento**: a pasta do mod já vem como
-> `BepInEx\plugins\AI-Companions\` dentro do zip, então dá para extrair direto na pasta do Valheim ou deixar
-> o gerenciador de mods instalar). A **1.6.4** mudou **só os padrões** da seção `[IA]` — nada muda no jogo para
-> quem já configurou: `BaseUrl` passou a `http://127.0.0.1:1234/v1` (em vez de `localhost`, que pagava ~2,5 s por
-> ordem no Windows) e `Modelo` passou a `qwen2.5-3b-instruct` (em vez de `google/gemma-4-e4b`).
+> **Já tem uma versão anterior?** O mod passou a se chamar **AI Companions** (era *ModAI-BR-Companions*) e a pasta
+> agora é `BepInEx\plugins\AI-Companions\`: **apague a pasta antiga** (`BepInEx\plugins\ModAI-BR-Companions\`)
+> antes de extrair — duas cópias do mesmo plugin fazem o BepInEx carregar o mod duas vezes. **Nada seu se perde**:
+> o `.cfg` (`Maddhattr.OfflineCompanionsReborn.cfg`), o save, os companheiros, a casa e o inventário continuam
+> valendo (o GUID do plugin e as chaves `HC_*` foram preservados de propósito).
+
+> A **1.7.0** traz **vários companheiros**, cada um com a sua aba no painel `I` (nome, tipo, aparência, voz e
+> personalidade próprias, ordem pelo nome e um teto de 10), o **editor de aparência com preview 3D** e o
+> **OpenRouter como padrão** da IA — mais a seção **Configurações do LLM** no painel `I`. A **1.6.4** foi a
+> release anterior: mexeu **só nos padrões** da seção `[IA]` daquela versão (quem já tinha um valor configurado
+> nunca é afetado — o `.cfg` não é sobrescrito).

@@ -72,6 +72,8 @@ manda um pedido mínimo de chat. O resultado é um destes:
 - **Falha na conexão: …** — vem com o motivo (status/mensagem do servidor): URL errada, servidor local desligado,
   endereço sem `http://`/`https://`…
 
+![O painel da IA (tecla I), aba IA: acima, o invocador de companheiros com a lista de tipos aberta; abaixo, a seção Configurações do LLM com URL do servidor, modelo, chave de API mascarada, Aplicar e Testar conexão](images/3-invocar-e-llm.jpg)
+
 > **O teste não prova que a chave está certa.** No OpenRouter a lista de modelos é **pública**: com a chave
 > vazia ou errada o teste ainda pode responder *Conexão OK*, e o **erro de autenticação** só aparece na primeira
 > ordem (no log e no aviso). Quem confirma a chave é uma ordem de verdade — veja

@@ -37,12 +37,13 @@ Vá em **https://github.com/julianu37/AI-Companions/releases** e baixe **um** do
 
 | Arquivo | Tamanho | Quando escolher |
 |---|---|---|
-| `AI_Companions-1.6.4.zip` | ~367,9 MB | **Recomendado.** Já vem com os modelos de voz (STT + TTS). Instala e usa |
-| `AI_Companions-1.6.4-sem-modelos.zip` | ~28,4 MB | Internet lenta, ou você já tem os modelos e quer baixá-los separado |
+| `AI_Companions-1.7.0.zip` | ~368 MB | **Recomendado.** Já vem com os modelos de voz (STT + TTS). Instala e usa |
+| `AI_Companions-1.7.0-sem-modelos.zip` | ~28,4 MB | Internet lenta, ou você já tem os modelos e quer baixá-los separado |
 
 > A diferença é **só** os modelos de voz. O mod e as traduções são os mesmos nos dois.
 >
-> *(A **1.6.3** foi a release anterior, de empacotamento; a **1.6.4** mudou só os padrões da seção `[IA]`.)*
+> *(A **1.6.4** foi a release anterior — mexeu só nos padrões da seção `[IA]`. A **1.7.0** é a que renomeou o mod
+> para **AI Companions** e trouxe vários companheiros, o editor de aparência e o OpenRouter como padrão.)*
 
 ---
 
@@ -55,6 +56,11 @@ gerenciador de mods, aponte o zip para ele — o gerenciador instala direto, sem
 > Se preferir fazer à mão, o resultado final tem que ser
 > `<Valheim>\BepInEx\plugins\AI-Companions\`, com o `Companions.dll` **dentro** dela. O BepInEx carrega
 > plugins de **qualquer** subpasta de `BepInEx\plugins\` — manter esse nome só evita confusão na hora de atualizar.
+
+> **Atualizando de uma versão anterior?** Apague a pasta antiga `BepInEx\plugins\ModAI-BR-Companions\` **antes** de
+> extrair. O mod mudou de nome (era *ModAI-BR-Companions*), mas o **GUID**, o `.cfg`
+> (`Maddhattr.OfflineCompanionsReborn.cfg`) e as chaves `HC_*` são os mesmos: configuração, save, companheiros e
+> casa continuam valendo. Duas pastas com o mesmo plugin = o BepInEx carrega o mod duas vezes.
 
 No fim, a pasta deve ficar assim:
 
@@ -152,13 +158,13 @@ O guia completo dos dois caminhos está em **[LLM (OpenRouter ou LM Studio)](LLM
 3. Procure estas duas linhas:
 
 ```
-AI Companions v1.6.4 loading...
+AI Companions v1.7.0 loading...
 AI Companions loaded successfully! (N methods patched)
 ```
 
 Se elas aparecerem, o mod carregou.
 
-> O `v1.6.4` é a **versão que você instalou** (o número do zip que você baixou) e o `N` é quantos métodos do jogo
+> O `v1.7.0` é a **versão que você instalou** (o número do zip que você baixou) e o `N` é quantos métodos do jogo
 > o mod ajustou — esse número pode mudar de uma versão para outra.
 
 > **É normal** ver um erro de **PlayFab / NullReferenceException** no boot — ele **não** é do mod e não impede
@@ -185,7 +191,7 @@ Para ver todas as teclas e ordens, vá em **[Comandos](Comandos)**.
 
 - [ ] Valheim 1.0.x instalado
 - [ ] BepInEx 5.4.2351 extraído na raiz do jogo
-- [ ] Release **1.6.4** baixada (o pacote completo ou o sem-modelos)
+- [ ] Release **1.7.0** baixada (o pacote completo ou o sem-modelos)
 - [ ] Pasta `BepInEx\plugins\AI-Companions\` criada com o `Companions.dll` e as dependências
 - [ ] Modelos de voz em `whisper\` e `tts\kokoro\`
 - [ ] Chave gratuita do OpenRouter criada e `[IA] ApiKey` preenchida (ou o LM Studio local configurado)
