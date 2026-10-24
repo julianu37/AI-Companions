@@ -56,6 +56,8 @@ companheiro fica na **aba dele**.
 > Os campos de texto (URL, modelo, chave, prefixo) só valem depois do **Aplicar** — e na **próxima mensagem**,
 > sem reiniciar o jogo. A chave nunca vai para o log.
 
+![O painel da IA na aba IA: as abas de cada companheiro no topo, o invocador de companheiros e as Configurações do LLM já com o OpenRouter (URL, modelo e a chave mascarada) e o botão Testar conexão](images/3-invocar-e-llm.jpg)
+
 #### Aba do companheiro
 
 | O que | Como |
