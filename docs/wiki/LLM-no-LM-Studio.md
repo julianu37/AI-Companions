@@ -64,11 +64,11 @@ OpenRouter) — some no LM Studio, que não tem chave.
 > própria `BaseUrl`, então uma URL de **Ollama** ou de um servidor seu aparece como **Personalizado (URL manual)**
 > e nada é sobrescrito.
 
-![O painel da IA (tecla I), aba IA: em Configurações do LLM, a URL do servidor, o modelo e a chave de API mascarada](images/painel-llm-openrouter.png)
+![O painel da IA (tecla I), aba IA: o seletor "Selecione seu Provedor LLM" em Groq, a URL do servidor com api.groq.com, o modelo openai/gpt-oss-20b, a chave de API mascarada e, à direita da chave, o botão "Crie sua Chave de API Grátis AQUI"](images/6-painel-ia.jpg)
 
-> No print acima os campos estão com os valores **do OpenRouter** (é uma configuração de exemplo, feita antes de o
-> Groq virar o padrão). Com o Groq, a URL é `https://api.groq.com/openai/v1`, o modelo é `openai/gpt-oss-20b` e a
-> chave é a de `console.groq.com/keys`. O painel é o mesmo.
+> No print acima o seletor está em **Groq** (o padrão da 1.8.2), com a URL `https://api.groq.com/openai/v1`, o modelo
+> `openai/gpt-oss-20b` e a chave mascarada. Trocar o seletor para **LM Studio** ou **OpenRouter** preenche a URL e o
+> modelo daquele provedor — e o botão da chave passa a apontar para a página dele (ou some, no LM Studio).
 
 > `BaseUrl`, `Modelo` e `ApiKey` também aparecem no painel **`F8`**, mas são chaves de **texto**: para colar uma
 > chave, o campo do painel `I` (ou o próprio `.cfg`) é mais confortável. O que você salva ali vale na **próxima
@@ -88,8 +88,6 @@ manda um pedido mínimo de chat. O resultado é um destes:
   mandando uma ordem de verdade.
 - **Falha na conexão: …** — vem com o motivo (status/mensagem do servidor): URL errada, chave vazia/errada,
   endereço sem `http://`/`https://`…
-
-![O painel da IA (tecla I), aba IA: acima, o invocador de companheiros com a lista de tipos aberta; abaixo, a seção Configurações do LLM com URL do servidor, modelo, chave de API mascarada, Aplicar e Testar conexão](images/3-invocar-e-llm.jpg)
 
 > **Quem confirma a chave é uma ordem de verdade.** O **Testar conexão** diz que a URL responde e que o modelo está
 > na lista; se ele passar mas a ordem falhar com **401**, o problema é a chave — veja

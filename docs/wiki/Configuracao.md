@@ -78,7 +78,7 @@ navegador** na página de chaves do provedor escolhido (**Groq** → `console.gr
 `openrouter.ai/keys`), para você pegar a chave sem sair do jogo. Ele **não aparece** no **LM Studio** nem no
 **Personalizado** (esses não têm chave) e **não é um seletor**: clicar não muda estado nenhum depois.
 
-![O painel da IA na aba IA: as abas de cada companheiro no topo, o invocador de companheiros e as Configurações do LLM (aqui com o OpenRouter de exemplo: URL, modelo e a chave mascarada) e o botão Testar conexão](images/3-invocar-e-llm.jpg)
+![O painel da IA na aba IA: o seletor "Selecione seu Provedor LLM" em Groq, o invocador de companheiros, a URL do servidor, o modelo openai/gpt-oss-20b, a chave de API mascarada, o botão "Crie sua Chave de API Grátis AQUI", Aplicar e Testar conexão](images/6-painel-ia.jpg)
 
 #### Aba do companheiro
 

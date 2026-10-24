@@ -147,10 +147,10 @@ nada para instalar — só a **chave gratuita** e internet.
 > página da chave no navegador (`console.groq.com/keys` no Groq). A velocidade da fala, que saiu deste painel,
 > fica no **`F8`**.
 
-![O painel da IA, aba IA: em Configurações do LLM, a URL do servidor, o modelo e a chave de API mascarada](images/painel-llm-openrouter.png)
+![O painel da IA na aba IA: em Configurações do LLM, o seletor "Selecione seu Provedor LLM" já em Groq, a URL do servidor com api.groq.com, o modelo openai/gpt-oss-20b, a chave de API mascarada e o botão "Crie sua Chave de API Grátis AQUI" à direita da chave](images/6-painel-ia.jpg)
 
-> No print os campos mostram uma configuração de exemplo com o **OpenRouter**; com o Groq a URL é
-> `https://api.groq.com/openai/v1` e o modelo é `openai/gpt-oss-20b`. O painel é o mesmo.
+> Este print é da **1.8.2**: o **seletor de provedor** está em **Groq** (o padrão), a URL e o modelo vêm do Groq e o
+> botão da chave aparece à direita da `Chave de API`. Se você escolher **LM Studio**, o botão some (não há chave).
 
 > **Com o Groq, o texto das ordens sai da sua máquina** (é um serviço remoto) e o tier gratuito tem limite de
 > requisições e de **tokens por minuto** (~4 ordens por minuto com o `gpt-oss-20b`). Para rodar **tudo local** — e
