@@ -26,6 +26,13 @@ internal sealed class LlmIntent
 	/// the target (see Parse).</summary>
 	internal string Target;
 
+	/// <summary>
+	/// Fase 3.11: the companion the message is addressed to ("Gruncha, colete 10 pedras" -> "Gruncha"), as the model
+	/// wrote it, trimmed and <b>not</b> normalized - the name is the player's, and it is matched against the real
+	/// companions later (see <see cref="CompanionNames.Find"/>). Null when the message is not addressed to anyone.
+	/// </summary>
+	internal string Companion;
+
 	/// <summary>How many were asked for, or 0 when the order didn't say.</summary>
 	internal int Amount;
 
@@ -50,6 +57,11 @@ internal sealed class LlmIntent
 	// Fase 3.6: the creature/item an attack/equip/drop order points at. Kept apart from "resource" (the item a
 	// gathering job is about) so the same JSON can carry both without one overwriting the other.
 	private static readonly Regex TargetFieldRegex = new Regex("\"(?:target|alvo|target_name|nome_alvo|creature|item_name)\"\\s*:\\s*(?:\"((?:[^\"\\\\]|\\\\.)*)\"|([^,}}\\s\\]]+))", RegexOptions.Compiled | RegexOptions.Singleline);
+
+	// Fase 3.11: the companion the message is addressed to ("Gruncha, colete 10 pedras"). Same shape as "target"
+	// (nullable, with the aliases a small model tends to use), but the value is kept as the model wrote it: the name
+	// is the player's, and it is compared to the real companions without case/accents later.
+	private static readonly Regex CompanionFieldRegex = new Regex("\"(?:companion|companheiro|companion_name|nome_companheiro|destinatario|addressee)\"\\s*:\\s*(?:\"((?:[^\"\\\\]|\\\\.)*)\"|([^,}}\\s\\]]+))", RegexOptions.Compiled | RegexOptions.Singleline);
 
 	private static readonly Regex StanceFieldRegex = new Regex("\"(?:stance|postura)\"\\s*:\\s*(?:\"((?:[^\"\\\\]|\\\\.)*)\"|([^,}}\\s\\]]+))", RegexOptions.Compiled | RegexOptions.Singleline);
 
@@ -102,6 +114,8 @@ internal sealed class LlmIntent
 			string target = ReadField(TargetFieldRegex, body, noneIsNull: true);
 			string stance = ReadField(StanceFieldRegex, body, noneIsNull: true);
 			string reply = ReadField(ReplyFieldRegex, body, noneIsNull: true);
+			// Fase 3.11: nullable like "target", and kept as written (only trimmed) - see the Companion field
+			string companion = ReadField(CompanionFieldRegex, body, noneIsNull: true);
 
 			Match amountMatch = AmountRegex.Match(body);
 			if (amountMatch.Success && int.TryParse(amountMatch.Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int amount))
@@ -119,6 +133,7 @@ internal sealed class LlmIntent
 			intent.Target = string.IsNullOrEmpty(target) ? null : Normalize(target);
 			intent.Action = Canonicalize(action, stance, intent.Resource, intent.Target);
 			intent.Reply = string.IsNullOrEmpty(reply) ? null : reply.Trim();
+			intent.Companion = string.IsNullOrEmpty(companion) ? null : companion.Trim();
 
 			// Fase 3.5: a model that ignored the JSON contract and simply answered in prose - in conversation mode
 			// that prose IS the answer (see CompanionChatAI). A one-word answer was already taken as the action
@@ -205,6 +220,34 @@ internal sealed class LlmIntent
 	internal static bool NeedsTarget(string action)
 	{
 		return action == "attack" || action == "equip" || action == "drop";
+	}
+
+	/// <summary>
+	/// Fase 3.12: is this word/phrase one the parser already knows - an order verb ("colete", "para", "segue"), a
+	/// stance, a resource, or a greeting/filler of the "none" group ("bom dia", "valeu")? It is what tells an address
+	/// ("Fulano, colete 10 pedras") from an order or a greeting that happens to come before a comma ("para, obrigado"
+	/// / "bom dia, tudo bem?"), using the very same table the parser uses, so the two can never drift apart.
+	/// </summary>
+	internal static bool IsIntentWord(string value)
+	{
+		string normalized = Normalize(value);
+		if (normalized.Length == 0)
+		{
+			return false;
+		}
+		if (Aliases.ContainsKey(normalized) || Resources.ContainsKey(normalized))
+		{
+			return true;
+		}
+		// a phrase ("pega a picareta") whose words are all in the table is still an order
+		foreach (string word in normalized.Split('_'))
+		{
+			if (Aliases.ContainsKey(word) || Resources.ContainsKey(word))
+			{
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private static string Canonicalize(string action, string stance, string resource, string target)

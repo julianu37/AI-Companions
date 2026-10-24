@@ -9,10 +9,9 @@ using UnityEngine.UI;
 namespace Companions;
 
 /// <summary>
-/// Fase 3.7: the in-game AI panel. Everything the AI layer reads from the .cfg can be changed here without leaving the
-/// game: the personality (a preset from <see cref="CompanionPersona"/> or the player's own text), the voice of the
-/// local TTS (<see cref="CompanionTts"/> - which voice, volume, speed, what gets spoken), the free conversation and the
-/// memory size, plus the push-to-talk key of the voice orders (captured with the mod's own
+/// Fase 3.7: the in-game AI panel. The settings the AI layer reads from the .cfg can be changed here without leaving
+/// the game: the voice volume and speed of the local TTS (<see cref="CompanionTts"/>), what gets spoken, the free
+/// conversation and the memory size, plus the push-to-talk key of the voice orders (captured with the mod's own
 /// <see cref="KeyBindListener"/>, the same one the F8 panel uses).
 ///
 /// Shape (deliberately the same shape as the mod's other panels):
@@ -25,15 +24,44 @@ namespace Companions;
 /// while this one is visible), so the two panels are never on top of each other;</item>
 /// <item>the controls are built <b>once</b> (first open) and only shown/hidden afterwards - nothing is allocated per
 /// frame; the only per-frame work is the panel key, the cursor and a status refresh <b>twice a second</b>;</item>
-/// <item>every control writes straight into its <see cref="ConfigEntry"/>, and BepInEx saves the .cfg on the spot
-/// (<c>ConfigFile.SaveOnConfigSet</c> is on by default), so the change is live and permanent;</item>
+/// <item>every <c>[IA]</c> control writes straight into its <see cref="ConfigEntry"/>, and BepInEx saves the .cfg on
+/// the spot (<c>ConfigFile.SaveOnConfigSet</c> is on by default), so the change is live and permanent; the controls
+/// of a companion's tab write into that companion's ZDO instead;</item>
 /// <item>a change is applied at the next use: the voice at the next line (the synthesis worker reads the config when
 /// it runs), the personality/memory at the next message (the prompt is built per message), the volume at the next
 /// audio.</item>
 /// </list>
 ///
-/// The panel needs no companion nearby (it is a global setting of the mod): the title just names the companion that
-/// would answer right now, and the "Ouvir" preview uses that same companion as the 3D source of the voice.
+/// Fase 3.9 - <b>tabs and the summoner</b>: the panel is no longer one page. A strip of tabs sits under the title: the
+/// first tab is the AI settings (<see cref="ModLocalization"/> key <c>hc_ai_tab_main</c>) and every companion of the
+/// local player gets a tab of its own, ordered by name. The AI tab also carries the summoner - a tier dropdown plus
+/// "Invocar", which spawns a companion <b>for free</b> (no coins, no Trader bank, no limit, through
+/// <see cref="CompanionManager.SpawnFree"/>, i.e. the very spawn the Trader's purchase runs) - and the count of the
+/// companions the player has. A companion's tab shows whether it is alive and its "Chamar" button brings it over
+/// through the same recall the command key uses (<see cref="CompanionInteract.RecallOne"/> and
+/// <see cref="ReturnLogic"/>). There is no dismiss button here on purpose: the wheel already has one, and it is
+/// permanent.
+///
+/// The pages are built once, like everything else; only the tab buttons are destroyed and rebuilt (on open and after
+/// a summon), because a companion can be born or die between two openings.
+///
+/// Fase 3.10 - <b>the profile of each companion</b>: the voice and the personality stopped being one global setting
+/// for the whole world. A companion's tab carries its own "voice and personality" section (the same hand-built
+/// dropdowns, the same "Ouvir", the same "Aplicar"), and those controls write into <b>that companion's ZDO</b> through
+/// <see cref="CompanionProfile"/>. The <c>[IA]</c> values remain the <b>default</b> of every companion that has nothing
+/// of its own, but the panel no longer edits them - they live in the .cfg and in the F8 panel. The first entries of both
+/// lists are explicit: "Follow the [IA] default" clears what that companion stores, and the footer says "(padrão)"
+/// when the value in use is the global one.
+///
+/// Fase 3.15 - <b>the identity of the companion is editable</b>: the tab's name is a text box with "Aplicar" (the same
+/// <see cref="CompanionSetup.Rename"/> path the interact panel uses), and the tier is a picker whose "Trocar tipo
+/// (renasce)" respawns the companion as the chosen prefab, after a confirmation, keeping name/appearance/inventory/
+/// equipment/AI profile/id/history (<see cref="CompanionManager.ChangeTier"/>). The <b>global</b> personality and voice
+/// controls that used to live on the AI tab are gone - those settings belong to each companion now, and the AI tab
+/// keeps the volume/speed/volume/memory/push-to-talk/toggles, the summoner and the footer.
+///
+/// The panel needs no companion nearby (the AI tab is a global setting of the mod): the title just names the
+/// companion that would answer right now.
 ///
 /// Why the dropdown is hand-built: a <c>TMP_Dropdown</c> needs a whole template (scroll view, mask, toggle items)
 /// instantiated at runtime, and the game's legacy <c>Dropdown</c> renders with the legacy <c>Text</c> (whose default
@@ -48,7 +76,12 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 	private const float PanelW = 680f;
 
-	private const float PanelH = 516f;
+	/// <summary>
+	/// Height of the panel. 650 until Fase 3.20: the LLM section of the AI tab needs eleven controls, and they are laid
+	/// out as a <b>two-column grid</b> under the summoner (see the RowLlm* constants) so the panel stops at 900 - one
+	/// row per control would have pushed it past 1080p.
+	/// </summary>
+	private const float PanelH = 900f;
 
 	/// <summary>Height of a control row (the row backgrounds are the same height).</summary>
 	private const float RowH = 34f;
@@ -67,31 +100,128 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	/// <summary>First x of a control that sits after the label column.</summary>
 	private const float FieldX = LeftX + LabelW + 8f;
 
+	// ------------------------------------------------------------------ tabs (Fase 3.9)
+
+	/// <summary>Height of the strip of tabs (the AI tab and one per companion).</summary>
+	private const float TabH = 30f;
+
+	/// <summary>Top of the strip of tabs, measured down from the top of the panel (right below the title).</summary>
+	private const float TabRowY = 38f;
+
+	/// <summary>Space between two tabs.</summary>
+	private const float TabGap = 4f;
+
+	/// <summary>Narrowest a tab may get; past that the strip scrolls sideways (the player may summon any number).</summary>
+	private const float TabMinW = 56f;
+
+	/// <summary>Width of a tab when there is room for it.</summary>
+	private const float TabMaxW = 150f;
+
+	/// <summary>How far everything below the strip of tabs moved down (the tab row plus its breathing room).</summary>
+	private const float TabShift = TabH + 10f;
+
 	// Top of each row, measured down from the top of the panel (rows step by RowH + 8).
-	private const float RowPersonality = 40f;
+	// Fase 3.15: the personality / free text / voice rows left this tab (they belong to each companion now), so the
+	// page was re-laid out from the top with no holes: the volume row is the first one and the summoner follows the
+	// settings block, with the footer right below it.
+	private const float RowVolume = 40f + TabShift;
 
-	private const float RowFreeText = 82f;
+	private const float RowKey = 82f + TabShift;
 
-	private const float RowVoice = 124f;
+	private const float RowToggleA = 124f + TabShift;
 
-	private const float RowVolume = 166f;
+	private const float RowToggleB = 166f + TabShift;
 
-	private const float RowKey = 208f;
+	private const float RowMemory = 208f + TabShift;
 
-	private const float RowToggleA = 250f;
+	private const float RowSpeed = 250f + TabShift;
 
-	private const float RowToggleB = 292f;
+	// Fase 3.9: the summoner at the bottom of the AI tab - a section title, the tier row and the counter.
+	// Fase 3.15: it follows the settings block (which now ends at 324) with the same 26px section break.
+	private const float RowSpawnTitle = 350f;
 
-	private const float RowMemory = 334f;
+	private const float RowSpawnTier = 374f;
 
-	private const float RowSpeed = 376f;
+	private const float RowSpawnCount = 412f;
+
+	/// <summary>Width of the tier dropdown of the summoner ("Invocar" takes the rest of the row).</summary>
+	private const float TierFieldW = 300f;
+
+	/// <summary>Fase 3.9: the shortest gap between two summons, so a double click can't create two companions.</summary>
+	private const float SummonInterval = 0.5f;
+
+	// ------------------------------------------------------------------ the LLM settings (Fase 3.20)
+	// A two-column grid right under the summoner: the three toggles and the four text fields on the left, the four
+	// sliders (with their value) and the two buttons on the right. Eleven controls in one column would have made the
+	// panel taller than the screen; two columns keep it at 900 with every control at a usable width.
+	private const float RowLlmTitle = 458f;
+
+	private const float RowLlmFirst = 482f;
+
+	/// <summary>Vertical step of the grid (34px row + 4px gap).</summary>
+	private const float LlmStep = 38f;
+
+	/// <summary>Left edge of the right column (the left column runs from LeftX to here).</summary>
+	private const float LlmRightX = 340f;
+
+	/// <summary>Width of the name column inside the grid (narrower than the page's LabelW, to leave room for the
+	/// field: the page keeps 150 for its full-width rows).</summary>
+	private const float LlmLabelW = 120f;
+
+	private const float LlmFieldX = LeftX + LlmLabelW + 8f;
+
+	private const float LlmFieldW = LlmRightX - 8f - LlmFieldX;
+
+	private const float LlmRightLabelW = 96f;
+
+	private const float LlmSliderX = LlmRightX + 100f;
+
+	private const float LlmSliderW = 160f;
+
+	private const float LlmValueX = RightEdge - 64f;
+
+	private const float LlmValueW = 64f;
+
+	/// <summary>Rows of the left column (three toggles + four text fields).</summary>
+	private const int LlmRows = 7;
+
+	/// <summary>Rows of the right column (four sliders + Aplicar + Testar conexão).</summary>
+	private const int LlmRightRows = 6;
+
+	// Fase 3.9: the page of a companion's tab (same coordinates: the page fills the whole panel).
+	// Fase 3.15: the name and the tier are editable now, so their rows carry a field/a picker plus a button, and the
+	// profile block (Fase 3.10) moved down as a whole.
+	private const float RowCompName = 76f;
+
+	private const float RowCompTier = 118f;
+
+	private const float RowCompStatus = 160f;
+
+	private const float RowCompRecall = 198f;
+
+	// Fase 3.10: the profile of that companion (its own voice and personality) sits under the "Chamar" button
+	private const float RowCompProfileTitle = 236f;
+
+	private const float RowCompPersonality = 258f;
+
+	private const float RowCompFreeText = 300f;
+
+	private const float RowCompVoice = 342f;
+
+	private const float RowCompHint = 386f;
+
+	/// <summary>The hint of the "Chamar" button, kept from Fase 3.9 (the profile hint above explains the defaults).</summary>
+	private const float RowCompCallHint = 430f;
 
 	// The footer is two two-line blocks over their own dark strip (see BuildFooter): the summary of what is in use
 	// right now and the hint line. It used to be two 11px dark-grey single lines that were unreadable over the wooden
 	// panel - and the second one was clipped by the bottom edge of the panel.
-	private const float RowStatus = 418f;
+	// Fase 3.15: it moved up with the page (the block that left it freed ~210px at the top).
+	// Fase 3.20: it moved down again for the LLM section (which ends at 744): the strip keeps its own 6px of breathing
+	// room above and the panel grew to 900, so the hint has 32px below it.
+	private const float RowStatus = 782f;
 
-	private const float RowHint = 462f;
+	private const float RowHint = 826f;
 
 	/// <summary>Height of one line of the footer (the blocks are two lines tall).</summary>
 	private const float FooterLineH = 18f;
@@ -159,8 +289,6 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 	private TMP_Text _title;
 
-	private TMP_InputField _freeText;
-
 	private Slider _volume;
 
 	private Slider _speed;
@@ -177,11 +305,152 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 	private bool _listeningKey;
 
-	private AiButton _listen;
+	/// <summary>Fase 3.9: the tier dropdown of the summoner at the bottom of the AI tab.</summary>
+	private AiDropdown _tier;
 
-	private AiDropdown _personality;
+	/// <summary>
+	/// The six tiers the panels offer, in the order they are shown. Fase 3.15: the list itself lives in
+	/// <see cref="CompanionTierData.All"/> now - the starter's type picker, the summoner and the tier change of a
+	/// companion all read the same table.
+	/// </summary>
+	private static readonly CompanionTierDef[] Tiers = CompanionTierData.All;
 
-	private AiDropdown _voice;
+	/// <summary>The prefab hash of each tier, computed once: a companion's ZDO keeps the prefab it was spawned from,
+	/// and that is how a tab names its tier (<see cref="TierName"/>).</summary>
+	private static readonly int[] TierHashes = BuildTierHashes();
+
+	private static int[] BuildTierHashes()
+	{
+		int[] hashes = new int[Tiers.Length];
+		for (int i = 0; i < Tiers.Length; i++)
+		{
+			hashes[i] = Tiers[i].PrefabName.GetStableHashCode();
+		}
+		return hashes;
+	}
+
+	// ------------------------------------------------------------------ tabs / pages (Fase 3.9)
+
+	/// <summary>Every control of the AI tab lives under this page, so a tab switch is one SetActive.</summary>
+	private GameObject _aiPage;
+
+	/// <summary>The page of a companion's tab (built once and filled with whoever is selected).</summary>
+	private GameObject _compPage;
+
+	/// <summary>The page the primitives parent to: the AI page while building it, the companion page while building
+	/// that one, null (the panel root) for the title and the strip of tabs, which every tab shares.</summary>
+	private Transform _page;
+
+	private RectTransform _tabContent;
+
+	private ScrollRect _tabScroll;
+
+	/// <summary>The tabs of the strip: index 0 is the AI tab (<c>Companion == null</c>), the rest are companions.</summary>
+	private readonly List<AiTab> _tabs = new List<AiTab>();
+
+	/// <summary>The tab buttons themselves, so they can be destroyed and rebuilt (companions are born and die).</summary>
+	private readonly List<GameObject> _tabObjects = new List<GameObject>();
+
+	/// <summary>Index into <see cref="_tabs"/> of the open tab.</summary>
+	private int _activeTab;
+
+	private TMP_Text _spawnCount;
+
+	/// <summary>Fase 3.9: the earliest moment the next summon may run (see <see cref="Summon"/>).</summary>
+	private float _nextSummonAt;
+
+	// ---- Fase 3.20: the LLM settings of the AI tab ----
+	// The four text boxes are applied by the section's "Aplicar" (never per keystroke), they are registered in
+	// ModTextInputFocus by CreateInputField and Esc leaves them before the panel closes.
+	private TMP_InputField _llmBaseUrl;
+
+	private TMP_InputField _llmModel;
+
+	private TMP_InputField _llmApiKey;
+
+	private TMP_InputField _llmPrefix;
+
+	private Slider _llmTemperature;
+
+	private TMP_Text _llmTemperatureLabel;
+
+	private Slider _llmTimeout;
+
+	private TMP_Text _llmTimeoutLabel;
+
+	private Slider _llmCooldown;
+
+	private TMP_Text _llmCooldownLabel;
+
+	private Slider _llmTargetRange;
+
+	private TMP_Text _llmTargetRangeLabel;
+
+	/// <summary>
+	/// Fase 3.15: the name field of the open companion (editable now). It replaces the read-only "Nome" line; the
+	/// editor is the same hand-built box the profile's free text uses, so it has the focus guard
+	/// (<see cref="ModTextInputFocus"/>) and Esc leaves it before the panel closes.
+	/// </summary>
+	private TMP_InputField _compNameInput;
+
+	/// <summary>The "Tipo" picker of the open companion: the tier the player is choosing, applied by the button.</summary>
+	private int _compTierIndex;
+
+	private TMP_Text _compTierValue;
+
+	private AiButton _compTierApply;
+
+	/// <summary>What the "Trocar tipo" confirmation is about (the popup callbacks carry no arguments).</summary>
+	private CompanionSetup _pendingTierTarget;
+
+	private CompanionTierDef _pendingTierDef;
+
+	/// <summary>Is the companion of the open tab alive? (the tier change respawns it, so a corpse is refused)</summary>
+	private bool _compAlive;
+
+	private TMP_Text _compStatus;
+
+	private AiButton _recall;
+
+	/// <summary>Fase 3.20: opens the appearance editor of the companion on the tab (the starter's column + 3D preview).
+	/// Kept so it can follow life and death, like "Chamar".</summary>
+	private AiButton _compAppearance;
+
+	// ------------------------------------------------------------------ Fase 3.10: the profile of the open companion
+
+	/// <summary>The personality dropdown of a companion's tab: the "follow the [IA] default" entry, the default
+	/// personality, the presets and the free text.</summary>
+	private AiDropdown _compPersonality;
+
+	/// <summary>The voice dropdown of a companion's tab: "follow the [IA] default" and the three pt-BR voices.</summary>
+	private AiDropdown _compVoice;
+
+	private TMP_InputField _compFreeText;
+
+	private AiButton _compApply;
+
+	private AiButton _compListen;
+
+	private string[] _compPersonalityIds;
+
+	private string[] _compPersonalityLabels;
+
+	private int[] _compVoiceIds;
+
+	private string[] _compVoiceLabels;
+
+	/// <summary>The companion whose profile the controls of the companion page are showing, so they are only
+	/// refilled when the tab really changes (a twice-a-second refill would fight the text box being typed in).</summary>
+	private CompanionSetup _compFormFor;
+
+	/// <summary>
+	/// Fase 3.12 (auditoria): the two footer labels of the open companion, computed when its tab loads (and after every
+	/// change made on it), never on the twice-a-second refresh - reading them live meant four ZDO keys per half
+	/// second for a text that only changes when the player changes something.
+	/// </summary>
+	private string _compStatusPersonality;
+
+	private string _compStatusVoice;
 
 	/// <summary>The dropdown whose list is open right now (only one at a time), or null.</summary>
 	private AiDropdown _openList;
@@ -214,8 +483,10 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		UnityEngine.Object.DontDestroyOnLoad(holder);
 		Instance = holder.AddComponent<CompanionAiPanel>();
 		string key = ModConfig.AiPanelKey != null ? ModConfig.AiPanelKey.Value.ToString() : "?";
-		CompanionsPlugin.Log?.LogInfo($"[IA] Painel da IA pronto: abre/fecha com {key} ([IA] PainelTecla) ou Esc. Personalidade, voz (com Ouvir), "
-			+ "volume, velocidade, memoria, conversa e o push-to-talk ficam todos ali, e cada mudanca e salva na hora no .cfg.");
+		CompanionsPlugin.Log?.LogInfo($"[IA] Painel da IA pronto: abre/fecha com {key} ([IA] PainelTecla) ou Esc. Volume, velocidade, memoria, "
+			+ "conversa e o push-to-talk ficam na aba IA, e cada mudanca e salva na hora no .cfg. A aba IA tambem invoca companheiros de "
+			+ "graca (sem moedas); cada companheiro tem a sua aba, com o botao Chamar, o NOME e o TIPO editaveis ali (o tipo renasce o "
+			+ "companheiro) e a voz e a personalidade DELE (guardadas no ZDO dele; o .cfg e o padrao de quem nao tem escolha propria).");
 	}
 
 	private void Awake()
@@ -274,6 +545,10 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		_root.SetActive(true);
 		_visible = true;
 		_nextStatus = 0f;
+		// Fase 3.9: the strip of tabs is rebuilt on every open (a companion can be summoned or die between two
+		// openings, and the tab of one that is gone must not linger); every other control is still built once.
+		RebuildTabs();
+		RefreshSpawnCount();
 		RefreshStatus();
 		Cursor.lockState = CursorLockMode.None;
 		Cursor.visible = true;
@@ -303,34 +578,49 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 			_root != null ? _root.GetComponent<RectTransform>() : null, ProbePoints, _backdrop, this);
 	}
 
-	/// <summary>The probed points (panel-local; the panel is 680x516 with a centre pivot): the middle of the column
+	/// <summary>The probed points (panel-local; the panel is 680x650 with a centre pivot): the middle of the column
 	/// of controls, at eleven heights, so a band anywhere over the controls is caught. The column starts at
 	/// <c>FieldX</c> (166 from the left edge) and stops at <c>RightEdge</c> (672), so its centre is 419 from the left
-	/// edge - i.e. 79 from the centre pivot - and the rows run from 40 to 410 from the top.</summary>
+	/// edge - i.e. 79 from the centre pivot - and the rows run from 80 to 590 from the top (the strip of tabs and the
+	/// summoner of Fase 3.9 moved everything below the title down).</summary>
 	private static readonly Vector2[] ProbePoints = new Vector2[11]
 	{
-		new Vector2(79f, 235f),
-		new Vector2(79f, 198f),
-		new Vector2(79f, 161f),
-		new Vector2(79f, 124f),
-		new Vector2(79f, 87f),
-		new Vector2(79f, 50f),
-		new Vector2(79f, 13f),
-		new Vector2(79f, -24f),
+		new Vector2(79f, 245f),
+		new Vector2(79f, 194f),
+		new Vector2(79f, 143f),
+		new Vector2(79f, 92f),
+		new Vector2(79f, 41f),
+		new Vector2(79f, -10f),
 		new Vector2(79f, -61f),
-		new Vector2(79f, -98f),
-		new Vector2(79f, -135f)
+		new Vector2(79f, -112f),
+		new Vector2(79f, -163f),
+		new Vector2(79f, -214f),
+		new Vector2(79f, -265f)
 	};
 
 	public void Hide()
 	{
 		_visible = false;
+		// Fase 3.16 (auditoria): a tier-change confirmation left open while the panel goes away must not run later on
+		// a companion the player is no longer looking at (or that may even be gone). Cancelling also takes the popup
+		// off the screen, because that popup can only be the one we pushed.
+		if (_pendingTierTarget != null || _pendingTierDef != null)
+		{
+			CancelTierChange();
+		}
 		CloseLists();
 		_listeningKey = false;
-		if (_freeText != null && _freeText.isFocused)
+		if (_compNameInput != null && _compNameInput.isFocused)
 		{
-			_freeText.DeactivateInputField();
+			_compNameInput.DeactivateInputField();
 		}
+		// Fase 3.10: the text box of a companion's profile is a text box like any other
+		if (_compFreeText != null && _compFreeText.isFocused)
+		{
+			_compFreeText.DeactivateInputField();
+		}
+		// Fase 3.20: and so are the four LLM boxes
+		DeactivateLlmFields();
 		if (_root != null)
 		{
 			_root.SetActive(false);
@@ -351,12 +641,29 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 			}
 			return;
 		}
+		// Fase 3.20: the appearance editor opens on top of this panel and owns the keyboard while it is up - Esc closes
+		// the editor only, never both windows at once (the editor calls Hide() itself if it ever needs to).
+		if (CompanionAppearancePanel.IsOpen)
+		{
+			return;
+		}
 		if (Input.GetKeyDown(KeyCode.Escape) || ZInput.GetButtonDown("JoyBack") || ZInput.GetButtonDown("JoyButtonB"))
 		{
 			// Esc first leaves the text box, then closes the open list, then the panel - never all at once
-			if (_freeText != null && _freeText.isFocused)
+			if (_compNameInput != null && _compNameInput.isFocused)
 			{
-				_freeText.DeactivateInputField();
+				_compNameInput.DeactivateInputField();
+				return;
+			}
+			if (_compFreeText != null && _compFreeText.isFocused)
+			{
+				_compFreeText.DeactivateInputField();
+				return;
+			}
+			// Fase 3.20: the LLM boxes of the AI tab, same rule (Esc leaves the box, the next Esc closes the panel)
+			if (LlmFieldFocused())
+			{
+				DeactivateLlmFields();
 				return;
 			}
 			if (_openList != null)
@@ -392,8 +699,10 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		{
 			return false;
 		}
-		if (Player.m_localPlayer == null)
+		if (Player.m_localPlayer == null || Player.m_localPlayer.IsDead())
 		{
+			// Fase 3.9: also while the player is dead - the panel would open and close itself on the next tick anyway
+			// (RefreshStatus calls Hide() for a dead player), which reads as a flicker of the whole window
 			return false;
 		}
 		// the same windows VoiceInput.BlockedByUi refuses to talk over: an open inventory, the map or the game menu
@@ -411,11 +720,31 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		{
 			return false;
 		}
+		// nor on top of the starter companion picker of the first spawn: that one is choosing the very companion this
+		// panel could now summon (Fase 3.9), and stacking two of the mod's panels is never what the player meant
+		if (StarterCompanionPanel.Instance != null && StarterCompanionPanel.Instance.IsVisible)
+		{
+			return false;
+		}
+		// nor while the appearance editor (opened by this panel) is up: it is the window in front
+		if (CompanionAppearancePanel.IsOpen)
+		{
+			return false;
+		}
 		if (Chat.instance != null && Chat.instance.HasFocus())
 		{
 			return false;
 		}
-		if (_freeText != null && _freeText.isFocused)
+		if (_compNameInput != null && _compNameInput.isFocused)
+		{
+			return false;
+		}
+		if (_compFreeText != null && _compFreeText.isFocused)
+		{
+			return false;
+		}
+		// Fase 3.20: typing in the LLM boxes must not close the panel with the panel key
+		if (LlmFieldFocused())
 		{
 			return false;
 		}
@@ -444,20 +773,34 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 			Hide();
 			return;
 		}
-		bool ttsReady = CompanionTts.Enabled && CompanionTts.Ready;
-		if (_listen != null)
+		// Fase 3.9: the companion of the open tab is a scene object and can leave the world while the panel is up
+		// (dead and destroyed, dismissed from the wheel, world change). Unity answers "null" for a destroyed object,
+		// so SelectedCompanion() starts returning null, but nothing else would move the panel off the companion page -
+		// it would sit there with "Nome = ?" and the AI tab hidden. Rebuilding the strip drops the tab of a companion
+		// that is gone, and ApplyTab falls back to the AI tab (index 0) for that same reason.
+		CompanionSetup selected = SelectedCompanion();
+		if (_activeTab > 0 && selected == null)
 		{
-			_listen.Button.interactable = ttsReady;
-			if (_listen.Label != null)
+			RebuildTabs();
+			return;
+		}
+		bool ttsReady = CompanionTts.Enabled && CompanionTts.Ready;
+		// Fase 3.10: the "Ouvir" of a companion's tab follows that rule (the only "Ouvir" left in the panel since
+		// Fase 3.15 - the AI tab's voice preview went away with the global voice controls)
+		if (_compListen != null)
+		{
+			_compListen.Button.interactable = ttsReady;
+			if (_compListen.Label != null)
 			{
-				_listen.Label.color = ttsReady ? Color.white : DimColor;
+				_compListen.Label.color = ttsReady ? Color.white : DimColor;
 			}
 		}
 		// The title names the companion that would answer right now (the same one the "Ouvir" preview uses as the
-		// source of the voice), so it is clear who is talking before the sample plays.
+		// source of the voice), so it is clear who is talking before the sample plays. Fase 3.9: on a companion's tab
+		// it names that companion instead - the page below is about it, not about the voice.
 		if (_title != null)
 		{
-			string name = CompanionName(CompanionChatAI.PickSpeaker());
+			string name = selected != null ? NameOf(selected) : CompanionName(CompanionChatAI.PickSpeaker());
 			_title.text = string.IsNullOrEmpty(name)
 				? ModLocalization.Loc("hc_ai_panel_title")
 				: ModLocalization.LocFmt("hc_ai_panel_title_named", name);
@@ -466,9 +809,17 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		{
 			string key = ModConfig.VozTecla != null ? ModConfig.VozTecla.Value.ToString() : "?";
 			// two localized lines instead of one long line: the personality on the first, the voice and the
-			// push-to-talk key on the second (the footer block is two lines tall)
-			_status.text = ModLocalization.LocFmt("hc_ai_panel_status_personality", EffectivePersonalityLabel())
-				+ "\n" + ModLocalization.LocFmt("hc_ai_panel_status_voice", CurrentVoiceLabel(), key);
+			// push-to-talk key on the second (the footer block is two lines tall). Fase 3.10: the summary follows the
+			// open tab - a companion's own values on its tab, the global ones on the AI tab - and says "(padrão)"
+			// when what is in use is the global value, so it is never a mystery whose voice is about to be heard.
+			_status.text = ModLocalization.LocFmt("hc_ai_panel_status_personality", PersonalityStatusLabel(selected))
+				+ "\n" + ModLocalization.LocFmt("hc_ai_panel_status_voice", VoiceStatusLabel(selected), key);
+		}
+		// Fase 3.9: a companion's tab shows whether it is alive, so it follows the companion with this same tick - one
+		// health read twice a second, and the texts only change when they really change (TMP compares the string)
+		if (selected != null)
+		{
+			RefreshCompanionPage();
 		}
 	}
 
@@ -532,13 +883,32 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		rootImage.raycastTarget = false;
 
 		BuildHeader();
+		BuildTabBar();
+		// Fase 3.15: the lists the FOOTER reads (the global values, shown on the AI tab). The dropdowns that used
+		// them are gone from this page - the personality and the voice are edited per companion now - but the summary
+		// line still names what the [IA] settings are, so the labels are built once here.
+		_personalityIds = CompanionProfile.PresetIds(withInherit: false);
+		_personalityLabels = CompanionProfile.PresetLabels(withInherit: false);
+		_voiceIds = CompanionProfile.VoiceIds(withInherit: false);
+
+		// Fase 3.9: one page for the AI tab, one for a companion's tab. Both fill the panel (i.e. they use the same
+		// coordinates as Place), so switching tabs is showing one page and hiding the other - never a rebuild, and
+		// never a control that has to be laid out again.
+		_aiPage = CreatePage("AiPage");
+		_page = _aiPage.transform;
 		BuildRowBackgrounds();
-		BuildPersonality();
-		BuildVoice();
+		BuildVolume();
 		BuildPushToTalk();
 		BuildToggles();
 		BuildNumbers();
+		BuildSpawner();
+		BuildLlmSettings();
 		BuildFooter();
+		_compPage = CreatePage("CompanionPage");
+		_page = _compPage.transform;
+		BuildCompanionPage();
+		_page = null;
+		_compPage.SetActive(false);
 
 		// The dropdown lists live on an overlay that is the last child of the panel, so an open list is drawn above
 		// every row instead of being clipped by the row it belongs to. The overlay itself has no Image (it never eats
@@ -559,13 +929,20 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		// the catcher is the FIRST child of the overlay: the lists created after it draw above it, so an item click
 		// reaches the item and only a click outside the list reaches the catcher
 		BuildListCatcher(_overlay);
-		BuildDropdowns();
-		// The fields of the two dropdowns are created by BuildDropdowns with the panel itself as the parent, i.e.
-		// AFTER the overlay: in uGUI the render order is the order of the siblings (the last child draws on top), so
-		// without this line the field of "Voz", the free-text box and "Aplicar" would be drawn OVER the open list -
-		// which is exactly the bug of the screenshot (the list of "Personalidade" appearing behind the rows below it).
-		// The overlay canvas above already wins over the panel canvas, but the sibling order is kept correct too, so
-		// nothing depends on a single mechanism.
+		// the fields of the dropdowns belong to the page they are shown on (only the lists float)
+		_page = _aiPage.transform;
+		BuildSpawnerDropdown();
+		// Fase 3.10/3.15: and the two dropdowns of a companion's profile, on its own page (the lists go to the same
+		// overlay, which is why this happens after it exists)
+		_page = _compPage.transform;
+		BuildCompanionDropdowns();
+		_page = null;
+		// The fields of the dropdowns are created by BuildSpawnerDropdown/BuildCompanionDropdowns with their page as
+		// the parent, i.e. AFTER the overlay: in uGUI the render order is the order of the siblings (the last child
+		// draws on top), so without this line the field of "Voz" and the free-text box would be drawn OVER the open
+		// list - which is exactly the bug of the screenshot (the list of "Personalidade" appearing behind the rows
+		// below it). The overlay canvas above already wins over the panel canvas, but the sibling order is kept
+		// correct too, so nothing depends on a single mechanism.
 		_overlay.SetAsLastSibling();
 
 		_backdrop.SetActive(false);
@@ -610,16 +987,301 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		close.Image.color = new Color(0.45f, 0.16f, 0.12f, 0.95f);
 	}
 
+	// ------------------------------------------------------------------ tabs and pages (Fase 3.9)
+
+	/// <summary>The page the primitives below parent their controls to: the AI page, the companion page, or the panel
+	/// root (the title and the strip of tabs, which every tab shares) while <see cref="_page"/> is null.</summary>
+	private Transform Page => _page != null ? _page : _root.transform;
+
+	/// <summary>A full-panel container: its top-left corner is the panel's, so the coordinates of <see cref="Place"/>
+	/// mean the same thing inside a page as they do on the panel. No Image - a page never eats a click.</summary>
+	private GameObject CreatePage(string name)
+	{
+		GameObject page = new GameObject(name, typeof(RectTransform));
+		page.transform.SetParent(_root.transform, worldPositionStays: false);
+		RectTransform rt = page.GetComponent<RectTransform>();
+		rt.anchorMin = Vector2.zero;
+		rt.anchorMax = Vector2.one;
+		rt.offsetMin = Vector2.zero;
+		rt.offsetMax = Vector2.zero;
+		return page;
+	}
+
+	/// <summary>
+	/// The strip of tabs: the AI tab and then one per companion of the local player. It is a horizontal scroll view
+	/// because the player may summon as many companions as they want - the tabs shrink down to <see cref="TabMinW"/>
+	/// and past that the strip scrolls (dragging, or the mouse wheel over it: see <see cref="AiTabStripWheel"/>).
+	///
+	/// <para>The buttons are <b>not</b> built here: they are destroyed and rebuilt by <see cref="RebuildTabs"/> on
+	/// every open, because a companion can be summoned or die between two openings; the scroll view itself is built
+	/// once, like every other control of the panel.</para>
+	/// </summary>
+	private void BuildTabBar()
+	{
+		GameObject strip = new GameObject("TabStrip", typeof(RectTransform), typeof(ScrollRect));
+		strip.transform.SetParent(_root.transform, worldPositionStays: false);
+		Place(strip.GetComponent<RectTransform>(), LeftX, TabRowY, RightEdge - LeftX, TabH);
+
+		GameObject viewport = new GameObject("Viewport", typeof(RectTransform), typeof(RectMask2D));
+		viewport.transform.SetParent(strip.transform, worldPositionStays: false);
+		RectTransform viewportRT = viewport.GetComponent<RectTransform>();
+		viewportRT.anchorMin = Vector2.zero;
+		viewportRT.anchorMax = Vector2.one;
+		viewportRT.offsetMin = Vector2.zero;
+		viewportRT.offsetMax = Vector2.zero;
+
+		GameObject content = new GameObject("Content", typeof(RectTransform));
+		content.transform.SetParent(viewport.transform, worldPositionStays: false);
+		RectTransform contentRT = content.GetComponent<RectTransform>();
+		// anchored to the left edge and as tall as the strip: the tabs sit at y = 0 inside it, so the strip scrolls
+		// sideways only (and a strip that fits never moves)
+		contentRT.anchorMin = new Vector2(0f, 0f);
+		contentRT.anchorMax = new Vector2(0f, 1f);
+		contentRT.pivot = new Vector2(0f, 1f);
+		contentRT.anchoredPosition = Vector2.zero;
+		contentRT.sizeDelta = new Vector2(RightEdge - LeftX, 0f);
+
+		ScrollRect scroll = strip.GetComponent<ScrollRect>();
+		scroll.viewport = viewportRT;
+		scroll.content = contentRT;
+		scroll.horizontal = true;
+		scroll.vertical = false;
+		scroll.movementType = ScrollRect.MovementType.Clamped;
+		scroll.inertia = false;
+		scroll.scrollSensitivity = 20f;
+
+		// the wheel is vertical in Unity and this strip only scrolls sideways: this helper sits on the viewport, i.e.
+		// under the ScrollRect in the event bubble, so it is the one that gets the wheel (see AttachHorizontalWheel)
+		AttachHorizontalWheel(scroll);
+
+		_tabContent = contentRT;
+		_tabScroll = scroll;
+	}
+
+	/// <summary>
+	/// Rebuilds the strip for the companions the local player has <b>right now</b>. Called from <see cref="Show"/>
+	/// (a companion can be born or die between two openings) and right after a summon - never per frame. The open
+	/// tab survives when the companion it pointed at still exists; when it doesn't, the panel goes back to the AI
+	/// tab. The tabs are ordered by name, so they don't dance between openings.
+	/// </summary>
+	private void RebuildTabs(CompanionSetup preferred = null)
+	{
+		// Fase 3.15: the caller may name the companion to keep open (after a tier change the old instance is gone)
+		CompanionSetup previous = preferred != null ? preferred : SelectedCompanion();
+		for (int i = 0; i < _tabObjects.Count; i++)
+		{
+			if (_tabObjects[i] != null)
+			{
+				UnityEngine.Object.Destroy(_tabObjects[i]);
+			}
+		}
+		_tabObjects.Clear();
+		_tabs.Clear();
+
+		// the AI tab is always the first one, and it is the one with a null companion
+		_tabs.Add(new AiTab
+		{
+			Label = ModLocalization.Loc("hc_ai_tab_main"),
+			Companion = null
+		});
+		List<CompanionSetup> mine = OwnCompanions();
+		for (int i = 0; i < mine.Count; i++)
+		{
+			_tabs.Add(new AiTab
+			{
+				Label = NameOf(mine[i]),
+				Companion = mine[i]
+			});
+		}
+
+		float available = RightEdge - LeftX;
+		int count = _tabs.Count;
+		float width = Mathf.Clamp((available - TabGap * (count - 1)) / count, TabMinW, TabMaxW);
+		float total = count * width + (count - 1) * TabGap;
+		// the content is at least as wide as the strip: tabs narrower than the strip simply sit on the left
+		_tabContent.sizeDelta = new Vector2(Mathf.Max(available, total), 0f);
+		// Fase 3.9: the strip always goes back to the first tab after a rebuild. A ScrollRect only re-clamps when it is
+		// dragged or scrolled, so a strip that shrank (a companion dismissed or dead) kept the old sideways offset and
+		// the first tabs stayed out of sight - the "strip looks shifted" of the audit. Writing 0 when the tabs fit
+		// moves nothing (the content is already at the left edge) and it is what a brand new strip wants anyway.
+		if (_tabScroll != null)
+		{
+			_tabScroll.horizontalNormalizedPosition = 0f;
+		}
+
+		for (int i = 0; i < count; i++)
+		{
+			int index = i;
+			AiButton button = CreateButton(_tabContent, "Tab" + i, i * (width + TabGap), 0f, width, TabH, _tabs[i].Label, delegate
+			{
+				SelectTab(index);
+			});
+			_tabs[i].Button = button.Button.gameObject;
+			_tabs[i].Image = button.Image;
+			_tabs[i].Text = button.Label;
+			_tabObjects.Add(button.Button.gameObject);
+		}
+
+		int active = 0;
+		if (previous != null)
+		{
+			for (int i = 1; i < _tabs.Count; i++)
+			{
+				if (_tabs[i].Companion == previous)
+				{
+					active = i;
+					break;
+				}
+			}
+		}
+		ApplyTab(active);
+	}
+
+	private void SelectTab(int index)
+	{
+		if (index < 0 || index >= _tabs.Count)
+		{
+			return;
+		}
+		// an open list belongs to the tab it was opened in (and its catcher would swallow the first click)
+		CloseLists();
+		// the key listener of "Alterar" only runs while its page is on screen: leaving the AI tab mid-capture would
+		// never finish and would keep the panel key blocked
+		CancelKeyListening();
+		ApplyTab(index);
+	}
+
+	/// <summary>Stops a push-to-talk capture that is waiting for a key, putting the current key back on the label.</summary>
+	private void CancelKeyListening()
+	{
+		if (!_listeningKey)
+		{
+			return;
+		}
+		_listeningKey = false;
+		if (_keyLabel != null)
+		{
+			_keyLabel.text = ModConfig.VozTecla != null ? ModConfig.VozTecla.Value.ToString() : "?";
+			_keyLabel.color = ValueColor;
+		}
+	}
+
+	/// <summary>Shows the page of the tab at <paramref name="index"/> and paints the strip (the open tab is gold).</summary>
+	private void ApplyTab(int index)
+	{
+		_activeTab = Mathf.Clamp(index, 0, Mathf.Max(0, _tabs.Count - 1));
+		for (int i = 0; i < _tabs.Count; i++)
+		{
+			AiTab tab = _tabs[i];
+			bool on = i == _activeTab;
+			if (tab.Image != null)
+			{
+				tab.Image.color = on ? GoldColor : ButtonColor;
+			}
+			if (tab.Text != null)
+			{
+				tab.Text.color = on ? Color.white : DimColor;
+			}
+		}
+		bool ai = SelectedCompanion() == null;
+		if (_aiPage != null)
+		{
+			_aiPage.SetActive(ai);
+		}
+		if (_compPage != null)
+		{
+			_compPage.SetActive(!ai);
+		}
+		// the companion page is filled by RefreshStatus (it refreshes the selected companion on every tick); the
+		// title follows the open tab for the same reason
+		RefreshStatus();
+	}
+
+	/// <summary>The companion of the open tab, or null when the AI tab is the one open.</summary>
+	private CompanionSetup SelectedCompanion()
+	{
+		return (_activeTab > 0 && _activeTab < _tabs.Count) ? _tabs[_activeTab].Companion : null;
+	}
+
+	/// <summary>
+	/// The local player's companions that are in the scene right now - dead ones included (their tab says so) - in a
+	/// stable order. Ownership is the same check the rest of the mod uses: the ZDO's <c>HC_Owner</c> against the local
+	/// player's id, so another player's companions never get a tab here. Allocates a list: called on open and on a
+	/// summon, never per frame.
+	/// </summary>
+	private static List<CompanionSetup> OwnCompanions()
+	{
+		List<CompanionSetup> list = new List<CompanionSetup>();
+		Player player = Player.m_localPlayer;
+		if (player == null)
+		{
+			return list;
+		}
+		string id = player.GetPlayerID().ToString();
+		IReadOnlyList<CompanionSetup> all = CompanionSetup.AllCompanions;
+		for (int i = 0; i < all.Count; i++)
+		{
+			CompanionSetup setup = all[i];
+			if (setup == null || setup._mhrStale)
+			{
+				continue;
+			}
+			ZDO zdo = setup.GetComponent<ZNetView>()?.GetZDO();
+			if (zdo == null || zdo.GetString(CompanionSetup.OwnerHash) != id)
+			{
+				continue;
+			}
+			list.Add(setup);
+		}
+		list.Sort(CompareCompanions);
+		return list;
+	}
+
+	private static int CompareCompanions(CompanionSetup a, CompanionSetup b)
+	{
+		int byName = string.Compare(NameOf(a), NameOf(b), StringComparison.OrdinalIgnoreCase);
+		// two companions may share a name: the instance id keeps the order stable even then
+		return byName != 0 ? byName : a.GetInstanceID().CompareTo(b.GetInstanceID());
+	}
+
+	/// <summary>
+	/// The name of a companion for its tab: the one the player gave it (the ZDO's <c>HC_Name</c>, which the interact
+	/// panel writes when it is renamed), or - for a companion that was never renamed - the name it carries as a
+	/// Character (the tier name the hover shows, see <c>CompanionPrefabs</c>). Never empty.
+	/// </summary>
+	private static string NameOf(CompanionSetup setup)
+	{
+		string name = CompanionName(setup);
+		if (string.IsNullOrEmpty(name))
+		{
+			Character character = setup != null ? setup.GetComponent<Character>() : null;
+			name = character != null ? character.m_name : null;
+		}
+		return string.IsNullOrEmpty(name) ? ModLocalization.Loc("hc_msg_name_default") : name;
+	}
+
+	/// <summary>
+	/// Turns the wheel into horizontal scrolling for the strip of tabs. A <see cref="ScrollRect"/> only reads the
+	/// wheel for the axis it scrolls, and this strip only scrolls sideways, so without this the wheel would do
+	/// nothing over the strip (dragging would still work). It lives on the viewport - under the ScrollRect in the
+	/// event bubble - so it is the one that receives the event.
+	/// </summary>
+	private void AttachHorizontalWheel(ScrollRect scroll)
+	{
+		AiTabStripWheel wheel = scroll.viewport.gameObject.AddComponent<AiTabStripWheel>();
+		wheel.Init(scroll);
+	}
+
 	private void BuildRowBackgrounds()
 	{
-		float[] rows = new float[9]
+		float[] rows = new float[6]
 		{
-			RowPersonality, RowFreeText, RowVoice, RowVolume, RowKey, RowToggleA, RowToggleB, RowMemory, RowSpeed
+			RowVolume, RowKey, RowToggleA, RowToggleB, RowMemory, RowSpeed
 		};
 		for (int i = 0; i < rows.Length; i++)
 		{
 			GameObject row = new GameObject("Row" + i, typeof(RectTransform), typeof(Image));
-			row.transform.SetParent(_root.transform, worldPositionStays: false);
+			row.transform.SetParent(Page, worldPositionStays: false);
 			Place(row.GetComponent<RectTransform>(), 4f, rows[i], RightEdge - 4f, RowH);
 			Image image = row.GetComponent<Image>();
 			image.color = RowColor;
@@ -627,27 +1289,16 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		}
 	}
 
-	private void BuildPersonality()
+	/// <summary>
+	/// The volume row of the AI tab. Fase 3.15: it used to be built together with the global voice dropdown and the
+	/// "Ouvir" of this tab; both are gone (the voice is edited on each companion's tab), so the slider is all that is
+	/// left of that method.
+	/// </summary>
+	private void BuildVolume()
 	{
-		CreateLabel(RowPersonality, ModLocalization.Loc("hc_ai_panel_personality"));
-		CreateLabel(RowFreeText, ModLocalization.Loc("hc_ai_panel_free_text"));
-
-		float inputW = 380f;
-		_freeText = CreateInputField("FreeText", FieldX, RowFreeText, inputW, RowH,
-			ModLocalization.Loc("hc_ai_panel_free_placeholder"), CompanionPersona.MaxFreeTextLength);
-		float applyX = FieldX + inputW + 8f;
-		CreateButton(_root.transform, "Apply", applyX, RowFreeText, RightEdge - applyX, RowH, ModLocalization.Loc("hc_ai_panel_apply"), ApplyPersonality);
-	}
-
-	private void BuildVoice()
-	{
-		CreateLabel(RowVoice, ModLocalization.Loc("hc_ai_panel_voice"));
-		float listenX = FieldX + 298f;
-		_listen = CreateButton(_root.transform, "Listen", listenX, RowVoice, RightEdge - listenX, RowH, ModLocalization.Loc("hc_ai_panel_listen"), PreviewVoice);
-
 		CreateLabel(RowVolume, ModLocalization.Loc("hc_ai_panel_volume"));
 		_volume = CreateSlider("Volume", FieldX, RowVolume, 440f, RowH, 0f, 1f, 1f, false, OnVolumeChanged);
-		_volumeLabel = CreateText(_root.transform, "", RightEdge - 60f, RowVolume + 6f, 60f, 22f, 12f, ValueColor, TextAlignmentOptions.MidlineRight);
+		_volumeLabel = CreateText(Page, "", RightEdge - 60f, RowVolume + 6f, 60f, 22f, 12f, ValueColor, TextAlignmentOptions.MidlineRight);
 	}
 
 	private void BuildPushToTalk()
@@ -655,7 +1306,7 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		CreateLabel(RowKey, ModLocalization.Loc("hc_ai_panel_push_to_talk"));
 
 		GameObject keyBox = new GameObject("KeyBox", typeof(RectTransform), typeof(Image));
-		keyBox.transform.SetParent(_root.transform, worldPositionStays: false);
+		keyBox.transform.SetParent(Page, worldPositionStays: false);
 		Place(keyBox.GetComponent<RectTransform>(), FieldX, RowKey, 170f, RowH);
 		Image keyBoxImage = keyBox.GetComponent<Image>();
 		keyBoxImage.color = new Color(0.12f, 0.12f, 0.15f, 0.9f);
@@ -667,7 +1318,7 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 		// The same KeyBindListener the F8 panel uses: click "Alterar", press a key, and it lands in [IA] VozTecla.
 		float changeX = FieldX + 178f;
-		AiButton change = CreateButton(_root.transform, "ChangeKey", changeX, RowKey, 110f, RowH, ModLocalization.Loc("hc_ai_panel_change"), null);
+		AiButton change = CreateButton(Page, "ChangeKey", changeX, RowKey, 110f, RowH, ModLocalization.Loc("hc_ai_panel_change"), null);
 		change.Button.onClick.AddListener(delegate
 		{
 			_listeningKey = true;
@@ -709,14 +1360,14 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	{
 		CreateLabel(RowMemory, ModLocalization.Loc("hc_ai_panel_memory"));
 		_memory = CreateSlider("Memory", FieldX, RowMemory, 440f, RowH, 0f, 12f, 4f, true, OnMemoryChanged);
-		_memoryLabel = CreateText(_root.transform, "", RightEdge - 60f, RowMemory + 6f, 60f, 22f, 12f, ValueColor, TextAlignmentOptions.MidlineRight);
+		_memoryLabel = CreateText(Page, "", RightEdge - 60f, RowMemory + 6f, 60f, 22f, 12f, ValueColor, TextAlignmentOptions.MidlineRight);
 
 		CreateLabel(RowSpeed, ModLocalization.Loc("hc_ai_panel_speed"));
 		// the bounds of [IA] TtsVelocidade (0,5–2,0) come from CompanionTts, the same constants its clamp uses: the
 		// slider used to stop at 1,5, so a .cfg with 2,0 was shown as "2.00" with the handle at the end and the
 		// first drag silently lowered the setting to 1,5
 		_speed = CreateSlider("Speed", FieldX, RowSpeed, 440f, RowH, CompanionTts.MinSpeed, CompanionTts.MaxSpeed, 1f, false, OnSpeedChanged);
-		_speedLabel = CreateText(_root.transform, "", RightEdge - 60f, RowSpeed + 6f, 60f, 22f, 12f, ValueColor, TextAlignmentOptions.MidlineRight);
+		_speedLabel = CreateText(Page, "", RightEdge - 60f, RowSpeed + 6f, 60f, 22f, 12f, ValueColor, TextAlignmentOptions.MidlineRight);
 	}
 
 	/// <summary>
@@ -738,78 +1389,1172 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	{
 		// the dark strip behind both blocks (the rows above use the same primitive for the same reason)
 		GameObject strip = new GameObject("Footer", typeof(RectTransform), typeof(Image));
-		strip.transform.SetParent(_root.transform, worldPositionStays: false);
+		strip.transform.SetParent(Page, worldPositionStays: false);
 		Place(strip.GetComponent<RectTransform>(), 4f, RowStatus - 6f, RightEdge - 8f, RowHint - RowStatus + 2f * FooterLineH + 12f);
 		Image stripImage = strip.GetComponent<Image>();
 		stripImage.color = FooterBackColor;
 		stripImage.raycastTarget = false;
 
-		_status = CreateText(_root.transform, "", LeftX + 4f, RowStatus, RightEdge - LeftX - 8f, 2f * FooterLineH, 12.5f,
+		_status = CreateText(Page, "", LeftX + 4f, RowStatus, RightEdge - LeftX - 8f, 2f * FooterLineH, 12.5f,
 			FooterColor, TextAlignmentOptions.TopLeft);
 		// the summary is built from two localized lines (see RefreshStatus): never truncated, never one long line
 		_status.overflowMode = TextOverflowModes.Overflow;
 
 		string key = ModConfig.AiPanelKey != null ? ModConfig.AiPanelKey.Value.ToString() : "?";
-		TMP_Text hint = CreateText(_root.transform, ModLocalization.LocFmt("hc_ai_panel_hint_fmt", key), LeftX + 4f, RowHint,
+		TMP_Text hint = CreateText(Page, ModLocalization.LocFmt("hc_ai_panel_hint_fmt", key), LeftX + 4f, RowHint,
 			RightEdge - LeftX - 8f, 2f * FooterLineH, 12f, FooterHintColor, TextAlignmentOptions.TopLeft);
 		hint.overflowMode = TextOverflowModes.Overflow;
 	}
 
-	/// <summary>
-	/// The two dropdowns: the field button goes into the panel (where the row is), the list of options goes into the
-	/// overlay. Both are built after the overlay exists, and <c>Build</c> puts the overlay back as the last child of
-	/// the panel right after this - the fields are the reason that line has to exist.
-	/// </summary>
-	private void BuildDropdowns()
-	{
-		_personalityIds = PersonalityIds();
-		_personalityLabels = PersonalityLabels();
-		int personalityIndex = IndexOf(_personalityIds, Trimmed(ModConfig.AiPersonalityPreset));
-		if (personalityIndex < 0)
-		{
-			// an unknown preset is treated as the default by CompanionPersona.Resolve - show it that way here too
-			personalityIndex = 0;
-		}
-		_personality = CreateDropdown("Personality", FieldX, RowPersonality, 380f, RowH, _personalityLabels, personalityIndex, OnPersonalityPicked);
+	// ------------------------------------------------------------------ the summoner (Fase 3.9)
 
-		_voiceIds = VoiceIds();
-		string[] voiceLabels = new string[_voiceIds.Length];
-		for (int i = 0; i < _voiceIds.Length; i++)
+	/// <summary>
+	/// The summoner of the AI tab: a section title, a tier dropdown and the "Invocar" button, plus a counter of how
+	/// many companions the player has right now. Summoning costs nothing - no coins, no Trader bank, no limit - and
+	/// runs the very same spawn the Trader's purchase runs (<see cref="CompanionManager.SpawnFree"/>), so a companion
+	/// summoned here is exactly the companion bought there.
+	///
+	/// <para>The dropdown's field is created in <see cref="BuildSpawnerDropdown"/> (it needs the overlay the lists live
+	/// on); this method builds the section title, the row and the counter.</para>
+	/// </summary>
+	private void BuildSpawner()
+	{
+		TMP_Text title = CreateText(Page, ModLocalization.Loc("hc_ai_spawn_title"), LeftX, RowSpawnTitle,
+			RightEdge - LeftX, 20f, 14f, LabelColor, TextAlignmentOptions.MidlineLeft);
+		title.fontStyle = FontStyles.Bold;
+		title.overflowMode = TextOverflowModes.Overflow;
+
+		// the row background, like every other row (the section title and the counter have none on purpose)
+		GameObject row = new GameObject("RowSpawn", typeof(RectTransform), typeof(Image));
+		row.transform.SetParent(Page, worldPositionStays: false);
+		Place(row.GetComponent<RectTransform>(), 4f, RowSpawnTier, RightEdge - 4f, RowH);
+		Image rowImage = row.GetComponent<Image>();
+		rowImage.color = RowColor;
+		rowImage.raycastTarget = false;
+
+		CreateLabel(RowSpawnTier, ModLocalization.Loc("hc_ai_spawn_tier"));
+
+		float buttonX = FieldX + TierFieldW + 8f;
+		CreateButton(Page, "Summon", buttonX, RowSpawnTier, RightEdge - buttonX, RowH, ModLocalization.Loc("hc_ai_spawn_button"), Summon);
+
+		_spawnCount = CreateText(Page, "", FieldX, RowSpawnCount, RightEdge - FieldX, 20f, 12.5f, FooterColor, TextAlignmentOptions.MidlineLeft);
+		_spawnCount.overflowMode = TextOverflowModes.Overflow;
+	}
+
+	/// <summary>The "Invocar" button: a free spawn of the tier the dropdown shows, then the strip is rebuilt so the
+	/// new companion already has its tab (and the counter is right again). Nothing is charged anywhere.</summary>
+	private void Summon()
+	{
+		// Fase 3.9: a double click (or a second click landing in the same frame on a slow one) must not create two
+		// companions - the spawn itself is instant, so a short guard is enough and the player never waits for it
+		if (Time.unscaledTime < _nextSummonAt)
 		{
-			voiceLabels[i] = ModLocalization.Loc("hc_ai_voice_" + _voiceIds[i]);
+			return;
 		}
-		_voice = CreateDropdown("Voice", FieldX, RowVoice, 290f, RowH, voiceLabels, 0, OnVoicePicked);
+		_nextSummonAt = Time.unscaledTime + SummonInterval;
+		CompanionTierDef def = TierAt(_tier != null ? _tier.Index : 0);
+		if (!CompanionManager.SpawnFree(null, def))
+		{
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_spawn_failed"));
+			return;
+		}
+		RebuildTabs();
+		RefreshSpawnCount();
+	}
+
+	// ------------------------------------------------------------------ the LLM settings (Fase 3.20)
+
+	/// <summary>
+	/// The <b>"Configurações do LLM"</b> section of the AI tab, right below the summoner: everything of the
+	/// <c>[IA]</c> section that shapes how the model is called, editable without leaving the game. The values are the
+	/// same <see cref="ConfigEntry"/> objects the <c>.cfg</c> shows (BepInEx rewrites the file on every set, like the
+	/// rest of this panel), and they take effect on the <b>next message</b> because <see cref="LlmClient"/> reads the
+	/// config on each request.
+	///
+	/// <para>Layout: a <b>two-column grid</b> (see the RowLlm* constants). Left: the three toggles and the four text
+	/// boxes, applied by the section's "Aplicar" (one click, not per keystroke - they are real text fields, so they
+	/// are registered in <see cref="ModTextInputFocus"/> and Esc leaves them before the panel closes). Right: the four
+	/// sliders with their value and the two buttons ("Aplicar" and "Testar conexão"). The grid is what keeps the panel
+	/// at 900 px; the row backgrounds are drawn per line, both columns sharing the same y.</para>
+	///
+	/// <para>The API key is a <c>Password</c> field: it is masked on screen and its value never reaches the log - the
+	/// log line at the end of <see cref="ApplyLlmSettings"/> says only "informada/vazia".</para>
+	/// </summary>
+	private void BuildLlmSettings()
+	{
+		TMP_Text title = CreateText(Page, ModLocalization.Loc("hc_ai_llm_title"), LeftX, RowLlmTitle,
+			RightEdge - LeftX, 20f, 14f, LabelColor, TextAlignmentOptions.MidlineLeft);
+		title.fontStyle = FontStyles.Bold;
+		title.overflowMode = TextOverflowModes.Overflow;
+
+		// one dark row background per line, the two columns sharing the same y (the right column stops at its sixth)
+		for (int i = 0; i < LlmRows; i++)
+		{
+			GameObject row = new GameObject("RowLlm" + i, typeof(RectTransform), typeof(Image));
+			row.transform.SetParent(Page, worldPositionStays: false);
+			Place(row.GetComponent<RectTransform>(), 4f, RowLlmFirst + i * LlmStep, RightEdge - 4f, RowH);
+			Image image = row.GetComponent<Image>();
+			image.color = RowColor;
+			image.raycastTarget = false;
+		}
+
+		// ---- left column: the three toggles ----
+		float toggleTextW = 150f;
+		float toggleX = LeftX + toggleTextW + 8f;
+		float toggleW = LlmRightX - 8f - toggleX;
+		CreateToggle(LeftX, toggleTextW, RowLlm(0), toggleX, toggleW, ModLocalization.Loc("hc_ai_llm_enabled"), ModConfig.AiEnabled);
+		CreateToggle(LeftX, toggleTextW, RowLlm(1), toggleX, toggleW, ModLocalization.Loc("hc_ai_llm_structured"), ModConfig.AiStructuredOutput);
+		CreateToggle(LeftX, toggleTextW, RowLlm(2), toggleX, toggleW, ModLocalization.Loc("hc_ai_llm_show_raw"), ModConfig.AiShowResponse);
+
+		// ---- left column: the four text boxes (applied by the section's "Aplicar") ----
+		_llmBaseUrl = CreateLlmField(3, "hc_ai_llm_base_url", 200, "http://127.0.0.1:1234/v1");
+		_llmModel = CreateLlmField(4, "hc_ai_llm_model", 120, "qwen2.5-3b-instruct");
+		_llmApiKey = CreateLlmField(5, "hc_ai_llm_api_key", 200, "");
+		_llmPrefix = CreateLlmField(6, "hc_ai_llm_prefix", 40, "/c");
+		if (_llmApiKey != null)
+		{
+			// the key is never shown in clear: the field masks what is typed (and what came from the .cfg)
+			_llmApiKey.contentType = TMP_InputField.ContentType.Password;
+			_llmApiKey.asteriskChar = '*';
+		}
+
+		// ---- right column: the four sliders, each with its value on the right ----
+		_llmTemperature = CreateLlmSlider(0, "hc_ai_llm_temperature", "LlmTemperature", 0f, 1f, false, out _llmTemperatureLabel);
+		_llmTimeout = CreateLlmSlider(1, "hc_ai_llm_timeout", "LlmTimeout", 5f, 120f, true, out _llmTimeoutLabel);
+		_llmCooldown = CreateLlmSlider(2, "hc_ai_llm_cooldown", "LlmCooldown", 0f, 30f, true, out _llmCooldownLabel);
+		_llmTargetRange = CreateLlmSlider(3, "hc_ai_llm_target_range", "LlmTargetRange", 0f, 80f, true, out _llmTargetRangeLabel);
+		if (_llmTemperature != null)
+		{
+			_llmTemperature.onValueChanged.AddListener(OnLlmTemperatureChanged);
+		}
+		if (_llmTimeout != null)
+		{
+			_llmTimeout.onValueChanged.AddListener(OnLlmTimeoutChanged);
+		}
+		if (_llmCooldown != null)
+		{
+			_llmCooldown.onValueChanged.AddListener(OnLlmCooldownChanged);
+		}
+		if (_llmTargetRange != null)
+		{
+			_llmTargetRange.onValueChanged.AddListener(OnLlmTargetRangeChanged);
+		}
+
+		// ---- right column: the two buttons of the section ----
+		CreateButton(Page, "LlmApply", LlmSliderX, RowLlm(4), RightEdge - LlmSliderX - 8f, RowH,
+			ModLocalization.Loc("hc_ai_llm_apply"), ApplyLlmSettings);
+		CreateButton(Page, "LlmTest", LlmSliderX, RowLlm(5), RightEdge - LlmSliderX - 8f, RowH,
+			ModLocalization.Loc("hc_ai_llm_test"), TestLlmConnection);
+
+		// one line with the bands, so the layout can be checked from the log without opening the game
+		CompanionsPlugin.Log?.LogInfo($"[IA] Painel: secao do LLM em y={RowLlmTitle:0}..{RowLlm(LlmRows - 1) + RowH:0} "
+			+ $"(esquerda: 3 alternadores + 4 campos, {LlmRows} linhas; direita: 4 sliders + 2 botoes, {LlmRightRows} linhas), "
+			+ $"colunas em x={LeftX:0}..{LlmRightX - 8f:0} e {LlmRightX:0}..{RightEdge:0}, "
+			+ $"rodape em y={RowStatus:0} e {RowHint:0} (faixa {RowStatus - 6f:0}..{RowStatus - 6f + (RowHint - RowStatus) + 2f * FooterLineH + 12f:0}), "
+			+ $"painel {PanelW:0}x{PanelH:0}");
+	}
+
+	/// <summary>The y of a row of the LLM grid (shared by both columns).</summary>
+	private static float RowLlm(int index)
+	{
+		return RowLlmFirst + index * LlmStep;
+	}
+
+	/// <summary>One "name + text box" line of the LLM grid (the value is filled by <see cref="RefreshFromConfig"/>).</summary>
+	private TMP_InputField CreateLlmField(int row, string labelKey, int limit, string placeholder)
+	{
+		float y = RowLlm(row);
+		CreateText(Page, ModLocalization.Loc(labelKey), LeftX, y + 6f, LlmLabelW, 22f, 13f, LabelColor, TextAlignmentOptions.MidlineLeft);
+		return CreateInputField("Llm" + labelKey, LlmFieldX, y, LlmFieldW, RowH, placeholder, limit);
+	}
+
+	/// <summary>One "name + slider + value" line of the LLM grid's right column.</summary>
+	private Slider CreateLlmSlider(int row, string labelKey, string name, float min, float max, bool whole, out TMP_Text value)
+	{
+		float y = RowLlm(row);
+		CreateText(Page, ModLocalization.Loc(labelKey), LlmRightX, y + 6f, LlmRightLabelW, 22f, 13f, LabelColor, TextAlignmentOptions.MidlineLeft);
+		Slider slider = CreateSlider(name, LlmSliderX, y, LlmSliderW, RowH, min, max, min, whole, null);
+		value = CreateText(Page, "", LlmValueX, y + 6f, LlmValueW, 22f, 12f, ValueColor, TextAlignmentOptions.MidlineRight);
+		return slider;
+	}
+
+	/// <summary>
+	/// The "Aplicar" of the section: the four text boxes go into the <c>[IA]</c> entries, with the light validation the
+	/// section promises - an empty URL/model is refused (and nothing is written), and a URL without a scheme is refused
+	/// because <see cref="LlmClient"/> would build an unusable endpoint from it. The key is never logged.
+	/// </summary>
+	private void ApplyLlmSettings()
+	{
+		string url = _llmBaseUrl != null ? _llmBaseUrl.text.Trim() : "";
+		string model = _llmModel != null ? _llmModel.text.Trim() : "";
+		string key = _llmApiKey != null ? _llmApiKey.text.Trim() : "";
+		string prefix = _llmPrefix != null ? _llmPrefix.text.Trim() : "";
+		if (url.Length == 0)
+		{
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_llm_need_url"));
+			return;
+		}
+		if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+		{
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_llm_bad_url"));
+			return;
+		}
+		if (model.Length == 0)
+		{
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_llm_need_model"));
+			return;
+		}
+		if (ModConfig.AiBaseUrl != null)
+		{
+			ModConfig.AiBaseUrl.Value = url;
+		}
+		if (ModConfig.AiModel != null)
+		{
+			ModConfig.AiModel.Value = model;
+		}
+		if (ModConfig.AiApiKey != null)
+		{
+			ModConfig.AiApiKey.Value = key;
+		}
+		if (ModConfig.AiPrefix != null)
+		{
+			ModConfig.AiPrefix.Value = prefix;
+		}
+		// the boxes show the trimmed value that was actually stored
+		SetFieldText(_llmBaseUrl, url);
+		SetFieldText(_llmModel, model);
+		SetFieldText(_llmApiKey, key);
+		SetFieldText(_llmPrefix, prefix);
+		CompanionsPlugin.Log?.LogInfo($"[IA] Painel: LLM salvo - {LlmClient.SafeEndpoint}, modelo \"{model}\", "
+			+ $"chave {(key.Length > 0 ? "informada" : "vazia")}, prefixo \"{prefix}\", timeout "
+			+ $"{ModConfig.AiTimeoutSeconds?.Value ?? 30}s, cooldown {ModConfig.AiCooldown?.Value ?? 3f:0.#}s, "
+			+ $"raio de alvo {ModConfig.AiTargetRange?.Value ?? 40f:0}m (vale na proxima mensagem)");
+		CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_llm_apply_ok"));
+	}
+
+	/// <summary>
+	/// The "Testar conexão": one background probe of the URL <b>in the box</b> (not the saved one, so it can be tried
+	/// before applying), with the same validation as "Aplicar". The result is announced by
+	/// <see cref="LlmConnectionTest.Tick"/>, so it reaches the player even if the panel is closed meanwhile.
+	/// </summary>
+	private void TestLlmConnection()
+	{
+		string url = _llmBaseUrl != null ? _llmBaseUrl.text.Trim() : "";
+		string model = _llmModel != null ? _llmModel.text.Trim() : "";
+		if (url.Length == 0)
+		{
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_llm_need_url"));
+			return;
+		}
+		if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+		{
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_llm_bad_url"));
+			return;
+		}
+		string key = _llmApiKey != null ? _llmApiKey.text.Trim() : "";
+		if (model.Length == 0 && ModConfig.AiModel != null)
+		{
+			// nothing typed in the box yet: check the model that is saved, so the answer can still say whether it is
+			// in the server's list
+			model = ModConfig.AiModel.Value;
+		}
+		int timeout = ModConfig.AiTimeoutSeconds != null ? ModConfig.AiTimeoutSeconds.Value : 30;
+		if (!LlmConnectionTest.Start(url, model, key, timeout))
+		{
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_llm_test_busy"));
+		}
+	}
+
+	private void OnLlmTemperatureChanged(float value)
+	{
+		// step of 0.05 (the slider itself is continuous): 20 steps over 0..1
+		float temperature = Mathf.Round(Mathf.Clamp01(value) * 20f) / 20f;
+		if (ModConfig.AiTemperature != null)
+		{
+			ModConfig.AiTemperature.Value = temperature;
+		}
+		SetSlider(_llmTemperature, temperature);
+		UpdateLlmValueLabels();
+	}
+
+	private void OnLlmTimeoutChanged(float value)
+	{
+		int seconds = Mathf.Clamp(Mathf.RoundToInt(value), 5, 120);
+		if (ModConfig.AiTimeoutSeconds != null)
+		{
+			ModConfig.AiTimeoutSeconds.Value = seconds;
+		}
+		UpdateLlmValueLabels();
+	}
+
+	private void OnLlmCooldownChanged(float value)
+	{
+		float seconds = Mathf.Clamp(Mathf.Round(value), 0f, 30f);
+		if (ModConfig.AiCooldown != null)
+		{
+			ModConfig.AiCooldown.Value = seconds;
+		}
+		UpdateLlmValueLabels();
+	}
+
+	private void OnLlmTargetRangeChanged(float value)
+	{
+		// the entry's own range starts at 5m: the label shows what the .cfg really got, so a "0" reading 5 is visible
+		float range = Mathf.Clamp(Mathf.Round(value), 0f, 80f);
+		if (ModConfig.AiTargetRange != null)
+		{
+			ModConfig.AiTargetRange.Value = range;
+			range = ModConfig.AiTargetRange.Value;
+		}
+		SetSlider(_llmTargetRange, range);
+		UpdateLlmValueLabels();
+	}
+
+	/// <summary>The numbers of the four sliders (and the text boxes, on every open of the panel).</summary>
+	private void UpdateLlmValueLabels()
+	{
+		if (_llmTemperatureLabel != null)
+		{
+			_llmTemperatureLabel.text = (ModConfig.AiTemperature != null ? ModConfig.AiTemperature.Value : 0.1f).ToString("0.00");
+		}
+		if (_llmTimeoutLabel != null)
+		{
+			_llmTimeoutLabel.text = (ModConfig.AiTimeoutSeconds != null ? ModConfig.AiTimeoutSeconds.Value : 30).ToString();
+		}
+		if (_llmCooldownLabel != null)
+		{
+			_llmCooldownLabel.text = (ModConfig.AiCooldown != null ? ModConfig.AiCooldown.Value : 3f).ToString("0.#");
+		}
+		if (_llmTargetRangeLabel != null)
+		{
+			_llmTargetRangeLabel.text = (ModConfig.AiTargetRange != null ? ModConfig.AiTargetRange.Value : 40f).ToString("0");
+		}
+	}
+
+	private static void SetFieldText(TMP_InputField field, string text)
+	{
+		if (field != null)
+		{
+			field.SetTextWithoutNotify(text ?? "");
+		}
+	}
+
+	/// <summary>
+	/// Fase 3.20: is one of the LLM text boxes focused? Esc has to leave the box before closing the panel and the panel
+	/// key must not close it while the player is typing (same rule as the name and the free-text boxes).
+	/// </summary>
+	private bool LlmFieldFocused()
+	{
+		return FieldFocused(_llmBaseUrl) || FieldFocused(_llmModel) || FieldFocused(_llmApiKey) || FieldFocused(_llmPrefix);
+	}
+
+	private static bool FieldFocused(TMP_InputField field)
+	{
+		return field != null && field.isFocused;
+	}
+
+	/// <summary>Takes the focus out of every LLM text box (Esc, and closing the panel).</summary>
+	private void DeactivateLlmFields()
+	{
+		DeactivateField(_llmBaseUrl);
+		DeactivateField(_llmModel);
+		DeactivateField(_llmApiKey);
+		DeactivateField(_llmPrefix);
+	}
+
+	private static void DeactivateField(TMP_InputField field)
+	{
+		if (field != null && field.isFocused)
+		{
+			field.DeactivateInputField();
+		}
+	}
+
+	/// <summary>The tier at an index of the dropdown (the plain Companion for anything out of range).</summary>
+	private static CompanionTierDef TierAt(int index)
+	{
+		return (index >= 0 && index < Tiers.Length) ? Tiers[index] : CompanionTierData.Companion;
+	}
+
+	/// <summary>Rewrites the "Companheiros: N" line. Called on open and after a summon only (it walks the scene).</summary>
+	private void RefreshSpawnCount()
+	{
+		if (_spawnCount == null)
+		{
+			return;
+		}
+		_spawnCount.text = ModLocalization.LocFmt("hc_ai_spawn_count", OwnCompanions().Count);
+	}
+
+	// ------------------------------------------------------------------ the companion tab (Fase 3.9)
+
+	/// <summary>
+	/// The page of a companion's tab: its <b>name</b> (editable, Fase 3.15), its <b>tier</b> (a picker that respawns the
+	/// companion as another prefab, with confirmation), whether it is alive, the "Chamar" button and - Fase 3.10 - its
+	/// <b>own</b> voice and personality.
+	///
+	/// <para>One page serves every companion tab - it is filled with whoever is selected when the tab opens (see
+	/// <see cref="RefreshCompanionPage"/>), so ten companions are still one set of controls.</para>
+	///
+	/// <para>The two dropdowns of the profile are <b>not</b> built here: their lists have to go to the panel's
+	/// overlay, which is created after both pages, so they are built by <see cref="BuildCompanionDropdowns"/> (the
+	/// page is the parent of the fields either way, since <see cref="Page"/> is set to it again).</para>
+	///
+	/// <para>There is <b>no</b> dismiss/despawn button here on purpose: the wheel already has one, and it is
+	/// permanent.</para>
+	/// </summary>
+	private void BuildCompanionPage()
+	{
+		float[] rows = new float[7] { RowCompName, RowCompTier, RowCompStatus, RowCompRecall, RowCompPersonality, RowCompFreeText, RowCompVoice };
+		for (int i = 0; i < rows.Length; i++)
+		{
+			GameObject row = new GameObject("CompRow" + i, typeof(RectTransform), typeof(Image));
+			row.transform.SetParent(Page, worldPositionStays: false);
+			Place(row.GetComponent<RectTransform>(), 4f, rows[i], RightEdge - 4f, RowH);
+			Image image = row.GetComponent<Image>();
+			image.color = RowColor;
+			image.raycastTarget = false;
+		}
+
+		// Fase 3.15: the name is the title of the tab, what the wheel/hover show and what a named order is matched
+		// against - it is edited right here now (the same text box the profile's free text uses), with "Aplicar".
+		CreateLabel(RowCompName, ModLocalization.Loc("hc_ai_comp_name"));
+		float nameApplyX = FieldX + 380f + 8f;
+		_compNameInput = CreateInputField("CompName", FieldX, RowCompName, 380f, RowH,
+			ModLocalization.Loc("hc_ui_placeholder_name"), CompanionAiDraft.MaxNameLength);
+		_compNameInput.onSubmit.RemoveAllListeners();
+		_compNameInput.onSubmit.AddListener(delegate
+		{
+			ApplyCompName();
+		});
+		CreateButton(Page, "CompNameApply", nameApplyX, RowCompName, RightEdge - nameApplyX, RowH,
+			ModLocalization.Loc("hc_ai_panel_apply"), ApplyCompName);
+
+		// Fase 3.15: the tier of the open companion, with a picker that only SELECTS: the button applies (and it is
+		// disabled while the selection is the tier the companion already is, so a pointless respawn is not one click
+		// away). A tier is a prefab, so applying respawns the companion - the confirmation says what is kept.
+		CreateLabel(RowCompTier, ModLocalization.Loc("hc_ai_comp_tier"));
+		const float tierPickerW = 250f;
+		CreateButton(Page, "CompTierPrev", FieldX, RowCompTier, 34f, RowH, "<", delegate
+		{
+			StepCompTier(-1);
+		});
+		_compTierValue = CreateText(Page, "", FieldX + 34f, RowCompTier + 6f, tierPickerW - 68f, 22f, 13f,
+			GoldColor, TextAlignmentOptions.Center);
+		CreateButton(Page, "CompTierNext", FieldX + tierPickerW - 34f, RowCompTier, 34f, RowH, ">", delegate
+		{
+			StepCompTier(1);
+		});
+		float tierApplyX = FieldX + tierPickerW + 8f;
+		_compTierApply = CreateButton(Page, "CompTierApply", tierApplyX, RowCompTier, RightEdge - tierApplyX, RowH,
+			ModLocalization.Loc("hc_ai_comp_tier_change"), ApplyTierChange);
+
+		CreateLabel(RowCompStatus, ModLocalization.Loc("hc_ai_comp_status"));
+		_compStatus = CreateText(Page, "", FieldX, RowCompStatus + 6f, RightEdge - FieldX - 8f, 22f, 13f,
+			GoldColor, TextAlignmentOptions.MidlineLeft);
+
+		_recall = CreateButton(Page, "Recall", FieldX, RowCompRecall, 200f, RowH, ModLocalization.Loc("hc_ai_comp_recall"), RecallSelected);
+
+		// Fase 3.20: the look of THIS companion. The window it opens is a mode of the starter panel's own panel
+		// (CompanionPanel.AppearanceEditMode), so the preview, the hair/beard lists and the colour sliders are the very
+		// same ones the player saw when the companion was created - there is no second customisation UI to keep in sync.
+		float appearanceX = FieldX + 208f;
+		_compAppearance = CreateButton(Page, "CompAppearance", appearanceX, RowCompRecall, RightEdge - appearanceX, RowH,
+			ModLocalization.Loc("hc_ai_comp_appearance"), OpenAppearance);
+
+		// Fase 3.10: the profile of the companion - a section title, the two dropdowns (built in
+		// BuildCompanionDropdowns), the free text with the "Aplicar" button and the hint that says the global values
+		// are only the default.
+		TMP_Text profileTitle = CreateText(Page, ModLocalization.Loc("hc_ai_comp_profile_title"), LeftX, RowCompProfileTitle,
+			RightEdge - LeftX, 20f, 14f, LabelColor, TextAlignmentOptions.MidlineLeft);
+		profileTitle.fontStyle = FontStyles.Bold;
+		profileTitle.overflowMode = TextOverflowModes.Overflow;
+
+		CreateLabel(RowCompPersonality, ModLocalization.Loc("hc_ai_panel_personality"));
+		CreateLabel(RowCompFreeText, ModLocalization.Loc("hc_ai_panel_free_text"));
+		float inputW = 380f;
+		_compFreeText = CreateInputField("CompFreeText", FieldX, RowCompFreeText, inputW, RowH,
+			ModLocalization.Loc("hc_ai_panel_free_placeholder"), CompanionPersona.MaxFreeTextLength);
+		// Enter applies the profile of the companion (the same as the button) instead of the global one
+		_compFreeText.onSubmit.RemoveAllListeners();
+		_compFreeText.onSubmit.AddListener(delegate
+		{
+			ApplyCompPersonality();
+		});
+		float applyX = FieldX + inputW + 8f;
+		_compApply = CreateButton(Page, "CompApply", applyX, RowCompFreeText, RightEdge - applyX, RowH, ModLocalization.Loc("hc_ai_panel_apply"), ApplyCompPersonality);
+
+		CreateLabel(RowCompVoice, ModLocalization.Loc("hc_ai_panel_voice"));
+		float listenX = FieldX + 298f;
+		_compListen = CreateButton(Page, "CompListen", listenX, RowCompVoice, RightEdge - listenX, RowH, ModLocalization.Loc("hc_ai_panel_listen"), PreviewCompVoice);
+
+		TMP_Text hint = CreateText(Page, ModLocalization.Loc("hc_ai_profile_hint"), LeftX, RowCompHint,
+			RightEdge - LeftX, 2f * FooterLineH + 6f, 12f, FooterHintColor, TextAlignmentOptions.TopLeft);
+		hint.overflowMode = TextOverflowModes.Overflow;
+
+		TMP_Text callHint = CreateText(Page, ModLocalization.Loc("hc_ai_comp_hint"), LeftX, RowCompCallHint,
+			RightEdge - LeftX, 2f * FooterLineH + 6f, 12f, FooterHintColor, TextAlignmentOptions.TopLeft);
+		callHint.overflowMode = TextOverflowModes.Overflow;
+	}
+
+	/// <summary>
+	/// Fase 3.10: the two dropdowns of a companion's profile - personality (with "follow the [IA] default" in front,
+	/// then the default personality, the presets and the free text) and voice (with the same first entry, then the
+	/// three pt-BR voices). Built with <see cref="_compPage"/> as the current page, so the fields land on the
+	/// companion page and only the open lists float on the overlay.
+	/// </summary>
+	private void BuildCompanionDropdowns()
+	{
+		_compPersonalityIds = CompanionProfile.PresetIds(withInherit: true);
+		_compPersonalityLabels = CompanionProfile.PresetLabels(withInherit: true);
+		_compPersonality = CreateDropdown("CompPersonality", FieldX, RowCompPersonality, 380f, RowH,
+			_compPersonalityLabels, 0, OnCompPersonalityPicked);
+
+		_compVoiceIds = CompanionProfile.VoiceIds(withInherit: true);
+		_compVoiceLabels = CompanionProfile.VoiceLabels(withInherit: true);
+		_compVoice = CreateDropdown("CompVoice", FieldX, RowCompVoice, 290f, RowH,
+			_compVoiceLabels, 0, OnCompVoicePicked);
+	}
+
+	/// <summary>
+	/// Fills the companion page with the selected companion. Called when a tab opens, on open and after a
+	/// summon - never per frame.
+	///
+	/// <para>Fase 3.10: the name/tier/status block follows the companion on every tick (cheap reads), but the profile
+	/// controls are only loaded when the tab really changes (<see cref="_compFormFor"/>): they are what the player is
+	/// typing in, and a twice-a-second refill would rewrite the text box under their hands.</para>
+	/// </summary>
+	private void RefreshCompanionPage()
+	{
+		if (_compStatus == null)
+		{
+			return;
+		}
+		CompanionSetup setup = SelectedCompanion();
+		if (setup == null)
+		{
+			_compStatus.text = "";
+			SetRecallEnabled(false);
+			SetAppearanceEnabled(false);
+			SetCompProfileEnabled(false);
+			_compFormFor = null;
+			CacheCompanionStatus(null);
+			return;
+		}
+		Character character = setup.GetComponent<Character>();
+		bool alive = character != null && character.GetHealth() > 0f;
+		if (alive != _compAlive)
+		{
+			// Fase 3.19 (auditoria): the tier button follows life and death - it used to be painted only on a tab
+			// change, so a companion that died with the tab open still looked changeable
+			_compAlive = alive;
+			RefreshCompTierPicker();
+		}
+		_compStatus.text = ModLocalization.Loc(alive ? "hc_ai_comp_alive" : "hc_ai_comp_dead");
+		_compStatus.color = alive ? GoldColor : DimColor;
+		SetRecallEnabled(alive);
+		SetAppearanceEnabled(alive);
+		SetCompProfileEnabled(true);
+		if (setup != _compFormFor)
+		{
+			_compFormFor = setup;
+			RefreshCompanionProfile(setup);
+			// Fase 3.15: the name and the tier are the identity of the tab, loaded with it (never on the tick)
+			if (_compNameInput != null && !_compNameInput.isFocused)
+			{
+				_compNameInput.SetTextWithoutNotify(NameOf(setup));
+			}
+			int current = TierIndexOf(setup);
+			_compTierIndex = current >= 0 ? current : 0;
+			RefreshCompTierPicker();
+		}
+	}
+
+	/// <summary>
+	/// Puts the stored profile of <paramref name="setup"/> on the controls of the companion page. A companion with
+	/// nothing of its own shows the first entry of both lists ("Follow the [IA] default") and an empty text box -
+	/// which is exactly what the footer says with "(padrão)" - and the values themselves are never copied into the
+	/// companion, so changing the global setting later still reaches it.
+	/// </summary>
+	private void RefreshCompanionProfile(CompanionSetup setup)
+	{
+		if (setup == null)
+		{
+			return;
+		}
+		if (CompanionProfile.HasPersona(setup))
+		{
+			string preset = CompanionProfile.StoredPreset(setup);
+			string free = CompanionProfile.StoredFreeText(setup);
+			int index = IndexOfPreset(_compPersonalityIds, preset);
+			if (index < 0)
+			{
+				// an unknown preset (a .cfg id from a newer version?) is shown as the free-text entry, which is the
+				// one that carries whatever the player wrote
+				index = free.Length > 0 ? IndexOfPreset(_compPersonalityIds, CompanionPersona.CustomId) : 1;
+			}
+			SetDropdown(_compPersonality, Mathf.Max(0, index));
+			if (_compFreeText != null && !_compFreeText.isFocused)
+			{
+				_compFreeText.SetTextWithoutNotify(free);
+			}
+		}
+		else
+		{
+			SetDropdown(_compPersonality, 0);
+			if (_compFreeText != null && !_compFreeText.isFocused)
+			{
+				_compFreeText.SetTextWithoutNotify("");
+			}
+		}
+
+		int voice = CompanionProfile.StoredVoice(setup);
+		int voiceIndex = voice > 0 ? IndexOf(_compVoiceIds, voice) : 0;
+		if (voiceIndex < 0)
+		{
+			if (_compVoice != null)
+			{
+				_compVoice.Index = -1;
+			}
+			SetCaption(_compVoice, ModLocalization.LocFmt("hc_ai_voice_other", voice), DimColor);
+			HighlightItems(_compVoice, -1);
+		}
+		else
+		{
+			SetDropdown(_compVoice, voiceIndex);
+		}
+		// Fase 3.12: the footer line of this companion is computed here, once per tab load (see CacheCompanionStatus)
+		CacheCompanionStatus(setup);
+	}
+
+	// ------------------------------------------------------------------ Fase 3.15: the name and the tier of the open companion
+
+	/// <summary>
+	/// Writes the name typed in the field: trimmed and limited by <see cref="CompanionAiDraft.CleanName"/>, then the
+	/// same two steps the interact panel uses (<see cref="CompanionSetup.Rename"/>: <c>HC_Name</c> + Character's name,
+	/// claiming the ZDO when needed). The tab strip is rebuilt so the tab itself shows the new name; an empty box is
+	/// refused (a companion with no name would break nothing, but the player almost certainly meant to type one).
+	/// </summary>
+	private void ApplyCompName()
+	{
+		CompanionSetup setup = SelectedCompanion();
+		if (setup == null || _compNameInput == null)
+		{
+			return;
+		}
+		string name = CompanionAiDraft.CleanName(_compNameInput.text);
+		if (!_compAlive)
+		{
+			// Fase 3.16 (auditoria): a dead companion's name is already written into its tombstone (HC_Respawn_Name),
+			// and the resurrection would put the old one back - so the rename waits for it to be alive again
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_comp_rename_dead"));
+			_compNameInput.SetTextWithoutNotify(NameOf(setup));
+			return;
+		}
+		if (name.Length == 0)
+		{
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_comp_name_required"));
+			_compNameInput.SetTextWithoutNotify(NameOf(setup));
+			return;
+		}
+		if (!setup.Rename(name))
+		{
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_comp_rename_failed"));
+			_compNameInput.SetTextWithoutNotify(NameOf(setup));
+			return;
+		}
+		_compNameInput.SetTextWithoutNotify(name);
+		CompanionsPlugin.Log?.LogInfo($"[IA] Painel: companheiro renomeado para \"{name}\" (HC_Name + Character.m_name)");
+		CompanionChatAI.Announce(ModLocalization.LocFmt("hc_ai_comp_rename_ok", name));
+		// the tab carries the name too (and the strip is rebuilt with the same companion still selected)
+		RebuildTabs();
+	}
+
+	/// <summary>The index of the tier the companion is now, or -1 when its prefab isn't one of ours.</summary>
+	private static int TierIndexOf(CompanionSetup setup)
+	{
+		ZDO zdo = setup != null ? setup.GetComponent<ZNetView>()?.GetZDO() : null;
+		if (zdo == null)
+		{
+			return -1;
+		}
+		int prefab = zdo.GetPrefab();
+		for (int i = 0; i < Tiers.Length; i++)
+		{
+			if (Tiers[i].PrefabName.GetStableHashCode() == prefab)
+			{
+				return i;
+			}
+		}
+		return -1;
+	}
+
+	/// <summary>Moves the tier picker one step (wrapping). Nothing happens until "Trocar tipo" is pressed.</summary>
+	private void StepCompTier(int dir)
+	{
+		if (Tiers.Length == 0)
+		{
+			return;
+		}
+		_compTierIndex = (_compTierIndex + dir + Tiers.Length) % Tiers.Length;
+		RefreshCompTierPicker();
+	}
+
+	/// <summary>
+	/// Paints the tier picker: the name of the selected tier, and the button enabled only when the selection is not the
+	/// tier the companion already is (so the respawn is never one accidental click away).
+	/// </summary>
+	private void RefreshCompTierPicker()
+	{
+		CompanionTierDef selected = TierAt(_compTierIndex);
+		if (_compTierValue != null)
+		{
+			_compTierValue.text = CompanionTierData.LocalName(selected);
+			_compTierValue.color = GoldColor;
+		}
+		CompanionSetup setup = SelectedCompanion();
+		bool canChange = setup != null && selected != null && _compAlive && TierIndexOf(setup) != _compTierIndex;
+		if (_compTierApply != null)
+		{
+			_compTierApply.Button.interactable = canChange;
+			if (_compTierApply.Image != null)
+			{
+				_compTierApply.Image.color = canChange ? ButtonColor : OffColor;
+			}
+			if (_compTierApply.Label != null)
+			{
+				_compTierApply.Label.color = canChange ? Color.white : DimColor;
+			}
+		}
+	}
+
+	/// <summary>
+	/// The "Trocar tipo (renasce)" button: a tier is a different prefab, so the companion is respawned. The player is
+	/// asked first, with the same popup the wheel's despawn uses (and, like it, the change runs straight away only when
+	/// there is no popup to show).
+	/// </summary>
+	private void ApplyTierChange()
+	{
+		CompanionSetup setup = SelectedCompanion();
+		CompanionTierDef def = TierAt(_compTierIndex);
+		if (setup == null || def == null || TierIndexOf(setup) == _compTierIndex)
+		{
+			return;
+		}
+		// Fase 3.19 (auditoria): the button is only repainted on a tab change, so a companion that died while the
+		// tab was open could still be "changed" - ChangeTier refuses it, but the player got a confirmation popup
+		// for nothing. Checked here, with the same line the name field uses for a dead companion.
+		if (!_compAlive)
+		{
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_comp_tier_dead"));
+			RefreshCompTierPicker();
+			return;
+		}
+		string name = NameOf(setup);
+		int currentIndex = TierIndexOf(setup);
+		string current = currentIndex >= 0 ? CompanionTierData.LocalName(TierAt(currentIndex)) : TierName(setup);
+		_pendingTierTarget = setup;
+		_pendingTierDef = def;
+		// Fase 3.16 (auditoria): the same guard the Shrine uses - a popup that is unavailable or already showing
+		// (another window's confirmation) must not be stacked. Without a popup the change runs straight away, which is
+		// what the wheel's despawn does in the same situation.
+		if (!UnifiedPopup.IsAvailable() || UnifiedPopup.IsVisible())
+		{
+			CompanionsPlugin.Log?.LogInfo("[IA] Painel: sem popup de confirmacao livre - trocando o tipo direto");
+			ConfirmTierChange();
+			return;
+		}
+		UnifiedPopup.Push(new YesNoPopup(
+			ModLocalization.Loc("hc_ai_comp_tier_popup_title"),
+			ModLocalization.LocFmt("hc_ai_comp_tier_popup_text", name, CompanionTierData.LocalName(def), current),
+			ConfirmTierChange, CancelTierChange, localizeText: false));
+		CompanionsPlugin.Log?.LogInfo($"[IA] Painel: pedindo confirmacao para trocar \"{name}\" de \"{current}\" para \"{CompanionTierData.LocalName(def)}\"");
+	}
+
+	/// <summary>The confirmed tier change: respawns the companion as the new prefab and keeps its tab open (the new
+	/// object is a different instance, so the strip is rebuilt pointing at it).</summary>
+	private void ConfirmTierChange()
+	{
+		if (UnifiedPopup.IsAvailable() && UnifiedPopup.IsVisible())
+		{
+			UnifiedPopup.Pop();
+		}
+		CompanionSetup target = _pendingTierTarget;
+		CompanionTierDef def = _pendingTierDef;
+		_pendingTierTarget = null;
+		_pendingTierDef = null;
+		if (target == null || def == null)
+		{
+			return;
+		}
+		string name = NameOf(target);
+		CompanionSetup changed = CompanionManager.ChangeTier(target, def);
+		if (changed == null)
+		{
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_comp_tier_failed"));
+			RefreshCompanionPage();
+			RefreshCompTierPicker();
+			return;
+		}
+		if (ReferenceEquals(changed, target))
+		{
+			// Fase 3.16 (auditoria): ChangeTier answers with the same companion when it is ALREADY that tier (the
+			// button is disabled there, so this is the defensive path) - nothing was respawned, so no success line
+			CompanionsPlugin.Log?.LogInfo($"[IA] Painel: \"{name}\" ja era \"{CompanionTierData.LocalName(def)}\" - nada mudou");
+			RefreshCompTierPicker();
+			return;
+		}
+		CompanionChatAI.Announce(ModLocalization.LocFmt("hc_ai_comp_tier_ok", name, CompanionTierData.LocalName(def)));
+		// the old object is gone: the strip is rebuilt around the new one, which stays on screen
+		RebuildTabs(changed);
+		RefreshSpawnCount();
+	}
+
+	private void CancelTierChange()
+	{
+		if (UnifiedPopup.IsAvailable())
+		{
+			UnifiedPopup.Pop();
+		}
+		_pendingTierTarget = null;
+		_pendingTierDef = null;
+		CompanionSetup setup = SelectedCompanion();
+		int current = TierIndexOf(setup);
+		_compTierIndex = current >= 0 ? current : 0;
+		RefreshCompTierPicker();
+		CompanionsPlugin.Log?.LogInfo("[IA] Painel: troca de tipo cancelada");
+	}
+
+	// ------------------------------------------------------------------ Fase 3.10: the handlers of the profile
+
+	/// <summary>A personality preset (or "follow the [IA] default", or the free text) was picked for the companion
+	/// whose tab is open.</summary>
+	private void OnCompPersonalityPicked(int index)
+	{
+		CompanionSetup setup = SelectedCompanion();
+		if (setup == null)
+		{
+			return;
+		}
+		string id = IdAt(_compPersonalityIds, index);
+		string text = _compFreeText != null && _compFreeText.text != null ? _compFreeText.text.Trim() : "";
+		if (!CompanionProfile.SetPersona(setup, id, text))
+		{
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_profile_save_failed"));
+			RefreshCompanionProfile(setup);
+			CacheCompanionStatus(setup);
+			return;
+		}
+		if (string.Equals(id, CompanionProfile.InheritId, StringComparison.Ordinal))
+		{
+			// picking "follow the default" is "forget what this companion had": the text box goes with it, or it
+			// would keep showing a personality that is no longer stored
+			if (_compFreeText != null)
+			{
+				_compFreeText.SetTextWithoutNotify("");
+			}
+			CompanionsPlugin.Log?.LogInfo($"[IA] Painel: \"{NameOf(setup)}\" volta a usar a personalidade padrao de [IA] ({CompanionPersona.Describe()})");
+		}
+		else
+		{
+			CompanionsPlugin.Log?.LogInfo($"[IA] Painel: personalidade de \"{NameOf(setup)}\" = \"{id}\" - em uso agora: {CompanionProfile.DescribePersona(setup)}");
+			if (text.Length > 0)
+			{
+				// the free text wins over the preset (CompanionPersona.Resolve): say it, so the pick is not silently ignored
+				CompanionChatAI.Announce(ModLocalization.LocFmt("hc_ai_panel_preset_shadowed", CompanionProfile.DescribePersona(setup)));
+			}
+		}
+		CacheCompanionStatus(setup);
+		RefreshStatus();
+	}
+
+	/// <summary>A voice (or "follow the [IA] default") was picked for the companion whose tab is open.</summary>
+	private void OnCompVoicePicked(int index)
+	{
+		CompanionSetup setup = SelectedCompanion();
+		if (setup == null || index < 0 || index >= _compVoiceIds.Length)
+		{
+			return;
+		}
+		int voice = _compVoiceIds[index];
+		if (!CompanionProfile.SetVoice(setup, voice))
+		{
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_profile_save_failed"));
+			RefreshCompanionProfile(setup);
+			CacheCompanionStatus(setup);
+			return;
+		}
+		CompanionsPlugin.Log?.LogInfo(voice > 0
+			? $"[IA] Painel: voz de \"{NameOf(setup)}\" = {voice} ({_compVoice.LabelAt(index)}) - vale na proxima fala dele. O cache guarda por voz."
+			: $"[IA] Painel: \"{NameOf(setup)}\" volta a usar a voz padrao de [IA] ({CompanionTts.Voice}).");
+		CacheCompanionStatus(setup);
+		RefreshStatus();
+	}
+
+	/// <summary>
+	/// The "Aplicar" of the companion page: writes the free text (and the preset the dropdown shows) into the
+	/// companion that is open. Typing a text while the dropdown says "follow the [IA] default" is not a contradiction:
+	/// the text itself becomes the companion's own personality, and the preset is then "the default one".
+	/// </summary>
+	private void ApplyCompPersonality()
+	{
+		CompanionSetup setup = SelectedCompanion();
+		if (setup == null || _compFreeText == null)
+		{
+			return;
+		}
+		string text = _compFreeText.text != null ? _compFreeText.text.Trim() : "";
+		if (text.Length > CompanionPersona.MaxFreeTextLength)
+		{
+			text = text.Substring(0, CompanionPersona.MaxFreeTextLength);
+			_compFreeText.SetTextWithoutNotify(text);
+		}
+		string id = IdAt(_compPersonalityIds, _compPersonality != null ? _compPersonality.Index : 0);
+		bool inherit = string.Equals(id, CompanionProfile.InheritId, StringComparison.Ordinal);
+		// Fase 3.12 (auditoria): a failed write is not a success - the same check the two dropdown handlers do. The
+		// ZDO can be held by another game right then (multiplayer), and saying "applied" would leave the player with a
+		// personality that was never stored.
+		bool saved = (inherit && text.Length == 0)
+			// nothing chosen at all: back to the [IA] values (the same as picking the first entry)
+			? CompanionProfile.ClearPersona(setup)
+			: CompanionProfile.SetPersona(setup, inherit ? "" : id, text);
+		if (!saved)
+		{
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_profile_save_failed"));
+			RefreshCompanionProfile(setup);
+			CacheCompanionStatus(setup);
+			return;
+		}
+		string effective = CompanionProfile.DescribePersona(setup);
+		CompanionsPlugin.Log?.LogInfo($"[IA] Painel: personalidade de \"{NameOf(setup)}\" aplicada ({(text.Length > 0 ? text.Length + " caracteres de texto livre" : "sem texto livre")}) "
+			+ $"- em uso agora: {effective}");
+		CompanionChatAI.Announce(ModLocalization.LocFmt("hc_ai_panel_apply_ok", effective));
+		// what is stored may not be what the controls showed (a text typed while the picker said "follow the default"
+		// is stored as "the default preset + the text"), so the page reloads from the ZDO
+		_compFormFor = null;
+		RefreshCompanionPage();
+		RefreshStatus();
+	}
+
+	/// <summary>The "Ouvir" of a companion's tab: the sample in <b>that companion's</b> voice (the global voice when it
+	/// has none of its own), played from the companion when it is close enough to be heard - otherwise at the player,
+	/// so the preview is never silent just because the companion is far away.</summary>
+	private void PreviewCompVoice()
+	{
+		if (!CompanionTts.Enabled)
+		{
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_panel_tts_off"));
+			return;
+		}
+		if (!CompanionTts.Ready)
+		{
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_panel_tts_missing"));
+			return;
+		}
+		CompanionSetup setup = SelectedCompanion();
+		Player player = Player.m_localPlayer;
+		if (player == null)
+		{
+			// Fase 3.16 (auditoria): the message was about a missing companion while the guard was about a missing
+			// PLAYER. Without a local player there is nobody to hear the sample either, so this is silent (the panel
+			// hides itself as soon as RefreshStatus sees it, so it can only happen on the very frame the player leaves).
+			CompanionsPlugin.Log?.LogDebug("[IA] Painel: Ouvir sem jogador local - nada a tocar");
+			return;
+		}
+		if (setup == null)
+		{
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_panel_no_companion"));
+			return;
+		}
+		int voice = setup != null ? CompanionProfile.GetVoice(setup) : CompanionTts.Voice;
+		string name = setup != null ? NameOf(setup) : "?";
+		float cull = ModConfig.SpeechCullDistance != null ? ModConfig.SpeechCullDistance.Value : 20f;
+		GameObject talker = player.gameObject;
+		string where = "em voce (o companheiro esta fora do alcance da voz)";
+		if (setup != null && Vector3.Distance(setup.transform.position, player.transform.position) <= cull)
+		{
+			talker = setup.gameObject;
+			where = "no companheiro";
+		}
+		string text = ModLocalization.Loc("hc_ai_panel_tts_sample");
+		CompanionsPlugin.Log?.LogInfo($"[IA] Painel: Ouvir ({name}) -> voz {voice}, volume {CompanionTts.Volume:0.##}, velocidade {CompanionTts.Speed:0.##}, "
+			+ $"falando {where} | \"{text}\"");
+		CompanionTts.Speak(talker, text, true, voice);
+	}
+
+	private void SetRecallEnabled(bool enabled)
+	{
+		if (_recall == null)
+		{
+			return;
+		}
+		_recall.Button.interactable = enabled;
+		if (_recall.Image != null)
+		{
+			_recall.Image.color = enabled ? ButtonColor : OffColor;
+		}
+		if (_recall.Label != null)
+		{
+			_recall.Label.color = enabled ? Color.white : DimColor;
+		}
+	}
+
+	/// <summary>Fase 3.20: "Aparência" follows the same rule as "Chamar" - a dead companion's look is already written
+	/// into its tombstone, so the editor is refused (and greyed out) until it is back.</summary>
+	private void SetAppearanceEnabled(bool enabled)
+	{
+		if (_compAppearance == null)
+		{
+			return;
+		}
+		_compAppearance.Button.interactable = enabled;
+		if (_compAppearance.Image != null)
+		{
+			_compAppearance.Image.color = enabled ? ButtonColor : OffColor;
+		}
+		if (_compAppearance.Label != null)
+		{
+			_compAppearance.Label.color = enabled ? Color.white : DimColor;
+		}
+	}
+
+	/// <summary>
+	/// Fase 3.20: opens the appearance editor for the companion on the tab. The editor is a window of its own, one layer
+	/// above this panel (which stays open behind it, with its tab), so nothing here is rebuilt and nothing is lost on the
+	/// way back. A dead companion is refused with a localized message - the check is also in
+	/// <see cref="CompanionAppearancePanel.Open"/>, which is the one that has to hold for every door.
+	/// </summary>
+	private void OpenAppearance()
+	{
+		CompanionSetup setup = SelectedCompanion();
+		if (setup == null)
+		{
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_comp_gone"));
+			RefreshCompanionPage();
+			return;
+		}
+		if (!_compAlive)
+		{
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ui_appearance_dead"));
+			return;
+		}
+		// an open dropdown would stay drawn above the editor (its overlay is a sibling canvas of this panel)
+		CloseLists();
+		CompanionsPlugin.Log?.LogInfo($"[IA] Painel: abrindo o editor de aparencia de \"{NameOf(setup)}\"");
+		CompanionAppearancePanel.Open(setup);
+	}
+
+	/// <summary>Fase 3.10: the profile controls only make sense with a companion on the tab - the page is hidden
+	/// without one, and this keeps the buttons from being clickable in the frame where it disappears.</summary>
+	private void SetCompProfileEnabled(bool enabled)
+	{
+		if (_compApply != null)
+		{
+			_compApply.Button.interactable = enabled;
+			if (_compApply.Image != null)
+			{
+				_compApply.Image.color = enabled ? ButtonColor : OffColor;
+			}
+		}
+		if (_compPersonality != null && _compPersonality.ListRoot != null && !enabled && _openList == _compPersonality)
+		{
+			CloseLists();
+		}
+		if (_compVoice != null && _compVoice.ListRoot != null && !enabled && _openList == _compVoice)
+		{
+			CloseLists();
+		}
+	}
+
+	/// <summary>
+	/// The tier name of a companion that already exists: the ZDO keeps the hash of the prefab it was spawned from,
+	/// and the prefabs are one per tier (<c>HC_Companion</c>, <c>HC_DvergerWarrior</c>...), so the tab can say
+	/// "Guerreiro" or "Mago de Fogo" instead of a generic name.
+	/// </summary>
+	private static string TierName(CompanionSetup setup)
+	{
+		ZDO zdo = setup != null ? setup.GetComponent<ZNetView>()?.GetZDO() : null;
+		if (zdo != null)
+		{
+			int prefab = zdo.GetPrefab();
+			for (int i = 0; i < TierHashes.Length; i++)
+			{
+				if (TierHashes[i] == prefab)
+				{
+					return CompanionTierData.LocalName(Tiers[i]);
+				}
+			}
+		}
+		return ModLocalization.Loc("hc_ai_comp_tier_unknown");
+	}
+
+	/// <summary>
+	/// The "Chamar" button: the recall the command key runs, for this one companion
+	/// (<see cref="CompanionInteract.RecallOne"/> takes control, drops what it was doing, sets Follow and asks
+	/// <see cref="ReturnLogic"/> to bring it in - walking when it is close, through the same teleport recall when
+	/// it is beyond the safe chase range).
+	/// </summary>
+	private void RecallSelected()
+	{
+		CompanionSetup setup = SelectedCompanion();
+		Player player = Player.m_localPlayer;
+		if (setup == null || player == null)
+		{
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_comp_gone"));
+			RefreshCompanionPage();
+			return;
+		}
+		string name = NameOf(setup);
+		if (!CompanionInteract.RecallOne(setup, player))
+		{
+			CompanionChatAI.Announce(ModLocalization.LocFmt("hc_ai_comp_recall_failed", name));
+		}
+		else
+		{
+			CompanionChatAI.Announce(ModLocalization.LocFmt("hc_ai_comp_recall_ok", name));
+		}
+		RefreshCompanionPage();
+	}
+
+	/// <summary>
+	/// The tier dropdown of the summoner (Fase 3.9): the field button goes into the AI page (where the row is) and the
+	/// list of options goes into the overlay. Built after the overlay exists, and <c>Build</c> puts the overlay back as
+	/// the last child of the panel right after this - the field is the reason that line has to exist.
+	///
+	/// <para>Fase 3.15: this is the only dropdown left on the AI tab - the personality and the voice dropdowns that
+	/// used to live here are gone, because those settings belong to each companion's tab now.</para>
+	/// </summary>
+	private void BuildSpawnerDropdown()
+	{
+		// Fase 3.9: the tier of the summoner. Its list is six items tall (180 px) and the row sits in the middle of
+		// the panel, so it opens upwards - otherwise it would hang off the panel's edge.
+		string[] tierLabels = new string[Tiers.Length];
+		for (int i = 0; i < Tiers.Length; i++)
+		{
+			tierLabels[i] = CompanionTierData.LocalName(Tiers[i]);
+		}
+		_tier = CreateDropdown("Tier", FieldX, RowSpawnTier, TierFieldW, RowH, tierLabels, 0, null, openUp: true);
+		// this one is not a setting, so it starts on the first tier - the plain Companion
+		SetDropdown(_tier, 0);
 	}
 
 	// ------------------------------------------------------------------ config <-> controls
 
 	private void RefreshFromConfig()
 	{
-		SetDropdown(_personality, Mathf.Max(0, IndexOf(_personalityIds, Trimmed(ModConfig.AiPersonalityPreset))));
-
-		int voice = ModConfig.TtsVoice != null ? ModConfig.TtsVoice.Value : CompanionTts.DefaultVoice;
-		int voiceIndex = IndexOf(_voiceIds, voice);
-		if (voiceIndex < 0)
-		{
-			if (_voice != null)
-			{
-				_voice.Index = -1;
-			}
-			SetCaption(_voice, ModLocalization.LocFmt("hc_ai_voice_other", voice), DimColor);
-			HighlightItems(_voice, -1);
-		}
-		else
-		{
-			SetDropdown(_voice, voiceIndex);
-		}
-
-		if (_freeText != null)
-		{
-			_freeText.SetTextWithoutNotify(ModConfig.AiPersonality != null ? ModConfig.AiPersonality.Value : "");
-		}
 		SetSlider(_volume, ModConfig.TtsVolume != null ? ModConfig.TtsVolume.Value : 1f);
 		SetSlider(_speed, ModConfig.TtsSpeed != null ? ModConfig.TtsSpeed.Value : 1f);
 		SetSlider(_memory, ModConfig.AiMemory != null ? ModConfig.AiMemory.Value : 4);
+		// Fase 3.20: the LLM section - the sliders and the four text boxes (the toggles below read their entries)
+		SetSlider(_llmTemperature, ModConfig.AiTemperature != null ? ModConfig.AiTemperature.Value : 0.1f);
+		SetSlider(_llmTimeout, ModConfig.AiTimeoutSeconds != null ? ModConfig.AiTimeoutSeconds.Value : 30);
+		SetSlider(_llmCooldown, ModConfig.AiCooldown != null ? ModConfig.AiCooldown.Value : 3f);
+		SetSlider(_llmTargetRange, ModConfig.AiTargetRange != null ? ModConfig.AiTargetRange.Value : 40f);
+		SetFieldText(_llmBaseUrl, ModConfig.AiBaseUrl != null ? ModConfig.AiBaseUrl.Value : "");
+		SetFieldText(_llmModel, ModConfig.AiModel != null ? ModConfig.AiModel.Value : "");
+		SetFieldText(_llmApiKey, ModConfig.AiApiKey != null ? ModConfig.AiApiKey.Value : "");
+		SetFieldText(_llmPrefix, ModConfig.AiPrefix != null ? ModConfig.AiPrefix.Value : "");
+		UpdateLlmValueLabels();
 		for (int i = 0; i < _toggles.Count; i++)
 		{
 			ApplyToggleVisual(_toggles[i]);
@@ -836,61 +2581,6 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		{
 			_memoryLabel.text = ModLocalization.LocFmt("hc_ai_panel_memory_fmt", ModConfig.AiMemory != null ? ModConfig.AiMemory.Value : 4);
 		}
-	}
-
-	private void OnPersonalityPicked(int index)
-	{
-		if (ModConfig.AiPersonalityPreset == null)
-		{
-			return;
-		}
-		string id = IdAt(_personalityIds, index);
-		ModConfig.AiPersonalityPreset.Value = id;
-		if (Trimmed(ModConfig.AiPersonality).Length > 0)
-		{
-			// the free text wins (CompanionPersona.Resolve): say it, so the choice is not silently ignored
-			CompanionChatAI.Announce(ModLocalization.LocFmt("hc_ai_panel_preset_shadowed", CompanionPersona.Describe()));
-		}
-		CompanionsPlugin.Log?.LogInfo($"[IA] Painel: preset de personalidade = \"{id}\" - em uso agora: {CompanionPersona.Describe()}");
-		RefreshStatus();
-	}
-
-	private void OnVoicePicked(int index)
-	{
-		if (ModConfig.TtsVoice == null || index < 0 || index >= _voiceIds.Length)
-		{
-			return;
-		}
-		ModConfig.TtsVoice.Value = _voiceIds[index];
-		CompanionsPlugin.Log?.LogInfo($"[IA] Painel: voz do companheiro = {_voiceIds[index]} ({_voice.LabelAt(index)}) - vale na proxima fala.");
-		RefreshStatus();
-	}
-
-	private void ApplyPersonality()
-	{
-		if (_freeText == null)
-		{
-			return;
-		}
-		string text = _freeText.text != null ? _freeText.text.Trim() : "";
-		if (text.Length > CompanionPersona.MaxFreeTextLength)
-		{
-			text = text.Substring(0, CompanionPersona.MaxFreeTextLength);
-			_freeText.SetTextWithoutNotify(text);
-		}
-		if (ModConfig.AiPersonality != null)
-		{
-			ModConfig.AiPersonality.Value = text;
-		}
-		if (ModConfig.AiPersonalityPreset != null)
-		{
-			ModConfig.AiPersonalityPreset.Value = IdAt(_personalityIds, _personality != null ? _personality.Index : 0);
-		}
-		string effective = CompanionPersona.Describe();
-		CompanionsPlugin.Log?.LogInfo($"[IA] Painel: personalidade aplicada ({(text.Length > 0 ? text.Length + " caracteres de texto livre" : "sem texto livre")}) "
-			+ $"- em uso agora: {effective}");
-		CompanionChatAI.Announce(ModLocalization.LocFmt("hc_ai_panel_apply_ok", effective));
-		RefreshStatus();
 	}
 
 	private void OnVolumeChanged(float value)
@@ -930,50 +2620,6 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		{
 			_memoryLabel.text = ModLocalization.LocFmt("hc_ai_panel_memory_fmt", exchanges);
 		}
-	}
-
-	/// <summary>
-	/// The "Ouvir" button: speaks a short sample line through the real pipeline (the same synthesis worker and the same
-	/// 3D playback the companion uses), so the player hears exactly what the chosen voice/volume/speed will sound like.
-	/// The sample comes from the companion that would answer when it is close enough for its voice to be heard (the
-	/// same cull distance the speech bubbles use); otherwise it plays at the player, so the preview is never silent
-	/// just because the companion is far away.
-	/// </summary>
-	private void PreviewVoice()
-	{
-		if (!CompanionTts.Enabled)
-		{
-			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_panel_tts_off"));
-			return;
-		}
-		if (!CompanionTts.Ready)
-		{
-			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_panel_tts_missing"));
-			return;
-		}
-		Player player = Player.m_localPlayer;
-		if (player == null)
-		{
-			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_panel_no_companion"));
-			return;
-		}
-		float cull = ModConfig.SpeechCullDistance != null ? ModConfig.SpeechCullDistance.Value : 20f;
-		CompanionSetup speaker = CompanionChatAI.PickSpeaker();
-		GameObject talker = null;
-		string where = "no companheiro mais proximo";
-		if (speaker != null && Vector3.Distance(speaker.transform.position, player.transform.position) <= cull)
-		{
-			talker = speaker.gameObject;
-		}
-		if (talker == null)
-		{
-			talker = player.gameObject;
-			where = "em voce (nenhum companheiro dentro do alcance da voz)";
-		}
-		string text = ModLocalization.Loc("hc_ai_panel_tts_sample");
-		CompanionsPlugin.Log?.LogInfo($"[IA] Painel: Ouvir -> voz {CompanionTts.Voice}, volume {CompanionTts.Volume:0.##}, velocidade {CompanionTts.Speed:0.##}, "
-			+ $"falando {where} | \"{text}\"");
-		CompanionTts.Speak(talker, text);
 	}
 
 	// ------------------------------------------------------------------ dropdown plumbing
@@ -1063,31 +2709,24 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		dropdown.Caption.color = color;
 	}
 
-	/// <summary>The preset ids in the order the dropdown shows them: default, the presets, then "custom" (free text).</summary>
-	private static string[] PersonalityIds()
+	/// <summary>The index of a preset id in a list, where "" is a value of its own ("the default personality") and not
+	/// "nothing" - the reason <see cref="IndexOf(string[], string)"/> (which answers 0 for an empty value) cannot be
+	/// used on the companion's list, where 0 is the "follow the default" entry.</summary>
+	private static int IndexOfPreset(string[] ids, string wanted)
 	{
-		CompanionPersona.Preset[] presets = CompanionPersona.Presets;
-		string[] ids = new string[presets.Length + 2];
-		ids[0] = "";
-		for (int i = 0; i < presets.Length; i++)
+		if (ids == null)
 		{
-			ids[i + 1] = presets[i].Id;
+			return -1;
 		}
-		ids[ids.Length - 1] = CompanionPersona.CustomId;
-		return ids;
-	}
-
-	private static string[] PersonalityLabels()
-	{
-		CompanionPersona.Preset[] presets = CompanionPersona.Presets;
-		string[] labels = new string[presets.Length + 2];
-		labels[0] = ModLocalization.Loc("hc_ai_preset_default");
-		for (int i = 0; i < presets.Length; i++)
+		string value = wanted ?? "";
+		for (int i = 0; i < ids.Length; i++)
 		{
-			labels[i + 1] = ModLocalization.Loc(presets[i].NameKey);
+			if (string.Equals(ids[i], value, StringComparison.OrdinalIgnoreCase))
+			{
+				return i;
+			}
 		}
-		labels[labels.Length - 1] = ModLocalization.Loc("hc_ai_preset_custom");
-		return labels;
+		return -1;
 	}
 
 	private static string IdAt(string[] ids, int index)
@@ -1137,38 +2776,104 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		return value == null ? "" : value.Trim();
 	}
 
-	/// <summary>What the player would hear: the free text wins over the preset (see CompanionPersona.Resolve).</summary>
-	private string EffectivePersonalityLabel()
+	private static string Trimmed(string value)
 	{
-		if (Trimmed(ModConfig.AiPersonality).Length > 0)
+		return value == null ? "" : value.Trim();
+	}
+
+	/// <summary>
+	/// Fase 3.12 (auditoria): the footer line of the open companion, from the cache filled when its tab loaded (and
+	/// after every change made there). Only the AI tab (no companion) reads the values live, which costs nothing.
+	/// </summary>
+	private string PersonalityStatusLabel(CompanionSetup setup)
+	{
+		if (setup == null)
+		{
+			return EffectivePersonalityLabel(null);
+		}
+		// Fase 3.19 (auditoria): a companion that INHERITS the global value has to show what the F8 panel has right
+		// now - the cached line was computed when the tab loaded, so changing the global setting left the footer
+		// showing the old value until the tab was reopened
+		if (!CompanionProfile.HasPersona(setup))
+		{
+			return EffectivePersonalityLabel(setup);
+		}
+		return _compStatusPersonality ?? EffectivePersonalityLabel(setup);
+	}
+
+	/// <summary>The same for the voice line of the footer (see <see cref="PersonalityStatusLabel"/>).</summary>
+	private string VoiceStatusLabel(CompanionSetup setup)
+	{
+		if (setup == null)
+		{
+			return CurrentVoiceLabel(null);
+		}
+		// Fase 3.19: same reason as the personality above
+		if (!CompanionProfile.HasVoice(setup))
+		{
+			return CurrentVoiceLabel(setup);
+		}
+		return _compStatusVoice ?? CurrentVoiceLabel(setup);
+	}
+
+	/// <summary>Fills the footer cache of <paramref name="setup"/>: when its tab loads and after a change made on that
+	/// tab - never per frame.</summary>
+	private void CacheCompanionStatus(CompanionSetup setup)
+	{
+		if (setup == null)
+		{
+			_compStatusPersonality = null;
+			_compStatusVoice = null;
+			return;
+		}
+		_compStatusPersonality = EffectivePersonalityLabel(setup);
+		_compStatusVoice = CurrentVoiceLabel(setup);
+	}
+
+	/// <summary>
+	/// What the player would hear: the free text wins over the preset (see CompanionPersona.Resolve). With a companion
+	/// on the tab (Fase 3.10) it is <b>its</b> personality, and "(padrão)" is appended when the value in use is the
+	/// global one it inherits.
+	/// </summary>
+	private string EffectivePersonalityLabel(CompanionSetup setup)
+	{
+		if (setup == null)
+		{
+			return PersonalityLabel(Trimmed(ModConfig.AiPersonalityPreset), Trimmed(ModConfig.AiPersonality));
+		}
+		string label = PersonalityLabel(CompanionProfile.GetPreset(setup), CompanionProfile.GetFreeText(setup));
+		return CompanionProfile.HasPersona(setup) ? label : ModLocalization.LocFmt("hc_ai_profile_inherited", label);
+	}
+
+	/// <summary>The label of a personality pair, taken from the lists the dropdowns show.</summary>
+	private string PersonalityLabel(string preset, string freeText)
+	{
+		if (!string.IsNullOrEmpty(Trimmed(freeText)))
 		{
 			return ModLocalization.Loc("hc_ai_preset_custom");
 		}
-		int index = IndexOf(_personalityIds, Trimmed(ModConfig.AiPersonalityPreset));
+		int index = IndexOf(_personalityIds, Trimmed(preset));
 		return index >= 0 && index < _personalityLabels.Length ? _personalityLabels[index] : _personalityLabels[0];
 	}
 
-	/// <summary>The voice in use, by name. A voice that is not one of the pt-BR ones is named as "other language",
-	/// because the panel only offers the three pt-BR voices.</summary>
-	private string CurrentVoiceLabel()
+	/// <summary>
+	/// The voice in use, by name. A voice that is not one of the pt-BR ones is named as "other language", because the
+	/// panel only offers the three pt-BR voices. With a companion on the tab it is its own voice, and "(padrão)" is
+	/// appended when it inherits the global one.
+	/// </summary>
+	private string CurrentVoiceLabel(CompanionSetup setup)
 	{
-		int voice = ModConfig.TtsVoice != null ? ModConfig.TtsVoice.Value : CompanionTts.DefaultVoice;
-		if (IndexOf(_voiceIds, voice) < 0)
+		int voice = setup != null
+			? CompanionProfile.GetVoice(setup)
+			: CompanionTts.Voice;
+		string label = IndexOf(_voiceIds, voice) < 0
+			? ModLocalization.LocFmt("hc_ai_voice_other", voice)
+			: ModLocalization.Loc("hc_ai_voice_" + voice);
+		if (setup != null && !CompanionProfile.HasVoice(setup))
 		{
-			return ModLocalization.LocFmt("hc_ai_voice_other", voice);
+			return ModLocalization.LocFmt("hc_ai_profile_inherited", label);
 		}
-		return ModLocalization.Loc("hc_ai_voice_" + voice);
-	}
-
-	private static int[] VoiceIds()
-	{
-		int count = CompanionTts.PortugueseVoiceCount;
-		int[] ids = new int[count];
-		for (int i = 0; i < count; i++)
-		{
-			ids[i] = CompanionTts.PortugueseVoiceAt(i);
-		}
-		return ids;
+		return label;
 	}
 
 	private static void SetSlider(Slider slider, float value)
@@ -1209,6 +2914,24 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		internal Image Image;
 	}
 
+	/// <summary>
+	/// Fase 3.9: one tab of the strip - the AI settings (<see cref="Companion"/> null) or one companion of the local
+	/// player. The button is rebuilt on every open (see <see cref="RebuildTabs"/>), so the tab only carries what has
+	/// to be repainted (the gold of the open tab) and which companion it points at.
+	/// </summary>
+	private sealed class AiTab
+	{
+		internal string Label;
+
+		internal CompanionSetup Companion;
+
+		internal GameObject Button;
+
+		internal Image Image;
+
+		internal TMP_Text Text;
+	}
+
 	/// <summary>A hand-built dropdown: the field button, its caption and the (hidden) list of options.</summary>
 	private sealed class AiDropdown
 	{
@@ -1242,8 +2965,8 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 	private void CreateToggle(float labelX, float labelW, float y, float buttonX, float buttonW, string text, ConfigEntry<bool> entry)
 	{
-		CreateText(_root.transform, text, labelX, y + 6f, labelW, 22f, 12f, Color.white, TextAlignmentOptions.MidlineLeft);
-		AiButton button = CreateButton(_root.transform, "Toggle_" + text, buttonX, y, buttonW, RowH, "", null);
+		CreateText(Page, text, labelX, y + 6f, labelW, 22f, 12f, Color.white, TextAlignmentOptions.MidlineLeft);
+		AiButton button = CreateButton(Page, "Toggle_" + text, buttonX, y, buttonW, RowH, "", null);
 		AiToggle toggle = new AiToggle
 		{
 			Entry = entry,
@@ -1287,7 +3010,10 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		};
 	}
 
-	private AiDropdown CreateDropdown(string name, float x, float y, float w, float h, string[] labels, int index, Action<int> onPick)
+	/// <summary>The hand-built dropdown: the field button on the page, its caption and the (hidden) list of options on
+	/// the overlay. <paramref name="openUp"/> puts the list <b>above</b> the field instead of under it, for a row that
+	/// sits too close to the bottom edge of the panel for its list to fit below (the summoner's tier).</summary>
+	private AiDropdown CreateDropdown(string name, float x, float y, float w, float h, string[] labels, int index, Action<int> onPick, bool openUp = false)
 	{
 		AiDropdown dropdown = new AiDropdown
 		{
@@ -1296,7 +3022,7 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 			OnPick = onPick
 		};
 		// the field belongs to the panel (its row), the list to the overlay: only the list has to float above the rows
-		AiButton field = CreateButton(_root.transform, name + "Field", x, y, w, h, "", delegate
+		AiButton field = CreateButton(Page, name + "Field", x, y, w, h, "", delegate
 		{
 			ToggleList(dropdown);
 		});
@@ -1305,7 +3031,8 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 		GameObject listRoot = new GameObject(name + "List", typeof(RectTransform), typeof(Image));
 		listRoot.transform.SetParent(_overlay, worldPositionStays: false);
-		Place(listRoot.GetComponent<RectTransform>(), x, y + h, w, labels.Length * ItemH);
+		float listY = openUp ? y - labels.Length * ItemH : y + h;
+		Place(listRoot.GetComponent<RectTransform>(), x, listY, w, labels.Length * ItemH);
 		// The list background stays a raycast target on purpose (and the raycast audit allow-lists it by name): the
 		// option buttons are 2 px smaller than the list, so a click on that border - or on the sliver under the last
 		// option - would fall through to whatever is behind the open list. With this target the list itself swallows
@@ -1331,7 +3058,7 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	private Slider CreateSlider(string name, float x, float y, float w, float h, float min, float max, float value, bool whole, Action<float> onChanged)
 	{
 		GameObject go = new GameObject(name, typeof(RectTransform));
-		go.transform.SetParent(_root.transform, worldPositionStays: false);
+		go.transform.SetParent(Page, worldPositionStays: false);
 		Place(go.GetComponent<RectTransform>(), x, y, w, h);
 
 		GameObject background = new GameObject("Background", typeof(RectTransform), typeof(Image));
@@ -1422,7 +3149,7 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		// inactive until the very end: the TMP_InputField added below has to see its text component already assigned
 		// when its OnEnable runs, or the caret/selection object is never created (see the summary above)
 		go.SetActive(false);
-		go.transform.SetParent(_root.transform, worldPositionStays: false);
+		go.transform.SetParent(Page, worldPositionStays: false);
 		Place(go.GetComponent<RectTransform>(), x, y, w, h);
 		Image image = go.GetComponent<Image>();
 		image.color = new Color(0.1f, 0.1f, 0.12f, 0.92f);
@@ -1461,11 +3188,8 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		input.caretColor = new Color(1f, 0.95f, 0.85f, 1f);
 		input.caretWidth = 2;
 		input.selectionColor = new Color(0.55f, 0.72f, 1f, 0.55f);
-		// Enter = the "Aplicar" button (TMP sends onSubmit on Enter and onEndEdit on Esc/focus loss, so Esc cancels)
-		input.onSubmit.AddListener(delegate
-		{
-			ApplyPersonality();
-		});
+		// Fase 3.15: Enter has no meaning for this generic box any more - each field wires its own action (Aplicar for
+		// the name, ApplyCompPersonality for the profile's free text), so the helper does not add a listener.
 
 		go.SetActive(true);   // OnEnable runs here: TMP creates its caret object and caches its renderer
 
@@ -1492,7 +3216,7 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 	private void CreateLabel(float rowY, string text)
 	{
-		CreateText(_root.transform, text, LeftX, rowY + 6f, LabelW, 22f, 13f, LabelColor, TextAlignmentOptions.MidlineLeft);
+		CreateText(Page, text, LeftX, rowY + 6f, LabelW, 22f, 13f, LabelColor, TextAlignmentOptions.MidlineLeft);
 	}
 
 	private TMP_Text CreateText(Transform parent, string text, float x, float y, float w, float h, float size, Color color, TextAlignmentOptions align)
@@ -1566,5 +3290,36 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 			return null;
 		}
 		return Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(0.5f, 0.5f), 100f);
+	}
+}
+
+/// <summary>
+/// Fase 3.9: the mouse wheel of the strip of tabs of <see cref="CompanionAiPanel"/>. The strip is a
+/// <see cref="ScrollRect"/> that only scrolls sideways (a companion tab per companion, and the player may summon as
+/// many as they like), and a ScrollRect only reads the wheel for the axis it scrolls - so the wheel would do nothing
+/// over it. This helper turns the vertical wheel into horizontal scrolling; it lives on the viewport, i.e. under the
+/// ScrollRect in the event bubble, so it is the one that gets the event.
+/// </summary>
+internal sealed class AiTabStripWheel : MonoBehaviour, IScrollHandler
+{
+	private ScrollRect _scroll;
+
+	internal void Init(ScrollRect scroll)
+	{
+		_scroll = scroll;
+	}
+
+	public void OnScroll(PointerEventData eventData)
+	{
+		if (_scroll == null || _scroll.content == null || _scroll.viewport == null)
+		{
+			return;
+		}
+		// nothing to scroll when the tabs fit (and moving the content then would shift it off the strip)
+		if (_scroll.content.rect.width <= _scroll.viewport.rect.width)
+		{
+			return;
+		}
+		_scroll.horizontalNormalizedPosition = Mathf.Clamp01(_scroll.horizontalNormalizedPosition - eventData.scrollDelta.y * 0.1f);
 	}
 }

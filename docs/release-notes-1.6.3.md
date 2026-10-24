@@ -1,20 +1,20 @@
 # 1.6.3 — reempacotado para gerenciadores de mods
 
-![ModAI-BR-Companions — companheiros NPC com IA para Valheim, em PT-BR](https://raw.githubusercontent.com/julianu37/ModAI-BR-Companions/main/docs/images/banner.png)
+![AI Companions — companheiros NPC com IA para Valheim, em PT-BR](https://raw.githubusercontent.com/julianu37/AI-Companions/main/docs/images/banner.png)
 
 > **Nada muda no jogo.** Esta release é a **1.6.2 reempacotada** no padrão que os gerenciadores de mods esperam.
 
 ## O que mudou
 
-- A pasta do mod agora vem em **`BepInEx/plugins/ModAI-BR-Companions/`** — o gerenciador (ou a extração na raiz do
+- A pasta do mod agora vem em **`BepInEx/plugins/AI-Companions/`** — o gerenciador (ou a extração na raiz do
   Valheim) instala direto, sem renomear nada.
 - `README.md`, `CHANGELOG.md` e `icon.png` ficam na **raiz** do pacote.
 - **Dois arquivos para escolher:**
 
 | Arquivo | Tamanho | O que vem |
 |---|---|---|
-| `ModAI_BR_Companions-1.6.3.zip` | ~368 MB | O mod **e** os modelos de voz (STT + TTS) já prontos — **recomendado** |
-| `ModAI_BR_Companions-1.6.3-sem-modelos.zip` | ~28 MB | Só o mod e as traduções — você baixa os modelos por fora |
+| `AI_Companions-1.6.3.zip` | ~368 MB | O mod **e** os modelos de voz (STT + TTS) já prontos — **recomendado** |
+| `AI_Companions-1.6.3-sem-modelos.zip` | ~28 MB | Só o mod e as traduções — você baixa os modelos por fora |
 
 - O `whisper\jfk.wav` continua **fora** do pacote (saiu na 1.6.1).
 
@@ -40,7 +40,7 @@
 ## Instalação
 
 O passo a passo completo, **com imagens** (incluindo o LM Studio), está na wiki:
-**https://github.com/julianu37/ModAI-BR-Companions/wiki/Instalacao**
+**https://github.com/julianu37/AI-Companions/wiki/Instalacao**
 
 Resumo: instale o BepInEx → extraia o pacote na raiz do Valheim → carregue o modelo no LM Studio e ligue o
 **Local Server** (porta 1234) → no `.cfg` (`[IA]`) use `BaseUrl = http://127.0.0.1:1234/v1` e
@@ -53,9 +53,9 @@ Resumo: instale o BepInEx → extraia o pacote na raiz do Valheim → carregue o
 
 | | |
 |---|---|
-| ![Ordem no chat](https://raw.githubusercontent.com/julianu37/ModAI-BR-Companions/main/docs/wiki/images/1-ordem-no-chat.jpg) | ![Painel da IA](https://raw.githubusercontent.com/julianu37/ModAI-BR-Companions/main/docs/wiki/images/2-painel-da-ia.jpg) |
+| ![Ordem no chat](https://raw.githubusercontent.com/julianu37/AI-Companions/main/docs/wiki/images/1-ordem-no-chat.jpg) | ![Painel da IA](https://raw.githubusercontent.com/julianu37/AI-Companions/main/docs/wiki/images/2-painel-da-ia.jpg) |
 | **A ordem no chat** — o companheiro entende e responde | **Painel da IA** (tecla `I`) — personalidade, voz e push-to-talk |
-| ![Painel F8](https://raw.githubusercontent.com/julianu37/ModAI-BR-Companions/main/docs/wiki/images/3-painel-f8.jpg) | ![Menu radial](https://raw.githubusercontent.com/julianu37/ModAI-BR-Companions/main/docs/wiki/images/4-menu-radial.jpg) |
+| ![Painel F8](https://raw.githubusercontent.com/julianu37/AI-Companions/main/docs/wiki/images/3-painel-f8.jpg) | ![Menu radial](https://raw.githubusercontent.com/julianu37/AI-Companions/main/docs/wiki/images/4-menu-radial.jpg) |
 | **Seção `[IA]` no painel F8** — tudo configurável em jogo | **Menu radial** (segure `E` olhando o companheiro) |
 
 ## Créditos e licença
@@ -72,6 +72,6 @@ Voz e reconhecimento usam [Whisper.net](https://github.com/sandrohanea/whisper.n
 [onnxruntime](https://github.com/microsoft/onnxruntime) (MIT). Os textos das licenças viajam no pacote, em
 `LICENSES\`.
 
-Licença do projeto: **MIT** — ver [`LICENSE`](https://github.com/julianu37/ModAI-BR-Companions/blob/main/LICENSE),
-[`NOTICE.md`](https://github.com/julianu37/ModAI-BR-Companions/blob/main/NOTICE.md) e
-[`THIRD_PARTY_NOTICES.md`](https://github.com/julianu37/ModAI-BR-Companions/blob/main/THIRD_PARTY_NOTICES.md).
+Licença do projeto: **MIT** — ver [`LICENSE`](https://github.com/julianu37/AI-Companions/blob/main/LICENSE),
+[`NOTICE.md`](https://github.com/julianu37/AI-Companions/blob/main/NOTICE.md) e
+[`THIRD_PARTY_NOTICES.md`](https://github.com/julianu37/AI-Companions/blob/main/THIRD_PARTY_NOTICES.md).

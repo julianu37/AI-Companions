@@ -33,12 +33,12 @@ Documentação oficial: https://docs.bepinex.dev/
 
 ## 3. Baixe a release do mod
 
-Vá em **https://github.com/julianu37/ModAI-BR-Companions/releases** e baixe **um** dos dois arquivos:
+Vá em **https://github.com/julianu37/AI-Companions/releases** e baixe **um** dos dois arquivos:
 
 | Arquivo | Tamanho | Quando escolher |
 |---|---|---|
-| `ModAI_BR_Companions-1.6.4.zip` | ~367,9 MB | **Recomendado.** Já vem com os modelos de voz (STT + TTS). Instala e usa |
-| `ModAI_BR_Companions-1.6.4-sem-modelos.zip` | ~28,4 MB | Internet lenta, ou você já tem os modelos e quer baixá-los separado |
+| `AI_Companions-1.6.4.zip` | ~367,9 MB | **Recomendado.** Já vem com os modelos de voz (STT + TTS). Instala e usa |
+| `AI_Companions-1.6.4-sem-modelos.zip` | ~28,4 MB | Internet lenta, ou você já tem os modelos e quer baixá-los separado |
 
 > A diferença é **só** os modelos de voz. O mod e as traduções são os mesmos nos dois.
 >
@@ -48,12 +48,12 @@ Vá em **https://github.com/julianu37/ModAI-BR-Companions/releases** e baixe **u
 
 ## 4. Extraia na pasta do Valheim
 
-O zip já vem com a estrutura de pastas pronta: dentro dele a pasta é `BepInEx\plugins\ModAI-BR-Companions\`.
+O zip já vem com a estrutura de pastas pronta: dentro dele a pasta é `BepInEx\plugins\AI-Companions\`.
 Então basta extrair **na raiz do Valheim** (`<Valheim>`) que cada arquivo cai no lugar certo. Se você usa um
 gerenciador de mods, aponte o zip para ele — o gerenciador instala direto, sem renomear nada.
 
 > Se preferir fazer à mão, o resultado final tem que ser
-> `<Valheim>\BepInEx\plugins\ModAI-BR-Companions\`, com o `Companions.dll` **dentro** dela. O BepInEx carrega
+> `<Valheim>\BepInEx\plugins\AI-Companions\`, com o `Companions.dll` **dentro** dela. O BepInEx carrega
 > plugins de **qualquer** subpasta de `BepInEx\plugins\` — manter esse nome só evita confusão na hora de atualizar.
 
 No fim, a pasta deve ficar assim:
@@ -64,7 +64,7 @@ No fim, a pasta deve ficar assim:
 <Valheim>\
 └── BepInEx\
     └── plugins\
-        └── ModAI-BR-Companions\
+        └── AI-Companions\
             ├── LICENSES\
             ├── runtimes\
             ├── Speech\                     ← falas do companheiro em PT-BR
@@ -98,8 +98,8 @@ Se você baixou o **sem-modelos**, coloque os arquivos assim:
 
 | Onde colocar | Arquivos |
 |---|---|
-| `...\ModAI-BR-Companions\whisper\` | `ggml-small-q5_1.bin` (181 MB) — o padrão do reconhecimento de voz |
-| `...\ModAI-BR-Companions\tts\kokoro\` | `model.int8.onnx` (109 MB), `voices.bin` (27 MB), `tokens.txt` e a pasta `espeak-ng-data\` |
+| `...\AI-Companions\whisper\` | `ggml-small-q5_1.bin` (181 MB) — o padrão do reconhecimento de voz |
+| `...\AI-Companions\tts\kokoro\` | `model.int8.onnx` (109 MB), `voices.bin` (27 MB), `tokens.txt` e a pasta `espeak-ng-data\` |
 
 > No pacote **sem-modelos** o `tokens.txt` e a pasta `espeak-ng-data\` **já vêm** — faltam só o
 > `ggml-small-q5_1.bin` (Whisper) e o `model.int8.onnx` + `voices.bin` (Kokoro).
@@ -115,19 +115,33 @@ Onde baixar:
 
 ---
 
-## 6. Configure o LLM (LM Studio)
+## 6. Configure o LLM (OpenRouter)
 
-As ordens são entendidas por um **LLM local**. O caminho mais simples é o **LM Studio** com o modelo
-`qwen2.5-3b-instruct` e o servidor local ligado.
+As ordens são entendidas por um **LLM**. O mod já vem apontado para o **OpenRouter**, que é o caminho mais
+simples: não há nada para instalar — só a **chave gratuita** e internet.
 
-O guia completo está em **[LLM no LM Studio](LLM-no-LM-Studio)**. Em resumo:
+1. Crie a conta e a chave em **https://openrouter.ai/keys**.
+2. Em `<Valheim>\BepInEx\config\Maddhattr.OfflineCompanionsReborn.cfg`, seção `[IA]`, confira os três valores
+   (os dois primeiros **já são o padrão**; só a chave é que você preenche):
 
-1. Instale o LM Studio: https://lmstudio.ai
-2. Baixe e carregue o `qwen2.5-3b-instruct` (Q4_K_M).
-3. Ligue o **Local Server** (porta **1234**).
-4. Confira no `.cfg` (`[IA]`): `BaseUrl = http://127.0.0.1:1234/v1` e `Modelo = qwen2.5-3b-instruct`.
+   ```ini
+   BaseUrl = https://openrouter.ai/api/v1
+   Modelo = openrouter/free
+   ApiKey = <a sua chave>
+   ```
 
-![O LM Studio com o Local Server ligado e o modelo carregado](images/lmstudio-servidor.png)
+3. Em jogo, aperte **`I`** → aba **IA** → **Configurações do LLM** → **Testar conexão** (também dá para colar a
+   chave e trocar a URL/modelo ali mesmo, sem abrir o arquivo).
+
+![O painel da IA, aba IA: em Configurações do LLM, a URL do OpenRouter, o modelo openrouter/free e a chave de API mascarada](images/painel-llm-openrouter.png)
+
+> **Com o OpenRouter, o texto das ordens sai da sua máquina** (é um serviço remoto) e o tier gratuito tem fila e
+> limite diário de pedidos. Para rodar **tudo local** — e **nada** sair — use o **LM Studio** como **alternativa
+> opcional**: instale em https://lmstudio.ai, baixe o `qwen2.5-3b-instruct` (Q4_K_M), ligue o **Local Server**
+> (porta **1234**) e troque no `.cfg`: `BaseUrl = http://127.0.0.1:1234/v1` e `Modelo = qwen2.5-3b-instruct`
+> (com o `ApiKey` **vazio**).
+
+O guia completo dos dois caminhos está em **[LLM (OpenRouter ou LM Studio)](LLM-no-LM-Studio)**.
 
 ---
 
@@ -138,8 +152,8 @@ O guia completo está em **[LLM no LM Studio](LLM-no-LM-Studio)**. Em resumo:
 3. Procure estas duas linhas:
 
 ```
-ModAI-BR-Companions v1.6.4 loading...
-ModAI-BR-Companions loaded successfully! (N methods patched)
+AI Companions v1.6.4 loading...
+AI Companions loaded successfully! (N methods patched)
 ```
 
 Se elas aparecerem, o mod carregou.
@@ -172,11 +186,12 @@ Para ver todas as teclas e ordens, vá em **[Comandos](Comandos)**.
 - [ ] Valheim 1.0.x instalado
 - [ ] BepInEx 5.4.2351 extraído na raiz do jogo
 - [ ] Release **1.6.4** baixada (o pacote completo ou o sem-modelos)
-- [ ] Pasta `BepInEx\plugins\ModAI-BR-Companions\` criada com o `Companions.dll` e as dependências
+- [ ] Pasta `BepInEx\plugins\AI-Companions\` criada com o `Companions.dll` e as dependências
 - [ ] Modelos de voz em `whisper\` e `tts\kokoro\`
-- [ ] LM Studio com o modelo carregado e o Local Server ligado na porta 1234
+- [ ] Chave gratuita do OpenRouter criada e `[IA] ApiKey` preenchida (ou o LM Studio local configurado)
 - [ ] `[IA] BaseUrl` e `[IA] Modelo` conferidos no `.cfg`
-- [ ] Log com `ModAI-BR-Companions loaded successfully!`
+- [ ] **Testar conexão** (painel `I`) respondendo `Conexão OK`
+- [ ] Log com `AI Companions loaded successfully!`
 - [ ] `colete 10 madeiras` no chat funciona
 - [ ] Segurar `V` e falar funciona
 

@@ -15,13 +15,43 @@ e `[TTS]`.
 
 **Causas prováveis, na ordem:**
 
-1. **O LM Studio não está com o servidor ligado.** Abra a aba **Developer** e confira o status `Running` na
-   porta **1234**.
-2. **O `BaseUrl` ou o `Modelo` estão errados.** O `Modelo` tem que ser o **API Model Identifier** que o LM
-   Studio mostra, não o nome da pasta. Veja **[LLM no LM Studio](LLM-no-LM-Studio)**.
-3. **`[IA] Ligado` está `false`.** Ligue no painel **`F8`**.
-4. **`[IA] Prefixo` está preenchido.** Se você puser `/c`, só mensagens que começam com `/c` vão ao modelo.
-5. **Nenhum companheiro está por perto / apto a receber ordem.** Ele precisa estar spawnado.
+1. **A `ApiKey` está vazia ou errada.** O mod vem apontado para o **OpenRouter**, que **exige** a chave (veja
+   "responde erro de autenticação" abaixo). Se você usa o **LM Studio** local, a chave fica vazia e o `BaseUrl`
+   tem que ser `http://127.0.0.1:1234/v1`.
+2. **O `BaseUrl` ou o `Modelo` estão errados.** No LM Studio local, o `Modelo` tem que ser o **API Model
+   Identifier** que ele mostra, não o nome da pasta. Veja **[LLM (OpenRouter ou LM Studio)](LLM-no-LM-Studio)**.
+3. **Usando o LM Studio local: o servidor não está ligado.** Abra a aba **Developer** e confira o status `Running`
+   na porta **1234**.
+4. **`[IA] Ligado` está `false`.** Ligue no painel **`F8`**.
+5. **`[IA] Prefixo` está preenchido.** Se você puser `/c`, só mensagens que começam com `/c` vão ao modelo.
+6. **Nenhum companheiro está por perto / apto a receber ordem.** Ele precisa estar spawnado.
+
+> Antes de tudo, use o **Testar conexão** do painel **`I`**: ele diz, em segundos, se a URL responde e se o
+> modelo aparece na lista. Lembre que a **chave** só é validada numa ordem de verdade (a lista de modelos do
+> OpenRouter é pública).
+
+---
+
+## Responde erro de autenticação (401 / "unauthorized")
+
+| Onde olhar | O que procurar |
+|---|---|
+| `LogOutput.log` | `[IA]` com o status **401** (ou uma mensagem de *unauthorized* / *invalid api key*) |
+| Painel **`I`** → **Testar conexão** | **Pode** responder `Conexão OK` mesmo com a chave errada — no OpenRouter a lista de modelos é pública. O 401 aparece na **ordem**, não no teste |
+
+**Causa:** o OpenRouter **exige** a `[IA] ApiKey`, e ela está **vazia**, **errada** ou **apagada** (por exemplo,
+depois de você copiar um `.cfg` de outra máquina).
+
+**O que fazer:**
+
+1. Crie ou copie a chave em **https://openrouter.ai/keys**.
+2. Cole em **`[IA] ApiKey`** — no painel **`I`** (aba **IA** → **Configurações do LLM**) ou direto no `.cfg`.
+3. Clique em **Testar conexão**; depois em **Aplicar** (a configuração vale na próxima mensagem).
+4. Se você **não** quer usar o OpenRouter, aponte o `BaseUrl` para o servidor local
+   (`http://127.0.0.1:1234/v1`), use o `Modelo` do LM Studio e **deixe a `ApiKey` vazia**.
+
+> Chave vazada? Apague em **https://openrouter.ai/settings/keys** e crie outra. O `ApiKey` do `.cfg` não deve ser
+> compartilhado nem versionado.
 
 ---
 
@@ -33,14 +63,18 @@ e `[TTS]`.
 
 **Causas prováveis:**
 
-1. **O seu `.cfg` ainda está com `localhost` no `BaseUrl`.** O padrão desde a **1.6.4** é
+1. **Tier gratuito do OpenRouter.** Com o `openrouter/free`, cada pedido escolhe um **modelo gratuito** e passa
+   pela fila do provedor — a latência **varia** de uma ordem para outra, e em horário de pico pode demorar. Teste
+   um **modelo específico** no `[IA] Modelo` (o catálogo está em https://openrouter.ai/models) ou use o LM Studio
+   local.
+2. **O seu `.cfg` local ainda está com `localhost` no `BaseUrl`.** No caso do LM Studio, o padrão é
    `http://127.0.0.1:1234/v1`; se o arquivo é de uma versão anterior, troque. No Windows, `localhost` resolve
    primeiro para IPv6 (`::1`) e o LM Studio só escuta IPv4 — cada ordem paga ~**2,5 s** de pedágio.
-2. **O modelo é grande ou está na CPU.** Um 3B (`qwen2.5-3b-instruct`, o padrão) responde em ~0,35–0,4 s; o
+3. **O modelo é grande ou está na CPU (local).** Um 3B (`qwen2.5-3b-instruct`) responde em ~0,35–0,4 s; o
    `google/gemma-4-e4b` leva ~3 s. Modelos maiores praticamente exigem GPU.
-3. **`[IA] Memoria` alta.** Cada troca lembrada aumenta o prompt que o modelo precisa ler. Reduza.
-4. **A primeira mensagem da sessão** inclui o carregamento do modelo do LM Studio — ela é naturalmente mais
-   lenta.
+4. **`[IA] Memoria` alta.** Cada troca lembrada aumenta o prompt que o modelo precisa ler. Reduza.
+5. **A primeira mensagem da sessão** inclui o carregamento do modelo — no LM Studio local ela é naturalmente mais
+   lenta, e no OpenRouter a primeira também costuma ser a mais fria.
 
 > Lembre: o pedido roda em **segundo plano**. Mesmo lento, ele **não** trava o jogo.
 
@@ -55,6 +89,9 @@ e `[TTS]`.
 - Confira o que o modelo entendeu: `[IA] MostrarRespostaNoChat` mostra a resposta crua no chat.
 - Use o **`qwen2.5-3b-instruct`** com `[IA] SaidaEstruturada = true` — é a combinação que o projeto mediu como
   confiável (o 3B passou de 0/6 para **6/6** respostas válidas com a saída estruturada).
+- No **OpenRouter**, o `openrouter/free` troca de modelo a cada pedido — a qualidade também varia. Se a ordem
+  errar sempre do mesmo jeito, escolha **um modelo específico** no `[IA] Modelo` (os gratuitos têm `:free` no
+  nome) ou use o LM Studio local, que é sempre o mesmo modelo.
 - Lembre que **o número é um alvo contado na mochila dele**: se ele já tem o suficiente, ele **não** sai para
   coletar, e isso é o comportamento correto.
 - Para as ordens por voz, um reconhecimento ruim chega errado ao modelo. Veja "o microfone não grava" abaixo.
@@ -68,7 +105,8 @@ está improvisando.
 
 **O que fazer:**
 
-- Use o **`qwen2.5-3b-instruct`** (bom em PT-BR).
+- Use o **`qwen2.5-3b-instruct`** (bom em PT-BR) se estiver no LM Studio; no OpenRouter, um modelo gratuito
+  maior costuma escrever melhor em português do que os pequenos.
 - Ajuste a personalidade no painel **`I`** (preset ou texto livre em português) — ela entra no prompt e puxa a
   resposta para o português.
 - Reduza a `[IA] Temperatura` (o padrão `0.1` já é baixo; valores altos fazem o modelo divagar).
@@ -175,12 +213,12 @@ Se você reatribuir, o mod reavalia o conflito na hora. Veja **[Voz](Voz)**.
 
 | Onde olhar | O que procurar |
 |---|---|
-| `LogOutput.log` | `ModAI-BR-Companions v1.6.4 loading...` e `ModAI-BR-Companions loaded successfully! (N methods patched)` — o `v1.6.4` é a versão que você instalou |
+| `LogOutput.log` | `AI Companions v1.6.4 loading...` e `AI Companions loaded successfully! (N methods patched)` — o `v1.6.4` é a versão que você instalou |
 
 **Causas prováveis:**
 
 1. **A pasta está no lugar errado.** O caminho tem que ser
-   `<Valheim>\BepInEx\plugins\ModAI-BR-Companions\` — com o `Companions.dll` **dentro** dela.
+   `<Valheim>\BepInEx\plugins\AI-Companions\` — com o `Companions.dll` **dentro** dela.
 2. **Faltam as DLLs de dependência.** `Whisper.net.dll`, `sherpa-onnx.dll` e as `System.*` precisam estar
    junto do `Companions.dll`.
 3. **O BepInEx não está instalado** (ou está numa versão incompatível). Use o **BepInExPack_Valheim 5.4.2351**.
@@ -193,7 +231,7 @@ Se você reatribuir, o mod reavalia o conflito na hora. Veja **[Voz](Voz)**.
 ## Ainda não resolveu?
 
 Junte estas informações e abra uma issue em
-https://github.com/julianu37/ModAI-BR-Companions/issues :
+https://github.com/julianu37/AI-Companions/issues :
 
 - O trecho do `LogOutput.log` em volta do problema (as linhas `[IA]`, `[STT]` ou `[TTS]`).
 - A versão do mod (aparece no boot do log) e a versão do Valheim.

@@ -22,9 +22,9 @@ public class CompanionsPlugin : BaseUnityPlugin
 	// would move the config (losing the player's settings) for no gain - the display name below is what shows.
 	public const string PluginGUID = "Maddhattr.OfflineCompanionsReborn";
 
-	public const string PluginName = "ModAI-BR-Companions";
+	public const string PluginName = "AI Companions";
 
-	public const string PluginVersion = "1.6.4";
+	public const string PluginVersion = "1.7.0";
 
 	private static Harmony _harmony;
 
@@ -153,6 +153,12 @@ public class CompanionsPlugin : BaseUnityPlugin
 		{
 			UnityEngine.Object.Destroy(CompanionAiPanel.Instance.gameObject);
 		}
+		// Fase 3.20: the appearance editor (it owns a camera, a RenderTexture and the preview clone - Teardown runs with
+		// the GameObject, so unloading the plugin mid-edit does not leave them behind)
+		if (CompanionAppearancePanel.Instance != null)
+		{
+			UnityEngine.Object.Destroy(CompanionAppearancePanel.Instance.gameObject);
+		}
 		if (FarmZonePlacer.Instance != null)
 		{
 			UnityEngine.Object.Destroy(FarmZonePlacer.Instance.gameObject);
@@ -195,6 +201,8 @@ public class CompanionsPlugin : BaseUnityPlugin
 		{
 			// Fase 3.1: applies any chat order the model has finished thinking about (never blocks)
 			CompanionChatAI.Tick();
+			// Fase 3.20: tells the player how the "Testar conexão" of the AI panel went (a background probe, never blocks)
+			LlmConnectionTest.Tick();
 		}
 		catch (Exception ex3)
 		{

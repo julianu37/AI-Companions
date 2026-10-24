@@ -26,6 +26,12 @@ public static class CompanionPrefabs
 		{
 			CreateDvergerPrefab(zNetScene, def);
 		}
+		// Fase 3.16 (auditoria): the plain dverger mage ("Mago", HC_Dverger) is one of the tiers the panels offer
+		// (CompanionTierData.All), but it was not in DvergerVariants, so its prefab was never registered and choosing
+		// it always ended in "prefab not found". Registering it here is the same call the four variants get: the
+		// vanilla "DvergerMage" prefab exists, the method is generic and it only warns (and skips) when the source
+		// prefab is missing - the same failure the picker had before, but now it can work.
+		CreateDvergerPrefab(zNetScene, CompanionTierData.Dverger);
 		CompanionsPlugin.Log.LogInfo("[CompanionPrefabs] Registered companion prefabs.");
 	}
 

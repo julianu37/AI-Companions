@@ -1101,6 +1101,51 @@ public class CompanionInteract : MonoBehaviour
 		CompanionsPlugin.Log.LogInfo("[Direct] Super recall: all companions, any distance, Command toggle ignored");
 	}
 
+	/// <summary>
+	/// Fase 3.9: the "Chamar" button of the AI panel, for <b>one</b> companion - the very steps the come-to-me key
+	/// runs for everyone in scope (<see cref="FireComeToMe"/>): take control, drop what it was doing, keep it awake,
+	/// turn Follow on (the player asked for it, so a paused job must not turn it back off) and let
+	/// <see cref="ReturnLogic"/> bring it in. Two differences, both because it comes from a button and not from the
+	/// command key: it needs no Command toggle and no recall range (a click on its own tab is a deliberate call for
+	/// that one companion), and only the companion whose tab is open moves.
+	/// </summary>
+	internal static bool RecallOne(CompanionSetup setup, Player player)
+	{
+		if (setup == null || player == null)
+		{
+			return false;
+		}
+		Character character = setup.GetComponent<Character>();
+		string name = (character != null && !string.IsNullOrEmpty(character.m_name)) ? character.m_name : "?";
+		if (character == null || character.GetHealth() <= 0f)
+		{
+			CompanionsPlugin.Log.LogInfo("[Direct] AI panel: \"" + name + "\" is dead - not recalled");
+			return false;
+		}
+		if (!IsOwned(setup, player.GetPlayerID().ToString()))
+		{
+			CompanionsPlugin.Log.LogInfo("[Direct] AI panel: \"" + name + "\" isn't yours - not recalled");
+			return false;
+		}
+		MHR_Owner.TakeControl(setup);
+		// drop whatever it was on (job, move target, cart, rest...) before the walk-in starts, like the come-to-me key
+		CancelExistingActions(setup);
+		CompanionRest.MHR_StayAwakeForRecall(setup);
+		MHR_JobRules.FollowSetByPlayer(setup);
+		if (!setup.GetFollow())
+		{
+			setup.SetFollow(v: true);
+		}
+		// mode 0 = follow: a job that was running must not come back and pause Follow again
+		CompanionSetup.ApplyActionMode(setup, CompanionSetup.ModeFollow, toggle: false);
+		setup.GetComponent<CompanionAI>()?.SetFollowTarget(player.gameObject);
+		float distance = Vector3.Distance(setup.transform.position, player.transform.position);
+		bool recalled = ReturnLogic.RecallToPlayer(setup, player);
+		CompanionsPlugin.Log.LogInfo("[Direct] AI panel: \"" + name + "\" called from its tab (" + distance.ToString("F0") + "m away) - "
+			+ (recalled ? "on its way" : "the recall did not start"));
+		return recalled;
+	}
+
 	private static void DirectAttack(IReadOnlyList<CompanionSetup> setups, string localId, Character enemy)
 	{
 		int num = 0;

@@ -1,11 +1,11 @@
-# ModAI-BR-Companions
+# AI Companions
 
 Um **companheiro NPC com IA** para **Valheim 1.0**, em **português do Brasil** — você **fala ou digita** e ele
 entende e executa.
 
-[![Assista: "Esse mod muda TUDO no Valheim! ModAI-BR-Companions"](images/video-thumb.jpg)](https://www.youtube.com/watch?v=40FnVEIbXyo)
+[![Assista: "Esse mod muda TUDO no Valheim! AI Companions"](images/video-thumb.jpg)](https://www.youtube.com/watch?v=40FnVEIbXyo)
 
-> Vídeo do canal **SuaTV**: **"Esse mod muda TUDO no Valheim! ModAI-BR-Companions"**.
+> Vídeo do canal **SuaTV**: **"Esse mod muda TUDO no Valheim! AI Companions"**.
 > **[Assistir no YouTube](https://www.youtube.com/watch?v=40FnVEIbXyo)** — clicar na imagem também abre.
 
 ## Em ação
@@ -38,9 +38,10 @@ Este projeto é um **projeto independente** baseado em [Offline Companions Rebor
 O companheiro em si (trabalhos, comida, stamina, habilidades, casa, descanso, portais, carroça, menu radial)
 vem do upstream e continua funcionando igual — a IA é só uma **nova entrada** para as mesmas ações.
 
-> **Tudo roda na sua máquina.** Por padrão, o entendimento das ordens (LLM), o reconhecimento da fala (STT) e a
-> voz sintetizada (TTS) são **100% locais**. Nada é enviado para a internet e nenhum serviço externo é usado.
-> Um provedor remoto pode ser configurado, se você quiser.
+> **A voz roda toda na sua máquina.** O reconhecimento da fala (STT) e a voz sintetizada (TTS) são **100%
+> locais**: nada é enviado. O entendimento das ordens usa um **LLM** — por padrão o **OpenRouter**, que é um
+> **serviço remoto** (o texto das ordens e da conversa **sai da sua máquina**). Para não enviar nada, troque-o
+> pela opção local, **LM Studio** (ou Ollama). Veja **[LLM (OpenRouter ou LM Studio)](LLM-no-LM-Studio)**.
 
 ## O que ele faz
 
@@ -51,13 +52,23 @@ vem do upstream e continua funcionando igual — a IA é só uma **nova entrada*
 | **Ele fala** | Voz sintetizada em PT-BR, saindo **da posição dele** no mundo |
 | **Personalidade** | Presets (`viking`, `mago`, `sarcastico`, `guia`) ou as suas palavras |
 | **Memória e conversa** | `bom dia`, `como você está?` — ele responde como personagem e lembra da conversa |
-| **Painel da IA** | Tecla **`I`**: personalidade, voz, volume, velocidade e push-to-talk, tudo salvo na hora |
+| **Painel da IA** | Tecla **`I`**: personalidade, voz, volume, velocidade, push-to-talk e as **configurações do LLM**, tudo salvo na hora |
+
+## Requisitos em resumo
+
+| Item | Detalhe |
+|---|---|
+| **Valheim 1.0.x** + **BepInEx 5.4.2351** | A base de tudo — passo a passo em **[Instalação](Instalacao)** |
+| **Um LLM** | **OpenRouter** (padrão): só a **chave gratuita** (https://openrouter.ai/keys) e internet — o texto das ordens **sai da sua máquina**. A opção local, **LM Studio** ou Ollama, é **opcional** e não envia nada |
+| **Windows x64** | Obrigatório para a voz (os binários nativos são `win-x64`) |
+| **Microfone** | Só para as ordens por voz |
 
 ## Começando
 
 1. Veja o que você precisa em **[Requisitos](Requisitos)**.
 2. Siga o passo a passo de **[Instalação](Instalacao)**.
-3. Configure o LLM em **[LLM no LM Studio](LLM-no-LM-Studio)**.
+3. Configure o LLM em **[LLM (OpenRouter ou LM Studio)](LLM-no-LM-Studio)** — o padrão é o **OpenRouter**
+   (só a chave gratuita); o **LM Studio** local é opcional.
 4. Veja as teclas e as ordens em **[Comandos](Comandos)**.
 5. Se algo não funcionar, vá em **[Problemas comuns](Problemas-comuns)**.
 
@@ -67,7 +78,7 @@ vem do upstream e continua funcionando igual — a IA é só uma **nova entrada*
 |---|---|
 | **[Requisitos](Requisitos)** | O que é obrigatório e o que é opcional |
 | **[Instalação](Instalacao)** | Passo a passo com imagens |
-| **[LLM no LM Studio](LLM-no-LM-Studio)** | Instalar o LM Studio, baixar o modelo e ligar o servidor |
+| **[LLM (OpenRouter ou LM Studio)](LLM-no-LM-Studio)** | O OpenRouter como padrão (chave gratuita) e o LM Studio local como opção |
 | **[Voz](Voz)** | STT (Whisper) e TTS (Kokoro): como funcionam e como ajustar |
 | **[Comandos](Comandos)** | Teclas, ordens de chat/voz e comandos de console |
 | **[Configuração](Configuracao)** | O `.cfg`, a seção `[IA]` e os painéis `F8` e `I` |
@@ -79,9 +90,9 @@ vem do upstream e continua funcionando igual — a IA é só uma **nova entrada*
 
 | O quê | Onde |
 |---|---|
-| **Releases (download)** | https://github.com/julianu37/ModAI-BR-Companions/releases |
-| **Repositório** | https://github.com/julianu37/ModAI-BR-Companions |
-| **Changelog** | https://github.com/julianu37/ModAI-BR-Companions/blob/main/package/CHANGELOG.md |
+| **Releases (download)** | https://github.com/julianu37/AI-Companions/releases |
+| **Repositório** | https://github.com/julianu37/AI-Companions |
+| **Changelog** | https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md |
 | **Upstream (MIT)** | https://github.com/MaddhattrRocks/Offline-Companions-Reborn |
 | **Vídeo** | https://www.youtube.com/watch?v=40FnVEIbXyo |
 
@@ -89,14 +100,14 @@ A release publicada mais recente é a **1.6.4**, com **dois** arquivos para esco
 
 | Arquivo | Tamanho | O que vem |
 |---|---|---|
-| `ModAI_BR_Companions-1.6.4.zip` | ~367,9 MB | O mod **e** os modelos de voz (STT + TTS) já prontos |
-| `ModAI_BR_Companions-1.6.4-sem-modelos.zip` | ~28,4 MB | Só o mod e as traduções — você baixa os modelos por fora |
+| `AI_Companions-1.6.4.zip` | ~367,9 MB | O mod **e** os modelos de voz (STT + TTS) já prontos |
+| `AI_Companions-1.6.4-sem-modelos.zip` | ~28,4 MB | Só o mod e as traduções — você baixa os modelos por fora |
 
 > **Qual escolher?** Se você quer só instalar e usar, pegue o **completo**. Se a sua internet é lenta (ou você já
 > tem os modelos), pegue o **sem-modelos** e siga a seção de modelos em **[Instalação](Instalacao)**.
 
 > A **1.6.3** foi a release anterior (mudou **só o empacotamento**: a pasta do mod já vem como
-> `BepInEx\plugins\ModAI-BR-Companions\` dentro do zip, então dá para extrair direto na pasta do Valheim ou deixar
+> `BepInEx\plugins\AI-Companions\` dentro do zip, então dá para extrair direto na pasta do Valheim ou deixar
 > o gerenciador de mods instalar). A **1.6.4** mudou **só os padrões** da seção `[IA]` — nada muda no jogo para
 > quem já configurou: `BaseUrl` passou a `http://127.0.0.1:1234/v1` (em vez de `localhost`, que pagava ~2,5 s por
 > ordem no Windows) e `Modelo` passou a `qwen2.5-3b-instruct` (em vez de `google/gemma-4-e4b`).

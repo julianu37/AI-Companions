@@ -147,7 +147,7 @@ Abra o console com **`F5`**:
 > por voz não saem.
 >
 > **O pacote não traz esse WAV** (ele saiu do pacote para economizar espaço): ponha um arquivo seu em
-> `...\ModAI-BR-Companions\whisper\` e aponte `[IA] SttWavTeste` para ele (caminho relativo à pasta do plugin ou
+> `...\AI-Companions\whisper\` e aponte `[IA] SttWavTeste` para ele (caminho relativo à pasta do plugin ou
 > absoluto). O comando **não** aceita o caminho como argumento — só a chave. Fala curta em inglês ou português,
 > WAV PCM 16 bits, é o que ele espera.
 

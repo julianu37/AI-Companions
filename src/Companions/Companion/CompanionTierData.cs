@@ -18,6 +18,15 @@ public static class CompanionTierData
 
 	public static readonly CompanionTierDef[] DvergerVariants;
 
+	/// <summary>
+	/// Every tier the mod offers, in the order the AI panel lists it (Fase 3.14): the plain Companion first, then the
+	/// dverger ones - the old "Dverger" mage included, because its prefab is registered too (Fase 3.16).
+	/// <see cref="CompanionManager.ChangeTier"/> maps a prefab hash back to its tier with this list. The <b>starter</b>
+	/// panel does not read it: its type buttons use <see cref="Companion"/>, <see cref="Dverger"/> and
+	/// <see cref="DvergerVariants"/> (and that row is hidden in the starter anyway).
+	/// </summary>
+	public static readonly CompanionTierDef[] All;
+
 	private static readonly HashSet<int> _dvergerHashes;
 
 	public static int Price => ModConfig.CompanionPrice.Value;
@@ -123,6 +132,8 @@ public static class CompanionTierData
 			GiveStarterGear = false
 		};
 		DvergerVariants = new CompanionTierDef[4] { DvergerWarrior, DvergerFire, DvergerIce, DvergerSupport };
+		// the full list, in the order the panels offer it (the starter's type picker and the AI panel's tier picker)
+		All = new CompanionTierDef[6] { Companion, DvergerWarrior, Dverger, DvergerFire, DvergerIce, DvergerSupport };
 		_dvergerHashes = new HashSet<int>();
 		CompanionTierDef[] dvergerVariants = DvergerVariants;
 		foreach (CompanionTierDef companionTierDef in dvergerVariants)

@@ -28,7 +28,35 @@ public class CompanionSetup : MonoBehaviour
 	// 1.5.1: when this companion was loaded - its items load from the world a moment later, so the roster waits a bit
 	internal float _mhrAwakeTime;
 
+	// Fase 3.19 (auditoria): an order's ZDO write made before the ownership claim arrives (MHR_Owner.TakeControl claims
+	// asynchronously over the network) used to be lost in multiplayer. The write is kept here and retried on Update,
+	// for at most PendingWriteSeconds; after that it is dropped with one warning.
+	private readonly List<Action> _mhrPendingWrites = new List<Action>();
+
+	private float _mhrPendingWriteSince;
+
+	private float _mhrPendingClaimAt;
+
+	private bool _mhrPendingWriteWarned;
+
+	private const float PendingWriteSeconds = 5f;
+
+	private const float PendingClaimInterval = 0.25f;
+
 	internal static readonly int NameHash = "HC_Name".GetStableHashCode();
+
+	// Fase 3.10: the AI profile of this companion - the voice it speaks with and the personality it answers in, kept
+	// in its own ZDO so several companions of the same player no longer talk and behave alike (see
+	// AI/CompanionProfile.cs, which reads and writes them). Every key means "the player chose this for THIS
+	// companion": a zero headcount/absent value is "follow the [IA] defaults", which is what an old save and every
+	// companion spawned without a choice have. Written by the owner only, like every other key here.
+	internal static readonly int AiVoiceHash = "HC_AiVoice".GetStableHashCode();
+
+	internal static readonly int AiPersonaSetHash = "HC_AiPersonaSet".GetStableHashCode();
+
+	internal static readonly int AiPresetHash = "HC_AiPreset".GetStableHashCode();
+
+	internal static readonly int AiPersonaTextHash = "HC_AiPersona".GetStableHashCode();
 
 	internal static readonly int ActionModeHash = "HC_ActionMode".GetStableHashCode();
 
@@ -270,17 +298,48 @@ public class CompanionSetup : MonoBehaviour
 
 	internal void ApplyAppearance(CompanionAppearance a)
 	{
-		if (CanWearArmor() && _visEquip != null)
+		if (a == null)
 		{
+			return;
+		}
+		bool canWearArmor = CanWearArmor();
+		int hairHash = (string.IsNullOrEmpty(a.HairItem) ? "Hair1" : a.HairItem).GetStableHashCode();
+		int beardHash = ((a.ModelIndex == 0) ? (a.BeardItem ?? "") : "").GetStableHashCode();
+		if (canWearArmor && _visEquip != null)
+		{
+			// Fase 3.21 (bug do cabelo/barba): the game caches the hash it last handled in m_currentHairItemHash /
+			// m_currentBeardItemHash and SetHairEquipped stores it BEFORE creating the object - when the creation fails
+			// (prefab or joint missing, ObjectDB not ready) the hash stays cached and every later apply is a no-op for
+			// ever. Clearing it first makes each apply a real attach (see ResetVisualItemCache).
+			// Fase 3.21 (bug do cabelo/barba): see PrepareVisualAttach - the game's attach cache is cleared and the
+			// helmet joint (what the hair/beard hang from) is made sure before the setters run.
+			PrepareVisualAttach(_visEquip);
 			_visEquip.SetModel(a.ModelIndex);
-			_visEquip.SetHairItem((string.IsNullOrEmpty(a.HairItem) ? "Hair1" : a.HairItem).GetStableHashCode());
-			_visEquip.SetBeardItem(((a.ModelIndex == 0) ? (a.BeardItem ?? "") : "").GetStableHashCode());
+			_visEquip.SetHairItem(hairHash);
+			_visEquip.SetBeardItem(beardHash);
 			_visEquip.SetSkinColor(a.SkinColor);
 			_visEquip.SetHairColor(a.HairColor);
 		}
 		if (_visEquip != null)
 		{
 			_updateVisuals?.Invoke(_visEquip, null);
+			string state = DescribeVisualState(_visEquip, hairHash, beardHash);
+			CompanionsPlugin.Log?.LogInfo($"[AppearanceDiag] \"{NameForLog()}\": ApplyAppearance gender={a.ModelIndex} "
+				+ $"hair={a.HairItem ?? ""}({hairHash}) beard={a.BeardItem ?? ""}({beardHash}) canWearArmor={canWearArmor} "
+				+ $"visEquip=True | depois: {state}");
+			if (canWearArmor && (hairHash != 0 || beardHash != 0) && state.Contains("Inst=False"))
+			{
+				// the hash was requested, the prefab may exist and the object did not appear: the game's own log
+				// (Unity) has the reason - "Missing attach item"/a MagicaCloth exception inside AttachItem
+				CompanionsPlugin.Log?.LogWarning($"[AppearanceDiag] \"{NameForLog()}\": o cabelo/barba nao foi anexado "
+					+ $"({state}) - procure \"Missing attach item\" ou uma excecao do MagicaCloth no log do Unity");
+			}
+		}
+		else
+		{
+			CompanionsPlugin.Log?.LogWarning($"[AppearanceDiag] \"{NameForLog()}\": ApplyAppearance gender={a.ModelIndex} "
+				+ $"hair={a.HairItem ?? ""} beard={a.BeardItem ?? ""} canWearArmor={canWearArmor} visEquip=False "
+				+ "- nada foi aplicado (sem VisEquipment neste companheiro)");
 		}
 		int num = LayerMask.NameToLayer("character");
 		if (num < 0)
@@ -292,6 +351,170 @@ public class CompanionSetup : MonoBehaviour
 		{
 			transform.gameObject.layer = num;
 		}
+	}
+
+	// ---- Fase 3.21: the hair/beard attach, seen from the outside ----
+
+	/// <summary>The game's cache of the last hair hash it handled (see <see cref="ResetVisualItemCache"/>).</summary>
+	private static readonly FieldInfo _visCurrentHairHash = AccessTools.Field(typeof(VisEquipment), "m_currentHairItemHash");
+
+	/// <summary>The game's cache of the last beard hash it handled.</summary>
+	private static readonly FieldInfo _visCurrentBeardHash = AccessTools.Field(typeof(VisEquipment), "m_currentBeardItemHash");
+
+	private static readonly FieldInfo _visHairInstance = AccessTools.Field(typeof(VisEquipment), "m_hairItemInstance");
+
+	private static readonly FieldInfo _visBeardInstance = AccessTools.Field(typeof(VisEquipment), "m_beardItemInstance");
+
+	/// <summary>The joint the hair, the beard and the helmet hang from (see <see cref="PrepareVisualAttach"/>).</summary>
+	private static readonly FieldInfo _visHelmet = AccessTools.Field(typeof(VisEquipment), "m_helmet");
+
+	/// <summary>
+	/// Fase 3.21: prepares a <c>VisEquipment</c> for a <b>fresh</b> hair/beard attach, and it is needed for two reasons
+	/// found in the decompiled game:
+	/// <list type="bullet">
+	/// <item><c>SetHairEquipped</c>/<c>SetBeardEquipped</c> store the hash <b>before</b> calling <c>AttachItem</c> and
+	/// return early when the hash is the cached one - one failed attach (missing prefab/joint) makes every later change
+	/// of that item a silent no-op, so the cache is cleared here;</item>
+	/// <item>the object is hung from <c>m_helmet</c> (the same joint the helmet uses). A companion/clone whose bones were
+	/// not mapped can have it null, and then <c>AttachItem</c> parents the hair to <b>nothing</b>: the object exists, is
+	/// not on the head and never shows - the joint is looked up by name when that happens.</item>
+	/// </list>
+	/// </summary>
+	internal static void PrepareVisualAttach(VisEquipment vis)
+	{
+		if (vis == null)
+		{
+			return;
+		}
+		ResetVisualItemCache(vis);
+		try
+		{
+			if (_visHelmet?.GetValue(vis) is Transform)
+			{
+				return;
+			}
+			Transform helmet = FindBone(vis.transform, "Helmet") ?? FindBone(vis.transform, "helmet")
+				?? FindBone(vis.transform, "Head") ?? FindBone(vis.transform, "head");
+			if (helmet != null)
+			{
+				_visHelmet?.SetValue(vis, helmet);
+				CompanionsPlugin.Log?.LogDebug($"[AppearanceDiag] joint do cabelo/barba recuperado por nome: \"{helmet.name}\"");
+			}
+		}
+		catch (Exception ex)
+		{
+			CompanionsPlugin.Log?.LogDebug("[AppearanceDiag] could not check the helmet joint: " + ex.Message);
+		}
+	}
+
+	/// <summary>The first child with that name (case-insensitive), for the joint fallback above.</summary>
+	private static Transform FindBone(Transform root, string boneName)
+	{
+		if (root == null)
+		{
+			return null;
+		}
+		Transform[] all = root.GetComponentsInChildren<Transform>(includeInactive: true);
+		for (int i = 0; i < all.Length; i++)
+		{
+			if (string.Equals(all[i].name, boneName, StringComparison.OrdinalIgnoreCase))
+			{
+				return all[i];
+			}
+		}
+		return null;
+	}
+
+	/// <summary>
+	/// Fase 3.21: clears the hashes <c>VisEquipment</c> remembers as "already attached" (see
+	/// <see cref="PrepareVisualAttach"/> for the why).
+	/// </summary>
+	internal static void ResetVisualItemCache(VisEquipment vis)
+	{
+		if (vis == null)
+		{
+			return;
+		}
+		try
+		{
+			_visCurrentHairHash?.SetValue(vis, 0);
+			_visCurrentBeardHash?.SetValue(vis, 0);
+		}
+		catch (Exception ex)
+		{
+			CompanionsPlugin.Log?.LogDebug("[AppearanceDiag] could not clear the visual cache: " + ex.Message);
+		}
+	}
+
+	/// <summary>
+	/// Fase 3.21: what the game ended up with after an apply - the one line that tells the next report whether the
+	/// hair/beard failed in the prefab lookup, in the attach (no object) or in the ZDO (not owner). Also used by the
+	/// preview clone of the editor (see <see cref="CompanionPanel"/>).
+	/// </summary>
+	internal static string DescribeVisualState(VisEquipment vis, int hairHash, int beardHash)
+	{
+		if (vis == null)
+		{
+			return "visEquip=null";
+		}
+		try
+		{
+			bool hairAttached = IsAlive(_visHairInstance?.GetValue(vis));
+			bool beardAttached = IsAlive(_visBeardInstance?.GetValue(vis));
+			bool hairPrefab = HasItemPrefab(hairHash);
+			bool beardPrefab = HasItemPrefab(beardHash);
+			// where the objects ended up: "parent=None" means the game hung them from a null joint (the object exists
+			// and is not on the head - the other way this feature fails without an error)
+			string hairParent = ParentName(_visHairInstance?.GetValue(vis));
+			Transform joint = _visHelmet?.GetValue(vis) as Transform;
+			ZNetView nv = vis.GetComponent<ZNetView>();
+			ZDO zdo = nv != null ? nv.GetZDO() : null;
+			string zdoText = zdo != null
+				? $"zdoHair={zdo.GetInt(ZDOVars.s_hairItem)} zdoBeard={zdo.GetInt(ZDOVars.s_beardItem)} "
+					+ $"zdoModel={zdo.GetInt(ZDOVars.s_modelIndex)} owner={nv.IsOwner()}"
+				: "zdo=null";
+			return $"hairInst={hairAttached} beardInst={beardAttached} prefabHair={hairPrefab} prefabBeard={beardPrefab} "
+				+ $"hairParent={(hairParent.Length > 0 ? hairParent : "-")} joint={(joint != null ? joint.name : "NULL")} "
+				+ $"isPlayer={vis.m_isPlayer} armorStand={vis.m_isArmorStand} {zdoText}";
+		}
+		catch (Exception ex)
+		{
+			return "diagnostico falhou: " + ex.Message;
+		}
+	}
+
+	/// <summary>Would <c>AttachItem</c> find this hash? (hair/beard are ObjectDB items of type Customization)</summary>
+	private static bool HasItemPrefab(int hash)
+	{
+		return hash != 0 && ObjectDB.instance != null && ObjectDB.instance.GetItemPrefab(hash) != null;
+	}
+
+	/// <summary>A reflected Unity object that still exists (a destroyed one is "not alive" but not a null reference).</summary>
+	private static bool IsAlive(object value)
+	{
+		return value is GameObject gameObject && gameObject != null;
+	}
+
+	/// <summary>The parent's name of a reflected GameObject ("None" when it has none - see the diagnostic).</summary>
+	private static string ParentName(object value)
+	{
+		if (value is GameObject gameObject && gameObject != null)
+		{
+			return gameObject.transform.parent != null ? gameObject.transform.parent.name : "None";
+		}
+		return "";
+	}
+
+	/// <summary>The companion's name for the diagnostic line (never per frame).</summary>
+	private string NameForLog()
+	{
+		string stored = _nview?.GetZDO()?.GetString(NameHash, "");
+		if (!string.IsNullOrEmpty(stored))
+		{
+			return stored;
+		}
+		Character character = GetComponent<Character>();
+		return character != null && !string.IsNullOrEmpty(character.m_name) ? character.m_name : name;
 	}
 
 	internal float GetTotalArmor()
@@ -384,6 +607,13 @@ public class CompanionSetup : MonoBehaviour
 		return (_nview?.GetZDO()?.GetInt(CombatStanceHash)).GetValueOrDefault();
 	}
 
+	/// <summary>
+	/// How many places the ring around the player has (Fase 3.9: it used to be 8, so the 9th companion and everyone
+	/// after it shared slot 0 - one on top of the other). <see cref="CompanionAI"/> lays the slots out by angle: 0-3
+	/// beside the player, 4-7 just behind, 8-31 on a wider ring (see its <c>GetFormationOffset</c>).
+	/// </summary>
+	private const int FormationSlotCount = 32;
+
 	internal int AssignFormationSlot()
 	{
 		ZDO zDO = _nview?.GetZDO();
@@ -419,7 +649,7 @@ public class CompanionSetup : MonoBehaviour
 				}
 			}
 		}
-		for (int i = 0; i < 8; i++)
+		for (int i = 0; i < FormationSlotCount; i++)
 		{
 			if (!hashSet.Contains(i))
 			{
@@ -427,6 +657,10 @@ public class CompanionSetup : MonoBehaviour
 				return i;
 			}
 		}
+		// every place of the ring is taken (33+ companions): sharing the first one is the only option left, and it is
+		// said out loud so it is not mistaken for the bug of the old 8-slot loop
+		CompanionsPlugin.Log.LogWarning("[Setup] Formation: all " + FormationSlotCount + " places are taken - \""
+			+ zDO.GetString(NameHash, "Companion") + "\" shares slot 0");
 		zDO.Set(FormationSlotHash, 0);
 		return 0;
 	}
@@ -444,9 +678,128 @@ public class CompanionSetup : MonoBehaviour
 		}
 	}
 
+	// ---- Fase 3.19 (auditoria): ownership-aware ZDO writes ----
+
+	/// <summary>True when this game owns the companion's ZDO, claiming it first when it doesn't. Never queues, never
+	/// logs.</summary>
+	private bool MHR_TryOwn(bool claim = true)
+	{
+		ZNetView nv = _nview;
+		if (nv == null || !nv.IsValid() || _mhrStale)
+		{
+			return false;
+		}
+		if (!nv.IsOwner())
+		{
+			if (!claim)
+			{
+				return false;
+			}
+			nv.ClaimOwnership();
+			if (!nv.IsOwner())
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/// <summary>
+	/// Runs <paramref name="write"/> now when this game owns the companion (claiming first), or keeps it for the next
+	/// Update when the claim is still on its way. Returns true when it ran now.
+	///
+	/// <para>Every order-side setter goes through here: the order runs right after <see cref="MHR_Owner.TakeControl"/>,
+	/// and a claim over the network is asynchronous - the write used to happen unconditionally, so the ZDO kept the old
+	/// value and the order looked like it had done nothing. In single player the claim is always granted, so nothing
+	/// changes there.</para>
+	/// </summary>
+	internal bool MHR_WriteOrQueue(Action write)
+	{
+		if (write == null)
+		{
+			return false;
+		}
+		if (MHR_TryOwn())
+		{
+			write();
+			return true;
+		}
+		if (_mhrStale)
+		{
+			return false;
+		}
+		if (_mhrPendingWrites.Count == 0)
+		{
+			_mhrPendingWriteSince = Time.time;
+		}
+		_mhrPendingWrites.Add(write);
+		return false;
+	}
+
+	/// <summary>Retries the writes that arrived before the ownership. Called once per frame from Update; drops them after
+	/// <see cref="PendingWriteSeconds"/> with one warning, so the player knows the order didn't stick.</summary>
+	private void MHR_TickPendingWrites()
+	{
+		if (_mhrPendingWrites.Count == 0)
+		{
+			return;
+		}
+		if (_mhrStale)
+		{
+			_mhrPendingWrites.Clear();
+			return;
+		}
+		// the claim itself is throttled: retrying it every frame would send one ownership request per frame for the
+		// whole timeout
+		bool claimNow = Time.time - _mhrPendingClaimAt >= PendingClaimInterval;
+		if (!claimNow && !(_nview != null && _nview.IsOwner()))
+		{
+			// not ours yet and not the moment to ask again: keep waiting
+			MHR_CheckPendingTimeout();
+			return;
+		}
+		if (!MHR_TryOwn(claimNow))
+		{
+			_mhrPendingClaimAt = Time.time;
+			MHR_CheckPendingTimeout();
+			return;
+		}
+		// ours now: run everything that was waiting, oldest first
+		for (int i = 0; i < _mhrPendingWrites.Count; i++)
+		{
+			try
+			{
+				_mhrPendingWrites[i]();
+			}
+			catch (Exception ex)
+			{
+				CompanionsPlugin.Log?.LogWarning("[Setup] A pending companion write failed: " + ex.Message);
+			}
+		}
+		_mhrPendingWrites.Clear();
+		_mhrPendingWriteWarned = false;
+	}
+
+	/// <summary>Drops the pending writes after <see cref="PendingWriteSeconds"/>, saying so once.</summary>
+	private void MHR_CheckPendingTimeout()
+	{
+		if (_mhrPendingWriteWarned || Time.time - _mhrPendingWriteSince <= PendingWriteSeconds)
+		{
+			return;
+		}
+		_mhrPendingWriteWarned = true;
+		string who = _nview != null && _nview.GetZDO() != null ? _nview.GetZDO().GetString(NameHash, name) : name;
+		CompanionsPlugin.Log?.LogWarning($"[Setup] \"{who}\": {_mhrPendingWrites.Count} ordem(ns) nao puderam ser gravadas "
+			+ "(sem posse do ZDO) e foram descartadas - tente de novo");
+		_mhrPendingWrites.Clear();
+	}
+
 	internal void SetFollow(bool v)
 	{
-		_nview?.GetZDO()?.Set(FollowHash, v);
+		MHR_WriteOrQueue(delegate
+		{
+			_nview?.GetZDO()?.Set(FollowHash, v);
+		});
 	}
 
 	internal bool GetIsCommandable()
@@ -694,6 +1047,8 @@ public class CompanionSetup : MonoBehaviour
 		}
 		MHR_StampOwnerDeathRule();
 		MHR_MarkNoDestroy();
+		// Fase 3.19: orders that arrived before the ownership claim finished land here
+		MHR_TickPendingWrites();
 		if (!_mhrHasId)
 		{
 			string companionId = MHR_EnsureCompanionId();
@@ -834,12 +1189,22 @@ public class CompanionSetup : MonoBehaviour
 
 	// Fase 3.1: one place that switches a companion's work mode, shared by the radial menu (toggle) and the chat
 	// orders (set, no toggle). The radial's own SetActionMode did exactly this; it now calls this method.
+	// Fase 3.19 (auditoria): it also goes through MHR_WriteOrQueue - the whole switch (the mode and the local follow
+	// state that follows it) runs once this game owns the companion, now or on the next Update.
 	internal static void ApplyActionMode(CompanionSetup companion, int mode, bool toggle)
 	{
 		if (companion == null)
 		{
 			return;
 		}
+		companion.MHR_WriteOrQueue(delegate
+		{
+			ApplyActionModeNow(companion, mode, toggle);
+		});
+	}
+
+	private static void ApplyActionModeNow(CompanionSetup companion, int mode, bool toggle)
+	{
 		ZNetView nv = companion.GetComponent<ZNetView>();
 		ZDO zdo = nv != null ? nv.GetZDO() : null;
 		if (zdo == null)
@@ -910,41 +1275,58 @@ public class CompanionSetup : MonoBehaviour
 	/// named, or null/"" when it couldn't be pinned to one item.</summary>
 	internal static void SetOrderCap(Component c, int mode, int amount, string item)
 	{
-		ZNetView nv;
-		ZDO zdo = ZdoOf(c, out nv);
-		if (zdo == null || !nv.IsOwner())
+		CompanionSetup setup = c as CompanionSetup ?? (c != null ? c.GetComponent<CompanionSetup>() : null);
+		if (setup == null)
 		{
-			CompanionsPlugin.Log?.LogWarning("[IA] Order target not written: not the owner of this companion");
+			CompanionsPlugin.Log?.LogWarning("[IA] Order target not written: no CompanionSetup on the component");
 			return;
 		}
-		item = amount > 0 ? (item ?? "") : "";
-		if (amount > 0 && zdo.GetInt(OrderCapHash, 0) == amount && zdo.GetInt(OrderCapModeHash, 0) == mode && (zdo.GetString(OrderCapItemHash, "") ?? "") == item)
+		// Fase 3.19 (auditoria): claiming and checking ownership used to be enough - a claim still on its way dropped
+		// the number silently. MHR_WriteOrQueue claims, writes now when it can and keeps the write for the next
+		// Update otherwise.
+		string item2 = amount > 0 ? (item ?? "") : "";
+		ClearOrderSeen(c);
+		setup.MHR_WriteOrQueue(delegate
 		{
-			return;   // already there - don't dirty the ZDO for nothing
-		}
-		ClearOrderSeen(c);   // Fase 3.2c: a new target counts the pack from scratch
-		zdo.Set(OrderCapHash, amount);
-		zdo.Set(OrderCapModeHash, amount > 0 ? mode : 0);
-		zdo.Set(OrderCapItemHash, item);
+			ZDO zdo = setup.GetComponent<ZNetView>()?.GetZDO();
+			if (zdo == null)
+			{
+				return;
+			}
+			if (amount > 0 && zdo.GetInt(OrderCapHash, 0) == amount && zdo.GetInt(OrderCapModeHash, 0) == mode && (zdo.GetString(OrderCapItemHash, "") ?? "") == item2)
+			{
+				return;   // already there - don't dirty the ZDO for nothing
+			}
+			zdo.Set(OrderCapHash, amount);
+			zdo.Set(OrderCapModeHash, amount > 0 ? mode : 0);
+			zdo.Set(OrderCapItemHash, item2);
+		});
 	}
 
 	/// <summary>Forgets the target (order finished or cancelled, or another job picked).</summary>
 	internal static void ClearOrderCap(Component c)
 	{
 		ClearOrderSeen(c);   // Fase 3.2c: the pack count goes with the target
-		ZNetView nv;
-		ZDO zdo = ZdoOf(c, out nv);
-		if (zdo == null || !nv.IsOwner())
+		CompanionSetup setup = c as CompanionSetup ?? (c != null ? c.GetComponent<CompanionSetup>() : null);
+		if (setup == null)
 		{
 			return;
 		}
-		if (zdo.GetInt(OrderCapHash, 0) == 0 && zdo.GetInt(OrderCapModeHash, 0) == 0 && string.IsNullOrEmpty(zdo.GetString(OrderCapItemHash, "")))
+		setup.MHR_WriteOrQueue(delegate
 		{
-			return;
-		}
-		zdo.Set(OrderCapHash, 0);
-		zdo.Set(OrderCapModeHash, 0);
-		zdo.Set(OrderCapItemHash, "");
+			ZDO zdo = setup.GetComponent<ZNetView>()?.GetZDO();
+			if (zdo == null)
+			{
+				return;
+			}
+			if (zdo.GetInt(OrderCapHash, 0) == 0 && zdo.GetInt(OrderCapModeHash, 0) == 0 && string.IsNullOrEmpty(zdo.GetString(OrderCapItemHash, "")))
+			{
+				return;
+			}
+			zdo.Set(OrderCapHash, 0);
+			zdo.Set(OrderCapModeHash, 0);
+			zdo.Set(OrderCapItemHash, "");
+		});
 	}
 
 	/// <summary>Fase 3.2c: how much of the ordered item the companion has had in its own pack during this order -
@@ -1525,6 +1907,45 @@ public class CompanionSetup : MonoBehaviour
 		}
 	}
 
+	/// <summary>
+	/// Fase 3.14: renames the companion - the same two steps the interact panel does when the player edits the name box
+	/// (<c>HC_Name</c> in the ZDO, which every tab/hover/wheel/name order reads, and the <c>Character.m_name</c> that the
+	/// game shows). Only the player the companion belongs to may rename it (Fase 3.16: the same <see cref="MHR_Owner"/>
+	/// check <see cref="CompanionManager.ChangeTier"/> uses - a claim alone could take over another player's companion);
+	/// the claim is the same one an order makes, so a rename from a panel works in multiplayer too.
+	/// <paramref name="newName"/> is expected already trimmed and limited by the caller; an empty value is accepted
+	/// (the companion then shows the generic name, exactly like the interact panel's empty box).
+	/// </summary>
+	internal bool Rename(string newName)
+	{
+		ZDO zdo = _nview?.GetZDO();
+		if (zdo == null)
+		{
+			return false;
+		}
+		if (!MHR_Owner.IsMine(this))
+		{
+			CompanionsPlugin.Log?.LogWarning("[Rename] The companion isn't this player's - the name was not written");
+			return false;
+		}
+		if (!_nview.IsOwner())
+		{
+			_nview.ClaimOwnership();
+			if (!_nview.IsOwner())
+			{
+				CompanionsPlugin.Log?.LogWarning("[Rename] No ownership of the companion's ZDO - the name was not written");
+				return false;
+			}
+		}
+		zdo.Set(NameHash, newName ?? "");
+		Character character = GetComponent<Character>();
+		if (character != null)
+		{
+			character.m_name = string.IsNullOrEmpty(newName) ? ModLocalization.Loc("hc_msg_name_default") : newName;
+		}
+		return true;
+	}
+
 	private void RegisterInventoryCallback()
 	{
 		if (!(_humanoid == null))
@@ -1601,6 +2022,15 @@ public class CompanionSetup : MonoBehaviour
 		MHR_Roster.Forget(this);
 	}
 
+	/// <summary>Fase 3.19: the same as <see cref="PrepareForDespawn"/>, but without forgetting the roster entry. Used when
+	/// the object being removed is an OLD COPY of a recovered companion: it carries the same <c>HC_CompanionId</c>, and
+	/// <see cref="MHR_Roster.Forget"/> looks the entry up by that id - so forgetting it would drop the LIVE companion
+	/// from the roster (it could no longer be recovered after that).</summary>
+	internal void PrepareStaleCopyForDespawn()
+	{
+		_removePinOnDestroy = true;
+	}
+
 	internal void DespawnWithTombstone()
 	{
 		_mhrDespawning = true;
@@ -1649,130 +2079,141 @@ public class CompanionSetup : MonoBehaviour
 			return;
 		}
 		SuppressAutoEquip = true;
-		string inventorySerialized = "";
-		Inventory inventory;
-		if ((object)_humanoid != null && (inventory = _humanoid.GetInventory()) != null)
+		// Fase 3.19 (auditoria): the tombstone writes below must never leave auto-equip switched off - an exception in
+		// the middle used to do exactly that (Instantiate, Tombstone.Setup, WriteRespawnData all run in here)
+		try
 		{
-			int num = MHR_GetDeathItemRule();
-			int num2 = 0;
-			int num3 = 0;
-			List<ItemDrop.ItemData> list = new List<ItemDrop.ItemData>(inventory.GetAllItems());
-			Inventory inventory2 = default(Inventory);
-			for (int i = 0; i < list.Count; i++)
+			string inventorySerialized = "";
+			Inventory inventory;
+			if ((object)_humanoid != null && (inventory = _humanoid.GetInventory()) != null)
 			{
-				ItemDrop.ItemData itemData = list[i];
-				int num4 = MHR_DeathItemAction(num, itemData.m_equipped);
-				if (num4 == 1)
+				int num = MHR_GetDeathItemRule();
+				int num2 = 0;
+				int num3 = 0;
+				List<ItemDrop.ItemData> list = new List<ItemDrop.ItemData>(inventory.GetAllItems());
+				Inventory inventory2 = default(Inventory);
+				for (int i = 0; i < list.Count; i++)
 				{
-					continue;
-				}
-				inventory.RemoveItem(itemData);
-				if (num4 == 2)
-				{
-					num3++;
-					continue;
-				}
-				if (inventory2 == null)
-				{
-					inventory2 = new Inventory("hc_tomb_keep", null, 8, 4);
-				}
-				if (!inventory2.AddItem(itemData))
-				{
-					inventory.AddItem(itemData);
-				}
-				else
-				{
-					num2++;
-				}
-			}
-			CompanionsPlugin.Log.LogInfo($"[Setup] Death items (rule={num}): kept {num2}, deleted {num3}, the rest go to the tombstone");
-			if (inventory2 != null && inventory2.NrOfItems() != 0)
-			{
-				ZPackage zPackage = new ZPackage();
-				inventory2.Save(zPackage);
-				inventorySerialized = zPackage.GetBase64();
-				CompanionsPlugin.Log.LogInfo($"[Setup] Companion keeps {inventory2.NrOfItems()} item(s) through death/respawn");
-			}
-		}
-		inventory = _humanoid?.GetInventory();
-		int num5 = inventory?.NrOfItems() ?? 0;
-		CompanionsPlugin.Log.LogInfo($"[Setup] Creating tombstone for \"{companionName}\" — {num5} items, " + $"tombstoneId={tombstoneId}");
-		if (inventory != null && num5 > 0)
-		{
-			_humanoid.UnequipAllItems();
-			int num6 = 0;
-			foreach (ItemDrop.ItemData allItem in inventory.GetAllItems())
-			{
-				if (allItem.m_equipped)
-				{
-					num6++;
-				}
-				allItem.m_equipped = false;
-			}
-			CompanionsPlugin.Log.LogDebug($"[Setup] Unequipped all items for grave transfer (cleared {num6} stale equipped flags)");
-		}
-		GameObject gameObject2 = UnityEngine.Object.Instantiate(gameObject, position, base.transform.rotation);
-		CompanionsPlugin.Log.LogDebug($"[Setup] Tombstone spawned at {position:F1}");
-		if (inventory != null && num5 > 0)
-		{
-			Container component = gameObject2.GetComponent<Container>();
-			if (component != null)
-			{
-				Inventory inventory3 = component.GetInventory();
-				if (inventory3 != null)
-				{
-					inventory3.MoveInventoryToGrave(inventory);
-					int num7 = inventory3.NrOfItems();
-					CompanionsPlugin.Log.LogInfo($"[Setup] Grave transfer complete — {num7} items in tombstone");
-					int width = inventory3.GetWidth();
-					int num8 = 0;
-					foreach (ItemDrop.ItemData allItem2 in inventory3.GetAllItems())
+					ItemDrop.ItemData itemData = list[i];
+					int num4 = MHR_DeathItemAction(num, itemData.m_equipped);
+					if (num4 == 1)
 					{
-						allItem2.m_gridPos = new Vector2i(num8 % width, num8 / width);
-						num8++;
+						continue;
+					}
+					inventory.RemoveItem(itemData);
+					if (num4 == 2)
+					{
+						num3++;
+						continue;
+					}
+					if (inventory2 == null)
+					{
+						inventory2 = new Inventory("hc_tomb_keep", null, 8, 4);
+					}
+					if (!inventory2.AddItem(itemData))
+					{
+						inventory.AddItem(itemData);
+					}
+					else
+					{
+						num2++;
+					}
+				}
+				CompanionsPlugin.Log.LogInfo($"[Setup] Death items (rule={num}): kept {num2}, deleted {num3}, the rest go to the tombstone");
+				if (inventory2 != null && inventory2.NrOfItems() != 0)
+				{
+					ZPackage zPackage = new ZPackage();
+					inventory2.Save(zPackage);
+					inventorySerialized = zPackage.GetBase64();
+					CompanionsPlugin.Log.LogInfo($"[Setup] Companion keeps {inventory2.NrOfItems()} item(s) through death/respawn");
+				}
+			}
+			inventory = _humanoid?.GetInventory();
+			int num5 = inventory?.NrOfItems() ?? 0;
+			CompanionsPlugin.Log.LogInfo($"[Setup] Creating tombstone for \"{companionName}\" — {num5} items, " + $"tombstoneId={tombstoneId}");
+			if (inventory != null && num5 > 0)
+			{
+				_humanoid.UnequipAllItems();
+				int num6 = 0;
+				foreach (ItemDrop.ItemData allItem in inventory.GetAllItems())
+				{
+					if (allItem.m_equipped)
+					{
+						num6++;
+					}
+					allItem.m_equipped = false;
+				}
+				CompanionsPlugin.Log.LogDebug($"[Setup] Unequipped all items for grave transfer (cleared {num6} stale equipped flags)");
+			}
+			GameObject gameObject2 = UnityEngine.Object.Instantiate(gameObject, position, base.transform.rotation);
+			CompanionsPlugin.Log.LogDebug($"[Setup] Tombstone spawned at {position:F1}");
+			if (inventory != null && num5 > 0)
+			{
+				Container component = gameObject2.GetComponent<Container>();
+				if (component != null)
+				{
+					Inventory inventory3 = component.GetInventory();
+					if (inventory3 != null)
+					{
+						inventory3.MoveInventoryToGrave(inventory);
+						int num7 = inventory3.NrOfItems();
+						CompanionsPlugin.Log.LogInfo($"[Setup] Grave transfer complete — {num7} items in tombstone");
+						int width = inventory3.GetWidth();
+						int num8 = 0;
+						foreach (ItemDrop.ItemData allItem2 in inventory3.GetAllItems())
+						{
+							allItem2.m_gridPos = new Vector2i(num8 % width, num8 / width);
+							num8++;
+						}
 					}
 				}
 			}
-		}
-		TombStone component2 = gameObject2.GetComponent<TombStone>();
-		if (component2 != null)
-		{
-			component2.Setup(companionName, tombstoneId);
-			CompanionsPlugin.Log.LogDebug($"[Setup] Tombstone ownership set — name=\"{companionName}\" id={tombstoneId}");
-		}
-		ZNetView component3 = gameObject2.GetComponent<ZNetView>();
-		if (component3?.GetZDO() != null)
-		{
-			ZDO zDO = component3.GetZDO();
-			zDO.Set(TombstoneIdHash, tombstoneId);
-			if (ownerId != null)
+			TombStone component2 = gameObject2.GetComponent<TombStone>();
+			if (component2 != null)
 			{
-				zDO.Set(MHR_TombOwnerHash, ownerId);
+				component2.Setup(companionName, tombstoneId);
+				CompanionsPlugin.Log.LogDebug($"[Setup] Tombstone ownership set — name=\"{companionName}\" id={tombstoneId}");
 			}
-			zDO.Set(MHR_TombCompanionIdHash, MHR_EnsureCompanionId());
-			Inventory inventory4 = gameObject2.GetComponent<Container>()?.GetInventory();
-			if (inventory4 != null)
+			ZNetView component3 = gameObject2.GetComponent<ZNetView>();
+			if (component3?.GetZDO() != null)
 			{
-				zDO.Set(TombInvWidthHash, inventory4.GetWidth());
-				zDO.Set(TombInvHeightHash, inventory4.GetHeight());
-				zDO.Set(MHR_TombItemsHash, inventory4.NrOfItems());
+				ZDO zDO = component3.GetZDO();
+				zDO.Set(TombstoneIdHash, tombstoneId);
+				if (ownerId != null)
+				{
+					zDO.Set(MHR_TombOwnerHash, ownerId);
+				}
+				zDO.Set(MHR_TombCompanionIdHash, MHR_EnsureCompanionId());
+				Inventory inventory4 = gameObject2.GetComponent<Container>()?.GetInventory();
+				if (inventory4 != null)
+				{
+					zDO.Set(TombInvWidthHash, inventory4.GetWidth());
+					zDO.Set(TombInvHeightHash, inventory4.GetHeight());
+					zDO.Set(MHR_TombItemsHash, inventory4.NrOfItems());
+				}
+				CompanionTombstoneResurrect.WriteRespawnData(zDO, prefabName, companionName, appearance, ownerId, actionMode, actionModeSchema, follow, stayHome, autoPickup, wander, commandable, formationSlot, skillsSerialized, hasHome, homePos, combatStance, hasHomeBed, homeBedPos, inventorySerialized);
+				// Fase 3.10: the AI profile (voice and personality) of this companion goes with the respawn data, so the
+				// companion that comes back is the same one in the way it talks - see CompanionTombstoneResurrect.
+				CompanionTombstoneResurrect.WriteAiProfile(zDO, _nview?.GetZDO());
+				// 1.4.150: also whether its job had turned Follow off (so turning the job off after a respawn turns it back on)
+				zDO.Set(CompanionTombstoneResurrect.RespawnFollowPausedHash, _nview?.GetZDO()?.GetBool(CompanionTombstoneResurrect.FollowPausedByJobHash) ?? false);
+				// 1.5.1: which copy of the companion this is - a tombstone of an older copy (the companion was recovered since) won't respawn it
+				zDO.Set(MHR_Roster.RespawnGenHash, _nview?.GetZDO()?.GetInt(MHR_Roster.GenHash) ?? 0);
+				gameObject2.AddComponent<CompanionTombstoneResurrect>();
+				MHR_RespawnTracker.OnCompanionDied(zDO, ownerId);
+				CompanionsPlugin.Log.LogInfo("[Setup] Tombstone resurrection data written and component attached");
 			}
-			CompanionTombstoneResurrect.WriteRespawnData(zDO, prefabName, companionName, appearance, ownerId, actionMode, actionModeSchema, follow, stayHome, autoPickup, wander, commandable, formationSlot, skillsSerialized, hasHome, homePos, combatStance, hasHomeBed, homeBedPos, inventorySerialized);
-			// 1.4.150: also whether its job had turned Follow off (so turning the job off after a respawn turns it back on)
-			zDO.Set(CompanionTombstoneResurrect.RespawnFollowPausedHash, _nview?.GetZDO()?.GetBool(CompanionTombstoneResurrect.FollowPausedByJobHash) ?? false);
-			// 1.5.1: which copy of the companion this is - a tombstone of an older copy (the companion was recovered since) won't respawn it
-			zDO.Set(MHR_Roster.RespawnGenHash, _nview?.GetZDO()?.GetInt(MHR_Roster.GenHash) ?? 0);
-			gameObject2.AddComponent<CompanionTombstoneResurrect>();
-			MHR_RespawnTracker.OnCompanionDied(zDO, ownerId);
-			CompanionsPlugin.Log.LogInfo("[Setup] Tombstone resurrection data written and component attached");
+			if (Minimap.instance != null)
+			{
+				string text = companionName + " " + ModLocalization.Loc("hc_minimap_grave");
+				Minimap.instance.AddPin(position, Minimap.PinType.Death, text, save: true, isChecked: false, 0L);
+				CompanionsPlugin.Log.LogInfo($"[Setup] Added tombstone minimap pin at {position:F1}");
+			}
 		}
-		if (Minimap.instance != null)
+		finally
 		{
-			string text = companionName + " " + ModLocalization.Loc("hc_minimap_grave");
-			Minimap.instance.AddPin(position, Minimap.PinType.Death, text, save: true, isChecked: false, 0L);
-			CompanionsPlugin.Log.LogInfo($"[Setup] Added tombstone minimap pin at {position:F1}");
+			SuppressAutoEquip = false;
 		}
-		SuppressAutoEquip = false;
 	}
 
 	internal int MHR_GetDeathItemRule()
@@ -1849,6 +2290,8 @@ public class CompanionSetup : MonoBehaviour
 	private void OnDestroy()
 	{
 		_allCompanions.Remove(this);
+		// Fase 3.19: nothing may run on a companion that is going away
+		_mhrPendingWrites.Clear();
 		// Fase 3.5: dismissal/despawn (and leaving the world) forgets this companion's conversation
 		CompanionMemory.Clear(MHR_CachedCompanionId);
 		if (_dead || _removePinOnDestroy)
@@ -1989,32 +2432,53 @@ public class CompanionSetup : MonoBehaviour
 
 	internal void SetCombatStance(int stance)
 	{
-		_nview?.GetZDO()?.Set(CombatStanceHash, stance);
+		MHR_WriteOrQueue(delegate
+		{
+			_nview?.GetZDO()?.Set(CombatStanceHash, stance);
+		});
 	}
 
 	internal void SetWander(bool v)
 	{
-		_nview?.GetZDO()?.Set(WanderHash, v);
+		MHR_WriteOrQueue(delegate
+		{
+			_nview?.GetZDO()?.Set(WanderHash, v);
+		});
 	}
 
 	internal void SetIsCommandable(bool value)
 	{
-		(_nview?.GetZDO())?.Set(IsCommandableHash, value ? 1 : 0);
+		MHR_WriteOrQueue(delegate
+		{
+			_nview?.GetZDO()?.Set(IsCommandableHash, value ? 1 : 0);
+		});
+	}
+
+	/// <summary>Fase 3.19 (auditoria): the flag of the "Recolher" toggle, written like every other order key.</summary>
+	internal void SetAutoPickup(bool value)
+	{
+		MHR_WriteOrQueue(delegate
+		{
+			_nview?.GetZDO()?.Set(AutoPickupHash, value);
+		});
 	}
 
 	internal void SetHomePosition(Vector3 p)
 	{
-		ZDO zDO = _nview?.GetZDO();
-		if (zDO != null)
+		MHR_WriteOrQueue(delegate
 		{
-			zDO.Set(HomePosHash, p);
-			zDO.Set(HomePosSetHash, value: true);
-			CompanionRest component = GetComponent<CompanionRest>();
-			if (component != null)
+			ZDO zDO = _nview?.GetZDO();
+			if (zDO != null)
 			{
-				component.TryClaimBedIfNeeded();
+				zDO.Set(HomePosHash, p);
+				zDO.Set(HomePosSetHash, value: true);
+				CompanionRest component = GetComponent<CompanionRest>();
+				if (component != null)
+				{
+					component.TryClaimBedIfNeeded();
+				}
 			}
-		}
+		});
 	}
 
 	internal void SetHomeRadius(float r)

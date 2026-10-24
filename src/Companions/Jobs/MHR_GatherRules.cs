@@ -24,8 +24,8 @@ namespace Companions
         }
         static readonly Dictionary<int, Per> s_per = new Dictionary<int, Per>();
         static readonly List<Piece> s_pieces = new List<Piece>();
-        static readonly Dictionary<string, float> s_countTime = new Dictionary<string, float>();
-        static readonly Dictionary<string, int> s_countVal = new Dictionary<string, int>();
+        static readonly Dictionary<MHR_StockKey, float> s_countTime = new Dictionary<MHR_StockKey, float>();
+        static readonly Dictionary<MHR_StockKey, int> s_countVal = new Dictionary<MHR_StockKey, int>();
         static readonly Dictionary<int, KeyValuePair<float, bool>> s_protect = new Dictionary<int, KeyValuePair<float, bool>>();
         static readonly Dictionary<int, List<string>> s_dropsCache = new Dictionary<int, List<string>>();
         static readonly Dictionary<string, Dictionary<string, int>> s_listCache = new Dictionary<string, Dictionary<string, int>>();
@@ -156,8 +156,10 @@ namespace Companions
         static readonly List<Piece> s_piles = new List<Piece>();
         internal static int Stock(Component c, string item)
         {
+            // Fase 3.19 (auditoria): the total carries the companion's own pack, so the cache is per companion
+            MHR_StockKey key = new MHR_StockKey(c.GetInstanceID(), item);
             float t;
-            if (s_countTime.TryGetValue(item, out t) && Time.time - t < 10f) return s_countVal[item];
+            if (s_countTime.TryGetValue(key, out t) && Time.time - t < 10f) return s_countVal[key];
             int total = 0;
             Humanoid h = c.GetComponent<Humanoid>();
             if (h != null && h.GetInventory() != null) total += CountIn(h.GetInventory(), item);
@@ -181,7 +183,7 @@ namespace Companions
                 Piece.Requirement req = p.m_resources[0];
                 if (string.Equals(req.m_resItem.gameObject.name, item, StringComparison.OrdinalIgnoreCase)) total += req.m_amount;
             }
-            s_countTime[item] = Time.time; s_countVal[item] = total;
+            s_countTime[key] = Time.time; s_countVal[key] = total;
             return total;
         }
         static int CountIn(Inventory inv, string prefab)

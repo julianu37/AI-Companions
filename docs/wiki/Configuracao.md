@@ -19,7 +19,8 @@ pelos painéis. Ele tem cerca de **1540 linhas** e **~265 opções** no total, d
 > do mod.
 
 A seção **`[IA]`** começa por volta da **linha 871** e tem **39 chaves**. É assim que ela aparece no arquivo
-(esta é exatamente a configuração que está rodando na máquina onde o mod foi desenvolvido):
+(neste exemplo, com a **alternativa local** configurada: `127.0.0.1`, `qwen2.5-3b-instruct` e a chave vazia — no
+**padrão** o `BaseUrl` é o OpenRouter e o `ApiKey` é obrigatório):
 
 ![A seção [IA] do .cfg: Ligado = true, BaseUrl = http://127.0.0.1:1234/v1, Modelo = qwen2.5-3b-instruct e ApiKey vazio](images/config-ia.png)
 
@@ -32,7 +33,7 @@ Você não precisa abrir o `.cfg` no bloco de notas para as coisas do dia a dia:
 | Painel | Tecla | O que edita |
 |---|---|---|
 | **Configurações do mod** | **`F8`** | **Todas** as opções do mod, em jogo |
-| **Painel da IA** | **`I`** | Só a camada de IA: personalidade, voz, volume, velocidade, memória, conversa e push-to-talk |
+| **Painel da IA** | **`I`** | A camada de IA: **Configurações do LLM** (URL, modelo, chave), personalidade, voz, volume, velocidade, memória, conversa e push-to-talk |
 
 ### Painel da IA (tecla `I`)
 
@@ -58,9 +59,9 @@ perto** (é uma configuração global).
 | Chave | Padrão | O que faz |
 |---|---|---|
 | `Ligado` | `true` | Liga as ordens por texto. Desligado = nada é enviado ao modelo |
-| `BaseUrl` | `http://127.0.0.1:1234/v1` | Endpoint do LLM. `/chat/completions` é adicionado sozinho. Use **`127.0.0.1`** e **não** `localhost`: no Windows o `localhost` resolve primeiro para IPv6 e o servidor do LM Studio só escuta IPv4, o que custa ~**2,5 s** em cada ordem (veja **[LLM no LM Studio](LLM-no-LM-Studio)**) |
-| `Modelo` | `qwen2.5-3b-instruct` | Nome do modelo, como o servidor lista |
-| `ApiKey` | *(vazio)* | Chave de API, se o servidor pedir. Vazio para LM Studio/Ollama local |
+| `BaseUrl` | `https://openrouter.ai/api/v1` | Endpoint do LLM. `/chat/completions` é adicionado sozinho. O padrão é o **OpenRouter**; para rodar local, troque por `http://127.0.0.1:1234/v1` (LM Studio) ou `http://127.0.0.1:11434/v1` (Ollama). **No caso local** use **`127.0.0.1`** e **não** `localhost`: no Windows o `localhost` resolve primeiro para IPv6 e o servidor do LM Studio só escuta IPv4, o que custa ~**2,5 s** em cada ordem (veja **[LLM (OpenRouter ou LM Studio)](LLM-no-LM-Studio)**) |
+| `Modelo` | `openrouter/free` | Nome do modelo, como o servidor lista. `openrouter/free` é o **roteador de modelos gratuitos** do OpenRouter. No LM Studio use o nome que ele mostra (ex.: `qwen2.5-3b-instruct`) |
+| `ApiKey` | *(vazio)* | Chave de API do servidor. **Obrigatória no OpenRouter** (a gratuita sai em `openrouter.ai/keys`); vazia para LM Studio/Ollama local |
 | `Temperatura` | `0.1` | O quanto o modelo improvisa. Mantenha baixo para a mesma ordem dar sempre o mesmo JSON |
 | `TimeoutSegundos` | `30` | Segundos de espera pelo modelo. O pedido roda em segundo plano |
 | `Prefixo` | *(vazio)* | Vazio = toda mensagem de chat vai ao modelo. Ex.: `/c` exige o prefixo |

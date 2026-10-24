@@ -21,6 +21,11 @@ public static class ModLocalization
 
 	private static string _lastInjectedLanguage;
 
+	/// <summary>Fase 3.19 (auditoria): the instance the translations were injected into. Comparing only the language
+	/// name skipped the injection when the game recreated its <see cref="Localization"/> (world reload) with the same
+	/// language: the new dictionary came back with the game's own keys and none of the mod's.</summary>
+	private static object _lastInjectedInstance;
+
 	private static readonly Regex EntryRegex = new Regex("\"key\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"[^\"]*\"value\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"", RegexOptions.Compiled);
 
 	private static readonly FieldInfo InstanceField = AccessTools.Field(typeof(Localization), "m_instance");
@@ -71,6 +76,8 @@ public static class ModLocalization
 			{ "hc_ui_btn_need", "Need {0}" },
 			{ "hc_ui_bank", "Bank: {0}" },
 			{ "hc_ui_label_type", "Type" },
+			// Fase 3.13: the name field of the starter panel (the placeholder reuses hc_ui_placeholder_name)
+			{ "hc_ui_name", "Name" },
 			{ "hc_ui_label_gender", "Gender" },
 			{ "hc_ui_label_hair", "Hair Style" },
 			{ "hc_ui_label_beard", "Beard Style" },
@@ -83,7 +90,16 @@ public static class ModLocalization
 			{ "hc_ui_btn_companion", "Companion" },
 			{ "hc_ui_btn_dverger", "Dverger" },
 			{ "hc_ui_beard_none", "None" },
-			{ "hc_ui_desc_starter", "A loyal companion will join you on your journey. Customise their appearance on the left, then spawn them into the world.\n\nThey will follow you, fight by your side, and carry supplies. Equip them with gear and keep them fed to stay battle-ready.\n\nPress Escape to skip — the panel will appear again next session." },
+			// Fase 3.20: the appearance editor of a companion that already exists (the starter's column and preview, opened
+			// from a companion's tab in the AI panel). The title, the line naming whose look is being edited, the two
+			// buttons and the two messages (the change went through / the companion is dead).
+			{ "hc_ui_title_appearance", "Appearance" },
+			{ "hc_ui_editing_appearance", "Editing the appearance of {0}" },
+			{ "hc_ui_btn_apply", "Apply" },
+			{ "hc_ui_btn_cancel", "Cancel" },
+			{ "hc_ui_appearance_applied", "Appearance of {0} updated." },
+			{ "hc_ui_appearance_dead", "I can't change the appearance of a dead companion - bring it back first." },
+			{ "hc_ui_desc_starter", "A loyal companion will join you on your journey. Customise their appearance on the left, pick their voice and personality in the AI section, then spawn them into the world.\n\nThey will follow you, fight by your side, and carry supplies. Equip them with gear and keep them fed to stay battle-ready.\n\nPress Escape to skip — the panel will appear again next session." },
 			{ "hc_ui_desc_trader", "Hire a loyal companion to join your journey. They will follow you across the world and fight by your side against any threat.\n\nEach companion has their own health, stamina and inventory. You will need to equip them with gear and keep them fed to stay battle-ready.\n\nInteract with your companion to open their panel, where you can manage their equipment and issue commands.\n\nCustomise their appearance on the left, then confirm your purchase." },
 			{ "hc_ui_placeholder_name", "Enter name..." },
 			{ "hc_ui_label_food", "Food" },
@@ -131,12 +147,16 @@ public static class ModLocalization
 			{ "hc_hover_hold", "Hold" },
 			{ "hc_msg_not_yours", "This is not your companion." },
 			{ "hc_msg_need_coins", "Not enough coins in bank! Need {0}" },
+			{ "hc_msg_companion_limit", "You already have {0} companion(s) (the limit is {1}). Dismiss one, or recover a tombstone." },
 			{ "hc_msg_arrived", "Your new {0} has arrived!" },
 			{ "hc_msg_returned", "{0} has returned at {1}!" },
 			{ "hc_msg_location_home", "home" },
 			{ "hc_msg_location_spawn", "the world spawn" },
 			{ "hc_msg_starter_joined", "A companion has joined you on your journey!" },
 			{ "hc_msg_name_default", "Companion" },
+			// Fase 3.9: the default name of a newly spawned companion when one already answers to the tier's name
+			// ("Guerreiro" -> "Guerreiro 2"). Visible text, so it lives here like every other name.
+			{ "hc_msg_name_numbered", "{0} {1}" },
 			{ "hc_menu_mod_options", "Mod Options" },
 			{ "hc_minimap_grave", "Grave" },
 			{ "hc_msg_sleep_waiting", "Waiting for {0} to sleep..." },
@@ -351,8 +371,12 @@ public static class ModLocalization
 			{ "hc_ai_thinking", "Thinking..." },
 			{ "hc_ai_not_understood", "I didn't understand that order." },
 			{ "hc_ai_no_companion", "None of your companions is close enough to take that order." },
+			// Fase 3.11: orders addressed to one companion by name ("Gruncha, colete 10 pedras")
+			{ "hc_ai_unknown_companion", "I don't know any companion called \"{0}\"." },
+			{ "hc_ai_companion_not_available", "{0} isn't within reach (or its orders are switched off)." },
 			{ "hc_ai_disabled", "Companion AI is off ([IA] Ligado = false)." },
 			{ "hc_ai_error", "The AI didn't answer: {0}" },
+			{ "hc_ai_error_timeout", "timed out" },
 			{ "hc_ai_raw", "AI: {0}" },
 			{ "hc_ai_ok", "Ok: {0}" },
 			{ "hc_ai_ok_amount", "Ok: {0} ({1})" },
@@ -370,6 +394,10 @@ public static class ModLocalization
 			{ "hc_ai_order_repair", "repair and restock" },
 			{ "hc_ai_order_cook", "cook" },
 			{ "hc_ai_order_stop", "stop following" },
+			// Fase 3.22: the "stop" answer names the work the companion was doing ("stop: gather wood") - the job label
+			// comes from hc_ai_order_wood/stone/ore/...; when there is no job to name, "stop" alone.
+			{ "hc_ai_order_stop_job", "stop ({0})" },
+			{ "hc_ai_order_stop_other", "stop" },
 			{ "hc_ai_order_come", "come here" },
 			{ "hc_ai_order_sethome", "set home here" },
 			{ "hc_ai_order_wander", "wander around" },
@@ -413,6 +441,9 @@ public static class ModLocalization
 			// Fase 3.5: personality presets (shown in the log), free conversation and the memory
 			{ "hc_ai_default_name", "Companion" },
 			{ "hc_ai_preset_default", "Default" },
+			// Fase 3.12: the "default personality" entry of a COMPANION's list, which also has "follow the [IA]
+			// default" right above it - two different choices, so they must not read the same
+			{ "hc_ai_preset_neutral", "Neutral (the default)" },
 			{ "hc_ai_preset_custom", "Free text" },
 			{ "hc_ai_preset_viking", "Loyal Viking" },
 			{ "hc_ai_preset_mago", "Sarcastic Mage" },
@@ -436,7 +467,7 @@ public static class ModLocalization
 			// Fase 3.7: the in-game AI panel (personality, voice, push-to-talk). See UI/CompanionAiPanel.cs.
 			{ "hc_ai_panel_title", "AI Panel" },
 			{ "hc_ai_panel_title_named", "AI Panel — {0}" },
-			{ "hc_ai_panel_hint_fmt", "Esc closes  •  {0} opens this panel  •  everything is saved right away" },
+			{ "hc_ai_panel_hint_fmt", "Esc closes  •  {0} opens this panel  •  everything is saved right away  ·  advanced options: F8" },
 			{ "hc_ai_panel_personality", "Personality" },
 			{ "hc_ai_panel_free_text", "In your own words" },
 			{ "hc_ai_panel_free_placeholder", "e.g. talks like a loyal viking" },
@@ -465,10 +496,75 @@ public static class ModLocalization
 			// the footer summary is built from these two lines (the block is two lines tall) - see RefreshStatus
 			{ "hc_ai_panel_status_personality", "Personality: {0}" },
 			{ "hc_ai_panel_status_voice", "Voice: {0}  \u2022  Push-to-talk: {1}" },
+			// Fase 3.9: the tabs and the summoner of the AI panel (see UI/CompanionAiPanel.cs). The tab of every
+			// companion carries the companion's own name, which is not a key - only the AI tab has one.
+			{ "hc_ai_tab_main", "AI" },
+			{ "hc_ai_spawn_title", "Summon a new companion" },
+			{ "hc_ai_spawn_tier", "Tier" },
+			{ "hc_ai_spawn_button", "Summon" },
+			{ "hc_ai_spawn_count", "Companions: {0}" },
+			{ "hc_ai_spawn_failed", "I couldn't summon a companion right now (see the log)." },
+			// Fase 3.20: the LLM settings section of the AI tab (and the "Testar conexão" of the panel)
+			{ "hc_ai_llm_title", "LLM settings" },
+			{ "hc_ai_llm_enabled", "On" },
+			{ "hc_ai_llm_structured", "Structured output" },
+			{ "hc_ai_llm_show_raw", "Show the reply in chat" },
+			{ "hc_ai_llm_base_url", "Server URL" },
+			{ "hc_ai_llm_model", "Model" },
+			{ "hc_ai_llm_api_key", "API key" },
+			{ "hc_ai_llm_prefix", "Prefix" },
+			{ "hc_ai_llm_temperature", "Temperature" },
+			{ "hc_ai_llm_timeout", "Timeout (s)" },
+			{ "hc_ai_llm_cooldown", "Cooldown (s)" },
+			{ "hc_ai_llm_target_range", "Target range (m)" },
+			{ "hc_ai_llm_apply", "Apply" },
+			{ "hc_ai_llm_test", "Test connection" },
+			{ "hc_ai_llm_apply_ok", "LLM settings saved. They apply to the next message." },
+			{ "hc_ai_llm_need_url", "The server URL can't be empty." },
+			{ "hc_ai_llm_need_model", "The model name can't be empty." },
+			{ "hc_ai_llm_bad_url", "The server URL has to start with http:// or https://." },
+			{ "hc_ai_llm_test_busy", "A connection test is already running - wait for the answer." },
+			{ "hc_ai_llm_test_ok_count", "Connection OK: {0} model(s) on the server." },
+			{ "hc_ai_llm_test_ok_models", "Connection OK: {0} model(s) on the server, and the configured model is in the list." },
+			{ "hc_ai_llm_test_ok_nomodel", "Connection OK: {0} model(s) on the server, but \"{1}\" isn't in the list." },
+			{ "hc_ai_llm_test_ok_chat", "Connection OK: the server answered a minimal request (it doesn't list its models)." },
+			{ "hc_ai_llm_test_fail", "Connection failed: {0}" },
+			{ "hc_ai_comp_name", "Name" },
+			{ "hc_ai_comp_tier", "Tier" },
+			{ "hc_ai_comp_tier_unknown", "Unknown" },
+			{ "hc_ai_comp_status", "Status" },
+			{ "hc_ai_comp_alive", "Alive" },
+			{ "hc_ai_comp_dead", "Dead" },
+			{ "hc_ai_comp_recall", "Call" },
+			// Fase 3.20: the button on a companion's tab that opens the appearance editor of that companion
+			{ "hc_ai_comp_appearance", "Appearance" },
+			{ "hc_ai_comp_recall_ok", "{0} is on the way." },
+			{ "hc_ai_comp_recall_failed", "I couldn't call {0} (see the log)." },
+			{ "hc_ai_comp_gone", "That companion isn't here anymore." },
+			{ "hc_ai_comp_hint", "Call brings the companion over to you: it walks in, and if it is too far away it comes back through the game's own recall." },
+			// Fase 3.15: the name and the tier are edited on the companion's tab
+			{ "hc_ai_comp_name_required", "Type a name before applying." },
+			{ "hc_ai_comp_rename_ok", "Renamed to \"{0}\"." },
+			{ "hc_ai_comp_rename_failed", "I couldn't rename it (the companion isn't under my control right now)." },
+			{ "hc_ai_comp_rename_dead", "I can't rename a dead companion - bring it back first." },
+			{ "hc_ai_comp_tier_change", "Change tier (respawns)" },
+			{ "hc_ai_comp_tier_popup_title", "Change the companion's tier?" },
+			{ "hc_ai_comp_tier_popup_text", "{0} will be reborn as {1} (it is {2} now).\n\nKept: name, inventory, equipment, appearance, voice, personality, home, bed, position, skills and the companion's history. The job it is doing starts over, and a dverger tier cannot wear armor (the pieces stay in its pack)." },
+			{ "hc_ai_comp_tier_ok", "{0} is now {1}." },
+			{ "hc_ai_comp_tier_dead", "I can't change the type of a dead companion - bring it back first." },
+			{ "hc_ai_comp_tier_failed", "I couldn't change the tier (see the log)." },
 			{ "hc_ai_voice_42", "pf_dora (feminine)" },
 			{ "hc_ai_voice_43", "pm_alex (masculine)" },
 			{ "hc_ai_voice_44", "pm_santa (masculine)" },
-			{ "hc_ai_voice_other", "voice {0} (another language)" }
+			{ "hc_ai_voice_other", "voice {0} (another language)" },
+			// Fase 3.10: voice and personality of ONE companion (its own ZDO), with the [IA] values as the default.
+			// Used by the companion tab of the AI panel and by the starter panel's "AI" section.
+			{ "hc_ai_profile_title", "Companion AI" },
+			{ "hc_ai_profile_inherit", "Follow the [IA] default" },
+			{ "hc_ai_profile_inherited", "{0} (default)" },
+			{ "hc_ai_profile_hint", "Voice and personality belong to this companion: left unset, it follows the [IA] settings (AI tab)." },
+			{ "hc_ai_comp_profile_title", "Voice and personality of this companion" },
+			{ "hc_ai_profile_save_failed", "I couldn't save the companion's profile (its data is not under my control right now). Try again in a moment." }
 		};
 	}
 
@@ -490,11 +586,13 @@ public static class ModLocalization
 			return;
 		}
 		string selectedLanguage = loc.GetSelectedLanguage();
-		if (selectedLanguage == _lastInjectedLanguage)
+		// Fase 3.19: the instance matters as much as the language - see _lastInjectedInstance
+		if (selectedLanguage == _lastInjectedLanguage && ReferenceEquals(_lastInjectedInstance, loc))
 		{
 			return;
 		}
 		_lastInjectedLanguage = selectedLanguage;
+		_lastInjectedInstance = loc;
 		if (!(TranslationsField?.GetValue(loc) is Dictionary<string, string> dictionary))
 		{
 			return;

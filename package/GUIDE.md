@@ -1,4 +1,4 @@
-# ModAI-BR-Companions — Guia do companheiro
+# AI Companions — Guia do companheiro
 
 Como os seus companheiros funcionam: o que cada trabalho faz, como preparar e o que esperar. Se você ficou se perguntando por que um companheiro fez (ou não fez) alguma coisa, a resposta provavelmente está aqui.
 

@@ -1,10 +1,10 @@
-![ModAI-BR-Companions — companheiros NPC com IA para Valheim, em PT-BR](https://raw.githubusercontent.com/julianu37/ModAI-BR-Companions/main/docs/images/banner.png)
+![AI Companions — companheiros NPC com IA para Valheim, em PT-BR](https://raw.githubusercontent.com/julianu37/AI-Companions/main/docs/images/banner.png)
 
-# ModAI-BR-Companions 1.6.2 — o companheiro entende você (e fala)
+# AI Companions 1.6.2 — o companheiro entende você (e fala)
 
 **A camada de IA chegou: ordens por chat e por voz, o companheiro fala, personalidade/memória e um painel no jogo — tudo local, em PT-BR.**
 
-Este é o primeiro release do fork com a IA (Fases 3.1 a 3.8). Até aqui o mod era "só" o companheiro do Offline Companions Reborn em português; a partir de agora você conversa com ele.
+Este é o primeiro release do projeto com a IA (Fases 3.1 a 3.8). Até aqui o mod era "só" o companheiro do Offline Companions Reborn em português; a partir de agora você conversa com ele.
 
 ## Novidades desta versão (1.6.2)
 
@@ -15,7 +15,7 @@ Este é o primeiro release do fork com a IA (Fases 3.1 a 3.8). Até aqui o mod e
 
 ## O que é
 
-Um fork em **PT-BR** do [Offline Companions Reborn](https://github.com/MaddhattrRocks/Offline-Companions-Reborn) (**MIT**), de **Maddhattr** (que por sua vez continua o "Offline Companions", de **ProfMags**), para **Valheim 1.0**. O companheiro já era um membro da equipe: segue, trabalha (madeira/pedra/minério, caça, pesca, fazenda, cozinha, fundição, reparo e reabastecimento da base), luta, come, descansa, dorme, usa portais e carroça. Neste release ele ganha **ouvidos, boca e cabeça** — e continua sendo um NPC de Valheim, não um chatbot.
+Um **projeto independente**, em **PT-BR**, baseado no [Offline Companions Reborn](https://github.com/MaddhattrRocks/Offline-Companions-Reborn) (**MIT**), de **Maddhattr** (que por sua vez continua o "Offline Companions", de **ProfMags**), para **Valheim 1.0**. O companheiro já era um membro da equipe: segue, trabalha (madeira/pedra/minério, caça, pesca, fazenda, cozinha, fundição, reparo e reabastecimento da base), luta, come, descansa, dorme, usa portais e carroça. Neste release ele ganha **ouvidos, boca e cabeça** — e continua sendo um NPC de Valheim, não um chatbot.
 
 ## Destaques
 
@@ -33,7 +33,7 @@ Um fork em **PT-BR** do [Offline Companions Reborn](https://github.com/Maddhattr
 ## Instalação
 
 1. Tenha o **BepInExPack_Valheim 5.4.2351** instalado.
-2. Extraia a pasta `ModAI-BR-Companions` deste pacote para `...\Valheim\BepInEx\plugins\`.
+2. Extraia a pasta `AI-Companions` deste pacote para `...\Valheim\BepInEx\plugins\`.
 3. Os **modelos** (STT `whisper\` e TTS `tts\`) ficam **dentro** dessa pasta — o pacote **completo** já os traz; o **"sem modelos"** não.
 
 O passo a passo completo, os requisitos, as teclas, a configuração do LLM, os comandos de console, as licenças e os problemas conhecidos estão no **`LEIA-ME.txt`** que vem dentro do zip.
@@ -64,7 +64,7 @@ Os modelos, por dentro:
 | `tts\kokoro\voices.bin` | as vozes do Kokoro (o mod usa as 3 pt-BR: 42 feminina, 43 e 44 masculinas) | **27 MB** |
 | `tts\kokoro\espeak-ng-data\` | fonemização do espeak-ng (usada pelo Kokoro) | **17 MB** |
 
-> Se você ficar com o pacote **sem modelos**: ponha o `.bin` do Whisper em `...\ModAI-BR-Companions\whisper\` e o Kokoro (`model.int8.onnx`, `voices.bin`, `tokens.txt` e a pasta `espeak-ng-data`) em `...\ModAI-BR-Companions\tts\kokoro\`. O modelo do Whisper `ggml-base-q5_1.bin` (57 MB) também funciona e é mais rápido, mas erra mais em português — o `.cfg` (`[IA] SttModelo`) permite trocar.
+> Se você ficar com o pacote **sem modelos**: ponha o `.bin` do Whisper em `...\AI-Companions\whisper\` e o Kokoro (`model.int8.onnx`, `voices.bin`, `tokens.txt` e a pasta `espeak-ng-data`) em `...\AI-Companions\tts\kokoro\`. O modelo do Whisper `ggml-base-q5_1.bin` (57 MB) também funciona e é mais rápido, mas erra mais em português — o `.cfg` (`[IA] SttModelo`) permite trocar.
 
 ## Licenças e créditos
 
@@ -95,4 +95,4 @@ Não é afiliado nem endossado pela Iron Gate Studio, Coffee Stain Publishing, P
 
 ---
 
-Código-fonte: <https://github.com/julianu37/ModAI-BR-Companions>
+Código-fonte: <https://github.com/julianu37/AI-Companions>

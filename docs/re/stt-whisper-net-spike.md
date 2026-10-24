@@ -105,7 +105,7 @@ O log do spike imprime **de onde veio o `Span<T>`** justamente para fechar esse 
 ## 4. Deploy (`DeployWhisperNet`, depois de `DeployToPlugins`)
 
 ```
-plugins\ModAI-BR-Companions\
+plugins\AI-Companions\
 ├── Companions.dll
 ├── Whisper.net.dll (+ 6 shims acima)
 └── runtimes\win-x64\{whisper.dll, ggml-whisper.dll, ggml-base-whisper.dll, ggml-cpu-whisper.dll}
@@ -143,7 +143,7 @@ Procure por `[STT]`. Sequência esperada:
 [STT] Spike do Whisper.net in-process pronto (Whisper.net 1.9.1 ...). Comando de console: "modia_stt_teste". ...
 [STT] Comando de console "modia_stt_teste" registrado (digite no console do jogo, F5).
 [STT] Teste do Whisper.net iniciado (comando de console modia_stt_teste) - rodando em thread de fundo, o jogo nao para.
-[STT] Pasta do plugin: "C:\...\plugins\ModAI-BR-Companions"
+[STT] Pasta do plugin: "C:\...\plugins\AI-Companions"
 [STT] Modelo: "...\whisper\ggml-base-q5_1.bin" (58308 KB, ...)      <-- tamanho esperado ~57 MB
 [STT] WAV de teste: "...\whisper\jfk.wav" (344 KB, ...)
 [STT] Gerenciadas na pasta do plugin: Whisper.net.dll Microsoft.Bcl.AsyncInterfaces.dll ...
@@ -156,8 +156,8 @@ Procure por `[STT]`. Sequência esperada:
 [STT] TRANSCRICAO em NNN ms | threads=7 | idioma=en | 1 segmento(s)
 [STT] TEXTO: "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country."
 [STT] O modelo continua carregado (o pipeline de voz usa o mesmo).
-[STT] Span<T> veio de: System.Memory 4.0.5.0 [C:\...\plugins\ModAI-BR-Companions\System.Memory.dll]
-[STT] Whisper.net.dll carregado de: 1.9.1.0 [C:\...\plugins\ModAI-BR-Companions\Whisper.net.dll]
+[STT] Span<T> veio de: System.Memory 4.0.5.0 [C:\...\plugins\AI-Companions\System.Memory.dll]
+[STT] Whisper.net.dll carregado de: 1.9.1.0 [C:\...\plugins\AI-Companions\Whisper.net.dll]
 [STT] Teste do Whisper.net encerrado (a thread de fundo terminou).
 ```
 
@@ -178,7 +178,7 @@ Sinais de problema e o que significam:
 ## 7. Nota sobre o Jotunn
 
 O pedido original era registrar o comando pelo `CommandManager` do Jotunn "como os outros comandos do mod".
-Este fork **não referencia o Jotunn** (o `Companions.dll` não tem nenhuma referência a ele; os comandos
+Este projeto **não referencia o Jotunn** (o `Companions.dll` não tem nenhuma referência a ele; os comandos
 `modia_*` da Trilha B são do mod anterior). Para não introduzir uma dependência nova (e um risco de o mod não
 carregar sem o Jotunn) só por causa de um gatilho de teste, o comando foi registrado com o **mesmo mecanismo
 interno** que o `CommandManager` usa. Se o Jotunn for adotado no mod, trocar é uma linha:

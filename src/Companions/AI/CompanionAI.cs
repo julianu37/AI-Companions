@@ -2253,6 +2253,12 @@ public class CompanionAI : BaseAI
 		}
 	}
 
+	/// <summary>Fase 3.9: companions 9 and up (slots 8..31) go on a wider ring, one place every 15 degrees.</summary>
+	private const float OuterFormationStepDegrees = 15f;
+
+	/// <summary>Fase 3.9: and that ring is 1.7x the normal spacing, so it sits visibly outside the inner places.</summary>
+	private const float OuterFormationRadiusScale = 1.7f;
+
 	private static Vector3 GetFormationOffset(int slot, Vector3 fwd, Vector3 right)
 	{
 		switch (slot)
@@ -2267,9 +2273,20 @@ public class CompanionAI : BaseAI
 			return -right * (FormationOffset * 0.67f) - fwd * 3f;
 		default:
 		{
-			float num = (float)(slot - 4) * 45f + 135f;
-			float f = num * (Mathf.PI / 180f);
-			return (right * Mathf.Cos(f) + fwd * Mathf.Sin(f)) * FormationOffset;
+			if (slot < 8)
+			{
+				// slots 4..7: the four places just behind the player (the original ring, unchanged)
+				float num = (float)(slot - 4) * 45f + 135f;
+				float f = num * (Mathf.PI / 180f);
+				return (right * Mathf.Cos(f) + fwd * Mathf.Sin(f)) * FormationOffset;
+			}
+			// Fase 3.9: slots 8..31 (the 9th companion on) go around the player on a wider ring, 15 degrees apart.
+			// The old formula kept stepping 45 degrees and wrapped around 360 every 8 slots, so slot 12 landed exactly
+			// on slot 4 - with the ring extended to 32 places (CompanionSetup.FormationSlotCount) every one of them
+			// has its own angle now.
+			float aroundDegrees = (float)(slot - 8) * OuterFormationStepDegrees;
+			float aroundRadians = aroundDegrees * (Mathf.PI / 180f);
+			return (right * Mathf.Cos(aroundRadians) + fwd * Mathf.Sin(aroundRadians)) * (FormationOffset * OuterFormationRadiusScale);
 		}
 		}
 	}

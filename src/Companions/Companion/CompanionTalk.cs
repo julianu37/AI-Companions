@@ -74,6 +74,18 @@ public class CompanionTalk : MonoBehaviour
 
 	public void Say(string text, bool force = false)
 	{
+		Say(text, force, withVoice: true);
+	}
+
+	/// <summary>
+	/// Fase 3.17: the line that is shown as a bubble is also <b>spoken</b> (with this companion's own voice), unless the
+	/// caller already sent the very same line to the TTS (<paramref name="withVoice"/> false - that is the AI path:
+	/// <see cref="CompanionChatAI"/> queues the model's reply and the mod's order line itself and only asks for the
+	/// bubble here, so nothing is said twice). The cooldown below is the existing one: a line that is not shown is not
+	/// spoken either.
+	/// </summary>
+	internal void Say(string text, bool force, bool withVoice)
+	{
 		if (!string.IsNullOrEmpty(text) && !(Chat.instance == null))
 		{
 			float time = Time.time;
@@ -82,7 +94,45 @@ public class CompanionTalk : MonoBehaviour
 				_lastSayTime = time;
 				_globalLastSpeechTime = time;
 				Chat.instance.SetNpcText(base.gameObject, Vector3.up * SpeechOffset, CullDistance, SpeechTTL, "", text, large: false);
+				if (withVoice)
+				{
+					SpeakLine(text);
+				}
 			}
+		}
+	}
+
+	/// <summary>
+	/// Fase 3.17: the voice of the bubble. Every mod line that reaches the player's screen is spoken too - the job and
+	/// event lines ("Preciso de uma picareta para isso.", "hc_speech_*"), the mode-change line, the idle lines and the
+	/// forced ones - with <b>this</b> companion's voice (Fase 3.10: <see cref="CompanionTts.Speak(CompanionSetup, string, bool)"/>
+	/// resolves it from the ZDO and the voice is part of the cache key).
+	///
+	/// <para>These are fixed lines, word for word, so they are <b>cacheable</b>. Nothing here blocks: when the TTS is off
+	/// (<c>[IA] TtsLigado</c>), when <c>[IA] TtsFalarFalasDoMod</c> is off or when the model isn't ready, the bubble is
+	/// all there is - exactly as before. Called on the main thread, once per shown line, after the bubble.</para>
+	/// </summary>
+	private void SpeakLine(string text)
+	{
+		if (!CompanionTts.Enabled || !CompanionTts.SpeakModLines || !CompanionTts.Ready)
+		{
+			return;
+		}
+		try
+		{
+			if (_setup != null)
+			{
+				CompanionTts.Speak(_setup, text);
+			}
+			else
+			{
+				// defensive: a companion prefab always carries a CompanionSetup, so this is only a fallback
+				CompanionTts.Speak(base.gameObject, text);
+			}
+		}
+		catch (System.Exception ex)
+		{
+			CompanionsPlugin.Log?.LogDebug("[Speech] The TTS of a bubble line failed: " + ex.Message);
 		}
 	}
 

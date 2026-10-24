@@ -9,6 +9,10 @@ namespace Companions;
 /// Resolve() is pasted into the model's instructions, so the companion answers in that tone. The preset texts live
 /// here (not in the .cfg) to keep the config file short, and each one is plain Portuguese: the player types
 /// Portuguese in this mod, so the model is told the tone in the same language.
+///
+/// <para>Fase 3.10: the pair of values is a parameter now, not a config read - a companion may carry its own preset
+/// and text in its ZDO (<see cref="CompanionProfile"/>), and the <c>[IA]</c> values are only the default. The
+/// parameterless overloads still read the config, for the log lines and for a companion with nothing of its own.</para>
 /// </summary>
 internal static class CompanionPersona
 {
@@ -59,24 +63,36 @@ internal static class CompanionPersona
 	/// </summary>
 	internal static Preset[] Presets => s_presets;
 
-	/// <summary>The personality that goes into the prompt: the player's free text wins over the preset.</summary>
+	/// <summary>The global personality (<c>[IA] PresetPersonalidade</c> / <c>[IA] Personalidade</c>): the default of
+	/// every companion (see <see cref="CompanionProfile"/>).</summary>
 	internal static string Resolve()
 	{
-		string free = Trim(ModConfig.AiPersonality != null ? ModConfig.AiPersonality.Value : "");
-		string wanted = Trim(ModConfig.AiPersonalityPreset != null ? ModConfig.AiPersonalityPreset.Value : "").ToLowerInvariant();
+		return Resolve(ModConfig.AiPersonalityPreset != null ? ModConfig.AiPersonalityPreset.Value : "",
+			ModConfig.AiPersonality != null ? ModConfig.AiPersonality.Value : "");
+	}
+
+	/// <summary>
+	/// The personality that goes into the prompt of a message: the free text wins over the preset. Fase 3.10: the
+	/// pair comes from <see cref="CompanionProfile"/> - the companion's own personality when the player gave it one,
+	/// the global one otherwise - so this method no longer reads the config itself.
+	/// </summary>
+	internal static string Resolve(string presetId, string freeText)
+	{
+		string free = Trim(freeText);
+		string wanted = Trim(presetId).ToLowerInvariant();
 		Preset preset = Find(wanted);
 
 		if (free.Length > MaxFreeTextLength)
 		{
-			CompanionsPlugin.Log?.LogWarning($"[IA] [IA] Personalidade is {free.Length} characters long - only the first "
-				+ $"{MaxFreeTextLength} are used, so the prompt stays small");
+			CompanionsPlugin.Log?.LogWarning($"[IA] A personalidade livre tem {free.Length} caracteres - so os primeiros "
+				+ $"{MaxFreeTextLength} sao usados, para o prompt continuar pequeno");
 			free = free.Substring(0, MaxFreeTextLength);
 		}
 		if (free.Length > 0)
 		{
 			if (preset != null)
 			{
-				CompanionsPlugin.Log?.LogInfo($"[IA] Both a preset (\"{preset.Id}\") and a free text were set - the free text wins");
+				CompanionsPlugin.Log?.LogInfo($"[IA] Preset (\"{preset.Id}\") e texto livre definidos - o texto livre ganha");
 			}
 			return free;
 		}
@@ -91,11 +107,20 @@ internal static class CompanionPersona
 		return DefaultText;
 	}
 
-	/// <summary>What is being used right now, for the log ("viking (Viking leal)" / "texto livre" / "padrão").</summary>
+	/// <summary>What the <c>[IA]</c> personality is right now, for the log ("viking (Viking leal)" / "texto livre" /
+	/// "padrão").</summary>
 	internal static string Describe()
 	{
-		string free = Trim(ModConfig.AiPersonality != null ? ModConfig.AiPersonality.Value : "");
-		string wanted = Trim(ModConfig.AiPersonalityPreset != null ? ModConfig.AiPersonalityPreset.Value : "").ToLowerInvariant();
+		return Describe(ModConfig.AiPersonalityPreset != null ? ModConfig.AiPersonalityPreset.Value : "",
+			ModConfig.AiPersonality != null ? ModConfig.AiPersonality.Value : "");
+	}
+
+	/// <summary>What a personality pair is right now, for the log and the panels ("viking (Viking leal)" / "texto
+	/// livre" / "padrão").</summary>
+	internal static string Describe(string presetId, string freeText)
+	{
+		string free = Trim(freeText);
+		string wanted = Trim(presetId).ToLowerInvariant();
 		Preset preset = Find(wanted);
 		if (free.Length > 0)
 		{

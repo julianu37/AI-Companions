@@ -1,5 +1,5 @@
 ================================================================================
- ModAI-BR-Companions 1.6.0
+ AI Companions 1.6.0
  Companheiro NPC com IA para Valheim 1.0 - em portugues do Brasil
 ================================================================================
 
@@ -12,16 +12,19 @@ dormem, usam portais e carroca - e agora tambem ENTENDEM voce. Voce digita ou
 fala uma ordem em portugues ("colete 10 madeiras", "segue", "ataca o
 greydwarf") e ele obedece; ele responde, conversa e fala em voz alta. Este e um
 versão independente em PT-BR do mod "Offline Companions Reborn" (MIT), de Maddhattr e ProfMags,
-com uma camada de IA local por cima. Tudo roda na sua maquina: o modelo de
-linguagem, o reconhecimento de voz e a fala sao locais - nada sai do seu PC.
+com uma camada de IA por cima. O reconhecimento de voz e a fala sao locais (nada
+sai do seu PC por causa deles). Para ENTENDER as ordens, o mod usa um LLM: por
+padrao o OpenRouter (servico remoto - o texto da ordem sai da sua maquina) ou,
+se voce preferir, um modelo local (LM Studio) - veja "O CEREBRO (LLM)".
 
 REQUISITOS
 ----------
 - Valheim 1.0.x (o alvo deste release e o 1.0.17)
 - BepInExPack_Valheim 5.4.2351 (BepInEx 5.4.23.5)
 - Windows x64 (as vozes usam binarios nativos de Windows) e um microfone
-- Para o companheiro ENTENDER ordens: um servidor de LLM local compativel com a
-  API da OpenAI (veja "O CEREBRO (LLM)" abaixo)
+- Para o companheiro ENTENDER ordens: um LLM. O padrao e o OpenRouter (so precisa
+  de internet e de uma chave gratuita); a alternativa local (LM Studio) e
+  opcional - veja "O CEREBRO (LLM)" abaixo
 
 NAO PRECISA DE JOTUNN
 --------------------
@@ -33,18 +36,18 @@ so nao instale pensando que este mod precisa.
 INSTALACAO
 ----------
 1. Instale o BepInExPack_Valheim (manualmente, na pasta do Valheim).
-2. Extraia a pasta "ModAI-BR-Companions" deste zip para:
+2. Extraia a pasta "AI-Companions" deste zip para:
        ...\Valheim\BepInEx\plugins\
-   O zip ja traz a pasta "ModAI-BR-Companions" na raiz, entao o caminho final
+   O zip ja traz a pasta "AI-Companions" na raiz, entao o caminho final
    fica assim:
-       ...\Valheim\BepInEx\plugins\ModAI-BR-Companions\Companions.dll
+       ...\Valheim\BepInEx\plugins\AI-Companions\Companions.dll
 3. Os MODELOS (a voz e a fala) vao DENTRO dessa mesma pasta:
-       ...\BepInEx\plugins\ModAI-BR-Companions\whisper\   (STT - o que ele ouve)
-       ...\BepInEx\plugins\ModAI-BR-Companions\tts\       (TTS - o que ele fala)
+       ...\BepInEx\plugins\AI-Companions\whisper\   (STT - o que ele ouve)
+       ...\BepInEx\plugins\AI-Companions\tts\       (TTS - o que ele fala)
    O pacote "completo" ja traz os modelos prontos; o pacote "sem modelos" (bem
    menor) nao traz - copie os seus para as pastas acima.
 4. Entre no jogo. Se o BepInEx carregar o mod, o BepInEx\LogOutput.log mostra
-   "Loading [ModAI-BR-Companions 1.6.0]".
+   "Loading [AI Companions 1.6.0]".
 
 COMO USAR
 ---------
@@ -60,25 +63,43 @@ COMO USAR
 - VOZ: segure a tecla V, fale e solte. O texto e transcrito dentro do jogo e
   entra no mesmo caminho do chat.
 - PAINEL DA IA (tecla I): personalidade, voz (com o botao "Ouvir"), volume e
-  velocidade da fala, tecla do push-to-talk, memoria e conversa.
+  velocidade da fala, tecla do push-to-talk, memoria, conversa e as configuracoes
+  do LLM (URL, modelo e chave).
 - CONFIGURACOES (tecla F8): todas as opcoes do mod, inclusive a secao [IA].
 
 O CEREBRO (LLM)
 ---------------
-Para ENTENDER as ordens, o mod precisa de um servidor local compativel com a API
-da OpenAI. O caminho mais facil e o LM Studio (https://lmstudio.ai/):
+Para ENTENDER as ordens, o mod manda o texto para um LLM por uma API compativel
+com a da OpenAI. Ha dois caminhos:
+
+A) OPENROUTER (padrao - o mais facil, nao instala nada)
+1. Crie a conta e a chave gratuita em https://openrouter.ai/keys.
+2. No arquivo BepInEx\config\Maddhattr.OfflineCompanionsReborn.cfg, secao [IA]:
+      BaseUrl = https://openrouter.ai/api/v1     (ja e o padrao)
+      Modelo  = openrouter/free                  (ja e o padrao)
+      ApiKey  = <a sua chave>                    (obrigatoria)
+   O "openrouter/free" escolhe um modelo gratuito a cada pedido. O tier gratuito
+   tem fila e limite diario de pedidos (veja https://openrouter.ai/docs) - para
+   uso intenso, prefira a opcao local abaixo.
+   Atencao: com o OpenRouter o texto das ordens e da conversa SAI da sua maquina.
+3. No jogo: painel da IA (tecla I) -> Configuracoes do LLM -> "Testar conexao"
+   (ele confirma a URL; a chave e validada na primeira ordem de verdade).
+
+B) LM STUDIO (local e opcional - nada sai da sua maquina)
 1. Baixe e carregue um modelo pequeno - o testado e o qwen2.5-3b-instruct
    (modelos pequenos funcionam porque o mod usa saida estruturada em JSON).
-2. Ligue o servidor local (Local Server -> Start Server).
-3. No arquivo BepInEx\config\Maddhattr.OfflineCompanionsReborn.cfg, secao [IA]:
+2. Ligue o servidor local (Local Server -> Start Server), na porta 1234.
+3. No .cfg, secao [IA]:
       BaseUrl = http://127.0.0.1:1234/v1
       Modelo  = qwen2.5-3b-instruct
-   Dica: use 127.0.0.1 em vez de localhost. O padrao do mod e o localhost, mas
-   o 127.0.0.1 evita a resolucao de IPv6, que em alguns Windows atrasa ou falha
-   a conexao.
-   O BaseUrl aceita qualquer servidor compativel (Ollama, llama.cpp, vLLM).
-Sem o LLM ligado (ou com ele fora do ar) o mod carrega normalmente: o companheiro
-continua fazendo tudo o que ja fazia, mas nao entende ordens escritas/faladas.
+      ApiKey  = (vazio)
+   Dica: use 127.0.0.1 em vez de localhost. No Windows o localhost resolve
+   primeiro para IPv6, o que atrasa (ou falha) a conexao com o servidor local.
+
+O BaseUrl aceita qualquer servidor compativel (Ollama em
+http://127.0.0.1:11434/v1, llama.cpp, vLLM). Sem o LLM ligado (ou com ele fora do
+ar) o mod carrega normalmente: o companheiro continua fazendo tudo o que ja fazia,
+mas nao entende ordens escritas/faladas.
 
 COMANDOS DE CONSOLE (F5)
 ------------------------

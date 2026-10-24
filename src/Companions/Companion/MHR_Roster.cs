@@ -66,11 +66,18 @@ internal static class MHR_Roster
 
 	private static readonly List<Entry> s_entries = new List<Entry>();
 
+	/// <summary>Fase 3.19 (auditoria): the same entries by id - <see cref="Find"/> was a linear walk used by the
+	/// per-frame stale-copy check and by every snapshot; with the entries in a dictionary it is one lookup.</summary>
+	private static readonly Dictionary<string, Entry> s_byId = new Dictionary<string, Entry>(StringComparer.Ordinal);
+
 	private static string s_loadedKey;
 
 	private static Player s_loadedFor;
 
 	private static float s_nextSnapshot;
+
+	/// <summary>Fase 3.19: when the stale-copy check runs again (see <see cref="Tick"/>).</summary>
+	private static float s_nextStaleCheck;
 
 	private static string s_confirmId;
 
@@ -109,6 +116,7 @@ internal static class MHR_Roster
 		s_loadedFor = localPlayer;
 		s_loadedKey = text;
 		s_entries.Clear();
+		s_byId.Clear();
 		s_confirmId = null;
 		s_nextSnapshot = Time.unscaledTime + LoadSettleSeconds + 2f;
 		if (localPlayer.m_customData.TryGetValue(text, out var value) && !string.IsNullOrEmpty(value))
@@ -120,6 +128,10 @@ internal static class MHR_Roster
 				if (entry != null)
 				{
 					s_entries.Add(entry);
+					if (!string.IsNullOrEmpty(entry.Id))
+					{
+						s_byId[entry.Id] = entry;
+					}
 				}
 			}
 		}
@@ -236,14 +248,8 @@ internal static class MHR_Roster
 		{
 			return null;
 		}
-		foreach (Entry s_entry in s_entries)
-		{
-			if (s_entry.Id == id)
-			{
-				return s_entry;
-			}
-		}
-		return null;
+		Entry entry;
+		return s_byId.TryGetValue(id, out entry) ? entry : null;
 	}
 
 	internal static int GenOf(string id)
@@ -282,11 +288,18 @@ internal static class MHR_Roster
 		{
 			return;
 		}
-		RemoveStaleCopies();
 		if (Time.unscaledTime >= s_nextSnapshot)
 		{
 			s_nextSnapshot = Time.unscaledTime + ModConfig.RosterSaveInterval.Value;
 			SnapshotAll();
+		}
+		// Fase 3.19 (auditoria): the stale-copy walk is O(N) over every companion and used to run on EVERY frame. It
+		// has its own gate (1 s): the roster only changes on a snapshot, and one second is plenty to notice a copy
+		// that turned up.
+		if (Time.unscaledTime >= s_nextStaleCheck)
+		{
+			s_nextStaleCheck = Time.unscaledTime + 1f;
+			RemoveStaleCopies();
 		}
 		if (ModConfig.ShowCompanionRoster.Value)
 		{
@@ -298,6 +311,62 @@ internal static class MHR_Roster
 			ModConfig.RecoverLostCompanion.Value = false;
 			RecoverNext();
 		}
+	}
+
+	/// <summary>
+	/// Fase 3.19: how many companions the local player has in this world. It is the roster (alive, dead, lost and
+	/// unknown - the entries saved with the character) plus every live companion the roster hasn't snapshotted yet
+	/// (the first snapshot only happens a few seconds after entering the world). Used by the
+	/// <c>[General] MaxCompanions</c> ceiling - dying does not free a place, because the tombstone brings the same
+	/// companion back instead of creating one.
+	/// </summary>
+	internal static int CountMine()
+	{
+		if (!EnsureLoaded())
+		{
+			return 0;
+		}
+		string owner = MyId();
+		HashSet<string> ids = new HashSet<string>(StringComparer.Ordinal);
+		int count = 0;
+		for (int i = 0; i < s_entries.Count; i++)
+		{
+			Entry entry = s_entries[i];
+			if (entry == null)
+			{
+				continue;
+			}
+			// the roster is stored in this character's own data, so it is already "mine"; the owner is only checked
+			// when it is written (an entry from an old save has it empty)
+			if (!string.IsNullOrEmpty(entry.Owner) && !string.IsNullOrEmpty(owner) && entry.Owner != owner)
+			{
+				continue;
+			}
+			if (!string.IsNullOrEmpty(entry.Id))
+			{
+				ids.Add(entry.Id);
+			}
+			count++;
+		}
+		foreach (CompanionSetup companion in CompanionSetup.AllCompanions)
+		{
+			if (companion == null || companion._mhrStale || !MHR_Owner.IsMine(companion))
+			{
+				continue;
+			}
+			ZDO zdo = companion.GetComponent<ZNetView>()?.GetZDO();
+			if (zdo == null)
+			{
+				continue;
+			}
+			string id = zdo.GetString(CompanionSetup.MHR_CompanionIdHash, "");
+			if (!string.IsNullOrEmpty(id) && ids.Contains(id))
+			{
+				continue;   // already counted from the roster
+			}
+			count++;
+		}
+		return count;
 	}
 
 	// an older copy of a recovered companion has turned up (found in the wild, or its old tombstone respawned it) - remove it
@@ -330,14 +399,63 @@ internal static class MHR_Roster
 			string text = zDO.GetString(CompanionSetup.NameHash, ModLocalization.Loc("hc_msg_name_default"));
 			CompanionsPlugin.Log.LogWarning($"[Roster] Found an old copy of \"{text}\" at {item.transform.position:F1} (copy {zDO.GetInt(GenHash)}, the recovered one is copy {Find(zDO.GetString(CompanionSetup.MHR_CompanionIdHash)).Gen}) - removing it");
 			MessageHud.instance?.ShowMessage(MessageHud.MessageType.TopLeft, ModLocalization.LocFmt("hc_roster_old_copy", text));
+			// Fase 3.19 (auditoria): the old copy is destroyed, so its pack goes to the ground first - the copy is
+			// removed, its items are not (an old copy that came back from the wild could be carrying everything the
+			// player had, and deleting it silently lost the lot)
+			DropInventory(item, text);
 			item._mhrStale = true;
-			item.PrepareForDespawn();
+			// Fase 3.19: NOT PrepareForDespawn() - that one would forget the roster entry of the companion by id, and
+			// the old copy shares the id with the recovered (live) one
+			item.PrepareStaleCopyForDespawn();
 			Humanoid component2 = item.GetComponent<Humanoid>();
 			if (component2 != null)
 			{
 				component2.m_onDeath = null;
 			}
 			item.GetComponent<ZNetView>().Destroy();
+		}
+	}
+
+	/// <summary>Fase 3.19: puts everything the old copy carries on the ground under it, the same way the game drops a
+	/// container's contents. Called before the copy is destroyed - nothing is ever deleted.</summary>
+	private static void DropInventory(CompanionSetup item, string name)
+	{
+		try
+		{
+			Humanoid humanoid = item.GetComponent<Humanoid>();
+			Inventory inventory = humanoid != null ? humanoid.GetInventory() : null;
+			if (inventory == null || inventory.NrOfItems() == 0)
+			{
+				return;
+			}
+			Vector3 position = item.transform.position + Vector3.up * 0.6f;
+			List<ItemDrop.ItemData> items = new List<ItemDrop.ItemData>(inventory.GetAllItems());
+			int dropped = 0;
+			int skipped = 0;
+			for (int i = 0; i < items.Count; i++)
+			{
+				ItemDrop.ItemData data = items[i];
+				if (data == null)
+				{
+					continue;
+				}
+				// the same order of the drop order (CompanionOrders.Drop): spawn the world item first, then take it out
+				// of the pack - an item with no world prefab stays where it is instead of vanishing
+				ItemDrop drop = ItemDrop.DropItem(data, data.m_stack, position, Quaternion.identity);
+				if (drop == null)
+				{
+					skipped++;
+					continue;
+				}
+				inventory.RemoveItem(data);
+				dropped++;
+			}
+			CompanionsPlugin.Log.LogInfo($"[Roster] \"{name}\": {dropped} item(s) of the old copy were dropped on the ground"
+				+ (skipped > 0 ? $" ({skipped} had no world prefab)" : ""));
+		}
+		catch (Exception ex)
+		{
+			CompanionsPlugin.Log.LogWarning("[Roster] Couldn't drop the old copy's items: " + ex.Message);
 		}
 	}
 
@@ -397,6 +515,7 @@ internal static class MHR_Roster
 				Id = id
 			};
 			s_entries.Add(entry);
+			s_byId[id] = entry;
 			CompanionsPlugin.Log.LogInfo(string.Format("[Roster] Added \"{0}\" to your companion roster for this world ({1} item(s))", zdo.GetString(CompanionSetup.NameHash, "Companion"), c.GetComponent<Humanoid>()?.GetInventory()?.NrOfItems() ?? 0));
 		}
 		entry.Gen = zdo.GetInt(GenHash);
@@ -461,6 +580,7 @@ internal static class MHR_Roster
 		if (entry != null)
 		{
 			s_entries.Remove(entry);
+			s_byId.Remove(entry.Id);
 			Save(toDisk: true);
 			CompanionsPlugin.Log.LogInfo("[Roster] \"" + entry.Name + "\" was despawned - removed from your companion roster");
 		}

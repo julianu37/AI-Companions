@@ -53,7 +53,7 @@ internal static class PickupIntent
 			// "no chao" has to appear whole
 			string padded = "_" + text + "_";
 			// guarda-corpo: "nopickup" é a ordem LEGÍTIMA quando o jogador pede para PARAR de recolher
-			if (HasPhrase(padded, StopVerbs) || HasPhrase(padded, RefusePhrases))
+			if (IsStop(padded) || HasPhrase(padded, RefusePhrases))
 			{
 				return null;
 			}
@@ -117,11 +117,51 @@ internal static class PickupIntent
 		return false;
 	}
 
-	/// <summary>The verbs that ask to STOP, which are exactly the <c>nopickup</c> the player meant.</summary>
+	/// <summary>The verbs that ask to STOP and can never mean anything else ("pare", "parar"...). The bare "para" is
+	/// NOT here: it is also the preposition of "joga essas pedras para o chão" (Fase 3.19), and read as a stop verb it
+	/// turned a legit drop order into "stop picking up".</summary>
 	private static readonly string[] StopVerbs = new string[]
 	{
-		"para", "pare", "parar", "parem", "paro", "parei"
+		"pare", "parar", "parem"
 	};
+
+	/// <summary>Fase 3.19: "para de recolher" - the same word with "de" after it is the verb + preposition, anywhere in the
+	/// message.</summary>
+	private static readonly string[] StopPhrases = new string[]
+	{
+		"para_de", "pare_de", "parar_de", "para_com"
+	};
+
+	/// <summary>Fase 3.19: the verbs that are also prepositions ("para", "paro", "parei"): they only mean "stop" at the
+	/// beginning or at the end of the message ("para", "agora para") - never in the middle ("joga as pedras para o
+	/// chão").</summary>
+	private static readonly string[] AmbiguousStopVerbs = new string[]
+	{
+		"para", "paro", "parei"
+	};
+
+	/// <summary>Fase 3.19: the stop verbs of <see cref="NeighborAction"/>, with the position rule above.</summary>
+	private static bool IsStop(string padded)
+	{
+		if (HasPhrase(padded, StopVerbs) || HasPhrase(padded, StopPhrases))
+		{
+			return true;
+		}
+		string text = padded.Trim('_');
+		string[] words = text.Split('_');
+		for (int i = 0; i < words.Length; i++)
+		{
+			if (Array.IndexOf(AmbiguousStopVerbs, words[i]) < 0)
+			{
+				continue;
+			}
+			if (i == 0 || i == words.Length - 1)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
 
 	/// <summary>"não pegue nada", "não recolha": the same intent, written out.</summary>
 	private static readonly string[] RefusePhrases = new string[]

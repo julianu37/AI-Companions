@@ -47,6 +47,9 @@ public class CompanionPanel
 
 	private CompanionTierDef _selectedTier;
 
+	/// <summary>Fase 3.19: when the bank line was last rebuilt (see UpdatePerFrame - twice a second, not every frame).</summary>
+	private float _bankRefreshAt;
+
 	private List<string> _hairs = new List<string>();
 
 	private List<string> _beards = new List<string>();
@@ -85,6 +88,26 @@ public class CompanionPanel
 
 	private Slider _hairBrightSlider;
 
+	/// <summary>
+	/// Fase 3.21 (bug dos sliders): the colours the companion already had when the editor opened, kept aside because
+	/// <see cref="BuildCustomColumn"/> ends by writing the starter's own defaults into <see cref="_current"/> (its
+	/// sliders are born on those values, which is right for the starter). In edit mode the stored colours are the truth,
+	/// and <see cref="ApplyAppearanceToControls"/> puts them back before moving the sliders - without this the editor
+	/// reopened showing the default colours (the sliders "went back to the start") and the stored ones were lost.
+	/// </summary>
+	private Vector3 _storedSkinColor;
+
+	private Vector3 _storedHairColor;
+
+	/// <summary>The last (hair, beard) pair logged by the preview diagnostic, so a slider drag logs once per item.</summary>
+	private string _lastPreviewHairLog;
+
+	/// <summary>The haircut/beard hashes last applied to the preview clone: the game's attach cache is only cleared when
+	/// one of them really changed (see <see cref="ApplyCurrentToClone"/>).</summary>
+	private int _lastPreviewHairHash = int.MinValue;
+
+	private int _lastPreviewBeardHash = int.MinValue;
+
 	private GameObject _dvergerGroup;
 
 	private CompanionTierDef _selectedDvergerVariant;
@@ -95,7 +118,109 @@ public class CompanionPanel
 
 	internal Action<CompanionAppearance> OnSpawnConfirmed;
 
+	// ------------------------------------------------------------------ the appearance editor (a companion that exists)
+	//
+	// The same panel in a second mode: the left column (gender, hair, beard, colours) and the 3D preview are the very
+	// ones of the starter - there is only one implementation of them - and the middle column is replaced by a short
+	// line saying whose look is being edited and the two buttons ("Aplicar" / "Cancelar").
+	//
+	// Nothing here touches the companion. The appearance being edited is a COPY read from the target's ZDO
+	// (ReadTargetAppearance), the preview is the visual clone (never the real object), and writing anything belongs to
+	// the host (UI/CompanionAppearancePanel.cs): the panel only says "this is what the player built".
+
+	/// <summary>True while the panel edits the look of a companion that already exists (no AI section, no "Invocar").</summary>
+	internal bool AppearanceEditMode;
+
+	/// <summary>The companion being edited (AppearanceEditMode only). Only read here - its ZDO is written by the host.</summary>
+	internal CompanionSetup EditTarget;
+
+	/// <summary>"Aplicar": the appearance built in the panel. Applying it (and writing the ZDO) belongs to the host.</summary>
+	internal Action<CompanionAppearance> OnAppearanceConfirmed;
+
+	/// <summary>"Cancelar": the player gave up. Nothing was written, and the host closes the window.</summary>
+	internal Action OnAppearanceCancelled;
+
 	private GameObject _bankDisplayGO;
+
+	// ------------------------------------------------------------------ Fase 3.10: the AI section of the starter panel
+	//
+	// The voice and the personality of the companion that is about to be born. They cannot be written anywhere yet
+	// (the companion does not exist while this panel is open), so they are kept here and handed to the spawn as a
+	// CompanionAiDraft - see AiDraft(). The first entry of both pickers is "follow the [IA] default", which writes
+	// nothing: the companion then follows the global values, including any change made later.
+
+	private const float AiRowH = 32f;
+
+	private const float AiGap = 4f;
+
+	// Middle column geometry (Fase 3.12), all measured from the bottom of the column. The AI section and the
+	// description are stacked from there, so the description can only be as tall as what the three bands leave - and
+	// the numbers are logged at build time (LogMiddleColumnLayout) instead of being guessed from a screenshot.
+	private const float MiddleBuyBottom = 8f;
+
+	/// <summary>Room between "Invocar" and the AI section.</summary>
+	private const float MiddleSectionGap = 12f;
+
+	/// <summary>Room between the AI section and the description scroll view.</summary>
+	private const float MiddleDescGap = 12f;
+
+	/// <summary>Room kept at the top of the column for the panel title ("Escolha seu Companheiro").</summary>
+	private const float MiddleDescTop = 38f;
+
+	/// <summary>Height of the name band of the starter (its label, the 2px gap and the field itself).</summary>
+	private const float MiddleNameH = 18f + 2f + AiRowH;
+
+	private TextMeshProUGUI _aiVoiceValue;
+
+	private TextMeshProUGUI _aiPresetValue;
+
+	private TMP_InputField _aiFreeText;
+
+	private int _aiVoiceIndex;
+
+	private int _aiPresetIndex;
+
+	private int[] _aiVoiceIds;
+
+	private string[] _aiVoiceLabels;
+
+	private string[] _aiPresetIds;
+
+	private string[] _aiPresetLabels;
+
+	// ------------------------------------------------------------------ Fase 3.13: the name of the first companion
+
+	/// <summary>The name field of the starter panel: the player's own name for the companion that is about to be born.</summary>
+	private TMP_InputField _nameField;
+
+	/// <summary>The default the field currently carries (the localized name of the chosen tier).</summary>
+	private string _nameDefault = "";
+
+	/// <summary>
+	/// Has the player typed something that is not the default? While it is false the field follows the chosen tier
+	/// ("Companheiro", "Guerreiro"...); once it is true the player's text is kept, even if the tier changes. Clearing
+	/// the field (empty/only spaces) puts it back to following the default.
+	/// </summary>
+	private bool _nameEdited;
+
+	/// <summary>Fase 3.12: "Ouvir" of the AI section, kept so its geometry can be written to the log (and so a future
+	/// change can enable/disable it without hunting for it).</summary>
+	private Button _aiListenButton;
+
+	/// <summary>Where the "Ouvir" button sits, measured from the panel's bottom (filled by BuildAiSection).</summary>
+	private float _aiListenBottom;
+
+	/// <summary>The height of the AI section, as returned to BuildMiddleColumn (filled by BuildAiSection).</summary>
+	private float _aiHeight;
+
+	// The panel geometry the middle column lays itself out with (set by Build, from the arguments the caller passed):
+	// the layout is computed by hand here, so these are the numbers that have to be logged and reasoned about. The
+	// values below are only placeholders until Build runs (it always runs before anything reads them).
+	private float _panelHeight = 660f;
+
+	private float _columnHeight = 648f;
+
+	private float _middleWidth = 299f;
 
 	private static readonly MethodInfo _updateVisuals = AccessTools.Method(typeof(VisEquipment), "UpdateVisuals");
 
@@ -163,12 +288,25 @@ public class CompanionPanel
 
 	public void Build(Transform parent, float colTopInset, float bottomPad, TMP_FontAsset font, GameObject buttonTemplate, float buttonHeight, float leftXL, float leftXR, float midXL, float midXR, float rightXL, float rightXR, float panelHeight)
 	{
-		_current = CompanionAppearance.Default();
-		_selectedTier = CompanionTierData.Companion;
+		// the editor starts from the look the companion already has (its HC_Appearance), never from Default(): the panel
+		// has to show what is there before the player changes it. The tier is only used for the preview prefab and for
+		// whether the appearance even applies (a dverger's look is its prefab), so it is read from the target too.
+		_current = AppearanceEditMode ? ReadTargetAppearance() : CompanionAppearance.Default();
+		_selectedTier = (AppearanceEditMode ? TierOfTarget() : null) ?? CompanionTierData.Companion;
+		// Fase 3.21: the colours the companion already has, kept before anything touches _current (see the fields below)
+		_storedSkinColor = _current.SkinColor;
+		_storedHairColor = _current.HairColor;
 		if (buttonHeight <= 0f)
 		{
 			buttonHeight = 30f;
 		}
+		// Fase 3.12 (bug de layout): the numbers the middle column lays itself out with, kept so the geometry can be
+		// written in one line to the log at build time - see LogMiddleColumnLayout. Nothing reads the RectTransform
+		// here on purpose: at build time the layout has not run yet, and the panel's own measurements are the ones
+		// that matter.
+		_panelHeight = panelHeight;
+		_columnHeight = panelHeight - colTopInset - bottomPad;
+		_middleWidth = midXR - midXL;
 		Root = new GameObject("CompanionContent", typeof(RectTransform));
 		Root.transform.SetParent(parent, worldPositionStays: false);
 		RectTransform component = Root.GetComponent<RectTransform>();
@@ -183,8 +321,21 @@ public class CompanionPanel
 		float colW = rightXR - rightXL;
 		float colH = panelHeight - colTopInset - bottomPad;
 		BuildCustomColumn(col, font, buttonTemplate);
-		BuildMiddleColumn(col2, font, buttonTemplate, buttonHeight);
+		if (AppearanceEditMode)
+		{
+			BuildEditColumn(col2, font, buttonTemplate, buttonHeight);
+		}
+		else
+		{
+			BuildMiddleColumn(col2, font, buttonTemplate, buttonHeight);
+		}
 		BuildPreviewColumn(col3, colW, colH);
+		if (AppearanceEditMode)
+		{
+			// BuildCustomColumn leaves the controls on the starter's defaults (its sliders are born there): the stored
+			// appearance goes back on them - sliders included - before the first frame of the editor
+			ApplyAppearanceToControls();
+		}
 		Root.SetActive(value: false);
 	}
 
@@ -195,14 +346,26 @@ public class CompanionPanel
 			LoadHairBeardLists();
 		}
 		SetupPreviewClone();
-		RefreshBankDisplay();
+		if (!AppearanceEditMode)
+		{
+			RefreshBankDisplay();
+		}
 	}
 
 	public void UpdatePerFrame()
 	{
 		UpdatePreviewRotation();
 		UpdatePreviewCamera();
-		RefreshBankDisplay();
+		// Fase 3.19 (auditoria): the bank line was rebuilt every frame (a balance lookup plus two formatted strings,
+		// 60x a second). Twice a second is plenty - and the tier click repaints the button itself (SetType ->
+		// RefreshBuyButtonLabel). The appearance editor has no bank line at all (it edits a companion that is already
+		// paid for), so the tick costs nothing there.
+		float now = Time.unscaledTime;
+		if (!AppearanceEditMode && now - _bankRefreshAt >= 0.5f)
+		{
+			_bankRefreshAt = now;
+			RefreshBankDisplay();
+		}
 		if (_cam == null)
 		{
 			return;
@@ -273,14 +436,18 @@ public class CompanionPanel
 		return _genderBtnSprite;
 	}
 
+	/// <summary>
+	/// Releases one of the panel's own sprites. The <b>texture is not ours</b>: it comes from
+	/// <see cref="TextureLoader.LoadUITexture"/>, which caches it by name and hands the very same one to every panel of
+	/// the mod - destroying it here would leave a destroyed texture in that cache for whoever asks next. That used to be
+	/// invisible (the panel was built once and torn down at the end of the session), but the appearance editor
+	/// (Fase 3.20) opens and closes this panel whenever the player wants, one right after the other - so only the sprite
+	/// goes, which is what <c>CompanionAiPanel</c> already does for the same reason.
+	/// </summary>
 	private static void DestroySprite(ref Sprite sprite)
 	{
 		if (sprite != null)
 		{
-			if (sprite.texture != null)
-			{
-				UnityEngine.Object.Destroy(sprite.texture);
-			}
 			UnityEngine.Object.Destroy(sprite);
 			sprite = null;
 		}
@@ -461,9 +628,15 @@ public class CompanionPanel
 		float num12 = Mathf.Max(num9, num11);
 		num -= num12;
 		component2.sizeDelta = new Vector2(0f, 0f - num + 8f);
-		float t = ((_skinSlider != null) ? _skinSlider.value : 0.05f);
-		_current.SkinColor = Utils.ColorToVec3(Color.Lerp(SkinLight, SkinDark, t));
-		UpdateHairColor();
+		// Fase 3.21 (bug dos sliders): writing _current from the sliders that were just born is the starter's job only.
+		// In the editor it threw away the stored colours (they were read from the ZDO at the top of Build), so the
+		// "nearest point" of the next step was always the default one and the panel reopened on the start positions.
+		if (!AppearanceEditMode)
+		{
+			float t = ((_skinSlider != null) ? _skinSlider.value : 0.05f);
+			_current.SkinColor = Utils.ColorToVec3(Color.Lerp(SkinLight, SkinDark, t));
+			UpdateHairColor();
+		}
 		RefreshTypeButtons();
 		RefreshGenderButtons();
 	}
@@ -527,17 +700,41 @@ public class CompanionPanel
 			component3.anchorMax = new Vector2(1f, 0f);
 			component3.pivot = new Vector2(0.5f, 0f);
 			component3.sizeDelta = new Vector2(-24f, btnH);
-			component3.anchoredPosition = new Vector2(0f, 8f);
+			component3.anchoredPosition = new Vector2(0f, MiddleBuyBottom);
 		}
-		GameObject gameObject3 = new GameObject("DescScrollArea", typeof(RectTransform), typeof(Image), typeof(Mask));
+		// Fase 3.10/3.13: the bands of the middle column, from the bottom up: "Invocar", the AI section (starter only),
+		// the name of the companion (starter only) and the description scroll view, which gets whatever is left between
+		// the name band and the title. The heights the builders report are what reserve their space - nothing overlaps,
+		// and the numbers are written to the log below so the account can be checked without opening the game.
+		float buyTop = MiddleBuyBottom + (buttonTemplate != null ? btnH : 0f);
+		float aiBottom = buyTop + MiddleSectionGap;
+		_aiHeight = 0f;
+		if (StarterMode && buttonTemplate != null)
+		{
+			_aiHeight = BuildAiSection(col.transform, font, buttonTemplate, aiBottom);
+		}
+		float aiTop = aiBottom + _aiHeight;
+		float nameBottom = aiTop + MiddleDescGap;
+		float nameHeight = 0f;
+		if (StarterMode && buttonTemplate != null)
+		{
+			nameHeight = BuildNameField(col.transform, font, nameBottom);
+		}
+		float descBottom = (nameHeight > 0f) ? (nameBottom + nameHeight + MiddleDescGap) : (_aiHeight > 0f ? (aiTop + MiddleDescGap) : y);
+		GameObject gameObject3 = new GameObject("DescScrollArea", typeof(RectTransform), typeof(Image), typeof(RectMask2D));
 		gameObject3.transform.SetParent(col, worldPositionStays: false);
 		RectTransform component4 = gameObject3.GetComponent<RectTransform>();
 		component4.anchorMin = Vector2.zero;
 		component4.anchorMax = Vector2.one;
-		component4.offsetMin = new Vector2(8f, y);
-		component4.offsetMax = new Vector2(-14f, -38f);
+		component4.offsetMin = new Vector2(8f, descBottom);
+		component4.offsetMax = new Vector2(-14f, 0f - MiddleDescTop);
 		gameObject3.GetComponent<Image>().color = new Color(1f, 1f, 1f, 0.003f);
-		gameObject3.GetComponent<Mask>().showMaskGraphic = false;
+		// RectMask2D, not Mask (Fase 3.12 - the reported bug): the description text was drawing its last lines OUTSIDE
+		// the viewport, over the top of the AI section (the "two overlapping texts" of the screenshot). A Mask clips
+		// through a stencil written by the Image's material; RectMask2D clips by rectangle, with no stencil and no
+		// material involved, so text longer than the viewport can only ever be scrolled - it is the same component the
+		// mod's own text boxes use for the same reason.
+		gameObject3.GetComponent<RectMask2D>().padding = Vector4.zero;
 		GameObject gameObject4 = new GameObject("DescText", typeof(RectTransform));
 		gameObject4.transform.SetParent(gameObject3.transform, worldPositionStays: false);
 		TextMeshProUGUI textMeshProUGUI2 = gameObject4.AddComponent<TextMeshProUGUI>();
@@ -570,6 +767,623 @@ public class CompanionPanel
 		scrollRect.scrollSensitivity = 40f;
 		scrollRect.verticalScrollbar = verticalScrollbar;
 		scrollRect.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
+		if (StarterMode)
+		{
+			LogMiddleColumnLayout(btnH, buyTop, aiBottom, aiTop, nameBottom, nameHeight, descBottom);
+		}
+	}
+
+	// ------------------------------------------------------------------ the middle column of the appearance editor
+
+	/// <summary>Room between "Aplicar" and "Cancelar" of the editor.</summary>
+	private const float EditButtonGap = 8f;
+
+	/// <summary>How far below the title the "Editando a aparência de ..." line starts, and how tall it may grow before it
+	/// would run into the buttons (the log says how much room is left between the two).</summary>
+	private const float EditTextTop = 44f;
+
+	private const float EditTextH = 72f;
+
+	/// <summary>
+	/// The middle column of the appearance editor: the title, one line saying whose look is being edited and the two
+	/// buttons, nothing else. It is much shorter than the starter's column on purpose - there is no AI section, no name
+	/// field and no description, because nothing but the look is touched here (the tier, the name, the AI profile, the
+	/// inventory, the equipment and the position all stay as they are).
+	///
+	/// <para>The buttons are built exactly like the starter's "Invocar" (an explicit rect anchored to both sides of the
+	/// column), so their size comes from the column and not from a helper row - the same lesson as the AI section's
+	/// "Ouvir". The numbers are written to the log once (see <see cref="LogEditColumnLayout"/>).</para>
+	/// </summary>
+	private void BuildEditColumn(RectTransform col, TMP_FontAsset font, GameObject buttonTemplate, float btnH)
+	{
+		GameObject titleGO = new GameObject("Title", typeof(RectTransform));
+		titleGO.transform.SetParent(col, worldPositionStays: false);
+		TextMeshProUGUI title = titleGO.AddComponent<TextMeshProUGUI>();
+		if (font != null)
+		{
+			title.font = font;
+		}
+		title.fontSize = 24f;
+		title.color = Color.white;
+		title.alignment = TextAlignmentOptions.Center;
+		title.text = ModLocalization.Loc("hc_ui_title_appearance");
+		title.raycastTarget = false;
+		RectTransform titleRT = titleGO.GetComponent<RectTransform>();
+		titleRT.anchorMin = new Vector2(0f, 1f);
+		titleRT.anchorMax = new Vector2(1f, 1f);
+		titleRT.pivot = new Vector2(0.5f, 1f);
+		titleRT.sizeDelta = new Vector2(-20f, 32f);
+		titleRT.anchoredPosition = new Vector2(0f, -4f);
+
+		// "Editando a aparência de X" - the one thing the player must be able to read with two companions around
+		TextMeshProUGUI who = MakeText(col, "EditingFor", ModLocalization.LocFmt("hc_ui_editing_appearance", TargetName()), font,
+			17f, LabelText, TextAlignmentOptions.Top);
+		who.textWrappingMode = TextWrappingModes.Normal;
+		who.overflowMode = TextOverflowModes.Overflow;
+		RectTransform whoRT = who.GetComponent<RectTransform>();
+		whoRT.anchorMin = new Vector2(0f, 1f);
+		whoRT.anchorMax = new Vector2(1f, 1f);
+		whoRT.pivot = new Vector2(0.5f, 1f);
+		whoRT.sizeDelta = new Vector2(-26f, EditTextH);
+		whoRT.anchoredPosition = new Vector2(0f, 0f - EditTextTop);
+
+		float applyBottom = MiddleBuyBottom;
+		float cancelBottom = applyBottom + btnH + EditButtonGap;
+		if (buttonTemplate != null)
+		{
+			GameObject apply = CreateActionButton(buttonTemplate, col, "AppearanceApply", ModLocalization.Loc("hc_ui_btn_apply"));
+			RectTransform applyRT = apply.GetComponent<RectTransform>();
+			applyRT.anchorMin = new Vector2(0f, 0f);
+			applyRT.anchorMax = new Vector2(1f, 0f);
+			applyRT.pivot = new Vector2(0.5f, 0f);
+			applyRT.sizeDelta = new Vector2(-24f, btnH);
+			applyRT.anchoredPosition = new Vector2(0f, applyBottom);
+			Button applyBtn = apply.GetComponent<Button>();
+			if (applyBtn != null)
+			{
+				applyBtn.onClick.AddListener(delegate
+				{
+					OnApplyClicked();
+				});
+			}
+
+			GameObject cancel = CreateActionButton(buttonTemplate, col, "AppearanceCancel", ModLocalization.Loc("hc_ui_btn_cancel"));
+			RectTransform cancelRT = cancel.GetComponent<RectTransform>();
+			cancelRT.anchorMin = new Vector2(0f, 0f);
+			cancelRT.anchorMax = new Vector2(1f, 0f);
+			cancelRT.pivot = new Vector2(0.5f, 0f);
+			cancelRT.sizeDelta = new Vector2(-24f, btnH);
+			cancelRT.anchoredPosition = new Vector2(0f, cancelBottom);
+			Button cancelBtn = cancel.GetComponent<Button>();
+			if (cancelBtn != null)
+			{
+				cancelBtn.onClick.AddListener(delegate
+				{
+					OnCancelClicked();
+				});
+			}
+		}
+		else
+		{
+			CompanionsPlugin.Log?.LogWarning("[AppearancePanel] no button template - the editor has no Aplicar/Cancelar (Esc still closes it)");
+		}
+		LogEditColumnLayout(btnH, applyBottom, cancelBottom);
+	}
+
+	/// <summary>
+	/// One line with the geometry of the editor's middle column, written once when the panel is built - the same idea as
+	/// <see cref="LogMiddleColumnLayout"/> for the starter: the panel, the column, the two buttons and the room the text
+	/// band gets. Every number is measured from the bottom of the column except the widths and the panel height, and
+	/// they are the very numbers the rects above were built with.
+	/// </summary>
+	private void LogEditColumnLayout(float btnH, float applyBottom, float cancelBottom)
+	{
+		// the text band is anchored to the top of the column and the buttons to its bottom: the free band between them is
+		// what a longer line ("Editando a aparência de ...") would have before it would have to be shortened
+		float textBottom = EditTextTop + EditTextH;
+		float cancelTop = cancelBottom + btnH;
+		float free = Mathf.Max(0f, _columnHeight - textBottom - cancelTop);
+		CompanionsPlugin.Log?.LogInfo($"[AppearancePanel] Layout da coluna do meio: painel={_panelHeight:0} coluna={_columnHeight:0} largura={_middleWidth:0} | "
+			+ $"alvo=\"{TargetName()}\" | Aplicar: base={applyBottom:0} altura={btnH:0} topo={applyBottom + btnH:0} | "
+			+ $"Cancelar: base={cancelBottom:0} topo={cancelTop:0} | texto: topo={EditTextTop:0} altura={EditTextH:0} (do topo) | faixa livre={free:0}");
+	}
+
+	/// <summary>"Aplicar": hands the appearance being edited to the host (which applies it and writes the ZDO).</summary>
+	private void OnApplyClicked()
+	{
+		CompanionsPlugin.Log?.LogInfo($"[AppearancePanel] Aplicar: gender={_current.ModelIndex}, hair={_current.HairItem}, beard={_current.BeardItem}");
+		OnAppearanceConfirmed?.Invoke(_current);
+	}
+
+	/// <summary>"Cancelar": nothing is written; the host closes the window.</summary>
+	private void OnCancelClicked()
+	{
+		CompanionsPlugin.Log?.LogInfo("[AppearancePanel] Cancelar: nada foi gravado");
+		OnAppearanceCancelled?.Invoke();
+	}
+
+	/// <summary>The look the companion has now, read from its ZDO (a copy - the panel never writes it).</summary>
+	private CompanionAppearance ReadTargetAppearance()
+	{
+		string data = EditTarget != null ? EditTarget.GetComponent<ZNetView>()?.GetZDO()?.GetString(CompanionSetup.AppearanceHash) : null;
+		CompanionAppearance appearance = string.IsNullOrEmpty(data) ? CompanionAppearance.Default() : CompanionAppearance.Deserialize(data);
+		// Fase 3.21 (bug dos sliders): the raw value and what came out of it, once per open - it is what tells whether
+		// the panel is showing what the ZDO holds (and it is the only place the string is available)
+		CompanionsPlugin.Log?.LogInfo($"[AppearanceDiag] abrindo o editor: HC_Appearance "
+			+ (string.IsNullOrEmpty(data) ? "(vazia - usando o padrao)" : $"\"{data}\"")
+			+ $" -> gender={appearance.ModelIndex} hair=\"{appearance.HairItem}\" beard=\"{appearance.BeardItem}\" "
+			+ $"skin={Vec(appearance.SkinColor)} cabelo={Vec(appearance.HairColor)}");
+		return appearance;
+	}
+
+	/// <summary>
+	/// The tier of the companion being edited, from the prefab the ZDO was spawned with (the same way the AI panel's tab
+	/// reads it). It only decides the preview prefab - and, through <see cref="CompanionTierDef.CanWearArmor"/>, whether
+	/// the appearance even shows (a dverger's look is its prefab; the values are still kept for a future tier change).
+	/// </summary>
+	private CompanionTierDef TierOfTarget()
+	{
+		ZDO zdo = EditTarget != null ? EditTarget.GetComponent<ZNetView>()?.GetZDO() : null;
+		if (zdo != null)
+		{
+			int prefab = zdo.GetPrefab();
+			CompanionTierDef[] all = CompanionTierData.All;
+			for (int i = 0; i < all.Length; i++)
+			{
+				if (all[i].PrefabName.GetStableHashCode() == prefab)
+				{
+					return all[i];
+				}
+			}
+		}
+		return CompanionTierData.Companion;
+	}
+
+	/// <summary>The name of the companion being edited, for the "Editando a aparência de ..." line.</summary>
+	private string TargetName()
+	{
+		if (EditTarget == null)
+		{
+			return "";
+		}
+		string stored = EditTarget.GetComponent<ZNetView>()?.GetZDO()?.GetString(CompanionSetup.NameHash);
+		if (!string.IsNullOrEmpty(stored))
+		{
+			return stored;
+		}
+		Character character = EditTarget.GetComponent<Character>();
+		if (character != null && !string.IsNullOrEmpty(character.m_name))
+		{
+			return character.m_name;
+		}
+		return ModLocalization.Loc("hc_msg_name_default");
+	}
+
+	/// <summary>
+	/// Fase 3.13: the name of the companion the starter is about to spawn - a label and the panel's own text field,
+	/// pre-filled with the localized name of the chosen tier ("Companheiro"). While the player has not typed anything the
+	/// field follows the tier (see <see cref="RefreshNameDefault"/>); once the player types, the text is theirs. The
+	/// value is read once, at spawn, by <see cref="AiDraft"/>.
+	/// </summary>
+	private float BuildNameField(Transform parent, TMP_FontAsset font, float bottomY)
+	{
+		GameObject group = new GameObject("NameSection", typeof(RectTransform));
+		group.transform.SetParent(parent, worldPositionStays: false);
+		RectTransform rt = group.GetComponent<RectTransform>();
+		rt.anchorMin = new Vector2(0f, 0f);
+		rt.anchorMax = new Vector2(1f, 0f);
+		rt.pivot = new Vector2(0.5f, 0f);
+		rt.sizeDelta = new Vector2(-24f, MiddleNameH);
+		rt.anchoredPosition = new Vector2(0f, bottomY);
+		Transform content = group.transform;
+
+		float y = 0f;
+		y = PlacePlainLabel(content, font, ModLocalization.Loc("hc_ui_name"), y, 18f, "NameLabel");
+		y -= 2f;
+		_nameField = BuildTextField(content, font, y, AiRowH, "NameField",
+			ModLocalization.Loc("hc_ui_placeholder_name"), CompanionAiDraft.MaxNameLength);
+		_nameDefault = CompanionTierData.LocalName(_selectedTier);
+		_nameEdited = false;
+		if (_nameField != null)
+		{
+			// SetTextWithoutNotify does not raise onValueChanged, so the pre-filled default does not count as "typed"
+			_nameField.SetTextWithoutNotify(_nameDefault);
+			_nameField.onValueChanged.AddListener(OnNameChanged);
+			// Enter cleans the field up (trim/limit) instead of leaving a name with spaces around it for the spawn
+			_nameField.onSubmit.AddListener(delegate
+			{
+				NormalizeNameField();
+			});
+		}
+		return MiddleNameH;
+	}
+
+	/// <summary>Keeps track of whether the name in the field is the player's or still the default of the tier.</summary>
+	private void OnNameChanged(string value)
+	{
+		string text = value == null ? "" : value.Trim();
+		_nameEdited = text.Length > 0 && !string.Equals(text, _nameDefault, StringComparison.OrdinalIgnoreCase);
+	}
+
+	/// <summary>
+	/// Makes the field follow the chosen tier, as long as the player has not typed a name of their own: the starter
+	/// offers "Companheiro" and the dverger tiers, and the default has to be the name of the one that is selected now.
+	/// A typed name is never overwritten (the only way to get the default back is to clear the field).
+	/// </summary>
+	private void RefreshNameDefault()
+	{
+		string next = CompanionTierData.LocalName(_selectedTier);
+		bool follow = !_nameEdited;
+		_nameDefault = next;
+		if (follow && _nameField != null)
+		{
+			_nameField.SetTextWithoutNotify(next);
+		}
+	}
+
+	/// <summary>Trims the name field and cuts it at the limit, so what the player sees is exactly what will be spawned.</summary>
+	private void NormalizeNameField()
+	{
+		if (_nameField == null)
+		{
+			return;
+		}
+		string cleaned = CompanionAiDraft.CleanName(_nameField.text);
+		if (!string.Equals(cleaned, _nameField.text, StringComparison.Ordinal))
+		{
+			_nameField.SetTextWithoutNotify(cleaned);
+		}
+		OnNameChanged(cleaned);
+	}
+
+	/// <summary>
+	/// Fase 3.12/3.13: one line with the geometry of the middle column, written once when the panel is built, so the
+	/// account can be checked from <c>LogOutput.log</c> without opening the game: the panel, the column, the four bands
+	/// ("Invocar", the AI section, the name and the description) and the "Ouvir" button. Every number is measured from
+	/// the bottom of the column except the widths and the panel height, and they are the very numbers the rects above
+	/// were built with.
+	/// </summary>
+	private void LogMiddleColumnLayout(float btnH, float buyTop, float aiBottom, float aiTop, float nameBottom, float nameHeight, float descBottom)
+	{
+		float descTop = _columnHeight - MiddleDescTop;
+		float descHeight = Mathf.Max(0f, descTop - descBottom);
+		string listen = _aiListenButton == null
+			? "AUSENTE"
+			: $"{_aiListenBottom:0} base, {AiRowH:0} altura, {_middleWidth - 4f:0} largura";
+		string name = nameHeight > 0f
+			? $"base={nameBottom:0} topo={nameBottom + nameHeight:0} altura={nameHeight:0} "
+				+ $"(campo {nameBottom:0}..{nameBottom + AiRowH:0}, padrao \"{_nameDefault}\", digitado={(_nameEdited ? "sim" : "nao")})"
+			: "ausente (Trader)";
+		CompanionsPlugin.Log?.LogInfo($"[StarterPanel] Layout da coluna do meio: painel={_panelHeight:0} coluna={_columnHeight:0} largura={_middleWidth:0} | "
+			+ $"Invocar: base={MiddleBuyBottom:0} altura={btnH:0} topo={buyTop:0} | "
+			+ $"secao IA: base={aiBottom:0} altura={_aiHeight:0} topo={aiTop:0} | "
+			+ $"nome: {name} | "
+			+ $"descricao: base={descBottom:0} topo={descTop:0} altura={descHeight:0} | "
+			+ $"Ouvir: {listen}");
+	}
+
+	// ------------------------------------------------------------------ the AI section (Fase 3.10)
+
+	/// <summary>
+	/// The "AI" section of the starter panel: the voice of the companion that is about to be born (with "Ouvir") and
+	/// its personality (a preset or the player's own words), plus a hint saying the <c>[IA]</c> values are what is
+	/// used when nothing is chosen here.
+	///
+	/// <para>It lives in the <b>middle column</b>, in the fixed band right above "Invocar": the left column is a
+	/// scroll with the appearance, and burying the AI choices at the bottom of it would hide the one thing that is
+	/// new. The controls are the panel's own idioms (the same <c>&lt; value &gt;</c> picker of hair and beard, the
+	/// same label, the same button), so nothing here depends on the AI panel's overlay dropdowns - which could not
+	/// work inside a scrolling column anyway (the field would move under an open list).</para>
+	///
+	/// <para>The height it used is returned so <see cref="BuildMiddleColumn"/> can reserve exactly that much for it
+	/// (the description above is placed from that number - Fase 3.12, the layout bug).</para>
+	/// </summary>
+	private float BuildAiSection(Transform parent, TMP_FontAsset font, GameObject buttonTemplate, float bottomY)
+	{
+		_aiVoiceIds = CompanionProfile.VoiceIds(withInherit: true);
+		_aiVoiceLabels = CompanionProfile.VoiceLabels(withInherit: true);
+		_aiPresetIds = CompanionProfile.PresetIds(withInherit: true);
+		_aiPresetLabels = CompanionProfile.PresetLabels(withInherit: true);
+		_aiVoiceIndex = 0;
+		_aiPresetIndex = 0;
+		_aiListenButton = null;
+		_aiListenBottom = 0f;
+
+		GameObject group = new GameObject("AiSection", typeof(RectTransform));
+		group.transform.SetParent(parent, worldPositionStays: false);
+		Transform content = group.transform;
+
+		// the group is anchored to the bottom of the column, its children are laid out from its top down
+		float y = 0f;
+		y = PlacePlainLabel(content, font, ModLocalization.Loc("hc_ai_profile_title"), y, 20f, "AiTitle");
+		y -= 2f;
+		y = PlacePlainLabel(content, font, ModLocalization.Loc("hc_ai_panel_voice"), y, 18f, "AiVoice");
+		y -= 2f;
+		BuildPickerRow(content, out _aiVoiceValue, _aiVoiceLabels[0], y, AiRowH, font, buttonTemplate,
+			delegate
+			{
+				CycleAiVoice(-1);
+			}, delegate
+			{
+				CycleAiVoice(1);
+			});
+		y -= AiRowH + AiGap;
+		// Fase 3.12 (the reported bug): "Ouvir" is built exactly like the panel's other action button ("Invocar") -
+		// an explicit rect anchored to both sides of the section. The old version put it on a MakeAnchoredRow row and
+		// handed it Vector2.zero/one anchors, and in game the button was never visible; this way its size comes from
+		// the section itself and depends on no helper row.
+		float listenY = y;
+		GameObject listen = CreateActionButton(buttonTemplate, content, "AiListen", ModLocalization.Loc("hc_ai_panel_listen"));
+		RectTransform listenRT = listen.GetComponent<RectTransform>();
+		listenRT.anchorMin = new Vector2(0f, 1f);
+		listenRT.anchorMax = new Vector2(1f, 1f);
+		listenRT.pivot = new Vector2(0.5f, 1f);
+		listenRT.sizeDelta = new Vector2(-4f, AiRowH);
+		listenRT.anchoredPosition = new Vector2(0f, listenY);
+		Image listenImage = listen.GetComponent<Image>();
+		if (listenImage != null)
+		{
+			// an explicit tint, so the button is visible whatever the template's own colour is
+			listenImage.color = Color.white;
+			listenImage.raycastTarget = true;
+		}
+		_aiListenButton = listen.GetComponent<Button>();
+		if (_aiListenButton != null)
+		{
+			_aiListenButton.onClick.RemoveAllListeners();
+			_aiListenButton.onClick.AddListener(PreviewStarterVoice);
+			_aiListenButton.navigation = new Navigation
+			{
+				mode = Navigation.Mode.None
+			};
+			_aiListenButton.interactable = true;
+		}
+		TMP_Text listenLabel = listen.GetComponentInChildren<TMP_Text>(includeInactive: true);
+		if (listenLabel != null)
+		{
+			listenLabel.fontSize = 16f;
+			listenLabel.color = Color.white;
+			listenLabel.alignment = TextAlignmentOptions.Center;
+			listenLabel.raycastTarget = false;
+			listenLabel.gameObject.SetActive(value: true);
+		}
+		y -= AiRowH + AiGap;
+		y = PlacePlainLabel(content, font, ModLocalization.Loc("hc_ai_panel_personality"), y, 18f, "AiPersonality");
+		y -= 2f;
+		BuildPickerRow(content, out _aiPresetValue, _aiPresetLabels[0], y, AiRowH, font, buttonTemplate,
+			delegate
+			{
+				CycleAiPreset(-1);
+			}, delegate
+			{
+				CycleAiPreset(1);
+			});
+		y -= AiRowH + AiGap;
+		y = PlacePlainLabel(content, font, ModLocalization.Loc("hc_ai_panel_free_text"), y, 18f, "AiWords");
+		y -= 2f;
+		_aiFreeText = BuildTextField(content, font, y, AiRowH, "AiFreeText",
+			ModLocalization.Loc("hc_ai_panel_free_placeholder"), CompanionPersona.MaxFreeTextLength);
+		y -= AiRowH + AiGap;
+		TMP_Text hint = MakeText(content, "AiHint", ModLocalization.Loc("hc_ai_profile_hint"), font, 11f, LabelText, TextAlignmentOptions.TopLeft);
+		RectTransform hintRT = hint.GetComponent<RectTransform>();
+		hintRT.anchorMin = new Vector2(0f, 1f);
+		hintRT.anchorMax = new Vector2(1f, 1f);
+		hintRT.pivot = new Vector2(0f, 1f);
+		hintRT.sizeDelta = new Vector2(-8f, 46f);
+		hintRT.anchoredPosition = new Vector2(4f, y);
+		hint.textWrappingMode = TextWrappingModes.Normal;
+		hint.overflowMode = TextOverflowModes.Overflow;
+		y -= 46f;
+
+		float height = 0f - y;
+		RectTransform rt = group.GetComponent<RectTransform>();
+		rt.anchorMin = new Vector2(0f, 0f);
+		rt.anchorMax = new Vector2(1f, 0f);
+		rt.pivot = new Vector2(0.5f, 0f);
+		rt.sizeDelta = new Vector2(-24f, height);
+		rt.anchoredPosition = new Vector2(0f, bottomY);
+		// where the "Ouvir" button really sits, measured from the panel's bottom (for LogMiddleColumnLayout): the
+		// group's bottom plus its height, minus the rows above the button (listenY is negative, measured from the
+		// group's top) and minus the button itself
+		_aiListenBottom = bottomY + height + listenY - AiRowH;
+		return height;
+	}
+
+	/// <summary>The voice picker of the AI section: one step through the list, wrapping ("follow the default", 42,
+	/// 43, 44).</summary>
+	private void CycleAiVoice(int dir)
+	{
+		if (_aiVoiceIds == null || _aiVoiceIds.Length == 0)
+		{
+			return;
+		}
+		_aiVoiceIndex = (_aiVoiceIndex + dir + _aiVoiceIds.Length) % _aiVoiceIds.Length;
+		if (_aiVoiceValue != null)
+		{
+			_aiVoiceValue.text = _aiVoiceLabels[_aiVoiceIndex];
+		}
+		CompanionsPlugin.Log.LogDebug("[StarterPanel] AI voice: " + (_aiVoiceIds[_aiVoiceIndex] > 0
+			? _aiVoiceIds[_aiVoiceIndex] + " (" + _aiVoiceLabels[_aiVoiceIndex] + ")"
+			: "default ([IA])"));
+	}
+
+	/// <summary>The personality picker of the AI section: one step through "follow the default", the presets and the
+	/// free-text entry.</summary>
+	private void CycleAiPreset(int dir)
+	{
+		if (_aiPresetIds == null || _aiPresetIds.Length == 0)
+		{
+			return;
+		}
+		_aiPresetIndex = (_aiPresetIndex + dir + _aiPresetIds.Length) % _aiPresetIds.Length;
+		if (_aiPresetValue != null)
+		{
+			_aiPresetValue.text = _aiPresetLabels[_aiPresetIndex];
+		}
+		CompanionsPlugin.Log.LogDebug("[StarterPanel] AI personality: " + _aiPresetLabels[_aiPresetIndex]);
+	}
+
+	/// <summary>
+	/// Fase 3.10: the "Ouvir" of the AI section - the real synthesis pipeline (the same worker and the same 3D
+	/// playback), with the voice this picker shows and the vol/voz/speed of <c>[IA]</c>. The companion does not exist
+	/// yet, so the sample plays at the player.
+	/// </summary>
+	private void PreviewStarterVoice()
+	{
+		if (!CompanionTts.Enabled)
+		{
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_panel_tts_off"));
+			return;
+		}
+		if (!CompanionTts.Ready)
+		{
+			CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_panel_tts_missing"));
+			return;
+		}
+		Player player = Player.m_localPlayer;
+		if (player == null)
+		{
+			return;
+		}
+		int voice = (_aiVoiceIds != null && _aiVoiceIndex >= 0 && _aiVoiceIndex < _aiVoiceIds.Length) ? _aiVoiceIds[_aiVoiceIndex] : 0;
+		string text = ModLocalization.Loc("hc_ai_panel_tts_sample");
+		CompanionsPlugin.Log.LogInfo($"[StarterPanel] Ouvir -> voz {(voice > 0 ? voice.ToString() : CompanionTts.Voice + " (padrao [IA])")}, "
+			+ $"volume {CompanionTts.Volume:0.##}, velocidade {CompanionTts.Speed:0.##} | \"{text}\"");
+		CompanionTts.Speak(player.gameObject, text, true, voice);
+	}
+
+	/// <summary>
+	/// The AI choices of the panel, for the companion that is about to be born. "Follow the [IA] default" in both
+	/// pickers and an empty text box is the normal case: an empty draft, i.e. a companion that follows the global
+	/// values (and keeps following them when they change).
+	/// </summary>
+	internal CompanionAiDraft AiDraft()
+	{
+		CompanionAiDraft draft = new CompanionAiDraft();
+		if (!StarterMode || _aiVoiceIds == null || _aiPresetIds == null)
+		{
+			return draft;
+		}
+		if (_aiVoiceIndex > 0 && _aiVoiceIndex < _aiVoiceIds.Length)
+		{
+			draft.Voice = _aiVoiceIds[_aiVoiceIndex];
+		}
+		string preset = (_aiPresetIndex >= 0 && _aiPresetIndex < _aiPresetIds.Length) ? _aiPresetIds[_aiPresetIndex] : CompanionProfile.InheritId;
+		string text = _aiFreeText != null && _aiFreeText.text != null ? _aiFreeText.text.Trim() : "";
+		bool inherit = string.IsNullOrEmpty(preset) ? _aiPresetIndex <= 0 : string.Equals(preset, CompanionProfile.InheritId, StringComparison.Ordinal);
+		if (!inherit || text.Length > 0)
+		{
+			draft.HasPersona = true;
+			draft.Preset = inherit ? "" : preset;
+			draft.FreeText = text;
+		}
+		// Fase 3.13: the name typed in the panel (clean = trimmed and limited; "" when the player left it empty, and
+		// then the spawn keeps its own default). Read here, once, on Invocar.
+		draft.Name = CompanionAiDraft.CleanName(_nameField != null ? _nameField.text : null);
+		return draft;
+	}
+
+	/// <summary>
+	/// Releases a text box of the panel when it has the focus, and says whether it did. The starter panel closes on Esc,
+	/// and a player typing the name or the personality must lose the focus first (the same order the AI panel uses for
+	/// its own text box).
+	/// </summary>
+	internal bool ReleaseTextFocus()
+	{
+		if (_nameField != null && _nameField.isFocused)
+		{
+			NormalizeNameField();
+			_nameField.DeactivateInputField();
+			return true;
+		}
+		if (_aiFreeText != null && _aiFreeText.isFocused)
+		{
+			_aiFreeText.DeactivateInputField();
+			return true;
+		}
+		return false;
+	}
+
+	/// <summary>
+	/// The single-line text box of this panel (the name of the companion and the player's own words for its
+	/// personality), with the placeholder and the character limit the caller asks for.
+	///
+	/// <para>The order matters: the GameObject is created <b>inactive</b> and only activated after its properties are
+	/// assigned, because <c>TMP_InputField.OnEnable</c> is where TMP creates the "Caret" it draws the caret and the
+	/// selection with - with the component still empty there is no caret and no selection at all (the same lesson as
+	/// <c>CompanionAiPanel.CreateInputField</c>). The field is registered in <see cref="ModTextInputFocus"/>, so the
+	/// game's own keys (m for the map, Tab for the inventory...) do not fire while the player types.</para>
+	/// </summary>
+	private TMP_InputField BuildTextField(Transform parent, TMP_FontAsset font, float y, float h, string objectName, string placeholderText, int limit)
+	{
+		Transform row = MakeAnchoredRow(parent, y, h);
+		GameObject go = new GameObject(objectName, typeof(RectTransform), typeof(Image));
+		go.SetActive(false);
+		go.transform.SetParent(row, worldPositionStays: false);
+		RectTransform rt = go.GetComponent<RectTransform>();
+		rt.anchorMin = Vector2.zero;
+		rt.anchorMax = Vector2.one;
+		rt.offsetMin = new Vector2(2f, 0f);
+		rt.offsetMax = new Vector2(-2f, 0f);
+		Image image = go.GetComponent<Image>();
+		image.color = new Color(0.1f, 0.1f, 0.12f, 0.92f);
+
+		GameObject area = new GameObject("TextArea", typeof(RectTransform));
+		area.transform.SetParent(go.transform, worldPositionStays: false);
+		RectTransform areaRT = area.GetComponent<RectTransform>();
+		areaRT.anchorMin = Vector2.zero;
+		areaRT.anchorMax = Vector2.one;
+		areaRT.offsetMin = new Vector2(8f, 3f);
+		areaRT.offsetMax = new Vector2(-8f, -3f);
+		area.AddComponent<RectMask2D>();
+
+		TextMeshProUGUI text = MakeText(area.transform, "Text", "", font, 13f, Color.white, TextAlignmentOptions.MidlineLeft);
+		RectTransform textRT = text.GetComponent<RectTransform>();
+		textRT.anchorMin = Vector2.zero;
+		textRT.anchorMax = Vector2.one;
+		textRT.offsetMin = Vector2.zero;
+		textRT.offsetMax = Vector2.zero;
+		// the viewport mask clips it; the text itself must overflow, which is what lets TMP scroll it to the caret
+		text.overflowMode = TextOverflowModes.Overflow;
+		text.textWrappingMode = TextWrappingModes.PreserveWhitespaceNoWrap;
+
+		TextMeshProUGUI placeholder = MakeText(area.transform, "Placeholder", placeholderText, font, 13f,
+			new Color(0.6f, 0.6f, 0.6f, 0.7f), TextAlignmentOptions.MidlineLeft);
+		placeholder.fontStyle = FontStyles.Italic;
+		placeholder.textWrappingMode = TextWrappingModes.PreserveWhitespaceNoWrap;
+		RectTransform placeholderRT = placeholder.GetComponent<RectTransform>();
+		placeholderRT.anchorMin = Vector2.zero;
+		placeholderRT.anchorMax = Vector2.one;
+		placeholderRT.offsetMin = Vector2.zero;
+		placeholderRT.offsetMax = Vector2.zero;
+
+		TMP_InputField input = go.AddComponent<TMP_InputField>();
+		input.targetGraphic = image;
+		input.textComponent = text;
+		input.textViewport = areaRT;
+		input.placeholder = placeholder;
+		input.characterLimit = limit;
+		input.contentType = TMP_InputField.ContentType.Standard;
+		input.lineType = TMP_InputField.LineType.SingleLine;
+		input.richText = false;
+		input.onFocusSelectAll = false;
+		input.customCaretColor = true;
+		input.caretColor = new Color(1f, 0.95f, 0.85f, 1f);
+		input.caretWidth = 2;
+		input.selectionColor = new Color(0.55f, 0.72f, 1f, 0.55f);
+
+		go.SetActive(true);
+
+		// TMP creates the caret as the FIRST child of the text's parent, i.e. behind the text: as the last child it is
+		// always on top of both
+		Transform caret = area.transform.Find("Caret");
+		if (caret != null)
+		{
+			caret.SetAsLastSibling();
+		}
+
+		ModTextInputFocus.Register(input);
+		return input;
 	}
 
 	private void BuildPreviewColumn(RectTransform col, float colW, float colH)
@@ -943,6 +1757,100 @@ public class CompanionPanel
 		RefreshPreviewAppearance();
 	}
 
+	/// <summary>
+	/// Edit mode: puts the appearance being edited back on the controls. <see cref="BuildCustomColumn"/> writes the
+	/// starter's defaults into <see cref="_current"/> (its sliders are born on those values), so the stored colours are
+	/// restored here and the three sliders are moved to the nearest point of their own gradient - that way the panel
+	/// opens showing the companion's colours, and the first touch of a slider does not jump the colour somewhere else.
+	///
+	/// <para>Runs once, when the panel is built (never per frame), and only in the editor: the starter keeps its own
+	/// defaults, byte for byte.</para>
+	/// </summary>
+	private void ApplyAppearanceToControls()
+	{
+		RefreshGenderButtons();
+		if (_beardGroup != null)
+		{
+			_beardGroup.SetActive(_current.ModelIndex == 0);
+		}
+		// Fase 3.21: the stored colours win over anything the starter's defaults may have written into _current (see
+		// _storedSkinColor). SetValueWithoutNotify does not raise onValueChanged, so _current keeps exactly the stored
+		// colours (the sliders only become the way back to them, and the moment the player moves one the gradient takes
+		// over).
+		if (AppearanceEditMode)
+		{
+			_current.SkinColor = _storedSkinColor;
+			_current.HairColor = _storedHairColor;
+		}
+		if (_skinSlider != null)
+		{
+			_skinSlider.SetValueWithoutNotify(NearestSkinT(_current.SkinColor));
+		}
+		if (_hairHueSlider != null && _hairBrightSlider != null)
+		{
+			NearestHairTone(_current.HairColor, out float hue, out float bright);
+			_hairHueSlider.SetValueWithoutNotify(hue);
+			_hairBrightSlider.SetValueWithoutNotify(bright);
+		}
+		CompanionsPlugin.Log?.LogInfo($"[AppearanceDiag] painel da aparencia ({(AppearanceEditMode ? "edicao" : "starter")}): "
+			+ $"cor guardada skin={Vec(_storedSkinColor)} cabelo={Vec(_storedHairColor)} -> sliders skin={_skinSlider?.value:0.00} "
+			+ $"tom={_hairHueSlider?.value:0.00} brilho={_hairBrightSlider?.value:0.00}; hair=\"{_current.HairItem}\" "
+			+ $"beard=\"{_current.BeardItem}\" gender={_current.ModelIndex}");
+	}
+
+	/// <summary>A colour for the log ("0.951,0.820,0.680").</summary>
+	private static string Vec(Vector3 v)
+	{
+		return v.x.ToString("0.000") + "," + v.y.ToString("0.000") + "," + v.z.ToString("0.000");
+	}
+
+	/// <summary>The point of the skin gradient (<see cref="SkinLight"/> to <see cref="SkinDark"/>) closest to a stored
+	/// colour. A grid search, because Color.Lerp per channel cannot be inverted exactly; 21 samples once per open.</summary>
+	private static float NearestSkinT(Vector3 stored)
+	{
+		const int steps = 20;
+		float best = float.MaxValue;
+		float bestT = 0.05f;
+		for (int i = 0; i <= steps; i++)
+		{
+			float t = (float)i / steps;
+			float distance = (Utils.ColorToVec3(Color.Lerp(SkinLight, SkinDark, t)) - stored).sqrMagnitude;
+			if (distance < best)
+			{
+				best = distance;
+				bestT = t;
+			}
+		}
+		return bestT;
+	}
+
+	/// <summary>The (tone, shade) pair of <see cref="UpdateHairColor"/>'s own formula closest to a stored colour: the
+	/// hue slider runs the palette from blond to dark and the shade slider scales it, and the multiplication makes the
+	/// pair impossible to invert channel by channel - so it is a 21x21 grid search, once per open.</summary>
+	private static void NearestHairTone(Vector3 stored, out float hue, out float bright)
+	{
+		const int steps = 20;
+		float best = float.MaxValue;
+		hue = 0.45f;
+		bright = 0.85f;
+		for (int i = 0; i <= steps; i++)
+		{
+			float t = (float)i / steps;
+			for (int j = 0; j <= steps; j++)
+			{
+				float b = (float)j / steps;
+				Color c = Color.Lerp(HairBlonde, HairDark, t) * Mathf.Lerp(0.1f, 1f, b);
+				float distance = (Utils.ColorToVec3(c) - stored).sqrMagnitude;
+				if (distance < best)
+				{
+					best = distance;
+					hue = t;
+					bright = b;
+				}
+			}
+		}
+	}
+
 	private void RefreshTypeButtons()
 	{
 		bool canWearArmor = _selectedTier.CanWearArmor;
@@ -987,6 +1895,11 @@ public class CompanionPanel
 		_beardIndex = Mathf.Max(0, _beards.IndexOf(_current.BeardItem));
 		RefreshPickerLabels();
 		_listsLoaded = true;
+		// Fase 3.21: the indices the pickers show, once per open - "index 0" for a stored name that is not in the list
+		// is what would make the picker label say Hair1 while the stored one was something else
+		CompanionsPlugin.Log?.LogInfo($"[AppearanceDiag] listas: {_hairs.Count} cabelos, {_beards.Count - 1} barbas "
+			+ $"(+ nenhuma); guardado hair=\"{_current.HairItem}\" -> indice {_hairIndex}, beard=\"{_current.BeardItem}\" "
+			+ $"-> indice {_beardIndex}");
 	}
 
 	private void SetupPreviewClone()
@@ -1250,12 +2163,27 @@ public class CompanionPanel
 				CompanionsPlugin.Log.LogWarning("[Panel] ApplyCurrentToClone — NO Humanoid on clone!");
 			}
 		}
-		else
+		int hairHash = 0;
+		int beardHash = 0;
+		if (_selectedTier.CanWearArmor)
 		{
+			hairHash = (string.IsNullOrEmpty(_current.HairItem) ? "Hair1" : _current.HairItem).GetStableHashCode();
+			beardHash = ((_current.ModelIndex == 0) ? (_current.BeardItem ?? "") : "").GetStableHashCode();
+			// Fase 3.21 (bug do cabelo/barba): the same cache the real companion needs cleared (see
+			// CompanionSetup.ResetVisualItemCache) - the clone's VisEquipment remembers the hash it "already" attached
+			// and never tries the object again after one failed attempt, so the preview kept the first haircut for ever.
+			// Only when the haircut/beard really changed: this method also runs on every slider frame, and re-attaching
+			// the hair there would throw the object away and rebuild it 60 times a second.
+			if (hairHash != _lastPreviewHairHash || beardHash != _lastPreviewBeardHash)
+			{
+				CompanionSetup.PrepareVisualAttach(component);
+				_lastPreviewHairHash = hairHash;
+				_lastPreviewBeardHash = beardHash;
+			}
 			_currentModelIndex?.SetValue(component, -1);
 			component.SetModel(_current.ModelIndex);
-			component.SetHairItem((string.IsNullOrEmpty(_current.HairItem) ? "Hair1" : _current.HairItem).GetStableHashCode());
-			component.SetBeardItem(((_current.ModelIndex == 0) ? (_current.BeardItem ?? "") : "").GetStableHashCode());
+			component.SetHairItem(hairHash);
+			component.SetBeardItem(beardHash);
 			component.SetSkinColor(_current.SkinColor);
 			component.SetHairColor(_current.HairColor);
 		}
@@ -1275,6 +2203,19 @@ public class CompanionPanel
 		foreach (Transform transform in componentsInChildren)
 		{
 			transform.gameObject.layer = num6;
+		}
+		if (_selectedTier.CanWearArmor)
+		{
+			// Fase 3.21: one line per change of haircut/beard (a slider drag must not fill the log) - it proves whether
+			// the clone got the objects and whether the prefab of that hash exists at all
+			string pair = _current.ModelIndex + ":" + hairHash + ":" + beardHash;
+			if (pair != _lastPreviewHairLog)
+			{
+				_lastPreviewHairLog = pair;
+				CompanionsPlugin.Log?.LogInfo($"[AppearanceDiag] preview: gender={_current.ModelIndex} "
+					+ $"hair=\"{_current.HairItem}\"({hairHash}) beard=\"{_current.BeardItem}\"({beardHash}) | depois: "
+					+ CompanionSetup.DescribeVisualState(component, hairHash, beardHash));
+			}
 		}
 	}
 
@@ -1444,6 +2385,8 @@ public class CompanionPanel
 		{
 			RefreshVariantButtons();
 		}
+		// Fase 3.13: the default name follows the chosen type while the player hasn't typed one
+		RefreshNameDefault();
 		SetupPreviewClone();
 	}
 
@@ -1470,6 +2413,8 @@ public class CompanionPanel
 		_selectedTier = variant;
 		RefreshVariantButtons();
 		RefreshBuyButtonLabel();
+		// Fase 3.13: same as SetType - the default name follows the type until the player types one
+		RefreshNameDefault();
 		SetupPreviewClone();
 	}
 
@@ -1552,6 +2497,11 @@ public class CompanionPanel
 		if (component != null)
 		{
 			component.onClick.RemoveAllListeners();
+			// the template is the inventory's craft button (InventoryGui.m_craftButton), and the game leaves that
+			// button interactable=false whenever nothing is craftable - which is the normal state after the
+			// inventory has been opened once. A clone would inherit it and silently ignore every click (the
+			// starter panel only worked because it opens before the first inventory). Always enable the clone.
+			component.interactable = true;
 			component.navigation = new Navigation
 			{
 				mode = Navigation.Mode.None
@@ -1648,6 +2598,10 @@ public class CompanionPanel
 		if (component4 != null)
 		{
 			component4.onClick.RemoveAllListeners();
+			// the same trap as CreateButton: the craft-button template can come interactable=false (the game
+			// disables it whenever nothing is craftable), and a clone would silently ignore every click - the
+			// hair/beard arrows stopped responding after the first inventory open because of this
+			component4.interactable = true;
 			component4.transition = Selectable.Transition.None;
 			component4.navigation = new Navigation
 			{
