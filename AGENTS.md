@@ -52,8 +52,9 @@ o `Companions.csproj`, as chaves `HC_*` e os créditos/avisos do upstream (**MIT
   listar o Jotunn como requisito em release/README. (A skill `jotunn` da equipe continua no repositório como
   referência de framework, mas **não** se aplica a este mod.)
 - Target: **.NET Framework 4.7.2 (net472)**, C#.
-- Versão: **1.7.0** nesta branch (`feat/multi-companheiro`); a `main` está na **1.6.4** (fonte única:
-  `PluginVersion` em `src/Companions/Core/CompanionsPlugin.cs`).
+- Versão: **1.7.0** — **mergeada e publicada na `main`** em 23/10/2026 (fonte única: `PluginVersion` em
+  `src/Companions/Core/CompanionsPlugin.cs`). A branch `feat/multi-companheiro` foi mergeada (`--no-ff`) e pode ser
+  apagada; a `main` é a linha de release.
 
 ## Caminhos desta máquina
 
@@ -103,7 +104,7 @@ Notas de desenvolvimento do upstream: `docs/DEV_NOTES.md`; handoff: `docs/SESSIO
 ## Camada de IA (Fase 3.1 — ordens por texto no chat; Fase 3.2/3.2c — o número da ordem é um alvo total contado no inventário do companheiro; Fase 3.5 — personalidade, memória e conversa livre; Fase 3.6 — ordens com alvo: atacar/equipar/largar; Fase 3.6b — a ordem sem alvo do modelo cai para as palavras do jogador; Fase 3.3 — ordens por voz: push-to-talk + STT local; Fase 3.3c — raio de coleta maior e chatter aleatório desligado; Fase 3.3d — o teto da ordem vale para todo alvo do modo e a voz sai no balão do jogador; Fase 3.4 — o companheiro FALA: TTS local (Kokoro-82M via sherpa-onnx); Fase 3.7 — painel da IA no jogo: abas por companheiro, voz com Ouvir e push-to-talk; Fases 3.9–3.17 — invocador/abas, nome no comando, perfil de IA por companheiro no ZDO, nome/tipo editáveis, a voz acompanhando o balão; Fase 3.19 — a rodada de correções da revisão completa e o teto de 10 companheiros)
 
 O jogador digita no chat do jogo (`colete 20 de madeira`, `segue`, `para`, `ataca o greydwarf`,
-`equipa o machado de bronze`, `larga a pedra`, `bom dia`) e um **LLM local** (API compatível com a OpenAI:
+`equipa o machado de bronze`, `larga a pedra`, `bom dia`) e um **LLM** (API compatível com a OpenAI:
 `POST {BaseUrl}/chat/completions`) devolve a intenção em JSON, que vira a **mesma ação** do menu radial /
 tecla de comando — ou uma **resposta de conversa**, quando não é ordem. Fluxo: `CompanionChatAI` (patch Harmony
 em `Chat.SendText` + prompt PT-BR montado por mensagem) → `LlmClient` (POST em `Task` de fundo + fila
@@ -111,11 +112,18 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
 `amount`) → `CompanionOrders` (intenção → `CompanionSetup.ApplyActionMode`, `SetCombatStance`, `MHR_JobRules`,
 `DirectEngage`, `EquipItem`, `ItemDrop.DropItem`, recall...).
 
+- **Endpoint (desde a 1.7.0): `[IA] BaseUrl` = `https://openrouter.ai/api/v1` e `[IA] Modelo` = `openrouter/free`**
+  (**OpenRouter é o padrão**; a `ApiKey` é **obrigatória** — a chave gratuita sai em `openrouter.ai/keys`). **LM Studio
+  e Ollama continuam suportados** como opção local/offline (`http://127.0.0.1:1234/v1` + `qwen2.5-3b-instruct`;
+  `127.0.0.1` e **não** `localhost`, que resolve IPv6 primeiro e custa ~2,5 s por ordem). O teste em jogo da 1.7.0 foi
+  feito com o OpenRouter. Privacidade: com OpenRouter o texto da ordem **sai da máquina**; com LM Studio/Ollama, não.
 - Config `[IA]` no `.cfg` (sem segredos no código): `Ligado`, `BaseUrl`, `Modelo`, `ApiKey`, `Temperatura`,
   `TimeoutSegundos`, `Prefixo`, `MostrarRespostaNoChat`, `CooldownSegundos`, `RaioDeAlvo` (até onde procurar a
   criatura citada numa ordem de ataque; a que estiver na mira vale sempre), `Personalidade` (texto livre do
   jogador, PT-BR, até 600 caracteres), `PresetPersonalidade` (`viking`, `mago`, `sarcastico`, `guia`, `custom`;
-  vazio = padrão), `Memoria` (4 — era 6 até a 3.3b; 0 = desligada, teto 12) e `Conversa` (true).
+  vazio = padrão), `Memoria` (4 — era 6 até a 3.3b; 0 = desligada, teto 12) e `Conversa` (true). Desde a 1.7.0 boa
+  parte disso é editável **no jogo** (painel `I` → aba IA → *Configurações do LLM*, com **Testar conexão**;
+  `LlmConnectionTest`): a chave é mostrada **mascarada** e o que não cabe lá continua no painel **F8**.
 - `Chat.SendText(Talker.Type, string)` é o caminho da mensagem **do próprio jogador** (as recebidas entram
   por `Chat.OnNewChatMessage`) — é o único ponto capturado.
 - `despawn` não é exposto ao modelo. O `amount` é um **ALVO TOTAL** para madeira/pedra/minério (Fase 3.2,
@@ -304,7 +312,7 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   `hc_ai_panel_*` / `hc_ai_voice_*` no `ModLocalization` **e** no `Translations/Portuguese_Brazilian.json`.
   Detalhes: `docs/roadmap.md` (Fase 3.7 — inclui a correção da lista que aparecia atrás dos controles).
 - **Fases 3.9–3.17 — o companheiro como vários, com identidade própria (branch `feat/multi-companheiro`, versão 1.7.0,
-  **em teste**):**
+  **mergeada na `main` e publicada** — testada em jogo pelo jogador):**
   - **3.9 — invocador e abas:** a aba IA invoca companheiros de graça (`CompanionManager.SpawnFree`, o **mesmo**
     `SpawnCompanion` do Trader, sem cobrar) e o painel ganhou **uma aba por companheiro** (o nome é o título), com
     Chamar/recall e os controles daquele companheiro; o nome padrão de um spawn novo passou a ser o nome do tipo com
@@ -334,6 +342,30 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
     (Trader, invocador e companheiro inicial) quando o jogador já tem o limite; a conta é a do **roster** (`MHR_Roster.
     CountMine`: vivos + mortos + perdidos), então morrer não abre vaga; o Santuário continua recuperando os mortos e a
     recusa é avisada (HUD/chat) + log.
+  - **3.18 — editor de aparência com preview 3D:** `UI/CompanionAppearancePanel.cs` (o botão *Aparência* na aba do
+    companheiro, no painel `I`) reaproveita o `CompanionPanel` do starter num **modo edição** (`AppearanceEditMode`) —
+    gênero, corte de cabelo, barba, cor de pele, tom e sombra do cabelo, com um **clone 3D** atualizando ao vivo. O
+    apply vai por `CompanionSetup.ApplyAppearance` (ZDO `HC_Appearance`, **claim antes** — os setters do jogo só gravam
+    sendo dono) **sem respawn**; a cauda de defaults do `BuildCustomColumn` só roda no **starter**, e
+    `ApplyAppearanceToControls` restaura as cores guardadas (`_storedSkinColor`/`_storedHairColor`) antes de posicionar
+    os sliders (era isso que fazia os três sliders abrirem no início).
+  - **3.17b — o `stop` nomeia o trabalho:** `CompanionOrders` lê o modo do ZDO (`CompanionSetup.ActionModeHash`, a
+    **mesma** chave do radial) **antes** de parar e monta a linha com o rótulo do trabalho (`hc_ai_order_<modo>` +
+    `hc_ai_order_stop_job` = "parar de {0}"; `hc_ai_order_stop_other` = "parar" para casa/vagar) — antes dizia sempre
+    "parar de seguir". Só a mensagem mudou; o comportamento do `stop` é o mesmo. Log: `[IA] Order "stop" (was: wood)…`.
+  - **3.20 — os botões clonados do jogo e o cabelo/barba (três causas, uma sessão de teste):** (1) todo botão clonado
+    do jogo herda o estado do **molde** — o do craft (`InventoryGui.m_craftButton`) vem `interactable = false` assim
+    que você abre o inventário sem nada craftável, e o clone passa a **ignorar todo clique em silêncio**: `CreateButton`
+    **e** `CreateCategoryArrowButton` (`CompanionPanel`) agora forçam `interactable = true` (era isso que "matava" as
+    **setas de cabelo/barba** depois do primeiro inventário — o starter funcionava só porque abria antes). (2)
+    `VisEquipment.SetHairEquipped`/`SetBeardEquipped` gravam o **hash antes** de anexar: se o `AttachItem` falha uma
+    vez, aquele corte vira **no-op para sempre** — `CompanionSetup.PrepareVisualAttach` limpa
+    `m_currentHairItemHash`/`m_currentBeardItemHash` a cada apply (e a cada troca de corte no preview) e procura o joint
+    `Helmet`/`Head` quando `m_helmet` está nulo (sem ele o cabelo nasce **fora da cabeça**). (3) Diagnóstico
+    `[AppearanceDiag]` (uma linha por ação: ZDO cru, cor guardada → posição dos sliders, estado do attach no preview e
+    no companheiro) para não precisar adivinhar se voltar.
+  - **Correção da 1.7.0 — a introdução do OpenRouter:** ver a seção *Camada de IA* (`[IA] BaseUrl`/`Modelo`) e
+    `docs/wiki/LLM-no-LM-Studio.md` (a página cobre OpenRouter primeiro e o LM Studio como alternativa local).
 - **Fase 3.7 — correções do teste em jogo (teclas do jogo digitando no campo, caixa de texto e rodapé):** (1) novo
   `Patches/TextInputKeyGuard.cs`: `ModTextInputFocus` (registro dos campos de texto do mod + "algum em foco?"
   **cacheado por frame**) e **prefixos Harmony** em `ZInput.GetButtonDown(string)`/`GetButton`/`GetButtonUp`/
@@ -584,10 +616,14 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   memória cai para 4 quando o config não está pronto; o `UiDiag` perdeu as duas entradas mortas; o rodapé do companheiro
   recalcula quando ele herda o valor global; o banco do Trader é lido 2×/s; e o teto de **`[General] MaxCompanions = 10`**
   barra os três caminhos de criação com aviso localizado. Detalhes: `docs/roadmap.md` (Fase 3.19).
-- **Pendências conhecidas (abertas):** o **release/empacotamento** (versão e `CHANGELOG`
-  não fechados e a pasta do plugin tem **~428 MB** — falta decidir o que entra no pacote); a **voz não passa pelo
-  mixer do jogo** (por isso ignora os sliders de volume do Valheim e só obedece `[IA] TtsVolume`); e o **sync com o
-  upstream** (estamos **1 release atrás**: base `1.5.4`, `main` na `1.5.5` — ver a seção *Upstream e licença*). A
+- **Pendências conhecidas (abertas):** a **voz não passa pelo
+  mixer do jogo** (por isso ignora os sliders de volume do Valheim e só obedece `[IA] TtsVolume`); o **sync com o
+  upstream** (estamos **1 release atrás**: base `1.5.4`, `main` na `1.5.5` — ver a seção *Upstream e licença*);
+  a **sobreposição do nome do companheiro no centro do radial** (o nome do mundo aparece por trás do centro
+  transparente da roda — cosmético, visto nas capturas da 1.7.0); o **risco médio do roster com N companheiros**; e a
+  **posse do ZDO no spawn em multiplayer** (revisar quando houver teste em servidor dedicado). O **release/empacotamento
+  da 1.7.0 está fechado** (versão no código, `CHANGELOG`, wiki e os dois zips: `AI_Companions-1.7.0.zip` ~368 MB e
+  `…-sem-modelos.zip` ~28,4 MB). A
   branch `origin/claude/relaxed-archimedes-ecoh6h` **não** é pendência: é o **WIP do autor do upstream** e **não**
   deve ser mergeada nem usada como referência. Detalhes na subseção *Pendências conhecidas* do `docs/roadmap.md`.
 

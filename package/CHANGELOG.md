@@ -2,6 +2,77 @@
 
 Todas as mudanças deste projeto, derivado do Offline Companions, do ProfMags. As versões anteriores à 1.4.0 são o mod original (veja o histórico do mod original, do ProfMags, para essas versões) mais o primeiro lote de correções de compatibilidade com a API do Valheim 1.0 que fizeram o mod carregar e rodar. **As entradas abaixo de 1.5.4 são o histórico do upstream e ficam como estão (em inglês) — as nossas seções (a partir da 1.6.0) são nossas.**
 
+## 1.7.0 — 23/10/2026
+
+**Vários companheiros, cada um com identidade própria — e o companheiro entra no jogo pronto para usar.** O mod agora
+se chama **AI Companions** (era ModAI-BR-Companions): a pasta do plugin é `BepInEx\plugins\AI-Companions\` e os pacotes
+são `AI_Companions-<versão>.zip`. **O GUID, o arquivo `.cfg`, o `Companions.dll` e as chaves `HC_*` foram preservados** —
+atualizar não perde configuração, companheiro, casa, inventário nem save.
+
+### Companheiros
+
+- **Invocador**: `Invocar novo companheiro` no painel (tecla `I`), **de graça** — escolha o tipo (Guerreiro, Arqueiro,
+  Mago, Cozinheiro, Coletor, Fazendeiro) e ele nasce pronto, sem passar pelo Trader. Companheiro novo nasce com o nome
+  do tipo numerado ("Guerreiro 2") para não confundir as abas.
+- **Uma aba por companheiro** no painel `I`: nome, tipo, aparência, voz, personalidade e Chamar/recall — tudo daquele
+  companheiro, sem mexer nos outros.
+- **Ordem e conversa pelo nome**: `Gruncha, colete 10 pedras` vale **só** para ele (o prompt, a personalidade, a memória
+  e a ordem são os dele). Sem o nome, a ordem continua valendo para todos. Um começo que parece nome e não existe
+  (`Fulano, colete…`) é avisado em vez de ordenar errado — mas `mano, colete 10 pedras` continua ordenando normal.
+- **Nome e tipo editáveis**: renomear (o nome vale no HUD, no hover, na roda e nos comandos) e **trocar o tipo** com
+  respawn preservando nome, inventário, equipamento, aparência, casa/cama, skills, perfil de IA, stamina, ferramentas
+  emprestadas e o registro do cozinheiro.
+- **Voz e personalidade por companheiro** (no ZDO dele, viajam na lápide): o que está no `[IA]` é o padrão de quem não
+  tem escolha própria.
+- **Teto de 10 companheiros** (`[General] MaxCompanions`): a conta é do roster (vivos + mortos + perdidos), então
+  morrer não abre vaga; o Trader, o invocador e o companheiro inicial respeitam o limite e o Santuário continua
+  recuperando os mortos.
+
+### Aparência
+
+- **Editor de aparência com preview 3D**: gênero, corte de cabelo, barba, cor de pele, tom e sombra do cabelo — o
+  boneco muda **ao vivo** enquanto você escolhe, e o **Aplicar** grava no companheiro **sem respawn**.
+
+### IA
+
+- **OpenRouter por padrão, sem instalar nada**: `[IA] BaseUrl` nasce `https://openrouter.ai/api/v1` e
+  `[IA] Modelo` nasce `openrouter/free` — basta colar a **chave gratuita** de `openrouter.ai/keys` na `ApiKey`.
+  **LM Studio (e Ollama) continuam funcionando** como opção local/offline: troque a URL e o modelo no `.cfg`.
+- **Seção "Configurações do LLM" no painel `I`**: liga/desliga a IA e a conversa, URL, modelo, chave (**mascarada**),
+  prefixo, sliders de memória e temperatura, **Aplicar** e **Testar conexão** — sem editar arquivo. As opções
+  avançadas continuam no painel **F8**.
+- **O `para` responde o que ele estava fazendo**: `para` enquanto coleta madeira → *"Ok: parar de coletar madeira"*
+  (antes dizia sempre "parar de seguir"). Minerando, cozinhando, reparando… cada trabalho com a sua frase.
+- **As falas do próprio mod passam a ser faladas**: "Preciso de uma picareta", as falas de evento e a mudança de modo
+  saem na **voz do companheiro** com o TTS local, com a mesma deduplicação das respostas da IA.
+
+### Correções
+
+- **Botões dos painéis do mod não "morriam"**: os botões clonados do jogo (starter, editor de aparência, roda)
+  herdavam `interactable = false` do molde do botão de craft e paravam de responder depois de abrir o inventário —
+  agora nascem habilitados. Era isso que matava as **setas de cabelo e barba**.
+- **Cabelo e barba aplicados de verdade**: o jogo cacheia o hash do item **antes** de anexar; quando o anexo falhava
+  uma vez, toda mudança daquele corte virava no-op silencioso. O cache é limpo a cada aplicação e o joint da cabeça é
+  procurado quando está nulo.
+- **Sliders de cor voltavam ao início**: as cores guardadas eram sobrescritas pelos padrões na montagem do painel;
+  agora o painel abre na posição que reproduz as cores salvas.
+- **Ordens**: `inventory_close` entrou no contrato (30 ações) e "fecha o inventário" não abre mais a janela; o nome no
+  comando virou conservador; a escrita no ZDO espera a posse (com fila e aviso) em vez de se perder no multiplayer; o
+  LLM ganhou **id de requisição** (resposta atrasada é descartada, sem aplicar ordem velha); a lápide e o respawn
+  comparam o id do companheiro antes do nome (dois companheiros com o mesmo nome); os caches de estoque passaram a ser
+  **por companheiro**.
+- **Layout**: a coluna do meio do painel do starter com o **Ouvir** visível e sem sobreposição; o campo de nome já vem
+  preenchido com o padrão do tipo; o rodapé do painel `I` ganhou faixa própria e duas linhas de resumo.
+
+### Requisitos
+
+- **Valheim 1.0.x** + **BepInExPack_Valheim 5.4.2351**. Um **LLM**: OpenRouter (padrão — só a chave gratuita e
+  internet) **ou** LM Studio/Ollama local (opcional). **Windows x64** para as duas partes de voz; microfone só para as
+  ordens por voz.
+- **Ao atualizar de uma versão anterior, apague a pasta antiga** (`BepInEx\plugins\ModAI-BR-Companions\`) antes de
+  extrair: duas cópias do mesmo plugin fazem o BepInEx carregar o mesmo mod duas vezes. O `.cfg` fica em
+  `BepInEx\config\Maddhattr.OfflineCompanionsReborn.cfg` e **não** é afetado.
+
 ## 1.6.4 - 19/10/2026
 
 **Padroes do `[IA]` corretos e apresentacao como projeto independente.** Para quem ja configurou, nada muda no jogo:
