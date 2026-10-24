@@ -292,7 +292,7 @@ namespace Companions
             // no number is exactly that question. Without this, an item whose stack doesn't fit would be picked as a
             // target over and over until the order timed out.
             if (d.m_itemData == null || !inv.CanAddItem(d.m_itemData)) return false;
-            return inv.GetTotalWeight() + d.m_itemData.GetWeight() <= CompanionTierData.MaxCarryWeight;
+            return inv.GetTotalWeight() + d.m_itemData.GetWeight() <= CompanionCarry.Max(inv);
         }
 
         // MHR_Loot's DropOf minus the m_autoPickup filter: THIS order is the one that takes what was dropped on

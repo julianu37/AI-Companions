@@ -583,7 +583,7 @@ public class CompanionInteractPanel : MonoBehaviour
 			if (inventory != null)
 			{
 				int num = Mathf.CeilToInt(inventory.GetTotalWeight());
-				int num2 = Mathf.CeilToInt(CompanionTierData.MaxCarryWeight);
+				int num2 = Mathf.CeilToInt(CompanionCarry.Max(inventory));
 				if (num > num2)
 				{
 					_weightText.text = ((Mathf.Sin(Time.time * 10f) > 0f) ? $"<color=red>{num}</color>/{num2}" : $"{num}/{num2}");

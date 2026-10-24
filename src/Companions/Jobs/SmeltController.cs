@@ -1213,7 +1213,7 @@ public class SmeltController : MonoBehaviour
 			}
 		}
 		float num10 = (_humanoid?.GetInventory())?.GetTotalWeight() ?? 0f;
-		float num11 = Mathf.Max(0f, CompanionTierData.MaxCarryWeight - num10);
+		float num11 = Mathf.Max(0f, CompanionCarry.Max(_humanoid) - num10);
 		float num12 = (container.GetInventory()?.GetAllItems().Find((ItemDrop.ItemData i) => i.m_dropPrefab != null && i.m_dropPrefab.name == bestPrefab))?.m_shared?.m_weight ?? 1f;
 		int num13 = ((num12 > 0f) ? Mathf.FloorToInt(num11 / num12) : MaxCarryOre);
 		int num14 = Mathf.Min(num9, num6, Mathf.Max(1, num13));
@@ -1317,7 +1317,7 @@ public class SmeltController : MonoBehaviour
 			}
 		}
 		float num11 = (_humanoid?.GetInventory())?.GetTotalWeight() ?? 0f;
-		float num12 = Mathf.Max(0f, CompanionTierData.MaxCarryWeight - num11);
+		float num12 = Mathf.Max(0f, CompanionCarry.Max(_humanoid) - num11);
 		float num13 = (container.GetInventory()?.GetAllItems().Find((ItemDrop.ItemData i) => i.m_dropPrefab != null && i.m_dropPrefab.name == fuelPrefab))?.m_shared?.m_weight ?? 1f;
 		int num14 = ((num13 > 0f) ? Mathf.FloorToInt(num12 / num13) : MaxCarryFuel);
 		int num15 = Mathf.Min(num9, num6, Mathf.Max(1, num14));

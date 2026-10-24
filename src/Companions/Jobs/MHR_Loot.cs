@@ -101,7 +101,7 @@ namespace Companions
             else if (Vector3.Distance(me, k.Pos) > MaxDist() + 5f) why = "too far away";
             else if (MHR_Owner.Of(cs) != null && cs != null && cs.GetFollow() && ai.GetFollowTarget() == MHR_Owner.Go(cs) &&
                      Vector3.Distance(MHR_Owner.Of(cs).transform.position, k.Pos) > MaxDist()) why = "you've moved on";
-            else if (inv.GetTotalWeight() >= CompanionTierData.MaxCarryWeight || inv.GetEmptySlots() == 0 && !RoomForAny(inv, k)) why = "pack is full";
+            else if (inv.GetTotalWeight() >= CompanionCarry.Max(inv) || inv.GetEmptySlots() == 0 && !RoomForAny(inv, k)) why = "pack is full";
             else if (Time.time - k.Start > Wait() + 25f) why = "took too long";
             if (why != null) { Finish(ai, st, "stopped picking up (" + why + ")"); return false; }
 
@@ -269,7 +269,7 @@ namespace Companions
                 }
                 k.Seen.Add(d.GetInstanceID());
                 if (d.m_itemData == null || !inv.CanAddItem(d.m_itemData, 1)) continue;
-                if (inv.GetTotalWeight() + d.m_itemData.GetWeight() > CompanionTierData.MaxCarryWeight) continue;
+                if (inv.GetTotalWeight() + d.m_itemData.GetWeight() > CompanionCarry.Max(inv)) continue;
                 float dist = Vector3.Distance(me, d.transform.position);
                 if (dist < bd) { bd = dist; best = d; }
             }

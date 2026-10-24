@@ -321,7 +321,9 @@ public class CompanionTalk : MonoBehaviour
 		Inventory inventory = _humanoid.GetInventory();
 		if (inventory != null)
 		{
-			return inventory.GetTotalWeight() >= 298f;
+			// "almost full" tracks the effective ceiling (a Megingjord in the pack raises it by 150): two kilos of
+			// room left is what the old fixed 298 meant against the default 300
+			return inventory.GetTotalWeight() >= CompanionCarry.Max(inventory) - 2f;
 		}
 		return false;
 	}

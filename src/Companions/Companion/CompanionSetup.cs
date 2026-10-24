@@ -1107,7 +1107,9 @@ public class CompanionSetup : MonoBehaviour
 			SEMan sEMan = _humanoid.GetSEMan();
 			if (inventory != null && sEMan != null)
 			{
-				if (inventory.GetTotalWeight() > CompanionTierData.MaxCarryWeight)
+				// the effective ceiling: [General] MaxCarryWeight plus the +150 of a Megingjord carried in the pack
+				// (CompanionCarry) - with the belt off (or above it) the companion is Encumbered again
+				if (inventory.GetTotalWeight() > CompanionCarry.Max(_humanoid))
 				{
 					sEMan.AddStatusEffect(SEMan.s_statusEffectEncumbered, resetTime: false, 0, 0f, -1);
 				}

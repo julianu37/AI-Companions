@@ -170,6 +170,9 @@ public class CompanionsPlugin : BaseUnityPlugin
 		FontFix.Ensure("scene:" + scene.name);
 		// Fase 3.5: the conversation memory lives in memory only - leaving the world forgets it
 		CompanionMemory.ClearAll();
+		// the carry-weight cache is keyed by Inventory reference: a new scene means new inventories (the old ones are
+		// gone), so drop the snapshots and the owner references with them
+		CompanionCarry.Reset();
 	}
 
 	private void OnDestroy()

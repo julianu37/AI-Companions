@@ -1391,7 +1391,7 @@ public partial class UpkeepController : MonoBehaviour
 			if (intoBag)
 			{
 				float w = it.m_shared.m_weight;
-				float room = CompanionTierData.MaxCarryWeight - to.GetTotalWeight();
+				float room = CompanionCarry.Max(_humanoid) - to.GetTotalWeight();
 				if (w > 0f)
 				{
 					n = Mathf.Min(n, Mathf.FloorToInt(room / w));
