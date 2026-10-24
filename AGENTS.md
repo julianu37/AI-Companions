@@ -52,10 +52,11 @@ o `Companions.csproj`, as chaves `HC_*` e os créditos/avisos do upstream (**MIT
   listar o Jotunn como requisito em release/README. (A skill `jotunn` da equipe continua no repositório como
   referência de framework, mas **não** se aplica a este mod.)
 - Target: **.NET Framework 4.7.2 (net472)**, C#.
-- Versão: **1.8.1** — **mergeada e publicada na `main`** em 24/10/2026 (fonte única: `PluginVersion` em
-  `src/Companions/Core/CompanionsPlugin.cs`). A `1.7.0` saiu em 23/10, a `1.8.0` em 24/10 e a **1.7.1 foi pulada de
-  propósito** (pedido do jogador); as branches `feat/multi-companheiro`, `fix/peso-cinto` e `feat/llm-groq` foram
-  mergeadas (`--no-ff`) e podem ser apagadas — a `main` é a linha de release.
+- Versão: **1.8.2** — **mergeada e publicada na `main`** em 24/10/2026 (fonte única: `PluginVersion` em
+  `src/Companions/Core/CompanionsPlugin.cs`). As releases saíram em sequência em 23–24/10 (`1.7.0` → `1.8.0` →
+  `1.8.1` → `1.8.2`); a **1.7.1 foi pulada de propósito** (pedido do jogador). As branches `feat/multi-companheiro`,
+  `fix/peso-cinto`, `feat/llm-groq` e `feat/provedor-llm` foram mergeadas (`--no-ff`) e podem ser apagadas — a `main`
+  é a linha de release.
 
 ## Caminhos desta máquina
 

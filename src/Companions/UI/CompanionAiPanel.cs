@@ -10,9 +10,10 @@ namespace Companions;
 
 /// <summary>
 /// Fase 3.7: the in-game AI panel. The settings the AI layer reads from the .cfg can be changed here without leaving
-/// the game: the voice volume and speed of the local TTS (<see cref="CompanionTts"/>), what gets spoken, the free
+/// the game: the voice volume of the local TTS (<see cref="CompanionTts"/>), what gets spoken, the free
 /// conversation and the memory size, plus the push-to-talk key of the voice orders (captured with the mod's own
-/// <see cref="KeyBindListener"/>, the same one the F8 panel uses).
+/// <see cref="KeyBindListener"/>, the same one the F8 panel uses). A velocidade da fala nao esta aqui: ela e uma linha
+/// de texto do .cfg e vive no painel F8 (a pedido do jogador, a aba IA ficou sem o slider).
 ///
 /// Shape (deliberately the same shape as the mod's other panels):
 /// <list type="bullet">
@@ -58,7 +59,8 @@ namespace Companions;
 /// (renasce)" respawns the companion as the chosen prefab, after a confirmation, keeping name/appearance/inventory/
 /// equipment/AI profile/id/history (<see cref="CompanionManager.ChangeTier"/>). The <b>global</b> personality and voice
 /// controls that used to live on the AI tab are gone - those settings belong to each companion now, and the AI tab
-/// keeps the volume/speed/volume/memory/push-to-talk/toggles, the summoner and the footer.
+/// keeps the volume/memory/push-to-talk/toggles, the summoner, the LLM section and the footer (the speech
+/// <b>speed</b> left this panel too: it is edited in the F8 panel, next to the other config text lines).
 ///
 /// The panel needs no companion nearby (the AI tab is a global setting of the mod): the title just names the
 /// companion that would answer right now.
@@ -79,9 +81,13 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	/// <summary>
 	/// Height of the panel. 650 until Fase 3.20: the LLM section of the AI tab needs eleven controls, and they are laid
 	/// out as a <b>two-column grid</b> under the summoner (see the RowLlm* constants) so the panel stops at 900 - one
-	/// row per control would have pushed it past 1080p.
+	/// row per control would have pushed it past 1080p. Fase 3.21: the provider dropdown (a subtitle plus the field,
+	/// right above the URL) added two rows to that grid and pushed the footer down, so the panel grew to 976. Fase
+	/// 3.21b: the "Velocidade da fala" slider left the panel (it lives in the F8 panel now), the rows below it moved
+	/// up by one step and the panel lost that same step: 934, i.e. still 73px of margin above and below on a 1080p
+	/// screen.
 	/// </summary>
-	private const float PanelH = 900f;
+	private const float PanelH = 934f;
 
 	/// <summary>Height of a control row (the row backgrounds are the same height).</summary>
 	private const float RowH = 34f;
@@ -124,6 +130,8 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	// Fase 3.15: the personality / free text / voice rows left this tab (they belong to each companion now), so the
 	// page was re-laid out from the top with no holes: the volume row is the first one and the summoner follows the
 	// settings block, with the footer right below it.
+	// Fase 3.21b: the "Velocidade da fala" row (250) left the panel - the slider lives in the F8 panel - so every row
+	// below it moved up by one step (42) and the panel is 42 shorter: no empty band is left in the middle of the page.
 	private const float RowVolume = 40f + TabShift;
 
 	private const float RowKey = 82f + TabShift;
@@ -134,15 +142,15 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 	private const float RowMemory = 208f + TabShift;
 
-	private const float RowSpeed = 250f + TabShift;
-
 	// Fase 3.9: the summoner at the bottom of the AI tab - a section title, the tier row and the counter.
-	// Fase 3.15: it follows the settings block (which now ends at 324) with the same 26px section break.
-	private const float RowSpawnTitle = 350f;
+	// Fase 3.15: it follows the settings block with the same 26px section break. Fase 3.21b: the block used to end at
+	// 324 (its last row was the speed slider); without that row it ends at 282, so the title sits at 308 - the 26px
+	// break is unchanged.
+	private const float RowSpawnTitle = 308f;
 
-	private const float RowSpawnTier = 374f;
+	private const float RowSpawnTier = 332f;
 
-	private const float RowSpawnCount = 412f;
+	private const float RowSpawnCount = 370f;
 
 	/// <summary>Width of the tier dropdown of the summoner ("Invocar" takes the rest of the row).</summary>
 	private const float TierFieldW = 300f;
@@ -151,12 +159,14 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	private const float SummonInterval = 0.5f;
 
 	// ------------------------------------------------------------------ the LLM settings (Fase 3.20)
-	// A two-column grid right under the summoner: the three toggles and the four text fields on the left, the four
-	// sliders (with their value) and the two buttons on the right. Eleven controls in one column would have made the
-	// panel taller than the screen; two columns keep it at 900 with every control at a usable width.
-	private const float RowLlmTitle = 458f;
+	// A two-column grid right under the summoner: the three toggles, the provider dropdown and the four text fields on
+	// the left, the four sliders (with their value) and the two buttons on the right. Eleven controls in one column
+	// would have made the panel taller than the screen; two columns keep it at a usable height with every control at a
+	// usable width. Fase 3.21b: the whole block (title and grid) moved up 42 with the summoner, because the speed row
+	// of the AI tab is gone.
+	private const float RowLlmTitle = 416f;
 
-	private const float RowLlmFirst = 482f;
+	private const float RowLlmFirst = 440f;
 
 	/// <summary>Vertical step of the grid (34px row + 4px gap).</summary>
 	private const float LlmStep = 38f;
@@ -182,11 +192,23 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 	private const float LlmValueW = 64f;
 
-	/// <summary>Rows of the left column (three toggles + four text fields).</summary>
-	private const int LlmRows = 7;
+	/// <summary>Rows of the left column (three toggles + the provider subtitle + the provider dropdown + four text
+	/// fields).</summary>
+	private const int LlmRows = 9;
 
 	/// <summary>Rows of the right column (four sliders + Aplicar + Testar conexão).</summary>
 	private const int LlmRightRows = 6;
+
+	// Fase 3.21: the provider of the LLM sits immediately above the "URL do servidor" field - a subtitle (row 3, with
+	// no row background: it is a heading, not a control) on one line and the dropdown on the next one (row 4). The
+	// dropdown takes the whole left column, because the right column already has the "Aplicar"/"Testar conexão" of
+	// the section at that same height.
+	private const int LlmProviderTitleRow = 3;
+
+	private const int LlmProviderRow = 4;
+
+	/// <summary>Width of the provider dropdown: the whole left column (the subtitle above it is its label).</summary>
+	private const float LlmProviderW = LlmRightX - 8f - LeftX;
 
 	// Fase 3.9: the page of a companion's tab (same coordinates: the page fills the whole panel).
 	// Fase 3.15: the name and the tier are editable now, so their rows carry a field/a picker plus a button, and the
@@ -217,11 +239,13 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	// right now and the hint line. It used to be two 11px dark-grey single lines that were unreadable over the wooden
 	// panel - and the second one was clipped by the bottom edge of the panel.
 	// Fase 3.15: it moved up with the page (the block that left it freed ~210px at the top).
-	// Fase 3.20: it moved down again for the LLM section (which ends at 744): the strip keeps its own 6px of breathing
-	// room above and the panel grew to 900, so the hint has 32px below it.
-	private const float RowStatus = 782f;
+	// Fase 3.20: it moved down again for the LLM section (which ends at 744). Fase 3.21: and once more for the two
+	// provider rows (the section ended at 820). Fase 3.21b: the speed row left the page, so everything came up 42 -
+	// the LLM section ends at 778, the strip keeps its own 6px of breathing room above (row 816 - 6 = 810, i.e. 32px
+	// below the section) and the panel is 934, so the hint still has 32px below it (902..934).
+	private const float RowStatus = 816f;
 
-	private const float RowHint = 826f;
+	private const float RowHint = 860f;
 
 	/// <summary>Height of one line of the footer (the blocks are two lines tall).</summary>
 	private const float FooterLineH = 18f;
@@ -291,13 +315,9 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 	private Slider _volume;
 
-	private Slider _speed;
-
 	private Slider _memory;
 
 	private TMP_Text _volumeLabel;
-
-	private TMP_Text _speedLabel;
 
 	private TMP_Text _memoryLabel;
 
@@ -369,6 +389,32 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	private TMP_InputField _llmApiKey;
 
 	private TMP_InputField _llmPrefix;
+
+	/// <summary>
+	/// Fase 3.21: the provider dropdown of the LLM section ("Selecione seu Provedor LLM"), right above the URL field.
+	/// It is a <b>shortcut, not a setting</b>: the index is derived from <c>[IA] BaseUrl</c> every time the panel
+	/// opens, and picking an entry only fills the URL and the model boxes - the key is never touched and nothing is
+	/// written to the <c>.cfg</c> until the player clicks "Aplicar" (see <see cref="LlmProviders"/>).
+	/// </summary>
+	private AiDropdown _llmProvider;
+
+	/// <summary>
+	/// Fase 3.21c: the "Crie sua Chave de API Grátis AQUI" link, on the free right half of the "Chave de API" line
+	/// (from <c>LlmRightX + 8</c> to <c>RightEdge - 8</c>, i.e. the half the grid never used at that height).
+	///
+	/// <para>It is drawn as a toggle that is <b>on</b> (<see cref="GoldColor"/>, the very colour
+	/// <see cref="ApplyToggleVisual"/> paints a live toggle with, and a white centered label), because the player asked
+	/// for it to look like the rest of the section - but it is <b>an action, not a selector</b>: the look is
+	/// <b>fixed</b> (no "Desligado", no colour change after the click), while the default <see cref="ColorTint"/>
+	/// transition is left on exactly like the toggle buttons, which gives the same <b>soft highlight</b> on hover and
+	/// the momentary press tint - neither of them persists, because nothing here stores a state. The Image still is a
+	/// raycast target, so the whole block takes the click.</para>
+	///
+	/// <para>It is only active while the provider of the dropdown has a key page
+	/// (<see cref="LlmProviders.KeyUrlAt"/>), i.e. Groq and OpenRouter; LM Studio and "Personalizado" show nothing
+	/// there.</para>
+	/// </summary>
+	private AiButton _llmKeyLink;
 
 	private Slider _llmTemperature;
 
@@ -483,10 +529,11 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		UnityEngine.Object.DontDestroyOnLoad(holder);
 		Instance = holder.AddComponent<CompanionAiPanel>();
 		string key = ModConfig.AiPanelKey != null ? ModConfig.AiPanelKey.Value.ToString() : "?";
-		CompanionsPlugin.Log?.LogInfo($"[IA] Painel da IA pronto: abre/fecha com {key} ([IA] PainelTecla) ou Esc. Volume, velocidade, memoria, "
-			+ "conversa e o push-to-talk ficam na aba IA, e cada mudanca e salva na hora no .cfg. A aba IA tambem invoca companheiros de "
-			+ "graca (sem moedas); cada companheiro tem a sua aba, com o botao Chamar, o NOME e o TIPO editaveis ali (o tipo renasce o "
-			+ "companheiro) e a voz e a personalidade DELE (guardadas no ZDO dele; o .cfg e o padrao de quem nao tem escolha propria).");
+		CompanionsPlugin.Log?.LogInfo($"[IA] Painel da IA pronto: abre/fecha com {key} ([IA] PainelTecla) ou Esc. Volume, memoria, "
+			+ "conversa e o push-to-talk ficam na aba IA, e cada mudanca e salva na hora no .cfg (a velocidade da fala fica so no "
+			+ "painel F8). A aba IA tambem invoca companheiros de graca (sem moedas); cada companheiro tem a sua aba, com o botao "
+			+ "Chamar, o NOME e o TIPO editaveis ali (o tipo renasce o companheiro) e a voz e a personalidade DELE (guardadas no "
+			+ "ZDO dele; o .cfg e o padrao de quem nao tem escolha propria).");
 	}
 
 	private void Awake()
@@ -578,24 +625,26 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 			_root != null ? _root.GetComponent<RectTransform>() : null, ProbePoints, _backdrop, this);
 	}
 
-	/// <summary>The probed points (panel-local; the panel is 680x650 with a centre pivot): the middle of the column
-	/// of controls, at eleven heights, so a band anywhere over the controls is caught. The column starts at
-	/// <c>FieldX</c> (166 from the left edge) and stops at <c>RightEdge</c> (672), so its centre is 419 from the left
-	/// edge - i.e. 79 from the centre pivot - and the rows run from 80 to 590 from the top (the strip of tabs and the
-	/// summoner of Fase 3.9 moved everything below the title down).</summary>
+	/// <summary>The probed points (panel-local; the panel is 680x934 with a centre pivot): the middle of the column
+	/// of controls, at eleven heights that cover the whole page, so a band anywhere over the controls is caught. The
+	/// column starts at <c>FieldX</c> (166 from the left edge) and stops at <c>RightEdge</c> (672), so its centre is
+	/// 419 from the left edge - i.e. 79 from the centre pivot - and the rows run from 80 to 896 from the top (the
+	/// strip of tabs, the summoner and the LLM grid of Fase 3.9/3.20/3.21 moved everything below the title down; Fase
+	/// 3.21b took all of it up 42 with the speed row). The y values are the centre of the panel (467) minus the
+	/// height from the top, so they follow every change of <see cref="PanelH"/>.</summary>
 	private static readonly Vector2[] ProbePoints = new Vector2[11]
 	{
-		new Vector2(79f, 245f),
-		new Vector2(79f, 194f),
-		new Vector2(79f, 143f),
-		new Vector2(79f, 92f),
-		new Vector2(79f, 41f),
-		new Vector2(79f, -10f),
-		new Vector2(79f, -61f),
-		new Vector2(79f, -112f),
-		new Vector2(79f, -163f),
-		new Vector2(79f, -214f),
-		new Vector2(79f, -265f)
+		new Vector2(79f, 357f),
+		new Vector2(79f, 281f),
+		new Vector2(79f, 205f),
+		new Vector2(79f, 129f),
+		new Vector2(79f, 53f),
+		new Vector2(79f, -23f),
+		new Vector2(79f, -99f),
+		new Vector2(79f, -175f),
+		new Vector2(79f, -251f),
+		new Vector2(79f, -327f),
+		new Vector2(79f, -403f)
 	};
 
 	public void Hide()
@@ -932,6 +981,9 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		// the fields of the dropdowns belong to the page they are shown on (only the lists float)
 		_page = _aiPage.transform;
 		BuildSpawnerDropdown();
+		// Fase 3.21: the provider dropdown of the LLM section - same overlay, same page (its list needs the overlay,
+		// which is why the field is not built together with the rest of the LLM grid)
+		BuildLlmProviderDropdown();
 		// Fase 3.10/3.15: and the two dropdowns of a companion's profile, on its own page (the lists go to the same
 		// overlay, which is why this happens after it exists)
 		_page = _compPage.transform;
@@ -1274,9 +1326,9 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 	private void BuildRowBackgrounds()
 	{
-		float[] rows = new float[6]
+		float[] rows = new float[5]
 		{
-			RowVolume, RowKey, RowToggleA, RowToggleB, RowMemory, RowSpeed
+			RowVolume, RowKey, RowToggleA, RowToggleB, RowMemory
 		};
 		for (int i = 0; i < rows.Length; i++)
 		{
@@ -1356,18 +1408,15 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		CreateToggle(rightX + 8f, 180f, RowToggleB, rightX + 198f, 122f, ModLocalization.Loc("hc_ai_panel_conversation"), ModConfig.AiConversation);
 	}
 
+	/// <summary>
+	/// The number rows of the AI tab (the memory). Fase 3.21b: the speech speed slider left this panel - it is edited in
+	/// the F8 panel, which builds its controls from the configs - so this method is only the memory now.
+	/// </summary>
 	private void BuildNumbers()
 	{
 		CreateLabel(RowMemory, ModLocalization.Loc("hc_ai_panel_memory"));
 		_memory = CreateSlider("Memory", FieldX, RowMemory, 440f, RowH, 0f, 12f, 4f, true, OnMemoryChanged);
 		_memoryLabel = CreateText(Page, "", RightEdge - 60f, RowMemory + 6f, 60f, 22f, 12f, ValueColor, TextAlignmentOptions.MidlineRight);
-
-		CreateLabel(RowSpeed, ModLocalization.Loc("hc_ai_panel_speed"));
-		// the bounds of [IA] TtsVelocidade (0,5–2,0) come from CompanionTts, the same constants its clamp uses: the
-		// slider used to stop at 1,5, so a .cfg with 2,0 was shown as "2.00" with the handle at the end and the
-		// first drag silently lowered the setting to 1,5
-		_speed = CreateSlider("Speed", FieldX, RowSpeed, 440f, RowH, CompanionTts.MinSpeed, CompanionTts.MaxSpeed, 1f, false, OnSpeedChanged);
-		_speedLabel = CreateText(Page, "", RightEdge - 60f, RowSpeed + 6f, 60f, 22f, 12f, ValueColor, TextAlignmentOptions.MidlineRight);
 	}
 
 	/// <summary>
@@ -1471,11 +1520,12 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	/// rest of this panel), and they take effect on the <b>next message</b> because <see cref="LlmClient"/> reads the
 	/// config on each request.
 	///
-	/// <para>Layout: a <b>two-column grid</b> (see the RowLlm* constants). Left: the three toggles and the four text
-	/// boxes, applied by the section's "Aplicar" (one click, not per keystroke - they are real text fields, so they
-	/// are registered in <see cref="ModTextInputFocus"/> and Esc leaves them before the panel closes). Right: the four
-	/// sliders with their value and the two buttons ("Aplicar" and "Testar conexão"). The grid is what keeps the panel
-	/// at 900 px; the row backgrounds are drawn per line, both columns sharing the same y.</para>
+	/// <para>Layout: a <b>two-column grid</b> (see the RowLlm* constants). Left: the three toggles, the <b>provider
+	/// dropdown</b> (Fase 3.21, right above the URL) and the four text boxes, applied by the section's "Aplicar" (one
+	/// click, not per keystroke - they are real text fields, so they are registered in
+	/// <see cref="ModTextInputFocus"/> and Esc leaves them before the panel closes). Right: the four sliders with their
+	/// value and the two buttons ("Aplicar" and "Testar conexão"). The grid is what keeps the panel at a sane height
+	/// (976 since the two provider rows); the row backgrounds are drawn per line, both columns sharing the same y.</para>
 	///
 	/// <para>The API key is a <c>Password</c> field: it is masked on screen and its value never reaches the log - the
 	/// log line at the end of <see cref="ApplyLlmSettings"/> says only "informada/vazia".</para>
@@ -1487,9 +1537,14 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		title.fontStyle = FontStyles.Bold;
 		title.overflowMode = TextOverflowModes.Overflow;
 
-		// one dark row background per line, the two columns sharing the same y (the right column stops at its sixth)
+		// one dark row background per line, the two columns sharing the same y (the right column stops at its sixth).
+		// Fase 3.21: the row of the provider subtitle has no background - it is a heading, not a control row.
 		for (int i = 0; i < LlmRows; i++)
 		{
+			if (i == LlmProviderTitleRow)
+			{
+				continue;
+			}
 			GameObject row = new GameObject("RowLlm" + i, typeof(RectTransform), typeof(Image));
 			row.transform.SetParent(Page, worldPositionStays: false);
 			Place(row.GetComponent<RectTransform>(), 4f, RowLlmFirst + i * LlmStep, RightEdge - 4f, RowH);
@@ -1506,17 +1561,46 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		CreateToggle(LeftX, toggleTextW, RowLlm(1), toggleX, toggleW, ModLocalization.Loc("hc_ai_llm_structured"), ModConfig.AiStructuredOutput);
 		CreateToggle(LeftX, toggleTextW, RowLlm(2), toggleX, toggleW, ModLocalization.Loc("hc_ai_llm_show_raw"), ModConfig.AiShowResponse);
 
-		// ---- left column: the four text boxes (applied by the section's "Aplicar") ----
-		_llmBaseUrl = CreateLlmField(3, "hc_ai_llm_base_url", 200, "http://127.0.0.1:1234/v1");
-		_llmModel = CreateLlmField(4, "hc_ai_llm_model", 120, "qwen2.5-3b-instruct");
-		_llmApiKey = CreateLlmField(5, "hc_ai_llm_api_key", 200, "");
-		_llmPrefix = CreateLlmField(6, "hc_ai_llm_prefix", 40, "/c");
+		// ---- Fase 3.21: the provider, right above the URL - the subtitle here and the dropdown built by
+		// BuildLlmProviderDropdown (its list lives on the overlay, which does not exist yet when this method runs) ----
+		TMP_Text providerTitle = CreateText(Page, ModLocalization.Loc("hc_ai_llm_provider"), LeftX,
+			RowLlm(LlmProviderRow) - 24f, RightEdge - LeftX, 22f, 13f, LabelColor, TextAlignmentOptions.MidlineLeft);
+		providerTitle.fontStyle = FontStyles.Bold;
+		providerTitle.overflowMode = TextOverflowModes.Overflow;
+
+		// ---- left column: the four text boxes (applied by the section's "Aplicar") - Fase 3.21: they moved two rows
+		// down to leave the provider block immediately above the URL field ----
+		_llmBaseUrl = CreateLlmField(LlmProviderRow + 1, "hc_ai_llm_base_url", 200, "http://127.0.0.1:1234/v1");
+		_llmModel = CreateLlmField(LlmProviderRow + 2, "hc_ai_llm_model", 120, "qwen2.5-3b-instruct");
+		_llmApiKey = CreateLlmField(LlmProviderRow + 3, "hc_ai_llm_api_key", 200, "");
+		_llmPrefix = CreateLlmField(LlmProviderRow + 4, "hc_ai_llm_prefix", 40, "/c");
 		if (_llmApiKey != null)
 		{
 			// the key is never shown in clear: the field masks what is typed (and what came from the .cfg)
 			_llmApiKey.contentType = TMP_InputField.ContentType.Password;
 			_llmApiKey.asteriskChar = '*';
 		}
+
+		// ---- Fase 3.21c: the free-key link, on the free right half of the "Chave de API" line ----
+		// It looks exactly like a toggle that is ON - the same GoldColor of ApplyToggleVisual and a white centered
+		// label, no underline - because that is the visual language of this section. It is an ACTION, not a selector:
+		// nothing here follows the click, so the gold never becomes "Desligado". The transition is left at the default
+		// ColorTint on purpose - it is what gives the SAME soft highlight the toggle buttons have on hover (plus the
+		// momentary press tint), and none of it persists. The Image stays a raycast target so the whole block is
+		// clickable. It starts hidden: RefreshProviderDropdown (every open) shows it only for the providers that have
+		// a key page.
+		float keyLinkX = LlmRightX + 8f;
+		_llmKeyLink = CreateButton(Page, "LlmKeyLink", keyLinkX, RowLlm(LlmProviderRow + 3),
+			RightEdge - 8f - keyLinkX, RowH, ModLocalization.Loc("hc_ai_llm_key_link"), OpenLlmKeyPage);
+		_llmKeyLink.Button.interactable = true;
+		_llmKeyLink.Image.color = GoldColor;
+		_llmKeyLink.Label.alignment = TextAlignmentOptions.Center;
+		_llmKeyLink.Label.fontSize = 13f;
+		_llmKeyLink.Label.color = Color.white;
+		// the row is 316 wide and the text takes ~230-245 at 13px, so it fits centered with room on both sides;
+		// overflow (instead of "...") means a longer translation stays readable
+		_llmKeyLink.Label.overflowMode = TextOverflowModes.Overflow;
+		_llmKeyLink.Button.gameObject.SetActive(false);
 
 		// ---- right column: the four sliders, each with its value on the right ----
 		_llmTemperature = CreateLlmSlider(0, "hc_ai_llm_temperature", "LlmTemperature", 0f, 1f, false, out _llmTemperatureLabel);
@@ -1548,7 +1632,8 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 		// one line with the bands, so the layout can be checked from the log without opening the game
 		CompanionsPlugin.Log?.LogInfo($"[IA] Painel: secao do LLM em y={RowLlmTitle:0}..{RowLlm(LlmRows - 1) + RowH:0} "
-			+ $"(esquerda: 3 alternadores + 4 campos, {LlmRows} linhas; direita: 4 sliders + 2 botoes, {LlmRightRows} linhas), "
+			+ $"(esquerda: 3 alternadores + provedor + 4 campos, {LlmRows} linhas; direita: 4 sliders + 2 botoes, {LlmRightRows} linhas), "
+			+ $"provedor em y={RowLlm(LlmProviderRow) - 24f:0}..{RowLlm(LlmProviderRow) + RowH:0} (x={LeftX:0}..{LeftX + LlmProviderW:0}), "
 			+ $"colunas em x={LeftX:0}..{LlmRightX - 8f:0} e {LlmRightX:0}..{RightEdge:0}, "
 			+ $"rodape em y={RowStatus:0} e {RowHint:0} (faixa {RowStatus - 6f:0}..{RowStatus - 6f + (RowHint - RowStatus) + 2f * FooterLineH + 12f:0}), "
 			+ $"painel {PanelW:0}x{PanelH:0}");
@@ -1558,6 +1643,118 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	private static float RowLlm(int index)
 	{
 		return RowLlmFirst + index * LlmStep;
+	}
+
+	/// <summary>
+	/// Fase 3.21: the provider dropdown of the LLM section - the same hand-built dropdown (and the same overlay
+	/// canvas) the summoner's "Tipo" uses, with the subtitle of <see cref="BuildLlmSettings"/> right above it.
+	///
+	/// <para>It is built <b>after</b> the overlay exists (like <see cref="BuildSpawnerDropdown"/>), because the list of
+	/// an open dropdown lives on that overlay - and the field itself is created on the AI page, so it is created after
+	/// the overlay in the hierarchy too (<c>Build</c> puts the overlay back as the last child right after this).</para>
+	///
+	/// <para>The starting index is <b>derived</b> from the URL that is in use
+	/// (<see cref="LlmProviders.Suggest"/>) - the <c>.cfg</c> stays the source of the truth and there is no new
+	/// config entry. <see cref="RefreshProviderDropdown"/> recomputes it on every open, so a <c>.cfg</c> edited
+	/// between two openings is never lied about.</para>
+	/// </summary>
+	private void BuildLlmProviderDropdown()
+	{
+		string[] labels = new string[LlmProviders.Count];
+		for (int i = 0; i < labels.Length; i++)
+		{
+			labels[i] = ModLocalization.Loc(LlmProviders.LabelKeyAt(i));
+		}
+		int index = LlmProviders.Suggest(ModConfig.AiBaseUrl != null ? ModConfig.AiBaseUrl.Value : "");
+		// the list opens downwards: the field sits in the middle of the page (four rows below it are the four text
+		// boxes, which the list covers while it is open - and only while it is open)
+		_llmProvider = CreateDropdown("LlmProvider", LeftX, RowLlm(LlmProviderRow), LlmProviderW, RowH, labels, index,
+			OnProviderPicked);
+		SetDropdown(_llmProvider, index);
+	}
+
+	/// <summary>The dropdown follows the URL in use: called when the panel opens and after "Aplicar", never per frame.</summary>
+	private void RefreshProviderDropdown()
+	{
+		if (_llmProvider == null)
+		{
+			return;
+		}
+		SetDropdown(_llmProvider, LlmProviders.Suggest(ModConfig.AiBaseUrl != null ? ModConfig.AiBaseUrl.Value : ""));
+		// Fase 3.21c: the key link follows the provider the dropdown is showing now
+		UpdateLlmKeyLink(_llmProvider.Index);
+	}
+
+	/// <summary>
+	/// Fase 3.21c: shows the "Crie sua Chave de API Grátis AQUI" link only for the providers that have a key page
+	/// (<see cref="LlmProviders.KeyUrlAt"/> - Groq and OpenRouter), and hides it for LM Studio and for the
+	/// "Personalizado". Called when the panel opens and when the player picks a provider; never per frame, and the
+	/// only thing it ever changes is the active state of the link (and only when the provider really changed).
+	/// </summary>
+	private void UpdateLlmKeyLink(int index)
+	{
+		if (_llmKeyLink == null || _llmKeyLink.Button == null)
+		{
+			return;
+		}
+		bool show = LlmProviders.KeyUrlAt(index).Length > 0;
+		GameObject link = _llmKeyLink.Button.gameObject;
+		if (link.activeSelf != show)
+		{
+			link.SetActive(show);
+		}
+	}
+
+	/// <summary>
+	/// Fase 3.21c: the click of the key link - it opens the key page of the <b>selected</b> provider in the browser.
+	/// The URL is read from <see cref="LlmProviders"/> at click time (a constant of the table, never anything the
+	/// player typed), and there is no network call, no config write and no "Aplicar" here: the panel stays open and the
+	/// game keeps running. <c>OpenURL</c> is wrapped because it can throw on a machine with no browser association.
+	/// </summary>
+	private void OpenLlmKeyPage()
+	{
+		int index = _llmProvider != null
+			? _llmProvider.Index
+			: LlmProviders.Suggest(ModConfig.AiBaseUrl != null ? ModConfig.AiBaseUrl.Value : "");
+		string url = LlmProviders.KeyUrlAt(index);
+		if (url.Length == 0)
+		{
+			// defensive: the link is hidden when there is no page, so this only happens if it is ever shown by hand
+			return;
+		}
+		try
+		{
+			Application.OpenURL(url);
+			CompanionsPlugin.Log?.LogInfo($"[IA] Painel: abrindo {url} no navegador");
+		}
+		catch (Exception exception)
+		{
+			CompanionsPlugin.Log?.LogWarning($"[IA] Painel: nao consegui abrir {url} no navegador ({exception.Message}) - "
+				+ "copie o endereco e abra na mao.");
+		}
+	}
+
+	/// <summary>
+	/// Picking a provider <b>fills the two text boxes</b> - and nothing else: the ApiKey box is never touched (the
+	/// player may have pasted the key before choosing, and every provider has its own key), the <c>ConfigEntry</c>s are
+	/// not written (the fields of this section only count on "Aplicar", which is the rule of the section) and "Aplicar"
+	/// is not run here either. "Personalizado" fills nothing, so the URL the player typed stays as it is.
+	/// </summary>
+	private void OnProviderPicked(int index)
+	{
+		// Fase 3.21c: the key link belongs to the provider, so it changes here (and only here)
+		UpdateLlmKeyLink(index);
+		if (!LlmProviders.Fills(index))
+		{
+			CompanionsPlugin.Log?.LogInfo("[IA] Provedor: personalizado (URL mantida)");
+			return;
+		}
+		string url = LlmProviders.BaseUrlAt(index);
+		string model = LlmProviders.ModelAt(index);
+		SetFieldText(_llmBaseUrl, url);
+		SetFieldText(_llmModel, model);
+		CompanionsPlugin.Log?.LogInfo($"[IA] Provedor: {LlmProviders.IdAt(index)} -> {url} | {model} "
+			+ "(clique em Aplicar para valer)");
 	}
 
 	/// <summary>One "name + text box" line of the LLM grid (the value is filled by <see cref="RefreshFromConfig"/>).</summary>
@@ -1625,6 +1822,9 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		SetFieldText(_llmModel, model);
 		SetFieldText(_llmApiKey, key);
 		SetFieldText(_llmPrefix, prefix);
+		// Fase 3.21: what was just stored may be a URL the table knows (or one it doesn't) - the provider dropdown
+		// follows it, so it never shows a provider that is no longer the one in use
+		RefreshProviderDropdown();
 		CompanionsPlugin.Log?.LogInfo($"[IA] Painel: LLM salvo - {LlmClient.SafeEndpoint}, modelo \"{model}\", "
 			+ $"chave {(key.Length > 0 ? "informada" : "vazia")}, prefixo \"{prefix}\", timeout "
 			+ $"{ModConfig.AiTimeoutSeconds?.Value ?? 30}s, cooldown {ModConfig.AiCooldown?.Value ?? 3f:0.#}s, "
@@ -2543,7 +2743,6 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	private void RefreshFromConfig()
 	{
 		SetSlider(_volume, ModConfig.TtsVolume != null ? ModConfig.TtsVolume.Value : 1f);
-		SetSlider(_speed, ModConfig.TtsSpeed != null ? ModConfig.TtsSpeed.Value : 1f);
 		SetSlider(_memory, ModConfig.AiMemory != null ? ModConfig.AiMemory.Value : 4);
 		// Fase 3.20: the LLM section - the sliders and the four text boxes (the toggles below read their entries)
 		SetSlider(_llmTemperature, ModConfig.AiTemperature != null ? ModConfig.AiTemperature.Value : 0.1f);
@@ -2554,6 +2753,9 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		SetFieldText(_llmModel, ModConfig.AiModel != null ? ModConfig.AiModel.Value : "");
 		SetFieldText(_llmApiKey, ModConfig.AiApiKey != null ? ModConfig.AiApiKey.Value : "");
 		SetFieldText(_llmPrefix, ModConfig.AiPrefix != null ? ModConfig.AiPrefix.Value : "");
+		// Fase 3.21: the provider dropdown never lies - its index is derived from the [IA] BaseUrl on every open
+		// (a .cfg edited between two openings shows up here)
+		RefreshProviderDropdown();
 		UpdateLlmValueLabels();
 		for (int i = 0; i < _toggles.Count; i++)
 		{
@@ -2573,10 +2775,6 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		{
 			_volumeLabel.text = Mathf.RoundToInt(Mathf.Clamp01(ModConfig.TtsVolume != null ? ModConfig.TtsVolume.Value : 1f) * 100f) + "%";
 		}
-		if (_speedLabel != null)
-		{
-			_speedLabel.text = (ModConfig.TtsSpeed != null ? ModConfig.TtsSpeed.Value : 1f).ToString("0.00");
-		}
 		if (_memoryLabel != null)
 		{
 			_memoryLabel.text = ModLocalization.LocFmt("hc_ai_panel_memory_fmt", ModConfig.AiMemory != null ? ModConfig.AiMemory.Value : 4);
@@ -2593,19 +2791,6 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		if (_volumeLabel != null)
 		{
 			_volumeLabel.text = Mathf.RoundToInt(volume * 100f) + "%";
-		}
-	}
-
-	private void OnSpeedChanged(float value)
-	{
-		float speed = Mathf.Clamp(value, CompanionTts.MinSpeed, CompanionTts.MaxSpeed);
-		if (ModConfig.TtsSpeed != null)
-		{
-			ModConfig.TtsSpeed.Value = speed;
-		}
-		if (_speedLabel != null)
-		{
-			_speedLabel.text = speed.ToString("0.00");
 		}
 	}
 

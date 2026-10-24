@@ -477,7 +477,6 @@ public static class ModLocalization
 			{ "hc_ai_panel_voice", "Voice" },
 			{ "hc_ai_panel_listen", "Listen" },
 			{ "hc_ai_panel_volume", "Volume" },
-			{ "hc_ai_panel_speed", "Speech speed" },
 			{ "hc_ai_panel_memory", "Memory" },
 			{ "hc_ai_panel_memory_fmt", "{0} exchanges" },
 			{ "hc_ai_panel_push_to_talk", "Push-to-talk" },
@@ -509,9 +508,19 @@ public static class ModLocalization
 			{ "hc_ai_llm_enabled", "On" },
 			{ "hc_ai_llm_structured", "Structured output" },
 			{ "hc_ai_llm_show_raw", "Show the reply in chat" },
+			// Fase 3.21: the provider dropdown of the LLM section ("Selecione seu Provedor LLM"). The labels are short
+			// on purpose - they are the caption of a field in the left column of the grid - and the table that pairs
+			// each one with its URL and model is AI/LlmProviders.cs.
+			{ "hc_ai_llm_provider", "Pick your LLM provider" },
+			{ "hc_ai_llm_provider_groq", "Groq (free, fast)" },
+			{ "hc_ai_llm_provider_lmstudio", "LM Studio (local)" },
+			{ "hc_ai_llm_provider_openrouter", "OpenRouter (free, slower)" },
+			{ "hc_ai_llm_provider_custom", "Custom (manual URL)" },
 			{ "hc_ai_llm_base_url", "Server URL" },
 			{ "hc_ai_llm_model", "Model" },
 			{ "hc_ai_llm_api_key", "API key" },
+			// Fase 3.21c: the link on the right half of the key row that opens the provider's key page in the browser
+			{ "hc_ai_llm_key_link", "Create your free API key HERE" },
 			{ "hc_ai_llm_prefix", "Prefix" },
 			{ "hc_ai_llm_temperature", "Temperature" },
 			{ "hc_ai_llm_timeout", "Timeout (s)" },
