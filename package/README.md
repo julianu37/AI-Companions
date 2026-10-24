@@ -34,7 +34,7 @@ mesmo caminho das ordens digitadas. Exemplos:
 - **Ver o que ele carrega:** `abre o teu inventário` / `mostra o que você carrega` abre a **janela do inventário
   do companheiro** (a mesma do toque na tecla de interagir); `fecha o inventário` fecha.
 - **A voz é local:** o reconhecimento de fala e a **voz do companheiro** rodam **na sua máquina** — nada disso
-  é enviado para fora. O **LLM** (que entende a ordem) usa o **OpenRouter** por padrão, um **serviço remoto**:
+  é enviado para fora. O **LLM** (que entende a ordem) usa o **Groq** por padrão, um **serviço remoto**:
   o texto das ordens e da conversa **sai da sua máquina**. Para não enviar nada, use o **LM Studio** local
   (`[IA] BaseUrl = http://127.0.0.1:1234/v1`).
 
@@ -278,16 +278,16 @@ Ao atualizar de uma versão antiga, as opções que você mudou são migradas au
 3. **Para as ordens por voz:** deixe um modelo do Whisper (ex. `ggml-small-q5_1.bin`) em
    `.../AI-Companions/whisper/`.
 4. **Para ele falar:** o modelo do Kokoro já vem no pacote, em `.../AI-Companions/tts/kokoro/`.
-5. **Para a IA:** crie a **chave gratuita** em **[openrouter.ai/keys](https://openrouter.ai/keys)** e cole em
-   `[IA] ApiKey`. O `BaseUrl` (`https://openrouter.ai/api/v1`) e o `Modelo` (`openrouter/free`) **já vêm
+5. **Para a IA:** crie a **chave gratuita** em **[console.groq.com/keys](https://console.groq.com/keys)** e cole em
+   `[IA] ApiKey`. O `BaseUrl` (`https://api.groq.com/openai/v1`) e o `Modelo` (`openai/gpt-oss-20b`) **já vêm
    configurados**. Quer rodar local? Instale o **[LM Studio](https://lmstudio.ai/)**, carregue o
    `qwen2.5-3b-instruct`, ligue o servidor e use `[IA] BaseUrl = http://127.0.0.1:1234/v1` com o `ApiKey`
    **vazio**. No jogo, o **Testar conexão** (painel `I`) diz se a URL responde; a **chave** só é validada numa
    ordem de verdade.
 
 **Requisitos:** Valheim **1.0.17** + BepInEx (o BepInExPack já traz o Harmony). Para as ordens, um **LLM**:
-**OpenRouter** (só a chave gratuita e internet) ou **LM Studio** local. As ordens por voz exigem **Windows x64** e
-um **microfone**.
+**Groq** (só a chave gratuita e internet), **LM Studio** local (opcional) ou **OpenRouter** (alternativa). As
+ordens por voz exigem **Windows x64** e um **microfone**.
 
 **Multiplayer:** todo jogador precisa do mod, e o servidor dedicado também.
 

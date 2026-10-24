@@ -118,9 +118,9 @@ Este é um requisito de projeto, não um detalhe:
 
 - A sua fala é transcrita **dentro do jogo** (Whisper, local).
 - A voz do companheiro é sintetizada **dentro do jogo** (Kokoro, local).
-- O **LLM** é o único que pode ser remoto: por padrão é o **OpenRouter**, e aí o texto das ordens e da conversa
-  **sai da sua máquina**. Para não enviar nada, use o **LM Studio/Ollama** local
-  (**[LLM (OpenRouter ou LM Studio)](LLM-no-LM-Studio)**).
+- O **LLM** é o único que pode ser remoto: por padrão é o **Groq** (ou o **OpenRouter**, como alternativa), e aí o
+  texto das ordens e da conversa **sai da sua máquina**. Para não enviar nada, use o **LM Studio/Ollama** local
+  (**[LLM (Groq, LM Studio ou OpenRouter)](LLM-no-LM-Studio)**).
 
 O `ApiKey`, quando existe, fica só no `.cfg` local — nunca versione nem compartilhe esse arquivo com a chave
 preenchida.

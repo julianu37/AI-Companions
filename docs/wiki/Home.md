@@ -45,9 +45,9 @@ O companheiro em si (trabalhos, comida, stamina, habilidades, casa, descanso, po
 vem do upstream e continua funcionando igual — a IA é só uma **nova entrada** para as mesmas ações.
 
 > **A voz roda toda na sua máquina.** O reconhecimento da fala (STT) e a voz sintetizada (TTS) são **100%
-> locais**: nada é enviado. O entendimento das ordens usa um **LLM** — por padrão o **OpenRouter**, que é um
+> locais**: nada é enviado. O entendimento das ordens usa um **LLM** — por padrão o **Groq**, que é um
 > **serviço remoto** (o texto das ordens e da conversa **sai da sua máquina**). Para não enviar nada, troque-o
-> pela opção local, **LM Studio** (ou Ollama). Veja **[LLM (OpenRouter ou LM Studio)](LLM-no-LM-Studio)**.
+> pela opção local, **LM Studio** (ou Ollama). Veja **[LLM (Groq, LM Studio ou OpenRouter)](LLM-no-LM-Studio)**.
 
 ## O que ele faz
 
@@ -68,7 +68,7 @@ vem do upstream e continua funcionando igual — a IA é só uma **nova entrada*
 | Item | Detalhe |
 |---|---|
 | **Valheim 1.0.x** + **BepInEx 5.4.2351** | A base de tudo — passo a passo em **[Instalação](Instalacao)** |
-| **Um LLM** | **OpenRouter** (padrão): só a **chave gratuita** (https://openrouter.ai/keys) e internet — o texto das ordens **sai da sua máquina**. A opção local, **LM Studio** ou Ollama, é **opcional** e não envia nada |
+| **Um LLM** | **Groq** (padrão): só a **chave gratuita** (https://console.groq.com/keys) e internet — o texto das ordens **sai da sua máquina**. A opção local, **LM Studio** ou Ollama, é **opcional** e não envia nada; o **OpenRouter** continua funcionando como alternativa |
 | **Windows x64** | Obrigatório para a voz (os binários nativos são `win-x64`) |
 | **Microfone** | Só para as ordens por voz |
 
@@ -76,8 +76,8 @@ vem do upstream e continua funcionando igual — a IA é só uma **nova entrada*
 
 1. Veja o que você precisa em **[Requisitos](Requisitos)**.
 2. Siga o passo a passo de **[Instalação](Instalacao)**.
-3. Configure o LLM em **[LLM (OpenRouter ou LM Studio)](LLM-no-LM-Studio)** — o padrão é o **OpenRouter**
-   (só a chave gratuita); o **LM Studio** local é opcional.
+3. Configure o LLM em **[LLM (Groq, LM Studio ou OpenRouter)](LLM-no-LM-Studio)** — o padrão é o **Groq**
+   (só a chave gratuita); o **LM Studio** local é opcional e o **OpenRouter** é alternativa.
 4. Veja as teclas e as ordens em **[Comandos](Comandos)**.
 5. Se algo não funcionar, vá em **[Problemas comuns](Problemas-comuns)**.
 
@@ -87,7 +87,7 @@ vem do upstream e continua funcionando igual — a IA é só uma **nova entrada*
 |---|---|
 | **[Requisitos](Requisitos)** | O que é obrigatório e o que é opcional |
 | **[Instalação](Instalacao)** | Passo a passo com imagens |
-| **[LLM (OpenRouter ou LM Studio)](LLM-no-LM-Studio)** | O OpenRouter como padrão (chave gratuita) e o LM Studio local como opção |
+| **[LLM (Groq, LM Studio ou OpenRouter)](LLM-no-LM-Studio)** | O Groq como padrão (chave gratuita), o LM Studio local como opção e o OpenRouter como alternativa |
 | **[Voz](Voz)** | STT (Whisper) e TTS (Kokoro): como funcionam e como ajustar |
 | **[Comandos](Comandos)** | Teclas, ordens de chat/voz e comandos de console |
 | **[Configuração](Configuracao)** | O `.cfg`, a seção `[IA]` e os painéis `F8` e `I` |
@@ -105,12 +105,12 @@ vem do upstream e continua funcionando igual — a IA é só uma **nova entrada*
 | **Upstream (MIT)** | https://github.com/MaddhattrRocks/Offline-Companions-Reborn |
 | **Vídeo** | https://www.youtube.com/watch?v=40FnVEIbXyo |
 
-A release publicada mais recente é a **1.8.0** (24/10/2026), com **dois** arquivos para escolher:
+A release publicada mais recente é a **1.8.1** (24/10/2026), com **dois** arquivos para escolher:
 
 | Arquivo | Tamanho | O que vem |
 |---|---|---|
-| `AI_Companions-1.8.0.zip` | ~368 MB | O mod **e** os modelos de voz (STT + TTS) já prontos |
-| `AI_Companions-1.8.0-sem-modelos.zip` | ~28,4 MB | Só o mod e as traduções — você baixa os modelos por fora |
+| `AI_Companions-1.8.1.zip` | ~368 MB | O mod **e** os modelos de voz (STT + TTS) já prontos |
+| `AI_Companions-1.8.1-sem-modelos.zip` | ~28,4 MB | Só o mod e as traduções — você baixa os modelos por fora |
 
 > **Qual escolher?** Se você quer só instalar e usar, pegue o **completo**. Se a sua internet é lenta (ou você já
 > tem os modelos), pegue o **sem-modelos** e siga a seção de modelos em **[Instalação](Instalacao)**.
@@ -121,10 +121,12 @@ A release publicada mais recente é a **1.8.0** (24/10/2026), com **dois** arqui
 > o `.cfg` (`Maddhattr.OfflineCompanionsReborn.cfg`), o save, os companheiros, a casa e o inventário continuam
 > valendo (o GUID do plugin e as chaves `HC_*` foram preservados de propósito).
 
-> A **1.8.0** traz **vários companheiros**, cada um com a sua aba no painel `I` (nome, tipo, aparência, voz e
-> personalidade próprias, ordem pelo nome e um teto de 10), o **editor de aparência com preview 3D** e o
-> **OpenRouter como padrão** da IA — mais a seção **Configurações do LLM** no painel `I`.
+> A **1.8.1** traz o **Groq como LLM padrão** (grátis e rápido: a chave sai em `console.groq.com/keys`), com o
+> **LM Studio/Ollama** como opção local e o **OpenRouter** ainda disponível — só que o tier gratuito dele é mais lento.
+> E mantém tudo o que a **1.8.0** trouxe: **vários companheiros**, cada um com a sua aba no painel `I` (nome, tipo,
+> aparência, voz e personalidade próprias, ordem pelo nome e um teto de 10), o **editor de aparência com preview 3D** e
+> a seção **Configurações do LLM** no painel `I`.
 >
-> E corrige o **peso**: o **Megingjord** (+150) e os demais itens com bônus de carga agora **somam** no teto do
+> A **1.8.0** corrigiu o **peso**: o **Megingjord** (+150) e os demais itens com bônus de carga **somam** no teto do
 > companheiro (o `/300` vira `/450`), valendo com o cinto em **qualquer lugar da mochila** — não precisa equipar —
-> e **uma vez só** (dois cintos não empilham). A **1.7.0** foi a release anterior.
+> e **uma vez só** (dois cintos não empilham).

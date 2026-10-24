@@ -1,32 +1,37 @@
-# LLM (OpenRouter ou LM Studio)
+# LLM (Groq, LM Studio ou OpenRouter)
 
-O mod entende as ordens mandando o texto para um **LLM** por uma API **compatível com a OpenAI**. Há dois
-caminhos, e você escolhe um:
+O mod entende as ordens mandando o texto para um **LLM** por uma API **compatível com a OpenAI**. Há três
+caminhos, e você escolhe **um**:
 
 | Caminho | O que precisa | Para onde vai o texto | Quando escolher |
 |---|---|---|---|
-| **OpenRouter** — **padrão** | internet e uma **chave gratuita** | **sai da sua máquina** (serviço remoto) | Quer usar sem instalar nada |
+| **Groq** — **padrão** | internet e uma **chave gratuita** | **sai da sua máquina** (serviço remoto) | Quer usar sem instalar nada, e rápido |
 | **LM Studio** (ou Ollama) — opcional | o modelo baixado e o servidor ligado | fica **na sua máquina** | Quer privacidade total ou uso intenso |
+| **OpenRouter** — alternativa | internet e uma **chave gratuita** | **sai da sua máquina** (serviço remoto) | Já usa o OpenRouter ou quer testar outro modelo |
 
-Esta página começa pelo **OpenRouter**, porque ele **já é o padrão** do mod: instalou, pôs a chave e pronto. A
-opção local (**LM Studio**) continua funcionando igual e está logo abaixo.
+Esta página começa pelo **Groq**, porque ele **já é o padrão** do mod: instalou, pôs a chave e pronto. Depois vem a
+opção **local** (**LM Studio**, que continua funcionando igual) e, por último, o **OpenRouter** — que também
+continua funcionando, mas cujo tier gratuito é **lento** e por isso deixou de ser o padrão.
+
+> **Já tem um `.cfg` de uma versão anterior?** Ele **não muda sozinho**: o BepInEx só aplica o valor padrão em chave
+> nova, então quem já configurou OpenRouter ou LM Studio continua exatamente como estava. Trocar para o Groq é
+> opcional — e é só editar `BaseUrl`, `Modelo` e `ApiKey` (no `.cfg` ou na seção **Configurações do LLM** do painel
+> `I`).
 
 ---
 
-## 1. OpenRouter: só a chave e a internet
+## 1. Groq: só a chave e a internet (padrão)
 
-O OpenRouter é um serviço que fala a **mesma API da OpenAI** e dá acesso a vários modelos, inclusive os
-**gratuitos**. Para o mod, é o caminho mais rápido: não há nada para instalar nem servidor para deixar aberto — o
-`.cfg` já vem apontado para ele.
+O **Groq** é um serviço que fala a **mesma API da OpenAI** e serve modelos abertos, com um **tier gratuito**. Para o
+mod, é o caminho mais rápido: não há nada para instalar nem servidor para deixar aberto — o `.cfg` já vem apontado
+para ele.
 
 ### 1.1. Crie a sua chave gratuita
 
-1. Abra **https://openrouter.ai** e crie a conta (e-mail ou login social).
-2. Vá em **https://openrouter.ai/keys** e clique em **Create Key** (dê um nome qualquer, ex.: `Valheim`).
-3. **Copie a chave gerada** — é ela que vai no `[IA] ApiKey`.
-
-> O OpenRouter recomenda definir um **limite de crédito** em cada chave. Para o uso gratuito do mod não é preciso
-> comprar crédito: a chave só serve para identificar a sua conta.
+1. Abra **https://console.groq.com** e crie a conta (e-mail ou login social).
+2. Vá em **https://console.groq.com/keys** e clique em **Create API Key** (dê um nome qualquer, ex.: `Valheim`).
+3. **Copie a chave gerada** — é ela que vai no `[IA] ApiKey`. Ela aparece **uma vez só**; se fechar a janela sem
+   copiar, crie outra.
 
 ### 1.2. O que colocar no `.cfg` (ou no painel)
 
@@ -34,24 +39,28 @@ Abra `<Valheim>\BepInEx\config\Maddhattr.OfflineCompanionsReborn.cfg` e confira 
 
 ```ini
 [IA]
-BaseUrl = https://openrouter.ai/api/v1
-Modelo = openrouter/free
+BaseUrl = https://api.groq.com/openai/v1
+Modelo = openai/gpt-oss-20b
 ApiKey = <a sua chave>
 SaidaEstruturada = true
 ```
 
 | Chave | Valor | Por quê |
 |---|---|---|
-| `BaseUrl` | `https://openrouter.ai/api/v1` | Endereço do OpenRouter — **já é o padrão**. O `/chat/completions` é adicionado sozinho |
-| `Modelo` | `openrouter/free` | **Roteador de modelos gratuitos**: a cada pedido ele escolhe um modelo **sem custo** (e filtra os que suportam a saída estruturada) — **já é o padrão** |
-| `ApiKey` | **a sua chave** | No OpenRouter ela é **obrigatória**. Vazia ou errada, o servidor recusa o pedido com erro de autenticação |
-| `SaidaEstruturada` | `true` | Pede o formato JSON ao servidor — é o que faz modelos pequenos funcionarem. Se um modelo não aceitar, o mod cai sozinho no formato antigo e avisa no log |
+| `BaseUrl` | `https://api.groq.com/openai/v1` | Endereço do Groq — **já é o padrão**. O `/chat/completions` é adicionado sozinho |
+| `Modelo` | `openai/gpt-oss-20b` | O modelo aberto da OpenAI servido pelo Groq — **já é o padrão**. É rápido e obedece bem à saída estruturada |
+| `ApiKey` | **a sua chave** | No Groq ela é **obrigatória**. Vazia ou errada, o servidor recusa o pedido com erro de autenticação |
+| `SaidaEstruturada` | `true` | Pede o formato JSON ao servidor — é o que faz modelos pequenos funcionarem. O `gpt-oss-20b` aceita `json_schema` em modo **strict** (decodificação restrita), que é o modo que o mod usa |
 
 Você também pode fazer isso **em jogo**, sem abrir o arquivo: tecla **`I`** → aba **IA** → **Configurações do
 LLM**. É onde ficam a **URL do servidor**, o **Modelo**, a **Chave de API** e os botões **Aplicar** e **Testar
 conexão**:
 
-![O painel da IA (tecla I), aba IA: em Configurações do LLM, a URL do OpenRouter, o modelo openrouter/free e a chave de API mascarada](images/painel-llm-openrouter.png)
+![O painel da IA (tecla I), aba IA: em Configurações do LLM, a URL do servidor, o modelo e a chave de API mascarada](images/painel-llm-openrouter.png)
+
+> No print acima os campos estão com os valores **do OpenRouter** (é uma configuração de exemplo, feita antes de o
+> Groq virar o padrão). Com o Groq, a URL é `https://api.groq.com/openai/v1`, o modelo é `openai/gpt-oss-20b` e a
+> chave é a de `console.groq.com/keys`. O painel é o mesmo.
 
 > `BaseUrl`, `Modelo` e `ApiKey` também aparecem no painel **`F8`**, mas são chaves de **texto**: para colar uma
 > chave, o campo do painel `I` (ou o próprio `.cfg`) é mais confortável. O que você salva ali vale na **próxima
@@ -67,16 +76,15 @@ manda um pedido mínimo de chat. O resultado é um destes:
 - **Conexão OK: N modelo(s) no servidor** — a URL respondeu.
 - **Conexão OK: … e o modelo configurado está na lista** — o melhor caso.
 - **Conexão OK: … mas "<modelo>" não está na lista** — a URL respondeu, mas o nome não apareceu na lista que o
-  servidor devolve. Com o `openrouter/free` isso **pode** acontecer (ele é um roteador, e a lista do servidor é o
-  catálogo de modelos): siga para o teste em jogo, mandando uma ordem de verdade.
-- **Falha na conexão: …** — vem com o motivo (status/mensagem do servidor): URL errada, servidor local desligado,
+  servidor devolve. Confira se o `Modelo` está escrito exatamente `openai/gpt-oss-20b` e siga para o teste em jogo,
+  mandando uma ordem de verdade.
+- **Falha na conexão: …** — vem com o motivo (status/mensagem do servidor): URL errada, chave vazia/errada,
   endereço sem `http://`/`https://`…
 
 ![O painel da IA (tecla I), aba IA: acima, o invocador de companheiros com a lista de tipos aberta; abaixo, a seção Configurações do LLM com URL do servidor, modelo, chave de API mascarada, Aplicar e Testar conexão](images/3-invocar-e-llm.jpg)
 
-> **O teste não prova que a chave está certa.** No OpenRouter a lista de modelos é **pública**: com a chave
-> vazia ou errada o teste ainda pode responder *Conexão OK*, e o **erro de autenticação** só aparece na primeira
-> ordem (no log e no aviso). Quem confirma a chave é uma ordem de verdade — veja
+> **Quem confirma a chave é uma ordem de verdade.** O **Testar conexão** diz que a URL responde e que o modelo está
+> na lista; se ele passar mas a ordem falhar com **401**, o problema é a chave — veja
 > **[Problemas comuns](Problemas-comuns)**.
 
 ### 1.4. O que esperar da resposta
@@ -88,44 +96,45 @@ log, em cada ordem:
 [IA] Tempo: 378 ms (… tokens, … tokens/s)
 ```
 
-Com o `openrouter/free`, o número **varia bastante**: o roteador escolhe um modelo gratuito diferente a cada
-pedido, e a fila do provedor muda ao longo do dia. Pode ser rápido numa ordem e demorar alguns segundos na
-seguinte — não é um valor fixo como o do modelo local. O mod avisa no log quando uma ordem passa de **5 s**, e o
-`[IA] TimeoutSegundos` (padrão **30**) é o teto de espera.
+Com o `openai/gpt-oss-20b` no Groq a resposta chega em **fração de segundo** na nossa medição — bem mais rápido que
+o tier gratuito do OpenRouter. O modelo é servido a ~**1.000 tokens/s** e tem janela de **131.072 tokens** (máximo
+de conclusão 65.536), o que sobra para o prompt do mod (fonte: https://console.groq.com/docs/models). O mod avisa no
+log quando uma ordem passa de **5 s**, e o `[IA] TimeoutSegundos` (padrão **30**) é o teto de espera.
 
-### 1.5. Limites e dicas do tier gratuito
+### 1.5. Limites do tier gratuito
 
-O que a documentação do OpenRouter informa hoje (confira em **https://openrouter.ai/docs** — os números podem
-mudar):
+O que a documentação do Groq informa hoje para o `openai/gpt-oss-20b` no plano gratuito (fonte:
+https://console.groq.com/docs/rate-limits — os números podem mudar):
 
-- Os modelos **gratuitos** (os que têm `:free` no nome) têm limite de **20 pedidos por minuto** e um **teto
-  diário de pedidos** por conta.
-- O teto diário depende do histórico da conta: **50 pedidos por dia** para quem **nunca comprou crédito** e
-  **1000 por dia** a partir de **10 créditos comprados** (no total, não por mês).
-- Como o `openrouter/free` só encaminha para modelos gratuitos, o uso dele cai nesse mesmo tipo de limite (a
-  página de limites do OpenRouter é que diz como o roteador é contado).
-- O próprio OpenRouter descreve os modelos gratuitos como **para experimentar e para uso de baixo volume**: eles
-  podem ter **fila**, variação de disponibilidade e latência.
+| Limite | Valor |
+|---|---|
+| Requisições por minuto (**RPM**) | **30** |
+| Requisições por dia (**RPD**) | **1.000** |
+| Tokens por minuto (**TPM**) | **8.000** |
+| Tokens por dia (**TPD**) | **200.000** |
 
-Na prática, o teto de **50 pedidos por dia** atende uma sessão normal de ordens esporádicas; **uso intenso**
-(muitas ordens e conversa o tempo todo) esbarra no limite diário ou na fila. Aí a **opção local** (abaixo)
-resolve — e de graça, sem limite de pedidos.
+Na prática, **o TPM é o limite que morde primeiro**: o prompt do mod gasta cerca de **1.800 tokens por ordem**, o
+que dá **~4 ordens por minuto**. Acima disso o Groq responde **429** e a ordem é recusada com aviso — nada quebra e
+nada fica preso; espere um pouco e mande de novo.
 
-> O `[IA] CooldownSegundos` (padrão **3**) ajuda: ele evita que uma rajada de mensagens vire uma rajada de
-> pedidos.
+- O teto de **8.000 tokens por minuto** atende uma sessão normal de ordens esporádicas. Uso intenso (muitas ordens
+  e conversa o tempo todo) esbarra nele — aí a **opção local** (abaixo) resolve, sem limite de pedidos.
+- O `[IA] CooldownSegundos` (padrão **3**) ajuda: ele evita que uma rajada de mensagens vire uma rajada de pedidos.
+- **429** é limite de requisições/tokens, **401** é chave — a diferença está em **[Problemas comuns](Problemas-comuns)**.
+
+> **A saída estruturada continua valendo.** O `gpt-oss-20b` aceita `json_schema` em modo **strict** e também o modo
+> *best-effort*; **streaming** e **tool use** não são suportados junto com a saída estruturada — e o mod **não** usa
+> nenhum dos dois (fonte: https://console.groq.com/docs/structured-outputs).
 
 ### 1.6. Privacidade e a chave
 
-- **Com o OpenRouter, o texto das ordens e da conversa sai da sua máquina.** Ele vai para os servidores do
-  OpenRouter e de lá para o provedor do modelo escolhido — a persona, a memória e o que você digita entram nesse
-  envio. **Não escreva nada sensível** no chat do companheiro.
-- O OpenRouter informa que **não registra** prompts e respostas por padrão (há um opt-in nas preferências da
-  conta) e que encaminha os pedidos a provedores que, quando possível, não registram nem treinam com os dados;
-  ainda assim, é um **serviço remoto** — a política dele é que vale, não a do mod.
-- O reconhecimento de voz (**STT**) e a **voz do companheiro** (**TTS**) continuam **locais**: só o texto da
-  ordem vai para o LLM.
-- **A chave fica no `.cfg`.** Não compartilhe esse arquivo com a chave preenchida e nunca versione uma chave. Se
-  ela vazar, apague em **https://openrouter.ai/settings/keys** e crie outra.
+- **Com o Groq, o texto das ordens e da conversa sai da sua máquina.** Ele vai para os servidores do Groq — a
+  persona, a memória e o que você digita entram nesse envio. **Não escreva nada sensível** no chat do companheiro.
+- O Groq é um **serviço remoto**: a política de dados dele é que vale, não a do mod.
+- O reconhecimento de voz (**STT**) e a **voz do companheiro** (**TTS**) continuam **locais**: só o texto da ordem
+  vai para o LLM.
+- **A chave fica no `.cfg`.** Não compartilhe esse arquivo com a chave preenchida e nunca versione uma chave. Se ela
+  vazar, apague em **https://console.groq.com/keys** e crie outra.
 - Quer **nada saindo** da máquina? Use o LM Studio (ou o Ollama) logo abaixo — aí o LLM também é local.
 
 ---
@@ -133,8 +142,8 @@ resolve — e de graça, sem limite de pedidos.
 ## 2. Alternativa local: LM Studio (opcional)
 
 Aqui **nada sai do seu computador**: o modelo roda na sua máquina. É o caminho para quem quer privacidade total,
-para quem joga sem internet ou para quem faz uso intenso e não quer depender de fila. Em troca, você precisa
-baixar o modelo e deixar o servidor ligado durante o jogo.
+para quem joga sem internet ou para quem faz uso intenso e não quer depender de fila nem de limite de tokens. Em
+troca, você precisa baixar o modelo e deixar o servidor ligado durante o jogo.
 
 ### 2.1. Instale o LM Studio
 
@@ -181,7 +190,7 @@ Confira na tela:
 
 ### 2.5. O que colocar no `.cfg` para usar o LM Studio
 
-O padrão do mod agora é o OpenRouter, então **troque** as duas primeiras chaves e **apague** a chave de API:
+O padrão do mod é o Groq, então **troque** as duas primeiras chaves e **apague** a chave de API:
 
 ```ini
 [IA]
@@ -214,36 +223,69 @@ Com o endereço explícito `http://127.0.0.1:1234/v1` a resposta volta direto. O
 
 ---
 
-## 3. Como saber que está funcionando
+## 3. OpenRouter (continua funcionando, mas o gratuito é lento)
 
-Entre no mundo e digite no chat `colete 10 madeiras` (vale para o OpenRouter **e** para o LM Studio). Se
-funcionar:
+O **OpenRouter** foi o padrão até a **1.7.0** e **continua funcionando**. Ele dá acesso a vários modelos com uma
+mesma chave, inclusive os **gratuitos** — mas o roteador gratuito (`openrouter/free`) é **lento e imprevisível**:
+cada pedido escolhe um modelo gratuito diferente e passa pela fila do provedor. Por isso ele saiu do lugar de
+padrão. Use se você **já tem** a configuração ou quer **testar outro modelo** do catálogo.
+
+```ini
+[IA]
+BaseUrl = https://openrouter.ai/api/v1
+Modelo = openrouter/free
+ApiKey = <a sua chave de openrouter.ai/keys>
+```
+
+| Chave | Valor | Por quê |
+|---|---|---|
+| `BaseUrl` | `https://openrouter.ai/api/v1` | Endereço do OpenRouter |
+| `Modelo` | `openrouter/free` | **Free Models Router**: a cada pedido ele escolhe um modelo **sem custo** (e filtra os que suportam a saída estruturada) |
+| `ApiKey` | **a sua chave** | No OpenRouter ela é **obrigatória**. A gratuita sai em **https://openrouter.ai/keys** |
+
+- Os modelos **gratuitos** (com `:free` no nome) têm limite de **20 pedidos por minuto** e um **teto diário** por
+  conta: **50 pedidos por dia** para quem **nunca comprou crédito** e **1.000 por dia** a partir de **10 créditos
+  comprados** (no total, não por mês).
+- A latência **varia** de uma ordem para outra e pode demorar alguns segundos em horário de pico.
+- O próprio OpenRouter descreve os modelos gratuitos como **para experimentar e para uso de baixo volume**.
+- O **Testar conexão** do painel `I` também serve aqui — e, como a lista de modelos do OpenRouter é **pública**, ele
+  pode responder `Conexão OK` mesmo com a chave errada: quem confirma a chave é uma ordem de verdade.
+- Com o OpenRouter, o texto das ordens e da conversa **sai da sua máquina**, como no Groq. A política de dados dele
+  é que vale. Chave vazada? Apague em **https://openrouter.ai/settings/keys** e crie outra.
+
+---
+
+## 4. Como saber que está funcionando
+
+Entre no mundo e digite no chat `colete 10 madeiras` (vale para o Groq, para o **LM Studio** e para o
+**OpenRouter**). Se funcionar:
 
 - O companheiro responde (e fala) uma confirmação e sai para coletar.
 - No log (`BepInEx\LogOutput.log`) aparecem as linhas `[IA]` com o resultado e o tempo.
 
 ---
 
-## 4. Outros modelos e servidores
+## 5. Outros modelos e servidores
 
 Qualquer endpoint **compatível com a OpenAI** serve — o mod só faz `POST {BaseUrl}/chat/completions`.
 
 ### Modelos
 
-| Modelo | Observação |
-|---|---|
-| **`openrouter/free`** | **Padrão.** Roteador do OpenRouter: escolhe um modelo gratuito por pedido. Sem instalar nada; a latência varia |
-| **`qwen2.5-3b-instruct`** | **Recomendado no LM Studio.** Rápido (~0,35–0,4 s por ordem) e confiável com a saída estruturada |
-| `google/gemma-4-e4b` | Também funciona no LM Studio, mas é **bem mais lento** (~3 s por ordem) |
-| Modelos maiores | Melhores em conversa, mas **precisam de GPU** para responder rápido |
-| Modelos pagos do OpenRouter | Basta trocar o `Modelo` pelo nome do catálogo — e, aí, os créditos da conta é que são gastos |
+| Modelo | Servidor | Observação |
+|---|---|---|
+| **`openai/gpt-oss-20b`** | **Groq** | **Padrão.** Modelo aberto, ~1.000 tokens/s, janela de 131.072 tokens. Responde em fração de segundo |
+| **`qwen2.5-3b-instruct`** | LM Studio | **Recomendado no local.** Rápido (~0,35–0,4 s por ordem) e confiável com a saída estruturada |
+| `openrouter/free` | OpenRouter | Roteador de modelos gratuitos: escolhe um por pedido. Sem instalar nada, mas a latência varia |
+| `google/gemma-4-e4b` | LM Studio | Também funciona, mas é **bem mais lento** (~3 s por ordem) |
+| Modelos maiores | qualquer | Melhores em conversa, mas **precisam de GPU** para responder rápido no local |
+| Modelos pagos do Groq/OpenRouter | — | Basta trocar o `Modelo` pelo nome do catálogo — e, aí, os créditos da conta é que são gastos |
 
 ### Outros servidores
 
 - **Ollama:** `http://127.0.0.1:11434/v1`
 - **llama.cpp** com servidor no modo OpenAI
 - **API paga** (OpenAI, etc.): aponte o `BaseUrl` e preencha o `ApiKey` — lembrando que, aí, as suas mensagens
-  **saem da sua máquina**, como no OpenRouter.
+  **saem da sua máquina**, como no Groq e no OpenRouter.
 
 > **Nunca versione uma chave de API.** O `ApiKey` fica no `.cfg` local; não compartilhe esse arquivo com a chave
 > preenchida.
@@ -261,6 +303,14 @@ Qualquer endpoint **compatível com a OpenAI** serve — o mod só faz `POST {Ba
 
 ## Se não funcionar
 
-Vá em **[Problemas comuns](Problemas-comuns)** — os casos "ele não responde a nada", "responde erro de
-autenticação", "demora muito para responder" e "responde errado ou ignora o número" cobrem os problemas mais
-comuns dos dois caminhos.
+Os quatro casos abaixo cobrem quase tudo:
+
+| O que aparece | O que é | O que fazer |
+|---|---|---|
+| **401** (*unauthorized* / *invalid api key*) | A `ApiKey` está vazia, errada ou de outro servidor | Cole a chave certa: `console.groq.com/keys` (Groq), `openrouter.ai/keys` (OpenRouter) — ou deixe **vazio** no LM Studio/Ollama |
+| **429** (*rate limit*) | Limite de **requisições ou de tokens** do tier gratuito | Espere alguns segundos e mande a ordem de novo; reduza a frequência; use o LM Studio local para uso intenso |
+| **404** / **400** | A **URL** (`BaseUrl`) ou o **modelo** (`Modelo`) estão errados | Confira `https://api.groq.com/openai/v1` + `openai/gpt-oss-20b` (Groq) ou `https://openrouter.ai/api/v1` + `openrouter/free` (OpenRouter) |
+| **Demora muito** | Fila do provedor ou modelo grande | Veja "a resposta demora" em **[Problemas comuns](Problemas-comuns)** |
+
+O passo a passo de cada sintoma está em **[Problemas comuns](Problemas-comuns)** — inclusive "ele não responde a
+nada", "responde erro de autenticação", "demora muito para responder" e "responde errado ou ignora o número".

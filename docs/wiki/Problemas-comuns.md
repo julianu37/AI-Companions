@@ -15,11 +15,12 @@ e `[TTS]`.
 
 **Causas prováveis, na ordem:**
 
-1. **A `ApiKey` está vazia ou errada.** O mod vem apontado para o **OpenRouter**, que **exige** a chave (veja
+1. **A `ApiKey` está vazia ou errada.** O mod vem apontado para o **Groq**, que **exige** a chave (veja
    "responde erro de autenticação" abaixo). Se você usa o **LM Studio** local, a chave fica vazia e o `BaseUrl`
    tem que ser `http://127.0.0.1:1234/v1`.
-2. **O `BaseUrl` ou o `Modelo` estão errados.** No LM Studio local, o `Modelo` tem que ser o **API Model
-   Identifier** que ele mostra, não o nome da pasta. Veja **[LLM (OpenRouter ou LM Studio)](LLM-no-LM-Studio)**.
+2. **O `BaseUrl` ou o `Modelo` estão errados.** No Groq são `https://api.groq.com/openai/v1` e
+   `openai/gpt-oss-20b`. No LM Studio local, o `Modelo` tem que ser o **API Model
+   Identifier** que ele mostra, não o nome da pasta. Veja **[LLM (Groq, LM Studio ou OpenRouter)](LLM-no-LM-Studio)**.
 3. **Usando o LM Studio local: o servidor não está ligado.** Abra a aba **Developer** e confira o status `Running`
    na porta **1234**.
 4. **`[IA] Ligado` está `false`.** Ligue no painel **`F8`**.
@@ -27,8 +28,8 @@ e `[TTS]`.
 6. **Nenhum companheiro está por perto / apto a receber ordem.** Ele precisa estar spawnado.
 
 > Antes de tudo, use o **Testar conexão** do painel **`I`**: ele diz, em segundos, se a URL responde e se o
-> modelo aparece na lista. Lembre que a **chave** só é validada numa ordem de verdade (a lista de modelos do
-> OpenRouter é pública).
+> modelo aparece na lista. Lembre que a **chave** só é validada numa ordem de verdade (o teste confirma a URL e a
+> lista de modelos, não a autenticação).
 
 ---
 
@@ -39,19 +40,45 @@ e `[TTS]`.
 | `LogOutput.log` | `[IA]` com o status **401** (ou uma mensagem de *unauthorized* / *invalid api key*) |
 | Painel **`I`** → **Testar conexão** | **Pode** responder `Conexão OK` mesmo com a chave errada — no OpenRouter a lista de modelos é pública. O 401 aparece na **ordem**, não no teste |
 
-**Causa:** o OpenRouter **exige** a `[IA] ApiKey`, e ela está **vazia**, **errada** ou **apagada** (por exemplo,
-depois de você copiar um `.cfg` de outra máquina).
+**Causa:** o **Groq exige** a `[IA] ApiKey` (e o OpenRouter também), e ela está **vazia**, **errada** ou
+**apagada** (por exemplo, depois de você copiar um `.cfg` de outra máquina) — ou é a chave de **outro** serviço,
+colada junto com uma URL que não é a dele.
 
 **O que fazer:**
 
-1. Crie ou copie a chave em **https://openrouter.ai/keys**.
+1. Crie ou copie a chave em **https://console.groq.com/keys** (Groq) ou em **https://openrouter.ai/keys**
+   (OpenRouter).
 2. Cole em **`[IA] ApiKey`** — no painel **`I`** (aba **IA** → **Configurações do LLM**) ou direto no `.cfg`.
 3. Clique em **Testar conexão**; depois em **Aplicar** (a configuração vale na próxima mensagem).
-4. Se você **não** quer usar o OpenRouter, aponte o `BaseUrl` para o servidor local
+4. Se você **não** quer usar o Groq, aponte o `BaseUrl` para o servidor local
    (`http://127.0.0.1:1234/v1`), use o `Modelo` do LM Studio e **deixe a `ApiKey` vazia**.
 
-> Chave vazada? Apague em **https://openrouter.ai/settings/keys** e crie outra. O `ApiKey` do `.cfg` não deve ser
+> Chave vazada? Apague em **https://console.groq.com/keys** (Groq) ou
+> **https://openrouter.ai/settings/keys** (OpenRouter) e crie outra. O `ApiKey` do `.cfg` não deve ser
 > compartilhado nem versionado.
+
+---
+
+## Responde 429 (limite de requisições ou de tokens)
+
+| Onde olhar | O que procurar |
+|---|---|
+| `LogOutput.log` | `[IA]` com o status **429** (ou uma mensagem de *rate limit* / *too many requests*) |
+
+**Causa:** o **tier gratuito** do serviço foi atingido. No **Groq**, com o `openai/gpt-oss-20b`, os limites são
+**30 requisições por minuto**, **1.000 por dia**, **8.000 tokens por minuto** e **200.000 por dia** — e, como cada
+ordem gasta ~1.800 tokens, o teto prático é de **~4 ordens por minuto**. No **OpenRouter**, os modelos `:free` têm
+**20 pedidos por minuto** e um teto diário que depende do histórico da conta.
+
+**O que fazer:**
+
+1. **Espere alguns segundos** e mande a ordem de novo — o limite é por janela de tempo, então ele volta sozinho.
+2. Diminua a frequência: o `[IA] CooldownSegundos` (padrão **3**) já ajuda; aumente-o se você manda ordens em rajada.
+3. Reduza o `[IA] Memoria` (cada troca lembrada aumenta o prompt e, com ele, os tokens de cada ordem).
+4. Para uso intenso, use o **LM Studio/Ollama local** — não há limite de pedidos nem de tokens.
+
+> O **429** não quebra nada: a ordem é recusada com aviso e o jogo continua. Ele **não** é erro de chave — isso é o
+> **401**, acima.
 
 ---
 
@@ -63,18 +90,21 @@ depois de você copiar um `.cfg` de outra máquina).
 
 **Causas prováveis:**
 
-1. **Tier gratuito do OpenRouter.** Com o `openrouter/free`, cada pedido escolhe um **modelo gratuito** e passa
-   pela fila do provedor — a latência **varia** de uma ordem para outra, e em horário de pico pode demorar. Teste
-   um **modelo específico** no `[IA] Modelo` (o catálogo está em https://openrouter.ai/models) ou use o LM Studio
+1. **O `.cfg` ainda está no OpenRouter.** O padrão atual é o **Groq** (`openai/gpt-oss-20b`), que responde em
+   **fração de segundo** na nossa medição. Se o seu `[IA] BaseUrl` continua `https://openrouter.ai/api/v1`, você
+   está no roteador gratuito dele (`openrouter/free`), que **varia** de uma ordem para outra e passa pela fila do
+   provedor. Troque pelo Groq (veja **[LLM (Groq, LM Studio ou OpenRouter)](LLM-no-LM-Studio)**) ou use o LM Studio
    local.
-2. **O seu `.cfg` local ainda está com `localhost` no `BaseUrl`.** No caso do LM Studio, o padrão é
+2. **Não confunda lentidão com o limite do Groq.** O **429** responde **na hora** (a ordem é recusada com aviso),
+   não devagar — se o sintoma é demora, a causa é outra. Veja "responde 429" acima para o caso do limite.
+3. **O seu `.cfg` local ainda está com `localhost` no `BaseUrl`.** No caso do LM Studio, o padrão é
    `http://127.0.0.1:1234/v1`; se o arquivo é de uma versão anterior, troque. No Windows, `localhost` resolve
    primeiro para IPv6 (`::1`) e o LM Studio só escuta IPv4 — cada ordem paga ~**2,5 s** de pedágio.
-3. **O modelo é grande ou está na CPU (local).** Um 3B (`qwen2.5-3b-instruct`) responde em ~0,35–0,4 s; o
+4. **O modelo é grande ou está na CPU (local).** Um 3B (`qwen2.5-3b-instruct`) responde em ~0,35–0,4 s; o
    `google/gemma-4-e4b` leva ~3 s. Modelos maiores praticamente exigem GPU.
-4. **`[IA] Memoria` alta.** Cada troca lembrada aumenta o prompt que o modelo precisa ler. Reduza.
-5. **A primeira mensagem da sessão** inclui o carregamento do modelo — no LM Studio local ela é naturalmente mais
-   lenta, e no OpenRouter a primeira também costuma ser a mais fria.
+5. **`[IA] Memoria` alta.** Cada troca lembrada aumenta o prompt que o modelo precisa ler. Reduza.
+6. **A primeira mensagem da sessão** inclui o carregamento do modelo — no LM Studio local ela é naturalmente mais
+   lenta, e nos serviços remotos a primeira também costuma ser a mais fria.
 
 > Lembre: o pedido roda em **segundo plano**. Mesmo lento, ele **não** trava o jogo.
 
@@ -89,9 +119,10 @@ depois de você copiar um `.cfg` de outra máquina).
 - Confira o que o modelo entendeu: `[IA] MostrarRespostaNoChat` mostra a resposta crua no chat.
 - Use o **`qwen2.5-3b-instruct`** com `[IA] SaidaEstruturada = true` — é a combinação que o projeto mediu como
   confiável (o 3B passou de 0/6 para **6/6** respostas válidas com a saída estruturada).
-- No **OpenRouter**, o `openrouter/free` troca de modelo a cada pedido — a qualidade também varia. Se a ordem
-  errar sempre do mesmo jeito, escolha **um modelo específico** no `[IA] Modelo` (os gratuitos têm `:free` no
-  nome) ou use o LM Studio local, que é sempre o mesmo modelo.
+- No padrão (**Groq**, `openai/gpt-oss-20b`) o modelo é sempre o mesmo, então a resposta é consistente. No
+  **OpenRouter** (alternativa), o `openrouter/free` troca de modelo a cada pedido — a qualidade também varia. Se a
+  ordem errar sempre do mesmo jeito, escolha **um modelo específico** no `[IA] Modelo` (os gratuitos do OpenRouter
+  têm `:free` no nome) ou use o LM Studio local, que é sempre o mesmo modelo.
 - Lembre que **o número é um alvo contado na mochila dele**: se ele já tem o suficiente, ele **não** sai para
   coletar, e isso é o comportamento correto.
 - Para as ordens por voz, um reconhecimento ruim chega errado ao modelo. Veja "o microfone não grava" abaixo.
@@ -105,8 +136,8 @@ está improvisando.
 
 **O que fazer:**
 
-- Use o **`qwen2.5-3b-instruct`** (bom em PT-BR) se estiver no LM Studio; no OpenRouter, um modelo gratuito
-  maior costuma escrever melhor em português do que os pequenos.
+- Use o **`qwen2.5-3b-instruct`** (bom em PT-BR) se estiver no LM Studio; no **Groq** (padrão) e no **OpenRouter**,
+  um modelo maior costuma escrever melhor em português do que os pequenos.
 - Ajuste a personalidade no painel **`I`** (preset ou texto livre em português) — ela entra no prompt e puxa a
   resposta para o português.
 - Reduza a `[IA] Temperatura` (o padrão `0.1` já é baixo; valores altos fazem o modelo divagar).
@@ -220,7 +251,7 @@ Se você reatribuir, o mod reavalia o conflito na hora. Veja **[Voz](Voz)**.
 **do mod** (`[General] MaxCarryWeight`, 300 por padrão), não do jogo, e o `+150` do Megingjord é um *status effect*
 cujo único leitor no vanilla é o `Player`. Como o companheiro não é um jogador, o cinto só ocupava espaço e pesava.
 
-**O que fazer:** **atualize para a 1.8.0**. Depois disso o `/450` aparece em ~**0,5 s** (com o `300` padrão), e esta
+**O que fazer:** **atualize para a 1.8.1**. Depois disso o `/450` aparece em ~**0,5 s** (com o `300` padrão), e esta
 linha confirma no `LogOutput.log`:
 
 ```
@@ -237,7 +268,7 @@ linha confirma no `LogOutput.log`:
 
 | Onde olhar | O que procurar |
 |---|---|
-| `LogOutput.log` | `AI Companions v1.8.0 loading...` e `AI Companions loaded successfully! (N methods patched)` — o `v1.8.0` é a versão que você instalou |
+| `LogOutput.log` | `AI Companions v1.8.1 loading...` e `AI Companions loaded successfully! (N methods patched)` — o `v1.8.1` é a versão que você instalou |
 
 **Causas prováveis:**
 

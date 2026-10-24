@@ -2,6 +2,26 @@
 
 Todas as mudanças deste projeto, derivado do Offline Companions, do ProfMags. As versões anteriores à 1.4.0 são o mod original (veja o histórico do mod original, do ProfMags, para essas versões) mais o primeiro lote de correções de compatibilidade com a API do Valheim 1.0 que fizeram o mod carregar e rodar. **As entradas abaixo de 1.5.4 são o histórico do upstream e ficam como estão (em inglês) — as nossas seções (a partir da 1.6.0) são nossas.**
 
+## 1.8.1 — 24/10/2026
+
+**Novo padrão de LLM: Groq — grátis e rápido.** O padrão passa a ser `[IA] BaseUrl` = `https://api.groq.com/openai/v1` e
+`[IA] Modelo` = `openai/gpt-oss-20b`, com a **chave gratuita** em `console.groq.com/keys`. O motivo é simples: o tier
+gratuito do **OpenRouter** (`openrouter/free`) é **lento** e imprevisível para uma ordem de jogo, enquanto o
+`openai/gpt-oss-20b` do Groq responde em fração de segundo.
+
+- **Ordem de preferência:** **Groq** (padrão) → **LM Studio/Ollama** local (opcional — nada sai da sua máquina) →
+  **OpenRouter** (continua funcionando e documentado, mas o gratuito é mais lento). Trocar é só editar
+  `BaseUrl`/`Modelo`/`ApiKey` no `.cfg` ou na seção **Configurações do LLM** do painel `I`.
+- **A saída estruturada continua garantida:** o `openai/gpt-oss-20b` aceita `json_schema` em modo **strict** (o que o mod
+  usa), então a resposta continua sendo JSON válido e nenhuma ordem é perdida.
+- **Limites do tier gratuito do Groq** (`gpt-oss-20b`): **30 requisições/min, 1.000/dia, 8.000 tokens/min e
+  200.000/dia**. Como cada ordem gasta ~1.800 tokens de prompt, o teto prático fica em **~4 ordens por minuto**; passando
+  disso o Groq responde **429** e a ordem é recusada com aviso (nada quebra, nada fica preso).
+- **O seu `.cfg` não muda sozinho:** o BepInEx só aplica o default em chave nova, então quem já configurou OpenRouter ou
+  LM Studio continua exatamente como está — mudar é opcional.
+- **Docs alinhadas:** a wiki (página do LLM, requisitos, instalação, configuração, problemas comuns), o README e a página
+  do Nexus agora apresentam o **Groq primeiro**, o **LM Studio** como opção local e o **OpenRouter** por último.
+
 ## 1.8.0 — 24/10/2026
 
 **O que o companheiro carrega agora é o que ele tem na mochila: o Megingjord soma de verdade.** Correção do relato
