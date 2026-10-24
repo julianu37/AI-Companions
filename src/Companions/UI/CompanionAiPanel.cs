@@ -400,12 +400,18 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 	/// <summary>
 	/// Fase 3.21c: the "Crie sua Chave de API Grátis AQUI" link, on the free right half of the "Chave de API" line
-	/// (from <c>LlmRightX + 8</c> to <c>RightEdge - 8</c>, i.e. the half the grid never used at that height). It is a
-	/// <see cref="Button"/> with <b>no wood</b>: a fully transparent Image (which stays a raycast target, so it takes
-	/// the click - the same trick as the dropdown's list catcher) under a gold underlined label, so it reads as a link
-	/// and not as one of the action buttons of the section. It is only active while the provider of the dropdown has a
-	/// key page (<see cref="LlmProviders.KeyUrlAt"/>), i.e. Groq and OpenRouter; LM Studio and "Personalizado" show
-	/// nothing there.
+	/// (from <c>LlmRightX + 8</c> to <c>RightEdge - 8</c>, i.e. the half the grid never used at that height).
+	///
+	/// <para>It is drawn as a toggle that is <b>on</b> (<see cref="GoldColor"/>, the very colour
+	/// <see cref="ApplyToggleVisual"/> paints a live toggle with, and a white centered label), because the player asked
+	/// for it to look like the rest of the section - but it is <b>an action, not a selector</b>: the look is
+	/// <b>fixed</b> (no "Desligado", no colour change after the click) and <c>transition = None</c> is what keeps the
+	/// <see cref="Selectable"/> from tinting the gold grey on hover/press, which is how a <see cref="Button"/> would
+	/// normally answer. The Image still is a raycast target, so the whole block takes the click.</para>
+	///
+	/// <para>It is only active while the provider of the dropdown has a key page
+	/// (<see cref="LlmProviders.KeyUrlAt"/>), i.e. Groq and OpenRouter; LM Studio and "Personalizado" show nothing
+	/// there.</para>
 	/// </summary>
 	private AiButton _llmKeyLink;
 
@@ -1575,22 +1581,23 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		}
 
 		// ---- Fase 3.21c: the free-key link, on the free right half of the "Chave de API" line ----
-		// A Button with no wood: the Image is fully transparent (and stays a raycast target, exactly like the list
-		// catcher of the dropdowns, which is how an invisible target still takes the click) and the label is gold and
-		// underlined, so it reads as a link. `transition = None` is what stops the Selectable from tinting that image
-		// on hover/press - there is nothing to light up. It starts hidden: RefreshProviderDropdown (every open) shows
-		// it only for the providers that have a key page.
+		// It looks exactly like a toggle that is ON - the same GoldColor of ApplyToggleVisual and a white centered
+		// label, no underline - because that is the visual language of this section. It is an ACTION, not a selector,
+		// so the look never changes: `transition = None` is what stops the Selectable from greying the gold on
+		// hover/press (a plain Button would paint its pressed/disabled tint over the Image), and nothing here follows
+		// the click. The Image stays a raycast target so the whole block is clickable. It starts hidden:
+		// RefreshProviderDropdown (every open) shows it only for the providers that have a key page.
 		float keyLinkX = LlmRightX + 8f;
 		_llmKeyLink = CreateButton(Page, "LlmKeyLink", keyLinkX, RowLlm(LlmProviderRow + 3),
 			RightEdge - 8f - keyLinkX, RowH, ModLocalization.Loc("hc_ai_llm_key_link"), OpenLlmKeyPage);
 		_llmKeyLink.Button.transition = Selectable.Transition.None;
-		_llmKeyLink.Image.color = new Color(0f, 0f, 0f, 0f);
-		_llmKeyLink.Label.alignment = TextAlignmentOptions.MidlineLeft;
+		_llmKeyLink.Button.interactable = true;
+		_llmKeyLink.Image.color = GoldColor;
+		_llmKeyLink.Label.alignment = TextAlignmentOptions.Center;
 		_llmKeyLink.Label.fontSize = 13f;
-		_llmKeyLink.Label.fontStyle = FontStyles.Underline;
-		_llmKeyLink.Label.color = LabelColor;
-		// the row is 316 wide and the text takes ~215 at 13px, so nothing is ever cut - and overflow keeps a longer
-		// translation readable instead of cutting it with "..."
+		_llmKeyLink.Label.color = Color.white;
+		// the row is 316 wide and the text takes ~230-245 at 13px, so it fits centered with room on both sides;
+		// overflow (instead of "...") means a longer translation stays readable
 		_llmKeyLink.Label.overflowMode = TextOverflowModes.Overflow;
 		_llmKeyLink.Button.gameObject.SetActive(false);
 
