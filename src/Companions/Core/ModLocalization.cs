@@ -394,6 +394,10 @@ public static class ModLocalization
 			{ "hc_ai_order_repair", "repair and restock" },
 			{ "hc_ai_order_cook", "cook" },
 			{ "hc_ai_order_stop", "stop following" },
+			// Fase 3.22: the "stop" answer names the work the companion was doing ("stop: gather wood") - the job label
+			// comes from hc_ai_order_wood/stone/ore/...; when there is no job to name, "stop" alone.
+			{ "hc_ai_order_stop_job", "stop ({0})" },
+			{ "hc_ai_order_stop_other", "stop" },
 			{ "hc_ai_order_come", "come here" },
 			{ "hc_ai_order_sethome", "set home here" },
 			{ "hc_ai_order_wander", "wander around" },

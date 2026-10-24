@@ -20,6 +20,18 @@ internal static class CompanionOrders
 		/// <summary>Localization key for the order's name ("hc_ai_order_wood"...).</summary>
 		internal string LabelKey;
 
+		/// <summary>
+		/// Fase 3.22: the argument of <see cref="LabelKey"/> when the line is a format (already localized), or null. Used
+		/// by the "stop" answer ("parar de {0}" with the job the companion was doing).
+		/// </summary>
+		internal string LabelArg;
+
+		/// <summary>
+		/// Fase 3.22: for the log only - what the companion was doing when a "stop" reached it ("wood", "follow",
+		/// "wander", "mode 4"...), joined with "/" when several companions were in different modes.
+		/// </summary>
+		internal string Was;
+
 		/// <summary>How many were asked for (0 = the order didn't say).</summary>
 		internal int Amount;
 
@@ -191,7 +203,8 @@ internal static class CompanionOrders
 				outcome.Count++;
 			}
 		}
-		CompanionsPlugin.Log?.LogInfo($"[IA] Order \"{action}\"{(outcome.Amount > 0 ? $" (x{outcome.Amount})" : "")} -> {outcome.Count} companion(s)"
+		CompanionsPlugin.Log?.LogInfo($"[IA] Order \"{action}\"{(string.IsNullOrEmpty(outcome.Was) ? "" : $" (was: {outcome.Was})")}"
+			+ $"{(outcome.Amount > 0 ? $" (x{outcome.Amount})" : "")} -> {outcome.Count} companion(s)"
 			+ (outcome.AlreadyHave ? " (and at least one already had enough)" : ""));
 		if (outcome.Count == 0 && !outcome.AlreadyHave)
 		{
@@ -768,12 +781,35 @@ internal static class CompanionOrders
 			SetFollow(companion, true);
 			return true;
 		case "stop":
+		{
+			// Fase 3.22: the answer names what the companion WAS doing. The mode is the ZDO key the wheel marks as the
+			// active job (CompanionSetup.ActionModeHash) - read BEFORE anything is changed - so a companion chopping
+			// wood answers "parar de coletar madeira" instead of the old, always-the-same "parar de seguir".
+			// The order itself is untouched: follow off, order target cleared, combat target dropped.
+			int wasMode = ActionModeOf(companion);
+			bool wasWandering = companion.GetWander();
 			CompanionSetup.ClearOrderCap(companion);
 			// "para de me seguir" must actually STOP the follow - the wheel's Follow toggle turns it off the same
 			// way. Turning it on here (as it used to) made the order look like it did nothing.
 			SetFollow(companion, false);
 			ClearCombatTarget(companion);
+			string wasAction = ActionOfMode(wasMode);
+			outcome.Was = MergeWas(outcome.Was, wasAction ?? (wasMode == CompanionSetup.ModeFollow ? (wasWandering ? "wander" : "follow") : "mode " + wasMode));
+			if (wasAction != null)
+			{
+				outcome.LabelKey = "hc_ai_order_stop_job";
+				outcome.LabelArg = ModLocalization.Loc("hc_ai_order_" + wasAction);
+			}
+			else if (wasMode == CompanionSetup.ModeFollow && !wasWandering)
+			{
+				outcome.LabelKey = "hc_ai_order_stop";        // "parar de seguir" (the old line, still right here)
+			}
+			else
+			{
+				outcome.LabelKey = "hc_ai_order_stop_other";  // "parar": at home, wandering or restocking
+			}
 			return true;
+		}
 		case "sethome":
 			companion.SetHomePosition(companion.transform.position);
 			return true;
@@ -886,11 +922,69 @@ internal static class CompanionOrders
 		}
 	}
 
+	/// <summary>
+	/// Fase 3.22: the action behind a work mode - the mirror of <see cref="JobMode"/> (mode -> action). It is what lets
+	/// the "stop" answer name the work the companion was doing, reusing the very same labels a "colete ..." order gets
+	/// ("coletar madeira", "minerar minério"...). 0 (follow) and the modes without an order of their own return null.
+	/// <b>Keep both switches in step:</b> a new job needs an entry in each.
+	/// </summary>
+	private static string ActionOfMode(int mode)
+	{
+		switch (mode)
+		{
+		case CompanionSetup.ModeGatherWood:
+			return "wood";
+		case CompanionSetup.ModeGatherStone:
+			return "stone";
+		case CompanionSetup.ModeGatherOre:
+			return "ore";
+		case CompanionSetup.ModeForage:
+			return "forage";
+		case CompanionSetup.ModeSmelt:
+			return "smelt";
+		case CompanionSetup.ModeHunt:
+			return "hunt";
+		case CompanionSetup.ModeFarm:
+			return "farm";
+		case CompanionSetup.ModeFish:
+			return "fish";
+		case CompanionSetup.ModeRepairBuildings:
+			return "repair";
+		case CompanionSetup.ModeCook:
+			return "cook";
+		default:
+			return null;
+		}
+	}
+
+	/// <summary>
+	/// Fase 3.22: the work mode of a companion, read from the ZDO key the radial menu marks as the active job - the same
+	/// source the wheel uses (<c>CompanionSetup.ActionModeHash</c>), 0 (follow) when there is nothing to read.
+	/// </summary>
+	private static int ActionModeOf(CompanionSetup companion)
+	{
+		ZDO zdo = companion != null ? companion.GetComponent<ZNetView>()?.GetZDO() : null;
+		return zdo != null ? zdo.GetInt(CompanionSetup.ActionModeHash) : CompanionSetup.ModeFollow;
+	}
+
+	/// <summary>Fase 3.22: joins the "was doing" of several companions for one log line ("wood/stone").</summary>
+	private static string MergeWas(string current, string next)
+	{
+		if (string.IsNullOrEmpty(current))
+		{
+			return next;
+		}
+		if (string.IsNullOrEmpty(next))
+		{
+			return current;
+		}
+		return current == next ? current : current + "/" + next;
+	}
+
 	// "follow" turns following ON; "stop" turns it OFF (exactly what the wheel's Follow toggle does). Either way
 	// the job is dropped first: a job and Follow can't both be on, and the job that had paused Follow must not
 	// turn it back on later (same as the wheel does it).
-	private static void SetFollow(CompanionSetup companion, bool follow)
-	{
+	private static void SetFollow(CompanionSetup companion, bool follow)	{
 		MHR_JobRules.FollowSetByPlayer(companion);
 		companion.SetFollow(follow);
 		CompanionSetup.ApplyActionMode(companion, CompanionSetup.ModeFollow, toggle: false);

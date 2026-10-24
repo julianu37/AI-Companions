@@ -583,7 +583,9 @@ internal static class CompanionChatAI
 			}
 			else
 			{
-				string label = ModLocalization.LocOr(outcome.LabelKey, intent.Action);
+				string label = !string.IsNullOrEmpty(outcome.LabelArg)
+					? ModLocalization.LocFmt(outcome.LabelKey, outcome.LabelArg)
+					: ModLocalization.LocOr(outcome.LabelKey, intent.Action);
 				string feedback = outcome.Amount > 0
 					? ModLocalization.LocFmt("hc_ai_ok_amount", label, outcome.Amount)
 					: ModLocalization.LocFmt("hc_ai_ok", label);
