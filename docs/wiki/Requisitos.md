@@ -12,20 +12,22 @@ as **ordens por voz** (precisam de microfone). Você pode usar **só o chat**, d
 | **Valheim** | **1.0.x** (engine Unity 6 — testado na **1.0.17**) |
 | **BepInEx** | **BepInExPack_Valheim 5.4.2351** (BepInEx 5.4.23.5) — o mod é um plugin BepInEx 5 |
 | **Windows x64** | **Obrigatório** para a voz: os binários nativos do **STT** (whisper.cpp) **e do TTS** (sherpa-onnx + onnxruntime) são `win-x64`. Sem eles, nem as ordens por voz nem a fala do companheiro funcionam |
-| **Um LLM** | Para as ordens por texto/voz serem entendidas. O padrão é o **OpenRouter**: só precisa de **internet** e de uma **chave gratuita** (veja abaixo). A alternativa **local** (**LM Studio** ou **Ollama**) é **opcional** e não manda nada para fora. Veja **[LLM (OpenRouter ou LM Studio)](LLM-no-LM-Studio)** |
+| **Um LLM** | Para as ordens por texto/voz serem entendidas. O padrão é o **Groq**: só precisa de **internet** e de uma **chave gratuita** (veja abaixo). A alternativa **local** (**LM Studio** ou **Ollama**) é **opcional** e não manda nada para fora; o **OpenRouter** continua funcionando, mas o tier gratuito é mais lento. Veja **[LLM (Groq, LM Studio ou OpenRouter)](LLM-no-LM-Studio)** |
 | **Espaço em disco** | Veja a tabela abaixo |
 
-> **O LLM é obrigatório; o caminho não.** O **OpenRouter** é o padrão: basta a **chave gratuita**
-> (https://openrouter.ai/keys) e internet — e o texto das ordens **sai da sua máquina**. O **LM Studio/Ollama** é
+> **O LLM é obrigatório; o caminho não.** O **Groq** é o padrão: basta a **chave gratuita**
+> (https://console.groq.com/keys) e internet — e o texto das ordens **sai da sua máquina**. O **LM Studio/Ollama** é
 > a **alternativa local, opcional**: nada sai, mas você baixa um modelo (~1,9 GB) e deixa o servidor ligado
-> enquanto joga. Os dois caminhos estão em **[LLM (OpenRouter ou LM Studio)](LLM-no-LM-Studio)**.
+> enquanto joga. O **OpenRouter** também funciona (chave gratuita em https://openrouter.ai/keys) e fica como
+> **alternativa**, porque o tier gratuito dele é mais lento. Os três caminhos — nessa ordem de preferência — estão
+> em **[LLM (Groq, LM Studio ou OpenRouter)](LLM-no-LM-Studio)**.
 
 ## Opcional
 
 | Item | Para quê |
 |---|---|
 | **Microfone** | Só para as **ordens por voz** (push-to-talk). Sem ele, use o chat |
-| **GPU** | Só faz diferença na opção **local**: o LLM no LM Studio roda **muito** mais rápido com uma GPU. Com o OpenRouter, o modelo roda no servidor dele |
+| **GPU** | Só faz diferença na opção **local**: o LLM no LM Studio roda **muito** mais rápido com uma GPU. No Groq (e no OpenRouter), o modelo roda no servidor deles |
 | **Modelos de voz** | Já vêm no pacote **completo**. No pacote **sem-modelos** você baixa por fora |
 
 ## Espaço em disco
@@ -48,9 +50,9 @@ as **ordens por voz** (precisam de microfone). Você pode usar **só o chat**, d
 - **CPU:** o TTS (Kokoro-82M) sintetiza na **CPU**. Com **4 núcleos** ele já gera mais rápido do que o tempo real
   (a fala sai na frente do companheiro). O STT (Whisper) também roda na CPU.
 - **GPU:** só importa na opção **local** — no LM Studio uma GPU faz uma diferença enorme. Um modelo 3B roda bem em
-  CPU, mas fica bem mais rápido com GPU. Com o OpenRouter, quem roda o modelo é o servidor dele.
+  CPU, mas fica bem mais rápido com GPU. No Groq (e no OpenRouter), quem roda o modelo é o servidor deles.
 - **RAM:** na opção local, um modelo 3B quantizado (Q4) ocupa cerca de **2 GB** de memória, além do jogo. Com o
-  OpenRouter não há esse consumo.
+  Groq (ou o OpenRouter) não há esse consumo.
 
 ## Como instalar o BepInEx
 

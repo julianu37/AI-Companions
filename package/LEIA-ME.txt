@@ -1,5 +1,5 @@
 ================================================================================
- AI Companions 1.6.0
+ AI Companions 1.8.1
  Companheiro NPC com IA para Valheim 1.0 - em portugues do Brasil
 ================================================================================
 
@@ -14,17 +14,19 @@ greydwarf") e ele obedece; ele responde, conversa e fala em voz alta. Este e um
 versão independente em PT-BR do mod "Offline Companions Reborn" (MIT), de Maddhattr e ProfMags,
 com uma camada de IA por cima. O reconhecimento de voz e a fala sao locais (nada
 sai do seu PC por causa deles). Para ENTENDER as ordens, o mod usa um LLM: por
-padrao o OpenRouter (servico remoto - o texto da ordem sai da sua maquina) ou,
-se voce preferir, um modelo local (LM Studio) - veja "O CEREBRO (LLM)".
+padrao o Groq (servico remoto - o texto da ordem sai da sua maquina), ou, se
+voce preferir, um modelo local (LM Studio); o OpenRouter tambem funciona, mas o
+tier gratuito dele e mais lento. Veja "O CEREBRO (LLM)".
 
 REQUISITOS
 ----------
 - Valheim 1.0.x (o alvo deste release e o 1.0.17)
 - BepInExPack_Valheim 5.4.2351 (BepInEx 5.4.23.5)
 - Windows x64 (as vozes usam binarios nativos de Windows) e um microfone
-- Para o companheiro ENTENDER ordens: um LLM. O padrao e o OpenRouter (so precisa
-  de internet e de uma chave gratuita); a alternativa local (LM Studio) e
-  opcional - veja "O CEREBRO (LLM)" abaixo
+- Para o companheiro ENTENDER ordens: um LLM. O padrao e o Groq (so precisa de
+  internet e de uma chave gratuita); a alternativa local (LM Studio) e opcional,
+  e o OpenRouter continua funcionando como alternativa - veja "O CEREBRO (LLM)"
+  abaixo
 
 NAO PRECISA DE JOTUNN
 --------------------
@@ -47,7 +49,7 @@ INSTALACAO
    O pacote "completo" ja traz os modelos prontos; o pacote "sem modelos" (bem
    menor) nao traz - copie os seus para as pastas acima.
 4. Entre no jogo. Se o BepInEx carregar o mod, o BepInEx\LogOutput.log mostra
-   "Loading [AI Companions 1.6.0]".
+   "Loading [AI Companions 1.8.1]".
 
 COMO USAR
 ---------
@@ -70,18 +72,19 @@ COMO USAR
 O CEREBRO (LLM)
 ---------------
 Para ENTENDER as ordens, o mod manda o texto para um LLM por uma API compativel
-com a da OpenAI. Ha dois caminhos:
+com a da OpenAI. Ha tres caminhos (em ordem de preferencia):
 
-A) OPENROUTER (padrao - o mais facil, nao instala nada)
-1. Crie a conta e a chave gratuita em https://openrouter.ai/keys.
+A) GROQ (padrao - o mais facil e o mais rapido, nao instala nada)
+1. Crie a conta e a chave gratuita em https://console.groq.com/keys.
 2. No arquivo BepInEx\config\Maddhattr.OfflineCompanionsReborn.cfg, secao [IA]:
-      BaseUrl = https://openrouter.ai/api/v1     (ja e o padrao)
-      Modelo  = openrouter/free                  (ja e o padrao)
-      ApiKey  = <a sua chave>                    (obrigatoria)
-   O "openrouter/free" escolhe um modelo gratuito a cada pedido. O tier gratuito
-   tem fila e limite diario de pedidos (veja https://openrouter.ai/docs) - para
-   uso intenso, prefira a opcao local abaixo.
-   Atencao: com o OpenRouter o texto das ordens e da conversa SAI da sua maquina.
+      BaseUrl = https://api.groq.com/openai/v1  (ja e o padrao)
+      Modelo  = openai/gpt-oss-20b              (ja e o padrao)
+      ApiKey  = <a sua chave>                  (obrigatoria)
+   O tier gratuito tem limite de requisicoes e de tokens por minuto
+   (30 req/min, 1.000/dia, 8.000 tokens/min, 200.000/dia - veja
+   https://console.groq.com/docs/rate-limits), o que da umas 4 ordens por minuto.
+   Passando disso o servidor responde 429 e a ordem e recusada com aviso.
+   Atencao: com o Groq o texto das ordens e da conversa SAI da sua maquina.
 3. No jogo: painel da IA (tecla I) -> Configuracoes do LLM -> "Testar conexao"
    (ele confirma a URL; a chave e validada na primeira ordem de verdade).
 
@@ -95,6 +98,14 @@ B) LM STUDIO (local e opcional - nada sai da sua maquina)
       ApiKey  = (vazio)
    Dica: use 127.0.0.1 em vez de localhost. No Windows o localhost resolve
    primeiro para IPv6, o que atrasa (ou falha) a conexao com o servidor local.
+
+C) OPENROUTER (alternativa - funciona, mas o tier gratuito e mais lento)
+   BaseUrl = https://openrouter.ai/api/v1
+   Modelo  = openrouter/free
+   ApiKey  = <a sua chave de https://openrouter.ai/keys>  (obrigatoria)
+   O "openrouter/free" escolhe um modelo gratuito a cada pedido e passa pela fila
+   do provedor - a latencia varia de uma ordem para outra. Se voce ja usa o
+   OpenRouter, continua valendo; para uso novo, prefira o Groq (A).
 
 O BaseUrl aceita qualquer servidor compativel (Ollama em
 http://127.0.0.1:11434/v1, llama.cpp, vLLM). Sem o LLM ligado (ou com ele fora do

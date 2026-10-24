@@ -20,7 +20,7 @@ pelos painéis. Ele tem cerca de **1540 linhas** e **~265 opções** no total, d
 
 A seção **`[IA]`** começa por volta da **linha 871** e tem **39 chaves**. É assim que ela aparece no arquivo
 (neste exemplo, com a **alternativa local** configurada: `127.0.0.1`, `qwen2.5-3b-instruct` e a chave vazia — no
-**padrão** o `BaseUrl` é o OpenRouter e o `ApiKey` é obrigatório):
+**padrão** o `BaseUrl` é o **Groq**, com o modelo `openai/gpt-oss-20b`, e a `ApiKey` é obrigatória):
 
 ![A seção [IA] do .cfg: Ligado = true, BaseUrl = http://127.0.0.1:1234/v1, Modelo = qwen2.5-3b-instruct e ApiKey vazio](images/config-ia.png)
 
@@ -56,7 +56,7 @@ companheiro fica na **aba dele**.
 > Os campos de texto (URL, modelo, chave, prefixo) só valem depois do **Aplicar** — e na **próxima mensagem**,
 > sem reiniciar o jogo. A chave nunca vai para o log.
 
-![O painel da IA na aba IA: as abas de cada companheiro no topo, o invocador de companheiros e as Configurações do LLM já com o OpenRouter (URL, modelo e a chave mascarada) e o botão Testar conexão](images/3-invocar-e-llm.jpg)
+![O painel da IA na aba IA: as abas de cada companheiro no topo, o invocador de companheiros e as Configurações do LLM (aqui com o OpenRouter de exemplo: URL, modelo e a chave mascarada) e o botão Testar conexão](images/3-invocar-e-llm.jpg)
 
 #### Aba do companheiro
 
@@ -94,9 +94,9 @@ primeiro companheiro abertos; e o painel **se fecha sozinho** quando você morre
 | Chave | Padrão | O que faz |
 |---|---|---|
 | `Ligado` | `true` | Liga as ordens por texto. Desligado = nada é enviado ao modelo |
-| `BaseUrl` | `https://openrouter.ai/api/v1` | Endpoint do LLM. `/chat/completions` é adicionado sozinho. O padrão é o **OpenRouter**; para rodar local, troque por `http://127.0.0.1:1234/v1` (LM Studio) ou `http://127.0.0.1:11434/v1` (Ollama). **No caso local** use **`127.0.0.1`** e **não** `localhost`: no Windows o `localhost` resolve primeiro para IPv6 e o servidor do LM Studio só escuta IPv4, o que custa ~**2,5 s** em cada ordem (veja **[LLM (OpenRouter ou LM Studio)](LLM-no-LM-Studio)**) |
-| `Modelo` | `openrouter/free` | Nome do modelo, como o servidor lista. `openrouter/free` é o **roteador de modelos gratuitos** do OpenRouter. No LM Studio use o nome que ele mostra (ex.: `qwen2.5-3b-instruct`) |
-| `ApiKey` | *(vazio)* | Chave de API do servidor. **Obrigatória no OpenRouter** (a gratuita sai em `openrouter.ai/keys`); vazia para LM Studio/Ollama local |
+| `BaseUrl` | `https://api.groq.com/openai/v1` | Endpoint do LLM. `/chat/completions` é adicionado sozinho. O padrão é o **Groq** (que pede a `ApiKey`); as alternativas são o **LM Studio** (`http://127.0.0.1:1234/v1`) ou o **Ollama** (`http://127.0.0.1:11434/v1`) para rodar tudo local, e o **OpenRouter** (`https://openrouter.ai/api/v1`), que funciona mas tem o tier gratuito mais lento. **No caso local** use **`127.0.0.1`** e **não** `localhost`: no Windows o `localhost` resolve primeiro para IPv6 e o servidor do LM Studio só escuta IPv4, o que custa ~**2,5 s** em cada ordem (veja **[LLM (Groq, LM Studio ou OpenRouter)](LLM-no-LM-Studio)**) |
+| `Modelo` | `openai/gpt-oss-20b` | Nome do modelo, como o servidor lista. `openai/gpt-oss-20b` é o padrão (Groq, tier gratuito). Alternativas: `openrouter/free` no OpenRouter; no LM Studio use o nome que ele mostra (ex.: `qwen2.5-3b-instruct`) |
+| `ApiKey` | *(vazio)* | Chave de API do servidor. **Obrigatória no Groq** (a gratuita sai em `console.groq.com/keys`) e também no OpenRouter (`openrouter.ai/keys`); vazia para LM Studio/Ollama local |
 | `Temperatura` | `0.1` | O quanto o modelo improvisa. Mantenha baixo para a mesma ordem dar sempre o mesmo JSON |
 | `TimeoutSegundos` | `30` | Segundos de espera pelo modelo. O pedido roda em segundo plano |
 | `Prefixo` | *(vazio)* | Vazio = toda mensagem de chat vai ao modelo. Ex.: `/c` exige o prefixo |

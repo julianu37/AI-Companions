@@ -3,7 +3,7 @@
 - [Início](Home)
 - [Requisitos](Requisitos)
 - [Instalação](Instalacao)
-- [LLM (OpenRouter ou LM Studio)](LLM-no-LM-Studio)
+- [LLM (Groq, LM Studio ou OpenRouter)](LLM-no-LM-Studio)
 - [Voz](Voz)
 - [Comandos](Comandos)
 - [Configuração](Configuracao)

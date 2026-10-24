@@ -10,7 +10,7 @@ Este projeto é um **projeto independente** baseado em [Offline Companions Rebor
 
 1. **Tradução completa para PT-BR** (interface, menus, painéis e as falas do companheiro).
 2. **Uma camada de IA**: ordens em **linguagem natural** (texto no chat ou **voz** por push-to-talk), com
-   **personalidade**, **memória** e **conversa** — usando um **LLM** (o **OpenRouter** por padrão, ou um modelo
+   **personalidade**, **memória** e **conversa** — usando um **LLM** (o **Groq** por padrão, ou um modelo
    **local**) e reconhecimento de voz **local**.
 
 O companheiro em si (trabalhos, comida, stamina, habilidades, casa, descanso, portais, carroça, menu radial)
@@ -111,18 +111,19 @@ responde aos controles (e a tecla do push-to-talk não grava).
 voz (Microphone 16 kHz) ──► Whisper.net (STT, whisper.cpp in-process, CPU) ─┐
                                                                             ├─► mesma caixa de ordens ─► CompanionOrders ─► o companheiro executa
 chat do jogo ───────────────────────────────────────────────────────────────┘            │
-                                                                                          ├─► LLM (OpenRouter por padrão, ou LM Studio/Ollama) ─► ação + resposta
+                                                                                          ├─► LLM (Groq por padrão, ou LM Studio/Ollama local, ou OpenRouter) ─► ação + resposta
                                                                                           └─► Kokoro-82M (TTS, sherpa-onnx in-process, CPU) ─► ele FALA na posição dele
 ```
 
-- **LLM**: **OpenRouter** por padrão (API compatível com OpenAI; só precisa da **chave gratuita**) ou um
-  servidor **local** (LM Studio/Ollama) — usado para **entender** a ordem e **conversar**.
+- **LLM**: **Groq** por padrão (API compatível com OpenAI; só precisa da **chave gratuita**), um
+  servidor **local** (LM Studio/Ollama) como opção ou o **OpenRouter** como alternativa — usado para **entender**
+  a ordem e **conversar**.
 - **STT local**: `Whisper.net` (whisper.cpp) rodando **dentro do jogo**, com o modelo carregado uma vez.
 - **TTS local**: `sherpa-onnx` com o modelo **Kokoro-82M** — o companheiro **fala** a resposta dentro do jogo,
   na posição dele, sem serviço externo.
 - **Privacidade**: a **voz** (STT e TTS) é sempre **local**. O **LLM** é a única peça que pode ser remota: com o
-  **LM Studio/Ollama local** nada sai da sua máquina; com o **OpenRouter** (padrão) o texto das ordens e da
-  conversa vai para um **serviço remoto**.
+  **LM Studio/Ollama local** nada sai da sua máquina; com o **Groq** (padrão) — ou o **OpenRouter** — o texto das
+  ordens e da conversa vai para um **serviço remoto**.
 - Nada disso bloqueia o jogo: tudo roda em threads de fundo.
 
 ---
@@ -130,9 +131,10 @@ chat do jogo ──────────────────────�
 ## Requisitos
 
 - **Valheim 1.0.x** (engine Unity 6) com **BepInEx 5.4.2351**.
-- **Um LLM** para as ordens: **OpenRouter** (padrão — só precisa de internet e da **chave gratuita** em
-  https://openrouter.ai/keys; o texto das ordens **sai da sua máquina**) **ou** **LM Studio/Ollama** local
-  (opcional — nada sai). Veja a **[wiki](https://github.com/julianu37/AI-Companions/wiki/LLM-no-LM-Studio)**.
+- **Um LLM** para as ordens: **Groq** (padrão — só precisa de internet e da **chave gratuita** em
+  https://console.groq.com/keys; o texto das ordens **sai da sua máquina**) — ou **LM Studio/Ollama** local
+  (opcional — nada sai) — ou **OpenRouter** (alternativa, com o tier gratuito mais lento). Veja a
+  **[wiki](https://github.com/julianu37/AI-Companions/wiki/LLM-no-LM-Studio)**.
 - **Microfone** (só para as ordens por voz).
 - **Windows x64** para o STT (os binários nativos do whisper.cpp são `win-x64`).
 
@@ -140,7 +142,7 @@ chat do jogo ──────────────────────�
 
 ## Instalação
 
-> O passo a passo **detalhado, com imagens** (incluindo a **chave do OpenRouter** e a opção local) está na
+> O passo a passo **detalhado, com imagens** (incluindo a **chave do Groq** e a opção local) está na
 > **[Wiki do projeto](https://github.com/julianu37/AI-Companions/wiki/Instalacao)**. Resumo:
 
 1. Instale o **BepInExPack_Valheim** e copie a pasta do mod para `BepInEx\plugins\AI-Companions`.
@@ -148,9 +150,10 @@ chat do jogo ──────────────────────�
    `ggml-small-q5_1.bin`.
 3. (Opcional, para ele **falar**) deixe o modelo do Kokoro em `...\AI-Companions\tts\kokoro\`
    (`model.int8.onnx`, `voices.bin`, `tokens.txt`, `espeak-ng-data\`) — já vem no pacote.
-4. **Para o LLM:** crie a **chave gratuita** em https://openrouter.ai/keys e cole em `[IA] ApiKey` — o
-   `BaseUrl` (`https://openrouter.ai/api/v1`) e o `Modelo` (`openrouter/free`) **já são o padrão**. Quer rodar
-   local? LM Studio com o `qwen2.5-3b-instruct`, `[IA] BaseUrl = http://127.0.0.1:1234/v1` e `ApiKey` vazio.
+4. **Para o LLM:** crie a **chave gratuita** em https://console.groq.com/keys e cole em `[IA] ApiKey` — o
+   `BaseUrl` (`https://api.groq.com/openai/v1`) e o `Modelo` (`openai/gpt-oss-20b`) **já são o padrão**. Quer rodar
+   local? LM Studio com o `qwen2.5-3b-instruct`, `[IA] BaseUrl = http://127.0.0.1:1234/v1` e `ApiKey` vazio. (O
+   **OpenRouter** continua funcionando como alternativa: `https://openrouter.ai/api/v1` + `openrouter/free`.)
 5. Entre no mundo. No chat: `colete 10 madeiras`. Ou segure **`V`** e fale. Ele responde **em voz alta**.
 
 ---
@@ -177,9 +180,9 @@ chat do jogo ──────────────────────�
 | Chave | Padrão | O que faz |
 |---|---|---|
 | `Ligado` | `true` | Liga as ordens por texto |
-| `BaseUrl` | `https://openrouter.ai/api/v1` | Endpoint do LLM (OpenRouter; ou LM Studio/Ollama local) |
-| `Modelo` | `openrouter/free` | Modelo usado — roteador de modelos gratuitos do OpenRouter |
-| `ApiKey` | *(vazio)* | **Obrigatória no OpenRouter** (a gratuita sai em openrouter.ai/keys); vazia no LM Studio/Ollama. Nunca versione uma chave |
+| `BaseUrl` | `https://api.groq.com/openai/v1` | Endpoint do LLM (Groq; ou LM Studio/Ollama local, ou OpenRouter) |
+| `Modelo` | `openai/gpt-oss-20b` | Modelo usado — `openai/gpt-oss-20b` no Groq (padrão); `openrouter/free` no OpenRouter; o nome do LM Studio no local |
+| `ApiKey` | *(vazio)* | **Obrigatória no Groq** (a gratuita sai em console.groq.com/keys) e no OpenRouter; vazia no LM Studio/Ollama. Nunca versione uma chave |
 | `Prefixo` | *(vazio)* | Vazio = toda mensagem vai ao LLM. Ex.: `/c` exige o prefixo |
 | `Personalidade` / `PresetPersonalidade` | *(vazio)* | Texto livre (ganha) ou preset (`viking`, `mago`, `sarcastico`, `guia`) |
 | `Memoria` | `4` | Quantas trocas recentes ele lembra (`0` desliga) |
@@ -218,7 +221,7 @@ chat do jogo ──────────────────────�
 ## Documentação
 
 - **[Wiki](https://github.com/julianu37/AI-Companions/wiki)** — o guia de quem vai instalar e usar: requisitos,
-  instalação passo a passo (com imagens), **configuração do LLM (OpenRouter ou LM Studio)**, voz, comandos,
+  instalação passo a passo (com imagens), **configuração do LLM (Groq, LM Studio ou OpenRouter)**, voz, comandos,
   configuração da IA e problemas comuns. (A fonte das páginas está em [`docs/wiki/`](docs/wiki/).)
 - [`docs/roadmap.md`](docs/roadmap.md) — fases e status (Trilhas A–D).
 - [`docs/vision.md`](docs/vision.md) — o alvo do projeto.
