@@ -116,6 +116,24 @@ nasce em automático. O F8 mostra o efetivo ao lado.
 O inglês **continua sem arquivo** (as chaves são o texto) — inclusive as falas (o `Defaults()` já é EN).
 
 ## Fases (cada uma com teste em jogo)
+## Medicao com o modelo pequeno (25/10/2026)
+
+Mesmo metodo do PT-BR (contrato do idioma + schema json_schema + POST /v1/chat/completions), com o
+**qwen2.5-3b-instruct no LM Studio** (127.0.0.1:1234) e a temperatura do .cfg (**0,1**): **14 ordens por
+idioma**, cobrindo coleta com numero (madeira/pedra/minerio/forragem), ollow, stop, ttack/equip/drop
+com alvo, pickup do chao, 
+opickup, inventory, conversa e ordem com nome.
+
+| Idioma | Acertos (modelo cru, sem rede) |
+|---|---|
+| PT-BR | **14/14** |
+| EN | **14/14** (antes: 12/14 - drop the wood vinha com 	arget nulo) |
+| ES | **14/14** (antes: 13/14 - suelta la madera vinha com 	arget nulo) |
+| FR | **14/14** (antes da M3.2: amasse 10 bois virava pickup) |
+
+Os dois ajustes vieram dessa medicao: um exemplo a mais de drop no EN (drop the wood -> 	arget: "wood") e no ES
+(suelta la madera). O companion pode vir nulo: a 3.11 le o **nome das palavras do jogador**, nao do modelo.
+
 
 | # | Entrega | Arquivos | Critério de aceite |
 |---|---|---|---|
