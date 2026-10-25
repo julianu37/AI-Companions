@@ -35,8 +35,19 @@ O `LlmClient` é a única coisa que sai da máquina.
 `[AI] TtsLanguage` é **obrigatório** para este modelo (vazio ⇒ o sherpa recusa carregar): `pt-br`, `en-us`,
 `en-gb`, `es`, `fr`, `hi`, `it`, `ja`, `zh`.
 
+Três nuances que a lista de `lang_code` do projeto Python **não** conta:
+
+- `misaki[ja]` e `misaki[zh]` são **extras do pacote Python** (`pip install misaki[ja]`). A gente **não** usa
+  `KPipeline`/misaki: no jogo quem fonemiza é o sherpa-onnx (espeak-ng como fallback), então isso não se aplica.
+- A doc do sherpa para o export `v1_0` diz que ele **só adiciona suporte a inglês e chinês**; o nosso **pt-BR
+  funciona** via espeak (`language=pt-br`, validado em jogo). **`ja` e `zh` não foram validados** aqui, e o
+  pacote que a gente embarca **não traz** os `lexicon-zh.txt` / `*-zh.fst` que a doc do k2-fsa usa — se um dia
+  entrar chinês, testar com esses arquivos antes.
+- `en` **não** é um código: o Kokoro separa **`en-us`** (prefixo `a`) e **`en-gb`** (prefixo `b`). Voz e idioma
+  precisam combinar (voz `a*` com `en-gb` sai com sotaque trocado).
+
 **Fora dos 8** (alemão, russo, polonês, turco, coreano, sueco, ucraniano): o Kokoro **não tem voz**. Decisão
-de produto — não fala, fala com voz inglesa ou mantém a última que funcionou.
+tomada no plano: **fala com voz inglesa** (`en-us`) e registra no log.
 
 ## A voz é um `sid` (índice do export, não do HF)
 
@@ -95,7 +106,7 @@ melhoria pendente.
 - `references/voices.md` — mapa `sid → nome` do export do sherpa + tabela completa de qualidade do HF.
 - `references/integration.md` — esboço do `OfflineTtsConfig`, alternativas (Kokoro-FastAPI/HTTP) e a lista de
   armadilhas.
-- `docs/re/tts-kokoro-sherpa-onnx.md` (engenharia reversa do que foi feito).
+- `docs/re/tts-kokoro-sherpa-onnx.md` (engenharia reversa do que foi feito) e `docs/plan-multilinguagem.md`.
 - Fontes: [VOICES.md](https://huggingface.co/hexgrad/Kokoro-82M/blob/main/VOICES.md),
   [kokoro](https://github.com/hexgrad/kokoro),
   [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI),

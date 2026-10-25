@@ -693,6 +693,8 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
 - `docs/vision.md` — a visão/escopo (companheiro como membro da equipe) e o que falta.
 - `docs/roadmap.md` — fases e status.
 - `docs/plan-fases.md` — plano das fases com mapa do upstream.
+- `docs/plan-multilinguagem.md` — plano da multilinguagem (EN/PT/ES/FR): `Locale`, config `auto`, catálogo de
+  vozes por idioma e as fases M1–M5.
 - `docs/audit-vs-offline-companions.md` — auditoria do nosso mod anterior vs o upstream.
 - `docs/re/` — engenharia reversa do Valheim 1.0 (APIs, diff de versão).
 - `docs/re/stt-whisper-net-spike.md` — o spike do STT local (Whisper.net in-process) e o loader nativo.
