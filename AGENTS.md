@@ -745,6 +745,24 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   curta `hc_cfg_voice_out_of_language` = `{0} ({1}) - usando {2}`, porque a `hc_ai_voice_out_of_language` completa não
   cabe no campo de ~220 px - ela é o que o rodapé do painel `I` mostra).
   Verificado contra o `.cfg` real do jogador: as quatro linhas casam exatamente com os padrões antigos.
+- **Fase M3 da multilinguagem (branch `feat/idiomas-auto`) — ES e FR de verdade, presets por idioma e a auditoria
+  por idioma:** (1) **`Translations/Spanish.json` e `Translations/French.json`** — as **737** chaves do PT-BR, na
+  **mesma ordem** (mesma indentação/quebras, UTF-8 **sem BOM**; o PT usa CRLF e as falas LF), com os placeholders
+  `{0}`/`{1}`/`{2}` preservados. Gerados por **`tools/gen_translations.py`** (novo), que lê o PT e troca só os valores
+  a partir de um mapa PT→idioma (chave = valor do PT sem acento, então os 35 valores repetidos viram uma entrada só);
+  o mesmo script reescreve as falas linha a linha, então a estrutura é sempre a do PT. **`Speech/Spanish.json` e
+  `Speech/French.json`** — as 15 categorias / **186** linhas (1:1 com o PT). Terminologia do jogo respeitada
+  (madera/bois, piedra/pierre, mineral/minerai, plantar/planter...) e tratamento informal (tú/tu). (2) **Presets de
+  personalidade por idioma** (`AI/CompanionPersona.cs`): `Preset.Text` e `CompanionPersona.DefaultText` passaram de
+  texto PT fixo a `Pick(pt, en, es, fr)`, que escolhe pelo **`CompanionLocale.Current.KokoroCode`** (a mesma tabela do
+  TTS/STT: `pt-br`, `es`, `fr`, e **inglês** para todo o resto - alemão, russo...). O texto é resolvido na hora do
+  prompt (1× por mensagem), nunca por frame, e o **texto livre do jogador (`custom`) nunca é traduzido**. (3)
+  **`tools/audit_translations.py --lang <Arquivo>`**: valida uma tradução contra o PT — chaves ausentes/sobrando/
+  vazias, **placeholders divergentes**, valores **iguais ao PT** (só os legitimamente iguais passam: nome de voz,
+  string só com placeholders/códigos e a lista documentada `IDENTICAL_OK` — palavra que o idioma escreve igual, token
+  técnico, nome próprio) e **cara de inglês** (`EN_HINTS`, sem as palavras que o ES/FR também usam, como "panel"),
+  mais as falas (categorias/contagem/linhas iguais ao PT). O modo sem argumento continua idêntico (267 lacunas
+  pré-existentes do PT, as `hc_cfg_*` que só existem no JSON). Resultado: **ES 0 e FR 0**.
 - **Pendências conhecidas (abertas):** a **voz não passa pelo
   mixer do jogo** (por isso ignora os sliders de volume do Valheim e só obedece `[AI] TtsVolume`); o **sync com o
   upstream** (estamos **1 release atrás**: base `1.5.4`, `main` na `1.5.5` — ver a seção *Upstream e licença*);

@@ -1,6 +1,6 @@
 # Plano — multilinguagem completa (EN / PT-BR / ES / FR)
 
-Status: **M1 e M2 feitas** (branch `feat/idiomas-auto`; M3–M5 pendentes). Base: skill `.opencode/skills/kokoro/`.
+Status: **M1, M2 e M3 feitas** (branch `feat/idiomas-auto`; M4–M5 pendentes). Base: skill `.opencode/skills/kokoro/`.
 
 > **M1 entregue (ver `AGENTS.md`, *Fase M1 da multilinguagem*):** `Core/CompanionLocale.cs` (tabela única +
 > `Resolve*`), `auto` como padrão de `[AI] VoiceLanguage`, `[AI] TtsLanguage` e `[AI] TtsVoice` (0 = automático),
@@ -20,6 +20,13 @@ Status: **M1 e M2 feitas** (branch `feat/idiomas-auto`; M3–M5 pendentes). Base
 > linha de log e sem save próprio; `ModLocalization.LanguageVersion` + rebuild no `Show()` dos dois painéis resolvem
 > **trocar o idioma sem reiniciar** (F8, painel `I` e os formatos do HUD), e o `[TTS] idioma efetivo` deixou de chamar
 > de "auto" uma voz explícita que foi substituída.
+>
+> **M3 entregue (ver `AGENTS.md`, *Fase M3 da multilinguagem*):** `Translations/Spanish.json` + `French.json` (737
+> chaves, mesma ordem do PT) e `Speech/Spanish.json` + `French.json` (15 categorias / 186 linhas, 1:1), gerados por
+> `tools/gen_translations.py` a partir do PT; os presets de personalidade (`AI/CompanionPersona.cs`) passaram a ter
+> texto EN/ES/FR escolhido pelo idioma do jogo (via `CompanionLocale`), com inglês para idiomas sem preset; e
+> `tools/audit_translations.py --lang <Arquivo>` audita uma tradução contra o PT (chaves, placeholders, valores iguais
+> ao PT e "cara de inglês") — **ES 0 e FR 0**.
 
 ## Decisões (do jogador, 25/10/2026)
 

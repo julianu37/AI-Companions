@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
-"""Auditoria de traducao PT-BR do mod (cobertura de UI, falas e literais em ingles).
+"""Auditoria de traducao do mod (cobertura de UI, falas e literais em ingles).
 
 Uso:
-    python tools/audit_translations.py            # relatorio completo
-    python tools/audit_translations.py --quiet    # so os totais
+    python tools/audit_translations.py                      # relatorio completo do PT-BR (a fonte)
+    python tools/audit_translations.py --quiet              # so os totais
+    python tools/audit_translations.py --lang Spanish       # audita UMA traducao contra o PT-BR
+    python tools/audit_translations.py --lang French --quiet
 
-O que ele checa (e o que cada numero quer dizer):
+O que ele checa no modo PT-BR (e o que cada numero quer dizer):
 
 1. UI       - os defaults em ingles do `src/Companions/Core/ModLocalization.cs` contra
               `Translations/Portuguese_Brazilian.json`: chaves ausentes, chaves que so existem de um lado e
@@ -19,6 +21,15 @@ O que ele checa (e o que cada numero quer dizer):
               hover, botoes, labels, `Say(`...) e que NAO passam por `Loc`. Linhas de log/diagnostico
               (`Log*`, `Dbg`, `Diag`) e nomes de GameObject/componente sao descartados de proposito - o
               jogador nao os ve (so no LogOutput.log).
+
+O modo `--lang <NomeDoArquivoSemExtensao>` (Multilanguage M3) valida `Translations/<Nome>.json` e
+`Speech/<Nome>.json` contra o PT-BR:
+    - toda chave do PT existe, na MESMA ordem, e nao esta vazia;
+    - nenhum placeholder (`{0}`, `{1}`...) diverge do PT;
+    - nenhum valor igual ao PT, exceto os que sao legitimamente iguais (nome de voz, string so com
+      placeholders/codigos, palavra que o idioma escreve igual - a lista esta em IDENTICAL_OK, com o porque);
+    - nenhuma linha com "cara de ingles" (as palavras de EN_HINTS que o PT nao tem);
+    - as falas tem as mesmas categorias e a mesma quantidade de linhas, e nenhuma linha igual ao PT.
 
 Exit code 1 quando ha lacuna (chave ausente, valor em ingles ou literal suspeito), 0 quando esta limpo.
 """
@@ -35,6 +46,19 @@ except Exception:
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 QUIET = '--quiet' in sys.argv
+
+
+def language_argument():
+    """`--lang Spanish` / `--lang=French`: a traducao a auditar (o nome do arquivo, sem extensao)."""
+    for i, arg in enumerate(sys.argv):
+        if arg == '--lang' and i + 1 < len(sys.argv):
+            return sys.argv[i + 1]
+        if arg.startswith('--lang='):
+            return arg.split('=', 1)[1]
+    return None
+
+
+LANG = language_argument()
 
 ENTRY = re.compile(r'"key"\s*:\s*"((?:[^"\\]|\\.)*)"[^"]*"value"\s*:\s*"((?:[^"\\]|\\.)*)"')
 DEFAULT_ENTRY = re.compile(r'\{\s*"((?:[^"\\]|\\.)*)"\s*,\s*"((?:[^"\\]|\\.)*)"\s*\}')
@@ -231,5 +255,142 @@ def report():
     return 0 if gaps == 0 else 1
 
 
+# ----------------------------------------------------------------------------------------------------------------
+# Modo --lang: uma traducao (ES/FR...) contra o PT-BR
+# ----------------------------------------------------------------------------------------------------------------
+
+PLACEHOLDER = re.compile(r'\{(\d+)\}')
+
+# nome de voz do Kokoro (pf_dora, af_heart...): igual em todo idioma
+VOICE_NAME = re.compile(r'^(pf|pm|af|am|ef|em|ff|bf|bm|hf|hm|if|im|jf|jm|zf|zm)_')
+
+# strings sem letra nenhuma depois de tirar os placeholders: '{0} ({1})', '{0} {1}', '  {0}  '...
+TOKEN_ONLY = re.compile(r'^[\s{}0-9/:.,()\-%°·—]*$')
+
+# palavras que denunciam ingles numa traducao. Menor que a EN_WORDS de proposito: nada aqui e palavra de
+# espanhol nem de frances ('a', 'on', 'me', 'no', 'se', 'son', 'panel', 'option', 'file' ficaram de fora por isso).
+EN_HINTS = re.compile(
+    r'\b(the|and|you|your|with|from|this|that|these|those|not|can|will|would|should|could|there|here|what|when|'
+    r'where|which|how|why|all|any|some|each|every|more|most|than|then|also|because|about|into|over|under|'
+    r'between|again|still|just|only|own|same|other|new|old|make|made|take|give|keep|left|right|down|out|off|up|'
+    r'settings|setting|voice|language|button|window|press|hold|wait|ready|missing|please|'
+    r'thanks|sorry|disabled|enabled)\b',
+    re.I)
+
+# Valores que sao legitimamente IGUAIS ao PT, agrupados pelo motivo. Sem isso a auditoria teria 84 falsos
+# positivos no espanhol: palavras que os dois idiomas escrevem igual, tokens tecnicos e nomes proprios.
+IDENTICAL_OK = {
+    'Spanish': {
+        # palavras que o espanhol e o portugues escrevem igual (ou quase: só o acento muda)
+        'Aplicar', 'Automático', 'Automático ({0})', 'Aviso:', 'Banco: {0}', 'Cama de {0}', 'Cancelar', 'Comando',
+        'Comandos', 'Combate', 'Comida', 'Comidas', 'Comprar {0} ({1})', 'Controles', 'Cura por segundo',
+        'Defensivo', 'Descansado', 'Descanso', 'Dispositivo', 'Equilibrado', 'Estado', 'Fundir',
+        'Hora de descansar.', 'Hora de fundir.', 'Invocar', 'Mago', 'Mago sarcástico', 'Masculino', 'Modelo',
+        'Mostrar texto', 'Nunca descartar', 'Pensando...', 'Perdido', 'Pesca', 'Pescar', 'Peso máximo',
+        'Plantar', 'Presas', 'Proteger base (m)', 'Próxima planta (m)', 'Reabastecer', 'Recuperar perdido',
+        'Regen. por segundo', 'Repetir oferta inicial', 'Reserva de ingrediente', 'Sarcástico', 'Seguir',
+        'Soltando.', 'Stamina', 'Stamina  {0} / {1}', 'Stamina base', 'Tecla de comando', 'Tecla modificadora',
+        'Temperatura', 'Tipo', 'Usar alambique', 'Usar fermentador', 'Vagar', 'Vida  {0} / {1}', 'Vida base',
+        'Vida p/ defensiva (%)', 'Viking leal', 'Vivo', 'Voz', 'casa', 'ignorar comandos', 'masculina', 'parar',
+        'pescar', 'postura defensiva', 'postura equilibrada',
+        # token tecnico que fica em ingles em todo idioma (ou nome de modelo)
+        'Cooldown (s)', 'Cooldown de ataque (s)', 'IA', 'IA: {0}', 'Intervalo máximo (s)', 'Intervalo mínimo (s)',
+        'LM Studio (local)', 'Personalizado (URL manual)', 'Prompt inicial', 'Timeout (s)',
+        # nome proprio
+        'Dverger',
+        # so placeholders (o resto e pontuacao)
+        '{0} ({1})', '{0} {1}', '{0} ({1}) - usando {2}',
+    },
+    'French': {
+        'Volume',                                   # mesma palavra nos dois idiomas
+        'Cache', 'Cooldown (s)', 'IA', 'LM Studio (local)', 'Timeout (s)',   # tokens tecnicos
+        'Dverger',                                  # nome proprio
+        '{0} ({1})', '{0} {1}',                     # so placeholders
+    },
+}
+
+
+def placeholders(value):
+    return sorted(PLACEHOLDER.findall(value))
+
+
+def identical_allowed(lang, value):
+    if TOKEN_ONLY.match(value) or VOICE_NAME.match(value):
+        return True
+    return value in IDENTICAL_OK.get(lang, ())
+
+
+def looks_english(value, pt_value):
+    """Palavra de EN_HINTS que a traducao tem e o PT nao - uma copia nao traduzida cai aqui."""
+    for match in EN_HINTS.finditer(value):
+        word = match.group(1).lower()
+        if not re.search(r'\b' + re.escape(word) + r'\b', pt_value, re.I):
+            return match.group(1)
+    return None
+
+
+def speech_file(rel):
+    path = os.path.join(ROOT, rel)
+    try:
+        return json.load(open(path, encoding='utf-8'))
+    except Exception as ex:
+        print('   nao consegui ler %s: %s' % (rel, ex))
+        return None
+
+
+def report_language(lang):
+    """Audita UMA traducao (UI + falas) contra o PT-BR, que e a fonte."""
+    gaps = 0
+    pt = translation_file('Translations/Portuguese_Brazilian.json')
+    tr = translation_file('Translations/%s.json' % lang)
+    print('== UI (%s) ==' % lang)
+    print('   PT-BR: %d chaves, %s: %d chaves' % (len(pt), lang, len(tr)))
+    missing = [k for k in pt if k not in tr]
+    extra = [k for k in tr if k not in pt]
+    empty = [k for k, v in tr.items() if not v.strip()]
+    print('   ausentes: %d%s' % (len(missing), (' -> ' + ', '.join(missing)) if missing else ''))
+    print('   sobrando (nao existem no PT): %d%s' % (len(extra), (' -> ' + ', '.join(extra)) if extra else ''))
+    print('   vazias: %d%s' % (len(empty), (' -> ' + ', '.join(empty)) if empty else ''))
+    bad_ph = [(k, placeholders(pt[k]), placeholders(tr[k])) for k in pt if k in tr and placeholders(pt[k]) != placeholders(tr[k])]
+    print('   placeholders divergentes: %d' % len(bad_ph))
+    if not QUIET:
+        for key, a, b in bad_ph:
+            print('      %s | PT %s -> %s %s' % (key, a, lang, b))
+    same = [k for k in pt if k in tr and tr[k] == pt[k] and not identical_allowed(lang, pt[k])]
+    print('   iguais ao PT (nao permitidos): %d%s' % (len(same), (' -> ' + ', '.join(same)) if same else ''))
+    english = [(k, word) for k in tr if k in pt for word in [looks_english(tr[k], pt[k])] if word]
+    print('   com cara de ingles: %d' % len(english))
+    if not QUIET:
+        for key, word in english:
+            print('      %s | "%s" (%s)' % (key, tr[key], word))
+    gaps += len(missing) + len(extra) + len(empty) + len(bad_ph) + len(same) + len(english)
+
+    print('== falas (%s) ==' % lang)
+    pt_speech = speech_file('Speech/Portuguese_Brazilian.json') or {}
+    tr_speech = speech_file('Speech/%s.json' % lang) or {}
+    pt_lines = sum(len(v) for v in pt_speech.values() if isinstance(v, list))
+    tr_lines = sum(len(v) for v in tr_speech.values() if isinstance(v, list))
+    print('   PT-BR: %d categorias / %d linhas; %s: %d categorias / %d linhas'
+          % (len(pt_speech), pt_lines, lang, len(tr_speech), tr_lines))
+    miss_cat = [c for c in pt_speech if c not in tr_speech]
+    extra_cat = [c for c in tr_speech if c not in pt_speech]
+    count = [(c, len(pt_speech[c]), len(tr_speech[c])) for c in pt_speech if c in tr_speech and len(pt_speech[c]) != len(tr_speech[c])]
+    same_lines = [(c, line) for c in pt_speech if c in tr_speech for line in tr_speech[c] if line in pt_speech[c]]
+    empty_lines = [c for c in tr_speech if not tr_speech[c]]
+    print('   categorias ausentes: %d%s' % (len(miss_cat), (' -> ' + ', '.join(miss_cat)) if miss_cat else ''))
+    print('   categorias sobrando: %d%s' % (len(extra_cat), (' -> ' + ', '.join(extra_cat)) if extra_cat else ''))
+    print('   categorias vazias: %d%s' % (len(empty_lines), (' -> ' + ', '.join(empty_lines)) if empty_lines else ''))
+    print('   categorias com contagem diferente: %d%s' % (len(count), (' -> ' + ', '.join('%s %d/%d' % c for c in count)) if count else ''))
+    print('   linhas iguais ao PT: %d' % len(same_lines))
+    if not QUIET:
+        for cat, line in same_lines:
+            print('      %s | "%s"' % (cat, line))
+    gaps += len(miss_cat) + len(extra_cat) + len(empty_lines) + len(count) + len(same_lines)
+
+    print('== resumo (%s) ==' % lang)
+    print('   lacunas: %d' % gaps)
+    return 0 if gaps == 0 else 1
+
+
 if __name__ == '__main__':
-    sys.exit(report())
+    sys.exit(report_language(LANG) if LANG else report())
