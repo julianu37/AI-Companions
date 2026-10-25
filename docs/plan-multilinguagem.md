@@ -27,6 +27,12 @@ Status: **M1, M2 e M3 feitas** (branch `feat/idiomas-auto`; M4–M5 pendentes). 
 > texto EN/ES/FR escolhido pelo idioma do jogo (via `CompanionLocale`), com inglês para idiomas sem preset; e
 > `tools/audit_translations.py --lang <Arquivo>` audita uma tradução contra o PT (chaves, placeholders, valores iguais
 > ao PT e "cara de inglês") — **ES 0 e FR 0**.
+>
+> **Correção do teste em francês da M3 (ver `AGENTS.md`):** o `CompanionChatAI.Contract` (regras + exemplos) agora é
+> **por idioma do jogo** (`ContractPt/En/Es/Fr`, tokens e as 30 ações intactos), com o par "coletar com número × pegar
+> do chão" em cada idioma; e o novo `AI/GatherIntent.cs` (puro) é a rede de segurança: `pickup`/`none` + recurso
+> conhecido + número, sem marcador de chão ⇒ vira a coleta daquele recurso, com o `amount` lido do texto. `OrderItems`
+> ganhou os apelidos ES/FR. Verificado com a `Companions.dll` real: **272 casos, ALL CHECKS PASSED**.
 
 ## Decisões (do jogador, 25/10/2026)
 

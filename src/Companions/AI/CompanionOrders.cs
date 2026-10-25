@@ -77,6 +77,25 @@ internal static class CompanionOrders
 		return IsDirected(addressee) && !ReferenceEquals(companion, addressee);
 	}
 
+	/// <summary>
+	/// The resource of a gathering action, in Portuguese, for the log line of the Fase M3 correction
+	/// ("... pediu para coletar madeira - usei \"wood\" (10)."). Logs stay in Portuguese by design.
+	/// </summary>
+	internal static string ResourceWord(string gatherAction)
+	{
+		switch (gatherAction)
+		{
+		case "wood":
+			return "madeira";
+		case "stone":
+			return "pedra";
+		case "ore":
+			return "minério";
+		default:
+			return "plantas";
+		}
+	}
+
 	/// <summary>Runs one order. <paramref name="userText"/> is what the player actually said (typed in the chat or
 	/// spoken): Fase 3.6b uses it as the safety net for attack/equip/drop when the model answered "target": null.
 	/// <paramref name="speaker"/> (Fase 3.8) is the companion the message was addressed to, when the caller knows it -
@@ -124,9 +143,25 @@ internal static class CompanionOrders
 			CompanionsPlugin.Log?.LogInfo($"[IA] O modelo devolveu \"{action}\" mas o jogador pediu para {(byWords == PickupIntent.DropAction ? "largar" : "recolher")} - usei \"{byWords}\".");
 			action = byWords;
 		}
+		// Fase M3 (bug do teste em francês): "maria ramasse 10 bois" voltou do modelo como "pickup" ("Je prends les
+		// bois.") e o companheiro foi catar item no chão em vez de cortar madeira - a causa era o contrato do prompt,
+		// que só existia em PT-BR (ver CompanionChatAI.Contract, agora por idioma). Esta é a rede de segurança: quando
+		// as palavras do jogador dizem COLETAR (recurso conhecido + número, em PT/EN/ES/FR, sem marcador de chão), a
+		// coleta vence o "pickup" e a quantidade sai do próprio texto (o modelo devolveu null). Uma chamada por
+		// mensagem; sem gatilho, tudo fica exatamente como estava.
+		int byGatherAmount = 0;
+		if (string.Equals(action, GatherIntent.PickupAction, StringComparison.Ordinal))
+		{
+			string byGather = GatherIntent.FromModelAction(action, userText, out byGatherAmount);
+			if (byGather != null)
+			{
+				CompanionsPlugin.Log?.LogInfo($"[IA] O modelo devolveu \"{action}\" mas o jogador pediu para coletar {ResourceWord(byGather)} - usei \"{byGather}\" ({byGatherAmount}).");
+				action = byGather;
+			}
+		}
 		outcome.Understood = true;
 		outcome.LabelKey = "hc_ai_order_" + action;
-		outcome.Amount = intent.Amount;
+		outcome.Amount = byGatherAmount > 0 ? byGatherAmount : intent.Amount;
 
 		// Fase 3.1: "recolhe os itens do chão" é uma ordem de UM TIRO (MHR_Collect), então qualquer outra ordem a
 		// derruba - feito aqui, uma vez por mensagem, para que até as ordens que nunca chegam ao Apply

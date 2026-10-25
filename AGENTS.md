@@ -110,7 +110,7 @@ O jogador digita no chat do jogo (`colete 20 de madeira`, `segue`, `para`, `atac
 `equipa o machado de bronze`, `larga a pedra`, `bom dia`) e um **LLM** (API compatível com a OpenAI:
 `POST {BaseUrl}/chat/completions`) devolve a intenção em JSON, que vira a **mesma ação** do menu radial /
 tecla de comando — ou uma **resposta de conversa**, quando não é ordem. Fluxo: `CompanionChatAI` (patch Harmony
-em `Chat.SendText` + prompt PT-BR montado por mensagem) → `LlmClient` (POST em `Task` de fundo + fila
+em `Chat.SendText` + prompt montado por mensagem, **no idioma do jogo** desde a M3) → `LlmClient` (POST em `Task` de fundo + fila
 thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `reply`, `target`, `resource`,
 `amount`) → `CompanionOrders` (intenção → `CompanionSetup.ApplyActionMode`, `SetCombatStance`, `MHR_JobRules`,
 `DirectEngage`, `EquipItem`, `ItemDrop.DropItem`, recall...).
@@ -763,6 +763,30 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   técnico, nome próprio) e **cara de inglês** (`EN_HINTS`, sem as palavras que o ES/FR também usam, como "panel"),
   mais as falas (categorias/contagem/linhas iguais ao PT). O modo sem argumento continua idêntico (267 lacunas
   pré-existentes do PT, as `hc_cfg_*` que só existem no JSON). Resultado: **ES 0 e FR 0**.
+- **Correção do teste em francês da M3 (branch `feat/idiomas-auto`) — o contrato do LLM no idioma do jogador + a
+  rede de segurança da coleta:** o jogador, com o jogo em **francês**, disse "maria ramasse 10 bois" e o modelo
+  devolveu `pickup` ("Je prends les bois.") - o companheiro foi catar item no chão. **Causa:** o
+  `CompanionChatAI.Contract` era **100% PT-BR** (regras e exemplos), então fora do PT o modelo não tinha exemplo de
+  ordem de coleta. **Correção em duas camadas:** (1) **contrato por idioma** — `Contract` passou a ser uma propriedade
+  que escolhe entre `ContractPt`/`ContractEn`/`ContractEs`/`ContractFr` (todos `const`, custo zero por mensagem) pelo
+  **`CompanionLocale.Current.KokoroCode`** (mesma tabela do TTS/presets; idioma sem contrato → **inglês**), com
+  **regras e exemplos traduzidos** e os **tokens intactos** (chaves JSON e as 30 ações de `ValidActions`, que é o
+  `enum` do schema). Todas as correções históricas continuam nos quatro (o par `action`/`resource`, `target`
+  obrigatório em attack/equip/drop, `drop`×`pickup`×`nopickup`, o exemplo com `CompanionExampleName`) e cada idioma
+  ganhou o **par que confunde** (coletar com número × pegar do chão) e uma regra nova: *número + verbo de coleta +
+  material = ordem de coleta*. O `Header` do prompt (quem é o companheiro, personalidade, aviso da fala) e a linha
+  `CompanionNames.PromptLine()` ("Companheiros seus: …") também seguem o idioma. (2) **rede de segurança**
+  (`AI/GatherIntent.cs`, novo e **puro**): com o modelo devolvendo `pickup` (no `CompanionOrders.Run`) ou `none` (no
+  `CompanionChatAI.HandleResult`), se as palavras do jogador têm **recurso conhecido** (PT/EN/ES/FR) **+ número** e
+  **sem** marcador de chão/itens (`chão`, `suelo`, `ground`, `par terre`, `itens`…), a ação vira a coleta daquele
+  recurso e a quantidade sai do texto — uma linha de log (`[IA] O modelo devolveu "pickup" mas o jogador pediu para
+  coletar madeira - usei "wood" (10).`). Guardas: `nopickup` nunca é lido, `target`/`equip`/`drop` não são tocados,
+  o caso legítimo (com marcador de chão) continua `pickup`, e no lado `none` ainda se exige um verbo de coleta (para
+  "você tem 10 madeiras?" não virar ordem). (3) **`OrderItems`** ganhou os apelidos **ES/FR** (madera/bois,
+  piedra/pierre, hierro/fer, frambuesa/framboise, champinhon/champignon…, 180 apelidos) para o teto da ordem e o
+  `GatherAction`. Verificado com um harness que carrega a **`Companions.dll` real** (reflexão): contrato por idioma
+  (7734/7720/7698/8136 chars; alemão → EN), 38 casos de mensagem→ação/quantidade nos 4 idiomas, as regras da 3.1 do
+  `PickupIntent` e o mapa de apelidos — **272 casos, ALL CHECKS PASSED**.
 - **Pendências conhecidas (abertas):** a **voz não passa pelo
   mixer do jogo** (por isso ignora os sliders de volume do Valheim e só obedece `[AI] TtsVolume`); o **sync com o
   upstream** (estamos **1 release atrás**: base `1.5.4`, `main` na `1.5.5` — ver a seção *Upstream e licença*);
