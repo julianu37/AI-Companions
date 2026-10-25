@@ -36,7 +36,7 @@ mesmo caminho das ordens digitadas. Exemplos:
 - **A voz é local:** o reconhecimento de fala e a **voz do companheiro** rodam **na sua máquina** — nada disso
   é enviado para fora. O **LLM** (que entende a ordem) usa o **Groq** por padrão, um **serviço remoto**:
   o texto das ordens e da conversa **sai da sua máquina**. Para não enviar nada, use o **LM Studio** local
-  (`[IA] BaseUrl = http://127.0.0.1:1234/v1`).
+  (`[AI] BaseUrl = http://127.0.0.1:1234/v1`).
 
 ### 🔊 Ele fala (voz sintetizada local)
 
@@ -46,8 +46,8 @@ jogo** pelo **Kokoro-82M** (via `sherpa-onnx`, CPU) — sem serviço externo. Tr
 
 - **O que ele fala:** a resposta do modelo (*"Deixa comigo."*) e/ou a linha do mod que aparece no chat
   (*"Ok: coletar madeira (10)."*, *"Já temos o suficiente."*) — duas opções separadas
-  (`TtsFalarRespostas` / `TtsFalarFalasDoMod`). Numa ordem a linha do mod ganha (a voz acompanha o que está
-  escrito na tela); desligue `TtsFalarFalasDoMod` para ouvir a resposta do modelo. Nada é falado duas vezes.
+  (`TtsSpeakReplies` / `TtsSpeakModLines`). Numa ordem a linha do mod ganha (a voz acompanha o que está
+  escrito na tela); desligue `TtsSpeakModLines` para ouvir a resposta do modelo. Nada é falado duas vezes.
 - **Sem travar o jogo:** a síntese roda em thread de fundo, fala por **frases** (a primeira já toca enquanto a
   próxima é gerada) e as falas repetidas saem do **cache**.
 - **Teste rápido** no console do jogo (`F5`): `modia_tts_teste` (ou `modia_tts_teste Bom dia, chefe!`).
@@ -63,7 +63,8 @@ jogo** pelo **Kokoro-82M** (via `sherpa-onnx`, CPU) — sem serviço externo. Tr
 - **Raio de coleta maior** (madeira/pedra/minério até 25 m de você; drops catados até 12 m).
 - **Sem falinhas aleatórias** a cada 15–30 s (as falas úteis continuam).
 - **A tecla `V` é do push-to-talk** e não dispara o *Toggle Auto-Pickup* do jogo.
-- **Interface, menus e falas 100% em PT-BR.**
+- **Interface, menus e falas 100% em PT-BR** — sobre um mod **multilíngue** (o **inglês é o idioma nativo**: os
+  painéis seguem o idioma do jogo e um idioma novo é **um arquivo**).
 
 ---
 
@@ -246,10 +247,16 @@ trabalho no instante em que houver algo a fazer.
 <details>
 <summary><b>Configurações</b></summary>
 
-Tudo fica em `BepInEx/config/Maddhattr.OfflineCompanionsReborn.cfg` e também pode ser mudado **em jogo** com o
+Tudo fica em `BepInEx/config/AiCompanions.cfg` e também pode ser mudado **em jogo** com o
 painel de configurações (**`F8`** por padrão). Cada opção tem descrição clara.
 
-A camada de IA tem o seu **próprio painel** (tecla **`I`** por padrão, mudável em `[IA] PainelTecla`): as
+> **Atualizando para a 1.8.3?** O arquivo de configuração mudou de nome (era `Maddhattr.OfflineCompanionsReborn.cfg`,
+> que **não é mais lido** e pode ser apagado) e as **configurações voltam aos padrões** — inclusive a **`ApiKey`**,
+> que precisa ser colada de novo. A seção da IA virou **`[AI]`** e as **chaves são em inglês** (`Enabled`, `Model`,
+> `TtsVoice`…). **Save, mundo, companheiros, casas e inventário não são afetados** (o GUID do plugin e as chaves
+> `HC_*` não mudaram).
+
+A camada de IA tem o seu **próprio painel** (tecla **`I`** por padrão, mudável em `[AI] PanelKey`): as
 **configurações do LLM** (URL, modelo, chave e o **Testar conexão**), personalidade (preset ou texto livre), voz
 do companheiro (com o botão **Ouvir**), volume, memória, conversa livre, os toggles do que é
 falado e a tecla do **push-to-talk** (botão *Alterar*). Tudo é salvo no `.cfg` na hora.
@@ -263,7 +270,7 @@ Studio, que não tem chave). A **velocidade da fala** ficou **só no painel `F8`
 
 As seções incluem **General, Controls, Follow, Movement, Combat, Food, Stamina, Rest, Death, Looting, Gear Repair**,
 uma por trabalho (**Gathering, Hunting, Fishing, Farming, Smelting, Cooking, Repair and Restock**), **Idle,
-Speech** e **Advanced** — além das nossas em **`[IA]`** (ordens por texto/voz, personalidade, memória, Whisper).
+Speech** e **Advanced** — além das nossas em **`[AI]`** (ordens por texto/voz, personalidade, memória, Whisper).
 
 **Listas** (o que coletar, cozinhar, caçar, plantar…) usam o mesmo formato:
 - `*` = tudo
@@ -271,7 +278,9 @@ Speech** e **Advanced** — além das nossas em **`[IA]`** (ordens por texto/voz
 - `-Nome` = nunca esse
 - `Nome:Número` = esse, com a sua própria quantidade
 
-Ao atualizar de uma versão antiga, as opções que você mudou são migradas automaticamente.
+Ao atualizar de uma versão antiga, as opções que você mudou são migradas automaticamente — **exceto na 1.8.3**,
+que troca o arquivo (novo nome, chaves em inglês) e por isso **volta aos padrões**: é só reconfigurar (a tabela de
+todas as chaves está na **[wiki, em Configuração](https://github.com/julianu37/AI-Companions/wiki/Configuracao)**).
 
 </details>
 
@@ -285,13 +294,13 @@ Ao atualizar de uma versão antiga, as opções que você mudou são migradas au
    `.../AI-Companions/whisper/`.
 4. **Para ele falar:** o modelo do Kokoro já vem no pacote, em `.../AI-Companions/tts/kokoro/`.
 5. **Para a IA:** crie a **chave gratuita** em **[console.groq.com/keys](https://console.groq.com/keys)** e cole em
-   `[IA] ApiKey`. O `BaseUrl` (`https://api.groq.com/openai/v1`) e o `Modelo` (`openai/gpt-oss-20b`) **já vêm
+   `[AI] ApiKey`. O `BaseUrl` (`https://api.groq.com/openai/v1`) e o `Model` (`openai/gpt-oss-20b`) **já vêm
    configurados**. Quer rodar local? Instale o **[LM Studio](https://lmstudio.ai/)**, carregue o
-   `qwen2.5-3b-instruct`, ligue o servidor e use `[IA] BaseUrl = http://127.0.0.1:1234/v1` com o `ApiKey`
+   `qwen2.5-3b-instruct`, ligue o servidor e use `[AI] BaseUrl = http://127.0.0.1:1234/v1` com o `ApiKey`
    **vazio**. No jogo, o **Testar conexão** (painel `I`) diz se a URL responde; a **chave** só é validada numa
    ordem de verdade.
 
-**Requisitos:** Valheim **1.0.17** + BepInEx (o BepInExPack já traz o Harmony). Para as ordens, um **LLM**:
+**Requisitos:** Valheim **1.0.x** (testado na **1.0.20**) + BepInEx (o BepInExPack já traz o Harmony). Para as ordens, um **LLM**:
 **Groq** (só a chave gratuita e internet), **LM Studio** local (opcional) ou **OpenRouter** (alternativa). As
 ordens por voz exigem **Windows x64** e um **microfone**.
 
@@ -307,8 +316,12 @@ ordens por voz exigem **Windows x64** e um **microfone**.
 
 ## Problemas conhecidos
 
+- **Tipos de companheiro:** os **dverger** (**Mago**, **Mago de Fogo**, **Mago de Gelo** e **Suporte**) são **de
+  combate** — a roda mostra só as ações de combate/suporte e as ordens de **trabalho** (pelo chat, pela voz ou pela
+  tecla de comando) são **recusadas** com *"Sou de combate, não faço esse trabalho"*. O painel esconde os espaços de
+  comida por tipo. Para trabalhar, use o **Companheiro**.
 - **Volume da voz:** a fala do companheiro **não** passa pelo mixer do jogo, então ela **ignora os sliders de volume do
-  Valheim** (música/SFX). Quem manda no volume dela é o `[IA] TtsVolume` (ou o slider do painel da IA).
+  Valheim** (música/SFX). Quem manda no volume dela é o `[AI] TtsVolume` (ou o slider do painel da IA).
 - *(Corrigido na 1.6.0)* **Painel `F8`:** o clique do mouse não respondia numa faixa dos controles (havia um alvo de
   clique invisível do HUD do jogo **na frente** do painel — o HUD usa `sortingOrder` 400 e os painéis do mod estavam
   abaixo). Agora **todos** os canvases do mod ficam na faixa **1701+**, acima do HUD. O painel da IA (tecla `I`) nunca

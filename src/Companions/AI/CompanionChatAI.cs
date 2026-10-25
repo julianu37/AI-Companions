@@ -15,7 +15,7 @@ namespace Companions;
 /// Fase 3.5 adds three things on top of that, all in the same request:
 /// - PERSONALITY: the companion's name and its personality (a preset or the player's own text, see CompanionPersona)
 ///   go into the instructions, so the model answers in that tone.
-/// - MEMORY: the last [IA] Memoria exchanges of that companion are pasted into the instructions (CompanionMemory),
+/// - MEMORY: the last [AI] Memory exchanges of that companion are pasted into the instructions (CompanionMemory),
 ///   so it follows the thread of the conversation.
 /// - FREE CONVERSATION: when the message is not an order ("bom dia", "como você está?"), the model's "reply" is
 ///   spoken by the companion (speech bubble) and shown in the chat. An order keeps working exactly as before and
@@ -42,9 +42,11 @@ internal static class CompanionChatAI
 
 	/// <summary>
 	/// The instruction sent with every message: who the model is talking to, the JSON contract and the actions it may
-	/// answer with. Kept in Portuguese: the player types Portuguese in this mod. The companion's name, its personality
-	/// and the recent conversation are added in front of/behind it by BuildPrompt - everything here is fixed, so the
-	/// beginning of the prompt stays cacheable by the server.
+	/// answer with. Kept in Portuguese: the player types Portuguese in this mod. Fase 3.23: only the "reply" RULE speaks
+	/// about language - the companion answers in the language the player wrote in (an English message gets an English
+	/// reply, and so the bubble and the TTS), while the contract and its examples stay as they are. The companion's name,
+	/// its personality and the recent conversation are added in front of/behind it by BuildPrompt - everything here is
+	/// fixed, so the beginning of the prompt stays cacheable by the server.
 	/// </summary>
 	internal const string Contract = "Você é um companheiro NPC de Valheim e o jogador é o seu DONO: você obedece a ele.\n"
 		+ "A mensagem do usuário é o que o JOGADOR falou para você no chat do jogo.\n"
@@ -65,7 +67,8 @@ internal static class CompanionChatAI
 		+ "stance_balanced, stance_passive (defensivo), stance_ranged (à distância), stance_melee (corpo a corpo),\n"
 		+ "none (a mensagem NÃO é uma ordem para o companheiro: conversa, pergunta, saudação ou algo que você não entende).\n"
 		+ "Regras:\n"
-		+ "- \"reply\" é SEMPRE a sua fala, em português, no seu jeito de falar, e é UMA ÚNICA FRASE CURTA (até ~15 palavras,\n"
+		+ "- \"reply\" é SEMPRE a sua fala, no MESMO IDIOMA em que o jogador escreveu (ele escreveu em inglês -> responda\n"
+		+ "  em inglês; em português -> em português), no seu jeito de falar, e é UMA ÚNICA FRASE CURTA (até ~15 palavras,\n"
 		+ "  sem duas frases, sem listas, sem parênteses): ela é FALADA EM VOZ ALTA, então uma frase curta sai na hora e\n"
 		+ "  uma frase longa faz o jogador esperar. Numa ORDEM ela é a confirmação (\"Deixa comigo.\"); quando NÃO é ordem\n"
 		+ "  é a sua resposta de conversa, respondendo de verdade o que o jogador perguntou.\n"
@@ -218,8 +221,28 @@ internal static class CompanionChatAI
 		}
 	}
 
-	/// <summary>Fase 3.5: [IA] Conversa - answer free conversation, not only orders.</summary>
+	/// <summary>Fase 3.5: [AI] Conversation - answer free conversation, not only orders.</summary>
 	private static bool ConversationEnabled => ModConfig.AiConversation == null || ModConfig.AiConversation.Value;
+
+	/// <summary>
+	/// Fase 3.23 (auditoria): forgets the message that was in flight. The fields above are static and used to survive
+	/// a world change: leaving the world while the model was thinking left <see cref="_awaitingResult"/> true with the
+	/// speaker, the addressee and the request id of the OLD world, so the answer (or the watchdog's error) could be
+	/// applied to a companion that is not there any more. Called on the scene load, together with
+	/// <see cref="CompanionMemory.ClearAll"/> and <see cref="CompanionCarry.Reset"/>; <see cref="LlmClient.Reset"/>
+	/// drains the answer queue in the same step. Main thread only.
+	/// </summary>
+	internal static void Reset()
+	{
+		_awaitingResult = false;
+		_pendingRequestId = 0;
+		_pendingSpeaker = null;
+		_pendingAddressee = null;
+		// Fase 3.24 (auditoria): the 3 s cooldown belongs to the world it was started in - leaving and entering again
+		// used to swallow the first order of the new world.
+		_lastOrderTime = -999f;
+		CompanionsPlugin.Log?.LogInfo("[IA] Estado pendente da camada de IA limpo (troca de mundo): nada da mensagem anterior sera aplicado.");
+	}
 
 	private static void OnPlayerChat(Talker.Type type, string text)
 	{
@@ -287,7 +310,7 @@ internal static class CompanionChatAI
 		}
 		if (ModConfig.AiEnabled == null || !ModConfig.AiEnabled.Value)
 		{
-			CompanionsPlugin.Log?.LogInfo("[IA] The AI is off ([IA] Ligado = false) - message not sent");
+			CompanionsPlugin.Log?.LogInfo("[IA] The AI is off ([AI] Enabled = false) - message not sent");
 			if (announceRefusal)
 			{
 				Notify(ModLocalization.Loc("hc_ai_disabled"));
@@ -394,7 +417,7 @@ internal static class CompanionChatAI
 		StringBuilder builder = new StringBuilder(Contract.Length + 400);
 		builder.Append("Você é ").Append(name).Append(", o companheiro NPC do jogador, e ele é o seu dono.\n");
 		builder.Append("Seu jeito de falar e de agir: ").Append(personality).Append('\n');
-		builder.Append("Fale sempre em português, no seu jeito, com UMA frase curta, e trate o jogador como seu dono.\n");
+		builder.Append("Fale no idioma em que o jogador falar com você, no seu jeito, com UMA frase curta, e trate o jogador como seu dono.\n");
 		builder.Append("A sua fala é lida em voz alta para o jogador: uma frase curta sai na hora, uma frase longa faz ele esperar.\n");
 		// Fase 3.11: who the player has, by name - the only names the model may put in "companion". Empty when there
 		// is nobody (the line is simply not there), and short by design: this is sent with every message.
@@ -499,7 +522,12 @@ internal static class CompanionChatAI
 		if (intent != null && CompanionOrders.IsInventoryRequest(result.UserText, out bool closeInventory))
 		{
 			bool guessed = intent.IsNone;
-			bool wrongWay = closeInventory && string.Equals(intent.Action, "inventory", StringComparison.Ordinal);
+			// Fase 3.23 (auditoria): both directions. Before this only "the model said inventory but the player asked
+			// to close" was fixed - the opposite ("fecha o inventário" answered as inventory_close while the player
+			// asked to open it) opened nothing at all.
+			bool wrongWay = closeInventory
+				? string.Equals(intent.Action, "inventory", StringComparison.Ordinal)
+				: string.Equals(intent.Action, "inventory_close", StringComparison.Ordinal);
 			if (guessed || wrongWay)
 			{
 				CompanionsPlugin.Log?.LogInfo($"[IA] The model answered \"{intent.Action}\" for \"{result.UserText}\", which asks to {(closeInventory ? "close" : "open")} the inventory - taking it as the \"{(closeInventory ? "inventory_close" : "inventory")}\" order (Fase 3.8/3.19 fallback)");
@@ -716,9 +744,9 @@ internal static class CompanionChatAI
 	/// the line that is shown in the chat":
 	/// <list type="bullet">
 	/// <item><paramref name="modLine"/> is the mod's own localized feedback (the one in the chat/HUD) and is spoken
-	/// when <c>[IA] TtsFalarFalasDoMod</c> is on;</item>
+	/// when <c>[AI] TtsSpeakModLines</c> is on;</item>
 	/// <item><paramref name="reply"/> is the model's own wording and is spoken when there is no line to read or when
-	/// <c>[IA] TtsFalarFalasDoMod</c> is off, and only with <c>[IA] TtsFalarRespostas</c> on.</item>
+	/// <c>[AI] TtsSpeakModLines</c> is off, and only with <c>[AI] TtsSpeakReplies</c> on.</item>
 	/// </list>
 	/// Only one of the two is ever spoken (the other goes to the log), so an order is never confirmed twice in two
 	/// different ways. Called on the main thread; the synthesis itself happens on a background thread.

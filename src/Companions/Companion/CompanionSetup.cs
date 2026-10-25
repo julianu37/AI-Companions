@@ -1189,20 +1189,64 @@ public class CompanionSetup : MonoBehaviour
 		}
 	}
 
+	/// <summary>
+	/// fix/dverger-combate: is this one of the WORK modes - the jobs a type that cannot wear armor has no business
+	/// doing? The work modes are 1 gather wood, 2 gather stone, 3 gather ore, 5 forage, 6 smelt, 7 hunt, 8 farm,
+	/// 9 fish, 15 repair and restock and 17 cook.
+	///
+	/// <para>Everything else is deliberately NOT work: 0 follow, 4 stay (the pre-1.4.65 mode old saves can still
+	/// hold, never a job), 10 home and 11 set home, 12 wander, 13 pick up items, 14 the command switch, 16 the
+	/// retired Restock (a save holding it is moved to 15 on load - see EnsureActionModeMigration), 20-23 the combat
+	/// stances and 30 despawn. The wheel hides the work segments for those types (CompanionRadialMenu.BuildSegments);
+	/// this is the same line drawn in the mod itself, so a chat order can't hand them a job either.</para>
+	/// </summary>
+	internal static bool IsWorkMode(int mode)
+	{
+		switch (mode)
+		{
+		case ModeGatherWood:
+		case ModeGatherStone:
+		case ModeGatherOre:
+		case ModeForage:
+		case ModeSmelt:
+		case ModeHunt:
+		case ModeFarm:
+		case ModeFish:
+		case ModeRepairBuildings:
+		case ModeCook:
+			return true;
+		default:
+			return false;
+		}
+	}
+
 	// Fase 3.1: one place that switches a companion's work mode, shared by the radial menu (toggle) and the chat
 	// orders (set, no toggle). The radial's own SetActionMode did exactly this; it now calls this method.
 	// Fase 3.19 (auditoria): it also goes through MHR_WriteOrQueue - the whole switch (the mode and the local follow
 	// state that follows it) runs once this game owns the companion, now or on the next Update.
-	internal static void ApplyActionMode(CompanionSetup companion, int mode, bool toggle)
+	// fix/dverger-combate: returns false when the switch was REFUSED (see below) - the caller that only wants the
+	// side effect (the wheel, recall, a finished order) may ignore it, the chat order does not.
+	internal static bool ApplyActionMode(CompanionSetup companion, int mode, bool toggle)
 	{
 		if (companion == null)
 		{
-			return;
+			return false;
+		}
+		// fix/dverger-combate: the dverger types (Mage, Fire Mage, Ice Mage, Support) are combat-only - they carry no
+		// axe, pickaxe or hammer and no pack of their own. The wheel already hides the work segments for them, but a
+		// chat/voice order still reached a work mode (mode 1 and so on) and the companion then tried the job and
+		// failed. Nothing is written here: the mode it had stays, so a refusal never disturbs the job already running.
+		// Everything that isn't work (follow, home, wander, pick up, command, the stances, despawn) goes through.
+		if (IsWorkMode(mode) && !companion.CanWearArmor())
+		{
+			CompanionsPlugin.Log?.LogInfo($"[IA] \"{companion.NameForLog()}\": recusou o trabalho (modo {mode}) - e um tipo de combate");
+			return false;
 		}
 		companion.MHR_WriteOrQueue(delegate
 		{
 			ApplyActionModeNow(companion, mode, toggle);
 		});
+		return true;
 	}
 
 	private static void ApplyActionModeNow(CompanionSetup companion, int mode, bool toggle)

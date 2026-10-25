@@ -31,8 +31,8 @@ namespace Companions;
 /// <item>it is <b>scoped to a single button name</b>: every other <c>GetButtonDown</c> call in the game falls through
 /// untouched (the guard below is one string comparison), and <c>"AutoPickup"</c> has exactly one call site in the
 /// whole game (Player.Update);</item>
-/// <item>it is <b>conditional</b>: nothing happens unless <c>[IA] VozLigada</c> is on <b>and</b> the game's AutoPickup
-/// binding really points at <c>[IA] VozTecla</c> - read from the game itself
+/// <item>it is <b>conditional</b>: nothing happens unless <c>[AI] VoiceEnabled</c> is on <b>and</b> the game's AutoPickup
+/// binding really points at <c>[AI] VoiceKey</c> - read from the game itself
 /// (<c>ZInput.instance.GetButtonDef("AutoPickup").GetActionPath()</c>, the <i>effective</i> path, so a rebind counts).
 /// If the player rebinds auto-pickup to another key, the mod never interferes.</item>
 /// </list>
@@ -78,7 +78,7 @@ internal static class AutoPickupKeyConflict
 	/// <summary>
 	/// Fase 3.7: the push-to-talk key can now be changed in the in-game AI panel, so the comparison above has to be
 	/// redone after that - otherwise the auto-pickup toggle would keep being blocked (or stop being blocked) based on
-	/// the key the mod had at startup. Called by the panel when <c>[IA] VozTecla</c> changes; the next query resolves
+	/// the key the mod had at startup. Called by the panel when <c>[AI] VoiceKey</c> changes; the next query resolves
 	/// again and says so in the log.
 	/// </summary>
 	internal static void Reset()
@@ -88,7 +88,7 @@ internal static class AutoPickupKeyConflict
 	}
 
 	/// <summary>
-	/// Reads the key the game bound to "AutoPickup" and compares it with <c>[IA] VozTecla</c>. False while the answer
+	/// Reads the key the game bound to "AutoPickup" and compares it with <c>[AI] VoiceKey</c>. False while the answer
 	/// is still unknown (ZInput not up yet): the caller just doesn't block this frame and the check is retried.
 	/// </summary>
 	private static bool Resolve()
@@ -115,7 +115,7 @@ internal static class AutoPickupKeyConflict
 				if (!_warnedUnknownKey)
 				{
 					_warnedUnknownKey = true;
-					CompanionsPlugin.Log?.LogWarning($"[STT] Nao sei traduzir a tecla do push-to-talk ([IA] VozTecla = {VoiceInput.Key}) para o nome do Unity Input System, "
+					CompanionsPlugin.Log?.LogWarning($"[STT] Nao sei traduzir a tecla do push-to-talk ([AI] VoiceKey = {VoiceInput.Key}) para o nome do Unity Input System, "
 						+ $"entao nao vou mexer no toggle do auto-pickup do jogo (a tecla do jogo esta em \"{path}\").");
 				}
 				return true;
@@ -152,9 +152,9 @@ internal static class AutoPickupKeyConflict
 		}
 		_announced = true;
 		CompanionsPlugin.Log?.LogInfo($"[STT] CONFLITO DE TECLA: o auto-pickup do jogo esta em \"{path}\" - a MESMA tecla do push-to-talk "
-			+ $"([IA] VozTecla = {VoiceInput.Key}). Enquanto [IA] VozLigada = true o mod BLOQUEIA o toggle do auto-pickup, para a tecla ficar com as "
+			+ $"([AI] VoiceKey = {VoiceInput.Key}). Enquanto [AI] VoiceEnabled = true o mod BLOQUEIA o toggle do auto-pickup, para a tecla ficar com as "
 			+ "ordens por voz. Se voce quiser o auto-pickup de volta, reatribua-o nas configuracoes do jogo (Configuracoes > Controles > Toggle "
-			+ "Auto-Pickup) para outra tecla - ou desligue [IA] VozLigada no .cfg.");
+			+ "Auto-Pickup) para outra tecla - ou desligue [AI] VoiceEnabled no .cfg.");
 		try
 		{
 			// one line in the game too: the log alone is easy to miss

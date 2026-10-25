@@ -109,7 +109,7 @@ public class CompanionTalk : MonoBehaviour
 	/// resolves it from the ZDO and the voice is part of the cache key).
 	///
 	/// <para>These are fixed lines, word for word, so they are <b>cacheable</b>. Nothing here blocks: when the TTS is off
-	/// (<c>[IA] TtsLigado</c>), when <c>[IA] TtsFalarFalasDoMod</c> is off or when the model isn't ready, the bubble is
+	/// (<c>[AI] TtsEnabled</c>), when <c>[AI] TtsSpeakModLines</c> is off or when the model isn't ready, the bubble is
 	/// all there is - exactly as before. Called on the main thread, once per shown line, after the bubble.</para>
 	/// </summary>
 	private void SpeakLine(string text)

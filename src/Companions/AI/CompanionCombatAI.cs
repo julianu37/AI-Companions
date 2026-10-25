@@ -84,6 +84,12 @@ public class CompanionCombatAI : MonoBehaviour
 
 	private float _parryGraceTimer;
 
+	// 1.8.3 (performance): the enemy scan of UpdateBlocking walked every Character in the world on every frame. It now
+	// runs 5 times a second and the result is kept in between (the enemy that was swinging at the last scan).
+	private Character _swingingEnemy;
+
+	private float _nextEnemyScan;
+
 	private float _logTimer;
 
 	private const float LogInterval = 3f;
@@ -1021,14 +1027,10 @@ public class CompanionCombatAI : MonoBehaviour
 		}
 	}
 
-	private void UpdateBlocking(float dt)
+	/// <summary>1.8.3: the enemy within 8 m that is swinging right now (the one the companion turns to and blocks),
+	/// or null. Split out of <see cref="UpdateBlocking"/> so the scan can run on a timer instead of every frame.</summary>
+	private Character FindSwingingEnemy()
 	{
-		if (_targetCreature == null || _character.InAttack() || _character.IsStaggering() || _parryAttackCount > 0)
-		{
-			ClearBlock();
-			return;
-		}
-		bool flag = false;
 		foreach (Character allCharacter in Character.GetAllCharacters())
 		{
 			if (!(allCharacter == null) && !(allCharacter.GetHealth() <= 0f) && BaseAI.IsEnemy(_character, allCharacter))
@@ -1036,12 +1038,44 @@ public class CompanionCombatAI : MonoBehaviour
 				float num = Vector3.Distance(base.transform.position, allCharacter.transform.position);
 				if (num < 8f && allCharacter.InAttack())
 				{
-					flag = true;
-					_ai.LookAtPoint(allCharacter.GetTopPoint());
-					break;
+					return allCharacter;
 				}
 			}
 		}
+		return null;
+	}
+
+	private void UpdateBlocking(float dt)
+	{
+		if (_targetCreature == null || _character.InAttack() || _character.IsStaggering() || _parryAttackCount > 0)
+		{
+			_swingingEnemy = null;
+			ClearBlock();
+			return;
+		}
+		// 1.8.3 (performance): the scan is timed, not per frame (Character.GetAllCharacters walks the whole world).
+		// Fase 3.24 (auditoria): 12.5 times a second instead of 5. The block below waits 0.2 s from the first scan that
+		// saw the swing, so a 0.2 s window meant up to ~0.4 s before the shield went up - longer than the wind-up of a
+		// greydwarf or a skeleton (~0.3 s), and the parry arrived after the hit. At 0.08 s the worst case is ~0.28 s.
+		float now = Time.time;
+		if (now >= _nextEnemyScan)
+		{
+			_nextEnemyScan = now + 0.08f;
+			Character previousEnemy = _swingingEnemy;
+			_swingingEnemy = FindSwingingEnemy();
+			if (!ReferenceEquals(previousEnemy, _swingingEnemy))
+			{
+				// Fase 3.24 (auditoria): the timer counts the swing of ONE enemy - without this reset the time spent
+				// with a previous target was carried over to the new one and the block fired on a fresh swing.
+				_enemySwingTimer = 0f;
+			}
+			if (_swingingEnemy != null)
+			{
+				_ai.LookAtPoint(_swingingEnemy.GetTopPoint());
+			}
+		}
+		// the cached enemy may have died or been removed since the scan
+		bool flag = _swingingEnemy != null && _swingingEnemy.GetHealth() > 0f;
 		if (flag)
 		{
 			_enemySwingTimer += dt;

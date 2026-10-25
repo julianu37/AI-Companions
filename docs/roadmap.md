@@ -392,6 +392,79 @@ Ordens em **linguagem natural** por cima do mod do upstream. O companheiro conti
 | 3.22 | **O peso efetivo do companheiro — o Megingjord soma de verdade** (24/10/2026, bug do Nexus): `Companion/CompanionCarry.cs` soma ao `[General] MaxCarryWeight` o bônus lido do **asset** (`SE_Stats.m_addMaxCarryWeight`), com o item em **qualquer lugar da mochila**, deduplicado por referência do `StatusEffect` (dois cintos não somam) e **cacheado por inventário** (zero alocação por frame); vale no `Encumbered`, no painel/HUD (`/450`), no loot, no recolher, no ferreiro, no upkeep, na pesca/caça e no `[Gathering] OverweightThreshold`, que virou **base** (`UnloadThreshold = config + bônus` → coleta volta para casa em **448** com o cinto) | ✅ **validada em jogo** (*"ficou perfeito a correção do bug do usuário"*) |
 | 3.23 | **Groq como LLM padrão** (24/10/2026, 1.8.1): `[IA] BaseUrl` = `https://api.groq.com/openai/v1`, `Modelo` = `openai/gpt-oss-20b`, `ApiKey` gratuita em `console.groq.com/keys`. **Ordem de preferência: Groq → LM Studio/Ollama (local) → OpenRouter** — o OpenRouter **continua documentado e funcionando**, mas o tier gratuito (`openrouter/free`) é lento/imprevisível e por isso saiu do padrão. `gpt-oss-20b` aceita `json_schema` em **strict** (a saída estruturada continua garantida). Limites do tier gratuito (fonte: `console.groq.com/docs/rate-limits`): **30 RPM, 1.000 RPD, 8.000 TPM, 200.000 TPD** → ~**4 ordens/min** na prática (~1.800 tokens por ordem) e **429** acima disso | ✅ build 0/0 e DLL no jogo |
 | 3.24 | **Seletor de provedor + link da chave + enxugar o painel** (24/10/2026, 1.8.2, branch `feat/provedor-llm`): novo `AI/LlmProviders.cs` (tabela `Groq`/`LM Studio`/`OpenRouter`/`Personalizado` com `BaseUrl`, `Model` e `KeyUrl`, e `Suggest(baseUrl)` que **deduz** o provedor da própria URL — normalizando esquema, `/v1`, barra final, `/chat/completions` e o `localhost`↔`127.0.0.1` do LM Studio; **nenhuma config nova**, o `.cfg` continua a fonte da verdade). No `CompanionAiPanel`: dropdown "Selecione seu Provedor LLM" (o mesmo do "Tipo" do invocador) **acima da URL**, que só **preenche os campos** (grava no Aplicar) e **nunca toca na `ApiKey`**; botão **"Crie sua Chave de API Grátis AQUI"** na metade direita da linha da chave, com `GoldColor` + texto branco como um toggle ligado, **transição padrão** (realce suave no hover, sem estado depois do clique) e `Application.OpenURL` da URL fixa do provedor (Groq/OpenRouter; **some** no local/personalizado); e a **"Velocidade da fala" saiu do painel `I`** (fica só no F8) — chave `hc_ai_panel_speed` removida dos dois dicionários, painel **976 → 934** e a grade subiu 42 px sem buraco | ✅ **aprovado em jogo** (*"Aprovado!"*) |
+| 4.0 | **Multilíngue com o inglês nativo** (25/10/2026, **1.8.3**, branch `languages`): **quebra o `.cfg`** — arquivo novo `AiCompanions.cfg` (o `Maddhattr.OfflineCompanionsReborn.cfg` é ignorado; GUID preservado; migrador do upstream continua), seção `[IA]` → **`[AI]`** com as **39 chaves em inglês** e **todas as descrições do `.cfg` em inglês** (237 recuperadas do upstream + as nossas escritas em inglês; referência PT em `docs/re/config-descricoes-pt-1.8.2.tsv`). O **F8 ficou bilíngue** (`LocOr("hc_cfg_<seção>_<chave>", <chave>)` + `hc_cat_*`): inglês = a própria chave, português = `Translations/Portuguese_Brazilian.json` (266 rótulos + 22 seções). Traduzir um idioma novo = `Translations/<Idioma>.json` + `Speech/<Idioma>.json` | ✅ testado em jogo (EN e PT) |
+
+#### Backlog da revisão da 1.8.3 (não bloqueia a release)
+
+A revisão completa (geral, Harmony, rede/ZDO e camada de IA) terminou **sem nada bloqueante**. O que foi corrigido está
+no `CHANGELOG` 1.8.3; o que ficou para depois:
+
+- **Multiplayer — sincronização de config**: as 266 chaves são locais; em MP cada peer usa o próprio `.cfg` e quem
+  decide é quem **possui o ZDO naquele instante** (o Valheim migra a posse a cada 2 s). Prever um "host config"
+  (chaves críticas no ZDO do companheiro ou num ZDO de mundo, ou RPC). O `HC_DeathItemRule` já é gravado no ZDO.
+- **Multiplayer — escritas de ZDO sem posse** (não se perdem, mas disputam revisão): adoção de órfão em
+  `CompanionSetup.HC_Owner`, `HC_HomeRadius`, claim de cama vanilla, `HC_RespawnAt`, `HC_FollowPausedByJob`,
+  `ZDOVars.s_sleeping`. Padronizar por `MHR_WriteOrQueue`/`MHR_TryOwn`.
+- **`ZNetScene.Destroy` bloqueado durante o unload do mundo** (`MHR_ZNetSceneDestroy_Patch` + `ProtectCompanions`):
+  liberar quando `Game.instance == null || ZNetScene.instance == null`.
+- **RPCs próprios** (`RPC_Wakeup`/`RPC_Sleep`): não validam remetente (impacto só cosmético hoje).
+- **`ChangeTier`**: crash/disconnect no meio deixa dois ZDOs com o mesmo `HC_CompanionId` **e** a mesma `HC_Gen` (o
+  `RemoveStaleCopies` só remove com `Gen` maior). Gravar `Gen + 1` no novo.
+- **Tipos alternativos (dverger: Mago, Mago de Fogo, Mago de Gelo e Suporte) são DE COMBATE — e isso agora é
+  intencional**: eles podem ser invocados e lutam como no upstream. A roda deles já esconde os trabalhos (o
+  `if (!_isDverger)` do `CompanionRadialMenu`, idêntico ao upstream) e mantém **Follow, Repair and Restock, Despawn,
+  Command, Pickup, Wander, Set Home** + as posturas — é o menu da captura do upstream. Desde a **1.8.3** (branch
+  `fix/dverger-combate`) o **LLM e a tecla de comando também não conseguem** colocá-los para trabalhar:
+  `CompanionSetup.IsWorkMode` + `ApplyActionMode` devolvendo `false`, recusa em `CompanionOrders` (chat/voz) e nas duas
+  escritas diretas de `CompanionInteract` (`DirectSmelt`/`DirectGatherMode`), com a fala **"Sou de combate, não faço
+  esse trabalho."** (`hc_ai_order_combat_only`), sem tocar no modo nem no teto da ordem; e o `ChangeTier` para um tipo
+  de combate **volta ao Follow** e descarta o alvo. **O que continua como limitação:** o **painel** esconde os espaços
+  de comida por tipo (`CompanionInteractPanel._builtForDverger`), e o `CanWearArmor = false` mantém as peças de
+  armadura na mochila em vez de equipadas. **Inventário — hipótese, NÃO observada:** nesses tiers o
+  `ContainerAwakePatch` mantém **duas** mochilas, a do `Container` (é a que o jogo **salva** e a que a UI mostra) e a do
+  `Humanoid` (a que a IA/jobs leem), o que **sugere** que o que o companheiro coleta por conta própria iria para a
+  segunda e não voltaria no reload. **Isso não foi confirmado em jogo** — o teste do jogador mostrou que o que ele põe
+  na janela **persiste** — e a afirmação saiu da documentação do jogador de propósito. Para fechar a dúvida (30 s):
+  matar algo perto de um dverger ou mandar `recolhe os itens do chão` e conferir se o loot aparece na janela dele
+  (e se continua depois de sair e voltar ao mundo). **O que NÃO fazer:** trocar `Container.m_inventory` pelo inventário
+  do `Humanoid` no `Awake` — foi tentado na 1.8.3 e **revertido** (`e8247ff`): o `Container.Awake` já rodou (inclusive
+  o `Load` e o `InvokeRepeating("CheckForChanges")`) antes do swap, o `m_lastRevision` é carimbado no primeiro save e os
+  itens que o jogador deu **deixam de persistir** (sintoma: "a madeira sumiu e o cajado voltou"; o `[ContainerDiag]`
+  mostrou `SAVE items=1..6` sem nenhum `LOAD applied`). **Caminho seguro, se a hipótese se confirmar:** persistir o
+  inventário do `Humanoid` numa chave **própria** do ZDO (`HC_Inv`), gravando só pelo dono (na mudança, com portão de
+  tempo) e restaurando no spawn — sem tocar em `Container`, `m_inventory`, `Load` ou `CheckForChanges`; validar num
+  mundo de teste antes de encostar no caminho compartilhado. **O tipo Companheiro (o padrão) está completo e validado
+  em jogo.**
+- **`inUse` da mochila do companheiro**: o `CompanionContainerUse` marca/libera o container ao abrir/fechar (impede dois
+  jogadores editarem a mesma mochila) e libera um flag órfão após 5 s. Já validado em jogo (abrir/fechar 4 jeitos,
+  troca de mundo, gamepad). Revisar só se algum dia a mochila recusar abrir sem motivo — o `Container.Load` **não**
+  restaura enquanto `m_inUse` for verdadeiro, então um flag preso trava o conteúdo.
+- **Chave `SKK_NoDestroy`** gravada no ZDO do companheiro é de **outro mod** (não é lida aqui) → trocar por
+  `HC_NoDestroy`.
+- **Companheiro com `Container` público**: qualquer jogador pode saquear a mochila. Decidir se vira privado (só o
+  dono) — hoje é o comportamento herdado.
+- **Navmesh próprio** (`MHR_CompanionNavMesh`): filtro de portas com `GetComponentInParent` por source/tile na main
+  thread (stutter de zone-load) e `AgentType` fixo **40** (risco de colisão com outro mod que crie agente).
+- **`FishingFloat.Setup` reimplementado** por prefix; **túmulo** (`TombStone.UpdateFloater`/`PositionCheck`) por
+  reflexão de nomes; **`SE_Poison`** sem `Finalizer` (se `AddDamage` lançar, o TTL fica alterado).
+- **Gamepad**: `Container.Interact` do companheiro recusa gamepad — o caminho alternativo (roda/HUD) precisa ser
+  confirmado em jogo.
+- **`[AI] Prefixo` vazio por padrão**: toda mensagem do chat vai ao LLM (inclusive conversa com outros jogadores em
+  MP). Estudar `/c` como padrão ou um aviso no painel.
+- **Aviso de timeout** pode ser engolido quando outra mensagem entra em voo (o jogador não sabe que a ordem morreu).
+- **Prints antigos da wiki** (`config-ia.png`, `3-painel-f8.jpg`) mostram os nomes PT de antes da 1.8.3 — as legendas
+  já avisam; trocar por capturas novas num próximo passe.
+- **TTS é pt-BR**: com a resposta no idioma do jogador (1.8.3), uma resposta em inglês é falada com voz portuguesa.
+  Avaliar idioma de voz por idioma de resposta ou silenciar o TTS quando a linha não for PT.
+- **`inUse` da mochila do companheiro (1.8.3)**: o `CompanionContainerUse` libera um flag órfão depois de 5 s **quando
+  este peer é dono** e nenhuma janela do `InventoryGui` mostra o container. Risco residual: se a **posse do ZDO migrar**
+  entre peers com a janela aberta há mais de 5 s, o flag pode ser liberado — aceitável (quem perdeu a posse também não
+  salvaria), mas anotar para o teste em servidor dedicado.
+- **Assimetria do `IsOwner` no patch de durabilidade**: o `Prefix` aplica a redução de armadura em todos os clientes e o
+  `Postfix` só drena durabilidade no dono (sem desync; só o log "Armor reduction" fica otimista em cliente não-dono).
+- **`Hud.InRadial`**: a guarda de `m_radialMenu` na 1.8.3 é **defesa em profundidade** — o `InRadial` do jogo já checa
+  nulo; o efeito prático é "os modais do mod deixam de bloquear input se o `m_radialMenu` do HUD sumir". O postfix de
+  `Hud.UpdateCrosshair` (`CompanionRadialMenu`) ainda usa `m_crosshair`/`m_hoverName` sem checagem.
 
 #### Pendências conhecidas (estado em out/2026)
 
@@ -406,6 +479,8 @@ O que **não** está fechado nesta trilha, listado sem enfeite:
 | 5 | **O nome do companheiro no centro do radial** | o nome do mundo (o *hover name* do jogo) aparece **por trás do centro transparente** da roda, então o texto do centro parece sobreposto (`CompanheiXuxa` nas capturas da 1.7.0). É **cosmético** e não afeta o clique (a roda está na camada 1703, acima do HUD em 400 — ver a correção das camadas). Ideias: fundo opaco no `CenterContainer` ou esconder o `HoverName` enquanto a roda está aberta (o radial já esconde o crosshair, mas não o hover name) |
 | 6 | **Roster com N companheiros (risco médio)** | o `MHR_Roster` indexa por `HC_CompanionId` e o `RemoveStaleCopies` roda num portão de 1 s (dropando o inventário da cópia velha), mas o caminho foi exercitado com **poucos** companheiros: com 10 (o teto) e mortes/respawns no meio, vale um teste dedicado — é o ponto mais frágil da 1.7.0 |
 | 7 | **Posse do ZDO no spawn em multiplayer** | o `ApplyAppearance`, o `Rename` e as ordens já fazem **claim antes** de escrever (`MHR_WriteOrQueue` com fila e aviso), mas o **spawn** de um companheiro novo (invocador/Trader) e a troca de tipo nunca foram testados em **servidor dedicado**. Revisar quando houver esse teste |
+| 8 | **F8 só troca de idioma ao reabrir o jogo** | as abas e os rótulos do painel `F8` são montados **uma vez** (primeiro `Show`). Trocar o idioma do Valheim em runtime (o jogo aplica via `SetupLanguage`) deixa o painel no idioma antigo até reiniciar. Mitigação futura: reconstruir as abas no postfix de `SetupLanguage` (ou repintar os `TMP_Text`). **Baixa severidade** — o jogador normalmente escolhe o idioma antes de entrar no mundo |
+| 9 | **Duas descrições EN citam falas em PT** | em `ModConfig` (`TtsCache` e `TtsSpeakModLines`) os exemplos entre aspas são falas reais do mod em português ("Já temos o suficiente."). É intencional (mostram o que é falado), mas quebra o "`.cfg` 100% inglês". **Cosmético** |
 
 > **Fechado na 1.7.0:** o item **3** (`inventory_close`) e o **release/empacotamento**, que estava aberto aqui: a versão
 > está no código, o `CHANGELOG` tem a seção `1.7.0`, a wiki foi republicada e os dois zips existem

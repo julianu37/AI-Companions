@@ -43,6 +43,11 @@ public static class DurabilityPatches
 
 		private static void Prefix(Character __instance, HitData hit)
 		{
+			// fail-open: a null hit is not ours to touch (the old code threw right here)
+			if (hit == null || __instance == null)
+			{
+				return;
+			}
 			CompanionSetup component = __instance.GetComponent<CompanionSetup>();
 			if (!(component == null))
 			{
@@ -59,6 +64,10 @@ public static class DurabilityPatches
 
 		private static void Postfix(Character __instance, HitData hit)
 		{
+			if (hit == null || __instance == null)
+			{
+				return;
+			}
 			CompanionSetup component = __instance.GetComponent<CompanionSetup>();
 			if (component == null)
 			{
@@ -66,6 +75,14 @@ public static class DurabilityPatches
 			}
 			Humanoid humanoid = __instance as Humanoid;
 			if (humanoid == null)
+			{
+				return;
+			}
+			// 1.8.3 (patch audit): the armor is the companion's own state - only the ZDO owner drains it,
+			// the same rule CompanionFallDamagePatch and PortalPatches follow. Without this every client
+			// that sees the hit would take durability off its local copy of the item.
+			ZNetView nview = __instance.GetComponent<ZNetView>();
+			if (nview == null || !nview.IsOwner())
 			{
 				return;
 			}

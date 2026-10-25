@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using BepInEx;
@@ -6,7 +7,6 @@ using BepInEx.Bootstrap;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
-using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -17,44 +17,93 @@ namespace Companions;
 [BepInDependency("com.haldor.bounties", BepInDependency.DependencyFlags.SoftDependency)]
 public class CompanionsPlugin : BaseUnityPlugin
 {
-	// The GUID is deliberately kept as the upstream's: it names the config file
-	// (BepInEx/config/Maddhattr.OfflineCompanionsReborn.cfg) and the companion's network identity. Renaming it
-	// would move the config (losing the player's settings) for no gain - the display name below is what shows.
+	// The GUID is deliberately kept as the upstream's: it is the companion's network identity and what the saves and
+	// the BepInEx chainloader know. Renaming it would break worlds for no gain - the display name below is what shows.
+	// 1.8.3: the settings file no longer follows the GUID (see MHR_GetConfigFile / AiCompanions.cfg).
 	public const string PluginGUID = "Maddhattr.OfflineCompanionsReborn";
 
 	public const string PluginName = "AI Companions";
 
-	public const string PluginVersion = "1.8.2";
+	public const string PluginVersion = "1.8.3";
 
 	private static Harmony _harmony;
 
 	internal static ManualLogSource Log;
 
-	private bool _fontFixWarned;
+	// 1.8.3 (i18n): the settings file has its own name. The keys and descriptions are in English now (the mod's native
+	// language), so the file is NOT the GUID-named one any more: BepInEx's default (base.Config) stays pointing at
+	// Maddhattr.OfflineCompanionsReborn.cfg, which the mod no longer reads. The GUID itself is untouched (world and
+	// network identity). A file is created on init, so the migration below has to run BEFORE the ConfigFile exists.
+	private const string ConfigFileName = "AiCompanions.cfg";
 
 	private ConfigFile MHR_GetConfigFile()
 	{
+		string configPath = Path.Combine(Paths.ConfigPath, ConfigFileName);
 		try
 		{
-			MHR_MigrateOldConfig();
+			MHR_MigrateOldConfig(configPath);
 		}
 		catch (Exception ex)
 		{
 			Log.LogWarning("[Config] Couldn't copy settings from the old config file: " + ex.ToString());
 		}
-		return base.Config;
+		ConfigFile file;
+		try
+		{
+			// saveOnInit: false - every Bind writes the file anyway; the creation itself must not take the plugin down
+			// when the path is locked (see the catch below). The metadata keeps the mod listed by the
+			// ConfigurationManager (F1), which scans BaseUnityPlugin.Config.
+			file = new ConfigFile(configPath, saveOnInit: false, MetadataHelper.GetMetadata(this));
+			MHR_AttachToPluginConfig(file);
+			return file;
+		}
+		catch (Exception ex)
+		{
+			Log.LogWarning("[Config] Couldn't create " + ConfigFileName + " (" + ex.Message + ") - falling back to the " + PluginGUID + ".cfg that BepInEx created for the plugin");
+			return base.Config;
+		}
 	}
 
-	private void MHR_MigrateOldConfig()
+	/// <summary>
+	/// Points <see cref="BaseUnityPlugin.Config"/> at the file we created, so the third-party config managers (F1) keep
+	/// listing the mod. The property is read-only and its backing field is the only way in; a failure is harmless
+	/// (the mod reads the `ConfigEntry` objects, never `Config`).
+	/// </summary>
+	private void MHR_AttachToPluginConfig(ConfigFile file)
 	{
-		ConfigFile config = base.Config;
-		string configFilePath = config.ConfigFilePath;
-		string text = Path.Combine(Paths.ConfigPath, "com.profmags.companions.cfg");
-		if (!File.Exists(configFilePath) && File.Exists(text))
+		try
 		{
-			File.Copy(text, configFilePath);
-			config.Reload();
-			Log.LogInfo("[Config] Settings copied to Maddhattr.OfflineCompanionsReborn.cfg from com.profmags.companions.cfg (the old file is no longer used and can be deleted)");
+			System.Reflection.FieldInfo backing = AccessTools.Field(typeof(BaseUnityPlugin), "<Config>k__BackingField");
+			if (backing != null)
+			{
+				backing.SetValue(this, file);
+			}
+		}
+		catch (Exception ex)
+		{
+			Log.LogDebug("[Config] Couldn't attach " + ConfigFileName + " to the plugin config property: " + ex.Message);
+		}
+	}
+
+	private void MHR_MigrateOldConfig(string configPath)
+	{
+		string previous = Path.Combine(Paths.ConfigPath, PluginGUID + ".cfg");
+		string original = Path.Combine(Paths.ConfigPath, "com.profmags.companions.cfg");
+		bool copied = false;
+		// Only seed from the upstream file for someone coming from the ORIGINAL mod: a 1.8.x player already has the
+		// GUID-named file, and the 1.8.3 reset is on purpose (copying the 2021 file would silently undo it).
+		if (!File.Exists(configPath) && !File.Exists(previous) && File.Exists(original))
+		{
+			File.Copy(original, configPath);
+			copied = true;
+			Log.LogInfo("[Config] Settings copied to " + ConfigFileName + " from com.profmags.companions.cfg (the old file is no longer used and can be deleted)");
+		}
+		// 1.8.3: the settings moved to a new file with English keys. The old PT-keyed file is not migrated on purpose
+		// (the player accepted losing it): its keys are not read any more, so the settings go back to their defaults.
+		if (File.Exists(previous))
+		{
+			string fate = copied ? "the settings came from com.profmags.companions.cfg" : "its settings are back to their defaults";
+			Log.LogInfo("[Config] " + PluginGUID + ".cfg was replaced by " + ConfigFileName + " (the settings are in English now): the old file is ignored and " + fate + ". The old file can be deleted.");
 		}
 	}
 
@@ -87,20 +136,7 @@ public class CompanionsPlugin : BaseUnityPlugin
 		_started = true;
 		ModConfig.Init(MHR_GetConfigFile());
 		_harmony = new Harmony(PluginGUID);
-		try
-		{
-			_harmony.PatchAll(Assembly.GetExecutingAssembly());
-			int num = 0;
-			foreach (MethodBase patchedMethod in _harmony.GetPatchedMethods())
-			{
-				num++;
-			}
-			Log.LogInfo(string.Format("{0} loaded successfully! ({1} methods patched)", PluginName, num));
-		}
-		catch (Exception arg)
-		{
-			Log.LogError($"[Companions] Harmony PatchAll failed: {arg}");
-		}
+		MHR_ApplyPatches();
 		EquipDiag.Install(_harmony);
 		ModLocalization.Init();
 		ModLocalization.EnsureDefaultFile();
@@ -115,6 +151,89 @@ public class CompanionsPlugin : BaseUnityPlugin
 		// Fase 3.7: the in-game AI panel (personality, voice, push-to-talk) - built on first open, hidden until then
 		CompanionAiPanel.Create();
 		FarmZonePlacer.EnsureInstance();
+	}
+
+	// 1.8.3 (patch audit): one try/catch PER PATCH CLASS. A single broken target (a soft dependency that renamed a
+	// method, a game update) used to throw a HarmonyException out of the single PatchAll(assembly) call and leave
+	// every patch after it unapplied - silently, since the count was only logged on the success path.
+	// The selection is the one Harmony itself uses: every type carrying a [HarmonyPatch] / [HarmonyPatchAll],
+	// nested classes included (a container class simply carries no patch method of its own). Types that only
+	// declare patch methods are picked up too, so a renamed attribute can never make the count drop.
+	private void MHR_ApplyPatches()
+	{
+		Type[] types;
+		try
+		{
+			types = Assembly.GetExecutingAssembly().GetTypes();
+		}
+		catch (ReflectionTypeLoadException ex)
+		{
+			types = ex.Types;
+			Log.LogWarning("[Patch] Some types of the assembly could not be loaded: " + ex.Message);
+		}
+		catch (Exception arg)
+		{
+			Log.LogError($"[Companions] Harmony PatchAll failed: {arg}");
+			return;
+		}
+		foreach (Type t in types)
+		{
+			if (t == null)
+			{
+				continue;
+			}
+			// 1.8.3 (patch audit): the filter itself is guarded. MHR_IsPatchClass instantiates attributes and
+			// enumerates methods, so a pathological type could throw here, abort the whole loop and escape Awake -
+			// which is exactly the "zero patches applied" failure mode this per-class loop exists to remove.
+			try
+			{
+				if (!MHR_IsPatchClass(t))
+				{
+					continue;
+				}
+			}
+			catch (Exception ex)
+			{
+				Log.LogDebug("[Patch] skipping " + t.FullName + ": " + ex.Message);
+				continue;
+			}
+			try
+			{
+				_harmony.PatchAll(t);
+			}
+			catch (Exception ex)
+			{
+				Log.LogError("[Patch] " + t.FullName + ": " + ex.Message);
+			}
+		}
+		int num = 0;
+		foreach (MethodBase patchedMethod in _harmony.GetPatchedMethods())
+		{
+			num++;
+		}
+		Log.LogInfo(string.Format("{0} loaded successfully! ({1} methods patched)", PluginName, num));
+	}
+
+	private static bool MHR_IsPatchClass(Type t)
+	{
+		object[] attributes = t.GetCustomAttributes(true);
+		for (int i = 0; i < attributes.Length; i++)
+		{
+			if (attributes[i] is HarmonyPatch || attributes[i] is HarmonyPatchAll)
+			{
+				return true;
+			}
+		}
+		// Belt and braces: a patch class whose target lives on the methods instead of on the type.
+		MethodInfo[] methods = t.GetMethods(BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
+		for (int j = 0; j < methods.Length; j++)
+		{
+			if (methods[j].IsDefined(typeof(HarmonyPrefix), true) || methods[j].IsDefined(typeof(HarmonyPostfix), true) || methods[j].IsDefined(typeof(HarmonyTranspiler), true) || methods[j].IsDefined(typeof(HarmonyFinalizer), true) || methods[j].IsDefined(typeof(HarmonyReversePatch), true))
+			{
+				return true;
+			}
+		}
+		return false;
 	}
 
 	// Plugins load in GUID order, so the original normally loads first and Awake catches it. Start runs after every
@@ -144,25 +263,55 @@ public class CompanionsPlugin : BaseUnityPlugin
 		// Fase 3.4: stop the speech worker, the AudioSource and release the native Kokoro model
 		CompanionTts.Shutdown();
 		_harmony?.UnpatchSelf();
-		if (ConfigPanel.Instance != null)
+		// 1.8.3: every root the mod keeps alive across scenes is destroyed here. Only four of them used to be (the
+		// settings panel, the AI panel, the appearance editor and the farm zone placer), so the wheel, the HUD and the
+		// starter/home/crop/interaction panels stayed behind - reloading the plugin left the old copies running, and
+		// they would still draw over the game with the patches gone.
+		List<GameObject> roots = new List<GameObject>
 		{
-			UnityEngine.Object.Destroy(ConfigPanel.Instance.gameObject);
-		}
-		// Fase 3.7: the AI panel (its own GameObject; the backdrop and the controls go with it)
-		if (CompanionAiPanel.Instance != null)
+			MHR_Root(ConfigPanel.Instance),
+			MHR_Root(CompanionAiPanel.Instance),
+			MHR_Root(CompanionAppearancePanel.Instance),
+			MHR_Root(FarmZonePlacer.Instance),
+			MHR_Root(CompanionRadialMenu.Instance),
+			MHR_Root(CompanionHudPanel.Instance),
+			MHR_Root(StarterCompanionPanel.Instance),
+			MHR_Root(HomeZonePanel.Instance),
+			MHR_Root(CompanionInteractPanel.Instance),
+			MHR_Root(FarmZoneCropPicker.Root),
+			// the EventSystem the AI panel creates when the game has none (its own root, see EnsureEventSystem)
+			CompanionAiPanel.EventSystemRoot
+		};
+		// The companion's voice holder ("ModIA-CompanionTts") is not here: CompanionTts.Shutdown above already
+		// destroys it, together with the native model.
+		for (int i = 0; i < roots.Count; i++)
 		{
-			UnityEngine.Object.Destroy(CompanionAiPanel.Instance.gameObject);
+			if (roots[i] != null)
+			{
+				UnityEngine.Object.Destroy(roots[i]);
+			}
 		}
-		// Fase 3.20: the appearance editor (it owns a camera, a RenderTexture and the preview clone - Teardown runs with
-		// the GameObject, so unloading the plugin mid-edit does not leave them behind)
-		if (CompanionAppearancePanel.Instance != null)
+	}
+
+	/// <summary>The GameObject of a mod root, or null when it was never created or is already destroyed. Unity
+	/// answers a destroyed object as <c>== null</c>, which is what the caller checks.</summary>
+	private static GameObject MHR_Root(UnityEngine.Object owner)
+	{
+		if (owner == null)
 		{
-			UnityEngine.Object.Destroy(CompanionAppearancePanel.Instance.gameObject);
+			return null;
 		}
-		if (FarmZonePlacer.Instance != null)
+		GameObject root = owner as GameObject;
+		if (root != null)
 		{
-			UnityEngine.Object.Destroy(FarmZonePlacer.Instance.gameObject);
+			return root;
 		}
+		Component component = owner as Component;
+		if (component == null)
+		{
+			return null;
+		}
+		return component.gameObject;
 	}
 
 	private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -173,6 +322,10 @@ public class CompanionsPlugin : BaseUnityPlugin
 		// the carry-weight cache is keyed by Inventory reference: a new scene means new inventories (the old ones are
 		// gone), so drop the snapshots and the owner references with them
 		CompanionCarry.Reset();
+		// the chat AI keeps per-session state too: who is speaking, the pending message, the cooldown and the slot of
+		// the request in flight (a new world is a new conversation and a new set of companions)
+		CompanionChatAI.Reset();
+		LlmClient.Reset();
 	}
 
 	private void OnDestroy()
@@ -213,7 +366,7 @@ public class CompanionsPlugin : BaseUnityPlugin
 		}
 		try
 		{
-			// SPIKE: fires the in-process Whisper.net test once, when [IA] SttTeste asked for it (never blocks)
+			// SPIKE: fires the in-process Whisper.net test once, when [AI] SttTest asked for it (never blocks)
 			WhisperSpike.Tick();
 		}
 		catch (Exception ex4)
@@ -238,79 +391,5 @@ public class CompanionsPlugin : BaseUnityPlugin
 		{
 			Log.LogWarning("[TTS] Error: " + ex6.ToString());
 		}
-	}
-
-	private static bool IsBrokenTmpFont(TMP_FontAsset font)
-	{
-		if (!(font == null))
-		{
-			return font.name.IndexOf("LiberationSans", StringComparison.OrdinalIgnoreCase) >= 0;
-		}
-		return true;
-	}
-
-	private static TMP_FontAsset FindReplacementTmpFont()
-	{
-		TMP_Text[] array = Resources.FindObjectsOfTypeAll<TMP_Text>();
-		foreach (TMP_Text tMP_Text in array)
-		{
-			if (!(tMP_Text == null))
-			{
-				TMP_FontAsset font = tMP_Text.font;
-				if (!IsBrokenTmpFont(font))
-				{
-					return font;
-				}
-			}
-		}
-		TMP_FontAsset[] array2 = Resources.FindObjectsOfTypeAll<TMP_FontAsset>();
-		TMP_FontAsset tMP_FontAsset = null;
-		foreach (TMP_FontAsset tMP_FontAsset2 in array2)
-		{
-			if (!IsBrokenTmpFont(tMP_FontAsset2))
-			{
-				string text = tMP_FontAsset2.name.ToLowerInvariant();
-				if (text.Contains("averia") || text.Contains("norse") || text.Contains("valheim"))
-				{
-					return tMP_FontAsset2;
-				}
-				if (tMP_FontAsset == null)
-				{
-					tMP_FontAsset = tMP_FontAsset2;
-				}
-			}
-		}
-		return tMP_FontAsset;
-	}
-
-	private void EnsureTmpDefaultFont(string source)
-	{
-		if (!IsBrokenTmpFont(TMP_Settings.defaultFontAsset))
-		{
-			return;
-		}
-		TMP_FontAsset tMP_FontAsset = FindReplacementTmpFont();
-		if (tMP_FontAsset == null)
-		{
-			if (!_fontFixWarned)
-			{
-				_fontFixWarned = true;
-				Log?.LogDebug("[Fonts] No replacement TMP font found yet (" + source + ") — will retry on next scene load.");
-			}
-			return;
-		}
-		TMP_Settings.defaultFontAsset = tMP_FontAsset;
-		_fontFixWarned = false;
-		int num = 0;
-		TMP_Text[] array = Resources.FindObjectsOfTypeAll<TMP_Text>();
-		foreach (TMP_Text tMP_Text in array)
-		{
-			if (!(tMP_Text == null) && IsBrokenTmpFont(tMP_Text.font))
-			{
-				tMP_Text.font = tMP_FontAsset;
-				num++;
-			}
-		}
-		Log?.LogInfo($"[Fonts] TMP default font repaired to '{tMP_FontAsset.name}' ({source}), reassigned={num}.");
 	}
 }

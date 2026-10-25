@@ -37,7 +37,14 @@ public class CompanionRadialMenu : MonoBehaviour
 	{
 		private static void Postfix(ref bool __result)
 		{
-			if (!__result && Instance != null && Instance._visible)
+			if (__result || Instance == null || !Instance._visible)
+			{
+				return;
+			}
+			// 1.8.3 (patch audit): PlayerController.LateUpdate dereferences Hud.instance.m_radialMenu right after
+			// Hud.InRadial() returns true - a faked "true" without the radial menu would NRE every frame.
+			Hud hud = Hud.instance;
+			if (hud != null && hud.m_radialMenu != null)
 			{
 				__result = true;
 			}
@@ -266,6 +273,10 @@ public class CompanionRadialMenu : MonoBehaviour
 
 	private static readonly Dictionary<int, Sprite> _iconCache = new Dictionary<int, Sprite>();
 
+	/// <summary>1.8.3: the icons that come from <c>TextureLoader.LoadRadialTexture</c> use a texture from the loader's
+	/// static cache - the sprite is ours to destroy, the texture is not (a second wheel used to find a destroyed one).</summary>
+	private static readonly HashSet<Texture2D> _sharedIconTextures = new HashSet<Texture2D>();
+
 	private const float RepairRadius = 50f;
 
 
@@ -283,7 +294,20 @@ public class CompanionRadialMenu : MonoBehaviour
 
 	public CompanionSetup CurrentCompanion => _companion;
 
-	private static string[] ActionSpeech => SpeechConfig.Instance.Action;
+	private static string[] ActionSpeech
+	{
+		get
+		{
+			// 1.8.3: SpeechConfig.merge already fills a missing "Action" with the built-in lines; this is the belt and
+			// suspenders for a config that could not be loaded at all (the wheel reads .Length every time it opens)
+			SpeechConfig speech = SpeechConfig.Instance;
+			if (speech == null || speech.Action == null)
+			{
+				return Array.Empty<string>();
+			}
+			return speech.Action;
+		}
+	}
 
 	internal static void EnsureInstance()
 	{
@@ -475,6 +499,8 @@ public class CompanionRadialMenu : MonoBehaviour
 			texture2D.filterMode = FilterMode.Bilinear;
 			Sprite sprite = Sprite.Create(texture2D, new Rect(0f, 0f, texture2D.width, texture2D.height), new Vector2(0.5f, 0.5f), 100f);
 			_iconCache[actionId] = sprite;
+			// the loader keeps this texture in its own cache: only the sprite above belongs to the wheel
+			_sharedIconTextures.Add(texture2D);
 			return sprite;
 		}
 		return GetProceduralIcon(actionId);
@@ -496,14 +522,19 @@ public class CompanionRadialMenu : MonoBehaviour
 		{
 			if (item.Value != null)
 			{
-				if (item.Value.texture != null)
+				Texture2D texture = item.Value.texture;
+				// 1.8.3: the texture of a LoadRadialTexture icon belongs to TextureLoader's shared cache - destroying
+				// it here left the next wheel with a destroyed texture (the sprites of the built-in icons are ours,
+				// and so are their textures, so those still go)
+				if (texture != null && !_sharedIconTextures.Contains(texture))
 				{
-					UnityEngine.Object.Destroy(item.Value.texture);
+					UnityEngine.Object.Destroy(texture);
 				}
 				UnityEngine.Object.Destroy(item.Value);
 			}
 		}
 		_iconCache.Clear();
+		_sharedIconTextures.Clear();
 		if (_circleSprite != null)
 		{
 			if (_circleSprite.texture != null)

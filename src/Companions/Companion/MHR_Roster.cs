@@ -737,6 +737,15 @@ internal static class MHR_Roster
 		MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, stringBuilder.ToString().TrimEnd('\n'));
 	}
 
+	// "Unknown" only means "gone" where this game holds the whole world. A client of a dedicated server sees every
+	// companion outside the loaded area as Unknown, and Recover creates a whole new body with the same
+	// HC_CompanionId - the original can still be alive on the server, so recovering there duplicates the companion.
+	private static bool UnknownMeansGone()
+	{
+		ZNet znet = ZNet.instance;
+		return znet == null || znet.IsServer();
+	}
+
 	// brings back the first Lost companion; an Unknown one needs the button pressed a second time to confirm
 	private static void RecoverNext()
 	{
@@ -755,7 +764,21 @@ internal static class MHR_Roster
 				break;
 			}
 		}
-		if (entry == null)
+		if (entry == null && !UnknownMeansGone())
+		{
+			// a client of a dedicated server only holds the area around it, so an Unknown companion there may be
+			// perfectly alive somewhere else - instantiating a second body would duplicate it. The host (or a
+			// single-player world) is the one that can tell, so this is refused here and the message below says
+			// there is nothing lost to recover.
+			foreach (Entry unknownEntry in s_entries)
+			{
+				if (statuses[unknownEntry.Id] == Status.Unknown)
+				{
+					CompanionsPlugin.Log.LogInfo("[Roster] recover skipped: \"" + unknownEntry.Name + "\" is Unknown on a dedicated client (ask the server)");
+				}
+			}
+		}
+		if (entry == null && UnknownMeansGone())
 		{
 			foreach (Entry s_entry2 in s_entries)
 			{
@@ -814,6 +837,14 @@ internal static class MHR_Roster
 			return false;
 		}
 		Status status = GetStatuses()[e.Id];
+		if (status == Status.Unknown && !UnknownMeansGone())
+		{
+			// dedicated client: the companion is only outside the loaded area here, the server may still have it
+			// alive - creating another body would duplicate it (see UnknownMeansGone)
+			CompanionsPlugin.Log.LogInfo("[Roster] recover skipped: \"" + e.Name + "\" is Unknown on a dedicated client (ask the server)");
+			MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, Describe(e, status));
+			return false;
+		}
 		if (status != Status.Lost && status != Status.Unknown)
 		{
 			MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, Describe(e, status));

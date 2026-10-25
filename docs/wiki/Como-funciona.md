@@ -11,7 +11,7 @@ executar.
 voz (Microphone 16 kHz) ──► Whisper.net (STT, whisper.cpp in-process, CPU) ─┐
                                                                             ├─► mesma caixa de ordens ─► CompanionOrders ─► o companheiro executa
 chat do jogo ───────────────────────────────────────────────────────────────┘            │
-                                                                                          ├─► LLM (OpenRouter por padrão, ou LM Studio/Ollama local) ─► ação + resposta
+                                                                                          ├─► LLM (Groq por padrão, ou LM Studio/Ollama local, ou OpenRouter) ─► ação + resposta
                                                                                           └─► Kokoro-82M (TTS, sherpa-onnx in-process, CPU) ─► ele FALA na posição dele
 ```
 
@@ -66,7 +66,7 @@ Só uma **recusa do formato** dispara a próxima tentativa — timeout, erro de 
 são repetidos. Uma linha no log diz quando a saída estruturada está ligada e **um único aviso** aparece se o
 mod chegar ao formato antigo.
 
-Chave: `[IA] SaidaEstruturada` (padrão `true`).
+Chave: `[AI] StructuredOutput` (padrão `true`).
 
 ---
 
@@ -75,7 +75,7 @@ Chave: `[IA] SaidaEstruturada` (padrão `true`).
 - **Personalidade:** presets PT-BR escritos dentro do mod (`viking`, `mago`, `sarcastico`, `guia`) ou **texto
   livre** do jogador — o texto livre **ganha** do preset. Ela entra no prompt, então o companheiro responde
   no tom escolhido.
-- **Memória:** as últimas `[IA] Memoria` trocas **por companheiro** (0–12). A memória vai como **texto no
+- **Memória:** as últimas `[AI] Memory` trocas **por companheiro** (0–12). A memória vai como **texto no
   system prompt**, nunca como mensagens extras — o contrato JSON continua sendo a última coisa que o modelo lê.
   Ela é **esquecida** quando o companheiro morre, é dispensado ou você troca de mundo, e **nada é salvo no
   mundo**.
@@ -127,15 +127,44 @@ preenchida.
 
 ---
 
+## Tipos de companheiro
+
+O **tipo** de um companheiro vem do **prefab** que o jogo usa para criá-lo, e é ele que decide **o que o
+companheiro faz**:
+
+- **Companheiro** (o padrão) é uma cópia do **personagem do jogador** — é esse "corpo de jogador" que os
+  trabalhos usam, e é o **único tipo completo**.
+- **Mago**, **Mago de Fogo**, **Mago de Gelo** e **Suporte** são os **dverger**, cópias dos dverger do jogo
+  (`Dverger`, `DvergerMage`…): eles são **de combate**, por desenho.
+
+**Os dverger são de combate.** A **roda** deles mostra só as ações de combate e de suporte — **Follow**, **Repair
+and Restock**, **Despawn**, **Command**, **Pickup**, **Wander**, **Set Home** e as **quatro posturas**
+(Balanced/Melee/Ranged/Passive), igual ao upstream. Eles lutam normalmente e continuam atendendo às ordens de
+combate, de movimento e de recolher.
+
+Ordens de **trabalho** — coleta, mineração, fazenda, pesca, caça, cozinha, fundição, reparo, reabastecimento — são
+**recusadas**, venham do **chat**, da **voz** ou da **tecla de comando** (mirar numa árvore, numa rocha ou num
+smelter). A resposta é sempre a mesma fala: **"Sou de combate, não faço esse trabalho."** E nada muda: o **modo
+atual** e o **alvo da ordem** ficam como estavam.
+
+Trocar o **tipo** de um companheiro que estava trabalhando por um dverger também **descarta o alvo da ordem** — ele
+volta a **seguir** você.
+
+**Para trabalhos, use o tipo "Companheiro".** Nos dverger, o **painel** esconde os espaços de comida por tipo e as
+peças de armadura ficam na mochila em vez de equipadas.
+
+---
+
 ## O que é do upstream e o que é nosso
 
 | Vem do upstream (Offline Companions Reborn, MIT) | É nosso |
 |---|---|
-| O companheiro: trabalhos, comida, stamina, skills, casa, descanso, portais, carroça | **Tradução PT-BR completa** (386 chaves de UI + 186 falas) |
+| O companheiro: trabalhos, comida, stamina, skills, casa, descanso, portais, carroça | **Tradução PT-BR completa** (386 chaves de UI + 186 falas) sobre um mod **multilíngue**, com o **inglês nativo** |
 | A IA de movimento e combate, os jobs, o menu radial e a UI base | A **camada de IA**: ordens por chat/voz, personalidade, memória, conversa |
 | Toda a lógica de jogo que as ordens acionam | O **TTS local** (Kokoro) e o **STT local** (Whisper) |
 | | O **painel da IA** (tecla `I`) |
 | | Ajustes: raio de coleta maior, chatter desligado, o patch da tecla `V` |
+| | O `.cfg` com **nome próprio** (`AiCompanions.cfg`), seção `[AI]` e chaves em inglês |
 
 > A IA **não** substitui nada: ela é só uma **nova entrada** para as ações que já existiam.
 

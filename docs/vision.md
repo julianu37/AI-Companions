@@ -97,4 +97,4 @@ companheiro para os trabalhos que **já existem**.
    e habilidades próprias.
 3. **Tudo salvo com o mundo** (ZDO), para sobreviver a reinícios e funcionar em multiplayer.
 4. Reaproveitar **padrões** do Offline Companions Reborn (MIT) — com atribuição — e confirmar APIs no
-   jogo 1.0.17.
+   jogo 1.0.x (testado na 1.0.20).

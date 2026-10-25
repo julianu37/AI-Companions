@@ -5,7 +5,7 @@ using System.Text;
 namespace Companions;
 
 /// <summary>
-/// Fase 3.5: the companion's short memory of the conversation. The last [IA] Memoria exchanges (one message from the
+/// Fase 3.5: the companion's short memory of the conversation. The last [AI] Memory exchanges (one message from the
 /// player + one from the companion = one exchange) are kept PER COMPANION and pasted into the next request as a short
 /// text block, so the companion follows the thread ("como você está?" after "bom dia").
 ///
@@ -13,7 +13,7 @@ namespace Companions;
 /// - The memory goes into the SYSTEM PROMPT as text, not as extra "user"/"assistant" messages. The JSON contract
 ///   stays the last thing the model reads (and the only thing it is asked to continue), and the model is never fed
 ///   its own past JSON back, which small local models tend to copy or paraphrase instead of answering.
-/// - It is in memory only (nothing is written to the ZDO/save), capped on both sides: at most [IA] Memoria exchanges
+/// - It is in memory only (nothing is written to the ZDO/save), capped on both sides: at most [AI] Memory exchanges
 ///   per companion and at most MaxConversations companions, so the prompt can never grow without limit. It is
 ///   forgotten when the companion dies or is dismissed (see CompanionSetup).
 /// - Every method here is called from the main thread (chat handling and the companion's death/destroy), never from
@@ -44,7 +44,7 @@ internal static class CompanionMemory
 	/// <summary>Conversations, oldest first - only used to drop the least recently used one.</summary>
 	private static readonly List<string> s_recent = new List<string>();
 
-	/// <summary>[IA] Memoria: how many exchanges to keep (0 = memory off).</summary>
+	/// <summary>[AI] Memory: how many exchanges to keep (0 = memory off).</summary>
 	internal static int Exchanges
 	{
 		get

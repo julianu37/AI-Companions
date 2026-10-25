@@ -2,6 +2,51 @@
 
 Todas as mudanças deste projeto, derivado do Offline Companions, do ProfMags. As versões anteriores à 1.4.0 são o mod original (veja o histórico do mod original, do ProfMags, para essas versões) mais o primeiro lote de correções de compatibilidade com a API do Valheim 1.0 que fizeram o mod carregar e rodar. **As entradas abaixo de 1.5.4 são o histórico do upstream e ficam como estão (em inglês) — as nossas seções (a partir da 1.6.0) são nossas.**
 
+## 1.8.3 — 25/10/2026
+
+**Inglês como idioma nativo — e o mod passa a falar o idioma do jogo.** Esta é a versão que **quebra o `.cfg`**: o
+arquivo passa a ser **`AiCompanions.cfg`** (o `Maddhattr.OfflineCompanionsReborn.cfg` deixa de ser lido) e a seção
+`[IA]` virou **`[AI]`**, com as chaves em inglês. **Save, mundo, companheiros, casas e inventário não são afetados** —
+o GUID do plugin e as chaves `HC_*` continuam iguais.
+
+### Por que quebrar o `.cfg`
+
+O mod nasceu com as configurações traduzidas **dentro do código** (`Ligado`, `Modelo`, `TtsVoz`…) e o painel F8
+desenhava esses nomes crus. Resultado: com o jogo em inglês o painel `I` ficava em inglês e o F8 em português. Agora o
+**inglês é a língua nativa** (chaves e descrições) e o **português é tradução** — que é o caminho para espanhol,
+francês e qualquer outro idioma entrarem sem tocar no código.
+
+### O que muda para quem instala
+
+- **`.cfg` novo: `BepInEx\config\AiCompanions.cfg`.** O arquivo antigo fica no disco, **ignorado** (pode ser apagado) e
+  **as configurações voltam aos padrões** — inclusive a `ApiKey`, que precisa ser colada de novo.
+- **Seção `[AI]`** (era `[IA]`) com as 39 chaves em inglês: `Enabled`, `BaseUrl`, `Model`, `ApiKey`, `Temperature`,
+  `TimeoutSeconds`, `Prefix`, `ShowReplyInChat`, `CooldownSeconds`, `TargetRange`, `Personality`,
+  `PersonalityPreset`, `Memory`, `Conversation`, `StructuredOutput`, `SttTest`, `SttModel`, `SttWavTest`,
+  `VoiceEnabled`, `VoiceKey`, `VoiceLanguage`, `VoiceMaxSeconds`, `VoiceSilenceThreshold`, `VoiceInitialPrompt`,
+  `VoiceDevice`, `VoiceShowText`, `PanelKey`, `TtsEnabled`, `TtsVoice`, `TtsSpeed`, `TtsThreads`, `TtsVolume`,
+  `TtsModel`, `TtsLanguage`, `TtsCache`, `TtsSpeakReplies`, `TtsSpeakModLines`, `TtsReverbZoneMix`, `EcoDiag`.
+- **Descrições em inglês** no `.cfg` (é o idioma nativo; a explicação em português continua na wiki).
+- **F8 bilíngue**: os nomes das opções e das abas seguem o **idioma do jogo** — em português aparecem `Ligado`,
+  `Modelo`, `VozTecla`…; em inglês, `Enabled`, `Model`, `VoiceKey`… (o painel `I` já funcionava assim).
+- O **migrador do upstream** (`com.profmags.companions.cfg`) continua valendo: quem vem do mod original mantém as
+  opções, porque o arquivo dele já era em inglês.
+
+### Para quem for traduzir
+
+Um idioma novo é **um arquivo**: `Translations/<Idioma>.json` (interface, nomes de config e abas) + `Speech/<Idioma>.json`
+(falas). O **inglês não precisa de arquivo** — as chaves **são** o texto, então o jogo em inglês mostra os nomes certos
+sem nenhuma tradução.
+
+### Limitações conhecidas
+
+- **Os tipos dverger (Mago, Mago de Fogo, Mago de Gelo e Suporte) são de combate.** Eles lutam normalmente e a roda
+  mostra só as ações de combate/suporte (seguir, reparar e reabastecer, dispensa, comando, pegar, vagar, definir casa e
+  as posturas). Ordens de **trabalho** — por chat, voz ou pela tecla de comando — são **recusadas** com a fala
+  *"Sou de combate, não faço esse trabalho."* (o modo e o alvo da ordem atual não mudam). Se você **trocar o tipo** de um
+  companheiro que estava trabalhando por um desses, ele volta a seguir. O painel esconde os espaços de comida por
+  tipo. **Para trabalhos, use o tipo `Companheiro`, que é completo.**
+
 ## 1.8.2 — 24/10/2026
 
 **Escolher o provedor de LLM virou um clique.** A seção *Configurações do LLM* do painel `I` ganhou um **seletor de

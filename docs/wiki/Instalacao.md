@@ -37,13 +37,15 @@ Vá em **https://github.com/julianu37/AI-Companions/releases** e baixe **um** do
 
 | Arquivo | Tamanho | Quando escolher |
 |---|---|---|
-| `AI_Companions-1.8.2.zip` | ~368 MB | **Recomendado.** Já vem com os modelos de voz (STT + TTS). Instala e usa |
-| `AI_Companions-1.8.2-sem-modelos.zip` | ~28,5 MB | Internet lenta, ou você já tem os modelos e quer baixá-los separado |
+| `AI_Companions-1.8.3.zip` | ~368 MB | **Recomendado.** Já vem com os modelos de voz (STT + TTS). Instala e usa |
+| `AI_Companions-1.8.3-sem-modelos.zip` | ~28,5 MB | Internet lenta, ou você já tem os modelos e quer baixá-los separado |
 
 > A diferença é **só** os modelos de voz. O mod e as traduções são os mesmos nos dois.
 >
-> *(A **1.8.2** põe um **seletor de provedor de LLM** e o botão da **chave de API** no painel `I`. A **1.8.0**
-> trouxe a correção do peso — o **Megingjord** +150 passa a somar no teto do companheiro — e a
+> *(A **1.8.3** é a versão **multilíngue**: o inglês virou o **idioma nativo** — o `.cfg` passou a ser
+> `AiCompanions.cfg` e a seção da IA virou `[AI]`, com as chaves em inglês —, e os painéis seguem o **idioma do
+> jogo**. A **1.8.2** pôs um **seletor de provedor de LLM** e o botão da **chave de API** no painel `I`. A
+> **1.8.0** trouxe a correção do peso — o **Megingjord** +150 passa a somar no teto do companheiro — e a
 > **1.8.1** troca o LLM padrão para o **Groq** (grátis e rápido), mantendo o LM Studio como opção local e o
 > OpenRouter como alternativa. A **1.7.0** foi a release que renomeou o mod para **AI Companions**.)*
 
@@ -60,9 +62,25 @@ gerenciador de mods, aponte o zip para ele — o gerenciador instala direto, sem
 > plugins de **qualquer** subpasta de `BepInEx\plugins\` — manter esse nome só evita confusão na hora de atualizar.
 
 > **Atualizando de uma versão anterior?** Apague a pasta antiga `BepInEx\plugins\ModAI-BR-Companions\` **antes** de
-> extrair. O mod mudou de nome (era *ModAI-BR-Companions*), mas o **GUID**, o `.cfg`
-> (`Maddhattr.OfflineCompanionsReborn.cfg`) e as chaves `HC_*` são os mesmos: configuração, save, companheiros e
-> casa continuam valendo. Duas pastas com o mesmo plugin = o BepInEx carrega o mod duas vezes.
+> extrair. O mod mudou de nome (era *ModAI-BR-Companions*), mas o **GUID** e as chaves `HC_*` são os mesmos: o
+> **save**, os companheiros, a casa e o inventário continuam valendo. Duas pastas com o mesmo plugin = o BepInEx
+> carrega o mod duas vezes.
+
+> ### Atualizando para a 1.8.3? As configurações voltam aos padrões
+>
+> A **1.8.3** trocou o **arquivo** de configuração: agora é **`BepInEx\config\AiCompanions.cfg`**, e o antigo
+> (`Maddhattr.OfflineCompanionsReborn.cfg`) **não é mais lido** — fica no disco, **ignorado**, e pode ser apagado.
+> O arquivo novo nasce com os **valores padrão**: se você tinha chave de API, porta do LM Studio, voz, tecla do
+> push-to-talk ou qualquer ajuste, **configure de novo** (a **`ApiKey`** vem **em branco** e precisa ser colada).
+> A seção da IA também mudou de nome (**`[IA]` → `[AI]`**) e as **chaves são em inglês** (`Ligado` → `Enabled`,
+> `Modelo` → `Model`, `TtsVoz` → `TtsVoice`…): a tabela completa está em **[Configuração](Configuracao)**.
+>
+> **O que NÃO se perde:** o **save**, o **mundo**, os **companheiros**, as casas, as camas e o inventário — o
+> **GUID** do plugin e as chaves `HC_*` não mudaram. Só a configuração volta ao padrão.
+>
+> Veio do **Offline Companions original** (o do ProfMags, GUID `com.profmags.companions`)? Aí o migrador continua
+> valendo: o `com.profmags.companions.cfg` é copiado para o `AiCompanions.cfg`, porque o arquivo dele já era em
+> inglês.
 
 No fim, a pasta deve ficar assim:
 
@@ -129,12 +147,12 @@ As ordens são entendidas por um **LLM**. O mod já vem apontado para o **Groq**
 nada para instalar — só a **chave gratuita** e internet.
 
 1. Crie a conta e a chave em **https://console.groq.com/keys**.
-2. Em `<Valheim>\BepInEx\config\Maddhattr.OfflineCompanionsReborn.cfg`, seção `[IA]`, confira os três valores
+2. Em `<Valheim>\BepInEx\config\AiCompanions.cfg`, seção `[AI]`, confira os três valores
    (os dois primeiros **já são o padrão**; só a chave é que você preenche):
 
    ```ini
    BaseUrl = https://api.groq.com/openai/v1
-   Modelo = openai/gpt-oss-20b
+   Model = openai/gpt-oss-20b
    ApiKey = <a sua chave>
    ```
 
@@ -156,7 +174,7 @@ nada para instalar — só a **chave gratuita** e internet.
 > requisições e de **tokens por minuto** (~4 ordens por minuto com o `gpt-oss-20b`). Para rodar **tudo local** — e
 > **nada** sair — use o **LM Studio** como **alternativa opcional**: instale em https://lmstudio.ai, baixe o
 > `qwen2.5-3b-instruct` (Q4_K_M), ligue o **Local Server** (porta **1234**) e troque no `.cfg`:
-> `BaseUrl = http://127.0.0.1:1234/v1` e `Modelo = qwen2.5-3b-instruct` (com o `ApiKey` **vazio**).
+> `BaseUrl = http://127.0.0.1:1234/v1` e `Model = qwen2.5-3b-instruct` (com o `ApiKey` **vazio**).
 
 O guia completo dos três caminhos (Groq → LM Studio local → OpenRouter) está em
 **[LLM (Groq, LM Studio ou OpenRouter)](LLM-no-LM-Studio)**.
@@ -170,14 +188,18 @@ O guia completo dos três caminhos (Groq → LM Studio local → OpenRouter) est
 3. Procure estas duas linhas:
 
 ```
-AI Companions v1.8.2 loading...
+AI Companions v1.8.3 loading...
 AI Companions loaded successfully! (N methods patched)
 ```
 
 Se elas aparecerem, o mod carregou.
 
-> O `v1.8.2` é a **versão que você instalou** (o número do zip que você baixou) e o `N` é quantos métodos do jogo
+> O `v1.8.3` é a **versão que você instalou** (o número do zip que você baixou) e o `N` é quantos métodos do jogo
 > o mod ajustou — esse número pode mudar de uma versão para outra.
+
+> Na **primeira execução** o log também mostra que o arquivo de configuração mudou de nome:
+> `[Config] Maddhattr.OfflineCompanionsReborn.cfg was replaced by AiCompanions.cfg ...` — é o aviso normal da
+> 1.8.3, e o `.cfg` antigo pode ser apagado.
 
 > **É normal** ver um erro de **PlayFab / NullReferenceException** no boot — ele **não** é do mod e não impede
 > nada. Se quiser confirmar, veja **[Problemas comuns](Problemas-comuns)**.
@@ -203,11 +225,12 @@ Para ver todas as teclas e ordens, vá em **[Comandos](Comandos)**.
 
 - [ ] Valheim 1.0.x instalado
 - [ ] BepInEx 5.4.2351 extraído na raiz do jogo
-- [ ] Release **1.8.2** baixada (o pacote completo ou o sem-modelos)
+- [ ] Release **1.8.3** baixada (o pacote completo ou o sem-modelos)
 - [ ] Pasta `BepInEx\plugins\AI-Companions\` criada com o `Companions.dll` e as dependências
 - [ ] Modelos de voz em `whisper\` e `tts\kokoro\`
-- [ ] Chave gratuita do Groq criada e `[IA] ApiKey` preenchida (ou o LM Studio local configurado)
-- [ ] `[IA] BaseUrl` e `[IA] Modelo` conferidos no `.cfg`
+- [ ] Configuração **refeita** em `BepInEx\config\AiCompanions.cfg` (a 1.8.3 **zera** as opções) e o `.cfg` antigo apagado
+- [ ] Chave gratuita do Groq criada e `[AI] ApiKey` preenchida (ou o LM Studio local configurado)
+- [ ] `[AI] BaseUrl` e `[AI] Model` conferidos no `.cfg`
 - [ ] **Testar conexão** (painel `I`) respondendo `Conexão OK`
 - [ ] Log com `AI Companions loaded successfully!`
 - [ ] `colete 10 madeiras` no chat funciona

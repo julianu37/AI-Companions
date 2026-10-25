@@ -5,7 +5,6 @@ namespace Companions;
 [HarmonyPatch(typeof(Container), "Awake")]
 public static class TombstoneContainerAwakePatch
 {
-	[HarmonyAfter(new string[] { "companions.containerawake" })]
 	[HarmonyPostfix]
 	private static void Postfix(Container __instance)
 	{

@@ -1066,7 +1066,7 @@ public class CompanionPanel
 
 	/// <summary>
 	/// The "AI" section of the starter panel: the voice of the companion that is about to be born (with "Ouvir") and
-	/// its personality (a preset or the player's own words), plus a hint saying the <c>[IA]</c> values are what is
+	/// its personality (a preset or the player's own words), plus a hint saying the <c>[AI]</c> values are what is
 	/// used when nothing is chosen here.
 	///
 	/// <para>It lives in the <b>middle column</b>, in the fixed band right above "Invocar": the left column is a
@@ -1204,7 +1204,7 @@ public class CompanionPanel
 		}
 		CompanionsPlugin.Log.LogDebug("[StarterPanel] AI voice: " + (_aiVoiceIds[_aiVoiceIndex] > 0
 			? _aiVoiceIds[_aiVoiceIndex] + " (" + _aiVoiceLabels[_aiVoiceIndex] + ")"
-			: "default ([IA])"));
+			: "default ([AI])"));
 	}
 
 	/// <summary>The personality picker of the AI section: one step through "follow the default", the presets and the
@@ -1225,7 +1225,7 @@ public class CompanionPanel
 
 	/// <summary>
 	/// Fase 3.10: the "Ouvir" of the AI section - the real synthesis pipeline (the same worker and the same 3D
-	/// playback), with the voice this picker shows and the vol/voz/speed of <c>[IA]</c>. The companion does not exist
+	/// playback), with the voice this picker shows and the vol/voz/speed of <c>[AI]</c>. The companion does not exist
 	/// yet, so the sample plays at the player.
 	/// </summary>
 	private void PreviewStarterVoice()

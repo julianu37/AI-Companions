@@ -602,10 +602,24 @@ public class CompanionInteract : MonoBehaviour
 		_character = GetComponent<Character>();
 	}
 
+	/// <summary>Fase 3.24: when the "in use" flag of this companion's pack was first seen stale (-1 = not stale).</summary>
+	private float _containerStaleSince = -1f;
+
+	/// <summary>Fase 3.24: when this companion's next stale-flag check is due (once a second).</summary>
+	private float _nextContainerUseCheck;
+
 	private void Update()
 	{
 		// Fase 3.8: opens the container an AI order is waiting for (once per frame, first instance wins)
 		TickPendingInventoryOpen();
+		// Fase 3.24 (auditoria): releases an "in use" flag left by a client that went away. Once a second per
+		// companion, never per frame.
+		float useNow = Time.time;
+		if (useNow >= _nextContainerUseCheck)
+		{
+			_nextContainerUseCheck = useNow + 1f;
+			CompanionContainerUse.CheckStale(GetComponent<Container>(), ref _containerStaleSince);
+		}
 		HandleDirectCommand();
 		if (ZInput.IsGamepadActive())
 		{
@@ -1407,6 +1421,14 @@ public class CompanionInteract : MonoBehaviour
 			{
 				continue;
 			}
+			// 1.8.3 (dverger): a type that cannot wear armor does not work - not by the wheel (which hides the jobs),
+			// not by the chat order (ApplyActionMode refuses) and not by aiming at a smelter with the command key.
+			// This path writes the ZDO directly, so it needs its own guard.
+			if (!setup.CanWearArmor())
+			{
+				SayCombatOnly(setup);
+				continue;
+			}
 			CancelExistingActions(setup);
 			ZNetView component = setup.GetComponent<ZNetView>();
 			if (component?.GetZDO() != null)
@@ -1423,6 +1445,18 @@ public class CompanionInteract : MonoBehaviour
 		}
 		SayRandom(companionTalk, SmeltLines);
 		CompanionsPlugin.Log.LogDebug($"[Direct] {num} companion(s) → smelt mode");
+	}
+
+	/// <summary>1.8.3 (dverger): the localized "I fight, I don't do that work." line for a type that cannot wear armor
+	/// (see <see cref="CompanionSetup.CanWearArmor"/> and <see cref="CompanionSetup.IsWorkMode"/>). Used by the two
+	/// direct command-key paths, which write the ZDO mode themselves instead of going through ApplyActionMode.</summary>
+	private static void SayCombatOnly(CompanionSetup setup)
+	{
+		CompanionTalk talk = setup != null ? setup.GetComponent<CompanionTalk>() : null;
+		if (talk != null)
+		{
+			talk.Say(ModLocalization.Loc("hc_ai_order_combat_only"), true, withVoice: false);
+		}
 	}
 
 	private static void DirectBoard(IReadOnlyList<CompanionSetup> setups, string localId, Ship ship)
@@ -1648,6 +1682,12 @@ public class CompanionInteract : MonoBehaviour
 		{
 			if (!IsOwned(setup, localId) || !MHR_InScope(setup))
 			{
+				continue;
+			}
+			// 1.8.3 (dverger): same rule as the smelter - this path writes the ZDO directly, so it has its own guard.
+			if (!setup.CanWearArmor())
+			{
+				SayCombatOnly(setup);
 				continue;
 			}
 			CancelExistingActions(setup);
@@ -1973,7 +2013,12 @@ public class CompanionInteract : MonoBehaviour
 		NoGui,
 
 		/// <summary>Nothing to open (no container).</summary>
-		NoContainer
+		NoContainer,
+
+		/// <summary>Someone else has the companion's pack open (the game's own "in use" flag), so opening it here
+		/// would let two players edit one inventory: only the owner of the ZDO saves it and the other one's edits are
+		/// lost. Nothing was opened and nothing was marked.</summary>
+		InUse
 	}
 
 	internal static InventoryOpenResult OpenCompanionInventory(CompanionSetup setup, Container container, Player player)
@@ -1985,6 +2030,15 @@ public class CompanionInteract : MonoBehaviour
 		if (container == null)
 		{
 			return InventoryOpenResult.NoContainer;
+		}
+		// the game's own guard (Container.RPC_RequestOpen does the same on the owner): a pack that is already open
+		// somewhere else must not be shown again here. Checked before the claim - claiming first would hide the
+		// synced flag behind the new local one.
+		if (CompanionContainerUse.InUse(container))
+		{
+			CompanionsPlugin.Log.LogWarning("[Companion] " + container.gameObject.name + " is in use by someone else - not opening it");
+			Player.m_localPlayer?.Message(MessageHud.MessageType.Center, "$msg_inuse");
+			return InventoryOpenResult.InUse;
 		}
 		ZNetView component = container.GetComponent<ZNetView>();
 		if (component != null && !component.IsOwner())
@@ -1998,10 +2052,14 @@ public class CompanionInteract : MonoBehaviour
 	}
 
 	/// <summary>Shows a companion's container in the game's window and brings the mod's own panel along with it (the
-	/// one with the name, the food slots and the gear). The ownership is NOT looked at here - the caller does that.</summary>
+	/// one with the name, the food slots and the gear). The ownership is NOT looked at here - the caller does that.
+	/// The pack is marked as in use for as long as that window is open (see
+	/// <see cref="CompanionContainerUse"/>), which the game does for a chest and the mod has to do for its own
+	/// window.</summary>
 	private static void ShowCompanionInventory(CompanionSetup setup, Container container)
 	{
 		InventoryGui.instance.Show(container);
+		CompanionContainerUse.Mark(container);
 		CompanionInteractPanel.EnsureInstance();
 		CompanionInteractPanel.Instance?.Show(setup);
 	}
@@ -2046,7 +2104,15 @@ public class CompanionInteract : MonoBehaviour
 	/// </summary>
 	internal static void TickPendingInventoryOpen()
 	{
-		if (_aiOpenContainer == null || Time.frameCount == _aiOpenFrame)
+		if (_aiOpenContainer == null)
+		{
+			// Fase 3.24 (auditoria): a destroyed container reads as null too, and the pending open used to stay set
+			// (_aiOpenSetup and the deadline) until the next order - which could then inherit a companion that was
+			// never asked for. Nothing to do here anyway, so the state is dropped.
+			ClearPendingInventoryOpen();
+			return;
+		}
+		if (Time.frameCount == _aiOpenFrame)
 		{
 			return;
 		}
@@ -2090,6 +2156,7 @@ public class CompanionInteract : MonoBehaviour
 	{
 		_aiOpenContainer = null;
 		_aiOpenSetup = null;
+		_aiOpenDeadline = 0f;
 	}
 
 	internal string GetHoverText()

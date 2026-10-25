@@ -78,19 +78,92 @@ internal static class PickupIntent
 	private static bool IsDrop(string padded)
 	{
 		// "larga", "largar", "descarta", "descartar"...: o verbo sozinho já diz o que o jogador quer
-		if (HasPhrase(padded, DropVerbs))
+		if (HasAffirmativePhrase(padded, DropVerbs))
 		{
 			return true;
 		}
 		// "joga fora", "jogue a madeira fora", "jugue a madeira fora" (erro de digitação): o verbo de jogar mais o
 		// lugar, em qualquer ordem da frase
-		if (HasPhrase(padded, ThrowVerbs) && (HasPhrase(padded, AwayWords) || HasPhrase(padded, DropPlaces)))
+		if (HasAffirmativePhrase(padded, ThrowVerbs) && (HasPhrase(padded, AwayWords) || HasPhrase(padded, DropPlaces)))
 		{
 			return true;
 		}
 		// "deixa no chão"
-		return HasPhrase(padded, LeaveVerbs) && HasPhrase(padded, DropPlaces);
+		return HasAffirmativePhrase(padded, LeaveVerbs) && HasPhrase(padded, DropPlaces);
 	}
+
+	/// <summary>
+	/// Fase 3.23 (auditoria): same as <see cref="HasPhrase"/>, but a verb that comes right after a negation does not
+	/// count. "não jogue fora a madeira" normalized is "nao_jogue_fora_a_madeira", and the plain search matched
+	/// "jogue" + "fora" - the order became a DROP of the very item the player asked to keep.
+	/// </summary>
+	private static bool HasAffirmativePhrase(string padded, string[] phrases)
+	{
+		for (int i = 0; i < phrases.Length; i++)
+		{
+			string needle = "_" + phrases[i] + "_";
+			int at = padded.IndexOf(needle, StringComparison.Ordinal);
+			while (at >= 0)
+			{
+				if (!NegatedAt(padded, at))
+				{
+					return true;
+				}
+				at = padded.IndexOf(needle, at + 1, StringComparison.Ordinal);
+			}
+		}
+		return false;
+	}
+
+	/// <summary>
+	/// Is the phrase at <paramref name="at"/> negated? Fase 3.24 (auditoria): the word right before it used to be the
+	/// only place looked at, so "não quero que você jogue fora a madeira" (the "não" is four words away) came back as
+	/// a DROP of the item the player asked to keep. The walk back now goes through the words that only carry the
+	/// negation along ("que", "quero", "você", "por favor"...) and stops at the first word that carries a meaning of
+	/// its own: "não sei, joga fora" is still a DROP, exactly as before.
+	/// </summary>
+	private static bool NegatedAt(string padded, int at)
+	{
+		int end = at;
+		for (int step = 0; step < NegationLookback; step++)
+		{
+			if (end <= 0)
+			{
+				return false;
+			}
+			int previous = padded.LastIndexOf('_', end - 1);
+			if (previous < 0)
+			{
+				return false;
+			}
+			string word = padded.Substring(previous + 1, end - previous - 1);
+			if (Array.IndexOf(Negations, word) >= 0)
+			{
+				return true;
+			}
+			if (Array.IndexOf(NegationCarriers, word) < 0)
+			{
+				return false;
+			}
+			end = previous;
+		}
+		return false;
+	}
+
+	/// <summary>How many words back a negation is still read through <see cref="NegationCarriers"/>.</summary>
+	private const int NegationLookback = 4;
+
+	/// <summary>
+	/// Fase 3.24 (auditoria): the words that keep a negation in scope but mean nothing on their own. Only these are
+	/// walked over - a verb or a noun ends the walk.
+	/// </summary>
+	private static readonly string[] NegationCarriers = new string[]
+	{
+		"que", "quero", "queria", "gostaria", "posso", "pode", "podes", "poderia", "deve", "deves", "deveria",
+		"precisa", "preciso", "vai", "vou", "vamos", "va", "esta", "estou", "ta", "to", "voce", "voces", "vc", "tu",
+		"senhor", "por", "favor", "pf", "pra", "pro", "agora", "mais", "me", "te", "lhe",
+		"pense", "pensa", "pensar", "em", "sequer", "mesmo"
+	};
 
 	/// <summary>Does the player's message ask to RECOLHER itens do chão?</summary>
 	private static bool IsPickup(string padded)
@@ -168,6 +241,15 @@ internal static class PickupIntent
 	{
 		"nao_pegue", "nao_pega", "nao_peguem", "nao_pegar", "nao_recolha", "nao_recolhe", "nao_recolham",
 		"nao_recolher", "nao_cate", "nao_catar"
+	};
+
+	/// <summary>
+	/// Fase 3.23 (auditoria): the words that turn the verb right after them into a NO. "nao jogue fora", "nunca
+	/// largue": the item stays where it is. Normalize already dropped the accents ("não" -> "nao").
+	/// </summary>
+	private static readonly string[] Negations = new string[]
+	{
+		"nao", "nunca", "jamais", "nem"
 	};
 
 	/// <summary>The verbs that, on their own, mean "get rid of it".</summary>

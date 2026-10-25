@@ -120,6 +120,12 @@ public class ConfigPanel : MonoBehaviour
 
 	public void Show()
 	{
+		// 1.8.3: the panel belongs to a world (it edits the mod's settings, and the cursor/font come from the game).
+		// It is a DontDestroyOnLoad object, so without this it opened on top of the main menu.
+		if (Player.m_localPlayer == null || Player.m_localPlayer.IsDead())
+		{
+			return;
+		}
 		if (_root == null)
 		{
 			Build();
@@ -395,6 +401,16 @@ public class ConfigPanel : MonoBehaviour
 
 	private void Update()
 	{
+		// 1.8.3: leaving the world (or dying) with the panel open used to leave it drawn over the main menu and force
+		// the cursor free - the AI panel already closes itself the same way (see its RefreshStatus).
+		if (Player.m_localPlayer == null || Player.m_localPlayer.IsDead())
+		{
+			if (_visible)
+			{
+				Hide();
+			}
+			return;
+		}
 		if (Input.GetKeyDown(ModConfig.ConfigPanelKey.Value))
 		{
 			if (_visible)
@@ -973,6 +989,20 @@ public class ConfigPanel : MonoBehaviour
 		return scrollbar;
 	}
 
+	/// <summary>
+	/// 1.8.3 (i18n): the label of a setting row. The config key is English - it is the mod's native language - so the
+	/// key itself is the fallback: a game in English shows every row with no translation file at all. A language gets
+	/// its own label from <c>hc_cfg_&lt;section&gt;_&lt;key&gt;</c>, both in lower case; the section is part of the key
+	/// because some names repeat between sections (MaxDistance, Radius, Range, FollowRange, BagFull, UsePiles).
+	/// Only the text changes: the row's GameObject keeps <c>Row_&lt;key&gt;</c>, which the UI diagnostics rely on.
+	/// </summary>
+	private static string EntryLabel(ConfigEntryBase entry)
+	{
+		string section = entry.Definition.Section.ToLowerInvariant();
+		string key = entry.Definition.Key.ToLowerInvariant();
+		return ModLocalization.LocOr("hc_cfg_" + section + "_" + key, entry.Definition.Key);
+	}
+
 	private GameObject BuildEntryRow(ConfigEntryBase entry, float yPos)
 	{
 		if (entry.SettingType == typeof(float))
@@ -1005,7 +1035,7 @@ public class ConfigPanel : MonoBehaviour
 			max = acceptableValueRange.MaxValue;
 		}
 		GameObject gameObject = CreateRowContainer("Row_" + entry.Definition.Key, yPos);
-		GameObject gameObject2 = CreateLabel(gameObject.transform, entry.Definition.Key, 12f, Color.white);
+		GameObject gameObject2 = CreateLabel(gameObject.transform, EntryLabel(entry), 12f, Color.white);
 		RectTransform component = gameObject2.GetComponent<RectTransform>();
 		component.anchorMin = new Vector2(0f, 0f);
 		component.anchorMax = new Vector2(0.38f, 1f);
@@ -1059,7 +1089,7 @@ public class ConfigPanel : MonoBehaviour
 			num2 = acceptableValueRange.MaxValue;
 		}
 		GameObject gameObject = CreateRowContainer("Row_" + entry.Definition.Key, yPos);
-		GameObject gameObject2 = CreateLabel(gameObject.transform, entry.Definition.Key, 12f, Color.white);
+		GameObject gameObject2 = CreateLabel(gameObject.transform, EntryLabel(entry), 12f, Color.white);
 		RectTransform component = gameObject2.GetComponent<RectTransform>();
 		component.anchorMin = new Vector2(0f, 0f);
 		component.anchorMax = new Vector2(0.38f, 1f);
@@ -1106,7 +1136,7 @@ public class ConfigPanel : MonoBehaviour
 	{
 		ConfigEntry<bool> typed = (ConfigEntry<bool>)entry;
 		GameObject gameObject = CreateRowContainer("Row_" + entry.Definition.Key, yPos);
-		GameObject gameObject2 = CreateLabel(gameObject.transform, entry.Definition.Key, 12f, Color.white);
+		GameObject gameObject2 = CreateLabel(gameObject.transform, EntryLabel(entry), 12f, Color.white);
 		RectTransform component = gameObject2.GetComponent<RectTransform>();
 		component.anchorMin = new Vector2(0f, 0f);
 		component.anchorMax = new Vector2(0.65f, 1f);
@@ -1168,7 +1198,7 @@ public class ConfigPanel : MonoBehaviour
 	{
 		ConfigEntry<KeyCode> typed = (ConfigEntry<KeyCode>)entry;
 		GameObject gameObject = CreateRowContainer("Row_" + entry.Definition.Key, yPos);
-		GameObject gameObject2 = CreateLabel(gameObject.transform, entry.Definition.Key, 12f, Color.white);
+		GameObject gameObject2 = CreateLabel(gameObject.transform, EntryLabel(entry), 12f, Color.white);
 		RectTransform component = gameObject2.GetComponent<RectTransform>();
 		component.anchorMin = new Vector2(0f, 0f);
 		component.anchorMax = new Vector2(0.55f, 1f);

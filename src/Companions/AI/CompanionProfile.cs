@@ -7,7 +7,7 @@ namespace Companions;
 /// Fase 3.10: the <b>AI profile of one companion</b> - the voice it speaks with and the personality it answers in -
 /// kept in that companion's own ZDO, so two companions of the same player no longer talk and behave alike.
 ///
-/// <para>Before this, voice and personality lived only in the <c>[IA]</c> section of the .cfg
+/// <para>Before this, voice and personality lived only in the <c>[AI]</c> section of the .cfg
 /// (<c>TtsVoz</c>, <c>PresetPersonalidade</c>, <c>Personalidade</c>): every companion of the world spoke with the
 /// same voice and answered in the same tone, and having several of them (the AI panel's summoner, the Trader) made
 /// that obvious. The .cfg keeps being the <b>default</b> - a companion with nothing of its own here follows it
@@ -31,7 +31,7 @@ namespace Companions;
 /// </summary>
 internal static class CompanionProfile
 {
-	/// <summary>The Kokoro speaker id this companion speaks with (0 = follow <c>[IA] TtsVoz</c>). The ZDO keys live in
+	/// <summary>The Kokoro speaker id this companion speaks with (0 = follow <c>[AI] TtsVoice</c>). The ZDO keys live in
 	/// <see cref="CompanionSetup"/>, next to every other one.</summary>
 	internal static readonly int VoiceHash = CompanionSetup.AiVoiceHash;
 
@@ -45,7 +45,7 @@ internal static class CompanionProfile
 	internal static readonly int PersonaTextHash = CompanionSetup.AiPersonaTextHash;
 
 	/// <summary>
-	/// Id of the "first entry" of a per-companion list: <b>follow the <c>[IA]</c> default</b>. It is not a preset id
+	/// Id of the "first entry" of a per-companion list: <b>follow the <c>[AI]</c> default</b>. It is not a preset id
 	/// (<see cref="CompanionPersona"/> never uses it) and not the empty string, which is a real choice - "the default
 	/// personality" - for a companion whose player wants it neutral while the global preset is something else.
 	/// </summary>
@@ -53,7 +53,7 @@ internal static class CompanionProfile
 
 	// ------------------------------------------------------------------ voice
 
-	/// <summary>The global voice (<c>[IA] TtsVoz</c>): the default of every companion and what the AI tab of the
+	/// <summary>The global voice (<c>[AI] TtsVoice</c>): the default of every companion and what the AI tab of the
 	/// panel edits.</summary>
 	internal static int GlobalVoice => CompanionTts.Voice;
 
@@ -64,7 +64,7 @@ internal static class CompanionProfile
 		return zdo != null && zdo.GetInt(VoiceHash, 0) > 0;
 	}
 
-	/// <summary>The voice this companion speaks with: its own, or <c>[IA] TtsVoz</c> when it has none.</summary>
+	/// <summary>The voice this companion speaks with: its own, or <c>[AI] TtsVoice</c> when it has none.</summary>
 	internal static int GetVoice(Component c)
 	{
 		int voice = StoredVoice(c);
@@ -101,7 +101,7 @@ internal static class CompanionProfile
 		return zdo != null && zdo.GetBool(PersonaSetHash, false);
 	}
 
-	/// <summary>The preset that goes into the prompt: this companion's own, or <c>[IA] PresetPersonalidade</c>.</summary>
+	/// <summary>The preset that goes into the prompt: this companion's own, or <c>[AI] PersonalityPreset</c>.</summary>
 	internal static string GetPreset(Component c)
 	{
 		if (HasPersona(c))
@@ -111,7 +111,7 @@ internal static class CompanionProfile
 		return ConfigPreset;
 	}
 
-	/// <summary>The free text that goes into the prompt: this companion's own, or <c>[IA] Personalidade</c>.</summary>
+	/// <summary>The free text that goes into the prompt: this companion's own, or <c>[AI] Personality</c>.</summary>
 	internal static string GetFreeText(Component c)
 	{
 		if (HasPersona(c))
@@ -139,7 +139,7 @@ internal static class CompanionProfile
 	/// <summary>
 	/// Gives this companion a personality of its own. <see cref="InheritId"/> as the preset clears it (back to the
 	/// default), and an empty preset with empty text is a real choice: the neutral default personality, whatever the
-	/// global preset is. The free text wins over the preset when both are set, exactly as in <c>[IA]</c>.
+	/// global preset is. The free text wins over the preset when both are set, exactly as in <c>[AI]</c>.
 	/// </summary>
 	internal static bool SetPersona(Component c, string preset, string freeText)
 	{
@@ -165,7 +165,7 @@ internal static class CompanionProfile
 		});
 	}
 
-	/// <summary>Forgets this companion's own personality: it goes back to following the <c>[IA]</c> one.</summary>
+	/// <summary>Forgets this companion's own personality: it goes back to following the <c>[AI]</c> one.</summary>
 	internal static bool ClearPersona(Component c)
 	{
 		if (!HasPersona(c) && StoredPreset(c).Length == 0 && StoredFreeText(c).Length == 0)
@@ -197,7 +197,7 @@ internal static class CompanionProfile
 	/// <summary>
 	/// Writes the profile a companion is born with (the choices of the starter panel). The ZDO has just been created
 	/// and belongs to the local player, so there is no ownership dance here - and <b>nothing</b> is written for a
-	/// choice the player left at "follow the default", so a new companion keeps following <c>[IA]</c> instead of
+	/// choice the player left at "follow the default", so a new companion keeps following <c>[AI]</c> instead of
 	/// being frozen on the values of that moment.
 	/// </summary>
 	internal static void ApplyAtSpawn(ZDO zdo, int voice, bool hasPersona, string preset, string freeText)
@@ -233,7 +233,7 @@ internal static class CompanionProfile
 
 	/// <summary>
 	/// The preset ids of a personality dropdown, in the order it shows them. With <paramref name="withInherit"/> the
-	/// list starts with <see cref="InheritId"/> ("follow the <c>[IA]</c> default") - that is the list of a
+	/// list starts with <see cref="InheritId"/> ("follow the <c>[AI]</c> default") - that is the list of a
 	/// <b>companion</b>; without it, the list is the global one of the AI tab, where the first entry is the "default"
 	/// preset.
 	/// </summary>
@@ -377,7 +377,7 @@ internal static class CompanionProfile
 /// the ZDO at the one point every spawn goes through (<c>CompanionManager.SpawnCompanion</c>, where the name and the
 /// appearance are written too).
 ///
-/// <para>A draft with nothing set is the normal case: the companion follows the <c>[IA]</c> values and keeps
+/// <para>A draft with nothing set is the normal case: the companion follows the <c>[AI]</c> values and keeps
 /// following them, even if the player changes them later.</para>
 /// </summary>
 internal sealed class CompanionAiDraft
@@ -392,7 +392,7 @@ internal sealed class CompanionAiDraft
 	/// </summary>
 	internal string Name = "";
 
-	/// <summary>The voice the player picked (0 = follow <c>[IA] TtsVoz</c>).</summary>
+	/// <summary>The voice the player picked (0 = follow <c>[AI] TtsVoice</c>).</summary>
 	internal int Voice;
 
 	/// <summary>True when the player chose a personality for this companion (preset and/or free text).</summary>
