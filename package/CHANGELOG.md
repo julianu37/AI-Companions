@@ -32,6 +32,12 @@ francês e qualquer outro idioma entrarem sem tocar no código.
 - O **migrador do upstream** (`com.profmags.companions.cfg`) continua valendo: quem vem do mod original mantém as
   opções, porque o arquivo dele já era em inglês.
 
+### Ajustes de padrão
+
+- **`[Death] RespawnDelay` (Espera p/ renascer):** o padrão passou de **300 s** para **30 s** — o mínimo aceito (a
+  faixa continua **30–3600**). O companheiro morto volta sozinho em meio minuto, como um jogador. Um `.cfg` que já
+  exista com outro valor não é mexido; o F8 → *Morte* e o botão **Padrão** mostram o valor novo.
+
 ### Para quem for traduzir
 
 Um idioma novo é **um arquivo**: `Translations/<Idioma>.json` (interface, nomes de config e abas) + `Speech/<Idioma>.json`
