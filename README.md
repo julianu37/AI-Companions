@@ -17,9 +17,10 @@ Este projeto é um **projeto independente** baseado em [Offline Companions Rebor
 O companheiro em si (trabalhos, comida, stamina, habilidades, casa, descanso, portais, carroça, menu radial)
 vem do upstream e continua funcionando igual — a IA é só uma **nova entrada** para as mesmas ações.
 
-> **Tipos de companheiro:** só o tipo **Companheiro** está completo. Os **dverger** (**Mago**, **Mago de Fogo**,
-> **Mago de Gelo** e **Suporte**) podem ser invocados e lutam normalmente, mas o **inventário** e as
-> **ferramentas/trabalhos** ainda não funcionam neles — para trabalhar, use o **Companheiro** (detalhes na
+> **Tipos de companheiro:** os **dverger** (**Mago**, **Mago de Fogo**, **Mago de Gelo** e **Suporte**) são
+> **de combate** — a roda mostra só as ações de combate/suporte, e as ordens de **trabalho** (chat, voz ou tecla de
+> comando) são **recusadas** com *"Sou de combate, não faço esse trabalho"*. A mochila que eles usam por conta
+> própria **não é salva**: para trabalhar, use o **Companheiro** (detalhes na
 > **[wiki](https://github.com/julianu37/AI-Companions/wiki/Como-funciona#tipos-de-companheiro)**).
 
 ## 🎬 Em ação

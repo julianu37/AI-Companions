@@ -67,9 +67,10 @@ companheiro fica na **aba dele**.
 > Os campos de texto (URL, modelo, chave, prefixo) só valem depois do **Aplicar** — e na **próxima mensagem**,
 > sem reiniciar o jogo. A chave nunca vai para o log.
 
-> **Tipos:** só o **Companheiro** está completo — os **dverger** (**Mago**, **Mago de Fogo**, **Mago de Gelo** e
-> **Suporte**) lutam, mas o inventário e as ferramentas ainda não funcionam neles. Vale para o **Tipo** do invocador
-> e para o **Trocar tipo** da aba do companheiro — veja
+> **Tipos:** os **dverger** (**Mago**, **Mago de Fogo**, **Mago de Gelo** e **Suporte**) são **de combate**: a roda
+> mostra só as ações de combate/suporte e as ordens de **trabalho** (pelo **chat**, pela **voz** ou pela **tecla de
+> comando**) são recusadas com *"Sou de combate, não faço esse trabalho"*. Para trabalhos, use o **Companheiro**.
+> Vale para o **Tipo** do invocador e para o **Trocar tipo** da aba do companheiro — veja
 > **[Como funciona](Como-funciona#tipos-de-companheiro)**.
 
 **Seletor de provedor** (o subtítulo **"Selecione seu Provedor LLM"**, com o mesmo dropdown do **Tipo** do

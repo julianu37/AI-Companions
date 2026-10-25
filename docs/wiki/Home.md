@@ -8,12 +8,12 @@ entende e executa.
 > Vídeo do canal **SuaTV**: **"Esse mod muda TUDO no Valheim! AI Companions"**.
 > **[Assistir no YouTube](https://www.youtube.com/watch?v=40FnVEIbXyo)** — clicar na imagem também abre.
 
-> **Tipos de companheiro: use o "Companheiro"**
+> **Tipos de companheiro: os dverger são de combate**
 >
-> Só o tipo **Companheiro** está completo. Os **dverger** (**Mago**, **Mago de Fogo**, **Mago de Gelo** e **Suporte**)
-> podem ser invocados e **lutam** normalmente, mas **ainda precisam de ajustes**: o **inventário** e as **ferramentas**
-> (e os trabalhos que dependem delas) não funcionam neles. Invoque-os como **combatentes** — para trabalhar, fique no
-> **Companheiro**. Detalhes em **[Como funciona](Como-funciona#tipos-de-companheiro)**.
+> **Mago**, **Mago de Fogo**, **Mago de Gelo** e **Suporte** são **de combate**: lutam normalmente e a roda mostra só
+> as ações de combate/suporte — ordens de **trabalho** por chat, voz ou tecla de comando são **recusadas** com
+> *"Sou de combate, não faço esse trabalho"*. A mochila que eles usam por conta própria **não é salva**; para
+> trabalhos, use o **Companheiro** (detalhes em **[Como funciona](Como-funciona#tipos-de-companheiro)**).
 
 ## Em ação
 

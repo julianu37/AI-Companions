@@ -170,12 +170,13 @@ Publishing, ProfMags ou Maddhattr. "Valheim" e marca dos seus donos.
 
 PROBLEMAS CONHECIDOS
 --------------------
-- TIPOS DE COMPANHEIRO: so o tipo "Companheiro" esta completo. Os dverger
-  (Mago, Mago de Fogo, Mago de Gelo e Suporte) podem ser invocados e lutam
-  normalmente, mas ainda precisam de ajustes: o INVENTARIO (o que ele coleta ou
-  equipa por conta dele se perde ao sair do mundo) e as FERRAMENTAS e trabalhos
-  (coleta, mineracao, reparo, reabastecimento) nao funcionam neles. Para
-  trabalhar, use o Companheiro.
+- TIPOS DE COMPANHEIRO: os dverger (Mago, Mago de Fogo, Mago de Gelo
+  e Suporte) sao DE COMBATE: a roda mostra so as acoes de combate e de
+  suporte, e as ordens de trabalho (pelo chat, pela voz ou pela tecla de
+  comando) sao recusadas com "Sou de combate, nao faco esse trabalho".
+  A mochila que eles usam por conta propria NAO e salva (o que voce coloca
+  na janela fica) e o painel esconde os espacos de comida por tipo.
+  Para trabalhos, use o tipo Companheiro.
 - A fala do companheiro NAO passa pelo mixer do jogo: ela ignora os sliders de
   volume do Valheim (musica/SFX). Quem manda no volume dela e o [AI] TtsVolume
   (ou o slider do painel da IA, tecla I).
