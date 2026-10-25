@@ -429,6 +429,15 @@ no `CHANGELOG` 2.0.0; o que ficou para depois:
   já avisam; trocar por capturas novas num próximo passe.
 - **TTS é pt-BR**: com a resposta no idioma do jogador (2.0.0), uma resposta em inglês é falada com voz portuguesa.
   Avaliar idioma de voz por idioma de resposta ou silenciar o TTS quando a linha não for PT.
+- **`inUse` da mochila do companheiro (2.0.0)**: o `CompanionContainerUse` libera um flag órfão depois de 5 s **quando
+  este peer é dono** e nenhuma janela do `InventoryGui` mostra o container. Risco residual: se a **posse do ZDO migrar**
+  entre peers com a janela aberta há mais de 5 s, o flag pode ser liberado — aceitável (quem perdeu a posse também não
+  salvaria), mas anotar para o teste em servidor dedicado.
+- **Assimetria do `IsOwner` no patch de durabilidade**: o `Prefix` aplica a redução de armadura em todos os clientes e o
+  `Postfix` só drena durabilidade no dono (sem desync; só o log "Armor reduction" fica otimista em cliente não-dono).
+- **`Hud.InRadial`**: a guarda de `m_radialMenu` na 2.0.0 é **defesa em profundidade** — o `InRadial` do jogo já checa
+  nulo; o efeito prático é "os modais do mod deixam de bloquear input se o `m_radialMenu` do HUD sumir". O postfix de
+  `Hud.UpdateCrosshair` (`CompanionRadialMenu`) ainda usa `m_crosshair`/`m_hoverName` sem checagem.
 
 #### Pendências conhecidas (estado em out/2026)
 
