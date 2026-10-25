@@ -786,9 +786,10 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   piedra/pierre, hierro/fer, frambuesa/framboise, champinhon/champignon…, 180 apelidos) para o teto da ordem e o
   `GatherAction`. Verificado com um harness que carrega a **`Companions.dll` real** (reflexão): contrato por idioma
   (7734/7720/7698/8136 chars; alemão → EN), 38 casos de mensagem→ação/quantidade nos 4 idiomas, as regras da 3.1 do
-  `PickupIntent` e o mapa de apelidos — **272 casos, ALL CHECKS PASSED**.Medido com o **qwen2.5-3b-instruct** (LM Studio, temperatura 0,1, mesmo schema/contrato do mod): **14/14 nos quatro
-  idiomas** (56 casos, incluindo amasse 10 bois -> wood x10 e amasse le bois par terre -> pickup); os dois
-  ajustes que saíram da medição foram um exemplo de drop a mais no EN e no ES.
+  `PickupIntent` e o mapa de apelidos — **272 casos, ALL CHECKS PASSED**. Medido com o **`qwen2.5-3b-instruct`**
+  (LM Studio, temperatura 0,1, mesmo schema/contrato do mod): **14/14 nos quatro idiomas** (56 casos, incluindo
+  `ramasse 10 bois` -> `wood` x10 e `ramasse le bois par terre` -> `pickup`); a medição rendeu um exemplo de `drop`
+  a mais no EN e no ES.
 - **Pendências conhecidas (abertas):** a **voz não passa pelo
   mixer do jogo** (por isso ignora os sliders de volume do Valheim e só obedece `[AI] TtsVolume`); o **sync com o
   upstream** (estamos **1 release atrás**: base `1.5.4`, `main` na `1.5.5` — ver a seção *Upstream e licença*);
