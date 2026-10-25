@@ -8,6 +8,13 @@ entende e executa.
 > Vídeo do canal **SuaTV**: **"Esse mod muda TUDO no Valheim! AI Companions"**.
 > **[Assistir no YouTube](https://www.youtube.com/watch?v=40FnVEIbXyo)** — clicar na imagem também abre.
 
+> **Tipos de companheiro: use o "Companheiro"**
+>
+> Só o tipo **Companheiro** está completo. Os **dverger** (**Mago**, **Mago de Fogo**, **Mago de Gelo** e **Suporte**)
+> podem ser invocados e **lutam** normalmente, mas **ainda precisam de ajustes**: o **inventário** e as **ferramentas**
+> (e os trabalhos que dependem delas) não funcionam neles. Invoque-os como **combatentes** — para trabalhar, fique no
+> **Companheiro**. Detalhes em **[Como funciona](Como-funciona#tipos-de-companheiro)**.
+
 ## Em ação
 
 **1. Uma ordem no chat** — `colete 10 madeiras`: a resposta dele e o balão de fala no mundo.

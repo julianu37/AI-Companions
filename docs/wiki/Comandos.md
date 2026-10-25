@@ -21,6 +21,10 @@ Teclas, ordens por chat/voz e comandos de console.
 > companheiro, quando é da aba dele). Enquanto ele está aberto, o seu personagem não responde aos controles, e a
 > tecla é ignorada com o inventário, o mapa, o menu ou o painel `F8` abertos.
 
+> **Tipos:** o invocador e o **Trocar tipo** oferecem os dverger (**Mago**, **Mago de Fogo**, **Mago de Gelo** e
+> **Suporte**), mas só o **Companheiro** está completo — neles o inventário e as ferramentas ainda não funcionam
+> (**[Como funciona](Como-funciona#tipos-de-companheiro)**).
+
 ![O painel da IA na aba de um companheiro: as abas no topo (IA e uma por companheiro), o Nome e o Tipo com Trocar tipo, o Estado, Chamar e Aparência, e "Voz e personalidade deste companheiro" com a voz e o botão Ouvir](images/1-abas-do-companheiro.jpg)
 
 ### Menu radial (segure `E`)

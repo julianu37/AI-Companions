@@ -127,6 +127,23 @@ preenchida.
 
 ---
 
+## Tipos de companheiro
+
+**Use o tipo "Companheiro".** O **tipo** de um companheiro vem do **prefab** que o jogo usa para criá-lo. O
+**Companheiro** (o padrão) é uma cópia do **personagem do jogador** — é esse "corpo de jogador" que os trabalhos
+usam. Os **dverger** — **Mago**, **Mago de Fogo**, **Mago de Gelo** e **Suporte** — são **cópias dos dverger do
+jogo** (`Dverger`, `DvergerMage`…): por isso eles **lutam** normalmente, mas **ainda precisam de ajustes**:
+
+- **inventário** — a mochila que a IA usa **não é salva**: o que você coloca nela fica, mas o que ele **coleta ou
+  equipa por conta dele se perde** ao sair do mundo;
+- **ferramentas e trabalhos** — machado, picareta e martelo e os trabalhos que dependem deles (coleta, mineração,
+  reparo, reabastecimento) **não funcionam** nesses tipos;
+- o **painel** esconde os espaços de comida por tipo.
+
+Enquanto isso, invoque-os como **combatentes** — para trabalhos, fique no **Companheiro**.
+
+---
+
 ## O que é do upstream e o que é nosso
 
 | Vem do upstream (Offline Companions Reborn, MIT) | É nosso |

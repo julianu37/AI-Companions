@@ -316,6 +316,10 @@ ordens por voz exigem **Windows x64** e um **microfone**.
 
 ## Problemas conhecidos
 
+- **Tipos de companheiro:** só o tipo **Companheiro** está completo. Os **dverger** (**Mago**, **Mago de Fogo**,
+  **Mago de Gelo** e **Suporte**) podem ser invocados e lutam normalmente, mas ainda precisam de ajustes: o
+  **inventário** (o que ele coleta ou equipa por conta dele se perde ao sair do mundo) e as **ferramentas e
+  trabalhos** (coleta, mineração, reparo, reabastecimento) não funcionam neles. Para trabalhar, use o **Companheiro**.
 - **Volume da voz:** a fala do companheiro **não** passa pelo mixer do jogo, então ela **ignora os sliders de volume do
   Valheim** (música/SFX). Quem manda no volume dela é o `[AI] TtsVolume` (ou o slider do painel da IA).
 - *(Corrigido na 1.6.0)* **Painel `F8`:** o clique do mouse não respondia numa faixa dos controles (havia um alvo de

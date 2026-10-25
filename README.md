@@ -17,6 +17,11 @@ Este projeto é um **projeto independente** baseado em [Offline Companions Rebor
 O companheiro em si (trabalhos, comida, stamina, habilidades, casa, descanso, portais, carroça, menu radial)
 vem do upstream e continua funcionando igual — a IA é só uma **nova entrada** para as mesmas ações.
 
+> **Tipos de companheiro:** só o tipo **Companheiro** está completo. Os **dverger** (**Mago**, **Mago de Fogo**,
+> **Mago de Gelo** e **Suporte**) podem ser invocados e lutam normalmente, mas o **inventário** e as
+> **ferramentas/trabalhos** ainda não funcionam neles — para trabalhar, use o **Companheiro** (detalhes na
+> **[wiki](https://github.com/julianu37/AI-Companions/wiki/Como-funciona#tipos-de-companheiro)**).
+
 ## 🎬 Em ação
 
 [![Assista: "Esse mod muda TUDO no Valheim! AI Companions"](docs/images/video-thumb.jpg)](https://www.youtube.com/watch?v=40FnVEIbXyo)
