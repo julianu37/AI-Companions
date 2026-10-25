@@ -43,7 +43,27 @@ public class SpeechConfig
 
 	/// <summary>1.8.3: the language the current lines were read for, so <see cref="ReloadForLanguage"/> can tell a real
 	/// language change from the extra <c>SetupLanguage</c> calls the game makes (startup, world load).</summary>
+	/// <remarks>Multilanguage M1: it only holds a language whose <b>file really loaded</b>. It used to be set before
+	/// <see cref="TryLoadFrom"/> answered, so a missing/corrupt translation left the mod on the fallback (or on the
+	/// built-in lines) for the rest of the session, with no second attempt. Now a failed attempt keeps it empty and
+	/// the lazy check in <see cref="Instance"/> tries again - through <see cref="_lastAttemptUtc"/>, never on every
+	/// access.</remarks>
 	private static string _loadedLanguage;
+
+	/// <summary>Multilanguage M1: the lines in memory came from a fallback (the generic speech.json or the built-in
+	/// defaults), not from the language's own file.</summary>
+	private static bool _usingFallback;
+
+	/// <summary>Multilanguage M1: how long a failed attempt is remembered before the disk is read again.</summary>
+	private const double RetrySeconds = 30.0;
+
+	/// <summary>Multilanguage M1: when the last load attempt ran (UTC) - the gate of the retry.</summary>
+	private static DateTime _lastAttemptUtc = DateTime.MinValue;
+
+	private static bool RetryDue()
+	{
+		return (DateTime.UtcNow - _lastAttemptUtc).TotalSeconds >= RetrySeconds;
+	}
 
 	public static SpeechConfig Instance
 	{
@@ -64,7 +84,9 @@ public class SpeechConfig
 				try
 				{
 					string selected = (Localization.instance != null) ? Localization.instance.GetSelectedLanguage() : null;
-					if (!string.IsNullOrEmpty(selected) && !string.Equals(selected, _loadedLanguage, StringComparison.Ordinal))
+					// Multilanguage M1: a language whose file was not found stays "not loaded", so this is where the
+					// retry happens - at most once every RetrySeconds, never on every access
+					if (!string.IsNullOrEmpty(selected) && !string.Equals(selected, _loadedLanguage, StringComparison.Ordinal) && RetryDue())
 					{
 						Load();
 					}
@@ -99,17 +121,31 @@ public class SpeechConfig
 		{
 		}
 		string path = Path.Combine(directoryName, "Speech", text + ".json");
-		_loadedLanguage = text;
+		// Multilanguage M1: the attempt is remembered from here on, so a failure is retried after RetrySeconds and
+		// not on every access (Instance). _loadedLanguage is only set when the language's OWN file loaded.
+		_lastAttemptUtc = DateTime.UtcNow;
 		if (TryLoadFrom(path))
 		{
+			_loadedLanguage = text;
+			_usingFallback = false;
 			return;
 		}
+		// the lines in memory are NOT this language's: forget the language, so a change back to it reloads
+		_loadedLanguage = null;
 		string text2 = Path.Combine(directoryName, "speech.json");
+		if (_usingFallback)
+		{
+			// the fallback is already what is in memory and the language file has just been looked for: reading the
+			// same file again would only log the same line every RetrySeconds
+			return;
+		}
 		if (TryLoadFrom(text2))
 		{
+			_usingFallback = true;
 			return;
 		}
 		_instance = Defaults();
+		_usingFallback = true;
 		try
 		{
 			string contents = JsonUtility.ToJson(_instance, prettyPrint: true);
@@ -124,13 +160,19 @@ public class SpeechConfig
 
 	public static void Reload()
 	{
+		// Multilanguage M1: a forced reload must really read the files again, so the "came from a fallback" mark and
+		// the language are dropped with the instance
 		_instance = null;
+		_loadedLanguage = null;
+		_usingFallback = false;
 		Load();
 	}
 
 	/// <summary>1.8.3: called from the <c>Localization.SetupLanguage</c> postfix, so the companion's spoken lines follow
 	/// the game language. Only a real change reloads the file - <c>SetupLanguage</c> also runs at startup and on every
 	/// world load, and those calls would otherwise read the same JSON again for nothing.</summary>
+	/// <remarks>Multilanguage M1: unlike the lazy check in <see cref="Instance"/>, this one is the notification itself -
+	/// a different language means a real change, so it reloads right away (no retry gate).</remarks>
 	public static void ReloadForLanguage(string language)
 	{
 		if (string.Equals(language, _loadedLanguage, StringComparison.Ordinal))

@@ -507,8 +507,6 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 	private string[] _personalityLabels;
 
-	private int[] _voiceIds;
-
 	private float _nextStatus;
 
 	/// <summary>The raycast audit of this panel runs once per session (the first open), never per frame.</summary>
@@ -942,9 +940,10 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		// Fase 3.15: the lists the FOOTER reads (the global values, shown on the AI tab). The dropdowns that used
 		// them are gone from this page - the personality and the voice are edited per companion now - but the summary
 		// line still names what the [IA] settings are, so the labels are built once here.
+		// (Multilanguage M1: the voice label is asked to CompanionProfile.LabelOf, which follows the game language -
+		// there is no voice list kept here any more.)
 		_personalityIds = CompanionProfile.PresetIds(withInherit: false);
 		_personalityLabels = CompanionProfile.PresetLabels(withInherit: false);
-		_voiceIds = CompanionProfile.VoiceIds(withInherit: false);
 
 		// Fase 3.9: one page for the AI tab, one for a companion's tab. Both fill the panel (i.e. they use the same
 		// coordinates as Place), so switching tabs is showing one page and hiding the other - never a rebuild, and
@@ -3048,18 +3047,17 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	}
 
 	/// <summary>
-	/// The voice in use, by name. A voice that is not one of the pt-BR ones is named as "other language", because the
-	/// panel only offers the three pt-BR voices. With a companion on the tab it is its own voice, and "(padrão)" is
-	/// appended when it inherits the global one.
+	/// The voice in use, by name. Multilanguage M1: the label comes from <see cref="CompanionProfile.LabelOf"/>, which
+	/// names any voice of the game language (the pt-BR ones keep their hand-written labels); a voice of another
+	/// language (or one this model does not have) is still named as "other language". With a companion on the tab it is
+	/// its own voice, and "(default)" is appended when it inherits the global one.
 	/// </summary>
 	private string CurrentVoiceLabel(CompanionSetup setup)
 	{
 		int voice = setup != null
 			? CompanionProfile.GetVoice(setup)
 			: CompanionTts.Voice;
-		string label = IndexOf(_voiceIds, voice) < 0
-			? ModLocalization.LocFmt("hc_ai_voice_other", voice)
-			: ModLocalization.Loc("hc_ai_voice_" + voice);
+		string label = CompanionLocale.HasVoice(voice) ? CompanionProfile.LabelOf(voice) : ModLocalization.LocFmt("hc_ai_voice_other", voice);
 		if (setup != null && !CompanionProfile.HasVoice(setup))
 		{
 			return ModLocalization.LocFmt("hc_ai_profile_inherited", label);

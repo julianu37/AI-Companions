@@ -98,11 +98,11 @@ internal sealed class TtsRequest
 /// </summary>
 internal static class CompanionTts
 {
-	/// <summary>Voice used by default: <b>42 = pf_dora</b>, one of the three Brazilian Portuguese voices.</summary>
-	internal const int DefaultVoice = 42;
-
-	/// <summary>The Brazilian Portuguese voices of this Kokoro model (confirmed by listening): 42 feminine, 43 and 44 masculine.</summary>
-	private static readonly int[] PortugueseVoices = new int[3] { 42, 43, 44 };
+	/// <summary>
+	/// Voice used when the player has no choice of their own: the default of the <b>game language</b> (42 = pf_dora
+	/// in Portuguese, 3 = af_heart in English...). Multilanguage M1: it was the pt-BR constant 42.
+	/// </summary>
+	internal static int DefaultVoice => CompanionLocale.Current.DefaultVoice;
 
 	/// <summary>Where the model is expected when [AI] TtsModel is left at its default (relative to the plugin folder).</summary>
 	internal const string DefaultModelRelative = @"tts\kokoro\model.int8.onnx";
@@ -110,7 +110,8 @@ internal static class CompanionTts
 	/// <summary>
 	/// This Kokoro model is <b>multi-lingual</b> and the native side <b>refuses to load it without a language</b>
 	/// ("You are using a multi-lingual Kokoro model ... please pass --kokoro-lexicon or --kokoro-lang"), so this is
-	/// never empty. "pt-br" is Brazilian Portuguese; plain "pt" is European Portuguese.
+	/// never empty. "pt-br" is Brazilian Portuguese; plain "pt" is European Portuguese. Only a last resort now: the
+	/// language comes from <see cref="CompanionLocale.ResolveKokoro"/> and is never empty.
 	/// </summary>
 	internal const string DefaultLanguage = "pt-br";
 
@@ -234,6 +235,9 @@ internal static class CompanionTts
 	/// <summary>The "not on disk yet" warning is logged once, not on every retry.</summary>
 	private static bool _warnedPrewarmMissing;
 
+	/// <summary>Multilanguage M1: the effective language/voice are said once per session (see LogEffectiveOnce).</summary>
+	private static bool _loggedEffective;
+
 	private static bool _warnedMissingModel;
 
 	/// <summary>TryGetTts logs the "model not found" error once (the pre-load retry calls it again).</summary>
@@ -306,15 +310,27 @@ internal static class CompanionTts
 		}
 	}
 
-	/// <summary>[AI] TtsVoice: the Kokoro speaker id (42/43/44 are the pt-BR voices). Fase 3.12 (auditoria): 0 (the
-	/// config's floor) is treated as "not chosen" and answered with <see cref="DefaultVoice"/> - it used to be passed
-	/// to the model, which meant speaker 0, i.e. another language.</summary>
+	/// <summary>
+	/// [AI] TtsVoice: the Kokoro speaker id. Multilanguage M1: it is resolved against the game language
+	/// (<see cref="CompanionLocale.ResolveVoice"/>), so 0 ("automatic") and a voice of <b>another</b> language become
+	/// the default voice of this one - a pt-BR voice with an English phonemizer would come out with the wrong accent.
+	/// </summary>
 	internal static int Voice
 	{
 		get
 		{
-			int value = ModConfig.TtsVoice != null ? ModConfig.TtsVoice.Value : DefaultVoice;
-			return value <= 0 ? DefaultVoice : value;
+			int value = ModConfig.TtsVoice != null ? ModConfig.TtsVoice.Value : 0;
+			return CompanionLocale.ResolveVoice(value);
+		}
+	}
+
+	/// <summary>True when the voice in use is the automatic one (no pick of the player, or a pick of another language).</summary>
+	private static bool VoiceIsAuto
+	{
+		get
+		{
+			int value = ModConfig.TtsVoice != null ? ModConfig.TtsVoice.Value : 0;
+			return value <= 0 || !CompanionLocale.HasVoice(value);
 		}
 	}
 
@@ -348,15 +364,23 @@ internal static class CompanionTts
 		}
 	}
 
-	/// <summary>[AI] TtsLanguage, never empty (the multi-lingual Kokoro model needs it).</summary>
+	/// <summary>
+	/// [AI] TtsLanguage, never empty (the multi-lingual Kokoro model needs it). Multilanguage M1: "auto" (and empty)
+	/// follow the game language through <see cref="CompanionLocale.ResolveKokoro"/>; an explicit code wins.
+	/// </summary>
 	internal static string Language
 	{
 		get
 		{
-			string value = ModConfig.TtsLanguage != null ? ModConfig.TtsLanguage.Value : null;
+			string value = CompanionLocale.ResolveKokoro(ModConfig.TtsLanguage != null ? ModConfig.TtsLanguage.Value : null);
+			// ResolveKokoro never answers empty (the profile carries a code); this stays as the last resort so the
+			// native side can never be asked to load the model without a language
 			return string.IsNullOrWhiteSpace(value) ? DefaultLanguage : value.Trim();
 		}
 	}
+
+	/// <summary>True when the language in use is the automatic one (the game's).</summary>
+	private static bool LanguageIsAuto => CompanionLocale.IsAuto(ModConfig.TtsLanguage != null ? ModConfig.TtsLanguage.Value : null);
 
 	/// <summary>The model file to load: [AI] TtsModel (relative to the plugin folder, or absolute).</summary>
 	internal static string ModelPath
@@ -398,6 +422,10 @@ internal static class CompanionTts
 	/// <summary>
 	/// Called once from the plugin's Awake (main thread). Only reads the config and says what the companion's voice
 	/// will be; the model itself is loaded by <see cref="Prewarm"/>, off the main thread.
+	///
+	/// <para>Multilanguage M1: what is printed here is the <b>setting</b>, never the resolved language/voice - this
+	/// runs before the game has a Localization (the plugin's Awake), so the resolution would answer English. The
+	/// effective values are said once the player is in the world (<see cref="LogEffectiveOnce"/>).</para>
 	/// </summary>
 	internal static void Init()
 	{
@@ -410,32 +438,49 @@ internal static class CompanionTts
 				: "desligado";
 			CompanionsPlugin.Log?.LogInfo($"[TTS] Fala do companheiro (Kokoro-82M via sherpa-onnx, CPU, local): "
 				+ $"{(Enabled ? "LIGADO" : "desligado ([AI] TtsEnabled = false)")} | modelo \"{model}\" ({DescribeFile(model)}) | "
-				+ $"voz {Voice}{VoiceName(Voice)} | idioma \"{Language}\" | {Threads} thread(s) | velocidade {Speed:0.##} | "
+				+ $"voz {ConfiguredVoiceText()} | idioma {ConfiguredLanguageText()} | {Threads} thread(s) | velocidade {Speed:0.##} | "
 				+ $"volume {Volume:0.##} | cache {cacheInfo}.");
 			CompanionsPlugin.Log?.LogInfo($"[TTS] O que e falado: a resposta do modelo (TtsFalarRespostas={(SpeakReplies ? "sim" : "nao")}) "
 				+ $"e as linhas do proprio mod (TtsFalarFalasDoMod={(SpeakModLines ? "sim" : "nao")}). Com os dois ligados a linha que "
 				+ "aparece no chat e a que sai em voz; a outra so vai para o log (nada e falado duas vezes).");
-			CompanionsPlugin.Log?.LogInfo($"[TTS] Vozes em portugues do Brasil deste modelo: 42 = pf_dora (feminina), 43 = pm_alex (masculina), "
-				+ "44 = pm_santa (masculina). As outras sao de outros idiomas (45 soa chines).");
-			CompanionsPlugin.Log?.LogInfo("[TTS] Voz padrao (aba IA do painel, e de quem nao tem voz propria): " + Voice
-				+ ". Fase 3.10: cada companheiro pode ter a SUA voz, guardada no ZDO dele (aba dele no painel, e o painel do primeiro "
-				+ "companheiro) - a voz e resolvida na hora da fala e entra na chave do cache, entao cada voz tem o seu audio.");
-			if (!IsPortugueseVoice(Voice))
-			{
-				CompanionsPlugin.Log?.LogInfo($"[TTS] A voz {Voice} nao e uma das vozes pt-BR (42/43/44) - o companheiro vai falar com sotaque de outro idioma.");
-			}
+			CompanionsPlugin.Log?.LogInfo("[TTS] Voz padrao (a do idioma do jogo: e a que a aba IA do painel mostra, e a de quem nao tem voz propria) "
+				+ "e a de cada companheiro. Fase 3.10: cada companheiro pode ter a SUA voz, guardada no ZDO dele (aba dele no painel, e o "
+				+ "painel do primeiro companheiro) - a voz e resolvida na hora da fala e entra na chave do cache, entao cada voz tem o seu audio.");
 			CompanionsPlugin.Log?.LogInfo($"[TTS] Vozes (\"{Path.Combine(dir, VoicesFileName)}\", {DescribeFile(Path.Combine(dir, VoicesFileName))}), "
 				+ $"tokens (\"{Path.Combine(dir, TokensFileName)}\", {DescribeFile(Path.Combine(dir, TokensFileName))}) e "
 				+ $"espeak-ng-data (\"{Path.Combine(dir, EspeakDataDirName)}\") - tudo procurado na MESMA pasta do modelo.");
-			if (string.IsNullOrWhiteSpace(ModConfig.TtsLanguage != null ? ModConfig.TtsLanguage.Value : null))
-			{
-				CompanionsPlugin.Log?.LogInfo($"[TTS] [AI] TtsLanguage esta vazio - usando \"{DefaultLanguage}\": este Kokoro e multi-lingue e a lib nativa "
-					+ "RECUSA carregar sem um idioma (\"You are using a multi-lingual Kokoro model ... please pass --kokoro-lexicon or --kokoro-lang\").");
-			}
 		}
 		catch (Exception ex)
 		{
 			CompanionsPlugin.Log?.LogWarning("[TTS] Init falhou: " + ex);
+		}
+	}
+
+	/// <summary>
+	/// Multilanguage M1: says (once per session, on the main thread, once the player is in the world - i.e. after the
+	/// language is really known) which language and voice are in use, and which voices this language has. It also
+	/// <b>resolves and caches</b> the language profile here, on the main thread: the model load reads it from a
+	/// background task, and the game language may not be read there.
+	/// </summary>
+	private static void LogEffectiveOnce()
+	{
+		if (_loggedEffective || Player.m_localPlayer == null)
+		{
+			return;
+		}
+		_loggedEffective = true;
+		try
+		{
+			LocaleProfile profile = CompanionLocale.Current;
+			int voice = Voice;
+			CompanionsPlugin.Log?.LogInfo($"[TTS] idioma efetivo: {Language}{(LanguageIsAuto ? " (auto)" : "")} | "
+				+ $"voz {voice} ({(VoiceIsAuto ? "auto, " : "")}{CompanionLocale.VoiceName(voice)})");
+			CompanionsPlugin.Log?.LogInfo($"[TTS] Vozes do idioma \"{profile.Name}\" ({profile.KokoroCode}), da melhor para a pior: "
+				+ $"{DescribeVoices(profile)}. A voz de um companheiro que seja de outro idioma NAO e usada (ele fala com a padrao deste).");
+		}
+		catch (Exception ex)
+		{
+			CompanionsPlugin.Log?.LogDebug("[TTS] Falha ao logar o idioma efetivo: " + ex.Message);
 		}
 	}
 
@@ -617,6 +662,7 @@ internal static class CompanionTts
 	{
 		try
 		{
+			LogEffectiveOnce();
 			MaybePrewarm();
 			Watchdog();
 			Playback();
@@ -942,7 +988,7 @@ internal static class CompanionTts
 	/// <summary>
 	/// The voice actually used: the one the line carries (a companion's own voice, Fase 3.10) or <c>[AI] TtsVoice</c>,
 	/// but never outside the loaded model - a speaker id the model does not have would make the native call fail.
-	/// <see cref="DefaultVoice"/> (pf_dora) is the fallback.
+	/// <see cref="DefaultVoice"/> (the default voice of the game language) is the fallback.
 	/// </summary>
 	private static int EffectiveVoice(OfflineTts tts, int wanted)
 	{
@@ -1043,13 +1089,15 @@ internal static class CompanionTts
 					return false;
 				}
 				_tts = tts;
+				int loadedVoice = Voice;
 				CompanionsPlugin.Log?.LogInfo($"[TTS] Modelo CARREGADO em {watch.ElapsedMilliseconds} ms e MANTIDO carregado: \"{modelPath}\" "
 					+ $"(sherpa-onnx {SherpaOnnxVersion()}, Kokoro-82M, CPU, {threads} thread(s), idioma \"{language}\") | "
-					+ $"{tts.NumSpeakers} vozes | saida {tts.SampleRate} Hz mono.");
-				if (Voice >= tts.NumSpeakers)
+					+ $"{tts.NumSpeakers} vozes | saida {tts.SampleRate} Hz mono | voz {loadedVoice} ({CompanionLocale.VoiceName(loadedVoice)}).");
+				if (loadedVoice >= tts.NumSpeakers)
 				{
-					CompanionsPlugin.Log?.LogWarning($"[TTS] [AI] TtsVoice = {Voice} nao existe neste modelo ({tts.NumSpeakers} vozes) - "
-						+ $"a voz {DefaultVoice} (pf_dora) vai ser usada. As vozes pt-BR sao 42, 43 e 44.");
+					CompanionsPlugin.Log?.LogWarning($"[TTS] A voz {loadedVoice} ({CompanionLocale.VoiceName(loadedVoice)}) nao existe neste modelo "
+						+ $"({tts.NumSpeakers} vozes) - a voz {DefaultVoice} ({CompanionLocale.VoiceName(DefaultVoice)}) vai ser usada. "
+						+ $"Vozes do idioma \"{language}\": {DescribeVoices(CompanionLocale.Current)}");
 				}
 				error = null;
 				return true;
@@ -1935,40 +1983,41 @@ internal static class CompanionTts
 			+ "(a sintese roda em thread de fundo), mas a fala vai sair atrasada - veja [IA] TtsThreads e o tamanho do modelo.");
 	}
 
-	private static bool IsPortugueseVoice(int voice)
+	/// <summary>Multilanguage M1: the voices of one language, "id = name (f/m)" - used by the startup logs.</summary>
+	private static string DescribeVoices(LocaleProfile profile)
 	{
-		for (int i = 0; i < PortugueseVoices.Length; i++)
+		StringBuilder builder = new StringBuilder();
+		for (int i = 0; i < profile.Voices.Length; i++)
 		{
-			if (PortugueseVoices[i] == voice)
+			int sid = profile.Voices[i];
+			if (i > 0)
 			{
-				return true;
+				builder.Append(", ");
 			}
+			builder.Append(sid).Append(" = ").Append(CompanionLocale.VoiceName(sid))
+				.Append(" (").Append(CompanionLocale.VoiceGender(sid)).Append(')');
 		}
-		return false;
+		return builder.ToString();
 	}
 
-	/// <summary>How many pt-BR voices this Kokoro model has (Fase 3.7: the in-game AI panel lists them).</summary>
-	internal static int PortugueseVoiceCount => PortugueseVoices.Length;
-
-	/// <summary>The pt-BR voice id at <paramref name="index"/> (42, 43 or 44), or the default when out of range.</summary>
-	internal static int PortugueseVoiceAt(int index)
+	/// <summary>Multilanguage M1: [AI] TtsLanguage as the .cfg has it (the resolution needs the game language, which
+	/// is not known yet in the plugin's Awake).</summary>
+	private static string ConfiguredLanguageText()
 	{
-		return index >= 0 && index < PortugueseVoices.Length ? PortugueseVoices[index] : DefaultVoice;
+		string value = ModConfig.TtsLanguage != null ? ModConfig.TtsLanguage.Value : null;
+		return CompanionLocale.IsAuto(value) ? "auto (o do jogo)" : "\"" + value.Trim() + "\"";
 	}
 
-	private static string VoiceName(int voice)
+	/// <summary>Multilanguage M1: [AI] TtsVoice as the .cfg has it, with the name of an explicit id.</summary>
+	private static string ConfiguredVoiceText()
 	{
-		switch (voice)
+		int value = ModConfig.TtsVoice != null ? ModConfig.TtsVoice.Value : 0;
+		if (value <= 0)
 		{
-		case 42:
-			return " (pf_dora, feminina)";
-		case 43:
-			return " (pm_alex, masculina)";
-		case 44:
-			return " (pm_santa, masculina)";
-		default:
-			return "";
+			return "0 (auto - a voz padrao do idioma do jogo)";
 		}
+		string name = CompanionLocale.VoiceName(value);
+		return name.Length > 0 ? $"{value} ({name})" : value.ToString();
 	}
 
 	private static string SherpaOnnxVersion()

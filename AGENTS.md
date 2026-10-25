@@ -669,6 +669,33 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   confirmado com defeito em jogo (o teste do jogador mostrou que o que ele coloca persiste); a suspeita das duas
   mochilas fica registrada como **hipótese** na seção *Backlog da revisão da 1.8.3* do roadmap. **Nunca** trocar
   `Container.m_inventory` no `Awake` sem mundo de teste (tentativa de 1.8.3 revertida em `e8247ff`).
+- **Fase M1 da multilinguagem (branch `feat/idiomas-auto`) — `Locale` + `auto` nas configs + o bug do
+  `_loadedLanguage`:** `Core/CompanionLocale.cs` (novo) é a **tabela única** idioma-do-jogo → `{Name, WhisperCode,
+  KokoroCode, Voices (padrão primeiro), DefaultVoice, SpeechPrompt}` para **PT-BR, EN, ES e FR**, mais `HasVoice`,
+  `ResolveVoice`, `ResolveKokoro`, `ResolveWhisper`, `ResolvePrompt`, `VoiceName`/`VoiceGender` (mapa `sid → nome` do
+  export do sherpa; o gênero é a 2ª letra do nome). Idioma sem voz no Kokoro (de, ru, pl, tr, ko, sv, uk) cai no
+  **inglês** com uma linha no log. O perfil é **cacheado** (`Current`), resolvido **na main thread** (a língua vem do
+  `Localization.SetupLanguage` via `CompanionLocale.NotifyLanguage`, porque ler `GetSelectedLanguage()` dentro do
+  postfix é o que recursava no hotfix da 1.8.3) e **invalidado** no postfix (`Invalidate()`) e no `OnSceneLoaded`;
+  sem `Localization` (o `Awake` do plugin) responde inglês **sem** cachear. **Config:** `[AI] VoiceLanguage` e
+  `[AI] TtsLanguage` passam a nascer **`auto`**, `[AI] TtsVoice` **`0` (= automático)**, `[AI] VoiceInitialPrompt`
+  **vazio (= vocabulário do idioma; `none` desliga)** — valores explícitos do jogador **sempre ganham** e **não há
+  migração** (um `.cfg` com `pt`/`pt-br`/`42` continua igual). `CompanionTts.DefaultVoice` passou a ser o padrão do
+  idioma, `PortugueseVoices`/`PortugueseVoiceCount`/`PortugueseVoiceAt` **saíram** (os chamadores leem
+  `CompanionLocale.Current.Voices`), `CompanionTts.VoiceName` virou `CompanionLocale.VoiceName`, e a **voz de um
+  companheiro que não pertence ao idioma ativo não é usada** (`CompanionProfile.GetVoice` cai na padrão do idioma,
+  log Debug uma vez por id, **sem reescrever o ZDO** — voltar o jogo para aquele idioma restaura a escolha).
+  `CompanionProfile.VoiceIds/VoiceLabels` seguem o idioma e o novo `LabelOf(voice)` monta `"{nome} ({gênero})"` com
+  `hc_ai_voice_label`/`_female`/`_male` (as `hc_ai_voice_42/43/44` continuam tendo prioridade) — sem UI nova (o
+  dropdown com nomes é a M2) e sem traduções novas (M3). **`SpeechConfig` (achado #2 da auditoria):** o
+  `_loadedLanguage` só é gravado quando o **arquivo daquele idioma carrega**; nos fallbacks (`speech.json`/defaults)
+  fica vazio e o `Instance` **tenta de novo com portão de 30 s** (`_lastAttemptUtc`, `RetrySeconds`) em vez de ficar
+  preso até reiniciar — e `_usingFallback` evita reler o mesmo arquivo de 30 em 30 s. Logs:
+  `[Locale] English -> en / en-us | 20 vozes, padrao 3 (af_heart)`, a queda para inglês, e (uma vez, já no mundo)
+  `[TTS] idioma efetivo: pt-br (auto) | voz 42 (auto, pf_dora)` + a lista de vozes do idioma e
+  `[STT] idioma efetivo: pt (auto, o do jogo) | prompt inicial: N caracteres (...)`; no carregamento do modelo,
+  `idioma "pt-br" ... voz 42 (pf_dora)`. Verificado fora do jogo (harness com o `CompanionLocale.cs` real):
+  **84 casos, ALL CHECKS PASSED**. Detalhes: `docs/plan-multilinguagem.md` (M1).
 - **Pendências conhecidas (abertas):** a **voz não passa pelo
   mixer do jogo** (por isso ignora os sliders de volume do Valheim e só obedece `[AI] TtsVolume`); o **sync com o
   upstream** (estamos **1 release atrás**: base `1.5.4`, `main` na `1.5.5` — ver a seção *Upstream e licença*);

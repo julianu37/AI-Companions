@@ -1,6 +1,12 @@
 # Plano — multilinguagem completa (EN / PT-BR / ES / FR)
 
-Status: **planejado** (nenhum código escrito). Base: skill `.opencode/skills/kokoro/`.
+Status: **M1 feita** (branch `feat/idiomas-auto`; M2–M5 pendentes). Base: skill `.opencode/skills/kokoro/`.
+
+> **M1 entregue (ver `AGENTS.md`, *Fase M1 da multilinguagem*):** `Core/CompanionLocale.cs` (tabela única +
+> `Resolve*`), `auto` como padrão de `[AI] VoiceLanguage`, `[AI] TtsLanguage` e `[AI] TtsVoice` (0 = automático),
+> `[AI] VoiceInitialPrompt` vazio = vocabulário do idioma, e a correção do `_loadedLanguage` do `SpeechConfig`
+> (portão de 30 s). O log diz `[Locale] English -> en / en-us | 20 vozes, padrao 3 (af_heart)` e, já no mundo,
+> `[TTS] idioma efetivo: pt-br (auto) | voz 42 (auto, pf_dora)`. Sem UI nova e sem traduções nesta fase.
 
 ## Decisões (do jogador, 25/10/2026)
 
