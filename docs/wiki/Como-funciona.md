@@ -11,7 +11,7 @@ executar.
 voz (Microphone 16 kHz) ──► Whisper.net (STT, whisper.cpp in-process, CPU) ─┐
                                                                             ├─► mesma caixa de ordens ─► CompanionOrders ─► o companheiro executa
 chat do jogo ───────────────────────────────────────────────────────────────┘            │
-                                                                                          ├─► LLM (OpenRouter por padrão, ou LM Studio/Ollama local) ─► ação + resposta
+                                                                                          ├─► LLM (Groq por padrão, ou LM Studio/Ollama local, ou OpenRouter) ─► ação + resposta
                                                                                           └─► Kokoro-82M (TTS, sherpa-onnx in-process, CPU) ─► ele FALA na posição dele
 ```
 
@@ -66,7 +66,7 @@ Só uma **recusa do formato** dispara a próxima tentativa — timeout, erro de 
 são repetidos. Uma linha no log diz quando a saída estruturada está ligada e **um único aviso** aparece se o
 mod chegar ao formato antigo.
 
-Chave: `[IA] SaidaEstruturada` (padrão `true`).
+Chave: `[AI] StructuredOutput` (padrão `true`).
 
 ---
 
@@ -75,7 +75,7 @@ Chave: `[IA] SaidaEstruturada` (padrão `true`).
 - **Personalidade:** presets PT-BR escritos dentro do mod (`viking`, `mago`, `sarcastico`, `guia`) ou **texto
   livre** do jogador — o texto livre **ganha** do preset. Ela entra no prompt, então o companheiro responde
   no tom escolhido.
-- **Memória:** as últimas `[IA] Memoria` trocas **por companheiro** (0–12). A memória vai como **texto no
+- **Memória:** as últimas `[AI] Memory` trocas **por companheiro** (0–12). A memória vai como **texto no
   system prompt**, nunca como mensagens extras — o contrato JSON continua sendo a última coisa que o modelo lê.
   Ela é **esquecida** quando o companheiro morre, é dispensado ou você troca de mundo, e **nada é salvo no
   mundo**.
@@ -131,11 +131,12 @@ preenchida.
 
 | Vem do upstream (Offline Companions Reborn, MIT) | É nosso |
 |---|---|
-| O companheiro: trabalhos, comida, stamina, skills, casa, descanso, portais, carroça | **Tradução PT-BR completa** (386 chaves de UI + 186 falas) |
+| O companheiro: trabalhos, comida, stamina, skills, casa, descanso, portais, carroça | **Tradução PT-BR completa** (386 chaves de UI + 186 falas) sobre um mod **multilíngue**, com o **inglês nativo** |
 | A IA de movimento e combate, os jobs, o menu radial e a UI base | A **camada de IA**: ordens por chat/voz, personalidade, memória, conversa |
 | Toda a lógica de jogo que as ordens acionam | O **TTS local** (Kokoro) e o **STT local** (Whisper) |
 | | O **painel da IA** (tecla `I`) |
 | | Ajustes: raio de coleta maior, chatter desligado, o patch da tecla `V` |
+| | O `.cfg` com **nome próprio** (`AiCompanions.cfg`), seção `[AI]` e chaves em inglês |
 
 > A IA **não** substitui nada: ela é só uma **nova entrada** para as ações que já existiam.
 

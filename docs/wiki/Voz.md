@@ -28,7 +28,7 @@ As duas rodam **dentro do jogo**, na sua máquina, sem serviço externo.
 | Arquivo | Tamanho | Observação |
 |---|---|---|
 | `whisper\ggml-small-q5_1.bin` | 181 MB | **Padrão.** Bem melhor em português |
-| `whisper\ggml-base-q5_1.bin` | 57 MB | Mais rápido e menos preciso — troque em `[IA] SttModelo` |
+| `whisper\ggml-base-q5_1.bin` | 57 MB | Mais rápido e menos preciso — troque em `[AI] SttModel` |
 
 Onde baixar: https://huggingface.co/ggerganov/whisper.cpp/tree/main
 
@@ -38,31 +38,31 @@ de 30 s.
 
 ### Configuração do STT
 
-| Chave `[IA]` | Padrão | O que faz |
+| Chave `[AI]` | Padrão | O que faz |
 |---|---|---|
-| `VozLigada` | `true` | Liga o push-to-talk. Desligado = a tecla não faz nada (e volta a fazer o que o jogo fazia com ela) |
-| `VozTecla` | `V` | Tecla do push-to-talk |
-| `VozIdioma` | `pt` | Idioma da fala (código do Whisper). Vazio ou `auto` deixa o modelo detectar |
-| `VozDuracaoMaxima` | `10` | Teto da gravação, em segundos |
-| `VozLimiarSilencio` | `0.01` | Quão alto o áudio precisa ser para contar como fala, ao cortar o silêncio. Aumente se o seu microfone pega muito ruído |
-| `VozPromptInicial` | *(vocabulário das ordens)* | Enviesa o reconhecimento para as palavras das ordens. Coloque as palavras que **você** fala |
-| `VozDispositivo` | `0` | Qual microfone usar (índice da lista que o log imprime) |
-| `VozMostrarTexto` | `true` | Mostra no chat/HUD o que o microfone ouviu |
-| `SttModelo` | `whisper\ggml-small-q5_1.bin` | Modelo do Whisper (relativo à pasta do plugin ou caminho absoluto) |
+| `VoiceEnabled` | `true` | Liga o push-to-talk. Desligado = a tecla não faz nada (e volta a fazer o que o jogo fazia com ela) |
+| `VoiceKey` | `V` | Tecla do push-to-talk |
+| `VoiceLanguage` | `pt` | Idioma da fala (código do Whisper). Vazio ou `auto` deixa o modelo detectar |
+| `VoiceMaxSeconds` | `10` | Teto da gravação, em segundos |
+| `VoiceSilenceThreshold` | `0.01` | Quão alto o áudio precisa ser para contar como fala, ao cortar o silêncio. Aumente se o seu microfone pega muito ruído |
+| `VoiceInitialPrompt` | *(vocabulário das ordens, em PT-BR)* | Enviesa o reconhecimento para as palavras das ordens. Coloque as palavras que **você** fala |
+| `VoiceDevice` | `0` | Qual microfone usar (índice da lista que o log imprime) |
+| `VoiceShowText` | `true` | Mostra no chat/HUD o que o microfone ouviu |
+| `SttModel` | `whisper\ggml-small-q5_1.bin` | Modelo do Whisper (relativo à pasta do plugin ou caminho absoluto) |
 
 > **Microfones:** na inicialização o mod escreve no log a lista de microfones disponíveis —
-> `[STT] Push-to-talk: … N microfone(s) 0: nome, 1: nome`. Use esse número em `VozDispositivo`.
+> `[STT] Push-to-talk: … N microfone(s) 0: nome, 1: nome`. Use esse número em `VoiceDevice`.
 
 ### A tecla `V` e o auto-pickup do jogo
 
 No Valheim, **`V`** é a tecla do *Toggle Auto-Pickup* por padrão. Para não roubar a tecla do jogo, o mod tem um
 patch que **bloqueia o auto-pickup** — mas **só** quando as duas condições valem ao mesmo tempo:
 
-- `[IA] VozLigada` está **ligado**, **e**
-- o binding do auto-pickup do jogo aponta para a **mesma** tecla (`VozTecla`).
+- `[AI] VoiceEnabled` está **ligado**, **e**
+- o binding do auto-pickup do jogo aponta para a **mesma** tecla (`VoiceKey`).
 
 Se você **reatribuir** o auto-pickup na tela de controles do Valheim, o mod **não** bloqueia nada — o jogo fica
-intacto e a tecla `V` continua livre para falar. Você também pode simplesmente trocar o `VozTecla`.
+intacto e a tecla `V` continua livre para falar. Você também pode simplesmente trocar o `VoiceKey`.
 
 ---
 
@@ -79,7 +79,7 @@ intacto e a tecla `V` continua livre para falar. Você também pode simplesmente
 
 ### Vozes em português do Brasil
 
-| `TtsVoz` | Voz |
+| `TtsVoice` | Voz |
 |---|---|
 | **42** (padrão) | `pf_dora` — feminina |
 | **43** | `pm_alex` — masculina |
@@ -91,22 +91,22 @@ intacto e a tecla `V` continua livre para falar. Você também pode simplesmente
 
 A regra é: **a voz acompanha o que está escrito na tela.**
 
-| Chave `[IA]` | Padrão | O que faz |
+| Chave `[AI]` | Padrão | O que faz |
 |---|---|---|
-| `TtsLigado` | `true` | Ele **fala** as respostas. Desligado = só o balão e o chat |
-| `TtsVoz` | `42` | Qual voz usar (42/43/44) |
+| `TtsEnabled` | `true` | Ele **fala** as respostas. Desligado = só o balão e o chat |
+| `TtsVoice` | `42` | Qual voz usar (42/43/44) |
 | `TtsVolume` | `1` | Volume da voz (0 = mudo, 1 = volume normal) |
-| `TtsVelocidade` | `1` | Velocidade (acima de 1 fala mais rápido e mais curto) |
+| `TtsSpeed` | `1` | Velocidade (acima de 1 fala mais rápido e mais curto) |
 | `TtsThreads` | `4` | Núcleos da CPU para a síntese (4 já é mais rápido que o tempo real) |
-| `TtsModelo` | `tts\kokoro\model.int8.onnx` | Modelo do Kokoro (relativo à pasta do plugin ou caminho absoluto) |
-| `TtsIdioma` | `pt-br` | Idioma do texto falado. **Nunca deixe vazio** — o Kokoro exige um idioma (`pt` sozinho é português de Portugal) |
+| `TtsModel` | `tts\kokoro\model.int8.onnx` | Modelo do Kokoro (relativo à pasta do plugin ou caminho absoluto) |
+| `TtsLanguage` | `pt-br` | Idioma do texto falado. **Nunca deixe vazio** — o Kokoro exige um idioma (`pt` sozinho é português de Portugal) |
 | `TtsCache` | `true` | Guarda as falas já sintetizadas (as repetidas saem na hora) |
-| `TtsFalarRespostas` | `true` | Fala a **resposta do modelo** (o jeito dele: *"Deixa comigo."*) |
-| `TtsFalarFalasDoMod` | `true` | Fala a **linha do mod** que aparece no chat (*"Ok: coletar madeira (10)."*) |
+| `TtsSpeakReplies` | `true` | Fala a **resposta do modelo** (o jeito dele: *"Deixa comigo."*) |
+| `TtsSpeakModLines` | `true` | Fala a **linha do mod** que aparece no chat (*"Ok: coletar madeira (10)."*) |
 | `TtsReverbZoneMix` | `0` | Quanto das zonas de reverb do mundo entra na voz. `0` = voz seca |
 
 - Numa **ordem**, a linha do mod **ganha** (a voz acompanha o que está escrito na tela). Desligue
-  `TtsFalarFalasDoMod` para ouvir a resposta do modelo no lugar dela.
+  `TtsSpeakModLines` para ouvir a resposta do modelo no lugar dela.
 - Numa **conversa**, a resposta do modelo **é** a fala.
 - **Nada é falado duas vezes:** com as duas opções ligadas, a linha que não é falada vai só para o log.
 
@@ -126,7 +126,7 @@ Se você ouvir a fala do companheiro **ecoando como numa caverna**, não é bug 
 de reverb global** — uma `AudioReverbZone` de raio **1000 m** no próprio objeto do `AudioListener`, com
 **4 s** de cauda. Tudo dentro de 1 km levava essa cauda, e a nossa fonte de áudio estava no padrão do Unity.
 
-A correção é a chave **`[IA] TtsReverbZoneMix`**, que já vem em **`0`** (voz seca, como a música do jogo). Se
+A correção é a chave **`[AI] TtsReverbZoneMix`**, que já vem em **`0`** (voz seca, como a música do jogo). Se
 você quiser um "espaço" sutil na voz, use **`0,19`** — o mesmo valor que o ambiente do jogo usa. Vale na
 **próxima frase**, sem reiniciar.
 
@@ -142,12 +142,12 @@ Abra o console com **`F5`**:
 | `modia_tts_teste <texto>` | Fala o texto que você escrever — ex.: `modia_tts_teste Bom dia, chefe!` |
 | `modia_stt_teste` | Roda o reconhecimento do Whisper sobre um WAV, **sem** usar o microfone |
 
-> `modia_stt_teste` transcreve o arquivo definido em `[IA] SttWavTeste` (padrão `whisper\jfk.wav`) e escreve o
+> `modia_stt_teste` transcreve o arquivo definido em `[AI] SttWavTest` (padrão `whisper\jfk.wav`) e escreve o
 > resultado no log. É o teste certo para saber se o modelo do Whisper está carregando — útil quando as ordens
 > por voz não saem.
 >
 > **O pacote não traz esse WAV** (ele saiu do pacote para economizar espaço): ponha um arquivo seu em
-> `...\AI-Companions\whisper\` e aponte `[IA] SttWavTeste` para ele (caminho relativo à pasta do plugin ou
+> `...\AI-Companions\whisper\` e aponte `[AI] SttWavTest` para ele (caminho relativo à pasta do plugin ou
 > absoluto). O comando **não** aceita o caminho como argumento — só a chave. Fala curta em inglês ou português,
 > WAV PCM 16 bits, é o que ele espera.
 
@@ -159,5 +159,5 @@ o tempo real).
 ## Pendência conhecida: volume do jogo
 
 A voz do companheiro **não passa pelo mixer do jogo**. Isso significa que ela **ignora os sliders de volume do
-Valheim** e obedece **só** a `[IA] TtsVolume`. Se a voz estiver alta ou baixa demais em relação ao jogo, ajuste
+Valheim** e obedece **só** a `[AI] TtsVolume`. Se a voz estiver alta ou baixa demais em relação ao jogo, ajuste
 por essa chave (ou pelo slider de volume no painel **`I`**).

@@ -1,5 +1,5 @@
 ================================================================================
- AI Companions 1.8.2
+ AI Companions 2.0.0
  Companheiro NPC com IA para Valheim 1.0 - em portugues do Brasil
 ================================================================================
 
@@ -17,6 +17,32 @@ sai do seu PC por causa deles). Para ENTENDER as ordens, o mod usa um LLM: por
 padrao o Groq (servico remoto - o texto da ordem sai da sua maquina), ou, se
 voce preferir, um modelo local (LM Studio); o OpenRouter tambem funciona, mas o
 tier gratuito dele e mais lento. Veja "O CEREBRO (LLM)".
+
+ATENCAO - ATUALIZANDO PARA A 2.0.0 (as configuracoes voltam aos padroes)
+-----------------------------------------------------------------------
+A 2.0.0 e a versao MULTILINGUE: o ingles virou o idioma nativo do mod. Para
+quem ja tem o mod instalado, isso significa:
+- O arquivo de configuracao agora e BepInEx\config\AiCompanions.cfg. O antigo
+  (Maddhattr.OfflineCompanionsReborn.cfg) NAO e mais lido: fica no disco,
+  ignorado, e pode ser apagado.
+- As configuracoes voltam aos PADROES, inclusive a ApiKey, que vem EM BRANCO e
+  precisa ser colada de novo (painel I -> Configuracoes do LLM, ou o .cfg).
+- A secao da IA virou [AI] (era [IA]) e as 39 chaves dela sao em INGLES:
+  Enabled, BaseUrl, Model, ApiKey, Temperature, TimeoutSeconds, Prefix,
+  ShowReplyInChat, CooldownSeconds, TargetRange, Personality, PersonalityPreset,
+  Memory, Conversation, StructuredOutput, SttTest, SttModel, SttWavTest,
+  VoiceEnabled, VoiceKey, VoiceLanguage, VoiceMaxSeconds,
+  VoiceSilenceThreshold, VoiceInitialPrompt, VoiceDevice, VoiceShowText,
+  PanelKey, TtsEnabled, TtsVoice, TtsSpeed, TtsThreads, TtsVolume, TtsModel,
+  TtsLanguage, TtsCache, TtsSpeakReplies, TtsSpeakModLines, TtsReverbZoneMix,
+  EcoDiag. (As descricoes do .cfg tambem sao em ingles.)
+- O painel F8 ficou bilingue: os NOMES das opcoes e das abas seguem o IDIOMA DO
+  JOGO - em portugues aparecem Ligado, Modelo, VozTecla...; em ingles,
+  Enabled, Model, VoiceKey. O painel da IA (tecla I) ja funcionava assim.
+NAO SE PERDE NADA DO SEU JOGO: save, mundo, companheiros, casas, camas e
+inventario continuam valendo - o GUID do plugin e as chaves HC_* nao mudaram.
+So a configuracao volta ao padrao. A tabela completa de cada opcao esta na wiki,
+em Configuracao.
 
 REQUISITOS
 ----------
@@ -49,7 +75,7 @@ INSTALACAO
    O pacote "completo" ja traz os modelos prontos; o pacote "sem modelos" (bem
    menor) nao traz - copie os seus para as pastas acima.
 4. Entre no jogo. Se o BepInEx carregar o mod, o BepInEx\LogOutput.log mostra
-   "Loading [AI Companions 1.8.2]".
+   "Loading [AI Companions 2.0.0]".
 
 COMO USAR
 ---------
@@ -67,7 +93,8 @@ COMO USAR
 - PAINEL DA IA (tecla I): personalidade, voz (com o botao "Ouvir"), volume,
   tecla do push-to-talk, memoria, conversa e as configuracoes do LLM (URL,
   modelo e chave). A velocidade da fala fica so no painel F8.
-- CONFIGURACOES (tecla F8): todas as opcoes do mod, inclusive a secao [IA].
+- CONFIGURACOES (tecla F8): todas as opcoes do mod, inclusive a secao [AI]
+  (as chaves sao em ingles desde a 2.0.0).
 
 O CEREBRO (LLM)
 ---------------
@@ -79,9 +106,9 @@ AQUI" abre a pagina da chave no navegador (some no LM Studio).
 
 A) GROQ (padrao - o mais facil e o mais rapido, nao instala nada)
 1. Crie a conta e a chave gratuita em https://console.groq.com/keys.
-2. No arquivo BepInEx\config\Maddhattr.OfflineCompanionsReborn.cfg, secao [IA]:
+2. No arquivo BepInEx\config\AiCompanions.cfg, secao [AI]:
       BaseUrl = https://api.groq.com/openai/v1  (ja e o padrao)
-      Modelo  = openai/gpt-oss-20b              (ja e o padrao)
+      Model   = openai/gpt-oss-20b              (ja e o padrao)
       ApiKey  = <a sua chave>                  (obrigatoria)
    O tier gratuito tem limite de requisicoes e de tokens por minuto
    (30 req/min, 1.000/dia, 8.000 tokens/min, 200.000/dia - veja
@@ -95,16 +122,16 @@ B) LM STUDIO (local e opcional - nada sai da sua maquina)
 1. Baixe e carregue um modelo pequeno - o testado e o qwen2.5-3b-instruct
    (modelos pequenos funcionam porque o mod usa saida estruturada em JSON).
 2. Ligue o servidor local (Local Server -> Start Server), na porta 1234.
-3. No .cfg, secao [IA]:
+3. No .cfg, secao [AI]:
       BaseUrl = http://127.0.0.1:1234/v1
-      Modelo  = qwen2.5-3b-instruct
+      Model   = qwen2.5-3b-instruct
       ApiKey  = (vazio)
    Dica: use 127.0.0.1 em vez de localhost. No Windows o localhost resolve
    primeiro para IPv6, o que atrasa (ou falha) a conexao com o servidor local.
 
 C) OPENROUTER (alternativa - funciona, mas o tier gratuito e mais lento)
    BaseUrl = https://openrouter.ai/api/v1
-   Modelo  = openrouter/free
+   Model   = openrouter/free
    ApiKey  = <a sua chave de https://openrouter.ai/keys>  (obrigatoria)
    O "openrouter/free" escolhe um modelo gratuito a cada pedido e passa pela fila
    do provedor - a latencia varia de uma ordem para outra. Se voce ja usa o
@@ -144,7 +171,7 @@ Publishing, ProfMags ou Maddhattr. "Valheim" e marca dos seus donos.
 PROBLEMAS CONHECIDOS
 --------------------
 - A fala do companheiro NAO passa pelo mixer do jogo: ela ignora os sliders de
-  volume do Valheim (musica/SFX). Quem manda no volume dela e o [IA] TtsVolume
+  volume do Valheim (musica/SFX). Quem manda no volume dela e o [AI] TtsVolume
   (ou o slider do painel da IA, tecla I).
 - Sem o modelo de STT (pasta whisper\), ou sem o modelo de TTS (pasta tts\):
   o mod carrega normalmente, mas nao ouve a voz / nao fala. Sem o LLM ligado,

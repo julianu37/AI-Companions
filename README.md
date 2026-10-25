@@ -8,7 +8,8 @@
 Este projeto é um **projeto independente** baseado em [Offline Companions Reborn](https://github.com/MaddhattrRocks/Offline-Companions-Reborn)
 (**MIT**) com duas coisas nossas por cima:
 
-1. **Tradução completa para PT-BR** (interface, menus, painéis e as falas do companheiro).
+1. **Tradução completa para PT-BR** (interface, menus, painéis e as falas do companheiro) sobre um mod agora
+   **multilíngue**, com o **inglês como idioma nativo**: os painéis seguem o **idioma do jogo**.
 2. **Uma camada de IA**: ordens em **linguagem natural** (texto no chat ou **voz** por push-to-talk), com
    **personalidade**, **memória** e **conversa** — usando um **LLM** (o **Groq** por padrão, ou um modelo
    **local**) e reconhecimento de voz **local**.
@@ -63,7 +64,7 @@ O companheiro **fala em voz alta** o que ele responde, na posição dele no mund
 sintetizada **dentro do jogo** pelo **Kokoro-82M** (via `sherpa-onnx`, CPU) — sem serviço externo, sem processo
 filho, nada sai da sua máquina. Três vozes em **português do Brasil**:
 
-| `TtsVoz` | Voz |
+| `TtsVoice` | Voz |
 |---|---|
 | **42** (padrão) | `pf_dora` — feminina |
 | **43** | `pm_alex` — masculina |
@@ -71,8 +72,8 @@ filho, nada sai da sua máquina. Três vozes em **português do Brasil**:
 
 > **O que ele fala:** a resposta do modelo (o jeito dele — *"Deixa comigo."*) e/ou a linha do próprio mod que
 > aparece no chat (*"Ok: coletar madeira (10)."*, *"Já temos o suficiente."*). As duas opções são separadas
-> (`TtsFalarRespostas` / `TtsFalarFalasDoMod`) e a regra é **a voz acompanha o que está escrito na tela**: numa
-> ordem a linha do mod ganha (desligue `TtsFalarFalasDoMod` para ouvir a resposta do modelo no lugar dela). Nada
+> (`TtsSpeakReplies` / `TtsSpeakModLines`) e a regra é **a voz acompanha o que está escrito na tela**: numa
+> ordem a linha do mod ganha (desligue `TtsSpeakModLines` para ouvir a resposta do modelo no lugar dela). Nada
 > é falado duas vezes.
 
 > **Sem travar o jogo:** a síntese roda numa thread de fundo e a fala é montada por **frases** — a primeira frase
@@ -90,7 +91,7 @@ Aperte **`I`** a qualquer momento (não precisa de companheiro perto) para ajust
 | **Voz** | Escolha entre as 3 vozes pt-BR e aperte **Ouvir** para escutar uma frase de exemplo na hora |
 | **Selecione seu Provedor LLM** | O dropdown acima da **URL do servidor**: **Groq**, **LM Studio** ou **OpenRouter** preenchem a **URL e o modelo** (vale depois do **Aplicar**; a chave não é tocada). Uma URL de Ollama/servidor próprio aparece como **Personalizado** e nada é mexido |
 | **Crie sua Chave de API Grátis AQUI** | Botão ao lado da **Chave de API**: abre no navegador a página da chave do provedor escolhido (`console.groq.com/keys` no Groq, `openrouter.ai/keys` no OpenRouter). Some no LM Studio/personalizado |
-| **Volume** | Slider (vale no próximo áudio). A **velocidade da fala** fica **só no `F8`** (`[IA] TtsVelocidade`) |
+| **Volume** | Slider (vale no próximo áudio). A **velocidade da fala** fica **só no `F8`** (`[AI] TtsSpeed`) |
 | **Push-to-talk** | Veja a tecla atual e aperte **Alterar** para capturar outra |
 | **Liga/desliga** | Companheiro fala, falar respostas da IA, falar falas do mod, conversa livre e ordens por voz |
 | **Memória** | Quantas trocas recentes ele lembra (0–12) |
@@ -153,11 +154,19 @@ chat do jogo ──────────────────────�
    `ggml-small-q5_1.bin`.
 3. (Opcional, para ele **falar**) deixe o modelo do Kokoro em `...\AI-Companions\tts\kokoro\`
    (`model.int8.onnx`, `voices.bin`, `tokens.txt`, `espeak-ng-data\`) — já vem no pacote.
-4. **Para o LLM:** crie a **chave gratuita** em https://console.groq.com/keys e cole em `[IA] ApiKey` — o
-   `BaseUrl` (`https://api.groq.com/openai/v1`) e o `Modelo` (`openai/gpt-oss-20b`) **já são o padrão**. Quer rodar
-   local? LM Studio com o `qwen2.5-3b-instruct`, `[IA] BaseUrl = http://127.0.0.1:1234/v1` e `ApiKey` vazio. (O
+4. **Para o LLM:** crie a **chave gratuita** em https://console.groq.com/keys e cole em `[AI] ApiKey` — o
+   `BaseUrl` (`https://api.groq.com/openai/v1`) e o `Model` (`openai/gpt-oss-20b`) **já são o padrão**. Quer rodar
+   local? LM Studio com o `qwen2.5-3b-instruct`, `[AI] BaseUrl = http://127.0.0.1:1234/v1` e `ApiKey` vazio. (O
    **OpenRouter** continua funcionando como alternativa: `https://openrouter.ai/api/v1` + `openrouter/free`.)
 5. Entre no mundo. No chat: `colete 10 madeiras`. Ou segure **`V`** e fale. Ele responde **em voz alta**.
+
+> **Atualizando para a 2.0.0? As configurações voltam aos padrões.** O arquivo de configuração passou a ser
+> `BepInEx\config\AiCompanions.cfg` e o antigo (`Maddhattr.OfflineCompanionsReborn.cfg`) **não é mais lido** —
+> pode ser apagado. O arquivo novo nasce com os **valores padrão**, inclusive a **`ApiKey` em branco**, que
+> precisa ser colada de novo; a seção da IA virou **`[AI]`** e as **chaves são em inglês** (`Enabled`, `Model`,
+> `TtsVoice`…). **Save, mundo, companheiros, casas e inventário não são afetados** — o GUID do plugin e as chaves
+> `HC_*` não mudaram. A tabela completa está em
+> **[Configuração](https://github.com/julianu37/AI-Companions/wiki/Configuracao)**.
 
 ---
 
@@ -172,41 +181,46 @@ chat do jogo ──────────────────────�
 | **`I`** | **Painel da IA**: personalidade, voz (com **Ouvir**), volume, memória, conversa, a tecla do push-to-talk e as **configurações do LLM** (com o seletor de provedor) — tudo salvo na hora |
 | **`F8`** | Painel de configurações do mod (todas as opções, em jogo) |
 
-> O painel da IA (tecla **`I`**, mudável em `[IA] PainelTecla`) abre sem precisar de companheiro perto, fecha com
+> O painel da IA (tecla **`I`**, mudável em `[AI] PanelKey`) abre sem precisar de companheiro perto, fecha com
 > **Esc** ou no **X**, e cada controle é gravado no `.cfg` no mesmo instante. Enquanto ele está aberto, o seu
 > personagem não responde aos controles.
 
 ---
 
-## Configuração da IA (`[IA]` no `BepInEx\config\...cfg`)
+## Configuração da IA (seção `[AI]` do `BepInEx\config\AiCompanions.cfg`)
 
 | Chave | Padrão | O que faz |
 |---|---|---|
-| `Ligado` | `true` | Liga as ordens por texto |
+| `Enabled` | `true` | Liga as ordens por texto |
 | `BaseUrl` | `https://api.groq.com/openai/v1` | Endpoint do LLM (Groq; ou LM Studio/Ollama local, ou OpenRouter) |
-| `Modelo` | `openai/gpt-oss-20b` | Modelo usado — `openai/gpt-oss-20b` no Groq (padrão); `openrouter/free` no OpenRouter; o nome do LM Studio no local |
+| `Model` | `openai/gpt-oss-20b` | Modelo usado — `openai/gpt-oss-20b` no Groq (padrão); `openrouter/free` no OpenRouter; o nome do LM Studio no local |
 | `ApiKey` | *(vazio)* | **Obrigatória no Groq** (a gratuita sai em console.groq.com/keys) e no OpenRouter; vazia no LM Studio/Ollama. Nunca versione uma chave |
-| `Prefixo` | *(vazio)* | Vazio = toda mensagem vai ao LLM. Ex.: `/c` exige o prefixo |
-| `Personalidade` / `PresetPersonalidade` | *(vazio)* | Texto livre (ganha) ou preset (`viking`, `mago`, `sarcastico`, `guia`) |
-| `Memoria` | `4` | Quantas trocas recentes ele lembra (`0` desliga) |
-| `Conversa` | `true` | Responder conversa livre quando não é ordem |
-| `RaioDeAlvo` | `40` | Até onde procurar a criatura citada numa ordem de ataque |
-| `VozLigada` | `true` | Liga o push-to-talk |
-| `VozTecla` | `V` | Tecla do push-to-talk |
-| `VozIdioma` | `pt` | Idioma da transcrição |
-| `VozDuracaoMaxima` | `10` | Teto da gravação (s) |
-| `VozPromptInicial` | *(vocabulário das ordens)* | Enviesa o reconhecimento para as palavras das ordens |
-| `VozDispositivo` | `0` | Índice do microfone |
-| `SttModelo` | `whisper\ggml-small-q5_1.bin` | Modelo do Whisper |
-| `TtsLigado` | `true` | Ele **fala** as respostas (TTS local, Kokoro) |
-| `TtsVoz` | `42` | Voz: `42` pf_dora (fem.), `43` pm_alex (masc.), `44` pm_santa (masc.) |
-| `TtsVolume` / `TtsVelocidade` | `1` / `1` | Volume e velocidade da fala |
+| `Prefix` | *(vazio)* | Vazio = toda mensagem vai ao LLM. Ex.: `/c` exige o prefixo |
+| `Personality` / `PersonalityPreset` | *(vazio)* | Texto livre (ganha) ou preset (`viking`, `mago`, `sarcastico`, `guia`) |
+| `Memory` | `4` | Quantas trocas recentes ele lembra (`0` desliga) |
+| `Conversation` | `true` | Responder conversa livre quando não é ordem |
+| `TargetRange` | `40` | Até onde procurar a criatura citada numa ordem de ataque |
+| `VoiceEnabled` | `true` | Liga o push-to-talk |
+| `VoiceKey` | `V` | Tecla do push-to-talk |
+| `VoiceLanguage` | `pt` | Idioma da transcrição |
+| `VoiceMaxSeconds` | `10` | Teto da gravação (s) |
+| `VoiceInitialPrompt` | *(vocabulário das ordens)* | Enviesa o reconhecimento para as palavras das ordens |
+| `VoiceDevice` | `0` | Índice do microfone |
+| `SttModel` | `whisper\ggml-small-q5_1.bin` | Modelo do Whisper |
+| `TtsEnabled` | `true` | Ele **fala** as respostas (TTS local, Kokoro) |
+| `TtsVoice` | `42` | Voz: `42` pf_dora (fem.), `43` pm_alex (masc.), `44` pm_santa (masc.) |
+| `TtsVolume` / `TtsSpeed` | `1` / `1` | Volume e velocidade da fala |
 | `TtsThreads` | `4` | Núcleos para a síntese (4 = mais rápido que o tempo real) |
-| `TtsFalarRespostas` | `true` | Falar a resposta do modelo |
-| `TtsFalarFalasDoMod` | `true` | Falar a linha do mod que aparece no chat (ganha numa ordem) |
+| `TtsSpeakReplies` | `true` | Falar a resposta do modelo |
+| `TtsSpeakModLines` | `true` | Falar a linha do mod que aparece no chat (ganha numa ordem) |
 | `TtsCache` | `true` | Guardar as falas já sintetizadas (as repetidas saem na hora) |
-| `TtsModelo` / `TtsIdioma` | `tts\kokoro\model.int8.onnx` / `pt-br` | Modelo do Kokoro e idioma (nunca vazio) |
-| `PainelTecla` | `I` | Tecla que abre o **painel da IA** no jogo (personalidade, voz, push-to-talk) |
+| `TtsModel` / `TtsLanguage` | `tts\kokoro\model.int8.onnx` / `pt-br` | Modelo do Kokoro e idioma (nunca vazio) |
+| `PanelKey` | `I` | Tecla que abre o **painel da IA** no jogo (personalidade, voz, push-to-talk) |
+
+> As **chaves e as descrições do `.cfg` são em inglês** (o idioma nativo do mod); o **painel `F8`** mostra os
+> nomes no **idioma do jogo** — em português você lê `Ligado`, `Modelo`…; em inglês, `Enabled`, `Model`… A
+> explicação de cada opção, com os padrões, está na
+> **[wiki](https://github.com/julianu37/AI-Companions/wiki/Configuracao)**.
 
 ---
 

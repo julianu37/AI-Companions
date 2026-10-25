@@ -1,28 +1,38 @@
 # Configuração
 
-Onde fica o arquivo de configuração, como editá-lo em jogo e o que cada opção da seção `[IA]` faz.
+Onde fica o arquivo de configuração, como editá-lo em jogo e o que cada opção da seção `[AI]` faz.
 
 ---
 
 ## Onde fica o `.cfg`
 
 ```
-<Valheim>\BepInEx\config\Maddhattr.OfflineCompanionsReborn.cfg
+<Valheim>\BepInEx\config\AiCompanions.cfg
 ```
 
 O arquivo é **gerado pelo BepInEx** na primeira vez que o mod carrega, e é regravado quando você muda algo
 pelos painéis. Ele tem cerca de **1540 linhas** e **~265 opções** no total, divididas em várias seções
-(`[General]`, `[Gathering]`, `[Hunting]`, `[Speech]`, `[Advanced]`, `[IA]` e outras).
+(`[General]`, `[Gathering]`, `[Hunting]`, `[Speech]`, `[Advanced]`, `[AI]` e outras).
 
-> O nome do arquivo (`Maddhattr.OfflineCompanionsReborn`) vem do **GUID do plugin**, mantido do upstream de
-> propósito para que as suas configurações continuem valendo. É por isso que o nome do arquivo **não** é o nome
-> do mod.
+> O nome do arquivo **não** é mais o GUID do plugin: até a **1.8.2** ele era
+> `Maddhattr.OfflineCompanionsReborn.cfg` e **a partir da 2.0.0** é **`AiCompanions.cfg`**. O **GUID** do plugin
+> continua `Maddhattr.OfflineCompanionsReborn` — ele é a **identidade** do mod no jogo e na rede (é o que amarra
+> mundo, save e companheiros), mas **não** dá mais nome ao arquivo. O `.cfg` antigo **fica no disco, ignorado**:
+> pode ser apagado sem medo.
 
-A seção **`[IA]`** começa por volta da **linha 871** e tem **39 chaves**. É assim que ela aparece no arquivo
-(neste exemplo, com a **alternativa local** configurada: `127.0.0.1`, `qwen2.5-3b-instruct` e a chave vazia — no
-**padrão** o `BaseUrl` é o **Groq**, com o modelo `openai/gpt-oss-20b`, e a `ApiKey` é obrigatória):
+> **Atualizando para a 2.0.0?** As configurações **voltam aos padrões** (o arquivo novo é criado já com os
+> valores padrão) — inclusive a **`ApiKey`**, que precisa ser colada de novo. **Save, mundo, companheiros, casas e
+> inventário não são afetados** (as chaves `HC_*` e o GUID não mudaram). Os valores do arquivo antigo **não** são
+> migrados de propósito: as chaves mudaram de nome.
 
-![A seção [IA] do .cfg: Ligado = true, BaseUrl = http://127.0.0.1:1234/v1, Modelo = qwen2.5-3b-instruct e ApiKey vazio](images/config-ia.png)
+A seção **`[AI]`** tem **39 chaves**. É assim que ela aparece no arquivo (neste exemplo, com a **alternativa
+local** configurada: `127.0.0.1`, `qwen2.5-3b-instruct` e a chave vazia — no **padrão** o `BaseUrl` é o **Groq**,
+com o modelo `openai/gpt-oss-20b`, e a `ApiKey` é obrigatória):
+
+![A seção [AI] do .cfg, com BaseUrl, Model, ApiKey e Temperature](images/config-ia.png)
+
+> O print é da **1.8.2**: os **nomes** que aparecem ali (`Ligado`, `Modelo`…) são os antigos. A **partir da 2.0.0**
+> as chaves e as descrições são em **inglês** (`Enabled`, `Model`…), como na tabela abaixo.
 
 ---
 
@@ -49,9 +59,9 @@ companheiro fica na **aba dele**.
 | **Invocar novo companheiro** | Escolha o **Tipo** e aperte **Invocar**: ele nasce **de graça**, sem passar pelo Trader, com o nome do tipo numerado ("Guerreiro 2"). O contador abaixo mostra quantos estão **na cena**; o teto é `[General] MaxCompanions` (padrão **10**, contando **vivos + mortos + perdidos**) |
 | **Configurações do LLM** | Os toggles **Ligado**, **Saída estruturada** e **Mostrar resposta no chat**; os campos **URL do servidor**, **Modelo**, **Chave de API** (**mascarada**) e **Prefixo**; os sliders **Temperatura**, **Timeout (s)**, **Cooldown (s)** e **Raio de alvo (m)**; e os botões **Aplicar** e **Testar conexão** |
 | **Selecione seu Provedor LLM** | O dropdown logo **acima da URL do servidor**: escolher **Groq**, **LM Studio** ou **OpenRouter** **preenche** a URL e o modelo (veja a tabela abaixo). **Personalizado (URL manual)** não mexe em nada |
-| **Volume da fala** | O slider do TTS (`[IA] TtsVolume`). A **velocidade da fala** fica **só no painel `F8`** (`[IA] TtsVelocidade`) — o botão **Ouvir** usa o valor de lá |
+| **Volume da fala** | O slider do TTS (`[AI] TtsVolume`). A **velocidade da fala** fica **só no painel `F8`** (`[AI] TtsSpeed`) — o botão **Ouvir** usa o valor de lá |
 | **Aperte para falar** | A tecla do push-to-talk (padrão **`V`**), o botão **Alterar** para trocar e o toggle **Ordens por voz** |
-| **Companheiro fala / Falar respostas da IA / Falar falas do mod / Conversa livre** | Os toggles da voz e da conversa (`TtsLigado`, `TtsFalarRespostas`, `TtsFalarFalasDoMod`, `Conversa`) |
+| **Companheiro fala / Falar respostas da IA / Falar falas do mod / Conversa livre** | Os toggles da voz e da conversa (`TtsEnabled`, `TtsSpeakReplies`, `TtsSpeakModLines`, `Conversation`) |
 | **Memória** | Quantas trocas recentes ele lembra (0–12) |
 
 > Os campos de texto (URL, modelo, chave, prefixo) só valem depois do **Aplicar** — e na **próxima mensagem**,
@@ -69,7 +79,7 @@ invocador) — ele **abre já no provedor que o seu `.cfg` usa** e, ao escolher,
 
 > Escolher no seletor **só preenche os campos**: vale depois do **Aplicar**, como qualquer edição ali. A
 > **`ApiKey` nunca é tocada** (nem preenchida, nem apagada) — ela continua sendo sua. E o seletor **não é uma
-> config nova**: ele **deduz** o provedor da própria `[IA] BaseUrl`, então uma URL de **Ollama** ou de um servidor
+> config nova**: ele **deduz** o provedor da própria `[AI] BaseUrl`, então uma URL de **Ollama** ou de um servidor
 > seu aparece como **Personalizado (URL manual)** e nada é sobrescrito — não existe um segundo lugar que possa
 > divergir do `.cfg`.
 
@@ -89,8 +99,8 @@ navegador** na página de chaves do provedor escolhido (**Groq** → `console.gr
 | **Estado** | **Vivo** ou **Morto** — e morrer **não** abre vaga no teto |
 | **Chamar** | Traz o companheiro para perto de você: ele vem andando e, se estiver longe demais, volta pelo mesmo chamado do jogo |
 | **Aparência** | Abre o **editor de aparência** (logo abaixo) |
-| **Personalidade** | A lista com **"Seguir o padrão ([IA])"** na frente e os presets (`viking`, `mago`, `sarcastico`, `guia`) — **escolher já salva**. **Nas suas palavras** é o campo livre, aplicado pelo **Aplicar** ao lado |
-| **Voz** | A lista com **"Seguir o padrão ([IA])"** na frente e as **3 vozes pt-BR** — escolher já salva e vale na **próxima fala**; **Ouvir** toca uma frase de exemplo na hora |
+| **Personalidade** | A lista com **"Seguir o padrão ([AI])"** na frente e os presets (`viking`, `mago`, `sarcastico`, `guia`) — **escolher já salva**. **Nas suas palavras** é o campo livre, aplicado pelo **Aplicar** ao lado |
+| **Voz** | A lista com **"Seguir o padrão ([AI])"** na frente e as **3 vozes pt-BR** — escolher já salva e vale na **próxima fala**; **Ouvir** toca uma frase de exemplo na hora |
 
 > A voz e a personalidade escolhidas aqui são **deste** companheiro, guardadas no **ZDO** dele: elas viajam na
 > **lápide** e voltam no respawn. Quem está em "seguir o padrão" obedece ao que está na **aba IA** — mudar o global
@@ -111,49 +121,74 @@ primeiro companheiro abertos; e o painel **se fecha sozinho** quando você morre
 
 ---
 
-## Seção `[IA]` — todas as chaves
+## Seção `[AI]` — todas as chaves
+
+São **39 chaves**, todas em **inglês** (o **idioma nativo** do mod desde a 2.0.0 — o `.cfg` e as descrições
+inclusive). Os valores padrão são os do código-fonte: se você nunca mexeu, é isto que está valendo.
+
+> **`[AI]` é a seção do `.cfg`; `[IA]` é a tag dos logs.** As **linhas de log** do mod continuam começando com
+> `[IA]` (`[IA] Prompt:`, `[IA] Tempo:`, `[IA] Request #…`) — é o prefixo da mensagem no `LogOutput.log`, não um
+> caminho de configuração. Não procure `[IA]` no `.cfg`: lá a seção é `[AI]`.
 
 | Chave | Padrão | O que faz |
 |---|---|---|
-| `Ligado` | `true` | Liga as ordens por texto. Desligado = nada é enviado ao modelo |
+| `Enabled` | `true` | Liga as ordens por texto. Desligado = nada é enviado ao modelo |
 | `BaseUrl` | `https://api.groq.com/openai/v1` | Endpoint do LLM. `/chat/completions` é adicionado sozinho. O padrão é o **Groq** (que pede a `ApiKey`); as alternativas são o **LM Studio** (`http://127.0.0.1:1234/v1`) ou o **Ollama** (`http://127.0.0.1:11434/v1`) para rodar tudo local, e o **OpenRouter** (`https://openrouter.ai/api/v1`), que funciona mas tem o tier gratuito mais lento. **No caso local** use **`127.0.0.1`** e **não** `localhost`: no Windows o `localhost` resolve primeiro para IPv6 e o servidor do LM Studio só escuta IPv4, o que custa ~**2,5 s** em cada ordem (veja **[LLM (Groq, LM Studio ou OpenRouter)](LLM-no-LM-Studio)**) |
-| `Modelo` | `openai/gpt-oss-20b` | Nome do modelo, como o servidor lista. `openai/gpt-oss-20b` é o padrão (Groq, tier gratuito). Alternativas: `openrouter/free` no OpenRouter; no LM Studio use o nome que ele mostra (ex.: `qwen2.5-3b-instruct`) |
+| `Model` | `openai/gpt-oss-20b` | Nome do modelo, como o servidor lista. `openai/gpt-oss-20b` é o padrão (Groq, tier gratuito). Alternativas: `openrouter/free` no OpenRouter; no LM Studio use o nome que ele mostra (ex.: `qwen2.5-3b-instruct`) |
 | `ApiKey` | *(vazio)* | Chave de API do servidor. **Obrigatória no Groq** (a gratuita sai em `console.groq.com/keys`) e também no OpenRouter (`openrouter.ai/keys`); vazia para LM Studio/Ollama local |
-| `Temperatura` | `0.1` | O quanto o modelo improvisa. Mantenha baixo para a mesma ordem dar sempre o mesmo JSON |
-| `TimeoutSegundos` | `30` | Segundos de espera pelo modelo. O pedido roda em segundo plano |
-| `Prefixo` | *(vazio)* | Vazio = toda mensagem de chat vai ao modelo. Ex.: `/c` exige o prefixo |
-| `MostrarRespostaNoChat` | `true` | Mostra a resposta crua do modelo no chat (útil em testes) |
-| `CooldownSegundos` | `3` | Tempo mínimo entre duas ordens |
-| `RaioDeAlvo` | `40` | Até onde (m) procurar a criatura citada numa ordem de ataque. A que você mira vale sempre |
-| `Personalidade` | *(vazio)* | A personalidade **nas suas palavras** (PT-BR, até 600 caracteres). Ganha do preset |
-| `PresetPersonalidade` | *(vazio)* | `viking`, `mago`, `sarcastico`, `guia` ou `custom`. Vazio/desconhecido = o padrão (leal e prático) |
-| `Memoria` | `4` | Quantas trocas recentes ele lembra e envia junto da próxima mensagem. `0` = sem memória (teto 12) |
-| `Conversa` | `true` | Responder conversa livre quando a mensagem não é ordem |
-| `SaidaEstruturada` | `true` | Pede ao servidor o formato JSON (`response_format`/`json_schema`). É o que permite usar modelos pequenos |
-| `SttTeste` | `false` | Teste: roda o reconhecimento do Whisper sozinho ~25 s após carregar e escreve no log |
-| `SttModelo` | `whisper\ggml-small-q5_1.bin` | Modelo do Whisper (relativo à pasta do plugin ou caminho absoluto) |
-| `SttWavTeste` | `whisper\jfk.wav` | WAV que o `modia_stt_teste` transcreve. **O pacote não traz esse arquivo** — aponte para um WAV seu |
-| `VozLigada` | `true` | Liga o push-to-talk |
-| `VozTecla` | `V` | Tecla do push-to-talk |
-| `VozIdioma` | `pt` | Idioma da fala (código do Whisper). Vazio ou `auto` detecta |
-| `VozDuracaoMaxima` | `10` | Teto da gravação, em segundos |
-| `VozLimiarSilencio` | `0.01` | Quão alto o áudio precisa ser para contar como fala |
-| `VozPromptInicial` | *(vocabulário das ordens)* | Prompt inicial do Whisper: enviesa o reconhecimento para as palavras das ordens |
-| `VozDispositivo` | `0` | Índice do microfone (o log imprime a lista) |
-| `VozMostrarTexto` | `true` | Mostra no chat/HUD o que o microfone ouviu |
-| `PainelTecla` | `I` | Tecla que abre o **painel da IA** |
-| `TtsLigado` | `true` | Ele **fala** as respostas (TTS local, Kokoro) |
-| `TtsVoz` | `42` | Voz: `42` pf_dora (fem.), `43` pm_alex (masc.), `44` pm_santa (masc.) |
-| `TtsVelocidade` | `1` | Velocidade da fala |
+| `Temperature` | `0.1` | O quanto o modelo improvisa. Mantenha baixo para a mesma ordem dar sempre o mesmo JSON |
+| `TimeoutSeconds` | `30` | Segundos de espera pelo modelo. O pedido roda em segundo plano |
+| `Prefix` | *(vazio)* | Vazio = toda mensagem de chat vai ao modelo. Ex.: `/c` exige o prefixo |
+| `ShowReplyInChat` | `true` | Mostra a resposta crua do modelo no chat (útil em testes) |
+| `CooldownSeconds` | `3` | Tempo mínimo entre duas ordens |
+| `TargetRange` | `40` | Até onde (m) procurar a criatura citada numa ordem de ataque. A que você mira vale sempre |
+| `Personality` | *(vazio)* | A personalidade **nas suas palavras** (até 600 caracteres). Ganha do preset |
+| `PersonalityPreset` | *(vazio)* | `viking`, `mago`, `sarcastico`, `guia` ou `custom`. Vazio/desconhecido = o padrão (leal e prático) |
+| `Memory` | `4` | Quantas trocas recentes ele lembra e envia junto da próxima mensagem. `0` = sem memória (teto 12) |
+| `Conversation` | `true` | Responder conversa livre quando a mensagem não é ordem |
+| `StructuredOutput` | `true` | Pede ao servidor o formato JSON (`response_format`/`json_schema`). É o que permite usar modelos pequenos |
+| `SttTest` | `false` | Teste: roda o reconhecimento do Whisper sozinho ~25 s após carregar e escreve no log |
+| `SttModel` | `whisper\ggml-small-q5_1.bin` | Modelo do Whisper (relativo à pasta do plugin ou caminho absoluto) |
+| `SttWavTest` | `whisper\jfk.wav` | WAV que o `modia_stt_teste` transcreve. **O pacote não traz esse arquivo** — aponte para um WAV seu |
+| `VoiceEnabled` | `true` | Liga o push-to-talk |
+| `VoiceKey` | `V` | Tecla do push-to-talk |
+| `VoiceLanguage` | `pt` | Idioma da fala (código do Whisper). Vazio ou `auto` detecta |
+| `VoiceMaxSeconds` | `10` | Teto da gravação, em segundos |
+| `VoiceSilenceThreshold` | `0.01` | Quão alto o áudio precisa ser para contar como fala |
+| `VoiceInitialPrompt` | *(vocabulário das ordens, em PT-BR)* | Prompt inicial do Whisper: enviesa o reconhecimento para as palavras das ordens. Coloque as palavras que **você** fala |
+| `VoiceDevice` | `0` | Índice do microfone (o log imprime a lista) |
+| `VoiceShowText` | `true` | Mostra no chat/HUD o que o microfone ouviu |
+| `PanelKey` | `I` | Tecla que abre o **painel da IA** |
+| `TtsEnabled` | `true` | Ele **fala** as respostas (TTS local, Kokoro) |
+| `TtsVoice` | `42` | Voz: `42` pf_dora (fem.), `43` pm_alex (masc.), `44` pm_santa (masc.) |
+| `TtsSpeed` | `1` | Velocidade da fala |
 | `TtsThreads` | `4` | Núcleos da CPU para a síntese |
 | `TtsVolume` | `1` | Volume da voz (0 = mudo) |
-| `TtsModelo` | `tts\kokoro\model.int8.onnx` | Modelo do Kokoro. Vozes/tokens/espeak na **mesma pasta** |
-| `TtsIdioma` | `pt-br` | Idioma do texto falado. **Nunca vazio** |
+| `TtsModel` | `tts\kokoro\model.int8.onnx` | Modelo do Kokoro. Vozes/tokens/espeak na **mesma pasta** |
+| `TtsLanguage` | `pt-br` | Idioma do texto falado. **Nunca vazio** |
 | `TtsCache` | `true` | Guarda as falas já sintetizadas |
-| `TtsFalarRespostas` | `true` | Fala a resposta do modelo |
-| `TtsFalarFalasDoMod` | `true` | Fala a linha do mod que aparece no chat (ganha numa ordem) |
+| `TtsSpeakReplies` | `true` | Fala a resposta do modelo |
+| `TtsSpeakModLines` | `true` | Fala a linha do mod que aparece no chat (ganha numa ordem) |
 | `TtsReverbZoneMix` | `0` | Quanto das zonas de reverb do mundo entra na voz. `0` = seca; `0,19` = um "espaço" sutil |
 | `EcoDiag` | `false` | Diagnóstico de áudio: escreve no log (uma vez por sessão) o `AudioListener`, as zonas de reverb e como as fontes do jogo estão configuradas |
+
+---
+
+## Idioma
+
+O **inglês é o idioma nativo** do mod — e o **português** é a tradução que acompanha esta versão:
+
+- **No jogo**, os **painéis seguem o idioma do Valheim**. Com o jogo em **português**, os nomes das opções do
+  **`F8`** e as abas aparecem em **PT** (`Ligado`, `Modelo`, `VozTecla`…); com o jogo em **inglês**, aparecem os
+  nomes nativos (`Enabled`, `Model`, `VoiceKey`…). O **painel `I`** também é traduzido assim (o conteúdo dele já
+  era PT/EN desde a 1.7.0).
+- **No `.cfg`**, as **chaves e as descrições são em inglês, sempre** — ele **não** muda com o idioma do jogo (o
+  mesmo vale para o `package/CONFIGURATION.md`). É por isso que o **nome da chave é o inglês**, mesmo com o jogo
+  em português: a chave é o identificador da opção, não o rótulo que você lê na tela.
+- **Novos idiomas entram por um arquivo**, sem tocar no código: `Translations/<Idioma>.json` traz os textos da
+  interface (inclusive os nomes das opções e das abas do `F8`) e `Speech/<Idioma>.json` traz as **falas do
+  companheiro** — o mesmo esquema. É a base do multilanguage: o **inglês não precisa de arquivo**, porque as
+  chaves **são** o texto.
 
 ---
 
@@ -196,7 +231,7 @@ Companions Reborn, isto é o que mudou de valor:
 | `[General] MaxCompanions` | *(novo)* | **10** | Teto de companheiros por jogador, contando **vivos + mortos + perdidos** (morrer não abre vaga) |
 | `[Speech] Chatter` | `true` | **`false`** | O chatter aleatório (falinhas a cada 15–30 s) vinha só de um timer. As falas úteis continuam |
 | `[Advanced] UiDiag` | *(novo)* | **`false`** | Diagnóstico de UI (cliques/camadas): opt-in, zero custo desligado |
-| `[IA] EcoDiag` | *(novo)* | **`false`** | Diagnóstico de áudio do companheiro: opt-in |
+| `[AI] EcoDiag` | *(novo)* | **`false`** | Diagnóstico de áudio do companheiro: opt-in |
 
 > Os cinco raios de coleta são migrados automaticamente **só** se estiverem exatamente no valor antigo. Um
 > valor que você escolheu à mão **nunca** é sobrescrito.
@@ -209,10 +244,15 @@ estranho.
 
 ## Vendo tudo no painel `F8`
 
-O painel **`F8`** mostra **todas** as seções do `.cfg`, com os mesmos nomes de chave e os mesmos limites de
-valor. É a forma mais rápida de conferir o que está valendo agora, sem sair do jogo.
+O painel **`F8`** mostra **todas** as seções do `.cfg`, com os mesmos limites de valor. Os **nomes** das
+opções e das **abas** aparecem no **idioma do jogo**: em português você lê `Ligado`, `Modelo`, `VozTecla`…; em
+inglês, os nomes nativos (`Enabled`, `Model`, `VoiceKey`…) — é a própria chave, porque o inglês não precisa de
+tradução. É a forma mais rápida de conferir o que está valendo agora, sem sair do jogo.
 
-![O painel F8 aberto na seção [IA], com Ligado, Temperatura, TimeoutSegundos, Memoria, VozLigada e as demais chaves](images/3-painel-f8.jpg)
+![O painel F8 aberto na seção [AI], com as opções da camada de IA](images/3-painel-f8.jpg)
+
+> O print é da **1.8.2**, quando as chaves se chamavam `Ligado`, `Temperatura`, `TimeoutSegundos`… Na **2.0.0** o
+> arquivo é em inglês; com o jogo em **português** o painel continua mostrando os nomes em PT.
 
 > Os painéis do mod ficam **acima do HUD do jogo** na ordem de desenho — é o que garante que um clique no
 > painel chegue no painel, e não no HUD.

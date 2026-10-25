@@ -17,8 +17,9 @@ skills em `.opencode/skills/`. Leia este arquivo antes de agir.
 O mod se chama **AI Companions** (até 23/10/2026 era **ModAI-BR-Companions**): repositório
 `https://github.com/julianu37/AI-Companions` (a wiki é `AI-Companions.wiki`), pasta de deploy
 `BepInEx\plugins\AI-Companions\` e pacotes `AI_Companions-<versão>.zip`. **Preservados de propósito** (o jogo, os
-saves e a config dependem deles): o GUID e o nome do `.cfg` `Maddhattr.OfflineCompanionsReborn`, o `Companions.dll`,
-o `Companions.csproj`, as chaves `HC_*` e os créditos/avisos do upstream (**MIT**).
+saves e a rede dependem deles): o **GUID** `Maddhattr.OfflineCompanionsReborn`, o `Companions.dll`, o
+`Companions.csproj`, as chaves `HC_*` e os créditos/avisos do upstream (**MIT**). Desde a **2.0.0** o arquivo de
+config é **`BepInEx\config\AiCompanions.cfg`** (o GUID não dá mais nome a ele; ver a fase *4.0 — multilíngue*).
 
 ## Upstream e licença
 
@@ -52,11 +53,11 @@ o `Companions.csproj`, as chaves `HC_*` e os créditos/avisos do upstream (**MIT
   listar o Jotunn como requisito em release/README. (A skill `jotunn` da equipe continua no repositório como
   referência de framework, mas **não** se aplica a este mod.)
 - Target: **.NET Framework 4.7.2 (net472)**, C#.
-- Versão: **1.8.2** — **mergeada e publicada na `main`** em 24/10/2026 (fonte única: `PluginVersion` em
+- Versão: **2.0.0** — **multilíngue (inglês nativo)** em 24/10/2026 (fonte única: `PluginVersion` em
   `src/Companions/Core/CompanionsPlugin.cs`). As releases saíram em sequência em 23–24/10 (`1.7.0` → `1.8.0` →
-  `1.8.1` → `1.8.2`); a **1.7.1 foi pulada de propósito** (pedido do jogador). As branches `feat/multi-companheiro`,
-  `fix/peso-cinto`, `feat/llm-groq` e `feat/provedor-llm` foram mergeadas (`--no-ff`) e podem ser apagadas — a `main`
-  é a linha de release.
+  `1.8.1` → `1.8.2` → `2.0.0`); a **1.7.1 foi pulada de propósito** (pedido do jogador). As branches
+  `feat/multi-companheiro`, `fix/peso-cinto`, `feat/llm-groq`, `feat/provedor-llm` e `languages` foram mergeadas
+  (`--no-ff`) e podem ser apagadas — a `main` é a linha de release.
 
 ## Caminhos desta máquina
 
@@ -114,7 +115,7 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
 `amount`) → `CompanionOrders` (intenção → `CompanionSetup.ApplyActionMode`, `SetCombatStance`, `MHR_JobRules`,
 `DirectEngage`, `EquipItem`, `ItemDrop.DropItem`, recall...).
 
-- **Endpoint (desde a 1.8.1): `[IA] BaseUrl` = `https://api.groq.com/openai/v1` e `[IA] Modelo` = `openai/gpt-oss-20b`**
+- **Endpoint (desde a 1.8.1): `[AI] BaseUrl` = `https://api.groq.com/openai/v1` e `[AI] Model` = `openai/gpt-oss-20b`**
   (**Groq é o padrão**; a `ApiKey` é **obrigatória** — a chave gratuita sai em `console.groq.com/keys`). **Ordem de
   preferência: Groq → LM Studio/Ollama (local) → OpenRouter.** O **LM Studio/Ollama continua suportado** como opção
   local/offline (`http://127.0.0.1:1234/v1` + `qwen2.5-3b-instruct`; `127.0.0.1` e **não** `localhost`, que resolve IPv6
@@ -125,13 +126,14 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   o `gpt-oss-20b` suporta `json_schema` **strict** (o modo que usamos); streaming/tool use não, e o mod não usa nenhum.
   Privacidade: com Groq/OpenRouter o texto da ordem **sai da máquina**; com LM Studio/Ollama, não. A **voz** é local nos
   três casos. (A 1.7.0 tinha aberto o OpenRouter como padrão; a 1.8.1 trocou.)
-- Config `[IA]` no `.cfg` (sem segredos no código): `Ligado`, `BaseUrl`, `Modelo`, `ApiKey`, `Temperatura`,
-  `TimeoutSegundos`, `Prefixo`, `MostrarRespostaNoChat`, `CooldownSegundos`, `RaioDeAlvo` (até onde procurar a
-  criatura citada numa ordem de ataque; a que estiver na mira vale sempre), `Personalidade` (texto livre do
-  jogador, PT-BR, até 600 caracteres), `PresetPersonalidade` (`viking`, `mago`, `sarcastico`, `guia`, `custom`;
-  vazio = padrão), `Memoria` (4 — era 6 até a 3.3b; 0 = desligada, teto 12) e `Conversa` (true). Desde a 1.7.0 boa
+- Config `[AI]` no `.cfg` (sem segredos no código): `Enabled`, `BaseUrl`, `Model`, `ApiKey`, `Temperature`,
+  `TimeoutSeconds`, `Prefix`, `ShowReplyInChat`, `CooldownSeconds`, `TargetRange` (até onde procurar a
+  criatura citada numa ordem de ataque; a que estiver na mira vale sempre), `Personality` (texto livre do
+  jogador, PT-BR, até 600 caracteres), `PersonalityPreset` (`viking`, `mago`, `sarcastico`, `guia`, `custom`;
+  vazio = padrão), `Memory` (4 — era 6 até a 3.3b; 0 = desligada, teto 12) e `Conversation` (true). Desde a 1.7.0 boa
   parte disso é editável **no jogo** (painel `I` → aba IA → *Configurações do LLM*, com **Testar conexão**;
-  `LlmConnectionTest`): a chave é mostrada **mascarada** e o que não cabe lá continua no painel **F8**.
+  `LlmConnectionTest`): a chave é mostrada **mascarada** e o que não cabe lá continua no painel **F8**. (Nomes em
+  inglês desde a 2.0.0 — antes eram `Ligado`, `Modelo`, `Temperatura`….)
 - `Chat.SendText(Talker.Type, string)` é o caminho da mensagem **do próprio jogador** (as recebidas entram
   por `Chat.OnNewChatMessage`) — é o único ponto capturado.
 - `despawn` não é exposto ao modelo. O `amount` é um **ALVO TOTAL** para madeira/pedra/minério (Fase 3.2,
@@ -145,7 +147,7 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   outros jobs o número segue sendo só informativo.
 - **Fase 3.6 — ordens com alvo:** `attack`/`equip`/`drop` usam o campo `target` do JSON e o
   `OrderTargets` (novo) para transformar **nome → criatura** (mira do jogador primeiro, depois a mais próxima
-  dentro de `[IA] RaioDeAlvo`) e **nome → item do inventário do companheiro** (prefab, nome localizado, PT-BR/EN,
+  dentro de `[AI] TargetRange`) e **nome → item do inventário do companheiro** (prefab, nome localizado, PT-BR/EN,
   singular/plural). `attack` passa por `CompanionAI.DirectEngage(..., byOrder: true)` (a criatura nomeada é
   engajada **mesmo na postura Passiva** — a postura não muda); `equip` por `Humanoid.EquipItem`; `drop` por
   `ItemDrop.DropItem` + `Inventory.RemoveItem` (sem número = stack inteiro; a pilha sai do auto-pickup e item de
@@ -175,15 +177,15 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   numa **ordem** a linha localizada do mod **ganha** e o `reply` é só logado (nada de mensagem duplicada). Quem
   fala é o companheiro **mais próximo** que pode receber ordem, e a conversa **não** toma posse dele
   (`MHR_Owner.TakeControl` continua só nas ordens).
-- **Fase 3.3 — ordens por voz (push-to-talk + STT local):** segurar `[IA] VozTecla` (**V**) e falar; ao soltar, o
+- **Fase 3.3 — ordens por voz (push-to-talk + STT local):** segurar `[AI] VoiceKey` (**V**) e falar; ao soltar, o
   áudio é transcrito **dentro do jogo** (`WhisperStt`, Whisper.net in-process, sem HTTP) e o texto entra no
   **mesmo** `CompanionChatAI.Submit(mensagem, origem, announceRefusal)` que o chat usa — ordem, conversa,
-  personalidade e memória são idênticas às do texto digitado (nada de lógica duplicada; `[IA] Prefixo` é só do chat).
+  personalidade e memória são idênticas às do texto digitado (nada de lógica duplicada; `[AI] Prefix` é só do chat).
   `VoiceInput` cuida da captura (`Microphone.Start` **16 kHz mono**, `loop: false`), do trim de silêncio e do
   **WAV PCM 16-bit mono em memória**; `WhisperStt` carrega o modelo **uma vez** e o mantém carregado (pre-warm em
   segundo plano), transcreve numa `Task` de fundo com fila thread-safe drenada no `Update` e serializa o uso do
   nativo (`NativeGate`, compartilhado com o spike `modia_stt_teste` — o modelo **não** é carregado duas vezes).
-  Config `[IA]`: `VozLigada` (true), `VozTecla` (V), `VozIdioma` (pt), `VozDuracaoMaxima` (10 s),
+  Config `[AI]`: `VoiceEnabled` (true), `VoiceKey` (V), `VoiceLanguage` (pt), `VoiceMaxSeconds` (10 s),
   `VozLimiarSilencio` (0.01 — era 0.02 até a 3.3b), `VozPromptInicial` (vocabulário das ordens, novo na 3.3b),
   `VozDispositivo` (0) e `VozMostrarTexto` (true). O microfone é acessado por
   **reflexão** (`VoiceInput.Mic`, 8 membros, uma vez só) porque `UnityEngine.AudioModule` não pode ser referenciado
@@ -192,14 +194,14 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
 - **Fase 3.3b — correções do teste da voz:** (1) **a tecla V é também o *Toggle Auto-Pickup* do Valheim**
   (`ZInput.Reset` → `AddButton("AutoPickup", KeyToPath(Key.V))`; **único** leitor: `Player.Update` →
   `ZInput.GetButtonDown("AutoPickup")`), então `Patches/AutoPickupKeyConflict.cs` põe um **prefixo Harmony em
-  `ZInput.GetButtonDown(string)`** que responde `false` só para `"AutoPickup"` e só quando `[IA] VozLigada` está
-  ligado **e** o binding efetivo do jogo aponta para `[IA] VozTecla` (lido por
+  `ZInput.GetButtonDown(string)`** que responde `false` só para `"AutoPickup"` e só quando `[AI] VoiceEnabled` está
+  ligado **e** o binding efetivo do jogo aponta para `[AI] VoiceKey` (lido por
   `GetButtonDef("AutoPickup").GetActionPath()`); reatribuir o auto-pickup no jogo, `VozLigada = false`, tecla
   desconhecida ou exceção ⇒ **não** bloqueia (o jogo fica intacto) e o jogador é avisado uma vez (log + chat/HUD).
   (2) **STT:** modelo default `whisper\ggml-small-q5_1.bin` (181 MB; o `base` fica em disco), prompt inicial
   (`WithPrompt`, sobrevive ao `WithNoContext`) e trim com limiar `0.01` + folga de `0,2 s`.
   (3) **Latência do LLM medida:** `[IA] Prompt:` (car./tokens) e `[IA] Tempo:` (ms, tokens/s, aviso a partir de 5 s),
-  e `[IA] Memoria` default **4**. Detalhes: `docs/roadmap.md` (Fase 3.3b) e `docs/re/stt-voz-pipeline.md`.
+  e `[AI] Memory` default **4**. Detalhes: `docs/roadmap.md` (Fase 3.3b) e `docs/re/stt-voz-pipeline.md`.
 - **Fase 3.3c — raio de coleta maior + chatter desligado:** (1) os cinco raios da coleta subiram de default
   (`[Advanced] GatheringSearchRadius` 30→**50**, `[Gathering] FollowRange` 10→**25**, `ForageFollowRange` 10→**20**,
   `Range` 40→**60**, `[Advanced] GatheringDropRadius` 8→**12**). Seguindo você, quem limita é o `FollowRange`
@@ -273,7 +275,7 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   `_stopping` (o `Dispose` fica dentro do `lock (NativeGate)`; se o `Join` estourar, o modelo **fica carregado**).
   Playback: **um**
   `AudioSource` **3D** na posição do companheiro (`spatialBlend=1`, `maxDistance = [Speech] CullDistance`), volume
-  de `[IA] TtsVolume`, uma fala por vez (fila), `AudioClip` destruído ao terminar. **Nativos:** o binding é um
+  de `[AI] TtsVolume`, uma fala por vez (fila), `AudioClip` destruído ao terminar. **Nativos:** o binding é um
   `[DllImport("sherpa-onnx-c-api")]` puro (sem loader próprio, ao contrário do Whisper.net) e no Unity o Windows
   procuraria na pasta do **jogo** — `EnsureNativeLibraries` roda antes do 1º uso: `SetDllDirectory(<plugin>\
   runtimes\win-x64\native)`, pré-carrega as duas por caminho absoluto com
@@ -281,11 +283,11 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   processo e o `DllImport` resolve por nome. **`AudioClip`/`AudioSource` por reflexão** (11 membros, uma vez): o
   `UnityEngine.AudioModule` não é referenciável (CS1705 com a fachada netstandard 2.0 fixada pelos pacotes de voz;
   a 2.1 do jogo quebra `Span<T>` → CS7069), o mesmo motivo do `VoiceInput.Mic`. **O que é falado** (regra: a voz
-  acompanha a linha do chat, decidida pela função pura `CompanionChatAI.PickSpokenText`): `[IA] TtsFalarRespostas`
-  = a resposta do modelo (`reply`); `[IA] TtsFalarFalasDoMod` = a linha localizada do mod (numa **ordem** ela
+  acompanha a linha do chat, decidida pela função pura `CompanionChatAI.PickSpokenText`): `[AI] TtsSpeakReplies`
+  = a resposta do modelo (`reply`); `[AI] TtsSpeakModLines` = a linha localizada do mod (numa **ordem** ela
   ganha; numa **conversa** a linha é a própria resposta). Só um dos dois é falado — o outro vai para o log.
   **Prompt:** o contrato passou a exigir `reply` de **UMA frase curta (até ~15 palavras)**, dito que ela é
-  **falada em voz alta**. **Config `[IA]`:** `TtsLigado` (true), `TtsVoz` (42 = pf_dora fem.; 43 = pm_alex,
+  **falada em voz alta**. **Config `[AI]`:** `TtsEnabled` (true), `TtsVoice` (42 = pf_dora fem.; 43 = pm_alex,
   44 = pm_santa masc.), `TtsVelocidade` (1.0), `TtsThreads` (**4**; RTF medido **0,73–0,91**, mais rápido que o
   tempo real), `TtsVolume` (1.0), `TtsModelo` (`tts\kokoro\model.int8.onnx`; `voices.bin`/`tokens.txt`/
   `espeak-ng-data` da mesma pasta), `TtsIdioma` (**`pt-br`**, nunca vazio — o Kokoro é multi-lingue e a lib nativa
@@ -295,7 +297,7 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   `PickSpokenText` **real** (14 casos) → **ALL CHECKS PASSED**, e um harness que sintetizou áudio de verdade com os
   nativos carregados por esse caminho. Detalhes: `docs/re/tts-kokoro-sherpa-onnx.md`.
 - **Fase 3.7 — painel da IA no jogo (abas por companheiro + push-to-talk):** novo `UI/CompanionAiPanel.cs`, aberto pela
-  tecla **`[IA] PainelTecla`** (novo `ConfigEntry<KeyCode>`, padrão **`I`** — livre no jogo e no mod; como é uma letra,
+  tecla **`[AI] PanelKey`** (novo `ConfigEntry<KeyCode>`, padrão **`I`** — livre no jogo e no mod; como é uma letra,
   a tecla é ignorada quando o chat/console/entrada de texto/busca do comerciante está ativo, e a tecla **também** é
   recusada com o inventário, o mapa, o menu ou o painel **F8** abertos — e o `ConfigPanel` recusa abrir enquanto este
   painel está visível, então os dois nunca ficam um sobre o outro). Painel de madeira
@@ -332,7 +334,7 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
     como nome um começo **capitalizado** e que não seja forma de tratamento ("mano", "companheiro", "bora"...); na
     dúvida a ordem segue normal.
   - **3.10 — perfil de IA no ZDO:** `AI/CompanionProfile.cs` — voz (`HC_AiVoice`, 0 = padrão) e personalidade
-    (`HC_AiPersonaSet`/`HC_AiPreset`/`HC_AiPersona`) **por companheiro**, no ZDO dele; os valores `[IA]` viraram o
+    (`HC_AiPersonaSet`/`HC_AiPreset`/`HC_AiPersona`) **por companheiro**, no ZDO dele; os valores `[AI]` viraram o
     **padrão** de quem não tem escolha própria (a primeira entrada das listas é "seguir o padrão"). Lido no prompt e na
     fala; escrito só pelo dono (claim → `IsOwner()` → escrever).
   - **3.10 (lápide) — o perfil sobrevive à morte:** `WriteAiProfile`/`ReadAiProfile` em
@@ -372,7 +374,7 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
     `Helmet`/`Head` quando `m_helmet` está nulo (sem ele o cabelo nasce **fora da cabeça**). (3) Diagnóstico
     `[AppearanceDiag]` (uma linha por ação: ZDO cru, cor guardada → posição dos sliders, estado do attach no preview e
     no companheiro) para não precisar adivinhar se voltar.
-  - **Correção da 1.7.0 — a introdução do OpenRouter:** ver a seção *Camada de IA* (`[IA] BaseUrl`/`Modelo`) e
+  - **Correção da 1.7.0 — a introdução do OpenRouter:** ver a seção *Camada de IA* (`[AI] BaseUrl`/`Modelo`) e
     `docs/wiki/LLM-no-LM-Studio.md` (a página cobre OpenRouter primeiro e o LM Studio como alternativa local).
 - **Fase 3.22 — o peso efetivo do companheiro (1.8.0, branch `fix/peso-cinto`): o Megingjord soma de verdade.** O relato
   do Nexus (*"coloco a megingjord no inventário do companion e ela não aumenta o peso em 150"*) tinha três causas
@@ -434,14 +436,14 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   não se nota), mas a **nossa** `AudioSource` estava no **padrão do Unity (`reverbZoneMix = 1`)** e sem mixer group —
   a fala pegava a cauda inteira. **Correção (ouvida e aprovada em jogo: "limpou"): `reverbZoneMix = 0`** — a voz sai
   **seca**, como a música. O que ficou:
-  - **`[IA] TtsReverbZoneMix`** (float 0–1, **padrão 0** = voz seca) é a opção de verdade: `0,19` (o valor do ambiente
+  - **`[AI] TtsReverbZoneMix`** (float 0–1, **padrão 0** = voz seca) é a opção de verdade: `0,19` (o valor do ambiente
     do jogo) dá um "espaço" sutil, se o jogador quiser. `ApplyReverbZoneMix(source)` roda em `StartChunk` e escreve
     **só quando o valor muda** (a `AudioSource` é criada uma vez e fica na sessão) — vale **na próxima frase**, sem
     reiniciar, e a primeira frase já aplica o 0.
   - **Os 4 interruptores de exploração foram removidos** (`TtsBypassReverbZones`, `TtsBypassListenerEffects`,
     `TtsBypassEffects`, `TtsDoppler`: campos, `Bind`, propriedades e o código de aplicação) — cumpriram o papel, e o
     `.cfg` do jogo perde as chaves sozinho.
-  - **`[IA] EcoDiag`** (bool, `false`) **ficou**, agora como **diagnóstico de áudio geral**: **uma vez por sessão** na
+  - **`[AI] EcoDiag`** (bool, `false`) **ficou**, agora como **diagnóstico de áudio geral**: **uma vez por sessão** na
     primeira frase (prefixo `[ECO]`, `try/catch`, na main thread) escreve o `AudioListener` (nome +
     `AudioReverbFilter`/`AudioLowPassFilter` e valores), **todas as `AudioReverbZone`** da cena
     (`reverbPreset`/`minDistance`/`maxDistance`/`decayTime`/`room` + se o jogador e o companheiro estão **dentro** do
@@ -470,10 +472,10 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   `response_format`/`json_schema`) — timeout, socket morto, 500 e erro de rede **não** são repetidos, e o mesmo corpo
   nunca é enviado duas vezes. Logs: uma linha na 1ª mensagem dizendo que a saída estruturada está ligada (schema, nº de
   ações, tamanho do corpo), uma por queda e **um único aviso** (`WarnNoStructuredOnce`) ao chegar no formato antigo.
-  Cada tentativa tem o **seu** `Timeout`/`ReadWriteTimeout` = `[IA] TimeoutSegundos` (não dividido: o caminho normal é
+  Cada tentativa tem o **seu** `Timeout`/`ReadWriteTimeout` = `[AI] TimeoutSeconds` (não dividido: o caminho normal é
   a tentativa 1 e um modelo lento é o caso comum; um 400 volta em ms, então a cadeia quase não custa tempo) e o
   **watchdog** do slot em voo passou a cobrir as 3 (`TimeoutSegundos × 3 + 10 s` com a saída estruturada ligada, igual
-  a antes quando desligada) para não liberar o slot no meio de um fallback. Config nova `[IA] SaidaEstruturada` (bool,
+  a antes quando desligada) para não liberar o slot no meio de um fallback. Config nova `[AI] StructuredOutput` (bool,
   **true**; aparece sozinha no painel F8). Os três corpos são montados **na main thread** (a `Task` só envia). **Não
   mudou:** o `Contract`, o `LlmIntent`, o fallback da 3.6b, a personalidade/memória, o `KeepAlive`, o `BaseUrl`, o TTS,
   o painel, o STT e as ordens. Detalhes: `docs/roadmap.md` (Fase 3.1 — saída estruturada).
@@ -596,8 +598,8 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   no mod** — foi ele que achou o `HUD` do jogo em 400 engolindo os cliques —, mas ele rodava **sempre** e uma sessão
   saía com **6 linhas / 7.132 caracteres**, das quais **três** eram **falsos positivos** do painel da IA
   (`HC_AiPanel/AiRoot`, `HC_AiPanel/AiRoot/KeyBox`, `HC_AiPanel/AiRoot/Overlay/PersonalityList`). Agora: **config nova
-  `[Advanced] UiDiag`** (bool, **`false`**; na `[Advanced]` e **não** na `[IA]` porque ele audita a **UI do mod** — os
-  dois painéis e a faixa de `UI/ModUiLayers.cs` —, enquanto o `[IA] EcoDiag` diagnostica um componente da IA, a voz);
+  `[Advanced] UiDiag`** (bool, **`false`**; na `[Advanced]` e **não** na `[AI]` porque ele audita a **UI do mod** — os
+  dois painéis e a faixa de `UI/ModUiLayers.cs` —, enquanto o `[AI] EcoDiag` diagnostica um componente da IA, a voz);
   **desligado = zero linha e zero custo** (os dois chamadores, `ConfigPanel.LogRaycastAudit` e
   `CompanionAiPanel.LogRaycastAudit`, saem antes de entrar no `ModUiAudit` — e o flag de "uma vez por sessão" só é
   marcado quando o audit **roda**, então ligar a opção no meio da sessão vale na próxima abertura); **ligado = compacto**
@@ -643,8 +645,23 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   memória cai para 4 quando o config não está pronto; o `UiDiag` perdeu as duas entradas mortas; o rodapé do companheiro
   recalcula quando ele herda o valor global; o banco do Trader é lido 2×/s; e o teto de **`[General] MaxCompanions = 10`**
   barra os três caminhos de criação com aviso localizado. Detalhes: `docs/roadmap.md` (Fase 3.19).
+- **Fase 4.0 — multilíngue com o inglês nativo (2.0.0, branch `languages`):** o mod deixou de ter as configs traduzidas
+  no código. Agora **as chaves e as descrições do `.cfg` são em inglês** (as 237 do upstream foram recuperadas do repo
+  de referência; as nossas — 39 da seção de IA + `CollectRadius`, `UiDiag`, `MinInterval`/`MaxInterval` etc. — foram
+  escritas em inglês) e o **português é tradução**, carregada de `Translations/Portuguese_Brazilian.json`. O arquivo de
+  config passou a ser **`BepInEx\config\AiCompanions.cfg`** (o `Maddhattr.OfflineCompanionsReborn.cfg` é **ignorado** e o
+  jogador volta aos **padrões**; o **GUID continua** o mesmo, e o migrador do upstream `com.profmags.companions.cfg`
+  segue valendo, porque o arquivo dele já era em inglês). A seção de config `[IA]` virou **`[AI]`**. O **F8 ficou
+  bilíngue**: `ConfigPanel.EntryLabel` usa `LocOr("hc_cfg_<seção>_<chave>", <chave>)` e as abas `hc_cat_*` — com o jogo
+  em inglês o texto é a **própria chave** (zero tradução) e com o jogo em PT vem o rótulo do JSON; as **chaves repetidas**
+  entre seções (`MaxDistance`, `Range`, `Radius`, `FollowRange`, `BagFull`, `UsePiles`) resolveram-se porque a seção
+  entra na chave. **Nomenclatura:** nesta doc, menções históricas a `[IA] <chave em PT>` devem ser lidas como
+  `[AI] <Key>` (a tabela completa está no `CHANGELOG` 2.0.0 e na wiki, em *Configuração*); as **linhas de log** mantêm
+  o prefixo **`[IA]`** de propósito (é tag de log, não caminho de config). Descrições PT de referência (v1.8.2):
+  `docs/re/config-descricoes-pt-1.8.2.tsv`. Traduzir para outro idioma = **um arquivo** `Translations/<Idioma>.json`
+  (UI + `hc_cfg_*` + `hc_cat_*`) + `Speech/<Idioma>.json`.
 - **Pendências conhecidas (abertas):** a **voz não passa pelo
-  mixer do jogo** (por isso ignora os sliders de volume do Valheim e só obedece `[IA] TtsVolume`); o **sync com o
+  mixer do jogo** (por isso ignora os sliders de volume do Valheim e só obedece `[AI] TtsVolume`); o **sync com o
   upstream** (estamos **1 release atrás**: base `1.5.4`, `main` na `1.5.5` — ver a seção *Upstream e licença*);
   a **sobreposição do nome do companheiro no centro do radial** (o nome do mundo aparece por trás do centro
   transparente da roda — cosmético, visto nas capturas da 1.7.0); o **risco médio do roster com N companheiros**; e a

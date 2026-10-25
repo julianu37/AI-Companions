@@ -13,10 +13,12 @@ Esta página começa pelo **Groq**, porque ele **já é o padrão** do mod: inst
 opção **local** (**LM Studio**, que continua funcionando igual) e, por último, o **OpenRouter** — que também
 continua funcionando, mas cujo tier gratuito é **lento** e por isso deixou de ser o padrão.
 
-> **Já tem um `.cfg` de uma versão anterior?** Ele **não muda sozinho**: o BepInEx só aplica o valor padrão em chave
-> nova, então quem já configurou OpenRouter ou LM Studio continua exatamente como estava. Trocar para o Groq é
-> opcional — e é só editar `BaseUrl`, `Modelo` e `ApiKey` (no `.cfg` ou na seção **Configurações do LLM** do painel
-> `I`).
+> **Já tem um `.cfg` de uma versão anterior (ou da 1.8.2)?** Na **2.0.0** o arquivo passou a ser
+> **`AiCompanions.cfg`** e as configurações **voltam aos padrões** — inclusive a `ApiKey`, que precisa ser colada
+> de novo. A seção também mudou de nome: era `[IA]`, agora é **`[AI]`**, com as chaves em **inglês** (`Model`, não
+> `Modelo`). O `.cfg` antigo (`Maddhattr.OfflineCompanionsReborn.cfg`) fica no disco e **não** é lido.
+> Trocar para o Groq é opcional — e é só editar `BaseUrl`, `Model` e `ApiKey` (no `.cfg` ou na seção
+> **Configurações do LLM** do painel `I`).
 
 ---
 
@@ -30,27 +32,27 @@ para ele.
 
 1. Abra **https://console.groq.com** e crie a conta (e-mail ou login social).
 2. Vá em **https://console.groq.com/keys** e clique em **Create API Key** (dê um nome qualquer, ex.: `Valheim`).
-3. **Copie a chave gerada** — é ela que vai no `[IA] ApiKey`. Ela aparece **uma vez só**; se fechar a janela sem
+3. **Copie a chave gerada** — é ela que vai no `[AI] ApiKey`. Ela aparece **uma vez só**; se fechar a janela sem
    copiar, crie outra.
 
 ### 1.2. O que colocar no `.cfg` (ou no painel)
 
-Abra `<Valheim>\BepInEx\config\Maddhattr.OfflineCompanionsReborn.cfg` e confira a seção `[IA]`:
+Abra `<Valheim>\BepInEx\config\AiCompanions.cfg` e confira a seção `[AI]`:
 
 ```ini
-[IA]
+[AI]
 BaseUrl = https://api.groq.com/openai/v1
-Modelo = openai/gpt-oss-20b
+Model = openai/gpt-oss-20b
 ApiKey = <a sua chave>
-SaidaEstruturada = true
+StructuredOutput = true
 ```
 
 | Chave | Valor | Por quê |
 |---|---|---|
 | `BaseUrl` | `https://api.groq.com/openai/v1` | Endereço do Groq — **já é o padrão**. O `/chat/completions` é adicionado sozinho |
-| `Modelo` | `openai/gpt-oss-20b` | O modelo aberto da OpenAI servido pelo Groq — **já é o padrão**. É rápido e obedece bem à saída estruturada |
+| `Model` | `openai/gpt-oss-20b` | O modelo aberto da OpenAI servido pelo Groq — **já é o padrão**. É rápido e obedece bem à saída estruturada |
 | `ApiKey` | **a sua chave** | No Groq ela é **obrigatória**. Vazia ou errada, o servidor recusa o pedido com erro de autenticação |
-| `SaidaEstruturada` | `true` | Pede o formato JSON ao servidor — é o que faz modelos pequenos funcionarem. O `gpt-oss-20b` aceita `json_schema` em modo **strict** (decodificação restrita), que é o modo que o mod usa |
+| `StructuredOutput` | `true` | Pede o formato JSON ao servidor — é o que faz modelos pequenos funcionarem. O `gpt-oss-20b` aceita `json_schema` em modo **strict** (decodificação restrita), que é o modo que o mod usa |
 
 Você também pode fazer isso **em jogo**, sem abrir o arquivo: tecla **`I`** → aba **IA** → **Configurações do
 LLM**. É onde ficam a **URL do servidor**, o **Modelo**, a **Chave de API** e os botões **Aplicar** e **Testar
@@ -66,11 +68,11 @@ OpenRouter) — some no LM Studio, que não tem chave.
 
 ![O painel da IA (tecla I), aba IA: o seletor "Selecione seu Provedor LLM" em Groq, a URL do servidor com api.groq.com, o modelo openai/gpt-oss-20b, a chave de API mascarada e, à direita da chave, o botão "Crie sua Chave de API Grátis AQUI"](images/6-painel-ia.jpg)
 
-> No print acima o seletor está em **Groq** (o padrão da 1.8.2), com a URL `https://api.groq.com/openai/v1`, o modelo
+> No print acima o seletor está em **Groq** (o padrão), com a URL `https://api.groq.com/openai/v1`, o modelo
 > `openai/gpt-oss-20b` e a chave mascarada. Trocar o seletor para **LM Studio** ou **OpenRouter** preenche a URL e o
 > modelo daquele provedor — e o botão da chave passa a apontar para a página dele (ou some, no LM Studio).
 
-> `BaseUrl`, `Modelo` e `ApiKey` também aparecem no painel **`F8`**, mas são chaves de **texto**: para colar uma
+> `BaseUrl`, `Model` e `ApiKey` também aparecem no painel **`F8`**, mas são chaves de **texto**: para colar uma
 > chave, o campo do painel `I` (ou o próprio `.cfg`) é mais confortável. O que você salva ali vale na **próxima
 > mensagem**, sem reiniciar o jogo.
 
@@ -84,7 +86,7 @@ manda um pedido mínimo de chat. O resultado é um destes:
 - **Conexão OK: N modelo(s) no servidor** — a URL respondeu.
 - **Conexão OK: … e o modelo configurado está na lista** — o melhor caso.
 - **Conexão OK: … mas "<modelo>" não está na lista** — a URL respondeu, mas o nome não apareceu na lista que o
-  servidor devolve. Confira se o `Modelo` está escrito exatamente `openai/gpt-oss-20b` e siga para o teste em jogo,
+  servidor devolve. Confira se o `Model` está escrito exatamente `openai/gpt-oss-20b` e siga para o teste em jogo,
   mandando uma ordem de verdade.
 - **Falha na conexão: …** — vem com o motivo (status/mensagem do servidor): URL errada, chave vazia/errada,
   endereço sem `http://`/`https://`…
@@ -105,7 +107,7 @@ log, em cada ordem:
 Com o `openai/gpt-oss-20b` no Groq a resposta chega em **fração de segundo** na nossa medição — bem mais rápido que
 o tier gratuito do OpenRouter. O modelo é servido a ~**1.000 tokens/s** e tem janela de **131.072 tokens** (máximo
 de conclusão 65.536), o que sobra para o prompt do mod (fonte: https://console.groq.com/docs/models). O mod avisa no
-log quando uma ordem passa de **5 s**, e o `[IA] TimeoutSegundos` (padrão **30**) é o teto de espera.
+log quando uma ordem passa de **5 s**, e o `[AI] TimeoutSeconds` (padrão **30**) é o teto de espera.
 
 ### 1.5. Limites do tier gratuito
 
@@ -125,7 +127,7 @@ nada fica preso; espere um pouco e mande de novo.
 
 - O teto de **8.000 tokens por minuto** atende uma sessão normal de ordens esporádicas. Uso intenso (muitas ordens
   e conversa o tempo todo) esbarra nele — aí a **opção local** (abaixo) resolve, sem limite de pedidos.
-- O `[IA] CooldownSegundos` (padrão **3**) ajuda: ele evita que uma rajada de mensagens vire uma rajada de pedidos.
+- O `[AI] CooldownSeconds` (padrão **3**) ajuda: ele evita que uma rajada de mensagens vire uma rajada de pedidos.
 - **429** é limite de requisições/tokens, **401** é chave — a diferença está em **[Problemas comuns](Problemas-comuns)**.
 
 > **A saída estruturada continua valendo.** O `gpt-oss-20b` aceita `json_schema` em modo **strict** e também o modo
@@ -189,7 +191,7 @@ Confira na tela:
 | **Modelo carregado** | `qwen2.5-3b-instruct` (READY, ~1,93 GB) |
 | **Parallel** | `4` |
 | **Endpoints** | OpenAI-compatible (`/v1/models`, `/v1/chat/completions`) |
-| **API Model Identifier** | `qwen2.5-3b-instruct` — é **este** nome que vai no `[IA] Modelo` |
+| **API Model Identifier** | `qwen2.5-3b-instruct` — é **este** nome que vai no `[AI] Model` |
 
 > O **API Model Identifier** (no painel *Model Information*) é o nome exato que o servidor expõe. Use-o no
 > `.cfg`, e não o nome da pasta do download.
@@ -199,19 +201,19 @@ Confira na tela:
 O padrão do mod é o Groq, então **troque** as duas primeiras chaves e **apague** a chave de API:
 
 ```ini
-[IA]
+[AI]
 BaseUrl = http://127.0.0.1:1234/v1
-Modelo = qwen2.5-3b-instruct
+Model = qwen2.5-3b-instruct
 ApiKey =
-SaidaEstruturada = true
+StructuredOutput = true
 ```
 
 | Chave | Valor | Por quê |
 |---|---|---|
 | `BaseUrl` | `http://127.0.0.1:1234/v1` | Endereço do servidor do LM Studio. O `/chat/completions` é adicionado sozinho |
-| `Modelo` | `qwen2.5-3b-instruct` | O **API Model Identifier** que o LM Studio mostra |
+| `Model` | `qwen2.5-3b-instruct` | O **API Model Identifier** que o LM Studio mostra |
 | `ApiKey` | *(vazio)* | O LM Studio local não pede chave |
-| `SaidaEstruturada` | `true` | Pede o formato JSON ao servidor — é o que faz modelos pequenos funcionarem |
+| `StructuredOutput` | `true` | Pede o formato JSON ao servidor — é o que faz modelos pequenos funcionarem |
 
 > O **Testar conexão** do painel `I` funciona igual aqui: troque a URL e o modelo nos campos, teste e só depois
 > clique em **Aplicar**.
@@ -237,16 +239,16 @@ cada pedido escolhe um modelo gratuito diferente e passa pela fila do provedor. 
 padrão. Use se você **já tem** a configuração ou quer **testar outro modelo** do catálogo.
 
 ```ini
-[IA]
+[AI]
 BaseUrl = https://openrouter.ai/api/v1
-Modelo = openrouter/free
+Model = openrouter/free
 ApiKey = <a sua chave de openrouter.ai/keys>
 ```
 
 | Chave | Valor | Por quê |
 |---|---|---|
 | `BaseUrl` | `https://openrouter.ai/api/v1` | Endereço do OpenRouter |
-| `Modelo` | `openrouter/free` | **Free Models Router**: a cada pedido ele escolhe um modelo **sem custo** (e filtra os que suportam a saída estruturada) |
+| `Model` | `openrouter/free` | **Free Models Router**: a cada pedido ele escolhe um modelo **sem custo** (e filtra os que suportam a saída estruturada) |
 | `ApiKey` | **a sua chave** | No OpenRouter ela é **obrigatória**. A gratuita sai em **https://openrouter.ai/keys** |
 
 - Os modelos **gratuitos** (com `:free` no nome) têm limite de **20 pedidos por minuto** e um **teto diário** por
@@ -284,7 +286,7 @@ Qualquer endpoint **compatível com a OpenAI** serve — o mod só faz `POST {Ba
 | `openrouter/free` | OpenRouter | Roteador de modelos gratuitos: escolhe um por pedido. Sem instalar nada, mas a latência varia |
 | `google/gemma-4-e4b` | LM Studio | Também funciona, mas é **bem mais lento** (~3 s por ordem) |
 | Modelos maiores | qualquer | Melhores em conversa, mas **precisam de GPU** para responder rápido no local |
-| Modelos pagos do Groq/OpenRouter | — | Basta trocar o `Modelo` pelo nome do catálogo — e, aí, os créditos da conta é que são gastos |
+| Modelos pagos do Groq/OpenRouter | — | Basta trocar o `Model` pelo nome do catálogo — e, aí, os créditos da conta é que são gastos |
 
 ### Outros servidores
 
@@ -298,12 +300,12 @@ Qualquer endpoint **compatível com a OpenAI** serve — o mod só faz `POST {Ba
 
 ### Ajustes úteis
 
-| Chave `[IA]` | Padrão | O que faz |
+| Chave `[AI]` | Padrão | O que faz |
 |---|---|---|
-| `Temperatura` | `0.1` | Mantenha baixo: a mesma ordem deve dar sempre o mesmo JSON |
-| `TimeoutSegundos` | `30` | Quanto esperar pelo modelo. O pedido roda em segundo plano — um modelo lento não trava o jogo |
-| `SaidaEstruturada` | `true` | Se o seu servidor/modelo não suportar, o mod cai sozinho no formato antigo e avisa no log |
-| `CooldownSegundos` | `3` | Tempo mínimo entre duas ordens, para uma rajada de mensagens não inundar o modelo |
+| `Temperature` | `0.1` | Mantenha baixo: a mesma ordem deve dar sempre o mesmo JSON |
+| `TimeoutSeconds` | `30` | Quanto esperar pelo modelo. O pedido roda em segundo plano — um modelo lento não trava o jogo |
+| `StructuredOutput` | `true` | Se o seu servidor/modelo não suportar, o mod cai sozinho no formato antigo e avisa no log |
+| `CooldownSeconds` | `3` | Tempo mínimo entre duas ordens, para uma rajada de mensagens não inundar o modelo |
 
 ---
 
@@ -315,7 +317,7 @@ Os quatro casos abaixo cobrem quase tudo:
 |---|---|---|
 | **401** (*unauthorized* / *invalid api key*) | A `ApiKey` está vazia, errada ou de outro servidor | Cole a chave certa: `console.groq.com/keys` (Groq), `openrouter.ai/keys` (OpenRouter) — ou deixe **vazio** no LM Studio/Ollama |
 | **429** (*rate limit*) | Limite de **requisições ou de tokens** do tier gratuito | Espere alguns segundos e mande a ordem de novo; reduza a frequência; use o LM Studio local para uso intenso |
-| **404** / **400** | A **URL** (`BaseUrl`) ou o **modelo** (`Modelo`) estão errados | Confira `https://api.groq.com/openai/v1` + `openai/gpt-oss-20b` (Groq) ou `https://openrouter.ai/api/v1` + `openrouter/free` (OpenRouter) |
+| **404** / **400** | A **URL** (`BaseUrl`) ou o **modelo** (`Model`) estão errados | Confira `https://api.groq.com/openai/v1` + `openai/gpt-oss-20b` (Groq) ou `https://openrouter.ai/api/v1` + `openrouter/free` (OpenRouter) |
 | **Demora muito** | Fila do provedor ou modelo grande | Veja "a resposta demora" em **[Problemas comuns](Problemas-comuns)** |
 
 O passo a passo de cada sintoma está em **[Problemas comuns](Problemas-comuns)** — inclusive "ele não responde a

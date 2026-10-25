@@ -24,7 +24,7 @@ public class CompanionsPlugin : BaseUnityPlugin
 
 	public const string PluginName = "AI Companions";
 
-	public const string PluginVersion = "1.8.2";
+	public const string PluginVersion = "2.0.0";
 
 	private static Harmony _harmony;
 
@@ -49,14 +49,52 @@ public class CompanionsPlugin : BaseUnityPlugin
 		{
 			Log.LogWarning("[Config] Couldn't copy settings from the old config file: " + ex.ToString());
 		}
-		return new ConfigFile(configPath, saveOnInit: true);
+		ConfigFile file;
+		try
+		{
+			// saveOnInit: false - every Bind writes the file anyway; the creation itself must not take the plugin down
+			// when the path is locked (see the catch below). The metadata keeps the mod listed by the
+			// ConfigurationManager (F1), which scans BaseUnityPlugin.Config.
+			file = new ConfigFile(configPath, saveOnInit: false, MetadataHelper.GetMetadata(this));
+			MHR_AttachToPluginConfig(file);
+			return file;
+		}
+		catch (Exception ex)
+		{
+			Log.LogWarning("[Config] Couldn't create " + ConfigFileName + " (" + ex.Message + ") - falling back to the " + PluginGUID + ".cfg that BepInEx created for the plugin");
+			return base.Config;
+		}
+	}
+
+	/// <summary>
+	/// Points <see cref="BaseUnityPlugin.Config"/> at the file we created, so the third-party config managers (F1) keep
+	/// listing the mod. The property is read-only and its backing field is the only way in; a failure is harmless
+	/// (the mod reads the `ConfigEntry` objects, never `Config`).
+	/// </summary>
+	private void MHR_AttachToPluginConfig(ConfigFile file)
+	{
+		try
+		{
+			System.Reflection.FieldInfo backing = AccessTools.Field(typeof(BaseUnityPlugin), "<Config>k__BackingField");
+			if (backing != null)
+			{
+				backing.SetValue(this, file);
+			}
+		}
+		catch (Exception ex)
+		{
+			Log.LogDebug("[Config] Couldn't attach " + ConfigFileName + " to the plugin config property: " + ex.Message);
+		}
 	}
 
 	private void MHR_MigrateOldConfig(string configPath)
 	{
+		string previous = Path.Combine(Paths.ConfigPath, PluginGUID + ".cfg");
 		string original = Path.Combine(Paths.ConfigPath, "com.profmags.companions.cfg");
 		bool copied = false;
-		if (!File.Exists(configPath) && File.Exists(original))
+		// Only seed from the upstream file for someone coming from the ORIGINAL mod: a 1.8.x player already has the
+		// GUID-named file, and the 2.0.0 reset is on purpose (copying the 2021 file would silently undo it).
+		if (!File.Exists(configPath) && !File.Exists(previous) && File.Exists(original))
 		{
 			File.Copy(original, configPath);
 			copied = true;
@@ -64,7 +102,6 @@ public class CompanionsPlugin : BaseUnityPlugin
 		}
 		// 2.0.0: the settings moved to a new file with English keys. The old PT-keyed file is not migrated on purpose
 		// (the player accepted losing it): its keys are not read any more, so the settings go back to their defaults.
-		string previous = Path.Combine(Paths.ConfigPath, PluginGUID + ".cfg");
 		if (File.Exists(previous))
 		{
 			string fate = copied ? "the settings came from com.profmags.companions.cfg" : "its settings are back to their defaults";
