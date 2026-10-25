@@ -410,8 +410,21 @@ no `CHANGELOG` 2.0.0; o que ficou para depois:
 - **RPCs próprios** (`RPC_Wakeup`/`RPC_Sleep`): não validam remetente (impacto só cosmético hoje).
 - **`ChangeTier`**: crash/disconnect no meio deixa dois ZDOs com o mesmo `HC_CompanionId` **e** a mesma `HC_Gen` (o
   `RemoveStaleCopies` só remove com `Gen` maior). Gravar `Gen + 1` no novo.
-- **Dverger**: depois de unificar a mochila (2.0.0), revisar o equipamento desses tiers (`CanWearArmor`) e o
-  `CompanionInteractPanel._builtForDverger` (o painel ainda esconde os espaços de comida por tier).
+- **Dverger — a mochila do jogador persiste, a que a IA usa não (bug conhecido; a 2.0.0 NÃO mexe)**: nesses tiers o
+  `ContainerAwakePatch` mantém **duas** mochilas — a do `Container` (é a que o jogo **salva** e a que a UI mostra) e a do
+  `Humanoid` (é a que a IA/jobs usam, e ela **não é persistida**). Consequência: o que o jogador põe na mochila fica, mas
+  o que o companheiro coleta/equipa por conta dele se perde no reload. **O que NÃO fazer:** trocar `Container.m_inventory`
+  pelo inventário do `Humanoid` no `Awake` — foi tentado na 2.0.0 e **revertido** (`e8247ff`): o `Container.Awake` já
+  rodou (inclusive o `Load` e o `InvokeRepeating("CheckForChanges")`) antes do swap, o `m_lastRevision` é carimbado no
+  primeiro save e os itens que o jogador deu **deixam de persistir** (sintoma: "a madeira sumiu e o cajado voltou";
+  `[ContainerDiag]` mostrou `SAVE items=1..6` sem nenhum `LOAD applied`). **Caminho seguro para uma tentativa futura:**
+  persistir o inventário do `Humanoid` numa chave **própria** do ZDO (`HC_Inv`), gravando só pelo dono (na mudança, com
+  portão de tempo) e restaurando no spawn — sem tocar em `Container`, `m_inventory`, `Load` ou `CheckForChanges`; validar
+  num mundo de teste antes de encostar no caminho compartilhado.
+- **`inUse` da mochila do companheiro**: o `CompanionContainerUse` marca/libera o container ao abrir/fechar (impede dois
+  jogadores editarem a mesma mochila) e libera um flag órfão após 5 s. Já validado em jogo (abrir/fechar 4 jeitos,
+  troca de mundo, gamepad). Revisar só se algum dia a mochila recusar abrir sem motivo — o `Container.Load` **não**
+  restaura enquanto `m_inUse` for verdadeiro, então um flag preso trava o conteúdo.
 - **Chave `SKK_NoDestroy`** gravada no ZDO do companheiro é de **outro mod** (não é lida aqui) → trocar por
   `HC_NoDestroy`.
 - **Companheiro com `Container` público**: qualquer jogador pode saquear a mochila. Decidir se vira privado (só o
