@@ -12,6 +12,6 @@
 
     <!-- Uncomment to copy Companions.dll into your plugins folder after every build.
          Point this at your BepInEx\plugins folder (use a subfolder for this mod, e.g. the one below). -->
-    <!-- <DeployDir>$(ValheimDir)\BepInEx\plugins\Maddhattr-Offline_Companions_Reborn</DeployDir> -->
+    <!-- <DeployDir>$(ValheimDir)\BepInEx\plugins\AI-Companions</DeployDir> -->
   </PropertyGroup>
 </Project>

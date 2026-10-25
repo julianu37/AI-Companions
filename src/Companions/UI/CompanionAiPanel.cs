@@ -516,6 +516,11 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 	public static CompanionAiPanel Instance { get; private set; }
 
+	/// <summary>2.0.0: the root of the EventSystem the panel creates when the game has none (see EnsureEventSystem).
+	/// The game's own EventSystem is never touched; this one is a DontDestroyOnLoad object of ours, so the plugin
+	/// destroys it on unload.</summary>
+	internal static GameObject EventSystemRoot { get; private set; }
+
 	public bool IsVisible => _visible;
 
 	/// <summary>Creates the (hidden) panel once. Called from the plugin's Awake.</summary>
@@ -810,6 +815,7 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		holder.AddComponent<EventSystem>();
 		holder.AddComponent<StandaloneInputModule>();
 		UnityEngine.Object.DontDestroyOnLoad(holder);
+		EventSystemRoot = holder;
 	}
 
 	/// <summary>The twice-a-second refresh: the voice preview availability, the status line and the automatic close

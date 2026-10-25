@@ -26,6 +26,11 @@ public static class ModLocalization
 	/// language: the new dictionary came back with the game's own keys and none of the mod's.</summary>
 	private static object _lastInjectedInstance;
 
+	/// <summary>2.0.0 (review): one of our keys, written by every injection (it is in <see cref="_englishDefaults"/>).
+	/// Finding it in the game's dictionary is what proves the injection is still there - the language name and the
+	/// instance alone did not, because <c>Localization.SetupLanguage</c> rebuilds that dictionary.</summary>
+	private const string SentinelKey = "hc_ui_settings_title";
+
 	private static readonly Regex EntryRegex = new Regex("\"key\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"[^\"]*\"value\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"", RegexOptions.Compiled);
 
 	private static readonly FieldInfo InstanceField = AccessTools.Field(typeof(Localization), "m_instance");
@@ -607,19 +612,25 @@ public static class ModLocalization
 		{
 			return;
 		}
+		if (!(TranslationsField?.GetValue(loc) is Dictionary<string, string> dictionary))
+		{
+			return;
+		}
 		string selectedLanguage = loc.GetSelectedLanguage();
-		// Fase 3.19: the instance matters as much as the language - see _lastInjectedInstance
-		if (selectedLanguage == _lastInjectedLanguage && ReferenceEquals(_lastInjectedInstance, loc))
+		// 2.0.0 (review): the language name plus the instance were the whole criterion, and they skipped the injection
+		// when the game called SetupLanguage again on the SAME Localization - and SetupLanguage rebuilds the
+		// dictionary, so the mod's keys were gone and the UI went back to showing "$hc_...". The check is the
+		// dictionary itself now: our sentinel still in it means the injection is there (or was redone, in which case
+		// writing it again changes nothing). See SentinelKey.
+		bool sameTarget = selectedLanguage == _lastInjectedLanguage && ReferenceEquals(_lastInjectedInstance, loc);
+		bool reInjected = sameTarget;
+		if (sameTarget && dictionary.ContainsKey(SentinelKey))
 		{
 			return;
 		}
 		_lastInjectedLanguage = selectedLanguage;
 		_lastInjectedInstance = loc;
 		TranslatedKeys.Clear();
-		if (!(TranslationsField?.GetValue(loc) is Dictionary<string, string> dictionary))
-		{
-			return;
-		}
 		if (_englishDefaults != null)
 		{
 			foreach (KeyValuePair<string, string> englishDefault in _englishDefaults)
@@ -643,7 +654,9 @@ public static class ModLocalization
 				num++;
 			}
 		}
-		CompanionsPlugin.Log.LogInfo($"[Localization] Injected {_englishDefaults?.Count ?? 0} defaults + {num} \"{selectedLanguage}\" overrides");
+		CompanionsPlugin.Log.LogInfo(reInjected
+			? $"[Localization] Re-injected {_englishDefaults?.Count ?? 0} defaults + {num} \"{selectedLanguage}\" overrides (the game had rebuilt the dictionary)"
+			: $"[Localization] Injected {_englishDefaults?.Count ?? 0} defaults + {num} \"{selectedLanguage}\" overrides");
 	}
 
 	public static void EnsureDefaultFile()
@@ -729,6 +742,17 @@ public static class ModLocalization
 		if (_initialized)
 		{
 			InjectTranslations(__instance);
+		}
+		// 2.0.0: the companion's spoken lines follow the language as well (Speech/<language>.json), and this is the
+		// only place that knows the language changed. Only a real change reloads (see ReloadForLanguage); the built-in
+		// English lines cover a language that has no file.
+		try
+		{
+			SpeechConfig.ReloadForLanguage(__instance != null ? __instance.GetSelectedLanguage() : null);
+		}
+		catch (Exception ex)
+		{
+			CompanionsPlugin.Log?.LogWarning("[Speech] Couldn't reload the lines for the new language: " + ex.Message);
 		}
 	}
 

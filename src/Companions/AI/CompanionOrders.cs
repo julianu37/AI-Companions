@@ -578,16 +578,21 @@ internal static class CompanionOrders
 			if (PackWords.Contains(word))
 			{
 				pack = true;
+				continue;
 			}
-			else if (CloseWords.Contains(word))
+			bool isClose = CloseWords.Contains(word);
+			if (!isClose && !OpenWords.Contains(word))
 			{
-				verb = true;
-				close = true;
+				continue;
 			}
-			else if (OpenWords.Contains(word))
+			// Fase 3.24 (auditoria): only the FIRST verb decides the direction. close used to be set by any close word
+			// and never cleared, so "abre o inventário e fecha a porta" answered close=true and the wrongWay fix
+			// below turned a correct "inventory" into "inventory_close" - the window never opened.
+			if (!verb)
 			{
-				verb = true;
+				close = isClose;
 			}
+			verb = true;
 		}
 		return pack && verb;
 	}

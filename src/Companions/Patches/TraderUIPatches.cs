@@ -16,12 +16,12 @@ public static class TraderUIPatches
 	{
 		private static bool Prepare()
 		{
-			return Type.GetType("TraderOverhaul.TraderUI, TraderOverhaul") != null;
+			return FindTraderMethod("BuildUI") != null;
 		}
 
 		private static MethodBase TargetMethod()
 		{
-			return Type.GetType("TraderOverhaul.TraderUI, TraderOverhaul")?.GetMethod("BuildUI", BindingFlags.Instance | BindingFlags.NonPublic);
+			return FindTraderMethod("BuildUI");
 		}
 
 		private static void Postfix(object __instance)
@@ -43,12 +43,12 @@ public static class TraderUIPatches
 	{
 		private static bool Prepare()
 		{
-			return Type.GetType("TraderOverhaul.TraderUI, TraderOverhaul") != null;
+			return FindTraderMethod("SwitchTab") != null;
 		}
 
 		private static MethodBase TargetMethod()
 		{
-			return Type.GetType("TraderOverhaul.TraderUI, TraderOverhaul")?.GetMethod("SwitchTab", BindingFlags.Instance | BindingFlags.NonPublic);
+			return FindTraderMethod("SwitchTab");
 		}
 
 		private static bool Prefix(object __instance, int newTab)
@@ -85,12 +85,12 @@ public static class TraderUIPatches
 	{
 		private static bool Prepare()
 		{
-			return Type.GetType("TraderOverhaul.TraderUI, TraderOverhaul") != null;
+			return FindTraderMethod("RefreshTabHighlights") != null;
 		}
 
 		private static MethodBase TargetMethod()
 		{
-			return Type.GetType("TraderOverhaul.TraderUI, TraderOverhaul")?.GetMethod("RefreshTabHighlights", BindingFlags.Instance | BindingFlags.NonPublic);
+			return FindTraderMethod("RefreshTabHighlights");
 		}
 
 		private static void Postfix(object __instance)
@@ -119,12 +119,12 @@ public static class TraderUIPatches
 	{
 		private static bool Prepare()
 		{
-			return Type.GetType("TraderOverhaul.TraderUI, TraderOverhaul") != null;
+			return FindTraderMethod("RefreshTabPanels") != null;
 		}
 
 		private static MethodBase TargetMethod()
 		{
-			return Type.GetType("TraderOverhaul.TraderUI, TraderOverhaul")?.GetMethod("RefreshTabPanels", BindingFlags.Instance | BindingFlags.NonPublic);
+			return FindTraderMethod("RefreshTabPanels");
 		}
 
 		private static void Postfix(object __instance)
@@ -150,12 +150,12 @@ public static class TraderUIPatches
 	{
 		private static bool Prepare()
 		{
-			return Type.GetType("TraderOverhaul.TraderUI, TraderOverhaul") != null;
+			return FindTraderMethod("Update") != null;
 		}
 
 		private static MethodBase TargetMethod()
 		{
-			return Type.GetType("TraderOverhaul.TraderUI, TraderOverhaul")?.GetMethod("Update", BindingFlags.Instance | BindingFlags.NonPublic);
+			return FindTraderMethod("Update");
 		}
 
 		private static void Prefix(object __instance, ref int __state)
@@ -206,6 +206,28 @@ public static class TraderUIPatches
 	}
 
 	private static Type _traderUIType;
+
+	// 2.0.0 (patch audit): the type alone is not a good enough test. TraderOverhaul can rename or remove one of
+	// these methods between releases, and a null TargetMethod makes Harmony throw - which used to abort the whole
+	// PatchAll. Prepare returning false skips only this patch, and TargetMethod never returns null either.
+	private static MethodBase FindTraderMethod(string name)
+	{
+		try
+		{
+			Type type = Type.GetType("TraderOverhaul.TraderUI, TraderOverhaul");
+			if (type == null)
+			{
+				return null;
+			}
+			// Public | NonPublic | Instance: the mod only ever patched Instance|NonPublic, which threw
+			// AmbiguousMatchException on a public overload (Update).
+			return type.GetMethod(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+		}
+		catch (Exception)
+		{
+			return null;
+		}
+	}
 
 	private static FieldInfo _mainPanelField;
 

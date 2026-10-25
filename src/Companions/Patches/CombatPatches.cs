@@ -10,10 +10,16 @@ public static class CombatPatches
 	{
 		private static void Prefix(Character __instance, HitData hit)
 		{
-			if (hit != null && !(hit.m_backstabBonus <= 1f) && !(__instance.GetComponent<CompanionSetup>() == null))
+			// fail-open: a null hit (or a destroyed character) is not ours to touch
+			if (hit == null || __instance == null || hit.m_backstabBonus <= 1f)
 			{
-				hit.m_backstabBonus = 1f;
+				return;
 			}
+			if (__instance.GetComponent<CompanionSetup>() == null)
+			{
+				return;
+			}
+			hit.m_backstabBonus = 1f;
 		}
 	}
 
@@ -48,6 +54,12 @@ public static class CombatPatches
 	{
 		private static void Postfix(BaseAI __instance, ItemDrop.ItemData item, ref bool __result)
 		{
+			// This postfix runs for every BaseAI in the game: a missing item (a fist attack) or a shared data
+			// without a weapon entry must not throw inside the vanilla call - fail open and keep the result.
+			if (item == null || item.m_shared == null)
+			{
+				return;
+			}
 			if (__result && __instance is CompanionAI)
 			{
 				if (item.m_shared.m_animationState == ItemDrop.ItemData.AnimationState.FishingRod)
@@ -152,22 +164,31 @@ public static class CombatPatches
 	{
 		private static bool Prefix(Destructible __instance, HitData hit)
 		{
-			if (HarvestController.IsApplyingAoeDamage)
+			// fail-open on both ends: no hit means the damage is not ours to suppress, and any error inside the
+			// mod's own code hands the damage back to the game (the old code threw out of the prefix)
+			try
+			{
+				if (hit == null || HarvestController.IsApplyingAoeDamage)
+				{
+					return true;
+				}
+				Character attacker = hit.GetAttacker();
+				if (attacker == null)
+				{
+					return true;
+				}
+				HarvestController component = attacker.GetComponent<HarvestController>();
+				if (component != null && component.IsAttackingRockTarget(__instance.gameObject))
+				{
+					component.TryApplyRockAoe();
+					return false;
+				}
+				return true;
+			}
+			catch
 			{
 				return true;
 			}
-			Character attacker = hit.GetAttacker();
-			if (attacker == null)
-			{
-				return true;
-			}
-			HarvestController component = attacker.GetComponent<HarvestController>();
-			if (component != null && component.IsAttackingRockTarget(__instance.gameObject))
-			{
-				component.TryApplyRockAoe();
-				return false;
-			}
-			return true;
 		}
 	}
 
@@ -176,22 +197,29 @@ public static class CombatPatches
 	{
 		private static bool Prefix(MineRock __instance, HitData hit)
 		{
-			if (HarvestController.IsApplyingAoeDamage)
+			try
+			{
+				if (hit == null || HarvestController.IsApplyingAoeDamage)
+				{
+					return true;
+				}
+				Character attacker = hit.GetAttacker();
+				if (attacker == null)
+				{
+					return true;
+				}
+				HarvestController component = attacker.GetComponent<HarvestController>();
+				if (component != null && component.IsAttackingRockTarget(__instance.gameObject))
+				{
+					component.TryApplyRockAoe();
+					return false;
+				}
+				return true;
+			}
+			catch
 			{
 				return true;
 			}
-			Character attacker = hit.GetAttacker();
-			if (attacker == null)
-			{
-				return true;
-			}
-			HarvestController component = attacker.GetComponent<HarvestController>();
-			if (component != null && component.IsAttackingRockTarget(__instance.gameObject))
-			{
-				component.TryApplyRockAoe();
-				return false;
-			}
-			return true;
 		}
 	}
 
@@ -200,22 +228,29 @@ public static class CombatPatches
 	{
 		private static bool Prefix(MineRock5 __instance, HitData hit)
 		{
-			if (HarvestController.IsApplyingAoeDamage)
+			try
+			{
+				if (hit == null || HarvestController.IsApplyingAoeDamage)
+				{
+					return true;
+				}
+				Character attacker = hit.GetAttacker();
+				if (attacker == null)
+				{
+					return true;
+				}
+				HarvestController component = attacker.GetComponent<HarvestController>();
+				if (component != null && component.IsAttackingRockTarget(__instance.gameObject))
+				{
+					component.TryApplyRockAoe();
+					return false;
+				}
+				return true;
+			}
+			catch
 			{
 				return true;
 			}
-			Character attacker = hit.GetAttacker();
-			if (attacker == null)
-			{
-				return true;
-			}
-			HarvestController component = attacker.GetComponent<HarvestController>();
-			if (component != null && component.IsAttackingRockTarget(__instance.gameObject))
-			{
-				component.TryApplyRockAoe();
-				return false;
-			}
-			return true;
 		}
 	}
 
@@ -224,22 +259,29 @@ public static class CombatPatches
 	{
 		private static bool Prefix(TreeBase __instance, HitData hit)
 		{
-			if (HarvestController.IsApplyingAoeDamage)
+			try
+			{
+				if (hit == null || HarvestController.IsApplyingAoeDamage)
+				{
+					return true;
+				}
+				Character attacker = hit.GetAttacker();
+				if (attacker == null)
+				{
+					return true;
+				}
+				HarvestController component = attacker.GetComponent<HarvestController>();
+				if (component != null && component.IsAttackingTreeTarget(__instance.gameObject))
+				{
+					component.TryApplyTreeAoe();
+					return false;
+				}
+				return true;
+			}
+			catch
 			{
 				return true;
 			}
-			Character attacker = hit.GetAttacker();
-			if (attacker == null)
-			{
-				return true;
-			}
-			HarvestController component = attacker.GetComponent<HarvestController>();
-			if (component != null && component.IsAttackingTreeTarget(__instance.gameObject))
-			{
-				component.TryApplyTreeAoe();
-				return false;
-			}
-			return true;
 		}
 	}
 
@@ -248,22 +290,29 @@ public static class CombatPatches
 	{
 		private static bool Prefix(TreeLog __instance, HitData hit)
 		{
-			if (HarvestController.IsApplyingAoeDamage)
+			try
+			{
+				if (hit == null || HarvestController.IsApplyingAoeDamage)
+				{
+					return true;
+				}
+				Character attacker = hit.GetAttacker();
+				if (attacker == null)
+				{
+					return true;
+				}
+				HarvestController component = attacker.GetComponent<HarvestController>();
+				if (component != null && component.IsAttackingTreeTarget(__instance.gameObject))
+				{
+					component.TryApplyTreeAoe();
+					return false;
+				}
+				return true;
+			}
+			catch
 			{
 				return true;
 			}
-			Character attacker = hit.GetAttacker();
-			if (attacker == null)
-			{
-				return true;
-			}
-			HarvestController component = attacker.GetComponent<HarvestController>();
-			if (component != null && component.IsAttackingTreeTarget(__instance.gameObject))
-			{
-				component.TryApplyTreeAoe();
-				return false;
-			}
-			return true;
 		}
 	}
 
@@ -272,13 +321,21 @@ public static class CombatPatches
 	{
 		private static bool Prefix(Character character)
 		{
-			// 1.4.150: companions only - it blocked every creature's ground effects (and Aoe.OnHit uses the result)
-			if (character == null || character.IsPlayer() || character.GetComponent<CompanionSetup>() == null)
+			try
 			{
+				// 1.4.150: companions only - it blocked every creature's ground effects (and Aoe.OnHit uses the result)
+				if (character == null || character.IsPlayer() || character.GetComponent<CompanionSetup>() == null)
+				{
+					return true;
+				}
+				character.GetComponent<HarvestController>()?.NotifyTerrainHit();
+				return false;
+			}
+			catch
+			{
+				// fail-open: an exception here would abort the game's ground-effect spawn
 				return true;
 			}
-			character.GetComponent<HarvestController>()?.NotifyTerrainHit();
-			return false;
 		}
 	}
 

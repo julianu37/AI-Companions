@@ -669,6 +669,9 @@ internal static class CompanionTts
 			CompanionsPlugin.Log?.LogWarning("[TTS] Ainda havia uma sintese em andamento no descarregamento - o modelo ficou carregado.");
 			return;
 		}
+		// Fase 3.23 (auditoria): the worker is gone, so nothing else writes to the queues/cache - free them here. The
+		// cache alone can hold MaxCacheBytes (32 MB) of float[], and the session is over.
+		FreeQueuesAndCache();
 		// the worker is gone, so the gate is free; taking it anyway keeps the rule "the native model is only
 		// touched under NativeGate" (the worker holds it across the Generate call)
 		lock (NativeGate)
@@ -686,6 +689,38 @@ internal static class CompanionTts
 				_tts = null;
 			}
 		}
+	}
+
+	/// <summary>
+	/// Fase 3.23 (auditoria): drops everything that is still buffered - the playback queue, the requests waiting for
+	/// synthesis and the sentence cache (up to <see cref="MaxCacheBytes"/> of audio) - and zeroes the pending counter.
+	/// Called from <see cref="Shutdown"/> after the worker is gone, so nothing puts anything back.
+	/// </summary>
+	private static void FreeQueuesAndCache()
+	{
+		int sentences = 0;
+		long bytes = 0L;
+		lock (_cache)
+		{
+			sentences = _cache.Count;
+			bytes = _cacheBytes;
+			_cache.Clear();
+			_cacheOrder.Clear();
+			_cacheBytes = 0L;
+		}
+		int chunks = 0;
+		while (_ready.TryDequeue(out TtsChunk _))
+		{
+			chunks++;
+		}
+		int requests = 0;
+		while (_requests.TryDequeue(out TtsRequest _))
+		{
+			requests++;
+		}
+		Interlocked.Exchange(ref _pending, 0);
+		CompanionsPlugin.Log?.LogInfo($"[TTS] Descarregamento: {sentences} frase(s) do cache ({bytes / (1024 * 1024)} MB de audio), "
+			+ $"{chunks} trecho(s) de fala e {requests} pedido(s) liberados da memoria.");
 	}
 
 	// ---------------------------------------------------------------- worker (background thread)

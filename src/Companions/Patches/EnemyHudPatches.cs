@@ -93,6 +93,9 @@ public static class EnemyHudPatches
 			_cachedHuds = null;
 			_cachedHudInstance = null;
 			_hudDataGuiField = null;
+			// 2.0.0 (second review): OverheadStats keeps its own mirror of m_huds - dropping it here too, so a
+			// rebuilt HUD can't leave it pointing at the old dictionary (bars would stop fading, silently).
+			OverheadStats.Reset();
 		}
 	}
 

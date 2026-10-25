@@ -22,8 +22,8 @@ def fmt_num(x):
     except: return x
 def fmt_default(d):
     d=d.replace('defaultValue:','').strip()
-    if d=='true': return 'Ligado'
-    if d=='false': return 'Desligado'
+    if d=='true': return 'On'
+    if d=='false': return 'Off'
     if d.startswith('KeyCode.'): return '`'+d[8:]+'`'
     if d.startswith('@"'):
         v=d[2:-1].replace('""','"').replace('\\\\','\\')

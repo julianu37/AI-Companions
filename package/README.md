@@ -300,7 +300,7 @@ todas as chaves está na **[wiki, em Configuração](https://github.com/julianu3
    **vazio**. No jogo, o **Testar conexão** (painel `I`) diz se a URL responde; a **chave** só é validada numa
    ordem de verdade.
 
-**Requisitos:** Valheim **1.0.17** + BepInEx (o BepInExPack já traz o Harmony). Para as ordens, um **LLM**:
+**Requisitos:** Valheim **1.0.x** (testado na **1.0.20**) + BepInEx (o BepInExPack já traz o Harmony). Para as ordens, um **LLM**:
 **Groq** (só a chave gratuita e internet), **LM Studio** local (opcional) ou **OpenRouter** (alternativa). As
 ordens por voz exigem **Windows x64** e um **microfone**.
 

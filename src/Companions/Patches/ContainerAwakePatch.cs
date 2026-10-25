@@ -35,19 +35,12 @@ public static class ContainerAwakePatch
 		}
 		__instance.m_width = 8;
 		__instance.m_height = 4;
-		ZNetView component3 = __instance.GetComponent<ZNetView>();
-		if (component3 != null && component3.GetZDO() != null && CompanionTierData.IsDvergerVariant(component3.GetZDO().GetPrefab()))
-		{
-			ForceInventoryDimensions(__instance.GetInventory(), 8, 4);
-			CompanionsPlugin.Log.LogDebug("[ContainerAwake] Dverger variant, keeping separate inventories");
-			return;
-		}
-		if ((component3 == null || component3.GetZDO() == null) && __instance.gameObject.name.Contains("Dverger"))
-		{
-			ForceInventoryDimensions(__instance.GetInventory(), 8, 4);
-			CompanionsPlugin.Log.LogDebug("[ContainerAwake] Dverger variant (name check), keeping separate inventories");
-			return;
-		}
+		// Every tier shares the humanoid inventory. The old split (the dverger kept the Container's own inventory so
+		// the player saw a pack the AI never used) is gone on purpose: the Container's inventory is the one that gets
+		// saved, so the items the AI put in the humanoid one vanished on reload, and what the player put in the visible
+		// pack was invisible to the AI and the jobs. "Does not wear armor" stays where it always belonged, in
+		// CanWearArmor (equipment), not in a second inventory. The dverger detection that used to log this special case
+		// is no longer needed either: there is nothing special left to say (Fase 3.24).
 		Inventory inventory = component2.GetInventory();
 		if (_inventoryField == null || inventory == null)
 		{

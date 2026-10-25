@@ -61,8 +61,6 @@ internal static class VoiceInput
 
 	private static int _maxSeconds = 10;
 
-	private static bool _prewarmRequested;
-
 	private static bool _warnedNoMic;
 
 	private static bool _warnedMissingModel;
@@ -113,19 +111,17 @@ internal static class VoiceInput
 				HandleTranscript(result);
 			}
 
-			if (!Enabled || Player.m_localPlayer == null)
-			{
-				return;
-			}
-			if (!_prewarmRequested)
-			{
-				// in the world: load the model now, in the background, so the first order is not slower
-				_prewarmRequested = true;
-				WhisperStt.Prewarm();
-			}
-
 			if (_recording)
 			{
+				// Fase 3.23 (auditoria): this block used to sit AFTER the "no player" early return, so leaving the world
+				// with the key held kept _recording = true and the AudioClip alive - and the next world's StopRecording
+				// could submit that stale audio as an order. The recording is handled first, always.
+				if (!Enabled || Player.m_localPlayer == null)
+				{
+					CompanionsPlugin.Log?.LogInfo("[STT] Gravacao cancelada (sem jogador no mundo ou voz desligada).");
+					CancelRecording(null);
+					return;
+				}
 				if (!Application.isFocused)
 				{
 					CancelRecording("o jogo perdeu o foco");
@@ -141,6 +137,14 @@ internal static class VoiceInput
 				}
 				return;
 			}
+
+			if (!Enabled || Player.m_localPlayer == null)
+			{
+				return;
+			}
+			// Fase 3.23 (auditoria): retried every 30 s while the model is not loaded (WhisperStt.MaybePrewarm), so
+			// copying the whisper\ folder - or fixing [AI] SttModel - with the game open no longer needs a restart.
+			WhisperStt.MaybePrewarm();
 
 			if (!Input.GetKeyDown(Key) || !Application.isFocused)
 			{
@@ -498,7 +502,10 @@ internal static class VoiceInput
 		{
 			return null;
 		}
-		if (_raw == null || _raw.Length < total)
+		// Fase 3.23 (auditoria): "!=" and not "<": the clip length changes with [AI] VoiceMaxSeconds, and
+		// AudioClip.GetData refuses a buffer that is not exactly the clip length - with a longer buffer kept from a
+		// previous recording Unity returned false, which the player saw as "I heard nothing" until a restart.
+		if (_raw == null || _raw.Length != total)
 		{
 			_raw = new float[total];
 		}

@@ -527,11 +527,29 @@ public class FarmZonePlacer : MonoBehaviour
 
 	private void SaveZones()
 	{
-		ZDO zDO = _companionNview?.GetZDO();
-		if (zDO != null)
+		CompanionSetup companion = _companion;
+		if (companion == null)
 		{
-			FarmZoneSerializer.Save(zDO, _zones);
+			return;
 		}
+		// A ZDO is written by its owner only, and this used to write regardless: the zones of a companion this game
+		// doesn't own (another player's in multiplayer) stayed in the local replica and were lost. MHR_WriteOrQueue
+		// claims the ZDO, writes right away when it is already ours - unchanged behaviour in single player - and
+		// keeps the write for the next Update when the claim is still on its way (it warns once if it never
+		// arrives). The ZDO is read inside the write, after the claim: claiming can hand this game a new ZDO
+		// instance and the old one is only a replica (same reason as CompanionProfile.Write).
+		// Fase 3.24 (auditoria): the write can run later (MHR_WriteOrQueue), so the list is copied NOW. The closure used
+		// to read _zones, which meant it saved whatever the player had added or removed between the click and the
+		// write that actually landed - not the state the click was about.
+		List<FarmZone> zones = new List<FarmZone>(_zones);
+		companion.MHR_WriteOrQueue(delegate
+		{
+			ZDO zdo = (companion != null) ? companion.GetComponent<ZNetView>()?.GetZDO() : null;
+			if (zdo != null)
+			{
+				FarmZoneSerializer.Save(zdo, zones);
+			}
+		});
 	}
 
 	private static TMP_FontAsset ResolveFont()

@@ -394,6 +394,42 @@ Ordens em **linguagem natural** por cima do mod do upstream. O companheiro conti
 | 3.24 | **Seletor de provedor + link da chave + enxugar o painel** (24/10/2026, 1.8.2, branch `feat/provedor-llm`): novo `AI/LlmProviders.cs` (tabela `Groq`/`LM Studio`/`OpenRouter`/`Personalizado` com `BaseUrl`, `Model` e `KeyUrl`, e `Suggest(baseUrl)` que **deduz** o provedor da própria URL — normalizando esquema, `/v1`, barra final, `/chat/completions` e o `localhost`↔`127.0.0.1` do LM Studio; **nenhuma config nova**, o `.cfg` continua a fonte da verdade). No `CompanionAiPanel`: dropdown "Selecione seu Provedor LLM" (o mesmo do "Tipo" do invocador) **acima da URL**, que só **preenche os campos** (grava no Aplicar) e **nunca toca na `ApiKey`**; botão **"Crie sua Chave de API Grátis AQUI"** na metade direita da linha da chave, com `GoldColor` + texto branco como um toggle ligado, **transição padrão** (realce suave no hover, sem estado depois do clique) e `Application.OpenURL` da URL fixa do provedor (Groq/OpenRouter; **some** no local/personalizado); e a **"Velocidade da fala" saiu do painel `I`** (fica só no F8) — chave `hc_ai_panel_speed` removida dos dois dicionários, painel **976 → 934** e a grade subiu 42 px sem buraco | ✅ **aprovado em jogo** (*"Aprovado!"*) |
 | 4.0 | **Multilíngue com o inglês nativo** (24/10/2026, **2.0.0**, branch `languages`): **quebra o `.cfg`** — arquivo novo `AiCompanions.cfg` (o `Maddhattr.OfflineCompanionsReborn.cfg` é ignorado; GUID preservado; migrador do upstream continua), seção `[IA]` → **`[AI]`** com as **39 chaves em inglês** e **todas as descrições do `.cfg` em inglês** (237 recuperadas do upstream + as nossas escritas em inglês; referência PT em `docs/re/config-descricoes-pt-1.8.2.tsv`). O **F8 ficou bilíngue** (`LocOr("hc_cfg_<seção>_<chave>", <chave>)` + `hc_cat_*`): inglês = a própria chave, português = `Translations/Portuguese_Brazilian.json` (266 rótulos + 22 seções). Traduzir um idioma novo = `Translations/<Idioma>.json` + `Speech/<Idioma>.json` | ✅ testado em jogo (EN e PT) |
 
+#### Backlog da revisão da 2.0.0 (não bloqueia a release)
+
+A revisão completa (geral, Harmony, rede/ZDO e camada de IA) terminou **sem nada bloqueante**. O que foi corrigido está
+no `CHANGELOG` 2.0.0; o que ficou para depois:
+
+- **Multiplayer — sincronização de config**: as 266 chaves são locais; em MP cada peer usa o próprio `.cfg` e quem
+  decide é quem **possui o ZDO naquele instante** (o Valheim migra a posse a cada 2 s). Prever um "host config"
+  (chaves críticas no ZDO do companheiro ou num ZDO de mundo, ou RPC). O `HC_DeathItemRule` já é gravado no ZDO.
+- **Multiplayer — escritas de ZDO sem posse** (não se perdem, mas disputam revisão): adoção de órfão em
+  `CompanionSetup.HC_Owner`, `HC_HomeRadius`, claim de cama vanilla, `HC_RespawnAt`, `HC_FollowPausedByJob`,
+  `ZDOVars.s_sleeping`. Padronizar por `MHR_WriteOrQueue`/`MHR_TryOwn`.
+- **`ZNetScene.Destroy` bloqueado durante o unload do mundo** (`MHR_ZNetSceneDestroy_Patch` + `ProtectCompanions`):
+  liberar quando `Game.instance == null || ZNetScene.instance == null`.
+- **RPCs próprios** (`RPC_Wakeup`/`RPC_Sleep`): não validam remetente (impacto só cosmético hoje).
+- **`ChangeTier`**: crash/disconnect no meio deixa dois ZDOs com o mesmo `HC_CompanionId` **e** a mesma `HC_Gen` (o
+  `RemoveStaleCopies` só remove com `Gen` maior). Gravar `Gen + 1` no novo.
+- **Dverger**: depois de unificar a mochila (2.0.0), revisar o equipamento desses tiers (`CanWearArmor`) e o
+  `CompanionInteractPanel._builtForDverger` (o painel ainda esconde os espaços de comida por tier).
+- **Chave `SKK_NoDestroy`** gravada no ZDO do companheiro é de **outro mod** (não é lida aqui) → trocar por
+  `HC_NoDestroy`.
+- **Companheiro com `Container` público**: qualquer jogador pode saquear a mochila. Decidir se vira privado (só o
+  dono) — hoje é o comportamento herdado.
+- **Navmesh próprio** (`MHR_CompanionNavMesh`): filtro de portas com `GetComponentInParent` por source/tile na main
+  thread (stutter de zone-load) e `AgentType` fixo **40** (risco de colisão com outro mod que crie agente).
+- **`FishingFloat.Setup` reimplementado** por prefix; **túmulo** (`TombStone.UpdateFloater`/`PositionCheck`) por
+  reflexão de nomes; **`SE_Poison`** sem `Finalizer` (se `AddDamage` lançar, o TTL fica alterado).
+- **Gamepad**: `Container.Interact` do companheiro recusa gamepad — o caminho alternativo (roda/HUD) precisa ser
+  confirmado em jogo.
+- **`[AI] Prefixo` vazio por padrão**: toda mensagem do chat vai ao LLM (inclusive conversa com outros jogadores em
+  MP). Estudar `/c` como padrão ou um aviso no painel.
+- **Aviso de timeout** pode ser engolido quando outra mensagem entra em voo (o jogador não sabe que a ordem morreu).
+- **Prints antigos da wiki** (`config-ia.png`, `3-painel-f8.jpg`) mostram os nomes PT de antes da 2.0.0 — as legendas
+  já avisam; trocar por capturas novas num próximo passe.
+- **TTS é pt-BR**: com a resposta no idioma do jogador (2.0.0), uma resposta em inglês é falada com voz portuguesa.
+  Avaliar idioma de voz por idioma de resposta ou silenciar o TTS quando a linha não for PT.
+
 #### Pendências conhecidas (estado em out/2026)
 
 O que **não** está fechado nesta trilha, listado sem enfeite:

@@ -52,25 +52,25 @@ The price of an extra companion at the Trader, in coins from the shared bank. 0 
 **MaxCompanions** — Default: 10 · Range: 1 – 10  
 Phase 3.19: the most companions you can have in this world (10 is the ceiling). The count includes the dead and the lost: the tombstone brings the SAME companion back, so dying does not free a slot. At the limit the Trader, the AI panel summoner and the starter companion refuse to create another (the Shrine can still recover a dead companion). To free a slot, dismiss one from its wheel menu (Despawn).
 
-**SpawnStarterCompanion** — Default: Ligado  
+**SpawnStarterCompanion** — Default: On  
 The first time you enter a world with a character, you're offered one companion for free.
 
-**ResetStarterFlag** — Default: Desligado  
+**ResetStarterFlag** — Default: Off  
 Set to true to be offered the free starter companion again in the current world (on the next world load). It turns itself back to false.
 
-**ShowCompanionRoster** — Default: Desligado  
+**ShowCompanionRoster** — Default: Off  
 Set to true to list your companions in this world and their status: Alive, Dead (its tombstone will bring it back), Lost (nothing left of it - it can be recovered) or Unknown (on a dedicated server, a companion that isn't nearby can't be checked). It turns itself back to false.
 
-**RecoverLostCompanion** — Default: Desligado  
+**RecoverLostCompanion** — Default: Off  
 Set to true to bring back a Lost companion next to you, with its gear and settings from the last roster save. An Unknown companion needs it set a second time within 60 s to confirm (it may still be alive somewhere). If the old companion turns up later, it's removed. It turns itself back to false.
 
-**ProtectCompanions** — Default: Ligado  
+**ProtectCompanions** — Default: On  
 Stops other mods from deleting a companion outright (for example mods that clear creatures out of warded areas). Companions can still die, leave a tombstone and respawn as normal, and the Despawn button still works. When something is blocked, the log says what tried. Turn off only if another mod needs to remove companions.
 
-**ShowMinimapPanel** — Default: Ligado  
+**ShowMinimapPanel** — Default: On  
 Show the companion status panel under the minimap.
 
-**ShowOverheadBars** — Default: Ligado  
+**ShowOverheadBars** — Default: On  
 Show health and stamina bars above each companion's head.
 
 **MaxCarryWeight** — Default: 300 · Range: 50 – 2000  
@@ -85,7 +85,7 @@ A companion's stamina before food (a player has 50).
 **MaxFoodSlots** — Default: 3 · Range: 1 – 5  
 How many different foods a companion can have eaten at the same time (a player has 3).
 
-**StatusEffectsOnRegen** — Default: Ligado  
+**StatusEffectsOnRegen** — Default: On  
 Status effects change a companion's health and stamina regeneration like they do for a player: Wet and Cold slow it, meads and other buffs change it. Off = companions regenerate at their normal rate whatever the effects.
 
 **HomeTripRange** — Default: 60 · Range: 10 – 500  
@@ -129,19 +129,19 @@ How far a following companion lets you get before it moves to keep up. It picks 
 **IndoorDistance** — Default: 4 · Range: 2 – 10  
 The same range while you're indoors (under a roof), so companions stay in the room with you.
 
-**Regroup** — Default: Ligado  
+**Regroup** — Default: On  
 When you stand still for RegroupTime seconds, companions come back and wait close to you. Off = they stay wherever they stopped.
 
 **RegroupTime** — Default: 45 · Range: 5 – 600  
 Seconds you stand still before companions regroup around you (see Regroup).
 
-**SitIndoors** — Default: Ligado  
+**SitIndoors** — Default: On  
 When you stop indoors, companions sit down near you: on a free chair or bench if there is one, otherwise on the floor. Near home they empty their bags first.
 
 **TeleportDistance** — Default: 50 · Range: 20 – 200  
 A following companion that falls this many meters behind appears next to you: right away beyond 1.5x this distance, otherwise once it can't see you and isn't getting any closer.
 
-**StuckTeleport** — Default: Desligado  
+**StuckTeleport** — Default: Off  
 When following you, a companion that has been stuck for 15 seconds somewhere it can't see you appears next to you. Off = it keeps trying to find its own way.
 
 **FormationSpacing** — Default: 3 · Range: 1 – 10  
@@ -172,7 +172,7 @@ How far (meters) a companion can see enemies and other creatures. Takes effect a
 **ViewAngle** — Default: 120 · Range: 30 – 360  
 A companion's field of view (degrees). Takes effect after the world is reloaded.
 
-**Pathing** — Default: Ligado  
+**Pathing** — Default: On  
 Companions find their way with their own map of the world, where doors don't block the way (they open them as they get there) and steps up to 0.6 m are climbable (they hop them). Off = the same map creatures use, where every closed door is a wall and most stairs don't connect. Takes effect after a restart.
 
 **WorkRunDistance** — Default: 25 · Range: 0 – 500  
@@ -206,7 +206,7 @@ When a swimming companion's stamina drops below this share (0.25 = 25%), it head
 
 When companions fight and how they pick weapon and shield.
 
-**EngageOnNotice** — Default: Ligado  
+**EngageOnNotice** — Default: On  
 On: companions attack a creature as soon as it has noticed you or a companion. Off: they wait until it is actually coming for you (alerted). Anything that attacks is always fought back, and Hunt goes after its prey either way.
 
 **HealthRetreatPct** — Default: 0.3 · Range: 0.05 – 0.9  
@@ -227,7 +227,7 @@ A companion with a bow or crossbow switches to it when its target is further awa
 **MeleeSwitchDistance** — Default: 12 · Range: 3 – 40  
 It switches back to its melee weapon when the target comes closer than this (meters).
 
-**UseTorchOpener** — Default: Ligado  
+**UseTorchOpener** — Default: On  
 Against enemies that are weak to fire, open with a torch to set them alight, then switch back to the best weapon.
 
 **TorchOpenerTimeout** — Default: 4 · Range: 1 – 10  
@@ -275,10 +275,10 @@ Seconds after using stamina before it starts coming back.
 
 Sleeping in beds, sitting by the fire and the Rested effect.
 
-**SleepAtNight** — Default: Ligado  
+**SleepAtNight** — Default: On  
 At night, a companion within BedRange of its claimed bed stops what it's doing and goes to bed, including when it's working. It goes back to its job in the morning.
 
-**SleepWhenPlayerSleeps** — Default: Ligado  
+**SleepWhenPlayerSleeps** — Default: On  
 When you get into a bed, your companions within BedRange of their claimed beds go to bed too, even if it isn't night yet. The night skip waits up to 30 seconds for them.
 
 **BedRange** — Default: 50 · Range: 10 – 200  
@@ -303,13 +303,13 @@ When you tell a companion to sit by a fire, it gets up again after this many sec
 
 What happens when a companion dies and how it comes back.
 
-**AutoRespawn** — Default: Ligado  
+**AutoRespawn** — Default: On  
 A dead companion comes back by itself after RespawnDelay seconds if nobody brings it back from its tombstone first.
 
 **RespawnDelay** — Default: 300 · Range: 30 – 3600  
 Seconds after death before a companion comes back by itself.
 
-**RespawnAtWorldSpawn** — Default: Desligado  
+**RespawnAtWorldSpawn** — Default: Off  
 A companion that comes back by itself and has no claimed bed appears at the world spawn stones. Off = next to you.
 
 **DeathItemRule** — Default: 0 · Range: 0 – 3  
@@ -318,7 +318,7 @@ What a companion loses when it dies. 0 = the world's death penalty setting, same
 **TombstoneRecoveryRange** — Default: 50 · Range: 5 – 100  
 A companion walks over and empties its own leftover tombstone when it's within this many meters of it.
 
-**ShrineBuildable** — Default: Ligado  
+**ShrineBuildable** — Default: On  
 Odin's Shrine can be built with the hammer (Misc tab, needs a workbench). Use it to see your companions and bring back a lost one. Takes effect on the next world load; shrines already built keep working.
 
 **ShrineRecipe** — Default: `Stone:10,Wood:5,GreydwarfEye:3`  
@@ -334,7 +334,7 @@ Share of its skills a companion loses when it dies (0.25 = 25%, 0 = none).
 
 Picking up what a kill left on the ground.
 
-**PickUpKills** — Default: Ligado  
+**PickUpKills** — Default: On  
 After a companion kills something it goes over and picks up what the creature dropped (things you'd auto-pickup yourself), like a player would. Needs Auto Pickup on in the wheel.
 
 **Radius** — Default: 6 · Range: 2 – 20  
@@ -381,7 +381,7 @@ Wood, Stone and Ore with Follow on: a tree or rock has to be within this many me
 **ForageFollowRange** — Default: 20 · Range: 3 – 60  
 Forage with Follow on: a plant has to be within this many meters of you - the berries you happen to walk past, not everything around. With nothing that close the companion just follows you. (With Follow off see Range.) Phase 3.3c: 20, was 10 - still short enough for Forage to stay "what you walked past", and not a sweep of the whole area.
 
-**PickUpLoose** — Default: Ligado  
+**PickUpLoose** — Default: On  
 Wood and Stone jobs, early in the game only: also pick up what's lying on the ground by hand - branches (Wood job), loose stones and flint (Stone job) - as long as they're on GatherWood / GatherStone and under their amount. Early game = there's no bronze-or-better axe in the companion's pack, your pack or the chests near home, and no forge at home to make one. With no tool for the job (no axe for Wood, no pickaxe for Stone) picking things up is all it does.
 
 **WoodLimit** — Default: 500 · Range: 0 – 100000  
@@ -429,7 +429,7 @@ Standing trees the Wood job never fells, matched on part of the tree name (Oak, 
 **BaseProtectRadius** — Default: 10 · Range: 0 – 50  
 The Wood job won't fell a standing tree with anything players built within this many meters of its trunk. 0 = off.
 
-**JunkCleanup** — Default: Ligado  
+**JunkCleanup** — Default: On  
 When a gathering companion's pack is full and it has no home chest to unload into, it drops junk (materials and trophies that aren't on any gather list) to make room. Gear, tools, ammo, food, potions, seeds and anything on NeverDiscard are always kept.
 
 **NeverDiscard** — Default: `Trophy`  
@@ -460,16 +460,16 @@ How much further than Range / FollowRange a companion chases prey that runs off 
 **BagFull** — Default: 0.9 · Range: 0.3 – 1  
 With Follow off and home set: when the pack is this full (by weight, or out of free slots) the hunter walks home and puts its catch away, then goes back out.
 
-**Birds** — Default: Ligado  
+**Birds** — Default: On  
 Also shoot birds (crows, gulls, modded birds) for their feathers: when one lands within range, the hunter sneaks up and shoots it with a bow or crossbow (only if it has one with ammo), then picks up the drops. Birds on the Prey list's exclusions (-Crow, -Seagal) are left alone.
 
 **FeatherTarget** — Default: 100 · Range: 0 – 10000  
 Shoot birds only while what they drop (feathers) is under this many, counting the pack and the chests near home. 0 = no limit.
 
-**Sneak** — Default: Ligado  
+**Sneak** — Default: On  
 Sneak up on skittish game (deer, hares...) that hasn't noticed anyone yet, like a player: crouched and not running, so it doesn't bolt. Crouching companions are quieter and harder to spot, like a sneaking player (light and Sneak skill count).
 
-**ThrowSpear** — Default: Ligado  
+**ThrowSpear** — Default: On  
 A hunter holding a spear throws it at skittish game (deer, hares...) from a distance, like a player, then walks over and picks it back up. Only when it has another weapon in its pack to fight on with.
 
 **ThrowRange** — Default: 12 · Range: 4 – 25  
@@ -562,7 +562,7 @@ The most ore (or other input) a companion carries to a smelter in one trip.
 **MaxCarryFuel** — Default: 40 · Range: 1 – 100  
 The most fuel (coal, wood) a companion carries to a smelter in one trip.
 
-**UsePiles** — Default: Ligado  
+**UsePiles** — Default: On  
 When the chests have none of what a smelter or kiln needs (wood for the kiln, fuel...), the Smelt job takes down a pile of it (Stack of Wood...) with a hammer, like a player, and uses that. Needs a hammer in its pack.
 
 ## Cooking
@@ -584,10 +584,10 @@ How many of a food (or mead base) to make in one go, like a player cooking a bat
 **Foods** — Default: `*`  
 What may be cooked. Name:Number is that food's own target instead of FoodTarget. The names to use are listed in OfflineCompanionsReborn.Cooking.txt in the config folder (written at startup). List format (same for every list): * = everything, Name = this one, -Name = never this one, Name:Number = this one with its own amount (0 = no limit). Names are item/creature names (prefab or in-game name).
 
-**StoreWithCookedFood** — Default: Ligado  
+**StoreWithCookedFood** — Default: On  
 Put cooked food in a chest that already holds that food; if there is none, one that holds other cooked food; otherwise the chest nearest the cooking area. Off = the nearest chest with room.
 
-**MakeMead** — Default: Ligado  
+**MakeMead** — Default: On  
 Brew mead: make mead bases and fill fermenters with them. Off = food only (mead that has already finished in a fermenter is still tapped).
 
 **MeadBaseTarget** — Default: 10 · Range: 0 – 1000  
@@ -616,41 +616,41 @@ kall: MeadBaseFrostResist, MeadBaseHealthMajor, MeadBaseHealthLingering, MeadBas
 **FuelLevel** — Default: 0.5 · Range: 0.1 – 1  
 Cook job: keeps the fires under the cooking spots it uses (spit, iron cooking station, cauldron) and the oven at this share of full (0.5 = 50%). When one drops below half of that it tops it back up. Only enough to cook with - Repair and Restock fills fires further if it's on.
 
-**UsePiles** — Default: Ligado  
+**UsePiles** — Default: On  
 Cook job: with no fuel in the chests, take down a pile of it (Stack of Wood...) with a hammer, like a player. Needs a hammer in its pack.
 
-**UseCauldron** — Default: Ligado  
+**UseCauldron** — Default: On  
 Cook job: use the cauldron (soups, stews and other crafted food).
 
-**UsePrepTable** — Default: Ligado  
+**UsePrepTable** — Default: On  
 Cook job: use the food preparation table (dough, raw pies and the like).
 
-**UseMeadKetill** — Default: Ligado  
+**UseMeadKetill** — Default: On  
 Cook job: use the mead ketill (mead bases).
 
-**UseCookingStation** — Default: Ligado  
+**UseCookingStation** — Default: On  
 Cook job: use the cooking station / spit over a fire.
 
-**UseIronCookingStation** — Default: Ligado  
+**UseIronCookingStation** — Default: On  
 Cook job: use the iron cooking station.
 
-**UseOven** — Default: Ligado  
+**UseOven** — Default: On  
 Cook job: use the stone oven (bread, pies; it also gets wood).
 
-**UseFermenter** — Default: Ligado  
+**UseFermenter** — Default: On  
 Cook job: use fermenters (filling them with mead bases and tapping the mead).
 
-**UseBeehives** — Default: Ligado  
+**UseBeehives** — Default: On  
 Cook job: use beehives (collecting honey).
 
-**UseOther** — Default: Ligado  
+**UseOther** — Default: On  
 Cook job: use any other cooking station, e.g. one added by another mod.
 
 ## Repair and Restock
 
 The Repair and Restock job (taking care of your base).
 
-**Repair** — Default: Ligado  
+**Repair** — Default: On  
 Repair and Restock: repair damaged building pieces near home with a hammer, like a player (one swing per piece; the piece's crafting station has to be in range and a ward has to allow it; costs stamina and hammer wear). A hammer is fetched from a chest if it has none.
 
 **RepairBelow** — Default: 0.75 · Range: 0.1 – 1  
@@ -659,49 +659,49 @@ Repair pieces below this much health (0.75 = 75% or less; 1 = any damage at all)
 **Reach** — Default: 4.5 · Range: 2 – 6  
 How far (meters, from the eyes) the companion can reach a piece to repair it. A player reaches about 5 m.
 
-**Restock** — Default: Ligado  
+**Restock** — Default: On  
 Repair and Restock: keep fires, torches and braziers near home fuelled, one piece of fuel at a time like a player. Fuel comes from the pack or is fetched from a chest; what's left over goes back in a chest. The Refuel... settings below pick which kinds.
 
 **FuelBelow** — Default: 0.8 · Range: 0.1 – 1  
 Top up a fire when its fuel is below this share of full (0.8 = 80%). It's filled all the way up.
 
-**RefuelFires** — Default: Ligado  
+**RefuelFires** — Default: On  
 Restock: campfires, fire pits and bonfires.
 
-**RefuelHearths** — Default: Ligado  
+**RefuelHearths** — Default: On  
 Restock: hearths.
 
-**RefuelBraziers** — Default: Ligado  
+**RefuelBraziers** — Default: On  
 Restock: braziers (standing and hanging).
 
-**RefuelStandingTorches** — Default: Ligado  
+**RefuelStandingTorches** — Default: On  
 Restock: standing torches (wood, iron, green, blue, mist).
 
-**RefuelWallTorches** — Default: Ligado  
+**RefuelWallTorches** — Default: On  
 Restock: sconces and wall torches.
 
-**RefuelHotTubs** — Default: Ligado  
+**RefuelHotTubs** — Default: On  
 Restock: hot tubs.
 
-**RefuelOther** — Default: Ligado  
+**RefuelOther** — Default: On  
 Restock: anything else that burns fuel and isn't one of the kinds above (lanterns, the jack-o-turnip, things added by other mods).
 
-**Honey** — Default: Ligado  
+**Honey** — Default: On  
 Repair and Restock: empty the beehives in its area and put the honey away in the chest that already holds the most honey.
 
 **HoneyAt** — Default: 0.5 · Range: 0.1 – 1  
 Empty a beehive once it's at least this full (0.5 = half full, 1 = only when full).
 
-**Sort** — Default: Ligado  
+**Sort** — Default: On  
 Repair and Restock: sort the chests in its area (around home, or around where the job was started), like with like: each kind of item is carried to the chest that already holds the most of it, and part-stacks are merged.
 
 **SortItems** — Default: `*`  
 Which items get sorted. Comma-separated: * = everything, Name = this one, -Name = never this one (e.g. *, -Coins, -Wood keeps coins and wood where they are). Prefab or in-game names.
 
-**SortGear** — Default: Desligado  
+**SortGear** — Default: Off  
 Also sort things that don't stack (weapons, armor, tools). Off: only stackable items are moved.
 
-**Piles** — Default: Ligado  
+**Piles** — Default: On  
 Repair and Restock: stack wood, stone and the like from the chests into piles (the game's Stack of Wood, Stone Pile, Fine Wood Stack...), built with a hammer like a player. Only next to piles of the same kind you already built - it never starts a new pile somewhere on its own.
 
 **PileKeep** — Default: 100 · Range: 0 – 10000  
@@ -726,7 +726,7 @@ After you give the companion an order (send it somewhere, sit by a fire...), it 
 
 What a companion does when its job has nothing to do.
 
-**Enabled** — Default: Ligado  
+**Enabled** — Default: On  
 When its job has had nothing to do for a while (and it isn't following you), a companion idles near its job instead of standing still: small chores, sitting down, wandering about, chatting. It stops the moment the job has work again.
 
 **StartAfter** — Default: 10 · Range: 1 – 300  
@@ -735,19 +735,19 @@ Seconds with nothing to do before it starts idling.
 **Radius** — Default: 8 · Range: 2 – 40  
 How far (meters) from where its job left it a companion wanders, sits or looks for company while idle.
 
-**Chores** — Default: Ligado  
+**Chores** — Default: On  
 While idle, do small chores nearby: repair damaged pieces, top up fires, collect honey, put away what it carries (uses the Repair and Restock settings).
 
 **ChoreRadius** — Default: 15 · Range: 2 – 60  
 How far (meters) it looks for idle chores.
 
-**Sit** — Default: Ligado  
+**Sit** — Default: On  
 While idle, sit down for a while - on a free chair or bench nearby, else on the ground.
 
-**Wander** — Default: Ligado  
+**Wander** — Default: On  
 While idle, stroll about nearby and look over stations and chests.
 
-**Socialize** — Default: Ligado  
+**Socialize** — Default: On  
 While idle, go over to you or another companion nearby and chat now and then.
 
 **SpeechInterval** — Default: 300 · Range: 0 – 3600  
@@ -757,7 +757,7 @@ At most every this many seconds it says why it's idle (and chats while socializi
 
 How often companions speak and how long the lines stay on screen.
 
-**Chatter** — Default: Desligado  
+**Chatter** — Default: Off  
 Companions talk to themselves now and then when nothing is happening: a line about a fight nearby, being too heavy, being hungry, worn gear, no bed, the job they're on, or just following you. Off (Phase 3.3c) = no random speech at all. They still speak when something actually happens: an order (chat or voice), a change of mode ("On it!"), the AI replies, a fish caught, a farming/repair/smelting milestone, a tombstone found, unloading near home. The idle lines are separate ([Idle] SpeechInterval). Turn it on to go back to the old behaviour.
 
 **MinInterval** — Default: 15 · Range: 5 – 120  
@@ -842,14 +842,14 @@ Death: seconds between looks for its own leftover tombstone nearby.
 **TombstoneNavTimeout** — Default: 120 · Range: 10 – 600  
 Death: seconds a companion keeps trying to get to its tombstone before giving up.
 
-**UiDiag** — Default: Desligado  
+**UiDiag** — Default: Off  
 UI diagnostics: when on, writes to the log what is in front of the controls of the F8 panel and the AI panel (once per session, the first time each panel is opened): how many click targets each panel has (the controls and the ones that are there on purpose), every active layer in the scene (name and order) and, for each canvas above the panel, the targets that cover the controls column. It is what you turn on when a click or the UI looks odd (a button that doesn't answer, text on top of something, a swallowed click): the log says who is in front. Off (default) writes nothing and costs nothing; on, the log grows a lot (one summary line per panel, plus one line per suspect target). It changes nothing in the game - it only reports.
 
 ## AI
 
 The AI layer of the project: text and voice orders, personality, memory, speech recognition and the companion's voice.
 
-**Enabled** — Default: Ligado  
+**Enabled** — Default: On  
 Phase 3.1: type an order in the game chat ("collect 20 wood", "follow", "stop") and the companions carry it out. The order is interpreted by an LLM (Groq by default, or a local server, or OpenRouter) through an OpenAI-compatible API. Off = nothing is sent to the model.
 
 **BaseUrl** — Default: `https://api.groq.com/openai/v1`  
@@ -870,7 +870,7 @@ Seconds to wait for the model before giving up. The request runs in the backgrou
 **Prefix** — Default: ``  
 Only chat messages that start with this go to the model (for example /c). Empty = every chat message is sent. Text option: edit it in the .cfg file.
 
-**ShowReplyInChat** — Default: Ligado  
+**ShowReplyInChat** — Default: On  
 Shows the model's raw reply in the chat, so you can see what it understood. Useful while testing; turn it off for a cleaner chat.
 
 **CooldownSeconds** — Default: 3 · Range: 0 – 60  
@@ -888,13 +888,13 @@ Phase 3.5: a ready-made personality, written in Portuguese inside the mod: vikin
 **Memory** — Default: 4 · Range: 0 – 12  
 Phase 3.5: how many recent exchanges (one message from you + one from the companion) the companion remembers and sends along with the next message, to keep the thread of the conversation. 0 = no memory. Kept per companion, in memory only (nothing is saved in the world) and forgotten when the companion dies or is dismissed. Every exchange makes the prompt the model has to read bigger, so keep it small for faster replies (Phase 3.3b: 4, was 6).
 
-**Conversation** — Default: Ligado  
+**Conversation** — Default: On  
 Phase 3.5: when the message is NOT an order ("good morning", "how are you?", "what did you think of my house?"), the companion answers as conversation: it says the reply out loud (speech bubble) and shows it in the chat. Orders keep working exactly as before. Off = only orders are understood, as in Phase 3.1.
 
-**StructuredOutput** — Default: Ligado  
+**StructuredOutput** — Default: On  
 Asks the server to force the JSON format (response_format/json_schema). It keeps the model's reply always valid and is what allows small, fast models (e.g. a 3B) to be used without them answering loose text. Turn it off if your server does not support it - the mod falls back to the old format on its own and says so in the log.
 
-**SttTest** — Default: Desligado  
+**SttTest** — Default: Off  
 SPIKE (test): runs the in-process Whisper.net speech recognition test by itself, about 25 seconds after the plugin loads, and writes the result to the log. Off = only the "modia_stt_teste" console command runs it. It is a simple test: it does not listen to the microphone and changes no companion behaviour.
 
 **SttModel** — Default: `whisper\ggml-small-q5_1.bin`  
@@ -903,7 +903,7 @@ Whisper model the speech recognition loads (the voice orders AND the "modia_stt_
 **SttWavTest** — Default: `whisper\jfk.wav`  
 SPIKE (test): the WAV file to transcribe, relative to the plugin folder (or an absolute path). It must be PCM WAV (16 kHz mono is ideal). Text option: edit it in the .cfg file.
 
-**VoiceEnabled** — Default: Ligado  
+**VoiceEnabled** — Default: On  
 Phase 3.3: hold VoiceKey and speak, and the companion accepts what you said - the same orders you can type in the chat ("collect 10 wood", "follow", "attack the greydwarf"). The speech is recognised locally, inside the game, by Whisper.net with the SttModel model: nothing is sent anywhere. Off = the key does nothing (and, in Phase 3.3b, the key goes back to doing what the game did with it).
 
 **VoiceKey** — Default: `V`  
@@ -930,13 +930,13 @@ Ordens para o companheiro: colete madeira, pedra, minerio, ferro, segue, para, v
 **VoiceDevice** — Default: 0 · Range: 0 – 8  
 Phase 3.3: which microphone to record from, as the index of the list the log prints at startup ([STT] Push-to-talk: ... 0: name, 1: name). 0 = the first one (the Windows default).
 
-**VoiceShowText** — Default: Ligado  
+**VoiceShowText** — Default: On  
 Phase 3.3: shows what the microphone heard ("Entendi: "collect 10 wood"") in the chat and on the HUD. Phase 3.3d: the transcription appears in the PLAYER's own bubble (not the companion's), so a wrong transcription is easy to spot - the one who answers is the companion, with its own bubble and VOICE. Off = the recognised text is only written to the log.
 
 **PanelKey** — Default: `I`  
 Phase 3.7: opens the AI panel in game. The AI tab has the free companion summoner, the speech volume and speed, the memory, the conversation and the push-to-talk key. Each companion has its own tab, with the name, the tier (reborn), the voice (with the Listen button) and ITS personality - the [AI] values below are the default of whoever has no choice of its own. Every change is saved right away. The default is I: neither the game nor the mod uses that key. The key is not stolen from a text box (the chat, the console and the search field are left in peace). Key option: edit it in the .cfg file or click it in the F8 panel.
 
-**TtsEnabled** — Default: Ligado  
+**TtsEnabled** — Default: On  
 Phase 3.4: the companion SPEAKS the replies out loud. The speech is synthesised on your computer by Kokoro-82M (via sherpa-onnx, inside the game, no child process and nothing leaving your machine), in the TtsVoice voice, and comes out where the companion is (not in the middle of the screen). Off = it only shows the bubble and the chat, as before. The first speech of every session waits for the model to load (~1 s, in the background, when you enter the world).
 
 **TtsVoice** — Default: 42 · Range: 0 – 100  
@@ -957,17 +957,17 @@ Phase 3.4: the Kokoro model the companion speaks with (relative to the plugin fo
 **TtsLanguage** — Default: `pt-br`  
 Phase 3.4: language of the spoken text, in the format Kokoro expects. This model is multi-lingual and REQUIRES a language: "pt-br" is Brazilian Portuguese ("pt" alone is European Portuguese). Empty goes back to "pt-br". Text option: edit it in the .cfg file.
 
-**TtsCache** — Default: Ligado  
-Phase 3.4: keeps the speeches already synthesised (text + voice + speed) to play them again instantly. The mod's fixed lines ("Já temos o suficiente.") come out instantly; the memory used is small. Off = every speech is synthesised again.
+**TtsCache** — Default: On  
+Phase 3.4: keeps the speeches already synthesised (text + voice + speed) to play them again instantly. The mod's fixed lines ("Ok: gathering wood (10).") come out instantly; the cache holds up to 32 MB of audio (the oldest sentences are dropped first). Off = every speech is synthesised again.
 
-**TtsSpeakReplies** — Default: Ligado  
+**TtsSpeakReplies** — Default: On  
 Phase 3.4: speaks the model's reply out loud (the "reply" field). In a conversation it is its answer; in an order, when TtsSpeakModLines is off, it is the confirmation in its own way ("Deixa comigo.").
 
-**TtsSpeakModLines** — Default: Ligado  
+**TtsSpeakModLines** — Default: On  
 Phase 3.4: speaks out loud the mod's own line that shows in the chat/HUD ("Ok: coletar madeira (10).", "Atacando o troll.", "Já temos o suficiente."). In an ORDER it wins over the model's reply (the voice follows what is written on the screen); turn it off to hear the model's reply instead. Nothing is spoken twice: with both options on, the line that is not spoken only goes to the log.
 
 **TtsReverbZoneMix** — Default: 0 · Range: 0 – 1  
 How much of the world's reverb zones goes into the companion's voice. 0 (default) = dry voice. Valheim has a global reverb zone (1000 m radius, 4 s tail) that made the companion's speech 'echo like in a cave' - the game's music uses 0 and the ambience 0.19. Raise it a little (e.g. 0.19) if you want a subtle 'space' in the voice. It applies to the next sentence, no restart.
 
-**EcoDiag** — Default: Desligado  
+**EcoDiag** — Default: Off  
 Audio diagnostics: when on, writes to the log (once per session, on the first spoken sentence) the scene's AudioListener, the world's reverb zones and how the game's own sources are configured (mixer, reverb, bypass). Use it to investigate any sound problem with the companion. It does not change the sound - it only reports.

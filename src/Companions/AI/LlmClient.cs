@@ -23,6 +23,13 @@ internal sealed class LlmResult
 
 	internal string Error;
 
+	/// <summary>
+	/// Fase 3.23 (auditoria): the whole failure text. <see cref="Error"/> is the short version that goes to the chat
+	/// and the HUD (see <see cref="LlmClient.ShortError"/>); this one is what the format refusal is read from, so a
+	/// long HTTP body can be cut for the player without losing the "response_format" word.
+	/// </summary>
+	internal string ErrorDetail;
+
 	internal string UserText;
 
 	internal string Content;
@@ -54,6 +61,14 @@ internal static class LlmClient
 	private static int _nextId;
 
 	private static float _busySince;
+
+	/// <summary>
+	/// Fase 3.23 (auditoria): when the request in flight gives up (see <see cref="Tick"/>), fixed when the request
+	/// starts. It used to be recomputed from the config on every frame, so editing the timeout (or the structured
+	/// output) in the F8 panel while a request was in the middle of the fallback chain could free the in-flight slot
+	/// under it.
+	/// </summary>
+	private static float _busyDeadline;
 
 	/// <summary>Fase 3.1 (saída estruturada): said once, on the first message that goes out with it.</summary>
 	private static bool _loggedStructured;
@@ -139,6 +154,11 @@ internal static class LlmClient
 		int timeoutSeconds = ModConfig.AiTimeoutSeconds != null ? ModConfig.AiTimeoutSeconds.Value : 30;
 		int timeoutMs = Mathf.Max(1000, timeoutSeconds * 1000);
 		bool structured = ModConfig.AiStructuredOutput != null && ModConfig.AiStructuredOutput.Value;
+		// Fase 3.1 (saída estruturada): one message may cost up to three tries (json_schema -> json_object -> plain),
+		// each with its own timeout, so the watchdog has to cover all of them. Fase 3.23 (auditoria): the deadline is
+		// fixed HERE, with the values this request froze - it used to be recomputed from the config on every frame, so
+		// editing the timeout in the F8 panel mid-request could free the slot in the middle of the fallback chain.
+		_busyDeadline = _busySince + timeoutSeconds * (structured ? 3 : 1) + WatchdogMarginSeconds;
 
 		// Fase 3.1 (saída estruturada): the tries are built here, on the main thread, together with every other
 		// config value - the background task only sends them. The first one is the request that normally goes out.
@@ -163,11 +183,14 @@ internal static class LlmClient
 			}
 			catch (Exception ex)
 			{
+				// Fase 3.23 (auditoria): the type, not ex.Message - it can carry the URL (with credentials)
+				string detail = ex.GetType().Name + " at " + DescribeEndpoint(url);
 				result = new LlmResult
 				{
 					Ok = false,
 					UserText = userText,
-					Error = ex.Message
+					Error = ShortError(detail),
+					ErrorDetail = detail
 				};
 			}
 			result.Id = id;
@@ -191,7 +214,7 @@ internal static class LlmClient
 	/// </summary>
 	internal static void Tick()
 	{
-		if (Busy && Time.realtimeSinceStartup - _busySince > WatchdogSeconds())
+		if (Busy && Time.realtimeSinceStartup > _busyDeadline)
 		{
 			int id = _busyId;
 			CompanionsPlugin.Log?.LogWarning($"[IA] Request #{id} timed out without an answer - the in-flight slot was freed and the chat was told");
@@ -206,6 +229,25 @@ internal static class LlmClient
 		}
 	}
 
+	/// <summary>
+	/// Fase 3.23 (auditoria): world change. Throws away the answers still in the queue and frees the in-flight slot, so
+	/// a request of the previous world is never applied in the new one - called next to <see cref="CompanionChatAI.Reset"/>
+	/// on the scene load. Main thread only; the background task that is still running finds the slot taken by nobody and
+	/// its answer is dropped when it lands (<see cref="CompanionChatAI.Tick"/> discards any id it is not waiting for).
+	/// </summary>
+	internal static void Reset()
+	{
+		int dropped = 0;
+		while (_finished.TryDequeue(out LlmResult _))
+		{
+			dropped++;
+		}
+		Interlocked.Exchange(ref _busy, 0);
+		_busyId = 0;
+		_busyDeadline = 0f;
+		CompanionsPlugin.Log?.LogInfo($"[IA] Fila do LLM limpa (troca de mundo): {dropped} resposta(s) descartada(s), nenhuma requisicao em andamento.");
+	}
+
 	/// <summary>Releases the in-flight slot, but only for the request that owns it (Fase 3.19: the answer of a request
 	/// the watchdog already gave up on must not release the slot of the one that is running now).</summary>
 	internal static void MarkDone(int id)
@@ -218,15 +260,8 @@ internal static class LlmClient
 		Interlocked.Exchange(ref _busy, 0);
 	}
 
-	private static float WatchdogSeconds()
-	{
-		int timeoutSeconds = ModConfig.AiTimeoutSeconds != null ? ModConfig.AiTimeoutSeconds.Value : 30;
-		// Fase 3.1 (saída estruturada): one message may cost up to three attempts (json_schema -> json_object ->
-		// plain), each with its own timeout, so the watchdog has to cover all of them. Otherwise it would free the
-		// in-flight slot while a fallback was still running and the next message could start on top of it.
-		int attempts = ModConfig.AiStructuredOutput != null && ModConfig.AiStructuredOutput.Value ? 3 : 1;
-		return timeoutSeconds * attempts + 10f;
-	}
+	/// <summary>Extra time on top of the tries, so the watchdog never fires while a try is still inside its own timeout.</summary>
+	private const float WatchdogMarginSeconds = 10f;
 
 	/// <summary>
 	/// Sends the tries in order and stops at the first one the server accepts. Fase 3.1 (saída estruturada): the only
@@ -255,10 +290,10 @@ internal static class LlmClient
 			{
 				break;
 			}
-			CompanionsPlugin.Log?.LogWarning($"[IA] Saida estruturada (\"{attempt.Label}\") recusada pelo servidor: {result.Error}");
+			CompanionsPlugin.Log?.LogWarning($"[IA] Saida estruturada (\"{attempt.Label}\") recusada pelo servidor: {result.ErrorDetail ?? result.Error}");
 			if (attempts[i + 1].ResponseFormat == null)
 			{
-				WarnNoStructuredOnce(result.Error);
+				WarnNoStructuredOnce(result.ErrorDetail ?? result.Error);
 			}
 		}
 		result.ElapsedMs = (int)((DateTime.UtcNow.Ticks - started) / TimeSpan.TicksPerMillisecond);
@@ -322,17 +357,48 @@ internal static class LlmClient
 		catch (WebException wex)
 		{
 			result.Ok = false;
-			result.Error = ReadWebException(wex);
+			// the full text is kept for the format check (RejectedFormat) and for the log; only a readable head of it
+			// reaches the chat/HUD (see MaxErrorChars)
+			string detail = ReadWebException(wex);
 			result.StatusCode = StatusCodeOf(wex);
-			CompanionsPlugin.Log?.LogWarning("[IA] Request failed: " + result.Error);
+			result.ErrorDetail = detail;
+			result.Error = ShortError(detail);
+			CompanionsPlugin.Log?.LogWarning("[IA] Request failed: " + detail);
 		}
 		catch (Exception ex)
 		{
 			result.Ok = false;
-			result.Error = ex.Message;
-			CompanionsPlugin.Log?.LogWarning("[IA] Request failed: " + ex);
+			// Fase 3.23 (auditoria): never ex.Message here - a request URL with the credentials in it (a key written
+			// in the URL, which some remote setups use) would end up in the log and in the chat. The endpoint without
+			// the query and the exception TYPE are what the log needs to tell the failures apart.
+			string detail = ex.GetType().Name + " at " + DescribeEndpoint(url);
+			result.ErrorDetail = detail;
+			result.Error = ShortError(detail);
+			CompanionsPlugin.Log?.LogWarning("[IA] Request failed: " + detail);
 		}
 		return result;
+	}
+
+	/// <summary>
+	/// Fase 3.23 (auditoria): how much of an error goes to the chat/HUD. A 429 from a free API answers with hundreds
+	/// of characters of JSON, and all of it used to be pasted into the game chat (the "short body" idea of
+	/// LlmConnectionTest, with a little more room).
+	/// </summary>
+	internal const int MaxErrorChars = 120;
+
+	/// <summary>One line, at most <see cref="MaxErrorChars"/> characters. Null/empty comes back as "?".</summary>
+	internal static string ShortError(string text)
+	{
+		if (string.IsNullOrEmpty(text))
+		{
+			return "?";
+		}
+		string oneLine = text.Replace('\n', ' ').Replace('\r', ' ').Trim();
+		if (oneLine.Length <= MaxErrorChars)
+		{
+			return oneLine;
+		}
+		return oneLine.Substring(0, MaxErrorChars) + "...";
 	}
 
 	/// <summary>
@@ -346,7 +412,7 @@ internal static class LlmClient
 		{
 			return true;
 		}
-		string error = result.Error ?? "";
+		string error = result.ErrorDetail ?? result.Error ?? "";
 		return error.IndexOf("response_format", StringComparison.OrdinalIgnoreCase) >= 0
 			|| error.IndexOf("json_schema", StringComparison.OrdinalIgnoreCase) >= 0;
 	}

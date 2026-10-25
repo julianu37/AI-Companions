@@ -32,30 +32,60 @@ public class CompanionHudPanel : MonoBehaviour
 
 		private Image[] _foodIconSlots;
 
+		// 2.0.0: the components of a row never change with the frame (a row belongs to one companion), so the five
+		// GetComponent calls that ran every frame are done once per owner; the row is refreshed 5 times a second
+		// instead of 60 (nobody reads faster than that) and the texts are only rewritten when the value really
+		// changed - every assignment rebuilds the text mesh.
+		private CompanionSetup _owner;
+
+		private Character _character;
+
+		private CompanionStamina _stamina;
+
+		private CompanionRestedBuff _rested;
+
+		private Humanoid _humanoid;
+
+		private CompanionFood _food;
+
+		private float _nextRefresh;
+
+		private int _lastHealth = int.MinValue;
+
+		private int _lastMaxHealth = int.MinValue;
+
+		private int _lastStamina = int.MinValue;
+
+		private int _lastMaxStamina = int.MinValue;
+
 		internal void Refresh(CompanionSetup comp)
 		{
-			Character component = comp.GetComponent<Character>();
-			CompanionStamina component2 = comp.GetComponent<CompanionStamina>();
-			CompanionRestedBuff component3 = comp.GetComponent<CompanionRestedBuff>();
-			Humanoid component4 = comp.GetComponent<Humanoid>();
-			CompanionFood component5 = comp.GetComponent<CompanionFood>();
-			if (_nameText != null)
+			if (!ReferenceEquals(_owner, comp))
 			{
-				_nameText.text = ((component != null && !string.IsNullOrEmpty(component.m_name)) ? component.m_name : ModLocalization.Loc("hc_msg_name_default"));
+				// a row is re-bound when the list around it changes: look the components up again for the new owner
+				_owner = comp;
+				_character = comp.GetComponent<Character>();
+				_stamina = comp.GetComponent<CompanionStamina>();
+				_rested = comp.GetComponent<CompanionRestedBuff>();
+				_humanoid = comp.GetComponent<Humanoid>();
+				_food = comp.GetComponent<CompanionFood>();
+				_lastHealth = int.MinValue;
+				_lastMaxHealth = int.MinValue;
+				_lastStamina = int.MinValue;
+				_lastMaxStamina = int.MinValue;
+				_nextRefresh = 0f;
 			}
+			Character component = _character;
+			CompanionStamina component2 = _stamina;
+			CompanionRestedBuff component3 = _rested;
+			Humanoid component4 = _humanoid;
+			CompanionFood component5 = _food;
 			float num = ((component != null) ? component.GetHealth() : 0f);
 			float num2 = ((component != null) ? component.GetMaxHealth() : 1f);
+			// the two bars stay per frame: a single fillAmount, no string and no lookup
 			if (_hpFill != null)
 			{
 				_hpFill.fillAmount = ((num2 > 0f) ? Mathf.Clamp01(num / num2) : 0f);
-			}
-			if (_hpText != null)
-			{
-				if (_hpFormat == null)
-				{
-					_hpFormat = ModLocalization.Loc("hc_hud_health_fmt");
-				}
-				_hpText.text = string.Format(_hpFormat, num.ToString("F0"), num2.ToString("F0"));
 			}
 			float num3 = ((component2 != null) ? component2.Stamina : 0f);
 			float num4 = ((component2 != null) ? component2.MaxStamina : 1f);
@@ -63,13 +93,43 @@ public class CompanionHudPanel : MonoBehaviour
 			{
 				_staFill.fillAmount = ((num4 > 0f) ? Mathf.Clamp01(num3 / num4) : 0f);
 			}
-			if (_staText != null)
+			// 2.0.0: everything below formats text or looks prefabs and sprites up, so it runs 5 times a second instead
+			// of every frame (nobody reads a number faster than that), and the text is only rewritten when the value
+			// really changed - every assignment rebuilds the text mesh.
+			float now = Time.unscaledTime;
+			if (now < _nextRefresh)
 			{
+				return;
+			}
+			_nextRefresh = now + 0.2f;
+			if (_nameText != null)
+			{
+				_nameText.text = ((component != null && !string.IsNullOrEmpty(component.m_name)) ? component.m_name : ModLocalization.Loc("hc_msg_name_default"));
+			}
+			// the same rounding "F0" uses (half away from zero), so the number on screen does not change
+			int health = Mathf.FloorToInt(num + 0.5f);
+			int maxHealth = Mathf.FloorToInt(num2 + 0.5f);
+			if (_hpText != null && (health != _lastHealth || maxHealth != _lastMaxHealth))
+			{
+				_lastHealth = health;
+				_lastMaxHealth = maxHealth;
+				if (_hpFormat == null)
+				{
+					_hpFormat = ModLocalization.Loc("hc_hud_health_fmt");
+				}
+				_hpText.text = string.Format(_hpFormat, health.ToString("F0"), maxHealth.ToString("F0"));
+			}
+			int stamina = Mathf.FloorToInt(num3 + 0.5f);
+			int maxStamina = Mathf.FloorToInt(num4 + 0.5f);
+			if (_staText != null && (stamina != _lastStamina || maxStamina != _lastMaxStamina))
+			{
+				_lastStamina = stamina;
+				_lastMaxStamina = maxStamina;
 				if (_staFormat == null)
 				{
 					_staFormat = ModLocalization.Loc("hc_hud_stamina_fmt");
 				}
-				_staText.text = string.Format(_staFormat, num3.ToString("F0"), num4.ToString("F0"));
+				_staText.text = string.Format(_staFormat, stamina.ToString("F0"), maxStamina.ToString("F0"));
 			}
 			if (_foodIconSlots != null)
 			{

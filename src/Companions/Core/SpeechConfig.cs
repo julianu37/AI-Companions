@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using UnityEngine;
@@ -40,6 +41,10 @@ public class SpeechConfig
 
 	private static SpeechConfig _instance;
 
+	/// <summary>2.0.0: the language the current lines were read for, so <see cref="ReloadForLanguage"/> can tell a real
+	/// language change from the extra <c>SetupLanguage</c> calls the game makes (startup, world load).</summary>
+	private static string _loadedLanguage;
+
 	public static SpeechConfig Instance
 	{
 		get
@@ -67,6 +72,7 @@ public class SpeechConfig
 		{
 		}
 		string path = Path.Combine(directoryName, "Speech", text + ".json");
+		_loadedLanguage = text;
 		if (TryLoadFrom(path))
 		{
 			return;
@@ -95,6 +101,18 @@ public class SpeechConfig
 		Load();
 	}
 
+	/// <summary>2.0.0: called from the <c>Localization.SetupLanguage</c> postfix, so the companion's spoken lines follow
+	/// the game language. Only a real change reloads the file - <c>SetupLanguage</c> also runs at startup and on every
+	/// world load, and those calls would otherwise read the same JSON again for nothing.</summary>
+	public static void ReloadForLanguage(string language)
+	{
+		if (string.Equals(language, _loadedLanguage, StringComparison.Ordinal))
+		{
+			return;
+		}
+		Reload();
+	}
+
 	private static bool TryLoadFrom(string path)
 	{
 		if (!File.Exists(path))
@@ -104,7 +122,11 @@ public class SpeechConfig
 		try
 		{
 			string json = File.ReadAllText(path);
-			_instance = JsonUtility.FromJson<SpeechConfig>(json);
+			SpeechConfig speechConfig = JsonUtility.FromJson<SpeechConfig>(json);
+			// 2.0.0: a partial file used to come back with null arrays, and the first line of that category threw a
+			// NullReferenceException (the wheel reads Action.Length). A translation is often written in pieces, so
+			// every category the file leaves out keeps the built-in lines instead of taking the speech down.
+			_instance = Merge(speechConfig, path);
 			CompanionsPlugin.Log.LogInfo("[Speech] Loaded " + path);
 			return true;
 		}
@@ -113,6 +135,49 @@ public class SpeechConfig
 			CompanionsPlugin.Log.LogWarning("[Speech] Failed to parse " + path + ": " + ex.Message);
 			return false;
 		}
+	}
+
+	/// <summary>2.0.0: fills in the categories the file doesn't have (null OR empty array - an empty list would show
+	/// nothing at all) from <see cref="Defaults"/>, and says in the log which ones were missing.</summary>
+	private static SpeechConfig Merge(SpeechConfig loaded, string path)
+	{
+		SpeechConfig speechConfig = Defaults();
+		if (loaded == null)
+		{
+			CompanionsPlugin.Log.LogWarning("[Speech] " + Path.GetFileName(path) + " has no content - using the built-in lines");
+			return speechConfig;
+		}
+		List<string> missing = new List<string>();
+		loaded.Action = Pick(loaded.Action, speechConfig.Action, "Action", missing);
+		loaded.Gather = Pick(loaded.Gather, speechConfig.Gather, "Gather", missing);
+		loaded.Forage = Pick(loaded.Forage, speechConfig.Forage, "Forage", missing);
+		loaded.Combat = Pick(loaded.Combat, speechConfig.Combat, "Combat", missing);
+		loaded.Follow = Pick(loaded.Follow, speechConfig.Follow, "Follow", missing);
+		loaded.Hungry = Pick(loaded.Hungry, speechConfig.Hungry, "Hungry", missing);
+		loaded.Repair = Pick(loaded.Repair, speechConfig.Repair, "Repair", missing);
+		loaded.Overweight = Pick(loaded.Overweight, speechConfig.Overweight, "Overweight", missing);
+		loaded.Smelt = Pick(loaded.Smelt, speechConfig.Smelt, "Smelt", missing);
+		loaded.Idle = Pick(loaded.Idle, speechConfig.Idle, "Idle", missing);
+		loaded.Hunt = Pick(loaded.Hunt, speechConfig.Hunt, "Hunt", missing);
+		loaded.Farm = Pick(loaded.Farm, speechConfig.Farm, "Farm", missing);
+		loaded.Fish = Pick(loaded.Fish, speechConfig.Fish, "Fish", missing);
+		loaded.Cook = Pick(loaded.Cook, speechConfig.Cook, "Cook", missing);
+		loaded.NoBed = Pick(loaded.NoBed, speechConfig.NoBed, "NoBed", missing);
+		if (missing.Count > 0)
+		{
+			CompanionsPlugin.Log.LogInfo("[Speech] " + Path.GetFileName(path) + " is missing " + missing.Count + " categor(y/ies) - using the built-in lines: " + string.Join(", ", missing.ToArray()));
+		}
+		return loaded;
+	}
+
+	private static string[] Pick(string[] value, string[] fallback, string name, List<string> missing)
+	{
+		if (value != null && value.Length > 0)
+		{
+			return value;
+		}
+		missing.Add(name);
+		return fallback;
 	}
 
 	private static SpeechConfig Defaults()

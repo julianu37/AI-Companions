@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Text;
@@ -85,6 +86,19 @@ internal static class WhisperStt
 
 	private static string _loadError;
 
+	/// <summary>
+	/// Fase 3.24 (auditoria): the signature (size + last write) of the file the failed load was taken from. A model
+	/// copied while the game is open is present but truncated - a load failure that heals by itself once the copy
+	/// finishes - so a DIFFERENT file clears <see cref="_loadFailed"/> and is tried again; the same file is not.
+	/// </summary>
+	private static string _loadFailedSignature;
+
+	/// <summary>The load failure itself is logged once, not on every retry.</summary>
+	private static bool _warnedLoadFailed;
+
+	/// <summary>The "model not found" error is logged once (the pre-load retry calls TryGetFactory again).</summary>
+	private static bool _warnedMissingModelFile;
+
 	private static string _modelPath;
 
 	private static int _busy;
@@ -93,7 +107,20 @@ internal static class WhisperStt
 
 	private static int _jobs;
 
-	private static int _prewarmRequested;
+	/// <summary>1 while a pre-load attempt is running (see <see cref="MaybePrewarm"/>).</summary>
+	private static int _prewarmInFlight;
+
+	/// <summary>1 once the model is loaded (or failed for good): no more pre-load attempts.</summary>
+	private static int _prewarmDone;
+
+	/// <summary>When the next pre-load attempt may start (main thread only).</summary>
+	private static float _nextPrewarmAttempt;
+
+	/// <summary>The "not on disk yet" warning is logged once, not on every retry.</summary>
+	private static bool _warnedPrewarmMissing;
+
+	/// <summary>The configured [AI] SttModel value the cached <see cref="_modelPath"/> was built from.</summary>
+	private static string _modelPathSource;
 
 	/// <summary>True while a transcription is in flight (one at a time, so two orders can't fight over the model).</summary>
 	internal static bool Busy => Volatile.Read(ref _busy) != 0;
@@ -103,13 +130,16 @@ internal static class WhisperStt
 	{
 		get
 		{
+			string configured = ModConfig.SttModel != null ? ModConfig.SttModel.Value : null;
 			string cached = _modelPath;
-			if (cached != null)
+			// Fase 3.23 (auditoria): the path used to be cached for the whole session, so fixing [AI] SttModel in the
+			// F8 panel changed nothing until the game was restarted. It is resolved again when the config value changes.
+			if (cached != null && string.Equals(configured, _modelPathSource, StringComparison.Ordinal))
 			{
 				return cached;
 			}
-			string configured = ModConfig.SttModel != null ? ModConfig.SttModel.Value : null;
 			cached = ResolvePath(PluginDirectory(), configured, DefaultModelRelative);
+			_modelPathSource = configured;
 			_modelPath = cached;
 			return cached;
 		}
@@ -133,7 +163,7 @@ internal static class WhisperStt
 	{
 		get
 		{
-			if (_loadFailed)
+			if (IsLoadFailureCurrent())
 			{
 				return false;
 			}
@@ -145,6 +175,33 @@ internal static class WhisperStt
 			{
 				return false;
 			}
+		}
+	}
+
+	/// <summary>
+	/// Fase 3.24 (auditoria): is the recorded load failure still about the file that is on disk now? False after the
+	/// file changed (a copy that finished, a new model), which is what lets the load be tried again.
+	/// </summary>
+	private static bool IsLoadFailureCurrent()
+	{
+		return _loadFailed && string.Equals(ModelSignature(ModelPath), _loadFailedSignature, StringComparison.Ordinal);
+	}
+
+	/// <summary>Size and last write of the model file: any change means a different (possibly complete) file.</summary>
+	private static string ModelSignature(string path)
+	{
+		try
+		{
+			FileInfo info = new FileInfo(path);
+			if (!info.Exists)
+			{
+				return "missing";
+			}
+			return info.Length.ToString(CultureInfo.InvariantCulture) + "@" + info.LastWriteTimeUtc.Ticks.ToString(CultureInfo.InvariantCulture);
+		}
+		catch (Exception)
+		{
+			return "?";
 		}
 	}
 
@@ -179,11 +236,12 @@ internal static class WhisperStt
 
 	/// <summary>
 	/// Loads the model in the background, before the first voice order needs it, so the first order is not slower than
-	/// the others. Called once the player is in the world (VoiceInput); does nothing after the first call.
+	/// the others. Called from <see cref="MaybePrewarm"/> (which is what decides whether a new attempt is due); does
+	/// nothing while another attempt is already running.
 	/// </summary>
 	internal static void Prewarm()
 	{
-		if (Interlocked.CompareExchange(ref _prewarmRequested, 1, 0) != 0)
+		if (Interlocked.CompareExchange(ref _prewarmInFlight, 1, 0) != 0)
 		{
 			return;
 		}
@@ -193,18 +251,78 @@ internal static class WhisperStt
 			{
 				if (TryGetFactory(out WhisperFactory _, out string error))
 				{
+					Volatile.Write(ref _prewarmDone, 1);
 					CompanionsPlugin.Log?.LogInfo("[STT] Modelo pre-carregado em segundo plano (a primeira ordem por voz nao vai esperar por ele).");
+				}
+				else if (_loadFailed)
+				{
+					// a hard failure (a bad model, a native library problem): trying again would only repeat it -
+					// unless the file itself changed since then, and then MaybePrewarm keeps the door open
+					// (Fase 3.24: a model copied while the game was open is truncated, not missing)
+					if (IsLoadFailureCurrent())
+					{
+						Volatile.Write(ref _prewarmDone, 1);
+						CompanionsPlugin.Log?.LogWarning("[STT] Nao consegui pre-carregar o modelo: " + error);
+					}
 				}
 				else
 				{
-					CompanionsPlugin.Log?.LogWarning("[STT] Nao consegui pre-carregar o modelo: " + error);
+					// the file is simply not there yet: keep the door open (see MaybePrewarm) instead of leaving the
+					// voice off for the rest of the session
+					if (!_warnedPrewarmMissing)
+					{
+						_warnedPrewarmMissing = true;
+						CompanionsPlugin.Log?.LogWarning("[STT] Nao consegui pre-carregar o modelo: " + error
+							+ $" Vou tentar de novo a cada {PrewarmRetrySeconds:0} s enquanto voce estiver no mundo (o modelo pode ainda nao estar no disco).");
+					}
 				}
 			}
 			catch (Exception ex)
 			{
 				CompanionsPlugin.Log?.LogWarning("[STT] Excecao ao pre-carregar o modelo: " + ex);
 			}
+			finally
+			{
+				Volatile.Write(ref _prewarmInFlight, 0);
+			}
 		});
+	}
+
+	/// <summary>
+	/// How long between two pre-load attempts while the model file is not there yet (see <see cref="MaybePrewarm"/>).
+	/// </summary>
+	private const float PrewarmRetrySeconds = 30f;
+
+	/// <summary>
+	/// Warms the model once the player is in the world - and <b>tries again</b> while the model is not there yet.
+	/// Fase 3.23 (auditoria): this mirrors the TTS pre-load (<c>CompanionTts.MaybePrewarm</c>). The old version was
+	/// single-shot: copying the <c>whisper\</c> folder after the first spawn (or fixing [AI] SttModel) left the voice off
+	/// until a restart. One attempt at a time, one every <see cref="PrewarmRetrySeconds"/>, and only until the model is
+	/// loaded or the load failed for good. Runs on the main thread once per frame but does nothing (a couple of
+	/// bool reads) unless a retry is really due.
+	/// </summary>
+	internal static void MaybePrewarm()
+	{
+		if (Volatile.Read(ref _prewarmDone) != 0)
+		{
+			return;
+		}
+		if (IsLoadFailureCurrent())
+		{
+			// Fase 3.24 (auditoria): the same file that failed is not tried again; a changed one is (see TryGetFactory)
+			return;
+		}
+		if (Player.m_localPlayer == null || UnityEngine.Time.unscaledTime < _nextPrewarmAttempt)
+		{
+			return;
+		}
+		if (Volatile.Read(ref _prewarmInFlight) != 0)
+		{
+			// one attempt at a time; Prewarm itself takes the flag (it is the only place that does)
+			return;
+		}
+		_nextPrewarmAttempt = UnityEngine.Time.unscaledTime + PrewarmRetrySeconds;
+		Prewarm();
 	}
 
 	/// <summary>
@@ -303,17 +421,33 @@ internal static class WhisperStt
 			}
 			if (_loadFailed)
 			{
-				error = _loadError;
-				return false;
+				// Fase 3.24 (auditoria): a load failure used to be permanent. A file copied with the game open is
+				// present and TRUNCATED, which fails differently from "not on disk yet" and also heals by itself: the
+				// failed signature is kept and any change in the file (size or write time) clears the flag and tries
+				// again. An unchanged file is not tried twice (the log said it once, and it stays that way).
+				if (string.Equals(ModelSignature(ModelPath), _loadFailedSignature, StringComparison.Ordinal))
+				{
+					error = _loadError;
+					return false;
+				}
+				_loadFailed = false;
+				_loadError = null;
+				CompanionsPlugin.Log?.LogInfo("[STT] O arquivo do modelo mudou desde a falha de carga - tentando carrega-lo de novo.");
 			}
 			string modelPath = ModelPath;
 			try
 			{
 				if (!File.Exists(modelPath))
 				{
-					_loadFailed = true;
+					// Fase 3.23 (auditoria): a missing file is NOT a permanent failure (the TTS already works this
+					// way): the player may copy the whisper\ folder with the game open, and MaybePrewarm tries again
+					// every PrewarmRetrySeconds. Only a real load failure sets _loadFailed.
 					_loadError = $"modelo nao encontrado em \"{modelPath}\"";
-					CompanionsPlugin.Log?.LogError($"[STT] {_loadError}. Coloque o ggml (ex.: ggml-small-q5_1.bin) na pasta whisper\\ do plugin ou ajuste [AI] SttModel.");
+					if (!_warnedMissingModelFile)
+					{
+						_warnedMissingModelFile = true;
+						CompanionsPlugin.Log?.LogError($"[STT] {_loadError}. Coloque o ggml (ex.: ggml-small-q5_1.bin) na pasta whisper\\ do plugin ou ajuste [AI] SttModel.");
+					}
 					error = _loadError;
 					return false;
 				}
@@ -335,7 +469,16 @@ internal static class WhisperStt
 			{
 				_loadFailed = true;
 				_loadError = ex.Message;
-				CompanionsPlugin.Log?.LogError("[STT] FALHOU ao carregar o modelo do Whisper (as ordens por voz nao vao funcionar). " + ex);
+				_loadFailedSignature = ModelSignature(modelPath);
+				if (!_warnedLoadFailed)
+				{
+					_warnedLoadFailed = true;
+					CompanionsPlugin.Log?.LogError("[STT] FALHOU ao carregar o modelo do Whisper (as ordens por voz nao vao funcionar). " + ex);
+				}
+				else
+				{
+					CompanionsPlugin.Log?.LogWarning("[STT] O modelo do Whisper falhou de novo: " + ex.Message);
+				}
 				error = _loadError;
 				factory = null;
 				return false;

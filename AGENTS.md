@@ -44,7 +44,7 @@ config é **`BepInEx\config\AiCompanions.cfg`** (o GUID não dá mais nome a ele
 
 ## Alvo e versões
 
-- **Valheim 1.0.17** — engine **Unity 6000.0.75f1 (Unity 6)**.
+- **Valheim 1.0.x** (testado na **1.0.20**) — engine **Unity 6000.0.75f1 (Unity 6)**.
 - **BepInExPack_Valheim 5.4.2351** (BepInEx 5.4.23.5).
 - **Jotunn: NÃO é usado por este mod.** O código não referencia nenhuma API do Jotunn (0 ocorrências de uso — só
   comentários), o plugin **não** declara `[BepInDependency]` dele e o `.csproj` não o referencia; o upstream também não

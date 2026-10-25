@@ -602,10 +602,24 @@ public class CompanionInteract : MonoBehaviour
 		_character = GetComponent<Character>();
 	}
 
+	/// <summary>Fase 3.24: when the "in use" flag of this companion's pack was first seen stale (-1 = not stale).</summary>
+	private float _containerStaleSince = -1f;
+
+	/// <summary>Fase 3.24: when this companion's next stale-flag check is due (once a second).</summary>
+	private float _nextContainerUseCheck;
+
 	private void Update()
 	{
 		// Fase 3.8: opens the container an AI order is waiting for (once per frame, first instance wins)
 		TickPendingInventoryOpen();
+		// Fase 3.24 (auditoria): releases an "in use" flag left by a client that went away. Once a second per
+		// companion, never per frame.
+		float useNow = Time.time;
+		if (useNow >= _nextContainerUseCheck)
+		{
+			_nextContainerUseCheck = useNow + 1f;
+			CompanionContainerUse.CheckStale(GetComponent<Container>(), ref _containerStaleSince);
+		}
 		HandleDirectCommand();
 		if (ZInput.IsGamepadActive())
 		{
@@ -1973,7 +1987,12 @@ public class CompanionInteract : MonoBehaviour
 		NoGui,
 
 		/// <summary>Nothing to open (no container).</summary>
-		NoContainer
+		NoContainer,
+
+		/// <summary>Someone else has the companion's pack open (the game's own "in use" flag), so opening it here
+		/// would let two players edit one inventory: only the owner of the ZDO saves it and the other one's edits are
+		/// lost. Nothing was opened and nothing was marked.</summary>
+		InUse
 	}
 
 	internal static InventoryOpenResult OpenCompanionInventory(CompanionSetup setup, Container container, Player player)
@@ -1985,6 +2004,15 @@ public class CompanionInteract : MonoBehaviour
 		if (container == null)
 		{
 			return InventoryOpenResult.NoContainer;
+		}
+		// the game's own guard (Container.RPC_RequestOpen does the same on the owner): a pack that is already open
+		// somewhere else must not be shown again here. Checked before the claim - claiming first would hide the
+		// synced flag behind the new local one.
+		if (CompanionContainerUse.InUse(container))
+		{
+			CompanionsPlugin.Log.LogWarning("[Companion] " + container.gameObject.name + " is in use by someone else - not opening it");
+			Player.m_localPlayer?.Message(MessageHud.MessageType.Center, "$msg_inuse");
+			return InventoryOpenResult.InUse;
 		}
 		ZNetView component = container.GetComponent<ZNetView>();
 		if (component != null && !component.IsOwner())
@@ -1998,10 +2026,14 @@ public class CompanionInteract : MonoBehaviour
 	}
 
 	/// <summary>Shows a companion's container in the game's window and brings the mod's own panel along with it (the
-	/// one with the name, the food slots and the gear). The ownership is NOT looked at here - the caller does that.</summary>
+	/// one with the name, the food slots and the gear). The ownership is NOT looked at here - the caller does that.
+	/// The pack is marked as in use for as long as that window is open (see
+	/// <see cref="CompanionContainerUse"/>), which the game does for a chest and the mod has to do for its own
+	/// window.</summary>
 	private static void ShowCompanionInventory(CompanionSetup setup, Container container)
 	{
 		InventoryGui.instance.Show(container);
+		CompanionContainerUse.Mark(container);
 		CompanionInteractPanel.EnsureInstance();
 		CompanionInteractPanel.Instance?.Show(setup);
 	}
@@ -2046,7 +2078,15 @@ public class CompanionInteract : MonoBehaviour
 	/// </summary>
 	internal static void TickPendingInventoryOpen()
 	{
-		if (_aiOpenContainer == null || Time.frameCount == _aiOpenFrame)
+		if (_aiOpenContainer == null)
+		{
+			// Fase 3.24 (auditoria): a destroyed container reads as null too, and the pending open used to stay set
+			// (_aiOpenSetup and the deadline) until the next order - which could then inherit a companion that was
+			// never asked for. Nothing to do here anyway, so the state is dropped.
+			ClearPendingInventoryOpen();
+			return;
+		}
+		if (Time.frameCount == _aiOpenFrame)
 		{
 			return;
 		}
@@ -2090,6 +2130,7 @@ public class CompanionInteract : MonoBehaviour
 	{
 		_aiOpenContainer = null;
 		_aiOpenSetup = null;
+		_aiOpenDeadline = 0f;
 	}
 
 	internal string GetHoverText()

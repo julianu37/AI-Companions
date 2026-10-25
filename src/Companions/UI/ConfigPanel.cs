@@ -120,6 +120,12 @@ public class ConfigPanel : MonoBehaviour
 
 	public void Show()
 	{
+		// 2.0.0: the panel belongs to a world (it edits the mod's settings, and the cursor/font come from the game).
+		// It is a DontDestroyOnLoad object, so without this it opened on top of the main menu.
+		if (Player.m_localPlayer == null || Player.m_localPlayer.IsDead())
+		{
+			return;
+		}
 		if (_root == null)
 		{
 			Build();
@@ -395,6 +401,16 @@ public class ConfigPanel : MonoBehaviour
 
 	private void Update()
 	{
+		// 2.0.0: leaving the world (or dying) with the panel open used to leave it drawn over the main menu and force
+		// the cursor free - the AI panel already closes itself the same way (see its RefreshStatus).
+		if (Player.m_localPlayer == null || Player.m_localPlayer.IsDead())
+		{
+			if (_visible)
+			{
+				Hide();
+			}
+			return;
+		}
 		if (Input.GetKeyDown(ModConfig.ConfigPanelKey.Value))
 		{
 			if (_visible)

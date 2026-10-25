@@ -358,6 +358,9 @@ public class CompanionInteractPanel : MonoBehaviour
 
 	private void OnDestroy()
 	{
+		// the panel can be destroyed while its window is open (world change, mod unload): the pack must not keep
+		// the in-use flag (CompanionContainerUse)
+		CompanionContainerUse.Release();
 		if (Instance == this)
 		{
 			Instance = null;
@@ -841,6 +844,9 @@ public class CompanionInteractPanel : MonoBehaviour
 
 	private void HideInternal(bool closeInventoryGuiIfNoTakeover, string reason)
 	{
+		// the game's "in use" flag is cleared on every way out, before the early return too: a flag left behind
+		// would keep the pack from being opened again by anyone (see CompanionContainerUse)
+		CompanionContainerUse.Release();
 		bool flag = _root != null && _root.activeSelf;
 		if (!_visible && !flag && !_gamepadInjected)
 		{

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using BepInEx.Configuration;
 using HarmonyLib;
 using UnityEngine;
@@ -587,6 +588,29 @@ internal static class ModConfig
 
 	internal static void Init(ConfigFile cfg)
 	{
+		// 2.0.0: BepInEx's SaveOnConfigSet is true and every Bind writes the whole file (ConfigFile.Bind -> TrySave),
+		// so the boot rewrote the .cfg once per setting - 266 times for nothing, on the main thread. The saves are off
+		// for the whole of Init and one write happens at the end, after the migrations (they change values too and
+		// call Save themselves, which is fine with the flag off); the flag goes back to what it was, so the panels
+		// (which write entry.Value) keep saving the file on the spot.
+		bool saveOnConfigSet = cfg.SaveOnConfigSet;
+		cfg.SaveOnConfigSet = false;
+		try
+		{
+			BindEntries(cfg);
+		}
+		finally
+		{
+			SaveQuietly(cfg);
+			cfg.SaveOnConfigSet = saveOnConfigSet;
+		}
+	}
+
+	/// <summary>2.0.0: the binds and the migrations, all in one place so <see cref="Init"/> can hold the per-bind saves
+	/// off around them. The last thing it does is the migrations - they have to see the values the file already had.
+	/// </summary>
+	private static void BindEntries(ConfigFile cfg)
+	{
 		// [General]
 		CompanionPrice = Bind(cfg, "General", "CompanionPrice", 2000, "The price of an extra companion at the Trader, in coins from the shared bank. 0 = free.", new AcceptableValueRange<int>(0, 50000));
 		MaxCompanions = Bind(cfg, "General", "MaxCompanions", 10, "Phase 3.19: the most companions you can have in this world (10 is the ceiling). The count includes the dead and the lost: the tombstone brings the SAME companion back, so dying does not free a slot. At the limit the Trader, the AI panel summoner and the starter companion refuse to create another (the Shrine can still recover a dead companion). To free a slot, dismiss one from its wheel menu (Despawn).", new AcceptableValueRange<int>(1, 10));
@@ -889,7 +913,7 @@ internal static class ModConfig
 		TtsVolume = Bind(cfg, "AI", "TtsVolume", 1f, "Phase 3.4: volume of the companion's voice (0 = muted, 1 = the game's normal volume).", new AcceptableValueRange<float>(0f, 1f));
 		TtsModel = Bind(cfg, "AI", "TtsModel", @"tts\kokoro\model.int8.onnx", "Phase 3.4: the Kokoro model the companion speaks with (relative to the plugin folder, or an absolute path). The voices (voices.bin), the tokens (tokens.txt) and espeak-ng-data are looked for in the SAME folder as the model. Text option: edit it in the .cfg file.");
 		TtsLanguage = Bind(cfg, "AI", "TtsLanguage", "pt-br", "Phase 3.4: language of the spoken text, in the format Kokoro expects. This model is multi-lingual and REQUIRES a language: \"pt-br\" is Brazilian Portuguese (\"pt\" alone is European Portuguese). Empty goes back to \"pt-br\". Text option: edit it in the .cfg file.");
-		TtsCache = Bind(cfg, "AI", "TtsCache", defaultValue: true, "Phase 3.4: keeps the speeches already synthesised (text + voice + speed) to play them again instantly. The mod's fixed lines (\"Já temos o suficiente.\") come out instantly; the memory used is small. Off = every speech is synthesised again.");
+		TtsCache = Bind(cfg, "AI", "TtsCache", defaultValue: true, "Phase 3.4: keeps the speeches already synthesised (text + voice + speed) to play them again instantly. The mod's fixed lines (\"Ok: gathering wood (10).\") come out instantly; the cache holds up to 32 MB of audio (the oldest sentences are dropped first). Off = every speech is synthesised again.");
 		TtsSpeakReplies = Bind(cfg, "AI", "TtsSpeakReplies", defaultValue: true, "Phase 3.4: speaks the model's reply out loud (the \"reply\" field). In a conversation it is its answer; in an order, when TtsSpeakModLines is off, it is the confirmation in its own way (\"Deixa comigo.\").");
 		TtsSpeakModLines = Bind(cfg, "AI", "TtsSpeakModLines", defaultValue: true, "Phase 3.4: speaks out loud the mod's own line that shows in the chat/HUD (\"Ok: coletar madeira (10).\", \"Atacando o troll.\", \"Já temos o suficiente.\"). In an ORDER it wins over the model's reply (the voice follows what is written on the screen); turn it off to hear the model's reply instead. Nothing is spoken twice: with both options on, the line that is not spoken only goes to the log.");
 
@@ -1101,6 +1125,22 @@ internal static class ModConfig
 				}
 			}
 			int dropped = orphans.Count;
+			// 2.0.0: the leftovers were thrown away without a trace, and they can be something the player typed by
+			// hand, a key from a newer version he is testing or the rest of a manual edit - keep the whole file next
+			// to it first (AiCompanions.cfg.bak).
+			if (dropped > 0)
+			{
+				string backup = cfg.ConfigFilePath + ".bak";
+				try
+				{
+					File.Copy(cfg.ConfigFilePath, backup, overwrite: true);
+					CompanionsPlugin.Log?.LogInfo($"[Config] {dropped} orphaned setting(s) removed - previous file saved as {Path.GetFileName(backup)}");
+				}
+				catch (Exception ex)
+				{
+					CompanionsPlugin.Log?.LogWarning("[Config] Couldn't back up the config file before removing the old settings: " + ex.Message);
+				}
+			}
 			orphans.Clear();
 			cfg.Save();
 			CompanionsPlugin.Log?.LogInfo($"[Config] Cleaned up the config file: {moved} setting(s) moved to their new names, {dropped} old line(s) removed");
@@ -1110,6 +1150,20 @@ internal static class ModConfig
 		{
 			CompanionsPlugin.Log?.LogWarning("[Config] Couldn't clean up old settings: " + ex.Message);
 			return false;
+		}
+	}
+
+	/// <summary>Writes the file the way BepInEx writes it after a Bind: a locked or lost file is a warning, never an
+	/// exception out of <see cref="Init"/> (the plugin loads with the in-memory values in that case).</summary>
+	private static void SaveQuietly(ConfigFile cfg)
+	{
+		try
+		{
+			cfg.Save();
+		}
+		catch (Exception ex)
+		{
+			CompanionsPlugin.Log?.LogWarning("[Config] Couldn't write " + cfg.ConfigFilePath + " (" + ex.Message + ") - continuing with the settings in memory.");
 		}
 	}
 
