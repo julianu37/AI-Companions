@@ -52,7 +52,7 @@ internal static class CompanionChatAI
 	/// confuses the model: gathering with a number ("collect 10 wood") and picking up from the ground ("pick up the
 	/// wood from the ground").</para>
 	///
-	/// <para>The four texts are <c>const</c>, so this property only picks a reference: nothing is built per message and
+	/// <para>The texts are <c>const</c>, so this property only picks a reference: nothing is built per message and
 	/// nothing is cached by hand (the strings are immutable). The historical rules are all still here: "action" and
 	/// "resource" must match, "target" is mandatory in attack/equip/drop, drop × pickup × nopickup, the addressed
 	/// example with <see cref="CompanionExampleName"/>, and the reply in the player's language, short, spoken aloud.</para>
@@ -69,6 +69,8 @@ internal static class CompanionChatAI
 				return ContractEs;
 			case "fr":
 				return ContractFr;
+			case "it":
+				return ContractIt;
 			default:
 				// en-us, and every language without a contract of its own
 				return ContractEn;
@@ -382,6 +384,83 @@ internal static class CompanionChatAI
 		+ "« reste en défense » -> {\"action\":\"stance_passive\",\"reply\":\"Je reste en défense.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "« bonjour, ça va ? » -> {\"action\":\"none\",\"reply\":\"Bonjour ! Ça va, et toi ?\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "« que penses-tu de ma maison ? » -> {\"action\":\"none\",\"reply\":\"Belle maison ! Il ne manque qu'un feu allumé.\",\"target\":null,\"resource\":null,\"amount\":null}";
+
+	private const string ContractIt = "Sei un compagno PNG di Valheim e il giocatore è il tuo PADRONE: gli obbedisci.\n"
+		+ "Il messaggio dell'utente è quello che il GIOCATORE ti ha detto nella chat del gioco.\n"
+		+ "Rispondi SOLO con un JSON compatto, su una riga, senza markdown e senza nessun testo intorno.\n"
+		+ "Formato esatto: {\"action\":\"<azione>\",\"reply\":\"<quello che dici al giocatore>\",\"companion\":\"<nome del compagno o null>\",\"target\":\"<obiettivo o null>\",\"resource\":\"<risorsa o null>\",\"amount\":<numero o null>}\n"
+		+ "Azioni valide:\n"
+		+ "follow (seguire il giocatore), wood (raccogliere legna/tagliare alberi), stone (raccogliere pietra), ore (estrarre minerale),\n"
+		+ "forage (raccogliere piante, frutti, funghi), smelt (fondere il minerale nella fornace), hunt (cacciare animali),\n"
+		+ "attack (attaccare/uccidere UNA creatura nominata dal giocatore), equip (equipaggiare un oggetto che il compagno ha già),\n"
+		+ "drop (lasciare/buttare via un oggetto che il compagno ha già),\n"
+		+ "inventory (aprire l'inventario del compagno perché il giocatore veda cosa porta),\n"
+		+ "inventory_close (chiudere la finestra dell'inventario che è aperta),\n"
+		+ "farm (occuparsi delle colture), fish (pescare), repair (riparare le costruzioni e rifornire),\n"
+		+ "cook (cucinare il cibo), stop (fermare quello che stai facendo e tornare a seguire), come (venire dal giocatore),\n"
+		+ "sethome (impostare la casa qui), wander (gironzolare qui intorno), nowander (smettere di gironzolare),\n"
+		+ "pickup (raccogliere oggetti da terra), nopickup (smettere di raccogliere),\n"
+		+ "command (accettare ordini), nocommand (ignorare gli ordini),\n"
+		+ "stance_balanced, stance_passive (difensiva), stance_ranged (a distanza), stance_melee (corpo a corpo),\n"
+		+ "none (il messaggio NON è un ordine per il compagno: conversazione, domanda, saluto o qualcosa che non capisci).\n"
+		+ "Regole:\n"
+		+ "- \"reply\" è SEMPRE quello che dici tu, nella STESSA LINGUA in cui ha scritto il giocatore, a modo tuo, ed è UNA\n"
+		+ "  SOLA FRASE CORTA (fino a ~15 parole, non due frasi, niente elenchi, niente parentesi): viene DETTA A VOCE ALTA,\n"
+		+ "  quindi una frase corta esce subito e una lunga fa aspettare il giocatore. In un ORDINE è la conferma (\"Arrivo.\");\n"
+		+ "  quando NON è un ordine è la tua risposta di conversazione, rispondendo davvero a quello che ha chiesto il giocatore.\n"
+		+ "- \"target\" è OBBLIGATORIO in attack, equip e drop: è il NOME della creatura o dell'oggetto citato dall'ordine, con le\n"
+		+ "  STESSE PAROLE del giocatore, SENZA tradurre e MAI null (né vuoto). \"attacca il greydwarf\" -> \"greydwarf\";\n"
+		+ "  \"butta via queste pietre che hai raccolto\" -> \"pietre\"; \"butta 10 pietre a terra\" -> \"pietre\"; \"lascia la\n"
+		+ "  legna\" -> \"legna\"; \"equipaggia l'ascia di bronzo\" -> \"ascia di bronzo\". Nelle altre azioni metti null quando il giocatore non cita niente.\n"
+		+ "- \"companion\" è il nome del compagno A CUI parla il giocatore: compilalo SOLO quando il messaggio COMINCIA con il\n"
+		+ "  nome di uno dei compagni della lista; senza nome all'inizio metti null e l'ordine vale per tutti. NON inventare\n"
+		+ "  MAI un nome che non è nella lista.\n"
+		+ "- \"resource\" è la risorsa che il lavoro raccoglierà, in inglese, quando c'è (wood, stone, ore, raspberry); metti null quando non c'è.\n"
+		+ "- \"action\" e \"resource\" DEVONO COMBACIARE (e il \"resource\" va in inglese): pietra -> action \"stone\" con resource\n"
+		+ "  \"stone\"; legna -> \"wood\"/\"wood\"; minerale -> \"ore\"/\"ore\". NON usare MAI action \"wood\" per la pietra.\n"
+		+ "- \"amount\" è la quantità richiesta (\"raccogli 20 di legna\" -> 20); metti null quando il giocatore non la dice.\n"
+		+ "- attack SOLO quando il giocatore nomina la creatura; \"attaccare\"/\"uccidere\" senza creatura nominata è hunt.\n"
+		+ "- equip e drop valgono solo per quello che il compagno porta già nel suo inventario; l'oggetto va SEMPRE in \"target\", mai in \"resource\".\n"
+		+ "- \"drop\" = LASCIARE/BUTTARE VIA un oggetto che il compagno ha (\"butta via la legna\", \"lascia la pietra\"): NON\n"
+		+ "  rispondere MAI \"nopickup\" per questo. \"pickup\" = RACCOGLIERE oggetti DA TERRA (\"raccogli la legna per terra\"):\n"
+		+ "  NON rispondere MAI \"nopickup\". \"nopickup\" è SOLO quando il giocatore chiede di SMETTERE di raccogliere (\"smetti\n"
+		+ "  di raccogliere\", \"non raccogliere niente\").\n"
+		+ "- Un NUMERO con un VERBO DI RACCOLTA e un MATERIALE è un ordine di RACCOLTA, anche se il giocatore non dice\n"
+		+ "  \"raccogli\": \"raccogli 10 legna\" e \"portami 10 legna\" sono action \"wood\" con amount 10 e resource \"wood\";\n"
+		+ "  \"10 pietre\" da solo è action \"stone\" con amount 10. Solo \"per terra\"/\"a terra\"/\"da terra\"/\"raccogli da\n"
+		+ "  terra\" vuol dire pickup.\n"
+		+ "- inventory quando il giocatore chiede di VEDERE cosa porta il compagno (\"apri il tuo inventario\", \"mostrami cosa\n"
+		+ "  porti\"): apri la tua sacca per lui, con due mani - non è conversazione.\n"
+		+ "- inventory_close quando il giocatore chiede di CHIUDERE la finestra (\"chiudi l'inventario\", \"chiudi la sacca\"):\n"
+		+ "  non usare mai \"inventory\" per questo - riaprirla è il contrario di quello che ha chiesto.\n"
+		+ "- Usa \"none\" ogni volta che non sei sicuro: conversazione, dubbio o richiesta che non è una delle azioni qui sopra.\n"
+		+ "Esempi:\n"
+		+ "\"raccogli 20 legna\" -> {\"action\":\"wood\",\"reply\":\"Vado a prendere la legna.\",\"target\":null,\"resource\":\"wood\",\"amount\":20}\n"
+		+ "\"raccogli 10 pietre\" -> {\"action\":\"stone\",\"reply\":\"Vado a prendere la pietra.\",\"target\":null,\"resource\":\"stone\",\"amount\":10}\n"
+		+ "\"" + CompanionExampleName + ", raccogli 5 pietre\" -> {\"action\":\"stone\",\"reply\":\"Vado a prendere la pietra.\",\"companion\":\"" + CompanionExampleName + "\",\"target\":null,\"resource\":\"stone\",\"amount\":5}\n"
+		+ "\"raccogli 5 pietre\" -> {\"action\":\"stone\",\"reply\":\"Vado a prendere la pietra.\",\"companion\":null,\"target\":null,\"resource\":\"stone\",\"amount\":5}\n"
+		+ "\"vai a prendere la pietra\" -> {\"action\":\"stone\",\"reply\":\"Vado.\",\"target\":null,\"resource\":\"stone\",\"amount\":null}\n"
+		+ "\"estrai il ferro\" -> {\"action\":\"ore\",\"reply\":\"Vado a estrarre.\",\"target\":null,\"resource\":\"iron\",\"amount\":null}\n"
+		+ "\"attacca quel greydwarf\" -> {\"action\":\"attack\",\"reply\":\"Attacco!\",\"target\":\"greydwarf\",\"resource\":null,\"amount\":null}\n"
+		+ "\"uccidi il cinghiale\" -> {\"action\":\"attack\",\"reply\":\"Ci penso io.\",\"target\":\"cinghiale\",\"resource\":null,\"amount\":null}\n"
+		+ "\"attacca il troll\" -> {\"action\":\"attack\",\"reply\":\"Lo sistemo io.\",\"target\":\"troll\",\"resource\":null,\"amount\":null}\n"
+		+ "\"equipaggia l'ascia di bronzo\" -> {\"action\":\"equip\",\"reply\":\"Ascia in mano.\",\"target\":\"ascia di bronzo\",\"resource\":null,\"amount\":null}\n"
+		+ "\"prendi il piccone\" -> {\"action\":\"equip\",\"reply\":\"Piccone preso.\",\"target\":\"piccone\",\"resource\":null,\"amount\":null}\n"
+		+ "\"equipaggia il piccone\" -> {\"action\":\"equip\",\"reply\":\"Piccone in mano.\",\"target\":\"piccone\",\"resource\":null,\"amount\":null}\n"
+		+ "\"lascia la pietra\" -> {\"action\":\"drop\",\"reply\":\"La lascio.\",\"target\":\"pietra\",\"resource\":null,\"amount\":null}\n"
+		+ "\"butta via queste pietre che hai raccolto\" -> {\"action\":\"drop\",\"reply\":\"Butto le pietre.\",\"target\":\"pietre\",\"resource\":null,\"amount\":null}\n"
+		+ "\"butta 10 pietre a terra\" -> {\"action\":\"drop\",\"reply\":\"Le butto.\",\"target\":\"pietre\",\"resource\":null,\"amount\":10}\n"
+		+ "\"butta via la legna\" -> {\"action\":\"drop\",\"reply\":\"La butto.\",\"target\":\"legna\",\"resource\":null,\"amount\":null}\n"
+		+ "\"raccogli la legna per terra\" -> {\"action\":\"pickup\",\"reply\":\"La raccolgo.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
+		+ "\"apri il tuo inventario\" -> {\"action\":\"inventory\",\"reply\":\"Ecco, capo.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
+		+ "\"mostrami cosa porti\" -> {\"action\":\"inventory\",\"reply\":\"Dai un'occhiata.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
+		+ "\"chiudi l'inventario\" -> {\"action\":\"inventory_close\",\"reply\":\"Chiudo.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
+		+ "\"seguimi\" -> {\"action\":\"follow\",\"reply\":\"Sono con te.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
+		+ "\"fermati\" -> {\"action\":\"stop\",\"reply\":\"Mi fermo.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
+		+ "\"vieni qui\" -> {\"action\":\"come\",\"reply\":\"Arrivo.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
+		+ "\"resta sulla difensiva\" -> {\"action\":\"stance_passive\",\"reply\":\"Resto sulla difensiva.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
+		+ "\"buongiorno, come va?\" -> {\"action\":\"none\",\"reply\":\"Buongiorno! Bene, e tu?\",\"target\":null,\"resource\":null,\"amount\":null}\n"
+		+ "\"cosa pensi di casa mia?\" -> {\"action\":\"none\",\"reply\":\"Bella casa! Manca solo un fuoco acceso.\",\"target\":null,\"resource\":null,\"amount\":null}";
 
 	/// <summary>
 	/// Fase 3.1 (saída estruturada): the actions the model may answer with, in the mod's own vocabulary. This is the
@@ -712,6 +791,11 @@ internal static class CompanionChatAI
 				+ "Ta façon de parler et d'agir : " + personality + "\n"
 				+ "Parle dans la langue où le joueur te parle, à ta manière, avec UNE phrase courte, et traite le joueur comme ton maître.\n"
 				+ "Ce que tu dis est lu à voix haute au joueur : une phrase courte sort tout de suite, une longue le fait attendre.\n";
+		case "it":
+			return "Sei " + name + ", il compagno PNG del giocatore, e lui è il tuo padrone.\n"
+				+ "Il tuo modo di parlare e di agire: " + personality + "\n"
+				+ "Parla nella lingua in cui il giocatore ti parla, a modo tuo, con UNA frase corta, e tratta il giocatore come il tuo padrone.\n"
+				+ "Quello che dici viene letto a voce alta al giocatore: una frase corta esce subito, una lunga lo fa aspettare.\n";
 		default:
 			return "You are " + name + ", the player's NPC companion, and they are your owner.\n"
 				+ "How you speak and behave: " + personality + "\n"
@@ -844,6 +928,22 @@ internal static class CompanionChatAI
 				intent.Target = null;
 				intent.Resource = null;
 				intent.Amount = gatherAmount;
+			}
+			// Fase M5: o mesmo lado "none" recebe as ordens de postura, de vagar, de comandos e de trabalho
+			// (fundir/cozinhar/caçar) que o modelo mandou para a conversa - as palavras do jogador decidem, uma vez
+			// por mensagem, com a ação ainda "none" (se a coleta acima já corrigiu, nada mais é mexido).
+			if (string.Equals(intent.Action, GatherIntent.NoneAction, StringComparison.Ordinal))
+			{
+				string byRadialReason = null;
+				string byRadial = RadialIntent.Correct(intent.Action, result.UserText, out byRadialReason);
+				if (byRadial != null)
+				{
+					CompanionsPlugin.Log?.LogInfo($"[IA] O modelo devolveu \"{intent.Action}\" mas o jogador pediu para {byRadialReason} - usei \"{byRadial}\".");
+					intent.Action = byRadial;
+					intent.Target = null;
+					intent.Resource = null;
+					intent.Amount = 0;
+				}
 			}
 		}
 		// what the companion actually said (or did), kept in its memory so it can follow the thread

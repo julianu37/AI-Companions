@@ -38,16 +38,18 @@ internal static class CompanionPersona
 
 		private readonly string _fr;
 
+		private readonly string _it;
+
 		/// <summary>The text that goes into the system prompt, in the language of the game (Multilanguage M3).</summary>
 		internal string Text
 		{
 			get
 			{
-				return Pick(_pt, _en, _es, _fr);
+				return Pick(_pt, _en, _es, _fr, _it);
 			}
 		}
 
-		internal Preset(string id, string nameKey, string pt, string en, string es, string fr)
+		internal Preset(string id, string nameKey, string pt, string en, string es, string fr, string it)
 		{
 			Id = id;
 			NameKey = nameKey;
@@ -55,6 +57,7 @@ internal static class CompanionPersona
 			_en = en;
 			_es = es;
 			_fr = fr;
+			_it = it;
 		}
 	}
 
@@ -71,7 +74,9 @@ internal static class CompanionPersona
 				"Un compañero leal y práctico: habla poco, es directo y de buen humor, le gusta el trabajo bien hecho y trata "
 					+ "al jugador como su señor y amigo. Nunca se inventa cosas que no puede hacer.",
 				"Un compagnon loyal et pratique : parle peu, va droit au but, a bon caractère, aime le travail bien fait et "
-					+ "traite le joueur comme son maître et son ami. N'invente jamais ce qu'il ne peut pas faire.");
+					+ "traite le joueur comme son maître et son ami. N'invente jamais ce qu'il ne peut pas faire.",
+				"Un compagno leale e pratico: parla poco, va dritto al punto, di buon umore, gli piace il lavoro ben fatto e "
+					+ "tratta il giocatore come il suo padrone e amico. Non inventa mai cose che non può fare.");
 		}
 	}
 
@@ -91,7 +96,9 @@ internal static class CompanionPersona
 			"Un vikingo leal y valiente, de habla directa y sencilla, que trata al jugador como su jefe y jura por Odín. "
 				+ "Habla de honor, batalla, frío e hidromiel, sin remilgos y sin miedo.",
 			"Un viking loyal et intrépide, au parler simple et direct, qui traite le joueur comme son chef et jure par Odin. "
-				+ "Parle d'honneur, de bataille, de froid et d'hydromel, sans chichis et sans peur."),
+				+ "Parle d'honneur, de bataille, de froid et d'hydromel, sans chichis et sans peur.",
+			"Un vichingo leale e impavido, dal parlare semplice e diretto, che tratta il giocatore come il suo capo e giura "
+				+ "su Odino. Parla di onore, battaglie, freddo e idromele, senza fronzoli e senza paura."),
 		new Preset("mago", "hc_ai_preset_mago",
 			"Um mago velho e sarcástico, que fala com ironia fina, reclama do frio, do barro e da falta de livros, mas "
 				+ "ajuda sempre. Usa palavras cultas e comentários ácidos.",
@@ -100,7 +107,9 @@ internal static class CompanionPersona
 			"Un mago viejo y sarcástico, que habla con ironía fina, se queja del frío, del barro y de la falta de libros, "
 				+ "pero siempre ayuda. Usa palabras cultas y comentarios ácidos.",
 			"Un vieux mage sarcastique, à l'ironie fine, qui se plaint du froid, de la boue et du manque de livres, mais "
-				+ "aide toujours. Emploie des mots savants et des remarques acides."),
+				+ "aide toujours. Emploie des mots savants et des remarques acides.",
+			"Un vecchio mago sarcastico, dall'ironia fine, che si lamenta del freddo, del fango e della mancanza di libri, "
+				+ "ma aiuta sempre. Usa parole colte e commenti acidi."),
 		new Preset("sarcastico", "hc_ai_preset_sarcastico",
 			"Sarcástico e engraçado: responde com piadas secas, exagera nos problemas e adora provocar o jogador, mas "
 				+ "nunca desobedece nem deixa de ajudar.",
@@ -109,7 +118,9 @@ internal static class CompanionPersona
 			"Sarcástico y divertido: responde con chistes secos, exagera los problemas y adora provocar al jugador, pero "
 				+ "nunca desobedece ni deja de ayudar.",
 			"Sarcastique et drôle : répond par des vannes sèches, exagère les problèmes et adore provoquer le joueur, mais "
-				+ "ne désobéit jamais et n'arrête jamais d'aider."),
+				+ "ne désobéit jamais et n'arrête jamais d'aider.",
+			"Sarcastico e divertente: risponde con battute secche, esagera i problemi e adora provocare il giocatore, ma "
+				+ "non disobbedisce mai e non smette mai di aiutare."),
 		new Preset("guia", "hc_ai_preset_guia",
 			"Um guia paciente e didático, que explica em uma frase o que vai fazer e dá dicas curtas sobre o jogo "
 				+ "(comida, abrigo, perigo, recursos), sem sermão e sem enrolação.",
@@ -118,7 +129,9 @@ internal static class CompanionPersona
 			"Un guía paciente y didáctico, que explica en una frase lo que va a hacer y da consejos cortos sobre el juego "
 				+ "(comida, refugio, peligro, recursos), sin sermones ni rodeos.",
 			"Un guide patient et pédagogue, qui explique en une phrase ce qu'il va faire et donne de courts conseils sur "
-				+ "le jeu (nourriture, abri, danger, ressources), sans faire la morale et sans blabla.")
+				+ "le jeu (nourriture, abri, danger, ressources), sans faire la morale et sans blabla.",
+			"Una guida paziente e didattica, che spiega in una frase cosa sta per fare e dà consigli brevi sul gioco "
+				+ "(cibo, riparo, pericolo, risorse), senza prediche e senza giri di parole.")
 	};
 
 	/// <summary>
@@ -127,7 +140,7 @@ internal static class CompanionPersona
 	/// from <see cref="CompanionLocale.Current"/> (the one table, not another detection); it is read when the prompt is
 	/// built (once per message), so nothing is cached and nothing runs per frame.
 	/// </summary>
-	private static string Pick(string pt, string en, string es, string fr)
+	private static string Pick(string pt, string en, string es, string fr, string it)
 	{
 		switch (CompanionLocale.Current.KokoroCode)
 		{
@@ -137,6 +150,8 @@ internal static class CompanionPersona
 			return es;
 		case "fr":
 			return fr;
+		case "it":
+			return it;
 		default:
 			// en-us, and every language without a text of its own (German, Russian, Polish...)
 			return en;

@@ -790,6 +790,60 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   (LM Studio, temperatura 0,1, mesmo schema/contrato do mod): **14/14 nos quatro idiomas** (56 casos, incluindo
   `ramasse 10 bois` -> `wood` x10 e `ramasse le bois par terre` -> `pickup`); a medição rendeu um exemplo de `drop`
   a mais no EN e no ES.
+- **Italiano no mod (branch `feat/idiomas-auto`) — quinto idioma completo, o primeiro fora da leva M1–M3:**
+  (1) **`CompanionLocale`**: perfil `Italiano` (`WhisperCode`/`KokoroCode` = `it`, vozes **35 `if_sara` (f)** e
+  **36 `im_nicola` (m)**, padrão 35, `SpeechPrompt` em italiano) e `ByGameLanguage("Italian")`; os idiomas sem perfil
+  continuam caindo no inglês. Nada mudou nas tabelas PT/EN/ES/FR. (2) **`CompanionChatAI`**: `ContractIt` (const, mesma
+  estrutura do `ContractFr`, **tokens e as 30 ações intactos**), `case "it"` no `Contract`/`Header` e o italiano no
+  `CompanionNames.PromptLine()` ("I tuoi compagni: …"); todas as correções históricas estão nele (o par
+  `action`/`resource`, `target` obrigatório, `drop`×`pickup`×`nopickup`, o exemplo com `CompanionExampleName`, o par
+  coleta-com-número × pegar-do-chão e a regra *número + verbo de coleta + material = coleta*). (3) **`CompanionPersona`**:
+  `Pick(pt, en, es, fr, it)` + `case "it"` e os 5 textos (padrão + 4 presets) em italiano; alemão/russo seguem no EN e o
+  texto livre do jogador **nunca** é traduzido. (4) **Traduções**: `Translations/Italian.json` (737 chaves, mesma ordem
+  do PT) e `Speech/Italian.json` (15 categorias / 186 linhas), gerados pelo `tools/gen_translations.py` (mapa `IT_UI`/
+  `IT_SPEECH`; o script agora escreve os **três** idiomas de uma vez, e ES/FR saem byte a byte idênticos) e validados
+  pelo `tools/audit_translations.py --lang Italian` → **0 lacunas** (0 ausentes/sobrando/vazias, 0 placeholders
+  divergentes, 0 iguais ao PT indevidos, 0 cara de inglês; as palavras que o italiano escreve igual ao PT entraram na
+  `IDENTICAL_OK` do italiano e `Skål!` na `SPEECH_IDENTICAL_OK`; o `all` saiu do `EN_HINTS`, que casava
+  "all'asciutto"). (5) **Ordens**: `OrderItems` com apelidos IT (legna/legno/alberi, pietra/pietre/sasso, rame/stagno/
+  argento/ferro, lamponi/mirtilli/funghi…, 224 apelidos no total), `GatherIntent` com as tabelas IT (materiais, verbos
+  `raccogli`/`raccatta`/`prendi`/`estrai`, marcadores de chão `a_terra`/`per_terra`/`in_terra`/`da_terra` e
+  `oggetto`/`oggetti`) e `PickupIntent` com os verbos IT de largar/recolher e de parar (`fermati`, `smetti di
+  raccogliere`), mantendo a lógica (nada novo). As listas de idiomas do F8 (`TtsLanguage`/`VoiceLanguage`) **já tinham**
+  `it` desde a M2. Verificado com a `Companions.dll` real (reflexão): locale IT/alemão, `ContractIt` (7.986 chars,
+  30 ações, todos os tokens), persona IT, 14 casos do `GatherIntent`, 7 do `PickupIntent`, 19 apelidos IT e o nome lido
+  das palavras ("Maria, raccogli 5 pietre") — **107 casos, ALL CHECKS PASSED**.
+- **Fase M5 (1ª metade) — a rede determinística das quatro famílias que o 3B erra (branch `feat/idiomas-auto`):** a
+  medição das **30 ações × 5 idiomas** (150 casos, `qwen2.5-3b-instruct`, temperatura 0,1, 2 rodadas) fechou em
+  **29/30 PT, 27/30 EN, 29/30 ES, 29/30 FR e 29/30 IT**, e a lição foi a **oposta** da 3.1: **acrescentar exemplos ao
+  contrato piora** o modelo pequeno (o PT regrediu e o ES `vaga` passou a vir como `nowander`), então **não se
+  acrescentam mais exemplos** — o caminho é a **rede por palavras**, no mesmo espírito da `PickupIntent` (3.1 §8.2) e
+  da `GatherIntent` (M3). Novo **`AI/RadialIntent.cs`** (**puro**, 1× por mensagem, sem Unity/config/mundo):
+  `Correct(action, message, out reason)` devolve a ação corrigida e a frase do log, com **casamento por palavra
+  inteira entre separadores** (sem substring), **mensagem curta** (`MaxWords = 10`) e **nunca com `?`** (pergunta não
+  é ordem), e **quatro portões de ação** (cada regra só olha as ações em que o modelo erra de verdade):
+  (1) **postura** — palavra de postura (`postura|stance|posture|posizione|posicion`) + a qualidade
+  (`equilibrad|balanced|equilibree|equilibrata|balancead` → `stance_balanced`; `distanc|ranged|distanza|distancia` →
+  `stance_ranged`; `corpo a corpo|melee|corps à corps|cuerpo a cuerpo` → `stance_melee`;
+  `passiv|passive|pasiva|defensiv|defensive|defensif` → `stance_passive`), valendo para qualquer ação **menos as
+  precisas** (`attack`/`equip`/`drop`/`inventory*`/as de coleta, que carregam alvo ou recurso);
+  (2) **vagar** — palavra de vagar (`vagar|vagueia|wander|errer|vagare|vagabond`…) + verbo de parar ⇒ `nowander`,
+  senão ⇒ `wander`, para `stop|wander|nowander|none`; o verbo de parar tem que estar **no início** ("para" como
+  preposição de "joga a pedra para o chão" **não** dispara) **ou** ser palavra que só pode ser de parada (`pare`,
+  `stop`, `smetti`, `deja`, `fermati`…); (3) **comandos** — palavra de comando
+  (`comando|order|ordres|ordini|orden`) + ignorar/negar ⇒ `nocommand` (a negação ganha do verbo de aceitar) ou
+  aceitar/obedecer ⇒ `command`, para `none|stop|command|nocommand`; (4) **trabalhos** —
+  `fundi|fundicao|smelt|fourneau|fonderia|furnace|forno|horno` ⇒ `smelt`, `cozinh|kitchen|cuisine|cucina|cocina|cook` ⇒
+  `cook`, `cac|hunt|chasse|cacciare|cazar` ⇒ `hunt`, só para `repair|farm|wander|none` e com **duas guardas**: uma
+  criatura nomeada (`greydwarf`, `troll`, `javali`…) mantém o `attack` e um verbo de reparo (`conserta`, `repair`,
+  `ripara`…) mantém o `repair`. **Onde:** `CompanionOrders.Run`, antes de despachar (depois das redes do
+  recurso/pickup/coleta e antes de `outcome.LabelKey`), e no lado `none` do `CompanionChatAI.HandleResult` (depois da
+  `GatherIntent`, só com a ação ainda `none`). Uma linha de log por correção
+  (`[IA] O modelo devolveu "stop" mas o jogador pediu para parar de vagar - usei "nowander".`) e os rótulos do chat
+  já existiam (`hc_ai_order_stance_*`, `_nowander`, `_nocommand`, `_smelt`, `_cook`, `_hunt`). **Contrato, TTS/STT,
+  painéis, dverger, cache e camadas de UI intocados.** Verificado fora do jogo com a `Companions.dll` real
+  (reflexão): as 7 falhas medidas + os casos de não-regressão dos 5 idiomas + as guardas — **95 casos, ALL CHECKS
+  PASSED**.
 - **Pendências conhecidas (abertas):** a **voz não passa pelo
   mixer do jogo** (por isso ignora os sliders de volume do Valheim e só obedece `[AI] TtsVolume`); o **sync com o
   upstream** (estamos **1 release atrás**: base `1.5.4`, `main` na `1.5.5` — ver a seção *Upstream e licença*);

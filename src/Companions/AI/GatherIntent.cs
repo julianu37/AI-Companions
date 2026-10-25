@@ -150,7 +150,7 @@ internal static class GatherIntent
 		return 0;
 	}
 
-	/// <summary>The words that mean "on the ground" (pt/en/es/fr) - the legitimate <c>pickup</c> - plus the words for
+	/// <summary>The words that mean "on the ground" (pt/en/es/fr/it) - the legitimate <c>pickup</c> - plus the words for
 	/// items ("itens", "objets"), which also mean picking things up instead of gathering.</summary>
 	private static readonly string[] GroundWords = new string[]
 	{
@@ -162,11 +162,13 @@ internal static class GatherIntent
 		"suelo", "piso",
 		// fr
 		"sol", "terre", "par_terre", "a_terre",
+		// it
+		"terra", "a_terra", "per_terra", "in_terra", "da_terra", "terreno",
 		// itens/objetos
-		"item", "itens", "items", "objet", "objets", "objeto", "objetos"
+		"item", "itens", "items", "objet", "objets", "objeto", "objetos", "oggetto", "oggetti"
 	};
 
-	/// <summary>The verbs of collecting/taking in the four languages, used only on the <c>none</c> side (see the
+	/// <summary>The verbs of collecting/taking in the five languages, used only on the <c>none</c> side (see the
 	/// summary of <see cref="FromModelAction"/>).</summary>
 	private static readonly string[] CollectVerbs = new string[]
 	{
@@ -181,16 +183,20 @@ internal static class GatherIntent
 		"mina", "minar", "pica", "picar", "busca", "buscar", "consigue", "conseguir",
 		// fr
 		"ramasse", "ramasser", "ramasses", "recolte", "recolter", "prends", "prend", "prendre", "apporte", "apporter",
-		"coupe", "couper", "mine", "miner", "cherche", "chercher", "recupere", "recuperer"
+		"coupe", "couper", "mine", "miner", "cherche", "chercher", "recupere", "recuperer",
+		// it
+		"raccogli", "raccoglie", "raccogliere", "raccatta", "raccattare", "prendi", "prende", "prendere", "porta",
+		"portami", "portare", "taglia", "tagliare", "estrai", "estrarre", "cerca", "cercare", "recupera", "recuperare"
 	};
 
-	/// <summary>The resources of the four gathering jobs, in the four languages (normalized: no accents, lowercase).</summary>
+	/// <summary>The resources of the four gathering jobs, in the five languages (normalized: no accents, lowercase).</summary>
 	private static readonly string[] WoodWords = new string[]
 	{
 		"madeira", "madeiras", "lenha", "tronco", "troncos", "arvore", "arvores",
 		"wood", "woods", "tree", "trees", "logs", "log",
-		"madera", "maderas", "arbol", "arboles", "troncos",
-		"bois", "buche", "buches", "arbre", "arbres", "rondins", "rondin"
+		"madera", "maderas", "arbol", "arboles",
+		"bois", "buche", "buches", "arbre", "arbres", "rondins", "rondin",
+		"legna", "legno", "legni", "albero", "alberi", "tronchi", "tronco"
 	};
 
 	private static readonly string[] StoneWords = new string[]
@@ -198,7 +204,8 @@ internal static class GatherIntent
 		"pedra", "pedras", "rocha", "rochas", "pedregulho",
 		"stone", "stones", "rock", "rocks",
 		"piedra", "piedras", "roca", "rocas",
-		"pierre", "pierres", "rocher", "rochers", "caillou", "cailloux"
+		"pierre", "pierres", "rocher", "rochers", "caillou", "cailloux",
+		"pietra", "pietre", "roccia", "rocce", "sasso", "sassi", "massi"
 	};
 
 	private static readonly string[] OreWords = new string[]
@@ -206,7 +213,8 @@ internal static class GatherIntent
 		"minerio", "minerios", "metal", "metais", "ferro", "cobre", "prata", "estanho",
 		"ore", "ores", "iron", "copper", "silver", "tin", "metals",
 		"mineral", "minerales", "hierro", "plata", "estano", "metales",
-		"minerai", "minerais", "fer", "cuivre", "argent", "etain", "metaux"
+		"minerai", "minerais", "fer", "cuivre", "argent", "etain", "metaux",
+		"minerale", "minerali", "metallo", "metalli", "rame", "argento", "stagno"
 	};
 
 	private static readonly string[] ForageWords = new string[]
@@ -218,6 +226,8 @@ internal static class GatherIntent
 		"forraje", "baya", "bayas", "frambuesa", "frambuesas", "champinon", "champinones",
 		"arandano", "arandanos", "mora", "moras",
 		"cueillette", "baie", "baies", "framboise", "framboises", "champignon", "champignons",
-		"myrtille", "myrtilles", "mure", "mures"
+		"myrtille", "myrtilles", "mure", "mures",
+		"foraggio", "frutta", "frutti", "bacca", "bacche", "lampone", "lamponi", "fungo", "funghi",
+		"mirtillo", "mirtilli", "mora", "more", "ribes"
 	};
 }

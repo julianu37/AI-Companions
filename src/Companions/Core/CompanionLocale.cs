@@ -106,6 +106,19 @@ internal static class CompanionLocale
 			+ "viens ici, attaque, equipe, lache, peche, cuisine, plante, repare, reviens."
 	};
 
+	private static readonly LocaleProfile Italian = new LocaleProfile
+	{
+		Name = "Italiano",
+		WhisperCode = "it",
+		KokoroCode = "it",
+		// 35 if_sara (feminine) and 36 im_nicola (masculine) - the two Italian voices of the export (both grade C).
+		// The espeak-ng data the mod already ships has it_dict/itc, so the phonemizer needs nothing new.
+		Voices = new int[] { 35, 36 },
+		DefaultVoice = 35,
+		SpeechPrompt = "Ordini per il compagno: raccogli legna, pietra, minerale, ferro, seguimi, fermati, vieni qui, "
+			+ "attacca, equipaggia, lascia, pesca, cucina, pianta, ripara, torna."
+	};
+
 	/// <summary>
 	/// The Kokoro speaker ids of the export, by id (<c>name = language + gender + "_" + nickname</c>, so the gender is
 	/// the second letter). Ids 0-44 were checked against the export map and, for the ones this mod lists, by listening
@@ -335,6 +348,8 @@ internal static class CompanionLocale
 			return Spanish;
 		case "French":
 			return French;
+		case "Italian":
+			return Italian;
 		default:
 			return null;
 		}

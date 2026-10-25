@@ -271,7 +271,7 @@ TOKEN_ONLY = re.compile(r'^[\s{}0-9/:.,()\-%°·—]*$')
 # espanhol nem de frances ('a', 'on', 'me', 'no', 'se', 'son', 'panel', 'option', 'file' ficaram de fora por isso).
 EN_HINTS = re.compile(
     r'\b(the|and|you|your|with|from|this|that|these|those|not|can|will|would|should|could|there|here|what|when|'
-    r'where|which|how|why|all|any|some|each|every|more|most|than|then|also|because|about|into|over|under|'
+    r'where|which|how|why|any|some|each|every|more|most|than|then|also|because|about|into|over|under|'
     r'between|again|still|just|only|own|same|other|new|old|make|made|take|give|keep|left|right|down|out|off|up|'
     r'settings|setting|voice|language|button|window|press|hold|wait|ready|missing|please|'
     r'thanks|sorry|disabled|enabled)\b',
@@ -307,7 +307,21 @@ IDENTICAL_OK = {
         'Dverger',                                  # nome proprio
         '{0} ({1})', '{0} {1}',                     # so placeholders
     },
+    'Italian': {
+        # palavras que o italiano e o portugues escrevem igual
+        'Tipo', 'Nome', 'Mago', 'Passivo', 'casa', 'Vivo', 'Morto', 'Movimento', 'Stamina', 'Morte', 'Pesca',
+        'Stamina  {0} / {1}', 'Stamina base', 'IA: {0}', 'Ok: {0}', 'Ok: {0} ({1})', 'Volume',
+        # tokens tecnicos e nome de modelo
+        'Cache', 'Cooldown (s)', 'IA', 'Temperatura', 'Timeout (s)', 'Preset', 'Dispositivo',
+        # nome proprio
+        'Dverger',
+        # so placeholders
+        '{0} ({1})', '{0} {1}',
+    },
 }
+
+# Falas que sao iguais ao PT por nao serem traducao nenhuma (a interjeicao viking), em qualquer idioma.
+SPEECH_IDENTICAL_OK = { 'Skål!' }
 
 
 def placeholders(value):
@@ -375,7 +389,8 @@ def report_language(lang):
     miss_cat = [c for c in pt_speech if c not in tr_speech]
     extra_cat = [c for c in tr_speech if c not in pt_speech]
     count = [(c, len(pt_speech[c]), len(tr_speech[c])) for c in pt_speech if c in tr_speech and len(pt_speech[c]) != len(tr_speech[c])]
-    same_lines = [(c, line) for c in pt_speech if c in tr_speech for line in tr_speech[c] if line in pt_speech[c]]
+    same_lines = [(c, line) for c in pt_speech if c in tr_speech for line in tr_speech[c]
+                  if line in pt_speech[c] and line not in SPEECH_IDENTICAL_OK]
     empty_lines = [c for c in tr_speech if not tr_speech[c]]
     print('   categorias ausentes: %d%s' % (len(miss_cat), (' -> ' + ', '.join(miss_cat)) if miss_cat else ''))
     print('   categorias sobrando: %d%s' % (len(extra_cat), (' -> ' + ', '.join(extra_cat)) if extra_cat else ''))

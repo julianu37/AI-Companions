@@ -159,6 +159,17 @@ internal static class CompanionOrders
 				action = byGather;
 			}
 		}
+		// Fase M5 (medição das 30 ações com o qwen2.5-3b): a postura, o vagar, os comandos e os trabalhos de
+		// fundir/cozinhar/caçar também são decididos pelas PALAVRAS do jogador, no mesmo espírito da 3.1 §6/§8.2 e da
+		// rede da coleta acima - e aqui, antes de despachar a ação, para que a ordem corrigida já siga o caminho
+		// normal (Apply/SetCombatStance/MHR_JobRules). Uma chamada por mensagem; sem gatilho, tudo fica como estava.
+		string byRadialReason = null;
+		string byRadial = RadialIntent.Correct(action, userText, out byRadialReason);
+		if (byRadial != null)
+		{
+			CompanionsPlugin.Log?.LogInfo($"[IA] O modelo devolveu \"{action}\" mas o jogador pediu para {byRadialReason} - usei \"{byRadial}\".");
+			action = byRadial;
+		}
 		outcome.Understood = true;
 		outcome.LabelKey = "hc_ai_order_" + action;
 		outcome.Amount = byGatherAmount > 0 ? byGatherAmount : intent.Amount;

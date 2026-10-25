@@ -122,6 +122,8 @@ internal static class CompanionNames
 			return "Tus compañeros: " + builder + ".\n";
 		case "fr":
 			return "Tes compagnons : " + builder + ".\n";
+		case "it":
+			return "I tuoi compagni: " + builder + ".\n";
 		default:
 			return "Your companions: " + builder + ".\n";
 		}
