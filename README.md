@@ -19,9 +19,8 @@ vem do upstream e continua funcionando igual — a IA é só uma **nova entrada*
 
 > **Tipos de companheiro:** os **dverger** (**Mago**, **Mago de Fogo**, **Mago de Gelo** e **Suporte**) são
 > **de combate** — a roda mostra só as ações de combate/suporte, e as ordens de **trabalho** (chat, voz ou tecla de
-> comando) são **recusadas** com *"Sou de combate, não faço esse trabalho"*. A mochila que eles usam por conta
-> própria **não é salva**: para trabalhar, use o **Companheiro** (detalhes na
-> **[wiki](https://github.com/julianu37/AI-Companions/wiki/Como-funciona#tipos-de-companheiro)**).
+> comando) são **recusadas** com *"Sou de combate, não faço esse trabalho"*. Para trabalhar, use o **Companheiro**
+> (detalhes na **[wiki](https://github.com/julianu37/AI-Companions/wiki/Como-funciona#tipos-de-companheiro)**).
 
 ## 🎬 Em ação
 

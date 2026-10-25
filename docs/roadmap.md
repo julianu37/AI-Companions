@@ -418,20 +418,23 @@ no `CHANGELOG` 2.0.0; o que ficou para depois:
   `CompanionSetup.IsWorkMode` + `ApplyActionMode` devolvendo `false`, recusa em `CompanionOrders` (chat/voz) e nas duas
   escritas diretas de `CompanionInteract` (`DirectSmelt`/`DirectGatherMode`), com a fala **"Sou de combate, não faço
   esse trabalho."** (`hc_ai_order_combat_only`), sem tocar no modo nem no teto da ordem; e o `ChangeTier` para um tipo
-  de combate **volta ao Follow** e descarta o alvo. **O que continua como limitação:** (a) **inventário** — o
-  `ContainerAwakePatch` mantém **duas** mochilas nesses tiers: a do `Container` (é a que o jogo **salva** e a que a UI
-  mostra) e a do `Humanoid` (é a que a IA/jobs usam, e ela **não é persistida**), então o que o jogador põe na mochila
-  fica, mas o que o companheiro coleta/equipa por conta dele **se perde ao sair do mundo**; (b) o **painel** esconde os
-  espaços de comida por tipo (`CompanionInteractPanel._builtForDverger`), e o `CanWearArmor = false` mantém as peças de
-  armadura na mochila em vez de equipadas. **O que NÃO fazer na correção do inventário:** trocar `Container.m_inventory`
-  pelo inventário do `Humanoid` no `Awake` — foi tentado na 2.0.0 e **revertido** (`e8247ff`): o `Container.Awake` já
-  rodou (inclusive o `Load` e o `InvokeRepeating("CheckForChanges")`) antes do swap, o `m_lastRevision` é carimbado no
-  primeiro save e os itens que o jogador deu **deixam de persistir** (sintoma: "a madeira sumiu e o cajado voltou"; o
-  `[ContainerDiag]` mostrou `SAVE items=1..6` sem nenhum `LOAD applied`). **Caminho seguro para uma tentativa futura:**
-  persistir o inventário do `Humanoid` numa chave **própria** do ZDO (`HC_Inv`), gravando só pelo dono (na mudança, com
-  portão de tempo) e restaurando no spawn — sem tocar em `Container`, `m_inventory`, `Load` ou `CheckForChanges`;
-  validar num mundo de teste antes de encostar no caminho compartilhado. **O tipo Companheiro (o padrão) está completo e
-  validado em jogo.**
+  de combate **volta ao Follow** e descarta o alvo. **O que continua como limitação:** o **painel** esconde os espaços
+  de comida por tipo (`CompanionInteractPanel._builtForDverger`), e o `CanWearArmor = false` mantém as peças de
+  armadura na mochila em vez de equipadas. **Inventário — hipótese, NÃO observada:** nesses tiers o
+  `ContainerAwakePatch` mantém **duas** mochilas, a do `Container` (é a que o jogo **salva** e a que a UI mostra) e a do
+  `Humanoid` (a que a IA/jobs leem), o que **sugere** que o que o companheiro coleta por conta própria iria para a
+  segunda e não voltaria no reload. **Isso não foi confirmado em jogo** — o teste do jogador mostrou que o que ele põe
+  na janela **persiste** — e a afirmação saiu da documentação do jogador de propósito. Para fechar a dúvida (30 s):
+  matar algo perto de um dverger ou mandar `recolhe os itens do chão` e conferir se o loot aparece na janela dele
+  (e se continua depois de sair e voltar ao mundo). **O que NÃO fazer:** trocar `Container.m_inventory` pelo inventário
+  do `Humanoid` no `Awake` — foi tentado na 2.0.0 e **revertido** (`e8247ff`): o `Container.Awake` já rodou (inclusive
+  o `Load` e o `InvokeRepeating("CheckForChanges")`) antes do swap, o `m_lastRevision` é carimbado no primeiro save e os
+  itens que o jogador deu **deixam de persistir** (sintoma: "a madeira sumiu e o cajado voltou"; o `[ContainerDiag]`
+  mostrou `SAVE items=1..6` sem nenhum `LOAD applied`). **Caminho seguro, se a hipótese se confirmar:** persistir o
+  inventário do `Humanoid` numa chave **própria** do ZDO (`HC_Inv`), gravando só pelo dono (na mudança, com portão de
+  tempo) e restaurando no spawn — sem tocar em `Container`, `m_inventory`, `Load` ou `CheckForChanges`; validar num
+  mundo de teste antes de encostar no caminho compartilhado. **O tipo Companheiro (o padrão) está completo e validado
+  em jogo.**
 - **`inUse` da mochila do companheiro**: o `CompanionContainerUse` marca/libera o container ao abrir/fechar (impede dois
   jogadores editarem a mesma mochila) e libera um flag órfão após 5 s. Já validado em jogo (abrir/fechar 4 jeitos,
   troca de mundo, gamepad). Revisar só se algum dia a mochila recusar abrir sem motivo — o `Container.Load` **não**

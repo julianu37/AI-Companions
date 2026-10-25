@@ -664,10 +664,11 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   esconde os trabalhos (gate `_isDverger`, igual ao upstream) e desde a 2.0.0 (`fix/dverger-combate`) o **chat/voz** e a
   **tecla de comando** também são recusados (`CompanionSetup.IsWorkMode`/`ApplyActionMode` → `false`, recusa em
   `CompanionOrders` e nas duas escritas diretas de `CompanionInteract`), com a fala **"Sou de combate, não faço esse
-  trabalho."**; o `ChangeTier` para um tipo de combate volta ao Follow. **Limitação que continua:** a mochila que a **IA**
-  usa nesses tiers não é persistida (o `Container` guarda a que o jogador vê) — ver a seção *Backlog da revisão da
-  2.0.0* no roadmap para a causa medida e o caminho seguro. **Nunca** trocar `Container.m_inventory` no `Awake` sem mundo
-  de teste (tentativa de 2.0.0 revertida em `e8247ff`).
+  trabalho."**; o `ChangeTier` para um tipo de combate volta ao Follow. **Limitação que continua:** o painel esconde os
+  espaços de comida por tipo e as peças de armadura ficam na mochila em vez de equipadas. O inventário **não** foi
+  confirmado com defeito em jogo (o teste do jogador mostrou que o que ele coloca persiste); a suspeita das duas
+  mochilas fica registrada como **hipótese** na seção *Backlog da revisão da 2.0.0* do roadmap. **Nunca** trocar
+  `Container.m_inventory` no `Awake` sem mundo de teste (tentativa de 2.0.0 revertida em `e8247ff`).
 - **Pendências conhecidas (abertas):** a **voz não passa pelo
   mixer do jogo** (por isso ignora os sliders de volume do Valheim e só obedece `[AI] TtsVolume`); o **sync com o
   upstream** (estamos **1 release atrás**: base `1.5.4`, `main` na `1.5.5` — ver a seção *Upstream e licença*);

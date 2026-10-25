@@ -44,10 +44,8 @@ sem nenhuma tradução.
   mostra só as ações de combate/suporte (seguir, reparar e reabastecer, dispensa, comando, pegar, vagar, definir casa e
   as posturas). Ordens de **trabalho** — por chat, voz ou pela tecla de comando — são **recusadas** com a fala
   *"Sou de combate, não faço esse trabalho."* (o modo e o alvo da ordem atual não mudam). Se você **trocar o tipo** de um
-  companheiro que estava trabalhando por um desses, ele volta a seguir. Duas limitações continuam: a **mochila que a IA
-  usa nesses tipos não é salva** (o que você põe na janela fica; o que ele coleta ou equipa por conta dele se perde ao
-  sair do mundo) e o painel esconde os espaços de comida por tipo. **Para trabalhos, use o tipo `Companheiro`, que é
-  completo.**
+  companheiro que estava trabalhando por um desses, ele volta a seguir. O painel esconde os espaços de comida por
+  tipo. **Para trabalhos, use o tipo `Companheiro`, que é completo.**
 
 ## 1.8.2 — 24/10/2026
 

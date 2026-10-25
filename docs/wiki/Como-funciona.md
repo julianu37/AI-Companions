@@ -150,11 +150,8 @@ atual** e o **alvo da ordem** ficam como estavam.
 Trocar o **tipo** de um companheiro que estava trabalhando por um dverger também **descarta o alvo da ordem** — ele
 volta a **seguir** você.
 
-**Para trabalhos, use o tipo "Companheiro".** Nos dverger, duas limitações continuam:
-
-- **a mochila que a IA usa não é salva** — o que **você** coloca na janela do inventário fica, mas o que ele
-  **coleta ou equipa por conta dele se perde** ao sair do mundo;
-- o **painel** esconde os espaços de comida por tipo, e as peças de armadura ficam na mochila em vez de equipadas.
+**Para trabalhos, use o tipo "Companheiro".** Nos dverger, o **painel** esconde os espaços de comida por tipo e as
+peças de armadura ficam na mochila em vez de equipadas.
 
 ---
 

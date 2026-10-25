@@ -318,9 +318,8 @@ ordens por voz exigem **Windows x64** e um **microfone**.
 
 - **Tipos de companheiro:** os **dverger** (**Mago**, **Mago de Fogo**, **Mago de Gelo** e **Suporte**) são **de
   combate** — a roda mostra só as ações de combate/suporte e as ordens de **trabalho** (pelo chat, pela voz ou pela
-  tecla de comando) são **recusadas** com *"Sou de combate, não faço esse trabalho"*. A mochila que eles usam por
-  conta própria **não é salva** (o que você coloca na janela fica) e o painel esconde os espaços de comida por tipo.
-  Para trabalhar, use o **Companheiro**.
+  tecla de comando) são **recusadas** com *"Sou de combate, não faço esse trabalho"*. O painel esconde os espaços de
+  comida por tipo. Para trabalhar, use o **Companheiro**.
 - **Volume da voz:** a fala do companheiro **não** passa pelo mixer do jogo, então ela **ignora os sliders de volume do
   Valheim** (música/SFX). Quem manda no volume dela é o `[AI] TtsVolume` (ou o slider do painel da IA).
 - *(Corrigido na 1.6.0)* **Painel `F8`:** o clique do mouse não respondia numa faixa dos controles (havia um alvo de

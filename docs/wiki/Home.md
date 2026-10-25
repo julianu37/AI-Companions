@@ -12,8 +12,8 @@ entende e executa.
 >
 > **Mago**, **Mago de Fogo**, **Mago de Gelo** e **Suporte** são **de combate**: lutam normalmente e a roda mostra só
 > as ações de combate/suporte — ordens de **trabalho** por chat, voz ou tecla de comando são **recusadas** com
-> *"Sou de combate, não faço esse trabalho"*. A mochila que eles usam por conta própria **não é salva**; para
-> trabalhos, use o **Companheiro** (detalhes em **[Como funciona](Como-funciona#tipos-de-companheiro)**).
+> *"Sou de combate, não faço esse trabalho"*. Para trabalhos, use o **Companheiro** (detalhes em
+> **[Como funciona](Como-funciona#tipos-de-companheiro)**).
 
 ## Em ação
 
