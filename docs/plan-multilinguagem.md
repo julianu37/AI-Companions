@@ -1,12 +1,19 @@
 # Plano — multilinguagem completa (EN / PT-BR / ES / FR)
 
-Status: **M1 feita** (branch `feat/idiomas-auto`; M2–M5 pendentes). Base: skill `.opencode/skills/kokoro/`.
+Status: **M1 e M2 feitas** (branch `feat/idiomas-auto`; M3–M5 pendentes). Base: skill `.opencode/skills/kokoro/`.
 
 > **M1 entregue (ver `AGENTS.md`, *Fase M1 da multilinguagem*):** `Core/CompanionLocale.cs` (tabela única +
 > `Resolve*`), `auto` como padrão de `[AI] VoiceLanguage`, `[AI] TtsLanguage` e `[AI] TtsVoice` (0 = automático),
 > `[AI] VoiceInitialPrompt` vazio = vocabulário do idioma, e a correção do `_loadedLanguage` do `SpeechConfig`
-> (portão de 30 s). O log diz `[Locale] English -> en / en-us | 20 vozes, padrao 3 (af_heart)` e, já no mundo,
+> (portão de 30 s). O log diz `[Locale] English -> en / en-us | 6 vozes, padrao 3 (af_heart)` e, já no mundo,
 > `[TTS] idioma efetivo: pt-br (auto) | voz 42 (auto, pf_dora)`. Sem UI nova e sem traduções nesta fase.
+>
+> **M2 entregue (ver `AGENTS.md`, *Fase M2 da multilinguagem*):** `UI/ModDropdown.cs` (o dropdown extraído do painel
+> `I`: overlay + `ListCatcher` + lista **rolável**), usado pelos dois painéis. No painel `I` as 7 opções de voz do
+> inglês passaram a caber (a lista mede o espaço até a borda, vira para cima se preciso e rola se não couber), e o
+> status mostra o efetivo (`Automático (pt-BR · pf_dora)`, e `pf_dora (pt-BR) - fora do idioma, usando af_heart`).
+> No F8, `AI/TtsVoice`, `AI/TtsLanguage` e `AI/VoiceLanguage` deixaram de ser slider/nada: viraram linha de **lista**
+> com `Automático` + as opções reais, gravando `0`/`auto` ou o valor escolhido.
 
 ## Decisões (do jogador, 25/10/2026)
 
@@ -18,7 +25,7 @@ Status: **M1 feita** (branch `feat/idiomas-auto`; M2–M5 pendentes). Base: skil
 Decisões confirmadas em 25/10/2026 (segunda rodada):
 
 - **Vozes: todas as do idioma** (o `VOICES.md` é explícito), na ordem **padrão primeiro** e depois as melhores notas.
-  Nada de curadoria "2–4": pt = 3, en-US = 20, es = 2, fr = 1 (o resto de cada família fica para quando entrar).
+  Nada de curadoria "2–4": pt = 3, en-US = 6, es = 2, fr = 1 (o resto de cada família fica para quando entrar).
 - **A lista mostra só as vozes do idioma ativo**; idioma sem Kokoro → lista e padrão **ingleses** (`en-us`).
 - **Voz de companheiro de outro idioma: não é usada.** Se o `HC_AiVoice` guardado não pertence ao idioma ativo, a
   fala cai no **padrão do idioma ativo** (o ZDO não é reescrito — voltar o jogo para PT restaura a escolha).
@@ -45,10 +52,10 @@ Uma tabela única, fonte de verdade:
 | `GetSelectedLanguage()` | Whisper | Kokoro | Vozes (curadas) | Padrão | UI | Falas |
 |---|---|---|---|---|---|---|
 | `Portuguese_Brazilian` | `pt` | `pt-br` | 42, 43, 44 | 42 | `Portuguese_Brazilian.json` | idem |
-| `English` | `en` | `en-us` | 3, 2, 14, 16 | 3 | (embutido) | (embutido) |
+| `English` | `en` | `en-us` | 3, 2, 6, 14, 16, 18 | 3 | (embutido) | (embutido) |
 | `Spanish` | `es` | `es` | 28, 29 | 28 | `Spanish.json` | idem |
 | `French` | `fr` | `fr` | 30 | 30 | `French.json` | idem |
-| qualquer outra | `en` | `en-us` | 3, 2, 14, 16 | 3 | (embutido) | (embutido) |
+| qualquer outra | `en` | `en-us` | 3, 2, 6, 14, 16, 18 | 3 | (embutido) | (embutido) |
 
 - Resolvido **uma vez por cena/troca de idioma** (gancho no postfix de `Localization.SetupLanguage`, que já
   existe), nunca no `Update`.

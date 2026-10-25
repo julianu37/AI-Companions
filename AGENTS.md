@@ -691,11 +691,37 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   `_loadedLanguage` só é gravado quando o **arquivo daquele idioma carrega**; nos fallbacks (`speech.json`/defaults)
   fica vazio e o `Instance` **tenta de novo com portão de 30 s** (`_lastAttemptUtc`, `RetrySeconds`) em vez de ficar
   preso até reiniciar — e `_usingFallback` evita reler o mesmo arquivo de 30 em 30 s. Logs:
-  `[Locale] English -> en / en-us | 20 vozes, padrao 3 (af_heart)`, a queda para inglês, e (uma vez, já no mundo)
+  `[Locale] English -> en / en-us | 6 vozes, padrao 3 (af_heart)`, a queda para inglês, e (uma vez, já no mundo)
   `[TTS] idioma efetivo: pt-br (auto) | voz 42 (auto, pf_dora)` + a lista de vozes do idioma e
   `[STT] idioma efetivo: pt (auto, o do jogo) | prompt inicial: N caracteres (...)`; no carregamento do modelo,
   `idioma "pt-br" ... voz 42 (pf_dora)`. Verificado fora do jogo (harness com o `CompanionLocale.cs` real):
   **84 casos, ALL CHECKS PASSED**. Detalhes: `docs/plan-multilinguagem.md` (M1).
+- **Fase M2 da multilinguagem (branch `feat/idiomas-auto`) — o dropdown com nomes, a lista rolável e o F8 com
+  listas:** `UI/ModDropdown.cs` (novo) extraiu o dropdown do painel `I` para uso dos **dois** painéis:
+  `ModDropdownHost` (o overlay com `Canvas` `overrideSorting` em `ModUiLayers.AiPanelOverlay` + o **`ListCatcher`**
+  como primeiro filho, ativo só com uma lista aberta) e `ModDropdownList` (a lista: fundo que engole o clique da
+  borda, viewport com `RectMask2D`, `ScrollRect` vertical com roda/arrasto e **geometria medida na abertura** -
+  abre para baixo, vira para cima quando o lado preferido tem menos espaço e, se não couber em nenhum, **rola**; o
+  item selecionado é trazido para a janela). Os itens só são recriados quando a **quantidade** muda. No painel `I`
+  (M2a) o campo continua o mesmo `CreateButton` (posições/cores/tamanhos das linhas intactos) e a lista virou o
+  widget: as **7 opções** de voz do inglês (6 + "Seguir o padrão") cabem no painel (antes eram 630 px contra 516
+  de altura útil e as últimas ficavam fora). O status da voz (`VoiceStatusLabel`/`CurrentVoiceLabel`) passou a dizer o
+  **efetivo**: `Automático (pt-BR · pf_dora)` quando nada foi escolhido (ou quando o companheiro herda, com
+  `(padrão)` no fim), `pf_dora (feminina)` quando a escolha é do idioma ativo e
+  `pf_dora (pt-BR) - fora do idioma, usando af_heart` quando a voz guardada no ZDO é de **outro** idioma (o ZDO não é
+  tocado). `CompanionProfile.LanguageTag()`/`LanguageTagOf(voice)` (display: `pt-br` → `pt-BR`, família pela 1ª letra
+  do nome) e as chaves novas `hc_cfg_auto`, `hc_cfg_auto_value`, `hc_ai_voice_out_of_language`. No **F8** (M2b),
+  `BuildChoiceRow` (um tipo de linha novo, casado por `(Section, Key)` e **só** para `AI/TtsVoice` (int),
+  `AI/TtsLanguage` (string) e `AI/VoiceLanguage` (string)) mostra o campo com o valor em uso - `Automático (en-us)`,
+  `Automático (af_heart · en-US)`, `pf_dora (feminina)`, `en-gb` - e abre a **mesma** `ModDropdownList` (uma
+  instância por painel, reposicionada a cada abertura) com as opções pedidas (`auto` + as vozes do idioma ativo /
+  `en-us,en-gb,pt-br,es,fr,it,ja,zh,hi` / `pt,en,es,fr,it,de,ru,pl,tr,ko,ja,zh,hi,uk,sv`); o "Padrão" volta para
+  `auto`/`0`, nada é gravado por abrir o painel e o **gamepad** (esq/dir) percorre as opções (`_choiceAdjust`, em vez
+  de mexer no número por baixo). A lista fecha ao rolar o conteúdo, ao trocar de categoria, no `Esc` (antes de fechar
+  o painel) e no `Hide`. `ModUiAudit`: `DropdownOverlay/ChoiceList` e `Overlay/LlmProviderList` entraram na
+  allow-list, e a regra "dentro de um `ScrollRect`" deixou de aceitar **tudo** abaixo dele (agora os controles são
+  classificados pelo `Selectable` primeiro e só a superfície de rolagem - o GameObject do `ScrollRect` e o viewport -
+  é exceção), senão as opções da lista esconderiam um alvo decorativo novo. Detalhes: `docs/plan-multilinguagem.md` (M2).
 - **Pendências conhecidas (abertas):** a **voz não passa pelo
   mixer do jogo** (por isso ignora os sliders de volume do Valheim e só obedece `[AI] TtsVolume`); o **sync com o
   upstream** (estamos **1 release atrás**: base `1.5.4`, `main` na `1.5.5` — ver a seção *Upstream e licença*);

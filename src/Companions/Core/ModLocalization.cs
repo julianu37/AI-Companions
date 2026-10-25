@@ -583,6 +583,11 @@ public static class ModLocalization
 			{ "hc_ai_voice_label", "{0} ({1})" },
 			{ "hc_ai_voice_female", "feminine" },
 			{ "hc_ai_voice_male", "masculine" },
+			// Multilanguage M2: "Automatic" is now an explicit option (the [AI] language and voice settings follow the
+			// game language), and a companion's own voice from ANOTHER language is announced instead of being used.
+			{ "hc_cfg_auto", "Automatic" },
+			{ "hc_cfg_auto_value", "Automatic ({0})" },
+			{ "hc_ai_voice_out_of_language", "{0} ({1}) - another language, using {2}" },
 			// Fase 3.10: voice and personality of ONE companion (its own ZDO), with the [AI] values as the default.
 			// Used by the companion tab of the AI panel and by the starter panel's "AI" section.
 			{ "hc_ai_profile_title", "Companion AI" },

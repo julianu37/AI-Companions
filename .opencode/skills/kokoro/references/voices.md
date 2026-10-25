@@ -109,7 +109,7 @@ A nota mede a **qualidade/alinhamento** e a **quantidade de treino** da referên
 | Idioma | 1ª escolha | Alternativas |
 |---|---|---|
 | pt-BR | `pf_dora` (42) | `pm_alex` (43), `pm_santa` (44) |
-| en-US | `af_heart` (3) | `af_bella` (2), `am_fenrir` (14), `am_michael` (16) |
+| en-US | `af_heart` (3) | `af_bella` (2), `af_nicole` (6), `am_fenrir` (14), `am_michael` (16), `am_puck` (18) |
 | en-GB | `bf_emma` (21) | `bm_george` (26), `bm_fable` (25) |
 | es | `ef_dora` (28) | `em_alex` (29) |
 | fr | `ff_siwis` (30) | — |

@@ -366,6 +366,67 @@ internal static class CompanionProfile
 		return ModLocalization.LocFmt("hc_ai_voice_label", name, ModLocalization.Loc(genderKey));
 	}
 
+	/// <summary>
+	/// The language of the game, in the form the panels show it: the Kokoro code with the region in capitals
+	/// ("pt-br" -> "pt-BR", "en-us" -> "en-US"). Multilanguage M2: display only - the code the model gets is still the
+	/// one of <see cref="CompanionLocale.Current"/>, untouched, and the language itself is never resolved here.
+	/// </summary>
+	internal static string LanguageTag()
+	{
+		return UpperRegion(CompanionLocale.Current.KokoroCode);
+	}
+
+	/// <summary>
+	/// The language a Kokoro <b>voice</b> belongs to, for the "another language" note of the panels: the first letter of
+	/// the name is the language family of the export ("p" Portuguese, "a" American English, "b" British English, "e"
+	/// Spanish, "f" French...). Display only, like <see cref="LanguageTag"/>.
+	/// </summary>
+	internal static string LanguageTagOf(int voice)
+	{
+		string name = CompanionLocale.VoiceName(voice);
+		if (name.Length == 0)
+		{
+			return "";
+		}
+		switch (name[0])
+		{
+		case 'p':
+			return "pt-BR";
+		case 'a':
+			return "en-US";
+		case 'b':
+			return "en-GB";
+		case 'e':
+			return "es";
+		case 'f':
+			return "fr";
+		case 'h':
+			return "hi";
+		case 'i':
+			return "it";
+		case 'j':
+			return "ja";
+		case 'z':
+			return "zh";
+		default:
+			return "";
+		}
+	}
+
+	private static string UpperRegion(string code)
+	{
+		if (string.IsNullOrEmpty(code))
+		{
+			return "";
+		}
+		int dash = code.IndexOf('-');
+		if (dash <= 0 || dash == code.Length - 1)
+		{
+			return code;
+		}
+		return code.Substring(0, dash + 1) + code.Substring(dash + 1).ToUpperInvariant();
+	}
+
 	// ------------------------------------------------------------------ plumbing
 
 	private static string ConfigPreset

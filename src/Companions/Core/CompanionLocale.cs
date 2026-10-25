@@ -73,10 +73,10 @@ internal static class CompanionLocale
 		Name = "English",
 		WhisperCode = "en",
 		KokoroCode = "en-us",
-		// All 20 en-US voices of the export, best first: af_heart (A), af_bella (A-), af_nicole (B-), the C+, the C,
-		// the C-, the D and am_adam (F+) last. The quality grades are the ones published by the model
-		// (VOICES.md); the ids are the export's (see the kokoro skill, references/voices.md).
-		Voices = new int[] { 3, 2, 6, 1, 5, 9, 14, 16, 18, 0, 7, 10, 4, 8, 12, 13, 15, 17, 19, 11 },
+		// The six English voices the player picked (3 feminine + 3 masculine), best first: af_heart (A),
+		// af_bella (A-), af_nicole (B-); then the three best masculine (all C+): am_fenrir, am_michael, am_puck.
+		// Grades from VOICES.md; the ids are the export's (see the kokoro skill, references/voices.md).
+		Voices = new int[] { 3, 2, 6, 14, 16, 18 },
 		DefaultVoice = 3,
 		SpeechPrompt = "Companion orders: gather wood, stone, ore, iron, follow, stop, come here, attack, equip, drop, "
 			+ "fish, cook, plant, repair, return."

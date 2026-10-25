@@ -42,6 +42,22 @@ public class ConfigPanel : MonoBehaviour
 
 	private readonly List<Action> _entryResetActions = new List<Action>();
 
+	/// <summary>
+	/// Multilanguage M2: the rows that are a <b>closed list of values</b> (the two language settings and the voice), by
+	/// row index: the gamepad's left/right steps through the options instead of changing a number. Only the rows in
+	/// here are treated as a choice - every other row keeps the slider/toggle behaviour it always had.
+	/// </summary>
+	private readonly Dictionary<int, Action<int>> _choiceAdjust = new Dictionary<int, Action<int>>();
+
+	private ModDropdownHost _dropdownHost;
+
+	/// <summary>Multilanguage M2: the ONE list of options of this panel, re-pointed at whichever choice row opens it
+	/// (<see cref="ModDropdownList"/> is reusable by design; the rows themselves are rebuilt per category, the list is
+	/// not).</summary>
+	private ModDropdownList _choiceList;
+
+	private RectTransform _rootRT;
+
 	private int _selectedRowIndex = -1;
 
 	private float _dpadRepeatTimer;
@@ -304,10 +320,28 @@ public class ConfigPanel : MonoBehaviour
 		// The panel's own background is decorative: it is the parent of every control, so it can never be in front of
 		// one, and a click on the padding is better left to the backdrop (the modal catcher) than to die here.
 		component3.raycastTarget = false;
+		_rootRT = component2;
 		BuildTitle(_root.transform);
 		BuildCloseButton(_root.transform);
 		BuildTabColumn(_root.transform);
 		BuildContentArea(_root.transform);
+		// Multilanguage M2: the floating list of the rows that are a closed set of values (the two languages and the
+		// voice). Same overlay layer as the AI panel's list (the two panels never open together) and created after
+		// every control, so an open list is never clipped by the content's mask nor drawn behind a row.
+		_dropdownHost = ModDropdownHost.Create("DropdownOverlay", _root.transform, ModUiLayers.AiPanelOverlay);
+		_choiceList = ModDropdownList.Create("ChoiceList", _dropdownHost, new ModDropdownStyle
+		{
+			Font = _font,
+			FontSize = 11f,
+			ItemHeight = 24f,
+			ItemColor = RowBgSelected,
+			SelectedColor = GoldColor,
+			Background = new Color(0.05f, 0.05f, 0.06f, 0.99f)
+		});
+		if (_dropdownHost != null)
+		{
+			_dropdownHost.Overlay.SetAsLastSibling();
+		}
 		if (ModConfig.CategoryOrder.Count > 0)
 		{
 			SelectCategory(ModConfig.CategoryOrder[0]);
@@ -377,6 +411,12 @@ public class ConfigPanel : MonoBehaviour
 	{
 		_visible = false;
 		_selectedRowIndex = -1;
+		// Multilanguage M2: an open list belongs to this panel - it must not stay over the game (the overlay is a
+		// child of the root, so it hides with it, but the state has to be reset for the next open)
+		if (_dropdownHost != null)
+		{
+			_dropdownHost.CloseAll();
+		}
 		if (_root != null)
 		{
 			_root.SetActive(value: false);
@@ -428,6 +468,12 @@ public class ConfigPanel : MonoBehaviour
 		{
 			if (Input.GetKeyDown(KeyCode.Escape) || ZInput.GetButtonDown("JoyBack") || ZInput.GetButtonDown("JoyButtonB"))
 			{
+				// Multilanguage M2: Esc closes an open list first, then the panel (same rule as the AI panel)
+				if (_dropdownHost != null && _dropdownHost.AnyOpen)
+				{
+					_dropdownHost.CloseAll();
+					return;
+				}
 				Hide();
 				return;
 			}
@@ -622,6 +668,13 @@ public class ConfigPanel : MonoBehaviour
 		{
 			return;
 		}
+		// Multilanguage M2: a row that is a closed list of values steps through the options (the labels and the codes
+		// are not numbers, so the int/float paths below would change the .cfg behind the player's back)
+		if (_choiceAdjust.TryGetValue(_selectedRowIndex, out Action<int> choiceAdjust))
+		{
+			choiceAdjust(direction);
+			return;
+		}
 		ConfigEntryBase configEntryBase = _entryData[_selectedRowIndex];
 		if (configEntryBase.SettingType == typeof(float))
 		{
@@ -675,6 +728,12 @@ public class ConfigPanel : MonoBehaviour
 		_entryData.Clear();
 		_entrySliders.Clear();
 		_entryResetActions.Clear();
+		// Multilanguage M2: the choice rows (and the list that belongs to one of them) are gone with the category
+		_choiceAdjust.Clear();
+		if (_dropdownHost != null)
+		{
+			_dropdownHost.CloseAll();
+		}
 		if (!ModConfig.Categories.TryGetValue(_activeCategory, out var value))
 		{
 			return;
@@ -943,6 +1002,18 @@ public class ConfigPanel : MonoBehaviour
 		_scrollRect.scrollSensitivity = 40f;
 		_scrollRect.verticalScrollbar = verticalScrollbar;
 		_scrollRect.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
+		// Multilanguage M2: the list of options floats on its own overlay and belongs to the row it was opened from -
+		// when the content scrolls, the row moves and the list would be left hanging over another one, so it closes
+		// (the check is a single bool per scroll event; no list is open while the player is just scrolling)
+		_scrollRect.onValueChanged.AddListener(OnContentScrolled);
+	}
+
+	private void OnContentScrolled(Vector2 position)
+	{
+		if (_choiceList != null && _choiceList.IsOpen)
+		{
+			_choiceList.Hide();
+		}
 	}
 
 	private static Scrollbar CreateHiddenScrollbar(Transform parent)
@@ -1005,6 +1076,12 @@ public class ConfigPanel : MonoBehaviour
 
 	private GameObject BuildEntryRow(ConfigEntryBase entry, float yPos)
 	{
+		// Multilanguage M2: three settings are a closed set of values, not a number nor a free text - they are matched
+		// by (section, key), never by type, so no other int/string setting changes behaviour
+		if (IsChoiceSetting(entry))
+		{
+			return BuildChoiceRow(entry, yPos);
+		}
 		if (entry.SettingType == typeof(float))
 		{
 			return BuildFloatRow(entry, yPos);
@@ -1260,6 +1337,305 @@ public class ConfigPanel : MonoBehaviour
 		});
 		return gameObject;
 	}
+
+	// ------------------------------------------------------------------ Multilanguage M2: the closed-list rows
+
+	/// <summary>
+	/// The three settings that are a <b>closed set of values</b> and now get a list instead of a number or a text box:
+	/// the voice of the companion (<c>[AI] TtsVoice</c>) and the two languages (<c>[AI] TtsLanguage</c> - the Kokoro
+	/// code of the speech - and <c>[AI] VoiceLanguage</c> - the Whisper code of the orders). Matched by section and key
+	/// on purpose: nothing else in the .cfg changes the way it is edited.
+	/// </summary>
+	private static bool IsChoiceSetting(ConfigEntryBase entry)
+	{
+		string section = entry.Definition.Section;
+		string key = entry.Definition.Key;
+		return (section == "AI" && key == "TtsVoice")
+			|| (section == "AI" && key == "TtsLanguage")
+			|| (section == "AI" && key == "VoiceLanguage");
+	}
+
+	/// <summary>
+	/// One row of a closed list of values: the name on the left (like every other row), the field in the middle and the
+	/// "Default" button on the right. The field says what is <b>in use</b>: the option itself, or - when what is stored
+	/// is the automatic value - <c>"Automatico (en-us)"</c> / <c>"Automatico (af_heart · en-US)"</c>, i.e. the stored
+	/// value plus what the game language resolved it to (Multilanguage M2). Nothing is written to the .cfg by opening
+	/// the panel: the write happens when an option is picked (or the Default button).
+	/// </summary>
+	private GameObject BuildChoiceRow(ConfigEntryBase entry, float yPos)
+	{
+		GameObject row = CreateRowContainer("Row_" + entry.Definition.Key, yPos);
+		GameObject label = CreateLabel(row.transform, EntryLabel(entry), 12f, Color.white);
+		RectTransform labelRT = label.GetComponent<RectTransform>();
+		labelRT.anchorMin = new Vector2(0f, 0f);
+		labelRT.anchorMax = new Vector2(0.38f, 1f);
+		labelRT.offsetMin = new Vector2(8f, 0f);
+		labelRT.offsetMax = Vector2.zero;
+		label.GetComponent<TMP_Text>().alignment = TextAlignmentOptions.MidlineLeft;
+
+		GameObject field = new GameObject("ChoiceField", typeof(RectTransform), typeof(Image), typeof(Button));
+		field.transform.SetParent(row.transform, worldPositionStays: false);
+		RectTransform fieldRT = field.GetComponent<RectTransform>();
+		fieldRT.anchorMin = new Vector2(0.40f, 0.1f);
+		fieldRT.anchorMax = new Vector2(0.84f, 0.9f);
+		fieldRT.offsetMin = Vector2.zero;
+		fieldRT.offsetMax = Vector2.zero;
+		Image fieldImage = field.GetComponent<Image>();
+		Sprite fieldSprite = GetBtnBgSprite();
+		if (fieldSprite != null)
+		{
+			fieldImage.sprite = fieldSprite;
+			fieldImage.type = Image.Type.Simple;
+			fieldImage.color = Color.white;
+		}
+		else
+		{
+			fieldImage.color = DefaultBtnColor;
+		}
+		GameObject fieldLabel = CreateLabel(field.transform, "", 11f, Color.white);
+		RectTransform fieldLabelRT = fieldLabel.GetComponent<RectTransform>();
+		fieldLabelRT.anchorMin = Vector2.zero;
+		fieldLabelRT.anchorMax = Vector2.one;
+		fieldLabelRT.offsetMin = new Vector2(6f, 0f);
+		fieldLabelRT.offsetMax = new Vector2(-4f, 0f);
+		TMP_Text caption = fieldLabel.GetComponent<TMP_Text>();
+		caption.alignment = TextAlignmentOptions.MidlineLeft;
+
+		ChoiceRow choice = BuildChoice(entry);
+		choice.Field = fieldRT;
+		choice.Caption = caption;
+		Button button = field.GetComponent<Button>();
+		button.onClick.AddListener(delegate
+		{
+			OpenChoice(choice);
+		});
+		// the row is the field: the list needs it to know where to open, and the panel's own geometry (the content
+		// scrolls, which is why the position is measured when it opens and not when the row is built)
+		CreateDefaultButton(row.transform, entry, delegate
+		{
+			RefreshChoice(choice);
+		});
+		_entryData.Add(entry);
+		_entrySliders.Add(null);
+		_entryResetActions.Add(delegate
+		{
+			entry.BoxedValue = entry.DefaultValue;
+			RefreshChoice(choice);
+		});
+		// the gamepad's left/right steps through the options of this row (see AdjustSelectedValue)
+		_choiceAdjust[_entryRows.Count] = delegate(int direction)
+		{
+			StepChoice(choice, direction);
+		};
+		RefreshChoice(choice);
+		return row;
+	}
+
+	/// <summary>The options of a row: the labels the list shows, the values it writes and how the automatic one reads.
+	/// Built from the language tables of the mod, so the list is always the one the STT/TTS will really use.</summary>
+	private sealed class ChoiceRow
+	{
+		internal ConfigEntryBase Entry;
+
+		internal string[] Labels;
+
+		internal object[] Values;
+
+		internal int Index;
+
+		internal TMP_Text Caption;
+
+		internal RectTransform Field;
+	}
+
+	/// <summary>Fills <see cref="ChoiceRow"/> for one of the three settings (the caller matched the key already).</summary>
+	private static ChoiceRow BuildChoice(ConfigEntryBase entry)
+	{
+		string key = entry.Definition.Key;
+		if (key == "TtsVoice")
+		{
+			int[] voices = CompanionLocale.Current.Voices;
+			string[] labels = new string[voices.Length + 1];
+			object[] values = new object[voices.Length + 1];
+			labels[0] = AutoVoiceOption();
+			values[0] = 0;
+			for (int i = 0; i < voices.Length; i++)
+			{
+				labels[i + 1] = CompanionProfile.LabelOf(voices[i]);
+				values[i + 1] = voices[i];
+			}
+			return new ChoiceRow
+			{
+				Entry = entry,
+				Labels = labels,
+				Values = values
+			};
+		}
+		if (key == "TtsLanguage")
+		{
+			// the languages this Kokoro speaks (the model is one file; the code picks the phonemizer)
+			return ChoiceOf(entry, AutoCodeOption(CompanionTts.Language),
+				new string[] { "en-us", "en-gb", "pt-br", "es", "fr", "it", "ja", "zh", "hi" });
+		}
+		// VoiceLanguage: the codes Whisper accepts (the model is multilingual and detects too, but "auto" follows the
+		// game language, which is what makes the orders be understood in it)
+		return ChoiceOf(entry, AutoCodeOption(WhisperStt.Language ?? "auto"),
+			new string[] { "pt", "en", "es", "fr", "it", "de", "ru", "pl", "tr", "ko", "ja", "zh", "hi", "uk", "sv" });
+	}
+
+	/// <summary>"auto" first, with the label that says what it resolves to, then the codes themselves.</summary>
+	private static ChoiceRow ChoiceOf(ConfigEntryBase entry, string autoLabel, string[] codes)
+	{
+		string[] labels = new string[codes.Length + 1];
+		object[] values = new object[codes.Length + 1];
+		labels[0] = autoLabel;
+		values[0] = "auto";
+		for (int i = 0; i < codes.Length; i++)
+		{
+			labels[i + 1] = codes[i];
+			values[i + 1] = codes[i];
+		}
+		return new ChoiceRow
+		{
+			Entry = entry,
+			Labels = labels,
+			Values = values
+		};
+	}
+
+	/// <summary>The option that means "follow the game language", saying which voice it is right now.</summary>
+	private static string AutoVoiceOption()
+	{
+		string pair = CompanionProfile.LanguageTag() + " · " + CompanionLocale.VoiceName(CompanionTts.Voice);
+		return ModLocalization.LocFmt("hc_cfg_auto_value", pair);
+	}
+
+	/// <summary>The same for a language code: "Automatico (en-us)".</summary>
+	private static string AutoCodeOption(string code)
+	{
+		return ModLocalization.LocFmt("hc_cfg_auto_value", code);
+	}
+
+	/// <summary>
+	/// Paints the field of a choice row from what is stored in the .cfg: the option label, or - for the automatic value -
+	/// the label of the option with the language/voice it resolves to. An unknown stored value (a hand-edited .cfg) is
+	/// shown as it is written, with no option highlighted.
+	/// </summary>
+	private void RefreshChoice(ChoiceRow choice)
+	{
+		if (choice == null || choice.Caption == null)
+		{
+			return;
+		}
+		object stored = choice.Entry.BoxedValue;
+		int index = IndexOfValue(choice.Values, stored);
+		choice.Index = index;
+		string text;
+		if (index == 0)
+		{
+			// the automatic one: say what it resolves to right now (the game language is what decides)
+			text = choice.Labels[0];
+			if (choice.Entry.Definition.Key == "TtsVoice")
+			{
+				text = AutoVoiceOption();
+			}
+			else if (choice.Entry.Definition.Key == "TtsLanguage")
+			{
+				text = AutoCodeOption(CompanionTts.Language);
+			}
+			else
+			{
+				text = AutoCodeOption(WhisperStt.Language ?? "auto");
+			}
+		}
+		else if (index > 0)
+		{
+			text = choice.Labels[index];
+		}
+		else if (choice.Entry.Definition.Key == "TtsVoice" && stored is int storedVoice && storedVoice > 0)
+		{
+			// a voice of another language (or one this model does not have): the list does not offer it, and the
+			// number alone would say nothing - the panels name it the same way the AI panel does
+			text = ModLocalization.LocFmt("hc_ai_voice_other", CompanionLocale.VoiceName(storedVoice));
+		}
+		else
+		{
+			text = stored != null ? stored.ToString() : "?";
+		}
+		choice.Caption.text = text;
+		choice.Caption.color = index >= 0 ? Color.white : GoldTextColor;
+	}
+
+	/// <summary>Index of a stored value in the options (strings compared without case: the .cfg is hand-edited).</summary>
+	private static int IndexOfValue(object[] values, object stored)
+	{
+		if (values == null || stored == null)
+		{
+			return -1;
+		}
+		string storedText = stored as string;
+		for (int i = 0; i < values.Length; i++)
+		{
+			if (storedText != null)
+			{
+				if (string.Equals(values[i] as string, storedText.Trim(), StringComparison.OrdinalIgnoreCase))
+				{
+					return i;
+				}
+			}
+			else if (Equals(values[i], stored))
+			{
+				return i;
+			}
+		}
+		return -1;
+	}
+
+	/// <summary>Opens the list of a row under (or over) its field. The room is measured from the panel's edges, and the
+	/// list scrolls when the options do not fit - the reason the widget exists.</summary>
+	private void OpenChoice(ChoiceRow choice)
+	{
+		if (choice == null || choice.Field == null || _choiceList == null || _rootRT == null)
+		{
+			return;
+		}
+		Vector2 topLeft = ModDropdownList.TopLeftIn(_rootRT, choice.Field);
+		float height = choice.Field.rect.height;
+		float below = PanelH - (topLeft.y + height) - 4f;
+		float above = topLeft.y - 4f;
+		_choiceList.SetFont(_font);
+		_choiceList.Show(choice.Labels, choice.Index, topLeft.x, topLeft.y, height, choice.Field.rect.width, below, above,
+			false, delegate(int index)
+			{
+				ApplyChoice(choice, index);
+			});
+	}
+
+	/// <summary>Writes one option into the setting (the .cfg is saved by BepInEx on the write, as with every row).</summary>
+	private void ApplyChoice(ChoiceRow choice, int index)
+	{
+		if (choice == null || index < 0 || index >= choice.Values.Length)
+		{
+			return;
+		}
+		choice.Entry.BoxedValue = choice.Values[index];
+		choice.Index = index;
+		RefreshChoice(choice);
+	}
+
+	/// <summary>The gamepad's left/right on a choice row: the next/previous option, wrapping around.</summary>
+	private void StepChoice(ChoiceRow choice, int direction)
+	{
+		if (choice == null || choice.Values == null || choice.Values.Length == 0)
+		{
+			return;
+		}
+		int count = choice.Values.Length;
+		int index = choice.Index < 0 ? 0 : choice.Index;
+		index = (index + (direction > 0 ? 1 : count - 1)) % count;
+		ApplyChoice(choice, index);
+	}
+
 
 	private GameObject CreateRowContainer(string name, float yPos)
 	{
