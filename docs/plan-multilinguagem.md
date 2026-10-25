@@ -9,13 +9,14 @@ Status: **planejado** (nenhum código escrito). Base: skill `.opencode/skills/ko
 3. Idiomas desta leva: **EN, PT-BR, ES e FR**.
 4. As traduções (UI, falas, vocabulário do STT) são **geradas** e depois revisadas pelo jogador.
 
-Decisões propostas (confirmar na hora de implementar):
+Decisões confirmadas em 25/10/2026 (segunda rodada):
 
-- **Vozes por idioma**: lista **curada de 2 a 4** (fem + masc), não as 54 — o painel já é uma lista feita à mão.
-- **Voz padrão do "auto"**: a 1ª da lista curada do idioma (pt `pf_dora`, en `af_heart`, es `ef_dora`, fr `ff_siwis`).
-- **Voz por companheiro** de outro idioma (ex.: `42` num jogo em inglês): **respeitada**, com um aviso no log
-  (o Kokoro fonemiza no idioma do jogo, então sai com sotaque).
-- **`VoiceInitialPrompt` e presets de personalidade** também por idioma (é o que mais melhora o STT e o tom).
+- **Vozes: todas as do idioma** (o `VOICES.md` é explícito), na ordem **padrão primeiro** e depois as melhores notas.
+  Nada de curadoria "2–4": pt = 3, en-US = 20, es = 2, fr = 1 (o resto de cada família fica para quando entrar).
+- **A lista mostra só as vozes do idioma ativo**; idioma sem Kokoro → lista e padrão **ingleses** (`en-us`).
+- **Voz de companheiro de outro idioma: não é usada.** Se o `HC_AiVoice` guardado não pertence ao idioma ativo, a
+  fala cai no **padrão do idioma ativo** (o ZDO não é reescrito — voltar o jogo para PT restaura a escolha).
+- **`VoiceInitialPrompt` e presets de personalidade** por idioma.
 - O idioma efetivo aparece **no F8 e no painel `I`** (`Automático (pt-BR · pf_dora)`).
 
 ## O que já existe (não refazer)
