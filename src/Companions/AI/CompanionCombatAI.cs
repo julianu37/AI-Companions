@@ -84,7 +84,7 @@ public class CompanionCombatAI : MonoBehaviour
 
 	private float _parryGraceTimer;
 
-	// 2.0.0 (performance): the enemy scan of UpdateBlocking walked every Character in the world on every frame. It now
+	// 1.8.3 (performance): the enemy scan of UpdateBlocking walked every Character in the world on every frame. It now
 	// runs 5 times a second and the result is kept in between (the enemy that was swinging at the last scan).
 	private Character _swingingEnemy;
 
@@ -1027,7 +1027,7 @@ public class CompanionCombatAI : MonoBehaviour
 		}
 	}
 
-	/// <summary>2.0.0: the enemy within 8 m that is swinging right now (the one the companion turns to and blocks),
+	/// <summary>1.8.3: the enemy within 8 m that is swinging right now (the one the companion turns to and blocks),
 	/// or null. Split out of <see cref="UpdateBlocking"/> so the scan can run on a timer instead of every frame.</summary>
 	private Character FindSwingingEnemy()
 	{
@@ -1053,7 +1053,7 @@ public class CompanionCombatAI : MonoBehaviour
 			ClearBlock();
 			return;
 		}
-		// 2.0.0 (performance): the scan is timed, not per frame (Character.GetAllCharacters walks the whole world).
+		// 1.8.3 (performance): the scan is timed, not per frame (Character.GetAllCharacters walks the whole world).
 		// Fase 3.24 (auditoria): 12.5 times a second instead of 5. The block below waits 0.2 s from the first scan that
 		// saw the swing, so a 0.2 s window meant up to ~0.4 s before the shield went up - longer than the wind-up of a
 		// greydwarf or a skeleton (~0.3 s), and the parry arrived after the hit. At 0.08 s the worst case is ~0.28 s.

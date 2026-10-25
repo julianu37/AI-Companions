@@ -11,7 +11,7 @@ internal static class InRadial_BlockForStarterPanel
 		{
 			return;
 		}
-		// 2.0.0 (patch audit): PlayerController.LateUpdate reads Hud.instance.m_radialMenu right after
+		// 1.8.3 (patch audit): PlayerController.LateUpdate reads Hud.instance.m_radialMenu right after
 		// Hud.InRadial() returns true, with no null check of its own. Faking "true" while the HUD (or its radial
 		// menu) is missing would throw an NRE every frame, so the fake only happens when the invariant holds.
 		Hud hud = Hud.instance;

@@ -516,7 +516,7 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 	public static CompanionAiPanel Instance { get; private set; }
 
-	/// <summary>2.0.0: the root of the EventSystem the panel creates when the game has none (see EnsureEventSystem).
+	/// <summary>1.8.3: the root of the EventSystem the panel creates when the game has none (see EnsureEventSystem).
 	/// The game's own EventSystem is never touched; this one is a DontDestroyOnLoad object of ours, so the plugin
 	/// destroys it on unload.</summary>
 	internal static GameObject EventSystemRoot { get; private set; }

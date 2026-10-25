@@ -11,7 +11,7 @@ internal static class OverheadStats
 
 	private static bool _hudsFieldMissing;
 
-	// 2.0.0 (patch audit): EnemyHud.UpdateHuds calls this per companion per frame. It used to reflect on
+	// 1.8.3 (patch audit): EnemyHud.UpdateHuds calls this per companion per frame. It used to reflect on
 	// m_huds, call GetMethod("TryGetValue") and allocate an object[2] on every call; the dictionary and the
 	// HudData type are cached now and the lookup goes through the non-generic IDictionary (no boxing, no alloc).
 	private static IDictionary _huds;
@@ -26,7 +26,7 @@ internal static class OverheadStats
 
 	private static int _logs;
 
-	// 2.0.0 (second review): the caches above mirror EnemyHud's m_huds, so they must be dropped together with the
+	// 1.8.3 (second review): the caches above mirror EnemyHud's m_huds, so they must be dropped together with the
 	// HUD itself (called from the EnemyHud.OnDestroy postfix). If the HUD object outlives a world reload while
 	// m_huds is rebuilt, a stale dictionary never contains the new companions and the bars stop fading silently.
 	internal static void Reset()

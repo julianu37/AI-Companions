@@ -588,7 +588,7 @@ internal static class ModConfig
 
 	internal static void Init(ConfigFile cfg)
 	{
-		// 2.0.0: BepInEx's SaveOnConfigSet is true and every Bind writes the whole file (ConfigFile.Bind -> TrySave),
+		// 1.8.3: BepInEx's SaveOnConfigSet is true and every Bind writes the whole file (ConfigFile.Bind -> TrySave),
 		// so the boot rewrote the .cfg once per setting - 266 times for nothing, on the main thread. The saves are off
 		// for the whole of Init and one write happens at the end, after the migrations (they change values too and
 		// call Save themselves, which is fine with the flag off); the flag goes back to what it was, so the panels
@@ -606,7 +606,7 @@ internal static class ModConfig
 		}
 	}
 
-	/// <summary>2.0.0: the binds and the migrations, all in one place so <see cref="Init"/> can hold the per-bind saves
+	/// <summary>1.8.3: the binds and the migrations, all in one place so <see cref="Init"/> can hold the per-bind saves
 	/// off around them. The last thing it does is the migrations - they have to see the values the file already had.
 	/// </summary>
 	private static void BindEntries(ConfigFile cfg)
@@ -1125,7 +1125,7 @@ internal static class ModConfig
 				}
 			}
 			int dropped = orphans.Count;
-			// 2.0.0: the leftovers were thrown away without a trace, and they can be something the player typed by
+			// 1.8.3: the leftovers were thrown away without a trace, and they can be something the player typed by
 			// hand, a key from a newer version he is testing or the rest of a manual edit - keep the whole file next
 			// to it first (AiCompanions.cfg.bak).
 			if (dropped > 0)

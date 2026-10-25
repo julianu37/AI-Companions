@@ -1421,7 +1421,7 @@ public class CompanionInteract : MonoBehaviour
 			{
 				continue;
 			}
-			// 2.0.0 (dverger): a type that cannot wear armor does not work - not by the wheel (which hides the jobs),
+			// 1.8.3 (dverger): a type that cannot wear armor does not work - not by the wheel (which hides the jobs),
 			// not by the chat order (ApplyActionMode refuses) and not by aiming at a smelter with the command key.
 			// This path writes the ZDO directly, so it needs its own guard.
 			if (!setup.CanWearArmor())
@@ -1447,7 +1447,7 @@ public class CompanionInteract : MonoBehaviour
 		CompanionsPlugin.Log.LogDebug($"[Direct] {num} companion(s) → smelt mode");
 	}
 
-	/// <summary>2.0.0 (dverger): the localized "I fight, I don't do that work." line for a type that cannot wear armor
+	/// <summary>1.8.3 (dverger): the localized "I fight, I don't do that work." line for a type that cannot wear armor
 	/// (see <see cref="CompanionSetup.CanWearArmor"/> and <see cref="CompanionSetup.IsWorkMode"/>). Used by the two
 	/// direct command-key paths, which write the ZDO mode themselves instead of going through ApplyActionMode.</summary>
 	private static void SayCombatOnly(CompanionSetup setup)
@@ -1684,7 +1684,7 @@ public class CompanionInteract : MonoBehaviour
 			{
 				continue;
 			}
-			// 2.0.0 (dverger): same rule as the smelter - this path writes the ZDO directly, so it has its own guard.
+			// 1.8.3 (dverger): same rule as the smelter - this path writes the ZDO directly, so it has its own guard.
 			if (!setup.CanWearArmor())
 			{
 				SayCombatOnly(setup);

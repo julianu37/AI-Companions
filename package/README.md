@@ -250,7 +250,7 @@ trabalho no instante em que houver algo a fazer.
 Tudo fica em `BepInEx/config/AiCompanions.cfg` e também pode ser mudado **em jogo** com o
 painel de configurações (**`F8`** por padrão). Cada opção tem descrição clara.
 
-> **Atualizando para a 2.0.0?** O arquivo de configuração mudou de nome (era `Maddhattr.OfflineCompanionsReborn.cfg`,
+> **Atualizando para a 1.8.3?** O arquivo de configuração mudou de nome (era `Maddhattr.OfflineCompanionsReborn.cfg`,
 > que **não é mais lido** e pode ser apagado) e as **configurações voltam aos padrões** — inclusive a **`ApiKey`**,
 > que precisa ser colada de novo. A seção da IA virou **`[AI]`** e as **chaves são em inglês** (`Enabled`, `Model`,
 > `TtsVoice`…). **Save, mundo, companheiros, casas e inventário não são afetados** (o GUID do plugin e as chaves
@@ -278,7 +278,7 @@ Speech** e **Advanced** — além das nossas em **`[AI]`** (ordens por texto/voz
 - `-Nome` = nunca esse
 - `Nome:Número` = esse, com a sua própria quantidade
 
-Ao atualizar de uma versão antiga, as opções que você mudou são migradas automaticamente — **exceto na 2.0.0**,
+Ao atualizar de uma versão antiga, as opções que você mudou são migradas automaticamente — **exceto na 1.8.3**,
 que troca o arquivo (novo nome, chaves em inglês) e por isso **volta aos padrões**: é só reconfigurar (a tabela de
 todas as chaves está na **[wiki, em Configuração](https://github.com/julianu37/AI-Companions/wiki/Configuracao)**).
 

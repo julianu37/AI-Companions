@@ -37,12 +37,12 @@ Vá em **https://github.com/julianu37/AI-Companions/releases** e baixe **um** do
 
 | Arquivo | Tamanho | Quando escolher |
 |---|---|---|
-| `AI_Companions-2.0.0.zip` | ~368 MB | **Recomendado.** Já vem com os modelos de voz (STT + TTS). Instala e usa |
-| `AI_Companions-2.0.0-sem-modelos.zip` | ~28,5 MB | Internet lenta, ou você já tem os modelos e quer baixá-los separado |
+| `AI_Companions-1.8.3.zip` | ~368 MB | **Recomendado.** Já vem com os modelos de voz (STT + TTS). Instala e usa |
+| `AI_Companions-1.8.3-sem-modelos.zip` | ~28,5 MB | Internet lenta, ou você já tem os modelos e quer baixá-los separado |
 
 > A diferença é **só** os modelos de voz. O mod e as traduções são os mesmos nos dois.
 >
-> *(A **2.0.0** é a versão **multilíngue**: o inglês virou o **idioma nativo** — o `.cfg` passou a ser
+> *(A **1.8.3** é a versão **multilíngue**: o inglês virou o **idioma nativo** — o `.cfg` passou a ser
 > `AiCompanions.cfg` e a seção da IA virou `[AI]`, com as chaves em inglês —, e os painéis seguem o **idioma do
 > jogo**. A **1.8.2** pôs um **seletor de provedor de LLM** e o botão da **chave de API** no painel `I`. A
 > **1.8.0** trouxe a correção do peso — o **Megingjord** +150 passa a somar no teto do companheiro — e a
@@ -66,9 +66,9 @@ gerenciador de mods, aponte o zip para ele — o gerenciador instala direto, sem
 > **save**, os companheiros, a casa e o inventário continuam valendo. Duas pastas com o mesmo plugin = o BepInEx
 > carrega o mod duas vezes.
 
-> ### Atualizando para a 2.0.0? As configurações voltam aos padrões
+> ### Atualizando para a 1.8.3? As configurações voltam aos padrões
 >
-> A **2.0.0** trocou o **arquivo** de configuração: agora é **`BepInEx\config\AiCompanions.cfg`**, e o antigo
+> A **1.8.3** trocou o **arquivo** de configuração: agora é **`BepInEx\config\AiCompanions.cfg`**, e o antigo
 > (`Maddhattr.OfflineCompanionsReborn.cfg`) **não é mais lido** — fica no disco, **ignorado**, e pode ser apagado.
 > O arquivo novo nasce com os **valores padrão**: se você tinha chave de API, porta do LM Studio, voz, tecla do
 > push-to-talk ou qualquer ajuste, **configure de novo** (a **`ApiKey`** vem **em branco** e precisa ser colada).
@@ -188,18 +188,18 @@ O guia completo dos três caminhos (Groq → LM Studio local → OpenRouter) est
 3. Procure estas duas linhas:
 
 ```
-AI Companions v2.0.0 loading...
+AI Companions v1.8.3 loading...
 AI Companions loaded successfully! (N methods patched)
 ```
 
 Se elas aparecerem, o mod carregou.
 
-> O `v2.0.0` é a **versão que você instalou** (o número do zip que você baixou) e o `N` é quantos métodos do jogo
+> O `v1.8.3` é a **versão que você instalou** (o número do zip que você baixou) e o `N` é quantos métodos do jogo
 > o mod ajustou — esse número pode mudar de uma versão para outra.
 
 > Na **primeira execução** o log também mostra que o arquivo de configuração mudou de nome:
 > `[Config] Maddhattr.OfflineCompanionsReborn.cfg was replaced by AiCompanions.cfg ...` — é o aviso normal da
-> 2.0.0, e o `.cfg` antigo pode ser apagado.
+> 1.8.3, e o `.cfg` antigo pode ser apagado.
 
 > **É normal** ver um erro de **PlayFab / NullReferenceException** no boot — ele **não** é do mod e não impede
 > nada. Se quiser confirmar, veja **[Problemas comuns](Problemas-comuns)**.
@@ -225,10 +225,10 @@ Para ver todas as teclas e ordens, vá em **[Comandos](Comandos)**.
 
 - [ ] Valheim 1.0.x instalado
 - [ ] BepInEx 5.4.2351 extraído na raiz do jogo
-- [ ] Release **2.0.0** baixada (o pacote completo ou o sem-modelos)
+- [ ] Release **1.8.3** baixada (o pacote completo ou o sem-modelos)
 - [ ] Pasta `BepInEx\plugins\AI-Companions\` criada com o `Companions.dll` e as dependências
 - [ ] Modelos de voz em `whisper\` e `tts\kokoro\`
-- [ ] Configuração **refeita** em `BepInEx\config\AiCompanions.cfg` (a 2.0.0 **zera** as opções) e o `.cfg` antigo apagado
+- [ ] Configuração **refeita** em `BepInEx\config\AiCompanions.cfg` (a 1.8.3 **zera** as opções) e o `.cfg` antigo apagado
 - [ ] Chave gratuita do Groq criada e `[AI] ApiKey` preenchida (ou o LM Studio local configurado)
 - [ ] `[AI] BaseUrl` e `[AI] Model` conferidos no `.cfg`
 - [ ] **Testar conexão** (painel `I`) respondendo `Conexão OK`

@@ -32,7 +32,7 @@ public class CompanionHudPanel : MonoBehaviour
 
 		private Image[] _foodIconSlots;
 
-		// 2.0.0: the components of a row never change with the frame (a row belongs to one companion), so the five
+		// 1.8.3: the components of a row never change with the frame (a row belongs to one companion), so the five
 		// GetComponent calls that ran every frame are done once per owner; the row is refreshed 5 times a second
 		// instead of 60 (nobody reads faster than that) and the texts are only rewritten when the value really
 		// changed - every assignment rebuilds the text mesh.
@@ -93,7 +93,7 @@ public class CompanionHudPanel : MonoBehaviour
 			{
 				_staFill.fillAmount = ((num4 > 0f) ? Mathf.Clamp01(num3 / num4) : 0f);
 			}
-			// 2.0.0: everything below formats text or looks prefabs and sprites up, so it runs 5 times a second instead
+			// 1.8.3: everything below formats text or looks prefabs and sprites up, so it runs 5 times a second instead
 			// of every frame (nobody reads a number faster than that), and the text is only rewritten when the value
 			// really changed - every assignment rebuilds the text mesh.
 			float now = Time.unscaledTime;

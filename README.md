@@ -165,7 +165,7 @@ chat do jogo ──────────────────────�
    **OpenRouter** continua funcionando como alternativa: `https://openrouter.ai/api/v1` + `openrouter/free`.)
 5. Entre no mundo. No chat: `colete 10 madeiras`. Ou segure **`V`** e fale. Ele responde **em voz alta**.
 
-> **Atualizando para a 2.0.0? As configurações voltam aos padrões.** O arquivo de configuração passou a ser
+> **Atualizando para a 1.8.3? As configurações voltam aos padrões.** O arquivo de configuração passou a ser
 > `BepInEx\config\AiCompanions.cfg` e o antigo (`Maddhattr.OfflineCompanionsReborn.cfg`) **não é mais lido** —
 > pode ser apagado. O arquivo novo nasce com os **valores padrão**, inclusive a **`ApiKey` em branco**, que
 > precisa ser colada de novo; a seção da IA virou **`[AI]`** e as **chaves são em inglês** (`Enabled`, `Model`,

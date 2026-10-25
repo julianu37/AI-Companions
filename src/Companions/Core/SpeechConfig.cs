@@ -41,7 +41,7 @@ public class SpeechConfig
 
 	private static SpeechConfig _instance;
 
-	/// <summary>2.0.0: the language the current lines were read for, so <see cref="ReloadForLanguage"/> can tell a real
+	/// <summary>1.8.3: the language the current lines were read for, so <see cref="ReloadForLanguage"/> can tell a real
 	/// language change from the extra <c>SetupLanguage</c> calls the game makes (startup, world load).</summary>
 	private static string _loadedLanguage;
 
@@ -54,7 +54,7 @@ public class SpeechConfig
 				Load();
 				return _instance;
 			}
-			// 2.0.0: the spoken lines follow the game language, but this check can NOT live in the
+			// 1.8.3: the spoken lines follow the game language, but this check can NOT live in the
 			// Localization.SetupLanguage postfix: reading GetSelectedLanguage() there touches PlatformPrefs, which
 			// initializes the platform and calls SetupLanguage again (endless recursion on the loading screen). Here
 			// it is lazy and safe - by the time the companion talks, the platform is up.
@@ -81,7 +81,7 @@ public class SpeechConfig
 		}
 	}
 
-	/// <summary>2.0.0: re-entrancy guard for the lazy language check in <see cref="Instance"/>.</summary>
+	/// <summary>1.8.3: re-entrancy guard for the lazy language check in <see cref="Instance"/>.</summary>
 	private static bool _checkingLanguage;
 
 	public static void Load()
@@ -128,7 +128,7 @@ public class SpeechConfig
 		Load();
 	}
 
-	/// <summary>2.0.0: called from the <c>Localization.SetupLanguage</c> postfix, so the companion's spoken lines follow
+	/// <summary>1.8.3: called from the <c>Localization.SetupLanguage</c> postfix, so the companion's spoken lines follow
 	/// the game language. Only a real change reloads the file - <c>SetupLanguage</c> also runs at startup and on every
 	/// world load, and those calls would otherwise read the same JSON again for nothing.</summary>
 	public static void ReloadForLanguage(string language)
@@ -150,7 +150,7 @@ public class SpeechConfig
 		{
 			string json = File.ReadAllText(path);
 			SpeechConfig speechConfig = JsonUtility.FromJson<SpeechConfig>(json);
-			// 2.0.0: a partial file used to come back with null arrays, and the first line of that category threw a
+			// 1.8.3: a partial file used to come back with null arrays, and the first line of that category threw a
 			// NullReferenceException (the wheel reads Action.Length). A translation is often written in pieces, so
 			// every category the file leaves out keeps the built-in lines instead of taking the speech down.
 			_instance = Merge(speechConfig, path);
@@ -164,7 +164,7 @@ public class SpeechConfig
 		}
 	}
 
-	/// <summary>2.0.0: fills in the categories the file doesn't have (null OR empty array - an empty list would show
+	/// <summary>1.8.3: fills in the categories the file doesn't have (null OR empty array - an empty list would show
 	/// nothing at all) from <see cref="Defaults"/>, and says in the log which ones were missing.</summary>
 	private static SpeechConfig Merge(SpeechConfig loaded, string path)
 	{

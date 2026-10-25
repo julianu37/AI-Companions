@@ -2,7 +2,7 @@
 
 Todas as mudanças deste projeto, derivado do Offline Companions, do ProfMags. As versões anteriores à 1.4.0 são o mod original (veja o histórico do mod original, do ProfMags, para essas versões) mais o primeiro lote de correções de compatibilidade com a API do Valheim 1.0 que fizeram o mod carregar e rodar. **As entradas abaixo de 1.5.4 são o histórico do upstream e ficam como estão (em inglês) — as nossas seções (a partir da 1.6.0) são nossas.**
 
-## 2.0.0 — 24/10/2026
+## 1.8.3 — 25/10/2026
 
 **Inglês como idioma nativo — e o mod passa a falar o idioma do jogo.** Esta é a versão que **quebra o `.cfg`**: o
 arquivo passa a ser **`AiCompanions.cfg`** (o `Maddhattr.OfflineCompanionsReborn.cfg` deixa de ser lido) e a seção

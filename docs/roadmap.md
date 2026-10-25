@@ -392,12 +392,12 @@ Ordens em **linguagem natural** por cima do mod do upstream. O companheiro conti
 | 3.22 | **O peso efetivo do companheiro — o Megingjord soma de verdade** (24/10/2026, bug do Nexus): `Companion/CompanionCarry.cs` soma ao `[General] MaxCarryWeight` o bônus lido do **asset** (`SE_Stats.m_addMaxCarryWeight`), com o item em **qualquer lugar da mochila**, deduplicado por referência do `StatusEffect` (dois cintos não somam) e **cacheado por inventário** (zero alocação por frame); vale no `Encumbered`, no painel/HUD (`/450`), no loot, no recolher, no ferreiro, no upkeep, na pesca/caça e no `[Gathering] OverweightThreshold`, que virou **base** (`UnloadThreshold = config + bônus` → coleta volta para casa em **448** com o cinto) | ✅ **validada em jogo** (*"ficou perfeito a correção do bug do usuário"*) |
 | 3.23 | **Groq como LLM padrão** (24/10/2026, 1.8.1): `[IA] BaseUrl` = `https://api.groq.com/openai/v1`, `Modelo` = `openai/gpt-oss-20b`, `ApiKey` gratuita em `console.groq.com/keys`. **Ordem de preferência: Groq → LM Studio/Ollama (local) → OpenRouter** — o OpenRouter **continua documentado e funcionando**, mas o tier gratuito (`openrouter/free`) é lento/imprevisível e por isso saiu do padrão. `gpt-oss-20b` aceita `json_schema` em **strict** (a saída estruturada continua garantida). Limites do tier gratuito (fonte: `console.groq.com/docs/rate-limits`): **30 RPM, 1.000 RPD, 8.000 TPM, 200.000 TPD** → ~**4 ordens/min** na prática (~1.800 tokens por ordem) e **429** acima disso | ✅ build 0/0 e DLL no jogo |
 | 3.24 | **Seletor de provedor + link da chave + enxugar o painel** (24/10/2026, 1.8.2, branch `feat/provedor-llm`): novo `AI/LlmProviders.cs` (tabela `Groq`/`LM Studio`/`OpenRouter`/`Personalizado` com `BaseUrl`, `Model` e `KeyUrl`, e `Suggest(baseUrl)` que **deduz** o provedor da própria URL — normalizando esquema, `/v1`, barra final, `/chat/completions` e o `localhost`↔`127.0.0.1` do LM Studio; **nenhuma config nova**, o `.cfg` continua a fonte da verdade). No `CompanionAiPanel`: dropdown "Selecione seu Provedor LLM" (o mesmo do "Tipo" do invocador) **acima da URL**, que só **preenche os campos** (grava no Aplicar) e **nunca toca na `ApiKey`**; botão **"Crie sua Chave de API Grátis AQUI"** na metade direita da linha da chave, com `GoldColor` + texto branco como um toggle ligado, **transição padrão** (realce suave no hover, sem estado depois do clique) e `Application.OpenURL` da URL fixa do provedor (Groq/OpenRouter; **some** no local/personalizado); e a **"Velocidade da fala" saiu do painel `I`** (fica só no F8) — chave `hc_ai_panel_speed` removida dos dois dicionários, painel **976 → 934** e a grade subiu 42 px sem buraco | ✅ **aprovado em jogo** (*"Aprovado!"*) |
-| 4.0 | **Multilíngue com o inglês nativo** (24/10/2026, **2.0.0**, branch `languages`): **quebra o `.cfg`** — arquivo novo `AiCompanions.cfg` (o `Maddhattr.OfflineCompanionsReborn.cfg` é ignorado; GUID preservado; migrador do upstream continua), seção `[IA]` → **`[AI]`** com as **39 chaves em inglês** e **todas as descrições do `.cfg` em inglês** (237 recuperadas do upstream + as nossas escritas em inglês; referência PT em `docs/re/config-descricoes-pt-1.8.2.tsv`). O **F8 ficou bilíngue** (`LocOr("hc_cfg_<seção>_<chave>", <chave>)` + `hc_cat_*`): inglês = a própria chave, português = `Translations/Portuguese_Brazilian.json` (266 rótulos + 22 seções). Traduzir um idioma novo = `Translations/<Idioma>.json` + `Speech/<Idioma>.json` | ✅ testado em jogo (EN e PT) |
+| 4.0 | **Multilíngue com o inglês nativo** (25/10/2026, **1.8.3**, branch `languages`): **quebra o `.cfg`** — arquivo novo `AiCompanions.cfg` (o `Maddhattr.OfflineCompanionsReborn.cfg` é ignorado; GUID preservado; migrador do upstream continua), seção `[IA]` → **`[AI]`** com as **39 chaves em inglês** e **todas as descrições do `.cfg` em inglês** (237 recuperadas do upstream + as nossas escritas em inglês; referência PT em `docs/re/config-descricoes-pt-1.8.2.tsv`). O **F8 ficou bilíngue** (`LocOr("hc_cfg_<seção>_<chave>", <chave>)` + `hc_cat_*`): inglês = a própria chave, português = `Translations/Portuguese_Brazilian.json` (266 rótulos + 22 seções). Traduzir um idioma novo = `Translations/<Idioma>.json` + `Speech/<Idioma>.json` | ✅ testado em jogo (EN e PT) |
 
-#### Backlog da revisão da 2.0.0 (não bloqueia a release)
+#### Backlog da revisão da 1.8.3 (não bloqueia a release)
 
 A revisão completa (geral, Harmony, rede/ZDO e camada de IA) terminou **sem nada bloqueante**. O que foi corrigido está
-no `CHANGELOG` 2.0.0; o que ficou para depois:
+no `CHANGELOG` 1.8.3; o que ficou para depois:
 
 - **Multiplayer — sincronização de config**: as 266 chaves são locais; em MP cada peer usa o próprio `.cfg` e quem
   decide é quem **possui o ZDO naquele instante** (o Valheim migra a posse a cada 2 s). Prever um "host config"
@@ -413,7 +413,7 @@ no `CHANGELOG` 2.0.0; o que ficou para depois:
 - **Tipos alternativos (dverger: Mago, Mago de Fogo, Mago de Gelo e Suporte) são DE COMBATE — e isso agora é
   intencional**: eles podem ser invocados e lutam como no upstream. A roda deles já esconde os trabalhos (o
   `if (!_isDverger)` do `CompanionRadialMenu`, idêntico ao upstream) e mantém **Follow, Repair and Restock, Despawn,
-  Command, Pickup, Wander, Set Home** + as posturas — é o menu da captura do upstream. Desde a **2.0.0** (branch
+  Command, Pickup, Wander, Set Home** + as posturas — é o menu da captura do upstream. Desde a **1.8.3** (branch
   `fix/dverger-combate`) o **LLM e a tecla de comando também não conseguem** colocá-los para trabalhar:
   `CompanionSetup.IsWorkMode` + `ApplyActionMode` devolvendo `false`, recusa em `CompanionOrders` (chat/voz) e nas duas
   escritas diretas de `CompanionInteract` (`DirectSmelt`/`DirectGatherMode`), com a fala **"Sou de combate, não faço
@@ -427,7 +427,7 @@ no `CHANGELOG` 2.0.0; o que ficou para depois:
   na janela **persiste** — e a afirmação saiu da documentação do jogador de propósito. Para fechar a dúvida (30 s):
   matar algo perto de um dverger ou mandar `recolhe os itens do chão` e conferir se o loot aparece na janela dele
   (e se continua depois de sair e voltar ao mundo). **O que NÃO fazer:** trocar `Container.m_inventory` pelo inventário
-  do `Humanoid` no `Awake` — foi tentado na 2.0.0 e **revertido** (`e8247ff`): o `Container.Awake` já rodou (inclusive
+  do `Humanoid` no `Awake` — foi tentado na 1.8.3 e **revertido** (`e8247ff`): o `Container.Awake` já rodou (inclusive
   o `Load` e o `InvokeRepeating("CheckForChanges")`) antes do swap, o `m_lastRevision` é carimbado no primeiro save e os
   itens que o jogador deu **deixam de persistir** (sintoma: "a madeira sumiu e o cajado voltou"; o `[ContainerDiag]`
   mostrou `SAVE items=1..6` sem nenhum `LOAD applied`). **Caminho seguro, se a hipótese se confirmar:** persistir o
@@ -452,17 +452,17 @@ no `CHANGELOG` 2.0.0; o que ficou para depois:
 - **`[AI] Prefixo` vazio por padrão**: toda mensagem do chat vai ao LLM (inclusive conversa com outros jogadores em
   MP). Estudar `/c` como padrão ou um aviso no painel.
 - **Aviso de timeout** pode ser engolido quando outra mensagem entra em voo (o jogador não sabe que a ordem morreu).
-- **Prints antigos da wiki** (`config-ia.png`, `3-painel-f8.jpg`) mostram os nomes PT de antes da 2.0.0 — as legendas
+- **Prints antigos da wiki** (`config-ia.png`, `3-painel-f8.jpg`) mostram os nomes PT de antes da 1.8.3 — as legendas
   já avisam; trocar por capturas novas num próximo passe.
-- **TTS é pt-BR**: com a resposta no idioma do jogador (2.0.0), uma resposta em inglês é falada com voz portuguesa.
+- **TTS é pt-BR**: com a resposta no idioma do jogador (1.8.3), uma resposta em inglês é falada com voz portuguesa.
   Avaliar idioma de voz por idioma de resposta ou silenciar o TTS quando a linha não for PT.
-- **`inUse` da mochila do companheiro (2.0.0)**: o `CompanionContainerUse` libera um flag órfão depois de 5 s **quando
+- **`inUse` da mochila do companheiro (1.8.3)**: o `CompanionContainerUse` libera um flag órfão depois de 5 s **quando
   este peer é dono** e nenhuma janela do `InventoryGui` mostra o container. Risco residual: se a **posse do ZDO migrar**
   entre peers com a janela aberta há mais de 5 s, o flag pode ser liberado — aceitável (quem perdeu a posse também não
   salvaria), mas anotar para o teste em servidor dedicado.
 - **Assimetria do `IsOwner` no patch de durabilidade**: o `Prefix` aplica a redução de armadura em todos os clientes e o
   `Postfix` só drena durabilidade no dono (sem desync; só o log "Armor reduction" fica otimista em cliente não-dono).
-- **`Hud.InRadial`**: a guarda de `m_radialMenu` na 2.0.0 é **defesa em profundidade** — o `InRadial` do jogo já checa
+- **`Hud.InRadial`**: a guarda de `m_radialMenu` na 1.8.3 é **defesa em profundidade** — o `InRadial` do jogo já checa
   nulo; o efeito prático é "os modais do mod deixam de bloquear input se o `m_radialMenu` do HUD sumir". O postfix de
   `Hud.UpdateCrosshair` (`CompanionRadialMenu`) ainda usa `m_crosshair`/`m_hoverName` sem checagem.
 

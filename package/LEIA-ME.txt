@@ -1,5 +1,5 @@
 ================================================================================
- AI Companions 2.0.0
+ AI Companions 1.8.3
  Companheiro NPC com IA para Valheim 1.0 - em portugues do Brasil
 ================================================================================
 
@@ -18,9 +18,9 @@ padrao o Groq (servico remoto - o texto da ordem sai da sua maquina), ou, se
 voce preferir, um modelo local (LM Studio); o OpenRouter tambem funciona, mas o
 tier gratuito dele e mais lento. Veja "O CEREBRO (LLM)".
 
-ATENCAO - ATUALIZANDO PARA A 2.0.0 (as configuracoes voltam aos padroes)
+ATENCAO - ATUALIZANDO PARA A 1.8.3 (as configuracoes voltam aos padroes)
 -----------------------------------------------------------------------
-A 2.0.0 e a versao MULTILINGUE: o ingles virou o idioma nativo do mod. Para
+A 1.8.3 e a versao MULTILINGUE: o ingles virou o idioma nativo do mod. Para
 quem ja tem o mod instalado, isso significa:
 - O arquivo de configuracao agora e BepInEx\config\AiCompanions.cfg. O antigo
   (Maddhattr.OfflineCompanionsReborn.cfg) NAO e mais lido: fica no disco,
@@ -75,7 +75,7 @@ INSTALACAO
    O pacote "completo" ja traz os modelos prontos; o pacote "sem modelos" (bem
    menor) nao traz - copie os seus para as pastas acima.
 4. Entre no jogo. Se o BepInEx carregar o mod, o BepInEx\LogOutput.log mostra
-   "Loading [AI Companions 2.0.0]".
+   "Loading [AI Companions 1.8.3]".
 
 COMO USAR
 ---------
@@ -94,7 +94,7 @@ COMO USAR
   tecla do push-to-talk, memoria, conversa e as configuracoes do LLM (URL,
   modelo e chave). A velocidade da fala fica so no painel F8.
 - CONFIGURACOES (tecla F8): todas as opcoes do mod, inclusive a secao [AI]
-  (as chaves sao em ingles desde a 2.0.0).
+  (as chaves sao em ingles desde a 1.8.3).
 
 O CEREBRO (LLM)
 ---------------
