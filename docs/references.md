@@ -66,3 +66,16 @@ O pacote do mod embute os binários das duas metades da voz. Todos são de licen
 
 > Os **modelos** (Whisper `.bin` e Kokoro) são baixados/copiados para a pasta do plugin e **não** ficam no
 > repositório (são grandes).
+
+### Fontes da voz (Kokoro)
+
+| Fonte | Licença | Para que consultar |
+|---|---|---|
+| [VOICES.md](https://huggingface.co/hexgrad/Kokoro-82M/blob/main/VOICES.md) | doc do modelo (Apache-2.0) | As 54 vozes: gênero, nota de **qualidade/treino** e a faixa ideal de texto (**100–200 tokens**; fraco abaixo de 10–20, apressado acima de 400) |
+| [hexgrad/kokoro](https://github.com/hexgrad/kokoro) | Apache-2.0 | `KPipeline` e os `lang_code` (`a`/`b`/`e`/`f`/`h`/`i`/`j`/`p`/`z`); espeak-ng como fallback de G2P |
+| [k2-fsa — Kokoro](https://k2-fsa.github.io/sherpa/onnx/tts/pretrained_models/kokoro.html) | Apache-2.0 | O **export que a gente usa**: mapa **`sid → nome`** (42/43/44 = `pf_dora`/`pm_alex`/`pm_santa`), RTF e os nomes dos arquivos do pacote |
+| [remsky/Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) | Apache-2.0 | Alternativa **HTTP** (endpoint compatível com a OpenAI), mistura de vozes e streaming — só se o TTS sair do jogo |
+
+> O **mapa de `sid` vale para o export do sherpa**, não para a ordem alfabética do Hugging Face (a do HF tem 54
+> vozes; o mapa do sherpa v1_0 tem 53 — falta `em_santa`). A skill `.opencode/skills/kokoro/` consolida o catálogo,
+> a integração e as armadilhas.
