@@ -407,6 +407,9 @@ public static class ModLocalization
 			// comes from hc_ai_order_wood/stone/ore/...; when there is no job to name, "stop" alone.
 			{ "hc_ai_order_stop_job", "stop ({0})" },
 			{ "hc_ai_order_stop_other", "stop" },
+			// fix/dverger-combate: a work order sent to a combat-only type (the dverger ones: Mage, Fire Mage, Ice
+			// Mage, Support) - the job is not started and the companion answers with this instead.
+			{ "hc_ai_order_combat_only", "I fight, I don't do that work." },
 			{ "hc_ai_order_come", "come here" },
 			{ "hc_ai_order_sethome", "set home here" },
 			{ "hc_ai_order_wander", "wander around" },

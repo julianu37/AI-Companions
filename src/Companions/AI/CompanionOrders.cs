@@ -42,11 +42,22 @@ internal static class CompanionOrders
 		/// order was never started (the work mode was left alone - see CompanionOrders.Apply).</summary>
 		internal bool AlreadyHave;
 
+		/// <summary>
+		/// fix/dverger-combate: how many companions REFUSED a work order because they are combat-only types (the
+		/// dverger ones - see <see cref="CompanionSetup.IsWorkMode"/>). Counted so the single feedback line can say the
+		/// refusal only when everybody who answered refused: with a Companion in the same group the job line wins.
+		/// </summary>
+		internal int RefusedCombatOnly;
+
 		/// <summary>Fase 3.6: the finished line to show (already localized), for the orders whose feedback has to
 		/// name the creature or the item ("Atacando o troll.", "Não tenho picareta."). When set, it wins over the
 		/// generic "Ok: ..." line built by CompanionChatAI.</summary>
 		internal string Message;
 	}
+
+	// fix/dverger-combate: the line a combat-only type (the dverger ones) answers a work order with. One key, used by
+	// the refusal in Apply and by the feedback line Run finishes.
+	private const string CombatOnlyKey = "hc_ai_order_combat_only";
 
 	// ---- Fase 3.11/3.12: "this order is addressed to ONE companion" ----
 
@@ -203,9 +214,19 @@ internal static class CompanionOrders
 				outcome.Count++;
 			}
 		}
+		// fix/dverger-combate: everybody who answered refused the job because it is a combat-only type, so the one
+		// feedback line says the refusal ("Sou de combate, não faço esse trabalho.") instead of "Ok: coletar madeira".
+		// A Companion in the same group takes the job, so the job line stays and the refusal is only in the bubble.
+		if (outcome.RefusedCombatOnly > 0 && outcome.Count == outcome.RefusedCombatOnly && !outcome.AlreadyHave)
+		{
+			// Message, not LabelKey: the label goes through "hc_ai_ok_amount" ("Ok: {0} ({1})"), which would prefix a
+			// refusal with "Ok:" and put the number of the order after it - this line is a whole sentence.
+			outcome.Message = ModLocalization.Loc(CombatOnlyKey);
+		}
 		CompanionsPlugin.Log?.LogInfo($"[IA] Order \"{action}\"{(string.IsNullOrEmpty(outcome.Was) ? "" : $" (was: {outcome.Was})")}"
 			+ $"{(outcome.Amount > 0 ? $" (x{outcome.Amount})" : "")} -> {outcome.Count} companion(s)"
-			+ (outcome.AlreadyHave ? " (and at least one already had enough)" : ""));
+			+ (outcome.AlreadyHave ? " (and at least one already had enough)" : "")
+			+ (outcome.RefusedCombatOnly > 0 ? $" ({outcome.RefusedCombatOnly} refused: combat-only type)" : ""));
 		if (outcome.Count == 0 && !outcome.AlreadyHave)
 		{
 			CompanionsPlugin.Log?.LogInfo("[IA] No companion answered - none of yours is in range, or their Command switch is off (wheel)");
@@ -856,6 +877,21 @@ internal static class CompanionOrders
 			if (mode < 0)
 			{
 				return false;
+			}
+			// fix/dverger-combate: a combat-only type (the dverger ones) doesn't take work orders - the wheel already
+			// hides those segments for it. Nothing is changed (neither the mode nor the order target), so the companion
+			// keeps doing whatever it was doing; the refusal is said out loud and counted as an answer, so the player
+			// gets the line instead of "no companion answered".
+			if (CompanionSetup.IsWorkMode(mode) && !companion.CanWearArmor())
+			{
+				outcome.RefusedCombatOnly++;
+				CompanionsPlugin.Log?.LogInfo($"[IA] Order \"{action}\": {NameOf(companion)} is a combat-only type - the work order wasn't started (mode {mode} untouched)");
+				CompanionTalk refusalTalk = companion.GetComponent<CompanionTalk>();
+				if (refusalTalk != null)
+				{
+					refusalTalk.Say(ModLocalization.Loc(CombatOnlyKey), true, withVoice: false);
+				}
+				return true;
 			}
 			// Fase 3.2c: the number is a TOTAL counted in the companion's own pack, and it is about the item the
 			// order named ("colete 10 madeiras" = have 10 wood on you - see MHR_GatherRules.Bag). If it already has

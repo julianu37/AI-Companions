@@ -1421,6 +1421,14 @@ public class CompanionInteract : MonoBehaviour
 			{
 				continue;
 			}
+			// 2.0.0 (dverger): a type that cannot wear armor does not work - not by the wheel (which hides the jobs),
+			// not by the chat order (ApplyActionMode refuses) and not by aiming at a smelter with the command key.
+			// This path writes the ZDO directly, so it needs its own guard.
+			if (!setup.CanWearArmor())
+			{
+				SayCombatOnly(setup);
+				continue;
+			}
 			CancelExistingActions(setup);
 			ZNetView component = setup.GetComponent<ZNetView>();
 			if (component?.GetZDO() != null)
@@ -1437,6 +1445,18 @@ public class CompanionInteract : MonoBehaviour
 		}
 		SayRandom(companionTalk, SmeltLines);
 		CompanionsPlugin.Log.LogDebug($"[Direct] {num} companion(s) → smelt mode");
+	}
+
+	/// <summary>2.0.0 (dverger): the localized "I fight, I don't do that work." line for a type that cannot wear armor
+	/// (see <see cref="CompanionSetup.CanWearArmor"/> and <see cref="CompanionSetup.IsWorkMode"/>). Used by the two
+	/// direct command-key paths, which write the ZDO mode themselves instead of going through ApplyActionMode.</summary>
+	private static void SayCombatOnly(CompanionSetup setup)
+	{
+		CompanionTalk talk = setup != null ? setup.GetComponent<CompanionTalk>() : null;
+		if (talk != null)
+		{
+			talk.Say(ModLocalization.Loc("hc_ai_order_combat_only"), true, withVoice: false);
+		}
 	}
 
 	private static void DirectBoard(IReadOnlyList<CompanionSetup> setups, string localId, Ship ship)
@@ -1662,6 +1682,12 @@ public class CompanionInteract : MonoBehaviour
 		{
 			if (!IsOwned(setup, localId) || !MHR_InScope(setup))
 			{
+				continue;
+			}
+			// 2.0.0 (dverger): same rule as the smelter - this path writes the ZDO directly, so it has its own guard.
+			if (!setup.CanWearArmor())
+			{
+				SayCombatOnly(setup);
 				continue;
 			}
 			CancelExistingActions(setup);
