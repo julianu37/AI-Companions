@@ -38,6 +38,14 @@ Um idioma novo é **um arquivo**: `Translations/<Idioma>.json` (interface, nomes
 (falas). O **inglês não precisa de arquivo** — as chaves **são** o texto, então o jogo em inglês mostra os nomes certos
 sem nenhuma tradução.
 
+### Limitações conhecidas
+
+- **Só o tipo `Companheiro` está completo.** Os **dverger** (Mago, Mago de Fogo, Mago de Gelo e Suporte) podem ser
+  invocados e lutam, mas **ainda precisam de ajustes**: a **mochila que a IA usa não é salva** (o que você põe nela
+  fica; o que ele coleta ou equipa por conta dele se perde ao sair do mundo), o **uso de ferramentas** e os trabalhos
+  que dependem delas (coleta, mineração, reparo, reabastecimento) **não funcionam**, e o painel esconde os espaços de
+  comida por tipo. Use-os como combatentes até esses tipos serem ajustados.
+
 ## 1.8.2 — 24/10/2026
 
 **Escolher o provedor de LLM virou um clique.** A seção *Configurações do LLM* do painel `I` ganhou um **seletor de

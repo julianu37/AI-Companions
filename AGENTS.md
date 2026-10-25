@@ -660,6 +660,13 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   o prefixo **`[IA]`** de propósito (é tag de log, não caminho de config). Descrições PT de referência (v1.8.2):
   `docs/re/config-descricoes-pt-1.8.2.tsv`. Traduzir para outro idioma = **um arquivo** `Translations/<Idioma>.json`
   (UI + `hc_cfg_*` + `hc_cat_*`) + `Speech/<Idioma>.json`.
+- **Tipos alternativos (dverger) NÃO estão completos — só o tipo `Companheiro` é:** Mago, Mago de Fogo, Mago de Gelo e
+  Suporte podem ser invocados e lutam, mas **inventário** (a mochila que a IA usa não é salva — ver a seção
+  *Backlog da revisão da 2.0.0* no roadmap), **uso de ferramentas/jobs** (machado, picareta, martelo; coleta, mineração,
+  reparo, reabastecimento) e o painel (esconde os espaços de comida por tipo) **não funcionam**. Isso está documentado
+  ao jogador (wiki, README, LEIA-ME e página do Nexus) e **não** foi corrigido na 2.0.0: uma tentativa de unificar a
+  mochila foi **revertida** (`e8247ff`) porque piorava (os itens dados pelo jogador deixavam de persistir). Não encostar
+  em `Container`/`m_inventory`/`Load`/`CheckForChanges` sem um mundo de teste e sem ler o roadmap.
 - **Pendências conhecidas (abertas):** a **voz não passa pelo
   mixer do jogo** (por isso ignora os sliders de volume do Valheim e só obedece `[AI] TtsVolume`); o **sync com o
   upstream** (estamos **1 release atrás**: base `1.5.4`, `main` na `1.5.5` — ver a seção *Upstream e licença*);
@@ -697,18 +704,22 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
 ## Regras de trabalho
 
 1. **Carregue a skill** da dependência envolvida antes de codar ou revisar.
-2. **Não quebre o comportamento do upstream** — nossas mudanças são: **tradução PT-BR** + **camada de IA**.
+2. **Nenhum arquivo fica editado sem commit.** Toda alteração — código, doc, config, a **fonte** da wiki
+   (`docs/wiki/`), o `.tsv` de referência — é **commitada na branch correspondente no mesmo ciclo** em que foi feita.
+   A árvore de trabalho termina o ciclo **limpa** (`git status` vazio). Nunca deixar mudanças soltas “para commitar
+   depois”; se o trabalho estiver pela metade, o commit é `wip(...)` na branch, não uma árvore suja.
+3. **Não quebre o comportamento do upstream** — nossas mudanças são: **tradução PT-BR** + **camada de IA**.
    Mudanças de lógica só com motivo claro e documentado.
-3. **Tradução**: use o sistema de localização do próprio mod (`Translations/*.json`, `ModLocalization.cs`) —
+4. **Tradução**: use o sistema de localização do próprio mod (`Translations/*.json`, `ModLocalization.cs`) —
    UI/hover/HUD — e `Translations/speech/<Idioma>.json` para as falas (`SpeechConfig`).
    Não hardcode PT-BR no código quando houver token de localização.
-4. **Sem segredos** hardcoded (chaves de LLM/API via `ConfigEntry` ou variável de ambiente).
-5. **Código vai em branch, não direto na `main`** (combinado em 22/10/2026): `feat/<tema>` ou `fix/<tema>` →
+5. **Sem segredos** hardcoded (chaves de LLM/API via `ConfigEntry` ou variável de ambiente).
+6. **Código vai em branch, não direto na `main`** (combinado em 22/10/2026): `feat/<tema>` ou `fix/<tema>` →
    **o jogador testa em jogo** → merge na `main`. **Um commit por hipótese** (não junte coisas independentes num
    commit só). Docs e release podem ir direto na `main`.
-6. **Sempre commitar e dar push** ao terminar (`git add -A && git commit && git push`), mensagem no padrão
+7. **Sempre commitar e dar push** ao terminar (`git add -A && git commit && git push`), mensagem no padrão
    `tipo(escopo): resumo`.
-7. Atualize a documentação correspondente (`README.md`, `package/CHANGELOG.md`, `docs/roadmap.md`,
+8. Atualize a documentação correspondente (`README.md`, `package/CHANGELOG.md`, `docs/roadmap.md`,
    `AGENTS.md`) quando algo mudar.
 
 ## MCP servers disponíveis
