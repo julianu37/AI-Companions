@@ -41,6 +41,10 @@ companheiro morto volta sozinho em meio minuto, como um jogador.
 Um idioma novo passou a ser **um arquivo**: `Translations/<Idioma>.json` (interface, nomes de config e abas) +
 `Speech/<Idioma>.json` (falas). O **inglês não precisa de arquivo** — as chaves **são** o texto.
 
+> O **changelog completo** — da 1.6.0 à 1.8.3, com todas as correções de cada versão — está em
+> [`package/CHANGELOG.md`](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)
+> (e vai dentro dos dois zips, na raiz).
+
 ### O que veio nas versões anteriores (nesta mesma linha)
 
 - **1.8.2** — **seletor de provedor** no painel `I` (Groq / LM Studio / OpenRouter, preenchendo URL e modelo), botão
