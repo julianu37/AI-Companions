@@ -31,6 +31,10 @@ public static class ModLocalization
 	/// instance alone did not, because <c>Localization.SetupLanguage</c> rebuilds that dictionary.</summary>
 	private const string SentinelKey = "hc_ui_settings_title";
 
+	/// <summary>2.0.0 (hotfix): re-entrancy guard for the <see cref="Localization.SetupLanguage"/> postfix - the game
+	/// calls it from the platform startup path, so anything that runs inside it can land here again.</summary>
+	private static bool _inPostfix;
+
 	private static readonly Regex EntryRegex = new Regex("\"key\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"[^\"]*\"value\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"", RegexOptions.Compiled);
 
 	private static readonly FieldInfo InstanceField = AccessTools.Field(typeof(Localization), "m_instance");
@@ -739,20 +743,29 @@ public static class ModLocalization
 	[HarmonyPostfix]
 	private static void SetupLanguage_Postfix(Localization __instance)
 	{
-		if (_initialized)
+		// 2.0.0 (hotfix): this postfix must do ONE thing - inject the strings. Anything else that touched Unity's
+		// platform layer here (SpeechConfig.Load calls Localization.instance.GetSelectedLanguage, which initializes
+		// PlatformPrefs, which runs SetStartupLanguage -> SetupLanguage -> this postfix -> ...) recursed until the game
+		// froze on the loading screen. The speech lines follow the language lazily, in SpeechConfig.Instance.
+		if (_inPostfix)
 		{
-			InjectTranslations(__instance);
+			return;
 		}
-		// 2.0.0: the companion's spoken lines follow the language as well (Speech/<language>.json), and this is the
-		// only place that knows the language changed. Only a real change reloads (see ReloadForLanguage); the built-in
-		// English lines cover a language that has no file.
+		_inPostfix = true;
 		try
 		{
-			SpeechConfig.ReloadForLanguage(__instance != null ? __instance.GetSelectedLanguage() : null);
+			if (_initialized)
+			{
+				InjectTranslations(__instance);
+			}
 		}
 		catch (Exception ex)
 		{
-			CompanionsPlugin.Log?.LogWarning("[Speech] Couldn't reload the lines for the new language: " + ex.Message);
+			CompanionsPlugin.Log?.LogWarning("[Localization] Couldn't inject the strings: " + ex.Message);
+		}
+		finally
+		{
+			_inPostfix = false;
 		}
 	}
 

@@ -52,10 +52,37 @@ public class SpeechConfig
 			if (_instance == null)
 			{
 				Load();
+				return _instance;
+			}
+			// 2.0.0: the spoken lines follow the game language, but this check can NOT live in the
+			// Localization.SetupLanguage postfix: reading GetSelectedLanguage() there touches PlatformPrefs, which
+			// initializes the platform and calls SetupLanguage again (endless recursion on the loading screen). Here
+			// it is lazy and safe - by the time the companion talks, the platform is up.
+			if (!_checkingLanguage)
+			{
+				_checkingLanguage = true;
+				try
+				{
+					string selected = (Localization.instance != null) ? Localization.instance.GetSelectedLanguage() : null;
+					if (!string.IsNullOrEmpty(selected) && !string.Equals(selected, _loadedLanguage, StringComparison.Ordinal))
+					{
+						Load();
+					}
+				}
+				catch
+				{
+				}
+				finally
+				{
+					_checkingLanguage = false;
+				}
 			}
 			return _instance;
 		}
 	}
+
+	/// <summary>2.0.0: re-entrancy guard for the lazy language check in <see cref="Instance"/>.</summary>
+	private static bool _checkingLanguage;
 
 	public static void Load()
 	{
