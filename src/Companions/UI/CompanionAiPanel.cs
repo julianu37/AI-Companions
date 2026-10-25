@@ -17,7 +17,7 @@ namespace Companions;
 ///
 /// Shape (deliberately the same shape as the mod's other panels):
 /// <list type="bullet">
-/// <item>a wooden panel (<c>PanelBackground</c>) over a dark backdrop, opened/closed by <c>[IA] PainelTecla</c>
+/// <item>a wooden panel (<c>PanelBackground</c>) over a dark backdrop, opened/closed by <c>[AI] PanelKey</c>
 /// (default <b>I</b>), by <b>Esc</b> and by the X button; the panel blocks the player's input while it is open (the
 /// same Harmony guards the other panels use) and hides itself when the player dies or leaves the world; it also
 /// refuses to <b>open</b> over a window that owns the mouse and the keyboard - the game's inventory, map, menu,
@@ -25,7 +25,7 @@ namespace Companions;
 /// while this one is visible), so the two panels are never on top of each other;</item>
 /// <item>the controls are built <b>once</b> (first open) and only shown/hidden afterwards - nothing is allocated per
 /// frame; the only per-frame work is the panel key, the cursor and a status refresh <b>twice a second</b>;</item>
-/// <item>every <c>[IA]</c> control writes straight into its <see cref="ConfigEntry"/>, and BepInEx saves the .cfg on
+/// <item>every <c>[AI]</c> control writes straight into its <see cref="ConfigEntry"/>, and BepInEx saves the .cfg on
 /// the spot (<c>ConfigFile.SaveOnConfigSet</c> is on by default), so the change is live and permanent; the controls
 /// of a companion's tab write into that companion's ZDO instead;</item>
 /// <item>a change is applied at the next use: the voice at the next line (the synthesis worker reads the config when
@@ -49,7 +49,7 @@ namespace Companions;
 /// Fase 3.10 - <b>the profile of each companion</b>: the voice and the personality stopped being one global setting
 /// for the whole world. A companion's tab carries its own "voice and personality" section (the same hand-built
 /// dropdowns, the same "Ouvir", the same "Aplicar"), and those controls write into <b>that companion's ZDO</b> through
-/// <see cref="CompanionProfile"/>. The <c>[IA]</c> values remain the <b>default</b> of every companion that has nothing
+/// <see cref="CompanionProfile"/>. The <c>[AI]</c> values remain the <b>default</b> of every companion that has nothing
 /// of its own, but the panel no longer edits them - they live in the .cfg and in the F8 panel. The first entries of both
 /// lists are explicit: "Follow the [IA] default" clears what that companion stores, and the footer says "(padrão)"
 /// when the value in use is the global one.
@@ -529,7 +529,7 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		UnityEngine.Object.DontDestroyOnLoad(holder);
 		Instance = holder.AddComponent<CompanionAiPanel>();
 		string key = ModConfig.AiPanelKey != null ? ModConfig.AiPanelKey.Value.ToString() : "?";
-		CompanionsPlugin.Log?.LogInfo($"[IA] Painel da IA pronto: abre/fecha com {key} ([IA] PainelTecla) ou Esc. Volume, memoria, "
+		CompanionsPlugin.Log?.LogInfo($"[IA] Painel da IA pronto: abre/fecha com {key} ([AI] PanelKey) ou Esc. Volume, memoria, "
 			+ "conversa e o push-to-talk ficam na aba IA, e cada mudanca e salva na hora no .cfg (a velocidade da fala fica so no "
 			+ "painel F8). A aba IA tambem invoca companheiros de graca (sem moedas); cada companheiro tem a sua aba, com o botao "
 			+ "Chamar, o NOME e o TIPO editaveis ali (o tipo renasce o companheiro) e a voz e a personalidade DELE (guardadas no "
@@ -1368,7 +1368,7 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		keyBoxImage.raycastTarget = false;
 		_keyLabel = CreateText(keyBox.transform, "?", 0f, 0f, 170f, RowH, 13f, ValueColor, TextAlignmentOptions.Center);
 
-		// The same KeyBindListener the F8 panel uses: click "Alterar", press a key, and it lands in [IA] VozTecla.
+		// The same KeyBindListener the F8 panel uses: click "Alterar", press a key, and it lands in [AI] VoiceKey.
 		float changeX = FieldX + 178f;
 		AiButton change = CreateButton(Page, "ChangeKey", changeX, RowKey, 110f, RowH, ModLocalization.Loc("hc_ai_panel_change"), null);
 		change.Button.onClick.AddListener(delegate
@@ -1515,7 +1515,7 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 	/// <summary>
 	/// The <b>"Configurações do LLM"</b> section of the AI tab, right below the summoner: everything of the
-	/// <c>[IA]</c> section that shapes how the model is called, editable without leaving the game. The values are the
+	/// <c>[AI]</c> section that shapes how the model is called, editable without leaving the game. The values are the
 	/// same <see cref="ConfigEntry"/> objects the <c>.cfg</c> shows (BepInEx rewrites the file on every set, like the
 	/// rest of this panel), and they take effect on the <b>next message</b> because <see cref="LlmClient"/> reads the
 	/// config on each request.
@@ -1776,7 +1776,7 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	}
 
 	/// <summary>
-	/// The "Aplicar" of the section: the four text boxes go into the <c>[IA]</c> entries, with the light validation the
+	/// The "Aplicar" of the section: the four text boxes go into the <c>[AI]</c> entries, with the light validation the
 	/// section promises - an empty URL/model is refused (and nothing is written), and a URL without a scheme is refused
 	/// because <see cref="LlmClient"/> would build an unusable endpoint from it. The key is never logged.
 	/// </summary>

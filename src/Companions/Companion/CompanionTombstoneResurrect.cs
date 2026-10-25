@@ -202,7 +202,7 @@ public class CompanionTombstoneResurrect : MonoBehaviour
 	/// <summary>
 	/// Fase 3.10: copies the AI profile from the companion's ZDO to the tombstone's. Written with the rest of the
 	/// respawn data (same place, same owner) and read back by <see cref="ReadAiProfile"/>. Nothing is copied for a
-	/// companion that has no profile of its own - it keeps following <c>[IA]</c> after coming back, exactly as it did
+	/// companion that has no profile of its own - it keeps following <c>[AI]</c> after coming back, exactly as it did
 	/// before dying.
 	/// </summary>
 	internal static void WriteAiProfile(ZDO tombZdo, ZDO companionZdo)

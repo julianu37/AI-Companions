@@ -35,7 +35,7 @@ namespace Companions;
 ///
 /// Gatilhos:
 /// - comando de console <c>modia_stt_teste</c>;
-/// - <c>[IA] SttTeste</c> = true dispara sozinho ~25 s depois do plugin carregar (para o mundo já estar pronto).
+/// - <c>[AI] SttTest</c> = true dispara sozinho ~25 s depois do plugin carregar (para o mundo já estar pronto).
 ///
 /// Como o loader acha os nativos: ver <see cref="PrepareNativeLibraryPath"/>.
 /// </summary>
@@ -89,7 +89,7 @@ internal static class WhisperSpike
 			string model = WhisperStt.ModelPath;
 			string wav = ModConfig.SttWav != null ? ModConfig.SttWav.Value : DefaultWavRelative;
 			CompanionsPlugin.Log?.LogInfo($"[STT] Spike do Whisper.net in-process pronto (Whisper.net 1.9.1 + Whisper.net.Runtime 1.9.1, CPU). "
-				+ $"Comando de console: \"{CommandName}\". Gatilho automatico: {(auto ? $"LIGADO, em {AutoDelaySeconds:0} s" : "desligado ([IA] SttTeste = false)")}. "
+				+ $"Comando de console: \"{CommandName}\". Gatilho automatico: {(auto ? $"LIGADO, em {AutoDelaySeconds:0} s" : "desligado ([AI] SttTest = false)")}. "
 				+ $"Modelo: \"{model}\" | WAV: \"{wav}\" (relativos a pasta do plugin quando nao forem caminho absoluto). "
 				+ "O modelo e compartilhado com as ordens por voz (AI/WhisperStt.cs): ele e carregado uma vez so.");
 		}
@@ -111,7 +111,7 @@ internal static class WhisperSpike
 			return;
 		}
 		_autoFired = true;
-		Run("automatico ([IA] SttTeste = true)");
+		Run("automatico ([AI] SttTest = true)");
 	}
 
 	/// <summary>
@@ -166,12 +166,12 @@ internal static class WhisperSpike
 
 		if (!File.Exists(modelPath))
 		{
-			log?.LogError($"[STT] Modelo nao encontrado em \"{modelPath}\". Coloque o ggml (ex.: ggml-small-q5_1.bin) na pasta whisper\\ do plugin ou ajuste [IA] SttModelo.");
+			log?.LogError($"[STT] Modelo nao encontrado em \"{modelPath}\". Coloque o ggml (ex.: ggml-small-q5_1.bin) na pasta whisper\\ do plugin ou ajuste [AI] SttModel.");
 			return;
 		}
 		if (!File.Exists(wavPath))
 		{
-			log?.LogError($"[STT] WAV de teste nao encontrado em \"{wavPath}\". Coloque um WAV (16 kHz, mono, PCM) na pasta whisper\\ do plugin ou ajuste [IA] SttWavTeste.");
+			log?.LogError($"[STT] WAV de teste nao encontrado em \"{wavPath}\". Coloque um WAV (16 kHz, mono, PCM) na pasta whisper\\ do plugin ou ajuste [AI] SttWavTest.");
 			return;
 		}
 

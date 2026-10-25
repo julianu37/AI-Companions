@@ -366,15 +366,15 @@ public static class ModLocalization
 			{ "hc_cat_idle", "Idle" },
 			{ "hc_cat_speech", "Speech" },
 			{ "hc_cat_advanced", "Advanced" },
-			// Fase 3.1: orders typed in the chat, understood by a local LLM
-			{ "hc_cat_ia", "AI" },
+			// 2.0.0 (i18n): the tabs. The key is lower(section), and the AI section is "AI" now - so "hc_cat_ai".
+			{ "hc_cat_ai", "AI" },
 			{ "hc_ai_thinking", "Thinking..." },
 			{ "hc_ai_not_understood", "I didn't understand that order." },
 			{ "hc_ai_no_companion", "None of your companions is close enough to take that order." },
 			// Fase 3.11: orders addressed to one companion by name ("Gruncha, colete 10 pedras")
 			{ "hc_ai_unknown_companion", "I don't know any companion called \"{0}\"." },
 			{ "hc_ai_companion_not_available", "{0} isn't within reach (or its orders are switched off)." },
-			{ "hc_ai_disabled", "Companion AI is off ([IA] Ligado = false)." },
+			{ "hc_ai_disabled", "Companion AI is off ([AI] Enabled = false)." },
 			{ "hc_ai_error", "The AI didn't answer: {0}" },
 			{ "hc_ai_error_timeout", "timed out" },
 			{ "hc_ai_raw", "AI: {0}" },
@@ -441,7 +441,7 @@ public static class ModLocalization
 			// Fase 3.5: personality presets (shown in the log), free conversation and the memory
 			{ "hc_ai_default_name", "Companion" },
 			{ "hc_ai_preset_default", "Default" },
-			// Fase 3.12: the "default personality" entry of a COMPANION's list, which also has "follow the [IA]
+			// Fase 3.12: the "default personality" entry of a COMPANION's list, which also has "follow the [AI]
 			// default" right above it - two different choices, so they must not read the same
 			{ "hc_ai_preset_neutral", "Neutral (the default)" },
 			{ "hc_ai_preset_custom", "Free text" },
@@ -461,7 +461,7 @@ public static class ModLocalization
 			{ "hc_ai_voice_unavailable", "Speech recognition isn't ready (the Whisper model is missing?)." },
 			{ "hc_ai_voice_ui_open", "Close the window before speaking." },
 			{ "hc_ai_voice_cancelled", "Recording cancelled." },
-			{ "hc_ai_voice_disabled", "Voice orders are off ([IA] VozLigada = false)." },
+			{ "hc_ai_voice_disabled", "Voice orders are off ([AI] VoiceEnabled = false)." },
 			{ "hc_ai_voice_key_conflict", "The {0} key is now push-to-talk: the game's auto-pickup no longer toggles with it. Rebind auto-pickup in the game's Controls settings if you want to use it." },
 			{ "hc_ai_tts_unavailable", "The companion's voice isn't ready (the Kokoro model is missing?)." },
 			// Fase 3.7: the in-game AI panel (personality, voice, push-to-talk). See UI/CompanionAiPanel.cs.
@@ -489,7 +489,7 @@ public static class ModLocalization
 			{ "hc_ai_panel_conversation", "Free conversation" },
 			{ "hc_ai_panel_voice_enabled", "Voice orders" },
 			{ "hc_ai_panel_tts_sample", "Hello! This is how I will talk to you." },
-			{ "hc_ai_panel_tts_off", "The voice is off ([IA] TtsLigado = false)." },
+			{ "hc_ai_panel_tts_off", "The voice is off ([AI] TtsEnabled = false)." },
 			{ "hc_ai_panel_tts_missing", "The voice isn't ready (is the Kokoro model missing?)." },
 			{ "hc_ai_panel_no_companion", "No companion nearby to talk." },
 			// the footer summary is built from these two lines (the block is two lines tall) - see RefreshStatus
@@ -566,22 +566,35 @@ public static class ModLocalization
 			{ "hc_ai_voice_43", "pm_alex (masculine)" },
 			{ "hc_ai_voice_44", "pm_santa (masculine)" },
 			{ "hc_ai_voice_other", "voice {0} (another language)" },
-			// Fase 3.10: voice and personality of ONE companion (its own ZDO), with the [IA] values as the default.
+			// Fase 3.10: voice and personality of ONE companion (its own ZDO), with the [AI] values as the default.
 			// Used by the companion tab of the AI panel and by the starter panel's "AI" section.
 			{ "hc_ai_profile_title", "Companion AI" },
-			{ "hc_ai_profile_inherit", "Follow the [IA] default" },
+			{ "hc_ai_profile_inherit", "Follow the [AI] default" },
 			{ "hc_ai_profile_inherited", "{0} (default)" },
-			{ "hc_ai_profile_hint", "Voice and personality belong to this companion: left unset, it follows the [IA] settings (AI tab)." },
+			{ "hc_ai_profile_hint", "Voice and personality belong to this companion: left unset, it follows the [AI] settings (AI tab)." },
 			{ "hc_ai_comp_profile_title", "Voice and personality of this companion" },
 			{ "hc_ai_profile_save_failed", "I couldn't save the companion's profile (its data is not under my control right now). Try again in a moment." }
 		};
 	}
 
-	// Translation for a key that is registered, otherwise the caller's own fallback. Used for text that has to show
-	// something sensible (a category name, a setting name) even when a key is missing.
+	/// <summary>
+	/// 2.0.0 (i18n): the keys the loaded language file has. <see cref="LocOr"/> needs this because some UI text exists
+	/// only in a translation - the settings labels, for instance: in English the config key itself is the label (the
+	/// mod's native language), so only a language file names them. The value ends up in <c>m_translations</c>, but
+	/// nothing in <see cref="_englishDefaults"/> knows such a key.
+	/// </summary>
+	private static readonly HashSet<string> TranslatedKeys = new HashSet<string>(StringComparer.Ordinal);
+
+	/// <summary>Translation for a key that is registered (in the English defaults or in the loaded language file),
+	/// otherwise the caller's own fallback. Used for text that has to show something sensible (a category name, a
+	/// setting name) even when a key is missing.</summary>
 	public static string LocOr(string key, string fallback)
 	{
 		if (_englishDefaults != null && _englishDefaults.ContainsKey(key))
+		{
+			return Loc(key);
+		}
+		if (TranslatedKeys.Contains(key))
 		{
 			return Loc(key);
 		}
@@ -602,6 +615,7 @@ public static class ModLocalization
 		}
 		_lastInjectedLanguage = selectedLanguage;
 		_lastInjectedInstance = loc;
+		TranslatedKeys.Clear();
 		if (!(TranslationsField?.GetValue(loc) is Dictionary<string, string> dictionary))
 		{
 			return;
@@ -624,6 +638,8 @@ public static class ModLocalization
 			foreach (KeyValuePair<string, string> item in dictionary2)
 			{
 				dictionary[item.Key] = item.Value;
+				// 2.0.0: remembered so LocOr can translate a key that exists only in the language file
+				TranslatedKeys.Add(item.Key);
 				num++;
 			}
 		}

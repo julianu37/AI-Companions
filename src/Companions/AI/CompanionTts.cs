@@ -42,7 +42,7 @@ internal sealed class TtsRequest
 
 	/// <summary>
 	/// The voice of this line, resolved on the <b>main thread</b> when the line is queued (0 = use
-	/// <c>[IA] TtsVoz</c>). Fase 3.10: a companion may have its own voice in its ZDO (<see cref="CompanionProfile"/>),
+	/// <c>[AI] TtsVoice</c>). Fase 3.10: a companion may have its own voice in its ZDO (<see cref="CompanionProfile"/>),
 	/// and the ZDO must never be read from the synthesis thread.
 	/// </summary>
 	internal int Voice;
@@ -83,11 +83,11 @@ internal sealed class TtsRequest
 ///
 /// <b>What is spoken</b> (the voice follows the line that is shown in the chat/HUD):
 /// <list type="bullet">
-/// <item>free conversation: the model's <c>reply</c> - <c>[IA] TtsFalarRespostas</c>;</item>
+/// <item>free conversation: the model's <c>reply</c> - <c>[AI] TtsSpeakReplies</c>;</item>
 /// <item>an order: the mod's own localized confirmation ("Atacando o troll.", "Ok: coletar madeira (10).") -
-/// <c>[IA] TtsFalarFalasDoMod</c>; with that one off, the model's <c>reply</c> for the order is spoken instead
+/// <c>[AI] TtsSpeakModLines</c>; with that one off, the model's <c>reply</c> for the order is spoken instead
 /// (the reply is never shown for an order - the mod's line wins in the chat - so it is voice-only there);</item>
-/// <item>a refusal, an error or "nothing understood": the mod's line, again under <c>[IA] TtsFalarFalasDoMod</c>.</item>
+/// <item>a refusal, an error or "nothing understood": the mod's line, again under <c>[AI] TtsSpeakModLines</c>.</item>
 /// </list>
 /// Nothing is spoken twice: when both settings are on, the visible line wins and the other text is only logged.
 ///
@@ -104,7 +104,7 @@ internal static class CompanionTts
 	/// <summary>The Brazilian Portuguese voices of this Kokoro model (confirmed by listening): 42 feminine, 43 and 44 masculine.</summary>
 	private static readonly int[] PortugueseVoices = new int[3] { 42, 43, 44 };
 
-	/// <summary>Where the model is expected when [IA] TtsModelo is left at its default (relative to the plugin folder).</summary>
+	/// <summary>Where the model is expected when [AI] TtsModel is left at its default (relative to the plugin folder).</summary>
 	internal const string DefaultModelRelative = @"tts\kokoro\model.int8.onnx";
 
 	/// <summary>
@@ -160,7 +160,7 @@ internal static class CompanionTts
 	/// <summary>How long between two pre-load attempts while the model file is not there yet (see MaybePrewarm).</summary>
 	private const float PrewarmRetrySeconds = 30f;
 
-	/// <summary>Bounds of <c>[IA] TtsVelocidade</c> (ModConfig binds 0,5–2,0): the clamp here and the panel slider
+	/// <summary>Bounds of <c>[AI] TtsSpeed</c> (ModConfig binds 0,5–2,0): the clamp here and the panel slider
 	/// use these, so the three can never drift apart (the panel used to clamp at 1,5 and silently lowered a 2,0).</summary>
 	internal const float MinSpeed = 0.5f;
 
@@ -266,13 +266,13 @@ internal static class CompanionTts
 	/// <summary>The <c>reverbZoneMix</c> already written to the source (NaN = nothing written yet).</summary>
 	private static float _appliedReverbZoneMix = float.NaN;
 
-	/// <summary>[IA] TtsLigado.</summary>
+	/// <summary>[AI] TtsEnabled.</summary>
 	internal static bool Enabled => ModConfig.TtsEnabled == null || ModConfig.TtsEnabled.Value;
 
-	/// <summary>[IA] TtsFalarRespostas: speak the model's reply (conversation, and an order that has no spoken line of its own).</summary>
+	/// <summary>[AI] TtsSpeakReplies: speak the model's reply (conversation, and an order that has no spoken line of its own).</summary>
 	internal static bool SpeakReplies => ModConfig.TtsSpeakReplies == null || ModConfig.TtsSpeakReplies.Value;
 
-	/// <summary>[IA] TtsFalarFalasDoMod: speak the mod's own localized feedback line (the one shown in the chat).</summary>
+	/// <summary>[AI] TtsSpeakModLines: speak the mod's own localized feedback line (the one shown in the chat).</summary>
 	internal static bool SpeakModLines => ModConfig.TtsSpeakModLines == null || ModConfig.TtsSpeakModLines.Value;
 
 	private static bool CacheEnabled => ModConfig.TtsCache == null || ModConfig.TtsCache.Value;
@@ -306,7 +306,7 @@ internal static class CompanionTts
 		}
 	}
 
-	/// <summary>[IA] TtsVoz: the Kokoro speaker id (42/43/44 are the pt-BR voices). Fase 3.12 (auditoria): 0 (the
+	/// <summary>[AI] TtsVoice: the Kokoro speaker id (42/43/44 are the pt-BR voices). Fase 3.12 (auditoria): 0 (the
 	/// config's floor) is treated as "not chosen" and answered with <see cref="DefaultVoice"/> - it used to be passed
 	/// to the model, which meant speaker 0, i.e. another language.</summary>
 	internal static int Voice
@@ -318,7 +318,7 @@ internal static class CompanionTts
 		}
 	}
 
-	/// <summary>[IA] TtsVelocidade.</summary>
+	/// <summary>[AI] TtsSpeed.</summary>
 	internal static float Speed
 	{
 		get
@@ -348,7 +348,7 @@ internal static class CompanionTts
 		}
 	}
 
-	/// <summary>[IA] TtsIdioma, never empty (the multi-lingual Kokoro model needs it).</summary>
+	/// <summary>[AI] TtsLanguage, never empty (the multi-lingual Kokoro model needs it).</summary>
 	internal static string Language
 	{
 		get
@@ -358,7 +358,7 @@ internal static class CompanionTts
 		}
 	}
 
-	/// <summary>The model file to load: [IA] TtsModelo (relative to the plugin folder, or absolute).</summary>
+	/// <summary>The model file to load: [AI] TtsModel (relative to the plugin folder, or absolute).</summary>
 	internal static string ModelPath
 	{
 		get
@@ -409,7 +409,7 @@ internal static class CompanionTts
 				? $"ligado (so as linhas do proprio mod, teto {MaxCacheBytes / (1024 * 1024)} MB de audio)"
 				: "desligado";
 			CompanionsPlugin.Log?.LogInfo($"[TTS] Fala do companheiro (Kokoro-82M via sherpa-onnx, CPU, local): "
-				+ $"{(Enabled ? "LIGADO" : "desligado ([IA] TtsLigado = false)")} | modelo \"{model}\" ({DescribeFile(model)}) | "
+				+ $"{(Enabled ? "LIGADO" : "desligado ([AI] TtsEnabled = false)")} | modelo \"{model}\" ({DescribeFile(model)}) | "
 				+ $"voz {Voice}{VoiceName(Voice)} | idioma \"{Language}\" | {Threads} thread(s) | velocidade {Speed:0.##} | "
 				+ $"volume {Volume:0.##} | cache {cacheInfo}.");
 			CompanionsPlugin.Log?.LogInfo($"[TTS] O que e falado: a resposta do modelo (TtsFalarRespostas={(SpeakReplies ? "sim" : "nao")}) "
@@ -429,7 +429,7 @@ internal static class CompanionTts
 				+ $"espeak-ng-data (\"{Path.Combine(dir, EspeakDataDirName)}\") - tudo procurado na MESMA pasta do modelo.");
 			if (string.IsNullOrWhiteSpace(ModConfig.TtsLanguage != null ? ModConfig.TtsLanguage.Value : null))
 			{
-				CompanionsPlugin.Log?.LogInfo($"[TTS] [IA] TtsIdioma esta vazio - usando \"{DefaultLanguage}\": este Kokoro e multi-lingue e a lib nativa "
+				CompanionsPlugin.Log?.LogInfo($"[TTS] [AI] TtsLanguage esta vazio - usando \"{DefaultLanguage}\": este Kokoro e multi-lingue e a lib nativa "
 					+ "RECUSA carregar sem um idioma (\"You are using a multi-lingual Kokoro model ... please pass --kokoro-lexicon or --kokoro-lang\").");
 			}
 		}
@@ -521,7 +521,7 @@ internal static class CompanionTts
 	/// <summary>
 	/// The companion says something. Called on the main thread (from the AI layer); returns immediately - the line is
 	/// queued and synthesized on the background worker. Fase 3.10: the line is spoken with <b>this companion's</b>
-	/// voice (<see cref="CompanionProfile.GetVoice"/>), which is <c>[IA] TtsVoz</c> when it has none of its own.
+	/// voice (<see cref="CompanionProfile.GetVoice"/>), which is <c>[AI] TtsVoice</c> when it has none of its own.
 	/// </summary>
 	internal static void Speak(CompanionSetup companion, string text, bool cacheable = true)
 	{
@@ -533,7 +533,7 @@ internal static class CompanionTts
 	/// Same, for whoever is talking (a companion, or the player for the console test). <paramref name="talker"/> is
 	/// only used to place the 3D sound, so null is accepted (the sound then stays where it was).
 	/// <paramref name="cacheable"/> is false for the model's own replies (see <see cref="TtsRequest.Cacheable"/>).
-	/// The voice is <c>[IA] TtsVoz</c>: a caller that knows the companion (its tab in the panel, the starter preview)
+	/// The voice is <c>[AI] TtsVoice</c>: a caller that knows the companion (its tab in the panel, the starter preview)
 	/// passes the voice itself through <see cref="Speak(GameObject, string, bool, int)"/>.
 	///
 	/// <para>Fase 3.12 (auditoria): the voice is resolved <b>here</b>, on the main thread, and travels with the line.
@@ -547,7 +547,7 @@ internal static class CompanionTts
 
 	/// <summary>
 	/// Same, with the voice of the line decided by the caller: <paramref name="voice"/> 0 means "the default"
-	/// (<c>[IA] TtsVoz</c>), which is also what a caller that does not care passes. Used by the panels, whose
+	/// (<c>[AI] TtsVoice</c>), which is also what a caller that does not care passes. Used by the panels, whose
 	/// "Ouvir" has to preview the voice of the context - the companion's own on its tab, the global one on the AI tab.
 	/// </summary>
 	internal static void Speak(GameObject talker, string text, bool cacheable, int voice)
@@ -577,7 +577,7 @@ internal static class CompanionTts
 			{
 				_warnedMissingModel = true;
 				CompanionsPlugin.Log?.LogWarning($"[TTS] O modelo do TTS nao esta em \"{ModelPath}\" - o companheiro nao vai falar. "
-					+ "Coloque a pasta tts\\kokoro do modelo (model.int8.onnx + voices.bin + tokens.txt + espeak-ng-data) no plugin ou ajuste [IA] TtsModelo.");
+					+ "Coloque a pasta tts\\kokoro do modelo (model.int8.onnx + voices.bin + tokens.txt + espeak-ng-data) no plugin ou ajuste [AI] TtsModel.");
 				CompanionChatAI.Announce(ModLocalization.Loc("hc_ai_tts_unavailable"));
 			}
 			return;
@@ -905,7 +905,7 @@ internal static class CompanionTts
 	}
 
 	/// <summary>
-	/// The voice actually used: the one the line carries (a companion's own voice, Fase 3.10) or <c>[IA] TtsVoz</c>,
+	/// The voice actually used: the one the line carries (a companion's own voice, Fase 3.10) or <c>[AI] TtsVoice</c>,
 	/// but never outside the loaded model - a speaker id the model does not have would make the native call fail.
 	/// <see cref="DefaultVoice"/> (pf_dora) is the fallback.
 	/// </summary>
@@ -955,7 +955,7 @@ internal static class CompanionTts
 				if (!_warnedMissingModelFile)
 				{
 					_warnedMissingModelFile = true;
-					CompanionsPlugin.Log?.LogError($"[TTS] {_loadError}. Coloque a pasta tts\\kokoro do modelo no plugin ou ajuste [IA] TtsModelo.");
+					CompanionsPlugin.Log?.LogError($"[TTS] {_loadError}. Coloque a pasta tts\\kokoro do modelo no plugin ou ajuste [AI] TtsModel.");
 				}
 				error = _loadError;
 				return false;
@@ -1013,7 +1013,7 @@ internal static class CompanionTts
 					+ $"{tts.NumSpeakers} vozes | saida {tts.SampleRate} Hz mono.");
 				if (Voice >= tts.NumSpeakers)
 				{
-					CompanionsPlugin.Log?.LogWarning($"[TTS] [IA] TtsVoz = {Voice} nao existe neste modelo ({tts.NumSpeakers} vozes) - "
+					CompanionsPlugin.Log?.LogWarning($"[TTS] [AI] TtsVoice = {Voice} nao existe neste modelo ({tts.NumSpeakers} vozes) - "
 						+ $"a voz {DefaultVoice} (pf_dora) vai ser usada. As vozes pt-BR sao 42, 43 e 44.");
 				}
 				error = null;

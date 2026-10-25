@@ -247,7 +247,7 @@ internal static class LlmClient
 				if (i > 0)
 				{
 					CompanionsPlugin.Log?.LogWarning($"[IA] Saida estruturada: o servidor recusou o formato pedido e a resposta veio \"{attempt.Label}\". "
-						+ "Funciona igual, so sem a garantia de JSON valido - se isso se repetir em toda mensagem, desligue [IA] SaidaEstruturada.");
+						+ "Funciona igual, so sem a garantia de JSON valido - se isso se repetir em toda mensagem, desligue [AI] StructuredOutput.");
 				}
 				break;
 			}
@@ -375,7 +375,7 @@ internal static class LlmClient
 			return;
 		}
 		_loggedStructured = true;
-		CompanionsPlugin.Log?.LogInfo($"[IA] Saida estruturada ligada ([IA] SaidaEstruturada): o pedido vai com response_format/json_schema "
+		CompanionsPlugin.Log?.LogInfo($"[IA] Saida estruturada ligada ([AI] StructuredOutput): o pedido vai com response_format/json_schema "
 			+ $"(\"companion_intent\", {CompanionChatAI.ValidActions.Length} acoes validas, corpo JSON de {bodyChars} car.). "
 			+ "Se o servidor nao aceitar, o mod tenta {\"type\":\"json_object\"} e depois o formato antigo, avisando aqui.");
 	}
@@ -393,7 +393,7 @@ internal static class LlmClient
 		_warnedNoStructured = true;
 		CompanionsPlugin.Log?.LogWarning("[IA] Saida estruturada: o servidor nao aceitou response_format/json_schema nem {\"type\":\"json_object\"} "
 			+ $"({reason}). O mod segue no formato antigo (sem response_format) e nao vai tentar de novo nesta sessao - as ordens continuam "
-			+ "funcionando, so sem a garantia de que o modelo responde um JSON valido. Para parar as tentativas de uma vez, desligue [IA] SaidaEstruturada.");
+			+ "funcionando, so sem a garantia de que o modelo responde um JSON valido. Para parar as tentativas de uma vez, desligue [AI] StructuredOutput.");
 	}
 
 	/// <summary>Above this, the log says out loud that the model is the bottleneck (Fase 3.3b).</summary>

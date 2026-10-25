@@ -56,7 +56,7 @@ internal static class WhisperStt
 	internal const int SampleRate = 16000;
 
 	/// <summary>
-	/// Where the ggml model is expected when [IA] SttModelo is left at its default (relative to the plugin folder).
+	/// Where the ggml model is expected when [AI] SttModel is left at its default (relative to the plugin folder).
 	/// Fase 3.3b: <b>small-q5_1</b> (181 MB) instead of base-q5_1 (57 MB) - the short clips of a voice order ("colete
 	/// 10 madeiras") came back wrong far too often with base, and small is markedly better in PT-BR. It costs roughly
 	/// 2-3x the CPU time per transcription (still well under a second for a 2 s clip on a 8-thread CPU, and it never
@@ -64,7 +64,7 @@ internal static class WhisperStt
 	/// </summary>
 	internal const string DefaultModelRelative = @"whisper\ggml-small-q5_1.bin";
 
-	/// <summary>The model the default replaced (Fase 3.3): kept on disk, and [IA] SttModelo can still point at it.</summary>
+	/// <summary>The model the default replaced (Fase 3.3): kept on disk, and [AI] SttModel can still point at it.</summary>
 	internal const string PreviousModelRelative = @"whisper\ggml-base-q5_1.bin";
 
 	/// <summary>Finished transcriptions, waiting for the main thread to read them.</summary>
@@ -98,7 +98,7 @@ internal static class WhisperStt
 	/// <summary>True while a transcription is in flight (one at a time, so two orders can't fight over the model).</summary>
 	internal static bool Busy => Volatile.Read(ref _busy) != 0;
 
-	/// <summary>The model file to load: [IA] SttModelo (relative to the plugin folder, or absolute).</summary>
+	/// <summary>The model file to load: [AI] SttModel (relative to the plugin folder, or absolute).</summary>
 	internal static string ModelPath
 	{
 		get
@@ -116,7 +116,7 @@ internal static class WhisperStt
 	}
 
 	/// <summary>
-	/// Fase 3.3b: the initial prompt (vocabulary bias) for the decoder, from [IA] VozPromptInicial. Empty = none.
+	/// Fase 3.3b: the initial prompt (vocabulary bias) for the decoder, from [AI] VoiceInitialPrompt. Empty = none.
 	/// Read on the main thread (<see cref="Request"/>) and carried to the background task.
 	/// </summary>
 	internal static string Prompt
@@ -163,12 +163,12 @@ internal static class WhisperStt
 				+ $"{Threads} thread(s) | audio {SampleRate} Hz mono. O modelo e carregado UMA vez e fica carregado.");
 			if (prompt.Length > 0)
 			{
-				CompanionsPlugin.Log?.LogInfo($"[STT] Prompt inicial do Whisper ([IA] VozPromptInicial, {prompt.Length} caracteres): \"{prompt}\" "
+				CompanionsPlugin.Log?.LogInfo($"[STT] Prompt inicial do Whisper ([AI] VoiceInitialPrompt, {prompt.Length} caracteres): \"{prompt}\" "
 					+ "- ele enviesa o vocabulario das ordens; vazio desliga o vies.");
 			}
 			else
 			{
-				CompanionsPlugin.Log?.LogInfo("[STT] Prompt inicial do Whisper desligado ([IA] VozPromptInicial vazio).");
+				CompanionsPlugin.Log?.LogInfo("[STT] Prompt inicial do Whisper desligado ([AI] VoiceInitialPrompt vazio).");
 			}
 		}
 		catch (Exception ex)
@@ -313,7 +313,7 @@ internal static class WhisperStt
 				{
 					_loadFailed = true;
 					_loadError = $"modelo nao encontrado em \"{modelPath}\"";
-					CompanionsPlugin.Log?.LogError($"[STT] {_loadError}. Coloque o ggml (ex.: ggml-small-q5_1.bin) na pasta whisper\\ do plugin ou ajuste [IA] SttModelo.");
+					CompanionsPlugin.Log?.LogError($"[STT] {_loadError}. Coloque o ggml (ex.: ggml-small-q5_1.bin) na pasta whisper\\ do plugin ou ajuste [AI] SttModel.");
 					error = _loadError;
 					return false;
 				}

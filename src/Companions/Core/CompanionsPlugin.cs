@@ -17,9 +17,9 @@ namespace Companions;
 [BepInDependency("com.haldor.bounties", BepInDependency.DependencyFlags.SoftDependency)]
 public class CompanionsPlugin : BaseUnityPlugin
 {
-	// The GUID is deliberately kept as the upstream's: it names the config file
-	// (BepInEx/config/Maddhattr.OfflineCompanionsReborn.cfg) and the companion's network identity. Renaming it
-	// would move the config (losing the player's settings) for no gain - the display name below is what shows.
+	// The GUID is deliberately kept as the upstream's: it is the companion's network identity and what the saves and
+	// the BepInEx chainloader know. Renaming it would break worlds for no gain - the display name below is what shows.
+	// 2.0.0: the settings file no longer follows the GUID (see MHR_GetConfigFile / AiCompanions.cfg).
 	public const string PluginGUID = "Maddhattr.OfflineCompanionsReborn";
 
 	public const string PluginName = "AI Companions";
@@ -32,29 +32,43 @@ public class CompanionsPlugin : BaseUnityPlugin
 
 	private bool _fontFixWarned;
 
+	// 2.0.0 (i18n): the settings file has its own name. The keys and descriptions are in English now (the mod's native
+	// language), so the file is NOT the GUID-named one any more: BepInEx's default (base.Config) stays pointing at
+	// Maddhattr.OfflineCompanionsReborn.cfg, which the mod no longer reads. The GUID itself is untouched (world and
+	// network identity). A file is created on init, so the migration below has to run BEFORE the ConfigFile exists.
+	private const string ConfigFileName = "AiCompanions.cfg";
+
 	private ConfigFile MHR_GetConfigFile()
 	{
+		string configPath = Path.Combine(Paths.ConfigPath, ConfigFileName);
 		try
 		{
-			MHR_MigrateOldConfig();
+			MHR_MigrateOldConfig(configPath);
 		}
 		catch (Exception ex)
 		{
 			Log.LogWarning("[Config] Couldn't copy settings from the old config file: " + ex.ToString());
 		}
-		return base.Config;
+		return new ConfigFile(configPath, saveOnInit: true);
 	}
 
-	private void MHR_MigrateOldConfig()
+	private void MHR_MigrateOldConfig(string configPath)
 	{
-		ConfigFile config = base.Config;
-		string configFilePath = config.ConfigFilePath;
-		string text = Path.Combine(Paths.ConfigPath, "com.profmags.companions.cfg");
-		if (!File.Exists(configFilePath) && File.Exists(text))
+		string original = Path.Combine(Paths.ConfigPath, "com.profmags.companions.cfg");
+		bool copied = false;
+		if (!File.Exists(configPath) && File.Exists(original))
 		{
-			File.Copy(text, configFilePath);
-			config.Reload();
-			Log.LogInfo("[Config] Settings copied to Maddhattr.OfflineCompanionsReborn.cfg from com.profmags.companions.cfg (the old file is no longer used and can be deleted)");
+			File.Copy(original, configPath);
+			copied = true;
+			Log.LogInfo("[Config] Settings copied to " + ConfigFileName + " from com.profmags.companions.cfg (the old file is no longer used and can be deleted)");
+		}
+		// 2.0.0: the settings moved to a new file with English keys. The old PT-keyed file is not migrated on purpose
+		// (the player accepted losing it): its keys are not read any more, so the settings go back to their defaults.
+		string previous = Path.Combine(Paths.ConfigPath, PluginGUID + ".cfg");
+		if (File.Exists(previous))
+		{
+			string fate = copied ? "the settings came from com.profmags.companions.cfg" : "its settings are back to their defaults";
+			Log.LogInfo("[Config] " + PluginGUID + ".cfg was replaced by " + ConfigFileName + " (the settings are in English now): the old file is ignored and " + fate + ". The old file can be deleted.");
 		}
 	}
 
@@ -213,7 +227,7 @@ public class CompanionsPlugin : BaseUnityPlugin
 		}
 		try
 		{
-			// SPIKE: fires the in-process Whisper.net test once, when [IA] SttTeste asked for it (never blocks)
+			// SPIKE: fires the in-process Whisper.net test once, when [AI] SttTest asked for it (never blocks)
 			WhisperSpike.Tick();
 		}
 		catch (Exception ex4)

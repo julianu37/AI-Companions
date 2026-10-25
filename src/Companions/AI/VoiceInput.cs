@@ -8,12 +8,12 @@ namespace Companions;
 /// <summary>
 /// Fase 3.3: voice orders - push-to-talk.
 ///
-/// Hold <c>[IA] VozTecla</c> (V by default) to talk, release it to send what you said: the recording is trimmed,
+/// Hold <c>[AI] VoiceKey</c> (V by default) to talk, release it to send what you said: the recording is trimmed,
 /// encoded as a WAV (PCM 16-bit mono at 16 kHz, the format Whisper expects) and handed to <see cref="WhisperStt"/>,
 /// which transcribes it on a background thread. The text then goes into the <b>same order box as the chat</b>
 /// (<see cref="CompanionChatAI.Submit"/>): orders, conversation, personality, memory - all identical to typing it.
 ///
-/// Fase 3.3b: V is also the game's "Toggle Auto-Pickup" key. While <c>[IA] VozLigada</c> is on and the game's
+/// Fase 3.3b: V is also the game's "Toggle Auto-Pickup" key. While <c>[AI] VoiceEnabled</c> is on and the game's
 /// auto-pickup is bound to the same key, the mod swallows that toggle (<see cref="AutoPickupKeyConflict"/>) so the key
 /// belongs to the push-to-talk - the player can move the auto-pickup to another key in the game's own controls screen.
 ///
@@ -23,7 +23,7 @@ namespace Companions;
 ///
 /// Guards (why a press may do nothing):
 /// <list type="bullet">
-/// <item>no microphone, or the model file is missing (<c>[IA] SttModelo</c>);</item>
+/// <item>no microphone, or the model file is missing (<c>[AI] SttModel</c>);</item>
 /// <item>the game is not focused, or a window is open (inventory, map, menu, chat, console, the mod's own panels) -
 /// so talking never types into the chat or walks the character;</item>
 /// <item>a previous transcription or a previous order to the model is still running (one at a time).</item>
@@ -72,10 +72,10 @@ internal static class VoiceInput
 
 	private static float[] _mono;
 
-	/// <summary>[IA] VozLigada.</summary>
+	/// <summary>[AI] VoiceEnabled.</summary>
 	internal static bool Enabled => ModConfig.VozEnabled == null || ModConfig.VozEnabled.Value;
 
-	/// <summary>[IA] VozTecla - the push-to-talk key (V by default). Also read by <see cref="AutoPickupKeyConflict"/>.</summary>
+	/// <summary>[AI] VoiceKey - the push-to-talk key (V by default). Also read by <see cref="AutoPickupKeyConflict"/>.</summary>
 	internal static KeyCode Key => ModConfig.VozTecla != null ? ModConfig.VozTecla.Value : KeyCode.V;
 
 	/// <summary>Called once from the plugin's Awake (main thread): reports the key, the microphones and the model.</summary>
@@ -85,7 +85,7 @@ internal static class VoiceInput
 		{
 			KeyCode key = Key;
 			string[] devices = Mic.Available ? Mic.Devices() : null;
-			CompanionsPlugin.Log?.LogInfo($"[STT] Push-to-talk: {(Enabled ? "LIGADO" : "desligado ([IA] VozLigada = false)")} | "
+			CompanionsPlugin.Log?.LogInfo($"[STT] Push-to-talk: {(Enabled ? "LIGADO" : "desligado ([AI] VoiceEnabled = false)")} | "
 				+ $"segure {key} para falar | {devices?.Length ?? 0} microfone(s){DescribeDevices(devices)} | "
 				+ $"audio {SampleRate} Hz mono -> Whisper, texto no mesmo caminho das ordens do chat.");
 			if (!Mic.Available)
@@ -258,7 +258,7 @@ internal static class VoiceInput
 			{
 				_warnedMissingModel = true;
 				CompanionsPlugin.Log?.LogWarning($"[STT] O modelo do Whisper nao esta em \"{WhisperStt.ModelPath}\" - as ordens por voz nao funcionam. "
-					+ "Coloque o ggml (ex.: ggml-small-q5_1.bin) na pasta whisper\\ do plugin ou ajuste [IA] SttModelo.");
+					+ "Coloque o ggml (ex.: ggml-small-q5_1.bin) na pasta whisper\\ do plugin ou ajuste [AI] SttModel.");
 			}
 			Announce("hc_ai_voice_unavailable");
 			return;
@@ -430,7 +430,7 @@ internal static class VoiceInput
 		CompanionChatAI.Submit(text, "voz", announceRefusal: true);
 	}
 
-	/// <summary>The microphone for this session: [IA] VozDispositivo (0 = the first, the Windows default).</summary>
+	/// <summary>The microphone for this session: [AI] VoiceDevice (0 = the first, the Windows default).</summary>
 	private static bool EnsureDevice()
 	{
 		try
@@ -463,7 +463,7 @@ internal static class VoiceInput
 			int index = ModConfig.VozDevice != null ? ModConfig.VozDevice.Value : 0;
 			if (index < 0 || index >= devices.Length)
 			{
-				CompanionsPlugin.Log?.LogWarning($"[STT] [IA] VozDispositivo = {index} nao existe ({devices.Length} microfone(s)) - usando o primeiro.");
+				CompanionsPlugin.Log?.LogWarning($"[STT] [AI] VoiceDevice = {index} nao existe ({devices.Length} microfone(s)) - usando o primeiro.");
 				index = 0;
 			}
 			_device = devices[index];

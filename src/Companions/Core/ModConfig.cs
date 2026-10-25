@@ -495,7 +495,7 @@ internal static class ModConfig
 
 	internal static ConfigEntry<KeyCode> FarmZoneModifier;
 
-	// [IA] - Fase 3.1: ordens por texto no chat, interpretadas por um LLM local (LM Studio/Ollama, API OpenAI-compatible)
+	// [AI] - Fase 3.1: ordens por texto no chat, interpretadas por um LLM local (LM Studio/Ollama, API OpenAI-compatible)
 	internal static ConfigEntry<bool> AiEnabled;
 
 	internal static ConfigEntry<string> AiBaseUrl;
@@ -516,7 +516,7 @@ internal static class ModConfig
 
 	internal static ConfigEntry<float> AiTargetRange;
 
-	// [IA] - Fase 3.5: personalidade (preset ou texto livre), memória curta da conversa e conversa livre
+	// [AI] - Fase 3.5: personalidade (preset ou texto livre), memória curta da conversa e conversa livre
 	internal static ConfigEntry<string> AiPersonality;
 
 	internal static ConfigEntry<string> AiPersonalityPreset;
@@ -525,17 +525,17 @@ internal static class ModConfig
 
 	internal static ConfigEntry<bool> AiConversation;
 
-	// [IA] - Fase 3.1 (saída estruturada): response_format/json_schema no pedido, para o modelo sempre responder JSON
+	// [AI] - Fase 3.1 (saída estruturada): response_format/json_schema no pedido, para o modelo sempre responder JSON
 	internal static ConfigEntry<bool> AiStructuredOutput;
 
-	// [IA] - STT local (spike): teste do Whisper.net in-process. Ver Diagnostics/WhisperSpike.cs.
+	// [AI] - local STT (spike): the in-process Whisper.net test. See Diagnostics/WhisperSpike.cs.
 	internal static ConfigEntry<bool> SttTest;
 
 	internal static ConfigEntry<string> SttModel;
 
 	internal static ConfigEntry<string> SttWav;
 
-	// [IA] - Fase 3.3: ordens por voz (push-to-talk + STT local com Whisper.net). Ver AI/VoiceInput.cs.
+	// [AI] - Fase 3.3: ordens por voz (push-to-talk + STT local com Whisper.net). Ver AI/VoiceInput.cs.
 	internal static ConfigEntry<bool> VozEnabled;
 
 	internal static ConfigEntry<KeyCode> VozTecla;
@@ -552,10 +552,10 @@ internal static class ModConfig
 
 	internal static ConfigEntry<bool> VozShowText;
 
-	// [IA] - Fase 3.7: painel da IA no jogo (personalidade, voz, push-to-talk). Ver UI/CompanionAiPanel.cs.
+	// [AI] - Fase 3.7: painel da IA no jogo (personalidade, voz, push-to-talk). Ver UI/CompanionAiPanel.cs.
 	internal static ConfigEntry<KeyCode> AiPanelKey;
 
-	// [IA] - Fase 3.4: TTS local (Kokoro-82M via sherpa-onnx): o companheiro FALA. Ver AI/CompanionTts.cs.
+	// [AI] - Fase 3.4: TTS local (Kokoro-82M via sherpa-onnx): o companheiro FALA. Ver AI/CompanionTts.cs.
 	internal static ConfigEntry<bool> TtsEnabled;
 
 	internal static ConfigEntry<int> TtsVoice;
@@ -576,7 +576,7 @@ internal static class ModConfig
 
 	internal static ConfigEntry<bool> TtsSpeakModLines;
 
-	// [IA] - Fase 3.4 (parte 3): o audio da voz do companheiro. O eco tinha uma causa so: o Valheim carrega UMA
+	// [AI] - Fase 3.4 (parte 3): o audio da voz do companheiro. O eco tinha uma causa so: o Valheim carrega UMA
 	// AudioReverbZone global (no proprio objeto do AudioListener) com raio de 1000 m e 4 s de cauda, e a nossa
 	// AudioSource estava no padrao do Unity (reverbZoneMix = 1) - a fala pegava a cauda inteira. O jogo foge dela
 	// (a musica usa 0, o ambiente 0,19). TtsReverbZoneMix (0 = voz seca) e a opcao de verdade; EcoDiag e so o
@@ -835,69 +835,67 @@ internal static class ModConfig
 		TombstoneScanInterval = Bind(cfg, "Advanced", "TombstoneScanInterval", 5f, "Morte: segundos entre as procuras pela própria lápide que sobrou por perto.", new AcceptableValueRange<float>(1f, 30f));
 		TombstoneNavTimeout = Bind(cfg, "Advanced", "TombstoneNavTimeout", 120f, "Morte: segundos que um companheiro continua tentando chegar à própria lápide antes de desistir.", new AcceptableValueRange<float>(10f, 600f));
 		// O diagnostico de UI: ligado, o log diz quem esta na frente dos controles (ver UI/ModUiAudit.cs). Fica na
-		// [Advanced] e nao na [IA] porque ele nao e da camada de IA: ele audita a UI do mod inteira - o painel F8 e
-		// o painel da IA, e a faixa de camadas que os dois compartilham (UI/ModUiLayers.cs). O [IA] EcoDiag esta la
+		// [Advanced] e nao na [AI] porque ele nao e da camada de IA: ele audita a UI do mod inteira - o painel F8 e
+		// o painel da IA, e a faixa de camadas que os dois compartilham (UI/ModUiLayers.cs). O [AI] EcoDiag esta la
 		// porque diagnostica um componente da IA (a voz do companheiro); este e o bucket dos ajustes que ninguem
 		// mexe no dia a dia, que e o caso de um despejo de diagnostico.
 		UiDiag = Bind(cfg, "Advanced", "UiDiag", defaultValue: false, "Diagnóstico de UI: ligado, escreve no log o que está na frente dos controles do painel F8 e do painel da IA (uma vez por sessão, na primeira vez que cada painel é aberto): quantos alvos de clique cada painel tem (os controles e os que são de propósito), todas as camadas ativas da cena (nome e ordem) e, para cada canvas acima do painel, os alvos que cobrem a coluna de controles. É o que se liga quando um clique ou uma UI parece estranha (um botão que não responde, um texto por cima, um clique engolido): o log diz quem está na frente. Desligado (padrão) não escreve nada e não custa nada; ligado o log cresce bastante (uma linha de resumo por painel, mais uma linha por alvo suspeito). Não muda nada no jogo - só diagnostica.");
 
-		// [IA] - Fase 3.1: the player types an order in the game chat and a local LLM (LM Studio / Ollama / any
-		// OpenAI-compatible /chat/completions endpoint) turns it into an action for the companions. See CompanionChatAI.
-		// [IA] - Fase 3.1: the player types an order in the game chat and an LLM (Groq's free tier by default, a local
+		// [AI] - Phase 3.1: the player types an order in the game chat and an LLM (Groq's free tier by default, a local
 		// LM Studio / Ollama, or any OpenAI-compatible /chat/completions endpoint) turns it into an action. See CompanionChatAI.
-		AiEnabled = Bind(cfg, "IA", "Ligado", defaultValue: true, "Fase 3.1: digite uma ordem no chat do jogo (\"colete 20 de madeira\", \"segue\", \"para\") e os companheiros a executam. A ordem é interpretada por um LLM (Groq por padrão, ou um servidor local, ou o OpenRouter) através de uma API compatível com a OpenAI. Desligado = nada é enviado ao modelo.");
-		AiBaseUrl = Bind(cfg, "IA", "BaseUrl", "https://api.groq.com/openai/v1", "URL base do servidor compatível com a OpenAI. Padrão: Groq (https://api.groq.com/openai/v1), que pede a ApiKey - a chave gratuita sai em console.groq.com/keys. Alternativas: LM Studio (http://127.0.0.1:1234/v1) ou Ollama (http://127.0.0.1:11434/v1) para rodar tudo local - nesses dois use 127.0.0.1 em vez de localhost (no Windows o localhost resolve primeiro para IPv6 e o servidor só escuta IPv4, o que custa cerca de 2,5 s por ordem); ou OpenRouter (https://openrouter.ai/api/v1), que funciona mas o tier gratuito costuma ser bem mais lento. /chat/completions é adicionado automaticamente. Esta é uma opção de texto: edite no arquivo .cfg.");
-		AiModel = Bind(cfg, "IA", "Modelo", "openai/gpt-oss-20b", "Nome do modelo a enviar ao servidor. Padrão: openai/gpt-oss-20b (Groq, tier gratuito). Outros: openrouter/free no OpenRouter; no LM Studio use o nome que o servidor lista (ex.: qwen2.5-3b-instruct). Opção de texto: edite no arquivo .cfg.");
-		AiApiKey = Bind(cfg, "IA", "ApiKey", "", "Chave de API, se o servidor pedir uma. No Groq é obrigatória (a gratuita sai em console.groq.com/keys) e no OpenRouter também (openrouter.ai/keys). Deixe vazio para LM Studio/Ollama rodando na sua máquina. Opção de texto: edite no arquivo .cfg. Nunca coloque uma chave num config compartilhado.");
-		AiTemperature = Bind(cfg, "IA", "Temperatura", 0.1f, "O quanto o modelo pode improvisar. Mantenha baixo para que a mesma ordem dê sempre o mesmo JSON.", new AcceptableValueRange<float>(0f, 1f));
-		AiTimeoutSeconds = Bind(cfg, "IA", "TimeoutSegundos", 30, "Segundos de espera pelo modelo antes de desistir. O pedido roda em segundo plano, então um modelo lento nunca trava o jogo.", new AcceptableValueRange<int>(1, 300));
-		AiPrefix = Bind(cfg, "IA", "Prefixo", "", "Só mensagens de chat que começam com isto vão para o modelo (por exemplo /c). Vazio = toda mensagem de chat é enviada. Opção de texto: edite no arquivo .cfg.");
-		AiShowResponse = Bind(cfg, "IA", "MostrarRespostaNoChat", defaultValue: true, "Mostra a resposta crua do modelo no chat, para você ver o que ele entendeu. Útil em testes; desligue para um chat mais limpo.");
-		AiCooldown = Bind(cfg, "IA", "CooldownSegundos", 3f, "Tempo mínimo (em segundos) entre duas ordens, para uma rajada de mensagens de chat não inundar o modelo.", new AcceptableValueRange<float>(0f, 60f));
-		AiTargetRange = Bind(cfg, "IA", "RaioDeAlvo", 40f, "Fase 3.6: a que distância de você (em metros) uma ordem que nomeia uma criatura a procura (\"ataca o greydwarf\"). A criatura que você está mirando vale sempre, por mais longe que esteja. 40 m é a mesma coleira em que o código de combate abandona um alvo.", new AcceptableValueRange<float>(5f, 200f));
-		AiPersonality = Bind(cfg, "IA", "Personalidade", "", "Fase 3.5: a personalidade do seu companheiro nas suas palavras, em português - como ele fala e se comporta (\"fala como um viking leal e direto\", \"é um mago sarcástico que reclama do frio\"). Isso entra nas instruções do modelo, então o companheiro responde nesse tom. Quando preenchido, ganha do PresetPersonalidade. Até 600 caracteres. Opção de texto: edite no arquivo .cfg.");
-		AiPersonalityPreset = Bind(cfg, "IA", "PresetPersonalidade", "", "Fase 3.5: uma personalidade pronta, escrita em português dentro do mod: viking (leal e destemido), mago (velho e sarcástico), sarcastico (piadas secas), guia (paciente e didático), ou custom (usa a Personalidade). Vazio ou desconhecido = o padrão (um companheiro leal e prático). Opção de texto: edite no arquivo .cfg.");
-		AiMemory = Bind(cfg, "IA", "Memoria", 4, "Fase 3.5: quantas trocas recentes (uma mensagem sua + uma do companheiro) o companheiro lembra e envia junto com a próxima mensagem, para seguir o fio da conversa. 0 = sem memória. Guardada por companheiro, só na memória (nada é salvo no mundo) e esquecida quando o companheiro morre ou é dispensado. Cada troca deixa o prompt que o modelo precisa ler maior, então mantenha pequeno para as respostas mais rápidas (Fase 3.3b: 4, era 6).", new AcceptableValueRange<int>(0, 12));
-		AiConversation = Bind(cfg, "IA", "Conversa", defaultValue: true, "Fase 3.5: quando a mensagem NÃO é uma ordem (\"bom dia\", \"como você está?\", \"o que achou da minha casa?\"), o companheiro responde como conversa: fala a resposta em voz alta (balão de fala) e a mostra no chat. As ordens continuam funcionando exatamente como antes. Desligado = só ordens são entendidas, como na Fase 3.1.");
-		AiStructuredOutput = Bind(cfg, "IA", "SaidaEstruturada", defaultValue: true, "Pede ao servidor para forçar o formato JSON (response_format/json_schema). Deixa a resposta do modelo sempre válida e é o que permite usar modelos pequenos e rápidos (ex.: um 3B) sem ele responder texto solto. Desligue se o seu servidor não suportar - o mod cai sozinho no formato antigo e avisa no log.");
+		AiEnabled = Bind(cfg, "AI", "Enabled", defaultValue: true, "Phase 3.1: type an order in the game chat (\"collect 20 wood\", \"follow\", \"stop\") and the companions carry it out. The order is interpreted by an LLM (Groq by default, or a local server, or OpenRouter) through an OpenAI-compatible API. Off = nothing is sent to the model.");
+		AiBaseUrl = Bind(cfg, "AI", "BaseUrl", "https://api.groq.com/openai/v1", "Base URL of the OpenAI-compatible server. Default: Groq (https://api.groq.com/openai/v1), which asks for the ApiKey - the free key is at console.groq.com/keys. Alternatives: LM Studio (http://127.0.0.1:1234/v1) or Ollama (http://127.0.0.1:11434/v1) to run everything locally - with those two use 127.0.0.1 instead of localhost (on Windows localhost resolves to IPv6 first and the server only listens on IPv4, which costs about 2.5 s per order); or OpenRouter (https://openrouter.ai/api/v1), which works but the free tier is usually much slower. /chat/completions is added automatically. This is a text option: edit it in the .cfg file.");
+		AiModel = Bind(cfg, "AI", "Model", "openai/gpt-oss-20b", "Name of the model sent to the server. Default: openai/gpt-oss-20b (Groq, free tier). Others: openrouter/free on OpenRouter; on LM Studio use the name the server lists (e.g. qwen2.5-3b-instruct). Text option: edit it in the .cfg file.");
+		AiApiKey = Bind(cfg, "AI", "ApiKey", "", "API key, if the server asks for one. On Groq it is required (the free one is at console.groq.com/keys) and on OpenRouter too (openrouter.ai/keys). Leave it empty for LM Studio/Ollama running on your machine. Text option: edit it in the .cfg file. Never put a key in a shared config.");
+		AiTemperature = Bind(cfg, "AI", "Temperature", 0.1f, "How much the model may improvise. Keep it low so the same order always gives the same JSON.", new AcceptableValueRange<float>(0f, 1f));
+		AiTimeoutSeconds = Bind(cfg, "AI", "TimeoutSeconds", 30, "Seconds to wait for the model before giving up. The request runs in the background, so a slow model never freezes the game.", new AcceptableValueRange<int>(1, 300));
+		AiPrefix = Bind(cfg, "AI", "Prefix", "", "Only chat messages that start with this go to the model (for example /c). Empty = every chat message is sent. Text option: edit it in the .cfg file.");
+		AiShowResponse = Bind(cfg, "AI", "ShowReplyInChat", defaultValue: true, "Shows the model's raw reply in the chat, so you can see what it understood. Useful while testing; turn it off for a cleaner chat.");
+		AiCooldown = Bind(cfg, "AI", "CooldownSeconds", 3f, "Minimum time (in seconds) between two orders, so a burst of chat messages does not flood the model.", new AcceptableValueRange<float>(0f, 60f));
+		AiTargetRange = Bind(cfg, "AI", "TargetRange", 40f, "Phase 3.6: how far from you (in metres) an order that names a creature searches for it (\"attack the greydwarf\"). The creature you are aiming at always counts, however far away it is. 40 m is the same leash at which the combat code gives up on a target.", new AcceptableValueRange<float>(5f, 200f));
+		AiPersonality = Bind(cfg, "AI", "Personality", "", "Phase 3.5: your companion's personality in your own words - how it speaks and behaves (\"speaks like a loyal, blunt viking\", \"a sarcastic mage who complains about the cold\"). This goes into the model's instructions, so the companion answers in that tone. When filled in it wins over PersonalityPreset. Up to 600 characters. Text option: edit it in the .cfg file.");
+		AiPersonalityPreset = Bind(cfg, "AI", "PersonalityPreset", "", "Phase 3.5: a ready-made personality, written in Portuguese inside the mod: viking (loyal and fearless), mago (old and sarcastic), sarcastico (dry jokes), guia (patient and didactic), or custom (uses Personality). Empty or unknown = the default (a loyal, practical companion). Text option: edit it in the .cfg file.");
+		AiMemory = Bind(cfg, "AI", "Memory", 4, "Phase 3.5: how many recent exchanges (one message from you + one from the companion) the companion remembers and sends along with the next message, to keep the thread of the conversation. 0 = no memory. Kept per companion, in memory only (nothing is saved in the world) and forgotten when the companion dies or is dismissed. Every exchange makes the prompt the model has to read bigger, so keep it small for faster replies (Phase 3.3b: 4, was 6).", new AcceptableValueRange<int>(0, 12));
+		AiConversation = Bind(cfg, "AI", "Conversation", defaultValue: true, "Phase 3.5: when the message is NOT an order (\"good morning\", \"how are you?\", \"what did you think of my house?\"), the companion answers as conversation: it says the reply out loud (speech bubble) and shows it in the chat. Orders keep working exactly as before. Off = only orders are understood, as in Phase 3.1.");
+		AiStructuredOutput = Bind(cfg, "AI", "StructuredOutput", defaultValue: true, "Asks the server to force the JSON format (response_format/json_schema). It keeps the model's reply always valid and is what allows small, fast models (e.g. a 3B) to be used without them answering loose text. Turn it off if your server does not support it - the mod falls back to the old format on its own and says so in the log.");
 
-		// [IA] - STT local (spike do Whisper.net in-process, Fase 3.x): só teste, não faz parte do pipeline de voz.
-		SttTest = Bind(cfg, "IA", "SttTeste", defaultValue: false, "SPIKE (teste): roda o teste de reconhecimento de voz do Whisper.net in-process sozinho, cerca de 25 segundos depois de o plugin carregar, e escreve o resultado no log. Desligado = só o comando de console \"modia_stt_teste\" o executa. É um teste simples: não ouve o microfone e não muda nenhum comportamento dos companheiros.");
-		SttModel = Bind(cfg, "IA", "SttModelo", @"whisper\ggml-small-q5_1.bin", "Modelo do Whisper que o reconhecimento de voz carrega (as ordens por voz E o comando de console \"modia_stt_teste\"), relativo à pasta do plugin ou um caminho absoluto. Padrão whisper\\ggml-small-q5_1.bin (181 MB, Fase 3.3b - bem melhor em português que o antigo whisper\\ggml-base-q5_1.bin, 57 MB, que continua no disco se você quiser voltar: medido numa CPU de 16 núcleos com 8 threads, 638 ms por clipe de 2 s com o base contra 2187 ms com o small, e o tempo quase não muda com o tamanho do clipe porque o codificador sempre trabalha numa janela de 30 s). Opção de texto: edite no arquivo .cfg.");
-		SttWav = Bind(cfg, "IA", "SttWavTeste", @"whisper\jfk.wav", "SPIKE (teste): o arquivo WAV a transcrever, relativo à pasta do plugin (ou um caminho absoluto). Precisa ser WAV PCM (16 kHz mono é o ideal). Opção de texto: edite no arquivo .cfg.");
+		// [AI] - local STT (the in-process Whisper.net spike, Phase 3.x): test only, not part of the voice pipeline.
+		SttTest = Bind(cfg, "AI", "SttTest", defaultValue: false, "SPIKE (test): runs the in-process Whisper.net speech recognition test by itself, about 25 seconds after the plugin loads, and writes the result to the log. Off = only the \"modia_stt_teste\" console command runs it. It is a simple test: it does not listen to the microphone and changes no companion behaviour.");
+		SttModel = Bind(cfg, "AI", "SttModel", @"whisper\ggml-small-q5_1.bin", "Whisper model the speech recognition loads (the voice orders AND the \"modia_stt_teste\" console command), relative to the plugin folder or an absolute path. Default whisper\\ggml-small-q5_1.bin (181 MB, Phase 3.3b - much better in Portuguese than the old whisper\\ggml-base-q5_1.bin, 57 MB, which stays on disk if you want to go back: measured on a 16-core CPU with 8 threads, 638 ms per 2 s clip with base against 2187 ms with small, and the time barely changes with the clip length because the encoder always works on a 30 s window). Text option: edit it in the .cfg file.");
+		SttWav = Bind(cfg, "AI", "SttWavTest", @"whisper\jfk.wav", "SPIKE (test): the WAV file to transcribe, relative to the plugin folder (or an absolute path). It must be PCM WAV (16 kHz mono is ideal). Text option: edit it in the .cfg file.");
 
-		// [IA] - Fase 3.3: ordens por voz (push-to-talk + STT local com Whisper.net). O texto reconhecido entra no
-		// MESMO caminho das ordens do chat. Ver AI/VoiceInput.cs e AI/WhisperStt.cs.
-		VozEnabled = Bind(cfg, "IA", "VozLigada", defaultValue: true, "Fase 3.3: segure VozTecla e fale, e o companheiro aceita o que você disse - as mesmas ordens que você pode digitar no chat (\"colete 10 madeiras\", \"segue\", \"ataca o greydwarf\"). A fala é reconhecida localmente, dentro do jogo, pelo Whisper.net com o modelo de SttModelo: nada é enviado para lugar nenhum. Desligado = a tecla não faz nada (e, na Fase 3.3b, a tecla volta a fazer o que o jogo fazia com ela).");
-		VozTecla = Bind(cfg, "IA", "VozTecla", KeyCode.V, "Fase 3.3: tecla de push-to-talk. Segure enquanto fala, solte para a fala ser reconhecida e executada. Só funciona com o jogo em foco e sem nenhuma janela aberta (inventário, mapa, menu, chat, console, os próprios painéis do mod). NOTA (Fase 3.3b): V também é o \"Toggle Auto-Pickup\" do jogo. Enquanto VozLigada estiver ligado, o mod bloqueia esse toggle quando o auto-pickup do jogo está vinculado a esta mesma tecla, para a tecla ficar livre para falar - reatribua o auto-pickup na tela de controles do próprio jogo (ou escolha outra tecla aqui) se quiser ele de volta.");
-		VozLanguage = Bind(cfg, "IA", "VozIdioma", "pt", "Fase 3.3: idioma da fala, como um código do Whisper (pt, en, es...). Vazio ou \"auto\" deixa o modelo detectar. Opção de texto: edite no arquivo .cfg.");
-		VozMaxSeconds = Bind(cfg, "IA", "VozDuracaoMaxima", 10f, "Fase 3.3: gravação mais longa (em segundos) para uma ordem por voz. Segurar a tecla mais do que isso para a gravação e transcreve o que foi capturado.", new AcceptableValueRange<float>(1f, 30f));
-		VozSilenceThreshold = Bind(cfg, "IA", "VozLimiarSilencio", 0.01f, "Fase 3.3: o quão alto o áudio precisa ser (nível de pico de uma janela de 10 ms, de 0 a 1) para contar como fala quando o silêncio do começo e do fim da gravação é cortado. Fase 3.3b: 0.01 (era 0.02) - com 0.02 o começo baixinho de uma palavra era cortado com frequência, e era isso que fazia ordens curtas voltarem erradas. Aumente se o seu microfone capta muito ruído do ambiente.", new AcceptableValueRange<float>(0f, 0.5f));
-		VozPromptInitial = Bind(cfg, "IA", "VozPromptInicial", "Ordens para o companheiro: colete madeira, pedra, minerio, ferro, segue, para, vem ca, ataca o greydwarf, equipa o machado de bronze, larga a pedra, descansa, bom dia.", "Fase 3.3b: prompt inicial enviado ao Whisper antes de cada transcrição. Ele enviesa o vocabulário, e é isso que faz ordens curtas (\"colete 10 madeiras\") saírem certas em vez de adivinhadas. Coloque as palavras que você realmente fala (as ordens, os nomes de criaturas e itens); vazio = sem viés. Opção de texto: edite no arquivo .cfg.");
-		VozDevice = Bind(cfg, "IA", "VozDispositivo", 0, "Fase 3.3: de qual microfone gravar, como o índice da lista que o log imprime na inicialização ([STT] Push-to-talk: ... 0: nome, 1: nome). 0 = o primeiro (o padrão do Windows).", new AcceptableValueRange<int>(0, 8));
-		VozShowText = Bind(cfg, "IA", "VozMostrarTexto", defaultValue: true, "Fase 3.3: mostra o que o microfone ouviu (\"Entendi: \"colete 10 madeiras\"\") no chat e no HUD. Fase 3.3d: a transcrição aparece no balão do PRÓPRIO JOGADOR (não no do companheiro), para uma transcrição errada ser fácil de notar - quem responde é o companheiro, com o balão e A VOZ dele. Desligado = o texto reconhecido só é escrito no log.");
+		// [AI] - Phase 3.3: voice orders (push-to-talk + local STT with Whisper.net). The recognised text enters the
+		// SAME path as the chat orders. See AI/VoiceInput.cs and AI/WhisperStt.cs.
+		VozEnabled = Bind(cfg, "AI", "VoiceEnabled", defaultValue: true, "Phase 3.3: hold VoiceKey and speak, and the companion accepts what you said - the same orders you can type in the chat (\"collect 10 wood\", \"follow\", \"attack the greydwarf\"). The speech is recognised locally, inside the game, by Whisper.net with the SttModel model: nothing is sent anywhere. Off = the key does nothing (and, in Phase 3.3b, the key goes back to doing what the game did with it).");
+		VozTecla = Bind(cfg, "AI", "VoiceKey", KeyCode.V, "Phase 3.3: push-to-talk key. Hold it while you speak, release it for the speech to be recognised and carried out. It only works with the game focused and no window open (inventory, map, menu, chat, console, the mod's own panels). NOTE (Phase 3.3b): V is also the game's \"Toggle Auto-Pickup\". While VoiceEnabled is on, the mod blocks that toggle when the game's auto-pickup is bound to this same key, so the key stays free for talking - rebind auto-pickup in the game's own controls screen (or pick another key here) if you want it back.");
+		VozLanguage = Bind(cfg, "AI", "VoiceLanguage", "pt", "Phase 3.3: language of the speech, as a Whisper code (pt, en, es...). Empty or \"auto\" lets the model detect it. Text option: edit it in the .cfg file.");
+		VozMaxSeconds = Bind(cfg, "AI", "VoiceMaxSeconds", 10f, "Phase 3.3: longest recording (in seconds) for a voice order. Holding the key longer than this stops the recording and transcribes what was captured.", new AcceptableValueRange<float>(1f, 30f));
+		VozSilenceThreshold = Bind(cfg, "AI", "VoiceSilenceThreshold", 0.01f, "Phase 3.3: how loud the audio must be (peak level of a 10 ms window, from 0 to 1) to count as speech when the silence at the start and the end of the recording is trimmed. Phase 3.3b: 0.01 (was 0.02) - at 0.02 the quiet start of a word was often cut, and that is what made short orders come back wrong. Raise it if your microphone picks up a lot of room noise.", new AcceptableValueRange<float>(0f, 0.5f));
+		VozPromptInitial = Bind(cfg, "AI", "VoiceInitialPrompt", "Ordens para o companheiro: colete madeira, pedra, minerio, ferro, segue, para, vem ca, ataca o greydwarf, equipa o machado de bronze, larga a pedra, descansa, bom dia.", "Phase 3.3b: initial prompt sent to Whisper before every transcription. It biases the vocabulary, and that is what makes short orders (\"collect 10 wood\") come out right instead of guessed. Put in the words you really say (the orders, the creature and item names); empty = no bias. Text option: edit it in the .cfg file.");
+		VozDevice = Bind(cfg, "AI", "VoiceDevice", 0, "Phase 3.3: which microphone to record from, as the index of the list the log prints at startup ([STT] Push-to-talk: ... 0: name, 1: name). 0 = the first one (the Windows default).", new AcceptableValueRange<int>(0, 8));
+		VozShowText = Bind(cfg, "AI", "VoiceShowText", defaultValue: true, "Phase 3.3: shows what the microphone heard (\"Entendi: \"collect 10 wood\"\") in the chat and on the HUD. Phase 3.3d: the transcription appears in the PLAYER's own bubble (not the companion's), so a wrong transcription is easy to spot - the one who answers is the companion, with its own bubble and VOICE. Off = the recognised text is only written to the log.");
 
-		// [IA] - Fase 3.7: the in-game AI panel. See UI/CompanionAiPanel.cs. Fase 3.10/3.15: the panel has one tab per
+		// [AI] - Phase 3.7: the in-game AI panel. See UI/CompanionAiPanel.cs. Phase 3.10/3.15: the panel has one tab per
 		// companion (voice, personality, name and tier of that companion) plus the AI tab (summoner, volume, speed,
 		// memory, conversation, push-to-talk). The global personality and voice live in this file / the F8 panel.
-		AiPanelKey = Bind(cfg, "IA", "PainelTecla", KeyCode.I, "Fase 3.7: abre o painel da IA no jogo. A aba IA tem o invocador de companheiros de graça, o volume e a velocidade da fala, a memória, a conversa e a tecla do push-to-talk. Cada companheiro tem a sua aba, com o nome, o tipo (renascer), a voz (com o botão Ouvir) e a personalidade DELE - os valores de [IA] abaixo são o padrão de quem não tem escolha própria. Cada mudança é salva na hora. O padrão é I: o jogo e o mod não usam essa tecla. A tecla não é roubada de uma caixa de texto (o chat, o console e o campo de busca ficam em paz). Opção de tecla: edite no arquivo .cfg ou clique nela no painel F8.");
+		AiPanelKey = Bind(cfg, "AI", "PanelKey", KeyCode.I, "Phase 3.7: opens the AI panel in game. The AI tab has the free companion summoner, the speech volume and speed, the memory, the conversation and the push-to-talk key. Each companion has its own tab, with the name, the tier (reborn), the voice (with the Listen button) and ITS personality - the [AI] values below are the default of whoever has no choice of its own. Every change is saved right away. The default is I: neither the game nor the mod uses that key. The key is not stolen from a text box (the chat, the console and the search field are left in peace). Key option: edit it in the .cfg file or click it in the F8 panel.");
 
-		// [IA] - Fase 3.4: TTS local (Kokoro-82M via sherpa-onnx, in-process). O companheiro fala as respostas em
-		// voz alta, na posição dele. Ver AI/CompanionTts.cs.
-		TtsEnabled = Bind(cfg, "IA", "TtsLigado", defaultValue: true, "Fase 3.4: o companheiro FALA as respostas em voz alta. A fala é sintetizada no seu computador pelo Kokoro-82M (via sherpa-onnx, dentro do jogo, sem processo filho e sem nada sair da sua máquina), na voz de TtsVoz, e sai no lugar onde o companheiro está (não no centro da tela). Desligado = ele só mostra o balão e o chat, como antes. A primeira fala de cada sessão espera o modelo carregar (~1 s, em segundo plano, quando você entra no mundo).");
-		TtsVoice = Bind(cfg, "IA", "TtsVoz", 42, "Fase 3.4: qual voz do Kokoro usar. As vozes em português do Brasil deste modelo são: 42 = pf_dora (feminina, o padrão), 43 = pm_alex (masculina) e 44 = pm_santa (masculina). Os outros números são de outros idiomas (45, por exemplo, soa chinês). 0 (ou qualquer valor negativo) = a voz padrão (42).", new AcceptableValueRange<int>(0, 100));
-		TtsSpeed = Bind(cfg, "IA", "TtsVelocidade", 1f, "Fase 3.4: a que velocidade o companheiro fala (1 = normal; acima de 1 fala mais rápido). Também deixa a fala mais curta.", new AcceptableValueRange<float>(0.5f, 2f));
-		TtsThreads = Bind(cfg, "IA", "TtsThreads", 4, "Fase 3.4: quantos núcleos da CPU a síntese da fala pode usar. Medido nesta máquina (Ryzen 7 5700X): 4 threads geram mais rápido do que o tempo real (RTF ~0,83), então a fala sai na frente do companheiro; mais threads não aceleram e competem com o jogo.", new AcceptableValueRange<int>(1, 16));
-		TtsVolume = Bind(cfg, "IA", "TtsVolume", 1f, "Fase 3.4: volume da voz do companheiro (0 = mudo, 1 = volume normal do jogo).", new AcceptableValueRange<float>(0f, 1f));
-		TtsModel = Bind(cfg, "IA", "TtsModelo", @"tts\kokoro\model.int8.onnx", "Fase 3.4: o modelo do Kokoro que o companheiro fala (relativo à pasta do plugin, ou um caminho absoluto). As vozes (voices.bin), os tokens (tokens.txt) e o espeak-ng-data são procurados na MESMA pasta do modelo. Opção de texto: edite no arquivo .cfg.");
-		TtsLanguage = Bind(cfg, "IA", "TtsIdioma", "pt-br", "Fase 3.4: idioma do texto falado, no formato que o Kokoro espera. Este modelo é multi-lingue e EXIGE um idioma: \"pt-br\" é português do Brasil (\"pt\" sozinho é português de Portugal). Vazio volta para \"pt-br\". Opção de texto: edite no arquivo .cfg.");
-		TtsCache = Bind(cfg, "IA", "TtsCache", defaultValue: true, "Fase 3.4: guarda as falas já sintetizadas (texto + voz + velocidade) para tocar de novo na hora. As falas fixas do mod (\"Já temos o suficiente.\") saem instantâneas; a memória usada é pequena. Desligado = toda fala é sintetizada de novo.");
-		TtsSpeakReplies = Bind(cfg, "IA", "TtsFalarRespostas", defaultValue: true, "Fase 3.4: fala em voz alta a resposta do modelo (o campo \"reply\"). Numa conversa é a resposta dele; numa ordem, quando TtsFalarFalasDoMod está desligado, é a confirmação no jeito dele (\"Deixa comigo.\").");
-		TtsSpeakModLines = Bind(cfg, "IA", "TtsFalarFalasDoMod", defaultValue: true, "Fase 3.4: fala em voz alta a linha do próprio mod que aparece no chat/HUD (\"Ok: coletar madeira (10).\", \"Atacando o troll.\", \"Já temos o suficiente.\"). Numa ORDEM ela ganha da resposta do modelo (a voz acompanha o que está escrito na tela); desligue para ouvir a resposta do modelo no lugar dela. Nada é falado duas vezes: com as duas opções ligadas, a linha que não é falada vai só para o log.");
+		// [AI] - Phase 3.4: local TTS (Kokoro-82M via sherpa-onnx, in-process). The companion speaks the replies out
+		// loud, at its own position. See AI/CompanionTts.cs.
+		TtsEnabled = Bind(cfg, "AI", "TtsEnabled", defaultValue: true, "Phase 3.4: the companion SPEAKS the replies out loud. The speech is synthesised on your computer by Kokoro-82M (via sherpa-onnx, inside the game, no child process and nothing leaving your machine), in the TtsVoice voice, and comes out where the companion is (not in the middle of the screen). Off = it only shows the bubble and the chat, as before. The first speech of every session waits for the model to load (~1 s, in the background, when you enter the world).");
+		TtsVoice = Bind(cfg, "AI", "TtsVoice", 42, "Phase 3.4: which Kokoro voice to use. The Brazilian Portuguese voices of this model are: 42 = pf_dora (feminine, the default), 43 = pm_alex (masculine) and 44 = pm_santa (masculine). The other numbers belong to other languages (45, for example, sounds Chinese). 0 (or any negative value) = the default voice (42).", new AcceptableValueRange<int>(0, 100));
+		TtsSpeed = Bind(cfg, "AI", "TtsSpeed", 1f, "Phase 3.4: how fast the companion speaks (1 = normal; above 1 speaks faster). It also makes the speech shorter.", new AcceptableValueRange<float>(0.5f, 2f));
+		TtsThreads = Bind(cfg, "AI", "TtsThreads", 4, "Phase 3.4: how many CPU cores the speech synthesis may use. Measured on this machine (Ryzen 7 5700X): 4 threads generate faster than real time (RTF ~0.83), so the speech is ready before the companion needs it; more threads do not speed it up and compete with the game.", new AcceptableValueRange<int>(1, 16));
+		TtsVolume = Bind(cfg, "AI", "TtsVolume", 1f, "Phase 3.4: volume of the companion's voice (0 = muted, 1 = the game's normal volume).", new AcceptableValueRange<float>(0f, 1f));
+		TtsModel = Bind(cfg, "AI", "TtsModel", @"tts\kokoro\model.int8.onnx", "Phase 3.4: the Kokoro model the companion speaks with (relative to the plugin folder, or an absolute path). The voices (voices.bin), the tokens (tokens.txt) and espeak-ng-data are looked for in the SAME folder as the model. Text option: edit it in the .cfg file.");
+		TtsLanguage = Bind(cfg, "AI", "TtsLanguage", "pt-br", "Phase 3.4: language of the spoken text, in the format Kokoro expects. This model is multi-lingual and REQUIRES a language: \"pt-br\" is Brazilian Portuguese (\"pt\" alone is European Portuguese). Empty goes back to \"pt-br\". Text option: edit it in the .cfg file.");
+		TtsCache = Bind(cfg, "AI", "TtsCache", defaultValue: true, "Phase 3.4: keeps the speeches already synthesised (text + voice + speed) to play them again instantly. The mod's fixed lines (\"Já temos o suficiente.\") come out instantly; the memory used is small. Off = every speech is synthesised again.");
+		TtsSpeakReplies = Bind(cfg, "AI", "TtsSpeakReplies", defaultValue: true, "Phase 3.4: speaks the model's reply out loud (the \"reply\" field). In a conversation it is its answer; in an order, when TtsSpeakModLines is off, it is the confirmation in its own way (\"Deixa comigo.\").");
+		TtsSpeakModLines = Bind(cfg, "AI", "TtsSpeakModLines", defaultValue: true, "Phase 3.4: speaks out loud the mod's own line that shows in the chat/HUD (\"Ok: coletar madeira (10).\", \"Atacando o troll.\", \"Já temos o suficiente.\"). In an ORDER it wins over the model's reply (the voice follows what is written on the screen); turn it off to hear the model's reply instead. Nothing is spoken twice: with both options on, the line that is not spoken only goes to the log.");
 
-		// [IA] - Fase 3.4 (parte 3): os interruptores de TESTE do eco. Todos com o valor padrão = como está hoje.
-		TtsReverbZoneMix = Bind(cfg, "IA", "TtsReverbZoneMix", 0f, "Quanto das zonas de reverb do mundo entra na voz do companheiro. 0 (padrão) = voz seca. O Valheim tem uma zona de reverb global (raio de 1000 m, 4 s de cauda) que deixava a fala do companheiro 'ecoando como numa caverna' - a música do jogo usa 0 e o ambiente 0,19. Suba um pouco (ex.: 0,19) se quiser um 'espaço' sutil na voz. Vale na próxima frase, sem reiniciar.", new AcceptableValueRange<float>(0f, 1f));
-		TtsEcoDiag = Bind(cfg, "IA", "EcoDiag", defaultValue: false, "Diagnóstico de áudio: ligado, escreve no log (uma vez por sessão, na primeira frase falada) o AudioListener da cena, as zonas de reverb do mundo e como as fontes do próprio jogo estão configuradas (mixer, reverb, bypass). Serve para investigar qualquer problema de som do companheiro. Não muda o som - só diagnostica.");
+		// [AI] - Phase 3.4 (part 3): the echo test switches. Every default = the way it is today.
+		TtsReverbZoneMix = Bind(cfg, "AI", "TtsReverbZoneMix", 0f, "How much of the world's reverb zones goes into the companion's voice. 0 (default) = dry voice. Valheim has a global reverb zone (1000 m radius, 4 s tail) that made the companion's speech 'echo like in a cave' - the game's music uses 0 and the ambience 0.19. Raise it a little (e.g. 0.19) if you want a subtle 'space' in the voice. It applies to the next sentence, no restart.", new AcceptableValueRange<float>(0f, 1f));
+		TtsEcoDiag = Bind(cfg, "AI", "EcoDiag", defaultValue: false, "Audio diagnostics: when on, writes to the log (once per session, on the first spoken sentence) the scene's AudioListener, the world's reverb zones and how the game's own sources are configured (mixer, reverb, bypass). Use it to investigate any sound problem with the companion. It does not change the sound - it only reports.");
 
 		// Fase 3.3b: the voice defaults changed after the first test in game. A .cfg written before this version still
 		// holds the old values and BepInEx keeps whatever is in the file, so a value that is EXACTLY the old default is
@@ -947,25 +945,25 @@ internal static class ModConfig
 			if (System.IO.File.Exists(path))
 			{
 				SttModel.Value = next;
-				CompanionsPlugin.Log?.LogInfo($"[IA] Fase 3.3b: [IA] SttModelo estava no valor antigo ({WhisperStt.PreviousModelRelative}) e o modelo novo esta no disco - "
+				CompanionsPlugin.Log?.LogInfo($"[IA] Fase 3.3b: [AI] SttModel estava no valor antigo ({WhisperStt.PreviousModelRelative}) e o modelo novo esta no disco - "
 					+ $"passando para \"{next}\" (bem mais preciso em PT-BR; o base continua em disco se voce quiser voltar).");
 			}
 			else
 			{
-				CompanionsPlugin.Log?.LogWarning($"[IA] Fase 3.3b: [IA] SttModelo continua em \"{WhisperStt.PreviousModelRelative}\" porque o modelo novo nao esta em \"{path}\". "
+				CompanionsPlugin.Log?.LogWarning($"[IA] Fase 3.3b: [AI] SttModel continua em \"{WhisperStt.PreviousModelRelative}\" porque o modelo novo nao esta em \"{path}\". "
 					+ "Baixe o ggml-small-q5_1.bin para a pasta whisper\\ do plugin para usar o modelo mais preciso.");
 			}
 		}
 		if (VozSilenceThreshold != null && Mathf.Approximately(VozSilenceThreshold.Value, 0.02f))
 		{
 			VozSilenceThreshold.Value = (float)VozSilenceThreshold.DefaultValue;
-			CompanionsPlugin.Log?.LogInfo($"[IA] Fase 3.3b: [IA] VozLimiarSilencio estava no valor antigo (0.02) - agora {VozSilenceThreshold.Value:0.###}, "
+			CompanionsPlugin.Log?.LogInfo($"[IA] Fase 3.3b: [AI] VoiceSilenceThreshold estava no valor antigo (0.02) - agora {VozSilenceThreshold.Value:0.###}, "
 				+ "porque 0.02 cortava o comeco de palavras faladas baixinho (era uma das causas das transcricoes erradas).");
 		}
 		if (AiMemory != null && AiMemory.Value == 6)
 		{
 			AiMemory.Value = (int)AiMemory.DefaultValue;
-			CompanionsPlugin.Log?.LogInfo($"[IA] Fase 3.3b: [IA] Memoria estava no valor antigo (6) - agora {AiMemory.Value} trocas: cada troca entra no prompt, "
+			CompanionsPlugin.Log?.LogInfo($"[IA] Fase 3.3b: [AI] Memory estava no valor antigo (6) - agora {AiMemory.Value} trocas: cada troca entra no prompt, "
 				+ "entao menos memoria = prompt menor = resposta mais rapida. Coloque 6 de volta se preferir a memoria longa.");
 		}
 	}

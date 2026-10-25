@@ -15,7 +15,7 @@ namespace Companions;
 /// Fase 3.5 adds three things on top of that, all in the same request:
 /// - PERSONALITY: the companion's name and its personality (a preset or the player's own text, see CompanionPersona)
 ///   go into the instructions, so the model answers in that tone.
-/// - MEMORY: the last [IA] Memoria exchanges of that companion are pasted into the instructions (CompanionMemory),
+/// - MEMORY: the last [AI] Memory exchanges of that companion are pasted into the instructions (CompanionMemory),
 ///   so it follows the thread of the conversation.
 /// - FREE CONVERSATION: when the message is not an order ("bom dia", "como você está?"), the model's "reply" is
 ///   spoken by the companion (speech bubble) and shown in the chat. An order keeps working exactly as before and
@@ -218,7 +218,7 @@ internal static class CompanionChatAI
 		}
 	}
 
-	/// <summary>Fase 3.5: [IA] Conversa - answer free conversation, not only orders.</summary>
+	/// <summary>Fase 3.5: [AI] Conversation - answer free conversation, not only orders.</summary>
 	private static bool ConversationEnabled => ModConfig.AiConversation == null || ModConfig.AiConversation.Value;
 
 	private static void OnPlayerChat(Talker.Type type, string text)
@@ -287,7 +287,7 @@ internal static class CompanionChatAI
 		}
 		if (ModConfig.AiEnabled == null || !ModConfig.AiEnabled.Value)
 		{
-			CompanionsPlugin.Log?.LogInfo("[IA] The AI is off ([IA] Ligado = false) - message not sent");
+			CompanionsPlugin.Log?.LogInfo("[IA] The AI is off ([AI] Enabled = false) - message not sent");
 			if (announceRefusal)
 			{
 				Notify(ModLocalization.Loc("hc_ai_disabled"));
@@ -716,9 +716,9 @@ internal static class CompanionChatAI
 	/// the line that is shown in the chat":
 	/// <list type="bullet">
 	/// <item><paramref name="modLine"/> is the mod's own localized feedback (the one in the chat/HUD) and is spoken
-	/// when <c>[IA] TtsFalarFalasDoMod</c> is on;</item>
+	/// when <c>[AI] TtsSpeakModLines</c> is on;</item>
 	/// <item><paramref name="reply"/> is the model's own wording and is spoken when there is no line to read or when
-	/// <c>[IA] TtsFalarFalasDoMod</c> is off, and only with <c>[IA] TtsFalarRespostas</c> on.</item>
+	/// <c>[AI] TtsSpeakModLines</c> is off, and only with <c>[AI] TtsSpeakReplies</c> on.</item>
 	/// </list>
 	/// Only one of the two is ever spoken (the other goes to the log), so an order is never confirmed twice in two
 	/// different ways. Called on the main thread; the synthesis itself happens on a background thread.

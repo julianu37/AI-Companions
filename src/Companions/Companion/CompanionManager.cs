@@ -243,7 +243,7 @@ public static class CompanionManager
 					+ $"{(aiDraft.Voice > 0 ? aiDraft.Voice.ToString() : CompanionTts.Voice + " (default)")}"
 					+ (aiDraft.HasPersona
 						? $" | personality \"{aiDraft.Preset}\"{(string.IsNullOrEmpty(aiDraft.FreeText) ? "" : $" + {aiDraft.FreeText.Length} chars of free text")}"
-						: " | personality: default ([IA])"));
+						: " | personality: default ([AI])"));
 			}
 		}
 		CompanionsPlugin.Log.LogInfo($"[CompanionManager] Name of the new companion: \"{companionName}\" "
@@ -613,7 +613,7 @@ public static class CompanionManager
 			+ $"bed={(hasBed ? "yes" : "no")}, skills={(string.IsNullOrEmpty(skills) ? "none" : "yes")}, "
 			+ $"companionId={(string.IsNullOrEmpty(companionId) ? "none" : companionId)}, gen={gen}, "
 			+ $"orderCap={(cap > 0 ? cap + " " + capItem : "none")}, aiVoice={(aiVoice > 0 ? aiVoice.ToString() : "default")}, "
-			+ $"personality={(personaSet ? "\"" + personaPreset + "\"" : "default ([IA])")}, "
+			+ $"personality={(personaSet ? "\"" + personaPreset + "\"" : "default ([AI])")}, "
 			+ $"inventory={items} item(s), equipped={equippedCount}");
 		return spawned.GetComponent<CompanionSetup>();
 	}
@@ -1035,7 +1035,7 @@ public static class CompanionManager
 	/// The start of the game: the companion the player designed in the starter panel, with the AI profile they chose
 	/// there (Fase 3.10). The draft is written to the new companion's ZDO by <see cref="SpawnCompanion"/> - the same
 	/// place the name and the appearance are written - and a null draft is the plain spawn (everything on the
-	/// <c>[IA]</c> defaults), which is what the old single-argument overload does.
+	/// <c>[AI]</c> defaults), which is what the old single-argument overload does.
 	/// </summary>
 	internal static void SpawnStarterWithAppearance(CompanionAppearance appearance, CompanionAiDraft aiDraft)
 	{

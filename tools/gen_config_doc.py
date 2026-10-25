@@ -1,4 +1,4 @@
-# Writes package/CONFIGURATION.md (PT-BR) from the settings in src/Companions/Core/ModConfig.cs.
+# Writes package/CONFIGURATION.md (PT-BR page, English settings) from the settings in src/Companions/Core/ModConfig.cs.
 # Usage: python3 tools/gen_config_doc.py src/Companions/Core/ModConfig.cs package/CONFIGURATION.md
 # The setting DESCRIPTIONS come from ModConfig.cs, so they are translated there (this file only
 # holds the page's own text). Section/key names are kept as they are, because they are what the
@@ -61,7 +61,7 @@ INTRO={
 'Idle':'O que um companheiro faz quando o trabalho dele não tem nada para fazer.',
 'Speech':'Com que frequência os companheiros falam e quanto tempo as falas ficam na tela.',
 'Advanced':'Ajustes finos de tempos e distâncias. A maioria dos jogadores nunca precisa mexer nisso.',
-'IA':'A camada de IA do projeto: ordens por texto e por voz, personalidade, memória e o reconhecimento de voz local.',
+'AI':'A camada de IA do projeto: ordens por texto e por voz, personalidade, memória, o reconhecimento de voz e a fala do companheiro.',
 }
 order=[]
 for r in rows:
@@ -69,7 +69,7 @@ for r in rows:
 L=[]
 L.append('# AI Companions — Referência de configurações\n')
 L.append('Todas as configurações do mod: o que cada uma faz e com que valor ela começa.\n')
-L.append('**Onde mudar:** no jogo, aperte `F8` para abrir o painel de configurações. Você também pode editar `BepInEx/config/Maddhattr.OfflineCompanionsReborn.cfg` com qualquer editor de texto, com o jogo fechado.\n')
+L.append('**Onde mudar:** no jogo, aperte `F8` para abrir o painel de configurações. Você também pode editar `BepInEx/config/AiCompanions.cfg` com qualquer editor de texto, com o jogo fechado.\n')
 L.append('**Dicas**\n')
 L.append('- Uma opção mostrada como fração (como `0.5`) significa 50%. `0.25` é 25%, `1` é 100%.')
 L.append('- As distâncias estão em metros. Para comparar: um jogador tem cerca de 2 m de altura e o alcance de construção de uma bancada é de 20 m.')
@@ -79,8 +79,8 @@ L.append('  - `Nome` = só esse')
 L.append('  - `-Nome` = nunca esse')
 L.append('  - `Nome:Número` = esse, com a sua própria quantidade (`0` = sem limite)')
 L.append('  - Os nomes podem ser o nome do item ou da criatura no jogo ou o nome interno (prefab). Os nomes que você pode usar em cozinha, caça e pesca são escritos em `OfflineCompanionsReborn.Cooking.txt`, `.Hunting.txt` e `.Fishing.txt` na pasta de configuração a cada vez que o jogo inicia.')
-L.append('- Atualizando de uma versão antiga? As opções que você mudou são movidas para os nomes novos automaticamente na primeira vez que você entra no mundo.')
-L.append('- Os nomes das seções abaixo são os mesmos do arquivo `.cfg` (e das abas do painel `F8`, que as mostram em português): `General` = **Geral**, `Controls` = **Controles**, `Follow` = **Seguir**, `Movement` = **Movimento**, `Combat` = **Combate**, `Food` = **Comida**, `Stamina` = **Stamina**, `Rest` = **Descanso**, `Death` = **Morte**, `Looting` = **Saque**, `GearRepair` = **Reparo de Equip.**, `Gathering` = **Coleta**, `Hunting` = **Caça**, `Fishing` = **Pesca**, `Farming` = **Plantio**, `Smelting` = **Fundição**, `Cooking` = **Cozinha**, `RepairAndRestock` = **Reparar e Reabastecer**, `Idle` = **Ócio**, `Speech` = **Fala**, `Advanced` = **Avançado**, `IA` = **IA**.\n')
+L.append('- Atualizando de uma versão antiga? As opções que você mudou são movidas para os nomes novos automaticamente na primeira vez que você entra no mundo. **Desde o 2.0.0** o arquivo é `AiCompanions.cfg` e as chaves e descrições são em inglês (o idioma nativo do mod; o português é uma tradução): o `.cfg` antigo (`Maddhattr.OfflineCompanionsReborn.cfg`) é ignorado e as configurações voltam aos valores padrão.')
+L.append('- Os nomes das seções abaixo são os mesmos do arquivo `.cfg` (e das abas do painel `F8`, que as mostram em português): `General` = **Geral**, `Controls` = **Controles**, `Follow` = **Seguir**, `Movement` = **Movimento**, `Combat` = **Combate**, `Food` = **Comida**, `Stamina` = **Stamina**, `Rest` = **Descanso**, `Death` = **Morte**, `Looting` = **Saque**, `GearRepair` = **Reparo de Equip.**, `Gathering` = **Coleta**, `Hunting` = **Caça**, `Fishing` = **Pesca**, `Farming` = **Plantio**, `Smelting` = **Fundição**, `Cooking` = **Cozinha**, `RepairAndRestock` = **Reparar e Reabastecer**, `Idle` = **Ócio**, `Speech` = **Fala**, `Advanced` = **Avançado**, `AI` = **IA**.\n')
 L.append('## Seções\n')
 for s in order:
     L.append('- [%s](#%s)'%(NAMES.get(s,s), NAMES.get(s,s).lower().replace(' ','-')))

@@ -217,7 +217,7 @@ internal static class CompanionOrders
 
 	/// <summary>"ataca o greydwarf": the companion engages that one creature. The creature is looked for under the
 	/// player's crosshair first (point at it and say "ataca aquele"), then among the creatures within
-	/// [IA] RaioDeAlvo of the player by name. When nothing matches, the player is told - nothing is engaged.
+	/// [AI] TargetRange of the player by name. When nothing matches, the player is told - nothing is engaged.
 	/// The order goes through CompanionAI.DirectEngage, the very path the radial menu's attack uses, so hunting
 	/// gear, sneaking and looting of harmless game stay exactly the same.
 	///

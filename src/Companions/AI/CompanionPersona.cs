@@ -5,20 +5,20 @@ namespace Companions;
 
 /// <summary>
 /// Fase 3.5: how the companion talks and behaves. The player either names a ready-made preset ([IA]
-/// PresetPersonalidade) or writes the personality in their own words ([IA] Personalidade); whichever comes out of
+/// PresetPersonalidade) or writes the personality in their own words ([AI] Personality); whichever comes out of
 /// Resolve() is pasted into the model's instructions, so the companion answers in that tone. The preset texts live
 /// here (not in the .cfg) to keep the config file short, and each one is plain Portuguese: the player types
 /// Portuguese in this mod, so the model is told the tone in the same language.
 ///
 /// <para>Fase 3.10: the pair of values is a parameter now, not a config read - a companion may carry its own preset
-/// and text in its ZDO (<see cref="CompanionProfile"/>), and the <c>[IA]</c> values are only the default. The
+/// and text in its ZDO (<see cref="CompanionProfile"/>), and the <c>[AI]</c> values are only the default. The
 /// parameterless overloads still read the config, for the log lines and for a companion with nothing of its own.</para>
 /// </summary>
 internal static class CompanionPersona
 {
 	internal sealed class Preset
 	{
-		/// <summary>Name the player writes in [IA] PresetPersonalidade (lowercase, no accents).</summary>
+		/// <summary>Name the player writes in [AI] PersonalityPreset (lowercase, no accents).</summary>
 		internal readonly string Id;
 
 		/// <summary>Localization key with the preset's name, for the log (hc_ai_preset_*).</summary>
@@ -59,11 +59,11 @@ internal static class CompanionPersona
 
 	/// <summary>
 	/// The ready-made personalities, in the order they are shown in the in-game AI panel (Fase 3.7). Each one carries
-	/// the id the player would write in <c>[IA] PresetPersonalidade</c> and the localization key of its name.
+	/// the id the player would write in <c>[AI] PersonalityPreset</c> and the localization key of its name.
 	/// </summary>
 	internal static Preset[] Presets => s_presets;
 
-	/// <summary>The global personality (<c>[IA] PresetPersonalidade</c> / <c>[IA] Personalidade</c>): the default of
+	/// <summary>The global personality (<c>[AI] PersonalityPreset</c> / <c>[AI] Personality</c>): the default of
 	/// every companion (see <see cref="CompanionProfile"/>).</summary>
 	internal static string Resolve()
 	{
@@ -107,7 +107,7 @@ internal static class CompanionPersona
 		return DefaultText;
 	}
 
-	/// <summary>What the <c>[IA]</c> personality is right now, for the log ("viking (Viking leal)" / "texto livre" /
+	/// <summary>What the <c>[AI]</c> personality is right now, for the log ("viking (Viking leal)" / "texto livre" /
 	/// "padrão").</summary>
 	internal static string Describe()
 	{
