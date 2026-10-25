@@ -21,6 +21,20 @@ public static class ModLocalization
 
 	private static string _lastInjectedLanguage;
 
+	/// <summary>
+	/// Counts the <b>real</b> language changes. The mod's windows are built once and every <c>TMP</c> label keeps the
+	/// text it was built with, so changing the language with the game running left the F8 panel and the AI panel in the
+	/// old language until a restart (the speech lines already followed the language - see <see cref="SpeechConfig"/>).
+	/// Each panel compares this number on every <c>Show</c> - <b>never</b> per frame - and builds itself again when it
+	/// moved.
+	///
+	/// <para>It is bumped in exactly one place, <see cref="InjectTranslations"/>, and by the same criterion that
+	/// injection uses: the language is not the one injected last. The extra <c>SetupLanguage</c> calls the game makes
+	/// at startup and on every world load do not count, and neither does a new <c>Localization</c> instance with the
+	/// same language.</para>
+	/// </summary>
+	internal static int LanguageVersion { get; private set; }
+
 	/// <summary>Fase 3.19 (auditoria): the instance the translations were injected into. Comparing only the language
 	/// name skipped the injection when the game recreated its <see cref="Localization"/> (world reload) with the same
 	/// language: the new dictionary came back with the game's own keys and none of the mod's.</summary>
@@ -588,6 +602,9 @@ public static class ModLocalization
 			{ "hc_cfg_auto", "Automatic" },
 			{ "hc_cfg_auto_value", "Automatic ({0})" },
 			{ "hc_ai_voice_out_of_language", "{0} ({1}) - another language, using {2}" },
+			// Multilanguage M2 fix: the short form for the narrow field of the F8 rows (the long one above is the AI
+			// panel's footer, where "outro idioma" fits). "pf_dora is the pick; af_heart is what is spoken".
+			{ "hc_cfg_voice_out_of_language", "{0} ({1}) - using {2}" },
 			// Fase 3.10: voice and personality of ONE companion (its own ZDO), with the [AI] values as the default.
 			// Used by the companion tab of the AI panel and by the starter panel's "AI" section.
 			{ "hc_ai_profile_title", "Companion AI" },
@@ -647,6 +664,13 @@ public static class ModLocalization
 		if (sameTarget && dictionary.ContainsKey(SentinelKey))
 		{
 			return;
+		}
+		// Multilanguage M2 fix: a language that is not the one injected last is a REAL change (the same criterion the
+		// injection uses above). The panels read this number on their next Show and build their texts again - see
+		// LanguageVersion. A new Localization with the same language does not count.
+		if (!string.Equals(selectedLanguage, _lastInjectedLanguage, StringComparison.Ordinal))
+		{
+			LanguageVersion++;
 		}
 		_lastInjectedLanguage = selectedLanguage;
 		_lastInjectedInstance = loc;

@@ -946,6 +946,10 @@ internal static class ModConfig
 		// This runs after the config clean-up above, so a file still using the pre-1.4.149 names ([Harvest] FollowRange)
 		// is covered too.
 		ApplyGatheringDefaultsPhase33c();
+		// Multilanguage M2 fix: the four [AI] language/voice defaults became "auto" (the game language decides). A
+		// file written before that still holds the old fixed values, and BepInEx keeps whatever is in the file - so a
+		// value that is EXACTLY the old default is moved to the new one (see ApplyMultilanguageDefaults).
+		ApplyMultilanguageDefaults();
 		// 1.4.92: a config file still holding the 1.4.87 draft gets the reviewed table
 		if (CookMeadFocus.Value == "start: MeadBaseHealthMinor, MeadBaseStaminaMinor; eikthyr: MeadBaseHealthMinor, MeadBaseStaminaMinor, MeadBasePoisonResist; gdking: MeadBaseHealthMinor, MeadBaseStaminaMinor, MeadBasePoisonResist; bonemass: MeadBaseHealthMedium, MeadBaseStaminaMedium, MeadBaseFrostResist; dragon: MeadBaseHealthMedium, MeadBaseStaminaMedium, MeadBaseFrostResist, BarleyWineBase; goblinking: MeadBaseHealthMajor, MeadBaseStaminaMedium, MeadBaseEitrMinor, BarleyWineBase; queen: MeadBaseHealthMajor, MeadBaseStaminaLingering, MeadBaseEitrMinor, BarleyWineBase; fader: MeadBaseHealthMajor, MeadBaseHealthLingering, MeadBaseStaminaLingering, MeadBaseEitrMinor, BarleyWineBase")
 		{
@@ -1018,6 +1022,79 @@ internal static class ModConfig
 		entry.Value = (float)entry.DefaultValue;
 		CompanionsPlugin.Log?.LogInfo($"[Config] Fase 3.3c: [{entry.Definition.Section}] {entry.Definition.Key} estava no default antigo ({oldDefault:0.#}) - "
 			+ $"agora {entry.Value:0.#}: {why}. Coloque {oldDefault:0.#} de volta se preferir o raio curto.");
+	}
+
+	/// <summary>
+	/// The <c>[AI] VoiceInitialPrompt</c> default of every version before the multilanguage config: the orders'
+	/// vocabulary, hard-coded in Portuguese. It is the value this migration replaces by the vocabulary of the game
+	/// language (empty in the file), so it is compared <b>exactly</b>.
+	/// </summary>
+	private const string OldVoicePrompt = "Ordens para o companheiro: colete madeira, pedra, minerio, ferro, segue, para, "
+		+ "vem ca, ataca o greydwarf, equipa o machado de bronze, larga a pedra, descansa, bom dia.";
+
+	/// <summary>
+	/// Multilanguage M1/M2 fix: four <c>[AI]</c> defaults became <b>automatic</b> (the game language decides - see
+	/// <see cref="CompanionLocale"/>): <c>VoiceLanguage</c> "pt" → "auto", <c>TtsLanguage</c> "pt-br" → "auto",
+	/// <c>TtsVoice</c> 42 → 0 and <c>VoiceInitialPrompt</c> (the old Portuguese list) → "". A config file written
+	/// before that still holds the old fixed values and BepInEx keeps whatever is in the file, so a value that is
+	/// <b>exactly the old default</b> is moved to the new one - the same rule as the 3.3b/3.3c migrations. Any other
+	/// value was chosen by the player and is never touched.
+	///
+	/// <para><b>Nobody loses their voice:</b> "42" in the old Portuguese default <i>is</i> the default voice of pt-BR
+	/// (and "pt-br"/"pt" are the Kokoro/Whisper codes of Portuguese), so the migrated file keeps speaking with
+	/// <c>pf_dora</c> while the game is in Portuguese - and now follows the language if the player changes it. The old
+	/// prompt gives way to the vocabulary of the game language, which is the point of the change.</para>
+	///
+	/// <para>It is <b>idempotent</b> (auto / 0 / "" do not match the old defaults, so the second boot finds nothing)
+	/// and it writes nothing itself: <see cref="Init"/> holds BepInEx's per-Bind saves off and writes the file once at
+	/// the end. One line in the log, naming the settings that really moved.</para>
+	/// </summary>
+	private static void ApplyMultilanguageDefaults()
+	{
+		List<string> moved = new List<string>(4);
+		if (WasOldDefault(VozLanguage, "pt", StringComparison.OrdinalIgnoreCase))
+		{
+			VozLanguage.Value = (string)VozLanguage.DefaultValue;
+			moved.Add("VoiceLanguage");
+		}
+		if (WasOldDefault(TtsLanguage, "pt-br", StringComparison.OrdinalIgnoreCase))
+		{
+			TtsLanguage.Value = (string)TtsLanguage.DefaultValue;
+			moved.Add("TtsLanguage");
+		}
+		if (TtsVoice != null && TtsVoice.Value == 42)
+		{
+			TtsVoice.Value = (int)TtsVoice.DefaultValue;
+			moved.Add("TtsVoice");
+		}
+		if (WasOldDefault(VozPromptInitial, OldVoicePrompt, StringComparison.Ordinal))
+		{
+			VozPromptInitial.Value = (string)VozPromptInitial.DefaultValue;
+			moved.Add("VoiceInitialPrompt");
+		}
+		if (moved.Count == 0)
+		{
+			return;
+		}
+		string which = string.Join("/", moved.ToArray());
+		CompanionsPlugin.Log?.LogInfo($"[AI] Migracao da multilinguagem: {which} "
+			+ (moved.Count == 1 ? "estava no padrao antigo e agora e automatico" : "estavam nos padroes antigos e agora sao automaticos")
+			+ " (escolhas suas nao sao tocadas).");
+	}
+
+	/// <summary>Is the setting still on the old default? (<paramref name="comparison"/> says how exact it has to be)</summary>
+	private static bool WasOldDefault(ConfigEntry<string> entry, string oldDefault, StringComparison comparison)
+	{
+		if (entry == null)
+		{
+			return false;
+		}
+		string value = entry.Value;
+		// the codes are compared without the surrounding spaces and without case (a hand-edited .cfg may have either);
+		// the prompt is an exact sentence, so it is compared as it is
+		return comparison == StringComparison.OrdinalIgnoreCase
+			? string.Equals((value ?? "").Trim(), oldDefault, comparison)
+			: string.Equals(value, oldDefault, comparison);
 	}
 
 	// 1.4.149: old section/key -> new section/key

@@ -14,6 +14,12 @@ Status: **M1 e M2 feitas** (branch `feat/idiomas-auto`; M3–M5 pendentes). Base
 > status mostra o efetivo (`Automático (pt-BR · pf_dora)`, e `pf_dora (pt-BR) - fora do idioma, usando af_heart`).
 > No F8, `AI/TtsVoice`, `AI/TtsLanguage` e `AI/VoiceLanguage` deixaram de ser slider/nada: viraram linha de **lista**
 > com `Automático` + as opções reais, gravando `0`/`auto` ou o valor escolhido.
+>
+> **Correções do teste em jogo da M2 (ver `AGENTS.md`):** `ApplyMultilanguageDefaults` migra uma vez os quatro padrões
+> antigos do `[AI]` (`pt`/`pt-br`/`42`/prompt) para `auto`/`auto`/`0`/vazio — só o padrão exato, idempotente, uma
+> linha de log e sem save próprio; `ModLocalization.LanguageVersion` + rebuild no `Show()` dos dois painéis resolvem
+> **trocar o idioma sem reiniciar** (F8, painel `I` e os formatos do HUD), e o `[TTS] idioma efetivo` deixou de chamar
+> de "auto" uma voz explícita que foi substituída.
 
 ## Decisões (do jogador, 25/10/2026)
 

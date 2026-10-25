@@ -324,14 +324,25 @@ internal static class CompanionTts
 		}
 	}
 
-	/// <summary>True when the voice in use is the automatic one (no pick of the player, or a pick of another language).</summary>
-	private static bool VoiceIsAuto
+	/// <summary>
+	/// The voice for the log, honest about where it came from (Multilanguage M2 fix - it said "auto" even when the
+	/// player had chosen a voice of <b>another</b> language and it had been replaced):
+	/// <c>voz 42 (pf_dora)</c> for an explicit voice of this language, <c>voz 3 (auto, af_heart)</c> for "automatic",
+	/// and <c>voz 3 (a 42 (pf_dora) e de outro idioma; usando a padrao do idioma)</c> when the pick was overruled.
+	/// </summary>
+	private static string VoiceLogText()
 	{
-		get
+		int configured = ModConfig.TtsVoice != null ? ModConfig.TtsVoice.Value : 0;
+		int voice = Voice;
+		if (configured <= 0)
 		{
-			int value = ModConfig.TtsVoice != null ? ModConfig.TtsVoice.Value : 0;
-			return value <= 0 || !CompanionLocale.HasVoice(value);
+			return $"voz {voice} (auto, {CompanionLocale.VoiceName(voice)})";
 		}
+		if (CompanionLocale.HasVoice(configured))
+		{
+			return $"voz {voice} ({CompanionLocale.VoiceName(voice)})";
+		}
+		return $"voz {voice} (a {configured} ({CompanionLocale.VoiceName(configured)}) e de outro idioma; usando a padrao do idioma)";
 	}
 
 	/// <summary>[AI] TtsSpeed.</summary>
@@ -472,9 +483,7 @@ internal static class CompanionTts
 		try
 		{
 			LocaleProfile profile = CompanionLocale.Current;
-			int voice = Voice;
-			CompanionsPlugin.Log?.LogInfo($"[TTS] idioma efetivo: {Language}{(LanguageIsAuto ? " (auto)" : "")} | "
-				+ $"voz {voice} ({(VoiceIsAuto ? "auto, " : "")}{CompanionLocale.VoiceName(voice)})");
+			CompanionsPlugin.Log?.LogInfo($"[TTS] idioma efetivo: {Language}{(LanguageIsAuto ? " (auto)" : "")} | {VoiceLogText()}");
 			CompanionsPlugin.Log?.LogInfo($"[TTS] Vozes do idioma \"{profile.Name}\" ({profile.KokoroCode}), da melhor para a pior: "
 				+ $"{DescribeVoices(profile)}. A voz de um companheiro que seja de outro idioma NAO e usada (ele fala com a padrao deste).");
 		}

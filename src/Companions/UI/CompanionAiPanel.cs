@@ -518,6 +518,10 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	/// <summary>The raycast audit of this panel runs once per session (the first open), never per frame.</summary>
 	private static bool _raycastAudited;
 
+	/// <summary>Multilanguage M2 fix: the <see cref="ModLocalization.LanguageVersion"/> this panel was built in - a real
+	/// language change makes <see cref="Show"/> build the panel again (every label is written at build time).</summary>
+	private int _builtLanguageVersion;
+
 	public static CompanionAiPanel Instance { get; private set; }
 
 	/// <summary>1.8.3: the root of the EventSystem the panel creates when the game has none (see EnsureEventSystem).
@@ -573,8 +577,19 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 	public void Show()
 	{
+		// Multilanguage M2 fix: the panel is built once and every label keeps the text of the build, so a real change of
+		// the game language (ModLocalization.LanguageVersion) means building it again. The open companion's tab is kept
+		// when it is still there (the tab strip is rebuilt on every open anyway); on the first open nothing happens.
+		// Never per frame: one int comparison per open.
+		CompanionSetup reopen = null;
 		if (_root == null)
 		{
+			Build();
+		}
+		else if (_builtLanguageVersion != ModLocalization.LanguageVersion)
+		{
+			reopen = SelectedCompanion();
+			DestroyBuiltControls();
 			Build();
 		}
 		if (IsBrokenTmpFont(_font))
@@ -603,7 +618,8 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		_nextStatus = 0f;
 		// Fase 3.9: the strip of tabs is rebuilt on every open (a companion can be summoned or die between two
 		// openings, and the tab of one that is gone must not linger); every other control is still built once.
-		RebuildTabs();
+		// Multilanguage M2 fix: after a rebuild, the companion whose tab was open comes back with it.
+		RebuildTabs(reopen);
 		RefreshSpawnCount();
 		RefreshStatus();
 		Cursor.lockState = CursorLockMode.None;
@@ -893,13 +909,28 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 	private void Build()
 	{
-		Canvas canvas = base.gameObject.AddComponent<Canvas>();
+		// Multilanguage M2 fix: Build can run more than once (a real language change rebuilds the panel, see Show), and
+		// Unity allows one Canvas per GameObject - and destroying it would be deferred to the end of the frame, so the
+		// second AddComponent would be refused. The Canvas/Scaler/Raycaster of the panel are therefore reused; the
+		// children (backdrop and root), where every text lives, are created anew after DestroyBuiltControls.
+		Canvas canvas = base.gameObject.GetComponent<Canvas>();
+		if (canvas == null)
+		{
+			canvas = base.gameObject.AddComponent<Canvas>();
+		}
+		if (base.gameObject.GetComponent<GraphicRaycaster>() == null)
+		{
+			base.gameObject.AddComponent<GraphicRaycaster>();
+		}
 		canvas.renderMode = RenderMode.ScreenSpaceOverlay;
 		canvas.sortingOrder = PanelSortingOrder;
-		CanvasScaler scaler = base.gameObject.AddComponent<CanvasScaler>();
+		CanvasScaler scaler = base.gameObject.GetComponent<CanvasScaler>();
+		if (scaler == null)
+		{
+			scaler = base.gameObject.AddComponent<CanvasScaler>();
+		}
 		scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
 		scaler.referenceResolution = new Vector2(1920f, 1080f);
-		base.gameObject.AddComponent<GraphicRaycaster>();
 		_font = ResolveFont();
 
 		_backdrop = new GameObject("Backdrop", typeof(RectTransform), typeof(Image));
@@ -997,6 +1028,88 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		_dropdownHost.Overlay.SetAsLastSibling();
 		_backdrop.SetActive(false);
 		_root.SetActive(false);
+		// the language the texts of this build are in (see Show: a real change rebuilds the panel)
+		_builtLanguageVersion = ModLocalization.LanguageVersion;
+	}
+
+	/// <summary>
+	/// Multilanguage M2 fix: drops everything <see cref="Build"/> created, so the panel can be built again in another
+	/// language. Every reference that points inside the old <c>_root</c> is cleared (the new Build reassigns them; a
+	/// stale Unity reference would compare <c>== null</c> anyway, but clearing keeps the next build honest), and so are
+	/// the lists that would otherwise grow on every rebuild. The font and the panel sprite are <b>not</b> touched: they
+	/// carry no text, the sprite is owned by this panel and freed in <see cref="OnDestroy"/>, and the Canvas components
+	/// of the GameObject are reused by <see cref="Build"/>.
+	/// </summary>
+	private void DestroyBuiltControls()
+	{
+		if (_root != null)
+		{
+			_root.SetActive(false);
+			UnityEngine.Object.Destroy(_root);
+			_root = null;
+		}
+		if (_backdrop != null)
+		{
+			_backdrop.SetActive(false);
+			UnityEngine.Object.Destroy(_backdrop);
+			_backdrop = null;
+		}
+		_tabs.Clear();
+		_tabObjects.Clear();
+		_toggles.Clear();
+		_dropdownHost = null;
+		_dropdownStyle = null;
+		_aiPage = null;
+		_compPage = null;
+		_page = null;
+		_title = null;
+		_status = null;
+		_tabContent = null;
+		_tabScroll = null;
+		_volume = null;
+		_volumeLabel = null;
+		_memory = null;
+		_memoryLabel = null;
+		_keyLabel = null;
+		_spawnCount = null;
+		_tier = null;
+		_llmBaseUrl = null;
+		_llmModel = null;
+		_llmApiKey = null;
+		_llmPrefix = null;
+		_llmProvider = null;
+		_llmKeyLink = null;
+		_llmTemperature = null;
+		_llmTemperatureLabel = null;
+		_llmTimeout = null;
+		_llmTimeoutLabel = null;
+		_llmCooldown = null;
+		_llmCooldownLabel = null;
+		_llmTargetRange = null;
+		_llmTargetRangeLabel = null;
+		_compNameInput = null;
+		_compTierValue = null;
+		_compTierApply = null;
+		_compStatus = null;
+		_recall = null;
+		_compAppearance = null;
+		_compPersonality = null;
+		_compVoice = null;
+		_compFreeText = null;
+		_compApply = null;
+		_compListen = null;
+		_compPersonalityIds = null;
+		_compPersonalityLabels = null;
+		_compVoiceIds = null;
+		_compVoiceLabels = null;
+		_compFormFor = null;
+		_compStatusPersonality = null;
+		_compStatusVoice = null;
+		_compAlive = false;
+		_personalityIds = null;
+		_personalityLabels = null;
+		_listeningKey = false;
+		_nextStatus = 0f;
 	}
 
 	private void BuildHeader()

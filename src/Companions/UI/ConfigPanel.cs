@@ -58,6 +58,11 @@ public class ConfigPanel : MonoBehaviour
 
 	private RectTransform _rootRT;
 
+	/// <summary>Multilanguage M2 fix: the <see cref="ModLocalization.LanguageVersion"/> this panel was built in. Every
+	/// text of the panel is a TMP label written at build time, so a real language change means the panel is built again
+	/// (see <see cref="Show"/>).</summary>
+	private int _builtLanguageVersion;
+
 	private int _selectedRowIndex = -1;
 
 	private float _dpadRepeatTimer;
@@ -145,6 +150,20 @@ public class ConfigPanel : MonoBehaviour
 		if (_root == null)
 		{
 			Build();
+		}
+		else if (_builtLanguageVersion != ModLocalization.LanguageVersion)
+		{
+			// Multilanguage M2 fix: the game language changed while this panel was alive (it is DontDestroyOnLoad), and
+			// every label of it was written in the old one. Rebuild it - destroying what Build created and building
+			// again - and keep the category the player was reading (it is a string, so it survives the rebuild; the
+			// rows are built from it). Never per frame: this is one int comparison on an open.
+			string previousCategory = _activeCategory;
+			DestroyBuiltControls();
+			Build();
+			if (!string.IsNullOrEmpty(previousCategory) && ModConfig.Categories.ContainsKey(previousCategory))
+			{
+				SelectCategory(previousCategory);
+			}
 		}
 		if (IsBrokenTmpFont(_font))
 		{
@@ -277,15 +296,34 @@ public class ConfigPanel : MonoBehaviour
 		return _btnBgSprite;
 	}
 
+	/// <summary>
+	/// Builds the panel. Multilanguage M2 fix: it can run more than once (a real language change rebuilds the panel, see
+	/// <see cref="Show"/>), so the components that belong to the panel <b>GameObject</b> - the Canvas, the Scaler and the
+	/// Raycaster - are reused instead of added again: Unity allows one Canvas per GameObject and destroying it would be
+	/// deferred to the end of the frame, so a second <c>AddComponent</c> in the same frame would be refused. The
+	/// children (<see cref="_backdrop"/> and <see cref="_root"/>), which is where every text lives, are created anew by
+	/// the caller after <see cref="DestroyBuiltControls"/>.
+	/// </summary>
 	private void Build()
 	{
-		_canvas = base.gameObject.AddComponent<Canvas>();
+		_canvas = base.gameObject.GetComponent<Canvas>();
+		if (_canvas == null)
+		{
+			_canvas = base.gameObject.AddComponent<Canvas>();
+		}
+		if (base.gameObject.GetComponent<GraphicRaycaster>() == null)
+		{
+			base.gameObject.AddComponent<GraphicRaycaster>();
+		}
 		_canvas.renderMode = RenderMode.ScreenSpaceOverlay;
 		_canvas.sortingOrder = PanelSortingOrder;
-		CanvasScaler canvasScaler = base.gameObject.AddComponent<CanvasScaler>();
+		CanvasScaler canvasScaler = base.gameObject.GetComponent<CanvasScaler>();
+		if (canvasScaler == null)
+		{
+			canvasScaler = base.gameObject.AddComponent<CanvasScaler>();
+		}
 		canvasScaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
 		canvasScaler.referenceResolution = new Vector2(1920f, 1080f);
-		base.gameObject.AddComponent<GraphicRaycaster>();
 		_font = ResolveFont();
 		_backdrop = new GameObject("Backdrop", typeof(RectTransform), typeof(Image));
 		_backdrop.transform.SetParent(base.transform, worldPositionStays: false);
@@ -348,6 +386,45 @@ public class ConfigPanel : MonoBehaviour
 		}
 		_backdrop.SetActive(value: false);
 		_root.SetActive(value: false);
+		// the language the texts of this build are in (see Show: a real change rebuilds the panel)
+		_builtLanguageVersion = ModLocalization.LanguageVersion;
+	}
+
+	/// <summary>
+	/// Multilanguage M2 fix: drops everything <see cref="Build"/> created, so the panel can be built again in another
+	/// language. The sprites are static caches shared by every build (and freed by <see cref="OnDestroy"/>), and the
+	/// Canvas components of the panel GameObject are reused by <see cref="Build"/>, so none of that is touched here.
+	/// The caller deactivates the children before destroying them, so nothing is drawn twice in the frame of the
+	/// rebuild (<c>Object.Destroy</c> is deferred to the end of the frame).
+	/// </summary>
+	private void DestroyBuiltControls()
+	{
+		if (_root != null)
+		{
+			_root.SetActive(value: false);
+			UnityEngine.Object.Destroy(_root);
+			_root = null;
+		}
+		if (_backdrop != null)
+		{
+			_backdrop.SetActive(value: false);
+			UnityEngine.Object.Destroy(_backdrop);
+			_backdrop = null;
+		}
+		_tabButtons.Clear();
+		_entryRows.Clear();
+		_entryData.Clear();
+		_entrySliders.Clear();
+		_entryResetActions.Clear();
+		_choiceAdjust.Clear();
+		_scrollRect = null;
+		_contentRT = null;
+		_tabScrollRect = null;
+		_tabContentRT = null;
+		_dropdownHost = null;
+		_choiceList = null;
+		_rootRT = null;
+		_selectedRowIndex = -1;
 	}
 
 	private static bool IsBrokenTmpFont(TMP_FontAsset font)
@@ -1554,9 +1631,12 @@ public class ConfigPanel : MonoBehaviour
 		}
 		else if (choice.Entry.Definition.Key == "TtsVoice" && stored is int storedVoice && storedVoice > 0)
 		{
-			// a voice of another language (or one this model does not have): the list does not offer it, and the
-			// number alone would say nothing - the panels name it the same way the AI panel does
-			text = ModLocalization.LocFmt("hc_ai_voice_other", CompanionLocale.VoiceName(storedVoice));
+			// a voice of another language: it is NOT used (nothing here is written - the .cfg keeps the player's pick)
+			// and the field says both things: which voice was chosen, in which language, and which one is really
+			// spoken. The short form of hc_ai_voice_out_of_language: this field is ~220 px wide, and the whole sentence
+			// ("outro idioma") is what the AI panel's footer shows, where there is room.
+			text = ModLocalization.LocFmt("hc_cfg_voice_out_of_language", CompanionLocale.VoiceName(storedVoice),
+				CompanionProfile.LanguageTagOf(storedVoice), CompanionLocale.VoiceName(CompanionTts.Voice));
 		}
 		else
 		{

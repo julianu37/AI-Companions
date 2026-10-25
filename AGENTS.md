@@ -722,6 +722,29 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   allow-list, e a regra "dentro de um `ScrollRect`" deixou de aceitar **tudo** abaixo dele (agora os controles são
   classificados pelo `Selectable` primeiro e só a superfície de rolagem - o GameObject do `ScrollRect` e o viewport -
   é exceção), senão as opções da lista esconderiam um alvo decorativo novo. Detalhes: `docs/plan-multilinguagem.md` (M2).
+- **Correções do teste em jogo da M2 (branch `feat/idiomas-auto`) — a migração dos padrões antigos, os painéis que
+  ficavam no idioma da construção e o log honesto da voz:** (1) **migração** em `ModConfig.ApplyMultilanguageDefaults`
+  (junto das 3.3b/3.3c, com a regra "só o padrão antigo EXATO"): `VoiceLanguage = pt` → `auto`, `TtsLanguage = pt-br`
+  → `auto`, `TtsVoice = 42` → `0`, `VoiceInitialPrompt` = o texto antigo (167 caracteres, `OldVoicePrompt`) → `""`;
+  uma **linha** de log nomeando o que mudou (`[AI] Migracao da multilinguagem: VoiceLanguage/TtsLanguage/TtsVoice/
+  VoiceInitialPrompt estavam nos padroes antigos e agora sao automaticos (escolhas suas nao sao tocadas).`),
+  idempotente (auto/0/vazio não casam) e **sem save próprio** (o `Init` já segura os saves por `Bind` e grava uma vez
+  no fim). Ninguém perde a voz: `42`/`pt-br`/`pt` são justamente a voz e os códigos do PT-BR, então no jogo em
+  português o companheiro continua com a `pf_dora`. (2) **o bug de verdade da troca de idioma:**
+  `ModLocalization.LanguageVersion` (int, incrementado **só** quando `InjectTranslations` vê um idioma diferente do
+  último injetado — a mesma decisão que a injeção já tomava; um `Localization` novo com o mesmo idioma não conta),
+  `ConfigPanel`/`CompanionAiPanel` guardam a versão da construção (`_builtLanguageVersion`) e no **`Show()`**
+  reconstroem o painel quando ela mudou (`DestroyBuiltControls()` + `Build()`, com o `Canvas`/`CanvasScaler`/
+  `GraphicRaycaster` do GameObject reaproveitados porque a Unity só permite um `Canvas` por objeto e o `Destroy` é
+  adiado para o fim do frame; `Hide`/`Destroy` fazem o resto, os sprites estáticos continuam no dono), preservando a
+  **categoria do F8** e a **aba do companheiro** no painel `I`; o `CompanionHudPanel` re-resolve `_hpFormat`/
+  `_staFormat` quando a versão muda (achado #1 da auditoria — é o único texto estático do HUD). (3) **log honesto:**
+  `CompanionTts.VoiceLogText()` diz `voz 42 (pf_dora)` para escolha válida, `voz 3 (auto, af_heart)` para o automático
+  e `voz 3 (a 42 (pf_dora) e de outro idioma; usando a padrao do idioma)` quando a escolha foi substituída (antes tudo
+  virava "auto"); no F8, um `TtsVoice` de outro idioma aparece como `pf_dora (pt-BR) - usando af_heart` (chave nova e
+  curta `hc_cfg_voice_out_of_language` = `{0} ({1}) - usando {2}`, porque a `hc_ai_voice_out_of_language` completa não
+  cabe no campo de ~220 px - ela é o que o rodapé do painel `I` mostra).
+  Verificado contra o `.cfg` real do jogador: as quatro linhas casam exatamente com os padrões antigos.
 - **Pendências conhecidas (abertas):** a **voz não passa pelo
   mixer do jogo** (por isso ignora os sliders de volume do Valheim e só obedece `[AI] TtsVolume`); o **sync com o
   upstream** (estamos **1 release atrás**: base `1.5.4`, `main` na `1.5.5` — ver a seção *Upstream e licença*);
