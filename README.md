@@ -17,10 +17,10 @@ Este projeto é um **projeto independente** baseado em [Offline Companions Rebor
 O companheiro em si (trabalhos, comida, stamina, habilidades, casa, descanso, portais, carroça, menu radial)
 vem do upstream e continua funcionando igual — a IA é só uma **nova entrada** para as mesmas ações.
 
-> **Tipos de companheiro:** só o tipo **Companheiro** está completo. Os **dverger** (**Mago**, **Mago de Fogo**,
-> **Mago de Gelo** e **Suporte**) podem ser invocados e lutam normalmente, mas o **inventário** e as
-> **ferramentas/trabalhos** ainda não funcionam neles — para trabalhar, use o **Companheiro** (detalhes na
-> **[wiki](https://github.com/julianu37/AI-Companions/wiki/Como-funciona#tipos-de-companheiro)**).
+> **Tipos de companheiro:** os **dverger** (**Mago**, **Mago de Fogo**, **Mago de Gelo** e **Suporte**) são
+> **de combate** — a roda mostra só as ações de combate/suporte, e as ordens de **trabalho** (chat, voz ou tecla de
+> comando) são **recusadas** com *"Sou de combate, não faço esse trabalho"*. Para trabalhar, use o **Companheiro**
+> (detalhes na **[wiki](https://github.com/julianu37/AI-Companions/wiki/Como-funciona#tipos-de-companheiro)**).
 
 ## 🎬 Em ação
 
@@ -165,7 +165,7 @@ chat do jogo ──────────────────────�
    **OpenRouter** continua funcionando como alternativa: `https://openrouter.ai/api/v1` + `openrouter/free`.)
 5. Entre no mundo. No chat: `colete 10 madeiras`. Ou segure **`V`** e fale. Ele responde **em voz alta**.
 
-> **Atualizando para a 2.0.0? As configurações voltam aos padrões.** O arquivo de configuração passou a ser
+> **Atualizando para a 1.8.3? As configurações voltam aos padrões.** O arquivo de configuração passou a ser
 > `BepInEx\config\AiCompanions.cfg` e o antigo (`Maddhattr.OfflineCompanionsReborn.cfg`) **não é mais lido** —
 > pode ser apagado. O arquivo novo nasce com os **valores padrão**, inclusive a **`ApiKey` em branco**, que
 > precisa ser colada de novo; a seção da IA virou **`[AI]`** e as **chaves são em inglês** (`Enabled`, `Model`,

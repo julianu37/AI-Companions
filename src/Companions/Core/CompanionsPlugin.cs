@@ -19,18 +19,18 @@ public class CompanionsPlugin : BaseUnityPlugin
 {
 	// The GUID is deliberately kept as the upstream's: it is the companion's network identity and what the saves and
 	// the BepInEx chainloader know. Renaming it would break worlds for no gain - the display name below is what shows.
-	// 2.0.0: the settings file no longer follows the GUID (see MHR_GetConfigFile / AiCompanions.cfg).
+	// 1.8.3: the settings file no longer follows the GUID (see MHR_GetConfigFile / AiCompanions.cfg).
 	public const string PluginGUID = "Maddhattr.OfflineCompanionsReborn";
 
 	public const string PluginName = "AI Companions";
 
-	public const string PluginVersion = "2.0.0";
+	public const string PluginVersion = "1.8.3";
 
 	private static Harmony _harmony;
 
 	internal static ManualLogSource Log;
 
-	// 2.0.0 (i18n): the settings file has its own name. The keys and descriptions are in English now (the mod's native
+	// 1.8.3 (i18n): the settings file has its own name. The keys and descriptions are in English now (the mod's native
 	// language), so the file is NOT the GUID-named one any more: BepInEx's default (base.Config) stays pointing at
 	// Maddhattr.OfflineCompanionsReborn.cfg, which the mod no longer reads. The GUID itself is untouched (world and
 	// network identity). A file is created on init, so the migration below has to run BEFORE the ConfigFile exists.
@@ -91,14 +91,14 @@ public class CompanionsPlugin : BaseUnityPlugin
 		string original = Path.Combine(Paths.ConfigPath, "com.profmags.companions.cfg");
 		bool copied = false;
 		// Only seed from the upstream file for someone coming from the ORIGINAL mod: a 1.8.x player already has the
-		// GUID-named file, and the 2.0.0 reset is on purpose (copying the 2021 file would silently undo it).
+		// GUID-named file, and the 1.8.3 reset is on purpose (copying the 2021 file would silently undo it).
 		if (!File.Exists(configPath) && !File.Exists(previous) && File.Exists(original))
 		{
 			File.Copy(original, configPath);
 			copied = true;
 			Log.LogInfo("[Config] Settings copied to " + ConfigFileName + " from com.profmags.companions.cfg (the old file is no longer used and can be deleted)");
 		}
-		// 2.0.0: the settings moved to a new file with English keys. The old PT-keyed file is not migrated on purpose
+		// 1.8.3: the settings moved to a new file with English keys. The old PT-keyed file is not migrated on purpose
 		// (the player accepted losing it): its keys are not read any more, so the settings go back to their defaults.
 		if (File.Exists(previous))
 		{
@@ -153,7 +153,7 @@ public class CompanionsPlugin : BaseUnityPlugin
 		FarmZonePlacer.EnsureInstance();
 	}
 
-	// 2.0.0 (patch audit): one try/catch PER PATCH CLASS. A single broken target (a soft dependency that renamed a
+	// 1.8.3 (patch audit): one try/catch PER PATCH CLASS. A single broken target (a soft dependency that renamed a
 	// method, a game update) used to throw a HarmonyException out of the single PatchAll(assembly) call and leave
 	// every patch after it unapplied - silently, since the count was only logged on the success path.
 	// The selection is the one Harmony itself uses: every type carrying a [HarmonyPatch] / [HarmonyPatchAll],
@@ -182,7 +182,7 @@ public class CompanionsPlugin : BaseUnityPlugin
 			{
 				continue;
 			}
-			// 2.0.0 (patch audit): the filter itself is guarded. MHR_IsPatchClass instantiates attributes and
+			// 1.8.3 (patch audit): the filter itself is guarded. MHR_IsPatchClass instantiates attributes and
 			// enumerates methods, so a pathological type could throw here, abort the whole loop and escape Awake -
 			// which is exactly the "zero patches applied" failure mode this per-class loop exists to remove.
 			try
@@ -263,7 +263,7 @@ public class CompanionsPlugin : BaseUnityPlugin
 		// Fase 3.4: stop the speech worker, the AudioSource and release the native Kokoro model
 		CompanionTts.Shutdown();
 		_harmony?.UnpatchSelf();
-		// 2.0.0: every root the mod keeps alive across scenes is destroyed here. Only four of them used to be (the
+		// 1.8.3: every root the mod keeps alive across scenes is destroyed here. Only four of them used to be (the
 		// settings panel, the AI panel, the appearance editor and the farm zone placer), so the wheel, the HUD and the
 		// starter/home/crop/interaction panels stayed behind - reloading the plugin left the old copies running, and
 		// they would still draw over the game with the patches gone.

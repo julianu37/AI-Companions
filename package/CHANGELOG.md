@@ -2,7 +2,7 @@
 
 Todas as mudanças deste projeto, derivado do Offline Companions, do ProfMags. As versões anteriores à 1.4.0 são o mod original (veja o histórico do mod original, do ProfMags, para essas versões) mais o primeiro lote de correções de compatibilidade com a API do Valheim 1.0 que fizeram o mod carregar e rodar. **As entradas abaixo de 1.5.4 são o histórico do upstream e ficam como estão (em inglês) — as nossas seções (a partir da 1.6.0) são nossas.**
 
-## 2.0.0 — 24/10/2026
+## 1.8.3 — 25/10/2026
 
 **Inglês como idioma nativo — e o mod passa a falar o idioma do jogo.** Esta é a versão que **quebra o `.cfg`**: o
 arquivo passa a ser **`AiCompanions.cfg`** (o `Maddhattr.OfflineCompanionsReborn.cfg` deixa de ser lido) e a seção
@@ -40,11 +40,12 @@ sem nenhuma tradução.
 
 ### Limitações conhecidas
 
-- **Só o tipo `Companheiro` está completo.** Os **dverger** (Mago, Mago de Fogo, Mago de Gelo e Suporte) podem ser
-  invocados e lutam, mas **ainda precisam de ajustes**: a **mochila que a IA usa não é salva** (o que você põe nela
-  fica; o que ele coleta ou equipa por conta dele se perde ao sair do mundo), o **uso de ferramentas** e os trabalhos
-  que dependem delas (coleta, mineração, reparo, reabastecimento) **não funcionam**, e o painel esconde os espaços de
-  comida por tipo. Use-os como combatentes até esses tipos serem ajustados.
+- **Os tipos dverger (Mago, Mago de Fogo, Mago de Gelo e Suporte) são de combate.** Eles lutam normalmente e a roda
+  mostra só as ações de combate/suporte (seguir, reparar e reabastecer, dispensa, comando, pegar, vagar, definir casa e
+  as posturas). Ordens de **trabalho** — por chat, voz ou pela tecla de comando — são **recusadas** com a fala
+  *"Sou de combate, não faço esse trabalho."* (o modo e o alvo da ordem atual não mudam). Se você **trocar o tipo** de um
+  companheiro que estava trabalhando por um desses, ele volta a seguir. O painel esconde os espaços de comida por
+  tipo. **Para trabalhos, use o tipo `Companheiro`, que é completo.**
 
 ## 1.8.2 — 24/10/2026
 

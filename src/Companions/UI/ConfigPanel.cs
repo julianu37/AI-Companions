@@ -120,7 +120,7 @@ public class ConfigPanel : MonoBehaviour
 
 	public void Show()
 	{
-		// 2.0.0: the panel belongs to a world (it edits the mod's settings, and the cursor/font come from the game).
+		// 1.8.3: the panel belongs to a world (it edits the mod's settings, and the cursor/font come from the game).
 		// It is a DontDestroyOnLoad object, so without this it opened on top of the main menu.
 		if (Player.m_localPlayer == null || Player.m_localPlayer.IsDead())
 		{
@@ -401,7 +401,7 @@ public class ConfigPanel : MonoBehaviour
 
 	private void Update()
 	{
-		// 2.0.0: leaving the world (or dying) with the panel open used to leave it drawn over the main menu and force
+		// 1.8.3: leaving the world (or dying) with the panel open used to leave it drawn over the main menu and force
 		// the cursor free - the AI panel already closes itself the same way (see its RefreshStatus).
 		if (Player.m_localPlayer == null || Player.m_localPlayer.IsDead())
 		{
@@ -990,7 +990,7 @@ public class ConfigPanel : MonoBehaviour
 	}
 
 	/// <summary>
-	/// 2.0.0 (i18n): the label of a setting row. The config key is English - it is the mod's native language - so the
+	/// 1.8.3 (i18n): the label of a setting row. The config key is English - it is the mod's native language - so the
 	/// key itself is the fallback: a game in English shows every row with no translation file at all. A language gets
 	/// its own label from <c>hc_cfg_&lt;section&gt;_&lt;key&gt;</c>, both in lower case; the section is part of the key
 	/// because some names repeat between sections (MaxDistance, Radius, Range, FollowRange, BagFull, UsePiles).

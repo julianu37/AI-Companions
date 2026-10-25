@@ -42,7 +42,7 @@ e `[TTS]`. (O `[IA]` é a **tag do log** — a seção do `.cfg` é **`[AI]`**, 
 
 **Causa:** o **Groq exige** a `[AI] ApiKey` (e o OpenRouter também), e ela está **vazia**, **errada** ou
 **apagada** (por exemplo, depois de você copiar um `.cfg` de outra máquina, ou depois de atualizar para a
-**2.0.0**, que zera as configurações) — ou é a chave de **outro** serviço, colada junto com uma URL que não é a dele.
+**1.8.3**, que zera as configurações) — ou é a chave de **outro** serviço, colada junto com uma URL que não é a dele.
 
 **O que fazer:**
 
@@ -268,7 +268,7 @@ linha confirma no `LogOutput.log`:
 
 | Onde olhar | O que procurar |
 |---|---|
-| `LogOutput.log` | `AI Companions v2.0.0 loading...` e `AI Companions loaded successfully! (N methods patched)` — o `v2.0.0` é a versão que você instalou |
+| `LogOutput.log` | `AI Companions v1.8.3 loading...` e `AI Companions loaded successfully! (N methods patched)` — o `v1.8.3` é a versão que você instalou |
 
 **Causas prováveis:**
 
@@ -285,7 +285,7 @@ linha confirma no `LogOutput.log`:
 
 ## Minhas configurações voltaram ao padrão (ou "o mod não lê o meu `.cfg`")
 
-**Causa:** na **2.0.0** o arquivo de configuração mudou de nome e de idioma. O mod lê
+**Causa:** na **1.8.3** o arquivo de configuração mudou de nome e de idioma. O mod lê
 **`BepInEx\config\AiCompanions.cfg`**; o `Maddhattr.OfflineCompanionsReborn.cfg` (das versões anteriores)
 **não é mais lido** e fica no disco **sem efeito** — por isso as opções voltam aos **padrões**, inclusive a
 `ApiKey` em branco. A seção da IA também virou **`[AI]`**, com as chaves em **inglês**.

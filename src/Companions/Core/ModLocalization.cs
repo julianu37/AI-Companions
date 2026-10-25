@@ -26,12 +26,12 @@ public static class ModLocalization
 	/// language: the new dictionary came back with the game's own keys and none of the mod's.</summary>
 	private static object _lastInjectedInstance;
 
-	/// <summary>2.0.0 (review): one of our keys, written by every injection (it is in <see cref="_englishDefaults"/>).
+	/// <summary>1.8.3 (review): one of our keys, written by every injection (it is in <see cref="_englishDefaults"/>).
 	/// Finding it in the game's dictionary is what proves the injection is still there - the language name and the
 	/// instance alone did not, because <c>Localization.SetupLanguage</c> rebuilds that dictionary.</summary>
 	private const string SentinelKey = "hc_ui_settings_title";
 
-	/// <summary>2.0.0 (hotfix): re-entrancy guard for the <see cref="Localization.SetupLanguage"/> postfix - the game
+	/// <summary>1.8.3 (hotfix): re-entrancy guard for the <see cref="Localization.SetupLanguage"/> postfix - the game
 	/// calls it from the platform startup path, so anything that runs inside it can land here again.</summary>
 	private static bool _inPostfix;
 
@@ -375,7 +375,7 @@ public static class ModLocalization
 			{ "hc_cat_idle", "Idle" },
 			{ "hc_cat_speech", "Speech" },
 			{ "hc_cat_advanced", "Advanced" },
-			// 2.0.0 (i18n): the tabs. The key is lower(section), and the AI section is "AI" now - so "hc_cat_ai".
+			// 1.8.3 (i18n): the tabs. The key is lower(section), and the AI section is "AI" now - so "hc_cat_ai".
 			{ "hc_cat_ai", "AI" },
 			{ "hc_ai_thinking", "Thinking..." },
 			{ "hc_ai_not_understood", "I didn't understand that order." },
@@ -407,6 +407,9 @@ public static class ModLocalization
 			// comes from hc_ai_order_wood/stone/ore/...; when there is no job to name, "stop" alone.
 			{ "hc_ai_order_stop_job", "stop ({0})" },
 			{ "hc_ai_order_stop_other", "stop" },
+			// fix/dverger-combate: a work order sent to a combat-only type (the dverger ones: Mage, Fire Mage, Ice
+			// Mage, Support) - the job is not started and the companion answers with this instead.
+			{ "hc_ai_order_combat_only", "I fight, I don't do that work." },
 			{ "hc_ai_order_come", "come here" },
 			{ "hc_ai_order_sethome", "set home here" },
 			{ "hc_ai_order_wander", "wander around" },
@@ -587,7 +590,7 @@ public static class ModLocalization
 	}
 
 	/// <summary>
-	/// 2.0.0 (i18n): the keys the loaded language file has. <see cref="LocOr"/> needs this because some UI text exists
+	/// 1.8.3 (i18n): the keys the loaded language file has. <see cref="LocOr"/> needs this because some UI text exists
 	/// only in a translation - the settings labels, for instance: in English the config key itself is the label (the
 	/// mod's native language), so only a language file names them. The value ends up in <c>m_translations</c>, but
 	/// nothing in <see cref="_englishDefaults"/> knows such a key.
@@ -621,7 +624,7 @@ public static class ModLocalization
 			return;
 		}
 		string selectedLanguage = loc.GetSelectedLanguage();
-		// 2.0.0 (review): the language name plus the instance were the whole criterion, and they skipped the injection
+		// 1.8.3 (review): the language name plus the instance were the whole criterion, and they skipped the injection
 		// when the game called SetupLanguage again on the SAME Localization - and SetupLanguage rebuilds the
 		// dictionary, so the mod's keys were gone and the UI went back to showing "$hc_...". The check is the
 		// dictionary itself now: our sentinel still in it means the injection is there (or was redone, in which case
@@ -653,7 +656,7 @@ public static class ModLocalization
 			foreach (KeyValuePair<string, string> item in dictionary2)
 			{
 				dictionary[item.Key] = item.Value;
-				// 2.0.0: remembered so LocOr can translate a key that exists only in the language file
+				// 1.8.3: remembered so LocOr can translate a key that exists only in the language file
 				TranslatedKeys.Add(item.Key);
 				num++;
 			}
@@ -743,7 +746,7 @@ public static class ModLocalization
 	[HarmonyPostfix]
 	private static void SetupLanguage_Postfix(Localization __instance)
 	{
-		// 2.0.0 (hotfix): this postfix must do ONE thing - inject the strings. Anything else that touched Unity's
+		// 1.8.3 (hotfix): this postfix must do ONE thing - inject the strings. Anything else that touched Unity's
 		// platform layer here (SpeechConfig.Load calls Localization.instance.GetSelectedLanguage, which initializes
 		// PlatformPrefs, which runs SetStartupLanguage -> SetupLanguage -> this postfix -> ...) recursed until the game
 		// froze on the loading screen. The speech lines follow the language lazily, in SpeechConfig.Instance.

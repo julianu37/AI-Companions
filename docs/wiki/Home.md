@@ -8,12 +8,12 @@ entende e executa.
 > Vídeo do canal **SuaTV**: **"Esse mod muda TUDO no Valheim! AI Companions"**.
 > **[Assistir no YouTube](https://www.youtube.com/watch?v=40FnVEIbXyo)** — clicar na imagem também abre.
 
-> **Tipos de companheiro: use o "Companheiro"**
+> **Tipos de companheiro: os dverger são de combate**
 >
-> Só o tipo **Companheiro** está completo. Os **dverger** (**Mago**, **Mago de Fogo**, **Mago de Gelo** e **Suporte**)
-> podem ser invocados e **lutam** normalmente, mas **ainda precisam de ajustes**: o **inventário** e as **ferramentas**
-> (e os trabalhos que dependem delas) não funcionam neles. Invoque-os como **combatentes** — para trabalhar, fique no
-> **Companheiro**. Detalhes em **[Como funciona](Como-funciona#tipos-de-companheiro)**.
+> **Mago**, **Mago de Fogo**, **Mago de Gelo** e **Suporte** são **de combate**: lutam normalmente e a roda mostra só
+> as ações de combate/suporte — ordens de **trabalho** por chat, voz ou tecla de comando são **recusadas** com
+> *"Sou de combate, não faço esse trabalho"*. Para trabalhos, use o **Companheiro** (detalhes em
+> **[Como funciona](Como-funciona#tipos-de-companheiro)**).
 
 ## Em ação
 
@@ -113,19 +113,19 @@ vem do upstream e continua funcionando igual — a IA é só uma **nova entrada*
 | **Upstream (MIT)** | https://github.com/MaddhattrRocks/Offline-Companions-Reborn |
 | **Vídeo** | https://www.youtube.com/watch?v=40FnVEIbXyo |
 
-A release publicada mais recente é a **2.0.0** (24/10/2026), com **dois** arquivos para escolher:
+A release publicada mais recente é a **1.8.3** (25/10/2026), com **dois** arquivos para escolher:
 
 | Arquivo | Tamanho | O que vem |
 |---|---|---|
-| `AI_Companions-2.0.0.zip` | ~368 MB | O mod **e** os modelos de voz (STT + TTS) já prontos |
-| `AI_Companions-2.0.0-sem-modelos.zip` | ~28,5 MB | Só o mod e as traduções — você baixa os modelos por fora |
+| `AI_Companions-1.8.3.zip` | ~368 MB | O mod **e** os modelos de voz (STT + TTS) já prontos |
+| `AI_Companions-1.8.3-sem-modelos.zip` | ~28,5 MB | Só o mod e as traduções — você baixa os modelos por fora |
 
 > **Qual escolher?** Se você quer só instalar e usar, pegue o **completo**. Se a sua internet é lenta (ou você já
 > tem os modelos), pegue o **sem-modelos** e siga a seção de modelos em **[Instalação](Instalacao)**.
 
-> ### Atualizando para a 2.0.0? As configurações voltam aos padrões
+> ### Atualizando para a 1.8.3? As configurações voltam aos padrões
 >
-> A **2.0.0** trocou o **arquivo** de configuração: agora ele é **`BepInEx\config\AiCompanions.cfg`**, e o antigo
+> A **1.8.3** trocou o **arquivo** de configuração: agora ele é **`BepInEx\config\AiCompanions.cfg`**, e o antigo
 > (`Maddhattr.OfflineCompanionsReborn.cfg`) **não é mais lido** — pode ser apagado. O arquivo novo nasce com os
 > **valores padrão**, inclusive a **`ApiKey` em branco**: se você usa o Groq ou o OpenRouter, **cole a chave de
 > novo** (painel `I` → **Configurações do LLM**). A seção da IA também mudou de nome (`[IA]` → **`[AI]`**) e as
@@ -140,7 +140,7 @@ A release publicada mais recente é a **2.0.0** (24/10/2026), com **dois** arqui
 > o save, os companheiros, a casa e o inventário continuam valendo (o GUID do plugin e as chaves `HC_*` foram
 > preservados de propósito).
 
-> A **2.0.0** é a versão **multilíngue**: o **inglês é o idioma nativo** (chaves e descrições do `.cfg`) e o
+> A **1.8.3** é a versão **multilíngue**: o **inglês é o idioma nativo** (chaves e descrições do `.cfg`) e o
 > **português é a tradução** — os painéis (`I` e `F8`) seguem o **idioma do jogo**, e um idioma novo entra por
 > `Translations/<Idioma>.json` + `Speech/<Idioma>.json`.
 >

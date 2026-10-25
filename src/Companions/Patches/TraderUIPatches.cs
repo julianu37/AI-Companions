@@ -207,7 +207,7 @@ public static class TraderUIPatches
 
 	private static Type _traderUIType;
 
-	// 2.0.0 (patch audit): the type alone is not a good enough test. TraderOverhaul can rename or remove one of
+	// 1.8.3 (patch audit): the type alone is not a good enough test. TraderOverhaul can rename or remove one of
 	// these methods between releases, and a null TargetMethod makes Harmony throw - which used to abort the whole
 	// PatchAll. Prepare returning false skips only this patch, and TargetMethod never returns null either.
 	private static MethodBase FindTraderMethod(string name)

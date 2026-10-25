@@ -13,7 +13,7 @@ Esta página começa pelo **Groq**, porque ele **já é o padrão** do mod: inst
 opção **local** (**LM Studio**, que continua funcionando igual) e, por último, o **OpenRouter** — que também
 continua funcionando, mas cujo tier gratuito é **lento** e por isso deixou de ser o padrão.
 
-> **Já tem um `.cfg` de uma versão anterior (ou da 1.8.2)?** Na **2.0.0** o arquivo passou a ser
+> **Já tem um `.cfg` de uma versão anterior (ou da 1.8.2)?** Na **1.8.3** o arquivo passou a ser
 > **`AiCompanions.cfg`** e as configurações **voltam aos padrões** — inclusive a `ApiKey`, que precisa ser colada
 > de novo. A seção também mudou de nome: era `[IA]`, agora é **`[AI]`**, com as chaves em **inglês** (`Model`, não
 > `Modelo`). O `.cfg` antigo (`Maddhattr.OfflineCompanionsReborn.cfg`) fica no disco e **não** é lido.

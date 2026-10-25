@@ -18,7 +18,7 @@ O mod se chama **AI Companions** (até 23/10/2026 era **ModAI-BR-Companions**): 
 `https://github.com/julianu37/AI-Companions` (a wiki é `AI-Companions.wiki`), pasta de deploy
 `BepInEx\plugins\AI-Companions\` e pacotes `AI_Companions-<versão>.zip`. **Preservados de propósito** (o jogo, os
 saves e a rede dependem deles): o **GUID** `Maddhattr.OfflineCompanionsReborn`, o `Companions.dll`, o
-`Companions.csproj`, as chaves `HC_*` e os créditos/avisos do upstream (**MIT**). Desde a **2.0.0** o arquivo de
+`Companions.csproj`, as chaves `HC_*` e os créditos/avisos do upstream (**MIT**). Desde a **1.8.3** o arquivo de
 config é **`BepInEx\config\AiCompanions.cfg`** (o GUID não dá mais nome a ele; ver a fase *4.0 — multilíngue*).
 
 ## Upstream e licença
@@ -53,9 +53,9 @@ config é **`BepInEx\config\AiCompanions.cfg`** (o GUID não dá mais nome a ele
   listar o Jotunn como requisito em release/README. (A skill `jotunn` da equipe continua no repositório como
   referência de framework, mas **não** se aplica a este mod.)
 - Target: **.NET Framework 4.7.2 (net472)**, C#.
-- Versão: **2.0.0** — **multilíngue (inglês nativo)** em 24/10/2026 (fonte única: `PluginVersion` em
-  `src/Companions/Core/CompanionsPlugin.cs`). As releases saíram em sequência em 23–24/10 (`1.7.0` → `1.8.0` →
-  `1.8.1` → `1.8.2` → `2.0.0`); a **1.7.1 foi pulada de propósito** (pedido do jogador). As branches
+- Versão: **1.8.3** — **multilíngue (inglês nativo)** em 25/10/2026 (fonte única: `PluginVersion` em
+  `src/Companions/Core/CompanionsPlugin.cs`). As releases saíram em sequência em 23–25/10 (`1.7.0` → `1.8.0` →
+  `1.8.1` → `1.8.2` → `1.8.3`); a **1.7.1 foi pulada de propósito** (pedido do jogador). As branches
   `feat/multi-companheiro`, `fix/peso-cinto`, `feat/llm-groq`, `feat/provedor-llm` e `languages` foram mergeadas
   (`--no-ff`) e podem ser apagadas — a `main` é a linha de release.
 
@@ -133,7 +133,7 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   vazio = padrão), `Memory` (4 — era 6 até a 3.3b; 0 = desligada, teto 12) e `Conversation` (true). Desde a 1.7.0 boa
   parte disso é editável **no jogo** (painel `I` → aba IA → *Configurações do LLM*, com **Testar conexão**;
   `LlmConnectionTest`): a chave é mostrada **mascarada** e o que não cabe lá continua no painel **F8**. (Nomes em
-  inglês desde a 2.0.0 — antes eram `Ligado`, `Modelo`, `Temperatura`….)
+  inglês desde a 1.8.3 — antes eram `Ligado`, `Modelo`, `Temperatura`….)
 - `Chat.SendText(Talker.Type, string)` é o caminho da mensagem **do próprio jogador** (as recebidas entram
   por `Chat.OnNewChatMessage`) — é o único ponto capturado.
 - `despawn` não é exposto ao modelo. O `amount` é um **ALVO TOTAL** para madeira/pedra/minério (Fase 3.2,
@@ -645,7 +645,7 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   memória cai para 4 quando o config não está pronto; o `UiDiag` perdeu as duas entradas mortas; o rodapé do companheiro
   recalcula quando ele herda o valor global; o banco do Trader é lido 2×/s; e o teto de **`[General] MaxCompanions = 10`**
   barra os três caminhos de criação com aviso localizado. Detalhes: `docs/roadmap.md` (Fase 3.19).
-- **Fase 4.0 — multilíngue com o inglês nativo (2.0.0, branch `languages`):** o mod deixou de ter as configs traduzidas
+- **Fase 4.0 — multilíngue com o inglês nativo (1.8.3, branch `languages`):** o mod deixou de ter as configs traduzidas
   no código. Agora **as chaves e as descrições do `.cfg` são em inglês** (as 237 do upstream foram recuperadas do repo
   de referência; as nossas — 39 da seção de IA + `CollectRadius`, `UiDiag`, `MinInterval`/`MaxInterval` etc. — foram
   escritas em inglês) e o **português é tradução**, carregada de `Translations/Portuguese_Brazilian.json`. O arquivo de
@@ -656,17 +656,19 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   em inglês o texto é a **própria chave** (zero tradução) e com o jogo em PT vem o rótulo do JSON; as **chaves repetidas**
   entre seções (`MaxDistance`, `Range`, `Radius`, `FollowRange`, `BagFull`, `UsePiles`) resolveram-se porque a seção
   entra na chave. **Nomenclatura:** nesta doc, menções históricas a `[IA] <chave em PT>` devem ser lidas como
-  `[AI] <Key>` (a tabela completa está no `CHANGELOG` 2.0.0 e na wiki, em *Configuração*); as **linhas de log** mantêm
+  `[AI] <Key>` (a tabela completa está no `CHANGELOG` 1.8.3 e na wiki, em *Configuração*); as **linhas de log** mantêm
   o prefixo **`[IA]`** de propósito (é tag de log, não caminho de config). Descrições PT de referência (v1.8.2):
   `docs/re/config-descricoes-pt-1.8.2.tsv`. Traduzir para outro idioma = **um arquivo** `Translations/<Idioma>.json`
   (UI + `hc_cfg_*` + `hc_cat_*`) + `Speech/<Idioma>.json`.
-- **Tipos alternativos (dverger) NÃO estão completos — só o tipo `Companheiro` é:** Mago, Mago de Fogo, Mago de Gelo e
-  Suporte podem ser invocados e lutam, mas **inventário** (a mochila que a IA usa não é salva — ver a seção
-  *Backlog da revisão da 2.0.0* no roadmap), **uso de ferramentas/jobs** (machado, picareta, martelo; coleta, mineração,
-  reparo, reabastecimento) e o painel (esconde os espaços de comida por tipo) **não funcionam**. Isso está documentado
-  ao jogador (wiki, README, LEIA-ME e página do Nexus) e **não** foi corrigido na 2.0.0: uma tentativa de unificar a
-  mochila foi **revertida** (`e8247ff`) porque piorava (os itens dados pelo jogador deixavam de persistir). Não encostar
-  em `Container`/`m_inventory`/`Load`/`CheckForChanges` sem um mundo de teste e sem ler o roadmap.
+- **Tipos alternativos (dverger: Mago, Mago de Fogo, Mago de Gelo e Suporte) são DE COMBATE, por desenho:** a roda já
+  esconde os trabalhos (gate `_isDverger`, igual ao upstream) e desde a 1.8.3 (`fix/dverger-combate`) o **chat/voz** e a
+  **tecla de comando** também são recusados (`CompanionSetup.IsWorkMode`/`ApplyActionMode` → `false`, recusa em
+  `CompanionOrders` e nas duas escritas diretas de `CompanionInteract`), com a fala **"Sou de combate, não faço esse
+  trabalho."**; o `ChangeTier` para um tipo de combate volta ao Follow. **Limitação que continua:** o painel esconde os
+  espaços de comida por tipo e as peças de armadura ficam na mochila em vez de equipadas. O inventário **não** foi
+  confirmado com defeito em jogo (o teste do jogador mostrou que o que ele coloca persiste); a suspeita das duas
+  mochilas fica registrada como **hipótese** na seção *Backlog da revisão da 1.8.3* do roadmap. **Nunca** trocar
+  `Container.m_inventory` no `Awake` sem mundo de teste (tentativa de 1.8.3 revertida em `e8247ff`).
 - **Pendências conhecidas (abertas):** a **voz não passa pelo
   mixer do jogo** (por isso ignora os sliders de volume do Valheim e só obedece `[AI] TtsVolume`); o **sync com o
   upstream** (estamos **1 release atrás**: base `1.5.4`, `main` na `1.5.5` — ver a seção *Upstream e licença*);

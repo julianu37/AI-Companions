@@ -78,7 +78,7 @@ public static class DurabilityPatches
 			{
 				return;
 			}
-			// 2.0.0 (patch audit): the armor is the companion's own state - only the ZDO owner drains it,
+			// 1.8.3 (patch audit): the armor is the companion's own state - only the ZDO owner drains it,
 			// the same rule CompanionFallDamagePatch and PortalPatches follow. Without this every client
 			// that sees the hit would take durability off its local copy of the item.
 			ZNetView nview = __instance.GetComponent<ZNetView>();

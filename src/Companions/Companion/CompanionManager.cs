@@ -367,6 +367,25 @@ public static class CompanionManager
 		string personaPreset = old.GetString(CompanionProfile.PresetHash, "");
 		string personaText = old.GetString(CompanionProfile.PersonaTextHash, "");
 
+		// fix/dverger-combate: the dverger types (Mage, Fire Mage, Ice Mage, Support) are combat-only - they can't do
+		// the work modes at all (CompanionSetup.IsWorkMode). A companion switched to one while chopping would be reborn
+		// stuck on a job it can never finish, so the mode goes back to Follow and the target of the order is dropped
+		// (it is simply not copied to the new ZDO below - the ClearOrderCap of a companion that is about to go). Follow
+		// comes back when the job was what had paused it; a Follow the player turned off himself stays off.
+		if (!def.CanWearArmor && CompanionSetup.IsWorkMode(mode))
+		{
+			if (followPaused)
+			{
+				follow = true;
+				followPaused = false;
+			}
+			CompanionsPlugin.Log?.LogInfo($"[Tier] \"{oldName}\": work mode {mode} dropped when becoming \"{CompanionTierData.LocalName(def)}\" (a combat-only type) - back to Follow");
+			mode = CompanionSetup.ModeFollow;
+			cap = 0;
+			capMode = 0;
+			capItem = "";
+		}
+
 		// the inventory and what was equipped, by grid position (Inventory.Load puts every item back where it was)
 		string inventoryData = "";
 		List<Vector2i> equipped = new List<Vector2i>();

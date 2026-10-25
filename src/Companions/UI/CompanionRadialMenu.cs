@@ -41,7 +41,7 @@ public class CompanionRadialMenu : MonoBehaviour
 			{
 				return;
 			}
-			// 2.0.0 (patch audit): PlayerController.LateUpdate dereferences Hud.instance.m_radialMenu right after
+			// 1.8.3 (patch audit): PlayerController.LateUpdate dereferences Hud.instance.m_radialMenu right after
 			// Hud.InRadial() returns true - a faked "true" without the radial menu would NRE every frame.
 			Hud hud = Hud.instance;
 			if (hud != null && hud.m_radialMenu != null)
@@ -273,7 +273,7 @@ public class CompanionRadialMenu : MonoBehaviour
 
 	private static readonly Dictionary<int, Sprite> _iconCache = new Dictionary<int, Sprite>();
 
-	/// <summary>2.0.0: the icons that come from <c>TextureLoader.LoadRadialTexture</c> use a texture from the loader's
+	/// <summary>1.8.3: the icons that come from <c>TextureLoader.LoadRadialTexture</c> use a texture from the loader's
 	/// static cache - the sprite is ours to destroy, the texture is not (a second wheel used to find a destroyed one).</summary>
 	private static readonly HashSet<Texture2D> _sharedIconTextures = new HashSet<Texture2D>();
 
@@ -298,7 +298,7 @@ public class CompanionRadialMenu : MonoBehaviour
 	{
 		get
 		{
-			// 2.0.0: SpeechConfig.merge already fills a missing "Action" with the built-in lines; this is the belt and
+			// 1.8.3: SpeechConfig.merge already fills a missing "Action" with the built-in lines; this is the belt and
 			// suspenders for a config that could not be loaded at all (the wheel reads .Length every time it opens)
 			SpeechConfig speech = SpeechConfig.Instance;
 			if (speech == null || speech.Action == null)
@@ -523,7 +523,7 @@ public class CompanionRadialMenu : MonoBehaviour
 			if (item.Value != null)
 			{
 				Texture2D texture = item.Value.texture;
-				// 2.0.0: the texture of a LoadRadialTexture icon belongs to TextureLoader's shared cache - destroying
+				// 1.8.3: the texture of a LoadRadialTexture icon belongs to TextureLoader's shared cache - destroying
 				// it here left the next wheel with a destroyed texture (the sprites of the built-in icons are ours,
 				// and so are their textures, so those still go)
 				if (texture != null && !_sharedIconTextures.Contains(texture))

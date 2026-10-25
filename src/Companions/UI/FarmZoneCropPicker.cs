@@ -27,7 +27,7 @@ public class FarmZoneCropPicker : MonoBehaviour
 			{
 				return;
 			}
-			// 2.0.0 (patch audit): PlayerController.LateUpdate dereferences Hud.instance.m_radialMenu right after
+			// 1.8.3 (patch audit): PlayerController.LateUpdate dereferences Hud.instance.m_radialMenu right after
 			// Hud.InRadial() returns true - a faked "true" without the radial menu would NRE every frame.
 			Hud hud = Hud.instance;
 			if (hud != null && hud.m_radialMenu != null)
@@ -77,7 +77,7 @@ public class FarmZoneCropPicker : MonoBehaviour
 		}
 	}
 
-	/// <summary>2.0.0: the root of the picker, so the plugin can destroy it when it unloads (it is one of the
+	/// <summary>1.8.3: the root of the picker, so the plugin can destroy it when it unloads (it is one of the
 	/// DontDestroyOnLoad objects that used to stay behind). Null when it was never created.</summary>
 	internal static GameObject Root
 	{

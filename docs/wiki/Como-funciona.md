@@ -129,18 +129,29 @@ preenchida.
 
 ## Tipos de companheiro
 
-**Use o tipo "Companheiro".** O **tipo** de um companheiro vem do **prefab** que o jogo usa para criá-lo. O
-**Companheiro** (o padrão) é uma cópia do **personagem do jogador** — é esse "corpo de jogador" que os trabalhos
-usam. Os **dverger** — **Mago**, **Mago de Fogo**, **Mago de Gelo** e **Suporte** — são **cópias dos dverger do
-jogo** (`Dverger`, `DvergerMage`…): por isso eles **lutam** normalmente, mas **ainda precisam de ajustes**:
+O **tipo** de um companheiro vem do **prefab** que o jogo usa para criá-lo, e é ele que decide **o que o
+companheiro faz**:
 
-- **inventário** — a mochila que a IA usa **não é salva**: o que você coloca nela fica, mas o que ele **coleta ou
-  equipa por conta dele se perde** ao sair do mundo;
-- **ferramentas e trabalhos** — machado, picareta e martelo e os trabalhos que dependem deles (coleta, mineração,
-  reparo, reabastecimento) **não funcionam** nesses tipos;
-- o **painel** esconde os espaços de comida por tipo.
+- **Companheiro** (o padrão) é uma cópia do **personagem do jogador** — é esse "corpo de jogador" que os
+  trabalhos usam, e é o **único tipo completo**.
+- **Mago**, **Mago de Fogo**, **Mago de Gelo** e **Suporte** são os **dverger**, cópias dos dverger do jogo
+  (`Dverger`, `DvergerMage`…): eles são **de combate**, por desenho.
 
-Enquanto isso, invoque-os como **combatentes** — para trabalhos, fique no **Companheiro**.
+**Os dverger são de combate.** A **roda** deles mostra só as ações de combate e de suporte — **Follow**, **Repair
+and Restock**, **Despawn**, **Command**, **Pickup**, **Wander**, **Set Home** e as **quatro posturas**
+(Balanced/Melee/Ranged/Passive), igual ao upstream. Eles lutam normalmente e continuam atendendo às ordens de
+combate, de movimento e de recolher.
+
+Ordens de **trabalho** — coleta, mineração, fazenda, pesca, caça, cozinha, fundição, reparo, reabastecimento — são
+**recusadas**, venham do **chat**, da **voz** ou da **tecla de comando** (mirar numa árvore, numa rocha ou num
+smelter). A resposta é sempre a mesma fala: **"Sou de combate, não faço esse trabalho."** E nada muda: o **modo
+atual** e o **alvo da ordem** ficam como estavam.
+
+Trocar o **tipo** de um companheiro que estava trabalhando por um dverger também **descarta o alvo da ordem** — ele
+volta a **seguir** você.
+
+**Para trabalhos, use o tipo "Companheiro".** Nos dverger, o **painel** esconde os espaços de comida por tipo e as
+peças de armadura ficam na mochila em vez de equipadas.
 
 ---
 

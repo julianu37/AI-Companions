@@ -15,12 +15,12 @@ pelos painéis. Ele tem cerca de **1540 linhas** e **~265 opções** no total, d
 (`[General]`, `[Gathering]`, `[Hunting]`, `[Speech]`, `[Advanced]`, `[AI]` e outras).
 
 > O nome do arquivo **não** é mais o GUID do plugin: até a **1.8.2** ele era
-> `Maddhattr.OfflineCompanionsReborn.cfg` e **a partir da 2.0.0** é **`AiCompanions.cfg`**. O **GUID** do plugin
+> `Maddhattr.OfflineCompanionsReborn.cfg` e **a partir da 1.8.3** é **`AiCompanions.cfg`**. O **GUID** do plugin
 > continua `Maddhattr.OfflineCompanionsReborn` — ele é a **identidade** do mod no jogo e na rede (é o que amarra
 > mundo, save e companheiros), mas **não** dá mais nome ao arquivo. O `.cfg` antigo **fica no disco, ignorado**:
 > pode ser apagado sem medo.
 
-> **Atualizando para a 2.0.0?** As configurações **voltam aos padrões** (o arquivo novo é criado já com os
+> **Atualizando para a 1.8.3?** As configurações **voltam aos padrões** (o arquivo novo é criado já com os
 > valores padrão) — inclusive a **`ApiKey`**, que precisa ser colada de novo. **Save, mundo, companheiros, casas e
 > inventário não são afetados** (as chaves `HC_*` e o GUID não mudaram). Os valores do arquivo antigo **não** são
 > migrados de propósito: as chaves mudaram de nome.
@@ -31,7 +31,7 @@ com o modelo `openai/gpt-oss-20b`, e a `ApiKey` é obrigatória):
 
 ![A seção [AI] do .cfg, com BaseUrl, Model, ApiKey e Temperature](images/config-ia.png)
 
-> O print é da **1.8.2**: os **nomes** que aparecem ali (`Ligado`, `Modelo`…) são os antigos. A **partir da 2.0.0**
+> O print é da **1.8.2**: os **nomes** que aparecem ali (`Ligado`, `Modelo`…) são os antigos. A **partir da 1.8.3**
 > as chaves e as descrições são em **inglês** (`Enabled`, `Model`…), como na tabela abaixo.
 
 ---
@@ -67,9 +67,10 @@ companheiro fica na **aba dele**.
 > Os campos de texto (URL, modelo, chave, prefixo) só valem depois do **Aplicar** — e na **próxima mensagem**,
 > sem reiniciar o jogo. A chave nunca vai para o log.
 
-> **Tipos:** só o **Companheiro** está completo — os **dverger** (**Mago**, **Mago de Fogo**, **Mago de Gelo** e
-> **Suporte**) lutam, mas o inventário e as ferramentas ainda não funcionam neles. Vale para o **Tipo** do invocador
-> e para o **Trocar tipo** da aba do companheiro — veja
+> **Tipos:** os **dverger** (**Mago**, **Mago de Fogo**, **Mago de Gelo** e **Suporte**) são **de combate**: a roda
+> mostra só as ações de combate/suporte e as ordens de **trabalho** (pelo **chat**, pela **voz** ou pela **tecla de
+> comando**) são recusadas com *"Sou de combate, não faço esse trabalho"*. Para trabalhos, use o **Companheiro**.
+> Vale para o **Tipo** do invocador e para o **Trocar tipo** da aba do companheiro — veja
 > **[Como funciona](Como-funciona#tipos-de-companheiro)**.
 
 **Seletor de provedor** (o subtítulo **"Selecione seu Provedor LLM"**, com o mesmo dropdown do **Tipo** do
@@ -128,7 +129,7 @@ primeiro companheiro abertos; e o painel **se fecha sozinho** quando você morre
 
 ## Seção `[AI]` — todas as chaves
 
-São **39 chaves**, todas em **inglês** (o **idioma nativo** do mod desde a 2.0.0 — o `.cfg` e as descrições
+São **39 chaves**, todas em **inglês** (o **idioma nativo** do mod desde a 1.8.3 — o `.cfg` e as descrições
 inclusive). Os valores padrão são os do código-fonte: se você nunca mexeu, é isto que está valendo.
 
 > **`[AI]` é a seção do `.cfg`; `[IA]` é a tag dos logs.** As **linhas de log** do mod continuam começando com
@@ -256,7 +257,7 @@ tradução. É a forma mais rápida de conferir o que está valendo agora, sem s
 
 ![O painel F8 aberto na seção [AI], com as opções da camada de IA](images/3-painel-f8.jpg)
 
-> O print é da **1.8.2**, quando as chaves se chamavam `Ligado`, `Temperatura`, `TimeoutSegundos`… Na **2.0.0** o
+> O print é da **1.8.2**, quando as chaves se chamavam `Ligado`, `Temperatura`, `TimeoutSegundos`… Na **1.8.3** o
 > arquivo é em inglês; com o jogo em **português** o painel continua mostrando os nomes em PT.
 
 > Os painéis do mod ficam **acima do HUD do jogo** na ordem de desenho — é o que garante que um clique no

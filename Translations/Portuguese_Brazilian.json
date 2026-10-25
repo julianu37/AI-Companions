@@ -577,6 +577,7 @@
         { "key": "hc_ai_order_stop", "value": "parar de seguir" },
         { "key": "hc_ai_order_stop_job", "value": "parar de {0}" },
         { "key": "hc_ai_order_stop_other", "value": "parar" },
+        { "key": "hc_ai_order_combat_only", "value": "Sou de combate, não faço esse trabalho." },
         { "key": "hc_ai_order_come", "value": "vir até você" },
         { "key": "hc_ai_order_sethome", "value": "definir a casa aqui" },
         { "key": "hc_ai_order_wander", "value": "vagar por perto" },
