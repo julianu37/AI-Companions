@@ -40,11 +40,14 @@ sem nenhuma tradução.
 
 ### Limitações conhecidas
 
-- **Só o tipo `Companheiro` está completo.** Os **dverger** (Mago, Mago de Fogo, Mago de Gelo e Suporte) podem ser
-  invocados e lutam, mas **ainda precisam de ajustes**: a **mochila que a IA usa não é salva** (o que você põe nela
-  fica; o que ele coleta ou equipa por conta dele se perde ao sair do mundo), o **uso de ferramentas** e os trabalhos
-  que dependem delas (coleta, mineração, reparo, reabastecimento) **não funcionam**, e o painel esconde os espaços de
-  comida por tipo. Use-os como combatentes até esses tipos serem ajustados.
+- **Os tipos dverger (Mago, Mago de Fogo, Mago de Gelo e Suporte) são de combate.** Eles lutam normalmente e a roda
+  mostra só as ações de combate/suporte (seguir, reparar e reabastecer, dispensa, comando, pegar, vagar, definir casa e
+  as posturas). Ordens de **trabalho** — por chat, voz ou pela tecla de comando — são **recusadas** com a fala
+  *"Sou de combate, não faço esse trabalho."* (o modo e o alvo da ordem atual não mudam). Se você **trocar o tipo** de um
+  companheiro que estava trabalhando por um desses, ele volta a seguir. Duas limitações continuam: a **mochila que a IA
+  usa nesses tipos não é salva** (o que você põe na janela fica; o que ele coleta ou equipa por conta dele se perde ao
+  sair do mundo) e o painel esconde os espaços de comida por tipo. **Para trabalhos, use o tipo `Companheiro`, que é
+  completo.**
 
 ## 1.8.2 — 24/10/2026
 

@@ -660,13 +660,14 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   o prefixo **`[IA]`** de propósito (é tag de log, não caminho de config). Descrições PT de referência (v1.8.2):
   `docs/re/config-descricoes-pt-1.8.2.tsv`. Traduzir para outro idioma = **um arquivo** `Translations/<Idioma>.json`
   (UI + `hc_cfg_*` + `hc_cat_*`) + `Speech/<Idioma>.json`.
-- **Tipos alternativos (dverger) NÃO estão completos — só o tipo `Companheiro` é:** Mago, Mago de Fogo, Mago de Gelo e
-  Suporte podem ser invocados e lutam, mas **inventário** (a mochila que a IA usa não é salva — ver a seção
-  *Backlog da revisão da 2.0.0* no roadmap), **uso de ferramentas/jobs** (machado, picareta, martelo; coleta, mineração,
-  reparo, reabastecimento) e o painel (esconde os espaços de comida por tipo) **não funcionam**. Isso está documentado
-  ao jogador (wiki, README, LEIA-ME e página do Nexus) e **não** foi corrigido na 2.0.0: uma tentativa de unificar a
-  mochila foi **revertida** (`e8247ff`) porque piorava (os itens dados pelo jogador deixavam de persistir). Não encostar
-  em `Container`/`m_inventory`/`Load`/`CheckForChanges` sem um mundo de teste e sem ler o roadmap.
+- **Tipos alternativos (dverger: Mago, Mago de Fogo, Mago de Gelo e Suporte) são DE COMBATE, por desenho:** a roda já
+  esconde os trabalhos (gate `_isDverger`, igual ao upstream) e desde a 2.0.0 (`fix/dverger-combate`) o **chat/voz** e a
+  **tecla de comando** também são recusados (`CompanionSetup.IsWorkMode`/`ApplyActionMode` → `false`, recusa em
+  `CompanionOrders` e nas duas escritas diretas de `CompanionInteract`), com a fala **"Sou de combate, não faço esse
+  trabalho."**; o `ChangeTier` para um tipo de combate volta ao Follow. **Limitação que continua:** a mochila que a **IA**
+  usa nesses tiers não é persistida (o `Container` guarda a que o jogador vê) — ver a seção *Backlog da revisão da
+  2.0.0* no roadmap para a causa medida e o caminho seguro. **Nunca** trocar `Container.m_inventory` no `Awake` sem mundo
+  de teste (tentativa de 2.0.0 revertida em `e8247ff`).
 - **Pendências conhecidas (abertas):** a **voz não passa pelo
   mixer do jogo** (por isso ignora os sliders de volume do Valheim e só obedece `[AI] TtsVolume`); o **sync com o
   upstream** (estamos **1 release atrás**: base `1.5.4`, `main` na `1.5.5` — ver a seção *Upstream e licença*);
