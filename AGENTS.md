@@ -674,9 +674,11 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   upstream** (estamos **1 release atrás**: base `1.5.4`, `main` na `1.5.5` — ver a seção *Upstream e licença*);
   a **sobreposição do nome do companheiro no centro do radial** (o nome do mundo aparece por trás do centro
   transparente da roda — cosmético, visto nas capturas da 1.7.0); o **risco médio do roster com N companheiros**; e a
-  **posse do ZDO no spawn em multiplayer** (revisar quando houver teste em servidor dedicado). O **release/empacotamento
-  da 1.7.0 está fechado** (versão no código, `CHANGELOG`, wiki e os dois zips: `AI_Companions-1.7.0.zip` ~368 MB e
-  `…-sem-modelos.zip` ~28,4 MB). A
+  **posse do ZDO no spawn em multiplayer** (revisar quando houver teste em servidor dedicado). O
+  **release/empacotamento da 1.8.3 está fechado** (25/10/2026): tag `v1.8.3` no `c023ca1`, GitHub Release
+  `releases/tag/v1.8.3` com os dois zips — `AI_Companions-1.8.3.zip` (385.866.837 bytes, md5 `340d320d…`) e
+  `…-sem-modelos.zip` (29.846.898 bytes, md5 `0372b807…`), gerados de `pkg183\stage` sem `speech.json` (runtime) e sem
+  os marcadores do Vortex; falta só o upload manual no Nexus (`Temp\opencode\nexus\publicar-183.md`). A
   branch `origin/claude/relaxed-archimedes-ecoh6h` **não** é pendência: é o **WIP do autor do upstream** e **não**
   deve ser mergeada nem usada como referência. Detalhes na subseção *Pendências conhecidas* do `docs/roadmap.md`.
 

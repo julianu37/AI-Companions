@@ -485,6 +485,13 @@ O que **não** está fechado nesta trilha, listado sem enfeite:
 > **Fechado na 1.7.0:** o item **3** (`inventory_close`) e o **release/empacotamento**, que estava aberto aqui: a versão
 > está no código, o `CHANGELOG` tem a seção `1.7.0`, a wiki foi republicada e os dois zips existem
 > (`AI_Companions-1.7.0.zip`, ~368 MB, e `AI_Companions-1.7.0-sem-modelos.zip`, ~28,4 MB).
+>
+> **Fechado na 1.8.3 (25/10/2026):** tag `v1.8.3` (`c023ca1`) e GitHub Release `releases/tag/v1.8.3` publicada com os dois
+> pacotes montados a partir de `pkg183\stage` — `AI_Companions-1.8.3.zip` (385.866.837 bytes, md5 `340d320d…`) e
+> `AI_Companions-1.8.3-sem-modelos.zip` (29.846.898 bytes, md5 `0372b807…`). O pacote **não** leva o `speech.json` da
+> raiz (é gerado em runtime quando falta o `Speech/<Idioma>.json`) nem os marcadores `__folder_managed_by_vortex` (que a
+> 1.8.2 levou por engano). O `Companions.dll` dos dois zips é byte a byte o build da `main`
+> (sha256 `ddae0042…`), conferido dentro do próprio zip. Falta só o upload manual no Nexus.
 
 ### Fase 3.1 — ordem por texto no chat (✅ — Unreleased)
 
