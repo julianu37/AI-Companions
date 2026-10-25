@@ -696,7 +696,7 @@ internal static class ModConfig
 		RestDirectedTimeout = Bind(cfg, "Rest", "DirectedTimeout", 300f, "When you tell a companion to sit by a fire, it gets up again after this many seconds.", new AcceptableValueRange<float>(30f, 1800f));
 		// [Death]
 		AutoRespawnEnabled = Bind(cfg, "Death", "AutoRespawn", defaultValue: true, "A dead companion comes back by itself after RespawnDelay seconds if nobody brings it back from its tombstone first.");
-		AutoRespawnDelaySeconds = Bind(cfg, "Death", "RespawnDelay", 300f, "Seconds after death before a companion comes back by itself.", new AcceptableValueRange<float>(30f, 3600f));
+		AutoRespawnDelaySeconds = Bind(cfg, "Death", "RespawnDelay", 30f, "Seconds after death before a companion comes back by itself.", new AcceptableValueRange<float>(30f, 3600f));
 		AutoRespawnAtWorldSpawnWhenNoBed = Bind(cfg, "Death", "RespawnAtWorldSpawn", defaultValue: false, "A companion that comes back by itself and has no claimed bed appears at the world spawn stones. Off = next to you.");
 		DeathItemRule = Bind(cfg, "Death", "DeathItemRule", 0, "What a companion loses when it dies. 0 = the world's death penalty setting, same as a player. 1 = keep everything. 2 = keep equipped gear, the rest goes in the tombstone. 3 = everything goes in the tombstone. The owner's setting is used even if another player's game handles the death.", new AcceptableValueRange<int>(0, 3));
 		TombstoneRecoveryRange = Bind(cfg, "Death", "TombstoneRecoveryRange", 50f, "A companion walks over and empties its own leftover tombstone when it's within this many meters of it.", new AcceptableValueRange<float>(5f, 100f));
