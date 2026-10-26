@@ -53,11 +53,13 @@ config é **`BepInEx\config\AiCompanions.cfg`** (o GUID não dá mais nome a ele
   listar o Jotunn como requisito em release/README. (A skill `jotunn` da equipe continua no repositório como
   referência de framework, mas **não** se aplica a este mod.)
 - Target: **.NET Framework 4.7.2 (net472)**, C#.
-- Versão: **1.9.0** — **multilíngue (5 idiomas: PT-BR, EN, ES, FR, IT)** em 26/10/2026 (fonte única: `PluginVersion` em
-  `src/Companions/Core/CompanionsPlugin.cs`). As releases saíram em sequência em 23–26/10 (`1.7.0` → `1.8.0` →
-  `1.8.1` → `1.8.2` → `1.8.3` → `1.9.0`); a **1.7.1 foi pulada de propósito** (pedido do jogador). As branches
-  `feat/multi-companheiro`, `fix/peso-cinto`, `feat/llm-groq`, `feat/provedor-llm` e `languages` foram mergeadas
-  (`--no-ff`) e podem ser apagadas — a `main` é a linha de release.
+- Versão: **1.9.1** — **multilíngue (5 idiomas: PT-BR, EN, ES, FR, IT)** em 26/10/2026 (fonte única: `PluginVersion` em
+  `src/Companions/Core/CompanionsPlugin.cs`). A **1.9.1** só tira o `ggml-base-q5_1.bin` (57 MB, nunca usado) do
+  pacote: o zip completo caiu de **~368 MB para ~314 MB** (o "sem modelos" segue ~28,5 MB) e o texto do
+  `[AI] SttModel` passou a dizer que o `base` é **download opcional**. As releases saíram em sequência em 23–26/10
+  (`1.7.0` → `1.8.0` → `1.8.1` → `1.8.2` → `1.8.3` → `1.9.0` → `1.9.1`); a **1.7.1 foi pulada de propósito**
+  (pedido do jogador). As branches `feat/multi-companheiro`, `fix/peso-cinto`, `feat/llm-groq`, `feat/provedor-llm`
+  e `languages` foram mergeadas (`--no-ff`) e podem ser apagadas — a `main` é a linha de release.
 
 ## Caminhos desta máquina
 

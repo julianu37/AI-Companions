@@ -2,6 +2,19 @@
 
 All the changes to this project, derived from ProfMags' Offline Companions. The versions before 1.4.0 are the original mod (see the original mod's history, from ProfMags, for those versions) plus the first batch of compatibility fixes for the Valheim 1.0 API that made the mod load and run. **The entries below 1.5.4 are the upstream history and stay as they are (in English) — our sections (from 1.6.0 on) are ours.**
 
+## 1.9.1 — 26/10/2026
+
+**A ~54 MB lighter package.** The `ggml-base-q5_1.bin` model (57 MB) is **no longer shipped**: the mod never used it
+(the `[AI] SttModel` default is `ggml-small-q5_1.bin`, 181 MB, and it is much more accurate in every language), so it
+only made the download bigger — the full zip goes from **~368 MB to ~314 MB**. The no-models package is the same
+(~28.5 MB).
+
+- **The `base` model is still supported:** download `ggml-base-q5_1.bin` into `whisper\` and point `[AI] SttModel`
+  at it if you want the faster, less accurate one (638 ms per 2 s clip against 2187 ms of the small model, on a
+  16-core CPU with 8 threads).
+- The `[AI] SttModel` description now says the `base` is an **optional download** instead of "it stays on disk".
+- **No behaviour change and no new config key:** saves, worlds, companions, houses and the `.cfg` are untouched.
+
 ## 1.9.0 — 25/10/2026
 
 **Five languages, and the mod follows the game.** Portuguese (Brazil), English, Spanish, French and Italian: the
