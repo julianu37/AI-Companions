@@ -123,7 +123,7 @@ A release publicada mais recente é a **1.9.0** (25/10/2026), com **dois** arqui
 | Arquivo | Tamanho | O que vem |
 |---|---|---|
 | `AI_Companions-1.9.0.zip` | ~368 MB | O mod **e** os modelos de voz (STT + TTS) já prontos |
-| `AI_Companions-1.9.0-sem-modelos.zip` | ~28,6 MB | Só o mod e as traduções — você baixa os modelos por fora |
+| `AI_Companions-1.9.0-sem-modelos.zip` | ~28,5 MB | Só o mod e as traduções — você baixa os modelos por fora |
 
 > **Qual escolher?** Se você quer só instalar e usar, pegue o **completo**. Se a sua internet é lenta (ou você já
 > tem os modelos), pegue o **sem-modelos** e siga a seção de modelos em **[Instalação](Installation-pt)**.

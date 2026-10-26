@@ -40,7 +40,7 @@ Go to **https://github.com/julianu37/AI-Companions/releases** and download **one
 | File | Size | When to pick it |
 |---|---|---|
 | `AI_Companions-1.9.0.zip` | ~368 MB | **Recommended.** It already comes with the voice models (STT + TTS). Install and play |
-| `AI_Companions-1.9.0-sem-modelos.zip` | ~28.6 MB | Slow internet, or you already have the models and want to download them separately |
+| `AI_Companions-1.9.0-sem-modelos.zip` | ~28.5 MB | Slow internet, or you already have the models and want to download them separately |
 
 > The difference is **only** the voice models. The mod and the translations are the same in both.
 >
