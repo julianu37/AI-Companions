@@ -1,6 +1,6 @@
 # AI Companions
 
-![AI Companions — AI NPC companions for Valheim](https://raw.githubusercontent.com/julianu37/AI-Companions/main/docs/images/banner.png)
+![AI Companions — AI NPC companions for Valheim, in five languages](https://raw.githubusercontent.com/julianu37/AI-Companions/main/docs/images/banner.png)
 
 An **AI NPC companion** for **Valheim 1.0**: you **speak or type** and he understands and acts — in **five
 languages** (Portuguese, English, Spanish, French and Italian), following the **game's language**.
@@ -66,7 +66,7 @@ language**: `[AI] TtsVoice = 0` (the default) is **automatic**, and each languag
 
 ### 🧠 Personality, memory and conversation
 
-- **Personality** through a preset (`viking`, `mago`, `sarcastico`, `guia`) or **free text** — he answers in that tone.
+- **Personality** through a preset (**Loyal Viking**, **Sarcastic Mage**, **Sarcastic**, **Patient Guide** — the names follow the game's language) or **free text** — he answers in that tone.
 - **Short memory** of the latest exchanges, per companion.
 - **Free conversation:** ask something and he answers as a character.
 
@@ -262,22 +262,13 @@ He goes back to work the moment there is something to do.
 Everything lives in `BepInEx/config/AiCompanions.cfg` and can also be changed **in game** with the
 settings panel (**`F8`** by default). Every option has a clear description.
 
-> **Updating from 1.8.2 or older?** The configuration file changed its name **on 1.8.3** (it was
-> `Maddhattr.OfflineCompanionsReborn.cfg`, which **is no longer read** and can be deleted) and the **settings go
-> back to the defaults** — including the **`ApiKey`**, which has to be pasted again. The AI section became
-> **`[AI]`** and the **keys are in English** (`Enabled`, `Model`, `TtsVoice`…). **Already on 1.8.3? Nothing is
-> lost:** **1.9.0 does not touch the `.cfg`** — it only moves the old fixed defaults (`VoiceLanguage = pt`,
-> `TtsLanguage = pt-br`, `TtsVoice = 42` and the old Portuguese prompt) to `auto` **once**, and a value you chose
-> yourself is never touched. **Save, world, companions, houses and inventory are not affected** (the plugin GUID
-> and the `HC_*` keys did not change).
-
 The AI layer has its **own panel** (key **`I`** by default, changeable in `[AI] PanelKey`): the
 **LLM settings** (URL, model, key and the **Test connection**), personality (preset or free text), the companion's
 voice (with the **Listen** button), volume, memory, free conversation, the toggles of what is
 spoken and the **push-to-talk** key (*Change* button). Everything is saved to the `.cfg` right away.
 It opens without needing a companion nearby and closes with `Esc`.
 
-In the **LLM settings** section, the **"Select your LLM provider"** dropdown (above the server URL)
+In the **LLM settings** section, the **"Pick your LLM provider"** dropdown (above the server URL)
 **fills in the URL and the model** for **Groq**, **LM Studio** or **OpenRouter** — the key is not touched and
 nothing applies before **Apply**; an Ollama/own-server URL shows up as **Custom (manual URL)**. Next to the
 **API key** field, the **"Create your Free API Key HERE"** button opens the key page in the browser (it

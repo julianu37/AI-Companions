@@ -1,6 +1,6 @@
 # AI Companions
 
-![AI Companions — AI NPC companions for Valheim](docs/images/banner.png)
+![AI Companions — AI NPC companions for Valheim, in five languages](docs/images/banner.png)
 
 > An **AI NPC companion** for **Valheim 1.0**: you **speak or type** and he understands and acts. The UI and
 > the companion's speech follow the **game's language**.
@@ -22,13 +22,6 @@ and keeps working the same — the AI is only a **new entry point** for the same
 > types — the ring shows only the combat/support actions, and the **work** orders (chat, voice or the command
 > key) are **refused** with *"I'm a fighter, I don't do that work."*. To work, use the **Companion**
 > type (details in the **[wiki](https://github.com/julianu37/AI-Companions/wiki/How-it-works#companion-types)**).
-
-## 🎬 In action
-
-[![Watch: "This mod changes EVERYTHING in Valheim! AI Companions"](docs/images/video-thumb.jpg)](https://www.youtube.com/watch?v=40FnVEIbXyo)
-
-> 🎥 **"This mod changes EVERYTHING in Valheim! AI Companions"** — a video from the **SuaTV** channel showing the
-> mod in game. **[▶️ Watch on YouTube](https://www.youtube.com/watch?v=40FnVEIbXyo)** (clicking the image opens it too)
 
 ---
 
@@ -59,8 +52,9 @@ path as the typed orders: order, conversation, personality and memory work the s
 
 ### 🧠 Personality, memory and conversation
 
-- **Personality** through a **preset** (`viking`, `mago`, `sarcastico`, `guia`) or **free text** — it goes into the
-  LLM prompt, so he answers in the tone you chose.
+- **Personality** through a **preset** (**Loyal Viking**, **Sarcastic Mage**, **Sarcastic**, **Patient Guide** — the
+  names follow the game's language) or **free text** — it goes into the LLM prompt, so he answers in the tone you
+  chose.
 - **Short memory** of the latest exchanges (per companion).
 - **Free conversation**: *"good morning"*, *"what did you think of my house?"* — he answers as a character.
 
@@ -124,13 +118,7 @@ character does not answer the controls (and the push-to-talk key does not record
 
 ## How it works (architecture)
 
-```
-voice (Microphone 16 kHz) ──► Whisper.net (STT, whisper.cpp in-process, CPU) ─┐
-                                                                              ├─► same order box ─► CompanionOrders ─► the companion acts
-game chat ────────────────────────────────────────────────────────────────────┘           │
-                                                                                          ├─► LLM (Groq by default, or local LM Studio/Ollama, or OpenRouter) ─► action + reply
-                                                                                          └─► Kokoro-82M (TTS, sherpa-onnx in-process, CPU) ─► he SPEAKS at his position
-```
+![How an order flows: voice (microphone, 16 kHz) or the game chat go to the same order box; the companion acts, the LLM understands the order and writes the reply, and the local voice (Kokoro-82M) speaks it at his position](docs/images/flow-ai.png)
 
 - **LLM**: **Groq** by default (an OpenAI-compatible API; only the **free key** is needed), a **local** server
   (LM Studio/Ollama) as an option or **OpenRouter** as an alternative — used to **understand** the order and to
@@ -154,7 +142,6 @@ game chat ───────────────────────�
   **LM Studio/Ollama** (optional — nothing leaves) — or **OpenRouter** (alternative, with a slower free tier). See
   the **[wiki](https://github.com/julianu37/AI-Companions/wiki/LLM)**.
 - **A microphone** (only for the voice orders).
-- **Windows x64** for the STT (the whisper.cpp native binaries are `win-x64`).
 
 ---
 
@@ -174,17 +161,6 @@ game chat ───────────────────────�
    and an empty `ApiKey`. (**OpenRouter** still works as an alternative: `https://openrouter.ai/api/v1` +
    `openrouter/free`.)
 5. Enter the world. In the chat: `collect 10 wood`. Or hold **`V`** and speak. He answers **out loud**.
-
-> **Updating from 1.8.2 or older? Settings go back to the defaults — that was 1.8.3, not this one.**
-> **1.8.3** is the version that swapped the configuration file: it is `BepInEx\config\AiCompanions.cfg` now and
-> the old one (`Maddhattr.OfflineCompanionsReborn.cfg`) **is no longer read** — you can delete it. The new file is
-> born with the **default values**, including an **empty `ApiKey`** that has to be pasted again; the AI section
-> became **`[AI]`** and the **keys are in English** (`Enabled`, `Model`, `TtsVoice`…). **Already on 1.8.3? Then
-> nothing is lost:** **1.9.0 does not touch the `.cfg`** — it only moves the old fixed defaults
-> (`VoiceLanguage = pt`, `TtsLanguage = pt-br`, `TtsVoice = 42` and the old Portuguese prompt) to `auto` **once**;
-> a value you chose yourself is never touched. **Save, world, companions, houses and inventory are not affected** in
-> any of those updates — the plugin GUID and the `HC_*` keys did not change. The full table is in
-> **[Configuration](https://github.com/julianu37/AI-Companions/wiki/Configuration)**.
 
 ---
 
@@ -214,7 +190,7 @@ game chat ───────────────────────�
 | `Model` | `openai/gpt-oss-20b` | Model in use — `openai/gpt-oss-20b` on Groq (default); `openrouter/free` on OpenRouter; the LM Studio name locally |
 | `ApiKey` | *(empty)* | **Required on Groq** (the free one comes from console.groq.com/keys) and on OpenRouter; empty on LM Studio/Ollama. Never commit a key |
 | `Prefix` | *(empty)* | Empty = every message goes to the LLM. E.g.: `/c` requires the prefix |
-| `Personality` / `PersonalityPreset` | *(empty)* | Free text (it wins) or preset (`viking`, `mago`, `sarcastico`, `guia`) |
+| `Personality` / `PersonalityPreset` | *(empty)* | Free text (it wins) or a preset — the `.cfg` value is an id (`viking`, `mago`, `sarcastico`, `guia`); the panel shows it in your language |
 | `Memory` | `4` | How many recent exchanges he remembers (`0` turns it off) |
 | `Conversation` | `true` | Answer free conversation when it is not an order |
 | `TargetRange` | `40` | How far to search for the creature named in an attack order |
