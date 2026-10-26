@@ -12,7 +12,7 @@ This project is an **independent project** based on [Offline Companions Reborn](
    the companion's speech (186 lines), the personality presets and the LLM contract follow the **game's language**,
    with **English as the native language**, and a new language is **one file**.
 2. **An AI layer**: orders in **natural language** (text in the chat or **voice** through push-to-talk), with
-   **personality**, **memory** and **conversation** — using an **LLM** (the **Groq** by default, or a **local**
+   **personality**, **memory** and **conversation** — using an **LLM** (a **local** LM Studio, the recommended one, or **Groq**
    model) and **local** speech recognition, which **picks the language and the voice by itself**.
 
 The companion itself (jobs, food, stamina, skills, home, rest, portals, cart, radial menu) comes from the upstream
@@ -97,7 +97,7 @@ Press **`I`** at any time (no companion needs to be nearby) to adjust the AI **i
 |---|---|
 | **Personality** | Pick a **preset** (Default, Loyal Viking, Sarcastic Mage, Sarcastic, Patient Guide) or write it **in your own words** and click **Apply** — it takes effect on the next reply |
 | **Voice** | Pick **automatic** (the default voice of the game's language) or one of the voices of that language and press **Listen** to hear a sample sentence right away |
-| **Pick your LLM provider** | The dropdown above the **server URL**: **Groq**, **LM Studio** or **OpenRouter** fill in the **URL and the model** (it applies after **Apply**; the key is not touched). An Ollama/own-server URL shows up as **Custom** and nothing is touched |
+| **Pick your LLM provider** | The dropdown above the **server URL**: **Groq**, **LM Studio** or **OpenRouter** fill in the **URL and the model** (it applies after **Apply**; the key is not touched). **LM Studio** (local, free, nothing leaves your PC) is the **recommended** one — the wiki has the step by step with pictures. An Ollama/own-server URL shows up as **Custom** and nothing is touched |
 | **Create your Free API Key HERE** | Button next to the **API key**: opens the key page of the chosen provider in the browser (`console.groq.com/keys` on Groq, `openrouter.ai/keys` on OpenRouter). It disappears on LM Studio/custom |
 | **Volume** | Slider (it applies to the next audio). The **speech speed** stays **only in `F8`** (`[AI] TtsSpeed`) |
 | **Push-to-talk** | See the current key and press **Change** to capture another one |
@@ -120,16 +120,16 @@ character does not answer the controls (and the push-to-talk key does not record
 
 ![How an order flows: voice (microphone, 16 kHz) or the game chat go to the same order box; the companion acts, the LLM understands the order and writes the reply, and the local voice (Kokoro-82M) speaks it at his position](docs/images/flow-ai.png)
 
-- **LLM**: **Groq** by default (an OpenAI-compatible API; only the **free key** is needed), a **local** server
-  (LM Studio/Ollama) as an option or **OpenRouter** as an alternative — used to **understand** the order and to
-  **talk**. In the `I` panel, the **"Pick your LLM provider"** dropdown fills in the URL and the model of the
-  chosen provider, and the **"Create your Free API Key HERE"** button opens the key page in the browser.
+- **LLM**: a **local** server (**LM Studio**, **recommended** — free, private and works offline), **Groq** (an
+  OpenAI-compatible API; only the **free key** is needed) or **OpenRouter** as an alternative — used to **understand**
+  the order and to **talk**. In the `I` panel, the **"Pick your LLM provider"** dropdown fills in the URL and the model
+  of the chosen provider, and the **"Create your Free API Key HERE"** button opens the key page in the browser.
 - **Local STT**: `Whisper.net` (whisper.cpp) running **inside the game**, with the model loaded once.
-- **Local TTS**: `sherpa-onnx` with the **Kokoro-82M** model — the companion **speaks** the reply inside the
+- **Local TTS**: `sherpa-onnx` with the **Kokoro-82M** model - the companion **speaks** the reply inside the
   game, at his position, with no external service.
 - **Privacy**: the **voice** (STT and TTS) is always **local**. The **LLM** is the only piece that can be remote:
-  with a **local LM Studio/Ollama** nothing leaves your machine; with **Groq** (default) — or **OpenRouter** — the
-  text of the orders and of the conversation goes to a **remote service**.
+  with a **local LM Studio/Ollama** nothing leaves your machine; with **Groq** - or **OpenRouter** - the text of the
+  orders and of the conversation goes to a **remote service**.
 - None of that blocks the game: everything runs on background threads.
 
 ---
@@ -137,17 +137,17 @@ character does not answer the controls (and the push-to-talk key does not record
 ## Requirements
 
 - **Valheim 1.0.x** (Unity 6 engine) with **BepInEx 5.4.2351**.
-- **An LLM** for the orders: **Groq** (default — only internet and the **free key** at
-  https://console.groq.com/keys are needed; the text of the orders **leaves your machine**) — or a local
-  **LM Studio/Ollama** (optional — nothing leaves) — or **OpenRouter** (alternative, with a slower free tier). See
-  the **[wiki](https://github.com/julianu37/AI-Companions/wiki/LLM)**.
+- **An LLM** for the orders: a **local LM Studio/Ollama** (**recommended** — free, private, works offline; the wiki has
+  the step by step) — or **Groq** (only internet and the **free key** at https://console.groq.com/keys are needed; the
+  text of the orders **leaves your machine**) — or **OpenRouter** (alternative, with a slower free tier). See the
+  **[wiki](https://github.com/julianu37/AI-Companions/wiki/LLM)**.
 - **A microphone** (only for the voice orders).
 
 ---
 
 ## Installation
 
-> The **detailed, illustrated** step by step (including the **Groq key** and the local option) is in the
+> The **detailed, illustrated** step by step (including the **LM Studio step by step** and the **Groq key**) is in the
 > **[project Wiki](https://github.com/julianu37/AI-Companions/wiki/Installation)**. Summary:
 
 1. Install **BepInExPack_Valheim** and copy the mod folder to `BepInEx\plugins\AI-Companions`.
@@ -155,12 +155,20 @@ character does not answer the controls (and the push-to-talk key does not record
    `ggml-small-q5_1.bin`.
 3. (Optional, for him to **speak**) leave the Kokoro model in `...\AI-Companions\tts\kokoro\`
    (`model.int8.onnx`, `voices.bin`, `tokens.txt`, `espeak-ng-data\`) — it already ships in the package.
-4. **For the LLM:** create the **free key** at https://console.groq.com/keys and paste it into `[AI] ApiKey` —
-   the `BaseUrl` (`https://api.groq.com/openai/v1`) and the `Model` (`openai/gpt-oss-20b`) **are already the
-   defaults**. Want to run it locally? LM Studio with `qwen2.5-3b-instruct`, `[AI] BaseUrl = http://127.0.0.1:1234/v1`
-   and an empty `ApiKey`. (**OpenRouter** still works as an alternative: `https://openrouter.ai/api/v1` +
-   `openrouter/free`.)
+4. **For the LLM:** pick the provider in the panel (`I` → **LLM settings**) — the dropdown fills in the **URL and the
+   model** by itself. **Recommended — LM Studio (local, free, private, works offline):** install LM Studio, download
+   `Qwen2.5-3B-Instruct` (~1.9 GB), load it and start the **Local Server**; then pick **LM Studio** in the dropdown
+   (`BaseUrl = http://127.0.0.1:1234/v1`, `Model = qwen2.5-3b-instruct`, **empty** `ApiKey`). **Or Groq:** create the
+   free key at https://console.groq.com/keys — the shipped defaults already point at Groq
+   (`BaseUrl = https://api.groq.com/openai/v1`, `Model = openai/gpt-oss-20b`). (**OpenRouter** still works as an
+   alternative: `https://openrouter.ai/api/v1` + `openrouter/free`.)
 5. Enter the world. In the chat: `collect 10 wood`. Or hold **`V`** and speak. He answers **out loud**.
+
+> **The recommended LLM is local.** In short: install **LM Studio** → **Model Search** → download
+> **Qwen2.5-3B-Instruct** (`lmstudio-community`, Q4_K_M, ~1.9 GB) → **Local Server** → **Load Model** (API identifier
+> `qwen2.5-3b-instruct`) → and pick **LM Studio** in the `I` panel. Free, private, no account and it works offline;
+> it needs ~2 GB of RAM. The illustrated step by step, print by print, is in the wiki:
+> **[LLM](https://github.com/julianu37/AI-Companions/wiki/LLM)**.
 
 ---
 
@@ -186,9 +194,9 @@ character does not answer the controls (and the push-to-talk key does not record
 | Key | Default | What it does |
 |---|---|---|
 | `Enabled` | `true` | Turns the text orders on |
-| `BaseUrl` | `https://api.groq.com/openai/v1` | LLM endpoint (Groq; or local LM Studio/Ollama, or OpenRouter) |
-| `Model` | `openai/gpt-oss-20b` | Model in use — `openai/gpt-oss-20b` on Groq (default); `openrouter/free` on OpenRouter; the LM Studio name locally |
-| `ApiKey` | *(empty)* | **Required on Groq** (the free one comes from console.groq.com/keys) and on OpenRouter; empty on LM Studio/Ollama. Never commit a key |
+| `BaseUrl` | `https://api.groq.com/openai/v1` | LLM endpoint. The mod ships pointing at Groq; for a local **LM Studio** use `http://127.0.0.1:1234/v1` (the provider dropdown fills it in) |
+| `Model` | `openai/gpt-oss-20b` | Groq: `openai/gpt-oss-20b` (the shipped default); LM Studio: `qwen2.5-3b-instruct` (the API identifier of the loaded model); OpenRouter: `openrouter/free` |
+| `ApiKey` | *(empty)* | **Required on Groq** (the free one comes from console.groq.com/keys) and on OpenRouter; **empty on LM Studio/Ollama**. Never commit a key |
 | `Prefix` | *(empty)* | Empty = every message goes to the LLM. E.g.: `/c` requires the prefix |
 | `Personality` / `PersonalityPreset` | *(empty)* | Free text (it wins) or a preset — the `.cfg` value is an id (`viking`, `mago`, `sarcastico`, `guia`); the panel shows it in your language |
 | `Memory` | `4` | How many recent exchanges he remembers (`0` turns it off) |
@@ -232,7 +240,7 @@ character does not answer the controls (and the push-to-talk key does not record
 ## Documentation
 
 - **[Wiki](https://github.com/julianu37/AI-Companions/wiki)** — the guide for whoever is going to install and use
-  it: requirements, step-by-step installation (with images), **LLM configuration (Groq, LM Studio or OpenRouter)**,
+  it: requirements, step-by-step installation (with images), **LLM configuration (LM Studio, Groq or OpenRouter)**,
   voice, commands, AI configuration and common problems. (The source of the pages is in [`docs/wiki/`](docs/wiki/).)
 - [`docs/roadmap.md`](docs/roadmap.md) — phases and status (Tracks A–D).
 - [`docs/vision.md`](docs/vision.md) — the goal of the project.

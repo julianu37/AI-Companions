@@ -33,10 +33,11 @@ goes into the same path as the typed orders. Examples:
   10, he says *"We already have enough."* and does not go out to gather.
 - **Seeing what he carries:** `open your inventory` / `show me what you carry` opens the **companion's inventory
   window** (the same one from the interact key); `close the inventory` closes it.
-- **The voice is local:** the speech recognition and the **companion's voice** run **on your machine** — none of
-  it is sent out. The **LLM** (which understands the order) uses **Groq** by default, a **remote service**:
-  the text of the orders and of the conversation **leaves your machine**. To send nothing, use a local
-  **LM Studio** (`[AI] BaseUrl = http://127.0.0.1:1234/v1`).
+- **The voice is local:** the speech recognition and the **companion's voice** run **on your machine** - none of
+  it is sent out. The **LLM** (which understands the order) is the only piece that can be remote: a **local
+  LM Studio** (**recommended**) keeps everything on your machine, while **Groq** is a **remote service** - the text
+  of the orders and of the conversation **leaves your machine**. To go local:
+  `[AI] BaseUrl = http://127.0.0.1:1234/v1`.
 
 ### 🔊 He speaks (local synthesized voice)
 
@@ -301,15 +302,16 @@ you only have to configure it again once (the table of every key is in the
 3. **For the voice orders:** leave a Whisper model (e.g. `ggml-small-q5_1.bin`) in
    `.../AI-Companions/whisper/`.
 4. **For him to speak:** the Kokoro model already ships in the package, in `.../AI-Companions/tts/kokoro/`.
-5. **For the AI:** create the **free key** at **[console.groq.com/keys](https://console.groq.com/keys)** and paste it into
-   `[AI] ApiKey`. The `BaseUrl` (`https://api.groq.com/openai/v1`) and the `Model` (`openai/gpt-oss-20b`) **already
-   come configured**. Want to run it locally? Install **[LM Studio](https://lmstudio.ai/)**, load
-   `qwen2.5-3b-instruct`, start the server and use `[AI] BaseUrl = http://127.0.0.1:1234/v1` with an **empty**
-   `ApiKey`. In game, **Test connection** (`I` panel) tells you whether the URL answers; the **key** is only
-   validated on a real order.
+5. **For the AI:** pick the provider in the `I` panel (**LLM settings**) - the dropdown fills in the URL and the model.
+   **Recommended - LM Studio (local, free, private):** install **[LM Studio](https://lmstudio.ai/)**, download
+   `Qwen2.5-3B-Instruct` (~1.9 GB), load it (API identifier `qwen2.5-3b-instruct`) and start the **Local Server**;
+   then use `[AI] BaseUrl = http://127.0.0.1:1234/v1` with an **empty** `ApiKey`. **Or Groq:** create the **free key**
+   at **[console.groq.com/keys](https://console.groq.com/keys)** and paste it into `[AI] ApiKey` - the `BaseUrl`
+   (`https://api.groq.com/openai/v1`) and the `Model` (`openai/gpt-oss-20b`) **already come configured**. In game,
+   **Test connection** (`I` panel) tells you whether the URL answers; the **key** is only validated on a real order.
 
 **Requirements:** Valheim **1.0.x** (tested on **1.0.20**) + BepInEx (the BepInExPack already brings Harmony). For the orders, an **LLM**:
-**Groq** (only the free key and internet), a local **LM Studio** (optional) or **OpenRouter** (alternative). The
+a local **LM Studio** (**recommended** - free, private, offline) or **Groq** (only the free key and internet) or **OpenRouter** (alternative). The
 voice orders require **Windows x64** and a **microphone**.
 
 **Multiplayer:** every player needs the mod, and so does the dedicated server.

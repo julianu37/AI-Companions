@@ -16,9 +16,10 @@ segue o idioma do jogo - interface, falas, personalidade e o entendimento das
 ordens. Este e uma versao independente do mod "Offline Companions Reborn" (MIT),
 de Maddhattr e ProfMags, com uma camada de IA por cima. O reconhecimento de voz e
 a fala sao locais (nada sai do seu PC por causa deles). Para ENTENDER as ordens,
-o mod usa um LLM: por padrao o Groq (servico remoto - o texto da ordem sai da sua
-maquina), ou, se voce preferir, um modelo local (LM Studio); o OpenRouter tambem
-funciona, mas o tier gratuito dele e mais lento. Veja "O CEREBRO (LLM)".
+o mod usa um LLM: o recomendado e um modelo local no LM Studio (gratis, privado e
+funciona sem internet - o texto das ordens nao sai da sua maquina); o Groq (servico
+remoto, so a chave gratuita e a internet) e a alternativa pratica, e o OpenRouter
+tambem funciona, mas o tier gratuito dele e mais lento. Veja "O CEREBRO (LLM)".
 
 NOVIDADES DA 1.9.1
 ------------------
@@ -48,7 +49,8 @@ NOVIDADES DA 1.9.0
 
 ATENCAO - ATUALIZANDO (o reset do .cfg foi na 1.8.3, nao nesta)
 --------------------------------------------------------------
-A 1.9.0 (e esta 1.9.1) NAO mexem no seu .cfg: quem ja esta na 1.8.3 nao perde nada. O que muda e
+A 1.9.0 (e esta 1.9.1) NAO mexem no seu .cfg: quem ja esta na 1.8.3 nao perde
+nada. O que muda e
 so o PADRAO das chaves de voz/idioma - quem ainda tem os valores fixos antigos
 ([AI] VoiceLanguage = pt, TtsLanguage = pt-br, TtsVoice = 42 e o prompt inicial
 em portugues) ve esses valores virarem "auto" UMA vez. Qualquer valor que voce
@@ -83,10 +85,10 @@ REQUISITOS
 - Valheim 1.0.x (o alvo deste release e o 1.0.17)
 - BepInExPack_Valheim 5.4.2351 (BepInEx 5.4.23.5)
 - Windows x64 (as vozes usam binarios nativos de Windows) e um microfone
-- Para o companheiro ENTENDER ordens: um LLM. O padrao e o Groq (so precisa de
-  internet e de uma chave gratuita); a alternativa local (LM Studio) e opcional,
-  e o OpenRouter continua funcionando como alternativa - veja "O CEREBRO (LLM)"
-  abaixo
+- Para o companheiro ENTENDER ordens: um LLM. O recomendado e o LM Studio
+  (local, gratis e privado - nada sai da sua maquina); o Groq (so precisa de
+  internet e de uma chave gratuita) e a alternativa pratica, e o OpenRouter
+  continua funcionando - veja "O CEREBRO (LLM)" abaixo
 
 NAO PRECISA DE JOTUNN
 --------------------
@@ -142,11 +144,25 @@ Dica: no painel da IA (tecla I), o dropdown "Selecione seu Provedor LLM" preench
 a URL e o modelo do provedor escolhido, e o botao "Crie sua Chave de API Gratis
 AQUI" abre a pagina da chave no navegador (some no LM Studio).
 
-A) GROQ (padrao - o mais facil e o mais rapido, nao instala nada)
+A) LM STUDIO (recomendado - local, gratis e nada sai da sua maquina)
+1. Instale o LM Studio (https://lmstudio.ai) e, em "Model Search", baixe o
+   Qwen2.5-3B-Instruct (~1,9 GB) - modelos pequenos funcionam porque o mod usa
+   saida estruturada em JSON.
+2. Carregue o modelo em "Load Model" (o identificador da API fica
+   qwen2.5-3b-instruct) e ligue o servidor na aba "Local Server" (Status:
+   Running, porta 1234).
+3. No .cfg, secao [AI]:
+      BaseUrl = http://127.0.0.1:1234/v1
+      Model   = qwen2.5-3b-instruct
+      ApiKey  = (vazio)
+   Ou, no jogo: painel da IA (tecla I) -> Configuracoes do LLM -> dropdown ->
+   LM Studio, que preenche a URL e o modelo sozinho.
+
+B) GROQ (nuvem - so a chave gratuita e a internet; o texto SAI da sua maquina)
 1. Crie a conta e a chave gratuita em https://console.groq.com/keys.
 2. No arquivo BepInEx\config\AiCompanions.cfg, secao [AI]:
-      BaseUrl = https://api.groq.com/openai/v1  (ja e o padrao)
-      Model   = openai/gpt-oss-20b              (ja e o padrao)
+      BaseUrl = https://api.groq.com/openai/v1  (o padrao que vem no mod)
+      Model   = openai/gpt-oss-20b              (o padrao que vem no mod)
       ApiKey  = <a sua chave>                  (obrigatoria)
    O tier gratuito tem limite de requisicoes e de tokens por minuto
    (30 req/min, 1.000/dia, 8.000 tokens/min, 200.000/dia - veja
@@ -156,24 +172,14 @@ A) GROQ (padrao - o mais facil e o mais rapido, nao instala nada)
 3. No jogo: painel da IA (tecla I) -> Configuracoes do LLM -> "Testar conexao"
    (ele confirma a URL; a chave e validada na primeira ordem de verdade).
 
-B) LM STUDIO (local e opcional - nada sai da sua maquina)
-1. Baixe e carregue um modelo pequeno - o testado e o qwen2.5-3b-instruct
-   (modelos pequenos funcionam porque o mod usa saida estruturada em JSON).
-2. Ligue o servidor local (Local Server -> Start Server), na porta 1234.
-3. No .cfg, secao [AI]:
-      BaseUrl = http://127.0.0.1:1234/v1
-      Model   = qwen2.5-3b-instruct
-      ApiKey  = (vazio)
-   Dica: use 127.0.0.1 em vez de localhost. No Windows o localhost resolve
-   primeiro para IPv6, o que atrasa (ou falha) a conexao com o servidor local.
-
 C) OPENROUTER (alternativa - funciona, mas o tier gratuito e mais lento)
    BaseUrl = https://openrouter.ai/api/v1
    Model   = openrouter/free
    ApiKey  = <a sua chave de https://openrouter.ai/keys>  (obrigatoria)
    O "openrouter/free" escolhe um modelo gratuito a cada pedido e passa pela fila
    do provedor - a latencia varia de uma ordem para outra. Se voce ja usa o
-   OpenRouter, continua valendo; para uso novo, prefira o Groq (A).
+   OpenRouter, continua valendo; para uso novo, prefira o LM Studio (A) ou o
+   Groq (B).
 
 O BaseUrl aceita qualquer servidor compativel (Ollama em
 http://127.0.0.1:11434/v1, llama.cpp, vLLM). Sem o LLM ligado (ou com ele fora do
