@@ -859,10 +859,11 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
 
 ## Nossas docs
 
-- **Idioma (a partir de 25/10/2026): a fonte é o inglês.** Repo público, docs internos e wiki são escritos em
-  **EN**; **português, espanhol, francês e italiano são tradução** (a wiki publica `-pt`/`-es`/`-fr`/`-it`). A
-  exceção é o `package/LEIA-ME.txt`, que continua em **PT** (leitura rápida do jogador BR dentro do zip). Plano e
-  fases: `docs/plan-i18n-docs.md`.
+- **Idioma (a partir de 26/10/2026): público em inglês, interno em PT-BR.** O **público** — `README.md`,
+  `package/*`, a wiki (**padrão EN** + espelhos `-pt`/`-es`/`-fr`/`-it`) e as **release notes** — é em **EN**; os
+  **internos** — este arquivo, `roadmap`, `plan-*`, `vision`, `audit`, `references`, `docs/re/*` — são em **PT-BR**
+  (é a ferramenta de trabalho da equipe). O `package/LEIA-ME.txt` fica em **PT**; **comentários de código** em inglês
+  e **logs** em PT. Plano/fases: `docs/plan-i18n-docs.md`.
 
 - `docs/wiki/` — **a fonte da GitHub Wiki** (o guia de instalação/uso para quem baixa o mod): `Home.md`,
   `Requisitos.md`, `Instalacao.md`, `LLM-no-LM-Studio.md`, `Voz.md`, `Comandos.md`, `Configuracao.md`,
@@ -907,9 +908,12 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
    `tipo(escopo): resumo`.
 8. Atualize a documentação correspondente (`README.md`, `package/CHANGELOG.md`, `docs/roadmap.md`,
    `AGENTS.md`) quando algo mudar.
-9. **Documentação em inglês (fonte).** Texto novo de doc nasce em **EN** — README, `package/*`, `docs/*` e a wiki.
-   PT/ES/FR/IT são **traduções** (wiki `-pt`/`-es`/`-fr`/`-it`); o `package/LEIA-ME.txt` continua em PT. O **mod**
-   (UI/falas) não muda por causa disso: continua seguindo o idioma do jogo. Fases: `docs/plan-i18n-docs.md`.
+9. **Idioma da documentação:** o **público é em inglês** (`README.md`, `package/*`, a wiki com o **padrão EN** e os
+   espelhos `-pt`/`-es`/`-fr`/`-it`) e o **interno é em PT-BR** (`AGENTS.md`, `docs/roadmap.md`, `docs/plan-*.md`,
+   `docs/vision.md`, `docs/audit-*.md`, `docs/references.md`, `docs/re/*`) — é a nossa ferramenta de trabalho. As
+   **release notes** (`docs/release-notes-*.md`) são **EN** (viram o corpo da release no GitHub) e o
+   `package/LEIA-ME.txt` fica em **PT**. **Comentários de código continuam em inglês** (convenção do repositório) e
+   as **mensagens de log em PT-BR**. O mod (UI/falas) segue o idioma do jogo. Plano: `docs/plan-i18n-docs.md`.
 
 ## MCP servers disponíveis
 

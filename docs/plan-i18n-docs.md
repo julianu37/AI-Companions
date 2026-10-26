@@ -1,13 +1,15 @@
 # Documentation i18n plan (English source, wiki in 5 languages)
 
-Status: **D0, D1 and D3 done** (25/10/2026): public docs in English, the wiki published with English as the default
-and Portuguese mirrors. Remaining: **D2** (internal docs) and **D4** (wiki in ES/FR/IT). Decisions taken by the
-player on 25/10/2026.
+Status: **D0, D1 and D3 done** (25/10/2026). **D2 was cancelled on 26/10/2026**: by the player's call the internal
+docs stay in Brazilian Portuguese (they are the team's working notes). Remaining: **D4** (wiki in ES/FR/IT).
+Decisions taken by the player on 25/10/2026, revised on 26/10/2026.
 
 ## Decisions
 
-1. **All documentation is written in English from now on**, including the internal docs (`AGENTS.md`,
-   `docs/roadmap.md`, `docs/re/*`, the plans). Portuguese becomes a translation, not the source.
+1. **Public docs are written in English; the internal docs stay in Brazilian Portuguese** (revised on 26/10/2026):
+   `README.md`, `package/*`, the wiki and the release notes are EN; `AGENTS.md`, `docs/roadmap.md`, `docs/plan-*.md`,
+   `docs/vision.md`, `docs/audit-*.md`, `docs/references.md` and `docs/re/*` stay PT-BR (they are the team's working
+   notes). Code comments stay EN and the log messages PT.
 2. **The wiki is published in five languages**: **English is the default** (page names without a suffix) and
    Portuguese, Spanish, French and Italian are mirrors (`Home-pt`, `Home-es`, `Home-fr`, `Home-it`).
 3. English screenshots are ready in `C:\Users\revenda33\Desktop\capturas_en` (10 PNG files).
@@ -77,7 +79,7 @@ Credits-and-license
 |---|---|---|---|
 | **D0** | This plan + the new rule in `AGENTS.md` | 2 | committed |
 | **D1** | Public docs to English | `README.md`, `NOTICE.md`, `THIRD_PARTY_NOTICES.md`, `package/README.md`, `package/GUIDE.md`, `package/CHANGELOG.md` (our sections) | no PT left; `LEIA-ME.txt` stays PT as the Brazilian quick read inside the zip |
-| **D2** | Internal docs to English | `AGENTS.md`, `docs/roadmap.md`, `docs/plan-fases.md`, `docs/plan-multilinguagem.md`, `docs/vision.md`, `docs/audit-*.md`, `docs/references.md`, `docs/re/*.md`, `docs/release-notes-*.md` | no PT left in those files; technical terms/code identifiers unchanged |
+| ~~**D2**~~ | ~~Internal docs to English~~ — **cancelled on 26/10/2026**: the internal docs stay in PT-BR (they are the team's working notes; translating them only adds friction) | — | — |
 | **D3** | Wiki: English source | the 12 pages renamed to the English titles above, content translated, new screenshots, switcher + sidebar | every page in English, links and anchors checked |
 | **D4** | Wiki: PT/ES/FR/IT | 4 mirrors per page (48 files) | switcher works both ways; anchors valid in each language |
 | **D5** | Verification | a script that scans for PT leftovers in the English files, checks every wiki link/anchor and that every page has the 5 mirrors | report with 0 problems |
@@ -86,7 +88,8 @@ Estimated effort: D1 ~½ day, D2 ~2–3 days (10k lines), D3 ~1 day, D4 ~2 days.
 
 ## Rules for the migration
 
-- **English is the source**: a new doc is written in English first; the translations follow.
+- **Public in English, internal in PT**: a new **public** doc (README, package, wiki page, release notes) is written
+  in EN first; the internal ones (AGENTS, roadmap, plans, `docs/re/*`) are written in PT-BR, as they always were.
 - Code identifiers, config keys, item/creature names and log tags are never translated.
 - One commit per group of files (`docs(en): README and package`), so a bad batch is easy to revert.
 - The **PT-BR translations of the player-facing texts are kept** where the player needs them: the wiki
