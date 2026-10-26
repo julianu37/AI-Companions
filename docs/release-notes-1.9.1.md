@@ -26,8 +26,8 @@
 | `AI_Companions-1.9.1.zip` | ~314 MB | The mod **and** the voice models (STT + TTS) — **recommended** |
 | `AI_Companions-1.9.1-sem-modelos.zip` | ~28.5 MB | Only the mod and the translations (no Whisper model, no Kokoro model — it does bring `tokens.txt` and `espeak-ng-data`) |
 
-SHA-256: `AI_Companions-1.9.1.zip` = `368f3d081c221a32f7d4a173a1d8e1ef6fe1a60d9906a9ec737bea6682fc5396` ·
-`…-sem-modelos.zip` = `c5bec6ee55af2b0a6dfcd0ab6e585ff3d1509d539afc1efa5cef3f8893613b1f`
+SHA-256: `AI_Companions-1.9.1.zip` = `f1f0b081b60815de9438a0f8d26647e04c468e262ed1d377a77fb656f6f93e53` ·
+`…-sem-modelos.zip` = `a355ebbe532c1672ac3f6506c0594b5d78d671888f85e95b87975142cf8cba8c`
 
 ## How to update
 
