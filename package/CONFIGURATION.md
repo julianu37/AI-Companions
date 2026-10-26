@@ -909,8 +909,8 @@ Phase 3.3: hold VoiceKey and speak, and the companion accepts what you said - th
 **VoiceKey** — Default: `V`  
 Phase 3.3: push-to-talk key. Hold it while you speak, release it for the speech to be recognised and carried out. It only works with the game focused and no window open (inventory, map, menu, chat, console, the mod's own panels). NOTE (Phase 3.3b): V is also the game's "Toggle Auto-Pickup". While VoiceEnabled is on, the mod blocks that toggle when the game's auto-pickup is bound to this same key, so the key stays free for talking - rebind auto-pickup in the game's own controls screen (or pick another key here) if you want it back.
 
-**VoiceLanguage** — Default: `pt`  
-Phase 3.3: language of the speech, as a Whisper code (pt, en, es...). Empty or "auto" lets the model detect it. Text option: edit it in the .cfg file.
+**VoiceLanguage** — Default: `auto`  
+Multilanguage: language of the speech, as a Whisper code (pt, en, es, fr) - or "auto" (the default) to follow the game language, which is what makes the companion understand orders in whatever language you are playing. An explicit code always wins. Text option: edit it in the .cfg file.
 
 **VoiceMaxSeconds** — Default: 10 · Range: 1 – 30  
 Phase 3.3: longest recording (in seconds) for a voice order. Holding the key longer than this stops the recording and transcribes what was captured.
@@ -918,14 +918,8 @@ Phase 3.3: longest recording (in seconds) for a voice order. Holding the key lon
 **VoiceSilenceThreshold** — Default: 0.01 · Range: 0 – 0.5  
 Phase 3.3: how loud the audio must be (peak level of a 10 ms window, from 0 to 1) to count as speech when the silence at the start and the end of the recording is trimmed. Phase 3.3b: 0.01 (was 0.02) - at 0.02 the quiet start of a word was often cut, and that is what made short orders come back wrong. Raise it if your microphone picks up a lot of room noise.
 
-**VoiceInitialPrompt** — Default: see below  
-Phase 3.3b: initial prompt sent to Whisper before every transcription. It biases the vocabulary, and that is what makes short orders ("collect 10 wood") come out right instead of guessed. Put in the words you really say (the orders, the creature and item names); empty = no bias. Text option: edit it in the .cfg file.
-
-Default value:
-
-```
-Ordens para o companheiro: colete madeira, pedra, minerio, ferro, segue, para, vem ca, ataca o greydwarf, equipa o machado de bronze, larga a pedra, descansa, bom dia.
-```
+**VoiceInitialPrompt** — Default: ``  
+Phase 3.3b: initial prompt sent to Whisper before every transcription. It biases the vocabulary, and that is what makes short orders ("collect 10 wood") come out right instead of guessed. Empty (the default) = the orders vocabulary of the game language, written by the mod; anything you type here wins. Write "none" for no bias at all. Text option: edit it in the .cfg file.
 
 **VoiceDevice** — Default: 0 · Range: 0 – 8  
 Phase 3.3: which microphone to record from, as the index of the list the log prints at startup ([STT] Push-to-talk: ... 0: name, 1: name). 0 = the first one (the Windows default).
@@ -939,8 +933,8 @@ Phase 3.7: opens the AI panel in game. The AI tab has the free companion summone
 **TtsEnabled** — Default: On  
 Phase 3.4: the companion SPEAKS the replies out loud. The speech is synthesised on your computer by Kokoro-82M (via sherpa-onnx, inside the game, no child process and nothing leaving your machine), in the TtsVoice voice, and comes out where the companion is (not in the middle of the screen). Off = it only shows the bubble and the chat, as before. The first speech of every session waits for the model to load (~1 s, in the background, when you enter the world).
 
-**TtsVoice** — Default: 42 · Range: 0 – 100  
-Phase 3.4: which Kokoro voice to use. The Brazilian Portuguese voices of this model are: 42 = pf_dora (feminine, the default), 43 = pm_alex (masculine) and 44 = pm_santa (masculine). The other numbers belong to other languages (45, for example, sounds Chinese). 0 (or any negative value) = the default voice (42).
+**TtsVoice** — Default: 0 · Range: 0 – 100  
+Multilanguage: which Kokoro voice to use. 0 (the default) = automatic: the default voice of the game's language (42 = pf_dora in Portuguese, 3 = af_heart in English, 28 = ef_dora in Spanish, 30 = ff_siwis in French). An explicit id always wins while it belongs to the game's language: the Brazilian Portuguese voices are 42 = pf_dora (feminine), 43 = pm_alex (masculine) and 44 = pm_santa (masculine). A voice of another language is not used (it would speak with the wrong accent) - each companion's own voice follows the same rule.
 
 **TtsSpeed** — Default: 1 · Range: 0.5 – 2  
 Phase 3.4: how fast the companion speaks (1 = normal; above 1 speaks faster). It also makes the speech shorter.
@@ -954,8 +948,8 @@ Phase 3.4: volume of the companion's voice (0 = muted, 1 = the game's normal vol
 **TtsModel** — Default: `tts\kokoro\model.int8.onnx`  
 Phase 3.4: the Kokoro model the companion speaks with (relative to the plugin folder, or an absolute path). The voices (voices.bin), the tokens (tokens.txt) and espeak-ng-data are looked for in the SAME folder as the model. Text option: edit it in the .cfg file.
 
-**TtsLanguage** — Default: `pt-br`  
-Phase 3.4: language of the spoken text, in the format Kokoro expects. This model is multi-lingual and REQUIRES a language: "pt-br" is Brazilian Portuguese ("pt" alone is European Portuguese). Empty goes back to "pt-br". Text option: edit it in the .cfg file.
+**TtsLanguage** — Default: `auto`  
+Multilanguage: language of the spoken text, in the format Kokoro expects - or "auto" (the default) to follow the game language (pt-br, en-us, es, fr). This model is multi-lingual and REQUIRES a language: "pt-br" is Brazilian Portuguese ("pt" alone is European Portuguese), "en-us" and "en-gb" are the two English ones (the voice has to match it). An explicit code always wins. Text option: edit it in the .cfg file.
 
 **TtsCache** — Default: On  
 Phase 3.4: keeps the speeches already synthesised (text + voice + speed) to play them again instantly. The mod's fixed lines ("Ok: gathering wood (10).") come out instantly; the cache holds up to 32 MB of audio (the oldest sentences are dropped first). Off = every speech is synthesised again.

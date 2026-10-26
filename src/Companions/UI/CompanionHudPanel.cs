@@ -21,10 +21,16 @@ public class CompanionHudPanel : MonoBehaviour
 
 		private TextMeshProUGUI _staText;
 
-		// the localized bar templates are resolved once per row (the language can only change with a scene reload)
+		// the localized bar templates are resolved once per row - Multilanguage M2 fix: not *forever* any more. The
+		// game language can change with the game running (the language menu), so the row compares
+		// ModLocalization.LanguageVersion on every Update (one int) and drops the two cached formats when it moved;
+		// the next 5 Hz refresh reads them again in the new language (see Refresh in Update).
 		private string _hpFormat;
 
 		private string _staFormat;
+
+		/// <summary>Multilanguage M2 fix: the language version the cached formats belong to.</summary>
+		private int _languageVersion;
 
 		private Image _restedIcon;
 
@@ -60,6 +66,15 @@ public class CompanionHudPanel : MonoBehaviour
 
 		internal void Refresh(CompanionSetup comp)
 		{
+			// Multilanguage M2 fix: a real language change invalidates the two formats cached below. They used to be
+			// cached for the whole session, so the bars kept the old language until a restart (audit finding #1). One
+			// int comparison per row per frame; the formats are read again by the next 5 Hz refresh.
+			if (_languageVersion != ModLocalization.LanguageVersion)
+			{
+				_languageVersion = ModLocalization.LanguageVersion;
+				_hpFormat = null;
+				_staFormat = null;
+			}
 			if (!ReferenceEquals(_owner, comp))
 			{
 				// a row is re-bound when the list around it changes: look the components up again for the new owner

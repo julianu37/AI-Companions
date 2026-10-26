@@ -3,20 +3,20 @@ using System;
 namespace Companions;
 
 /// <summary>
-/// Fase 3.1 (3ª correção do teste em jogo): <c>drop</c>, <c>pickup</c> e <c>nopickup</c> são ações vizinhas no
-/// contrato, e um modelo pequeno confunde as três - "jogue fora sua madeira" voltou como <c>nopickup</c> (o
-/// companheiro DESLIGAVA a coleta automática em vez de largar a madeira) e "junte a madeira do chão" ficou 50/50
+/// Fase 3.1 (3Âª correÃ§Ã£o do teste em jogo): <c>drop</c>, <c>pickup</c> e <c>nopickup</c> sÃ£o aÃ§Ãµes vizinhas no
+/// contrato, e um modelo pequeno confunde as trÃªs - "jogue fora sua madeira" voltou como <c>nopickup</c> (o
+/// companheiro DESLIGAVA a coleta automÃ¡tica em vez de largar a madeira) e "junte a madeira do chÃ£o" ficou 50/50
 /// entre <c>pickup</c> e <c>nopickup</c>.
 ///
-/// A ideia é a mesma do "o recurso manda" (ver OrderItems.GatherAction): quando o modelo devolve <c>nopickup</c>
-/// MAS as palavras do jogador pedem claramente para LARGAR ou para RECOLHER, as palavras do jogador mandam. Só o
-/// <c>nopickup</c> é olhado - nenhuma outra ação é mexida - e a intenção legítima do <c>nopickup</c> é preservada:
-/// um verbo de parar ("para", "pare") ou um "não pegue/não recolha" desliga a correção.
+/// A ideia Ã© a mesma do "o recurso manda" (ver OrderItems.GatherAction): quando o modelo devolve <c>nopickup</c>
+/// MAS as palavras do jogador pedem claramente para LARGAR ou para RECOLHER, as palavras do jogador mandam. SÃ³ o
+/// <c>nopickup</c> Ã© olhado - nenhuma outra aÃ§Ã£o Ã© mexida - e a intenÃ§Ã£o legÃ­tima do <c>nopickup</c> Ã© preservada:
+/// um verbo de parar ("para", "pare") ou um "nÃ£o pegue/nÃ£o recolha" desliga a correÃ§Ã£o.
 ///
-/// O item do <c>drop</c> NÃO sai daqui: quem o resolve continua sendo o caminho da Fase 3.6b (as palavras do
-/// jogador lidas pelo OrderTargets.Phrases e validadas contra a mochila), então nada de extração de nome nova.
+/// O item do <c>drop</c> NÃƒO sai daqui: quem o resolve continua sendo o caminho da Fase 3.6b (as palavras do
+/// jogador lidas pelo OrderTargets.Phrases e validadas contra a mochila), entÃ£o nada de extraÃ§Ã£o de nome nova.
 ///
-/// Pura de propósito (sem Unity, sem config, sem mundo): é chamada uma vez por mensagem pelo CompanionOrders.Run
+/// Pura de propÃ³sito (sem Unity, sem config, sem mundo): Ã© chamada uma vez por mensagem pelo CompanionOrders.Run
 /// e a tabela de gatilhos pode ser conferida fora do jogo.
 /// </summary>
 internal static class PickupIntent
@@ -24,17 +24,17 @@ internal static class PickupIntent
 	/// <summary>A ordem de LARGAR/JOGAR FORA, quando as palavras do jogador desmentem o <c>nopickup</c> do modelo.</summary>
 	internal const string DropAction = "drop";
 
-	/// <summary>A ordem de RECOLHER itens do chão, no mesmo caso.</summary>
+	/// <summary>A ordem de RECOLHER itens do chÃ£o, no mesmo caso.</summary>
 	internal const string PickupAction = "pickup";
 
-	/// <summary>A ação do contrato que esta correção olha - e só ela.</summary>
+	/// <summary>A aÃ§Ã£o do contrato que esta correÃ§Ã£o olha - e sÃ³ ela.</summary>
 	private const string NoPickupAction = "nopickup";
 
 	/// <summary>
-	/// A ação a usar no lugar do <c>nopickup</c> que o modelo devolveu, ou null quando não há nada a corrigir (o
+	/// A aÃ§Ã£o a usar no lugar do <c>nopickup</c> que o modelo devolveu, ou null quando nÃ£o hÃ¡ nada a corrigir (o
 	/// comportamento de sempre).
 	/// </summary>
-	/// <param name="action">A ação canônica do modelo, já depois da correção "o recurso manda".</param>
+	/// <param name="action">A aÃ§Ã£o canÃ´nica do modelo, jÃ¡ depois da correÃ§Ã£o "o recurso manda".</param>
 	/// <param name="message">O que o JOGADOR disse (chat ou voz), do jeito que chegou.</param>
 	internal static string NeighborAction(string action, string message)
 	{
@@ -52,7 +52,7 @@ internal static class PickupIntent
 			// the words are matched between separators, so "larga" never answers "largada" and a phrase like
 			// "no chao" has to appear whole
 			string padded = "_" + text + "_";
-			// guarda-corpo: "nopickup" é a ordem LEGÍTIMA quando o jogador pede para PARAR de recolher
+			// guarda-corpo: "nopickup" Ã© a ordem LEGÃTIMA quando o jogador pede para PARAR de recolher
 			if (IsStop(padded) || HasPhrase(padded, RefusePhrases))
 			{
 				return null;
@@ -77,24 +77,24 @@ internal static class PickupIntent
 	/// <summary>Does the player's message ask to LARGAR/JOGAR FORA what the companion carries?</summary>
 	private static bool IsDrop(string padded)
 	{
-		// "larga", "largar", "descarta", "descartar"...: o verbo sozinho já diz o que o jogador quer
+		// "larga", "largar", "descarta", "descartar"...: o verbo sozinho jÃ¡ diz o que o jogador quer
 		if (HasAffirmativePhrase(padded, DropVerbs))
 		{
 			return true;
 		}
-		// "joga fora", "jogue a madeira fora", "jugue a madeira fora" (erro de digitação): o verbo de jogar mais o
+		// "joga fora", "jogue a madeira fora", "jugue a madeira fora" (erro de digitaÃ§Ã£o): o verbo de jogar mais o
 		// lugar, em qualquer ordem da frase
 		if (HasAffirmativePhrase(padded, ThrowVerbs) && (HasPhrase(padded, AwayWords) || HasPhrase(padded, DropPlaces)))
 		{
 			return true;
 		}
-		// "deixa no chão"
+		// "deixa no chÃ£o"
 		return HasAffirmativePhrase(padded, LeaveVerbs) && HasPhrase(padded, DropPlaces);
 	}
 
 	/// <summary>
 	/// Fase 3.23 (auditoria): same as <see cref="HasPhrase"/>, but a verb that comes right after a negation does not
-	/// count. "não jogue fora a madeira" normalized is "nao_jogue_fora_a_madeira", and the plain search matched
+	/// count. "nÃ£o jogue fora a madeira" normalized is "nao_jogue_fora_a_madeira", and the plain search matched
 	/// "jogue" + "fora" - the order became a DROP of the very item the player asked to keep.
 	/// </summary>
 	private static bool HasAffirmativePhrase(string padded, string[] phrases)
@@ -117,10 +117,10 @@ internal static class PickupIntent
 
 	/// <summary>
 	/// Is the phrase at <paramref name="at"/> negated? Fase 3.24 (auditoria): the word right before it used to be the
-	/// only place looked at, so "não quero que você jogue fora a madeira" (the "não" is four words away) came back as
+	/// only place looked at, so "nÃ£o quero que vocÃª jogue fora a madeira" (the "nÃ£o" is four words away) came back as
 	/// a DROP of the item the player asked to keep. The walk back now goes through the words that only carry the
-	/// negation along ("que", "quero", "você", "por favor"...) and stops at the first word that carries a meaning of
-	/// its own: "não sei, joga fora" is still a DROP, exactly as before.
+	/// negation along ("que", "quero", "vocÃª", "por favor"...) and stops at the first word that carries a meaning of
+	/// its own: "nÃ£o sei, joga fora" is still a DROP, exactly as before.
 	/// </summary>
 	private static bool NegatedAt(string padded, int at)
 	{
@@ -165,15 +165,15 @@ internal static class PickupIntent
 		"pense", "pensa", "pensar", "em", "sequer", "mesmo"
 	};
 
-	/// <summary>Does the player's message ask to RECOLHER itens do chão?</summary>
+	/// <summary>Does the player's message ask to RECOLHER itens do chÃ£o?</summary>
 	private static bool IsPickup(string padded)
 	{
-		// "junta", "junte", "juntar", "apanha", "apanhar": o verbo sozinho já é recolher
+		// "junta", "junte", "juntar", "apanha", "apanhar": o verbo sozinho jÃ¡ Ã© recolher
 		if (HasPhrase(padded, GatherVerbs))
 		{
 			return true;
 		}
-		// "recolhe do chão", "pega do chão", "junta do chão": o verbo de pegar mais o lugar
+		// "recolhe do chÃ£o", "pega do chÃ£o", "junta do chÃ£o": o verbo de pegar mais o lugar
 		return HasPhrase(padded, CollectVerbs) && HasPhrase(padded, PickupPlaces);
 	}
 
@@ -191,23 +191,27 @@ internal static class PickupIntent
 	}
 
 	/// <summary>The verbs that ask to STOP and can never mean anything else ("pare", "parar"...). The bare "para" is
-	/// NOT here: it is also the preposition of "joga essas pedras para o chão" (Fase 3.19), and read as a stop verb it
+	/// NOT here: it is also the preposition of "joga essas pedras para o chÃ£o" (Fase 3.19), and read as a stop verb it
 	/// turned a legit drop order into "stop picking up".</summary>
 	private static readonly string[] StopVerbs = new string[]
 	{
-		"pare", "parar", "parem"
+		"pare", "parar", "parem",
+		// Multilanguage M5: italian (and the english "stop")
+		"fermati", "fermatevi", "ferma", "fermare", "smetti", "smettere", "basta", "stop"
 	};
 
 	/// <summary>Fase 3.19: "para de recolher" - the same word with "de" after it is the verb + preposition, anywhere in the
 	/// message.</summary>
 	private static readonly string[] StopPhrases = new string[]
 	{
-		"para_de", "pare_de", "parar_de", "para_com"
+		"para_de", "pare_de", "parar_de", "para_com",
+		// Multilanguage M5: "smetti di raccogliere", "stop picking up"
+		"smetti_di", "smette_di", "smettere_di", "smettila_di", "stop_picking", "stop_collecting"
 	};
 
 	/// <summary>Fase 3.19: the verbs that are also prepositions ("para", "paro", "parei"): they only mean "stop" at the
 	/// beginning or at the end of the message ("para", "agora para") - never in the middle ("joga as pedras para o
-	/// chão").</summary>
+	/// chÃ£o").</summary>
 	private static readonly string[] AmbiguousStopVerbs = new string[]
 	{
 		"para", "paro", "parei"
@@ -236,20 +240,24 @@ internal static class PickupIntent
 		return false;
 	}
 
-	/// <summary>"não pegue nada", "não recolha": the same intent, written out.</summary>
+	/// <summary>"nÃ£o pegue nada", "nÃ£o recolha": the same intent, written out.</summary>
 	private static readonly string[] RefusePhrases = new string[]
 	{
 		"nao_pegue", "nao_pega", "nao_peguem", "nao_pegar", "nao_recolha", "nao_recolhe", "nao_recolham",
-		"nao_recolher", "nao_cate", "nao_catar"
+		"nao_recolher", "nao_cate", "nao_catar",
+		// Multilanguage M5: italian
+		"non_raccogliere", "non_raccogliere_niente", "non_raccattare", "non_prendere", "non_raccolga"
 	};
 
 	/// <summary>
 	/// Fase 3.23 (auditoria): the words that turn the verb right after them into a NO. "nao jogue fora", "nunca
-	/// largue": the item stays where it is. Normalize already dropped the accents ("não" -> "nao").
+	/// largue": the item stays where it is. Normalize already dropped the accents ("nÃ£o" -> "nao").
 	/// </summary>
 	private static readonly string[] Negations = new string[]
 	{
-		"nao", "nunca", "jamais", "nem"
+		"nao", "nunca", "jamais", "nem",
+		// Multilanguage M5: french and italian
+		"ne", "pas", "non", "mai"
 	};
 
 	/// <summary>The verbs that, on their own, mean "get rid of it".</summary>
@@ -257,16 +265,19 @@ internal static class PickupIntent
 	{
 		"larga", "largar", "largue", "larguem", "largou", "largando", "descarta", "descartar", "descarte",
 		"descartem", "descartou", "dispensa", "dispensar", "dispense", "solta", "soltar", "solte",
-		"drop", "dropa", "dropar", "drope"
+		"drop", "dropa", "dropar", "drope",
+		// Multilanguage M5: italian
+		"lascia", "lasciare", "butta", "buttare", "buttala", "getta", "gettare", "abbandona",
+		"abbandonare", "posa", "posare"
 	};
 
-	/// <summary>The verbs of throwing, which need the place ("joga fora", "jogue no chão") to mean "get rid of it".</summary>
+	/// <summary>The verbs of throwing, which need the place ("joga fora", "jogue no chÃ£o") to mean "get rid of it".</summary>
 	private static readonly string[] ThrowVerbs = new string[]
 	{
 		"joga", "jogar", "jogue", "joguem", "jogam", "jogando", "jogou", "juga", "jugue"
 	};
 
-	/// <summary>"deixa no chão" - leaving it behind is the same order.</summary>
+	/// <summary>"deixa no chÃ£o" - leaving it behind is the same order.</summary>
 	private static readonly string[] LeaveVerbs = new string[]
 	{
 		"deixa", "deixar", "deixe", "deixem", "deixou", "deixando"
@@ -275,30 +286,40 @@ internal static class PickupIntent
 	/// <summary>The place that turns a throwing verb into "get rid of it".</summary>
 	private static readonly string[] AwayWords = new string[]
 	{
-		"fora"
+		"fora",
+		// Multilanguage M5: italian "butta via", french "jette"
+		"via"
 	};
 
 	private static readonly string[] DropPlaces = new string[]
 	{
-		"no_chao", "ao_chao"
+		"no_chao", "ao_chao",
+		// Multilanguage M5: italian and french places ("a terra", "per terra", "par terre")
+		"a_terra", "per_terra", "in_terra", "par_terre", "al_suelo", "en_el_suelo"
 	};
 
 	/// <summary>The verbs that, on their own, mean "pick things up".</summary>
 	private static readonly string[] GatherVerbs = new string[]
 	{
-		"junta", "juntar", "junte", "juntem", "juntou", "apanha", "apanhar", "apanhe", "apanhem", "apanhou"
+		"junta", "juntar", "junte", "juntem", "juntou", "apanha", "apanhar", "apanhe", "apanhem", "apanhou",
+		// Multilanguage M5: italian ("raccogli", "raccatta" = pick up/collect what is on the ground)
+		"raccogli", "raccoglie", "raccogliere", "raccatta", "raccattare", "raccatta_tutto", "raccogli_tutto"
 	};
 
-	/// <summary>The verbs of taking, which need the place ("pega do chão", "recolhe do chão").</summary>
+	/// <summary>The verbs of taking, which need the place ("pega do chÃ£o", "recolhe do chÃ£o").</summary>
 	private static readonly string[] CollectVerbs = new string[]
 	{
 		"pega", "pegar", "pegue", "peguem", "pegam", "pegando", "pegou", "recolhe", "recolher", "recolha",
-		"recolham", "recolheu", "cata", "catar", "cate", "catem", "catou"
+		"recolham", "recolheu", "cata", "catar", "cate", "catem", "catou",
+		// Multilanguage M5: italian taking verbs (need the place: "prendi la legna per terra")
+		"prendi", "prende", "prendere", "prendilo", "cogli", "cogliere"
 	};
 
 	/// <summary>The place that turns a taking verb into "pick it up from the ground".</summary>
 	private static readonly string[] PickupPlaces = new string[]
 	{
-		"do_chao"
+		"do_chao",
+		// Multilanguage M5: italian ("per terra", "da terra", "a terra")
+		"per_terra", "da_terra", "a_terra", "in_terra"
 	};
 }

@@ -99,6 +99,9 @@ internal static class WhisperStt
 	/// <summary>The "model not found" error is logged once (the pre-load retry calls TryGetFactory again).</summary>
 	private static bool _warnedMissingModelFile;
 
+	/// <summary>Multilanguage M1: the effective language/vocabulary are said once, in the world (see LogEffectiveOnce).</summary>
+	private static bool _loggedEffective;
+
 	private static string _modelPath;
 
 	private static int _busy;
@@ -148,13 +151,29 @@ internal static class WhisperStt
 	/// <summary>
 	/// Fase 3.3b: the initial prompt (vocabulary bias) for the decoder, from [AI] VoiceInitialPrompt. Empty = none.
 	/// Read on the main thread (<see cref="Request"/>) and carried to the background task.
+	///
+	/// <para>Multilanguage M1: an empty setting now means <b>the vocabulary of the game language</b>
+	/// (<see cref="CompanionLocale.ResolvePrompt"/>); any text the player wrote wins, and "none" asks for no bias.</para>
 	/// </summary>
 	internal static string Prompt
 	{
 		get
 		{
-			string value = ModConfig.VozPromptInitial != null ? ModConfig.VozPromptInitial.Value : null;
+			string value = CompanionLocale.ResolvePrompt(ModConfig.VozPromptInitial != null ? ModConfig.VozPromptInitial.Value : null);
 			return string.IsNullOrWhiteSpace(value) ? "" : value.Trim();
+		}
+	}
+
+	/// <summary>
+	/// Multilanguage M1: the Whisper language of this session - [AI] VoiceLanguage, or the code of the game language
+	/// when it is "auto"/empty (<see cref="CompanionLocale.ResolveWhisper"/>). Null = let the model detect it.
+	/// Read on the main thread (Init and <see cref="Request"/>) and carried to the background task.
+	/// </summary>
+	internal static string Language
+	{
+		get
+		{
+			return NormalizeLanguage(CompanionLocale.ResolveWhisper(ModConfig.VozLanguage != null ? ModConfig.VozLanguage.Value : null));
 		}
 	}
 
@@ -213,19 +232,19 @@ internal static class WhisperStt
 	{
 		try
 		{
-			string language = NormalizeLanguage(ModConfig.VozLanguage != null ? ModConfig.VozLanguage.Value : null);
+			string language = Language;
 			string prompt = Prompt;
 			CompanionsPlugin.Log?.LogInfo($"[STT] STT local (Whisper.net in-process, CPU) pronto para as ordens por voz: "
-				+ $"modelo \"{ModelPath}\" ({DescribeFile(ModelPath)}) | idioma {(language ?? "detectado pelo modelo")} | "
+				+ $"modelo \"{ModelPath}\" ({DescribeFile(ModelPath)}) | idioma {DescribeLanguage(language)} | "
 				+ $"{Threads} thread(s) | audio {SampleRate} Hz mono. O modelo e carregado UMA vez e fica carregado.");
 			if (prompt.Length > 0)
 			{
 				CompanionsPlugin.Log?.LogInfo($"[STT] Prompt inicial do Whisper ([AI] VoiceInitialPrompt, {prompt.Length} caracteres): \"{prompt}\" "
-					+ "- ele enviesa o vocabulario das ordens; vazio desliga o vies.");
+					+ "- ele enviesa o vocabulario das ordens; vazio usa o vocabulario do idioma do jogo e \"none\" o desliga.");
 			}
 			else
 			{
-				CompanionsPlugin.Log?.LogInfo("[STT] Prompt inicial do Whisper desligado ([AI] VoiceInitialPrompt vazio).");
+				CompanionsPlugin.Log?.LogInfo("[STT] Prompt inicial do Whisper desligado ([AI] VoiceInitialPrompt = none).");
 			}
 		}
 		catch (Exception ex)
@@ -342,7 +361,7 @@ internal static class WhisperStt
 		}
 		// every config value is read here, on the main thread (the same care LlmClient takes)
 		_busySince = UnityEngine.Time.realtimeSinceStartup;
-		string language = NormalizeLanguage(ModConfig.VozLanguage != null ? ModConfig.VozLanguage.Value : null);
+		string language = Language;
 		string prompt = Prompt;
 		int threads = Threads;
 		int job = Interlocked.Increment(ref _jobs);
@@ -375,10 +394,37 @@ internal static class WhisperStt
 	/// </summary>
 	internal static void Tick()
 	{
+		LogEffectiveOnce();
 		if (Busy && UnityEngine.Time.realtimeSinceStartup - _busySince > WatchdogSeconds)
 		{
 			CompanionsPlugin.Log?.LogWarning("[STT] Uma transcricao passou do tempo limite sem responder - liberando o espaco na fila.");
 			Interlocked.Exchange(ref _busy, 0);
+		}
+	}
+
+	/// <summary>
+	/// Multilanguage M1: says once, <b>in the world</b>, which language code and which vocabulary the voice orders use.
+	/// <see cref="Init"/> can not say it - it runs in the plugin's Awake, before the game has a Localization.
+	/// </summary>
+	private static void LogEffectiveOnce()
+	{
+		if (_loggedEffective || Player.m_localPlayer == null)
+		{
+			return;
+		}
+		_loggedEffective = true;
+		try
+		{
+			string prompt = Prompt;
+			string source = CompanionLocale.IsAuto(ModConfig.VozPromptInitial != null ? ModConfig.VozPromptInitial.Value : null)
+				? "o vocabulario do idioma do jogo"
+				: "o seu texto do [AI] VoiceInitialPrompt";
+			CompanionsPlugin.Log?.LogInfo($"[STT] idioma efetivo: {DescribeLanguage(Language)} | prompt inicial: "
+				+ $"{(prompt.Length > 0 ? prompt.Length + " caracteres (" + source + ")" : "desligado")}");
+		}
+		catch (Exception ex)
+		{
+			CompanionsPlugin.Log?.LogDebug("[STT] Falha ao logar o idioma efetivo: " + ex.Message);
 		}
 	}
 
@@ -600,6 +646,24 @@ internal static class WhisperStt
 	private static string Value(string text)
 	{
 		return string.IsNullOrEmpty(text) ? "?" : text;
+	}
+
+	/// <summary>
+	/// Multilanguage M1: the language for the log, saying when it came from the game language instead of the .cfg -
+	/// and saying so honestly while the game language is not known yet (the plugin's Awake, before the Localization).
+	/// </summary>
+	private static string DescribeLanguage(string language)
+	{
+		string configured = ModConfig.VozLanguage != null ? ModConfig.VozLanguage.Value : null;
+		if (!CompanionLocale.IsAuto(configured))
+		{
+			return language ?? "detectado pelo modelo";
+		}
+		if (!CompanionLocale.GameLanguageKnown)
+		{
+			return "auto (o do jogo - resolvido quando o mundo carrega)";
+		}
+		return language == null ? "auto" : language + " (auto, o do jogo)";
 	}
 
 	/// <summary>

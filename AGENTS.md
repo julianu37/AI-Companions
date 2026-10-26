@@ -53,9 +53,9 @@ config é **`BepInEx\config\AiCompanions.cfg`** (o GUID não dá mais nome a ele
   listar o Jotunn como requisito em release/README. (A skill `jotunn` da equipe continua no repositório como
   referência de framework, mas **não** se aplica a este mod.)
 - Target: **.NET Framework 4.7.2 (net472)**, C#.
-- Versão: **1.8.3** — **multilíngue (inglês nativo)** em 25/10/2026 (fonte única: `PluginVersion` em
-  `src/Companions/Core/CompanionsPlugin.cs`). As releases saíram em sequência em 23–25/10 (`1.7.0` → `1.8.0` →
-  `1.8.1` → `1.8.2` → `1.8.3`); a **1.7.1 foi pulada de propósito** (pedido do jogador). As branches
+- Versão: **1.9.0** — **multilíngue (5 idiomas: PT-BR, EN, ES, FR, IT)** em 26/10/2026 (fonte única: `PluginVersion` em
+  `src/Companions/Core/CompanionsPlugin.cs`). As releases saíram em sequência em 23–26/10 (`1.7.0` → `1.8.0` →
+  `1.8.1` → `1.8.2` → `1.8.3` → `1.9.0`); a **1.7.1 foi pulada de propósito** (pedido do jogador). As branches
   `feat/multi-companheiro`, `fix/peso-cinto`, `feat/llm-groq`, `feat/provedor-llm` e `languages` foram mergeadas
   (`--no-ff`) e podem ser apagadas — a `main` é a linha de release.
 
@@ -110,7 +110,7 @@ O jogador digita no chat do jogo (`colete 20 de madeira`, `segue`, `para`, `atac
 `equipa o machado de bronze`, `larga a pedra`, `bom dia`) e um **LLM** (API compatível com a OpenAI:
 `POST {BaseUrl}/chat/completions`) devolve a intenção em JSON, que vira a **mesma ação** do menu radial /
 tecla de comando — ou uma **resposta de conversa**, quando não é ordem. Fluxo: `CompanionChatAI` (patch Harmony
-em `Chat.SendText` + prompt PT-BR montado por mensagem) → `LlmClient` (POST em `Task` de fundo + fila
+em `Chat.SendText` + prompt montado por mensagem, **no idioma do jogo** desde a M3) → `LlmClient` (POST em `Task` de fundo + fila
 thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `reply`, `target`, `resource`,
 `amount`) → `CompanionOrders` (intenção → `CompanionSetup.ApplyActionMode`, `SetCombatStance`, `MHR_JobRules`,
 `DirectEngage`, `EquipItem`, `ItemDrop.DropItem`, recall...).
@@ -669,6 +669,181 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   confirmado com defeito em jogo (o teste do jogador mostrou que o que ele coloca persiste); a suspeita das duas
   mochilas fica registrada como **hipótese** na seção *Backlog da revisão da 1.8.3* do roadmap. **Nunca** trocar
   `Container.m_inventory` no `Awake` sem mundo de teste (tentativa de 1.8.3 revertida em `e8247ff`).
+- **Fase M1 da multilinguagem (branch `feat/idiomas-auto`) — `Locale` + `auto` nas configs + o bug do
+  `_loadedLanguage`:** `Core/CompanionLocale.cs` (novo) é a **tabela única** idioma-do-jogo → `{Name, WhisperCode,
+  KokoroCode, Voices (padrão primeiro), DefaultVoice, SpeechPrompt}` para **PT-BR, EN, ES e FR**, mais `HasVoice`,
+  `ResolveVoice`, `ResolveKokoro`, `ResolveWhisper`, `ResolvePrompt`, `VoiceName`/`VoiceGender` (mapa `sid → nome` do
+  export do sherpa; o gênero é a 2ª letra do nome). Idioma sem voz no Kokoro (de, ru, pl, tr, ko, sv, uk) cai no
+  **inglês** com uma linha no log. O perfil é **cacheado** (`Current`), resolvido **na main thread** (a língua vem do
+  `Localization.SetupLanguage` via `CompanionLocale.NotifyLanguage`, porque ler `GetSelectedLanguage()` dentro do
+  postfix é o que recursava no hotfix da 1.8.3) e **invalidado** no postfix (`Invalidate()`) e no `OnSceneLoaded`;
+  sem `Localization` (o `Awake` do plugin) responde inglês **sem** cachear. **Config:** `[AI] VoiceLanguage` e
+  `[AI] TtsLanguage` passam a nascer **`auto`**, `[AI] TtsVoice` **`0` (= automático)**, `[AI] VoiceInitialPrompt`
+  **vazio (= vocabulário do idioma; `none` desliga)** — valores explícitos do jogador **sempre ganham** e **não há
+  migração** (um `.cfg` com `pt`/`pt-br`/`42` continua igual). `CompanionTts.DefaultVoice` passou a ser o padrão do
+  idioma, `PortugueseVoices`/`PortugueseVoiceCount`/`PortugueseVoiceAt` **saíram** (os chamadores leem
+  `CompanionLocale.Current.Voices`), `CompanionTts.VoiceName` virou `CompanionLocale.VoiceName`, e a **voz de um
+  companheiro que não pertence ao idioma ativo não é usada** (`CompanionProfile.GetVoice` cai na padrão do idioma,
+  log Debug uma vez por id, **sem reescrever o ZDO** — voltar o jogo para aquele idioma restaura a escolha).
+  `CompanionProfile.VoiceIds/VoiceLabels` seguem o idioma e o novo `LabelOf(voice)` monta `"{nome} ({gênero})"` com
+  `hc_ai_voice_label`/`_female`/`_male` (as `hc_ai_voice_42/43/44` continuam tendo prioridade) — sem UI nova (o
+  dropdown com nomes é a M2) e sem traduções novas (M3). **`SpeechConfig` (achado #2 da auditoria):** o
+  `_loadedLanguage` só é gravado quando o **arquivo daquele idioma carrega**; nos fallbacks (`speech.json`/defaults)
+  fica vazio e o `Instance` **tenta de novo com portão de 30 s** (`_lastAttemptUtc`, `RetrySeconds`) em vez de ficar
+  preso até reiniciar — e `_usingFallback` evita reler o mesmo arquivo de 30 em 30 s. Logs:
+  `[Locale] English -> en / en-us | 6 vozes, padrao 3 (af_heart)`, a queda para inglês, e (uma vez, já no mundo)
+  `[TTS] idioma efetivo: pt-br (auto) | voz 42 (auto, pf_dora)` + a lista de vozes do idioma e
+  `[STT] idioma efetivo: pt (auto, o do jogo) | prompt inicial: N caracteres (...)`; no carregamento do modelo,
+  `idioma "pt-br" ... voz 42 (pf_dora)`. Verificado fora do jogo (harness com o `CompanionLocale.cs` real):
+  **84 casos, ALL CHECKS PASSED**. Detalhes: `docs/plan-multilinguagem.md` (M1).
+- **Fase M2 da multilinguagem (branch `feat/idiomas-auto`) — o dropdown com nomes, a lista rolável e o F8 com
+  listas:** `UI/ModDropdown.cs` (novo) extraiu o dropdown do painel `I` para uso dos **dois** painéis:
+  `ModDropdownHost` (o overlay com `Canvas` `overrideSorting` em `ModUiLayers.AiPanelOverlay` + o **`ListCatcher`**
+  como primeiro filho, ativo só com uma lista aberta) e `ModDropdownList` (a lista: fundo que engole o clique da
+  borda, viewport com `RectMask2D`, `ScrollRect` vertical com roda/arrasto e **geometria medida na abertura** -
+  abre para baixo, vira para cima quando o lado preferido tem menos espaço e, se não couber em nenhum, **rola**; o
+  item selecionado é trazido para a janela). Os itens só são recriados quando a **quantidade** muda. No painel `I`
+  (M2a) o campo continua o mesmo `CreateButton` (posições/cores/tamanhos das linhas intactos) e a lista virou o
+  widget: as **7 opções** de voz do inglês (6 + "Seguir o padrão") cabem no painel (antes eram 630 px contra 516
+  de altura útil e as últimas ficavam fora). O status da voz (`VoiceStatusLabel`/`CurrentVoiceLabel`) passou a dizer o
+  **efetivo**: `Automático (pt-BR · pf_dora)` quando nada foi escolhido (ou quando o companheiro herda, com
+  `(padrão)` no fim), `pf_dora (feminina)` quando a escolha é do idioma ativo e
+  `pf_dora (pt-BR) - fora do idioma, usando af_heart` quando a voz guardada no ZDO é de **outro** idioma (o ZDO não é
+  tocado). `CompanionProfile.LanguageTag()`/`LanguageTagOf(voice)` (display: `pt-br` → `pt-BR`, família pela 1ª letra
+  do nome) e as chaves novas `hc_cfg_auto`, `hc_cfg_auto_value`, `hc_ai_voice_out_of_language`. No **F8** (M2b),
+  `BuildChoiceRow` (um tipo de linha novo, casado por `(Section, Key)` e **só** para `AI/TtsVoice` (int),
+  `AI/TtsLanguage` (string) e `AI/VoiceLanguage` (string)) mostra o campo com o valor em uso - `Automático (en-us)`,
+  `Automático (af_heart · en-US)`, `pf_dora (feminina)`, `en-gb` - e abre a **mesma** `ModDropdownList` (uma
+  instância por painel, reposicionada a cada abertura) com as opções pedidas (`auto` + as vozes do idioma ativo /
+  `en-us,en-gb,pt-br,es,fr,it,ja,zh,hi` / `pt,en,es,fr,it,de,ru,pl,tr,ko,ja,zh,hi,uk,sv`); o "Padrão" volta para
+  `auto`/`0`, nada é gravado por abrir o painel e o **gamepad** (esq/dir) percorre as opções (`_choiceAdjust`, em vez
+  de mexer no número por baixo). A lista fecha ao rolar o conteúdo, ao trocar de categoria, no `Esc` (antes de fechar
+  o painel) e no `Hide`. `ModUiAudit`: `DropdownOverlay/ChoiceList` e `Overlay/LlmProviderList` entraram na
+  allow-list, e a regra "dentro de um `ScrollRect`" deixou de aceitar **tudo** abaixo dele (agora os controles são
+  classificados pelo `Selectable` primeiro e só a superfície de rolagem - o GameObject do `ScrollRect` e o viewport -
+  é exceção), senão as opções da lista esconderiam um alvo decorativo novo. Detalhes: `docs/plan-multilinguagem.md` (M2).
+- **Correções do teste em jogo da M2 (branch `feat/idiomas-auto`) — a migração dos padrões antigos, os painéis que
+  ficavam no idioma da construção e o log honesto da voz:** (1) **migração** em `ModConfig.ApplyMultilanguageDefaults`
+  (junto das 3.3b/3.3c, com a regra "só o padrão antigo EXATO"): `VoiceLanguage = pt` → `auto`, `TtsLanguage = pt-br`
+  → `auto`, `TtsVoice = 42` → `0`, `VoiceInitialPrompt` = o texto antigo (167 caracteres, `OldVoicePrompt`) → `""`;
+  uma **linha** de log nomeando o que mudou (`[AI] Migracao da multilinguagem: VoiceLanguage/TtsLanguage/TtsVoice/
+  VoiceInitialPrompt estavam nos padroes antigos e agora sao automaticos (escolhas suas nao sao tocadas).`),
+  idempotente (auto/0/vazio não casam) e **sem save próprio** (o `Init` já segura os saves por `Bind` e grava uma vez
+  no fim). Ninguém perde a voz: `42`/`pt-br`/`pt` são justamente a voz e os códigos do PT-BR, então no jogo em
+  português o companheiro continua com a `pf_dora`. (2) **o bug de verdade da troca de idioma:**
+  `ModLocalization.LanguageVersion` (int, incrementado **só** quando `InjectTranslations` vê um idioma diferente do
+  último injetado — a mesma decisão que a injeção já tomava; um `Localization` novo com o mesmo idioma não conta),
+  `ConfigPanel`/`CompanionAiPanel` guardam a versão da construção (`_builtLanguageVersion`) e no **`Show()`**
+  reconstroem o painel quando ela mudou (`DestroyBuiltControls()` + `Build()`, com o `Canvas`/`CanvasScaler`/
+  `GraphicRaycaster` do GameObject reaproveitados porque a Unity só permite um `Canvas` por objeto e o `Destroy` é
+  adiado para o fim do frame; `Hide`/`Destroy` fazem o resto, os sprites estáticos continuam no dono), preservando a
+  **categoria do F8** e a **aba do companheiro** no painel `I`; o `CompanionHudPanel` re-resolve `_hpFormat`/
+  `_staFormat` quando a versão muda (achado #1 da auditoria — é o único texto estático do HUD). (3) **log honesto:**
+  `CompanionTts.VoiceLogText()` diz `voz 42 (pf_dora)` para escolha válida, `voz 3 (auto, af_heart)` para o automático
+  e `voz 3 (a 42 (pf_dora) e de outro idioma; usando a padrao do idioma)` quando a escolha foi substituída (antes tudo
+  virava "auto"); no F8, um `TtsVoice` de outro idioma aparece como `pf_dora (pt-BR) - usando af_heart` (chave nova e
+  curta `hc_cfg_voice_out_of_language` = `{0} ({1}) - usando {2}`, porque a `hc_ai_voice_out_of_language` completa não
+  cabe no campo de ~220 px - ela é o que o rodapé do painel `I` mostra).
+  Verificado contra o `.cfg` real do jogador: as quatro linhas casam exatamente com os padrões antigos.
+- **Fase M3 da multilinguagem (branch `feat/idiomas-auto`) — ES e FR de verdade, presets por idioma e a auditoria
+  por idioma:** (1) **`Translations/Spanish.json` e `Translations/French.json`** — as **737** chaves do PT-BR, na
+  **mesma ordem** (mesma indentação/quebras, UTF-8 **sem BOM**; o PT usa CRLF e as falas LF), com os placeholders
+  `{0}`/`{1}`/`{2}` preservados. Gerados por **`tools/gen_translations.py`** (novo), que lê o PT e troca só os valores
+  a partir de um mapa PT→idioma (chave = valor do PT sem acento, então os 35 valores repetidos viram uma entrada só);
+  o mesmo script reescreve as falas linha a linha, então a estrutura é sempre a do PT. **`Speech/Spanish.json` e
+  `Speech/French.json`** — as 15 categorias / **186** linhas (1:1 com o PT). Terminologia do jogo respeitada
+  (madera/bois, piedra/pierre, mineral/minerai, plantar/planter...) e tratamento informal (tú/tu). (2) **Presets de
+  personalidade por idioma** (`AI/CompanionPersona.cs`): `Preset.Text` e `CompanionPersona.DefaultText` passaram de
+  texto PT fixo a `Pick(pt, en, es, fr)`, que escolhe pelo **`CompanionLocale.Current.KokoroCode`** (a mesma tabela do
+  TTS/STT: `pt-br`, `es`, `fr`, e **inglês** para todo o resto - alemão, russo...). O texto é resolvido na hora do
+  prompt (1× por mensagem), nunca por frame, e o **texto livre do jogador (`custom`) nunca é traduzido**. (3)
+  **`tools/audit_translations.py --lang <Arquivo>`**: valida uma tradução contra o PT — chaves ausentes/sobrando/
+  vazias, **placeholders divergentes**, valores **iguais ao PT** (só os legitimamente iguais passam: nome de voz,
+  string só com placeholders/códigos e a lista documentada `IDENTICAL_OK` — palavra que o idioma escreve igual, token
+  técnico, nome próprio) e **cara de inglês** (`EN_HINTS`, sem as palavras que o ES/FR também usam, como "panel"),
+  mais as falas (categorias/contagem/linhas iguais ao PT). O modo sem argumento continua idêntico (267 lacunas
+  pré-existentes do PT, as `hc_cfg_*` que só existem no JSON). Resultado: **ES 0 e FR 0**.
+- **Correção do teste em francês da M3 (branch `feat/idiomas-auto`) — o contrato do LLM no idioma do jogador + a
+  rede de segurança da coleta:** o jogador, com o jogo em **francês**, disse "maria ramasse 10 bois" e o modelo
+  devolveu `pickup` ("Je prends les bois.") - o companheiro foi catar item no chão. **Causa:** o
+  `CompanionChatAI.Contract` era **100% PT-BR** (regras e exemplos), então fora do PT o modelo não tinha exemplo de
+  ordem de coleta. **Correção em duas camadas:** (1) **contrato por idioma** — `Contract` passou a ser uma propriedade
+  que escolhe entre `ContractPt`/`ContractEn`/`ContractEs`/`ContractFr` (todos `const`, custo zero por mensagem) pelo
+  **`CompanionLocale.Current.KokoroCode`** (mesma tabela do TTS/presets; idioma sem contrato → **inglês**), com
+  **regras e exemplos traduzidos** e os **tokens intactos** (chaves JSON e as 30 ações de `ValidActions`, que é o
+  `enum` do schema). Todas as correções históricas continuam nos quatro (o par `action`/`resource`, `target`
+  obrigatório em attack/equip/drop, `drop`×`pickup`×`nopickup`, o exemplo com `CompanionExampleName`) e cada idioma
+  ganhou o **par que confunde** (coletar com número × pegar do chão) e uma regra nova: *número + verbo de coleta +
+  material = ordem de coleta*. O `Header` do prompt (quem é o companheiro, personalidade, aviso da fala) e a linha
+  `CompanionNames.PromptLine()` ("Companheiros seus: …") também seguem o idioma. (2) **rede de segurança**
+  (`AI/GatherIntent.cs`, novo e **puro**): com o modelo devolvendo `pickup` (no `CompanionOrders.Run`) ou `none` (no
+  `CompanionChatAI.HandleResult`), se as palavras do jogador têm **recurso conhecido** (PT/EN/ES/FR) **+ número** e
+  **sem** marcador de chão/itens (`chão`, `suelo`, `ground`, `par terre`, `itens`…), a ação vira a coleta daquele
+  recurso e a quantidade sai do texto — uma linha de log (`[IA] O modelo devolveu "pickup" mas o jogador pediu para
+  coletar madeira - usei "wood" (10).`). Guardas: `nopickup` nunca é lido, `target`/`equip`/`drop` não são tocados,
+  o caso legítimo (com marcador de chão) continua `pickup`, e no lado `none` ainda se exige um verbo de coleta (para
+  "você tem 10 madeiras?" não virar ordem). (3) **`OrderItems`** ganhou os apelidos **ES/FR** (madera/bois,
+  piedra/pierre, hierro/fer, frambuesa/framboise, champinhon/champignon…, 180 apelidos) para o teto da ordem e o
+  `GatherAction`. Verificado com um harness que carrega a **`Companions.dll` real** (reflexão): contrato por idioma
+  (7734/7720/7698/8136 chars; alemão → EN), 38 casos de mensagem→ação/quantidade nos 4 idiomas, as regras da 3.1 do
+  `PickupIntent` e o mapa de apelidos — **272 casos, ALL CHECKS PASSED**. Medido com o **`qwen2.5-3b-instruct`**
+  (LM Studio, temperatura 0,1, mesmo schema/contrato do mod): **14/14 nos quatro idiomas** (56 casos, incluindo
+  `ramasse 10 bois` -> `wood` x10 e `ramasse le bois par terre` -> `pickup`); a medição rendeu um exemplo de `drop`
+  a mais no EN e no ES.
+- **Italiano no mod (branch `feat/idiomas-auto`) — quinto idioma completo, o primeiro fora da leva M1–M3:**
+  (1) **`CompanionLocale`**: perfil `Italiano` (`WhisperCode`/`KokoroCode` = `it`, vozes **35 `if_sara` (f)** e
+  **36 `im_nicola` (m)**, padrão 35, `SpeechPrompt` em italiano) e `ByGameLanguage("Italian")`; os idiomas sem perfil
+  continuam caindo no inglês. Nada mudou nas tabelas PT/EN/ES/FR. (2) **`CompanionChatAI`**: `ContractIt` (const, mesma
+  estrutura do `ContractFr`, **tokens e as 30 ações intactos**), `case "it"` no `Contract`/`Header` e o italiano no
+  `CompanionNames.PromptLine()` ("I tuoi compagni: …"); todas as correções históricas estão nele (o par
+  `action`/`resource`, `target` obrigatório, `drop`×`pickup`×`nopickup`, o exemplo com `CompanionExampleName`, o par
+  coleta-com-número × pegar-do-chão e a regra *número + verbo de coleta + material = coleta*). (3) **`CompanionPersona`**:
+  `Pick(pt, en, es, fr, it)` + `case "it"` e os 5 textos (padrão + 4 presets) em italiano; alemão/russo seguem no EN e o
+  texto livre do jogador **nunca** é traduzido. (4) **Traduções**: `Translations/Italian.json` (737 chaves, mesma ordem
+  do PT) e `Speech/Italian.json` (15 categorias / 186 linhas), gerados pelo `tools/gen_translations.py` (mapa `IT_UI`/
+  `IT_SPEECH`; o script agora escreve os **três** idiomas de uma vez, e ES/FR saem byte a byte idênticos) e validados
+  pelo `tools/audit_translations.py --lang Italian` → **0 lacunas** (0 ausentes/sobrando/vazias, 0 placeholders
+  divergentes, 0 iguais ao PT indevidos, 0 cara de inglês; as palavras que o italiano escreve igual ao PT entraram na
+  `IDENTICAL_OK` do italiano e `Skål!` na `SPEECH_IDENTICAL_OK`; o `all` saiu do `EN_HINTS`, que casava
+  "all'asciutto"). (5) **Ordens**: `OrderItems` com apelidos IT (legna/legno/alberi, pietra/pietre/sasso, rame/stagno/
+  argento/ferro, lamponi/mirtilli/funghi…, 224 apelidos no total), `GatherIntent` com as tabelas IT (materiais, verbos
+  `raccogli`/`raccatta`/`prendi`/`estrai`, marcadores de chão `a_terra`/`per_terra`/`in_terra`/`da_terra` e
+  `oggetto`/`oggetti`) e `PickupIntent` com os verbos IT de largar/recolher e de parar (`fermati`, `smetti di
+  raccogliere`), mantendo a lógica (nada novo). As listas de idiomas do F8 (`TtsLanguage`/`VoiceLanguage`) **já tinham**
+  `it` desde a M2. Verificado com a `Companions.dll` real (reflexão): locale IT/alemão, `ContractIt` (7.986 chars,
+  30 ações, todos os tokens), persona IT, 14 casos do `GatherIntent`, 7 do `PickupIntent`, 19 apelidos IT e o nome lido
+  das palavras ("Maria, raccogli 5 pietre") — **107 casos, ALL CHECKS PASSED**.
+- **Fase M5 (1ª metade) — a rede determinística das quatro famílias que o 3B erra (branch `feat/idiomas-auto`):** a
+  medição das **30 ações × 5 idiomas** (150 casos, `qwen2.5-3b-instruct`, temperatura 0,1, 2 rodadas) fechou em
+  **29/30 PT, 27/30 EN, 29/30 ES, 29/30 FR e 29/30 IT**, e a lição foi a **oposta** da 3.1: **acrescentar exemplos ao
+  contrato piora** o modelo pequeno (o PT regrediu e o ES `vaga` passou a vir como `nowander`), então **não se
+  acrescentam mais exemplos** — o caminho é a **rede por palavras**, no mesmo espírito da `PickupIntent` (3.1 §8.2) e
+  da `GatherIntent` (M3). Novo **`AI/RadialIntent.cs`** (**puro**, 1× por mensagem, sem Unity/config/mundo):
+  `Correct(action, message, out reason)` devolve a ação corrigida e a frase do log, com **casamento por palavra
+  inteira entre separadores** (sem substring), **mensagem curta** (`MaxWords = 10`) e **nunca com `?`** (pergunta não
+  é ordem), e **quatro portões de ação** (cada regra só olha as ações em que o modelo erra de verdade):
+  (1) **postura** — palavra de postura (`postura|stance|posture|posizione|posicion`) + a qualidade
+  (`equilibrad|balanced|equilibree|equilibrata|balancead` → `stance_balanced`; `distanc|ranged|distanza|distancia` →
+  `stance_ranged`; `corpo a corpo|melee|corps à corps|cuerpo a cuerpo` → `stance_melee`;
+  `passiv|passive|pasiva|defensiv|defensive|defensif` → `stance_passive`), valendo para qualquer ação **menos as
+  precisas** (`attack`/`equip`/`drop`/`inventory*`/as de coleta, que carregam alvo ou recurso);
+  (2) **vagar** — palavra de vagar (`vagar|vagueia|wander|errer|vagare|vagabond`…) + verbo de parar ⇒ `nowander`,
+  senão ⇒ `wander`, para `stop|wander|nowander|none`; o verbo de parar tem que estar **no início** ("para" como
+  preposição de "joga a pedra para o chão" **não** dispara) **ou** ser palavra que só pode ser de parada (`pare`,
+  `stop`, `smetti`, `deja`, `fermati`…); (3) **comandos** — palavra de comando
+  (`comando|order|ordres|ordini|orden`) + ignorar/negar ⇒ `nocommand` (a negação ganha do verbo de aceitar) ou
+  aceitar/obedecer ⇒ `command`, para `none|stop|command|nocommand`; (4) **trabalhos** —
+  `fundi|fundicao|smelt|fourneau|fonderia|furnace|forno|horno` ⇒ `smelt`, `cozinh|kitchen|cuisine|cucina|cocina|cook` ⇒
+  `cook`, `cac|hunt|chasse|cacciare|cazar` ⇒ `hunt`, só para `repair|farm|wander|none` e com **duas guardas**: uma
+  criatura nomeada (`greydwarf`, `troll`, `javali`…) mantém o `attack` e um verbo de reparo (`conserta`, `repair`,
+  `ripara`…) mantém o `repair`. **Onde:** `CompanionOrders.Run`, antes de despachar (depois das redes do
+  recurso/pickup/coleta e antes de `outcome.LabelKey`), e no lado `none` do `CompanionChatAI.HandleResult` (depois da
+  `GatherIntent`, só com a ação ainda `none`). Uma linha de log por correção
+  (`[IA] O modelo devolveu "stop" mas o jogador pediu para parar de vagar - usei "nowander".`) e os rótulos do chat
+  já existiam (`hc_ai_order_stance_*`, `_nowander`, `_nocommand`, `_smelt`, `_cook`, `_hunt`). **Contrato, TTS/STT,
+  painéis, dverger, cache e camadas de UI intocados.** Verificado fora do jogo com a `Companions.dll` real
+  (reflexão): as 7 falhas medidas + os casos de não-regressão dos 5 idiomas + as guardas — **95 casos, ALL CHECKS
+  PASSED**.
 - **Pendências conhecidas (abertas):** a **voz não passa pelo
   mixer do jogo** (por isso ignora os sliders de volume do Valheim e só obedece `[AI] TtsVolume`); o **sync com o
   upstream** (estamos **1 release atrás**: base `1.5.4`, `main` na `1.5.5` — ver a seção *Upstream e licença*);
@@ -683,6 +858,11 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   deve ser mergeada nem usada como referência. Detalhes na subseção *Pendências conhecidas* do `docs/roadmap.md`.
 
 ## Nossas docs
+
+- **Idioma (a partir de 25/10/2026): a fonte é o inglês.** Repo público, docs internos e wiki são escritos em
+  **EN**; **português, espanhol, francês e italiano são tradução** (a wiki publica `-pt`/`-es`/`-fr`/`-it`). A
+  exceção é o `package/LEIA-ME.txt`, que continua em **PT** (leitura rápida do jogador BR dentro do zip). Plano e
+  fases: `docs/plan-i18n-docs.md`.
 
 - `docs/wiki/` — **a fonte da GitHub Wiki** (o guia de instalação/uso para quem baixa o mod): `Home.md`,
   `Requisitos.md`, `Instalacao.md`, `LLM-no-LM-Studio.md`, `Voz.md`, `Comandos.md`, `Configuracao.md`,
@@ -727,6 +907,9 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
    `tipo(escopo): resumo`.
 8. Atualize a documentação correspondente (`README.md`, `package/CHANGELOG.md`, `docs/roadmap.md`,
    `AGENTS.md`) quando algo mudar.
+9. **Documentação em inglês (fonte).** Texto novo de doc nasce em **EN** — README, `package/*`, `docs/*` e a wiki.
+   PT/ES/FR/IT são **traduções** (wiki `-pt`/`-es`/`-fr`/`-it`); o `package/LEIA-ME.txt` continua em PT. O **mod**
+   (UI/falas) não muda por causa disso: continua seguindo o idioma do jogo. Fases: `docs/plan-i18n-docs.md`.
 
 ## MCP servers disponíveis
 

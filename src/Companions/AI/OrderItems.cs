@@ -257,34 +257,46 @@ internal static class OrderItems
 		return LlmIntent.Normalize(a).Replace("_", "") == b.Replace("_", "");
 	}
 
-	/// <summary>What the model may answer in "resource" -> the item prefab. English (what the prompt asks for) and
-	/// Portuguese (what the player types). Every entry is checked with ObjectDB before it is used, so a name that
-	/// doesn't exist in the game simply falls through to the list lookup.</summary>
+	/// <summary>What the model may answer in "resource" -> the item prefab. English (what the prompt asks for),
+	/// Portuguese, Spanish, French and Italian (what the player types - Multilanguage M3/M5). Every entry is checked
+	/// with ObjectDB before it is used, so a name that doesn't exist in the game simply falls through to the list
+	/// lookup.</summary>
 	private static readonly Dictionary<string, string> Aliases = BuildAliases();
 
 	private static Dictionary<string, string> BuildAliases()
 	{
 		Dictionary<string, string> map = new Dictionary<string, string>(StringComparer.Ordinal);
-		Add(map, "Wood", "wood", "madeira", "lenha", "madeiras", "arvore", "arvores", "tree", "trees", "chop", "cortar", "tronco");
-		Add(map, "FineWood", "finewood", "fine_wood", "madeira_fina");
-		Add(map, "RoundLog", "roundlog", "round_log", "tora", "toras");
-		Add(map, "ElderBark", "elderbark", "elder_bark", "casca", "casca_de_ancian", "casca_de_anciao");
-		Add(map, "YggdrasilWood", "yggdrasilwood", "yggdrasil_wood", "madeira_de_yggdrasil", "yggdrasil");
-		Add(map, "Blackwood", "blackwood", "black_wood", "madeira_negra");
-		Add(map, "Resin", "resin", "resina");
-		Add(map, "Stone", "stone", "pedra", "pedras", "rocha", "rochas", "rock", "rocks");
-		Add(map, "Flint", "flint", "silex", "pedra_de_fogo");
-		Add(map, "BlackMarble", "blackmarble", "black_marble", "marmore", "marmore_negro");
+		Add(map, "Wood", "wood", "madeira", "lenha", "madeiras", "arvore", "arvores", "tree", "trees", "chop", "cortar", "tronco",
+			"madera", "maderas", "arbol", "arboles", "bois", "buche", "buches", "arbre", "arbres", "rondin", "rondins",
+			"legna", "legno", "legni", "albero", "alberi", "tronchi");
+		Add(map, "FineWood", "finewood", "fine_wood", "madeira_fina", "madera_fina", "bois_fin", "legna_fine", "legno_pregiato");
+		Add(map, "RoundLog", "roundlog", "round_log", "tora", "toras", "tronco", "troncos", "bille", "billes", "tronchetto", "tronchetti");
+		Add(map, "ElderBark", "elderbark", "elder_bark", "casca", "casca_de_ancian", "casca_de_anciao", "corteza", "corteza_de_anciano", "ecorce", "ecorce_d_ancien", "corteccia");
+		Add(map, "YggdrasilWood", "yggdrasilwood", "yggdrasil_wood", "madeira_de_yggdrasil", "yggdrasil", "madera_de_yggdrasil", "bois_d_yggdrasil", "legna_di_yggdrasil");
+		Add(map, "Blackwood", "blackwood", "black_wood", "madeira_negra", "madera_negra", "bois_noir", "legno_nero");
+		Add(map, "Resin", "resin", "resina", "resine");
+		Add(map, "Stone", "stone", "pedra", "pedras", "rocha", "rochas", "rock", "rocks",
+			"piedra", "piedras", "roca", "rocas", "pierre", "pierres", "rocher", "rochers", "caillou", "cailloux",
+			"pietra", "pietre", "roccia", "rocce", "sasso", "sassi");
+		Add(map, "Flint", "flint", "silex", "pedra_de_fogo", "pedernal", "piedra_de_fuego", "pietra_focaia", "selce");
+		Add(map, "BlackMarble", "blackmarble", "black_marble", "marmore", "marmore_negro", "marmol", "marmol_negro", "marbre", "marbre_noir", "marmo", "marmo_nero");
 		Add(map, "Grausten", "grausten");
-		Add(map, "Obsidian", "obsidian", "obsidiana");
-		Add(map, "CopperOre", "copperore", "copper_ore", "copper", "cobre", "minerio_de_cobre");
-		Add(map, "TinOre", "tinore", "tin_ore", "tin", "estanho", "minerio_de_estanho");
-		Add(map, "IronScrap", "ironscrap", "iron_scrap", "iron", "ferro", "sucata", "scrap", "minerio_de_ferro");
-		Add(map, "SilverOre", "silverore", "silver_ore", "silver", "prata", "minerio_de_prata");
-		Add(map, "BlackMetalScrap", "blackmetalscrap", "black_metal_scrap", "blackmetal", "metal_negro", "sucata_negra");
-		Add(map, "CopperScrap", "copperscrap", "copper_scrap", "sucata_de_cobre");
-		Add(map, "FlametalOreNew", "flametalorenew", "flametal_ore", "flametal");
-		Add(map, "Crystal", "crystal", "cristal");
+		Add(map, "Obsidian", "obsidian", "obsidiana", "obsidienne", "ossidiana");
+		Add(map, "CopperOre", "copperore", "copper_ore", "copper", "cobre", "minerio_de_cobre", "mineral_de_cobre", "minerai_de_cuivre", "cuivre", "rame", "minerale_di_rame");
+		Add(map, "TinOre", "tinore", "tin_ore", "tin", "estanho", "minerio_de_estanho", "mineral_de_estano", "etain", "minerai_d_etain", "stagno", "minerale_di_stagno");
+		Add(map, "IronScrap", "ironscrap", "iron_scrap", "iron", "ferro", "sucata", "scrap", "minerio_de_ferro",
+			"hierro", "chatarra", "mineral_de_hierro", "fer", "ferraille", "minerai_de_fer", "ferro_vecchio", "rottame_di_ferro");
+		Add(map, "SilverOre", "silverore", "silver_ore", "silver", "prata", "minerio_de_prata", "plata", "mineral_de_plata", "argent", "minerai_d_argent", "argento", "minerale_d_argento");
+		Add(map, "BlackMetalScrap", "blackmetalscrap", "black_metal_scrap", "blackmetal", "metal_negro", "sucata_negra",
+			"metal_negro_chatarra", "metal_noir", "ferraille_de_metal_noir", "metallo_nero", "rottame_di_metallo_nero");
+		Add(map, "CopperScrap", "copperscrap", "copper_scrap", "sucata_de_cobre", "chatarra_de_cobre", "ferraille_de_cuivre", "rottame_di_rame");
+		Add(map, "FlametalOreNew", "flametalorenew", "flametal_ore", "flametal", "fiammametallo");
+		Add(map, "Crystal", "crystal", "cristal", "cristallo", "cristalli");
+		// Multilanguage M3/M5: the forage items the languages name (the "forrageio" order says "colhe framboesas")
+		Add(map, "Raspberry", "raspberry", "raspberries", "framboesa", "framboesas", "frambuesa", "frambuesas", "framboise", "framboises", "lampone", "lamponi");
+		Add(map, "Blueberries", "blueberry", "blueberries", "mirtilo", "mirtilos", "arandano", "arandanos", "myrtille", "myrtilles", "mirtillo", "mirtilli");
+		Add(map, "Mushroom", "mushroom", "mushrooms", "cogumelo", "cogumelos", "champinon", "champinones", "seta", "setas", "champignon", "champignons", "fungo", "funghi");
+		Add(map, "Raspberry", "mora", "moras", "mure", "mures", "amora", "amoras", "more");
 		return map;
 	}
 

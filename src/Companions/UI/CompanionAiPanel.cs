@@ -95,6 +95,10 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	/// <summary>Height of one option in a dropdown list.</summary>
 	private const float ItemH = 30f;
 
+	/// <summary>Multilanguage M2: the room left between a list and the edge of the panel (the list never touches it,
+	/// and the measurement is what keeps the last option of a long list inside the panel - the rest scrolls).</summary>
+	private const float ListEdgeMargin = 6f;
+
 	/// <summary>Left edge of the controls and the right edge they stop at (panel-local coordinates).</summary>
 	private const float LeftX = 8f;
 
@@ -299,11 +303,16 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 	private GameObject _root;
 
-	private Transform _overlay;
+	/// <summary>
+	/// Multilanguage M2: the overlay of the dropdown lists - its own canvas, the invisible catcher that closes an open
+	/// list and the lists themselves. It used to be built here, together with the catcher and one list per dropdown;
+	/// the whole widget is <see cref="ModDropdownHost"/> now, shared with the F8 panel (which needed the same list,
+	/// with a scroll, for the settings that are a closed set of values).
+	/// </summary>
+	private ModDropdownHost _dropdownHost;
 
-	/// <summary>The invisible click catcher of the overlay: active only while a dropdown list is open, so clicking
-	/// anywhere else on the panel closes the list instead of doing nothing (see <see cref="BuildListCatcher"/>).</summary>
-	private GameObject _listCatcher;
+	/// <summary>Multilanguage M2: the look of the options of a list (built once, from this panel's palette).</summary>
+	private ModDropdownStyle _dropdownStyle;
 
 	private TMP_FontAsset _font;
 
@@ -498,21 +507,20 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 	private string _compStatusVoice;
 
-	/// <summary>The dropdown whose list is open right now (only one at a time), or null.</summary>
-	private AiDropdown _openList;
-
 	private readonly List<AiToggle> _toggles = new List<AiToggle>();
 
 	private string[] _personalityIds;
 
 	private string[] _personalityLabels;
 
-	private int[] _voiceIds;
-
 	private float _nextStatus;
 
 	/// <summary>The raycast audit of this panel runs once per session (the first open), never per frame.</summary>
 	private static bool _raycastAudited;
+
+	/// <summary>Multilanguage M2 fix: the <see cref="ModLocalization.LanguageVersion"/> this panel was built in - a real
+	/// language change makes <see cref="Show"/> build the panel again (every label is written at build time).</summary>
+	private int _builtLanguageVersion;
 
 	public static CompanionAiPanel Instance { get; private set; }
 
@@ -569,8 +577,19 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 	public void Show()
 	{
+		// Multilanguage M2 fix: the panel is built once and every label keeps the text of the build, so a real change of
+		// the game language (ModLocalization.LanguageVersion) means building it again. The open companion's tab is kept
+		// when it is still there (the tab strip is rebuilt on every open anyway); on the first open nothing happens.
+		// Never per frame: one int comparison per open.
+		CompanionSetup reopen = null;
 		if (_root == null)
 		{
+			Build();
+		}
+		else if (_builtLanguageVersion != ModLocalization.LanguageVersion)
+		{
+			reopen = SelectedCompanion();
+			DestroyBuiltControls();
 			Build();
 		}
 		if (IsBrokenTmpFont(_font))
@@ -599,7 +618,8 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		_nextStatus = 0f;
 		// Fase 3.9: the strip of tabs is rebuilt on every open (a companion can be summoned or die between two
 		// openings, and the tab of one that is gone must not linger); every other control is still built once.
-		RebuildTabs();
+		// Multilanguage M2 fix: after a rebuild, the companion whose tab was open comes back with it.
+		RebuildTabs(reopen);
 		RefreshSpawnCount();
 		RefreshStatus();
 		Cursor.lockState = CursorLockMode.None;
@@ -720,7 +740,7 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 				DeactivateLlmFields();
 				return;
 			}
-			if (_openList != null)
+			if (_dropdownHost != null && _dropdownHost.AnyOpen)
 			{
 				CloseLists();
 				return;
@@ -889,13 +909,28 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 	private void Build()
 	{
-		Canvas canvas = base.gameObject.AddComponent<Canvas>();
+		// Multilanguage M2 fix: Build can run more than once (a real language change rebuilds the panel, see Show), and
+		// Unity allows one Canvas per GameObject - and destroying it would be deferred to the end of the frame, so the
+		// second AddComponent would be refused. The Canvas/Scaler/Raycaster of the panel are therefore reused; the
+		// children (backdrop and root), where every text lives, are created anew after DestroyBuiltControls.
+		Canvas canvas = base.gameObject.GetComponent<Canvas>();
+		if (canvas == null)
+		{
+			canvas = base.gameObject.AddComponent<Canvas>();
+		}
+		if (base.gameObject.GetComponent<GraphicRaycaster>() == null)
+		{
+			base.gameObject.AddComponent<GraphicRaycaster>();
+		}
 		canvas.renderMode = RenderMode.ScreenSpaceOverlay;
 		canvas.sortingOrder = PanelSortingOrder;
-		CanvasScaler scaler = base.gameObject.AddComponent<CanvasScaler>();
+		CanvasScaler scaler = base.gameObject.GetComponent<CanvasScaler>();
+		if (scaler == null)
+		{
+			scaler = base.gameObject.AddComponent<CanvasScaler>();
+		}
 		scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
 		scaler.referenceResolution = new Vector2(1920f, 1080f);
-		base.gameObject.AddComponent<GraphicRaycaster>();
 		_font = ResolveFont();
 
 		_backdrop = new GameObject("Backdrop", typeof(RectTransform), typeof(Image));
@@ -942,9 +977,10 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		// Fase 3.15: the lists the FOOTER reads (the global values, shown on the AI tab). The dropdowns that used
 		// them are gone from this page - the personality and the voice are edited per companion now - but the summary
 		// line still names what the [IA] settings are, so the labels are built once here.
+		// (Multilanguage M1: the voice label is asked to CompanionProfile.LabelOf, which follows the game language -
+		// there is no voice list kept here any more.)
 		_personalityIds = CompanionProfile.PresetIds(withInherit: false);
 		_personalityLabels = CompanionProfile.PresetLabels(withInherit: false);
-		_voiceIds = CompanionProfile.VoiceIds(withInherit: false);
 
 		// Fase 3.9: one page for the AI tab, one for a companion's tab. Both fill the panel (i.e. they use the same
 		// coordinates as Place), so switching tabs is showing one page and hiding the other - never a rebuild, and
@@ -969,21 +1005,9 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		// every row instead of being clipped by the row it belongs to. The overlay itself has no Image (it never eats
 		// a click) and its own Canvas with overrideSorting, so the list draws - and gets the click - above the whole
 		// panel no matter where the overlay sits in the hierarchy: that is exactly what Unity's own dropdown template
-		// does, and it is why the list can never end up behind a control again.
-		GameObject overlay = new GameObject("Overlay", typeof(RectTransform), typeof(Canvas), typeof(GraphicRaycaster));
-		overlay.transform.SetParent(_root.transform, worldPositionStays: false);
-		RectTransform overlayRT = overlay.GetComponent<RectTransform>();
-		overlayRT.anchorMin = Vector2.zero;
-		overlayRT.anchorMax = Vector2.one;
-		overlayRT.offsetMin = Vector2.zero;
-		overlayRT.offsetMax = Vector2.zero;
-		Canvas overlayCanvas = overlay.GetComponent<Canvas>();
-		overlayCanvas.overrideSorting = true;
-		overlayCanvas.sortingOrder = OverlaySortingOrder;
-		_overlay = overlay.transform;
-		// the catcher is the FIRST child of the overlay: the lists created after it draw above it, so an item click
-		// reaches the item and only a click outside the list reaches the catcher
-		BuildListCatcher(_overlay);
+		// does, and it is why the list can never end up behind a control again. Multilanguage M2: the overlay, the
+		// invisible catcher and the lists are ModDropdown (shared with the F8 panel) - see ModDropdown.cs.
+		_dropdownHost = ModDropdownHost.Create("Overlay", _root.transform, OverlaySortingOrder);
 		// the fields of the dropdowns belong to the page they are shown on (only the lists float)
 		_page = _aiPage.transform;
 		BuildSpawnerDropdown();
@@ -1001,39 +1025,91 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		// list - which is exactly the bug of the screenshot (the list of "Personalidade" appearing behind the rows
 		// below it). The overlay canvas above already wins over the panel canvas, but the sibling order is kept
 		// correct too, so nothing depends on a single mechanism.
-		_overlay.SetAsLastSibling();
-
+		_dropdownHost.Overlay.SetAsLastSibling();
 		_backdrop.SetActive(false);
 		_root.SetActive(false);
+		// the language the texts of this build are in (see Show: a real change rebuilds the panel)
+		_builtLanguageVersion = ModLocalization.LanguageVersion;
 	}
 
 	/// <summary>
-	/// The invisible catcher that closes an open list when the player clicks anywhere else on the panel. It is the
-	/// first child of the overlay, so the lists are drawn (and clicked) above it, and it is only active while a list
-	/// is open - otherwise it would eat every click on the panel. No visual state: an alpha-0 Image with
-	/// <c>raycastTarget</c> still receives the click, and the Button transition is off because there is nothing to
-	/// tint. It is the same primitive Unity's own Dropdown uses for its "blocker" (a clear Image plus a Button whose
-	/// onClick hides the list) - here it is a sibling that sits under the lists instead of a canvas of its own one
-	/// sorting order below, which is the same thing one canvas lower.
+	/// Multilanguage M2 fix: drops everything <see cref="Build"/> created, so the panel can be built again in another
+	/// language. Every reference that points inside the old <c>_root</c> is cleared (the new Build reassigns them; a
+	/// stale Unity reference would compare <c>== null</c> anyway, but clearing keeps the next build honest), and so are
+	/// the lists that would otherwise grow on every rebuild. The font and the panel sprite are <b>not</b> touched: they
+	/// carry no text, the sprite is owned by this panel and freed in <see cref="OnDestroy"/>, and the Canvas components
+	/// of the GameObject are reused by <see cref="Build"/>.
 	/// </summary>
-	private void BuildListCatcher(Transform overlay)
+	private void DestroyBuiltControls()
 	{
-		GameObject catcher = new GameObject("ListCatcher", typeof(RectTransform), typeof(Image), typeof(Button));
-		catcher.transform.SetParent(overlay, worldPositionStays: false);
-		RectTransform rt = catcher.GetComponent<RectTransform>();
-		rt.anchorMin = Vector2.zero;
-		rt.anchorMax = Vector2.one;
-		rt.offsetMin = Vector2.zero;
-		rt.offsetMax = Vector2.zero;
-		Image image = catcher.GetComponent<Image>();
-		image.color = Color.clear;
-		image.raycastTarget = true;
-		Button button = catcher.GetComponent<Button>();
-		button.transition = Selectable.Transition.None;
-		button.targetGraphic = image;
-		button.onClick.AddListener(CloseLists);
-		catcher.SetActive(false);
-		_listCatcher = catcher;
+		if (_root != null)
+		{
+			_root.SetActive(false);
+			UnityEngine.Object.Destroy(_root);
+			_root = null;
+		}
+		if (_backdrop != null)
+		{
+			_backdrop.SetActive(false);
+			UnityEngine.Object.Destroy(_backdrop);
+			_backdrop = null;
+		}
+		_tabs.Clear();
+		_tabObjects.Clear();
+		_toggles.Clear();
+		_dropdownHost = null;
+		_dropdownStyle = null;
+		_aiPage = null;
+		_compPage = null;
+		_page = null;
+		_title = null;
+		_status = null;
+		_tabContent = null;
+		_tabScroll = null;
+		_volume = null;
+		_volumeLabel = null;
+		_memory = null;
+		_memoryLabel = null;
+		_keyLabel = null;
+		_spawnCount = null;
+		_tier = null;
+		_llmBaseUrl = null;
+		_llmModel = null;
+		_llmApiKey = null;
+		_llmPrefix = null;
+		_llmProvider = null;
+		_llmKeyLink = null;
+		_llmTemperature = null;
+		_llmTemperatureLabel = null;
+		_llmTimeout = null;
+		_llmTimeoutLabel = null;
+		_llmCooldown = null;
+		_llmCooldownLabel = null;
+		_llmTargetRange = null;
+		_llmTargetRangeLabel = null;
+		_compNameInput = null;
+		_compTierValue = null;
+		_compTierApply = null;
+		_compStatus = null;
+		_recall = null;
+		_compAppearance = null;
+		_compPersonality = null;
+		_compVoice = null;
+		_compFreeText = null;
+		_compApply = null;
+		_compListen = null;
+		_compPersonalityIds = null;
+		_compPersonalityLabels = null;
+		_compVoiceIds = null;
+		_compVoiceLabels = null;
+		_compFormFor = null;
+		_compStatusPersonality = null;
+		_compStatusVoice = null;
+		_compAlive = false;
+		_personalityIds = null;
+		_personalityLabels = null;
+		_listeningKey = false;
+		_nextStatus = 0f;
 	}
 
 	private void BuildHeader()
@@ -2221,9 +2297,14 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 			if (_compVoice != null)
 			{
 				_compVoice.Index = -1;
+				if (_compVoice.List != null)
+				{
+					_compVoice.List.SetSelection(-1);
+				}
 			}
-			SetCaption(_compVoice, ModLocalization.LocFmt("hc_ai_voice_other", voice), DimColor);
-			HighlightItems(_compVoice, -1);
+			// Multilanguage M2: the name of the voice the player chose, even though it is not offered here (it belongs
+			// to another language: it is kept in the ZDO, the speech uses the default of the active one)
+			SetCaption(_compVoice, ModLocalization.LocFmt("hc_ai_voice_other", CompanionLocale.VoiceName(voice)), DimColor);
 		}
 		else
 		{
@@ -2662,11 +2743,11 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 				_compApply.Image.color = enabled ? ButtonColor : OffColor;
 			}
 		}
-		if (_compPersonality != null && _compPersonality.ListRoot != null && !enabled && _openList == _compPersonality)
+		if (_compPersonality != null && _compPersonality.List != null && !enabled && _compPersonality.List.IsOpen)
 		{
 			CloseLists();
 		}
-		if (_compVoice != null && _compVoice.ListRoot != null && !enabled && _openList == _compVoice)
+		if (_compVoice != null && _compVoice.List != null && !enabled && _compVoice.List.IsOpen)
 		{
 			CloseLists();
 		}
@@ -2815,37 +2896,39 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 
 	// ------------------------------------------------------------------ dropdown plumbing
 
+	/// <summary>
+	/// Opens/closes the list of a dropdown. The list itself is a <see cref="ModDropdownList"/> (the shared widget):
+	/// it is what knows the geometry, the scroll and the pick, and it closes the other lists by itself
+	/// (<see cref="ModDropdownHost.Opened"/>). The room is measured from the panel's edges, so a list near the bottom
+	/// opens upwards instead of running off the panel - and if it fits neither way, it scrolls.
+	/// </summary>
 	private void ToggleList(AiDropdown dropdown)
 	{
-		if (dropdown == null)
+		if (dropdown == null || dropdown.List == null)
 		{
 			return;
 		}
-		if (_openList == dropdown)
+		if (dropdown.List.IsOpen)
 		{
-			CloseLists();
+			dropdown.List.Hide();
 			return;
 		}
-		CloseLists();
-		dropdown.ListRoot.SetActive(true);
-		// the catcher only exists while a list is open: outside that it would swallow the clicks of the panel
-		if (_listCatcher != null)
-		{
-			_listCatcher.SetActive(true);
-		}
-		_openList = dropdown;
+		float top = dropdown.FieldY + dropdown.FieldH;
+		float below = PanelH - top - ListEdgeMargin;
+		float above = dropdown.FieldY - ListEdgeMargin;
+		dropdown.List.SetFont(_font);
+		dropdown.List.Show(dropdown.Labels, dropdown.Index, dropdown.FieldX, dropdown.FieldY, dropdown.FieldH,
+			dropdown.FieldW, below, above, dropdown.OpenUp, delegate(int index)
+			{
+				Pick(dropdown, index);
+			});
 	}
 
 	private void CloseLists()
 	{
-		if (_openList != null && _openList.ListRoot != null)
+		if (_dropdownHost != null)
 		{
-			_openList.ListRoot.SetActive(false);
-		}
-		_openList = null;
-		if (_listCatcher != null)
-		{
-			_listCatcher.SetActive(false);
+			_dropdownHost.CloseAll();
 		}
 	}
 
@@ -2856,7 +2939,6 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 			return;
 		}
 		SetDropdown(dropdown, index);
-		CloseLists();
 		dropdown.OnPick?.Invoke(index);
 	}
 
@@ -2875,18 +2957,9 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		{
 			SetCaption(dropdown, "?", DimColor);
 		}
-		HighlightItems(dropdown, index);
-	}
-
-	private static void HighlightItems(AiDropdown dropdown, int index)
-	{
-		if (dropdown == null || dropdown.Items == null)
+		if (dropdown.List != null)
 		{
-			return;
-		}
-		for (int i = 0; i < dropdown.Items.Count; i++)
-		{
-			dropdown.Items[i].Image.color = i == index ? GoldColor : ItemColor;
+			dropdown.List.SetSelection(index);
 		}
 	}
 
@@ -2992,14 +3065,20 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		return _compStatusPersonality ?? EffectivePersonalityLabel(setup);
 	}
 
-	/// <summary>The same for the voice line of the footer (see <see cref="PersonalityStatusLabel"/>).</summary>
+	/// <summary>
+	/// The voice in use, for the footer of the panel. Multilanguage M2: it says <b>what will actually be spoken</b> -
+	/// "Automatico (pt-BR · pf_dora)" when nothing was chosen, the name of the chosen voice otherwise - and, when the
+	/// companion's own voice belongs to <b>another language</b>, the whole sentence: it is not used (it would speak
+	/// with the wrong accent), the voice of the active language is, and the ZDO keeps the player's choice for the next
+	/// time the game speaks that language.
+	/// </summary>
 	private string VoiceStatusLabel(CompanionSetup setup)
 	{
 		if (setup == null)
 		{
 			return CurrentVoiceLabel(null);
 		}
-		// Fase 3.19: same reason as the personality above
+		// Fase 3.19: a companion that INHERITS the global value has to show what the F8 panel has right now
 		if (!CompanionProfile.HasVoice(setup))
 		{
 			return CurrentVoiceLabel(setup);
@@ -3048,23 +3127,49 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	}
 
 	/// <summary>
-	/// The voice in use, by name. A voice that is not one of the pt-BR ones is named as "other language", because the
-	/// panel only offers the three pt-BR voices. With a companion on the tab it is its own voice, and "(padrão)" is
-	/// appended when it inherits the global one.
+	/// The voice in use, by name - the line the player reads to know what will be said out loud.
+	/// <list type="bullet">
+	/// <item>nothing chosen (the global <c>[AI] TtsVoice</c> is automatic, or this companion has no voice of its own):
+	/// <b>"Automatico (pt-BR · pf_dora)"</b> - the language of the game and the voice it resolves to, which is exactly
+	/// the pair the M1 table decides;</item>
+	/// <item>a voice of the active language: its name, from <see cref="CompanionProfile.LabelOf"/>
+	/// ("pf_dora (feminina)"); a companion that inherits the global one says "(padrão)" after it;</item>
+	/// <item>a voice of <b>another</b> language: <b>"pf_dora (pt-BR) - fora do idioma, usando af_heart"</b> - that
+	/// voice is not used (it would come out with the wrong accent) and the ZDO keeps the choice for the next time the
+	/// game speaks that language.</item>
+	/// </list>
 	/// </summary>
 	private string CurrentVoiceLabel(CompanionSetup setup)
 	{
-		int voice = setup != null
-			? CompanionProfile.GetVoice(setup)
-			: CompanionTts.Voice;
-		string label = IndexOf(_voiceIds, voice) < 0
-			? ModLocalization.LocFmt("hc_ai_voice_other", voice)
-			: ModLocalization.Loc("hc_ai_voice_" + voice);
-		if (setup != null && !CompanionProfile.HasVoice(setup))
+		int resolved = setup != null ? CompanionProfile.GetVoice(setup) : CompanionTts.Voice;
+		int stored = setup != null
+			? CompanionProfile.StoredVoice(setup)
+			: (ModConfig.TtsVoice != null ? ModConfig.TtsVoice.Value : 0);
+		string label = VoiceLabelOf(stored, resolved);
+		if (setup != null && stored <= 0)
 		{
 			return ModLocalization.LocFmt("hc_ai_profile_inherited", label);
 		}
 		return label;
+	}
+
+	/// <summary>The name of the voice that is used, given what the player chose (<paramref name="stored"/> 0 = nothing)
+	/// and what the language resolved it to.</summary>
+	private static string VoiceLabelOf(int stored, int resolved)
+	{
+		if (stored <= 0)
+		{
+			// "Automatico (pt-BR · pf_dora)": the language first, then the voice of that language
+			string pair = CompanionProfile.LanguageTag() + " · " + CompanionLocale.VoiceName(resolved);
+			return ModLocalization.LocFmt("hc_cfg_auto_value", pair);
+		}
+		if (!CompanionLocale.HasVoice(stored))
+		{
+			// "pf_dora (pt-BR) - fora do idioma, usando af_heart"
+			return ModLocalization.LocFmt("hc_ai_voice_out_of_language", CompanionLocale.VoiceName(stored),
+				CompanionProfile.LanguageTagOf(stored), CompanionLocale.VoiceName(resolved));
+		}
+		return CompanionProfile.LabelOf(stored);
 	}
 
 	private static void SetSlider(Slider slider, float value)
@@ -3123,20 +3228,35 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		internal TMP_Text Text;
 	}
 
-	/// <summary>A hand-built dropdown: the field button, its caption and the (hidden) list of options.</summary>
+	/// <summary>
+	/// A hand-built dropdown: the field button of the page, its caption and the floating list of options
+	/// (<see cref="ModDropdownList"/>, the shared widget - Multilanguage M2). The geometry of the field is kept here
+	/// because that is what the list needs to know where to open, and the room is measured from the panel's edges at
+	/// the moment it opens.
+	/// </summary>
 	private sealed class AiDropdown
 	{
 		internal TMP_Text Caption;
 
-		internal GameObject ListRoot;
+		internal ModDropdownList List;
 
 		internal string[] Labels;
-
-		internal readonly List<AiButton> Items = new List<AiButton>();
 
 		internal int Index;
 
 		internal Action<int> OnPick;
+
+		internal float FieldX;
+
+		internal float FieldY;
+
+		internal float FieldW;
+
+		internal float FieldH;
+
+		/// <summary>Open the list above the field (a row near the bottom of the panel); the widget still flips the
+		/// side when the preferred one has less room.</summary>
+		internal bool OpenUp;
 
 		internal string LabelAt(int index)
 		{
@@ -3201,16 +3321,26 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		};
 	}
 
-	/// <summary>The hand-built dropdown: the field button on the page, its caption and the (hidden) list of options on
-	/// the overlay. <paramref name="openUp"/> puts the list <b>above</b> the field instead of under it, for a row that
-	/// sits too close to the bottom edge of the panel for its list to fit below (the summoner's tier).</summary>
+	/// <summary>
+	/// The hand-built dropdown: the field button on the page and the floating list of options on the overlay.
+	/// Multilanguage M2: the list is a <see cref="ModDropdownList"/> (overlay, invisible catcher and <b>vertical
+	/// scroll</b>, shared with the F8 panel) - the English voice list has 21 options and used to run off the panel.
+	/// The field itself stays this panel's own button, with the same look it always had.
+	/// <paramref name="openUp"/> asks the list to open <b>above</b> the field (a row near the bottom edge); the widget
+	/// still flips the side when the preferred one has less room.
+	/// </summary>
 	private AiDropdown CreateDropdown(string name, float x, float y, float w, float h, string[] labels, int index, Action<int> onPick, bool openUp = false)
 	{
 		AiDropdown dropdown = new AiDropdown
 		{
 			Labels = labels,
 			Index = index,
-			OnPick = onPick
+			OnPick = onPick,
+			FieldX = x,
+			FieldY = y,
+			FieldW = w,
+			FieldH = h,
+			OpenUp = openUp
 		};
 		// the field belongs to the panel (its row), the list to the overlay: only the list has to float above the rows
 		AiButton field = CreateButton(Page, name + "Field", x, y, w, h, "", delegate
@@ -3219,31 +3349,30 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		});
 		dropdown.Caption = field.Label;
 		dropdown.Caption.alignment = TextAlignmentOptions.MidlineLeft;
-
-		GameObject listRoot = new GameObject(name + "List", typeof(RectTransform), typeof(Image));
-		listRoot.transform.SetParent(_overlay, worldPositionStays: false);
-		float listY = openUp ? y - labels.Length * ItemH : y + h;
-		Place(listRoot.GetComponent<RectTransform>(), x, listY, w, labels.Length * ItemH);
-		// The list background stays a raycast target on purpose (and the raycast audit allow-lists it by name): the
-		// option buttons are 2 px smaller than the list, so a click on that border - or on the sliver under the last
-		// option - would fall through to whatever is behind the open list. With this target the list itself swallows
-		// it, which is what an open dropdown does (and the ListCatcher below only gets the clicks outside the list).
-		// The list is only active while it is open, so it never eats a click otherwise.
-		listRoot.GetComponent<Image>().color = new Color(0.05f, 0.05f, 0.06f, 0.99f);
-		for (int i = 0; i < labels.Length; i++)
+		dropdown.List = ModDropdownList.Create(name + "List", _dropdownHost, DropdownStyle);
+		if (dropdown.List != null)
 		{
-			int captured = i;
-			AiButton item = CreateButton(listRoot.transform, name + "Item" + i, 2f, i * ItemH + 1f, w - 4f, ItemH - 2f, labels[i], delegate
-			{
-				Pick(dropdown, captured);
-			});
-			item.Label.alignment = TextAlignmentOptions.MidlineLeft;
-			item.Image.color = i == index ? GoldColor : ItemColor;
-			dropdown.Items.Add(item);
+			dropdown.List.SetOptions(labels, index);
 		}
-		dropdown.ListRoot = listRoot;
-		listRoot.SetActive(false);
 		return dropdown;
+	}
+
+	/// <summary>The look of the options: the same gold-on-dark this panel always had (the widget's default values are
+	/// exactly these, so this is the single place where they are stated for the AI panel).</summary>
+	private ModDropdownStyle DropdownStyle
+	{
+		get
+		{
+			return _dropdownStyle ?? (_dropdownStyle = new ModDropdownStyle
+			{
+				Font = _font,
+				FontSize = 12f,
+				ItemHeight = ItemH,
+				ItemColor = ItemColor,
+				SelectedColor = GoldColor,
+				Background = new Color(0.05f, 0.05f, 0.06f, 0.99f)
+			});
+		}
 	}
 
 	private Slider CreateSlider(string name, float x, float y, float w, float h, float min, float max, float value, bool whole, Action<float> onChanged)

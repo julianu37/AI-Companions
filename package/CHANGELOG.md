@@ -1,1048 +1,1091 @@
 # Changelog
 
-Todas as mudanças deste projeto, derivado do Offline Companions, do ProfMags. As versões anteriores à 1.4.0 são o mod original (veja o histórico do mod original, do ProfMags, para essas versões) mais o primeiro lote de correções de compatibilidade com a API do Valheim 1.0 que fizeram o mod carregar e rodar. **As entradas abaixo de 1.5.4 são o histórico do upstream e ficam como estão (em inglês) — as nossas seções (a partir da 1.6.0) são nossas.**
+All the changes to this project, derived from ProfMags' Offline Companions. The versions before 1.4.0 are the original mod (see the original mod's history, from ProfMags, for those versions) plus the first batch of compatibility fixes for the Valheim 1.0 API that made the mod load and run. **The entries below 1.5.4 are the upstream history and stay as they are (in English) — our sections (from 1.6.0 on) are ours.**
+
+## 1.9.0 — 25/10/2026
+
+**Five languages, and the mod follows the game.** Portuguese (Brazil), English, Spanish, French and Italian: the
+interface, the companion's speech, the personality presets and the LLM contract all follow the **game's language**,
+and the voice (TTS) and the speech recognition (STT) pick the language and the voice by themselves.
+
+### What the player sees
+
+- **`[AI] VoiceLanguage`, `[AI] TtsLanguage` and `[AI] TtsVoice` are automatic by default** (`auto` / `auto` / `0`):
+  the mod resolves them from the game's language (pt-BR → `pf_dora`, English → `af_heart`, Spanish → `ef_dora`,
+  French → `ff_siwis`, Italian → `if_sara`). An **explicit value still wins**, and the F8 and the AI panel show the
+  **effective** value (`Automatic (en-US · af_heart)`).
+- **`[AI] VoiceInitialPrompt` is automatic too**: each language has its own order vocabulary (better recognition).
+- **A companion whose stored voice belongs to another language** speaks with the default voice of the active
+  language (the choice is kept in the ZDO, so switching the game back restores it).
+- **Content in the five languages**: interface (737 keys), companion speech (186 lines), personality presets and the
+  LLM contract (rules and examples translated; the action tokens are untouched).
+- **The F8 lists the voices by name** (`pf_dora (feminine)`) instead of a number; the AI panel labels show the voice
+  in use and warn when a companion's voice is from another language.
+- **Changing the game's language no longer needs a restart**: the panels rebuild on the next open, and the HUD, the
+  speech and the TTS/STT follow along.
+- **Italian is new** (`if_sara` / `im_nicola`), with UI, speech, presets and contract of its own.
+
+### Under the hood
+
+- `CompanionLocale` (new) is the single table: game language → Whisper code, Kokoro code, voice list and default.
+- The old defaults (`pt`, `pt-br`, `42`, the old PT prompt) are migrated **once** to `auto`. In Portuguese the voice
+  is the same (`pf_dora`), so nothing changes for a pt-BR player.
+- `RadialIntent` (new): a keyword safety net for the actions small models confuse (stances, wander/stop wandering,
+  accept/ignore commands, smelt/cook/hunt). Measured with `qwen2.5-3b-instruct`: **30/30 actions in all five
+  languages** (150 cases).
+- `GatherIntent` (new): the same idea for gather orders that the model answers as `pickup`/`none` — the resource and
+  the amount are read from the player's words.
+- `SpeechConfig` retries the language file after 30 s instead of staying in English until a restart.
+- **Docs and wiki are written in English from now on**; the wiki keeps Portuguese mirrors (`-pt`).
+
+### Known limitations
+
+- **Audio language coverage**: Kokoro has no voice for German, Russian, Polish, Turkish, Korean, Swedish and
+  Ukrainian — those languages use the English voice (the interface and the speech can still be translated).
+- The **voice does not go through the game's mixer** (it ignores the Valheim volume sliders; `[AI] TtsVolume` rules).
+- The **dverger types** (Mage, Fire Mage, Frost Mage and Support) are combat-only by design.
 
 ## 1.8.3 — 25/10/2026
 
-**Inglês como idioma nativo — e o mod passa a falar o idioma do jogo.** Esta é a versão que **quebra o `.cfg`**: o
-arquivo passa a ser **`AiCompanions.cfg`** (o `Maddhattr.OfflineCompanionsReborn.cfg` deixa de ser lido) e a seção
-`[IA]` virou **`[AI]`**, com as chaves em inglês. **Save, mundo, companheiros, casas e inventário não são afetados** —
-o GUID do plugin e as chaves `HC_*` continuam iguais.
+**English as the native language — and the mod now speaks the game's language.** This is the version that **breaks the `.cfg`**: the
+file becomes **`AiCompanions.cfg`** (the `Maddhattr.OfflineCompanionsReborn.cfg` is no longer read) and the section
+`[IA]` became **`[AI]`**, with the keys in English. **Save, world, companions, houses and inventory are not affected** —
+the plugin GUID and the `HC_*` keys stay the same.
 
-### Por que quebrar o `.cfg`
+### Why break the `.cfg`
 
-O mod nasceu com as configurações traduzidas **dentro do código** (`Ligado`, `Modelo`, `TtsVoz`…) e o painel F8
-desenhava esses nomes crus. Resultado: com o jogo em inglês o painel `I` ficava em inglês e o F8 em português. Agora o
-**inglês é a língua nativa** (chaves e descrições) e o **português é tradução** — que é o caminho para espanhol,
-francês e qualquer outro idioma entrarem sem tocar no código.
+The mod was born with the settings translated **inside the code** (`Ligado`, `Modelo`, `TtsVoz`…) and the F8 panel
+drew those raw names. The result: with the game in English the `I` panel was in English and the F8 in Portuguese. Now
+**English is the native language** (keys and descriptions) and **Portuguese is a translation** — which is the path for Spanish,
+French and any other language to come in without touching the code.
 
-### O que muda para quem instala
+### What changes for whoever installs
 
-- **`.cfg` novo: `BepInEx\config\AiCompanions.cfg`.** O arquivo antigo fica no disco, **ignorado** (pode ser apagado) e
-  **as configurações voltam aos padrões** — inclusive a `ApiKey`, que precisa ser colada de novo.
-- **Seção `[AI]`** (era `[IA]`) com as 39 chaves em inglês: `Enabled`, `BaseUrl`, `Model`, `ApiKey`, `Temperature`,
+- **New `.cfg`: `BepInEx\config\AiCompanions.cfg`.** The old file stays on disk, **ignored** (you can delete it) and
+  **the settings go back to the defaults** — including the `ApiKey`, which has to be pasted again.
+- **`[AI]` section** (it was `[IA]`) with the 39 keys in English: `Enabled`, `BaseUrl`, `Model`, `ApiKey`, `Temperature`,
   `TimeoutSeconds`, `Prefix`, `ShowReplyInChat`, `CooldownSeconds`, `TargetRange`, `Personality`,
   `PersonalityPreset`, `Memory`, `Conversation`, `StructuredOutput`, `SttTest`, `SttModel`, `SttWavTest`,
   `VoiceEnabled`, `VoiceKey`, `VoiceLanguage`, `VoiceMaxSeconds`, `VoiceSilenceThreshold`, `VoiceInitialPrompt`,
   `VoiceDevice`, `VoiceShowText`, `PanelKey`, `TtsEnabled`, `TtsVoice`, `TtsSpeed`, `TtsThreads`, `TtsVolume`,
   `TtsModel`, `TtsLanguage`, `TtsCache`, `TtsSpeakReplies`, `TtsSpeakModLines`, `TtsReverbZoneMix`, `EcoDiag`.
-- **Descrições em inglês** no `.cfg` (é o idioma nativo; a explicação em português continua na wiki).
-- **F8 bilíngue**: os nomes das opções e das abas seguem o **idioma do jogo** — em português aparecem `Ligado`,
-  `Modelo`, `VozTecla`…; em inglês, `Enabled`, `Model`, `VoiceKey`… (o painel `I` já funcionava assim).
-- O **migrador do upstream** (`com.profmags.companions.cfg`) continua valendo: quem vem do mod original mantém as
-  opções, porque o arquivo dele já era em inglês.
+- **Descriptions in English** in the `.cfg` (it is the native language; the Portuguese explanation stays in the wiki).
+- **Bilingual F8**: the names of the options and of the tabs follow the **game's language** — in Portuguese they show `Ligado`,
+  `Modelo`, `VozTecla`…; in English, `Enabled`, `Model`, `VoiceKey`… (the `I` panel already worked like that).
+- The **upstream migrator** (`com.profmags.companions.cfg`) still works: whoever comes from the original mod keeps the
+  options, because that file was already in English.
 
-### Ajustes de padrão
+### Default changes
 
-- **`[Death] RespawnDelay` (Espera p/ renascer):** o padrão passou de **300 s** para **30 s** — o mínimo aceito (a
-  faixa continua **30–3600**). O companheiro morto volta sozinho em meio minuto, como um jogador. Um `.cfg` que já
-  exista com outro valor não é mexido; o F8 → *Morte* e o botão **Padrão** mostram o valor novo.
+- **`[Death] RespawnDelay`:** the default went from **300 s** to **30 s** — the minimum accepted (the range stays **30–3600**).
+  The dead companion comes back on his own in half a minute, like a player. A `.cfg` that already
+  exists with another value is not touched; the F8 → *Death* tab and the **Default** button show the new value.
 
-### Para quem for traduzir
+### For whoever translates
 
-Um idioma novo é **um arquivo**: `Translations/<Idioma>.json` (interface, nomes de config e abas) + `Speech/<Idioma>.json`
-(falas). O **inglês não precisa de arquivo** — as chaves **são** o texto, então o jogo em inglês mostra os nomes certos
-sem nenhuma tradução.
+A new language is **one file**: `Translations/<Language>.json` (interface, config names and tabs) + `Speech/<Language>.json`
+(speech lines). **English needs no file** — the keys **are** the text, so the game in English shows the right names
+with no translation at all.
 
-### Limitações conhecidas
+### Known limitations
 
-- **Os tipos dverger (Mago, Mago de Fogo, Mago de Gelo e Suporte) são de combate.** Eles lutam normalmente e a roda
-  mostra só as ações de combate/suporte (seguir, reparar e reabastecer, dispensa, comando, pegar, vagar, definir casa e
-  as posturas). Ordens de **trabalho** — por chat, voz ou pela tecla de comando — são **recusadas** com a fala
-  *"Sou de combate, não faço esse trabalho."* (o modo e o alvo da ordem atual não mudam). Se você **trocar o tipo** de um
-  companheiro que estava trabalhando por um desses, ele volta a seguir. O painel esconde os espaços de comida por
-  tipo. **Para trabalhos, use o tipo `Companheiro`, que é completo.**
+- **The dverger types (Mage, Fire Mage, Ice Mage and Support) are combat types.** They fight normally and the ring
+  shows only the combat/support actions (follow, repair and restock, dismiss, command, pick up, wander, set home and
+  the stances). **Work** orders — through the chat, the voice or the command key — are **refused** with the line
+  *"I'm a fighter, I don't do that work."* (the mode and the target of the current order do not change). If you **change the type** of a
+  companion who was working to one of those, he goes back to following. The panel hides the food slots per
+  type. **For work, use the `Companion` type, which is complete.**
 
 ## 1.8.2 — 24/10/2026
 
-**Escolher o provedor de LLM virou um clique.** A seção *Configurações do LLM* do painel `I` ganhou um **seletor de
-provedor** acima da URL do servidor: escolher **Groq**, **LM Studio** ou **OpenRouter** preenche a **URL** e o
-**modelo** sozinho (a chave continua com você) — e, ao lado do campo da **Chave de API**, um botão
-**"Crie sua Chave de API Grátis AQUI"** abre no navegador a página de chaves do provedor escolhido.
+**Choosing the LLM provider became one click.** The *LLM settings* section of the `I` panel got a **provider
+picker** above the server URL: choosing **Groq**, **LM Studio** or **OpenRouter** fills in the **URL** and the
+**model** on its own (the key stays with you) — and, next to the **API key** field, a button
+**"Create your Free API Key HERE"** opens the key page of the chosen provider in the browser.
 
-### Painel da IA (tecla `I`)
+### AI panel (key `I`)
 
-- **Seletor "Selecione seu Provedor LLM"** — o mesmo dropdown do "Tipo" do invocador, já aberto no provedor que o seu
-  `.cfg` usa:
+- **"Select your LLM provider" picker** — the same dropdown as the summoner's "Type", already open on the provider your
+  `.cfg` uses:
   **Groq** → `https://api.groq.com/openai/v1` + `openai/gpt-oss-20b`;
   **LM Studio** → `http://127.0.0.1:1234/v1` + `qwen2.5-3b-instruct`;
   **OpenRouter** → `https://openrouter.ai/api/v1` + `openrouter/free`.
-  Escolher **preenche os campos**; nada é gravado até o **Aplicar**, e a **chave nunca é tocada** (nem apagada, nem
-  preenchida).
-- **"Personalizado (URL manual)"** — quando a URL do `.cfg` não é de nenhum dos três (Ollama, servidor próprio…), o
-  seletor mostra essa opção e **não mexe em nada**: ele nunca mente sobre o que está configurado. A escolha é sempre
-  deduzida da própria URL, então não existe um segundo lugar que possa divergir do `.cfg`.
-- **Botão "Crie sua Chave de API Grátis AQUI"**, na linha da chave: dourado como os botões *Ligado*, com o **realce
-  suave** no hover e **sem** virar "Desligado" depois do clique (é uma ação, não um seletor). Abre
-  `console.groq.com/keys` no Groq e `openrouter.ai/keys` no OpenRouter; **some** no LM Studio e no personalizado, que
-  não têm chave para criar. A URL é fixa no código, nunca montada com o que o jogador digitou.
-- **A "Velocidade da fala" saiu do painel `I`** e ficou **só no painel F8** — a opção continua a mesma
-  (`[IA] TtsVelocidade`) e o botão **Ouvir** usa o valor de lá. Com isso o painel ficou **42 px mais baixo** e sem
-  espaço vazio no meio.
+  Choosing **fills in the fields**; nothing is saved until **Apply**, and the **key is never touched** (neither deleted nor
+  filled in).
+- **"Custom (manual URL)"** — when the URL in the `.cfg` is not one of the three (Ollama, own server…), the
+  picker shows that option and **does not touch anything**: it never lies about what is configured. The choice is always
+  inferred from the URL itself, so there is no second place that can diverge from the `.cfg`.
+- **"Create your Free API Key HERE" button**, on the key line: golden like the *On* buttons, with the **soft
+  highlight** on hover and **without** turning into "Off" after the click (it is an action, not a picker). It opens
+  `console.groq.com/keys` on Groq and `openrouter.ai/keys` on OpenRouter; it **disappears** on LM Studio and on custom, which
+  have no key to create. The URL is fixed in the code, never built from what the player typed.
+- **The "Speech speed" left the `I` panel** and stayed **only in the F8 panel** — the option is still the same
+  (`[IA] TtsVelocidade`) and the **Listen** button uses the value from there. With that the panel became **42 px shorter** and without
+  empty space in the middle.
 
-### Para quem já tem o mod
+### For whoever already has the mod
 
-Nada muda sozinho: o `.cfg` não é reescrito, o provedor continua o que você configurou (o seletor apenas **mostra**
-qual é) e a velocidade da fala continua no valor que você deixou.
+Nothing changes on its own: the `.cfg` is not rewritten, the provider stays the one you configured (the picker only **shows**
+which one it is) and the speech speed stays at the value you left.
 
 ## 1.8.1 — 24/10/2026
 
-**Novo padrão de LLM: Groq — grátis e rápido.** O padrão passa a ser `[IA] BaseUrl` = `https://api.groq.com/openai/v1` e
-`[IA] Modelo` = `openai/gpt-oss-20b`, com a **chave gratuita** em `console.groq.com/keys`. O motivo é simples: o tier
-gratuito do **OpenRouter** (`openrouter/free`) é **lento** e imprevisível para uma ordem de jogo, enquanto o
-`openai/gpt-oss-20b` do Groq responde em fração de segundo.
+**New default LLM: Groq — free and fast.** The default becomes `[IA] BaseUrl` = `https://api.groq.com/openai/v1` and
+`[IA] Modelo` = `openai/gpt-oss-20b`, with the **free key** at `console.groq.com/keys`. The reason is simple: the free tier of
+**OpenRouter** (`openrouter/free`) is **slow** and unpredictable for a game order, while
+Groq's `openai/gpt-oss-20b` answers in a fraction of a second.
 
-- **Ordem de preferência:** **Groq** (padrão) → **LM Studio/Ollama** local (opcional — nada sai da sua máquina) →
-  **OpenRouter** (continua funcionando e documentado, mas o gratuito é mais lento). Trocar é só editar
-  `BaseUrl`/`Modelo`/`ApiKey` no `.cfg` ou na seção **Configurações do LLM** do painel `I`.
-- **A saída estruturada continua garantida:** o `openai/gpt-oss-20b` aceita `json_schema` em modo **strict** (o que o mod
-  usa), então a resposta continua sendo JSON válido e nenhuma ordem é perdida.
-- **Limites do tier gratuito do Groq** (`gpt-oss-20b`): **30 requisições/min, 1.000/dia, 8.000 tokens/min e
-  200.000/dia**. Como cada ordem gasta ~1.800 tokens de prompt, o teto prático fica em **~4 ordens por minuto**; passando
-  disso o Groq responde **429** e a ordem é recusada com aviso (nada quebra, nada fica preso).
-- **O seu `.cfg` não muda sozinho:** o BepInEx só aplica o default em chave nova, então quem já configurou OpenRouter ou
-  LM Studio continua exatamente como está — mudar é opcional.
-- **Docs alinhadas:** a wiki (página do LLM, requisitos, instalação, configuração, problemas comuns), o README e a página
-  do Nexus agora apresentam o **Groq primeiro**, o **LM Studio** como opção local e o **OpenRouter** por último.
+- **Order of preference:** **Groq** (default) → local **LM Studio/Ollama** (optional — nothing leaves your machine) →
+  **OpenRouter** (still working and documented, but the free one is slower). Switching is just editing
+  `BaseUrl`/`Modelo`/`ApiKey` in the `.cfg` or in the **LLM settings** section of the `I` panel.
+- **The structured output is still guaranteed:** `openai/gpt-oss-20b` accepts `json_schema` in **strict** mode (what the mod
+  uses), so the reply is still valid JSON and no order is lost.
+- **Limits of the Groq free tier** (`gpt-oss-20b`): **30 requests/min, 1,000/day, 8,000 tokens/min and
+  200,000/day**. Since each order spends ~1,800 prompt tokens, the practical cap is **~4 orders per minute**; above
+  that Groq answers **429** and the order is refused with a warning (nothing breaks, nothing gets stuck).
+- **Your `.cfg` does not change on its own:** BepInEx only applies the default on a new key, so whoever already configured OpenRouter or
+  LM Studio stays exactly as they are — changing is optional.
+- **Docs aligned:** the wiki (LLM page, requirements, installation, configuration, common problems), the README and the
+  Nexus page now present **Groq first**, **LM Studio** as the local option and **OpenRouter** last.
 
 ## 1.8.0 — 24/10/2026
 
-**O que o companheiro carrega agora é o que ele tem na mochila: o Megingjord soma de verdade.** Correção do relato
-enviado no Nexus (*"quando eu coloco a megingjord no inventário do companion ela não aumenta o peso em 150"*) — e um
-teto de peso que passa a respeitar o equipamento. **Esta release inclui tudo da 1.7.0** (vários companheiros com aba
-própria, editor de aparência com preview 3D, OpenRouter como padrão da IA); quem vem de uma versão anterior encontra o
-conjunto completo aqui.
+**What the companion carries is now what he has in his pack: the Megingjord really adds up.** A fix for the report
+sent on the Nexus (*"when I put the megingjord in the companion's inventory it doesn't raise the weight by 150"*) — and a
+weight cap that now respects the equipment. **This release includes everything from 1.7.0** (several companions with their own
+tab, appearance editor with a 3D preview, OpenRouter as the AI default); whoever comes from an earlier version finds the
+complete set here.
 
-### Peso e capacidade de carga
+### Weight and carrying capacity
 
-- **Itens com bônus de carga passam a contar** — o Megingjord (+150) e qualquer item construído do mesmo jeito no jogo.
-  O teto efetivo do companheiro é `[General] MaxCarryWeight` **+ bônus**, e o valor é lido do **asset**
-  (`SE_Stats.m_addMaxCarryWeight`), **nunca** de um `150` fixo: um cinto modificado para +250 funciona igual.
-- **Vale com o cinto em qualquer lugar da mochila** — não precisa equipar no slot de utilidade (num `Humanoid` que não é
-  jogador ele nem sobrevive ao reload). E continua valendo **uma vez só**: dois cintos iguais não somam, exatamente como
-  o jogo trata os efeitos de equipamento.
-- **Onde o teto novo vale:** o **`Encumbered`** (andar lento), o `x/450` do **painel do companheiro** e a barra do
-  **HUD**, a recusa de **loot** e do **recolhimento do chão**, o **ferreiro**, o **upkeep**, o "mochila cheia" da
-  **pesca/caça** e o aviso de "estou cheio".
-- **A coleta também soma:** `[Gathering] OverweightThreshold` passou a ser o valor **base** (298 por padrão) e o bônus
-  entra por cima — com o Megingjord na mochila o companheiro de coleta só volta para casa perto de **448** e continua
-  coletando acima de 300. Sem o cinto, tudo como antes (298).
-- **Uma linha de log por mudança** (nunca por frame): `[Carry] "Thorin": +150 de capacidade (Megingjord) - teto 450`.
-- **Sem custo por frame:** o bônus é cacheado por inventário e só é recalculado quando a mochila muda (o caminho sem
-  cinto não aloca nada).
+- **Items with a carrying bonus now count** — the Megingjord (+150) and any item built the same way in the game.
+  The companion's effective cap is `[General] MaxCarryWeight` **+ bonus**, and the value is read from the **asset**
+  (`SE_Stats.m_addMaxCarryWeight`), **never** from a fixed `150`: a belt modded to +250 works the same.
+- **It works with the belt anywhere in the pack** — no need to equip it in the utility slot (on a `Humanoid` that is not a
+  player it does not even survive a reload). And it still counts **only once**: two identical belts do not add up, exactly as
+  the game treats equipment effects.
+- **Where the new cap applies:** the **`Encumbered`** state (slow walking), the `x/450` of the **companion panel** and the
+  **HUD** bar, the refusal of **loot** and of **picking up from the ground**, the **smith**, the **upkeep**, the "bag full" of
+  **fishing/hunting** and the "I'm full" warning.
+- **Gathering also adds up:** `[Gathering] OverweightThreshold` became the **base** value (298 by default) and the bonus
+  goes on top — with the Megingjord in the pack the gathering companion only goes back home near **448** and keeps
+  gathering above 300. Without the belt, everything as before (298).
+- **One log line per change** (never per frame): `[Carry] "Thorin": +150 de capacidade (Megingjord) - teto 450`.
+- **No per-frame cost:** the bonus is cached per inventory and is only recalculated when the pack changes (the path without a
+  belt allocates nothing).
 
-### Por que não funcionava antes
+### Why it did not work before
 
-O limite de peso do companheiro é **do mod** (`[General] MaxCarryWeight`, 300 por padrão), não do jogo — o vanilla
-**não** impõe limite a um `Humanoid` que não é jogador (`Inventory.CanAddItem` só olha espaço de grade e não existe
-`m_maxWeight` na 1.0). E o `+150` do cinto é um **status effect** cujo **único leitor** é `Player.GetMaxCarryWeight()`;
-o companheiro nunca passava por ali, então o cinto só ocupava espaço e pesava.
+The companion's weight limit is **the mod's** (`[General] MaxCarryWeight`, 300 by default), not the game's — vanilla
+**does not** impose a limit on a `Humanoid` that is not a player (`Inventory.CanAddItem` only looks at grid space and there is no
+`m_maxWeight` in 1.0). And the belt's `+150` is a **status effect** whose **only reader** is `Player.GetMaxCarryWeight()`;
+the companion never went through there, so the belt only took up space and weighed.
 
 ## 1.7.0 — 23/10/2026
 
-**Vários companheiros, cada um com identidade própria — e o companheiro entra no jogo pronto para usar.** O mod agora
-se chama **AI Companions** (era ModAI-BR-Companions): a pasta do plugin é `BepInEx\plugins\AI-Companions\` e os pacotes
-são `AI_Companions-<versão>.zip`. **O GUID, o arquivo `.cfg`, o `Companions.dll` e as chaves `HC_*` foram preservados** —
-atualizar não perde configuração, companheiro, casa, inventário nem save.
+**Several companions, each one with its own identity — and the companion comes into the game ready to use.** The mod is now
+called **AI Companions** (it was ModAI-BR-Companions): the plugin folder is `BepInEx\plugins\AI-Companions\` and the packages
+are `AI_Companions-<version>.zip`. **The GUID, the `.cfg` file, `Companions.dll` and the `HC_*` keys were preserved** —
+updating loses no settings, companion, home, inventory or save.
 
-### Companheiros
+### Companions
 
-- **Invocador**: `Invocar novo companheiro` no painel (tecla `I`), **de graça** — escolha o tipo (Guerreiro, Arqueiro,
-  Mago, Cozinheiro, Coletor, Fazendeiro) e ele nasce pronto, sem passar pelo Trader. Companheiro novo nasce com o nome
-  do tipo numerado ("Guerreiro 2") para não confundir as abas.
-- **Uma aba por companheiro** no painel `I`: nome, tipo, aparência, voz, personalidade e Chamar/recall — tudo daquele
-  companheiro, sem mexer nos outros.
-- **Ordem e conversa pelo nome**: `Gruncha, colete 10 pedras` vale **só** para ele (o prompt, a personalidade, a memória
-  e a ordem são os dele). Sem o nome, a ordem continua valendo para todos. Um começo que parece nome e não existe
-  (`Fulano, colete…`) é avisado em vez de ordenar errado — mas `mano, colete 10 pedras` continua ordenando normal.
-- **Nome e tipo editáveis**: renomear (o nome vale no HUD, no hover, na roda e nos comandos) e **trocar o tipo** com
-  respawn preservando nome, inventário, equipamento, aparência, casa/cama, skills, perfil de IA, stamina, ferramentas
-  emprestadas e o registro do cozinheiro.
-- **Voz e personalidade por companheiro** (no ZDO dele, viajam na lápide): o que está no `[IA]` é o padrão de quem não
-  tem escolha própria.
-- **Teto de 10 companheiros** (`[General] MaxCompanions`): a conta é do roster (vivos + mortos + perdidos), então
-  morrer não abre vaga; o Trader, o invocador e o companheiro inicial respeitam o limite e o Santuário continua
-  recuperando os mortos.
+- **Summoner**: `Summon new companion` in the panel (key `I`), **for free** — pick the type (Warrior, Archer,
+  Mage, Cook, Gatherer, Farmer) and he is born ready, without going through the Trader. A new companion is born with the name
+  of the type plus a number ("Warrior 2") so the tabs are not confused.
+- **One tab per companion** in the `I` panel: name, type, appearance, voice, personality and Call/recall — everything for that
+  companion, without touching the others.
+- **Order and conversation by name**: `Gruncha, collect 10 stones` applies **only** to him (the prompt, the personality, the memory
+  and the order are his). Without the name, the order still applies to everyone. A beginning that looks like a name and does not exist
+  (`Fulano, collect…`) gets a warning instead of ordering the wrong one — but `mano, collect 10 stones` still orders normally.
+- **Name and type editable**: rename (the name applies in the HUD, in the hover, in the ring and in the commands) and **change the type** with
+  a respawn preserving name, inventory, equipment, appearance, home/bed, skills, AI profile, stamina, borrowed
+  tools and the cook's ledger.
+- **Voice and personality per companion** (in his ZDO, they travel in the tombstone): what is in `[IA]` is the default for whoever has no
+  choice of his own.
+- **Cap of 10 companions** (`[General] MaxCompanions`): the count is of the roster (alive + dead + lost), so
+  dying does not open a slot; the Trader, the summoner and the starting companion respect the limit and the Shrine keeps
+  recovering the dead.
 
-### Aparência
+### Appearance
 
-- **Editor de aparência com preview 3D**: gênero, corte de cabelo, barba, cor de pele, tom e sombra do cabelo — o
-  boneco muda **ao vivo** enquanto você escolhe, e o **Aplicar** grava no companheiro **sem respawn**.
+- **Appearance editor with a 3D preview**: gender, haircut, beard, skin colour, hair tone and shade — the
+  model changes **live** while you choose, and **Apply** saves it to the companion **without a respawn**.
 
-### IA
+### AI
 
-- **OpenRouter por padrão, sem instalar nada**: `[IA] BaseUrl` nasce `https://openrouter.ai/api/v1` e
-  `[IA] Modelo` nasce `openrouter/free` — basta colar a **chave gratuita** de `openrouter.ai/keys` na `ApiKey`.
-  **LM Studio (e Ollama) continuam funcionando** como opção local/offline: troque a URL e o modelo no `.cfg`.
-- **Seção "Configurações do LLM" no painel `I`**: liga/desliga a IA e a conversa, URL, modelo, chave (**mascarada**),
-  prefixo, sliders de memória e temperatura, **Aplicar** e **Testar conexão** — sem editar arquivo. As opções
-  avançadas continuam no painel **F8**.
-- **O `para` responde o que ele estava fazendo**: `para` enquanto coleta madeira → *"Ok: parar de coletar madeira"*
-  (antes dizia sempre "parar de seguir"). Minerando, cozinhando, reparando… cada trabalho com a sua frase.
-- **As falas do próprio mod passam a ser faladas**: "Preciso de uma picareta", as falas de evento e a mudança de modo
-  saem na **voz do companheiro** com o TTS local, com a mesma deduplicação das respostas da IA.
+- **OpenRouter by default, without installing anything**: `[IA] BaseUrl` is born `https://openrouter.ai/api/v1` and
+  `[IA] Modelo` is born `openrouter/free` — just paste the **free key** from `openrouter.ai/keys` into the `ApiKey`.
+  **LM Studio (and Ollama) keep working** as a local/offline option: change the URL and the model in the `.cfg`.
+- **"LLM settings" section in the `I` panel**: turns the AI and the conversation on/off, URL, model, key (**masked**),
+  prefix, memory and temperature sliders, **Apply** and **Test connection** — without editing a file. The advanced
+  options stay in the **F8** panel.
+- **The `stop` answers what he was doing**: `stop` while gathering wood → *"Ok: stop gathering wood"*
+  (before it always said "stop following"). Mining, cooking, repairing… each job with its own line.
+- **The mod's own lines are now spoken**: "I need a pickaxe", the event lines and the mode change
+  come out in the **companion's voice** through the local TTS, with the same deduplication as the AI replies.
 
-### Correções
+### Fixes
 
-- **Botões dos painéis do mod não "morriam"**: os botões clonados do jogo (starter, editor de aparência, roda)
-  herdavam `interactable = false` do molde do botão de craft e paravam de responder depois de abrir o inventário —
-  agora nascem habilitados. Era isso que matava as **setas de cabelo e barba**.
-- **Cabelo e barba aplicados de verdade**: o jogo cacheia o hash do item **antes** de anexar; quando o anexo falhava
-  uma vez, toda mudança daquele corte virava no-op silencioso. O cache é limpo a cada aplicação e o joint da cabeça é
-  procurado quando está nulo.
-- **Sliders de cor voltavam ao início**: as cores guardadas eram sobrescritas pelos padrões na montagem do painel;
-  agora o painel abre na posição que reproduz as cores salvas.
-- **Ordens**: `inventory_close` entrou no contrato (30 ações) e "fecha o inventário" não abre mais a janela; o nome no
-  comando virou conservador; a escrita no ZDO espera a posse (com fila e aviso) em vez de se perder no multiplayer; o
-  LLM ganhou **id de requisição** (resposta atrasada é descartada, sem aplicar ordem velha); a lápide e o respawn
-  comparam o id do companheiro antes do nome (dois companheiros com o mesmo nome); os caches de estoque passaram a ser
-  **por companheiro**.
-- **Layout**: a coluna do meio do painel do starter com o **Ouvir** visível e sem sobreposição; o campo de nome já vem
-  preenchido com o padrão do tipo; o rodapé do painel `I` ganhou faixa própria e duas linhas de resumo.
+- **Buttons of the mod panels no longer "died"**: the buttons cloned from the game (starter, appearance editor, ring)
+  inherited `interactable = false` from the craft button template and stopped answering after opening the inventory —
+  now they are born enabled. That was what killed the **hair and beard arrows**.
+- **Hair and beard really applied**: the game caches the item hash **before** attaching; when the attach failed
+  once, every change of that cut became a silent no-op. The cache is cleared on every apply and the head joint is
+  looked up when it is null.
+- **Colour sliders went back to the start**: the stored colours were overwritten by the defaults while the panel was built;
+  now the panel opens at the position that reproduces the saved colours.
+- **Orders**: `inventory_close` entered the contract (30 actions) and "close the inventory" no longer opens the window; the name in the
+  command became conservative; the ZDO write waits for ownership (with a queue and a warning) instead of getting lost in multiplayer; the
+  LLM got a **request id** (a late reply is discarded, without applying an old order); the tombstone and the respawn
+  compare the companion id before the name (two companions with the same name); the stock caches became
+  **per companion**.
+- **Layout**: the middle column of the starter panel with **Listen** visible and no overlap; the name field already comes
+  filled in with the type default; the footer of the `I` panel got its own strip and two summary lines.
 
-### Requisitos
+### Requirements
 
-- **Valheim 1.0.x** + **BepInExPack_Valheim 5.4.2351**. Um **LLM**: OpenRouter (padrão — só a chave gratuita e
-  internet) **ou** LM Studio/Ollama local (opcional). **Windows x64** para as duas partes de voz; microfone só para as
-  ordens por voz.
-- **Ao atualizar de uma versão anterior, apague a pasta antiga** (`BepInEx\plugins\ModAI-BR-Companions\`) antes de
-  extrair: duas cópias do mesmo plugin fazem o BepInEx carregar o mesmo mod duas vezes. O `.cfg` fica em
-  `BepInEx\config\Maddhattr.OfflineCompanionsReborn.cfg` e **não** é afetado.
+- **Valheim 1.0.x** + **BepInExPack_Valheim 5.4.2351**. An **LLM**: OpenRouter (default — only the free key and
+  internet) **or** a local LM Studio/Ollama (optional). **Windows x64** for both voice parts; a microphone only for the
+  voice orders.
+- **When updating from an earlier version, delete the old folder** (`BepInEx\plugins\ModAI-BR-Companions\`) before
+  extracting: two copies of the same plugin make BepInEx load the same mod twice. The `.cfg` stays in
+  `BepInEx\config\Maddhattr.OfflineCompanionsReborn.cfg` and is **not** affected.
 
 ## 1.6.4 - 19/10/2026
 
-**Padroes do `[IA]` corretos e apresentacao como projeto independente.** Para quem ja configurou, nada muda no jogo:
+**Correct `[IA]` defaults and the presentation as an independent project.** For whoever already configured it, nothing changes in the game:
 
-- **`[IA] BaseUrl` agora nasce `http://127.0.0.1:1234/v1`** (era `http://localhost:1234/v1`). No Windows o `localhost` resolve primeiro para IPv6 e o servidor do LM Studio so escuta IPv4 - cada ordem pagava cerca de 2,5 s de espera por causa disso. Quem ja tem o `.cfg` **nao** e afetado: o valor configurado continua valendo.
-- **`[IA] Modelo` agora nasce `qwen2.5-3b-instruct`** (era `google/gemma-4-e4b`) - o modelo medido em ~0,35-0,4 s por ordem com a saida estruturada.
-- O texto de ajuda do `BaseUrl` passou a explicar `127.0.0.1` vs `localhost`.
-- A documentacao (README, LEIA-ME, wiki e notas de release) deixa de se apresentar como "fork" e passa a "projeto independente baseado no Offline Companions Reborn". A atribuicao MIT continua obrigatoria e mantida.
+- **`[IA] BaseUrl` is now born `http://127.0.0.1:1234/v1`** (it was `http://localhost:1234/v1`). On Windows `localhost` resolves to IPv6 first and the LM Studio server only listens on IPv4 - every order paid about 2.5 s of waiting because of that. Whoever already has the `.cfg` is **not** affected: the configured value still applies.
+- **`[IA] Modelo` is now born `qwen2.5-3b-instruct`** (it was `google/gemma-4-e4b`) - the model measured at ~0.35-0.4 s per order with the structured output.
+- The help text of `BaseUrl` now explains `127.0.0.1` vs `localhost`.
+- The documentation (README, LEIA-ME, wiki and release notes) stops presenting itself as a "fork" and becomes an "independent project based on Offline Companions Reborn". The MIT attribution stays mandatory and is kept.
 
 ## 1.6.3 — 17/10/2026
 
-**Reempacotado.** Nada muda no jogo:
+**Repackaged.** Nothing changes in the game:
 
-- Mesmo conteúdo da 1.6.2, com a pasta do mod em `BepInEx/plugins/AI-Companions/` e o
-  `README.md`/`CHANGELOG.md`/`icon.png` na **raiz** do pacote.
-- O `.zip` passa a se chamar `AI_Companions-1.6.3.zip` (nome exato `Nome-Versão`, sem sufixo).
+- Same content as 1.6.2, with the mod folder in `BepInEx/plugins/AI-Companions/` and
+  `README.md`/`CHANGELOG.md`/`icon.png` in the **root** of the package.
+- The `.zip` is now called `AI_Companions-1.6.3.zip` (exact name `Name-Version`, no suffix).
 
 ## 1.6.2 — 17/10/2026
 
-**Ícone novo e pacote enxuto.** Nada muda no jogo:
+**New icon and a lean package.** Nothing changes in the game:
 
-- **Ícone novo** — a arte do mod (os três companheiros + o "AI COMPANIONS PT-BR"), em **256×256**.
-  O banner completo está no repositório (`docs/images/banner.png`) e no topo do README.
-- O pacote passa a ir **sem os modelos** (~20 MB, em vez de ~368 MB). Os **modelos (STT e TTS)
-  continuam no release do GitHub**, e o LEIA-ME/README dizem exatamente onde colocá-los (a pasta `whisper\` e a
+- **New icon** — the mod's art (the three companions + "AI COMPANIONS PT-BR"), in **256×256**.
+  The full banner is in the repository (`docs/images/banner.png`) and at the top of the README.
+- The package now goes out **without the models** (~20 MB, instead of ~368 MB). The **models (STT and TTS)
+  stay in the GitHub release**, and the LEIA-ME/README say exactly where to put them (the `whisper\` folder and
   `tts\kokoro\`).
 
 ## 1.6.1 — 17/10/2026
 
-**Pacote enxuto.** Nada muda no jogo:
+**Lean package.** Nothing changes in the game:
 
-- O pacote **não leva mais o WAV de teste** (`whisper\jfk.wav`): vai só o que o mod precisa para
-  funcionar. O comando de console `modia_stt_teste` continua funcionando e aceita um caminho de WAV como argumento.
-- O `.zip` publicado passa a se chamar `AI_Companions-1.6.1.zip` (nome exato `Nome-Versão`, sem sufixo).
+- The package **no longer carries the test WAV** (`whisper\jfk.wav`): only what the mod needs to
+  work goes out. The console command `modia_stt_teste` keeps working and takes a WAV path as an argument.
+- The published `.zip` is now called `AI_Companions-1.6.1.zip` (exact name `Name-Version`, no suffix).
 
 ## 1.6.0 — 16/10/2026
 
-**A camada de IA: ordens por chat e por voz, o companheiro fala, personalidade/memória e um painel no jogo — tudo local, em PT-BR.** Este é o primeiro release do projeto com a IA (Fases 3.1 a 3.8); o detalhe técnico de cada uma está nas seções abaixo.
+**The AI layer: orders by chat and by voice, the companion speaks, personality/memory and an in-game panel — all local, in PT-BR.** This is the first release of the project with the AI (Phases 3.1 to 3.8); the technical detail of each one is in the sections below.
 
-**Destaques:**
-- **Ordens por texto no chat:** `colete 10 madeiras`, `segue`, `para`, `minere ferro` — um **LLM local** (API compatível com a OpenAI) devolve a intenção e o companheiro executa a mesma ação do menu radial.
-- **Ordens por voz:** segure **V**, fale e solte — **STT local** (Whisper.net, dentro do jogo, sem internet).
-- **O companheiro fala:** **TTS local** (Kokoro-82M via sherpa-onnx), em PT-BR, com a voz saindo da posição dele.
-- **Personalidade, memória e conversa livre:** `bom dia`, perguntas — ele responde como personagem e lembra da conversa.
-- **Ordens com alvo:** `ataca o greydwarf`, `equipa o machado de bronze`, `larga a pedra` (e `joga a madeira fora`).
-- **Recolher itens do chão:** `recolhe os itens` / `pega o machado do chão` — inclusive o que ele mesmo largou.
-- **Painel da IA no jogo** (tecla **I**): personalidade, voz (com o botão **Ouvir**), push-to-talk, volume/velocidade, memória e conversa.
-- **Tradução PT-BR auditada:** 386 chaves de UI e 186 falas, sem texto em inglês visível ao jogador.
-- **Correções:** o **eco da voz** (era a zona de reverb global do jogo — a voz agora sai seca), a **ordem de pedra** que não parava no alvo, e o **painel F8** que engolia cliques (as camadas da UI do mod agora ficam acima do HUD do jogo).
+**Highlights:**
+- **Text orders in the chat:** `collect 10 wood`, `follow`, `stop`, `mine iron` — a **local LLM** (OpenAI-compatible API) returns the intent and the companion performs the same action as the radial menu.
+- **Voice orders:** hold **V**, speak and release — **local STT** (Whisper.net, inside the game, no internet).
+- **The companion speaks:** **local TTS** (Kokoro-82M via sherpa-onnx), in PT-BR, with the voice coming out of his position.
+- **Personality, memory and free conversation:** `good morning`, questions — he answers as a character and remembers the conversation.
+- **Orders with a target:** `attack the greydwarf`, `equip the bronze axe`, `drop the stone` (and `throw the wood away`).
+- **Picking up items from the ground:** `pick up the items` / `get the axe from the ground` — including what he dropped himself.
+- **AI panel in game** (key **I**): personality, voice (with the **Listen** button), push-to-talk, volume/speed, memory and conversation.
+- **Audited PT-BR translation:** 386 UI keys and 186 speech lines, with no English text visible to the player.
+- **Fixes:** the **voice echo** (it was the game's global reverb zone — the voice now comes out dry), the **stone order** that did not stop at the target, and the **F8 panel** that swallowed clicks (the mod UI layers are now above the game HUD).
 
-#### Fases incluídas neste release
+#### Phases included in this release
 
-Tradução PT-BR: auditoria de cobertura (o que o jogador lê, em inglês, era bug) + Fase 3.1: ordens por texto no chat (IA local) + Fase 3.2/3.2c: o número da ordem é um ALVO TOTAL contado no inventário do companheiro + Fase 3.6: ordens com alvo (atacar/equipar/largar) + Fase 3.6b: a ordem sem alvo do modelo (drop/equip/attack caem para as palavras do jogador) + Fase 3.5: personalidade, memória e conversa livre + Fase 3.3: ordens por voz (push-to-talk + STT local) + Fase 3.3b: correções do teste da voz (tecla V, qualidade do STT, latência) + Fase 3.3c: raio de coleta maior e chatter aleatório desligado + Fase 3.3d: a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador + Fase 3.8: o companheiro abre o próprio inventário por voz/chat + Fase 3.4: o companheiro FALA (TTS local, Kokoro-82M via sherpa-onnx) + Fase 3.7: painel da IA no jogo (personalidade, voz com Ouvir, push-to-talk) + Fase 3.4 (parte 3): o eco do TTS RESOLVIDO — era a zona de reverb global do jogo (a voz sai seca) + Fase 3.1: saída estruturada (JSON schema) — destrava modelos pequenos + Tradução PT-BR (projeto AI Companions) + correção: o painel F8 não engole mais cliques (camada 31→33 + raycast dos decorativos) + correção (a de verdade): os painéis e a roda do mod vão para a faixa **1701+** — **a camada era a causa** do clique engolido no F8 (o HUD do jogo está em 400; o 31→33 era insuficiente) + correção: o diagnóstico de raycast vira opt-in (`[Advanced] UiDiag`, padrão desligado — eram ~7 KB por sessão) e para de avisar sobre os alvos de clique intencionais do painel da IA
-- **O diagnóstico de raycast vira opt-in e para de avisar sobre alvos intencionais (branch `fix/uidiag`).** O audit
-  `[UiDiag]` (o que achou o `HUD` do jogo em 400 engolindo os cliques do F8) **não** foi removido — ele é a resposta
-  para "quem está na frente dos controles?" — mas uma sessão dele saiu com **6 linhas / 7.132 caracteres** e **três**
-  dessas linhas eram **falsos positivos** do painel da IA (`HC_AiPanel/AiRoot`, `HC_AiPanel/AiRoot/KeyBox`,
+PT-BR translation: coverage audit (what the player reads, in English, was a bug) + Phase 3.1: text orders in the chat (local AI) + Phase 3.2/3.2c: the order number is a TOTAL TARGET counted in the companion's inventory + Phase 3.6: orders with a target (attack/equip/drop) + Phase 3.6b: the model's order without a target (drop/equip/attack fall back to the player's words) + Phase 3.5: personality, memory and free conversation + Phase 3.3: voice orders (push-to-talk + local STT) + Phase 3.3b: fixes from the voice test (V key, STT quality, latency) + Phase 3.3c: larger gathering radius and random chatter off + Phase 3.3d: the stone order stops at the target and the voice text goes to the player's bubble + Phase 3.8: the companion opens his own inventory by voice/chat + Phase 3.4: the companion SPEAKS (local TTS, Kokoro-82M via sherpa-onnx) + Phase 3.7: AI panel in game (personality, voice with Listen, push-to-talk) + Phase 3.4 (part 3): the TTS echo SOLVED — it was the game's global reverb zone (the voice comes out dry) + Phase 3.1: structured output (JSON schema) — unlocks small models + PT-BR translation (AI Companions project) + fix: the F8 panel no longer swallows clicks (layer 31→33 + raycast of the decorative parts) + fix (the real one): the mod panels and ring go to the **1701+** range — **the layer was the cause** of the swallowed click in the F8 (the game HUD is at 400; the 31→33 was not enough) + fix: the raycast diagnostic becomes opt-in (`[Advanced] UiDiag`, off by default — it was ~7 KB per session) and stops warning about the intentional click targets of the AI panel
+- **The raycast diagnostic becomes opt-in and stops warning about intentional targets (branch `fix/uidiag`).** The audit
+  `[UiDiag]` (the one that found the game `HUD` at 400 swallowing the F8 clicks) was **not** removed — it is the answer
+  to "who is in front of the controls?" — but one session of it came out with **6 lines / 7,132 characters** and **three**
+  of those lines were **false positives** of the AI panel (`HC_AiPanel/AiRoot`, `HC_AiPanel/AiRoot/KeyBox`,
   `HC_AiPanel/AiRoot/Overlay/PersonalityList`).
-  - **Config nova: `[Advanced] UiDiag`** (bool, **desligado**). Ficou na `[Advanced]` e não na `[IA]` porque **não é da
-    camada de IA**: ele audita a UI do mod inteira (o painel F8 **e** o da IA, e a faixa de camadas de
-    `UI/ModUiLayers.cs`) — o `[IA] EcoDiag` está na `[IA]` porque diagnostica um componente da IA (a voz). A descrição
-    diz o que ele loga, quando ligar (investigar clique/UI estranha) e que não muda nada no jogo.
-  - **Desligado (padrão): zero linhas e zero custo.** Os dois chamadores (`ConfigPanel` e `CompanionAiPanel`) saem
-    **antes** de entrar no `ModUiAudit`: nada de montar lista, nada de percorrer a cena. O flag de "uma vez por sessão"
-    só é marcado quando o audit roda de verdade, então ligar a opção no meio da sessão vale na próxima abertura.
-  - **Ligado, compacto:** duas linhas iniciais, uma vez por sessão (a de que o audit está ligado e a da allow-list — o
-    que ele **nunca** reporta) e **uma linha de resumo por painel** com **contagens** (controles / de propósito /
-    unexpected) — os **nomes** dos alvos decorativos, que eram o grosso do log, saíram. A **lista de camadas da cena
-    continua em uma linha** (foi ela que nomeou o `HUD` em 400) e os **avisos** continuam **linha por linha** (caminho +
-    tipo + tamanho + o ponto sondado).
-  - **Os falsos positivos:** `AiRoot` (fundo do painel) e `KeyBox` (a caixa da tecla) viraram `raycastTarget = false` —
-    são **decoração**, nunca podem ficar na frente de um controle (o fundo é pai de todos) e o **`Backdrop`** do painel
-    (tela cheia, criado antes do root, alvo de clique **de propósito**) já é o catcher modal; era o mesmo que o
-    `ConfigRoot` do F8 já fazia. As **barras de fundo das listas do dropdown** (`Overlay/PersonalityList` e
-    `Overlay/VoiceList`) **continuam alvos de propósito** (os itens são 2 px menores que a lista e o clique nessa borda
-    tem que morrer na lista, senão chega ao `ListCatcher` e **fecha** a lista) e entraram numa **allow-list documentada**
-    do audit (`ModUiAudit.Intentional`, casada pelo fim do caminho + o motivo).
-  - **Nada de lógica/layout/texto mudou** (nem LLM, TTS, STT, ordens, jobs, tradução ou camadas). Build: **0 erros,
-    0 avisos** + DLL implantada. **O teste em jogo é do jogador.**
-- **Tradução PT-BR — auditoria de cobertura (branch `fix/traducao`).** Auditoria de **todo texto que o jogador pode
-  ver**: as chaves de UI (`ModLocalization` × `Translations/Portuguese_Brazilian.json`), as falas
-  (`Speech/Portuguese_Brazilian.json`), os painéis, os hovers, as mensagens do `MessageHud` e os docs. **374 chaves de
-  UI: 0 ausentes, 0 em inglês** (as 7 que batiam com o inglês eram legítimas) → **386 chaves: 0 ausentes, 0 em
-  inglês** depois das 12 novas; **15 categorias de fala / 186 linhas: 0 ausentes** (só o "Skål!" é igual ao inglês, é
-  um brinde). **Os textos em inglês que apareciam para o jogador foram para a localização** (chave nova em PT-BR **e**
-  o par em inglês no `ModLocalization`):
-  - **o nome do companheiro** — `CompanionPrefabs` escrevia `m_name = def.DisplayName` ("Companion", "Warrior",
-    "Mage"...) no prefab, e era isso que o **HUD**, o **hover** e a **roda** mostravam num companheiro sem nome
-    próprio. Agora `CompanionTierData.LocalName(def)` resolve as chaves novas `hc_tier_companion` /
-    `_warrior` / `_mage` / `_fire_mage` / `_ice_mage` / `_support` (**Companheiro**, **Guerreiro**, **Mago**, **Mago
-    de Fogo**, **Mago de Gelo**, **Suporte**), com o nome em inglês como reserva — o mesmo padrão que o `MHR_Shrine`
-    já usava. Vale também para os botões de **Sub-Tipo**, o botão de **compra** ("Comprar Mago de Gelo (500)"), o
-    nome do **baú** do companheiro e a mensagem "Seu novo mago chegou!";
-  - **"X has been resurrected!"** do túmulo → `hc_msg_resurrected` (*"{0} foi ressuscitado!"*);
-  - **"Hold"** do hover do companheiro (`[Hold E] Comandos`) → `hc_hover_hold` (*"Segure"*);
-  - **os três cumprimentos do recall** ("I've been looking for you!" / "There you are!" / "Finally found you!"),
-    que estavam em inglês **no código** do `ReturnLogic` e o companheiro **falava** → `hc_cmd_return_1..3`
-    (*"Estive te procurando!"*, *"Aí está você!"*, *"Finalmente te encontrei!"*);
-  - **"ON"/"OFF"** dos toggles do painel **F8** → as chaves do radial (`hc_radial_on`/`hc_radial_off`, *LIGADO* /
-    *DESLIGADO*);
-  - **"Push-to-talk"** (rótulo, rodapé e o aviso do conflito com o auto-pickup do jogo) → **"Aperte para falar"**;
-  - os reservas **"Companion"** que ainda sobravam em caminhos visíveis (`CompanionHudPanel`, o campo de nome do
-    painel, o nome do túmulo, o nome do companheiro na lista do santuário, o nome do efeito *Rested*, a mensagem de
-    espera do sono) → `hc_msg_name_default` (*"Companheiro"*);
-  - **`hc_radial_despawn_confirm`** era uma chave **órfã**: o `CompanionRadialMenu` ainda a referencia (num método
-    morto desde que a confirmação virou `YesNoPopup`) e ela não existia em nenhum dos dois lados — voltou com
-    *"Confirmar?"*, para o token cru nunca aparecer se aquele caminho voltar à vida.
-  - **Fora do escopo (não é nosso):** os nomes de **item/criatura/estilo de cabelo e barba** vêm dos assets do jogo
-    (localizados pelo próprio Valheim), os **tokens `$...`** do jogo, as **chaves de configuração** (nomes internos
-    do `.cfg`) e as ~1500 linhas de **log/diagnóstico** (`[IA]`, `[TTS]`, `[STT]`, `[UiDiag]`, `[Collect]`, `[ECO]`,
-    `[Move]`, `[Direct]`, ...) que o jogador só vê se abrir o `LogOutput.log`. O **`CHANGELOG`** mantém o histórico do
-    upstream (abaixo de 1.5.4) em inglês de propósito — é o registro dele.
-- **Os painéis e a roda do mod agora ficam ACIMA do HUD do jogo — o clique engolido no painel F8 e o texto do centro da
-  roda, resolvidos pela camada (branch `fix/camadas-ui`).** O jogador reabriu o bug depois da `fix/clique-f8` (*"está a
-  mesma merda"*), e estava certo: aquela correção acertou os **decorativos** (problema real, continua consertado) mas
-  **não** a causa principal. O diagnóstico `[UiDiag]` que ela mesma deixou no painel achou o culpado:
+  - **New config: `[Advanced] UiDiag`** (bool, **off**). It stayed in `[Advanced]` and not in `[IA]` because **it is not part of the
+    AI layer**: it audits the whole mod UI (the F8 panel **and** the AI one, and the layer range of
+    `UI/ModUiLayers.cs`) — the `[IA] EcoDiag` is in `[IA]` because it diagnoses a component of the AI (the voice). The description
+    says what it logs, when to turn it on (investigating a strange click/UI) and that it changes nothing in the game.
+  - **Off (default): zero lines and zero cost.** The two callers (`ConfigPanel` and `CompanionAiPanel`) exit
+    **before** entering `ModUiAudit`: no list building, no scene traversal. The "once per session" flag
+    is only set when the audit actually runs, so turning the option on in the middle of a session applies to the next opening.
+  - **On, compact:** two opening lines, once per session (the one saying the audit is on and the allow-list one — what it
+    **never** reports) and **one summary line per panel** with **counts** (controls / on purpose /
+    unexpected) — the **names** of the decorative targets, which were the bulk of the log, are gone. The **list of scene layers
+    stays in one line** (it was what named the `HUD` at 400) and the **warnings** stay **line by line** (path +
+    type + size + the point probed).
+  - **The false positives:** `AiRoot` (panel background) and `KeyBox` (the key box) became `raycastTarget = false` —
+    they are **decoration**, they can never be in front of a control (the background is the parent of everything) and the panel's
+    **`Backdrop`** (full screen, created before the root, a click target **on purpose**) is already the modal catcher; it was the same thing the F8
+    `ConfigRoot` already did. The **background bars of the dropdown lists** (`Overlay/PersonalityList` and
+    `Overlay/VoiceList`) **stay intentional targets** (the items are 2 px smaller than the list and the click on that border
+    has to die on the list, otherwise it reaches the `ListCatcher` and **closes** the list) and entered a **documented allow-list**
+    of the audit (`ModUiAudit.Intentional`, matched by the end of the path + the reason).
+  - **No logic/layout/text changed** (not the LLM, the TTS, the STT, the orders, the jobs, the translation or the layers). Build: **0 errors,
+    0 warnings** + DLL deployed. **The in-game test is the player's.**
+- **PT-BR translation — coverage audit (branch `fix/traducao`).** An audit of **every text the player can
+  see**: the UI keys (`ModLocalization` × `Translations/Portuguese_Brazilian.json`), the speech lines
+  (`Speech/Portuguese_Brazilian.json`), the panels, the hovers, the `MessageHud` messages and the docs. **374 UI
+  keys: 0 missing, 0 in English** (the 7 that matched the English were legitimate) → **386 keys: 0 missing, 0 in
+  English** after the 12 new ones; **15 speech categories / 186 lines: 0 missing** (only "Skål!" is the same as the English, it is
+  a toast). **The English texts that showed up for the player went into the localization** (a new key in PT-BR **and**
+  the English pair in `ModLocalization`):
+  - **the companion's name** — `CompanionPrefabs` wrote `m_name = def.DisplayName` ("Companion", "Warrior",
+    "Mage"...) into the prefab, and that was what the **HUD**, the **hover** and the **ring** showed for a companion with no
+    name of his own. Now `CompanionTierData.LocalName(def)` resolves the new keys `hc_tier_companion` /
+    `_warrior` / `_mage` / `_fire_mage` / `_ice_mage` / `_support` (**Companion**, **Warrior**, **Mage**, **Fire
+    Mage**, **Ice Mage**, **Support**), with the English name as a fallback — the same pattern `MHR_Shrine`
+    already used. It also applies to the **Sub-Type** buttons, the **buy** button ("Buy Ice Mage (500)"), the
+    companion's **chest** name and the message "Your new mage has arrived!";
+  - **"X has been resurrected!"** from the tombstone → `hc_msg_resurrected` (*"{0} has been resurrected!"*);
+  - **"Hold"** of the companion hover (`[Hold E] Commands`) → `hc_hover_hold` (*"Hold"*);
+  - **the three recall greetings** ("I've been looking for you!" / "There you are!" / "Finally found you!"),
+    which were in English **in the code** of `ReturnLogic` and the companion **spoke** → `hc_cmd_return_1..3`
+    (the PT-BR text lives in the JSON);
+  - **"ON"/"OFF"** of the **F8** panel toggles → the radial keys (`hc_radial_on`/`hc_radial_off`, *ON* /
+    *OFF*);
+  - **"Push-to-talk"** (label, footer and the warning about the conflict with the game auto-pickup) → **"Press to talk"**;
+  - the **"Companion"** fallbacks that were still left in visible paths (`CompanionHudPanel`, the panel name field, the
+    tombstone name, the companion name in the shrine list, the *Rested* effect name, the sleep wait message)
+    → `hc_msg_name_default` (*"Companion"*);
+  - **`hc_radial_despawn_confirm`** was an **orphan** key: `CompanionRadialMenu` still references it (in a method
+    dead since the confirmation became `YesNoPopup`) and it did not exist on either side — it came back with
+    *"Confirm?"*, so the raw token never shows up if that path comes back to life.
+  - **Out of scope (not ours):** the names of **item/creature/hair and beard style** come from the game assets
+    (localized by Valheim itself), the game **`$...` tokens**, the **config keys** (internal
+    names of the `.cfg`) and the ~1500 lines of **log/diagnostic** (`[IA]`, `[TTS]`, `[STT]`, `[UiDiag]`, `[Collect]`, `[ECO]`,
+    `[Move]`, `[Direct]`, ...) that the player only sees if they open `LogOutput.log`. The **`CHANGELOG`** keeps the upstream
+    history (below 1.5.4) in English on purpose — it is his record.
+- **The mod panels and the ring are now ABOVE the game HUD — the swallowed click in the F8 panel and the text in the center of the
+  ring, solved by the layer (branch `fix/camadas-ui`).** The player reopened the bug after `fix/clique-f8` (*"it's the
+  same shit"*), and he was right: that fix got the **decorative** parts (a real problem, still fixed) but
+  **not** the main cause. The `[UiDiag]` diagnostic it left in the panel itself found the culprit:
   ```
   [UiDiag] F8 raycast audit: canvas "HUD" (order=400, overrideSorting) has a raycast target over the controls of the panel:
            .../IngameGui/HUD/hudroot/crosshair/HoverName (TextMeshProUGUI 350x150) at the panel point 196,-46
   [UiDiag] F8 raycast audit: panel order=33, ... EnemyHud=200, HudMessage=1000(override), HUD=400(override),
            Menu=1700(override), UnifiedPopup=1900(override), ...
   ```
-  - **A causa:** o HUD do jogo é um canvas em **`sortingOrder = 400`** (com `overrideSorting`) e **todos** os canvases
-    do mod estavam em **28..34** — atrás dele. O alvo que engolia o clique é o **`crosshair/HoverName`** (350x150 no
-    **centro** da tela, onde o painel está), e ele **recebe clique mesmo invisível** (o jogo o apaga com
-    `canvasRenderer.SetAlpha(0f)` e **não** desliga o `raycastTarget`) — daí a **faixa** e daí rolar o painel resolver.
-    **Por que 31 → 33 não bastou:** 33 continua **abaixo de 400** (e em empate de `sortingOrder` o uGUI desempata pela
-    ordem de registro dos raycasters, que o canvas do jogo ganha).
-  - **A correção:** todos os canvases do mod foram para a faixa **1701..1708**, com os números numa **fonte única**
+  - **The cause:** the game HUD is a canvas at **`sortingOrder = 400`** (with `overrideSorting`) and **every** canvas
+    of the mod was at **28..34** — behind it. The target that swallowed the click is `crosshair/HoverName` (350x150 in the
+    **center** of the screen, where the panel is), and it **receives clicks even when invisible** (the game fades it with
+    `canvasRenderer.SetAlpha(0f)` and does **not** turn the `raycastTarget` off) — hence the **strip** and hence scrolling the panel solving it.
+    **Why 31 → 33 was not enough:** 33 is still **below 400** (and on a `sortingOrder` tie uGUI breaks the tie by the
+    registration order of the raycasters, which the game canvas wins).
+  - **The fix:** every canvas of the mod went to the **1701..1708** range, with the numbers in a **single source**
     (`src/Companions/UI/ModUiLayers.cs`): `FarmZonePlacer` 28→**1701**, `HomeZonePanel` 29→**1702**,
     `CompanionRadialMenu` 30→**1703**, `StarterCompanionPanel` 30→**1704**, `FarmZoneCropPicker` 31→**1705**,
-    `ConfigPanel` 33→**1706**, `CompanionAiPanel` 33→**1707** e o overlay do dropdown 34→**1708**. A ordem relativa
-    entre os nossos é a de antes.
-  - **Por que 1701 e não 2000:** 1701 já está acima do HUD (400), do `HudMessage` (1000) e do `Menu` (1700), e para
-    **abaixo** do `UnifiedPopup` (1900) — o popup modal **do jogo** (classe vanilla de `assembly_valheim`, não é nossa e
-    não pode ser movida): um modal tem que ficar na frente de uma janela. E 2000 seria **empate** com o
-    `LongPressRadial` do jogo, empate que o jogo ganha. Continua muito abaixo do console (5000) e do `SwitchCursor`
-    (12000). Os painéis do mod seguem bloqueando inventário/loja/menu (`Hud.InRadial`), então esses nunca ficam atrás
-    de nós.
-  - **O segundo sintoma, o mesmo remédio:** o radial desenha `_centerName`/`_centerAction`/`_centerState` no **centro**
-    da tela, onde vive o `crosshair/HoverName`; com o radial em 30 e o HUD em 400 o jogo desenhava por cima e os textos
-    se misturavam. Com o radial em **1703**, não mais.
-  - **Audit mantido e generalizado:** a lógica saiu do `ConfigPanel` para `src/Companions/UI/ModUiAudit.cs`; agora
-    `[UiDiag] F8 raycast audit` **e** `[UiDiag] AI panel raycast audit` rodam **uma vez por sessão** (nunca por frame) e
-    reportam os alvos de clique não-control dentro do painel, **todas** as camadas ativas da cena e quem, acima do
-    painel, cobre a coluna de controles. Os canvases do próprio mod são listados mas não sondados.
-  - **Não mudou nada de lógica, layout, texto, LLM, TTS, ordens, jobs ou STT** — só o `sortingOrder` dos oito canvases
-    e o audit. Build: **0 erros, 0 avisos** + DLL implantada. **O teste em jogo é do jogador.**
-- **O painel F8 não engole mais cliques (branch `fix/clique-f8`).** O relato do jogador ("há algo invisível na frente
-  dos controles numa **faixa** — clicar no ON/OFF de uma linha não fazia nada; depois de rolar o painel o mesmo botão
-  funcionava") tinha **duas** coisas somadas, e as duas valiam para o mesmo sintoma:
-  - **A camada.** O canvas do `ConfigPanel` estava em **31** — a **mesma** camada do UI do jogo. Num empate de
-    `sortingOrder` o uGUI desempata pela **ordem de registro dos raycasters** (`RaycasterManager`), e o canvas do jogo
-    (registrado muito antes) ganha: o `GraphicRaycaster` dele entrega o clique a um alvo **invisível** seu (texto de
-    `MessageHud`/HUD apagado com `canvasRenderer.SetAlpha(0f)`, que **continua** recebendo clique) numa **faixa fixa no
-    centro da tela**. O painel é centralizado, então rolar o painel tira o controle da faixa — exatamente o que o
-    jogador viu. O **painel da IA** (tecla `I`) nunca teve o problema porque sempre esteve em **33**. O `ConfigPanel`
-    foi para **33** (a mesma camada; os dois painéis recusam abrir juntos).
-  - **Os decorativos.** Todo `Graphic` decorativo do painel era `raycastTarget = true` (padrão do uGUI): o fundo do
-    painel, as faixas das linhas, o viewport do `ScrollRect` e — os piores, por serem os **últimos irmãos do viewport**,
-    ou seja os gráficos **mais acima de todo o painel** — a barra de scroll **invisível** e o **handle** dela (10 px na
-    borda direita). Agora **só** os controles (abas, ON/OFF, Padrão, slider fundo+handle, *key bind*, X) e as duas
-    **áreas de scroll** (o viewport do conteúdo e a coluna de abas — os GameObjects onde vivem os `ScrollRect`s, que
-    precisam do alvo para a roda do mouse e o arrasto) continuam com `raycastTarget = true`; a barra invisível e o
-    handle viraram `false` **e** passaram a ser os **primeiros** irmãos do viewport (o `ScrollRect` os guarda por
-    referência, então nada muda para a roda/arrasto). O que foi **descartado com prova** está no `docs/roadmap.md`
-    (*Pendências conhecidas*): no uGUI um gráfico **ancestral** nunca fica na frente dos próprios filhos (o fundo da
-    coluna de abas é um alvo de clique e os botões de aba sempre responderam).
-  - **Diagnóstico (uma vez por sessão, na primeira abertura).** `[UiDiag] F8 raycast audit: panel order=33, N control
-    raycast target(s), M on purpose (...), 0 unexpected; K other active canvas(es): <nome=sortingOrder, ...>; 0 raycast
-    target(s) of another canvas over the controls.` — e, se houver, um **aviso por alvo de outra camada** que cubra a
-    coluna de controles do painel (11 pontos amostrados). Se a faixa voltar, o log diz **quem** é.
-  - Build: **0 erros, 0 avisos** + DLL implantada. **O teste em jogo é do jogador.**
-- **A ordem "recolhe os itens do chão" finalmente recolhe (Fase 3.1 — `MHR_Collect`: o que faltava).** O jogador largou o
-  machado (`jogue seu machado no chão` → `Order "drop": Companion dropped 1 x "Machado Nordico"`) e depois pediu para pegar
-  de volta (`pegue o machado nordico do chão`, `junte o machado`, `recolhe os itens`): o modelo acertava a ordem
-  (`Order "pickup" -> 1 companion(s)`, `Ok: recolher itens do chao`) e **nada acontecia** — o machado ficava no chão.
-  - **O achado (três coisas que se somam):** (1) a ação `pickup` **só setava um flag** no ZDO do companheiro e **nenhuma**
-    ação do mod andava até um item no chão para pegá-lo (o único "pega item" era o ímã de 2 m do `CompanionAI.AutoPickup`);
-    (2) o que o companheiro larga é marcado `m_autoPickup = false` de propósito (é o que o próprio jogo faz em
-    `ItemDrop.OnPlayerDrop()`), e o ímã **e** o `MHR_Loot` pulam esses itens de propósito — justamente o que o jogador
-    pediu para pegar; (3) o flag só era lido pelo `MHR_Loot` e pelo rótulo da roda, então o botão **Recolher** não
-    desligava o ímã.
-  - **Novo `src/Companions/Jobs/MHR_Collect.cs`** (mesmo padrão do `MHR_Loot`: estado por companheiro, `Start` pela ordem e
-    `Drive` por frame pelo `CompanionAI.UpdateAI`, antes do `MHR_Loot.Drive`): acha o item solto mais próximo dentro de
-    `[Looting] CollectRadius` (**novo, padrão 10**, faixa 1..30), **anda até ele** com o `MHR_Mover` e pega com
-    `Humanoid.Pickup` — que **não olha `m_autoPickup`** (conferido no jogo decompilado), então **inclusive o que foi largado
-    de propósito** volta. Repete com o próximo até não sobrar nada no raio, a mochila encher ou a ordem passar de **30 s**.
-  - **Recusa:** item de missão (a regra do `drop`), peça (`IsPiece()`), posição na *blacklist* do `CompanionAI`, água funda
-    (nunca nadar por loot) e o que não couber **inteiro** na mochila. **Para** com outra ordem (chat **e** roda), troca de
-    trabalho, `Recolher` desligado, mochila cheia, morte, posse perdida ou a coleira (`[Looting] MaxDistance`); e os
-    **jobs esperam** enquanto ele anda (`MHR_JobRules.OtherOrder`).
-  - **A ordem faz as duas coisas:** `pickup` liga o flag (como antes) **e** inicia o recolhimento; `nopickup` continua só
-    desligando o flag. O ímã e o `MHR_Loot` **não mudaram** (a proteção do "larga pra dar" fica intacta).
-  - **O botão Recolher da roda passa a valer:** o ímã agora é condicionado ao flag (lido **uma vez** por frame), com o
-    padrão `true` — um companheiro que nunca mexeu no botão fica exatamente como hoje. Os jobs que pegam coisas
-    (`MHR_PileTaker`, `UpkeepPiles`, `UpkeepHoney`, `MHR_SpearThrow`, `HarvestController`) chamam `Humanoid.Pickup` direto
-    e não dependem do ímã.
-  - **Fala nova** (quando não há nada no chão e quando a mochila está cheia): `hc_ai_collect_nothing` /
-    `hc_ai_collect_full`, em PT-BR e no dicionário em inglês. Logs: `[Collect] <Nome>: Going to pick up "X" (N m away)`,
+    `ConfigPanel` 33→**1706**, `CompanionAiPanel` 33→**1707** and the dropdown overlay 34→**1708**. The relative order
+    among ours is the one from before.
+  - **Why 1701 and not 2000:** 1701 is already above the HUD (400), the `HudMessage` (1000) and the `Menu` (1700), and
+    **below** the `UnifiedPopup` (1900) — the **game's** modal popup (a vanilla class from `assembly_valheim`, not ours and
+    it cannot be moved): a modal has to be in front of a window. And 2000 would be a **tie** with the game's
+    `LongPressRadial`, a tie the game wins. It stays far below the console (5000) and the `SwitchCursor`
+    (12000). The mod panels keep blocking the inventory/shop/menu (`Hud.InRadial`), so those never stay behind
+    us.
+  - **The second symptom, the same remedy:** the radial draws `_centerName`/`_centerAction`/`_centerState` in the **center**
+    of the screen, where `crosshair/HoverName` lives; with the radial at 30 and the HUD at 400 the game drew over it and the texts
+    got mixed. With the radial at **1703**, no more.
+  - **Audit kept and generalized:** the logic left `ConfigPanel` for `src/Companions/UI/ModUiAudit.cs`; now
+    `[UiDiag] F8 raycast audit` **and** `[UiDiag] AI panel raycast audit` run **once per session** (never per frame) and
+    report the non-control click targets inside the panel, **every** active layer of the scene and who, above the
+    panel, covers the controls column. The mod's own canvases are listed but not probed.
+  - **No logic, layout, text, LLM, TTS, orders, jobs or STT changed** — only the `sortingOrder` of the eight canvases
+    and the audit. Build: **0 errors, 0 warnings** + DLL deployed. **The in-game test is the player's.**
+- **The F8 panel no longer swallows clicks (branch `fix/clique-f8`).** The player's report ("there is something invisible in front
+  of the controls in a **strip** — clicking the ON/OFF of a line did nothing; after scrolling the panel the same button
+  worked") had **two** things added up, and both applied to the same symptom:
+  - **The layer.** The `ConfigPanel` canvas was at **31** — the **same** layer as the game UI. On a `sortingOrder`
+    tie uGUI breaks the tie by the **registration order of the raycasters** (`RaycasterManager`), and the game canvas
+    (registered much earlier) wins: its `GraphicRaycaster` delivers the click to one of **its** invisible targets (a
+    `MessageHud`/HUD text faded with `canvasRenderer.SetAlpha(0f)`, which **keeps** receiving clicks) in a **fixed strip in the
+    center of the screen**. The panel is centered, so scrolling the panel takes the control out of the strip — exactly what the
+    player saw. The **AI panel** (key `I`) never had the problem because it was always at **33**. `ConfigPanel`
+    went to **33** (the same layer; the two panels refuse to open together).
+  - **The decorative parts.** Every decorative `Graphic` of the panel was `raycastTarget = true` (the uGUI default): the panel
+    background, the row bars, the `ScrollRect` viewport and — the worst ones, for being the **last children of the viewport**,
+    that is the graphics **on top of the whole panel** — the **invisible** scroll bar and its **handle** (10 px on the
+    right border). Now **only** the controls (tabs, ON/OFF, Default, slider background+handle, *key bind*, X) and the two
+    **scroll areas** (the content viewport and the tabs column — the GameObjects where the `ScrollRect`s live, which
+    need the target for the mouse wheel and the drag) keep `raycastTarget = true`; the invisible bar and the
+    handle became `false` **and** became the **first** children of the viewport (the `ScrollRect` keeps them by
+    reference, so nothing changes for the wheel/drag). What was **discarded with proof** is in `docs/roadmap.md`
+    (*Known pending items*): in uGUI an **ancestor** graphic never sits in front of its own children (the background of the
+    tabs column is a click target and the tab buttons always answered).
+  - **Diagnostic (once per session, on the first opening).** `[UiDiag] F8 raycast audit: panel order=33, N control
+    raycast target(s), M on purpose (...), 0 unexpected; K other active canvas(es): <name=sortingOrder, ...>; 0 raycast
+    target(s) of another canvas over the controls.` — and, if there is one, a **warning per target of another layer** that covers the
+    panel's controls column (11 points sampled). If the strip comes back, the log says **who** it is.
+  - Build: **0 errors, 0 warnings** + DLL deployed. **The in-game test is the player's.**
+- **The "pick up the items from the ground" order finally picks up (Phase 3.1 — `MHR_Collect`: what was missing).** The player dropped the
+  axe (`throw your axe on the ground` → `Order "drop": Companion dropped 1 x "Machado Nordico"`) and then asked to pick
+  it back up (`get the nordic axe from the ground`, `gather the axe`, `pick up the items`): the model got the order right
+  (`Order "pickup" -> 1 companion(s)`, `Ok: recolher itens do chao`) and **nothing happened** — the axe stayed on the ground.
+  - **The finding (three things added up):** (1) the `pickup` action **only set a flag** in the companion's ZDO and **no**
+    action of the mod walked to an item on the ground to pick it up (the only "picks up item" was the 2 m magnet of `CompanionAI.AutoPickup`);
+    (2) what the companion drops is marked `m_autoPickup = false` on purpose (it is what the game itself does in
+    `ItemDrop.OnPlayerDrop()`), and the magnet **and** `MHR_Loot` skip those items on purpose — exactly what the player
+    asked to pick up; (3) the flag was only read by `MHR_Loot` and by the ring label, so the **Pick up** button did not
+    turn the magnet off.
+  - **New `src/Companions/Jobs/MHR_Collect.cs`** (same pattern as `MHR_Loot`: state per companion, `Start` from the order and
+    `Drive` per frame from `CompanionAI.UpdateAI`, before `MHR_Loot.Drive`): it finds the nearest loose item inside
+    `[Looting] CollectRadius` (**new, default 10**, range 1..30), **walks to it** with `MHR_Mover` and picks it up with
+    `Humanoid.Pickup` — which **does not look at `m_autoPickup`** (checked in the decompiled game), so **including what was dropped
+    on purpose** comes back. It repeats with the next one until nothing is left in the radius, the pack fills up or the order goes past **30 s**.
+  - **Refusals:** quest item (the `drop` rule), piece (`IsPiece()`), a position in the `CompanionAI` *blacklist*, deep water
+    (never swim for loot) and what does not fit **whole** in the pack. **It stops** with another order (chat **and** ring), a change of
+    job, `Pick up` off, a full pack, death, lost ownership or the leash (`[Looting] MaxDistance`); and the
+    **jobs wait** while he walks (`MHR_JobRules.OtherOrder`).
+  - **The order does both things:** `pickup` turns the flag on (as before) **and** starts the pickup; `nopickup` only
+    turns the flag off. The magnet and `MHR_Loot` **did not change** (the "drop it to give it" protection stays intact).
+  - **The Pick up button of the ring now applies:** the magnet is now conditioned on the flag (read **once** per frame), with the
+    default `true` — a companion who never touched the button stays exactly as today. The jobs that pick things up
+    (`MHR_PileTaker`, `UpkeepPiles`, `UpkeepHoney`, `MHR_SpearThrow`, `HarvestController`) call `Humanoid.Pickup` directly
+    and do not depend on the magnet.
+  - **New line** (when there is nothing on the ground and when the pack is full): `hc_ai_collect_nothing` /
+    `hc_ai_collect_full`, in PT-BR and in the English dictionary. Logs: `[Collect] <Name>: Going to pick up "X" (N m away)`,
     `Done: N item(s) picked up`, `nothing on the ground within N m`.
-  - Build: **0 erros, 0 avisos**. O teste em jogo é do jogador.
-- **"Jogue fora" vira `drop` mesmo quando o modelo diz `nopickup` (Fase 3.1 — rede de segurança).** O mesmo teste em jogo
-  mostrou que o contrato sozinho não bastava: quando o modelo **insiste** em `nopickup` para uma ordem de largar (ou de
-  recolher), as **palavras do jogador** decidem — o mesmo raciocínio do "o recurso manda".
-  - **`PickupIntent.NeighborAction`** (novo, `AI/PickupIntent.cs`, **puro**) é chamado **uma vez por mensagem** pelo
-    `CompanionOrders.Run`, no mesmo lugar da correção do `resource`: com a ação **exatamente `nopickup`** e um verbo claro
-    de largar (`joga fora`, `jogue a madeira fora`, `larga`, `largar`, `descarta`, `soltar`, `deixa no chão`...) a ordem
-    vira **`drop`**; com um verbo claro de recolher (`junta`, `junte`, `apanha`, `recolhe do chão`, `pega do chão`...) vira
-    **`pickup`**. O log mostra a troca em uma linha.
-  - **Guarda-corpos:** o `nopickup` **legítimo** é preservado (`para`/`pare`/`parar` ou `não pegue`/`não recolha` desligam
-    a correção), só a ação `nopickup` é olhada e, sem gatilho, o comportamento é idêntico ao de hoje.
-  - **O alvo do `drop` continua vindo do caminho da Fase 3.6b** (as palavras do jogador lidas pelo `OrderTargets.Phrases`
-    e validadas contra a mochila) — nada de extração de nome nova, e o item de missão continua nunca caindo.
-  - Verificado fora do jogo (harness com os arquivos reais): **58 casos, ALL CHECKS PASSED**.
-- **O contrato separa largar, recolher e parar de recolher (Fase 3.1 — teste em jogo com o 3B).** O
-  `qwen2.5-3b-instruct` confunde **ações vizinhas**: `jogue fora sua madeira` (e as variantes `jogue sua madeira fora` e
-  `jugue a madeira fora`, com erro de digitação) voltava como **`nopickup`** — o companheiro **desligava a coleta
-  automática** em vez de largar a madeira — e `junte a madeira do chão` ficava **50/50** entre `pickup` e `nopickup`.
-  - **Uma regra curta no `Contract`** separa as três: `drop` = largar/jogar fora o que o companheiro tem, `pickup` =
-    recolher itens do chão, e `nopickup` **só** quando o jogador pedir para PARAR de recolher ("pare de recolher", "não
-    pegue nada").
-  - **3 exemplos novos**, logo depois dos equivalentes: `"jogue fora a madeira"` → `drop`, `"junte a madeira do chão"` →
-    `pickup` (os dois não tinham exemplo nenhum) e **`"equipe a picareta"`** → `equip` (o contrato só tinha `"pega a
-    picareta"`, e foi a forma com `equipe` que falhou).
-  - **Só o `Contract` mudou** (`ValidActions`/schema, `LlmIntent`, `LlmClient`, personalidade/memória, TTS, painel, STT e
-    ordens intactos) e o prompt cresceu **6 linhas** (~+120 tokens). Se o 3B deixa de errar com o prompt novo é o teste em
-    jogo do jogador.
-- **O prompt agora ensina que `action` e `resource` têm que combinar (Fase 3.1 — a outra metade do achado do teste).**
-  Com o `qwen2.5-3b-instruct`, `colete 5 pedras` voltou como `{"action":"wood","resource":"wood"}`: o modelo copiava o
-  `action:"wood"` do exemplo `"colete 20 de madeira"` do contrato (o verbo **`colete`** era o gatilho) e ignorava a
-  pedra, mesmo com a regra do `resource` já existindo — *few-shot overfitting*, o jeito típico de um 3B errar.
-  - **O `Contract` ganhou uma regra curta** (`pedra` → `action:"stone"` + `resource:"stone"`; `madeira` → `wood`/`wood`;
-    `minério` → `ore`/`ore`; "NUNCA use action \"wood\" para pedra") **e 2 exemplos com pedra e o verbo `colete`**,
-    logo **depois** do exemplo de madeira que causava a cópia.
-  - **O resto do contrato ficou intacto** (as 29 ações, o `target` obrigatório em `attack`/`equip`/`drop`, os outros
-    exemplos) e o prompt cresceu **3 linhas** (~+60 tokens sobre os ~1766 medidos), porque ele está calibrado para o
-    `gemma-4-e4b` e para o 3B.
-  - **Nada mais mudou** (schema/`ValidActions`, `LlmIntent`, `LlmClient`, personalidade/memória, TTS, painel, STT,
-    ordens): a correção acima continua sendo a rede de segurança para quando o modelo insistir em trocar os campos.
-    Se o 3B **deixa** de errar com o prompt novo é o teste em jogo do jogador.
-- **O recurso manda: `colete 10 pedras` não vira mais coleta de madeira (Fase 3.1 — correção do teste em jogo).** No
-  teste com o **`qwen2.5-3b-instruct`** o companheiro foi **coletar madeira** quando o jogador pediu `colete 10 pedras`.
-  A causa tinha duas partes: **nossa** — com `action` e `resource` inconsistentes (`{"action":"wood","resource":"stone"}`)
-  o mod obedecia ao `action` **genérico** e **ignorava o `resource`**, que é o campo específico (era ele que aparecia
-  no log do teto, "stops at 5 **Stone**", enquanto o trabalho aplicado era o de madeira); e **do modelo pequeno**, que
-  em `colete N <coisa>` copia o `action:"wood"` do exemplo do contrato. Esta parte corrige a nossa:
-  - **O `resource` ganha quando os dois discordam sobre qual trabalho é** (`OrderItems.GatherAction`, novo, chamado
-    uma vez por mensagem pelo `CompanionOrders.Run`): o log mostra a correção em **uma linha**
+  - Build: **0 errors, 0 warnings**. The in-game test is the player's.
+- **"Throw away" becomes `drop` even when the model says `nopickup` (Phase 3.1 — safety net).** The same in-game test
+  showed that the contract alone was not enough: when the model **insists** on `nopickup` for a drop (or
+  pick up) order, the **player's words** decide — the same reasoning as "the resource rules".
+  - **`PickupIntent.NeighborAction`** (new, `AI/PickupIntent.cs`, **pure**) is called **once per message** by
+    `CompanionOrders.Run`, in the same place as the `resource` fix: with the action **exactly `nopickup`** and a clear
+    drop verb (`throw away`, `throw the wood away`, `drop`, `drop it`, `discard`, `let go`, `leave it on the ground`...) the order
+    becomes **`drop`**; with a clear pickup verb (`gather`, `gather it`, `grab`, `collect from the ground`, `take from the ground`...) it becomes
+    **`pickup`**. The log shows the swap in one line.
+  - **Guard rails:** the **legitimate** `nopickup` is preserved (`stop`/`stop it`/`stop now` or `don't take`/`don't pick up` turn
+    the correction off), only the `nopickup` action is looked at and, without a trigger, the behaviour is identical to today's.
+  - **The `drop` target still comes from the Phase 3.6b path** (the player's words read by `OrderTargets.Phrases`
+    and validated against the pack) — no new name extraction, and the quest item still never drops.
+  - Verified outside the game (a harness with the real files): **58 cases, ALL CHECKS PASSED**.
+- **The contract separates dropping, picking up and stopping picking up (Phase 3.1 — in-game test with the 3B).** The
+  `qwen2.5-3b-instruct` confuses **neighbouring actions**: `throw your wood away` (and the variants `throw the wood away` and
+  `threw the wood away`, with a typo) came back as **`nopickup`** — the companion **turned the automatic pickup
+  off** instead of dropping the wood — and `gather the wood from the ground` was **50/50** between `pickup` and `nopickup`.
+  - **A short rule in the `Contract`** separates the three: `drop` = drop/throw away what the companion has, `pickup` =
+    pick up items from the ground, and `nopickup` **only** when the player asks to STOP picking up ("stop picking up", "don't pick
+    up anything").
+  - **3 new examples**, right after the equivalents: `"throw the wood away"` → `drop`, `"gather the wood from the ground"` →
+    `pickup` (neither of the two had any example) and **`"equip the pickaxe"`** → `equip` (the contract only had `"take the
+    pickaxe"`, and it was the form with `equip` that failed).
+  - **Only the `Contract` changed** (`ValidActions`/schema, `LlmIntent`, `LlmClient`, personality/memory, TTS, panel, STT and
+    orders intact) and the prompt grew **6 lines** (~+120 tokens). Whether the 3B stops getting it wrong with the new prompt is the player's in-game
+    test.
+- **The prompt now teaches that `action` and `resource` have to match (Phase 3.1 — the other half of the test finding).**
+  With `qwen2.5-3b-instruct`, `collect 5 stones` came back as `{"action":"wood","resource":"wood"}`: the model copied the
+  `action:"wood"` from the contract's `"collect 20 wood"` example (the verb **`collect`** was the trigger) and ignored the
+  stone, even with the `resource` rule already in place — *few-shot overfitting*, the typical way a 3B gets it wrong.
+  - **The `Contract` got a short rule** (`stone` → `action:"stone"` + `resource:"stone"`; `wood` → `wood`/`wood`;
+    `ore` → `ore`/`ore`; "NEVER use action \"wood\" for stone") **and 2 examples with stone and the gathering verb**,
+    right **after** the wood example that caused the copy.
+  - **The rest of the contract stayed intact** (the 29 actions, the `target` mandatory in `attack`/`equip`/`drop`, the other
+    examples) and the prompt grew **3 lines** (~+60 tokens over the ~1766 measured), because it is calibrated for
+    `gemma-4-e4b` and for the 3B.
+  - **Nothing else changed** (schema/`ValidActions`, `LlmIntent`, `LlmClient`, personality/memory, TTS, panel, STT,
+    orders): the fix above is still the safety net for when the model insists on swapping the fields.
+    Whether the 3B **stops** getting it wrong with the new prompt is the player's in-game test.
+- **The resource rules: `collect 10 stones` no longer becomes wood gathering (Phase 3.1 — fix from the in-game test).** In
+  the test with **`qwen2.5-3b-instruct`** the companion went **to gather wood** when the player asked `collect 10 stones`.
+  The cause had two parts: **ours** — with `action` and `resource` inconsistent (`{"action":"wood","resource":"stone"}`)
+  the mod obeyed the **generic** `action` and **ignored the `resource`**, which is the specific field (it was the one showing
+  in the cap log, "stops at 5 **Stone**", while the job applied was the wood one); and **the small model's**, which
+  in `collect N <thing>` copies the `action:"wood"` from the contract example. This part fixes ours:
+  - **The `resource` wins when the two disagree about which job it is** (`OrderItems.GatherAction`, new, called
+    once per message by `CompanionOrders.Run`): the log shows the correction in **one line**
     (`[IA] O modelo devolveu action="wood" com resource="stone" - usei "stone" (o recurso manda).`).
-  - **Só nas ordens de coleta** (`wood`/`stone`/`ore`/`forage`), e só quando o recurso é item de **outro** trabalho:
-    `attack`, `equip`, `drop`, `inventory` e as demais não são tocadas, e um `resource` nulo/desconhecido mantém o
-    comportamento de sempre.
-  - **Sem tabela nova:** o recurso passa pelo mesmo mapa de apelidos que o `OrderItems.Resolve` já usa e o item é
-    procurado nas **entradas nomeadas das quatro listas que os trabalhos leem** (`GatherWood`/`GatherStone`/`GatherOre`
-    /`ForageItems`), por prefab ou pelo nome do jogo. Par já coerente (o recurso é da lista do próprio trabalho) não é
-    mexido; lista `*` não decide nada.
-  - **O teto da ordem, a contagem na mochila, o `Resolve`, o alvo do radial e o fallback das palavras do jogador ficam
-    como estavam.** Verificado fora do jogo (harness com os arquivos reais): **60 casos, ALL CHECKS PASSED**.
-- **A resposta do modelo agora é garantidamente um JSON (Fase 3.1 — saída estruturada).** O pedido ao modelo passou a
-  levar `response_format` com um **JSON schema** (`companion_intent`) que fixa as cinco chaves do contrato e a **lista
-  fechada das 29 ações** — é isso que impede a resposta em texto solto, que o prompt sozinho não conseguia evitar. O
-  ganho prático é poder usar um **modelo pequeno e rápido**: medido com o prompt atual (~1766 tokens), o
-  `qwen2.5-3b-instruct` acertava **0 de 6** respostas em JSON (repetia frases do prompt) e passou a acertar **6 de 6**,
-  inclusive o alvo em `atacar`/`equipar`/`largar`; o `google/gemma-4-e4b` (o padrão) continua igual.
-  - **`[IA] SaidaEstruturada`** (novo, **ligado** por padrão) é a opção: aparece sozinha no painel F8, aba IA, e
-    desligá-la volta exatamente ao pedido de antes.
-  - **Nenhum servidor fica de fora:** se o servidor recusar o schema (**HTTP 400**, ou erro citando
-    `response_format`/`json_schema`), o mod tenta **uma vez** com `{"type":"json_object"}` e, se falhar de novo,
-    **uma vez sem `response_format`** (o comportamento antigo), avisando **uma vez no log**. Erro de rede ou timeout
-    **não** são repetidos: o mesmo pedido nunca é enviado duas vezes e o mod nunca quebra por causa disso.
-  - **Nada mais mudou:** o prompt, o parser, a personalidade/memória, o TTS, o painel, o STT e as ordens ficaram
-    iguais.
-- **O eco da voz do companheiro está CORRIGIDO (Fase 3.4, parte 3).** O diagnóstico (`EcoDiag = true`) mostrou a
-  causa na primeira tentativa: o Valheim tem **uma zona de reverb global**, no **próprio objeto do ouvinte**, com
-  raio de **1000 m**, **4 s** de cauda e `room` de **−10 dB** — ou seja, **tudo** dentro de 1 km levava essa cauda de
-  4 s, e a voz do companheiro era a única coisa que deixava isso evidente (a música e os sons do jogo são curtos ou
-  repetitivos). As fontes do próprio jogo **fogem** dela (a música usa `reverbZoneMix = 0`, o ambiente 0,19), mas a
-  nossa fonte estava no **padrão do Unity (`1`)** e pegava o eco inteiro. **Correção:** a voz agora sai **seca**
-  (`reverbZoneMix = 0`) — ouvido em jogo e aprovado ("limpou").
-  - **`[IA] TtsReverbZoneMix`** (novo, faixa 0–1, **padrão 0**) é a opção de verdade: `0` = voz seca; suba um pouco
-    (ex.: `0,19`, o valor que o ambiente do jogo usa) se quiser um "espaço" sutil na voz. Vale **na próxima frase**,
-    sem reiniciar.
-  - **Os 4 interruptores de teste do eco saíram** (`TtsBypassReverbZones`, `TtsBypassListenerEffects`,
-    `TtsBypassEffects` e `TtsDoppler`): cumpriram o papel. Eles desaparecem sozinhos do seu `.cfg` — as suas outras
-    opções não são afetadas.
-  - **`[IA] EcoDiag`** continua existindo (padrão desligado), agora como **diagnóstico de áudio**: uma vez por sessão,
-    na primeira frase falada, escreve no log o ouvinte da cena, as zonas de reverb do mundo e como as fontes do
-    próprio jogo estão configuradas. **Não muda o som** — serve para investigar qualquer problema de som no futuro.
-  - **Pendência conhecida** (para depois): a voz **não** passa por um grupo de mixer do jogo (a música e o ambiente
-    passam). Não é necessário para o eco, que já está resolvido.
-- **O caminho até a correção (Fase 3.4, parte 3) — interruptores de teste e diagnóstico.**
-  A voz do companheiro sai com **eco** ("como falar num lugar grande"), e o que já está estabelecido descarta as
-  hipóteses fáceis: a síntese está **limpa** (o WAV de fora do jogo é idêntico), **só a voz do companheiro** ecoa
-  (música e SFX do jogo são normais), o eco é **idêntico em qualquer lugar, de perto ou de longe e com as 3 vozes
-  (42/43/44)** e acontece com **uma única frase** (não é sobreposição da fila). É um **processamento fixo da engine**
-  na nossa `AudioSource`. Quem diz **qual** é o ouvido do jogador, então esta parte começou como **instrumentação**
-  (interruptores, um por vez, e o diagnóstico acima). Resultado: **o diagnóstico respondeu na primeira tentativa** e
-  a correção virou uma linha (`reverbZoneMix = 0`). O registro do que foi feito na exploração:
-  - **6 chaves novas em `[IA]`** naquele momento, todas com o valor padrão = como era antes: `EcoDiag` (false —
-    diagnóstico só no log), `TtsReverbZoneMix` (1.0, faixa 0–1), `TtsBypassReverbZones` (false),
-    `TtsBypassListenerEffects` (false, o suspeito principal), `TtsBypassEffects` (false) e `TtsDoppler` (true).
-    Aparecem **no painel F8, aba IA** (o `Bind` já alimenta `ModConfig.Categories`, nenhuma mudança no painel foi
-    precisa) e valem **na próxima frase**, sem reiniciar. **No fim sobraram 2**: `TtsReverbZoneMix` (agora 0) e
-    `EcoDiag` — os outros 4 foram removidos.
-  - **Aplicação** (`StartChunk` → `ApplyReverbZoneMix`): a `AudioSource` é criada uma vez e fica na sessão, então o
-    `reverbZoneMix` é escrito **só quando o valor muda** — trocar no painel F8 vale na próxima frase, sem reiniciar,
-    e a primeira frase já aplica o padrão. Sai uma linha no log quando escreve
+  - **Only in the gathering orders** (`wood`/`stone`/`ore`/`forage`), and only when the resource is an item of **another** job:
+    `attack`, `equip`, `drop`, `inventory` and the others are not touched, and a null/unknown `resource` keeps the
+    usual behaviour.
+  - **No new table:** the resource goes through the same alias map `OrderItems.Resolve` already uses and the item is
+    looked for in the **named entries of the four lists the jobs read** (`GatherWood`/`GatherStone`/`GatherOre`
+    /`ForageItems`), by prefab or by the game name. A pair that is already coherent (the resource belongs to the job's own list) is not
+    touched; a `*` list decides nothing.
+  - **The order cap, the count in the pack, the `Resolve`, the radial target and the player's words fallback stay
+    as they were.** Verified outside the game (a harness with the real files): **60 cases, ALL CHECKS PASSED**.
+- **The model's reply is now guaranteed to be a JSON (Phase 3.1 — structured output).** The request to the model now
+  carries `response_format` with a **JSON schema** (`companion_intent`) that fixes the five keys of the contract and the **closed
+  list of the 29 actions** — that is what prevents the loose-text reply, which the prompt alone could not avoid. The
+  practical gain is being able to use a **small and fast model**: measured with the current prompt (~1766 tokens), the
+  `qwen2.5-3b-instruct` got **0 out of 6** replies in JSON (it repeated phrases from the prompt) and went to **6 out of 6**,
+  including the target in `attack`/`equip`/`drop`; `google/gemma-4-e4b` (the default) stays the same.
+  - **`[IA] SaidaEstruturada`** (new, **on** by default) is the option: it appears on its own in the F8 panel, AI tab, and
+    turning it off goes back to exactly the request from before.
+  - **No server is left out:** if the server refuses the schema (**HTTP 400**, or an error mentioning
+    `response_format`/`json_schema`), the mod tries **once** with `{"type":"json_object"}` and, if that fails again,
+    **once without `response_format`** (the old behaviour), warning **once in the log**. A network error or timeout
+    **are not** retried: the same request is never sent twice and the mod never breaks because of it.
+  - **Nothing else changed:** the prompt, the parser, the personality/memory, the TTS, the panel, the STT and the orders stayed
+    the same.
+- **The companion's voice echo is FIXED (Phase 3.4, part 3).** The diagnostic (`EcoDiag = true`) showed the
+  cause on the first try: Valheim has **one global reverb zone**, on the **AudioListener object itself**, with a
+  **1000 m** radius, **4 s** of tail and a `room` of **−10 dB** — that is, **everything** within 1 km got that 4 s
+  tail, and the companion's voice was the only thing that made it obvious (the game music and sounds are short or
+  repetitive). The game's own sources **avoid** it (the music uses `reverbZoneMix = 0`, the ambience 0.19), but
+  our source was at the **Unity default (`1`)** and got the whole echo. **Fix:** the voice now comes out **dry**
+  (`reverbZoneMix = 0`) — heard in game and approved ("it cleaned up").
+  - **`[IA] TtsReverbZoneMix`** (new, range 0–1, **default 0**) is the real option: `0` = dry voice; raise it a little
+    (e.g. `0,19`, the value the game ambience uses) if you want a subtle "space" in the voice. It applies **on the next sentence**,
+    without restarting.
+  - **The 4 echo test switches are gone** (`TtsBypassReverbZones`, `TtsBypassListenerEffects`,
+    `TtsBypassEffects` and `TtsDoppler`): they did their job. They disappear from your `.cfg` on their own — your other
+    options are not affected.
+  - **`[IA] EcoDiag`** still exists (off by default), now as an **audio diagnostic**: once per session,
+    on the first spoken sentence, it writes to the log the scene listener, the world's reverb zones and how the game's
+    own sources are configured. **It does not change the sound** — it is there to investigate any sound problem in the future.
+  - **Known pending item** (for later): the voice **does not** go through a game mixer group (the music and the ambience
+    do). It is not needed for the echo, which is already solved.
+- **The path to the fix (Phase 3.4, part 3) — test switches and diagnostic.**
+  The companion's voice came out with an **echo** ("like speaking in a big place"), and what was already established ruled out the easy
+  hypotheses: the synthesis is **clean** (the WAV from outside the game is identical), **only the companion's voice** echoes
+  (game music and SFX are normal), the echo is **identical anywhere, close or far and with the 3 voices
+  (42/43/44)** and it happens with **a single sentence** (it is not queue overlapping). It is a **fixed engine process**
+  on our `AudioSource`. Who says **which** one is the player's ear, so this part started as **instrumentation**
+  (switches, one at a time, and the diagnostic above). Result: **the diagnostic answered on the first try** and
+  the fix became one line (`reverbZoneMix = 0`). The record of what was done in the exploration:
+  - **6 new keys in `[IA]`** at that moment, all with the default value = how it was before: `EcoDiag` (false —
+    diagnostic in the log only), `TtsReverbZoneMix` (1.0, range 0–1), `TtsBypassReverbZones` (false),
+    `TtsBypassListenerEffects` (false, the main suspect), `TtsBypassEffects` (false) and `TtsDoppler` (true).
+    They appear **in the F8 panel, AI tab** (the `Bind` already feeds `ModConfig.Categories`, no change in the panel was
+    needed) and apply **on the next sentence**, without restarting. **In the end 2 were left**: `TtsReverbZoneMix` (now 0) and
+    `EcoDiag` — the other 4 were removed.
+  - **Application** (`StartChunk` → `ApplyReverbZoneMix`): the `AudioSource` is created once and stays for the session, so
+    `reverbZoneMix` is written **only when the value changes** — changing it in the F8 panel applies on the next sentence, without restarting,
+    and the first sentence already applies the default. A line goes to the log when it writes
     (`[TTS] ReverbZoneMix da voz: reverbZoneMix=0`).
-  - **Diagnóstico** (`EcoDiag = true`), **uma vez por sessão** na primeira frase, prefixo `[ECO]`: o `AudioListener`
-    (nome + `AudioReverbFilter`/`AudioLowPassFilter` e seus valores), **todas as `AudioReverbZone`** da cena
-    (`reverbPreset`/`minDistance`/`maxDistance`/`decayTime`/`room` + se o jogador e o companheiro estão **dentro** do
-    raio) e **a receita do jogo**: amostra de até 20 `AudioSource` da cena (a nossa fora) com `spatialBlend`,
-    `reverbZoneMix`, os `bypass*`, `dopplerLevel`, `spatialize` e o **nome do mixer group**. É caro de propósito:
-    roda uma vez por sessão, nunca por frame, e nunca com a flag desligada.
-  - **Reflexão:** o núcleo obrigatório (os 11 membros) continua igual; `reverbZoneMix` é o único membro **opcional**
-    que a voz escreve; `bypassReverbZones`, `bypassEffects`, `bypassListenerEffects`, `dopplerLevel`, `spread`,
-    `spatialize` e `outputAudioMixerGroup` são **opcionais e só de leitura** — quem usa é o **diagnóstico**, para
-    fotografar as fontes do jogo. Um membro que não exista não derruba a voz (com aviso no log). Nomes conferidos no
-    `UnityEngine.AudioModule.dll` do jogo.
-  - **Não mudou:** `spatialBlend`, o gate de fim de fala, `StopSource`, cache, fila, síntese, prompt, painel, STT,
-    ordens e jobs. Branch: **`fix/eco-voz`**.
-- **Correções do teste em jogo do painel da IA (Fase 3.7) — as teclas do jogo digitando no campo, a caixa de texto e o
-  rodapé.** Três relatos do teste em jogo, três causas raiz:
-  - **digitar `m` na caixa de texto abria o mapa** (e o mesmo valia para `Tab`, `F5`, `Enter`, `C`, `R`, `G`, `X`, `B`,
-    `Z`, `Q`, `F`, `E`, `V` e os dígitos do hotbar). Os guardas de input que o mod já tinha (`Player.TakeInput`,
-    `PlayerController.TakeInput`, `Hud.InRadial`, `VoiceInput.BlockedByUi`) só barram o que **passa por eles** — e o
-    mapa é alternado em **`Minimap.Update`**, que lê `ZInput.GetButtonDown("Map")` e **nunca** consulta
-    `Player.TakeInput()` (o mesmo vale para o inventário, o console e o chat). Além disso, um `TMP_InputField` só come
-    as teclas que ele mesmo trata. **Correção:** novo `Patches/TextInputKeyGuard.cs` — `ModTextInputFocus` (registro dos
-    campos de texto do mod + resposta "algum em foco?" **cacheada por frame**) e **prefixos Harmony** em
-    `ZInput.GetButtonDown/GetButton/GetButtonUp/GetKeyDown/GetKey/GetKeyUp` que devolvem `false` enquanto um campo do
-    mod está em foco (mesmo espírito do `AutoPickupKeyConflict`: sem campo em foco o caminho é **uma comparação de
-    `int`** e o jogo roda exatamente igual). Ficam de fora os botões/teclas de **gamepad** (`"Joy*"`, `JoystickButton0`
-    para cima) e os métodos de **mouse** — o painel lê `ZInput.GetButtonDown("JoyBack")`/`"JoyButtonB"` para fechar e o
-    clique na UI passa pelo `EventSystem`. Digitar continua digitando o caractere (o `TMP_InputField` lê suas teclas
-    pelo `Input`/`Event` legado, nunca pelo `ZInput`) e o push-to-talk segue bloqueado com o painel aberto pelo
-    `VoiceInput.BlockedByUi` (a tecla `V` só escreve `v` no campo).
-  - **a caixa de texto "meio bugada" (sem cursor e sem seleção).** `TMP_InputField.OnEnable` é onde o TMP cria o objeto
-    `"Caret"` cujo `CanvasRenderer` (`m_CachedInputRenderer`) desenha **o cursor e a seleção** — e ele só faz isso se o
-    `textComponent` **já estiver atribuído**. O painel montava o campo com `AddComponent<TMP_InputField>()` num
-    GameObject **ativo** e atribuía o `textComponent` **depois**: o cursor nunca foi criado e `UpdateGeometry` passou a
-    sair cedo para sempre. **Correção:** o GameObject nasce **inativo** e só é ativado **depois** de tudo atribuído (o
-    `"Caret"` é movido para último filho, para não desenhar atrás do texto); o texto passou a usar `Overflow` +
-    `PreserveWhitespaceNoWrap` (o `RectMask2D` do viewport recorta e o TMP rola o texto na horizontal — antes o
-    `Ellipsis` truncava com "..." e o texto parecia pular), cursor claro de 2 px, `selectionColor`, `richText = false`,
-    o clique posicionando o cursor e **Enter aplicando** como o botão *Aplicar*. O campo de **nome do companheiro**
-    (`CompanionInteractPanel.BuildNameInput`) tinha o mesmo defeito e ganhou a mesma correção.
-  - **o rodapé do painel estava ilegível.** Eram duas linhas de 11 px em cinza escuro **direto sobre a madeira**, com a
-    segunda praticamente na borda inferior do painel. **Correção:** faixa escura própria (o mesmo truque das linhas de
-    configuração), resumo em **duas linhas** localizadas (`hc_ai_panel_status_personality` + `hc_ai_panel_status_voice`,
-    12,5 px quase branco) e dica em 12 px, e o painel cresceu **470 -> 516** para nada ficar cortado. A faixa é criada
-    uma vez só e o *refresh* continua 2x/s.
-  Nada de TTS/STT/ordens/jobs/comportamento do companheiro mudou. Arquivos: `Patches/TextInputKeyGuard.cs` (novo),
+  - **Diagnostic** (`EcoDiag = true`), **once per session** on the first sentence, prefix `[ECO]`: the `AudioListener`
+    (name + `AudioReverbFilter`/`AudioLowPassFilter` and their values), **every `AudioReverbZone`** of the scene
+    (`reverbPreset`/`minDistance`/`maxDistance`/`decayTime`/`room` + whether the player and the companion are **inside** the
+    radius) and **the game's recipe**: a sample of up to 20 `AudioSource`s of the scene (ours excluded) with `spatialBlend`,
+    `reverbZoneMix`, the `bypass*`, `dopplerLevel`, `spatialize` and the **mixer group name**. It is expensive on purpose:
+    it runs once per session, never per frame, and never with the flag off.
+  - **Reflection:** the mandatory core (the 11 members) stays the same; `reverbZoneMix` is the only **optional** member
+    the voice writes; `bypassReverbZones`, `bypassEffects`, `bypassListenerEffects`, `dopplerLevel`, `spread`,
+    `spatialize` and `outputAudioMixerGroup` are **optional and read-only** — the one that uses them is the **diagnostic**, to
+    snapshot the game's sources. A member that does not exist does not bring the voice down (with a warning in the log). Names checked in the game's
+    `UnityEngine.AudioModule.dll`.
+  - **Did not change:** `spatialBlend`, the speech end gate, `StopSource`, cache, queue, synthesis, prompt, panel, STT,
+    orders and jobs. Branch: **`fix/eco-voz`**.
+- **Fixes from the in-game test of the AI panel (Phase 3.7) — the game keys typing in the field, the text box and the
+  footer.** Three reports from the in-game test, three root causes:
+  - **typing `m` in the text box opened the map** (and the same went for `Tab`, `F5`, `Enter`, `C`, `R`, `G`, `X`, `B`,
+    `Z`, `Q`, `F`, `E`, `V` and the hotbar digits). The input guards the mod already had (`Player.TakeInput`,
+    `PlayerController.TakeInput`, `Hud.InRadial`, `VoiceInput.BlockedByUi`) only block what **goes through them** — and the
+    map is toggled in **`Minimap.Update`**, which reads `ZInput.GetButtonDown("Map")` and **never** consults
+    `Player.TakeInput()` (the same goes for the inventory, the console and the chat). On top of that, a `TMP_InputField` only eats
+    the keys it handles itself. **Fix:** new `Patches/TextInputKeyGuard.cs` — `ModTextInputFocus` (a registry of the mod's
+    text fields + the "is any in focus?" answer **cached per frame**) and **Harmony prefixes** on
+    `ZInput.GetButtonDown/GetButton/GetButtonUp/GetKeyDown/GetKey/GetKeyUp` that return `false` while a mod field is
+    in focus (the same spirit as `AutoPickupKeyConflict`: with no field in focus the path is **one `int` comparison** and the
+    game runs exactly the same). The **gamepad** buttons/keys (`"Joy*"`, `JoystickButton0` and up) and the **mouse** methods
+    stay out — the panel reads `ZInput.GetButtonDown("JoyBack")`/`"JoyButtonB"` to close and the
+    UI click goes through the `EventSystem`. Typing still types the character (the `TMP_InputField` reads its keys
+    through the legacy `Input`/`Event`, never through `ZInput`) and push-to-talk stays blocked with the panel open through
+    `VoiceInput.BlockedByUi` (the `V` key only writes `v` in the field).
+  - **the text box "half broken" (no cursor and no selection).** `TMP_InputField.OnEnable` is where TMP creates the
+    `"Caret"` object whose `CanvasRenderer` (`m_CachedInputRenderer`) draws **the cursor and the selection** — and it only does that if the
+    `textComponent` **is already assigned**. The panel built the field with `AddComponent<TMP_InputField>()` on an **active**
+    GameObject and assigned the `textComponent` **afterwards**: the cursor was never created and `UpdateGeometry` started
+    returning early forever. **Fix:** the GameObject is born **inactive** and is only activated **after** everything is assigned (the
+    `"Caret"` is moved to the last child, so it does not draw behind the text); the text now uses `Overflow` +
+    `PreserveWhitespaceNoWrap` (the viewport's `RectMask2D` clips and TMP scrolls the text horizontally — before,
+    `Ellipsis` truncated it with "..." and the text seemed to jump), a light cursor of 2 px, `selectionColor`, `richText = false`,
+    the click positioning the cursor and **Enter applying** like the *Apply* button. The **companion name** field
+    (`CompanionInteractPanel.BuildNameInput`) had the same defect and got the same fix.
+  - **the panel footer was unreadable.** It was two 11 px lines in dark grey **right over the wood**, with the
+    second one practically on the bottom border of the panel. **Fix:** its own dark strip (the same trick as the config
+    rows), the summary in **two** localized lines (`hc_ai_panel_status_personality` + `hc_ai_panel_status_voice`,
+    12.5 px almost white) and the hint at 12 px, and the panel grew **470 -> 516** so nothing gets cut. The strip is created
+    once and the *refresh* stays at 2x/s.
+  Nothing of the TTS/STT/orders/jobs/companion behaviour changed. Files: `Patches/TextInputKeyGuard.cs` (new),
   `UI/CompanionAiPanel.cs`, `UI/CompanionInteractPanel.cs`, `Core/ModLocalization.cs`,
   `Translations/Portuguese_Brazilian.json`.
-- **Correção — a lista do dropdown do painel da IA aparecia ATRÁS dos controles (Fase 3.7).** Ao abrir o dropdown de
-  **Personalidade**, a lista saía desenhada **por trás** do campo do dropdown de **Voz**, do campo *Nas suas palavras*
-  e do botão **Aplicar** (relato com screenshot). No uGUI a ordem de desenho é a **ordem dos irmãos** na hierarquia e
-  os **campos** dos dropdowns eram criados **depois** do *overlay* das listas, então passavam a ser os últimos filhos
-  do painel e desenhavam por cima dele. Agora:
-  - o *overlay* volta a ser o **último filho** do painel depois de os campos existirem (`_overlay.SetAsLastSibling()`
-    no fim do `Build()`, com o porquê comentado);
-  - o *overlay* ganhou um **`Canvas` próprio** (`overrideSorting = true`, `sortingOrder` = **34**, um acima do painel,
-    que é 33) com **`GraphicRaycaster`** — é o que o **próprio template de `Dropdown` do Unity** faz
-    (`popupCanvas.overrideSorting = true; popupCanvas.sortingOrder = kHighSortingLayer`): a lista passa a desenhar
-    (e a receber o clique) acima do painel sem depender de onde o *overlay* está na hierarquia;
-  - **clicar fora da lista fecha a lista:** um *catcher* invisível (`Image` com alfa 0 + `Button` com
-    `transition = None` — o mesmo *blocker* do `Dropdown` do Unity) cobre o painel inteiro como **primeiro filho do
-    overlay**: fica atrás das listas, então o clique num item vai para o item, e só é **ativado enquanto há lista
-    aberta** (fora disso roubaria o clique do painel).
-  Nada de TTS/STT/ordens/jobs/patches mudou; sem alocação por frame, sem `Find*`/LINQ. Arquivo único:
+- **Fix — the AI panel dropdown list appeared BEHIND the controls (Phase 3.7).** When opening the
+  **Personality** dropdown, the list was drawn **behind** the **Voice** dropdown field, the *In your own words* field
+  and the **Apply** button (a report with a screenshot). In uGUI the drawing order is the **order of the children** in the hierarchy and
+  the dropdown **fields** were created **after** the list *overlay*, so they became the last children
+  of the panel and drew over it. Now:
+  - the *overlay* goes back to being the **last child** of the panel after the fields exist (`_overlay.SetAsLastSibling()`
+    at the end of `Build()`, with the why commented);
+  - the *overlay* got its **own `Canvas`** (`overrideSorting = true`, `sortingOrder` = **34**, one above the panel,
+    which is 33) with a **`GraphicRaycaster`** — it is what **Unity's own `Dropdown` template** does
+    (`popupCanvas.overrideSorting = true; popupCanvas.sortingOrder = kHighSortingLayer`): the list now draws
+    (and receives the click) above the panel without depending on where the *overlay* is in the hierarchy;
+  - **clicking outside the list closes the list:** an invisible *catcher* (`Image` with alpha 0 + `Button` with
+    `transition = None` — the same *blocker* as Unity's `Dropdown`) covers the whole panel as the **first child of the
+    overlay**: it stays behind the lists, so a click on an item goes to the item, and it is only **activated while a list is
+    open** (outside that it would steal the panel's click).
+  Nothing of the TTS/STT/orders/jobs/patches changed; no per-frame allocation, no `Find*`/LINQ. Single file:
   `src/Companions/UI/CompanionAiPanel.cs`.
-- **Correções da auditoria (Fases 3.4 e 3.7) — o TTS e o painel da IA à prova de borda.** Nada do que já
-  funcionava mudou de comportamento; o que mudou foi o que dava crash, vazava memória ou ignorava a config:
-  - **A1 — corrida no `Shutdown` do TTS (crash nativo):** o `Shutdown` agora **espera a thread de síntese**
-    (`Join(5000)`) antes de liberar o modelo, `Process`/`TryGetTts` recusam sintetizar/carregar depois do
-    `Shutdown` e o `Dispose` passou para dentro do gate do nativo. Antes a thread podia estar **entre duas frases**
-    (contador de "ocupado" em 0) e o modelo era liberado com ela viva — o próximo `Generate` sobre o handle morto
-    derrubava o jogo (AccessViolation, que nenhum `catch` pega). Se o `Join` estourar, o modelo **fica carregado**
-    (como antes: melhor segurar do que descarregar em uso).
-  - **A2 — áudio nativo com handle nulo:** o binding devolve um objeto **não-nulo** mesmo quando a síntese nativa
-    falha (handle `IntPtr.Zero`), e `NumSamples`/`Samples` fazem `PtrToStructure` no handle — ou seja, ler
-    `NumSamples` com handle nulo era um crash. Agora o handle é checado **antes**, a falha vai para o log e a frase
-    é pulada.
-  - **A3 — `Speak` depois do `Shutdown`:** não enfileira mais (a fala ficaria na fila para sempre).
-  - **A4 — pré-carga do modelo com nova tentativa:** o `Prewarm` tentava **uma vez**; agora tenta de novo a cada
-    **30 s** enquanto você está no mundo, até carregar. Junto com isso, "modelo não encontrado" deixou de ser
-    definitivo: copiar a pasta do modelo com o jogo aberto passa a funcionar **sem reiniciar** (o erro é logado
-    uma vez só).
-  - **C2 — cache do TTS com teto por bytes:** o teto era por **entrada** (256) e cada entrada é um `float[]` cru
-    (frase de 180 caracteres ≈ 1,1 MB) — dava para passar de centenas de MB, e cada resposta única do modelo
-    **expulsava as falas fixas**. Agora o teto é **32 MB de áudio** (descartando as frases mais antigas) e **só as
-    linhas do mod entram no cache** — as respostas do modelo são novas a cada vez.
-  - **B1 — pré-carga nativa confere *qual* DLL entrou:** se `onnxruntime.dll`/`sherpa-onnx-c-api.dll` já estavam
-    carregados de outro caminho (outro mod ou cópia na pasta do jogo), o log agora **avisa** — o `DllImport`
-    resolve por **nome-base** e podia acabar numa versão com ABI diferente.
-  - **D2 — o painel da IA não abre por cima de nada:** a tecla é recusada com o inventário, o mapa, o menu, o chat
-    com foco, o console, a entrada de texto, a busca do comerciante ou o **painel F8** abertos — e o painel F8, por
-    sua vez, não abre enquanto o painel da IA está visível (nunca mais um painel sobre o outro).
-  - **E1 — texto que faltava em inglês:** `hc_ai_voice_key_conflict` (o aviso do conflito com o auto-pickup do
-    jogo) só existia no JSON PT-BR; agora tem o par em inglês nos padrões (outro idioma não mostra mais o token
-    cru).
-  - **E2 — slider de velocidade alinhado com a config:** o painel ia de 0,5 a 1,5 enquanto `[IA] TtsVelocidade`
-    aceita até 2,0 — com 2,0 no `.cfg` o valor aparecia como "2.00" e o primeiro arrasto rebaixava para 1,5 sem
-    avisar. Agora os dois usam os **mesmos** limites (`CompanionTts.MinSpeed/MaxSpeed`).
-  - **D3 — cursor ao fechar o painel:** **nada a fazer** (documentado): quem devolve o cursor é o próprio jogo
-    (`GameCamera.UpdateMouseCapture`, a cada frame, quando não há janela aberta) — e forçá-lo contrariaria quem
-    desliga a captura do mouse de propósito (`Ctrl+F1`).
-- **Fase 3.7 — painel da IA no jogo (tecla `I`): personalidade, voz com *Ouvir*, push-to-talk e toggles.** Tudo o
-  que a IA lê do `.cfg` passou a ser ajustável **em jogo**, sem editar arquivo nenhum e sem reiniciar. Arquivo novo:
-  `src/Companions/UI/CompanionAiPanel.cs` (painel de madeira no estilo dos outros painéis do mod). A tecla nova é
-  **`[IA] PainelTecla`**, padrão **`I`** (livre no jogo e no mod: `Z`/`E`/`F8`/`LeftAlt+Z`/`F7`/`V` são nossas,
-  W/A/S/D, Tab, Esc, F, Q, C, R, X, G, H, T, M, B, Ctrl, Shift, Space e V são do jogo). Como é uma **letra**, ela
-  não é roubada de uma caixa de texto: o chat, o console, a entrada de texto e a busca do comerciante continuam com a
-  letra só para eles. Abre/fecha com a tecla, com **Esc** e com o **X**; bloqueia o input do jogador enquanto está
-  aberto (mesmos prefixos Harmony dos outros painéis + `Hud.InRadial` + `VoiceInput.BlockedByUi`) e fecha sozinho se
-  o jogador morrer ou sair do mundo. **Não precisa de companheiro perto** (é config global).
-  - **Personalidade:** dropdown (Padrão/Viking/Mago/Sarcástico/Guia/Texto livre) + campo de **texto livre** +
-    **Aplicar** → gravam `[IA] PresetPersonalidade` e `[IA] Personalidade` (o texto livre ganha, como sempre) e o
-    log/chat dizem o resultado efetivo (`CompanionPersona.Describe()`). Vale na **próxima mensagem**.
-  - **Voz (TTS):** dropdown das **três vozes pt-BR** (42 `pf_dora` feminina, 43 `pm_alex` masculina, 44 `pm_santa`
-    masculina) + botão **Ouvir** (fala uma frase de exemplo pelo **mesmo** pipeline — worker, cache e playback 3D —
-    e fica desabilitado se o TTS estiver desligado ou o modelo faltando) + sliders de **volume** (`TtsVolume`) e
-    **velocidade** (`TtsVelocidade`, 0,5–2,0 no painel, o mesmo intervalo do `.cfg`). A voz vale na **próxima fala**; o volume, no próximo áudio.
-  - **Push-to-talk:** mostra a tecla atual (`[IA] VozTecla`) e o botão **Alterar** captura uma nova com o **mesmo**
-    `KeyBindListener` do painel F8 (nada de lógica nova) + o toggle `VozLigada`. Ao trocar a tecla, o
-    `AutoPickupKeyConflict.Reset()` reavalia o conflito com o *Toggle Auto-Pickup* do jogo (Fase 3.3b).
-  - **Toggles/valores:** `TtsLigado`, `TtsFalarRespostas`, `TtsFalarFalasDoMod`, `Conversa` e o slider de `Memoria`
+- **Audit fixes (Phases 3.4 and 3.7) — the TTS and the AI panel edge-proof.** Nothing that already
+  worked changed behaviour; what changed was what crashed, leaked memory or ignored the config:
+  - **A1 — race in the TTS `Shutdown` (native crash):** `Shutdown` now **waits for the synthesis thread**
+    (`Join(5000)`) before releasing the model, `Process`/`TryGetTts` refuse to synthesize/load after
+    `Shutdown` and `Dispose` moved inside the native gate. Before, the thread could be **between two sentences**
+    (the "busy" counter at 0) and the model was released with it alive — the next `Generate` on the dead handle
+    brought the game down (AccessViolation, which no `catch` catches). If the `Join` times out, the model **stays loaded**
+    (as before: better to hold it than to unload it in use).
+  - **A2 — native audio with a null handle:** the binding returns a **non-null** object even when the native synthesis
+    fails (handle `IntPtr.Zero`), and `NumSamples`/`Samples` do `PtrToStructure` on the handle — that is, reading
+    `NumSamples` with a null handle was a crash. Now the handle is checked **first**, the failure goes to the log and the sentence
+    is skipped.
+  - **A3 — `Speak` after `Shutdown`:** it no longer queues (the line would stay in the queue forever).
+  - **A4 — model pre-load with a retry:** `Prewarm` tried **once**; now it tries again every
+    **30 s** while you are in the world, until it loads. Along with that, "model not found" stopped being
+    final: copying the model folder with the game open now works **without restarting** (the error is logged
+    once only).
+  - **C2 — TTS cache with a byte cap:** the cap was per **entry** (256) and each entry is a raw `float[]`
+    (a 180-character sentence ≈ 1.1 MB) — it could go past hundreds of MB, and each unique reply from the model
+    **pushed the fixed lines out**. Now the cap is **32 MB of audio** (dropping the oldest sentences) and **only the
+    mod lines enter the cache** — the model replies are new every time.
+  - **B1 — native pre-load checks *which* DLL came in:** if `onnxruntime.dll`/`sherpa-onnx-c-api.dll` were already
+    loaded from another path (another mod or a copy in the game folder), the log now **warns** — `DllImport`
+    resolves by **base name** and it could end up in a version with a different ABI.
+  - **D2 — the AI panel does not open on top of anything:** the key is refused with the inventory, the map, the menu, the chat
+    in focus, the console, the text input, the vendor search or the **F8 panel** open — and the F8 panel, in
+    turn, does not open while the AI panel is visible (never again one panel over the other).
+  - **E1 — text missing in English:** `hc_ai_voice_key_conflict` (the warning about the conflict with the game
+    auto-pickup) only existed in the PT-BR JSON; now it has the English pair in the defaults (another language no longer shows the raw
+    token).
+  - **E2 — speed slider aligned with the config:** the panel went from 0.5 to 1.5 while `[IA] TtsVelocidade`
+    accepts up to 2.0 — with 2.0 in the `.cfg` the value showed as "2.00" and the first drag lowered it to 1.5 without
+    warning. Now both use the **same** limits (`CompanionTts.MinSpeed/MaxSpeed`).
+  - **D3 — cursor when closing the panel:** **nothing to do** (documented): it is the game itself that gives the cursor back
+    (`GameCamera.UpdateMouseCapture`, every frame, when no window is open) — and forcing it would go against whoever
+    turns the mouse capture off on purpose (`Ctrl+F1`).
+- **Phase 3.7 — AI panel in game (key `I`): personality, voice with *Listen*, push-to-talk and toggles.** Everything
+  the AI reads from the `.cfg` became adjustable **in game**, without editing any file and without restarting. New file:
+  `src/Companions/UI/CompanionAiPanel.cs` (a wooden panel in the style of the other mod panels). The new key is
+  **`[IA] PainelTecla`**, default **`I`** (free in the game and in the mod: `Z`/`E`/`F8`/`LeftAlt+Z`/`F7`/`V` are ours,
+  W/A/S/D, Tab, Esc, F, Q, C, R, X, G, H, T, M, B, Ctrl, Shift, Space and V are the game's). As it is a **letter**, it
+  is not stolen from a text box: the chat, the console, the text input and the vendor search keep the
+  letter for themselves. It opens/closes with the key, with **Esc** and with the **X**; it blocks the player input while it is
+  open (the same Harmony prefixes as the other panels + `Hud.InRadial` + `VoiceInput.BlockedByUi`) and closes itself if
+  the player dies or leaves the world. **No companion nearby is needed** (it is global config).
+  - **Personality:** dropdown (Default/Viking/Mage/Sarcastic/Guide/Free text) + a **free text** field +
+    **Apply** → they save `[IA] PresetPersonalidade` and `[IA] Personalidade` (the free text wins, as always) and the
+    log/chat say the effective result (`CompanionPersona.Describe()`). It applies on the **next message**.
+  - **Voice (TTS):** dropdown of the **three pt-BR voices** (42 `pf_dora` female, 43 `pm_alex` male, 44 `pm_santa`
+    male) + a **Listen** button (speaks a sample sentence through the **same** pipeline — worker, cache and 3D playback —
+    and is disabled if the TTS is off or the model is missing) + sliders for **volume** (`TtsVolume`) and
+    **speed** (`TtsVelocidade`, 0.5–2.0 in the panel, the same range as the `.cfg`). The voice applies on the **next line**; the volume, on the next audio.
+  - **Push-to-talk:** shows the current key (`[IA] VozTecla`) and the **Change** button captures a new one with the **same**
+    `KeyBindListener` as the F8 panel (no new logic) + the `VozLigada` toggle. When the key changes,
+    `AutoPickupKeyConflict.Reset()` re-evaluates the conflict with the game's *Toggle Auto-Pickup* (Phase 3.3b).
+  - **Toggles/values:** `TtsLigado`, `TtsFalarRespostas`, `TtsFalarFalasDoMod`, `Conversa` and the `Memoria` slider
     (0..12).
-  - **Salva na hora:** cada controle escreve no seu `ConfigEntry` e o BepInEx grava o `.cfg` no mesmo instante
-    (`ConfigFile.SaveOnConfigSet`). Sem bloqueio de main thread, sem alocação por frame (o painel é montado **uma
-    vez**, no primeiro `Show`; por frame só a tecla, o cursor e um status 2×/s) e sem segredos no código.
-  - **Textos:** 33 chaves PT-BR novas em `ModLocalization` + `Translations/Portuguese_Brazilian.json`
+  - **Saves right away:** each control writes to its `ConfigEntry` and BepInEx saves the `.cfg` at that very moment
+    (`ConfigFile.SaveOnConfigSet`). No main-thread blocking, no per-frame allocation (the panel is built **once**,
+    on the first `Show`; per frame only the key, the cursor and a status 2x/s) and no secrets in the code.
+  - **Texts:** 33 new PT-BR keys in `ModLocalization` + `Translations/Portuguese_Brazilian.json`
     (`hc_ai_panel_*`, `hc_ai_voice_42/43/44/other`).
-- **Fase 3.4 — o companheiro FALA: voz sintetizada local (Kokoro-82M via sherpa-onnx).** O companheiro agora
-  **fala em voz alta** o que responde, **na posição dele** no mundo. A voz é sintetizada **dentro do jogo** pelo
-  **Kokoro-82M** através do **`sherpa-onnx`** (NuGet `org.k2fsa.sherpa.onnx` 1.13.8, **Apache-2.0**, in-process) —
-  sem HTTP, sem processo filho, nada sai da sua máquina. É o espelho do `WhisperStt`: modelo carregado **uma vez**,
-  síntese **fora da main thread**, fila thread-safe drenada no `Update`. Nada do resto mudou (ordens por chat/voz,
-  STT, personalidade/memória/conversa, jobs, UI, radial, balão e chatter seguem iguais):
-  - **Vozes em português do Brasil:** `[IA] TtsVoz` **42** = `pf_dora` (feminina, padrão), **43** = `pm_alex`
-    (masculina), **44** = `pm_santa` (masculina). Os outros números do modelo são de outros idiomas.
-  - **Por FRASE, com cache:** o texto é cortado em frases (`.` `!` `?` `…`, quebras de linha; um ponto entre
-    dígitos é decimal; uma sequência de terminadores é **um** corte) e a **primeira frase já toca enquanto a
-    próxima é gerada** — a resposta começa a soar rápido. Falas repetidas (texto + voz + velocidade) saem do
-    **cache**, na hora — e **só as linhas do mod** entram nele (as respostas do modelo são novas a cada vez), com
-    teto de **32 MB de áudio** (ver as correções da auditoria no topo).
-  - **Playback 3D:** **um** `AudioSource` na posição do companheiro (`spatialBlend = 1`), volume de
-    `[IA] TtsVolume`, **uma fala por vez** (fila, sem sobrepor), e o `AudioClip` é destruído ao terminar.
-  - **O que é falado** (regra: *a voz acompanha a linha que aparece no chat*): a **resposta do modelo**
-    (`[IA] TtsFalarRespostas`) e/ou a **linha do próprio mod** (`[IA] TtsFalarFalasDoMod`, ex. *"Ok: coletar
-    madeira (10)."*, *"Já temos o suficiente."*). Numa **ordem** a linha do mod ganha (desligue
-    `TtsFalarFalasDoMod` para ouvir a resposta do modelo no lugar dela); numa **conversa** é a resposta do
-    modelo. Nada é falado duas vezes (o texto que não foi falado vai para o log). Erro do LLM não é falado.
-  - **Prompt:** o contrato passou a exigir **UMA frase curta (até ~15 palavras)** no `reply` e a dizer que ela é
-    **falada em voz alta** — frase curta = fala mais rápida. O JSON do contrato não mudou.
-  - **Config `[IA]` (PT-BR):** `TtsLigado` (true), `TtsVoz` (42), `TtsVelocidade` (1.0), `TtsThreads` (**4** — RTF
-    medido ~0,83, mais rápido que o tempo real), `TtsVolume` (1.0), `TtsModelo` (`tts\kokoro\model.int8.onnx`;
-    `voices.bin`/`tokens.txt`/`espeak-ng-data` vêm da mesma pasta), `TtsIdioma` (**`pt-br`** — este Kokoro é
-    multi-lingue e a lib nativa **recusa** carregar sem idioma; `pt` sozinho é português de Portugal),
+- **Phase 3.4 — the companion SPEAKS: local synthesized voice (Kokoro-82M via sherpa-onnx).** The companion now
+  **says out loud** what he answers, **at his position** in the world. The voice is synthesized **inside the game** by
+  **Kokoro-82M** through **`sherpa-onnx`** (NuGet `org.k2fsa.sherpa.onnx` 1.13.8, **Apache-2.0**, in-process) —
+  no HTTP, no child process, nothing leaves your machine. It is the mirror of `WhisperStt`: the model loaded **once**,
+  synthesis **off the main thread**, a thread-safe queue drained in `Update`. Nothing else changed (chat/voice orders,
+  STT, personality/memory/conversation, jobs, UI, radial, bubble and chatter stay the same):
+  - **Voices in Brazilian Portuguese:** `[IA] TtsVoz` **42** = `pf_dora` (female, default), **43** = `pm_alex`
+    (male), **44** = `pm_santa` (male). The other numbers in the model are from other languages.
+  - **Per SENTENCE, with cache:** the text is cut into sentences (`.` `!` `?` `…`, line breaks; a dot between
+    digits is a decimal; a sequence of terminators is **one** cut) and the **first sentence already plays while the
+    next is generated** — the reply starts sounding quickly. Repeated lines (text + voice + speed) come from the
+    **cache**, instantly — and **only the mod lines** enter it (the model replies are new every time), with a
+    cap of **32 MB of audio** (see the audit fixes at the top).
+  - **3D playback:** **one** `AudioSource` at the companion's position (`spatialBlend = 1`), volume from
+    `[IA] TtsVolume`, **one line at a time** (queue, no overlapping), and the `AudioClip` is destroyed when it ends.
+  - **What is spoken** (rule: *the voice follows the line that appears in the chat*): the **model's reply**
+    (`[IA] TtsFalarRespostas`) and/or the **mod's own line** (`[IA] TtsFalarFalasDoMod`, e.g. *"Ok: gather
+    wood (10)."*, *"We already have enough."*). In an **order** the mod's line wins (turn
+    `TtsFalarFalasDoMod` off to hear the model's reply instead); in a **conversation** it is the model's
+    reply. Nothing is spoken twice (the text that was not spoken goes to the log). An LLM error is not spoken.
+  - **Prompt:** the contract now requires **ONE short sentence (up to ~15 words)** in `reply` and says that it is
+    **spoken out loud** — short sentence = faster speech. The contract's JSON did not change.
+  - **`[IA]` config (PT-BR):** `TtsLigado` (true), `TtsVoz` (42), `TtsVelocidade` (1.0), `TtsThreads` (**4** — RTF
+    measured ~0.83, faster than real time), `TtsVolume` (1.0), `TtsModelo` (`tts\kokoro\model.int8.onnx`;
+    `voices.bin`/`tokens.txt`/`espeak-ng-data` come from the same folder), `TtsIdioma` (**`pt-br`** — this Kokoro is
+    multilingual and the native lib **refuses** to load without a language; `pt` alone is European Portuguese),
     `TtsCache` (true), `TtsFalarRespostas` (true), `TtsFalarFalasDoMod` (true).
-  - **Carregamento dos nativos (Unity/Mono):** o binding gerenciado é um `[DllImport("sherpa-onnx-c-api")]` puro
-    (não tem loader próprio como o Whisper.net), e no Unity o Windows procuraria na pasta do **jogo**, não na do
-    plugin. `CompanionTts.EnsureNativeLibraries` roda antes do primeiro uso: `SetDllDirectory(<plugin>\runtimes\
-    win-x64\native)`, **pré-carrega** `onnxruntime.dll` e `sherpa-onnx-c-api.dll` por caminho absoluto com
-    `LoadLibraryEx(..., LOAD_WITH_ALTERED_SEARCH_PATH)` e **restaura** a ordem de busca (`SetDllDirectory(NULL)`)
-    — os módulos ficam no processo e o `DllImport` resolve por nome. O log diz qual DLL veio de onde.
-  - **`AudioClip`/`AudioSource` por reflexão:** o `UnityEngine.AudioModule` não é referenciável neste projeto
-    (netstandard 2.0 fixado pelos pacotes de voz → CS1705; a fachada 2.1 do jogo quebra `Span<T>` → CS7069), o
-    mesmo motivo do `VoiceInput.Mic`. A resolução é feita **uma vez** (11 membros) e as chamadas acontecem uma vez
-    por frase — o único trabalho por frame é o `transform.position` do `AudioSource` (CoreModule, direto).
-  - **Diagnóstico:** `[TTS] Modelo CARREGADO em N ms`, `[TTS] Frase i/n: N ms, RTF 0,xx para N,NN s de audio`,
-    `[TTS] Fala #n pronta: ...` e o comando de console **`modia_tts_teste [texto]`** (`F5`) para falar um texto
-    sem precisar do LLM nem do microfone.
-  - **PT-BR:** `hc_ai_tts_unavailable` (*"A voz do companheiro não está pronta (falta o modelo do Kokoro?)."*).
-  - **Verificação:** o `SplitSentences` **real** (17 casos) e o `PickSpokenText` **real** (14 casos, a tabela do
-    que é falado) compilados num harness de console (net472) — **ALL CHECKS PASSED**; a API do sherpa-onnx e o
-    carregamento dos nativos validados num harness que sintetizou áudio de verdade (carga ~1 s, 54 vozes, 24 kHz,
-    **RTF 0,73–0,91** com 4 threads). Detalhes: `docs/re/tts-kokoro-sherpa-onnx.md`.
+  - **Loading the native libs (Unity/Mono):** the managed binding is a plain `[DllImport("sherpa-onnx-c-api")]`
+    (it has no loader of its own like Whisper.net), and in Unity Windows would look in the **game** folder, not in the
+    plugin one. `CompanionTts.EnsureNativeLibraries` runs before the first use: `SetDllDirectory(<plugin>\runtimes\
+    win-x64\native)`, **pre-loads** `onnxruntime.dll` and `sherpa-onnx-c-api.dll` by absolute path with
+    `LoadLibraryEx(..., LOAD_WITH_ALTERED_SEARCH_PATH)` and **restores** the search order (`SetDllDirectory(NULL)`)
+    — the modules stay in the process and `DllImport` resolves by name. The log says which DLL came from where.
+  - **`AudioClip`/`AudioSource` by reflection:** `UnityEngine.AudioModule` cannot be referenced in this project
+    (netstandard 2.0 pinned by the voice packages → CS1705; the game's 2.1 facade breaks `Span<T>` → CS7069), the
+    same reason as `VoiceInput.Mic`. The resolution is done **once** (11 members) and the calls happen once
+    per sentence — the only per-frame work is the `AudioSource` `transform.position` (CoreModule, direct).
+  - **Diagnostic:** `[TTS] Modelo CARREGADO em N ms`, `[TTS] Frase i/n: N ms, RTF 0,xx para N,NN s de audio`,
+    `[TTS] Fala #n pronta: ...` and the console command **`modia_tts_teste [texto]`** (`F5`) to speak a text
+    without needing the LLM or the microphone.
+  - **PT-BR:** the "voice not ready" line (`hc_ai_tts_unavailable`, *"the companion's voice is not ready (is the Kokoro model missing?)"*).
+  - **Verification:** the **real** `SplitSentences` (17 cases) and the **real** `PickSpokenText` (14 cases, the table of
+    what is spoken) compiled into a console harness (net472) — **ALL CHECKS PASSED**; the sherpa-onnx API and the
+    loading of the native libs validated in a harness that synthesized real audio (load ~1 s, 54 voices, 24 kHz,
+    **RTF 0.73–0.91** with 4 threads). Details: `docs/re/tts-kokoro-sherpa-onnx.md`.
 
-- **Fase 3.8 — "abre o teu inventário": o companheiro abre o próprio inventário para o jogador.** Pedido do jogador:
-  *"seria possível fazer o companion abrir o inventário quando solicitado?"*. Falar/digitar `abre o teu inventário`,
-  `mostra o inventário`, `mostra o que você carrega` (ou `fecha o inventário`, de bônus) e a **janela do inventário
-  do companheiro** abre — a **mesma** do toque na tecla de interagir, com nome, comida e equipamento. A ordem entra
-  pela **mesma** caixa das outras (`CompanionChatAI.Submit` — chat **e** voz) e termina na **mesma** chamada que o
-  toque usa (`CompanionInteract.OpenCompanionInventory` → `InventoryGui.Show(container)` +
-  `CompanionInteractPanel.Show(setup)`). Nada de ordem, job, radial, UI, STT, balão do jogador ou dos raios/chatter
-  foi tocado:
-  - **Contrato do LLM:** nova ação `inventory` (`inventory_close` para fechar) na lista de ações, na regra e em **2
-    exemplos** do system prompt (`"abre o teu inventário"`, `"mostra o que você carrega"`). O parser (`LlmIntent`)
-    aceita a ordem em muitas formas: aliases exatos (`inventario`, `abrir_inventario`, `abre_o_teu_inventario`,
+- **Phase 3.8 — "open your inventory": the companion opens his own inventory for the player.** Player request:
+  *"would it be possible to make the companion open the inventory when asked?"*. Saying/typing `open your inventory`,
+  `show the inventory`, `show me what you carry` (or `close the inventory`, as a bonus) and the **companion's inventory
+  window** opens — the **same** one from the interact key, with name, food and equipment. The order comes in
+  through the **same** box as the others (`CompanionChatAI.Submit` — chat **and** voice) and ends in the **same** call the
+  interact key uses (`CompanionInteract.OpenCompanionInventory` → `InventoryGui.Show(container)` +
+  `CompanionInteractPanel.Show(setup)`). No order, job, radial, UI, STT, player bubble or radius/chatter
+  was touched:
+  - **LLM contract:** new action `inventory` (`inventory_close` to close) in the action list, in the rule and in **2
+    examples** of the system prompt (`"open your inventory"`, `"show me what you carry"`). The parser (`LlmIntent`)
+    accepts the order in many shapes: exact aliases (`inventario`, `abrir_inventario`, `abre_o_teu_inventario`,
     `mostra_o_inventario`, `mochila`, `bolsa`, `bag`, `abre`, `abrir`, `open`, `mostra`, `mostrar`; `fecha*`/`close*`
-    para fechar) **e** qualquer ação que carregue o nome da mochila (`invent*`, `mochila`, `bolsa`, `bag`) —
-    `open_bag` e `mostrar_o_que_voce_carrega` caem na ação certa. A frase que só diz "carrega" precisa também pedir
-    para **ver**: `carregar_madeira` **não** vira inventário (continua uma coleta/nenhuma ordem).
-  - **Um companheiro só** (uma janela mostra uma mochila): o companheiro a quem a mensagem foi dirigida
-    (`CompanionChatAI.PendingSpeaker`, o `PickSpeaker()` que já escolhe com quem o jogador fala) e, se ele já não
-    existir quando a resposta chega, o mais próximo que pode receber ordem. A escolha **não** toma posse dele — quem
-    toma é o painel do companheiro no `Show`, como no toque.
-  - **Posse do container (multiplayer):** quando o container não é nosso, o caminho do toque só pedia a posse e
-    mandava o jogador interagir de novo. `OpenCompanionInventory` passou a **devolver** o resultado (`Opened`/
-    `Requesting`/`NoGui`/`NoContainer` — os chamadores do toque ignoram, então nada mudou para eles) e a ordem
-    **pede uma vez e abre sozinha** quando a posse chega: `CompanionInteract.RequestCompanionInventory` guarda o
-    container e `TickPendingInventoryOpen` (no `Update`, **uma vez por frame**, `ClaimOwnership` **uma única vez**)
-    abre a janela assim que `IsOwner` responde; desiste em **5 s** com aviso, e larga o pedido em silêncio se o
-    companheiro sumiu ou se o jogador abriu outra janela. Custo **zero** quando não há pedido pendente.
-  - **Rede de segurança (como a 3.6b):** se o modelo responder `none` para `abre o teu inventário`,
-    `CompanionOrders.IsInventoryRequest` lê as **palavras do jogador** e exige uma palavra da mochila **e** um verbo
-    de abrir/fechar — `o que tem no teu inventário?`, `quanto pesa a tua mochila?` e `abre a porta` continuam
-    conversa/nenhuma ordem.
-  - **PT-BR:** `hc_ai_inventory_open` (*"Abrindo o inventário."*, também falado no balão do companheiro),
+    to close) **and** any action that carries the pack name (`invent*`, `mochila`, `bolsa`, `bag`) —
+    `open_bag` and `mostrar_o_que_voce_carrega` land on the right action. A phrase that only says "carrega" also has to ask
+    to **see**: `carregar_madeira` **does not** become inventory (it stays a gathering/no order).
+  - **One companion only** (one window shows one pack): the companion the message was addressed to
+    (`CompanionChatAI.PendingSpeaker`, the `PickSpeaker()` that already chooses who the player is talking to) and, if he no
+    longer exists when the reply arrives, the nearest one that can receive an order. The choice **does not** take ownership of him — the one that
+    takes it is the companion panel in `Show`, as in the interact key.
+  - **Container ownership (multiplayer):** when the container is not ours, the interact key path only asked for ownership and
+    told the player to interact again. `OpenCompanionInventory` now **returns** the result (`Opened`/
+    `Requesting`/`NoGui`/`NoContainer` — the interact key callers ignore it, so nothing changed for them) and the order
+    **asks once and opens by itself** when ownership arrives: `CompanionInteract.RequestCompanionInventory` stores the
+    container and `TickPendingInventoryOpen` (in `Update`, **once per frame**, `ClaimOwnership` **a single time**)
+    opens the window as soon as `IsOwner` answers; it gives up in **5 s** with a warning, and drops the request silently if the
+    companion disappeared or if the player opened another window. **Zero** cost when there is no pending request.
+  - **Safety net (like the 3.6b one):** if the model answers `none` to `open your inventory`,
+    `CompanionOrders.IsInventoryRequest` reads the **player's words** and requires a pack word **and** a verb
+    to open/close — `what's in your inventory?`, `how much does your pack weigh?` and `open the door` stay
+    conversation/no order.
+  - **PT-BR:** `hc_ai_inventory_open` ("Opening the inventory.", also spoken in the companion's bubble),
     `hc_ai_inventory_requesting`, `hc_ai_inventory_timeout`, `hc_ai_inventory_no_gui`, `hc_ai_inventory_closed`,
     `hc_ai_inventory_none_open`, `hc_ai_no_container`, `hc_ai_order_inventory(_close)`.
-  - **Verificação:** o `LlmIntent.cs` **real** e o `IsInventoryRequest` **real** (recortado verbatim) compilados num
-    harness de console (net472) e exercitados com **45 casos** (12 formas de resposta do modelo, 8 respostas que já
-    funcionavam, `carregar_madeira`/`carregar_pedra` que **não** podem virar inventário e 19 mensagens de jogador para
-    o fallback): **ALL CHECKS PASSED**. Receita em jogo: `abre o teu inventário` (chat), `mostra o que você carrega`
-    (voz) e `fecha o inventário`.
-- **Fase 3.6b — a ordem sem alvo: o modelo responde `"target": null`.** Relato do jogador: "o comando pra dropar não
-  funcionou". No log (voz), o modelo acertou a ação e a quantidade mas devolveu `"target": null` nos dois pedidos
-  (`"Joga essas pedras que tu pegou no chao."` e `"Joga 10 pedras no chao."`) e a Fase 3.6 só sabia largar o que o
-  **campo do modelo** nomeasse — resultado: `[IA] "drop" -> 0 companion(s)` e "Não entendi qual item.". O mesmo valia
-  para `equip` e para `attack` (`ataca o greydwarf` não engajava nada quando o campo vinha vazio). Duas frentes, sem
-  tocar em nada do que já funcionava (coleta/alvo no inventário, jobs, radial, UI, STT, raios/chatter, personalidade/
-  memória/conversa e o balão do jogador seguem idênticos):
-  - **Fallback pelas palavras do jogador (o principal).** `CompanionOrders.Run` passa a receber o texto do jogador
-    (`result.UserText` — vale para o chat **e** para a voz, que entram pelo mesmo `Submit`). Quando o modelo não
-    nomeia o alvo, o novo `OrderTargets.Phrases(mensagem)` extrai as frases de nome do que o jogador disse — só as
-    palavras que **podem** ser nome entram: os verbos da ordem (`joga`, `larga`, `equipa`, `pega`, `ataca`), pronomes
-    e demonstrativos (`essas`, `aquele`, `que tu pegou`), enchimentos (`coisa`, `lixo`, `isso`), números escritos e
-    **dígitos** (`10` é o `amount`) e lugares/direções (`chão`, `fora`, `mão`, `perto`, `pra`/`pro`/`ao`) são
-    descartados; o resto vira nomes de até 3 palavras, **do mais longo para o mais curto** (para `machado de bronze`
-    ganhar de um `machado` solto, que casaria com qualquer machado). Cada frase é então **validada** contra as
-    mochilas (`OrderTargets.FindItem`, o mesmo casador da 3.6) ou contra as criaturas no raio
-    (`OrderTargets.FindCreatureByWords` → `ClosestByName`), com uma barra **mais alta** que a do resto
-    (`MinPhraseScore = 900`, contra `MinScore = 450`): sem isso `"larga a pedra e a madeira"` viraria `pedramadeira`
-    e casaria por **substring** com `Madeira`, largando o item errado em silêncio. O `target` do modelo continua
-    ganhando sempre que casa com algo que o companheiro carrega; se nem a mensagem resolver, o aviso antigo continua
-    (`hc_ai_need_item`/`hc_ai_no_item`) e o log explica. Em `attack` a mensagem é lida **antes** da mira, e só quando
-    o modelo não nomeou nada: `ataca aquele` (que não nomeia nada) continua indo para a mira, como na 3.6.
-  - **Prompt reforçado.** `[IA]` system prompt (`CompanionChatAI.Contract`): `target` é **OBRIGATÓRIO** em
-    `attack`/`equip`/`drop`, com as mesmas palavras do jogador e **nunca** `null`/vazio, mais 2 exemplos explícitos de
-    `drop` (`"joga essas pedras que você pegou"` → `"pedra"`, `"joga 10 pedras no chão"` → `"pedra"` + `amount: 10`)
-    e a nota de que o item vai **sempre** em `target`, nunca em `resource`. O prompt continua enxuto (3 linhas a mais)
-    e a parte fixa continua no começo, cacheável pelo servidor.
-  - **Confirmado:** o parser da 3.6 já aceitava o item em `resource` quando `target` vinha nulo
-    (`LlmIntent.Parse`, bloco `NeedsTarget`) — nada foi mudado aí.
-  - **Verificação:** as peças novas foram exercitadas contra o **próprio** `OrderTargets.cs` compilado num harness
-    fora do jogo (stubs de Unity), com 22 mensagens e uma mochila realista — as receitas casaram o item/criatura certo
-    e os casos que **devem** ser recusados foram recusados (`joga o lixo fora`, `joga essas coisas no chão`,
-    `ataca aquele`). Receita de teste em jogo: `joga 10 pedras no chão` (larga 10), `joga essas pedras` (larga o
-    stack), `larga a madeira`, `equipa o machado de bronze`, `ataca o greydwarf`.
-- **Fase 3.3d — a ordem de pedra para no alvo e o texto da voz vai para o balão do jogador.** Dois problemas do teste
-  em jogo, sem lógica nova de ordem/job/UI/STT (nada de radial, IA ou raios da 3.3c foi tocado).
-  - **`colete 10 pedras` nunca parava.** Causa confirmada no jogo (bundle `c4210710`, `Assets/world/Props/Rock_3.prefab`)
-    e no log: `Rock_3` é um **`Destructible` com `health = 1` e NENHUMA tabela de drop** — a pedra vem do
-    `Rock_3_frac` que ele **spawna ao ser destruído** (`m_spawnWhenDestroyed`), e esse frac é um **`MineRock5`** com
-    3-6 `Stone` por área de golpe (5 áreas ≈ 15-30 pedras por rocha). Como o `MHR_GatherRules.DropsOf` só olhava os
-    componentes do próprio alvo, `Rock_3` parecia "não dropa nada" → o `AllowTarget` caía no
-    `drops.Count == 0 → "unknown drops: don't block it"` → **o teto da ordem (e o próprio `StoneLimit`) não valia
-    para ele**, então o companheiro minerava para sempre (no log: 10+ pedras com a ordem de 2, Pickaxes 6→7→8 e
-    nenhuma linha de "alvo atingido" para pedra; a ordem de **madeira** parava normalmente).
-    - **Na raiz:** `DropsOf` agora **segue o que o alvo spawna** ao quebrar (`Destructible.m_spawnWhenDestroyed` e
-      `m_spawnWhenDamaged`, com limite de profundidade 3 e cache por alvo que já existia) — `Rock_3` passa a ser
-      julgado pelas pedras do frac dele, como já era o caso do `Rock_4` (que tem `DropOnDestroyed` com 3-6 pedras).
-    - **Rede de segurança (o pedido do jogador):** novo `MHR_GatherRules.OrderMet` — quando há **ordem ativa para o
-      modo** e o **item pedido é conhecido** e o **inventário do companheiro já tem o número** (contado como na
-      3.2c, `OrderSeen(Bag)`, teto do que ele já teve), **TODOS** os alvos daquele modo são recusados, não só os que
-      produzem o item. Vale para `AllowTarget` **e** `AllowLoose`; cada recusa conta como `CapReject`, então o
-      caminho de `OrderDone`/`CapRejects` que já existia encerra a ordem **uma vez** ("Order target reached … - order
-      done, back to following") e o companheiro volta a seguir. Sem ordem, o comportamento é o de sempre; alvo
-      apontado no **radial** (`IsDirectedHarvest`) **ignora** o teto, como antes.
-    - **Ele para na hora:** `HarvestController.Update` chama o novo `MHR_GatherRules.OrderDoneNow` enquanto está
-      **indo ou trabalhando** um alvo (nunca durante a coleta do que aquele alvo dropou, para não deixar pedra no
-      chão) — sem isso o número só era conferido no próximo *scan*, e uma rocha de pedra pode render uma rocha
-      inteira antes disso. Custo: uma contagem do inventário por frame (a mesma que o `IsOverweight()` já faz), e só
-      com ordem ativa.
-  - **O texto da voz aparece sob a cabeça do JOGADOR.** A transcrição do push-to-talk (`HeardByVoice`) era repetida
-    pelo companheiro mais próximo (`Speak(PickSpeaker(), texto)`), o que punha a **fala do jogador** no balão do
-    companheiro. Agora ela vai para o balão do **jogador** (`CompanionTalk.SayAsPlayer` →
+  - **Verification:** the **real** `LlmIntent.cs` and the **real** `IsInventoryRequest` (cut verbatim) compiled into a
+    console harness (net472) and exercised with **45 cases** (12 shapes of model reply, 8 replies that already
+    worked, `carregar_madeira`/`carregar_pedra` which **cannot** become inventory and 19 player messages for
+    the fallback): **ALL CHECKS PASSED**. In-game recipe: `open your inventory` (chat), `show me what you carry`
+    (voice) and `close the inventory`.
+- **Phase 3.6b — the order without a target: the model answers `"target": null`.** Player report: "the drop command did not
+  work". In the log (voice), the model got the action and the amount right but returned `"target": null` on both requests
+  (`"Throw those stones you picked up on the ground."` and `"Throw 10 stones on the ground."`) and Phase 3.6 only knew how to drop what the
+  **model field** named — result: `[IA] "drop" -> 0 companion(s)` and "I didn't understand which item.". The same went
+  for `equip` and for `attack` (`attack the greydwarf` did not engage anything when the field came empty). Two fronts, without
+  touching anything that already worked (gathering/target in the inventory, jobs, radial, UI, STT, radius/chatter, personality/
+  memory/conversation and the player bubble stay identical):
+  - **Fallback through the player's words (the main one).** `CompanionOrders.Run` now receives the player's text
+    (`result.UserText` — it applies to the chat **and** to the voice, which come in through the same `Submit`). When the model does not
+    name the target, the new `OrderTargets.Phrases(message)` extracts the name phrases from what the player said — only the
+    words that **can** be a name enter: the order verbs (`throw`, `drop`, `equip`, `take`, `attack`), pronouns
+    and demonstratives (`essas`, `aquele`, `que tu pegou`), fillers (`coisa`, `lixo`, `isso`), spelled-out numbers and
+    **digits** (`10` is the `amount`) and places/directions (`ground`, `outside`, `hand`, `near`, `to`/`for`/`at`) are
+    discarded; the rest becomes names of up to 3 words, **from the longest to the shortest** (so `bronze axe`
+    wins over a loose `axe`, which would match any axe). Each phrase is then **validated** against the
+    packs (`OrderTargets.FindItem`, the same matcher as 3.6) or against the creatures in the radius
+    (`OrderTargets.FindCreatureByWords` → `ClosestByName`), with a **higher** bar than the rest
+    (`MinPhraseScore = 900`, against `MinScore = 450`): without that, `"drop the stone and the wood"` would become `pedramadeira`
+    and match by **substring** with `Madeira`, dropping the wrong item in silence. The model's `target` still
+    wins whenever it matches something the companion carries; if not even the message solves it, the old warning stays
+    (`hc_ai_need_item`/`hc_ai_no_item`) and the log explains. In `attack` the message is read **before** the aim, and only when
+    the model did not name anything: `attack that one` (which names nothing) still goes to the aim, as in 3.6.
+  - **Reinforced prompt.** `[IA]` system prompt (`CompanionChatAI.Contract`): `target` is **MANDATORY** in
+    `attack`/`equip`/`drop`, with the player's own words and **never** `null`/empty, plus 2 explicit
+    `drop` examples (`"throw those stones you picked up"` → `"stone"`, `"throw 10 stones on the ground"` → `"stone"` + `amount: 10`)
+    and the note that the item goes **always** in `target`, never in `resource`. The prompt stays lean (3 more lines)
+    and the fixed part stays at the beginning, cacheable by the server.
+  - **Confirmed:** the 3.6 parser already accepted the item in `resource` when `target` came null
+    (`LlmIntent.Parse`, `NeedsTarget` block) — nothing was changed there.
+  - **Verification:** the new pieces were exercised against the **`OrderTargets.cs` itself** compiled into a harness
+    outside the game (Unity stubs), with 22 messages and a realistic pack — the recipes matched the right item/creature
+    and the cases that **must** be refused were refused (`throw the junk away`, `throw those things on the ground`,
+    `attack that one`). In-game test recipe: `throw 10 stones on the ground` (drops 10), `throw those stones` (drops the
+    stack), `drop the wood`, `equip the bronze axe`, `attack the greydwarf`.
+- **Phase 3.3d — the stone order stops at the target and the voice text goes to the player's bubble.** Two problems from the in-game
+  test, with no new order/job/UI/STT logic (nothing of the radial, the AI or the 3.3c radius was touched).
+  - **`collect 10 stones` never stopped.** Cause confirmed in the game (bundle `c4210710`, `Assets/world/Props/Rock_3.prefab`)
+    and in the log: `Rock_3` is a **`Destructible` with `health = 1` and NO drop table** — the stone comes from the
+    `Rock_3_frac` that he **spawns when destroyed** (`m_spawnWhenDestroyed`), and that frac is a **`MineRock5`** with
+    3-6 `Stone` per hit area (5 areas ≈ 15-30 stones per rock). Since `MHR_GatherRules.DropsOf` only looked at the
+    components of the target itself, `Rock_3` looked like "drops nothing" → `AllowTarget` fell into
+    `drops.Count == 0 → "unknown drops: don't block it"` → **the order cap (and the `StoneLimit` itself) did not apply
+    to it**, so the companion mined forever (in the log: 10+ stones with the order of 2, Pickaxes 6→7→8 and
+    no "target reached" line for stone; the **wood** order stopped normally).
+    - **At the root:** `DropsOf` now **follows what the target spawns** when it breaks (`Destructible.m_spawnWhenDestroyed` and
+      `m_spawnWhenDamaged`, with a depth limit of 3 and the per-target cache that already existed) — `Rock_3` is now
+      judged by the stones of its frac, as was already the case with `Rock_4` (which has `DropOnDestroyed` with 3-6 stones).
+    - **Safety net (the player's request):** new `MHR_GatherRules.OrderMet` — when there is an **active order for the
+      mode** and the **requested item is known** and the **companion's inventory already has the number** (counted as in
+      3.2c, `OrderSeen(Bag)`, the cap of what he already had), **ALL** the targets of that mode are refused, not only the ones that
+      produce the item. It applies to `AllowTarget` **and** `AllowLoose`; each refusal counts as `CapReject`, so the
+      `OrderDone`/`CapRejects` path that already existed ends the order **once** ("Order target reached … - order
+      done, back to following") and the companion goes back to following. Without an order, the behaviour is the usual one; a target
+      pointed at in the **radial** (`IsDirectedHarvest`) **ignores** the cap, as before.
+    - **He stops right away:** `HarvestController.Update` calls the new `MHR_GatherRules.OrderDoneNow` while he is
+      **going to or working** a target (never while collecting what that target dropped, so as not to leave stone on the
+      ground) — without that, the number was only checked on the next *scan*, and a stone rock can yield a whole rock
+      before that. Cost: one inventory count per frame (the same one `IsOverweight()` already does), and only
+      with an active order.
+  - **The voice text appears under the PLAYER's head.** The push-to-talk transcription (`HeardByVoice`) was repeated
+    by the nearest companion (`Speak(PickSpeaker(), text)`), which put the **player's line** in the
+    companion's bubble. Now it goes to the **player's** bubble (`CompanionTalk.SayAsPlayer` →
     `Chat.instance.SetNpcText(Player.m_localPlayer.gameObject, Vector3.up * 2f, SpeechCullDistance, SpeechDuration,
-    "", texto, false)` — mesmo offset/distância/duração do balão do companheiro, sem cooldown) e o feedback
-    "Entendi: …" continua no **chat/HUD**. `Player.m_localPlayer == null` não faz nada. As respostas do companheiro
-    (conversa da IA, "Deixa comigo!", "já temos de sobra") **continuam** no balão dele.
-- **Fase 3.3c — raio de coleta maior e chatter aleatório desligado.** Dois pedidos do jogador, sem lógica nova (nenhuma
-  ordem, job, radial, UI, IA ou STT foi tocado).
-  - **O companheiro procura e trabalha mais longe.** Os cinco raios da coleta subiram de default:
-    `[Advanced] GatheringSearchRadius` **30 → 50 m** (o anel em que ele procura a próxima árvore/rocha/planta seguindo
-    você ou mandado a um alvo), `[Gathering] FollowRange` **10 → 25 m** (madeira/pedra/minério seguindo você: o alvo
-    pode estar a até 25 m de **você**), `[Gathering] ForageFollowRange` **10 → 20 m** (forrageio),
-    `[Gathering] Range` **40 → 60 m** (com Follow **desligado**, a área de trabalho em volta de casa) e
-    `[Advanced] GatheringDropRadius` **8 → 12 m** (o que ele cata de uma árvore derrubada/rocha quebrada).
-    **Por que 50 no `GatheringSearchRadius`:** seguindo você, o limite real é o `FollowRange` (cada candidato passa por
-    `InWorkArea` → distância de **você**), mas o companheiro pode estar a 25 m de você e o alvo a 25 m do outro lado —
-    o pior caso são ~50 m do companheiro, então o anel tem de chegar lá para não virar o gargalo. **Coleira conferida:**
-    com alvo em andamento o `HarvestController` **abandona** o alvo se ficar a mais de `FollowRange + 15 m` de você
-    (25 + 15 = **40 m** de folga, contra 25 m antes) e o `MHR_Follow` (`[Follow] MaxDistance` 10 m) só volta a mandar
-    quando o job fica **ocioso** — então o raio novo é utilizável de verdade (o efeito colateral é um vaivém mais
-    longo: ele vai até ~25 m, coleta e volta quando o anel esvazia). Os `AcceptableValueRange` já acomodavam todos os
-    valores novos (50 ≤ 100, 25/20 ≤ 60, 60 ≤ 150, 12 ≤ 20) — nenhum range mudou.
-  - **Sem comentários aleatórios:** nova config **`[Speech] Chatter`** (bool, default **false**). O chatter periódico
-    vinha **só** do timer do `CompanionTalk.Update()` (`_talkTimer` → `ResetTimer()` → `SayContextual()`, a cada
-    `MinInterval`–`MaxInterval` s, escolhendo a fala pelo contexto e caindo em 30% `IdleLines` / 70% `FollowLines`);
-    com `Chatter = false` o timer **não é nem decrementado**. **Continuam falando** (nada de silêncio no que importa):
-    as falas **forçadas** da camada de IA (confirmação de ordem, "já temos o suficiente", respostas da conversa,
-    "Entendi: ..." da voz), a linha de **mudança de modo** (`SayRandom(ActionLines)`, o "Deixa comigo!" — roda **antes**
-    da guarda), as falas de **evento** (`hc_speech_*`: peixe fisgado, plantando, reparo, unload, tombstone, marco do
-    smelt) e as linhas de **ociosidade** (`[Idle] SpeechInterval`, 300 s, com configuração própria). `Chatter = true`
-    devolve o comportamento antigo inteiro. Custo: um `if` e uma leitura de `ConfigEntry<bool>` por frame no lugar do
-    decremento — nada por frame, nada alocado.
-  - **Migração:** como os defaults mudaram, um `.cfg` existente mantém os valores antigos (o BepInEx guarda o que está
-    no arquivo). Mesma regra da 3.3b: um valor que esteja **exatamente** no default antigo (`30`/`10`/`10`/`40`/`8`) é
-    atualizado com uma linha no log explicando; qualquer valor escolhido pelo jogador **não** é tocado. A chave nova
-    `[Speech] Chatter` é criada pelo próprio BepInEx com o default **false** (aparece no `F8` e no `.cfg`). A migração
-    roda depois do `MigrateAndClean` (1.4.149), então um `.cfg` ainda com os nomes antigos (`[Harvest] FollowRange`)
-    também é coberto.
-- **Fase 3.3b — correções do teste da voz (tecla V, qualidade do STT e latência do LLM).** Três problemas do
-  primeiro teste em jogo, com evidência no log (`"Coleta deis mandem."` para 1,1 s de fala; `"O leta deles."` para
-  0,7 s; conversa em `10237 ms` contra ~3 s das ordens).
-  - **A tecla V não alterna mais o auto-pickup do jogo.** `V` é o *Toggle Auto-Pickup* do Valheim 1.0.17
-    (`ZInput.Reset()` → `AddButton("AutoPickup", KeyToPath(Key.V))`; lido em **um** lugar: `Player.Update`). Novo
-    `Patches/AutoPickupKeyConflict.cs`: um prefixo Harmony em **`ZInput.GetButtonDown(string)`** responde `false` só
-    para `"AutoPickup"`, e só quando `[IA] VozLigada = true` **e** o binding do jogo (lido do próprio jogo,
-    `GetButtonDef("AutoPickup").GetActionPath()`) aponta para `[IA] VozTecla` — reatribuir o auto-pickup no jogo
-    desliga o bloqueio automaticamente, e qualquer dúvida (tecla desconhecida, exceção) deixa o jogo como está. O
-    jogador é avisado **uma vez** (log + uma linha no chat/HUD) de que pode reatribuir o auto-pickup nas
-    configurações. O push-to-talk continua igual (segurar/soltar **V**).
-  - **Transcrição melhor em PT-BR:** modelo default passa de `whisper\ggml-base-q5_1.bin` (57 MB) para
-    **`whisper\ggml-small-q5_1.bin`** (181 MB, baixado de `ggerganov/whisper.cpp`; o `base` **fica em disco** para
-    quem quiser voltar pelo `[IA] SttModelo` — medido nesta máquina, 8 threads: **638 ms (base) x 2187 ms (small)** para
-    um clipe de 2 s, sempre em `Task` de fundo, sem travar o jogo); **prompt inicial** novo
-    (`[IA] VozPromptInicial`, `WhisperProcessorBuilder.WithPrompt`, +3-5% de tempo) com o vocabulário das
-    ordens, para o modelo não "adivinhar" clipes curtos (e um descarte do prompt quando o modelo o repete de volta);
-    e o **trim** ficou mais conservador (`VozLimiarSilencio` default `0.01` em vez de `0.02`, folga de `0,2 s` em vez
-    de `0,125 s`), porque o limiar antigo cortava o começo de palavras faladas baixinho.
-  - **Latência do LLM medida:** o log agora mostra o tamanho real do prompt
-    (`[IA] Prompt: instrucoes N car. (~N tokens) + mensagem N car. ...`) e o tempo com a resposta
-    (`[IA] Tempo: N ms no total, resposta com N car. (~N tokens, ~N tok/s ...)`), com aviso a partir de 5 s apontando
-    o modelo local como gargalo; `[IA] Memoria` default caiu de **6 para 4** trocas (prompt menor). O mod **não**
-    troca o modelo do jogador.
-  - **Migração:** um `.cfg` antigo que ainda esteja exatamente nos defaults antigos (`ggml-base-q5_1.bin`, `0.02`,
-    `6`) é atualizado com uma linha no log (o modelo só troca se o arquivo novo estiver no disco); valores escolhidos
-    pelo jogador não são tocados. Nada mais muda: ordens por chat, IA, jobs, UI, radial e o resto do STT ficam iguais.
-- **Fase 3.3 — ordens por voz (push-to-talk + STT local com Whisper.net).** Segure **V** e fale (`colete 10 madeiras`,
-  `segue`, `ataca o greydwarf`, `bom dia`); ao soltar, o áudio é transcrito **dentro do jogo** (Whisper.net, sem HTTP,
-  nada sai da máquina) e o **texto entra exatamente no mesmo caminho das ordens do chat** — ordem, conversa,
-  personalidade e memória iguais, porque é a **mesma função** (`CompanionChatAI.Submit`).
-  - **Captura:** `Microphone.Start(dispositivo, loop: false, duração, 16000)` — **16 kHz mono**, o formato que o
-    Whisper espera (nada de 8-bit/22050 Hz como no Thrall antigo). O clipe é lido só até `Microphone.GetPosition`,
-    o silêncio das pontas é cortado (janelas de 10 ms acima de `[IA] VozLimiarSilencio`, com folga de 0,125 s) e o
-    áudio vira **WAV PCM 16-bit mono montado em memória** (sem arquivo temporário). O `AudioClip` é destruído no fim.
-  - **STT reutilizável (`AI/WhisperStt.cs`):** o spike virou serviço — o modelo é carregado **uma vez** e **mantido
-    carregado** (pre-carregado em segundo plano ao entrar no mundo), a transcrição roda numa `Task` de fundo e volta
-    por uma fila thread-safe drenada no `Update`, com watchdog e `NativeGate` (uma transcrição por vez). **A main
-    thread nunca espera** e nada é alocado por frame. O spike (`modia_stt_teste`) passou a usar o **mesmo** modelo,
-    então ele **não** é carregado duas vezes.
-  - **Feedback:** `Ouvindo...` ao começar; ao terminar, `Entendi: "colete 10 madeiras"` no chat/HUD e o companheiro
-    **repete no balão**; depois `Pensando...` e a linha de sempre (`Ok: coletar madeira (10)`). Nada reconhecido,
-    gravação curta demais, sem microfone, sem modelo, janela aberta, jogo sem foco, pedido anterior em andamento —
-    tudo isso **avisa** em PT-BR em vez de gravar.
-  - **Configs novas em `[IA]`:** `VozLigada` (true), `VozTecla` (**V**), `VozIdioma` (`pt`), `VozDuracaoMaxima`
-    (10 s), `VozLimiarSilencio` (0.02), `VozDispositivo` (0 = o primeiro) e `VozMostrarTexto` (true).
-  - **`UnityEngine.AudioModule` por reflexão (8 membros, uma vez só):** o mod compila em net472 e referencia o pacote
-    Whisper.net (assets netstandard2.0), o que fixa a fachada **netstandard 2.0**; todo módulo do Unity 6 é
-    construído contra **netstandard 2.1** e um módulo fora da closure do jogo (`AudioModule` está fora) dá **CS1705**
-    contra ela. Apontar o netstandard para a fachada 2.1 do jogo resolve o CS1705 mas quebra `AudioClip.GetData`
-    (`Span<T>` no mscorlib, CS7069). A ponte por reflexão é o que mantém o build limpo sem levar uma segunda BCL
-    para dentro do Mono. Nenhuma referência nova no `.csproj`.
-  - **Nada quebrado:** adição pura (nenhuma mudança em ordens por chat, IA, jobs, UI ou radial); o único ponto novo
-    no código existente é o `Submit` compartilhado (o patch de `Chat.SendText` passou a chamá-lo, com o mesmo
-    comportamento de antes) e duas chamadas novas no `Awake`/`Update`/`Shutdown` do plugin.
-- **SPIKE — STT local: Whisper.net in-process (teste, nada de pipeline de voz).** Prova de conceito para decidir
-  entre o Whisper.net dentro do jogo e um `whisper-server.exe` como processo filho. Roda o modelo de verdade numa
-  **thread de fundo** (a main thread nunca espera), transcreve um WAV de teste e escreve tudo no log:
-  `[STT]` versão/arquitetura detectada (`whisper_print_system_info`: AVX/AVX2/FMA), tempo de **carga do modelo**,
-  tempo de **transcrição**, número de segmentos, idioma e o **texto transcrito**; qualquer falha sai com a
-  mensagem completa + stack (inclusive `Failed to load native whisper library`).
-  - **Gatilhos:** comando de console **`modia_stt_teste`** (F5) e a config **`[IA] SttTeste`** (bool, default
-    `false`), que dispara sozinho ~25 s depois do plugin carregar (mundo já pronto). Caminhos por
-    **`[IA] SttModelo`** (default `whisper\ggml-base-q5_1.bin`) e **`[IA] SttWavTeste`** (default
-    `whisper\jfk.wav`), relativos à pasta do plugin ou absolutos.
-  - **Como o loader nativo foi apontado para a nossa pasta:** no net472 o pacote resolve o alvo
-    `netstandard2.0`, cujo `NativeLibraryLoader` faz `Path.GetDirectoryName(RuntimeOptions.LibraryPath)` e procura
-    `<pasta>\runtimes\win-x64\whisper.dll`. `WhisperFactory.FromPath` **não** tem `libraryPath` na 1.9.1, então
-    usamos `RuntimeOptions.LibraryPath = <pasta do plugin>\Whisper.net.dll` (definido antes de qualquer uso do
-    factory) — a pasta do plugin passa a ser a primeira sondada, em vez de `AppContext.BaseDirectory` (que no
-    Unity é a pasta do jogo). A ordem de runtimes é travada em **CPU** (só existe `runtimes\win-x64`).
-  - **Build/deploy:** `PackageReference` de `Whisper.net` 1.9.1 + `Whisper.net.Runtime` 1.9.1 e o novo target
-    **`DeployWhisperNet`**, que copia para a pasta do plugin **7 DLLs gerenciadas** (Whisper.net,
+    "", text, false)` — same offset/distance/duration as the companion's bubble, no cooldown) and the feedback
+    "Understood: …" stays in the **chat/HUD**. `Player.m_localPlayer == null` does nothing. The companion's replies
+    (AI conversation, "Leave it to me!", "we have plenty") **stay** in his bubble.
+- **Phase 3.3c — larger gathering radius and random chatter off.** Two player requests, with no new logic (no
+  order, job, radial, UI, AI or STT was touched).
+  - **The companion searches and works further away.** The five gathering radii went up from their defaults:
+    `[Advanced] GatheringSearchRadius` **30 → 50 m** (the ring in which he looks for the next tree/rock/plant while following
+    you or sent to a target), `[Gathering] FollowRange` **10 → 25 m** (wood/stone/ore following you: the target
+    can be up to 25 m from **you**), `[Gathering] ForageFollowRange` **10 → 20 m** (foraging),
+    `[Gathering] Range` **40 → 60 m** (with Follow **off**, the work area around home) and
+    `[Advanced] GatheringDropRadius` **8 → 12 m** (what he picks up from a felled tree/broken rock).
+    **Why 50 on `GatheringSearchRadius`:** following you, the real limit is `FollowRange` (each candidate goes through
+    `InWorkArea` → distance from **you**), but the companion can be 25 m from you and the target 25 m on the other side —
+    the worst case is ~50 m from the companion, so the ring has to reach there not to become the bottleneck. **Leash checked:**
+    with a target in progress `HarvestController` **abandons** the target if it gets more than `FollowRange + 15 m` from you
+    (25 + 15 = **40 m** of slack, against 25 m before) and `MHR_Follow` (`[Follow] MaxDistance` 10 m) only takes over again
+    when the job becomes **idle** — so the new radius is really usable (the side effect is a longer back and forth:
+    he goes up to ~25 m, gathers and comes back when the ring empties). The `AcceptableValueRange`s already accommodated every new
+    value (50 ≤ 100, 25/20 ≤ 60, 60 ≤ 150, 12 ≤ 20) — no range changed.
+  - **No random comments:** new config **`[Speech] Chatter`** (bool, default **false**). The periodic chatter came
+    **only** from the `CompanionTalk.Update()` timer (`_talkTimer` → `ResetTimer()` → `SayContextual()`, every
+    `MinInterval`–`MaxInterval` s, picking the line by the context and falling back to 30% `IdleLines` / 70% `FollowLines`);
+    with `Chatter = false` the timer **is not even decremented**. **They keep talking** (no silence where it matters):
+    the **forced** lines of the AI layer (order confirmation, "we already have enough", conversation replies,
+    "Understood: ..." from the voice), the **mode change** line (`SayRandom(ActionLines)`, the "Leave it to me!" — it runs **before**
+    the guard), the **event** lines (`hc_speech_*`: fish hooked, planting, repair, unload, tombstone, smelt milestone) and the
+    **idle** lines (`[Idle] SpeechInterval`, 300 s, with its own setting). `Chatter = true` brings the whole old behaviour
+    back. Cost: an `if` and a `ConfigEntry<bool>` read per frame instead of the decrement — nothing per frame,
+    nothing allocated.
+  - **Migration:** since the defaults changed, an existing `.cfg` keeps the old values (BepInEx keeps what is in
+    the file). Same rule as 3.3b: a value that is **exactly** the old default (`30`/`10`/`10`/`40`/`8`) is
+    updated with a log line explaining it; any value chosen by the player **is not** touched. The new key
+    `[Speech] Chatter` is created by BepInEx itself with the default **false** (it shows up in the `F8` and in the `.cfg`). The migration
+    runs after `MigrateAndClean` (1.4.149), so a `.cfg` still with the old names (`[Harvest] FollowRange`)
+    is covered too.
+- **Phase 3.3b — fixes from the voice test (V key, STT quality and LLM latency).** Three problems from the
+  first in-game test, with evidence in the log (`"Coleta deis mandem."` for 1.1 s of speech; `"O leta deles."` for
+  0.7 s; a conversation at `10237 ms` against ~3 s for the orders).
+  - **The V key no longer toggles the game auto-pickup.** `V` is the *Toggle Auto-Pickup* of Valheim 1.0.17
+    (`ZInput.Reset()` → `AddButton("AutoPickup", KeyToPath(Key.V))`; read in **one** place: `Player.Update`). New
+    `Patches/AutoPickupKeyConflict.cs`: a Harmony prefix on **`ZInput.GetButtonDown(string)`** answers `false` only
+    for `"AutoPickup"`, and only when `[IA] VozLigada = true` **and** the game binding (read from the game itself,
+    `GetButtonDef("AutoPickup").GetActionPath()`) points to `[IA] VozTecla` — rebinding auto-pickup in the game
+    turns the block off automatically, and any doubt (unknown key, exception) leaves the game as it is. The
+    player is warned **once** (log + one line in the chat/HUD) that they can rebind auto-pickup in the
+    settings. Push-to-talk stays the same (hold/release **V**).
+  - **Better transcription in PT-BR:** the default model goes from `whisper\ggml-base-q5_1.bin` (57 MB) to
+    **`whisper\ggml-small-q5_1.bin`** (181 MB, downloaded from `ggerganov/whisper.cpp`; the `base` **stays on disk** for
+    whoever wants to go back through `[IA] SttModelo` — measured on this machine, 8 threads: **638 ms (base) x 2187 ms (small)** for
+    a 2 s clip, always in a background `Task`, without freezing the game); a new **initial prompt**
+    (`[IA] VozPromptInicial`, `WhisperProcessorBuilder.WithPrompt`, +3-5% of time) with the vocabulary of the
+    orders, so the model does not "guess" short clips (and a discard of the prompt when the model repeats it back);
+    and the **trim** became more conservative (`VozLimiarSilencio` default `0.01` instead of `0.02`, a `0.2 s` slack instead
+    of `0.125 s`), because the old threshold cut the beginning of words spoken quietly.
+  - **LLM latency measured:** the log now shows the real prompt size
+    (`[IA] Prompt: instrucoes N car. (~N tokens) + mensagem N car. ...`) and the time with the reply
+    (`[IA] Tempo: N ms no total, resposta com N car. (~N tokens, ~N tok/s ...)`), with a warning from 5 s pointing
+    the local model as the bottleneck; `[IA] Memoria` default dropped from **6 to 4** exchanges (a smaller prompt). The mod **does not**
+    change the player's model.
+  - **Migration:** an old `.cfg` that is still exactly on the old defaults (`ggml-base-q5_1.bin`, `0.02`,
+    `6`) is updated with a log line (the model only changes if the new file is on disk); values chosen
+    by the player are not touched. Nothing else changes: chat orders, AI, jobs, UI, radial and the rest of the STT stay the same.
+- **Phase 3.3 — voice orders (push-to-talk + local STT with Whisper.net).** Hold **V** and speak (`collect 10 wood`,
+  `follow`, `attack the greydwarf`, `good morning`); when you release, the audio is transcribed **inside the game** (Whisper.net, no HTTP,
+  nothing leaves the machine) and the **text enters exactly the same path as the chat orders** — order, conversation,
+  personality and memory the same, because it is the **same function** (`CompanionChatAI.Submit`).
+  - **Capture:** `Microphone.Start(device, loop: false, duration, 16000)` — **16 kHz mono**, the format Whisper
+    expects (no 8-bit/22050 Hz like in the old Thrall). The clip is only read up to `Microphone.GetPosition`,
+    the silence at the edges is trimmed (10 ms windows above `[IA] VozLimiarSilencio`, with a 0.125 s slack) and the
+    audio becomes **a WAV PCM 16-bit mono assembled in memory** (no temporary file). The `AudioClip` is destroyed at the end.
+  - **Reusable STT (`AI/WhisperStt.cs`):** the spike became a service — the model is loaded **once** and **kept
+    loaded** (pre-loaded in the background when you enter the world), the transcription runs in a background `Task` and comes back
+    through a thread-safe queue drained in `Update`, with a watchdog and `NativeGate` (one transcription at a time). **The main
+    thread never waits** and nothing is allocated per frame. The spike (`modia_stt_teste`) now uses the **same** model,
+    so it is **not** loaded twice.
+  - **Feedback:** `Listening...` when it starts; when it ends, `Understood: "collect 10 wood"` in the chat/HUD and the companion
+    **repeats it in the bubble**; then `Thinking...` and the usual line (`Ok: gather wood (10)`). Nothing recognised,
+    recording too short, no microphone, no model, window open, game without focus, previous request in progress —
+    all of that **warns** in PT-BR instead of recording.
+  - **New configs in `[IA]`:** `VozLigada` (true), `VozTecla` (**V**), `VozIdioma` (`pt`), `VozDuracaoMaxima`
+    (10 s), `VozLimiarSilencio` (0.02), `VozDispositivo` (0 = the first one) and `VozMostrarTexto` (true).
+  - **`UnityEngine.AudioModule` by reflection (8 members, once only):** the mod compiles for net472 and references the
+    Whisper.net package (netstandard2.0 assets), which pins the **netstandard 2.0** facade; every Unity 6 module is
+    built against **netstandard 2.1** and a module outside the game closure (`AudioModule` is outside) gives **CS1705**
+    against it. Pointing netstandard at the game's 2.1 facade solves the CS1705 but breaks `AudioClip.GetData`
+    (`Span<T>` in mscorlib, CS7069). The reflection bridge is what keeps the build clean without bringing a second BCL
+    into Mono. No new reference in the `.csproj`.
+  - **Nothing broken:** a pure addition (no change in chat orders, AI, jobs, UI or radial); the only new point
+    in the existing code is the shared `Submit` (the `Chat.SendText` patch now calls it, with the same
+    behaviour as before) and two new calls in the plugin's `Awake`/`Update`/`Shutdown`.
+- **SPIKE — local STT: Whisper.net in-process (a test, not a voice pipeline).** A proof of concept to decide
+  between Whisper.net inside the game and a `whisper-server.exe` as a child process. It runs the real model on a
+  **background thread** (the main thread never waits), transcribes a test WAV and writes everything to the log:
+  `[STT]` detected version/architecture (`whisper_print_system_info`: AVX/AVX2/FMA), **model load** time,
+  **transcription** time, number of segments, language and the **transcribed text**; any failure comes out with the full
+  message + stack (including `Failed to load native whisper library`).
+  - **Triggers:** the console command **`modia_stt_teste`** (F5) and the config **`[IA] SttTeste`** (bool, default
+    `false`), which fires on its own ~25 s after the plugin loads (the world already up). Paths through
+    **`[IA] SttModelo`** (default `whisper\ggml-base-q5_1.bin`) and **`[IA] SttWavTeste`** (default
+    `whisper\jfk.wav`), relative to the plugin folder or absolute.
+  - **How the native loader was pointed at our folder:** on net472 the package resolves the
+    `netstandard2.0` target, whose `NativeLibraryLoader` does `Path.GetDirectoryName(RuntimeOptions.LibraryPath)` and looks for
+    `<folder\runtimes\win-x64\whisper.dll`. `WhisperFactory.FromPath` **has no** `libraryPath` in 1.9.1, so
+    we use `RuntimeOptions.LibraryPath = <plugin folder>\Whisper.net.dll` (set before any use of the
+    factory) — the plugin folder becomes the first one probed, instead of `AppContext.BaseDirectory` (which in
+    Unity is the game folder). The runtime order is locked to **CPU** (only `runtimes\win-x64` exists).
+  - **Build/deploy:** a `PackageReference` to `Whisper.net` 1.9.1 + `Whisper.net.Runtime` 1.9.1 and the new target
+    **`DeployWhisperNet`**, which copies to the plugin folder **7 managed DLLs** (Whisper.net,
     Microsoft.Bcl.AsyncInterfaces, System.Threading.Tasks.Extensions, System.Memory, System.Buffers,
-    System.Numerics.Vectors, System.Runtime.CompilerServices.Unsafe) e os **4 nativos** em `runtimes\win-x64`
-    (`whisper.dll` + `ggml-*.dll`). `Microsoft.Extensions.AI.Abstractions`/`System.Text.Json` ficam **fora**
-    (`ExcludeAssets="all"`): só servem ao `WhisperSpeechToTextClient`, que não é usado, e arrastariam
-    `System.Text.Json` para dentro do Mono do Unity.
-  - **Nada de bloqueio e nada quebrado:** o spike é adição pura (nenhuma mudança em ordens por chat, IA ou jobs);
-    a única chamada nova no jogo é um postfix em `Console.Awake` (para registrar o comando de console) e dois
-    `try/catch` de `Tick()` no `Update`. Detalhes e o que procurar no log: **`docs/re/stt-whisper-net-spike.md`**.
-- **Fase 3.5 — personalidade, memória e conversa livre.** O companheiro agora **tem um jeito de falar**, **lembra
-  das últimas trocas** e, quando a mensagem **não é uma ordem** (`bom dia`, `como você está?`, `o que achou da minha
-  casa?`), **responde como conversa**: fala no balão do mundo (`CompanionTalk.Say`) e mostra a resposta no chat.
-  - **Personalidade:** novo `[IA] Personalidade` (texto livre do jogador, até 600 caracteres) e
-    `[IA] PresetPersonalidade` com presets embutidos em PT-BR — **`viking`** (leal e destemido), **`mago`** (velho e
-    sarcástico), **`sarcastico`** (piadas secas), **`guia`** (paciente e didático) — mais **`custom`** (usa o texto
-    livre). Texto livre **ganha** do preset; vazio = companheiro padrão (leal e prático); preset desconhecido avisa
-    no log e cai no padrão. O texto entra no começo do prompt, junto com o **nome** do companheiro
-    (`Você é Thorin, o companheiro NPC do jogador, e ele é o seu dono.` / `Seu jeito de falar e de agir: ...`).
-  - **Memória:** novo `[IA] Memoria` (6; 0 = desligada, teto 12). Guarda as últimas trocas (jogador ↔ companheiro)
-    **por companheiro**, com teto de `2 × Memoria` mensagens (240 caracteres cada, sem quebras de linha) e no
-    máximo 8 conversas ao mesmo tempo. Vai no prompt como **texto** (`Jogador: ...` / `Thorin: ...`), e não como
-    mensagens `user`/`assistant` extras — o contrato JSON continua sendo a última coisa que o modelo lê e ele nunca
-    recebe o próprio JSON antigo de volta. É **só em memória** (nada no ZDO/save) e é **esquecida** na morte
-    (`OnCompanionDeath`), no dismiss/despawn (`OnDestroy`) e na troca de mundo.
-  - **Conversa livre × ordem:** o JSON ganhou **`reply`** (aceita `resposta`/`fala`/`mensagem`/`message`/`texto`/
-    `text`/`say`; sem JSON nenhum, uma frase do modelo passa a ser lida como `reply`). Numa **ordem** nada mudou: a
-    **linha do mod ganha** e o `reply` é só logado (o companheiro não diz duas coisas sobre a mesma ordem, e a linha
-    localizada é a que sabe **nomear** criatura/item: "Atacando o troll."). Em conversa, o `reply` é falado (balão
-    forçado) e mostrado no chat. Novo `[IA] Conversa` (true): `false` volta ao comportamento exato da Fase 3.1.
-  - **Quem fala:** o companheiro **mais próximo** que pode receber ordem (seu, `Command` ligado, dentro do recall).
-    A conversa **não** toma posse do companheiro (isso continua só nas ordens). Sem companheiro perto, a resposta
-    ainda aparece no chat, sem balão.
-  - **Arquivos novos:** `src/Companions/AI/CompanionPersona.cs` (presets + resolução) e
-    `src/Companions/AI/CompanionMemory.cs` (memória por companheiro + bloco do prompt). `CompanionSetup` ganhou
-    `MHR_ResolveCompanionId`/`MHR_CachedCompanionId` (o ID permanente, lido uma vez) para a memória ser arquivada
-    por companheiro (e não pelo nome).
-  - **Textos PT-BR:** `hc_ai_default_name`, `hc_ai_preset_default/custom/viking/mago/sarcastico/guia`.
-  - **Nada de bloqueio:** tudo continua em uma única chamada de fundo (sem `.Result`/`.Wait()`), o prompt é montado
-    uma vez por mensagem (nunca por frame) e a memória é limitada nas duas pontas.
-- **Fase 3.6 — ordens com alvo: o companheiro ataca a criatura que você nomeou, equipa o item que ele tem e
-  larga o que você mandar.** `ataca o greydwarf`, `mata o javali`, `equipa o machado de bronze`, `pega a
-  picareta`, `larga a pedra`, `joga fora 5 madeira`.
-  - **Contrato novo do modelo:** o JSON ganhou o campo **`target`** (aceita `alvo`, `target_name`, `creature`,
-    `item_name`) e as ações **`attack`**, **`equip`** e **`drop`**; `resource`/`amount` continuam iguais e o
-    system prompt (PT-BR) explica as três, com exemplos, pedindo o alvo **nas palavras do jogador**.
-  - **Como a criatura é achada:** primeiro a que está **na sua mira** (raycast da câmera, o mesmo caminho do
-    comando por tecla) quando ela casa com o nome dito — aponte e diga "ataca aquele"; senão a **mais próxima
-    que casa** dentro do novo **`[IA] RaioDeAlvo`** (40 m por padrão, a mesma coleira que o combate usa).
-    Jogadores, companheiros e mortos nunca entram. Nada achado = **"Não vejo nenhum X por perto."**.
-  - **Como o item é achado:** só no **inventário do companheiro** (nunca baús), casando o nome dito contra o
-    prefab (`AxeBronze`), o nome localizado (`Machado de bronze`) e as palavras de cada um, com dicionário
-    PT-BR/EN (machado↔axe, picareta↔pickaxe, sucata↔scrap...), singular/plural e palavras vazias ignoradas.
-  - **Passiva:** uma ordem explícita de ataque vale **para aquela criatura mesmo na postura Passiva** — e a
-    postura **não muda** (ele volta a "não começa briga" assim que o alvo morre/some). Sem isso a ordem seria
-    engolida em silêncio, porque Passiva é literalmente "nunca começa uma briga".
-  - **`drop` sem número larga o stack inteiro** ("larga a pedra" = livrar-se dela — o mesmo que o mod faz com o
-    lixo que descarta para abrir espaço); com número, no máximo esse tanto. A pilha largada sai do auto-pickup
-    (`m_autoPickup = false`) para ele não pegar a própria ordem de volta, item equipado é desequipado antes e
-    **item de missão não cai**.
-  - **`equip`** usa o `Humanoid.EquipItem` do jogo (item que não é equipável avisa). O auto-equip do mod pode
-    depois trocar a arma de volta — é ele que escolhe a melhor arma para o trabalho/luta; a ordem não mexe em
-    nenhuma configuração.
-  - **`pega a picareta` = equipar, `pega madeira` = coletar:** o verbo "pegar" é lido pelo objeto (equipamento
-    → equipar; recurso → trabalho de coleta), então **nada que já funcionava mudou**.
-  - **Feedback próprio** em PT-BR (`hc_ai_attacking`, `hc_ai_no_target`, `hc_ai_no_aim`, `hc_ai_equipped`,
-    `hc_ai_no_item`, `hc_ai_not_equipable`, `hc_ai_dropped`, `hc_ai_need_item`) no HUD/chat, e o companheiro
-    **fala** a confirmação ("Atacando o troll.", "Equipei Machado de bronze.", "Larguei Pedra (5).").
-  - **Novo arquivo:** `src/Companions/AI/OrderTargets.cs` (nome → criatura/item). O combate ganhou
-    `EngageByOrder`/`EngagePreyByOrder`; o radial e as ordens antigas ficaram **iguais**.
-- **Fase 3.1 — o jogador digita a ordem no chat do jogo e o companheiro executa.** `colete 20 de madeira`,
-  `segue`, `para`, `vem cá`, `minere ferro`, `fica na defensiva`... A frase vai para um **LLM local** por uma
-  API compatível com a OpenAI (`POST {BaseUrl}/chat/completions`; LM Studio, Ollama, llama.cpp, vLLM) e a
-  intenção devolvida em JSON vira a **mesma ação** do menu radial/tecla de comando. Novos arquivos:
-  `src/Companions/AI/LlmClient.cs` (cliente HTTP), `LlmIntent.cs` (DTO + parser tolerante),
-  `CompanionOrders.cs` (intenção → ação do mod) e `CompanionChatAI.cs` (patch do chat + orquestração).
-- **Nunca trava o jogo:** o POST roda numa `Task` de fundo e a resposta volta por uma fila thread-safe
-  drenada no `Update` do plugin (sem `.Result`/`.Wait()`), com timeout configurável, um pedido por vez e
-  watchdog. Erro de rede vira uma linha no HUD/chat, nunca uma exceção no jogo.
-- **Captura do chat:** postfix Harmony em `Chat.SendText(Talker.Type, string)` — o caminho da mensagem **do
-  próprio jogador** (as mensagens recebidas entram por `Chat.OnNewChatMessage` e não são capturadas).
-  `Ping` é ignorado.
-- **Novo `[IA]` no `.cfg`** (nada de segredo no código): `Ligado` (true), `BaseUrl`
+    System.Numerics.Vectors, System.Runtime.CompilerServices.Unsafe) and the **4 native ones** in `runtimes\win-x64`
+    (`whisper.dll` + `ggml-*.dll`). `Microsoft.Extensions.AI.Abstractions`/`System.Text.Json` stay **out**
+    (`ExcludeAssets="all"`): they only serve `WhisperSpeechToTextClient`, which is not used, and would drag
+    `System.Text.Json` into Unity's Mono.
+  - **No blocking and nothing broken:** the spike is a pure addition (no change in chat orders, AI or jobs);
+    the only new call in the game is a postfix on `Console.Awake` (to register the console command) and two
+    `try/catch` of `Tick()` in `Update`. Details and what to look for in the log: **`docs/re/stt-whisper-net-spike.md`**.
+- **Phase 3.5 — personality, memory and free conversation.** The companion now **has a way of speaking**, **remembers
+  the latest exchanges** and, when the message **is not an order** (`good morning`, `how are you?`, `what did you think of my
+  house?`), **answers as conversation**: he speaks in the world bubble (`CompanionTalk.Say`) and shows the reply in the chat.
+  - **Personality:** new `[IA] Personalidade` (free text from the player, up to 600 characters) and
+    `[IA] PresetPersonalidade` with presets built into the PT-BR — **`viking`** (loyal and fearless), **`mago`** (old and
+    sarcastic), **`sarcastico`** (dry jokes), **`guia`** (patient and didactic) — plus **`custom`** (uses the free
+    text). Free text **wins** over the preset; empty = default companion (loyal and practical); an unknown preset warns
+    in the log and falls back to the default. The text goes at the beginning of the prompt, along with the companion's **name**
+    (`You are Thorin, the player's NPC companion, and he is your owner.` / `Your way of speaking and acting: ...`).
+  - **Memory:** new `[IA] Memoria` (6; 0 = off, cap 12). It keeps the latest exchanges (player ↔ companion)
+    **per companion**, with a cap of `2 × Memoria` messages (240 characters each, no line breaks) and at most
+    8 conversations at the same time. It goes into the prompt as **text** (`Player: ...` / `Thorin: ...`), and not as
+    extra `user`/`assistant` messages — the JSON contract stays the last thing the model reads and it never
+    receives its own old JSON back. It is **in memory only** (nothing in the ZDO/save) and it is **forgotten** on death
+    (`OnCompanionDeath`), on dismiss/despawn (`OnDestroy`) and when the world changes.
+  - **Free conversation × order:** the JSON got **`reply`** (it accepts `resposta`/`fala`/`mensagem`/`message`/`texto`/
+    `text`/`say`; with no JSON at all, a sentence from the model is now read as `reply`). In an **order** nothing changed: the
+    **mod line wins** and the `reply` is only logged (the companion does not say two things about the same order, and the
+    localized line is the one that knows how to **name** a creature/item: "Attacking the troll."). In a conversation, the `reply` is spoken (forced bubble)
+    and shown in the chat. New `[IA] Conversa` (true): `false` goes back to the exact behaviour of Phase 3.1.
+  - **Who speaks:** the **nearest** companion that can receive an order (yours, `Command` on, inside the recall).
+    The conversation **does not** take ownership of the companion (that stays only in the orders). With no companion nearby, the reply
+    still appears in the chat, with no bubble.
+  - **New files:** `src/Companions/AI/CompanionPersona.cs` (presets + resolution) and
+    `src/Companions/AI/CompanionMemory.cs` (memory per companion + the prompt block). `CompanionSetup` got
+    `MHR_ResolveCompanionId`/`MHR_CachedCompanionId` (the permanent ID, read once) so the memory is filed
+    per companion (and not by name).
+  - **PT-BR texts:** `hc_ai_default_name`, `hc_ai_preset_default/custom/viking/mago/sarcastico/guia`.
+  - **No blocking:** everything stays in a single background call (no `.Result`/`.Wait()`), the prompt is built
+    once per message (never per frame) and the memory is bounded at both ends.
+- **Phase 3.6 — orders with a target: the companion attacks the creature you named, equips the item he has and
+  drops what you tell him to.** `attack the greydwarf`, `kill the boar`, `equip the bronze axe`, `take the
+  pickaxe`, `drop the stone`, `throw away 5 wood`.
+  - **New model contract:** the JSON got the **`target`** field (it accepts `alvo`, `target_name`, `creature`,
+    `item_name`) and the **`attack`**, **`equip`** and **`drop`** actions; `resource`/`amount` stay the same and the
+    system prompt (PT-BR) explains the three, with examples, asking for the target **in the player's words**.
+  - **How the creature is found:** first the one **in your aim** (camera raycast, the same path as the
+    key command) when it matches the name said — point and say "attack that one"; otherwise the **nearest
+    one that matches** inside the new **`[IA] RaioDeAlvo`** (40 m by default, the same leash combat uses).
+    Players, companions and the dead never enter. Nothing found = **"I don't see any X nearby."**.
+  - **How the item is found:** only in the **companion's inventory** (never chests), matching the name said against the
+    prefab (`AxeBronze`), the localized name (`Machado de bronze`) and the words of each, with a
+    PT-BR/EN dictionary (machado↔axe, picareta↔pickaxe, sucata↔scrap...), singular/plural and empty words ignored.
+  - **Passive:** an explicit attack order applies **to that creature even in the Passive stance** — and the
+    stance **does not change** (he goes back to "never starts a fight" as soon as the target dies/disappears). Without that the order would be
+    swallowed in silence, because Passive is literally "never starts a fight".
+  - **`drop` without a number drops the whole stack** ("drop the stone" = get rid of it — the same as the mod does with the
+    junk it discards to make room); with a number, at most that much. The dropped stack leaves auto-pickup
+    (`m_autoPickup = false`) so he does not pick his own order back up, an equipped item is unequipped first and
+    **a quest item never drops**.
+  - **`equip`** uses the game's `Humanoid.EquipItem` (an item that is not equippable warns). The mod's auto-equip may
+    later swap the weapon back — it is the one that picks the best weapon for the job/fight; the order does not touch
+    any setting.
+  - **`take the pickaxe` = equip, `take wood` = gather:** the verb "take" is read by the object (equipment
+    → equip; resource → gathering job), so **nothing that already worked changed**.
+  - **Its own feedback** in the PT-BR (`hc_ai_attacking`, `hc_ai_no_target`, `hc_ai_no_aim`, `hc_ai_equipped`,
+    `hc_ai_no_item`, `hc_ai_not_equipable`, `hc_ai_dropped`, `hc_ai_need_item`) in the HUD/chat, and the companion
+    **speaks** the confirmation ("Attacking the troll.", "Equipped Machado de bronze.", "Dropped Stone (5).").
+  - **New file:** `src/Companions/AI/OrderTargets.cs` (name → creature/item). Combat got
+    `EngageByOrder`/`EngagePreyByOrder`; the radial and the old orders stayed **the same**.
+- **Phase 3.1 — the player types the order in the game chat and the companion performs it.** `collect 20 wood`,
+  `follow`, `stop`, `come here`, `mine iron`, `stay on the defensive`... The phrase goes to a **local LLM** through an
+  OpenAI-compatible API (`POST {BaseUrl}/chat/completions`; LM Studio, Ollama, llama.cpp, vLLM) and the
+  intent returned in JSON becomes the **same action** as the radial menu/command key. New files:
+  `src/Companions/AI/LlmClient.cs` (HTTP client), `LlmIntent.cs` (DTO + tolerant parser),
+  `CompanionOrders.cs` (intent → mod action) and `CompanionChatAI.cs` (chat patch + orchestration).
+- **It never freezes the game:** the POST runs in a background `Task` and the reply comes back through a thread-safe queue
+  drained in the plugin's `Update` (no `.Result`/`.Wait()`), with a configurable timeout, one request at a time and
+  a watchdog. A network error becomes one line in the HUD/chat, never an exception in the game.
+- **Chat capture:** a Harmony postfix on `Chat.SendText(Talker.Type, string)` — the path of the **player's own
+  message** (received messages come in through `Chat.OnNewChatMessage` and are not captured).
+  `Ping` is ignored.
+- **New `[IA]` in the `.cfg`** (no secret in the code): `Ligado` (true), `BaseUrl`
   (`http://localhost:1234/v1`), `Modelo` (`google/gemma-4-e4b`), `ApiKey` (""), `Temperatura` (0.1),
-  `TimeoutSegundos` (30), `Prefixo` ("" = toda mensagem; ex. `/c` só as mensagens com esse prefixo),
-  `MostrarRespostaNoChat` (true, mostra a resposta crua do modelo no chat) e `CooldownSegundos` (3).
-- **Ações entendidas:** seguir, madeira, pedra, minério, coleta (plantas), fundir, caçar, plantar, pescar,
-  reparar/reabastecer, cozinhar; parar (volta a seguir + larga o alvo de combate), vir até você (recall),
-  definir casa, vagar/parar de vagar, recolher/parar de recolher, aceitar/ignorar comandos e as posturas
-  (equilibrada/defensiva/à distância/corpo a corpo). `despawn` **não** é exposto ao modelo.
-- **Refatoração mínima:** o corpo de `CompanionRadialMenu.SetActionMode` virou
-  `CompanionSetup.ApplyActionMode(companion, mode, toggle)` — o radial continua alternando (`toggle: true`),
-  as ordens do chat **setam** o modo (`toggle: false`).
-- **Feedback em PT-BR** via localização (`hc_ai_*`): `Pensando...`, `Ok: coletar madeira (20)`,
-  `Não entendi a ordem.`, `Nenhum companheiro seu está perto o bastante...`, `A IA não respondeu: ...`, e a
-  nova aba **IA** no painel F8.
-- **Fase 3.2c — o número da ordem é um ALVO TOTAL contado no INVENTÁRIO do companheiro (correção final).**
-  Regra do usuário: *"peço 10 madeiras e ele já tem 15 no inventário, então ele não executa e diz que já temos
-  o suficiente"*; *"se ele já tem 7, ele coleta até ter 10 ou mais"*. Ou seja: o número é **um alvo total**
-  (não um delta — a leitura de "10 a mais" da 3.3/3.2b foi **revertida e removida**), contado **apenas na
-  mochila do companheiro** (não conta baús nem pilhas) e **só para o recurso pedido**.
-  - **Item da ordem:** `src/Companions/AI/OrderItems.cs` (novo) traduz o recurso que o modelo devolveu
-    (`wood`/`madeira`, `stone`/`pedra`, `ferro`/`iron`...) para o prefab (`Wood`, `Stone`, `IronScrap`), com
-    mapa PT-BR/EN, conferência em `ObjectDB.GetItemPrefab` e, como reserva, o nome localizado dos itens da
-    própria lista do modo. **Não reconheceu?** O alvo vale para o modo inteiro (como na 3.2).
-  - **Contagem:** `MHR_GatherRules.Bag()` soma o item no `Inventory` do `Humanoid` (todos os stacks). O
-    `Stock` (mochila + baús + pilhas) continua sendo o que a config usa (`WoodLimit`/`StoneLimit`/`OreLimit`).
-  - **Já tem o suficiente:** a ordem **nem começa** e o modo de trabalho fica como estava; o companheiro diz
-    "Já temos o suficiente." (nova chave `hc_ai_already_have`, PT-BR) e o HUD/chat mostra o mesmo.
-  - **Só o recurso pedido:** com o alvo nomeando `Wood`, a árvore não é mais derrubada só porque a **resina**
-    ainda está abaixo do `WoodLimit` (era o "continua cortando para chegar a 10 de resina").
-  - **Ao bater o alvo:** a ordem é encerrada e o companheiro volta a seguir (fala "já temos ... de sobra").
-    A última árvore pode passar do número — ela cai inteira.
-  - **Depósito (limitação atenuada):** se a mochila encher e ele levar a carga para um baú, a contagem não
-    recomeça do zero — `CompanionSetup.OrderSeen` guarda o **maior** valor visto na mochila durante a ordem.
-    Ou seja, o alvo passa a significar "ter **tido** N no inventário" quando há depósito.
-  - **Sem ordem, radial e `SetDirectedTarget` seguem exatamente como antes** (config pura).
-- **Fase 3.2 — o número da ordem passou a valer: `colete 5 madeiras` para em 5.** Antes a ordem só ligava o
-  job e o companheiro cortava até o limite da configuração (`[Gathering] WoodLimit`, 500). Agora o número vira
-  um **alvo por companheiro**, guardado no ZDO dele (`HC_OrderCap` / `HC_OrderCapMode` / `HC_OrderCapItem`):
-  funciona com vários companheiros (cada um com o seu número), sobrevive a um reload e é limpo quando a ordem
-  termina, quando você diz `para`/`segue`, quando outra ordem de trabalho chega ou quando o modo de trabalho
-  muda (radial incluído). Vale para **madeira, pedra e minério**; `Name:Number` da lista, se for menor,
-  continua ganhando no caminho da config.
-- **Ao bater o alvo o companheiro para e volta a seguir** (como o `stop`), com a fala de "já temos de sobra"
-  e uma linha no log.
-- **Fase 3.3/3.2b (REVERTIDA — ver 3.2c acima).** Chegou a valer em Unreleased que o número era um DELTA
-  ("colete 10" = 10 A MAIS): a base do estoque do momento da ordem era somada ao número. Não é o que o
-  usuário quer — o código (`CompanionSetup.OrderCapBase` e o `MHR_GatherRules.OrderLimit`) foi **removido**.
-- Tradução completa do **sistema de localização** para `Portuguese_Brazilian`: `Translations/Portuguese_Brazilian.json`
-  com **263 chaves** — as 204 do upstream e 59 novas para textos que estavam fixos em inglês no código.
-  Chaves e placeholders (`{0}`, `{1}`) idênticos ao inglês; o `English.json` continua sendo o fallback e é
-  regenerado sozinho quando faltam chaves.
-- Tradução das **186 falas do companheiro** em `Speech/Portuguese_Brazilian.json` (o sistema de
-  fala próprio do mod, `SpeechConfig`): saudações e ordens, conversa fiada, combate, fome, peso, reparo,
-  fundição, caça, pesca, plantio, cozinha e "sem cama".
-- O build agora copia `Translations\**\*.json` da raiz do repositório para `$(DeployDir)\Translations\`
-  (alvo `DeployTranslations` no `Companions.csproj`) — de onde o mod lê UI e falas em runtime.
-- Textos que estavam fixos em inglês e que o jogador vê passaram a usar a localização: título e abas do painel
-  de configurações (F8, com as 21 categorias traduzidas), botões `Default`/`Aperte uma tecla...`, painel da
-  zona da casa (título, raio e dica de controle), barras de vida/stamina do HUD, hover do túmulo
-  (`Segure para ressuscitar`) e da cama (`Cama de X`), mensagem de recall e todo o **Santuário de Odin** /
-  lista de companheiros (nome da peça, descrição, status Vivo/Morto/Perdido/Desconhecido, avisos e recuperação).
-- Continua em inglês (fora do sistema de localização): as ~250 **descrições das configurações** (aparecem só no
-  `BepInEx\config\*.cfg`; o painel F8 mostra as chaves), os **nomes técnicos das configurações** nas abas do
-  painel e as **linhas de log** de diagnóstico (mantidas em inglês de propósito).
+  `TimeoutSegundos` (30), `Prefixo` ("" = every message; e.g. `/c` only the messages with that prefix),
+  `MostrarRespostaNoChat` (true, shows the raw model reply in the chat) and `CooldownSegundos` (3).
+- **Actions understood:** follow, wood, stone, ore, gather (plants), smelt, hunt, plant, fish,
+  repair/restock, cook; stop (goes back to following + drops the combat target), come to you (recall),
+  set home, wander/stop wandering, pick up/stop picking up, accept/ignore commands and the stances
+  (balanced/defensive/ranged/melee). `despawn` is **not** exposed to the model.
+- **Minimal refactor:** the body of `CompanionRadialMenu.SetActionMode` became
+  `CompanionSetup.ApplyActionMode(companion, mode, toggle)` — the radial keeps toggling (`toggle: true`),
+  the chat orders **set** the mode (`toggle: false`).
+- **Feedback in the PT-BR** through the localization (`hc_ai_*`): `Thinking...`, `Ok: gather wood (20)`,
+  `I didn't understand the order.`, `None of your companions is close enough...`, `The AI did not answer: ...`, and the
+  new **AI** tab in the F8 panel.
+- **Phase 3.2c — the order number is a TOTAL TARGET counted in the companion's INVENTORY (final fix).**
+  User rule: *"I ask for 10 wood and he already has 15 in the inventory, so he does not carry it out and says we already have
+  enough"*; *"if he already has 7, he gathers until he has 10 or more"*. That is: the number is **a total target**
+  (not a delta — the "10 more" reading of 3.3/3.2b was **reverted and removed**), counted **only in the
+  companion's pack** (it does not count chests or piles) and **only for the requested resource**.
+  - **Order item:** `src/Companions/AI/OrderItems.cs` (new) translates the resource the model returned
+    (`wood`/`madeira`, `stone`/`pedra`, `ferro`/`iron`...) into the prefab (`Wood`, `Stone`, `IronScrap`), with a
+    PT-BR/EN map, a check in `ObjectDB.GetItemPrefab` and, as a fallback, the localized name of the items of the
+    mode's own list. **Did not recognise it?** The target applies to the whole mode (as in 3.2).
+  - **Counting:** `MHR_GatherRules.Bag()` sums the item in the `Humanoid`'s `Inventory` (all the stacks). The
+    `Stock` (pack + chests + piles) stays what the config uses (`WoodLimit`/`StoneLimit`/`OreLimit`).
+  - **Already has enough:** the order **does not even start** and the work mode stays as it was; the companion says
+    "We already have enough." (new key `hc_ai_already_have`, PT-BR) and the HUD/chat shows the same.
+  - **Only the requested resource:** with the target naming `Wood`, the tree is no longer felled just because the **resin**
+    is still below the `WoodLimit` (it was the "keeps chopping to reach 10 resin").
+  - **When the target is reached:** the order is closed and the companion goes back to following (he says "we have ... plenty").
+    The last tree may go past the number — it falls whole.
+  - **Deposit (mitigated limitation):** if the pack fills up and he takes the load to a chest, the count does not
+    start over from zero — `CompanionSetup.OrderSeen` keeps the **highest** value seen in the pack during the order.
+    That is, the target comes to mean "having **had** N in the inventory" when there is a deposit.
+  - **With no order, the radial and `SetDirectedTarget` stay exactly as before** (pure config).
+- **Phase 3.2 — the order number now applies: `collect 5 wood` stops at 5.** Before, the order only turned the
+  job on and the companion chopped up to the config limit (`[Gathering] WoodLimit`, 500). Now the number becomes
+  a **per-companion target**, stored in his ZDO (`HC_OrderCap` / `HC_OrderCapMode` / `HC_OrderCapItem`):
+  it works with several companions (each one with its own number), survives a reload and is cleared when the order
+  ends, when you say `stop`/`follow`, when another work order arrives or when the work mode
+  changes (radial included). It applies to **wood, stone and ore**; a `Name:Number` from the list, if it is smaller,
+  still wins in the config path.
+- **When the target is reached the companion stops and goes back to following** (like `stop`), with the "we already have plenty" line
+  and one line in the log.
+- **Phase 3.3/3.2b (REVERTED — see 3.2c above).** It came to apply in Unreleased that the number was a DELTA
+  ("collect 10" = 10 MORE): the stock base at the moment of the order was added to the number. That is not what the
+  user wants — the code (`CompanionSetup.OrderCapBase` and `MHR_GatherRules.OrderLimit`) was **removed**.
+- A complete translation of the **localization system** to `Portuguese_Brazilian`: `Translations/Portuguese_Brazilian.json`
+  with **263 keys** — the 204 from the upstream and 59 new ones for texts that were hardcoded in English in the code.
+  Keys and placeholders (`{0}`, `{1}`) identical to the English; `English.json` stays the fallback and is
+  regenerated on its own when keys are missing.
+- A translation of the **186 companion lines** in `Speech/Portuguese_Brazilian.json` (the mod's own speech
+  system, `SpeechConfig`): greetings and orders, small talk, combat, hunger, weight, repair,
+  smelting, hunting, fishing, planting, cooking and "no bed".
+- The build now copies `Translations\**\*.json` from the repository root to `$(DeployDir)\Translations\`
+  (the `DeployTranslations` target in `Companions.csproj`) — from where the mod reads UI and speech at runtime.
+- Texts that were hardcoded in English and that the player sees now use the localization: title and tabs of the settings
+  panel (F8, with the 21 translated categories), the `Default`/`Press a key...` buttons, the home
+  zone panel (title, radius and control hint), the HUD health/stamina bars, the tombstone hover
+  (`Hold to resurrect`) and the bed one (`X's Bed`), the recall message and the whole **Odin's Shrine** /
+  companion list (piece name, description, Alive/Dead/Lost/Unknown status, warnings and recovery).
+- Still in English (outside the localization system): the ~250 **setting descriptions** (they only appear in
+  `BepInEx\config\*.cfg`; the F8 panel shows the keys), the **technical names of the settings** in the panel tabs
+  and the diagnostic **log lines** (kept in English on purpose).
 
 ## 1.5.4
 - Hunting: with a spear to throw at a deer (and another weapon in its pack), a companion sneaks only to throwing distance, stops and throws, instead of walking right up and stabbing it. New setting Hunting > ThrowStandoff (10 m; it throws from anywhere within ThrowRange, 12 m).

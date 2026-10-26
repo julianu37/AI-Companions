@@ -24,7 +24,7 @@ public class CompanionsPlugin : BaseUnityPlugin
 
 	public const string PluginName = "AI Companions";
 
-	public const string PluginVersion = "1.8.3";
+	public const string PluginVersion = "1.9.0";
 
 	private static Harmony _harmony;
 
@@ -317,6 +317,9 @@ public class CompanionsPlugin : BaseUnityPlugin
 	private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
 	{
 		FontFix.Ensure("scene:" + scene.name);
+		// Multilanguage M1: a new scene is the other moment the language can be different - drop the resolved
+		// language profile so the STT/TTS codes, the voices and the Whisper vocabulary follow it
+		CompanionLocale.Invalidate();
 		// Fase 3.5: the conversation memory lives in memory only - leaving the world forgets it
 		CompanionMemory.ClearAll();
 		// the carry-weight cache is keyed by Inventory reference: a new scene means new inventories (the old ones are

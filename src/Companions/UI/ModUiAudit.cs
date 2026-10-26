@@ -196,14 +196,26 @@ internal static class ModUiAudit
 			+ "companion, on its own tab)"),
 		new IntentionalTarget("Overlay/CompVoiceList",
 			"the background of an open dropdown list, same as Overlay/TierList (Fase 3.10: the voice of a "
-			+ "companion, on its own tab)")
+			+ "companion, on its own tab)"),
+		new IntentionalTarget("Overlay/LlmProviderList",
+			"the background of an open dropdown list, same as Overlay/TierList (Fase 3.21: the LLM provider of the "
+			+ "AI tab)"),
+		new IntentionalTarget("DropdownOverlay/ChoiceList",
+			"the background of the F8 list of options (Multilanguage M2: the two language settings and the voice), same "
+			+ "reason as Overlay/TierList - the options are 2 px smaller than the list and the border must swallow the "
+			+ "click, and it is only active while the list is open")
 	};
 
 	/// <summary>
 	/// Classifies a raycast target of the panel: <c>null</c> for a control (a <c>Selectable</c> in its parents), an
-	/// empty string for a documented exception (the modal backdrop, the scroll areas - the GameObjects the
-	/// <c>ScrollRect</c>s live on, where the wheel and the drag are received - and the entries of
+	/// empty string for a documented exception (the modal backdrop, the scroll surfaces - the GameObject the
+	/// <c>ScrollRect</c> lives on and its viewport, where the wheel and the drag are received - and the entries of
 	/// <see cref="Intentional"/>), otherwise a short reason why it is a suspect.
+	///
+	/// <para>Multilanguage M2: the "inside a ScrollRect" rule used to accept <b>everything</b> under one, and the
+	/// options of a dropdown list now live inside the list's own <c>ScrollRect</c> - a decorative target added there
+	/// would have been silently accepted, and the controls were counted as exceptions. The rule is the surface itself
+	/// now: the controls are classified by their <c>Selectable</c> first.</para>
 	/// </summary>
 	private static string NonControlRaycastReason(Graphic graphic, GameObject backdrop, Component owner, string path)
 	{
@@ -224,10 +236,6 @@ internal static class ModUiAudit
 		bool scrollbar = false;
 		for (Transform walk = graphic.transform; walk != null; walk = walk.parent)
 		{
-			if (walk.GetComponent<ScrollRect>() != null)
-			{
-				return string.Empty;
-			}
 			if (walk.GetComponent<Scrollbar>() != null)
 			{
 				scrollbar = true;
@@ -248,6 +256,11 @@ internal static class ModUiAudit
 		if (selectable)
 		{
 			return null;
+		}
+		ScrollRect scroll = graphic.GetComponentInParent<ScrollRect>(true);
+		if (scroll != null && (scroll.gameObject == graphic.gameObject || scroll.viewport == graphic.rectTransform))
+		{
+			return string.Empty;
 		}
 		return "no Selectable in its parents (decorative)";
 	}

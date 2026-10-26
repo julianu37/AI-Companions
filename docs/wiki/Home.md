@@ -1,161 +1,179 @@
+> 🌍 **English** · [Português](Home-pt)
+
 # AI Companions
 
-Um **companheiro NPC com IA** para **Valheim 1.0**, em **português do Brasil** — você **fala ou digita** e ele
-entende e executa.
+An **AI NPC companion** for **Valheim 1.0**: you **speak or type** and he understands and acts.
 
-[![Assista: "Esse mod muda TUDO no Valheim! AI Companions"](images/video-thumb.jpg)](https://www.youtube.com/watch?v=40FnVEIbXyo)
+[![Watch: "This mod changes EVERYTHING in Valheim! AI Companions"](images/video-thumb.jpg)](https://www.youtube.com/watch?v=40FnVEIbXyo)
 
-> Vídeo do canal **SuaTV**: **"Esse mod muda TUDO no Valheim! AI Companions"**.
-> **[Assistir no YouTube](https://www.youtube.com/watch?v=40FnVEIbXyo)** — clicar na imagem também abre.
+> A video from the **SuaTV** channel: **"This mod changes EVERYTHING in Valheim! AI Companions"**.
+> **[Watch on YouTube](https://www.youtube.com/watch?v=40FnVEIbXyo)** — clicking the image opens it too.
 
-> **Tipos de companheiro: os dverger são de combate**
+> **Companion types: the dverger are combat types**
 >
-> **Mago**, **Mago de Fogo**, **Mago de Gelo** e **Suporte** são **de combate**: lutam normalmente e a roda mostra só
-> as ações de combate/suporte — ordens de **trabalho** por chat, voz ou tecla de comando são **recusadas** com
-> *"Sou de combate, não faço esse trabalho"*. Para trabalhos, use o **Companheiro** (detalhes em
-> **[Como funciona](Como-funciona#tipos-de-companheiro)**).
+> **Mage**, **Fire Mage**, **Ice Mage** and **Support** are **combat** types: they fight normally and the ring
+> shows only the combat/support actions — **work** orders by chat, voice or the command key are **refused**
+> with *"I fight, I don't do that work."*. To work, use the **Companion** type (details in
+> **[How it works](How-it-works#companion-types)**).
 
-## Em ação
+## In action
 
-**1. Uma ordem no chat** — `colete 10 madeiras`: a resposta dele e o balão de fala no mundo.
+**1. An order in the chat** — `Sophia, collect wood`: his reply and his speech balloon in the world.
 
-![O chat com a ordem "colete 10 madeiras", a resposta do companheiro e o balão de fala](images/1-ordem-no-chat.jpg)
+![The chat with the order "Sophia, collect wood", the companion's reply and the speech balloon](images/en-companions-chat-orders.jpg)
 
-**2. Uma aba por companheiro (tecla `I`)** — nome, tipo, Chamar, Aparência e a voz/personalidade **daquele**
-companheiro.
+**2. Your first companion, made your way** — gender, hair, beard, skin tone, hair tone, the name and the voice and
+personality of **that** companion; then **Spawn Companion**.
 
-![O painel da IA com uma aba por companheiro (Bruxinho, Companheira, Companheiro, Xuxa, Zé): nome, tipo, Trocar tipo, Chamar, Aparência, personalidade e voz com o botão Ouvir](images/1-abas-do-companheiro.jpg)
+![The "Choose Your Companion" panel: gender male/female, hair style, beard style, skin tone, hair tone and hair shade, the name, the companion AI voice with the Listen button, the personality and the Spawn Companion button, with the 3D preview](images/en-first-run-companion-creation.jpg)
 
-**3. Editor de aparência** — gênero, corte de cabelo, barba, pele, tom e sombra do cabelo, com o boneco mudando
-**ao vivo** enquanto você escolhe.
+**3. A whole crew** — up to **10** companions, each one with its own tab in the `I` panel and its name in the
+roster on the screen.
 
-![O editor de aparência: gênero masculino/feminino, corte de cabelo, estilo de barba, tom de pele, tom e sombra do cabelo, com o preview 3D do companheiro](images/2-editor-de-aparencia.jpg)
+![Four companions around the player on the spawn platform, their names in the world and the companion roster with health and stamina on the right](images/en-multiple-companions-1.jpg)
 
-**4. Painel `F8`, seção `[AI]`** — as opções da camada de IA, com os mesmos nomes de chave do `.cfg`.
+**4. With you on the road** — they follow, they fight and they carry what they gather.
 
-![O painel F8 aberto na seção [AI], com as opções da camada de IA](images/3-painel-f8.jpg)
+![Three companions walking with the player in the Meadows, with the health and stamina bars of each one on the right](images/en-multiple-companions-2.jpg)
 
-**5. Menu radial (segure `E` olhando o companheiro)** — as ações dele à mão.
+## What it is
 
-![O menu radial aberto, com as ações em volta do centro](images/4-menu-radial.jpg)
+This project is an **independent project** based on [Offline Companions Reborn](https://github.com/MaddhattrRocks/Offline-Companions-Reborn)
+(**MIT**) — which in turn is a fork of *Offline Companions*, by **ProfMags** — with two things of ours on top:
 
-## O que é
+1. **Five languages** — **Portuguese (Brazil), English, Spanish, French and Italian**: the interface (737 keys),
+   the companion's speech (186 lines), the personality presets and the LLM contract follow the **game's language**,
+   with **English as the native language**, and a new language is **one file**.
+2. **An AI layer**: orders in **natural language** (text in the chat or **voice** through push-to-talk), with
+   **personality**, **memory** and **free conversation** — and the voice and the speech recognition **pick the
+   language and the voice by themselves**.
 
-Este projeto é um **projeto independente** baseado em [Offline Companions Reborn](https://github.com/MaddhattrRocks/Offline-Companions-Reborn)
-(**MIT**) — que por sua vez é um fork do *Offline Companions*, do **ProfMags** — com duas coisas nossas por cima:
+The companion itself (jobs, food, stamina, skills, home, rest, portals, cart, radial menu) comes from the upstream
+and keeps working the same — the AI is only a **new entry point** for the same actions.
 
-1. **Tradução PT-BR** (interface, menus, painéis e as falas do companheiro) sobre um mod agora **multilíngue**,
-   com o **inglês como idioma nativo**: os painéis seguem o **idioma do jogo** e um idioma novo é **um arquivo**.
-2. **Uma camada de IA**: ordens em **linguagem natural** (texto no chat ou **voz** por push-to-talk), com
-   **personalidade**, **memória** e **conversa livre**.
+> **The voice all runs on your machine.** Speech recognition (STT) and the synthesized voice (TTS) are **100%
+> local**: nothing is sent. Understanding the orders uses an **LLM** — by default **Groq**, which is a
+> **remote service** (the text of the orders and of the conversation **leaves your machine**). To send nothing,
+> swap it for the local option, **LM Studio** (or Ollama). See **[LLM (Groq, LM Studio or OpenRouter)](LLM)**.
 
-O companheiro em si (trabalhos, comida, stamina, habilidades, casa, descanso, portais, carroça, menu radial)
-vem do upstream e continua funcionando igual — a IA é só uma **nova entrada** para as mesmas ações.
+## What it does
 
-> **A voz roda toda na sua máquina.** O reconhecimento da fala (STT) e a voz sintetizada (TTS) são **100%
-> locais**: nada é enviado. O entendimento das ordens usa um **LLM** — por padrão o **Groq**, que é um
-> **serviço remoto** (o texto das ordens e da conversa **sai da sua máquina**). Para não enviar nada, troque-o
-> pela opção local, **LM Studio** (ou Ollama). Veja **[LLM (Groq, LM Studio ou OpenRouter)](LLM-no-LM-Studio)**.
-
-## O que ele faz
-
-| Recurso | Como |
+| Feature | How |
 |---|---|
-| **Ordens por chat** | `colete 10 madeiras` · `segue` · `para` · `ataca o greydwarf` · `equipa o machado de bronze` |
-| **Ordens por voz** | Segure **`V`**, fale e solte — a fala é transcrita dentro do jogo |
-| **Ele fala** | Voz sintetizada em PT-BR, saindo **da posição dele** no mundo |
-| **Personalidade** | Presets (`viking`, `mago`, `sarcastico`, `guia`) ou as suas palavras |
-| **Memória e conversa** | `bom dia`, `como você está?` — ele responde como personagem e lembra da conversa |
-| **Vários companheiros** | Até **10**, cada um com a sua aba no painel `I`; o invocador cria um novo **de graça** (sem o Trader) |
-| **Ordem pelo nome** | `Gruncha, colete 10 pedras` vale **só** para ele; sem o nome, a ordem vale para todos |
-| **Aparência** | Editor com **preview 3D**: gênero, cabelo, barba, pele e tom do cabelo, sem respawn |
-| **Painel da IA** | Tecla **`I`**: uma aba por companheiro (nome, tipo, Chamar, Aparência, voz e personalidade), o invocador, volume, push-to-talk e as **configurações do LLM** (com o **seletor de provedor**) — tudo salvo na hora |
+| **Chat orders** | `collect 10 wood` · `follow` · `stop` · `attack the greydwarf` · `equip the bronze axe` |
+| **Voice orders** | Hold **`V`**, speak and release — the speech is transcribed inside the game |
+| **He speaks** | Synthesized voice **in the game's language**, coming **from his position** in the world |
+| **Personality** | Presets (`viking`, `mago`, `sarcastico`, `guia`) or your own words |
+| **Memory and conversation** | `good morning`, `how are you?` — he answers as a character and remembers the conversation |
+| **Several companions** | Up to **10**, each one with its own tab in the `I` panel; the summoner creates a new one **for free** (no Trader) |
+| **Order by name** | `Gruncha, collect 10 stones` applies **only** to him; without the name, the order applies to all |
+| **Appearance** | Editor with a **3D preview**: gender, hair, beard, skin and hair tone, no respawn |
+| **AI panel** | Key **`I`**: one tab per companion (name, type, Call, Appearance, voice and personality), the summoner, volume, push-to-talk and the **LLM settings** (with the **provider picker**) — everything saved right away |
 
-## Requisitos em resumo
+## Requirements at a glance
 
-| Item | Detalhe |
+| Item | Detail |
 |---|---|
-| **Valheim 1.0.x** + **BepInEx 5.4.2351** | A base de tudo — passo a passo em **[Instalação](Instalacao)** |
-| **Um LLM** | **Groq** (padrão): só a **chave gratuita** (https://console.groq.com/keys) e internet — o texto das ordens **sai da sua máquina**. A opção local, **LM Studio** ou Ollama, é **opcional** e não envia nada; o **OpenRouter** continua funcionando como alternativa |
-| **Windows x64** | Obrigatório para a voz (os binários nativos são `win-x64`) |
-| **Microfone** | Só para as ordens por voz |
+| **Valheim 1.0.x** + **BepInEx 5.4.2351** | The base of everything — step by step in **[Installation](Installation)** |
+| **An LLM** | **Groq** (default): only the **free key** (https://console.groq.com/keys) and internet — the text of the orders **leaves your machine**. The local option, **LM Studio** or Ollama, is **optional** and sends nothing; **OpenRouter** still works as an alternative |
+| **Windows x64** | Required for the voice (the native binaries are `win-x64`) |
+| **Microphone** | Only for the voice orders |
 
-## Começando
+## Getting started
 
-1. Veja o que você precisa em **[Requisitos](Requisitos)**.
-2. Siga o passo a passo de **[Instalação](Instalacao)**.
-3. Configure o LLM em **[LLM (Groq, LM Studio ou OpenRouter)](LLM-no-LM-Studio)** — o padrão é o **Groq**
-   (só a chave gratuita); o **LM Studio** local é opcional e o **OpenRouter** é alternativa.
-4. Veja as teclas e as ordens em **[Comandos](Comandos)**.
-5. Se algo não funcionar, vá em **[Problemas comuns](Problemas-comuns)**.
+1. See what you need in **[Requirements](Requirements)**.
+2. Follow the step by step in **[Installation](Installation)**.
+3. Configure the LLM in **[LLM (Groq, LM Studio or OpenRouter)](LLM)** — the default is **Groq**
+   (only the free key); the local **LM Studio** is optional and **OpenRouter** is the alternative.
+4. See the keys and the orders in **[Commands](Commands)**.
+5. If something does not work, go to **[Troubleshooting](Troubleshooting)**.
 
-## Índice da wiki
+## Wiki index
 
-| Página | O que tem |
+| Page | What is in it |
 |---|---|
-| **[Requisitos](Requisitos)** | O que é obrigatório e o que é opcional |
-| **[Instalação](Instalacao)** | Passo a passo com imagens |
-| **[LLM (Groq, LM Studio ou OpenRouter)](LLM-no-LM-Studio)** | O Groq como padrão (chave gratuita), o LM Studio local como opção e o OpenRouter como alternativa |
-| **[Voz](Voz)** | STT (Whisper) e TTS (Kokoro): como funcionam e como ajustar |
-| **[Comandos](Comandos)** | Teclas, ordens de chat/voz e comandos de console |
-| **[Configuração](Configuracao)** | O `.cfg`, a seção `[AI]` e os painéis `F8` e `I` |
-| **[Problemas comuns](Problemas-comuns)** | Sintoma → causa → solução |
-| **[Como funciona](Como-funciona)** | Arquitetura e o caminho de uma ordem |
-| **[Histórico de versões](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)** | O changelog completo, da 1.6.0 à 1.8.3 |
-| **[Créditos e licença](Creditos-e-licenca)** | Upstream, terceiros e licenças |
+| **[Requirements](Requirements)** | What is required and what is optional |
+| **[Installation](Installation)** | Step by step with images |
+| **[LLM (Groq, LM Studio or OpenRouter)](LLM)** | Groq as the default (free key), the local LM Studio as an option and OpenRouter as an alternative |
+| **[Voice](Voice)** | STT (Whisper) and TTS (Kokoro): how they work and how to tune them |
+| **[Commands](Commands)** | Keys, chat/voice orders and console commands |
+| **[Configuration](Configuration)** | The `.cfg`, the `[AI]` section and the `F8` and `I` panels |
+| **[Troubleshooting](Troubleshooting)** | Symptom → cause → solution |
+| **[How it works](How-it-works)** | Architecture and the path of an order |
+| **[Changelog](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)** | The full changelog, from 1.6.0 to 1.9.0 |
+| **[Credits and license](Credits-and-license)** | Upstream, third parties and licenses |
 
-## Links rápidos
+## Quick links
 
-| O quê | Onde |
+| What | Where |
 |---|---|
 | **Releases (download)** | https://github.com/julianu37/AI-Companions/releases |
-| **Repositório** | https://github.com/julianu37/AI-Companions |
+| **Repository** | https://github.com/julianu37/AI-Companions |
 | **Changelog** | https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md |
 | **Upstream (MIT)** | https://github.com/MaddhattrRocks/Offline-Companions-Reborn |
-| **Vídeo** | https://www.youtube.com/watch?v=40FnVEIbXyo |
+| **Video** | https://www.youtube.com/watch?v=40FnVEIbXyo |
 
-A release publicada mais recente é a **1.8.3** (25/10/2026), com **dois** arquivos para escolher:
+The most recent published release is **1.9.0** (25/10/2026), with **two** files to choose from:
 
-| Arquivo | Tamanho | O que vem |
+| File | Size | What comes in it |
 |---|---|---|
-| `AI_Companions-1.8.3.zip` | ~368 MB | O mod **e** os modelos de voz (STT + TTS) já prontos |
-| `AI_Companions-1.8.3-sem-modelos.zip` | ~28,5 MB | Só o mod e as traduções — você baixa os modelos por fora |
+| `AI_Companions-1.9.0.zip` | ~368 MB | The mod **and** the voice models (STT + TTS) ready to use |
+| `AI_Companions-1.9.0-sem-modelos.zip` | ~28.6 MB | Only the mod and the translations — you download the models separately |
 
-> **Qual escolher?** Se você quer só instalar e usar, pegue o **completo**. Se a sua internet é lenta (ou você já
-> tem os modelos), pegue o **sem-modelos** e siga a seção de modelos em **[Instalação](Instalacao)**.
+> **Which one should you pick?** If you just want to install and play, take the **full** one. If your internet is
+> slow (or you already have the models), take the **no-models** one and follow the models section in
+> **[Installation](Installation)**.
 
-> ### Atualizando para a 1.8.3? As configurações voltam aos padrões
->
-> A **1.8.3** trocou o **arquivo** de configuração: agora ele é **`BepInEx\config\AiCompanions.cfg`**, e o antigo
-> (`Maddhattr.OfflineCompanionsReborn.cfg`) **não é mais lido** — pode ser apagado. O arquivo novo nasce com os
-> **valores padrão**, inclusive a **`ApiKey` em branco**: se você usa o Groq ou o OpenRouter, **cole a chave de
-> novo** (painel `I` → **Configurações do LLM**). A seção da IA também mudou de nome (`[IA]` → **`[AI]`**) e as
-> chaves agora são em **inglês** (`Ligado` virou `Enabled`, `Modelo` virou `Model`…).
->
-> **O que NÃO se perde:** o **save**, o **mundo**, os **companheiros**, as casas e o inventário — o **GUID** do
-> plugin e as chaves `HC_*` não mudaram. Só a configuração volta ao padrão.
+> **1.9.0 in one line:** the mod speaks **five languages** (Portuguese, English, Spanish, French and Italian)
+> following the **game's language**, and the **voice and the speech recognition are automatic** — `[AI] TtsVoice = 0`
+> and `TtsLanguage` / `VoiceLanguage` = `auto`, and an explicit value still wins. **Changing the game's language does
+> not need a restart.**
 
-> **Já tem uma versão anterior?** O mod passou a se chamar **AI Companions** (era *ModAI-BR-Companions*) e a pasta
-> agora é `BepInEx\plugins\AI-Companions\`: **apague a pasta antiga** (`BepInEx\plugins\ModAI-BR-Companions\`)
-> antes de extrair — duas cópias do mesmo plugin fazem o BepInEx carregar o mod duas vezes. **Nada seu se perde**:
-> o save, os companheiros, a casa e o inventário continuam valendo (o GUID do plugin e as chaves `HC_*` foram
-> preservados de propósito).
+> ### Updating from 1.8.2 or older? The settings go back to the defaults
+>
+> The **reset was in 1.8.3**, not now: **1.8.3** changed the configuration **file** (it is now
+> **`BepInEx\config\AiCompanions.cfg`**, and the old `Maddhattr.OfflineCompanionsReborn.cfg` **is no longer read** —
+> you can delete it). The new file is born with the **default values**, including an **empty `ApiKey`**: if you use
+> Groq or OpenRouter, **paste the key again** (`I` panel → **LLM settings**). The AI section also changed its name
+> (`[IA]` → **`[AI]`**) and the keys are now in **English** (`Ligado` became `Enabled`, `Modelo` became `Model`…).
+>
+> **Already on 1.8.3? Nothing is lost:** **1.9.0 does not touch the `.cfg`** — it only moves the old fixed defaults
+> (`VoiceLanguage = pt`, `TtsLanguage = pt-br`, `TtsVoice = 42` and the old Portuguese prompt) to `auto` **once**, and
+> a value you chose yourself is never touched.
+>
+> **What is NOT lost:** the **save**, the **world**, the **companions**, the houses and the inventory — the plugin
+> **GUID** and the `HC_*` keys did not change. Only the configuration goes back to the defaults, and only when you
+> come from 1.8.2 or older.
 
-> A **1.8.3** é a versão **multilíngue**: o **inglês é o idioma nativo** (chaves e descrições do `.cfg`) e o
-> **português é a tradução** — os painéis (`I` e `F8`) seguem o **idioma do jogo**, e um idioma novo entra por
-> `Translations/<Idioma>.json` + `Speech/<Idioma>.json`.
+> **Coming from an older version?** The mod is now called **AI Companions** (it was *ModAI-BR-Companions*) and the
+> folder is now `BepInEx\plugins\AI-Companions\`: **delete the old folder** (`BepInEx\plugins\ModAI-BR-Companions\`)
+> before extracting — two copies of the same plugin make BepInEx load the mod twice. **Nothing of yours is lost**:
+> the save, the companions, the house and the inventory still work (the plugin GUID and the `HC_*` keys were
+> preserved on purpose).
+
+> **1.9.0** is the **five-language** release: **Portuguese, English, Spanish, French and Italian** — the interface,
+> the companion's speech, the personality presets and the LLM contract follow the **game's language**, and the voice
+> and the speech recognition **pick the language by themselves** (`[AI] VoiceLanguage`, `TtsLanguage` and `TtsVoice`
+> = `auto` / `0`). Changing the game's language **does not need a restart**: the panels rebuild on the next open and
+> the HUD, the speech and the TTS/STT follow along.
 >
-> A **1.8.2** deixa a escolha do LLM a um clique: na seção **Configurações do LLM** do painel `I`, o dropdown
-> **"Selecione seu Provedor LLM"** preenche a **URL e o modelo** de **Groq**, **LM Studio** ou **OpenRouter** (a
-> chave continua com você), e o botão **"Crie sua Chave de API Grátis AQUI"** abre a página da chave no navegador.
-> A **velocidade da fala** ficou **só no painel `F8`**.
+> **1.8.3** is where **English became the native language** (keys and descriptions of the `.cfg`) and **Portuguese
+> became a translation** — the panels (`I` and `F8`) follow the **game's language**, and a new language comes in
+> through `Translations/<Language>.json` + `Speech/<Language>.json`.
 >
-> A **1.8.1** traz o **Groq como LLM padrão** (grátis e rápido: a chave sai em `console.groq.com/keys`), com o
-> **LM Studio/Ollama** como opção local e o **OpenRouter** ainda disponível — só que o tier gratuito dele é mais lento.
-> E mantém tudo o que a **1.8.0** trouxe: **vários companheiros**, cada um com a sua aba no painel `I` (nome, tipo,
-> aparência, voz e personalidade próprias, ordem pelo nome e um teto de 10), o **editor de aparência com preview 3D** e
-> a seção **Configurações do LLM** no painel `I`.
+> **1.8.2** puts the LLM choice one click away: in the **LLM settings** section of the `I` panel, the dropdown
+> **"Pick your LLM provider"** fills in the **URL and the model** of **Groq**, **LM Studio** or **OpenRouter**
+> (the key stays with you), and the **"Create your free API key HERE"** button opens the key page in the browser.
+> The **speech speed** now lives **only in the `F8` panel**.
 >
-> A **1.8.0** corrigiu o **peso**: o **Megingjord** (+150) e os demais itens com bônus de carga **somam** no teto do
-> companheiro (o `/300` vira `/450`), valendo com o cinto em **qualquer lugar da mochila** — não precisa equipar —
-> e **uma vez só** (dois cintos não empilham).
+> **1.8.1** brings **Groq as the default LLM** (free and fast: the key comes from `console.groq.com/keys`), with
+> **LM Studio/Ollama** as the local option and **OpenRouter** still available — only its free tier is slower.
+> And it keeps everything **1.8.0** brought: **several companions**, each one with its own tab in the `I` panel
+> (name, type, own appearance, voice and personality, order by name and a cap of 10), the **appearance editor with
+> a 3D preview** and the **LLM settings** section in the `I` panel.
+>
+> **1.8.0** fixed the **weight**: the **Megingjord** (+150) and the other items with a carry bonus **add up** to
+> the companion's ceiling (the `/300` becomes `/450`), counting with the belt **anywhere in the bag** — no need to
+> equip it — and **only once** (two belts do not stack).
+
+<!-- D4: add Español/Français/Italiano -->

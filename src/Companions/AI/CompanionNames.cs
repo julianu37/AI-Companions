@@ -80,9 +80,10 @@ internal static class CompanionNames
 	}
 
 	/// <summary>
-	/// The line the prompt carries: <c>Companheiros seus: Gruncha, Gruncho, Grunchinho.</c> (in Portuguese, like the
-	/// rest of the contract), or "" when the player has none. Dead companions are left out - they cannot take an order
-	/// - and so is the remainder of a list longer than <see cref="MaxListedNames"/>.
+	/// The line the prompt carries: <c>Companheiros seus: Gruncha, Gruncho, Grunchinho.</c>, in the <b>language of the
+	/// game</b> like the rest of the contract (Multilanguage M3; English for a language without a line of its own), or
+	/// "" when the player has none. Dead companions are left out - they cannot take an order - and so is the remainder
+	/// of a list longer than <see cref="MaxListedNames"/>.
 	/// </summary>
 	internal static string PromptLine()
 	{
@@ -109,7 +110,23 @@ internal static class CompanionNames
 			builder.Append(name);
 			shown++;
 		}
-		return shown == 0 ? "" : "Companheiros seus: " + builder + ".\n";
+		if (shown == 0)
+		{
+			return "";
+		}
+		switch (CompanionLocale.Current.KokoroCode)
+		{
+		case "pt-br":
+			return "Companheiros seus: " + builder + ".\n";
+		case "es":
+			return "Tus compañeros: " + builder + ".\n";
+		case "fr":
+			return "Tes compagnons : " + builder + ".\n";
+		case "it":
+			return "I tuoi compagni: " + builder + ".\n";
+		default:
+			return "Your companions: " + builder + ".\n";
+		}
 	}
 
 	/// <summary>

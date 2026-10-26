@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Companions;
@@ -44,6 +45,10 @@ internal static class CompanionProfile
 	/// <summary>The player's own words for this companion's personality (wins over the preset, as in the .cfg).</summary>
 	internal static readonly int PersonaTextHash = CompanionSetup.AiPersonaTextHash;
 
+	/// <summary>Multilanguage M1: the voice ids already reported as belonging to another language (see
+	/// <see cref="WarnForeignVoiceOnce"/>) - the message is a Debug one, once per id.</summary>
+	private static readonly HashSet<int> _warnedForeignVoice = new HashSet<int>();
+
 	/// <summary>
 	/// Id of the "first entry" of a per-companion list: <b>follow the <c>[AI]</c> default</b>. It is not a preset id
 	/// (<see cref="CompanionPersona"/> never uses it) and not the empty string, which is a real choice - "the default
@@ -64,11 +69,37 @@ internal static class CompanionProfile
 		return zdo != null && zdo.GetInt(VoiceHash, 0) > 0;
 	}
 
-	/// <summary>The voice this companion speaks with: its own, or <c>[AI] TtsVoice</c> when it has none.</summary>
+	/// <summary>The voice this companion speaks with: its own, or the default voice of the game language when it has
+	/// none. Multilanguage M1: a stored voice that does NOT belong to the game language is not used either - it would
+	/// speak with the wrong accent - and the ZDO is left alone, so switching the game back to that language restores
+	/// the player's choice.</summary>
 	internal static int GetVoice(Component c)
 	{
 		int voice = StoredVoice(c);
-		return voice > 0 ? voice : GlobalVoice;
+		if (voice <= 0)
+		{
+			return GlobalVoice;
+		}
+		if (!CompanionLocale.HasVoice(voice))
+		{
+			WarnForeignVoiceOnce(c, voice);
+			return GlobalVoice;
+		}
+		return voice;
+	}
+
+	/// <summary>Multilanguage M1: says (Debug, once per voice id) that a companion's own voice belongs to another
+	/// language. It is a decision, not an error: the ZDO keeps the choice for the next time the game speaks it.</summary>
+	private static void WarnForeignVoiceOnce(Component c, int voice)
+	{
+		if (!_warnedForeignVoice.Add(voice))
+		{
+			return;
+		}
+		string name = c != null ? c.name : "?";
+		CompanionsPlugin.Log?.LogDebug($"[TTS] A voz {voice} ({CompanionLocale.VoiceName(voice)}) de \"{name}\" e de outro idioma "
+			+ $"({CompanionLocale.Current.Name}) - ele fala com a voz padrao deste idioma ({CompanionTts.Voice}, "
+			+ $"{CompanionLocale.VoiceName(CompanionTts.Voice)}). O ZDO nao foi alterado, entao a escolha volta se voce jogar naquele idioma.");
 	}
 
 	/// <summary>What is written in the ZDO (0 = nothing written, i.e. "follow the default").</summary>
@@ -276,35 +307,124 @@ internal static class CompanionProfile
 		return labels;
 	}
 
-	/// <summary>The voices of a voice dropdown: the pt-BR ones, with 0 ("follow the default") in front when
-	/// <paramref name="withInherit"/> is on.</summary>
+	/// <summary>The voices of a voice dropdown: the ones of the game language, with 0 ("follow the default") in front
+	/// when <paramref name="withInherit"/> is on. Multilanguage M1: the list follows the language
+	/// (<see cref="CompanionLocale.Current"/>), it is no longer the three pt-BR voices.</summary>
 	internal static int[] VoiceIds(bool withInherit)
 	{
-		int count = CompanionTts.PortugueseVoiceCount;
+		int[] voices = CompanionLocale.Current.Voices;
 		int offset = withInherit ? 1 : 0;
-		int[] ids = new int[count + offset];
-		for (int i = 0; i < count; i++)
-		{
-			ids[offset + i] = CompanionTts.PortugueseVoiceAt(i);
-		}
+		int[] ids = new int[voices.Length + offset];
+		Array.Copy(voices, 0, ids, offset, voices.Length);
 		return ids;
 	}
 
 	/// <summary>The localized names of <see cref="VoiceIds"/>, index for index.</summary>
 	internal static string[] VoiceLabels(bool withInherit)
 	{
-		int count = CompanionTts.PortugueseVoiceCount;
+		int[] voices = CompanionLocale.Current.Voices;
 		int offset = withInherit ? 1 : 0;
-		string[] labels = new string[count + offset];
+		string[] labels = new string[voices.Length + offset];
 		if (withInherit)
 		{
 			labels[0] = ModLocalization.Loc("hc_ai_profile_inherit");
 		}
-		for (int i = 0; i < count; i++)
+		for (int i = 0; i < voices.Length; i++)
 		{
-			labels[offset + i] = ModLocalization.Loc("hc_ai_voice_" + CompanionTts.PortugueseVoiceAt(i));
+			labels[offset + i] = LabelOf(voices[i]);
 		}
 		return labels;
+	}
+
+	/// <summary>
+	/// The name of a voice for the panels: "pf_dora (feminine)". Multilanguage M1: the three hand-written pt-BR labels
+	/// (<c>hc_ai_voice_42/43/44</c>) keep priority where they exist; every other voice of the language is built from
+	/// <c>hc_ai_voice_label</c> + <c>hc_ai_voice_female</c>/<c>hc_ai_voice_male</c> (the name and the gender come from
+	/// the Kokoro table, so a new voice needs no new key). An id of another language keeps
+	/// <c>hc_ai_voice_other</c>.
+	/// </summary>
+	internal static string LabelOf(int voice)
+	{
+		// LocOr answers null when the mod has no such key (in the English defaults nor in the language file), which
+		// is the only safe test: Localize itself answers "[key]" for a missing one
+		string written = ModLocalization.LocOr("hc_ai_voice_" + voice, null);
+		if (!string.IsNullOrEmpty(written))
+		{
+			return written;
+		}
+		string name = CompanionLocale.VoiceName(voice);
+		if (name.Length == 0)
+		{
+			return ModLocalization.LocFmt("hc_ai_voice_other", voice);
+		}
+		string gender = CompanionLocale.VoiceGender(voice);
+		if (gender.Length == 0)
+		{
+			return name;
+		}
+		string genderKey = string.Equals(gender, "f", StringComparison.Ordinal) ? "hc_ai_voice_female" : "hc_ai_voice_male";
+		return ModLocalization.LocFmt("hc_ai_voice_label", name, ModLocalization.Loc(genderKey));
+	}
+
+	/// <summary>
+	/// The language of the game, in the form the panels show it: the Kokoro code with the region in capitals
+	/// ("pt-br" -> "pt-BR", "en-us" -> "en-US"). Multilanguage M2: display only - the code the model gets is still the
+	/// one of <see cref="CompanionLocale.Current"/>, untouched, and the language itself is never resolved here.
+	/// </summary>
+	internal static string LanguageTag()
+	{
+		return UpperRegion(CompanionLocale.Current.KokoroCode);
+	}
+
+	/// <summary>
+	/// The language a Kokoro <b>voice</b> belongs to, for the "another language" note of the panels: the first letter of
+	/// the name is the language family of the export ("p" Portuguese, "a" American English, "b" British English, "e"
+	/// Spanish, "f" French...). Display only, like <see cref="LanguageTag"/>.
+	/// </summary>
+	internal static string LanguageTagOf(int voice)
+	{
+		string name = CompanionLocale.VoiceName(voice);
+		if (name.Length == 0)
+		{
+			return "";
+		}
+		switch (name[0])
+		{
+		case 'p':
+			return "pt-BR";
+		case 'a':
+			return "en-US";
+		case 'b':
+			return "en-GB";
+		case 'e':
+			return "es";
+		case 'f':
+			return "fr";
+		case 'h':
+			return "hi";
+		case 'i':
+			return "it";
+		case 'j':
+			return "ja";
+		case 'z':
+			return "zh";
+		default:
+			return "";
+		}
+	}
+
+	private static string UpperRegion(string code)
+	{
+		if (string.IsNullOrEmpty(code))
+		{
+			return "";
+		}
+		int dash = code.IndexOf('-');
+		if (dash <= 0 || dash == code.Length - 1)
+		{
+			return code;
+		}
+		return code.Substring(0, dash + 1) + code.Substring(dash + 1).ToUpperInvariant();
 	}
 
 	// ------------------------------------------------------------------ plumbing
