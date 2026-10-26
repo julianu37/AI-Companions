@@ -1,4 +1,4 @@
-> 🌍 [English](LLM) · **Português**
+> 🌍 [English](LLM) · **Português** · [Español](LLM-es) · [Français](LLM-fr) · [Italiano](LLM-it)
 
 # LLM (Groq, LM Studio ou OpenRouter)
 

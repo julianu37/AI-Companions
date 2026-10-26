@@ -1,1 +1,1 @@
-**AI Companions** — AI NPC companion for Valheim 1.0 · latest release **1.9.0** · **MIT** · [Repository](https://github.com/julianu37/AI-Companions) · [Releases](https://github.com/julianu37/AI-Companions/releases) · [Video](https://www.youtube.com/watch?v=40FnVEIbXyo)
+**AI Companions** — AI NPC companion for Valheim 1.0 · latest release **1.9.0** · **MIT** · [Repository](https://github.com/julianu37/AI-Companions) · [Releases](https://github.com/julianu37/AI-Companions/releases)

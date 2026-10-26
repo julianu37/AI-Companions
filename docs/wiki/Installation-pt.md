@@ -1,4 +1,4 @@
-> 🌍 [English](Installation) · **Português**
+> 🌍 [English](Installation) · **Português** · [Español](Installation-es) · [Français](Installation-fr) · [Italiano](Installation-it)
 
 # Instalação
 
@@ -68,28 +68,6 @@ gerenciador de mods, aponte o zip para ele — o gerenciador instala direto, sem
 > extrair. O mod mudou de nome (era *ModAI-BR-Companions*), mas o **GUID** e as chaves `HC_*` são os mesmos: o
 > **save**, os companheiros, a casa e o inventário continuam valendo. Duas pastas com o mesmo plugin = o BepInEx
 > carrega o mod duas vezes.
-
-> ### Atualizando da 1.8.2 ou anterior? As configurações voltam aos padrões
->
-> O **reset aconteceu na 1.8.3**, não agora. A **1.8.3** trocou o **arquivo** de configuração: agora é
-> **`BepInEx\config\AiCompanions.cfg`**, e o antigo (`Maddhattr.OfflineCompanionsReborn.cfg`) **não é mais lido** —
-> fica no disco, **ignorado**, e pode ser apagado. O arquivo novo nasce com os **valores padrão**: se você tinha
-> chave de API, porta do LM Studio, voz, tecla do push-to-talk ou qualquer ajuste, **configure de novo** (a
-> **`ApiKey`** vem **em branco** e precisa ser colada). A seção da IA também mudou de nome (**`[IA]` → `[AI]`**) e
-> as **chaves são em inglês** (`Ligado` → `Enabled`, `Modelo` → `Model`, `TtsVoz` → `TtsVoice`…): a tabela completa
-> está em **[Configuração](Configuration-pt)**.
->
-> **Já está na 1.8.3? Nada se perde:** a **1.9.0 não mexe no `.cfg`** — ela só move os padrões fixos antigos
-> (`VoiceLanguage = pt`, `TtsLanguage = pt-br`, `TtsVoice = 42` e o prompt antigo em português) para `auto` **uma
-> vez**.
->
-> **O que NÃO se perde:** o **save**, o **mundo**, os **companheiros**, as casas, as camas e o inventário — o
-> **GUID** do plugin e as chaves `HC_*` não mudaram. Só a configuração volta ao padrão, e só quando você vem da
-> 1.8.2 ou anterior.
->
-> Veio do **Offline Companions original** (o do ProfMags, GUID `com.profmags.companions`)? Aí o migrador continua
-> valendo: o `com.profmags.companions.cfg` é copiado para o `AiCompanions.cfg`, porque o arquivo dele já era em
-> inglês.
 
 No fim, a pasta deve ficar assim:
 

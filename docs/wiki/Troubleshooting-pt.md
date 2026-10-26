@@ -1,4 +1,4 @@
-> 🌍 [English](Troubleshooting) · **Português**
+> 🌍 [English](Troubleshooting) · **Português** · [Español](Troubleshooting-es) · [Français](Troubleshooting-fr) · [Italiano](Troubleshooting-it)
 
 # Problemas comuns
 

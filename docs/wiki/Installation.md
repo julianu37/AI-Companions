@@ -1,4 +1,4 @@
-> 🌍 **English** · [Português](Installation-pt)
+> 🌍 **English** · [Português](Installation-pt) · [Español](Installation-es) · [Français](Installation-fr) · [Italiano](Installation-it)
 
 # Installation
 
@@ -68,27 +68,6 @@ If you use a mod manager, point the zip at it — the manager installs it direct
 > extracting. The mod changed its name (it was *ModAI-BR-Companions*), but the **GUID** and the `HC_*` keys are
 > the same: the **save**, the companions, the house and the inventory still work. Two folders with the same
 > plugin = BepInEx loads the mod twice.
-
-> ### Updating from 1.8.2 or older? The settings go back to the defaults
->
-> The **reset happened in 1.8.3**, not now. **1.8.3** changed the configuration **file**: it is now
-> **`BepInEx\config\AiCompanions.cfg`**, and the old one (`Maddhattr.OfflineCompanionsReborn.cfg`) **is no longer
-> read** — it stays on the disk, **ignored**, and can be deleted. The new file is born with the **default values**:
-> if you had an API key, an LM Studio port, a voice, a push-to-talk key or any tuning, **configure it again** (the
-> **`ApiKey`** comes **empty** and has to be pasted). The AI section also changed its name (**`[IA]` → `[AI]`**) and
-> the **keys are in English** (`Ligado` → `Enabled`, `Modelo` → `Model`, `TtsVoz` → `TtsVoice`…): the full table is
-> in **[Configuration](Configuration)**.
->
-> **Already on 1.8.3? Nothing is lost:** **1.9.0 does not touch the `.cfg`** — it only moves the old fixed defaults
-> (`VoiceLanguage = pt`, `TtsLanguage = pt-br`, `TtsVoice = 42` and the old Portuguese prompt) to `auto` **once**.
->
-> **What is NOT lost:** the **save**, the **world**, the **companions**, the houses, the beds and the inventory —
-> the plugin **GUID** and the `HC_*` keys did not change. Only the configuration goes back to the defaults, and only
-> when you come from 1.8.2 or older.
->
-> Coming from the **original Offline Companions** (the ProfMags one, GUID `com.profmags.companions`)? Then the
-> migrator still works: `com.profmags.companions.cfg` is copied to `AiCompanions.cfg`, because its file was
-> already in English.
 
 At the end, the folder has to look like this:
 

@@ -1,4 +1,4 @@
-> 🌍 [English](Configuration) · **Português**
+> 🌍 [English](Configuration) · **Português** · [Español](Configuration-es) · [Français](Configuration-fr) · [Italiano](Configuration-it)
 
 # Configuração
 
@@ -108,7 +108,7 @@ navegador** na página de chaves do provedor escolhido (**Groq** → `console.gr
 | **Estado** | **Vivo** ou **Morto** — e morrer **não** abre vaga no teto |
 | **Chamar** | Traz o companheiro para perto de você: ele vem andando e, se estiver longe demais, volta pelo mesmo chamado do jogo |
 | **Aparência** | Abre o **editor de aparência** (logo abaixo) |
-| **Personalidade** | A lista com **"Seguir o padrão ([AI])"** na frente e os presets (`viking`, `mago`, `sarcastico`, `guia`) — **escolher já salva**. **Nas suas palavras** é o campo livre, aplicado pelo **Aplicar** ao lado |
+| **Personalidade** | A lista com **"Seguir o padrão ([AI])"** na frente e os presets (**Viking leal**, **Mago sarcástico**, **Sarcástico**, **Guia paciente**) — **escolher já salva**. **Nas suas palavras** é o campo livre, aplicado pelo **Aplicar** ao lado |
 | **Voz** | A lista com **"Seguir o padrão ([AI])"** na frente e as **vozes do idioma do jogo** — escolher já salva e vale na **próxima fala**; **Ouvir** toca uma frase de exemplo na hora. Uma voz guardada de **outro** idioma não é usada (toca a voz padrão do idioma ativo) |
 
 > A voz e a personalidade escolhidas aqui são **deste** companheiro, guardadas no **ZDO** dele: elas viajam na
@@ -152,7 +152,7 @@ inclusive). Os valores padrão são os do código-fonte: se você nunca mexeu, �
 | `CooldownSeconds` | `3` | Tempo mínimo entre duas ordens |
 | `TargetRange` | `40` | Até onde (m) procurar a criatura citada numa ordem de ataque. A que você mira vale sempre |
 | `Personality` | *(vazio)* | A personalidade **nas suas palavras** (até 600 caracteres). Ganha do preset |
-| `PersonalityPreset` | *(vazio)* | `viking`, `mago`, `sarcastico`, `guia` ou `custom`. Vazio/desconhecido = o padrão (leal e prático) |
+| `PersonalityPreset` | *(vazio)* | O valor no `.cfg` é um id: `viking`, `mago`, `sarcastico`, `guia` ou `custom`. Vazio/desconhecido = o padrão (leal e prático). O painel mostra o nome no idioma do jogo |
 | `Memory` | `4` | Quantas trocas recentes ele lembra e envia junto da próxima mensagem. `0` = sem memória (teto 12) |
 | `Conversation` | `true` | Responder conversa livre quando a mensagem não é ordem |
 | `StructuredOutput` | `true` | Pede ao servidor o formato JSON (`response_format`/`json_schema`). É o que permite usar modelos pequenos |

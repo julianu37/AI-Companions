@@ -1,4 +1,4 @@
-> 🌍 **English** · [Português](Requirements-pt)
+> 🌍 **English** · [Português](Requirements-pt) · [Español](Requirements-es) · [Français](Requirements-fr) · [Italiano](Requirements-it)
 
 # Requirements
 
@@ -13,7 +13,6 @@ The mod works in **two independent layers**: the **text orders in the chat** (th
 |---|---|
 | **Valheim** | **1.0.x** (Unity 6 engine — tested on **1.0.20**) |
 | **BepInEx** | **BepInExPack_Valheim 5.4.2351** (BepInEx 5.4.23.5) — the mod is a BepInEx 5 plugin |
-| **Windows x64** | **Required** for the voice: the native binaries of the **STT** (whisper.cpp) **and of the TTS** (sherpa-onnx + onnxruntime) are `win-x64`. Without them, neither the voice orders nor the companion's speech work |
 | **An LLM** | For the text/voice orders to be understood. The default is **Groq**: it only needs **internet** and a **free key** (see below). The **local** alternative (**LM Studio** or **Ollama**) is **optional** and sends nothing out; **OpenRouter** still works, but its free tier is slower. See **[LLM (Groq, LM Studio or OpenRouter)](LLM)** |
 | **Disk space** | See the table below |
 

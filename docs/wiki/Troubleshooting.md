@@ -1,4 +1,4 @@
-> 🌍 **English** · [Português](Troubleshooting-pt)
+> 🌍 **English** · [Português](Troubleshooting-pt) · [Español](Troubleshooting-es) · [Français](Troubleshooting-fr) · [Italiano](Troubleshooting-it)
 
 # Troubleshooting
 

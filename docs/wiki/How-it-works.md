@@ -1,4 +1,4 @@
-> 🌍 **English** · [Português](How-it-works-pt)
+> 🌍 **English** · [Português](How-it-works-pt) · [Español](How-it-works-es) · [Français](How-it-works-fr) · [Italiano](How-it-works-it)
 
 # How it works
 
@@ -9,13 +9,7 @@ acting.
 
 ## Overview
 
-```
-voice (Microphone 16 kHz) ──► Whisper.net (STT, whisper.cpp in-process, CPU) ─┐
-                                                                              ├─► same order box ─► CompanionOrders ─► the companion acts
-game chat ────────────────────────────────────────────────────────────────────┘           │
-                                                                                          ├─► LLM (Groq by default, or local LM Studio/Ollama, or OpenRouter) ─► action + reply
-                                                                                          └─► Kokoro-82M (TTS, sherpa-onnx in-process, CPU) ─► he SPEAKS at his position
-```
+![How an order flows: voice (microphone, 16 kHz) or the game chat go to the same order box; the companion acts, the LLM understands the order and writes the reply, and the local voice (Kokoro-82M) speaks it at his position](images/flow-ai.png)
 
 Three AI pieces, all on **background threads** (the LLM can be remote; the STT and the TTS are always local):
 
@@ -75,9 +69,9 @@ Key: `[AI] StructuredOutput` (default `true`).
 
 ## Personality, memory and conversation
 
-- **Personality:** presets written inside the mod (`viking`, `mago`, `sarcastico`, `guia`), **translated into the five
-  languages**, or the player's **free text** — the free text **wins** over the preset. It goes into the prompt, so
-  the companion answers in the tone you chose.
+- **Personality:** presets written inside the mod (**Loyal Viking**, **Sarcastic Mage**, **Sarcastic**,
+  **Patient Guide**; the names follow the game's language) or the player's **free text** — the free text **wins**
+  over the preset. It goes into the prompt, so the companion answers in the tone you chose.
 - **Memory:** the latest `[AI] Memory` exchanges **per companion** (0–12). The memory goes as **text in the system
   prompt**, never as extra messages — the JSON contract is still the last thing the model reads. It is **forgotten**
   when the companion dies, is dismissed or you change worlds, and **nothing is saved in the world**.

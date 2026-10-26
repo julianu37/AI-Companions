@@ -1,4 +1,4 @@
-> 🌍 [English](How-it-works) · **Português**
+> 🌍 [English](How-it-works) · **Português** · [Español](How-it-works-es) · [Français](How-it-works-fr) · [Italiano](How-it-works-it)
 
 # Como funciona
 
@@ -9,13 +9,7 @@ executar.
 
 ## Visão geral
 
-```
-voz (Microphone 16 kHz) ──► Whisper.net (STT, whisper.cpp in-process, CPU) ─┐
-                                                                            ├─► mesma caixa de ordens ─► CompanionOrders ─► o companheiro executa
-chat do jogo ───────────────────────────────────────────────────────────────┘            │
-                                                                                          ├─► LLM (Groq por padrão, ou LM Studio/Ollama local, ou OpenRouter) ─► ação + resposta
-                                                                                          └─► Kokoro-82M (TTS, sherpa-onnx in-process, CPU) ─► ele FALA na posição dele
-```
+![Como uma ordem flui: a voz (microfone, 16 kHz) ou o chat do jogo vão para a mesma caixa de ordens; o companheiro age, o LLM entende a ordem e escreve a resposta, e a voz local (Kokoro-82M) fala na posição dele](images/flow-ai.png)
 
 Três peças de IA, todas em **threads de fundo** (o LLM pode ser remoto; o STT e o TTS são sempre locais):
 
@@ -74,9 +68,9 @@ Chave: `[AI] StructuredOutput` (padrão `true`).
 
 ## Personalidade, memória e conversa
 
-- **Personalidade:** presets escritos dentro do mod (`viking`, `mago`, `sarcastico`, `guia`), **traduzidos nos cinco
-  idiomas**, ou **texto livre** do jogador — o texto livre **ganha** do preset. Ela entra no prompt, então o
-  companheiro responde no tom escolhido.
+- **Personalidade:** presets escritos dentro do mod (**Viking leal**, **Mago sarcástico**, **Sarcástico**,
+  **Guia paciente**; os nomes seguem o idioma do jogo) ou **texto livre** do jogador — o texto livre **ganha** do
+  preset. Ela entra no prompt, então o companheiro responde no tom escolhido.
 - **Memória:** as últimas `[AI] Memory` trocas **por companheiro** (0–12). A memória vai como **texto no
   system prompt**, nunca como mensagens extras — o contrato JSON continua sendo a última coisa que o modelo lê.
   Ela é **esquecida** quando o companheiro morre, é dispensado ou você troca de mundo, e **nada é salvo no

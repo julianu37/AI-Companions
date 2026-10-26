@@ -1,4 +1,4 @@
-> 🌍 [English](Voice) · **Português**
+> 🌍 [English](Voice) · **Português** · [Español](Voice-es) · [Français](Voice-fr) · [Italiano](Voice-it)
 
 # Voz
 

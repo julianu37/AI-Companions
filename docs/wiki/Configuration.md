@@ -1,4 +1,4 @@
-> 🌍 **English** · [Português](Configuration-pt)
+> 🌍 **English** · [Português](Configuration-pt) · [Español](Configuration-es) · [Français](Configuration-fr) · [Italiano](Configuration-it)
 
 # Configuration
 
@@ -117,7 +117,7 @@ no key) and it **is not a picker**: clicking it does not change any state afterw
 | **Status** | **Alive** or **Dead** — and dying does **not** free a slot in the cap |
 | **Call** | Brings the companion close to you: he walks over and, if he is too far away, comes back through the game's own recall |
 | **Appearance** | Opens the **appearance editor** (right below) |
-| **Personality** | The list with **"Follow the [AI] default"** first and the presets (`viking`, `mago`, `sarcastico`, `guia`) — **picking already saves**. **In your own words** is the free field, applied by the **Apply** next to it |
+| **Personality** | The list with **"Follow the [AI] default"** first and the presets (**Loyal Viking**, **Sarcastic Mage**, **Sarcastic**, **Patient Guide**) — **picking already saves**. **In your own words** is the free field, applied by the **Apply** next to it |
 | **Voice** | The list with **"Follow the [AI] default"** first and the **voices of the game's language** — picking already saves and applies to the **next line**; **Listen** plays a sample sentence right away. A voice stored for **another** language is not used (the default of the active language plays instead) |
 
 > The voice and the personality chosen here belong to **this** companion, kept in **his ZDO**: they travel in the
@@ -166,7 +166,7 @@ what is in force.
 | `CooldownSeconds` | `3` | Minimum time between two orders |
 | `TargetRange` | `40` | How far (m) to look for the creature named in an attack order. The one you aim at always counts |
 | `Personality` | *(empty)* | The personality **in your own words** (up to 600 characters). It wins over the preset |
-| `PersonalityPreset` | *(empty)* | `viking`, `mago`, `sarcastico`, `guia` or `custom`. Empty/unknown = the default (loyal and practical) |
+| `PersonalityPreset` | *(empty)* | The `.cfg` value is an id: `viking`, `mago`, `sarcastico`, `guia` or `custom`. Empty/unknown = the default (loyal and practical). The panel shows the name in the game's language |
 | `Memory` | `4` | How many recent exchanges he remembers and sends along with the next message. `0` = no memory (ceiling 12) |
 | `Conversation` | `true` | Answer free conversation when the message is not an order |
 | `StructuredOutput` | `true` | Asks the server for the JSON format (`response_format`/`json_schema`). It is what allows small models |

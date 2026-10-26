@@ -11,6 +11,6 @@
 - [How it works](How-it-works)
 - [Credits and license](Credits-and-license)
 
-**Other languages:** [Português](Home-pt)
+**Other languages:** [English](Home) · [Português](Home-pt) · [Español](Home-es) · [Français](Home-fr) · [Italiano](Home-it)
 
 <!-- D4: add Español/Français/Italiano -->

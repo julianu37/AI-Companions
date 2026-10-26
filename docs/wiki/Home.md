@@ -1,13 +1,8 @@
-> 🌍 **English** · [Português](Home-pt)
+> 🌍 **English** · [Português](Home-pt) · [Español](Home-es) · [Français](Home-fr) · [Italiano](Home-it)
 
 # AI Companions
 
 An **AI NPC companion** for **Valheim 1.0**: you **speak or type** and he understands and acts.
-
-[![Watch: "This mod changes EVERYTHING in Valheim! AI Companions"](images/video-thumb.jpg)](https://www.youtube.com/watch?v=40FnVEIbXyo)
-
-> A video from the **SuaTV** channel: **"This mod changes EVERYTHING in Valheim! AI Companions"**.
-> **[Watch on YouTube](https://www.youtube.com/watch?v=40FnVEIbXyo)** — clicking the image opens it too.
 
 > **Companion types: the dverger are combat types**
 >
@@ -63,7 +58,7 @@ and keeps working the same — the AI is only a **new entry point** for the same
 | **Chat orders** | `collect 10 wood` · `follow` · `stop` · `attack the greydwarf` · `equip the bronze axe` |
 | **Voice orders** | Hold **`V`**, speak and release — the speech is transcribed inside the game |
 | **He speaks** | Synthesized voice **in the game's language**, coming **from his position** in the world |
-| **Personality** | Presets (`viking`, `mago`, `sarcastico`, `guia`) or your own words |
+| **Personality** | Presets (**Loyal Viking**, **Sarcastic Mage**, **Sarcastic**, **Patient Guide** — the names follow the game's language) or your own words |
 | **Memory and conversation** | `good morning`, `how are you?` — he answers as a character and remembers the conversation |
 | **Several companions** | Up to **10**, each one with its own tab in the `I` panel; the summoner creates a new one **for free** (no Trader) |
 | **Order by name** | `Gruncha, collect 10 stones` applies **only** to him; without the name, the order applies to all |
@@ -76,7 +71,6 @@ and keeps working the same — the AI is only a **new entry point** for the same
 |---|---|
 | **Valheim 1.0.x** + **BepInEx 5.4.2351** | The base of everything — step by step in **[Installation](Installation)** |
 | **An LLM** | **Groq** (default): only the **free key** (https://console.groq.com/keys) and internet — the text of the orders **leaves your machine**. The local option, **LM Studio** or Ollama, is **optional** and sends nothing; **OpenRouter** still works as an alternative |
-| **Windows x64** | Required for the voice (the native binaries are `win-x64`) |
 | **Microphone** | Only for the voice orders |
 
 ## Getting started
@@ -111,7 +105,6 @@ and keeps working the same — the AI is only a **new entry point** for the same
 | **Repository** | https://github.com/julianu37/AI-Companions |
 | **Changelog** | https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md |
 | **Upstream (MIT)** | https://github.com/MaddhattrRocks/Offline-Companions-Reborn |
-| **Video** | https://www.youtube.com/watch?v=40FnVEIbXyo |
 
 The most recent published release is **1.9.0** (25/10/2026), with **two** files to choose from:
 
@@ -128,22 +121,6 @@ The most recent published release is **1.9.0** (25/10/2026), with **two** files 
 > following the **game's language**, and the **voice and the speech recognition are automatic** — `[AI] TtsVoice = 0`
 > and `TtsLanguage` / `VoiceLanguage` = `auto`, and an explicit value still wins. **Changing the game's language does
 > not need a restart.**
-
-> ### Updating from 1.8.2 or older? The settings go back to the defaults
->
-> The **reset was in 1.8.3**, not now: **1.8.3** changed the configuration **file** (it is now
-> **`BepInEx\config\AiCompanions.cfg`**, and the old `Maddhattr.OfflineCompanionsReborn.cfg` **is no longer read** —
-> you can delete it). The new file is born with the **default values**, including an **empty `ApiKey`**: if you use
-> Groq or OpenRouter, **paste the key again** (`I` panel → **LLM settings**). The AI section also changed its name
-> (`[IA]` → **`[AI]`**) and the keys are now in **English** (`Ligado` became `Enabled`, `Modelo` became `Model`…).
->
-> **Already on 1.8.3? Nothing is lost:** **1.9.0 does not touch the `.cfg`** — it only moves the old fixed defaults
-> (`VoiceLanguage = pt`, `TtsLanguage = pt-br`, `TtsVoice = 42` and the old Portuguese prompt) to `auto` **once**, and
-> a value you chose yourself is never touched.
->
-> **What is NOT lost:** the **save**, the **world**, the **companions**, the houses and the inventory — the plugin
-> **GUID** and the `HC_*` keys did not change. Only the configuration goes back to the defaults, and only when you
-> come from 1.8.2 or older.
 
 > **Coming from an older version?** The mod is now called **AI Companions** (it was *ModAI-BR-Companions*) and the
 > folder is now `BepInEx\plugins\AI-Companions\`: **delete the old folder** (`BepInEx\plugins\ModAI-BR-Companions\`)

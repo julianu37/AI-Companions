@@ -1,4 +1,4 @@
-> 🌍 [English](Credits-and-license) · **Português**
+> 🌍 [English](Credits-and-license) · **Português** · [Español](Credits-and-license-es) · [Français](Credits-and-license-fr) · [Italiano](Credits-and-license-it)
 
 # Créditos e licença
 

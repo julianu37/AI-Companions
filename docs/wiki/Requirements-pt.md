@@ -1,4 +1,4 @@
-> 🌍 [English](Requirements) · **Português**
+> 🌍 [English](Requirements) · **Português** · [Español](Requirements-es) · [Français](Requirements-fr) · [Italiano](Requirements-it)
 
 # Requisitos
 
@@ -13,7 +13,6 @@ as **ordens por voz** (precisam de microfone). Você pode usar **só o chat**, d
 |---|---|
 | **Valheim** | **1.0.x** (engine Unity 6 — testado na **1.0.20**) |
 | **BepInEx** | **BepInExPack_Valheim 5.4.2351** (BepInEx 5.4.23.5) — o mod é um plugin BepInEx 5 |
-| **Windows x64** | **Obrigatório** para a voz: os binários nativos do **STT** (whisper.cpp) **e do TTS** (sherpa-onnx + onnxruntime) são `win-x64`. Sem eles, nem as ordens por voz nem a fala do companheiro funcionam |
 | **Um LLM** | Para as ordens por texto/voz serem entendidas. O padrão é o **Groq**: só precisa de **internet** e de uma **chave gratuita** (veja abaixo). A alternativa **local** (**LM Studio** ou **Ollama**) é **opcional** e não manda nada para fora; o **OpenRouter** continua funcionando, mas o tier gratuito é mais lento. Veja **[LLM (Groq, LM Studio ou OpenRouter)](LLM-pt)** |
 | **Espaço em disco** | Veja a tabela abaixo |
 

@@ -1,4 +1,4 @@
-> 🌍 [English](Commands) · **Português**
+> 🌍 [English](Commands) · **Português** · [Español](Commands-es) · [Français](Commands-fr) · [Italiano](Commands-it)
 
 # Comandos
 
