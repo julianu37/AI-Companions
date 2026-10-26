@@ -2,6 +2,49 @@
 
 All the changes to this project, derived from ProfMags' Offline Companions. The versions before 1.4.0 are the original mod (see the original mod's history, from ProfMags, for those versions) plus the first batch of compatibility fixes for the Valheim 1.0 API that made the mod load and run. **The entries below 1.5.4 are the upstream history and stay as they are (in English) — our sections (from 1.6.0 on) are ours.**
 
+## 1.9.0 — 25/10/2026
+
+**Five languages, and the mod follows the game.** Portuguese (Brazil), English, Spanish, French and Italian: the
+interface, the companion's speech, the personality presets and the LLM contract all follow the **game's language**,
+and the voice (TTS) and the speech recognition (STT) pick the language and the voice by themselves.
+
+### What the player sees
+
+- **`[AI] VoiceLanguage`, `[AI] TtsLanguage` and `[AI] TtsVoice` are automatic by default** (`auto` / `auto` / `0`):
+  the mod resolves them from the game's language (pt-BR → `pf_dora`, English → `af_heart`, Spanish → `ef_dora`,
+  French → `ff_siwis`, Italian → `if_sara`). An **explicit value still wins**, and the F8 and the AI panel show the
+  **effective** value (`Automatic (en-US · af_heart)`).
+- **`[AI] VoiceInitialPrompt` is automatic too**: each language has its own order vocabulary (better recognition).
+- **A companion whose stored voice belongs to another language** speaks with the default voice of the active
+  language (the choice is kept in the ZDO, so switching the game back restores it).
+- **Content in the five languages**: interface (737 keys), companion speech (186 lines), personality presets and the
+  LLM contract (rules and examples translated; the action tokens are untouched).
+- **The F8 lists the voices by name** (`pf_dora (feminine)`) instead of a number; the AI panel labels show the voice
+  in use and warn when a companion's voice is from another language.
+- **Changing the game's language no longer needs a restart**: the panels rebuild on the next open, and the HUD, the
+  speech and the TTS/STT follow along.
+- **Italian is new** (`if_sara` / `im_nicola`), with UI, speech, presets and contract of its own.
+
+### Under the hood
+
+- `CompanionLocale` (new) is the single table: game language → Whisper code, Kokoro code, voice list and default.
+- The old defaults (`pt`, `pt-br`, `42`, the old PT prompt) are migrated **once** to `auto`. In Portuguese the voice
+  is the same (`pf_dora`), so nothing changes for a pt-BR player.
+- `RadialIntent` (new): a keyword safety net for the actions small models confuse (stances, wander/stop wandering,
+  accept/ignore commands, smelt/cook/hunt). Measured with `qwen2.5-3b-instruct`: **30/30 actions in all five
+  languages** (150 cases).
+- `GatherIntent` (new): the same idea for gather orders that the model answers as `pickup`/`none` — the resource and
+  the amount are read from the player's words.
+- `SpeechConfig` retries the language file after 30 s instead of staying in English until a restart.
+- **Docs and wiki are written in English from now on**; the wiki keeps Portuguese mirrors (`-pt`).
+
+### Known limitations
+
+- **Audio language coverage**: Kokoro has no voice for German, Russian, Polish, Turkish, Korean, Swedish and
+  Ukrainian — those languages use the English voice (the interface and the speech can still be translated).
+- The **voice does not go through the game's mixer** (it ignores the Valheim volume sliders; `[AI] TtsVolume` rules).
+- The **dverger types** (Mage, Fire Mage, Frost Mage and Support) are combat-only by design.
+
 ## 1.8.3 — 25/10/2026
 
 **English as the native language — and the mod now speaks the game's language.** This is the version that **breaks the `.cfg`**: the

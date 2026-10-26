@@ -24,7 +24,7 @@ public class CompanionsPlugin : BaseUnityPlugin
 
 	public const string PluginName = "AI Companions";
 
-	public const string PluginVersion = "1.8.3";
+	public const string PluginVersion = "1.9.0";
 
 	private static Harmony _harmony;
 
