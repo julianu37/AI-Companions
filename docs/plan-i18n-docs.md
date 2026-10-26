@@ -1,8 +1,9 @@
 # Documentation i18n plan (English source, wiki in 5 languages)
 
-Status: **D0, D1 and D3 done** (25/10/2026). **D2 was cancelled on 26/10/2026**: by the player's call the internal
-docs stay in Brazilian Portuguese (they are the team's working notes). Remaining: **D4** (wiki in ES/FR/IT).
-Decisions taken by the player on 25/10/2026, revised on 26/10/2026.
+Status: **D0, D1, D3 and D4 done** (26/10/2026): public docs in English, the wiki published with English as the
+default and mirrors in PT/ES/FR/IT (10 pages × 4), using the **English screenshots** for now. **D2 was cancelled on
+26/10/2026**: by the player's call the internal docs stay in Brazilian Portuguese (they are the team's working
+notes). Decisions taken by the player on 25/10/2026, revised on 26/10/2026.
 
 ## Decisions
 
@@ -80,8 +81,8 @@ Credits-and-license
 | **D0** | This plan + the new rule in `AGENTS.md` | 2 | committed |
 | **D1** | Public docs to English | `README.md`, `NOTICE.md`, `THIRD_PARTY_NOTICES.md`, `package/README.md`, `package/GUIDE.md`, `package/CHANGELOG.md` (our sections) | no PT left; `LEIA-ME.txt` stays PT as the Brazilian quick read inside the zip |
 | ~~**D2**~~ | ~~Internal docs to English~~ — **cancelled on 26/10/2026**: the internal docs stay in PT-BR (they are the team's working notes; translating them only adds friction) | — | — |
-| **D3** | Wiki: English source | the 12 pages renamed to the English titles above, content translated, new screenshots, switcher + sidebar | every page in English, links and anchors checked |
-| **D4** | Wiki: PT/ES/FR/IT | 4 mirrors per page (48 files) | switcher works both ways; anchors valid in each language |
+| **D3** | Wiki: English source | the 10 pages renamed to the English titles above, content translated, new screenshots, switcher + sidebar | every page in English, links and anchors checked |
+| **D4** | Wiki: PT/ES/FR/IT — **done on 26/10/2026** | 1 mirror per language per page: 10 `-pt` (D3) + 30 new (`-es`, `-fr`, `-it`) | switcher with the 5 options on every page; anchors valid in each language; **the images are the English ones for now** |
 | **D5** | Verification | a script that scans for PT leftovers in the English files, checks every wiki link/anchor and that every page has the 5 mirrors | report with 0 problems |
 
 Estimated effort: D1 ~½ day, D2 ~2–3 days (10k lines), D3 ~1 day, D4 ~2 days.
