@@ -859,6 +859,11 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
 
 ## Nossas docs
 
+- **Idioma (a partir de 25/10/2026): a fonte é o inglês.** Repo público, docs internos e wiki são escritos em
+  **EN**; **português, espanhol, francês e italiano são tradução** (a wiki publica `-pt`/`-es`/`-fr`/`-it`). A
+  exceção é o `package/LEIA-ME.txt`, que continua em **PT** (leitura rápida do jogador BR dentro do zip). Plano e
+  fases: `docs/plan-i18n-docs.md`.
+
 - `docs/wiki/` — **a fonte da GitHub Wiki** (o guia de instalação/uso para quem baixa o mod): `Home.md`,
   `Requisitos.md`, `Instalacao.md`, `LLM-no-LM-Studio.md`, `Voz.md`, `Comandos.md`, `Configuracao.md`,
   `Problemas-comuns.md`, `Como-funciona.md`, `Creditos-e-licenca.md`, `_Sidebar.md`, `_Footer.md` e `images/`.
@@ -902,6 +907,9 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
    `tipo(escopo): resumo`.
 8. Atualize a documentação correspondente (`README.md`, `package/CHANGELOG.md`, `docs/roadmap.md`,
    `AGENTS.md`) quando algo mudar.
+9. **Documentação em inglês (fonte).** Texto novo de doc nasce em **EN** — README, `package/*`, `docs/*` e a wiki.
+   PT/ES/FR/IT são **traduções** (wiki `-pt`/`-es`/`-fr`/`-it`); o `package/LEIA-ME.txt` continua em PT. O **mod**
+   (UI/falas) não muda por causa disso: continua seguindo o idioma do jogo. Fases: `docs/plan-i18n-docs.md`.
 
 ## MCP servers disponíveis
 
