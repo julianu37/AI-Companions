@@ -277,7 +277,7 @@ default `300`), and this line confirms it in `LogOutput.log`:
 
 | Where to look | What to look for |
 |---|---|
-| `LogOutput.log` | `AI Companions v1.9.0 loading...` and `AI Companions loaded successfully! (N methods patched)` — the `v1.9.0` is the version you installed |
+| `LogOutput.log` | `AI Companions v1.9.1 loading...` and `AI Companions loaded successfully! (N methods patched)` — the `v1.9.1` is the version you installed |
 
 **Probable causes:**
 
@@ -312,7 +312,7 @@ including the empty `ApiKey`. The AI section also became **`[AI]`**, with the ke
 > **Save, world, companions, houses and inventory are not affected** — the plugin **GUID** and the `HC_*` keys did
 > not change. Only the mod's configuration goes back to the default.
 >
-> **1.9.0 does not reset anything.** If your file is already `AiCompanions.cfg` (1.8.3 or newer), the update only
+> **1.9.x does not reset anything.** If your file is already `AiCompanions.cfg` (1.8.3 or newer), the update only
 > moves the old fixed voice/language defaults (`pt`, `pt-br`, `42` and the Portuguese prompt) to `auto` — your key and
 > your other choices stay.
 

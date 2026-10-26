@@ -25,7 +25,7 @@ pelos painéis. Ele tem cerca de **1540 linhas** e **~265 opções** no total, d
 > **Vindo da 1.8.2 ou anterior?** As configurações **voltam aos padrões** (foi a mudança da 1.8.3: o arquivo novo é
 > criado já com os valores padrão) — inclusive a **`ApiKey`**, que precisa ser colada de novo. **Save, mundo,
 > companheiros, casas e inventário não são afetados** (as chaves `HC_*` e o GUID não mudaram). Os valores do arquivo
-> antigo **não** são migrados de propósito: as chaves mudaram de nome. A **1.9.0 mantém o arquivo** e só move os
+> antigo **não** são migrados de propósito: as chaves mudaram de nome. A **1.9.x mantém o arquivo** e só move os
 > padrões fixos antigos de voz/idioma para `auto`.
 
 A seção **`[AI]`** tem **39 chaves**. É assim que ela aparece no arquivo (neste exemplo, com a **alternativa

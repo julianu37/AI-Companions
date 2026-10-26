@@ -34,7 +34,7 @@ restart** — the model is loaded once and the next line already comes out in th
 | File | Size | Note |
 |---|---|---|
 | `whisper\ggml-small-q5_1.bin` | 181 MB | **Default.** Much more accurate than `base`, in every language |
-| `whisper\ggml-base-q5_1.bin` | 57 MB | Faster and less accurate — change it in `[AI] SttModel` |
+| `whisper\ggml-base-q5_1.bin` | 57 MB | Faster and less accurate — **not shipped**: download it and change `[AI] SttModel` |
 
 Where to download: https://huggingface.co/ggerganov/whisper.cpp/tree/main
 

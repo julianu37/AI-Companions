@@ -285,7 +285,7 @@ ne faisait qu'occuper de la place et peser.
 
 | Où regarder | Quoi chercher |
 |---|---|
-| `LogOutput.log` | `AI Companions v1.9.0 loading...` et `AI Companions loaded successfully! (N methods patched)` — le `v1.9.0` est la version que tu as installée |
+| `LogOutput.log` | `AI Companions v1.9.1 loading...` et `AI Companions loaded successfully! (N methods patched)` — le `v1.9.1` est la version que tu as installée |
 
 **Causes probables :**
 
@@ -320,7 +320,7 @@ de l'IA est aussi devenue **`[AI]`**, avec les clés en **anglais**.
 > **La sauvegarde, le monde, les compagnons, les maisons et l'inventaire ne sont pas touchés** — le **GUID** du plugin
 > et les clés `HC_*` n'ont pas changé. Seule la configuration du mod revient au défaut.
 >
-> **La 1.9.0 ne remet rien à zéro.** Si ton fichier est déjà `AiCompanions.cfg` (1.8.3 ou plus récent), la mise à jour
+> **La 1.9.x ne remet rien à zéro.** Si ton fichier est déjà `AiCompanions.cfg` (1.8.3 ou plus récent), la mise à jour
 > déplace seulement les anciennes valeurs fixes de voix/langue (`pt`, `pt-br`, `42` et le prompt en portugais) vers
 > `auto` — ta clé et tes autres choix restent.
 

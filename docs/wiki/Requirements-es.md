@@ -35,11 +35,10 @@ El mod funciona en **dos capas independientes**: las **órdenes por texto en el 
 
 | Qué | Tamaño |
 |---|---|
-| Paquete **completo** (mod + modelos) | ~368 MB (zip) |
+| Paquete **completo** (mod + modelos) | ~314 MB (zip) |
 | Paquete **sin modelos** (mod + traducciones) | ~28,4 MB (zip) |
-| Mod instalado (carpeta del plugin) | ~428 MB |
+| Mod instalado (carpeta del plugin) | ~371 MB |
 | Modelo del Whisper `ggml-small-q5_1.bin` (por defecto del STT) | 181 MB |
-| Modelo del Whisper `ggml-base-q5_1.bin` (más rápido, menos preciso) | 57 MB |
 | Modelo del Kokoro (TTS) `model.int8.onnx` | 109 MB |
 | Voces del Kokoro `voices.bin` | 27 MB (las voces de los cinco idiomas: PT-BR, EN, ES, FR e IT) |
 | Modelo del LLM **local** (`qwen2.5-3b-instruct` Q4_K_M, LM Studio) — solo en la opción local | ~1,93 GB |

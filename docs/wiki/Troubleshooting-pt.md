@@ -278,7 +278,7 @@ cujo único leitor no vanilla é o `Player`. Como o companheiro não é um jogad
 
 | Onde olhar | O que procurar |
 |---|---|
-| `LogOutput.log` | `AI Companions v1.9.0 loading...` e `AI Companions loaded successfully! (N methods patched)` — o `v1.9.0` é a versão que você instalou |
+| `LogOutput.log` | `AI Companions v1.9.1 loading...` e `AI Companions loaded successfully! (N methods patched)` — o `v1.9.1` é a versão que você instalou |
 
 **Causas prováveis:**
 
@@ -312,7 +312,7 @@ da 1.8.2 ou anterior não tem efeito). O mod lê
 > **Save, mundo, companheiros, casas e inventário não são afetados** — o **GUID** do plugin e as chaves `HC_*`
 > não mudaram. Só a configuração do mod volta ao padrão.
 >
-> **A 1.9.0 não zera nada.** Se o seu arquivo já é o `AiCompanions.cfg` (1.8.3 ou mais novo), a atualização só move
+> **A 1.9.x não zera nada.** Se o seu arquivo já é o `AiCompanions.cfg` (1.8.3 ou mais novo), a atualização só move
 > os padrões fixos antigos de voz/idioma (`pt`, `pt-br`, `42` e o prompt em português) para `auto` — a sua chave e as
 > suas outras escolhas ficam.
 

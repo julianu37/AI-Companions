@@ -25,7 +25,7 @@ through the panels. It has about **1540 lines** and **~265 options** in total, s
 > **Coming from 1.8.2 or older?** The settings **go back to the defaults** (that was the 1.8.3 change: the new
 > file is created already with the default values) — including the **`ApiKey`**, which has to be pasted again.
 > **Save, world, companions, houses and inventory are not affected** (the `HC_*` keys and the GUID did not change).
-> The values of the old file are **not** migrated on purpose: the keys changed their names. **1.9.0 keeps the file**
+> The values of the old file are **not** migrated on purpose: the keys changed their names. **1.9.x keeps the file**
 > and only moves the old fixed voice/language defaults to `auto`.
 
 The **`[AI]`** section has **39 keys**. This is how it shows up in the file (in this example, with the **local

@@ -35,11 +35,10 @@ La mod funziona in **due strati indipendenti**: gli **ordini di testo nella chat
 
 | Cosa | Dimensione |
 |---|---|
-| Pacchetto **completo** (mod + modelli) | ~368 MB (zip) |
+| Pacchetto **completo** (mod + modelli) | ~314 MB (zip) |
 | Pacchetto **senza modelli** (mod + traduzioni) | ~28,4 MB (zip) |
-| Mod installata (cartella del plugin) | ~428 MB |
+| Mod installata (cartella del plugin) | ~371 MB |
 | Modello Whisper `ggml-small-q5_1.bin` (predefinito del STT) | 181 MB |
-| Modello Whisper `ggml-base-q5_1.bin` (più veloce, meno preciso) | 57 MB |
 | Modello Kokoro (TTS) `model.int8.onnx` | 109 MB |
 | Voci Kokoro `voices.bin` | 27 MB (le voci delle cinque lingue: PT-BR, EN, ES, FR e IT) |
 | Modello del LLM **locale** (`qwen2.5-3b-instruct` Q4_K_M, LM Studio) — solo nell'opzione locale | ~1,93 GB |

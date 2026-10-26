@@ -34,7 +34,7 @@ carregado uma vez e a frase seguinte já sai no idioma novo.
 | Arquivo | Tamanho | Observação |
 |---|---|---|
 | `whisper\ggml-small-q5_1.bin` | 181 MB | **Padrão.** Bem mais preciso que o `base`, em qualquer idioma |
-| `whisper\ggml-base-q5_1.bin` | 57 MB | Mais rápido e menos preciso — troque em `[AI] SttModel` |
+| `whisper\ggml-base-q5_1.bin` | 57 MB | Mais rápido e menos preciso — **não vem no pacote**: baixe e mude o `[AI] SttModel` |
 
 Onde baixar: https://huggingface.co/ggerganov/whisper.cpp/tree/main
 

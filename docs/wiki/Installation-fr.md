@@ -40,8 +40,8 @@ Va sur **https://github.com/julianu37/AI-Companions/releases** et télécharge *
 
 | Fichier | Taille | Quand le choisir |
 |---|---|---|
-| `AI_Companions-1.9.0.zip` | ~368 Mo | **Recommandé.** Il vient déjà avec les modèles de voix (STT + TTS). Installe et joue |
-| `AI_Companions-1.9.0-sem-modelos.zip` | ~28,5 Mo | Internet lent, ou tu as déjà les modèles et tu veux les télécharger à part |
+| `AI_Companions-1.9.1.zip` | ~314 Mo | **Recommandé.** Il vient déjà avec les modèles de voix (STT + TTS). Installe et joue |
+| `AI_Companions-1.9.1-sem-modelos.zip` | ~28,5 Mo | Internet lent, ou tu as déjà les modèles et tu veux les télécharger à part |
 
 > La différence, ce sont **seulement** les modèles de voix. Le mod et les traductions sont les mêmes dans les deux.
 >
@@ -124,7 +124,8 @@ Si tu as téléchargé le **sans modèles**, place les fichiers comme ça :
 Où les télécharger :
 
 - **Whisper (ggml) :** https://huggingface.co/ggerganov/whisper.cpp/tree/main — prends `ggml-small-q5_1.bin`.
-  `ggml-base-q5_1.bin` (57 Mo) est plus rapide et moins précis ; voir **[Voix](Voice-fr)**.
+  `ggml-base-q5_1.bin` (57 Mo) est plus rapide et moins précis et **n'est plus fourni dans le paquet** : télécharge-le
+  dans le dossier `whisper\` et pointe `[AI] SttModel` dessus si tu veux le plus rapide ; voir **[Voix](Voice-fr)**.
 - **Kokoro (sherpa-onnx) :** les releases de https://github.com/k2-fsa/sherpa-onnx — le paquet du modèle
   `kokoro-int8-multi-lang` (qui apporte `model.int8.onnx`, `voices.bin`, `tokens.txt` et `espeak-ng-data`).
 
@@ -181,13 +182,13 @@ Le guide complet des trois chemins (Groq → LM Studio local → OpenRouter) est
 3. Cherche ces deux lignes :
 
 ```
-AI Companions v1.9.0 loading...
+AI Companions v1.9.1 loading...
 AI Companions loaded successfully! (N methods patched)
 ```
 
 Si elles apparaissent, le mod s'est chargé.
 
-> Le `v1.9.0` est la **version que tu as installée** (le numéro du zip que tu as téléchargé) et le `N` est combien de
+> Le `v1.9.1` est la **version que tu as installée** (le numéro du zip que tu as téléchargé) et le `N` est combien de
 > méthodes du jeu le mod a ajustées — ce nombre peut changer d'une version à l'autre.
 
 > Au **premier lancement après une mise à jour depuis la 1.8.2 ou avant**, le log montre aussi que le fichier de
@@ -219,7 +220,7 @@ Pour voir toutes les touches et tous les ordres, va dans **[Ordres](Commands-fr)
 
 - [ ] Valheim 1.0.x installé
 - [ ] BepInEx 5.4.2351 extrait à la racine du jeu
-- [ ] Release **1.9.0** téléchargée (le paquet complet ou celui sans modèles)
+- [ ] Release **1.9.1** téléchargée (le paquet complet ou celui sans modèles)
 - [ ] Dossier `BepInEx\plugins\AI-Companions\` créé avec `Companions.dll` et les dépendances
 - [ ] Modèles de voix dans `whisper\` et `tts\kokoro\`
 - [ ] Configuration **vérifiée** dans `BepInEx\config\AiCompanions.cfg` (elle ne revient aux valeurs par défaut que si

@@ -19,7 +19,7 @@ funziona ancora, ma il cui tier gratuito è **lento** e per questo non è più i
 > impostazioni **tornano ai valori predefiniti** — compresa la `ApiKey`, che va incollata di nuovo. Anche la sezione ha
 > cambiato nome: era `[IA]`, ora è **`[AI]`**, con le chiavi in **inglese** (`Model`, non `Modelo`). Il `.cfg` vecchio
 > (`Maddhattr.OfflineCompanionsReborn.cfg`) resta sul disco e **non** viene letto.
-> La **1.9.0 non azzera niente**: se il file è già `AiCompanions.cfg`, resta com'è (solo i vecchi valori fissi di
+> La **1.9.x non azzera niente**: se il file è già `AiCompanions.cfg`, resta com'è (solo i vecchi valori fissi di
 > voce/lingua passano su `auto`).
 > Passare a Groq è facoltativo — ed è solo modificare `BaseUrl`, `Model` e `ApiKey` (nel `.cfg` o nella sezione
 > **Impostazioni del LLM** del pannello `I`).

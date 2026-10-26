@@ -1,5 +1,5 @@
 ================================================================================
- AI Companions 1.9.0
+ AI Companions 1.9.1
  Companheiro NPC com IA para Valheim 1.0 - cinco idiomas, seguindo o idioma do jogo
 ================================================================================
 
@@ -20,6 +20,15 @@ o mod usa um LLM: por padrao o Groq (servico remoto - o texto da ordem sai da su
 maquina), ou, se voce preferir, um modelo local (LM Studio); o OpenRouter tambem
 funciona, mas o tier gratuito dele e mais lento. Veja "O CEREBRO (LLM)".
 
+NOVIDADES DA 1.9.1
+------------------
+- PACOTE ~54 MB MAIS LEVE: o modelo ggml-base-q5_1.bin (57 MB) nao vai mais no
+  pacote. Ele nunca era usado - o padrao do reconhecimento de voz ([AI] SttModel)
+  e o ggml-small-q5_1.bin (181 MB), bem mais preciso em qualquer idioma. Se voce
+  quiser o mais rapido (e menos preciso), baixe o base do Hugging Face para a
+  pasta whisper\ e aponte o [AI] SttModel para ele.
+- Nada mais mudou: nenhuma chave nova, nenhuma mudanca de comportamento.
+
 NOVIDADES DA 1.9.0
 ------------------
 - CINCO IDIOMAS: portugues do Brasil, ingles, espanhol, frances e italiano. A
@@ -39,7 +48,7 @@ NOVIDADES DA 1.9.0
 
 ATENCAO - ATUALIZANDO (o reset do .cfg foi na 1.8.3, nao nesta)
 --------------------------------------------------------------
-A 1.9.0 NAO mexe no seu .cfg: quem ja esta na 1.8.3 nao perde nada. O que muda e
+A 1.9.0 (e esta 1.9.1) NAO mexem no seu .cfg: quem ja esta na 1.8.3 nao perde nada. O que muda e
 so o PADRAO das chaves de voz/idioma - quem ainda tem os valores fixos antigos
 ([AI] VoiceLanguage = pt, TtsLanguage = pt-br, TtsVoice = 42 e o prompt inicial
 em portugues) ve esses valores virarem "auto" UMA vez. Qualquer valor que voce
@@ -97,10 +106,13 @@ INSTALACAO
 3. Os MODELOS (a voz e a fala) vao DENTRO dessa mesma pasta:
        ...\BepInEx\plugins\AI-Companions\whisper\   (STT - o que ele ouve)
        ...\BepInEx\plugins\AI-Companions\tts\       (TTS - o que ele fala)
-   O pacote "completo" ja traz os modelos prontos; o pacote "sem modelos" (bem
-   menor) nao traz - copie os seus para as pastas acima.
+   O pacote "completo" ja traz os modelos prontos: o do Whisper e o
+   ggml-small-q5_1.bin e o do TTS e o Kokoro (model.int8.onnx + voices.bin). O
+   ggml-base-q5_1.bin NAO vem mais (veja "NOVIDADES DA 1.9.1"). O pacote "sem
+   modelos" (bem menor) nao traz nenhum deles - copie os seus para as pastas
+   acima.
 4. Entre no jogo. Se o BepInEx carregar o mod, o BepInEx\LogOutput.log mostra
-   "Loading [AI Companions 1.9.0]".
+   "Loading [AI Companions 1.9.1]".
 
 COMO USAR
 ---------
