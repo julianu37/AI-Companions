@@ -1,7 +1,9 @@
 # Plano — multilinguagem completa (EN / PT-BR / ES / FR)
 
-Status: **M1, M2, M3 e o italiano (a primeira metade da M5) feitos** (branch `feat/idiomas-auto`; faltam M4 — os rótulos
-presos do HUD e os docs/wiki — e o resto da M5: JA/ZH). Base: skill `.opencode/skills/kokoro/`.
+Status: **feito na 1.9.0** (branch `feat/idiomas-auto`, mergeada na `main`): cinco idiomas (PT/EN/ES/FR/IT), config
+automática, contrato do LLM por idioma, redes de intenção (`GatherIntent`/`RadialIntent`) e o italiano. Ficam para
+depois **JA/ZH** (dependem de validação no sherpa e, no zh, dos `lexicon-zh.txt`/`*-zh.fst`). Base: skill
+`.opencode/skills/kokoro/`.
 
 > **M1 entregue (ver `AGENTS.md`, *Fase M1 da multilinguagem*):** `Core/CompanionLocale.cs` (tabela única +
 > `Resolve*`), `auto` como padrão de `[AI] VoiceLanguage`, `[AI] TtsLanguage` e `[AI] TtsVoice` (0 = automático),

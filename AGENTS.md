@@ -53,9 +53,9 @@ config é **`BepInEx\config\AiCompanions.cfg`** (o GUID não dá mais nome a ele
   listar o Jotunn como requisito em release/README. (A skill `jotunn` da equipe continua no repositório como
   referência de framework, mas **não** se aplica a este mod.)
 - Target: **.NET Framework 4.7.2 (net472)**, C#.
-- Versão: **1.8.3** — **multilíngue (inglês nativo)** em 25/10/2026 (fonte única: `PluginVersion` em
-  `src/Companions/Core/CompanionsPlugin.cs`). As releases saíram em sequência em 23–25/10 (`1.7.0` → `1.8.0` →
-  `1.8.1` → `1.8.2` → `1.8.3`); a **1.7.1 foi pulada de propósito** (pedido do jogador). As branches
+- Versão: **1.9.0** — **multilíngue (5 idiomas: PT-BR, EN, ES, FR, IT)** em 26/10/2026 (fonte única: `PluginVersion` em
+  `src/Companions/Core/CompanionsPlugin.cs`). As releases saíram em sequência em 23–26/10 (`1.7.0` → `1.8.0` →
+  `1.8.1` → `1.8.2` → `1.8.3` → `1.9.0`); a **1.7.1 foi pulada de propósito** (pedido do jogador). As branches
   `feat/multi-companheiro`, `fix/peso-cinto`, `feat/llm-groq`, `feat/provedor-llm` e `languages` foram mergeadas
   (`--no-ff`) e podem ser apagadas — a `main` é a linha de release.
 

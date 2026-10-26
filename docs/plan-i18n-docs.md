@@ -1,6 +1,8 @@
 # Documentation i18n plan (English source, wiki in 5 languages)
 
-Status: **planned** — no file moved yet. Decisions taken by the player on 25/10/2026.
+Status: **D0, D1 and D3 done** (25/10/2026): public docs in English, the wiki published with English as the default
+and Portuguese mirrors. Remaining: **D2** (internal docs) and **D4** (wiki in ES/FR/IT). Decisions taken by the
+player on 25/10/2026.
 
 ## Decisions
 
