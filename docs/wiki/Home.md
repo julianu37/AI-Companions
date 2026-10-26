@@ -94,7 +94,7 @@ and keeps working the same — the AI is only a **new entry point** for the same
 | **[Configuration](Configuration)** | The `.cfg`, the `[AI]` section and the `F8` and `I` panels |
 | **[Troubleshooting](Troubleshooting)** | Symptom → cause → solution |
 | **[How it works](How-it-works)** | Architecture and the path of an order |
-| **[Changelog](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)** | The full changelog, from 1.6.0 to 1.9.0 |
+| **[Changelog](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)** | The full changelog, from 1.6.0 to 1.9.1 |
 | **[Credits and license](Credits-and-license)** | Upstream, third parties and licenses |
 
 ## Quick links
@@ -106,16 +106,19 @@ and keeps working the same — the AI is only a **new entry point** for the same
 | **Changelog** | https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md |
 | **Upstream (MIT)** | https://github.com/MaddhattrRocks/Offline-Companions-Reborn |
 
-The most recent published release is **1.9.0** (25/10/2026), with **two** files to choose from:
+The most recent published release is **1.9.1** (26/10/2026), with **two** files to choose from:
 
 | File | Size | What comes in it |
 |---|---|---|
-| `AI_Companions-1.9.0.zip` | ~368 MB | The mod **and** the voice models (STT + TTS) ready to use |
-| `AI_Companions-1.9.0-sem-modelos.zip` | ~28.5 MB | Only the mod and the translations — you download the models separately |
+| `AI_Companions-1.9.1.zip` | ~314 MB | The mod **and** the voice models (STT + TTS) ready to use |
+| `AI_Companions-1.9.1-sem-modelos.zip` | ~28.5 MB | Only the mod and the translations — you download the models separately |
 
 > **Which one should you pick?** If you just want to install and play, take the **full** one. If your internet is
 > slow (or you already have the models), take the **no-models** one and follow the models section in
 > **[Installation](Installation)**.
+
+> **1.9.1:** the package is ~54 MB lighter — the unused `ggml-base-q5_1.bin` model is no longer shipped (it is still
+> an optional download).
 
 > **1.9.0 in one line:** the mod speaks **five languages** (Portuguese, English, Spanish, French and Italian)
 > following the **game's language**, and the **voice and the speech recognition are automatic** — `[AI] TtsVoice = 0`

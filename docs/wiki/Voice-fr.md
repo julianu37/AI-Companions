@@ -34,7 +34,7 @@ redémarrer** — le modèle est chargé une fois et la phrase suivante sort dé
 | Fichier | Taille | Note |
 |---|---|---|
 | `whisper\ggml-small-q5_1.bin` | 181 Mo | **Par défaut.** Bien plus précis que le `base`, dans toutes les langues |
-| `whisper\ggml-base-q5_1.bin` | 57 Mo | Plus rapide et moins précis — change-le dans `[AI] SttModel` |
+| `whisper\ggml-base-q5_1.bin` | 57 Mo | Plus rapide et moins précis — **pas dans le paquet** : télécharge-le et change-le dans `[AI] SttModel` |
 
 Où le télécharger : https://huggingface.co/ggerganov/whisper.cpp/tree/main
 

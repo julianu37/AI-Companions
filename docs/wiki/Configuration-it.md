@@ -25,7 +25,7 @@ pannelli. Ha circa **1540 righe** e **~265 opzioni** in totale, divise in varie 
 > **Vieni dalla 1.8.2 o precedente?** Le impostazioni **tornano ai valori predefiniti** (è stato il cambiamento della
 > 1.8.3: il file nuovo nasce già con i valori predefiniti) — compresa la **`ApiKey`**, che va incollata di nuovo. **Il
 > salvataggio, il mondo, i compagni, le case e l'inventario non sono toccati** (le chiavi `HC_*` e il GUID non sono
-> cambiati). I valori del file vecchio **non** vengono migrati apposta: le chiavi hanno cambiato nome. La **1.9.0
+> cambiati). I valori del file vecchio **non** vengono migrati apposta: le chiavi hanno cambiato nome. La **1.9.x
 > mantiene il file** e sposta solo i vecchi valori fissi di voce/lingua su `auto`.
 
 La sezione **`[AI]`** ha **39 chiavi**. Ecco come appare nel file (in questo esempio, con l'**alternativa locale**

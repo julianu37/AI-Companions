@@ -20,7 +20,7 @@ fini. Ensuite vient l'option **locale** (**LM Studio**, qui continue à fonction
 > collée à nouveau. La section a aussi changé de nom : c'était `[IA]`, maintenant c'est **`[AI]`**, avec les clés en
 > **anglais** (`Model`, pas `Modelo`). L'ancien `.cfg` (`Maddhattr.OfflineCompanionsReborn.cfg`) reste sur le disque et
 > **n'est pas** lu.
-> La **1.9.0 ne remet rien à zéro** : si le fichier est déjà `AiCompanions.cfg`, il reste tel quel (seules les anciennes
+> La **1.9.x ne remet rien à zéro** : si le fichier est déjà `AiCompanions.cfg`, il reste tel quel (seules les anciennes
 > valeurs fixes de voix/langue passent à `auto`).
 > Passer à Groq est facultatif — et c'est juste éditer `BaseUrl`, `Model` et `ApiKey` (dans le `.cfg` ou dans la
 > section **Réglages du LLM** du panneau `I`).

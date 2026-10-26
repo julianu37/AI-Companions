@@ -26,7 +26,7 @@ depuis les panneaux. Il fait environ **1540 lignes** et **~265 options** au tota
 > la 1.8.3 : le nouveau fichier est créé directement avec les valeurs par défaut) — y compris l'**`ApiKey`**, qui doit
 > être collée à nouveau. **La sauvegarde, le monde, les compagnons, les maisons et l'inventaire ne sont pas touchés**
 > (les clés `HC_*` et le GUID n'ont pas changé). Les valeurs de l'ancien fichier ne sont **pas** migrées exprès : les
-> clés ont changé de nom. La **1.9.0 garde le fichier** et ne déplace que les anciennes valeurs fixes de voix/langue
+> clés ont changé de nom. La **1.9.x garde le fichier** et ne déplace que les anciennes valeurs fixes de voix/langue
 > vers `auto`.
 
 La section **`[AI]`** a **39 clés**. Voilà à quoi elle ressemble dans le fichier (dans cet exemple, avec

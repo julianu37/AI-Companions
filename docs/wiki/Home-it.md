@@ -94,7 +94,7 @@ continua a funzionare uguale — l'IA è solo un **nuovo ingresso** per le stess
 | **[Configurazione](Configuration-it)** | Il `.cfg`, la sezione `[AI]` e i pannelli `F8` e `I` |
 | **[Problemi comuni](Troubleshooting-it)** | Sintomo → causa → soluzione |
 | **[Come funziona](How-it-works-it)** | Architettura e il percorso di un ordine |
-| **[Cronologia delle versioni](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)** | Il changelog completo, dalla 1.6.0 alla 1.9.0 |
+| **[Cronologia delle versioni](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)** | Il changelog completo, dalla 1.6.0 alla 1.9.1 |
 | **[Crediti e licenza](Credits-and-license-it)** | Upstream, terzi e licenze |
 
 ## Link rapidi
@@ -106,15 +106,18 @@ continua a funzionare uguale — l'IA è solo un **nuovo ingresso** per le stess
 | **Changelog** | https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md |
 | **Upstream (MIT)** | https://github.com/MaddhattrRocks/Offline-Companions-Reborn |
 
-La release pubblicata più recente è la **1.9.0** (25/10/2026), con **due** file tra cui scegliere:
+La release pubblicata più recente è la **1.9.1** (26/10/2026), con **due** file tra cui scegliere:
 
 | File | Dimensione | Cosa contiene |
 |---|---|---|
-| `AI_Companions-1.9.0.zip` | ~368 MB | La mod **e** i modelli di voce (STT + TTS) già pronti |
-| `AI_Companions-1.9.0-sem-modelos.zip` | ~28,5 MB | Solo la mod e le traduzioni — scarichi i modelli a parte |
+| `AI_Companions-1.9.1.zip` | ~314 MB | La mod **e** i modelli di voce (STT + TTS) già pronti |
+| `AI_Companions-1.9.1-sem-modelos.zip` | ~28,5 MB | Solo la mod e le traduzioni — scarichi i modelli a parte |
 
 > **Quale scegliere?** Se vuoi solo installare e giocare, prendi il **completo**. Se la tua connessione è lenta (o hai
 > già i modelli), prendi il **senza modelli** e segui la sezione dei modelli in **[Installazione](Installation-it)**.
+
+> **1.9.1:** il pacchetto è ~54 MB più leggero — il modello `ggml-base-q5_1.bin`, che non veniva usato, non è più incluso
+> (resta un download facoltativo).
 
 > **La 1.9.0 in una riga:** la mod parla **cinque lingue** (portoghese, inglese, spagnolo, francese e italiano)
 > seguendo la **lingua del gioco**, e la **voce e il riconoscimento vocale sono automatici** — `[AI] TtsVoice = 0` e

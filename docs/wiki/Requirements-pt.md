@@ -35,11 +35,10 @@ as **ordens por voz** (precisam de microfone). Você pode usar **só o chat**, d
 
 | O quê | Tamanho |
 |---|---|
-| Pacote **completo** (mod + modelos) | ~368 MB (zip) |
+| Pacote **completo** (mod + modelos) | ~314 MB (zip) |
 | Pacote **sem-modelos** (mod + traduções) | ~28,4 MB (zip) |
-| Mod instalado (pasta do plugin) | ~428 MB |
+| Mod instalado (pasta do plugin) | ~371 MB |
 | Modelo do Whisper `ggml-small-q5_1.bin` (padrão do STT) | 181 MB |
-| Modelo do Whisper `ggml-base-q5_1.bin` (mais rápido, menos preciso) | 57 MB |
 | Modelo do Kokoro (TTS) `model.int8.onnx` | 109 MB |
 | Vozes do Kokoro `voices.bin` | 27 MB (as vozes dos cinco idiomas: PT-BR, EN, ES, FR e IT) |
 | Modelo do LLM **local** (`qwen2.5-3b-instruct` Q4_K_M, LM Studio) — só na opção local | ~1,93 GB |

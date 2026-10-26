@@ -26,7 +26,7 @@ paneles. Tiene unas **1540 líneas** y **~265 opciones** en total, repartidas en
 > 1.8.3: el archivo nuevo se crea ya con los valores por defecto) — incluida la **`ApiKey`**, que hay que pegar otra
 > vez. **La partida, el mundo, los compañeros, las casas y el inventario no se ven afectados** (las claves `HC_*` y el
 > GUID no cambiaron). Los valores del archivo antiguo **no** se migran a propósito: las claves cambiaron de nombre. La
-> **1.9.0 mantiene el archivo** y solo mueve los valores fijos antiguos de voz/idioma a `auto`.
+> **1.9.x mantiene el archivo** y solo mueve los valores fijos antiguos de voz/idioma a `auto`.
 
 La sección **`[AI]`** tiene **39 claves**. Así es como aparece en el archivo (en este ejemplo, con la **alternativa
 local** configurada: `127.0.0.1`, `qwen2.5-3b-instruct` y la clave vacía — en el **valor por defecto** el `BaseUrl` es
