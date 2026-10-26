@@ -20,7 +20,7 @@ and keeps working the same — the AI is only a **new entry point** for the same
 > **Companion types:** the **dverger** (**Mage**, **Fire Mage**, **Ice Mage** and **Support**) are **combat**
 > types — the ring shows only the combat/support actions, and the **work** orders (chat, voice or the command
 > key) are **refused** with *"I'm a fighter, I don't do that work."*. To work, use the **Companion**
-> type (details in the **[wiki](https://github.com/julianu37/AI-Companions/wiki/Como-funciona#tipos-de-companheiro)**).
+> type (details in the **[wiki](https://github.com/julianu37/AI-Companions/wiki/How-it-works#companion-types)**).
 
 ## 🎬 In action
 
@@ -144,7 +144,7 @@ game chat ───────────────────────�
 - **An LLM** for the orders: **Groq** (default — only internet and the **free key** at
   https://console.groq.com/keys are needed; the text of the orders **leaves your machine**) — or a local
   **LM Studio/Ollama** (optional — nothing leaves) — or **OpenRouter** (alternative, with a slower free tier). See
-  the **[wiki](https://github.com/julianu37/AI-Companions/wiki/LLM-no-LM-Studio)**.
+  the **[wiki](https://github.com/julianu37/AI-Companions/wiki/LLM)**.
 - **A microphone** (only for the voice orders).
 - **Windows x64** for the STT (the whisper.cpp native binaries are `win-x64`).
 
@@ -153,7 +153,7 @@ game chat ───────────────────────�
 ## Installation
 
 > The **detailed, illustrated** step by step (including the **Groq key** and the local option) is in the
-> **[project Wiki](https://github.com/julianu37/AI-Companions/wiki/Instalacao)**. Summary:
+> **[project Wiki](https://github.com/julianu37/AI-Companions/wiki/Installation)**. Summary:
 
 1. Install **BepInExPack_Valheim** and copy the mod folder to `BepInEx\plugins\AI-Companions`.
 2. (Optional, for voice) leave a Whisper ggml model in `...\AI-Companions\whisper\` — e.g.
@@ -173,7 +173,7 @@ game chat ───────────────────────�
 > that has to be pasted again; the AI section became **`[AI]`** and the **keys are in English** (`Enabled`,
 > `Model`, `TtsVoice`…). **Save, world, companions, houses and inventory are not affected** — the plugin GUID and
 > the `HC_*` keys did not change. The full table is in
-> **[Configuration](https://github.com/julianu37/AI-Companions/wiki/Configuracao)**.
+> **[Configuration](https://github.com/julianu37/AI-Companions/wiki/Configuration)**.
 
 ---
 
@@ -227,7 +227,7 @@ game chat ───────────────────────�
 > The **keys and the descriptions of the `.cfg` are in English** (the mod's native language); the **`F8` panel**
 > shows the names in the **game's language** — in Portuguese you read `Ligado`, `Modelo`…; in English, `Enabled`,
 > `Model`… The explanation of each option, with the defaults, is in the
-> **[wiki](https://github.com/julianu37/AI-Companions/wiki/Configuracao)**.
+> **[wiki](https://github.com/julianu37/AI-Companions/wiki/Configuration)**.
 
 ---
 
