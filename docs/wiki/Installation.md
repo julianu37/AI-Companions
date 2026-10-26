@@ -39,16 +39,17 @@ Go to **https://github.com/julianu37/AI-Companions/releases** and download **one
 
 | File | Size | When to pick it |
 |---|---|---|
-| `AI_Companions-1.8.3.zip` | ~368 MB | **Recommended.** It already comes with the voice models (STT + TTS). Install and play |
-| `AI_Companions-1.8.3-sem-modelos.zip` | ~28.5 MB | Slow internet, or you already have the models and want to download them separately |
+| `AI_Companions-1.9.0.zip` | ~368 MB | **Recommended.** It already comes with the voice models (STT + TTS). Install and play |
+| `AI_Companions-1.9.0-sem-modelos.zip` | ~28.6 MB | Slow internet, or you already have the models and want to download them separately |
 
 > The difference is **only** the voice models. The mod and the translations are the same in both.
 >
-> *(**1.8.3** is the **multilingual** version: English became the **native language** — the `.cfg` is now
-> `AiCompanions.cfg` and the AI section became `[AI]`, with the keys in English —, and the panels follow the
-> **game's language**. **1.8.2** added a **LLM provider picker** and the **API key** button to the `I` panel.
-> **1.8.0** brought the weight fix — the **Megingjord** +150 now adds to the companion's ceiling — and **1.8.1**
-> changes the default LLM to **Groq** (free and fast), keeping LM Studio as the local option and OpenRouter as the
+> *(**1.9.0** is the **five-language** release — Portuguese, English, Spanish, French and Italian — with the voice
+> and the speech recognition **automatic**, following the **game's language**. **1.8.3** is where English became
+> the **native language**: the `.cfg` is now `AiCompanions.cfg` and the AI section became `[AI]`, with the keys in
+> English. **1.8.2** added a **LLM provider picker** and the **API key** button to the `I` panel. **1.8.0**
+> brought the weight fix — the **Megingjord** +150 now adds to the companion's ceiling — and **1.8.1** changes
+> the default LLM to **Groq** (free and fast), keeping LM Studio as the local option and OpenRouter as the
 > alternative. **1.7.0** was the release that renamed the mod to **AI Companions**.)*
 
 ---
@@ -68,17 +69,22 @@ If you use a mod manager, point the zip at it — the manager installs it direct
 > the same: the **save**, the companions, the house and the inventory still work. Two folders with the same
 > plugin = BepInEx loads the mod twice.
 
-> ### Updating to 1.8.3? The settings go back to the defaults
+> ### Updating from 1.8.2 or older? The settings go back to the defaults
 >
-> **1.8.3** changed the configuration **file**: it is now **`BepInEx\config\AiCompanions.cfg`**, and the old one
-> (`Maddhattr.OfflineCompanionsReborn.cfg`) **is no longer read** — it stays on the disk, **ignored**, and can be
-> deleted. The new file is born with the **default values**: if you had an API key, an LM Studio port, a voice, a
-> push-to-talk key or any tuning, **configure it again** (the **`ApiKey`** comes **empty** and has to be pasted).
-> The AI section also changed its name (**`[IA]` → `[AI]`**) and the **keys are in English** (`Ligado` →
-> `Enabled`, `Modelo` → `Model`, `TtsVoz` → `TtsVoice`…): the full table is in **[Configuration](Configuration)**.
+> The **reset happened in 1.8.3**, not now. **1.8.3** changed the configuration **file**: it is now
+> **`BepInEx\config\AiCompanions.cfg`**, and the old one (`Maddhattr.OfflineCompanionsReborn.cfg`) **is no longer
+> read** — it stays on the disk, **ignored**, and can be deleted. The new file is born with the **default values**:
+> if you had an API key, an LM Studio port, a voice, a push-to-talk key or any tuning, **configure it again** (the
+> **`ApiKey`** comes **empty** and has to be pasted). The AI section also changed its name (**`[IA]` → `[AI]`**) and
+> the **keys are in English** (`Ligado` → `Enabled`, `Modelo` → `Model`, `TtsVoz` → `TtsVoice`…): the full table is
+> in **[Configuration](Configuration)**.
+>
+> **Already on 1.8.3? Nothing is lost:** **1.9.0 does not touch the `.cfg`** — it only moves the old fixed defaults
+> (`VoiceLanguage = pt`, `TtsLanguage = pt-br`, `TtsVoice = 42` and the old Portuguese prompt) to `auto` **once**.
 >
 > **What is NOT lost:** the **save**, the **world**, the **companions**, the houses, the beds and the inventory —
-> the plugin **GUID** and the `HC_*` keys did not change. Only the configuration goes back to the defaults.
+> the plugin **GUID** and the `HC_*` keys did not change. Only the configuration goes back to the defaults, and only
+> when you come from 1.8.2 or older.
 >
 > Coming from the **original Offline Companions** (the ProfMags one, GUID `com.profmags.companions`)? Then the
 > migrator still works: `com.profmags.companions.cfg` is copied to `AiCompanions.cfg`, because its file was
@@ -95,8 +101,8 @@ At the end, the folder has to look like this:
         └── AI-Companions\
             ├── LICENSES\
             ├── runtimes\
-            ├── Speech\                     ← the companion's lines
-            ├── Translations\               ← the interface texts
+            ├── Speech\                     ← the companion's lines (5 languages)
+            ├── Translations\               ← the interface texts (5 languages)
             ├── tts\                        ← the TTS model (Kokoro)
             ├── whisper\                    ← the STT models (Whisper)
             ├── Companions.dll              ← the mod
@@ -194,18 +200,18 @@ The complete guide of the three paths (Groq → local LM Studio → OpenRouter) 
 3. Look for these two lines:
 
 ```
-AI Companions v1.8.3 loading...
+AI Companions v1.9.0 loading...
 AI Companions loaded successfully! (N methods patched)
 ```
 
 If they appear, the mod loaded.
 
-> The `v1.8.3` is the **version you installed** (the number of the zip you downloaded) and `N` is how many game
+> The `v1.9.0` is the **version you installed** (the number of the zip you downloaded) and `N` is how many game
 > methods the mod adjusted — that number can change from one version to another.
 
-> On the **first run** the log also shows that the configuration file changed its name:
-> `[Config] Maddhattr.OfflineCompanionsReborn.cfg was replaced by AiCompanions.cfg ...` — it is the normal 1.8.3
-> notice, and the old `.cfg` can be deleted.
+> On the **first run after updating from 1.8.2 or older** the log also shows that the configuration file changed its
+> name: `[Config] Maddhattr.OfflineCompanionsReborn.cfg was replaced by AiCompanions.cfg ...` — it is the normal
+> 1.8.3 notice, and the old `.cfg` can be deleted.
 
 > **It is normal** to see a **PlayFab / NullReferenceException** error at boot — it is **not** from the mod and
 > blocks nothing. If you want to confirm, see **[Troubleshooting](Troubleshooting)**.
@@ -231,10 +237,11 @@ To see every key and order, go to **[Commands](Commands)**.
 
 - [ ] Valheim 1.0.x installed
 - [ ] BepInEx 5.4.2351 extracted into the game root
-- [ ] Release **1.8.3** downloaded (the full package or the no-models one)
+- [ ] Release **1.9.0** downloaded (the full package or the no-models one)
 - [ ] Folder `BepInEx\plugins\AI-Companions\` created with `Companions.dll` and the dependencies
 - [ ] Voice models in `whisper\` and `tts\kokoro\`
-- [ ] Configuration **done again** in `BepInEx\config\AiCompanions.cfg` (1.8.3 **resets** the options) and the old `.cfg` deleted
+- [ ] Configuration **checked** in `BepInEx\config\AiCompanions.cfg` (only going back to the defaults if you come
+      from **1.8.2 or older**) and the old `.cfg` deleted
 - [ ] Groq free key created and `[AI] ApiKey` filled in (or the local LM Studio configured)
 - [ ] `[AI] BaseUrl` and `[AI] Model` checked in the `.cfg`
 - [ ] **Test connection** (`I` panel) answering `Connection OK`

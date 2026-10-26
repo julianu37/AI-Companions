@@ -41,11 +41,12 @@ roster on the screen.
 This project is an **independent project** based on [Offline Companions Reborn](https://github.com/MaddhattrRocks/Offline-Companions-Reborn)
 (**MIT**) — which in turn is a fork of *Offline Companions*, by **ProfMags** — with two things of ours on top:
 
-1. **A complete PT-BR translation** (interface, menus, panels and the companion's speech) over a mod that is now
-   **multilingual**, with **English as the native language**: the panels follow the **game's language** and a new
-   language is **one file**.
+1. **Five languages** — **Portuguese (Brazil), English, Spanish, French and Italian**: the interface (737 keys),
+   the companion's speech (186 lines), the personality presets and the LLM contract follow the **game's language**,
+   with **English as the native language**, and a new language is **one file**.
 2. **An AI layer**: orders in **natural language** (text in the chat or **voice** through push-to-talk), with
-   **personality**, **memory** and **free conversation**.
+   **personality**, **memory** and **free conversation** — and the voice and the speech recognition **pick the
+   language and the voice by themselves**.
 
 The companion itself (jobs, food, stamina, skills, home, rest, portals, cart, radial menu) comes from the upstream
 and keeps working the same — the AI is only a **new entry point** for the same actions.
@@ -61,7 +62,7 @@ and keeps working the same — the AI is only a **new entry point** for the same
 |---|---|
 | **Chat orders** | `collect 10 wood` · `follow` · `stop` · `attack the greydwarf` · `equip the bronze axe` |
 | **Voice orders** | Hold **`V`**, speak and release — the speech is transcribed inside the game |
-| **He speaks** | Synthesized voice, coming **from his position** in the world |
+| **He speaks** | Synthesized voice **in the game's language**, coming **from his position** in the world |
 | **Personality** | Presets (`viking`, `mago`, `sarcastico`, `guia`) or your own words |
 | **Memory and conversation** | `good morning`, `how are you?` — he answers as a character and remembers the conversation |
 | **Several companions** | Up to **10**, each one with its own tab in the `I` panel; the summoner creates a new one **for free** (no Trader) |
@@ -99,7 +100,7 @@ and keeps working the same — the AI is only a **new entry point** for the same
 | **[Configuration](Configuration)** | The `.cfg`, the `[AI]` section and the `F8` and `I` panels |
 | **[Troubleshooting](Troubleshooting)** | Symptom → cause → solution |
 | **[How it works](How-it-works)** | Architecture and the path of an order |
-| **[Changelog](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)** | The full changelog, from 1.6.0 to 1.8.3 |
+| **[Changelog](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)** | The full changelog, from 1.6.0 to 1.9.0 |
 | **[Credits and license](Credits-and-license)** | Upstream, third parties and licenses |
 
 ## Quick links
@@ -112,27 +113,37 @@ and keeps working the same — the AI is only a **new entry point** for the same
 | **Upstream (MIT)** | https://github.com/MaddhattrRocks/Offline-Companions-Reborn |
 | **Video** | https://www.youtube.com/watch?v=40FnVEIbXyo |
 
-The most recent published release is **1.8.3** (25/10/2026), with **two** files to choose from:
+The most recent published release is **1.9.0** (25/10/2026), with **two** files to choose from:
 
 | File | Size | What comes in it |
 |---|---|---|
-| `AI_Companions-1.8.3.zip` | ~368 MB | The mod **and** the voice models (STT + TTS) ready to use |
-| `AI_Companions-1.8.3-sem-modelos.zip` | ~28.5 MB | Only the mod and the translations — you download the models separately |
+| `AI_Companions-1.9.0.zip` | ~368 MB | The mod **and** the voice models (STT + TTS) ready to use |
+| `AI_Companions-1.9.0-sem-modelos.zip` | ~28.6 MB | Only the mod and the translations — you download the models separately |
 
 > **Which one should you pick?** If you just want to install and play, take the **full** one. If your internet is
 > slow (or you already have the models), take the **no-models** one and follow the models section in
 > **[Installation](Installation)**.
 
-> ### Updating to 1.8.3? The settings go back to the defaults
+> **1.9.0 in one line:** the mod speaks **five languages** (Portuguese, English, Spanish, French and Italian)
+> following the **game's language**, and the **voice and the speech recognition are automatic** — `[AI] TtsVoice = 0`
+> and `TtsLanguage` / `VoiceLanguage` = `auto`, and an explicit value still wins. **Changing the game's language does
+> not need a restart.**
+
+> ### Updating from 1.8.2 or older? The settings go back to the defaults
 >
-> **1.8.3** changed the configuration **file**: it is now **`BepInEx\config\AiCompanions.cfg`**, and the old one
-> (`Maddhattr.OfflineCompanionsReborn.cfg`) **is no longer read** — you can delete it. The new file is born with
-> the **default values**, including an **empty `ApiKey`**: if you use Groq or OpenRouter, **paste the key again**
-> (`I` panel → **LLM settings**). The AI section also changed its name (`[IA]` → **`[AI]`**) and the keys are now
-> in **English** (`Ligado` became `Enabled`, `Modelo` became `Model`…).
+> The **reset was in 1.8.3**, not now: **1.8.3** changed the configuration **file** (it is now
+> **`BepInEx\config\AiCompanions.cfg`**, and the old `Maddhattr.OfflineCompanionsReborn.cfg` **is no longer read** —
+> you can delete it). The new file is born with the **default values**, including an **empty `ApiKey`**: if you use
+> Groq or OpenRouter, **paste the key again** (`I` panel → **LLM settings**). The AI section also changed its name
+> (`[IA]` → **`[AI]`**) and the keys are now in **English** (`Ligado` became `Enabled`, `Modelo` became `Model`…).
+>
+> **Already on 1.8.3? Nothing is lost:** **1.9.0 does not touch the `.cfg`** — it only moves the old fixed defaults
+> (`VoiceLanguage = pt`, `TtsLanguage = pt-br`, `TtsVoice = 42` and the old Portuguese prompt) to `auto` **once**, and
+> a value you chose yourself is never touched.
 >
 > **What is NOT lost:** the **save**, the **world**, the **companions**, the houses and the inventory — the plugin
-> **GUID** and the `HC_*` keys did not change. Only the configuration goes back to the defaults.
+> **GUID** and the `HC_*` keys did not change. Only the configuration goes back to the defaults, and only when you
+> come from 1.8.2 or older.
 
 > **Coming from an older version?** The mod is now called **AI Companions** (it was *ModAI-BR-Companions*) and the
 > folder is now `BepInEx\plugins\AI-Companions\`: **delete the old folder** (`BepInEx\plugins\ModAI-BR-Companions\`)
@@ -140,9 +151,15 @@ The most recent published release is **1.8.3** (25/10/2026), with **two** files 
 > the save, the companions, the house and the inventory still work (the plugin GUID and the `HC_*` keys were
 > preserved on purpose).
 
-> **1.8.3** is the **multilingual** version: **English is the native language** (keys and descriptions of the
-> `.cfg`) and **Portuguese is the translation** — the panels (`I` and `F8`) follow the **game's language**, and a
-> new language comes in through `Translations/<Language>.json` + `Speech/<Language>.json`.
+> **1.9.0** is the **five-language** release: **Portuguese, English, Spanish, French and Italian** — the interface,
+> the companion's speech, the personality presets and the LLM contract follow the **game's language**, and the voice
+> and the speech recognition **pick the language by themselves** (`[AI] VoiceLanguage`, `TtsLanguage` and `TtsVoice`
+> = `auto` / `0`). Changing the game's language **does not need a restart**: the panels rebuild on the next open and
+> the HUD, the speech and the TTS/STT follow along.
+>
+> **1.8.3** is where **English became the native language** (keys and descriptions of the `.cfg`) and **Portuguese
+> became a translation** — the panels (`I` and `F8`) follow the **game's language**, and a new language comes in
+> through `Translations/<Language>.json` + `Speech/<Language>.json`.
 >
 > **1.8.2** puts the LLM choice one click away: in the **LLM settings** section of the `I` panel, the dropdown
 > **"Pick your LLM provider"** fills in the **URL and the model** of **Groq**, **LM Studio** or **OpenRouter**

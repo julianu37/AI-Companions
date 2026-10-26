@@ -174,6 +174,9 @@ ordenado —, mas uma forma de tratamento continua valendo (`mano, colete 10 ped
 
 ## Notas importantes
 
+- **O idioma segue o jogo.** Desde a 1.9.0 a interface, as falas, os presets de personalidade e o contrato do LLM
+  estão em **cinco idiomas** (PT-BR, EN, ES, FR, IT) e seguem o **idioma do jogo** — as ordens são entendidas nesse
+  idioma também, e a voz e o reconhecimento da fala são **automáticos** (`auto` / `0`).
 - **O número é um alvo contado na mochila dele.** `colete 10` = **ter 10 no inventário do companheiro**. Com
   15, ele nem começa e diz que já tem o suficiente; com 7, ele coleta até 10 (a última árvore pode passar).
 - **A ordem é lida pelo LLM**, então você pode falar do seu jeito. `pega 10 pedras`, `vou precisar de pedra`,

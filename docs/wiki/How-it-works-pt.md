@@ -31,8 +31,8 @@ Três peças de IA, todas em **threads de fundo** (o LLM pode ser remoto; o STT 
 
 1. **Entrada.** Você digita no chat **ou** segura `V` e fala. Nos dois casos o texto cai no **mesmo** ponto de
    entrada — não há lógica duplicada entre chat e voz.
-2. **Prompt.** O mod monta o prompt da mensagem: o **contrato** fixo + o **nome** do companheiro + a
-   **personalidade** + a **memória** recente.
+2. **Prompt.** O mod monta o prompt da mensagem: o **contrato** fixo (no **idioma do jogo**) + o **nome** do
+   companheiro + a **personalidade** + a **memória** recente.
 3. **LLM.** O texto vai para o servidor configurado (`POST {BaseUrl}/chat/completions`) numa **Task de fundo** —
    o jogo nunca espera.
 4. **JSON da intenção.** O modelo devolve uma intenção estruturada com cinco campos:
@@ -74,9 +74,9 @@ Chave: `[AI] StructuredOutput` (padrão `true`).
 
 ## Personalidade, memória e conversa
 
-- **Personalidade:** presets PT-BR escritos dentro do mod (`viking`, `mago`, `sarcastico`, `guia`) ou **texto
-  livre** do jogador — o texto livre **ganha** do preset. Ela entra no prompt, então o companheiro responde
-  no tom escolhido.
+- **Personalidade:** presets escritos dentro do mod (`viking`, `mago`, `sarcastico`, `guia`), **traduzidos nos cinco
+  idiomas**, ou **texto livre** do jogador — o texto livre **ganha** do preset. Ela entra no prompt, então o
+  companheiro responde no tom escolhido.
 - **Memória:** as últimas `[AI] Memory` trocas **por companheiro** (0–12). A memória vai como **texto no
   system prompt**, nunca como mensagens extras — o contrato JSON continua sendo a última coisa que o modelo lê.
   Ela é **esquecida** quando o companheiro morre, é dispensado ou você troca de mundo, e **nada é salvo no
@@ -89,6 +89,8 @@ Chave: `[AI] StructuredOutput` (padrão `true`).
 
 ## A voz do companheiro (TTS)
 
+- A voz **segue o idioma do jogo**: `[AI] TtsLanguage` e `TtsVoice` vêm como `auto` / `0`, então a voz padrão daquele
+  idioma é usada a menos que você escolha outra. Trocar o idioma não exige reiniciar.
 - O modelo do Kokoro é carregado **uma vez**, em segundo plano, quando você entra no mundo.
 - A síntese roda numa **thread de fundo dedicada**; os pedaços prontos voltam por outra fila e são drenados no
   `Update`.
@@ -161,7 +163,7 @@ peças de armadura ficam na mochila em vez de equipadas.
 
 | Vem do upstream (Offline Companions Reborn, MIT) | É nosso |
 |---|---|
-| O companheiro: trabalhos, comida, stamina, skills, casa, descanso, portais, carroça | **Tradução PT-BR completa** (386 chaves de UI + 186 falas) sobre um mod **multilíngue**, com o **inglês nativo** |
+| O companheiro: trabalhos, comida, stamina, skills, casa, descanso, portais, carroça | **A tradução em cinco idiomas** — 737 chaves de UI e 186 falas por idioma, com o **inglês nativo** |
 | A IA de movimento e combate, os jobs, o menu radial e a UI base | A **camada de IA**: ordens por chat/voz, personalidade, memória, conversa |
 | Toda a lógica de jogo que as ordens acionam | O **TTS local** (Kokoro) e o **STT local** (Whisper) |
 | | O **painel da IA** (tecla `I`) |

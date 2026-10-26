@@ -22,10 +22,11 @@ pelos painéis. Ele tem cerca de **1540 linhas** e **~265 opções** no total, d
 > mundo, save e companheiros), mas **não** dá mais nome ao arquivo. O `.cfg` antigo **fica no disco, ignorado**:
 > pode ser apagado sem medo.
 
-> **Atualizando para a 1.8.3?** As configurações **voltam aos padrões** (o arquivo novo é criado já com os
-> valores padrão) — inclusive a **`ApiKey`**, que precisa ser colada de novo. **Save, mundo, companheiros, casas e
-> inventário não são afetados** (as chaves `HC_*` e o GUID não mudaram). Os valores do arquivo antigo **não** são
-> migrados de propósito: as chaves mudaram de nome.
+> **Vindo da 1.8.2 ou anterior?** As configurações **voltam aos padrões** (foi a mudança da 1.8.3: o arquivo novo é
+> criado já com os valores padrão) — inclusive a **`ApiKey`**, que precisa ser colada de novo. **Save, mundo,
+> companheiros, casas e inventário não são afetados** (as chaves `HC_*` e o GUID não mudaram). Os valores do arquivo
+> antigo **não** são migrados de propósito: as chaves mudaram de nome. A **1.9.0 mantém o arquivo** e só move os
+> padrões fixos antigos de voz/idioma para `auto`.
 
 A seção **`[AI]`** tem **39 chaves**. É assim que ela aparece no arquivo (neste exemplo, com a **alternativa
 local** configurada: `127.0.0.1`, `qwen2.5-3b-instruct` e a chave vazia — no **padrão** o `BaseUrl` é o **Groq**,
@@ -108,7 +109,7 @@ navegador** na página de chaves do provedor escolhido (**Groq** → `console.gr
 | **Chamar** | Traz o companheiro para perto de você: ele vem andando e, se estiver longe demais, volta pelo mesmo chamado do jogo |
 | **Aparência** | Abre o **editor de aparência** (logo abaixo) |
 | **Personalidade** | A lista com **"Seguir o padrão ([AI])"** na frente e os presets (`viking`, `mago`, `sarcastico`, `guia`) — **escolher já salva**. **Nas suas palavras** é o campo livre, aplicado pelo **Aplicar** ao lado |
-| **Voz** | A lista com **"Seguir o padrão ([AI])"** na frente e as **3 vozes pt-BR** — escolher já salva e vale na **próxima fala**; **Ouvir** toca uma frase de exemplo na hora |
+| **Voz** | A lista com **"Seguir o padrão ([AI])"** na frente e as **vozes do idioma do jogo** — escolher já salva e vale na **próxima fala**; **Ouvir** toca uma frase de exemplo na hora. Uma voz guardada de **outro** idioma não é usada (toca a voz padrão do idioma ativo) |
 
 > A voz e a personalidade escolhidas aqui são **deste** companheiro, guardadas no **ZDO** dele: elas viajam na
 > **lápide** e voltam no respawn. Quem está em "seguir o padrão" obedece ao que está na **aba IA** — mudar o global
@@ -160,20 +161,20 @@ inclusive). Os valores padrão são os do código-fonte: se você nunca mexeu, �
 | `SttWavTest` | `whisper\jfk.wav` | WAV que o `modia_stt_teste` transcreve. **O pacote não traz esse arquivo** — aponte para um WAV seu |
 | `VoiceEnabled` | `true` | Liga o push-to-talk |
 | `VoiceKey` | `V` | Tecla do push-to-talk |
-| `VoiceLanguage` | `pt` | Idioma da fala (código do Whisper). Vazio ou `auto` detecta |
+| `VoiceLanguage` | `auto` | Idioma da fala (código do Whisper). `auto` segue o **idioma do jogo** (PT-BR, EN, ES, FR, IT); um código explícito sempre ganha. Vazio também vale como `auto` |
 | `VoiceMaxSeconds` | `10` | Teto da gravação, em segundos |
 | `VoiceSilenceThreshold` | `0.01` | Quão alto o áudio precisa ser para contar como fala |
-| `VoiceInitialPrompt` | *(vocabulário das ordens, em PT-BR)* | Prompt inicial do Whisper: enviesa o reconhecimento para as palavras das ordens. Coloque as palavras que **você** fala |
+| `VoiceInitialPrompt` | *(vazio)* | Prompt inicial do Whisper: enviesa o reconhecimento para as palavras das ordens. Vazio = o **vocabulário das ordens do idioma do jogo**, escrito pelo mod; o que você escrever aqui ganha (`none` desliga o viés) |
 | `VoiceDevice` | `0` | Índice do microfone (o log imprime a lista) |
 | `VoiceShowText` | `true` | Mostra no chat/HUD o que o microfone ouviu |
 | `PanelKey` | `I` | Tecla que abre o **painel da IA** |
 | `TtsEnabled` | `true` | Ele **fala** as respostas (TTS local, Kokoro) |
-| `TtsVoice` | `42` | Voz: `42` pf_dora (fem.), `43` pm_alex (masc.), `44` pm_santa (masc.) |
+| `TtsVoice` | `0` | Qual voz: `0` = **automática** (a voz padrão do idioma do jogo); um id explícito **daquele** idioma ganha (`42` pf_dora, `43` pm_alex, `44` pm_santa em português; `3` af_heart, `2` af_bella, `6` af_nicole, `14` am_fenrir, `16` am_michael, `18` am_puck em inglês; `28` ef_dora, `29` em_alex em espanhol; `30` ff_siwis em francês; `35` if_sara, `36` im_nicola em italiano) |
 | `TtsSpeed` | `1` | Velocidade da fala |
 | `TtsThreads` | `4` | Núcleos da CPU para a síntese |
 | `TtsVolume` | `1` | Volume da voz (0 = mudo) |
 | `TtsModel` | `tts\kokoro\model.int8.onnx` | Modelo do Kokoro. Vozes/tokens/espeak na **mesma pasta** |
-| `TtsLanguage` | `pt-br` | Idioma do texto falado. **Nunca vazio** |
+| `TtsLanguage` | `auto` | Idioma do texto falado (código do Kokoro). `auto` segue o **idioma do jogo** (`pt-br`, `en-us`, `es`, `fr`, `it`); um código explícito sempre ganha. **Nunca vazio** — o modelo exige um idioma |
 | `TtsCache` | `true` | Guarda as falas já sintetizadas |
 | `TtsSpeakReplies` | `true` | Fala a resposta do modelo |
 | `TtsSpeakModLines` | `true` | Fala a linha do mod que aparece no chat (ganha numa ordem) |
@@ -184,19 +185,30 @@ inclusive). Os valores padrão são os do código-fonte: se você nunca mexeu, �
 
 ## Idioma
 
-O **inglês é o idioma nativo** do mod — e o **português** é a tradução que acompanha esta versão:
+**Cinco idiomas: português do Brasil, inglês, espanhol, francês e italiano** — e o **inglês é o idioma nativo** do
+mod:
 
-- **No jogo**, os **painéis seguem o idioma do Valheim**. Com o jogo em **português**, os nomes das opções do
-  **`F8`** e as abas aparecem em **PT** (`Ligado`, `Modelo`, `VozTecla`…); com o jogo em **inglês**, aparecem os
-  nomes nativos (`Enabled`, `Model`, `VoiceKey`…). O **painel `I`** também é traduzido assim (o conteúdo dele já
-  era PT/EN desde a 1.7.0).
+- **O idioma do jogo decide tudo**: a interface (737 chaves), as falas do companheiro (186 linhas), os presets de
+  personalidade, o contrato do LLM e a **voz e o reconhecimento da fala**. Com o jogo em **português**, os nomes das
+  opções do **`F8`** e as abas aparecem em **PT** (`Ligado`, `Modelo`, `VozTecla`…); com o jogo em **inglês**,
+  aparecem os nomes nativos (`Enabled`, `Model`, `VoiceKey`…); espanhol, francês e italiano têm arquivo próprio. O
+  **painel `I`** também é traduzido assim. **Trocar o idioma não exige reiniciar**: os painéis se reconstroem na
+  próxima abertura e o HUD, as falas e o TTS/STT acompanham.
+- **`[AI] VoiceLanguage`, `TtsLanguage` e `TtsVoice` são automáticos por padrão** (`auto`, `auto`, `0`): o mod
+  resolve pelo **idioma do jogo**. Vozes por idioma (a padrão primeiro): `pt-br` → `pf_dora`, `pm_alex`, `pm_santa`;
+  `en-us` → `af_heart`, `af_bella`, `af_nicole`, `am_fenrir`, `am_michael`, `am_puck`; `es` → `ef_dora`, `em_alex`;
+  `fr` → `ff_siwis`; `it` → `if_sara`, `im_nicola`.
+- **Um valor explícito sempre ganha** — e o `F8` e o painel `I` mostram o valor **efetivo**, por exemplo
+  `Automático (en-US · af_heart)`.
 - **No `.cfg`**, as **chaves e as descrições são em inglês, sempre** — ele **não** muda com o idioma do jogo (o
   mesmo vale para o `package/CONFIGURATION.md`). É por isso que o **nome da chave é o inglês**, mesmo com o jogo
   em português: a chave é o identificador da opção, não o rótulo que você lê na tela.
-- **Novos idiomas entram por um arquivo**, sem tocar no código: `Translations/<Idioma>.json` traz os textos da
-  interface (inclusive os nomes das opções e das abas do `F8`) e `Speech/<Idioma>.json` traz as **falas do
-  companheiro** — o mesmo esquema. É a base do multilanguage: o **inglês não precisa de arquivo**, porque as
-  chaves **são** o texto.
+- **Novos idiomas entram por um arquivo**, sem tocar no código: `Translations/<Idioma>.json` (737 chaves) traz os
+  textos da interface (inclusive os nomes das opções e das abas do `F8`) e `Speech/<Idioma>.json` (186 linhas) traz
+  as **falas do companheiro** — o mesmo esquema. O **inglês não precisa de arquivo**, porque as chaves **são** o
+  texto.
+- **Idiomas sem voz no Kokoro** (alemão, russo, polonês, turco, coreano, sueco e ucraniano) usam a **voz inglesa** —
+  a interface e as falas podem ser traduzidas; o áudio é em inglês.
 
 ---
 
@@ -259,7 +271,7 @@ tradução. É a forma mais rápida de conferir o que está valendo agora, sem s
 
 ![O painel F8 aberto na seção [AI], com as opções da camada de IA](images/3-painel-f8.jpg)
 
-> O print é da **1.8.2**, quando as chaves se chamavam `Ligado`, `Temperatura`, `TimeoutSegundos`… Na **1.8.3** o
+> O print é da **1.8.2**, quando as chaves se chamavam `Ligado`, `Temperatura`, `TimeoutSegundos`… Desde a **1.8.3** o
 > arquivo é em inglês; com o jogo em **português** o painel continua mostrando os nomes em PT.
 
 > Os painéis do mod ficam **acima do HUD do jogo** na ordem de desenho — é o que garante que um clique no

@@ -30,7 +30,7 @@ The mod works in **two independent layers**: the **text orders in the chat** (th
 |---|---|
 | **Microphone** | Only for the **voice orders** (push-to-talk). Without one, use the chat |
 | **GPU** | Only makes a difference in the **local** option: the LLM in LM Studio runs **much** faster with a GPU. On Groq (and on OpenRouter), the model runs on their server |
-| **Voice models** | They already come in the **full** package. In the **no-models** package you download them separately |
+| **Voice models** | They already come in the **full** package. In the **no-models** package you download them separately. The same Kokoro `voices.bin` carries the voices of the **five languages** |
 
 ## Disk space
 
@@ -42,7 +42,7 @@ The mod works in **two independent layers**: the **text orders in the chat** (th
 | Whisper model `ggml-small-q5_1.bin` (STT default) | 181 MB |
 | Whisper model `ggml-base-q5_1.bin` (faster, less accurate) | 57 MB |
 | Kokoro model (TTS) `model.int8.onnx` | 109 MB |
-| Kokoro voices `voices.bin` | 27 MB |
+| Kokoro voices `voices.bin` | 27 MB (the voices of the five languages: PT-BR, EN, ES, FR and IT) |
 | **Local** LLM model (`qwen2.5-3b-instruct` Q4_K_M, LM Studio) — local option only | ~1.93 GB |
 
 > Set aside something around **1 GB** for the mod and the voice models, plus the space of the LLM model.

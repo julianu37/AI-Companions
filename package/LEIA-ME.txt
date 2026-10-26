@@ -1,6 +1,6 @@
 ================================================================================
- AI Companions 1.8.3
- Companheiro NPC com IA para Valheim 1.0 - em portugues do Brasil
+ AI Companions 1.9.0
+ Companheiro NPC com IA para Valheim 1.0 - cinco idiomas, seguindo o idioma do jogo
 ================================================================================
 
 O QUE E
@@ -9,19 +9,44 @@ Um mod que poe companheiros NPC inteligentes no seu mundo de Valheim 1.0: eles
 seguem voce, trabalham (coletam madeira, pedra e minerio, cacam, pescam,
 plantam, cozinham, fundem, reparam a base), lutam ao seu lado, descansam,
 dormem, usam portais e carroca - e agora tambem ENTENDEM voce. Voce digita ou
-fala uma ordem em portugues ("colete 10 madeiras", "segue", "ataca o
-greydwarf") e ele obedece; ele responde, conversa e fala em voz alta. Este e um
-versão independente em PT-BR do mod "Offline Companions Reborn" (MIT), de Maddhattr e ProfMags,
-com uma camada de IA por cima. O reconhecimento de voz e a fala sao locais (nada
-sai do seu PC por causa deles). Para ENTENDER as ordens, o mod usa um LLM: por
-padrao o Groq (servico remoto - o texto da ordem sai da sua maquina), ou, se
-voce preferir, um modelo local (LM Studio); o OpenRouter tambem funciona, mas o
-tier gratuito dele e mais lento. Veja "O CEREBRO (LLM)".
+fala uma ordem no idioma do jogo ("colete 10 madeiras", "segue", "ataca o
+greydwarf") e ele obedece; ele responde, conversa e fala em voz alta. O mod tem
+CINCO IDIOMAS (portugues do Brasil, ingles, espanhol, frances e italiano) e
+segue o idioma do jogo - interface, falas, personalidade e o entendimento das
+ordens. Este e uma versao independente do mod "Offline Companions Reborn" (MIT),
+de Maddhattr e ProfMags, com uma camada de IA por cima. O reconhecimento de voz e
+a fala sao locais (nada sai do seu PC por causa deles). Para ENTENDER as ordens,
+o mod usa um LLM: por padrao o Groq (servico remoto - o texto da ordem sai da sua
+maquina), ou, se voce preferir, um modelo local (LM Studio); o OpenRouter tambem
+funciona, mas o tier gratuito dele e mais lento. Veja "O CEREBRO (LLM)".
 
-ATENCAO - ATUALIZANDO PARA A 1.8.3 (as configuracoes voltam aos padroes)
------------------------------------------------------------------------
-A 1.8.3 e a versao MULTILINGUE: o ingles virou o idioma nativo do mod. Para
-quem ja tem o mod instalado, isso significa:
+NOVIDADES DA 1.9.0
+------------------
+- CINCO IDIOMAS: portugues do Brasil, ingles, espanhol, frances e italiano. A
+  interface (737 chaves), as falas do companheiro (186 linhas), os presets de
+  personalidade e o contrato do LLM seguem o IDIOMA DO JOGO.
+- SEM REINICIAR: trocar o idioma do jogo nao exige reiniciar - os paineis se
+  reconstroem na proxima abertura e o HUD, as falas e a voz acompanham.
+- VOZ E IDIOMA AUTOMATICOS por padrao: [AI] VoiceLanguage = auto, [AI]
+  TtsLanguage = auto, [AI] TtsVoice = 0 e [AI] VoiceInitialPrompt vazio (o
+  vocabulario das ordens do idioma). O painel I e o F8 mostram o valor EFETIVO,
+  por exemplo "Automatic (en-US, af_heart)". Um valor escolhido por voce sempre
+  ganha.
+- VOZES POR IDIOMA (a padrao primeiro): PT-BR pf_dora, pm_alex, pm_santa - EN
+  af_heart, af_bella, af_nicole, am_fenrir, am_michael, am_puck - ES ef_dora,
+  em_alex - FR ff_siwis - IT if_sara, im_nicola.
+- ITALIANO entrou: interface, falas, presets e contrato proprios.
+
+ATENCAO - ATUALIZANDO (o reset do .cfg foi na 1.8.3, nao nesta)
+--------------------------------------------------------------
+A 1.9.0 NAO mexe no seu .cfg: quem ja esta na 1.8.3 nao perde nada. O que muda e
+so o PADRAO das chaves de voz/idioma - quem ainda tem os valores fixos antigos
+([AI] VoiceLanguage = pt, TtsLanguage = pt-br, TtsVoice = 42 e o prompt inicial
+em portugues) ve esses valores virarem "auto" UMA vez. Qualquer valor que voce
+escolheu por conta propria nunca e tocado. Em portugues a voz e a mesma
+(pf_dora), entao para quem joga em PT-BR nada muda.
+
+Se voce vem da 1.8.2 ou de uma versao anterior (o reset aconteceu na 1.8.3):
 - O arquivo de configuracao agora e BepInEx\config\AiCompanions.cfg. O antigo
   (Maddhattr.OfflineCompanionsReborn.cfg) NAO e mais lido: fica no disco,
   ignorado, e pode ser apagado.
@@ -75,7 +100,7 @@ INSTALACAO
    O pacote "completo" ja traz os modelos prontos; o pacote "sem modelos" (bem
    menor) nao traz - copie os seus para as pastas acima.
 4. Entre no jogo. Se o BepInEx carregar o mod, o BepInEx\LogOutput.log mostra
-   "Loading [AI Companions 1.8.3]".
+   "Loading [AI Companions 1.9.0]".
 
 COMO USAR
 ---------
@@ -90,9 +115,10 @@ COMO USAR
       bom dia                  - conversa (ele responde como personagem)
 - VOZ: segure a tecla V, fale e solte. O texto e transcrito dentro do jogo e
   entra no mesmo caminho do chat.
-- PAINEL DA IA (tecla I): personalidade, voz (com o botao "Ouvir"), volume,
-  tecla do push-to-talk, memoria, conversa e as configuracoes do LLM (URL,
-  modelo e chave). A velocidade da fala fica so no painel F8.
+- PAINEL DA IA (tecla I): personalidade, voz (com o botao "Ouvir"; o padrao e
+  AUTOMATICO, com a voz do idioma do jogo), volume, tecla do push-to-talk,
+  memoria, conversa e as configuracoes do LLM (URL, modelo e chave). A
+  velocidade da fala fica so no painel F8.
 - CONFIGURACOES (tecla F8): todas as opcoes do mod, inclusive a secao [AI]
   (as chaves sao em ingles desde a 1.8.3).
 
@@ -178,6 +204,9 @@ PROBLEMAS CONHECIDOS
 - A fala do companheiro NAO passa pelo mixer do jogo: ela ignora os sliders de
   volume do Valheim (musica/SFX). Quem manda no volume dela e o [AI] TtsVolume
   (ou o slider do painel da IA, tecla I).
+- IDIOMAS SEM VOZ NO KOKORO (alemao, russo, polones, turco, coreano, sueco e
+  ucraniano): a interface e as falas podem ser traduzidas, mas o audio sai na
+  voz INGLESA. Uma voz explicita de outro idioma nao e usada (soaria errado).
 - Sem o modelo de STT (pasta whisper\), ou sem o modelo de TTS (pasta tts\):
   o mod carrega normalmente, mas nao ouve a voz / nao fala. Sem o LLM ligado,
   nao entende as ordens.

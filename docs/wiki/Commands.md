@@ -175,6 +175,9 @@ nothing is ordered —, but a form of address keeps working (`mate, collect 10 s
 
 ## Important notes
 
+- **The language follows the game.** Since 1.9.0 the interface, the speech, the personality presets and the LLM
+  contract are in **five languages** (PT-BR, EN, ES, FR, IT) and follow the **game's language** — the orders are
+  understood in that language too, and the voice and the speech recognition are **automatic** (`auto` / `0`).
 - **The number is a target counted in his bag.** `gather 10` = **having 10 in the companion's inventory**. With 15,
   he does not even start and says he already has enough; with 7, he gathers up to 10 (the last tree can go over).
 - **The order is read by the LLM**, so you can speak your own way. `get 10 stones`, `I'll need some stone`,

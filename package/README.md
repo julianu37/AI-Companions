@@ -2,14 +2,16 @@
 
 ![AI Companions — AI NPC companions for Valheim](https://raw.githubusercontent.com/julianu37/AI-Companions/main/docs/images/banner.png)
 
-An **AI NPC companion** for **Valheim 1.0**: you **speak or type** and he understands and acts.
+An **AI NPC companion** for **Valheim 1.0**: you **speak or type** and he understands and acts — in **five
+languages** (Portuguese, English, Spanish, French and Italian), following the **game's language**.
 
 This is an **independent project** based on **[Offline Companions Reborn](https://github.com/MaddhattrRocks/Offline-Companions-Reborn)**
 (by **Maddhattr**), which in turn is the Valheim 1.0 update of **ProfMags**' **Offline Companions**.
 
 > **All credit for the concept, the design and the original code goes to ProfMags** (and, for the update, to Maddhattr).
 > The companion, the jobs, the movement/combat AI, the interface and the base of all of it come from there.
-> **What is ours:** the **complete PT-BR translation** and the **AI layer** (LLM + voice).
+> **What is ours:** the **localization in five languages** (Portuguese, English, Spanish, French and Italian) and the
+> **AI layer** (LLM + voice).
 
 > **Source code:** [julianu37/AI-Companions](https://github.com/julianu37/AI-Companions)
 > — guide, settings reference and bug reports.
@@ -39,8 +41,19 @@ goes into the same path as the typed orders. Examples:
 ### 🔊 He speaks (local synthesized voice)
 
 The companion **says out loud** what he answers, at his position in the world. The voice is synthesized **inside
-the game** by **Kokoro-82M** (through `sherpa-onnx`, CPU) — no external service. Three voices in **Brazilian
-Portuguese**: `42` = `pf_dora` (female, default), `43` = `pm_alex` (male), `44` = `pm_santa` (male).
+the game** by **Kokoro-82M** (through `sherpa-onnx`, CPU) — no external service. **The voice follows the game's
+language**: `[AI] TtsVoice = 0` (the default) is **automatic**, and each language has its own voices.
+
+| Language | Voices (the default first) |
+|---|---|
+| Portuguese (Brazil) | `pf_dora` (F), `pm_alex` (M), `pm_santa` (M) |
+| English | `af_heart` (F), `af_bella` (F), `af_nicole` (F), `am_fenrir` (M), `am_michael` (M), `am_puck` (M) |
+| Spanish | `ef_dora` (F), `em_alex` (M) |
+| French | `ff_siwis` (F) |
+| Italian | `if_sara` (F), `im_nicola` (M) |
+
+> A language the Kokoro model does not speak (**German, Russian, Polish, Turkish, Korean, Swedish and Ukrainian**)
+> uses the **English** voice. An explicit voice of another language is not used (it would sound wrong).
 
 - **What he speaks:** the model's reply (*"Leave it to me."*) and/or the mod's line that appears in the chat
   (*"Ok: gather wood (10)."*, *"We already have enough."*) — two separate options
@@ -62,8 +75,9 @@ Portuguese**: `42` = `pf_dora` (female, default), `43` = `pm_alex` (male), `44` 
 - **Larger gathering radius** (wood/stone/ore up to 25 m from you; drops picked up up to 12 m).
 - **No random idle lines** every 15–30 s (the useful lines stay).
 - **The `V` key belongs to push-to-talk** and does not trigger the game's *Toggle Auto-Pickup*.
-- **Interface, menus and speech 100% in PT-BR** — over a **multilingual** mod (with **English as the native
-  language**: the panels follow the game's language and a new language is **one file**).
+- **Interface, menus and speech in five languages** — **Portuguese, English, Spanish, French and Italian**, all
+  following the **game's language**, with **English as the native language**: a new language is **one file**, and
+  the voice and the speech recognition pick the language by themselves.
 
 ---
 
@@ -248,11 +262,14 @@ He goes back to work the moment there is something to do.
 Everything lives in `BepInEx/config/AiCompanions.cfg` and can also be changed **in game** with the
 settings panel (**`F8`** by default). Every option has a clear description.
 
-> **Updating to 1.8.3?** The configuration file changed its name (it was `Maddhattr.OfflineCompanionsReborn.cfg`,
-> which **is no longer read** and can be deleted) and the **settings go back to the defaults** — including the
-> **`ApiKey`**, which has to be pasted again. The AI section became **`[AI]`** and the **keys are in English**
-> (`Enabled`, `Model`, `TtsVoice`…). **Save, world, companions, houses and inventory are not affected** (the plugin
-> GUID and the `HC_*` keys did not change).
+> **Updating from 1.8.2 or older?** The configuration file changed its name **on 1.8.3** (it was
+> `Maddhattr.OfflineCompanionsReborn.cfg`, which **is no longer read** and can be deleted) and the **settings go
+> back to the defaults** — including the **`ApiKey`**, which has to be pasted again. The AI section became
+> **`[AI]`** and the **keys are in English** (`Enabled`, `Model`, `TtsVoice`…). **Already on 1.8.3? Nothing is
+> lost:** **1.9.0 does not touch the `.cfg`** — it only moves the old fixed defaults (`VoiceLanguage = pt`,
+> `TtsLanguage = pt-br`, `TtsVoice = 42` and the old Portuguese prompt) to `auto` **once**, and a value you chose
+> yourself is never touched. **Save, world, companions, houses and inventory are not affected** (the plugin GUID
+> and the `HC_*` keys did not change).
 
 The AI layer has its **own panel** (key **`I`** by default, changeable in `[AI] PanelKey`): the
 **LLM settings** (URL, model, key and the **Test connection**), personality (preset or free text), the companion's
@@ -276,9 +293,11 @@ Speech** and **Advanced** — plus ours in **`[AI]`** (text/voice orders, person
 - `-Name` = never that one
 - `Name:Number` = that one, with its own amount
 
-When updating from an old version, the options you changed are migrated automatically — **except on 1.8.3**,
-which swaps the file (new name, keys in English) and therefore **goes back to the defaults**: you only have to
-configure it again (the table of every key is in the **[wiki, under Configuration](https://github.com/julianu37/AI-Companions/wiki/Configuracao)**).
+When updating from an old version, the options you changed are migrated automatically — **except from 1.8.2 or
+older to 1.8.3**, which swapped the file (new name, keys in English) and therefore **went back to the defaults**:
+you only have to configure it again once (the table of every key is in the
+**[wiki, under Configuration](https://github.com/julianu37/AI-Companions/wiki/Configuration)**). **From 1.8.3 to
+1.9.0 nothing is lost**: the `.cfg` is kept and only the old fixed defaults of the voice/language become `auto`.
 
 </details>
 
@@ -307,8 +326,9 @@ voice orders require **Windows x64** and a **microphone**.
 ## Future plans
 
 - Keep improving the companion's AI and the natural-language orders.
-- More voice features: **more voices** and voice choice through the radial menu (the **AI panel**, key `I`, already
-  lets you choose the voice and the personality **in game** since Phase 3.7).
+- More voices and more languages (the five current ones are Portuguese, English, Spanish, French and Italian) and
+  voice choice through the radial menu (the **AI panel**, key `I`, already lets you choose the voice and the
+  personality **in game**, and the voice is **automatic** by default since 1.9.0).
 - More multiplayer features.
 - A review of the skills and attributes on top of a player's.
 

@@ -46,10 +46,12 @@ companheiro.
 Este projeto é um **projeto independente** baseado em [Offline Companions Reborn](https://github.com/MaddhattrRocks/Offline-Companions-Reborn)
 (**MIT**) — que por sua vez é um fork do *Offline Companions*, do **ProfMags** — com duas coisas nossas por cima:
 
-1. **Tradução PT-BR** (interface, menus, painéis e as falas do companheiro) sobre um mod agora **multilíngue**,
-   com o **inglês como idioma nativo**: os painéis seguem o **idioma do jogo** e um idioma novo é **um arquivo**.
+1. **Cinco idiomas** — **português do Brasil, inglês, espanhol, francês e italiano**: a interface (737 chaves), as
+   falas do companheiro (186 linhas), os presets de personalidade e o contrato do LLM seguem o **idioma do jogo**,
+   com o **inglês como idioma nativo**, e um idioma novo é **um arquivo**.
 2. **Uma camada de IA**: ordens em **linguagem natural** (texto no chat ou **voz** por push-to-talk), com
-   **personalidade**, **memória** e **conversa livre**.
+   **personalidade**, **memória** e **conversa livre** — e a voz e o reconhecimento da fala **escolhem o idioma e a
+   voz sozinhos**.
 
 O companheiro em si (trabalhos, comida, stamina, habilidades, casa, descanso, portais, carroça, menu radial)
 vem do upstream e continua funcionando igual — a IA é só uma **nova entrada** para as mesmas ações.
@@ -65,7 +67,7 @@ vem do upstream e continua funcionando igual — a IA é só uma **nova entrada*
 |---|---|
 | **Ordens por chat** | `colete 10 madeiras` · `segue` · `para` · `ataca o greydwarf` · `equipa o machado de bronze` |
 | **Ordens por voz** | Segure **`V`**, fale e solte — a fala é transcrita dentro do jogo |
-| **Ele fala** | Voz sintetizada em PT-BR, saindo **da posição dele** no mundo |
+| **Ele fala** | Voz sintetizada **no idioma do jogo**, saindo **da posição dele** no mundo |
 | **Personalidade** | Presets (`viking`, `mago`, `sarcastico`, `guia`) ou as suas palavras |
 | **Memória e conversa** | `bom dia`, `como você está?` — ele responde como personagem e lembra da conversa |
 | **Vários companheiros** | Até **10**, cada um com a sua aba no painel `I`; o invocador cria um novo **de graça** (sem o Trader) |
@@ -103,7 +105,7 @@ vem do upstream e continua funcionando igual — a IA é só uma **nova entrada*
 | **[Configuração](Configuration-pt)** | O `.cfg`, a seção `[AI]` e os painéis `F8` e `I` |
 | **[Problemas comuns](Troubleshooting-pt)** | Sintoma → causa → solução |
 | **[Como funciona](How-it-works-pt)** | Arquitetura e o caminho de uma ordem |
-| **[Histórico de versões](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)** | O changelog completo, da 1.6.0 à 1.8.3 |
+| **[Histórico de versões](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)** | O changelog completo, da 1.6.0 à 1.9.0 |
 | **[Créditos e licença](Credits-and-license-pt)** | Upstream, terceiros e licenças |
 
 ## Links rápidos
@@ -116,26 +118,36 @@ vem do upstream e continua funcionando igual — a IA é só uma **nova entrada*
 | **Upstream (MIT)** | https://github.com/MaddhattrRocks/Offline-Companions-Reborn |
 | **Vídeo** | https://www.youtube.com/watch?v=40FnVEIbXyo |
 
-A release publicada mais recente é a **1.8.3** (25/10/2026), com **dois** arquivos para escolher:
+A release publicada mais recente é a **1.9.0** (25/10/2026), com **dois** arquivos para escolher:
 
 | Arquivo | Tamanho | O que vem |
 |---|---|---|
-| `AI_Companions-1.8.3.zip` | ~368 MB | O mod **e** os modelos de voz (STT + TTS) já prontos |
-| `AI_Companions-1.8.3-sem-modelos.zip` | ~28,5 MB | Só o mod e as traduções — você baixa os modelos por fora |
+| `AI_Companions-1.9.0.zip` | ~368 MB | O mod **e** os modelos de voz (STT + TTS) já prontos |
+| `AI_Companions-1.9.0-sem-modelos.zip` | ~28,6 MB | Só o mod e as traduções — você baixa os modelos por fora |
 
 > **Qual escolher?** Se você quer só instalar e usar, pegue o **completo**. Se a sua internet é lenta (ou você já
 > tem os modelos), pegue o **sem-modelos** e siga a seção de modelos em **[Instalação](Installation-pt)**.
 
-> ### Atualizando para a 1.8.3? As configurações voltam aos padrões
+> **A 1.9.0 em uma linha:** o mod fala **cinco idiomas** (português, inglês, espanhol, francês e italiano) seguindo o
+> **idioma do jogo**, e a **voz e o reconhecimento da fala são automáticos** — `[AI] TtsVoice = 0` e `TtsLanguage` /
+> `VoiceLanguage` = `auto`, e um valor explícito continua ganhando. **Trocar o idioma do jogo não exige reiniciar.**
+
+> ### Atualizando da 1.8.2 ou anterior? As configurações voltam aos padrões
 >
-> A **1.8.3** trocou o **arquivo** de configuração: agora ele é **`BepInEx\config\AiCompanions.cfg`**, e o antigo
-> (`Maddhattr.OfflineCompanionsReborn.cfg`) **não é mais lido** — pode ser apagado. O arquivo novo nasce com os
-> **valores padrão**, inclusive a **`ApiKey` em branco**: se você usa o Groq ou o OpenRouter, **cole a chave de
-> novo** (painel `I` → **Configurações do LLM**). A seção da IA também mudou de nome (`[IA]` → **`[AI]`**) e as
-> chaves agora são em **inglês** (`Ligado` virou `Enabled`, `Modelo` virou `Model`…).
+> O **reset foi na 1.8.3**, não agora: a **1.8.3** trocou o **arquivo** de configuração (agora ele é
+> **`BepInEx\config\AiCompanions.cfg`**, e o antigo `Maddhattr.OfflineCompanionsReborn.cfg` **não é mais lido** —
+> pode ser apagado). O arquivo novo nasce com os **valores padrão**, inclusive a **`ApiKey` em branco**: se você usa
+> o Groq ou o OpenRouter, **cole a chave de novo** (painel `I` → **Configurações do LLM**). A seção da IA também
+> mudou de nome (`[IA]` → **`[AI]`**) e as chaves agora são em **inglês** (`Ligado` virou `Enabled`, `Modelo` virou
+> `Model`…).
+>
+> **Já está na 1.8.3? Nada se perde:** a **1.9.0 não mexe no `.cfg`** — ela só move os padrões fixos antigos
+> (`VoiceLanguage = pt`, `TtsLanguage = pt-br`, `TtsVoice = 42` e o prompt antigo em português) para `auto` **uma
+> vez**, e um valor que você escolheu nunca é tocado.
 >
 > **O que NÃO se perde:** o **save**, o **mundo**, os **companheiros**, as casas e o inventário — o **GUID** do
-> plugin e as chaves `HC_*` não mudaram. Só a configuração volta ao padrão.
+> plugin e as chaves `HC_*` não mudaram. Só a configuração volta ao padrão, e só quando você vem da 1.8.2 ou
+> anterior.
 
 > **Já tem uma versão anterior?** O mod passou a se chamar **AI Companions** (era *ModAI-BR-Companions*) e a pasta
 > agora é `BepInEx\plugins\AI-Companions\`: **apague a pasta antiga** (`BepInEx\plugins\ModAI-BR-Companions\`)
@@ -143,8 +155,14 @@ A release publicada mais recente é a **1.8.3** (25/10/2026), com **dois** arqui
 > o save, os companheiros, a casa e o inventário continuam valendo (o GUID do plugin e as chaves `HC_*` foram
 > preservados de propósito).
 
-> A **1.8.3** é a versão **multilíngue**: o **inglês é o idioma nativo** (chaves e descrições do `.cfg`) e o
-> **português é a tradução** — os painéis (`I` e `F8`) seguem o **idioma do jogo**, e um idioma novo entra por
+> A **1.9.0** é a release dos **cinco idiomas**: **português, inglês, espanhol, francês e italiano** — a interface,
+> as falas do companheiro, os presets de personalidade e o contrato do LLM seguem o **idioma do jogo**, e a voz e o
+> reconhecimento da fala **escolhem o idioma sozinhos** (`[AI] VoiceLanguage`, `TtsLanguage` e `TtsVoice` =
+> `auto` / `0`). Trocar o idioma do jogo **não exige reiniciar**: os painéis se reconstroem na próxima abertura e o
+> HUD, as falas e o TTS/STT acompanham.
+>
+> A **1.8.3** é onde o **inglês virou o idioma nativo** (chaves e descrições do `.cfg`) e o **português virou
+> tradução** — os painéis (`I` e `F8`) seguem o **idioma do jogo**, e um idioma novo entra por
 > `Translations/<Idioma>.json` + `Speech/<Idioma>.json`.
 >
 > A **1.8.2** deixa a escolha do LLM a um clique: na seção **Configurações do LLM** do painel `I`, o dropdown

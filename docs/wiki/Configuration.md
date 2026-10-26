@@ -22,10 +22,11 @@ through the panels. It has about **1540 lines** and **~265 options** in total, s
 > what ties the world, the save and the companions together), but it **no longer** names the file. The old `.cfg`
 > **stays on the disk, ignored**: it can be deleted without fear.
 
-> **Updating to 1.8.3?** The settings **go back to the defaults** (the new file is created already with the default
-> values) — including the **`ApiKey`**, which has to be pasted again. **Save, world, companions, houses and
-> inventory are not affected** (the `HC_*` keys and the GUID did not change). The values of the old file are **not**
-> migrated on purpose: the keys changed their names.
+> **Coming from 1.8.2 or older?** The settings **go back to the defaults** (that was the 1.8.3 change: the new
+> file is created already with the default values) — including the **`ApiKey`**, which has to be pasted again.
+> **Save, world, companions, houses and inventory are not affected** (the `HC_*` keys and the GUID did not change).
+> The values of the old file are **not** migrated on purpose: the keys changed their names. **1.9.0 keeps the file**
+> and only moves the old fixed voice/language defaults to `auto`.
 
 The **`[AI]`** section has **39 keys**. This is how it shows up in the file (in this example, with the **local
 alternative** configured: `127.0.0.1`, `qwen2.5-3b-instruct` and the empty key — in the **default** the `BaseUrl` is
@@ -117,7 +118,7 @@ no key) and it **is not a picker**: clicking it does not change any state afterw
 | **Call** | Brings the companion close to you: he walks over and, if he is too far away, comes back through the game's own recall |
 | **Appearance** | Opens the **appearance editor** (right below) |
 | **Personality** | The list with **"Follow the [AI] default"** first and the presets (`viking`, `mago`, `sarcastico`, `guia`) — **picking already saves**. **In your own words** is the free field, applied by the **Apply** next to it |
-| **Voice** | The list with **"Follow the [AI] default"** first and the **3 pt-BR voices** — picking already saves and applies to the **next line**; **Listen** plays a sample sentence right away |
+| **Voice** | The list with **"Follow the [AI] default"** first and the **voices of the game's language** — picking already saves and applies to the **next line**; **Listen** plays a sample sentence right away. A voice stored for **another** language is not used (the default of the active language plays instead) |
 
 > The voice and the personality chosen here belong to **this** companion, kept in **his ZDO**: they travel in the
 > **tombstone** and come back on the respawn. Whoever is on "follow the default" obeys what is in the **AI tab** —
@@ -174,20 +175,20 @@ what is in force.
 | `SttWavTest` | `whisper\jfk.wav` | WAV that `modia_stt_teste` transcribes. **The package does not bring that file** — point it at a WAV of yours |
 | `VoiceEnabled` | `true` | Turns the push-to-talk on |
 | `VoiceKey` | `V` | Push-to-talk key |
-| `VoiceLanguage` | `pt` | Language of the speech (Whisper code). Empty or `auto` detects it |
+| `VoiceLanguage` | `auto` | Language of the speech (Whisper code). `auto` follows the **game's language** (PT-BR, EN, ES, FR, IT); an explicit code always wins. Empty also means `auto` |
 | `VoiceMaxSeconds` | `10` | Recording ceiling, in seconds |
 | `VoiceSilenceThreshold` | `0.01` | How loud the audio has to be to count as speech |
-| `VoiceInitialPrompt` | *(the orders vocabulary, in PT-BR)* | Whisper initial prompt: biases the recognition towards the order words. Put the words **you** say |
+| `VoiceInitialPrompt` | *(empty)* | Whisper initial prompt: biases the recognition towards the order words. Empty = the **orders vocabulary of the game's language**, written by the mod; anything you type here wins (`none` turns the bias off) |
 | `VoiceDevice` | `0` | Microphone index (the log prints the list) |
 | `VoiceShowText` | `true` | Shows in the chat/HUD what the microphone heard |
 | `PanelKey` | `I` | Key that opens the **AI panel** |
 | `TtsEnabled` | `true` | He **speaks** the replies (local TTS, Kokoro) |
-| `TtsVoice` | `42` | Voice: `42` pf_dora (fem.), `43` pm_alex (masc.), `44` pm_santa (masc.) |
+| `TtsVoice` | `0` | Which voice: `0` = **automatic** (the default voice of the game's language); an explicit id **of that language** wins (`42` pf_dora, `43` pm_alex, `44` pm_santa in Portuguese; `3` af_heart, `2` af_bella, `6` af_nicole, `14` am_fenrir, `16` am_michael, `18` am_puck in English; `28` ef_dora, `29` em_alex in Spanish; `30` ff_siwis in French; `35` if_sara, `36` im_nicola in Italian) |
 | `TtsSpeed` | `1` | Speech speed |
 | `TtsThreads` | `4` | CPU cores for the synthesis |
 | `TtsVolume` | `1` | Voice volume (0 = muted) |
 | `TtsModel` | `tts\kokoro\model.int8.onnx` | Kokoro model. Voices/tokens/espeak in the **same folder** |
-| `TtsLanguage` | `pt-br` | Language of the spoken text. **Never empty** |
+| `TtsLanguage` | `auto` | Language of the spoken text (Kokoro code). `auto` follows the **game's language** (`pt-br`, `en-us`, `es`, `fr`, `it`); an explicit code always wins. **Never empty** — the model requires a language |
 | `TtsCache` | `true` | Keeps the lines already synthesized |
 | `TtsSpeakReplies` | `true` | Speaks the model's reply |
 | `TtsSpeakModLines` | `true` | Speaks the mod's line that appears in the chat (it wins in an order) |
@@ -198,19 +199,30 @@ what is in force.
 
 ## Language
 
-**English is the mod's native language** — and **Portuguese** is the translation that comes with this version:
+**Five languages: Portuguese (Brazil), English, Spanish, French and Italian** — and **English is the mod's native
+language**:
 
-- **In game**, the **panels follow the Valheim language**. With the game in **Portuguese**, the names of the
-  **`F8`** options and the tabs appear in **PT** (`Ligado`, `Modelo`, `VozTecla`…); with the game in **English**, the
-  native names appear (`Enabled`, `Model`, `VoiceKey`…). The **`I` panel** is translated the same way (its content
-  was already PT/EN since 1.7.0).
+- **The game's language decides everything**: the interface (737 keys), the companion's speech (186 lines), the
+  personality presets, the LLM contract and the **voice and the speech recognition**. With the game in
+  **Portuguese**, the names of the **`F8`** options and the tabs appear in **PT** (`Ligado`, `Modelo`, `VozTecla`…);
+  with the game in **English**, the native names appear (`Enabled`, `Model`, `VoiceKey`…); Spanish, French and
+  Italian have their own file. The **`I` panel** is translated the same way. **Changing the language does not need a
+  restart**: the panels rebuild on the next open and the HUD, the speech and the TTS/STT follow along.
+- **`[AI] VoiceLanguage`, `TtsLanguage` and `TtsVoice` are automatic by default** (`auto`, `auto`, `0`): the mod
+  resolves them from the game's language. Voices per language (the default first): `pt-br` → `pf_dora`, `pm_alex`,
+  `pm_santa`; `en-us` → `af_heart`, `af_bella`, `af_nicole`, `am_fenrir`, `am_michael`, `am_puck`; `es` → `ef_dora`,
+  `em_alex`; `fr` → `ff_siwis`; `it` → `if_sara`, `im_nicola`.
+- **An explicit value always wins** — and the `F8` and the `I` panel show the **effective** value, e.g.
+  `Automatic (en-US · af_heart)`.
 - **In the `.cfg`**, the **keys and the descriptions are in English, always** — it **does not** change with the
   game's language (the same goes for `package/CONFIGURATION.md`). That is why the **key name is the English one**,
   even with the game in Portuguese: the key is the identifier of the option, not the label you read on the screen.
-- **New languages come in through a file**, without touching the code: `Translations/<Language>.json` brings the
-  interface texts (including the names of the `F8` options and tabs) and `Speech/<Language>.json` brings the
-  **companion's lines** — the same scheme. It is the base of the multilanguage: **English does not need a file**,
-  because the keys **are** the text.
+- **New languages come in through a file**, without touching the code: `Translations/<Language>.json` (737 keys)
+  brings the interface texts (including the names of the `F8` options and tabs) and `Speech/<Language>.json` (186
+  lines) brings the **companion's lines** — the same scheme. **English does not need a file**, because the keys
+  **are** the text.
+- **Languages the Kokoro model does not speak** (German, Russian, Polish, Turkish, Korean, Swedish and Ukrainian)
+  use the **English voice** — the interface and the speech can still be translated; the audio is English.
 
 ---
 
@@ -273,8 +285,8 @@ translation. It is the quickest way to check what is in force right now, without
 ![The F8 panel open on the [AI] section, with the options of the AI layer](images/en-f8-panel-advanced-configurations.jpg)
 
 > The capture is from a build with the **English keys** (`Conversation`, `StructuredOutput`, `VoiceEnabled`,
-> `TtsVoice`…). In **1.8.3** the `.cfg` is in English; with the game in **Portuguese** the panel keeps showing the
-> names in PT.
+> `TtsVoice`…). Since **1.8.3** the `.cfg` is in English; with the game in **Portuguese** the panel keeps showing
+> the names in PT.
 
 > The mod's panels sit **above the game HUD** in the drawing order — it is what guarantees that a click on the panel
 > reaches the panel, and not the HUD.

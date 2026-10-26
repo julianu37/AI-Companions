@@ -8,11 +8,12 @@
 This project is an **independent project** based on [Offline Companions Reborn](https://github.com/MaddhattrRocks/Offline-Companions-Reborn)
 (**MIT**) with two things of ours on top:
 
-1. **A complete PT-BR translation** (interface, menus, panels and the companion's speech) over a mod that is now
-   **multilingual**, with **English as the native language**: the panels follow the **game's language**.
+1. **Five languages** — **Portuguese (Brazil), English, Spanish, French and Italian**: the interface (737 keys),
+   the companion's speech (186 lines), the personality presets and the LLM contract follow the **game's language**,
+   with **English as the native language**, and a new language is **one file**.
 2. **An AI layer**: orders in **natural language** (text in the chat or **voice** through push-to-talk), with
    **personality**, **memory** and **conversation** — using an **LLM** (the **Groq** by default, or a **local**
-   model) and **local** speech recognition.
+   model) and **local** speech recognition, which **picks the language and the voice by itself**.
 
 The companion itself (jobs, food, stamina, skills, home, rest, portals, cart, radial menu) comes from the upstream
 and keeps working the same — the AI is only a **new entry point** for the same actions.
@@ -67,13 +68,20 @@ path as the typed orders: order, conversation, personality and memory work the s
 
 The companion **says out loud** what he answers, at his position in the world (not in the middle of the screen).
 The voice is synthesized **inside the game** by **Kokoro-82M** (through `sherpa-onnx`, CPU) — no external service,
-no child process, nothing leaves your machine. Three voices in **Brazilian Portuguese**:
+no child process, nothing leaves your machine. **The voice follows the game's language**, and `[AI] TtsVoice = 0`
+(the default) means **automatic**: the default voice of that language.
 
-| `TtsVoice` | Voice |
-|---|---|
-| **42** (default) | `pf_dora` — female |
-| **43** | `pm_alex` — male |
-| **44** | `pm_santa` — male |
+| Language | `TtsLanguage` | Voices (the default first) |
+|---|---|---|
+| Portuguese (Brazil) | `pt-br` | `pf_dora` (F), `pm_alex` (M), `pm_santa` (M) |
+| English | `en-us` | `af_heart` (F), `af_bella` (F), `af_nicole` (F), `am_fenrir` (M), `am_michael` (M), `am_puck` (M) |
+| Spanish | `es` | `ef_dora` (F), `em_alex` (M) |
+| French | `fr` | `ff_siwis` (F) |
+| Italian | `it` | `if_sara` (F), `im_nicola` (M) |
+
+> A language the Kokoro model does not speak (**German, Russian, Polish, Turkish, Korean, Swedish and Ukrainian**)
+> uses the **English** voice: the interface and the speech lines can still be translated, the audio is English.
+> An explicit voice of another language is not used (it would sound wrong).
 
 > **What he speaks:** the model's reply (his own way — *"Leave it to me."*) and/or the mod's own line that
 > appears in the chat (*"Ok: gather wood (10)."*, *"We already have enough."*). The two options are separate
@@ -94,8 +102,8 @@ Press **`I`** at any time (no companion needs to be nearby) to adjust the AI **i
 | What | How |
 |---|---|
 | **Personality** | Pick a **preset** (Default, Loyal Viking, Sarcastic Mage, Sarcastic, Patient Guide) or write it **in your own words** and click **Apply** — it takes effect on the next reply |
-| **Voice** | Pick one of the 3 pt-BR voices and press **Listen** to hear a sample sentence right away |
-| **Select your LLM provider** | The dropdown above the **server URL**: **Groq**, **LM Studio** or **OpenRouter** fill in the **URL and the model** (it applies after **Apply**; the key is not touched). An Ollama/own-server URL shows up as **Custom** and nothing is touched |
+| **Voice** | Pick **automatic** (the default voice of the game's language) or one of the voices of that language and press **Listen** to hear a sample sentence right away |
+| **Pick your LLM provider** | The dropdown above the **server URL**: **Groq**, **LM Studio** or **OpenRouter** fill in the **URL and the model** (it applies after **Apply**; the key is not touched). An Ollama/own-server URL shows up as **Custom** and nothing is touched |
 | **Create your Free API Key HERE** | Button next to the **API key**: opens the key page of the chosen provider in the browser (`console.groq.com/keys` on Groq, `openrouter.ai/keys` on OpenRouter). It disappears on LM Studio/custom |
 | **Volume** | Slider (it applies to the next audio). The **speech speed** stays **only in `F8`** (`[AI] TtsSpeed`) |
 | **Push-to-talk** | See the current key and press **Change** to capture another one |
@@ -126,7 +134,7 @@ game chat ───────────────────────�
 
 - **LLM**: **Groq** by default (an OpenAI-compatible API; only the **free key** is needed), a **local** server
   (LM Studio/Ollama) as an option or **OpenRouter** as an alternative — used to **understand** the order and to
-  **talk**. In the `I` panel, the **"Select your LLM provider"** dropdown fills in the URL and the model of the
+  **talk**. In the `I` panel, the **"Pick your LLM provider"** dropdown fills in the URL and the model of the
   chosen provider, and the **"Create your Free API Key HERE"** button opens the key page in the browser.
 - **Local STT**: `Whisper.net` (whisper.cpp) running **inside the game**, with the model loaded once.
 - **Local TTS**: `sherpa-onnx` with the **Kokoro-82M** model — the companion **speaks** the reply inside the
@@ -167,12 +175,15 @@ game chat ───────────────────────�
    `openrouter/free`.)
 5. Enter the world. In the chat: `collect 10 wood`. Or hold **`V`** and speak. He answers **out loud**.
 
-> **Updating to 1.8.3? Settings go back to the defaults.** The configuration file is now
-> `BepInEx\config\AiCompanions.cfg` and the old one (`Maddhattr.OfflineCompanionsReborn.cfg`) **is no longer
-> read** — you can delete it. The new file is born with the **default values**, including an **empty `ApiKey`**
-> that has to be pasted again; the AI section became **`[AI]`** and the **keys are in English** (`Enabled`,
-> `Model`, `TtsVoice`…). **Save, world, companions, houses and inventory are not affected** — the plugin GUID and
-> the `HC_*` keys did not change. The full table is in
+> **Updating from 1.8.2 or older? Settings go back to the defaults — that was 1.8.3, not this one.**
+> **1.8.3** is the version that swapped the configuration file: it is `BepInEx\config\AiCompanions.cfg` now and
+> the old one (`Maddhattr.OfflineCompanionsReborn.cfg`) **is no longer read** — you can delete it. The new file is
+> born with the **default values**, including an **empty `ApiKey`** that has to be pasted again; the AI section
+> became **`[AI]`** and the **keys are in English** (`Enabled`, `Model`, `TtsVoice`…). **Already on 1.8.3? Then
+> nothing is lost:** **1.9.0 does not touch the `.cfg`** — it only moves the old fixed defaults
+> (`VoiceLanguage = pt`, `TtsLanguage = pt-br`, `TtsVoice = 42` and the old Portuguese prompt) to `auto` **once**;
+> a value you chose yourself is never touched. **Save, world, companions, houses and inventory are not affected** in
+> any of those updates — the plugin GUID and the `HC_*` keys did not change. The full table is in
 > **[Configuration](https://github.com/julianu37/AI-Companions/wiki/Configuration)**.
 
 ---
@@ -209,19 +220,19 @@ game chat ───────────────────────�
 | `TargetRange` | `40` | How far to search for the creature named in an attack order |
 | `VoiceEnabled` | `true` | Turns push-to-talk on |
 | `VoiceKey` | `V` | Push-to-talk key |
-| `VoiceLanguage` | `pt` | Transcription language |
+| `VoiceLanguage` | `auto` | Transcription language: `auto` follows the **game's language** (PT-BR, EN, ES, FR, IT); an explicit Whisper code wins |
 | `VoiceMaxSeconds` | `10` | Recording cap (s) |
-| `VoiceInitialPrompt` | *(order vocabulary)* | Biases the recognition towards the words of the orders |
+| `VoiceInitialPrompt` | *(empty)* | Empty = the **orders vocabulary of the game's language**, written by the mod. Text of yours wins |
 | `VoiceDevice` | `0` | Microphone index |
 | `SttModel` | `whisper\ggml-small-q5_1.bin` | Whisper model |
 | `TtsEnabled` | `true` | He **speaks** the replies (local TTS, Kokoro) |
-| `TtsVoice` | `42` | Voice: `42` pf_dora (fem.), `43` pm_alex (male), `44` pm_santa (male) |
+| `TtsVoice` | `0` | `0` = **automatic** (the default voice of the game's language: `pf_dora`, `af_heart`, `ef_dora`, `ff_siwis` or `if_sara`); an explicit id of that language wins |
 | `TtsVolume` / `TtsSpeed` | `1` / `1` | Volume and speed of the speech |
 | `TtsThreads` | `4` | Cores for the synthesis (4 = faster than real time) |
 | `TtsSpeakReplies` | `true` | Speak the model's reply |
 | `TtsSpeakModLines` | `true` | Speak the mod's line that appears in the chat (it wins in an order) |
 | `TtsCache` | `true` | Keep the lines already synthesized (the repeated ones come out instantly) |
-| `TtsModel` / `TtsLanguage` | `tts\kokoro\model.int8.onnx` / `pt-br` | Kokoro model and language (never empty) |
+| `TtsModel` / `TtsLanguage` | `tts\kokoro\model.int8.onnx` / `auto` | Kokoro model and language — `auto` follows the game's language (never empty: the model requires a language) |
 | `PanelKey` | `I` | Key that opens the **AI panel** in game (personality, voice, push-to-talk) |
 
 > The **keys and the descriptions of the `.cfg` are in English** (the mod's native language); the **`F8` panel**
@@ -237,7 +248,7 @@ game chat ───────────────────────�
 |---|---|
 | `src/Companions/` | The mod (C#, net472): `Core/`, `Companion/`, `AI/`, `Jobs/`, `UI/`, `Patches/`, `Diagnostics/` |
 | `src/Companions/AI/` | **Our AI layer**: `LlmClient`, `LlmIntent`, `CompanionOrders`, `CompanionChatAI`, `WhisperStt`, `VoiceInput`, `CompanionTts`, `CompanionPersona`, `CompanionMemory` |
-| `Translations/`, `Speech/` | PT-BR translations (interface and speech) — the build copies them into the plugin |
+| `Translations/`, `Speech/` | The translations of the five languages (interface and speech) — the build copies them into the plugin; **English is native** and needs no file |
 | `package/` | Package files (icon, README/CHANGELOG, guide and configuration) |
 | `docs/` | Roadmap, vision, phase plan, reverse engineering and technical notes |
 | `.opencode/` | The **agent team** used to develop the project |
@@ -271,7 +282,8 @@ installed. The build uses the DLLs of your own game installation (no game file l
 - **Upstream:** [Offline Companions Reborn](https://github.com/MaddhattrRocks/Offline-Companions-Reborn) —
   a fork of **ProfMags**' *Offline Companions* — **MIT**. The companion, the jobs, the movement/combat AI, the UI
   and the base of all of it come from there.
-- **Us:** the PT-BR translation and the **AI layer** (LLM/voice), plus fixes and tweaks.
+- **Us:** the **localization in five languages** (Portuguese, English, Spanish, French and Italian) and the **AI
+  layer** (LLM/voice), plus fixes and tweaks.
 - **STT:** [Whisper.net](https://github.com/sandrohanea/whisper.net) + [whisper.cpp](https://github.com/ggml-org/whisper.cpp)
   (MIT) and the Whisper ggml models (MIT).
 - Project license: **MIT** — see [`LICENSE`](LICENSE) and [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).

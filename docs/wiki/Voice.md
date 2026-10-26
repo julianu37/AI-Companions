@@ -5,9 +5,13 @@
 The mod has **two** voice parts, and they are independent:
 
 - **STT** (*speech to text*) — **you** speak and the mod understands: hold **`V`**, speak and release.
-- **TTS** (*text to speech*) — the **companion** speaks: his reply comes out loud, at his position in the world.
+- **TTS** (*text to speech*) — the **companion** speaks: his reply comes out loud, at his position in the world, in
+  the **game's language**.
 
-Both run **inside the game**, on your machine, with no external service.
+Both run **inside the game**, on your machine, with no external service — and **both follow the game's language**:
+the five languages are Portuguese (Brazil), English, Spanish, French and Italian, and `[AI] VoiceLanguage`,
+`TtsLanguage` and `TtsVoice` are **automatic** (`auto`, `auto`, `0`). **Changing the game's language does not need a
+restart** — the model is loaded once and the next line already comes out in the new language.
 
 ---
 
@@ -29,7 +33,7 @@ Both run **inside the game**, on your machine, with no external service.
 
 | File | Size | Note |
 |---|---|---|
-| `whisper\ggml-small-q5_1.bin` | 181 MB | **Default.** Much better in Portuguese |
+| `whisper\ggml-small-q5_1.bin` | 181 MB | **Default.** Much more accurate than `base`, in every language |
 | `whisper\ggml-base-q5_1.bin` | 57 MB | Faster and less accurate — change it in `[AI] SttModel` |
 
 Where to download: https://huggingface.co/ggerganov/whisper.cpp/tree/main
@@ -43,10 +47,10 @@ The time barely changes with the clip size, because the encoder always works on 
 |---|---|---|
 | `VoiceEnabled` | `true` | Turns the push-to-talk on. Off = the key does nothing (and goes back to doing what the game did with it) |
 | `VoiceKey` | `V` | Push-to-talk key |
-| `VoiceLanguage` | `pt` | Language of the speech (Whisper code). Empty or `auto` lets the model detect it |
+| `VoiceLanguage` | `auto` | Language of the speech (Whisper code). `auto` follows the **game's language** (PT-BR, EN, ES, FR, IT) — the model is multilingual and can also detect it. An explicit code always wins |
 | `VoiceMaxSeconds` | `10` | Recording ceiling, in seconds |
 | `VoiceSilenceThreshold` | `0.01` | How loud the audio has to be to count as speech, when cutting the silence. Raise it if your microphone picks up too much noise |
-| `VoiceInitialPrompt` | *(the orders vocabulary, in PT-BR)* | Biases the recognition towards the order words. Put the words **you** say |
+| `VoiceInitialPrompt` | *(empty)* | Empty = the **orders vocabulary of the game's language**, written by the mod; it biases the recognition towards the order words. Put the words **you** say (`none` turns the bias off) |
 | `VoiceDevice` | `0` | Which microphone to use (index of the list the log prints) |
 | `VoiceShowText` | `true` | Shows in the chat/HUD what the microphone heard |
 | `SttModel` | `whisper\ggml-small-q5_1.bin` | Whisper model (relative to the plugin folder or an absolute path) |
@@ -78,15 +82,25 @@ stays intact and the `V` key stays free for speaking. You can also simply change
   already plays while the next one is generated. Repeated lines come from the **cache**, instantly.
 - The model is loaded **once**, in the background, when you enter the world.
 
-### Brazilian Portuguese voices
+### Voices by language
 
-| `TtsVoice` | Voice |
-|---|---|
-| **42** (default) | `pf_dora` — feminine |
-| **43** | `pm_alex` — masculine |
-| **44** | `pm_santa` — masculine |
+`[AI] TtsVoice = 0` (the default) is **automatic**: the default voice of the game's language. Each language has its
+own list (the default first), and an explicit id **of that language** wins.
 
-> The other numbers of the model are from **other languages** (45, for instance, sounds Chinese).
+| Language | `TtsLanguage` | Default id | Voices (the default first) |
+|---|---|---|---|
+| Portuguese (Brazil) | `pt-br` | **42** | `pf_dora` (F), `pm_alex` (M), `pm_santa` (M) |
+| English | `en-us` | **3** | `af_heart` (F), `af_bella` (F), `af_nicole` (F), `am_fenrir` (M), `am_michael` (M), `am_puck` (M) |
+| Spanish | `es` | **28** | `ef_dora` (F), `em_alex` (M) |
+| French | `fr` | **30** | `ff_siwis` (F) |
+| Italian | `it` | **35** | `if_sara` (F), `im_nicola` (M) |
+
+> **A voice of another language is not used** (it would speak with the wrong accent): the companion falls back to the
+> default voice of the active language, and the `I` panel says which one is in use. The choice is kept in the
+> companion, so switching the game back to that language restores it.
+>
+> **Languages the Kokoro model does not speak** — German, Russian, Polish, Turkish, Korean, Swedish and Ukrainian —
+> use the **English voice**: a companion that speaks with an English voice is better than a mute one.
 
 ### What he says
 
@@ -95,12 +109,12 @@ The rule is: **the voice follows what is written on the screen.**
 | `[AI]` key | Default | What it does |
 |---|---|---|
 | `TtsEnabled` | `true` | He **speaks** the replies. Off = only the balloon and the chat |
-| `TtsVoice` | `42` | Which voice to use (42/43/44) |
+| `TtsVoice` | `0` | Which voice: `0` = **automatic** (the default voice of the game's language); an explicit id of that language wins |
 | `TtsVolume` | `1` | Voice volume (0 = muted, 1 = normal volume) |
 | `TtsSpeed` | `1` | Speed (above 1 speaks faster and shorter) |
 | `TtsThreads` | `4` | CPU cores for the synthesis (4 is already faster than real time) |
 | `TtsModel` | `tts\kokoro\model.int8.onnx` | Kokoro model (relative to the plugin folder or an absolute path) |
-| `TtsLanguage` | `pt-br` | Language of the spoken text. **Never leave it empty** — Kokoro requires a language (`pt` alone is European Portuguese) |
+| `TtsLanguage` | `auto` | Language of the spoken text. `auto` follows the game's language (`pt-br`, `en-us`, `es`, `fr`, `it`) and an explicit code wins — **never leave it empty**, because Kokoro requires a language (`pt` alone is European Portuguese) |
 | `TtsCache` | `true` | Keeps the lines already synthesized (the repeated ones come out instantly) |
 | `TtsSpeakReplies` | `true` | Speaks the **model's reply** (his own way: *"Leave it to me."*) |
 | `TtsSpeakModLines` | `true` | Speaks the **mod's line** that appears in the chat (*"Ok: gather wood (10)."*) |
@@ -150,8 +164,8 @@ Open the console with **`F5`**:
 >
 > **The package does not bring that WAV** (it left the package to save space): put a file of yours in
 > `...\AI-Companions\whisper\` and point `[AI] SttWavTest` at it (a path relative to the plugin folder or an
-> absolute one). The command **does not** take the path as an argument — only the key. A short speech in English or
-> Portuguese, WAV PCM 16 bits, is what it expects.
+> absolute one). The command **does not** take the path as an argument — only the key. A short speech in your
+> language, WAV PCM 16 bits, is what it expects.
 
 The log shows the synthesis time of each sentence and the **RTF** (fraction of real time: below 1 is faster than
 real time).

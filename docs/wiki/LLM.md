@@ -19,6 +19,8 @@ you are done. Then comes the **local** option (**LM Studio**, which keeps workin
 > settings **go back to the defaults** — including the `ApiKey`, which has to be pasted again. The section also
 > changed its name: it was `[IA]`, now it is **`[AI]`**, with the keys in **English** (`Model`, not `Modelo`). The
 > old `.cfg` (`Maddhattr.OfflineCompanionsReborn.cfg`) stays on the disk and is **not** read.
+> **1.9.0 does not reset anything**: if the file is already `AiCompanions.cfg`, it stays as it is (only the old fixed
+> voice/language defaults move to `auto`).
 > Switching to Groq is optional — and it is only a matter of editing `BaseUrl`, `Model` and `ApiKey` (in the `.cfg`
 > or in the **LLM settings** section of the `I` panel).
 

@@ -31,8 +31,8 @@ Three AI pieces, all on **background threads** (the LLM can be remote; the STT a
 
 1. **Input.** You type in the chat **or** hold `V` and speak. In both cases the text falls into the **same** entry
    point — there is no duplicated logic between chat and voice.
-2. **Prompt.** The mod assembles the prompt of the message: the fixed **contract** + the companion's **name** + the
-   **personality** + the recent **memory**.
+2. **Prompt.** The mod assembles the prompt of the message: the fixed **contract** (in the **game's language**) +
+   the companion's **name** + the **personality** + the recent **memory**.
 3. **LLM.** The text goes to the configured server (`POST {BaseUrl}/chat/completions`) in a **background Task** — the
    game never waits.
 4. **Intent JSON.** The model returns a structured intent with five fields:
@@ -75,9 +75,9 @@ Key: `[AI] StructuredOutput` (default `true`).
 
 ## Personality, memory and conversation
 
-- **Personality:** PT-BR presets written inside the mod (`viking`, `mago`, `sarcastico`, `guia`) or the player's
-  **free text** — the free text **wins** over the preset. It goes into the prompt, so the companion answers in the
-  tone you chose.
+- **Personality:** presets written inside the mod (`viking`, `mago`, `sarcastico`, `guia`), **translated into the five
+  languages**, or the player's **free text** — the free text **wins** over the preset. It goes into the prompt, so
+  the companion answers in the tone you chose.
 - **Memory:** the latest `[AI] Memory` exchanges **per companion** (0–12). The memory goes as **text in the system
   prompt**, never as extra messages — the JSON contract is still the last thing the model reads. It is **forgotten**
   when the companion dies, is dismissed or you change worlds, and **nothing is saved in the world**.
@@ -91,6 +91,8 @@ Key: `[AI] StructuredOutput` (default `true`).
 
 ## The companion's voice (TTS)
 
+- The voice **follows the game's language**: `[AI] TtsLanguage` and `TtsVoice` come as `auto` / `0`, so the default
+  voice of that language is used unless you picked one. Changing the language needs no restart.
 - The Kokoro model is loaded **once**, in the background, when you enter the world.
 - The synthesis runs on a **dedicated background thread**; the finished pieces come back through another queue and
   are drained in `Update`.
@@ -165,7 +167,7 @@ pieces stay in the bag instead of equipped.
 
 | Comes from the upstream (Offline Companions Reborn, MIT) | Is ours |
 |---|---|
-| The companion: jobs, food, stamina, skills, home, rest, portals, cart | **Complete PT-BR translation** (386 UI keys + 186 lines) over a **multilingual** mod, with **English native** |
+| The companion: jobs, food, stamina, skills, home, rest, portals, cart | **The localization in five languages** — 737 UI keys and 186 lines per language, with **English native** |
 | The movement and combat AI, the jobs, the radial menu and the base UI | The **AI layer**: chat/voice orders, personality, memory, conversation |
 | All the game logic the orders trigger | The **local TTS** (Kokoro) and the **local STT** (Whisper) |
 | | The **AI panel** (key `I`) |

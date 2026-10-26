@@ -43,8 +43,9 @@ and `[TTS]`. (`[IA]` is the **log tag** — the `.cfg` section is **`[AI]`**, wi
 | **`I`** panel → **Test connection** | It **can** answer `Connection OK` even with the wrong key — on OpenRouter the model list is public. The 401 shows up on the **order**, not on the test |
 
 **Cause:** **Groq requires** the `[AI] ApiKey` (and OpenRouter does too), and it is **empty**, **wrong** or
-**deleted** (for example, after you copy a `.cfg` from another machine, or after updating to **1.8.3**, which resets
-the settings) — or it is the key of **another** service, pasted together with a URL that is not its own.
+**deleted** (for example, after you copy a `.cfg` from another machine, or after updating **from 1.8.2 or older** —
+1.8.3 is the version that reset the settings) — or it is the key of **another** service, pasted together with a URL
+that is not its own.
 
 **What to do:**
 
@@ -132,15 +133,19 @@ have **20 requests per minute** and a daily ceiling that depends on the account 
 
 ## Answers in the wrong language
 
-**Probable cause:** the chosen model is not good at your language, or the personality/preset is empty and the model
-is improvising.
+**Probable cause:** the game is in one language and the companion answers in another, or the chosen model is weak in
+your language.
 
 **What to do:**
 
+- **Check the game's language.** Since 1.9.0 the contract sent to the model is in the **game's language** — Portuguese
+  (Brazil), English, Spanish, French and Italian — and a language outside those five falls back to **English**. The
+  voice and the speech recognition follow the same rule automatically (`[AI] VoiceLanguage` / `TtsLanguage` /
+  `TtsVoice` = `auto` / `auto` / `0`).
 - Use **`qwen2.5-3b-instruct`** (good in Portuguese) if you are on LM Studio; on **Groq** (default) and on
   **OpenRouter**, a bigger model usually writes better in Portuguese than the small ones.
 - Adjust the personality in the **`I`** panel (preset or free text in your language) — it goes into the prompt and
-  pulls the answer to that language.
+  pulls the answer to that language. The presets are translated into the five languages too.
 - Reduce `[AI] Temperature` (the default `0.1` is already low; high values make the model ramble).
 
 ---
@@ -188,7 +193,10 @@ the voice, use `0.19`. It applies on the **next sentence**, without restarting. 
 4. **The silence threshold is high.** `[AI] VoiceSilenceThreshold` (default `0.01`) cuts the beginning/end of the
    recording. If your microphone is quiet, lower it; if it picks up too much noise, raise it.
 5. **The speech was too short.** The log says the recording was too short — speak for longer.
-6. **Isolated test:** `modia_stt_teste` in the console (**`F5`**) runs Whisper over a WAV, **without** a microphone.
+6. **The language is wrong.** `[AI] VoiceLanguage` is `auto` by default (the **game's language**); a hand-written code
+   of another language (e.g. `pt` with the game in English) makes the recognition much worse. Since 1.9.0 the
+   automatic value follows the game and needs no restart.
+7. **Isolated test:** `modia_stt_teste` in the console (**`F5`**) runs Whisper over a WAV, **without** a microphone.
    If it transcribes, the model is fine and the problem is the capture.
 
 > **Windows x64 is required** for the voice: the natives of the **STT** (whisper.cpp) **and of the TTS**
@@ -252,8 +260,8 @@ mod** (`[General] MaxCarryWeight`, 300 by default), not from the game, and the M
 effect* whose only reader in vanilla is the `Player`. Since the companion is not a player, the belt only took up
 space and weighed.
 
-**What to do:** **update to 1.8.1**. After that the `/450` shows up in ~**0.5 s** (with the default `300`), and this
-line confirms it in `LogOutput.log`:
+**What to do:** **update the mod** (the fix came in 1.8.1). After that the `/450` shows up in ~**0.5 s** (with the
+default `300`), and this line confirms it in `LogOutput.log`:
 
 ```
 [Carry] "Thorin": +150 de capacidade (Megingjord) - teto 450
@@ -269,7 +277,7 @@ line confirms it in `LogOutput.log`:
 
 | Where to look | What to look for |
 |---|---|
-| `LogOutput.log` | `AI Companions v1.8.3 loading...` and `AI Companions loaded successfully! (N methods patched)` — the `v1.8.3` is the version you installed |
+| `LogOutput.log` | `AI Companions v1.9.0 loading...` and `AI Companions loaded successfully! (N methods patched)` — the `v1.9.0` is the version you installed |
 
 **Probable causes:**
 
@@ -287,7 +295,8 @@ line confirms it in `LogOutput.log`:
 
 ## My settings went back to the defaults (or "the mod does not read my `.cfg`")
 
-**Cause:** in **1.8.3** the configuration file changed its name and its language. The mod reads
+**Cause:** **1.8.3** was the version where the configuration file changed its name and its language (that is why a
+file from 1.8.2 or older has no effect). The mod reads
 **`BepInEx\config\AiCompanions.cfg`**; `Maddhattr.OfflineCompanionsReborn.cfg` (from the previous versions) **is no
 longer read** and stays on the disk **without effect** — that is why the options go back to the **defaults**,
 including the empty `ApiKey`. The AI section also became **`[AI]`**, with the keys in **English**.
@@ -302,6 +311,10 @@ including the empty `ApiKey`. The AI section also became **`[AI]`**, with the ke
 
 > **Save, world, companions, houses and inventory are not affected** — the plugin **GUID** and the `HC_*` keys did
 > not change. Only the mod's configuration goes back to the default.
+>
+> **1.9.0 does not reset anything.** If your file is already `AiCompanions.cfg` (1.8.3 or newer), the update only
+> moves the old fixed voice/language defaults (`pt`, `pt-br`, `42` and the Portuguese prompt) to `auto` — your key and
+> your other choices stay.
 
 ---
 
