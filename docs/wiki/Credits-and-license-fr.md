@@ -82,5 +82,3 @@ Les fichiers complets sont dans le dépôt :
 
 > Le dossier `LICENSES\` qui vient avec le mod installé apporte les textes des licences des composants tiers
 > distribués avec lui.
-
-<!-- D4: add Español/Français/Italiano -->

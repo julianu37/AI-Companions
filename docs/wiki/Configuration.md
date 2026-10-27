@@ -156,7 +156,7 @@ what is in force.
 | Key | Default | What it does |
 |---|---|---|
 | `Enabled` | `true` | Turns the text orders on. Off = nothing is sent to the model |
-| `BaseUrl` | `https://api.groq.com/openai/v1` | LLM endpoint. `/chat/completions` is added on its own. The default is **Groq** (which asks for the `ApiKey`); the alternatives are **LM Studio** (`http://127.0.0.1:1234/v1`) or **Ollama** (`http://127.0.0.1:11434/v1`) to run everything locally, and **OpenRouter** (`https://openrouter.ai/api/v1`), which works but has a slower free tier. **In the local case** use **`127.0.0.1`** and **not** `localhost`: on Windows `localhost` resolves first to IPv6 and the LM Studio server only listens on IPv4, which costs ~**2.5 s** on every order (see **[LLM (Groq, LM Studio or OpenRouter)](LLM)**) |
+| `BaseUrl` | `https://api.groq.com/openai/v1` | LLM endpoint. `/chat/completions` is added on its own. The default is **Groq** (which asks for the `ApiKey`); the alternatives are **LM Studio** (`http://127.0.0.1:1234/v1`) or **Ollama** (`http://127.0.0.1:11434/v1`) to run everything locally, and **OpenRouter** (`https://openrouter.ai/api/v1`), which works but has a slower free tier. See **[LLM (LM Studio, Groq or OpenRouter)](LLM)** |
 | `Model` | `openai/gpt-oss-20b` | Model name, as the server lists it. `openai/gpt-oss-20b` is the default (Groq, free tier). Alternatives: `openrouter/free` on OpenRouter; on LM Studio use the name it shows (e.g. `qwen2.5-3b-instruct`) |
 | `ApiKey` | *(empty)* | API key of the server. **Required on Groq** (the free one comes from `console.groq.com/keys`) and also on OpenRouter (`openrouter.ai/keys`); empty for local LM Studio/Ollama |
 | `Temperature` | `0.1` | How much the model improvises. Keep it low so the same order always gives the same JSON |
@@ -290,5 +290,3 @@ translation. It is the quickest way to check what is in force right now, without
 
 > The mod's panels sit **above the game HUD** in the drawing order — it is what guarantees that a click on the panel
 > reaches the panel, and not the HUD.
-
-<!-- D4: add Español/Français/Italiano -->

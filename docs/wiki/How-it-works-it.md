@@ -14,7 +14,7 @@ Tre pezzi di IA, tutti su **thread di fondo** (il LLM può essere remoto; il STT
 
 | Pezzo | Cos'è | Dove gira |
 |---|---|---|
-| **LLM** | Capisce l'ordine e conversa | **Groq** (predefinito, remoto) o LM Studio/Ollama (locale) — qualsiasi endpoint compatibile con OpenAI |
+| **LLM** | Capisce l'ordine e conversa | **LM Studio/Ollama** (locale, consigliato) o **Groq** (remoto, quello che arriva nel `.cfg`) — qualsiasi endpoint compatibile con OpenAI |
 | **STT** | Trascrive quello che dici | `Whisper.net` (whisper.cpp) dentro il gioco |
 | **TTS** | Fa parlare il compagno | `sherpa-onnx` + Kokoro-82M dentro il gioco |
 
@@ -117,9 +117,10 @@ Questo è un requisito del progetto, non un dettaglio:
 
 - Il tuo parlato viene trascritto **dentro il gioco** (Whisper, locale).
 - La voce del compagno viene sintetizzata **dentro il gioco** (Kokoro, locale).
-- Il **LLM** è l'unico che può essere remoto: il predefinito è **Groq** (o **OpenRouter**, come alternativa), e lì il
-  testo degli ordini e della conversazione **esce dalla tua macchina**. Per non inviare niente, usa il **LM
-  Studio/Ollama** locale (**[LLM (Groq, LM Studio o OpenRouter)](LLM-it)**).
+- Il **LLM** è l'unico che può essere remoto: il `.cfg` arriva puntato su **Groq** (o **OpenRouter**, come
+  alternativa), e lì il testo degli ordini e della conversazione **esce dalla tua macchina**. Il percorso
+  consigliato è il **LM Studio/Ollama** locale, dove niente esce
+  (**[LLM (LM Studio, Groq o OpenRouter)](LLM-it)**).
 
 La `ApiKey`, quando c'è, resta solo nel `.cfg` locale — non metterla mai in un repository e non condividere quel file
 con la chiave compilata.
@@ -180,5 +181,3 @@ Il dettaglio di ogni fase (il perché di ogni decisione) è nel repository:
 - Roadmap e fasi: https://github.com/julianu37/AI-Companions/blob/main/docs/roadmap.md
 - Note di reverse engineering di Valheim 1.0: https://github.com/julianu37/AI-Companions/tree/main/docs/re
 - Changelog: https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md
-
-<!-- D4: add Español/Français/Italiano -->

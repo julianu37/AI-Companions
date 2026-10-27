@@ -200,5 +200,3 @@ ordenado —, mas uma forma de tratamento continua valendo (`mano, colete 10 ped
   úteis (ordens, mudança de modo, respostas da IA, eventos) continuam.
 
 Para ver todas as opções, vá em **[Configuração](Configuration-pt)**.
-
-<!-- D4: add Español/Français/Italiano -->

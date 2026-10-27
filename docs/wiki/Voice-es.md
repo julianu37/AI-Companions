@@ -179,5 +179,3 @@ rápido que el tiempo real).
 La voz del compañero **no pasa por el mixer del juego**. Eso significa que **ignora los sliders de volumen de Valheim**
 y obedece **solo** a `[AI] TtsVolume`. Si la voz está demasiado alta o baja en comparación con el juego, ajústala con
 esa clave (o con el slider de volumen del panel **`I`**).
-
-<!-- D4: add Español/Français/Italiano -->

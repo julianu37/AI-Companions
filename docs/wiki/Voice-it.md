@@ -179,5 +179,3 @@ reale).
 La voce del compagno **non passa dal mixer del gioco**. Questo vuol dire che **ignora gli slider del volume di
 Valheim** e obbedisce **solo** a `[AI] TtsVolume`. Se la voce è troppo alta o troppo bassa rispetto al gioco, regolala
 con quella chiave (o con lo slider del volume nel pannello **`I`**).
-
-<!-- D4: add Español/Français/Italiano -->

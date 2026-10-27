@@ -82,5 +82,3 @@ I file completi sono nel repository:
 
 > La cartella `LICENSES\` che arriva con la mod installata porta i testi delle licenze dei componenti di terze parti
 > distribuiti con essa.
-
-<!-- D4: add Español/Français/Italiano -->

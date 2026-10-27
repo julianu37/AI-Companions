@@ -14,15 +14,16 @@ Le mod fonctionne en **deux couches indépendantes** : les **ordres par texte da
 |---|---|
 | **Valheim** | **1.0.x** (moteur Unity 6 — testé sur **1.0.20**) |
 | **BepInEx** | **BepInExPack_Valheim 5.4.2351** (BepInEx 5.4.23.5) — le mod est un plugin BepInEx 5 |
-| **Un LLM** | Pour que les ordres de texte/voix soient compris. Par défaut c'est **Groq** : il faut seulement **internet** et une **clé gratuite** (voir plus bas). L'alternative **locale** (**LM Studio** ou **Ollama**) est **facultative** et n'envoie rien dehors ; **OpenRouter** fonctionne encore, mais son tier gratuit est plus lent. Voir **[LLM (Groq, LM Studio ou OpenRouter)](LLM-fr)** |
+| **Un LLM** | Pour que les ordres de texte/voix soient compris. Le chemin **recommandé** est **LM Studio** en local : tu télécharges un modèle (~1,9 Go) et tu laisses le serveur allumé, et rien ne sort de ta machine. **Groq** est ce qui vient dans le `.cfg` : il faut seulement **internet** et une **clé gratuite** (voir plus bas), et le texte des ordres **quitte ta machine**. **OpenRouter** fonctionne encore, mais son tier gratuit est plus lent. Voir **[LLM (LM Studio, Groq ou OpenRouter)](LLM-fr)** |
 | **Espace disque** | Voir la table plus bas |
 
-> **Le LLM est obligatoire ; le chemin ne l'est pas.** **Groq** est la valeur par défaut : la **clé gratuite**
-> (https://console.groq.com/keys) et internet suffisent — et le texte des ordres **quitte ta machine**.
-> **LM Studio/Ollama** est l'**alternative locale et facultative** : rien ne sort, mais tu télécharges un modèle
-> (~1,9 Go) et tu laisses le serveur allumé pendant que tu joues. **OpenRouter** fonctionne aussi (clé gratuite sur
-> https://openrouter.ai/keys) et reste comme **alternative**, parce que son tier gratuit est plus lent. Les trois
-> chemins — dans cet ordre de préférence — sont dans **[LLM (Groq, LM Studio ou OpenRouter)](LLM-fr)**.
+> **Le LLM est obligatoire ; le chemin ne l'est pas.** **LM Studio/Ollama** est le chemin **recommandé** et il est
+> local : rien ne sort, mais tu télécharges un modèle (~1,9 Go) et tu laisses le serveur allumé pendant que tu
+> joues. **Groq** est ce qui vient dans le `.cfg` : la **clé gratuite** (https://console.groq.com/keys) et
+> internet suffisent — et le texte des ordres **quitte ta machine**. **OpenRouter** fonctionne aussi (clé
+> gratuite sur https://openrouter.ai/keys) et reste comme **alternative**, parce que son tier gratuit est plus
+> lent. Les trois chemins — dans cet ordre de préférence — sont dans
+> **[LLM (LM Studio, Groq ou OpenRouter)](LLM-fr)**.
 
 ## Facultatif
 
@@ -74,5 +75,3 @@ Après ça, suis l'**[Installation](Installation-fr)** du mod.
 ## Étape suivante
 
 ➡️ **[Installation](Installation-fr)**
-
-<!-- D4: add Español/Français/Italiano -->

@@ -158,7 +158,7 @@ vigueur.
 | Clé | Défaut | Ce qu'elle fait |
 |---|---|---|
 | `Enabled` | `true` | Active les ordres par texte. Désactivé = rien n'est envoyé au modèle |
-| `BaseUrl` | `https://api.groq.com/openai/v1` | Endpoint du LLM. Le `/chat/completions` est ajouté tout seul. Le défaut est **Groq** (qui demande l'`ApiKey`) ; les alternatives sont **LM Studio** (`http://127.0.0.1:1234/v1`) ou **Ollama** (`http://127.0.0.1:11434/v1`) pour tout faire tourner en local, et **OpenRouter** (`https://openrouter.ai/api/v1`), qui fonctionne mais a un tier gratuit plus lent. **Dans le cas local**, utilise **`127.0.0.1`** et **pas** `localhost` : sous Windows, `localhost` résout d'abord en IPv6 et le serveur de LM Studio n'écoute qu'en IPv4, ce qui coûte ~**2,5 s** à chaque ordre (voir **[LLM (Groq, LM Studio ou OpenRouter)](LLM-fr)**) |
+| `BaseUrl` | `https://api.groq.com/openai/v1` | Endpoint du LLM. Le `/chat/completions` est ajouté tout seul. Le défaut est **Groq** (qui demande l'`ApiKey`) ; les alternatives sont **LM Studio** (`http://127.0.0.1:1234/v1`) ou **Ollama** (`http://127.0.0.1:11434/v1`) pour tout faire tourner en local, et **OpenRouter** (`https://openrouter.ai/api/v1`), qui fonctionne mais a un tier gratuit plus lent. Voir **[LLM (LM Studio, Groq ou OpenRouter)](LLM-fr)** |
 | `Model` | `openai/gpt-oss-20b` | Nom du modèle, comme le serveur le liste. `openai/gpt-oss-20b` est le défaut (Groq, tier gratuit). Alternatives : `openrouter/free` sur OpenRouter ; sur LM Studio utilise le nom qu'il affiche (p. ex. `qwen2.5-3b-instruct`) |
 | `ApiKey` | *(vide)* | Clé d'API du serveur. **Obligatoire sur Groq** (la gratuite vient de `console.groq.com/keys`) et aussi sur OpenRouter (`openrouter.ai/keys`) ; vide pour LM Studio/Ollama local |
 | `Temperature` | `0.1` | À quel point le modèle improvise. Garde-la basse pour que le même ordre donne toujours le même JSON |
@@ -295,5 +295,3 @@ sans quitter le jeu.
 
 > Les panneaux du mod se placent **au-dessus du HUD du jeu** dans l'ordre de dessin — c'est ce qui garantit qu'un clic
 > sur le panneau arrive au panneau, et pas au HUD.
-
-<!-- D4: add Español/Français/Italiano -->

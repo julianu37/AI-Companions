@@ -22,7 +22,7 @@ e `[TTS]`. (O `[IA]` é a **tag do log** — a seção do `.cfg` é **`[AI]`**, 
    tem que ser `http://127.0.0.1:1234/v1`.
 2. **O `BaseUrl` ou o `Model` estão errados.** No Groq são `https://api.groq.com/openai/v1` e
    `openai/gpt-oss-20b`. No LM Studio local, o `Model` tem que ser o **API Model
-   Identifier** que ele mostra, não o nome da pasta. Veja **[LLM (Groq, LM Studio ou OpenRouter)](LLM-pt)**.
+   Identifier** que ele mostra, não o nome da pasta. Veja **[LLM (LM Studio, Groq ou OpenRouter)](LLM-pt)**.
 3. **Usando o LM Studio local: o servidor não está ligado.** Abra a aba **Developer** e confira o status `Running`
    na porta **1234**.
 4. **`[AI] Enabled` está `false`.** Ligue no painel **`F8`**.
@@ -96,17 +96,14 @@ ordem gasta ~1.800 tokens, o teto prático é de **~4 ordens por minuto**. No **
 1. **O `.cfg` ainda está no OpenRouter.** O padrão atual é o **Groq** (`openai/gpt-oss-20b`), que responde em
    **fração de segundo** na nossa medição. Se o seu `[AI] BaseUrl` continua `https://openrouter.ai/api/v1`, você
    está no roteador gratuito dele (`openrouter/free`), que **varia** de uma ordem para outra e passa pela fila do
-   provedor. Troque pelo Groq (veja **[LLM (Groq, LM Studio ou OpenRouter)](LLM-pt)**) ou use o LM Studio
+   provedor. Troque pelo Groq (veja **[LLM (LM Studio, Groq ou OpenRouter)](LLM-pt)**) ou use o LM Studio
    local.
 2. **Não confunda lentidão com o limite do Groq.** O **429** responde **na hora** (a ordem é recusada com aviso),
    não devagar — se o sintoma é demora, a causa é outra. Veja "responde 429" acima para o caso do limite.
-3. **O seu `.cfg` local ainda está com `localhost` no `BaseUrl`.** No caso do LM Studio, o padrão é
-   `http://127.0.0.1:1234/v1`; se o arquivo é de uma versão anterior, troque. No Windows, `localhost` resolve
-   primeiro para IPv6 (`::1`) e o LM Studio só escuta IPv4 — cada ordem paga ~**2,5 s** de pedágio.
-4. **O modelo é grande ou está na CPU (local).** Um 3B (`qwen2.5-3b-instruct`) responde em ~0,35–0,4 s; o
+3. **O modelo é grande ou está na CPU (local).** Um 3B (`qwen2.5-3b-instruct`) responde em ~0,35–0,4 s; o
    `google/gemma-4-e4b` leva ~3 s. Modelos maiores praticamente exigem GPU.
-5. **`[AI] Memory` alta.** Cada troca lembrada aumenta o prompt que o modelo precisa ler. Reduza.
-6. **A primeira mensagem da sessão** inclui o carregamento do modelo — no LM Studio local ela é naturalmente mais
+4. **`[AI] Memory` alta.** Cada troca lembrada aumenta o prompt que o modelo precisa ler. Reduza.
+5. **A primeira mensagem da sessão** inclui o carregamento do modelo — no LM Studio local ela é naturalmente mais
    lenta, e nos serviços remotos a primeira também costuma ser a mais fria.
 
 > Lembre: o pedido roda em **segundo plano**. Mesmo lento, ele **não** trava o jogo.
@@ -326,5 +323,3 @@ https://github.com/julianu37/AI-Companions/issues :
 - O trecho do `LogOutput.log` em volta do problema (as linhas `[IA]`, `[STT]` ou `[TTS]`).
 - A versão do mod (aparece no boot do log) e a versão do Valheim.
 - O que você fez (chat ou voz) e o que aconteceu.
-
-<!-- D4: add Español/Français/Italiano -->

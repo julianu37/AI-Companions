@@ -13,15 +13,15 @@ The mod works in **two independent layers**: the **text orders in the chat** (th
 |---|---|
 | **Valheim** | **1.0.x** (Unity 6 engine — tested on **1.0.20**) |
 | **BepInEx** | **BepInExPack_Valheim 5.4.2351** (BepInEx 5.4.23.5) — the mod is a BepInEx 5 plugin |
-| **An LLM** | For the text/voice orders to be understood. The default is **Groq**: it only needs **internet** and a **free key** (see below). The **local** alternative (**LM Studio** or **Ollama**) is **optional** and sends nothing out; **OpenRouter** still works, but its free tier is slower. See **[LLM (Groq, LM Studio or OpenRouter)](LLM)** |
+| **An LLM** | For the text/voice orders to be understood. The **recommended** path is the local **LM Studio**: you download a model (~1.9 GB) and keep the server on, and nothing leaves your machine. **Groq** is what the `.cfg` ships with: it needs **internet** and a **free key** (see below), and the text of the orders **leaves your machine**. **OpenRouter** still works, but its free tier is slower. See **[LLM (LM Studio, Groq or OpenRouter)](LLM)** |
 | **Disk space** | See the table below |
 
-> **The LLM is required; the path is not.** **Groq** is the default: the **free key**
-> (https://console.groq.com/keys) and internet are enough — and the text of the orders **leaves your machine**.
-> **LM Studio/Ollama** is the **local, optional alternative**: nothing leaves, but you download a model (~1.9 GB)
-> and keep the server on while you play. **OpenRouter** also works (free key at https://openrouter.ai/keys) and
+> **The LLM is required; the path is not.** **LM Studio/Ollama** is the **recommended** path and it is local:
+> nothing leaves, but you download a model (~1.9 GB) and keep the server on while you play. **Groq** is what the
+> `.cfg` ships with: the **free key** (https://console.groq.com/keys) and internet are enough — and the text of
+> the orders **leaves your machine**. **OpenRouter** also works (free key at https://openrouter.ai/keys) and
 > stays as an **alternative**, because its free tier is slower. The three paths — in that order of preference —
-> are in **[LLM (Groq, LM Studio or OpenRouter)](LLM)**.
+> are in **[LLM (LM Studio, Groq or OpenRouter)](LLM)**.
 
 ## Optional
 
@@ -72,5 +72,3 @@ After that, follow the mod's **[Installation](Installation)**.
 ## Next step
 
 ➡️ **[Installation](Installation)**
-
-<!-- D4: add Español/Français/Italiano -->

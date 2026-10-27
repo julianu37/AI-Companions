@@ -177,5 +177,3 @@ real time).
 The companion's voice **does not go through the game mixer**. That means it **ignores the Valheim volume sliders**
 and obeys **only** `[AI] TtsVolume`. If the voice is too loud or too low compared with the game, adjust it through
 that key (or through the volume slider in the **`I`** panel).
-
-<!-- D4: add Español/Français/Italiano -->

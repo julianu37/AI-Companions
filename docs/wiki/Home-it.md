@@ -46,10 +46,11 @@ Questo progetto è un **progetto indipendente** basato su [Offline Companions Re
 Il compagno in sé (lavori, cibo, stamina, abilità, casa, riposo, portali, carro, menu radiale) viene dall'upstream e
 continua a funzionare uguale — l'IA è solo un **nuovo ingresso** per le stesse azioni.
 
-> **La voce gira tutta sulla tua macchina.** Il riconoscimento vocale (STT) e la voce sintetizzata (TTS) sono **100%
-> locali**: non viene inviato niente. Capire gli ordini usa un **LLM** — per impostazione predefinita **Groq**, che è
-> un **servizio remoto** (il testo degli ordini e della conversazione **esce dalla tua macchina**). Per non inviare
-> niente, passa all'opzione locale, **LM Studio** (o Ollama). Vedi **[LLM (Groq, LM Studio o OpenRouter)](LLM-it)**.
+> **La voce gira tutta sulla tua macchina.** Il riconoscimento vocale (STT) e la voce sintetizzata (TTS) sono
+> **100% locali**: non viene inviato niente. Capire gli ordini usa un **LLM** — il percorso consigliato è il **LM
+> Studio** (o Ollama) locale, dove **niente** esce; il `.cfg` arriva puntato su **Groq**, un **servizio remoto**
+> (il testo degli ordini e della conversazione **esce dalla tua macchina**). Vedi
+> **[LLM (LM Studio, Groq o OpenRouter)](LLM-it)**.
 
 ## Cosa fa
 
@@ -70,15 +71,16 @@ continua a funzionare uguale — l'IA è solo un **nuovo ingresso** per le stess
 | Elemento | Dettaglio |
 |---|---|
 | **Valheim 1.0.x** + **BepInEx 5.4.2351** | La base di tutto — passo passo in **[Installazione](Installation-it)** |
-| **Un LLM** | **Groq** (predefinito): solo la **chiave gratuita** (https://console.groq.com/keys) e internet — il testo degli ordini **esce dalla tua macchina**. L'opzione locale, **LM Studio** o Ollama, è **facoltativa** e non invia niente; **OpenRouter** funziona ancora come alternativa |
+| **Un LLM** | **LM Studio** (consigliato): il modello gira sulla tua macchina e non esce niente — lo scarichi una volta (~1,9 GB) e tieni il server acceso. **Groq** (quello che arriva nel `.cfg`): solo la **chiave gratuita** (https://console.groq.com/keys) e internet — il testo degli ordini **esce dalla tua macchina**. **OpenRouter** funziona ancora come alternativa |
 | **Microfono** | Solo per gli ordini vocali |
 
 ## Per iniziare
 
 1. Guarda cosa ti serve in **[Requisiti](Requirements-it)**.
 2. Segui il passo passo di **[Installazione](Installation-it)**.
-3. Configura il LLM in **[LLM (Groq, LM Studio o OpenRouter)](LLM-it)** — il predefinito è **Groq**
-   (solo la chiave gratuita); il **LM Studio** locale è facoltativo e **OpenRouter** è l'alternativa.
+3. Configura il LLM in **[LLM (LM Studio, Groq o OpenRouter)](LLM-it)** — il percorso consigliato è il **LM
+   Studio** locale (senza chiave, niente esce); **Groq** è quello che arriva nel `.cfg` (solo la chiave
+   gratuita) e **OpenRouter** è l'alternativa.
 4. Guarda i tasti e gli ordini in **[Ordini](Commands-it)**.
 5. Se qualcosa non funziona, vai in **[Problemi comuni](Troubleshooting-it)**.
 
@@ -88,7 +90,7 @@ continua a funzionare uguale — l'IA è solo un **nuovo ingresso** per le stess
 |---|---|
 | **[Requisiti](Requirements-it)** | Cosa è obbligatorio e cosa è facoltativo |
 | **[Installazione](Installation-it)** | Passo passo con immagini |
-| **[LLM (Groq, LM Studio o OpenRouter)](LLM-it)** | Groq come predefinito (chiave gratuita), il LM Studio locale come opzione e OpenRouter come alternativa |
+| **[LLM (LM Studio, Groq o OpenRouter)](LLM-it)** | LM Studio come percorso consigliato, Groq come l'opzione cloud che arriva nel `.cfg` (chiave gratuita) e OpenRouter come alternativa |
 | **[Voce](Voice-it)** | STT (Whisper) e TTS (Kokoro): come funzionano e come regolarli |
 | **[Ordini](Commands-it)** | Tasti, ordini chat/voce e comandi della console |
 | **[Configurazione](Configuration-it)** | Il `.cfg`, la sezione `[AI]` e i pannelli `F8` e `I` |
@@ -154,5 +156,3 @@ La release pubblicata più recente è la **1.9.1** (26/10/2026), con **due** fil
 > La **1.8.0** ha corretto il **peso**: il **Megingjord** (+150) e gli altri oggetti con bonus di carico **si
 > sommano** al tetto del compagno (il `/300` diventa `/450`), valendo con la cintura **in qualsiasi punto della
 > sacca** — non serve equipaggiarla — e **una volta sola** (due cinture non si accumulano).
-
-<!-- D4: add Español/Français/Italiano -->

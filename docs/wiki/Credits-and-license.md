@@ -82,5 +82,3 @@ The full files are in the repository:
 
 > The `LICENSES\` folder that comes with the installed mod brings the license texts of the third-party components
 > distributed with it.
-
-<!-- D4: add Español/Français/Italiano -->

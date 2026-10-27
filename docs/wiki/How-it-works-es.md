@@ -15,7 +15,7 @@ Tres piezas de IA, todas en **hilos de fondo** (el LLM puede ser remoto; el STT 
 
 | Pieza | Qué es | Dónde corre |
 |---|---|---|
-| **LLM** | Entiende la orden y conversa | **Groq** (por defecto, remoto) o LM Studio/Ollama (local) — cualquier endpoint compatible con OpenAI |
+| **LLM** | Entiende la orden y conversa | **LM Studio/Ollama** (local, recomendado) o **Groq** (remoto, lo que viene en el `.cfg`) — cualquier endpoint compatible con OpenAI |
 | **STT** | Transcribe lo que dices | `Whisper.net` (whisper.cpp) dentro del juego |
 | **TTS** | Hace hablar al compañero | `sherpa-onnx` + Kokoro-82M dentro del juego |
 
@@ -117,9 +117,9 @@ Esto es un requisito de proyecto, no un detalle:
 
 - Tu habla se transcribe **dentro del juego** (Whisper, local).
 - La voz del compañero se sintetiza **dentro del juego** (Kokoro, local).
-- El **LLM** es el único que puede ser remoto: por defecto es **Groq** (o **OpenRouter**, como alternativa), y ahí el
-  texto de las órdenes y de la conversación **sale de tu máquina**. Para no enviar nada, usa el **LM Studio/Ollama**
-  local (**[LLM (Groq, LM Studio u OpenRouter)](LLM-es)**).
+- El **LLM** es el único que puede ser remoto: el `.cfg` viene apuntado a **Groq** (o **OpenRouter**, como
+  alternativa), y ahí el texto de las órdenes y de la conversación **sale de tu máquina**. El camino recomendado
+  es el **LM Studio/Ollama** local, donde nada sale (**[LLM (LM Studio, Groq u OpenRouter)](LLM-es)**).
 
 La `ApiKey`, cuando existe, se queda solo en el `.cfg` local — nunca la subas a un repositorio ni compartas ese
 archivo con la clave rellenada.
@@ -180,5 +180,3 @@ El detalle de cada fase (el porqué de cada decisión) está en el repositorio:
 - Roadmap y fases: https://github.com/julianu37/AI-Companions/blob/main/docs/roadmap.md
 - Notas de ingeniería inversa de Valheim 1.0: https://github.com/julianu37/AI-Companions/tree/main/docs/re
 - Changelog: https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md
-
-<!-- D4: add Español/Français/Italiano -->

@@ -133,23 +133,14 @@ Où les télécharger :
 
 ---
 
-## 6. Configurer le LLM (Groq)
+## 6. Configurer le LLM
 
-Les ordres sont compris par un **LLM**. Le mod vient déjà pointé sur **Groq**, qui est le chemin le plus simple : il
-n'y a rien à installer — seulement la **clé gratuite** et internet.
-
-1. Crée le compte et la clé sur **https://console.groq.com/keys**.
-2. Dans `<Valheim>\BepInEx\config\AiCompanions.cfg`, section `[AI]`, vérifie les trois valeurs
-   (les deux premières **sont déjà les valeurs par défaut** ; seule la clé est à remplir) :
-
-   ```ini
-   BaseUrl = https://api.groq.com/openai/v1
-   Model = openai/gpt-oss-20b
-   ApiKey = <ta clé>
-   ```
-
-3. En jeu, appuie sur **`I`** → onglet **IA** → **Réglages du LLM** → **Tester la connexion** (tu peux aussi coller la
-   clé et changer l'URL/le modèle juste là, sans ouvrir le fichier).
+Les ordres sont compris par un **LLM**. Le chemin **recommandé** est **LM Studio** en local : installe-le depuis
+https://lmstudio.ai, récupère `qwen2.5-3b-instruct` avec **Model Search**, active le **Local Server** (port
+**1234**) et appuie sur **Load Model** — le pas à pas avec les captures est dans
+**[LLM (LM Studio, Groq ou OpenRouter)](LLM-fr)**. Si tu préfères ne rien installer, le `.cfg` **arrive déjà pointé
+sur Groq** : crée la **clé gratuite** sur https://console.groq.com/keys et colle-la dans `[AI] ApiKey`.
+**OpenRouter** fonctionne aussi (clé gratuite sur https://openrouter.ai/keys) et reste l'alternative.
 
 > **Sans éditer le fichier :** au-dessus de l'**URL du serveur** il y a le menu déroulant **« Choisis ton fournisseur
 > LLM »** — choisir **Groq**, **LM Studio** ou **OpenRouter** **remplit l'URL et le modèle** (la clé n'est pas
@@ -159,19 +150,16 @@ n'y a rien à installer — seulement la **clé gratuite** et internet.
 
 ![Le panneau de l'IA sur l'onglet IA : dans Réglages du LLM, le menu « Choisis ton fournisseur LLM » déjà sur Groq, l'URL du serveur avec api.groq.com, le modèle openai/gpt-oss-20b, la clé d'API masquée et le bouton « Crée ta clé d'API gratuite ICI » à droite de la clé](images/en-ai-panel.jpg)
 
-> Cette capture est de la **1.8.2** : le **sélecteur de fournisseur** est sur **Groq** (la valeur par défaut), l'URL
-> et le modèle viennent de Groq et le bouton de la clé apparaît à droite de la **Clé d'API**. Si tu choisis **LM
-> Studio**, le bouton disparaît (il n'y a pas de clé).
+> Cette capture est de la **1.8.2** : le **sélecteur de fournisseur** est sur **Groq** (ce qui vient dans le
+> `.cfg`), l'URL et le modèle viennent de Groq et le bouton de la clé apparaît à droite de la **Clé d'API**. Si tu
+> choisis **LM Studio**, le bouton disparaît (il n'y a pas de clé).
 
-> **Avec Groq, le texte des ordres quitte ta machine** (c'est un service distant) et le tier gratuit a une limite de
-> requêtes et de **tokens par minute** (~4 ordres par minute avec le `gpt-oss-20b`). Pour tout faire tourner **en
-> local** — et que **rien** ne sorte — utilise **LM Studio** comme **alternative facultative** : installe-le depuis
-> https://lmstudio.ai, télécharge `qwen2.5-3b-instruct` (Q4_K_M), active le **Local Server** (port **1234**) et
-> change dans le `.cfg` : `BaseUrl = http://127.0.0.1:1234/v1` et `Model = qwen2.5-3b-instruct` (avec l'`ApiKey`
-> **vide**).
+> **Avec Groq, le texte des ordres quitte ta machine** (c'est un service distant) et le tier gratuit a une limite
+> de requêtes et de **tokens par minute** (~4 ordres par minute avec le `gpt-oss-20b`). **LM Studio** en local n'a
+> rien de tout ça : c'est le chemin recommandé, et **rien** ne sort de la machine.
 
-Le guide complet des trois chemins (Groq → LM Studio local → OpenRouter) est dans
-**[LLM (Groq, LM Studio ou OpenRouter)](LLM-fr)**.
+Le guide complet des trois chemins (LM Studio → Groq → OpenRouter) est dans
+**[LLM (LM Studio, Groq ou OpenRouter)](LLM-fr)**.
 
 ---
 
@@ -233,5 +221,3 @@ Pour voir toutes les touches et tous les ordres, va dans **[Ordres](Commands-fr)
 - [ ] Maintenir `V` et parler fonctionne
 
 Si un point échoue, voir **[Problèmes courants](Troubleshooting-fr)**.
-
-<!-- D4: add Español/Français/Italiano -->

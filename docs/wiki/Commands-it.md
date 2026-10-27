@@ -201,5 +201,3 @@ viene ordinato niente —, ma una forma di cortesia continua a valere (`capo, ra
   modalità, risposte dell'IA, eventi) restano.
 
 Per vedere tutte le opzioni, vai in **[Configurazione](Configuration-it)**.
-
-<!-- D4: add Español/Français/Italiano -->

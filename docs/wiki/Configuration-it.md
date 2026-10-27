@@ -156,7 +156,7 @@ vale.
 | Chiave | Predefinito | Cosa fa |
 |---|---|---|
 | `Enabled` | `true` | Accende gli ordini di testo. Spento = non viene inviato niente al modello |
-| `BaseUrl` | `https://api.groq.com/openai/v1` | Endpoint del LLM. Il `/chat/completions` viene aggiunto da solo. Il predefinito è **Groq** (che chiede la `ApiKey`); le alternative sono **LM Studio** (`http://127.0.0.1:1234/v1`) o **Ollama** (`http://127.0.0.1:11434/v1`) per far girare tutto in locale, e **OpenRouter** (`https://openrouter.ai/api/v1`), che funziona ma ha il tier gratuito più lento. **Nel caso locale** usa **`127.0.0.1`** e **non** `localhost`: su Windows `localhost` risolve prima in IPv6 e il server di LM Studio ascolta solo su IPv4, il che costa ~**2,5 s** a ogni ordine (vedi **[LLM (Groq, LM Studio o OpenRouter)](LLM-it)**) |
+| `BaseUrl` | `https://api.groq.com/openai/v1` | Endpoint del LLM. Il `/chat/completions` viene aggiunto da solo. Il predefinito è **Groq** (che chiede la `ApiKey`); le alternative sono **LM Studio** (`http://127.0.0.1:1234/v1`) o **Ollama** (`http://127.0.0.1:11434/v1`) per far girare tutto in locale, e **OpenRouter** (`https://openrouter.ai/api/v1`), che funziona ma ha il tier gratuito più lento. Vedi **[LLM (LM Studio, Groq o OpenRouter)](LLM-it)** |
 | `Model` | `openai/gpt-oss-20b` | Nome del modello, come lo elenca il server. `openai/gpt-oss-20b` è il predefinito (Groq, tier gratuito). Alternative: `openrouter/free` su OpenRouter; su LM Studio usa il nome che mostra (per esempio `qwen2.5-3b-instruct`) |
 | `ApiKey` | *(vuoto)* | Chiave API del server. **Obbligatoria su Groq** (la gratuita esce da `console.groq.com/keys`) e anche su OpenRouter (`openrouter.ai/keys`); vuota per LM Studio/Ollama locale |
 | `Temperature` | `0.1` | Quanto improvvisa il modello. Tienila bassa perché lo stesso ordine dia sempre lo stesso JSON |
@@ -291,5 +291,3 @@ traduzione. È il modo più veloce per controllare quello che vale adesso, senza
 
 > I pannelli della mod stanno **sopra l'HUD del gioco** nell'ordine di disegno — è quello che garantisce che un clic
 > sul pannello arrivi al pannello, e non all'HUD.
-
-<!-- D4: add Español/Français/Italiano -->

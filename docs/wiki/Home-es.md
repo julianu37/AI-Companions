@@ -47,9 +47,10 @@ El compañero en sí (trabajos, comida, stamina, habilidades, casa, descanso, po
 upstream y sigue funcionando igual — la IA es solo una **nueva entrada** para las mismas acciones.
 
 > **La voz corre toda en tu máquina.** El reconocimiento del habla (STT) y la voz sintetizada (TTS) son **100%
-> locales**: no se envía nada. Entender las órdenes usa un **LLM** — por defecto **Groq**, que es un **servicio
-> remoto** (el texto de las órdenes y de la conversación **sale de tu máquina**). Para no enviar nada, cámbialo por
-> la opción local, **LM Studio** (u Ollama). Mira **[LLM (Groq, LM Studio u OpenRouter)](LLM-es)**.
+> locales**: no se envía nada. Entender las órdenes usa un **LLM** — el camino recomendado es el **LM Studio**
+> (u Ollama) local, donde **nada** sale; el `.cfg` viene apuntado a **Groq**, un **servicio remoto** (el texto
+> de las órdenes y de la conversación **sale de tu máquina**). Mira
+> **[LLM (LM Studio, Groq u OpenRouter)](LLM-es)**.
 
 ## Qué hace
 
@@ -70,15 +71,16 @@ upstream y sigue funcionando igual — la IA es solo una **nueva entrada** para 
 | Elemento | Detalle |
 |---|---|
 | **Valheim 1.0.x** + **BepInEx 5.4.2351** | La base de todo — paso a paso en **[Instalación](Installation-es)** |
-| **Un LLM** | **Groq** (por defecto): solo la **clave gratis** (https://console.groq.com/keys) e internet — el texto de las órdenes **sale de tu máquina**. La opción local, **LM Studio** u Ollama, es **opcional** y no envía nada; **OpenRouter** sigue funcionando como alternativa |
+| **Un LLM** | **LM Studio** (recomendado): el modelo corre en tu máquina y no sale nada — lo descargas una vez (~1,9 GB) y dejas el servidor encendido. **Groq** (lo que viene en el `.cfg`): solo la **clave gratis** (https://console.groq.com/keys) e internet — el texto de las órdenes **sale de tu máquina**. **OpenRouter** sigue funcionando como alternativa |
 | **Micrófono** | Solo para las órdenes por voz |
 
 ## Primeros pasos
 
 1. Mira lo que necesitas en **[Requisitos](Requirements-es)**.
 2. Sigue el paso a paso de **[Instalación](Installation-es)**.
-3. Configura el LLM en **[LLM (Groq, LM Studio u OpenRouter)](LLM-es)** — por defecto es **Groq**
-   (solo la clave gratis); el **LM Studio** local es opcional y **OpenRouter** es la alternativa.
+3. Configura el LLM en **[LLM (LM Studio, Groq u OpenRouter)](LLM-es)** — el camino recomendado es el **LM
+   Studio** local (sin clave, nada sale); **Groq** es lo que viene en el `.cfg` (solo la clave gratis) y
+   **OpenRouter** es la alternativa.
 4. Mira las teclas y las órdenes en **[Comandos](Commands-es)**.
 5. Si algo no funciona, ve a **[Problemas comunes](Troubleshooting-es)**.
 
@@ -88,7 +90,7 @@ upstream y sigue funcionando igual — la IA es solo una **nueva entrada** para 
 |---|---|
 | **[Requisitos](Requirements-es)** | Qué es obligatorio y qué es opcional |
 | **[Instalación](Installation-es)** | Paso a paso con imágenes |
-| **[LLM (Groq, LM Studio u OpenRouter)](LLM-es)** | Groq por defecto (clave gratis), el LM Studio local como opción y OpenRouter como alternativa |
+| **[LLM (LM Studio, Groq u OpenRouter)](LLM-es)** | LM Studio como camino recomendado, Groq como la opción de nube que viene en el `.cfg` (clave gratis) y OpenRouter como alternativa |
 | **[Voz](Voice-es)** | STT (Whisper) y TTS (Kokoro): cómo funcionan y cómo ajustarlos |
 | **[Comandos](Commands-es)** | Teclas, órdenes de chat/voz y comandos de consola |
 | **[Configuración](Configuration-es)** | El `.cfg`, la sección `[AI]` y los paneles `F8` e `I` |
@@ -154,5 +156,3 @@ La release publicada más reciente es la **1.9.1** (26/10/2026), con **dos** arc
 > La **1.8.0** corrigió el **peso**: el **Megingjord** (+150) y los demás objetos con bonus de carga **suman** al
 > tope del compañero (el `/300` pasa a `/450`), valiendo con el cinturón **en cualquier lugar de la mochila** — no
 > hace falta equiparlo — y **una sola vez** (dos cinturones no se acumulan).
-
-<!-- D4: add Español/Français/Italiano -->

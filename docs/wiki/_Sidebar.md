@@ -3,7 +3,7 @@
 - [Home](Home)
 - [Requirements](Requirements)
 - [Installation](Installation)
-- [LLM (Groq, LM Studio or OpenRouter)](LLM)
+- [LLM (LM Studio, Groq or OpenRouter)](LLM)
 - [Voice](Voice)
 - [Commands](Commands)
 - [Configuration](Configuration)
@@ -12,5 +12,3 @@
 - [Credits and license](Credits-and-license)
 
 **Other languages:** [English](Home) · [Português](Home-pt) · [Español](Home-es) · [Français](Home-fr) · [Italiano](Home-it)
-
-<!-- D4: add Español/Français/Italiano -->

@@ -47,9 +47,10 @@ Le compagnon lui-même (travaux, nourriture, stamina, compétences, maison, repo
 vient de l'upstream et continue à fonctionner pareil — l'IA n'est qu'une **nouvelle entrée** pour les mêmes actions.
 
 > **La voix tourne entièrement sur ta machine.** La reconnaissance vocale (STT) et la voix synthétisée (TTS) sont
-> **100 % locales** : rien n'est envoyé. Comprendre les ordres utilise un **LLM** — par défaut **Groq**, qui est un
-> **service distant** (le texte des ordres et de la conversation **quitte ta machine**). Pour n'envoyer rien, prends
-> l'option locale, **LM Studio** (ou Ollama). Voir **[LLM (Groq, LM Studio ou OpenRouter)](LLM-fr)**.
+> **100 % locales** : rien n'est envoyé. Comprendre les ordres utilise un **LLM** — le chemin recommandé est
+> **LM Studio** (ou Ollama) en local, où **rien** ne sort ; le `.cfg` arrive pointé sur **Groq**, un **service
+> distant** (le texte des ordres et de la conversation **quitte ta machine**). Voir
+> **[LLM (LM Studio, Groq ou OpenRouter)](LLM-fr)**.
 
 ## Ce qu'il fait
 
@@ -70,15 +71,16 @@ vient de l'upstream et continue à fonctionner pareil — l'IA n'est qu'une **no
 | Élément | Détail |
 |---|---|
 | **Valheim 1.0.x** + **BepInEx 5.4.2351** | La base de tout — pas à pas dans **[Installation](Installation-fr)** |
-| **Un LLM** | **Groq** (par défaut) : seulement la **clé gratuite** (https://console.groq.com/keys) et internet — le texte des ordres **quitte ta machine**. L'option locale, **LM Studio** ou Ollama, est **facultative** et n'envoie rien ; **OpenRouter** fonctionne encore comme alternative |
+| **Un LLM** | **LM Studio** (recommandé) : le modèle tourne sur ta machine et rien n'en sort — tu le télécharges une fois (~1,9 Go) et tu laisses le serveur allumé. **Groq** (ce qui vient dans le `.cfg`) : seulement la **clé gratuite** (https://console.groq.com/keys) et internet — le texte des ordres **quitte ta machine**. **OpenRouter** fonctionne encore comme alternative |
 | **Micro** | Seulement pour les ordres vocaux |
 
 ## Pour commencer
 
 1. Regarde ce qu'il te faut dans **[Exigences](Requirements-fr)**.
 2. Suis le pas à pas de **[Installation](Installation-fr)**.
-3. Configure le LLM dans **[LLM (Groq, LM Studio ou OpenRouter)](LLM-fr)** — par défaut c'est **Groq**
-   (seulement la clé gratuite) ; le **LM Studio** local est facultatif et **OpenRouter** est l'alternative.
+3. Configure le LLM dans **[LLM (LM Studio, Groq ou OpenRouter)](LLM-fr)** — le chemin recommandé est **LM
+   Studio** en local (sans clé, rien ne sort) ; **Groq** est ce qui vient dans le `.cfg` (seulement la clé
+   gratuite) et **OpenRouter** est l'alternative.
 4. Regarde les touches et les ordres dans **[Ordres](Commands-fr)**.
 5. Si quelque chose ne marche pas, va dans **[Problèmes courants](Troubleshooting-fr)**.
 
@@ -88,7 +90,7 @@ vient de l'upstream et continue à fonctionner pareil — l'IA n'est qu'une **no
 |---|---|
 | **[Exigences](Requirements-fr)** | Ce qui est obligatoire et ce qui est facultatif |
 | **[Installation](Installation-fr)** | Pas à pas avec des images |
-| **[LLM (Groq, LM Studio ou OpenRouter)](LLM-fr)** | Groq par défaut (clé gratuite), le LM Studio local en option et OpenRouter en alternative |
+| **[LLM (LM Studio, Groq ou OpenRouter)](LLM-fr)** | LM Studio comme chemin recommandé, Groq comme l'option cloud qui vient dans le `.cfg` (clé gratuite) et OpenRouter comme alternative |
 | **[Voix](Voice-fr)** | STT (Whisper) et TTS (Kokoro) : comment ils marchent et comment les régler |
 | **[Ordres](Commands-fr)** | Touches, ordres de chat/voix et commandes de console |
 | **[Configuration](Configuration-fr)** | Le `.cfg`, la section `[AI]` et les panneaux `F8` et `I` |
@@ -155,5 +157,3 @@ La release publiée la plus récente est la **1.9.1** (26/10/2026), avec **deux*
 > La **1.8.0** a corrigé le **poids** : le **Megingjord** (+150) et les autres objets avec un bonus de charge
 > **s'ajoutent** au plafond du compagnon (le `/300` devient `/450`), en comptant avec la ceinture **n'importe où dans
 > le sac** — pas besoin de l'équiper — et **une seule fois** (deux ceintures ne s'empilent pas).
-
-<!-- D4: add Español/Français/Italiano -->

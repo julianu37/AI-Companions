@@ -203,5 +203,3 @@ signalé — et rien n'est ordonné —, mais une forme d'adresse continue à va
   utiles (ordres, changement de mode, réponses de l'IA, événements) restent.
 
 Pour voir toutes les options, va dans **[Configuration](Configuration-fr)**.
-
-<!-- D4: add Español/Français/Italiano -->

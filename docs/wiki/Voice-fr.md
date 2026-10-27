@@ -178,5 +178,3 @@ plus rapide que le temps réel).
 La voix du compagnon **ne passe pas par le mixeur du jeu**. Cela veut dire qu'elle **ignore les curseurs de volume de
 Valheim** et n'obéit **qu'à** `[AI] TtsVolume`. Si la voix est trop forte ou trop faible par rapport au jeu, règle-la
 avec cette clé (ou avec le curseur de volume du panneau **`I`**).
-
-<!-- D4: add Español/Français/Italiano -->

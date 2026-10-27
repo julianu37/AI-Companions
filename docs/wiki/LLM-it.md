@@ -1,19 +1,19 @@
 > 🌍 [English](LLM) · [Português](LLM-pt) · [Español](LLM-es) · [Français](LLM-fr) · **Italiano**
 
-# LLM (Groq, LM Studio o OpenRouter)
+# LLM (LM Studio, Groq o OpenRouter)
 
 La mod capisce gli ordini mandando il testo a un **LLM** tramite un'API **compatibile con OpenAI**. Ci sono tre
 percorsi e ne scegli **uno**:
 
 | Percorso | Cosa serve | Dove va il testo | Quando sceglierlo |
 |---|---|---|---|
-| **Groq** — **predefinito** | internet e una **chiave gratuita** | **esce dalla tua macchina** (servizio remoto) | Vuoi usarlo senza installare niente, e veloce |
-| **LM Studio** (o Ollama) — facoltativo | il modello scaricato e il server acceso | resta **sulla tua macchina** | Vuoi privacy totale o uso intenso |
+| **LM Studio** (o Ollama) — **consigliato** | il modello scaricato e il server acceso | resta **sulla tua macchina** | Vuoi privacy, senza chiave e senza limiti di richieste |
+| **Groq** — cloud | internet e una **chiave gratuita** | **esce dalla tua macchina** (servizio remoto) | Vuoi che funzioni senza installare niente, e veloce |
 | **OpenRouter** — alternativa | internet e una **chiave gratuita** | **esce dalla tua macchina** (servizio remoto) | Usi già OpenRouter o vuoi provare un altro modello |
 
-Questa pagina parte da **Groq**, perché **è già il predefinito** della mod: lo installi, incolli la chiave e hai finito.
-Poi viene l'opzione **locale** (**LM Studio**, che continua a funzionare uguale) e, per ultimo, **OpenRouter** — che
-funziona ancora, ma il cui tier gratuito è **lento** e per questo non è più il predefinito.
+La pagina parte da **LM Studio**, il percorso consigliato: il modello gira sul tuo computer e niente esce da lì. Poi
+viene **Groq**, il servizio cloud che ha bisogno solo della chiave gratuita, e per ultimo **OpenRouter** — che funziona
+ancora, ma il cui tier gratuito è **lento**.
 
 > **Vieni da una versione precedente (o dalla 1.8.2)?** Nella **1.8.3** il file è diventato **`AiCompanions.cfg`** e le
 > impostazioni **tornano ai valori predefiniti** — compresa la `ApiKey`, che va incollata di nuovo. Anche la sezione ha
@@ -21,18 +21,97 @@ funziona ancora, ma il cui tier gratuito è **lento** e per questo non è più i
 > (`Maddhattr.OfflineCompanionsReborn.cfg`) resta sul disco e **non** viene letto.
 > La **1.9.x non azzera niente**: se il file è già `AiCompanions.cfg`, resta com'è (solo i vecchi valori fissi di
 > voce/lingua passano su `auto`).
-> Passare a Groq è facoltativo — ed è solo modificare `BaseUrl`, `Model` e `ApiKey` (nel `.cfg` o nella sezione
-> **Impostazioni del LLM** del pannello `I`).
+> Cambiare provider è solo modificare `BaseUrl`, `Model` e `ApiKey` (nel `.cfg` o nella sezione **Impostazioni del
+> LLM** del pannello `I`).
 
 ---
 
-## 1. Groq: solo la chiave e internet (predefinito)
+## 1. LM Studio: locale, privato e consigliato
+
+**LM Studio** è un'applicazione che fa girare il modello **sul tuo computer**: niente esce dalla tua macchina, non c'è
+chiave né coda, e non ci sono limiti di richieste o di token. Le catture qui sotto sono di **LM Studio 0.4.26**.
+
+### 1.1. Installa LM Studio
+
+Scaricalo da **https://lmstudio.ai** e installalo. È un'applicazione a finestra, senza riga di comando.
+
+### 1.2. Scarica il modello
+
+Nella barra laterale, apri **Model Search** (l'icona della lente), cerca **`qwen2.5-3b-instruct`** e scegli
+**`lmstudio-community/Qwen2.5-3B-Instruct-GGUF`**.
+
+*La voce **Model Search** nella barra laterale.*
+
+![LM Studio 0.4.26 con la voce Model Search evidenziata nella barra laterale](images/lmstudio-1-model-search.png)
+
+La pagina del modello mostra *Full GPU Offload Possible*: scarica la quantizzazione **Q4_K_M** (**~1,93 GB**).
+
+*Il risultato della ricerca, con la quantizzazione **Q4_K_M** (1,93 GB) e il pulsante **Download**.*
+
+![LM Studio Model Search: la ricerca di qwen2.5-3b-instruct, il risultato lmstudio-community/Qwen2.5-3B-Instruct-GGUF, la quantizzazione Q4_K_M da 1,93 GB e il pulsante Download](images/lmstudio-2-download-qwen.png)
+
+> **Perché un modello così piccolo?** Perché è **veloce** (ordini in ~0,35–0,4 s) e, con l'**uscita strutturata** della
+> mod, risponde nel formato giusto in modo affidabile. Un 3B gira bene anche su CPU.
+
+### 1.3. Accendi il Local Server
+
+Nella barra laterale, apri **Local Server** e controlla che lo **Status** sia **Running** (verde) sulla porta **1234**.
+
+*Il server acceso: **Status: Running** sulla porta 1234.*
+
+![Schermata Model Server di LM Studio: Status Running (verde) sulla porta 1234, il pulsante + Load Model evidenziato e Loaded Models ancora vuoto](images/lmstudio-3-local-server.png)
+
+### 1.4. Carica il modello
+
+Premi **+ Load Model** e scegli **Qwen2.5-3B-Instruct Q4_K_M**.
+
+*La lista del **+ Load Model**, con `Qwen2.5 3B Instruct Q4_K_M` selezionato.*
+
+![Finestra Load Model di LM Studio: Qwen2.5 3B Instruct Q4_K_M evidenziato nella lista dei modelli](images/lmstudio-4-load-model.png)
+
+### 1.5. Conferma l'API Identifier e carica
+
+La schermata di caricamento mostra l'**API Identifier** **`qwen2.5-3b-instruct`** — è **questo** nome che va in
+`[AI] Model` (il nome esatto che il server espone, non il nome della cartella scaricata). Il **Context Length** è
+**8192**, il **GPU Offload** è al massimo e la memoria stimata è di circa **2 GB** di RAM/VRAM.
+
+*La schermata di caricamento: **API Identifier** `qwen2.5-3b-instruct`, **Context Length** 8192 e **GPU Offload** al massimo.*
+
+![Schermata di caricamento di LM Studio: API Identifier qwen2.5-3b-instruct, Context Length 8192, GPU Offload 36, memoria stimata 2,03 GB e il pulsante Load Model](images/lmstudio-5-load-settings.png)
+
+Premi **Load Model**. Quando finisce, **Loaded Models** mostra **READY** e `llm qwen2.5-3b-instruct` (1,93 GB) — puoi
+andare al gioco.
+
+*Il modello pronto: **READY**, `llm qwen2.5-3b-instruct`, **Size 1,93 GB** e **Parallel 4**.*
+
+![Loaded Models di LM Studio: il badge READY, llm qwen2.5-3b-instruct, Size 1,93 GB e Parallel 4; a destra, l'API Model Identifier qwen2.5-3b-instruct](images/lmstudio-6-ready.png)
+
+### 1.6. Punta la mod su di lui
+
+In gioco, apri il pannello **`I`** → **Impostazioni del LLM** → il menu del provider → **LM Studio** (riempie l'URL e il
+modello) → **Applica** → **Prova la connessione**. Oppure modifica il `.cfg`, sezione `[AI]`:
+
+```ini
+BaseUrl = http://127.0.0.1:1234/v1
+Model   = qwen2.5-3b-instruct
+ApiKey  = (vuoto)
+```
+
+> **La mod nasce puntata su Groq** (`https://api.groq.com/openai/v1` + `openai/gpt-oss-20b`): per questo scegli **LM
+> Studio** qui (nel menu o nel `.cfg`) — è un cambio di due minuti.
+
+> **Prova la connessione** del pannello `I` funziona uguale qui: cambia l'URL e il modello nei campi, prova e solo dopo
+> clicca **Applica**.
+
+---
+
+## 2. Groq: solo la chiave e internet (cloud)
 
 **Groq** è un servizio che parla la **stessa API di OpenAI** e serve modelli aperti, con un **tier gratuito**. Per la
-mod è il percorso più veloce: non c'è niente da installare né server da lasciare acceso — il `.cfg` arriva già puntato
-su di lui.
+mod è l'opzione cloud più semplice: non c'è niente da installare né server da lasciare acceso — e il `.cfg` arriva già
+puntato su di lui.
 
-### 1.1. Crea la tua chiave gratuita
+### 2.1. Crea la tua chiave gratuita
 
 1. Apri **https://console.groq.com** e crea l'account (e-mail o login social).
 2. Vai su **https://console.groq.com/keys** e clicca **Create API Key** (dagli un nome qualsiasi, per esempio
@@ -40,7 +119,7 @@ su di lui.
 3. **Copia la chiave generata** — è quella che va in `[AI] ApiKey`. Viene mostrata **una volta sola**; se chiudi la
    finestra senza copiarla, creane un'altra.
 
-### 1.2. Cosa mettere nel `.cfg` (o nel pannello)
+### 2.2. Cosa mettere nel `.cfg` (o nel pannello)
 
 Apri `<Valheim>\BepInEx\config\AiCompanions.cfg` e controlla la sezione `[AI]`:
 
@@ -54,8 +133,8 @@ StructuredOutput = true
 
 | Chiave | Valore | Perché |
 |---|---|---|
-| `BaseUrl` | `https://api.groq.com/openai/v1` | L'indirizzo di Groq — **è già il predefinito**. Il `/chat/completions` viene aggiunto da solo |
-| `Model` | `openai/gpt-oss-20b` | Il modello aperto di OpenAI servito da Groq — **è già il predefinito**. È veloce e segue bene l'uscita strutturata |
+| `BaseUrl` | `https://api.groq.com/openai/v1` | L'indirizzo di Groq. Il `/chat/completions` viene aggiunto da solo |
+| `Model` | `openai/gpt-oss-20b` | Il modello aperto di OpenAI servito da Groq. È veloce e segue bene l'uscita strutturata |
 | `ApiKey` | **la tua chiave** | Su Groq è **obbligatoria**. Vuota o sbagliata, il server rifiuta la richiesta con un errore di autenticazione |
 | `StructuredOutput` | `true` | Chiede al server il formato JSON — è quello che fa funzionare i modelli piccoli. `gpt-oss-20b` accetta `json_schema` in modalità **strict** (decodifica vincolata), che è la modalità usata dalla mod |
 
@@ -73,7 +152,7 @@ sparisce su LM Studio, che non ha chiave.
 
 ![Il pannello IA (tasto I), scheda IA: il menu "Scegli il tuo provider LLM" su Groq, l'URL del server con api.groq.com, il modello openai/gpt-oss-20b, la chiave API mascherata e, a destra della chiave, il pulsante "Crea qui la tua chiave API gratuita"](images/en-ai-panel.jpg)
 
-> Nella cattura sopra il selettore è su **Groq** (il predefinito), con l'URL `https://api.groq.com/openai/v1`, il
+> Nella cattura sopra il selettore è su **Groq** (il provider che arriva nel `.cfg`), con l'URL `https://api.groq.com/openai/v1`, il
 > modello `openai/gpt-oss-20b` e la chiave mascherata. Cambiare il selettore su **LM Studio** o **OpenRouter** riempie
 > l'URL e il modello di quel provider — e il pulsante della chiave inizia a puntare alla sua pagina (o sparisce, su LM
 > Studio).
@@ -82,7 +161,7 @@ sparisce su LM Studio, che non ha chiave.
 > chiave, il campo del pannello `I` (o il `.cfg` stesso) è più comodo. Quello che salvi lì vale dal **messaggio
 > successivo**, senza riavviare il gioco.
 
-### 1.3. Prova la connessione
+### 2.3. Prova la connessione
 
 Con URL, modello e chiave compilati, premi **Prova la connessione** (nel pannello `I`, accanto ad **Applica**). Il test
 gira **in background** — il gioco non si blocca — e risponde nella **chat/HUD**, oltre a lasciare una riga `[IA]` nel
@@ -101,7 +180,7 @@ chat minima. Il risultato è uno di questi:
 > è nella lista; se passa ma l'ordine fallisce con **401**, il problema è la chiave — vedi
 > **[Problemi comuni](Troubleshooting-it)**.
 
-### 1.4. Cosa aspettarsi dalla risposta
+### 2.4. Cosa aspettarsi dalla risposta
 
 La comprensione continua a girare **in background**: un modello lento **non** blocca il gioco. La latenza compare nel
 log, a ogni ordine:
@@ -116,7 +195,7 @@ veloce del tier gratuito di OpenRouter. Il modello è servito a ~**1.000 token/s
 https://console.groq.com/docs/models). La mod avvisa nel log quando un ordine supera **5 s**, e
 `[AI] TimeoutSeconds` (**30** di default) è il tetto di attesa.
 
-### 1.5. Limiti del tier gratuito
+### 2.5. Limiti del tier gratuito
 
 Quello che la documentazione di Groq indica oggi per `openai/gpt-oss-20b` nel piano gratuito (fonte:
 https://console.groq.com/docs/rate-limits — i numeri possono cambiare):
@@ -133,7 +212,7 @@ che dà **~4 ordini al minuto**. Oltre, Groq risponde **429** e l'ordine viene r
 e niente resta bloccato; aspetta un po' e mandalo di nuovo.
 
 - Il tetto di **8.000 token al minuto** regge una sessione normale di ordini sporadici. L'uso intenso (molti ordini e
-  conversazione sempre) lo urta — lì l'**opzione locale** (sotto) risolve, senza limite di richieste.
+  conversazione sempre) lo urta — lì l'**opzione locale** (sezione 1) risolve, senza limite di richieste.
 - `[AI] CooldownSeconds` (**3** di default) aiuta: evita che una raffica di messaggi diventi una raffica di richieste.
 - **429** è un limite di richieste/token, **401** è la chiave — la differenza è in
   **[Problemi comuni](Troubleshooting-it)**.
@@ -142,7 +221,7 @@ e niente resta bloccato; aspetta un po' e mandalo di nuovo.
 > modalità *best-effort*; **streaming** e **tool use** non sono supportati insieme all'uscita strutturata — e la mod
 > **non** usa nessuno dei due (fonte: https://console.groq.com/docs/structured-outputs).
 
-### 1.6. Privacy e la chiave
+### 2.6. Privacy e la chiave
 
 - **Con Groq, il testo degli ordini e della conversazione esce dalla tua macchina.** Va sui server di Groq — la
   persona, la memoria e quello che scrivi entrano in quell'invio. **Non scrivere niente di sensibile** nella chat del
@@ -152,91 +231,7 @@ e niente resta bloccato; aspetta un po' e mandalo di nuovo.
   va al LLM.
 - **La chiave resta nel `.cfg`.** Non condividere quel file con la chiave compilata e non mettere mai una chiave in un
   repository. Se trapela, cancellala su **https://console.groq.com/keys** e creane un'altra.
-- Vuoi che **non esca niente** dalla macchina? Usa LM Studio (o Ollama) qui sotto — lì anche il LLM è locale.
-
----
-
-## 2. Alternativa locale: LM Studio (facoltativo)
-
-Qui **niente esce dal tuo computer**: il modello gira sulla tua macchina. È il percorso per chi vuole privacy totale,
-per chi gioca senza internet o per un uso intenso senza dipendere da una coda o da un limite di token. In cambio devi
-scaricare il modello e tenere il server acceso mentre giochi.
-
-### 2.1. Installa LM Studio
-
-Scaricalo da **https://lmstudio.ai** e installalo. È un'applicazione a finestra, senza riga di comando.
-
-### 2.2. Scarica il modello
-
-Il modello **consigliato** è **`qwen2.5-3b-instruct`**, quantizzazione **Q4_K_M** (~**1,93 GB**).
-
-In LM Studio:
-
-1. Apri la scheda di **ricerca dei modelli** (l'icona della lente, nella barra laterale).
-2. Cerca **`qwen2.5-3b-instruct`**.
-3. Scegli la quantizzazione **Q4_K_M** e scaricala (~1,93 GB).
-
-> **Perché un modello così piccolo?** Perché è **veloce** (ordini in ~0,35–0,4 s) e, con l'**uscita strutturata** della
-> mod, risponde nel formato giusto in modo affidabile. Un 3B gira bene anche su CPU.
-
-### 2.3. Carica il modello
-
-Nella scheda **chat**, in alto, scegli il `qwen2.5-3b-instruct` che hai scaricato. Diventa **READY** quando finisce di
-caricare.
-
-### 2.4. Accendi il Local Server
-
-Apri la scheda **Model Server** nella barra laterale (nelle versioni vecchie di LM Studio si chiama **Developer**) e
-accendi il **Local Server** (il pulsante **Start** / **Running**).
-
-![LM Studio con il Local Server acceso, il modello caricato e l'API Model Identifier](images/lmstudio-servidor.png)
-
-Controlla sullo schermo:
-
-| Cosa guardare | Valore atteso |
-|---|---|
-| **Status** | `Running` |
-| **Porta** | `1234` |
-| **Modello caricato** | `qwen2.5-3b-instruct` (READY, ~1,93 GB) |
-| **Parallel** | `4` |
-| **Endpoints** | OpenAI-compatible (`/v1/models`, `/v1/chat/completions`) |
-| **API Model Identifier** | `qwen2.5-3b-instruct` — è **questo** nome che va in `[AI] Model` |
-
-> L'**API Model Identifier** (nel pannello *Model Information*) è il nome esatto che il server espone. Usalo nel
-> `.cfg`, e non il nome della cartella scaricata.
-
-### 2.5. Cosa mettere nel `.cfg` per usare LM Studio
-
-Il predefinito della mod è Groq, quindi **cambia** le prime due chiavi e **cancella** la chiave API:
-
-```ini
-[AI]
-BaseUrl = http://127.0.0.1:1234/v1
-Model = qwen2.5-3b-instruct
-ApiKey =
-StructuredOutput = true
-```
-
-| Chiave | Valore | Perché |
-|---|---|---|
-| `BaseUrl` | `http://127.0.0.1:1234/v1` | Indirizzo del server di LM Studio. Il `/chat/completions` viene aggiunto da solo |
-| `Model` | `qwen2.5-3b-instruct` | L'**API Model Identifier** che LM Studio mostra |
-| `ApiKey` | *(vuoto)* | Il LM Studio locale non chiede una chiave |
-| `StructuredOutput` | `true` | Chiede al server il formato JSON — è quello che fa funzionare i modelli piccoli |
-
-> **Prova la connessione** del pannello `I` funziona uguale qui: cambia l'URL e il modello nei campi, prova e solo dopo
-> clicca **Applica**.
-
-### 2.6. `127.0.0.1` vs `localhost` — usa l'IP
-
-Nel caso locale usa l'indirizzo **`http://127.0.0.1:1234/v1`** (IPv4) e non `localhost`.
-
-> **Su Windows, `localhost` risolve prima in IPv6 (`::1`)**. Il server di LM Studio ascolta solo su **IPv4**, quindi
-> ogni richiesta prova prima IPv6, aspetta il timeout e **solo dopo** ricade su IPv4. Questo aggiunge circa **2,5 s di
-> pedaggio a ogni ordine**.
-
-Con l'indirizzo esplicito `http://127.0.0.1:1234/v1` la risposta torna subito. Anche il testo di aiuto di `BaseUrl` nel
-`.cfg` (e nel pannello `F8`) spiega la differenza.
+- Vuoi che **non esca niente** dalla macchina? Usa LM Studio (o Ollama) nella sezione 1 — lì anche il LLM è locale.
 
 ---
 
@@ -291,8 +286,8 @@ Qualsiasi endpoint **compatibile con OpenAI** va bene — la mod fa solo `POST {
 
 | Modello | Server | Nota |
 |---|---|---|
-| **`openai/gpt-oss-20b`** | **Groq** | **Predefinito.** Modello aperto, ~1.000 token/s, finestra di 131.072 token. Risponde in una frazione di secondo |
-| **`qwen2.5-3b-instruct`** | LM Studio | **Consigliato in locale.** Veloce (~0,35–0,4 s per ordine) e affidabile con l'uscita strutturata |
+| **`openai/gpt-oss-20b`** | **Groq** | **Opzione cloud.** Modello aperto, ~1.000 token/s, finestra di 131.072 token. Risponde in una frazione di secondo |
+| **`qwen2.5-3b-instruct`** | LM Studio | **Consigliato.** Veloce (~0,35–0,4 s per ordine) e affidabile con l'uscita strutturata |
 | `openrouter/free` | OpenRouter | Router di modelli gratuiti: ne sceglie uno per richiesta. Niente da installare, ma la latenza varia |
 | `google/gemma-4-e4b` | LM Studio | Funziona anche, ma è **molto più lento** (~3 s per ordine) |
 | Modelli più grandi | qualsiasi | Migliori in conversazione, ma **servono una GPU** per rispondere veloce in locale |
@@ -332,5 +327,3 @@ I quattro casi sotto coprono quasi tutto:
 
 Il passo passo di ogni sintomo è in **[Problemi comuni](Troubleshooting-it)** — compresi "non risponde a niente",
 "risponde con un errore di autenticazione", "ci mette troppo a rispondere" e "risponde male o ignora il numero".
-
-<!-- D4: add Español/Français/Italiano -->

@@ -155,7 +155,7 @@ incluidos). Los valores por defecto son los del código fuente: si nunca tocaste
 | Clave | Por defecto | Qué hace |
 |---|---|---|
 | `Enabled` | `true` | Enciende las órdenes por texto. Apagado = no se envía nada al modelo |
-| `BaseUrl` | `https://api.groq.com/openai/v1` | Endpoint del LLM. El `/chat/completions` se añade solo. El valor por defecto es **Groq** (que pide la `ApiKey`); las alternativas son **LM Studio** (`http://127.0.0.1:1234/v1`) u **Ollama** (`http://127.0.0.1:11434/v1`) para correr todo local, y **OpenRouter** (`https://openrouter.ai/api/v1`), que funciona pero tiene el tier gratuito más lento. **En el caso local** usa **`127.0.0.1`** y **no** `localhost`: en Windows `localhost` resuelve primero a IPv6 y el servidor del LM Studio solo escucha IPv4, lo que cuesta ~**2,5 s** en cada orden (mira **[LLM (Groq, LM Studio u OpenRouter)](LLM-es)**) |
+| `BaseUrl` | `https://api.groq.com/openai/v1` | Endpoint del LLM. El `/chat/completions` se añade solo. El valor por defecto es **Groq** (que pide la `ApiKey`); las alternativas son **LM Studio** (`http://127.0.0.1:1234/v1`) u **Ollama** (`http://127.0.0.1:11434/v1`) para correr todo local, y **OpenRouter** (`https://openrouter.ai/api/v1`), que funciona pero tiene el tier gratuito más lento. Mira **[LLM (LM Studio, Groq u OpenRouter)](LLM-es)** |
 | `Model` | `openai/gpt-oss-20b` | Nombre del modelo, como lo lista el servidor. `openai/gpt-oss-20b` es el valor por defecto (Groq, tier gratuito). Alternativas: `openrouter/free` en OpenRouter; en LM Studio usa el nombre que muestra (p. ej. `qwen2.5-3b-instruct`) |
 | `ApiKey` | *(vacío)* | Clave de API del servidor. **Obligatoria en Groq** (la gratuita sale en `console.groq.com/keys`) y también en OpenRouter (`openrouter.ai/keys`); vacía para LM Studio/Ollama local |
 | `Temperature` | `0.1` | Cuánto improvisa el modelo. Mantenlo bajo para que el mismo orden dé siempre el mismo JSON |
@@ -289,5 +289,3 @@ traducción. Es la forma más rápida de revisar lo que está valiendo ahora, si
 
 > Los paneles del mod quedan **por encima del HUD del juego** en el orden de dibujo — es lo que garantiza que un clic
 > en el panel llegue al panel, y no al HUD.
-
-<!-- D4: add Español/Français/Italiano -->

@@ -131,23 +131,14 @@ Where to download them:
 
 ---
 
-## 6. Configure the LLM (Groq)
+## 6. Configure the LLM
 
-The orders are understood by an **LLM**. The mod already comes pointed at **Groq**, which is the simplest path:
-there is nothing to install — only the **free key** and internet.
-
-1. Create the account and the key at **https://console.groq.com/keys**.
-2. In `<Valheim>\BepInEx\config\AiCompanions.cfg`, section `[AI]`, check the three values
-   (the first two **are already the defaults**; only the key is yours to fill in):
-
-   ```ini
-   BaseUrl = https://api.groq.com/openai/v1
-   Model = openai/gpt-oss-20b
-   ApiKey = <your key>
-   ```
-
-3. In game, press **`I`** → **AI** tab → **LLM settings** → **Test connection** (you can also paste the
-   key and change the URL/model right there, without opening the file).
+The orders are understood by an **LLM**. The **recommended** path is the local **LM Studio**: install it from
+https://lmstudio.ai, get `qwen2.5-3b-instruct` through **Model Search**, turn the **Local Server** on (port
+**1234**) and press **Load Model** — the step by step with the screens is in
+**[LLM (LM Studio, Groq or OpenRouter)](LLM)**. If you would rather not install anything, the `.cfg` **already
+comes pointed at Groq**: create the **free key** at https://console.groq.com/keys and paste it into `[AI] ApiKey`.
+**OpenRouter** also works (free key at https://openrouter.ai/keys) and stays as the alternative.
 
 > **Without editing the file:** above the **server URL** there is the **"Pick your LLM provider"** dropdown —
 > choosing **Groq**, **LM Studio** or **OpenRouter** **fills in the URL and the model** (the key is not touched; it
@@ -157,19 +148,16 @@ there is nothing to install — only the **free key** and internet.
 
 ![The AI panel on the AI tab: in LLM settings, the "Pick your LLM provider" dropdown already on Groq, the server URL with api.groq.com, the model openai/gpt-oss-20b, the masked API key and the "Create your free API key HERE" button to the right of the key](images/en-ai-panel.jpg)
 
-> This capture is from **1.8.2**: the **provider picker** is on **Groq** (the default), the URL and the model come
-> from Groq and the key button appears to the right of the **API key**. If you pick **LM Studio**, the button
-> disappears (there is no key).
+> This capture is from **1.8.2**: the **provider picker** is on **Groq** (what the `.cfg` ships with), the URL and
+> the model come from Groq and the key button appears to the right of the **API key**. If you pick **LM Studio**,
+> the button disappears (there is no key).
 
 > **With Groq, the text of the orders leaves your machine** (it is a remote service) and the free tier has a limit
-> of requests and of **tokens per minute** (~4 orders per minute with `gpt-oss-20b`). To run **everything
-> locally** — and **nothing** leaves — use **LM Studio** as the **optional alternative**: install it from
-> https://lmstudio.ai, download `qwen2.5-3b-instruct` (Q4_K_M), turn on the **Local Server** (port **1234**) and
-> change the `.cfg`: `BaseUrl = http://127.0.0.1:1234/v1` and `Model = qwen2.5-3b-instruct` (with an **empty**
-> `ApiKey`).
+> of requests and of **tokens per minute** (~4 orders per minute with `gpt-oss-20b`). The local **LM Studio** has
+> none of that: it is the recommended path, and **nothing** leaves the machine.
 
-The complete guide of the three paths (Groq → local LM Studio → OpenRouter) is in
-**[LLM (Groq, LM Studio or OpenRouter)](LLM)**.
+The complete guide of the three paths (LM Studio → Groq → OpenRouter) is in
+**[LLM (LM Studio, Groq or OpenRouter)](LLM)**.
 
 ---
 
@@ -230,5 +218,3 @@ To see every key and order, go to **[Commands](Commands)**.
 - [ ] Holding `V` and speaking works
 
 If any item fails, see **[Troubleshooting](Troubleshooting)**.
-
-<!-- D4: add Español/Français/Italiano -->

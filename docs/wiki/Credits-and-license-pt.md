@@ -82,5 +82,3 @@ Os arquivos completos estão no repositório:
 
 > A pasta `LICENSES\` que vem junto do mod instalado traz os textos das licenças dos componentes de terceiros
 > distribuídos com ele.
-
-<!-- D4: add Español/Français/Italiano -->

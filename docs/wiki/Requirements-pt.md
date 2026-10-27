@@ -13,15 +13,15 @@ as **ordens por voz** (precisam de microfone). Você pode usar **só o chat**, d
 |---|---|
 | **Valheim** | **1.0.x** (engine Unity 6 — testado na **1.0.20**) |
 | **BepInEx** | **BepInExPack_Valheim 5.4.2351** (BepInEx 5.4.23.5) — o mod é um plugin BepInEx 5 |
-| **Um LLM** | Para as ordens por texto/voz serem entendidas. O padrão é o **Groq**: só precisa de **internet** e de uma **chave gratuita** (veja abaixo). A alternativa **local** (**LM Studio** ou **Ollama**) é **opcional** e não manda nada para fora; o **OpenRouter** continua funcionando, mas o tier gratuito é mais lento. Veja **[LLM (Groq, LM Studio ou OpenRouter)](LLM-pt)** |
+| **Um LLM** | Para as ordens por texto/voz serem entendidas. O caminho **recomendado** é o **LM Studio** local: você baixa um modelo (~1,9 GB) e deixa o servidor ligado, e nada sai da sua máquina. O **Groq** é o que vem no `.cfg`: precisa de **internet** e de uma **chave gratuita** (veja abaixo), e o texto das ordens **sai da sua máquina**. O **OpenRouter** continua funcionando, mas o tier gratuito é mais lento. Veja **[LLM (LM Studio, Groq ou OpenRouter)](LLM-pt)** |
 | **Espaço em disco** | Veja a tabela abaixo |
 
-> **O LLM é obrigatório; o caminho não.** O **Groq** é o padrão: basta a **chave gratuita**
-> (https://console.groq.com/keys) e internet — e o texto das ordens **sai da sua máquina**. O **LM Studio/Ollama** é
-> a **alternativa local, opcional**: nada sai, mas você baixa um modelo (~1,9 GB) e deixa o servidor ligado
-> enquanto joga. O **OpenRouter** também funciona (chave gratuita em https://openrouter.ai/keys) e fica como
-> **alternativa**, porque o tier gratuito dele é mais lento. Os três caminhos — nessa ordem de preferência — estão
-> em **[LLM (Groq, LM Studio ou OpenRouter)](LLM-pt)**.
+> **O LLM é obrigatório; o caminho não.** O **LM Studio/Ollama** é o caminho **recomendado** e é local: nada sai,
+> mas você baixa um modelo (~1,9 GB) e deixa o servidor ligado enquanto joga. O **Groq** é o que vem no `.cfg`:
+> basta a **chave gratuita** (https://console.groq.com/keys) e internet — e o texto das ordens **sai da sua
+> máquina**. O **OpenRouter** também funciona (chave gratuita em https://openrouter.ai/keys) e fica como
+> **alternativa**, porque o tier gratuito dele é mais lento. Os três caminhos — nessa ordem de preferência —
+> estão em **[LLM (LM Studio, Groq ou OpenRouter)](LLM-pt)**.
 
 ## Opcional
 
@@ -72,5 +72,3 @@ Depois disso, siga a **[Instalação](Installation-pt)** do mod.
 ## Próximo passo
 
 ➡️ **[Instalação](Installation-pt)**
-
-<!-- D4: add Español/Français/Italiano -->

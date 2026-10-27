@@ -47,9 +47,10 @@ The companion itself (jobs, food, stamina, skills, home, rest, portals, cart, ra
 and keeps working the same — the AI is only a **new entry point** for the same actions.
 
 > **The voice all runs on your machine.** Speech recognition (STT) and the synthesized voice (TTS) are **100%
-> local**: nothing is sent. Understanding the orders uses an **LLM** — by default **Groq**, which is a
-> **remote service** (the text of the orders and of the conversation **leaves your machine**). To send nothing,
-> swap it for the local option, **LM Studio** (or Ollama). See **[LLM (Groq, LM Studio or OpenRouter)](LLM)**.
+> local**: nothing is sent. Understanding the orders uses an **LLM** — the recommended path is the local
+> **LM Studio** (or Ollama), where **nothing** leaves; the `.cfg` ships pointed at **Groq**, a **remote
+> service** (the text of the orders and of the conversation **leaves your machine**). See
+> **[LLM (LM Studio, Groq or OpenRouter)](LLM)**.
 
 ## What it does
 
@@ -70,15 +71,16 @@ and keeps working the same — the AI is only a **new entry point** for the same
 | Item | Detail |
 |---|---|
 | **Valheim 1.0.x** + **BepInEx 5.4.2351** | The base of everything — step by step in **[Installation](Installation)** |
-| **An LLM** | **Groq** (default): only the **free key** (https://console.groq.com/keys) and internet — the text of the orders **leaves your machine**. The local option, **LM Studio** or Ollama, is **optional** and sends nothing; **OpenRouter** still works as an alternative |
+| **An LLM** | **LM Studio** (recommended): the model runs on your machine and nothing leaves — you download it once (~1.9 GB) and keep the server on. **Groq** (what the `.cfg` ships with): only the **free key** (https://console.groq.com/keys) and internet — the text of the orders **leaves your machine**. **OpenRouter** still works as an alternative |
 | **Microphone** | Only for the voice orders |
 
 ## Getting started
 
 1. See what you need in **[Requirements](Requirements)**.
 2. Follow the step by step in **[Installation](Installation)**.
-3. Configure the LLM in **[LLM (Groq, LM Studio or OpenRouter)](LLM)** — the default is **Groq**
-   (only the free key); the local **LM Studio** is optional and **OpenRouter** is the alternative.
+3. Configure the LLM in **[LLM (LM Studio, Groq or OpenRouter)](LLM)** — the recommended path is the local
+   **LM Studio** (no key, nothing leaves); **Groq** is what the `.cfg` ships with (only the free key) and
+   **OpenRouter** is the alternative.
 4. See the keys and the orders in **[Commands](Commands)**.
 5. If something does not work, go to **[Troubleshooting](Troubleshooting)**.
 
@@ -88,7 +90,7 @@ and keeps working the same — the AI is only a **new entry point** for the same
 |---|---|
 | **[Requirements](Requirements)** | What is required and what is optional |
 | **[Installation](Installation)** | Step by step with images |
-| **[LLM (Groq, LM Studio or OpenRouter)](LLM)** | Groq as the default (free key), the local LM Studio as an option and OpenRouter as an alternative |
+| **[LLM (LM Studio, Groq or OpenRouter)](LLM)** | LM Studio as the recommended path, Groq as the cloud option that comes in the `.cfg` (free key) and OpenRouter as an alternative |
 | **[Voice](Voice)** | STT (Whisper) and TTS (Kokoro): how they work and how to tune them |
 | **[Commands](Commands)** | Keys, chat/voice orders and console commands |
 | **[Configuration](Configuration)** | The `.cfg`, the `[AI]` section and the `F8` and `I` panels |
@@ -155,5 +157,3 @@ The most recent published release is **1.9.1** (26/10/2026), with **two** files 
 > **1.8.0** fixed the **weight**: the **Megingjord** (+150) and the other items with a carry bonus **add up** to
 > the companion's ceiling (the `/300` becomes `/450`), counting with the belt **anywhere in the bag** — no need to
 > equip it — and **only once** (two belts do not stack).
-
-<!-- D4: add Español/Français/Italiano -->

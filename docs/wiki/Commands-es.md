@@ -200,5 +200,3 @@ nada —, pero una forma de tratamiento sigue valiendo (`jefe, recoge 10 piedras
   cambio de modo, respuestas de la IA, eventos) siguen.
 
 Para ver todas las opciones, ve a **[Configuración](Configuration-es)**.
-
-<!-- D4: add Español/Français/Italiano -->

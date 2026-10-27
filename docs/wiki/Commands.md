@@ -201,5 +201,3 @@ nothing is ordered —, but a form of address keeps working (`mate, collect 10 s
   (orders, change of mode, AI replies, events) stay.
 
 To see every option, go to **[Configuration](Configuration)**.
-
-<!-- D4: add Español/Français/Italiano -->

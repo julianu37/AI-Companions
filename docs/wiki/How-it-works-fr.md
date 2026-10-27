@@ -15,7 +15,7 @@ locaux) :
 
 | Pièce | Ce qu'elle est | Où elle tourne |
 |---|---|---|
-| **LLM** | Comprend l'ordre et discute | **Groq** (par défaut, distant) ou LM Studio/Ollama (local) — n'importe quel endpoint compatible OpenAI |
+| **LLM** | Comprend l'ordre et discute | **LM Studio/Ollama** (local, recommandé) ou **Groq** (distant, ce qui vient dans le `.cfg`) — n'importe quel endpoint compatible OpenAI |
 | **STT** | Transcrit ta parole | `Whisper.net` (whisper.cpp) dans le jeu |
 | **TTS** | Fait parler le compagnon | `sherpa-onnx` + Kokoro-82M dans le jeu |
 
@@ -119,9 +119,9 @@ C'est une exigence de projet, pas un détail :
 
 - Ta parole est transcrite **dans le jeu** (Whisper, local).
 - La voix du compagnon est synthétisée **dans le jeu** (Kokoro, local).
-- Le **LLM** est le seul qui peut être distant : par défaut c'est **Groq** (ou **OpenRouter**, comme alternative), et
-  là le texte des ordres et de la conversation **quitte ta machine**. Pour n'envoyer rien, utilise **LM Studio/Ollama**
-  en local (**[LLM (Groq, LM Studio ou OpenRouter)](LLM-fr)**).
+- Le **LLM** est le seul qui peut être distant : le `.cfg` arrive pointé sur **Groq** (ou **OpenRouter**, comme
+  alternative), et là le texte des ordres et de la conversation **quitte ta machine**. Le chemin recommandé est
+  **LM Studio/Ollama** en local, où rien ne sort (**[LLM (LM Studio, Groq ou OpenRouter)](LLM-fr)**).
 
 L'`ApiKey`, quand il y en a une, reste seulement dans le `.cfg` local — ne la mets jamais dans un dépôt et ne partage
 pas ce fichier avec la clé remplie.
@@ -182,5 +182,3 @@ Le détail de chaque phase (le pourquoi de chaque décision) est dans le dépôt
 - Roadmap et phases : https://github.com/julianu37/AI-Companions/blob/main/docs/roadmap.md
 - Notes d'ingénierie inverse de Valheim 1.0 : https://github.com/julianu37/AI-Companions/tree/main/docs/re
 - Changelog : https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md
-
-<!-- D4: add Español/Français/Italiano -->

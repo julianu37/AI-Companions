@@ -15,7 +15,7 @@ Three AI pieces, all on **background threads** (the LLM can be remote; the STT a
 
 | Piece | What it is | Where it runs |
 |---|---|---|
-| **LLM** | Understands the order and talks | **Groq** (default, remote) or LM Studio/Ollama (local) — any OpenAI-compatible endpoint |
+| **LLM** | Understands the order and talks | **LM Studio/Ollama** (local, recommended) or **Groq** (remote, what the `.cfg` ships with) — any OpenAI-compatible endpoint |
 | **STT** | Transcribes your speech | `Whisper.net` (whisper.cpp) inside the game |
 | **TTS** | Makes the companion speak | `sherpa-onnx` + Kokoro-82M inside the game |
 
@@ -118,9 +118,10 @@ This is a project requirement, not a detail:
 
 - Your speech is transcribed **inside the game** (Whisper, local).
 - The companion's voice is synthesized **inside the game** (Kokoro, local).
-- The **LLM** is the only one that can be remote: by default it is **Groq** (or **OpenRouter**, as an alternative),
-  and then the text of the orders and of the conversation **leaves your machine**. To send nothing, use the local
-  **LM Studio/Ollama** (**[LLM (Groq, LM Studio or OpenRouter)](LLM)**).
+- The **LLM** is the only one that can be remote: the `.cfg` ships pointed at **Groq** (or **OpenRouter**, as an
+  alternative), and then the text of the orders and of the conversation **leaves your machine**. The recommended
+  path is the local **LM Studio/Ollama**, where nothing leaves
+  (**[LLM (LM Studio, Groq or OpenRouter)](LLM)**).
 
 The `ApiKey`, when there is one, stays only in the local `.cfg` — never commit it or share that file with the key
 filled in.
@@ -181,5 +182,3 @@ The detail of each phase (the reason behind each decision) is in the repository:
 - Roadmap and phases: https://github.com/julianu37/AI-Companions/blob/main/docs/roadmap.md
 - Reverse engineering notes of Valheim 1.0: https://github.com/julianu37/AI-Companions/tree/main/docs/re
 - Changelog: https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md
-
-<!-- D4: add Español/Français/Italiano -->

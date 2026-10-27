@@ -131,23 +131,14 @@ Dove scaricarli:
 
 ---
 
-## 6. Configura il LLM (Groq)
+## 6. Configura il LLM
 
-Gli ordini li capisce un **LLM**. La mod arriva già puntata su **Groq**, che è il percorso più semplice: non c'è niente
-da installare — solo la **chiave gratuita** e internet.
-
-1. Crea l'account e la chiave su **https://console.groq.com/keys**.
-2. In `<Valheim>\BepInEx\config\AiCompanions.cfg`, sezione `[AI]`, controlla i tre valori
-   (i primi due **sono già i valori predefiniti**; solo la chiave la riempi tu):
-
-   ```ini
-   BaseUrl = https://api.groq.com/openai/v1
-   Model = openai/gpt-oss-20b
-   ApiKey = <la tua chiave>
-   ```
-
-3. In gioco, premi **`I`** → scheda **IA** → **Impostazioni del LLM** → **Prova la connessione** (puoi anche incollare
-   la chiave e cambiare URL/modello lì, senza aprire il file).
+Gli ordini li capisce un **LLM**. Il percorso **consigliato** è il **LM Studio** locale: installalo da
+https://lmstudio.ai, prendi `qwen2.5-3b-instruct` con **Model Search**, accendi il **Local Server** (porta **1234**)
+e premi **Load Model** — il passo passo con le catture è in
+**[LLM (LM Studio, Groq o OpenRouter)](LLM-it)**. Se preferisci non installare niente, il `.cfg` **arriva già
+puntato su Groq**: crea la **chiave gratuita** su https://console.groq.com/keys e incollala in `[AI] ApiKey`.
+**OpenRouter** funziona anche (chiave gratuita su https://openrouter.ai/keys) e resta l'alternativa.
 
 > **Senza modificare il file:** sopra l'**URL del server** c'è il menu a tendina **"Scegli il tuo provider LLM"** —
 > scegliere **Groq**, **LM Studio** o **OpenRouter** **riempie l'URL e il modello** (la chiave non viene toccata;
@@ -157,18 +148,16 @@ da installare — solo la **chiave gratuita** e internet.
 
 ![Il pannello IA sulla scheda IA: in Impostazioni del LLM, il menu "Scegli il tuo provider LLM" già su Groq, l'URL del server con api.groq.com, il modello openai/gpt-oss-20b, la chiave API mascherata e il pulsante "Crea qui la tua chiave API gratuita" a destra della chiave](images/en-ai-panel.jpg)
 
-> Questa cattura è della **1.8.2**: il **selettore del provider** è su **Groq** (il predefinito), l'URL e il modello
-> vengono da Groq e il pulsante della chiave appare a destra della **Chiave API**. Se scegli **LM Studio**, il
-> pulsante sparisce (non c'è chiave).
+> Questa cattura è della **1.8.2**: il **selettore del provider** è su **Groq** (quello che arriva nel `.cfg`),
+> l'URL e il modello vengono da Groq e il pulsante della chiave appare a destra della **Chiave API**. Se scegli
+> **LM Studio**, il pulsante sparisce (non c'è chiave).
 
-> **Con Groq, il testo degli ordini esce dalla tua macchina** (è un servizio remoto) e il tier gratuito ha un limite
-> di richieste e di **token al minuto** (~4 ordini al minuto con `gpt-oss-20b`). Per far girare **tutto in locale** —
-> e che **niente** esca — usa **LM Studio** come **alternativa facoltativa**: installalo da https://lmstudio.ai,
-> scarica `qwen2.5-3b-instruct` (Q4_K_M), attiva il **Local Server** (porta **1234**) e cambia nel `.cfg`:
-> `BaseUrl = http://127.0.0.1:1234/v1` e `Model = qwen2.5-3b-instruct` (con la `ApiKey` **vuota**).
+> **Con Groq, il testo degli ordini esce dalla tua macchina** (è un servizio remoto) e il tier gratuito ha un
+> limite di richieste e di **token al minuto** (~4 ordini al minuto con `gpt-oss-20b`). Il **LM Studio** locale non
+> ha niente di tutto questo: è il percorso consigliato, e **niente** esce dalla macchina.
 
-La guida completa dei tre percorsi (Groq → LM Studio locale → OpenRouter) è in
-**[LLM (Groq, LM Studio o OpenRouter)](LLM-it)**.
+La guida completa dei tre percorsi (LM Studio → Groq → OpenRouter) è in
+**[LLM (LM Studio, Groq o OpenRouter)](LLM-it)**.
 
 ---
 
@@ -229,5 +218,3 @@ Per vedere tutti i tasti e gli ordini, vai in **[Ordini](Commands-it)**.
 - [ ] Tenere premuto `V` e parlare funziona
 
 Se qualcosa non va, vedi **[Problemi comuni](Troubleshooting-it)**.
-
-<!-- D4: add Español/Français/Italiano -->
