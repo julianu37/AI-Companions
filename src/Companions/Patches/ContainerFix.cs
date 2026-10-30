@@ -37,7 +37,7 @@ internal static class ContainerFix
 			}
 			if (methodInfo == null || type == null)
 			{
-				if (CompanionsPlugin.LogDetailed) Log("[ContainerFix] Harmony Patch API not found.");
+				Warn("[ContainerFix] Harmony Patch API not found.");
 				return;
 			}
 			PatchOne(harmony, methodInfo, type, "Load", "LoadPrefix", "LoadPostfix");
@@ -46,7 +46,9 @@ internal static class ContainerFix
 		}
 		catch (Exception ex)
 		{
-			if (CompanionsPlugin.LogDetailed) Log("[ContainerFix] install failed: " + ex.Message);
+			// a failed install is not debug noise: the guard silently disappears and the companion's inventory starts
+			// reloading over a newer ZDO revision again
+			Warn("[ContainerFix] install failed: " + ex.Message);
 		}
 	}
 
@@ -190,7 +192,7 @@ internal static class ContainerFix
 			MethodInfo method = typeof(Container).GetMethod(methodName, bindingAttr);
 			if (method == null)
 			{
-				if (CompanionsPlugin.LogDetailed) Log("[ContainerFix] method not found: " + methodName);
+				Warn("[ContainerFix] method not found: " + methodName);
 				return;
 			}
 			ParameterInfo[] parameters = patchMethod.GetParameters();
@@ -212,12 +214,18 @@ internal static class ContainerFix
 		}
 		catch (Exception ex)
 		{
-			if (CompanionsPlugin.LogDetailed) Log("[ContainerFix] patch failed for " + methodName + ": " + ex.Message);
+			Warn("[ContainerFix] patch failed for " + methodName + ": " + ex.Message);
 		}
 	}
 
 	private static void Log(string s)
 	{
 		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log?.LogInfo(s);
+	}
+
+	// install problems are unconditional: without this a broken patch target only leaves the mod quieter
+	private static void Warn(string s)
+	{
+		CompanionsPlugin.Log?.LogWarning(s);
 	}
 }

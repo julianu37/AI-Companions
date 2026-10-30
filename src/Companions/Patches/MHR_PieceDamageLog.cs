@@ -17,7 +17,23 @@ internal static class MHR_PieceDamageLog
 	{
 		try
 		{
+			// cost: WearNTear.ApplyDamage runs for the wear of every piece (rain, support) every cycle - hundreds of calls
+			// in a big base - and the log line below is debug-only, so pay nothing without it. Everything from here on
+			// (the instance id, the proximity scan over the companions, the localized name and the "why" string) used to
+			// run with the log off as well.
+			if (!CompanionsPlugin.LogDetailed)
+			{
+				return;
+			}
 			if (__instance == null || damage <= 0f)
+			{
+				return;
+			}
+			// the throttle is one Dictionary<int, float> lookup: no boxing, no allocation. It comes before the scan so a
+			// throttled piece does not even walk the companions, and the timestamp is still written only for pieces a
+			// companion is near (same pieces as before in the log).
+			int id = __instance.GetInstanceID();
+			if (s_last.TryGetValue(id, out var t) && Time.time - t < 2f)
 			{
 				return;
 			}
@@ -32,11 +48,6 @@ internal static class MHR_PieceDamageLog
 				}
 			}
 			if (near == null)
-			{
-				return;
-			}
-			int id = __instance.GetInstanceID();
-			if (s_last.TryGetValue(id, out var t) && Time.time - t < 2f)
 			{
 				return;
 			}

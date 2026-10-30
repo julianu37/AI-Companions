@@ -174,7 +174,8 @@ internal static class MHR_Pad
 
 	private static bool Hide(string name)
 	{
-		if (s_own || name == null || !name.StartsWith("Joy") || ZInput.instance == null)
+		// ordinal: TryGetButtonState runs on every button query of every frame, and the default overload is culture-aware
+		if (s_own || name == null || !name.StartsWith("Joy", System.StringComparison.Ordinal) || ZInput.instance == null)
 		{
 			return false;
 		}

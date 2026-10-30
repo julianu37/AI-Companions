@@ -46,7 +46,7 @@ internal static class EquipDiag
 			}
 			if (methodInfo == null || type == null)
 			{
-				if (CompanionsPlugin.LogDetailed) Info("[EQUIPDIAG] Harmony Patch API not found; trace disabled.");
+				Warn("[EQUIPDIAG] Harmony Patch API not found; trace disabled.");
 				return;
 			}
 			PatchOne(harmony, typeFromHandle, type, methodInfo, "Humanoid", "EquipItem", null, "EquipPostfix");
@@ -58,7 +58,8 @@ internal static class EquipDiag
 		}
 		catch (Exception ex)
 		{
-			if (CompanionsPlugin.LogDetailed) Info("[EQUIPDIAG] install failed: " + ex.Message);
+			// a failed install is not debug noise: the equip trace and the ContainerFix guard silently disappear
+			Warn("[EQUIPDIAG] install failed: " + ex.Message);
 		}
 	}
 
@@ -106,6 +107,12 @@ internal static class EquipDiag
 	private static void Info(string s)
 	{
 		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log?.LogInfo(s);
+	}
+
+	// install problems are unconditional: without this a broken patch target only leaves the mod quieter
+	private static void Warn(string s)
+	{
+		CompanionsPlugin.Log?.LogWarning(s);
 	}
 
 	private static bool IsCompanion(Humanoid h)
@@ -273,7 +280,7 @@ internal static class EquipDiag
 			MethodInfo method = typeof(Humanoid).GetMethod(methodName, bindingAttr);
 			if (method == null)
 			{
-				if (CompanionsPlugin.LogDetailed) Info("[EQUIPDIAG] patch skipped, method not found: " + methodName);
+				Warn("[EQUIPDIAG] patch skipped, method not found: " + methodName);
 				return;
 			}
 			ParameterInfo[] parameters = patchMethod.GetParameters();
@@ -295,7 +302,7 @@ internal static class EquipDiag
 		}
 		catch (Exception ex)
 		{
-			if (CompanionsPlugin.LogDetailed) Info("[EQUIPDIAG] patch failed for " + methodName + ": " + ex.Message);
+			Warn("[EQUIPDIAG] patch failed for " + methodName + ": " + ex.Message);
 		}
 	}
 }

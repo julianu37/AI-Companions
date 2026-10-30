@@ -28,12 +28,21 @@ internal static class CompanionBlockLog
 		}
 		// 1.5.52: the swing it was watching has landed - an opening to hit back
 		__instance.GetComponent<CompanionCombatAI>()?.NoteIncoming(attacker);
+		// cost: the reflection below (GetCurrentBlocker through MethodInfo.Invoke, m_blockTimer through a
+		// FieldInfo.GetValue that boxes the float) used to run on every successful block of the player AND of every
+		// companion, only to be thrown away when nothing would be logged. It is paid only when the line is actually
+		// written: the companion debug line, or the player's combat log.
+		bool player = __instance == Player.m_localPlayer;
+		if (!(player ? PlayerCombatLog.On : CompanionsPlugin.LogDetailed))
+		{
+			return;
+		}
 		try
 		{
 			ItemDrop.ItemData blocker = s_blocker?.Invoke(__instance, null) as ItemDrop.ItemData;
 			float timer = ReflectionHelper.GetBlockTimer(__instance);
 			bool parry = blocker != null && blocker.m_shared.m_timedBlockBonus > 1f && timer != -1f && timer < 0.25f;
-			if (__instance == Player.m_localPlayer)
+			if (player)
 			{
 				PlayerCombatLog.NoteBlock(__instance, attacker, parry, __state, hit.GetTotalBlockableDamage());
 				return;

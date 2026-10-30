@@ -11,25 +11,42 @@ namespace Companions;
 // animation. Out of stamina while encumbered it can't move, like Player.CanMove.
 internal static class MHR_Encumbrance
 {
-	private static readonly Dictionary<int, bool> s_isCompanion = new Dictionary<int, bool>();
+	// instance id -> verdict, plus the Character it was taken for. Unity recycles the instance id of a destroyed object,
+	// so the id alone handed a brand-new character the verdict of a dead companion (the cache only clears past 1000
+	// entries); the reference is validated with ReferenceEquals on every hit, which keeps the lookup O(1) and allocation
+	// free on the hot path (the entry is a struct, the dictionary holds no boxed values).
+	private struct Entry
+	{
+		internal Character Owner;
+
+		internal bool IsCompanion;
+	}
+
+	private static readonly Dictionary<int, Entry> s_isCompanion = new Dictionary<int, Entry>();
 
 	internal static bool IsCompanion(Character c)
 	{
 		int id = c.GetInstanceID();
-		if (!s_isCompanion.TryGetValue(id, out bool yes))
+		if (s_isCompanion.TryGetValue(id, out var entry) && ReferenceEquals(entry.Owner, c))
 		{
-			if (s_isCompanion.Count > 1000)
-			{
-				s_isCompanion.Clear();
-			}
-			yes = c.GetComponent<CompanionSetup>() != null;
-			s_isCompanion[id] = yes;
+			return entry.IsCompanion;
 		}
+		if (s_isCompanion.Count > 1000)
+		{
+			s_isCompanion.Clear();
+		}
+		bool yes = c.GetComponent<CompanionSetup>() != null;
+		s_isCompanion[id] = new Entry
+		{
+			Owner = c,
+			IsCompanion = yes
+		};
 		return yes;
 	}
 
 	internal static bool Over(Character c)
 	{
+		// TODO(after 2.0.0 test): memoize the weight per inventory if the profiling says it matters (~2000 sums/frame).
 		Inventory inv = (c as Humanoid)?.GetInventory();
 		// upstream 1.5.62 measured the ceiling with CompanionTierData.CarryLimit; we use CompanionCarry (Fase 3.22:
 		// [General] MaxCarryWeight + the belt bonus read from the item asset)
