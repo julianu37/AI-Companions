@@ -21,6 +21,7 @@ namespace Companions
             public int Ladder; public float StepUntil; public Vector3 StepDir; public bool StepRun;
             public bool HasDetour; public Vector3 Detour; public float DetourUntil;
             public bool GaveUp; public float GaveUpAt;
+            public bool DoorBlocked;   // 1.5.65: a fight chase came to a closed door it won't open
             public float LastGo, NextLog, NextDoorSearch, NextDoorPeek, NextJump, NextDive, NextWaterPeek, NextLineLog, NextFireLog;
             public Door RouteDoor; public Vector3 RouteDoorSpot;
             public bool WaitStamina, TooTired; public float NeedStamina, WaitStart, NoWaitUntil;
@@ -86,12 +87,18 @@ namespace Companions
         // ---------- queries for the callers ----------
         public static bool OwnsMovement(Component c) { S s = Peek(c); return s != null && Time.time - s.LastGo < 0.3f; }
         public static bool GaveUp(CompanionAI ai) { S s = Peek(ai); return s != null && s.GaveUp; }
+        public static bool DoorBlocked(CompanionAI ai) { S s = Peek(ai); return s != null && s.GaveUp && s.DoorBlocked; }
+
+        // 1.5.65: a fight doesn't open doors on its own (user: they go for enemies behind closed doors) - only an order does
+        public const string CombatTag = "Combat";
         // 1.4.79: the current route doesn't reach the goal (Follow switches to the player's path then)
         public static bool RoutePartial(CompanionAI ai) { S s = Peek(ai); return s != null && Time.time - s.LastGo < 0.5f && s.Partial && !s.HasDetour; }
         // 1.4.81: meters of swimming on the current route
         // 1.4.110: how much swimming a job accepts to reach something (General.JobSwim)
         public static float JobSwim() { return ModConfig.JobSwim != null ? ModConfig.JobSwim.Value : 20f; }
         public static float RouteSwim(CompanionAI ai) { S s = Peek(ai); return s != null && Time.time - s.LastGo < 0.5f ? s.RouteSwim : 0f; }
+        // 1.5.83: waiting on the bank for its breath before a swim (MHR_Board doesn't count that as stuck)
+        public static bool RestingForSwim(CompanionAI ai) { S s = Peek(ai); return s != null && s.WaitStamina && Time.time - s.LastGo < 0.5f; }
         // 1.4.82: length of the current route, for callers that compare it with the straight line (0 when not moving)
         public static float RouteLength(CompanionAI ai)
         {
@@ -206,7 +213,18 @@ namespace Companions
             }
 
             // a sidestep / hop in progress
-            if (now < s.StepUntil) { Steer(ai, c, s, s.StepDir, s.StepRun, false); return false; }
+            if (now < s.StepUntil)
+            {
+                // 1.5.72: a walking step (a sidestep out of being stuck) stops at a drop, fire or spikes on the way - it was only
+                // checked when it started (jumps are left alone - they're in the air)
+                if (!s.StepRun && c.IsOnGround() && (DropAhead(pos, s.StepDir, 0.8f, 1.2f) || FireArea(pos + s.StepDir * 0.8f, 0.3f) != null || SpikeNear(pos + s.StepDir * 0.8f, 0.6f) != null))
+                {
+                    s.StepUntil = 0f; Halt(ai, c, s);
+                    Dbg("[Move|" + tag + "] stopped a step - a drop, fire or spikes ahead");
+                    return false;
+                }
+                Steer(ai, c, s, s.StepDir, s.StepRun, false); return false;
+            }
 
             // 1.4.88: never stand in a fire
             if (EscapeFire(ai)) return false;
@@ -328,7 +346,7 @@ namespace Companions
             }
 
             // 1.4.97: going straight and there's a gap right ahead: leap it
-            if (s.Direct && !s.Quiet && !c.IsSwimming() && c.IsOnGround() && now >= s.NextJump && GapAhead(c, pos, dir))
+            if (s.Direct && !s.Quiet && !c.IsSwimming() && c.IsOnGround() && now >= s.NextJump && GapAhead(c, pos, dir) && !LandingHazard(pos, dir))
             {
                 Leap(ai, c, dir, 6.5f);
                 s.NextJump = now + 1.2f; s.StepDir = dir; s.StepRun = true; s.StepUntil = now + 0.6f;
@@ -358,6 +376,27 @@ namespace Companions
                 }
                 Vector3 round;
                 if (FireExit(pos, dir, out round)) dir = round;
+            }
+
+            // 1.5.72: a spike wall (a built piece that hurts what touches it) on the next step: walk along it, a little away
+            // from it, instead of into it - also when the goal is right at it (an enemy caught on the stakes is hit from a
+            // step off) (user: "what about defenses like a spike wall?")
+            // 1.5.73: further ahead and wider, and right where it stands - a stake wall's hurt zone reaches well out from the
+            // stakes (log 93298113: hit 1.6-3.7 m from them following you past); already at its edge, turn away harder
+            Collider spike = SpikeNear(pos, c.GetRadius() + 0.35f);
+            bool spikeClose = spike != null;
+            if (spike == null) spike = SpikeNear(pos + dir * 1.2f, 0.8f);
+            if (spike != null)
+            {
+                Vector3 cp = spike.ClosestPoint(pos); Vector3 off = pos - cp; off.y = 0f;
+                if (off.sqrMagnitude > 0.0001f)
+                {
+                    off.Normalize();
+                    Vector3 along = Vector3.Cross(Vector3.up, off);
+                    if (Vector3.Dot(along, dir) < 0f) along = -along;
+                    dir = (along + off * (spikeClose ? 1.5f : 0.6f)).normalized;
+                    if (now >= s.NextFireLog) { s.NextFireLog = now + 10f; Dbg("[Move|" + tag + "] keeping off the spikes at " + Fmt(cp)); }
+                }
             }
 
             // 1.5.2: never walk off a ledge that hurts (user log: a "full" route off the small 57.4 floor of a ladder tower -
@@ -417,7 +456,7 @@ namespace Companions
             Ladder ladder = s.UseLadder; float ladderUntil = s.LadderUntil;
             s.Goal = goal; s.Dest = goal; s.Tag = tag; s.Path.Clear(); s.Corner = 0; s.NextPlan = 0f; s.PathOk = false; s.Partial = false;
             s.Best = float.MaxValue; s.ProgressTime = now; s.AnchorTime = now; s.Anchor = pos;
-            s.Ladder = 0; s.StepUntil = 0f; s.HasDetour = false; s.GaveUp = false; s.RouteDoor = null; s.WaitStamina = false; s.PassDoor = null;
+            s.Ladder = 0; s.StepUntil = 0f; s.HasDetour = false; s.GaveUp = false; s.DoorBlocked = false; s.RouteDoor = null; s.WaitStamina = false; s.PassDoor = null;
             s.TooTired = false; s.MainBest = float.MaxValue; s.Passes = 0; s.HasShore = false; s.NextShore = 0f;
             s.NextDoorSearch = 0f; s.NextLog = now + 1f; s.NextStartSearch = 0f;
             s.ClimbUntil = 0f; s.ClimbTries = 0; s.ClimbTried.Clear(); s.ClimbRestUntil = 0f; s.Direct = false;
@@ -601,7 +640,7 @@ namespace Companions
             // no full route: maybe a closed door is in the way (closed doors block the route); go open it like a player would
             // 1.4.79: not while following - a door 20 m the other way isn't how you keep up with someone (1.4.78 log);
             // MHR_Follow walks the player's own path instead when the route doesn't reach its spot
-            if (s.Partial && s.Tag != FollowTag && s.RouteDoor == null && !s.HasDetour && now >= s.NextDoorSearch)
+            if (s.Partial && s.Tag != FollowTag && s.Tag != CombatTag && s.RouteDoor == null && !s.HasDetour && now >= s.NextDoorSearch)
             {
                 s.NextDoorSearch = now + 4f;
                 // 1.4.78: not the door we just came through - if the route still doesn't reach the goal from the other
@@ -702,6 +741,18 @@ namespace Companions
             float len = 0f; Vector3 prev = from;
             for (int i = 0; i < path.Count; i++) { len += Vector3.Distance(prev, path[i]); prev = path[i]; }
             return len;
+        }
+
+        // 1.5.74: a walking route that gets there, and how long it is (for "can a melee weapon get at it")
+        static readonly List<Vector3> s_walkPath = new List<Vector3>();
+        public static bool WalkRoute(Vector3 from, Vector3 to, out float len)
+        {
+            len = 0f;
+            if (!GetPath(from, to, s_walkPath, MHR_CompanionNavMesh.AgentOrHumanoid, false)) return false;
+            Vector3 end = s_walkPath[s_walkPath.Count - 1];
+            if (Flat(end, to) > 1.5f || Mathf.Abs(end.y - to.y) > 2.2f) return false;
+            len = PathLength(from, s_walkPath);
+            return true;
         }
 
         static bool GetPath(Vector3 from, Vector3 to, List<Vector3> path, Pathfinding.AgentType agent, bool requireFull)
@@ -2043,6 +2094,51 @@ namespace Companions
         // 1.4.88-89 used type Fire, the wide area fire-shy creatures keep away from: it covered the whole kitchen, so
         // almost every spot by a chest counted as "in a fire" and cooking couldn't reach anything (1.4.89 log).
         // 1.5.44: in the flames or within margin of them - for picking a spot to stand (idle spots, follow spots)
+        // 1.5.72: a built piece that hurts whatever touches it - a spike wall (sharpened stakes, the Dvergr ones, modded
+        // ones): a Piece with an Aoe that does damage and isn't a fire (fires are handled above, and a hearth or campfire
+        // has an Aoe too). Found by what it does, not by name. Returns the collider nearest p, or null.
+        static readonly Collider[] s_spikeBuf = new Collider[32];
+        public static Collider SpikeNear(Vector3 p, float r)
+        {
+            try
+            {
+                int n = Physics.OverlapSphereNonAlloc(p + Vector3.up * 0.6f, r, s_spikeBuf, ~0, QueryTriggerInteraction.Collide);
+                for (int i = 0; i < n; i++)
+                {
+                    Collider col = s_spikeBuf[i];
+                    if (col == null) continue;
+                    Aoe aoe = col.GetComponentInParent<Aoe>();
+                    if (aoe == null || aoe.GetComponentInParent<Piece>() == null || aoe.GetComponentInParent<Fireplace>() != null) continue;
+                    if (aoe.m_damage.GetTotalDamage() <= 0f) continue;
+                    return col;
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        // 1.5.72: a short nudge (closing the last bit on a tree or rock) - a drop, fire or spikes that far ahead. Not a wall
+        // check: the thing it's walking up to is the wall.
+        public static bool HazardAhead(Vector3 pos, Vector3 dir, float dist)
+        {
+            dir.y = 0f;
+            if (dir.sqrMagnitude < 0.0001f) return true;
+            dir.Normalize();
+            Vector3 p = pos + dir * dist;
+            return DropAhead(pos, dir, dist, 1.2f) || FireArea(p, 0.3f) != null || SpikeNear(p, 0.6f) != null;
+        }
+
+        // 1.5.72: fire or spikes where a jump would land (2-4 m on)
+        static bool LandingHazard(Vector3 pos, Vector3 dir)
+        {
+            for (float d = 2f; d <= 4f; d += 1f)
+            {
+                Vector3 p = pos + dir * d;
+                if (FireArea(p, 0.5f) != null || SpikeNear(p, 0.7f) != null) return true;
+            }
+            return false;
+        }
+
         public static bool NearFire(Vector3 p, float margin)
         {
             return FireArea(p, margin) != null;
@@ -2282,6 +2378,30 @@ namespace Companions
             if (CompanionsPlugin.Log != null) CompanionsPlugin.Log.LogInfo("[Move|" + tag + "] " + need.ToString("F1") + "m below where it needs to be - jumping up onto " + Fmt(bestPt) + " (" + (bestPt.y - pos.y).ToString("F1") + "m up, " + bestD.ToString("F1") + "m on)");
             return true;
         }
+        // 1.5.52: a short step in a fight (back, aside, out of a group) that's safe all the way: no wall, ground under every
+        // half metre no more than 1 m below or 0.8 m above, no water to wade into (no deeper than where it stands), no fire
+        public static bool SafeStep(Vector3 pos, Vector3 dir, float dist)
+        {
+            dir.y = 0f;
+            if (dir.sqrMagnitude < 0.0001f || dist <= 0f) return false;
+            dir.Normalize();
+            if (Physics.Raycast(pos + Vector3.up * 0.5f, dir, dist + 0.3f, Mask())) return false;
+            // 1.5.73: already standing in shallow water, a step through water as deep is fine - only deeper (to swimming
+            // depth) is refused (log 93298113: stood its ground in a shallow pool, every step "into water")
+            float wade = Mathf.Min(1.0f, Mathf.Max(0.4f, MHR_Water.DepthAt(pos) + 0.15f));
+            for (float x = 0.5f; x < dist + 0.49f; x += 0.5f)
+            {
+                Vector3 p = pos + dir * Mathf.Min(x, dist);
+                RaycastHit hit;
+                if (!Physics.SphereCast(p + Vector3.up * 1.5f, 0.2f, Vector3.down, out hit, 2.7f, Mask())) return false;
+                if (hit.point.y < pos.y - 1.0f || hit.point.y > pos.y + 0.8f) return false;
+                if (MHR_Water.DepthAt(hit.point) > wade) return false;
+                if (FireArea(hit.point, 0.5f) != null) return false;
+                if (SpikeNear(hit.point, 0.7f) != null) return false;
+            }
+            return true;
+        }
+
         static bool Clear(Vector3 pos, Vector3 dir, float dist)
         {
             Vector3 from = pos + Vector3.up * 0.5f;
@@ -2291,6 +2411,7 @@ namespace Companions
             RaycastHit hit;
             if (!Physics.Raycast(p + Vector3.up * 1.5f, Vector3.down, out hit, 4f, Mask())) return false;
             if (hit.point.y < pos.y - 1.2f) return false;   // 1.4.82: not over a ledge
+            if (SpikeNear(hit.point, 0.7f) != null || FireArea(hit.point, 0.4f) != null) return false;   // 1.5.72
             return MHR_Water.DepthAt(hit.point) < 1.0f;
         }
 
@@ -2349,11 +2470,16 @@ namespace Companions
             // 1.4.96: shallow water too (user: a player jumps a small river or pond rather than run through it)
             float wade = ModConfig.JumpWaterDepth != null ? ModConfig.JumpWaterDepth.Value : 0.3f;
             float maxGap = ModConfig.JumpWaterWidth != null ? ModConfig.JumpWaterWidth.Value : 3f;
+            // 1.5.70: never inside a dungeon - there it took the gap beside a ledge in a Mistlands mine for "shallow water" and
+            // jumped (log 6f49ec1d: "jumping the shallow water" at the top, then 10 m down on the level below, fighting a Seeker)
+            if (c.InInterior()) return false;
             float waterAt = -1f, landAt = -1f; bool swim = false;
             for (float d = 0.5f; d <= 6.0f; d += 0.5f)
             {
                 Vector3 p = pos + dir * d;
                 float depth = MHR_Water.DepthAt(p);
+                // 1.5.70: ground (or the water's surface) well below our feet is a drop, not a stream - no jumping over it
+                if (MHR_Water.GroundAt(p) + depth < pos.y - 1.5f) return false;
                 if (waterAt < 0f) { if (depth > wade) waterAt = d; else if (d > 1.5f) return false; }
                 else if (depth < Mathf.Min(wade, 0.3f)) { landAt = d; break; }
                 if (waterAt >= 0f && depth > lim) swim = true;
@@ -2367,7 +2493,7 @@ namespace Companions
             // a lot in and out of the water in the swamp rather than wading through the water. They should be jumping out
             // of the water when it gets them to dry land.")
             bool dryBeyond = landAt > 0f && MHR_Water.DepthAt(pos + dir * landAt) < 0.05f && MHR_Water.DepthAt(pos + dir * (landAt + 1f)) < 0.05f && MHR_Water.DepthAt(pos + dir * (landAt + 2f)) < 0.05f;
-            if (!s.Quiet && landAt > 0f && dryBeyond && landAt - waterAt <= maxGap && landY < pos.y + 1.0f && MHR_Jump.CanAfford(c) && landAt <= MHR_Jump.Reach(c, dir, landY - pos.y))
+            if (!s.Quiet && landAt > 0f && dryBeyond && landAt - waterAt <= maxGap && landY < pos.y + 1.0f && MHR_Jump.CanAfford(c) && landAt <= MHR_Jump.Reach(c, dir, landY - pos.y) && !LandingHazard(pos, dir))
             {
                 // a stream or puddle we can clear: jump it and stay dry
                 Leap(ai, c, dir, 6.5f);
@@ -2387,7 +2513,7 @@ namespace Companions
                 {
                     Vector3 l = pos + dir * Mathf.Min(reach, 6f);
                     float ly = MHR_Water.GroundAt(l);
-                    if (!MHR_Water.WouldSwim(c, l) && ly < pos.y + 0.5f && ly > pos.y - (ModConfig.MaxDrop != null ? ModConfig.MaxDrop.Value : 3f))
+                    if (!MHR_Water.WouldSwim(c, l) && ly < pos.y + 0.5f && ly > pos.y - (ModConfig.MaxDrop != null ? ModConfig.MaxDrop.Value : 3f) && !LandingHazard(pos, dir))
                     {
                         Leap(ai, c, dir, 6.5f);
                         s.NextJump = now + 0.8f; s.StepDir = dir; s.StepRun = true; s.StepUntil = now + 0.6f;
@@ -2404,7 +2530,8 @@ namespace Companions
                 Dbg("[Move|" + tag + "] too tired to swim across - waiting on the bank");
                 return true;
             }
-            if (landAt < 0f && swim && now >= s.NextDive && waterAt <= 1.0f && !s.WaitStamina && s.RouteSwim > 3f)
+            // 1.5.75: never for loot - drops it would have to swim for are left (MHR_Loot)
+            if (landAt < 0f && swim && now >= s.NextDive && waterAt <= 1.0f && !s.WaitStamina && s.RouteSwim > 3f && tag != "Loot")
             {
                 // wide water we're about to swim: running leap in for a head start. 1.4.111: only a real swim across
                 // (swim-depth water right ahead, no land within 6 m, 3 m+ of swimming on the route) - not to reach
@@ -2795,6 +2922,13 @@ namespace Companions
         static void OpenDoor(CompanionAI ai, Character c, Door d, string tag)
         {
             if (d == null || !DoorClosed(d)) return;
+            if (tag == CombatTag)
+            {
+                S st = Get(ai);
+                if (!st.DoorBlocked) Dbg("[Move|" + tag + "] closed " + d.m_name + " in the way at " + Fmt(d.transform.position) + " - not opening it in a fight");
+                st.DoorBlocked = true; st.GaveUp = true; st.GaveUpAt = Time.time;
+                return;
+            }
             Vector3 to = d.transform.position - ai.transform.position; to.y = 0f;
             if (to.sqrMagnitude > 0.01f) ai.transform.rotation = Quaternion.LookRotation(to.normalized);
             Humanoid h = c as Humanoid;
@@ -2930,10 +3064,18 @@ namespace Companions
         public static float SwimLimit(Character c) { return Mathf.Max(0.3f, (c != null ? c.m_swimDepth : 2f) - 0.4f); }
         public static bool WouldSwim(Character c, Vector3 p) { return DepthAt(p) > SwimLimit(c); }
 
+        public static float SwimDrainSkill(Character c)
+        {
+            float skill = 0f;
+            try { if (c != null) skill = c.GetSkillFactor(Skills.SkillType.Swim); } catch { }
+            return Mathf.Lerp(1f, 0.4f, Mathf.Clamp01(skill));
+        }
+
         public static float SwimStamina(Character c, float meters)
         {
             float speed = c != null && c.m_swimSpeed > 0.1f ? c.m_swimSpeed : 2f;
-            float drain = ModConfig.StaminaSwimDrain != null ? ModConfig.StaminaSwimDrain.Value : 10f;
+            // 1.5.88: like the player (Player.OnSwimming: Lerp(5, 2, Swim skill) per second while moving)
+            float drain = (ModConfig.StaminaSwimDrain != null ? ModConfig.StaminaSwimDrain.Value : 5f) * SwimDrainSkill(c);
             return meters / speed * drain;
         }
 

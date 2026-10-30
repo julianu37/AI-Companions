@@ -74,7 +74,8 @@ internal static class PortalPatches
 			CompanionsPlugin.Log.LogWarning($"[Portal] Companion ZDO {zdoid} not found — skipping");
 			return;
 		}
-		Vector3 vector = FindNearbyPosition(targetPos, 3f);
+		// 1.5.69: a spot you can see, not through a wall (CompanionAI.MHR_SafeSpotNear)
+		Vector3 vector = Player.m_localPlayer != null ? CompanionAI.MHR_SafeSpotNear(targetPos, -Player.m_localPlayer.transform.forward) : FindNearbyPosition(targetPos, 3f);
 		// 1.4.152: this game takes the companion over first - a position written by a game that doesn't own it is
 		// overwritten by the owner's (the warp was undone when another player's game ran the companion)
 		if (!zDO.IsOwner())
@@ -103,6 +104,7 @@ internal static class PortalPatches
 				component3.CancelMoveTarget();
 				component3.CancelPendingCart();
 				component3.CancelPendingShipBoard();
+				component3.CancelHiveOrder();
 				component3.CancelPendingDeposit();
 				component3.CancelTombstoneRecovery();
 				component3.SetFollowTarget(Player.m_localPlayer?.gameObject);

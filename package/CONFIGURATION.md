@@ -141,6 +141,12 @@ How companions follow you.
 **MaxDistance** — Default: 10 · Range: 4 – 30  
 How far a following companion lets you get before it moves to keep up. It picks its own spot within this range (beside, behind, sometimes ahead) and changes it now and then.
 
+**AutoBoard** — Default: On  
+When you're aboard a ship close by, a following companion gets on too, the way you would: it jumps aboard from a dock or the shore, uses the ship's ladder (swimming to it if it has the stamina), or follows your own steps aboard. If it can't, it waits on the shore. A companion that took a seat gets up again when you go ashore.
+
+**BoardRange** — Default: 20 · Range: 5 – 60  
+AutoBoard: how close (meters) the ship has to be for a following companion to board it on its own. The ship also has to be nearly still.
+
 **IndoorDistance** — Default: 4 · Range: 2 – 10  
 The same range while you're indoors (under a roof), so companions stay in the room with you.
 
@@ -152,6 +158,9 @@ Seconds you stand still before companions regroup around you (see Regroup).
 
 **SitIndoors** — Default: On  
 When you stop indoors, companions sit down near you: on a free chair or bench if there is one, otherwise on the floor. Near home they empty their bags first.
+
+**ChairRange** — Default: 8 · Range: 2 – 30  
+How far (meters) from you a companion looks for a free chair or bench to sit on when you stop indoors - one in sight of you, on your level. Only when there's none does it sit on the floor.
 
 **SitStayRange** — Default: 10 · Range: 2 – 30  
 Indoors, a companion that sat down stays seated while you move about within this many meters of it, and gets up to follow once you go further (or step outside).
@@ -239,6 +248,90 @@ A different weapon has to be this much better against the current enemy (0.1 = 1
 **ShieldMultiAttackerCount** — Default: 3 · Range: 1 – 10  
 When this many enemies attack a companion at once, it switches to its shield with the best block.
 
+**ParryChance** — Default: 0.3 · Range: 0 – 1  
+Chance (0.3 = 30%) that a companion with no Blocking skill times a block as a parry (more damage stopped, less stamina, and many attackers are staggered). It rises with Blocking skill up to ParryChanceMax. Shields without a parry bonus never parry.
+
+**ParryChanceMax** — Default: 0.7 · Range: 0 – 1  
+Chance (0.7 = 70%) that a companion times a block as a parry at Blocking skill 100.
+
+**FightLikePlayer** — Default: On  
+With a melee weapon, companions fight like a player: short combos when there's an opening, guarding in between, stepping out of swings, getting clear when several enemies are on them, and backing off to catch their breath when low on stamina. Off: the older way (one swing at a time on the weapon's timer).
+
+**ComboHits** — Default: 3 · Range: 1 – 5  
+Most swings in one combo. Companions follow their weapon's own combo (3 swings on melee weapons, the last doing double damage) up to this many; now and then one short, and shorter when stamina is low.
+
+**ComboPause** — Default: 0.5 · Range: 0.2 – 5  
+Seconds (roughly - it varies) between combos, guarding or stepping back out of reach.
+
+**StaminaReserve** — Default: 0.3 · Range: 0 – 0.9  
+Share of its stamina (0.3 = 30%) a companion keeps for blocking. A combo is only started above it and may dip to half of it; below it, the companion backs out of reach to get its breath back.
+
+**StaminaResume** — Default: 0.5 · Range: 0 – 1  
+Share of its stamina (0.5 = 50%) it waits for before going back in after backing off.
+
+**BackOffTime** — Default: 8 · Range: 2 – 30  
+Seconds a companion keeps trying to back off from an enemy that stays on it before it fights on with what stamina it has.
+
+**StepAwayChance** — Default: 0.3 · Range: 0 – 1  
+Chance (0.3 = 30%) a companion steps back or aside out of an enemy's swing instead of blocking it, when there's room and it can get out of reach in time. Doubled when it's low on stamina.
+
+**GroupSize** — Default: 2 · Range: 2 – 10  
+With this many enemies close enough to hit a companion, from different sides, it gets clear first - moves for a couple of seconds until they're all on one side - then fights from there.
+
+**GroupRange** — Default: 6 · Range: 2 – 20  
+How close (meters) an enemy has to be to count as one of the group on a companion.
+
+**FlankAngle** — Default: 100 · Range: 30 – 180  
+Two enemies more than this many degrees apart, seen from the companion, count as on different sides.
+
+**BowAimTurnSpeed** — Default: 600 · Range: 100 – 1440  
+Bows: how fast a companion turns to keep its aim on the target while the bow is drawn (degrees per second), like you swinging the camera round. Movement > TurnSpeed is used the rest of the time.
+
+**BowMinDraw** — Default: 0.5 · Range: 0.1 – 1  
+Bows: the least a companion draws before letting go (0.5 = half drawn). A partial draw is quicker and cheaper but does less damage and spreads more, like yours. It takes a partial draw when the target is close enough that the spread still hits it, when it's low on stamina (below StaminaReserve), or when the target is rushing in; otherwise it draws fully.
+
+**IndoorAggroOnly** — Default: On  
+Indoors - in a dungeon, mine or cave, or under a roof - a companion only fights enemies that are actually coming for you or it (alerted), as if EngageOnNotice were off. Outdoors EngageOnNotice decides.
+
+**DungeonDefensive** — Default: On  
+In a dungeon, mine or cave a companion fights defensively: it stays with you and fights what comes within DefendRange of you (and anything hitting it), instead of running off after enemies further down the corridor.
+
+**DefendRange** — Default: 8 · Range: 3 – 30  
+Fighting defensively (DungeonDefensive): enemies within this many meters of you are fought; further off they're left to come to you.
+
+**OrderHoldTime** — Default: 10 · Range: 0 – 60  
+After you recall a companion or send it somewhere, it leaves its fight and starts no new one for this many seconds - it still fights back against something hitting it up close. Companions only ever fight enemies they can see (not ones behind walls or closed doors), and only open a door to get at one when you order the attack.
+
+**LeashFromYou** — Default: 35 · Range: 10 – 60  
+A companion lets an enemy go once it is further than this many meters from you, and starts no fight with one that far from you - it comes back to you instead. An attack order, or something hitting it up close, still keeps the fight going.
+
+**GiveUpTime** — Default: 10 · Range: 3 – 60  
+An enemy a companion can't get at with its melee weapon (out in deep water, no way to walk there) and that isn't right on top of it is let go after this many seconds without being hurt, and left alone for 20 s - so it doesn't stay stuck on it.
+
+**BowEdgeMargin** — Default: 3 · Range: 0 – 10  
+Bows: a draw is only started this many meters inside the bow's 30 m reach, and a draw already started is kept while the target is up to twice this far past the reach (walking closer, not running), so a target at the edge doesn't cost the draw.
+
+**RangedMeleeRange** — Default: 4 · Range: 1 – 15  
+Ranged stance: the bow is out (also when not fighting); the melee weapon and shield only come out when an enemy gets within this many meters - or twice that while it's catching its breath - and go away again once it's past twice the distance.
+
+**BowFullDrawRange** — Default: 15 · Range: 3 – 50  
+Bows: from this many meters away a companion always draws fully - a weaker arrow is slower and drops short at range.
+
+**FinishHits** — Default: 2 · Range: 0 – 5  
+An enemy this many hits or fewer from dead (judged from its own hits so far) is finished off with all the stamina it takes, as long as nothing else is close enough to hit the companion afterwards. 0 = never spend the stamina kept back for blocking.
+
+**Spacing** — Default: On  
+One on one, a companion keeps just outside the enemy's reach, goes in for a combo when the enemy can't swing again in time, then steps back out - and steps out of swings at the edge of its reach rather than blocking them.
+
+**Flank** — Default: On  
+When an enemy is busy with you (or someone else), a companion works its way round behind it and attacks from there, out of its swings. (The game's backstab bonus only counts on enemies that haven't noticed anyone.)
+
+**SpacingMargin** — Default: 0.4 · Range: 0 – 2  
+How far (meters) outside the enemy's reach a companion waits when spacing.
+
+**SpacingStepChance** — Default: 0.6 · Range: 0 – 1  
+Chance (0.6 = 60%) that a spacing companion steps back out of a swing it's only just inside the reach of, instead of blocking it (the rest are blocks, some of them parries).
+
 **BowSwitchDistance** — Default: 15 · Range: 5 – 60  
 A companion with a bow or crossbow switches to it when its target is further away than this (meters).
 
@@ -267,6 +360,9 @@ A companion drinks a healing mead from its pack when its health drops below this
 **StaminaMeadThreshold** — Default: 0.25 · Range: 0.05 – 0.9  
 It drinks a stamina mead when its stamina drops below this share (0.25 = 25%).
 
+**EatAgainMinutes** — Default: 3 · Range: 0 – 30  
+A companion eats the same food again once it has this many minutes left, like a player topping up before it runs out (the game only allows that once a food is under half its time). It needs that food in its pack; otherwise it eats something else when the slot empties. 0 = wait until it runs out.
+
 **MeadCooldown** — Default: 10 · Range: 1 – 60  
 Seconds after drinking a mead before it drinks another.
 
@@ -283,8 +379,8 @@ Stamina used per second while running.
 **SneakDrainRate** — Default: 5 · Range: 1 – 30  
 Stamina used per second while sneaking.
 
-**SwimDrainRate** — Default: 10 · Range: 1 – 30  
-Stamina used per second while swimming.
+**SwimDrainAtSkill0** — Default: 5 · Range: 1 – 30  
+Stamina used per second while swimming (and moving), at Swim skill 0 - it drops to 40% of this at Swim 100, like the player (the game's rate is 5).
 
 **RegenDelay** — Default: 1 · Range: 0.1 – 5  
 Seconds after using stamina before it starts coming back.
@@ -865,6 +961,12 @@ Combat: closer than this (meters, from the edge of the target) a companion steps
 
 **MeleeReachMargin** — Default: 0.2 · Range: 0 – 1  
 Combat: a companion swings a melee weapon only once it is at least this much (meters) inside the weapon's reach, not right at the edge of it, where hits are hit-or-miss.
+
+**BlockReactionTime** — Default: 0.2 · Range: 0 – 1  
+Combat: seconds between an enemy starting a swing at a companion and the companion raising its guard.
+
+**LogPlayerCombat** — Default: On  
+Testing: write your own fighting to the log (debug level, lines starting [You]) - swings, guard, blocks and parries, enemy swings at you and how far you were - to help tune how companions fight. Will be removed once combat is tuned.
 
 **FoodRegenInterval** — Default: 10 · Range: 1 – 60  
 Food: seconds between health regeneration ticks from food (a player's is 10).

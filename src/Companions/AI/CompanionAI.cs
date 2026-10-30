@@ -73,6 +73,8 @@ public class CompanionAI : BaseAI
 
 	private Ship _attachedShip;
 
+	private Chair _attachedChair;
+
 	private Vector3 _shipLocalPos;
 
 	private Quaternion _shipLocalRot;
@@ -81,19 +83,6 @@ public class CompanionAI : BaseAI
 
 	private ZSyncAnimation _zanim;
 
-	private Ship _pendingShip;
-
-	private Chair _pendingShipChair;
-
-	private Ladder _pendingShipLadder;
-
-	private float _pendingShipTimeout;
-
-	private const float LadderBoardRange = 6f;
-
-	private const float ShipBoardingRange = 10f;
-
-	private const float ShipBoardingTimeout = 30f;
 
 	internal Vagon PendingCartAttach;
 
@@ -153,9 +142,7 @@ public class CompanionAI : BaseAI
 
 	private int _lastFollowMode;
 
-	private const float PortalJumpThreshold = 15f;
 
-	private Vector3 _lastFollowPos = Vector3.positiveInfinity;
 
 	private int _formationSlot = -1;
 
@@ -217,7 +204,7 @@ public class CompanionAI : BaseAI
 
 	internal bool IsOnShip => _isOnShip;
 
-	internal bool IsBoardingShip => _pendingShip != null;
+	internal bool IsBoardingShip => MHR_Board.Active(this);
 
 	private static float TombstoneScanInterval => ModConfig.TombstoneScanInterval.Value;
 
@@ -298,15 +285,36 @@ public class CompanionAI : BaseAI
 		}
 	}
 
+	// 1.5.82: boarding is MHR_Board's now (like a player: jump, the ship's ladder, swim, your steps - no teleporting)
 	internal void CancelPendingShipBoard()
 	{
-		if (!(_pendingShip == null))
+		if (MHR_Board.Active(this))
 		{
-			_pendingShip = null;
-			_pendingShipChair = null;
-			_pendingShipLadder = null;
+			MHR_Board.Cancel(this);
 			RestoreFollowOrPatrol();
 		}
+	}
+
+	// 1.5.90: the beehive order (MHR_Hive)
+	internal void SetHiveOrder(Beehive hive)
+	{
+		SetFollowTarget(null);
+		MHR_Hive.Start(this, hive);
+	}
+
+	internal void CancelHiveOrder()
+	{
+		if (MHR_Hive.Active(this))
+		{
+			MHR_Hive.Cancel(this);
+			RestoreFollowOrPatrol();
+		}
+	}
+
+	// an ordered boarding gave up: back to following / patrolling
+	internal void BoardingEnded()
+	{
+		RestoreFollowOrPatrol();
 	}
 
 	internal void CancelPendingDeposit()
@@ -600,7 +608,9 @@ public class CompanionAI : BaseAI
 			DetachFromShip();
 		}
 		_attachedShip = ship;
+		_attachedChair = chair;
 		_isOnShip = true;
+		WaterSafety.Clear(m_character);
 		CapsuleCollider component = GetComponent<CapsuleCollider>();
 		if (component != null)
 		{
@@ -676,49 +686,31 @@ public class CompanionAI : BaseAI
 		}
 		_isOnShip = false;
 		_attachedShip = null;
-		bool flag2 = false;
-		if (attachedShip != null)
+		Chair seat = _attachedChair;
+		_attachedChair = null;
+		// 1.5.85: stands up where it sat, as you do (Player.AttachStop: the seat's detach offset) - onto the deck next to
+		// the seat when the deck planner has one; it then walks off the ship (was a teleport to the ship's ladder, or next to
+		// you - user, log ce2af5bd: "They also seem to be teleporting a bit")
+		Vector3 up = base.transform.position + Vector3.up * 0.5f;
+		if (seat != null && seat.m_attachPoint != null)
 		{
-			Ladder componentInChildren = attachedShip.GetComponentInChildren<Ladder>();
-			if (componentInChildren != null)
+			up = seat.m_attachPoint.TransformPoint(seat.m_detachOffset);
+			if (attachedShip != null && MHR_Deck.SpotNear(attachedShip, seat.m_attachPoint.position, out Vector3 local))
 			{
-				Vector3 position = componentInChildren.transform.position + Vector3.up * 0.3f;
-				base.transform.position = position;
-				if (_body != null)
+				Vector3 deck = attachedShip.transform.TransformPoint(local) + attachedShip.transform.up * 0.05f;
+				if (Vector3.Distance(deck, seat.m_attachPoint.position) < 2f)
 				{
-					_body.position = position;
-					_body.linearVelocity = Vector3.zero;
-					ResetLiquidState();
-				}
-				flag2 = true;
-			}
-		}
-		if (!flag2 && MHR_Owner.Of(this) != null)
-		{
-			Vector3 position2 = MHR_Owner.Of(this).transform.position;
-			Vector3 position3 = position2 + Vector3.right * 2f;
-			for (int j = 0; j < 20; j++)
-			{
-				Vector2 vector = UnityEngine.Random.insideUnitCircle * 3f;
-				Vector3 vector2 = position2 + new Vector3(vector.x, 0f, vector.y);
-				if (ZoneSystem.instance != null && ZoneSystem.instance.FindFloor(vector2, out var height))
-				{
-					vector2.y = height;
-					position3 = vector2;
-					break;
+					up = deck;
 				}
 			}
-			base.transform.position = position3;
-			if (_body != null)
-			{
-				_body.position = position3;
-				_body.linearVelocity = Vector3.zero;
-				ResetLiquidState();
-			}
 		}
-		if (!flag2 && MHR_Owner.Of(this) == null)
+		base.transform.position = up;
+		if (_body != null)
 		{
-			base.transform.position += new Vector3(0f, 0.5f, 0f);
+			_body.position = up;
+			Rigidbody shipBody = attachedShip != null ? attachedShip.GetComponent<Rigidbody>() : null;
+			_body.linearVelocity = shipBody != null ? shipBody.GetPointVelocity(up) : Vector3.zero;
+			ResetLiquidState();
 		}
 		RestoreFollowOrPatrol();
 	}
@@ -770,32 +762,8 @@ public class CompanionAI : BaseAI
 
 	internal void SetPendingShipBoard(Ship ship, Chair chair)
 	{
-		_pendingShip = ship;
-		_pendingShipChair = chair;
-		_pendingShipTimeout = 30f;
 		SetFollowTarget(null);
-		Ladder[] componentsInChildren = ship.GetComponentsInChildren<Ladder>();
-		if (componentsInChildren != null && componentsInChildren.Length != 0)
-		{
-			Ladder pendingShipLadder = null;
-			float num = float.MaxValue;
-			Ladder[] array = componentsInChildren;
-			foreach (Ladder ladder in array)
-			{
-				float num2 = Vector3.Distance(base.transform.position, ladder.transform.position);
-				if (num2 < num)
-				{
-					num = num2;
-					pendingShipLadder = ladder;
-				}
-			}
-			_pendingShipLadder = pendingShipLadder;
-		}
-		else
-		{
-			_pendingShipLadder = null;
-		}
-		string text = ((_pendingShipLadder != null) ? $"ladder at {_pendingShipLadder.transform.position:F1}" : "no ladder found");
+		MHR_Board.Start(this, ship, chair, auto: false);
 	}
 
 	internal void SetMoveTarget(Vector3 pos)
@@ -1122,6 +1090,8 @@ public class CompanionAI : BaseAI
 		}
 		else
 		{
+			// 1.5.65: an attack order may open doors to get at it, and isn't dropped for being out of sight
+			combatAI.Order(target);
 			combatAI.Engage(target);
 		}
 	}
@@ -1170,6 +1140,12 @@ public class CompanionAI : BaseAI
 		}
 		if (_isOnShip)
 		{
+			// 1.5.82: a companion that sat down when following you aboard gets up when you've gone ashore
+			if (_attachedShip != null && MHR_Board.ShouldLeaveSeat(this, _attachedShip))
+			{
+				DetachFromShip();
+				return true;
+			}
 			UpdateShipAttach();
 			AIGateDiag.Report(_setup, "OnShip");
 			return true;
@@ -1220,23 +1196,16 @@ public class CompanionAI : BaseAI
 		{
 			Vector3 position = m_follow.transform.position;
 			float num = Vector3.Distance(base.transform.position, position);
-			if (!float.IsInfinity(_lastFollowPos.x) && Vector3.Distance(_lastFollowPos, position) > 15f)
-			{
-				TeleportToFollowTarget();
-			}
+			// 1.5.87: the original "you moved 15 m since the last look -> warp" rule is gone (it warped a companion getting off a
+			// ship, log 79fb1bde); every game teleport goes through Player.TeleportTo, which PortalPatches handles.
 			// 1.4.83: not while you can still see each other, unless it's half as far again (1.4.82 log: warped while the
 			// player watched it run the long way round)
 			// 1.4.103: and out of sight only when it isn't getting anywhere - a companion on its way round (out of a moat, up
 			// the stairs) keeps walking (user: "they just appeared next to me")
-			else if (num > FollowTeleportDist && (num > FollowTeleportDist * 1.5f || (!MHR_Mover.CanSee(base.transform.position, position) && !MHR_Mover.Progressing(this))))
+			if (num > FollowTeleportDist && (num > FollowTeleportDist * 1.5f || (!MHR_Mover.CanSee(base.transform.position, position) && !MHR_Mover.Progressing(this))))
 			{
 				TeleportToFollowTarget();
 			}
-			_lastFollowPos = position;
-		}
-		else if (m_follow == null)
-		{
-			_lastFollowPos = Vector3.positiveInfinity;
 		}
 		if (_rest != null && _rest.IsNavigating)
 		{
@@ -1252,72 +1221,18 @@ public class CompanionAI : BaseAI
 			}
 			return true;
 		}
-		if (_pendingShip != null)
+		// 1.5.90: emptying a beehive you pointed at
+		if (MHR_Hive.Active(this) && MHR_Hive.Update(this, dt))
 		{
-			_pendingShipTimeout -= dt;
-			if (_pendingShip == null || _pendingShipChair == null || _pendingShipChair.m_attachPoint == null)
-			{
-				CancelPendingShipBoard();
-			}
-			else if (_pendingShipTimeout <= 0f)
-			{
-				Ship pendingShip = _pendingShip;
-				Chair pendingShipChair = _pendingShipChair;
-				_pendingShip = null;
-				_pendingShipChair = null;
-				_pendingShipLadder = null;
-				AttachToShip(pendingShip, pendingShipChair);
-			}
-			else if (_pendingShipLadder != null)
-			{
-				Vector3 position2 = _pendingShipLadder.transform.position;
-				Vector3 vector = position2 - base.transform.position;
-				float magnitude = new Vector2(vector.x, vector.z).magnitude;
-				if (magnitude < 6f)
-				{
-					if (_pendingShipLadder.m_targetPos != null)
-					{
-						base.transform.position = _pendingShipLadder.m_targetPos.position;
-						base.transform.rotation = _pendingShipLadder.m_targetPos.rotation;
-						if (_body != null)
-						{
-							_body.position = _pendingShipLadder.m_targetPos.position;
-							_body.linearVelocity = Vector3.zero;
-							ResetLiquidState();
-						}
-					}
-					Ship pendingShip2 = _pendingShip;
-					Chair pendingShipChair2 = _pendingShipChair;
-					_pendingShip = null;
-					_pendingShipChair = null;
-					_pendingShipLadder = null;
-					AttachToShip(pendingShip2, pendingShipChair2);
-				}
-				else
-				{
-					Vector3 position3 = _pendingShip.transform.position;
-					MoveTo(dt, position3, 0.5f, magnitude > 15f);
-				}
-			}
-			else
-			{
-				Vector3 position4 = _pendingShip.transform.position;
-				float num4 = Vector3.Distance(base.transform.position, position4);
-				if (num4 < 10f)
-				{
-					Ship pendingShip3 = _pendingShip;
-					Chair pendingShipChair3 = _pendingShipChair;
-					_pendingShip = null;
-					_pendingShipChair = null;
-					_pendingShipLadder = null;
-					AttachToShip(pendingShip3, pendingShipChair3);
-				}
-				else
-				{
-					MoveTo(dt, position4, 0.5f, num4 > 15f);
-				}
-			}
 			return true;
+		}
+		// 1.5.82: boarding a ship (ordered, or following you aboard)
+		if (MHR_Board.Active(this))
+		{
+			if (MHR_Board.Update(this, dt))
+			{
+				return true;
+			}
 		}
 		if (PendingCartAttach != null)
 		{
@@ -1523,6 +1438,20 @@ public class CompanionAI : BaseAI
 			}
 		}
 		UpdateDebugLog(dt);
+		// 1.5.69: you went through a dungeon entrance or exit without it (the door only takes players): follow through it,
+		// fight or no fight (bug report: stuck in a burial chamber after the player left, "sometimes they won't even teleport
+		// to the player" - a fight inside kept it from ever reaching the follow code that warps it)
+		if (m_follow != null && _setup != null && _setup.GetFollow() && m_character != null)
+		{
+			Character followChar = m_follow.GetComponent<Character>();
+			if (followChar != null && !(followChar is Player tp && tp.IsTeleporting()) && followChar.InInterior() != m_character.InInterior() && Vector3.Distance(base.transform.position, m_follow.transform.position) > 30f)
+			{
+				CompanionsPlugin.Log.LogInfo("[Follow] You went " + (followChar.InInterior() ? "into" : "out of") + " the dungeon - following you through");
+				_combatAI?.Disengage();
+				TeleportToFollowTarget();
+				return true;
+			}
+		}
 		if (_combatAI != null)
 		{
 			if (_combatAI.IsEngaged)
@@ -1538,7 +1467,9 @@ public class CompanionAI : BaseAI
 				bool flag = !(_combatAI != null) && false;
 				if (num9 != 1 && !flag)
 				{
-					Character character = FindEnemy();
+					// 1.5.65: only enemies it can get at (sight, no closed door), closest first, the indoor/dungeon rules, and
+					// none while carrying out a recall or move order (CompanionCombatTargets)
+					Character character = _combatAI.PickTarget();
 					if (character != null && IsPassiveAnimal(character))
 					{
 						character = null;
@@ -1562,7 +1493,7 @@ public class CompanionAI : BaseAI
 					}
 					// 1.5.2: not a creature it's ignoring (one it can't reach in deep water, harmless game) - that re-engaged and
 					// dropped it every frame while it stood still (user log: a crocodile in the water, 40 "Engage" lines in a row)
-					else if (m_targetCreature != null && !MHR_Threat.IsPassive(m_targetCreature) && !MHR_Threat.IgnoredInWater(m_targetCreature))
+					else if (m_targetCreature != null && !_combatAI.Holding && !MHR_Threat.IsPassive(m_targetCreature) && !MHR_Threat.IgnoredInWater(m_targetCreature) && _combatAI.CanGetAt(m_targetCreature))
 					{
 						SetAlerted(alert: true);
 						_combatAI.Engage(m_targetCreature);
@@ -1576,7 +1507,9 @@ public class CompanionAI : BaseAI
 				}
 				else
 				{
-					AIGateDiag.Report(_setup, "Passive stance");
+					// 1.5.57: not reported to AIGateDiag any more - Passive doesn't pause the AI (it follows and works), and the
+					// gate is cleared at the top of every tick, so it logged "blocked by Passive stance" / "resumed" every tick
+					// (log 9232441a: ~200 lines)
 					if (flag)
 					{
 						m_targetCreature = null;
@@ -1623,6 +1556,11 @@ public class CompanionAI : BaseAI
 		if (m_follow != null)
 		{
 			MHR_Mover.FollowWatch(this, m_follow);
+			// 1.5.82: you're aboard a ship close by - board it too (or wait on the shore if it couldn't)
+			if (MHR_Board.FollowHook(this, m_follow, dt))
+			{
+				return true;
+			}
 			// 1.4.76: following a player goes through MHR_Follow; the old formation code is left for other targets
 			if (!MHR_Follow.Update(this, m_follow, dt))
 			{
@@ -1763,7 +1701,10 @@ public class CompanionAI : BaseAI
 				}
 				float solidHeight = ZoneSystem.instance.GetSolidHeight(vector3);
 				float num3 = Mathf.Max(liquidLevel, 30f);
-				if (solidHeight > num3)
+				// 1.5.72: not the rim of a drop (user: "a tar pit could have a large drop next to it") - the ground just beyond
+				// the spot isn't far below it, and it isn't in a fire or against spikes
+				bool rim = ZoneSystem.instance.GetSolidHeight(vector3 + vector2 * 1.5f) < solidHeight - 3f || MHR_Mover.FireArea(new Vector3(vector3.x, solidHeight, vector3.z), 0.5f) != null || MHR_Mover.SpikeNear(new Vector3(vector3.x, solidHeight, vector3.z), 0.7f) != null;
+				if (solidHeight > num3 && !rim)
 				{
 					float num4 = Vector3.Distance(position, vector3);
 					if (num4 < num)
@@ -1901,7 +1842,7 @@ public class CompanionAI : BaseAI
 			return;
 		}
 		float magnitude = m_character.GetVelocity().magnitude;
-		bool flag = m_follow != null || PendingMoveTarget.HasValue || PendingCartAttach != null || _pendingShip != null || (_rest != null && _rest.IsNavigating);
+		bool flag = m_follow != null || PendingMoveTarget.HasValue || PendingCartAttach != null || MHR_Board.Active(this) || MHR_Hive.Active(this) || (_rest != null && _rest.IsNavigating);
 		if (magnitude < 0.1f && flag)
 		{
 			_furnitureStuckTimer += dt;
@@ -1968,19 +1909,7 @@ public class CompanionAI : BaseAI
 		{
 			vector.Normalize();
 		}
-		Vector3 vector2 = position + vector * 2.5f;
-		Vector3 position2 = vector2;
-		for (int i = 0; i < 20; i++)
-		{
-			Vector2 vector3 = UnityEngine.Random.insideUnitCircle * 1.5f;
-			Vector3 vector4 = vector2 + new Vector3(vector3.x, 0f, vector3.y);
-			if (ZoneSystem.instance != null && ZoneSystem.instance.FindFloor(vector4, out var height))
-			{
-				vector4.y = height;
-				position2 = vector4;
-				break;
-			}
-		}
+		Vector3 position2 = MHR_SafeSpotNear(position, vector);
 		base.transform.position = position2;
 		Rigidbody body = _body;
 		if (body != null)
@@ -1992,6 +1921,42 @@ public class CompanionAI : BaseAI
 		{
 			m_nview.GetZDO().SetPosition(position2);
 		}
+	}
+
+	// 1.5.69: where to put a companion that's warped to you: a spot about 2 m off, behind you first, that you can see from
+	// where you stand and that has a floor about your height - not through a wall (bug report: "the companion cannot get
+	// out of a burial chambers, locked behind the invisible barrier" - the old pick was any random spot 3 m around, which
+	// in the crypt's small entrance room could be on the other side of a wall). None found: right where you are.
+	internal static Vector3 MHR_SafeSpotNear(Vector3 at, Vector3 preferDir)
+	{
+		Vector3 eye = at + Vector3.up * 1.2f;
+		int mask = LayerMask.GetMask("Default", "static_solid", "terrain", "piece", "vehicle");
+		float baseAngle = (preferDir.sqrMagnitude > 0.01f) ? Mathf.Atan2(preferDir.z, preferDir.x) * Mathf.Rad2Deg : 0f;
+		for (int ring = 0; ring < 2; ring++)
+		{
+			float r = ring == 0 ? 2f : 1.2f;
+			for (int k = 0; k < 8; k++)
+			{
+				float a = (baseAngle + (k % 2 == 0 ? 1 : -1) * ((k + 1) / 2) * 45f) * Mathf.Deg2Rad;
+				Vector3 p = at + new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * r;
+				Vector3 chest = p + Vector3.up * 1.2f;
+				if (Physics.Linecast(eye, chest, mask, QueryTriggerInteraction.Ignore))
+				{
+					continue;
+				}
+				if (!Physics.Raycast(chest, Vector3.down, out RaycastHit hit, 3f, mask, QueryTriggerInteraction.Ignore) || Mathf.Abs(hit.point.y - at.y) > 1.2f)
+				{
+					continue;
+				}
+				// 1.5.72: and dry, not in a fire or against spikes
+				if (MHR_Water.DepthAt(hit.point) > 0.4f || MHR_Mover.FireArea(hit.point, 0.5f) != null || MHR_Mover.SpikeNear(hit.point, 0.7f) != null)
+				{
+					continue;
+				}
+				return hit.point;
+			}
+		}
+		return at;
 	}
 
 	// 1.4.82: MHR_Mover's trapped rescue - put him back on a spot he walked from
@@ -2361,6 +2326,7 @@ public class CompanionAI : BaseAI
 	{
 		base.OnDamaged(damage, attacker);
 		Wakeup();
+		_combatAI?.NoteIncoming(attacker);
 		int num = _setup?.GetCombatStance() ?? 0;
 		// 1.5.44: Passive after a revive (RecoverFirst) fights back when hit with a weapon in hand
 		if (num == 1 && !MHR_Recover.MayDefendHit(this, attacker))
@@ -2376,7 +2342,12 @@ public class CompanionAI : BaseAI
 			}
 			else if (_combatAI != null && !_combatAI.IsEngaged)
 			{
-				_combatAI.Engage(attacker);
+				// 1.5.65: on its way somewhere you sent it: only fight back what's hitting it up close (a Gjall's shots
+				// shouldn't stop it getting out of the way)
+				if (_combatAI.MayFightBack(attacker))
+				{
+					_combatAI.Engage(attacker);
+				}
 			}
 			else if (m_targetCreature == null)
 			{

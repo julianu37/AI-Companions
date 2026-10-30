@@ -195,7 +195,8 @@ public class CompanionStamina : MonoBehaviour
 			bool flag3 = IsCrouching && !flag2 && !flag && num3 > 0.1f;
 			if ((flag2 || flag || flag3) && Stamina > 0f)
 			{
-				float num5 = (flag ? SwimDrainRate : (flag3 ? SneakDrainRate : RunDrainRate));
+				// 1.5.88: swimming like the player: the skill-0 rate, down to 40% at Swim 100 (Player.OnSwimming)
+				float num5 = (flag ? SwimDrainRate * MHR_Water.SwimDrainSkill(_character) : (flag3 ? SneakDrainRate : RunDrainRate));
 				// 1.5.4: sneaking costs less with Sneak skill, like the player (Player.OnSneaking: x Lerp(1, 0.25, sqrt(skill)))
 				if (flag3 && !flag && _character != null)
 				{

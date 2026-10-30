@@ -807,10 +807,19 @@ public class CompanionInteract : MonoBehaviour
 					DirectSmelt(allCompanions, localId);
 					return;
 				}
+				// 1.5.90: a beehive - empty it and keep the honey (was "move here")
+				Beehive hive = collider.GetComponentInParent<Beehive>();
+				if (hive != null)
+				{
+					DirectHive(allCompanions, localId, hive);
+					return;
+				}
 				Ship componentInParent8 = collider.GetComponentInParent<Ship>();
 				if (componentInParent8 != null)
 				{
-					DirectBoard(allCompanions, localId, componentInParent8);
+					// 1.5.84: pointing at one of its seats - that seat (user: "I tried to use command on the seats and was ignored")
+					Chair pointedSeat = collider.GetComponentInParent<Chair>();
+					DirectBoard(allCompanions, localId, componentInParent8, (pointedSeat != null && pointedSeat.m_inShip && !MHR_Board.IsMast(pointedSeat)) ? pointedSeat : null);
 					return;
 				}
 				TombStone componentInParent9 = collider.GetComponentInParent<TombStone>();
@@ -1091,6 +1100,8 @@ public class CompanionInteract : MonoBehaviour
 				{
 					component.SetFollowTarget(Player.m_localPlayer.gameObject);
 				}
+				// 1.5.65: a recall beats a fight (user report: "it ignores every recall or command when they have anything to fight")
+				item.GetComponent<CompanionCombatAI>()?.HoldForOrder("Recalled");
 				ReturnLogic.Trigger(item, player.gameObject);
 				if (companionTalk == null)
 				{
@@ -1413,6 +1424,39 @@ public class CompanionInteract : MonoBehaviour
 		CompanionsPlugin.Log.LogDebug($"[Direct] {num} companion(s) → repair at \"{station.m_name}\"");
 	}
 
+	// 1.5.90: the first companion in scope empties the hive and keeps the honey
+	private static void DirectHive(IReadOnlyList<CompanionSetup> setups, string localId, Beehive hive)
+	{
+		foreach (CompanionSetup setup in setups)
+		{
+			if (!IsOwned(setup, localId) || !MHR_InScope(setup))
+			{
+				continue;
+			}
+			CompanionAI ai = setup.GetComponent<CompanionAI>();
+			if (ai == null)
+			{
+				continue;
+			}
+			CompanionTalk talk = setup.GetComponent<CompanionTalk>();
+			if (hive.m_honeyItem == null || MHR_Hive.HoneyIn(hive) <= 0)
+			{
+				SayRandom(talk, new string[1] { ModLocalization.Loc("hc_cmd_hive_empty") });
+				CompanionsPlugin.Log.LogDebug("[Direct] beehive is empty - nothing to collect");
+				return;
+			}
+			if (!PrivateArea.CheckAccess(hive.transform.position, 0f, flash: true))
+			{
+				return;
+			}
+			CancelExistingActions(setup);
+			ai.SetHiveOrder(hive);
+			SayRandom(talk, new string[1] { ModLocalization.Loc("hc_cmd_hive") });
+			CompanionsPlugin.Log.LogDebug("[Direct] 1 companion(s) → collect honey");
+			return;
+		}
+	}
+
 	private static void DirectSmelt(IReadOnlyList<CompanionSetup> setups, string localId)
 	{
 		CompanionTalk companionTalk = null;
@@ -1461,7 +1505,7 @@ public class CompanionInteract : MonoBehaviour
 		}
 	}
 
-	private static void DirectBoard(IReadOnlyList<CompanionSetup> setups, string localId, Ship ship)
+	private static void DirectBoard(IReadOnlyList<CompanionSetup> setups, string localId, Ship ship, Chair pointed = null)
 	{
 		Chair[] componentsInChildren = ship.GetComponentsInChildren<Chair>();
 		List<Chair> list = new List<Chair>();
@@ -1469,7 +1513,7 @@ public class CompanionInteract : MonoBehaviour
 		Chair[] array = componentsInChildren;
 		foreach (Chair chair in array)
 		{
-			if (!chair.m_inShip || chair.m_attachPoint == null)
+			if (!chair.m_inShip || chair.m_attachPoint == null || MHR_Board.IsMast(chair))
 			{
 				continue;
 			}
@@ -1498,7 +1542,30 @@ public class CompanionInteract : MonoBehaviour
 				continue;
 			}
 			CompanionAI component = setup.GetComponent<CompanionAI>();
-			if (component == null || component.IsOnShip)
+			if (component == null)
+			{
+				continue;
+			}
+			// 1.5.84: a seat pointed at goes to the first companion - one already aboard moves to it
+			if (pointed != null && !hashSet.Contains(pointed) && MHR_Board.Free(pointed))
+			{
+				hashSet.Add(pointed);
+				// 1.5.85: one already seated stands up and walks over (user, log ce2af5bd: "Rather than getting up and walking to
+				// the seat they just apear there")
+				if (component.IsOnShip)
+				{
+					component.DetachFromShip();
+					CompanionsPlugin.Log.LogInfo("[Board] " + setup.GetComponent<Character>()?.m_name + " getting up for the seat you pointed at");
+				}
+				else
+				{
+					CancelExistingActions(setup);
+				}
+				component.SetPendingShipBoard(ship, pointed);
+				num++;
+				continue;
+			}
+			if (component.IsOnShip)
 			{
 				continue;
 			}
@@ -1517,24 +1584,12 @@ public class CompanionInteract : MonoBehaviour
 					}
 				}
 			}
+			// 1.5.82: no free seat - it boards the same way and stands on deck (was put on the ship's middle)
 			if (chair2 != null)
 			{
 				hashSet.Add(chair2);
-				component.SetPendingShipBoard(ship, chair2);
 			}
-			else
-			{
-				Vector3 position2 = ship.transform.position + ship.transform.up * 1.5f;
-				setup.transform.position = position2;
-				Rigidbody component2 = setup.GetComponent<Rigidbody>();
-				if (component2 != null)
-				{
-					component2.position = position2;
-					component2.linearVelocity = Vector3.zero;
-				}
-				component.SetFollowTarget(ship.gameObject);
-				component.FreezeTimer = 1f;
-			}
+			component.SetPendingShipBoard(ship, chair2);
 			if (companionTalk == null)
 			{
 				companionTalk = setup.GetComponent<CompanionTalk>();
@@ -1740,6 +1795,8 @@ public class CompanionInteract : MonoBehaviour
 			CompanionAI component2 = setup2.GetComponent<CompanionAI>();
 			if (!(component2 == null))
 			{
+				// 1.5.65: a move order beats a fight ("you can't order them to move aside in order to dodge some gjall")
+				setup2.GetComponent<CompanionCombatAI>()?.HoldForOrder("Ordered to move");
 				component2.SetMoveTarget(point);
 				if (companionTalk == null)
 				{
@@ -1777,6 +1834,7 @@ public class CompanionInteract : MonoBehaviour
 				component.CancelMoveTarget();
 				component.CancelPendingDeposit();
 				component.CancelPendingShipBoard();
+				component.CancelHiveOrder();
 				component.CancelTombstoneRecovery();
 				component.ClearTargets();
 				component.StopMoving();
@@ -1942,6 +2000,7 @@ public class CompanionInteract : MonoBehaviour
 			component2.CancelMoveTarget();
 			component2.CancelPendingDeposit();
 			component2.CancelPendingShipBoard();
+			component2.CancelHiveOrder();
 			component2.CancelTombstoneRecovery();
 			if (component2.IsOnShip)
 			{

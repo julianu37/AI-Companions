@@ -4,13 +4,14 @@ namespace Companions;
 
 internal static class StarterFix
 {
-	internal static void ResetIfRequested()
+	// true when it cleared the flag just now (the starter panel is then shown even with a companion around)
+	internal static bool ResetIfRequested()
 	{
 		try
 		{
 			if (ModConfig.ResetStarterFlag == null || !ModConfig.ResetStarterFlag.Value)
 			{
-				return;
+				return false;
 			}
 			Player localPlayer = Player.m_localPlayer;
 			string text = Key();
@@ -23,12 +24,14 @@ internal static class StarterFix
 					Game.instance.SavePlayerProfile(setLogoutPoint: false);
 				}
 				Log("[CompanionManager] ResetStarterFlag: cleared the starter-companion flag for this world/character; the starter panel can show again.");
+				return true;
 			}
 		}
 		catch (Exception ex)
 		{
 			Log("[CompanionManager] ResetStarterFlag failed: " + ex.Message);
 		}
+		return false;
 	}
 
 	internal static void MarkSpawned()

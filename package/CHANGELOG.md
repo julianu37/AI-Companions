@@ -1100,6 +1100,96 @@ PT-BR translation: coverage audit (what the player reads, in English, was a bug)
   `BepInEx\config\*.cfg`; the F8 panel shows the keys), the **technical names of the settings** in the panel tabs
   and the diagnostic **log lines** (kept in English on purpose).
 
+## 1.5.6
+- Boarding: a companion jumps straight onto the deck when it can - from where you jumped aboard, or the nearest dock or bank spot in jump reach - and only dives in for the ladder when there's no such spot.
+- Boarding through shallow water: a companion that lands in the shallows wades straight to the ship's ladder and uses it from there (or swims once it's deep), instead of running back round the dock to dive in again.
+- An enemy a companion gave up on because it couldn't reach it (out in deep water) is taken on again as soon as it can be reached, or as soon as it attacks you or the companion - it used to be ignored for 20 s even after it came ashore and went for you.
+- Pointing the command key at a beehive sends a companion to empty it and keep the honey (it says so when there's none yet).
+- Fixed the overhead stamina bar turning into a plain grey bar after a portal (or after the companion was out of range).
+- Getting off a ship: a companion steps to the nearest point of the side facing you (not the deck spot nearest you), runs at it and jumps, keeps heading your way in the air, and jumps again straight away if it lands back on the deck.
+- Swimming costs companions stamina like the player: 5 a second at Swim skill 0, less with skill (setting Stamina SwimDrainAtSkill0 replaces SwimDrainRate, which was 10). Boarding counts only the swim to within reach of the ladder, so a companion no longer waits for nearly full stamina or gives up on a swim it can make.
+- A companion you ordered aboard also gets up and follows you when you go ashore, as long as it's following you.
+- Fixed a following companion warping to you when you got off a ship: the original "you moved 15 m, warp after you" check is gone. Portals, dungeon doors and map teleports still bring following companions along (as before), and one that falls far behind still catches up (Follow TeleportDistance).
+- Ships: companions jog across the deck (walking only the last step to a seat), know you're aboard when the game does, and use the ship's ladder only while swimming or standing - not in mid-dive.
+- Ships: companions walk across the deck to their seat and sit down (also when you point them at another seat), and get up and walk, jump or swim off when you go ashore - no more teleporting on and off seats. Each ship type gets a small deck map the first time a companion is aboard one.
+- Boarding: with the ship's ladder within about 15 m, a companion heads for the dock end or bank nearest the ladder and dives in from there, instead of walking the long way round.
+- A companion aboard a ship no longer heads off looking for the shore because it was low on stamina when it climbed out of the water.
+- Boarding like a player: from a dock or shore near the ship's ladder a companion dives in towards it and treads water beside it until it's in reach, instead of going the long way round or turning back for the shore. It never takes the mast's seat point, and pointing at a seat with the command key sends it to that seat (moving there if it's already aboard).
+- Boarding: a companion resting for its stamina before a swim to the ship no longer gives up; one that can't get aboard waits on dry land, not in the water, and a swim it could never manage is given up at once with the reason in the log.
+- Companions get on ships like a player: they jump aboard from a dock or the shore, use the ship's ladder (swimming to it if they have the stamina), or follow your own steps aboard - on the board order, and on their own when you're aboard a ship close by (new settings: Follow AutoBoard, BoardRange). No more teleporting into a seat; one that can't get aboard waits on the shore. A companion that boarded with you gets up again when you go ashore.
+- Odin's Shrine buttons read Summon and Recover (the longer labels were shrunk to fit); the summon and starter windows lose the dark layers over their sections, buttons and sliders.
+- Odin's Shrine now uses the game's own popup (the same one as the unsummon and quit confirms) for its menu and the recover list.
+- An unsummoned companion can be brought back at the shrine - without its gear - until you next load the world (new setting: General RecoverUnsummoned).
+- The companion customising window scales like the game's own windows, and its button labels match the game's popup buttons.
+- Odin's Shrine menu: the game's own text styles and buttons, a line of flavour text, and no close button - it closes like a chest (Use again, Escape, or walking away).
+- Odin's Shrine: "Summon a new companion" checks your coins first - short, a popup says how many you have and need, and the window doesn't open; the coins are taken when you press Summon Companion.
+- The summon and starter windows have new text (Odin's offering), and both buttons say Summon Companion; hair and beard styles show their proper names.
+- The shrine menu and the companion customising window use the game's own window and button look instead of textures packed in the mod.
+- Odin's Shrine opens a menu: Recover lost companions (each companion with its status, a Recover button for a lost one) or Purchase a new companion (the customising window with a Purchase button; 1,000 coins from your pack, and it tells you how many you're short). The Shift+E hire is gone.
+- A tick latched on: the companion swings its whole combo at it while it has the stamina, and doesn't run away with it still feeding.
+- A tick latched on to a companion: it turns on it at once, lowers its guard (blocking only soaks the bites while it keeps feeding), doesn't step away, and swings without waiting to line up with it.
+- Fix: Balanced stance no longer swaps to the bow for a tick that is latched on or mid-jump ("above, out of reach").
+- Companions don't swim or dive in for loot any more - a drop on the far side of water is left.
+- A tick latched on to a companion is its first target and is swung at - no more backing away while it feeds.
+- Balanced stance takes the bow, at any distance, for an enemy its melee weapon can't get at (out in deep water, a level above or below, no way to walk there) when it has a clear shot.
+- In a dungeon a companion with a bow shoots alerted enemies it has a clear shot at from where it stands, out to bow range, without leaving you.
+- Companions let an enemy go once it is more than 35 m from you and come back (new setting: Combat LeashFromYou).
+- An enemy a companion can't get at and hasn't hurt for 10 s is let go and left alone for 20 s (new setting: Combat GiveUpTime); one it can't get at also counts as further away when picking what to fight, so a closer enemy comes first.
+- Bows: a draw starts a little inside the 30 m reach, and a draw already started carries on, walking closer, if the target steps just out of reach (new setting: Combat BowEdgeMargin).
+- Companions don't swim out after an enemy in deep water - they shoot it from the bank, or wait there for it with a melee weapon. Fighting with Balanced stance, an enemy out in deep water always gets the bow.
+- Fix: a companion standing in a shallow pool wouldn't step anywhere in a fight ("standing its ground") - it now steps through water no deeper than where it stands.
+- Spike walls are spotted further ahead and turned away from harder when already at their edge.
+- Companions keep off spike walls (sharpened stakes and any other built defence that hurts what touches it) - they walk along them rather than into them, never step back into them in a fight, and don't land a jump on them.
+- Fix: several fight moves could take a companion off a ledge, into deep water or fire - backing off with a bow, running when badly hurt, moving about while waiting for an opening, stepping back to make room for a stab, and the last-ditch chase when no route was found. All of them now check the ground first and stand still rather than take an unsafe step.
+- Recall, respawn, recovering a lost companion and getting off a ship put the companion on a safe spot next to you (in view, dry, no fire or spikes) instead of any floor nearby.
+- Hire more companions: alt-use Odin's Shrine (Shift + Use) to hire another companion for 1,000 coins from your pack - you choose its looks in the same panel as your first one (General > CompanionPrice).
+- Fix: in a dungeon a companion could take the gap beside a ledge for shallow water and jump it, landing on the level below; it no longer jumps "water" in dungeons or where the ground drops away.
+- Fix: a companion could end up behind a wall - e.g. stuck behind the invisible barrier in a burial chamber's entrance - when it was brought to you through a dungeon entrance, a portal or for falling behind; it now lands on a spot you can see, with floor at your height.
+- Fix: when you left a dungeon (or went in) without your companion, it could stay behind - especially while fighting; a following companion now comes through after you.
+- Bows: the stamina a companion uses holding a draw now goes by its own Bows skill (the game used yours), and it turns faster to keep its aim while drawn, like you swinging the camera round (Combat > BowAimTurnSpeed).
+- Fix: working its way round behind an enemy, a companion could walk off a ledge - it now only goes round over safe ground and otherwise attacks from where it is.
+- Companions eat the same food again when it has 3 minutes left, like a player topping up, instead of waiting for it to run out (Food > EatAgainMinutes).
+- Fix: after an enemy it had been fighting died or unloaded, a companion could freeze mid-fight - sliding along the ground and no longer fighting - with errors filling the log.
+- Bows: companions draw the bow before each shot like a player - the draw takes as long as yours at their Bows skill and drains stamina while held - instead of firing every arrow instantly at full draw. They stand and shoot rather than running circles round the target, draw while turning to it, draw again as soon as the last arrow is away, and hold the shot (or step closer) when a hill or rock is in the way.
+- Bows: like a player, companions don't always draw fully - a close target, low stamina or an enemy rushing in gets a quicker, weaker partial draw, never under half (Combat > BowMinDraw, BowFullDrawRange); out of stamina mid-draw they still shoot if the draw is far enough.
+- Bows: companions aim for the speed of their draw, so a partial draw's slower, dropping arrow still reaches the target; they don't start a draw they can't finish - short of stamina they wait to get their breath back (Combat > StaminaResume) instead of drawing and dropping the arrow over and over; far targets always get a full draw.
+- Ranged stance: companions carry their bow instead of a sword and shield, and only switch to melee when an enemy gets within 4 m (8 m while catching their breath), switching back once it's further off (Combat > RangedMeleeRange).
+- Fix: in Ranged stance, a companion out of breath kept running from a close enemy with its bow out and never fought back.
+- Combat: companions only go after enemies they can actually get at - in sight, not behind walls or closed doors (hearing one is no longer enough) - and pick the closest, starting with whatever is attacking them, then whatever is after you.
+- Combat: a fight never opens a door; an enemy that goes behind a wall or door is let go. Ordering the attack still lets them open the door.
+- Combat: indoors (dungeons, mines, caves and under a roof) companions only fight enemies that are actually coming for you or them (Combat > IndoorAggroOnly).
+- Combat: in dungeons, mines and caves companions fight defensively - they stay with you and fight what comes within 8 m of you instead of running off down the corridor (Combat > DungeonDefensive, DefendRange).
+- Fix: a recall or move order didn't stop a fight - companions went straight back to it. Now they leave the fight and start no new one for 10 s, only fighting back against something hitting them up close (Combat > OrderHoldTime).
+- Chopping and mining: companions swing again as soon as the last swing allows, through the weapon's combo like a player holding attack, instead of one swing every 2.5 seconds; they stop to get their breath back when low and carry on when rested (Gathering > RestStamina, ResumeStamina; Advanced > GatheringSwingInterval removed).
+- Chopping: the power chop is only used on stumps and on logs lying too low for a normal swing, not on every swing after the third (Gathering > PowerChopLogBelow).
+- Fix: on the Wood job a companion could get stuck against a tree in a fight - the job kept walking it towards its stump while it fought.
+- Fix: after a fight on the Wood job, a companion swapped between its sword and axe a few times before chopping again.
+- Wood job with Follow on: fallen logs and stumps up to 20 m from you are finished before a new tree is felled (Gathering > FollowLogRange) - logs often roll past the 10 m FollowRange.
+- Fix: a companion loading in with the Wood job (or another tool job) on could work with no armour on - it took out its axe before its gear went on, and gear was then held back until the job ended.
+- Fix: a strip across the middle of the F8 settings panel ignored clicks, and the game's hover text showed through the middle of the command wheel - the mod's panels were drawn under the game's HUD. They now sit above the HUD and below the pause menu.
+- Translations: tier names (Companion, Warrior, Mage, Fire Mage, Ice Mage, Support), the "found you" greetings, ON/OFF in the settings panel, "Hold" in the hover text and the tombstone's resurrect text can now be translated.
+- Following you indoors, companions now look for a free chair up to 8 m away before sitting on the floor (Follow > ChairRange).
+- Fix: General > ResetStarterFlag didn't bring the starter companion offer back when you already had a companion in that world.
+- Fix: with the Combat world modifier raised, companions grew bigger than the player (heads clipping through helmets) and moved faster - they now keep a player's size and speed.
+- Combat: companions no longer parry every block - each enemy swing is a parry or a plain block by chance, better with Blocking skill (Combat > ParryChance, ParryChanceMax).
+- Combat: companions only block swings that can reach them, not every enemy swinging within 8 m.
+- Combat: melee companions swing their weapon's full combo (3 swings, the last for double damage) instead of one swing every 2 seconds, starting each swing as soon as the last allows it, like a player holding attack (Combat > FightLikePlayer, ComboHits, ComboPause).
+- Combat: they attack on an opening - nothing swinging at them, the target staggered, or right after a swing has landed on their shield.
+- Combat: when the enemy is staggered (a parry), they go in with a combo even while catching their breath - always at least one hit if they have the stamina for it.
+- Combat: one on one, companions keep just outside the enemy's reach, go in for a combo when it can't swing again in time, then step back out - and step out of swings at the edge of its reach rather than blocking (Combat > Spacing, SpacingMargin, SpacingStepChance).
+- Combat: when an enemy is busy with you or someone else, companions work round behind it and attack from there, out of its swings (Combat > Flank).
+- Combat: an enemy 1-2 hits from dead is finished off with all the stamina it takes, when nothing else is close enough to hit them afterwards (Combat > FinishHits).
+- Combat: catching their breath, they walk up to the next enemy and wait just out of its reach instead of standing still, and don't sprint into a fight short of stamina.
+- Combat: sometimes they step out of a swing instead of blocking - back, back and to the side, or to the side, away from the other enemies, onto safe ground only (Combat > StepAwayChance).
+- Combat: once started, a combo is carried through instead of breaking off whenever another enemy swings, and a wide swing doesn't wait to be lined up exactly.
+- Combat: they keep stamina back for blocking - a combo may dip into it, then they take a step back out of the enemy's reach and guard while they get their breath back (Combat > StaminaReserve, StaminaResume, BackOffTime).
+- Combat: when their swings would hit your walls and there's a clear spot by the enemy, they move there between combos.
+- Combat: with enemies close enough to hit them from different sides, they move for a couple of seconds until all of them are on one side, then fight from there (Combat > GroupSize, GroupRange, FlankAngle).
+- Combat: their reaction to a swing varies a little each time, so they misjudge now and then.
+- Combat: badly hurt, they run to you when the enemy isn't in the way, avoiding drops and water.
+- Combat: stepping back when too close to stab now actually steps back (it used to stand still); wide swings don't step back at all, they hit from up close.
+- Combat: a companion that takes out its tower shield against a group no longer puts it straight away again mid-fight.
+
 ## 1.5.5
 Speech overhaul: companions talk less, and what they say and show tells you what they're doing and why not.
 - Status: look at a companion and a line under its name says what it's doing ("Wood - chopping Beech", "Repair and Restock - fuelling the Hearth", "Mead - filling a fermenter") and, when its job is stuck, why (General > ShowStatus).

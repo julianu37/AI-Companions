@@ -172,7 +172,53 @@ public class HarvestController : MonoBehaviour
 
 	private static float ScanRadius => ModConfig.HarvestScanRadius.Value;
 
-	private static float AttackInterval => ModConfig.HarvestAttackInterval.Value;
+	private bool _chopChain;
+
+	private bool _catchingBreath;
+
+	// HaveQueuedChain postfix: carry the weapon's combo on while working a target
+	internal bool WantsChain => _chopChain && _state == HarvestState.Attacking && (_ai == null || !_ai.IsInCombat);
+
+	private static readonly System.Reflection.FieldInfo s_curAttack = HarmonyLib.AccessTools.Field(typeof(Humanoid), "m_currentAttack");
+
+	internal bool CurrentAttackCanChain()
+	{
+		try
+		{
+			return (s_curAttack?.GetValue(_humanoid) as Attack)?.CanStartChainAttack() ?? false;
+		}
+		catch
+		{
+			return false;
+		}
+	}
+
+	// Stumps: the downward power chop. Logs: only one lying too low for the sideways swing - its top less than
+	// [Gathering] PowerChopLogBelow above the companion's feet.
+	private bool WantsPowerChop(ItemDrop.ItemData tool)
+	{
+		if (GetMode() != 1 || _target == null || tool == null || !tool.HaveSecondaryAttack())
+		{
+			return false;
+		}
+		if (_targetType == "Stump")
+		{
+			return true;
+		}
+		if (_targetType != "TreeLog")
+		{
+			return false;
+		}
+		float top = float.MinValue;
+		foreach (Collider c in _target.GetComponentsInChildren<Collider>())
+		{
+			if (c != null && c.enabled && !c.isTrigger)
+			{
+				top = Mathf.Max(top, c.bounds.max.y);
+			}
+		}
+		return top > float.MinValue && top < base.transform.position.y + (ModConfig.GatherPowerChopLogBelow?.Value ?? 0.3f);
+	}
 
 	private static float DropScanRadius => ModConfig.HarvestDropScanRadius.Value;
 
@@ -230,11 +276,18 @@ public class HarvestController : MonoBehaviour
 		LogInfo("Working around " + (_anchorAtHome ? "home" : "here") + " " + MHR_Mover.Fmt(_anchor) + ", up to " + AreaRange.ToString("F0") + " m out");
 	}
 
-	private bool InWorkArea(Vector3 p)
+	private bool InWorkArea(Vector3 p, string type = null)
 	{
 		if (Following || _isDirectedHarvest || !_hasAnchor)
 		{
-			return MHR_Owner.Of(this) == null || Vector3.Distance(MHR_Owner.Of(this).transform.position, p) <= PlayerRange();
+			float range = PlayerRange();
+			// 1.5.60: logs and stumps further out with Follow on (user: "chopping down trees when they had already chopped
+			// one down and there were other nearby logs" - the logs had rolled past FollowRange 10 m from the player)
+			if ((type == "TreeLog" || type == "Stump") && _setup != null && _setup.GetFollow() && !_isDirectedHarvest)
+			{
+				range = Mathf.Max(range, ModConfig.HarvestFollowLogRange?.Value ?? 20f);
+			}
+			return MHR_Owner.Of(this) == null || Vector3.Distance(MHR_Owner.Of(this).transform.position, p) <= range;
 		}
 		return Vector3.Distance(_anchor, p) <= AreaRange;
 	}
@@ -1091,7 +1144,7 @@ public class HarvestController : MonoBehaviour
 			Vector3 vector4 = lockedMoveTarget - base.transform.position;
 			vector4.y = 0f;
 			// 1.4.82: not over an edge (1.4.81 log: he pushed at a stump on the moat's lip and fell in)
-			if (vector4.sqrMagnitude > 0.01f && !MHR_Mover.DropAhead(base.transform.position, vector4, 0.8f, 1.2f) && !MHR_Mover.Climbing(_ai))
+			if (vector4.sqrMagnitude > 0.01f && !MHR_Mover.HazardAhead(base.transform.position, vector4, 0.8f) && !MHR_Mover.Climbing(_ai))
 			{
 				_ai.MoveTowards(vector4.normalized, run: false);
 			}
@@ -1100,7 +1153,8 @@ public class HarvestController : MonoBehaviour
 		{
 			Vector3 vector5 = lockedMoveTarget - base.transform.position;
 			vector5.y = 0f;
-			if (vector5.sqrMagnitude > 0.01f)
+			// 1.5.72: not over a drop, into fire or spikes
+			if (vector5.sqrMagnitude > 0.01f && !MHR_Mover.HazardAhead(base.transform.position, vector5, 0.8f))
 			{
 				_ai.MoveTowards(vector5.normalized, run: false);
 			}
@@ -1278,7 +1332,7 @@ public class HarvestController : MonoBehaviour
 				_closeInTimer += Time.deltaTime;
 				Vector3 step = surface - base.transform.position;
 				step.y = 0f;
-				if (step.sqrMagnitude > 0.01f)
+				if (step.sqrMagnitude > 0.01f && !MHR_Mover.HazardAhead(base.transform.position, step, 0.8f))
 				{
 					_ai.MoveTowards(step.normalized, run: false);
 				}
@@ -1329,29 +1383,53 @@ public class HarvestController : MonoBehaviour
 		bool flag4 = _humanoid != null && _humanoid.InAttack();
 		bool flag5 = _humanoid != null && _humanoid.InDodge();
 		bool flag6 = _character != null && _character.IsStaggering();
-		if (flag4 || flag5 || flag6)
+		// 1.5.61: like a player holding attack - the next swing goes as soon as the current one allows it (the weapon's
+		// combo, its last swing for double damage) instead of one swing every 2.5 s (user: "It seems like it might be a
+		// little slow"). Mid-swing it waits for the chain point (CompanionChainPatch) and checks again next frame.
+		bool chainReady = flag4 && !flag5 && !flag6 && _chopChain && CurrentAttackCanChain();
+		if ((flag4 && !chainReady) || flag5 || flag6)
 		{
-			LogDebug($"Attack blocked: inAttack={flag4} inDodge={flag5} stagger={flag6} " + $"- retry in {0.25f}s");
-			_attackTimer = 0.25f;
+			if (flag5 || flag6)
+			{
+				LogInfo($"Attack blocked: inDodge={flag5} stagger={flag6} — retry in {0.25f}s");
+			}
+			_attackTimer = (flag4 ? 0f : 0.25f);
 			return;
 		}
-		float attackStamina = rightItem.m_shared.m_attack.m_attackStamina;
-		if (_stamina != null && attackStamina > 0f && _stamina.Stamina < attackStamina + 0.1f)
+		// 1.5.61: the power chop only where a player uses it (user: "The only time I use a power chop is when taking out a
+		// stump as it swings down rather than across. Occasionally I will use it if a log is below me and I cannot hit the
+		// log with a regular swing.") - it used to be every swing from the 4th on
+		bool flag8 = WantsPowerChop(rightItem);
+		float attackStamina = (flag8 ? rightItem.m_shared.m_secondaryAttack.m_attackStamina : rightItem.m_shared.m_attack.m_attackStamina);
+		if (_stamina != null && attackStamina > 0f)
 		{
-			_attackTimer = 0.5f;
-			return;
-		}
-		bool flag7 = _swingCount >= 3 && rightItem.HaveSecondaryAttack();
-		bool flag8 = false;
-		if (flag7)
-		{
-			float attackStamina2 = rightItem.m_shared.m_secondaryAttack.m_attackStamina;
-			float num4 = ((_stamina != null) ? _stamina.Stamina : 999f);
-			flag8 = num4 >= attackStamina2 + 1f;
+			// 1.5.61: chops until it's nearly out of breath, then stops and gets it back before chopping on, like a player
+			float max = Mathf.Max(1f, _stamina.MaxStamina);
+			if (_catchingBreath)
+			{
+				if (_stamina.Stamina < (ModConfig.GatherResumeStamina?.Value ?? 0.6f) * max)
+				{
+					_chopChain = false;
+					_attackTimer = 0.5f;
+					return;
+				}
+				_catchingBreath = false;
+				Log($"Got its breath back ({_stamina.Stamina:F0}/{max:F0}) — back to work");
+			}
+			if (_stamina.Stamina < attackStamina + (ModConfig.GatherRestStamina?.Value ?? 0.15f) * max)
+			{
+				_catchingBreath = true;
+				_chopChain = false;
+				_attackTimer = 0.5f;
+				Log($"Catching its breath ({_stamina.Stamina:F0}/{max:F0} stamina) before swinging again");
+				return;
+			}
 		}
 		bool flag9 = _humanoid != null && _humanoid.StartAttack(null, flag8);
 		_totalAttempts++;
-		_attackTimer = (flag9 ? AttackInterval : 0.5f);
+		_chopChain = flag9 && !flag8;
+		// a swing that just started isn't InAttack for a frame - don't start another over it
+		_attackTimer = (flag9 ? 0.4f : 0.5f);
 		if (flag9)
 		{
 			_swingCount++;
@@ -1900,10 +1978,17 @@ public class HarvestController : MonoBehaviour
 		{
 			return;
 		}
+		// 1.5.60: the game won't equip mid-swing or mid-dodge (Humanoid.EquipItem) - this unequipped the sword and then
+		// failed, leaving it empty-handed for a few tries; wait for the swing to end instead
+		if (_humanoid.InAttack() || _humanoid.InDodge())
+		{
+			return;
+		}
 		if (_setup != null)
 		{
 			_setup.SuppressAutoEquip = true;
 		}
+		_setup?.MHR_DropQueuedHandItems();
 		ItemDrop.ItemData rightItem = ReflectionHelper.GetRightItem(_humanoid);
 		ItemDrop.ItemData leftItem = ReflectionHelper.GetLeftItem(_humanoid);
 		bool flag = rightItem == tool;
@@ -2322,7 +2407,8 @@ public class HarvestController : MonoBehaviour
 			bool flag = _targetType == "Pickable" && _state == HarvestState.Moving;
 			_character.SetRun(!flag && _shouldRun);
 		}
-		if (_state == HarvestState.Attacking && _target != null && _ai != null && !_character.InAttack() && IsLowTarget() && !IsRockLikeTarget())
+		// 1.5.60: not in a fight - this kept walking it to the stump mid-fight (user: "they got stuck on a tree when in combat")
+		if (_state == HarvestState.Attacking && _target != null && _ai != null && !_ai.IsInCombat && !MHR_Loot.Active(this) && !_character.InAttack() && IsLowTarget() && !IsRockLikeTarget())
 		{
 			Vector3 effectiveTargetPosition = GetEffectiveTargetPosition();
 			float num = Vector3.Distance(base.transform.position, effectiveTargetPosition);
@@ -2515,6 +2601,7 @@ public class HarvestController : MonoBehaviour
 		int num6 = 0;
 		int num7 = 0;
 		int num8 = 0;
+		int outOfRange = 0;
 		for (int i = 0; i < num; i++)
 		{
 			Collider collider = _scanBuffer[i];
@@ -2551,8 +2638,9 @@ public class HarvestController : MonoBehaviour
 				{
 					continue;
 				}
-				if (!InWorkArea(harvestCandidateWithType.transform.position))
+				if (!InWorkArea(harvestCandidateWithType.transform.position, type))
 				{
+					outOfRange++;
 					continue;
 				}
 				num3++;
@@ -2610,7 +2698,7 @@ public class HarvestController : MonoBehaviour
 		};
 		if (mode == 1)
 		{
-			Log($"  Breakdown [{text}]: {num4} TreeBase, {num5} TreeLog, {num6} Stump " + $"(total {num3} unique targets)");
+			Log($"  Breakdown [{text}]: {num4} TreeBase, {num5} TreeLog, {num6} Stump " + $"(total {num3} unique targets, {outOfRange} out of range)");
 		}
 		else
 		{

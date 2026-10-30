@@ -31,6 +31,19 @@ internal static class WaterSafety
 		return ch != null && _shoreTarget.ContainsKey(ch.GetInstanceID());
 	}
 
+	// 1.5.85: forgets the shore it was heading for (aboard a ship - log ce2af5bd: "stamina low while swimming" right after it sat)
+	internal static void Clear(Character ch)
+	{
+		if (ch == null)
+		{
+			return;
+		}
+		int id = ch.GetInstanceID();
+		_shoreTarget.Remove(id);
+		_shoreRefresh.Remove(id);
+		_shoreStartTime.Remove(id);
+	}
+
 	internal static bool Tick(BaseAI ai, float dt)
 	{
 		try
@@ -49,6 +62,24 @@ internal static class WaterSafety
 				return false;
 			}
 			int instanceID = character.GetInstanceID();
+			// 1.5.85: aboard a ship (seated, or standing on its deck) - nothing to swim for
+			CompanionAI onShip = ai as CompanionAI;
+			if ((onShip != null && onShip.IsOnShip) || MHR_Board.ShipUnder(character) != null)
+			{
+				Clear(character);
+				return false;
+			}
+			// 1.5.84: boarding with a ship's ladder close by - keep on for the ladder (treading water costs no stamina)
+			if (MHR_Board.KeepSwimming(character))
+			{
+				if (_shoreTarget.ContainsKey(instanceID))
+				{
+					_shoreTarget.Remove(instanceID);
+					_shoreRefresh.Remove(instanceID);
+					_shoreStartTime.Remove(instanceID);
+				}
+				return false;
+			}
 			bool flag = _shoreTarget.ContainsKey(instanceID);
 			if (flag)
 			{

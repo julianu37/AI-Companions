@@ -383,7 +383,7 @@ internal static class TorchOpener
 				MethodInfo method = component.GetType().GetMethod("AutoEquipBest", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
 				if (method != null)
 				{
-					method.Invoke(component, null);
+					method.Invoke(component, new object[1] { false });
 				}
 			}
 		}

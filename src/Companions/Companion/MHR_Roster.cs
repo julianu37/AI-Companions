@@ -32,7 +32,9 @@ internal static class MHR_Roster
 		Alive,
 		Dead,
 		Lost,
-		Unknown
+		Unknown,
+		// 1.5.80: despawned this session - can be brought back (no gear) until the character next loads the world
+		Unsummoned
 	}
 
 	internal class Entry
@@ -65,7 +67,17 @@ internal static class MHR_Roster
 
 		// 1.5.42: added at the end of the saved entry (older entries just don't have it)
 		public string FarmZones;
+
+		// 1.5.80: despawned (unsummoned) - kept for recovery without gear; also at the end
+		public bool Unsummoned;
 	}
+
+	// 1.5.80: companions unsummoned in this game session (user: "the unsummoned recovery should only be until the player
+	// logs in again. So that the list does not get full of unsummoned NPC's. Maybe have this as a toggle in the settings").
+	// A new session (new ZNet - the world loaded again) drops the rest when the roster loads.
+	private static readonly HashSet<string> s_sessionUnsummoned = new HashSet<string>();
+
+	private static ZNet s_sessionNet;
 
 	private static readonly List<Entry> s_entries = new List<Entry>();
 
@@ -138,6 +150,18 @@ internal static class MHR_Roster
 				}
 			}
 		}
+		// 1.5.80: unsummoned companions are only kept for the session they were unsummoned in
+		if ((object)s_sessionNet != ZNet.instance)
+		{
+			s_sessionNet = ZNet.instance;
+			s_sessionUnsummoned.Clear();
+		}
+		int dropped = s_entries.RemoveAll((Entry e) => e.Unsummoned && !s_sessionUnsummoned.Contains(e.Id));
+		if (dropped > 0)
+		{
+			Save(toDisk: false);
+			CompanionsPlugin.Log.LogInfo($"[Roster] Dropped {dropped} companion(s) unsummoned in an earlier session");
+		}
 		return true;
 	}
 
@@ -198,6 +222,7 @@ internal static class MHR_Roster
 		zPackage.Write(e.LastSeen);
 		zPackage.Write(e.Dead);
 		zPackage.Write(e.FarmZones ?? "");
+		zPackage.Write(e.Unsummoned);
 		return zPackage.GetBase64();
 	}
 
@@ -237,13 +262,26 @@ internal static class MHR_Roster
 				LastPos = zPackage.ReadVector3(),
 				LastSeen = zPackage.ReadDouble(),
 				Dead = zPackage.ReadBool(),
-				FarmZones = ReadOptionalString(zPackage)
+				FarmZones = ReadOptionalString(zPackage),
+				Unsummoned = ReadOptionalBool(zPackage)
 			};
 		}
 		catch (Exception ex)
 		{
 			CompanionsPlugin.Log.LogWarning("[Roster] Skipped an unreadable roster entry: " + ex.Message);
 			return null;
+		}
+	}
+
+	private static bool ReadOptionalBool(ZPackage p)
+	{
+		try
+		{
+			return p.GetPos() < p.Size() && p.ReadBool();
+		}
+		catch
+		{
+			return false;
 		}
 	}
 
@@ -587,7 +625,8 @@ internal static class MHR_Roster
 		}
 	}
 
-	// the Despawn button removes a companion for good - drop it from the roster so it can't be "recovered"
+	// the Despawn button removes a companion - drop it from the roster so it can't be "recovered"; 1.5.80: or, with
+	// [General] RecoverUnsummoned, keep it (no gear - that's in the tombstone) as Unsummoned until the next session
 	internal static void Forget(CompanionSetup c)
 	{
 		if (c._mhrStale || !EnsureLoaded() || !IsMine(c, out var _, out var zdo))
@@ -597,6 +636,16 @@ internal static class MHR_Roster
 		Entry entry = Find(zdo.GetString(CompanionSetup.MHR_CompanionIdHash));
 		if (entry != null)
 		{
+			if (ModConfig.RecoverUnsummoned?.Value ?? true)
+			{
+				entry.Unsummoned = true;
+				entry.Inventory = "";
+				entry.Gen++;
+				s_sessionUnsummoned.Add(entry.Id);
+				Save(toDisk: true);
+				CompanionsPlugin.Log.LogInfo("[Roster] \"" + entry.Name + "\" was unsummoned - Odin's Shrine can bring it back (without gear) until you next load this world");
+				return;
+			}
 			s_entries.Remove(entry);
 			s_byId.Remove(entry.Id);
 			Save(toDisk: true);
@@ -658,7 +707,7 @@ internal static class MHR_Roster
 		s_where.Clear();
 		foreach (Entry s_entry in s_entries)
 		{
-			dictionary[s_entry.Id] = (IsLoaded(s_entry.Id) ? Status.Alive : Status.Unknown);
+			dictionary[s_entry.Id] = s_entry.Unsummoned ? Status.Unsummoned : (IsLoaded(s_entry.Id) ? Status.Alive : Status.Unknown);
 		}
 		if (!ZNet.instance.IsServer() || ZDOMan.instance == null || !(s_objectsById?.GetValue(ZDOMan.instance) is IDictionary dictionary2))
 		{
@@ -690,7 +739,7 @@ internal static class MHR_Roster
 		}
 		foreach (Entry s_entry2 in s_entries)
 		{
-			if (dictionary[s_entry2.Id] != Status.Alive)
+			if (dictionary[s_entry2.Id] != Status.Alive && dictionary[s_entry2.Id] != Status.Unsummoned)
 			{
 				dictionary[s_entry2.Id] = (hashSet.Contains(s_entry2.Id) ? Status.Alive : (hashSet2.Contains(s_entry2.Id) ? Status.Dead : Status.Lost));
 			}
@@ -763,6 +812,9 @@ internal static class MHR_Roster
 			break;
 		case Status.Unknown:
 			text += ModLocalization.LocFmt(e.Dead ? "hc_roster_unknown_died" : "hc_roster_unknown_seen", e.LastPos.x.ToString("F0"), e.LastPos.z.ToString("F0"));
+			break;
+		case Status.Unsummoned:
+			text += " (unsummoned - Odin's Shrine can bring it back without its gear until you next load this world)";
 			break;
 		}
 		return text;
@@ -895,7 +947,7 @@ internal static class MHR_Roster
 			MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, Describe(e, status));
 			return false;
 		}
-		if (status != Status.Lost && status != Status.Unknown)
+		if (status != Status.Lost && status != Status.Unknown && status != Status.Unsummoned)
 		{
 			MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, Describe(e, status));
 			return false;
@@ -993,6 +1045,8 @@ internal static class MHR_Roster
 		}
 		e.Gen = num;
 		e.Dead = false;
+		e.Unsummoned = false;
+		s_sessionUnsummoned.Remove(e.Id);
 		e.LastPos = vector;
 		e.LastSeen = ZNet.instance.GetTimeSeconds();
 		Save(toDisk: true);

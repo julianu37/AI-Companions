@@ -51,6 +51,10 @@ public class CompanionFood : MonoBehaviour
 
 	private ZNetView _nview;
 
+	// 1.5.90: the "already active" rejection is logged once per food until it changes (log 32bba563: ~250 lines with honey
+	// as its only food)
+	private string _lastActiveReject;
+
 	private Humanoid _humanoid;
 
 	private Character _character;
@@ -404,6 +408,38 @@ public class CompanionFood : MonoBehaviour
 				}
 			}
 		}
+		// 1.5.66: top up a food that's about to run out, like a player - the same food again once it has [Food]
+		// EatAgainMinutes left (the game only allows it under half its time) - instead of waiting for the slot to empty
+		// (user: "The NPC should not wait until the food has expired to eat more")
+		float soon = (ModConfig.FoodEatAgainMinutes?.Value ?? 3f) * 60f;
+		if (!flag && soon > 0f && !_humanoid.InAttack())
+		{
+			for (int j = 0; j < MaxFoodSlots && !flag; j++)
+			{
+				if (!_foods[j].IsActive || _foods[j].RemainingTime > soon || !CanEatAgain(j))
+				{
+					continue;
+				}
+				ItemDrop.ItemData same = null;
+				foreach (ItemDrop.ItemData it in inventory.GetAllItems())
+				{
+					if (IsFoodItem(it) && it.m_shared.m_name == _foods[j].ItemName)
+					{
+						same = it;
+						break;
+					}
+				}
+				if (same != null && CanConsumeFoodItem(same, isRefresh: true))
+				{
+					float left = _foods[j].RemainingTime;
+					if (ConsumeIntoSlot(inventory, same, j))
+					{
+						flag = true;
+						CompanionsPlugin.Log.LogDebug($"[Food] Topped up \"{same.m_shared.m_name}\" in slot {j} with {left:F0} s left companion=\"" + (_character?.m_name ?? "?") + "\"");
+					}
+				}
+			}
+		}
 		if (flag)
 		{
 			ClampHealth();
@@ -523,9 +559,14 @@ public class CompanionFood : MonoBehaviour
 		}
 		if (!isRefresh && IsFoodAlreadyActive(item.m_shared.m_name))
 		{
-			CompanionsPlugin.Log.LogDebug("[Food] CanConsume REJECTED \"" + text + "\" — already active in another slot");
+			if (_lastActiveReject != text)
+			{
+				_lastActiveReject = text;
+				CompanionsPlugin.Log.LogDebug("[Food] CanConsume REJECTED \"" + text + "\" — already active in another slot (logged once)");
+			}
 			return false;
 		}
+		_lastActiveReject = null;
 		if (!CanApplyConsumeStatus(item))
 		{
 			CompanionsPlugin.Log.LogDebug("[Food] CanConsume REJECTED \"" + text + "\" — status effect conflict");

@@ -94,6 +94,8 @@ Look at something and press the **command key** (`Z`). The companions nearby do 
 | His tombstone | Go and get his things |
 | The ground | Walk there and wait |
 
+**Ships.** When you're aboard a ship close by, following companions get on too (Follow > AutoBoard): they jump aboard from a dock or the shore (from where you jumped, or the nearest spot in jump reach), use the ship's ladder (swimming to it if they have the stamina), or follow your own steps aboard. They walk across the deck to a free seat, or stand on deck near you if none is free. If one can't get aboard it says so and waits on dry land nearby; a swim to the ladder it doesn't have the stamina for (well fed, a companion has more) is one it won't try. A seated companion that is following you gets up again when you go ashore and walks, jumps or swims off after you.
+
 - **Hold** the command key to call your companions to you.
 - **Keep holding** for about 2 seconds to call **every** companion, however far away they are, including the ones with Command off.
 - Only companions within 40 m answer a normal command or a call.

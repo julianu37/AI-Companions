@@ -138,6 +138,22 @@ internal static class ReflectionHelper
 		}
 	}
 
+	internal static float GetAttackDrawTime(Humanoid h)
+	{
+		if (h == null || _attackDrawTimeField == null)
+		{
+			return 0f;
+		}
+		try
+		{
+			return (float)_attackDrawTimeField.GetValue(h);
+		}
+		catch
+		{
+			return 0f;
+		}
+	}
+
 	internal static bool TrySetAttackDrawTime(Humanoid h, float value)
 	{
 		if (h == null || _attackDrawTimeField == null)

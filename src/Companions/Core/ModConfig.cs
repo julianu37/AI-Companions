@@ -17,6 +17,7 @@ internal static class ModConfig
 
 	/// <summary>Fase 3.19: the ceiling of companions per player in a world (see CompanionManager.CanAddCompanion).</summary>
 	internal static ConfigEntry<int> MaxCompanions;
+	internal static ConfigEntry<bool> RecoverUnsummoned;
 
 	internal static ConfigEntry<bool> SpawnStarterCompanion;
 
@@ -70,6 +71,44 @@ internal static class ModConfig
 	internal static ConfigEntry<bool> ShowStatus;
 
 	internal static ConfigEntry<int> ShieldMultiAttackerCount;
+
+	internal static ConfigEntry<float> ParryChance;
+
+	internal static ConfigEntry<float> ParryChanceMax;
+
+	internal static ConfigEntry<float> BlockReactionTime;
+
+	internal static ConfigEntry<bool> LogPlayerCombat;
+
+	internal static ConfigEntry<bool> FightLikePlayer;
+
+	internal static ConfigEntry<int> CombatComboHits;
+
+	internal static ConfigEntry<float> CombatComboPause;
+
+	internal static ConfigEntry<float> CombatStaminaReserve;
+
+	internal static ConfigEntry<float> CombatStaminaResume;
+
+	internal static ConfigEntry<float> CombatRecoverTime;
+
+	internal static ConfigEntry<float> StepAwayChance;
+
+	internal static ConfigEntry<int> CombatGroupSize;
+
+	internal static ConfigEntry<float> CombatGroupRange;
+
+	internal static ConfigEntry<float> CombatFlankAngle;
+
+	internal static ConfigEntry<int> CombatFinishHits;
+
+	internal static ConfigEntry<bool> CombatSpacing;
+
+	internal static ConfigEntry<bool> CombatFlank;
+
+	internal static ConfigEntry<float> CombatSpacingMargin;
+
+	internal static ConfigEntry<float> CombatSpacingStepChance;
 
 
 
@@ -269,6 +308,10 @@ internal static class ModConfig
 
 	internal static ConfigEntry<float> FollowMaxDistance;
 
+	internal static ConfigEntry<bool> FollowAutoBoard;
+
+	internal static ConfigEntry<float> FollowBoardRange;
+
 	internal static ConfigEntry<float> FollowIndoorDistance;
 
 	internal static ConfigEntry<bool> FollowRegroup;
@@ -276,6 +319,8 @@ internal static class ModConfig
 	internal static ConfigEntry<float> FollowRegroupTime;
 
 	internal static ConfigEntry<bool> FollowSitIndoors;
+
+	internal static ConfigEntry<float> FollowChairRange;
 
 	internal static ConfigEntry<float> FollowSitStayRange;
 
@@ -342,7 +387,41 @@ internal static class ModConfig
 
 	internal static ConfigEntry<float> HarvestFollowRange;
 
+	internal static ConfigEntry<float> HarvestFollowLogRange;
+
+	internal static ConfigEntry<float> CombatBowMinDraw;
+
+	internal static ConfigEntry<float> CombatBowAimTurnSpeed;
+
+	internal static ConfigEntry<float> CombatRangedMeleeRange;
+
+	internal static ConfigEntry<float> FoodEatAgainMinutes;
+
+	internal static ConfigEntry<bool> CombatIndoorAggroOnly;
+
+	internal static ConfigEntry<bool> CombatDungeonDefensive;
+
+	internal static ConfigEntry<float> CombatDefendRange;
+
+	internal static ConfigEntry<float> CombatOrderHoldTime;
+
+	internal static ConfigEntry<float> CombatLeashFromYou;
+
+	internal static ConfigEntry<float> CombatGiveUpTime;
+
+	internal static ConfigEntry<float> CombatBowEdgeMargin;
+
+	internal static ConfigEntry<float> CombatBowFullDrawRange;
+
+	internal static ConfigEntry<float> GatherRestStamina;
+
+	internal static ConfigEntry<float> GatherResumeStamina;
+
+	internal static ConfigEntry<float> GatherPowerChopLogBelow;
+
 	internal static ConfigEntry<float> ForageFollowRange;
+
+	internal static ConfigEntry<float> HarvestAttackInterval;
 
 	internal static ConfigEntry<float> HarvestRange;
 
@@ -350,7 +429,6 @@ internal static class ModConfig
 
 	internal static ConfigEntry<float> HarvestScanInterval;
 
-	internal static ConfigEntry<float> HarvestAttackInterval;
 
 	internal static ConfigEntry<float> HarvestOverweightThreshold;
 
@@ -642,8 +720,14 @@ internal static class ModConfig
 	private static void BindEntries(ConfigFile cfg)
 	{
 		// [General]
-		CompanionPrice = Bind(cfg, "General", "CompanionPrice", 2000, "The price of an extra companion at the Trader, in coins from the shared bank. 0 = free.", new AcceptableValueRange<int>(0, 50000));
 		MaxCompanions = Bind(cfg, "General", "MaxCompanions", 10, "Phase 3.19: the most companions you can have in this world (10 is the ceiling). The count includes the dead and the lost: the tombstone brings the SAME companion back, so dying does not free a slot. At the limit the Trader, the AI panel summoner and the starter companion refuse to create another (the Shrine can still recover a dead companion). To free a slot, dismiss one from its wheel menu (Despawn).", new AcceptableValueRange<int>(1, 10));
+		CompanionPrice = Bind(cfg, "General", "CompanionPrice", 1000, "The offering in coins to summon another companion at Odin's Shrine (Summon companion), paid from your pack.", new AcceptableValueRange<int>(0, 50000));
+		RecoverUnsummoned = Bind(cfg, "General", "RecoverUnsummoned", defaultValue: true, "An unsummoned (despawned) companion can be brought back at Odin's Shrine (Recover companions) - with its name, looks, skills and settings, but not its gear, which stays in the tombstone where it was unsummoned - until you next load this world. Off: unsummoning is permanent.");
+		// 1.5.71: the old default (2000) was never used for anything - move it to the new default
+		if (CompanionPrice.Value == 2000)
+		{
+			CompanionPrice.Value = 1000;
+		}
 		SpawnStarterCompanion = Bind(cfg, "General", "SpawnStarterCompanion", defaultValue: true, "The first time you enter a world with a character, you're offered one companion for free.");
 		ResetStarterFlag = Bind(cfg, "General", "ResetStarterFlag", defaultValue: false, "Set to true to be offered the free starter companion again in the current world (on the next world load). It turns itself back to false.");
 		ShowCompanionRoster = Bind(cfg, "General", "ShowCompanionRoster", defaultValue: false, "Set to true to list your companions in this world and their status: Alive, Dead (its tombstone will bring it back), Lost (nothing left of it - it can be recovered) or Unknown (on a dedicated server, a companion that isn't nearby can't be checked). It turns itself back to false.");
@@ -672,10 +756,13 @@ internal static class ModConfig
 		MeleeKey = Bind(cfg, "Controls", "MeleeKey", KeyCode.None, "Sets the Melee stance, like PassiveKey.");
 		// [Follow]
 		FollowMaxDistance = Bind(cfg, "Follow", "MaxDistance", 10f, "How far a following companion lets you get before it moves to keep up. It picks its own spot within this range (beside, behind, sometimes ahead) and changes it now and then.", new AcceptableValueRange<float>(4f, 30f));
+		FollowAutoBoard = Bind(cfg, "Follow", "AutoBoard", defaultValue: true, "When you're aboard a ship close by, a following companion gets on too, the way you would: it jumps aboard from a dock or the shore, uses the ship's ladder (swimming to it if it has the stamina), or follows your own steps aboard. If it can't, it waits on the shore. A companion that took a seat gets up again when you go ashore.");
+		FollowBoardRange = Bind(cfg, "Follow", "BoardRange", 20f, "AutoBoard: how close (meters) the ship has to be for a following companion to board it on its own. The ship also has to be nearly still.", new AcceptableValueRange<float>(5f, 60f));
 		FollowIndoorDistance = Bind(cfg, "Follow", "IndoorDistance", 4f, "The same range while you're indoors (under a roof), so companions stay in the room with you.", new AcceptableValueRange<float>(2f, 10f));
 		FollowRegroup = Bind(cfg, "Follow", "Regroup", defaultValue: true, "When you stand still for RegroupTime seconds, companions come back and wait close to you. Off = they stay wherever they stopped.");
 		FollowRegroupTime = Bind(cfg, "Follow", "RegroupTime", 45f, "Seconds you stand still before companions regroup around you (see Regroup).", new AcceptableValueRange<float>(5f, 600f));
 		FollowSitIndoors = Bind(cfg, "Follow", "SitIndoors", defaultValue: true, "When you stop indoors, companions sit down near you: on a free chair or bench if there is one, otherwise on the floor. Near home they empty their bags first.");
+		FollowChairRange = Bind(cfg, "Follow", "ChairRange", 8f, "How far (meters) from you a companion looks for a free chair or bench to sit on when you stop indoors - one in sight of you, on your level. Only when there's none does it sit on the floor.", new AcceptableValueRange<float>(2f, 30f));
 		FollowSitStayRange = Bind(cfg, "Follow", "SitStayRange", 10f, "Indoors, a companion that sat down stays seated while you move about within this many meters of it, and gets up to follow once you go further (or step outside).", new AcceptableValueRange<float>(2f, 30f));
 		FollowTeleportDistance = Bind(cfg, "Follow", "TeleportDistance", 50f, "A following companion that falls this many meters behind appears next to you: right away beyond 1.5x this distance, otherwise once it can't see you and isn't getting any closer.", new AcceptableValueRange<float>(20f, 200f));
 		FollowStuckTeleport = Bind(cfg, "Follow", "StuckTeleport", defaultValue: false, "When following you, a companion that has been stuck for 15 seconds somewhere it can't see you appears next to you. Off = it keeps trying to find its own way.");
@@ -704,6 +791,34 @@ internal static class ModConfig
 		FleeHealthPct = Bind(cfg, "Combat", "FleeHealthPct", 0.15f, "Below this share of its health (0.15 = 15%) a companion runs away from the enemy.", new AcceptableValueRange<float>(0.05f, 0.6f));
 		WeaponSwitchMargin = Bind(cfg, "Combat", "WeaponSwitchMargin", 0.1f, "A different weapon has to be this much better against the current enemy (0.1 = 10%) before a companion switches to it, so it doesn't swap back and forth.", new AcceptableValueRange<float>(0f, 0.5f));
 		ShieldMultiAttackerCount = Bind(cfg, "Combat", "ShieldMultiAttackerCount", 3, "When this many enemies attack a companion at once, it switches to its shield with the best block.", new AcceptableValueRange<int>(1, 10));
+		ParryChance = Bind(cfg, "Combat", "ParryChance", 0.3f, "Chance (0.3 = 30%) that a companion with no Blocking skill times a block as a parry (more damage stopped, less stamina, and many attackers are staggered). It rises with Blocking skill up to ParryChanceMax. Shields without a parry bonus never parry.", new AcceptableValueRange<float>(0f, 1f));
+		ParryChanceMax = Bind(cfg, "Combat", "ParryChanceMax", 0.7f, "Chance (0.7 = 70%) that a companion times a block as a parry at Blocking skill 100.", new AcceptableValueRange<float>(0f, 1f));
+		FightLikePlayer = Bind(cfg, "Combat", "FightLikePlayer", true, "With a melee weapon, companions fight like a player: short combos when there's an opening, guarding in between, stepping out of swings, getting clear when several enemies are on them, and backing off to catch their breath when low on stamina. Off: the older way (one swing at a time on the weapon's timer).");
+		CombatComboHits = Bind(cfg, "Combat", "ComboHits", 3, "Most swings in one combo. Companions follow their weapon's own combo (3 swings on melee weapons, the last doing double damage) up to this many; now and then one short, and shorter when stamina is low.", new AcceptableValueRange<int>(1, 5));
+		CombatComboPause = Bind(cfg, "Combat", "ComboPause", 0.5f, "Seconds (roughly - it varies) between combos, guarding or stepping back out of reach.", new AcceptableValueRange<float>(0.2f, 5f));
+		CombatStaminaReserve = Bind(cfg, "Combat", "StaminaReserve", 0.3f, "Share of its stamina (0.3 = 30%) a companion keeps for blocking. A combo is only started above it and may dip to half of it; below it, the companion backs out of reach to get its breath back.", new AcceptableValueRange<float>(0f, 0.9f));
+		CombatStaminaResume = Bind(cfg, "Combat", "StaminaResume", 0.5f, "Share of its stamina (0.5 = 50%) it waits for before going back in after backing off.", new AcceptableValueRange<float>(0f, 1f));
+		CombatRecoverTime = Bind(cfg, "Combat", "BackOffTime", 8f, "Seconds a companion keeps trying to back off from an enemy that stays on it before it fights on with what stamina it has.", new AcceptableValueRange<float>(2f, 30f));
+		StepAwayChance = Bind(cfg, "Combat", "StepAwayChance", 0.3f, "Chance (0.3 = 30%) a companion steps back or aside out of an enemy's swing instead of blocking it, when there's room and it can get out of reach in time. Doubled when it's low on stamina.", new AcceptableValueRange<float>(0f, 1f));
+		CombatGroupSize = Bind(cfg, "Combat", "GroupSize", 2, "With this many enemies close enough to hit a companion, from different sides, it gets clear first - moves for a couple of seconds until they're all on one side - then fights from there.", new AcceptableValueRange<int>(2, 10));
+		CombatGroupRange = Bind(cfg, "Combat", "GroupRange", 6f, "How close (meters) an enemy has to be to count as one of the group on a companion.", new AcceptableValueRange<float>(2f, 20f));
+		CombatFlankAngle = Bind(cfg, "Combat", "FlankAngle", 100f, "Two enemies more than this many degrees apart, seen from the companion, count as on different sides.", new AcceptableValueRange<float>(30f, 180f));
+		CombatBowAimTurnSpeed = Bind(cfg, "Combat", "BowAimTurnSpeed", 600f, "Bows: how fast a companion turns to keep its aim on the target while the bow is drawn (degrees per second), like you swinging the camera round. Movement > TurnSpeed is used the rest of the time.", new AcceptableValueRange<float>(100f, 1440f));
+		CombatBowMinDraw = Bind(cfg, "Combat", "BowMinDraw", 0.5f, "Bows: the least a companion draws before letting go (0.5 = half drawn). A partial draw is quicker and cheaper but does less damage and spreads more, like yours. It takes a partial draw when the target is close enough that the spread still hits it, when it's low on stamina (below StaminaReserve), or when the target is rushing in; otherwise it draws fully.", new AcceptableValueRange<float>(0.1f, 1f));
+		CombatIndoorAggroOnly = Bind(cfg, "Combat", "IndoorAggroOnly", defaultValue: true, "Indoors - in a dungeon, mine or cave, or under a roof - a companion only fights enemies that are actually coming for you or it (alerted), as if EngageOnNotice were off. Outdoors EngageOnNotice decides.");
+		CombatDungeonDefensive = Bind(cfg, "Combat", "DungeonDefensive", defaultValue: true, "In a dungeon, mine or cave a companion fights defensively: it stays with you and fights what comes within DefendRange of you (and anything hitting it), instead of running off after enemies further down the corridor.");
+		CombatDefendRange = Bind(cfg, "Combat", "DefendRange", 8f, "Fighting defensively (DungeonDefensive): enemies within this many meters of you are fought; further off they're left to come to you.", new AcceptableValueRange<float>(3f, 30f));
+		CombatOrderHoldTime = Bind(cfg, "Combat", "OrderHoldTime", 10f, "After you recall a companion or send it somewhere, it leaves its fight and starts no new one for this many seconds - it still fights back against something hitting it up close. Companions only ever fight enemies they can see (not ones behind walls or closed doors), and only open a door to get at one when you order the attack.", new AcceptableValueRange<float>(0f, 60f));
+		CombatLeashFromYou = Bind(cfg, "Combat", "LeashFromYou", 35f, "A companion lets an enemy go once it is further than this many meters from you, and starts no fight with one that far from you - it comes back to you instead. An attack order, or something hitting it up close, still keeps the fight going.", new AcceptableValueRange<float>(10f, 60f));
+		CombatGiveUpTime = Bind(cfg, "Combat", "GiveUpTime", 10f, "An enemy a companion can't get at with its melee weapon (out in deep water, no way to walk there) and that isn't right on top of it is let go after this many seconds without being hurt, and left alone for 20 s - so it doesn't stay stuck on it.", new AcceptableValueRange<float>(3f, 60f));
+		CombatBowEdgeMargin = Bind(cfg, "Combat", "BowEdgeMargin", 3f, "Bows: a draw is only started this many meters inside the bow's 30 m reach, and a draw already started is kept while the target is up to twice this far past the reach (walking closer, not running), so a target at the edge doesn't cost the draw.", new AcceptableValueRange<float>(0f, 10f));
+		CombatRangedMeleeRange = Bind(cfg, "Combat", "RangedMeleeRange", 4f, "Ranged stance: the bow is out (also when not fighting); the melee weapon and shield only come out when an enemy gets within this many meters - or twice that while it's catching its breath - and go away again once it's past twice the distance.", new AcceptableValueRange<float>(1f, 15f));
+		CombatBowFullDrawRange = Bind(cfg, "Combat", "BowFullDrawRange", 15f, "Bows: from this many meters away a companion always draws fully - a weaker arrow is slower and drops short at range.", new AcceptableValueRange<float>(3f, 50f));
+		CombatFinishHits = Bind(cfg, "Combat", "FinishHits", 2, "An enemy this many hits or fewer from dead (judged from its own hits so far) is finished off with all the stamina it takes, as long as nothing else is close enough to hit the companion afterwards. 0 = never spend the stamina kept back for blocking.", new AcceptableValueRange<int>(0, 5));
+		CombatSpacing = Bind(cfg, "Combat", "Spacing", true, "One on one, a companion keeps just outside the enemy's reach, goes in for a combo when the enemy can't swing again in time, then steps back out - and steps out of swings at the edge of its reach rather than blocking them.");
+		CombatFlank = Bind(cfg, "Combat", "Flank", true, "When an enemy is busy with you (or someone else), a companion works its way round behind it and attacks from there, out of its swings. (The game's backstab bonus only counts on enemies that haven't noticed anyone.)");
+		CombatSpacingMargin = Bind(cfg, "Combat", "SpacingMargin", 0.4f, "How far (meters) outside the enemy's reach a companion waits when spacing.", new AcceptableValueRange<float>(0f, 2f));
+		CombatSpacingStepChance = Bind(cfg, "Combat", "SpacingStepChance", 0.6f, "Chance (0.6 = 60%) that a spacing companion steps back out of a swing it's only just inside the reach of, instead of blocking it (the rest are blocks, some of them parries).", new AcceptableValueRange<float>(0f, 1f));
 		BowSwitchDistance = Bind(cfg, "Combat", "BowSwitchDistance", 15f, "A companion with a bow or crossbow switches to it when its target is further away than this (meters).", new AcceptableValueRange<float>(5f, 60f));
 		MeleeSwitchDistance = Bind(cfg, "Combat", "MeleeSwitchDistance", 12f, "It switches back to its melee weapon when the target comes closer than this (meters).", new AcceptableValueRange<float>(3f, 40f));
 		UseTorchOpener = Bind(cfg, "Combat", "UseTorchOpener", defaultValue: true, "Against enemies that are weak to fire, open with a torch to set them alight, then switch back to the best weapon.");
@@ -713,12 +828,14 @@ internal static class ModConfig
 		// [Food]
 		HealthMeadThreshold = Bind(cfg, "Food", "HealthMeadThreshold", 0.5f, "A companion drinks a healing mead from its pack when its health drops below this share (0.5 = 50%).", new AcceptableValueRange<float>(0.1f, 0.9f));
 		StaminaMeadThreshold = Bind(cfg, "Food", "StaminaMeadThreshold", 0.25f, "It drinks a stamina mead when its stamina drops below this share (0.25 = 25%).", new AcceptableValueRange<float>(0.05f, 0.9f));
+		FoodEatAgainMinutes = Bind(cfg, "Food", "EatAgainMinutes", 3f, "A companion eats the same food again once it has this many minutes left, like a player topping up before it runs out (the game only allows that once a food is under half its time). It needs that food in its pack; otherwise it eats something else when the slot empties. 0 = wait until it runs out.", new AcceptableValueRange<float>(0f, 30f));
 		MeadCooldown = Bind(cfg, "Food", "MeadCooldown", 10f, "Seconds after drinking a mead before it drinks another.", new AcceptableValueRange<float>(1f, 60f));
 		// [Stamina]
 		StaminaRegenRate = Bind(cfg, "Stamina", "RegenRate", 6f, "Stamina a companion gets back per second when it isn't using any.", new AcceptableValueRange<float>(1f, 30f));
 		StaminaRunDrain = Bind(cfg, "Stamina", "RunDrainRate", 10f, "Stamina used per second while running.", new AcceptableValueRange<float>(1f, 30f));
 		StaminaSneakDrain = Bind(cfg, "Stamina", "SneakDrainRate", 5f, "Stamina used per second while sneaking.", new AcceptableValueRange<float>(1f, 30f));
-		StaminaSwimDrain = Bind(cfg, "Stamina", "SwimDrainRate", 10f, "Stamina used per second while swimming.", new AcceptableValueRange<float>(1f, 30f));
+		// 1.5.88: new key (was SwimDrainRate 10 - double the player's) so existing config files pick up the player's rate
+		StaminaSwimDrain = Bind(cfg, "Stamina", "SwimDrainAtSkill0", 5f, "Stamina used per second while swimming (and moving), at Swim skill 0 - it drops to 40% of this at Swim 100, like the player (the game's rate is 5).", new AcceptableValueRange<float>(1f, 30f));
 		StaminaRegenDelay = Bind(cfg, "Stamina", "RegenDelay", 1f, "Seconds after using stamina before it starts coming back.", new AcceptableValueRange<float>(0.1f, 5f));
 		// [Rest]
 		SleepAtNight = Bind(cfg, "Rest", "SleepAtNight", defaultValue: true, "At night, a companion within BedRange of its claimed bed stops what it's doing and goes to bed, including when it's working. It goes back to its job in the morning.");
@@ -759,6 +876,10 @@ internal static class ModConfig
 		HarvestRange = Bind(cfg, "Gathering", "Range", 60f, "Wood, Stone, Ore and Forage with Follow off: how far (meters) from where it's working it goes for trees, rocks and plants - around home when the job is started near home, otherwise around where it was started. It keeps working there when you leave. (Phase 3.3c: 60, was 40.)", new AcceptableValueRange<float>(10f, 150f));
 		HarvestFollowRange = Bind(cfg, "Gathering", "FollowRange", 25f, "Wood, Stone and Ore with Follow on: a tree or rock has to be within this many meters of you. With nothing that close the companion just follows you. (With Follow off see Range; Forage has ForageFollowRange.) Phase 3.3c: 25, was 10 - it works up to 25 m from you instead of sticking to you, and it only gives up a target once that is 15 m past it.", new AcceptableValueRange<float>(5f, 60f));
 		ForageFollowRange = Bind(cfg, "Gathering", "ForageFollowRange", 20f, "Forage with Follow on: a plant has to be within this many meters of you - the berries you happen to walk past, not everything around. With nothing that close the companion just follows you. (With Follow off see Range.) Phase 3.3c: 20, was 10 - still short enough for Forage to stay \"what you walked past\", and not a sweep of the whole area.", new AcceptableValueRange<float>(3f, 60f));
+		HarvestFollowLogRange = Bind(cfg, "Gathering", "FollowLogRange", 20f, "Wood with Follow on: fallen logs and stumps count up to this many meters from you (further than FollowRange), so it finishes the trees it fells before starting a new one - a log can roll well away from where you stand.", new AcceptableValueRange<float>(5f, 60f));
+		GatherRestStamina = Bind(cfg, "Gathering", "RestStamina", 0.15f, "Chopping and mining: swing after swing (the weapon's combo) until stamina would drop below this share of the maximum, then stop and get its breath back.", new AcceptableValueRange<float>(0f, 0.9f));
+		GatherResumeStamina = Bind(cfg, "Gathering", "ResumeStamina", 0.6f, "Chopping and mining: after stopping for breath, start swinging again once stamina is back to this share of the maximum.", new AcceptableValueRange<float>(0.1f, 1f));
+		GatherPowerChopLogBelow = Bind(cfg, "Gathering", "PowerChopLogBelow", 0.3f, "Wood: the power chop (the axe's downward swing) is used on stumps, and on a log only when its top is less than this many meters above the companion's feet - too low for the sideways swing. Everything else gets normal swings.", new AcceptableValueRange<float>(-1f, 2f));
 		HarvestPickUpLoose = Bind(cfg, "Gathering", "PickUpLoose", true, "Wood and Stone jobs, early in the game only: also pick up what's lying on the ground by hand - branches (Wood job), loose stones and flint (Stone job) - as long as they're on GatherWood / GatherStone and under their amount. Early game = there's no bronze-or-better axe in the companion's pack, your pack or the chests near home, and no forge at home to make one. With no tool for the job (no axe for Wood, no pickaxe for Stone) picking things up is all it does.");
 		WoodLimit = Bind(cfg, "Gathering", "WoodLimit", 500, "How many of each wood material (counting the companion's pack and chests near its home) the Wood job gathers before stopping. 0 = no limit. Per-item numbers in GatherWood override this.", new AcceptableValueRange<int>(0, 100000));
 		StoneLimit = Bind(cfg, "Gathering", "StoneLimit", 500, "Same as WoodLimit, for the Stone job and GatherStone.", new AcceptableValueRange<int>(0, 100000));
@@ -895,6 +1016,8 @@ internal static class ModConfig
 		AttackCooldown = Bind(cfg, "Advanced", "AttackCooldown", 0.225f, "Combat: least time (seconds) between a companion's attacks, on top of each weapon's own attack timing.", new AcceptableValueRange<float>(0.1f, 2f));
 		MeleeTooClose = Bind(cfg, "Advanced", "MeleeTooClose", 0.3f, "Combat: closer than this (meters, from the edge of the target) a companion steps back before swinging a melee weapon - a stab or swing that starts inside the target misses, like a player standing on top of a boar.", new AcceptableValueRange<float>(0f, 1.5f));
 		MeleeReachMargin = Bind(cfg, "Advanced", "MeleeReachMargin", 0.2f, "Combat: a companion swings a melee weapon only once it is at least this much (meters) inside the weapon's reach, not right at the edge of it, where hits are hit-or-miss.", new AcceptableValueRange<float>(0f, 1f));
+		BlockReactionTime = Bind(cfg, "Advanced", "BlockReactionTime", 0.2f, "Combat: seconds between an enemy starting a swing at a companion and the companion raising its guard.", new AcceptableValueRange<float>(0f, 1f));
+		LogPlayerCombat = Bind(cfg, "Advanced", "LogPlayerCombat", true, "Testing: write your own fighting to the log (debug level, lines starting [You]) - swings, guard, blocks and parries, enemy swings at you and how far you were - to help tune how companions fight. Will be removed once combat is tuned.");
 		FoodRegenInterval = Bind(cfg, "Advanced", "FoodRegenInterval", 10f, "Food: seconds between health regeneration ticks from food (a player's is 10).", new AcceptableValueRange<float>(1f, 60f));
 		ConsumeCheckInterval = Bind(cfg, "Advanced", "FoodCheckInterval", 1f, "Food: seconds between checks whether a companion should eat or drink.", new AcceptableValueRange<float>(0.5f, 10f));
 		TombstoneScanInterval = Bind(cfg, "Advanced", "TombstoneScanInterval", 5f, "Death: seconds between looks for its own leftover tombstone nearby.", new AcceptableValueRange<float>(1f, 30f));
@@ -1196,7 +1319,6 @@ internal static class ModConfig
 		new string[] { "Smelting", "ScanRadius", "Smelting", "Range" },
 		new string[] { "Harvest", "ScanRadius", "Advanced", "GatheringSearchRadius" },
 		new string[] { "Harvest", "ScanInterval", "Advanced", "GatheringScanInterval" },
-		new string[] { "Harvest", "AttackInterval", "Advanced", "GatheringSwingInterval" },
 		new string[] { "Harvest", "DropScanRadius", "Advanced", "GatheringDropRadius" },
 		new string[] { "Harvest", "BlacklistDuration", "Advanced", "GatheringSkipTime" },
 		new string[] { "Farming", "ScanInterval", "Advanced", "FarmScanInterval" },

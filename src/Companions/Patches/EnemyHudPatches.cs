@@ -27,9 +27,17 @@ public static class EnemyHudPatches
 				return;
 			}
 			int instanceID = c.GetInstanceID();
-			if (_bars.ContainsKey(instanceID))
+			// 1.5.90: the game rebuilt the overhead display (portal, out of range and back) - our bars went with the old one;
+			// rebuild them now, the same frame, not a frame later (user, log 32bba563: "just a grey bar ... It may have broken
+			// when I came back through the portal")
+			if (_bars.TryGetValue(instanceID, out CompanionBars old))
 			{
-				return;
+				if (old.StaminaBar != null || old.WeightBar != null)
+				{
+					return;
+				}
+				_bars.Remove(instanceID);
+				_barCharacters.Remove(instanceID);
 			}
 			IDictionary huds = GetHuds(__instance);
 			if (huds == null || !huds.Contains(c))
@@ -206,6 +214,9 @@ public static class EnemyHudPatches
 		{
 			return null;
 		}
+		// 1.5.90: the game hides health_fast on a friendly's display (it shows health_fast_friendly) - a copy made after that
+		// had its fill hidden and showed only the grey background
+		transform3.gameObject.SetActive(value: true);
 		GuiBar component3 = transform3.GetComponent<GuiBar>();
 		if (component3 == null)
 		{

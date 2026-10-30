@@ -537,23 +537,28 @@ public class HuntController : MonoBehaviour
 		}
 		_ai.StopMoving();
 		_ai.LookAtPoint(aim);
-		if (Time.time < _nextShot || _character.InAttack() || !_ai.IsLookingAtPoint(aim, 3f))
+		bool drawBow = MHR_BowDraw.NeedsDraw(_humanoid);
+		// 1.5.61/62: a bow is drawn while turning to the bird and loosed once lined up (MHR_BowDraw; combat's Update runs the
+		// draw and lets go of one nobody keeps wanting)
+		if (Time.time < _nextShot || (_character.InAttack() && !MHR_BowDraw.IsDrawing(_humanoid)) || !_ai.IsLookingAtPoint(aim, drawBow ? 45f : 3f))
 		{
 			return;
 		}
-		_nextShot = Time.time + 1.5f;
 		CompanionProjectileAimPatch.AimAt(_humanoid, aim);
-		Attack attack = _humanoid.GetCurrentWeapon()?.m_shared?.m_attack;
-		bool draw = attack != null && attack.m_bowDraw;
-		if (draw)
+		bool shot;
+		if (drawBow)
 		{
-			attack.m_bowDraw = false;
+			shot = MHR_BowDraw.Tick(_humanoid, null, _ai.IsLookingAtPoint(aim, 3f), clear: true);
+			if (!shot)
+			{
+				return;
+			}
 		}
-		bool shot = _character.StartAttack(null, false);
-		if (draw)
+		else
 		{
-			attack.m_bowDraw = true;
+			shot = _character.StartAttack(null, false);
 		}
+		_nextShot = Time.time + 1.5f;
 		LogDebug((shot ? "Shooting at the " : "Couldn't shoot at the ") + _birdName + " (" + dist.ToString("F0") + " m, " + (_humanoid.GetCurrentWeapon()?.m_shared?.m_name ?? "no weapon") + ")");
 	}
 

@@ -106,6 +106,13 @@ public static class MHR_RespawnTracker
 			}
 			return;
 		}
+		// 1.5.80: an unsummon's tombstone only holds the gear - no owner, nothing to bring back (it said "another player's
+		// game was running it")
+		if (string.IsNullOrEmpty(tombZdo.GetString(CompanionTombstoneResurrect.RespawnOwnerHash)))
+		{
+			CompanionsPlugin.Log.LogInfo("[Respawn] Tombstone with an unsummoned companion's gear - nothing to respawn");
+			return;
+		}
 		if (!IsLocalOwner(tombZdo))
 		{
 			CompanionsPlugin.Log.LogInfo("[Respawn] Companion died while another player's game was running it; its owner's game will respawn it when the owner is near the tombstone");

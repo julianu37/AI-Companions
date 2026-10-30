@@ -6,10 +6,10 @@ public class CompanionTierDef
 
 	public string DisplayName;
 
-	// Traducao PT-BR - auditoria de cobertura: the localization key of the tier name the player reads (the Sub-Type
-	// buttons, the buy button, the arrival message and the companion's own default name). DisplayName stays the
-	// English name the logs use; CompanionTierData.LocalName resolves this key.
+	// 1.5.60: the name the player reads (panel buttons, "your new X has arrived"); DisplayName stays English for logs
 	public string NameKey;
+
+	public string LocalName => string.IsNullOrEmpty(NameKey) ? DisplayName : ModLocalization.Loc(NameKey);
 
 	public string SourcePrefab;
 

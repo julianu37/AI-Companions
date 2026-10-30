@@ -411,6 +411,8 @@ internal static class CompanionProjectileAimPatch
 
 	private static readonly AccessTools.FieldRef<Attack, ItemDrop.ItemData> s_ammo = AccessTools.FieldRefAccess<Attack, ItemDrop.ItemData>("m_ammoItem");
 
+	private static readonly AccessTools.FieldRef<Attack, float> s_drawPct = AccessTools.FieldRefAccess<Attack, float>("m_attackDrawPercentage");
+
 	private static void Postfix(Attack __instance, ref Vector3 spawnPoint, ref Vector3 aimDir)
 	{
 		try
@@ -427,15 +429,26 @@ internal static class CompanionProjectileAimPatch
 				return;
 			}
 			float num = __instance.m_projectileVel;
+			float velMin = __instance.m_projectileVelMin;
+			AnimationCurve curve = __instance.m_drawVelocityCurve;
 			GameObject gameObject = __instance.m_attackProjectile;
 			ItemDrop.ItemData itemData = s_ammo(__instance);
 			if (itemData?.m_shared?.m_attack != null)
 			{
 				num += itemData.m_shared.m_attack.m_projectileVel;
+				velMin += itemData.m_shared.m_attack.m_projectileVelMin;
+				curve = itemData.m_shared.m_attack.m_drawVelocityCurve;
 				if (itemData.m_shared.m_attack.m_attackProjectile != null)
 				{
 					gameObject = itemData.m_shared.m_attack.m_attackProjectile;
 				}
+			}
+			// 1.5.63: a bow arrow flies at the speed of the draw (Attack.ProjectileAttackTriggered) - a partial draw is slower
+			// and drops more, so aim for that speed, not the full-draw one (user: "The arrows do have some drop as they travel
+			// so that needs to be taken into account" - half-drawn arrows went under a boar 15 m off and 4 m up)
+			if (__instance.m_bowDraw && curve != null)
+			{
+				num = Mathf.Lerp(velMin, num, curve.Evaluate(s_drawPct(__instance)));
 			}
 			if (num < 1f)
 			{

@@ -671,10 +671,7 @@ public class CompanionSetup : MonoBehaviour
 		{
 			CompanionsPlugin.Log.LogDebug($"[Setup] SyncEquipmentToInventory — SuppressAutoEquip={SuppressAutoEquip}");
 			UnequipMissingEquippedItems();
-			if (!SuppressAutoEquip)
-			{
-				AutoEquipBest();
-			}
+			AutoEquipBest(armorOnly: SuppressAutoEquip);
 		}
 	}
 
@@ -1107,14 +1104,10 @@ public class CompanionSetup : MonoBehaviour
 			if (_autoEquipCooldown <= 0f && _autoEquipPending)
 			{
 				_autoEquipPending = false;
-				if (_humanoid != null && _nview != null && _nview.IsOwner() && !SuppressAutoEquip)
+				if (_humanoid != null && _nview != null && _nview.IsOwner())
 				{
-					CompanionsPlugin.Log.LogDebug("[Setup] Deferred auto-equip firing now");
-					AutoEquipBest();
-				}
-				else if (SuppressAutoEquip)
-				{
-					CompanionsPlugin.Log.LogDebug("[Setup] Deferred auto-equip skipped — SuppressAutoEquip=true");
+					CompanionsPlugin.Log.LogDebug("[Setup] Deferred auto-equip firing now" + (SuppressAutoEquip ? " (armour only - a job holds the hands)" : ""));
+					AutoEquipBest(armorOnly: SuppressAutoEquip);
 				}
 			}
 		}
@@ -1550,7 +1543,10 @@ public class CompanionSetup : MonoBehaviour
 		}
 	}
 
-	private void AutoEquipBest()
+	// 1.5.60: armorOnly while a job holds the hands (SuppressAutoEquip - a tool out). It used to skip the whole thing, so
+	// a companion that loaded in with the Wood job on picked up its axe before its gear went on and worked naked
+	// (user report) - the job only owns the hands, armour still goes on.
+	private void AutoEquipBest(bool armorOnly = false)
 	{
 		Inventory inventory = _humanoid.GetInventory();
 		if (inventory == null || TorchOpener.IsActive(_humanoid))
@@ -1687,8 +1683,37 @@ public class CompanionSetup : MonoBehaviour
 		}
 		EquipDiag.OnScan(allItems, itemData);
 		CompanionsPlugin.Log.LogDebug(string.Format("[Setup] AutoEquipBest — 1H=\"{0}\"({1:F0}) ", itemData?.m_shared?.m_name ?? "none", num) + string.Format("2H=\"{0}\"({1:F0}) ", itemData2?.m_shared?.m_name ?? "none", num2) + string.Format("shield=\"{0}\"(block={1:F0}) ", itemData4?.m_shared?.m_name ?? "none", num4) + "helm=\"" + (itemData7?.m_shared?.m_name ?? "none") + "\" chest=\"" + (itemData5?.m_shared?.m_name ?? "none") + "\" legs=\"" + (itemData6?.m_shared?.m_name ?? "none") + "\" trinket=\"" + (itemData8?.m_shared?.m_name ?? "none") + "\"");
+		if (armorOnly)
+		{
+			EquipBestArmor(itemData5, itemData6, itemData7, bestItem, bestItem2, itemData8);
+			return;
+		}
 		ItemDrop.ItemData itemData9 = GetEquipSlot(_rightItemField);
 		ItemDrop.ItemData itemData10 = GetEquipSlot(_leftItemField);
+		// 1.5.64: Ranged stance carries its bow, like a player who means to shoot - not the sword and shield (user: "When in
+		// ranged stance the NPC is still equipping a sword and shield"). Melee only comes out in a fight, close in.
+		if (GetCombatStance() == 2 && !(_combatAI != null && _combatAI.IsEngaged))
+		{
+			ItemDrop.ItemData bow = WeaponLogic.FindReadyBow(_humanoid, null);
+			if (bow != null)
+			{
+				if (itemData10 != bow && itemData9 != bow)
+				{
+					if (itemData9 != null)
+					{
+						_humanoid.UnequipItem(itemData9, triggerEquipEffects: false);
+					}
+					if (itemData10 != null)
+					{
+						_humanoid.UnequipItem(itemData10, triggerEquipEffects: false);
+					}
+					QueueEquip(bow);
+					CompanionsPlugin.Log.LogDebug("[Setup] Ranged stance - queued the bow: \"" + (bow.m_shared?.m_name ?? "?") + "\"");
+				}
+				EquipBestArmor(itemData5, itemData6, itemData7, bestItem, bestItem2, itemData8);
+				return;
+			}
+		}
 		bool flag = itemData2 != null && (itemData == null || num2 >= num);
 		ItemDrop.ItemData itemData11 = (flag ? itemData2 : itemData);
 		CompanionsPlugin.Log.LogDebug($"[Setup] Weapon decision: use2H={flag} " + "desired=\"" + (itemData11?.m_shared?.m_name ?? "none") + "\" current=\"" + (itemData9?.m_shared?.m_name ?? "none") + "\" " + $"needsSwap={itemData11 != null && itemData9 != itemData11}");
@@ -1713,7 +1738,9 @@ public class CompanionSetup : MonoBehaviour
 		}
 		bool flag4 = itemData9 != null && IsTwoHandedWeapon(itemData9);
 		bool flag5 = itemData10 != null && IsTwoHandedWeapon(itemData10);
-		if (!flag4 && !flag5 && itemData4 != null)
+		// 1.5.53: not mid-fight - the combat code picks the shield then (ShieldLogic: the tower shield with 3+ enemies);
+		// this put the parry shield straight back (user: "brought out the tower shield for a moment then put it away")
+		if (!flag2 && !flag4 && !flag5 && itemData4 != null)
 		{
 			if (itemData10 != itemData4)
 			{
@@ -1731,15 +1758,48 @@ public class CompanionSetup : MonoBehaviour
 			CompanionsPlugin.Log.LogDebug("[Setup] Unequip left (2H in right): \"" + (itemData10.m_shared?.m_name ?? "?") + "\"");
 			_humanoid.UnequipItem(itemData10, triggerEquipEffects: false);
 		}
+		EquipBestArmor(itemData5, itemData6, itemData7, bestItem, bestItem2, itemData8);
+	}
+
+	// 1.5.60: a job taking a tool out drops any weapon/shield still waiting in the equip queue - after a fight the queue
+	// put the sword back over the freshly equipped axe and the job swapped back, back and forth (log c6074698)
+	internal void MHR_DropQueuedHandItems()
+	{
+		int removed = _equipQueue.RemoveAll((ItemDrop.ItemData it) => it?.m_shared != null && IsHandItem(it));
+		if (removed > 0)
+		{
+			CompanionsPlugin.Log.LogDebug($"[Setup] Equip queue: dropped {removed} weapon/shield item(s) - a job holds the hands");
+		}
+	}
+
+	private static bool IsHandItem(ItemDrop.ItemData it)
+	{
+		switch (it.m_shared.m_itemType)
+		{
+		case ItemDrop.ItemData.ItemType.OneHandedWeapon:
+		case ItemDrop.ItemData.ItemType.TwoHandedWeapon:
+		case ItemDrop.ItemData.ItemType.TwoHandedWeaponLeft:
+		case ItemDrop.ItemData.ItemType.Bow:
+		case ItemDrop.ItemData.ItemType.Shield:
+		case ItemDrop.ItemData.ItemType.Torch:
+		case ItemDrop.ItemData.ItemType.Tool:
+			return true;
+		default:
+			return false;
+		}
+	}
+
+	private void EquipBestArmor(ItemDrop.ItemData chest, ItemDrop.ItemData legs, ItemDrop.ItemData helmet, ItemDrop.ItemData shoulder, ItemDrop.ItemData utility, ItemDrop.ItemData trinket)
+	{
 		if (CanWearArmor())
 		{
-			EquipBestArmorSlot(_chestItemField, itemData5);
-			EquipBestArmorSlot(_legItemField, itemData6);
-			EquipBestArmorSlot(_helmetItemField, itemData7);
-			EquipBestArmorSlot(_shoulderItemField, bestItem);
+			EquipBestArmorSlot(_chestItemField, chest);
+			EquipBestArmorSlot(_legItemField, legs);
+			EquipBestArmorSlot(_helmetItemField, helmet);
+			EquipBestArmorSlot(_shoulderItemField, shoulder);
 		}
-		EquipBestArmorSlot(_utilityItemField, bestItem2);
-		EquipBestArmorSlot(_trinketItemField, itemData8);
+		EquipBestArmorSlot(_utilityItemField, utility);
+		EquipBestArmorSlot(_trinketItemField, trinket);
 	}
 
 	private void UpdateEquipQueue(float dt)
@@ -2043,7 +2103,7 @@ public class CompanionSetup : MonoBehaviour
 		try
 		{
 			UnequipMissingEquippedItems();
-			if (flag && !SuppressAutoEquip)
+			if (flag)
 			{
 				if (_autoEquipCooldown > 0f)
 				{
@@ -2052,8 +2112,8 @@ public class CompanionSetup : MonoBehaviour
 				}
 				else
 				{
-					CompanionsPlugin.Log.LogDebug("[Setup] OnInventoryChanged — auto-equip triggered");
-					AutoEquipBest();
+					CompanionsPlugin.Log.LogDebug("[Setup] OnInventoryChanged — auto-equip triggered" + (SuppressAutoEquip ? " (armour only)" : ""));
+					AutoEquipBest(armorOnly: SuppressAutoEquip);
 					_autoEquipCooldown = 0.5f;
 				}
 			}

@@ -971,6 +971,14 @@ public static class CompanionManager
 
 	internal static Vector3 FindSpawnPosition(Vector3 origin, float radius)
 	{
+		// 1.5.72: a safe spot about 2 m away in plain view first (no wall between, a floor at that height, dry, no fire or
+		// spikes) - recall, respawn, roster recovery and hiring used any floor within the radius (a roof, the sea bed, behind
+		// a wall)
+		Vector3 safe = CompanionAI.MHR_SafeSpotNear(origin, Vector3.back);
+		if (safe != origin)
+		{
+			return safe;
+		}
 		for (int i = 0; i < 20; i++)
 		{
 			Vector2 vector = Random.insideUnitCircle * radius;
@@ -997,14 +1005,17 @@ public static class CompanionManager
 			return;
 		}
 		string key = $"HC_StarterCompanion_{ZNet.instance.GetWorldUID()}";
-		StarterFix.ResetIfRequested();
+		bool reset = StarterFix.ResetIfRequested();
 		if (localPlayer.m_customData.ContainsKey(key))
 		{
 			CompanionsPlugin.Log.LogDebug("[CompanionManager] Starter companion already spawned for this world");
 			return;
 		}
 		string text = localPlayer.GetPlayerID().ToString();
-		foreach (CompanionSetup allCompanion in CompanionSetup.AllCompanions)
+		// 1.5.54: the "already has a companion" check is for worlds from before the flag existed - it set the flag again
+		// straight after ResetStarterFlag cleared it (user: "the reset starter flag does not seem to be working"; log
+		// 8e1d1e5d: "cleared the starter-companion flag" then "Found existing companion in scene ... skipping panel")
+		foreach (CompanionSetup allCompanion in reset ? new List<CompanionSetup>() : CompanionSetup.AllCompanions)
 		{
 			ZDO zDO = allCompanion.GetComponent<ZNetView>()?.GetZDO();
 			if (zDO != null && zDO.GetString(CompanionSetup.OwnerHash) == text)
@@ -1042,6 +1053,58 @@ public static class CompanionManager
 				CompanionsPlugin.Log.LogInfo("[CompanionManager] The game's first-spawn event didn't reach us (another mod may have skipped it) - checking for the starter companion now");
 				MHR_StarterOnce();
 			}
+		}
+	}
+
+	// 1.5.71: hire another companion at Odin's Shrine for [General] CompanionPrice coins from your pack (user: "I want to add
+	// a way to purchase another NPC. Can we add that as an option to the shrine?")
+	internal static int CoinsInPack()
+	{
+		return Player.m_localPlayer?.GetInventory()?.CountItems("$item_coins") ?? 0;
+	}
+
+	public static bool HireWithCoins(CompanionAppearance appearance)
+	{
+		Player localPlayer = Player.m_localPlayer;
+		Inventory inv = localPlayer?.GetInventory();
+		if (inv == null)
+		{
+			return false;
+		}
+		int price = CompanionTierData.Price;
+		int have = inv.CountItems("$item_coins");
+		// 1.5.78: checked again in case coins left the pack while the window was open; a game popup (the centre message was
+		// drawn under the window's backdrop - log b2e01999: 14 presses with 0 coins and nothing to see)
+		if (have < price)
+		{
+			ShowShortPopup(price, have);
+			return false;
+		}
+		if (!SpawnCompanion(appearance, CompanionTierData.Companion))
+		{
+			return false;
+		}
+		inv.RemoveItem("$item_coins", price);
+		CompanionsPlugin.Log.LogInfo($"[CompanionManager] Summoned a companion for an offering of {price} coins ({have - price} left)");
+		MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, ModLocalization.Loc("hc_msg_hired"));
+		return true;
+	}
+
+	// 1.5.78: not enough coins for the offering - the game's own popup
+	internal static void ShowShortPopup(int price, int have)
+	{
+		string text = ModLocalization.LocFmt("hc_msg_hire_need", price.ToString("N0"), have.ToString("N0"), (price - have).ToString("N0"));
+		CompanionsPlugin.Log.LogInfo("[Shrine] " + text);
+		if (UnifiedPopup.IsAvailable() && !UnifiedPopup.IsVisible())
+		{
+			UnifiedPopup.Push(new WarningPopup(ModLocalization.Loc("hc_shrine_title"), text, delegate
+			{
+				UnifiedPopup.Pop();
+			}, localizeText: false));
+		}
+		else
+		{
+			MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, text);
 		}
 	}
 

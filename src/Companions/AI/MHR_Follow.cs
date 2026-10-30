@@ -385,6 +385,33 @@ namespace Companions
             return true;
         }
 
+        // 1.5.82: where the player stepped onto this ship - the last step before their recorded steps on its deck, and the first
+        // one on it (a jump, or the ladder) - for a companion that can't find its own way aboard
+        internal static bool StepsOnto(GameObject player, Ship ship, out Vector3 from, out Vector3 to)
+        {
+            from = to = Vector3.zero;
+            T t;
+            if (player == null || ship == null || !s_t.TryGetValue(player.GetInstanceID(), out t) || t.Steps.Count < 2) return false;
+            int vehicle = LayerMask.GetMask("vehicle");
+            List<Vector3> st = t.Steps;
+            bool next = OnShip(st[st.Count - 1], ship, vehicle);
+            for (int i = st.Count - 2; i >= 0; i--)
+            {
+                bool on = OnShip(st[i], ship, vehicle);
+                if (next && !on) { from = st[i]; to = st[i + 1]; return true; }
+                next = on;
+            }
+            return false;
+        }
+
+        static bool OnShip(Vector3 p, Ship ship, int vehicle)
+        {
+            RaycastHit hit;
+            if (!Physics.Raycast(p + Vector3.up * 0.5f, Vector3.down, out hit, 1.5f, vehicle)) return false;
+            Ship s = hit.collider.attachedRigidbody != null ? hit.collider.attachedRigidbody.GetComponent<Ship>() : hit.collider.GetComponentInParent<Ship>();
+            return s == ship;
+        }
+
         static void EndPath(S s, string why)
         {
             s.OnPath = false; s.PathApproach = false;
@@ -541,7 +568,10 @@ namespace Companions
             if (now >= s.ChairFailUntil && now >= s.NextChairLook)
             {
                 s.NextChairLook = now + 3f;
-                Chair ch = FindChair(ai, pp, maxD + 1.5f);
+                // 1.5.57: a chair in the same room a few meters further off beats the floor (user: "look for a nearby chair
+                // or whatever to rest on rather than the floor"; log 9232441a: "sat down on the floor" 3x indoors) - it
+                // used to look only within its follow spot distance + 1.5 m of you
+                Chair ch = FindChair(ai, pp, Mathf.Max(maxD + 1.5f, ModConfig.FollowChairRange?.Value ?? 8f));
                 if (ch != null)
                 {
                     s.Chair = ch; s.GoingToChair = true; s.ChairUntil = now + 15f;
@@ -565,12 +595,15 @@ namespace Companions
         }
 
         // a free chair or bench seat near the player, on their level and in sight of them (not on a ship)
+        static string s_noChairWhy;
+
         static Chair FindChair(CompanionAI ai, Vector3 pp, float range)
         {
             s_pieces.Clear();
             Piece.GetAllPiecesInRadius(pp, range, s_pieces);
             Vector3 me = ai.transform.position;
             Chair best = null; float bd = float.MaxValue;
+            int seen = 0, level = 0, taken = 0, hidden = 0;
             for (int i = 0; i < s_pieces.Count; i++)
             {
                 Piece p = s_pieces[i];
@@ -581,13 +614,18 @@ namespace Companions
                     Chair ch = chairs[k];
                     if (ch == null || ch.m_inShip || ch.m_attachPoint == null) continue;
                     Vector3 ap = ch.m_attachPoint.position;
-                    if (Mathf.Abs(ap.y - pp.y) > 2f || Flat(ap, pp) > range || ChairTaken(ch, ai)) continue;
+                    if (Flat(ap, pp) > range) continue;
+                    seen++;
+                    if (Mathf.Abs(ap.y - pp.y) > 2f) { level++; continue; }
+                    if (ChairTaken(ch, ai)) { taken++; continue; }
                     RaycastHit hit;
-                    if (Physics.Linecast(pp + Vector3.up * 1.6f, ap + Vector3.up * 1.2f, out hit, LosMask()) && hit.collider.GetComponentInParent<Piece>() != p) continue;
+                    if (Physics.Linecast(pp + Vector3.up * 1.6f, ap + Vector3.up * 1.2f, out hit, LosMask()) && hit.collider.GetComponentInParent<Piece>() != p) { hidden++; continue; }
                     float d = Vector3.Distance(me, ap);
                     if (d < bd) { bd = d; best = ch; }
                 }
             }
+            // 1.5.57: why it ended up on the floor, for the log
+            s_noChairWhy = best != null ? null : seen == 0 ? $"no chair within {range:F0} m of you" : $"{seen} chair(s) within {range:F0} m: {level} on another level, {taken} in use, {hidden} out of your sight";
             return best;
         }
 
@@ -635,7 +673,7 @@ namespace Companions
             ZSyncAnimation za = ai.GetComponent<ZSyncAnimation>();
             if (za != null) { za.SetTrigger("emote_sit"); za.SetBool("emote_sit", true); }
             SetResting(ai, true);
-            Dbg(ai.GetComponent<Character>().m_name + " sat down on the floor");
+            Dbg(ai.GetComponent<Character>().m_name + " sat down on the floor" + (s_noChairWhy != null ? " (" + s_noChairWhy + ")" : ""));
         }
 
         static void SetResting(CompanionAI ai, bool on)

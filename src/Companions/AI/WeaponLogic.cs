@@ -17,8 +17,6 @@ internal static class WeaponLogic
 
 	private static int _rangedLogs;
 
-	private static int _statusLogs;
-
 	private static int _entryLogs;
 
 	private static FieldInfo _targetField;
@@ -133,6 +131,14 @@ internal static class WeaponLogic
 			}
 			bool flag2 = BowLike(currentWeapon);
 			bool flag3 = itemData != null && (itemData2 == null || num > BowSwitch() || (!(num < MeleeSwitch()) && flag2));
+			// 1.5.73/1.5.74: the bow, whatever the distance, for a target the melee weapon can't get at - out in deep water,
+			// a level above or below, no way to walk there - or (fighting defensively) too far from you to go after; only
+			// with a clear shot (user: "some bugs were below us and it would have been a good place to use a bow")
+			if (itemData != null && !flag3 && component is CompanionCombatAI cc && cc.BowOnly(character, out string bowWhy) && MHR_BowDraw.ClearShot(h, character))
+			{
+				flag3 = true;
+				BowWhyLog("[Balanced] bow for " + character.m_name + " (" + num.ToString("F1") + " m): " + bowWhy);
+			}
 			ItemDrop.ItemData itemData4 = null;
 			if (flag3)
 			{
@@ -145,7 +151,7 @@ internal static class WeaponLogic
 			{
 				itemData4 = itemData2;
 			}
-			StatusLog(string.Format("[Balanced] status dist={0:F1} cur={1} bestBow={2} bestMelee={3} wantRanged={4} pick={5}", num, currentWeapon.m_shared.m_name, (itemData != null) ? itemData.m_shared.m_name : ((text == null) ? "none in inventory" : ("none - " + text)), (itemData2 == null) ? "none" : itemData2.m_shared.m_name, flag3, (itemData4 == null) ? "(no change)" : itemData4.m_shared.m_name));
+			StatusLog(string.Format("[Balanced] status dist={0:F1} cur={1} bestBow={2} bestMelee={3} wantRanged={4} pick={5} ammo={6}", num, currentWeapon.m_shared.m_name, (itemData != null) ? itemData.m_shared.m_name : ((text == null) ? "none in inventory" : ("none - " + text)), (itemData2 == null) ? "none" : itemData2.m_shared.m_name, flag3, (itemData4 == null) ? "(no change)" : itemData4.m_shared.m_name, (itemData != null && !string.IsNullOrEmpty(itemData.m_shared.m_ammoType)) ? (inventory.GetAmmoItem(itemData.m_shared.m_ammoType)?.m_stack ?? 0) : -1));
 			if (itemData4 != null && itemData4 != currentWeapon)
 			{
 				BalLog(string.Format("[Balanced] dist={0:F1} -> {1} ({2})", num, itemData4.m_shared.m_name, (!flag3) ? "melee" : "ranged"));
@@ -476,11 +482,26 @@ internal static class WeaponLogic
 		}
 	}
 
+	// 1.5.74: every 3 s instead of the first 30 of the session (log 93298113 had none after the dungeon, so the weapon
+	// choices against the Necks and Greydwarfs couldn't be seen)
+	private static float _nextStatusLog;
+
 	private static void StatusLog(string s)
 	{
-		if (_statusLogs < 30)
+		if (Time.time >= _nextStatusLog)
 		{
-			_statusLogs++;
+			_nextStatusLog = Time.time + 3f;
+			CompanionsPlugin.Log?.LogDebug(s);
+		}
+	}
+
+	private static float _nextBowWhyLog;
+
+	private static void BowWhyLog(string s)
+	{
+		if (Time.time >= _nextBowWhyLog)
+		{
+			_nextBowWhyLog = Time.time + 5f;
 			CompanionsPlugin.Log?.LogDebug(s);
 		}
 	}

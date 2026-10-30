@@ -350,6 +350,14 @@ public class CompanionsPlugin : BaseUnityPlugin
 		}
 		try
 		{
+			PlayerCombatLog.Tick();
+		}
+		catch (Exception ex3)
+		{
+			Log.LogWarning("[You] Player combat log error: " + ex3.Message);
+		}
+		try
+		{
 			MHR_Roster.Tick();
 		}
 		catch (Exception ex2)

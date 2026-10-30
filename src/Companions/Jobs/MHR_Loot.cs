@@ -150,7 +150,7 @@ namespace Companions
                 }
                 MHR_Mover.Go(ai, dt, tp, 0.8f, true, "Loot");
                 // 1.4.97: never swim for loot (1.4.96 test: took a shortcut through the water to some drops)
-                if (MHR_Mover.RouteSwim(ai) > MHR_Mover.JobSwim()) { LogDebug("  " + Loc(st.Target.m_itemData != null ? st.Target.m_itemData.m_shared.m_name : "?") + " is a long swim away - leaving it"); k.Skipped.Add(st.Target.GetInstanceID()); st.Target = null; MHR_Mover.Release(ai); return true; }
+                if (MHR_Mover.RouteSwim(ai) > NoSwim) { LogDebug("  " + Loc(st.Target.m_itemData != null ? st.Target.m_itemData.m_shared.m_name : "?") + " is across water - leaving it"); k.Skipped.Add(st.Target.GetInstanceID()); st.Target = null; MHR_Mover.Release(ai); return true; }
                 if (MHR_Mover.GaveUp(ai)) { LogDebug("  can't get to " + Loc(st.Target.m_itemData != null ? st.Target.m_itemData.m_shared.m_name : "?") + " - leaving it"); k.Skipped.Add(st.Target.GetInstanceID()); st.Target = null; MHR_Mover.Release(ai); }
                 return true;
             }
@@ -172,7 +172,7 @@ namespace Companions
             {
                 MHR_Mover.Go(ai, dt, spot, 2f, true, "Loot");
                 if (MHR_Mover.GaveUp(ai)) { Finish(ai, st, "stopped picking up (can't get to the body)"); return false; }
-                if (MHR_Mover.RouteSwim(ai) > MHR_Mover.JobSwim()) { Finish(ai, st, "stopped picking up (a long swim away)"); return false; }
+                if (MHR_Mover.RouteSwim(ai) > NoSwim) { Finish(ai, st, "stopped picking up (it's across water)"); return false; }
             }
             else ai.StopMoving();
             return true;
@@ -275,6 +275,11 @@ namespace Companions
             }
             return best;
         }
+
+        // 1.5.75: loot is never worth a swim (user, log fd7b1683: "NPC jumped into the water and was swimming around. Maybe to
+        // get the dropped items?" - it dived in for a Neck's drop, ran out of stamina, rested on the bank and went again).
+        // Wading through shallow water is fine; any swimming on the way and the drop is left.
+        const float NoSwim = 0.5f;
 
         static string Loc(string s) { try { return Localization.instance != null ? Localization.instance.Localize(s) : s; } catch { return s; } }
         static void Log(string msg) { if (CompanionsPlugin.Log != null) CompanionsPlugin.Log.LogInfo("[Loot] " + msg); }
