@@ -734,6 +734,8 @@ internal static class ModConfig
 		CompanionPrice = Bind(cfg, "General", "CompanionPrice", 1000, "The offering in coins to summon another companion at Odin's Shrine (Summon companion), paid from your pack.", new AcceptableValueRange<int>(0, 50000));
 		PortalItems = Bind(cfg, "General", "PortalItems", "Game", "What a following companion may carry through a portal with you. Game: the same rules as you - ore, metals and the like only through a portal that allows everything or with the world's portal setting on Casual, boss items never; it first puts what can't go through in a chest within 15 m of it, otherwise it stays behind and says why. AllowAll: it comes through with anything.", new AcceptableValueList<string>("Game", "AllowAll"));
 		RecoverUnsummoned = Bind(cfg, "General", "RecoverUnsummoned", defaultValue: true, "An unsummoned (despawned) companion can be brought back at Odin's Shrine (Recover companions) - with its name, looks, skills and settings, but not its gear, which stays in the tombstone where it was unsummoned - until you next load this world. Off: unsummoning is permanent.");
+		// upstream 1.5.5: the status line under the name (what it is doing, and why not when the job is stuck)
+		ShowStatus = Bind(cfg, "General", "ShowStatus", defaultValue: true, "When you look at a companion, show what it is doing under its name - and why not, when its job is stuck (e.g. \"Hunt - No game around.\").");
 		// 1.5.71: the old default (2000) was never used for anything - move it to the new default
 		if (CompanionPrice.Value == 2000)
 		{
@@ -1027,6 +1029,10 @@ internal static class ModConfig
 		SpeechChatter = Bind(cfg, "Speech", "Chatter", defaultValue: false, "Companions talk to themselves now and then when nothing is happening: a line about a fight nearby, being too heavy, being hungry, worn gear, no bed, the job they're on, or just following you. Off (Phase 3.3c) = no random speech at all. They still speak when something actually happens: an order (chat or voice), a change of mode (\"On it!\"), the AI replies, a fish caught, a farming/repair/smelting milestone, a tombstone found, unloading near home. The idle lines are separate ([Idle] SpeechInterval). Turn it on to go back to the old behaviour.");
 		SpeechMinInterval = Bind(cfg, "Speech", "MinInterval", 15f, "Shortest time (seconds) between a companion's lines when nothing is happening. Only used while Chatter is on.", new AcceptableValueRange<float>(5f, 120f));
 		SpeechMaxInterval = Bind(cfg, "Speech", "MaxInterval", 30f, "Longest time (seconds) between a companion's lines when nothing is happening. Only used while Chatter is on.", new AcceptableValueRange<float>(10f, 300f));
+		// upstream 1.5.5: the speech overhaul made the whole speech block switchable, plus the two "at a distance" cases
+		SpeechEnabled = Bind(cfg, "Speech", "Enabled", true, "Companions say things at all (replies to your orders, what they're doing, problems, chatter). Off = silent.");
+		SpeechFarMessages = Bind(cfg, "Speech", "FarAwayMessages", true, "When a companion runs into a problem (needs a tool, can't get somewhere...) while you're out of earshot (further than CullDistance), it shows as a message in the top left corner with its name.");
+		SpeechAnnounceDeath = Bind(cfg, "Speech", "AnnounceDeath", true, "When one of your companions dies, say so in the middle of the screen with where it happened (biome, how far from you), wherever you are.");
 		SpeechDuration = Bind(cfg, "Speech", "Duration", 5f, "Seconds a line of speech stays on screen.", new AcceptableValueRange<float>(1f, 15f));
 		SpeechSayCooldown = Bind(cfg, "Speech", "SayCooldown", 3f, "Least time (seconds) between two lines from any companion, so they don't all talk at once.", new AcceptableValueRange<float>(1f, 30f));
 		SpeechCullDistance = Bind(cfg, "Speech", "CullDistance", 20f, "Speech from companions further away than this (meters) isn't shown.", new AcceptableValueRange<float>(5f, 60f));
