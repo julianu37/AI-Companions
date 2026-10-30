@@ -429,8 +429,6 @@ internal static class ModConfig
 
 	internal static ConfigEntry<float> ForageFollowRange;
 
-	internal static ConfigEntry<float> HarvestAttackInterval;
-
 	internal static ConfigEntry<float> HarvestRange;
 
 	internal static ConfigEntry<bool> HarvestPickUpLoose;
@@ -1040,7 +1038,6 @@ internal static class ModConfig
 		RosterSaveInterval = Bind(cfg, "Advanced", "RosterSaveInterval", 60f, "Seconds between saves of your companions to the roster (their gear and settings), used to recover a lost companion.", new AcceptableValueRange<float>(10f, 600f));
 		HarvestScanRadius = Bind(cfg, "Advanced", "GatheringSearchRadius", 50f, "Gathering: how far (meters) around itself a companion looks for trees, rocks and plants when it's following you or sent to one with the command key (with Follow off it's [Gathering] Range). Phase 3.3c: 50, was 30 - while following, the companion can be 25 m from you ([Gathering] FollowRange) and the target up to 25 m from you on the other side, so the ring it searches has to reach about 50 m.", new AcceptableValueRange<float>(5f, 100f));
 		HarvestScanInterval = Bind(cfg, "Advanced", "GatheringScanInterval", 4f, "Gathering: seconds between looks for the next tree, rock or plant.", new AcceptableValueRange<float>(1f, 30f));
-		HarvestAttackInterval = Bind(cfg, "Advanced", "GatheringSwingInterval", 2.5f, "Gathering: seconds between swings at a tree or rock.", new AcceptableValueRange<float>(0.5f, 5f));
 		HarvestDropScanRadius = Bind(cfg, "Advanced", "GatheringDropRadius", 12f, "Gathering: how far (meters) around a felled tree or broken rock the drops are picked up. Phase 3.3c: 12, was 8 - a tree can fall (or a rock spread out) further than 8 m, and the drops were being left behind.", new AcceptableValueRange<float>(2f, 20f));
 		HarvestBlacklistDuration = Bind(cfg, "Advanced", "GatheringSkipTime", 60f, "Gathering: seconds a tree, rock or plant it couldn't get to is skipped.", new AcceptableValueRange<float>(5f, 300f));
 		FarmScanInterval = Bind(cfg, "Advanced", "FarmScanInterval", 4f, "Farming: seconds between looks for crops to pick and ground to plant.", new AcceptableValueRange<float>(1f, 30f));

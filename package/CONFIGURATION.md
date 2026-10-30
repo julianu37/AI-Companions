@@ -1011,9 +1011,6 @@ Gathering: how far (meters) around itself a companion looks for trees, rocks and
 **GatheringScanInterval** — Default: 4 · Range: 1 – 30  
 Gathering: seconds between looks for the next tree, rock or plant.
 
-**GatheringSwingInterval** — Default: 2.5 · Range: 0.5 – 5  
-Gathering: seconds between swings at a tree or rock.
-
 **GatheringDropRadius** — Default: 12 · Range: 2 – 20  
 Gathering: how far (meters) around a felled tree or broken rock the drops are picked up. Phase 3.3c: 12, was 8 - a tree can fall (or a rock spread out) further than 8 m, and the drops were being left behind.
 
