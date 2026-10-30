@@ -878,10 +878,11 @@ public static class ModLocalization
 				num++;
 			}
 		}
-		CompanionsPlugin.Log.LogInfo(reInjected
+		// Fase 2.0 (audit fix): the second line here used to be an unconditional copy of the gated one, so every
+		// injection printed twice (and once even with [Advanced] LogLevel = Off).
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo(reInjected
 			? $"[Localization] Re-injected {_englishDefaults?.Count ?? 0} defaults + {num} \"{selectedLanguage}\" overrides (the game had rebuilt the dictionary)"
 			: $"[Localization] Injected {_englishDefaults?.Count ?? 0} defaults + {num} \"{selectedLanguage}\" overrides");
-		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Localization] Injected {_englishDefaults?.Count ?? 0} defaults + {num} \"{selectedLanguage}\" overrides");
 	}
 
 	public static void EnsureDefaultFile()
