@@ -49,7 +49,7 @@ Every setting of the mod: what it does and the value it starts with.
 The basics: what a companion costs, its health, stamina and carry limits, and how far "home" reaches.
 
 **MaxCompanions** — Default: 10 · Range: 1 – 10  
-Phase 3.19: the most companions you can have in this world (10 is the ceiling). The count includes the dead and the lost: the tombstone brings the SAME companion back, so dying does not free a slot. At the limit the Trader, the AI panel summoner and the starter companion refuse to create another (the Shrine can still recover a dead companion). To free a slot, dismiss one from its wheel menu (Despawn).
+Phase 3.19: the most companions you can have in this world (10 is the ceiling). The count includes the dead, the lost and the dismissed: the tombstone brings the SAME companion back and Odin's Shrine can still recover a dismissed one, so neither dying nor dismissing frees a slot on the spot. At the limit the Trader, the AI panel summoner and the starter companion refuse to create another (the Shrine can still recover a dead or a dismissed companion). The slot of a dismissed companion comes free when you next load this world - or right away with [General] RecoverUnsummoned off.
 
 **CompanionPrice** — Default: 1000 · Range: 0 – 50000  
 The offering in coins to summon another companion at Odin's Shrine (Summon companion), paid from your pack.
