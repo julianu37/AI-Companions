@@ -562,6 +562,19 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   no chão por perto.") e `hc_ai_collect_full` ("Minha mochila está cheia.") — PT-BR + dicionário em inglês; logs
   `[Collect] <Nome>: Going to pick up "X" (N m away)`, `Done: N item(s) picked up`, `nothing on the ground within N m`.
   Detalhes: `docs/roadmap.md` (Fase 3.1 — a ação de recolher os itens do chão).
+- **Fase 2.0 — as 5 ordens de interação (chat e voz): `hive`, `door`, `board`, `sit` e `deposit`.** Cada uma reusa o que a
+  **tecla de comando** já faz (as `Direct*` privadas de `UI/CompanionInteract.cs`): os novos wrappers `OrderHive`/`OrderDoor`/
+  `OrderBoard`/`OrderSit`/`OrderDeposit` resolvem o **alvo** (o objeto **apontado**, com o mesmo raio/mask/50 m da tecla, senão o
+  mais próximo do jogador — 20 m colmeia/porta, 30 m navio, 5 m fogueira/baú) e entregam à `Direct*` uma **lista de um
+  companheiro só** (o endereçado, ou o mais próximo que pode receber ordem, com o mesmo `MHR_InScope` de `attack`/`equip`). O
+  `ValidActions` foi de **30 para 35** (é dele que sai o `enum` do schema) e os **5 contratos** ganharam uma cláusula curta para
+  cada ação + **2 exemplos** ("fecha a porta", "guarda isso no baú" — mais exemplos pioram o 3B). As `Direct*` falam a própria
+  linha aleatória: durante a ordem ela é **silenciada** (`Silent`/`_orderSpeech` no `SayRandom`) porque a ordem diz a **sua**
+  linha (`hc_ai_door_closed`/`hc_ai_deposit_done` com `{0}` etc.) e ela já vai para o TTS pelo `SpeakOutLoud`. Porta trancada →
+  `hc_cmd_door_locked`; colmeia vazia → `hc_cmd_hive_empty`; baú sem espaço → `hc_ai_deposit_full`; nada por perto →
+  `hc_ai_<ação>_none`. 17 chaves novas nos 5 idiomas. Rede extra no `LlmIntent` (`IsDoorWord`, no mesmo molde do
+  `IsInventoryWord`): uma ação que **nomeia a porta** (`fecha_a_porta`) vale mais que o verbo, que o 3B manda como
+  `inventory_close` (o `"fecha"` é apelido dessa ação desde a 3.8).
 - Backend/contrato de referência: `docs/re/backend-contract.md`; mapa da fase: `docs/roadmap.md` (Trilha D);
   pipeline de voz: `docs/re/stt-voz-pipeline.md`; fala do companheiro: `docs/re/tts-kokoro-sherpa-onnx.md`.
 - **Status (out/2026):** as fases da camada de IA estão **validadas em jogo** pelo jogador (3.1, 3.1-saída

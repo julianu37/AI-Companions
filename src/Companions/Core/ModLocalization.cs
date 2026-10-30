@@ -617,6 +617,12 @@ public static class ModLocalization
 			// JSON, so another language showed the raw token - same bug the audit found in hc_ai_voice_key_conflict.
 			{ "hc_ai_order_inventory", "open the inventory" },
 			{ "hc_ai_order_inventory_close", "close the inventory" },
+			// Fase 2.0: the five interaction orders (chat and voice) - each one reuses what the command key does
+			{ "hc_ai_order_hive", "empty the beehive" },
+			{ "hc_ai_order_door", "close the door" },
+			{ "hc_ai_order_board", "board the ship" },
+			{ "hc_ai_order_sit", "sit down" },
+			{ "hc_ai_order_deposit", "put it in the chest" },
 			{ "hc_ai_inventory_open", "Opening the inventory." },
 			{ "hc_ai_inventory_requesting", "Asking {0} for access to the inventory - the window opens in a moment." },
 			{ "hc_ai_inventory_timeout", "I couldn't open the companion's inventory. Ask me again." },
@@ -624,6 +630,20 @@ public static class ModLocalization
 			{ "hc_ai_inventory_closed", "I closed the inventory." },
 			{ "hc_ai_inventory_none_open", "No inventory is open." },
 			{ "hc_ai_no_container", "I couldn't find {0}'s inventory." },
+			// Fase 2.0: what the interaction orders answer. The target of each one is the object the player is looking
+			// at, or the nearest one around the player (see CompanionInteract.OrderHive and the other Order* wrappers).
+			{ "hc_ai_hive_none", "I don't see a beehive nearby." },
+			{ "hc_ai_hive_done", "Going for the honey." },
+			{ "hc_ai_door_none", "I don't see a door nearby." },
+			{ "hc_ai_door_closed", "Closing the door." },
+			{ "hc_ai_door_opened", "Opening the door." },
+			{ "hc_ai_board_none", "I don't see a ship nearby." },
+			{ "hc_ai_board_done", "On board!" },
+			{ "hc_ai_sit_none", "I don't see a lit fire nearby." },
+			{ "hc_ai_sit_done", "Sitting by the fire." },
+			{ "hc_ai_deposit_none", "I don't see a chest nearby." },
+			{ "hc_ai_deposit_full", "There's no room in that chest." },
+			{ "hc_ai_deposit_done", "Putting {0} item(s) in the chest." },
 			// Fase 3.5: personality presets (shown in the log), free conversation and the memory
 			{ "hc_ai_default_name", "Companion" },
 			{ "hc_ai_preset_default", "Default" },

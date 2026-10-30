@@ -176,6 +176,15 @@ public class CompanionInteract : MonoBehaviour
 
 	private static readonly DistComparer _distCompare = new DistComparer();
 
+	// Fase 2.0: the chat/voice interaction orders (see the Order* region below). _cmdMask is the layer mask of the
+	// command key, built once; _orderHits is the buffer of the "nearest around the player" search; _orderSpeech tells
+	// SayRandom to stay quiet while an order drives a Direct* interaction (the order has its own line).
+	private static int _cmdMask = -1;
+
+	private static readonly Collider[] _orderHits = new Collider[64];
+
+	private static bool _orderSpeech;
+
 	private static bool _loggedPendingStart;
 
 	private static string[] _comeHereLines;
@@ -755,7 +764,7 @@ public class CompanionInteract : MonoBehaviour
 				return;
 			}
 			Ray ray = new Ray(mainCamera.transform.position, mainCamera.transform.forward);
-			int mask = LayerMask.GetMask("character", "character_net", "character_ghost", "character_noenv", "Default", "Default_small", "piece", "piece_nonsolid", "static_solid", "terrain", "vehicle", "item");
+			int mask = CommandMask();
 			int num = Physics.RaycastNonAlloc(ray, _cmdHitBuffer, 50f, mask);
 			if (num > 1)
 			{
@@ -1787,6 +1796,467 @@ public class CompanionInteract : MonoBehaviour
 		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Direct] {num} companion(s) → deposit");
 	}
 
+	// ------------------------------------------------------- Fase 2.0: interaction orders (chat and voice)
+	//
+	// "esvazia a colmeia", "fecha a porta", "embarca", "senta" and "guarda isso no baú" are the very interactions the
+	// command key already does. Each one resolves its TARGET here - the object under the crosshair first, with the same
+	// ray, the same layers and the same 50 m reach of the command key, then the nearest one around the player - and
+	// hands it to the private Direct* method below with a ONE-companion list. The interaction itself is never
+	// reimplemented: what is new is where it points and who takes it.
+
+	/// <summary>
+	/// What an interaction order did, for the feedback line. <see cref="Companion"/> is the one that took it, or null
+	/// when nobody could (out of reach, its Command switch is off, destroyed) - the caller then keeps the generic
+	/// "no companion answered" answer. <see cref="Key"/> is the localization key of the line (null = there is none,
+	/// which is how a call that found its target and still didn't start reads as "nobody took it").
+	/// <see cref="Amount"/> is the {0} of that line, when it has one (the deposit's item count).
+	/// </summary>
+	internal struct DirectOrderReport
+	{
+		internal CompanionSetup Companion;
+
+		internal string Key;
+
+		internal int Amount;
+	}
+
+	private const float HiveOrderRange = 20f;
+
+	private const float DoorOrderRange = 20f;
+
+	private const float BoardOrderRange = 30f;
+
+	private const float SitOrderRange = 5f;
+
+	private const float DepositOrderRange = 5f;
+
+	/// <summary>The layers the command key looks through, built once (the same list it always used).</summary>
+	private static int CommandMask()
+	{
+		if (_cmdMask < 0)
+		{
+			_cmdMask = LayerMask.GetMask("character", "character_net", "character_ghost", "character_noenv", "Default", "Default_small", "piece", "piece_nonsolid", "static_solid", "terrain", "vehicle", "item");
+		}
+		return _cmdMask;
+	}
+
+	/// <summary>
+	/// The first thing under the crosshair that is neither the player nor a companion, exactly as the command key
+	/// sees it: same camera, same ray, same layers, same 50 m reach and the same "ignore players and companions" rule.
+	/// </summary>
+	private static Collider PointedCollider()
+	{
+		Camera mainCamera = Utils.GetMainCamera();
+		if (mainCamera == null)
+		{
+			return null;
+		}
+		Ray ray = new Ray(mainCamera.transform.position, mainCamera.transform.forward);
+		int num = Physics.RaycastNonAlloc(ray, _cmdHitBuffer, 50f, CommandMask());
+		if (num > 1)
+		{
+			Array.Sort(_cmdHitBuffer, 0, num, _distCompare);
+		}
+		for (int i = 0; i < num; i++)
+		{
+			Collider collider = _cmdHitBuffer[i].collider;
+			if (collider == null || collider.GetComponentInParent<Player>() != null || collider.GetComponentInParent<CompanionSetup>() != null)
+			{
+				continue;
+			}
+			return collider;
+		}
+		return null;
+	}
+
+	/// <summary>The component of type <typeparamref name="T"/> on the object under the crosshair, or null.</summary>
+	private static T Pointed<T>() where T : Component
+	{
+		Collider collider = PointedCollider();
+		return collider != null ? collider.GetComponentInParent<T>() : null;
+	}
+
+	/// <summary>
+	/// The nearest <typeparamref name="T"/> within <paramref name="range"/> of the PLAYER (the order is "go and do
+	/// this here", so it is measured from the player). Only components that <see cref="Pointed{T}"/> would also find
+	/// count - the collider has to carry the component on itself or on a parent - and <paramref name="valid"/> may
+	/// narrow it further (a lit fire, not the companion's own pack).
+	/// </summary>
+	private static T Nearest<T>(Player player, float range, Func<T, bool> valid) where T : Component
+	{
+		if (player == null || range <= 0f)
+		{
+			return null;
+		}
+		Vector3 from = player.transform.position;
+		int num = Physics.OverlapSphereNonAlloc(from, range, _orderHits, CommandMask());
+		T pick = null;
+		float best = float.MaxValue;
+		for (int i = 0; i < num; i++)
+		{
+			Collider collider = _orderHits[i];
+			if (collider == null)
+			{
+				continue;
+			}
+			T found = collider.GetComponentInParent<T>();
+			if (found == null || (valid != null && !valid(found)))
+			{
+				continue;
+			}
+			float distance = Vector3.Distance(from, found.transform.position);
+			if (distance <= range && distance < best)
+			{
+				best = distance;
+				pick = found;
+			}
+		}
+		return pick;
+	}
+
+	/// <summary>The ship under the crosshair and, when the player is pointing at one of its seats, that seat - the
+	/// same two components the command key reads from the same hit (see the ship branch in <see cref="Update"/>).</summary>
+	private static Ship PointedShip(out Chair seat)
+	{
+		seat = null;
+		Collider collider = PointedCollider();
+		if (collider == null)
+		{
+			return null;
+		}
+		Ship ship = collider.GetComponentInParent<Ship>();
+		if (ship == null)
+		{
+			return null;
+		}
+		Chair chair = collider.GetComponentInParent<Chair>();
+		if (chair != null && chair.m_inShip && !MHR_Board.IsMast(chair))
+		{
+			seat = chair;
+		}
+		return ship;
+	}
+
+	/// <summary>A container an order may put things into: not the companion's own pack (that inventory is a container
+	/// too) and with an inventory behind it.</summary>
+	private static bool IsChestForOrders(Container chest)
+	{
+		return chest != null && chest.GetInventory() != null && chest.GetComponent<CompanionSetup>() == null;
+	}
+
+	/// <summary>
+	/// The ONE companion an interaction order reaches: the one the player NAMED, or the nearest to the object that can
+	/// take an order - the same gate attack/equip use (<see cref="MHR_InScope"/>, which also takes control of it),
+	/// plus whatever the interaction needs from it (<paramref name="capable"/>).
+	/// </summary>
+	private static CompanionSetup OrderCompanion(CompanionSetup addressee, Vector3 at, Func<CompanionSetup, bool> capable)
+	{
+		string localId = OrderLocalId();
+		if (!ReferenceEquals(addressee, null))
+		{
+			// a companion destroyed in the meantime answers "== null" (Unity) and can't take anything; the order must
+			// NOT fall through to another one (CompanionChatAI already told the player that one is gone)
+			if (addressee == null || !IsOwned(addressee, localId) || (capable != null && !capable(addressee)) || !MHR_InScope(addressee))
+			{
+				return null;
+			}
+			return addressee;
+		}
+		CompanionSetup pick = null;
+		float best = float.MaxValue;
+		foreach (CompanionSetup companion in CompanionSetup.AllCompanions)
+		{
+			// the same ownership test the Direct* methods make for themselves - asking here is what tells "nobody can
+			// take it" from "this one can" (a companion of another player is never picked)
+			if (companion == null || !IsOwned(companion, localId) || (capable != null && !capable(companion)) || !MHR_InScope(companion))
+			{
+				continue;
+			}
+			float distance = Vector3.Distance(companion.transform.position, at);
+			if (distance < best)
+			{
+				best = distance;
+				pick = companion;
+			}
+		}
+		return pick;
+	}
+
+	/// <summary>The chat/voice order id of the player in this game (the same one the command key uses).</summary>
+	private static string OrderLocalId()
+	{
+		Player player = Player.m_localPlayer;
+		return player != null ? player.GetPlayerID().ToString() : "";
+	}
+
+	/// <summary>A one-companion list: the Direct* methods were written for "everybody in range", and an order
+	/// reaches exactly one.</summary>
+	private static CompanionSetup[] Single(CompanionSetup companion)
+	{
+		return new CompanionSetup[1] { companion };
+	}
+
+	/// <summary>
+	/// Runs one of the private Direct* interactions without its random line (<see cref="SayRandom"/> is muted for the
+	/// length of the call). A chat/voice order has a line of its own - the order's, which the AI path also sends to
+	/// the TTS - so the command key's line would be a second bubble, in another voice, for the same action. Same
+	/// call, same logic: only the line is left to the caller, and the flag is restored even if the interaction throws,
+	/// so a failure never silences the next order.
+	/// </summary>
+	private static void Silent(Action run)
+	{
+		bool previous = _orderSpeech;
+		_orderSpeech = true;
+		try
+		{
+			run();
+		}
+		finally
+		{
+			_orderSpeech = previous;
+		}
+	}
+
+	private static string OrderName(CompanionSetup companion)
+	{
+		Character character = companion != null ? companion.GetComponent<Character>() : null;
+		return character != null && !string.IsNullOrEmpty(character.m_name) ? character.m_name : "?";
+	}
+
+	/// <summary>
+	/// "esvazia a colmeia" / "pega o mel": the beehive under the crosshair first, then the nearest one within 20 m of
+	/// the player, emptied by one companion through the same <see cref="DirectHive"/> the command key uses.
+	/// </summary>
+	internal static DirectOrderReport OrderHive(CompanionSetup addressee)
+	{
+		Player player = Player.m_localPlayer;
+		DirectOrderReport report = default;
+		Beehive hive = Pointed<Beehive>() ?? Nearest<Beehive>(player, HiveOrderRange, null);
+		if (hive == null)
+		{
+			report.Key = "hc_ai_hive_none";
+			CompanionsPlugin.Log?.LogInfo($"[Order] hive: nothing pointed at and no beehive within {HiveOrderRange:F0} m - nothing to do");
+			return report;
+		}
+		if (hive.m_honeyItem == null || MHR_Hive.HoneyIn(hive) <= 0)
+		{
+			// the same test DirectHive makes before it answers "no honey in there yet" (hc_cmd_hive_empty)
+			report.Key = "hc_cmd_hive_empty";
+			CompanionsPlugin.Log?.LogInfo($"[Order] hive \"{hive.m_name}\": no honey - nothing to collect");
+			return report;
+		}
+		report.Companion = OrderCompanion(addressee, hive.transform.position, c => c.GetComponent<CompanionAI>() != null);
+		if (report.Companion == null)
+		{
+			return report;
+		}
+		Silent(() => DirectHive(Single(report.Companion), OrderLocalId(), hive));
+		CompanionAI ai = report.Companion.GetComponent<CompanionAI>();
+		if (ai == null || !MHR_Hive.Active(ai))
+		{
+			// it found the hive and still didn't start (the hive is behind someone else's ward - the game itself
+			// already flashed "not allowed"): nobody took it, so the companion must not answer as if it had
+			CompanionsPlugin.Log?.LogInfo($"[Order] hive \"{hive.m_name}\": {OrderName(report.Companion)} didn't take it (ward, or no CompanionAI)");
+			report.Companion = null;
+			return report;
+		}
+		report.Key = "hc_ai_hive_done";
+		CompanionsPlugin.Log?.LogInfo($"[Order] hive \"{hive.m_name}\" ({MHR_Hive.HoneyIn(hive)} honey) -> {OrderName(report.Companion)}");
+		return report;
+	}
+
+	/// <summary>
+	/// "fecha a porta" / "abre a porta": the door under the crosshair first, then the nearest one within 20 m. It is
+	/// the command key's toggle through <see cref="DirectDoor"/> - closed when it is open, opened when it is closed -
+	/// and a locked door answers "it's locked" instead of a promise.
+	/// </summary>
+	internal static DirectOrderReport OrderDoor(CompanionSetup addressee)
+	{
+		Player player = Player.m_localPlayer;
+		DirectOrderReport report = default;
+		Door door = Pointed<Door>() ?? Nearest<Door>(player, DoorOrderRange, null);
+		if (door == null)
+		{
+			report.Key = "hc_ai_door_none";
+			CompanionsPlugin.Log?.LogInfo($"[Order] door: nothing pointed at and no door within {DoorOrderRange:F0} m - nothing to do");
+			return report;
+		}
+		if (!DoorHandler.IsUsableDoor(door))
+		{
+			report.Key = "hc_cmd_door_locked";
+			CompanionsPlugin.Log?.LogInfo($"[Order] door \"{door.m_name}\": locked (or behind a ward) - not going");
+			return report;
+		}
+		bool close = DoorHandler.IsOpen(door);
+		report.Companion = OrderCompanion(addressee, door.transform.position, c => c.GetComponent<DoorHandler>() != null);
+		if (report.Companion == null)
+		{
+			return report;
+		}
+		Silent(() => DirectDoor(Single(report.Companion), OrderLocalId(), door));
+		string name = OrderName(report.Companion);
+		if (report.Companion.GetComponent<DoorHandler>()?.IsActive != true)
+		{
+			CompanionsPlugin.Log?.LogInfo($"[Order] door \"{door.m_name}\": {name} didn't take it");
+			report.Companion = null;
+			return report;
+		}
+		report.Key = close ? "hc_ai_door_closed" : "hc_ai_door_opened";
+		CompanionsPlugin.Log?.LogInfo($"[Order] door \"{door.m_name}\" -> {name} is going to {(close ? "close" : "open")} it");
+		return report;
+	}
+
+	/// <summary>
+	/// "embarca" / "sobe no navio": the ship under the crosshair first (and, when the player points at one of its
+	/// seats, that seat - see <see cref="PointedShip"/>), then the nearest one within 30 m, boarded by one companion
+	/// through <see cref="DirectBoard"/>.
+	/// </summary>
+	internal static DirectOrderReport OrderBoard(CompanionSetup addressee)
+	{
+		Player player = Player.m_localPlayer;
+		DirectOrderReport report = default;
+		Chair seat;
+		Ship ship = PointedShip(out seat) ?? Nearest<Ship>(player, BoardOrderRange, null);
+		if (ship == null)
+		{
+			report.Key = "hc_ai_board_none";
+			CompanionsPlugin.Log?.LogInfo($"[Order] board: nothing pointed at and no ship within {BoardOrderRange:F0} m - nothing to do");
+			return report;
+		}
+		report.Companion = OrderCompanion(addressee, ship.transform.position, c => c.GetComponent<CompanionAI>() != null);
+		if (report.Companion == null)
+		{
+			return report;
+		}
+		Silent(() => DirectBoard(Single(report.Companion), OrderLocalId(), ship, seat));
+		CompanionAI ai = report.Companion.GetComponent<CompanionAI>();
+		if (ai == null || (!MHR_Board.Active(ai) && !ai.IsOnShip))
+		{
+			// DirectBoard has nothing to start for that one (already aboard counts as done, right below)
+			CompanionsPlugin.Log?.LogInfo($"[Order] board \"{ship.name}\": {OrderName(report.Companion)} didn't start boarding");
+			report.Companion = null;
+			return report;
+		}
+		report.Key = "hc_ai_board_done";
+		CompanionsPlugin.Log?.LogInfo($"[Order] board \"{ship.name}\"{(seat != null ? $" seat \"{seat.m_name}\"" : "")} -> {OrderName(report.Companion)}");
+		return report;
+	}
+
+	/// <summary>
+	/// "senta" / "senta perto do fogo": the fireplace under the crosshair first, then the nearest one within 5 m. An
+	/// unlit fire is not a place to sit - the mod's own direct sit does nothing on one - so only a burning fire
+	/// counts.
+	/// </summary>
+	internal static DirectOrderReport OrderSit(CompanionSetup addressee)
+	{
+		Player player = Player.m_localPlayer;
+		DirectOrderReport report = default;
+		Fireplace fire = Pointed<Fireplace>();
+		if (fire == null || !fire.IsBurning())
+		{
+			fire = Nearest<Fireplace>(player, SitOrderRange, f => f.IsBurning());
+		}
+		if (fire == null)
+		{
+			report.Key = "hc_ai_sit_none";
+			CompanionsPlugin.Log?.LogInfo($"[Order] sit: nothing lit pointed at and no burning fire within {SitOrderRange:F0} m - nothing to do");
+			return report;
+		}
+		report.Companion = OrderCompanion(addressee, fire.transform.position, c => c.GetComponent<CompanionRest>() != null);
+		if (report.Companion == null)
+		{
+			return report;
+		}
+		Silent(() => DirectSit(Single(report.Companion), OrderLocalId(), fire));
+		CompanionRest rest = report.Companion.GetComponent<CompanionRest>();
+		if (rest == null || (!rest.IsResting && !rest.IsNavigating))
+		{
+			// the command key's sit is a toggle: a companion already sitting by a directed order stood up instead
+			CompanionsPlugin.Log?.LogInfo($"[Order] sit: {OrderName(report.Companion)} didn't sit (already sitting - the command-key toggle stood it up)");
+			report.Companion = null;
+			return report;
+		}
+		report.Key = "hc_ai_sit_done";
+		CompanionsPlugin.Log?.LogInfo($"[Order] sit near \"{fire.m_name}\" -> {OrderName(report.Companion)}");
+		return report;
+	}
+
+	/// <summary>
+	/// "guarda isso no baú" / "larga tudo no baú": the container under the crosshair first, then the nearest one
+	/// within 5 m (never the companion's own pack). The count of the answer is how many stacks the companion is
+	/// about to put away - the same rule <see cref="DirectDeposit"/> uses to decide it has anything to give - and a
+	/// chest with no room left for a single unit answers "there's no room" instead of a promise.
+	/// </summary>
+	internal static DirectOrderReport OrderDeposit(CompanionSetup addressee)
+	{
+		Player player = Player.m_localPlayer;
+		DirectOrderReport report = default;
+		Container chest = Pointed<Container>();
+		if (!IsChestForOrders(chest))
+		{
+			chest = Nearest<Container>(player, DepositOrderRange, IsChestForOrders);
+		}
+		if (chest == null)
+		{
+			report.Key = "hc_ai_deposit_none";
+			CompanionsPlugin.Log?.LogInfo($"[Order] deposit: nothing pointed at and no chest within {DepositOrderRange:F0} m - nothing to do");
+			return report;
+		}
+		report.Companion = OrderCompanion(addressee, chest.transform.position, c => c.GetComponent<Humanoid>() != null);
+		if (report.Companion == null)
+		{
+			return report;
+		}
+		Humanoid humanoid = report.Companion.GetComponent<Humanoid>();
+		Inventory bag = humanoid != null ? humanoid.GetInventory() : null;
+		Inventory into = chest.GetInventory();
+		if (bag == null || into == null)
+		{
+			report.Companion = null;
+			return report;
+		}
+		int give = 0;
+		int fits = 0;
+		foreach (ItemDrop.ItemData item in bag.GetAllItems())
+		{
+			if (ShouldKeep(item, humanoid))
+			{
+				continue;
+			}
+			give++;
+			if (into.CanAddItem(item, 1))
+			{
+				fits++;
+			}
+		}
+		if (give == 0)
+		{
+			report.Key = "hc_cmd_deposit_empty_1";
+			CompanionsPlugin.Log?.LogInfo($"[Order] deposit: {OrderName(report.Companion)} has nothing to put away");
+			report.Companion = null;
+			return report;
+		}
+		if (fits == 0)
+		{
+			report.Key = "hc_ai_deposit_full";
+			CompanionsPlugin.Log?.LogInfo($"[Order] deposit into \"{chest.m_name}\": no room for a single unit - not going");
+			report.Companion = null;
+			return report;
+		}
+		Silent(() => DirectDeposit(Single(report.Companion), OrderLocalId(), chest));
+		CompanionAI ai = report.Companion.GetComponent<CompanionAI>();
+		if (ai == null || ai.PendingDepositContainer == null)
+		{
+			CompanionsPlugin.Log?.LogInfo($"[Order] deposit into \"{chest.m_name}\": {OrderName(report.Companion)} didn't take it");
+			report.Companion = null;
+			return report;
+		}
+		report.Key = "hc_ai_deposit_done";
+		report.Amount = give;
+		CompanionsPlugin.Log?.LogInfo($"[Order] deposit into \"{chest.m_name}\": {give} stack(s) -> {OrderName(report.Companion)}");
+		return report;
+	}
+
 	private static GameObject GetHarvestable(Collider col)
 	{
 		TreeBase componentInParent = col.GetComponentInParent<TreeBase>();
@@ -2069,6 +2539,12 @@ public class CompanionInteract : MonoBehaviour
 
 	private static void SayRandom(CompanionTalk talk, string[] pool)
 	{
+		// Fase 2.0: a chat/voice order says its OWN line (the order's, which the AI path also sends to the TTS), so the
+		// random line of the command key would be a second bubble for the very same action - see Silent().
+		if (_orderSpeech)
+		{
+			return;
+		}
 		if (!(talk == null) && pool != null && pool.Length != 0)
 		{
 			// 1.5.41: a reply to an order is said straight away

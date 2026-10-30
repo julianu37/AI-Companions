@@ -36,6 +36,24 @@ with our AI layer, localization and UI band kept.
   `[Speech] Enabled`, `FarAwayMessages`, `AnnounceDeath`.
 - The F8 panel now clears the new per-row action dictionaries when it rebuilds (no stale rows).
 
+### New orders
+
+Five orders that reuse what the **command key** already does, typed in the chat or **spoken** (the same path, with
+personality and memory): **`hive`** (empty the beehive), **`door`** (close an open door / open a closed one),
+**`board`** (board the ship, taking the seat you point at), **`sit`** (sit by a fire) and **`deposit`** (put what the
+companion carries into a chest).
+
+- The target is the object you are **looking at** (the command key's own ray and layers) and, with nothing under the
+  crosshair, the nearest one around you — 20 m for a beehive or a door, 30 m for a ship, 5 m for a fire or a chest
+  (never the companion's own pack).
+- The order reaches **one** companion (the one you named, or the nearest that can take orders) and answers with its
+  own line: "Closing the door.", "On board!", "Putting 12 item(s) in the chest.". A locked door still answers
+  "It's locked.", an empty beehive "No honey in there yet." and a full chest "There's no room in that chest.".
+- 17 new strings in the five languages, and the prompt contract teaches the five actions in every language (+7 lines
+  each, no extra examples beyond the two that matter: "close the door" and "put this in the chest"). A small model
+  answering `inventory_close` for "close the door" (the verb "close" is an alias of that action) is read back as the
+  door order, by the same rule that reads the pack from the action word.
+
 ## 1.9.1 — 26/10/2026
 
 **A ~54 MB lighter package.** The `ggml-base-q5_1.bin` model (57 MB) is **no longer shipped**: the mod never used it

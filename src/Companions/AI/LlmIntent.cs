@@ -269,6 +269,15 @@ internal sealed class LlmIntent
 			return IsCloseWord(normalizedAction) ? "inventory_close" : "inventory";
 		}
 
+		// Fase 3.8/Fase 2.0: "fecha a porta" comes back from a small model as "inventory_close" - the verb "fecha" is
+		// an alias of that action - and "abre a porta" as "inventory". The word for the door in the action wins, the
+		// same way IsInventoryWord above reads the pack from the action: it is the command key's door interaction, not
+		// the inventory window.
+		if (IsDoorWord(normalizedAction))
+		{
+			return "door";
+		}
+
 		// an explicit "stance" field ("balanced", "defensive"...) turns the action into a stance order
 		if (!string.IsNullOrEmpty(normalizedStance) && string.IsNullOrEmpty(normalizedAction))
 		{
@@ -379,6 +388,31 @@ internal sealed class LlmIntent
 			}
 		}
 		return carries && see;
+	}
+
+	/// <summary>Fase 2.0: does the action word name a door? ("fecha_a_porta", "close_door", "fermer_la_porte",
+	/// "cerrar_la_puerta") - the command key's door interaction, which the small model files as inventory_close
+	/// because of the verb. Matched by whole word (the action name comes normalized with "_" between its words), so
+	/// "transportar" or "importante" can never be read as a door.</summary>
+	private static bool IsDoorWord(string action)
+	{
+		foreach (string word in action.Split('_'))
+		{
+			switch (word)
+			{
+			case "porta":
+			case "portas":
+			case "portao":
+			case "puerta":
+			case "puertas":
+			case "porte":
+			case "portes":
+			case "door":
+			case "doors":
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/// <summary>Fase 3.8: the verbs that ask to SEE something ("abre", "mostra", "open").</summary>
@@ -495,6 +529,14 @@ internal sealed class LlmIntent
 		// player. The bare verbs ("abre", "mostra") are here too: they mean nothing else to us.
 		Add(map, "inventory", "inventory", "inventario", "inventarios", "inventario_do_companheiro", "abrir_inventario", "abre_inventario", "abre_o_inventario", "abre_o_teu_inventario", "abre_teu_inventario", "abrir_o_inventario", "abrir_o_teu_inventario", "mostra_inventario", "mostra_o_inventario", "mostra_o_teu_inventario", "mostrar_inventario", "mostrar_o_inventario", "ver_inventario", "ver_o_inventario", "abre", "abrir", "abra", "open", "mostra", "mostrar", "mostre", "mochila", "bolsa", "bag");
 		Add(map, "inventory_close", "inventory_close", "close_inventory", "fechar_inventario", "fecha_inventario", "fechar_o_inventario", "fecha_o_inventario", "fechar_janela", "fecha_janela", "fechar", "fecha", "feche", "close", "esconder_inventario");
+		// Fase 2.0: the five interactions the command key already does. A small model often answers with the very
+		// word the player used ("senta", "colmeia", "porta", "embarca", "guarda"), so the verb is a way back to the
+		// action. Only names of the action are mapped here - what the order DOES is still CompanionInteract's job.
+		Add(map, "hive", "hive", "colmeia", "colmeias", "beehive", "bee_hive", "esvaziar_colmeia", "colmena", "ruche", "alveare");
+		Add(map, "door", "door", "porta", "portas", "porte", "puerta", "abrir_porta", "fechar_porta", "open_door", "close_door");
+		Add(map, "board", "board", "embarcar", "embarca", "embarque", "a_bordo", "subir_a_bordo", "navio", "ship", "barco", "boat", "embarquer", "bateau", "navire", "imbarcare", "nave", "barca");
+		Add(map, "sit", "sit", "senta", "sentar", "sente", "sentar_se", "sit_down", "sientate", "sentarse", "assieds", "asseoir", "siediti", "sedersi");
+		Add(map, "deposit", "deposit", "depositar", "deposita", "guardar", "guarda", "guardar_no_bau", "bau", "baul", "chest", "cofre", "coffre", "coffret", "cassa", "baule", "armazenar", "guardar_tudo");
 		Add(map, "none", "none", "null", "nada", "nenhuma", "nenhum", "n_a", "conversa", "conversation", "chat", "saudacao", "oi", "ola", "bom_dia", "boa_tarde", "boa_noite", "obrigado", "obrigada", "valeu", "hello", "hi", "hey", "thanks", "pergunta", "duvida");
 		// verbs that mean "go and collect something": the job comes from the resource field
 		Add(map, "#gather", "gather", "collect", "coletar", "colete", "coletem", "peguem", "apanhar", "apanha", "minerar_tudo", "juntar", "junta");

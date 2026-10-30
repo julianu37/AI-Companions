@@ -46,7 +46,7 @@ internal static class CompanionChatAI
 	/// gathering order in its own language). The choice uses <see cref="CompanionLocale.Current"/> (the one table the
 	/// TTS and the personality presets use), and any language without a contract of its own gets <b>English</b>.
 	///
-	/// <para>The <b>tokens</b> never change: the keys, the JSON shape and the 30 actions of
+	/// <para>The <b>tokens</b> never change: the keys, the JSON shape and the 35 actions of
 	/// <see cref="ValidActions"/> are the same in every language (the schema sent as <c>response_format</c> is built
 	/// from them). What is translated are the rules and the examples - including, in every language, the pair that
 	/// confuses the model: gathering with a number ("collect 10 wood") and picking up from the ground ("pick up the
@@ -89,6 +89,8 @@ internal static class CompanionChatAI
 		+ "drop (largar/jogar fora um item que o companheiro já tem),\n"
 		+ "inventory (abrir o inventário do companheiro para o jogador ver o que ele carrega),\n"
 		+ "inventory_close (fechar a janela do inventário que está aberta),\n"
+		+ "hive (esvaziar a colmeia), door (fechar/abrir a porta), board (embarcar no navio),\n"
+		+ "sit (sentar perto do fogo), deposit (guardar o que carrega num baú),\n"
 		+ "farm (cuidar da plantação), fish (pescar), repair (reparar construções e reabastecer),\n"
 		+ "cook (cozinhar comida), stop (parar o que está fazendo e voltar a seguir), come (vir até o jogador),\n"
 		+ "sethome (definir a casa aqui), wander (vagar por perto), nowander (parar de vagar),\n"
@@ -125,6 +127,9 @@ internal static class CompanionChatAI
 		+ "  carrega\"): você abre a sua mochila para ele, com as duas mãos - isso não é conversa.\n"
 		+ "- inventory_close quando o jogador pedir para FECHAR a janela (\"fecha o inventário\", \"fecha a mochila\"): nunca use\n"
 		+ "  \"inventory\" para isso - abrir de novo é o contrário do que ele pediu.\n"
+		+ "- hive, door, board, sit e deposit são as INTERAÇÕES da tecla de comando: o alvo é o objeto que o jogador está\n"
+		+ "  OLHANDO (se não estiver olhando nada, vale o mais próximo). \"fecha a porta\" é door, NUNCA inventory_close;\n"
+		+ "  \"guarda isso no baú\" é deposit, NUNCA drop.\n"
 		+ "- Use \"none\" sempre que não tiver certeza: conversa, dúvida ou pedido que não é uma das ações acima.\n"
 		+ "Exemplos:\n"
 		+ "\"colete 20 de madeira\" -> {\"action\":\"wood\",\"reply\":\"Vou buscar madeira.\",\"target\":null,\"resource\":\"wood\",\"amount\":20}\n"
@@ -147,6 +152,8 @@ internal static class CompanionChatAI
 		+ "\"abre o teu inventário\" -> {\"action\":\"inventory\",\"reply\":\"Aqui está, chefe.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"mostra o que você carrega\" -> {\"action\":\"inventory\",\"reply\":\"Dá uma olhada.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"fecha o inventário\" -> {\"action\":\"inventory_close\",\"reply\":\"Fechando.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
+		+ "\"fecha a porta\" -> {\"action\":\"door\",\"reply\":\"Já vou.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
+		+ "\"guarda isso no baú\" -> {\"action\":\"deposit\",\"reply\":\"Guardando.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"segue\" -> {\"action\":\"follow\",\"reply\":\"Estou com você.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"para\" -> {\"action\":\"stop\",\"reply\":\"Parando.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"vem cá\" -> {\"action\":\"come\",\"reply\":\"Já vou.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
@@ -165,6 +172,8 @@ internal static class CompanionChatAI
 		+ "drop (drop/throw away an item the companion already has),\n"
 		+ "inventory (open the companion's inventory so the player can see what it carries),\n"
 		+ "inventory_close (close the inventory window that is open),\n"
+		+ "hive (empty the beehive), door (open/close the door), board (board the ship),\n"
+		+ "sit (sit down by the fire), deposit (put what you carry in a chest),\n"
 		+ "farm (take care of the crops), fish (fish), repair (repair buildings and refuel),\n"
 		+ "cook (cook food), stop (stop what you are doing and follow again), come (come to the player),\n"
 		+ "sethome (set the home here), wander (wander around), nowander (stop wandering),\n"
@@ -201,6 +210,9 @@ internal static class CompanionChatAI
 		+ "  carry\"): you open your pack for them, with both hands - that is not conversation.\n"
 		+ "- inventory_close when the player asks to CLOSE the window (\"close the inventory\", \"close the pack\"): never use\n"
 		+ "  \"inventory\" for that - opening it again is the opposite of what they asked.\n"
+		+ "- hive, door, board, sit and deposit are the COMMAND-KEY interactions: the target is the object the player is\n"
+		+ "  LOOKING at (looking at nothing means the nearest one). \"close the door\" is door, NEVER inventory_close;\n"
+		+ "  \"put this in the chest\" is deposit, NEVER drop.\n"
 		+ "- Use \"none\" whenever you are not sure: conversation, doubt, or a request that is not one of the actions above.\n"
 		+ "Examples:\n"
 		+ "\"gather 20 wood\" -> {\"action\":\"wood\",\"reply\":\"I'll get some wood.\",\"target\":null,\"resource\":\"wood\",\"amount\":20}\n"
@@ -224,6 +236,8 @@ internal static class CompanionChatAI
 		+ "\"open your inventory\" -> {\"action\":\"inventory\",\"reply\":\"Here it is, boss.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"show me what you carry\" -> {\"action\":\"inventory\",\"reply\":\"Take a look.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"close the inventory\" -> {\"action\":\"inventory_close\",\"reply\":\"Closing it.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
+		+ "\"close the door\" -> {\"action\":\"door\",\"reply\":\"On it.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
+		+ "\"put this in the chest\" -> {\"action\":\"deposit\",\"reply\":\"Putting it away.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"follow me\" -> {\"action\":\"follow\",\"reply\":\"I'm with you.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"stop\" -> {\"action\":\"stop\",\"reply\":\"Stopping.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"come here\" -> {\"action\":\"come\",\"reply\":\"Coming.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
@@ -242,6 +256,8 @@ internal static class CompanionChatAI
 		+ "drop (soltar/tirar un objeto que el compañero ya tiene),\n"
 		+ "inventory (abrir el inventario del compañero para que el jugador vea lo que lleva),\n"
 		+ "inventory_close (cerrar la ventana del inventario que está abierta),\n"
+		+ "hive (vaciar la colmena), door (abrir/cerrar la puerta), board (subir al barco),\n"
+		+ "sit (sentarse junto al fuego), deposit (guardar lo que llevas en un cofre),\n"
 		+ "farm (cuidar del cultivo), fish (pescar), repair (reparar construcciones y reabastecer),\n"
 		+ "cook (cocinar comida), stop (parar lo que estás haciendo y volver a seguir), come (venir hasta el jugador),\n"
 		+ "sethome (fijar la casa aquí), wander (vagar por aquí), nowander (dejar de vagar),\n"
@@ -277,6 +293,9 @@ internal static class CompanionChatAI
 		+ "  abres tu mochila para él, con las dos manos - eso no es conversación.\n"
 		+ "- inventory_close cuando el jugador pida CERRAR la ventana (\"cierra el inventario\", \"cierra la mochila\"): nunca uses\n"
 		+ "  \"inventory\" para eso - abrirla otra vez es lo contrario de lo que pidió.\n"
+		+ "- hive, door, board, sit y deposit son las INTERACCIONES de la tecla de comando: el objetivo es el objeto que el\n"
+		+ "  jugador está MIRANDO (sin mirar nada vale el más cercano). \"cierra la puerta\" es door, NUNCA inventory_close;\n"
+		+ "  \"guarda esto en el cofre\" es deposit, NUNCA drop.\n"
 		+ "- Usa \"none\" siempre que no estés seguro: conversación, duda o una petición que no es ninguna de las acciones de arriba.\n"
 		+ "Ejemplos:\n"
 		+ "\"recoge 20 de madera\" -> {\"action\":\"wood\",\"reply\":\"Voy a por madera.\",\"target\":null,\"resource\":\"wood\",\"amount\":20}\n"
@@ -300,6 +319,8 @@ internal static class CompanionChatAI
 		+ "\"abre tu inventario\" -> {\"action\":\"inventory\",\"reply\":\"Aquí está, jefe.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"muéstrame lo que llevas\" -> {\"action\":\"inventory\",\"reply\":\"Échale un ojo.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"cierra el inventario\" -> {\"action\":\"inventory_close\",\"reply\":\"Cerrando.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
+		+ "\"cierra la puerta\" -> {\"action\":\"door\",\"reply\":\"Ya voy.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
+		+ "\"guarda esto en el cofre\" -> {\"action\":\"deposit\",\"reply\":\"Guardando.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"sígueme\" -> {\"action\":\"follow\",\"reply\":\"Estoy contigo.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"para\" -> {\"action\":\"stop\",\"reply\":\"Parando.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"ven aquí\" -> {\"action\":\"come\",\"reply\":\"Ya voy.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
@@ -318,6 +339,8 @@ internal static class CompanionChatAI
 		+ "drop (lâcher/jeter un objet que le compagnon a déjà),\n"
 		+ "inventory (ouvrir l'inventaire du compagnon pour que le joueur voie ce qu'il porte),\n"
 		+ "inventory_close (fermer la fenêtre d'inventaire qui est ouverte),\n"
+		+ "hive (vider la ruche), door (ouvrir/fermer la porte), board (monter sur le bateau),\n"
+		+ "sit (s'asseoir près du feu), deposit (ranger ce que tu portes dans un coffre),\n"
 		+ "farm (s'occuper de la culture), fish (pêcher), repair (réparer les constructions et réapprovisionner),\n"
 		+ "cook (cuisiner de la nourriture), stop (arrêter ce que tu fais et suivre de nouveau), come (venir vers le joueur),\n"
 		+ "sethome (définir la maison ici), wander (flâner dans le coin), nowander (arrêter de flâner),\n"
@@ -356,6 +379,9 @@ internal static class CompanionChatAI
 		+ "  tu portes ») : tu ouvres ton sac pour lui, à deux mains - ce n'est pas de la conversation.\n"
 		+ "- inventory_close quand le joueur demande de FERMER la fenêtre (« ferme l'inventaire », « ferme le sac ») :\n"
 		+ "  n'utilise jamais \"inventory\" pour ça - rouvrir, c'est le contraire de ce qu'il a demandé.\n"
+		+ "- hive, door, board, sit et deposit sont les INTERACTIONS de la touche de commande : la cible est l'objet que le\n"
+		+ "  joueur REGARDE (s'il ne regarde rien, le plus proche). « ferme la porte » est door, JAMAIS inventory_close ;\n"
+		+ "  « range ça dans le coffre » est deposit, JAMAIS drop.\n"
 		+ "- Utilise \"none\" dès que tu n'es pas sûr : conversation, doute ou demande qui n'est aucune des actions ci-dessus.\n"
 		+ "Exemples :\n"
 		+ "« ramasse 20 bois » -> {\"action\":\"wood\",\"reply\":\"Je vais chercher du bois.\",\"target\":null,\"resource\":\"wood\",\"amount\":20}\n"
@@ -378,6 +404,8 @@ internal static class CompanionChatAI
 		+ "« ouvre ton inventaire » -> {\"action\":\"inventory\",\"reply\":\"Le voilà, chef.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "« montre-moi ce que tu portes » -> {\"action\":\"inventory\",\"reply\":\"Jette un œil.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "« ferme l'inventaire » -> {\"action\":\"inventory_close\",\"reply\":\"Je ferme.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
+		+ "« ferme la porte » -> {\"action\":\"door\",\"reply\":\"J'y vais.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
+		+ "« range ça dans le coffre » -> {\"action\":\"deposit\",\"reply\":\"Je range.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "« suis-moi » -> {\"action\":\"follow\",\"reply\":\"Je suis avec toi.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "« arrête » -> {\"action\":\"stop\",\"reply\":\"J'arrête.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "« viens ici » -> {\"action\":\"come\",\"reply\":\"J'arrive.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
@@ -396,6 +424,8 @@ internal static class CompanionChatAI
 		+ "drop (lasciare/buttare via un oggetto che il compagno ha già),\n"
 		+ "inventory (aprire l'inventario del compagno perché il giocatore veda cosa porta),\n"
 		+ "inventory_close (chiudere la finestra dell'inventario che è aperta),\n"
+		+ "hive (svuotare l'alveare), door (aprire/chiudere la porta), board (salire sulla nave),\n"
+		+ "sit (sedersi accanto al fuoco), deposit (mettere quello che porti in una cassa),\n"
 		+ "farm (occuparsi delle colture), fish (pescare), repair (riparare le costruzioni e rifornire),\n"
 		+ "cook (cucinare il cibo), stop (fermare quello che stai facendo e tornare a seguire), come (venire dal giocatore),\n"
 		+ "sethome (impostare la casa qui), wander (gironzolare qui intorno), nowander (smettere di gironzolare),\n"
@@ -433,6 +463,9 @@ internal static class CompanionChatAI
 		+ "  porti\"): apri la tua sacca per lui, con due mani - non è conversazione.\n"
 		+ "- inventory_close quando il giocatore chiede di CHIUDERE la finestra (\"chiudi l'inventario\", \"chiudi la sacca\"):\n"
 		+ "  non usare mai \"inventory\" per questo - riaprirla è il contrario di quello che ha chiesto.\n"
+		+ "- hive, door, board, sit e deposit sono le INTERAZIONI del tasto comando: il bersaglio è l'oggetto che il giocatore\n"
+		+ "  sta GUARDANDO (senza guardare nulla vale il più vicino). \"chiudi la porta\" è door, MAI inventory_close;\n"
+		+ "  \"metti questo nella cassa\" è deposit, MAI drop.\n"
 		+ "- Usa \"none\" ogni volta che non sei sicuro: conversazione, dubbio o richiesta che non è una delle azioni qui sopra.\n"
 		+ "Esempi:\n"
 		+ "\"raccogli 20 legna\" -> {\"action\":\"wood\",\"reply\":\"Vado a prendere la legna.\",\"target\":null,\"resource\":\"wood\",\"amount\":20}\n"
@@ -455,6 +488,8 @@ internal static class CompanionChatAI
 		+ "\"apri il tuo inventario\" -> {\"action\":\"inventory\",\"reply\":\"Ecco, capo.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"mostrami cosa porti\" -> {\"action\":\"inventory\",\"reply\":\"Dai un'occhiata.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"chiudi l'inventario\" -> {\"action\":\"inventory_close\",\"reply\":\"Chiudo.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
+		+ "\"chiudi la porta\" -> {\"action\":\"door\",\"reply\":\"Vado.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
+		+ "\"metti questo nella cassa\" -> {\"action\":\"deposit\",\"reply\":\"Metto via.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"seguimi\" -> {\"action\":\"follow\",\"reply\":\"Sono con te.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"fermati\" -> {\"action\":\"stop\",\"reply\":\"Mi fermo.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"vieni qui\" -> {\"action\":\"come\",\"reply\":\"Arrivo.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
@@ -472,6 +507,8 @@ internal static class CompanionChatAI
 	{
 		"follow", "wood", "stone", "ore", "forage", "smelt", "hunt", "attack", "equip", "drop", "inventory",
 		"inventory_close",
+		// Fase 2.0: the five interactions the command key already does (see CompanionInteract.Order*)
+		"hive", "door", "board", "sit", "deposit",
 		"farm", "fish", "repair", "cook", "stop", "come", "sethome", "wander", "nowander", "pickup", "nopickup",
 		"command", "nocommand", "stance_balanced", "stance_passive", "stance_ranged", "stance_melee", "none"
 	};

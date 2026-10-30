@@ -248,6 +248,14 @@ internal static class CompanionOrders
 			return CloseInventory(outcome);
 		}
 
+		// Fase 2.0: the five orders that reuse an interaction the command key already does (empty the beehive, toggle
+		// a door, board a ship, sit by a fire, put the pack away in a chest). They reach ONE companion, like attack and
+		// equip, and answer with their own line - the target is what the player is looking at, or the nearest one.
+		if (IsInteraction(action))
+		{
+			return Interaction(action, outcome, addressee);
+		}
+
 		foreach (CompanionSetup companion2 in CompanionSetup.AllCompanions)
 		{
 			// Fase 3.11: a named order skips the others before anything is read or taken over
@@ -603,6 +611,84 @@ internal static class CompanionOrders
 		outcome.Count = 1;
 		outcome.Message = ModLocalization.Loc("hc_ai_inventory_closed");
 		CompanionsPlugin.Log?.LogInfo("[IA] Order \"inventory_close\": window closed");
+		return outcome;
+	}
+
+	// ---- Fase 2.0: the interaction orders (chat and voice) ----
+
+	/// <summary>The five actions that reuse an interaction of the command key (see
+	/// <see cref="CompanionInteract.OrderHive"/> and the other Order* wrappers).</summary>
+	private static bool IsInteraction(string action)
+	{
+		switch (action)
+		{
+		case "hive":
+		case "door":
+		case "board":
+		case "sit":
+		case "deposit":
+			return true;
+		default:
+			return false;
+		}
+	}
+
+	/// <summary>
+	/// "esvazia a colmeia", "fecha a porta", "embarca", "senta", "guarda isso no baú": each one is the interaction the
+	/// command key already does, so the whole job here is picking the ONE companion (the addressee, or the nearest
+	/// one that can take an order - the same gate attack/equip use) and turning the answer of
+	/// <see cref="CompanionInteract"/> into the chat line and the bubble. The interaction itself, the target
+	/// resolution and the "nothing nearby / locked / full" cases belong to <see cref="CompanionInteract"/>.
+	///
+	/// <para>A call that found nothing to act on answers with its own line (<c>hc_ai_*_none</c>,
+	/// <c>hc_cmd_door_locked</c>, <c>hc_cmd_hive_empty</c>, <c>hc_ai_deposit_full</c>); a call with a target and no
+	/// companion to take it leaves the answer to the caller ("no companion answered"), which is what the generic
+	/// path of <see cref="Run"/> already says.</para>
+	/// </summary>
+	private static OrderOutcome Interaction(string action, OrderOutcome outcome, CompanionSetup addressee)
+	{
+		CompanionInteract.DirectOrderReport report;
+		switch (action)
+		{
+		case "hive":
+			report = CompanionInteract.OrderHive(addressee);
+			break;
+		case "door":
+			report = CompanionInteract.OrderDoor(addressee);
+			break;
+		case "board":
+			report = CompanionInteract.OrderBoard(addressee);
+			break;
+		case "sit":
+			report = CompanionInteract.OrderSit(addressee);
+			break;
+		default:
+			report = CompanionInteract.OrderDeposit(addressee);
+			break;
+		}
+		if (!string.IsNullOrEmpty(report.Key))
+		{
+			outcome.Message = report.Amount > 0
+				? ModLocalization.LocFmt(report.Key, report.Amount)
+				: ModLocalization.Loc(report.Key);
+		}
+		if (report.Companion == null)
+		{
+			CompanionsPlugin.Log?.LogInfo($"[IA] Order \"{action}\": "
+				+ (string.IsNullOrEmpty(outcome.Message) ? "no companion took it (out of range or Command off)" : $"nothing to act on - \"{outcome.Message}\""));
+			return outcome;
+		}
+		outcome.Count = 1;
+		if (!string.IsNullOrEmpty(outcome.Message))
+		{
+			CompanionTalk talk = report.Companion.GetComponent<CompanionTalk>();
+			if (talk != null)
+			{
+				// Fase 3.17: the AI path already speaks this line (SpeakOutLoud) - only the bubble here
+				talk.Say(outcome.Message, true, withVoice: false);
+			}
+		}
+		CompanionsPlugin.Log?.LogInfo($"[IA] Order \"{action}\" -> {NameOf(report.Companion)} (\"{outcome.Message}\")");
 		return outcome;
 	}
 
