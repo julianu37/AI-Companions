@@ -328,6 +328,11 @@ public class CompanionTombstoneResurrect : MonoBehaviour
 		if (!string.IsNullOrEmpty(mhrId) && text4 == (Player.m_localPlayer?.GetPlayerID().ToString() ?? "") && MHR_Roster.GenOf(mhrId) > mhrGen)
 		{
 			CompanionsPlugin.Log.LogWarning("[Resurrect] \"" + text2 + "\" was recovered since this tombstone was made - it won't respawn from it (items stay in it)");
+			// Fase 3.19 (auditoria 3.6): these two writes are what disarms this tombstone for good, so they need the ZDO -
+			// the same claim the end of a resurrection makes (SetOwner is what ZNetView.ClaimOwnership calls). When the
+			// claim does not arrive the write stays local, and that is safe: the check above is evaluated again on every
+			// attempt (the companion is still the newer copy), so nothing is disarmed twice and no second copy comes back.
+			tombZdo.SetOwner(ZDOMan.GetSessionID());
 			tombZdo.Set(RespawnOwnerHash, "");
 			tombZdo.Set(RespawnPrefabHash, "");
 			if (!(comp == null))

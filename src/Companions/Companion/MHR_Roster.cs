@@ -70,6 +70,15 @@ internal static class MHR_Roster
 
 		// 1.5.80: despawned (unsummoned) - kept for recovery without gear; also at the end
 		public bool Unsummoned;
+
+		// Fase 3.10 (auditoria A6): the AI profile of this companion - the voice it speaks with and the personality it
+		// answers in - so a companion recovered from the roster comes back talking like itself instead of falling back to
+		// the [AI] defaults. Same four keys the tombstone already carries (see CompanionTombstoneResurrect.WriteAiProfile)
+		// and written at the end of the entry, so a roster saved before this change still loads.
+		public int AiVoice;
+		public bool AiPersonaSet;
+		public string AiPreset = "";
+		public string AiPersona = "";
 	}
 
 	// 1.5.80: companions unsummoned in this game session (user: "the unsummoned recovery should only be until the player
@@ -223,6 +232,11 @@ internal static class MHR_Roster
 		zPackage.Write(e.Dead);
 		zPackage.Write(e.FarmZones ?? "");
 		zPackage.Write(e.Unsummoned);
+		// Fase 3.10 (auditoria A6): the AI profile, after everything else - see the note on Entry
+		zPackage.Write(e.AiVoice);
+		zPackage.Write(e.AiPersonaSet);
+		zPackage.Write(e.AiPreset ?? "");
+		zPackage.Write(e.AiPersona ?? "");
 		return zPackage.GetBase64();
 	}
 
@@ -263,7 +277,13 @@ internal static class MHR_Roster
 				LastSeen = zPackage.ReadDouble(),
 				Dead = zPackage.ReadBool(),
 				FarmZones = ReadOptionalString(zPackage),
-				Unsummoned = ReadOptionalBool(zPackage)
+				Unsummoned = ReadOptionalBool(zPackage),
+				// Fase 3.10 (auditoria A6): entries saved before this change end here - each reader answers its own
+				// "nothing written" value, so an old roster keeps loading (the companion just follows [AI])
+				AiVoice = ReadOptionalInt(zPackage),
+				AiPersonaSet = ReadOptionalBool(zPackage),
+				AiPreset = ReadOptionalString(zPackage),
+				AiPersona = ReadOptionalString(zPackage)
 			};
 		}
 		catch (Exception ex)
@@ -294,6 +314,20 @@ internal static class MHR_Roster
 		catch
 		{
 			return "";
+		}
+	}
+
+	/// <summary>Fase 3.10 (auditoria A6): the int half of <see cref="ReadOptionalString"/> - 0 ("nothing written") for a
+	/// roster entry that predates the AI profile.</summary>
+	private static int ReadOptionalInt(ZPackage p)
+	{
+		try
+		{
+			return (p.GetPos() < p.Size()) ? p.ReadInt() : 0;
+		}
+		catch
+		{
+			return 0;
 		}
 	}
 
@@ -373,7 +407,8 @@ internal static class MHR_Roster
 	/// unknown - the entries saved with the character) plus every live companion the roster hasn't snapshotted yet
 	/// (the first snapshot only happens a few seconds after entering the world). Used by the
 	/// <c>[General] MaxCompanions</c> ceiling - dying does not free a place, because the tombstone brings the same
-	/// companion back instead of creating one.
+	/// companion back instead of creating one. A live companion whose id this game cannot read yet is counted once, from
+	/// the roster: see the note in the loop below.
 	/// </summary>
 	internal static int CountMine()
 	{
@@ -415,7 +450,23 @@ internal static class MHR_Roster
 				continue;
 			}
 			string id = zdo.GetString(CompanionSetup.MHR_CompanionIdHash, "");
-			if (!string.IsNullOrEmpty(id) && ids.Contains(id))
+			if (string.IsNullOrEmpty(id))
+			{
+				// Fase 3.19 (auditoria A2): a live companion with no HC_CompanionId yet is one of two things, and only
+				// the second one may add a place of its own:
+				//   (a) one of OUR companions being run by another player's game - the id is only written by the game
+				//       that owns the ZDO, so this client never sees it - which is already counted from the roster
+				//       above; counting it again made the ceiling refuse with "you already have 11";
+				//   (b) a companion created moments ago (every spawn path writes the id on its first Update), which
+				//       still has to count - and only the empty roster leaves room for one, since every existing
+				//       companion of ours is an entry here.
+				if (s_entries.Count == 0)
+				{
+					count++;
+				}
+				continue;
+			}
+			if (ids.Contains(id))
 			{
 				continue;   // already counted from the roster
 			}
@@ -596,6 +647,13 @@ internal static class MHR_Roster
 		entry.HasBed = zdo.GetBool(CompanionSetup.HasHomeBedHash);
 		entry.BedPos = zdo.GetVec3(CompanionSetup.HomeBedPosHash, Vector3.zero);
 		entry.FarmZones = zdo.GetString(FarmZoneSerializer.FarmZonesHash);
+		// Fase 3.10 (auditoria A6): its own voice and personality are part of the companion, so they travel with the
+		// roster copy too (the same four keys CompanionTombstoneResurrect.WriteAiProfile copies to the tombstone).
+		// Read straight from the ZDO here: this runs only on the game that owns it (IsMine above).
+		entry.AiVoice = zdo.GetInt(CompanionProfile.VoiceHash, 0);
+		entry.AiPersonaSet = zdo.GetBool(CompanionProfile.PersonaSetHash, false);
+		entry.AiPreset = zdo.GetString(CompanionProfile.PresetHash, "") ?? "";
+		entry.AiPersona = zdo.GetString(CompanionProfile.PersonaTextHash, "") ?? "";
 		Inventory inventory = c.GetComponent<Humanoid>()?.GetInventory();
 		if (inventory != null)
 		{
@@ -1006,6 +1064,10 @@ internal static class MHR_Roster
 		{
 			zDO.Set(FarmZoneSerializer.FarmZonesHash, e.FarmZones);
 		}
+		// Fase 3.10 (auditoria A6): and the voice and personality it had, through the one helper that writes a profile
+		// to a freshly created ZDO (the same the starter panel uses): nothing is written for a companion that had no
+		// choice of its own, so it keeps following [AI] exactly as before.
+		CompanionProfile.ApplyAtSpawn(zDO, e.AiVoice, e.AiPersonaSet, e.AiPreset, e.AiPersona);
 		zDO.Persistent = true;
 		if (!string.IsNullOrEmpty(e.Inventory))
 		{
