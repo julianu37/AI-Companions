@@ -231,6 +231,12 @@ public class SpeechConfig
 
 	/// <summary>1.8.3: fills in the categories the file doesn't have (null OR empty array - an empty list would show
 	/// nothing at all) from <see cref="Defaults"/>, and says in the log which ones were missing.</summary>
+	/// <remarks>2.0.0 (upstream 1.5.5, the speech overhaul): the pools are found by <b>reflection</b> over the public
+	/// <c>string[]</c> fields instead of a hand-written list. The list stayed at the old 15 categories after
+	/// Wood/Stone/Ore/Upkeep/Chat were added, so those pools came back <b>empty</b> from every language file:
+	/// Wood/Stone/Ore silently fell back to <c>Gather</c> in <c>CompanionTalk.Or</c> and Upkeep/Chat said nothing at
+	/// all. <c>Gather</c> is the one exception - it is the fallback of Wood/Stone/Ore, so it is never filled in from
+	/// itself.</remarks>
 	private static SpeechConfig Merge(SpeechConfig loaded, string path)
 	{
 		SpeechConfig speechConfig = Defaults();
@@ -240,36 +246,27 @@ public class SpeechConfig
 			return speechConfig;
 		}
 		List<string> missing = new List<string>();
-		loaded.Action = Pick(loaded.Action, speechConfig.Action, "Action", missing);
-		loaded.Gather = Pick(loaded.Gather, speechConfig.Gather, "Gather", missing);
-		loaded.Forage = Pick(loaded.Forage, speechConfig.Forage, "Forage", missing);
-		loaded.Combat = Pick(loaded.Combat, speechConfig.Combat, "Combat", missing);
-		loaded.Follow = Pick(loaded.Follow, speechConfig.Follow, "Follow", missing);
-		loaded.Hungry = Pick(loaded.Hungry, speechConfig.Hungry, "Hungry", missing);
-		loaded.Repair = Pick(loaded.Repair, speechConfig.Repair, "Repair", missing);
-		loaded.Overweight = Pick(loaded.Overweight, speechConfig.Overweight, "Overweight", missing);
-		loaded.Smelt = Pick(loaded.Smelt, speechConfig.Smelt, "Smelt", missing);
-		loaded.Idle = Pick(loaded.Idle, speechConfig.Idle, "Idle", missing);
-		loaded.Hunt = Pick(loaded.Hunt, speechConfig.Hunt, "Hunt", missing);
-		loaded.Farm = Pick(loaded.Farm, speechConfig.Farm, "Farm", missing);
-		loaded.Fish = Pick(loaded.Fish, speechConfig.Fish, "Fish", missing);
-		loaded.Cook = Pick(loaded.Cook, speechConfig.Cook, "Cook", missing);
-		loaded.NoBed = Pick(loaded.NoBed, speechConfig.NoBed, "NoBed", missing);
+		FieldInfo[] fields = typeof(SpeechConfig).GetFields(BindingFlags.Public | BindingFlags.Instance);
+		for (int i = 0; i < fields.Length; i++)
+		{
+			FieldInfo field = fields[i];
+			if (field.FieldType != typeof(string[]) || field.Name == "Gather")
+			{
+				continue;
+			}
+			string[] pool = field.GetValue(loaded) as string[];
+			if (pool != null && pool.Length > 0)
+			{
+				continue;
+			}
+			field.SetValue(loaded, field.GetValue(speechConfig));
+			missing.Add(field.Name);
+		}
 		if (missing.Count > 0)
 		{
 			CompanionsPlugin.Log.LogInfo("[Speech] " + Path.GetFileName(path) + " is missing " + missing.Count + " categor(y/ies) - using the built-in lines: " + string.Join(", ", missing.ToArray()));
 		}
 		return loaded;
-	}
-
-	private static string[] Pick(string[] value, string[] fallback, string name, List<string> missing)
-	{
-		if (value != null && value.Length > 0)
-		{
-			return value;
-		}
-		missing.Add(name);
-		return fallback;
 	}
 
 	private static SpeechConfig Defaults()

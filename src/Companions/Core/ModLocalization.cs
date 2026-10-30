@@ -196,7 +196,7 @@ public static class ModLocalization
 			{ "hc_speech_found_3", "Finally found you!" },
 			{ "hc_msg_not_yours", "This is not your companion." },
 			{ "hc_msg_need_coins", "Not enough coins in bank! Need {0}" },
-			{ "hc_msg_companion_limit", "You already have {0} companion(s) (the limit is {1}). Dismiss one, or recover a tombstone." },
+			{ "hc_msg_companion_limit", "You already have {0} companion(s) (the limit is {1}). Dismissing one frees its place only when you next load this world (or with [General] RecoverUnsummoned off); a tombstone brings the same companion back." },
 			{ "hc_msg_arrived", "Your new {0} has arrived!" },
 			{ "hc_msg_returned", "{0} has returned at {1}!" },
 			{ "hc_msg_location_home", "home" },

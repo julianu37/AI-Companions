@@ -11,7 +11,10 @@ O que ele checa no modo PT-BR (e o que cada numero quer dizer):
 
 1. UI       - os defaults em ingles do `src/Companions/Core/ModLocalization.cs` contra
               `Translations/Portuguese_Brazilian.json`: chaves ausentes, chaves que so existem de um lado e
-              valores que continuam identicos ao ingles.
+              valores que continuam identicos ao ingles. As chaves que so existem no arquivo de idioma por
+              desenho (`hc_cfg_*` de cada opcao e as abas `hc_cat_*` das secoes novas - em ingles o rotulo e a
+              PROPRIA chave, ver `ConfigPanel.EntryLabel`) continuam na conta de "sobrando", e uma linha diz
+              quantas sao dessa classe: uma opcao nova no `ModConfig` move o numero em 1, e so isso.
 2. Codigo   - todas as chamadas `Loc(...)`/`LocFmt(...)`/`LocOr(...)` do `src/`: chave referenciada que nao
               existe em nenhum dos dois lados (o jogador veria o token cru) e chaves definidas e nunca usadas.
               Prefixos de concatenacao (`Loc("hc_cat_" + nome)`) sao reconhecidos como prefixo, nao como chave.
@@ -212,6 +215,12 @@ def report():
     same = sorted(k for k in en if k in pt and pt[k] == en[k])
     print('   ausentes no PT-BR: %d%s' % (len(missing), (' -> ' + ', '.join(missing)) if missing else ''))
     print('   sobrando (nao existem no ingles): %d%s' % (len(extra), (' -> ' + ', '.join(extra)) if extra else ''))
+    # P2 (2.0.0): hc_cfg_* e as abas hc_cat_* das secoes novas existem SO nos arquivos de idioma - em ingles o
+    # rotulo e a propria chave (ConfigPanel.EntryLabel -> LocOr(..., chave)), entao elas nao tem default em
+    # ModLocalization. Continuam contadas acima (a conta nao mudou); esta linha so diz quantas sao desta classe
+    # para o numero ser explicavel quando uma opcao nova entra no ModConfig.
+    by_design = [k for k in extra if k.startswith('hc_cfg_') or k.startswith('hc_cat_')]
+    print('   destas, so-de-JSON por desenho (hc_cfg_*/hc_cat_*, o ingles mostra a chave): %d' % len(by_design))
     print('   valor igual ao ingles: %d -> %s' % (len(same), ', '.join(same)))
     gaps += len(missing) + len(extra)
 
@@ -284,6 +293,8 @@ IDENTICAL_OK = {
         # Fase 2.0 (ordens de interacao): cognatos legitimos PT/ES e placeholders puros
         'Recuperar', 'Descansando', 'Esperando', 'Buscando {0}', 'Buscando {0}.',
         'pescando {0}', 'guardando {0}', 'plantando {0}', '{0} {1}/{2} para {3}.',
+        # P2 (rotulos do F8 da 2.0.0): a tecla da postura equilibrada
+        'Tecla equilibrada',
         # palavras que o espanhol e o portugues escrevem igual (ou quase: só o acento muda)
         'Aplicar', 'Automático', 'Automático ({0})', 'Aviso:', 'Banco: {0}', 'Cama de {0}', 'Cancelar', 'Comando',
         'Comandos', 'Combate', 'Comida', 'Comidas', 'Comprar {0} ({1})', 'Controles', 'Cura por segundo',

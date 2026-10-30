@@ -14,6 +14,32 @@
         "Compris.",
         "Je m'en occupe."
     ],
+    "Wood": [
+        "Du bon bois par ici.",
+        "Encore un arbre à terre !",
+        "Mes bras se renforcent à chaque coup.",
+        "Du bois au sol !",
+        "Ce bois brûlera bien.",
+        "[blackforest] Les pins poussent drus ici.",
+        "[meadows] Hêtre et bouleau, bien droits.",
+        "[swamp] Écorce ancienne... rude besogne."
+    ],
+    "Stone": [
+        "Il y a de la bonne pierre par ici.",
+        "De la pierre pour les murs.",
+        "Coup après coup.",
+        "Ce rocher ne bougera pas tout seul.",
+        "De la pierre solide, celle-là."
+    ],
+    "Ore": [
+        "Ce minerai est prometteur.",
+        "Les veines courent profond dans cette roche.",
+        "La terre livre ses trésors.",
+        "Du minerai pour la fonderie.",
+        "[blackforest] Cuivre et étain, notre premier vrai métal.",
+        "[swamp] Du fer, enterré avec les morts.",
+        "[mountain] De l'argent, froid comme les cimes."
+    ],
     "Gather": [
         "La terre donne, à qui sait où chercher.",
         "Du bon bois par ici.",
@@ -208,11 +234,30 @@
         "À manger pour les fatigués !",
         "Cette recette ne rate jamais."
     ],
+    "Upkeep": [
+        "Je garde la maison en ordre.",
+        "Un toit solide et un feu qui brûle.",
+        "Chaque chose à sa place.",
+        "Une maison demande des soins.",
+        "Qui a laissé ça ici ?",
+        "[rain] Espérons que le toit tienne.",
+        "[night] Que les feux restent allumés."
+    ],
     "NoBed": [
         "Je n'ai pas de lit à moi.",
         "J'aimerais avoir un lit ici.",
         "Tous les lits du coin ont déjà un propriétaire.",
         "Je dormirai encore par terre, on dirait.",
         "Un endroit pour poser ma tête serait bien."
+    ],
+    "Chat": [
+        "Besoin de quelque chose ?",
+        "Quelque chose à faire ?",
+        "C'est calme par ici.",
+        "[day,!rain] Belle journée pour ça.",
+        "[rain] Ça sent la pluie. Ah, évidemment.",
+        "[night] Il se fait tard, non ?",
+        "[home] Bon d'avoir un toit au-dessus de nous.",
+        "[away] On rentrerait bientôt ?"
     ]
 }

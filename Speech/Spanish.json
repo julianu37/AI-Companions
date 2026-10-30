@@ -14,6 +14,32 @@
         "Entendido.",
         "Déjamelo a mí."
     ],
+    "Wood": [
+        "Buena madera por aquí.",
+        "¡Otro árbol al suelo!",
+        "Mis brazos se hacen más fuertes con cada golpe.",
+        "¡Madera al suelo!",
+        "Esta madera arderá bien.",
+        "[blackforest] Los pinos crecen espesos aquí.",
+        "[meadows] Haya y abedul, buenos y rectos.",
+        "[swamp] Corteza ancestral... terreno duro."
+    ],
+    "Stone": [
+        "Hay buena piedra por aquí.",
+        "Piedra para los muros.",
+        "Un golpe tras otro.",
+        "Esta roca no se mueve sola.",
+        "Piedra firme, esta."
+    ],
+    "Ore": [
+        "Este mineral promete.",
+        "Las vetas corren profundas en esta roca.",
+        "La tierra entrega sus tesoros.",
+        "Mineral para la fundición.",
+        "[blackforest] Cobre y estaño, nuestro primer metal de verdad.",
+        "[swamp] Hierro, enterrado con los muertos.",
+        "[mountain] Plata, fría como las cumbres."
+    ],
     "Gather": [
         "La tierra da, para quien sabe dónde buscar.",
         "Buena madera por aquí.",
@@ -208,11 +234,30 @@
         "¡Comida para los cansados!",
         "Esta receta nunca falla."
     ],
+    "Upkeep": [
+        "Manteniendo el lugar en orden.",
+        "Un techo firme y un fuego encendido.",
+        "Cada cosa en su sitio.",
+        "Una casa necesita cuidados.",
+        "¿Quién dejó esto aquí?",
+        "[rain] Esperemos que el techo aguante.",
+        "[night] Que sigan ardiendo las hogueras."
+    ],
     "NoBed": [
         "No tengo una cama que sea mía.",
         "Ojalá tuviera una cama por aquí.",
         "Todas las camas de cerca ya tienen dueño.",
         "Dormiré en el suelo otra vez, por lo visto.",
         "Un sitio donde descansar la cabeza vendría bien."
+    ],
+    "Chat": [
+        "¿Necesitas algo?",
+        "¿Hay algo que hacer?",
+        "Todo tranquilo por aquí.",
+        "[day,!rain] Buen día para esto.",
+        "[rain] Huele a lluvia. Ah, claro.",
+        "[night] Es tarde, ¿no?",
+        "[home] Qué bien tener un techo sobre nosotros.",
+        "[away] ¿Deberíamos volver a casa pronto?"
     ]
 }

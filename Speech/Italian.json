@@ -14,6 +14,32 @@
         "Capito.",
         "Ci penso io."
     ],
+    "Wood": [
+        "Buona legna da queste parti.",
+        "Un altro albero a terra!",
+        "Le mie braccia si rinforzano a ogni colpo.",
+        "Legna a terra!",
+        "Questa legna brucerà bene.",
+        "[blackforest] I pini crescono fitti qui.",
+        "[meadows] Faggio e betulla, dritti e buoni.",
+        "[swamp] Corteccia antica... duro lavoro."
+    ],
+    "Stone": [
+        "C'è buona pietra qui.",
+        "Pietra per le mura.",
+        "Colpo dopo colpo.",
+        "Questa roccia non si sposta da sola.",
+        "Pietra solida, questa."
+    ],
+    "Ore": [
+        "Questo minerale promette bene.",
+        "Le vene corrono profonde in questa roccia.",
+        "La terra cede i suoi tesori.",
+        "Minerale per la fonderia.",
+        "[blackforest] Rame e stagno, il nostro primo metallo vero.",
+        "[swamp] Ferro, sepolto con i morti.",
+        "[mountain] Argento, freddo come le cime."
+    ],
     "Gather": [
         "La terra dà, a chi sa dove cercare.",
         "Buona legna qui.",
@@ -208,11 +234,30 @@
         "Cibo per i stanchi!",
         "Questa ricetta non sbaglia mai."
     ],
+    "Upkeep": [
+        "Tengo il posto in ordine.",
+        "Un tetto solido e un fuoco acceso.",
+        "Ogni cosa al suo posto.",
+        "Una casa ha bisogno di cure.",
+        "Chi ha lasciato questo qui?",
+        "[rain] Speriamo che il tetto regga.",
+        "[night] Tengo accesi i fuochi."
+    ],
     "NoBed": [
         "Non ho un letto che sia mio.",
         "Vorrei avere un letto qui.",
         "Tutti i letti qui intorno hanno già un padrone.",
         "Dormirò di nuovo per terra, a quanto pare.",
         "Un posto dove posare la testa sarebbe utile."
+    ],
+    "Chat": [
+        "Ti serve qualcosa?",
+        "C'è qualcosa da fare?",
+        "Tutto tranquillo qui.",
+        "[day,!rain] Bella giornata per questo.",
+        "[rain] Sa di pioggia. Ah, certo.",
+        "[night] Si è fatto tardi, no?",
+        "[home] Bello avere un tetto sopra.",
+        "[away] Dovremmo tornare a casa presto?"
     ]
 }
