@@ -278,6 +278,26 @@ internal sealed class LlmIntent
 			return "door";
 		}
 
+		// Fase 2.0 (audit fix): the same noun rule for the other four interactions. It only matters when the server
+		// refuses the structured output: with the JSON schema on (the default) the model can only answer one of the
+		// canonical values, and none of them is a phrase like "embarcar_no_navio".
+		if (IsHiveWord(normalizedAction))
+		{
+			return "hive";
+		}
+		if (IsBoardWord(normalizedAction))
+		{
+			return "board";
+		}
+		if (IsSitWord(normalizedAction))
+		{
+			return "sit";
+		}
+		if (IsDepositWord(normalizedAction))
+		{
+			return "deposit";
+		}
+
 		// an explicit "stance" field ("balanced", "defensive"...) turns the action into a stance order
 		if (!string.IsNullOrEmpty(normalizedStance) && string.IsNullOrEmpty(normalizedAction))
 		{
@@ -415,6 +435,120 @@ internal sealed class LlmIntent
 		return false;
 	}
 
+	/// <summary>Fase 2.0 (audit fix): does the action word name a beehive? ("esvaziar_colmeia", "empty the beehive",
+	/// "vider_la_ruche") Same shape as <see cref="IsDoorWord"/> and for the same reason - it only matters when the
+	/// server refuses the structured output, because with the JSON schema on the model can only answer the canonical
+	/// values.</summary>
+	private static bool IsHiveWord(string action)
+	{
+		foreach (string word in action.Split('_'))
+		{
+			switch (word)
+			{
+			case "colmeia":
+			case "colmeias":
+			case "colmena":
+			case "colmenas":
+			case "ruche":
+			case "ruches":
+			case "alveare":
+			case "alveari":
+			case "beehive":
+			case "bee_hive":
+			case "hive":
+			case "hives":
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/// <summary>Fase 2.0 (audit fix): does the action word name a ship? ("embarcar_no_navio", "salire_sulla_nave")</summary>
+	private static bool IsBoardWord(string action)
+	{
+		foreach (string word in action.Split('_'))
+		{
+			switch (word)
+			{
+			case "navio":
+			case "navios":
+			case "barco":
+			case "barcos":
+			case "navire":
+			case "navires":
+			case "bateau":
+			case "bateaux":
+			case "nave":
+			case "navi":
+			case "barca":
+			case "barche":
+			case "ship":
+			case "ships":
+			case "boat":
+			case "boats":
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/// <summary>Fase 2.0 (audit fix): does the action word ask to SIT? ("sentar_perto_do_fogo",
+	/// "assieds_toi_pres_du_feu")</summary>
+	private static bool IsSitWord(string action)
+	{
+		foreach (string word in action.Split('_'))
+		{
+			switch (word)
+			{
+			case "senta":
+			case "sentar":
+			case "sente":
+			case "sentem":
+			case "sentarse":
+			case "sientate":
+			case "sientese":
+			case "assieds":
+			case "assois":
+			case "asseoir":
+			case "siediti":
+			case "sieda":
+			case "sedersi":
+			case "sit":
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/// <summary>Fase 2.0 (audit fix): does the action word name a container to put things into? ("guardar_no_bau",
+	/// "ranger_dans_le_coffre")</summary>
+	private static bool IsDepositWord(string action)
+	{
+		foreach (string word in action.Split('_'))
+		{
+			switch (word)
+			{
+			case "bau":
+			case "baus":
+			case "baul":
+			case "baules":
+			case "cofre":
+			case "cofres":
+			case "coffre":
+			case "coffres":
+			case "coffret":
+			case "cassa":
+			case "casse":
+			case "chest":
+			case "chests":
+			case "arca":
+			case "arcas":
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/// <summary>Fase 3.8: the verbs that ask to SEE something ("abre", "mostra", "open").</summary>
 	private static bool IsSeeWord(string word)
 	{
@@ -535,8 +669,8 @@ internal sealed class LlmIntent
 		Add(map, "hive", "hive", "colmeia", "colmeias", "beehive", "bee_hive", "esvaziar_colmeia", "colmena", "ruche", "alveare");
 		Add(map, "door", "door", "porta", "portas", "porte", "puerta", "abrir_porta", "fechar_porta", "open_door", "close_door");
 		Add(map, "board", "board", "embarcar", "embarca", "embarque", "a_bordo", "subir_a_bordo", "navio", "ship", "barco", "boat", "embarquer", "bateau", "navire", "imbarcare", "nave", "barca");
-		Add(map, "sit", "sit", "senta", "sentar", "sente", "sentar_se", "sit_down", "sientate", "sentarse", "assieds", "asseoir", "siediti", "sedersi");
-		Add(map, "deposit", "deposit", "depositar", "deposita", "guardar", "guarda", "guardar_no_bau", "bau", "baul", "chest", "cofre", "coffre", "coffret", "cassa", "baule", "armazenar", "guardar_tudo");
+		Add(map, "sit", "sit", "senta", "sentar", "sente", "sentar_se", "sit_down", "sientate", "sentarse", "assieds", "assieds_toi", "assois", "assois_toi", "asseoir", "s_asseoir", "siediti", "sedersi");
+		Add(map, "deposit", "deposit", "depositar", "deposita", "guardar", "guarda", "guarda_no_bau", "guardar_no_bau", "colocar_no_bau", "por_no_bau", "poe_no_bau", "bau", "baul", "chest", "cofre", "coffre", "coffret", "cassa", "baule", "armazenar", "guardar_tudo");
 		Add(map, "none", "none", "null", "nada", "nenhuma", "nenhum", "n_a", "conversa", "conversation", "chat", "saudacao", "oi", "ola", "bom_dia", "boa_tarde", "boa_noite", "obrigado", "obrigada", "valeu", "hello", "hi", "hey", "thanks", "pergunta", "duvida");
 		// verbs that mean "go and collect something": the job comes from the resource field
 		Add(map, "#gather", "gather", "collect", "coletar", "colete", "coletem", "peguem", "apanhar", "apanha", "minerar_tudo", "juntar", "junta");

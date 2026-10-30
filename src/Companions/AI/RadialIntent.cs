@@ -282,10 +282,15 @@ internal static class RadialIntent
 	/// The actions this net never overwrites: the ones that pick ONE creature or item (the precise order of Fase
 	/// 3.6/3.6b) and the gathering orders, which carry a resource and a number. Without this, "ataca o greydwarf"
 	/// would lose to a posture word in the same sentence and "colete 10 pedras" to a stray "corpo a corpo".
+	///
+	/// <para>Fase 2.0 (audit fix): the five interaction orders belong here too - hive, door, board, sit and deposit
+	/// carry a target (the object the player is looking at) exactly like attack/equip, and a posture word in the same
+	/// sentence ("guarda isso no baú e fica na postura passiva") used to turn the whole order into a stance.</para>
 	/// </summary>
 	private static readonly string[] PreciseActions = new string[]
 	{
 		"attack", "equip", "drop", "inventory", "inventory_close",
+		"hive", "door", "board", "sit", "deposit",
 		"wood", "stone", "ore", "forage", "pickup", "nopickup"
 	};
 

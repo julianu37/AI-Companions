@@ -951,6 +951,21 @@ internal static class CompanionChatAI
 			}
 		}
 		string reply = intent != null ? intent.Reply : null;
+		// Fase 2.0 (audit fix): "fecha a porta" and the door. With the structured output on (the default) the JSON
+		// schema only lets the model answer canonical actions, and the verb "fecha/fechar/close" is an alias of
+		// "inventory_close" - so the model answers "inventory_close" for the door, LlmIntent.IsDoorWord (which reads
+		// the action WORD) never sees it, and the mod closed the player's own inventory window instead. The player's
+		// own words decide here; a pack word in the same message keeps the inventory order (see IsDoorRequest).
+		if (intent != null && CompanionOrders.IsDoorRequest(result.UserText)
+			&& (intent.IsNone || string.Equals(intent.Action, "inventory", StringComparison.Ordinal)
+				|| string.Equals(intent.Action, "inventory_close", StringComparison.Ordinal)))
+		{
+			CompanionsPlugin.Log?.LogInfo($"[IA] O modelo devolveu \"{intent.Action}\" para \"{result.UserText}\", que pede uma porta - usei \"door\" (Fase 2.0).");
+			intent.Action = "door";
+			intent.Target = null;
+			intent.Resource = null;
+			intent.Amount = 0;
+		}
 		// Fase M3 (bug do teste em francês): o modelo também devolveu "pickup" (e pode devolver "none") para
 		// "ramasse 10 bois", porque o contrato do prompt estava só em PT-BR. Quando as palavras do jogador dizem
 		// COLETAR (recurso + número, sem marcador de chão) e o modelo não entendeu nada, a coleta entra como ordem -
@@ -969,6 +984,22 @@ internal static class CompanionChatAI
 			// Fase M5: o mesmo lado "none" recebe as ordens de postura, de vagar, de comandos e de trabalho
 			// (fundir/cozinhar/caçar) que o modelo mandou para a conversa - as palavras do jogador decidem, uma vez
 			// por mensagem, com a ação ainda "none" (se a coleta acima já corrigiu, nada mais é mexido).
+			// Fase 2.0 (audit fix): the five interaction orders (hive, board, sit, deposit - the door is handled
+			// above) had no net at all on this side, so "guarda isso no baú", "esvazia a colmeia" or "senta" filed
+			// as conversation left the player with "não entendi". Same idea, same place, one line of log per fix.
+			if (string.Equals(intent.Action, GatherIntent.NoneAction, StringComparison.Ordinal))
+			{
+				string byInteractionReason = null;
+				string byInteraction = InteractionIntent.Correct(intent.Action, result.UserText, out byInteractionReason);
+				if (byInteraction != null)
+				{
+					CompanionsPlugin.Log?.LogInfo($"[IA] O modelo devolveu \"{intent.Action}\" mas o jogador pediu para {byInteractionReason} - usei \"{byInteraction}\".");
+					intent.Action = byInteraction;
+					intent.Target = null;
+					intent.Resource = null;
+					intent.Amount = 0;
+				}
+			}
 			if (string.Equals(intent.Action, GatherIntent.NoneAction, StringComparison.Ordinal))
 			{
 				string byRadialReason = null;

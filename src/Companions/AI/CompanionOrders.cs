@@ -143,6 +143,18 @@ internal static class CompanionOrders
 			CompanionsPlugin.Log?.LogInfo($"[IA] O modelo devolveu \"{action}\" mas o jogador pediu para {(byWords == PickupIntent.DropAction ? "largar" : "recolher")} - usei \"{byWords}\".");
 			action = byWords;
 		}
+		// Fase 2.0 (audit fix): the five interaction orders had no net of their own, and their neighbours are the
+		// actions a small model actually picks - "fecha a porta" comes back as "inventory_close" (that verb is an
+		// alias of the window and the schema's enum only lets the model answer canonical values, so the action can
+		// never name the door) and "guarda isso no baú" as "drop". The player's own words decide, exactly like the
+		// nets above; the tables live in InteractionIntent. One call per message; without a trigger nothing changes.
+		string byInteractionReason = null;
+		string byInteraction = InteractionIntent.Correct(action, userText, out byInteractionReason);
+		if (byInteraction != null)
+		{
+			CompanionsPlugin.Log?.LogInfo($"[IA] O modelo devolveu \"{action}\" mas o jogador pediu para {byInteractionReason} - usei \"{byInteraction}\".");
+			action = byInteraction;
+		}
 		// Fase M3 (bug do teste em francês): "maria ramasse 10 bois" voltou do modelo como "pickup" ("Je prends les
 		// bois.") e o companheiro foi catar item no chão em vez de cortar madeira - a causa era o contrato do prompt,
 		// que só existia em PT-BR (ver CompanionChatAI.Contract, agora por idioma). Esta é a rede de segurança: quando
@@ -767,6 +779,79 @@ internal static class CompanionOrders
 	private static readonly HashSet<string> CloseWords = new HashSet<string>(StringComparer.Ordinal)
 	{
 		"fecha", "fechar", "feche", "fechem", "esconde", "esconder", "esconda", "close"
+	};
+
+	// ---- Fase 2.0 (audit fix): the door, when the model answered "inventory" ----
+
+	/// <summary>
+	/// Fase 2.0 (audit fix): does the player's OWN message ask for a DOOR? "fecha a porta" is filed by the model as
+	/// <c>inventory_close</c> - "fecha" is an alias of that action, and with the structured output on (the default)
+	/// the JSON schema's enum only lets the model answer canonical values, so <see cref="LlmIntent"/>'s door rule
+	/// (which reads the action WORD, see <c>IsDoorWord</c>) can never see the door there. The player's words are what
+	/// is left, and they are unambiguous.
+	///
+	/// <para>Deliberately narrow, in the mold of <see cref="IsInventoryRequest"/> but the other way around: a word for
+	/// the door AND a verb of opening or closing, and <b>no</b> word for the pack - "abre o teu inventário e fecha a
+	/// porta" belongs to the inventory order, and "o que tem no inventário?" carries no door word at all. A question
+	/// (<c>?</c>) is never an order.</para>
+	/// </summary>
+	internal static bool IsDoorRequest(string message)
+	{
+		if (string.IsNullOrEmpty(message) || message.IndexOf('?') >= 0)
+		{
+			return false;
+		}
+		string text = LlmIntent.Normalize(message);
+		if (text.Length == 0)
+		{
+			return false;
+		}
+		bool door = false;
+		bool verb = false;
+		bool pack = false;
+		string[] words = text.Split('_');
+		for (int i = 0; i < words.Length; i++)
+		{
+			string word = words[i];
+			if (DoorWords.Contains(word))
+			{
+				door = true;
+				continue;
+			}
+			if (PackWords.Contains(word))
+			{
+				pack = true;
+				continue;
+			}
+			if (DoorVerbs.Contains(word))
+			{
+				verb = true;
+			}
+		}
+		return door && verb && !pack;
+	}
+
+	/// <summary>The words that name a door, in the five languages of the game. Matched as whole words, so
+	/// "transportar" or "importante" can never be read as a door.</summary>
+	private static readonly HashSet<string> DoorWords = new HashSet<string>(StringComparer.Ordinal)
+	{
+		"porta", "portas", "portao", "portoes", "puerta", "puertas", "porte", "portes", "door", "doors"
+	};
+
+	/// <summary>The verbs of opening or closing a door, in the five languages of the game (only the imperative and the
+	/// infinitive: the past tense of "quem fechou a porta?" is a question about the door, not an order).</summary>
+	private static readonly HashSet<string> DoorVerbs = new HashSet<string>(StringComparer.Ordinal)
+	{
+		// pt
+		"abre", "abrir", "abra", "abram", "abrem", "fecha", "fechar", "feche", "fechem", "fecham",
+		// en
+		"open", "opens", "close", "closes", "shut",
+		// es
+		"cierra", "cerrar", "cierre", "cierren",
+		// fr
+		"ouvre", "ouvrir", "ouvrez", "ferme", "fermer", "fermez",
+		// it
+		"apri", "aprire", "apra", "chiudi", "chiudere", "chiuda"
 	};
 
 	// ---- Fase 3.6b: what to act on when the model named nothing ----
