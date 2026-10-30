@@ -37,8 +37,11 @@ provando item por item contra `AGENTS.md`, `docs/roadmap.md`, `package/CHANGELOG
 
 ## 3. Achados
 
-Legenda de status: **corrigido** (com o commit), **em correção** (agente trabalhando nesta rodada),
-**adiado** (decidido não mexer antes do teste, com o motivo), **pendente** (aberto no backlog).
+Legenda de status: **corrigido** (nesta rodada, antes do teste), **adiado** (decidido não mexer antes do
+teste, com o motivo), **pendente** (aberto no backlog). Os commits das correções: `c546801` (A1, A7),
+`e0b8b3d` (P1), `d3fb7a8` (chave morta), `0270af6` (B1, B2, B4, aliases), `42971bf` (A3, A4, A5, B3, B7, B8,
+claim storm), `0004aba` (log duplicado), `6447f9c` (A2, A6, 3.6), `b0eca32` (H1, H2, H4, H5, nit) e os
+commits das traduções e da wiki (B6, P2, 75 + 2 chaves, 5 pools de fala).
 
 ### 3.1 Alto
 
@@ -46,39 +49,39 @@ Legenda de status: **corrigido** (com o commit), **em correção** (agente traba
 |---|---|---|---|
 | **A1** | **Zonas de plantio somem quando o companheiro morre.** O **leitor** de `HC_Respawn_FarmZones` sobreviveu ao merge (`CompanionTombstoneResurrect.cs:53,434`), o **escritor** não. O companheiro voltava do túmulo sem nenhuma zona (o caminho do Santuário mantinha, porque usa o roster) | upstream escreve em `CompanionSetup.CreateCompanionTombstone` (`8aa6f53:…:1653`); nosso bloco equivalente ia de `TombstoneId` a `RespawnGen` sem essa linha | **corrigido** `c546801` |
 | **P1** | **O F8 gravava o primeiro valor de `LogLevel`/`PortalItems`/`RespawnStance`.** O merge mandou todo `string` com `AcceptableValueList` para o nosso `BuildChoiceRow` (dropdown da voz, M2), que não tem caso genérico e devolvia a lista de idiomas do Whisper; o `Clamp` do BepInEx transformava qualquer escolha em `AcceptableValues[0]` ⇒ **`LogLevel = Off`** (o mod fica mudo), `PortalItems = AllowAll` e `RespawnStance = Passive` inalcançáveis | `ConfigPanel.cs:1276-1279` (dispatch) × `1765-1797` (`BuildChoice` sem caso genérico), `1931-1940` (`ApplyChoice`), `AcceptableValueList.Clamp` | **corrigido** `e0b8b3d` |
-| **B1** | **"fecha a porta" fechava o inventário.** Com `StructuredOutput` (padrão) o schema `strict` só aceita o enum das 35 ações, então o modelo devolve `inventory_close` (o "fecha" é alias disso desde a 3.8) e `IsInventoryWord` é testado **antes** de `IsDoorWord`; não havia rede por palavras para a porta (o `IsInventoryRequest` exige palavra de mochila) | `LlmIntent.cs:267-276,531`; `CompanionOrders.cs:246-249,713-751`; `RadialIntent.PreciseActions` protege `inventory_close` de qualquer correção | **em correção** (novo `IsDoorRequest`) |
+| **B1** | **"fecha a porta" fechava o inventário.** Com `StructuredOutput` (padrão) o schema `strict` só aceita o enum das 35 ações, então o modelo devolve `inventory_close` (o "fecha" é alias disso desde a 3.8) e `IsInventoryWord` é testado **antes** de `IsDoorWord`; não havia rede por palavras para a porta (o `IsInventoryRequest` exige palavra de mochila) | `LlmIntent.cs:267-276,531`; `CompanionOrders.cs:246-249,713-751`; `RadialIntent.PreciseActions` protege `inventory_close` de qualquer correção | **corrigido** (novo `IsDoorRequest`) |
 
 ### 3.2 Médio
 
 | ID | Achado | Evidência | Status |
 |---|---|---|---|
-| **B6** | **A reforma da fala da 1.5.5 estava muda.** O merge trouxe 5 pools (`Wood/Stone/Ore/Upkeep/Chat`), mas o nosso `SpeechConfig.Merge` lista 15 categorias à mão e os 4 `Speech/*.json` têm 15 ⇒ `Wood/Stone/Ore` caem no `Gather` e `Upkeep`/`Chat` retornam `null` (sem crash: `Pick`/`Or` são null-safe) | `SpeechConfig.cs:56,61` × `:243-257`; `CompanionTalk.cs:610`; `IdleController.cs:534` | **em correção** (`Merge` por reflexão + 5 pools nos 4 idiomas) |
-| **A3** | **`guarda isso no baú` ignorava cerca/privacidade.** `IsChestForOrders` só exigia "tem inventário" ⇒ aceitava baú **privado de outro jogador** (e o `MHR_Chests.Open` **toma posse** do ZDO dele), túmulo, carrinho e navio. Os jobs já tinham o filtro certo | `CompanionInteract.cs:1942-1945,1739-1797` × `MHR_ToolKeeper.cs:1009-1029` | **em correção** |
-| **A4** | **O depósito escrevia no baú sem conferir a posse** — a mesma classe de bug que a 3.19 resolveu para o ZDO do companheiro. Em cliente dedicado o item pode sair da mochila e ser sobrescrito | `MHR_ToolKeeper.cs:1049-1060` (Claim + `SetInUse` sem recheck); escrita em `CompanionAI.cs:1485-1491` | **em correção** |
-| **B2** | **As 5 ordens novas não tinham rede por palavras nenhuma.** Com o modelo devolvendo `none` (7/7 casos inequívocos no harness): "guarda a comida no baú", "esvazia a colmeia", "fecha a porta", "embarca no navio", "senta perto do fogo" ⇒ "Não entendi" | `CompanionChatAI.cs:958-985` (só `GatherIntent`/`RadialIntent`) | **em correção** (novo `InteractionIntent`) |
-| **B3** | **`senta` com o companheiro já sentado por ordem: ele levanta e a resposta diz que ninguém atendeu.** `DirectSit` desliga sempre que `_isDirected && (_isSitting \|\| _navigating)`, ignorando **qual** fogo; `OrderSit` então devolve `Companion = null` ⇒ `hc_ai_no_companion` | `CompanionRest.cs:297-302`; `CompanionInteract.cs:2170-2178`; `CompanionChatAI.cs:1050-1054` | **em correção** |
-| **B8** | **O alvo "apontado" das ordens novas não é o da tecla.** `Pointed<T>` olha só o **1º hit** do raio; a tecla varre todos até achar o componente ⇒ alvo semi-ocluo cai silenciosamente no "mais próximo" (baú errado a 5 m, porta errada a 20 m) | `CompanionInteract.cs:1847-1877` × `:775-883` | **em correção** |
-| **A2** | **`MaxCompanions` não libera vaga no Despawn com `RecoverUnsummoned = true`** (padrão): o entry vira `Unsummoned`, `CountMine` conta todos e a limpeza só acontece ao recarregar o mundo — o texto da config promete que despawnar libera. Bônus: `CountMine` conta duas vezes o companheiro **sem id** (spawn recém-carregado em dedicado ⇒ "você já tem 11") | `MHR_Roster.cs:628-654,378-425,153-164`; `ModConfig.cs:733` | **em correção** (texto honesto + dupla contagem; a semântica **não** muda antes do teste) |
-| **P2** | **75 rótulos do F8 + 2 abas sem tradução** nos 4 idiomas (265 de 340 traduzidos) — exatamente as configs que a 2.0.0 restaurou/introduziu | `ConfigPanel.cs:1245,1054` × `Translations/*.json` | **em correção** |
+| **B6** | **A reforma da fala da 1.5.5 estava muda.** O merge trouxe 5 pools (`Wood/Stone/Ore/Upkeep/Chat`), mas o nosso `SpeechConfig.Merge` lista 15 categorias à mão e os 4 `Speech/*.json` têm 15 ⇒ `Wood/Stone/Ore` caem no `Gather` e `Upkeep`/`Chat` retornam `null` (sem crash: `Pick`/`Or` são null-safe) | `SpeechConfig.cs:56,61` × `:243-257`; `CompanionTalk.cs:610`; `IdleController.cs:534` | **corrigido** (`Merge` por reflexão + 5 pools nos 4 idiomas) |
+| **A3** | **`guarda isso no baú` ignorava cerca/privacidade.** `IsChestForOrders` só exigia "tem inventário" ⇒ aceitava baú **privado de outro jogador** (e o `MHR_Chests.Open` **toma posse** do ZDO dele), túmulo, carrinho e navio. Os jobs já tinham o filtro certo | `CompanionInteract.cs:1942-1945,1739-1797` × `MHR_ToolKeeper.cs:1009-1029` | **corrigido** |
+| **A4** | **O depósito escrevia no baú sem conferir a posse** — a mesma classe de bug que a 3.19 resolveu para o ZDO do companheiro. Em cliente dedicado o item pode sair da mochila e ser sobrescrito | `MHR_ToolKeeper.cs:1049-1060` (Claim + `SetInUse` sem recheck); escrita em `CompanionAI.cs:1485-1491` | **corrigido** |
+| **B2** | **As 5 ordens novas não tinham rede por palavras nenhuma.** Com o modelo devolvendo `none` (7/7 casos inequívocos no harness): "guarda a comida no baú", "esvazia a colmeia", "fecha a porta", "embarca no navio", "senta perto do fogo" ⇒ "Não entendi" | `CompanionChatAI.cs:958-985` (só `GatherIntent`/`RadialIntent`) | **corrigido** (novo `InteractionIntent`) |
+| **B3** | **`senta` com o companheiro já sentado por ordem: ele levanta e a resposta diz que ninguém atendeu.** `DirectSit` desliga sempre que `_isDirected && (_isSitting \|\| _navigating)`, ignorando **qual** fogo; `OrderSit` então devolve `Companion = null` ⇒ `hc_ai_no_companion` | `CompanionRest.cs:297-302`; `CompanionInteract.cs:2170-2178`; `CompanionChatAI.cs:1050-1054` | **corrigido** |
+| **B8** | **O alvo "apontado" das ordens novas não é o da tecla.** `Pointed<T>` olha só o **1º hit** do raio; a tecla varre todos até achar o componente ⇒ alvo semi-ocluo cai silenciosamente no "mais próximo" (baú errado a 5 m, porta errada a 20 m) | `CompanionInteract.cs:1847-1877` × `:775-883` | **corrigido** |
+| **A2** | **`MaxCompanions` não libera vaga no Despawn com `RecoverUnsummoned = true`** (padrão): o entry vira `Unsummoned`, `CountMine` conta todos e a limpeza só acontece ao recarregar o mundo — o texto da config promete que despawnar libera. Bônus: `CountMine` conta duas vezes o companheiro **sem id** (spawn recém-carregado em dedicado ⇒ "você já tem 11") | `MHR_Roster.cs:628-654,378-425,153-164`; `ModConfig.cs:733` | **corrigido** (texto honesto + dupla contagem; a semântica **não** muda antes do teste) |
+| **P2** | **75 rótulos do F8 + 2 abas sem tradução** nos 4 idiomas (265 de 340 traduzidos) — exatamente as configs que a 2.0.0 restaurou/introduziu | `ConfigPanel.cs:1245,1054` × `Translations/*.json` | **corrigido** |
 
 ### 3.3 Baixo
 
 | ID | Achado | Evidência | Status |
 |---|---|---|---|
-| **A5** | 4 escritas diretas de `HC_ActionMode` fora da fila da 3.19 (`DirectSmelt`, `DirectGatherMode`, `CancelAll`, `ExitGatherMode`): em dedicado o claim em voo pode reverter o modo | `CompanionInteract.cs:1589,2322,2425,2615` | **em correção** |
-| **A6** | O **perfil de IA** (voz/personalidade) não sobrevive à recuperação pelo **roster** (o túmulo guarda; o Santuário volta ao global) | `MHR_Roster.cs:40-73,959-1045` | **em correção** |
+| **A5** | 4 escritas diretas de `HC_ActionMode` fora da fila da 3.19 (`DirectSmelt`, `DirectGatherMode`, `CancelAll`, `ExitGatherMode`): em dedicado o claim em voo pode reverter o modo | `CompanionInteract.cs:1589,2322,2425,2615` | **corrigido** |
+| **A6** | O **perfil de IA** (voz/personalidade) não sobrevive à recuperação pelo **roster** (o túmulo guarda; o Santuário volta ao global) | `MHR_Roster.cs:40-73,959-1045` | **corrigido** |
 | **A7** | **`MHR_Recover.Cancel` era código morto:** escolher postura não encerrava a recuperação (a própria fala prometia) e o auto-pickup ficava desligado | `MHR_Recover.cs:81-92` (0 chamadores) | **corrigido** `c546801` |
-| **B4** | A **postura rouba** as 5 ordens novas ("fecha a porta na postura passiva" ⇒ só troca postura) | `RadialIntent.cs:286-290` (`PreciseActions` sem as 5) | **em correção** |
-| **B7** | `deposit` conta **pilhas** e a frase diz "item(ns)" (1 pilha de 50 madeiras ⇒ "1 item(ns)") | `CompanionInteract.cs:2220-2231` | **em correção** |
-| **3.6** | Escrita sem claim no ramo "recuperado depois" do respawn (o outro ramo já tinha) | `CompanionTombstoneResurrect.cs:331-332` × `:558` | **em correção** |
-| aliases | `guarda_no_bau` e o FR `assieds_toi` caem em `none`; 32/48 formas "de frase" das 5 ações só funcionam quando a ação nomeia o objeto (com `StructuredOutput=false`) | `LlmIntent.cs:531-539` | **em correção** |
-| log | Linha de injeção da localização **duplicada** (`:881` incondicional + `:884` com gate do `LogLevel`) — escreve até com `Off` | `ModLocalization.cs:881,884` | **em correção** |
+| **B4** | A **postura rouba** as 5 ordens novas ("fecha a porta na postura passiva" ⇒ só troca postura) | `RadialIntent.cs:286-290` (`PreciseActions` sem as 5) | **corrigido** |
+| **B7** | `deposit` conta **pilhas** e a frase diz "item(ns)" (1 pilha de 50 madeiras ⇒ "1 item(ns)") | `CompanionInteract.cs:2220-2231` | **corrigido** |
+| **3.6** | Escrita sem claim no ramo "recuperado depois" do respawn (o outro ramo já tinha) | `CompanionTombstoneResurrect.cs:331-332` × `:558` | **corrigido** |
+| aliases | `guarda_no_bau` e o FR `assieds_toi` caem em `none`; 32/48 formas "de frase" das 5 ações só funcionam quando a ação nomeia o objeto (com `StructuredOutput=false`) | `LlmIntent.cs:531-539` | **corrigido** |
+| log | Linha de injeção da localização **duplicada** (`:881` incondicional + `:884` com gate do `LogLevel`) — escreve até com `Off` | `ModLocalization.cs:881,884` | **corrigido** |
 | config | `[Advanced] GatheringSwingInterval` era **chave morta** (o upstream a removeu na 1.5.6) | `ModConfig.cs:432,1043` | **corrigido** `d3fb7a8` |
-| **H1** | `MHR_PieceDamageLog` monta `Vector3.Distance` contra **todos** os companheiros + strings **antes** do gate do log; `WearNTear.ApplyDamage` roda peça por peça no desgaste de base grande | `Patches/MHR_PieceDamageLog.cs` | **em correção** |
-| **H2** | `CompanionBlockLog` faz `MethodInfo.Invoke` + `GetValue` boxado **antes** do gate em todo bloqueio de jogador e companheiro | `Patches/CompanionBlockLog.cs` | **em correção** |
-| **H4** | `MHR_Encumbrance.s_isCompanion` indexa por `GetInstanceID()` e o Unity **reaproveita** IDs (personagem novo herda o veredito de um companheiro morto) | `AI/MHR_Encumbrance.cs` | **em correção** |
-| **H5** | Falha de instalação dos patches manuais (`EquipDiag`, `ContainerFix`) é engolida com log só em `Detailed` | `EquipDiag.Install`/`PatchOne` | **em correção** |
-| nit | `MHR_Pad.HidePatch` usa `StartsWith("Joy")` culture-sensitive em `ZInput.TryGetButtonState` (toda consulta de botão) | `AI/MHR_Pad.cs` | **em correção** |
+| **H1** | `MHR_PieceDamageLog` monta `Vector3.Distance` contra **todos** os companheiros + strings **antes** do gate do log; `WearNTear.ApplyDamage` roda peça por peça no desgaste de base grande | `Patches/MHR_PieceDamageLog.cs` | **corrigido** |
+| **H2** | `CompanionBlockLog` faz `MethodInfo.Invoke` + `GetValue` boxado **antes** do gate em todo bloqueio de jogador e companheiro | `Patches/CompanionBlockLog.cs` | **corrigido** |
+| **H4** | `MHR_Encumbrance.s_isCompanion` indexa por `GetInstanceID()` e o Unity **reaproveita** IDs (personagem novo herda o veredito de um companheiro morto) | `AI/MHR_Encumbrance.cs` | **corrigido** |
+| **H5** | Falha de instalação dos patches manuais (`EquipDiag`, `ContainerFix`) é engolida com log só em `Detailed` | `EquipDiag.Install`/`PatchOne` | **corrigido** |
+| nit | `MHR_Pad.HidePatch` usa `StartsWith("Joy")` culture-sensitive em `ZInput.TryGetButtonState` (toda consulta de botão) | `AI/MHR_Pad.cs` | **corrigido** |
 
 ### 3.4 Adiados de propósito (documentados)
 
