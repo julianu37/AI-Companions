@@ -1285,7 +1285,7 @@ public class ConfigPanel : MonoBehaviour
 	{
 		ConfigEntry<string> typed = (ConfigEntry<string>)entry;
 		GameObject row = CreateRowContainer("Row_" + entry.Definition.Key, yPos);
-		GameObject name = CreateLabel(row.transform, entry.Definition.Key, 12f, Color.white);
+		GameObject name = CreateLabel(row.transform, EntryLabel(entry), 12f, Color.white);
 		RectTransform nrt = name.GetComponent<RectTransform>();
 		nrt.anchorMin = new Vector2(0f, 0f);
 		nrt.anchorMax = new Vector2(0.5f, 1f);
