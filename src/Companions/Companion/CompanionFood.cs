@@ -362,6 +362,13 @@ public class CompanionFood : MonoBehaviour
 		}
 	}
 
+	// 1.5.44: eat now (after a revive, once the gear is back on - health and stamina back up)
+	internal void EatNow()
+	{
+		_consumeTimer = ConsumeCheckInterval;
+		TryAutoConsume();
+	}
+
 	private void TryAutoConsume()
 	{
 		if (_humanoid == null || _character == null)

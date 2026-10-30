@@ -311,6 +311,7 @@ internal static class MHR_SpearThrow
 		if (Time.time - value.ThrownAt > GiveUpSeconds)
 		{
 			CompanionsPlugin.Log.LogInfo("[Hunt] Gave up on getting its " + Loc(value.Name) + " back (took too long)");
+			ai.GetComponent<CompanionTalk>()?.SayProblem("spear:lost", ModLocalization.LocFmt("hc_why_spear_lost", Loc(value.Name)));
 			Clear(value);
 			return false;
 		}
@@ -319,6 +320,7 @@ internal static class MHR_SpearThrow
 			if (Time.time - value.ThrownAt > LandWaitSeconds)
 			{
 				CompanionsPlugin.Log.LogInfo("[Hunt] Lost its " + Loc(value.Name) + " - it never landed anywhere it could find (water?)");
+				ai.GetComponent<CompanionTalk>()?.SayProblem("spear:lost", ModLocalization.LocFmt("hc_why_spear_lost", Loc(value.Name)));
 				Clear(value);
 			}
 			return false;
@@ -392,6 +394,17 @@ internal static class SpearLandedPatch
 [HarmonyPatch(typeof(Attack), "GetProjectileSpawnPoint")]
 internal static class CompanionProjectileAimPatch
 {
+	// 1.5.42: a point to shoot at that isn't a creature (a bird on the ground) - set just before the shot
+	private static readonly System.Collections.Generic.Dictionary<Humanoid, KeyValuePair<Vector3, float>> s_point = new System.Collections.Generic.Dictionary<Humanoid, KeyValuePair<Vector3, float>>();
+
+	internal static void AimAt(Humanoid h, Vector3 point)
+	{
+		if (h != null)
+		{
+			s_point[h] = new KeyValuePair<Vector3, float>(point, Time.time);
+		}
+	}
+
 	private static readonly AccessTools.FieldRef<Attack, Humanoid> s_character = AccessTools.FieldRefAccess<Attack, Humanoid>("m_character");
 
 	private static readonly AccessTools.FieldRef<Attack, BaseAI> s_baseAI = AccessTools.FieldRefAccess<Attack, BaseAI>("m_baseAI");
@@ -408,7 +421,8 @@ internal static class CompanionProjectileAimPatch
 				return;
 			}
 			Character character = s_baseAI(__instance)?.GetTargetCreature();
-			if (character == null)
+			bool hasPoint = s_point.TryGetValue(humanoid, out var pt) && Time.time - pt.Value < 2f;
+			if (character == null && !hasPoint)
 			{
 				return;
 			}
@@ -433,8 +447,10 @@ internal static class CompanionProjectileAimPatch
 			{
 				num2 = projectile.m_gravity;
 			}
-			Vector3 centerPoint = character.GetCenterPoint();
-			Vector3 velocity = character.GetVelocity();
+			// a bird (no creature target): aim at its point, standing still (user: "Gunter keeps trying to shoot a birds and
+			// shoots directly into the hillside" - the game fired along its facing with no allowance for the drop)
+			Vector3 centerPoint = (character != null) ? character.GetCenterPoint() : pt.Key;
+			Vector3 velocity = (character != null) ? character.GetVelocity() : Vector3.zero;
 			Vector3 vector = centerPoint;
 			float num3 = 0f;
 			for (int i = 0; i < 3; i++)

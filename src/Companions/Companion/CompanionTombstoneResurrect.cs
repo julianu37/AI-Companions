@@ -49,6 +49,9 @@ public class CompanionTombstoneResurrect : MonoBehaviour
 
 	internal static readonly int RespawnInventoryHash = "HC_Respawn_Inventory".GetStableHashCode();
 
+	// upstream 1.5.7: the farm zones a companion was working follow it through the tombstone
+	internal static readonly int RespawnFarmZonesHash = "HC_Respawn_FarmZones".GetStableHashCode();
+
 	// Fase 3.10: the AI profile of the companion (the voice it speaks with and the personality it answers in, see
 	// CompanionProfile) travels with the tombstone, like the appearance and the name - a companion that dies and is
 	// brought back speaks and answers like itself instead of falling back to the [IA] defaults.
@@ -360,9 +363,11 @@ public class CompanionTombstoneResurrect : MonoBehaviour
 			return;
 		}
 		Vector3 vector;
+		// 1.5.46: [Death] RespawnAtPlayer - always next to you (user: "We should add one to force spawn at the player")
+		bool atPlayer = isAutoRespawn && ModConfig.AutoRespawnAtPlayer.Value && Player.m_localPlayer != null;
 		if (isAutoRespawn)
 		{
-			if (!tombZdo.GetBool(RespawnHasBedHash))
+			if (atPlayer || !tombZdo.GetBool(RespawnHasBedHash))
 			{
 				goto IL_01ab;
 			}
@@ -415,6 +420,8 @@ public class CompanionTombstoneResurrect : MonoBehaviour
 		zDO2.Set(CompanionSetup.IsCommandableHash, flag3 ? 1 : 0);
 		zDO2.Set(CompanionSetup.FormationSlotHash, value5);
 		zDO2.Set(CompanionSetup.CombatStanceHash, value7);
+		// 1.5.44 (issue #17): [Death] RespawnStance - back in Passive, or gear first (RecoverFirst), or as it was (Keep)
+		MHR_Recover.OnRevived(zDO2, value7, value3);
 		if (flag4)
 		{
 			zDO2.Set(CompanionSetup.HomePosHash, vec);
@@ -423,6 +430,11 @@ public class CompanionTombstoneResurrect : MonoBehaviour
 		if (!string.IsNullOrEmpty(value6))
 		{
 			zDO2.Set(CompanionSkills.SkillsHash, value6);
+		}
+		string zones = tombZdo.GetString(RespawnFarmZonesHash);
+		if (!string.IsNullOrEmpty(zones))
+		{
+			zDO2.Set(FarmZoneSerializer.FarmZonesHash, zones);
 		}
 		zDO2.Persistent = true;
 		zDO2.Set(MHR_Roster.GenHash, mhrGen);
@@ -579,7 +591,7 @@ public class CompanionTombstoneResurrect : MonoBehaviour
 		}
 		return;
 		IL_01ab:
-		vector = ((ModConfig.AutoRespawnAtWorldSpawnWhenNoBed.Value || !(Player.m_localPlayer != null)) ? CompanionManager.GetWorldSpawnPoint() : CompanionManager.FindSpawnPosition(Player.m_localPlayer.transform.position, 4f));
+		vector = ((!atPlayer && (ModConfig.AutoRespawnAtWorldSpawnWhenNoBed.Value || !(Player.m_localPlayer != null))) ? CompanionManager.GetWorldSpawnPoint() : CompanionManager.FindSpawnPosition(Player.m_localPlayer.transform.position, 4f));
 		goto IL_0211;
 	}
 

@@ -873,6 +873,14 @@ public class HarvestController : MonoBehaviour
 			gameObject = loose;
 			pickLoose = true;
 		}
+		// 1.5.42: it has something to pick up or work after all (e.g. loose items while foraging): the "nothing to gather"
+		// reason no longer holds (user: forage was listed as "nothing to gather" while it was gathering)
+		if (gameObject != null)
+		{
+			CompanionStatus.Clear(this);
+			// 1.5.43: and the status says what (phase 3)
+			CompanionStatus.Doing(this, pickLoose ? "hc_doing_pick" : (mode == 5) ? "hc_doing_forage" : (mode == 1) ? "hc_doing_chop" : "hc_doing_mine", MHR_Items.NiceName(gameObject));
+		}
 		if (gameObject == null)
 		{
 			// Fase 3.2: nothing to work and the reason is the target a chat order put on this job ("colete 5
@@ -2475,6 +2483,11 @@ public class HarvestController : MonoBehaviour
 		return (_humanoid?.GetInventory())?.GetTotalWeight() ?? 0f;
 	}
 
+	// 1.5.43: how many targets the last scan skipped because they need a better tool, and the first one's name (status)
+	internal int LastTierSkips;
+
+	internal string LastTierName;
+
 	internal GameObject ScanForTarget(int mode)
 	{
 		if (mode == 5)
@@ -2489,6 +2502,8 @@ public class HarvestController : MonoBehaviour
 		}
 		LogDebug($"Physics scan: {num} colliders in {ScanRadius}m radius" + (flag ? " ** BUFFER FULL - may miss targets! **" : ""));
 		int bestToolTier = GetBestToolTier(mode);
+		LastTierSkips = 0;
+		LastTierName = null;
 		_seenIds.Clear();
 		GameObject gameObject = null;
 		float num2 = float.MaxValue;
@@ -2517,6 +2532,7 @@ public class HarvestController : MonoBehaviour
 			if (minToolTier > bestToolTier)
 			{
 				num8++;
+				LastTierName = LastTierName ?? MHR_Items.NiceName(harvestCandidateWithType);
 				if (num8 <= 3)
 				{
 					LogWarn($"  Tier SKIP \"{harvestCandidateWithType.name}\" — requires tier {minToolTier}, " + $"best tool tier={bestToolTier} (need bronze pickaxe tier≥1 for copper/silver)");
@@ -2585,6 +2601,7 @@ public class HarvestController : MonoBehaviour
 		{
 			Log($"  Skipped {num8} targets requiring higher tool tier (best tier={bestToolTier})");
 		}
+		LastTierSkips = num8;
 		string text = mode switch
 		{
 			3 => "Ore", 

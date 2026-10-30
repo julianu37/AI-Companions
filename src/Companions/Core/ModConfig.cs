@@ -67,6 +67,8 @@ internal static class ModConfig
 
 	internal static ConfigEntry<bool> ShowOverheadBars;
 
+	internal static ConfigEntry<bool> ShowStatus;
+
 	internal static ConfigEntry<int> ShieldMultiAttackerCount;
 
 
@@ -121,9 +123,17 @@ internal static class ModConfig
 
 	internal static ConfigEntry<bool> AutoRespawnAtWorldSpawnWhenNoBed;
 
+	internal static ConfigEntry<bool> AutoRespawnAtPlayer;
+
 	internal static ConfigEntry<int> DeathItemRule;
 
 	internal static ConfigEntry<float> TombstoneRecoveryRange;
+
+	internal static ConfigEntry<string> RespawnStance;
+
+	internal static ConfigEntry<float> RecoverThreatRange;
+
+	internal static ConfigEntry<int> RecoverMaxMobs;
 
 	internal static ConfigEntry<bool> SleepAtNight;
 
@@ -134,6 +144,14 @@ internal static class ModConfig
 	internal static ConfigEntry<float> RecallRange;
 
 	internal static ConfigEntry<float> SuperRecallHoldTime;
+
+	internal static ConfigEntry<KeyCode> PassiveKey;
+
+	internal static ConfigEntry<KeyCode> BalancedKey;
+
+	internal static ConfigEntry<KeyCode> RangedKey;
+
+	internal static ConfigEntry<KeyCode> MeleeKey;
 
 	internal static ConfigEntry<bool> ProtectCompanions;
 
@@ -259,6 +277,8 @@ internal static class ModConfig
 
 	internal static ConfigEntry<bool> FollowSitIndoors;
 
+	internal static ConfigEntry<float> FollowSitStayRange;
+
 	internal static ConfigEntry<int> PlantGroupSize;
 
 	internal static ConfigEntry<float> FarmNextCropRange;
@@ -353,6 +373,10 @@ internal static class ModConfig
 	internal static ConfigEntry<float> SmeltUseDistance;
 
 	internal static ConfigEntry<float> FarmScanRadius;
+
+	internal static ConfigEntry<bool> FarmPlantTilled;
+
+	internal static ConfigEntry<float> FarmUnreachableForget;
 
 	internal static ConfigEntry<float> FarmScanInterval;
 
@@ -470,15 +494,21 @@ internal static class ModConfig
 
 	internal static ConfigEntry<float> RestDirectedTimeout;
 
-	internal static ConfigEntry<float> SpeechMinInterval;
+	internal static ConfigEntry<bool> SpeechEnabled;
 
-	internal static ConfigEntry<float> SpeechMaxInterval;
+	internal static ConfigEntry<bool> SpeechFarMessages;
+
+	internal static ConfigEntry<bool> SpeechAnnounceDeath;
 
 	internal static ConfigEntry<float> SpeechCullDistance;
 
 	internal static ConfigEntry<float> SpeechDuration;
 
 	internal static ConfigEntry<float> SpeechSayCooldown;
+
+	internal static ConfigEntry<float> SpeechMinInterval;
+
+	internal static ConfigEntry<float> SpeechMaxInterval;
 
 	// Fase 3.3c: the periodic chatter (CompanionTalk's own timer) is off by default; orders, mode changes, job
 	// milestones and everything the AI layer says still speak.
@@ -636,12 +666,17 @@ internal static class ModConfig
 		FarmZoneModifier = Bind(cfg, "Controls", "FarmZoneModifier", KeyCode.LeftAlt, "Hold this and press FarmZoneKey to open the farm zone editor.");
 		RecallRange = Bind(cfg, "Controls", "RecallRange", 40f, "How close (meters) a companion has to be to you to answer a recall (holding the command key) or a point-and-command order. Companions with Command switched off on the wheel ignore both. 0 = no limit.", new AcceptableValueRange<float>(0f, 500f));
 		SuperRecallHoldTime = Bind(cfg, "Controls", "SuperRecallHoldTime", 2f, "Keep holding the command key this many seconds to recall every companion at any distance, including ones with Command switched off.", new AcceptableValueRange<float>(0.5f, 10f));
+		PassiveKey = Bind(cfg, "Controls", "PassiveKey", KeyCode.None, "Sets the Passive stance. Looking at one of your companions: just that one; otherwise every companion within RecallRange that has Command on. None = no key.");
+		BalancedKey = Bind(cfg, "Controls", "BalancedKey", KeyCode.None, "Sets the Balanced stance, like PassiveKey.");
+		RangedKey = Bind(cfg, "Controls", "RangedKey", KeyCode.None, "Sets the Ranged stance, like PassiveKey.");
+		MeleeKey = Bind(cfg, "Controls", "MeleeKey", KeyCode.None, "Sets the Melee stance, like PassiveKey.");
 		// [Follow]
 		FollowMaxDistance = Bind(cfg, "Follow", "MaxDistance", 10f, "How far a following companion lets you get before it moves to keep up. It picks its own spot within this range (beside, behind, sometimes ahead) and changes it now and then.", new AcceptableValueRange<float>(4f, 30f));
 		FollowIndoorDistance = Bind(cfg, "Follow", "IndoorDistance", 4f, "The same range while you're indoors (under a roof), so companions stay in the room with you.", new AcceptableValueRange<float>(2f, 10f));
 		FollowRegroup = Bind(cfg, "Follow", "Regroup", defaultValue: true, "When you stand still for RegroupTime seconds, companions come back and wait close to you. Off = they stay wherever they stopped.");
 		FollowRegroupTime = Bind(cfg, "Follow", "RegroupTime", 45f, "Seconds you stand still before companions regroup around you (see Regroup).", new AcceptableValueRange<float>(5f, 600f));
 		FollowSitIndoors = Bind(cfg, "Follow", "SitIndoors", defaultValue: true, "When you stop indoors, companions sit down near you: on a free chair or bench if there is one, otherwise on the floor. Near home they empty their bags first.");
+		FollowSitStayRange = Bind(cfg, "Follow", "SitStayRange", 10f, "Indoors, a companion that sat down stays seated while you move about within this many meters of it, and gets up to follow once you go further (or step outside).", new AcceptableValueRange<float>(2f, 30f));
 		FollowTeleportDistance = Bind(cfg, "Follow", "TeleportDistance", 50f, "A following companion that falls this many meters behind appears next to you: right away beyond 1.5x this distance, otherwise once it can't see you and isn't getting any closer.", new AcceptableValueRange<float>(20f, 200f));
 		FollowStuckTeleport = Bind(cfg, "Follow", "StuckTeleport", defaultValue: false, "When following you, a companion that has been stuck for 15 seconds somewhere it can't see you appears next to you. Off = it keeps trying to find its own way.");
 		FormationOffset = Bind(cfg, "Follow", "FormationSpacing", 3f, "Space (meters) between companions walking side by side in formation (when they follow something other than you).", new AcceptableValueRange<float>(1f, 10f));
@@ -698,8 +733,12 @@ internal static class ModConfig
 		AutoRespawnEnabled = Bind(cfg, "Death", "AutoRespawn", defaultValue: true, "A dead companion comes back by itself after RespawnDelay seconds if nobody brings it back from its tombstone first.");
 		AutoRespawnDelaySeconds = Bind(cfg, "Death", "RespawnDelay", 30f, "Seconds after death before a companion comes back by itself.", new AcceptableValueRange<float>(30f, 3600f));
 		AutoRespawnAtWorldSpawnWhenNoBed = Bind(cfg, "Death", "RespawnAtWorldSpawn", defaultValue: false, "A companion that comes back by itself and has no claimed bed appears at the world spawn stones. Off = next to you.");
+		AutoRespawnAtPlayer = Bind(cfg, "Death", "RespawnAtPlayer", defaultValue: false, "A companion that comes back by itself always appears next to you, even when it has a bed (wins over RespawnAtWorldSpawn). Off = at its bed, and without one as RespawnAtWorldSpawn says.");
 		DeathItemRule = Bind(cfg, "Death", "DeathItemRule", 0, "What a companion loses when it dies. 0 = the world's death penalty setting, same as a player. 1 = keep everything. 2 = keep equipped gear, the rest goes in the tombstone. 3 = everything goes in the tombstone. The owner's setting is used even if another player's game handles the death.", new AcceptableValueRange<int>(0, 3));
 		TombstoneRecoveryRange = Bind(cfg, "Death", "TombstoneRecoveryRange", 50f, "A companion walks over and empties its own leftover tombstone when it's within this many meters of it.", new AcceptableValueRange<float>(5f, 100f));
+		RespawnStance = Bind(cfg, "Death", "RespawnStance", "RecoverFirst", "The stance a companion comes back in after it died. RecoverFirst: Passive, auto-pickup off, it gets its gear back from its tombstone when it's safe (fighting back only if attacked with a weapon in hand), puts it on, eats, then goes back to the stance it died with. Passive: Passive until you change it. Keep: the stance it died with. Setting a stance yourself always wins.", new AcceptableValueList<string>("RecoverFirst", "Passive", "Keep"));
+		RecoverThreatRange = Bind(cfg, "Death", "RecoverThreatRange", 15f, "RecoverFirst: enemies within this many meters of the companion or its tombstone count when it decides whether it's safe to go for its gear.", new AcceptableValueRange<float>(5f, 50f));
+		RecoverMaxMobs = Bind(cfg, "Death", "RecoverMaxMobs", 3, "RecoverFirst: with more enemies than this busy fighting near its tombstone it waits by you instead of going for its gear.", new AcceptableValueRange<int>(0, 20));
 		ShrineBuildable = Bind(cfg, "Death", "ShrineBuildable", defaultValue: true, "Odin's Shrine can be built with the hammer (Misc tab, needs a workbench). Use it to see your companions and bring back a lost one. Takes effect on the next world load; shrines already built keep working.");
 		ShrineRecipe = Bind(cfg, "Death", "ShrineRecipe", "Stone:10,Wood:5,GreydwarfEye:3", "What Odin's Shrine costs to build, as Item:Amount pairs separated by commas (item names as in the game's spawn command). Takes effect on the next world load.");
 		ShrineModel = Bind(cfg, "Death", "ShrineModel", "Tombstone", "What Odin's Shrine looks like: Tombstone (a player's gravestone) or Ward (the ward stone). Takes effect on the next world load, for shrines already built too.");
@@ -760,6 +799,8 @@ internal static class ModConfig
 		FishBagFull = Bind(cfg, "Fishing", "BagFull", 0.9f, "Near home: when the pack is this full (by weight, or out of free slots) the companion walks home and puts the catch away, then goes back to fishing.", new AcceptableValueRange<float>(0.3f, 1f));
 		// [Farming]
 		FarmScanRadius = Bind(cfg, "Farming", "Range", 30f, "How far (meters) around itself a farming companion looks for crops to pick, farm zones to plant and chests.", new AcceptableValueRange<float>(5f, 100f));
+		FarmPlantTilled = Bind(cfg, "Farming", "PlantTilledGround", true, "Ground you've tilled with a cultivator (outside your farm zones) counts as an Any zone: a farming companion plants whatever seeds it has on it, on the tilled ground only. Off = it only plants in the farm zones you set.");
+		FarmUnreachableForget = Bind(cfg, "Farming", "UnreachableSpotMemory", 600f, "How long (seconds) a farmer leaves a planting spot alone after finding it can't walk there (e.g. tilled ground on the other side of a wall). It tries it again after this.", new AcceptableValueRange<float>(30f, 3600f));
 		FarmPlantSpacing = Bind(cfg, "Farming", "PlantSpacing", 0.75f, "The least space (meters) between plants. A plant that needs more room to grow gets that instead.", new AcceptableValueRange<float>(0.25f, 3f));
 		SeedReserve = Bind(cfg, "Farming", "SeedMinimum", 20, "The fewest of each plantable item (carrot, turnip, onion seeds, barley, flax and so on) the farmer keeps, counting its pack and chests near its home. It never plants seeds if that would take them below this. Barley, flax and other crops that grow from themselves are still planted, and the farmer keeps this many in its pack instead of storing them.", new AcceptableValueRange<int>(0, 1000));
 		SeedTarget = Bind(cfg, "Farming", "SeedTarget", 100, "While a seed is under this number, the farmer grows seed plants (planting carrots, turnips, onions...) alongside its regular crops to build the stock back up. Below SeedMinimum it grows only seed plants for that crop. At or above this number it grows only crops.", new AcceptableValueRange<int>(0, 5000));

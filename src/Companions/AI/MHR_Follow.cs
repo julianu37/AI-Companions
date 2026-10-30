@@ -197,7 +197,10 @@ namespace Companions
                 {
                     // aim well ahead of the spot so it keeps walking with the player instead of arriving, stopping and
                     // starting again (1.4.78: the 1.4.77 lead was short enough to "arrive" mid-walk - stutter)
-                    Vector3 lead = s.Trail ? goal : goal + t.Travel * Mathf.Max(1.5f, Mathf.Min(t.Speed, 8f));
+                    Vector3 lead = s.Trail ? goal : goal + t.Travel * (t.Indoors ? 1.0f : Mathf.Max(1.5f, Mathf.Min(t.Speed, 8f)));
+                    // 1.5.41: never aim through a wall (user: indoors it "stuttered" - the point 8 m ahead was outside the
+                    // house, so every few steps it planned a 30 m route out through the door and back in for a spot 3 m away)
+                    if (!s.Trail && !Los(goal, lead)) lead = goal;
                     int pace = Pace(player, dSpot, distP, maxD);
                     // ahead of its spot: ease off a step instead of stopping
                     if (!s.Trail && dSpot < 2f && Vector3.Dot(me - goal, t.Travel) > 0.5f && pace > MHR_Mover.SpeedWalk) pace--;
@@ -455,7 +458,7 @@ namespace Companions
             if (!Physics.Raycast(new Vector3(w.x, pp.y + 2.5f, w.z), Vector3.down, out hit, 6f, GroundMask())) return false;
             if (hit.normal.y < 0.6f || Mathf.Abs(hit.point.y - pp.y) > 2.5f) return false;
             if (MHR_Water.DepthAt(hit.point) > 1.0f) return false;
-            if (MHR_Mover.InFire(hit.point)) return false;   // 1.4.88: not in the fire pit
+            if (MHR_Mover.NearFire(hit.point, 1.2f)) return false;   // 1.4.88: not in the fire pit (1.5.44: nor at its edge)
             g = hit.point;
             return true;
         }
@@ -656,7 +659,7 @@ namespace Companions
                     RaycastHit hit;
                     if (!Physics.Raycast(p + Vector3.up * 1.0f, Vector3.down, out hit, 2.5f, GroundMask()) || hit.normal.y <= 0.6f) continue;
                     if (hit.point.y > seat.y + 0.3f) continue;   // on top of something (a hearth, a table), not the floor
-                    if (hit.collider.GetComponentInParent<Fireplace>() != null || MHR_Chests.IsFurniture(hit.collider) || MHR_Mover.InFire(hit.point)) continue;
+                    if (hit.collider.GetComponentInParent<Fireplace>() != null || MHR_Chests.IsFurniture(hit.collider) || MHR_Mover.NearFire(hit.point, 1.2f)) continue;
                     if (Physics.CheckCapsule(hit.point + Vector3.up * 0.6f, hit.point + Vector3.up * 1.6f, 0.3f, GroundMask())) continue;
                     spot = hit.point + Vector3.up * 0.05f;
                     return true;
@@ -758,7 +761,14 @@ namespace Companions
                     T t;
                     bool indoors = s_t.TryGetValue(s.TargetId, out t) && t.Indoors;
                     float moved = Flat(f.transform.position, s.SitPlayerPos);
-                    if (moved > 2.5f || (!indoors && moved > 1f)) why = "player moved";
+                    // 1.5.41: indoors it stays seated while the player potters about nearby (user: "If the NPC sits down or
+                    // something it can stay there for a bit while I am running around indoors ... like 10m")
+                    if (indoors)
+                    {
+                        float stay = ModConfig.FollowSitStayRange != null ? ModConfig.FollowSitStayRange.Value : 10f;
+                        if (Vector3.Distance(f.transform.position, ai.transform.position) > stay) why = "player moved off";
+                    }
+                    else if (moved > 1f) why = "player moved";
                 }
                 if (why != null) StandUp(ai, s, keepAnim, why);
                 else if (s.SitChair) Pin(ai, s);

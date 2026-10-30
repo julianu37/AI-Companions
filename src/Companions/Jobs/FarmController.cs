@@ -79,7 +79,29 @@ public class FarmController : MonoBehaviour
 
 	private bool _allDoneNotified;
 
+	// 1.5.42: what the last scan ran into, for the "why" (hover status, idle line, problems)
+	private bool _whyNoZones, _whyNoSeeds, _whyNoChest;
+
 	private bool _shouldRun;
+
+	// 1.5.43: why it isn't planting, gathered during a scan
+	private readonly List<CompanionStatus.Item> _farmWhy = new List<CompanionStatus.Item>();
+
+	private void FarmWhy(string key, params object[] args)
+	{
+		string sig = key + "|" + string.Join("|", args);
+		foreach (CompanionStatus.Item it in _farmWhy)
+		{
+			if (it.Key + "|" + string.Join("|", it.Args) == sig)
+			{
+				return;
+			}
+		}
+		if (_farmWhy.Count < 8)
+		{
+			_farmWhy.Add(new CompanionStatus.Item(null, key, args));
+		}
+	}
 
 	private bool _preferHarvest = true;
 
@@ -123,6 +145,8 @@ public class FarmController : MonoBehaviour
 
 	private int _spaceMask;
 
+	private int _roofMask;
+
 	private int _itemMask;
 
 	private int _pickableMask;
@@ -138,6 +162,35 @@ public class FarmController : MonoBehaviour
 	internal FarmPhase Phase => _phase;
 
 	public bool IsActive => _phase != FarmPhase.Idle;
+
+	// 1.5.42: what it's doing right now, for the hover status ("Farm - planting Carrot Seeds")
+	internal string DoingText()
+	{
+		switch (_phase)
+		{
+		case FarmPhase.MovingToPickable:
+		case FarmPhase.Harvesting:
+			return ModLocalization.Loc("hc_status_farm_harvesting");
+		case FarmPhase.CollectingDrops:
+			return ModLocalization.Loc("hc_status_farm_pickup");
+		case FarmPhase.MovingToSeedChest:
+		case FarmPhase.TakingSeeds:
+			return ModLocalization.Loc("hc_status_farm_seeds");
+		case FarmPhase.MovingToPlantSpot:
+		case FarmPhase.Planting:
+		{
+			string seed = _plantInfo.SeedPrefabName;
+			string name = ObjectDB.instance?.GetItemPrefab(seed ?? "")?.GetComponent<ItemDrop>()?.m_itemData?.m_shared?.m_name;
+			name = string.IsNullOrEmpty(name) ? seed : (Localization.instance?.Localize(name) ?? name);
+			return ModLocalization.LocFmt("hc_status_farm_planting", name ?? "");
+		}
+		case FarmPhase.MovingToOutputChest:
+		case FarmPhase.StoringOutput:
+			return ModLocalization.Loc("hc_status_farm_storing");
+		default:
+			return null;
+		}
+	}
 
 	private static float ScanRadius => ModConfig.FarmScanRadius.Value;
 
@@ -181,6 +234,7 @@ public class FarmController : MonoBehaviour
 		_smelt = GetComponent<SmeltController>();
 		_repair = GetComponent<RepairController>();
 		_spaceMask = LayerMask.GetMask("Default", "static_solid", "Default_small", "piece", "piece_nonsolid");
+		_roofMask = LayerMask.GetMask("Default", "static_solid", "piece");
 		_itemMask = LayerMask.GetMask("item");
 		_pickableMask = LayerMask.GetMask("Default", "static_solid", "Default_small", "piece", "piece_nonsolid");
 	}
@@ -318,6 +372,117 @@ public class FarmController : MonoBehaviour
 	{
 		ZDO zdo = _nview?.GetZDO();
 		_farmZones = FarmZoneSerializer.Load(zdo);
+		// 1.5.42: tilled ground counts as an Any zone (user: "update farming to use tilled ground as an 'any' zone? Maybe
+		// with an option to turn it off so the NPC will only use set zones")
+		if (ModConfig.FarmPlantTilled == null || ModConfig.FarmPlantTilled.Value)
+		{
+			if (_tilled == null || Time.time >= _nextTilledScan)
+			{
+				_nextTilledScan = Time.time + 30f;
+				_tilled = FindTilledPatches(_farmZones);
+			}
+			_farmZones.AddRange(_tilled);
+		}
+	}
+
+	private List<FarmZone> _tilled;
+
+	private float _nextTilledScan;
+
+	// patches of tilled ground around the farm (home, or where it is), outside the player's zones, as square zones
+	private List<FarmZone> FindTilledPatches(List<FarmZone> real)
+	{
+		List<FarmZone> list = new List<FarmZone>();
+		Vector3 me = base.transform.position;
+		Vector3 c = (_setup != null && _setup.HasHomePosition() && Vector3.Distance(_setup.GetHomePosition(), me) <= ScanRadius) ? _setup.GetHomePosition() : me;
+		const float step = 2f;
+		int n = Mathf.CeilToInt(ScanRadius / step);
+		int size = n * 2 + 1;
+		bool[,] grid = new bool[size, size];
+		int cells = 0;
+		for (int i = 0; i < size; i++)
+		{
+			for (int j = 0; j < size; j++)
+			{
+				float dx = (i - n) * step, dz = (j - n) * step;
+				if (dx * dx + dz * dz > ScanRadius * ScanRadius)
+				{
+					continue;
+				}
+				Vector3 p = new Vector3(c.x + dx, c.y, c.z + dz);
+				if (!ZoneSystem.instance.GetGroundHeight(p, out var h))
+				{
+					continue;
+				}
+				p.y = h;
+				if (!MHR_SafeCultivated(p) || InRealZone(real, p))
+				{
+					continue;
+				}
+				grid[i, j] = true;
+				cells++;
+			}
+		}
+		if (cells == 0)
+		{
+			return list;
+		}
+		// join neighbouring tilled cells into patches
+		bool[,] seen = new bool[size, size];
+		Stack<Vector2Int> stack = new Stack<Vector2Int>();
+		for (int i = 0; i < size; i++)
+		{
+			for (int j = 0; j < size; j++)
+			{
+				if (!grid[i, j] || seen[i, j])
+				{
+					continue;
+				}
+				int minI = i, maxI = i, minJ = j, maxJ = j;
+				seen[i, j] = true;
+				stack.Push(new Vector2Int(i, j));
+				while (stack.Count > 0)
+				{
+					Vector2Int q = stack.Pop();
+					minI = Mathf.Min(minI, q.x); maxI = Mathf.Max(maxI, q.x); minJ = Mathf.Min(minJ, q.y); maxJ = Mathf.Max(maxJ, q.y);
+					for (int k = 0; k < 4; k++)
+					{
+						int a = q.x + ((k == 0) ? 1 : (k == 1) ? -1 : 0);
+						int b = q.y + ((k == 2) ? 1 : (k == 3) ? -1 : 0);
+						if (a >= 0 && b >= 0 && a < size && b < size && grid[a, b] && !seen[a, b])
+						{
+							seen[a, b] = true;
+							stack.Push(new Vector2Int(a, b));
+						}
+					}
+				}
+				Vector3 center = new Vector3(c.x + ((minI + maxI) * 0.5f - n) * step, c.y, c.z + ((minJ + maxJ) * 0.5f - n) * step);
+				if (ZoneSystem.instance.GetGroundHeight(center, out var cy))
+				{
+					center.y = cy;
+				}
+				float half = Mathf.Max(maxI - minI, maxJ - minJ) * step * 0.5f + step * 0.75f;
+				list.Add(new FarmZone { Center = center, HalfSize = half, CropSeed = "", Rotation = 0f, Tilled = true });
+			}
+		}
+		Log($"[Plant] Tilled ground: {cells} cell(s) in {list.Count} patch(es) around {c:F0}");
+		return list;
+	}
+
+	private static bool InRealZone(List<FarmZone> zones, Vector3 p)
+	{
+		if (zones == null)
+		{
+			return false;
+		}
+		foreach (FarmZone z in zones)
+		{
+			if (z.IsValid && !z.Tilled && z.Contains(p))
+			{
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private void UpdateIdle(float dt)
@@ -343,20 +508,49 @@ public class FarmController : MonoBehaviour
 		Log("Scanning — mode=" + (_preferHarvest ? "HARVEST" : "PLANT") + " " + $"rotTimer={_rotationTimer:F0}s cropNames={s_cropOutputNames?.Count ?? 0} " + $"seedMap={s_seedToPlant?.Count ?? 0} pos={base.transform.position:F1}");
 		// 1.4.82: pick everything that's ripe first and only carry it to a chest when nothing ripe is left
 		// or the pack is nearly full (1.4.81 log: he went to a chest after every few crops).
+		_whyNoZones = _whyNoSeeds = _whyNoChest = false;
+		_farmWhy.Clear();
 		if (PackNearlyFull() && TryScanStore())
 		{
+			CompanionStatus.Clear(this);
 			return;
 		}
 		if (_preferHarvest)
 		{
 			if (TryScanHarvest() || TryScanStore() || TryScanPlant())
 			{
+				CompanionStatus.Clear(this);
 				return;
 			}
 		}
 		else if (TryScanStore() || TryScanPlant() || TryScanHarvest())
 		{
+			CompanionStatus.Clear(this);
 			return;
+		}
+		if (_whyNoChest)
+		{
+			CompanionStatus.Why(this, "hc_why_farm_no_chest", speak: true);
+		}
+		else
+		{
+			// 1.5.43 (phase 3): the concrete reasons in turn - the seed a zone is missing, zones with every spot planted,
+			// seeds kept back at [Farming] SeedMinimum; no zones (1.5.42: information, not a problem to announce - harvesting
+			// doesn't need zones); else waiting for the crops to grow
+			if (_whyNoSeeds)
+			{
+				_talk?.SayProblem("hc_speech_farm_no_seeds", ModLocalization.Loc("hc_speech_farm_no_seeds"));
+				FarmWhy("hc_speech_farm_no_seeds");
+			}
+			if (_whyNoZones)
+			{
+				FarmWhy("hc_why_farm_no_zones");
+			}
+			if (_farmWhy.Count == 0)
+			{
+				FarmWhy("hc_why_farm_waiting");
+			}
+			CompanionStatus.WhyRotate(this, _farmWhy);
 		}
 		if (!_allDoneNotified)
 		{
@@ -364,7 +558,7 @@ public class FarmController : MonoBehaviour
 			Log("Nothing to farm — idle (30s backoff)");
 			if (_talk != null)
 			{
-				_talk.Say(ModLocalization.Loc("hc_speech_farm_done"));
+				_talk.Speak(ModLocalization.Loc("hc_speech_farm_done"), CompanionTalk.Priority.Event, "farm:done", 600f);
 			}
 			RestoreFollow();
 		}
@@ -821,6 +1015,7 @@ public class FarmController : MonoBehaviour
 				return true;
 			}
 			Log("[Store] Have crop output but no chest with space found");
+			_whyNoChest = true;
 		}
 		else
 		{
@@ -841,7 +1036,7 @@ public class FarmController : MonoBehaviour
 			_phase = FarmPhase.MovingToPickable;
 			if (_talk != null)
 			{
-				_talk.Say(ModLocalization.Loc("hc_speech_farm_harvesting"));
+				_talk.Speak(ModLocalization.Loc("hc_speech_farm_harvesting"), CompanionTalk.Priority.Event, "farm:harvest");
 			}
 			Log("[Harvest] Found ripe crop \"" + pickable.name + "\" at " + $"{pickable.transform.position:F1} dist={Vector3.Distance(base.transform.position, pickable.transform.position):F1}m");
 			return true;
@@ -860,7 +1055,7 @@ public class FarmController : MonoBehaviour
 				Log("No cultivator in inventory — harvest-only mode");
 				if (_talk != null)
 				{
-					_talk.Say(ModLocalization.Loc("hc_speech_farm_no_cultivator"));
+					_talk.SayProblem("tool:cultivator", ModLocalization.Loc("hc_speech_farm_no_cultivator"));
 				}
 			}
 			return false;
@@ -868,6 +1063,7 @@ public class FarmController : MonoBehaviour
 		if (_farmZones == null || _farmZones.Count == 0)
 		{
 			Log("[Plant] No farm zones defined — skipping planting");
+			_whyNoZones = true;
 			return false;
 		}
 		Log($"[Plant] TryScanPlant: {_farmZones.Count} zones, pos={base.transform.position:F1}");
@@ -905,6 +1101,7 @@ public class FarmController : MonoBehaviour
 			if (string.IsNullOrEmpty(cropSeed))
 			{
 				Log($"[Plant] Zone[{num4}] nothing to plant here right now");
+				FarmWhy("hc_why_farm_seed_min", (ModConfig.SeedReserve?.Value ?? 20).ToString());
 				continue;
 			}
 			flag = false;
@@ -924,12 +1121,13 @@ public class FarmController : MonoBehaviour
 					_phase = FarmPhase.MovingToPlantSpot;
 					if (_talk != null)
 					{
-						_talk.Say(ModLocalization.Loc("hc_speech_farm_planting"));
+						_talk.Speak(ModLocalization.Loc("hc_speech_farm_planting"), CompanionTalk.Priority.Event, "farm:plant");
 					}
 					Log($"[Zone] Planting \"{seedPlantInfo.Value.SeedPrefabName}\" at {result:F1} in zone[{num4}] {zone.Center:F0}");
 					return true;
 				}
 				Log($"[Plant] Zone[{num4}] no valid plant position (zone full or uncultivated)");
+				FarmWhy("hc_why_farm_zone_full");
 			}
 			else
 			{
@@ -973,6 +1171,7 @@ public class FarmController : MonoBehaviour
 				else
 				{
 					Log($"[Plant] Zone[{num4}] no seeds in chests either");
+					_whyNoSeeds = true;
 				}
 				continue;
 			}
@@ -1006,10 +1205,12 @@ public class FarmController : MonoBehaviour
 					return true;
 				}
 				Log($"[Plant] Zone[{num4}] chest seeds found but no plant position in zone");
+				FarmWhy("hc_why_farm_zone_full");
 			}
 			else
 			{
 				Log($"[Plant] Zone[{num4}] no \"{cropSeed}\" in chests either");
+				FarmWhy("hc_why_farm_no_seed", CookController.Name(cropSeed));
 			}
 		}
 		Log("[Plant] All zones checked — no planting possible");
@@ -1334,7 +1535,6 @@ public class FarmController : MonoBehaviour
 		float halfSize = zone.HalfSize;
 		float num2 = Mathf.Ceil((0f - halfSize) / num) * num;
 		float num3 = Mathf.Floor(halfSize / num) * num;
-		float num4 = float.MaxValue;
 		bool flag = false;
 		// 1.4.84: plant in rows like a player, starting at the far edge of the zone and working back toward where he came
 		// in, back and forth along each row, so he always stands on ground that's still empty. Nearest-first had him
@@ -1345,6 +1545,9 @@ public class FarmController : MonoBehaviour
 		int num7 = 0;
 		int num8 = 0;
 		int num9 = 0;
+		int numRoof = 0;
+		int numFar = 0;
+		_plantCandidates.Clear();
 		for (float num10 = num2; num10 <= num3; num10 += num)
 		{
 			for (float num11 = num2; num11 <= num3; num11 += num)
@@ -1366,9 +1569,15 @@ public class FarmController : MonoBehaviour
 						continue;
 					}
 				}
-				if (info.NeedsCultivated && !MHR_SafeCultivated(vector))
+				// a tilled patch: only the tilled ground in it, never inside a zone the player set
+				if ((info.NeedsCultivated || zone.Tilled) && !MHR_SafeCultivated(vector))
 				{
 					num6++;
+					continue;
+				}
+				if (zone.Tilled && InRealZone(_farmZones, vector))
+				{
+					num7++;
 					continue;
 				}
 				int num12 = Physics.OverlapSphereNonAlloc(vector, info.GrowRadius * 0.5f, _spacingBuffer, _spaceMask);
@@ -1387,6 +1596,16 @@ public class FarmController : MonoBehaviour
 					num7++;
 					continue;
 				}
+				if (NoSunOrRoom(vector, info.GrowRadius))
+				{
+					numRoof++;
+					continue;
+				}
+				if (KnownUnreachable(vector))
+				{
+					numFar++;
+					continue;
+				}
 				if (_ai != null && _ai.IsPositionBlacklisted(vector))
 				{
 					num7++;
@@ -1402,19 +1621,32 @@ public class FarmController : MonoBehaviour
 				float colKey = order.AlongZ ? num10 : num11;
 				int row = Mathf.RoundToInt((rowKey + halfSize) / num);
 				float num13 = row * 10000f + ((row % 2 == 0) ? colKey : (0f - colKey));
-				if (num13 < num4)
-				{
-					num4 = num13;
-					result = vector;
-					flag = true;
-				}
+				_plantCandidates.Add(new KeyValuePair<float, Vector3>(num13, vector));
 			}
+		}
+		// 1.5.42: only a spot it can walk to. User test (log 7209b50a): a little tilled spot just outside the wall was part
+		// of the patch; the route there only got as far as the wall (partial), it gave up, and 30 s later picked the cell
+		// next to it - again and again. Check the best few in planting order; the ones it can't get to are remembered.
+		_plantCandidates.Sort((a, b) => a.Key.CompareTo(b.Key));
+		int checks = 0;
+		for (int c = 0; c < _plantCandidates.Count && checks < MaxReachChecks; c++)
+		{
+			Vector3 spot = _plantCandidates[c].Value;
+			checks++;
+			if (MHR_Mover.Reachable(base.transform.position, spot, UseDistance))
+			{
+				result = spot;
+				flag = true;
+				break;
+			}
+			MarkUnreachable(spot);
+			numFar++;
 		}
 		if (!flag)
 		{
 			_plantOrders.Remove(ZoneKey(zone));   // zone done: pick the starting edge afresh next time
 		}
-		Log($"FindPlantPositionInZone: cells={num5} noHeight={num9} noBiome={num8} " + $"noCultivated={num6} blocked={num7} found={flag} " + $"seed=\"{info.SeedPrefabName}\" needsCultivated={info.NeedsCultivated} zone={zone.Center:F1}");
+		Log($"FindPlantPositionInZone: cells={num5} noHeight={num9} noBiome={num8} " + $"noCultivated={num6} blocked={num7} roofOrWall={numRoof} cantReach={numFar} found={flag} " + $"seed=\"{info.SeedPrefabName}\" needsCultivated={info.NeedsCultivated} zone={zone.Center:F1}");
 		return flag;
 	}
 
@@ -1602,6 +1834,10 @@ public class FarmController : MonoBehaviour
 			if (currentTargetPosition != Vector3.zero && _ai != null)
 			{
 				_ai.BlacklistPosition(currentTargetPosition);
+				if (_phase == FarmPhase.MovingToPlantSpot)
+				{
+					MarkUnreachable(currentTargetPosition);
+				}
 				Log($"Blacklisted stuck target \"{targetName}\" at {currentTargetPosition:F1}");
 			}
 			Abort("stuck moving to " + targetName);
@@ -1779,6 +2015,63 @@ public class FarmController : MonoBehaviour
 		}
 	}
 
+	private readonly List<KeyValuePair<float, Vector3>> _plantCandidates = new List<KeyValuePair<float, Vector3>>();
+
+	// plant spots it couldn't walk to (1 m cells), and when
+	private readonly Dictionary<Vector3Int, float> _unreachable = new Dictionary<Vector3Int, float>();
+
+	// route checks per search - each is a navmesh query
+	private const int MaxReachChecks = 8;
+
+	private static Vector3Int ReachKey(Vector3 p)
+	{
+		return new Vector3Int(Mathf.RoundToInt(p.x), Mathf.RoundToInt(p.y), Mathf.RoundToInt(p.z));
+	}
+
+	internal void MarkUnreachable(Vector3 p)
+	{
+		if (_unreachable.Count > 2000)
+		{
+			_unreachable.Clear();
+		}
+		_unreachable[ReachKey(p)] = Time.time;
+	}
+
+	private bool KnownUnreachable(Vector3 p)
+	{
+		if (!_unreachable.TryGetValue(ReachKey(p), out var at))
+		{
+			return false;
+		}
+		if (Time.time - at < ModConfig.FarmUnreachableForget.Value)
+		{
+			return true;
+		}
+		_unreachable.Remove(ReachKey(p));
+		return false;
+	}
+
+	// 1.5.42: the game won't grow a crop with a roof or overhang above it (Plant.HaveRoof) or with anything solid that isn't
+	// a plant inside its grow radius (Plant.HaveGrowSpace) - a seed planted under the eaves or against a wall just sits
+	// there. A player sees the red "no sun"/"no space" marker; the companion checks the same before picking the spot.
+	private bool NoSunOrRoom(Vector3 p, float growRadius)
+	{
+		if (Physics.Raycast(p + Vector3.up * 0.1f, Vector3.up, 100f, _roofMask))
+		{
+			return true;
+		}
+		int n = Physics.OverlapSphereNonAlloc(p, growRadius, _spacingBuffer, _spaceMask);
+		for (int i = 0; i < n; i++)
+		{
+			Collider col = _spacingBuffer[i];
+			if (col != null && col.GetComponentInParent<Plant>() == null && col.GetComponentInParent<Pickable>() == null)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
 	private bool FindPlantPosition(SeedPlantInfo info, out Vector3 result)
 	{
 		result = Vector3.zero;
@@ -1828,7 +2121,7 @@ public class FarmController : MonoBehaviour
 						break;
 					}
 				}
-				if (flag)
+				if (flag || NoSunOrRoom(vector, info.GrowRadius) || KnownUnreachable(vector))
 				{
 					continue;
 				}

@@ -162,6 +162,7 @@ public class FishController : MonoBehaviour
 			_hasAnchor = true;
 			_anchor = base.transform.position;
 			Log("Fishing around " + MHR_Mover.Fmt(_anchor) + ", up to " + Radius().ToString("F0") + " m out");
+			_foodLogged = false;
 		}
 		if (CompanionInteractPanel.IsOpenFor(_setup) || CompanionRadialMenu.IsOpenFor(_setup))
 		{
@@ -263,6 +264,12 @@ public class FishController : MonoBehaviour
 		if (!PickTarget(out string why))
 		{
 			WhyLog("Nothing to fish (" + why + ")");
+			// 1.5.43 (phase 3): the concrete reasons in turn - each fish at its target, the bait a fish here takes, no bank
+			// to fish from, or no fish within the range from the settings
+			if (_whyItems.Count == 0)
+			{
+				_whyItems.Add(new CompanionStatus.Item(null, "hc_why_fish_none", Radius().ToString("F0")));
+			}
 			if (why.StartsWith("no bait"))
 			{
 				Say("hc_speech_fish_need_bait");
@@ -271,9 +278,19 @@ public class FishController : MonoBehaviour
 			{
 				Say("hc_speech_fish_no_water");
 			}
+			// after Say (which records its own line): the status shows the concrete reasons
+			CompanionStatus.WhyRotate(this, _whyItems);
 			return;
 		}
 		_castTries = 0;
+		if (!_foodLogged)
+		{
+			_foodLogged = true;
+			string food = MHR_ToolKeeper.StaminaFoodText(_humanoid.GetInventory());
+			Log(food != null ? "Stamina food for reeling: " + food : "No stamina food in the pack");
+		}
+		CompanionStatus.Clear(this);
+		CompanionStatus.Doing(this, "hc_doing_fish", FishCatalog.Local(_fish));
 		MHR_Mover.Release(_ai);
 		Enter(FishState.Moving);
 		Log("Going to fish for " + _fishName + " from " + MHR_Mover.Fmt(_stand) + " with " + CookController.Name(_bait) + NeedText(_fishName));
@@ -295,6 +312,8 @@ public class FishController : MonoBehaviour
 		Fish bestFish = null;
 		Vector3 bestStand = Vector3.zero;
 		string bestBait = null;
+		_whyItems.Clear();
+		HashSet<string> told = new HashSet<string>();
 		foreach (IMonoUpdater u in Fish.Instances)
 		{
 			Fish fish = u as Fish;
@@ -320,6 +339,11 @@ public class FishController : MonoBehaviour
 			if (!Needs(name))
 			{
 				enough++;
+				if (told.Add("enough:" + name) && _whyItems.Count < 8)
+				{
+					_counts.TryGetValue(name, out var have);
+					_whyItems.Add(new CompanionStatus.Item(null, "hc_why_fish_at_target", FishCatalog.Local(fish), have, FishCatalog.Target(name)));
+				}
 				continue;
 			}
 			string bait = BestBait(fish, inv);
@@ -327,10 +351,18 @@ public class FishController : MonoBehaviour
 			{
 				noBait++;
 				noBaitFor = noBaitFor ?? (FishCatalog.Local(fish) + " (takes " + FishCatalog.BaitsText(fish) + ")");
+				if (told.Add("bait:" + name) && _whyItems.Count < 8)
+				{
+					_whyItems.Add(new CompanionStatus.Item(null, "hc_why_fish_bait", FishCatalog.Local(fish), FishCatalog.BaitNames(fish)));
+				}
 				continue;
 			}
 			if (!SpotFor(fish, out var stand, out var spotCost))
 			{
+				if (told.Add("bank:" + name) && _whyItems.Count < 8)
+				{
+					_whyItems.Add(new CompanionStatus.Item(null, "hc_why_fish_no_bank", FishCatalog.Local(fish)));
+				}
 				noBank++;
 				noBankAt = noBankAt ?? (FishCatalog.Local(fish) + " at " + MHR_Mover.Fmt(p) + ", water " + MHR_Water.WaterLevel(p).ToString("F1"));
 				continue;
@@ -1101,6 +1133,11 @@ public class FishController : MonoBehaviour
 
 	// ------------------------------------------------------------------ counts and targets
 
+	private bool _foodLogged;
+
+	// 1.5.43: why there's nothing to fish, filled by PickTarget
+	private readonly List<CompanionStatus.Item> _whyItems = new List<CompanionStatus.Item>();
+
 	private bool Needs(string fish)
 	{
 		int target = FishCatalog.Target(fish);
@@ -1245,10 +1282,11 @@ public class FishController : MonoBehaviour
 
 	private void Say(string key)
 	{
+		CompanionStatus.Why(this, key);
 		if (Time.time - _lastSpeechTime >= 60f)
 		{
 			_lastSpeechTime = Time.time;
-			_talk?.Say(ModLocalization.Loc(key));
+			_talk?.SayProblem("fish:" + key, ModLocalization.Loc(key));
 		}
 	}
 
@@ -1320,6 +1358,20 @@ internal static class FishCatalog
 	{
 		Ensure();
 		return s_fish.Contains(prefab);
+	}
+
+	// 1.5.43: just the bait names, for the status ("Herring bait or Fishing bait")
+	internal static string BaitNames(Fish fish)
+	{
+		List<string> parts = new List<string>();
+		foreach (Fish.BaitSetting b in fish.m_baits)
+		{
+			if (b?.m_bait != null)
+			{
+				parts.Add(CookController.Name(b.m_bait.gameObject.name));
+			}
+		}
+		return parts.Count > 0 ? string.Join(" / ", parts.ToArray()) : "?";
 	}
 
 	internal static string BaitsText(Fish fish)

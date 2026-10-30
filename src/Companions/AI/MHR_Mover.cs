@@ -21,7 +21,7 @@ namespace Companions
             public int Ladder; public float StepUntil; public Vector3 StepDir; public bool StepRun;
             public bool HasDetour; public Vector3 Detour; public float DetourUntil;
             public bool GaveUp; public float GaveUpAt;
-            public float LastGo, NextLog, NextDoorSearch, NextDoorPeek, NextJump, NextDive, NextWaterPeek, NextLineLog;
+            public float LastGo, NextLog, NextDoorSearch, NextDoorPeek, NextJump, NextDive, NextWaterPeek, NextLineLog, NextFireLog;
             public Door RouteDoor; public Vector3 RouteDoorSpot;
             public bool WaitStamina, TooTired; public float NeedStamina, WaitStart, NoWaitUntil;
             public float MainBest; public int Passes; public Vector3 Shore; public bool HasShore; public float NextShore;
@@ -338,9 +338,14 @@ namespace Companions
 
             // 1.4.88: a fire on the next step (and the goal isn't in it): jump over it like a player when it's small
             // (clear ground 2.5 m on), otherwise go round it
-            if (InFire(pos + dir * 0.8f) && !InFire(goal))
+            // 1.5.46: at body height too (the hearth's flames sit above its stone), and only small fires are jumped -
+            // a hearth is stepped round (1.5.45 test: it still ended up on the hearth at the very end)
+            EffectArea aheadFire = FireArea(pos + dir * 0.8f, 0.3f);
+            if (aheadFire != null && !InFire(goal))
             {
-                if (c.IsOnGround() && now >= s.NextHop && !InFire(pos + dir * 2.5f) && !DropAhead(pos, dir, 2.5f, 1.2f))
+                Collider fc = aheadFire.GetComponent<Collider>();
+                bool small = fc != null && Mathf.Max(fc.bounds.extents.x, fc.bounds.extents.z) < 0.9f;
+                if (small && c.IsOnGround() && now >= s.NextHop && !NearFire(pos + dir * 2.5f, 0.3f) && !DropAhead(pos, dir, 2.5f, 1.2f))
                 {
                     s.NextHop = now + 1.0f;
                     ai.transform.rotation = Quaternion.LookRotation(dir);
@@ -615,6 +620,81 @@ namespace Companions
                     }
                 }
             }
+            AvoidFire(s, pos, goal, now);
+        }
+
+        // 1.5.44: the route goes round a hearth's or campfire's collider, but the flames (the Burning area) reach further, so
+        // it walked through the edge of the fire and stood in it (1.5.42/1.5.43 logs: 10 fire damage a tick, the hearth
+        // damaged too). Walk each leg in 0.4 m steps; where one enters a fire, put two corners round it on the side that's
+        // clear (ground, out of the flames, in sight of the corner before). Not when the goal itself is in the fire.
+        static void AvoidFire(S s, Vector3 pos, Vector3 goal, float now)
+        {
+            if (s.Path.Count == 0 || InFire(goal)) return;
+            try
+            {
+                Vector3 prev = pos;
+                for (int i = 0; i < s.Path.Count && i < 40; i++)
+                {
+                    Vector3 next = s.Path[i];
+                    Vector3 leg = next - prev; leg.y = 0f;
+                    float len = leg.magnitude;
+                    if (len > 0.05f)
+                    {
+                        Vector3 dir = leg / len;
+                        for (float t = 0.2f; t < len; t += 0.4f)
+                        {
+                            Vector3 p = prev + dir * t; p.y = Mathf.Lerp(prev.y, next.y, t / len);
+                            EffectArea fire = FireArea(p, 0.5f);
+                            if (fire == null) continue;
+                            Vector3 a, b;
+                            if (!FireBypass(fire, prev, dir, out a, out b))
+                            {
+                                // no clear way round: leave the route (the per-step fire check steers round it)
+                                if (now >= s.NextFireLog) { s.NextFireLog = now + 10f; Dbg("[Move|" + s.Tag + "] the route passes the fire at " + Fmt(fire.transform.position) + " and there's no clear way round it - steering round step by step"); }
+                                return;
+                            }
+                            s.Path.Insert(i, b); s.Path.Insert(i, a);
+                            if (now >= s.NextFireLog) { s.NextFireLog = now + 10f; Dbg("[Move|" + s.Tag + "] going round the fire at " + Fmt(fire.transform.position) + " via " + Fmt(a) + " and " + Fmt(b)); }
+                            return;
+                        }
+                    }
+                    prev = next;
+                }
+            }
+            catch { }
+        }
+
+        static bool FireBypass(EffectArea fire, Vector3 from, Vector3 dir, out Vector3 a, out Vector3 b)
+        {
+            a = b = Vector3.zero;
+            Collider col = fire.GetComponent<Collider>();
+            Vector3 c = col != null ? col.bounds.center : fire.transform.position;
+            float r = col != null ? Mathf.Max(col.bounds.extents.x, col.bounds.extents.z) : 2f;
+            r += 0.8f;
+            Vector3 side = new Vector3(-dir.z, 0f, dir.x);
+            float best = float.MaxValue; bool found = false;
+            for (int k = -1; k <= 1; k += 2)
+            {
+                Vector3 pa = c + side * (k * r) - dir * r * 0.75f;
+                Vector3 pb = c + side * (k * r) + dir * r * 0.75f;
+                Vector3 ga, gb;
+                if (!GroundAt(pa, from.y, out ga) || !GroundAt(pb, from.y, out gb)) continue;
+                if (NearFire(ga, 0.5f) || NearFire(gb, 0.5f)) continue;
+                if (!CanSee(from, ga) || !CanSee(ga, gb)) continue;
+                float d = Vector3.Distance(from, ga);
+                if (d < best) { best = d; a = ga; b = gb; found = true; }
+            }
+            return found;
+        }
+
+        static bool GroundAt(Vector3 p, float nearY, out Vector3 ground)
+        {
+            ground = p;
+            RaycastHit hit;
+            if (!Physics.Raycast(new Vector3(p.x, nearY + 1.5f, p.z), Vector3.down, out hit, 4f, Mask())) return false;
+            if (Mathf.Abs(hit.point.y - nearY) > 1.2f) return false;
+            ground = hit.point;
+            return true;
         }
 
         static float PathLength(Vector3 from, List<Vector3> path)
@@ -710,6 +790,12 @@ namespace Companions
                     s.GaveUp = true; s.GaveUpAt = now;
                     Halt(ai, c, s);
                     if (CompanionsPlugin.Log != null) CompanionsPlugin.Log.LogInfo("[Move|" + tag + "] couldn't get to " + Fmt(s.Goal) + " from " + Fmt(pos) + " - giving up");
+                    // 1.5.42: say so when it's about you or your order (following, a move order, a fight, a hunt); for a job
+                    // it's only the reason in its status (user, speech review: "I can't get up there")
+                    {
+                        bool forPlayer = tag == FollowTag || tag == "Command" || tag == "Combat" || tag == "Hunt";
+                        CompanionStatus.Why(ai, s.Goal.y - pos.y > 2f ? "hc_why_cant_reach_up" : "hc_why_no_way", speak: forPlayer);
+                    }
                     Rescue(ai, c, s, pos, now, tag);
                     return;
             }
@@ -1904,6 +1990,8 @@ namespace Companions
                     hops++; gap = 0f;
                 }
                 if (rise > 1.1f) { s_hopWhy = "a step too high at " + Fmt(p); return false; }
+                // 1.5.44: not straight through a fire (the hearth)
+                if (NearFire(hit.point, 0.4f) && !InFire(to)) { s_hopWhy = "a fire at " + Fmt(hit.point); return false; }
                 // 1.4.99: with the companion known, only water it would have to swim in rules the line out (it wades or jumps the rest)
                 if (c != null ? MHR_Water.WouldSwim(c, hit.point) : MHR_Water.DepthAt(hit.point) > 0.8f) { s_hopWhy = "deep water at " + Fmt(p); return false; }
                 if (Physics.Linecast(prev + Vector3.up * 1.4f, hit.point + Vector3.up * 1.4f, Mask())) { s_hopWhy = "something in the way at " + Fmt(p); return false; }
@@ -1954,6 +2042,30 @@ namespace Companions
         // 1.4.90: the flames themselves - EffectArea type Burning (what cooking stations check, what sets you alight).
         // 1.4.88-89 used type Fire, the wide area fire-shy creatures keep away from: it covered the whole kitchen, so
         // almost every spot by a chest counted as "in a fire" and cooking couldn't reach anything (1.4.89 log).
+        // 1.5.44: in the flames or within margin of them - for picking a spot to stand (idle spots, follow spots)
+        public static bool NearFire(Vector3 p, float margin)
+        {
+            return FireArea(p, margin) != null;
+        }
+
+        // 1.5.45: the fire at a spot, checked at knee, waist and head height. 1.5.44 test (log 31ec683a): the route check
+        // looked 0.3 m above the floor and passed under the hearth's flames; Gunter stepped up onto the hearth stone
+        // (0.8 m higher) into them, and the hearth's own fire damaged the hearth (Aoe m_damageSelf, 10 a time - the game
+        // does the same when a player stands in it).
+        internal static EffectArea FireArea(Vector3 p, float radius)
+        {
+            try
+            {
+                for (float h = 0.3f; h < 2f; h += 0.6f)
+                {
+                    EffectArea a = EffectArea.IsPointInsideArea(p + Vector3.up * h, EffectArea.Type.Burning, radius);
+                    if (a != null) return a;
+                }
+            }
+            catch { }
+            return null;
+        }
+
         public static bool InFire(Vector3 p)
         {
             try { return EffectArea.IsPointInsideArea(p + Vector3.up * 0.3f, EffectArea.Type.Burning, 0.3f) != null; }
@@ -1974,7 +2086,7 @@ namespace Companions
                 {
                     float ang = (i % 2 == 0 ? 1 : -1) * ((i + 1) / 2) * 45f;
                     Vector3 d = Quaternion.Euler(0f, ang, 0f) * prefer;
-                    if (!InFire(pos + d * r) && !DropAhead(pos, d, 1.0f, 1.2f)) { dir = d; return true; }
+                    if (!NearFire(pos + d * r, 0.3f) && !DropAhead(pos, d, 1.0f, 1.2f)) { dir = d; return true; }
                 }
             return false;
         }
@@ -2251,7 +2363,11 @@ namespace Companions
             // and right back - the moving player changed the route). Wade it or go round instead.
             if (now - s.LastWaterJumpAt < 6f && Vector3.Dot(dir, s.LastWaterJumpDir) < -0.3f) { s.NextWaterPeek = now + 1.0f; return false; }
             float landY = landAt > 0f ? MHR_Water.GroundAt(pos + dir * landAt) : pos.y;
-            if (!s.Quiet && landAt > 0f && landAt - waterAt <= maxGap && landY < pos.y + 1.0f && MHR_Jump.CanAfford(c) && landAt <= MHR_Jump.Reach(c, dir, landY - pos.y))
+            // 1.5.46: only onto real dry land - not a tuft with more water right behind it (1.5.46 test: "The NPC is jumping
+            // a lot in and out of the water in the swamp rather than wading through the water. They should be jumping out
+            // of the water when it gets them to dry land.")
+            bool dryBeyond = landAt > 0f && MHR_Water.DepthAt(pos + dir * landAt) < 0.05f && MHR_Water.DepthAt(pos + dir * (landAt + 1f)) < 0.05f && MHR_Water.DepthAt(pos + dir * (landAt + 2f)) < 0.05f;
+            if (!s.Quiet && landAt > 0f && dryBeyond && landAt - waterAt <= maxGap && landY < pos.y + 1.0f && MHR_Jump.CanAfford(c) && landAt <= MHR_Jump.Reach(c, dir, landY - pos.y))
             {
                 // a stream or puddle we can clear: jump it and stay dry
                 Leap(ai, c, dir, 6.5f);
@@ -2263,7 +2379,8 @@ namespace Companions
             // 1.4.99: close enough is good enough (user: "if it can make it most of the way across the water with a jump
             // into shallow water on the other side its worth the jump. They can always jump again"). Landing somewhere it
             // can stand counts, as long as it keeps some stamina back for the rest of the way.
-            if (!s.Quiet && waterAt <= 1.5f && MHR_Jump.HasSpare(c, 0.25f))
+            // 1.5.46: only to save a swim - shallow water it wades (jumping into it just splashes it back in again)
+            if (!s.Quiet && swim && waterAt <= 1.5f && MHR_Jump.HasSpare(c, 0.25f))
             {
                 float reach = MHR_Jump.Reach(c, dir, 0f);
                 if (reach >= 2f)
@@ -2643,6 +2760,23 @@ namespace Companions
                 if (best < float.MaxValue) break;   // nearest ring that works
             }
             return best < float.MaxValue;
+        }
+
+        // 1.5.42: can he walk from pos to within near of goal: a full route that really ends there (the route's end is
+        // snapped to the nearest walkable ground, which can be on the other side of a wall), or one CanGetTo finds
+        static readonly List<Vector3> s_reachPath = new List<Vector3>();
+        public static bool Reachable(Vector3 pos, Vector3 goal, float near)
+        {
+            try
+            {
+                if (GetPath(pos, goal, s_reachPath, Pathfinding.AgentType.Humanoid, true))
+                {
+                    Vector3 end = s_reachPath[s_reachPath.Count - 1];
+                    if (Vector3.Distance(end, goal) <= near) return true;
+                }
+                return CanGetTo(pos, goal);
+            }
+            catch { return false; }
         }
 
         // 1.4.84: can he get from pos to goal: a route, a route plus a hop, through closed doors, or straight hopping

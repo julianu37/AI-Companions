@@ -73,6 +73,9 @@ Show the companion status panel under the minimap.
 **ShowOverheadBars** — Default: On  
 Show health and stamina bars above each companion's head.
 
+**ShowStatus** — Default: On  
+When you look at a companion, show what it is doing under its name - and why not, when its job is stuck (e.g. "Hunt - No game around.").
+
 **MaxCarryWeight** — Default: 300 · Range: 50 – 2000  
 The BASE weight a companion can carry (a player carries 300). Gathering and hunting companions head home to unload before this. Items that raise carrying capacity add on top of this value: the Megingjord, for example, gives +150 and counts with the belt anywhere in the companion's bag (no need to equip it), so with this at 300 its ceiling becomes 450. Two identical belts don't add up: the bonus counts once, as in the game.
 
@@ -119,6 +122,18 @@ How close (meters) a companion has to be to you to answer a recall (holding the 
 **SuperRecallHoldTime** — Default: 2 · Range: 0.5 – 10  
 Keep holding the command key this many seconds to recall every companion at any distance, including ones with Command switched off.
 
+**PassiveKey** — Default: `None`  
+Sets the Passive stance. Looking at one of your companions: just that one; otherwise every companion within RecallRange that has Command on. None = no key.
+
+**BalancedKey** — Default: `None`  
+Sets the Balanced stance, like PassiveKey.
+
+**RangedKey** — Default: `None`  
+Sets the Ranged stance, like PassiveKey.
+
+**MeleeKey** — Default: `None`  
+Sets the Melee stance, like PassiveKey.
+
 ## Follow
 
 How companions follow you.
@@ -137,6 +152,9 @@ Seconds you stand still before companions regroup around you (see Regroup).
 
 **SitIndoors** — Default: On  
 When you stop indoors, companions sit down near you: on a free chair or bench if there is one, otherwise on the floor. Near home they empty their bags first.
+
+**SitStayRange** — Default: 10 · Range: 2 – 30  
+Indoors, a companion that sat down stays seated while you move about within this many meters of it, and gets up to follow once you go further (or step outside).
 
 **TeleportDistance** — Default: 50 · Range: 20 – 200  
 A following companion that falls this many meters behind appears next to you: right away beyond 1.5x this distance, otherwise once it can't see you and isn't getting any closer.
@@ -312,11 +330,23 @@ Seconds after death before a companion comes back by itself.
 **RespawnAtWorldSpawn** — Default: Off  
 A companion that comes back by itself and has no claimed bed appears at the world spawn stones. Off = next to you.
 
+**RespawnAtPlayer** — Default: Off  
+A companion that comes back by itself always appears next to you, even when it has a bed (wins over RespawnAtWorldSpawn). Off = at its bed, and without one as RespawnAtWorldSpawn says.
+
 **DeathItemRule** — Default: 0 · Range: 0 – 3  
 What a companion loses when it dies. 0 = the world's death penalty setting, same as a player. 1 = keep everything. 2 = keep equipped gear, the rest goes in the tombstone. 3 = everything goes in the tombstone. The owner's setting is used even if another player's game handles the death.
 
 **TombstoneRecoveryRange** — Default: 50 · Range: 5 – 100  
 A companion walks over and empties its own leftover tombstone when it's within this many meters of it.
+
+**RespawnStance** — Default: `RecoverFirst` · Options: `RecoverFirst`, `Passive`, `Keep`  
+The stance a companion comes back in after it died. RecoverFirst: Passive, auto-pickup off, it gets its gear back from its tombstone when it's safe (fighting back only if attacked with a weapon in hand), puts it on, eats, then goes back to the stance it died with. Passive: Passive until you change it. Keep: the stance it died with. Setting a stance yourself always wins.
+
+**RecoverThreatRange** — Default: 15 · Range: 5 – 50  
+RecoverFirst: enemies within this many meters of the companion or its tombstone count when it decides whether it's safe to go for its gear.
+
+**RecoverMaxMobs** — Default: 3 · Range: 0 – 20  
+RecoverFirst: with more enemies than this busy fighting near its tombstone it waits by you instead of going for its gear.
 
 **ShrineBuildable** — Default: On  
 Odin's Shrine can be built with the hammer (Misc tab, needs a workbench). Use it to see your companions and bring back a lost one. Takes effect on the next world load; shrines already built keep working.
@@ -521,6 +551,12 @@ The Farming job.
 
 **Range** — Default: 30 · Range: 5 – 100  
 How far (meters) around itself a farming companion looks for crops to pick, farm zones to plant and chests.
+
+**PlantTilledGround** — Default: On  
+Ground you've tilled with a cultivator (outside your farm zones) counts as an Any zone: a farming companion plants whatever seeds it has on it, on the tilled ground only. Off = it only plants in the farm zones you set.
+
+**UnreachableSpotMemory** — Default: 600 · Range: 30 – 3600  
+How long (seconds) a farmer leaves a planting spot alone after finding it can't walk there (e.g. tilled ground on the other side of a wall). It tries it again after this.
 
 **PlantSpacing** — Default: 0.75 · Range: 0.25 – 3  
 The least space (meters) between plants. A plant that needs more room to grow gets that instead.

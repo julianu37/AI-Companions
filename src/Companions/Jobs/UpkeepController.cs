@@ -131,6 +131,11 @@ public partial class UpkeepController : MonoBehaviour
 
 	private WearNTear _piece;
 
+	// 1.5.43: why it's idle, from the last scan
+	private string _whyNoFuel;
+
+	private int _whyNoStation;
+
 	private Fireplace _fire;
 
 	private Container _chest;
@@ -344,6 +349,8 @@ public partial class UpkeepController : MonoBehaviour
 		}
 		_scanTimer = ModConfig.UpkeepScanInterval?.Value ?? 5f;
 		// fuel before putting leftovers back, so fuel fetched for one fire can go in the next one first
+		_whyNoFuel = null;
+		_whyNoStation = 0;
 		bool busy = PlanRepair() || PlanFuel() || PlanHoney() || PlanStow() || PlanPiles() || PlanSort();
 		if (_step != Step.Repair && _step != Step.PileTake && _step != Step.PileBuild && _step != Step.PileDown)
 		{
@@ -365,6 +372,22 @@ public partial class UpkeepController : MonoBehaviour
 			_nextNothingLog = Time.time + 120f;
 			LogDebug("Still nothing to do");
 		}
+		// 1.5.43 (phase 3): what's holding it up, in turn - fires with no fuel for them, damaged pieces no station in range
+		// can repair; else everything's in order
+		List<CompanionStatus.Item> why = new List<CompanionStatus.Item>();
+		if (_whyNoFuel != null)
+		{
+			why.Add(new CompanionStatus.Item(null, "hc_why_upkeep_no_fuel", _whyNoFuel));
+		}
+		if (_whyNoStation > 0)
+		{
+			why.Add(new CompanionStatus.Item(null, "hc_why_upkeep_no_station", _whyNoStation));
+		}
+		if (why.Count == 0)
+		{
+			why.Add(new CompanionStatus.Item(null, "hc_speech_upkeep_nothing"));
+		}
+		CompanionStatus.WhyRotate(this, why);
 		if (Vector3.Distance(base.transform.position, Center()) > (_atHome ? MHR_ToolKeeper.AtHomeRange() : 10f))
 		{
 			Enter(Step.Home);
@@ -381,6 +404,62 @@ public partial class UpkeepController : MonoBehaviour
 		_arrived = false;
 		_arrivedAt = 0f;
 		MHR_Mover.Release(_ai);
+		ShowDoing(s);
+	}
+
+	// 1.5.43 (phase 3): the status says what it's doing (user: "will this also mention what the NPC is doing? Like fueling
+	// the fires, organizing the chests, etc?")
+	private void ShowDoing(Step s)
+	{
+		// only for its own job - an idle chore it does for another job doesn't replace that job's reason
+		if (_nview?.GetZDO() == null || _nview.GetZDO().GetInt(CompanionSetup.ActionModeHash) != CompanionSetup.ModeRepairBuildings)
+		{
+			return;
+		}
+		string item = string.IsNullOrEmpty(_key) ? "" : (MHR_List.Local(NameOf(_key)) ?? NameOf(_key));
+		switch (s)
+		{
+		case Step.Repair:
+			CompanionStatus.Doing(this, "hc_doing_upkeep_repair", ShortName(_piece));
+			break;
+		case Step.FuelFetch:
+		case Step.Fuel:
+			CompanionStatus.Doing(this, "hc_doing_upkeep_fuel", ShortName(_fire));
+			break;
+		case Step.SortTake:
+		case Step.SortPut:
+			CompanionStatus.Doing(this, "hc_doing_upkeep_sort", item);
+			break;
+		case Step.Tidy:
+			CompanionStatus.Doing(this, "hc_doing_upkeep_tidy", item);
+			break;
+		case Step.Stow:
+			CompanionStatus.Doing(this, "hc_doing_upkeep_stow", item);
+			break;
+		case Step.PileTake:
+		case Step.PileBuild:
+			CompanionStatus.Doing(this, "hc_doing_upkeep_pile", (_pile != null) ? (MHR_List.Local(_pile.Shared) ?? item) : item);
+			break;
+		case Step.PileDown:
+		case Step.PileCollect:
+			CompanionStatus.Doing(this, "hc_doing_take_pile", (_downPile != null) ? (MHR_List.Local(_downPile.m_name) ?? _downPile.m_name) : item);
+			break;
+		case Step.Hive:
+		case Step.HiveCollect:
+			CompanionStatus.Doing(this, "hc_doing_upkeep_honey");
+			break;
+		case Step.Home:
+			CompanionStatus.Doing(this, "hc_doing_home");
+			break;
+		}
+	}
+
+	// "Hearth", "Wood wall" - the piece's own name, without "the ... at (x, y, z)"
+	private static string ShortName(Component c)
+	{
+		Piece p = (c != null) ? c.GetComponent<Piece>() : null;
+		string n = (p != null) ? MHR_List.Local(p.m_name) : null;
+		return string.IsNullOrEmpty(n) ? ((c != null) ? Utils.GetPrefabName(c.gameObject) : "") : n;
 	}
 
 	private void Stop()
@@ -487,6 +566,7 @@ public partial class UpkeepController : MonoBehaviour
 		}
 		if (best == null)
 		{
+			_whyNoStation = noStation;
 			if (noStation > 0 && Time.time >= _nextWaitLog)
 			{
 				_nextWaitLog = Time.time + 120f;
@@ -785,6 +865,10 @@ public partial class UpkeepController : MonoBehaviour
 		}
 		if (best == null)
 		{
+			if (missing.Count > 0)
+			{
+				_whyNoFuel = string.Join(", ", new List<string>(Locals(missing)).ToArray());
+			}
 			if (missing.Count > 0 && Time.time >= _nextWaitLog)
 			{
 				_nextWaitLog = Time.time + 120f;

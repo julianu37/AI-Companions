@@ -478,11 +478,12 @@ public class CompanionCombatAI : MonoBehaviour
 			return;
 		}
 		_stance = _setup?.GetCombatStance() ?? 0;
-		if (_stance == 1)
+		// 1.5.44 (upstream): Passive after a revive (RecoverFirst) still fights back when attacked with a weapon in hand.
+		// Our refactor stays: the stance gate lives here and the engage itself is StartEngage (EngageByOrder shares it).
+		if (_stance != 1 || MHR_Recover.MayDefend(this, target))
 		{
-			return;
+			StartEngage(target);
 		}
-		StartEngage(target);
 	}
 
 	/// <summary>The engage itself, without the stance question (both Engage and EngageByOrder end up here).</summary>
@@ -524,7 +525,7 @@ public class CompanionCombatAI : MonoBehaviour
 			return false;
 		}
 		_stance = _setup?.GetCombatStance() ?? 0;
-		if (_stance == 1)
+		if (_stance == 1 && !MHR_Recover.MayDefend(this, _targetCreature))
 		{
 			// Fase 3.6: the one creature a chat order named is fought even on the Passive stance (EngageByOrder).
 			// The setting stays Passive - only this fight behaves like a normal one, so the companion doesn't

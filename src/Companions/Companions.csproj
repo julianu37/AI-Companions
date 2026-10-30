@@ -79,6 +79,7 @@
     <Reference Include="UnityEngine.AIModule" HintPath="$(ManagedDir)\UnityEngine.AIModule.dll" Private="false" />
     <Reference Include="UnityEngine.JSONSerializeModule" HintPath="$(ManagedDir)\UnityEngine.JSONSerializeModule.dll" Private="false" />
     <Reference Include="UnityEngine.InputLegacyModule" HintPath="$(ManagedDir)\UnityEngine.InputLegacyModule.dll" Private="false" />
+    <Reference Include="UnityEngine.IMGUIModule" HintPath="$(ManagedDir)\UnityEngine.IMGUIModule.dll" Private="false" />
     <Reference Include="UnityEngine.TextRenderingModule" HintPath="$(ManagedDir)\UnityEngine.TextRenderingModule.dll" Private="false" />
   </ItemGroup>
 

@@ -9,7 +9,9 @@ namespace Companions
     {
         class Per
         {
-            public int LimitRejects, OtherRejects;
+            public int LimitRejects, OtherRejects, NearBaseRejects;
+            // upstream 1.5.x: which resources stopped the scan because the stock limit (or the order cap) was reached
+            public readonly Dictionary<string, KeyValuePair<int, int>> AtLimit = new Dictionary<string, KeyValuePair<int, int>>();
             // Fase 3.2: candidates this frame's scan turned away because an order's target was met (see CapReject)
             public int CapRejects; public int CapFrame;
             // Fase 3.3d: is the number an order asked for already in the pack? Decided once per frame per mode (see
@@ -205,7 +207,7 @@ namespace Companions
                 if (sh != null && sh.GetInventory() != null && CountIn(sh.GetInventory(), "Stone") >= 50 && StartPile(h)) return null;
             }
             Per p = P(h);
-            p.LimitRejects = 0; p.OtherRejects = 0;
+            p.LimitRejects = 0; p.OtherRejects = 0; p.NearBaseRejects = 0; p.AtLimit.Clear();
             GameObject r = h.ScanForTarget(mode);
             // Fase 3.2: when an order's target is what stopped this scan, the caller ends the order instead
             // (MHR_GatherRules.OrderDone) - the "at its limit - waiting" line is for the config's own limits.
@@ -371,7 +373,7 @@ namespace Companions
                             string s = part.Trim();
                             if (s.Length > 0 && go.name.IndexOf(s, StringComparison.OrdinalIgnoreCase) >= 0) { p.OtherRejects++; return false; }
                         }
-                    if (NearBuildings(go)) { p.OtherRejects++; return false; }
+                    if (NearBuildings(go)) { p.OtherRejects++; p.NearBaseRejects++; return false; }
                 }
                 MHR_List list = Parse(mode);
                 if (list == null) return true;
@@ -643,7 +645,7 @@ namespace Companions
                 {
                     p.NextHeavySpeak = now + 60f;
                     CompanionTalk t = h.GetComponent<CompanionTalk>();
-                    if (t != null) t.Say(ModLocalization.Loc("hc_speech_overweight"), false);
+                    if (t != null) t.SayProblem("overweight", ModLocalization.Loc("hc_speech_overweight"));
                 }
             }
             catch (Exception e) { Warn("HandleOverweight: " + e.Message); }

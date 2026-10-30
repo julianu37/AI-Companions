@@ -62,6 +62,9 @@ internal static class MHR_Roster
 		public Vector3 LastPos;
 		public double LastSeen;
 		public bool Dead;
+
+		// 1.5.42: added at the end of the saved entry (older entries just don't have it)
+		public string FarmZones;
 	}
 
 	private static readonly List<Entry> s_entries = new List<Entry>();
@@ -194,6 +197,7 @@ internal static class MHR_Roster
 		zPackage.Write(e.LastPos);
 		zPackage.Write(e.LastSeen);
 		zPackage.Write(e.Dead);
+		zPackage.Write(e.FarmZones ?? "");
 		return zPackage.GetBase64();
 	}
 
@@ -232,13 +236,26 @@ internal static class MHR_Roster
 				Inventory = zPackage.ReadString(),
 				LastPos = zPackage.ReadVector3(),
 				LastSeen = zPackage.ReadDouble(),
-				Dead = zPackage.ReadBool()
+				Dead = zPackage.ReadBool(),
+				FarmZones = ReadOptionalString(zPackage)
 			};
 		}
 		catch (Exception ex)
 		{
 			CompanionsPlugin.Log.LogWarning("[Roster] Skipped an unreadable roster entry: " + ex.Message);
 			return null;
+		}
+	}
+
+	private static string ReadOptionalString(ZPackage p)
+	{
+		try
+		{
+			return (p.GetPos() < p.Size()) ? p.ReadString() : "";
+		}
+		catch
+		{
+			return "";
 		}
 	}
 
@@ -540,6 +557,7 @@ internal static class MHR_Roster
 		entry.CombatStance = zdo.GetInt(CompanionSetup.CombatStanceHash);
 		entry.HasBed = zdo.GetBool(CompanionSetup.HasHomeBedHash);
 		entry.BedPos = zdo.GetVec3(CompanionSetup.HomeBedPosHash, Vector3.zero);
+		entry.FarmZones = zdo.GetString(FarmZoneSerializer.FarmZonesHash);
 		Inventory inventory = c.GetComponent<Humanoid>()?.GetInventory();
 		if (inventory != null)
 		{
@@ -598,6 +616,7 @@ internal static class MHR_Roster
 			if (zDO != null && zDO.GetString(CompanionSetup.MHR_CompanionIdHash) == id)
 			{
 				Character component = allCompanion.GetComponent<Character>();
+				s_where[id] = allCompanion.transform.position;
 				if (component != null && component.GetHealth() > 0f)
 				{
 					return true;
@@ -610,9 +629,33 @@ internal static class MHR_Roster
 	// works out each companion's status. Single player and the host hold every object in the world, so they can tell
 	// Alive, Dead (a tombstone that will bring it back) and Lost (nothing left). A client of a dedicated server only
 	// holds the area around it, so a companion that isn't nearby is Unknown there.
+	// 1.5.44: where each alive companion is (issue #16: it came back at its bed far away and the roster only said
+	// "Alive" - no map pin, no answer to the command key), filled by GetStatuses
+	private static readonly Dictionary<string, Vector3> s_where = new Dictionary<string, Vector3>();
+
+	// "Meadows, 850 m from you"
+	internal static string WhereText(Vector3 pos)
+	{
+		string biome = "";
+		try
+		{
+			if (WorldGenerator.instance != null)
+			{
+				Heightmap.Biome b = WorldGenerator.instance.GetBiome(pos);
+				biome = Localization.instance?.Localize("$biome_" + b.ToString().ToLowerInvariant()) ?? b.ToString();
+			}
+		}
+		catch
+		{
+		}
+		float dist = (Player.m_localPlayer != null) ? Vector3.Distance(Player.m_localPlayer.transform.position, pos) : 0f;
+		return ModLocalization.LocFmt("hc_where", biome, dist.ToString("F0"));
+	}
+
 	internal static Dictionary<string, Status> GetStatuses()
 	{
 		Dictionary<string, Status> dictionary = new Dictionary<string, Status>();
+		s_where.Clear();
 		foreach (Entry s_entry in s_entries)
 		{
 			dictionary[s_entry.Id] = (IsLoaded(s_entry.Id) ? Status.Alive : Status.Unknown);
@@ -635,6 +678,7 @@ internal static class MHR_Roster
 				if (zDO.GetInt(GenHash) >= Find(text).Gen)
 				{
 					hashSet.Add(text);
+					s_where[text] = zDO.GetPosition();
 				}
 				continue;
 			}
@@ -705,6 +749,12 @@ internal static class MHR_Roster
 		string text = e.Name + ": " + StatusName(s);
 		switch (s)
 		{
+		case Status.Alive:
+			if (s_where.TryGetValue(e.Id, out var pos))
+			{
+				text += " (" + WhereText(pos) + ")";
+			}
+			break;
 		case Status.Dead:
 			text += ModLocalization.Loc("hc_roster_dead_note");
 			break;
@@ -900,6 +950,10 @@ internal static class MHR_Roster
 		}
 		zDO.Set(CompanionSetup.HasHomeBedHash, e.HasBed);
 		zDO.Set(CompanionSetup.HomeBedPosHash, e.BedPos);
+		if (!string.IsNullOrEmpty(e.FarmZones))
+		{
+			zDO.Set(FarmZoneSerializer.FarmZonesHash, e.FarmZones);
+		}
 		zDO.Persistent = true;
 		if (!string.IsNullOrEmpty(e.Inventory))
 		{

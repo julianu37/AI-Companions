@@ -32,6 +32,25 @@ namespace Companions
         }
         static readonly Dictionary<int, State> s_state = new Dictionary<int, State>();
 
+        // 1.5.42: the hover status line for a trip in progress (or waiting to get home for a tool), else null
+        internal static string TripText(Component c)
+        {
+            if (c == null) return null;
+            CompanionSetup cs = c.GetComponent<CompanionSetup>();
+            State st;
+            if (cs == null || !s_state.TryGetValue(cs.GetInstanceID(), out st)) return null;
+            string kn = KindName(st.Kind);
+            switch (st.Phase)
+            {
+                case 1: return ModLocalization.LocFmt("hc_status_fetching", kn);
+                case 2: return ModLocalization.LocFmt("hc_status_putting_back", kn);
+                case 3: return ModLocalization.Loc("hc_status_unloading");
+                case 4: return ModLocalization.Loc("hc_status_repairing_gear");
+            }
+            if (st.WaitHome) return ModLocalization.LocFmt("hc_status_needs_home", KindName(st.WaitKind));
+            return null;
+        }
+
         public static bool IsBusy(Component c)
         {
             if (c == null) return false;
@@ -112,6 +131,7 @@ namespace Companions
             MHR_Crossbow.Tick(hum);
             MHR_Mover.Tick(cs, ai);
             MHR_Follow.Tick(cs, ai);
+            MHR_Recover.Tick(cs);   // 1.5.44: gear first after a revive (issue #17)
 
             // 1.4.70: gear, food and mead the player hands over (through the inventory panel) are the companion's own;
             // anything picked up during work isn't. Everything present at load counts as its own too.
@@ -121,6 +141,7 @@ namespace Companions
             {
                 st.UnloadPending = true; st.UnloadTrips = 0;
                 st.Refused.Clear();
+                CompanionStatus.Clear(cs);   // 1.5.42: the old job's "why" no longer applies
                 LogDebug("Job changed (" + st.LastMode + " -> " + mode +  ") - will empty bags at home");
                 // 1.5.4: a fetch the new job has no use for is called off (user log: Hunt turned off, and he still walked
                 // 50 m back to a chest for a bow, again after every recall)
@@ -143,6 +164,8 @@ namespace Companions
                     if (now2.Contains(k) || !st.Refused.Add(k)) continue;
                     string kn = KindName(k); kn = kn.StartsWith("an ") ? kn.Substring(3) : kn.StartsWith("a ") ? kn.Substring(2) : kn;
                     Log("You took its " + kn + " - it won't fetch another for this job");
+                    // 1.5.42: and say so
+                    cs.GetComponent<CompanionTalk>()?.Speak(ModLocalization.LocFmt("hc_why_tool_taken", kn), CompanionTalk.Priority.Event, "taken:" + k);
                     if (st.Phase == 1 && st.Kind == k) EndTrip(cs, st, ai, mode);
                 }
                 st.PanelHad = null;
@@ -283,6 +306,9 @@ namespace Companions
             PickSpot(cs, st, chest, now); st.NeedMove = true; st.WasFighting = false;
             ai.SetFollowTarget(null);
             MHR_Mover.Release(ai);
+            // 1.5.43 (phase 3): action lines - say where it's off to (once per kind of trip every few minutes)
+            if (phase == 1 || phase == 2)
+                cs.GetComponent<CompanionTalk>()?.Speak(ModLocalization.LocFmt(phase == 1 ? "hc_act_fetch_tool" : "hc_act_return_tool", KindName(kind)), CompanionTalk.Priority.Event, "act:tool" + phase + ":" + kind);
             Log((phase == 3 ? "Going to put away \"" + prefab + "\" and anything that stacks with it" : (phase == 1 ? "Going to fetch " : "Going to put back ") + KindName(kind) + " (\"" + prefab + "\")") + " at a chest " +
                 Vector3.Distance(cs.transform.position, chest.transform.position).ToString("F0") + "m away");
         }
@@ -514,7 +540,7 @@ namespace Companions
         {
             string key = kind == K_AXE ? "hc_speech_broke_axe" : kind == K_PICK ? "hc_speech_broke_pickaxe" : "hc_speech_broke_tool";
             CompanionTalk t = cs.GetComponent<CompanionTalk>();
-            if (t != null) t.Say(ModLocalization.Loc(key), false);
+            if (t != null) t.SayProblem("broke:" + kind, ModLocalization.Loc(key));
         }
 
         // ---- 1.4.70: emptying bags ----
@@ -594,6 +620,7 @@ namespace Companions
                 return true;
             }
             Log("No chest near home has room for what I'm carrying - keeping " + items.Count + " stack(s)");
+            CompanionStatus.Why(cs, "hc_why_chests_full", speak: true);
             st.UnloadPending = false; st.UnloadActive = false;
             return false;
         }
@@ -688,10 +715,18 @@ namespace Companions
                 case K_AXE: key = "hc_speech_need_axe"; break;
                 case K_PICK: key = "hc_speech_need_pickaxe"; break;
                 case K_ARROW: key = "hc_speech_need_arrows"; break;
-                default: return;   // the job's own lines already cover rod, bait, bow, cultivator and hammer
+                // 1.5.42: every other tool too (bow, rod, bait, cultivator, hammer, food) - the comment that "the job's own
+                // lines cover them" was only true for some
+                default:
+                    {
+                        string line = ModLocalization.LocFmt("hc_why_need_tool", KindName(kind));
+                        CompanionStatus.Why(cs, "hc_why_need_tool", false, KindName(kind));
+                        cs.GetComponent<CompanionTalk>()?.SayProblem("tool:" + kind, line);
+                        return;
+                    }
             }
             CompanionTalk t = cs.GetComponent<CompanionTalk>();
-            if (t != null) t.Say(ModLocalization.Loc(key), false);
+            if (t != null) t.SayProblem("tool:" + kind, ModLocalization.Loc(key));
         }
 
         // ---- item matching ----
@@ -750,6 +785,14 @@ namespace Companions
             return best;
         }
         static ItemDrop.ItemData BestInInventory(Inventory inv, int kind, ItemDrop.ItemData launcher) { return BestIn(inv, kind, launcher); }
+
+        // 1.5.44: the stamina food it carries for fishing, for the log ("Honey x5"), or null (user: "Did the NPC grab high
+        // stamina food automatically for fishing?")
+        internal static string StaminaFoodText(Inventory inv)
+        {
+            ItemDrop.ItemData f = inv != null ? BestIn(inv, K_FOOD, null) : null;
+            return f == null ? null : (MHR_List.Local(f.m_shared.m_name) ?? f.m_shared.m_name) + " x" + f.m_stack + " (" + f.m_shared.m_foodStamina.ToString("F0") + " stamina)";
+        }
         static ItemDrop.ItemData FindByPrefab(Inventory inv, string prefab)
         {
             if (string.IsNullOrEmpty(prefab)) return null;

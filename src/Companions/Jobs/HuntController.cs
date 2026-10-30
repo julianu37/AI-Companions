@@ -251,11 +251,14 @@ public class HuntController : MonoBehaviour
 				_nextFullLog = Time.time + 120f;
 				Log(follow ? "Pack is full - keeping the catch until we're home" : "Pack is full and home is too far - not hunting until it's emptied");
 			}
+			// 1.5.42: say why it isn't hunting
+			CompanionStatus.Why(this, follow ? "hc_why_pack_full" : "hc_why_pack_full_far", speak: true);
 			return;
 		}
 		// 1.5.4: its only weapon (a spear) is lying where it was thrown - fetch it before going after anything else
 		if (MHR_SpearThrow.UnarmedAfterThrow(_ai, _humanoid))
 		{
+			CompanionStatus.Why(this, "hc_why_hunt_spear", speak: true);
 			return;
 		}
 		Character prey = FindPrey(follow, out string why);
@@ -270,6 +273,13 @@ public class HuntController : MonoBehaviour
 				_nextNothingLog = Time.time + 60f;
 				LogDebug("Nothing to hunt" + (why != null ? " (" + why + ")" : ""));
 			}
+			// 1.5.43 (phase 3): the concrete reasons in turn - each meat at its target with the numbers, game out of reach,
+			// or no game within the range from the settings
+			if (_whyItems.Count == 0)
+			{
+				_whyItems.Add(new CompanionStatus.Item(null, (why != null && why.StartsWith("only")) ? "hc_why_hunt_reach" : "hc_why_hunt_none_range", Range(follow).ToString("F0")));
+			}
+			CompanionStatus.WhyRotate(this, _whyItems);
 			if (!follow && _state == HuntState.Idle && Vector3.Distance(base.transform.position, _anchor) > 10f)
 			{
 				LogDebug("Heading back to the hunting spot");
@@ -286,6 +296,7 @@ public class HuntController : MonoBehaviour
 				_nextNothingLog = Time.time + 60f;
 				Log("Can't hunt with the Passive stance");
 			}
+			CompanionStatus.Why(this, "hc_why_hunt_passive", speak: true);
 			return;
 		}
 		_prey = prey;
@@ -293,6 +304,8 @@ public class HuntController : MonoBehaviour
 		_lastPreyPos = prey.transform.position;
 		_wasChasing = true;
 		_state = HuntState.Hunting;
+		CompanionStatus.Clear(this);
+		CompanionStatus.Doing(this, "hc_doing_hunt", Loc(prey.m_name));
 		MHR_Mover.Release(_ai);
 		Log("Going after " + Loc(prey.m_name) + " (" + Vector3.Distance(base.transform.position, prey.transform.position).ToString("F0") + " m away)" + NeedText(PrefabName(prey)));
 	}
@@ -361,6 +374,7 @@ public class HuntController : MonoBehaviour
 		if (Vector3.Distance(prey.transform.position, Center(follow)) > leash)
 		{
 			Log(Loc(_preyName) + " got away");
+			GetComponent<CompanionTalk>()?.Speak(ModLocalization.Loc("hc_why_hunt_got_away"), CompanionTalk.Priority.Event, "hunt:away");
 			Skip(prey, 60f);
 			_combatAI.Disengage();
 			Done();
@@ -457,6 +471,7 @@ public class HuntController : MonoBehaviour
 		_state = HuntState.Birding;
 		MHR_Mover.Release(_ai);
 		Log("Going after a " + _birdName + " that landed " + bestDist.ToString("F0") + " m away" + NeedText(_birdName));
+		CompanionStatus.Doing(this, "hc_doing_hunt", MHR_Items.NiceName(best.gameObject));
 		return true;
 	}
 
@@ -505,7 +520,9 @@ public class HuntController : MonoBehaviour
 		Vector3 me = base.transform.position;
 		Vector3 aim = _birdPos + Vector3.up * 0.25f;
 		float dist = Vector3.Distance(me, _birdPos);
-		if (dist > BirdShotRange || !MHR_Mover.CanSee(me + Vector3.up * 1.6f, aim))
+		// 1.5.42: a clear line from the bow (hand height) to the bird - CanSee adds 1.6 m to both ends, so the old check
+		// (me + 1.6) looked from 3.2 m up and passed over the hill the arrow then hit
+		if (dist > BirdShotRange || !MHR_Mover.CanSee(me - Vector3.up * 0.2f, aim - Vector3.up * 1.6f))
 		{
 			// get within a shot quickly (birds only stay down a few seconds); never swim for one (1.4.101 test: dived into
 			// the moat after a gull)
@@ -525,6 +542,7 @@ public class HuntController : MonoBehaviour
 			return;
 		}
 		_nextShot = Time.time + 1.5f;
+		CompanionProjectileAimPatch.AimAt(_humanoid, aim);
 		Attack attack = _humanoid.GetCurrentWeapon()?.m_shared?.m_attack;
 		bool draw = attack != null && attack.m_bowDraw;
 		if (draw)
@@ -653,6 +671,8 @@ public class HuntController : MonoBehaviour
 		float bestDist = float.MaxValue;
 		int seen = 0;
 		int enough = 0;
+		_whyItems.Clear();
+		HashSet<string> told = new HashSet<string>();
 		foreach (Character c in Character.GetAllCharacters())
 		{
 			if (c == null || c == _character || c.GetHealth() <= 0f || c.IsDead())
@@ -676,6 +696,19 @@ public class HuntController : MonoBehaviour
 			if (!NeedsMeat(prefab))
 			{
 				enough++;
+				// what it has enough of, with the numbers ("Raw meat 104/100 - enough.")
+				List<string> meats = HuntCatalog.MeatsOf(prefab);
+				if (meats != null && _whyItems.Count < 8)
+				{
+					foreach (string meat in meats)
+					{
+						if (told.Add(meat))
+						{
+							_meatCount.TryGetValue(meat, out var have);
+							_whyItems.Add(new CompanionStatus.Item(null, "hc_why_hunt_at_target", CookController.Name(meat), have, HuntCatalog.Target(prefab, meat, ModConfig.HuntMeatTarget?.Value ?? 100)));
+						}
+					}
+				}
 				continue;
 			}
 			if (MHR_Water.WouldSwim(_character, c.transform.position))
@@ -695,6 +728,9 @@ public class HuntController : MonoBehaviour
 		}
 		return best;
 	}
+
+	// 1.5.43: why there's nothing to hunt, filled by FindPrey
+	private readonly List<CompanionStatus.Item> _whyItems = new List<CompanionStatus.Item>();
 
 	private bool NeedsMeat(string prefab)
 	{

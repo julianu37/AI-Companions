@@ -317,6 +317,8 @@ A companion can carry 300 of weight, the same as a player.
 | **Ranged** | Prefers bow or crossbow and keeps the distance |
 | **Melee** | Stays on the close-range weapons |
 
+**Stance keys:** you can bind a key to each stance (Controls > PassiveKey, BalancedKey, RangedKey, MeleeKey; none by default). Looking at one of your companions, the key sets just that one; otherwise every companion within RecallRange that has Command on. A message top left says who changed - handy to pull someone out of a fight that's going badly.
+
 **When they fight**
 - They attack a creature after it notices you or them. With the `EngageOnNotice` option off, they wait until it actually comes for you.
 - They leave alone the animals that never attack, like deer. Hunting goes after game on purpose.

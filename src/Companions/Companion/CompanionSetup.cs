@@ -986,6 +986,25 @@ public class CompanionSetup : MonoBehaviour
 				prefabName = gameObject.name;
 			}
 			CompanionsPlugin.Log.LogInfo($"[Setup] Companion \"{text}\" died at {vector:F1} — prefab={prefabName}");
+			// 1.5.42: tell its player, wherever they are (user: "an announcement, if an NPC dies or is lost or something far away")
+			try
+			{
+				if ((ModConfig.SpeechAnnounceDeath?.Value ?? true) && MHR_Owner.IsMine(this) && MessageHud.instance != null)
+				{
+					string biome = "";
+					if (WorldGenerator.instance != null)
+					{
+						Heightmap.Biome b = WorldGenerator.instance.GetBiome(vector);
+						biome = Localization.instance?.Localize("$biome_" + b.ToString().ToLowerInvariant()) ?? b.ToString();
+					}
+					float dist = (Player.m_localPlayer != null) ? Vector3.Distance(Player.m_localPlayer.transform.position, vector) : 0f;
+					MessageHud.instance.ShowMessage(MessageHud.MessageType.Center, ModLocalization.LocFmt("hc_msg_companion_died", text, biome, dist.ToString("F0")));
+				}
+			}
+			catch (Exception ex)
+			{
+				CompanionsPlugin.Log.LogWarning("[Setup] Death announcement failed: " + ex.Message);
+			}
 			string skillsSerialized = "";
 			CompanionSkills component = GetComponent<CompanionSkills>();
 			if (component != null)

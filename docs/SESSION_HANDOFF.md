@@ -10,7 +10,7 @@ Paste this into a new session to pick up where we left off. Details per version 
 - Check the user's suggestions against the game's real code/mechanics (decompiled source) before building an alternative; read how the game does a mechanic for the player before imitating it (ladder bump lesson, 2026-10-13).
 - Each version: user builds, tests, sends LogOutput.log; next version fixes what the log shows. Show the README "Recent Highlights" before any packaging (one bullet per feature: update an existing bullet, e.g. ladders, instead of adding a second one for a later version; keep bullets short); no packaged release until the movement update (phases 2-4) is done.
 
-## Current state: 1.5.4 being released (hunting: spear throws incl. spear-only once noticed, stand-off, sneaking from 20 m with rests and Sneak-skill drain, no jumps while sneaking, prey switch, attack orders on game start a hunt, FollowRange 40; melee aim at the middle, step back when too close, reach margin 0.2; [Attack] debug log; tool trips end on a job change, taken tools not re-fetched). Next: speech overhaul as 1.5.41 (test builds 1.5.41, 1.5.42...; next published 1.5.5) - agreed direction in DEV_NOTES BACKLOG; then the combat review (weapon hit areas).
+## Current state: 1.5.4 released (PR #15). 1.5.5 prepared on the work branch (not merged): speech overhaul phases 1-3, status line, gear-first revive and stance keys (#17), where it came back (#16), tilled-ground farming, hearth/fire and water fixes. CHANGELOG folded into one 1.5.5 section, README highlights updated (v1.5.5), version 1.5.5. Next: user reviews the highlights; then PR/merge and release zips when asked. After that: the combat review; backlog in DEV_NOTES.
 - 1.4.152: multiplayer ownership (MHR_Owner), one chest helper (MHR_Chests Usable/Open/Claim), home chests for Smelt/Cook, own-drops-only pickups; Gathering FollowRange 10.
 - 1.4.151: Forage with Follow on: own 10 m range ([Gathering] ForageFollowRange).
 - 1.4.150: full-mod conflict audit - 14 groups of fixes (steering, items, follow flags, chests, patches).
@@ -94,5 +94,6 @@ Paste this into a new session to pick up where we left off. Details per version 
 - **Command wheel revisit** (Rename, guard/patrol, late-game features; maybe a sub-menu) and a **rename fallback** via the vanilla TextInput dialog (SeneaL_UI blocks the panel's name box).
 - Movement phase 3 part 2 (Smelt, Cook, Homestead on MHR_Mover), part 3 (Hunt, Fish), phase 4 (remove old per-job stuck code and DoorHandler).
 - Combat polish, ship-seat kinematic warnings, config cleanup, release packaging; older items in DEV_NOTES BACKLOG.
+- Low priority (user, 2026-10-13): cart supply runs, siege weapons, battle formations + emotes, standing crew / ship combat - see DEV_NOTES BACKLOG (with video links). Infinity Hammer presets for testing.
 - More sneaking (user, 2026-10-13): widen sneaking beyond hunting (follow the player's sneak, unaware enemies, dungeons) - see DEV_NOTES BACKLOG.
 - Log cleanup once the mod is more complete: repeated debug lines (food checks, repair scans) log once until something changes (user, 2026-10-13).

@@ -821,6 +821,12 @@ public class CompanionAI : BaseAI
 			{
 				return false;
 			}
+			// 1.5.44 (issue #17): after a revive it only goes while it's safe - else back to the player and wait
+			if (MHR_Recover.IsRecovering(this) && !MHR_Recover.SafeToGo(m_character, _pendingTombstone.transform.position, out _, MHR_Owner.Go(this), committed: true) && RecoverWait(dt))
+			{
+				_tombstoneNavTimeout = Mathf.Max(_tombstoneNavTimeout, 10f);   // waiting isn't failing to get there
+				return true;
+			}
 			if (m_follow != null)
 			{
 				SetFollowTarget(null);
@@ -903,7 +909,8 @@ public class CompanionAI : BaseAI
 		{
 			return false;
 		}
-		_tombstoneScanTimer = TombstoneScanInterval;
+		// 1.5.45: after a revive, look every second (1.5.44 test: "Took the NPC a while to notice the tombstone")
+		_tombstoneScanTimer = MHR_Recover.IsRecovering(this) ? 1f : TombstoneScanInterval;
 		TombStone[] array = UnityEngine.Object.FindObjectsByType<TombStone>(FindObjectsSortMode.None);
 		foreach (TombStone tombStone in array)
 		{
@@ -932,7 +939,8 @@ public class CompanionAI : BaseAI
 				continue;
 			}
 			float num2 = Vector3.Distance(base.transform.position, tombStone.transform.position);
-			if (num2 <= ModConfig.TombstoneRecoveryRange.Value)
+			// 1.5.44: after a revive (RecoverFirst) at any distance - getting its gear back comes first
+			if (num2 <= ModConfig.TombstoneRecoveryRange.Value || MHR_Recover.IsRecovering(this))
 			{
 				CompanionsPlugin.Log.LogInfo($"[Recovery] Found its own tombstone {num2:F0}m away with {component3.GetInventory().NrOfItems()} item(s); going to collect them");
 				_pendingTombstone = tombStone;
@@ -948,6 +956,26 @@ public class CompanionAI : BaseAI
 			}
 		}
 		return false;
+	}
+
+	// 1.5.44: waiting to go for its tombstone: keep close to the player (unarmed, the player is its best protection);
+	// false when there's no player to go to
+	private bool RecoverWait(float dt)
+	{
+		GameObject owner = MHR_Owner.Go(this);
+		if (owner == null)
+		{
+			return false;
+		}
+		if (Vector3.Distance(base.transform.position, owner.transform.position) > 3f)
+		{
+			MHR_Go(dt, owner.transform.position, 2.5f, run: true, "Recover");
+		}
+		else
+		{
+			StopMoving();
+		}
+		return true;
 	}
 
 	private void ClearTombstoneId()
@@ -2334,7 +2362,8 @@ public class CompanionAI : BaseAI
 		base.OnDamaged(damage, attacker);
 		Wakeup();
 		int num = _setup?.GetCombatStance() ?? 0;
-		if (num == 1)
+		// 1.5.44: Passive after a revive (RecoverFirst) fights back when hit with a weapon in hand
+		if (num == 1 && !MHR_Recover.MayDefendHit(this, attacker))
 		{
 			return;
 		}

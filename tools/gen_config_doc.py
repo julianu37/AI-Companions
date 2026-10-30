@@ -36,6 +36,8 @@ def fmt_default(d):
     return fmt_num(d)
 def fmt_range(r):
     if not r: return ''
+    if 'AcceptableValueList' in r:
+        return 'Options: '+', '.join('`%s`'%v for v in re.findall(r'"([^"]*)"',r))
     m=re.search(r'\(([^,]+), ([^)]+)\)',r)
     return '%s – %s'%(fmt_num(m.group(1)),fmt_num(m.group(2))) if m else ''
 NAMES={'GearRepair':'Gear Repair','RepairAndRestock':'Repair and Restock'}
@@ -94,7 +96,7 @@ for s in order:
         meta=[]
         meta.append('Default: '+(dv if dv is not None else 'see below'))
         rr=fmt_range(rng)
-        if rr: meta.append('Range: '+rr)
+        if rr: meta.append(rr if rr.startswith('Options') else 'Range: '+rr)
         L.append('**%s** — %s  '%(key,' · '.join(meta)))
         L.append(desc)
         if dv is None:

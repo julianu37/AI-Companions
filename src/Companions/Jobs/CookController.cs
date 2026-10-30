@@ -326,9 +326,13 @@ public partial class CookController : MonoBehaviour
 		_scanTimer = ScanInterval;
 		CookCatalog.Ensure();
 		Scan();
+		_whys.Clear();
+		_foodWanted = false;
+		_foodShortSaid = false;
 		Task task = PickTask();
 		if (task == null)
 		{
+			ShowWhy();
 			if (!_allDoneNotified)
 			{
 				_allDoneNotified = true;
@@ -491,14 +495,21 @@ public partial class CookController : MonoBehaviour
 			{
 				continue;
 			}
+			_foodWanted = true;
 			// a prep-table item needs a cooking station in range that finishes it
 			if (final != output && FindCooker(output, needFree: false) == null)
 			{
 				continue;
 			}
 			CraftingStation station = FindStation(recipe);
-			if (station == null || !IngredientsOk(recipe))
+			if (station == null)
 			{
+				continue;
+			}
+			if (!IngredientsOk(recipe))
+			{
+				// 1.5.43: which ingredient it's short of, for the status ("Ooze 0/22 for Muckshake.")
+				FoodShort(recipe, final);
 				continue;
 			}
 			best = CraftTask(recipe, station, final, target - stock);
@@ -531,6 +542,10 @@ public partial class CookController : MonoBehaviour
 				}
 				int room = CookCatalog.Target(to, FoodTarget) - Count(to);
 				int have = Usable(from);
+				if (room > 0)
+				{
+					_foodWanted = true;
+				}
 				int n = Mathf.Min(Mathf.Min(CountSlots(cooker, -1), Batch), Mathf.Min(room, have));
 				if (n <= 0)
 				{
@@ -619,9 +634,10 @@ public partial class CookController : MonoBehaviour
 			if (station == null)
 			{
 				BrewWhy(mead, "no usable " + Loc(recipe.m_craftingStation?.m_name) + " in range (needs the right level, a fire and a roof)");
+				AddWhy(true, "hc_why_cook_no_station", Loc(recipe.m_craftingStation?.m_name));
 				continue;
 			}
-			string shortOf = ShortIngredient(recipe);
+			string shortOf = ShortIngredient(recipe, mead);
 			if (shortOf != null)
 			{
 				BrewWhy(mead, shortOf);
@@ -633,8 +649,133 @@ public partial class CookController : MonoBehaviour
 		return null;
 	}
 
-	// the first ingredient that would go below the reserve, as a sentence for the log
-	private string ShortIngredient(Recipe recipe)
+	// 1.5.42: why it isn't cooking or brewing, for the status and the idle "why". User (log 4b94cbba): "It just reports the
+	// need for honey and nothing else. I took all the ingredients so there really is nothing to cook... It should rotate
+	// between missing details every so often." Every reason found in a scan is kept; one is shown per scan (10 s), in turn.
+	// Mead reasons show as "Mead", food ones as "Cook".
+	private class Why
+	{
+		public bool Mead;
+
+		public string Key;
+
+		public object[] Args;
+	}
+
+	private readonly List<Why> _whys = new List<Why>();
+
+	// some food is under its target (FoodTask): nothing cooked means the ingredients are missing, not that it's stocked up
+	private bool _foodWanted;
+
+	private bool _foodShortSaid;
+
+	private const int MaxWhys = 8;
+
+	private void AddWhy(bool mead, string key, params object[] args)
+	{
+		if (_whys.Count >= MaxWhys)
+		{
+			return;
+		}
+		foreach (Why w in _whys)
+		{
+			if (w.Key == key && w.Mead == mead && string.Join("|", w.Args) == string.Join("|", args))
+			{
+				return;
+			}
+		}
+		_whys.Add(new Why { Mead = mead, Key = key, Args = args });
+	}
+
+	private void ShowWhy()
+	{
+		// food last: the mead shortfalls are the specific ones
+		bool mead = ModConfig.CookMakeMead == null || ModConfig.CookMakeMead.Value;
+		AddFoodWhy();
+		if (_whys.Count == 0)
+		{
+			CompanionStatus.Why(this, "hc_why_cook_nothing");
+			return;
+		}
+		List<CompanionStatus.Item> items = new List<CompanionStatus.Item>();
+		foreach (Why w in _whys)
+		{
+			items.Add(new CompanionStatus.Item(ModLocalization.Loc(w.Mead && mead ? "hc_status_job_mead" : "hc_status_job_cook"), w.Key, w.Args));
+		}
+		CompanionStatus.WhyRotate(this, items);
+	}
+
+	// 1.5.43 (phase 3): the status says what it's doing; mead work shows as "Mead"
+	private void ShowDoing(Task t)
+	{
+		string label = null;
+		string key = null;
+		string what = "";
+		switch (t.Kind)
+		{
+		case TaskKind.Craft:
+		{
+			string output = t.Recipe?.m_item?.gameObject.name;
+			bool meadBase = output != null && CookCatalog.IsMeadBase(output);
+			label = meadBase ? ModLocalization.Loc("hc_status_job_mead") : null;
+			key = "hc_doing_cook_make";
+			what = Name(output);
+			break;
+		}
+		case TaskKind.Grill:
+			key = "hc_doing_cook_make";
+			what = Name(t.Final ?? t.Item);
+			break;
+		case TaskKind.Rescue:
+			key = "hc_doing_cook_rescue";
+			what = Loc(t.Cooker?.m_name);
+			break;
+		case TaskKind.Fill:
+			label = ModLocalization.Loc("hc_status_job_mead");
+			key = "hc_doing_mead_fill";
+			what = Name(t.Item);
+			break;
+		case TaskKind.Tap:
+			label = ModLocalization.Loc("hc_status_job_mead");
+			key = "hc_doing_mead_tap";
+			break;
+		case TaskKind.Store:
+			key = "hc_doing_cook_store";
+			what = Name(t.Item);
+			break;
+		case TaskKind.Hive:
+			key = "hc_doing_upkeep_honey";
+			break;
+		case TaskKind.Stoke:
+			key = "hc_doing_upkeep_fuel";
+			what = Loc(t.Fire != null ? t.Fire.m_name : t.Cooker?.m_name);
+			break;
+		case TaskKind.Pile:
+			key = "hc_doing_take_pile";
+			what = Loc(t.Pile?.m_name);
+			break;
+		}
+		if (key != null)
+		{
+			CompanionStatus.DoingAs(this, label, key, what);
+		}
+	}
+
+	private void AddFoodWhy()
+	{
+		// a food it wanted was short of an ingredient: that's said already (hc_why_cook_food_short)
+		if (_foodShortSaid)
+		{
+			return;
+		}
+		if (_whys.Count >= MaxWhys)
+		{
+			_whys.RemoveAt(_whys.Count - 1);
+		}
+		_whys.Add(new Why { Mead = false, Key = _foodWanted ? "hc_why_cook_no_food" : "hc_why_cook_stocked", Args = new object[0] });
+	}
+
+	private void FoodShort(Recipe recipe, string final)
 	{
 		foreach (Piece.Requirement req in recipe.m_resources)
 		{
@@ -645,10 +786,40 @@ public partial class CookController : MonoBehaviour
 			string item = req.m_resItem.gameObject.name;
 			if (Usable(item) < req.GetAmount(1))
 			{
-				return CookCatalog.IsMade(item) ? $"needs {req.GetAmount(1)} {Name(item)}, {Count(item)} in reach" : $"needs {req.GetAmount(1)} {Name(item)}, {Count(item)} in reach and {Reserve} are kept back";
+				bool made = CookCatalog.IsMade(item);
+				AddWhy(false, "hc_why_mead_short", Name(item), Count(item), req.GetAmount(1) + (made ? 0 : Reserve), Name(final));
+				_foodShortSaid = true;
+				return;
 			}
 		}
-		return null;
+	}
+
+	// every ingredient that would go below the reserve: a reason each ("Honey 0/30 for Frost resistance mead" - the 30 is
+	// the recipe's 10 plus the 20 kept back, [Cooking] IngredientReserve); the first as a sentence for the log
+	private string ShortIngredient(Recipe recipe, string mead)
+	{
+		string first = null;
+		string finished = CookCatalog.MeadOf(mead);
+		string what = Name(finished ?? mead);
+		foreach (Piece.Requirement req in recipe.m_resources)
+		{
+			if (req?.m_resItem == null || req.GetAmount(1) <= 0)
+			{
+				continue;
+			}
+			string item = req.m_resItem.gameObject.name;
+			if (Usable(item) < req.GetAmount(1))
+			{
+				bool made = CookCatalog.IsMade(item);
+				int need = req.GetAmount(1) + (made ? 0 : Reserve);
+				AddWhy(true, "hc_why_mead_short", Name(item), Count(item), need, what);
+				if (first == null)
+				{
+					first = made ? $"needs {req.GetAmount(1)} {Name(item)}, {Count(item)} in reach" : $"needs {req.GetAmount(1)} {Name(item)}, {Count(item)} in reach and {Reserve} are kept back";
+				}
+			}
+		}
+		return first;
 	}
 
 	private Task FillTask()
@@ -772,6 +943,7 @@ public partial class CookController : MonoBehaviour
 			Claim(task.Fermenter);
 		}
 		Log("Going to " + task.Describe());
+		ShowDoing(task);
 		Say(task.Kind);
 		if (task.Kind == TaskKind.Pile)
 		{

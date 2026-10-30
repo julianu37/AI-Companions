@@ -321,6 +321,7 @@ public class SmeltController : MonoBehaviour
 					ResetStuck();
 					_phase = SmeltPhase.CollectingOutput;
 					Log($"→ Collecting queued output from \"{nearbySmelter.m_name}\" ({num3} items)");
+					CompanionStatus.Doing(this, "hc_doing_smelt_collect", SName(nearbySmelter));
 					return;
 				}
 				if (num4 > 0)
@@ -333,14 +334,17 @@ public class SmeltController : MonoBehaviour
 					_actionTimer = 0f;
 					_phase = SmeltPhase.CollectingOutput;
 					Log($"→ Collecting {num4} ground drops near \"{nearbySmelter.m_name}\"");
+					CompanionStatus.Doing(this, "hc_doing_smelt_collect", SName(nearbySmelter));
 					return;
 				}
 			}
 		}
+		_whyItems.Clear();
 		ScanNearbyChests();
 		if (_nearbyChests.Count == 0)
 		{
 			Log("No chests found nearby");
+			CompanionStatus.Why(this, "hc_why_smelt_no_chests", speak: true);
 			_phase = SmeltPhase.Idle;
 			_scanTimer = 10f;
 			return;
@@ -442,6 +446,12 @@ public class SmeltController : MonoBehaviour
 				break;
 			}
 		}
+		// the status: what's missing, in turn; else the smelters are working / there's nothing to smelt
+		if (_whyItems.Count == 0)
+		{
+			_whyItems.Add(new CompanionStatus.Item(null, flag6 ? "hc_speech_smelt_monitoring" : "hc_why_smelt_nothing"));
+		}
+		CompanionStatus.WhyRotate(this, _whyItems);
 		if (flag6)
 		{
 			_phase = SmeltPhase.Monitoring;
@@ -1103,6 +1113,31 @@ public class SmeltController : MonoBehaviour
 		}
 	}
 
+	// 1.5.43: why it isn't loading or fuelling, gathered during a scan
+	private readonly List<CompanionStatus.Item> _whyItems = new List<CompanionStatus.Item>();
+
+	private void AddWhy(string key, params object[] args)
+	{
+		if (_whyItems.Count >= 8)
+		{
+			return;
+		}
+		string sig = key + "|" + string.Join("|", args);
+		foreach (CompanionStatus.Item it in _whyItems)
+		{
+			if (it.Key + "|" + string.Join("|", it.Args) == sig)
+			{
+				return;
+			}
+		}
+		_whyItems.Add(new CompanionStatus.Item(null, key, args));
+	}
+
+	private static string SName(Smelter s)
+	{
+		return (s == null) ? "" : (MHR_List.Local(s.m_name) ?? s.m_name);
+	}
+
 	private bool TryPlanRefill(Smelter smelter)
 	{
 		ZNetView component = smelter.GetComponent<ZNetView>();
@@ -1139,6 +1174,7 @@ public class SmeltController : MonoBehaviour
 						ResetStuck();
 						_phase = SmeltPhase.MovingToSmelter;
 						Log($"Plan: use {num4}x ore \"{text}\" from inventory → " + $"\"{smelter.m_name}\" (queued={num}/{smelter.m_maxOre})");
+						CompanionStatus.Doing(this, "hc_doing_smelt_load", SName(smelter), CookController.Name(text));
 						return true;
 					}
 				}
@@ -1190,6 +1226,9 @@ public class SmeltController : MonoBehaviour
 					return true;
 				}
 			}
+			// 1.5.43 (phase 3): why it isn't loading this one (user: "Smelting should also mention if there is no wood to add
+			// to the kiln")
+			AddWhy(flag ? "hc_why_smelt_no_wood" : "hc_why_smelt_no_ore", SName(smelter));
 			return false;
 		}
 		int num9 = num2;
@@ -1227,6 +1266,7 @@ public class SmeltController : MonoBehaviour
 		ResetStuck();
 		_phase = SmeltPhase.MovingToChest;
 		Log($"Plan: take {num14}x ore \"{bestPrefab}\" (totalNeeded={num9} weightCap={num13}) " + $"from chest (dist={num5:F1}m) → \"{smelter.m_name}\" (queued={num}/{smelter.m_maxOre})");
+		CompanionStatus.Doing(this, "hc_doing_smelt_load", SName(smelter), CookController.Name(bestPrefab));
 		if (_talk != null)
 		{
 			_talk.Say(ModLocalization.Loc("hc_speech_smelt_materials"));
@@ -1270,6 +1310,7 @@ public class SmeltController : MonoBehaviour
 				ResetStuck();
 				_phase = SmeltPhase.MovingToSmelter;
 				Log($"Plan: use {num4}x fuel \"{text}\" from inventory → " + $"\"{smelter.m_name}\" (fuel={num:F0}/{smelter.m_maxFuel})");
+				CompanionStatus.Doing(this, "hc_doing_smelt_fuel", SName(smelter));
 				return true;
 			}
 		}
@@ -1301,7 +1342,13 @@ public class SmeltController : MonoBehaviour
 		}
 		if (container == null)
 		{
-			return TryStartPile(fuelPrefab, smelter);   // 1.4.130: or from a pile
+			// 1.4.130: or from a pile
+			if (TryStartPile(fuelPrefab, smelter))
+			{
+				return true;
+			}
+			AddWhy("hc_why_smelt_no_fuel", CookController.Name(fuelPrefab), SName(smelter));
+			return false;
 		}
 		int num9 = num2;
 		foreach (Smelter nearbySmelter in _nearbySmelters)
@@ -1331,6 +1378,7 @@ public class SmeltController : MonoBehaviour
 		ResetStuck();
 		_phase = SmeltPhase.MovingToChest;
 		Log($"Plan: take {num15}x fuel \"{text}\" (totalNeeded={num9} weightCap={num14}) " + $"from chest (dist={num5:F1}m) → \"{smelter.m_name}\" (fuel={num:F0}/{smelter.m_maxFuel})");
+		CompanionStatus.Doing(this, "hc_doing_smelt_fuel", SName(smelter));
 		if (_talk != null)
 		{
 			_talk.Say(ModLocalization.Loc("hc_speech_smelt_fuel"));
@@ -1362,6 +1410,7 @@ public class SmeltController : MonoBehaviour
 			{
 				_nextNoHammerLog = Time.time + 120f;
 				Log("No " + itemPrefab + " in the chests, but there's a pile of it - it needs a hammer to take it down");
+				AddWhy("hc_why_smelt_pile_hammer", MHR_List.Local(pile.m_name) ?? pile.m_name);
 			}
 			return false;
 		}
@@ -1369,6 +1418,7 @@ public class SmeltController : MonoBehaviour
 		ClearFollowForMovement();
 		_phase = SmeltPhase.TakingDownPile;
 		Log("No " + itemPrefab + " in the chests for \"" + smelter.m_name + "\" - taking down the " + MHR_List.Local(pile.m_name) + " at " + MHR_Mover.Fmt(pile.transform.position));
+		CompanionStatus.Doing(this, "hc_doing_take_pile", MHR_List.Local(pile.m_name) ?? pile.m_name);
 		return true;
 	}
 

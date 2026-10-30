@@ -486,6 +486,8 @@ public class ConfigPanel : MonoBehaviour
 
 	public void Hide()
 	{
+		// closed with a key button still waiting (close button): stop waiting, or F8 would never open it again
+		KeyBindListener.Capturing = false;
 		_visible = false;
 		_selectedRowIndex = -1;
 		// Multilanguage M2: an open list belongs to this panel - it must not stay over the game (the overlay is a
@@ -1397,7 +1399,12 @@ public class ConfigPanel : MonoBehaviour
 		keyBindListener.Init(typed, btnTMP, () => listening, delegate(bool v)
 		{
 			listening = v;
+			if (v)
+			{
+				btnTMP.color = LabelText;
+			}
 		});
+		gameObject3.GetComponent<Button>().onClick.AddListener(keyBindListener.Begin);
 		CreateDefaultButton(gameObject.transform, entry, delegate
 		{
 			typed.Value = (KeyCode)entry.DefaultValue;

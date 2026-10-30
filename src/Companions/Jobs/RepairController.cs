@@ -401,6 +401,11 @@ public class RepairController : MonoBehaviour
 			{
 				_noStationUntil[item] = now + wait;
 				Log($"No station within {ScanRadius}m can repair \"{item.m_shared.m_name}\" ({item.m_durability / item.GetMaxDurability() * 100f:F0}%) - not trying again for {wait / 60f:F0} min");
+				// 1.5.42: at home that's worth knowing (a station to build or upgrade); out in the wild it's expected
+				if (_setup != null && _setup.HasHomePosition() && MHR_ToolKeeper.AtHome(_setup))
+				{
+					CompanionStatus.Why(this, "hc_why_repair_no_station", true, Localization.instance?.Localize(item.m_shared.m_name) ?? item.m_shared.m_name);
+				}
 			}
 		}
 		if (craftingStation == null)

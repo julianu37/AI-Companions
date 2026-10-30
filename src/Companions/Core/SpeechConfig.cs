@@ -6,11 +6,27 @@ using UnityEngine;
 
 namespace Companions;
 
+// 1.5.41: speech overhaul, phase 1. The ambient lines a companion says now and then, one pool per situation, loaded
+// from speech.json (or Translations/speech/<language>.json). A line can start with tags in square brackets that say
+// when it fits, e.g. "[home] A fine hall you've built." or "[night,!rain] The stars are out." - see CompanionTalk.Fits.
+// Tags: home, away, night, day, rain, dry, cold, indoors, outdoors, and the biomes meadows, blackforest, swamp,
+// mountain, plains, mistlands, ashlands, deepnorth, ocean. "!" in front means "not". A line without tags always fits.
 [Serializable]
 public class SpeechConfig
 {
+	// 2 = the 1.5.41 layout, 3 = 1.5.43 (travelling lines tagged [away], more lines). An older file is kept as
+	// speech.v<its version>.json and replaced by the new defaults.
+	public int Version;
+
 	public string[] Action;
 
+	public string[] Wood;
+
+	public string[] Stone;
+
+	public string[] Ore;
+
+	// only used when Wood/Stone/Ore are empty
 	public string[] Gather;
 
 	public string[] Forage;
@@ -37,7 +53,14 @@ public class SpeechConfig
 
 	public string[] Cook;
 
+	public string[] Upkeep;
+
 	public string[] NoBed;
+
+	// idle chat when it goes over to you or another companion
+	public string[] Chat;
+
+	public const int CurrentVersion = 3;
 
 	private static SpeechConfig _instance;
 
@@ -251,74 +274,110 @@ public class SpeechConfig
 
 	private static SpeechConfig Defaults()
 	{
-		SpeechConfig speechConfig = new SpeechConfig();
-		speechConfig.Action = new string[13]
+		SpeechConfig s = new SpeechConfig();
+		s.Version = CurrentVersion;
+		// said when you give it an order from the command wheel
+		s.Action = new string[]
 		{
-			"By your word!", "So it shall be.", "The gods guide my hand.", "Aye, consider it done!", "I heed your call.", "As you command.", "On it!", "Right away.", "You have my word.", "It shall be done.",
-			"Say no more.", "I understand.", "Leave it to me."
+			"By your word!", "So it shall be.", "Aye, consider it done!", "I heed your call.", "As you command.", "On it!", "Right away.", "It shall be done.",
+			"Say no more.", "Leave it to me."
 		};
-		speechConfig.Gather = new string[14]
+		// while actually chopping (Wood job)
+		s.Wood = new string[]
 		{
-			"The land provides, if you know where to look.", "Good timber here.", "Odin's bounty is plentiful.", "I'll strip this land bare if I must.", "These arms were made for more than swinging axes... but it'll do.", "The earth yields its riches.", "There's good stone over here.", "Another tree falls!", "The veins run deep in this rock.", "My arms grow stronger with each swing.",
-			"This ore looks promising.", "Plenty of materials nearby.", "A fine haul so far.", "The ground gives up its treasures."
+			"Good timber here.", "Another tree falls!", "My arms grow stronger with each swing.", "Timber!", "This wood will burn well.",
+			"[blackforest] The pines grow thick here.", "[meadows] Beech and birch, good and straight.", "[swamp] Ancient bark... tough going."
 		};
-		speechConfig.Forage = new string[12]
+		// while actually mining stone (Stone job)
+		s.Stone = new string[]
 		{
-			"The meadows offer their gifts.", "Freya's garden blooms well here.", "Even warriors must forage.", "Ripe for the picking.", "The wild provides for those who seek.", "Fresh berries here!", "Mushrooms, growing in the shade.", "Nature hides her bounty well.", "A good harvest from the wilds.", "The forest floor is rich with life.",
-			"These will make a fine stew.", "Plenty to gather in these parts."
+			"There's good stone over here.", "Stone for the walls.", "Chip by chip.", "This rock won't move itself.", "Solid stone, this."
 		};
-		speechConfig.Combat = new string[17]
+		// while actually mining ore (Ore job)
+		s.Ore = new string[]
 		{
-			"For Odin!", "Taste my steel!", "To Valhalla!", "Stand and fight!", "Skål! Come meet your end!", "They shall not pass!", "By Thor's hammer!", "You picked the wrong fight!", "Face me, coward!", "I'll send you to Hel!",
-			"My blade thirsts!", "Come then! I am ready!", "Your end is here!", "Fight me if you dare!", "Another one falls!", "Is that all you've got?", "The Valkyries watch!"
+			"This ore looks promising.", "The veins run deep in this rock.", "The ground gives up its treasures.", "Ore for the smelter.",
+			"[blackforest] Copper and tin, our first real metal.", "[swamp] Iron, buried with the dead.", "[mountain] Silver, cold as the peaks."
 		};
-		speechConfig.Follow = new string[15]
+		s.Gather = new string[] { "The land provides, if you know where to look.", "A fine haul so far." };
+		// while actually foraging
+		s.Forage = new string[]
 		{
-			"Lead on, I am your shield.", "Where the path takes us, I follow.", "A fine day to wander the wilds.", "My blade is yours to command.", "The road calls to us.", "I walk beside you, friend.", "Wherever you go, I go.", "Right behind you.", "The journey continues.", "I've got your back.",
-			"What lies ahead, I wonder?", "Onward!", "Stay close, the wilds are dangerous.", "A good pace. I can keep up.", "Which way now?"
+			"The wild provides for those who seek.", "Ripe for the picking.", "Nature hides her bounty well.", "These will make a fine stew.",
+			"[meadows] The meadows offer their gifts.", "[blackforest] Good pickings under these trees.", "[night] Hard to spot anything in this dark."
 		};
-		speechConfig.Hungry = new string[12]
+		// only in a real fight
+		s.Combat = new string[]
 		{
-			"My belly roars like a troll...", "Even Fenrir ate better than this.", "A warrior fights on mead and meat, not empty guts.", "I'd trade my axe for a leg of boar right now.", "The hunger gnaws at my strength...", "I could eat an entire neck right now.", "My stomach is as empty as Ginnungagap.", "Got anything to eat?", "I'm starving here...", "A warrior without food is no warrior at all.",
-			"Please, some food before I collapse.", "I'm running on fumes here."
+			"For Odin!", "Taste my steel!", "Stand and fight!", "They shall not pass!", "By Thor's hammer!", "You picked the wrong fight!", "I'll send you to Hel!",
+			"Come then! I am ready!", "The Valkyries watch!"
 		};
-		speechConfig.Repair = new string[11]
+		// while following you
+		s.Follow = new string[]
 		{
-			"This blade has seen better days.", "My armor holds by thread and prayer.", "A dull edge brings a swift death.", "The smithy calls to my gear.", "Even the gods mend their weapons.", "My equipment needs attention.", "This won't hold much longer.", "A few more hits and this breaks.", "I should find a workbench soon.", "My gear is wearing thin.",
-			"A warrior must maintain their tools."
+			// 1.5.43: travelling lines only away from home (1.5.42 test: "What lies ahead, I wonder?" while sitting on the throne)
+			"[away] Lead on, I am your shield.", "[away] Where the path takes us, I follow.", "Right behind you.", "I've got your back.", "[away] What lies ahead, I wonder?",
+			"[away] Which way now?", "[away] Keep your eyes open.", "[away] Good country for an ambush.", "[home] Anything need doing around here?", "[home] Just say the word.",
+			"[day,!rain] A fine day to wander the wilds.", "[night] Keep close, the night hides much.", "[rain] Wet boots again.", "[cold] My beard is freezing.",
+			"[blackforest] Watch for greydwarfs in these woods.", "[swamp] This bog stinks of death.", "[mountain] Mind the drop.", "[plains] Watch for the fuling camps.",
+			"[mistlands] I can barely see my own hand.", "[ashlands] Even the air burns here.", "[deepnorth] Cold enough to freeze a troll.", "[ocean] Nothing but water and sky."
 		};
-		speechConfig.Overweight = new string[10] { "By Odin's beard, my back is breaking!", "I carry the weight of Jotunheim on my shoulders...", "Not even Thor could haul this much further!", "My legs buckle beneath this burden!", "We must lighten this load before I collapse.", "I can barely move with all this weight!", "This is too much to carry!", "I'm overloaded!", "My pack is fit to burst!", "I need to put some of this down." };
-		speechConfig.Smelt = new string[13]
+		// no food in it
+		s.Hungry = new string[]
 		{
-			"The forge fire burns bright.", "Good ore makes good steel.", "The bellows sing their song.", "Another ingot for the hoard.", "Dwarven work, this smelting.", "The flames hunger for more.", "Feeding the furnace.", "The kiln roars with life.", "More coal for the fire.", "Molten metal, a beautiful sight.",
-			"The smelter works well today.", "Iron from ore, steel from iron.", "Keeping the fires stoked."
+			"My belly roars like a troll...", "I'd trade my axe for a leg of boar right now.", "Got anything to eat?", "A warrior fights on mead and meat, not empty guts.",
+			"I could eat an entire neck right now."
 		};
-		speechConfig.Idle = new string[16]
+		// its gear is badly worn
+		s.Repair = new string[]
 		{
-			"The winds whisper of adventure...", "Skål!", "A calm before the storm, perhaps.", "I could use a horn of mead.", "I sense something stirring in the mist.", "What tales will they sing of us, I wonder?", "Nice place we've got here.", "The fire crackles nicely.", "A moment of peace... rare in these lands.", "Hmm, wonder what's for dinner.",
-			"The world is quiet for now.", "Just enjoying the view.", "I could get used to this.", "Not a bad spot to rest.", "A fine hall you've built.", "Waiting for your command."
+			"This blade has seen better days.", "My gear is wearing thin.", "I should find a workbench soon.", "A few more hits and this breaks."
 		};
-		speechConfig.Hunt = new string[12]
+		s.Overweight = new string[] { "My back is breaking under all this!", "I can barely move with all this weight!", "My pack is fit to burst!", "I need to put some of this down." };
+		// while actually working the smelters
+		s.Smelt = new string[]
 		{
-			"I see prey nearby.", "The hunt begins!", "Stay quiet... I'm stalking.", "Fresh meat for the pot!", "Got one in my sights.", "A clean shot, that's all I need.", "The wilds provide for the patient hunter.", "Tracking prey through the brush.", "Dinner's not going to catch itself.", "Easy now... nice and steady...",
-			"Eikthyr would be proud.", "The hunt is on!"
+			"Feeding the furnace.", "Good ore makes good metal.", "Keeping the fires stoked.", "Another bar for the hoard.", "The bellows sing their song.", "Hot work, this.",
+			"[cold] At least the furnace is warm."
 		};
-		speechConfig.Farm = new string[12]
+		// nothing to do; [home] lines only at home
+		s.Idle = new string[]
 		{
-			"The soil is good here.", "Time to tend the crops.", "Seeds in the ground, hope in the heart.", "A good harvest takes patience.", "The crops are coming in nicely.", "Working the fields.", "Freya blesses this soil.", "Planting for the future.", "Almost ready to harvest.", "Farm work is honest work.",
-			"Another row planted.", "The garden grows well."
+			"Skål!", "I could use a horn of mead.", "A moment of peace... rare in these lands.", "The world is quiet for now.", "Waiting for your command.",
+			"[home] Nice place we've got here.", "[home] A fine hall you've built.", "[home] I could get used to this.", "[home,night] Good to be home for the night.",
+			"[away] Strange place to stop.", "[away,night] I'd rather not linger out here after dark.", "[rain] At least the rain keeps the dust down.",
+			"[day,!rain,!indoors] Just enjoying the view.", "[indoors] Cosy in here."
 		};
-		speechConfig.Fish = new string[12]
+		// while actually hunting
+		s.Hunt = new string[]
 		{
-			"The water looks promising.", "Casting my line...", "Patience is a fisherman's greatest virtue.", "I feel a nibble!", "A fine catch!", "The fish are biting today.", "Nothing yet... but I'll wait.", "Come on, take the bait...", "Fishing is peaceful work.", "One more cast ought to do it.",
-			"The river provides.", "Fresh fish for supper!"
+			"Stay quiet...", "The hunt is on!", "Fresh meat for the pot.", "Tracking prey through the brush.", "Easy now... nice and steady...", "Downwind, always downwind.",
+			"[night] Hard to track in the dark.", "[rain] The rain hides our steps."
 		};
-		speechConfig.Cook = new string[12]
+		// while actually farming
+		s.Farm = new string[] { "Working the fields.", "Seeds in the ground, hope in the heart.", "Farm work is honest work.", "Another row done.", "[rain] Good weather for the crops." };
+		// while actually fishing
+		s.Fish = new string[]
 		{
-			"Something tasty is brewing!", "The cauldron bubbles nicely.", "A good meal lifts any warrior's spirits.", "Almost ready to serve.", "Cooking up a feast!", "The kitchen is my battlefield today.", "Mmm, smells delicious.", "Stirring the pot...", "A pinch of this, a dash of that.", "Mead's fermenting nicely.",
-			"Food for the weary!", "This recipe never fails."
+			"Casting my line...", "Patience is a fisherman's greatest virtue.", "Come on, take the bait...", "Fishing is peaceful work.", "Nothing yet... but I'll wait.",
+			"[rain] Fish bite better in the rain.", "[night] Quiet water tonight.", "[ocean] Something big is down there."
 		};
-		speechConfig.NoBed = new string[5] { "I've got no bed to call my own.", "Wish I had a bed around here.", "Every bed nearby is already taken.", "I'll sleep on the ground again, I suppose.", "A place to rest my head would be nice." };
-		return speechConfig;
+		// while actually cooking or brewing
+		s.Cook = new string[] { "A good meal lifts any warrior's spirits.", "Stirring the pot...", "A pinch of this, a dash of that.", "Food for the weary!", "Mmm, smells good." };
+		// while actually doing Repair and Restock
+		s.Upkeep = new string[]
+		{
+			"Keeping the place in shape.", "A sound roof and a warm fire.", "Everything in its place.", "A home needs looking after.", "Who left this here?",
+			"[rain] Let's hope the roof holds.", "[night] Keep the fires burning."
+		};
+		// it has no bed (only said at night)
+		s.NoBed = new string[] { "I've got no bed to call my own.", "Wish I had a bed around here.", "I'll sleep on the ground again, I suppose.", "A place to rest my head would be nice." };
+		// idle chat next to you or another companion
+		s.Chat = new string[]
+		{
+			"Need anything?", "Anything need doing?", "Quiet around here.", "[day,!rain] Fine day for it.", "[rain] Smells like rain. Oh wait.", "[night] Late, isn't it?",
+			"[home] Good to have a roof over us.", "[away] Should we head home soon?"
+		};
+		return s;
 	}
 }
