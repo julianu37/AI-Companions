@@ -1055,6 +1055,16 @@ namespace Companions
             ZNetView nv = c.GetComponent<ZNetView>();
             if (nv == null || !nv.IsValid()) return false;
             Claim(c);
+            // Fase 2.0 (audit fix): the game saves a chest's contents on the chest's OWNER, so a client that isn't the
+            // owner and writes to it has its changes overwritten (or items duplicated) by the owner's next sync. The
+            // ownership request travels over the network and lands a moment later, and every caller already treats a
+            // false as "not now" (the jobs come back on their next cycle, CompanionAI's deposit path says so and
+            // re-plans it), so a chest this game still doesn't own is refused here.
+            if (!nv.IsOwner())
+            {
+                if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Chest] \"" + c.m_name + "\": ownership is still someone else's - not writing to it");
+                return false;
+            }
             c.SetInUse(true);
             return true;
         }

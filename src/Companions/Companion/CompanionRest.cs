@@ -289,16 +289,40 @@ public class CompanionRest : MonoBehaviour
 
 	public void DirectSit(GameObject fire)
 	{
+		DirectSit(fire, fromOrder: false);
+	}
+
+	/// <summary>
+	/// Fase 2.0 (audit fix): <paramref name="fromOrder"/> marks a chat/voice order ("senta"), as opposed to the
+	/// command key. The key is a TOGGLE (pointing at a fire while sitting there stands up), but an order is not: with
+	/// the toggle, ordering the fire it was already sitting at stood it up and the order then answered "nobody took
+	/// it", and ordering ANOTHER fire only stood it up. From an order the same fire is a confirmation and a
+	/// different fire is "get up and walk over there".
+	/// </summary>
+	public void DirectSit(GameObject fire, bool fromOrder)
+	{
 		if (fire == null)
 		{
 			return;
 		}
-		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Rest] DirectSit called — sitting={_isSitting}, sleeping={_isSleeping}, " + $"directed={_isDirected}, navigating={_navigating}, fire=\"{fire.name}\"");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Rest] DirectSit called — sitting={_isSitting}, sleeping={_isSleeping}, " + $"directed={_isDirected}, navigating={_navigating}, fromOrder={fromOrder}, fire=\"{fire.name}\"");
 		if ((_isSitting || _navigating) && _isDirected)
 		{
-			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Rest] DirectSit TOGGLE OFF — calling StopAll");
-			StopAll();
-			return;
+			if (!fromOrder)
+			{
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Rest] DirectSit TOGGLE OFF — calling StopAll");
+				StopAll();
+				return;
+			}
+			if (_fireTarget == fire)
+			{
+				// already doing exactly what the order asked: keep sitting, and push the standing-up timeout out
+				_fireTarget = fire;
+				_directedRestTimer = DirectedSitTimeout;
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Rest] DirectSit order for the fire it is already at — keeping it");
+				return;
+			}
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Rest] DirectSit order for ANOTHER fire — standing up and going there");
 		}
 		if (_isSitting || _isSleeping || _navigating)
 		{

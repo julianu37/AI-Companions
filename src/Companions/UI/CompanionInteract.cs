@@ -1403,7 +1403,8 @@ public class CompanionInteract : MonoBehaviour
 		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Direct] \"{nearest.GetComponent<Character>()?.m_name}\" → {(close ? "close" : "open")} door \"{door.m_name}\" ({best:F1} m away)");
 	}
 
-	private static void DirectSit(IReadOnlyList<CompanionSetup> setups, string localId, Fireplace fire)
+	// Fase 2.0: fromOrder - the chat/voice order ("senta") is not the command key's toggle; see CompanionRest.DirectSit
+	private static void DirectSit(IReadOnlyList<CompanionSetup> setups, string localId, Fireplace fire, bool fromOrder = false)
 	{
 		if (!fire.IsBurning())
 		{
@@ -1421,7 +1422,7 @@ public class CompanionInteract : MonoBehaviour
 			CompanionRest component = setup.GetComponent<CompanionRest>();
 			if (!(component == null))
 			{
-				component.DirectSit(fire.gameObject);
+				component.DirectSit(fire.gameObject, fromOrder);
 				if (companionTalk == null)
 				{
 					companionTalk = setup.GetComponent<CompanionTalk>();
@@ -1586,9 +1587,20 @@ public class CompanionInteract : MonoBehaviour
 			ZNetView component = setup.GetComponent<ZNetView>();
 			if (component?.GetZDO() != null)
 			{
-				component.GetZDO().Set(CompanionSetup.ActionModeHash, 6);
-				MHR_JobRules.OnJobSet(setup, 6);
-				setup.GetComponent<SmeltController>()?.NotifyActionModeChanged();
+				// Fase 2.0 (audit fix): the mode goes through the same envelope the wheel and the chat orders use
+				// (Fase 3.19) - only the game that owns the companion may write its ZDO, and the setter queues the
+				// write and repeats it until it can be done instead of losing the order.
+				setup.MHR_WriteOrQueue(delegate
+				{
+					ZNetView nv = setup.GetComponent<ZNetView>();
+					if (nv?.GetZDO() == null)
+					{
+						return;
+					}
+					nv.GetZDO().Set(CompanionSetup.ActionModeHash, 6);
+					MHR_JobRules.OnJobSet(setup, 6);
+					setup.GetComponent<SmeltController>()?.NotifyActionModeChanged();
+				});
 				if (companionTalk == null)
 				{
 					companionTalk = setup.GetComponent<CompanionTalk>();
@@ -1751,6 +1763,20 @@ public class CompanionInteract : MonoBehaviour
 			{
 				continue;
 			}
+			// Fase 2.0 (audit fix): the same chest rules the jobs use - a real storage chest a player built (not a
+			// tombstone, a cart or a ship's hold), inside a ward that lets this one in, a private chest only for its
+			// own builder, and not one another player has open. Checked here as well as when the chest was picked,
+			// because the command key and the chat/voice order both come through this method.
+			if (!MHR_Chests.Usable(chest, setup))
+			{
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Direct] deposit into \"{chest.m_name}\": not a chest {setup.GetComponent<Character>()?.m_name} may use (ward, privacy, in use, or not a player-built chest)");
+				continue;
+			}
+			if (!PrivateArea.CheckAccess(chest.transform.position, 0f, flash: true))
+			{
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Direct] deposit into \"{chest.m_name}\": the ward refuses it");
+				continue;
+			}
 			Humanoid component = setup.GetComponent<Humanoid>();
 			if (component == null)
 			{
@@ -1781,6 +1807,10 @@ public class CompanionInteract : MonoBehaviour
 				if (!(component2 == null))
 				{
 					component2.SetPendingDeposit(chest, component);
+					// Fase 2.0 (audit fix): ask for the ownership of the chest RIGHT NOW. Only the owner of a chest's
+					// ZDO may change what is in it (see MHR_Chests.Open), and the grant travels over the network - the
+					// companion still has to walk there, which is the window that makes the deposit work in multiplayer.
+					MHR_Chests.Claim(chest);
 					num++;
 				}
 			}
@@ -1840,16 +1870,14 @@ public class CompanionInteract : MonoBehaviour
 		return _cmdMask;
 	}
 
-	/// <summary>
-	/// The first thing under the crosshair that is neither the player nor a companion, exactly as the command key
-	/// sees it: same camera, same ray, same layers, same 50 m reach and the same "ignore players and companions" rule.
-	/// </summary>
-	private static Collider PointedCollider()
+	/// <summary>The hits of the command key's ray: filled into <see cref="_cmdHitBuffer"/> (sorted by distance) and the
+	/// count returned. Same camera, same ray, same layers, same 50 m reach.</summary>
+	private static int PointedHits()
 	{
 		Camera mainCamera = Utils.GetMainCamera();
 		if (mainCamera == null)
 		{
-			return null;
+			return 0;
 		}
 		Ray ray = new Ray(mainCamera.transform.position, mainCamera.transform.forward);
 		int num = Physics.RaycastNonAlloc(ray, _cmdHitBuffer, 50f, CommandMask());
@@ -1857,10 +1885,27 @@ public class CompanionInteract : MonoBehaviour
 		{
 			Array.Sort(_cmdHitBuffer, 0, num, _distCompare);
 		}
+		return num;
+	}
+
+	/// <summary>Is this hit one the command key skips? (the player and the companions are never "the thing you point
+	/// at")</summary>
+	private static bool IgnoresPointedHit(Collider collider)
+	{
+		return collider == null || collider.GetComponentInParent<Player>() != null || collider.GetComponentInParent<CompanionSetup>() != null;
+	}
+
+	/// <summary>
+	/// The first thing under the crosshair that is neither the player nor a companion, exactly as the command key
+	/// sees it: same camera, same ray, same layers, same 50 m reach and the same "ignore players and companions" rule.
+	/// </summary>
+	private static Collider PointedCollider()
+	{
+		int num = PointedHits();
 		for (int i = 0; i < num; i++)
 		{
 			Collider collider = _cmdHitBuffer[i].collider;
-			if (collider == null || collider.GetComponentInParent<Player>() != null || collider.GetComponentInParent<CompanionSetup>() != null)
+			if (IgnoresPointedHit(collider))
 			{
 				continue;
 			}
@@ -1869,11 +1914,32 @@ public class CompanionInteract : MonoBehaviour
 		return null;
 	}
 
-	/// <summary>The component of type <typeparamref name="T"/> on the object under the crosshair, or null.</summary>
+	/// <summary>
+	/// The component of type <typeparamref name="T"/> on the first thing under the crosshair that carries one, or null.
+	///
+	/// <para>Fase 2.0 (audit fix): this used to read only the FIRST hit of the ray, while the command key walks all
+	/// of them and dispatches on the first one that has the component (see <see cref="Update"/>). With an occluded
+	/// target - a beehive behind the trunk it hangs on, a chest behind the hearth - nothing was found and the order
+	/// silently fell back to "the nearest one around the player", which can be a DIFFERENT object (a chest 2 m away
+	/// instead of the one being aimed at). Same hits, same order, same rule as the key.</para>
+	/// </summary>
 	private static T Pointed<T>() where T : Component
 	{
-		Collider collider = PointedCollider();
-		return collider != null ? collider.GetComponentInParent<T>() : null;
+		int num = PointedHits();
+		for (int i = 0; i < num; i++)
+		{
+			Collider collider = _cmdHitBuffer[i].collider;
+			if (IgnoresPointedHit(collider))
+			{
+				continue;
+			}
+			T found = collider.GetComponentInParent<T>();
+			if (found != null)
+			{
+				return found;
+			}
+		}
+		return null;
 	}
 
 	/// <summary>
@@ -1915,39 +1981,61 @@ public class CompanionInteract : MonoBehaviour
 	}
 
 	/// <summary>The ship under the crosshair and, when the player is pointing at one of its seats, that seat - the
-	/// same two components the command key reads from the same hit (see the ship branch in <see cref="Update"/>).</summary>
+	/// same two components the command key reads from the SAME hit (see the ship branch in <see cref="Update"/>).
+	/// Fase 2.0 (audit fix): like <see cref="Pointed{T}"/>, this walks the hits instead of reading only the first one,
+	/// so a piece in front of the hull doesn't lose the ship.</summary>
 	private static Ship PointedShip(out Chair seat)
 	{
 		seat = null;
-		Collider collider = PointedCollider();
-		if (collider == null)
+		int num = PointedHits();
+		for (int i = 0; i < num; i++)
 		{
-			return null;
+			Collider collider = _cmdHitBuffer[i].collider;
+			if (IgnoresPointedHit(collider))
+			{
+				continue;
+			}
+			Ship ship = collider.GetComponentInParent<Ship>();
+			if (ship == null)
+			{
+				continue;
+			}
+			Chair chair = collider.GetComponentInParent<Chair>();
+			if (chair != null && chair.m_inShip && !MHR_Board.IsMast(chair))
+			{
+				seat = chair;
+			}
+			return ship;
 		}
-		Ship ship = collider.GetComponentInParent<Ship>();
-		if (ship == null)
-		{
-			return null;
-		}
-		Chair chair = collider.GetComponentInParent<Chair>();
-		if (chair != null && chair.m_inShip && !MHR_Board.IsMast(chair))
-		{
-			seat = chair;
-		}
-		return ship;
+		return null;
 	}
 
-	/// <summary>A container an order may put things into: not the companion's own pack (that inventory is a container
-	/// too) and with an inventory behind it.</summary>
+	/// <summary>
+	/// A container an order may put things into. Fase 2.0 (audit fix): this used to accept anything with an inventory,
+	/// so "guarda isso no baú" could pick a tombstone, a cart, a ship's hold, a dungeon's loot chest or a chest inside
+	/// someone else's ward. It now asks the very rules the jobs use (<see cref="MHR_Chests.Usable"/>): a real storage
+	/// chest a player built, nobody has it open, inside a ward that lets us in, and a private chest only for its own
+	/// builder. The companion that takes the order is checked against the same rules again in
+	/// <see cref="DirectDeposit"/> (the id of the local player stands in for the companion here).
+	/// </summary>
 	private static bool IsChestForOrders(Container chest)
 	{
-		return chest != null && chest.GetInventory() != null && chest.GetComponent<CompanionSetup>() == null;
+		if (chest == null || chest.GetInventory() == null || chest.GetComponent<CompanionSetup>() != null)
+		{
+			return false;
+		}
+		return MHR_Chests.Usable(chest, Player.m_localPlayer);
 	}
 
 	/// <summary>
 	/// The ONE companion an interaction order reaches: the one the player NAMED, or the nearest to the object that can
-	/// take an order - the same gate attack/equip use (<see cref="MHR_InScope"/>, which also takes control of it),
-	/// plus whatever the interaction needs from it (<paramref name="capable"/>).
+	/// take an order - the same gate attack/equip use, plus whatever the interaction needs from it
+	/// (<paramref name="capable"/>).
+	///
+	/// <para>Fase 2.0 (audit fix / reviewer #5): the search only CHECKS (see <see cref="MHR_InScopeCheck"/>). It used
+	/// to call <see cref="MHR_InScope"/>, which takes the companion over, on every candidate - so one "senta" took
+	/// control of every companion around, not only of the one that took the order. The chosen one is taken over
+	/// afterwards, in <see cref="MHR_InScope"/>.</para>
 	/// </summary>
 	private static CompanionSetup OrderCompanion(CompanionSetup addressee, Vector3 at, Func<CompanionSetup, bool> capable)
 	{
@@ -1956,10 +2044,11 @@ public class CompanionInteract : MonoBehaviour
 		{
 			// a companion destroyed in the meantime answers "== null" (Unity) and can't take anything; the order must
 			// NOT fall through to another one (CompanionChatAI already told the player that one is gone)
-			if (addressee == null || !IsOwned(addressee, localId) || (capable != null && !capable(addressee)) || !MHR_InScope(addressee))
+			if (addressee == null || !IsOwned(addressee, localId) || (capable != null && !capable(addressee)) || !MHR_InScopeCheck(addressee))
 			{
 				return null;
 			}
+			MHR_InScope(addressee);
 			return addressee;
 		}
 		CompanionSetup pick = null;
@@ -1968,7 +2057,7 @@ public class CompanionInteract : MonoBehaviour
 		{
 			// the same ownership test the Direct* methods make for themselves - asking here is what tells "nobody can
 			// take it" from "this one can" (a companion of another player is never picked)
-			if (companion == null || !IsOwned(companion, localId) || (capable != null && !capable(companion)) || !MHR_InScope(companion))
+			if (companion == null || !IsOwned(companion, localId) || (capable != null && !capable(companion)) || !MHR_InScopeCheck(companion))
 			{
 				continue;
 			}
@@ -1978,6 +2067,10 @@ public class CompanionInteract : MonoBehaviour
 				best = distance;
 				pick = companion;
 			}
+		}
+		if (pick != null && !MHR_InScope(pick))
+		{
+			return null;
 		}
 		return pick;
 	}
@@ -2167,12 +2260,14 @@ public class CompanionInteract : MonoBehaviour
 		{
 			return report;
 		}
-		Silent(() => DirectSit(Single(report.Companion), OrderLocalId(), fire));
+		Silent(() => DirectSit(Single(report.Companion), OrderLocalId(), fire, fromOrder: true));
 		CompanionRest rest = report.Companion.GetComponent<CompanionRest>();
 		if (rest == null || (!rest.IsResting && !rest.IsNavigating))
 		{
-			// the command key's sit is a toggle: a companion already sitting by a directed order stood up instead
-			CompanionsPlugin.Log?.LogInfo($"[Order] sit: {OrderName(report.Companion)} didn't sit (already sitting - the command-key toggle stood it up)");
+			// Fase 2.0 (audit fix): the sit is only a toggle for the command key now (CompanionRest.DirectSit with
+			// fromOrder: true keeps it seated at the same fire and walks it to another one), so this is a real
+			// failure - no CompanionRest on it, or the fire went out between the check and the call
+			CompanionsPlugin.Log?.LogInfo($"[Order] sit: {OrderName(report.Companion)} didn't sit");
 			report.Companion = null;
 			return report;
 		}
@@ -2223,7 +2318,9 @@ public class CompanionInteract : MonoBehaviour
 			{
 				continue;
 			}
-			give++;
+			// Fase 2.0 (audit fix): count UNITS, not stacks - the line says "Putting {0} item(s) in the chest" and a
+			// single stack of 50 wood used to answer "1 item(s)"
+			give += Mathf.Max(1, item.m_stack);
 			if (into.CanAddItem(item, 1))
 			{
 				fits++;
@@ -2253,7 +2350,7 @@ public class CompanionInteract : MonoBehaviour
 		}
 		report.Key = "hc_ai_deposit_done";
 		report.Amount = give;
-		CompanionsPlugin.Log?.LogInfo($"[Order] deposit into \"{chest.m_name}\": {give} stack(s) -> {OrderName(report.Companion)}");
+		CompanionsPlugin.Log?.LogInfo($"[Order] deposit into \"{chest.m_name}\": {give} item(s) -> {OrderName(report.Companion)}");
 		return report;
 	}
 
@@ -2319,13 +2416,24 @@ public class CompanionInteract : MonoBehaviour
 			ZNetView component = setup.GetComponent<ZNetView>();
 			if (component?.GetZDO() != null)
 			{
-				component.GetZDO().Set(CompanionSetup.ActionModeHash, num);
-				MHR_JobRules.OnJobSet(setup, num);
-				HarvestController component2 = setup.GetComponent<HarvestController>();
-				if (component2 != null && num2 == 0)
+				// Fase 2.0 (audit fix): same envelope as the wheel/chat orders (Fase 3.19) - only the game that owns
+				// the companion may write its ZDO, and the setter queues the write instead of losing the order.
+				HarvestController harvest = setup.GetComponent<HarvestController>();
+				bool first = num2 == 0;
+				setup.MHR_WriteOrQueue(delegate
 				{
-					component2.SetDirectedTarget(target);
-				}
+					ZNetView nv = setup.GetComponent<ZNetView>();
+					if (nv?.GetZDO() == null)
+					{
+						return;
+					}
+					nv.GetZDO().Set(CompanionSetup.ActionModeHash, num);
+					MHR_JobRules.OnJobSet(setup, num);
+					if (harvest != null && first)
+					{
+						harvest.SetDirectedTarget(target);
+					}
+				});
 				if (companionTalk == null)
 				{
 					companionTalk = setup.GetComponent<CompanionTalk>();
@@ -2422,9 +2530,18 @@ public class CompanionInteract : MonoBehaviour
 			ZNetView component2 = setup.GetComponent<ZNetView>();
 			if (component2?.GetZDO() != null && component2.GetZDO().GetInt(CompanionSetup.ActionModeHash) != 0)
 			{
-				component2.GetZDO().Set(CompanionSetup.ActionModeHash, 0);
-				// 1.4.150: the job's off - Follow comes back if the job had turned it off (same rule as the wheel)
-				MHR_JobRules.OnJobSet(setup, 0);
+				// Fase 2.0 (audit fix): same envelope as the wheel/chat orders (Fase 3.19).
+				setup.MHR_WriteOrQueue(delegate
+				{
+					ZNetView nv = setup.GetComponent<ZNetView>();
+					if (nv?.GetZDO() == null)
+					{
+						return;
+					}
+					nv.GetZDO().Set(CompanionSetup.ActionModeHash, 0);
+					// 1.4.150: the job's off - Follow comes back if the job had turned it off (same rule as the wheel)
+					MHR_JobRules.OnJobSet(setup, 0);
+				});
 			}
 			setup.GetComponent<DoorHandler>()?.Cancel();
 			setup.GetComponent<HarvestController>()?.NotifyActionModeChanged();
@@ -2512,7 +2629,9 @@ public class CompanionInteract : MonoBehaviour
 		return inScope;
 	}
 
-	private static bool MHR_InScopeCheck(CompanionSetup s)
+	// Fase 2.0: the CHECK side of the scope test (own companion, Command on, within RecallRange), for callers that
+	// have to look at several companions and only take one over - see OrderCompanion.
+	internal static bool MHR_InScopeCheck(CompanionSetup s)
 	{
 		if (_mhrSuperRecall)
 		{
@@ -2612,8 +2731,17 @@ public class CompanionInteract : MonoBehaviour
 			ZNetView component = setup.GetComponent<ZNetView>();
 			if (component?.GetZDO() != null)
 			{
-				component.GetZDO().Set(CompanionSetup.ActionModeHash, 0);
-				MHR_JobRules.OnJobSet(setup, 0);
+				// Fase 2.0 (audit fix): same envelope as the wheel/chat orders (Fase 3.19).
+				setup.MHR_WriteOrQueue(delegate
+				{
+					ZNetView nv = setup.GetComponent<ZNetView>();
+					if (nv?.GetZDO() == null)
+					{
+						return;
+					}
+					nv.GetZDO().Set(CompanionSetup.ActionModeHash, 0);
+					MHR_JobRules.OnJobSet(setup, 0);
+				});
 				if (companionTalk == null)
 				{
 					companionTalk = setup.GetComponent<CompanionTalk>();
