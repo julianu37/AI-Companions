@@ -2,6 +2,40 @@
 
 All the changes to this project, derived from ProfMags' Offline Companions. The versions before 1.4.0 are the original mod (see the original mod's history, from ProfMags, for those versions) plus the first batch of compatibility fixes for the Valheim 1.0 API that made the mod load and run. **The entries below 1.5.4 are the upstream history and stay as they are (in English) — our sections (from 1.6.0 on) are ours.**
 
+## 2.0.0 — 30/10/2026
+
+**Upstream sync: 1.5.4 → 1.5.8.** Four upstream releases are in — combat, ships, the Shrine, torches, controller support —
+with our AI layer, localization and UI band kept.
+
+### From upstream (game behaviour)
+
+- **Blocks and parries like a player** (one roll per swing, better with the Blocking skill), combat tactics and bows.
+- **Ships**: board a ship and take the seat you point at; **beehives** (empty them and keep the honey); **torches**
+  (light and refuel); **lava** and the other world hazards; **real encumbrance** (walking pace, no running or jumping,
+  stamina drain) and **tilled-ground farming**.
+- **Odin's Shrine**: one menu to recover a lost companion or summon a new one with an offering (and
+  `[General] RecoverUnsummoned`).
+- **Speech overhaul**: a priority queue that does not drop a problem line, per-topic dedupe, the **status line** under
+  the name (with the reason when a job is stuck) and problems announced in the top-left corner when you are far away.
+- **Controller support**: gamepad binds, F8 navigable with a controller, and `[Advanced] LogLevel`
+  (`Off`/`Normal`/`Detailed`).
+- **Smaller fixes**: standing up out of sight only in dungeons, the door command closing doors, gear-first revive,
+  stance keys, chests/portals/fires improvements.
+
+### Ours (unchanged behaviour)
+
+- The **LLM layer** (text and voice orders, intent safety nets), **TTS/STT**, the five-language localization, the panels
+  following the game's language and the **1701+ UI band**.
+- Our **carry ceiling** (`CompanionCarry`: `[General] MaxCarryWeight` + the belt bonus read from the item asset) stays
+  in **every** weight check; the **Passive stance still fights the creature an order named**.
+- **160 new strings translated** into the five languages.
+
+### Fixed during the merge
+
+- Four settings were declared without a `Bind` and would not appear in the `.cfg`: `[General] ShowStatus` and
+  `[Speech] Enabled`, `FarAwayMessages`, `AnnounceDeath`.
+- The F8 panel now clears the new per-row action dictionaries when it rebuilds (no stale rows).
+
 ## 1.9.1 — 26/10/2026
 
 **A ~54 MB lighter package.** The `ggml-base-q5_1.bin` model (57 MB) is **no longer shipped**: the mod never used it

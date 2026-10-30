@@ -48,11 +48,20 @@ Every setting of the mod: what it does and the value it starts with.
 
 The basics: what a companion costs, its health, stamina and carry limits, and how far "home" reaches.
 
-**CompanionPrice** — Default: 2000 · Range: 0 – 50000  
-The price of an extra companion at the Trader, in coins from the shared bank. 0 = free.
-
 **MaxCompanions** — Default: 10 · Range: 1 – 10  
 Phase 3.19: the most companions you can have in this world (10 is the ceiling). The count includes the dead and the lost: the tombstone brings the SAME companion back, so dying does not free a slot. At the limit the Trader, the AI panel summoner and the starter companion refuse to create another (the Shrine can still recover a dead companion). To free a slot, dismiss one from its wheel menu (Despawn).
+
+**CompanionPrice** — Default: 1000 · Range: 0 – 50000  
+The offering in coins to summon another companion at Odin's Shrine (Summon companion), paid from your pack.
+
+**PortalItems** — Default: `Game` · Options: `Game`, `AllowAll`  
+What a following companion may carry through a portal with you. Game: the same rules as you - ore, metals and the like only through a portal that allows everything or with the world's portal setting on Casual, boss items never; it first puts what can't go through in a chest within 15 m of it, otherwise it stays behind and says why. AllowAll: it comes through with anything.
+
+**RecoverUnsummoned** — Default: On  
+An unsummoned (despawned) companion can be brought back at Odin's Shrine (Recover companions) - with its name, looks, skills and settings, but not its gear, which stays in the tombstone where it was unsummoned - until you next load this world. Off: unsummoning is permanent.
+
+**ShowStatus** — Default: On  
+When you look at a companion, show what it is doing under its name - and why not, when its job is stuck (e.g. "Hunt - No game around.").
 
 **SpawnStarterCompanion** — Default: On  
 The first time you enter a world with a character, you're offered one companion for free.
@@ -74,9 +83,6 @@ Show the companion status panel under the minimap.
 
 **ShowOverheadBars** — Default: On  
 Show health and stamina bars above each companion's head.
-
-**ShowStatus** — Default: On  
-When you look at a companion, show what it is doing under its name - and why not, when its job is stuck (e.g. "Hunt - No game around.").
 
 **MaxCarryWeight** — Default: 300 · Range: 50 – 2000  
 The BASE weight a companion can carry (a player carries 300). Gathering and hunting companions head home to unload before this. Items that raise carrying capacity add on top of this value: the Megingjord, for example, gives +150 and counts with the belt anywhere in the companion's bag (no need to equip it), so with this at 300 its ceiling becomes 450. Two identical belts don't add up: the bonus counts once, as in the game.
@@ -571,6 +577,18 @@ Wood, Stone and Ore with Follow on: a tree or rock has to be within this many me
 **ForageFollowRange** — Default: 20 · Range: 3 – 60  
 Forage with Follow on: a plant has to be within this many meters of you - the berries you happen to walk past, not everything around. With nothing that close the companion just follows you. (With Follow off see Range.) Phase 3.3c: 20, was 10 - still short enough for Forage to stay "what you walked past", and not a sweep of the whole area.
 
+**FollowLogRange** — Default: 20 · Range: 5 – 60  
+Wood with Follow on: fallen logs and stumps count up to this many meters from you (further than FollowRange), so it finishes the trees it fells before starting a new one - a log can roll well away from where you stand.
+
+**RestStamina** — Default: 0.15 · Range: 0 – 0.9  
+Chopping and mining: swing after swing (the weapon's combo) until stamina would drop below this share of the maximum, then stop and get its breath back.
+
+**ResumeStamina** — Default: 0.6 · Range: 0.1 – 1  
+Chopping and mining: after stopping for breath, start swinging again once stamina is back to this share of the maximum.
+
+**PowerChopLogBelow** — Default: 0.3 · Range: -1 – 2  
+Wood: the power chop (the axe's downward swing) is used on stumps, and on a log only when its top is less than this many meters above the companion's feet - too low for the sideways swing. Everything else gets normal swings.
+
 **PickUpLoose** — Default: On  
 Wood and Stone jobs, early in the game only: also pick up what's lying on the ground by hand - branches (Wood job), loose stones and flint (Stone job) - as long as they're on GatherWood / GatherStone and under their amount. Early game = there's no bronze-or-better axe in the companion's pack, your pack or the chests near home, and no forge at home to make one. With no tool for the job (no axe for Wood, no pickaxe for Stone) picking things up is all it does.
 
@@ -961,6 +979,15 @@ Shortest time (seconds) between a companion's lines when nothing is happening. O
 
 **MaxInterval** — Default: 30 · Range: 10 – 300  
 Longest time (seconds) between a companion's lines when nothing is happening. Only used while Chatter is on.
+
+**Enabled** — Default: On  
+Companions say things at all (replies to your orders, what they're doing, problems, chatter). Off = silent.
+
+**FarAwayMessages** — Default: On  
+When a companion runs into a problem (needs a tool, can't get somewhere...) while you're out of earshot (further than CullDistance), it shows as a message in the top left corner with its name.
+
+**AnnounceDeath** — Default: On  
+When one of your companions dies, say so in the middle of the screen with where it happened (biome, how far from you), wherever you are.
 
 **Duration** — Default: 5 · Range: 1 – 15  
 Seconds a line of speech stays on screen.
