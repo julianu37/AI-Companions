@@ -281,6 +281,9 @@ EN_HINTS = re.compile(
 # positivos no espanhol: palavras que os dois idiomas escrevem igual, tokens tecnicos e nomes proprios.
 IDENTICAL_OK = {
     'Spanish': {
+        # Fase 2.0 (ordens de interacao): cognatos legitimos PT/ES e placeholders puros
+        'Recuperar', 'Descansando', 'Esperando', 'Buscando {0}', 'Buscando {0}.',
+        'pescando {0}', 'guardando {0}', 'plantando {0}', '{0} {1}/{2} para {3}.',
         # palavras que o espanhol e o portugues escrevem igual (ou quase: só o acento muda)
         'Aplicar', 'Automático', 'Automático ({0})', 'Aviso:', 'Banco: {0}', 'Cama de {0}', 'Cancelar', 'Comando',
         'Comandos', 'Combate', 'Comida', 'Comidas', 'Comprar {0} ({1})', 'Controles', 'Cura por segundo',
@@ -308,6 +311,8 @@ IDENTICAL_OK = {
         '{0} ({1})', '{0} {1}',                     # so placeholders
     },
     'Italian': {
+        # Fase 2.0: pescando e igual em italiano
+        'pescando {0}',
         # palavras que o italiano e o portugues escrevem igual
         'Tipo', 'Nome', 'Mago', 'Passivo', 'casa', 'Vivo', 'Morto', 'Movimento', 'Stamina', 'Morte', 'Pesca',
         'Stamina  {0} / {1}', 'Stamina base', 'IA: {0}', 'Ok: {0}', 'Ok: {0} ({1})', 'Volume',
