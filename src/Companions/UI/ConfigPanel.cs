@@ -420,6 +420,8 @@ public class ConfigPanel : MonoBehaviour
 		_tabButtons.Clear();
 		_entryRows.Clear();
 		_entryData.Clear();
+		_entryActivate.Clear();
+		_entryClear.Clear();
 		_entrySliders.Clear();
 		_entryResetActions.Clear();
 		_choiceAdjust.Clear();
@@ -836,6 +838,8 @@ public class ConfigPanel : MonoBehaviour
 		}
 		_entryRows.Clear();
 		_entryData.Clear();
+		_entryActivate.Clear();
+		_entryClear.Clear();
 		_entrySliders.Clear();
 		_entryResetActions.Clear();
 		// Multilanguage M2: the choice rows (and the list that belongs to one of them) are gone with the category
