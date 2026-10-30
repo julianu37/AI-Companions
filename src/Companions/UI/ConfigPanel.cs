@@ -1740,6 +1740,11 @@ public class ConfigPanel : MonoBehaviour
 		{
 			StepChoice(choice, direction);
 		};
+		// and A opens the list, like the mouse click on the field
+		_entryActivate[entry] = delegate
+		{
+			OpenChoice(choice);
+		};
 		RefreshChoice(choice);
 		return row;
 	}
@@ -1759,11 +1764,29 @@ public class ConfigPanel : MonoBehaviour
 		internal TMP_Text Caption;
 
 		internal RectTransform Field;
+
+		/// <summary>True when the first option means "follow the game language" and the field has to say which voice or
+		/// code that resolves to. False for a plain list of values (the 1.5.77 settings, see <see cref="BuildChoice"/>).</summary>
+		internal bool HasAuto;
 	}
 
 	/// <summary>Fills <see cref="ChoiceRow"/> for one of the three settings (the caller matched the key already).</summary>
 	private static ChoiceRow BuildChoice(ConfigEntryBase entry)
 	{
+		if (!IsChoiceSetting(entry))
+		{
+			// 1.5.77 (upstream) settings with a fixed list (Advanced > LogLevel, General > PortalItems, Death >
+			// RespawnStance): the options are the ones the setting itself declares. 2.0.0 fix - the merge sent these rows
+			// here, but this builder only knew the AI keys and fell through to the Whisper language list, so any pick
+			// wrote a value outside the setting's own list and BepInEx clamped it to the first one (LogLevel became
+			// Off, PortalItems became AllowAll, RespawnStance became Passive).
+			AcceptableValueList<string> list = entry.Description?.AcceptableValues as AcceptableValueList<string>;
+			if (list == null)
+			{
+				return null;
+			}
+			return ListChoice(entry, list.AcceptableValues);
+		}
 		string key = entry.Definition.Key;
 		if (key == "TtsVoice")
 		{
@@ -1781,7 +1804,8 @@ public class ConfigPanel : MonoBehaviour
 			{
 				Entry = entry,
 				Labels = labels,
-				Values = values
+				Values = values,
+				HasAuto = true
 			};
 		}
 		if (key == "TtsLanguage")
@@ -1794,6 +1818,24 @@ public class ConfigPanel : MonoBehaviour
 		// game language, which is what makes the orders be understood in it)
 		return ChoiceOf(entry, AutoCodeOption(WhisperStt.Language ?? "auto"),
 			new string[] { "pt", "en", "es", "fr", "it", "de", "ru", "pl", "tr", "ko", "ja", "zh", "hi", "uk", "sv" });
+	}
+
+	/// <summary>A closed list of values that has no "automatic" option: the label of each option is the value itself.</summary>
+	private static ChoiceRow ListChoice(ConfigEntryBase entry, string[] options)
+	{
+		string[] labels = new string[options.Length];
+		object[] values = new object[options.Length];
+		for (int i = 0; i < options.Length; i++)
+		{
+			labels[i] = options[i];
+			values[i] = options[i];
+		}
+		return new ChoiceRow
+		{
+			Entry = entry,
+			Labels = labels,
+			Values = values
+		};
 	}
 
 	/// <summary>"auto" first, with the label that says what it resolves to, then the codes themselves.</summary>
@@ -1812,7 +1854,8 @@ public class ConfigPanel : MonoBehaviour
 		{
 			Entry = entry,
 			Labels = labels,
-			Values = values
+			Values = values,
+			HasAuto = true
 		};
 	}
 
@@ -1844,7 +1887,7 @@ public class ConfigPanel : MonoBehaviour
 		int index = IndexOfValue(choice.Values, stored);
 		choice.Index = index;
 		string text;
-		if (index == 0)
+		if (index == 0 && choice.HasAuto)
 		{
 			// the automatic one: say what it resolves to right now (the game language is what decides)
 			text = choice.Labels[0];
@@ -1861,7 +1904,7 @@ public class ConfigPanel : MonoBehaviour
 				text = AutoCodeOption(WhisperStt.Language ?? "auto");
 			}
 		}
-		else if (index > 0)
+		else if (index >= 0)
 		{
 			text = choice.Labels[index];
 		}
