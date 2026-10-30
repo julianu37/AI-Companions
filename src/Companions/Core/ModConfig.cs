@@ -19,6 +19,8 @@ internal static class ModConfig
 	internal static ConfigEntry<int> MaxCompanions;
 	internal static ConfigEntry<bool> RecoverUnsummoned;
 
+	internal static ConfigEntry<string> PortalItems;
+
 	internal static ConfigEntry<bool> SpawnStarterCompanion;
 
 	internal static ConfigEntry<bool> ResetStarterFlag;
@@ -722,6 +724,7 @@ internal static class ModConfig
 		// [General]
 		MaxCompanions = Bind(cfg, "General", "MaxCompanions", 10, "Phase 3.19: the most companions you can have in this world (10 is the ceiling). The count includes the dead and the lost: the tombstone brings the SAME companion back, so dying does not free a slot. At the limit the Trader, the AI panel summoner and the starter companion refuse to create another (the Shrine can still recover a dead companion). To free a slot, dismiss one from its wheel menu (Despawn).", new AcceptableValueRange<int>(1, 10));
 		CompanionPrice = Bind(cfg, "General", "CompanionPrice", 1000, "The offering in coins to summon another companion at Odin's Shrine (Summon companion), paid from your pack.", new AcceptableValueRange<int>(0, 50000));
+		PortalItems = Bind(cfg, "General", "PortalItems", "Game", "What a following companion may carry through a portal with you. Game: the same rules as you - ore, metals and the like only through a portal that allows everything or with the world's portal setting on Casual, boss items never; it first puts what can't go through in a chest within 15 m of it, otherwise it stays behind and says why. AllowAll: it comes through with anything.", new AcceptableValueList<string>("Game", "AllowAll"));
 		RecoverUnsummoned = Bind(cfg, "General", "RecoverUnsummoned", defaultValue: true, "An unsummoned (despawned) companion can be brought back at Odin's Shrine (Recover companions) - with its name, looks, skills and settings, but not its gear, which stays in the tombstone where it was unsummoned - until you next load this world. Off: unsummoning is permanent.");
 		// 1.5.71: the old default (2000) was never used for anything - move it to the new default
 		if (CompanionPrice.Value == 2000)
@@ -869,7 +872,7 @@ internal static class ModConfig
 		AutoPickupRange = Bind(cfg, "Looting", "AutoPickupRange", 2f, "With Auto Pickup on in the wheel, a companion picks up items within this many meters of itself as it goes, like a player's auto-pickup.", new AcceptableValueRange<float>(0.5f, 10f));
 		// [GearRepair]
 		RepairDurabilityThreshold = Bind(cfg, "GearRepair", "DurabilityThreshold", 0.5f, "A companion takes its gear to a crafting station to repair it when something drops below this share of durability (0.5 = 50%).", new AcceptableValueRange<float>(0.1f, 0.9f));
-		RepairHomeThreshold = Bind(cfg, "GearRepair", "HomeThreshold", 0.8f, "At home, where a workbench is close by, gear is repaired a bit sooner: below this share (0.8 = 80%). 1 = at any wear. Away from home DurabilityThreshold applies.", new AcceptableValueRange<float>(0.1f, 1f));
+		RepairHomeThreshold = Bind(cfg, "GearRepair", "HomeThreshold", 0.8f, "At home (or, without a home set, inside a base - a workbench's area), gear is repaired a bit sooner: below this share (0.8 = 80%). 1 = at any wear. Away from home DurabilityThreshold applies.", new AcceptableValueRange<float>(0.1f, 1f));
 		RepairNoStationWait = Bind(cfg, "GearRepair", "NoStationWait", 600f, "When a worn item can't be repaired at any station within reach (say it needs a black forge and there isn't one nearby), or the way to the station failed, that item is left alone for this many seconds before it looks again.", new AcceptableValueRange<float>(30f, 3600f));
 		RepairScanRadius = Bind(cfg, "GearRepair", "StationRange", 20f, "How far (meters) a companion looks for a crafting station to repair at. Near home, any station near home counts.", new AcceptableValueRange<float>(5f, 60f));
 		// [Gathering]

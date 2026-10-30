@@ -562,7 +562,9 @@ namespace Companions
         {
             try
             {
-                if (targetType != "TreeBase" && targetType != "TreeLog") return;
+                // 1.5.66: only a felled tree comes down on it - a broken log just leaves its pieces lying (user, log 2285db5e:
+                // "Runs off a few steps after chopping a log then goes back to get the dropped items")
+                if (targetType != "TreeBase") return;
                 Transform t = h.transform;
                 Vector3 fwd = t.forward; fwd.y = 0f;
                 if (fwd.sqrMagnitude < 0.01f) return;
@@ -668,6 +670,9 @@ namespace Companions
                     if (c == null || c.GetInventory() == null || !c.GetInventory().HaveEmptySlot()) continue;
                     if (c.GetComponent<TombStone>() != null || c.GetComponentInParent<TombStone>() != null) continue;
                     if (c.GetComponentInParent<Character>() != null) continue;
+                    // 1.5.70: a chest, cart or ship a player built - not a world chest in a hut or camp
+                    Piece built = c.GetComponentInParent<Piece>();
+                    if (built == null || !built.IsPlacedByPlayer()) continue;
                     bool mobile = c.GetComponentInParent<Vagon>() != null || c.GetComponentInParent<Ship>() != null;
                     if (mobile && atHome) continue;                   // at home, chests only
                     if (MHR_Chests.InUse(c)) continue;   // 1.4.153: also open on another player's game

@@ -486,7 +486,7 @@ Repairing the companion's own weapons, armour and tools at a bench.
 A companion takes its gear to a crafting station to repair it when something drops below this share of durability (0.5 = 50%).
 
 **HomeThreshold** — Default: 0.8 · Range: 0.1 – 1  
-At home, where a workbench is close by, gear is repaired a bit sooner: below this share (0.8 = 80%). 1 = at any wear. Away from home DurabilityThreshold applies.
+At home (or, without a home set, inside a base - a workbench's area), gear is repaired a bit sooner: below this share (0.8 = 80%). 1 = at any wear. Away from home DurabilityThreshold applies.
 
 **NoStationWait** — Default: 600 · Range: 30 – 3600  
 When a worn item can't be repaired at any station within reach (say it needs a black forge and there isn't one nearby), or the way to the station failed, that item is left alone for this many seconds before it looks again.

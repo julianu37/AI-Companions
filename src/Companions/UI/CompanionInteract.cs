@@ -1424,20 +1424,31 @@ public class CompanionInteract : MonoBehaviour
 		CompanionsPlugin.Log.LogDebug($"[Direct] {num} companion(s) → repair at \"{station.m_name}\"");
 	}
 
-	// 1.5.90: the first companion in scope empties the hive and keeps the honey
+	// 1.5.90: one companion empties the hive and keeps the honey
+	// 1.5.63: the nearest one that isn't resting or off to bed (log 4122afdf: the order went to the first on the list, who
+	// was heading to bed, while the other stood free)
 	private static void DirectHive(IReadOnlyList<CompanionSetup> setups, string localId, Beehive hive)
 	{
-		foreach (CompanionSetup setup in setups)
+		CompanionSetup pick = null;
+		float best = float.MaxValue;
+		foreach (CompanionSetup cand in setups)
 		{
-			if (!IsOwned(setup, localId) || !MHR_InScope(setup))
+			if (!IsOwned(cand, localId) || !MHR_InScope(cand) || cand.GetComponent<CompanionAI>() == null)
 			{
 				continue;
 			}
+			CompanionRest rest = cand.GetComponent<CompanionRest>();
+			bool busy = rest != null && (rest.IsResting || rest.IsNavigating || rest.IsSleeping);
+			float d = Vector3.Distance(cand.transform.position, hive.transform.position) + (busy ? 1000f : 0f);
+			if (d < best)
+			{
+				best = d;
+				pick = cand;
+			}
+		}
+		foreach (CompanionSetup setup in pick != null ? new CompanionSetup[1] { pick } : new CompanionSetup[0])
+		{
 			CompanionAI ai = setup.GetComponent<CompanionAI>();
-			if (ai == null)
-			{
-				continue;
-			}
 			CompanionTalk talk = setup.GetComponent<CompanionTalk>();
 			if (hive.m_honeyItem == null || MHR_Hive.HoneyIn(hive) <= 0)
 			{

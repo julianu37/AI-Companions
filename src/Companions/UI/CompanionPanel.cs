@@ -2520,7 +2520,23 @@ public class CompanionPanel
 			GameLook.ApplyButtonText(componentInChildren);
 		}
 		StripButtonHints(gameObject, componentInChildren);
+		MakeUsable(gameObject);
 		return gameObject;
+	}
+
+	// 1.5.61: the copy takes the game's Craft button as it is at that moment - not clickable and with a "Missing
+	// requirement" tooltip whenever the recipe last picked in your inventory can't be made (player report: the summon
+	// window didn't take clicks after a portal trip; it showed "Missing requirement" over the hair style arrow)
+	private static void MakeUsable(GameObject btnGO)
+	{
+		foreach (Selectable sel in btnGO.GetComponentsInChildren<Selectable>(includeInactive: true))
+		{
+			sel.interactable = true;
+		}
+		foreach (UITooltip tip in btnGO.GetComponentsInChildren<UITooltip>(includeInactive: true))
+		{
+			UnityEngine.Object.Destroy(tip);
+		}
 	}
 
 	private static void StripButtonHints(GameObject btnGO, TMP_Text label)
@@ -2612,6 +2628,7 @@ public class CompanionPanel
 				component4.targetGraphic = image;
 			}
 		}
+		MakeUsable(gameObject);
 		GameObject gameObject2 = new GameObject("Tint", typeof(RectTransform), typeof(Image));
 		gameObject2.transform.SetParent(gameObject.transform, worldPositionStays: false);
 		gameObject2.transform.SetAsFirstSibling();

@@ -356,6 +356,49 @@ public class HarvestController : MonoBehaviour
 
 	private Vector3 _lastTargetPos;
 
+	// 1.5.65: the log or tree it just broke, so the pieces that come out of it are finished first (user, log e5d77d02:
+	// "The NPC should finish chopping the log it was working on rather than going off to a new one")
+	private Vector3 _splitPos;
+
+	private float _splitAt = -100f;
+
+	// 1.5.65: are its swings landing (user: "swings are hitting the rock not the log")
+	// 1.5.67: told by the game itself - the target's Damage call with this companion as the attacker (HarvestHitRegister),
+	// not guessed from its health over three swings (user: "Maybe we do need a hit register on the logs. Would that help
+	// with the npc figuring out where to stand and not wander around so much?")
+	private GameObject _hitCheckFor;
+
+	private float _lastHitAt = -100f;
+
+	private float _lastSwingAt = -100f;
+
+	private int _noDamageSwings;
+
+	private bool _triedOtherSide;
+
+	// where it stood when a swing last landed on the current target - it stays there until the target breaks
+	private bool _hasGoodSpot;
+
+	private Vector3 _goodSpot;
+
+	// 1.5.67: the logs that were already lying round its target when it started on it - anything new near it after the
+	// break is one of its pieces, finished first wherever it rolls (user, log 9e9a7e57: "Lost track of the other log")
+	private readonly HashSet<int> _preLogs = new HashSet<int>();
+
+	private readonly HashSet<int> _ownPieces = new HashSet<int>();
+
+	// a fresh log still falling or rolling: when it was first seen moving
+	private GameObject _settleFor;
+
+	private float _settleSince;
+
+	private GameObject _settleLoggedFor;
+
+	// 1.5.68: LogReachPoint found a spot on the ground it can swing at the log from
+	private bool _logPointFound;
+
+	private readonly List<Vector3> _logBadPoints = new List<Vector3>();
+
 	// 1.4.79: many rocks are swapped for a cracked copy on the first hit (Destructible.m_spawnWhenDamaged): the object
 	// we were hitting is gone, but the rock is still there. That read as "destroyed" - no drops, off to the next rock,
 	// one hit each (1.4.78 test). If a rock now stands exactly where ours was, keep mining that one.
@@ -739,6 +782,8 @@ public class HarvestController : MonoBehaviour
 			Log("You moved on - leaving \"" + (_target != null ? _target.name : "the drops") + "\" and catching up");
 			ResetToIdle();
 			RestoreLoadout();
+			// 1.5.69: catch up first (log fc93f903: it took the same log straight back, 57 times)
+			_scanTimer = 3f;
 			return;
 		}
 		_heartbeatTimer -= Time.deltaTime;
@@ -989,6 +1034,7 @@ public class HarvestController : MonoBehaviour
 			_ai.SetFollowTarget(null);
 			Log("Target set: \"" + _target.name + "\" — HarvestController driving movement");
 		}
+		NoteLogsAround();
 		_moveTimer = 0f;
 		_moveLogTimer = 0f;
 		_moveTargetLocked = false;
@@ -998,6 +1044,10 @@ public class HarvestController : MonoBehaviour
 
 	private void UpdateMoving()
 	{
+		if (LogSettling() || LogOutOfReach())
+		{
+			return;
+		}
 		if (_pendingToolReequip != null && _humanoid != null && !_humanoid.InAttack())
 		{
 			Log("Retrying deferred equip: \"" + _pendingToolReequip.m_shared.m_name + "\"");
@@ -1216,6 +1266,10 @@ public class HarvestController : MonoBehaviour
 
 	private void UpdateAttacking()
 	{
+		if (LogSettling() || LogOutOfReach())
+		{
+			return;
+		}
 		int mode = GetMode();
 		if (mode == 5 || _targetType == "Pickable")
 		{
@@ -1261,6 +1315,15 @@ public class HarvestController : MonoBehaviour
 		if (!IsTargetValid(_target))
 		{
 			Log($"Target DESTROYED after {_swingCount} hits, {_totalAttempts} attempts " + "— entering drop collection");
+			if (_targetType == "TreeLog" || _targetType == "TreeBase")
+			{
+				if (Time.time - _splitAt > 60f)
+				{
+					_ownPieces.Clear();
+				}
+				_splitPos = _lastTargetPos;
+				_splitAt = Time.time;
+			}
 			MHR_GatherRules.OnTargetDestroyed(this, _targetType);
 			_lastDestroyPos = MHR_GatherRules.DropCenter(this);
 			if (_targetType == "TreeBase")
@@ -1310,7 +1373,15 @@ public class HarvestController : MonoBehaviour
 			num3 = new Vector3(vector.x, 0f, vector.z).magnitude;
 		}
 		_attackDiagTimer -= Time.deltaTime;
-		if (num3 > num2)
+		// 1.5.69: right under a log that's above its reach - leave it (log fc93f903: walked "closer" to a log 6.4 m up for
+		// minutes; each re-approach reset the stuck timer)
+		if (_targetType == "TreeLog" && num3 <= attackRange && num > attackRange + 0.5f && !_character.InAttack())
+		{
+			SetAside("it's above its reach");
+			return;
+		}
+		// 1.5.68: a log is reached in 3D - not from under it (log 9aef82b6: a swing from 10.6 m below a log in the branches)
+		if (num3 > num2 || (_targetType == "TreeLog" && num > attackRange + 0.5f && !_character.InAttack()))
 		{
 			_reapproach = true;
 			_attackFaceLocked = false;
@@ -1510,7 +1581,29 @@ public class HarvestController : MonoBehaviour
 		if (!flag9 || _swingCount < 1 || _targetType == "TreeLog" || _targetType == "TreeBase")
 		{
 		}
-		if (flag9 && _swingCount > 0 && _swingCount % 2 == 0 && num > attackRange * 0.85f)
+		if (flag9 && SwingsNotLanding())
+		{
+			if (_targetType == "TreeLog" && !_triedOtherSide)
+			{
+				_triedOtherSide = true;
+				_logBadPoints.Add(_logPoint);
+				_logPointAt = -10f;
+				_noDamageSwings = 0;
+				LogInfo("Its swings aren't reaching \"" + _target.name + "\" (something in the way) - trying another side");
+				_reapproach = true;
+				_attackFaceLocked = false;
+				_moveTimer = 0f;
+				_moveLogTimer = 0f;
+				_moveTargetLocked = false;
+				_state = HarvestState.Moving;
+				return;
+			}
+			LogInfo("Its swings aren't doing anything to \"" + _target.name + "\" (something in the way) - leaving it for now");
+			_blacklist[_target.GetInstanceID()] = Time.time;
+			ResetToIdle();
+			return;
+		}
+		if (flag9 && _swingCount > 0 && _swingCount % 2 == 0 && num > attackRange * 0.85f && !HoldingGoodSpot)
 		{
 			_reapproach = true;
 			_attackFaceLocked = false;
@@ -2122,6 +2215,318 @@ public class HarvestController : MonoBehaviour
 		return target != null;
 	}
 
+	// the target's health where the game keeps it (trees, logs, stumps, small rocks); -1 when it can't be read (MineRock
+	// and MineRock5 keep it per part)
+	private float TargetHealth()
+	{
+		ZDO z = _target != null ? _target.GetComponent<ZNetView>()?.GetZDO() : null;
+		if (z == null)
+		{
+			return -1f;
+		}
+		TreeLog log = _target.GetComponent<TreeLog>();
+		if (log != null)
+		{
+			return z.GetFloat(ZDOVars.s_health, log.m_health);
+		}
+		TreeBase tree = _target.GetComponent<TreeBase>();
+		if (tree != null)
+		{
+			return z.GetFloat(ZDOVars.s_health, tree.m_health);
+		}
+		Destructible d = _target.GetComponent<Destructible>();
+		if (d != null)
+		{
+			return z.GetFloat(ZDOVars.s_health, d.m_health);
+		}
+		return -1f;
+	}
+
+	// HarvestHitRegister: the game registered a hit by this companion on `go`
+	internal void OnHitRegistered(GameObject go)
+	{
+		if (go == null || _target == null || (go != _target && !_target.transform.IsChildOf(go.transform) && !go.transform.IsChildOf(_target.transform)))
+		{
+			return;
+		}
+		_lastHitAt = Time.time;
+		_noDamageSwings = 0;
+		if (!_hasGoodSpot || Vector3.Distance(_goodSpot, base.transform.position) > 0.7f)
+		{
+			_hasGoodSpot = true;
+			_goodSpot = base.transform.position;
+		}
+	}
+
+	// at each swing: did the one before it land? 2 in a row that didn't -> true
+	private bool SwingsNotLanding()
+	{
+		if (_hitCheckFor != _target)
+		{
+			_hitCheckFor = _target;
+			_noDamageSwings = 0;
+			_triedOtherSide = false;
+			_hasGoodSpot = false;
+			_logBadPoints.Clear();
+			_lastSwingAt = Time.time;
+			_lastHitAt = -100f;
+			return false;
+		}
+		bool missed = _lastHitAt < _lastSwingAt;
+		_lastSwingAt = Time.time;
+		if (!missed)
+		{
+			return false;
+		}
+		_noDamageSwings++;
+		if (_noDamageSwings >= 1)
+		{
+			_hasGoodSpot = false;
+		}
+		return _noDamageSwings >= 2;
+	}
+
+	// following and further from you than a job may take it - the "You moved on" distance
+	private bool TooFarFromYou()
+	{
+		return !_isDirectedHarvest && _setup != null && _setup.GetFollow() && MHR_Owner.Of(this) != null && Vector3.Distance(base.transform.position, MHR_Owner.Of(this).transform.position) > PlayerRange() + 15f;
+	}
+
+	// it's working from a spot its swings land from - no walking about
+	private bool HoldingGoodSpot => _hasGoodSpot && _hitCheckFor == _target && _noDamageSwings == 0 && Vector3.Distance(_goodSpot, base.transform.position) < 0.8f;
+
+	private void NoteLogsAround()
+	{
+		_preLogs.Clear();
+		if (_target == null || GetMode() != 1)
+		{
+			return;
+		}
+		foreach (Collider c in Physics.OverlapSphere(_target.transform.position, 15f))
+		{
+			TreeLog l = c != null ? c.GetComponentInParent<TreeLog>() : null;
+			if (l != null && !_ownPieces.Contains(l.gameObject.GetInstanceID()))
+			{
+				_preLogs.Add(l.gameObject.GetInstanceID());
+			}
+		}
+	}
+
+	// one of the pieces of what it just broke (new since it started on it, within 30 m of the break, for 60 s)
+	private bool IsOwnPiece(GameObject go, string type)
+	{
+		if (type != "TreeLog" || Time.time - _splitAt > 60f)
+		{
+			return false;
+		}
+		int id = go.GetInstanceID();
+		if (_ownPieces.Contains(id))
+		{
+			return true;
+		}
+		if (_preLogs.Contains(id) || Vector3.Distance(go.transform.position, _splitPos) > 30f)
+		{
+			return false;
+		}
+		_ownPieces.Add(id);
+		return true;
+	}
+
+	// a fresh log still falling or rolling - wait (up to 3 s) before picking where to stand
+	private bool LogSettling()
+	{
+		if (_targetType != "TreeLog" || _target == null)
+		{
+			return false;
+		}
+		Rigidbody rb = _target.GetComponent<Rigidbody>();
+		bool moving = rb != null && !rb.isKinematic && (rb.linearVelocity.magnitude > 0.3f || rb.angularVelocity.magnitude > 0.3f);
+		if (!moving)
+		{
+			_settleFor = null;
+			return false;
+		}
+		if (_settleFor != _target)
+		{
+			_settleFor = _target;
+			_settleSince = Time.time;
+			if (_settleLoggedFor != _target)
+			{
+				_settleLoggedFor = _target;
+				LogInfo("Waiting for \"" + _target.name + "\" to stop moving");
+			}
+		}
+		// 1.5.68: stands and waits up to 8 s, then leaves a log that keeps rolling or sliding for a while instead of chasing
+		// it (user, log 9aef82b6: "went chasing a rolling log that was not settling")
+		if (Time.time - _settleSince > 8f)
+		{
+			SetAside("it keeps rolling");
+			return true;
+		}
+		_logPointAt = -10f;
+		_ai?.StopMoving();
+		return true;
+	}
+
+	// 1.5.68: leave the target for 15 s (it may settle or fall), then it's a candidate again
+	private void SetAside(string why)
+	{
+		if (_target == null)
+		{
+			return;
+		}
+		LogInfo("Leaving \"" + _target.name + "\" for a moment - " + why);
+		_blacklist[_target.GetInstanceID()] = Time.time - Mathf.Max(0f, BlacklistDuration - 15f);
+		_settleFor = null;
+		ResetToIdle();
+	}
+
+	// 1.5.68: a log with no part it can reach from the ground (hung up in the branches - log 9aef82b6: one 13 m up, swung
+	// at from 10.6 m below, knocked loose and chased down the slope)
+	private bool LogOutOfReach()
+	{
+		if (_targetType != "TreeLog" || _target == null)
+		{
+			return false;
+		}
+		LogReachPoint();
+		if (_logPointFound)
+		{
+			return false;
+		}
+		SetAside("no part of it is in reach from the ground");
+		return true;
+	}
+
+	private static int s_lineMask = -1;
+
+	// nothing but the log itself between the chest of someone standing at `ground` and the point on the log
+	private bool LineToLog(Vector3 ground, Vector3 p)
+	{
+		if (s_lineMask == -1)
+		{
+			s_lineMask = LayerMask.GetMask("Default", "static_solid", "Default_small", "piece");
+		}
+		Vector3 from = ground + Vector3.up * 1f;
+		Vector3 d = p - from;
+		float len = d.magnitude - 0.1f;
+		if (len <= 0.1f)
+		{
+			return true;
+		}
+		foreach (RaycastHit hit in Physics.RaycastAll(from, d.normalized, len, s_lineMask, QueryTriggerInteraction.Ignore))
+		{
+			if (hit.collider == null || hit.collider.GetComponentInParent<Character>() != null || hit.collider.transform.IsChildOf(_target.transform))
+			{
+				continue;
+			}
+			return false;
+		}
+		return true;
+	}
+
+	private GameObject _logPointFor;
+
+	private float _logPointAt;
+
+	private Vector3 _logPoint;
+
+	// 1.5.66: where the log was when the spot was picked - the spot is kept while the log stays put (user, log 2285db5e:
+	// "Keeps moving when hitting a log. Moves to an end then side or somewhere else along the log")
+	private Vector3 _logPointLogPos;
+
+	private static int s_groundMask = -1;
+
+	// ground spots round the log (1 m grid over its footprint, 1.5 m out); for each, the nearest point of the log -
+	// usable when it is within 1.2 m above the ground there and 1 m sideways (in swing reach of someone standing there);
+	// the one nearest the companion. Refreshed every 2 s (logs roll); the log's position when none is.
+	private Vector3 LogReachPoint()
+	{
+		if (_target == _logPointFor && _logPointAt > 0f && Vector3.Distance(_target.transform.position, _logPointLogPos) < 0.5f)
+		{
+			return _logPoint;
+		}
+		_logPointLogPos = _target.transform.position;
+		_logPointFor = _target;
+		_logPointAt = Time.time;
+		_logPoint = _target.transform.position;
+		_logPointFound = false;
+		if (s_groundMask == -1)
+		{
+			s_groundMask = LayerMask.GetMask("terrain", "Default", "static_solid", "piece");
+		}
+		List<Collider> cols = new List<Collider>();
+		Bounds box = default(Bounds);
+		bool any = false;
+		foreach (Collider c in _target.GetComponentsInChildren<Collider>())
+		{
+			if (c == null || !c.enabled || c.isTrigger || (c is MeshCollider mc && !mc.convex))
+			{
+				continue;
+			}
+			cols.Add(c);
+			if (any)
+			{
+				box.Encapsulate(c.bounds);
+			}
+			else
+			{
+				box = c.bounds;
+				any = true;
+			}
+		}
+		if (!any)
+		{
+			return _logPoint;
+		}
+		Vector3 me = base.transform.position;
+		float best = float.MaxValue;
+		for (float x = box.min.x - 1.5f; x <= box.max.x + 1.5f; x += 1f)
+		{
+			for (float z = box.min.z - 1.5f; z <= box.max.z + 1.5f; z += 1f)
+			{
+				Vector3 top = new Vector3(x, box.max.y + 2f, z);
+				if (!Physics.Raycast(top, Vector3.down, out RaycastHit hit, box.size.y + 8f, s_groundMask) || hit.collider.GetComponentInParent<TreeLog>() != null || hit.collider.GetComponentInParent<TreeBase>() != null)
+				{
+					continue;
+				}
+				Vector3 ground = hit.point;
+				foreach (Collider c in cols)
+				{
+					Vector3 p;
+					try
+					{
+						p = c.ClosestPoint(ground + Vector3.up * 0.8f);
+					}
+					catch
+					{
+						continue;
+					}
+					float up = p.y - ground.y;
+					float side = new Vector2(p.x - ground.x, p.z - ground.z).magnitude;
+					if (up > 1.2f || up < -0.5f || side > 1f)
+					{
+						continue;
+					}
+					// 1.5.65: not past a rock or anything else (log e5d77d02: 17 swings into the rock under the log), and not
+					// a spot its swings already failed from
+					if (!LineToLog(ground, p) || (_hitCheckFor == _target && _logBadPoints.Exists(b => Vector3.Distance(b, p) < 1.5f)))
+					{
+						continue;
+					}
+					float d = Vector3.Distance(me, ground);
+					if (d < best)
+					{
+						best = d;
+						_logPoint = p;
+						_logPointFound = true;
+					}
+				}
+			}
+		}
+		return _logPoint;
+	}
+
 	private Vector3 GetEffectiveTargetPosition()
 	{
 		if (_target == null)
@@ -2205,6 +2610,13 @@ public class HarvestController : MonoBehaviour
 				}
 			}
 			return vector;
+		}
+		// 1.5.64: a log - the part of it near the ground that it can stand next to, not its middle (user, log 862662de:
+		// "Swinging at a log he cannot reach. Need to check for a part touching the ground and swing near there" - a fir
+		// log's middle was 3.6 m above it on a slope)
+		if (_targetType == "TreeLog")
+		{
+			return LogReachPoint();
 		}
 		if (_targetType == "MineRock")
 		{
@@ -2408,7 +2820,7 @@ public class HarvestController : MonoBehaviour
 			_character.SetRun(!flag && _shouldRun);
 		}
 		// 1.5.60: not in a fight - this kept walking it to the stump mid-fight (user: "they got stuck on a tree when in combat")
-		if (_state == HarvestState.Attacking && _target != null && _ai != null && !_ai.IsInCombat && !MHR_Loot.Active(this) && !_character.InAttack() && IsLowTarget() && !IsRockLikeTarget())
+		if (_state == HarvestState.Attacking && _target != null && _ai != null && !_ai.IsInCombat && !MHR_Loot.Active(this) && !_character.InAttack() && IsLowTarget() && !IsRockLikeTarget() && !HoldingGoodSpot)
 		{
 			Vector3 effectiveTargetPosition = GetEffectiveTargetPosition();
 			float num = Vector3.Distance(base.transform.position, effectiveTargetPosition);
@@ -2595,6 +3007,13 @@ public class HarvestController : MonoBehaviour
 		float num2 = float.MaxValue;
 		_bestTree = null;
 		_bestTreeDist = float.MaxValue;
+		// 1.5.61: Wood goes logs, then stumps, then standing trees (player report: "skipping wood logs most of the time")
+		GameObject bestStump = null;
+		float bestStumpDist = float.MaxValue;
+		// 1.5.65: first the pieces of the log or tree it just broke (within 6 m of it, for 30 s)
+		GameObject bestOwn = null;
+		float bestOwnDist = float.MaxValue;
+
 		int num3 = 0;
 		int num4 = 0;
 		int num5 = 0;
@@ -2612,6 +3031,11 @@ public class HarvestController : MonoBehaviour
 			string type;
 			GameObject harvestCandidateWithType = GetHarvestCandidateWithType(collider, mode, out type);
 			if (harvestCandidateWithType == null || !MHR_GatherRules.AllowTarget(this, harvestCandidateWithType, mode) || !_seenIds.Add(harvestCandidateWithType.GetInstanceID()))
+			{
+				continue;
+			}
+			// 1.5.61: Stone and Ore leave buildings alone - built pieces and walls (player report: mining stone walls for stone)
+			if ((mode == 2 || mode == 3) && IsBuilt(harvestCandidateWithType))
 			{
 				continue;
 			}
@@ -2638,7 +3062,8 @@ public class HarvestController : MonoBehaviour
 				{
 					continue;
 				}
-				if (!InWorkArea(harvestCandidateWithType.transform.position, type))
+				bool own = !TooFarFromYou() && IsOwnPiece(harvestCandidateWithType, type);
+				if (!own && !InWorkArea(harvestCandidateWithType.transform.position, type))
 				{
 					outOfRange++;
 					continue;
@@ -2674,6 +3099,24 @@ public class HarvestController : MonoBehaviour
 						_bestTree = harvestCandidateWithType;
 					}
 				}
+				else if (own && num11 < bestOwnDist)
+				{
+					bestOwnDist = num11;
+					bestOwn = harvestCandidateWithType;
+					if (num11 < num2)
+					{
+						num2 = num11;
+						gameObject = harvestCandidateWithType;
+					}
+				}
+				else if (type == "Stump")
+				{
+					if (num11 < bestStumpDist)
+					{
+						bestStumpDist = num11;
+						bestStump = harvestCandidateWithType;
+					}
+				}
 				else if (num11 < num2)
 				{
 					num2 = num11;
@@ -2703,6 +3146,18 @@ public class HarvestController : MonoBehaviour
 		else
 		{
 			Log($"  Breakdown [{text}]: {num7} deposits (total {num3} unique targets)");
+		}
+		if (bestOwn != null)
+		{
+			gameObject = bestOwn;
+			num2 = bestOwnDist;
+			Log("Finishing the log it just broke");
+		}
+		if (gameObject == null && bestStump != null)
+		{
+			gameObject = bestStump;
+			num2 = bestStumpDist;
+			Log("No logs found - taking the nearest stump");
 		}
 		if (gameObject == null && _bestTree != null)
 		{
@@ -2904,6 +3359,12 @@ public class HarvestController : MonoBehaviour
 			LogDebug($"Forage scan: no pickables found within {ScanRadius}m");
 		}
 		return gameObject;
+	}
+
+	// part of a building: a placed piece (yours or a location's) or anything named as a wall
+	private static bool IsBuilt(GameObject go)
+	{
+		return go.GetComponentInParent<Piece>() != null || go.GetComponentInParent<WearNTear>() != null || go.name.IndexOf("wall", StringComparison.OrdinalIgnoreCase) >= 0;
 	}
 
 	private static GameObject GetHarvestCandidateWithType(Collider col, int mode, out string type)

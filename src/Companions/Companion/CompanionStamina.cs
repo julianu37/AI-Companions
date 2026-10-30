@@ -72,6 +72,8 @@ public class CompanionStamina : MonoBehaviour
 
 	private static float SwimDrainRate => ModConfig.StaminaSwimDrain.Value;
 
+	private const float EncumberedDrain = 10f;
+
 	private static float RegenDelay => ModConfig.StaminaRegenDelay.Value;
 
 	public float GetStaminaPercentage()
@@ -193,10 +195,12 @@ public class CompanionStamina : MonoBehaviour
 			float num4 = ((_character != null) ? ((_character.m_speed + _character.m_runSpeed) * 0.5f) : 6f);
 			bool flag2 = _character != null && !flag && num3 > 0.5f && (_character.IsRunning() || (num3 > num4 && _character.IsOnGround()));
 			bool flag3 = IsCrouching && !flag2 && !flag && num3 > 0.1f;
-			if ((flag2 || flag || flag3) && Stamina > 0f)
+			// 1.5.62: moving while encumbered costs 10 a second, like the player (Player.m_encumberedStaminaDrain)
+			bool heavy = _character != null && !flag && num3 > 0.1f && _character.IsEncumbered();
+			if ((flag2 || flag || flag3 || heavy) && Stamina > 0f)
 			{
 				// 1.5.88: swimming like the player: the skill-0 rate, down to 40% at Swim 100 (Player.OnSwimming)
-				float num5 = (flag ? SwimDrainRate * MHR_Water.SwimDrainSkill(_character) : (flag3 ? SneakDrainRate : RunDrainRate));
+				float num5 = (flag ? SwimDrainRate * MHR_Water.SwimDrainSkill(_character) : (flag3 ? SneakDrainRate : (heavy && !flag2) ? EncumberedDrain : RunDrainRate));
 				// 1.5.4: sneaking costs less with Sneak skill, like the player (Player.OnSneaking: x Lerp(1, 0.25, sqrt(skill)))
 				if (flag3 && !flag && _character != null)
 				{

@@ -678,6 +678,11 @@ public class CompanionRest : MonoBehaviour
 		{
 			return;
 		}
+		CompanionAI orderAi = GetComponent<CompanionAI>();
+		if (orderAi != null && orderAi.HasOrder)
+		{
+			return;
+		}
 		bool flag = default(bool);
 		if (ModConfig.SleepWhenPlayerSleeps.Value && OwnerInBed())
 		{

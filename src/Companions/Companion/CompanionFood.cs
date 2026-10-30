@@ -55,6 +55,11 @@ public class CompanionFood : MonoBehaviour
 	// as its only food)
 	private string _lastActiveReject;
 
+	// 1.5.68: "no food found" logged once per slot until the inventory or its food changes (log 9aef82b6: 816 lines)
+	private int _noFoodCount = -1;
+
+	private int _noFoodSlots;
+
 	private Humanoid _humanoid;
 
 	private Character _character;
@@ -396,6 +401,17 @@ public class CompanionFood : MonoBehaviour
 				ItemDrop.ItemData itemData = FindFoodForSlot(inventory);
 				if (itemData == null)
 				{
+					int count = inventory.GetAllItems().Count;
+					if (_noFoodCount != count)
+					{
+						_noFoodCount = count;
+						_noFoodSlots = 0;
+					}
+					if ((_noFoodSlots & (1 << i)) != 0)
+					{
+						continue;
+					}
+					_noFoodSlots |= 1 << i;
 					CompanionsPlugin.Log.LogDebug($"[Food] AutoConsume — slot {i} empty, no food found in inventory " + string.Format("(items={0}) companion=\"{1}\"", inventory.GetAllItems().Count, _character?.m_name ?? "?"));
 				}
 				else if (!CanConsumeFoodItem(itemData))
@@ -405,6 +421,7 @@ public class CompanionFood : MonoBehaviour
 				else if (ConsumeIntoSlot(inventory, itemData, i))
 				{
 					flag = true;
+					_noFoodCount = -1;
 				}
 			}
 		}

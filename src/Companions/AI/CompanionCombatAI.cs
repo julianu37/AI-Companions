@@ -1449,6 +1449,11 @@ public partial class CompanionCombatAI : MonoBehaviour
 		}
 		else
 		{
+			// 1.5.63: a tree or rock in the way - step round it first
+			if (target != null && MaybeClearOfObstacle(currentWeapon))
+			{
+				return false;
+			}
 			flag2 = _character.StartAttack(target, charge: false);
 		}
 		// 1.5.53: which swing of the weapon's combo this is (user: "It looks like the NPC is doing mostly power attacks?" -

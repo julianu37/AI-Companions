@@ -132,6 +132,8 @@ public class CompanionSetup : MonoBehaviour
 
 	private static readonly HashSet<VisEquipment> _companionVisEquips = new HashSet<VisEquipment>();
 
+	private bool _wasHeavy;
+
 	internal const int ModeFollow = 0;
 
 	internal const int ModeGatherWood = 1;
@@ -1066,6 +1068,8 @@ public class CompanionSetup : MonoBehaviour
 		// Fase 3.19: orders that arrived before the ownership claim finished land here
 		MHR_TickPendingWrites();
 		if (!_mhrHasId)
+		MHR_RiseWatch.Tick(this);
+		if (!_mhrHasId && !string.IsNullOrEmpty(MHR_EnsureCompanionId()))
 		{
 			string companionId = MHR_EnsureCompanionId();
 			if (!string.IsNullOrEmpty(companionId))
@@ -1119,16 +1123,31 @@ public class CompanionSetup : MonoBehaviour
 			SEMan sEMan = _humanoid.GetSEMan();
 			if (inventory != null && sEMan != null)
 			{
-				// the effective ceiling: [General] MaxCarryWeight plus the +150 of a Megingjord carried in the pack
-				// (CompanionCarry) - with the belt off (or above it) the companion is Encumbered again
-				if (inventory.GetTotalWeight() > CompanionCarry.Max(_humanoid))
+				// 1.5.62 (upstream): encumbered like a player (Patches/CompanionEncumbrance makes the game treat it so:
+				// walking pace, no running or jumping, 10 stamina a second while moving, stuck when out of stamina).
+				// Fase 3.22: the ceiling is [General] MaxCarryWeight plus the belt bonus (CompanionCarry.Max), the same
+				// number the log prints.
+				bool heavy = inventory.GetTotalWeight() > CompanionCarry.Max(_humanoid);
+				if (heavy)
 				{
 					sEMan.AddStatusEffect(SEMan.s_statusEffectEncumbered, resetTime: false, 0, 0f, -1);
+					CompanionStatus.Doing(this, "hc_doing_encumbered");
+					if (!_wasHeavy)
+					{
+						GetComponent<CompanionTalk>()?.SayProblem("encumbered", ModLocalization.Loc("hc_say_encumbered"));
+						CompanionsPlugin.Log.LogInfo($"[Carry] {_humanoid.m_name} is encumbered - {inventory.GetTotalWeight():F0}/{CompanionCarry.Max(_humanoid):F0}");
+					}
 				}
 				else
 				{
 					sEMan.RemoveStatusEffect(SEMan.s_statusEffectEncumbered);
+					if (_wasHeavy)
+					{
+						CompanionStatus.DoingClear(this);
+						CompanionsPlugin.Log.LogInfo($"[Carry] {_humanoid.m_name} is no longer encumbered");
+					}
 				}
+				_wasHeavy = heavy;
 			}
 		}
 		if (!(_ai != null) || !(_ai.GetFollowTarget() == null) || !(Player.m_localPlayer != null))

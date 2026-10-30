@@ -63,6 +63,10 @@ public class RepairController : MonoBehaviour
 	// 1.4.145: worn items no station in range can fix, and until when they're left alone ([Repair] NoStationWait)
 	private readonly Dictionary<ItemDrop.ItemData, float> _noStationUntil = new Dictionary<ItemDrop.ItemData, float>();
 
+	// 1.5.70: where that wait was set - it ends once the companion is a scan radius away from there (log 31cb468a: set in
+	// the woods, still running at home, a 47% axe left until ordered)
+	private readonly Dictionary<ItemDrop.ItemData, Vector3> _noStationAt = new Dictionary<ItemDrop.ItemData, Vector3>();
+
 	private float _moveStart;
 
 	// 1.4.146: this trip is the player's order (DirectRepairAt) - it goes ahead of the job, and the jobs wait for it
@@ -322,9 +326,10 @@ public class RepairController : MonoBehaviour
 		{
 			foreach (ItemDrop.ItemData old in new List<ItemDrop.ItemData>(_noStationUntil.Keys))
 			{
-				if (now >= _noStationUntil[old])
+				if (now >= _noStationUntil[old] || (_noStationAt.TryGetValue(old, out var at) && Vector3.Distance(at, base.transform.position) > ScanRadius))
 				{
 					_noStationUntil.Remove(old);
+					_noStationAt.Remove(old);
 				}
 			}
 		}
@@ -400,6 +405,7 @@ public class RepairController : MonoBehaviour
 			if (!fixable.Contains(item))
 			{
 				_noStationUntil[item] = now + wait;
+				_noStationAt[item] = base.transform.position;
 				Log($"No station within {ScanRadius}m can repair \"{item.m_shared.m_name}\" ({item.m_durability / item.GetMaxDurability() * 100f:F0}%) - not trying again for {wait / 60f:F0} min");
 				// 1.5.42: at home that's worth knowing (a station to build or upgrade); out in the wild it's expected
 				if (_setup != null && _setup.HasHomePosition() && MHR_ToolKeeper.AtHome(_setup))

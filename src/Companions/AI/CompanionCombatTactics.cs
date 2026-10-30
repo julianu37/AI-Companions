@@ -762,6 +762,86 @@ public partial class CompanionCombatAI
 		return false;
 	}
 
+	// 1.5.63: a tree, log or rock between it and the target soaks up the swing (log 4122afdf: four swings at a greydwarf
+	// 0.9 m away all "missed" into a tree) - like the walls: step round to a spot with a clear line first. Checked at most
+	// twice a second; with no clear spot it swings anyway.
+	private static int s_obstacleMask = -1;
+
+	private float _obstacleCheckAt;
+
+	private string _obstacleName;
+
+	private bool ObstacleInLine(Vector3 pos, Character t)
+	{
+		if (s_obstacleMask == -1)
+		{
+			s_obstacleMask = LayerMask.GetMask("Default", "static_solid", "Default_small");
+		}
+		Vector3 from = pos + Vector3.up * 1f;
+		Vector3 to = t.GetCenterPoint();
+		Vector3 d = to - from;
+		float len = d.magnitude - t.GetRadius() * 0.5f;
+		if (len <= 0.2f)
+		{
+			return false;
+		}
+		foreach (RaycastHit hit in Physics.SphereCastAll(from, 0.15f, d.normalized, len, s_obstacleMask, QueryTriggerInteraction.Ignore))
+		{
+			Collider c = hit.collider;
+			if (c == null || c.GetComponentInParent<Character>() != null || c.GetComponentInParent<Piece>() != null)
+			{
+				continue;
+			}
+			Component o = (Component)c.GetComponentInParent<TreeBase>() ?? (Component)c.GetComponentInParent<TreeLog>() ?? (Component)c.GetComponentInParent<Destructible>() ?? (Component)c.GetComponentInParent<MineRock5>() ?? c.GetComponentInParent<MineRock>();
+			_obstacleName = o != null ? MHR_Items.NiceName(o.gameObject) : c.gameObject.name;
+			return true;
+		}
+		return false;
+	}
+
+	// true = it's stepping round this tick (don't swing now)
+	internal bool MaybeClearOfObstacle(ItemDrop.ItemData w)
+	{
+		Character t = _targetCreature;
+		if (t == null || w == null || Time.time < _obstacleCheckAt || Time.time < _stepUntil)
+		{
+			return false;
+		}
+		_obstacleCheckAt = Time.time + 0.5f;
+		Vector3 me = base.transform.position;
+		if (!ObstacleInLine(me, t))
+		{
+			return false;
+		}
+		string what = _obstacleName;
+		Vector3 off = me - t.transform.position;
+		off.y = 0f;
+		float r = Mathf.Max(0.8f, Mathf.Min(off.magnitude, MHR_MeleeReach(w) + t.GetRadius() - 0.2f));
+		if (off.sqrMagnitude < 0.01f)
+		{
+			off = -t.transform.forward;
+		}
+		off.Normalize();
+		foreach (float a in new[] { 30f, -30f, 60f, -60f, 90f, -90f, 120f, -120f })
+		{
+			Vector3 spot = t.transform.position + Quaternion.AngleAxis(a, Vector3.up) * off * r;
+			spot.y = me.y;
+			Vector3 move = spot - me;
+			move.y = 0f;
+			float dist = move.magnitude;
+			if (dist < 0.4f || TowardsOther(move, t) || !MHR_Mover.SafeStep(me, move, dist) || ObstacleInLine(spot, t))
+			{
+				continue;
+			}
+			StartStep(move.normalized, dist, t, run: false, untilOutOfReach: false);
+			TLog("Moving round the " + what + " - it was in the way of its swing at " + t.m_name);
+			return true;
+		}
+		TLog("The " + what + " is in the way of its swing at " + t.m_name + " and there's no clear spot - swinging anyway");
+		_obstacleCheckAt = Time.time + 3f;
+		return false;
+	}
+
 	// a swing at it it can get out of the way of, rather than block (UpdateBlocking calls this once per swing, at the
 	// moment it reacts)
 	private bool TryEvade(Character swinger)
