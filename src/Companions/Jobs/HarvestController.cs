@@ -273,7 +273,7 @@ public class HarvestController : MonoBehaviour
 		_hasAnchor = true;
 		_anchorAtHome = _setup != null && _setup.HasHomePosition() && MHR_ToolKeeper.NearHome(_setup);
 		_anchor = _anchorAtHome ? _setup.GetHomePosition() : base.transform.position;
-		LogInfo("Working around " + (_anchorAtHome ? "home" : "here") + " " + MHR_Mover.Fmt(_anchor) + ", up to " + AreaRange.ToString("F0") + " m out");
+		if (CompanionsPlugin.LogNormal) LogInfo("Working around " + (_anchorAtHome ? "home" : "here") + " " + MHR_Mover.Fmt(_anchor) + ", up to " + AreaRange.ToString("F0") + " m out");
 	}
 
 	private bool InWorkArea(Vector3 p, string type = null)
@@ -318,7 +318,7 @@ public class HarvestController : MonoBehaviour
 		MHR_Mover.Go(_ai, Time.deltaTime, _anchor, 4f, true, "Gather");
 		if (MHR_Mover.GaveUp(_ai))
 		{
-			LogInfo("Can't get back to the work area - working from here");
+			if (CompanionsPlugin.LogNormal) LogInfo("Can't get back to the work area - working from here");
 			_anchor = base.transform.position;
 			_anchorAtHome = false;
 			_goingBack = false;
@@ -449,7 +449,7 @@ public class HarvestController : MonoBehaviour
 		{
 			_rock5ActiveSections = CountActiveRock5Sections();
 		}
-		Log("Rock cracked - carrying on with \"" + found.name + "\" (" + _targetType + ")");
+		if (CompanionsPlugin.LogDetailed) Log("Rock cracked - carrying on with \"" + found.name + "\" (" + _targetType + ")");
 		return true;
 	}
 
@@ -535,7 +535,7 @@ public class HarvestController : MonoBehaviour
 	{
 		int mode = GetMode();
 		bool flag = (mode >= 1 && mode <= 3) || mode == 5;
-		Log($"NotifyActionModeChanged — new mode={mode} isGather={flag} " + $"(wasGather={IsInGatherMode}, state={_state})");
+		if (CompanionsPlugin.LogDetailed) Log($"NotifyActionModeChanged — new mode={mode} isGather={flag} " + $"(wasGather={IsInGatherMode}, state={_state})");
 		CancelDirectedTarget();
 		if (!flag && IsInGatherMode)
 		{
@@ -599,14 +599,14 @@ public class HarvestController : MonoBehaviour
 		int num = DetermineHarvestModeStatic(target);
 		if (num < 0)
 		{
-			Log("SetDirectedTarget REJECTED — can't determine tool for \"" + target.name + "\"");
+			if (CompanionsPlugin.LogDetailed) Log("SetDirectedTarget REJECTED — can't determine tool for \"" + target.name + "\"");
 			return;
 		}
 		int minToolTier = GetMinToolTier(target);
 		int bestToolTier = GetBestToolTier(num);
 		if (minToolTier > bestToolTier)
 		{
-			Log($"SetDirectedTarget REJECTED — \"{target.name}\" requires tier {minToolTier}, " + $"best tool is tier {bestToolTier}");
+			if (CompanionsPlugin.LogDetailed) Log($"SetDirectedTarget REJECTED — \"{target.name}\" requires tier {minToolTier}, " + $"best tool is tier {bestToolTier}");
 			string text = "Companion";
 			if (_nview?.GetZDO() != null)
 			{
@@ -640,14 +640,14 @@ public class HarvestController : MonoBehaviour
 			EquipTool(itemData);
 		}
 		float num2 = Vector3.Distance(base.transform.position, target.transform.position);
-		Log("[PointTo] SetDirectedTarget — \"" + target.name + "\" type=" + _targetType + " " + string.Format("mode={0} tool=\"{1}\" ", num, itemData?.m_shared?.m_name ?? "NONE") + $"dist={num2:F1}m targetPos={target.transform.position:F1} " + $"myPos={base.transform.position:F1}");
+		if (CompanionsPlugin.LogDetailed) Log("[PointTo] SetDirectedTarget — \"" + target.name + "\" type=" + _targetType + " " + string.Format("mode={0} tool=\"{1}\" ", num, itemData?.m_shared?.m_name ?? "NONE") + $"dist={num2:F1}m targetPos={target.transform.position:F1} " + $"myPos={base.transform.position:F1}");
 	}
 
 	public void CancelDirectedTarget()
 	{
 		if (_isDirectedHarvest)
 		{
-			Log("CancelDirectedTarget — clearing directed harvest");
+			if (CompanionsPlugin.LogDetailed) Log("CancelDirectedTarget — clearing directed harvest");
 			_directedTarget = null;
 			_isDirectedHarvest = false;
 			if (!IsInGatherMode)
@@ -679,13 +679,13 @@ public class HarvestController : MonoBehaviour
 		int instanceID = GetInstanceID();
 		_tag = $"[Harvest#{instanceID & 0xFFFF}]";
 		_itemLayerMask = LayerMask.GetMask("item");
-		Log($"Awake — nview={_nview != null} ai={_ai != null} " + $"humanoid={_humanoid != null} character={_character != null} " + $"setup={_setup != null} instanceId={instanceID}");
+		if (CompanionsPlugin.LogDetailed) Log($"Awake — nview={_nview != null} ai={_ai != null} " + $"humanoid={_humanoid != null} character={_character != null} " + $"setup={_setup != null} instanceId={instanceID}");
 	}
 
 	private void Log(string msg)
 	{
 		string text = _character?.m_name ?? "?";
-		CompanionsPlugin.Log.LogDebug("[Gather|" + text + "] " + msg);
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Gather|" + text + "] " + msg);
 	}
 
 	private void OnDestroy()
@@ -779,7 +779,7 @@ public class HarvestController : MonoBehaviour
 		if (_state != HarvestState.Idle && !_isDirectedHarvest && _setup != null && _setup.GetFollow() && MHR_Owner.Of(this) != null &&
 			Vector3.Distance(base.transform.position, MHR_Owner.Of(this).transform.position) > PlayerRange() + 15f)
 		{
-			Log("You moved on - leaving \"" + (_target != null ? _target.name : "the drops") + "\" and catching up");
+			if (CompanionsPlugin.LogDetailed) Log("You moved on - leaving \"" + (_target != null ? _target.name : "the drops") + "\" and catching up");
 			ResetToIdle();
 			RestoreLoadout();
 			// 1.5.69: catch up first (log fc93f903: it took the same log straight back, 57 times)
@@ -830,7 +830,7 @@ public class HarvestController : MonoBehaviour
 
 	private void ExitGatherMode()
 	{
-		Log($"EXIT gather mode — was state={_state} " + "target=\"" + ((_target != null) ? _target.name : "null") + "\" " + $"toolEquipped={_toolEquipped}");
+		if (CompanionsPlugin.LogDetailed) Log($"EXIT gather mode — was state={_state} " + "target=\"" + ((_target != null) ? _target.name : "null") + "\" " + $"toolEquipped={_toolEquipped}");
 		IsInGatherMode = false;
 		_hasAnchor = false;
 		if (_goingBack)
@@ -844,11 +844,11 @@ public class HarvestController : MonoBehaviour
 		if (_ai != null && flag && MHR_Owner.Of(this) != null)
 		{
 			_ai.SetFollowTarget(MHR_Owner.Go(this));
-			Log("Restored follow target to player (Follow=ON)");
+			if (CompanionsPlugin.LogDetailed) Log("Restored follow target to player (Follow=ON)");
 		}
 		else
 		{
-			Log("Follow OFF — idle");
+			if (CompanionsPlugin.LogDetailed) Log("Follow OFF — idle");
 		}
 	}
 
@@ -869,9 +869,9 @@ public class HarvestController : MonoBehaviour
 		GameObject gameObject = _ai?.GetFollowTarget();
 		if (mode == 5)
 		{
-			LogInfo($"Foraging started — scanning for pickables near {base.transform.position:F1}");
+			if (CompanionsPlugin.LogNormal) LogInfo($"Foraging started — scanning for pickables near {base.transform.position:F1}");
 		}
-		Log($"ENTER gather mode: {arg} (mode={mode}) " + "followTarget=\"" + (gameObject?.name ?? "null") + "\" " + $"pos={base.transform.position:F1}");
+		if (CompanionsPlugin.LogDetailed) Log($"ENTER gather mode: {arg} (mode={mode}) " + "followTarget=\"" + (gameObject?.name ?? "null") + "\" " + $"pos={base.transform.position:F1}");
 	}
 
 	public bool IsOverweight()
@@ -888,7 +888,7 @@ public class HarvestController : MonoBehaviour
 		if (_toolEquipped || ((object)_setup != null && _setup.SuppressAutoEquip))
 		{
 			_toolEquipped = false;
-			Log("RestoreLoadout — SuppressAutoEquip=false, re-equipping best gear");
+			if (CompanionsPlugin.LogDetailed) Log("RestoreLoadout — SuppressAutoEquip=false, re-equipping best gear");
 			if (_setup != null)
 			{
 				_setup.SuppressAutoEquip = false;
@@ -951,7 +951,7 @@ public class HarvestController : MonoBehaviour
 				{
 					_blacklist.Remove(list[i]);
 				}
-				Log($"Blacklist cleanup: removed {list.Count} expired, {_blacklist.Count} remain");
+				if (CompanionsPlugin.LogDetailed) Log($"Blacklist cleanup: removed {list.Count} expired, {_blacklist.Count} remain");
 			}
 		}
 		LogDebug($"Scanning for targets... mode={mode} " + $"pos={base.transform.position:F1} radius={ScanRadius}");
@@ -990,7 +990,7 @@ public class HarvestController : MonoBehaviour
 			LogDebug("Scan found 0 valid targets - staying idle");
 			if (!_goingBack && !Following && !_isDirectedHarvest && _hasAnchor && Vector3.Distance(base.transform.position, _anchor) > 8f)
 			{
-				LogInfo("Nothing left nearby - walking back to the middle of the work area");
+				if (CompanionsPlugin.LogNormal) LogInfo("Nothing left nearby - walking back to the middle of the work area");
 				_goingBack = true;
 			}
 			return;
@@ -1003,8 +1003,8 @@ public class HarvestController : MonoBehaviour
 		if (mode == 5 || pickLoose)
 		{
 			float num = Vector3.Distance(base.transform.position, gameObject.transform.position);
-			LogInfo($"{(pickLoose ? "Picking up" : "Forage target")}: \"{gameObject.name}\" dist={num:F1}m");
-			Log($"Forage target acquired: \"{gameObject.name}\" dist={num:F1}m " + $"pos={gameObject.transform.position:F1}");
+			if (CompanionsPlugin.LogNormal) LogInfo($"{(pickLoose ? "Picking up" : "Forage target")}: \"{gameObject.name}\" dist={num:F1}m");
+			if (CompanionsPlugin.LogDetailed) Log($"Forage target acquired: \"{gameObject.name}\" dist={num:F1}m " + $"pos={gameObject.transform.position:F1}");
 			_target = gameObject;
 			_targetType = "Pickable";
 			_swingCount = 0;
@@ -1021,7 +1021,7 @@ public class HarvestController : MonoBehaviour
 				return;
 			}
 			float num2 = Vector3.Distance(base.transform.position, gameObject.transform.position);
-			LogInfo($"Target acquired: \"{gameObject.name}\" dist={num2:F1}m " + "tool=\"" + itemData.m_shared.m_name + "\" " + $"pick={itemData.GetDamage().m_pickaxe:F0}");
+			if (CompanionsPlugin.LogNormal) LogInfo($"Target acquired: \"{gameObject.name}\" dist={num2:F1}m " + "tool=\"" + itemData.m_shared.m_name + "\" " + $"pick={itemData.GetDamage().m_pickaxe:F0}");
 			_target = gameObject;
 			_targetType = ClassifyTargetType(gameObject, mode);
 			_swingCount = 0;
@@ -1032,7 +1032,7 @@ public class HarvestController : MonoBehaviour
 		if (_ai != null)
 		{
 			_ai.SetFollowTarget(null);
-			Log("Target set: \"" + _target.name + "\" — HarvestController driving movement");
+			if (CompanionsPlugin.LogDetailed) Log("Target set: \"" + _target.name + "\" — HarvestController driving movement");
 		}
 		NoteLogsAround();
 		_moveTimer = 0f;
@@ -1050,7 +1050,7 @@ public class HarvestController : MonoBehaviour
 		}
 		if (_pendingToolReequip != null && _humanoid != null && !_humanoid.InAttack())
 		{
-			Log("Retrying deferred equip: \"" + _pendingToolReequip.m_shared.m_name + "\"");
+			if (CompanionsPlugin.LogDetailed) Log("Retrying deferred equip: \"" + _pendingToolReequip.m_shared.m_name + "\"");
 			EquipTool(_pendingToolReequip);
 		}
 		if (_doorHandler != null && _doorHandler.IsActive)
@@ -1059,7 +1059,7 @@ public class HarvestController : MonoBehaviour
 		}
 		if (!IsTargetValid(_target))
 		{
-			Log("Target gone while moving — waiting 1.5s then rescanning");
+			if (CompanionsPlugin.LogDetailed) Log("Target gone while moving — waiting 1.5s then rescanning");
 			ResetToIdle();
 			_scanTimer = 1.5f;
 			return;
@@ -1133,7 +1133,7 @@ public class HarvestController : MonoBehaviour
 			_ = flag3 || flag4;
 			LogWarn($"STUCK timeout ({10f}s) — giving up on \"{_target.name}\" " + $"dist={num5:F1}m vel={vector3.magnitude:F1} " + $"myPos={base.transform.position:F1} targetPos={_target.transform.position:F1} " + $"targetY={_target.transform.position.y:F2} myY={base.transform.position.y:F2} " + $"heightDiff={_target.transform.position.y - base.transform.position.y:F2}");
 			_blacklist[_target.GetInstanceID()] = Time.time;
-			Log($"Blacklisted \"{_target.name}\" (id={_target.GetInstanceID()}) for {BlacklistDuration}s");
+			if (CompanionsPlugin.LogDetailed) Log($"Blacklisted \"{_target.name}\" (id={_target.GetInstanceID()}) for {BlacklistDuration}s");
 			ResetToIdle();
 			return;
 		}
@@ -1216,7 +1216,7 @@ public class HarvestController : MonoBehaviour
 			float num10 = Vector3.Distance(base.transform.position, lockedMoveTarget);
 			Vector3 vector6 = _character?.GetVelocity() ?? Vector3.zero;
 			GameObject gameObject = _ai?.GetFollowTarget();
-			Log($"Moving → \"{_target.name}\" dist={num10:F1}m " + $"range={num6:F1} timer={_moveTimer:F1}s " + $"moveOK={flag8} vel={vector6.magnitude:F1} velY={vector6.y:F2} " + "follow=\"" + (gameObject?.name ?? "null") + "\" " + $"inAttack={flag2} " + $"pos={base.transform.position:F1} tgt={lockedMoveTarget:F1} " + $"heightDiff={lockedMoveTarget.y - base.transform.position.y:F2}");
+			if (CompanionsPlugin.LogDetailed) Log($"Moving → \"{_target.name}\" dist={num10:F1}m " + $"range={num6:F1} timer={_moveTimer:F1}s " + $"moveOK={flag8} vel={vector6.magnitude:F1} velY={vector6.y:F2} " + "follow=\"" + (gameObject?.name ?? "null") + "\" " + $"inAttack={flag2} " + $"pos={base.transform.position:F1} tgt={lockedMoveTarget:F1} " + $"heightDiff={lockedMoveTarget.y - base.transform.position.y:F2}");
 		}
 		num7 = Vector3.Distance(base.transform.position, lockedMoveTarget);
 		Vector3 vector7 = lockedMoveTarget - base.transform.position;
@@ -1279,13 +1279,13 @@ public class HarvestController : MonoBehaviour
 				ZNetView component = pickable.GetComponent<ZNetView>();
 				if (component != null && component.GetZDO() != null && component.GetZDO().GetBool(s_pickedHash))
 				{
-					LogInfo("Forage target already picked — skipping \"" + pickable.name + "\"");
+					if (CompanionsPlugin.LogNormal) LogInfo("Forage target already picked — skipping \"" + pickable.name + "\"");
 				}
 				else
 				{
 					FaceTarget();
 					pickable.Interact(_humanoid, repeat: false, alt: false);
-					LogInfo($"Foraged: \"{pickable.name}\" at {pickable.transform.position:F1}");
+					if (CompanionsPlugin.LogNormal) LogInfo($"Foraged: \"{pickable.name}\" at {pickable.transform.position:F1}");
 				}
 			}
 			else
@@ -1314,7 +1314,7 @@ public class HarvestController : MonoBehaviour
 		}
 		if (!IsTargetValid(_target))
 		{
-			Log($"Target DESTROYED after {_swingCount} hits, {_totalAttempts} attempts " + "— entering drop collection");
+			if (CompanionsPlugin.LogDetailed) Log($"Target DESTROYED after {_swingCount} hits, {_totalAttempts} attempts " + "— entering drop collection");
 			if (_targetType == "TreeLog" || _targetType == "TreeBase")
 			{
 				if (Time.time - _splitAt > 60f)
@@ -1340,7 +1340,7 @@ public class HarvestController : MonoBehaviour
 					_moveTargetLocked = false;
 					_moveTimer = 0f;
 					_state = HarvestState.Moving;
-					Log("Tree fell — immediately targeting fallen log \"" + gameObject.name + "\"");
+					if (CompanionsPlugin.LogDetailed) Log("Tree fell — immediately targeting fallen log \"" + gameObject.name + "\"");
 					if (_ai != null)
 					{
 						_ai.StopMoving();
@@ -1410,7 +1410,7 @@ public class HarvestController : MonoBehaviour
 				if (!_closingIn)
 				{
 					_closingIn = true;
-					Log($"Rock surface is {surfaceDist:F1}m away (reach {attackRange * 0.85f:F1}m) — stepping in");
+					if (CompanionsPlugin.LogDetailed) Log($"Rock surface is {surfaceDist:F1}m away (reach {attackRange * 0.85f:F1}m) — stepping in");
 				}
 				return;
 			}
@@ -1435,7 +1435,7 @@ public class HarvestController : MonoBehaviour
 		}
 		if (flag3)
 		{
-			Log(string.Format("Wrong/missing tool: \"{0}\" — re-equipping for mode={1}", rightItem?.m_shared?.m_name ?? "NONE", mode2));
+			if (CompanionsPlugin.LogDetailed) Log(string.Format("Wrong/missing tool: \"{0}\" — re-equipping for mode={1}", rightItem?.m_shared?.m_name ?? "NONE", mode2));
 			ItemDrop.ItemData itemData = FindBestTool(mode2);
 			if (itemData == null)
 			{
@@ -1462,7 +1462,7 @@ public class HarvestController : MonoBehaviour
 		{
 			if (flag5 || flag6)
 			{
-				LogInfo($"Attack blocked: inDodge={flag5} stagger={flag6} — retry in {0.25f}s");
+				if (CompanionsPlugin.LogNormal) LogInfo($"Attack blocked: inDodge={flag5} stagger={flag6} — retry in {0.25f}s");
 			}
 			_attackTimer = (flag4 ? 0f : 0.25f);
 			return;
@@ -1485,14 +1485,14 @@ public class HarvestController : MonoBehaviour
 					return;
 				}
 				_catchingBreath = false;
-				Log($"Got its breath back ({_stamina.Stamina:F0}/{max:F0}) — back to work");
+				if (CompanionsPlugin.LogDetailed) Log($"Got its breath back ({_stamina.Stamina:F0}/{max:F0}) — back to work");
 			}
 			if (_stamina.Stamina < attackStamina + (ModConfig.GatherRestStamina?.Value ?? 0.15f) * max)
 			{
 				_catchingBreath = true;
 				_chopChain = false;
 				_attackTimer = 0.5f;
-				Log($"Catching its breath ({_stamina.Stamina:F0}/{max:F0} stamina) before swinging again");
+				if (CompanionsPlugin.LogDetailed) Log($"Catching its breath ({_stamina.Stamina:F0}/{max:F0} stamina) before swinging again");
 				return;
 			}
 		}
@@ -1538,7 +1538,7 @@ public class HarvestController : MonoBehaviour
 				if (num6 > 1.5f)
 				{
 					float num7 = Vector3.Distance(base.transform.position, effectiveTargetPosition2);
-					Log(_targetType + " section destroyed — repositioning to next node " + $"(dist={num7:F1}m shift={num6:F1}m)");
+					if (CompanionsPlugin.LogDetailed) Log(_targetType + " section destroyed — repositioning to next node " + $"(dist={num7:F1}m shift={num6:F1}m)");
 					_attackNodePos = effectiveTargetPosition2;
 					_reapproach = true;
 					_attackFaceLocked = false;
@@ -1589,7 +1589,7 @@ public class HarvestController : MonoBehaviour
 				_logBadPoints.Add(_logPoint);
 				_logPointAt = -10f;
 				_noDamageSwings = 0;
-				LogInfo("Its swings aren't reaching \"" + _target.name + "\" (something in the way) - trying another side");
+				if (CompanionsPlugin.LogNormal) LogInfo("Its swings aren't reaching \"" + _target.name + "\" (something in the way) - trying another side");
 				_reapproach = true;
 				_attackFaceLocked = false;
 				_moveTimer = 0f;
@@ -1598,7 +1598,7 @@ public class HarvestController : MonoBehaviour
 				_state = HarvestState.Moving;
 				return;
 			}
-			LogInfo("Its swings aren't doing anything to \"" + _target.name + "\" (something in the way) - leaving it for now");
+			if (CompanionsPlugin.LogNormal) LogInfo("Its swings aren't doing anything to \"" + _target.name + "\" (something in the way) - leaving it for now");
 			_blacklist[_target.GetInstanceID()] = Time.time;
 			ResetToIdle();
 			return;
@@ -1616,12 +1616,12 @@ public class HarvestController : MonoBehaviour
 		{
 			LogWarn($"Bailout — {_swingCount} hits, {_totalAttempts} attempts on \"{_target.name}\" " + $"dist={num:F1}m without destruction. Abandoning target.");
 			_blacklist[_target.GetInstanceID()] = Time.time;
-			Log($"Blacklisted \"{_target.name}\" (id={_target.GetInstanceID()}) for {BlacklistDuration}s");
+			if (CompanionsPlugin.LogDetailed) Log($"Blacklisted \"{_target.name}\" (id={_target.GetInstanceID()}) for {BlacklistDuration}s");
 			ResetToIdle();
 		}
 		else if (flag9)
 		{
-			Log("Attack swing → \"" + _target.name + "\" " + $"success=True dist={num:F1}m " + "weapon=\"" + (rightItem?.m_shared?.m_name ?? "NONE") + "\" " + $"power={flag8} swings={_swingCount}/{20} " + $"attempts={_totalAttempts}/{30}");
+			if (CompanionsPlugin.LogDetailed) Log("Attack swing → \"" + _target.name + "\" " + $"success=True dist={num:F1}m " + "weapon=\"" + (rightItem?.m_shared?.m_name ?? "NONE") + "\" " + $"power={flag8} swings={_swingCount}/{20} " + $"attempts={_totalAttempts}/{30}");
 		}
 		else if (_totalAttempts <= 1 || _totalAttempts % 5 == 0)
 		{
@@ -1644,7 +1644,7 @@ public class HarvestController : MonoBehaviour
 		_dropTimer += deltaTime;
 		if (_dropTimer > 10f)
 		{
-			Log($"Drop collection timeout ({10f}s) — picked up {_dropsPickedUp} items, resuming harvest");
+			if (CompanionsPlugin.LogDetailed) Log($"Drop collection timeout ({10f}s) — picked up {_dropsPickedUp} items, resuming harvest");
 			FinishDropCollection();
 			return;
 		}
@@ -1657,7 +1657,7 @@ public class HarvestController : MonoBehaviour
 		{
 			if (_currentDrop == null || _currentDrop.GetComponent<ZNetView>() == null || !_currentDrop.GetComponent<ZNetView>().IsValid())
 			{
-				Log("Current drop target gone — scanning for more");
+				if (CompanionsPlugin.LogDetailed) Log("Current drop target gone — scanning for more");
 				_currentDrop = null;
 			}
 			else
@@ -1671,7 +1671,7 @@ public class HarvestController : MonoBehaviour
 					{
 						_moveLogTimer = 2f;
 						string arg = _currentDrop.GetComponent<ItemDrop>()?.m_itemData?.m_shared?.m_name ?? "?";
-						Log($"Approaching drop \"{arg}\" dist={num:F1}m " + $"(pickup range={3f:F1}) timer={_dropTimer:F1}s");
+						if (CompanionsPlugin.LogDetailed) Log($"Approaching drop \"{arg}\" dist={num:F1}m " + $"(pickup range={3f:F1}) timer={_dropTimer:F1}s");
 					}
 					return;
 				}
@@ -1687,14 +1687,14 @@ public class HarvestController : MonoBehaviour
 			{
 				return;
 			}
-			Log($"No more drops nearby — picked up {_dropsPickedUp} items, resuming harvest " + $"(last scan: {_scanSeen} items in {DropScanRadius:F0}m, skipped {_scanUnwanted} not wanted, {_scanNoAuto} not auto-pickup, {_scanFull} no room{(IsOverweight() ? ", overweight" : "")})");
+			if (CompanionsPlugin.LogDetailed) Log($"No more drops nearby — picked up {_dropsPickedUp} items, resuming harvest " + $"(last scan: {_scanSeen} items in {DropScanRadius:F0}m, skipped {_scanUnwanted} not wanted, {_scanNoAuto} not auto-pickup, {_scanFull} no room{(IsOverweight() ? ", overweight" : "")})");
 			FinishDropCollection();
 			return;
 		}
 		_currentDrop = gameObject;
 		float num2 = Vector3.Distance(base.transform.position, gameObject.transform.position);
 		string arg2 = gameObject.GetComponent<ItemDrop>()?.m_itemData?.m_shared?.m_name ?? "?";
-		Log($"Moving to drop: \"{arg2}\" dist={num2:F1}m pos={gameObject.transform.position:F1}");
+		if (CompanionsPlugin.LogDetailed) Log($"Moving to drop: \"{arg2}\" dist={num2:F1}m pos={gameObject.transform.position:F1}");
 	}
 
 	internal void ResetToIdle()
@@ -1720,7 +1720,7 @@ public class HarvestController : MonoBehaviour
 			_isDirectedHarvest = false;
 			_directedTarget = null;
 			RestoreLoadout();
-			Log("ResetToIdle (directed harvest complete) — restored loadout");
+			if (CompanionsPlugin.LogDetailed) Log("ResetToIdle (directed harvest complete) — restored loadout");
 		}
 		bool flag = _setup != null && _setup.GetFollow();
 		if (_ai != null && flag && MHR_Owner.Of(this) != null)
@@ -1729,7 +1729,7 @@ public class HarvestController : MonoBehaviour
 		}
 		if (state != HarvestState.Idle)
 		{
-			Log($"ResetToIdle (was {state}) — follow={flag}");
+			if (CompanionsPlugin.LogDetailed) Log($"ResetToIdle (was {state}) — follow={flag}");
 		}
 	}
 
@@ -2046,7 +2046,7 @@ public class HarvestController : MonoBehaviour
 			if (flag)
 			{
 				num2++;
-				Log("  Tool candidate: \"" + allItem.m_shared.m_name + "\" " + $"type={allItem.m_shared.m_itemType} " + $"chop={damage.m_chop:F0} pick={damage.m_pickaxe:F0} " + $"relevantDmg={num3:F0} " + $"equipped={_humanoid.IsItemEquiped(allItem)}");
+				if (CompanionsPlugin.LogDetailed) Log("  Tool candidate: \"" + allItem.m_shared.m_name + "\" " + $"type={allItem.m_shared.m_itemType} " + $"chop={damage.m_chop:F0} pick={damage.m_pickaxe:F0} " + $"relevantDmg={num3:F0} " + $"equipped={_humanoid.IsItemEquiped(allItem)}");
 				if (num3 > num)
 				{
 					itemData = allItem;
@@ -2056,7 +2056,7 @@ public class HarvestController : MonoBehaviour
 		}
 		if (itemData != null)
 		{
-			Log($"Best tool: \"{itemData.m_shared.m_name}\" dmg={num:F0} " + $"(out of {num2} matching tools)");
+			if (CompanionsPlugin.LogDetailed) Log($"Best tool: \"{itemData.m_shared.m_name}\" dmg={num:F0} " + $"(out of {num2} matching tools)");
 		}
 		else
 		{
@@ -2088,12 +2088,12 @@ public class HarvestController : MonoBehaviour
 		bool flag2 = _humanoid.IsItemEquiped(tool);
 		if (flag || flag2)
 		{
-			Log("EquipTool: \"" + tool.m_shared.m_name + "\" already equipped " + $"(sameRef={flag} isEquipped={flag2}) — skipping");
+			if (CompanionsPlugin.LogDetailed) Log("EquipTool: \"" + tool.m_shared.m_name + "\" already equipped " + $"(sameRef={flag} isEquipped={flag2}) — skipping");
 			_toolEquipped = true;
 			return;
 		}
 		bool flag3 = rightItem != null && rightItem.m_shared?.m_name == tool.m_shared?.m_name;
-		Log("EquipTool: equipping \"" + tool.m_shared.m_name + "\" (right=\"" + (rightItem?.m_shared?.m_name ?? "none") + "\" left=\"" + (leftItem?.m_shared?.m_name ?? "none") + "\") " + $"sameNameInHand={flag3} " + $"rightHash={rightItem?.GetHashCode() ?? 0} toolHash={tool.GetHashCode()} " + "SuppressAutoEquip=true");
+		if (CompanionsPlugin.LogDetailed) Log("EquipTool: equipping \"" + tool.m_shared.m_name + "\" (right=\"" + (rightItem?.m_shared?.m_name ?? "none") + "\" left=\"" + (leftItem?.m_shared?.m_name ?? "none") + "\") " + $"sameNameInHand={flag3} " + $"rightHash={rightItem?.GetHashCode() ?? 0} toolHash={tool.GetHashCode()} " + "SuppressAutoEquip=true");
 		if (flag3)
 		{
 			if (leftItem != null)
@@ -2101,7 +2101,7 @@ public class HarvestController : MonoBehaviour
 				_humanoid.UnequipItem(leftItem, triggerEquipEffects: false);
 			}
 			_toolEquipped = true;
-			Log("After equip (same-name shortcut): rightItem=\"" + (ReflectionHelper.GetRightItem(_humanoid)?.m_shared?.m_name ?? "NONE") + "\" " + $"attackRange={GetAttackRange():F1}");
+			if (CompanionsPlugin.LogDetailed) Log("After equip (same-name shortcut): rightItem=\"" + (ReflectionHelper.GetRightItem(_humanoid)?.m_shared?.m_name ?? "NONE") + "\" " + $"attackRange={GetAttackRange():F1}");
 			return;
 		}
 		if (rightItem != null)
@@ -2115,7 +2115,7 @@ public class HarvestController : MonoBehaviour
 		{
 			_toolEquipped = true;
 			_pendingToolReequip = null;
-			Log("After equip: rightItem=\"" + (rightItem2.m_shared?.m_name ?? "?") + "\" " + $"attackRange={GetAttackRange():F1}");
+			if (CompanionsPlugin.LogDetailed) Log("After equip: rightItem=\"" + (rightItem2.m_shared?.m_name ?? "?") + "\" " + $"attackRange={GetAttackRange():F1}");
 		}
 		else
 		{
@@ -2157,7 +2157,7 @@ public class HarvestController : MonoBehaviour
 	private void LogInfo(string msg)
 	{
 		string text = _character?.m_name ?? "?";
-		CompanionsPlugin.Log.LogInfo("[Gather|" + text + "] " + msg);
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Gather|" + text + "] " + msg);
 	}
 
 	// Per-scan / per-retry chatter: handy while debugging a job, pure noise in a normal log. Shows up only with
@@ -2353,7 +2353,7 @@ public class HarvestController : MonoBehaviour
 			if (_settleLoggedFor != _target)
 			{
 				_settleLoggedFor = _target;
-				LogInfo("Waiting for \"" + _target.name + "\" to stop moving");
+				if (CompanionsPlugin.LogNormal) LogInfo("Waiting for \"" + _target.name + "\" to stop moving");
 			}
 		}
 		// 1.5.68: stands and waits up to 8 s, then leaves a log that keeps rolling or sliding for a while instead of chasing
@@ -2375,7 +2375,7 @@ public class HarvestController : MonoBehaviour
 		{
 			return;
 		}
-		LogInfo("Leaving \"" + _target.name + "\" for a moment - " + why);
+		if (CompanionsPlugin.LogNormal) LogInfo("Leaving \"" + _target.name + "\" for a moment - " + why);
 		_blacklist[_target.GetInstanceID()] = Time.time - Mathf.Max(0f, BlacklistDuration - 15f);
 		_settleFor = null;
 		ResetToIdle();
@@ -2872,7 +2872,7 @@ public class HarvestController : MonoBehaviour
 		{
 			_ai.SetFollowTarget(MHR_Owner.Go(this));
 		}
-		Log($"FinishDropCollection — collected {_dropsPickedUp} items, follow={flag}");
+		if (CompanionsPlugin.LogDetailed) Log($"FinishDropCollection — collected {_dropsPickedUp} items, follow={flag}");
 	}
 
 	private void TryPickupDrop(GameObject dropGO)
@@ -2883,7 +2883,7 @@ public class HarvestController : MonoBehaviour
 		}
 		if (IsOverweight())
 		{
-			Log($"Skipping pickup — overweight ({GetCurrentWeight():F1} >= {OverweightThreshold})");
+			if (CompanionsPlugin.LogDetailed) Log($"Skipping pickup — overweight ({GetCurrentWeight():F1} >= {OverweightThreshold})");
 			return;
 		}
 		ItemDrop component = dropGO.GetComponent<ItemDrop>();
@@ -2894,11 +2894,11 @@ public class HarvestController : MonoBehaviour
 			if (_humanoid.Pickup(dropGO, autoequip: false, autoPickupDelay: false))
 			{
 				_dropsPickedUp++;
-				Log($"Picked up: \"{arg}\" x{num} (total {_dropsPickedUp} this cycle)");
+				if (CompanionsPlugin.LogDetailed) Log($"Picked up: \"{arg}\" x{num} (total {_dropsPickedUp} this cycle)");
 			}
 			else
 			{
-				Log($"Failed to pick up: \"{arg}\" x{num} — inventory full or item invalid");
+				if (CompanionsPlugin.LogDetailed) Log($"Failed to pick up: \"{arg}\" x{num} — inventory full or item invalid");
 			}
 		}
 	}
@@ -2956,7 +2956,7 @@ public class HarvestController : MonoBehaviour
 				if (!inventory.CanAddItem(component.m_itemData) && !MHR_GatherRules.TryMakeRoom(this, component.m_itemData))
 				{
 					string text = component.m_itemData?.m_shared?.m_name ?? "?";
-					Log("Drop scan: skipping \"" + text + "\" — inventory full/can't add");
+					if (CompanionsPlugin.LogDetailed) Log("Drop scan: skipping \"" + text + "\" — inventory full/can't add");
 					_scanFull++;
 					continue;
 				}
@@ -2971,7 +2971,7 @@ public class HarvestController : MonoBehaviour
 		}
 		if (num3 > 0)
 		{
-			Log($"Drop scan: {num3} pickable items within {DropScanRadius}m of destroy pos");
+			if (CompanionsPlugin.LogDetailed) Log($"Drop scan: {num3} pickable items within {DropScanRadius}m of destroy pos");
 		}
 		return result;
 	}
@@ -3053,7 +3053,7 @@ public class HarvestController : MonoBehaviour
 			{
 				if (num3 == 0)
 				{
-					Log($"  Skipping blacklisted \"{harvestCandidateWithType.name}\" (id={harvestCandidateWithType.GetInstanceID()})");
+					if (CompanionsPlugin.LogDetailed) Log($"  Skipping blacklisted \"{harvestCandidateWithType.name}\" (id={harvestCandidateWithType.GetInstanceID()})");
 				}
 			}
 			else
@@ -3089,7 +3089,7 @@ public class HarvestController : MonoBehaviour
 				}
 				if (num3 <= 5 || type == "TreeLog")
 				{
-					Log($"  Candidate #{num3}: \"{harvestCandidateWithType.name}\" " + $"type={type} dist={num11:F1}m pos={harvestCandidateWithType.transform.position:F1}");
+					if (CompanionsPlugin.LogDetailed) Log($"  Candidate #{num3}: \"{harvestCandidateWithType.name}\" " + $"type={type} dist={num11:F1}m pos={harvestCandidateWithType.transform.position:F1}");
 				}
 				if (flag2)
 				{
@@ -3126,11 +3126,11 @@ public class HarvestController : MonoBehaviour
 		}
 		if (num3 > 5)
 		{
-			Log($"  ...and {num3 - 5} more candidates");
+			if (CompanionsPlugin.LogDetailed) Log($"  ...and {num3 - 5} more candidates");
 		}
 		if (num8 > 0)
 		{
-			Log($"  Skipped {num8} targets requiring higher tool tier (best tier={bestToolTier})");
+			if (CompanionsPlugin.LogDetailed) Log($"  Skipped {num8} targets requiring higher tool tier (best tier={bestToolTier})");
 		}
 		LastTierSkips = num8;
 		string text = mode switch
@@ -3141,33 +3141,33 @@ public class HarvestController : MonoBehaviour
 		};
 		if (mode == 1)
 		{
-			Log($"  Breakdown [{text}]: {num4} TreeBase, {num5} TreeLog, {num6} Stump " + $"(total {num3} unique targets, {outOfRange} out of range)");
+			if (CompanionsPlugin.LogDetailed) Log($"  Breakdown [{text}]: {num4} TreeBase, {num5} TreeLog, {num6} Stump " + $"(total {num3} unique targets, {outOfRange} out of range)");
 		}
 		else
 		{
-			Log($"  Breakdown [{text}]: {num7} deposits (total {num3} unique targets)");
+			if (CompanionsPlugin.LogDetailed) Log($"  Breakdown [{text}]: {num7} deposits (total {num3} unique targets)");
 		}
 		if (bestOwn != null)
 		{
 			gameObject = bestOwn;
 			num2 = bestOwnDist;
-			Log("Finishing the log it just broke");
+			if (CompanionsPlugin.LogDetailed) Log("Finishing the log it just broke");
 		}
 		if (gameObject == null && bestStump != null)
 		{
 			gameObject = bestStump;
 			num2 = bestStumpDist;
-			Log("No logs found - taking the nearest stump");
+			if (CompanionsPlugin.LogDetailed) Log("No logs found - taking the nearest stump");
 		}
 		if (gameObject == null && _bestTree != null)
 		{
 			gameObject = _bestTree;
 			num2 = _bestTreeDist;
-			Log("No logs/stumps found — falling back to standing tree");
+			if (CompanionsPlugin.LogDetailed) Log("No logs/stumps found — falling back to standing tree");
 		}
 		if (gameObject != null)
 		{
-			Log($"Best target: \"{gameObject.name}\" dist={num2:F1}m " + $"(out of {num3} total candidates)");
+			if (CompanionsPlugin.LogDetailed) Log($"Best target: \"{gameObject.name}\" dist={num2:F1}m " + $"(out of {num3} total candidates)");
 		}
 		return gameObject;
 	}
@@ -3236,7 +3236,7 @@ public class HarvestController : MonoBehaviour
 		if (_early != was || !_earlyLogged)
 		{
 			_earlyLogged = true;
-			LogInfo(_early ? "Early game (no bronze-or-better axe and no forge) - picking up branches, stones and flint" : "Not picking up branches, stones and flint: " + why);
+			if (CompanionsPlugin.LogNormal) LogInfo(_early ? "Early game (no bronze-or-better axe and no forge) - picking up branches, stones and flint" : "Not picking up branches, stones and flint: " + why);
 		}
 		return _early;
 	}
@@ -3302,7 +3302,7 @@ public class HarvestController : MonoBehaviour
 		{
 			num = _scanBuffer.Length;
 		}
-		Log($"Forage scan: {num} colliders in {ScanRadius}m radius");
+		if (CompanionsPlugin.LogDetailed) Log($"Forage scan: {num} colliders in {ScanRadius}m radius");
 		_seenIds.Clear();
 		GameObject gameObject = null;
 		float num2 = float.MaxValue;
@@ -3337,7 +3337,7 @@ public class HarvestController : MonoBehaviour
 			float num6 = Vector3.Distance(base.transform.position, gameObject2.transform.position);
 			if (num3 <= 5)
 			{
-				Log($"  Pickable #{num3}: \"{gameObject2.name}\" dist={num6:F1}m " + $"pos={gameObject2.transform.position:F1}");
+				if (CompanionsPlugin.LogDetailed) Log($"  Pickable #{num3}: \"{gameObject2.name}\" dist={num6:F1}m " + $"pos={gameObject2.transform.position:F1}");
 			}
 			if (num6 < num2)
 			{
@@ -3347,12 +3347,12 @@ public class HarvestController : MonoBehaviour
 		}
 		if (num3 > 5)
 		{
-			Log($"  ...and {num3 - 5} more pickables");
+			if (CompanionsPlugin.LogDetailed) Log($"  ...and {num3 - 5} more pickables");
 		}
-		Log($"  Forage breakdown: {num3} pickable targets");
+		if (CompanionsPlugin.LogDetailed) Log($"  Forage breakdown: {num3} pickable targets");
 		if (gameObject != null)
 		{
-			Log($"Best pickable: \"{gameObject.name}\" dist={num2:F1}m " + $"(out of {num3} total)");
+			if (CompanionsPlugin.LogDetailed) Log($"Best pickable: \"{gameObject.name}\" dist={num2:F1}m " + $"(out of {num3} total)");
 		}
 		else if (num3 == 0)
 		{

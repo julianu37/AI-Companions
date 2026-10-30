@@ -1460,7 +1460,7 @@ public class CompanionPanel
 	{
 		if (StarterMode)
 		{
-			CompanionsPlugin.Log.LogInfo((HireMode ? "[Panel] Summon confirmed" : "[Panel] Starter spawn confirmed") + $" — gender={_current.ModelIndex}, " + "hair=" + _current.HairItem + ", beard=" + _current.BeardItem);
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo((HireMode ? "[Panel] Summon confirmed" : "[Panel] Starter spawn confirmed") + $" — gender={_current.ModelIndex}, " + "hair=" + _current.HairItem + ", beard=" + _current.BeardItem);
 			OnSpawnConfirmed?.Invoke(_current);
 		}
 		else
@@ -1947,7 +1947,7 @@ public class CompanionPanel
 		int num2 = _clone.GetComponentsInChildren<Renderer>(includeInactive: true).Length;
 		int valueOrDefault = (component3?.m_defaultItems?.Length).GetValueOrDefault();
 		int valueOrDefault2 = (component3?.m_randomWeapon?.Length).GetValueOrDefault();
-		CompanionsPlugin.Log.LogInfo("[Panel] SetupPreviewClone — tier=\"" + _selectedTier.DisplayName + "\" " + $"source=\"{text}\" visEquip={component2 != null} humanoid={component3 != null} " + $"renderers={num2} defaultItems={valueOrDefault} randomWeapons={valueOrDefault2} " + $"pos={_clone.transform.position:F1}");
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Panel] SetupPreviewClone — tier=\"" + _selectedTier.DisplayName + "\" " + $"source=\"{text}\" visEquip={component2 != null} humanoid={component3 != null} " + $"renderers={num2} defaultItems={valueOrDefault} randomWeapons={valueOrDefault2} " + $"pos={_clone.transform.position:F1}");
 		ApplyCurrentToClone();
 	}
 
@@ -2124,7 +2124,7 @@ public class CompanionPanel
 				int num4 = ((randomArmor != null) ? randomArmor.Length : 0);
 				Humanoid.ItemSet[] randomSets = component2.m_randomSets;
 				int num5 = ((randomSets != null) ? randomSets.Length : 0);
-				CompanionsPlugin.Log.LogDebug("[Panel] ApplyCurrentToClone — dverger gear: " + $"defaults={num} weapons={num2} shields={num3} " + $"armor={num4} sets={num5}");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Panel] ApplyCurrentToClone — dverger gear: " + $"defaults={num} weapons={num2} shields={num3} " + $"armor={num4} sets={num5}");
 				ApplyDefaultGearToVis(component, component2.m_defaultItems);
 				ApplyFirstItemToVis(component, component2.m_randomWeapon);
 				ApplyFirstItemToVis(component, component2.m_randomShield);
@@ -2246,7 +2246,7 @@ public class CompanionPanel
 		if (!(component == null))
 		{
 			string name = itemGo.name;
-			CompanionsPlugin.Log.LogDebug($"[Panel] ApplyItemToVis — \"{name}\" type={component.m_itemData.m_shared.m_itemType}");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Panel] ApplyItemToVis — \"{name}\" type={component.m_itemData.m_shared.m_itemType}");
 			switch (component.m_itemData.m_shared.m_itemType)
 			{
 			case ItemDrop.ItemData.ItemType.OneHandedWeapon:

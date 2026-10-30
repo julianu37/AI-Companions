@@ -53,7 +53,8 @@ public class CompanionFood : MonoBehaviour
 
 	// 1.5.90: the "already active" rejection is logged once per food until it changes (log 32bba563: ~250 lines with honey
 	// as its only food)
-	private string _lastActiveReject;
+	// 1.5.77: per food, not just the last one - two foods took turns and each turn reset it (log b15f00be: 113 lines each)
+	private readonly HashSet<string> _activeRejects = new HashSet<string>();
 
 	// 1.5.68: "no food found" logged once per slot until the inventory or its food changes (log 9aef82b6: 816 lines)
 	private int _noFoodCount = -1;
@@ -227,7 +228,7 @@ public class CompanionFood : MonoBehaviour
 				num++;
 			}
 		}
-		CompanionsPlugin.Log.LogDebug($"[Food] Initialized — {num}/{MaxFoodSlots} active food slots " + $"hpBonus={TotalHealthBonus:F0} stamBonus={TotalStaminaBonus:F0} " + "companion=\"" + (_character?.m_name ?? "?") + "\"");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Food] Initialized — {num}/{MaxFoodSlots} active food slots " + $"hpBonus={TotalHealthBonus:F0} stamBonus={TotalStaminaBonus:F0} " + "companion=\"" + (_character?.m_name ?? "?") + "\"");
 	}
 
 	private void LoadFromZDO()
@@ -243,7 +244,7 @@ public class CompanionFood : MonoBehaviour
 			_foods[i] = DeserializeFood(data);
 			if (_foods[i].IsActive)
 			{
-				CompanionsPlugin.Log.LogDebug($"[Food] ZDO load slot {i} — \"{_foods[i].ItemName}\" " + $"hp={_foods[i].HealthBonus:F0} stam={_foods[i].StaminaBonus:F0} " + $"remaining={_foods[i].RemainingTime:F0}/{_foods[i].TotalTime:F0}s");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Food] ZDO load slot {i} — \"{_foods[i].ItemName}\" " + $"hp={_foods[i].HealthBonus:F0} stam={_foods[i].StaminaBonus:F0} " + $"remaining={_foods[i].RemainingTime:F0}/{_foods[i].TotalTime:F0}s");
 			}
 		}
 	}
@@ -260,7 +261,7 @@ public class CompanionFood : MonoBehaviour
 		{
 			if (health - num > 0.5f)
 			{
-				CompanionsPlugin.Log.LogDebug($"[Food] ClampHealth — {health:F1} → {num:F1} (food expired?) " + "companion=\"" + _character.m_name + "\"");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Food] ClampHealth — {health:F1} → {num:F1} (food expired?) " + "companion=\"" + _character.m_name + "\"");
 			}
 			_character.SetHealth(num);
 		}
@@ -300,7 +301,8 @@ public class CompanionFood : MonoBehaviour
 					foodEffect.RemainingTime -= deltaTime;
 					if (foodEffect.RemainingTime <= 0f)
 					{
-						CompanionsPlugin.Log.LogDebug($"[Food] Slot {i} expired — \"{foodEffect.ItemName}\" " + $"(hp={foodEffect.HealthBonus:F0} stam={foodEffect.StaminaBonus:F0} " + $"eitr={foodEffect.EitrBonus:F0} regen={foodEffect.FoodRegen:F1}) " + "companion=\"" + (_character?.m_name ?? "?") + "\"");
+						_activeRejects.Clear();
+						if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Food] Slot {i} expired — \"{foodEffect.ItemName}\" " + $"(hp={foodEffect.HealthBonus:F0} stam={foodEffect.StaminaBonus:F0} " + $"eitr={foodEffect.EitrBonus:F0} regen={foodEffect.FoodRegen:F1}) " + "companion=\"" + (_character?.m_name ?? "?") + "\"");
 						_foods[i] = default(FoodEffect);
 						flag = true;
 					}
@@ -343,7 +345,7 @@ public class CompanionFood : MonoBehaviour
 					float health = _character.GetHealth();
 					_character.Heal(num);
 					float health2 = _character.GetHealth();
-					CompanionsPlugin.Log.LogDebug($"[Food] Regen tick — healed {num:F1} HP " + $"({health:F1} → {health2:F1} / {_character.GetMaxHealth():F1}) " + "companion=\"" + _character.m_name + "\"");
+					if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Food] Regen tick — healed {num:F1} HP " + $"({health:F1} → {health2:F1} / {_character.GetMaxHealth():F1}) " + "companion=\"" + _character.m_name + "\"");
 				}
 			}
 			_consumeTimer -= deltaTime;
@@ -412,11 +414,11 @@ public class CompanionFood : MonoBehaviour
 						continue;
 					}
 					_noFoodSlots |= 1 << i;
-					CompanionsPlugin.Log.LogDebug($"[Food] AutoConsume — slot {i} empty, no food found in inventory " + string.Format("(items={0}) companion=\"{1}\"", inventory.GetAllItems().Count, _character?.m_name ?? "?"));
+					if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Food] AutoConsume — slot {i} empty, no food found in inventory " + string.Format("(items={0}) companion=\"{1}\"", inventory.GetAllItems().Count, _character?.m_name ?? "?"));
 				}
 				else if (!CanConsumeFoodItem(itemData))
 				{
-					CompanionsPlugin.Log.LogDebug($"[Food] AutoConsume — slot {i} empty, found \"{itemData.m_shared?.m_name}\" " + "but CanConsume=false companion=\"" + (_character?.m_name ?? "?") + "\"");
+					if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Food] AutoConsume — slot {i} empty, found \"{itemData.m_shared?.m_name}\" " + "but CanConsume=false companion=\"" + (_character?.m_name ?? "?") + "\"");
 				}
 				else if (ConsumeIntoSlot(inventory, itemData, i))
 				{
@@ -452,7 +454,7 @@ public class CompanionFood : MonoBehaviour
 					if (ConsumeIntoSlot(inventory, same, j))
 					{
 						flag = true;
-						CompanionsPlugin.Log.LogDebug($"[Food] Topped up \"{same.m_shared.m_name}\" in slot {j} with {left:F0} s left companion=\"" + (_character?.m_name ?? "?") + "\"");
+						if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Food] Topped up \"{same.m_shared.m_name}\" in slot {j} with {left:F0} s left companion=\"" + (_character?.m_name ?? "?") + "\"");
 					}
 				}
 			}
@@ -493,7 +495,7 @@ public class CompanionFood : MonoBehaviour
 			}
 			else
 			{
-				CompanionsPlugin.Log.LogDebug($"[Food] Mead check — hp={num * 100f:F0}% below threshold, " + "no health mead in inventory companion=\"" + (_character?.m_name ?? "?") + "\"");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Food] Mead check — hp={num * 100f:F0}% below threshold, " + "no health mead in inventory companion=\"" + (_character?.m_name ?? "?") + "\"");
 			}
 		}
 		if (num2 < StaminaMeadThreshold)
@@ -505,7 +507,7 @@ public class CompanionFood : MonoBehaviour
 			}
 			else
 			{
-				CompanionsPlugin.Log.LogDebug($"[Food] Mead check — stam={num2 * 100f:F0}% below threshold, " + "no stamina mead in inventory companion=\"" + (_character?.m_name ?? "?") + "\"");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Food] Mead check — stam={num2 * 100f:F0}% below threshold, " + "no stamina mead in inventory companion=\"" + (_character?.m_name ?? "?") + "\"");
 			}
 		}
 	}
@@ -576,17 +578,15 @@ public class CompanionFood : MonoBehaviour
 		}
 		if (!isRefresh && IsFoodAlreadyActive(item.m_shared.m_name))
 		{
-			if (_lastActiveReject != text)
+			if (_activeRejects.Add(text))
 			{
-				_lastActiveReject = text;
-				CompanionsPlugin.Log.LogDebug("[Food] CanConsume REJECTED \"" + text + "\" — already active in another slot (logged once)");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Food] CanConsume REJECTED \"" + text + "\" — already active in another slot (logged once)");
 			}
 			return false;
 		}
-		_lastActiveReject = null;
 		if (!CanApplyConsumeStatus(item))
 		{
-			CompanionsPlugin.Log.LogDebug("[Food] CanConsume REJECTED \"" + text + "\" — status effect conflict");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Food] CanConsume REJECTED \"" + text + "\" — status effect conflict");
 			return false;
 		}
 		return true;
@@ -594,6 +594,7 @@ public class CompanionFood : MonoBehaviour
 
 	private bool ConsumeIntoSlot(Inventory inv, ItemDrop.ItemData item, int slot)
 	{
+		_activeRejects.Clear();
 		if (inv == null || item == null || slot < 0 || slot >= MaxFoodSlots)
 		{
 			return false;
@@ -620,7 +621,7 @@ public class CompanionFood : MonoBehaviour
 		{
 			_zanim.SetTrigger(text);
 		}
-		CompanionsPlugin.Log.LogDebug("[Food] Consume anim trigger=\"" + text + "\" " + $"canWearArmor={_setup?.CanWearArmor()} companion=\"{_character?.m_name}\"");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Food] Consume anim trigger=\"" + text + "\" " + $"canWearArmor={_setup?.CanWearArmor()} companion=\"{_character?.m_name}\"");
 		if (_humanoid != null && _humanoid.m_consumeItemEffects != null)
 		{
 			_humanoid.m_consumeItemEffects.Create(base.transform.position, Quaternion.identity, null, 1f, -1, ZDOID.None);
@@ -633,7 +634,7 @@ public class CompanionFood : MonoBehaviour
 		}
 		float health2 = _character.GetHealth();
 		bool flag = item.m_shared.m_consumeStatusEffect != null;
-		CompanionsPlugin.Log.LogDebug($"[Food] Consumed \"{item.m_shared.m_name}\" → slot {slot} " + $"hp={item.m_shared.m_food:F0} stam={item.m_shared.m_foodStamina:F0} " + $"eitr={item.m_shared.m_foodEitr:F0} regen={item.m_shared.m_foodRegen:F1} " + $"burnTime={num:F0}s statusEffect={flag} " + $"health {health:F1} → {health2:F1} / {num2:F1} " + $"totalStamBonus={TotalStaminaBonus:F1} " + "companion=\"" + (_character?.m_name ?? "?") + "\"");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Food] Consumed \"{item.m_shared.m_name}\" → slot {slot} " + $"hp={item.m_shared.m_food:F0} stam={item.m_shared.m_foodStamina:F0} " + $"eitr={item.m_shared.m_foodEitr:F0} regen={item.m_shared.m_foodRegen:F1} " + $"burnTime={num:F0}s statusEffect={flag} " + $"health {health:F1} → {health2:F1} / {num2:F1} " + $"totalStamBonus={TotalStaminaBonus:F1} " + "companion=\"" + (_character?.m_name ?? "?") + "\"");
 		return true;
 	}
 
@@ -688,7 +689,7 @@ public class CompanionFood : MonoBehaviour
 		{
 			if (!CanConsumeFoodItem(item))
 			{
-				CompanionsPlugin.Log.LogDebug("[Food] TryConsumeItem REJECTED \"" + text + "\" — " + $"empty slot {num} available but CanConsume=false");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Food] TryConsumeItem REJECTED \"" + text + "\" — " + $"empty slot {num} available but CanConsume=false");
 				return false;
 			}
 		}
@@ -701,16 +702,16 @@ public class CompanionFood : MonoBehaviour
 			}
 			if (num < 0)
 			{
-				CompanionsPlugin.Log.LogDebug("[Food] TryConsumeItem REJECTED \"" + text + "\" — all 3 slots occupied, none refreshable");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Food] TryConsumeItem REJECTED \"" + text + "\" — all 3 slots occupied, none refreshable");
 				return false;
 			}
 			if (!CanConsumeFoodItem(item, isRefresh: true))
 			{
-				CompanionsPlugin.Log.LogDebug("[Food] TryConsumeItem REJECTED \"" + text + "\" — " + $"refresh slot {num} found but CanConsume(refresh)=false");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Food] TryConsumeItem REJECTED \"" + text + "\" — " + $"refresh slot {num} found but CanConsume(refresh)=false");
 				return false;
 			}
 		}
-		CompanionsPlugin.Log.LogDebug($"[Food] TryConsumeItem \"{text}\" → slot {num} " + "companion=\"" + (_character?.m_name ?? "?") + "\"");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Food] TryConsumeItem \"{text}\" → slot {num} " + "companion=\"" + (_character?.m_name ?? "?") + "\"");
 		if (!ConsumeIntoSlot(inventory, item, num))
 		{
 			return false;
@@ -873,7 +874,7 @@ public class CompanionFood : MonoBehaviour
 		{
 			_zanim.SetTrigger(text);
 		}
-		CompanionsPlugin.Log.LogDebug("[Food] Mead anim trigger=\"" + text + "\" " + $"canWearArmor={_setup?.CanWearArmor()} companion=\"{_character?.m_name}\"");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Food] Mead anim trigger=\"" + text + "\" " + $"canWearArmor={_setup?.CanWearArmor()} companion=\"{_character?.m_name}\"");
 		if (_humanoid != null && _humanoid.m_consumeItemEffects != null)
 		{
 			_humanoid.m_consumeItemEffects.Create(base.transform.position, Quaternion.identity, null, 1f, -1, ZDOID.None);
@@ -881,7 +882,7 @@ public class CompanionFood : MonoBehaviour
 		inv.RemoveOneItem(item);
 		float num = ((_character.GetMaxHealth() > 0f) ? (_character.GetHealth() / _character.GetMaxHealth() * 100f) : 0f);
 		float num2 = ((_stamina != null) ? (_stamina.GetStaminaPercentage() * 100f) : 0f);
-		CompanionsPlugin.Log.LogDebug($"[Food] MEAD consumed \"{arg}\" (prefab={arg2}) kind={kind} " + $"hp={num:F0}% stam={num2:F0}% " + string.Format("hasSE={0} companion=\"{1}\"", consumeStatusEffect != null, _character?.m_name ?? "?"));
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Food] MEAD consumed \"{arg}\" (prefab={arg2}) kind={kind} " + $"hp={num:F0}% stam={num2:F0}% " + string.Format("hasSE={0} companion=\"{1}\"", consumeStatusEffect != null, _character?.m_name ?? "?"));
 		_meadCooldownTimer = MeadCooldown;
 		return true;
 	}
@@ -974,12 +975,12 @@ public class CompanionFood : MonoBehaviour
 		{
 			if (_seman.HaveStatusEffect(consumeStatusEffect.NameHash()))
 			{
-				CompanionsPlugin.Log.LogDebug("[Food] Potion REJECTED \"" + item.m_shared.m_name + "\" — effect already active on \"" + (_character?.m_name ?? "?") + "\"");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Food] Potion REJECTED \"" + item.m_shared.m_name + "\" — effect already active on \"" + (_character?.m_name ?? "?") + "\"");
 				return false;
 			}
 			if (!string.IsNullOrEmpty(consumeStatusEffect.m_category) && _seman.HaveStatusEffectCategory(consumeStatusEffect.m_category))
 			{
-				CompanionsPlugin.Log.LogDebug("[Food] Potion REJECTED \"" + item.m_shared.m_name + "\" — category \"" + consumeStatusEffect.m_category + "\" already active on \"" + (_character?.m_name ?? "?") + "\"");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Food] Potion REJECTED \"" + item.m_shared.m_name + "\" — category \"" + consumeStatusEffect.m_category + "\" already active on \"" + (_character?.m_name ?? "?") + "\"");
 				return false;
 			}
 		}
@@ -1001,7 +1002,7 @@ public class CompanionFood : MonoBehaviour
 			_humanoid.m_consumeItemEffects.Create(base.transform.position, Quaternion.identity, null, 1f, -1, ZDOID.None);
 		}
 		inventory.RemoveOneItem(item);
-		CompanionsPlugin.Log.LogDebug("[Food] POTION consumed \"" + item.m_shared.m_name + "\" se=\"" + consumeStatusEffect.m_name + "\" companion=\"" + (_character?.m_name ?? "?") + "\"");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Food] POTION consumed \"" + item.m_shared.m_name + "\" se=\"" + consumeStatusEffect.m_name + "\" companion=\"" + (_character?.m_name ?? "?") + "\"");
 		_meadCooldownTimer = MeadCooldown;
 		return true;
 	}

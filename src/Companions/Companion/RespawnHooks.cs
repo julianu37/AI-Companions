@@ -86,7 +86,7 @@ internal static class RespawnHooks
 		}
 		catch (Exception ex3)
 		{
-			Log("[Respawn] FullRestore failed: " + ex3.Message);
+			if (CompanionsPlugin.LogNormal) Log("[Respawn] FullRestore failed: " + ex3.Message);
 		}
 	}
 
@@ -95,7 +95,7 @@ internal static class RespawnHooks
 		if (_logs < 20)
 		{
 			_logs++;
-			CompanionsPlugin.Log?.LogInfo(s);
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log?.LogInfo(s);
 		}
 	}
 }

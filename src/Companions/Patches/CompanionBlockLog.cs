@@ -38,7 +38,7 @@ internal static class CompanionBlockLog
 				PlayerCombatLog.NoteBlock(__instance, attacker, parry, __state, hit.GetTotalBlockableDamage());
 				return;
 			}
-			CompanionsPlugin.Log.LogDebug($"[Block] {(parry ? "Parried" : "Blocked")} {(attacker != null ? attacker.m_name : "a hit")} with {blocker?.m_shared?.m_name ?? "?"}: {__state:F0} damage, {hit.GetTotalBlockableDamage():F0} got through");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Block] {(parry ? "Parried" : "Blocked")} {(attacker != null ? attacker.m_name : "a hit")} with {blocker?.m_shared?.m_name ?? "?"}: {__state:F0} damage, {hit.GetTotalBlockableDamage():F0} got through");
 		}
 		catch
 		{

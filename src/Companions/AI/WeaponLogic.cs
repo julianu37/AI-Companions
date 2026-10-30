@@ -40,24 +40,24 @@ internal static class WeaponLogic
 				}
 				if (flag)
 				{
-					EntryLog("[Balanced] skip: " + LastReason);
+					if (CompanionsPlugin.LogDetailed) EntryLog("[Balanced] skip: " + LastReason);
 				}
 				else
 				{
-					NonCompanionLog("[Balanced] skip: " + LastReason);
+					if (CompanionsPlugin.LogDetailed) NonCompanionLog("[Balanced] skip: " + LastReason);
 				}
 				return true;
 			}
 			if (TorchOpener.IsActive(h))
 			{
-				EntryLog("[Balanced] skip: torch opener active.");
+				if (CompanionsPlugin.LogDetailed) EntryLog("[Balanced] skip: torch opener active.");
 				return true;
 			}
 			BaseAI baseAI2 = h.GetBaseAI();
 			Component component = h.GetComponent("CompanionCombatAI");
 			if (component == null)
 			{
-				EntryLog("[Balanced] skip: no CompanionCombatAI component found for target lookup.");
+				if (CompanionsPlugin.LogDetailed) EntryLog("[Balanced] skip: no CompanionCombatAI component found for target lookup.");
 				return true;
 			}
 			if (_targetField == null)
@@ -67,27 +67,27 @@ internal static class WeaponLogic
 			Character character = ((!(_targetField == null)) ? ((Character)_targetField.GetValue(component)) : null);
 			if (character == null)
 			{
-				EntryLog("[Balanced] skip: no target.");
+				if (CompanionsPlugin.LogDetailed) EntryLog("[Balanced] skip: no target.");
 				return true;
 			}
 			if (character == null || character.IsDead())
 			{
-				EntryLog("[Balanced] skip: target null/dead.");
+				if (CompanionsPlugin.LogDetailed) EntryLog("[Balanced] skip: target null/dead.");
 				return true;
 			}
 			if (h.InAttack())
 			{
-				EntryLog("[Balanced] handling (mid-attack, no re-pick).");
+				if (CompanionsPlugin.LogDetailed) EntryLog("[Balanced] handling (mid-attack, no re-pick).");
 				return false;
 			}
 			ItemDrop.ItemData currentWeapon = h.GetCurrentWeapon();
 			Inventory inventory = h.GetInventory();
 			if (currentWeapon == null || inventory == null)
 			{
-				EntryLog("[Balanced] skip: no current weapon or inventory.");
+				if (CompanionsPlugin.LogDetailed) EntryLog("[Balanced] skip: no current weapon or inventory.");
 				return true;
 			}
-			EntryLog("[Balanced] handling weapon choice for this call.");
+			if (CompanionsPlugin.LogDetailed) EntryLog("[Balanced] handling weapon choice for this call.");
 			float num = Vector3.Distance(h.transform.position, character.transform.position) - character.GetRadius();
 			if (num < 0f)
 			{
@@ -137,7 +137,7 @@ internal static class WeaponLogic
 			if (itemData != null && !flag3 && component is CompanionCombatAI cc && cc.BowOnly(character, out string bowWhy) && MHR_BowDraw.ClearShot(h, character))
 			{
 				flag3 = true;
-				BowWhyLog("[Balanced] bow for " + character.m_name + " (" + num.ToString("F1") + " m): " + bowWhy);
+				if (CompanionsPlugin.LogDetailed) BowWhyLog("[Balanced] bow for " + character.m_name + " (" + num.ToString("F1") + " m): " + bowWhy);
 			}
 			ItemDrop.ItemData itemData4 = null;
 			if (flag3)
@@ -151,10 +151,10 @@ internal static class WeaponLogic
 			{
 				itemData4 = itemData2;
 			}
-			StatusLog(string.Format("[Balanced] status dist={0:F1} cur={1} bestBow={2} bestMelee={3} wantRanged={4} pick={5} ammo={6}", num, currentWeapon.m_shared.m_name, (itemData != null) ? itemData.m_shared.m_name : ((text == null) ? "none in inventory" : ("none - " + text)), (itemData2 == null) ? "none" : itemData2.m_shared.m_name, flag3, (itemData4 == null) ? "(no change)" : itemData4.m_shared.m_name, (itemData != null && !string.IsNullOrEmpty(itemData.m_shared.m_ammoType)) ? (inventory.GetAmmoItem(itemData.m_shared.m_ammoType)?.m_stack ?? 0) : -1));
+			if (CompanionsPlugin.LogDetailed) StatusLog(string.Format("[Balanced] status dist={0:F1} cur={1} bestBow={2} bestMelee={3} wantRanged={4} pick={5} ammo={6}", num, currentWeapon.m_shared.m_name, (itemData != null) ? itemData.m_shared.m_name : ((text == null) ? "none in inventory" : ("none - " + text)), (itemData2 == null) ? "none" : itemData2.m_shared.m_name, flag3, (itemData4 == null) ? "(no change)" : itemData4.m_shared.m_name, (itemData != null && !string.IsNullOrEmpty(itemData.m_shared.m_ammoType)) ? (inventory.GetAmmoItem(itemData.m_shared.m_ammoType)?.m_stack ?? 0) : -1));
 			if (itemData4 != null && itemData4 != currentWeapon)
 			{
-				BalLog(string.Format("[Balanced] dist={0:F1} -> {1} ({2})", num, itemData4.m_shared.m_name, (!flag3) ? "melee" : "ranged"));
+				if (CompanionsPlugin.LogNormal) BalLog(string.Format("[Balanced] dist={0:F1} -> {1} ({2})", num, itemData4.m_shared.m_name, (!flag3) ? "melee" : "ranged"));
 				h.EquipItem(itemData4);
 			}
 			return false;
@@ -294,19 +294,19 @@ internal static class WeaponLogic
 			}
 			if (itemData != null)
 			{
-				RangedLog("[Ranged] FindReadyBow -> " + itemData.m_shared.m_name + " (ready, will equip)");
+				if (CompanionsPlugin.LogNormal) RangedLog("[Ranged] FindReadyBow -> " + itemData.m_shared.m_name + " (ready, will equip)");
 			}
 			else if (text != null)
 			{
-				RangedLog("[Ranged] FindReadyBow -> none - " + text + " -> falling back to melee");
+				if (CompanionsPlugin.LogNormal) RangedLog("[Ranged] FindReadyBow -> none - " + text + " -> falling back to melee");
 			}
 			else if (flag)
 			{
-				RangedLog("[Ranged] FindReadyBow -> none - bow present but not usable (durability/equipable) -> falling back to melee");
+				if (CompanionsPlugin.LogNormal) RangedLog("[Ranged] FindReadyBow -> none - bow present but not usable (durability/equipable) -> falling back to melee");
 			}
 			else
 			{
-				RangedLog("[Ranged] FindReadyBow -> none - no bow-type item in inventory -> falling back to melee");
+				if (CompanionsPlugin.LogNormal) RangedLog("[Ranged] FindReadyBow -> none - no bow-type item in inventory -> falling back to melee");
 			}
 			return itemData;
 		}
@@ -439,7 +439,7 @@ internal static class WeaponLogic
 		if (_rangedLogs < 40)
 		{
 			_rangedLogs++;
-			CompanionsPlugin.Log?.LogInfo(s);
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log?.LogInfo(s);
 		}
 	}
 
@@ -478,7 +478,7 @@ internal static class WeaponLogic
 		if (_balLogs < 60)
 		{
 			_balLogs++;
-			CompanionsPlugin.Log?.LogInfo(s);
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log?.LogInfo(s);
 		}
 	}
 
@@ -491,7 +491,7 @@ internal static class WeaponLogic
 		if (Time.time >= _nextStatusLog)
 		{
 			_nextStatusLog = Time.time + 3f;
-			CompanionsPlugin.Log?.LogDebug(s);
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log?.LogDebug(s);
 		}
 	}
 
@@ -502,7 +502,7 @@ internal static class WeaponLogic
 		if (Time.time >= _nextBowWhyLog)
 		{
 			_nextBowWhyLog = Time.time + 5f;
-			CompanionsPlugin.Log?.LogDebug(s);
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log?.LogDebug(s);
 		}
 	}
 
@@ -511,7 +511,7 @@ internal static class WeaponLogic
 		if (_entryLogs < 200)
 		{
 			_entryLogs++;
-			CompanionsPlugin.Log?.LogDebug(s);
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log?.LogDebug(s);
 		}
 	}
 
@@ -520,7 +520,7 @@ internal static class WeaponLogic
 		if (_nonCompanionLogs < 3)
 		{
 			_nonCompanionLogs++;
-			CompanionsPlugin.Log?.LogInfo(s + " (further non-companion skips suppressed)");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log?.LogInfo(s + " (further non-companion skips suppressed)");
 		}
 	}
 }

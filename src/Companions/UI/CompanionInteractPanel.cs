@@ -26,7 +26,7 @@ public class CompanionInteractPanel : MonoBehaviour
 			if (flag2)
 			{
 				bool flag3 = container != null && Instance._companionContainer != null && container == Instance._companionContainer;
-				CompanionsPlugin.Log.LogInfo("[UI] InventoryGui.Show prefix container=" + ContainerName(container) + " " + $"needsCleanup={flag2} visible={Instance._visible} panelActive={flag} " + $"gamepadInjected={Instance._gamepadInjected} sameCompanion={flag3} " + "trackedCompanionContainer=" + ContainerName(Instance._companionContainer));
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo("[UI] InventoryGui.Show prefix container=" + ContainerName(container) + " " + $"needsCleanup={flag2} visible={Instance._visible} panelActive={flag} " + $"gamepadInjected={Instance._gamepadInjected} sameCompanion={flag3} " + "trackedCompanionContainer=" + ContainerName(Instance._companionContainer));
 				if (!flag3)
 				{
 					Instance.HideForContainerSwitch();
@@ -262,7 +262,7 @@ public class CompanionInteractPanel : MonoBehaviour
 		Inventory inventory = _companionHumanoid?.GetInventory();
 		int num = inventory?.NrOfItems() ?? (-1);
 		float num2 = inventory?.GetTotalWeight() ?? (-1f);
-		CompanionsPlugin.Log.LogInfo($"[UI] Show â€” companion=\"{companion.name}\" id={companion.GetInstanceID()} " + $"char={_companionChar != null} humanoid={_companionHumanoid != null} " + $"food={_companionFood != null} nview={_companionNview != null} " + $"items={num} weight={num2:F1} " + "currentContainer=" + ContainerName(container) + " companionContainer=" + ContainerName(_companionContainer));
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo($"[UI] Show â€” companion=\"{companion.name}\" id={companion.GetInstanceID()} " + $"char={_companionChar != null} humanoid={_companionHumanoid != null} " + $"food={_companionFood != null} nview={_companionNview != null} " + $"items={num} weight={num2:F1} " + "currentContainer=" + ContainerName(container) + " companionContainer=" + ContainerName(_companionContainer));
 		EnsureCompanionOwnership();
 		bool flag = !companion.CanWearArmor();
 		if (_root == null)
@@ -276,7 +276,7 @@ public class CompanionInteractPanel : MonoBehaviour
 			_built = false;
 		}
 		_builtForDverger = flag;
-		CompanionsPlugin.Log.LogDebug($"[UI] Show â€” built={_built} gridCreated={_gridCreated} " + $"grid={_grid != null} root={_root != null}");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[UI] Show â€” built={_built} gridCreated={_gridCreated} " + $"grid={_grid != null} root={_root != null}");
 		if (!_built)
 		{
 			BuildUI();
@@ -310,7 +310,7 @@ public class CompanionInteractPanel : MonoBehaviour
 			_gridWidthField?.SetValue(_grid, 0);
 			_gridHeightField?.SetValue(_grid, 0);
 			_gridCreated = false;
-			CompanionsPlugin.Log.LogDebug($"[UI] Show â€” forced grid rebuild (old={num3}x{num4} â†’ 0x0, gridCreated=false)");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[UI] Show â€” forced grid rebuild (old={num3}x{num4} â†’ 0x0, gridCreated=false)");
 		}
 		if (instance != null && instance.m_container != null)
 		{
@@ -320,7 +320,7 @@ public class CompanionInteractPanel : MonoBehaviour
 		_root.transform.SetAsLastSibling();
 		_visible = true;
 		Inventory storageInventory = GetStorageInventory();
-		CompanionsPlugin.Log.LogDebug($"[UI] Show â€” pre-UpdateGrid inv={storageInventory != null} " + $"items={storageInventory?.NrOfItems() ?? (-1)} weight={storageInventory?.GetTotalWeight() ?? (-1f):F1} " + $"invDim={storageInventory?.GetWidth() ?? (-1)}x{storageInventory?.GetHeight() ?? (-1)}");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[UI] Show â€” pre-UpdateGrid inv={storageInventory != null} " + $"items={storageInventory?.NrOfItems() ?? (-1)} weight={storageInventory?.GetTotalWeight() ?? (-1f):F1} " + $"invDim={storageInventory?.GetWidth() ?? (-1)}x{storageInventory?.GetHeight() ?? (-1)}");
 		if (storageInventory != null && (storageInventory.GetWidth() <= 0 || storageInventory.GetHeight() <= 0))
 		{
 			CompanionsPlugin.Log.LogError($"[UI] Show â€” INVALID inventory dimensions: {storageInventory.GetWidth()}x{storageInventory.GetHeight()}! " + "This will cause grid rendering issues.");
@@ -399,7 +399,7 @@ public class CompanionInteractPanel : MonoBehaviour
 		InventoryGui instance = InventoryGui.instance;
 		if (instance == null || !instance.IsContainerOpen())
 		{
-			CompanionsPlugin.Log.LogDebug("[UI] Update hide: InventoryGui missing or container closed");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[UI] Update hide: InventoryGui missing or container closed");
 			Hide();
 			return;
 		}
@@ -408,14 +408,14 @@ public class CompanionInteractPanel : MonoBehaviour
 			Container container = _currentContainerField.GetValue(instance) as Container;
 			if (container == null || container != _companionContainer)
 			{
-				CompanionsPlugin.Log.LogInfo("[UI] Update hide: current container mismatch current=" + ContainerName(container) + " companion=" + ContainerName(_companionContainer));
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo("[UI] Update hide: current container mismatch current=" + ContainerName(container) + " companion=" + ContainerName(_companionContainer));
 				Hide();
 				return;
 			}
 		}
 		if (_companion == null || !_companion)
 		{
-			CompanionsPlugin.Log.LogDebug("[UI] Update hide: companion destroyed");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[UI] Update hide: companion destroyed");
 			Hide();
 			return;
 		}
@@ -424,7 +424,7 @@ public class CompanionInteractPanel : MonoBehaviour
 			float num = Vector3.Distance(Player.m_localPlayer.transform.position, _companion.transform.position);
 			if (num > 5f)
 			{
-				CompanionsPlugin.Log.LogDebug($"[UI] Update hide: out of range dist={num:F2}");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[UI] Update hide: out of range dist={num:F2}");
 				Hide();
 				return;
 			}
@@ -462,13 +462,13 @@ public class CompanionInteractPanel : MonoBehaviour
 		_dragging = false;
 		if (enabled)
 		{
-			CompanionsPlugin.Log.LogInfo("[UI] F7 â€” drag-to-reposition mode ENABLED");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo("[UI] F7 â€” drag-to-reposition mode ENABLED");
 			Player.m_localPlayer?.Message(MessageHud.MessageType.Center, ModLocalization.Loc("hc_msg_reposition_on"));
 		}
 		else
 		{
 			SavePanelOffset();
-			CompanionsPlugin.Log.LogInfo($"[UI] F7 â€” drag-to-reposition mode DISABLED, offset=({_userOffset.x:F0}, {_userOffset.y:F0})");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo($"[UI] F7 â€” drag-to-reposition mode DISABLED, offset=({_userOffset.x:F0}, {_userOffset.y:F0})");
 			Player.m_localPlayer?.Message(MessageHud.MessageType.Center, ModLocalization.Loc("hc_msg_reposition_off"));
 		}
 	}
@@ -485,7 +485,7 @@ public class CompanionInteractPanel : MonoBehaviour
 			_dragging = true;
 			_dragMouseStart = Input.mousePosition;
 			_dragPanelStart = rectTransform.anchoredPosition;
-			CompanionsPlugin.Log.LogDebug($"[UI] Drag started â€” mouse={_dragMouseStart} panel={_dragPanelStart}");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[UI] Drag started â€” mouse={_dragMouseStart} panel={_dragPanelStart}");
 		}
 		if (_dragging && Input.GetMouseButton(0))
 		{
@@ -500,7 +500,7 @@ public class CompanionInteractPanel : MonoBehaviour
 		if (Input.GetMouseButtonUp(0) && _dragging)
 		{
 			_dragging = false;
-			CompanionsPlugin.Log.LogDebug($"[UI] Drag ended â€” final position={rectTransform.anchoredPosition}");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[UI] Drag ended â€” final position={rectTransform.anchoredPosition}");
 		}
 	}
 
@@ -716,7 +716,7 @@ public class CompanionInteractPanel : MonoBehaviour
 		{
 			CompanionsPlugin.Log.LogWarning("[DIAG] _gridElementsField itself is NULL (AccessTools.Field failed)");
 		}
-		CompanionsPlugin.Log.LogDebug("[DIAG] Reached end of grid setup, about to call UpdateGrid");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[DIAG] Reached end of grid setup, about to call UpdateGrid");
 		_gridWidthField?.SetValue(_grid, 0);
 		_grid.m_onSelected = OnCompanionSelected;
 		_grid.m_onRightClick = OnCompanionRightClick;
@@ -739,7 +739,7 @@ public class CompanionInteractPanel : MonoBehaviour
 		_grid.m_uiGroup = _uiGroup;
 		_grid.OnMoveToUpperInventoryGrid = OnMoveToUpperGrid;
 		TMP_Text tMP_Text = FindClonedComponent<TMP_Text>(instance.m_containerName, instance.m_container);
-		CompanionsPlugin.Log.LogDebug($"[UI] Clone â€” grid={_grid != null}, name={tMP_Text != null}");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[UI] Clone â€” grid={_grid != null}, name={tMP_Text != null}");
 		HideClonedComponent(instance.m_takeAllButton, instance.m_container);
 		HideClonedComponent(instance.m_stackAllButton, instance.m_container);
 		HideClonedComponent(instance.m_dropButton, instance.m_container);
@@ -762,7 +762,7 @@ public class CompanionInteractPanel : MonoBehaviour
 		}
 		_built = true;
 		_gridCreated = false;
-		CompanionsPlugin.Log.LogInfo("[UI] BuildUI â€” Cloned container panel successfully");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo("[UI] BuildUI â€” Cloned container panel successfully");
 	}
 
 	/// <summary>Fase 3.19 (auditoria): saves the name typed in the field. Called when the field is done (onEndEdit) and
@@ -838,7 +838,7 @@ public class CompanionInteractPanel : MonoBehaviour
 			_grid.SetTouchSelection(new Vector2i(0, 0));
 			_setActiveGroupMethod?.Invoke(instance, new object[2] { 0, false });
 			_gamepadInjected = true;
-			CompanionsPlugin.Log.LogInfo($"[UI] Gamepad injected group0Old={_savedVanillaGroup != null} " + $"containerGridOld={_savedContainerGrid != null} " + "companionContainer=" + ContainerName(_companionContainer));
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo($"[UI] Gamepad injected group0Old={_savedVanillaGroup != null} " + $"containerGridOld={_savedContainerGrid != null} " + "companionContainer=" + ContainerName(_companionContainer));
 		}
 	}
 
@@ -853,7 +853,7 @@ public class CompanionInteractPanel : MonoBehaviour
 			return;
 		}
 		_visible = false;
-		CompanionsPlugin.Log.LogInfo($"[UI] HideInternal reason={reason} closeGui={closeInventoryGuiIfNoTakeover} " + "companionContainer=" + ContainerName(_companionContainer));
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo($"[UI] HideInternal reason={reason} closeGui={closeInventoryGuiIfNoTakeover} " + "companionContainer=" + ContainerName(_companionContainer));
 		RestoreGamepadGroups();
 		if (_dragMode)
 		{
@@ -889,7 +889,7 @@ public class CompanionInteractPanel : MonoBehaviour
 		{
 			InventoryGui.instance.Hide();
 		}
-		CompanionsPlugin.Log.LogInfo($"[UI] HideInternal done reason={reason} anotherContainerOpen={flag2} " + $"guiVisible={InventoryGui.instance != null && InventoryGui.IsVisible()}");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo($"[UI] HideInternal done reason={reason} anotherContainerOpen={flag2} " + $"guiVisible={InventoryGui.instance != null && InventoryGui.IsVisible()}");
 	}
 
 	private void HideForContainerSwitch()
@@ -923,7 +923,7 @@ public class CompanionInteractPanel : MonoBehaviour
 			{
 				container = _currentContainerField.GetValue(instance) as Container;
 			}
-			CompanionsPlugin.Log.LogInfo("[UI] Gamepad restored currentContainer=" + ContainerName(container));
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo("[UI] Gamepad restored currentContainer=" + ContainerName(container));
 		}
 	}
 
@@ -936,7 +936,7 @@ public class CompanionInteractPanel : MonoBehaviour
 			PlayerPrefs.SetFloat("HC_PanelOffsetX", _userOffset.x);
 			PlayerPrefs.SetFloat("HC_PanelOffsetY", _userOffset.y);
 			PlayerPrefs.Save();
-			CompanionsPlugin.Log.LogDebug($"[UI] Panel offset saved=({_userOffset.x:F0}, {_userOffset.y:F0})");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[UI] Panel offset saved=({_userOffset.x:F0}, {_userOffset.y:F0})");
 		}
 	}
 
@@ -949,7 +949,7 @@ public class CompanionInteractPanel : MonoBehaviour
 			rectTransform.anchoredPosition = _defaultPosition + _userOffset;
 			if (_userOffset.sqrMagnitude > 0.01f)
 			{
-				CompanionsPlugin.Log.LogInfo($"[UI] Applied saved panel offset=({_userOffset.x:F0}, {_userOffset.y:F0}) " + $"â†’ position={rectTransform.anchoredPosition}");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo($"[UI] Applied saved panel offset=({_userOffset.x:F0}, {_userOffset.y:F0}) " + $"â†’ position={rectTransform.anchoredPosition}");
 			}
 		}
 	}
@@ -970,7 +970,7 @@ public class CompanionInteractPanel : MonoBehaviour
 			}
 			if (childCount != 0)
 			{
-				CompanionsPlugin.Log.LogInfo($"[UI] Cleared {childCount} leftover chest icon(s) from the companion panel copy");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo($"[UI] Cleared {childCount} leftover chest icon(s) from the companion panel copy");
 			}
 		}
 	}
@@ -1156,7 +1156,7 @@ public class CompanionInteractPanel : MonoBehaviour
 		}
 		foreach (GameObject item2 in list)
 		{
-			CompanionsPlugin.Log.LogDebug("[UI] DestroyClonedModButtons â€” removing \"" + item2.name + "\"");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[UI] DestroyClonedModButtons â€” removing \"" + item2.name + "\"");
 			UnityEngine.Object.Destroy(item2);
 		}
 	}
@@ -1259,7 +1259,7 @@ public class CompanionInteractPanel : MonoBehaviour
 				_weightText.fontSizeMax = gui.m_weight.fontSizeMax;
 				_weightText.enableAutoSizing = gui.m_weight.enableAutoSizing;
 			}
-			CompanionsPlugin.Log.LogDebug($"[UI] Found cloned weight text: \"{_weightText.name}\" fontSize={_weightText.fontSize}");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[UI] Found cloned weight text: \"{_weightText.name}\" fontSize={_weightText.fontSize}");
 		}
 		else
 		{
@@ -1624,7 +1624,7 @@ public class CompanionInteractPanel : MonoBehaviour
 		component.anchorMax = component2.anchorMax;
 		component.pivot = component2.pivot;
 		component.anchoredPosition = component2.anchoredPosition + new Vector2(0f, 150f);
-		CompanionsPlugin.Log.LogDebug($"[UI] Cloned armor display â€” text={_armorText != null} " + $"parent=\"{_weightText.transform.parent.name}\" pos={component.anchoredPosition}");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[UI] Cloned armor display â€” text={_armorText != null} " + $"parent=\"{_weightText.transform.parent.name}\" pos={component.anchoredPosition}");
 	}
 
 	private void ClearDrag()

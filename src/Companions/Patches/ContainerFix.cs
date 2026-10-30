@@ -37,16 +37,16 @@ internal static class ContainerFix
 			}
 			if (methodInfo == null || type == null)
 			{
-				Log("[ContainerFix] Harmony Patch API not found.");
+				if (CompanionsPlugin.LogDetailed) Log("[ContainerFix] Harmony Patch API not found.");
 				return;
 			}
 			PatchOne(harmony, methodInfo, type, "Load", "LoadPrefix", "LoadPostfix");
 			PatchOne(harmony, methodInfo, type, "Save", null, "SavePostfix");
-			Log("[ContainerFix] installed.");
+			if (CompanionsPlugin.LogDetailed) Log("[ContainerFix] installed.");
 		}
 		catch (Exception ex)
 		{
-			Log("[ContainerFix] install failed: " + ex.Message);
+			if (CompanionsPlugin.LogDetailed) Log("[ContainerFix] install failed: " + ex.Message);
 		}
 	}
 
@@ -130,7 +130,7 @@ internal static class ContainerFix
 			if (!_logged)
 			{
 				_logged = true;
-				CompanionsPlugin.Log?.LogInfo("[ContainerFix] Skipping redundant Container.Load for the companion (items unchanged; ZDO revision bumped by other data).");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log?.LogInfo("[ContainerFix] Skipping redundant Container.Load for the companion (items unchanged; ZDO revision bumped by other data).");
 			}
 			return false;
 		}
@@ -190,7 +190,7 @@ internal static class ContainerFix
 			MethodInfo method = typeof(Container).GetMethod(methodName, bindingAttr);
 			if (method == null)
 			{
-				Log("[ContainerFix] method not found: " + methodName);
+				if (CompanionsPlugin.LogDetailed) Log("[ContainerFix] method not found: " + methodName);
 				return;
 			}
 			ParameterInfo[] parameters = patchMethod.GetParameters();
@@ -212,12 +212,12 @@ internal static class ContainerFix
 		}
 		catch (Exception ex)
 		{
-			Log("[ContainerFix] patch failed for " + methodName + ": " + ex.Message);
+			if (CompanionsPlugin.LogDetailed) Log("[ContainerFix] patch failed for " + methodName + ": " + ex.Message);
 		}
 	}
 
 	private static void Log(string s)
 	{
-		CompanionsPlugin.Log?.LogInfo(s);
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log?.LogInfo(s);
 	}
 }

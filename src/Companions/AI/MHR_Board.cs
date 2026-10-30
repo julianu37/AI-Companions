@@ -115,7 +115,7 @@ internal static class MHR_Board
 
 	private static void Log(string msg)
 	{
-		CompanionsPlugin.Log?.LogInfo("[Board] " + msg);
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log?.LogInfo("[Board] " + msg);
 	}
 
 	internal static bool Active(CompanionAI ai)
@@ -192,7 +192,7 @@ internal static class MHR_Board
 		s.JumpLogged = false;
 		MHR_Mover.Release(ai);
 		MHR_Deck.Release(ai);
-		Log(ai.GetComponent<Character>()?.m_name + (auto ? " is following you aboard" : " is boarding the ship"));
+		if (CompanionsPlugin.LogNormal) Log(ai.GetComponent<Character>()?.m_name + (auto ? " is following you aboard" : " is boarding the ship"));
 	}
 
 	internal static void Cancel(CompanionAI ai)
@@ -448,7 +448,7 @@ internal static class MHR_Board
 			s.NextJump = 0f;
 			s.LeapAt = -10f;
 			s.HasLeaveSpot = MHR_Deck.SideSpot(ship, ai.transform.position, p.transform.position, out s.LeaveSpot) || MHR_Deck.SpotNear(ship, p.transform.position, out s.LeaveSpot);
-			Log(c.m_name + " getting off the ship");
+			if (CompanionsPlugin.LogNormal) Log(c.m_name + " getting off the ship");
 		}
 		if (now - s.LeaveSince > 15f)
 		{
@@ -483,7 +483,7 @@ internal static class MHR_Board
 			s.LeapAt = now;
 			s.LeapDir = dir;
 			MHR_Jump.Leap(ai, c, dir);
-			Log(c.m_name + " jumping off the ship");
+			if (CompanionsPlugin.LogNormal) Log(c.m_name + " jumping off the ship");
 		}
 		return true;
 	}
@@ -567,7 +567,7 @@ internal static class MHR_Board
 		}
 		s.SatOn = null;
 		s.OwnerOffSince = -1f;
-		Log(ai.GetComponent<Character>()?.m_name + " - you've gone ashore, getting off the ship");
+		if (CompanionsPlugin.LogNormal) Log(ai.GetComponent<Character>()?.m_name + " - you've gone ashore, getting off the ship");
 		return true;
 	}
 
@@ -600,7 +600,7 @@ internal static class MHR_Board
 				{
 					s.SeatSince = now;
 					s.ProgressAt = now;
-					Log($"{name} is aboard - walking to a seat: '{SeatPath(seat.transform, ship.transform)}' at {local:F2} on the ship");
+					if (CompanionsPlugin.LogNormal) Log($"{name} is aboard - walking to a seat: '{SeatPath(seat.transform, ship.transform)}' at {local:F2} on the ship");
 				}
 				Vector3 spot = MHR_Deck.SpotNear(ship, seat.m_attachPoint.position, out Vector3 l2) ? l2 : local;
 				bool there = MHR_Deck.Walk(ai, ship, spot, 0.6f, out bool stuck, walkLast: 1f);
@@ -610,10 +610,10 @@ internal static class MHR_Board
 				}
 				if (!there)
 				{
-					Log(name + " can't get any closer to the seat - sitting down anyway");
+					if (CompanionsPlugin.LogNormal) Log(name + " can't get any closer to the seat - sitting down anyway");
 				}
 				Cancel(ai);
-				Log($"{name} sits down: '{SeatPath(seat.transform, ship.transform)}' (world {seat.m_attachPoint.position:F1})");
+				if (CompanionsPlugin.LogNormal) Log($"{name} sits down: '{SeatPath(seat.transform, ship.transform)}' (world {seat.m_attachPoint.position:F1})");
 				ai.AttachToShip(ship, seat);
 				// 1.5.88: ordered aboard too - it gets up when you go ashore if it's following you (log 5930316c: "did not leave
 				// when I did")
@@ -622,7 +622,7 @@ internal static class MHR_Board
 			else
 			{
 				Cancel(ai);
-				Log(name + " is aboard - no free seat, standing on deck");
+				if (CompanionsPlugin.LogNormal) Log(name + " is aboard - no free seat, standing on deck");
 				if (!auto)
 				{
 					ai.BoardingEnded();
@@ -644,7 +644,7 @@ internal static class MHR_Board
 			if (d < l.m_useDistance - 0.1f && (c.IsSwimming() || c.IsOnGround()))
 			{
 				l.Interact(h, hold: false, alt: false);
-				Log(name + " used the ship's ladder");
+				if (CompanionsPlugin.LogNormal) Log(name + " used the ship's ladder");
 				s.ProgressAt = now;
 				return true;
 			}
@@ -663,7 +663,7 @@ internal static class MHR_Board
 			if (now >= s.NextLog)
 			{
 				s.NextLog = now + 5f;
-				Log($"{name} resting before the swim ({(stam != null ? stam.Stamina : 0f):F0}/{(stam != null ? stam.MaxStamina : 0f):F0} stamina)");
+				if (CompanionsPlugin.LogNormal) Log($"{name} resting before the swim ({(stam != null ? stam.Stamina : 0f):F0}/{(stam != null ? stam.MaxStamina : 0f):F0} stamina)");
 			}
 		}
 		// progress = getting closer to the ship
@@ -690,13 +690,13 @@ internal static class MHR_Board
 			{
 				s.HasTakeoff = true;
 				s.Takeoff = from;
-				Log($"{name} going to jump aboard where you did, from {from:F1}");
+				if (CompanionsPlugin.LogNormal) Log($"{name} going to jump aboard where you did, from {from:F1}");
 			}
 			else if (JumpSpot(c, ship, me, out Vector3 spot))
 			{
 				s.HasTakeoff = true;
 				s.Takeoff = spot;
-				Log($"{name} going to jump aboard from {spot:F1} ({Flat(spot, me):F1} m away)");
+				if (CompanionsPlugin.LogNormal) Log($"{name} going to jump aboard from {spot:F1} ({Flat(spot, me):F1} m away)");
 			}
 		}
 		if (s.HasTakeoff && !c.IsSwimming())
@@ -712,7 +712,7 @@ internal static class MHR_Board
 				{
 					s.HasTakeoff = false;
 					MHR_Mover.Release(ai);
-					Log(name + " can't get to the spot to jump aboard from - the ladder instead");
+					if (CompanionsPlugin.LogNormal) Log(name + " can't get to the spot to jump aboard from - the ladder instead");
 				}
 				return true;
 			}
@@ -720,7 +720,7 @@ internal static class MHR_Board
 			if (s.TakeoffJumps >= 3 || now - s.ProgressAt > 6f)
 			{
 				s.HasTakeoff = false;
-				Log(name + " couldn't jump aboard from there - the ladder instead");
+				if (CompanionsPlugin.LogNormal) Log(name + " couldn't jump aboard from there - the ladder instead");
 			}
 			else
 			{
@@ -739,7 +739,7 @@ internal static class MHR_Board
 			s.HasLaunch = LaunchSpot(near, me, out s.Launch);
 			if (s.HasLaunch)
 			{
-				Log($"{name} heading for the water's edge nearest the ladder ({Flat(s.Launch, near.transform.position):F1} m from it)");
+				if (CompanionsPlugin.LogNormal) Log($"{name} heading for the water's edge nearest the ladder ({Flat(s.Launch, near.transform.position):F1} m from it)");
 			}
 		}
 		// a swim longer than it has stamina for at all: say so and wait on the shore
@@ -767,7 +767,7 @@ internal static class MHR_Board
 				if (s.TreadSince < 0f)
 				{
 					s.TreadSince = now;
-					Log(name + " treading water by the ladder until it's in reach");
+					if (CompanionsPlugin.LogNormal) Log(name + " treading water by the ladder until it's in reach");
 				}
 				s.ProgressAt = now;
 				if (flatL > 0.8f)
@@ -801,7 +801,7 @@ internal static class MHR_Board
 						if (now >= s.NextLog)
 						{
 							s.NextLog = now + 5f;
-							Log($"{name} resting before the swim to the ladder ({st2.Stamina:F0}/{need:F0} stamina)");
+							if (CompanionsPlugin.LogNormal) Log($"{name} resting before the swim to the ladder ({st2.Stamina:F0}/{need:F0} stamina)");
 						}
 						return true;
 					}
@@ -813,7 +813,7 @@ internal static class MHR_Board
 						// 1.5.92: the launch spot is used once (log 571a5159: it landed in the shallows, walked the long way back
 						// round the dock to the launch spot and dived again - three times)
 						s.HasLaunch = false;
-						Log($"{name} diving in towards the ladder ({flatL:F1} m)");
+						if (CompanionsPlugin.LogNormal) Log($"{name} diving in towards the ladder ({flatL:F1} m)");
 					}
 					return true;
 				}
@@ -836,7 +836,7 @@ internal static class MHR_Board
 			{
 				s.WadeAt = now;
 				s.WadeBest = flatL;
-				Log($"{name} wading to the ladder ({flatL:F1} m)");
+				if (CompanionsPlugin.LogNormal) Log($"{name} wading to the ladder ({flatL:F1} m)");
 			}
 			if (flatL < s.WadeBest - 0.3f)
 			{
@@ -847,7 +847,7 @@ internal static class MHR_Board
 			if (now - s.WadeAt > 4f)
 			{
 				s.WadeGaveUp = true;
-				Log(name + " can't wade any closer to the ladder - going round");
+				if (CompanionsPlugin.LogNormal) Log(name + " can't wade any closer to the ladder - going round");
 			}
 			else
 			{
@@ -872,7 +872,7 @@ internal static class MHR_Board
 				s.Footsteps = true;
 				s.StepBest = float.MaxValue;
 				s.ProgressAt = now;
-				Log($"{name} can't find its own way aboard - following your steps (you got on at {s.StepFrom:F1})");
+				if (CompanionsPlugin.LogNormal) Log($"{name} can't find its own way aboard - following your steps (you got on at {s.StepFrom:F1})");
 			}
 		}
 		if (s.Footsteps)
@@ -898,7 +898,7 @@ internal static class MHR_Board
 					{
 						s.NextJump = now + 1.5f;
 						MHR_Jump.Leap(ai, c, dir);
-						Log(name + " jumping where you did");
+						if (CompanionsPlugin.LogNormal) Log(name + " jumping where you did");
 					}
 					else
 					{
@@ -931,7 +931,7 @@ internal static class MHR_Board
 		if (now >= s.NextLog)
 		{
 			s.NextLog = now + 5f;
-			CompanionsPlugin.Log?.LogDebug($"[Board] {name}: {dist:F1} m from the ship, nearest ladder {(nearest != null ? ld.ToString("F1") + " m" : "none")}{(s.Footsteps ? ", on your steps" : "")}");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log?.LogDebug($"[Board] {name}: {dist:F1} m from the ship, nearest ladder {(nearest != null ? ld.ToString("F1") + " m" : "none")}{(s.Footsteps ? ", on your steps" : "")}");
 		}
 		// stuck too long: wait on the shore
 		if (now - s.ProgressAt > StuckFor * 2f || now - s.Since > GiveUpAfter * 2f || (s.Footsteps && now - s.ProgressAt > StuckFor))
@@ -979,7 +979,7 @@ internal static class MHR_Board
 			if (!s.JumpLogged && gap > 0f && gap <= 6f)
 			{
 				s.JumpLogged = true;
-				CompanionsPlugin.Log?.LogInfo($"[Board] {name} can't jump aboard from {me:F1}: {gap:F1} m across, {dy:+0.0;-0.0} m up, its jump reaches {reach:F1} m, {(clear ? "clear" : "something in the way")}");
+				if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log?.LogInfo($"[Board] {name} can't jump aboard from {me:F1}: {gap:F1} m across, {dy:+0.0;-0.0} m up, its jump reaches {reach:F1} m, {(clear ? "clear" : "something in the way")}");
 			}
 			return false;
 		}
@@ -990,7 +990,7 @@ internal static class MHR_Board
 			s.TakeoffJumps++;
 		}
 		MHR_Jump.Leap(ai, c, dir);
-		Log($"{name} jumping aboard ({gap:F1} m across, {dy:+0.0;-0.0} m up)");
+		if (CompanionsPlugin.LogNormal) Log($"{name} jumping aboard ({gap:F1} m across, {dy:+0.0;-0.0} m up)");
 		return true;
 	}
 
@@ -1071,7 +1071,7 @@ internal static class MHR_Board
 	{
 		Ship ship = s.Ship;
 		bool auto = s.Auto;
-		Log(c.m_name + " can't get aboard (" + why + ") - waiting on the shore");
+		if (CompanionsPlugin.LogNormal) Log(c.m_name + " can't get aboard (" + why + ") - waiting on the shore");
 		Cancel(ai);
 		s.HoldShip = ship;
 		s.HoldUntil = Time.time + HoldFor;

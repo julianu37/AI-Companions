@@ -23,13 +23,13 @@ internal static class StarterFix
 				{
 					Game.instance.SavePlayerProfile(setLogoutPoint: false);
 				}
-				Log("[CompanionManager] ResetStarterFlag: cleared the starter-companion flag for this world/character; the starter panel can show again.");
+				if (CompanionsPlugin.LogNormal) Log("[CompanionManager] ResetStarterFlag: cleared the starter-companion flag for this world/character; the starter panel can show again.");
 				return true;
 			}
 		}
 		catch (Exception ex)
 		{
-			Log("[CompanionManager] ResetStarterFlag failed: " + ex.Message);
+			if (CompanionsPlugin.LogNormal) Log("[CompanionManager] ResetStarterFlag failed: " + ex.Message);
 		}
 		return false;
 	}
@@ -47,12 +47,12 @@ internal static class StarterFix
 				{
 					Game.instance.SavePlayerProfile(setLogoutPoint: false);
 				}
-				Log("[CompanionManager] Starter companion spawned - marked this world as done for the character.");
+				if (CompanionsPlugin.LogNormal) Log("[CompanionManager] Starter companion spawned - marked this world as done for the character.");
 			}
 		}
 		catch (Exception ex)
 		{
-			Log("[CompanionManager] MarkSpawned failed: " + ex.Message);
+			if (CompanionsPlugin.LogNormal) Log("[CompanionManager] MarkSpawned failed: " + ex.Message);
 		}
 	}
 
@@ -68,6 +68,6 @@ internal static class StarterFix
 
 	private static void Log(string s)
 	{
-		CompanionsPlugin.Log?.LogInfo(s);
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log?.LogInfo(s);
 	}
 }

@@ -36,6 +36,10 @@ internal static class MHR_RiseWatch
 
 	internal static void Tick(CompanionSetup cs)
 	{
+		if (!CompanionsPlugin.LogDetailed)
+		{
+			return;
+		}
 		try
 		{
 			if (cs == null)
@@ -83,7 +87,8 @@ internal static class MHR_RiseWatch
 			Sample low = prev;
 			float rise = pos.y - low.Pos.y;
 			float across = new Vector2(pos.x - low.Pos.x, pos.z - low.Pos.z).magnitude;
-			if (rise < 1f || rise < across * 1.5f)
+			// 1.5.73: not the game moving it - a dungeon's inside is 5000 m up (log 702b4b9c: "rose 5001 m")
+			if (rise < 1f || rise < across * 1.5f || rise > 50f)
 			{
 				return;
 			}

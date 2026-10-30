@@ -32,7 +32,7 @@ public partial class CompanionCombatAI
 		if (!MHR_Mover.SafeStep(me, way / len, Mathf.Min(2f, len)))
 		{
 			_ai.StopMoving();
-			UnsafeLog("not walking on towards " + (_targetCreature != null ? _targetCreature.m_name : "it") + " - a drop, water, fire or spikes in the way");
+			if (CompanionsPlugin.LogDetailed) UnsafeLog("not walking on towards " + (_targetCreature != null ? _targetCreature.m_name : "it") + " - a drop, water, fire or spikes in the way");
 			return false;
 		}
 		return _ai.GameMoveTo(dt, point, dist, run);
@@ -65,7 +65,7 @@ public partial class CompanionCombatAI
 			}
 		}
 		_ai.StopMoving();
-		UnsafeLog("no safe way to back off (a drop, water, fire or spikes) - standing its ground");
+		if (CompanionsPlugin.LogDetailed) UnsafeLog("no safe way to back off (a drop, water, fire or spikes) - standing its ground");
 		return false;
 	}
 
@@ -105,7 +105,7 @@ public partial class CompanionCombatAI
 		if (Time.time >= _nextUnsafeLog)
 		{
 			_nextUnsafeLog = Time.time + 5f;
-			CompanionsPlugin.Log.LogDebug("[Combat] " + msg);
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Combat] " + msg);
 		}
 	}
 }

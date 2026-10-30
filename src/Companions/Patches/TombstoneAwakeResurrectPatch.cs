@@ -22,7 +22,7 @@ public static class TombstoneAwakeResurrectPatch
 		if (!string.IsNullOrEmpty(value) && !(__instance.GetComponent<CompanionTombstoneResurrect>() != null))
 		{
 			__instance.gameObject.AddComponent<CompanionTombstoneResurrect>();
-			CompanionsPlugin.Log.LogDebug("[TombstoneAwake] Re-attached CompanionTombstoneResurrect on zone reload");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[TombstoneAwake] Re-attached CompanionTombstoneResurrect on zone reload");
 		}
 	}
 }

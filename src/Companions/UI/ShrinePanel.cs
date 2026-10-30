@@ -62,14 +62,14 @@ public class ShrinePanel : MonoBehaviour
 	{
 		string text = ModLocalization.Loc("hc_shrine_flavor") + "\n\n" + ModLocalization.LocFmt("hc_shrine_offering", CompanionTierData.Price.ToString("N0"));
 		Push(new YesNoPopup(ModLocalization.Loc("hc_shrine_title"), text, Summon, ShowRecover, localizeText: false), ModLocalization.Loc("hc_shrine_btn_summon"), ModLocalization.Loc("hc_shrine_btn_recover_list"), null);
-		CompanionsPlugin.Log.LogInfo("[Shrine] Menu opened");
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Shrine] Menu opened");
 	}
 
 	// each companion on the roster and its status; Recover when one can be brought back, Back to the menu
 	private void ShowRecover()
 	{
 		List<KeyValuePair<MHR_Roster.Entry, MHR_Roster.Status>> roster = MHR_Roster.GetRoster();
-		CompanionsPlugin.Log.LogInfo($"[Shrine] Recover list - {roster.Count} companion(s) on the roster");
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Shrine] Recover list - {roster.Count} companion(s) on the roster");
 		List<KeyValuePair<MHR_Roster.Entry, MHR_Roster.Status>> candidates = new List<KeyValuePair<MHR_Roster.Entry, MHR_Roster.Status>>();
 		StringBuilder sb = new StringBuilder();
 		foreach (KeyValuePair<MHR_Roster.Entry, MHR_Roster.Status> item in roster)
@@ -142,7 +142,7 @@ public class ShrinePanel : MonoBehaviour
 			CompanionShrine shrine = _shrine;
 			if (shrine != null)
 			{
-				CompanionsPlugin.Log.LogInfo($"[Shrine] Recovering {entry.Name} ({status})");
+				if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Shrine] Recovering {entry.Name} ({status})");
 				MHR_Roster.RecoverAt(entry, shrine.transform.position + shrine.transform.forward * 2f);
 			}
 		}, delegate
@@ -156,7 +156,7 @@ public class ShrinePanel : MonoBehaviour
 	{
 		int price = CompanionTierData.Price;
 		int have = CompanionManager.CoinsInPack();
-		CompanionsPlugin.Log.LogInfo($"[Shrine] Summon - offering {price}, you have {have} coins");
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Shrine] Summon - offering {price}, you have {have} coins");
 		Close();
 		if (have < price)
 		{
@@ -214,7 +214,7 @@ public class ShrinePanel : MonoBehaviour
 		{
 			if (away)
 			{
-				CompanionsPlugin.Log.LogInfo("[Shrine] Menu closed - walked away");
+				if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Shrine] Menu closed - walked away");
 			}
 			Close();
 		}

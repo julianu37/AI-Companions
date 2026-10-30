@@ -58,6 +58,12 @@ internal static class ModConfig
 
 	internal static ConfigEntry<bool> UseTorchOpener;
 
+	internal static ConfigEntry<bool> TorchBurnsDown;
+
+	internal static ConfigEntry<string> LogLevel;
+
+	internal static ConfigEntry<float> TorchDarkThreshold;
+
 	internal static ConfigEntry<bool> EngageOnNotice;
 
 	internal static ConfigEntry<float> TorchOpenerTimeout;
@@ -695,6 +701,8 @@ internal static class ModConfig
 	internal static ConfigEntry<float> TtsReverbZoneMix;
 
 	internal static ConfigEntry<bool> TtsEcoDiag;
+	// 1.5.72: controller binds - a button and a modifier held with it (MHR_Pad.Choices)
+	internal static ConfigEntry<string> PadCommand, PadCommandModifier, PadWheel, PadWheelModifier, PadSettings, PadSettingsModifier, PadFarmZone, PadFarmZoneModifier, PadPassive, PadPassiveModifier, PadBalanced, PadBalancedModifier, PadRanged, PadRangedModifier, PadMelee, PadMeleeModifier;
 
 	internal static void Init(ConfigFile cfg)
 	{
@@ -757,6 +765,25 @@ internal static class ModConfig
 		BalancedKey = Bind(cfg, "Controls", "BalancedKey", KeyCode.None, "Sets the Balanced stance, like PassiveKey.");
 		RangedKey = Bind(cfg, "Controls", "RangedKey", KeyCode.None, "Sets the Ranged stance, like PassiveKey.");
 		MeleeKey = Bind(cfg, "Controls", "MeleeKey", KeyCode.None, "Sets the Melee stance, like PassiveKey.");
+		// 1.5.72 (user: "These need to be able to be unmapped ... I also think we need to be able use modifiers for the controller.
+		// For example hold left trigger and a to activate the command button.")
+		AcceptableValueList<string> pad = new AcceptableValueList<string>(MHR_Pad.Choices);
+		PadCommand = Bind(cfg, "Controller", "Command", "Y", "Controller command button: tap while looking at something to send your companions to it, hold to call them to you. None = off. Use and Alt follow the game's controller layout (Alt is the game's own modifier - your block button); the rest are fixed buttons.", pad);
+		PadCommandModifier = Bind(cfg, "Controller", "CommandModifier", "Alt", "Held with Command. Held while pressing the button. While it's held, that button's press is for the companions only (the game doesn't see it); on its own the button works as normal. None = the button alone.", pad);
+		PadWheel = Bind(cfg, "Controller", "Wheel", "X", "Controller button for a companion's command wheel, while looking at it. None = off. Use and Alt follow the game's controller layout (Alt is the game's own modifier - your block button); the rest are fixed buttons.", pad);
+		PadWheelModifier = Bind(cfg, "Controller", "WheelModifier", "Alt", "Held with Wheel. Held while pressing the button. While it's held, that button's press is for the companions only (the game doesn't see it); on its own the button works as normal. None = the button alone.", pad);
+		PadSettings = Bind(cfg, "Controller", "Settings", "None", "Controller button for this settings panel. None = off. Use and Alt follow the game's controller layout (Alt is the game's own modifier - your block button); the rest are fixed buttons.", pad);
+		PadSettingsModifier = Bind(cfg, "Controller", "SettingsModifier", "None", "Held with Settings. Held while pressing the button. While it's held, that button's press is for the companions only (the game doesn't see it); on its own the button works as normal. None = the button alone.", pad);
+		PadFarmZone = Bind(cfg, "Controller", "FarmZone", "None", "Controller button for the farm zone editor. None = off. Use and Alt follow the game's controller layout (Alt is the game's own modifier - your block button); the rest are fixed buttons.", pad);
+		PadFarmZoneModifier = Bind(cfg, "Controller", "FarmZoneModifier", "None", "Held with FarmZone. Held while pressing the button. While it's held, that button's press is for the companions only (the game doesn't see it); on its own the button works as normal. None = the button alone.", pad);
+		PadPassive = Bind(cfg, "Controller", "Passive", "None", "Controller button for the Passive stance (like PassiveKey). None = off. Use and Alt follow the game's controller layout (Alt is the game's own modifier - your block button); the rest are fixed buttons.", pad);
+		PadPassiveModifier = Bind(cfg, "Controller", "PassiveModifier", "None", "Held with Passive. Held while pressing the button. While it's held, that button's press is for the companions only (the game doesn't see it); on its own the button works as normal. None = the button alone.", pad);
+		PadBalanced = Bind(cfg, "Controller", "Balanced", "None", "Controller button for the Balanced stance. None = off. Use and Alt follow the game's controller layout (Alt is the game's own modifier - your block button); the rest are fixed buttons.", pad);
+		PadBalancedModifier = Bind(cfg, "Controller", "BalancedModifier", "None", "Held with Balanced. Held while pressing the button. While it's held, that button's press is for the companions only (the game doesn't see it); on its own the button works as normal. None = the button alone.", pad);
+		PadRanged = Bind(cfg, "Controller", "Ranged", "None", "Controller button for the Ranged stance. None = off. Use and Alt follow the game's controller layout (Alt is the game's own modifier - your block button); the rest are fixed buttons.", pad);
+		PadRangedModifier = Bind(cfg, "Controller", "RangedModifier", "None", "Held with Ranged. Held while pressing the button. While it's held, that button's press is for the companions only (the game doesn't see it); on its own the button works as normal. None = the button alone.", pad);
+		PadMelee = Bind(cfg, "Controller", "Melee", "None", "Controller button for the Melee stance. None = off. Use and Alt follow the game's controller layout (Alt is the game's own modifier - your block button); the rest are fixed buttons.", pad);
+		PadMeleeModifier = Bind(cfg, "Controller", "MeleeModifier", "None", "Held with Melee. Held while pressing the button. While it's held, that button's press is for the companions only (the game doesn't see it); on its own the button works as normal. None = the button alone.", pad);
 		// [Follow]
 		FollowMaxDistance = Bind(cfg, "Follow", "MaxDistance", 10f, "How far a following companion lets you get before it moves to keep up. It picks its own spot within this range (beside, behind, sometimes ahead) and changes it now and then.", new AcceptableValueRange<float>(4f, 30f));
 		FollowAutoBoard = Bind(cfg, "Follow", "AutoBoard", defaultValue: true, "When you're aboard a ship close by, a following companion gets on too, the way you would: it jumps aboard from a dock or the shore, uses the ship's ladder (swimming to it if it has the stamina), or follows your own steps aboard. If it can't, it waits on the shore. A companion that took a seat gets up again when you go ashore.");
@@ -825,6 +852,8 @@ internal static class ModConfig
 		BowSwitchDistance = Bind(cfg, "Combat", "BowSwitchDistance", 15f, "A companion with a bow or crossbow switches to it when its target is further away than this (meters).", new AcceptableValueRange<float>(5f, 60f));
 		MeleeSwitchDistance = Bind(cfg, "Combat", "MeleeSwitchDistance", 12f, "It switches back to its melee weapon when the target comes closer than this (meters).", new AcceptableValueRange<float>(3f, 40f));
 		UseTorchOpener = Bind(cfg, "Combat", "UseTorchOpener", defaultValue: true, "Against enemies that are weak to fire, open with a torch to set them alight, then switch back to the best weapon.");
+		TorchBurnsDown = Bind(cfg, "Torch", "BurnsDown", defaultValue: true, "A torch in a companion's hand burns down like yours and is gone at 0 durability. Off: companions' torches last forever (the game itself only burns down players' torches).");
+		TorchDarkThreshold = Bind(cfg, "Torch", "DarkLevel", 0.4f, "In a dungeon or cave, a companion lights a torch when the light there is below this (0 = pitch black, 1 = bright day). The log shows the light level each time you go into one ([Torch] lines), to tune this. Outdoors it's simply night.", new AcceptableValueRange<float>(0f, 1f));
 		TorchOpenerTimeout = Bind(cfg, "Combat", "TorchOpenerTimeout", 4f, "Seconds to keep trying to set an enemy alight before giving up and switching back.", new AcceptableValueRange<float>(1f, 10f));
 		TorchOpenerCooldown = Bind(cfg, "Combat", "TorchOpenerCooldown", 10f, "Seconds before the same enemy can be opened on with a torch again.", new AcceptableValueRange<float>(0f, 60f));
 		TorchOpenerMinTargetHealth = Bind(cfg, "Combat", "TorchOpenerMinTargetHealth", 40f, "No torch opener on enemies with less maximum health than this - not worth it.", new AcceptableValueRange<float>(0f, 500f));
@@ -1020,10 +1049,11 @@ internal static class ModConfig
 		MeleeTooClose = Bind(cfg, "Advanced", "MeleeTooClose", 0.3f, "Combat: closer than this (meters, from the edge of the target) a companion steps back before swinging a melee weapon - a stab or swing that starts inside the target misses, like a player standing on top of a boar.", new AcceptableValueRange<float>(0f, 1.5f));
 		MeleeReachMargin = Bind(cfg, "Advanced", "MeleeReachMargin", 0.2f, "Combat: a companion swings a melee weapon only once it is at least this much (meters) inside the weapon's reach, not right at the edge of it, where hits are hit-or-miss.", new AcceptableValueRange<float>(0f, 1f));
 		BlockReactionTime = Bind(cfg, "Advanced", "BlockReactionTime", 0.2f, "Combat: seconds between an enemy starting a swing at a companion and the companion raising its guard.", new AcceptableValueRange<float>(0f, 1f));
-		LogPlayerCombat = Bind(cfg, "Advanced", "LogPlayerCombat", true, "Testing: write your own fighting to the log (debug level, lines starting [You]) - swings, guard, blocks and parries, enemy swings at you and how far you were - to help tune how companions fight. Will be removed once combat is tuned.");
+		LogPlayerCombat = Bind(cfg, "Advanced", "LogPlayerCombat", true, "Testing, with LogLevel on Detailed: write your own fighting to the log (lines starting [You]) - swings, guard, blocks and parries, enemy swings at you and how far you were - to help tune how companions fight. Will be removed once combat is tuned.");
 		FoodRegenInterval = Bind(cfg, "Advanced", "FoodRegenInterval", 10f, "Food: seconds between health regeneration ticks from food (a player's is 10).", new AcceptableValueRange<float>(1f, 60f));
 		ConsumeCheckInterval = Bind(cfg, "Advanced", "FoodCheckInterval", 1f, "Food: seconds between checks whether a companion should eat or drink.", new AcceptableValueRange<float>(0.5f, 10f));
 		TombstoneScanInterval = Bind(cfg, "Advanced", "TombstoneScanInterval", 5f, "Death: seconds between looks for its own leftover tombstone nearby.", new AcceptableValueRange<float>(1f, 30f));
+		LogLevel = Bind(cfg, "Advanced", "LogLevel", "Normal", "How much the mod writes to the BepInEx log. Off: warnings and errors only. Normal: the main events (orders, deaths, portals, jobs starting and stopping, problems). Detailed: everything the companions think and do, plus the diagnostics - turn this on when sending a log with a bug report. Lower levels cost nothing: the lines aren't even put together.", new AcceptableValueList<string>("Off", "Normal", "Detailed"));
 		TombstoneNavTimeout = Bind(cfg, "Advanced", "TombstoneNavTimeout", 120f, "Death: seconds a companion keeps trying to get to its tombstone before giving up.", new AcceptableValueRange<float>(10f, 600f));
 		// O diagnostico de UI: ligado, o log diz quem esta na frente dos controles (ver UI/ModUiAudit.cs). Fica na
 		// [Advanced] e nao na [AI] porque ele nao e da camada de IA: ele audita a UI do mod inteira - o painel F8 e
@@ -1386,7 +1416,7 @@ internal static class ModConfig
 			}
 			orphans.Clear();
 			cfg.Save();
-			CompanionsPlugin.Log?.LogInfo($"[Config] Cleaned up the config file: {moved} setting(s) moved to their new names, {dropped} old line(s) removed");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log?.LogInfo($"[Config] Cleaned up the config file: {moved} setting(s) moved to their new names, {dropped} old line(s) removed");
 			return true;
 		}
 		catch (Exception ex)

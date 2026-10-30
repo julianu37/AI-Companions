@@ -21,6 +21,10 @@ public static class MHR_Diag
 
 	public static void Tick()
 	{
+		if (!CompanionsPlugin.LogDetailed)
+		{
+			return;
+		}
 		float time = Time.time;
 		if (time < s_next)
 		{

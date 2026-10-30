@@ -73,7 +73,7 @@ namespace Companions
             int mode = nv != null && nv.GetZDO() != null ? nv.GetZDO().GetInt(CompanionSetup.ActionModeHash, 0) : 0;
             if (inv == null || UnloadList(cs, st, inv, mode).Count == 0) return;
             st.UnloadPending = true; st.UnloadTrips = 0; st.NextDecide = 0f;
-            LogDebug("Settling down near home - emptying bags first");
+            if (CompanionsPlugin.LogDetailed) LogDebug("Settling down near home - emptying bags first");
         }
 
         // 1.4.65: called from CompanionAI.UpdateAI after combat is handled. While a trip is on, the trip
@@ -142,12 +142,12 @@ namespace Companions
                 st.UnloadPending = true; st.UnloadTrips = 0;
                 st.Refused.Clear();
                 CompanionStatus.Clear(cs);   // 1.5.42: the old job's "why" no longer applies
-                LogDebug("Job changed (" + st.LastMode + " -> " + mode +  ") - will empty bags at home");
+                if (CompanionsPlugin.LogDetailed) LogDebug("Job changed (" + st.LastMode + " -> " + mode +  ") - will empty bags at home");
                 // 1.5.4: a fetch the new job has no use for is called off (user log: Hunt turned off, and he still walked
                 // 50 m back to a chest for a bow, again after every recall)
                 if (st.Phase == 1 && !NeedsKind(mode, st.Kind))
                 {
-                    Log("Not fetching " + KindName(st.Kind) + " any more - the job changed");
+                    if (CompanionsPlugin.LogNormal) Log("Not fetching " + KindName(st.Kind) + " any more - the job changed");
                     EndTrip(cs, st, ai, mode);
                 }
             }
@@ -163,7 +163,7 @@ namespace Companions
                 {
                     if (now2.Contains(k) || !st.Refused.Add(k)) continue;
                     string kn = KindName(k); kn = kn.StartsWith("an ") ? kn.Substring(3) : kn.StartsWith("a ") ? kn.Substring(2) : kn;
-                    Log("You took its " + kn + " - it won't fetch another for this job");
+                    if (CompanionsPlugin.LogNormal) Log("You took its " + kn + " - it won't fetch another for this job");
                     // 1.5.42: and say so
                     cs.GetComponent<CompanionTalk>()?.Speak(ModLocalization.LocFmt("hc_why_tool_taken", kn), CompanionTalk.Priority.Event, "taken:" + k);
                     if (st.Phase == 1 && st.Kind == k) EndTrip(cs, st, ai, mode);
@@ -179,7 +179,7 @@ namespace Companions
             if (atHome && !st.WasAtHome && (mode == 0 || (MHR_JobRules.KeepsFollow(mode) && (mode == 7 || cs.GetFollow()))) && !st.UnloadPending && st.Phase == 0 && UnloadList(cs, st, inv, mode).Count > 0)
             {
                 st.UnloadPending = true; st.UnloadTrips = 0;
-                LogDebug("Back home - will empty bags");
+                if (CompanionsPlugin.LogDetailed) LogDebug("Back home - will empty bags");
             }
             st.WasAtHome = atHome;
 
@@ -197,7 +197,7 @@ namespace Companions
             bool nearHome = NearHome(cs);
             if (st.WaitHome)
             {
-                if (nearHome) { st.WaitHome = false; LogDebug("Back near home - sorting out the missing tool"); cs.ApplyFollowMode(mode, true); }
+                if (nearHome) { st.WaitHome = false; if (CompanionsPlugin.LogDetailed) LogDebug("Back near home - sorting out the missing tool"); cs.ApplyFollowMode(mode, true); }
                 else
                 {
                     if (now >= st.NextFollowFix && MHR_Owner.Of(cs) != null && ai.GetFollowTarget() != MHR_Owner.Go(cs))
@@ -224,7 +224,7 @@ namespace Companions
                 if (target == null)
                 {
                     st.KindCooldown[-e.Kind] = now + 30f;
-                    Log("Nowhere to put back borrowed \"" + e.Prefab + "\" - keeping it for now");
+                    if (CompanionsPlugin.LogNormal) Log("Nowhere to put back borrowed \"" + e.Prefab + "\" - keeping it for now");
                     continue;
                 }
                 StartTrip(cs, st, ai, 2, target, e.Kind, e.Prefab, e, now);
@@ -262,7 +262,7 @@ namespace Companions
                 {
                     // too far to go home for it: say so, stop the job for now and follow
                     st.WaitHome = true; st.WaitKind = kind;
-                    Log((broken != null ? "\"" + broken.m_shared.m_name + "\" broke" : "Needs " + KindName(kind)) + " and home is too far - following until we're back");
+                    if (CompanionsPlugin.LogNormal) Log((broken != null ? "\"" + broken.m_shared.m_name + "\" broke" : "Needs " + KindName(kind)) + " and home is too far - following until we're back");
                     if (now >= st.NextWaitSpeak) { st.NextWaitSpeak = now + 120f; if (broken != null) SpeakBroke(cs, kind); else Speak(cs, kind); }
                     if (MHR_Owner.Of(cs) != null) ai.SetFollowTarget(MHR_Owner.Go(cs));
                     return;
@@ -274,7 +274,7 @@ namespace Companions
                 {
                     CraftingStation stn = FindRepairStation(cs, broken);
                     if (stn != null) { StartStationTrip(cs, st, ai, stn, kind, broken, now); return; }
-                    LogDebug("No station near home can repair \"" + broken.m_shared.m_name + "\" - looking for another in the chests");
+                    if (CompanionsPlugin.LogDetailed) LogDebug("No station near home can repair \"" + broken.m_shared.m_name + "\" - looking for another in the chests");
                 }
                 Vector3 center = cs.HasHomePosition() ? cs.GetHomePosition() : cs.transform.position;
                 ItemDrop.ItemData found; Container chest = FindBestInChests(center, cs.transform.position, kind, launcher, out found);
@@ -284,16 +284,16 @@ namespace Companions
                     if (broken != null)
                     {
                         // 1.4.74: broken, can't be repaired here and no spare: say so and keep following
-                        Log("\"" + broken.m_shared.m_name + "\" is broken and there's no other in the chests - following you");
+                        if (CompanionsPlugin.LogNormal) Log("\"" + broken.m_shared.m_name + "\" is broken and there's no other in the chests - following you");
                         if (now >= st.NextSpeak) { SpeakBroke(cs, kind); st.NextSpeak = now + 120f; }
                         if (MHR_Owner.Of(cs) != null && ai.GetFollowTarget() == null) ai.SetFollowTarget(MHR_Owner.Go(cs));
                         continue;
                     }
-                    Log("Needs " + KindName(kind) + " for this job and couldn't find one in nearby chests");
+                    if (CompanionsPlugin.LogNormal) Log("Needs " + KindName(kind) + " for this job and couldn't find one in nearby chests");
                     if (now >= st.NextSpeak) { Speak(cs, kind); st.NextSpeak = now + 60f; }
                     continue;
                 }
-                if (!RoomFor(inv, found, kind)) { st.KindCooldown[kind] = now + 30f; Log("No room to carry " + KindName(kind)); continue; }
+                if (!RoomFor(inv, found, kind)) { st.KindCooldown[kind] = now + 30f; if (CompanionsPlugin.LogNormal) Log("No room to carry " + KindName(kind)); continue; }
                 StartTrip(cs, st, ai, 1, chest, kind, found.m_dropPrefab != null ? found.m_dropPrefab.name : null, null, now);
                 return;
             }
@@ -309,7 +309,7 @@ namespace Companions
             // 1.5.43 (phase 3): action lines - say where it's off to (once per kind of trip every few minutes)
             if (phase == 1 || phase == 2)
                 cs.GetComponent<CompanionTalk>()?.Speak(ModLocalization.LocFmt(phase == 1 ? "hc_act_fetch_tool" : "hc_act_return_tool", KindName(kind)), CompanionTalk.Priority.Event, "act:tool" + phase + ":" + kind);
-            Log((phase == 3 ? "Going to put away \"" + prefab + "\" and anything that stacks with it" : (phase == 1 ? "Going to fetch " : "Going to put back ") + KindName(kind) + " (\"" + prefab + "\")") + " at a chest " +
+            if (CompanionsPlugin.LogNormal) Log((phase == 3 ? "Going to put away \"" + prefab + "\" and anything that stacks with it" : (phase == 1 ? "Going to fetch " : "Going to put back ") + KindName(kind) + " (\"" + prefab + "\")") + " at a chest " +
                 Vector3.Distance(cs.transform.position, chest.transform.position).ToString("F0") + "m away");
         }
 
@@ -344,21 +344,21 @@ namespace Companions
             if (ai.IsInCombat)
             {
                 st.TripStart += dt; st.LastProgress = now; st.BestDist = float.MaxValue;
-                if (!st.WasFighting) { st.WasFighting = true; LogDebug("Trip paused - fighting"); }
+                if (!st.WasFighting) { st.WasFighting = true; if (CompanionsPlugin.LogDetailed) LogDebug("Trip paused - fighting"); }
                 return;
             }
-            if (st.WasFighting) { st.WasFighting = false; LogDebug("Trip resumed after the fight"); }
+            if (st.WasFighting) { st.WasFighting = false; if (CompanionsPlugin.LogDetailed) LogDebug("Trip resumed after the fight"); }
             float distNow = st.Chest != null ? Vector3.Distance(cs.transform.position, st.Chest.transform.position) : 0f;
             if (distNow < st.BestDist - 0.5f) { st.BestDist = distNow; st.LastProgress = now; }
             bool stalled = (st.NeedMove && MHR_Mover.GaveUp(ai)) || (now - st.LastProgress > NoProgressTimeout && !MHR_Mover.Progressing(ai));
             if (st.Chest == null || stalled || now - st.TripStart > TripTimeout)
             {
                 st.KindCooldown[st.Phase == 1 ? st.Kind : -st.Kind] = now + 60f;
-                Log("Gave up on the chest trip (" + (st.Chest == null ? "chest gone" : stalled ? "couldn't get any closer, " + distNow.ToString("F1") + "m away" : "took too long") + ")");
+                if (CompanionsPlugin.LogNormal) Log("Gave up on the chest trip (" + (st.Chest == null ? "chest gone" : stalled ? "couldn't get any closer, " + distNow.ToString("F1") + "m away" : "took too long") + ")");
                 EndTrip(cs, st, ai, mode);
                 return;
             }
-            if (now >= st.NextTripLog) { st.NextTripLog = now + 5f; LogDebug("Walking to chest: " + distNow.ToString("F1") + "m left"); }
+            if (now >= st.NextTripLog) { st.NextTripLog = now + 5f; if (CompanionsPlugin.LogDetailed) LogDebug("Walking to chest: " + distNow.ToString("F1") + "m left"); }
             Vector3 cp = st.Chest.transform.position;
             Vector3 me = cs.transform.position;
             bool atSpot = st.HasSpot && new Vector2(me.x - st.Goal.x, me.z - st.Goal.z).magnitude <= 1.0f && Mathf.Abs(me.y - st.Goal.y) <= 1.5f;
@@ -378,7 +378,7 @@ namespace Companions
             if (MHR_Chests.InUse(st.Chest))
             {
                 st.KindCooldown[st.Phase == 1 ? st.Kind : -st.Kind] = now + 30f;
-                Log("Someone has the chest open - trying again later");
+                if (CompanionsPlugin.LogNormal) Log("Someone has the chest open - trying again later");
                 EndTrip(cs, st, ai, mode);
                 return;
             }
@@ -389,7 +389,7 @@ namespace Companions
             if (st.Phase == 3)
             {
                 int moved = Deposit(cs, st, inv, cinv);
-                Log("Put away " + moved + " item stack(s) in a chest");
+                if (CompanionsPlugin.LogNormal) Log("Put away " + moved + " item stack(s) in a chest");
             }
             else if (st.Phase == 1)
             {
@@ -410,10 +410,10 @@ namespace Companions
                     {
                         st.Borrowed.Add(new Entry { Kind = st.Kind, Prefab = prefab, Count = count, Chest = cp });
                         Save(st, zdo);
-                        Log("Borrowed " + count + "x \"" + prefab + "\" for the job");
+                        if (CompanionsPlugin.LogNormal) Log("Borrowed " + count + "x \"" + prefab + "\" for the job");
                     }
                 }
-                else { st.KindCooldown[st.Kind] = now + 60f; Log("The " + KindName(st.Kind) + " was gone from the chest"); }
+                else { st.KindCooldown[st.Kind] = now + 60f; if (CompanionsPlugin.LogNormal) Log("The " + KindName(st.Kind) + " was gone from the chest"); }
             }
             else
             {
@@ -445,9 +445,9 @@ namespace Companions
                     if (left <= 0 || FindByPrefab(inv, e.Prefab) == null)
                     {
                         st.Borrowed.Remove(e); Save(st, zdo);
-                        Log("Put back \"" + e.Prefab + "\"");
+                        if (CompanionsPlugin.LogNormal) Log("Put back \"" + e.Prefab + "\"");
                     }
-                    else { e.Count = left; Save(st, zdo); st.KindCooldown[-e.Kind] = now + 30f; Log("Chest full - kept " + left + "x \"" + e.Prefab + "\" for now"); }
+                    else { e.Count = left; Save(st, zdo); st.KindCooldown[-e.Kind] = now + 30f; if (CompanionsPlugin.LogNormal) Log("Chest full - kept " + left + "x \"" + e.Prefab + "\" for now"); }
                 }
             }
             EndTrip(cs, st, ai, mode);
@@ -501,12 +501,12 @@ namespace Companions
             st.Goal = ApproachPoint(cs.transform.position, stn.transform.position); st.NeedMove = true; st.HasSpot = false;
             ai.SetFollowTarget(null);
             MHR_Mover.Release(ai);
-            Log("Going to repair \"" + item.m_shared.m_name + "\" at " + stn.m_name + " " + Vector3.Distance(cs.transform.position, stn.transform.position).ToString("F0") + "m away");
+            if (CompanionsPlugin.LogNormal) Log("Going to repair \"" + item.m_shared.m_name + "\" at " + stn.m_name + " " + Vector3.Distance(cs.transform.position, stn.transform.position).ToString("F0") + "m away");
         }
         static void UpdateStationTrip(CompanionSetup cs, State st, CompanionAI ai, Inventory inv, int mode, float now, float dt)
         {
             if (ai.IsInCombat) { st.TripStart += dt; st.LastProgress = now; st.BestDist = float.MaxValue; return; }
-            if (st.Station == null) { Log("The station is gone"); EndTrip(cs, st, ai, mode); return; }
+            if (st.Station == null) { if (CompanionsPlugin.LogNormal) Log("The station is gone"); EndTrip(cs, st, ai, mode); return; }
             Vector3 me = cs.transform.position, sp = st.Station.transform.position;
             float dist = MHR_Nav.ReachDist(me, sp);
             if (dist < st.BestDist - 0.5f) { st.BestDist = dist; st.LastProgress = now; }
@@ -515,7 +515,7 @@ namespace Companions
                 // 1.4.74: couldn't get to the station - look for another tool in the chests instead
                 st.RepairFailUntil[st.Kind] = now + 300f;
                 st.KindCooldown[st.Kind] = now + 2f;
-                Log("Gave up on the repair trip (" + dist.ToString("F1") + "m away) - looking for another in the chests");
+                if (CompanionsPlugin.LogNormal) Log("Gave up on the repair trip (" + dist.ToString("F1") + "m away) - looking for another in the chests");
                 EndTrip(cs, st, ai, mode); return;
             }
             if (dist > 2.5f) { st.NeedMove = true; return; }
@@ -533,7 +533,7 @@ namespace Companions
                 fixedCount++;
             }
             try { if (fixedCount > 0 && st.Station.m_repairItemDoneEffects != null) st.Station.m_repairItemDoneEffects.Create(sp, Quaternion.identity); } catch { }
-            Log("Repaired " + fixedCount + " item(s) at " + st.Station.m_name);
+            if (CompanionsPlugin.LogNormal) Log("Repaired " + fixedCount + " item(s) at " + st.Station.m_name);
             EndTrip(cs, st, ai, mode);
         }
         static void SpeakBroke(CompanionSetup cs, int kind)
@@ -605,7 +605,7 @@ namespace Companions
             List<ItemDrop.ItemData> items = UnloadList(cs, st, inv, mode);
             if (items.Count == 0 || st.UnloadTrips >= 10)
             {
-                if (items.Count > 0) Log("Couldn't find room for everything - keeping " + items.Count + " stack(s) for now");
+                if (items.Count > 0) if (CompanionsPlugin.LogNormal) Log("Couldn't find room for everything - keeping " + items.Count + " stack(s) for now");
                 st.UnloadPending = false; st.UnloadActive = false; return false;
             }
             for (int i = 0; i < items.Count; i++)
@@ -619,7 +619,7 @@ namespace Companions
                 StartTrip(cs, st, ai, 3, c, 0, it.m_dropPrefab.name, null, now);
                 return true;
             }
-            Log("No chest near home has room for what I'm carrying - keeping " + items.Count + " stack(s)");
+            if (CompanionsPlugin.LogNormal) Log("No chest near home has room for what I'm carrying - keeping " + items.Count + " stack(s)");
             CompanionStatus.Why(cs, "hc_why_chests_full", speak: true);
             st.UnloadPending = false; st.UnloadActive = false;
             return false;
@@ -662,7 +662,7 @@ namespace Companions
                 if (name != st.Prefab && FindByPrefab(cinv, name) == null) continue;
                 if (!cinv.CanAddItem(it, it.m_stack)) continue;
                 cinv.MoveItemToThis(inv, it);
-                if (!FindSame(inv, it)) { moved++; LogDebug("  Put away \"" + name + "\" x" + it.m_stack); }
+                if (!FindSame(inv, it)) { moved++; if (CompanionsPlugin.LogDetailed) LogDebug("  Put away \"" + name + "\" x" + it.m_stack); }
             }
             return moved;
         }
@@ -836,11 +836,11 @@ namespace Companions
             {
                 Container c = cands[i].Value;
                 if (MHR_Chests.CanReach(me, c)) { found = BestIn(c.GetInventory(), kind, launcher); return c; }
-                Log("Can't reach the chest at " + MHR_Chests.Fmt(c.transform.position) + " (no clear spot next to it) - trying another");
+                if (CompanionsPlugin.LogNormal) Log("Can't reach the chest at " + MHR_Chests.Fmt(c.transform.position) + " (no clear spot next to it) - trying another");
             }
             Container first = cands[0].Value;
             found = BestIn(first.GetInventory(), kind, launcher);
-            Log("No chest with " + KindName(kind) + " looks reachable - trying the best one anyway");
+            if (CompanionsPlugin.LogNormal) Log("No chest with " + KindName(kind) + " looks reachable - trying the best one anyway");
             return first;
         }
         static Container FindChestByPos(Vector3 pos, ItemDrop.ItemData it)
@@ -906,8 +906,8 @@ namespace Companions
             }
             zdo.Set(BorrowHash, sb.ToString());
         }
-        static void LogDebug(string msg) { if (CompanionsPlugin.Log != null) CompanionsPlugin.Log.LogDebug("[Tools] " + msg); }
-        static void Log(string msg) { if (CompanionsPlugin.Log != null) CompanionsPlugin.Log.LogInfo("[Tools] " + msg); }
+        static void LogDebug(string msg) { if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Tools] " + msg); }
+        static void Log(string msg) { if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Tools] " + msg); }
     }
 
     // ---- 1.4.65: a job and Stay Home (Homestead) can't both be on ----
@@ -987,14 +987,14 @@ namespace Companions
                 {
                     cs.SetFollow(false);
                     if (zdo != null) zdo.Set(FollowPausedHash, true);
-                    if (CompanionsPlugin.Log != null) CompanionsPlugin.Log.LogDebug("[Jobs] Job " + mode + " picked - Follow turned off");
+                    if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Jobs] Job " + mode + " picked - Follow turned off");
                 }
             }
             else if (zdo != null && zdo.GetBool(FollowPausedHash))
             {
                 zdo.Set(FollowPausedHash, false);
                 cs.SetFollow(true);
-                if (CompanionsPlugin.Log != null) CompanionsPlugin.Log.LogDebug("[Jobs] Job turned off - Follow back on");
+                if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Jobs] Job turned off - Follow back on");
             }
         }
     }
@@ -1254,7 +1254,7 @@ namespace Companions
                 }
             }
             // 1.4.89: why no spot worked, so a chest the player can open but the companion can't shows the reason
-            if (!found && CompanionsPlugin.Log != null) CompanionsPlugin.Log.LogDebug("[Chests] No spot to stand by the chest at " + Fmt(cp) + ": " + nGround + " no ground, " + nHeight + " too high/low, " + nFire + " in a fire, " + nBlocked + " no room, " + nReach + " out of reach/sight, " + nRoute + " no route");
+            if (!found && CompanionsPlugin.Log != null) if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Chests] No spot to stand by the chest at " + Fmt(cp) + ": " + nGround + " no ground, " + nHeight + " too high/low, " + nFire + " in a fire, " + nBlocked + " no room, " + nReach + " out of reach/sight, " + nRoute + " no route");
             return found;
         }
 
@@ -1560,7 +1560,7 @@ namespace Companions
             if (match != null && !(match.m_shared.m_useDurability && match.m_durability <= 0f))
             {
                 h.EquipItem(match, false);
-                if (CompanionsPlugin.Log != null) CompanionsPlugin.Log.LogDebug("[Setup] Inventory reloaded - kept \"" + match.m_shared.m_name + "\" equipped");
+                if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Setup] Inventory reloaded - kept \"" + match.m_shared.m_name + "\" equipped");
             }
         }
     }

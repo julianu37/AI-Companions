@@ -84,7 +84,7 @@ internal static class MHR_Shrine
 			if (ModConfig.ShrineBuildable.Value)
 			{
 				pieceTable.m_pieces.Add(s_prefab);
-				CompanionsPlugin.Log.LogInfo("[Shrine] Odin's Shrine added to the hammer (Misc), recipe " + ModConfig.ShrineRecipe.Value + " at a workbench");
+				if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Shrine] Odin's Shrine added to the hammer (Misc), recipe " + ModConfig.ShrineRecipe.Value + " at a workbench");
 			}
 		}
 		catch (Exception ex)
@@ -190,7 +190,7 @@ internal static class MHR_Shrine
 		gameObject.AddComponent<CompanionShrine>().m_hoverOffset = hoverOffset;
 		s_prefab = gameObject;
 		s_model = model;
-		CompanionsPlugin.Log.LogInfo("[Shrine] Odin's Shrine piece created (model: " + model + ")");
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Shrine] Odin's Shrine piece created (model: " + model + ")");
 		return true;
 	}
 

@@ -89,7 +89,7 @@ internal static class WaterSafety
 					_shoreTarget.Remove(instanceID);
 					_shoreRefresh.Remove(instanceID);
 					_shoreStartTime.Remove(instanceID);
-					Log("[WaterSafety] giving up on shore-seeking after " + 25f + "s (safety timeout) - resuming normal behavior.");
+					if (CompanionsPlugin.LogNormal) Log("[WaterSafety] giving up on shore-seeking after " + 25f + "s (safety timeout) - resuming normal behavior.");
 					return false;
 				}
 			}
@@ -128,12 +128,12 @@ internal static class WaterSafety
 					if (!flag2)
 					{
 						_shoreStartTime[instanceID] = Time.time;
-						Log("[WaterSafety] stamina low while swimming - heading for the nearest shore.");
+						if (CompanionsPlugin.LogNormal) Log("[WaterSafety] stamina low while swimming - heading for the nearest shore.");
 					}
 				}
 				else if (!flag2)
 				{
-					Log("[WaterSafety] stamina low while swimming, but no nearby shore found yet.");
+					if (CompanionsPlugin.LogNormal) Log("[WaterSafety] stamina low while swimming, but no nearby shore found yet.");
 					return false;
 				}
 			}
@@ -153,7 +153,7 @@ internal static class WaterSafety
 		}
 		catch (Exception ex)
 		{
-			Log("[WaterSafety] error: " + ex.Message);
+			if (CompanionsPlugin.LogNormal) Log("[WaterSafety] error: " + ex.Message);
 			return false;
 		}
 	}
@@ -169,7 +169,7 @@ internal static class WaterSafety
 		if (_logs < 60)
 		{
 			_logs++;
-			CompanionsPlugin.Log?.LogInfo(s);
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log?.LogInfo(s);
 		}
 	}
 

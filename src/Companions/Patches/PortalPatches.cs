@@ -57,7 +57,7 @@ internal static class PortalPatches
 		}
 		if (_pendingCompanions.Count > 0)
 		{
-			CompanionsPlugin.Log.LogInfo($"[Portal] Player teleporting — {_pendingCompanions.Count} companion(s) queued");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Portal] Player teleporting — {_pendingCompanions.Count} companion(s) queued");
 		}
 	}
 
@@ -92,11 +92,11 @@ internal static class PortalPatches
 		bool bossItem = stuck.Exists(i => i.m_shared.m_toolTier >= 1000);
 		if (!bossItem && stuck.Count > 0 && LeaveInChest(cs, h, inv, stuck, out string left))
 		{
-			CompanionsPlugin.Log.LogInfo($"[Portal] {name} left {left} in a chest by the portal and comes through");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Portal] {name} left {left} in a chest by the portal and comes through");
 			cs.GetComponent<CompanionTalk>()?.Say(ModLocalization.LocFmt("hc_say_portal_left", left), force: true);
 			return true;
 		}
-		CompanionsPlugin.Log.LogInfo($"[Portal] {name} can't take {what} through the portal{(bossItem ? " (a boss item)" : " and found no chest with room within " + ChestRange + " m")} - staying here");
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Portal] {name} can't take {what} through the portal{(bossItem ? " (a boss item)" : " and found no chest with room within " + ChestRange + " m")} - staying here");
 		cs.GetComponent<CompanionTalk>()?.Say(ModLocalization.LocFmt("hc_say_portal_stay", what), force: true);
 		return false;
 	}
@@ -186,7 +186,7 @@ internal static class PortalPatches
 			return;
 		}
 		Vector3 position = __instance.transform.position;
-		CompanionsPlugin.Log.LogInfo($"[Portal] Teleport complete at {position:F1} — warping {_pendingCompanions.Count} companion(s)");
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Portal] Teleport complete at {position:F1} — warping {_pendingCompanions.Count} companion(s)");
 		foreach (ZDOID pendingCompanion in _pendingCompanions)
 		{
 			WarpCompanion(pendingCompanion, position);
@@ -237,11 +237,11 @@ internal static class PortalPatches
 				component3.CancelTombstoneRecovery();
 				component3.SetFollowTarget(Player.m_localPlayer?.gameObject);
 			}
-			CompanionsPlugin.Log.LogInfo($"[Portal] Warped companion to {vector:F1} (GameObject present)");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Portal] Warped companion to {vector:F1} (GameObject present)");
 		}
 		else
 		{
-			CompanionsPlugin.Log.LogInfo($"[Portal] Updated companion ZDO position to {vector:F1} (not loaded)");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Portal] Updated companion ZDO position to {vector:F1} (not loaded)");
 		}
 	}
 

@@ -83,7 +83,7 @@ public static class ModLocalization
 		_initialized = true;
 		if (InstanceField?.GetValue(null) is Localization loc)
 		{
-			CompanionsPlugin.Log.LogInfo("[Localization] Localization already initialized — injecting retroactively");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Localization] Localization already initialized — injecting retroactively");
 			InjectTranslations(loc);
 		}
 	}
@@ -433,6 +433,10 @@ public static class ModLocalization
 			{ "hc_cmd_door_1", "Getting the door." },
 			{ "hc_cmd_door_2", "I'll get it." },
 			{ "hc_cmd_door_3", "Door's open!" },
+			{ "hc_cmd_doorclose_1", "Closing it." },
+			{ "hc_cmd_doorclose_2", "I'll shut it." },
+			{ "hc_cmd_doorclose_3", "Shutting the door." },
+			{ "hc_cmd_door_locked", "It's locked." },
 			{ "hc_cmd_sit_1", "Nice and warm." },
 			{ "hc_cmd_sit_2", "Good spot to rest." },
 			{ "hc_cmd_sit_3", "I'll sit here." },
@@ -471,6 +475,7 @@ public static class ModLocalization
 			{ "hc_cmd_hive", "I'll fetch the honey." },
 			{ "hc_cmd_hive_empty", "No honey in there yet." },
 			{ "hc_say_encumbered", "This is too heavy - I can barely move." },
+			{ "hc_say_no_torches", "My last torch burned out." },
 			{ "hc_say_portal_stay", "I can't take {0} through the portal - I'll wait here." },
 			{ "hc_say_portal_left", "Left {0} in the chest by the portal." },
 			{ "hc_cmd_tombstone_1", "I'll grab my things." },
@@ -856,6 +861,7 @@ public static class ModLocalization
 		CompanionsPlugin.Log.LogInfo(reInjected
 			? $"[Localization] Re-injected {_englishDefaults?.Count ?? 0} defaults + {num} \"{selectedLanguage}\" overrides (the game had rebuilt the dictionary)"
 			: $"[Localization] Injected {_englishDefaults?.Count ?? 0} defaults + {num} \"{selectedLanguage}\" overrides");
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Localization] Injected {_englishDefaults?.Count ?? 0} defaults + {num} \"{selectedLanguage}\" overrides");
 	}
 
 	public static void EnsureDefaultFile()
@@ -879,7 +885,7 @@ public static class ModLocalization
 				{
 					return;
 				}
-				CompanionsPlugin.Log.LogInfo($"[Localization] English.json is stale ({dictionary?.Count ?? 0} vs {_englishDefaults.Count} keys) — regenerating.");
+				if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Localization] English.json is stale ({dictionary?.Count ?? 0} vs {_englishDefaults.Count} keys) — regenerating.");
 			}
 			List<KeyValuePair<string, string>> list = new List<KeyValuePair<string, string>>(_englishDefaults);
 			list.Sort((KeyValuePair<string, string> a, KeyValuePair<string, string> b) => string.Compare(a.Key, b.Key, StringComparison.Ordinal));
@@ -894,7 +900,7 @@ public static class ModLocalization
 			stringBuilder.AppendLine("    ]");
 			stringBuilder.AppendLine("}");
 			File.WriteAllText(text, stringBuilder.ToString(), Encoding.UTF8);
-			CompanionsPlugin.Log.LogInfo("[Localization] Created default " + text);
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Localization] Created default " + text);
 		}
 		catch (Exception ex)
 		{
@@ -988,7 +994,7 @@ public static class ModLocalization
 			{
 				return null;
 			}
-			CompanionsPlugin.Log.LogInfo($"[Localization] Loaded {dictionary.Count} keys from {text}");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Localization] Loaded {dictionary.Count} keys from {text}");
 			return dictionary;
 		}
 		catch (Exception ex)

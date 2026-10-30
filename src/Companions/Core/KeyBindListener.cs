@@ -47,7 +47,7 @@ internal class KeyBindListener : MonoBehaviour
 		Capturing = true;
 		_startFrame = Time.frameCount;
 		_label.text = "Press a key...";
-		CompanionsPlugin.Log.LogInfo("[Config] Waiting for a key for " + _entry.Definition.Key + " (Esc cancels)");
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Config] Waiting for a key for " + _entry.Definition.Key + " (Esc cancels)");
 	}
 
 	private void Update()
@@ -102,14 +102,14 @@ internal class KeyBindListener : MonoBehaviour
 			_label.text = _entry.Value.ToString();
 			_label.color = new Color(0.83f, 0.52f, 0.18f, 1f);
 			_setListening(obj: false);
-			CompanionsPlugin.Log.LogInfo("[Config] Key binding for " + _entry.Definition.Key + " cancelled");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Config] Key binding for " + _entry.Definition.Key + " cancelled");
 			return;
 		}
 		_entry.Value = key;
 		_label.text = key.ToString();
 		_label.color = new Color(0.83f, 0.52f, 0.18f, 1f);
 		_setListening(obj: false);
-		CompanionsPlugin.Log.LogInfo("[Config] " + _entry.Definition.Key + " = " + key);
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Config] " + _entry.Definition.Key + " = " + key);
 	}
 
 	private static bool IsMouse(KeyCode k)

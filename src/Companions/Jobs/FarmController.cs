@@ -1433,7 +1433,7 @@ public class FarmController : MonoBehaviour
 				}
 			}
 		}
-		LogDebug($"Scan: found {_nearbyChests.Count} chests within {ScanRadius}m");
+		if (CompanionsPlugin.LogDetailed) LogDebug($"Scan: found {_nearbyChests.Count} chests within {ScanRadius}m");
 	}
 
 	private Container FindChestWithSpace()
@@ -2174,7 +2174,7 @@ public class FarmController : MonoBehaviour
 	private void LogDebug(string msg)
 	{
 		string text = _character?.m_name ?? "?";
-		CompanionsPlugin.Log.LogDebug("[Farm|" + text + "] " + msg);
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Farm|" + text + "] " + msg);
 	}
 
 	internal bool IsCropItem(ItemDrop.ItemData item)
@@ -2271,11 +2271,11 @@ public class FarmController : MonoBehaviour
 		{
 			if (text.Contains(array[i]))
 			{
-				log.LogDebug(msg);
+				if (CompanionsPlugin.LogDetailed) log.LogDebug(msg);
 				return;
 			}
 		}
-		log.LogInfo(msg);
+		if (CompanionsPlugin.LogNormal) log.LogInfo(msg);
 	}
 
 	[MethodImpl(MethodImplOptions.NoInlining)]

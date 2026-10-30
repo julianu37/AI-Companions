@@ -123,7 +123,7 @@ internal static class MHR_Deck
 		};
 		if (min.x > max.x)
 		{
-			CompanionsPlugin.Log?.LogInfo("[Deck] no deck colliders on '" + type + "' - no grid");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log?.LogInfo("[Deck] no deck colliders on '" + type + "' - no grid");
 			return g;
 		}
 		g.Min = new Vector3(min.x, 0f, min.z);
@@ -174,7 +174,7 @@ internal static class MHR_Deck
 				}
 			}
 		}
-		CompanionsPlugin.Log?.LogInfo($"[Deck] grid for '{type}': {g.W} x {g.H} cells of {Cell} m, {g.Count} to walk on");
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log?.LogInfo($"[Deck] grid for '{type}': {g.W} x {g.H} cells of {Cell} m, {g.Count} to walk on");
 		return g;
 	}
 
@@ -449,7 +449,7 @@ internal static class MHR_Deck
 					len += new Vector2(p.x - prev.x, p.z - prev.z).magnitude;
 					prev = p;
 				}
-				CompanionsPlugin.Log?.LogDebug($"[Deck] {c?.m_name} walking {len:F1} m over {w.Path.Count} cells from {me:F1} to {goalLocal:F1} on the ship{(planned ? "" : " (no route on the grid - straight)")}");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log?.LogDebug($"[Deck] {c?.m_name} walking {len:F1} m over {w.Path.Count} cells from {me:F1} to {goalLocal:F1} on the ship{(planned ? "" : " (no route on the grid - straight)")}");
 			}
 		}
 		if (left < w.BestLeft - 0.2f)
@@ -463,7 +463,7 @@ internal static class MHR_Deck
 			if (!w.StuckLogged)
 			{
 				w.StuckLogged = true;
-				CompanionsPlugin.Log?.LogInfo($"[Deck] {c?.m_name} stuck at {me:F1} on the ship, {left:F1} m from {goalLocal:F1}");
+				if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log?.LogInfo($"[Deck] {c?.m_name} stuck at {me:F1} on the ship, {left:F1} m from {goalLocal:F1}");
 			}
 		}
 		while (w.Idx < w.Path.Count - 1 && new Vector2(me.x - w.Path[w.Idx].x, me.z - w.Path[w.Idx].z).magnitude < 0.35f)

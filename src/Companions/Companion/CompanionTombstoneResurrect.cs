@@ -173,7 +173,7 @@ public class CompanionTombstoneResurrect : MonoBehaviour
 			if (MHR_IsGravePin(pinData, suffix) && Vector3.Distance(pinData.m_pos, pos) <= 8f)
 			{
 				Minimap.instance.RemovePin(pinData);
-				CompanionsPlugin.Log.LogInfo($"[Minimap] Removed companion tombstone pin at {pos:F0} (tombstone emptied)");
+				if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Minimap] Removed companion tombstone pin at {pos:F0} (tombstone emptied)");
 			}
 		}
 	}
@@ -273,7 +273,7 @@ public class CompanionTombstoneResurrect : MonoBehaviour
 			if (inventory != null && inventory.NrOfItems() <= 0 && !(_nview == null) && _nview.GetZDO() != null && !(ZNetScene.instance == null))
 			{
 				_nview.ClaimOwnership();
-				CompanionsPlugin.Log.LogInfo("[Respawn] Removed an empty companion tombstone (its companion already respawned)");
+				if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Respawn] Removed an empty companion tombstone (its companion already respawned)");
 				ZNetScene.instance.Destroy(base.gameObject);
 				return;
 			}
@@ -442,7 +442,7 @@ public class CompanionTombstoneResurrect : MonoBehaviour
 		if (!string.IsNullOrEmpty(text7))
 		{
 			zDO2.Set(CompanionSetup.MHR_CompanionIdHash, text7);
-			CompanionsPlugin.Log.LogInfo($"[Resurrect] Companion keeps its permanent ID {text7}");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Resurrect] Companion keeps its permanent ID {text7}");
 		}
 		zDO2.Set(CompanionSetup.HasHomeBedHash, tombZdo.GetBool(RespawnHasBedHash));
 		zDO2.Set(CompanionSetup.HomeBedPosHash, tombZdo.GetVec3(RespawnBedPosHash, Vector3.zero));
@@ -457,7 +457,7 @@ public class CompanionTombstoneResurrect : MonoBehaviour
 				{
 					ZPackage pkg = new ZPackage(text8);
 					inventory.Load(pkg);
-					CompanionsPlugin.Log.LogInfo("[Resurrect] Restored kept inventory");
+					if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Resurrect] Restored kept inventory");
 				}
 			}
 		}
@@ -475,7 +475,7 @@ public class CompanionTombstoneResurrect : MonoBehaviour
 					if (flag5)
 					{
 						zDO2.Set(CompanionSetup.TombstoneIdHash, tombZdo.GetLong(CompanionSetup.TombstoneIdHash, 0L));
-						CompanionsPlugin.Log.LogInfo($"[Resurrect] Auto-respawn: left {inventory2.NrOfItems()} item(s) in the tombstone for the companion to recover");
+						if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Resurrect] Auto-respawn: left {inventory2.NrOfItems()} item(s) in the tombstone for the companion to recover");
 					}
 				}
 			}
@@ -483,7 +483,7 @@ public class CompanionTombstoneResurrect : MonoBehaviour
 			{
 				flag5 = true;
 				zDO2.Set(CompanionSetup.TombstoneIdHash, tombZdo.GetLong(CompanionSetup.TombstoneIdHash, 0L));
-				CompanionsPlugin.Log.LogInfo("[Resurrect] Far-away respawn: tombstone isn't loaded, any dropped items stay in it for the companion to recover");
+				if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Resurrect] Far-away respawn: tombstone isn't loaded, any dropped items stay in it for the companion to recover");
 			}
 		}
 		else if (container != null && component4 != null)
@@ -518,7 +518,7 @@ public class CompanionTombstoneResurrect : MonoBehaviour
 				{
 					inventory3.m_onChanged?.Invoke();
 				}
-				CompanionsPlugin.Log.LogInfo($"[Resurrect] Transferred {num} items from tombstone to companion" + (flag5 ? $", {inventory2.NrOfItems()} items left in tombstone" : ""));
+				if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Resurrect] Transferred {num} items from tombstone to companion" + (flag5 ? $", {inventory2.NrOfItems()} items left in tombstone" : ""));
 			}
 		}
 		CompanionAppearance a = CompanionAppearance.Deserialize(text3);
@@ -568,7 +568,7 @@ public class CompanionTombstoneResurrect : MonoBehaviour
 			{
 				tombZdo.Set(MHR_RespawnTracker.CleanupHash, value: true);
 			}
-			CompanionsPlugin.Log.LogInfo("[Resurrect] Tombstone kept — items remain for player pickup");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Resurrect] Tombstone kept — items remain for player pickup");
 		}
 		else if ((object)comp != null)
 		{
@@ -697,7 +697,7 @@ public class CompanionTombstoneResurrect : MonoBehaviour
 			if (MHR_IsGravePin(pinData, suffix) && Vector3.Distance(pinData.m_pos, position) <= 30f && ZNetScene.instance.IsAreaReady(pinData.m_pos) && !MHR_HasFullGraveNear(pinData.m_pos))
 			{
 				Minimap.instance.RemovePin(pinData);
-				CompanionsPlugin.Log.LogInfo($"[Minimap] Removed companion tombstone pin \"{pinData.m_name}\" (tombstone is gone or empty)");
+				if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Minimap] Removed companion tombstone pin \"{pinData.m_name}\" (tombstone is gone or empty)");
 			}
 		}
 	}

@@ -149,7 +149,7 @@ public class HuntController : MonoBehaviour
 			_hasAnchor = true;
 			bool home = _setup.HasHomePosition() && MHR_ToolKeeper.NearHome(_setup);
 			_anchor = home ? _setup.GetHomePosition() : base.transform.position;
-			Log("Hunting around " + (home ? "home" : "here") + " " + MHR_Mover.Fmt(_anchor) + ", up to " + Range(follow: false).ToString("F0") + " m out");
+			if (CompanionsPlugin.LogNormal) Log("Hunting around " + (home ? "home" : "here") + " " + MHR_Mover.Fmt(_anchor) + ", up to " + Range(follow: false).ToString("F0") + " m out");
 		}
 		if (MHR_ToolKeeper.IsBusy(this) || MHR_Loot.Active(this) || MHR_JobRules.OrderPending(this) || CompanionInteractPanel.IsOpenFor(_setup) || CompanionRadialMenu.IsOpenFor(_setup))
 		{
@@ -212,7 +212,7 @@ public class HuntController : MonoBehaviour
 				MHR_Mover.Go(_ai, Time.deltaTime, _anchor, 4f, true, "Hunt");
 				if (MHR_Mover.GaveUp(_ai))
 				{
-					Log("Can't get back to the hunting spot - hunting from here");
+					if (CompanionsPlugin.LogNormal) Log("Can't get back to the hunting spot - hunting from here");
 					_anchor = base.transform.position;
 					Stop();
 				}
@@ -233,14 +233,14 @@ public class HuntController : MonoBehaviour
 					if (Time.time >= _nextUnloadTry)
 					{
 						_nextUnloadTry = Time.time + 60f;
-						Log("Pack is full - putting the catch away");
+						if (CompanionsPlugin.LogNormal) Log("Pack is full - putting the catch away");
 						MHR_ToolKeeper.RequestUnload(_setup);
 						_nextCount = 0f;
 					}
 				}
 				else if (Time.time >= _nextUnloadTry)
 				{
-					Log("Pack is full - taking the catch home");
+					if (CompanionsPlugin.LogNormal) Log("Pack is full - taking the catch home");
 					_state = HuntState.GoingHome;
 					MHR_Mover.Release(_ai);
 				}
@@ -249,7 +249,7 @@ public class HuntController : MonoBehaviour
 			if (Time.time >= _nextFullLog)
 			{
 				_nextFullLog = Time.time + 120f;
-				Log(follow ? "Pack is full - keeping the catch until we're home" : "Pack is full and home is too far - not hunting until it's emptied");
+				if (CompanionsPlugin.LogNormal) Log(follow ? "Pack is full - keeping the catch until we're home" : "Pack is full and home is too far - not hunting until it's emptied");
 			}
 			// 1.5.42: say why it isn't hunting
 			CompanionStatus.Why(this, follow ? "hc_why_pack_full" : "hc_why_pack_full_far", speak: true);
@@ -271,7 +271,7 @@ public class HuntController : MonoBehaviour
 			if (Time.time >= _nextNothingLog)
 			{
 				_nextNothingLog = Time.time + 60f;
-				LogDebug("Nothing to hunt" + (why != null ? " (" + why + ")" : ""));
+				if (CompanionsPlugin.LogDetailed) LogDebug("Nothing to hunt" + (why != null ? " (" + why + ")" : ""));
 			}
 			// 1.5.43 (phase 3): the concrete reasons in turn - each meat at its target with the numbers, game out of reach,
 			// or no game within the range from the settings
@@ -282,7 +282,7 @@ public class HuntController : MonoBehaviour
 			CompanionStatus.WhyRotate(this, _whyItems);
 			if (!follow && _state == HuntState.Idle && Vector3.Distance(base.transform.position, _anchor) > 10f)
 			{
-				LogDebug("Heading back to the hunting spot");
+				if (CompanionsPlugin.LogDetailed) LogDebug("Heading back to the hunting spot");
 				_state = HuntState.Returning;
 				MHR_Mover.Release(_ai);
 			}
@@ -294,7 +294,7 @@ public class HuntController : MonoBehaviour
 			if (Time.time >= _nextNothingLog)
 			{
 				_nextNothingLog = Time.time + 60f;
-				Log("Can't hunt with the Passive stance");
+				if (CompanionsPlugin.LogNormal) Log("Can't hunt with the Passive stance");
 			}
 			CompanionStatus.Why(this, "hc_why_hunt_passive", speak: true);
 			return;
@@ -307,7 +307,7 @@ public class HuntController : MonoBehaviour
 		CompanionStatus.Clear(this);
 		CompanionStatus.Doing(this, "hc_doing_hunt", Loc(prey.m_name));
 		MHR_Mover.Release(_ai);
-		Log("Going after " + Loc(prey.m_name) + " (" + Vector3.Distance(base.transform.position, prey.transform.position).ToString("F0") + " m away)" + NeedText(PrefabName(prey)));
+		if (CompanionsPlugin.LogNormal) Log("Going after " + Loc(prey.m_name) + " (" + Vector3.Distance(base.transform.position, prey.transform.position).ToString("F0") + " m away)" + NeedText(PrefabName(prey)));
 	}
 
 	private void UpdateHunting(bool follow)
@@ -316,14 +316,14 @@ public class HuntController : MonoBehaviour
 		bool gone = prey == null || prey.GetComponent<ZNetView>() == null || !prey.GetComponent<ZNetView>().IsValid();
 		if (!gone && (prey.GetHealth() <= 0f || prey.IsDead()))
 		{
-			LogDebug(Loc(_preyName) + " is down");
+			if (CompanionsPlugin.LogDetailed) LogDebug(Loc(_preyName) + " is down");
 			MHR_Loot.OnKill(_setup, prey);
 			Done();
 			return;
 		}
 		if (gone)
 		{
-			LogDebug(Loc(_preyName) + " is gone");
+			if (CompanionsPlugin.LogDetailed) LogDebug(Loc(_preyName) + " is gone");
 			Done();
 			return;
 		}
@@ -338,7 +338,7 @@ public class HuntController : MonoBehaviour
 		{
 			if (_wasChasing)
 			{
-				LogDebug("Lost " + Loc(_preyName) + " - leaving it for a while");
+				if (CompanionsPlugin.LogDetailed) LogDebug("Lost " + Loc(_preyName) + " - leaving it for a while");
 				Skip(prey, 60f);
 			}
 			Done();
@@ -361,7 +361,7 @@ public class HuntController : MonoBehaviour
 					_combatAI.EngagePrey(closer);
 					if (_combatAI.HuntMode && _combatAI.TargetCreature == closer)
 					{
-						Log("Going for a closer " + Loc(closer.m_name) + " (" + dNew.ToString("F0") + " m) instead of the " + Loc(_preyName) + " " + dNow.ToString("F0") + " m away");
+						if (CompanionsPlugin.LogNormal) Log("Going for a closer " + Loc(closer.m_name) + " (" + dNew.ToString("F0") + " m) instead of the " + Loc(_preyName) + " " + dNow.ToString("F0") + " m away");
 						_prey = closer;
 						_preyName = closer.m_name;
 						_lastPreyPos = closer.transform.position;
@@ -373,7 +373,7 @@ public class HuntController : MonoBehaviour
 		float leash = Range(follow) + (ModConfig.HuntChaseExtra?.Value ?? 15f);
 		if (Vector3.Distance(prey.transform.position, Center(follow)) > leash)
 		{
-			Log(Loc(_preyName) + " got away");
+			if (CompanionsPlugin.LogNormal) Log(Loc(_preyName) + " got away");
 			GetComponent<CompanionTalk>()?.Speak(ModLocalization.Loc("hc_why_hunt_got_away"), CompanionTalk.Priority.Event, "hunt:away");
 			Skip(prey, 60f);
 			_combatAI.Disengage();
@@ -460,7 +460,7 @@ public class HuntController : MonoBehaviour
 		if (WeaponLogic.FindReadyBow(_humanoid, null) == null)
 		{
 			_noBowUntil = Time.time + 60f;
-			LogDebug("A bird has landed nearby, but there's no bow or crossbow with ammo to shoot it");
+			if (CompanionsPlugin.LogDetailed) LogDebug("A bird has landed nearby, but there's no bow or crossbow with ammo to shoot it");
 			return false;
 		}
 		_bird = best;
@@ -470,7 +470,7 @@ public class HuntController : MonoBehaviour
 		_birdSince = Time.time;
 		_state = HuntState.Birding;
 		MHR_Mover.Release(_ai);
-		Log("Going after a " + _birdName + " that landed " + bestDist.ToString("F0") + " m away" + NeedText(_birdName));
+		if (CompanionsPlugin.LogNormal) Log("Going after a " + _birdName + " that landed " + bestDist.ToString("F0") + " m away" + NeedText(_birdName));
 		CompanionStatus.Doing(this, "hc_doing_hunt", MHR_Items.NiceName(best.gameObject));
 		return true;
 	}
@@ -485,7 +485,7 @@ public class HuntController : MonoBehaviour
 		ZNetView nv = (_bird != null) ? _bird.GetComponent<ZNetView>() : null;
 		if (_bird == null || nv == null || !nv.IsValid())
 		{
-			LogDebug("Got the " + _birdName);
+			if (CompanionsPlugin.LogDetailed) LogDebug("Got the " + _birdName);
 			MHR_Loot.OnKillAt(_setup, _birdPos, _birdName, _birdBefore);
 			EndBird();
 			_nextCount = 0f;
@@ -494,7 +494,7 @@ public class HuntController : MonoBehaviour
 		_birdPos = _bird.transform.position;
 		if (!Landed(_bird) || Time.time - _birdSince > 30f)
 		{
-			LogDebug("The " + _birdName + (Landed(_bird) ? " - taking too long" : " flew off"));
+			if (CompanionsPlugin.LogDetailed) LogDebug("The " + _birdName + (Landed(_bird) ? " - taking too long" : " flew off"));
 			_skip[_bird.GetInstanceID()] = Time.time + 30f;
 			EndBird();
 			return;
@@ -529,7 +529,7 @@ public class HuntController : MonoBehaviour
 			MHR_Mover.Go(_ai, Time.deltaTime, _birdPos, BirdShotRange * 0.8f, true, "Hunt", MHR_Mover.SpeedJog);
 			if (MHR_Mover.GaveUp(_ai) || MHR_Mover.RouteSwim(_ai) > MHR_Mover.JobSwim())
 			{
-				LogDebug("Can't get a shot at the " + _birdName + (MHR_Mover.RouteSwim(_ai) > MHR_Mover.JobSwim() ? " without a long swim" : "") + " - leaving it");
+				if (CompanionsPlugin.LogDetailed) LogDebug("Can't get a shot at the " + _birdName + (MHR_Mover.RouteSwim(_ai) > MHR_Mover.JobSwim() ? " without a long swim" : "") + " - leaving it");
 				_skip[_bird.GetInstanceID()] = Time.time + 120f;
 				EndBird();
 			}
@@ -559,7 +559,7 @@ public class HuntController : MonoBehaviour
 			shot = _character.StartAttack(null, false);
 		}
 		_nextShot = Time.time + 1.5f;
-		LogDebug((shot ? "Shooting at the " : "Couldn't shoot at the ") + _birdName + " (" + dist.ToString("F0") + " m, " + (_humanoid.GetCurrentWeapon()?.m_shared?.m_name ?? "no weapon") + ")");
+		if (CompanionsPlugin.LogDetailed) LogDebug((shot ? "Shooting at the " : "Couldn't shoot at the ") + _birdName + " (" + dist.ToString("F0") + " m, " + (_humanoid.GetCurrentWeapon()?.m_shared?.m_name ?? "no weapon") + ")");
 	}
 
 	private bool _birdBowOut;
@@ -625,7 +625,7 @@ public class HuntController : MonoBehaviour
 		if (MHR_ToolKeeper.AtHome(_setup))
 		{
 			_nextUnloadTry = Time.time + 60f;
-			Log("Home - putting the catch away");
+			if (CompanionsPlugin.LogNormal) Log("Home - putting the catch away");
 			MHR_ToolKeeper.RequestUnload(_setup);
 			_nextCount = 0f;
 			Stop();
@@ -634,7 +634,7 @@ public class HuntController : MonoBehaviour
 		MHR_Mover.Go(_ai, Time.deltaTime, _setup.GetHomePosition(), 4f, true, "Hunt");
 		if (MHR_Mover.GaveUp(_ai))
 		{
-			Log("Can't find the way home with the catch - trying again later");
+			if (CompanionsPlugin.LogNormal) Log("Can't find the way home with the catch - trying again later");
 			_nextUnloadTry = Time.time + 60f;
 			Stop();
 		}
@@ -855,12 +855,12 @@ public class HuntController : MonoBehaviour
 
 	private static void Log(string msg)
 	{
-		CompanionsPlugin.Log?.LogInfo("[Hunt] " + msg);
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log?.LogInfo("[Hunt] " + msg);
 	}
 
 	private static void LogDebug(string msg)
 	{
-		CompanionsPlugin.Log?.LogDebug("[Hunt] " + msg);
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log?.LogDebug("[Hunt] " + msg);
 	}
 }
 
@@ -949,7 +949,7 @@ internal static class HuntCatalog
 				}
 			}
 			WriteReference();
-			CompanionsPlugin.Log.LogInfo($"[Hunt] {s_meatsOf.Count - s_birds.Count} creatures drop meat, {s_birds.Count} kinds of bird ({s_meats.Count} kinds of drops counted)");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Hunt] {s_meatsOf.Count - s_birds.Count} creatures drop meat, {s_birds.Count} kinds of bird ({s_meats.Count} kinds of drops counted)");
 		}
 		catch (Exception ex)
 		{

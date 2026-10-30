@@ -19,7 +19,7 @@ internal static class UiDiag
 		if (_logs < 20)
 		{
 			_logs++;
-			CompanionsPlugin.Log?.LogInfo(s);
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log?.LogInfo(s);
 		}
 	}
 
@@ -70,11 +70,11 @@ internal static class UiDiag
 						.Append($"{num}");
 				}
 			}
-			Log(stringBuilder.ToString());
+			if (CompanionsPlugin.LogDetailed) Log(stringBuilder.ToString());
 		}
 		catch (Exception ex)
 		{
-			Log("[UiDiag] check failed: " + ex.Message);
+			if (CompanionsPlugin.LogDetailed) Log("[UiDiag] check failed: " + ex.Message);
 		}
 	}
 }

@@ -21,7 +21,7 @@ public static class StaminaPatches
 			{
 				return false;   // per-frame trickles (reeling, hooked fish) would flood the log
 			}
-			CompanionsPlugin.Log.LogDebug($"[Stamina] UseStamina — drained {stamina:F1} " + $"({stamina2:F1} → {component.Stamina:F1} / {component.MaxStamina:F1}) " + "companion=\"" + __instance.m_name + "\"");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Stamina] UseStamina — drained {stamina:F1} " + $"({stamina2:F1} → {component.Stamina:F1} / {component.MaxStamina:F1}) " + "companion=\"" + __instance.m_name + "\"");
 			return false;
 		}
 	}
@@ -58,7 +58,7 @@ public static class StaminaPatches
 			if (!__result && Time.time - _lastLogTime > 2f)
 			{
 				_lastLogTime = Time.time;
-				CompanionsPlugin.Log.LogDebug($"[Stamina] HaveStamina FAILED — need {amount:F1} " + $"have {component.Stamina:F1} / {component.MaxStamina:F1} " + "companion=\"" + __instance.m_name + "\"");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Stamina] HaveStamina FAILED — need {amount:F1} " + $"have {component.Stamina:F1} / {component.MaxStamina:F1} " + "companion=\"" + __instance.m_name + "\"");
 			}
 			return false;
 		}

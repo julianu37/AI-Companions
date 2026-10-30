@@ -94,12 +94,12 @@ internal static class TorchOpener
 			state2.startTime = Time.time;
 			state2.readyAt = Time.time + 0.4f;
 			_active[instanceID] = state2;
-			Info("[TorchOpener] igniting fire-weak target with torch.");
+			if (CompanionsPlugin.LogNormal) Info("[TorchOpener] igniting fire-weak target with torch.");
 			return true;
 		}
 		catch (Exception ex)
 		{
-			Info("[TorchOpener] error: " + ex.Message);
+			if (CompanionsPlugin.LogNormal) Info("[TorchOpener] error: " + ex.Message);
 			return false;
 		}
 	}
@@ -153,7 +153,7 @@ internal static class TorchOpener
 		if (_logs < 300)
 		{
 			_logs++;
-			CompanionsPlugin.Log?.LogInfo(s);
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log?.LogInfo(s);
 		}
 	}
 
@@ -376,7 +376,7 @@ internal static class TorchOpener
 		{
 			_active.Remove(h.GetInstanceID());
 			SetCooldown(h, s.target);
-			Info("[TorchOpener] done (" + why + ") - back to best weapon.");
+			if (CompanionsPlugin.LogNormal) Info("[TorchOpener] done (" + why + ") - back to best weapon.");
 			Component component = h.GetComponent("CompanionSetup");
 			if (component != null)
 			{
@@ -389,7 +389,7 @@ internal static class TorchOpener
 		}
 		catch (Exception ex)
 		{
-			Info("[TorchOpener] end failed: " + ex.Message);
+			if (CompanionsPlugin.LogNormal) Info("[TorchOpener] end failed: " + ex.Message);
 		}
 	}
 }

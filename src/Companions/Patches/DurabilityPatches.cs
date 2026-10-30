@@ -24,11 +24,16 @@ public static class DurabilityPatches
 				itemData.m_durability -= useDurabilityDrain;
 				float maxDurability = itemData.GetMaxDurability();
 				float num = ((maxDurability > 0f) ? (itemData.m_durability / maxDurability * 100f) : 0f);
-				CompanionsPlugin.Log.LogDebug("[Durability] Weapon drain — \"" + itemData.m_shared.m_name + "\" " + $"durability {durability:F1} → {itemData.m_durability:F1} / {maxDurability:F0} " + $"({num:F0}%) drain={useDurabilityDrain:F1} " + "companion=\"" + __instance.m_name + "\"");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Durability] Weapon drain — \"" + itemData.m_shared.m_name + "\" " + $"durability {durability:F1} → {itemData.m_durability:F1} / {maxDurability:F0} " + $"({num:F0}%) drain={useDurabilityDrain:F1} " + "companion=\"" + __instance.m_name + "\"");
 				if (itemData.m_durability <= 0f)
 				{
 					itemData.m_durability = 0f;
 					__instance.UnequipItem(itemData, triggerEquipEffects: false);
+					// 1.5.8: items the game destroys when they break (torches) go, as for a player (Humanoid.DrainEquipedItemDurability)
+					if (itemData.m_shared.m_destroyBroken)
+					{
+						__instance.GetInventory()?.RemoveItem(itemData);
+					}
 					MHR_Equip.OnToolBroke(__instance);
 					CompanionsPlugin.Log.LogWarning("[Durability] Weapon BROKEN — \"" + itemData.m_shared.m_name + "\" unequipped, companion=\"" + __instance.m_name + "\"");
 				}
@@ -57,7 +62,7 @@ public static class DurabilityPatches
 					float totalDamage = hit.GetTotalDamage();
 					hit.ApplyArmor(totalArmor);
 					float totalDamage2 = hit.GetTotalDamage();
-					CompanionsPlugin.Log.LogDebug($"[Durability] Armor reduction — totalArmor={totalArmor:F1} " + $"dmg {totalDamage:F1} → {totalDamage2:F1} " + $"(blocked {totalDamage - totalDamage2:F1}) " + "companion=\"" + __instance.m_name + "\"");
+					if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Durability] Armor reduction — totalArmor={totalArmor:F1} " + $"dmg {totalDamage:F1} → {totalDamage2:F1} " + $"(blocked {totalDamage - totalDamage2:F1}) " + "companion=\"" + __instance.m_name + "\"");
 				}
 			}
 		}
@@ -93,7 +98,7 @@ public static class DurabilityPatches
 			AddIfValid(_armorPieces, _shoulderItem?.GetValue(humanoid) as ItemDrop.ItemData);
 			if (_armorPieces.Count == 0)
 			{
-				CompanionsPlugin.Log.LogDebug("[Durability] No armor with durability equipped — skipping drain companion=\"" + __instance.m_name + "\"");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Durability] No armor with durability equipped — skipping drain companion=\"" + __instance.m_name + "\"");
 				return;
 			}
 			float num = hit.GetTotalPhysicalDamage() + hit.GetTotalElementalDamage();
@@ -104,7 +109,7 @@ public static class DurabilityPatches
 				itemData.m_durability = Mathf.Max(0f, itemData.m_durability - num);
 				float maxDurability = itemData.GetMaxDurability();
 				float num2 = ((maxDurability > 0f) ? (itemData.m_durability / maxDurability * 100f) : 0f);
-				CompanionsPlugin.Log.LogDebug("[Durability] Armor drain — \"" + itemData.m_shared.m_name + "\" " + $"durability {durability:F1} → {itemData.m_durability:F1} / {maxDurability:F0} " + $"({num2:F0}%) dmgTaken={num:F1} " + $"armorPieces={_armorPieces.Count} companion=\"{__instance.m_name}\"");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Durability] Armor drain — \"" + itemData.m_shared.m_name + "\" " + $"durability {durability:F1} → {itemData.m_durability:F1} / {maxDurability:F0} " + $"({num2:F0}%) dmgTaken={num:F1} " + $"armorPieces={_armorPieces.Count} companion=\"{__instance.m_name}\"");
 				if (itemData.m_durability <= 0f)
 				{
 					humanoid.UnequipItem(itemData, triggerEquipEffects: false);

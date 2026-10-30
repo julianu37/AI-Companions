@@ -67,7 +67,7 @@ public partial class CompanionCombatAI
 		float secs = ModConfig.CombatOrderHoldTime?.Value ?? 10f;
 		if (_engaged)
 		{
-			CompanionsPlugin.Log.LogDebug($"[Combat] {what} - leaving {(_targetCreature != null ? _targetCreature.m_name : "the fight")}, no new fights for {secs:F0} s");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Combat] {what} - leaving {(_targetCreature != null ? _targetCreature.m_name : "the fight")}, no new fights for {secs:F0} s");
 			Disengage();
 		}
 		_ordered = null;
@@ -161,6 +161,12 @@ public partial class CompanionCombatAI
 			r.Ok = false;
 			r.Why = "it's out in deep water";
 		}
+		// 1.5.74: not into lava after it (Ashlands creatures stand in it) - the bow, or let it go
+		else if (MHR_Mover.Lava(it))
+		{
+			r.Ok = false;
+			r.Why = "it's standing in lava";
+		}
 		// 1.5.76: only something standing (or flying) above or below - not a tick latched on or one in mid-jump (log fd7b1683:
 		// "bow for $enemy_tick (2.0 m): it's above, out of reach" swapped to the bow mid-fight)
 		else if (d < 3f && (dy > 1.4f || dy < -1.8f) && (c.IsOnGround() || c.IsFlying()) && MHR_Latched.LatchedOn(_character) != c)
@@ -231,12 +237,12 @@ public partial class CompanionCombatAI
 			{
 				if (_latched != null)
 				{
-					CompanionsPlugin.Log.LogDebug($"[Combat] {_latched.m_name} latched on to {_character.m_name}");
+					if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Combat] {_latched.m_name} latched on to {_character.m_name}");
 				}
 				// 1.5.77: also when it died and is already gone (Unity null) - the name was kept
 				if (hadOne)
 				{
-					CompanionsPlugin.Log.LogDebug($"[Combat] {wasName} let go of {_character.m_name}" + (was == null || was.IsDead() ? " (dead)" : ""));
+					if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Combat] {wasName} let go of {_character.m_name}" + (was == null || was.IsDead() ? " (dead)" : ""));
 				}
 			}
 		}
@@ -365,7 +371,7 @@ public partial class CompanionCombatAI
 		Player you = MHR_Owner.Of(_setup);
 		if (you != null && Vector3.Distance(you.transform.position, c.transform.position) > LeashFromYou)
 		{
-			TargetLog($"[Combat] {c.m_name} is more than {LeashFromYou:F0} m from you - letting it go and coming back");
+			if (CompanionsPlugin.LogDetailed) TargetLog($"[Combat] {c.m_name} is more than {LeashFromYou:F0} m from you - letting it go and coming back");
 			LetGo(c, 10f);
 			return;
 		}
@@ -380,7 +386,7 @@ public partial class CompanionCombatAI
 			// 1.5.74: with a bow it keeps shooting from where it stands (ChaseMove doesn't walk it away from you)
 			if (owner != null && Vector3.Distance(owner.transform.position, c.transform.position) > range && !(BowReady() && MHR_BowDraw.ClearShot(_character, c)))
 			{
-				TargetLog($"[Combat] {c.m_name} is more than {range:F0} m from you - fighting defensively, letting it come to us");
+				if (CompanionsPlugin.LogDetailed) TargetLog($"[Combat] {c.m_name} is more than {range:F0} m from you - fighting defensively, letting it come to us");
 				_ignoreUntil[c] = Time.time + 3f;
 				_targetCreature = null;
 				return;
@@ -397,7 +403,7 @@ public partial class CompanionCombatAI
 		}
 		else if (Time.time - _noSightSince > 3f)
 		{
-			TargetLog($"[Combat] Lost sight of {c.m_name} (behind a wall or door) - letting it go");
+			if (CompanionsPlugin.LogDetailed) TargetLog($"[Combat] Lost sight of {c.m_name} (behind a wall or door) - letting it go");
 			_ignoreUntil[c] = Time.time + 8f;
 			_targetCreature = null;
 			_noSightSince = -1f;
@@ -424,7 +430,7 @@ public partial class CompanionCombatAI
 		}
 		_ignoreUntil.Remove(c);
 		_letGoUnreachable.Remove(c);
-		CompanionsPlugin.Log.LogDebug($"[Combat] {c.m_name} {(attacking ? "is attacking " + (after == _character ? "it" : "you") : "came within reach")} - back on it");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Combat] {c.m_name} {(attacking ? "is attacking " + (after == _character ? "it" : "you") : "came within reach")} - back on it");
 		return true;
 	}
 
@@ -461,7 +467,7 @@ public partial class CompanionCombatAI
 		{
 			return false;
 		}
-		CompanionsPlugin.Log.LogDebug($"[Combat] Can't get at {c.m_name} ({why}) and not a hit on it for {limit:F0} s - letting it go");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Combat] Can't get at {c.m_name} ({why}) and not a hit on it for {limit:F0} s - letting it go");
 		LetGo(c, 20f);
 		_letGoUnreachable.Add(c);
 		return true;
@@ -474,7 +480,7 @@ public partial class CompanionCombatAI
 		{
 			return;
 		}
-		TargetLog($"[Combat] {_targetCreature.m_name} is behind a closed door - not opening it in a fight");
+		if (CompanionsPlugin.LogDetailed) TargetLog($"[Combat] {_targetCreature.m_name} is behind a closed door - not opening it in a fight");
 		_ignoreUntil[_targetCreature] = Time.time + 15f;
 		_targetCreature = null;
 		MHR_Mover.Release(_ai);
@@ -485,7 +491,7 @@ public partial class CompanionCombatAI
 		if (Time.time >= _nextTargetLog)
 		{
 			_nextTargetLog = Time.time + 1f;
-			CompanionsPlugin.Log.LogDebug(msg);
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug(msg);
 		}
 	}
 }

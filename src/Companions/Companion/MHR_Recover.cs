@@ -58,7 +58,7 @@ internal static class MHR_Recover
 		zdo.Set(RecoverPickupHash, autoPickup);
 		// so it never ends up leaving something in the tombstone (user)
 		zdo.Set(CompanionSetup.AutoPickupHash, value: false);
-		CompanionsPlugin.Log.LogInfo("[Recover] Revived Passive with auto-pickup off - getting its gear back before going back to stance " + diedStance);
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Recover] Revived Passive with auto-pickup off - getting its gear back before going back to stance " + diedStance);
 	}
 
 	internal static bool IsRecovering(Component c)
@@ -88,7 +88,7 @@ internal static class MHR_Recover
 		zdo.Set(RecoveringHash, value: false);
 		zdo.Set(CompanionSetup.AutoPickupHash, zdo.GetBool(RecoverPickupHash, defaultValue: true));
 		s_state.Remove(cs.gameObject.GetInstanceID());
-		CompanionsPlugin.Log.LogInfo("[Recover] You set a stance - recovery over");
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Recover] You set a stance - recovery over");
 	}
 
 	// while recovering it's Passive, but it does fight back when something attacks it and it has a weapon in hand
@@ -231,7 +231,7 @@ internal static class MHR_Recover
 				if (!st.WaitSaid)
 				{
 					st.WaitSaid = true;
-					CompanionsPlugin.Log.LogInfo("[Recover] Waiting before going for its tombstone: " + why);
+					if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Recover] Waiting before going for its tombstone: " + why);
 					cs.GetComponent<CompanionTalk>()?.Speak(ModLocalization.Loc("hc_speech_recover_wait"), CompanionTalk.Priority.Event, "recover:wait");
 				}
 			}
@@ -257,7 +257,7 @@ internal static class MHR_Recover
 			}
 			// out of reach for a minute: stay out of fights until you bring it its gear or set a stance
 			End(cs, zdo, restoreStance: false);
-			CompanionsPlugin.Log.LogInfo("[Recover] Its tombstone is out of reach - staying Passive until you set a stance");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Recover] Its tombstone is out of reach - staying Passive until you set a stance");
 			cs.GetComponent<CompanionTalk>()?.Speak(ModLocalization.Loc("hc_speech_recover_far"), CompanionTalk.Priority.Problem, "recover:far");
 			return;
 		}
@@ -293,7 +293,7 @@ internal static class MHR_Recover
 		{
 			int stance = zdo.GetInt(RecoverStanceHash);
 			zdo.Set(CompanionSetup.CombatStanceHash, stance);
-			CompanionsPlugin.Log.LogInfo("[Recover] Gear back on and fed - back to stance " + stance);
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Recover] Gear back on and fed - back to stance " + stance);
 		}
 		s_state.Remove(cs.gameObject.GetInstanceID());
 	}

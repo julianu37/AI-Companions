@@ -33,11 +33,11 @@ internal static class PlayerCombatLog
 
 	private static readonly FieldInfo s_chainLevel = AccessTools.Field(typeof(Attack), "m_currentAttackCainLevel");
 
-	internal static bool On => ModConfig.LogPlayerCombat?.Value ?? true;
+	internal static bool On => CompanionsPlugin.LogDetailed && (ModConfig.LogPlayerCombat?.Value ?? true);
 
 	private static void Log(string s)
 	{
-		CompanionsPlugin.Log.LogDebug("[You] " + s);
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[You] " + s);
 	}
 
 	private static string Stam(Player p)
@@ -98,25 +98,25 @@ internal static class PlayerCombatLog
 			if (blocking)
 			{
 				s_guardUpAt = now;
-				Log("Guard up" + (n != null ? $" - {n.m_name} {g:F1} m away (its reach {CompanionCombatAI.SwingReach(n):F1}){(n.InAttack() ? ", mid-swing" : "")}" : "") + ", " + Stam(p));
+				if (CompanionsPlugin.LogDetailed) Log("Guard up" + (n != null ? $" - {n.m_name} {g:F1} m away (its reach {CompanionCombatAI.SwingReach(n):F1}){(n.InAttack() ? ", mid-swing" : "")}" : "") + ", " + Stam(p));
 			}
 			else
 			{
-				Log($"Guard down after {now - s_guardUpAt:F2} s, " + Stam(p));
+				if (CompanionsPlugin.LogDetailed) Log($"Guard down after {now - s_guardUpAt:F2} s, " + Stam(p));
 			}
 		}
 		bool dodging = p.InDodge();
 		if (dodging && !s_dodging)
 		{
 			Character n = Nearest(p, 6f, out var g);
-			Log("Dodge roll" + (n != null ? $" - {n.m_name} {g:F1} m away{(n.InAttack() ? ", mid-swing" : "")}" : "") + ", " + Stam(p));
+			if (CompanionsPlugin.LogDetailed) Log("Dodge roll" + (n != null ? $" - {n.m_name} {g:F1} m away{(n.InAttack() ? ", mid-swing" : "")}" : "") + ", " + Stam(p));
 		}
 		s_dodging = dodging;
 		// hits taken
 		float hp = p.GetHealth();
 		if (s_lastHp >= 0f && hp < s_lastHp - 0.5f)
 		{
-			Log($"Took {s_lastHp - hp:F0} damage ({hp:F0} hp left){(blocking ? ", guard up" : "")}");
+			if (CompanionsPlugin.LogDetailed) Log($"Took {s_lastHp - hp:F0} damage ({hp:F0} hp left){(blocking ? ", guard up" : "")}");
 		}
 		s_lastHp = hp;
 		// enemy swings at you
@@ -137,7 +137,7 @@ internal static class PlayerCombatLog
 					float reach = CompanionCombatAI.SwingReach(c);
 					float away = AwaySpeed(p, c);
 					bool atYou = c.GetBaseAI()?.GetTargetCreature() == p;
-					Log($"{c.m_name} swings{(atYou ? " at you" : "")} from {g:F1} m (its reach {reach:F1}) - you're {(g > reach ? "out of reach" : "in reach")}, {(away > 0.3f ? $"moving away {away:F1} m/s" : away < -0.3f ? $"closing in {-away:F1} m/s" : "standing")}{(blocking ? ", guard up" : "")}{(p.InAttack() ? ", mid-swing" : "")}, " + Stam(p));
+					if (CompanionsPlugin.LogDetailed) Log($"{c.m_name} swings{(atYou ? " at you" : "")} from {g:F1} m (its reach {reach:F1}) - you're {(g > reach ? "out of reach" : "in reach")}, {(away > 0.3f ? $"moving away {away:F1} m/s" : away < -0.3f ? $"closing in {-away:F1} m/s" : "standing")}{(blocking ? ", guard up" : "")}{(p.InAttack() ? ", mid-swing" : "")}, " + Stam(p));
 				}
 			}
 			s_enemyInAttack[id] = inAttack;
@@ -154,7 +154,7 @@ internal static class PlayerCombatLog
 			if (n != null)
 			{
 				float away = AwaySpeed(p, n);
-				Log($"Spacing: {n.m_name} {g:F1} m (its reach {CompanionCombatAI.SwingReach(n):F1}{(n.InAttack() ? ", mid-swing" : "")}{(n.IsStaggering() ? ", staggered" : "")}), you're {(away > 0.3f ? $"moving away {away:F1} m/s" : away < -0.3f ? $"closing in {-away:F1} m/s" : "standing")}{(blocking ? ", guard up" : "")}, {Stam(p)}");
+				if (CompanionsPlugin.LogDetailed) Log($"Spacing: {n.m_name} {g:F1} m (its reach {CompanionCombatAI.SwingReach(n):F1}{(n.InAttack() ? ", mid-swing" : "")}{(n.IsStaggering() ? ", staggered" : "")}), you're {(away > 0.3f ? $"moving away {away:F1} m/s" : away < -0.3f ? $"closing in {-away:F1} m/s" : "standing")}{(blocking ? ", guard up" : "")}, {Stam(p)}");
 			}
 		}
 	}
@@ -198,7 +198,7 @@ internal static class PlayerCombatLog
 			s_lastSwingLog = Time.time;
 			Character n = Nearest(p, 6f, out var g);
 			string w = p.GetCurrentWeapon()?.m_shared?.m_name ?? "?";
-			Log($"{(secondaryAttack ? "Secondary attack" : "Swing")} with {w}{combo}, {__state:F2} s after the last swing ended" + (n != null ? $" - {n.m_name} {g:F1} m away (its reach {CompanionCombatAI.SwingReach(n):F1}){(n.InAttack() ? ", it's mid-swing" : "")}{(n.IsStaggering() ? ", it's staggered" : "")}" : "") + ", " + Stam(p));
+			if (CompanionsPlugin.LogDetailed) Log($"{(secondaryAttack ? "Secondary attack" : "Swing")} with {w}{combo}, {__state:F2} s after the last swing ended" + (n != null ? $" - {n.m_name} {g:F1} m away (its reach {CompanionCombatAI.SwingReach(n):F1}){(n.InAttack() ? ", it's mid-swing" : "")}{(n.IsStaggering() ? ", it's staggered" : "")}" : "") + ", " + Stam(p));
 		}
 	}
 
@@ -209,7 +209,7 @@ internal static class PlayerCombatLog
 		{
 			return;
 		}
-		Log($"{(parry ? "Parried" : "Blocked")} {(attacker != null ? attacker.m_name : "a hit")} {(s_guardUpAt > 0f ? $"{Time.time - s_guardUpAt:F2} s after raising the guard" : "")}: {before:F0} damage, {after:F0} got through, " + Stam((Player)h));
+		if (CompanionsPlugin.LogDetailed) Log($"{(parry ? "Parried" : "Blocked")} {(attacker != null ? attacker.m_name : "a hit")} {(s_guardUpAt > 0f ? $"{Time.time - s_guardUpAt:F2} s after raising the guard" : "")}: {before:F0} damage, {after:F0} got through, " + Stam((Player)h));
 	}
 
 	// your hits
@@ -219,6 +219,6 @@ internal static class PlayerCombatLog
 		{
 			return;
 		}
-		Log($"Hit {target.m_name} for {hit.GetTotalDamage():F0}{(target.IsStaggering() ? " (staggered - double damage)" : "")}");
+		if (CompanionsPlugin.LogDetailed) Log($"Hit {target.m_name} for {hit.GetTotalDamage():F0}{(target.IsStaggering() ? " (staggered - double damage)" : "")}");
 	}
 }

@@ -26,7 +26,7 @@ internal static class MHR_Hive
 
 	private static void Log(string msg)
 	{
-		CompanionsPlugin.Log?.LogInfo("[Hive] " + msg);
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log?.LogInfo("[Hive] " + msg);
 	}
 
 	private static S Peek(CompanionAI ai)
@@ -61,7 +61,7 @@ internal static class MHR_Hive
 		};
 		s_s[ai.GetInstanceID()] = s;
 		MHR_Mover.Release(ai);
-		Log($"{ai.GetComponent<Character>()?.m_name} collecting {HoneyIn(hive)} honey from the beehive at {MHR_Mover.Fmt(hive.transform.position)}");
+		if (CompanionsPlugin.LogNormal) Log($"{ai.GetComponent<Character>()?.m_name} collecting {HoneyIn(hive)} honey from the beehive at {MHR_Mover.Fmt(hive.transform.position)}");
 	}
 
 	internal static void Cancel(CompanionAI ai)
@@ -77,7 +77,7 @@ internal static class MHR_Hive
 	{
 		if (why != null)
 		{
-			Log(ai.GetComponent<Character>()?.m_name + " - " + why);
+			if (CompanionsPlugin.LogNormal) Log(ai.GetComponent<Character>()?.m_name + " - " + why);
 		}
 		s_s.Remove(ai.GetInstanceID());
 		MHR_Mover.Release(ai);

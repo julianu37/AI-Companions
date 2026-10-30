@@ -1100,6 +1100,18 @@ PT-BR translation: coverage audit (what the player reads, in English, was a bug)
   `BepInEx\config\*.cfg`; the F8 panel shows the keys), the **technical names of the settings** in the panel tabs
   and the diagnostic **log lines** (kept in English on purpose).
 
+## 1.5.8
+- Torches: companions carry one at night and in dark dungeons and caves (Torch > DarkLevel), not in a lit base or next to you holding yours; held in either hand and kept lit in a fight in the off hand; it burns down like yours (Torch > BurnsDown) and is never repaired. Companions fight with their fists rather than a torch.
+- Controller binds for every action, each with an optional modifier (default: hold block + Y to command, hold block + X for the wheel); any bind can be cleared, keyboard keys too; hints show your controller's buttons.
+- Settings panel (F8) with a controller: sticks the right way round, one clear highlight, readable button hints; settings with a list of choices (LogLevel, PortalItems, RespawnStance, Speech Chatter) are shown there now.
+- Ashlands lava: companions go round it, get off it at once, and don't chase enemies or loot onto it.
+- A companion stays put a little longer while your crosshair is on it, so you can walk up and talk to it.
+- Companions no longer shut a door behind you mid-fight and can follow you through it.
+- A torch used up by blocking or swinging it is gone, as for you; companions don't block with only a torch (they step out of the swing).
+- In a dungeon a seated companion gets up when you go out of sight, not just when you're more than 10 m away.
+- The door command closes an open door too (one companion goes); a controller's Use no longer opens a companion's bag while a menu is open.
+- New Advanced > LogLevel (Off / Normal / Detailed): far less logging by default, and a level that's off costs nothing.
+
 ## 1.5.7
 - The beehive order goes to the nearest companion that isn't resting; companions don't go to bed in the middle of an order.
 - Companions step round a tree or rock that is in the way of their swing.

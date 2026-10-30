@@ -107,7 +107,7 @@ public partial class UpkeepController
 			_key = k.Shared;
 			_amount = take;
 			_pileHasSpot = false;
-			Log("Stacking " + take + " " + MHR_List.Local(k.Shared) + " into " + (take / k.Cost) + " " + MHR_List.Local(k.Piles[0].m_name) + "(s) next to the existing ones (" + total + " in the chests, keeping " + keep + ")");
+			if (CompanionsPlugin.LogNormal) Log("Stacking " + take + " " + MHR_List.Local(k.Shared) + " into " + (take / k.Cost) + " " + MHR_List.Local(k.Piles[0].m_name) + "(s) next to the existing ones (" + total + " in the chests, keeping " + keep + ")");
 			Enter(Step.PileTake);
 			return true;
 		}
@@ -187,7 +187,7 @@ public partial class UpkeepController
 			Done("Not enough " + MHR_List.Local(_key) + " for a pile after all (" + got + ")");
 			return;
 		}
-		LogDebug("Took " + got + " " + MHR_List.Local(_key) + " for piles");
+		if (CompanionsPlugin.LogDetailed) LogDebug("Took " + got + " " + MHR_List.Local(_key) + " for piles");
 		Done(null);
 		_pile = k;
 		_pileHasSpot = false;
@@ -216,7 +216,7 @@ public partial class UpkeepController
 			if (!PileSpot(k))
 			{
 				_pileNoSpot[k.Item] = Time.time + 600f;
-				Log("No free spot next to the existing " + MHR_List.Local(k.Shared) + " piles - trying again in 10 minutes");
+				if (CompanionsPlugin.LogNormal) Log("No free spot next to the existing " + MHR_List.Local(k.Shared) + " piles - trying again in 10 minutes");
 				_pile = null;
 				Done(null);
 				return;
@@ -240,7 +240,7 @@ public partial class UpkeepController
 			}
 			if (far || MHR_Mover.GaveUp(_ai) || (_arrived && Time.time - _arrivedAt > 3f))
 			{
-				LogDebug("Can't get to the pile spot " + MHR_Mover.Fmt(_pileSpot) + " - trying another");
+				if (CompanionsPlugin.LogDetailed) LogDebug("Can't get to the pile spot " + MHR_Mover.Fmt(_pileSpot) + " - trying another");
 				_pileBadSpots.Add(Cell(_pileSpot));
 				_pileHasSpot = false;
 				MHR_Mover.Release(_ai);
@@ -280,7 +280,7 @@ public partial class UpkeepController
 		{
 			_pileBadSpots.Add(Cell(_pileSpot));
 			_pileHasSpot = false;
-			LogDebug("No " + MHR_List.Local(prefabPiece.m_craftingStation.m_name) + " in range of " + MHR_Mover.Fmt(_pileSpot));
+			if (CompanionsPlugin.LogDetailed) LogDebug("No " + MHR_List.Local(prefabPiece.m_craftingStation.m_name) + " in range of " + MHR_Mover.Fmt(_pileSpot));
 			return;
 		}
 		if (!PrivateArea.CheckAccess(_pileSpot, 0f, flash: false))
@@ -332,7 +332,7 @@ public partial class UpkeepController
 		{
 			k.Piles.Add(piece);
 		}
-		Log("Built a " + (piece != null ? MHR_List.Local(piece.m_name) : k.Prefab.name) + " at " + MHR_Mover.Fmt(_pileSpot) + " from " + k.Cost + " " + MHR_List.Local(k.Shared));
+		if (CompanionsPlugin.LogNormal) Log("Built a " + (piece != null ? MHR_List.Local(piece.m_name) : k.Prefab.name) + " at " + MHR_Mover.Fmt(_pileSpot) + " from " + k.Cost + " " + MHR_List.Local(k.Shared));
 	}
 
 	// ---- where: right beside (or on top of) one of the same kind ----
@@ -409,11 +409,11 @@ public partial class UpkeepController
 		}
 		if (!found && rejectedPath + rejectedUse > 0)
 		{
-			Log("Every spot beside the " + MHR_List.Local(k.Shared) + " piles would be in the way (" + rejectedPath + " in a walkway, " + rejectedUse + " by a door, station, port or chest)");
+			if (CompanionsPlugin.LogNormal) Log("Every spot beside the " + MHR_List.Local(k.Shared) + " piles would be in the way (" + rejectedPath + " in a walkway, " + rejectedUse + " by a door, station, port or chest)");
 		}
 		else if (found)
 		{
-			LogDebug("Pile spot " + MHR_Mover.Fmt(_pileSpot) + " (score " + bestScore.ToString("F1") + ")");
+			if (CompanionsPlugin.LogDetailed) LogDebug("Pile spot " + MHR_Mover.Fmt(_pileSpot) + " (score " + bestScore.ToString("F1") + ")");
 		}
 		return found;
 	}
@@ -715,7 +715,7 @@ public partial class UpkeepController
 		}
 		_pile = k;
 		_downPile = best;
-		Log("Chests are down to " + total + " " + MHR_List.Local(k.Shared) + " (keeping " + keep + ") - taking down the " + MHR_List.Local(best.m_name) + " at " + MHR_Mover.Fmt(best.transform.position));
+		if (CompanionsPlugin.LogNormal) Log("Chests are down to " + total + " " + MHR_List.Local(k.Shared) + " (keeping " + keep + ") - taking down the " + MHR_List.Local(best.m_name) + " at " + MHR_Mover.Fmt(best.transform.position));
 		Enter(Step.PileDown);
 		return true;
 	}
@@ -837,7 +837,7 @@ public partial class UpkeepController
 		string anim = hammer.m_shared.m_attack?.m_attackAnimation;
 		GetComponent<ZSyncAnimation>()?.SetTrigger(!string.IsNullOrEmpty(anim) ? anim : "swing_hammer");   // removing costs no stamina or wear, as for a player
 		k.Piles.Remove(pile);
-		Log("Took down the " + MHR_List.Local(pile.m_name) + " at " + MHR_Mover.Fmt(at));
+		if (CompanionsPlugin.LogNormal) Log("Took down the " + MHR_List.Local(pile.m_name) + " at " + MHR_Mover.Fmt(at));
 		_downAt = Time.time;
 		_spot = at;
 		_downPile = null;
@@ -889,7 +889,7 @@ public partial class UpkeepController
 				GetComponent<ZSyncAnimation>()?.SetTrigger("interact");
 				int got = Move(box.GetInventory(), bag, k.Shared, byName: true, int.MaxValue);
 				Took(k.Shared, got);
-				LogDebug("Took " + got + " " + MHR_List.Local(k.Shared) + " out of what the pile left");
+				if (CompanionsPlugin.LogDetailed) LogDebug("Took " + got + " " + MHR_List.Local(k.Shared) + " out of what the pile left");
 				return;
 			}
 		}

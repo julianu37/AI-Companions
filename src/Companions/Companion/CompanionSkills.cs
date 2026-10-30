@@ -67,7 +67,7 @@ public class CompanionSkills : MonoBehaviour
 			orCreateSkill.Accumulator += num2;
 			float num3 = Mathf.Pow(Mathf.Floor(orCreateSkill.Level + 1f), 1.5f) * 0.5f + 0.5f;
 			string arg = _character?.m_name ?? "?";
-			CompanionsPlugin.Log.LogDebug($"[CompanionSkills] \"{arg}\" raised {type} +{num2:F3} " + $"→ acc {orCreateSkill.Accumulator:F3}/{num3:F3} (lvl {(int)orCreateSkill.Level})");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[CompanionSkills] \"{arg}\" raised {type} +{num2:F3} " + $"→ acc {orCreateSkill.Accumulator:F3}/{num3:F3} (lvl {(int)orCreateSkill.Level})");
 			if (orCreateSkill.Accumulator >= num3)
 			{
 				orCreateSkill.Level += 1f;
@@ -115,7 +115,7 @@ public class CompanionSkills : MonoBehaviour
 			return;
 		}
 		_skillDefs = new List<Skills.SkillDef>(skills.m_skills);
-		CompanionsPlugin.Log.LogInfo($"[CompanionSkills] Cached {_skillDefs.Count} SkillDefs from Player prefab.");
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[CompanionSkills] Cached {_skillDefs.Count} SkillDefs from Player prefab.");
 	}
 
 	public void OnDeath()
@@ -129,7 +129,7 @@ public class CompanionSkills : MonoBehaviour
 		_dirty = true;
 		SaveToZDO();
 		string text = ((_character != null) ? _character.m_name : "Companion");
-		CompanionsPlugin.Log.LogInfo("[CompanionSkills] Death penalty applied to \"" + text + "\" — " + $"all skills lowered by {DeathLowerFactor * Game.m_skillReductionRate * 100f:F0}%");
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[CompanionSkills] Death penalty applied to \"" + text + "\" — " + $"all skills lowered by {DeathLowerFactor * Game.m_skillReductionRate * 100f:F0}%");
 	}
 
 	public string SerializeSkills()
@@ -228,7 +228,7 @@ public class CompanionSkills : MonoBehaviour
 				}
 			}
 		}
-		CompanionsPlugin.Log.LogDebug($"[CompanionSkills] Loaded {_skills.Count} skills from string");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[CompanionSkills] Loaded {_skills.Count} skills from string");
 	}
 
 	private void Update()
@@ -275,7 +275,7 @@ public class CompanionSkills : MonoBehaviour
 		Skills.SkillDef skillDef = GetSkillDef(type);
 		if (skillDef == null)
 		{
-			CompanionsPlugin.Log.LogDebug($"[CompanionSkills] No SkillDef for {type} — skipping");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[CompanionSkills] No SkillDef for {type} — skipping");
 			return null;
 		}
 		SkillData skillData = new SkillData(skillDef);
@@ -302,6 +302,6 @@ public class CompanionSkills : MonoBehaviour
 		Sprite icon = skill.Def?.m_icon;
 		string msg = text + " — $msg_skillup $skill_" + type.ToString().ToLower() + ": " + (int)skill.Level;
 		localPlayer.Message(MessageHud.MessageType.TopLeft, msg, 0, icon);
-		CompanionsPlugin.Log.LogInfo($"[CompanionSkills] \"{text}\" leveled up {type} to {(int)skill.Level}");
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[CompanionSkills] \"{text}\" leveled up {type} to {(int)skill.Level}");
 	}
 }

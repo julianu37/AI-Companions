@@ -80,7 +80,7 @@ internal static class MHR_BowDraw
 			s_states[id] = st;
 			Attack a = w.m_shared.m_attack;
 			float full = Mathf.Lerp(a.m_drawDurationMin, a.m_drawDurationMin * 0.2f, h.GetSkillFactor(w.m_shared.m_skillType));
-			CompanionsPlugin.Log.LogDebug($"[Bow] Drawing {w.m_shared.m_name} - full draw in {full:F1} s");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Bow] Drawing {w.m_shared.m_name} - full draw in {full:F1} s");
 			ReflectionHelper.TrySetAttackDrawTime(h, 0.0001f);
 			w.m_shared.m_holdStartEffect.Create(h.transform.position, Quaternion.identity, h.transform);
 			LogBowOnce(h, "companion");
@@ -95,13 +95,13 @@ internal static class MHR_BowDraw
 		{
 			if (!clear && st.Held == 0f)
 			{
-				CompanionsPlugin.Log.LogDebug("[Bow] Fully drawn but something is in the way of the shot - holding");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Bow] Fully drawn but something is in the way of the shot - holding");
 			}
 			st.Held += Time.deltaTime;
 			return false;
 		}
 		bool shot = h.StartAttack(target, secondaryAttack: false);
-		CompanionsPlugin.Log.LogDebug($"[Bow] {(shot ? "Loosed" : "Couldn't loose")} at {pct * 100f:F0}% draw ({(st.LooseNow ? "out of stamina" : st.Why)}) after {Time.time - st.Started:F1} s" + (st.Held > 0.05f ? $", held {st.Held:F1} s" : ""));
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Bow] {(shot ? "Loosed" : "Couldn't loose")} at {pct * 100f:F0}% draw ({(st.LooseNow ? "out of stamina" : st.Why)}) after {Time.time - st.Started:F1} s" + (st.Held > 0.05f ? $", held {st.Held:F1} s" : ""));
 		Cancel(h);
 		return shot;
 	}
@@ -150,7 +150,7 @@ internal static class MHR_BowDraw
 				st.LooseNow = true;
 				return;
 			}
-			CompanionsPlugin.Log.LogDebug("[Bow] Out of stamina - letting go of the string, getting its breath back");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Bow] Out of stamina - letting go of the string, getting its breath back");
 			s_resting.Add(h.GetInstanceID());
 			Cancel(h);
 			return;
@@ -189,7 +189,7 @@ internal static class MHR_BowDraw
 				return true;
 			}
 			s_resting.Remove(id);
-			CompanionsPlugin.Log.LogDebug($"[Bow] Got its breath back ({stam.Stamina:F0}/{stam.MaxStamina:F0}) - drawing again");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Bow] Got its breath back ({stam.Stamina:F0}/{stam.MaxStamina:F0}) - drawing again");
 			return false;
 		}
 		bool far = target == null || Vector3.Distance(h.transform.position, target.transform.position) >= (ModConfig.CombatBowFullDrawRange?.Value ?? 15f);
@@ -199,7 +199,7 @@ internal static class MHR_BowDraw
 		if (stam.Stamina < need || (far && share < (ModConfig.CombatStaminaReserve?.Value ?? 0.3f)))
 		{
 			s_resting.Add(id);
-			CompanionsPlugin.Log.LogDebug($"[Bow] Too tired to draw ({stam.Stamina:F0}/{stam.MaxStamina:F0} stamina) - waiting for its breath");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Bow] Too tired to draw ({stam.Stamina:F0}/{stam.MaxStamina:F0} stamina) - waiting for its breath");
 			return true;
 		}
 		return false;
@@ -330,6 +330,10 @@ internal static class MHR_BowDraw
 
 	private static void LogPlayerBowOnce()
 	{
+		if (!CompanionsPlugin.LogDetailed)
+		{
+			return;
+		}
 		Player p = Player.m_localPlayer;
 		if (!s_loggedPlayer && p != null && p.IsDrawingBow() && p.GetAttackDrawPercentage() > 0.5f)
 		{
@@ -339,6 +343,10 @@ internal static class MHR_BowDraw
 
 	private static void LogBowOnce(Humanoid h, string who)
 	{
+		if (!CompanionsPlugin.LogDetailed)
+		{
+			return;
+		}
 		bool player = who == "you";
 		if (player ? s_loggedPlayer : s_loggedCompanion)
 		{
@@ -358,18 +366,18 @@ internal static class MHR_BowDraw
 			GameObject bow = ve != null ? s_leftInst(ve) : null;
 			if (bow == null)
 			{
-				CompanionsPlugin.Log.LogInfo($"[BowDiag] {who}: no bow model in the left hand");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo($"[BowDiag] {who}: no bow model in the left hand");
 				return;
 			}
 			string comps = string.Join(", ", bow.GetComponentsInChildren<Component>(includeInactive: true).Where((Component c) => c != null && !(c is Transform)).Select((Component c) => c.GetType().Name + "@" + c.gameObject.name).Distinct().Take(30));
 			string anims = string.Join("; ", bow.GetComponentsInChildren<Animator>(includeInactive: true).Select((Animator a) => a.gameObject.name + " ctrl=" + (a.runtimeAnimatorController != null ? a.runtimeAnimatorController.name : "none") + " enabled=" + a.enabled + " params=[" + string.Join(",", a.parameters.Select((AnimatorControllerParameter x) => x.name)) + "]"));
 			string bones = string.Join("; ", bow.GetComponentsInChildren<SkinnedMeshRenderer>(includeInactive: true).Select((SkinnedMeshRenderer s) => s.gameObject.name + " bones=" + (s.bones?.Length ?? 0) + " root=" + (s.rootBone != null ? s.rootBone.name : "none")));
 			Animator body = h.GetComponentInChildren<Animator>();
-			CompanionsPlugin.Log.LogInfo($"[BowDiag] {who}: bow model \"{bow.name}\" under \"{(bow.transform.parent != null ? bow.transform.parent.name : "none")}\" | components: {comps} | animators: {(anims.Length > 0 ? anims : "none")} | skinned: {(bones.Length > 0 ? bones : "none")} | body animator: cull={body?.cullingMode} drawpercent={(body != null ? body.GetFloat("drawpercent").ToString("F2") : "?")}");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo($"[BowDiag] {who}: bow model \"{bow.name}\" under \"{(bow.transform.parent != null ? bow.transform.parent.name : "none")}\" | components: {comps} | animators: {(anims.Length > 0 ? anims : "none")} | skinned: {(bones.Length > 0 ? bones : "none")} | body animator: cull={body?.cullingMode} drawpercent={(body != null ? body.GetFloat("drawpercent").ToString("F2") : "?")}");
 		}
 		catch (System.Exception ex)
 		{
-			CompanionsPlugin.Log.LogInfo("[BowDiag] " + who + ": " + ex.Message);
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo("[BowDiag] " + who + ": " + ex.Message);
 		}
 	}
 }

@@ -180,7 +180,17 @@ public class CompanionAI : BaseAI
 
 	private const float TorchCheckInterval = 3f;
 
-	private ItemDrop.ItemData _equippedTorch;
+	// 1.5.71: torches (user: "lets go over how the npc uses a torch at night") - it wants one in the dark (night outdoors, a
+	// dark dungeon by its light level), not in a lit base or next to you holding yours; it burns down like a player's
+	private bool _torchWanted;
+
+	private float _torchDrainAt;
+
+	private bool _torchBurnedOut;
+
+	private string _lightLogKey;
+
+	internal bool WantsTorch => _torchWanted;
 
 	private const float SuppressedMoveInterval = 9999f;
 
@@ -418,46 +428,191 @@ public class CompanionAI : BaseAI
 		}
 	}
 
+	private static bool IsTorch(ItemDrop.ItemData it)
+	{
+		return it != null && it.m_shared != null && it.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Torch;
+	}
+
 	private void UpdateTorch()
 	{
-		_torchCheckTimer -= Time.deltaTime;
-		if (_torchCheckTimer > 0f)
-		{
-			return;
-		}
-		_torchCheckTimer = 3f;
 		Humanoid humanoid = m_character as Humanoid;
 		if (humanoid == null)
 		{
 			return;
 		}
-		bool flag = _combatAI != null && _combatAI.IsEngaged;
-		bool flag2 = EnvMan.IsNight() && !flag;
-		if (flag2 && _equippedTorch == null)
+		float now = Time.time;
+		// 1.5.73: in either hand - with a one-handed weapon and no shield the game puts the torch in the left hand (Humanoid.
+		// EquipItem), and only the right hand was looked at (log 702b4b9c: "lit a torch" every 3 s, never put away)
+		ItemDrop.ItemData rightItem = ReflectionHelper.GetRightItem(humanoid);
+		ItemDrop.ItemData leftItem = ReflectionHelper.GetLeftItem(humanoid);
+		ItemDrop.ItemData right = IsTorch(rightItem) ? rightItem : (IsTorch(leftItem) ? leftItem : null);
+		// burns down like a player's (the game drains held items for players only - Humanoid.UpdateEquipment)
+		if (IsTorch(right) && right.m_shared.m_useDurability && (ModConfig.TorchBurnsDown?.Value ?? true))
 		{
-			Inventory inventory = humanoid.GetInventory();
-			if (inventory == null)
+			float dt = _torchDrainAt > 0f ? Mathf.Min(now - _torchDrainAt, 5f) : 0f;
+			_torchDrainAt = now;
+			right.m_durability -= right.m_shared.m_durabilityDrain * dt * Game.m_durabilityRate;
+			if (right.m_durability <= 0f)
 			{
-				return;
-			}
-			{
-				foreach (ItemDrop.ItemData allItem in inventory.GetAllItems())
+				humanoid.UnequipItem(right, triggerEquipEffects: false);
+				if (right.m_shared.m_destroyBroken)
 				{
-					if (allItem.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Torch)
+					humanoid.GetInventory()?.RemoveItem(right);
+				}
+				if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Torch] \"" + m_character.m_name + "\": the torch burned out");
+				_torchBurnedOut = true;
+				_torchCheckTimer = 0f;
+				right = null;
+			}
+		}
+		else
+		{
+			_torchDrainAt = 0f;
+		}
+		_torchCheckTimer -= Time.deltaTime;
+		if (_torchCheckTimer > 0f)
+		{
+			return;
+		}
+		_torchCheckTimer = 1f;
+		// 1.5.8: a torch used up some other way - blocking with it (the game takes the blocked damage off it but leaves it at
+		// 0) or swinging it - is gone, as for a player (log f632af6e: a 0% torch stayed in the bag and was never lit again)
+		Inventory bag = humanoid.GetInventory();
+		if (bag != null)
+		{
+			List<ItemDrop.ItemData> usedUp = null;
+			foreach (ItemDrop.ItemData it in bag.GetAllItems())
+			{
+				if (IsTorch(it) && it.m_shared.m_useDurability && it.m_shared.m_destroyBroken && it.m_durability <= 0f)
+				{
+					(usedUp ?? (usedUp = new List<ItemDrop.ItemData>())).Add(it);
+				}
+			}
+			if (usedUp != null)
+			{
+				foreach (ItemDrop.ItemData it in usedUp)
+				{
+					if (it == right)
 					{
-						humanoid.EquipItem(allItem);
-						_equippedTorch = allItem;
-						break;
+						right = null;
+					}
+					humanoid.UnequipItem(it, triggerEquipEffects: false);
+					bag.RemoveItem(it);
+				}
+				if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Torch] \"" + m_character.m_name + "\": the torch was used up");
+				_torchBurnedOut = true;
+			}
+		}
+		bool fighting = _combatAI != null && _combatAI.IsEngaged;
+		// 1.5.73: a fight puts the torch away only when it needs that hand - in the left hand next to a one-handed weapon it
+		// stays lit (user: "If they have no shield and its night why are they putting away the torch during a fight?"); a
+		// shield, bow or two-hander the combat code takes pushes it out by itself, and it isn't lit again until the fight ends
+		bool inLeft = right != null && right == leftItem;
+		bool want = (!fighting || inLeft) && IsDarkHere() && !LitBaseNear() && !YouHoldTorchNear();
+		_torchWanted = want;
+		if (TorchOpener.IsActive(humanoid) || humanoid.InAttack())
+		{
+			return;
+		}
+		// a job's tool in hand comes first; the torch comes back when the job puts it away
+		bool jobHands = _setup != null && _setup.SuppressAutoEquip;
+		if (want && !fighting && !jobHands && !IsTorch(right) && !m_character.IsSwimming())
+		{
+			ItemDrop.ItemData best = null;
+			Inventory inv = humanoid.GetInventory();
+			if (inv != null)
+			{
+				foreach (ItemDrop.ItemData it in inv.GetAllItems())
+				{
+					if (IsTorch(it) && (!it.m_shared.m_useDurability || it.m_durability > 0f) && (best == null || it.m_durability > best.m_durability))
+					{
+						best = it;
 					}
 				}
-				return;
+			}
+			// 1.5.8: the weapon first - after coming back from death the torch went into the empty weapon hand before the spear
+			// was put back on, and the spear had to push it out (log f632af6e)
+			bool weaponToCome = rightItem == null && inv != null && inv.GetAllItems().Exists(it => it.m_shared != null && (it.m_shared.m_itemType == ItemDrop.ItemData.ItemType.OneHandedWeapon || it.m_shared.m_itemType == ItemDrop.ItemData.ItemType.TwoHandedWeapon || it.m_shared.m_itemType == ItemDrop.ItemData.ItemType.TwoHandedWeaponLeft || it.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Bow) && (!it.m_shared.m_useDurability || it.m_durability > 0f));
+			if (best != null)
+			{
+				if (weaponToCome)
+				{
+					return;
+				}
+				humanoid.EquipItem(best);
+				_torchBurnedOut = false;
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Torch] \"" + m_character.m_name + "\" lit a torch (" + (best.m_shared.m_useDurability ? (best.m_durability / Mathf.Max(1f, best.GetMaxDurability()) * 100f).ToString("F0") + "% left" : "no wear") + ")");
+			}
+			else if (_torchBurnedOut)
+			{
+				_torchBurnedOut = false;
+				GetComponent<CompanionTalk>()?.SayProblem("no_torches", ModLocalization.Loc("hc_say_no_torches"));
 			}
 		}
-		if (!flag2 && _equippedTorch != null)
+		else if (!want && IsTorch(right))
 		{
-			humanoid.UnequipItem(_equippedTorch, triggerEquipEffects: false);
-			_equippedTorch = null;
+			humanoid.UnequipItem(right, triggerEquipEffects: false);
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Torch] \"" + m_character.m_name + "\" put the torch away");
+			_setup?.SyncEquipmentToInventory();
 		}
+	}
+
+	// night outdoors; in a dungeon or cave, by its light (crypts and troll caves are dark, sunken crypts and the Mistlands
+	// dungeons less so - user). The game only lights the place you are in, so away from you inside one it counts as dark.
+	private bool IsDarkHere()
+	{
+		Vector3 pos = base.transform.position;
+		if (!Character.InInterior(pos))
+		{
+			return EnvMan.IsNight();
+		}
+		Player p = Player.m_localPlayer;
+		if (p == null || !p.InInterior() || Vector3.Distance(p.transform.position, pos) > 100f)
+		{
+			return true;
+		}
+		float light = RenderSettings.ambientLight.grayscale;
+		float threshold = ModConfig.TorchDarkThreshold?.Value ?? 0.4f;
+		bool dark = light < threshold;
+		string env = EnvMan.instance?.GetCurrentEnvironment()?.m_name ?? "?";
+		string key = env + (dark ? "/dark" : "/lit");
+		if (key != _lightLogKey)
+		{
+			_lightLogKey = key;
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Torch] \"{m_character.m_name}\" in {env}, light {light:F2} ({(dark ? "dark" : "light enough")}, DarkLevel {threshold:F2})");
+		}
+		return dark;
+	}
+
+	// in a base with a lit fire close by (a hearth, a campfire, a standing torch)
+	private bool LitBaseNear()
+	{
+		Vector3 pos = base.transform.position;
+		try
+		{
+			if (EffectArea.IsPointInsideArea(pos, EffectArea.Type.PlayerBase, 0f) == null)
+			{
+				return false;
+			}
+			foreach (Collider c in Physics.OverlapSphere(pos, 8f))
+			{
+				Fireplace fp = c != null ? c.GetComponentInParent<Fireplace>() : null;
+				if (fp != null && fp.IsBurning())
+				{
+					return true;
+				}
+			}
+		}
+		catch
+		{
+		}
+		return false;
+	}
+
+	private bool YouHoldTorchNear()
+	{
+		Player p = Player.m_localPlayer;
+		return p != null && IsTorch(ReflectionHelper.GetRightItem(p)) && Vector3.Distance(p.transform.position, base.transform.position) < 5f;
 	}
 
 	public GameObject GetFollowTarget()
@@ -810,7 +965,7 @@ public class CompanionAI : BaseAI
 				ClearTombstoneId();
 				RestoreFollowOrPatrol();
 				_tombRecoverSnooze = 60f;
-				CompanionsPlugin.Log.LogInfo("[Recovery] Couldn't reach its tombstone in time; will try again in a minute");
+				if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Recovery] Couldn't reach its tombstone in time; will try again in a minute");
 				return false;
 			}
 			Vector3 position = _pendingTombstone.transform.position;
@@ -914,7 +1069,7 @@ public class CompanionAI : BaseAI
 			// 1.5.44: after a revive (RecoverFirst) at any distance - getting its gear back comes first
 			if (num2 <= ModConfig.TombstoneRecoveryRange.Value || MHR_Recover.IsRecovering(this))
 			{
-				CompanionsPlugin.Log.LogInfo($"[Recovery] Found its own tombstone {num2:F0}m away with {component3.GetInventory().NrOfItems()} item(s); going to collect them");
+				if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Recovery] Found its own tombstone {num2:F0}m away with {component3.GetInventory().NrOfItems()} item(s); going to collect them");
 				_pendingTombstone = tombStone;
 				_tombstoneNavTimeout = TombstoneNavTimeoutMax;
 				_tombstoneNavStuckTime = 0f;
@@ -1000,7 +1155,7 @@ public class CompanionAI : BaseAI
 			}
 			inventory2.m_onChanged?.Invoke();
 		}
-		CompanionsPlugin.Log.LogInfo($"[Recovery] Collected {num2} item(s) from its tombstone, {inventory.NrOfItems()} left");
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Recovery] Collected {num2} item(s) from its tombstone, {inventory.NrOfItems()} left");
 		if (inventory.NrOfItems() == 0)
 		{
 			CompanionTombstoneResurrect.MHR_RemoveGravePinNear(tombstone.transform.position);
@@ -1123,6 +1278,12 @@ public class CompanionAI : BaseAI
 		if (WaterSafety.Tick(this, dt))
 		{
 			AIGateDiag.Report(_setup, "WaterSafety");
+			return true;
+		}
+		// 1.5.74: on lava, getting off it comes before anything else (also standing still, working or fighting)
+		if (MHR_Mover.EscapeLava(this))
+		{
+			AIGateDiag.Report(_setup, "Lava");
 			return true;
 		}
 		UpdateSleep(dt);
@@ -1297,7 +1458,7 @@ public class CompanionAI : BaseAI
 					MHR_Go(dt, PendingMoveTarget.Value, 1f, run, "Command");
 					if (MHR_Mover.GaveUp(this))
 					{
-						CompanionsPlugin.Log.LogInfo($"[Direct] Can't find a way to {PendingMoveTarget.Value:F1} - stopping here");
+						if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Direct] Can't find a way to {PendingMoveTarget.Value:F1} - stopping here");
 						CancelMoveTarget();
 					}
 				}
@@ -1347,7 +1508,7 @@ public class CompanionAI : BaseAI
 				if (num7 < 2f && !_depositChestOpen && !MHR_Chests.Open(PendingDepositContainer))
 				{
 					// 1.4.150: someone has the chest open - drop the deposit order, it's planned again later
-					CompanionsPlugin.Log.LogInfo("[Deposit] Someone has the chest open - trying again later");
+					if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Deposit] Someone has the chest open - trying again later");
 					CancelPendingDeposit();
 				}
 				else if (num7 < 2f)
@@ -1450,7 +1611,7 @@ public class CompanionAI : BaseAI
 			Character followChar = m_follow.GetComponent<Character>();
 			if (followChar != null && !(followChar is Player tp && tp.IsTeleporting()) && followChar.InInterior() != m_character.InInterior() && Vector3.Distance(base.transform.position, m_follow.transform.position) > 30f)
 			{
-				CompanionsPlugin.Log.LogInfo("[Follow] You went " + (followChar.InInterior() ? "into" : "out of") + " the dungeon - following you through");
+				if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Follow] You went " + (followChar.InInterior() ? "into" : "out of") + " the dungeon - following you through");
 				_combatAI?.Disengage();
 				TeleportToFollowTarget();
 				return true;
@@ -1707,7 +1868,7 @@ public class CompanionAI : BaseAI
 				float num3 = Mathf.Max(liquidLevel, 30f);
 				// 1.5.72: not the rim of a drop (user: "a tar pit could have a large drop next to it") - the ground just beyond
 				// the spot isn't far below it, and it isn't in a fire or against spikes
-				bool rim = ZoneSystem.instance.GetSolidHeight(vector3 + vector2 * 1.5f) < solidHeight - 3f || MHR_Mover.FireArea(new Vector3(vector3.x, solidHeight, vector3.z), 0.5f) != null || MHR_Mover.SpikeNear(new Vector3(vector3.x, solidHeight, vector3.z), 0.7f) != null;
+				bool rim = ZoneSystem.instance.GetSolidHeight(vector3 + vector2 * 1.5f) < solidHeight - 3f || MHR_Mover.FireArea(new Vector3(vector3.x, solidHeight, vector3.z), 0.5f) != null || MHR_Mover.Lava(new Vector3(vector3.x, solidHeight, vector3.z)) || MHR_Mover.SpikeNear(new Vector3(vector3.x, solidHeight, vector3.z), 0.7f) != null;
 				if (solidHeight > num3 && !rim)
 				{
 					float num4 = Vector3.Distance(position, vector3);
@@ -1953,7 +2114,7 @@ public class CompanionAI : BaseAI
 					continue;
 				}
 				// 1.5.72: and dry, not in a fire or against spikes
-				if (MHR_Water.DepthAt(hit.point) > 0.4f || MHR_Mover.FireArea(hit.point, 0.5f) != null || MHR_Mover.SpikeNear(hit.point, 0.7f) != null)
+				if (MHR_Water.DepthAt(hit.point) > 0.4f || MHR_Mover.FireArea(hit.point, 0.5f) != null || MHR_Mover.SpikeNear(hit.point, 0.7f) != null || MHR_Mover.Lava(hit.point))
 				{
 					continue;
 				}

@@ -78,7 +78,7 @@ namespace Companions
                     }
                     if (__instance.m_rodLine != null) __instance.m_rodLine.SetPeer(owner.GetZDOID());
                     LineLength(__instance) = Vector3.Distance(tip.position, __instance.transform.position);
-                    CompanionsPlugin.Log?.LogDebug("[Fish] Float out " + LineLength(__instance).ToString("F0") + " m, bait " + (bait ?? "?") + (ammo == null ? " (the cast came without its ammo)" : ""));
+                    if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log?.LogDebug("[Fish] Float out " + LineLength(__instance).ToString("F0") + " m, bait " + (bait ?? "?") + (ammo == null ? " (the cast came without its ammo)" : ""));
                     return false;
                 }
                 catch (Exception e)

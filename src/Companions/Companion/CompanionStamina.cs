@@ -95,7 +95,7 @@ public class CompanionStamina : MonoBehaviour
 			_regenDelayTimer = RegenDelay;
 			if (stamina > 0f && Stamina <= 0f)
 			{
-				CompanionsPlugin.Log.LogDebug($"[Stamina] DEPLETED — drained {amount:F1} (was {stamina:F1}) " + "companion=\"" + (_character?.m_name ?? "?") + "\"");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Stamina] DEPLETED — drained {amount:F1} (was {stamina:F1}) " + "companion=\"" + (_character?.m_name ?? "?") + "\"");
 			}
 		}
 	}
@@ -106,7 +106,7 @@ public class CompanionStamina : MonoBehaviour
 		{
 			float stamina = Stamina;
 			Stamina = Mathf.Min(MaxStamina, Stamina + amount);
-			CompanionsPlugin.Log.LogDebug($"[Stamina] Restored {amount:F1} — {stamina:F1} → {Stamina:F1}/{MaxStamina:F1} " + "companion=\"" + (_character?.m_name ?? "?") + "\"");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Stamina] Restored {amount:F1} — {stamina:F1} → {Stamina:F1}/{MaxStamina:F1} " + "companion=\"" + (_character?.m_name ?? "?") + "\"");
 		}
 	}
 
@@ -141,7 +141,7 @@ public class CompanionStamina : MonoBehaviour
 			float num = _nview.GetZDO().GetFloat(CompanionSetup.StaminaHash, MaxStamina);
 			Stamina = Mathf.Clamp(num, 0f, MaxStamina);
 			_initialized = true;
-			CompanionsPlugin.Log.LogDebug($"[Stamina] Initialized — {Stamina:F1}/{MaxStamina:F1} " + string.Format("(saved={0:F1}) companion=\"{1}\"", num, _character?.m_name ?? "?"));
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Stamina] Initialized — {Stamina:F1}/{MaxStamina:F1} " + string.Format("(saved={0:F1}) companion=\"{1}\"", num, _character?.m_name ?? "?"));
 		}
 	}
 
@@ -272,7 +272,7 @@ public class CompanionStamina : MonoBehaviour
 		}
 		if (Stamina < amount)
 		{
-			CompanionsPlugin.Log.LogDebug($"[Stamina] UseStamina FAILED — need {amount:F1} have {Stamina:F1} " + "companion=\"" + (_character?.m_name ?? "?") + "\"");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Stamina] UseStamina FAILED — need {amount:F1} have {Stamina:F1} " + "companion=\"" + (_character?.m_name ?? "?") + "\"");
 			return false;
 		}
 		Stamina -= amount;

@@ -329,7 +329,7 @@ public static class TraderUIPatches
 			CompanionsPlugin.Log.LogWarning("[TraderUIPatches] _panelWidth field not found.");
 		}
 		_reflectionCached = true;
-		CompanionsPlugin.Log.LogInfo("[TraderUIPatches] Reflection cached successfully.");
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[TraderUIPatches] Reflection cached successfully.");
 	}
 
 	private static void InjectCompanionTab(object traderUI)
@@ -434,7 +434,7 @@ public static class TraderUIPatches
 		float panelHeight = ((component3 != null) ? component3.sizeDelta.y : 432f);
 		_companionPanel = new CompanionPanel();
 		_companionPanel.Build(gameObject.transform, colTopInset, bottomPad, font, gameObject2, buttonHeight, leftXL, leftXR, midXL, midXR, rightXL, rightXR, panelHeight);
-		CompanionsPlugin.Log.LogInfo($"[TraderUIPatches] Companion tab injected at index {CompanionTabIndex} ({num2} total tabs).");
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[TraderUIPatches] Companion tab injected at index {CompanionTabIndex} ({num2} total tabs).");
 	}
 
 	private static void ResizeTab(GameObject tab, float centerX, float width)

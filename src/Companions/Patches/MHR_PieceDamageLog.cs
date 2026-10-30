@@ -59,7 +59,7 @@ internal static class MHR_PieceDamageLog
 			}
 			ZNetView nv = near.GetComponent<ZNetView>();
 			string who = (nv?.GetZDO() != null) ? nv.GetZDO().GetString(CompanionSetup.NameHash, "companion") : "companion";
-			CompanionsPlugin.Log.LogDebug("[Piece] " + name + " at " + MHR_Mover.Fmt(at) + " took " + damage.ToString("F1") + " damage (" + why + ") - " + who + " is " + Vector3.Distance(near.transform.position, at).ToString("F1") + " m away at " + MHR_Mover.Fmt(near.transform.position));
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Piece] " + name + " at " + MHR_Mover.Fmt(at) + " took " + damage.ToString("F1") + " damage (" + why + ") - " + who + " is " + Vector3.Distance(near.transform.position, at).ToString("F1") + " m away at " + MHR_Mover.Fmt(near.transform.position));
 		}
 		catch
 		{

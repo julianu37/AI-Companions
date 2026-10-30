@@ -255,7 +255,7 @@ public static class CompanionManager
 			component2.ApplyAppearance(appearance);
 		}
 		gameObject2.GetComponent<CompanionAI>()?.SetFollowTarget(localPlayer.gameObject);
-		CompanionsPlugin.Log.LogInfo($"[CompanionManager] Spawned companion for player {localPlayer.GetPlayerID()}");
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[CompanionManager] Spawned companion for player {localPlayer.GetPlayerID()}");
 		return true;
 	}
 
@@ -798,7 +798,7 @@ public static class CompanionManager
 			}
 		}
 		_respawnQueue.Add(data);
-		CompanionsPlugin.Log.LogInfo($"[CompanionManager] Queued respawn for \"{data.Name}\" in {data.Timer}s");
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[CompanionManager] Queued respawn for \"{data.Name}\" in {data.Timer}s");
 	}
 
 	public static void ProcessRespawns(float dt)
@@ -848,12 +848,12 @@ public static class CompanionManager
 
 	private static void DoRespawn(RespawnData data)
 	{
-		CompanionsPlugin.Log.LogInfo("[CompanionManager] Processing respawn for \"" + data.Name + "\" — prefab=" + data.PrefabName);
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[CompanionManager] Processing respawn for \"" + data.Name + "\" — prefab=" + data.PrefabName);
 		if (Player.m_localPlayer == null)
 		{
 			data.Timer = 1f;
 			_respawnQueue.Add(data);
-			CompanionsPlugin.Log.LogDebug("[CompanionManager] Player not loaded — re-queued respawn");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[CompanionManager] Player not loaded — re-queued respawn");
 			return;
 		}
 		foreach (CompanionSetup allCompanion in CompanionSetup.AllCompanions)
@@ -879,12 +879,12 @@ public static class CompanionManager
 		if (data.HasHomePos)
 		{
 			vector = data.HomePos;
-			CompanionsPlugin.Log.LogInfo($"[CompanionManager] Respawning at home position: {vector:F1}");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[CompanionManager] Respawning at home position: {vector:F1}");
 		}
 		else
 		{
 			vector = GetWorldSpawnPoint();
-			CompanionsPlugin.Log.LogInfo($"[CompanionManager] Respawning at world spawn: {vector:F1}");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[CompanionManager] Respawning at world spawn: {vector:F1}");
 		}
 		GameObject gameObject = ZNetScene.instance?.GetPrefab(data.PrefabName);
 		if (gameObject == null)
@@ -955,7 +955,7 @@ public static class CompanionManager
 			component5.FreezeTimer = 5f;
 		}
 		string arg = (data.HasHomePos ? "home" : "world spawn");
-		CompanionsPlugin.Log.LogInfo($"[CompanionManager] Respawned \"{data.Name}\" at {arg} {vector2:F1} — " + $"tombstoneId={data.TombstoneId}");
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[CompanionManager] Respawned \"{data.Name}\" at {arg} {vector2:F1} — " + $"tombstoneId={data.TombstoneId}");
 		string text3 = (data.HasHomePos ? ModLocalization.Loc("hc_msg_location_home") : ModLocalization.Loc("hc_msg_location_spawn"));
 		MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, ModLocalization.LocFmt("hc_msg_returned", data.Name, text3));
 	}
@@ -996,7 +996,7 @@ public static class CompanionManager
 	{
 		if (!ModConfig.SpawnStarterCompanion.Value)
 		{
-			CompanionsPlugin.Log.LogDebug("[CompanionManager] Starter companion disabled in config");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[CompanionManager] Starter companion disabled in config");
 			return;
 		}
 		Player localPlayer = Player.m_localPlayer;
@@ -1008,7 +1008,7 @@ public static class CompanionManager
 		bool reset = StarterFix.ResetIfRequested();
 		if (localPlayer.m_customData.ContainsKey(key))
 		{
-			CompanionsPlugin.Log.LogDebug("[CompanionManager] Starter companion already spawned for this world");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[CompanionManager] Starter companion already spawned for this world");
 			return;
 		}
 		string text = localPlayer.GetPlayerID().ToString();
@@ -1020,12 +1020,12 @@ public static class CompanionManager
 			ZDO zDO = allCompanion.GetComponent<ZNetView>()?.GetZDO();
 			if (zDO != null && zDO.GetString(CompanionSetup.OwnerHash) == text)
 			{
-				CompanionsPlugin.Log.LogInfo("[CompanionManager] Found existing companion in scene — marking world key and skipping panel");
+				if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[CompanionManager] Found existing companion in scene — marking world key and skipping panel");
 				localPlayer.m_customData[key] = "1";
 				return;
 			}
 		}
-		CompanionsPlugin.Log.LogInfo("[CompanionManager] First spawn in world — showing starter companion panel");
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[CompanionManager] First spawn in world — showing starter companion panel");
 		StarterCompanionPanel.ShowPanel();
 	}
 
@@ -1050,7 +1050,7 @@ public static class CompanionManager
 			}
 			else if (Time.time - s_mhrSeenAt >= 5f)
 			{
-				CompanionsPlugin.Log.LogInfo("[CompanionManager] The game's first-spawn event didn't reach us (another mod may have skipped it) - checking for the starter companion now");
+				if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[CompanionManager] The game's first-spawn event didn't reach us (another mod may have skipped it) - checking for the starter companion now");
 				MHR_StarterOnce();
 			}
 		}
@@ -1085,7 +1085,7 @@ public static class CompanionManager
 			return false;
 		}
 		inv.RemoveItem("$item_coins", price);
-		CompanionsPlugin.Log.LogInfo($"[CompanionManager] Summoned a companion for an offering of {price} coins ({have - price} left)");
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[CompanionManager] Summoned a companion for an offering of {price} coins ({have - price} left)");
 		MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, ModLocalization.Loc("hc_msg_hired"));
 		return true;
 	}
@@ -1094,7 +1094,7 @@ public static class CompanionManager
 	internal static void ShowShortPopup(int price, int have)
 	{
 		string text = ModLocalization.LocFmt("hc_msg_hire_need", price.ToString("N0"), have.ToString("N0"), (price - have).ToString("N0"));
-		CompanionsPlugin.Log.LogInfo("[Shrine] " + text);
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Shrine] " + text);
 		if (UnifiedPopup.IsAvailable() && !UnifiedPopup.IsVisible())
 		{
 			UnifiedPopup.Push(new WarningPopup(ModLocalization.Loc("hc_shrine_title"), text, delegate
@@ -1125,7 +1125,7 @@ public static class CompanionManager
 		if (!(localPlayer == null) && SpawnCompanion(appearance, CompanionTierData.Companion, aiDraft))
 		{
 			StarterFix.MarkSpawned();
-			CompanionsPlugin.Log.LogInfo("[CompanionManager] Starter companion spawned with custom appearance!");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[CompanionManager] Starter companion spawned with custom appearance!");
 			MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, ModLocalization.Loc("hc_msg_starter_joined"));
 		}
 	}

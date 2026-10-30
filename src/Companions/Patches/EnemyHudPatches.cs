@@ -87,7 +87,7 @@ public static class EnemyHudPatches
 				StaminaComp = c.GetComponent<CompanionStamina>()
 			};
 			_barCharacters[instanceID] = c;
-			CompanionsPlugin.Log.LogDebug($"[HUD] Created companion bars — stamina={guiBar != null} " + $"weight={guiBar2 != null} companion=\"{c.m_name}\"");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[HUD] Created companion bars — stamina={guiBar != null} " + $"weight={guiBar2 != null} companion=\"{c.m_name}\"");
 		}
 	}
 
@@ -147,7 +147,7 @@ public static class EnemyHudPatches
 			{
 				for (int i = 0; i < list.Count; i++)
 				{
-					CompanionsPlugin.Log.LogDebug("[HUD] Removing stale companion bars — character destroyed or null");
+					if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[HUD] Removing stale companion bars — character destroyed or null");
 					_bars.Remove(list[i]);
 					_barCharacters.Remove(list[i]);
 				}

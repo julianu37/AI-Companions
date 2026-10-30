@@ -232,7 +232,7 @@ public class IdleController : MonoBehaviour
 		{
 			_center = _setup.GetHomePosition();
 		}
-		Log("Nothing to do - idling around " + MHR_Mover.Fmt(_center));
+		if (CompanionsPlugin.LogNormal) Log("Nothing to do - idling around " + MHR_Mover.Fmt(_center));
 		SayWhy();
 		_nextChoreTry = 0f;
 		Pause(1f, 3f);
@@ -253,7 +253,7 @@ public class IdleController : MonoBehaviour
 			_ai.StopMoving();
 			MHR_Mover.Release(_ai);
 		}
-		LogDebug("Stopped idling (" + why + ")");
+		if (CompanionsPlugin.LogDetailed) LogDebug("Stopped idling (" + why + ")");
 		_act = Act.Off;
 		_chair = null;
 		_buddy = null;
@@ -332,11 +332,11 @@ public class IdleController : MonoBehaviour
 		if (_chair == null)
 		{
 			MHR_Follow.IdleSitFloor(_ai, base.transform.position + base.transform.forward);
-			LogDebug("Sitting down for a bit");
+			if (CompanionsPlugin.LogDetailed) LogDebug("Sitting down for a bit");
 			_act = Act.Seated;
 			return true;
 		}
-		LogDebug("Going to sit on the " + _chair.m_name);
+		if (CompanionsPlugin.LogDetailed) LogDebug("Going to sit on the " + _chair.m_name);
 		_act = Act.ToSeat;
 		_goal = _chair.m_attachPoint.position;
 		_until = Time.time + 20f;   // to get there
@@ -494,7 +494,7 @@ public class IdleController : MonoBehaviour
 		{
 			return false;
 		}
-		LogDebug("Going over to " + _buddy.m_name);
+		if (CompanionsPlugin.LogDetailed) LogDebug("Going over to " + _buddy.m_name);
 		_act = Act.Social;
 		_until = Time.time + Random.Range(15f, 30f);
 		return true;
@@ -564,11 +564,11 @@ public class IdleController : MonoBehaviour
 
 	private void Log(string msg)
 	{
-		CompanionsPlugin.Log?.LogInfo("[Idle|" + (_character != null ? _character.m_name : "?") + "] " + msg);
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log?.LogInfo("[Idle|" + (_character != null ? _character.m_name : "?") + "] " + msg);
 	}
 
 	private void LogDebug(string msg)
 	{
-		CompanionsPlugin.Log?.LogDebug("[Idle|" + (_character != null ? _character.m_name : "?") + "] " + msg);
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log?.LogDebug("[Idle|" + (_character != null ? _character.m_name : "?") + "] " + msg);
 	}
 }

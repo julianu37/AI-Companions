@@ -18,19 +18,19 @@ internal static class MHR_StanceKeys
 			return;
 		}
 		int stance = -1;
-		if (Pressed(ModConfig.PassiveKey))
+		if ((Pressed(ModConfig.PassiveKey) || (ZInput.IsGamepadActive() && MHR_Pad.Down(ModConfig.PadPassive, ModConfig.PadPassiveModifier))))
 		{
 			stance = CompanionSetup.StancePassive;
 		}
-		else if (Pressed(ModConfig.BalancedKey))
+		else if ((Pressed(ModConfig.BalancedKey) || (ZInput.IsGamepadActive() && MHR_Pad.Down(ModConfig.PadBalanced, ModConfig.PadBalancedModifier))))
 		{
 			stance = CompanionSetup.StanceBalanced;
 		}
-		else if (Pressed(ModConfig.RangedKey))
+		else if ((Pressed(ModConfig.RangedKey) || (ZInput.IsGamepadActive() && MHR_Pad.Down(ModConfig.PadRanged, ModConfig.PadRangedModifier))))
 		{
 			stance = CompanionSetup.StanceRanged;
 		}
-		else if (Pressed(ModConfig.MeleeKey))
+		else if ((Pressed(ModConfig.MeleeKey) || (ZInput.IsGamepadActive() && MHR_Pad.Down(ModConfig.PadMelee, ModConfig.PadMeleeModifier))))
 		{
 			stance = CompanionSetup.StanceMelee;
 		}
@@ -64,7 +64,7 @@ internal static class MHR_StanceKeys
 		string label = ModLocalization.Loc(stance == CompanionSetup.StancePassive ? "hc_radial_passive" : stance == CompanionSetup.StanceRanged ? "hc_radial_ranged" : stance == CompanionSetup.StanceMelee ? "hc_radial_melee" : "hc_radial_balanced");
 		string msg = (s_names.Count > 0) ? ModLocalization.LocFmt("hc_msg_stance_set", string.Join(", ", s_names.ToArray()), label) : ModLocalization.LocFmt("hc_msg_stance_none", label);
 		MessageHud.instance?.ShowMessage(MessageHud.MessageType.TopLeft, msg);
-		CompanionsPlugin.Log.LogInfo("[Stance] " + msg);
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Stance] " + msg);
 	}
 
 	private static bool Pressed(BepInEx.Configuration.ConfigEntry<KeyCode> key)

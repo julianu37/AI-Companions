@@ -21,9 +21,11 @@ Every setting of the mod: what it does and the value it starts with.
 
 - [General](#general)
 - [Controls](#controls)
+- [Controller](#controller)
 - [Follow](#follow)
 - [Movement](#movement)
 - [Combat](#combat)
+- [Torch](#torch)
 - [Food](#food)
 - [Stamina](#stamina)
 - [Rest](#rest)
@@ -133,6 +135,58 @@ Sets the Ranged stance, like PassiveKey.
 
 **MeleeKey** — Default: `None`  
 Sets the Melee stance, like PassiveKey.
+
+## Controller
+
+
+
+**Command** — Default: `Y`  
+Controller command button: tap while looking at something to send your companions to it, hold to call them to you. None = off. Use and Alt follow the game's controller layout (Alt is the game's own modifier - your block button); the rest are fixed buttons.
+
+**CommandModifier** — Default: `Alt`  
+Held with Command. Held while pressing the button. While it's held, that button's press is for the companions only (the game doesn't see it); on its own the button works as normal. None = the button alone.
+
+**Wheel** — Default: `X`  
+Controller button for a companion's command wheel, while looking at it. None = off. Use and Alt follow the game's controller layout (Alt is the game's own modifier - your block button); the rest are fixed buttons.
+
+**WheelModifier** — Default: `Alt`  
+Held with Wheel. Held while pressing the button. While it's held, that button's press is for the companions only (the game doesn't see it); on its own the button works as normal. None = the button alone.
+
+**Settings** — Default: `None`  
+Controller button for this settings panel. None = off. Use and Alt follow the game's controller layout (Alt is the game's own modifier - your block button); the rest are fixed buttons.
+
+**SettingsModifier** — Default: `None`  
+Held with Settings. Held while pressing the button. While it's held, that button's press is for the companions only (the game doesn't see it); on its own the button works as normal. None = the button alone.
+
+**FarmZone** — Default: `None`  
+Controller button for the farm zone editor. None = off. Use and Alt follow the game's controller layout (Alt is the game's own modifier - your block button); the rest are fixed buttons.
+
+**FarmZoneModifier** — Default: `None`  
+Held with FarmZone. Held while pressing the button. While it's held, that button's press is for the companions only (the game doesn't see it); on its own the button works as normal. None = the button alone.
+
+**Passive** — Default: `None`  
+Controller button for the Passive stance (like PassiveKey). None = off. Use and Alt follow the game's controller layout (Alt is the game's own modifier - your block button); the rest are fixed buttons.
+
+**PassiveModifier** — Default: `None`  
+Held with Passive. Held while pressing the button. While it's held, that button's press is for the companions only (the game doesn't see it); on its own the button works as normal. None = the button alone.
+
+**Balanced** — Default: `None`  
+Controller button for the Balanced stance. None = off. Use and Alt follow the game's controller layout (Alt is the game's own modifier - your block button); the rest are fixed buttons.
+
+**BalancedModifier** — Default: `None`  
+Held with Balanced. Held while pressing the button. While it's held, that button's press is for the companions only (the game doesn't see it); on its own the button works as normal. None = the button alone.
+
+**Ranged** — Default: `None`  
+Controller button for the Ranged stance. None = off. Use and Alt follow the game's controller layout (Alt is the game's own modifier - your block button); the rest are fixed buttons.
+
+**RangedModifier** — Default: `None`  
+Held with Ranged. Held while pressing the button. While it's held, that button's press is for the companions only (the game doesn't see it); on its own the button works as normal. None = the button alone.
+
+**Melee** — Default: `None`  
+Controller button for the Melee stance. None = off. Use and Alt follow the game's controller layout (Alt is the game's own modifier - your block button); the rest are fixed buttons.
+
+**MeleeModifier** — Default: `None`  
+Held with Melee. Held while pressing the button. While it's held, that button's press is for the companions only (the game doesn't see it); on its own the button works as normal. None = the button alone.
 
 ## Follow
 
@@ -349,6 +403,16 @@ Seconds before the same enemy can be opened on with a torch again.
 
 **TorchOpenerMinTargetHealth** — Default: 40 · Range: 0 – 500  
 No torch opener on enemies with less maximum health than this - not worth it.
+
+## Torch
+
+
+
+**BurnsDown** — Default: On  
+A torch in a companion's hand burns down like yours and is gone at 0 durability. Off: companions' torches last forever (the game itself only burns down players' torches).
+
+**DarkLevel** — Default: 0.4 · Range: 0 – 1  
+In a dungeon or cave, a companion lights a torch when the light there is below this (0 = pitch black, 1 = bright day). The log shows the light level each time you go into one ([Torch] lines), to tune this. Outdoors it's simply night.
 
 ## Food
 
@@ -966,7 +1030,7 @@ Combat: a companion swings a melee weapon only once it is at least this much (me
 Combat: seconds between an enemy starting a swing at a companion and the companion raising its guard.
 
 **LogPlayerCombat** — Default: On  
-Testing: write your own fighting to the log (debug level, lines starting [You]) - swings, guard, blocks and parries, enemy swings at you and how far you were - to help tune how companions fight. Will be removed once combat is tuned.
+Testing, with LogLevel on Detailed: write your own fighting to the log (lines starting [You]) - swings, guard, blocks and parries, enemy swings at you and how far you were - to help tune how companions fight. Will be removed once combat is tuned.
 
 **FoodRegenInterval** — Default: 10 · Range: 1 – 60  
 Food: seconds between health regeneration ticks from food (a player's is 10).
@@ -976,6 +1040,9 @@ Food: seconds between checks whether a companion should eat or drink.
 
 **TombstoneScanInterval** — Default: 5 · Range: 1 – 30  
 Death: seconds between looks for its own leftover tombstone nearby.
+
+**LogLevel** — Default: `Normal` · Options: `Off`, `Normal`, `Detailed`  
+How much the mod writes to the BepInEx log. Off: warnings and errors only. Normal: the main events (orders, deaths, portals, jobs starting and stopping, problems). Detailed: everything the companions think and do, plus the diagnostics - turn this on when sending a log with a bug report. Lower levels cost nothing: the lines aren't even put together.
 
 **TombstoneNavTimeout** — Default: 120 · Range: 10 – 600  
 Death: seconds a companion keeps trying to get to its tombstone before giving up.

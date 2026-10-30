@@ -46,24 +46,28 @@ internal static class EquipDiag
 			}
 			if (methodInfo == null || type == null)
 			{
-				Info("[EQUIPDIAG] Harmony Patch API not found; trace disabled.");
+				if (CompanionsPlugin.LogDetailed) Info("[EQUIPDIAG] Harmony Patch API not found; trace disabled.");
 				return;
 			}
 			PatchOne(harmony, typeFromHandle, type, methodInfo, "Humanoid", "EquipItem", null, "EquipPostfix");
 			PatchOne(harmony, typeFromHandle, type, methodInfo, "Humanoid", "UnequipItem", "UnequipPrefix", null);
 			PatchOne(harmony, typeFromHandle, type, methodInfo, "Humanoid", "HideHandItems", "HidePrefix", null);
 			PatchOne(harmony, typeFromHandle, type, methodInfo, "Humanoid", "ShowHandItems", "ShowPrefix", null);
-			Info("[EQUIPDIAG] equip tracing installed.");
+			if (CompanionsPlugin.LogDetailed) Info("[EQUIPDIAG] equip tracing installed.");
 			ContainerFix.Install(harmony);
 		}
 		catch (Exception ex)
 		{
-			Info("[EQUIPDIAG] install failed: " + ex.Message);
+			if (CompanionsPlugin.LogDetailed) Info("[EQUIPDIAG] install failed: " + ex.Message);
 		}
 	}
 
 	internal static void OnScan(IList items, ItemDrop.ItemData best1H)
 	{
+		if (!CompanionsPlugin.LogDetailed)
+		{
+			return;
+		}
 		try
 		{
 			if (best1H != null || _scanLogs >= 12)
@@ -92,7 +96,7 @@ internal static class EquipDiag
 					}
 				}
 			}
-			Info(stringBuilder.ToString());
+			if (CompanionsPlugin.LogDetailed) Info(stringBuilder.ToString());
 		}
 		catch (Exception)
 		{
@@ -101,7 +105,7 @@ internal static class EquipDiag
 
 	private static void Info(string s)
 	{
-		CompanionsPlugin.Log?.LogInfo(s);
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log?.LogInfo(s);
 	}
 
 	private static bool IsCompanion(Humanoid h)
@@ -187,12 +191,16 @@ internal static class EquipDiag
 
 	private static void EquipPostfix(Humanoid __instance, ItemDrop.ItemData item, bool __result)
 	{
+		if (!CompanionsPlugin.LogDetailed)
+		{
+			return;
+		}
 		try
 		{
 			if (_equipLogs < 60 && IsCompanion(__instance))
 			{
 				_equipLogs++;
-				Info("[EQUIPDIAG] EquipItem(" + Name(item) + ") -> " + ((!__result) ? "FALSE" : "true") + " | " + Slots(__instance) + " | itemEquippedFlag=" + ((item == null || !item.m_equipped) ? "false" : "true") + " | " + Stack());
+				if (CompanionsPlugin.LogDetailed) Info("[EQUIPDIAG] EquipItem(" + Name(item) + ") -> " + ((!__result) ? "FALSE" : "true") + " | " + Slots(__instance) + " | itemEquippedFlag=" + ((item == null || !item.m_equipped) ? "false" : "true") + " | " + Stack());
 			}
 		}
 		catch (Exception)
@@ -202,12 +210,16 @@ internal static class EquipDiag
 
 	private static void UnequipPrefix(Humanoid __instance, ItemDrop.ItemData item)
 	{
+		if (!CompanionsPlugin.LogDetailed)
+		{
+			return;
+		}
 		try
 		{
 			if (_unequipLogs < 60 && IsCompanion(__instance))
 			{
 				_unequipLogs++;
-				Info("[EQUIPDIAG] UnequipItem(" + Name(item) + ") | " + Slots(__instance) + " | " + Stack());
+				if (CompanionsPlugin.LogDetailed) Info("[EQUIPDIAG] UnequipItem(" + Name(item) + ") | " + Slots(__instance) + " | " + Stack());
 			}
 		}
 		catch (Exception)
@@ -217,12 +229,16 @@ internal static class EquipDiag
 
 	private static void HidePrefix(Humanoid __instance)
 	{
+		if (!CompanionsPlugin.LogDetailed)
+		{
+			return;
+		}
 		try
 		{
 			if (_hideLogs < 40 && IsCompanion(__instance))
 			{
 				_hideLogs++;
-				Info("[EQUIPDIAG] HideHandItems | " + Slots(__instance) + " | " + Stack());
+				if (CompanionsPlugin.LogDetailed) Info("[EQUIPDIAG] HideHandItems | " + Slots(__instance) + " | " + Stack());
 			}
 		}
 		catch (Exception)
@@ -232,12 +248,16 @@ internal static class EquipDiag
 
 	private static void ShowPrefix(Humanoid __instance)
 	{
+		if (!CompanionsPlugin.LogDetailed)
+		{
+			return;
+		}
 		try
 		{
 			if (_hideLogs < 40 && IsCompanion(__instance))
 			{
 				_hideLogs++;
-				Info("[EQUIPDIAG] ShowHandItems | " + Slots(__instance) + " | " + Stack());
+				if (CompanionsPlugin.LogDetailed) Info("[EQUIPDIAG] ShowHandItems | " + Slots(__instance) + " | " + Stack());
 			}
 		}
 		catch (Exception)
@@ -253,7 +273,7 @@ internal static class EquipDiag
 			MethodInfo method = typeof(Humanoid).GetMethod(methodName, bindingAttr);
 			if (method == null)
 			{
-				Info("[EQUIPDIAG] patch skipped, method not found: " + methodName);
+				if (CompanionsPlugin.LogDetailed) Info("[EQUIPDIAG] patch skipped, method not found: " + methodName);
 				return;
 			}
 			ParameterInfo[] parameters = patchMethod.GetParameters();
@@ -275,7 +295,7 @@ internal static class EquipDiag
 		}
 		catch (Exception ex)
 		{
-			Info("[EQUIPDIAG] patch failed for " + methodName + ": " + ex.Message);
+			if (CompanionsPlugin.LogDetailed) Info("[EQUIPDIAG] patch failed for " + methodName + ": " + ex.Message);
 		}
 	}
 }

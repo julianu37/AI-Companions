@@ -161,7 +161,7 @@ public class FishController : MonoBehaviour
 		{
 			_hasAnchor = true;
 			_anchor = base.transform.position;
-			Log("Fishing around " + MHR_Mover.Fmt(_anchor) + ", up to " + Radius().ToString("F0") + " m out");
+			if (CompanionsPlugin.LogNormal) Log("Fishing around " + MHR_Mover.Fmt(_anchor) + ", up to " + Radius().ToString("F0") + " m out");
 			_foodLogged = false;
 		}
 		if (CompanionInteractPanel.IsOpenFor(_setup) || CompanionRadialMenu.IsOpenFor(_setup))
@@ -243,13 +243,13 @@ public class FishController : MonoBehaviour
 					if (MHR_ToolKeeper.AtHome(_setup))
 					{
 						_nextUnloadTry = Time.time + 60f;
-						Log("Pack is full - putting the catch away");
+						if (CompanionsPlugin.LogNormal) Log("Pack is full - putting the catch away");
 						MHR_ToolKeeper.RequestUnload(_setup);
 						_nextCount = 0f;
 					}
 					else
 					{
-						Log("Pack is full - taking the catch home");
+						if (CompanionsPlugin.LogNormal) Log("Pack is full - taking the catch home");
 						MHR_Mover.Release(_ai);
 						Enter(FishState.GoingHome);
 					}
@@ -287,13 +287,13 @@ public class FishController : MonoBehaviour
 		{
 			_foodLogged = true;
 			string food = MHR_ToolKeeper.StaminaFoodText(_humanoid.GetInventory());
-			Log(food != null ? "Stamina food for reeling: " + food : "No stamina food in the pack");
+			if (CompanionsPlugin.LogNormal) Log(food != null ? "Stamina food for reeling: " + food : "No stamina food in the pack");
 		}
 		CompanionStatus.Clear(this);
 		CompanionStatus.Doing(this, "hc_doing_fish", FishCatalog.Local(_fish));
 		MHR_Mover.Release(_ai);
 		Enter(FishState.Moving);
-		Log("Going to fish for " + _fishName + " from " + MHR_Mover.Fmt(_stand) + " with " + CookController.Name(_bait) + NeedText(_fishName));
+		if (CompanionsPlugin.LogNormal) Log("Going to fish for " + _fishName + " from " + MHR_Mover.Fmt(_stand) + " with " + CookController.Name(_bait) + NeedText(_fishName));
 	}
 
 	private bool PickTarget(out string why)
@@ -564,7 +564,7 @@ public class FishController : MonoBehaviour
 				});
 			}
 		}
-		LogDebug("Mapped " + _shore.Count + " places to fish from within " + r.ToString("F0") + " m");
+		if (CompanionsPlugin.LogDetailed) LogDebug("Mapped " + _shore.Count + " places to fish from within " + r.ToString("F0") + " m");
 	}
 
 	private static float Level(Vector3 p, float dflt)
@@ -597,13 +597,13 @@ public class FishController : MonoBehaviour
 		{
 			_badSpot[c] = Time.time + 300f;
 			_falls.Remove(c);
-			Log("Fell off its fishing spot again (" + when + ") - trying somewhere else");
+			if (CompanionsPlugin.LogNormal) Log("Fell off its fishing spot again (" + when + ") - trying somewhere else");
 			Enter(FishState.Idle);
 			_scanTimer = 0.5f;
 		}
 		else
 		{
-			LogDebug("Fell off its fishing spot (" + when + ") - getting back on");
+			if (CompanionsPlugin.LogDetailed) LogDebug("Fell off its fishing spot (" + when + ") - getting back on");
 			Enter(FishState.Moving);
 		}
 	}
@@ -759,7 +759,7 @@ public class FishController : MonoBehaviour
 		MHR_Mover.Go(_ai, Time.deltaTime, _stand, 0.8f, true, "Fish");
 		if (MHR_Mover.RouteSwim(_ai) > MHR_Mover.JobSwim() || MHR_Mover.GaveUp(_ai) || Time.time - _stateSince > 60f)
 		{
-			Log("Can't get to the bank by the " + _fishName + " - trying another");
+			if (CompanionsPlugin.LogNormal) Log("Can't get to the bank by the " + _fishName + " - trying another");
 			_skip[_fish.GetInstanceID()] = Time.time + 120f;
 			MHR_Mover.Release(_ai);
 			Enter(FishState.Idle);
@@ -789,7 +789,7 @@ public class FishController : MonoBehaviour
 			if (Time.time >= _nextRestLog)
 			{
 				_nextRestLog = Time.time + 20f;
-				LogDebug("Getting my breath back before casting (" + st.Stamina.ToString("F0") + "/" + st.MaxStamina.ToString("F0") + " stamina)");
+				if (CompanionsPlugin.LogDetailed) LogDebug("Getting my breath back before casting (" + st.Stamina.ToString("F0") + "/" + st.MaxStamina.ToString("F0") + " stamina)");
 			}
 			return;
 		}
@@ -798,7 +798,7 @@ public class FishController : MonoBehaviour
 		ItemDrop.ItemData bait = FindItem(inv, _bait);
 		if (rod == null || bait == null)
 		{
-			Log(rod == null ? "No fishing rod" : ("Out of " + CookController.Name(_bait)));
+			if (CompanionsPlugin.LogNormal) Log(rod == null ? "No fishing rod" : ("Out of " + CookController.Name(_bait)));
 			Enter(FishState.Idle);
 			return;
 		}
@@ -818,7 +818,7 @@ public class FishController : MonoBehaviour
 		}
 		if (_fish != null && Flat(base.transform.position, _fish.transform.position) > MaxCast + 6f)
 		{
-			LogDebug("The " + _fishName + " has swum off - choosing again");
+			if (CompanionsPlugin.LogDetailed) LogDebug("The " + _fishName + " has swum off - choosing again");
 			Enter(FishState.Idle);
 			_scanTimer = 0.5f;
 			return;
@@ -829,7 +829,7 @@ public class FishController : MonoBehaviour
 		{
 			if (Time.time - _stateSince > 10f)
 			{
-				Log("Couldn't get a cast off - trying again");
+				if (CompanionsPlugin.LogNormal) Log("Couldn't get a cast off - trying again");
 				Enter(FishState.Idle);
 			}
 			return;
@@ -853,7 +853,7 @@ public class FishController : MonoBehaviour
 		_settled = false;
 		_retrieving = false;
 		_hooked = null;
-		LogDebug("Casting at the " + _fishName + " (" + want.ToString("F0") + " m, " + (pct * 100f).ToString("F0") + "% cast)");
+		if (CompanionsPlugin.LogDetailed) LogDebug("Casting at the " + _fishName + " (" + want.ToString("F0") + " m, " + (pct * 100f).ToString("F0") + "% cast)");
 		Enter(FishState.Waiting);
 	}
 
@@ -891,7 +891,7 @@ public class FishController : MonoBehaviour
 		{
 			if (Time.time - _castAt > 4f)
 			{
-				LogDebug("The cast didn't come off");
+				if (CompanionsPlugin.LogDetailed) LogDebug("The cast didn't come off");
 				if (_castTries >= 3)
 				{
 					SkipFish(60f);
@@ -917,7 +917,7 @@ public class FishController : MonoBehaviour
 			}
 			if (!ff.IsInWater())
 			{
-				LogDebug("The float landed on dry ground - reeling in");
+				if (CompanionsPlugin.LogDetailed) LogDebug("The float landed on dry ground - reeling in");
 				Retrieve();
 				return;
 			}
@@ -933,7 +933,7 @@ public class FishController : MonoBehaviour
 		}
 		if (Time.time - _castAt > (ModConfig.FishCastWait?.Value ?? 60f))
 		{
-			LogDebug("No bite - reeling in");
+			if (CompanionsPlugin.LogDetailed) LogDebug("No bite - reeling in");
 			Retrieve();
 		}
 	}
@@ -953,7 +953,7 @@ public class FishController : MonoBehaviour
 			// can't reel while swimming - the fish is lost, like for a player
 			if (_hooked != null)
 			{
-				Log("Fell in with a " + _hookedName + " on the line - lost it");
+				if (CompanionsPlugin.LogNormal) Log("Fell in with a " + _hookedName + " on the line - lost it");
 			}
 			_hooked = null;
 			_hookedName = null;
@@ -974,7 +974,7 @@ public class FishController : MonoBehaviour
 			if (_hooked != null)
 			{
 				// it got off (out of stamina, or it fought free)
-				Log("The " + _hookedName + " got away");
+				if (CompanionsPlugin.LogNormal) Log("The " + _hookedName + " got away");
 				_talk?.Say(ModLocalization.Loc("hc_speech_fish_got_away"));
 				_hooked = null;
 				Retrieve();
@@ -998,7 +998,7 @@ public class FishController : MonoBehaviour
 				_hooked = fish;
 				_hookedName = FishCatalog.PrefabName(fish.gameObject);
 				_haveBefore = CountIn(_humanoid.GetInventory(), _hookedName);
-				Log("Hooked a " + FishCatalog.Local(fish) + " - reeling it in");
+				if (CompanionsPlugin.LogNormal) Log("Hooked a " + FishCatalog.Local(fish) + " - reeling it in");
 			}
 			// like a player: ease off while it fights (or the line is tight), reel while it rests
 			float tension = Tension(ff);
@@ -1013,7 +1013,7 @@ public class FishController : MonoBehaviour
 		}
 		if (Time.time - _stateSince > 90f)
 		{
-			LogDebug("Reeling is taking too long - letting go");
+			if (CompanionsPlugin.LogDetailed) LogDebug("Reeling is taking too long - letting go");
 			ReelOff();
 			Enter(FishState.Idle);
 		}
@@ -1027,13 +1027,13 @@ public class FishController : MonoBehaviour
 			if (_hookedName != null && now > _haveBefore)
 			{
 				string local = CookController.Name(_hookedName);
-				Log("Caught a " + local + NeedText(_hookedName));
+				if (CompanionsPlugin.LogNormal) Log("Caught a " + local + NeedText(_hookedName));
 				_talk?.Say(ModLocalization.LocFmt("hc_speech_fish_caught", local), force: true);
 				_nextCount = 0f;
 			}
 			else if (_hooked != null)
 			{
-				Log("Lost the " + _hookedName + " (the line broke)");
+				if (CompanionsPlugin.LogNormal) Log("Lost the " + _hookedName + " (the line broke)");
 			}
 		}
 		_hooked = null;
@@ -1104,7 +1104,7 @@ public class FishController : MonoBehaviour
 		if (MHR_ToolKeeper.AtHome(_setup))
 		{
 			_nextUnloadTry = Time.time + 60f;
-			Log("Home - putting the catch away");
+			if (CompanionsPlugin.LogNormal) Log("Home - putting the catch away");
 			MHR_ToolKeeper.RequestUnload(_setup);
 			_nextCount = 0f;
 			MHR_Mover.Release(_ai);
@@ -1114,7 +1114,7 @@ public class FishController : MonoBehaviour
 		MHR_Mover.Go(_ai, Time.deltaTime, _setup.GetHomePosition(), 4f, true, "Fish");
 		if (MHR_Mover.GaveUp(_ai))
 		{
-			Log("Can't find the way home with the catch - trying again later");
+			if (CompanionsPlugin.LogNormal) Log("Can't find the way home with the catch - trying again later");
 			_nextUnloadTry = Time.time + 60f;
 			Enter(FishState.Idle);
 		}
@@ -1295,18 +1295,18 @@ public class FishController : MonoBehaviour
 		if (Time.time >= _nextWhyLog)
 		{
 			_nextWhyLog = Time.time + 60f;
-			LogDebug(msg);
+			if (CompanionsPlugin.LogDetailed) LogDebug(msg);
 		}
 	}
 
 	private void Log(string msg)
 	{
-		CompanionsPlugin.Log?.LogInfo("[Fish|" + (_character?.m_name ?? "?") + "] " + msg);
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log?.LogInfo("[Fish|" + (_character?.m_name ?? "?") + "] " + msg);
 	}
 
 	private void LogDebug(string msg)
 	{
-		CompanionsPlugin.Log?.LogDebug("[Fish|" + (_character?.m_name ?? "?") + "] " + msg);
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log?.LogDebug("[Fish|" + (_character?.m_name ?? "?") + "] " + msg);
 	}
 }
 
@@ -1346,7 +1346,7 @@ internal static class FishCatalog
 				sb.AppendLine("  " + line);
 			}
 			File.WriteAllText(Path.Combine(Paths.ConfigPath, "OfflineCompanionsReborn.Fishing.txt"), sb.ToString());
-			CompanionsPlugin.Log.LogInfo($"[Fish] {s_fish.Count} kinds of fish");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Fish] {s_fish.Count} kinds of fish");
 		}
 		catch (Exception ex)
 		{

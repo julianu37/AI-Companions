@@ -41,7 +41,7 @@ public static class MHR_RespawnTracker
 				}
 			}
 			SetPending(localPlayer, had);
-			CompanionsPlugin.Log.LogInfo($"[Respawn] Tracking {s_deferred.Count} companion(s) that died while you were dead");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Respawn] Tracking {s_deferred.Count} companion(s) that died while you were dead");
 			s_deferred.Clear();
 		}
 		string pending = GetPending(localPlayer);
@@ -77,7 +77,7 @@ public static class MHR_RespawnTracker
 			}
 			else if (!(ZNetScene.instance.FindInstance(zDO) != null))
 			{
-				CompanionsPlugin.Log.LogInfo("[Respawn] Respawn time reached for a companion whose tombstone is far away; respawning it now");
+				if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Respawn] Respawn time reached for a companion whose tombstone is far away; respawning it now");
 				CompanionTombstoneResurrect.MHR_ResurrectCore(zDO, null, isAutoRespawn: true);
 				RemovePending(zDOID);
 			}
@@ -102,7 +102,7 @@ public static class MHR_RespawnTracker
 			if (profileId != 0L && owner == profileId.ToString())
 			{
 				s_deferred.Add(EntryPrefix(tombZdo.m_uid) + tombZdo.GetLong(RespawnAtHash));
-				CompanionsPlugin.Log.LogInfo("[Respawn] Companion died while you were dead - it's added to the respawn list when you're back");
+				if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Respawn] Companion died while you were dead - it's added to the respawn list when you're back");
 			}
 			return;
 		}
@@ -110,12 +110,12 @@ public static class MHR_RespawnTracker
 		// game was running it")
 		if (string.IsNullOrEmpty(tombZdo.GetString(CompanionTombstoneResurrect.RespawnOwnerHash)))
 		{
-			CompanionsPlugin.Log.LogInfo("[Respawn] Tombstone with an unsummoned companion's gear - nothing to respawn");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Respawn] Tombstone with an unsummoned companion's gear - nothing to respawn");
 			return;
 		}
 		if (!IsLocalOwner(tombZdo))
 		{
-			CompanionsPlugin.Log.LogInfo("[Respawn] Companion died while another player's game was running it; its owner's game will respawn it when the owner is near the tombstone");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Respawn] Companion died while another player's game was running it; its owner's game will respawn it when the owner is near the tombstone");
 			return;
 		}
 		Player localPlayer = Player.m_localPlayer;
@@ -125,7 +125,7 @@ public static class MHR_RespawnTracker
 		{
 			long num = tombZdo.GetLong(RespawnAtHash);
 			SetPending(localPlayer, pending + ";" + text + num);
-			CompanionsPlugin.Log.LogInfo($"[Respawn] Tracking dead companion (tombstone {text}): respawns at world time {num}s, now {NowSeconds()}s");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Respawn] Tracking dead companion (tombstone {text}): respawns at world time {num}s, now {NowSeconds()}s");
 		}
 	}
 
@@ -162,7 +162,7 @@ public static class MHR_RespawnTracker
 		if (flag)
 		{
 			SetPending(localPlayer, text2);
-			CompanionsPlugin.Log.LogDebug($"[Respawn] Stopped tracking tombstone {text}");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Respawn] Stopped tracking tombstone {text}");
 		}
 	}
 

@@ -118,7 +118,7 @@ public class CompanionRestedBuff : MonoBehaviour
 			float remainingTime = RemainingTime;
 			if (_isRested && num2 <= remainingTime)
 			{
-				CompanionsPlugin.Log.LogDebug("[Rested] Already active with longer remaining time " + $"({remainingTime:F0}s > {num2:F0}s) — skipping");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Rested] Already active with longer remaining time " + $"({remainingTime:F0}s > {num2:F0}s) — skipping");
 				return;
 			}
 			_isRested = true;
@@ -132,7 +132,7 @@ public class CompanionRestedBuff : MonoBehaviour
 			{
 				Player.m_localPlayer?.Message(MessageHud.MessageType.Center, ModLocalization.LocFmt("hc_msg_rested", companionName, num.ToString()));
 			}
-			CompanionsPlugin.Log.LogInfo($"[Rested] Applied to \"{companionName}\" — comfort={num} duration={num2:F0}s " + $"hpRegen={_healthRegenMultiplier:F2} stamRegen={_staminaRegenMultiplier:F2} " + $"skillXP=+{_raiseSkillModifier:F2}");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Rested] Applied to \"{companionName}\" — comfort={num} duration={num2:F0}s " + $"hpRegen={_healthRegenMultiplier:F2} stamRegen={_staminaRegenMultiplier:F2} " + $"skillXP=+{_raiseSkillModifier:F2}");
 		}
 	}
 
@@ -144,7 +144,7 @@ public class CompanionRestedBuff : MonoBehaviour
 			_restingAccumTimer = 0f;
 			CacheVanillaBonuses();
 			string companionName = GetCompanionName();
-			CompanionsPlugin.Log.LogDebug($"[Rested] \"{companionName}\" started resting — warmup {RestingWarmupTime:F0}s");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Rested] \"{companionName}\" started resting — warmup {RestingWarmupTime:F0}s");
 		}
 	}
 
@@ -154,7 +154,7 @@ public class CompanionRestedBuff : MonoBehaviour
 		{
 			_isAccumulatingRest = false;
 			_restingAccumTimer = 0f;
-			CompanionsPlugin.Log.LogDebug("[Rested] \"" + GetCompanionName() + "\" stopped resting before warmup completed");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Rested] \"" + GetCompanionName() + "\" stopped resting before warmup completed");
 		}
 	}
 
@@ -211,7 +211,7 @@ public class CompanionRestedBuff : MonoBehaviour
 			_staminaRegenMultiplier = sE_Rested.m_staminaRegenMultiplier;
 			_eitrRegenMultiplier = sE_Rested.m_eitrRegenMultiplier;
 			_raiseSkillModifier = sE_Rested.m_raiseSkillModifier;
-			CompanionsPlugin.Log.LogInfo("[Rested] Cached vanilla SE_Rested values — " + $"baseTTL={_baseTTL:F0} ttlPerComfort={_ttlPerComfortLevel:F0} " + $"healthRegen={_healthRegenMultiplier:F2} " + $"staminaRegen={_staminaRegenMultiplier:F2} " + $"eitrRegen={_eitrRegenMultiplier:F2} " + $"skillXP=+{_raiseSkillModifier:F2} " + "icon=" + (_restedIcon?.name ?? "null"));
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Rested] Cached vanilla SE_Rested values — " + $"baseTTL={_baseTTL:F0} ttlPerComfort={_ttlPerComfortLevel:F0} " + $"healthRegen={_healthRegenMultiplier:F2} " + $"staminaRegen={_staminaRegenMultiplier:F2} " + $"eitrRegen={_eitrRegenMultiplier:F2} " + $"skillXP=+{_raiseSkillModifier:F2} " + "icon=" + (_restedIcon?.name ?? "null"));
 		}
 		else if (statusEffect is SE_Stats sE_Stats)
 		{
@@ -219,7 +219,7 @@ public class CompanionRestedBuff : MonoBehaviour
 			_staminaRegenMultiplier = sE_Stats.m_staminaRegenMultiplier;
 			_eitrRegenMultiplier = sE_Stats.m_eitrRegenMultiplier;
 			_raiseSkillModifier = sE_Stats.m_raiseSkillModifier;
-			CompanionsPlugin.Log.LogInfo("[Rested] Cached vanilla SE_Stats bonuses (not SE_Rested) — " + $"healthRegen={_healthRegenMultiplier:F2} " + $"staminaRegen={_staminaRegenMultiplier:F2} " + $"eitrRegen={_eitrRegenMultiplier:F2} " + $"skillXP=+{_raiseSkillModifier:F2} " + "icon=" + (_restedIcon?.name ?? "null"));
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Rested] Cached vanilla SE_Stats bonuses (not SE_Rested) — " + $"healthRegen={_healthRegenMultiplier:F2} " + $"staminaRegen={_staminaRegenMultiplier:F2} " + $"eitrRegen={_eitrRegenMultiplier:F2} " + $"skillXP=+{_raiseSkillModifier:F2} " + "icon=" + (_restedIcon?.name ?? "null"));
 		}
 		else
 		{
@@ -248,7 +248,7 @@ public class CompanionRestedBuff : MonoBehaviour
 		Cover.GetCoverForPoint(position, out var coverPercentage, out var underRoof);
 		bool flag = coverPercentage >= 0.8f && underRoof;
 		int num = SE_Rested.CalculateComfortLevel(flag, position);
-		CompanionsPlugin.Log.LogDebug($"[Rested] Comfort check — cover={coverPercentage:P0} underRoof={underRoof} " + $"inShelter={flag} comfort={num}");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Rested] Comfort check — cover={coverPercentage:P0} underRoof={underRoof} " + $"inShelter={flag} comfort={num}");
 		return num;
 	}
 
@@ -287,7 +287,7 @@ public class CompanionRestedBuff : MonoBehaviour
 			{
 				DisplaySE.RemainingTime = 0f;
 			}
-			CompanionsPlugin.Log.LogDebug("[Rested] Buff expired for \"" + GetCompanionName() + "\"");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Rested] Buff expired for \"" + GetCompanionName() + "\"");
 		}
 	}
 

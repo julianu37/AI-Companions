@@ -130,9 +130,11 @@ public class RepairController : MonoBehaviour
 		}
 		_tempWorn.Clear();
 		inventory.GetWornItems(_tempWorn);
+		// 1.5.71: torches burn down and are used up, never repaired (user: "add a check so the NPC will not try to repair the torch")
+		_tempWorn.RemoveAll(it => it?.m_shared != null && it.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Torch);
 		if (_tempWorn.Count == 0)
 		{
-			Log("DirectRepairAt — no worn items");
+			if (CompanionsPlugin.LogDetailed) Log("DirectRepairAt — no worn items");
 			return false;
 		}
 		_repairQueue.Clear();
@@ -144,12 +146,12 @@ public class RepairController : MonoBehaviour
 			}
 			else
 			{
-				Log("DirectRepairAt: \"" + _tempWorn[i].m_shared.m_name + "\" — " + GetRepairRejectReason(station, _tempWorn[i]));
+				if (CompanionsPlugin.LogDetailed) Log("DirectRepairAt: \"" + _tempWorn[i].m_shared.m_name + "\" — " + GetRepairRejectReason(station, _tempWorn[i]));
 			}
 		}
 		if (_repairQueue.Count == 0)
 		{
-			Log("DirectRepairAt — no items repairable at \"" + station.m_name + "\"");
+			if (CompanionsPlugin.LogDetailed) Log("DirectRepairAt — no items repairable at \"" + station.m_name + "\"");
 			return false;
 		}
 		_targetStation = station;
@@ -159,7 +161,7 @@ public class RepairController : MonoBehaviour
 		_moveStart = Time.time;
 		_direct = true;
 		_lastScanFailed = false;
-		Log($"DirectRepairAt — {_repairQueue.Count} items to repair at \"{station.m_name}\"");
+		if (CompanionsPlugin.LogDetailed) Log($"DirectRepairAt — {_repairQueue.Count} items to repair at \"{station.m_name}\"");
 		return true;
 	}
 
@@ -276,7 +278,7 @@ public class RepairController : MonoBehaviour
 		{
 			_zanim.SetInt("crafting", 0);
 		}
-		Log($"Aborted — {reason} (phase was {_phase})");
+		if (CompanionsPlugin.LogDetailed) Log($"Aborted — {reason} (phase was {_phase})");
 		UnclaimStation();
 		_targetStation = null;
 		_repairQueue.Clear();
@@ -300,11 +302,28 @@ public class RepairController : MonoBehaviour
 		}
 		_tempWorn.Clear();
 		inventory.GetWornItems(_tempWorn);
+		// 1.5.71: torches burn down and are used up, never repaired (user: "add a check so the NPC will not try to repair the torch")
+		_tempWorn.RemoveAll(it => it?.m_shared != null && it.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Torch);
 		if (_tempWorn.Count == 0)
 		{
 			return;
 		}
-		if (!_lastScanFailed)
+		// 1.5.77: the item list only when it changed (an item wore down a percent, or something else is worn) - it was
+		// listed in full every scan (log b15f00be: 22 scans x 7 lines with nothing changing)
+		bool listChanged = false;
+		if (CompanionsPlugin.LogDetailed)
+		{
+			System.Text.StringBuilder sig = new System.Text.StringBuilder();
+			foreach (ItemDrop.ItemData w in _tempWorn)
+			{
+				float md = w.GetMaxDurability();
+				sig.Append(w.m_shared.m_name).Append(':').Append(md > 0f ? (int)(w.m_durability / md * 100f) : 100).Append(';');
+			}
+			string sigText = sig.ToString();
+			listChanged = sigText != _lastScanSig;
+			_lastScanSig = sigText;
+		}
+		if (!_lastScanFailed && listChanged)
 		{
 			for (int i = 0; i < _tempWorn.Count; i++)
 			{
@@ -314,7 +333,7 @@ public class RepairController : MonoBehaviour
 				Recipe recipe = ObjectDB.instance?.GetRecipe(itemData);
 				string arg = recipe?.m_craftingStation?.m_name ?? recipe?.m_repairStation?.m_name ?? "none";
 				int num2 = recipe?.m_minStationLevel ?? 0;
-				Log($"Scan: \"{itemData.m_shared.m_name}\" dur={itemData.m_durability:F0}/{maxDurability:F0} ({num:F0}%) " + $"station=\"{arg}\" minLevel={num2} canRepair={itemData.m_shared.m_canBeReparied}");
+				if (CompanionsPlugin.LogDetailed) Log($"Scan: \"{itemData.m_shared.m_name}\" dur={itemData.m_durability:F0}/{maxDurability:F0} ({num:F0}%) " + $"station=\"{arg}\" minLevel={num2} canRepair={itemData.m_shared.m_canBeReparied}");
 			}
 		}
 		// 1.4.144: only the items below the threshold pick the station - the 56% arbalest (black forge only) sent it to the
@@ -349,7 +368,11 @@ public class RepairController : MonoBehaviour
 		bool flag = low.Count > 0;
 		if (!flag)
 		{
-			Log($"Scan: {_tempWorn.Count} worn items but none below {threshold * 100f:F0}% that a station nearby can fix — skipping");
+			if (listChanged || now >= _nextSkipLog)
+			{
+				_nextSkipLog = now + 60f;
+				if (CompanionsPlugin.LogDetailed) Log($"Scan: {_tempWorn.Count} worn items but none below {threshold * 100f:F0}% that a station nearby can fix — skipping");
+			}
 			return;
 		}
 		List<CraftingStation> allCraftingStations = ReflectionHelper.GetAllCraftingStations();
@@ -386,12 +409,12 @@ public class RepairController : MonoBehaviour
 					}
 				}
 			}
-			Log($"Scan: station \"{craftingStation2.m_name}\" level={craftingStation2.GetLevel()} " + $"dist={num4:F1}m canRepairWorn={flag2}");
+			if (CompanionsPlugin.LogDetailed) Log($"Scan: station \"{craftingStation2.m_name}\" level={craftingStation2.GetLevel()} " + $"dist={num4:F1}m canRepairWorn={flag2}");
 			if (flag2 && num4 < num3 && !s_claimedStations.Contains(craftingStation2.GetInstanceID()))
 			{
 				if (_ai != null && _ai.IsPositionBlacklisted(craftingStation2.transform.position))
 				{
-					Log("Scan: skipping \"" + craftingStation2.m_name + "\" — position blacklisted");
+					if (CompanionsPlugin.LogDetailed) Log("Scan: skipping \"" + craftingStation2.m_name + "\" — position blacklisted");
 					continue;
 				}
 				craftingStation = craftingStation2;
@@ -406,7 +429,7 @@ public class RepairController : MonoBehaviour
 			{
 				_noStationUntil[item] = now + wait;
 				_noStationAt[item] = base.transform.position;
-				Log($"No station within {ScanRadius}m can repair \"{item.m_shared.m_name}\" ({item.m_durability / item.GetMaxDurability() * 100f:F0}%) - not trying again for {wait / 60f:F0} min");
+				if (CompanionsPlugin.LogDetailed) Log($"No station within {ScanRadius}m can repair \"{item.m_shared.m_name}\" ({item.m_durability / item.GetMaxDurability() * 100f:F0}%) - not trying again for {wait / 60f:F0} min");
 				// 1.5.42: at home that's worth knowing (a station to build or upgrade); out in the wild it's expected
 				if (_setup != null && _setup.HasHomePosition() && MHR_ToolKeeper.AtHome(_setup))
 				{
@@ -418,7 +441,7 @@ public class RepairController : MonoBehaviour
 		{
 			if (!_lastScanFailed)
 			{
-				Log($"Scan: no reachable station can repair the items below {threshold * 100f:F0}% within {ScanRadius}m — backing off {60f}s");
+				if (CompanionsPlugin.LogDetailed) Log($"Scan: no reachable station can repair the items below {threshold * 100f:F0}% within {ScanRadius}m — backing off {60f}s");
 			}
 			_lastScanFailed = true;
 			_scanTimer = 60f;
@@ -433,14 +456,14 @@ public class RepairController : MonoBehaviour
 				_repairQueue.Add(_tempWorn[m]);
 				continue;
 			}
-			Log("Scan: \"" + _tempWorn[m].m_shared.m_name + "\" cannot be repaired at \"" + craftingStation.m_name + "\" — " + GetRepairRejectReason(craftingStation, _tempWorn[m]));
+			if (CompanionsPlugin.LogDetailed) Log("Scan: \"" + _tempWorn[m].m_shared.m_name + "\" cannot be repaired at \"" + craftingStation.m_name + "\" — " + GetRepairRejectReason(craftingStation, _tempWorn[m]));
 		}
 		_targetStation = craftingStation;
 		ClaimStation();
 		_stuckTimer = 0f;
 		_phase = RepairPhase.MovingToStation;
 		_moveStart = Time.time;
-		Log($"Found {_repairQueue.Count} items to repair at " + $"\"{_targetStation.m_name}\" level={_targetStation.GetLevel()} ({num3:F1}m away)");
+		if (CompanionsPlugin.LogDetailed) Log($"Found {_repairQueue.Count} items to repair at " + $"\"{_targetStation.m_name}\" level={_targetStation.GetLevel()} ({num3:F1}m away)");
 		if (_talk != null)
 		{
 			_talk.Say(ModLocalization.Loc("hc_speech_repair_start"));
@@ -470,7 +493,7 @@ public class RepairController : MonoBehaviour
 			_targetStation.PokeInUse();
 			_repairTickTimer = RepairTickInterval;
 			_phase = RepairPhase.Repairing;
-			Log($"Arrived at \"{_targetStation.m_name}\" — starting repair of {_repairQueue.Count} items");
+			if (CompanionsPlugin.LogDetailed) Log($"Arrived at \"{_targetStation.m_name}\" — starting repair of {_repairQueue.Count} items");
 			return;
 		}
 		Vector3 goal = StationGoal();
@@ -525,17 +548,21 @@ public class RepairController : MonoBehaviour
 				float num2 = (itemData.m_durability = itemData.GetMaxDurability());
 				_humanoid?.GetInventory()?.m_onChanged?.Invoke();
 				_targetStation.m_repairItemDoneEffects.Create(_targetStation.transform.position, Quaternion.identity, null, 1f, -1, ZDOID.None);
-				Log($"Repaired \"{itemData.m_shared.m_name}\" — {durability:F0} → {num2:F0}");
+				if (CompanionsPlugin.LogDetailed) Log($"Repaired \"{itemData.m_shared.m_name}\" — {durability:F0} → {num2:F0}");
 				return;
 			}
 		}
 		FinishRepair();
 	}
 
+	private string _lastScanSig;
+
+	private float _nextSkipLog;
+
 	private void Log(string msg)
 	{
 		string text = _character?.m_name ?? "?";
-		CompanionsPlugin.Log.LogDebug("[Repair|" + text + "] " + msg);
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Repair|" + text + "] " + msg);
 	}
 
 	internal static bool CanRepairAt(CraftingStation station, ItemDrop.ItemData item)
@@ -544,7 +571,7 @@ public class RepairController : MonoBehaviour
 		{
 			return false;
 		}
-		if (!item.m_shared.m_canBeReparied)
+		if (!item.m_shared.m_canBeReparied || item.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Torch)
 		{
 			return false;
 		}
@@ -619,7 +646,7 @@ public class RepairController : MonoBehaviour
 		{
 			_zanim.SetInt("crafting", 0);
 		}
-		Log("All items repaired at \"" + (_targetStation?.m_name ?? "?") + "\"");
+		if (CompanionsPlugin.LogDetailed) Log("All items repaired at \"" + (_targetStation?.m_name ?? "?") + "\"");
 		if (_talk != null)
 		{
 			_talk.Say(ModLocalization.Loc("hc_speech_repair_done"));

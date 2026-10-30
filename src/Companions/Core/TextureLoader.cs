@@ -79,7 +79,7 @@ public static class TextureLoader
 		using Stream stream = ModAssembly.GetManifestResourceStream(text);
 		if (stream == null)
 		{
-			CompanionsPlugin.Log.LogDebug("TextureLoader: Radial resource '" + text + "' not found.");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("TextureLoader: Radial resource '" + text + "' not found.");
 			return null;
 		}
 		byte[] array = new byte[stream.Length];

@@ -88,7 +88,7 @@ public class StarterCompanionPanel : MonoBehaviour
 		component3.raycastTarget = true;
 		TMP_FontAsset tMP_FontAsset = ResolveFont();
 		GameObject gameObject = ResolveButtonTemplate();
-		CompanionsPlugin.Log.LogDebug("[StarterPanel] Font=" + (tMP_FontAsset?.name ?? "null") + ", ButtonTemplate=" + (gameObject?.name ?? "null"));
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[StarterPanel] Font=" + (tMP_FontAsset?.name ?? "null") + ", ButtonTemplate=" + (gameObject?.name ?? "null"));
 		_hire = s_hireNext;
 		s_hireNext = false;
 		_panel = new CompanionPanel
@@ -113,7 +113,7 @@ public class StarterCompanionPanel : MonoBehaviour
 		BuildCloseButton(_container.transform, tMP_FontAsset);
 		EnableGamepadNavigation();
 		_refreshPending = true;
-		CompanionsPlugin.Log.LogInfo("[StarterPanel] Opened customisation panel");
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[StarterPanel] Opened customisation panel");
 	}
 
 	private static TMP_FontAsset ResolveFont()
@@ -172,7 +172,7 @@ public class StarterCompanionPanel : MonoBehaviour
 		gameObject.GetComponent<Image>().color = new Color(0.3f, 0.1f, 0.1f, 0.9f);
 		gameObject.GetComponent<Button>().onClick.AddListener(delegate
 		{
-			CompanionsPlugin.Log.LogInfo(_hire ? "[StarterPanel] Summon cancelled" : "[StarterPanel] Skipped via close button — will re-appear next session");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo(_hire ? "[StarterPanel] Summon cancelled" : "[StarterPanel] Skipped via close button — will re-appear next session");
 			Close();
 		});
 		GameObject gameObject2 = new GameObject("X", typeof(RectTransform));
@@ -223,7 +223,7 @@ public class StarterCompanionPanel : MonoBehaviour
 		{
 			_refreshPending = false;
 			_panel?.Refresh();
-			CompanionsPlugin.Log.LogDebug("[StarterPanel] Initial Refresh() complete");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[StarterPanel] Initial Refresh() complete");
 		}
 		_panel?.UpdatePerFrame();
 		Cursor.lockState = CursorLockMode.None;
@@ -266,6 +266,6 @@ public class StarterCompanionPanel : MonoBehaviour
 		{
 			Instance = null;
 		}
-		CompanionsPlugin.Log.LogDebug("[StarterPanel] Destroyed");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[StarterPanel] Destroyed");
 	}
 }

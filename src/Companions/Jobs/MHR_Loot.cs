@@ -78,7 +78,7 @@ namespace Companions
                 // 1.4.95: timers count from when it sets off, not from the kill (1.4.94: "nothing dropped" a second
                 // after setting off for a Neck 15 m away, before it got anywhere near)
                 st.Current.Start = Time.time; st.Current.LastDrive = Time.time;
-                Log("Going to pick up what " + Loc(st.Current.Name) + " dropped (" + Vector3.Distance(ai.transform.position, st.Current.Pos).ToString("F0") + " m away)");
+                if (CompanionsPlugin.LogNormal) Log("Going to pick up what " + Loc(st.Current.Name) + " dropped (" + Vector3.Distance(ai.transform.position, st.Current.Pos).ToString("F0") + " m away)");
             }
             Kill k = st.Current;
             // 1.4.96: a fight in between (1.4.95 test: Neck, then a boar straight after) doesn't use up its time
@@ -86,7 +86,7 @@ namespace Companions
             {
                 float gap = Time.time - k.LastDrive;
                 k.Start += gap; if (k.ArrivedAt >= 0f) k.ArrivedAt += gap; k.LastDrive = Time.time;
-                LogDebug("back to what " + Loc(k.Name) + " dropped");
+                if (CompanionsPlugin.LogDetailed) LogDebug("back to what " + Loc(k.Name) + " dropped");
             }
             k.LastDrive = Time.time;
             CompanionSetup cs = ai.GetComponent<CompanionSetup>();
@@ -143,15 +143,15 @@ namespace Companions
                     int count = st.Target.m_itemData != null ? st.Target.m_itemData.m_stack : 0;
                     if (!st.Target.CanPickup()) { st.Target.RequestOwn(); ai.StopMoving(); return true; }
                     st.Target.Load();
-                    if (hum.Pickup(st.Target.gameObject, false, false)) LogDebug("  picked up " + Loc(name) + " x" + count);
+                    if (hum.Pickup(st.Target.gameObject, false, false)) if (CompanionsPlugin.LogDetailed) LogDebug("  picked up " + Loc(name) + " x" + count);
                     k.LastDrop = Time.time;
                     st.Target = null;
                     return true;
                 }
                 MHR_Mover.Go(ai, dt, tp, 0.8f, true, "Loot");
                 // 1.4.97: never swim for loot (1.4.96 test: took a shortcut through the water to some drops)
-                if (MHR_Mover.RouteSwim(ai) > NoSwim) { LogDebug("  " + Loc(st.Target.m_itemData != null ? st.Target.m_itemData.m_shared.m_name : "?") + " is across water - leaving it"); k.Skipped.Add(st.Target.GetInstanceID()); st.Target = null; MHR_Mover.Release(ai); return true; }
-                if (MHR_Mover.GaveUp(ai)) { LogDebug("  can't get to " + Loc(st.Target.m_itemData != null ? st.Target.m_itemData.m_shared.m_name : "?") + " - leaving it"); k.Skipped.Add(st.Target.GetInstanceID()); st.Target = null; MHR_Mover.Release(ai); }
+                if (MHR_Mover.RouteSwim(ai) > NoSwim) { if (CompanionsPlugin.LogDetailed) LogDebug("  " + Loc(st.Target.m_itemData != null ? st.Target.m_itemData.m_shared.m_name : "?") + " is across water - leaving it"); k.Skipped.Add(st.Target.GetInstanceID()); st.Target = null; MHR_Mover.Release(ai); return true; }
+                if (MHR_Mover.GaveUp(ai)) { if (CompanionsPlugin.LogDetailed) LogDebug("  can't get to " + Loc(st.Target.m_itemData != null ? st.Target.m_itemData.m_shared.m_name : "?") + " - leaving it"); k.Skipped.Add(st.Target.GetInstanceID()); st.Target = null; MHR_Mover.Release(ai); }
                 return true;
             }
 
@@ -180,7 +180,7 @@ namespace Companions
 
         static void Finish(CompanionAI ai, State st, string what)
         {
-            LogDebug(what);
+            if (CompanionsPlugin.LogDetailed) LogDebug(what);
             st.Current = null; st.Target = null;
             ai.StopMoving();
             MHR_Mover.Release(ai);
@@ -264,7 +264,14 @@ namespace Companions
                 if (MHR_Water.WouldSwim(self, d.transform.position))
                 {
                     k.Skipped.Add(d.GetInstanceID());
-                    LogDebug("  " + Loc(d.m_itemData != null ? d.m_itemData.m_shared.m_name : "?") + " is in deep water - leaving it");
+                    if (CompanionsPlugin.LogDetailed) LogDebug("  " + Loc(d.m_itemData != null ? d.m_itemData.m_shared.m_name : "?") + " is in deep water - leaving it");
+                    continue;
+                }
+                // 1.5.74: nor on lava
+                if (MHR_Mover.Lava(d.transform.position))
+                {
+                    k.Skipped.Add(d.GetInstanceID());
+                    if (CompanionsPlugin.LogDetailed) LogDebug("  " + Loc(d.m_itemData != null ? d.m_itemData.m_shared.m_name : "?") + " is on lava - leaving it");
                     continue;
                 }
                 k.Seen.Add(d.GetInstanceID());
@@ -282,8 +289,8 @@ namespace Companions
         const float NoSwim = 0.5f;
 
         static string Loc(string s) { try { return Localization.instance != null ? Localization.instance.Localize(s) : s; } catch { return s; } }
-        static void Log(string msg) { if (CompanionsPlugin.Log != null) CompanionsPlugin.Log.LogInfo("[Loot] " + msg); }
-        static void LogDebug(string msg) { if (CompanionsPlugin.Log != null) CompanionsPlugin.Log.LogDebug("[Loot] " + msg); }
+        static void Log(string msg) { if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Loot] " + msg); }
+        static void LogDebug(string msg) { if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Loot] " + msg); }
     }
 
     // a creature dies: if a companion landed the last hit, it goes to collect the drops

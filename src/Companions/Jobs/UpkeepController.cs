@@ -220,7 +220,7 @@ public partial class UpkeepController : MonoBehaviour
 			// chests around them, not just at home)
 			_atHome = _setup.HasHomePosition() && MHR_ToolKeeper.NearHome(_setup);
 			_anchor = _atHome ? _setup.GetHomePosition() : base.transform.position;
-			Log("Repair and Restock around " + (_atHome ? "home " : "here ") + MHR_Mover.Fmt(_anchor) + ", up to " + Range().ToString("F0") + " m out");
+			if (CompanionsPlugin.LogNormal) Log("Repair and Restock around " + (_atHome ? "home " : "here ") + MHR_Mover.Fmt(_anchor) + ", up to " + Range().ToString("F0") + " m out");
 		}
 		if (CompanionInteractPanel.IsOpenFor(_setup) || CompanionRadialMenu.IsOpenFor(_setup))
 		{
@@ -231,7 +231,7 @@ public partial class UpkeepController : MonoBehaviour
 		{
 			if (_step != Step.Idle)
 			{
-				LogDebug("A fight - stopping " + _step + " for now");
+				if (CompanionsPlugin.LogDetailed) LogDebug("A fight - stopping " + _step + " for now");
 				Stop();
 			}
 			return;
@@ -246,7 +246,7 @@ public partial class UpkeepController : MonoBehaviour
 		{
 			if (_step != Step.Idle || _holdingHammer)
 			{
-				LogDebug("Following an order - " + _step + " waits");
+				if (CompanionsPlugin.LogDetailed) LogDebug("Following an order - " + _step + " waits");
 				Stop();
 			}
 			_orderHoldUntil = Time.time + (ModConfig.UpkeepOrderWait?.Value ?? 30f);
@@ -262,7 +262,7 @@ public partial class UpkeepController : MonoBehaviour
 		{
 			if (_step != Step.Idle || _holdingHammer)
 			{
-				LogDebug("Repairing its gear first - " + _step + " waits");
+				if (CompanionsPlugin.LogDetailed) LogDebug("Repairing its gear first - " + _step + " waits");
 				Stop();
 			}
 			return;
@@ -364,13 +364,13 @@ public partial class UpkeepController : MonoBehaviour
 		if (!_idleSaid)
 		{
 			_idleSaid = true;
-			Log("Nothing to repair, restock or sort right now");
+			if (CompanionsPlugin.LogNormal) Log("Nothing to repair, restock or sort right now");
 			Say("hc_speech_upkeep_nothing");
 		}
 		else if (Time.time >= _nextNothingLog)
 		{
 			_nextNothingLog = Time.time + 120f;
-			LogDebug("Still nothing to do");
+			if (CompanionsPlugin.LogDetailed) LogDebug("Still nothing to do");
 		}
 		// 1.5.43 (phase 3): what's holding it up, in turn - fires with no fuel for them, damaged pieces no station in range
 		// can repair; else everything's in order
@@ -486,7 +486,7 @@ public partial class UpkeepController : MonoBehaviour
 	{
 		if (!string.IsNullOrEmpty(why))
 		{
-			LogDebug(why);
+			if (CompanionsPlugin.LogDetailed) LogDebug(why);
 		}
 		CloseChest();
 		_step = Step.Idle;
@@ -570,12 +570,12 @@ public partial class UpkeepController : MonoBehaviour
 			if (noStation > 0 && Time.time >= _nextWaitLog)
 			{
 				_nextWaitLog = Time.time + 120f;
-				Log(noStation + " damaged piece(s) have no crafting station in range - a player couldn't repair those either");
+				if (CompanionsPlugin.LogNormal) Log(noStation + " damaged piece(s) have no crafting station in range - a player couldn't repair those either");
 			}
 			return false;
 		}
 		_piece = best;
-		Log("Repairing " + PieceName(best) + " (" + (best.GetHealthPercentage() * 100f).ToString("F0") + "%, " + bestD.ToString("F0") + " m away)");
+		if (CompanionsPlugin.LogNormal) Log("Repairing " + PieceName(best) + " (" + (best.GetHealthPercentage() * 100f).ToString("F0") + "%, " + bestD.ToString("F0") + " m away)");
 		if (Time.time - _lastSpeech > 120f)
 		{
 			Say("hc_speech_homestead_repair");
@@ -668,7 +668,7 @@ public partial class UpkeepController : MonoBehaviour
 			if (Time.time >= _nextWaitLog)
 			{
 				_nextWaitLog = Time.time + 20f;
-				LogDebug("Catching its breath before the next swing (" + _stamina.Stamina.ToString("F0") + "/" + cost.ToString("F0") + " stamina)");
+				if (CompanionsPlugin.LogDetailed) LogDebug("Catching its breath before the next swing (" + _stamina.Stamina.ToString("F0") + "/" + cost.ToString("F0") + " stamina)");
 			}
 			return;
 		}
@@ -688,7 +688,7 @@ public partial class UpkeepController : MonoBehaviour
 		{
 			hammer.m_durability = Mathf.Max(0f, hammer.m_durability - hammer.m_shared.m_useDurabilityDrain * Game.m_durabilityRate);
 		}
-		Log("Repaired " + PieceName(_piece));
+		if (CompanionsPlugin.LogNormal) Log("Repaired " + PieceName(_piece));
 		_piece = null;
 		_step = Step.Idle;
 		_scanTimer = 0.2f;
@@ -872,7 +872,7 @@ public partial class UpkeepController : MonoBehaviour
 			if (missing.Count > 0 && Time.time >= _nextWaitLog)
 			{
 				_nextWaitLog = Time.time + 120f;
-				Log("Fires need fuel but there's none in the pack or the chests: " + string.Join(", ", Locals(missing)));
+				if (CompanionsPlugin.LogNormal) Log("Fires need fuel but there's none in the pack or the chests: " + string.Join(", ", Locals(missing)));
 			}
 			return false;
 		}
@@ -885,14 +885,14 @@ public partial class UpkeepController : MonoBehaviour
 		}
 		if (bestInBag)
 		{
-			Log("Topping up " + PieceName(best) + " (" + Fuel(best).ToString("F1") + "/" + best.m_maxFuel.ToString("F0") + ") with " + MHR_List.Local(name) + " from the pack");
+			if (CompanionsPlugin.LogNormal) Log("Topping up " + PieceName(best) + " (" + Fuel(best).ToString("F1") + "/" + best.m_maxFuel.ToString("F0") + ") with " + MHR_List.Local(name) + " from the pack");
 			Enter(Step.Fuel);
 			return true;
 		}
 		_chest = bestChest;
 		_key = name;
 		_amount = need;
-		Log("Fetching " + need + " " + MHR_List.Local(name) + " from a chest for " + PieceName(best) + " (" + Fuel(best).ToString("F1") + "/" + best.m_maxFuel.ToString("F0") + ")");
+		if (CompanionsPlugin.LogNormal) Log("Fetching " + need + " " + MHR_List.Local(name) + " from a chest for " + PieceName(best) + " (" + Fuel(best).ToString("F1") + "/" + best.m_maxFuel.ToString("F0") + ")");
 		Enter(Step.FuelFetch);
 		return true;
 	}
@@ -956,7 +956,7 @@ public partial class UpkeepController : MonoBehaviour
 		string fuel = _fire.m_fuelItem.m_itemData.m_shared.m_name;
 		if (Mathf.CeilToInt(Fuel(_fire)) >= _fire.m_maxFuel)
 		{
-			Log(PieceName(_fire) + " is full");
+			if (CompanionsPlugin.LogNormal) Log(PieceName(_fire) + " is full");
 			Say("hc_speech_homestead_stoked");
 			Done(null);
 			return;
@@ -1118,7 +1118,7 @@ public partial class UpkeepController : MonoBehaviour
 			_target = bestTo;
 			_key = bestKey;
 			string name = stock[bestKey].Name;
-			Log("Sorting: " + stock[bestKey].Count[bestFrom] + " " + MHR_List.Local(name) + " from the chest at " + MHR_Mover.Fmt(bestFrom.transform.position) + " to the one with the most (" + stock[bestKey].Count[bestTo] + ") at " + MHR_Mover.Fmt(bestTo.transform.position));
+			if (CompanionsPlugin.LogNormal) Log("Sorting: " + stock[bestKey].Count[bestFrom] + " " + MHR_List.Local(name) + " from the chest at " + MHR_Mover.Fmt(bestFrom.transform.position) + " to the one with the most (" + stock[bestKey].Count[bestTo] + ") at " + MHR_Mover.Fmt(bestTo.transform.position));
 			if (Time.time - _lastSpeech > 300f)
 			{
 				Say("hc_speech_homestead_tidy");
@@ -1130,7 +1130,7 @@ public partial class UpkeepController : MonoBehaviour
 		{
 			_chest = tidy;
 			_key = tidyKey;
-			Log("Merging part-stacks of " + MHR_List.Local(stock[tidyKey].Name) + " in the chest at " + MHR_Mover.Fmt(tidy.transform.position));
+			if (CompanionsPlugin.LogNormal) Log("Merging part-stacks of " + MHR_List.Local(stock[tidyKey].Name) + " in the chest at " + MHR_Mover.Fmt(tidy.transform.position));
 			Enter(Step.Tidy);
 			return true;
 		}
@@ -1229,13 +1229,13 @@ public partial class UpkeepController : MonoBehaviour
 				if (Time.time >= _nextWaitLog)
 				{
 					_nextWaitLog = Time.time + 120f;
-					Log("No chest with room for the leftover " + MHR_List.Local(NameOf(key)) + " - keeping it for now");
+					if (CompanionsPlugin.LogNormal) Log("No chest with room for the leftover " + MHR_List.Local(NameOf(key)) + " - keeping it for now");
 				}
 				continue;
 			}
 			_chest = to;
 			_key = key;
-			LogDebug("Putting the leftover " + Mathf.Min(_carried[key], CountKey(bag, key)) + " " + MHR_List.Local(NameOf(key)) + " back");
+			if (CompanionsPlugin.LogDetailed) LogDebug("Putting the leftover " + Mathf.Min(_carried[key], CountKey(bag, key)) + " " + MHR_List.Local(NameOf(key)) + " back");
 			Enter(Step.Stow);
 			return true;
 		}
@@ -1379,7 +1379,7 @@ public partial class UpkeepController : MonoBehaviour
 				Skip(c, 120f, "No " + MHR_List.Local(_key) + " to take after all");
 				return;
 			}
-			Log("Took " + got + " " + MHR_List.Local(_key) + " from the chest");
+			if (CompanionsPlugin.LogNormal) Log("Took " + got + " " + MHR_List.Local(_key) + " from the chest");
 			Fireplace f = _fire;
 			Done(null);
 			if (f != null)
@@ -1399,7 +1399,7 @@ public partial class UpkeepController : MonoBehaviour
 				Skip(c, 60f, "Nothing to take after all (no room in the pack, or it's gone)");
 				return;
 			}
-			LogDebug("Took " + got + " " + MHR_List.Local(NameOf(_key)) + " to carry over");
+			if (CompanionsPlugin.LogDetailed) LogDebug("Took " + got + " " + MHR_List.Local(NameOf(_key)) + " to carry over");
 			_chest = null;
 			Enter(Step.SortPut);
 			return;
@@ -1412,7 +1412,7 @@ public partial class UpkeepController : MonoBehaviour
 			Took(_key, -put);
 			Merge(inv, _key);
 			CloseChest(c);
-			Log((_step == Step.Stow ? "Put back " : "Sorted ") + put + " " + MHR_List.Local(NameOf(_key)) + " into the chest at " + MHR_Mover.Fmt(c.transform.position) + (put < want ? " (" + (want - put) + " didn't fit - they go in another chest)" : ""));
+			if (CompanionsPlugin.LogNormal) Log((_step == Step.Stow ? "Put back " : "Sorted ") + put + " " + MHR_List.Local(NameOf(_key)) + " into the chest at " + MHR_Mover.Fmt(c.transform.position) + (put < want ? " (" + (want - put) + " didn't fit - they go in another chest)" : ""));
 			if (put < want)
 			{
 				_skip[c.GetInstanceID()] = Time.time + 60f;
@@ -1424,7 +1424,7 @@ public partial class UpkeepController : MonoBehaviour
 		{
 			int merged = Merge(inv, _key);
 			CloseChest(c);
-			LogDebug("Merged " + merged + " part-stack(s)");
+			if (CompanionsPlugin.LogDetailed) LogDebug("Merged " + merged + " part-stack(s)");
 			if (merged == 0)
 			{
 				_skip[c.GetInstanceID()] = Time.time + 300f;
@@ -1665,11 +1665,11 @@ public partial class UpkeepController : MonoBehaviour
 
 	private static void Log(string msg)
 	{
-		CompanionsPlugin.Log?.LogInfo("[Upkeep] " + msg);
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log?.LogInfo("[Upkeep] " + msg);
 	}
 
 	private static void LogDebug(string msg)
 	{
-		CompanionsPlugin.Log?.LogDebug("[Upkeep] " + msg);
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log?.LogDebug("[Upkeep] " + msg);
 	}
 }

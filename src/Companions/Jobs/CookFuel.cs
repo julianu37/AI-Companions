@@ -162,7 +162,7 @@ public partial class CookController
 			added++;
 		}
 		_zanim?.SetTrigger("interact");
-		Log($"Added {added}x {Name(_task.Item)} to the {Loc(TaskName())} (kept at {FuelLevel * 100f:F0}%)");
+		if (CompanionsPlugin.LogNormal) Log($"Added {added}x {Name(_task.Item)} to the {Loc(TaskName())} (kept at {FuelLevel * 100f:F0}%)");
 	}
 
 	private void UpdateTakingPile()
@@ -183,11 +183,11 @@ public partial class CookController
 			{
 				_pileSkip[_pileTaker.Pile.GetInstanceID()] = Time.time + 600f;
 			}
-			Log("Gave up on the pile: " + _pileTaker.Why);
+			if (CompanionsPlugin.LogNormal) Log("Gave up on the pile: " + _pileTaker.Why);
 		}
 		else
 		{
-			Log("Took down a pile - picked up " + _pileTaker.Got + " " + MHR_List.Local(_pileTaker.Shared));
+			if (CompanionsPlugin.LogNormal) Log("Took down a pile - picked up " + _pileTaker.Got + " " + MHR_List.Local(_pileTaker.Shared));
 		}
 		_ai?.StopMoving();
 		MHR_Mover.Release(_ai);

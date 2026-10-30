@@ -41,7 +41,7 @@ public static class TombstoneContainerAwakePatch
 			{
 				ContainerAwakePatch._invHeightField.SetValue(inventory, num2);
 			}
-			CompanionsPlugin.Log.LogDebug($"[TombstoneAwake] Restored companion tombstone inventory dims: {width}x{height} -> {num}x{num2}");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[TombstoneAwake] Restored companion tombstone inventory dims: {width}x{height} -> {num}x{num2}");
 		}
 	}
 }

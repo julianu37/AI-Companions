@@ -75,11 +75,11 @@ internal static class GameLook
 			s_panel = best.sprite;
 			s_panelMat = best.material;
 			s_panelPpu = best.pixelsPerUnitMultiplier;
-			CompanionsPlugin.Log.LogInfo($"[UI] Game look: panel background '{s_panel.name}' from the inventory window ({from}), border scale {s_panelPpu:F2}");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo($"[UI] Game look: panel background '{s_panel.name}' from the inventory window ({from}), border scale {s_panelPpu:F2}");
 		}
 		else
 		{
-			CompanionsPlugin.Log.LogInfo("[UI] Game look: no panel background found in the inventory window - plain colour");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo("[UI] Game look: no panel background found in the inventory window - plain colour");
 		}
 		return s_panel;
 	}
@@ -134,7 +134,7 @@ internal static class GameLook
 			if (!s_scaleLogged)
 			{
 				s_scaleLogged = true;
-				CompanionsPlugin.Log.LogInfo("[UI] Game look: no game canvas scaler found - keeping 1920x1080 scaling");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo("[UI] Game look: no game canvas scaler found - keeping 1920x1080 scaling");
 			}
 			return;
 		}
@@ -147,7 +147,7 @@ internal static class GameLook
 		if (!s_scaleLogged)
 		{
 			s_scaleLogged = true;
-			CompanionsPlugin.Log.LogInfo($"[UI] Game look: canvas '{root.name}' {game.uiScaleMode}, reference {game.referenceResolution}, match {game.matchWidthOrHeight:F2}, scale factor {game.scaleFactor:F2} (canvas scale {root.scaleFactor:F2})");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo($"[UI] Game look: canvas '{root.name}' {game.uiScaleMode}, reference {game.referenceResolution}, match {game.matchWidthOrHeight:F2}, scale factor {game.scaleFactor:F2} (canvas scale {root.scaleFactor:F2})");
 		}
 	}
 

@@ -160,7 +160,7 @@ internal static class MHR_Roster
 		if (dropped > 0)
 		{
 			Save(toDisk: false);
-			CompanionsPlugin.Log.LogInfo($"[Roster] Dropped {dropped} companion(s) unsummoned in an earlier session");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Roster] Dropped {dropped} companion(s) unsummoned in an earlier session");
 		}
 		return true;
 	}
@@ -643,13 +643,13 @@ internal static class MHR_Roster
 				entry.Gen++;
 				s_sessionUnsummoned.Add(entry.Id);
 				Save(toDisk: true);
-				CompanionsPlugin.Log.LogInfo("[Roster] \"" + entry.Name + "\" was unsummoned - Odin's Shrine can bring it back (without gear) until you next load this world");
+				if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Roster] \"" + entry.Name + "\" was unsummoned - Odin's Shrine can bring it back (without gear) until you next load this world");
 				return;
 			}
 			s_entries.Remove(entry);
 			s_byId.Remove(entry.Id);
 			Save(toDisk: true);
-			CompanionsPlugin.Log.LogInfo("[Roster] \"" + entry.Name + "\" was despawned - removed from your companion roster");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Roster] \"" + entry.Name + "\" was despawned - removed from your companion roster");
 		}
 	}
 
@@ -782,7 +782,7 @@ internal static class MHR_Roster
 		s_goneCache[id] = new KeyValuePair<bool, float>(flag, Time.unscaledTime);
 		if (flag && s_goneLogged.Add(id))
 		{
-			CompanionsPlugin.Log.LogInfo("[Rest] A bed is claimed by a companion that no longer exists (ID " + id + ") - the claim is ignored");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Rest] A bed is claimed by a companion that no longer exists (ID " + id + ") - the claim is ignored");
 		}
 		return flag;
 	}
@@ -834,7 +834,7 @@ internal static class MHR_Roster
 		{
 			string text = Describe(s_entry, statuses[s_entry.Id]);
 			stringBuilder.Append(text).Append('\n');
-			CompanionsPlugin.Log.LogInfo("[Roster] " + text);
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Roster] " + text);
 		}
 		MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, stringBuilder.ToString().TrimEnd('\n'));
 	}
@@ -892,7 +892,7 @@ internal static class MHR_Roster
 						s_confirmUntil = Time.unscaledTime + ConfirmSeconds;
 						string text = ModLocalization.LocFmt("hc_roster_unknown_confirm", s_entry2.Name, ConfirmSeconds.ToString("F0"));
 						MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, text);
-						CompanionsPlugin.Log.LogInfo("[Roster] " + text);
+						if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Roster] " + text);
 						return;
 					}
 					entry = s_entry2;
@@ -909,7 +909,7 @@ internal static class MHR_Roster
 				text2 = text2 + "\n" + Describe(s_entry3, statuses[s_entry3.Id]);
 			}
 			MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, text2);
-			CompanionsPlugin.Log.LogInfo("[Roster] Recover: nothing to recover");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Roster] Recover: nothing to recover");
 			return;
 		}
 		Recover(entry, statuses[entry.Id]);

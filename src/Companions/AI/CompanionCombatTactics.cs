@@ -86,7 +86,7 @@ public partial class CompanionCombatAI
 		{
 			_lastTacticLog = s;
 			_nextTacticLog = Time.time + 5f;
-			CompanionsPlugin.Log.LogDebug("[Tactics] " + s);
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Tactics] " + s);
 		}
 	}
 
@@ -339,13 +339,13 @@ public partial class CompanionCombatAI
 			_recovering = true;
 			_recoverSince = Time.time;
 			_burstLeft = 0;
-			TLog($"Low on stamina ({share:P0}) - backing out of reach to get its breath back");
+			if (CompanionsPlugin.LogDetailed) TLog($"Low on stamina ({share:P0}) - backing out of reach to get its breath back");
 		}
 		else if (_recovering && share >= Resume)
 		{
 			_recovering = false;
 			_cornered = false;
-			TLog($"Got its breath back ({share:P0}) - back in");
+			if (CompanionsPlugin.LogDetailed) TLog($"Got its breath back ({share:P0}) - back in");
 		}
 		if (_cornered && Time.time >= _corneredUntil)
 		{
@@ -402,7 +402,7 @@ public partial class CompanionCombatAI
 				}
 				StartStep(dir, need, close, run: false);
 				_recoverStepReady = Time.time + 1.5f;
-				TLog("Stepping " + StepWord(close, dir) + $" out of {close.m_name}'s reach to get its breath back ({need:F1} m)");
+				if (CompanionsPlugin.LogDetailed) TLog("Stepping " + StepWord(close, dir) + $" out of {close.m_name}'s reach to get its breath back ({need:F1} m)");
 				return 1;
 			}
 			// it followed straight back in: guard (blocks still happen in UpdateBlocking) rather than keep retreating
@@ -418,14 +418,14 @@ public partial class CompanionCombatAI
 			if (_repositionSince < 0f)
 			{
 				_repositionSince = Time.time;
-				TLog($"{_close.Count} on it from different sides - getting clear");
+				if (CompanionsPlugin.LogDetailed) TLog($"{_close.Count} on it from different sides - getting clear");
 			}
 			// a couple of seconds at most, then it fights where it stands for a while
 			if (Time.time - _repositionSince > 2.5f)
 			{
 				_repositionSince = -1f;
 				_repositionBlockedUntil = Time.time + 6f;
-				TLog("Couldn't get them on one side - fighting where it stands");
+				if (CompanionsPlugin.LogDetailed) TLog("Couldn't get them on one side - fighting where it stands");
 				return 0;
 			}
 			if (Time.time >= _moveDirUntil)
@@ -528,7 +528,7 @@ public partial class CompanionCombatAI
 		{
 			if (_flankSince >= 0f)
 			{
-				TLog("Behind " + t.m_name + " - attacking while it's busy with " + itsTarget.m_name);
+				if (CompanionsPlugin.LogDetailed) TLog("Behind " + t.m_name + " - attacking while it's busy with " + itsTarget.m_name);
 			}
 			_flankSince = -1f;
 			return 0;
@@ -542,13 +542,13 @@ public partial class CompanionCombatAI
 		{
 			_flankSince = -1f;
 			_flankBlockedUntil = Time.time + 6f;
-			TLog("Couldn't get behind " + t.m_name + " - attacking from here");
+			if (CompanionsPlugin.LogDetailed) TLog("Couldn't get behind " + t.m_name + " - attacking from here");
 			return 0;
 		}
 		if (!_flankLogged)
 		{
 			_flankLogged = true;
-			TLog(t.m_name + " is busy with " + itsTarget.m_name + " - working round behind it");
+			if (CompanionsPlugin.LogDetailed) TLog(t.m_name + " is busy with " + itsTarget.m_name + " - working round behind it");
 		}
 		// round by its side first (the side it's already on), then to its back, at about our swing reach
 		float r = Mathf.Max(1f, MHR_MeleeReach(weapon) + t.GetRadius() + _character.GetRadius() - 0.3f);
@@ -565,7 +565,7 @@ public partial class CompanionCombatAI
 		{
 			_flankSince = -1f;
 			_flankBlockedUntil = Time.time + 6f;
-			TLog("No safe way round " + t.m_name + " (a drop or water) - attacking from here");
+			if (CompanionsPlugin.LogDetailed) TLog("No safe way round " + t.m_name + " (a drop or water) - attacking from here");
 			return 0;
 		}
 		MHR_Mover.Go(_ai, dt, goal, 0.4f, allowRun: StaminaShare() > Resume, "Combat", MHR_Mover.SpeedJog);
@@ -609,7 +609,7 @@ public partial class CompanionCombatAI
 		{
 			_dipping = true;
 			_dipUntil = Time.time + closeIn + 0.6f;
-			TLog($"{t.m_name} can't swing again for {ready:F1} s - going in");
+			if (CompanionsPlugin.LogDetailed) TLog($"{t.m_name} can't swing again for {ready:F1} s - going in");
 		}
 		if (_dipping)
 		{
@@ -622,7 +622,7 @@ public partial class CompanionCombatAI
 			_ai.LookAtPoint(t.GetCenterPoint());
 			return 1;
 		}
-		TLog($"Keeping just out of {t.m_name}'s reach (its reach {Danger(t):F1} m) - waiting for an opening");
+		if (CompanionsPlugin.LogDetailed) TLog($"Keeping just out of {t.m_name}'s reach (its reach {Danger(t):F1} m) - waiting for an opening");
 		_spacingHold = true;
 		_ai.StopMoving();
 		_ai.LookAtPoint(t.GetCenterPoint());
@@ -637,7 +637,7 @@ public partial class CompanionCombatAI
 	{
 		_cornered = true;
 		_corneredUntil = Time.time + 4f;
-		TLog("Can't get clear (" + why + ") - fighting on what stamina it has");
+		if (CompanionsPlugin.LogDetailed) TLog("Can't get clear (" + why + ") - fighting on what stamina it has");
 		return 0;
 	}
 
@@ -667,7 +667,7 @@ public partial class CompanionCombatAI
 			return;
 		}
 		StartStep(dir, need, _targetCreature, run: false);
-		TLog("Stepping " + StepWord(_targetCreature, dir) + " out of " + _targetCreature.m_name + "'s reach after its combo");
+		if (CompanionsPlugin.LogDetailed) TLog("Stepping " + StepWord(_targetCreature, dir) + " out of " + _targetCreature.m_name + "'s reach after its combo");
 	}
 
 	private bool _stepToReach = true;
@@ -756,7 +756,7 @@ public partial class CompanionCombatAI
 				continue;
 			}
 			StartStep(move.normalized, dist, t, run: false, untilOutOfReach: false);
-			TLog("Moving to a clear spot - its swings were catching the " + wall);
+			if (CompanionsPlugin.LogDetailed) TLog("Moving to a clear spot - its swings were catching the " + wall);
 			return true;
 		}
 		return false;
@@ -834,19 +834,19 @@ public partial class CompanionCombatAI
 				continue;
 			}
 			StartStep(move.normalized, dist, t, run: false, untilOutOfReach: false);
-			TLog("Moving round the " + what + " - it was in the way of its swing at " + t.m_name);
+			if (CompanionsPlugin.LogDetailed) TLog("Moving round the " + what + " - it was in the way of its swing at " + t.m_name);
 			return true;
 		}
-		TLog("The " + what + " is in the way of its swing at " + t.m_name + " and there's no clear spot - swinging anyway");
+		if (CompanionsPlugin.LogDetailed) TLog("The " + what + " is in the way of its swing at " + t.m_name + " and there's no clear spot - swinging anyway");
 		_obstacleCheckAt = Time.time + 3f;
 		return false;
 	}
 
 	// a swing at it it can get out of the way of, rather than block (UpdateBlocking calls this once per swing, at the
 	// moment it reacts)
-	private bool TryEvade(Character swinger)
+	private bool TryEvade(Character swinger, bool always = false)
 	{
-		float chance = ModConfig.StepAwayChance?.Value ?? 0.3f;
+		float chance = always ? 1f : (ModConfig.StepAwayChance?.Value ?? 0.3f);
 		if (StaminaShare() < Reserve)
 		{
 			chance = Mathf.Min(1f, chance * 2f);   // blocking costs stamina it doesn't have
@@ -860,7 +860,7 @@ public partial class CompanionCombatAI
 				chance = Mathf.Max(chance, ModConfig.CombatSpacingStepChance?.Value ?? 0.6f);
 			}
 		}
-		if (Random.value >= chance)
+		if (!always && Random.value >= chance)
 		{
 			return false;
 		}
@@ -878,7 +878,7 @@ public partial class CompanionCombatAI
 		// a quick step: a run only when it has further to go than a jog covers in time
 		bool run = need > 1.5f && StaminaShare() > Reserve;
 		StartStep(dir, need, swinger, run);
-		TLog("Stepping " + StepWord(swinger, dir) + $" out of {swinger.m_name}'s swing ({need:F1} m)");
+		if (CompanionsPlugin.LogDetailed) TLog("Stepping " + StepWord(swinger, dir) + $" out of {swinger.m_name}'s swing ({need:F1} m)");
 		return true;
 	}
 
@@ -1146,7 +1146,7 @@ public partial class CompanionCombatAI
 			if (!_finishing)
 			{
 				_finishing = true;
-				TLog($"{_targetCreature.m_name} is nearly dead ({_targetCreature.GetHealth():F0} hp, about {_finishHits} hit(s)) - spending its stamina to finish it");
+				if (CompanionsPlugin.LogDetailed) TLog($"{_targetCreature.m_name} is nearly dead ({_targetCreature.GetHealth():F0} hp, about {_finishHits} hit(s)) - spending its stamina to finish it");
 			}
 			return true;
 		}
@@ -1159,7 +1159,7 @@ public partial class CompanionCombatAI
 			if (!_punishing)
 			{
 				_punishing = true;
-				TLog(_targetCreature.m_name + " is staggered - going in with a combo" + (_recovering ? " (catching its breath can wait)" : ""));
+				if (CompanionsPlugin.LogDetailed) TLog(_targetCreature.m_name + " is staggered - going in with a combo" + (_recovering ? " (catching its breath can wait)" : ""));
 			}
 			return true;
 		}
@@ -1235,7 +1235,7 @@ public partial class CompanionCombatAI
 		}
 		if (size < want)
 		{
-			TLog($"{size}-hit combo, not {want} - saving stamina to block ({StaminaNow():F0}/{StaminaMax():F0})");
+			if (CompanionsPlugin.LogDetailed) TLog($"{size}-hit combo, not {want} - saving stamina to block ({StaminaNow():F0}/{StaminaMax():F0})");
 		}
 		return size;
 	}
@@ -1277,7 +1277,7 @@ public partial class CompanionCombatAI
 			_burstLeft = BurstSize(w);
 			if (_burstLeft > 1)
 			{
-				TLog($"{_burstLeft}-hit combo at {_targetCreature?.m_name}");
+				if (CompanionsPlugin.LogDetailed) TLog($"{_burstLeft}-hit combo at {_targetCreature?.m_name}");
 			}
 		}
 		_burstLeft--;
@@ -1313,7 +1313,7 @@ public partial class CompanionCombatAI
 		{
 			return false;
 		}
-		TLog("Badly hurt - running to its owner, away from " + _targetCreature.m_name);
+		if (CompanionsPlugin.LogDetailed) TLog("Badly hurt - running to its owner, away from " + _targetCreature.m_name);
 		return true;
 	}
 

@@ -29,7 +29,8 @@ Most of the numbers below are the defaults and can be changed in the settings (s
 14. [Movement](#movement)
 15. [Skills](#skills)
 16. [Multiplayer](#multiplayer)
-17. [Troubleshooting](#troubleshooting)
+17. [Controller](#controller)
+18. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -53,6 +54,8 @@ Drag items in and out like in a chest. Everything you give him is his: he keeps 
 ## The command ring
 
 **Hold** the interact key (`E`) while looking at a companion to open his **command ring**. Take the mouse (or the analogue stick) to a slice and click.
+
+On a controller: hold the block button and press **X** while looking at a companion (Controller > Wheel / WheelModifier). The game's Use button on a companion opens its panel.
 
 | Slice | What it does |
 |:---|:---|
@@ -319,7 +322,7 @@ A companion can carry 300 of weight, the same as a player.
 | **Ranged** | Prefers bow or crossbow and keeps the distance |
 | **Melee** | Stays on the close-range weapons |
 
-**Stance keys:** you can bind a key to each stance (Controls > PassiveKey, BalancedKey, RangedKey, MeleeKey; none by default). Looking at one of your companions, the key sets just that one; otherwise every companion within RecallRange that has Command on. A message top left says who changed - handy to pull someone out of a fight that's going badly.
+**Stance keys:** you can bind a key to each stance (Controls > PassiveKey, BalancedKey, RangedKey, MeleeKey; none by default), and a controller button with an optional modifier (Controller > Passive, Balanced, Ranged, Melee). Looking at one of your companions, the key sets just that one; otherwise every companion within RecallRange that has Command on. A message top left says who changed - handy to pull someone out of a fight that's going badly.
 
 **When they fight**
 - They attack a creature after it notices you or them. With the `EngageOnNotice` option off, they wait until it actually comes for you.
@@ -416,6 +419,23 @@ Companions get better at what they do, like a player. Fighting raises their weap
 - **Shared chests are safe.** Items a companion moves are saved correctly, with no losses and no duplication. He does not use a chest another player left open.
 - **The credit goes to the owner.** The crops he plants and the piles he builds count as built by his owner.
 - **Everyone needs the mod, including the server.** On a dedicated server, install the mod on the server and in each player's game. A server (or a host) without the mod deletes any companion it loads. You can bring a deleted companion back through the list (see [Recovering a lost companion](#recovering-a-lost-companion)), but it is better not to lose him. A dedicated server always keeps the area around the world center loaded, so companions near the world spawn point are at risk even with everyone online. Players without the mod simply cannot see the companions.
+
+## Controller
+
+Every controller bind is a button plus an optional **modifier** you hold with it (the `Controller` section of the settings, `F8`):
+
+| Bind | Default | What it does |
+|:---|:---|:---|
+| Command | hold block + Y | Point and command; hold to recall |
+| Wheel | hold block + X | The command wheel, looking at a companion |
+| Settings | none | This settings panel |
+| FarmZone | none | The farm zone editor |
+| Passive / Balanced / Ranged / Melee | none | Set a stance |
+
+- **Alt** is the game's own modifier - your block button (LT, or LB in the Alternative 1 layout) - and **Use** is the game's Use button; both follow your controller layout. The rest are fixed buttons.
+- While a combo's modifier is held, that combo's button is for the companions only: block + Y doesn't open your inventory, block + X doesn't sit or use. On their own, Y and X work as normal, and holding block always blocks (block + jump still dodges).
+- In the settings, press **A** on a bind and then the button you want; **X** (or the Clear button) unbinds it, **Y** puts the default back. Keyboard keys have a Clear button too.
+- The hint when you look at a companion shows your actual binds with the game's own button icons.
 
 ## Troubleshooting
 

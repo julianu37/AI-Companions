@@ -57,7 +57,7 @@ public partial class UpkeepController
 		}
 		_hive = best;
 		_honey = best.m_honeyItem.m_itemData.m_shared.m_name;
-		Log("Collecting " + HoneyIn(best) + " " + MHR_List.Local(_honey) + " from the beehive at " + MHR_Mover.Fmt(best.transform.position));
+		if (CompanionsPlugin.LogNormal) Log("Collecting " + HoneyIn(best) + " " + MHR_List.Local(_honey) + " from the beehive at " + MHR_Mover.Fmt(best.transform.position));
 		Enter(Step.Hive);
 		return true;
 	}
@@ -158,7 +158,7 @@ public partial class UpkeepController
 		}
 		if (nearest == null)
 		{
-			Log("Picked up the honey - putting it away");
+			if (CompanionsPlugin.LogNormal) Log("Picked up the honey - putting it away");
 			Done(null);   // the put-away step takes it to the chest with the most honey
 			return;
 		}
