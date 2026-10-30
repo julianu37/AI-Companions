@@ -60,13 +60,18 @@ config é **`BepInEx\config\AiCompanions.cfg`** (o GUID não dá mais nome a ele
   listar o Jotunn como requisito em release/README. (A skill `jotunn` da equipe continua no repositório como
   referência de framework, mas **não** se aplica a este mod.)
 - Target: **.NET Framework 4.7.2 (net472)**, C#.
-- Versão: **1.9.1** — **multilíngue (5 idiomas: PT-BR, EN, ES, FR, IT)** em 26/10/2026 (fonte única: `PluginVersion` em
-  `src/Companions/Core/CompanionsPlugin.cs`). A **1.9.1** só tira o `ggml-base-q5_1.bin` (57 MB, nunca usado) do
-  pacote: o zip completo caiu de **~368 MB para ~314 MB** (o "sem modelos" segue ~28,5 MB) e o texto do
-  `[AI] SttModel` passou a dizer que o `base` é **download opcional**. As releases saíram em sequência em 23–26/10
-  (`1.7.0` → `1.8.0` → `1.8.1` → `1.8.2` → `1.8.3` → `1.9.0` → `1.9.1`); a **1.7.1 foi pulada de propósito**
-  (pedido do jogador). As branches `feat/multi-companheiro`, `fix/peso-cinto`, `feat/llm-groq`, `feat/provedor-llm`
-  e `languages` foram mergeadas (`--no-ff`) e podem ser apagadas — a `main` é a linha de release.
+- Versão: **2.0.0** — **multilíngue (5 idiomas: PT-BR, EN, ES, FR, IT)** (fonte única: `PluginVersion` em
+  `src/Companions/Core/CompanionsPlugin.cs`). A **2.0.0** (branch `feat/ordens-interacao`, **ainda não publicada**)
+  é a **sincronização com o upstream 1.5.4 → 1.5.8** (121 arquivos, +14.907/−2.600; **63 byte a byte idênticos**,
+  58 conflitos resolvidos à mão) **+ as 5 ordens de interação** por chat/voz (`hive`/`door`/`board`/`sit`/`deposit`,
+  `ValidActions` 30 → **35**). A auditoria das 7 frentes está em **`docs/audit-upstream-2.0.0.md`**: ela achou
+  **2 regressões altas** do merge (as zonas de plantio sumiam no túmulo e o F8 gravava o **primeiro** valor de
+  `LogLevel`/`PortalItems`/`RespawnStance`) e o que ficou adiado de propósito está listado lá. Histórico: as
+  releases saíram em sequência em 23–26/10 (`1.7.0` → `1.8.0` → `1.8.1` → `1.8.2` → `1.8.3` → `1.9.0` → `1.9.1`;
+  a **1.7.1 foi pulada de propósito**, pedido do jogador) e a **1.9.1** só tirou o `ggml-base-q5_1.bin` (57 MB) do
+  pacote (~368 MB → ~314 MB no zip completo). As branches `feat/multi-companheiro`, `fix/peso-cinto`,
+  `feat/llm-groq`, `feat/provedor-llm` e `languages` foram mergeadas (`--no-ff`) e podem ser apagadas — a `main` é
+  a linha de release.
 
 ## Caminhos desta máquina
 
@@ -575,6 +580,19 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   `hc_ai_<ação>_none`. 17 chaves novas nos 5 idiomas. Rede extra no `LlmIntent` (`IsDoorWord`, no mesmo molde do
   `IsInventoryWord`): uma ação que **nomeia a porta** (`fecha_a_porta`) vale mais que o verbo, que o 3B manda como
   `inventory_close` (o `"fecha"` é apelido dessa ação desde a 3.8).
+  - **Correções da auditoria da 2.0.0** (rodada antes do teste; detalhes em `docs/audit-upstream-2.0.0.md`): a rede
+    da porta **não bastava** — com `StructuredOutput` (padrão) o schema só aceita o enum das 35 ações, então o modelo
+    devolve `inventory_close` e o `IsDoorWord`, que lê a **ação**, nunca dispara: o companheiro fechava a janela do
+    jogador. O novo **`CompanionOrders.IsDoorRequest`** lê as **palavras** (porta + verbo de abrir/fechar e **sem**
+    palavra de mochila — "abre o inventário e fecha a porta" continua inventário) e roda no `Run` **e** no lado `none`
+    do `HandleResult`. O novo **`AI/InteractionIntent`** (puro, 1×/mensagem, palavra inteira entre separadores, ≤10
+    palavras, `?` nunca é ordem, negação/"para de…" recusam) cobre `hive`/`board`/`sit`/`deposit` no lado `none` e no
+    `Run` para `drop`/`inventory*` — antes 7/7 ordens inequívocas caíam em "não entendi". As 5 entraram em
+    `RadialIntent.PreciseActions` (uma postura na mesma frase não engole mais a ordem); `senta` ganhou
+    `fromOrder` (já sentado **no mesmo** fogo continua sentado, fogo diferente levanta e vai, a tecla continua toggle);
+    `deposit` conta **itens** (não pilhas), usa as regras dos jobs (`MHR_Chests.Usable` + `PrivateArea`, nada de túmulo/
+    carrinho/navio/baú privado de outro jogador) e a posse do baú; `Pointed<T>`/`PointedShip` varrem **todos** os hits
+    do raio (como a tecla) e as 4 escritas diretas de `HC_ActionMode` passaram pela fila da 3.19. Nenhuma chave nova.
 - Backend/contrato de referência: `docs/re/backend-contract.md`; mapa da fase: `docs/roadmap.md` (Trilha D);
   pipeline de voz: `docs/re/stt-voz-pipeline.md`; fala do companheiro: `docs/re/tts-kokoro-sherpa-onnx.md`.
 - **Status (out/2026):** as fases da camada de IA estão **validadas em jogo** pelo jogador (3.1, 3.1-saída
@@ -602,9 +620,10 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   não resolve nada porque **o HUD do jogo está em `sortingOrder = 400`** — o `[UiDiag]` que ela mesma deixou no painel
   mediu isso (`canvas "HUD" (order=400, overrideSorting) ... crosshair/HoverName (TextMeshProUGUI 350x150) at the panel
   point 196,-46`), e **qualquer valor abaixo de 400 perde o clique** para o HUD. Agora **todos** os canvases do mod saem
-  de 28..34 para **1701..1708** (`src/Companions/UI/ModUiLayers.cs`, **fonte única**: `FarmZonePlacer` 1701,
+  de 28..34 para **1701..1709** (`src/Companions/UI/ModUiLayers.cs`, **fonte única**: `FarmZonePlacer` 1701,
   `HomeZonePanel` 1702, `CompanionRadialMenu` 1703, `StarterCompanionPanel` 1704, `FarmZoneCropPicker` 1705,
-  `ConfigPanel` 1706, `CompanionAiPanel` 1707, overlay do dropdown 1708), **mantendo a ordem relativa** entre eles. A
+  `ConfigPanel` 1706, `CompanionAiPanel` 1707, overlay do dropdown 1708, `CompanionAppearancePanel` 1709),
+  **mantendo a ordem relativa** entre eles. A
   faixa foi escolhida assim: **acima** do HUD (400), do `HudMessage` (1000) e do `Menu` (1700); **abaixo** do
   `UnifiedPopup` (**1900** — popup modal **do jogo**, classe vanilla de `assembly_valheim`, que **não** é nossa e não
   pode ser movida: um modal tem que ficar na frente de uma janela) e do `LongPressRadial` (2000 — evitar o **empate**,
@@ -629,8 +648,9 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   decorativos saíram —, a lista de camadas da cena numa linha e os **avisos** linha por linha com caminho + tipo +
   tamanho + ponto). Os falsos positivos: `AiRoot` (fundo do painel) e `KeyBox` (caixa da tecla) viraram
   **`raycastTarget = false`** (decoração, e o `Backdrop` do painel — tela cheia, criado antes do root — já é o catcher
-  modal; é o que o `ConfigRoot` do F8 já fazia), e as **barras de fundo das listas do dropdown** (`Overlay/PersonalityList`
-  e `Overlay/VoiceList`) **continuam alvos de propósito** (o clique na borda de 2 px da lista tem que morrer nela, senão
+  modal; é o que o `ConfigRoot` do F8 já fazia), e as **barras de fundo das listas do dropdown**
+  (`Overlay/TierList`, `Overlay/CompPersonalityList`, `Overlay/CompVoiceList`, `Overlay/LlmProviderList` e
+  `DropdownOverlay/ChoiceList`) **continuam alvos de propósito** (o clique na borda de 2 px da lista tem que morrer nela, senão
   chega ao `ListCatcher` e fecha a lista) numa **allow-list documentada** (`ModUiAudit.Intentional`, casada pelo fim do
   caminho + motivo). Ver `docs/roadmap.md` (§3.1 da correção das camadas) e `package/CHANGELOG.md`.
 - **Tradução PT-BR — auditoria de cobertura (branch `fix/traducao`):** varredura de **todo texto que o jogador pode
@@ -868,9 +888,10 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   PASSED**.
 - **Pendências conhecidas (abertas):** a **voz não passa pelo
   mixer do jogo** (por isso ignora os sliders de volume do Valheim e só obedece `[AI] TtsVolume`); o **sync com o
-  upstream** (estamos **1 release atrás**: base `1.5.4`, `main` na `1.5.5` — ver a seção *Upstream e licença*);
-  a **sobreposição do nome do companheiro no centro do radial** (o nome do mundo aparece por trás do centro
-  transparente da roda — cosmético, visto nas capturas da 1.7.0); o **risco médio do roster com N companheiros**; e a
+  upstream** está **em dia com a 1.5.8** (era 1.5.4 — ver a seção *Upstream e licença*), mas o autor publica
+  rápido: conferir o `main` antes de cada release; a **sobreposição do nome do companheiro no centro do radial** (o
+  nome do mundo aparece por trás do centro transparente da roda — cosmético, visto nas capturas da 1.7.0); o
+  **risco médio do roster com N companheiros**; e a
   **posse do ZDO no spawn em multiplayer** (revisar quando houver teste em servidor dedicado). O
   **release/empacotamento da 1.8.3 está fechado** (25/10/2026): tag `v1.8.3` no `c023ca1`, GitHub Release
   `releases/tag/v1.8.3` com os dois zips — `AI_Companions-1.8.3.zip` (385.866.837 bytes, md5 `340d320d…`) e

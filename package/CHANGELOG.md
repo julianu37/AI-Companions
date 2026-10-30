@@ -28,7 +28,8 @@ with our AI layer, localization and UI band kept.
   following the game's language and the **1701+ UI band**.
 - Our **carry ceiling** (`CompanionCarry`: `[General] MaxCarryWeight` + the belt bonus read from the item asset) stays
   in **every** weight check; the **Passive stance still fights the creature an order named**.
-- **160 new strings translated** into the five languages.
+- **160 new strings translated** into the five languages — **991 interface keys per language** in the end — and the
+  upstream's speech overhaul translated with it (**20 categories**, was 15).
 
 ### Fixed during the merge
 
@@ -52,7 +53,43 @@ companion carries into a chest).
 - 17 new strings in the five languages, and the prompt contract teaches the five actions in every language (+7 lines
   each, no extra examples beyond the two that matter: "close the door" and "put this in the chest"). A small model
   answering `inventory_close` for "close the door" (the verb "close" is an alias of that action) is read back as the
-  door order, by the same rule that reads the pack from the action word.
+  door order: the words you typed are checked for a door word and the absence of a pack word, the same idea as the
+  rule that reads the pack from the action word.
+
+### Fixed in the merge (found by the 2.0.0 audit)
+
+Seven independent reviews of the whole branch (AI layer, config/UI/localization, netcode/ZDO, Harmony, the prompt
+contract, "what of the upstream did not make it" and a global pass over this document) before the release. What they
+found and is fixed here:
+
+- **The farm zones came back empty.** The tombstone carried the **reader** of `HC_Respawn_FarmZones` but not the
+  **writer**, so a companion that died returned without the zones it was planting (the Shrine path kept them). One
+  line, restored from upstream.
+- **The F8 could mute the mod.** The merge mixed our voice dropdown (M2) with the upstream's generic list builder: any
+  pick on `[Advanced] LogLevel`, `[General] PortalItems` or `[Death] RespawnStance` was written outside the setting's
+  own list and BepInEx clamped it to the **first** value (`Off`, `AllowAll`, `Passive`). The lists now come from the
+  setting itself, with no "automatic" option, and `A` on the controller opens them.
+- **Choosing a stance now ends the tombstone recovery** (`MHR_Recover.Cancel` had no caller): the auto-pickup comes
+  back and the companion stops walking to its tombstone against your order.
+- **The chest order respects the ward and the world.** `deposit` only accepts a chest a player placed (never a
+  tombstone, a cart or a ship's hold) and refuses one inside another player's `PrivateArea`; it also waits for the
+  world's ownership before writing, so an item cannot leave the pack and be overwritten on a dedicated server.
+- **The pointed target scans every hit**, like the command key, instead of only the first one — a chest behind a fence
+  post is no longer silently replaced by "the nearest chest".
+- **`senta` twice**: already sitting at that fire by an order, the companion no longer stands up and answers "nobody
+  came"; sitting at another fire now takes it there.
+- **`putting N item(s)` counts items**, not stacks.
+- **`[Advanced] GatheringSwingInterval` is gone** (the upstream removed it in 1.5.6 and nothing read it here).
+- **`[General] MaxCompanions`**: the description now says when a dismissed companion's slot comes free (on the next
+  load of the world, or right away with `RecoverUnsummoned` off), and a companion with no permanent id yet no longer
+  counts twice on a dedicated server.
+- **The AI profile survives Odin's Shrine**: the roster copy now carries the voice and the personality, like the
+  tombstone already did.
+- **The new patches cost nothing with the log off** (`[Piece]` wear, block log, reflection behind the log gate) and an
+  instance id recycled by Unity no longer hands a new character the encumbrance verdict of a dead companion.
+- **Speech pools**: the five categories of the upstream's speech overhaul are translated in the four languages
+  (`Wood`, `Stone`, `Ore`, `Upkeep`, `Chat`), and `SpeechConfig.Merge` fills any pool a hand-edited file omits.
+- **75 F8 labels and 2 tab names** that were still in English are translated; **991 keys per language**.
 
 ## 1.9.1 — 26/10/2026
 
