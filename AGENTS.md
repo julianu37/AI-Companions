@@ -29,15 +29,22 @@ config é **`BepInEx\config\AiCompanions.cfg`** (o GUID não dá mais nome a ele
 - **⚠️ O alvo do sync é o `main` do upstream — NUNCA a `claude/relaxed-archimedes-ecoh6h`.** Essa branch é o
   **WIP do próprio autor** (commits tipo *"Dev notes: backlog - multi-companion management panel"*, atualizada
   várias vezes por dia) e a **numeração de versão dela não é release**: ela vai até `1.5.42` enquanto o `main`
-  publicado está na **`1.5.5`**. Ler os números de versão dela como "releases que estamos perdendo" já causou um
+  publicado está na **`1.5.8`** (era `1.5.5` em 17/10). Ler os números de versão dela como "releases que estamos perdendo" já causou um
   erro de avaliação uma vez (eu reportei "38 versões atrás" quando o real era **1 release**). **Não mergeie, não
   rebaseie e não use como referência de comportamento** — só o `main` conta.
-- **Estado da divergência (verificado em 2026-10-17):** a nossa base é a **`1.5.4`** (`267b8fe`, o commit do
-  upstream — a nossa história **compartilha** a dele, então um `git merge` é o caminho) e o `main` está na
-  **`1.5.5`** (`3b4affe`, *"speech overhaul and status line, gear-first revive and stance keys, tilled-ground
-  farming"*). Ou seja: **1 release atrás** — 1 commit, 45 arquivos, ~3.165 linhas de `.cs` em 36 arquivos e 4
-  arquivos novos (`CompanionStatus.cs`, `MHR_Recover.cs`, `UI/MHR_StanceKeys.cs`, `Patches/MHR_PieceDamageLog.cs`).
-  O ponto delicado é o `CompanionTalk.cs` (**+440** na reforma da fala), que é onde o nosso TTS se pluga.
+- **Estado da divergência (verificado em 2026-10-30):** a nossa base é a **`1.5.4`** (`267b8fe`, o commit do
+  upstream - a nossa história **compartilha** a dele, então um `git merge` é o caminho) e o `main` está na
+  **`1.5.8`** (`8aa6f53`, 28/10). Ou seja: **4 releases atrás** (`1.5.5` → `1.5.6` → `1.5.7` → `1.5.8`) —
+  **9 commits, 121 arquivos, +14.907 / −2.600**, **25 arquivos novos** e nenhum removido. O que vem: 1.5.5 (reforma da
+  fala + status line, revive por equipamento, teclas de postura, farm em terra arada); 1.5.6 (combate como um jogador,
+  arcos, navios, invocação no Santuário de Odin, colmeias + **CHANGELOG curto + `CHANGELOG-full.md`**); 1.5.7 (janela de
+  invocação, Stone/Ore e construções, Wood, peso, portais, fogueiras, baús); 1.5.8 (tochas, binds de controle, F8 no
+  controle, lava, nível de log, levantar fora de vista só em masmorra, comando de porta fecha portas). Os pontos
+  delicados do merge são **58 arquivos que os dois lados mexeram** — em especial `CompanionTalk.cs` (o nosso TTS),
+  `CompanionAI.cs`, `CompanionCombatAI.cs`, `ModConfig.cs`/`ModLocalization.cs`/`SpeechConfig.cs` (as nossas chaves),
+  `CompanionsPlugin.cs`, os painéis de UI e o `package/CHANGELOG.md`; e **`UI/ModUiLayers.cs` é add/add** (nós criamos
+  para a faixa 1701+, eles criaram no 1.5.8). Regra do merge: **upstream manda em comportamento/jogo; nós mandamos na
+  camada de IA, localização, chaves de config e camadas de UI**.
 - O upstream **não publica tags nem releases** no GitHub (a versão vive na mensagem do commit do `main`).
   Para conferir o estado real: `gh api repos/MaddhattrRocks/Offline-Companions-Reborn/commits/main` (ou a branch
   `main` do clone local em `~/.local/share/opencode/repos/github.com/MaddhattrRocks/Offline-Companions-Reborn`).
