@@ -160,7 +160,7 @@ piezas de armadura se quedan en la mochila en vez de equipadas.
 
 | Viene del upstream (Offline Companions Reborn, MIT) | Es nuestro |
 |---|---|
-| El compañero: trabajos, comida, stamina, habilidades, casa, descanso, portales, carro | **La traducción en cinco idiomas** — 737 claves de interfaz y 186 frases por idioma, con el **inglés nativo** |
+| El compañero: trabajos, comida, stamina, habilidades, casa, descanso, portales, carro | **La traducción en cinco idiomas** — 914 claves de interfaz y 221 frases por idioma, con el **inglés nativo** |
 | La IA de movimiento y combate, los trabajos, el menú radial y la UI base | La **capa de IA**: órdenes por chat/voz, personalidad, memoria, conversación |
 | Toda la lógica de juego que activan las órdenes | El **TTS local** (Kokoro) y el **STT local** (Whisper) |
 | | El **panel de IA** (tecla `I`) |

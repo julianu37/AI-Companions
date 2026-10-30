@@ -108,6 +108,28 @@ ordenado —, mas uma forma de tratamento continua valendo (`mano, colete 10 ped
 > O recolhimento pega **inclusive o que ele mesmo largou de propósito** — que é justamente o que o ímã
 > automático do jogo ignora. Ele desiste se o item não couber inteiro na mochila ou se ficar longe demais.
 
+### Portas, colmeias, navios, fogueiras e baús
+
+| Você diz | O que ele faz |
+|---|---|
+| `fecha a porta` / `abre a porta` | Abre ou fecha a **porta** que ele está olhando |
+| `esvazia a colmeia` / `pega o mel` | Esvazia a **colmeia** e fica com o mel |
+| `embarca no navio` / `sobe no barco` | Sobe no **navio**, no assento que você apontar |
+| `senta perto do fogo` | Senta perto da **fogueira** que ele está olhando |
+| `guarda no baú` / `guarda isso` | Guarda o que ele carrega no **baú** |
+
+> O alvo é o objeto que **você está olhando**, com o mesmo raio e as mesmas camadas da tecla de comando. Sem nada na
+> mira ele pega o mais próximo de você: **20 m** para porta ou colmeia, **30 m** para navio, **5 m** para fogueira ou
+> baú — nunca a mochila dele. A ordem chega a **um** companheiro: o que você chamou pelo nome, ou o mais próximo **do alvo**
+> que pode receber ordem.
+
+> A resposta diz o que aconteceu: "Fechando a porta.", "A bordo!", "Sentando perto do fogo.", "Guardando 12 item(ns)
+> no baú.". Porta **trancada** responde "Está trancada.", colmeia **vazia** "Ainda não tem mel aí." e baú **cheio**
+> "Não cabe mais nada nesse baú."; sem nada por perto ele diz que não vê.
+
+> A fogueira precisa estar **acesa**, e o baú tem que ser um baú de verdade e livre para usar: não uma lápide, uma
+> carroça, o porão de um navio, um baú de masmorra ou um dentro de uma área protegida em que ele não pode entrar.
+
 ### Inventário
 
 | Você diz | O que ele faz |

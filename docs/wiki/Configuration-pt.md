@@ -13,7 +13,7 @@ Onde fica o arquivo de configuração, como editá-lo em jogo e o que cada opç�
 ```
 
 O arquivo é **gerado pelo BepInEx** na primeira vez que o mod carrega, e é regravado quando você muda algo
-pelos painéis. Ele tem cerca de **1540 linhas** e **~265 opções** no total, divididas em várias seções
+pelos painéis. Ele tem cerca de **2000 linhas** e **~340 opções** no total, divididas em várias seções
 (`[General]`, `[Gathering]`, `[Hunting]`, `[Speech]`, `[Advanced]`, `[AI]` e outras).
 
 > O nome do arquivo **não** é mais o GUID do plugin: até a **1.8.2** ele era
@@ -188,7 +188,7 @@ inclusive). Os valores padrão são os do código-fonte: se você nunca mexeu, �
 **Cinco idiomas: português do Brasil, inglês, espanhol, francês e italiano** — e o **inglês é o idioma nativo** do
 mod:
 
-- **O idioma do jogo decide tudo**: a interface (737 chaves), as falas do companheiro (186 linhas), os presets de
+- **O idioma do jogo decide tudo**: a interface (914 chaves), as falas do companheiro (221 linhas), os presets de
   personalidade, o contrato do LLM e a **voz e o reconhecimento da fala**. Com o jogo em **português**, os nomes das
   opções do **`F8`** e as abas aparecem em **PT** (`Ligado`, `Modelo`, `VozTecla`…); com o jogo em **inglês**,
   aparecem os nomes nativos (`Enabled`, `Model`, `VoiceKey`…); espanhol, francês e italiano têm arquivo próprio. O
@@ -203,8 +203,8 @@ mod:
 - **No `.cfg`**, as **chaves e as descrições são em inglês, sempre** — ele **não** muda com o idioma do jogo (o
   mesmo vale para o `package/CONFIGURATION.md`). É por isso que o **nome da chave é o inglês**, mesmo com o jogo
   em português: a chave é o identificador da opção, não o rótulo que você lê na tela.
-- **Novos idiomas entram por um arquivo**, sem tocar no código: `Translations/<Idioma>.json` (737 chaves) traz os
-  textos da interface (inclusive os nomes das opções e das abas do `F8`) e `Speech/<Idioma>.json` (186 linhas) traz
+- **Novos idiomas entram por um arquivo**, sem tocar no código: `Translations/<Idioma>.json` (914 chaves) traz os
+  textos da interface (inclusive os nomes das opções e das abas do `F8`) e `Speech/<Idioma>.json` (221 linhas) traz
   as **falas do companheiro** — o mesmo esquema. O **inglês não precisa de arquivo**, porque as chaves **são** o
   texto.
 - **Idiomas sem voz no Kokoro** (alemão, russo, polonês, turco, coreano, sueco e ucraniano) usam a **voz inglesa** —
@@ -249,7 +249,8 @@ Companions Reborn, isto é o que mudou de valor:
 | `[Advanced] GatheringDropRadius` | 8 | **12** | Uma árvore pode cair mais longe que 8 m; os drops ficavam para trás |
 | `[Looting] CollectRadius` | *(novo)* | **10** | Raio da ordem "recolhe os itens do chão" |
 | `[General] MaxCompanions` | *(novo)* | **10** | Teto de companheiros por jogador, contando **vivos + mortos + perdidos** (morrer não abre vaga) |
-| `[Speech] Chatter` | `true` | **`false`** | O chatter aleatório (falinhas a cada 15–30 s) vinha só de um timer. As falas úteis continuam |
+| `[Speech] Chatter` | uma escolha: `Off`/`Rare`/`Normal`/`Often` (padrão `Normal`) | **`true`/`false`** (padrão `false`) | Lá o chatter aleatório tem quatro níveis - uma fala a cada 1,5–3 min no `Normal`. Aqui é um **liga/desliga**: desligado (o padrão) não sai nenhuma fala do timer, ligado ela volta a cada `[Speech] MinInterval`/`MaxInterval` (15–30 s). As falas úteis (ordens, problemas, o trabalho que ele está fazendo) saem de qualquer jeito |
+| `[Death] RespawnDelay` | 300 | **30** | Segundos até um companheiro morto voltar sozinho (com `AutoRespawn` ligado), e 30 é o menor valor que a opção aceita. Esperar cinco minutos só o mantinha longe por mais tempo - a lápide continua sendo o caminho para recuperá-lo, com o equipamento |
 | `[Advanced] UiDiag` | *(novo)* | **`false`** | Diagnóstico de UI (cliques/camadas): opt-in, zero custo desligado |
 | `[AI] EcoDiag` | *(novo)* | **`false`** | Diagnóstico de áudio do companheiro: opt-in |
 

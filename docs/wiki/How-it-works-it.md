@@ -161,7 +161,7 @@ dell'armatura restano nella sacca invece di essere equipaggiati.
 
 | Viene dall'upstream (Offline Companions Reborn, MIT) | È nostro |
 |---|---|
-| Il compagno: lavori, cibo, stamina, abilità, casa, riposo, portali, carro | **La traduzione in cinque lingue** — 737 chiavi di interfaccia e 186 frasi per lingua, con l'**inglese nativo** |
+| Il compagno: lavori, cibo, stamina, abilità, casa, riposo, portali, carro | **La traduzione in cinque lingue** — 914 chiavi di interfaccia e 221 frasi per lingua, con l'**inglese nativo** |
 | L'IA di movimento e combattimento, i lavori, il menu radiale e la UI di base | Lo **strato di IA**: ordini via chat/voce, personalità, memoria, conversazione |
 | Tutta la logica di gioco che gli ordini attivano | Il **TTS locale** (Kokoro) e il **STT locale** (Whisper) |
 | | Il **pannello IA** (tasto `I`) |

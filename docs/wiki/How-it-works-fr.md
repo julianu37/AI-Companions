@@ -162,7 +162,7 @@ type et les pièces d'armure restent dans le sac au lieu d'être équipées.
 
 | Vient de l'upstream (Offline Companions Reborn, MIT) | Est à nous |
 |---|---|
-| Le compagnon : travaux, nourriture, stamina, compétences, maison, repos, portails, charrette | **La traduction en cinq langues** — 737 clés d'interface et 186 phrases par langue, avec l'**anglais natif** |
+| Le compagnon : travaux, nourriture, stamina, compétences, maison, repos, portails, charrette | **La traduction en cinq langues** — 914 clés d'interface et 221 phrases par langue, avec l'**anglais natif** |
 | L'IA de déplacement et de combat, les travaux, le menu radial et l'UI de base | La **couche d'IA** : ordres par chat/voix, personnalité, mémoire, conversation |
 | Toute la logique de jeu que les ordres déclenchent | Le **TTS local** (Kokoro) et le **STT local** (Whisper) |
 | | Le **panneau de l'IA** (touche `I`) |

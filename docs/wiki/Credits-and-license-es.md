@@ -29,8 +29,8 @@ mismas acciones.
 
 Lo que el proyecto **AI Companions** añade:
 
-1. **La traducción en cinco idiomas** — portugués de Brasil, inglés, español, francés e italiano: 737 claves de
-   interfaz y 186 frases del compañero por idioma, auditadas (sin texto en inglés visible para un jugador de esos
+1. **La traducción en cinco idiomas** — portugués de Brasil, inglés, español, francés e italiano: 914 claves de
+   interfaz y 221 frases del compañero por idioma, auditadas (sin texto en inglés visible para un jugador de esos
    idiomas), con el **inglés como idioma nativo**.
 2. **La capa de IA:**
    - Órdenes en **lenguaje natural** por **texto en el chat** y por **voz** (push-to-talk + STT local).

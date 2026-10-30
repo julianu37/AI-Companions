@@ -13,7 +13,7 @@ Dónde está el archivo de configuración, cómo editarlo en el juego y qué hac
 ```
 
 El archivo lo **genera el BepInEx** la primera vez que el mod carga, y se reescribe cuando cambias algo desde los
-paneles. Tiene unas **1540 líneas** y **~265 opciones** en total, repartidas en varias secciones (`[General]`,
+paneles. Tiene unas **2000 líneas** y **~340 opciones** en total, repartidas en varias secciones (`[General]`,
 `[Gathering]`, `[Hunting]`, `[Speech]`, `[Advanced]`, `[AI]` y otras).
 
 > El nombre del archivo **ya no** es el GUID del plugin: hasta la **1.8.2** era
@@ -201,7 +201,7 @@ incluidos). Los valores por defecto son los del código fuente: si nunca tocaste
 **Cinco idiomas: portugués de Brasil, inglés, español, francés e italiano** — y el **inglés es el idioma nativo** del
 mod:
 
-- **El idioma del juego lo decide todo**: la interfaz (737 claves), las frases del compañero (186 líneas), los presets
+- **El idioma del juego lo decide todo**: la interfaz (914 claves), las frases del compañero (221 líneas), los presets
   de personalidad, el contrato del LLM y la **voz y el reconocimiento del habla**. Con el juego en **portugués**, los
   nombres de las opciones del **`F8`** y las pestañas aparecen en **PT** (`Ligado`, `Modelo`, `VozTecla`…); con el
   juego en **inglés**, aparecen los nombres nativos (`Enabled`, `Model`, `VoiceKey`…); español, francés e italiano
@@ -216,9 +216,9 @@ mod:
 - **En el `.cfg`**, las **claves y las descripciones están en inglés, siempre** — **no** cambia con el idioma del
   juego (lo mismo vale para el `package/CONFIGURATION.md`). Por eso el **nombre de la clave es el inglés**, incluso
   con el juego en español: la clave es el identificador de la opción, no la etiqueta que lees en la pantalla.
-- **Los idiomas nuevos entran por un archivo**, sin tocar el código: `Translations/<Idioma>.json` (737 claves) trae
+- **Los idiomas nuevos entran por un archivo**, sin tocar el código: `Translations/<Idioma>.json` (914 claves) trae
   los textos de la interfaz (incluidos los nombres de las opciones y de las pestañas del `F8`) y
-  `Speech/<Idioma>.json` (186 líneas) trae las **frases del compañero** — el mismo esquema. **El inglés no necesita
+  `Speech/<Idioma>.json` (221 líneas) trae las **frases del compañero** — el mismo esquema. **El inglés no necesita
   archivo**, porque las claves **son** el texto.
 - **Los idiomas que el modelo Kokoro no habla** (alemán, ruso, polaco, turco, coreano, sueco y ucraniano) usan la
   **voz inglesa** — la interfaz y las frases pueden traducirse; el audio es en inglés.
@@ -262,7 +262,8 @@ Offline Companions Reborn, esto es lo que cambió de valor:
 | `[Advanced] GatheringDropRadius` | 8 | **12** | Un árbol puede caer más lejos de 8 m; los drops se quedaban atrás |
 | `[Looting] CollectRadius` | *(nuevo)* | **10** | Radio de la orden "recoge los objetos del suelo" |
 | `[General] MaxCompanions` | *(nuevo)* | **10** | Tope de compañeros por jugador, contando **vivos + muertos + perdidos** (morir no abre plaza) |
-| `[Speech] Chatter` | `true` | **`false`** | El chatter aleatorio (frases cada 15–30 s) venía solo de un temporizador. Las frases útiles siguen |
+| `[Speech] Chatter` | una elección: `Off`/`Rare`/`Normal`/`Often` (por defecto `Normal`) | **`true`/`false`** (por defecto `false`) | Allí el chatter aleatorio tiene cuatro niveles - una frase cada 1,5–3 min en `Normal`. Aquí es un **encendido/apagado**: apagado (lo normal) no sale ninguna frase del temporizador, encendido vuelve cada `[Speech] MinInterval`/`MaxInterval` (15–30 s). Las frases útiles (órdenes, problemas, el trabajo que está haciendo) salen igual |
+| `[Death] RespawnDelay` | 300 | **30** | Segundos antes de que un compañero muerto vuelva solo (con `AutoRespawn` encendido), y 30 es el valor más bajo que acepta la opción. Esperar cinco minutos solo lo mantenía fuera más tiempo - la lápida sigue siendo el camino para recuperarlo, con su equipo |
 | `[Advanced] UiDiag` | *(nuevo)* | **`false`** | Diagnóstico de UI (clics/capas): opt-in, cero coste apagado |
 | `[AI] EcoDiag` | *(nuevo)* | **`false`** | Diagnóstico de audio del compañero: opt-in |
 

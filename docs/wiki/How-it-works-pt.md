@@ -157,7 +157,7 @@ peças de armadura ficam na mochila em vez de equipadas.
 
 | Vem do upstream (Offline Companions Reborn, MIT) | É nosso |
 |---|---|
-| O companheiro: trabalhos, comida, stamina, skills, casa, descanso, portais, carroça | **A tradução em cinco idiomas** — 737 chaves de UI e 186 falas por idioma, com o **inglês nativo** |
+| O companheiro: trabalhos, comida, stamina, skills, casa, descanso, portais, carroça | **A tradução em cinco idiomas** — 914 chaves de UI e 221 falas por idioma, com o **inglês nativo** |
 | A IA de movimento e combate, os jobs, o menu radial e a UI base | A **camada de IA**: ordens por chat/voz, personalidade, memória, conversa |
 | Toda a lógica de jogo que as ordens acionam | O **TTS local** (Kokoro) e o **STT local** (Whisper) |
 | | O **painel da IA** (tecla `I`) |
