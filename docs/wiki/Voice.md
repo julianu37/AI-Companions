@@ -49,7 +49,7 @@ The time barely changes with the clip size, because the encoder always works on 
 |---|---|---|
 | `VoiceEnabled` | `true` | Turns the push-to-talk on. Off = the key does nothing (and goes back to doing what the game did with it) |
 | `VoiceKey` | `V` | Push-to-talk key |
-| `VoiceLanguage` | `auto` | Language of the speech (Whisper code). `auto` follows the **game's language** (PT-BR, EN, ES, FR, IT) — the model is multilingual and can also detect it. An explicit code always wins |
+| `VoiceLanguage` | `auto` | Language of the speech (Whisper code). `auto` follows the **game's language** (PT-BR, EN, ES, FR, IT) - the model is multilingual and can also detect it. An explicit code always wins. The panel lists only these five (the mod has no interface, lines or voice for the others; a code written in the `.cfg` by hand still transcribes, but the prompt and the contract stay English) |
 | `VoiceMaxSeconds` | `10` | Recording ceiling, in seconds |
 | `VoiceSilenceThreshold` | `0.01` | How loud the audio has to be to count as speech, when cutting the silence. Raise it if your microphone picks up too much noise |
 | `VoiceInitialPrompt` | *(empty)* | Empty = the **orders vocabulary of the game's language**, written by the mod; it biases the recognition towards the order words. Put the words **you** say (`none` turns the bias off) |

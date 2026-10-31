@@ -743,7 +743,9 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   sem `Localization` (o `Awake` do plugin) responde inglês **sem** cachear. **Config:** `[AI] VoiceLanguage` e
   `[AI] TtsLanguage` passam a nascer **`auto`**, `[AI] TtsVoice` **`0` (= automático)**, `[AI] VoiceInitialPrompt`
   **vazio (= vocabulário do idioma; `none` desliga)** — valores explícitos do jogador **sempre ganham** e **não há
-  migração** (um `.cfg` com `pt`/`pt-br`/`42` continua igual). `CompanionTts.DefaultVoice` passou a ser o padrão do
+  migração** (um `.cfg` com `pt`/`pt-br`/`42` continua igual). **1.9.2:** o F8 oferece **só os 5 idiomas** nos dois
+  (`TtsLanguage` e `VoiceLanguage`); um código escrito à mão no `.cfg` continua valendo (o Whisper é multi-lingue e o
+  Kokoro aceita alguns), mas o prompt e o contrato ficam em inglês e a voz não tem esse idioma — o log avisa uma vez. `CompanionTts.DefaultVoice` passou a ser o padrão do
   idioma, `PortugueseVoices`/`PortugueseVoiceCount`/`PortugueseVoiceAt` **saíram** (os chamadores leem
   `CompanionLocale.Current.Voices`), `CompanionTts.VoiceName` virou `CompanionLocale.VoiceName`, e a **voz de um
   companheiro que não pertence ao idioma ativo não é usada** (`CompanionProfile.GetVoice` cai na padrão do idioma,

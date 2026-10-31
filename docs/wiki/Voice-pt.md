@@ -50,7 +50,7 @@ de 30 s.
 |---|---|---|
 | `VoiceEnabled` | `true` | Liga o push-to-talk. Desligado = a tecla não faz nada (e volta a fazer o que o jogo fazia com ela) |
 | `VoiceKey` | `V` | Tecla do push-to-talk |
-| `VoiceLanguage` | `auto` | Idioma da fala (código do Whisper). `auto` segue o **idioma do jogo** (PT-BR, EN, ES, FR, IT) — o modelo é multilíngue e também detecta. Um código explícito sempre ganha |
+| `VoiceLanguage` | `auto` | Idioma da fala (código do Whisper). `auto` segue o **idioma do jogo** (PT-BR, EN, ES, FR, IT) - o modelo é multilíngue e também detecta. Um código explícito sempre ganha. O painel lista só estes cinco (o mod não tem interface, falas nem voz para os outros; um código escrito à mão no `.cfg` ainda transcreve, mas o prompt e o contrato ficam em inglês) |
 | `VoiceMaxSeconds` | `10` | Teto da gravação, em segundos |
 | `VoiceSilenceThreshold` | `0.01` | Quão alto o áudio precisa ser para contar como fala, ao cortar o silêncio. Aumente se o seu microfone pega muito ruído |
 | `VoiceInitialPrompt` | *(vazio)* | Vazio = o **vocabulário das ordens do idioma do jogo**, escrito pelo mod; enviesa o reconhecimento para as palavras das ordens. Coloque as palavras que **você** fala (`none` desliga o viés) |

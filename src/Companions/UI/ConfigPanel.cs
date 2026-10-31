@@ -1818,10 +1818,13 @@ public class ConfigPanel : MonoBehaviour
 			return ChoiceOf(entry, AutoCodeOption(CompanionTts.Language),
 				new string[] { "pt-br", "en-us", "es", "fr", "it" });
 		}
-		// VoiceLanguage: the codes Whisper accepts (the model is multilingual and detects too, but "auto" follows the
-		// game language, which is what makes the orders be understood in it)
+		// VoiceLanguage: only the five languages the mod really has (interface, lines, prompt vocabulary, LLM contract
+		// and TTS voice). The Whisper model itself understands more (de, ru, pl, tr, ko, ja, zh, hi, uk, sv) and a code
+		// written by hand in the .cfg still works, but the result is a mixed experience - the transcription comes out in
+		// that language while the prompt and the contract are English and the voice has no such language - so the panel
+		// does not offer it. "auto" (the default) follows the game language and falls back to English.
 		return ChoiceOf(entry, AutoCodeOption(WhisperStt.Language ?? "auto"),
-			new string[] { "pt", "en", "es", "fr", "it", "de", "ru", "pl", "tr", "ko", "ja", "zh", "hi", "uk", "sv" });
+			new string[] { "pt", "en", "es", "fr", "it" });
 	}
 
 	/// <summary>A closed list of values that has no "automatic" option: the label of each option is the value itself.</summary>

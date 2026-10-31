@@ -50,7 +50,7 @@ Le temps change à peine avec la taille du clip, parce que l'encodeur travaille 
 |---|---|---|
 | `VoiceEnabled` | `true` | Active le push-to-talk. Désactivé = la touche ne fait rien (et redevient ce que le jeu en faisait) |
 | `VoiceKey` | `V` | Touche du push-to-talk |
-| `VoiceLanguage` | `auto` | Langue de la parole (code Whisper). `auto` suit la **langue du jeu** (PT-BR, EN, ES, FR, IT) — le modèle est multilingue et peut aussi le détecter. Un code explicite gagne toujours |
+| `VoiceLanguage` | `auto` | Langue de la parole (code Whisper). `auto` suit la **langue du jeu** (PT-BR, EN, ES, FR, IT) - le modèle est multilingue et peut aussi le détecter. Un code explicite gagne toujours. Le panneau ne propose que ces cinq (le mod n'a pas d'interface, de répliques ni de voix pour les autres ; un code écrit à la main dans le `.cfg` transcrit encore, mais le prompt et le contrat restent en anglais) |
 | `VoiceMaxSeconds` | `10` | Plafond de l'enregistrement, en secondes |
 | `VoiceSilenceThreshold` | `0.01` | À quel point l'audio doit être fort pour compter comme de la parole, au moment de couper le silence. Monte-le si ton micro capte trop de bruit |
 | `VoiceInitialPrompt` | *(vide)* | Vide = le **vocabulaire des ordres de la langue du jeu**, écrit par le mod ; il oriente la reconnaissance vers les mots des ordres. Mets les mots que **tu** dis (`none` coupe le biais) |

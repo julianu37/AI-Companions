@@ -419,6 +419,16 @@ internal static class WhisperStt
 			string source = CompanionLocale.IsAuto(ModConfig.VozPromptInitial != null ? ModConfig.VozPromptInitial.Value : null)
 				? "o vocabulario do idioma do jogo"
 				: "o seu texto do [AI] VoiceInitialPrompt";
+			// 1.9.2: the panel offers only the five languages the mod has. A code written by hand in the .cfg still
+			// transcribes (Whisper is multilingual), but the prompt and the LLM contract are English and the voice has no
+			// such language - say it once so a mixed experience is not mistaken for a bug.
+			string language = Language;
+			if (!IsModLanguage(language))
+			{
+				CompanionsPlugin.Log?.LogWarning($"[STT] [AI] VoiceLanguage = \"{language}\" nao e um dos 5 idiomas do mod "
+					+ "(pt, en, es, fr, it): a transcricao funciona, mas o prompt inicial e o contrato do LLM sao os do INGLES "
+					+ "e a voz (TTS) nao tem esse idioma. Use \"auto\" ou um dos 5.");
+			}
 			CompanionsPlugin.Log?.LogInfo($"[STT] idioma efetivo: {DescribeLanguage(Language)} | prompt inicial: "
 				+ $"{(prompt.Length > 0 ? prompt.Length + " caracteres (" + source + ")" : "desligado")}");
 		}
@@ -670,6 +680,17 @@ internal static class WhisperStt
 	/// A Whisper language code ("pt", "en"...). Empty, "auto" or anything with no letters means "let the model detect
 	/// it". "pt-BR" becomes "pt": whisper.cpp wants the bare code.
 	/// </summary>
+	/// <summary>1.9.2: is this one of the five languages the mod really has (interface, lines, prompt vocabulary, LLM
+	/// contract and TTS voice)? The Whisper model understands more; the panel offers only these.</summary>
+	private static bool IsModLanguage(string code)
+	{
+		return string.Equals(code, "pt", StringComparison.Ordinal)
+			|| string.Equals(code, "en", StringComparison.Ordinal)
+			|| string.Equals(code, "es", StringComparison.Ordinal)
+			|| string.Equals(code, "fr", StringComparison.Ordinal)
+			|| string.Equals(code, "it", StringComparison.Ordinal);
+	}
+
 	internal static string NormalizeLanguage(string value)
 	{
 		if (string.IsNullOrWhiteSpace(value))

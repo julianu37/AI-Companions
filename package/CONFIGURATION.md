@@ -1139,7 +1139,7 @@ Phase 3.3: hold VoiceKey and speak, and the companion accepts what you said - th
 Phase 3.3: push-to-talk key. Hold it while you speak, release it for the speech to be recognised and carried out. It only works with the game focused and no window open (inventory, map, menu, chat, console, the mod's own panels). NOTE (Phase 3.3b): V is also the game's "Toggle Auto-Pickup". While VoiceEnabled is on, the mod blocks that toggle when the game's auto-pickup is bound to this same key, so the key stays free for talking - rebind auto-pickup in the game's own controls screen (or pick another key here) if you want it back.
 
 **VoiceLanguage** — Default: `auto`  
-Multilanguage: language of the speech, as a Whisper code (pt, en, es, fr) - or "auto" (the default) to follow the game language, which is what makes the companion understand orders in whatever language you are playing. An explicit code always wins. Text option: edit it in the .cfg file.
+Multilanguage: language of the speech, as a Whisper code (pt, en, es, fr, it) - or "auto" (the default) to follow the game language, which is what makes the companion understand orders in whatever language you are playing. An explicit code always wins. The panel offers only the five languages the mod has (interface, lines, prompt vocabulary, LLM contract and TTS voice); the Whisper model understands more, so a code written here by hand still transcribes, but the prompt and the contract stay English and the voice has no such language. Text option: edit it in the .cfg file.
 
 **VoiceMaxSeconds** — Default: 10 · Range: 1 – 30  
 Phase 3.3: longest recording (in seconds) for a voice order. Holding the key longer than this stops the recording and transcribes what was captured.
