@@ -136,8 +136,8 @@ Parâmetros e exemplos: `tools/mcp-devbridge/README.md`.
 ### Validação na DLL (mundo `test3`, 31/10/2026)
 
 `python tools/mcp-devbridge/validate_e2e.py --destructive` → **18 PASS / 0 FAIL**, mais 6 ferramentas conferidas em
-seguida (`player_give`, `player_teleport`, `world_spawn`, `companions_give`, `companions_spawn`, `log_watch`) → **24
-checks, 0 falhas**.
+seguida (`player_give`, `player_teleport`, `world_spawn`, `companions_give`, `companions_spawn`, `log_watch`) e o
+**caminho de sucesso do hire** (2000 → 1000 moedas) → **as 23 ferramentas, 0 falhas**.
 
 - `ping` → `bridge: Companions.DevBridge`, `version: 1.9.4`, `inGame: true`, `world: test3`.
 - `status` → `Gruncho`, hp 25/25, bioma Meadows; `player_inventory` listou os stacks reais.
@@ -147,7 +147,9 @@ checks, 0 falhas**.
 - `companions_order follow` → `applied: true`; `companions_teleport` e `player_teleport` → posições conferidas.
 - `companions_farm_zone list` → 1 zona (a do teste 2); `companions_tier companion` → mesmo prefab (no-op esperado).
 - `companions_kill` → `Maria` com `hpAfter: 0`; `companions_resurrect` → `resurrected: true`, `hp: 25`.
-- `companions_hire` → `hired: false`, `reason: "not enough coins"` (0 moedas) — **a recusa é o comportamento certo**.
+- `companions_hire` → `hired: false`, `reason: "not enough coins"` (0 moedas) — a recusa é o comportamento certo; com
+  `player_inventory set 2000` → **`hired: true`, `price: 1000`, `coinsAfter: 1000`** (o caminho de cobrança do teste 1,
+  agora pela DLL), e as moedas foram zeradas no fim.
 - `player_kill` → `killed: true`, `hpAfter: 0`; o jogador respawnou no ponto de nascimento.
 - `player_give`/`companions_give` (1 Wood) e `world_spawn` (Wood) → ok; `companions_spawn` → `spawned: true` (o mundo
   `test3` ficou com um companheiro a mais — dispensar pelo painel/roda se quiser).
