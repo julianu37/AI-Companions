@@ -71,9 +71,13 @@ config é **`BepInEx\config\AiCompanions.cfg`** (o GUID não dá mais nome a ele
   `LogLevel`/`PortalItems`/`RespawnStance`) e o que ficou adiado de propósito está listado lá. Histórico: as
   releases saíram em sequência em 23–26/10 (`1.7.0` → `1.8.0` → `1.8.1` → `1.8.2` → `1.8.3` → `1.9.0` → `1.9.1`;
   a **1.7.1 foi pulada de propósito**, pedido do jogador) e a **1.9.1** só tirou o `ggml-base-q5_1.bin` (57 MB) do
-  pacote (~368 MB → ~314 MB no zip completo). As branches `feat/multi-companheiro`, `fix/peso-cinto`,
-  `feat/llm-groq`, `feat/provedor-llm` e `languages` foram mergeadas (`--no-ff`) e podem ser apagadas — a `main` é
-  a linha de release.
+  pacote (~368 MB → ~314 MB no zip completo). **Branches de fase — todas mergeadas na `main` e apagáveis** (conferido
+  em 31/10/2026 com `git branch --merged main`, nenhuma não-mergeada): `feat/multi-companheiro` (3.9–3.20),
+  `fix/peso-cinto` (3.22), `fix/renascer-30` (`RespawnDelay` 300→30), `fix/dverger-combate` (dverger só combate),
+  `feat/idiomas-auto` (M1–M5), `languages` (4.0), `feat/llm-groq` (1.8.1), `feat/provedor-llm` (3.24) e
+  `feat/upstream-1.5.8` (o merge 1.5.4→1.5.8 que virou a 1.9.2); a `feat/ordens-interacao` foi apagada (local e
+  `origin`) depois do merge da 1.9.2. As que existem no `origin` saem com `git push origin --delete <nome>`. A `main`
+  é a linha de release.
 
 ## Caminhos desta máquina
 
