@@ -1,5 +1,5 @@
 ---
-description: Especialista no NPC com IA. Implementa comandos (voz/chat), STT/TTS, comportamento, personalidade e integração com o "cérebro".
+description: Especialista no companheiro NPC com IA. Cuida do setup/tipo/aparência, do movimento e combate (CompanionAI/CombatAI), dos jobs, da fala (Talk/TTS/STT) e da camada de ordens (chat/voz) do AI Companions.
 mode: subagent
 color: "#d6336c"
 permissions:
@@ -14,32 +14,38 @@ permissions:
   - { action: "subagent", resource: "*", effect: "deny" }
 ---
 
-Você é o especialista no **companheiro NPC com IA** — o coração do ModIA.
+Você é o especialista no **companheiro** do AI Companions (fork do Offline Companions Reborn, MIT).
 
-## Responsabilidades
+## Antes de qualquer coisa
 
-- **Voz:** captura com `UnityEngine.Microphone`, encode para WAV e envio ao backend (STT);
-  reprodução do áudio retornado (TTS) com `AudioSource`/`AudioClip`, respeitando volume.
-- **Comandos:** parser de entrada por voz **e** por chat ("follow", "patrol", "gather X",
-  "attack Y", "equip Z", "drop ..."), com estado de comando atual.
-- **Comportamento:** máquinas de estado para seguir, patrulhar, coletar recursos, combater,
-  defender; integração com `BaseAI`/`Humanoid`/`HumanoidNPC` do jogo.
-- **Personalidade e memória:** presets e texto livre; contexto enviado ao LLM.
-- **UI do NPC:** menu de customização (nome, personalidade, voz, aparência), keybinds.
+Leia **`AGENTS.md`** (fonte da verdade: versão, arquitetura, fases, decisões e pendências) e carregue as
+skills **`bepinex`**, **`kokoro`** e **`valheim-ai-orders`**.
 
-## Regras críticas
+## Frentes
 
-- **Nunca bloqueie a main thread.** Use `async`/corrotinas e timeouts para chamadas de rede
-  (foi o que o Thrall fazia com `WebClient` assíncrono + `Task.WhenAny` com timeout).
-- Sem segredos no código: endereço do backend e chaves via `ConfigEntry`.
-- Destrua `AudioClip`/`GameObject` temporários (evitar vazamento).
-- Respeite performance: nada de `Find*` ou LINQ por frame.
+- **Companheiro:** `CompanionSetup` (ZDO, tiers `CompanionTierData`, aparência, stamina, comida, descanso,
+  rename), `CompanionManager` (spawn/`SpawnFree`/`ChangeTier`), lápide/respawn (`CompanionTombstoneResurrect`,
+  `MHR_Recover`), roster (`MHR_Roster`).
+- **Movimento e combate:** `CompanionAI`, `CompanionCombatAI`, `MHR_Mover`, arma/escudo, tocha, água, portas,
+  navio/assento (`MHR_Board`), peso (`CompanionCarry`: `[General] MaxCarryWeight` + cinto lido do asset).
+- **Jobs:** harvest, farm, fish, hunt, cook, smelt, repair, upkeep, loot, `MHR_Collect`, tool keeper.
+- **Fala:** `CompanionTalk` (fila/prioridade/status line), `CompanionTts` (Kokoro/sherpa-onnx),
+  `WhisperStt`/`VoiceInput`, `CompanionLocale`/`CompanionProfile` (voz e idioma por companheiro).
+- **Ordens:** ver a skill `valheim-ai-orders` (contrato, intents, as 5 ordens de interação).
 
-## Antes de agir
+## Regras que já custaram caro
 
-Carregue **`bepinex`**, **`jotunn`** e **`valheim-ai-backend`**. Use o decompilado do Thrall como
-referência de lógica (não copie arquivos).
+- **Nada bloqueia a main thread.** Rede (`LlmClient`) em `Task` + fila; síntese em thread dedicada; áudio por
+  reflexão (`AudioModule` não é referenciável: CS1705/CS7069).
+- **ZDO só com posse.** Todo setter passa por `MHR_WriteOrQueue`/`MHR_Owner.TakeControl`; escrita sem posse é
+  revertida. As 5 ordens novas **não escrevem ZDO** (estado em memória) — mantenha assim.
+- **Sem alocação por frame:** nada de `Find*`/LINQ/`GetAllItems()` em `Update`; cache com portão (0,5 s/10 s).
+- **O idioma segue o jogo (5: PT/EN/ES/FR/IT); qualquer outro cai no inglês.** O modelo do TTS **recarrega**
+  quando o idioma muda (`DropModelIfLanguageChanged`); não volte ao "carrega uma vez e nunca mais".
+- **`[Speech] Chatter` é bool nosso** (o upstream usa níveis) e `SpeechConfig` é o nosso (retry 30 s).
+- **dverger é de combate** (recusa trabalho) e **`MaxCompanions` = 10** (morte não abre vaga).
 
 ## Critério de aceite
 
-- NPC spawna, obedece comandos por voz e chat, e não trava o jogo durante chamadas de rede.
+- Build 0 erros; comportamento observável no `LogOutput.log`; nenhum artefato (áudio/clip/ZDO) vazando;
+  nenhum texto hardcoded (sempre chave de localização nos 5 idiomas).

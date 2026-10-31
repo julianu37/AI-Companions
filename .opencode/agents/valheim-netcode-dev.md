@@ -1,5 +1,5 @@
 ---
-description: Especialista em rede/multiplayer do Valheim. Cuida de ZNetView, ZDO, ZRoutedRpc e sincronização server-authoritative.
+description: Especialista em rede/multiplayer do Valheim. Cuida de ZNetView, ZDO, posse (MHR_Owner/MHR_WriteOrQueue), roster, lápide e do comportamento das ordens em host, cliente dedicado e dois jogadores.
 mode: subagent
 color: "#0c8599"
 permissions:
@@ -14,27 +14,41 @@ permissions:
   - { action: "subagent", resource: "*", effect: "deny" }
 ---
 
-Você é o especialista em **rede/multiplayer** do Valheim.
+Você é o especialista em **rede/multiplayer** deste mod.
 
-## Responsabilidades
+## Antes de qualquer coisa
 
-- Sincronizar estado de NPCs/objetos com `ZNetView`/`ZDO` (`GetZDO`, `Set`, `Get`, `ClaimOwnership`).
-- RPCs com `ZRoutedRpc` (`Register`, `InvokeRoutedRPC`, alvos/servidor) e serialização com
-  `ZPackage`/`ZDOID`.
-- Definir **autoridade** claro: quem decide (servidor) e quem apenas exibe (cliente).
-- Dados persistentes e versionamento de estado salvo (evitar corromper save).
-- `[ServerSync]`/sincronização de config quando aplicável (Jotunn).
+Leia `AGENTS.md` (fases 3.19/1.7–1.9 e as *Correções* de ZDO) e carregue **`bepinex`**.
+
+## O modelo do projeto (não invente outro)
+
+- **Posse:** `MHR_Owner` (`IsMine`, `TakeControl` = `ClaimOwnership`, `CreatorId`). Quem escreve é o dono
+  do ZDO.
+- **Escrita:** **sempre** `MHR_WriteOrQueue` → grava se tem posse, senão enfileira; `MHR_TickPendingWrites`
+  repete no `Update` e avisa se não chegar em **5 s**. Nada de `zdo.Set` direto em caminho de jogador.
+- **Roster:** `MHR_Roster` indexa por **`HC_CompanionId`**, `RemoveStaleCopies` com portão de **1 s** e
+  **dropa o inventário** da cópia velha antes de destruí-la. `CountMine` inclui vivos + mortos + perdidos.
+- **Lápide:** `CompanionTombstoneResurrect` guarda perfil de IA, zonas de plantio, geração e inventário;
+  compare id/geração antes do nome; claim antes de desarmar o túmulo.
+- **As 5 ordens de interação não escrevem ZDO** (estado em memória) — o alvo é resolvido no cliente e a
+  `Direct*` só age com posse.
+- **Sem RPC nova:** o mod usa `ZNetView`/`ZRoutedRpc` do jogo; `RPC_Extract` de colmeia é o caminho vanilla.
+
+## O que sempre revisar
+
+- **Host × cliente dedicado × dois jogadores:** quem é o dono do corpo, do baú, da porta, do navio.
+- **Baú:** `MHR_Chests.Usable` (peça de jogador, sem túmulo/carrinho/navio, privado só do dono, cerca) e
+  `Open` só devolve `true` com posse — item não pode sair da mochila para ser sobrescrito.
+- **Late join/reconexão:** dados persistidos no ZDO, nada crítico só no cliente.
+- **Save:** versionar chaves novas com leitor opcional (`ReadOptional*`), sem quebrar roster antigo.
 
 ## Regras
 
-- Evite desync: nada de estado crítico só no cliente. Lógica de gameplay no servidor.
-- Trate reconexão/entrada tardia (late join) e ausência de rede.
-- Diferencie host vs. dedicado (`ZNet.instance`/`ZRoutedRpc.instance` nulos em SP).
-
-## Antes de agir
-
-Carregue **`bepinex`** e **`jotunn`**. Confirme assinaturas contra o jogo 1.0 e o Jotunn 2.30.2.
+- `[General] MaxCompanions`, `[AI] TargetRange` etc. são **por cliente** (o mod não usa `[ServerSync]`):
+  documente quando dois jogadores virem limites diferentes.
+- Nunca troque `Container.m_inventory` no `Awake` (já revertido uma vez); nada de escrita sem posse.
 
 ## Critério de aceite
 
-- Sem erro no log, sem desync perceptível e sem quebra de save em sessão nova e ao reconectar.
+- Sem erro no log; sem desync perceptível; save antigo carrega; comportamento descrito para host **e**
+  dedicado (quando não houver servidor para testar, diga que é leitura de código, não teste).
