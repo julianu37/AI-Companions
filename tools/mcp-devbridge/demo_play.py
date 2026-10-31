@@ -123,34 +123,42 @@ def main():
           "%s at %.1f m" % (tree.get("name"), tree.get("distance", -1)))
     if not tree.get("found"):
         return 1
+    target = (tree["x"], tree["z"])
 
-    player = status()
-    desired = math.degrees(math.atan2(tree["x"] - player["x"], tree["z"] - player["z"]))
-    for _ in range(6):
-        error = norm(desired - status()["camYaw"])
-        if abs(error) < 1.5:
+    def aim_at(target, tries=6):
+        """Turns the camera to the fixed target point; returns the last aim result."""
+        hit = {}
+        for _ in range(tries):
+            player = status()
+            desired = math.degrees(math.atan2(target[0] - player["x"], target[1] - player["z"]))
+            error = norm(desired - player["camYaw"])
+            if abs(error) < 1.0:
+                break
+            m.require_ok(m.call_bridge("input.mouse_move", dx=int(round(error / per_px if per_px else 20)), dy=0))
+            time.sleep(0.3)
+        return m.require_ok(m.call_bridge("world.aim"))
+
+    def distance_to(target):
+        player = status()
+        return math.hypot(target[0] - player["x"], target[1] - player["z"])
+
+    # --- approach the fixed tree, re-aiming every step (walking drifts the yaw) --------------
+    for _ in range(60):
+        if distance_to(target) <= 2.6:
             break
-        m.require_ok(m.call_bridge("input.mouse_move", dx=int(round(error / per_px if per_px else 20)), dy=0))
-        time.sleep(0.35)
-    aimed = m.require_ok(m.call_bridge("world.aim"))
+        aim_at(target, tries=2)
+        hold(["W"], 0.6)
+    near = distance_to(target)
+    aimed = aim_at(target)
+    check("the player reaches the tree", near <= 3.5, "%.2f m" % near)
     check("world_aim sees the tree", bool(aimed.get("tree")), str(aimed.get("name")))
-
-    # --- approach ----------------------------------------------------------------------------
-    for _ in range(40):
-        if m.require_ok(m.call_bridge("world.nearest", kind="tree", max=80))["distance"] <= 3.0:
-            break
-        hold(["W"], 0.5)
-    near = m.require_ok(m.call_bridge("world.nearest", kind="tree", max=80))["distance"]
-    check("the player reaches the tree", near <= 4.0, "%.2f m" % near)
 
     # --- chop --------------------------------------------------------------------------------
     # The swing costs ~14 stamina, so the loop waits for it (a starved player just swings nothing).
-    if near < 2.2:
-        hold(["S"], 0.35)
     wood_before = wood()
     chopped = False
     swings = 0
-    deadline = time.time() + 120
+    deadline = time.time() + 150
     while time.time() < deadline:
         if status()["stamina"] < 20:
             time.sleep(1.5)
