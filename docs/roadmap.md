@@ -2118,6 +2118,75 @@ que é onde o modelo erra. Harness: 5 × 5 × 2 = 50 requisições, ~3,2 s cada 
    perto → o papo (`Chat`).
 7. **Multiplayer** (A3/A4), se houver: "guarda isso no baú" no baú privado de outro jogador → recusa.
 
+### 1.9.4 — a barba da companheira feminina: a 1.9.3 trocou um bug por outro (✅ build 0 erros, 1 aviso — o do `s_noDark`, que não é deste escopo; branch `fix/barba-sentinela`; **o teste em jogo é do jogador**)
+
+**O relato (31/10/2026, print do painel do starter):** gênero **Feminino** selecionado e a prévia 3D com a **barba do
+masculino**. O log da 1.9.3 entregou o caminho inteiro:
+
+```
+[AppearanceDiag] preview: gender=1 hair="Hair1"(1043840419) beard=""(0) | depois: hairInst=True beardInst=True
+prefabHair=True prefabBeard=False ...
+```
+
+O hash está certo (`0`), o prefab não existe (`prefabBeard=False`, esperado) e a instância **continua anexada**
+(`beardInst=True`).
+
+**Causa raiz (decompilado do `VisEquipment`):** `SetBeardEquipped` só destrói a instância quando o hash é
+**diferente** do que ele tem no cache —
+
+```csharp
+if (m_currentBeardItemHash == hash) return false;   // VisEquipment.cs:1133
+```
+
+— e o nosso `ResetVisualItemCache` (`CompanionSetup.cs:450-451`) limpava o cache com **`0`**, que é exatamente o
+valor de "sem barba". Resultado: `PrepareVisualAttach` gravava `0`, o `SetBeardEquipped(0)` **casava com o cache** e
+saía **antes de destruir** a barba do masculino. A 1.9.2 não tinha isso porque mandava `hash("")` (371857150): o hash
+**não** casava, o jogo destruía a barba e falhava ao anexar o prefab inexistente — remoção **por acidente**, com hash
+lixo no ZDO (era o `zdoBeard=371857150` do log antigo). **A 1.9.3 consertou o hash e quebrou a remoção.**
+
+**Correção (duas linhas):** o sentinela do cache é `int.MinValue`, **nunca `0`**. Assim `SetBeardEquipped(0)` roda o
+ramo que destrói e não anexa nada, e `SetBeardEquipped(<hash real>)` continua anexando. Vale para os **dois** caminhos
+(o apply real de `ApplyAppearance` e a prévia do editor), porque os dois chamam
+`VisEquipment.UpdateVisuals` → `UpdateEquipmentVisuals` → `SetBeardEquipped` logo depois dos setters.
+
+**Alcance:** a prévia do painel (o print) e a **troca de aparência** de um companheiro existente. Um companheiro
+**novo** já nasce sem barba para destruir, então provavelmente saía certo antes — o teste em jogo confirma.
+
+**Contorno até o build novo:** escolher o item **`BeardNone`** na lista de barbas (hash real de uma barba invisível)
+em vez de "Nenhuma".
+
+**Lição registrada:** o fix da 1.9.3 **nunca foi testado em jogo** — o log da sessão era da 1.9.2, e foi o QA que
+apontou isso na caça da 1.9.4. Um "hash certo" não basta quando o consumidor compara com um cache que **nós**
+preenchemos; e a lista de achados que sobrou está em `docs/audit-bughunt-1.9.4.md`.
+
+#### Os outros achados do teste de 31/10/2026 (branch `fix/teto-e-tokens`)
+
+- **O teto da coleta no caminho corrigido.** O teste do jogador (`colete 10 pedras`) **funcionou** — o modelo devolveu
+  `stone` com `amount:10` e o log trouxe `Order target: mode 2 stops at 10 Stone in the pack` + `[Gather] Order target
+  reached`. O bug era só quando a **rede por palavras** corrige a ação (`GatherIntent`): o `outcome.Amount` vinha do
+  texto do jogador (10), mas o `Apply` recebia o `intent.Amount` do modelo (0) ⇒ sem `SetOrderCap`, com o chat
+  anunciando `(10)`. Agora o `Apply` usa `outcome.Amount` (no caminho normal os dois são iguais, então nada muda).
+- **O `tokens/s` do log.** A linha dizia "contando prompt e resposta juntos" mas dividia só os tokens da **resposta**
+  (o prompt de 2.219 tokens ficava de fora). O texto passou a dizer "de geracao - so a resposta", apontando para a
+  linha `[IA] Prompt:` acima. Medição real da sessão: 115 car. ≈ 29 tokens em 1.189 ms = ~24,4 tokens/s de geração
+  (e não os ~2.377 tok/s que a soma daria).
+- **"colete pedras" sem número virava coleta com teto 10.** O `qwen2.5-3b-instruct` devolve
+  `{"action":"stone","amount":10}` mesmo quando a mensagem não tem número, e o `Apply` confiava nele — mas a coleta
+  sem número é para rodar **até o jogador mandar parar** (descarregando no baú quando enche). Agora, nos trabalhos que
+  aceitam teto (`wood`/`stone`/`ore`), o número só vale quando está no **texto do jogador** (`GatherIntent.NumberIn`,
+  que passou a ser `internal`); sem número, `outcome.Amount = 0` e o log avisa
+  `O modelo devolveu amount=10 mas a mensagem nao tem numero - "stone" sem teto`. Descoberto no teste do jogador de
+  31/10/2026 (o log mostrou `colete pedras → stops at 10 Stone`).
+- **Medição fora do jogo (31/10/2026, para fechar o item do teto corrigido):** com o **contrato francês real** da DLL
+  e o `qwen2.5-3b-instruct` (temperatura 0,1, schema `strict` real): "ramasse 10 bois" → `wood/10` (**não** `pickup`),
+  "ramasse 10 pierres" → `stone/10`, "ramasse du bois" (sem número) → `amount:null`, "ramasse le bois par terre" →
+  `pickup` (legítimo), "coupe 10 arbres" → `wood/10`. Em PT: "pega 10 pedras"/"recolhe 10 pedras"/"junta 10 madeiras"
+  → a ação certa com 10; "pega umas pedras do chao" → `pickup`. Ou seja: **o modelo não troca mais coleta por
+  `pickup`** — o contrato por idioma (M3) fechou a causa e a rede virou segurança. Forçando `pickup` no
+  `GatherIntent` real da DLL 1.9.4 (harness, casos `gather`): "ramasse 10 bois" → `wood/10`, "junte a madeira do
+  chão" → `null` (pickup legítimo), "colete 10 pedras" → `stone/10` — **todos PASS**.
+
+
 
 
 

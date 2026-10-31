@@ -2,7 +2,35 @@
 
 All the changes to this project, derived from ProfMags' Offline Companions. The versions before 1.4.0 are the original mod (see the original mod's history, from ProfMags, for those versions) plus the first batch of compatibility fixes for the Valheim 1.0 API that made the mod load and run. **The entries below 1.5.4 are the upstream history and stay as they are (in English) — our sections (from 1.6.0 on) are ours.**
 
-## 1.9.3 — 31/10/2026
+## 1.9.4 - in progress (31/10/2026)
+
+**Three fixes so far.** The first one is the beard: a female companion kept the beard of the male preview. 1.9.3 made "no beard"
+hash `0` (which is what the game expects), but it also left the game's attach cache cleared to `0` - and `0` is
+exactly the value of "no beard". `VisEquipment.SetBeardEquipped` returns early when the hash matches the cached one,
+so the beard of the previous appearance was never destroyed.
+
+- **The cache is cleared to `int.MinValue` now** (`CompanionSetup.ResetVisualItemCache`), a value that is never a real
+  item hash: `SetBeardEquipped(0)` runs the destroy branch and then skips the attach, which is what "no beard" means.
+  Both paths are covered - the real companion (`ApplyAppearance`) and the 3D preview of the editor.
+- **A brand new companion was already fine** (it has no beard to destroy); the bug showed up when switching the
+  preview from male to female and when editing the appearance of an existing companion.
+- **Workaround on 1.9.3:** pick the `BeardNone` item in the beard list (a real hash for an invisible beard) instead of
+  "None".
+- **The gather cap now applies when a word net corrected the action.** "collect 10 wood" answered by the model as
+  `pickup` is corrected to `wood`, with the number read from the player's own text - but the job was started with the
+  model's amount (0), so no cap was set: the companion gathered forever while the chat said "(10)". The job now uses
+  the corrected amount. The normal path (the model returns the gather action with its number) was already fine.
+- **A gather order with no number no longer gets one invented by the model.** `qwen2.5-3b-instruct` answers
+  "colete pedras" with `{"action":"stone","amount":10}`; that silently capped an order that is meant to run until the
+  player stops it (unloading at a chest when the pack fills). For the jobs that take a cap, the number is only used
+  when the player's own message has one.
+- **The `tokens/s` line in the log** said it counted "prompt and response together" but divided only the response
+  tokens. It now says "generation - response only" and points at the `[IA] Prompt:` line above.
+- Same config, same saves, same models.
+
+More fixes are planned for this version - the full list is in `docs/audit-bughunt-1.9.4.md`.
+
+## 1.9.3 - 31/10/2026
 
 **One fix: the companion's beard.** A companion with no beard was asking the game for a beard that does not exist.
 

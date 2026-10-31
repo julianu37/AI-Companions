@@ -70,15 +70,18 @@ config é **`BepInEx\config\AiCompanions.cfg`** (o GUID não dá mais nome a ele
   listar o Jotunn como requisito em release/README. (A skill `jotunn` da equipe continua no repositório como
   referência de framework, mas **não** se aplica a este mod.)
 - Target: **.NET Framework 4.7.2 (net472)**, C#.
-- Versão: **1.9.2** — **multilíngue (5 idiomas: PT-BR, EN, ES, FR, IT)** (fonte única: `PluginVersion` em
-  `src/Companions/Core/CompanionsPlugin.cs`). A **1.9.2** (branch `feat/ordens-interacao`, **mergeada na `main` e
-  publicada em 31/10/2026**, tag `v1.9.2`) — e a **1.9.3** (31/10/2026, tag `v1.9.3`) corrige só a barba (`hash("")` em
-  vez de `0`, ver `docs/release-notes-1.9.3.md`)
+- Versão: **1.9.4** (em andamento, branch `fix/barba-sentinela`) — **multilíngue (5 idiomas: PT-BR, EN, ES, FR, IT)**
+  (fonte única: `PluginVersion` em `src/Companions/Core/CompanionsPlugin.cs`). A **1.9.2** (branch
+  `feat/ordens-interacao`, **mergeada na `main` e publicada em 31/10/2026**, tag `v1.9.2`)
   é a **sincronização com o upstream 1.5.4 → 1.5.8** (121 arquivos, +14.907/−2.600; **63 byte a byte idênticos**,
   58 conflitos resolvidos à mão) **+ as 5 ordens de interação** por chat/voz (`hive`/`door`/`board`/`sit`/`deposit`,
   `ValidActions` 30 → **35**). A auditoria das 7 frentes está em **`docs/audit-upstream-1.9.2.md`**: ela achou
   **2 regressões altas** do merge (as zonas de plantio sumiam no túmulo e o F8 gravava o **primeiro** valor de
-  `LogLevel`/`PortalItems`/`RespawnStance`) e o que ficou adiado de propósito está listado lá. Histórico: as
+  `LogLevel`/`PortalItems`/`RespawnStance`) e o que ficou adiado de propósito está listado lá. A **1.9.3**
+  (31/10/2026, tag `v1.9.3`) tentou corrigir só a barba (`hash("")` → `0`) e **trocou um bug por outro** — a
+  companheira feminina ficava com a barba do masculino; a **1.9.4** corrige de verdade (sentinela do cache em
+  `int.MinValue`, ver `docs/release-notes-1.9.4.md`). A **caça a bugs da 1.9.4** (6 frentes, read-only, ~60 achados
+  distintos) está em **`docs/audit-bughunt-1.9.4.md`** — é de lá que sai o escopo da 1.9.4/1.9.5. Histórico: as
   releases saíram em sequência em 23–26/10 (`1.7.0` → `1.8.0` → `1.8.1` → `1.8.2` → `1.8.3` → `1.9.0` → `1.9.1`;
   a **1.7.1 foi pulada de propósito**, pedido do jogador) e a **1.9.1** só tirou o `ggml-base-q5_1.bin` (57 MB) do
   pacote (~368 MB → ~314 MB no zip completo). **Branches de fase — todas mergeadas na `main` e apagáveis** (conferido

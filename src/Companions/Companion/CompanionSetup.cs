@@ -306,9 +306,11 @@ public class CompanionSetup : MonoBehaviour
 		}
 		bool canWearArmor = CanWearArmor();
 		int hairHash = (string.IsNullOrEmpty(a.HairItem) ? "Hair1" : a.HairItem).GetStableHashCode();
-		// 1.9.2 fix: "no beard" is hash 0, not the hash of "". The game treats 0 as "remove/skip" (SetBeardEquipped
-		// destroys the object and only attaches when hash != 0), while hash("") is a real non-zero number that has no
-		// prefab - the game then logged "Missing attach item" and the beard never appeared.
+		// 1.9.2/1.9.4 fix: "no beard" is hash 0, not the hash of "". The game treats 0 as "remove/skip"
+		// (SetBeardEquipped destroys the object and only attaches when hash != 0), while hash("") is a real non-zero
+		// number that has no prefab - the game then logged "Missing attach item" and the beard never appeared.
+		// Sending 0 is only half of it: the attach cache must not be cleared to 0 either (see ResetVisualItemCache),
+		// or SetBeardEquipped(0) matches the cache and returns before destroying the previous beard.
 		int beardHash = ((a.ModelIndex == 0) && !string.IsNullOrEmpty(a.BeardItem)) ? a.BeardItem.GetStableHashCode() : 0;
 		if (canWearArmor && _visEquip != null)
 		{
@@ -439,6 +441,13 @@ public class CompanionSetup : MonoBehaviour
 	/// Fase 3.21: clears the hashes <c>VisEquipment</c> remembers as "already attached" (see
 	/// <see cref="PrepareVisualAttach"/> for the why).
 	/// </summary>
+	/// <remarks>
+	/// 1.9.4: the sentinel is <see cref="int.MinValue"/>, <b>never 0</b>. <c>SetBeardEquipped</c> returns early when
+	/// the hash equals the cached one, and 0 is exactly the value of "no beard" - clearing the cache to 0 made
+	/// <c>SetBeardEquipped(0)</c> a no-op, so the beard of the previous appearance was never destroyed (a female
+	/// kept the beard of the male preview). Any value that is not a real item hash makes the setter run the destroy
+	/// branch and then skip the attach, which is what "no beard" means.
+	/// </remarks>
 	internal static void ResetVisualItemCache(VisEquipment vis)
 	{
 		if (vis == null)
@@ -447,8 +456,8 @@ public class CompanionSetup : MonoBehaviour
 		}
 		try
 		{
-			_visCurrentHairHash?.SetValue(vis, 0);
-			_visCurrentBeardHash?.SetValue(vis, 0);
+			_visCurrentHairHash?.SetValue(vis, int.MinValue);
+			_visCurrentBeardHash?.SetValue(vis, int.MinValue);
 		}
 		catch (Exception ex)
 		{

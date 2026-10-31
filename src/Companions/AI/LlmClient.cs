@@ -302,7 +302,7 @@ internal static class LlmClient
 			int outChars = result.Content != null ? result.Content.Length : 0;
 			double seconds = Math.Max(0.001, result.ElapsedMs / 1000.0);
 			CompanionsPlugin.Log?.LogInfo($"[IA] Tempo: {result.ElapsedMs} ms no total, resposta com {outChars} car. (~{EstimateTokens(outChars)} tokens, "
-				+ $"~{EstimateTokens(outChars) / seconds:0.0} tokens/s contando prompt e resposta juntos).");
+				+ $"~{EstimateTokens(outChars) / seconds:0.0} tokens/s de geracao - so a resposta; o tamanho do prompt esta na linha \"[IA] Prompt:\" acima).");
 			if (result.ElapsedMs >= SlowRequestMs)
 			{
 				CompanionsPlugin.Log?.LogWarning($"[IA] Resposta lenta ({result.ElapsedMs} ms). Se isso se repetir, o gargalo e o modelo local, nao o mod: "
