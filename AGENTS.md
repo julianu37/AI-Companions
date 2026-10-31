@@ -1016,11 +1016,6 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
 
 ## MCP servers disponíveis
 
-- **`valheim-devbridge`** — **nosso** MCP de desenvolvimento, em **repo separado** (`C:\Users\revenda33\Desktop\valheim-mcp`,
-  a publicar): um plugin BepInEx (`DevBridge.dll`) expõe o jogo em `127.0.0.1:47110` e o servidor MCP (stdio, Python
-  stdlib) traduz 14 ferramentas — status do jogador, console, spawn, **screenshot**, `log_tail`, e os companheiros
-  (`list`/`spawn`/`order`/`teleport`/`give`/`zdo`). É **ferramenta de dev**: não entra no pacote de release e o build
-  do mod não a referencia. Protocolo e ferramentas no `README.md`/`docs/` daquele repo.
 - **`alvin`** — MCP do **Visual Studio** (build, debug, Output, terminal, testes). Requer o VS aberto.
 - **`context7`** — documentação atualizada de bibliotecas.
 - **`learn`** — Microsoft Learn (.NET/C#/Azure).
