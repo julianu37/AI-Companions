@@ -275,7 +275,10 @@ internal static class CompanionOrders
 			{
 				continue;
 			}
-			if (companion2 != null && Apply(companion2, action, intent.Amount, intent.Resource, outcome))
+			// 1.9.4: outcome.Amount, not intent.Amount - when a word net corrected the action (GatherIntent), the number
+			// came from the player's own text and the model's amount is 0; the cap announced in the chat ("Ok: coletar
+			// madeira (10)") was never applied, so the companion gathered forever.
+			if (companion2 != null && Apply(companion2, action, outcome.Amount, intent.Resource, outcome))
 			{
 				outcome.Count++;
 			}
