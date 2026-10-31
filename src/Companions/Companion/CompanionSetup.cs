@@ -306,7 +306,10 @@ public class CompanionSetup : MonoBehaviour
 		}
 		bool canWearArmor = CanWearArmor();
 		int hairHash = (string.IsNullOrEmpty(a.HairItem) ? "Hair1" : a.HairItem).GetStableHashCode();
-		int beardHash = ((a.ModelIndex == 0) ? (a.BeardItem ?? "") : "").GetStableHashCode();
+		// 1.9.2 fix: "no beard" is hash 0, not the hash of "". The game treats 0 as "remove/skip" (SetBeardEquipped
+		// destroys the object and only attaches when hash != 0), while hash("") is a real non-zero number that has no
+		// prefab - the game then logged "Missing attach item" and the beard never appeared.
+		int beardHash = ((a.ModelIndex == 0) && !string.IsNullOrEmpty(a.BeardItem)) ? a.BeardItem.GetStableHashCode() : 0;
 		if (canWearArmor && _visEquip != null)
 		{
 			// Fase 3.21 (bug do cabelo/barba): the game caches the hash it last handled in m_currentHairItemHash /
@@ -329,7 +332,12 @@ public class CompanionSetup : MonoBehaviour
 			CompanionsPlugin.Log?.LogInfo($"[AppearanceDiag] \"{NameForLog()}\": ApplyAppearance gender={a.ModelIndex} "
 				+ $"hair={a.HairItem ?? ""}({hairHash}) beard={a.BeardItem ?? ""}({beardHash}) canWearArmor={canWearArmor} "
 				+ $"visEquip=True | depois: {state}");
-			if (canWearArmor && (hairHash != 0 || beardHash != 0) && state.Contains("Inst=False"))
+			// 1.9.2 fix: only a hair/beard we ASKED for and whose prefab exists can be "not attached". A companion with no
+			// beard (hash 0) has beardInst=False and prefabBeard=False by design, and used to raise this warning on
+			// every apply.
+			bool hairMissing = hairHash != 0 && state.Contains("prefabHair=True") && state.Contains("hairInst=False");
+			bool beardMissing = beardHash != 0 && state.Contains("prefabBeard=True") && state.Contains("beardInst=False");
+			if (canWearArmor && (hairMissing || beardMissing))
 			{
 				// the hash was requested, the prefab may exist and the object did not appear: the game's own log
 				// (Unity) has the reason - "Missing attach item"/a MagicaCloth exception inside AttachItem

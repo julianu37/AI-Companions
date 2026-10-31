@@ -2152,7 +2152,8 @@ public class CompanionPanel
 		if (_selectedTier.CanWearArmor)
 		{
 			hairHash = (string.IsNullOrEmpty(_current.HairItem) ? "Hair1" : _current.HairItem).GetStableHashCode();
-			beardHash = ((_current.ModelIndex == 0) ? (_current.BeardItem ?? "") : "").GetStableHashCode();
+			// 1.9.2 fix: no beard is 0 (the game removes/skips it), never hash("") - see CompanionSetup.ApplyAppearance
+			beardHash = ((_current.ModelIndex == 0) && !string.IsNullOrEmpty(_current.BeardItem)) ? _current.BeardItem.GetStableHashCode() : 0;
 			// Fase 3.21 (bug do cabelo/barba): the same cache the real companion needs cleared (see
 			// CompanionSetup.ResetVisualItemCache) - the clone's VisEquipment remembers the hash it "already" attached
 			// and never tries the object again after one failed attempt, so the preview kept the first haircut for ever.
