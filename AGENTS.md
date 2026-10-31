@@ -1014,8 +1014,25 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
    `package/LEIA-ME.txt` fica em **PT**. **Comentários de código continuam em inglês** (convenção do repositório) e
    as **mensagens de log em PT-BR**. O mod (UI/falas) segue o idioma do jogo. Plano: `docs/plan-i18n-docs.md`.
 
+## DevBridge (ferramenta de desenvolvimento)
+
+O `Companions.dll` carrega um módulo de dev (`src/Companions/DevBridge/`) que expõe o jogo em `127.0.0.1:47110` para o
+servidor MCP em `tools/mcp-devbridge/`. **Desligado por padrão** (`[Advanced] DevBridge`), loopback only — ele roda
+comandos de console e spawna coisas, então não é feature de jogador.
+
+- **Arquitetura:** TCP loopback + fila; a API do jogo só roda na main thread (`DevBridgeService.Pump` no `Update`).
+  `Commands.cs` chama `CompanionSetup`/`CompanionManager` **direto** (mesma assembly), sem reflexão.
+- **Ligar:** `[Advanced] DevBridge = true` no `AiCompanions.cfg` e reiniciar o jogo; o log diz
+  `[DevBridge] listening on 127.0.0.1:47110`.
+- **Testar:** `python tools/mcp-devbridge/test_mcp_devbridge.py` (mock, sem jogo) — 41 checks.
+- **Docs:** `docs/mcp-devbridge.md` (arquitetura, protocolo, as 23 ferramentas e as evidências dos 4 testes da 1.9.4)
+  e `tools/mcp-devbridge/README.md` (parâmetros/exemplos).
+- **Não** empacotar o servidor Python no zip; o módulo vai na DLL, desligado.
+
 ## MCP servers disponíveis
 
+- **`valheim-devbridge`** — MCP de dev do mod, **neste repo**: `tools/mcp-devbridge/` (servidor) + o módulo
+  `src/Companions/DevBridge/` na DLL. Ver `docs/mcp-devbridge.md`.
 - **`alvin`** — MCP do **Visual Studio** (build, debug, Output, terminal, testes). Requer o VS aberto.
 - **`context7`** — documentação atualizada de bibliotecas.
 - **`learn`** — Microsoft Learn (.NET/C#/Azure).
