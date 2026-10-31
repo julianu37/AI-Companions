@@ -1065,6 +1065,16 @@ public static class CompanionManager
 
 	public static bool HireWithCoins(CompanionAppearance appearance)
 	{
+		return HireWithCoins(appearance, null);
+	}
+
+	/// <summary>
+	/// 1.9.4: the hire panel also collects the AI profile (voice, personality and the NAME) - the same draft the
+	/// starter spawn takes. The public overload keeps the old shape because <see cref="CompanionAiDraft"/> is
+	/// internal (a public signature with it is CS0051), the same reason SpawnStarterWithAppearance has two overloads.
+	/// </summary>
+	internal static bool HireWithCoins(CompanionAppearance appearance, CompanionAiDraft aiDraft)
+	{
 		Player localPlayer = Player.m_localPlayer;
 		Inventory inv = localPlayer?.GetInventory();
 		if (inv == null)
@@ -1080,7 +1090,7 @@ public static class CompanionManager
 			ShowShortPopup(price, have);
 			return false;
 		}
-		if (!SpawnCompanion(appearance, CompanionTierData.Companion))
+		if (!SpawnCompanion(appearance, CompanionTierData.Companion, aiDraft))
 		{
 			return false;
 		}

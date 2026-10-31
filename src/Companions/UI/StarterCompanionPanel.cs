@@ -151,6 +151,18 @@ public class StarterCompanionPanel : MonoBehaviour
 		// Fase 3.10: the AI choices of the panel (voice + personality) go to the companion that is being born; the
 		// draft is written to its ZDO in the spawn, next to the name and the appearance
 		CompanionAiDraft aiDraft = _panel?.AiDraft();
+		// 1.5.6 (restored in 1.9.4): the Shrine's hire pays the offering. This branch was lost when the 1.5.6 merge
+		// resolved OnConfirm in favour of our aiDraft version: the panel ran the starter's FREE spawn and
+		// StarterFix.MarkSpawned() consumed the free starter of this world on top of it.
+		if (_hire)
+		{
+			if (CompanionManager.HireWithCoins(appearance, aiDraft))
+			{
+				if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[StarterPanel] Companion summoned for the offering - closing panel");
+				Close();
+			}
+			return;
+		}
 		CompanionManager.SpawnStarterWithAppearance(appearance, aiDraft);
 		CompanionsPlugin.Log.LogInfo("[StarterPanel] Companion spawned — closing panel"
 			+ (aiDraft != null && !aiDraft.IsEmpty
@@ -248,7 +260,7 @@ public class StarterCompanionPanel : MonoBehaviour
 			{
 				return;
 			}
-			CompanionsPlugin.Log.LogInfo("[StarterPanel] Skipped — will re-appear next session");
+			CompanionsPlugin.Log.LogInfo(_hire ? "[StarterPanel] Summon cancelled" : "[StarterPanel] Skipped — will re-appear next session");
 			Close();
 		}
 	}
