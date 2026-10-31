@@ -126,7 +126,7 @@ internal static class GatherIntent
 
 	/// <summary>The first number of the message ("ramasse 10 bois" -> 10; 0 when there is none). Orders never ask for
 	/// thousands, so the number is capped at three digits.</summary>
-	private static int NumberIn(string text)
+	internal static int NumberIn(string text)
 	{
 		for (int i = 0; i < text.Length; i++)
 		{

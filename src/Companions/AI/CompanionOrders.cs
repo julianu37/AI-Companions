@@ -185,6 +185,17 @@ internal static class CompanionOrders
 		outcome.Understood = true;
 		outcome.LabelKey = "hc_ai_order_" + action;
 		outcome.Amount = byGatherAmount > 0 ? byGatherAmount : intent.Amount;
+		// 1.9.4: the number of a gather order only exists when the PLAYER wrote one. A small model fills "amount"
+		// anyway - "colete pedras" came back as {"action":"stone","amount":10} - and that silently capped an order
+		// that must run until the player stops it (unloading at a chest when the pack fills). The model's number is
+		// dropped when the message has no number at all; when it has one, the model's value is kept as before.
+		int capMode = JobMode(action);
+		if (outcome.Amount > 0 && HasOrderCap(capMode) && GatherIntent.NumberIn(userText) <= 0)
+		{
+			CompanionsPlugin.Log?.LogInfo($"[IA] O modelo devolveu amount={outcome.Amount} mas a mensagem nao tem numero - "
+				+ $"\"{action}\" sem teto (coleta ate o jogador parar).");
+			outcome.Amount = 0;
+		}
 
 		// Fase 3.1: "recolhe os itens do chão" é uma ordem de UM TIRO (MHR_Collect), então qualquer outra ordem a
 		// derruba - feito aqui, uma vez por mensagem, para que até as ordens que nunca chegam ao Apply
