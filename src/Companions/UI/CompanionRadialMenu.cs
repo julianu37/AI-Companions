@@ -349,6 +349,7 @@ public class CompanionRadialMenu : MonoBehaviour
 	{
 		if (!(companion == null))
 		{
+			ModUiLayers.LogSceneLayers("Command wheel");
 			// 1.4.152: its player opens the wheel - their game runs the companion, so what they pick takes effect
 			if (MHR_Owner.IsMine(companion))
 			{
@@ -387,7 +388,7 @@ public class CompanionRadialMenu : MonoBehaviour
 			InitAnimationState();
 			Cursor.lockState = CursorLockMode.None;
 			Cursor.visible = true;
-			CompanionsPlugin.Log.LogDebug($"[Radial] Show — companion=\"{companion.name}\" segments={_segments.Count}");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Radial] Show — companion=\"{companion.name}\" segments={_segments.Count}");
 		}
 	}
 
@@ -1140,7 +1141,7 @@ public class CompanionRadialMenu : MonoBehaviour
 			_hoveredIndex = -1;
 			_hoveredInnerIndex = -1;
 			_hoveringInner = false;
-			CompanionsPlugin.Log.LogDebug("[Radial] Hide (closing)");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Radial] Hide (closing)");
 		}
 	}
 
@@ -1517,16 +1518,16 @@ public class CompanionRadialMenu : MonoBehaviour
 				DoDespawn();
 				return;
 			}
-			if (_companionTalk != null && ActionSpeech.Length != 0)
+			if (_companionTalk != null)
 			{
-				_companionTalk.Say(ActionSpeech[UnityEngine.Random.Range(0, ActionSpeech.Length)]);
+				_companionTalk.SayOrder(_companionTalk.Pick(ActionSpeech));
 			}
 		}
 		else if (_hoveredIndex >= 0 && _hoveredIndex < _segments.Count)
 		{
 			Segment segment2 = _segments[_hoveredIndex];
 			EnsureOwnership();
-			CompanionsPlugin.Log.LogDebug($"[Radial] Execute action={segment2.ActionId} label=\"{segment2.Label}\"");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Radial] Execute action={segment2.ActionId} label=\"{segment2.Label}\"");
 			switch (segment2.ActionId)
 			{
 			case 0:
@@ -1567,9 +1568,9 @@ public class CompanionRadialMenu : MonoBehaviour
 				FarmZonePlacer.Enter(_companion);
 				return;
 			}
-			if (_companionTalk != null && ActionSpeech.Length != 0)
+			if (_companionTalk != null)
 			{
-				_companionTalk.Say(ActionSpeech[UnityEngine.Random.Range(0, ActionSpeech.Length)]);
+				_companionTalk.SayOrder(_companionTalk.Pick(ActionSpeech));
 			}
 		}
 	}
@@ -1669,7 +1670,7 @@ public class CompanionRadialMenu : MonoBehaviour
 		{
 			if (_mhrGActive)
 			{
-				CompanionsPlugin.Log.LogInfo($"[Radial] Stick push ended: peak={_mhrGPeak:F2} (stance zone 0.25-0.80, outer 0.80+), time in stance zone={_mhrGBandTime:F2}s, last stance wedge={_mhrGWedge}, reached outer={_mhrGReachedOuter}, latched stance={_stickyInnerIndex}");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo($"[Radial] Stick push ended: peak={_mhrGPeak:F2} (stance zone 0.25-0.80, outer 0.80+), time in stance zone={_mhrGBandTime:F2}s, last stance wedge={_mhrGWedge}, reached outer={_mhrGReachedOuter}, latched stance={_stickyInnerIndex}");
 				_mhrGActive = false;
 			}
 			return;
@@ -1712,7 +1713,7 @@ public class CompanionRadialMenu : MonoBehaviour
 		if (_stickyInnerIndex != wedge)
 		{
 			_stickyInnerIndex = wedge;
-			CompanionsPlugin.Log.LogInfo($"[Radial] Stance latched: {_innerSegments[wedge].Label} (wedge {wedge})");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo($"[Radial] Stance latched: {_innerSegments[wedge].Label} (wedge {wedge})");
 		}
 	}
 
@@ -1753,8 +1754,10 @@ public class CompanionRadialMenu : MonoBehaviour
 				MHR_DespawnConfirmed();
 				return;
 			}
-			UnifiedPopup.Push(new YesNoPopup(ModLocalization.Loc("hc_despawn_popup_title"), string.Format(ModLocalization.Loc("hc_despawn_popup_text"), arg), MHR_DespawnConfirmed, MHR_DespawnCancelled, localizeText: false));
-			CompanionsPlugin.Log.LogInfo($"[Radial] Despawn — asking for confirmation for \"{arg}\"");
+			// 1.5.80: says when Odin's Shrine can still bring them back ([General] RecoverUnsummoned)
+			string despawnText = string.Format(ModLocalization.Loc("hc_despawn_popup_text"), arg) + ((ModConfig.RecoverUnsummoned?.Value ?? true) ? "\n\n" + ModLocalization.Loc("hc_despawn_popup_recover") : "");
+			UnifiedPopup.Push(new YesNoPopup(ModLocalization.Loc("hc_despawn_popup_title"), despawnText, MHR_DespawnConfirmed, MHR_DespawnCancelled, localizeText: false));
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo($"[Radial] Despawn — asking for confirmation for \"{arg}\"");
 		}
 	}
 
@@ -1840,7 +1843,7 @@ public class CompanionRadialMenu : MonoBehaviour
 			{
 				arg = component.GetZDO().GetString(CompanionSetup.NameHash, "Companion");
 			}
-			CompanionsPlugin.Log.LogInfo($"[Radial] Despawn — permanently removing \"{arg}\"");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo($"[Radial] Despawn — permanently removing \"{arg}\"");
 			mhrDespawnTarget.PrepareForDespawn();
 			CompanionRest component2 = mhrDespawnTarget.GetComponent<CompanionRest>();
 			if (component2 != null)
@@ -1864,7 +1867,7 @@ public class CompanionRadialMenu : MonoBehaviour
 			UnifiedPopup.Pop();
 		}
 		_mhrDespawnTarget = null;
-		CompanionsPlugin.Log.LogInfo("[Radial] Despawn cancelled");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo("[Radial] Despawn cancelled");
 	}
 
 	private void DoRepairBuildings()
@@ -1890,10 +1893,10 @@ public class CompanionRadialMenu : MonoBehaviour
 		}
 		if (!flag)
 		{
-			CompanionsPlugin.Log.LogInfo("[Radial] Repair: no hammer in inventory");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo("[Radial] Repair: no hammer in inventory");
 			if (_companionTalk != null)
 			{
-				_companionTalk.Say(ModLocalization.Loc("hc_speech_repair_no_hammer"));
+				_companionTalk.SayProblem("tool:hammer", ModLocalization.Loc("hc_speech_repair_no_hammer"));
 			}
 			return;
 		}
@@ -1927,7 +1930,7 @@ public class CompanionRadialMenu : MonoBehaviour
 				}
 			}
 		}
-		CompanionsPlugin.Log.LogInfo($"[Radial] Repair: fixed {num} building pieces within {50f}m");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo($"[Radial] Repair: fixed {num} building pieces within {50f}m");
 		if (num > 0)
 		{
 			ZSyncAnimation component2 = _companion.GetComponent<ZSyncAnimation>();
@@ -1937,12 +1940,12 @@ public class CompanionRadialMenu : MonoBehaviour
 			}
 			if (_companionTalk != null)
 			{
-				_companionTalk.Say(ModLocalization.Loc("hc_speech_repair_done"));
+				_companionTalk.SayOrder(ModLocalization.Loc("hc_speech_repair_done"));
 			}
 		}
 		else if (_companionTalk != null)
 		{
-			_companionTalk.Say(ModLocalization.Loc("hc_speech_repair_nothing"));
+			_companionTalk.SayOrder(ModLocalization.Loc("hc_speech_repair_nothing"));
 		}
 	}
 

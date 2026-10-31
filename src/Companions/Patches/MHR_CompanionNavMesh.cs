@@ -55,7 +55,7 @@ internal static class MHR_CompanionNavMesh
 				build.agentClimb = 0.6f;
 				s_build.SetValue(mine, build);
 				Ready = true;
-				CompanionsPlugin.Log?.LogInfo("[Move] Companion route map ready (doors don't block, steps up to 0.6 m)");
+				if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log?.LogInfo("[Move] Companion route map ready (doors don't block, steps up to 0.6 m)");
 			}
 			catch (Exception ex)
 			{

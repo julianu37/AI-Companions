@@ -203,6 +203,25 @@ internal static class CompanionTts
 
 	private static OfflineTts _tts;
 
+	/// <summary>
+	/// Multilanguage M1 (fix 1.9.2): the language the loaded model was <b>built</b> with. The Kokoro model is one file
+	/// for every language, but the phonemizer (espeak-ng) is chosen when it is loaded - so a model loaded while the game
+	/// was in English keeps reading Portuguese with English phonemes (it sounds like English) no matter which voice is
+	/// selected. Compared on every line; when it differs from <see cref="Language"/> the model is rebuilt.
+	/// </summary>
+	private static string _loadedLanguage;
+
+	/// <summary>The language code a warning was already written for, so a hand-edited <c>[AI] TtsLanguage</c> does not
+	/// flood the log with the same line on every spoken sentence.</summary>
+	private static string _warnedLanguage;
+
+	/// <summary>
+	/// Set by <see cref="NoticeLanguageChange"/> and consumed by the synthesis thread - the only owner of
+	/// <see cref="_tts"/>. The reload cannot happen on the calling thread: freeing the native model while a sentence is
+	/// being generated in it is an AccessViolation, not an exception.
+	/// </summary>
+	private static volatile bool _reloadRequested;
+
 	private static bool _loadFailed;
 
 	private static string _loadError;
@@ -460,6 +479,15 @@ internal static class CompanionTts
 			CompanionsPlugin.Log?.LogInfo($"[TTS] Vozes (\"{Path.Combine(dir, VoicesFileName)}\", {DescribeFile(Path.Combine(dir, VoicesFileName))}), "
 				+ $"tokens (\"{Path.Combine(dir, TokensFileName)}\", {DescribeFile(Path.Combine(dir, TokensFileName))}) e "
 				+ $"espeak-ng-data (\"{Path.Combine(dir, EspeakDataDirName)}\") - tudo procurado na MESMA pasta do modelo.");
+			// fix 1.9.2: [AI] TtsLanguage changed in the F8 (or by hand in the .cfg) - the loaded model has the phonemizer
+			// of the old language, so it has to be rebuilt. The synthesis thread does it (see DropModelIfLanguageChanged).
+			if (ModConfig.TtsLanguage != null)
+			{
+				ModConfig.TtsLanguage.SettingChanged += delegate
+				{
+					NoticeLanguageChange();
+				};
+			}
 		}
 		catch (Exception ex)
 		{
@@ -821,6 +849,29 @@ internal static class CompanionTts
 			{
 				return;
 			}
+			// fix 1.9.2: the language changed while the model was loaded - rebuild it here, before the next line, so the
+			// first sentence after the switch already comes out in the new language (the load takes a second or two, and
+			// this is the synthesis thread, so the game never waits for it).
+			if (_reloadRequested)
+			{
+				_reloadRequested = false;
+				try
+				{
+					DropModelIfLanguageChanged();
+					if (TryGetTts(out OfflineTts _, out string error))
+					{
+						CompanionsPlugin.Log?.LogInfo($"[TTS] Modelo recarregado no idioma \"{Language}\" antes da proxima fala.");
+					}
+					else if (!string.IsNullOrEmpty(error))
+					{
+						CompanionsPlugin.Log?.LogWarning("[TTS] Nao consegui recarregar o modelo no novo idioma: " + error);
+					}
+				}
+				catch (Exception ex)
+				{
+					CompanionsPlugin.Log?.LogWarning("[TTS] Falha ao recarregar o modelo no novo idioma: " + ex);
+				}
+			}
 			while (_requests.TryDequeue(out TtsRequest request))
 			{
 				try
@@ -854,6 +905,9 @@ internal static class CompanionTts
 		{
 			return;
 		}
+		// fix 1.9.2: the model carries the phonemizer of the language it was loaded in, so a language change (the game's
+		// or [AI] TtsLanguage) has to rebuild it - this is the synthesis thread, the only place where it is safe.
+		DropModelIfLanguageChanged();
 		if (!TryGetTts(out OfflineTts tts, out string error))
 		{
 			CompanionsPlugin.Log?.LogWarning($"[TTS] Nao consegui falar \"{request.Text}\": {error}");
@@ -1010,6 +1064,112 @@ internal static class CompanionTts
 	}
 
 	/// <summary>
+	/// Multilanguage M1 (fix 1.9.2): the game language (or <c>[AI] TtsLanguage</c>) changed, and the loaded model speaks
+	/// the language it was <b>built</b> with (see <see cref="_loadedLanguage"/>). All this does is ask the synthesis
+	/// thread to rebuild it: that thread is the only user of the native model, and it is where freeing it is safe. Cheap
+	/// and Unity-free, so it can be called from the <c>Localization.SetupLanguage</c> postfix and from the config hook.
+	/// </summary>
+	internal static void NoticeLanguageChange()
+	{
+		try
+		{
+			if (!Enabled || _stopping || _tts == null)
+			{
+				// nothing loaded: the next load already reads the new language, nothing to rebuild
+				_reloadRequested = false;
+				return;
+			}
+			_reloadRequested = true;
+			_wake.Release();
+		}
+		catch (Exception ex)
+		{
+			CompanionsPlugin.Log?.LogDebug("[TTS] Falha ao avisar da troca de idioma: " + ex.Message);
+		}
+	}
+
+	/// <summary>
+	/// Frees the model when the language it was built with is not the effective one any more, so the next
+	/// <see cref="TryGetTts"/> builds it again with the right phonemizer. <b>Only the synthesis thread calls this</b>;
+	/// the audio cache goes with it, because every sample in it was generated with the old phonemizer.
+	/// </summary>
+	private static void DropModelIfLanguageChanged()
+	{
+		string language = Language;
+		lock (_loadLock)
+		{
+			if (_tts == null || string.Equals(_loadedLanguage, language, StringComparison.Ordinal))
+			{
+				return;
+			}
+			// A code the model does not really speak (a typo in the .cfg, "de", "en-gb"...) would make the native load
+			// fail - and then the voice would be gone until a restart. Keeping the model that works is always better than
+			// swapping it for nothing: the log says what happened, once per code.
+			if (!IsSupportedLanguage(language))
+			{
+				if (!string.Equals(_warnedLanguage, language, StringComparison.Ordinal))
+				{
+					_warnedLanguage = language;
+					CompanionsPlugin.Log?.LogWarning($"[TTS] \"{language}\" nao tem voz propria neste Kokoro: o modelo "
+						+ $"carregado (\"{_loadedLanguage}\") continua e nada foi recarregado. O padrao e \"auto\" - com ele, "
+						+ "qualquer idioma do jogo fora dos 5 cai no ingles (en-us / af_heart).");
+				}
+				return;
+			}
+			string previous = _loadedLanguage;
+			try
+			{
+				_tts.Dispose();
+			}
+			catch (Exception ex)
+			{
+				CompanionsPlugin.Log?.LogDebug("[TTS] Falha ao liberar o modelo do idioma anterior: " + ex.Message);
+			}
+			_tts = null;
+			_loadedLanguage = null;
+			_warnedLanguage = null;
+			ClearCache();
+			CompanionsPlugin.Log?.LogInfo($"[TTS] Idioma efetivo \"{language}\" (o modelo estava carregado em \"{previous}\") - "
+				+ "modelo liberado para carregar no idioma certo e cache de audio esvaziado (eram amostras do idioma antigo).");
+		}
+	}
+
+	/// <summary>
+	/// The language codes the mod speaks - the same five the interface, the lines, the presets and the prompt contract
+	/// have, and each one synthesized with the shipped model out of the game (kokoro skill, 30/10/2026). This is the
+	/// gate of <see cref="DropModelIfLanguageChanged"/>: anything else must not take a working model away.
+	/// </summary>
+	private static readonly string[] SupportedLanguages = new string[] { "pt-br", "en-us", "es", "fr", "it" };
+
+	/// <summary>Is this code one of <see cref="SupportedLanguages"/>?</summary>
+	internal static bool IsSupportedLanguage(string code)
+	{
+		if (string.IsNullOrEmpty(code))
+		{
+			return false;
+		}
+		for (int i = 0; i < SupportedLanguages.Length; i++)
+		{
+			if (string.Equals(SupportedLanguages[i], code.Trim(), StringComparison.OrdinalIgnoreCase))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/// <summary>Throws every synthesized sentence away (a language change makes all of them wrong).</summary>
+	private static void ClearCache()
+	{
+		lock (_cache)
+		{
+			_cache.Clear();
+			_cacheOrder.Clear();
+			_cacheBytes = 0;
+		}
+	}
+
+	/// <summary>
 	/// The Kokoro model, loaded <b>once</b> and kept. Safe to call from any thread; the first caller does the load
 	/// (and the native-library setup), the others wait for it.
 	/// </summary>
@@ -1056,6 +1216,15 @@ internal static class CompanionTts
 				string dir = Path.GetDirectoryName(modelPath) ?? "";
 				int threads = Threads;
 				string language = Language;
+				if (!IsSupportedLanguage(language) && !string.Equals(_warnedLanguage, language, StringComparison.Ordinal))
+				{
+					_warnedLanguage = language;
+					CompanionsPlugin.Log?.LogWarning($"[TTS] [AI] TtsLanguage = \"{language}\" nao tem voz propria neste Kokoro. "
+						+ $"O padrao e \"auto\": com ele, qualquer um dos 5 idiomas ({string.Join(", ", SupportedLanguages)}) usa "
+						+ "a voz dele e QUALQUER outro idioma do jogo (de, ru, pl, tr, ko, sv, uk...) cai no ingles (en-us / "
+						+ "af_heart), como sempre foi. O modelo vai carregar o codigo escrito mesmo assim, mas as falas do mod "
+						+ "sao escritas em PT/EN/ES/FR/IT.");
+				}
 				// The struct constructors fill every string with "" and every sub-config with its own defaults; the
 				// explicit assignments below make that independent of the language version (a struct left at its
 				// default value would marshal null strings into the native call).
@@ -1098,6 +1267,7 @@ internal static class CompanionTts
 					return false;
 				}
 				_tts = tts;
+				_loadedLanguage = language;
 				int loadedVoice = Voice;
 				CompanionsPlugin.Log?.LogInfo($"[TTS] Modelo CARREGADO em {watch.ElapsedMilliseconds} ms e MANTIDO carregado: \"{modelPath}\" "
 					+ $"(sherpa-onnx {SherpaOnnxVersion()}, Kokoro-82M, CPU, {threads} thread(s), idioma \"{language}\") | "

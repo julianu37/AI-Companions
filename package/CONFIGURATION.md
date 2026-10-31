@@ -14,16 +14,18 @@ Every setting of the mod: what it does and the value it starts with.
   - `-Name` = never that one
   - `Name:Number` = that one, with its own amount (`0` = no limit)
   - Names can be the item or creature name in game or the internal name (prefab). The names you can use in cooking, hunting and fishing are written to `OfflineCompanionsReborn.Cooking.txt`, `.Hunting.txt` and `.Fishing.txt` in the config folder every time the game starts.
-- Updating from an old version? The options you changed are moved to the new names automatically the first time you enter a world. **Since 2.0.0** the file is `AiCompanions.cfg` and the keys and descriptions are in English (the native language of the mod; Portuguese is a translation): the old `.cfg` (`Maddhattr.OfflineCompanionsReborn.cfg`) is ignored and the settings go back to their default values.
+- Updating from an old version? The options you changed are moved to the new names automatically the first time you enter a world. **Since 1.8.3** the file is `AiCompanions.cfg` and the keys and descriptions are in English (the native language of the mod; Portuguese is a translation): the old `.cfg` (`Maddhattr.OfflineCompanionsReborn.cfg`) is ignored and the settings go back to their default values.
 - The section names below are the same as in the `.cfg` file (the `F8` panel shows them translated to the game language): `General` = **Geral**, `Controls` = **Controles**, `Follow` = **Seguir**, `Movement` = **Movimento**, `Combat` = **Combate**, `Food` = **Comida**, `Stamina` = **Stamina**, `Rest` = **Descanso**, `Death` = **Morte**, `Looting` = **Saque**, `GearRepair` = **Reparo de Equip.**, `Gathering` = **Coleta**, `Hunting` = **Caça**, `Fishing` = **Pesca**, `Farming` = **Plantio**, `Smelting` = **Fundição**, `Cooking` = **Cozinha**, `RepairAndRestock` = **Reparar e Reabastecer**, `Idle` = **Ócio**, `Speech` = **Fala**, `Advanced` = **Avançado**, `AI` = **IA**.
 
 ## Sections
 
 - [General](#general)
 - [Controls](#controls)
+- [Controller](#controller)
 - [Follow](#follow)
 - [Movement](#movement)
 - [Combat](#combat)
+- [Torch](#torch)
 - [Food](#food)
 - [Stamina](#stamina)
 - [Rest](#rest)
@@ -46,11 +48,20 @@ Every setting of the mod: what it does and the value it starts with.
 
 The basics: what a companion costs, its health, stamina and carry limits, and how far "home" reaches.
 
-**CompanionPrice** — Default: 2000 · Range: 0 – 50000  
-The price of an extra companion at the Trader, in coins from the shared bank. 0 = free.
-
 **MaxCompanions** — Default: 10 · Range: 1 – 10  
-Phase 3.19: the most companions you can have in this world (10 is the ceiling). The count includes the dead and the lost: the tombstone brings the SAME companion back, so dying does not free a slot. At the limit the Trader, the AI panel summoner and the starter companion refuse to create another (the Shrine can still recover a dead companion). To free a slot, dismiss one from its wheel menu (Despawn).
+Phase 3.19: the most companions you can have in this world (10 is the ceiling). The count includes the dead, the lost and the dismissed: the tombstone brings the SAME companion back and Odin's Shrine can still recover a dismissed one, so neither dying nor dismissing frees a slot on the spot. At the limit the Trader, the AI panel summoner and the starter companion refuse to create another (the Shrine can still recover a dead or a dismissed companion). The slot of a dismissed companion comes free when you next load this world - or right away with [General] RecoverUnsummoned off.
+
+**CompanionPrice** — Default: 1000 · Range: 0 – 50000  
+The offering in coins to summon another companion at Odin's Shrine (Summon companion), paid from your pack.
+
+**PortalItems** — Default: `Game` · Options: `Game`, `AllowAll`  
+What a following companion may carry through a portal with you. Game: the same rules as you - ore, metals and the like only through a portal that allows everything or with the world's portal setting on Casual, boss items never; it first puts what can't go through in a chest within 15 m of it, otherwise it stays behind and says why. AllowAll: it comes through with anything.
+
+**RecoverUnsummoned** — Default: On  
+An unsummoned (despawned) companion can be brought back at Odin's Shrine (Recover companions) - with its name, looks, skills and settings, but not its gear, which stays in the tombstone where it was unsummoned - until you next load this world. Off: unsummoning is permanent.
+
+**ShowStatus** — Default: On  
+When you look at a companion, show what it is doing under its name - and why not, when its job is stuck (e.g. "Hunt - No game around.").
 
 **SpawnStarterCompanion** — Default: On  
 The first time you enter a world with a character, you're offered one companion for free.
@@ -119,12 +130,82 @@ How close (meters) a companion has to be to you to answer a recall (holding the 
 **SuperRecallHoldTime** — Default: 2 · Range: 0.5 – 10  
 Keep holding the command key this many seconds to recall every companion at any distance, including ones with Command switched off.
 
+**PassiveKey** — Default: `None`  
+Sets the Passive stance. Looking at one of your companions: just that one; otherwise every companion within RecallRange that has Command on. None = no key.
+
+**BalancedKey** — Default: `None`  
+Sets the Balanced stance, like PassiveKey.
+
+**RangedKey** — Default: `None`  
+Sets the Ranged stance, like PassiveKey.
+
+**MeleeKey** — Default: `None`  
+Sets the Melee stance, like PassiveKey.
+
+## Controller
+
+
+
+**Command** — Default: `Y`  
+Controller command button: tap while looking at something to send your companions to it, hold to call them to you. None = off. Use and Alt follow the game's controller layout (Alt is the game's own modifier - your block button); the rest are fixed buttons.
+
+**CommandModifier** — Default: `Alt`  
+Held with Command. Held while pressing the button. While it's held, that button's press is for the companions only (the game doesn't see it); on its own the button works as normal. None = the button alone.
+
+**Wheel** — Default: `X`  
+Controller button for a companion's command wheel, while looking at it. None = off. Use and Alt follow the game's controller layout (Alt is the game's own modifier - your block button); the rest are fixed buttons.
+
+**WheelModifier** — Default: `Alt`  
+Held with Wheel. Held while pressing the button. While it's held, that button's press is for the companions only (the game doesn't see it); on its own the button works as normal. None = the button alone.
+
+**Settings** — Default: `None`  
+Controller button for this settings panel. None = off. Use and Alt follow the game's controller layout (Alt is the game's own modifier - your block button); the rest are fixed buttons.
+
+**SettingsModifier** — Default: `None`  
+Held with Settings. Held while pressing the button. While it's held, that button's press is for the companions only (the game doesn't see it); on its own the button works as normal. None = the button alone.
+
+**FarmZone** — Default: `None`  
+Controller button for the farm zone editor. None = off. Use and Alt follow the game's controller layout (Alt is the game's own modifier - your block button); the rest are fixed buttons.
+
+**FarmZoneModifier** — Default: `None`  
+Held with FarmZone. Held while pressing the button. While it's held, that button's press is for the companions only (the game doesn't see it); on its own the button works as normal. None = the button alone.
+
+**Passive** — Default: `None`  
+Controller button for the Passive stance (like PassiveKey). None = off. Use and Alt follow the game's controller layout (Alt is the game's own modifier - your block button); the rest are fixed buttons.
+
+**PassiveModifier** — Default: `None`  
+Held with Passive. Held while pressing the button. While it's held, that button's press is for the companions only (the game doesn't see it); on its own the button works as normal. None = the button alone.
+
+**Balanced** — Default: `None`  
+Controller button for the Balanced stance. None = off. Use and Alt follow the game's controller layout (Alt is the game's own modifier - your block button); the rest are fixed buttons.
+
+**BalancedModifier** — Default: `None`  
+Held with Balanced. Held while pressing the button. While it's held, that button's press is for the companions only (the game doesn't see it); on its own the button works as normal. None = the button alone.
+
+**Ranged** — Default: `None`  
+Controller button for the Ranged stance. None = off. Use and Alt follow the game's controller layout (Alt is the game's own modifier - your block button); the rest are fixed buttons.
+
+**RangedModifier** — Default: `None`  
+Held with Ranged. Held while pressing the button. While it's held, that button's press is for the companions only (the game doesn't see it); on its own the button works as normal. None = the button alone.
+
+**Melee** — Default: `None`  
+Controller button for the Melee stance. None = off. Use and Alt follow the game's controller layout (Alt is the game's own modifier - your block button); the rest are fixed buttons.
+
+**MeleeModifier** — Default: `None`  
+Held with Melee. Held while pressing the button. While it's held, that button's press is for the companions only (the game doesn't see it); on its own the button works as normal. None = the button alone.
+
 ## Follow
 
 How companions follow you.
 
 **MaxDistance** — Default: 10 · Range: 4 – 30  
 How far a following companion lets you get before it moves to keep up. It picks its own spot within this range (beside, behind, sometimes ahead) and changes it now and then.
+
+**AutoBoard** — Default: On  
+When you're aboard a ship close by, a following companion gets on too, the way you would: it jumps aboard from a dock or the shore, uses the ship's ladder (swimming to it if it has the stamina), or follows your own steps aboard. If it can't, it waits on the shore. A companion that took a seat gets up again when you go ashore.
+
+**BoardRange** — Default: 20 · Range: 5 – 60  
+AutoBoard: how close (meters) the ship has to be for a following companion to board it on its own. The ship also has to be nearly still.
 
 **IndoorDistance** — Default: 4 · Range: 2 – 10  
 The same range while you're indoors (under a roof), so companions stay in the room with you.
@@ -137,6 +218,12 @@ Seconds you stand still before companions regroup around you (see Regroup).
 
 **SitIndoors** — Default: On  
 When you stop indoors, companions sit down near you: on a free chair or bench if there is one, otherwise on the floor. Near home they empty their bags first.
+
+**ChairRange** — Default: 8 · Range: 2 – 30  
+How far (meters) from you a companion looks for a free chair or bench to sit on when you stop indoors - one in sight of you, on your level. Only when there's none does it sit on the floor.
+
+**SitStayRange** — Default: 10 · Range: 2 – 30  
+Indoors, a companion that sat down stays seated while you move about within this many meters of it, and gets up to follow once you go further (or step outside).
 
 **TeleportDistance** — Default: 50 · Range: 20 – 200  
 A following companion that falls this many meters behind appears next to you: right away beyond 1.5x this distance, otherwise once it can't see you and isn't getting any closer.
@@ -221,6 +308,90 @@ A different weapon has to be this much better against the current enemy (0.1 = 1
 **ShieldMultiAttackerCount** — Default: 3 · Range: 1 – 10  
 When this many enemies attack a companion at once, it switches to its shield with the best block.
 
+**ParryChance** — Default: 0.3 · Range: 0 – 1  
+Chance (0.3 = 30%) that a companion with no Blocking skill times a block as a parry (more damage stopped, less stamina, and many attackers are staggered). It rises with Blocking skill up to ParryChanceMax. Shields without a parry bonus never parry.
+
+**ParryChanceMax** — Default: 0.7 · Range: 0 – 1  
+Chance (0.7 = 70%) that a companion times a block as a parry at Blocking skill 100.
+
+**FightLikePlayer** — Default: On  
+With a melee weapon, companions fight like a player: short combos when there's an opening, guarding in between, stepping out of swings, getting clear when several enemies are on them, and backing off to catch their breath when low on stamina. Off: the older way (one swing at a time on the weapon's timer).
+
+**ComboHits** — Default: 3 · Range: 1 – 5  
+Most swings in one combo. Companions follow their weapon's own combo (3 swings on melee weapons, the last doing double damage) up to this many; now and then one short, and shorter when stamina is low.
+
+**ComboPause** — Default: 0.5 · Range: 0.2 – 5  
+Seconds (roughly - it varies) between combos, guarding or stepping back out of reach.
+
+**StaminaReserve** — Default: 0.3 · Range: 0 – 0.9  
+Share of its stamina (0.3 = 30%) a companion keeps for blocking. A combo is only started above it and may dip to half of it; below it, the companion backs out of reach to get its breath back.
+
+**StaminaResume** — Default: 0.5 · Range: 0 – 1  
+Share of its stamina (0.5 = 50%) it waits for before going back in after backing off.
+
+**BackOffTime** — Default: 8 · Range: 2 – 30  
+Seconds a companion keeps trying to back off from an enemy that stays on it before it fights on with what stamina it has.
+
+**StepAwayChance** — Default: 0.3 · Range: 0 – 1  
+Chance (0.3 = 30%) a companion steps back or aside out of an enemy's swing instead of blocking it, when there's room and it can get out of reach in time. Doubled when it's low on stamina.
+
+**GroupSize** — Default: 2 · Range: 2 – 10  
+With this many enemies close enough to hit a companion, from different sides, it gets clear first - moves for a couple of seconds until they're all on one side - then fights from there.
+
+**GroupRange** — Default: 6 · Range: 2 – 20  
+How close (meters) an enemy has to be to count as one of the group on a companion.
+
+**FlankAngle** — Default: 100 · Range: 30 – 180  
+Two enemies more than this many degrees apart, seen from the companion, count as on different sides.
+
+**BowAimTurnSpeed** — Default: 600 · Range: 100 – 1440  
+Bows: how fast a companion turns to keep its aim on the target while the bow is drawn (degrees per second), like you swinging the camera round. Movement > TurnSpeed is used the rest of the time.
+
+**BowMinDraw** — Default: 0.5 · Range: 0.1 – 1  
+Bows: the least a companion draws before letting go (0.5 = half drawn). A partial draw is quicker and cheaper but does less damage and spreads more, like yours. It takes a partial draw when the target is close enough that the spread still hits it, when it's low on stamina (below StaminaReserve), or when the target is rushing in; otherwise it draws fully.
+
+**IndoorAggroOnly** — Default: On  
+Indoors - in a dungeon, mine or cave, or under a roof - a companion only fights enemies that are actually coming for you or it (alerted), as if EngageOnNotice were off. Outdoors EngageOnNotice decides.
+
+**DungeonDefensive** — Default: On  
+In a dungeon, mine or cave a companion fights defensively: it stays with you and fights what comes within DefendRange of you (and anything hitting it), instead of running off after enemies further down the corridor.
+
+**DefendRange** — Default: 8 · Range: 3 – 30  
+Fighting defensively (DungeonDefensive): enemies within this many meters of you are fought; further off they're left to come to you.
+
+**OrderHoldTime** — Default: 10 · Range: 0 – 60  
+After you recall a companion or send it somewhere, it leaves its fight and starts no new one for this many seconds - it still fights back against something hitting it up close. Companions only ever fight enemies they can see (not ones behind walls or closed doors), and only open a door to get at one when you order the attack.
+
+**LeashFromYou** — Default: 35 · Range: 10 – 60  
+A companion lets an enemy go once it is further than this many meters from you, and starts no fight with one that far from you - it comes back to you instead. An attack order, or something hitting it up close, still keeps the fight going.
+
+**GiveUpTime** — Default: 10 · Range: 3 – 60  
+An enemy a companion can't get at with its melee weapon (out in deep water, no way to walk there) and that isn't right on top of it is let go after this many seconds without being hurt, and left alone for 20 s - so it doesn't stay stuck on it.
+
+**BowEdgeMargin** — Default: 3 · Range: 0 – 10  
+Bows: a draw is only started this many meters inside the bow's 30 m reach, and a draw already started is kept while the target is up to twice this far past the reach (walking closer, not running), so a target at the edge doesn't cost the draw.
+
+**RangedMeleeRange** — Default: 4 · Range: 1 – 15  
+Ranged stance: the bow is out (also when not fighting); the melee weapon and shield only come out when an enemy gets within this many meters - or twice that while it's catching its breath - and go away again once it's past twice the distance.
+
+**BowFullDrawRange** — Default: 15 · Range: 3 – 50  
+Bows: from this many meters away a companion always draws fully - a weaker arrow is slower and drops short at range.
+
+**FinishHits** — Default: 2 · Range: 0 – 5  
+An enemy this many hits or fewer from dead (judged from its own hits so far) is finished off with all the stamina it takes, as long as nothing else is close enough to hit the companion afterwards. 0 = never spend the stamina kept back for blocking.
+
+**Spacing** — Default: On  
+One on one, a companion keeps just outside the enemy's reach, goes in for a combo when the enemy can't swing again in time, then steps back out - and steps out of swings at the edge of its reach rather than blocking them.
+
+**Flank** — Default: On  
+When an enemy is busy with you (or someone else), a companion works its way round behind it and attacks from there, out of its swings. (The game's backstab bonus only counts on enemies that haven't noticed anyone.)
+
+**SpacingMargin** — Default: 0.4 · Range: 0 – 2  
+How far (meters) outside the enemy's reach a companion waits when spacing.
+
+**SpacingStepChance** — Default: 0.6 · Range: 0 – 1  
+Chance (0.6 = 60%) that a spacing companion steps back out of a swing it's only just inside the reach of, instead of blocking it (the rest are blocks, some of them parries).
+
 **BowSwitchDistance** — Default: 15 · Range: 5 – 60  
 A companion with a bow or crossbow switches to it when its target is further away than this (meters).
 
@@ -239,6 +410,16 @@ Seconds before the same enemy can be opened on with a torch again.
 **TorchOpenerMinTargetHealth** — Default: 40 · Range: 0 – 500  
 No torch opener on enemies with less maximum health than this - not worth it.
 
+## Torch
+
+
+
+**BurnsDown** — Default: On  
+A torch in a companion's hand burns down like yours and is gone at 0 durability. Off: companions' torches last forever (the game itself only burns down players' torches).
+
+**DarkLevel** — Default: 0.4 · Range: 0 – 1  
+In a dungeon or cave, a companion lights a torch when the light there is below this (0 = pitch black, 1 = bright day). The log shows the light level each time you go into one ([Torch] lines), to tune this. Outdoors it's simply night.
+
 ## Food
 
 When companions drink meads.
@@ -248,6 +429,9 @@ A companion drinks a healing mead from its pack when its health drops below this
 
 **StaminaMeadThreshold** — Default: 0.25 · Range: 0.05 – 0.9  
 It drinks a stamina mead when its stamina drops below this share (0.25 = 25%).
+
+**EatAgainMinutes** — Default: 3 · Range: 0 – 30  
+A companion eats the same food again once it has this many minutes left, like a player topping up before it runs out (the game only allows that once a food is under half its time). It needs that food in its pack; otherwise it eats something else when the slot empties. 0 = wait until it runs out.
 
 **MeadCooldown** — Default: 10 · Range: 1 – 60  
 Seconds after drinking a mead before it drinks another.
@@ -265,8 +449,8 @@ Stamina used per second while running.
 **SneakDrainRate** — Default: 5 · Range: 1 – 30  
 Stamina used per second while sneaking.
 
-**SwimDrainRate** — Default: 10 · Range: 1 – 30  
-Stamina used per second while swimming.
+**SwimDrainAtSkill0** — Default: 5 · Range: 1 – 30  
+Stamina used per second while swimming (and moving), at Swim skill 0 - it drops to 40% of this at Swim 100, like the player (the game's rate is 5).
 
 **RegenDelay** — Default: 1 · Range: 0.1 – 5  
 Seconds after using stamina before it starts coming back.
@@ -312,11 +496,23 @@ Seconds after death before a companion comes back by itself.
 **RespawnAtWorldSpawn** — Default: Off  
 A companion that comes back by itself and has no claimed bed appears at the world spawn stones. Off = next to you.
 
+**RespawnAtPlayer** — Default: Off  
+A companion that comes back by itself always appears next to you, even when it has a bed (wins over RespawnAtWorldSpawn). Off = at its bed, and without one as RespawnAtWorldSpawn says.
+
 **DeathItemRule** — Default: 0 · Range: 0 – 3  
 What a companion loses when it dies. 0 = the world's death penalty setting, same as a player. 1 = keep everything. 2 = keep equipped gear, the rest goes in the tombstone. 3 = everything goes in the tombstone. The owner's setting is used even if another player's game handles the death.
 
 **TombstoneRecoveryRange** — Default: 50 · Range: 5 – 100  
 A companion walks over and empties its own leftover tombstone when it's within this many meters of it.
+
+**RespawnStance** — Default: `RecoverFirst` · Options: `RecoverFirst`, `Passive`, `Keep`  
+The stance a companion comes back in after it died. RecoverFirst: Passive, auto-pickup off, it gets its gear back from its tombstone when it's safe (fighting back only if attacked with a weapon in hand), puts it on, eats, then goes back to the stance it died with. Passive: Passive until you change it. Keep: the stance it died with. Setting a stance yourself always wins.
+
+**RecoverThreatRange** — Default: 15 · Range: 5 – 50  
+RecoverFirst: enemies within this many meters of the companion or its tombstone count when it decides whether it's safe to go for its gear.
+
+**RecoverMaxMobs** — Default: 3 · Range: 0 – 20  
+RecoverFirst: with more enemies than this busy fighting near its tombstone it waits by you instead of going for its gear.
 
 **ShrineBuildable** — Default: On  
 Odin's Shrine can be built with the hammer (Misc tab, needs a workbench). Use it to see your companions and bring back a lost one. Takes effect on the next world load; shrines already built keep working.
@@ -360,7 +556,7 @@ Repairing the companion's own weapons, armour and tools at a bench.
 A companion takes its gear to a crafting station to repair it when something drops below this share of durability (0.5 = 50%).
 
 **HomeThreshold** — Default: 0.8 · Range: 0.1 – 1  
-At home, where a workbench is close by, gear is repaired a bit sooner: below this share (0.8 = 80%). 1 = at any wear. Away from home DurabilityThreshold applies.
+At home (or, without a home set, inside a base - a workbench's area), gear is repaired a bit sooner: below this share (0.8 = 80%). 1 = at any wear. Away from home DurabilityThreshold applies.
 
 **NoStationWait** — Default: 600 · Range: 30 – 3600  
 When a worn item can't be repaired at any station within reach (say it needs a black forge and there isn't one nearby), or the way to the station failed, that item is left alone for this many seconds before it looks again.
@@ -380,6 +576,18 @@ Wood, Stone and Ore with Follow on: a tree or rock has to be within this many me
 
 **ForageFollowRange** — Default: 20 · Range: 3 – 60  
 Forage with Follow on: a plant has to be within this many meters of you - the berries you happen to walk past, not everything around. With nothing that close the companion just follows you. (With Follow off see Range.) Phase 3.3c: 20, was 10 - still short enough for Forage to stay "what you walked past", and not a sweep of the whole area.
+
+**FollowLogRange** — Default: 20 · Range: 5 – 60  
+Wood with Follow on: fallen logs and stumps count up to this many meters from you (further than FollowRange), so it finishes the trees it fells before starting a new one - a log can roll well away from where you stand.
+
+**RestStamina** — Default: 0.15 · Range: 0 – 0.9  
+Chopping and mining: swing after swing (the weapon's combo) until stamina would drop below this share of the maximum, then stop and get its breath back.
+
+**ResumeStamina** — Default: 0.6 · Range: 0.1 – 1  
+Chopping and mining: after stopping for breath, start swinging again once stamina is back to this share of the maximum.
+
+**PowerChopLogBelow** — Default: 0.3 · Range: -1 – 2  
+Wood: the power chop (the axe's downward swing) is used on stumps, and on a log only when its top is less than this many meters above the companion's feet - too low for the sideways swing. Everything else gets normal swings.
 
 **PickUpLoose** — Default: On  
 Wood and Stone jobs, early in the game only: also pick up what's lying on the ground by hand - branches (Wood job), loose stones and flint (Stone job) - as long as they're on GatherWood / GatherStone and under their amount. Early game = there's no bronze-or-better axe in the companion's pack, your pack or the chests near home, and no forge at home to make one. With no tool for the job (no axe for Wood, no pickaxe for Stone) picking things up is all it does.
@@ -521,6 +729,12 @@ The Farming job.
 
 **Range** — Default: 30 · Range: 5 – 100  
 How far (meters) around itself a farming companion looks for crops to pick, farm zones to plant and chests.
+
+**PlantTilledGround** — Default: On  
+Ground you've tilled with a cultivator (outside your farm zones) counts as an Any zone: a farming companion plants whatever seeds it has on it, on the tilled ground only. Off = it only plants in the farm zones you set.
+
+**UnreachableSpotMemory** — Default: 600 · Range: 30 – 3600  
+How long (seconds) a farmer leaves a planting spot alone after finding it can't walk there (e.g. tilled ground on the other side of a wall). It tries it again after this.
 
 **PlantSpacing** — Default: 0.75 · Range: 0.25 – 3  
 The least space (meters) between plants. A plant that needs more room to grow gets that instead.
@@ -766,6 +980,15 @@ Shortest time (seconds) between a companion's lines when nothing is happening. O
 **MaxInterval** — Default: 30 · Range: 10 – 300  
 Longest time (seconds) between a companion's lines when nothing is happening. Only used while Chatter is on.
 
+**Enabled** — Default: On  
+Companions say things at all (replies to your orders, what they're doing, problems, chatter). Off = silent.
+
+**FarAwayMessages** — Default: On  
+When a companion runs into a problem (needs a tool, can't get somewhere...) while you're out of earshot (further than CullDistance), it shows as a message in the top left corner with its name.
+
+**AnnounceDeath** — Default: On  
+When one of your companions dies, say so in the middle of the screen with where it happened (biome, how far from you), wherever you are.
+
 **Duration** — Default: 5 · Range: 1 – 15  
 Seconds a line of speech stays on screen.
 
@@ -787,9 +1010,6 @@ Gathering: how far (meters) around itself a companion looks for trees, rocks and
 
 **GatheringScanInterval** — Default: 4 · Range: 1 – 30  
 Gathering: seconds between looks for the next tree, rock or plant.
-
-**GatheringSwingInterval** — Default: 2.5 · Range: 0.5 – 5  
-Gathering: seconds between swings at a tree or rock.
 
 **GatheringDropRadius** — Default: 12 · Range: 2 – 20  
 Gathering: how far (meters) around a felled tree or broken rock the drops are picked up. Phase 3.3c: 12, was 8 - a tree can fall (or a rock spread out) further than 8 m, and the drops were being left behind.
@@ -830,6 +1050,12 @@ Combat: closer than this (meters, from the edge of the target) a companion steps
 **MeleeReachMargin** — Default: 0.2 · Range: 0 – 1  
 Combat: a companion swings a melee weapon only once it is at least this much (meters) inside the weapon's reach, not right at the edge of it, where hits are hit-or-miss.
 
+**BlockReactionTime** — Default: 0.2 · Range: 0 – 1  
+Combat: seconds between an enemy starting a swing at a companion and the companion raising its guard.
+
+**LogPlayerCombat** — Default: On  
+Testing, with LogLevel on Detailed: write your own fighting to the log (lines starting [You]) - swings, guard, blocks and parries, enemy swings at you and how far you were - to help tune how companions fight. Will be removed once combat is tuned.
+
 **FoodRegenInterval** — Default: 10 · Range: 1 – 60  
 Food: seconds between health regeneration ticks from food (a player's is 10).
 
@@ -838,6 +1064,9 @@ Food: seconds between checks whether a companion should eat or drink.
 
 **TombstoneScanInterval** — Default: 5 · Range: 1 – 30  
 Death: seconds between looks for its own leftover tombstone nearby.
+
+**LogLevel** — Default: `Normal` · Options: `Off`, `Normal`, `Detailed`  
+How much the mod writes to the BepInEx log. Off: warnings and errors only. Normal: the main events (orders, deaths, portals, jobs starting and stopping, problems). Detailed: everything the companions think and do, plus the diagnostics - turn this on when sending a log with a bug report. Lower levels cost nothing: the lines aren't even put together.
 
 **TombstoneNavTimeout** — Default: 120 · Range: 10 – 600  
 Death: seconds a companion keeps trying to get to its tombstone before giving up.

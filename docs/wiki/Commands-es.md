@@ -108,6 +108,28 @@ nada —, pero una forma de tratamiento sigue valiendo (`jefe, recoge 10 piedras
 > La recogida coge **incluso lo que él mismo soltó a propósito** — que es justo lo que el imán automático del juego
 > ignora. Se rinde si el objeto no cabe entero en la mochila o si está demasiado lejos.
 
+### Puertas, colmenas, barcos, hogueras y cofres
+
+| Tú dices | Qué hace |
+|---|---|
+| `cierra la puerta` / `abre la puerta` | Abre o cierra la **puerta** que está mirando |
+| `vacía la colmena` / `coge la miel` | Vacía la **colmena** y se queda con la miel |
+| `sube al barco` / `embarca` | Sube al **barco**, en el asiento que señales |
+| `siéntate junto al fuego` | Se sienta junto a la **hoguera** que está mirando |
+| `guarda esto en el cofre` / `guárdalo` | Guarda lo que lleva en el **cofre** |
+
+> El objetivo es el objeto que **estás mirando**, con el mismo rayo y las mismas capas que la tecla de comando. Sin
+> nada en la mira coge el más cercano a ti: **20 m** para una puerta o una colmena, **30 m** para un barco, **5 m**
+> para una hoguera o un cofre — nunca su propia mochila. La orden llega a **un** compañero: el que llamaste por su
+> nombre o el más cercano a ese objeto que pueda recibir órdenes.
+
+> Su respuesta dice qué pasó: "Cerrando la puerta.", "¡A bordo!", "Me siento junto al fuego.", "Guardando 12
+> objeto(s) en el cofre.". Una puerta **cerrada con llave** responde "Está cerrada con llave.", una colmena **vacía**
+> "Todavía no hay miel ahí." y un cofre **lleno** "No cabe nada más en ese cofre."; sin nada cerca dice que no ve.
+
+> La hoguera tiene que estar **encendida**, y el cofre tiene que ser uno de verdad y libre para usar: no una lápida,
+> un carro, la bodega de un barco, un cofre de mazmorra o uno dentro de un área protegida a la que no puede entrar.
+
 ### Inventario
 
 | Dices | Qué hace |

@@ -19,6 +19,11 @@ internal static class CompanionHitLog
 		{
 			return;
 		}
+		if (attacker == Player.m_localPlayer)
+		{
+			PlayerCombatLog.NoteHit(__instance, hit);
+			return;
+		}
 		CompanionCombatAI combat = attacker.GetComponent<CompanionCombatAI>();
 		if (combat != null)
 		{

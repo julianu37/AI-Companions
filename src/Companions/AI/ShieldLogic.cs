@@ -74,7 +74,7 @@ internal static class ShieldLogic
 				}
 			}
 			_lastCategory[instanceID] = text;
-			Log($"[Shield] -> {itemData4.m_shared.m_name} ({text}) hp={healthPercentage * 100f:F0}% alertedNearby={num3} (retreat<{RetreatPct() * 100f:F0}% or nearby>={MultiAttackerCount()})");
+			if (CompanionsPlugin.LogNormal) Log($"[Shield] -> {itemData4.m_shared.m_name} ({text}) hp={healthPercentage * 100f:F0}% alertedNearby={num3} (retreat<{RetreatPct() * 100f:F0}% or nearby>={MultiAttackerCount()})");
 			return itemData4;
 		}
 		catch (Exception)
@@ -88,7 +88,7 @@ internal static class ShieldLogic
 		if (_logs < 60)
 		{
 			_logs++;
-			CompanionsPlugin.Log?.LogInfo(s);
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log?.LogInfo(s);
 		}
 	}
 

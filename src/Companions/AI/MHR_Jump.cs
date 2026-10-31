@@ -93,7 +93,7 @@ namespace Companions
                 if (nv == null || !nv.IsOwner()) return;
                 st.UseStamina(MHR_Jump.Cost(__instance));
             }
-            catch (Exception e) { if (CompanionsPlugin.Log != null) CompanionsPlugin.Log.LogDebug("[Jump] " + e.Message); }
+            catch (Exception e) { if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Jump] " + e.Message); }
         }
     }
 }

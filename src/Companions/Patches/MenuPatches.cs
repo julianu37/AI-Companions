@@ -47,7 +47,7 @@ internal static class MenuPatches
 				}
 			});
 		}
-		CompanionsPlugin.Log.LogDebug("[MenuPatches] Injected 'Mod Options' button into pause menu");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[MenuPatches] Injected 'Mod Options' button into pause menu");
 	}
 
 	[HarmonyPatch(typeof(Menu), "UpdateNavigation")]

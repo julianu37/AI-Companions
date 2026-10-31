@@ -143,6 +143,18 @@ internal static class CompanionOrders
 			CompanionsPlugin.Log?.LogInfo($"[IA] O modelo devolveu \"{action}\" mas o jogador pediu para {(byWords == PickupIntent.DropAction ? "largar" : "recolher")} - usei \"{byWords}\".");
 			action = byWords;
 		}
+		// Fase 2.0 (audit fix): the five interaction orders had no net of their own, and their neighbours are the
+		// actions a small model actually picks - "fecha a porta" comes back as "inventory_close" (that verb is an
+		// alias of the window and the schema's enum only lets the model answer canonical values, so the action can
+		// never name the door) and "guarda isso no baú" as "drop". The player's own words decide, exactly like the
+		// nets above; the tables live in InteractionIntent. One call per message; without a trigger nothing changes.
+		string byInteractionReason = null;
+		string byInteraction = InteractionIntent.Correct(action, userText, out byInteractionReason);
+		if (byInteraction != null)
+		{
+			CompanionsPlugin.Log?.LogInfo($"[IA] O modelo devolveu \"{action}\" mas o jogador pediu para {byInteractionReason} - usei \"{byInteraction}\".");
+			action = byInteraction;
+		}
 		// Fase M3 (bug do teste em francês): "maria ramasse 10 bois" voltou do modelo como "pickup" ("Je prends les
 		// bois.") e o companheiro foi catar item no chão em vez de cortar madeira - a causa era o contrato do prompt,
 		// que só existia em PT-BR (ver CompanionChatAI.Contract, agora por idioma). Esta é a rede de segurança: quando
@@ -246,6 +258,14 @@ internal static class CompanionOrders
 		if (action == "inventory_close")
 		{
 			return CloseInventory(outcome);
+		}
+
+		// Fase 2.0: the five orders that reuse an interaction the command key already does (empty the beehive, toggle
+		// a door, board a ship, sit by a fire, put the pack away in a chest). They reach ONE companion, like attack and
+		// equip, and answer with their own line - the target is what the player is looking at, or the nearest one.
+		if (IsInteraction(action))
+		{
+			return Interaction(action, outcome, addressee);
 		}
 
 		foreach (CompanionSetup companion2 in CompanionSetup.AllCompanions)
@@ -606,6 +626,84 @@ internal static class CompanionOrders
 		return outcome;
 	}
 
+	// ---- Fase 2.0: the interaction orders (chat and voice) ----
+
+	/// <summary>The five actions that reuse an interaction of the command key (see
+	/// <see cref="CompanionInteract.OrderHive"/> and the other Order* wrappers).</summary>
+	private static bool IsInteraction(string action)
+	{
+		switch (action)
+		{
+		case "hive":
+		case "door":
+		case "board":
+		case "sit":
+		case "deposit":
+			return true;
+		default:
+			return false;
+		}
+	}
+
+	/// <summary>
+	/// "esvazia a colmeia", "fecha a porta", "embarca", "senta", "guarda isso no baú": each one is the interaction the
+	/// command key already does, so the whole job here is picking the ONE companion (the addressee, or the nearest
+	/// one that can take an order - the same gate attack/equip use) and turning the answer of
+	/// <see cref="CompanionInteract"/> into the chat line and the bubble. The interaction itself, the target
+	/// resolution and the "nothing nearby / locked / full" cases belong to <see cref="CompanionInteract"/>.
+	///
+	/// <para>A call that found nothing to act on answers with its own line (<c>hc_ai_*_none</c>,
+	/// <c>hc_cmd_door_locked</c>, <c>hc_cmd_hive_empty</c>, <c>hc_ai_deposit_full</c>); a call with a target and no
+	/// companion to take it leaves the answer to the caller ("no companion answered"), which is what the generic
+	/// path of <see cref="Run"/> already says.</para>
+	/// </summary>
+	private static OrderOutcome Interaction(string action, OrderOutcome outcome, CompanionSetup addressee)
+	{
+		CompanionInteract.DirectOrderReport report;
+		switch (action)
+		{
+		case "hive":
+			report = CompanionInteract.OrderHive(addressee);
+			break;
+		case "door":
+			report = CompanionInteract.OrderDoor(addressee);
+			break;
+		case "board":
+			report = CompanionInteract.OrderBoard(addressee);
+			break;
+		case "sit":
+			report = CompanionInteract.OrderSit(addressee);
+			break;
+		default:
+			report = CompanionInteract.OrderDeposit(addressee);
+			break;
+		}
+		if (!string.IsNullOrEmpty(report.Key))
+		{
+			outcome.Message = report.Amount > 0
+				? ModLocalization.LocFmt(report.Key, report.Amount)
+				: ModLocalization.Loc(report.Key);
+		}
+		if (report.Companion == null)
+		{
+			CompanionsPlugin.Log?.LogInfo($"[IA] Order \"{action}\": "
+				+ (string.IsNullOrEmpty(outcome.Message) ? "no companion took it (out of range or Command off)" : $"nothing to act on - \"{outcome.Message}\""));
+			return outcome;
+		}
+		outcome.Count = 1;
+		if (!string.IsNullOrEmpty(outcome.Message))
+		{
+			CompanionTalk talk = report.Companion.GetComponent<CompanionTalk>();
+			if (talk != null)
+			{
+				// Fase 3.17: the AI path already speaks this line (SpeakOutLoud) - only the bubble here
+				talk.Say(outcome.Message, true, withVoice: false);
+			}
+		}
+		CompanionsPlugin.Log?.LogInfo($"[IA] Order \"{action}\" -> {NameOf(report.Companion)} (\"{outcome.Message}\")");
+		return outcome;
+	}
+
 	/// <summary>Fase 3.8: can this companion still be handed an order? (still ours, still there). Read without taking
 	/// it over, exactly like the speaker pick does.</summary>
 	private static bool IsUsable(CompanionSetup companion)
@@ -681,6 +779,79 @@ internal static class CompanionOrders
 	private static readonly HashSet<string> CloseWords = new HashSet<string>(StringComparer.Ordinal)
 	{
 		"fecha", "fechar", "feche", "fechem", "esconde", "esconder", "esconda", "close"
+	};
+
+	// ---- Fase 2.0 (audit fix): the door, when the model answered "inventory" ----
+
+	/// <summary>
+	/// Fase 2.0 (audit fix): does the player's OWN message ask for a DOOR? "fecha a porta" is filed by the model as
+	/// <c>inventory_close</c> - "fecha" is an alias of that action, and with the structured output on (the default)
+	/// the JSON schema's enum only lets the model answer canonical values, so <see cref="LlmIntent"/>'s door rule
+	/// (which reads the action WORD, see <c>IsDoorWord</c>) can never see the door there. The player's words are what
+	/// is left, and they are unambiguous.
+	///
+	/// <para>Deliberately narrow, in the mold of <see cref="IsInventoryRequest"/> but the other way around: a word for
+	/// the door AND a verb of opening or closing, and <b>no</b> word for the pack - "abre o teu inventário e fecha a
+	/// porta" belongs to the inventory order, and "o que tem no inventário?" carries no door word at all. A question
+	/// (<c>?</c>) is never an order.</para>
+	/// </summary>
+	internal static bool IsDoorRequest(string message)
+	{
+		if (string.IsNullOrEmpty(message) || message.IndexOf('?') >= 0)
+		{
+			return false;
+		}
+		string text = LlmIntent.Normalize(message);
+		if (text.Length == 0)
+		{
+			return false;
+		}
+		bool door = false;
+		bool verb = false;
+		bool pack = false;
+		string[] words = text.Split('_');
+		for (int i = 0; i < words.Length; i++)
+		{
+			string word = words[i];
+			if (DoorWords.Contains(word))
+			{
+				door = true;
+				continue;
+			}
+			if (PackWords.Contains(word))
+			{
+				pack = true;
+				continue;
+			}
+			if (DoorVerbs.Contains(word))
+			{
+				verb = true;
+			}
+		}
+		return door && verb && !pack;
+	}
+
+	/// <summary>The words that name a door, in the five languages of the game. Matched as whole words, so
+	/// "transportar" or "importante" can never be read as a door.</summary>
+	private static readonly HashSet<string> DoorWords = new HashSet<string>(StringComparer.Ordinal)
+	{
+		"porta", "portas", "portao", "portoes", "puerta", "puertas", "porte", "portes", "door", "doors"
+	};
+
+	/// <summary>The verbs of opening or closing a door, in the five languages of the game (only the imperative and the
+	/// infinitive: the past tense of "quem fechou a porta?" is a question about the door, not an order).</summary>
+	private static readonly HashSet<string> DoorVerbs = new HashSet<string>(StringComparer.Ordinal)
+	{
+		// pt
+		"abre", "abrir", "abra", "abram", "abrem", "fecha", "fechar", "feche", "fechem", "fecham",
+		// en
+		"open", "opens", "close", "closes", "shut",
+		// es
+		"cierra", "cerrar", "cierre", "cierren",
+		// fr
+		"ouvre", "ouvrir", "ouvrez", "ferme", "fermer", "fermez",
+		// it
+		"apri", "aprire", "apra", "chiudi", "chiudere", "chiuda"
 	};
 
 	// ---- Fase 3.6b: what to act on when the model named nothing ----

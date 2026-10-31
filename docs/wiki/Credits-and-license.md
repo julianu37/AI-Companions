@@ -29,8 +29,8 @@ same actions.
 
 What the **AI Companions** project adds:
 
-1. **The localization in five languages** — Portuguese (Brazil), English, Spanish, French and Italian: 737 interface
-   keys and 186 companion lines per language, audited (no English text visible to a player of those languages), with
+1. **The localization in five languages** — Portuguese (Brazil), English, Spanish, French and Italian: 914 interface
+   keys and 221 companion lines per language, audited (no English text visible to a player of those languages), with
    **English as the native language**.
 2. **The AI layer:**
    - Orders in **natural language** by **text in the chat** and by **voice** (push-to-talk + local STT).

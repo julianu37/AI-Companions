@@ -326,13 +326,17 @@ public partial class CookController : MonoBehaviour
 		_scanTimer = ScanInterval;
 		CookCatalog.Ensure();
 		Scan();
+		_whys.Clear();
+		_foodWanted = false;
+		_foodShortSaid = false;
 		Task task = PickTask();
 		if (task == null)
 		{
+			ShowWhy();
 			if (!_allDoneNotified)
 			{
 				_allDoneNotified = true;
-				Log("Nothing to cook right now");
+				if (CompanionsPlugin.LogNormal) Log("Nothing to cook right now");
 				RestoreFollow();
 			}
 			_scanTimer = 10f;
@@ -491,14 +495,21 @@ public partial class CookController : MonoBehaviour
 			{
 				continue;
 			}
+			_foodWanted = true;
 			// a prep-table item needs a cooking station in range that finishes it
 			if (final != output && FindCooker(output, needFree: false) == null)
 			{
 				continue;
 			}
 			CraftingStation station = FindStation(recipe);
-			if (station == null || !IngredientsOk(recipe))
+			if (station == null)
 			{
+				continue;
+			}
+			if (!IngredientsOk(recipe))
+			{
+				// 1.5.43: which ingredient it's short of, for the status ("Ooze 0/22 for Muckshake.")
+				FoodShort(recipe, final);
 				continue;
 			}
 			best = CraftTask(recipe, station, final, target - stock);
@@ -531,6 +542,10 @@ public partial class CookController : MonoBehaviour
 				}
 				int room = CookCatalog.Target(to, FoodTarget) - Count(to);
 				int have = Usable(from);
+				if (room > 0)
+				{
+					_foodWanted = true;
+				}
 				int n = Mathf.Min(Mathf.Min(CountSlots(cooker, -1), Batch), Mathf.Min(room, have));
 				if (n <= 0)
 				{
@@ -574,7 +589,7 @@ public partial class CookController : MonoBehaviour
 		if (!_brewWhy.TryGetValue(mead, out var value) || value != why)
 		{
 			_brewWhy[mead] = why;
-			Log("Mead base " + Name(mead) + ": " + why);
+			if (CompanionsPlugin.LogNormal) Log("Mead base " + Name(mead) + ": " + why);
 		}
 	}
 
@@ -619,9 +634,10 @@ public partial class CookController : MonoBehaviour
 			if (station == null)
 			{
 				BrewWhy(mead, "no usable " + Loc(recipe.m_craftingStation?.m_name) + " in range (needs the right level, a fire and a roof)");
+				AddWhy(true, "hc_why_cook_no_station", Loc(recipe.m_craftingStation?.m_name));
 				continue;
 			}
-			string shortOf = ShortIngredient(recipe);
+			string shortOf = ShortIngredient(recipe, mead);
 			if (shortOf != null)
 			{
 				BrewWhy(mead, shortOf);
@@ -633,8 +649,133 @@ public partial class CookController : MonoBehaviour
 		return null;
 	}
 
-	// the first ingredient that would go below the reserve, as a sentence for the log
-	private string ShortIngredient(Recipe recipe)
+	// 1.5.42: why it isn't cooking or brewing, for the status and the idle "why". User (log 4b94cbba): "It just reports the
+	// need for honey and nothing else. I took all the ingredients so there really is nothing to cook... It should rotate
+	// between missing details every so often." Every reason found in a scan is kept; one is shown per scan (10 s), in turn.
+	// Mead reasons show as "Mead", food ones as "Cook".
+	private class Why
+	{
+		public bool Mead;
+
+		public string Key;
+
+		public object[] Args;
+	}
+
+	private readonly List<Why> _whys = new List<Why>();
+
+	// some food is under its target (FoodTask): nothing cooked means the ingredients are missing, not that it's stocked up
+	private bool _foodWanted;
+
+	private bool _foodShortSaid;
+
+	private const int MaxWhys = 8;
+
+	private void AddWhy(bool mead, string key, params object[] args)
+	{
+		if (_whys.Count >= MaxWhys)
+		{
+			return;
+		}
+		foreach (Why w in _whys)
+		{
+			if (w.Key == key && w.Mead == mead && string.Join("|", w.Args) == string.Join("|", args))
+			{
+				return;
+			}
+		}
+		_whys.Add(new Why { Mead = mead, Key = key, Args = args });
+	}
+
+	private void ShowWhy()
+	{
+		// food last: the mead shortfalls are the specific ones
+		bool mead = ModConfig.CookMakeMead == null || ModConfig.CookMakeMead.Value;
+		AddFoodWhy();
+		if (_whys.Count == 0)
+		{
+			CompanionStatus.Why(this, "hc_why_cook_nothing");
+			return;
+		}
+		List<CompanionStatus.Item> items = new List<CompanionStatus.Item>();
+		foreach (Why w in _whys)
+		{
+			items.Add(new CompanionStatus.Item(ModLocalization.Loc(w.Mead && mead ? "hc_status_job_mead" : "hc_status_job_cook"), w.Key, w.Args));
+		}
+		CompanionStatus.WhyRotate(this, items);
+	}
+
+	// 1.5.43 (phase 3): the status says what it's doing; mead work shows as "Mead"
+	private void ShowDoing(Task t)
+	{
+		string label = null;
+		string key = null;
+		string what = "";
+		switch (t.Kind)
+		{
+		case TaskKind.Craft:
+		{
+			string output = t.Recipe?.m_item?.gameObject.name;
+			bool meadBase = output != null && CookCatalog.IsMeadBase(output);
+			label = meadBase ? ModLocalization.Loc("hc_status_job_mead") : null;
+			key = "hc_doing_cook_make";
+			what = Name(output);
+			break;
+		}
+		case TaskKind.Grill:
+			key = "hc_doing_cook_make";
+			what = Name(t.Final ?? t.Item);
+			break;
+		case TaskKind.Rescue:
+			key = "hc_doing_cook_rescue";
+			what = Loc(t.Cooker?.m_name);
+			break;
+		case TaskKind.Fill:
+			label = ModLocalization.Loc("hc_status_job_mead");
+			key = "hc_doing_mead_fill";
+			what = Name(t.Item);
+			break;
+		case TaskKind.Tap:
+			label = ModLocalization.Loc("hc_status_job_mead");
+			key = "hc_doing_mead_tap";
+			break;
+		case TaskKind.Store:
+			key = "hc_doing_cook_store";
+			what = Name(t.Item);
+			break;
+		case TaskKind.Hive:
+			key = "hc_doing_upkeep_honey";
+			break;
+		case TaskKind.Stoke:
+			key = "hc_doing_upkeep_fuel";
+			what = Loc(t.Fire != null ? t.Fire.m_name : t.Cooker?.m_name);
+			break;
+		case TaskKind.Pile:
+			key = "hc_doing_take_pile";
+			what = Loc(t.Pile?.m_name);
+			break;
+		}
+		if (key != null)
+		{
+			CompanionStatus.DoingAs(this, label, key, what);
+		}
+	}
+
+	private void AddFoodWhy()
+	{
+		// a food it wanted was short of an ingredient: that's said already (hc_why_cook_food_short)
+		if (_foodShortSaid)
+		{
+			return;
+		}
+		if (_whys.Count >= MaxWhys)
+		{
+			_whys.RemoveAt(_whys.Count - 1);
+		}
+		_whys.Add(new Why { Mead = false, Key = _foodWanted ? "hc_why_cook_no_food" : "hc_why_cook_stocked", Args = new object[0] });
+	}
+
+	private void FoodShort(Recipe recipe, string final)
 	{
 		foreach (Piece.Requirement req in recipe.m_resources)
 		{
@@ -645,10 +786,40 @@ public partial class CookController : MonoBehaviour
 			string item = req.m_resItem.gameObject.name;
 			if (Usable(item) < req.GetAmount(1))
 			{
-				return CookCatalog.IsMade(item) ? $"needs {req.GetAmount(1)} {Name(item)}, {Count(item)} in reach" : $"needs {req.GetAmount(1)} {Name(item)}, {Count(item)} in reach and {Reserve} are kept back";
+				bool made = CookCatalog.IsMade(item);
+				AddWhy(false, "hc_why_mead_short", Name(item), Count(item), req.GetAmount(1) + (made ? 0 : Reserve), Name(final));
+				_foodShortSaid = true;
+				return;
 			}
 		}
-		return null;
+	}
+
+	// every ingredient that would go below the reserve: a reason each ("Honey 0/30 for Frost resistance mead" - the 30 is
+	// the recipe's 10 plus the 20 kept back, [Cooking] IngredientReserve); the first as a sentence for the log
+	private string ShortIngredient(Recipe recipe, string mead)
+	{
+		string first = null;
+		string finished = CookCatalog.MeadOf(mead);
+		string what = Name(finished ?? mead);
+		foreach (Piece.Requirement req in recipe.m_resources)
+		{
+			if (req?.m_resItem == null || req.GetAmount(1) <= 0)
+			{
+				continue;
+			}
+			string item = req.m_resItem.gameObject.name;
+			if (Usable(item) < req.GetAmount(1))
+			{
+				bool made = CookCatalog.IsMade(item);
+				int need = req.GetAmount(1) + (made ? 0 : Reserve);
+				AddWhy(true, "hc_why_mead_short", Name(item), Count(item), need, what);
+				if (first == null)
+				{
+					first = made ? $"needs {req.GetAmount(1)} {Name(item)}, {Count(item)} in reach" : $"needs {req.GetAmount(1)} {Name(item)}, {Count(item)} in reach and {Reserve} are kept back";
+				}
+			}
+		}
+		return first;
 	}
 
 	private Task FillTask()
@@ -771,7 +942,8 @@ public partial class CookController : MonoBehaviour
 		{
 			Claim(task.Fermenter);
 		}
-		Log("Going to " + task.Describe());
+		if (CompanionsPlugin.LogNormal) Log("Going to " + task.Describe());
+		ShowDoing(task);
 		Say(task.Kind);
 		if (task.Kind == TaskKind.Pile)
 		{
@@ -851,7 +1023,7 @@ public partial class CookController : MonoBehaviour
 			}
 			taken++;
 		}
-		Log($"Took {taken}x {Name(item)}");
+		if (CompanionsPlugin.LogNormal) Log($"Took {taken}x {Name(item)}");
 		CloseChest();
 		if (taken == 0)
 		{
@@ -921,7 +1093,7 @@ public partial class CookController : MonoBehaviour
 				// 1.4.152: honey already lying there is someone else's
 				_honeySkip.UnionWith(MHR_Chests.DropsNear(_task.Hive.m_spawnPoint != null ? _task.Hive.m_spawnPoint.position : _task.Hive.transform.position, 4f));
 				_task.Hive.GetComponent<ZNetView>()?.InvokeRPC("RPC_Extract");
-				Log($"Collected {honey}x {Name("Honey")} from the beehive");
+				if (CompanionsPlugin.LogNormal) Log($"Collected {honey}x {Name("Honey")} from the beehive");
 			}
 			Enter(CookPhase.CollectingDrops);
 			break;
@@ -981,11 +1153,11 @@ public partial class CookController : MonoBehaviour
 					drop.m_itemData.m_stack = amount;
 				}
 			}
-			Log("Bag full - dropped " + Name(output));
+			if (CompanionsPlugin.LogNormal) Log("Bag full - dropped " + Name(output));
 		}
 		AddLedger(output, amount);
 		station.m_craftItemDoneEffects?.Create(station.transform.position, Quaternion.identity);
-		Log($"Made {amount}x {Name(output)} at the {Loc(station.m_name)}");
+		if (CompanionsPlugin.LogNormal) Log($"Made {amount}x {Name(output)} at the {Loc(station.m_name)}");
 		// the rest of the batch
 		_task.Count--;
 		if (_task.Count > 0 && CanCraftAgain(recipe))
@@ -1040,7 +1212,7 @@ public partial class CookController : MonoBehaviour
 			}
 			if (added > 0)
 			{
-				Log($"Added {added}x {Name(fuel)} to the {Loc(cooker.m_name)}");
+				if (CompanionsPlugin.LogNormal) Log($"Added {added}x {Name(fuel)} to the {Loc(cooker.m_name)}");
 			}
 		}
 		int put = 0;
@@ -1051,7 +1223,7 @@ public partial class CookController : MonoBehaviour
 			put++;
 		}
 		_zanim?.SetTrigger("interact");
-		Log($"Put {put}x {Name(_task.Item)} on the {Loc(cooker.m_name)}");
+		if (CompanionsPlugin.LogNormal) Log($"Put {put}x {Name(_task.Item)} on the {Loc(cooker.m_name)}");
 	}
 
 	// stand by the station, take each item off when it's done (before it burns), pick it up
@@ -1086,7 +1258,7 @@ public partial class CookController : MonoBehaviour
 			if (Time.time >= _nextWatchLog)
 			{
 				_nextWatchLog = Time.time + 20f;
-				Log("Waiting for the " + Loc(cooker.m_name) + " (" + CountCooking(cooker, _task.Item) + " cooking)");
+				if (CompanionsPlugin.LogNormal) Log("Waiting for the " + Loc(cooker.m_name) + " (" + CountCooking(cooker, _task.Item) + " cooking)");
 			}
 			return;
 		}
@@ -1118,7 +1290,7 @@ public partial class CookController : MonoBehaviour
 				// user: "It never succeeded. The fermenter is still empty.")
 				nv?.InvokeRPC("RPC_AddItem", _task.Item.GetStableHashCode(), false);
 				TakeFromLedger(_task.Item, 1);
-				Log("Put " + Name(_task.Item) + " in the fermenter");
+				if (CompanionsPlugin.LogNormal) Log("Put " + Name(_task.Item) + " in the fermenter");
 			}
 			Finish();
 			return;
@@ -1126,7 +1298,7 @@ public partial class CookController : MonoBehaviour
 		if (FermenterState(fermenter) == 2)
 		{
 			nv?.InvokeRPC("RPC_Tap");
-			Log("Tapped the fermenter");
+			if (CompanionsPlugin.LogNormal) Log("Tapped the fermenter");
 		}
 		Enter(CookPhase.CollectingDrops);
 	}
@@ -1170,12 +1342,12 @@ public partial class CookController : MonoBehaviour
 		if (have > _honeyHave)
 		{
 			AddLedger(_hiveDrop, have - _honeyHave);
-			Log($"Picked up {have - _honeyHave}x {Name(_hiveDrop)}");
+			if (CompanionsPlugin.LogNormal) Log($"Picked up {have - _honeyHave}x {Name(_hiveDrop)}");
 		}
 		_honeyHave = have;
 		if (_timer > 30f)
 		{
-			Log("Leaving the rest of the honey - took too long to get to it");
+			if (CompanionsPlugin.LogNormal) Log("Leaving the rest of the honey - took too long to get to it");
 			EndHoney();
 			return;
 		}
@@ -1188,7 +1360,7 @@ public partial class CookController : MonoBehaviour
 			}
 			else if (Time.time - _honeyTargetSince > 10f || (_ai != null && MHR_Mover.GaveUp(_ai)))
 			{
-				Log($"Can't get to the honey at {_honeyTarget.transform.position:F1} - leaving it");
+				if (CompanionsPlugin.LogNormal) Log($"Can't get to the honey at {_honeyTarget.transform.position:F1} - leaving it");
 				_honeySkip.Add(_honeyTarget.GetInstanceID());
 				_honeyTarget = null;
 				if (_ai != null)
@@ -1330,7 +1502,7 @@ public partial class CookController : MonoBehaviour
 			{
 				TakeFromLedger(item, moved);
 				stored += moved;
-				Log($"Put away {moved}x {Name(item)}");
+				if (CompanionsPlugin.LogNormal) Log($"Put away {moved}x {Name(item)}");
 			}
 		}
 		CloseChest();
@@ -1436,7 +1608,7 @@ public partial class CookController : MonoBehaviour
 			if (!_hasApproach && !MHR_Chests.CanReach(base.transform.position, chest))
 			{
 				_unreachable.Add(chest.GetInstanceID());
-				Log($"Skipping chest at {chest.transform.position:F1} - can't get within reach of it");
+				if (CompanionsPlugin.LogNormal) Log($"Skipping chest at {chest.transform.position:F1} - can't get within reach of it");
 				Abort("chest out of reach");
 				return false;
 			}
@@ -1538,7 +1710,7 @@ public partial class CookController : MonoBehaviour
 				return chest2;
 			}
 			_unreachable.Add(chest2.GetInstanceID());
-			Log($"Skipping chest at {chest2.transform.position:F1} - can't get within reach of it");
+			if (CompanionsPlugin.LogNormal) Log($"Skipping chest at {chest2.transform.position:F1} - can't get within reach of it");
 		}
 		return null;
 	}
@@ -2019,7 +2191,7 @@ public partial class CookController : MonoBehaviour
 			{
 				AddLedger(text, stack);
 			}
-			Log($"Picked up {stack}x {Name(text)}");
+			if (CompanionsPlugin.LogNormal) Log($"Picked up {stack}x {Name(text)}");
 		}
 	}
 
@@ -2136,7 +2308,7 @@ public partial class CookController : MonoBehaviour
 
 	private void Abort(string reason)
 	{
-		Log("Stopped - " + reason + " (was " + (_task?.Describe() ?? "idle") + ")");
+		if (CompanionsPlugin.LogNormal) Log("Stopped - " + reason + " (was " + (_task?.Describe() ?? "idle") + ")");
 		if (_task != null && !string.IsNullOrEmpty(_task.Item) && reason != "interrupted" && reason != "mode changed")
 		{
 			_skipUntil[_task.Kind + ":" + _task.Item] = Time.time + 60f;
@@ -2188,7 +2360,7 @@ public partial class CookController : MonoBehaviour
 
 	private void Log(string msg)
 	{
-		CompanionsPlugin.Log.LogInfo("[Cook|" + (_character?.m_name ?? "?") + "] " + msg);
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Cook|" + (_character?.m_name ?? "?") + "] " + msg);
 	}
 
 	internal static string Name(string prefab)
@@ -2306,7 +2478,7 @@ internal static class CookCatalog
 				}
 			}
 			WriteReference();
-			CompanionsPlugin.Log.LogInfo($"[Cook] {Recipes.Count} recipes, {s_convTo.Count} cooking station items, {s_meadOf.Count} mead bases");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Cook] {Recipes.Count} recipes, {s_convTo.Count} cooking station items, {s_meadOf.Count} mead bases");
 		}
 		catch (Exception ex)
 		{
@@ -2458,7 +2630,7 @@ internal static class CookCatalog
 				}
 			}
 		}
-		CompanionsPlugin.Log.LogInfo("[Cook] Mead priority (" + (stage ?? "no entry") + "): " + ((s_focus.Count > 0) ? string.Join(", ", s_focus) : "none"));
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Cook] Mead priority (" + (stage ?? "no entry") + "): " + ((s_focus.Count > 0) ? string.Join(", ", s_focus) : "none"));
 		return s_focus;
 	}
 

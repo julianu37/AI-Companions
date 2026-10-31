@@ -60,13 +60,19 @@ config é **`BepInEx\config\AiCompanions.cfg`** (o GUID não dá mais nome a ele
   listar o Jotunn como requisito em release/README. (A skill `jotunn` da equipe continua no repositório como
   referência de framework, mas **não** se aplica a este mod.)
 - Target: **.NET Framework 4.7.2 (net472)**, C#.
-- Versão: **1.9.1** — **multilíngue (5 idiomas: PT-BR, EN, ES, FR, IT)** em 26/10/2026 (fonte única: `PluginVersion` em
-  `src/Companions/Core/CompanionsPlugin.cs`). A **1.9.1** só tira o `ggml-base-q5_1.bin` (57 MB, nunca usado) do
-  pacote: o zip completo caiu de **~368 MB para ~314 MB** (o "sem modelos" segue ~28,5 MB) e o texto do
-  `[AI] SttModel` passou a dizer que o `base` é **download opcional**. As releases saíram em sequência em 23–26/10
-  (`1.7.0` → `1.8.0` → `1.8.1` → `1.8.2` → `1.8.3` → `1.9.0` → `1.9.1`); a **1.7.1 foi pulada de propósito**
-  (pedido do jogador). As branches `feat/multi-companheiro`, `fix/peso-cinto`, `feat/llm-groq`, `feat/provedor-llm`
-  e `languages` foram mergeadas (`--no-ff`) e podem ser apagadas — a `main` é a linha de release.
+- Versão: **1.9.2** — **multilíngue (5 idiomas: PT-BR, EN, ES, FR, IT)** (fonte única: `PluginVersion` em
+  `src/Companions/Core/CompanionsPlugin.cs`). A **1.9.2** (branch `feat/ordens-interacao`, **mergeada na `main` e
+  publicada em 31/10/2026**, tag `v1.9.2`)
+  é a **sincronização com o upstream 1.5.4 → 1.5.8** (121 arquivos, +14.907/−2.600; **63 byte a byte idênticos**,
+  58 conflitos resolvidos à mão) **+ as 5 ordens de interação** por chat/voz (`hive`/`door`/`board`/`sit`/`deposit`,
+  `ValidActions` 30 → **35**). A auditoria das 7 frentes está em **`docs/audit-upstream-1.9.2.md`**: ela achou
+  **2 regressões altas** do merge (as zonas de plantio sumiam no túmulo e o F8 gravava o **primeiro** valor de
+  `LogLevel`/`PortalItems`/`RespawnStance`) e o que ficou adiado de propósito está listado lá. Histórico: as
+  releases saíram em sequência em 23–26/10 (`1.7.0` → `1.8.0` → `1.8.1` → `1.8.2` → `1.8.3` → `1.9.0` → `1.9.1`;
+  a **1.7.1 foi pulada de propósito**, pedido do jogador) e a **1.9.1** só tirou o `ggml-base-q5_1.bin` (57 MB) do
+  pacote (~368 MB → ~314 MB no zip completo). As branches `feat/multi-companheiro`, `fix/peso-cinto`,
+  `feat/llm-groq`, `feat/provedor-llm` e `languages` foram mergeadas (`--no-ff`) e podem ser apagadas — a `main` é
+  a linha de release.
 
 ## Caminhos desta máquina
 
@@ -269,7 +275,17 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
 - **Fase 3.4 — o companheiro FALA (TTS local, Kokoro-82M via sherpa-onnx):** o espelho do `WhisperStt`. Novo
   `AI/CompanionTts.cs`: o `OfflineTts` (NuGet **`org.k2fsa.sherpa.onnx`** 1.13.8, **Apache-2.0**, `netstandard2.0`
   → net472; nativos `sherpa-onnx-c-api.dll` + `onnxruntime.dll` do `...runtime.win-x64`) é carregado **uma vez**
-  (`TryGetTts`, lazy) e mantido; `Prewarm()` carrega em segundo plano quando você entra no mundo. A síntese roda
+  (`TryGetTts`, lazy) e mantido; `Prewarm()` carrega em segundo plano quando você entra no mundo. **1.9.2: até o
+  idioma mudar** — o `Lang` do Kokoro escolhe o **fonemizador** no load, então trocar o idioma do jogo (ou
+  `[AI] TtsLanguage`) com o mundo aberto deixava a voz `pf_dora` lendo português com fonemas ingleses (soava como
+  inglês; o log dizia `idioma pt-br` e mentia, porque `_loadedLanguage` não existia). Agora o worker compara
+  `Language` com `_loadedLanguage` antes de cada fala, **libera e recarrega** o modelo (só ele toca no nativo) e
+  **esvazia o cache** (`ClearCache`, as amostras eram do fonemizador antigo); `NoticeLanguageChange` (postfix do
+  `SetupLanguage` + `SettingChanged` do `[AI] TtsLanguage`) só levanta o flag e acorda a thread, então o postfix
+  continua sem tocar a camada de plataforma. Um código **fora dos 5 do mod** não recarrega nada (o modelo que
+  funciona fica, com um aviso): medido fora do jogo com o modelo empacotado, **`en-gb` e `fr-fr` carregam mas
+  `Generate` estoura `NullReferenceException`** — por isso a lista do F8 tem só `pt-br`/`en-us`/`es`/`fr`/`it`.
+  A síntese roda
   numa **thread de fundo dedicada** (`ModIA-CompanionTts`) alimentada por `ConcurrentQueue` + `SemaphoreSlim`
   (teto de 3 pedidos), e os pedaços prontos voltam por outra `ConcurrentQueue` drenada no `Update` — o jogo nunca
   espera. **Por frase** (`SplitSentences`: `.` `!` `?` `…` e quebras de linha; ponto entre dígitos é decimal; uma
@@ -562,6 +578,32 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   no chão por perto.") e `hc_ai_collect_full` ("Minha mochila está cheia.") — PT-BR + dicionário em inglês; logs
   `[Collect] <Nome>: Going to pick up "X" (N m away)`, `Done: N item(s) picked up`, `nothing on the ground within N m`.
   Detalhes: `docs/roadmap.md` (Fase 3.1 — a ação de recolher os itens do chão).
+- **Fase 2.0 — as 5 ordens de interação (chat e voz): `hive`, `door`, `board`, `sit` e `deposit`.** Cada uma reusa o que a
+  **tecla de comando** já faz (as `Direct*` privadas de `UI/CompanionInteract.cs`): os novos wrappers `OrderHive`/`OrderDoor`/
+  `OrderBoard`/`OrderSit`/`OrderDeposit` resolvem o **alvo** (o objeto **apontado**, com o mesmo raio/mask/50 m da tecla, senão o
+  mais próximo do jogador — 20 m colmeia/porta, 30 m navio, 5 m fogueira/baú) e entregam à `Direct*` uma **lista de um
+  companheiro só** (o endereçado, ou o mais próximo que pode receber ordem, com o mesmo `MHR_InScope` de `attack`/`equip`). O
+  `ValidActions` foi de **30 para 35** (é dele que sai o `enum` do schema) e os **5 contratos** ganharam uma cláusula curta para
+  cada ação + **2 exemplos** ("fecha a porta", "guarda isso no baú" — mais exemplos pioram o 3B). As `Direct*` falam a própria
+  linha aleatória: durante a ordem ela é **silenciada** (`Silent`/`_orderSpeech` no `SayRandom`) porque a ordem diz a **sua**
+  linha (`hc_ai_door_closed`/`hc_ai_deposit_done` com `{0}` etc.) e ela já vai para o TTS pelo `SpeakOutLoud`. Porta trancada →
+  `hc_cmd_door_locked`; colmeia vazia → `hc_cmd_hive_empty`; baú sem espaço → `hc_ai_deposit_full`; nada por perto →
+  `hc_ai_<ação>_none`. 17 chaves novas nos 5 idiomas. Rede extra no `LlmIntent` (`IsDoorWord`, no mesmo molde do
+  `IsInventoryWord`): uma ação que **nomeia a porta** (`fecha_a_porta`) vale mais que o verbo, que o 3B manda como
+  `inventory_close` (o `"fecha"` é apelido dessa ação desde a 3.8).
+  - **Correções da auditoria da 1.9.2** (rodada antes do teste; detalhes em `docs/audit-upstream-1.9.2.md`): a rede
+    da porta **não bastava** — com `StructuredOutput` (padrão) o schema só aceita o enum das 35 ações, então o modelo
+    devolve `inventory_close` e o `IsDoorWord`, que lê a **ação**, nunca dispara: o companheiro fechava a janela do
+    jogador. O novo **`CompanionOrders.IsDoorRequest`** lê as **palavras** (porta + verbo de abrir/fechar e **sem**
+    palavra de mochila — "abre o inventário e fecha a porta" continua inventário) e roda no `Run` **e** no lado `none`
+    do `HandleResult`. O novo **`AI/InteractionIntent`** (puro, 1×/mensagem, palavra inteira entre separadores, ≤10
+    palavras, `?` nunca é ordem, negação/"para de…" recusam) cobre `hive`/`board`/`sit`/`deposit` no lado `none` e no
+    `Run` para `drop`/`inventory*` — antes 7/7 ordens inequívocas caíam em "não entendi". As 5 entraram em
+    `RadialIntent.PreciseActions` (uma postura na mesma frase não engole mais a ordem); `senta` ganhou
+    `fromOrder` (já sentado **no mesmo** fogo continua sentado, fogo diferente levanta e vai, a tecla continua toggle);
+    `deposit` conta **itens** (não pilhas), usa as regras dos jobs (`MHR_Chests.Usable` + `PrivateArea`, nada de túmulo/
+    carrinho/navio/baú privado de outro jogador) e a posse do baú; `Pointed<T>`/`PointedShip` varrem **todos** os hits
+    do raio (como a tecla) e as 4 escritas diretas de `HC_ActionMode` passaram pela fila da 3.19. Nenhuma chave nova.
 - Backend/contrato de referência: `docs/re/backend-contract.md`; mapa da fase: `docs/roadmap.md` (Trilha D);
   pipeline de voz: `docs/re/stt-voz-pipeline.md`; fala do companheiro: `docs/re/tts-kokoro-sherpa-onnx.md`.
 - **Status (out/2026):** as fases da camada de IA estão **validadas em jogo** pelo jogador (3.1, 3.1-saída
@@ -589,9 +631,10 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   não resolve nada porque **o HUD do jogo está em `sortingOrder = 400`** — o `[UiDiag]` que ela mesma deixou no painel
   mediu isso (`canvas "HUD" (order=400, overrideSorting) ... crosshair/HoverName (TextMeshProUGUI 350x150) at the panel
   point 196,-46`), e **qualquer valor abaixo de 400 perde o clique** para o HUD. Agora **todos** os canvases do mod saem
-  de 28..34 para **1701..1708** (`src/Companions/UI/ModUiLayers.cs`, **fonte única**: `FarmZonePlacer` 1701,
+  de 28..34 para **1701..1709** (`src/Companions/UI/ModUiLayers.cs`, **fonte única**: `FarmZonePlacer` 1701,
   `HomeZonePanel` 1702, `CompanionRadialMenu` 1703, `StarterCompanionPanel` 1704, `FarmZoneCropPicker` 1705,
-  `ConfigPanel` 1706, `CompanionAiPanel` 1707, overlay do dropdown 1708), **mantendo a ordem relativa** entre eles. A
+  `ConfigPanel` 1706, `CompanionAiPanel` 1707, overlay do dropdown 1708, `CompanionAppearancePanel` 1709),
+  **mantendo a ordem relativa** entre eles. A
   faixa foi escolhida assim: **acima** do HUD (400), do `HudMessage` (1000) e do `Menu` (1700); **abaixo** do
   `UnifiedPopup` (**1900** — popup modal **do jogo**, classe vanilla de `assembly_valheim`, que **não** é nossa e não
   pode ser movida: um modal tem que ficar na frente de uma janela) e do `LongPressRadial` (2000 — evitar o **empate**,
@@ -616,8 +659,9 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   decorativos saíram —, a lista de camadas da cena numa linha e os **avisos** linha por linha com caminho + tipo +
   tamanho + ponto). Os falsos positivos: `AiRoot` (fundo do painel) e `KeyBox` (caixa da tecla) viraram
   **`raycastTarget = false`** (decoração, e o `Backdrop` do painel — tela cheia, criado antes do root — já é o catcher
-  modal; é o que o `ConfigRoot` do F8 já fazia), e as **barras de fundo das listas do dropdown** (`Overlay/PersonalityList`
-  e `Overlay/VoiceList`) **continuam alvos de propósito** (o clique na borda de 2 px da lista tem que morrer nela, senão
+  modal; é o que o `ConfigRoot` do F8 já fazia), e as **barras de fundo das listas do dropdown**
+  (`Overlay/TierList`, `Overlay/CompPersonalityList`, `Overlay/CompVoiceList`, `Overlay/LlmProviderList` e
+  `DropdownOverlay/ChoiceList`) **continuam alvos de propósito** (o clique na borda de 2 px da lista tem que morrer nela, senão
   chega ao `ListCatcher` e fecha a lista) numa **allow-list documentada** (`ModUiAudit.Intentional`, casada pelo fim do
   caminho + motivo). Ver `docs/roadmap.md` (§3.1 da correção das camadas) e `package/CHANGELOG.md`.
 - **Tradução PT-BR — auditoria de cobertura (branch `fix/traducao`):** varredura de **todo texto que o jogador pode
@@ -683,7 +727,11 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   KokoroCode, Voices (padrão primeiro), DefaultVoice, SpeechPrompt}` para **PT-BR, EN, ES e FR**, mais `HasVoice`,
   `ResolveVoice`, `ResolveKokoro`, `ResolveWhisper`, `ResolvePrompt`, `VoiceName`/`VoiceGender` (mapa `sid → nome` do
   export do sherpa; o gênero é a 2ª letra do nome). Idioma sem voz no Kokoro (de, ru, pl, tr, ko, sv, uk) cai no
-  **inglês** com uma linha no log. O perfil é **cacheado** (`Current`), resolvido **na main thread** (a língua vem do
+  **inglês** com uma linha no log. **Essa é a regra e ela é verificada no DLL:** `tools/locale-fallback-check.ps1`
+  confere os 5 perfis (`pt-br`/42, `en-us`/3, `es`/28, `fr`/30, `it`/35) e **17 idiomas do jogo sem perfil** — todos
+  têm de cair em `en-us`/`en`/voz 3, e `ResolveKokoro("auto")`/`ResolveWhisper("auto")` têm de responder o inglês
+  quando não há `Localization` (é o caso do `Awake` do plugin). Rode-o antes de release que mexa em idioma. O perfil é
+  **cacheado** (`Current`), resolvido **na main thread** (a língua vem do
   `Localization.SetupLanguage` via `CompanionLocale.NotifyLanguage`, porque ler `GetSelectedLanguage()` dentro do
   postfix é o que recursava no hotfix da 1.8.3) e **invalidado** no postfix (`Invalidate()`) e no `OnSceneLoaded`;
   sem `Localization` (o `Awake` do plugin) responde inglês **sem** cachear. **Config:** `[AI] VoiceLanguage` e
@@ -855,9 +903,10 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   PASSED**.
 - **Pendências conhecidas (abertas):** a **voz não passa pelo
   mixer do jogo** (por isso ignora os sliders de volume do Valheim e só obedece `[AI] TtsVolume`); o **sync com o
-  upstream** (estamos **1 release atrás**: base `1.5.4`, `main` na `1.5.5` — ver a seção *Upstream e licença*);
-  a **sobreposição do nome do companheiro no centro do radial** (o nome do mundo aparece por trás do centro
-  transparente da roda — cosmético, visto nas capturas da 1.7.0); o **risco médio do roster com N companheiros**; e a
+  upstream** está **em dia com a 1.5.8** (era 1.5.4 — ver a seção *Upstream e licença*), mas o autor publica
+  rápido: conferir o `main` antes de cada release; a **sobreposição do nome do companheiro no centro do radial** (o
+  nome do mundo aparece por trás do centro transparente da roda — cosmético, visto nas capturas da 1.7.0); o
+  **risco médio do roster com N companheiros**; e a
   **posse do ZDO no spawn em multiplayer** (revisar quando houver teste em servidor dedicado). O
   **release/empacotamento da 1.8.3 está fechado** (25/10/2026): tag `v1.8.3` no `c023ca1`, GitHub Release
   `releases/tag/v1.8.3` com os dois zips — `AI_Companions-1.8.3.zip` (385.866.837 bytes, md5 `340d320d…`) e

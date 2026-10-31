@@ -36,6 +36,8 @@ def fmt_default(d):
     return fmt_num(d)
 def fmt_range(r):
     if not r: return ''
+    if 'AcceptableValueList' in r:
+        return 'Options: '+', '.join('`%s`'%v for v in re.findall(r'"([^"]*)"',r))
     m=re.search(r'\(([^,]+), ([^)]+)\)',r)
     return '%s – %s'%(fmt_num(m.group(1)),fmt_num(m.group(2))) if m else ''
 NAMES={'GearRepair':'Gear Repair','RepairAndRestock':'Repair and Restock'}
@@ -79,7 +81,7 @@ L.append('  - `Name` = only that one')
 L.append('  - `-Name` = never that one')
 L.append('  - `Name:Number` = that one, with its own amount (`0` = no limit)')
 L.append('  - Names can be the item or creature name in game or the internal name (prefab). The names you can use in cooking, hunting and fishing are written to `OfflineCompanionsReborn.Cooking.txt`, `.Hunting.txt` and `.Fishing.txt` in the config folder every time the game starts.')
-L.append('- Updating from an old version? The options you changed are moved to the new names automatically the first time you enter a world. **Since 2.0.0** the file is `AiCompanions.cfg` and the keys and descriptions are in English (the native language of the mod; Portuguese is a translation): the old `.cfg` (`Maddhattr.OfflineCompanionsReborn.cfg`) is ignored and the settings go back to their default values.')
+L.append('- Updating from an old version? The options you changed are moved to the new names automatically the first time you enter a world. **Since 1.8.3** the file is `AiCompanions.cfg` and the keys and descriptions are in English (the native language of the mod; Portuguese is a translation): the old `.cfg` (`Maddhattr.OfflineCompanionsReborn.cfg`) is ignored and the settings go back to their default values.')
 L.append('- The section names below are the same as in the `.cfg` file (the `F8` panel shows them translated to the game language): `General` = **Geral**, `Controls` = **Controles**, `Follow` = **Seguir**, `Movement` = **Movimento**, `Combat` = **Combate**, `Food` = **Comida**, `Stamina` = **Stamina**, `Rest` = **Descanso**, `Death` = **Morte**, `Looting` = **Saque**, `GearRepair` = **Reparo de Equip.**, `Gathering` = **Coleta**, `Hunting` = **Caça**, `Fishing` = **Pesca**, `Farming` = **Plantio**, `Smelting` = **Fundição**, `Cooking` = **Cozinha**, `RepairAndRestock` = **Reparar e Reabastecer**, `Idle` = **Ócio**, `Speech` = **Fala**, `Advanced` = **Avançado**, `AI` = **IA**.\n')
 L.append('## Sections\n')
 for s in order:
@@ -94,7 +96,7 @@ for s in order:
         meta=[]
         meta.append('Default: '+(dv if dv is not None else 'see below'))
         rr=fmt_range(rng)
-        if rr: meta.append('Range: '+rr)
+        if rr: meta.append(rr if rr.startswith('Options') else 'Range: '+rr)
         L.append('**%s** — %s  '%(key,' · '.join(meta)))
         L.append(desc)
         if dv is None:

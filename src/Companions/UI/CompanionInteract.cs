@@ -63,14 +63,14 @@ public class CompanionInteract : MonoBehaviour
 					__result = false;
 					return false;
 				}
-				CompanionsPlugin.Log.LogDebug("[Interact] Prefix — separate key mode, opening inventory");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Interact] Prefix — separate key mode, opening inventory");
 				OpenCompanionInventory(component, __instance, player);
 				__result = true;
 				return false;
 			}
 			if (hold)
 			{
-				CompanionsPlugin.Log.LogInfo("[Interact] Prefix — hold=true arrived, opening radial");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo("[Interact] Prefix — hold=true arrived, opening radial");
 				_pendingTapContainer = null;
 				_pendingTapPlayer = null;
 				_loggedPendingStart = false;
@@ -91,11 +91,11 @@ public class CompanionInteract : MonoBehaviour
 				_loggedPendingStart = false;
 				_pendingIsGamepad = false;
 				_gamepadReleaseDetected = false;
-				CompanionsPlugin.Log.LogInfo("[Interact] Prefix — tap deferred, " + $"InputKey={Input.GetKey(ModConfig.RadialMenuKey.Value)} " + $"time={Time.time:F3}");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo("[Interact] Prefix — tap deferred, " + $"InputKey={Input.GetKey(ModConfig.RadialMenuKey.Value)} " + $"time={Time.time:F3}");
 			}
 			else
 			{
-				CompanionsPlugin.Log.LogDebug("[Interact] Prefix — already pending, keeping existing timer " + $"(elapsed={Time.time - _pendingTapTime:F3}s)");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Interact] Prefix — already pending, keeping existing timer " + $"(elapsed={Time.time - _pendingTapTime:F3}s)");
 			}
 			__result = false;
 			return false;
@@ -175,6 +175,15 @@ public class CompanionInteract : MonoBehaviour
 	private static readonly RaycastHit[] _cmdHitBuffer = new RaycastHit[32];
 
 	private static readonly DistComparer _distCompare = new DistComparer();
+
+	// Fase 2.0: the chat/voice interaction orders (see the Order* region below). _cmdMask is the layer mask of the
+	// command key, built once; _orderHits is the buffer of the "nearest around the player" search; _orderSpeech tells
+	// SayRandom to stay quiet while an order drives a Direct* interaction (the order has its own line).
+	private static int _cmdMask = -1;
+
+	private static readonly Collider[] _orderHits = new Collider[64];
+
+	private static bool _orderSpeech;
 
 	private static bool _loggedPendingStart;
 
@@ -313,6 +322,13 @@ public class CompanionInteract : MonoBehaviour
 			return (string[])obj;
 		}
 	}
+
+	private static string[] DoorCloseLines => new string[3]
+	{
+		ModLocalization.Loc("hc_cmd_doorclose_1"),
+		ModLocalization.Loc("hc_cmd_doorclose_2"),
+		ModLocalization.Loc("hc_cmd_doorclose_3")
+	};
 
 	private static string[] SitLines
 	{
@@ -672,6 +688,8 @@ public class CompanionInteract : MonoBehaviour
 			_holdActive = false;
 			return;
 		}
+		// 1.5.44 (issue #17): the stance keys
+		MHR_StanceKeys.Tick(localPlayer);
 		if (CompanionRadialMenu.Instance != null && CompanionRadialMenu.Instance.IsVisible)
 		{
 			_holdActive = false;
@@ -688,9 +706,11 @@ public class CompanionInteract : MonoBehaviour
 		float deltaTime = Time.deltaTime;
 		_cmdCooldown -= deltaTime;
 		bool flag = ZInput.IsGamepadActive();
-		bool flag2 = (flag ? ZInput.GetButtonDown("JoyUse") : Input.GetKeyDown(ModConfig.DirectTargetKey.Value));
-		bool flag3 = (flag ? ZInput.GetButton("JoyUse") : Input.GetKey(ModConfig.DirectTargetKey.Value));
-		if (flag && (flag2 || flag3))
+		// 1.5.72: the controller command is its own bind (Controller > Command + CommandModifier, Alt + Y by default)
+		bool flag2 = (flag ? MHR_Pad.Down(ModConfig.PadCommand, ModConfig.PadCommandModifier) : Input.GetKeyDown(ModConfig.DirectTargetKey.Value));
+		bool flag3 = (flag ? MHR_Pad.Held(ModConfig.PadCommand, ModConfig.PadCommandModifier) : Input.GetKey(ModConfig.DirectTargetKey.Value));
+		// on the plain Use button (the old way) it leaves things you look at to the game's own Use
+		if (flag && MHR_Pad.Plain(ModConfig.PadCommand, ModConfig.PadCommandModifier, "Use") && (flag2 || flag3))
 		{
 			GameObject hoverObject = localPlayer.GetHoverObject();
 			if (hoverObject != null || Hud.InRadial())
@@ -744,7 +764,7 @@ public class CompanionInteract : MonoBehaviour
 				return;
 			}
 			Ray ray = new Ray(mainCamera.transform.position, mainCamera.transform.forward);
-			int mask = LayerMask.GetMask("character", "character_net", "character_ghost", "character_noenv", "Default", "Default_small", "piece", "piece_nonsolid", "static_solid", "terrain", "vehicle", "item");
+			int mask = CommandMask();
 			int num = Physics.RaycastNonAlloc(ray, _cmdHitBuffer, 50f, mask);
 			if (num > 1)
 			{
@@ -805,10 +825,19 @@ public class CompanionInteract : MonoBehaviour
 					DirectSmelt(allCompanions, localId);
 					return;
 				}
+				// 1.5.90: a beehive - empty it and keep the honey (was "move here")
+				Beehive hive = collider.GetComponentInParent<Beehive>();
+				if (hive != null)
+				{
+					DirectHive(allCompanions, localId, hive);
+					return;
+				}
 				Ship componentInParent8 = collider.GetComponentInParent<Ship>();
 				if (componentInParent8 != null)
 				{
-					DirectBoard(allCompanions, localId, componentInParent8);
+					// 1.5.84: pointing at one of its seats - that seat (user: "I tried to use command on the seats and was ignored")
+					Chair pointedSeat = collider.GetComponentInParent<Chair>();
+					DirectBoard(allCompanions, localId, componentInParent8, (pointedSeat != null && pointedSeat.m_inShip && !MHR_Board.IsMast(pointedSeat)) ? pointedSeat : null);
 					return;
 				}
 				TombStone componentInParent9 = collider.GetComponentInParent<TombStone>();
@@ -856,12 +885,79 @@ public class CompanionInteract : MonoBehaviour
 		}
 	}
 
+	// 1.5.72: the wheel on its own controller bind (Alt + X by default) - Use on a companion opens its bag straight away
+	private void HandleGamepadCombo(Player localPlayer)
+	{
+		// 1.5.8: not while a menu or panel has the controller (user: A on the pause menu with a companion in the crosshair
+		// opened its bag) - the game's own check, which the mod's panels are part of (TakeInput_BlockForCompanionUI)
+		if (!GameTakesInput(localPlayer))
+		{
+			return;
+		}
+		GameObject hovered = _playerHoveringField?.GetValue(localPlayer) as GameObject;
+		CompanionSetup aimed = (hovered != null) ? hovered.GetComponentInParent<CompanionSetup>() : null;
+		CompanionSetup me = GetComponent<CompanionSetup>();
+		if (aimed == null || aimed != me || (CompanionRadialMenu.Instance != null && CompanionRadialMenu.Instance.IsVisible) || InventoryGui.IsVisible())
+		{
+			return;
+		}
+		bool wheel = MHR_Pad.Down(ModConfig.PadWheel, ModConfig.PadWheelModifier);
+		bool use = !wheel && ZInput.GetButtonDown("JoyUse");
+		if (!wheel && !use)
+		{
+			return;
+		}
+		ZNetView nv = aimed.GetComponent<ZNetView>();
+		string owner = nv?.GetZDO()?.GetString(CompanionSetup.OwnerHash) ?? "";
+		if (owner.Length > 0 && owner != localPlayer.GetPlayerID().ToString())
+		{
+			localPlayer.Message(MessageHud.MessageType.Center, ModLocalization.Loc("hc_msg_not_yours"));
+			return;
+		}
+		if (wheel)
+		{
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo("[Interact] Controller wheel bind on \"" + aimed.name + "\" - opening the command wheel");
+			CompanionRadialMenu.EnsureInstance();
+			if (CompanionRadialMenu.Instance != null && !CompanionRadialMenu.Instance.IsVisible)
+			{
+				CompanionRadialMenu.Instance.Show(aimed);
+			}
+			return;
+		}
+		Container box = aimed.GetComponent<Container>();
+		if (box != null)
+		{
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo("[Interact] Controller Use on \"" + aimed.name + "\" - opening its inventory");
+			OpenCompanionInventory(aimed, box, localPlayer);
+		}
+	}
+
+	private static readonly System.Reflection.MethodInfo s_takeInput = HarmonyLib.AccessTools.Method(typeof(Player), "TakeInput");
+
+	private static bool GameTakesInput(Player p)
+	{
+		try
+		{
+			return p != null && (s_takeInput == null || (bool)s_takeInput.Invoke(p, null));
+		}
+		catch
+		{
+			return true;
+		}
+	}
+
 	private void HandleGamepadHold()
 	{
 		Player localPlayer = Player.m_localPlayer;
-		if (localPlayer == null)
+		if (localPlayer == null || !GameTakesInput(localPlayer))
 		{
 			ResetGamepadHold();
+			return;
+		}
+		if (!MHR_Pad.Plain(ModConfig.PadWheel, ModConfig.PadWheelModifier, "Use"))
+		{
+			ResetGamepadHold();
+			HandleGamepadCombo(localPlayer);
 			return;
 		}
 		GameObject gameObject = _playerHoveringField?.GetValue(localPlayer) as GameObject;
@@ -885,11 +981,11 @@ public class CompanionInteract : MonoBehaviour
 				_gpHoldActive = true;
 				_gpHoldStart = Time.time;
 				_gpHoldTarget = companionSetup;
-				CompanionsPlugin.Log.LogDebug("[Interact] Gamepad independent hold START on \"" + companionSetup.name + "\"");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Interact] Gamepad independent hold START on \"" + companionSetup.name + "\"");
 			}
 			else if (_gpHoldTarget == companionSetup && Time.time - _gpHoldStart >= 0.2f)
 			{
-				CompanionsPlugin.Log.LogInfo("[Interact] Gamepad independent hold → RADIAL " + $"(held {Time.time - _gpHoldStart:F3}s)");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo("[Interact] Gamepad independent hold → RADIAL " + $"(held {Time.time - _gpHoldStart:F3}s)");
 				ClearPendingTap();
 				ResetGamepadHold();
 				CompanionRadialMenu.EnsureInstance();
@@ -910,7 +1006,7 @@ public class CompanionInteract : MonoBehaviour
 			ResetGamepadHold();
 			if (num >= 0.2f)
 			{
-				CompanionsPlugin.Log.LogInfo("[Interact] Gamepad hold → RADIAL on release " + $"(held {num:F3}s, threshold={0.2f}s)");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo("[Interact] Gamepad hold → RADIAL on release " + $"(held {num:F3}s, threshold={0.2f}s)");
 				CompanionRadialMenu.EnsureInstance();
 				if (CompanionRadialMenu.Instance != null && !CompanionRadialMenu.Instance.IsVisible)
 				{
@@ -919,7 +1015,7 @@ public class CompanionInteract : MonoBehaviour
 			}
 			else
 			{
-				CompanionsPlugin.Log.LogInfo("[Interact] Gamepad hold → TAP " + $"(released after {num:F3}s), opening inventory");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo("[Interact] Gamepad hold → TAP " + $"(released after {num:F3}s), opening inventory");
 				Container component2 = companionSetup.GetComponent<Container>();
 				if (component2 != null)
 				{
@@ -961,7 +1057,7 @@ public class CompanionInteract : MonoBehaviour
 			localPlayer.Message(MessageHud.MessageType.Center, ModLocalization.Loc("hc_msg_not_yours"));
 			return;
 		}
-		CompanionsPlugin.Log.LogInfo($"[Interact] Separate key ({ModConfig.RadialMenuKey.Value}) — opening radial");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo($"[Interact] Separate key ({ModConfig.RadialMenuKey.Value}) — opening radial");
 		CompanionRadialMenu.EnsureInstance();
 		if (CompanionRadialMenu.Instance != null && !CompanionRadialMenu.Instance.IsVisible)
 		{
@@ -979,17 +1075,17 @@ public class CompanionInteract : MonoBehaviour
 		if (_pendingIsGamepad && !_gamepadReleaseDetected && ZInput.GetButtonUp("JoyUse"))
 		{
 			_gamepadReleaseDetected = true;
-			CompanionsPlugin.Log.LogInfo($"[Interact] Gamepad ButtonUp detected at {num:F3}s");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo($"[Interact] Gamepad ButtonUp detected at {num:F3}s");
 		}
 		bool flag = ((!_pendingIsGamepad) ? Input.GetKey(ModConfig.RadialMenuKey.Value) : (!_gamepadReleaseDetected));
 		if (!_loggedPendingStart)
 		{
 			_loggedPendingStart = true;
-			CompanionsPlugin.Log.LogInfo("[Interact] Update — processing pending tap: " + $"useHeld={flag} gamepad={_pendingIsGamepad} " + $"key={ModConfig.RadialMenuKey.Value} " + $"elapsed={num:F3}s");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo("[Interact] Update — processing pending tap: " + $"useHeld={flag} gamepad={_pendingIsGamepad} " + $"key={ModConfig.RadialMenuKey.Value} " + $"elapsed={num:F3}s");
 		}
 		if (!flag)
 		{
-			CompanionsPlugin.Log.LogInfo($"[Interact] Update — RELEASED after {num:F3}s " + $"(gamepad={_pendingIsGamepad}), opening inventory");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo($"[Interact] Update — RELEASED after {num:F3}s " + $"(gamepad={_pendingIsGamepad}), opening inventory");
 			Container pendingTapContainer = _pendingTapContainer;
 			Player pendingTapPlayer = _pendingTapPlayer;
 			CompanionSetup companionSetup = pendingTapContainer?.GetComponent<CompanionSetup>();
@@ -1008,7 +1104,7 @@ public class CompanionInteract : MonoBehaviour
 			{
 				return;
 			}
-			CompanionsPlugin.Log.LogInfo($"[Interact] Update — hold threshold reached ({num:F3}s), " + $"gamepad={_pendingIsGamepad}, opening radial");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo($"[Interact] Update — hold threshold reached ({num:F3}s), " + $"gamepad={_pendingIsGamepad}, opening radial");
 			CompanionSetup component = _pendingTapContainer.GetComponent<CompanionSetup>();
 			_pendingTapContainer = null;
 			_pendingTapPlayer = null;
@@ -1020,7 +1116,7 @@ public class CompanionInteract : MonoBehaviour
 				if (CompanionRadialMenu.Instance != null && !CompanionRadialMenu.Instance.IsVisible)
 				{
 					CompanionRadialMenu.Instance.Show(component);
-					CompanionsPlugin.Log.LogInfo("[Interact] Radial menu Show() called");
+					if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogInfo("[Interact] Radial menu Show() called");
 				}
 			}
 		}
@@ -1082,13 +1178,15 @@ public class CompanionInteract : MonoBehaviour
 				if (!item.GetFollow())
 				{
 					item.SetFollow(v: true);
-					CompanionsPlugin.Log.LogDebug("[Direct] Come-to-me: forced Follow ON for \"" + (item.GetComponent<Character>()?.m_name ?? "?") + "\"");
+					if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Direct] Come-to-me: forced Follow ON for \"" + (item.GetComponent<Character>()?.m_name ?? "?") + "\"");
 				}
 				CompanionAI component = item.GetComponent<CompanionAI>();
 				if (component != null && Player.m_localPlayer != null)
 				{
 					component.SetFollowTarget(Player.m_localPlayer.gameObject);
 				}
+				// 1.5.65: a recall beats a fight (user report: "it ignores every recall or command when they have anything to fight")
+				item.GetComponent<CompanionCombatAI>()?.HoldForOrder("Recalled");
 				ReturnLogic.Trigger(item, player.gameObject);
 				if (companionTalk == null)
 				{
@@ -1097,7 +1195,7 @@ public class CompanionInteract : MonoBehaviour
 			}
 		}
 		SayRandom(companionTalk, ComeHereLines);
-		CompanionsPlugin.Log.LogDebug("[Direct] Come-to-me triggered");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Direct] Come-to-me triggered");
 	}
 
 	internal static void MHR_FireSuperRecall(Player player)
@@ -1183,7 +1281,7 @@ public class CompanionInteract : MonoBehaviour
 			}
 		}
 		SayRandom(companionTalk, AttackLines);
-		CompanionsPlugin.Log.LogDebug($"[Direct] {num} companion(s) → attack \"{enemy.m_name}\"");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Direct] {num} companion(s) → attack \"{enemy.m_name}\"");
 	}
 
 	private static void DirectCart(IReadOnlyList<CompanionSetup> setups, string localId, Vagon vagon)
@@ -1209,7 +1307,7 @@ public class CompanionInteract : MonoBehaviour
 					component3.SetFollowTarget(Player.m_localPlayer.gameObject);
 				}
 				SayRandom(setup.GetComponent<CompanionTalk>(), CartReleasedLines);
-				CompanionsPlugin.Log.LogDebug("[Direct] Companion → detach from cart");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Direct] Companion → detach from cart");
 			}
 			return;
 		}
@@ -1265,36 +1363,48 @@ public class CompanionInteract : MonoBehaviour
 			component5.SetPendingCart(vagon, component4);
 		}
 		SayRandom(companionSetup.GetComponent<CompanionTalk>(), CartPullLines);
-		CompanionsPlugin.Log.LogDebug($"[Direct] Companion → cart attach (dist={num:F1}m)");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Direct] Companion → cart attach (dist={num:F1}m)");
 	}
 
+	// 1.5.8: open a shut door, close an open one; only the nearest companion goes (two used to go - one opening it while the
+	// other would shut it again), and a locked door gets a "locked" answer instead of a promise
 	private static void DirectDoor(IReadOnlyList<CompanionSetup> setups, string localId, Door door)
 	{
-		int num = 0;
-		CompanionTalk companionTalk = null;
+		bool close = DoorHandler.IsOpen(door);
+		CompanionSetup nearest = null;
+		float best = float.MaxValue;
 		foreach (CompanionSetup setup in setups)
 		{
-			if (!IsOwned(setup, localId) || !MHR_InScope(setup))
+			if (!IsOwned(setup, localId) || !MHR_InScope(setup) || setup.GetComponent<DoorHandler>() == null)
 			{
 				continue;
 			}
-			CancelExistingActions(setup);
-			DoorHandler component = setup.GetComponent<DoorHandler>();
-			if (!(component == null))
+			float d = Vector3.Distance(setup.transform.position, door.transform.position);
+			if (d < best)
 			{
-				component.DirectOpenDoor(door);
-				if (companionTalk == null)
-				{
-					companionTalk = setup.GetComponent<CompanionTalk>();
-				}
-				num++;
+				best = d;
+				nearest = setup;
 			}
 		}
-		SayRandom(companionTalk, DoorLines);
-		CompanionsPlugin.Log.LogDebug($"[Direct] {num} companion(s) → open door \"{door.m_name}\"");
+		if (nearest == null)
+		{
+			return;
+		}
+		CompanionTalk talk = nearest.GetComponent<CompanionTalk>();
+		if (!DoorHandler.IsUsableDoor(door))
+		{
+			SayRandom(talk, new string[1] { ModLocalization.Loc("hc_cmd_door_locked") });
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Direct] door \"{door.m_name}\" is locked - not going");
+			return;
+		}
+		CancelExistingActions(nearest);
+		nearest.GetComponent<DoorHandler>().DirectUseDoor(door, close);
+		SayRandom(talk, close ? DoorCloseLines : DoorLines);
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Direct] \"{nearest.GetComponent<Character>()?.m_name}\" → {(close ? "close" : "open")} door \"{door.m_name}\" ({best:F1} m away)");
 	}
 
-	private static void DirectSit(IReadOnlyList<CompanionSetup> setups, string localId, Fireplace fire)
+	// Fase 2.0: fromOrder - the chat/voice order ("senta") is not the command key's toggle; see CompanionRest.DirectSit
+	private static void DirectSit(IReadOnlyList<CompanionSetup> setups, string localId, Fireplace fire, bool fromOrder = false)
 	{
 		if (!fire.IsBurning())
 		{
@@ -1312,7 +1422,7 @@ public class CompanionInteract : MonoBehaviour
 			CompanionRest component = setup.GetComponent<CompanionRest>();
 			if (!(component == null))
 			{
-				component.DirectSit(fire.gameObject);
+				component.DirectSit(fire.gameObject, fromOrder);
 				if (companionTalk == null)
 				{
 					companionTalk = setup.GetComponent<CompanionTalk>();
@@ -1321,7 +1431,7 @@ public class CompanionInteract : MonoBehaviour
 			}
 		}
 		SayRandom(companionTalk, SitLines);
-		CompanionsPlugin.Log.LogDebug($"[Direct] {num} companion(s) → sit near fire");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Direct] {num} companion(s) → sit near fire");
 	}
 
 	private static void DirectSleep(IReadOnlyList<CompanionSetup> setups, string localId, Bed bed)
@@ -1373,7 +1483,7 @@ public class CompanionInteract : MonoBehaviour
 		{
 			SayRandom(companionTalk, CancelLines);
 		}
-		CompanionsPlugin.Log.LogDebug($"[Direct] Sleep — started={num}, wokeUp={num2}");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Direct] Sleep — started={num}, wokeUp={num2}");
 	}
 
 	private static void DirectRepair(IReadOnlyList<CompanionSetup> setups, string localId, CraftingStation station)
@@ -1408,7 +1518,51 @@ public class CompanionInteract : MonoBehaviour
 		{
 			SayRandom(companionTalk, RepairNothingLines);
 		}
-		CompanionsPlugin.Log.LogDebug($"[Direct] {num} companion(s) → repair at \"{station.m_name}\"");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Direct] {num} companion(s) → repair at \"{station.m_name}\"");
+	}
+
+	// 1.5.90: one companion empties the hive and keeps the honey
+	// 1.5.63: the nearest one that isn't resting or off to bed (log 4122afdf: the order went to the first on the list, who
+	// was heading to bed, while the other stood free)
+	private static void DirectHive(IReadOnlyList<CompanionSetup> setups, string localId, Beehive hive)
+	{
+		CompanionSetup pick = null;
+		float best = float.MaxValue;
+		foreach (CompanionSetup cand in setups)
+		{
+			if (!IsOwned(cand, localId) || !MHR_InScope(cand) || cand.GetComponent<CompanionAI>() == null)
+			{
+				continue;
+			}
+			CompanionRest rest = cand.GetComponent<CompanionRest>();
+			bool busy = rest != null && (rest.IsResting || rest.IsNavigating || rest.IsSleeping);
+			float d = Vector3.Distance(cand.transform.position, hive.transform.position) + (busy ? 1000f : 0f);
+			if (d < best)
+			{
+				best = d;
+				pick = cand;
+			}
+		}
+		foreach (CompanionSetup setup in pick != null ? new CompanionSetup[1] { pick } : new CompanionSetup[0])
+		{
+			CompanionAI ai = setup.GetComponent<CompanionAI>();
+			CompanionTalk talk = setup.GetComponent<CompanionTalk>();
+			if (hive.m_honeyItem == null || MHR_Hive.HoneyIn(hive) <= 0)
+			{
+				SayRandom(talk, new string[1] { ModLocalization.Loc("hc_cmd_hive_empty") });
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Direct] beehive is empty - nothing to collect");
+				return;
+			}
+			if (!PrivateArea.CheckAccess(hive.transform.position, 0f, flash: true))
+			{
+				return;
+			}
+			CancelExistingActions(setup);
+			ai.SetHiveOrder(hive);
+			SayRandom(talk, new string[1] { ModLocalization.Loc("hc_cmd_hive") });
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Direct] 1 companion(s) → collect honey");
+			return;
+		}
 	}
 
 	private static void DirectSmelt(IReadOnlyList<CompanionSetup> setups, string localId)
@@ -1433,9 +1587,20 @@ public class CompanionInteract : MonoBehaviour
 			ZNetView component = setup.GetComponent<ZNetView>();
 			if (component?.GetZDO() != null)
 			{
-				component.GetZDO().Set(CompanionSetup.ActionModeHash, 6);
-				MHR_JobRules.OnJobSet(setup, 6);
-				setup.GetComponent<SmeltController>()?.NotifyActionModeChanged();
+				// Fase 2.0 (audit fix): the mode goes through the same envelope the wheel and the chat orders use
+				// (Fase 3.19) - only the game that owns the companion may write its ZDO, and the setter queues the
+				// write and repeats it until it can be done instead of losing the order.
+				setup.MHR_WriteOrQueue(delegate
+				{
+					ZNetView nv = setup.GetComponent<ZNetView>();
+					if (nv?.GetZDO() == null)
+					{
+						return;
+					}
+					nv.GetZDO().Set(CompanionSetup.ActionModeHash, 6);
+					MHR_JobRules.OnJobSet(setup, 6);
+					setup.GetComponent<SmeltController>()?.NotifyActionModeChanged();
+				});
 				if (companionTalk == null)
 				{
 					companionTalk = setup.GetComponent<CompanionTalk>();
@@ -1444,7 +1609,7 @@ public class CompanionInteract : MonoBehaviour
 			}
 		}
 		SayRandom(companionTalk, SmeltLines);
-		CompanionsPlugin.Log.LogDebug($"[Direct] {num} companion(s) → smelt mode");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Direct] {num} companion(s) → smelt mode");
 	}
 
 	/// <summary>1.8.3 (dverger): the localized "I fight, I don't do that work." line for a type that cannot wear armor
@@ -1459,7 +1624,7 @@ public class CompanionInteract : MonoBehaviour
 		}
 	}
 
-	private static void DirectBoard(IReadOnlyList<CompanionSetup> setups, string localId, Ship ship)
+	private static void DirectBoard(IReadOnlyList<CompanionSetup> setups, string localId, Ship ship, Chair pointed = null)
 	{
 		Chair[] componentsInChildren = ship.GetComponentsInChildren<Chair>();
 		List<Chair> list = new List<Chair>();
@@ -1467,7 +1632,7 @@ public class CompanionInteract : MonoBehaviour
 		Chair[] array = componentsInChildren;
 		foreach (Chair chair in array)
 		{
-			if (!chair.m_inShip || chair.m_attachPoint == null)
+			if (!chair.m_inShip || chair.m_attachPoint == null || MHR_Board.IsMast(chair))
 			{
 				continue;
 			}
@@ -1496,7 +1661,30 @@ public class CompanionInteract : MonoBehaviour
 				continue;
 			}
 			CompanionAI component = setup.GetComponent<CompanionAI>();
-			if (component == null || component.IsOnShip)
+			if (component == null)
+			{
+				continue;
+			}
+			// 1.5.84: a seat pointed at goes to the first companion - one already aboard moves to it
+			if (pointed != null && !hashSet.Contains(pointed) && MHR_Board.Free(pointed))
+			{
+				hashSet.Add(pointed);
+				// 1.5.85: one already seated stands up and walks over (user, log ce2af5bd: "Rather than getting up and walking to
+				// the seat they just apear there")
+				if (component.IsOnShip)
+				{
+					component.DetachFromShip();
+					if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Board] " + setup.GetComponent<Character>()?.m_name + " getting up for the seat you pointed at");
+				}
+				else
+				{
+					CancelExistingActions(setup);
+				}
+				component.SetPendingShipBoard(ship, pointed);
+				num++;
+				continue;
+			}
+			if (component.IsOnShip)
 			{
 				continue;
 			}
@@ -1515,24 +1703,12 @@ public class CompanionInteract : MonoBehaviour
 					}
 				}
 			}
+			// 1.5.82: no free seat - it boards the same way and stands on deck (was put on the ship's middle)
 			if (chair2 != null)
 			{
 				hashSet.Add(chair2);
-				component.SetPendingShipBoard(ship, chair2);
 			}
-			else
-			{
-				Vector3 position2 = ship.transform.position + ship.transform.up * 1.5f;
-				setup.transform.position = position2;
-				Rigidbody component2 = setup.GetComponent<Rigidbody>();
-				if (component2 != null)
-				{
-					component2.position = position2;
-					component2.linearVelocity = Vector3.zero;
-				}
-				component.SetFollowTarget(ship.gameObject);
-				component.FreezeTimer = 1f;
-			}
+			component.SetPendingShipBoard(ship, chair2);
 			if (companionTalk == null)
 			{
 				companionTalk = setup.GetComponent<CompanionTalk>();
@@ -1540,7 +1716,7 @@ public class CompanionInteract : MonoBehaviour
 			num++;
 		}
 		SayRandom(companionTalk, BoardLines);
-		CompanionsPlugin.Log.LogDebug($"[Direct] {num} companion(s) → board ship");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Direct] {num} companion(s) → board ship");
 	}
 
 	private static void DirectTombstoneRecovery(IReadOnlyList<CompanionSetup> setups, string localId, TombStone tombstone)
@@ -1567,7 +1743,7 @@ public class CompanionInteract : MonoBehaviour
 			{
 				component.SetDirectedTombstoneRecovery(tombstone);
 				SayRandom(companionSetup.GetComponent<CompanionTalk>(), TombstoneLines);
-				CompanionsPlugin.Log.LogDebug("[Direct] Companion → recover tombstone");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Direct] Companion → recover tombstone");
 			}
 		}
 	}
@@ -1585,6 +1761,20 @@ public class CompanionInteract : MonoBehaviour
 		{
 			if (!IsOwned(setup, localId) || !MHR_InScope(setup))
 			{
+				continue;
+			}
+			// Fase 2.0 (audit fix): the same chest rules the jobs use - a real storage chest a player built (not a
+			// tombstone, a cart or a ship's hold), inside a ward that lets this one in, a private chest only for its
+			// own builder, and not one another player has open. Checked here as well as when the chest was picked,
+			// because the command key and the chat/voice order both come through this method.
+			if (!MHR_Chests.Usable(chest, setup))
+			{
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Direct] deposit into \"{chest.m_name}\": not a chest {setup.GetComponent<Character>()?.m_name} may use (ward, privacy, in use, or not a player-built chest)");
+				continue;
+			}
+			if (!PrivateArea.CheckAccess(chest.transform.position, 0f, flash: true))
+			{
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Direct] deposit into \"{chest.m_name}\": the ward refuses it");
 				continue;
 			}
 			Humanoid component = setup.GetComponent<Humanoid>();
@@ -1617,6 +1807,10 @@ public class CompanionInteract : MonoBehaviour
 				if (!(component2 == null))
 				{
 					component2.SetPendingDeposit(chest, component);
+					// Fase 2.0 (audit fix): ask for the ownership of the chest RIGHT NOW. Only the owner of a chest's
+					// ZDO may change what is in it (see MHR_Chests.Open), and the grant travels over the network - the
+					// companion still has to walk there, which is the window that makes the deposit work in multiplayer.
+					MHR_Chests.Claim(chest);
 					num++;
 				}
 			}
@@ -1629,7 +1823,535 @@ public class CompanionInteract : MonoBehaviour
 		{
 			SayRandom(companionTalk, DepositEmptyLines);
 		}
-		CompanionsPlugin.Log.LogDebug($"[Direct] {num} companion(s) → deposit");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Direct] {num} companion(s) → deposit");
+	}
+
+	// ------------------------------------------------------- Fase 2.0: interaction orders (chat and voice)
+	//
+	// "esvazia a colmeia", "fecha a porta", "embarca", "senta" and "guarda isso no baú" are the very interactions the
+	// command key already does. Each one resolves its TARGET here - the object under the crosshair first, with the same
+	// ray, the same layers and the same 50 m reach of the command key, then the nearest one around the player - and
+	// hands it to the private Direct* method below with a ONE-companion list. The interaction itself is never
+	// reimplemented: what is new is where it points and who takes it.
+
+	/// <summary>
+	/// What an interaction order did, for the feedback line. <see cref="Companion"/> is the one that took it, or null
+	/// when nobody could (out of reach, its Command switch is off, destroyed) - the caller then keeps the generic
+	/// "no companion answered" answer. <see cref="Key"/> is the localization key of the line (null = there is none,
+	/// which is how a call that found its target and still didn't start reads as "nobody took it").
+	/// <see cref="Amount"/> is the {0} of that line, when it has one (the deposit's item count).
+	/// </summary>
+	internal struct DirectOrderReport
+	{
+		internal CompanionSetup Companion;
+
+		internal string Key;
+
+		internal int Amount;
+	}
+
+	private const float HiveOrderRange = 20f;
+
+	private const float DoorOrderRange = 20f;
+
+	private const float BoardOrderRange = 30f;
+
+	private const float SitOrderRange = 5f;
+
+	private const float DepositOrderRange = 5f;
+
+	/// <summary>The layers the command key looks through, built once (the same list it always used).</summary>
+	private static int CommandMask()
+	{
+		if (_cmdMask < 0)
+		{
+			_cmdMask = LayerMask.GetMask("character", "character_net", "character_ghost", "character_noenv", "Default", "Default_small", "piece", "piece_nonsolid", "static_solid", "terrain", "vehicle", "item");
+		}
+		return _cmdMask;
+	}
+
+	/// <summary>The hits of the command key's ray: filled into <see cref="_cmdHitBuffer"/> (sorted by distance) and the
+	/// count returned. Same camera, same ray, same layers, same 50 m reach.</summary>
+	private static int PointedHits()
+	{
+		Camera mainCamera = Utils.GetMainCamera();
+		if (mainCamera == null)
+		{
+			return 0;
+		}
+		Ray ray = new Ray(mainCamera.transform.position, mainCamera.transform.forward);
+		int num = Physics.RaycastNonAlloc(ray, _cmdHitBuffer, 50f, CommandMask());
+		if (num > 1)
+		{
+			Array.Sort(_cmdHitBuffer, 0, num, _distCompare);
+		}
+		return num;
+	}
+
+	/// <summary>Is this hit one the command key skips? (the player and the companions are never "the thing you point
+	/// at")</summary>
+	private static bool IgnoresPointedHit(Collider collider)
+	{
+		return collider == null || collider.GetComponentInParent<Player>() != null || collider.GetComponentInParent<CompanionSetup>() != null;
+	}
+
+	/// <summary>
+	/// The first thing under the crosshair that is neither the player nor a companion, exactly as the command key
+	/// sees it: same camera, same ray, same layers, same 50 m reach and the same "ignore players and companions" rule.
+	/// </summary>
+	private static Collider PointedCollider()
+	{
+		int num = PointedHits();
+		for (int i = 0; i < num; i++)
+		{
+			Collider collider = _cmdHitBuffer[i].collider;
+			if (IgnoresPointedHit(collider))
+			{
+				continue;
+			}
+			return collider;
+		}
+		return null;
+	}
+
+	/// <summary>
+	/// The component of type <typeparamref name="T"/> on the first thing under the crosshair that carries one, or null.
+	///
+	/// <para>Fase 2.0 (audit fix): this used to read only the FIRST hit of the ray, while the command key walks all
+	/// of them and dispatches on the first one that has the component (see <see cref="Update"/>). With an occluded
+	/// target - a beehive behind the trunk it hangs on, a chest behind the hearth - nothing was found and the order
+	/// silently fell back to "the nearest one around the player", which can be a DIFFERENT object (a chest 2 m away
+	/// instead of the one being aimed at). Same hits, same order, same rule as the key.</para>
+	/// </summary>
+	private static T Pointed<T>() where T : Component
+	{
+		int num = PointedHits();
+		for (int i = 0; i < num; i++)
+		{
+			Collider collider = _cmdHitBuffer[i].collider;
+			if (IgnoresPointedHit(collider))
+			{
+				continue;
+			}
+			T found = collider.GetComponentInParent<T>();
+			if (found != null)
+			{
+				return found;
+			}
+		}
+		return null;
+	}
+
+	/// <summary>
+	/// The nearest <typeparamref name="T"/> within <paramref name="range"/> of the PLAYER (the order is "go and do
+	/// this here", so it is measured from the player). Only components that <see cref="Pointed{T}"/> would also find
+	/// count - the collider has to carry the component on itself or on a parent - and <paramref name="valid"/> may
+	/// narrow it further (a lit fire, not the companion's own pack).
+	/// </summary>
+	private static T Nearest<T>(Player player, float range, Func<T, bool> valid) where T : Component
+	{
+		if (player == null || range <= 0f)
+		{
+			return null;
+		}
+		Vector3 from = player.transform.position;
+		int num = Physics.OverlapSphereNonAlloc(from, range, _orderHits, CommandMask());
+		T pick = null;
+		float best = float.MaxValue;
+		for (int i = 0; i < num; i++)
+		{
+			Collider collider = _orderHits[i];
+			if (collider == null)
+			{
+				continue;
+			}
+			T found = collider.GetComponentInParent<T>();
+			if (found == null || (valid != null && !valid(found)))
+			{
+				continue;
+			}
+			float distance = Vector3.Distance(from, found.transform.position);
+			if (distance <= range && distance < best)
+			{
+				best = distance;
+				pick = found;
+			}
+		}
+		return pick;
+	}
+
+	/// <summary>The ship under the crosshair and, when the player is pointing at one of its seats, that seat - the
+	/// same two components the command key reads from the SAME hit (see the ship branch in <see cref="Update"/>).
+	/// Fase 2.0 (audit fix): like <see cref="Pointed{T}"/>, this walks the hits instead of reading only the first one,
+	/// so a piece in front of the hull doesn't lose the ship.</summary>
+	private static Ship PointedShip(out Chair seat)
+	{
+		seat = null;
+		int num = PointedHits();
+		for (int i = 0; i < num; i++)
+		{
+			Collider collider = _cmdHitBuffer[i].collider;
+			if (IgnoresPointedHit(collider))
+			{
+				continue;
+			}
+			Ship ship = collider.GetComponentInParent<Ship>();
+			if (ship == null)
+			{
+				continue;
+			}
+			Chair chair = collider.GetComponentInParent<Chair>();
+			if (chair != null && chair.m_inShip && !MHR_Board.IsMast(chair))
+			{
+				seat = chair;
+			}
+			return ship;
+		}
+		return null;
+	}
+
+	/// <summary>
+	/// A container an order may put things into. Fase 2.0 (audit fix): this used to accept anything with an inventory,
+	/// so "guarda isso no baú" could pick a tombstone, a cart, a ship's hold, a dungeon's loot chest or a chest inside
+	/// someone else's ward. It now asks the very rules the jobs use (<see cref="MHR_Chests.Usable"/>): a real storage
+	/// chest a player built, nobody has it open, inside a ward that lets us in, and a private chest only for its own
+	/// builder. The companion that takes the order is checked against the same rules again in
+	/// <see cref="DirectDeposit"/> (the id of the local player stands in for the companion here).
+	/// </summary>
+	private static bool IsChestForOrders(Container chest)
+	{
+		if (chest == null || chest.GetInventory() == null || chest.GetComponent<CompanionSetup>() != null)
+		{
+			return false;
+		}
+		return MHR_Chests.Usable(chest, Player.m_localPlayer);
+	}
+
+	/// <summary>
+	/// The ONE companion an interaction order reaches: the one the player NAMED, or the nearest to the object that can
+	/// take an order - the same gate attack/equip use, plus whatever the interaction needs from it
+	/// (<paramref name="capable"/>).
+	///
+	/// <para>Fase 2.0 (audit fix / reviewer #5): the search only CHECKS (see <see cref="MHR_InScopeCheck"/>). It used
+	/// to call <see cref="MHR_InScope"/>, which takes the companion over, on every candidate - so one "senta" took
+	/// control of every companion around, not only of the one that took the order. The chosen one is taken over
+	/// afterwards, in <see cref="MHR_InScope"/>.</para>
+	/// </summary>
+	private static CompanionSetup OrderCompanion(CompanionSetup addressee, Vector3 at, Func<CompanionSetup, bool> capable)
+	{
+		string localId = OrderLocalId();
+		if (!ReferenceEquals(addressee, null))
+		{
+			// a companion destroyed in the meantime answers "== null" (Unity) and can't take anything; the order must
+			// NOT fall through to another one (CompanionChatAI already told the player that one is gone)
+			if (addressee == null || !IsOwned(addressee, localId) || (capable != null && !capable(addressee)) || !MHR_InScopeCheck(addressee))
+			{
+				return null;
+			}
+			MHR_InScope(addressee);
+			return addressee;
+		}
+		CompanionSetup pick = null;
+		float best = float.MaxValue;
+		foreach (CompanionSetup companion in CompanionSetup.AllCompanions)
+		{
+			// the same ownership test the Direct* methods make for themselves - asking here is what tells "nobody can
+			// take it" from "this one can" (a companion of another player is never picked)
+			if (companion == null || !IsOwned(companion, localId) || (capable != null && !capable(companion)) || !MHR_InScopeCheck(companion))
+			{
+				continue;
+			}
+			float distance = Vector3.Distance(companion.transform.position, at);
+			if (distance < best)
+			{
+				best = distance;
+				pick = companion;
+			}
+		}
+		if (pick != null && !MHR_InScope(pick))
+		{
+			return null;
+		}
+		return pick;
+	}
+
+	/// <summary>The chat/voice order id of the player in this game (the same one the command key uses).</summary>
+	private static string OrderLocalId()
+	{
+		Player player = Player.m_localPlayer;
+		return player != null ? player.GetPlayerID().ToString() : "";
+	}
+
+	/// <summary>A one-companion list: the Direct* methods were written for "everybody in range", and an order
+	/// reaches exactly one.</summary>
+	private static CompanionSetup[] Single(CompanionSetup companion)
+	{
+		return new CompanionSetup[1] { companion };
+	}
+
+	/// <summary>
+	/// Runs one of the private Direct* interactions without its random line (<see cref="SayRandom"/> is muted for the
+	/// length of the call). A chat/voice order has a line of its own - the order's, which the AI path also sends to
+	/// the TTS - so the command key's line would be a second bubble, in another voice, for the same action. Same
+	/// call, same logic: only the line is left to the caller, and the flag is restored even if the interaction throws,
+	/// so a failure never silences the next order.
+	/// </summary>
+	private static void Silent(Action run)
+	{
+		bool previous = _orderSpeech;
+		_orderSpeech = true;
+		try
+		{
+			run();
+		}
+		finally
+		{
+			_orderSpeech = previous;
+		}
+	}
+
+	private static string OrderName(CompanionSetup companion)
+	{
+		Character character = companion != null ? companion.GetComponent<Character>() : null;
+		return character != null && !string.IsNullOrEmpty(character.m_name) ? character.m_name : "?";
+	}
+
+	/// <summary>
+	/// "esvazia a colmeia" / "pega o mel": the beehive under the crosshair first, then the nearest one within 20 m of
+	/// the player, emptied by one companion through the same <see cref="DirectHive"/> the command key uses.
+	/// </summary>
+	internal static DirectOrderReport OrderHive(CompanionSetup addressee)
+	{
+		Player player = Player.m_localPlayer;
+		DirectOrderReport report = default;
+		Beehive hive = Pointed<Beehive>() ?? Nearest<Beehive>(player, HiveOrderRange, null);
+		if (hive == null)
+		{
+			report.Key = "hc_ai_hive_none";
+			CompanionsPlugin.Log?.LogInfo($"[Order] hive: nothing pointed at and no beehive within {HiveOrderRange:F0} m - nothing to do");
+			return report;
+		}
+		if (hive.m_honeyItem == null || MHR_Hive.HoneyIn(hive) <= 0)
+		{
+			// the same test DirectHive makes before it answers "no honey in there yet" (hc_cmd_hive_empty)
+			report.Key = "hc_cmd_hive_empty";
+			CompanionsPlugin.Log?.LogInfo($"[Order] hive \"{hive.m_name}\": no honey - nothing to collect");
+			return report;
+		}
+		report.Companion = OrderCompanion(addressee, hive.transform.position, c => c.GetComponent<CompanionAI>() != null);
+		if (report.Companion == null)
+		{
+			return report;
+		}
+		Silent(() => DirectHive(Single(report.Companion), OrderLocalId(), hive));
+		CompanionAI ai = report.Companion.GetComponent<CompanionAI>();
+		if (ai == null || !MHR_Hive.Active(ai))
+		{
+			// it found the hive and still didn't start (the hive is behind someone else's ward - the game itself
+			// already flashed "not allowed"): nobody took it, so the companion must not answer as if it had
+			CompanionsPlugin.Log?.LogInfo($"[Order] hive \"{hive.m_name}\": {OrderName(report.Companion)} didn't take it (ward, or no CompanionAI)");
+			report.Companion = null;
+			return report;
+		}
+		report.Key = "hc_ai_hive_done";
+		CompanionsPlugin.Log?.LogInfo($"[Order] hive \"{hive.m_name}\" ({MHR_Hive.HoneyIn(hive)} honey) -> {OrderName(report.Companion)}");
+		return report;
+	}
+
+	/// <summary>
+	/// "fecha a porta" / "abre a porta": the door under the crosshair first, then the nearest one within 20 m. It is
+	/// the command key's toggle through <see cref="DirectDoor"/> - closed when it is open, opened when it is closed -
+	/// and a locked door answers "it's locked" instead of a promise.
+	/// </summary>
+	internal static DirectOrderReport OrderDoor(CompanionSetup addressee)
+	{
+		Player player = Player.m_localPlayer;
+		DirectOrderReport report = default;
+		Door door = Pointed<Door>() ?? Nearest<Door>(player, DoorOrderRange, null);
+		if (door == null)
+		{
+			report.Key = "hc_ai_door_none";
+			CompanionsPlugin.Log?.LogInfo($"[Order] door: nothing pointed at and no door within {DoorOrderRange:F0} m - nothing to do");
+			return report;
+		}
+		if (!DoorHandler.IsUsableDoor(door))
+		{
+			report.Key = "hc_cmd_door_locked";
+			CompanionsPlugin.Log?.LogInfo($"[Order] door \"{door.m_name}\": locked (or behind a ward) - not going");
+			return report;
+		}
+		bool close = DoorHandler.IsOpen(door);
+		report.Companion = OrderCompanion(addressee, door.transform.position, c => c.GetComponent<DoorHandler>() != null);
+		if (report.Companion == null)
+		{
+			return report;
+		}
+		Silent(() => DirectDoor(Single(report.Companion), OrderLocalId(), door));
+		string name = OrderName(report.Companion);
+		if (report.Companion.GetComponent<DoorHandler>()?.IsActive != true)
+		{
+			CompanionsPlugin.Log?.LogInfo($"[Order] door \"{door.m_name}\": {name} didn't take it");
+			report.Companion = null;
+			return report;
+		}
+		report.Key = close ? "hc_ai_door_closed" : "hc_ai_door_opened";
+		CompanionsPlugin.Log?.LogInfo($"[Order] door \"{door.m_name}\" -> {name} is going to {(close ? "close" : "open")} it");
+		return report;
+	}
+
+	/// <summary>
+	/// "embarca" / "sobe no navio": the ship under the crosshair first (and, when the player points at one of its
+	/// seats, that seat - see <see cref="PointedShip"/>), then the nearest one within 30 m, boarded by one companion
+	/// through <see cref="DirectBoard"/>.
+	/// </summary>
+	internal static DirectOrderReport OrderBoard(CompanionSetup addressee)
+	{
+		Player player = Player.m_localPlayer;
+		DirectOrderReport report = default;
+		Chair seat;
+		Ship ship = PointedShip(out seat) ?? Nearest<Ship>(player, BoardOrderRange, null);
+		if (ship == null)
+		{
+			report.Key = "hc_ai_board_none";
+			CompanionsPlugin.Log?.LogInfo($"[Order] board: nothing pointed at and no ship within {BoardOrderRange:F0} m - nothing to do");
+			return report;
+		}
+		report.Companion = OrderCompanion(addressee, ship.transform.position, c => c.GetComponent<CompanionAI>() != null);
+		if (report.Companion == null)
+		{
+			return report;
+		}
+		Silent(() => DirectBoard(Single(report.Companion), OrderLocalId(), ship, seat));
+		CompanionAI ai = report.Companion.GetComponent<CompanionAI>();
+		if (ai == null || (!MHR_Board.Active(ai) && !ai.IsOnShip))
+		{
+			// DirectBoard has nothing to start for that one (already aboard counts as done, right below)
+			CompanionsPlugin.Log?.LogInfo($"[Order] board \"{ship.name}\": {OrderName(report.Companion)} didn't start boarding");
+			report.Companion = null;
+			return report;
+		}
+		report.Key = "hc_ai_board_done";
+		CompanionsPlugin.Log?.LogInfo($"[Order] board \"{ship.name}\"{(seat != null ? $" seat \"{seat.m_name}\"" : "")} -> {OrderName(report.Companion)}");
+		return report;
+	}
+
+	/// <summary>
+	/// "senta" / "senta perto do fogo": the fireplace under the crosshair first, then the nearest one within 5 m. An
+	/// unlit fire is not a place to sit - the mod's own direct sit does nothing on one - so only a burning fire
+	/// counts.
+	/// </summary>
+	internal static DirectOrderReport OrderSit(CompanionSetup addressee)
+	{
+		Player player = Player.m_localPlayer;
+		DirectOrderReport report = default;
+		Fireplace fire = Pointed<Fireplace>();
+		if (fire == null || !fire.IsBurning())
+		{
+			fire = Nearest<Fireplace>(player, SitOrderRange, f => f.IsBurning());
+		}
+		if (fire == null)
+		{
+			report.Key = "hc_ai_sit_none";
+			CompanionsPlugin.Log?.LogInfo($"[Order] sit: nothing lit pointed at and no burning fire within {SitOrderRange:F0} m - nothing to do");
+			return report;
+		}
+		report.Companion = OrderCompanion(addressee, fire.transform.position, c => c.GetComponent<CompanionRest>() != null);
+		if (report.Companion == null)
+		{
+			return report;
+		}
+		Silent(() => DirectSit(Single(report.Companion), OrderLocalId(), fire, fromOrder: true));
+		CompanionRest rest = report.Companion.GetComponent<CompanionRest>();
+		if (rest == null || (!rest.IsResting && !rest.IsNavigating))
+		{
+			// Fase 2.0 (audit fix): the sit is only a toggle for the command key now (CompanionRest.DirectSit with
+			// fromOrder: true keeps it seated at the same fire and walks it to another one), so this is a real
+			// failure - no CompanionRest on it, or the fire went out between the check and the call
+			CompanionsPlugin.Log?.LogInfo($"[Order] sit: {OrderName(report.Companion)} didn't sit");
+			report.Companion = null;
+			return report;
+		}
+		report.Key = "hc_ai_sit_done";
+		CompanionsPlugin.Log?.LogInfo($"[Order] sit near \"{fire.m_name}\" -> {OrderName(report.Companion)}");
+		return report;
+	}
+
+	/// <summary>
+	/// "guarda isso no baú" / "larga tudo no baú": the container under the crosshair first, then the nearest one
+	/// within 5 m (never the companion's own pack). The count of the answer is how many stacks the companion is
+	/// about to put away - the same rule <see cref="DirectDeposit"/> uses to decide it has anything to give - and a
+	/// chest with no room left for a single unit answers "there's no room" instead of a promise.
+	/// </summary>
+	internal static DirectOrderReport OrderDeposit(CompanionSetup addressee)
+	{
+		Player player = Player.m_localPlayer;
+		DirectOrderReport report = default;
+		Container chest = Pointed<Container>();
+		if (!IsChestForOrders(chest))
+		{
+			chest = Nearest<Container>(player, DepositOrderRange, IsChestForOrders);
+		}
+		if (chest == null)
+		{
+			report.Key = "hc_ai_deposit_none";
+			CompanionsPlugin.Log?.LogInfo($"[Order] deposit: nothing pointed at and no chest within {DepositOrderRange:F0} m - nothing to do");
+			return report;
+		}
+		report.Companion = OrderCompanion(addressee, chest.transform.position, c => c.GetComponent<Humanoid>() != null);
+		if (report.Companion == null)
+		{
+			return report;
+		}
+		Humanoid humanoid = report.Companion.GetComponent<Humanoid>();
+		Inventory bag = humanoid != null ? humanoid.GetInventory() : null;
+		Inventory into = chest.GetInventory();
+		if (bag == null || into == null)
+		{
+			report.Companion = null;
+			return report;
+		}
+		int give = 0;
+		int fits = 0;
+		foreach (ItemDrop.ItemData item in bag.GetAllItems())
+		{
+			if (ShouldKeep(item, humanoid))
+			{
+				continue;
+			}
+			// Fase 2.0 (audit fix): count UNITS, not stacks - the line says "Putting {0} item(s) in the chest" and a
+			// single stack of 50 wood used to answer "1 item(s)"
+			give += Mathf.Max(1, item.m_stack);
+			if (into.CanAddItem(item, 1))
+			{
+				fits++;
+			}
+		}
+		if (give == 0)
+		{
+			report.Key = "hc_cmd_deposit_empty_1";
+			CompanionsPlugin.Log?.LogInfo($"[Order] deposit: {OrderName(report.Companion)} has nothing to put away");
+			report.Companion = null;
+			return report;
+		}
+		if (fits == 0)
+		{
+			report.Key = "hc_ai_deposit_full";
+			CompanionsPlugin.Log?.LogInfo($"[Order] deposit into \"{chest.m_name}\": no room for a single unit - not going");
+			report.Companion = null;
+			return report;
+		}
+		Silent(() => DirectDeposit(Single(report.Companion), OrderLocalId(), chest));
+		CompanionAI ai = report.Companion.GetComponent<CompanionAI>();
+		if (ai == null || ai.PendingDepositContainer == null)
+		{
+			CompanionsPlugin.Log?.LogInfo($"[Order] deposit into \"{chest.m_name}\": {OrderName(report.Companion)} didn't take it");
+			report.Companion = null;
+			return report;
+		}
+		report.Key = "hc_ai_deposit_done";
+		report.Amount = give;
+		CompanionsPlugin.Log?.LogInfo($"[Order] deposit into \"{chest.m_name}\": {give} item(s) -> {OrderName(report.Companion)}");
+		return report;
 	}
 
 	private static GameObject GetHarvestable(Collider col)
@@ -1694,13 +2416,24 @@ public class CompanionInteract : MonoBehaviour
 			ZNetView component = setup.GetComponent<ZNetView>();
 			if (component?.GetZDO() != null)
 			{
-				component.GetZDO().Set(CompanionSetup.ActionModeHash, num);
-				MHR_JobRules.OnJobSet(setup, num);
-				HarvestController component2 = setup.GetComponent<HarvestController>();
-				if (component2 != null && num2 == 0)
+				// Fase 2.0 (audit fix): same envelope as the wheel/chat orders (Fase 3.19) - only the game that owns
+				// the companion may write its ZDO, and the setter queues the write instead of losing the order.
+				HarvestController harvest = setup.GetComponent<HarvestController>();
+				bool first = num2 == 0;
+				setup.MHR_WriteOrQueue(delegate
 				{
-					component2.SetDirectedTarget(target);
-				}
+					ZNetView nv = setup.GetComponent<ZNetView>();
+					if (nv?.GetZDO() == null)
+					{
+						return;
+					}
+					nv.GetZDO().Set(CompanionSetup.ActionModeHash, num);
+					MHR_JobRules.OnJobSet(setup, num);
+					if (harvest != null && first)
+					{
+						harvest.SetDirectedTarget(target);
+					}
+				});
 				if (companionTalk == null)
 				{
 					companionTalk = setup.GetComponent<CompanionTalk>();
@@ -1709,7 +2442,7 @@ public class CompanionInteract : MonoBehaviour
 			}
 		}
 		SayRandom(companionTalk, HarvestLines);
-		CompanionsPlugin.Log.LogDebug($"[Direct] {num2} companion(s) → gather mode {num}");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Direct] {num2} companion(s) → gather mode {num}");
 	}
 
 	private static void DirectGround(IReadOnlyList<CompanionSetup> setups, string localId, Vector3 point)
@@ -1738,6 +2471,8 @@ public class CompanionInteract : MonoBehaviour
 			CompanionAI component2 = setup2.GetComponent<CompanionAI>();
 			if (!(component2 == null))
 			{
+				// 1.5.65: a move order beats a fight ("you can't order them to move aside in order to dodge some gjall")
+				setup2.GetComponent<CompanionCombatAI>()?.HoldForOrder("Ordered to move");
 				component2.SetMoveTarget(point);
 				if (companionTalk == null)
 				{
@@ -1747,7 +2482,7 @@ public class CompanionInteract : MonoBehaviour
 			}
 		}
 		SayRandom(companionTalk, MoveLines);
-		CompanionsPlugin.Log.LogDebug($"[Direct] {num} companion(s) → move to {point:F1}");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Direct] {num} companion(s) → move to {point:F1}");
 		if (num == 0)
 		{
 			MHR_WhyNotCommanded(setups, localId);
@@ -1775,6 +2510,7 @@ public class CompanionInteract : MonoBehaviour
 				component.CancelMoveTarget();
 				component.CancelPendingDeposit();
 				component.CancelPendingShipBoard();
+				component.CancelHiveOrder();
 				component.CancelTombstoneRecovery();
 				component.ClearTargets();
 				component.StopMoving();
@@ -1794,9 +2530,18 @@ public class CompanionInteract : MonoBehaviour
 			ZNetView component2 = setup.GetComponent<ZNetView>();
 			if (component2?.GetZDO() != null && component2.GetZDO().GetInt(CompanionSetup.ActionModeHash) != 0)
 			{
-				component2.GetZDO().Set(CompanionSetup.ActionModeHash, 0);
-				// 1.4.150: the job's off - Follow comes back if the job had turned it off (same rule as the wheel)
-				MHR_JobRules.OnJobSet(setup, 0);
+				// Fase 2.0 (audit fix): same envelope as the wheel/chat orders (Fase 3.19).
+				setup.MHR_WriteOrQueue(delegate
+				{
+					ZNetView nv = setup.GetComponent<ZNetView>();
+					if (nv?.GetZDO() == null)
+					{
+						return;
+					}
+					nv.GetZDO().Set(CompanionSetup.ActionModeHash, 0);
+					// 1.4.150: the job's off - Follow comes back if the job had turned it off (same rule as the wheel)
+					MHR_JobRules.OnJobSet(setup, 0);
+				});
 			}
 			setup.GetComponent<DoorHandler>()?.Cancel();
 			setup.GetComponent<HarvestController>()?.NotifyActionModeChanged();
@@ -1818,7 +2563,7 @@ public class CompanionInteract : MonoBehaviour
 			setup.GetComponent<UpkeepController>()?.NotifyActionModeChanged();
 		}
 		SayRandom(companionTalk, CancelLines);
-		CompanionsPlugin.Log.LogDebug("[Direct] Cancelled all directed commands");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Direct] Cancelled all directed commands");
 	}
 
 	private static bool IsOwned(CompanionSetup setup, string localId)
@@ -1843,6 +2588,8 @@ public class CompanionInteract : MonoBehaviour
 			}
 			string name = s.GetComponent<Character>()?.m_name ?? "?";
 			string why;
+			// 1.5.42: tell the player too (top left), for their own companions
+			string shown = null;
 			if (!IsOwned(s, localId))
 			{
 				why = "not yours";
@@ -1850,16 +2597,23 @@ public class CompanionInteract : MonoBehaviour
 			else if (!s.GetIsCommandable())
 			{
 				why = "Command is switched off for it on the wheel";
+				shown = ModLocalization.LocFmt("hc_cmd_refused_off", name);
 			}
 			else if (localPlayer != null && ModConfig.RecallRange != null && ModConfig.RecallRange.Value > 0f)
 			{
-				why = $"it's {Vector3.Distance(s.transform.position, localPlayer.transform.position):F0} m away (RecallRange is {ModConfig.RecallRange.Value:F0} m - hold the command key {ModConfig.SuperRecallHoldTime?.Value ?? 2f:F0}s to call everyone)";
+				float d = Vector3.Distance(s.transform.position, localPlayer.transform.position);
+				why = $"it's {d:F0} m away (RecallRange is {ModConfig.RecallRange.Value:F0} m - hold the command key {ModConfig.SuperRecallHoldTime?.Value ?? 2f:F0}s to call everyone)";
+				shown = ModLocalization.LocFmt("hc_cmd_refused_far", name, d.ToString("F0"), (ModConfig.SuperRecallHoldTime?.Value ?? 2f).ToString("F0"));
 			}
 			else
 			{
 				why = "unknown";
 			}
-			CompanionsPlugin.Log.LogInfo("[Direct] \"" + name + "\" didn't take the command: " + why);
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Direct] \"" + name + "\" didn't take the command: " + why);
+			if (shown != null && (ModConfig.SpeechFarMessages?.Value ?? true) && MessageHud.instance != null)
+			{
+				MessageHud.instance.ShowMessage(MessageHud.MessageType.TopLeft, shown);
+			}
 		}
 	}
 
@@ -1875,7 +2629,9 @@ public class CompanionInteract : MonoBehaviour
 		return inScope;
 	}
 
-	private static bool MHR_InScopeCheck(CompanionSetup s)
+	// Fase 2.0: the CHECK side of the scope test (own companion, Command on, within RecallRange), for callers that
+	// have to look at several companions and only take one over - see OrderCompanion.
+	internal static bool MHR_InScopeCheck(CompanionSetup s)
 	{
 		if (_mhrSuperRecall)
 		{
@@ -1902,9 +2658,16 @@ public class CompanionInteract : MonoBehaviour
 
 	private static void SayRandom(CompanionTalk talk, string[] pool)
 	{
+		// Fase 2.0: a chat/voice order says its OWN line (the order's, which the AI path also sends to the TTS), so the
+		// random line of the command key would be a second bubble for the very same action - see Silent().
+		if (_orderSpeech)
+		{
+			return;
+		}
 		if (!(talk == null) && pool != null && pool.Length != 0)
 		{
-			talk.Say(pool[UnityEngine.Random.Range(0, pool.Length)]);
+			// 1.5.41: a reply to an order is said straight away
+			talk.SayOrder(pool[UnityEngine.Random.Range(0, pool.Length)]);
 		}
 	}
 
@@ -1930,6 +2693,7 @@ public class CompanionInteract : MonoBehaviour
 			component2.CancelMoveTarget();
 			component2.CancelPendingDeposit();
 			component2.CancelPendingShipBoard();
+			component2.CancelHiveOrder();
 			component2.CancelTombstoneRecovery();
 			if (component2.IsOnShip)
 			{
@@ -1967,8 +2731,17 @@ public class CompanionInteract : MonoBehaviour
 			ZNetView component = setup.GetComponent<ZNetView>();
 			if (component?.GetZDO() != null)
 			{
-				component.GetZDO().Set(CompanionSetup.ActionModeHash, 0);
-				MHR_JobRules.OnJobSet(setup, 0);
+				// Fase 2.0 (audit fix): same envelope as the wheel/chat orders (Fase 3.19).
+				setup.MHR_WriteOrQueue(delegate
+				{
+					ZNetView nv = setup.GetComponent<ZNetView>();
+					if (nv?.GetZDO() == null)
+					{
+						return;
+					}
+					nv.GetZDO().Set(CompanionSetup.ActionModeHash, 0);
+					MHR_JobRules.OnJobSet(setup, 0);
+				});
 				if (companionTalk == null)
 				{
 					companionTalk = setup.GetComponent<CompanionTalk>();
@@ -1977,7 +2750,7 @@ public class CompanionInteract : MonoBehaviour
 			}
 		}
 		SayRandom(companionTalk, CancelLines);
-		CompanionsPlugin.Log.LogDebug($"[Direct] {num} companion(s) exited gather mode → follow");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Direct] {num} companion(s) exited gather mode → follow");
 	}
 
 	private static void ResetGamepadHold()
@@ -1990,7 +2763,7 @@ public class CompanionInteract : MonoBehaviour
 	{
 		if (_pendingTapContainer != null)
 		{
-			CompanionsPlugin.Log.LogDebug("[Interact] ClearPendingTap called while pending");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Interact] ClearPendingTap called while pending");
 		}
 		_pendingTapContainer = null;
 		_pendingTapPlayer = null;
@@ -2162,9 +2935,24 @@ public class CompanionInteract : MonoBehaviour
 	internal string GetHoverText()
 	{
 		string companionName = GetCompanionName();
+		// 1.5.42: what it's doing (and why not) under its name
+		if (ModConfig.ShowStatus == null || ModConfig.ShowStatus.Value)
+		{
+			string status = CompanionStatus.Describe(GetComponent<CompanionSetup>());
+			if (!string.IsNullOrEmpty(status))
+			{
+				companionName = companionName + "\n<color=#c8c8c8>" + status + "</color>";
+			}
+		}
 		string text = ModLocalization.Loc("hc_hover_inventory");
 		string text2 = ModLocalization.Loc("hc_hover_commands");
 		string text3 = ((!ZInput.IsGamepadActive()) ? ZInput.instance.GetBoundKeyString("Use") : ZInput.instance.GetBoundKeyString("JoyUse"));
+		// 1.5.72: the controller wheel bind as set (the game's own button icons), or no line when it's unbound
+		if (ZInput.IsGamepadActive() && !MHR_Pad.Plain(ModConfig.PadWheel, ModConfig.PadWheelModifier, "Use"))
+		{
+			string wheel = MHR_Pad.Show(ModConfig.PadWheel, ModConfig.PadWheelModifier);
+			return companionName + "\n[<color=yellow><b>" + text3 + "</b></color>] " + text + (wheel != null ? "\n[<color=yellow><b>" + wheel + "</b></color>] " + text2 : "");
+		}
 		if (IsRadialKeyUse)
 		{
 			return companionName + "\n[<color=yellow><b>" + text3 + "</b></color>] " + text + "\n[<color=yellow>" + ModLocalization.Loc("hc_hover_hold") + " <b>" + text3 + "</b></color>] " + text2;

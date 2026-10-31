@@ -13,7 +13,7 @@ Où se trouve le fichier de configuration, comment l'éditer en jeu et ce que fa
 ```
 
 Le fichier est **généré par BepInEx** au premier chargement du mod, et il est réécrit quand tu changes quelque chose
-depuis les panneaux. Il fait environ **1540 lignes** et **~265 options** au total, réparties en plusieurs sections
+depuis les panneaux. Il fait environ **2000 lignes** et **~340 options** au total, réparties en plusieurs sections
 (`[General]`, `[Gathering]`, `[Hunting]`, `[Speech]`, `[Advanced]`, `[AI]` et d'autres).
 
 > Le nom du fichier **n'est plus** le GUID du plugin : jusqu'à la **1.8.2** c'était
@@ -204,7 +204,7 @@ vigueur.
 **Cinq langues : portugais du Brésil, anglais, espagnol, français et italien** — et l'**anglais est la langue native**
 du mod :
 
-- **La langue du jeu décide de tout** : l'interface (737 clés), les phrases du compagnon (186 lignes), les presets de
+- **La langue du jeu décide de tout** : l'interface (914 clés), les phrases du compagnon (221 lignes), les presets de
   personnalité, le contrat du LLM et la **voix et la reconnaissance vocale**. Avec le jeu en **portugais**, les noms
   des options du **`F8`** et les onglets apparaissent en **PT** (`Ligado`, `Modelo`, `VozTecla`…) ; avec le jeu en
   **anglais**, les noms natifs apparaissent (`Enabled`, `Model`, `VoiceKey`…) ; l'espagnol, le français et l'italien
@@ -219,9 +219,9 @@ du mod :
 - **Dans le `.cfg`**, les **clés et les descriptions sont en anglais, toujours** — ça **ne** change pas avec la langue
   du jeu (pareil pour `package/CONFIGURATION.md`). C'est pour ça que le **nom de la clé est l'anglais**, même avec le
   jeu en français : la clé est l'identifiant de l'option, pas le libellé que tu lis à l'écran.
-- **Les nouvelles langues entrent par un fichier**, sans toucher au code : `Translations/<Langue>.json` (737 clés)
+- **Les nouvelles langues entrent par un fichier**, sans toucher au code : `Translations/<Langue>.json` (914 clés)
   apporte les textes de l'interface (y compris les noms des options et des onglets du `F8`) et
-  `Speech/<Langue>.json` (186 lignes) apporte les **phrases du compagnon** — le même schéma. **L'anglais n'a pas
+  `Speech/<Langue>.json` (221 lignes) apporte les **phrases du compagnon** — le même schéma. **L'anglais n'a pas
   besoin de fichier**, parce que les clés **sont** le texte.
 - **Les langues que le modèle Kokoro ne parle pas** (allemand, russe, polonais, turc, coréen, suédois et ukrainien)
   utilisent la **voix anglaise** — l'interface et les phrases peuvent être traduites ; l'audio est en anglais.
@@ -266,7 +266,8 @@ viens d'Offline Companions Reborn, voilà ce qui a changé de valeur :
 | `[Advanced] GatheringDropRadius` | 8 | **12** | Un arbre peut tomber plus loin que 8 m ; les objets restaient derrière |
 | `[Looting] CollectRadius` | *(nouveau)* | **10** | Rayon de l'ordre « ramasse les objets au sol » |
 | `[General] MaxCompanions` | *(nouveau)* | **10** | Plafond de compagnons par joueur, en comptant **vivants + morts + perdus** (mourir ne libère pas de place) |
-| `[Speech] Chatter` | `true` | **`false`** | Le chatter aléatoire (petites phrases toutes les 15–30 s) ne venait que d'un minuteur. Les phrases utiles restent |
+| `[Speech] Chatter` | un choix : `Off`/`Rare`/`Normal`/`Often` (par défaut `Normal`) | **`true`/`false`** (par défaut `false`) | Là-bas le chatter aléatoire a quatre niveaux - une phrase toutes les 1,5–3 min en `Normal`. Ici c'est un simple **marche/arrêt** : désactivé (le défaut) aucune phrase ne vient du minuteur, activé elle revient toutes les `[Speech] MinInterval`/`MaxInterval` (15–30 s). Les phrases utiles (ordres, problèmes, le travail en cours) sortent dans les deux cas |
+| `[Death] RespawnDelay` | 300 | **30** | Secondes avant qu'un compagnon mort ne revienne tout seul (avec `AutoRespawn` activé), et 30 est la plus petite valeur acceptée. Attendre cinq minutes ne faisait que l'éloigner plus longtemps - la tombe reste le moyen de le récupérer, avec son équipement |
 | `[Advanced] UiDiag` | *(nouveau)* | **`false`** | Diagnostic d'UI (clics/couches) : opt-in, zéro coût désactivé |
 | `[AI] EcoDiag` | *(nouveau)* | **`false`** | Diagnostic audio du compagnon : opt-in |
 

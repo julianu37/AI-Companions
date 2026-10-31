@@ -17,6 +17,10 @@ public class DoorHandler : MonoBehaviour
 
 	private float _start;
 
+	// 1.5.8: the order is to close it (it was open when you pointed at it) - the command only ever opened doors, so on an
+	// open one it answered and did nothing (user: "They should still close a door when commanded in a dungeon")
+	private bool _close;
+
 	public bool IsActive => _door != null;
 
 	// 1.4.150: a new order replaces the door order (it used to keep steering for up to 60 s)
@@ -32,15 +36,16 @@ public class DoorHandler : MonoBehaviour
 		}
 	}
 
-	public void DirectOpenDoor(Door door)
+	public void DirectUseDoor(Door door, bool close)
 	{
 		if (door == null)
 		{
 			return;
 		}
-		if (!IsValidClosedDoor(door))
+		_close = close;
+		if (!IsUsableDoor(door) || IsOpen(door) != close)
 		{
-			CompanionsPlugin.Log.LogDebug("[Door] \"" + door.m_name + "\" is already open (or locked) - nothing to do");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Door] \"" + door.m_name + "\" is locked or already " + (close ? "shut" : "open") + " - nothing to do");
 			return;
 		}
 		_door = door;
@@ -50,7 +55,7 @@ public class DoorHandler : MonoBehaviour
 		{
 			MHR_Mover.Release(_ai);
 		}
-		CompanionsPlugin.Log.LogDebug("[Door] Going to open the " + door.m_name + " at " + MHR_Mover.Fmt(door.transform.position) + " (" + Vector3.Distance(base.transform.position, door.transform.position).ToString("F1") + " m away)");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Door] Going to " + (close ? "close" : "open") + " the " + door.m_name + " at " + MHR_Mover.Fmt(door.transform.position) + " (" + Vector3.Distance(base.transform.position, door.transform.position).ToString("F1") + " m away)");
 	}
 
 	private void Awake()
@@ -66,9 +71,9 @@ public class DoorHandler : MonoBehaviour
 		{
 			return;
 		}
-		if (!IsValidClosedDoor(_door))
+		if (!IsUsableDoor(_door) || IsOpen(_door) != _close)
 		{
-			Done("the door is open now");
+			Done(_close ? "the door is shut now" : "the door is open now");
 			return;
 		}
 		if (Time.time - _start > 60f)
@@ -109,12 +114,12 @@ public class DoorHandler : MonoBehaviour
 		catch
 		{
 		}
-		Done(ok ? "opened it" : "couldn't open it");
+		Done(ok ? (_close ? "closed it" : "opened it") : (_close ? "couldn't close it" : "couldn't open it"));
 	}
 
 	private void Done(string why)
 	{
-		CompanionsPlugin.Log.LogDebug("[Door] " + (_door != null ? _door.m_name : "Door") + ": " + why);
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Door] " + (_door != null ? _door.m_name : "Door") + ": " + why);
 		_door = null;
 		_ai?.StopMoving();
 		if (_ai != null)
@@ -122,6 +127,27 @@ public class DoorHandler : MonoBehaviour
 			MHR_Mover.Release(_ai);
 		}
 		GetComponent<CompanionSetup>()?.ApplyFollowMode((_nview?.GetZDO())?.GetInt(CompanionSetup.ActionModeHash) ?? 0, force: true);
+	}
+
+	internal static bool IsOpen(Door door)
+	{
+		ZNetView nv = door != null ? door.GetComponent<ZNetView>() : null;
+		return nv != null && nv.GetZDO() != null && nv.GetZDO().GetInt(ZDOVars.s_state) != 0;
+	}
+
+	// a door a companion may use, open or shut: no key needed, not behind someone else's ward
+	internal static bool IsUsableDoor(Door door)
+	{
+		if (door == null || !door || door.m_keyItem != null)
+		{
+			return false;
+		}
+		ZNetView nv = door.GetComponent<ZNetView>();
+		if (nv == null || nv.GetZDO() == null)
+		{
+			return false;
+		}
+		return !door.m_checkGuardStone || PrivateArea.CheckAccess(door.transform.position, 0f, flash: false);
 	}
 
 	internal static bool IsValidClosedDoor(Door door)

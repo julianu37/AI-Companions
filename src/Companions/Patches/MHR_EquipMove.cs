@@ -25,7 +25,7 @@ public static class MHR_EquipMove
 				{
 					component.UnequipItem(item, triggerEquipEffects: false);
 					item.m_equipped = false;
-					CompanionsPlugin.Log.LogInfo($"[Inventory] Unequipped \"{item.m_shared.m_name}\" as it left the companion's inventory");
+					if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Inventory] Unequipped \"{item.m_shared.m_name}\" as it left the companion's inventory");
 					break;
 				}
 			}

@@ -99,7 +99,8 @@ simplesmente não fala (o jogo segue).
 
 | Peça | Decisão |
 |---|---|
-| Modelo | carregado **uma vez** (`TryGetTts`, `lock _loadLock`) e **mantido**; `Prewarm()` carrega em segundo plano quando você entra no mundo (a 1ª fala não paga os ~1 s) |
+| Modelo | carregado **uma vez** (`TryGetTts`, `lock _loadLock`) e **mantido** - **até o idioma efetivo mudar**: o `Lang` do Kokoro escolhe o fonemizador (espeak) **no load**, então trocar o idioma do jogo (ou `[AI] TtsLanguage`) faz o worker liberar e recarregar o modelo antes da fala seguinte (1.9.2: `_loadedLanguage` + `NoticeLanguageChange` + `DropModelIfLanguageChanged`), e o cache de áudio é esvaziado (as amostras eram do fonemizador antigo). Um código **fora dos 5 do mod** não recarrega nada: o modelo que funciona fica e o log avisa uma vez |
+| Idioma | `[AI] TtsLanguage` (`auto` = o do jogo) escolhe o fonemizador. **A regra da M1 vale e é verificada** (`tools/locale-fallback-check.ps1`): os 5 idiomas do jogo com perfil usam o código deles (`pt-br`/42, `en-us`/3, `es`/28, `fr`/30, `it`/35) e **qualquer outro idioma do jogo cai no inglês** (`en-us`/`en`/voz 3). Medido fora do jogo com o **modelo empacotado** (30/10/2026, 4 threads): `pt-br` ✔ (RTF 0,78), `pt` ✔ (português de Portugal, 0,84), `en-us` ✔ (1,08), `es` ✔ (0,76), `fr` ✔ (0,97), `it` ✔ (0,95), `ja`/`zh`/`hi` carregam e geram. **`en-gb` e `fr-fr` carregam mas `Generate` estoura `NullReferenceException`** (o binding devolve áudio nulo) - por isso a lista do F8 tem só os **5** idiomas do mod. A razão está no espeak empacotado: `lang\roa\pt` é `Portuguese (Portugal)` com `phonemes pt-pt`, enquanto `lang\roa\pt-BR` é `Portuguese (Brazil)`; e `lang\gmw\en` (`en-gb`) **não tem linha `phonemes`** (só `en-US` tem), então o Kokoro recebe fonemas vazios. Ferramenta: `tools/tts-language-check` |
 | Thread | **dedicada** (`new Thread`, `IsBackground = true`, nome `ModIA-CompanionTts`), não uma `Task` de pool: é trabalho longo e permanente, e o pool é do jogo |
 | Fila de entrada | `ConcurrentQueue<TtsRequest>` + `SemaphoreSlim` (o worker espera com timeout de 500 ms para poder sair no shutdown); **teto de 3 pedidos** (o excedente é descartado e dito no log) |
 | Fila de saída | `ConcurrentQueue<TtsChunk>` drenada no `Update`; cada `TtsChunk` leva amostras + taxa + quem fala |
@@ -209,7 +210,7 @@ reflexão e sem alocação.
 | `TtsThreads` | `4` | núcleos da síntese (1–16; 4 = RTF ~0,83 medido) |
 | `TtsVolume` | `1` | volume (0 = mudo) |
 | `TtsModelo` | `tts\kokoro\model.int8.onnx` | modelo; `voices.bin`/`tokens.txt`/`espeak-ng-data` vêm da **mesma pasta** |
-| `TtsIdioma` | `pt-br` | idioma (**nunca vazio**; `pt` sozinho = português de Portugal) |
+| `TtsIdioma` (`TtsLanguage`) | `auto` | idioma do fonemizador: `auto` segue o **idioma do jogo** (`pt-br`/`en-us`/`es`/`fr`/`it`); **nunca vazio** (a lib nativa recusa). `pt` sozinho = português de Portugal; **`fr-fr` e `en-gb` não funcionam** (ver §4) |
 | `TtsCache` | `true` | cache das falas (por frase) |
 | `TtsFalarRespostas` | `true` | falar a resposta do modelo (`reply`) |
 | `TtsFalarFalasDoMod` | `true` | falar a linha do mod que aparece no chat (numa **ordem** ela ganha) |
@@ -242,7 +243,11 @@ diagnóstico de áudio). Os 4 interruptores de exploração do eco foram **remov
 6. **Cache:** repetir uma **linha do mod** (ex.: `colete 10 madeiras` duas vezes) → no log,
    `[TTS] Frase 1/1: CACHE (0 ms) ...` (só as linhas do mod entram no cache; a resposta do modelo é nova a cada
    vez e é sempre sintetizada).
-7. **Vozes:** trocar `[IA] TtsVoz` para `43` e repetir o passo 3 (masculina).
+7. **Vozes:** trocar `[AI] TtsVoice` para `43` e repetir o passo 3 (masculina).
+   **Idioma (1.9.2):** com o mundo aberto, trocar o idioma do jogo no menu de pausa (ex.: EN → PT-BR) e repetir o
+   passo 3 → o log mostra `[TTS] Idioma efetivo "pt-br" (o modelo estava carregado em "en-us") - modelo liberado...`
+   e `[TTS] Modelo recarregado no idioma "pt-br" antes da proxima fala`; a fala sai no idioma novo **sem reiniciar**
+   (antes o modelo ficava no fonemizador do idioma antigo e a voz portuguesa lia com fonemas ingleses).
 8. **Volume/velocidade:** `TtsVolume = 0.3` e `TtsVelocidade = 1.3` e repetir.
 9. **Casos de falha:** renomear `tts\kokoro\model.int8.onnx` → `[TTS] O modelo do TTS nao esta em ...` (uma vez, no
    log e no chat: *"A voz do companheiro não está pronta (falta o modelo do Kokoro?)."*) e o jogo segue normal;

@@ -109,6 +109,28 @@ nothing is ordered —, but a form of address keeps working (`mate, collect 10 s
 > The pickup takes **even what he dropped on purpose** — which is exactly what the game's automatic magnet ignores.
 > He gives up if the item does not fit whole in his bag or if it is too far away.
 
+### Doors, hives, ships, fires and chests
+
+| You say | What he does |
+|---|---|
+| `close the door` / `open the door` | Opens or closes the **door** he is looking at |
+| `empty the beehive` / `get the honey` | Empties the **beehive** and keeps the honey |
+| `board the ship` / `get on the boat` | Boards the **ship**, taking the seat you point at |
+| `sit by the fire` | Sits down by the **fire** he is looking at |
+| `put this in the chest` / `store it` | Puts what he carries into the **chest** |
+
+> The target is the object **you are looking at**, with the same ray and layers as the command key. With nothing
+> under the crosshair he takes the nearest one around you: **20 m** for a door or a beehive, **30 m** for a ship,
+> **5 m** for a fire or a chest — never his own bag. The order reaches **one** companion: the one you named by name,
+> or the nearest one to that object that can take orders.
+
+> His answer says what happened: "Closing the door.", "On board!", "Sitting by the fire.", "Putting 12 item(s) in
+> the chest.". A **locked** door answers "It's locked.", an **empty** beehive "No honey in there yet." and a **full**
+> chest "There's no room in that chest."; with nothing around he says he cannot see one.
+
+> The fire has to be **lit**, and the chest has to be a real storage one that is free to use: not a tombstone, a
+> cart, a ship's hold, a dungeon's loot chest or one inside a ward he cannot enter.
+
 ### Inventory
 
 | You say | What he does |

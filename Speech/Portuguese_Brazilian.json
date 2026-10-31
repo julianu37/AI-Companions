@@ -14,6 +14,32 @@
         "Entendi.",
         "Deixa comigo."
     ],
+    "Wood": [
+        "Boa madeira por aqui.",
+        "Mais uma árvore no chão!",
+        "Meus braços ficam mais fortes a cada golpe.",
+        "Madeira ao chão!",
+        "Esta madeira vai queimar bem.",
+        "[blackforest] Os pinheiros crescem densos aqui.",
+        "[meadows] Faia e bétula, boas e retas.",
+        "[swamp] Casca ancestral... trabalho duro."
+    ],
+    "Stone": [
+        "Tem pedra boa aqui.",
+        "Pedra para as muralhas.",
+        "Golpe a golpe.",
+        "Esta rocha não sai do lugar sozinha.",
+        "Pedra firme, esta."
+    ],
+    "Ore": [
+        "Este minério promete.",
+        "As veias correm fundo nesta rocha.",
+        "O chão entrega seus tesouros.",
+        "Minério para a fundição.",
+        "[blackforest] Cobre e estanho, nosso primeiro metal de verdade.",
+        "[swamp] Ferro, enterrado com os mortos.",
+        "[mountain] Prata, fria como os picos."
+    ],
     "Gather": [
         "A terra dá, para quem sabe onde procurar.",
         "Boa madeira por aqui.",
@@ -208,11 +234,30 @@
         "Comida para os cansados!",
         "Esta receita nunca falha."
     ],
+    "Upkeep": [
+        "Mantendo o lugar em ordem.",
+        "Um telhado firme e um fogo aceso.",
+        "Tudo no seu lugar.",
+        "Uma casa precisa de cuidado.",
+        "Quem deixou isso aqui?",
+        "[rain] Tomara que o telhado aguente.",
+        "[night] Deixe as fogueiras acesas."
+    ],
     "NoBed": [
         "Não tenho uma cama que seja minha.",
         "Queria ter uma cama por aqui.",
         "Toda cama por perto já tem dono.",
         "Vou dormir no chão de novo, pelo visto.",
         "Um lugar para descansar a cabeça seria bom."
+    ],
+    "Chat": [
+        "Precisa de algo?",
+        "Tem algo para fazer?",
+        "Tudo quieto por aqui.",
+        "[day,!rain] Bom dia para isso.",
+        "[rain] Cheira a chuva. Ah, claro.",
+        "[night] Tarde, não é?",
+        "[home] Bom ter um teto sobre nós.",
+        "[away] Devemos voltar para casa logo?"
     ]
 }

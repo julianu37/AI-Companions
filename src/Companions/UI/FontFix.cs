@@ -22,13 +22,13 @@ internal static class FontFix
 				if (!_warned)
 				{
 					_warned = true;
-					CompanionsPlugin.Log?.LogInfo("[Fonts] No replacement TMP font found yet (" + source + ") - will retry on next scene load.");
+					if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log?.LogInfo("[Fonts] No replacement TMP font found yet (" + source + ") - will retry on next scene load.");
 				}
 			}
 			else
 			{
 				TMP_Settings.defaultFontAsset = tMP_FontAsset;
-				CompanionsPlugin.Log?.LogInfo("[Fonts] TMP default font set to '" + tMP_FontAsset.name + "' (" + source + ").");
+				if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log?.LogInfo("[Fonts] TMP default font set to '" + tMP_FontAsset.name + "' (" + source + ").");
 			}
 		}
 		catch (Exception ex)

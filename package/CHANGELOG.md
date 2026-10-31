@@ -2,6 +2,107 @@
 
 All the changes to this project, derived from ProfMags' Offline Companions. The versions before 1.4.0 are the original mod (see the original mod's history, from ProfMags, for those versions) plus the first batch of compatibility fixes for the Valheim 1.0 API that made the mod load and run. **The entries below 1.5.4 are the upstream history and stay as they are (in English) — our sections (from 1.6.0 on) are ours.**
 
+## 1.9.2 — 31/10/2026
+
+**Upstream sync: 1.5.4 → 1.5.8.** Four upstream releases are in — combat, ships, the Shrine, torches, controller support —
+with our AI layer, localization and UI band kept.
+
+### From upstream (game behaviour)
+
+- **Blocks and parries like a player** (one roll per swing, better with the Blocking skill), combat tactics and bows.
+- **Ships**: board a ship and take the seat you point at; **beehives** (empty them and keep the honey); **torches**
+  (light and refuel); **lava** and the other world hazards; **real encumbrance** (walking pace, no running or jumping,
+  stamina drain) and **tilled-ground farming**.
+- **Odin's Shrine**: one menu to recover a lost companion or summon a new one with an offering (and
+  `[General] RecoverUnsummoned`).
+- **Speech overhaul**: a priority queue that does not drop a problem line, per-topic dedupe, the **status line** under
+  the name (with the reason when a job is stuck) and problems announced in the top-left corner when you are far away.
+- **Controller support**: gamepad binds, F8 navigable with a controller, and `[Advanced] LogLevel`
+  (`Off`/`Normal`/`Detailed`).
+- **Smaller fixes**: standing up out of sight only in dungeons, the door command closing doors, gear-first revive,
+  stance keys, chests/portals/fires improvements.
+
+### Ours (unchanged behaviour)
+
+- The **LLM layer** (text and voice orders, intent safety nets), **TTS/STT**, the five-language localization, the panels
+  following the game's language and the **1701+ UI band**.
+- Our **carry ceiling** (`CompanionCarry`: `[General] MaxCarryWeight` + the belt bonus read from the item asset) stays
+  in **every** weight check; the **Passive stance still fights the creature an order named**.
+- **160 new strings translated** into the five languages — **991 interface keys per language** in the end — and the
+  upstream's speech overhaul translated with it (**20 categories**, was 15).
+
+### Fixed during the merge
+
+- Four settings were declared without a `Bind` and would not appear in the `.cfg`: `[General] ShowStatus` and
+  `[Speech] Enabled`, `FarAwayMessages`, `AnnounceDeath`.
+- The F8 panel now clears the new per-row action dictionaries when it rebuilds (no stale rows).
+
+### New orders
+
+Five orders that reuse what the **command key** already does, typed in the chat or **spoken** (the same path, with
+personality and memory): **`hive`** (empty the beehive), **`door`** (close an open door / open a closed one),
+**`board`** (board the ship, taking the seat you point at), **`sit`** (sit by a fire) and **`deposit`** (put what the
+companion carries into a chest).
+
+- The target is the object you are **looking at** (the command key's own ray and layers) and, with nothing under the
+  crosshair, the nearest one around you — 20 m for a beehive or a door, 30 m for a ship, 5 m for a fire or a chest
+  (never the companion's own pack).
+- The order reaches **one** companion (the one you named, or the nearest that can take orders) and answers with its
+  own line: "Closing the door.", "On board!", "Putting 12 item(s) in the chest.". A locked door still answers
+  "It's locked.", an empty beehive "No honey in there yet." and a full chest "There's no room in that chest.".
+- 17 new strings in the five languages, and the prompt contract teaches the five actions in every language (+7 lines
+  each, no extra examples beyond the two that matter: "close the door" and "put this in the chest"). A small model
+  answering `inventory_close` for "close the door" (the verb "close" is an alias of that action) is read back as the
+  door order: the words you typed are checked for a door word and the absence of a pack word, the same idea as the
+  rule that reads the pack from the action word.
+
+### Fixed in the merge (found by the 1.9.2 audit)
+
+Seven independent reviews of the whole branch (AI layer, config/UI/localization, netcode/ZDO, Harmony, the prompt
+contract, "what of the upstream did not make it" and a global pass over this document) before the release. What they
+found and is fixed here:
+
+- **The farm zones came back empty.** The tombstone carried the **reader** of `HC_Respawn_FarmZones` but not the
+  **writer**, so a companion that died returned without the zones it was planting (the Shrine path kept them). One
+  line, restored from upstream.
+- **The F8 could mute the mod.** The merge mixed our voice dropdown (M2) with the upstream's generic list builder: any
+  pick on `[Advanced] LogLevel`, `[General] PortalItems` or `[Death] RespawnStance` was written outside the setting's
+  own list and BepInEx clamped it to the **first** value (`Off`, `AllowAll`, `Passive`). The lists now come from the
+  setting itself, with no "automatic" option, and `A` on the controller opens them.
+- **Choosing a stance now ends the tombstone recovery** (`MHR_Recover.Cancel` had no caller): the auto-pickup comes
+  back and the companion stops walking to its tombstone against your order.
+- **The chest order respects the ward and the world.** `deposit` only accepts a chest a player placed (never a
+  tombstone, a cart or a ship's hold) and refuses one inside another player's `PrivateArea`; it also waits for the
+  world's ownership before writing, so an item cannot leave the pack and be overwritten on a dedicated server.
+- **The pointed target scans every hit**, like the command key, instead of only the first one — a chest behind a fence
+  post is no longer silently replaced by "the nearest chest".
+- **`senta` twice**: already sitting at that fire by an order, the companion no longer stands up and answers "nobody
+  came"; sitting at another fire now takes it there.
+- **`putting N item(s)` counts items**, not stacks.
+- **`[Advanced] GatheringSwingInterval` is gone** (the upstream removed it in 1.5.6 and nothing read it here).
+- **`[General] MaxCompanions`**: the description now says when a dismissed companion's slot comes free (on the next
+  load of the world, or right away with `RecoverUnsummoned` off), and a companion with no permanent id yet no longer
+  counts twice on a dedicated server.
+- **The AI profile survives Odin's Shrine**: the roster copy now carries the voice and the personality, like the
+  tombstone already did.
+- **The new patches cost nothing with the log off** (`[Piece]` wear, block log, reflection behind the log gate) and an
+  instance id recycled by Unity no longer hands a new character the encumbrance verdict of a dead companion.
+- **Speech pools**: the five categories of the upstream's speech overhaul are translated in the four languages
+  (`Wood`, `Stone`, `Ore`, `Upkeep`, `Chat`), and `SpeechConfig.Merge` fills any pool a hand-edited file omits.
+- **75 F8 labels and 2 tab names** that were still in English are translated; **991 keys per language**.
+
+### Fixed after the first test of the 1.9.2 build (the voice)
+
+- **The voice follows the game language, including when you change it with the world open.** The Kokoro model is one
+  file for every language, but it picks the **phonemizer when it is loaded** — and it was loaded once and kept, so
+  switching the game to Portuguese kept `pf_dora` reading Portuguese with English phonemes (the panel and the log both
+  said `pt-br`, and the audio was English-sounding). The model is now rebuilt on the synthesis thread, with the audio
+  cache dropped, whenever the effective language changes — by the game's language or by `[AI] TtsLanguage`.
+- **`[AI] TtsLanguage` offers only the five languages the mod speaks** (`pt-br`, `en-us`, `es`, `fr`, `it`), each one
+  synthesized out of the game with the shipped model. `en-gb` and `fr-fr` load but fail on the first synthesis (a
+  `NullReferenceException` from the binding), and `ja`/`zh`/`hi` have no interface or lines here. A hand-edited code
+  outside the five **keeps the working model** instead of leaving the companion mute.
+
 ## 1.9.1 — 26/10/2026
 
 **A ~54 MB lighter package.** The `ggml-base-q5_1.bin` model (57 MB) is **no longer shipped**: the mod never used it
@@ -1100,6 +1201,76 @@ PT-BR translation: coverage audit (what the player reads, in English, was a bug)
   `BepInEx\config\*.cfg`; the F8 panel shows the keys), the **technical names of the settings** in the panel tabs
   and the diagnostic **log lines** (kept in English on purpose).
 
+## 1.5.8
+- Torches: companions carry one at night and in dark dungeons and caves (Torch > DarkLevel), not in a lit base or next to you holding yours; held in either hand and kept lit in a fight in the off hand; it burns down like yours (Torch > BurnsDown) and is never repaired. Companions fight with their fists rather than a torch.
+- Controller binds for every action, each with an optional modifier (default: hold block + Y to command, hold block + X for the wheel); any bind can be cleared, keyboard keys too; hints show your controller's buttons.
+- Settings panel (F8) with a controller: sticks the right way round, one clear highlight, readable button hints; settings with a list of choices (LogLevel, PortalItems, RespawnStance, Speech Chatter) are shown there now.
+- Ashlands lava: companions go round it, get off it at once, and don't chase enemies or loot onto it.
+- A companion stays put a little longer while your crosshair is on it, so you can walk up and talk to it.
+- Companions no longer shut a door behind you mid-fight and can follow you through it.
+- A torch used up by blocking or swinging it is gone, as for you; companions don't block with only a torch (they step out of the swing).
+- In a dungeon a seated companion gets up when you go out of sight, not just when you're more than 10 m away.
+- The door command closes an open door too (one companion goes); a controller's Use no longer opens a companion's bag while a menu is open.
+- New Advanced > LogLevel (Off / Normal / Detailed): far less logging by default, and a level that's off costs nothing.
+
+## 1.5.7
+- The beehive order goes to the nearest companion that isn't resting; companions don't go to bed in the middle of an order.
+- Companions step round a tree or rock that is in the way of their swing.
+- Companions get encumbered like a player when they carry too much; a strength belt raises their limit.
+- Portals follow the game's item rules for companions (General > PortalItems); ore they carry is left in a nearby chest, or they wait.
+- Fixed the summon window not taking clicks for some players.
+- Stone and Ore no longer mine walls or other built pieces.
+- Wood takes fallen logs first, then stumps, then standing trees, finishes the log it split before starting another, and chops a log where it can reach it with nothing in the way.
+- Wood: chops a log from one spot instead of moving along it, and only steps aside when a tree comes down, not when a log breaks.
+- Gathering: a companion whose swings aren't damaging what it's working on (a rock in the way) tries another side, then moves on.
+- Gathering: companions stay where their swings land until the target breaks, wait for a fresh log to stop rolling, and keep track of every piece of a tree they cut.
+- Wood: a log that keeps rolling or is stuck up in the branches is left for a moment instead of chased.
+- Companions jump out of the water at a bank like a player instead of getting stuck.
+- Wood: fixed standing under a log caught in a tree, and picking up and dropping the same log when you walk away.
+- Companions keep clear of the hearth when walking round it, even in a tight room.
+- Companions no longer store things in or take things from world-generated chests.
+- Repairs: companions without a home repair worn gear in a base like at home, and an item they couldn't fix out in the wild is looked at again once they're back.
+
+## 1.5.6
+- Combat: full combos, parries and blocks by chance (better with skill), spacing and going in on an opening, flanking, finishing blows, stamina kept for blocking.
+- Bows drawn like a player (draw time, partial draws); Ranged stance carries the bow; Balanced takes the bow for enemies melee can't reach.
+- Fights: only enemies in sight, no doors opened mid-fight, defensive in dungeons, no swimming after enemies, back to you past 35 m (Combat LeashFromYou), unreachable enemies let go and picked up again once reachable.
+- Fixed ticks: a latched tick is fought first with full combos.
+- Safer movement: spike walls avoided, fight moves stay off ledges, water and fire; follows you through dungeon doors even mid-fight.
+- Fixed getting on and off boats: jumps aboard, or swims and wades to the ladder; walks to a seat (or the one you point at); gets off with you. No teleporting.
+- Swimming uses stamina like the player (Stamina SwimDrainAtSkill0).
+- Odin's Shrine: summon more companions for coins; recover lost or unsummoned companions; menus in the game's look.
+- Collects honey from a beehive via command.
+- Fixed the overhead stamina bar turning grey after a portal.
+- Fixed a companion warping to you when you got off a ship.
+- Companions eat again with 3 minutes of food left (Food > EatAgainMinutes); follow you indoors to a chair up to 8 m away.
+
+## 1.5.5
+Speech overhaul: companions talk less, and what they say and show tells you what they're doing and why not.
+- Status: look at a companion and a line under its name says what it's doing ("Wood - chopping Beech", "Repair and Restock - fuelling the Hearth", "Mead - filling a fermenter") and, when its job is stuck, why (General > ShowStatus).
+- Status: a stuck job goes through its reasons in turn, with the numbers from your settings - "Wood 512/500 - at the limit.", "Copper deposit needs a better pickaxe.", "Raw meat 104/100 - enough.", "No bait for Pike (Fishing bait).", "No wood for the Charcoal kiln.", "Mead - Honey 0/30 for Frost resistance mead." (the recipe's 10 plus the 20 kept back), "No Turnip seeds to plant.", "No Resin for the fires."
+- Speech: much less small talk - every 1.5-3 minutes instead of 15-30 seconds (Speech > Chatter: Off, Rare, Normal, Often; Speech > Enabled turns all speech off).
+- Speech: small talk fits what it's doing and where it is - job lines only while working that job, fight lines only in a fight, home lines at home, travelling lines away from home, lines for the biome, night, rain and cold, nothing while it sleeps, sits, swims or sails.
+- Speech: it says what it's off to do ("Fetching an axe.", "Putting a cultivator back.", "Off to bed.") and gives the real reason when it has nothing to do.
+- Speech: new lines for things it used to give up on silently - no way to reach you, chests full, a tool it needs (any tool), no station to fix its gear, a lost spear, prey that got away, no hunting in the Passive stance.
+- Speech: replies to your orders come at once; problems aren't lost to small talk and aren't repeated for 5 minutes; hungry, worn-gear, no-bed and heavy-pack remarks at most every 10 minutes, and "no bed" only at night at home.
+- Speech: a problem a companion runs into while you're out of earshot shows top left with its name (Speech > FarAwayMessages).
+- Messages: when one of your companions dies, the middle of the screen says so, with the biome and how far away (Speech > AnnounceDeath); when no companion takes your order (Command off, too far) a short message top left says so.
+- speech.json has a new layout with tags per line ([home], [night], [rain], [blackforest]...). Your old file is kept next to it (speech.v1.json / speech.v2.json) and replaced by the new lines.
+- Death (GitHub issue #17): a revived companion gets its gear before fighting again. Death > RespawnStance = RecoverFirst (default): it comes back Passive with Pickup off, goes for its tombstone when it's safe (waiting by you while enemies are after it, but finishing the trip once it's nearer its gear than you), fights back only when attacked with a weapon in hand, puts its gear on, eats, then goes back to its old stance. Passive: stays Passive. Keep: as before.
+- Stance keys (issue #17): Controls > PassiveKey, BalancedKey, RangedKey, MeleeKey (unbound by default) - the companion you're looking at, or everyone in RecallRange with Command on.
+- Death (issue #16): a companion that comes back by itself says where ("Saber is back - at its bed (Meadows, 850 m from you)"), and the roster and Odin's Shrine show where each living companion is. Death > RespawnAtPlayer: it always comes back next to you.
+- Fixed: a companion's farm zones were lost when it died and came back, or was recovered. They now come back with it.
+- Farming: ground you've tilled with a cultivator counts as an "Any" zone - it plants the PlantAny crops there, never inside a zone you set (Farming > PlantTilledGround).
+- Farming: no more planting under eaves or against walls (where crops never grow), and no more trying to reach tilled ground it can't walk to (Farming > UnreachableSpotMemory).
+- Farming without zones no longer keeps announcing "no farm zones"; "All done farming" at most every 10 minutes.
+- Fixed: companions walked through the edge of the hearth's flames and stepped up onto it - which damages the hearth, as it does when a player stands in it. Routes, idle spots and follow spots now keep clear of fires.
+- Water: in shallow water (the swamp) companions wade instead of hopping in and out; they jump only when the jump lands them on dry land, or to save a swim.
+- Fixed: shooting at a bird, a companion often hit the hillside - it now aims at the bird and only shoots with a clear line to it.
+- Following indoors: no more stuttering out of the door and back; a companion that sat down stays seated while you move about within 10 m (Follow > SitStayRange).
+- Fishing: the log names the stamina food it takes along.
+- Fixed: key settings in the F8 panel can be set again (a click starts "Press a key...", Esc cancels).
+
 ## 1.5.4
 - Hunting: with a spear to throw at a deer (and another weapon in its pack), a companion sneaks only to throwing distance, stops and throws, instead of walking right up and stabbing it. New setting Hunting > ThrowStandoff (10 m; it throws from anywhere within ThrowRange, 12 m).
 - Hunting: a companion with a spear as its only weapon throws it too once a deer (or other timid game) has noticed it, then lets the animal go and fetches the spear before hunting on.
@@ -1195,750 +1366,6 @@ PT-BR translation: coverage audit (what the player reads, in English, was a bug)
 ## 1.5.0
 - Major release: everything from 1.4.86 to 1.4.156 below (new movement, idle behaviour, Repair and Restock, cooking, gathering like Hunt, orders first, multiplayer ownership and chest safety, cleaned-up settings), plus the new Companion Guide (GUIDE.md) and Settings Reference (CONFIGURATION.md).
 
-## 1.4.156
-- New [Cooking] MakeMead (on by default): off = the cook makes food only - no mead bases and no filling fermenters.
+## Older versions
 
-## 1.4.155
-- New [Combat] EngageOnNotice (on by default): companions attack a creature as soon as it has noticed you or them, as before 1.4.154. Off = they wait until it's actually coming for you.
-
-## 1.4.154
-- Companions no longer open fire on a creature that has only noticed you - only once it's actually coming for you or them (anything that attacks is still fought).
-- After a kill, a companion that finds no body and no drops yet waits a few seconds longer for them to come out instead of giving up straight away.
-
-## 1.4.153
-- A full gathering companion away from home still unloads into a nearby cart or ship (as before); it now also skips one someone has open on another player's game, or one behind a ward it can't open.
-
-## 1.4.152
-- Multiplayer: a companion run by another player's game still treats you as its player - it follows you, sleeps when you sleep and sits when you sit, not whoever's game is running it.
-- Multiplayer: orders you give your companion always take effect (they were lost when another player's game was running it).
-- Multiplayer: companions no longer lose or duplicate items when they use chests or pick things up.
-- Companions don't use chests someone has open on another player's game, private chests other players built, chests behind a ward they can't open, or carts and ship holds.
-- Companions respect wards for fermenters, beehives and planting, like a player.
-- Crops and wood piles a companion makes are credited to its own player; portal trips with another player's game running the companion now stick.
-- Smelt and Cook also use the chests around home, so they no longer take down the wood piles Repair and Restock just built.
-- Companions only pick up the honey or pile drops from the hive or pile they emptied themselves.
-- Wood, Stone and Ore with Follow on now default to 10 m, like Forage ([Gathering] FollowRange; an existing config keeps its own number).
-
-## 1.4.151
-- Forage with Follow on now only picks plants within 10 m of you (new [Gathering] ForageFollowRange) - the berries you happen to walk past, not everything around. Wood, Stone and Ore keep FollowRange (20 m).
-
-## 1.4.150
-- Fixed: a patch meant only for companions stopped every creature's attacks from leaving effects on the ground.
-- Fixed: Smelt could put ore or fuel into a smelter that was no longer in its pack (duplicating it).
-- Fixed: waking up, or getting up from the fire, made a worker whose job turned Follow off follow you out of the base.
-- Fixed: a hunter walking home with its catch barely fought back when attacked on the way.
-- Fixed: the open-door order couldn't be replaced by a new order and ran during fights and loot pickup.
-- Fixed: a gathering companion going over its carry weight in a fight walked to a chest with its back to the enemy.
-- Fixed: the walk to the stone pile and the step aside from a falling tree ignored orders and loot pickup.
-- Fixed: after switching away from Fish between casts the companion kept the rod in hand and stopped equipping new gear.
-- Fixed: a second companion could sit down in the chair an idling companion was already sitting in.
-- Fixed: a companion's tombstone didn't float in water or get moved back up if it fell through the ground.
-- Fixed: Cancel and leaving a gathering job didn't turn Follow back on; setting Follow yourself is now remembered over the job's own switch.
-- Fixed: jobs and idling kept going while seated on a ship, swimming for the shore, or sitting by a fire.
-- Fixed: jobs took over a chest you had open (items changing in your chest window) and could clear its "in use" mark.
-- Fixed: Smelt and Farm left a chest lid open when they were interrupted.
-- Fixed: tool trips could start in the middle of an order; idle chatting could follow you away from the job.
-- Fixed: an idle chore cut short kept its fuel in the pack; Farm could lose seeds from the chest with a nearly full pack.
-- Fixed: two farmers in one field could plant on the same spot; the bow could flicker while stalking a bird.
-- Fixed: after a death and respawn, turning the job off didn't turn Follow back on.
-- The "waiting for companions" sleep message only shows on the host, where companions actually hold the night skip.
-- The one-time config fix-ups (ForageItems "*", old ViewRange/ViewAngle) only run when upgrading an old config file.
-
-## 1.4.149
-- Config clean-up: settings regrouped into clear sections (General, Controls, Follow, Movement, Combat, Food, Stamina, Rest, Death, Looting, GearRepair, one per job, Idle, Speech, Advanced).
-- Settings that moved or were renamed keep the values you set - they're carried over automatically the first time you load in.
-- Removed 22 settings that did nothing (old combat, AI and Stay Home settings).
-- Old leftover lines are cleared out of the config file (removed settings, the old Homestead and Door sections).
-- Every setting's description rewritten in plain words, with units.
-- Low-level tuning (scan intervals, use distances, tick timings) moved to a new [Advanced] section.
-- Movement ViewRange and ViewAngle now actually work (defaults 20 m and 120 degrees - what companions always used).
-
-## 1.4.148
-- Fixed: a companion sitting on a ship flooded the log with "Setting linear velocity of a kinematic body is not supported" warnings - ship seats now work like chairs and beds.
-
-## 1.4.147
-- Fixed: a running job could pull a companion away from boarding a ship, opening a door, or sitting by a fire / going to bed when you told it to - every job now waits for these orders too.
-- Repair and Restock and the idle behaviour wait for all your orders, not just "go there".
-
-## 1.4.146
-- Fixed: ordering a companion to repair at a station was cancelled straight away while its job had a task - your order now goes first and the job waits for it.
-- The repair log now says why a repair trip stopped (combat, loot, another order, being talked to, the job has work).
-
-## 1.4.145
-- Fixed: a "go there" order (or hitching a cart, putting things in a chest, fetching a tombstone) and a running job steered at the same time - every job now waits until the order is done.
-- Fixed: a gear repair trip could run alongside picking up loot after a fight - it now waits too.
-- A worn item no station nearby can repair is left alone for 10 minutes before it looks again (new [Repair] NoStationWait).
-- A gear repair trip that can't find a way to the station, or takes over 2 minutes, gives up; that item then waits the same 10 minutes.
-
-## 1.4.144
-- Fixed: with Cook on, a gear repair trip and the cook's task walked at the same time and the companion stood still - the repair trip now waits while Cook, Farm, Hunt or Fish has a task.
-- Fixed: an item it can't repair nearby (an arbalest needing the black forge) sent it to the forge over and over to top up nearly-new gear - only the worn items now decide the trip.
-
-## 1.4.143
-- New idle behaviour: a companion with nothing to do no longer just stands there - after 10 s it idles near its job until work turns up again.
-- Idle chores: repairs damaged pieces, tops up fires, collects honey and puts away what it carries nearby.
-- Idle rest: sits on a free chair or bench nearby, or on the ground, for a while.
-- Idle wander: strolls about and looks over the stations and chests near its job.
-- Idle company: walks over to you or another companion nearby and chats now and then.
-- Now and then says why it's idle ("Nothing left to chop here.", "Waiting for the crops to grow.").
-- New [Idle] settings: Enabled, StartAfter, Radius, Chores, ChoreRadius, Sit, Wander, Socialize, SpeechInterval.
-
-## 1.4.142
-- Code clean-up, no change in behaviour: the build has no warnings any more (old Unity names updated, unused leftovers removed).
-
-## 1.4.141
-- Movement clean-up, part 2: the old steering and "unstuck" code is gone - no more stray jumps while a companion stands working (it jumped after standing still for 2 seconds with any job on), and no more teleporting to you after five failed unstuck tries during a fight. The new movement handles all of it.
-- Swimming for the shore when low on stamina now uses the new movement (the old way had stopped working).
-- The "open this door" command now walks up and opens the door with the new movement; the old door helper and its [Door] settings are gone (doors on the way were already handled by the new movement).
-
-## 1.4.140
-- Companions line up with a doorway before going through it, like a player: when their way leads through a door they first step onto the line straight out from the middle of the doorway, then walk straight through. They no longer cut the corner and walk into the leaf of an open door.
-
-## 1.4.139
-- Shorter stop at doors: after closing a door that was open towards it, the companion tries to open it again every moment instead of waiting, so it goes through as soon as the door has finished swinging shut.
-
-## 1.4.138
-- The open-door fix sometimes didn't find the door at all: inside a house there are so many walls and beams close by that the door search ran out of room before reaching the door. It now looks much further through the list, and an open door is closed after about a second of being held up next to it instead of three.
-
-## 1.4.137
-- Still stuck at the open door: the door's leaf wasn't straight ahead, so the look-ahead missed it. When a companion gets stuck it now closes any open door right next to it (and reopens it from its side if that's the way).
-
-## 1.4.136
-- Companions got stuck for a moment on a door that was already open towards them (opened from the other side). Like a player, they now close it and, if their way is through it, open it again from their side so it swings away.
-
-## 1.4.135
-- Farm paused for a few seconds while planting: it had walked as close to the plant spot as it needed to, but Farm measured the distance differently (straight-line, slope included) and kept waiting. Farm, Smelt and Cook now accept "arrived" the same way the movement does.
-
-## 1.4.134
-- Movement clean-up, part 1: Farm, Smelt and Cook no longer have their own "stuck" timers - they give a trip up only when the movement itself gives up (or after 2 minutes). Farm's old timer counted waiting at a door or for stamina as being stuck.
-- The last pieces of the retired Homestead / Stay Home code are gone (patrolling home, teleporting home, the home-zone row on the companion panel).
-
-## 1.4.133
-- Gear repair: at home it walked to the workbench every time a tool dropped to 99% (the hammer, after each building repair). It now waits until gear is below [Repair] HomeThreshold (80%).
-- Gear repair only uses a station a player could use right now - under a roof if it needs one, with a fire if it needs one.
-- Repair and Restock: sending the companion somewhere with the command no longer fights the job. It goes, waits there [RepairAndRestock] OrderWait (30 s), then goes back to its chores.
-- Repair and Restock now empties beehives (once half full, [RepairAndRestock] HoneyAt) and puts the honey away in the chest that already holds the most honey ([RepairAndRestock] Honey).
-
-## 1.4.132
-- Repair and Restock no longer puts a pile on top of another pile - piles can't carry each other and the new one broke. Piles only go beside each other now, on the ground or floor.
-
-## 1.4.131
-- Cook job keeps its heat going: the fires under the cooking spots it uses (spit, iron cooking station, cauldron) and the oven are kept at [Cooking] FuelLevel (50%) - when one drops below half of that it's topped back up, one piece at a time. Fuel from its pack or the chests, or a wood pile taken down with a hammer ([Cooking] UsePiles).
-- When cooking in the oven it now fills it to FuelLevel instead of a flat 3 pieces.
-- (Repair and Restock only fuels fires, torches, braziers and hot tubs - never kilns, smelters or the oven.)
-
-## 1.4.130
-- Smelt job: when the chests have no wood for the kiln (or no fuel for a smelter), it takes down a pile of it with a hammer, like a player, picks up the material and uses that. Needs a hammer in its pack; [Smelting] UsePiles turns it off.
-
-## 1.4.129
-- Piles are a resource now: when the chests drop below PileKeep, Repair and Restock takes a pile down with the hammer like a player (top of a stack first), picks up the material and puts it back in the chests.
-- Smarter pile placement: it scores every free spot beside or on top of a pile and picks the best. It won't narrow a walkway, and won't build by a door, portal, bed, chair, crafting station, cooking spot, fermenter, beehive, chest or a smelter/kiln's ports (its back is fine). It prefers spots backed by a wall or another pile.
-
-## 1.4.128
-- After a fight on Forage (or Wood, Stone, Ore, Smelt, Farm, Cook) the companion stuttered: it tried to walk to its next job target and to what the kill dropped at the same time. It now picks up the drops first, then goes back to the job.
-
-## 1.4.127
-- Wood, stone and other materials in piles near home now count toward the Wood/Stone/Ore jobs' limits (WoodLimit, StoneLimit and per-item amounts), like what's in the chests.
-
-## 1.4.126
-- Repair and Restock now stacks wood, stone and similar materials from the chests into piles (Stack of Wood, Stone Pile, Fine Wood Stack...), built with a hammer like a player. It only adds to piles of the same kind you already built, beside them or on top, and leaves [RepairAndRestock] PileKeep (100) of each in the chests.
-- New settings: Piles, PileKeep, PileItems (* / Name / -Name / Name:Number to keep a different amount).
-
-## 1.4.125
-- Repair and Restock: when the companion's own gear needed repairing (its hammer, worn from the repairs) it got stuck between walking to the workbench and walking to the next piece. Gear repair now goes first and the job carries on afterwards.
-
-## 1.4.124
-- Repair and Restock: the companion took its hammer out and then just stood there - it kept checking for the hammer as a weapon, which the game doesn't count it as. It now swings.
-- It also stood next to a pole set under the floor doing nothing: the floor touching the pole counted as "in the way". It now looks at several points on a piece, ignores what's touching it, and if it still can't reach a piece (or fire) from where it stands it moves on after 3 seconds and says why in the log.
-
-## 1.4.123
-- Picking up branches, stones and flint is now early-game only: it stops once there's a bronze-or-better axe in the companion's pack, your pack or the chests near home, or a forge at home (it used to depend only on the companion's own axe).
-
-## 1.4.122
-- Wood and Stone jobs: a companion with only a stone or flint axe, or no axe at all, also picks up what's lying on the ground - branches on the Wood job, loose stones and flint on the Stone job (on the job's list and under its amount). Whichever is closer, a tree/rock or something on the ground, comes first.
-- With no tool for the job (no axe for Wood, no pickaxe for Stone) it only picks things up, instead of standing around.
-- New [Harvest] PickUpLoose setting (on by default) to turn this off.
-
-## 1.4.121
-- Wood, Stone, Ore and Forage with Follow off now work an area like Hunt: around home when started near home, otherwise around where they were started (new [Harvest] Range, 40 m), and keep going when you walk away instead of stopping 40 m from you.
-- With nothing left to gather they walk back to the middle of that area.
-
-## 1.4.120
-- Wood, Stone, Ore and Forage work like Hunt: picking one no longer turns Follow off, and picking Follow no longer turns them off.
-- With Follow on they only go for trees, rocks and plants within [Harvest] FollowRange (20 m) of you, and otherwise follow; if you move on, they leave what they were working on and catch up.
-- Gathering companions that follow you put their load away when you get home, like a hunter.
-
-## 1.4.119
-- Cook: each cooking appliance can be switched off on its own - Cauldron, PrepTable, MeadKetill, CookingStation, IronCookingStation, Oven, Fermenter, Beehives and OtherStations (modded ones).
-- Repair and Restock now sorts chests wherever it was started, not only at home: started near home it works around home, anywhere else within AwayRadius of where it was started (and goes back there when idle, instead of walking home).
-
-## 1.4.118
-- Repair and Restock now leaves pieces above 75% health alone by default (RepairBelow 0.75, was 1 = any damage).
-- Each kind of fire can be left alone: RefuelFires, RefuelHearths, RefuelBraziers, RefuelStandingTorches, RefuelWallTorches, RefuelHotTubs and RefuelOther (lanterns, modded fires and the like).
-
-## 1.4.117
-- Repair, Restock and Homestead were three wheel jobs that didn't really do the work; they're now one job, "Repair and Restock", that walks over and does each task the way a player would.
-- Repair: with a hammer in hand it walks up to each damaged building piece near home and repairs it with a swing (needs the piece's workbench in range and ward access, and costs stamina and hammer wear like a player). If it has no hammer it fetches one from a chest.
-- Restock: fires, torches and braziers low on fuel are topped up one piece at a time, with fuel from its pack or fetched from a chest; any fuel left over goes back in a chest.
-- New chest sorting: each kind of item is carried to the chest near home that already holds the most of it, and part-stacks are merged (needs a home set; only stackable items unless SortGear is on).
-- New [RepairAndRestock] settings: Repair, RepairBelow, Reach, Restock, FuelBelow, Sort, SortItems (* / Name / -Name), SortGear, AwayRadius, ScanInterval, WorkTime, GiveUp.
-- The Restock and Homestead wheel slots are now "Pending" and do nothing when clicked; companions saved on Restock switch to Repair and Restock, and Homestead is turned off (Wander still lets them move around home).
-
-## 1.4.116
-- After each catch the fisher casts at the closest fish it wants from where it stands, instead of the one it first picked further out.
-- The first cast of a session no longer goes twice as far as needed (it starts from a full cast reaching about 24 m and keeps learning).
-
-## 1.4.115
-- The fisher may stand on a rock again, like a player, as long as there's something to stand on.
-- If it falls off its spot it gets back on; if it falls into the water with a fish on the line, the fish is lost; and if it falls off the same spot twice it fishes from somewhere else for a while.
-
-## 1.4.114
-- The fisher may stand in shallow water (up to about waist deep) to fish, but prefers dry land.
-- It only fishes from firm footing: level ground at least half a meter all round, so no more hopping onto a small rock and falling off when it casts.
-- It prefers fish it can reach with a shorter cast.
-
-## 1.4.113
-- Fixed the fisher finding almost nowhere to fish from (1.4.112 was too strict on beaches): any dry ground or dock with water within 5 m counts again, as long as the water is at least a meter away.
-
-## 1.4.112
-- Fixed companions getting stuck floating in the water: while swimming they could get stuck steering at a point right under them and never try to get out.
-- The fisher never fishes from the water: if it slips in, it reels in and climbs back out to its spot first.
-- Fishing spots are at least a meter back from the water's edge, so it doesn't slip in while fishing.
-
-## 1.4.111
-- The fisher gets its breath back before each cast: it waits until its stamina is nearly full, so it doesn't start reeling a fish on an empty bar.
-- While fishing, companions eat their most stamina-rich food first, and near home they fetch a few stamina foods from the chests if they have none (and put back what's left after the job).
-- The running dive into water only happens for a real swim across, not to reach something just off the bank or to get round a fence end.
-
-## 1.4.110
-- Companions prefer staying dry like a player: when the way somewhere crosses water they go round on land unless that's a long way in another direction, and otherwise swim (General > DryDetour).
-- Jobs (fishing spots, prey, birds, kill drops) accept a short swim to get somewhere and only give up on a long one (General > JobSwim, 20 m). Drops floating in deep water are still left.
-- Companions take a running dive into the water whenever their route really does swim, not only while following you.
-
-## 1.4.109
-- Fixed companions counting as having stamina at zero, so a fisher out of stamina still landed its fish (a player loses it). This also applies to anything else that needs stamina.
-- The fisher fishes for fish up to 20 m out (its full cast reaches about 24 m), so it finds somewhere to fish much sooner.
-- Companions only take a running dive into deep water while following you, not on the way to a job.
-- Less log spam from the small stamina drains while reeling.
-
-## 1.4.108
-- Fixed the fisher's float never coming out: the game's float setup crashed for companions every time the cast hit the water (and kept spawning floats).
-- The fisher finds places to fish from much faster and more reliably: it maps the shore and docks around it that are right next to deep water, and picks the one nearest a fish it wants.
-- It casts no further than about 14 m (fish come to the float from 10 m around it), and picks another fish when the one it was after has swum off.
-
-## 1.4.107
-- Fixed the fisher never finding a spot to fish from on a dock or a high bank: it looked for ground from below the dock, so it only saw seabed. Docks, banks and walls up to 10 m above the water count now, and it fishes from where it stands when a fish is within a cast.
-
-## 1.4.106
-- Fish redone: the companion fishes for real like a player, with the game's own float and the fish actually in the water. Fish come to the float, bite, get hooked when it strikes in time, fight, and can get away or break the line.
-- It stays around where you started the job, looks for fish within Fishing > ScanRadius, walks to the bank by the one it wants and uses the bait that fish takes best.
-- Reeling uses stamina and raises the Fishing skill, and a higher skill reels faster and cheaper, as for a player. Bait is only used up when something takes it.
-- New Fishing > Fish list and FishTarget (100 of each, pack + chests near home). Near home it takes the catch home when the pack is full, then goes back to fishing. Fish names are in OfflineCompanionsReborn.Fishing.txt.
-- The old simulated fishing settings (WaitTime, ReelTime, HookChance, MissChance, ReelStaminaDrain) are gone; new ones: CastWait, BagFull.
-- Every list setting now works the same way: * = everything, Name, -Name = never this one, Name:Number = this one with its own amount. That's Foods, Prey, Fish, PlantAny, ForageItems, GatherWood, GatherStone and GatherOre.
-- New amounts: Name:Number in Foods sets that food's target, in Prey that creature's (or meat's) target, in ForageItems stops picking that item at that many, in PlantAny stops planting that crop at that many.
-
-## 1.4.105
-- Companions get up in the bed like a player when they wake, then step down beside it (they were playing the get-up on the floor).
-
-## 1.4.104
-- Move here, put items in a chest, Repair buildings, Restock, going back to a tombstone and healers going to someone hurt now use the companion movement: routes, doors, stairs, climbing out of pits and keeping out of deep water. A move order it can't find a way to is dropped (the log says so).
-- Chasing enemies in a fight uses the companion movement too, falling back to the game's own only when it can't find a way.
-- The last steps up to a tree or rock, dodging a falling tree, the door handler and following a non-player use it as well.
-
-## 1.4.103
-- Hunters chase prey the way companions follow you: proper routes, climbing out of pits, no jumping into water. Prey they'd have to swim to, or can't find a way to, is left alone.
-- With a bow or crossbow, prey down in a moat or pit is shot from the edge instead of followed down.
-- A companion far from you and out of sight no longer warps to you while it's still making its way there; it walks.
-
-## 1.4.102
-- Companions no longer go straight back to bed right after you load in.
-- Companions get up beside the bed onto the floor, instead of on the bed (where they slid off the end).
-- Bird hunting: shoots from up to 30 m and jogs into range, since birds only stay down a few seconds; never swims after a bird.
-
-## 1.4.101
-- Fixed companions getting up from a chair into the hearth (or onto a table) in front of it and getting stuck inside it: they now step down onto open floor beside the chair.
-- A companion still in a fire after 3 seconds (stuck in it) is moved to the nearest safe spot.
-
-## 1.4.100
-- Hunters shoot birds for their feathers: when a crow, gull or modded bird lands within range, they sneak up and shoot it with a bow or crossbow, then pick up the drops (Hunting > Birds, FeatherTarget).
-- Fixed a companion getting stuck standing in a hearth: it now looks further for a way out, jumps out like a player, and after 6 seconds steps onto the nearest safe spot.
-- When a command reaches no companion, the log now says why (too far away for RecallRange, Command switched off, or not yours).
-
-## 1.4.99
-- Jumps don't have to be perfect: a companion jumps across water when it can land somewhere shallow enough to stand, then jumps again, like a player. It keeps a quarter of its stamina back for these.
-- Shortcuts through water it can wade are no longer ruled out, and gaps are judged a little less strictly.
-
-## 1.4.98
-- Companions jump like a player: their own run speed (with mead, wet, cold and other speed effects) carries them across, and a higher Jump skill jumps further.
-- Jumping now costs companions stamina like it does a player, and with too little stamina for a full jump they don't try a stream or gap they can't clear; they wade or go round.
-- Streams and gaps are only jumped when the companion can actually make it from where it is (width, landing height, speed, skill and stamina all count).
-
-## 1.4.97
-- Companions no longer swim out for a kill's drops or follow a body floating into deep water; they wait on the bank and leave what's out of reach.
-- Fixed companions staying crouched (sneaking) while swimming.
-- Shortcuts are more like a player's: when the straight way is much shorter, companions drop off ledges up to 3 m and leap gaps up to 1.5 m instead of going down the stairs and round (General > MaxDrop, JumpGap).
-- Cooks no longer eat the honey they collect for the kitchen; it's put away with the rest.
-
-## 1.4.96
-- Companions sneak up on deer, hares and other skittish game that hasn't noticed anyone yet: crouched and not running, so it doesn't bolt (Hunting > Sneak).
-- A crouching companion is now really sneaking, like a player: quiet footsteps and harder to spot (light and Sneak skill count). Before, it only looked like it.
-- Companions jump narrow shallow streams and puddles too, not only water deep enough to swim, and wade through wider shallow water (General > JumpWaterDepth, JumpWaterWidth).
-- Fixed a companion missing the drops of its first kill when it fought something else straight after: fights no longer use up its looking time, it follows a body that slides or floats off, and it looks further around once it gets there.
-
-## 1.4.95
-- Fixed companions giving up on a kill's drops about a second after setting off, before reaching the body ("nothing dropped").
-- Companions wade into shallow water for a kill's drops and follow drops that float off, but don't swim out for them.
-- Cooks walk to each honey after harvesting a hive, so honey that rolls off behind a hive on a slope gets picked up too.
-- Wet, Cold, meads and other status effects now change a companion's health and stamina regeneration like a player's (General > StatusEffectsOnRegen).
-
-## 1.4.94
-- Hunt works with Follow on: the companion goes after game near you (FollowRange, 25 m) and keeps up with you when there's nothing close.
-- Hunt with Follow off hunts around where it is: home if it's near home, otherwise where the job was started (Range, 40 m), and walks back there between hunts.
-- Hunt goes after anything that drops meat, modded creatures included; never tamed animals, bosses or companions. New [Hunting] Prey list (* = all, -Name to exclude); the names are in OfflineCompanionsReborn.Hunting.txt.
-- Hunt stops on a creature once you have MeatTarget (100) of each meat it drops, counting the pack and the chests near home. Leather and hides are picked up as a bonus.
-- A hunter that follows you keeps its catch until you're home, then puts it away. With Follow off near home it walks home to unload when its pack is full.
-- Hunt uses a bow first and melee second, and fights anything that attacks it the normal way (blocking and parrying included) before going back to its prey.
-- Hunt no longer stops when there's no bow or arrows away from home; it hunts with its melee weapon.
-- After any kill, a companion goes over and picks up what the creature dropped, waiting for drops that come out of the body. New [Looting] settings; needs Auto Pickup on.
-
-## 1.4.93
-- Cooks collect honey from beehives around home (within HomeTripRange, 60 m by default; at a camp, within the cooking range): from a full hive, right away when a mead base is waiting on honey, and from any half-full hive when there's nothing else to cook. The honey gets put away with the rest.
-- Fixed the "Setting linear velocity of a kinematic body is not supported" warning while a companion sleeps in a bed.
-
-## 1.4.92
-- Reviewed mead plan: after each boss, cooks brew the mead bases you'll want for the next one first (Eikthyr through Fader, plus Kall Fimbulbringer). The list sets the order, it doesn't limit it: other mead bases you know are still brewed after food, within the same targets.
-- Bosses are read from the game itself, so the MeadFocus setting works with new and modded bosses too; OfflineCompanionsReborn.Cooking.txt lists them.
-- The log now says why a cook isn't brewing a priority mead base (enough already, recipe not known, no usable station, or an ingredient at its reserve).
-
-## 1.4.91
-- Fixed cooks never actually putting mead bases into fermenters (the base disappeared from their bag and the fermenter stayed empty), and thinking a full fermenter was empty.
-- Fixed companions trying to stand on top of a fermenter (or chest, station, bed) next to the one they're using. They now stand on the floor beside it.
-
-## 1.4.90
-- Fixed cooking (and other chest trips) not reaching any chest in a room with a fire. The "keep out of fires" check now only avoids the flames themselves, not the whole area around a fire.
-- Companions carry their best parrying shield again instead of the tower shield. They still switch to the tower shield in a fight when they're hurt or outnumbered.
-- Companions no longer put their gear back on piece by piece when you load in. They're already dressed, like you.
-
-## 1.4.89
-- Companions jump over a small fire in their way, like a player, and only walk round a big one. Fixed a cook getting stuck stepping in and out of a fire pit on the way to the cauldron.
-- Fixed the cook trying the same recipe over and over when an ingredient is only in a chest it can't reach. Such chests no longer count, and a recipe that can't be made is left alone for a minute.
-- Companions can use chests on ledges and shelves from the floor below: they look for a place to stand under an overhang too, and check whether they can see the chest from a little higher (like a player's camera).
-
-## 1.4.88
-- Fixed companions running back and forth under a chest up on a ledge (seen when emptying their bags after turning Cook off).
-- Companions keep out of fires: they don't pick a spot in one, walk round one in their way, and step straight out if they end up in one (seen in a tight kitchen, standing in the fire pit).
-- Companions reach chests like a player: anything within about 4 m of their eyes that they can see, so chests up on a ledge or a high shelf can be used from the floor below.
-
-## 1.4.87
-- Cooking rewritten. Companions now use every cooking station like a player: cauldron and food preparation table (with a fire and roof, like you need), cooking station, iron cooking station and oven (they put food on, take it off when it's done, and keep the oven fed with wood). Bread and pies go from the prep table to the oven.
-- They make the best food they can from recipes you know, until there are 20 of it in the chests nearby, and never use a raw ingredient once 20 or fewer are left, so you always have some to cook with yourself. All amounts are in the new [Cooking] settings.
-- Mead: they brew and ferment the meads you'll want for the next boss (the MeadFocus setting, by the last boss beaten), keeping 10 of each mead base and 20 of each finished mead, and tap fermenters when they're done.
-- They take finished food off any cooking station nearby before it burns.
-- Cooked food goes in a chest that already has it, else one with other cooked food, else the one nearest the cooking area. Food you gave them to eat stays with them.
-- They cook in batches like a player (Cooking > BatchSize, 5 by default): several at the cauldron or prep table in one trip, several slots on a cooking station or oven at once.
-- The [Cooking] Foods setting limits what they cook (* = everything, -Name to leave one out). OfflineCompanionsReborn.Cooking.txt in the config folder lists the names, mods included.
-
-## 1.4.86
-- Smelting now uses the same movement as farming and gathering: routes through doors and up stairs, the shared stuck handling, and a spot it can stand on by each chest and by the smelter's ore and fuel slots. Chests it can't get to are skipped.
-- Companions walk up stairs normally again and only jump a step that stops them.
-- Removed a false "hasn't moved" warning in the log while a companion stands and fights.
-
-## 1.4.85
-- Companions now find their way with their own map of the world. Closed doors don't block their way (they open each one as they reach it, however many there are), and they hop up stairs and steps the normal map doesn't connect. New setting General > CompanionPathing (on) turns it off if it causes trouble.
-- Companions find a place to stand by chests in narrow spots more often (anywhere within reach, from more directions).
-
-## 1.4.84
-- Fixed the farmer never storing crops in chests up the stairs indoors. Companions now head for the bottom of stairs the game's pathing doesn't use and hop up them.
-- Companions can find their way through several closed doors in a row (up to 3), not just one.
-- Farmers plant in rows from the far edge of the zone back toward where they came in, instead of in a ring around themselves until they're boxed in by their own crops.
-- Companions coming home with no job now put away what they picked up, like after turning a job off. This also happens after loading in at home.
-- Companions hop over low things in the way (logs, low walls) instead of running around them.
-
-## 1.4.83
-- Fixed companions running a long way round (and warping) instead of hopping up steps or a low wall. When the way round is much longer, they now go straight and jump over it like a player.
-- Following companions no longer warp to you while you can still see them, unless they're half as far again as FollowTeleportDistance.
-- Fixed companions switching mid-fight to creatures that weren't after anyone (boars while exploring).
-- Companions now carry their shield with a one-handed weapon all the time, not only once a fight starts.
-
-## 1.4.82
-- Fixed the farmer carrying crops to a chest after every few. It now picks everything ripe first and stores when nothing ripe is left or its pack is nearly full.
-- Fixed the farmer planting a few seeds and then stopping.
-- Fixed following companions taking a long way round (down past the beach) when you went a shorter way. They now follow your path.
-- A standing companion stays put while you're within 2.5 m of it, so it's easy to walk up to.
-- Fixed gatherers walking off ledges (into a moat) while stepping in to reach a tree or rock.
-- A companion stuck in a pit (a dry moat) now climbs out like a player: it picks the lowest, least steep way up nearby, sprints at it and keeps jumping, resting when out of stamina. If that fails, it's moved back up to where it last had a way to its target.
-- Companions now play the interact animation when opening a chest for farming, smelting and putting tools away.
-
-## 1.4.81
-- Fixed companions walking all the way home to empty their bags or put a tool back when you turn a job off out in the field. They now do it once they're back home.
-- Fixed the Wood job equipping a crossbow and standing there. Bows and crossbows are never used as gathering tools.
-- Fixed following companions swimming across a moat when you walked in through the gate. They now follow your path when their own way would mean a swim.
-- When you set off, a companion that was standing still now waits 1.5 seconds before following, so it's easy to walk up to, with Wander on or off.
-- Fixed setting a farm zone (modifier + Z) also recalling your companions and turning their job off.
-
-## 1.4.80
-- Fixed Stone and Ore companions hitting each rock once and moving on to the next. Many rocks turn into a cracked version on the first hit, and companions took that as the rock being gone. They now keep mining the cracked rock until it breaks.
-
-## 1.4.79
-- Fixed following companions running off to a gate on the other side of the base. When they can't get to their spot, they now follow your path instead.
-- Fixed the farmer picking chests it can't reach (up on a ledge, behind a wall) and running around the building trying. It now only uses chests it can get to.
-- Companions no longer go through a door unless it actually leads to where they're going.
-- Fixed gatherers swinging at big rocks without reaching them. They now step in until the rock is in reach.
-- Gatherers wait a moment for drops to land before moving on to the next rock.
-- Companions only start fights with creatures that are going after you or them. Anything that attacks them is still fought.
-
-## 1.4.78
-- Fixed the farmer running back and forth through a gate on the way to a chest. Companions now walk to a spot by chests and crafting stations that they can actually reach.
-- Fixed companions sidestepping and hopping around between crops while farming.
-- Fixed gatherers swinging at a rock over and over without hitting it.
-- Fixed companions picking fights with harmless animals (modded crabs and dolphins) and staying "in combat" with something far away, which stopped their job. They now let go of anything more than 40 m away.
-- Picking a job now turns Follow off, so the companion stays at the work. Turning the job off turns Follow back on, and picking Follow turns the job off.
-- Companions only repair barely-worn gear when they're actually at home (within 25 m), not anywhere within HomeTripRange.
-- Smoother following when you walk close to a companion.
-
-## 1.4.77
-The third part of the new movement system starts: jobs. Farming and the Wood, Stone, Ore and Forage jobs now move the same way as following and trips.
-- Farm and gathering companions find their way around walls, open doors and gates, handle water and get unstuck like they do on trips.
-- Gatherers working their way around something to reach a tree or rock no longer give up on it too early. If they really can't get there, they pick another target.
-- Companions wait a moment before following when you set off, and stay put while you're right next to them, so they're easy to grab.
-- The Wander toggle now also controls following. On (now the default for every companion): moves around you and idles when you stop. Off: keeps one spot near you and stands still.
-- Fixed thousands of log warnings while a companion sat on a chair.
-
-## 1.4.76
-The second part of the new movement system: following you.
-- Companions follow like a player. Each picks its own spot beside, behind or sometimes ahead of you, and moves it now and then.
-- Several companions spread out around you instead of lining up behind you.
-- Following uses the new movement: doors, water, stream jumps and getting unstuck all work while following.
-- In doorways, on stairs and in narrow paths, companions follow your path and spread out again when there's room.
-- When you stop, companions wait where they are and idle nearby.
-- After you've stood still for a while, companions come back and wait near you. New settings `Regroup` and `RegroupTime` (Follow, on, 45 s).
-- Indoors, companions stay closer (`IndoorDistance`, Follow, default 4 m) and sit down on a free chair or the floor when you stop. Near home they empty their bags first. New setting `SitIndoors` (Follow, on).
-- New setting `MaxDistance` (Follow, default 10 m). `FormationOffset` and `FormationCatchupDist` no longer do anything.
-
-## 1.4.75
-- Fixed companions walking back and forth while farming. With a job on, they now stand still between tasks instead of wandering back to their idle spot.
-- The farmer now goes straight to the next ripe crop close by, like working down a row, instead of pausing and rescanning the field. New setting `NextCropRange` (Farm, default 3 m, 0 = off).
-- Fixed companions getting stuck in doorways when no route could start from where they stood. They now step a meter or two to find one.
-- Fixed doors being closed behind a companion that was still stuck next to them.
-- Fixed a weapon check that never ran. Companions in Passive stance now hold their strongest weapon.
-- Farm scans now write one line to the log instead of one per crop.
-- Reborn no longer shows as incompatible with ProfMags' original mod. It still won't start if the original is installed, and the log says to remove it.
-- The mod is now built from regular C# source code. It should play the same; if something seems different, please send your log.
-
-## 1.4.74
-The first part of a new movement system. Tool trips, emptying bags, repair trips and walking to bed now all move the same way. Following and jobs move over in later updates.
-- Fixed companions on trips going the wrong way around walls, falling into moats and giving up after 20 seconds. They now follow the route corner by corner.
-- Companions open closed doors and gates on their way, including from the bottom of short stairs, and close them again behind them.
-- When stuck, companions step back to one side, jump toward the next turn of their route, try another way around, and only then give up.
-- Companions in deep water swim to the bank nearest where they're going, and only one they can climb out on.
-- Companions walk the last few steps, jog in between, and run when the destination is far away (`WorkRunDistance`).
-- Fixed companions avoiding all water when low on stamina. Wading is always fine; they only avoid swimming if their stamina won't last, and otherwise wait on the bank to rest.
-- Companions jump narrow streams to stay dry and take a running jump into water they're going to swim.
-- Fixed companions ignoring targets in shallow water and chasing modded sea animals. They now follow targets into wading depth, and only into swimming depth if attacked and armed with a bow or crossbow.
-- Fixed companions chasing animals that never attack (deer, and modded fish and dolphins). These are now left alone.
-- Fixed crossbows never firing. Companions now reload them like a player.
-- Fixed bows and crossbows counting as ready without the matching ammo.
-- Fixed automatic repairs only finding a station within 20 m. Near home, any station near home counts.
-- Fixed companions retrying a repair trip to a station they can't reach. They now look for another tool, or say it's broken and follow you.
-- New setting `FollowStuckTeleport` (General, off by default): a following companion stuck out of sight for 15 seconds appears next to you.
-
-## 1.4.73
-A review of the Wood, Stone and Ore jobs turned up several places where companions didn't play by a player's rules.
-- Fixed companions damaging a tree or rock they couldn't reach. They now pick a new target instead.
-- Fixed every swing at a tree landing an extra hit. It's one hit per swing, and only when the swing connects.
-- Fixed pickaxe swings that hit the ground counting as hits on the rock.
-- Fixed companions being left with no weapon or shield after tool, fight and job switches. Their normal gear now comes back.
-- One-handed tools no longer take the shield or torch off.
-- A broken tool now comes off and the companion switches to its best weapon, then repairs or replaces the tool near home.
-- Fixed swings wearing down a shield or torch.
-- Fixed companions standing on stumps and logs and shuffling forward while swinging.
-- Fixed overweight companions flickering in and out of their job. They now say they're too heavy, pause the job and check for somewhere to unload.
-- Drop-off rules: chests only near home; away from home, also a nearby cart, ship or outpost chest. Never tombstones or other players' private chests.
-- Stone from the Ore job goes in a pile a few meters from the deposit instead of being hauled home.
-- Fixed large copper and tin deposits being abandoned partway. They're now mined until finished.
-- After a tree falls, companions go to the nearest log, if your gather list and limits allow it.
-- Companions collect drops from around a rock and pick items up from a player's reach (about 2 m).
-- Fixed the Forage job skipping wild barley and flax.
-- Companions turn toward their work instead of snapping to face it.
-
-## 1.4.72
-- Fixed companions taking off all their armor after their inventory reloaded. They now keep wearing their gear.
-
-## 1.4.71
-- Fixed companions being unable to open a door from the bottom of the stairs below it. They now open doors from anywhere in reach.
-- The same in-reach rule applies to smelters, kilns, cauldrons, fermenters, fires, chairs, crafting stations, repairs and chests. Planting still needs them on the field.
-- Fixed companions walking home from far away when a tool broke. Chest and repair trips only happen within `HomeTripRange` (General, default 60 m); further away they say so, pause the job and follow you.
-- Near home, a broken job tool is repaired at a workbench or forge, or replaced from a chest.
-- Near home, companions repair any wear on their gear, not just items below `DurabilityThreshold`.
-- Gatherers stand a little further back so they no longer end up on top of stumps.
-- Emptying bags now uses `HomeTripRange` too (was a fixed 40 m).
-
-## 1.4.70
-- Fixed the farmer taking vegetables out of a chest for seed plants and storing them straight back. They stay in its pack until that seed reaches `SeedTarget`.
-- Fixed companions spinning in a corner trying to reach stacked chests. They now use chests and pick crops from anywhere in reach, up to about 2 m above or below.
-- Companions sprint in bursts: run down to half stamina (30% in a fight), walk back up to 90%, then run again.
-- When a job is changed or turned off, or Homestead turned on, a companion near home puts away what it gathered first. It keeps equipped items and the gear, ammo, food and mead you gave it. If it's away from home, it does this when it's back.
-
-## 1.4.69
-- Fixed companions waking up beside the bed instead of where they slept.
-- Companions walk while working and only run to far targets. New setting `WorkRunDistance` (General, default 25 m, 0 = never run for work).
-- Fixed the farmer making a separate chest trip for each seed type. It now takes up to `SeedCarry` (Farm, default 40) of each type in one trip.
-
-## 1.4.68
-- Fixed the farmer giving up on a field or chest just above or below it. It now keeps walking until it's actually there.
-- Fixed the farmer planting one crop until it ran out of seeds. It now switches type every `PlantGroupSize` plants.
-
-## 1.4.67
-- Fixed farm zones never finding seeds in chests.
-- Fixed companions on tool trips being blocked from a chest by nearby chests and furniture. Only walls, floors and large solid pieces block reach now.
-- Companions only head for a chest they can walk all the way to, and try another chest with the tool if one can't be reached.
-- The stuck jump only kicks in when really stuck, not while walking around a building.
-- The default `PlantAny` list uses the real names `MushroomJotunPuffs` and `MushroomMagecap`. Short names still work, and existing configs keep their old value.
-
-## 1.4.66
-- Fixed companions missing nearby chests in large bases. Every chest in range is now checked.
-- Fixed a farmer with only a few seeds and no vegetables never planting. It now plants the seeds to get started.
-- Fixed companions taking tools out of chests through walls. They now open chests only from a spot they can walk to with nothing solid in between.
-- Companions stuck on stairs or ledges on tool trips and farm work jump toward where they're going.
-- `PlantAny` names ignore capital letters, and "Nothing to plant" log lines show how many seeds and vegetables were found.
-- Debug logging for tool trips and farm work: position, destination and whether there's a path, every 2 seconds.
-
-## 1.4.65
-- Fixed a job and Stay Home both steering the companion back and forth. Picking one now turns the other off.
-- "Stay Home" on the command wheel is now called "Homestead".
-- Fixed companions crawling slowly away from a chest when Follow was picked mid tool trip. Trips now finish first, and a companion that's attacked fights and then carries on.
-- Fixed Any farm zones planting tree seeds. They now only plant what's on the new `PlantAny` list (Farm).
-- New setting `PlantGroupSize` (default 4): plant this many of one type before switching, so mixed fields end up in small blocks.
-- New settings `SeedMinimum` (default 20, replaces `SeedReserve`) and `SeedTarget` (default 100) control when the farmer grows seed plants or crops.
-- Barley, flax and other self-seeding crops are always planted, keeping `SeedMinimum` in the pack for replanting.
-
-## 1.4.64
-- New gather lists `GatherWood`, `GatherStone` and `GatherOre` (Harvest) set what each job collects and how much, with `WoodLimit`, `StoneLimit` and `OreLimit` (500 each) as category limits.
-- Limits count the companion's pack and chests near home. Once everything is at the limit, it says so and waits.
-- New setting `WoodSkipTrees` (default `Oak`): trees the Wood job never fells.
-- New setting `BaseProtectRadius` (default 10 m): the Wood job won't fell a tree that close to anything built.
-- Companions step clear of falling trees and splitting logs, and approach from the uphill side on slopes.
-- A gatherer with a full pack takes a load to the home chest. With no home chest, `JunkCleanup` (on by default) drops junk to make room; gear, tools, ammo, food, seeds and `NeverDiscard` items are kept.
-- Fixed the Ore job mining plain boulders that only drop stone.
-
-## 1.4.63
-- Fixed tool trips giving up before reaching the chest. Companions now walk to the front of the chest and only give up after 20 seconds without progress or 2 minutes.
-- Repair (buildings), Restock and Hunt now pause during a tool trip like the other jobs.
-- Routine farm scanning lines only show at Debug log level.
-
-## 1.4.62
-- When a job needs a tool the companion doesn't have, it takes the best one from a chest near home.
-- Borrowed tools, ammo and bait go back to the chest when the job is turned off or changed. Tools it already had stay with it.
-- If there's no tool in the chests, the companion says what it needs.
-- The farmer keeps a reserve of carrot, turnip and onion seeds, planting vegetables as seed plants when short. New setting `SeedReserve` (Farm, default 20, 0 = off).
-
-## 1.4.61
-- Fixed item icons from a chest showing over the companion's inventory.
-- Fixed companions being pushed to the side when getting out of bed.
-- Fixed Farm and gathering jobs restarting every time the companion's inventory changed.
-- Fixed the farmer leaving harvested crops on the ground and storing unrelated items in the crop chest.
-- Forage leaves crops in your farm fields for the Farm job.
-- Fixed companions standing in an open doorway for 8 seconds and giving up on their target.
-- Fixed the "[Diag] ... hasn't moved" warning showing while a companion was working.
-
-## 1.4.60
-- Fixed companions vanishing when another mod deleted them. They're now protected and can still die and respawn normally. New setting `ProtectCompanions` (General, on by default).
-
-## 1.4.59
-- Fixed companions being deleted inside active wards by the "Guardstone wards remove monsters" mod.
-
-## 1.4.58
-- Fixed Farm filling the log with "Invalid IL code" errors and never farming when another mod changes the terrain lookup.
-- Farm, Fish and the gathering jobs now write what they're doing to the log.
-- Fixed one food message being logged every frame.
-
-## 1.4.57
-- Recall now only reaches companions within `RecallRange` (Controls, default 40 m) that have Command on. Point-and-command orders use the same range.
-- Hold the command key for `SuperRecallHoldTime` (Controls, default 2 seconds) to recall every companion at any distance.
-
-## 1.4.56
-- When you get into bed, companions near their own beds go to bed too.
-- At night, companions near their bed go to sleep even while working, and pick the job back up in the morning.
-- Fixed the night skip waiting forever on a companion that couldn't reach a bed. It now gives up after 30 seconds.
-- Recalling your companions wakes any that are asleep.
-- New settings (Sleep): `SleepAtNight`, `SleepWhenPlayerSleeps` and `BedRange` (default 50 m).
-
-## 1.4.55
-- Fixed controller stick errors filling the log and the stick not working on the command wheel.
-
-## 1.4.54
-- The mod's ID is now `Maddhattr.OfflineCompanionsReborn` and it shows as "Offline Companions Reborn" in the config manager. Settings carry over automatically.
-- Reborn won't load if ProfMags' original Offline Companions is also installed. Remove the original to use Reborn.
-
-## 1.4.53
-- Every companion now has a permanent ID that stays with it through death and respawn.
-- Fixed companions collecting another companion's tombstone when they shared a name and owner.
-- Beds remember companions by ID, so renaming a companion keeps its bed.
-- The config file is now `Maddhattr.OfflineCompanionsReborn.cfg`. Settings are copied over automatically; the old `com.profmags.companions.cfg` can be deleted.
-- Fixed the starter companion window never opening with Valheim Plus's "disable arrived message" setting.
-
-## 1.4.52
-- **Change:** Despawn on the command wheel now asks you to confirm with a Yes/No box that names the companion and says its items will be left in a tombstone. This replaces the old "press the wedge again within 3 seconds" confirm, and works the same with mouse or controller.
-
-## 1.4.51
-- **Issue:** Dragging an item a companion was wearing into your own inventory left it looking equipped there.
-- **Fix:** The companion takes the item off first, so it arrives in your inventory as a normal item.
-- **Issue:** Despawn on the command wheel gave an error and did nothing, left over from the 1.4.32 bed update.
-- **Fix:** Despawn works again. The companion leaves a tombstone with everything it was carrying, and its bed is freed up.
-
-## 1.4.50
-- **Issue:** After you slept through the night, a companion got out of bed, climbed right back in, then got up again a few seconds later.
-- **Fix:** When your sleep ends the night, companions get up and stay up.
-- **Issue:** A companion that came back with its gear only put on one piece, and didn't put on the rest until later.
-- **Fix:** If it's still putting on one piece, it now waits and then puts on the rest.
-
-## 1.4.49
-- **Issue:** When a companion kept all its items through death, its map marker vanished right away because the tombstone was empty, even though that tombstone is where you'd go to bring it back.
-- **Fix:** The marker now stays while the companion is waiting to be revived. After it comes back, the marker only stays if items were left in the tombstone.
-- Cleaned up a leftover debug message that showed up as a warning in the log.
-
-## 1.4.48
-- **Issue:** A companion's bed said "unclaimed" while the companion was dead, and could show "HC_Companion(Clone)" again after it came back.
-- **Fix:** The bed claim is now saved on the bed itself. It keeps the companion's real name through death, travel, and reloading the game, and other players see it too.
-- **Issue:** After respawning, a companion with items left in a tombstone far away would stand around, refuse to fight, and ignore Follow for a couple of minutes, then give up on its items for good.
-- **Fix:** A companion only goes after its tombstone once it's actually nearby. Until then it follows, fights, and works as normal, and it never forgets the items. It fights off attackers before going back to looting, and it remembers every one of its tombstones, not just the latest.
-- **Issue:** A companion's tombstone disappeared from the map as soon as it respawned, even though its items were still in the tombstone.
-- **Fix:** The map marker now stays until the tombstone is emptied, whether you empty it or the companion does.
-
-## 1.4.47
-- **Issue:** Auto-respawn always brought a companion back at its tombstone, never at its bed or next to you. When the tombstone was far away, the respawn failed completely.
-- **Fix:** Auto-respawn now uses the claimed bed first (a free spot beside it), then next to you, or the spawn stones if you've turned that on.
-- **Issue:** After dying and coming back, a companion forgot which bed was its own.
-- **Fix:** Companions keep their claimed bed through death.
-- **Issue:** Companions never said they needed a bed, even though that line was added in 1.4.30.
-- **Fix:** They now speak up when they don't have a bed.
-
-## 1.4.46
-- **Issue:** A dead companion's auto-respawn timer stopped, and started over from zero, whenever you went far from its tombstone or reloaded the game.
-- **Fix:** The respawn time is now saved with the world. The companion comes back on time no matter where you are, even after quitting and reloading.
-- A companion that respawns while you're far from its tombstone leaves any dropped items in the tombstone and goes back for them. An empty tombstone clears itself the next time its area loads.
-- A companion with no claimed bed now respawns next to you by default. New setting `AutoRespawnAtWorldSpawnWhenNoBed` sends it to the spawn stones instead. This replaces `AutoRespawnNearOwner`.
-- In multiplayer, only the companion's owner's game brings it back, so two players can't respawn the same companion.
-- Controller: the stance area of the command wheel is bigger, so stances are easier to pick.
-
-## 1.4.45
-- **Issue:** In 1.4.44, the command wheel wouldn't highlight anything on a controller, and a companion that had slept wouldn't follow you after waking.
-- **Fix:** Corrected two new pieces of code that crashed when they ran.
-- **Issue:** Companion crafting (cooking and homestead work) and taking seeds for farming could crash, left over from the 1.4.29 game-patch update.
-- **Fix:** Corrected the same kind of problem in both.
-
-## 1.4.44
-- **Issue:** A companion's bed could show "HC_Companion(Clone)" instead of its name.
-- **Fix:** The bed's name label is now only set when the companion claims the bed, using its real name.
-- **Issue:** Companions going to bed ended up lying on the floor next to it.
-- **Fix:** Companions now lie in the bed the same way a player does.
-- **Issue:** Every time a companion slept, it quietly moved its Home point to a spot beside the bed, even if you never used Set Home.
-- **Fix:** Home now only changes when you use Set Home.
-- Added logging for controller stance selection in the command wheel, to help tune how it feels.
-
-## 1.4.43
-- **New:** What a companion loses when it dies is now one setting, `DeathItemRule` (under Respawn). 0 = follow the world's death penalty setting, the same as a player would (default). 1 = keep everything. 2 = keep equipped gear, drop the rest. 3 = drop everything. This replaces the old `DropInventoryOnDeath` and `DropEquippedGearOnDeath` toggles.
-- In multiplayer, a companion always uses its owner's setting, even if another player's game happens to be handling it when it dies.
-- **Issue:** When a companion auto-respawned at its bed, it instantly pulled its dropped items out of the tombstone, even from across the map.
-- **Fix:** After an auto-respawn, dropped items stay in the tombstone and the companion goes back for them. Resurrecting a companion by hand at its tombstone still gives the items back right away.
-- **Issue:** When keeping items through death, a companion could lose some of them. Anything past 16 stacks was deleted, and about half of the items that should have been kept went into the tombstone instead.
-- **Fix:** Kept items now all come back with the companion.
-
-## 1.4.42
-- **Issue:** On a controller, picking a combat stance in the command wheel was really hard. The stance only highlighted while the stick was held at a very specific partial push, so it kept flickering off.
-- **Fix:** Stance selection is now "sticky." Push the stick partway toward a stance (up for Balanced, right for Passive, down for Ranged, left for Melee) and it stays highlighted after you let go. Press the use button to apply it. The stance area is also a bit larger. Pushing the stick all the way out still selects the outer actions like before. Mouse and keyboard are unchanged.
-
-## 1.4.41
-- **Issue:** For some players (reported with the game set to Russian), the game could hang on the loading screen for a couple of minutes and then close.
-- **Fix:** The mod was reloading its translation files every time the game refreshed its language settings, which some setups do many times at startup. It now only reloads when the language actually changes.
-
-## 1.4.40
-- **Issue:** A companion running the smelter would get the kiln lit but then keep interrupting itself every time it tried to insert ore or fuel, never finishing the job.
-- **Fix:** Removed a bug that made the companion think its job had changed every time it used an item from its own inventory. It now stays on task.
-
-## 1.4.39
-- **Issue:** Companions could silently fail (and spam the log) while inserting ore into a smelter.
-- **Fix:** Corrected a missing piece of data the game expects when adding ore. Fuel insertion was never affected.
-
-## 1.4.38
-- **Issue:** Follow and Stay Home could both end up "on" at once, with Stay Home quietly winning forever.
-- **Fix:** Follow and Stay Home are now mutually exclusive — turning one on turns the other off. "Set Home" also no longer turns Stay Home on by itself; it just sets the home point.
-
-## 1.4.37
-- **Issue:** A companion could crash if it picked up ore/fuel from a chest at the exact moment its gear happened to re-equip.
-- **Fix:** Closed that timing gap so it's handled cleanly instead of crashing.
-
-## 1.4.36
-- **Issue:** Companions could get "stuck" wandering near a chest instead of using it, without ever giving up and trying somewhere else.
-- **Fix:** The stuck-detection now checks whether the companion is actually making progress toward its target, not just whether it's moving at all — so it correctly notices, gives up on that chest, and tries another.
-
-## 1.4.35
-- **Issue:** A companion's claimed bed showed a confusing "Unclaimed (claimed by ...)" label with a garbled name.
-- **Fix:** It now reads cleanly as "\<Companion's Name\>'s Bed."
-
-## 1.4.34
-- **Issue:** Companions weren't sleeping, "Set Home" seemed to silently fail, and companions moved erratically near beds.
-- **Fix:** All three turned out to be the same root cause — a bed-ownership check that was failing every time. Fixed, and all three symptoms went away together.
-
-## 1.4.33
-- **Issue:** A rare crash could hit bed logic, tombstones, or a few other spots depending on the exact build, seemingly at random.
-- **Fix:** Found and corrected the underlying bug everywhere it appeared in the mod, not just the one reported spot.
-
-## 1.4.32
-- Companions now claim a specific bed as their own — permanently, not just while sleeping in it — the same way a player would settle into one. That bed shows "(claimed by \<name\>)" and is their auto-respawn point.
-- A companion automatically claims a bed when you Set Home nearby, after a short delay if they don't have one, or if they notice you've claimed a bed and they haven't.
-- Pointing at a bed and commanding a companion is now a manual override: claims it if free, sleeps in it if already theirs, or refuses if it belongs to someone else.
-- Claiming a new bed releases the old one back to the pool.
-- Companions no longer grab a random nearby bed at night — if they don't have a claimed one, they'll say so.
-
-## 1.4.31
-- Added an automatic respawn timer for dead companions, alongside the existing manual tombstone resurrect. Configurable delay, default 5 minutes.
-- Auto-respawn happens at a companion's claimed bed if it has one, otherwise world spawn (or optionally near the owner).
-- Companions now keep 100% of their inventory by default when they die, instead of always dropping it. Two new options let you change that.
-- If items were dropped, the companion will walk back and loot its own tombstone once it's close enough. The tombstone disappears automatically once nothing's left in it.
-- A companion's tombstone now shows up on the map, like a player's own death marker.
-
-## 1.4.30
-- Companions no longer take over a bed a player has personally claimed.
-- A bed a companion is using now shows "claimed by \<companion name>" so it's clear it's taken.
-- Companions will speak up if they don't have a bed to sleep in.
-
-## 1.4.29
-- Updated for a Valheim game patch that changed how a few things work under the hood (inventory, gear visuals, piece placement). No behavior change intended — this just keeps the mod working.
-
-## 1.4.28
-- **Issue:** Companions could get stuck standing at "bow range" even after correctly switching to melee when they ran out of arrows.
-- **Fix:** Positioning now follows the weapon actually in hand, not the companion's general combat stance.
-
-## 1.4.27
-- **Issue:** A direct attack command could bypass a companion's normal combat AI (weapon choice, ammo checks, fleeing) entirely.
-- **Fix:** Direct attacks now go through the same AI as everything else.
-- Added a separate "flee" health threshold, distinct from the shield-retreat threshold.
-- Companions can now equip a shield while fleeing.
-- A companion that gets cornered while fleeing now defends itself instead of just standing there.
-
-## 1.4.26
-- Shield choice is now handled entirely by the health/threat-aware logic, instead of sometimes being overridden by "pick whatever blocks the most."
-- "Return to me" now walks back normally at short range, or does a disguised teleport-recall if you're too far away, instead of risking getting stuck.
-- Companions now fall in with a nearby real player and keep fighting if their owner dies mid-session, instead of standing idle.
-
-## 1.4.17 – 1.4.25
-- Fixed shields defaulting to the tower shield far more often than intended.
-- Fixed companions not properly falling back to melee when they ran out of arrows.
-- Rebuilt "come to me" / return-to-owner as reliable distance tracking instead of an older timer approach that could get stuck.
-- Fixed a few "return to me" bugs (not firing on companion death; wrongly pulling in companions not set to Follow).
-- Tracked down and fixed several different "companion just stands there" reports.
-
-## 1.4.13 – 1.4.16
-- Added companion health/stamina status bars above their heads, then simplified them based on feedback.
-
-## 1.4.4 – 1.4.12
-- Added a "torch opener" behavior so companions can light their way in the dark.
-- Fixed a weapon-swap loop, a "stuck on Passive after death" bug, a version-string bug, and a water-safety stuck state.
-
-## 1.4.1 – 1.4.3
-- Fixed a long-standing bug where a companion's inventory could show garbage tooltips instead of real items.
-
-## 1.4.0
-- Initial Valheim 1.0 compatibility pass — updated several game functions that changed in the 1.0 update so the mod loads and runs at all.
+The full history, including 1.4.0 – 1.4.156 and every detail of each version, is in [CHANGELOG-full.md](https://github.com/MaddhattrRocks/Offline-Companions-Reborn/blob/main/CHANGELOG-full.md) on GitHub.

@@ -167,7 +167,7 @@ internal static class MHR_SpearThrow
 		if (Time.time >= st.NextWhyLog)
 		{
 			st.NextWhyLog = Time.time + 5f;
-			CompanionsPlugin.Log.LogDebug("[Hunt] Not throwing yet: " + text);
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Hunt] Not throwing yet: " + text);
 		}
 	}
 
@@ -238,7 +238,7 @@ internal static class MHR_SpearThrow
 		{
 			return false;
 		}
-		CompanionsPlugin.Log.LogDebug("[Hunt] Took out its " + Loc(itemData.m_shared.m_name) + " to throw at " + Loc(prey.m_name));
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Hunt] Took out its " + Loc(itemData.m_shared.m_name) + " to throw at " + Loc(prey.m_name));
 		return true;
 	}
 
@@ -258,7 +258,7 @@ internal static class MHR_SpearThrow
 			state.ThrownAt = Time.time;
 			state.Drop = null;
 			s_inFlight[currentWeapon] = state;
-			CompanionsPlugin.Log.LogInfo("[Hunt] Threw its " + Loc(state.Name) + " at " + Loc(prey.m_name) + $" ({Vector3.Distance(ai.transform.position, prey.transform.position):F0} m)");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Hunt] Threw its " + Loc(state.Name) + " at " + Loc(prey.m_name) + $" ({Vector3.Distance(ai.transform.position, prey.transform.position):F0} m)");
 			ai.GetComponent<CompanionCombatAI>()?.NoteSwing(prey, "Throw", $"{Vector3.Distance(ai.transform.position, prey.transform.position):F1} m, {prey.transform.position.y - ai.transform.position.y:+0.0;-0.0} m up, prey moving {prey.GetVelocity().magnitude:F1} m/s", 4f);
 		}
 	}
@@ -270,7 +270,7 @@ internal static class MHR_SpearThrow
 		{
 			s_inFlight.Remove(item);
 			value.Drop = drop;
-			CompanionsPlugin.Log.LogDebug("[Hunt] The thrown " + Loc(value.Name) + $" landed at {drop.transform.position:F1}");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Hunt] The thrown " + Loc(value.Name) + $" landed at {drop.transform.position:F1}");
 		}
 	}
 
@@ -310,7 +310,8 @@ internal static class MHR_SpearThrow
 		}
 		if (Time.time - value.ThrownAt > GiveUpSeconds)
 		{
-			CompanionsPlugin.Log.LogInfo("[Hunt] Gave up on getting its " + Loc(value.Name) + " back (took too long)");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Hunt] Gave up on getting its " + Loc(value.Name) + " back (took too long)");
+			ai.GetComponent<CompanionTalk>()?.SayProblem("spear:lost", ModLocalization.LocFmt("hc_why_spear_lost", Loc(value.Name)));
 			Clear(value);
 			return false;
 		}
@@ -318,7 +319,8 @@ internal static class MHR_SpearThrow
 		{
 			if (Time.time - value.ThrownAt > LandWaitSeconds)
 			{
-				CompanionsPlugin.Log.LogInfo("[Hunt] Lost its " + Loc(value.Name) + " - it never landed anywhere it could find (water?)");
+				if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Hunt] Lost its " + Loc(value.Name) + " - it never landed anywhere it could find (water?)");
+				ai.GetComponent<CompanionTalk>()?.SayProblem("spear:lost", ModLocalization.LocFmt("hc_why_spear_lost", Loc(value.Name)));
 				Clear(value);
 			}
 			return false;
@@ -335,7 +337,7 @@ internal static class MHR_SpearThrow
 					break;
 				}
 			}
-			CompanionsPlugin.Log.LogInfo("[Hunt] " + (flag2 ? ("Picked its " + Loc(value.Name) + " back up on the way") : ("Its " + Loc(value.Name) + " isn't on the ground any more (someone else picked it up)")));
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Hunt] " + (flag2 ? ("Picked its " + Loc(value.Name) + " back up on the way") : ("Its " + Loc(value.Name) + " isn't on the ground any more (someone else picked it up)")));
 			Clear(value);
 			return false;
 		}
@@ -351,7 +353,7 @@ internal static class MHR_SpearThrow
 			}
 			value.Drop.Load();
 			bool flag = component.Pickup(value.Drop.gameObject, autoequip: false, autoPickupDelay: false);
-			CompanionsPlugin.Log.LogInfo("[Hunt] " + (flag ? "Picked its " : "Couldn't pick up its ") + Loc(value.Name) + (flag ? " back up" : " (pack full?)"));
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Hunt] " + (flag ? "Picked its " : "Couldn't pick up its ") + Loc(value.Name) + (flag ? " back up" : " (pack full?)"));
 			MHR_Mover.Release(ai);
 			Clear(value);
 			return false;
@@ -359,7 +361,7 @@ internal static class MHR_SpearThrow
 		MHR_Mover.Go(ai, dt, position, 0.8f, allowRun: true, "Spear");
 		if (MHR_Mover.RouteSwim(ai) > MHR_Mover.JobSwim() || MHR_Mover.GaveUp(ai))
 		{
-			CompanionsPlugin.Log.LogInfo("[Hunt] Can't get to its " + Loc(value.Name) + " - leaving it where it landed");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Hunt] Can't get to its " + Loc(value.Name) + " - leaving it where it landed");
 			MHR_Mover.Release(ai);
 			Clear(value);
 			return false;
@@ -392,11 +394,24 @@ internal static class SpearLandedPatch
 [HarmonyPatch(typeof(Attack), "GetProjectileSpawnPoint")]
 internal static class CompanionProjectileAimPatch
 {
+	// 1.5.42: a point to shoot at that isn't a creature (a bird on the ground) - set just before the shot
+	private static readonly System.Collections.Generic.Dictionary<Humanoid, KeyValuePair<Vector3, float>> s_point = new System.Collections.Generic.Dictionary<Humanoid, KeyValuePair<Vector3, float>>();
+
+	internal static void AimAt(Humanoid h, Vector3 point)
+	{
+		if (h != null)
+		{
+			s_point[h] = new KeyValuePair<Vector3, float>(point, Time.time);
+		}
+	}
+
 	private static readonly AccessTools.FieldRef<Attack, Humanoid> s_character = AccessTools.FieldRefAccess<Attack, Humanoid>("m_character");
 
 	private static readonly AccessTools.FieldRef<Attack, BaseAI> s_baseAI = AccessTools.FieldRefAccess<Attack, BaseAI>("m_baseAI");
 
 	private static readonly AccessTools.FieldRef<Attack, ItemDrop.ItemData> s_ammo = AccessTools.FieldRefAccess<Attack, ItemDrop.ItemData>("m_ammoItem");
+
+	private static readonly AccessTools.FieldRef<Attack, float> s_drawPct = AccessTools.FieldRefAccess<Attack, float>("m_attackDrawPercentage");
 
 	private static void Postfix(Attack __instance, ref Vector3 spawnPoint, ref Vector3 aimDir)
 	{
@@ -408,20 +423,32 @@ internal static class CompanionProjectileAimPatch
 				return;
 			}
 			Character character = s_baseAI(__instance)?.GetTargetCreature();
-			if (character == null)
+			bool hasPoint = s_point.TryGetValue(humanoid, out var pt) && Time.time - pt.Value < 2f;
+			if (character == null && !hasPoint)
 			{
 				return;
 			}
 			float num = __instance.m_projectileVel;
+			float velMin = __instance.m_projectileVelMin;
+			AnimationCurve curve = __instance.m_drawVelocityCurve;
 			GameObject gameObject = __instance.m_attackProjectile;
 			ItemDrop.ItemData itemData = s_ammo(__instance);
 			if (itemData?.m_shared?.m_attack != null)
 			{
 				num += itemData.m_shared.m_attack.m_projectileVel;
+				velMin += itemData.m_shared.m_attack.m_projectileVelMin;
+				curve = itemData.m_shared.m_attack.m_drawVelocityCurve;
 				if (itemData.m_shared.m_attack.m_attackProjectile != null)
 				{
 					gameObject = itemData.m_shared.m_attack.m_attackProjectile;
 				}
+			}
+			// 1.5.63: a bow arrow flies at the speed of the draw (Attack.ProjectileAttackTriggered) - a partial draw is slower
+			// and drops more, so aim for that speed, not the full-draw one (user: "The arrows do have some drop as they travel
+			// so that needs to be taken into account" - half-drawn arrows went under a boar 15 m off and 4 m up)
+			if (__instance.m_bowDraw && curve != null)
+			{
+				num = Mathf.Lerp(velMin, num, curve.Evaluate(s_drawPct(__instance)));
 			}
 			if (num < 1f)
 			{
@@ -433,8 +460,10 @@ internal static class CompanionProjectileAimPatch
 			{
 				num2 = projectile.m_gravity;
 			}
-			Vector3 centerPoint = character.GetCenterPoint();
-			Vector3 velocity = character.GetVelocity();
+			// a bird (no creature target): aim at its point, standing still (user: "Gunter keeps trying to shoot a birds and
+			// shoots directly into the hillside" - the game fired along its facing with no allowance for the drop)
+			Vector3 centerPoint = (character != null) ? character.GetCenterPoint() : pt.Key;
+			Vector3 velocity = (character != null) ? character.GetVelocity() : Vector3.zero;
 			Vector3 vector = centerPoint;
 			float num3 = 0f;
 			for (int i = 0; i < 3; i++)

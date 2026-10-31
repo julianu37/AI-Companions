@@ -1,3 +1,5 @@
+using UnityEngine;
+
 namespace Companions;
 
 /// <summary>
@@ -64,4 +66,27 @@ internal static class ModUiLayers
 	/// AI panel, so it has to be above that panel - and above its dropdown overlay too, which is closed when it opens
 	/// (the editor is a window, and the overlay of the window behind it must not draw over it).</summary>
 	internal const int CompanionAppearancePanel = Base + 8;
+
+	/// <summary>upstream 1.5.6: one debug line with the sorting order of the scene canvases (called once per
+	/// panel). Our <see cref="ModUiAudit"/> does the same audit with more detail.</summary>
+	internal static void LogSceneLayers(string panel)
+	{
+		try
+		{
+			System.Text.StringBuilder sb = new System.Text.StringBuilder();
+			foreach (Canvas c in Resources.FindObjectsOfTypeAll<Canvas>())
+			{
+				if (c == null || c.gameObject == null || !c.gameObject.scene.IsValid())
+				{
+					continue;
+				}
+				sb.Append(c.name).Append('=').Append(c.sortingOrder).Append(' ');
+			}
+			CompanionsPlugin.Log?.LogInfo("[UiLayers] " + panel + ": " + sb.ToString().TrimEnd());
+		}
+		catch (System.Exception ex)
+		{
+			CompanionsPlugin.Log?.LogDebug("[UiLayers] LogSceneLayers falhou: " + ex.Message);
+		}
+	}
 }

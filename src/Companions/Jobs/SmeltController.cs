@@ -119,7 +119,7 @@ public class SmeltController : MonoBehaviour
 	{
 		if (_phase != SmeltPhase.Idle)
 		{
-			Log("NotifyActionModeChanged — aborting smelt");
+			if (CompanionsPlugin.LogNormal) Log("NotifyActionModeChanged — aborting smelt");
 			Abort("mode changed");
 		}
 	}
@@ -247,7 +247,7 @@ public class SmeltController : MonoBehaviour
 
 	private void Abort(string reason)
 	{
-		Log($"Aborted — {reason} (phase was {_phase})");
+		if (CompanionsPlugin.LogNormal) Log($"Aborted — {reason} (phase was {_phase})");
 		if (_pileTaker != null)
 		{
 			_pileTaker.PutAway(_humanoid, _setup);
@@ -293,7 +293,7 @@ public class SmeltController : MonoBehaviour
 		ScanNearbySmelters();
 		if (_nearbySmelters.Count == 0)
 		{
-			Log("Scan: no smelters found within " + ScanRadius + "m");
+			if (CompanionsPlugin.LogNormal) Log("Scan: no smelters found within " + ScanRadius + "m");
 			_phase = SmeltPhase.Idle;
 			_scanTimer = 10f;
 			return;
@@ -312,7 +312,7 @@ public class SmeltController : MonoBehaviour
 				int num3 = component.GetZDO().GetInt(ZDOVars.s_spawnAmount);
 				bool flag = nearbySmelter.m_maxFuel == 0;
 				int num4 = CountGroundDropsNearSmelter(nearbySmelter);
-				LogDebug("  Smelter \"" + nearbySmelter.m_name + "\" type=" + (flag ? "kiln" : "furnace") + " " + $"fuel={num:F0}/{nearbySmelter.m_maxFuel} ore={num2}/{nearbySmelter.m_maxOre} " + $"output={num3} groundDrops={num4} active={nearbySmelter.IsActive()} " + $"pos={nearbySmelter.transform.position:F1} " + $"dist={Vector3.Distance(base.transform.position, nearbySmelter.transform.position):F1}m");
+				if (CompanionsPlugin.LogDetailed) LogDebug("  Smelter \"" + nearbySmelter.m_name + "\" type=" + (flag ? "kiln" : "furnace") + " " + $"fuel={num:F0}/{nearbySmelter.m_maxFuel} ore={num2}/{nearbySmelter.m_maxOre} " + $"output={num3} groundDrops={num4} active={nearbySmelter.IsActive()} " + $"pos={nearbySmelter.transform.position:F1} " + $"dist={Vector3.Distance(base.transform.position, nearbySmelter.transform.position):F1}m");
 				if (num3 > 0)
 				{
 					_targetSmelter = nearbySmelter;
@@ -320,7 +320,8 @@ public class SmeltController : MonoBehaviour
 					ClearFollowForMovement();
 					ResetStuck();
 					_phase = SmeltPhase.CollectingOutput;
-					Log($"→ Collecting queued output from \"{nearbySmelter.m_name}\" ({num3} items)");
+					if (CompanionsPlugin.LogNormal) Log($"→ Collecting queued output from \"{nearbySmelter.m_name}\" ({num3} items)");
+					CompanionStatus.Doing(this, "hc_doing_smelt_collect", SName(nearbySmelter));
 					return;
 				}
 				if (num4 > 0)
@@ -332,15 +333,18 @@ public class SmeltController : MonoBehaviour
 					_collectTriggered = true;
 					_actionTimer = 0f;
 					_phase = SmeltPhase.CollectingOutput;
-					Log($"→ Collecting {num4} ground drops near \"{nearbySmelter.m_name}\"");
+					if (CompanionsPlugin.LogNormal) Log($"→ Collecting {num4} ground drops near \"{nearbySmelter.m_name}\"");
+					CompanionStatus.Doing(this, "hc_doing_smelt_collect", SName(nearbySmelter));
 					return;
 				}
 			}
 		}
+		_whyItems.Clear();
 		ScanNearbyChests();
 		if (_nearbyChests.Count == 0)
 		{
-			Log("No chests found nearby");
+			if (CompanionsPlugin.LogNormal) Log("No chests found nearby");
+			CompanionStatus.Why(this, "hc_why_smelt_no_chests", speak: true);
 			_phase = SmeltPhase.Idle;
 			_scanTimer = 10f;
 			return;
@@ -369,7 +373,7 @@ public class SmeltController : MonoBehaviour
 				int num5 = component2.GetZDO().GetInt(ZDOVars.s_queued);
 				if (num5 > tempKiln.m_maxOre / 2)
 				{
-					LogDebug($"  Kiln \"{tempKiln.m_name}\" well-stocked ({num5}/{tempKiln.m_maxOre}) — deferring to furnaces");
+					if (CompanionsPlugin.LogDetailed) LogDebug($"  Kiln \"{tempKiln.m_name}\" well-stocked ({num5}/{tempKiln.m_maxOre}) — deferring to furnaces");
 					continue;
 				}
 			}
@@ -442,6 +446,12 @@ public class SmeltController : MonoBehaviour
 				break;
 			}
 		}
+		// the status: what's missing, in turn; else the smelters are working / there's nothing to smelt
+		if (_whyItems.Count == 0)
+		{
+			_whyItems.Add(new CompanionStatus.Item(null, flag6 ? "hc_speech_smelt_monitoring" : "hc_why_smelt_nothing"));
+		}
+		CompanionStatus.WhyRotate(this, _whyItems);
 		if (flag6)
 		{
 			_phase = SmeltPhase.Monitoring;
@@ -449,7 +459,7 @@ public class SmeltController : MonoBehaviour
 			if (!_wasMonitoring)
 			{
 				_wasMonitoring = true;
-				Log("All smelters stocked — monitoring");
+				if (CompanionsPlugin.LogNormal) Log("All smelters stocked — monitoring");
 				if (_talk != null)
 				{
 					_talk.Say(ModLocalization.Loc("hc_speech_smelt_monitoring"));
@@ -460,7 +470,7 @@ public class SmeltController : MonoBehaviour
 		if (!_allDoneNotified)
 		{
 			_allDoneNotified = true;
-			Log("All smelters idle and fully stocked — done");
+			if (CompanionsPlugin.LogNormal) Log("All smelters idle and fully stocked — done");
 			if (_talk != null)
 			{
 				_talk.Say(ModLocalization.Loc("hc_speech_smelt_done"));
@@ -495,7 +505,7 @@ public class SmeltController : MonoBehaviour
 			_ai.LookAtPoint(_targetChest.transform.position);
 			_chestOpened = false;
 			_phase = SmeltPhase.TakingFromChest;
-			Log($"Arrived at chest (dist={num:F1}m) — taking {_carryingAmount}x {_carryingItemPrefab}");
+			if (CompanionsPlugin.LogNormal) Log($"Arrived at chest (dist={num:F1}m) — taking {_carryingAmount}x {_carryingItemPrefab}");
 		}
 		else
 		{
@@ -529,7 +539,7 @@ public class SmeltController : MonoBehaviour
 			GetComponent<ZSyncAnimation>()?.SetTrigger("interact");
 			_chestOpened = true;
 			_actionTimer = 0.8f;
-			Log("Opened chest — waiting for animation");
+			if (CompanionsPlugin.LogNormal) Log("Opened chest — waiting for animation");
 			return;
 		}
 		_actionTimer -= Time.deltaTime;
@@ -548,7 +558,7 @@ public class SmeltController : MonoBehaviour
 		}
 		int num = 0;
 		List<ItemDrop.ItemData> allItems = inventory.GetAllItems();
-		Log($"Taking from chest: looking for \"{_carryingItemPrefab}\" in {allItems.Count} items");
+		if (CompanionsPlugin.LogNormal) Log($"Taking from chest: looking for \"{_carryingItemPrefab}\" in {allItems.Count} items");
 		int num2 = allItems.Count - 1;
 		while (num2 >= 0 && num < _carryingAmount)
 		{
@@ -557,7 +567,7 @@ public class SmeltController : MonoBehaviour
 			{
 				if (itemData.m_dropPrefab == null)
 				{
-					Log("  Skip item \"" + (itemData.m_shared?.m_name ?? "?") + "\" — m_dropPrefab is null");
+					if (CompanionsPlugin.LogNormal) Log("  Skip item \"" + (itemData.m_shared?.m_name ?? "?") + "\" — m_dropPrefab is null");
 				}
 				else if (!(itemData.m_dropPrefab.name != _carryingItemPrefab))
 				{
@@ -566,12 +576,12 @@ public class SmeltController : MonoBehaviour
 					itemData2.m_stack = num3;
 					if (!inventory2.AddItem(itemData2))
 					{
-						Log($"  No inventory space — stopping at {num} items");
+						if (CompanionsPlugin.LogNormal) Log($"  No inventory space — stopping at {num} items");
 						break;
 					}
 					inventory.RemoveItem(itemData, num3);
 					num += num3;
-					Log($"  Took {num3}x \"{_carryingItemPrefab}\" (total taken={num})");
+					if (CompanionsPlugin.LogNormal) Log($"  Took {num3}x \"{_carryingItemPrefab}\" (total taken={num})");
 				}
 			}
 			num2--;
@@ -582,13 +592,13 @@ public class SmeltController : MonoBehaviour
 			_chestOpened = false;
 			if (num == 0)
 			{
-				Log("Failed to take any items from chest — retrying scan");
+				if (CompanionsPlugin.LogNormal) Log("Failed to take any items from chest — retrying scan");
 				_phase = SmeltPhase.Scanning;
 				return;
 			}
 			_carryingAmount = num;
 			float num4 = ((_targetSmelter != null) ? Vector3.Distance(base.transform.position, _targetSmelter.transform.position) : (-1f));
-			Log($"Took {num}x {_carryingItemPrefab} — heading to smelter " + string.Format("\"{0}\" (dist={1:F1}m)", _targetSmelter?.m_name ?? "null", num4));
+			if (CompanionsPlugin.LogNormal) Log($"Took {num}x {_carryingItemPrefab} — heading to smelter " + string.Format("\"{0}\" (dist={1:F1}m)", _targetSmelter?.m_name ?? "null", num4));
 			ResetStuck();
 			_phase = SmeltPhase.MovingToSmelter;
 		}
@@ -623,7 +633,7 @@ public class SmeltController : MonoBehaviour
 		_ai.LookAtPoint(smelterInteractPoint);
 		_insertTimer = 0.3f;
 		_phase = SmeltPhase.InsertingItem;
-		Log($"Arrived at smelter interact point (dist={num:F1}m) — inserting {_carryingAmount}x {_carryingItemPrefab}");
+		if (CompanionsPlugin.LogNormal) Log($"Arrived at smelter interact point (dist={num:F1}m) — inserting {_carryingAmount}x {_carryingItemPrefab}");
 	}
 
 	private void UpdateInsertingItem(float dt)
@@ -641,7 +651,7 @@ public class SmeltController : MonoBehaviour
 		_insertTimer = 0.3f;
 		if (_carryingAmount <= 0)
 		{
-			Log("All items inserted — checking for next smelter with same material");
+			if (CompanionsPlugin.LogNormal) Log("All items inserted — checking for next smelter with same material");
 			if (!TryNextSmelterWithSameItem())
 			{
 				_phase = SmeltPhase.Scanning;
@@ -659,7 +669,7 @@ public class SmeltController : MonoBehaviour
 			float num = component.GetZDO().GetFloat(ZDOVars.s_fuel);
 			if (num > (float)(_targetSmelter.m_maxFuel - 1))
 			{
-				Log($"Smelter fuel is full — {_carryingAmount} leftover, trying next smelter");
+				if (CompanionsPlugin.LogNormal) Log($"Smelter fuel is full — {_carryingAmount} leftover, trying next smelter");
 				if (!TryNextSmelterWithSameItem())
 				{
 					_phase = SmeltPhase.Scanning;
@@ -671,7 +681,7 @@ public class SmeltController : MonoBehaviour
 				// (e.g. a tool trip had put it back in a chest), duplicating it
 				if (!ConsumeOneFromInventory(_carryingItemPrefab))
 				{
-					Log($"No {_carryingItemPrefab} left in the pack ({_carryingAmount} expected) — rescanning");
+					if (CompanionsPlugin.LogNormal) Log($"No {_carryingItemPrefab} left in the pack ({_carryingAmount} expected) — rescanning");
 					_carryingAmount = 0;
 					_phase = SmeltPhase.Scanning;
 					return;
@@ -679,14 +689,14 @@ public class SmeltController : MonoBehaviour
 				component.InvokeRPC("RPC_AddFuel");
 				_targetSmelter.m_fuelAddedEffects.Create(_targetSmelter.transform.position, _targetSmelter.transform.rotation, _targetSmelter.transform, 1f, -1, ZDOID.None);
 				_carryingAmount--;
-				Log($"Inserted fuel — {_carryingAmount} remaining");
+				if (CompanionsPlugin.LogNormal) Log($"Inserted fuel — {_carryingAmount} remaining");
 			}
 			return;
 		}
 		int num2 = component.GetZDO().GetInt(ZDOVars.s_queued);
 		if (num2 >= _targetSmelter.m_maxOre)
 		{
-			Log($"Smelter ore queue is full — {_carryingAmount} leftover, trying next smelter");
+			if (CompanionsPlugin.LogNormal) Log($"Smelter ore queue is full — {_carryingAmount} leftover, trying next smelter");
 			if (!TryNextSmelterWithSameItem())
 			{
 				_phase = SmeltPhase.Scanning;
@@ -695,7 +705,7 @@ public class SmeltController : MonoBehaviour
 		}
 		if (!ConsumeOneFromInventory(_carryingItemPrefab))
 		{
-			Log($"No {_carryingItemPrefab} left in the pack ({_carryingAmount} expected) — rescanning");
+			if (CompanionsPlugin.LogNormal) Log($"No {_carryingItemPrefab} left in the pack ({_carryingAmount} expected) — rescanning");
 			_carryingAmount = 0;
 			_phase = SmeltPhase.Scanning;
 			return;
@@ -704,7 +714,7 @@ public class SmeltController : MonoBehaviour
 		_targetSmelter.m_oreAddedEffects.Create(_targetSmelter.transform.position, _targetSmelter.transform.rotation, null, 1f, -1, ZDOID.None);
 		s_addedOreTime?.SetValue(_targetSmelter, Time.time);
 		_carryingAmount--;
-		Log($"Inserted ore {_carryingItemPrefab} — {_carryingAmount} remaining");
+		if (CompanionsPlugin.LogNormal) Log($"Inserted ore {_carryingItemPrefab} — {_carryingAmount} remaining");
 	}
 
 	private void UpdateMonitoring(float dt)
@@ -763,7 +773,7 @@ public class SmeltController : MonoBehaviour
 			_ai.StopMoving();
 			_ai.LookAtPoint(smelterOutputPoint);
 			component.InvokeRPC("RPC_EmptyProcessed");
-			Log($"Triggered output spawn ({num2} items) from \"{_targetSmelter.m_name}\"");
+			if (CompanionsPlugin.LogNormal) Log($"Triggered output spawn ({num2} items) from \"{_targetSmelter.m_name}\"");
 			_collectTriggered = true;
 			_actionTimer = 1.5f;
 			return;
@@ -779,11 +789,11 @@ public class SmeltController : MonoBehaviour
 			{
 				ResetStuck();
 				_phase = SmeltPhase.MovingToOutputChest;
-				Log($"Will store output in chest at {_outputChest.transform.position:F1}");
+				if (CompanionsPlugin.LogNormal) Log($"Will store output in chest at {_outputChest.transform.position:F1}");
 			}
 			else
 			{
-				Log("No chest with space for output — items left in inventory");
+				if (CompanionsPlugin.LogNormal) Log("No chest with space for output — items left in inventory");
 				_phase = SmeltPhase.Scanning;
 			}
 		}
@@ -813,7 +823,7 @@ public class SmeltController : MonoBehaviour
 			_ai.LookAtPoint(_outputChest.transform.position);
 			_chestOpened = false;
 			_phase = SmeltPhase.StoringOutput;
-			Log($"Arrived at output chest (dist={num:F1}m) — storing output");
+			if (CompanionsPlugin.LogNormal) Log($"Arrived at output chest (dist={num:F1}m) — storing output");
 		}
 		else
 		{
@@ -832,7 +842,7 @@ public class SmeltController : MonoBehaviour
 			{
 				_chestOpened = false;
 			}
-			Log("Output chest gone — back to scanning");
+			if (CompanionsPlugin.LogNormal) Log("Output chest gone — back to scanning");
 			_phase = SmeltPhase.Scanning;
 			return;
 		}
@@ -840,7 +850,7 @@ public class SmeltController : MonoBehaviour
 		// it makes this game its owner so the changes are saved (MHR_Chests.Open)
 		if (!_chestOpened && !MHR_Chests.Open(_outputChest))
 		{
-			Log("Someone has the output chest open — back to scanning");
+			if (CompanionsPlugin.LogNormal) Log("Someone has the output chest open — back to scanning");
 			_phase = SmeltPhase.Scanning;
 			return;
 		}
@@ -849,7 +859,7 @@ public class SmeltController : MonoBehaviour
 			GetComponent<ZSyncAnimation>()?.SetTrigger("interact");
 			_chestOpened = true;
 			_actionTimer = 0.8f;
-			Log("Opened output chest — waiting for animation");
+			if (CompanionsPlugin.LogNormal) Log("Opened output chest — waiting for animation");
 			return;
 		}
 		_actionTimer -= Time.deltaTime;
@@ -874,7 +884,7 @@ public class SmeltController : MonoBehaviour
 			if (itemData != null && IsSmeltOutput(itemData) && inventory2.CanAddItem(itemData, itemData.m_stack))
 			{
 				int stack = itemData.m_stack;
-				Log(string.Format("  Storing \"{0}\" x{1}", itemData.m_shared?.m_name ?? "?", stack));
+				if (CompanionsPlugin.LogNormal) Log(string.Format("  Storing \"{0}\" x{1}", itemData.m_shared?.m_name ?? "?", stack));
 				ItemDrop.ItemData itemData2 = itemData.Clone();
 				itemData2.m_stack = stack;
 				if (inventory2.AddItem(itemData2))
@@ -884,13 +894,13 @@ public class SmeltController : MonoBehaviour
 				}
 				else
 				{
-					Log("  AddItem failed for \"" + (itemData.m_shared?.m_name ?? "?") + "\" — skipping to prevent item loss");
+					if (CompanionsPlugin.LogNormal) Log("  AddItem failed for \"" + (itemData.m_shared?.m_name ?? "?") + "\" — skipping to prevent item loss");
 				}
 			}
 		}
 		_outputChest.SetInUse(inUse: false);
 		_chestOpened = false;
-		Log($"Stored {num} item stacks in chest — back to scanning");
+		if (CompanionsPlugin.LogNormal) Log($"Stored {num} item stacks in chest — back to scanning");
 		_phase = SmeltPhase.Scanning;
 	}
 
@@ -923,13 +933,13 @@ public class SmeltController : MonoBehaviour
 				}
 			}
 		}
-		LogDebug($"Scan: found {_nearbySmelters.Count} smelters");
+		if (CompanionsPlugin.LogDetailed) LogDebug($"Scan: found {_nearbySmelters.Count} smelters");
 	}
 
 	private void Log(string msg)
 	{
 		string text = _character?.m_name ?? "?";
-		CompanionsPlugin.Log.LogInfo("[Smelt|" + text + "] " + msg);
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Smelt|" + text + "] " + msg);
 	}
 
 	private static int CountGroundDropsNearSmelter(Smelter smelter)
@@ -959,7 +969,7 @@ public class SmeltController : MonoBehaviour
 	private void LogDebug(string msg)
 	{
 		string text = _character?.m_name ?? "?";
-		CompanionsPlugin.Log.LogDebug("[Smelt|" + text + "] " + msg);
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Smelt|" + text + "] " + msg);
 	}
 
 	private void ClaimSmelter()
@@ -979,7 +989,7 @@ public class SmeltController : MonoBehaviour
 		if (_ai != null)
 		{
 			_ai.SetFollowTarget(null);
-			Log("Cleared follow target — SmeltController driving movement");
+			if (CompanionsPlugin.LogNormal) Log("Cleared follow target — SmeltController driving movement");
 		}
 	}
 
@@ -1043,7 +1053,7 @@ public class SmeltController : MonoBehaviour
 			return false;
 		}
 		_unreachableChests.Add(chest.GetInstanceID());
-		Log($"Skipping chest at {chest.transform.position:F1} - can't get within reach of it");
+		if (CompanionsPlugin.LogNormal) Log($"Skipping chest at {chest.transform.position:F1} - can't get within reach of it");
 		return true;
 	}
 
@@ -1094,13 +1104,38 @@ public class SmeltController : MonoBehaviour
 			}
 		}
 		MHR_Chests.AddHomeChests(_nearbyChests, _setup);
-		LogDebug($"Scan: found {_nearbyChests.Count} chests within {ScanRadius}m (and around home)");
+		if (CompanionsPlugin.LogDetailed) LogDebug($"Scan: found {_nearbyChests.Count} chests within {ScanRadius}m (and around home)");
 		foreach (Container nearbyChest in _nearbyChests)
 		{
 			Inventory inventory = nearbyChest.GetInventory();
 			float num = Vector3.Distance(base.transform.position, nearbyChest.transform.position);
-			LogDebug($"  Chest \"{nearbyChest.m_name}\" items={inventory?.GetAllItems().Count ?? 0} " + $"empty={inventory?.GetEmptySlots() ?? 0} dist={num:F1}m " + $"pos={nearbyChest.transform.position:F1}");
+			if (CompanionsPlugin.LogDetailed) LogDebug($"  Chest \"{nearbyChest.m_name}\" items={inventory?.GetAllItems().Count ?? 0} " + $"empty={inventory?.GetEmptySlots() ?? 0} dist={num:F1}m " + $"pos={nearbyChest.transform.position:F1}");
 		}
+	}
+
+	// 1.5.43: why it isn't loading or fuelling, gathered during a scan
+	private readonly List<CompanionStatus.Item> _whyItems = new List<CompanionStatus.Item>();
+
+	private void AddWhy(string key, params object[] args)
+	{
+		if (_whyItems.Count >= 8)
+		{
+			return;
+		}
+		string sig = key + "|" + string.Join("|", args);
+		foreach (CompanionStatus.Item it in _whyItems)
+		{
+			if (it.Key + "|" + string.Join("|", it.Args) == sig)
+			{
+				return;
+			}
+		}
+		_whyItems.Add(new CompanionStatus.Item(null, key, args));
+	}
+
+	private static string SName(Smelter s)
+	{
+		return (s == null) ? "" : (MHR_List.Local(s.m_name) ?? s.m_name);
 	}
 
 	private bool TryPlanRefill(Smelter smelter)
@@ -1138,7 +1173,8 @@ public class SmeltController : MonoBehaviour
 						ClearFollowForMovement();
 						ResetStuck();
 						_phase = SmeltPhase.MovingToSmelter;
-						Log($"Plan: use {num4}x ore \"{text}\" from inventory → " + $"\"{smelter.m_name}\" (queued={num}/{smelter.m_maxOre})");
+						if (CompanionsPlugin.LogNormal) Log($"Plan: use {num4}x ore \"{text}\" from inventory → " + $"\"{smelter.m_name}\" (queued={num}/{smelter.m_maxOre})");
+						CompanionStatus.Doing(this, "hc_doing_smelt_load", SName(smelter), CookController.Name(text));
 						return true;
 					}
 				}
@@ -1190,6 +1226,9 @@ public class SmeltController : MonoBehaviour
 					return true;
 				}
 			}
+			// 1.5.43 (phase 3): why it isn't loading this one (user: "Smelting should also mention if there is no wood to add
+			// to the kiln")
+			AddWhy(flag ? "hc_why_smelt_no_wood" : "hc_why_smelt_no_ore", SName(smelter));
 			return false;
 		}
 		int num9 = num2;
@@ -1226,7 +1265,8 @@ public class SmeltController : MonoBehaviour
 		ClearFollowForMovement();
 		ResetStuck();
 		_phase = SmeltPhase.MovingToChest;
-		Log($"Plan: take {num14}x ore \"{bestPrefab}\" (totalNeeded={num9} weightCap={num13}) " + $"from chest (dist={num5:F1}m) → \"{smelter.m_name}\" (queued={num}/{smelter.m_maxOre})");
+		if (CompanionsPlugin.LogNormal) Log($"Plan: take {num14}x ore \"{bestPrefab}\" (totalNeeded={num9} weightCap={num13}) " + $"from chest (dist={num5:F1}m) → \"{smelter.m_name}\" (queued={num}/{smelter.m_maxOre})");
+		CompanionStatus.Doing(this, "hc_doing_smelt_load", SName(smelter), CookController.Name(bestPrefab));
 		if (_talk != null)
 		{
 			_talk.Say(ModLocalization.Loc("hc_speech_smelt_materials"));
@@ -1269,7 +1309,8 @@ public class SmeltController : MonoBehaviour
 				ClearFollowForMovement();
 				ResetStuck();
 				_phase = SmeltPhase.MovingToSmelter;
-				Log($"Plan: use {num4}x fuel \"{text}\" from inventory → " + $"\"{smelter.m_name}\" (fuel={num:F0}/{smelter.m_maxFuel})");
+				if (CompanionsPlugin.LogNormal) Log($"Plan: use {num4}x fuel \"{text}\" from inventory → " + $"\"{smelter.m_name}\" (fuel={num:F0}/{smelter.m_maxFuel})");
+				CompanionStatus.Doing(this, "hc_doing_smelt_fuel", SName(smelter));
 				return true;
 			}
 		}
@@ -1301,7 +1342,13 @@ public class SmeltController : MonoBehaviour
 		}
 		if (container == null)
 		{
-			return TryStartPile(fuelPrefab, smelter);   // 1.4.130: or from a pile
+			// 1.4.130: or from a pile
+			if (TryStartPile(fuelPrefab, smelter))
+			{
+				return true;
+			}
+			AddWhy("hc_why_smelt_no_fuel", CookController.Name(fuelPrefab), SName(smelter));
+			return false;
 		}
 		int num9 = num2;
 		foreach (Smelter nearbySmelter in _nearbySmelters)
@@ -1330,7 +1377,8 @@ public class SmeltController : MonoBehaviour
 		ClearFollowForMovement();
 		ResetStuck();
 		_phase = SmeltPhase.MovingToChest;
-		Log($"Plan: take {num15}x fuel \"{text}\" (totalNeeded={num9} weightCap={num14}) " + $"from chest (dist={num5:F1}m) → \"{smelter.m_name}\" (fuel={num:F0}/{smelter.m_maxFuel})");
+		if (CompanionsPlugin.LogNormal) Log($"Plan: take {num15}x fuel \"{text}\" (totalNeeded={num9} weightCap={num14}) " + $"from chest (dist={num5:F1}m) → \"{smelter.m_name}\" (fuel={num:F0}/{smelter.m_maxFuel})");
+		CompanionStatus.Doing(this, "hc_doing_smelt_fuel", SName(smelter));
 		if (_talk != null)
 		{
 			_talk.Say(ModLocalization.Loc("hc_speech_smelt_fuel"));
@@ -1361,14 +1409,16 @@ public class SmeltController : MonoBehaviour
 			if (Time.time >= _nextNoHammerLog)
 			{
 				_nextNoHammerLog = Time.time + 120f;
-				Log("No " + itemPrefab + " in the chests, but there's a pile of it - it needs a hammer to take it down");
+				if (CompanionsPlugin.LogNormal) Log("No " + itemPrefab + " in the chests, but there's a pile of it - it needs a hammer to take it down");
+				AddWhy("hc_why_smelt_pile_hammer", MHR_List.Local(pile.m_name) ?? pile.m_name);
 			}
 			return false;
 		}
 		_pileTaker = new MHR_PileTaker(pile, "Smelt");
 		ClearFollowForMovement();
 		_phase = SmeltPhase.TakingDownPile;
-		Log("No " + itemPrefab + " in the chests for \"" + smelter.m_name + "\" - taking down the " + MHR_List.Local(pile.m_name) + " at " + MHR_Mover.Fmt(pile.transform.position));
+		if (CompanionsPlugin.LogNormal) Log("No " + itemPrefab + " in the chests for \"" + smelter.m_name + "\" - taking down the " + MHR_List.Local(pile.m_name) + " at " + MHR_Mover.Fmt(pile.transform.position));
+		CompanionStatus.Doing(this, "hc_doing_take_pile", MHR_List.Local(pile.m_name) ?? pile.m_name);
 		return true;
 	}
 
@@ -1391,11 +1441,11 @@ public class SmeltController : MonoBehaviour
 			{
 				_pileSkip[_pileTaker.Pile.GetInstanceID()] = Time.time + 600f;
 			}
-			Log("Gave up on the pile: " + _pileTaker.Why);
+			if (CompanionsPlugin.LogNormal) Log("Gave up on the pile: " + _pileTaker.Why);
 		}
 		else
 		{
-			Log("Took down the pile - picked up " + _pileTaker.Got + " " + MHR_List.Local(_pileTaker.Shared));
+			if (CompanionsPlugin.LogNormal) Log("Took down the pile - picked up " + _pileTaker.Got + " " + MHR_List.Local(_pileTaker.Shared));
 		}
 		_pileTaker = null;
 		_ai?.StopMoving();
@@ -1412,11 +1462,11 @@ public class SmeltController : MonoBehaviour
 			if (flag && MHR_Owner.Of(this) != null)
 			{
 				_ai.SetFollowTarget(MHR_Owner.Go(this));
-				Log("Restored follow target to player (Follow=ON)");
+				if (CompanionsPlugin.LogNormal) Log("Restored follow target to player (Follow=ON)");
 			}
 			else
 			{
-				Log("Follow OFF, no StayHome — idle");
+				if (CompanionsPlugin.LogNormal) Log("Follow OFF, no StayHome — idle");
 			}
 		}
 	}
@@ -1429,7 +1479,7 @@ public class SmeltController : MonoBehaviour
 			_moveLogTimer = 1f;
 			Vector3 vector = _character?.GetVelocity() ?? Vector3.zero;
 			GameObject obj = _ai?.GetFollowTarget();
-			Log($"Moving → {target} dist={dist:F1}m moveOk={moveOk} " + string.Format("vel={0:F1} follow=\"{1}\" ", vector.magnitude, obj?.name ?? "null") + $"pos={base.transform.position:F1}");
+			if (CompanionsPlugin.LogNormal) Log($"Moving → {target} dist={dist:F1}m moveOk={moveOk} " + string.Format("vel={0:F1} follow=\"{1}\" ", vector.magnitude, obj?.name ?? "null") + $"pos={base.transform.position:F1}");
 		}
 	}
 
@@ -1532,7 +1582,7 @@ public class SmeltController : MonoBehaviour
 				ClearFollowForMovement();
 				ResetStuck();
 				_phase = SmeltPhase.MovingToSmelter;
-				Log($"Direct: routing to \"{nearbySmelter.m_name}\" with {_carryingAmount}x {_carryingItemPrefab} (no chest trip)");
+				if (CompanionsPlugin.LogNormal) Log($"Direct: routing to \"{nearbySmelter.m_name}\" with {_carryingAmount}x {_carryingItemPrefab} (no chest trip)");
 				return true;
 			}
 		}
@@ -1610,7 +1660,7 @@ public class SmeltController : MonoBehaviour
 					inventory.AddItem(componentInParent.m_itemData);
 					component.ClaimOwnership();
 					component.Destroy();
-					Log($"Picked up {componentInParent.m_itemData.m_stack}x \"{componentInParent.m_itemData.m_shared.m_name}\"");
+					if (CompanionsPlugin.LogNormal) Log($"Picked up {componentInParent.m_itemData.m_stack}x \"{componentInParent.m_itemData.m_shared.m_name}\"");
 				}
 			}
 		}
@@ -1678,7 +1728,7 @@ public class SmeltController : MonoBehaviour
 
 	private void Finish()
 	{
-		Log("Finish — restoring follow target");
+		if (CompanionsPlugin.LogNormal) Log("Finish — restoring follow target");
 		UnclaimSmelter();
 		CloseAnyOpenChest();
 		_targetSmelter = null;

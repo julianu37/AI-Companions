@@ -83,7 +83,7 @@ public static class ModLocalization
 		_initialized = true;
 		if (InstanceField?.GetValue(null) is Localization loc)
 		{
-			CompanionsPlugin.Log.LogInfo("[Localization] Localization already initialized — injecting retroactively");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Localization] Localization already initialized — injecting retroactively");
 			InjectTranslations(loc);
 		}
 	}
@@ -94,7 +94,27 @@ public static class ModLocalization
 		{
 			{ "hc_ui_title_companions", "Companions" },
 			{ "hc_ui_title_choose", "Choose Your Companion" },
-			{ "hc_ui_btn_spawn", "Spawn Companion" },
+			{ "hc_ui_btn_spawn", "Summon Companion" },
+			{ "hc_ui_title_hire", "Summon a Companion" },
+			{ "hc_ui_btn_hire", "Summon Companion" },
+			{ "hc_ui_desc_hire", "Odin will summon another companion if you make an offering of {0} coins. Customize their appearance on the left, then summon them.\n\nThey will follow you, fight by your side, and carry supplies. Equip them with gear and keep them fed to stay battle-ready." },
+			{ "hc_shrine_use", "Your companions" },
+			{ "hc_shrine_title", "Odin's Shrine" },
+			{ "hc_shrine_flavor", "Here you can make an offering to Odin to receive a boon and check on those who are joining you on this adventure." },
+			{ "hc_shrine_btn_recover", "Recover" },
+			{ "hc_shrine_btn_recover_list", "Recover" },
+			{ "hc_shrine_btn_summon", "Summon" },
+			{ "hc_shrine_recover_title", "Recover companions" },
+			{ "hc_shrine_offering", "Summoning a new companion asks an offering of {0} coins." },
+			{ "hc_shrine_unsummoned", "Unsummoned - can be brought back without gear" },
+			{ "hc_shrine_back", "Back" },
+			{ "hc_shrine_none", "No companions on your roster in this world yet. A companion joins the roster once it has been near you for a few seconds." },
+			{ "hc_shrine_alive", "Alive" },
+			{ "hc_shrine_dead", "Dead - its tombstone will bring it back" },
+			{ "hc_shrine_lost", "Lost - can be recovered" },
+			{ "hc_shrine_unknown", "Unknown - not nearby, may still be alive" },
+			{ "hc_msg_hire_need", "Odin asks for an offering of {0} coins to summon a companion - you have {1}, {2} short." },
+			{ "hc_msg_hired", "Odin has summoned a new companion for you!" },
 			{ "hc_ui_btn_buy", "Buy {0} ({1})" },
 			{ "hc_ui_btn_need", "Need {0}" },
 			{ "hc_ui_bank", "Bank: {0}" },
@@ -161,6 +181,7 @@ public static class ModLocalization
 			{ "hc_radial_despawn", "Despawn" },
 			{ "hc_despawn_popup_title", "Despawn Companion" },
 			{ "hc_despawn_popup_text", "Permanently remove {0}? Anything they're carrying will be left in a tombstone." },
+			{ "hc_despawn_popup_recover", "Changed your mind? Until you next load this world, Odin's Shrine can bring them back - without their gear, which stays in the tombstone." },
 			{ "hc_radial_active", "ACTIVE" },
 			{ "hc_radial_on", "ON" },
 			{ "hc_radial_off", "OFF" },
@@ -168,9 +189,14 @@ public static class ModLocalization
 			{ "hc_hover_commands", "Commands" },
 			// the "hold" word of the companion's hover line ([Hold E] Commands) - it was hardcoded in GetHoverText
 			{ "hc_hover_hold", "Hold" },
+			{ "hc_tomb_hold_resurrect", "Hold to resurrect" },
+			{ "hc_tomb_resurrecting", "Resurrecting... {0}%" },
+			{ "hc_speech_found_1", "I've been looking for you!" },
+			{ "hc_speech_found_2", "There you are!" },
+			{ "hc_speech_found_3", "Finally found you!" },
 			{ "hc_msg_not_yours", "This is not your companion." },
 			{ "hc_msg_need_coins", "Not enough coins in bank! Need {0}" },
-			{ "hc_msg_companion_limit", "You already have {0} companion(s) (the limit is {1}). Dismiss one, or recover a tombstone." },
+			{ "hc_msg_companion_limit", "You already have {0} companion(s) (the limit is {1}). Dismissing one frees its place only when you next load this world (or with [General] RecoverUnsummoned off); a tombstone brings the same companion back." },
 			{ "hc_msg_arrived", "Your new {0} has arrived!" },
 			{ "hc_msg_returned", "{0} has returned at {1}!" },
 			{ "hc_msg_location_home", "home" },
@@ -228,6 +254,130 @@ public static class ModLocalization
 			{ "hc_idle_chat_4", "Quiet around here." },
 			{ "hc_idle_chat_5", "Smells like rain." },
 			{ "hc_idle_chat_6", "Anything need doing?" },
+			{ "hc_status_sleeping", "Sleeping" },
+			{ "hc_status_resting", "Resting" },
+			{ "hc_status_hunting", "Hunting a {0}" },
+			{ "hc_status_fighting", "Fighting a {0}" },
+			{ "hc_status_spear", "Fetching its spear" },
+			{ "hc_status_order", "Carrying out your order" },
+			{ "hc_status_nothing", "nothing to do" },
+			{ "hc_status_following_look", "following you, looking out for work" },
+			{ "hc_status_following", "Following you" },
+			{ "hc_status_idle", "Idling" },
+			{ "hc_status_staying", "Staying put" },
+			{ "hc_status_waiting", "Waiting" },
+			{ "hc_status_fetching", "Fetching {0}" },
+			{ "hc_status_putting_back", "Putting back {0}" },
+			{ "hc_status_unloading", "Emptying its bags" },
+			{ "hc_status_repairing_gear", "Repairing its gear" },
+			{ "hc_status_needs_home", "Needs {0} - waiting till we're home" },
+			{ "hc_status_job_wood", "Wood" },
+			{ "hc_status_job_stone", "Stone" },
+			{ "hc_status_job_ore", "Ore" },
+			{ "hc_status_job_forage", "Forage" },
+			{ "hc_status_job_smelt", "Smelt" },
+			{ "hc_status_job_hunt", "Hunt" },
+			{ "hc_status_job_farm", "Farm" },
+			{ "hc_status_job_fish", "Fish" },
+			{ "hc_status_job_upkeep", "Repair and Restock" },
+			{ "hc_status_job_cook", "Cook" },
+			{ "hc_status_job_mead", "Mead" },
+			{ "hc_doing_chop", "chopping {0}" },
+			{ "hc_doing_mine", "mining {0}" },
+			{ "hc_doing_pick", "picking up {0}" },
+			{ "hc_doing_forage", "picking {0}" },
+			{ "hc_doing_hunt", "hunting {0}" },
+			{ "hc_doing_encumbered", "carrying too much - walking slowly" },
+			{ "hc_doing_fish", "fishing for {0}" },
+			{ "hc_doing_smelt_load", "loading the {0} with {1}" },
+			{ "hc_doing_smelt_fuel", "fuelling the {0}" },
+			{ "hc_doing_smelt_collect", "emptying the {0}" },
+			{ "hc_doing_take_pile", "taking down the {0}" },
+			{ "hc_doing_upkeep_repair", "repairing the {0}" },
+			{ "hc_doing_upkeep_fuel", "fuelling the {0}" },
+			{ "hc_doing_upkeep_sort", "sorting {0}" },
+			{ "hc_doing_upkeep_tidy", "stacking up {0}" },
+			{ "hc_doing_upkeep_stow", "putting back {0}" },
+			{ "hc_doing_upkeep_pile", "piling up {0}" },
+			{ "hc_doing_upkeep_honey", "collecting honey" },
+			{ "hc_doing_home", "heading home" },
+			{ "hc_doing_cook_make", "making {0}" },
+			{ "hc_doing_cook_rescue", "taking food off the {0}" },
+			{ "hc_doing_cook_store", "putting away {0}" },
+			{ "hc_doing_mead_fill", "filling a fermenter with {0}" },
+			{ "hc_doing_mead_tap", "tapping a fermenter" },
+			{ "hc_why_gather_limit", "{0} {1}/{2} - at the limit." },
+			{ "hc_why_gather_tier", "{0} needs a better {1}." },
+			{ "hc_tool_axe", "axe" },
+			{ "hc_tool_pickaxe", "pickaxe" },
+			{ "hc_why_gather_near_base", "Leaving {0} trees within {1} m of buildings." },
+			{ "hc_why_hunt_at_target", "{0} {1}/{2} - enough." },
+			{ "hc_why_hunt_none_range", "No game within {0} m." },
+			{ "hc_why_fish_none", "No fish within {0} m." },
+			{ "hc_why_fish_at_target", "{0} {1}/{2} - enough." },
+			{ "hc_why_fish_bait", "No bait for {0} ({1})." },
+			{ "hc_why_fish_no_bank", "No spot to fish for {0} from." },
+			{ "hc_why_smelt_no_ore", "No ore for the {0}." },
+			{ "hc_why_smelt_no_wood", "No wood for the {0}." },
+			{ "hc_why_smelt_no_fuel", "No {0} for the {1}." },
+			{ "hc_why_smelt_pile_hammer", "Need a hammer to take down the {0}." },
+			{ "hc_why_upkeep_no_fuel", "No {0} for the fires." },
+			{ "hc_why_upkeep_no_station", "{0} damaged pieces have no station in range." },
+			{ "hc_why_farm_seed_min", "Seeds at the minimum ({0}) - keeping them." },
+			{ "hc_why_farm_zone_full", "Every spot is planted." },
+			{ "hc_why_farm_no_seed", "No {0} to plant." },
+			{ "hc_act_fetch_tool", "Fetching {0}." },
+			{ "hc_act_return_tool", "Putting {0} back." },
+			{ "hc_act_bed", "Off to bed." },
+			{ "hc_status_farm_harvesting", "harvesting" },
+			{ "hc_status_farm_pickup", "picking up the harvest" },
+			{ "hc_status_farm_seeds", "fetching seeds" },
+			{ "hc_status_farm_planting", "planting {0}" },
+			{ "hc_status_farm_storing", "storing the harvest" },
+			{ "hc_cmd_refused_off", "{0}: Command is off on the wheel." },
+			{ "hc_cmd_refused_far", "{0} is {1} m away. Hold {2} s to call all." },
+			{ "hc_why_spear_lost", "I lost my {0}." },
+			{ "hc_msg_companion_died", "{0} has died ({1}, {2} m from you)" },
+			{ "hc_where", "{0}, {1} m from you" },
+			{ "hc_status_recover", "Getting its gear back" },
+			{ "hc_status_recover_wait", "Getting its gear back - waiting for it to be safe" },
+			{ "hc_status_recover_far", "Its gear is out of reach" },
+			{ "hc_status_recover_equip", "Putting its gear back on" },
+			{ "hc_speech_recover_wait", "Too many of them. I'll wait for my gear." },
+			{ "hc_speech_recover_far", "My gear's out of reach. I'll stay out of fights." },
+			{ "hc_speech_recover_done", "Got my gear back." },
+			{ "hc_msg_stance_set", "{0}: {1}" },
+			{ "hc_msg_stance_none", "No companion in range for {0}." },
+			{ "hc_msg_back_bed", "{0} is back - at its bed ({1})" },
+			{ "hc_msg_back_spawn", "{0} is back - at the world spawn ({1})" },
+			{ "hc_msg_back_here", "{0} is back - next to you" },
+			{ "hc_why_hunt_none", "No game around." },
+			{ "hc_why_hunt_enough", "We have enough meat." },
+			{ "hc_why_hunt_reach", "The game around here is out of reach." },
+			{ "hc_why_hunt_passive", "I won't hunt in the Passive stance." },
+			{ "hc_why_hunt_spear", "Let me get my spear back first." },
+			{ "hc_why_hunt_got_away", "It got away." },
+			{ "hc_why_pack_full", "My pack is full." },
+			{ "hc_why_pack_full_far", "My pack is full and home is too far." },
+			{ "hc_why_gather_none", "Nothing left to gather around here." },
+			{ "hc_why_no_way", "I can't find a way there." },
+			{ "hc_why_cant_reach_up", "I can't get up there." },
+			{ "hc_why_chests_full", "The chests near home are full." },
+			{ "hc_why_chest_unreachable", "I can't get to that chest." },
+			{ "hc_why_farm_no_zones", "Nothing ripe, and nowhere to plant." },
+			{ "hc_why_farm_waiting", "Waiting for the crops to grow." },
+			{ "hc_why_farm_no_chest", "No chest has room for the harvest." },
+			{ "hc_why_smelt_no_chests", "There are no chests near the smelters." },
+			{ "hc_why_smelt_nothing", "Nothing to smelt in the chests." },
+			{ "hc_why_cook_nothing", "Nothing to cook right now." },
+			{ "hc_why_mead_short", "{0} {1}/{2} for {3}." },
+			{ "hc_why_cook_no_food", "No food ingredients in reach." },
+			{ "hc_why_cook_stocked", "Food is stocked up." },
+			{ "hc_why_cook_no_station", "Can't use the {0} (level, fire, roof)." },
+			{ "hc_why_repair_no_station", "No station near home can fix my {0}." },
+			{ "hc_why_tool_taken", "You took my {0} - I'll do without." },
+			{ "hc_why_need_tool", "I need {0} for this job." },
+			{ "hc_why_fish_no_rod", "I need a fishing rod." },
 			{ "hc_speech_farm_planting", "Time to plant some seeds." },
 			{ "hc_speech_farm_harvesting", "Crops are ready!" },
 			{ "hc_speech_farm_done", "All done farming." },
@@ -283,6 +433,10 @@ public static class ModLocalization
 			{ "hc_cmd_door_1", "Getting the door." },
 			{ "hc_cmd_door_2", "I'll get it." },
 			{ "hc_cmd_door_3", "Door's open!" },
+			{ "hc_cmd_doorclose_1", "Closing it." },
+			{ "hc_cmd_doorclose_2", "I'll shut it." },
+			{ "hc_cmd_doorclose_3", "Shutting the door." },
+			{ "hc_cmd_door_locked", "It's locked." },
 			{ "hc_cmd_sit_1", "Nice and warm." },
 			{ "hc_cmd_sit_2", "Good spot to rest." },
 			{ "hc_cmd_sit_3", "I'll sit here." },
@@ -318,6 +472,12 @@ public static class ModLocalization
 			{ "hc_cmd_repair_nothing_1", "Nothing to fix here." },
 			{ "hc_cmd_repair_nothing_2", "My gear's fine." },
 			{ "hc_cmd_repair_nothing_3", "No repairs needed." },
+			{ "hc_cmd_hive", "I'll fetch the honey." },
+			{ "hc_cmd_hive_empty", "No honey in there yet." },
+			{ "hc_say_encumbered", "This is too heavy - I can barely move." },
+			{ "hc_say_no_torches", "My last torch burned out." },
+			{ "hc_say_portal_stay", "I can't take {0} through the portal - I'll wait here." },
+			{ "hc_say_portal_left", "Left {0} in the chest by the portal." },
 			{ "hc_cmd_tombstone_1", "I'll grab my things." },
 			{ "hc_cmd_tombstone_2", "Let me get that." },
 			{ "hc_cmd_tombstone_3", "On my way to pick that up." },
@@ -457,6 +617,12 @@ public static class ModLocalization
 			// JSON, so another language showed the raw token - same bug the audit found in hc_ai_voice_key_conflict.
 			{ "hc_ai_order_inventory", "open the inventory" },
 			{ "hc_ai_order_inventory_close", "close the inventory" },
+			// Fase 2.0: the five interaction orders (chat and voice) - each one reuses what the command key does
+			{ "hc_ai_order_hive", "empty the beehive" },
+			{ "hc_ai_order_door", "close the door" },
+			{ "hc_ai_order_board", "board the ship" },
+			{ "hc_ai_order_sit", "sit down" },
+			{ "hc_ai_order_deposit", "put it in the chest" },
 			{ "hc_ai_inventory_open", "Opening the inventory." },
 			{ "hc_ai_inventory_requesting", "Asking {0} for access to the inventory - the window opens in a moment." },
 			{ "hc_ai_inventory_timeout", "I couldn't open the companion's inventory. Ask me again." },
@@ -464,6 +630,20 @@ public static class ModLocalization
 			{ "hc_ai_inventory_closed", "I closed the inventory." },
 			{ "hc_ai_inventory_none_open", "No inventory is open." },
 			{ "hc_ai_no_container", "I couldn't find {0}'s inventory." },
+			// Fase 2.0: what the interaction orders answer. The target of each one is the object the player is looking
+			// at, or the nearest one around the player (see CompanionInteract.OrderHive and the other Order* wrappers).
+			{ "hc_ai_hive_none", "I don't see a beehive nearby." },
+			{ "hc_ai_hive_done", "Going for the honey." },
+			{ "hc_ai_door_none", "I don't see a door nearby." },
+			{ "hc_ai_door_closed", "Closing the door." },
+			{ "hc_ai_door_opened", "Opening the door." },
+			{ "hc_ai_board_none", "I don't see a ship nearby." },
+			{ "hc_ai_board_done", "On board!" },
+			{ "hc_ai_sit_none", "I don't see a lit fire nearby." },
+			{ "hc_ai_sit_done", "Sitting by the fire." },
+			{ "hc_ai_deposit_none", "I don't see a chest nearby." },
+			{ "hc_ai_deposit_full", "There's no room in that chest." },
+			{ "hc_ai_deposit_done", "Putting {0} item(s) in the chest." },
 			// Fase 3.5: personality presets (shown in the log), free conversation and the memory
 			{ "hc_ai_default_name", "Companion" },
 			{ "hc_ai_preset_default", "Default" },
@@ -698,7 +878,9 @@ public static class ModLocalization
 				num++;
 			}
 		}
-		CompanionsPlugin.Log.LogInfo(reInjected
+		// Fase 2.0 (audit fix): the second line here used to be an unconditional copy of the gated one, so every
+		// injection printed twice (and once even with [Advanced] LogLevel = Off).
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo(reInjected
 			? $"[Localization] Re-injected {_englishDefaults?.Count ?? 0} defaults + {num} \"{selectedLanguage}\" overrides (the game had rebuilt the dictionary)"
 			: $"[Localization] Injected {_englishDefaults?.Count ?? 0} defaults + {num} \"{selectedLanguage}\" overrides");
 	}
@@ -724,7 +906,7 @@ public static class ModLocalization
 				{
 					return;
 				}
-				CompanionsPlugin.Log.LogInfo($"[Localization] English.json is stale ({dictionary?.Count ?? 0} vs {_englishDefaults.Count} keys) — regenerating.");
+				if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Localization] English.json is stale ({dictionary?.Count ?? 0} vs {_englishDefaults.Count} keys) — regenerating.");
 			}
 			List<KeyValuePair<string, string>> list = new List<KeyValuePair<string, string>>(_englishDefaults);
 			list.Sort((KeyValuePair<string, string> a, KeyValuePair<string, string> b) => string.Compare(a.Key, b.Key, StringComparison.Ordinal));
@@ -739,7 +921,7 @@ public static class ModLocalization
 			stringBuilder.AppendLine("    ]");
 			stringBuilder.AppendLine("}");
 			File.WriteAllText(text, stringBuilder.ToString(), Encoding.UTF8);
-			CompanionsPlugin.Log.LogInfo("[Localization] Created default " + text);
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Localization] Created default " + text);
 		}
 		catch (Exception ex)
 		{
@@ -802,6 +984,11 @@ public static class ModLocalization
 			if (_initialized)
 			{
 				InjectTranslations(__instance);
+				// fix 1.9.2: the voice has to follow too - the Kokoro model is loaded once and the phonemizer is chosen
+				// when it is loaded, so a language change needs the synthesis thread to rebuild it (a Portuguese voice
+				// reading Portuguese with English phonemes sounds like English). Unity-free on purpose: this postfix
+				// must not touch the platform layer (see the note above).
+				CompanionTts.NoticeLanguageChange();
 			}
 		}
 		catch (Exception ex)
@@ -833,7 +1020,7 @@ public static class ModLocalization
 			{
 				return null;
 			}
-			CompanionsPlugin.Log.LogInfo($"[Localization] Loaded {dictionary.Count} keys from {text}");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Localization] Loaded {dictionary.Count} keys from {text}");
 			return dictionary;
 		}
 		catch (Exception ex)

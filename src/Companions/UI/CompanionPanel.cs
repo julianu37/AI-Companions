@@ -15,6 +15,13 @@ public class CompanionPanel
 
 	private static readonly Vector3 PreviewPos = new Vector3(10030f, 5000f, 10000f);
 
+	// Fase 3.20: the cached sprites (built once, released by DestroySprite)
+	private static Sprite _catBtnSprite;
+
+	private static Sprite _sliderBgSprite;
+
+	private static Sprite _genderBtnSprite;
+
 	private RenderTexture _rt;
 
 	private Camera _cam;
@@ -115,6 +122,9 @@ public class CompanionPanel
 	private readonly List<Button> _variantButtons = new List<Button>();
 
 	internal bool StarterMode;
+
+	// 1.5.71: the same one-companion panel, for hiring another at Odin's Shrine (paid in coins)
+	internal bool HireMode;
 
 	internal Action<CompanionAppearance> OnSpawnConfirmed;
 
@@ -248,15 +258,18 @@ public class CompanionPanel
 
 	private static readonly Color BtnTint = new Color(0f, 0f, 0f, 0.75f);
 
+	// 1.5.81: the summon and starter windows have no dark layers over the game's wood panel - not on the three sections,
+	// the buttons or the slider tracks (user: "there is like a dark highlight overlayed the 3 sections"; "Lets remove it
+	// from the extras too"). The trader tab keeps them. Set at the start of each Build.
+	private static bool s_noDark;
+
+	private static Color SectionBg => s_noDark ? Color.clear : ColBg;
+
+	private static Color Tint => s_noDark ? Color.clear : BtnTint;
+
 	private static readonly Color TabInactive = new Color(0.45f, 0.45f, 0.45f, 1f);
 
 	private const string BankDataKey = "TraderSharedBank_Balance";
-
-	private static Sprite _catBtnSprite;
-
-	private static Sprite _sliderBgSprite;
-
-	private static Sprite _genderBtnSprite;
 
 	public GameObject Root { get; private set; }
 
@@ -281,9 +294,6 @@ public class CompanionPanel
 			Root = null;
 		}
 		_listsLoaded = false;
-		DestroySprite(ref _catBtnSprite);
-		DestroySprite(ref _sliderBgSprite);
-		DestroySprite(ref _genderBtnSprite);
 	}
 
 	public void Build(Transform parent, float colTopInset, float bottomPad, TMP_FontAsset font, GameObject buttonTemplate, float buttonHeight, float leftXL, float leftXR, float midXL, float midXR, float rightXL, float rightXR, float panelHeight)
@@ -465,7 +475,7 @@ public class CompanionPanel
 		component.offsetMax = new Vector2(xRight, 0f - colTopInset);
 		Image component2 = gameObject.GetComponent<Image>();
 		component2.sprite = null;
-		component2.color = ColBg;
+		component2.color = SectionBg;
 		return component;
 	}
 
@@ -616,7 +626,7 @@ public class CompanionPanel
 		{
 			Transform parent2 = MakeAnchoredRow(_dvergerGroup.transform, y3, num4);
 			y3 -= num4 + num2;
-			Button item = AddToggleButton(parent2, v.DisplayName, buttonTemplate, new Vector2(0.01f, 0f), new Vector2(0.99f, 1f), delegate
+			Button item = AddToggleButton(parent2, v.LocalName, buttonTemplate, new Vector2(0.01f, 0f), new Vector2(0.99f, 1f), delegate
 			{
 				SetDvergerVariant(v);
 			}, CompanionTierData.LocalName(v));
@@ -653,7 +663,7 @@ public class CompanionPanel
 		textMeshProUGUI.fontSize = 24f;
 		textMeshProUGUI.color = Color.white;
 		textMeshProUGUI.alignment = TextAlignmentOptions.Center;
-		textMeshProUGUI.text = (StarterMode ? ModLocalization.Loc("hc_ui_title_choose") : ModLocalization.Loc("hc_ui_title_companions"));
+		textMeshProUGUI.text = (HireMode ? ModLocalization.Loc("hc_ui_title_hire") : StarterMode ? ModLocalization.Loc("hc_ui_title_choose") : ModLocalization.Loc("hc_ui_title_companions"));
 		textMeshProUGUI.raycastTarget = false;
 		RectTransform component = gameObject.GetComponent<RectTransform>();
 		component.anchorMin = new Vector2(0f, 1f);
@@ -749,7 +759,7 @@ public class CompanionPanel
 		textMeshProUGUI2.overflowMode = TextOverflowModes.Overflow;
 		textMeshProUGUI2.richText = true;
 		textMeshProUGUI2.raycastTarget = false;
-		textMeshProUGUI2.text = (StarterMode ? ModLocalization.Loc("hc_ui_desc_starter") : ModLocalization.Loc("hc_ui_desc_trader"));
+		textMeshProUGUI2.text = (HireMode ? ModLocalization.LocFmt("hc_ui_desc_hire", CompanionTierData.Price.ToString("N0")) : StarterMode ? ModLocalization.Loc("hc_ui_desc_starter") : ModLocalization.Loc("hc_ui_desc_trader"));
 		RectTransform component5 = gameObject4.GetComponent<RectTransform>();
 		component5.anchorMin = new Vector2(0f, 1f);
 		component5.anchorMax = new Vector2(1f, 1f);
@@ -1441,7 +1451,7 @@ public class CompanionPanel
 		component.anchorMax = Vector2.one;
 		component.offsetMin = Vector2.zero;
 		component.offsetMax = Vector2.zero;
-		gameObject2.GetComponent<Image>().color = BtnTint;
+		gameObject2.GetComponent<Image>().color = Tint;
 		gameObject2.GetComponent<Image>().raycastTarget = false;
 		return gameObject;
 	}
@@ -1450,7 +1460,7 @@ public class CompanionPanel
 	{
 		if (StarterMode)
 		{
-			CompanionsPlugin.Log.LogInfo($"[Panel] Starter spawn confirmed — gender={_current.ModelIndex}, " + "hair=" + _current.HairItem + ", beard=" + _current.BeardItem);
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo((HireMode ? "[Panel] Summon confirmed" : "[Panel] Starter spawn confirmed") + $" — gender={_current.ModelIndex}, " + "hair=" + _current.HairItem + ", beard=" + _current.BeardItem);
 			OnSpawnConfirmed?.Invoke(_current);
 		}
 		else
@@ -1530,15 +1540,7 @@ public class CompanionPanel
 		component.anchorMax = anchorMax;
 		component.offsetMin = Vector2.zero;
 		component.offsetMax = Vector2.zero;
-		Sprite genderBtnSprite = GetGenderBtnSprite();
-		Image component2 = gameObject.GetComponent<Image>();
-		if (component2 != null && genderBtnSprite != null)
-		{
-			component2.sprite = genderBtnSprite;
-			component2.type = Image.Type.Simple;
-			component2.preserveAspect = false;
-			component2.color = Color.white;
-		}
+		// 1.5.78: the copied Craft button keeps the game's own look (no packed texture)
 		GameObject gameObject2 = new GameObject("Tint", typeof(RectTransform), typeof(Image));
 		gameObject2.transform.SetParent(gameObject.transform, worldPositionStays: false);
 		gameObject2.transform.SetAsFirstSibling();
@@ -1547,7 +1549,7 @@ public class CompanionPanel
 		component3.anchorMax = Vector2.one;
 		component3.offsetMin = Vector2.zero;
 		component3.offsetMax = Vector2.zero;
-		gameObject2.GetComponent<Image>().color = BtnTint;
+		gameObject2.GetComponent<Image>().color = Tint;
 		gameObject2.GetComponent<Image>().raycastTarget = false;
 		TMP_Text componentInChildren = gameObject.GetComponentInChildren<TMP_Text>(includeInactive: true);
 		if (componentInChildren != null)
@@ -1667,39 +1669,6 @@ public class CompanionPanel
 		component2.pivot = new Vector2(0.5f, 1f);
 		component2.sizeDelta = new Vector2(-4f, sliderH);
 		component2.anchoredPosition = new Vector2(0f, y);
-		Sprite sliderBgSprite = GetSliderBgSprite();
-		if (sliderBgSprite != null)
-		{
-			Image image = null;
-			Transform transform = gameObject.transform.Find("Background");
-			if (transform != null)
-			{
-				image = transform.GetComponent<Image>();
-			}
-			if (image == null)
-			{
-				Image[] componentsInChildren = gameObject.GetComponentsInChildren<Image>(includeInactive: true);
-				foreach (Image image2 in componentsInChildren)
-				{
-					if (image2 != null && image2.gameObject.name.IndexOf("background", StringComparison.OrdinalIgnoreCase) >= 0)
-					{
-						image = image2;
-						break;
-					}
-				}
-			}
-			if (image == null)
-			{
-				image = gameObject.GetComponent<Image>();
-			}
-			if (image != null)
-			{
-				image.sprite = sliderBgSprite;
-				image.type = Image.Type.Simple;
-				image.preserveAspect = false;
-				image.color = Color.white;
-			}
-		}
 		slider2.onValueChanged.RemoveAllListeners();
 		slider2.transition = Selectable.Transition.None;
 		slider2.wholeNumbers = false;
@@ -1713,6 +1682,21 @@ public class CompanionPanel
 				image3.color = new Color(1f, 1f, 1f, image3.color.a);
 			}
 		}
+		// 1.5.78: the track is the game's panel background (was a packed texture)
+		Transform sliderBg = gameObject.transform.Find("Background");
+		Image sliderBgImg = sliderBg != null ? sliderBg.GetComponent<Image>() : null;
+		if (sliderBgImg == null)
+		{
+			foreach (Image image4 in componentsInChildren2)
+			{
+				if (image4 != null && image4.gameObject.name.IndexOf("background", StringComparison.OrdinalIgnoreCase) >= 0)
+				{
+					sliderBgImg = image4;
+					break;
+				}
+			}
+		}
+		GameLook.ApplyPanel(sliderBgImg, new Color(0.12f, 0.1f, 0.08f, 0.95f));
 		if (slider2.fillRect != null)
 		{
 			Image component3 = slider2.fillRect.GetComponent<Image>();
@@ -1738,7 +1722,7 @@ public class CompanionPanel
 		component4.anchorMax = Vector2.one;
 		component4.offsetMin = Vector2.zero;
 		component4.offsetMax = Vector2.zero;
-		gameObject2.GetComponent<Image>().color = BtnTint;
+		gameObject2.GetComponent<Image>().color = Tint;
 		gameObject2.GetComponent<Image>().raycastTarget = false;
 		slider2.value = initialValue;
 		slider2.onValueChanged.AddListener(delegate(float v)
@@ -1963,7 +1947,7 @@ public class CompanionPanel
 		int num2 = _clone.GetComponentsInChildren<Renderer>(includeInactive: true).Length;
 		int valueOrDefault = (component3?.m_defaultItems?.Length).GetValueOrDefault();
 		int valueOrDefault2 = (component3?.m_randomWeapon?.Length).GetValueOrDefault();
-		CompanionsPlugin.Log.LogInfo("[Panel] SetupPreviewClone — tier=\"" + _selectedTier.DisplayName + "\" " + $"source=\"{text}\" visEquip={component2 != null} humanoid={component3 != null} " + $"renderers={num2} defaultItems={valueOrDefault} randomWeapons={valueOrDefault2} " + $"pos={_clone.transform.position:F1}");
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Panel] SetupPreviewClone — tier=\"" + _selectedTier.DisplayName + "\" " + $"source=\"{text}\" visEquip={component2 != null} humanoid={component3 != null} " + $"renderers={num2} defaultItems={valueOrDefault} randomWeapons={valueOrDefault2} " + $"pos={_clone.transform.position:F1}");
 		ApplyCurrentToClone();
 	}
 
@@ -2140,7 +2124,7 @@ public class CompanionPanel
 				int num4 = ((randomArmor != null) ? randomArmor.Length : 0);
 				Humanoid.ItemSet[] randomSets = component2.m_randomSets;
 				int num5 = ((randomSets != null) ? randomSets.Length : 0);
-				CompanionsPlugin.Log.LogDebug("[Panel] ApplyCurrentToClone — dverger gear: " + $"defaults={num} weapons={num2} shields={num3} " + $"armor={num4} sets={num5}");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Panel] ApplyCurrentToClone — dverger gear: " + $"defaults={num} weapons={num2} shields={num3} " + $"armor={num4} sets={num5}");
 				ApplyDefaultGearToVis(component, component2.m_defaultItems);
 				ApplyFirstItemToVis(component, component2.m_randomWeapon);
 				ApplyFirstItemToVis(component, component2.m_randomShield);
@@ -2262,7 +2246,7 @@ public class CompanionPanel
 		if (!(component == null))
 		{
 			string name = itemGo.name;
-			CompanionsPlugin.Log.LogDebug($"[Panel] ApplyItemToVis — \"{name}\" type={component.m_itemData.m_shared.m_itemType}");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Panel] ApplyItemToVis — \"{name}\" type={component.m_itemData.m_shared.m_itemType}");
 			switch (component.m_itemData.m_shared.m_itemType)
 			{
 			case ItemDrop.ItemData.ItemType.OneHandedWeapon:
@@ -2344,15 +2328,35 @@ public class CompanionPanel
 		ApplyCurrentToClone();
 	}
 
+	private static string StyleName(string prefab)
+	{
+		try
+		{
+			string key = ObjectDB.instance?.GetItemPrefab(prefab)?.GetComponent<ItemDrop>()?.m_itemData?.m_shared?.m_name;
+			if (!string.IsNullOrEmpty(key) && Localization.instance != null)
+			{
+				string loc = Localization.instance.Localize(key);
+				if (!string.IsNullOrEmpty(loc) && !loc.StartsWith("[") && !loc.StartsWith("$"))
+				{
+					return loc;
+				}
+			}
+		}
+		catch
+		{
+		}
+		return prefab;
+	}
+
 	private void RefreshPickerLabels()
 	{
 		if (_hairNameText != null)
 		{
-			_hairNameText.text = ((_hairs.Count > 0) ? _hairs[_hairIndex] : "—");
+			_hairNameText.text = ((_hairs.Count > 0) ? StyleName(_hairs[_hairIndex]) : "—");
 		}
 		if (_beardNameText != null)
 		{
-			_beardNameText.text = ((_beardIndex == 0) ? ModLocalization.Loc("hc_ui_beard_none") : ((_beards.Count > _beardIndex) ? _beards[_beardIndex] : "—"));
+			_beardNameText.text = ((_beardIndex == 0) ? ModLocalization.Loc("hc_ui_beard_none") : ((_beards.Count > _beardIndex) ? StyleName(_beards[_beardIndex]) : "—"));
 		}
 	}
 
@@ -2488,7 +2492,7 @@ public class CompanionPanel
 		return 0;
 	}
 
-	private static GameObject CreateButton(GameObject template, Transform parent, string name, string label)
+	internal static GameObject CreateButton(GameObject template, Transform parent, string name, string label)
 	{
 		GameObject gameObject = UnityEngine.Object.Instantiate(template, parent);
 		gameObject.name = name;
@@ -2512,9 +2516,27 @@ public class CompanionPanel
 		{
 			componentInChildren.gameObject.SetActive(value: true);
 			componentInChildren.text = label;
+			// 1.5.80: labels like the game popup's OK button
+			GameLook.ApplyButtonText(componentInChildren);
 		}
 		StripButtonHints(gameObject, componentInChildren);
+		MakeUsable(gameObject);
 		return gameObject;
+	}
+
+	// 1.5.61: the copy takes the game's Craft button as it is at that moment - not clickable and with a "Missing
+	// requirement" tooltip whenever the recipe last picked in your inventory can't be made (player report: the summon
+	// window didn't take clicks after a portal trip; it showed "Missing requirement" over the hair style arrow)
+	private static void MakeUsable(GameObject btnGO)
+	{
+		foreach (Selectable sel in btnGO.GetComponentsInChildren<Selectable>(includeInactive: true))
+		{
+			sel.interactable = true;
+		}
+		foreach (UITooltip tip in btnGO.GetComponentsInChildren<UITooltip>(includeInactive: true))
+		{
+			UnityEngine.Object.Destroy(tip);
+		}
 	}
 
 	private static void StripButtonHints(GameObject btnGO, TMP_Text label)
@@ -2577,7 +2599,7 @@ public class CompanionPanel
 		{
 			UnityEngine.Object.Destroy(component3);
 		}
-		Sprite catBtnSprite = GetCatBtnSprite();
+		// 1.5.78: the copied button keeps the game's own sprite (no packed texture)
 		Image image = gameObject.GetComponent<Image>();
 		if (image == null)
 		{
@@ -2585,12 +2607,6 @@ public class CompanionPanel
 		}
 		if (image != null)
 		{
-			if (catBtnSprite != null)
-			{
-				image.sprite = catBtnSprite;
-				image.type = Image.Type.Simple;
-				image.preserveAspect = false;
-			}
 			image.color = Color.white;
 			image.raycastTarget = true;
 		}
@@ -2612,6 +2628,7 @@ public class CompanionPanel
 				component4.targetGraphic = image;
 			}
 		}
+		MakeUsable(gameObject);
 		GameObject gameObject2 = new GameObject("Tint", typeof(RectTransform), typeof(Image));
 		gameObject2.transform.SetParent(gameObject.transform, worldPositionStays: false);
 		gameObject2.transform.SetAsFirstSibling();
@@ -2620,7 +2637,7 @@ public class CompanionPanel
 		component5.anchorMax = Vector2.one;
 		component5.offsetMin = Vector2.zero;
 		component5.offsetMax = Vector2.zero;
-		gameObject2.GetComponent<Image>().color = BtnTint;
+		gameObject2.GetComponent<Image>().color = Tint;
 		gameObject2.GetComponent<Image>().raycastTarget = false;
 		if (componentInChildren != null)
 		{

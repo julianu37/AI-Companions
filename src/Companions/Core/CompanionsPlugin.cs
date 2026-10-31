@@ -24,7 +24,20 @@ public class CompanionsPlugin : BaseUnityPlugin
 
 	public const string PluginName = "AI Companions";
 
-	public const string PluginVersion = "1.9.1";
+	public const string PluginVersion = "1.9.2";
+
+	// 1.5.76/1.5.77 (upstream): [Advanced] LogLevel - every mod log line checks one of these first, so a level that's
+	// off costs nothing (the text isn't even built). Normal until the config is read.
+	internal static bool LogNormal = true;
+
+	internal static bool LogDetailed;
+
+	internal static void ApplyLogLevel()
+	{
+		string text = (ModConfig.LogLevel != null) ? ModConfig.LogLevel.Value : "Normal";
+		LogNormal = Log != null && text != "Off";
+		LogDetailed = Log != null && text == "Detailed";
+	}
 
 	private static Harmony _harmony;
 
@@ -125,8 +138,8 @@ public class CompanionsPlugin : BaseUnityPlugin
 	private void Awake()
 	{
 		Log = base.Logger;
-		Log.LogInfo("[BUILD] Companions.dll built from C# source");
-		Log.LogInfo(PluginName + " v" + PluginVersion + " loading...");
+		if (CompanionsPlugin.LogNormal) Log.LogInfo("[BUILD] Companions.dll built from C# source");
+		if (CompanionsPlugin.LogNormal) Log.LogInfo(PluginName + " v" + PluginVersion + " loading...");
 		if (OriginalInstalled())
 		{
 			LogOriginalInstalled();
@@ -135,6 +148,8 @@ public class CompanionsPlugin : BaseUnityPlugin
 		}
 		_started = true;
 		ModConfig.Init(MHR_GetConfigFile());
+		ApplyLogLevel();
+		ModConfig.LogLevel.SettingChanged += delegate { ApplyLogLevel(); };
 		_harmony = new Harmony(PluginGUID);
 		MHR_ApplyPatches();
 		EquipDiag.Install(_harmony);
@@ -334,7 +349,7 @@ public class CompanionsPlugin : BaseUnityPlugin
 	private void OnDestroy()
 	{
 		Shutdown();
-		Log?.LogInfo("Offline Companions unloaded.");
+		if (CompanionsPlugin.LogNormal) Log?.LogInfo("Offline Companions unloaded.");
 	}
 
 	private void Update()
@@ -347,6 +362,14 @@ public class CompanionsPlugin : BaseUnityPlugin
 		catch (Exception ex)
 		{
 			Log.LogWarning("[Respawn] Tracker error: " + ex.ToString());
+		}
+		try
+		{
+			PlayerCombatLog.Tick();
+		}
+		catch (Exception ex3)
+		{
+			Log.LogWarning("[You] Player combat log error: " + ex3.Message);
 		}
 		try
 		{

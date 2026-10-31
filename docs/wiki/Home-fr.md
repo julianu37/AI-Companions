@@ -36,8 +36,8 @@ liste à l'écran.
 Ce projet est un **projet indépendant** basé sur [Offline Companions Reborn](https://github.com/MaddhattrRocks/Offline-Companions-Reborn)
 (**MIT**) — qui est lui-même un fork d'*Offline Companions*, de **ProfMags** — avec deux choses de nous par-dessus :
 
-1. **Cinq langues** — **portugais du Brésil, anglais, espagnol, français et italien** : l'interface (737 clés), les
-   phrases du compagnon (186 lignes), les presets de personnalité et le contrat du LLM suivent la **langue du jeu**,
+1. **Cinq langues** — **portugais du Brésil, anglais, espagnol, français et italien** : l'interface (914 clés), les
+   phrases du compagnon (221 lignes), les presets de personnalité et le contrat du LLM suivent la **langue du jeu**,
    avec l'**anglais comme langue native**, et une nouvelle langue est **un fichier**.
 2. **Une couche d'IA** : des ordres en **langage naturel** (texte dans le chat ou **voix** par push-to-talk), avec
    **personnalité**, **mémoire** et **conversation libre** — et la voix et la reconnaissance vocale **choisissent la

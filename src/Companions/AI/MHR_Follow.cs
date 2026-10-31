@@ -20,10 +20,10 @@ namespace Companions
             public Vector3 Spot;
             public bool Moving; public float LastUpdate;
             public bool HasIdle, IdleMoving; public Vector3 IdleAnchor, IdleGoal; public float NextIdle;
-            public bool Regrouped;
+            public bool Regrouped; public float AimLog;
             public float SettleDelay; public bool UnloadAsked; public float UnloadAskedAt;
             public Chair Chair; public bool GoingToChair; public float ChairUntil, ChairFailUntil, NextChairLook;
-            public bool SitChair, SitFloor; public Vector3 SitPlayerPos; public string ChairAnim;
+            public bool SitChair, SitFloor; public Vector3 SitPlayerPos; public string ChairAnim; public float OutOfSightSince;
             public Collider[] ChairCols;
             public bool IdleSeat;   // 1.4.143: seated by IdleController, which decides when to get up
             // 1.5.2: walking the player's own path up/down (ladders in a narrow tower)
@@ -45,13 +45,33 @@ namespace Companions
 
         static int GroundMask() { if (s_ground == -1) s_ground = LayerMask.GetMask("Default", "static_solid", "Default_small", "piece", "terrain", "vehicle"); return s_ground; }
         static int LosMask() { if (s_los == -1) s_los = LayerMask.GetMask("Default", "static_solid", "piece", "terrain"); return s_los; }
-        static void Dbg(string msg) { if (CompanionsPlugin.Log != null) CompanionsPlugin.Log.LogDebug("[Follow] " + msg); }
+        static void Dbg(string msg) { if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Follow] " + msg); }
         static float Flat(Vector3 a, Vector3 b) { return new Vector2(a.x - b.x, a.z - b.z).magnitude; }
         static float MaxDist(T t)
         {
             if (t.Indoors) return ModConfig.FollowIndoorDistance != null ? ModConfig.FollowIndoorDistance.Value : 4f;
             return ModConfig.FollowMaxDistance != null ? ModConfig.FollowMaxDistance.Value : 10f;
         }
+        // 1.5.75: the centre of your screen points at the companion (a little leeway, about its body width plus 3 degrees),
+        // within 10 m and with nothing in between
+        static bool YouAimAt(Player player, Character c, float distP)
+        {
+            try
+            {
+                if (player == null || player != Player.m_localPlayer || distP > 10f) return false;
+                Camera cam = Utils.GetMainCamera();
+                if (cam == null) return false;
+                Vector3 eye = cam.transform.position;
+                Vector3 to = c.GetCenterPoint() - eye;
+                float d = to.magnitude;
+                if (d < 0.1f || d > 14f) return false;
+                float leeway = Mathf.Atan2(0.6f, d) * Mathf.Rad2Deg + 3f;
+                if (Vector3.Angle(cam.transform.forward, to) > leeway) return false;
+                return !Physics.Linecast(eye, c.GetCenterPoint(), LosMask());
+            }
+            catch { return false; }
+        }
+
         static S Get(Component c)
         {
             S s; int id = c.gameObject.GetInstanceID();
@@ -192,12 +212,22 @@ namespace Companions
                 // walk up and open the inventory or the command wheel. Only from standing - never once it's moving.
                 // 1.4.82: and while the player stands within 2.5 m of it (doesn't start it moving, never stops it)
                 bool hold = now - t.MovingSince < 1.5f || (distP < 2.5f && !c.IsSwimming());
+                // 1.5.75: and up to 2 s longer while your crosshair is on it within 10 m (user: walking up with a controller
+                // it set off before they got there)
+                if (!hold && now - t.MovingSince < 3.5f && !s.Moving && !c.IsSwimming() && YouAimAt(player, c, distP))
+                {
+                    hold = true;
+                    if (now - s.AimLog > 5f) { s.AimLog = now; if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Follow] " + c.m_name + " stays put - your crosshair is on it"); }
+                }
                 if (!s.Moving && ((!hold && (dSpot > (t.Indoors ? 2.5f : 4f) || distP > maxD || c.IsSwimming() || offLevel)) || climbing)) s.Moving = true;
                 if (s.Moving)
                 {
                     // aim well ahead of the spot so it keeps walking with the player instead of arriving, stopping and
                     // starting again (1.4.78: the 1.4.77 lead was short enough to "arrive" mid-walk - stutter)
-                    Vector3 lead = s.Trail ? goal : goal + t.Travel * Mathf.Max(1.5f, Mathf.Min(t.Speed, 8f));
+                    Vector3 lead = s.Trail ? goal : goal + t.Travel * (t.Indoors ? 1.0f : Mathf.Max(1.5f, Mathf.Min(t.Speed, 8f)));
+                    // 1.5.41: never aim through a wall (user: indoors it "stuttered" - the point 8 m ahead was outside the
+                    // house, so every few steps it planned a 30 m route out through the door and back in for a spot 3 m away)
+                    if (!s.Trail && !Los(goal, lead)) lead = goal;
                     int pace = Pace(player, dSpot, distP, maxD);
                     // ahead of its spot: ease off a step instead of stopping
                     if (!s.Trail && dSpot < 2f && Vector3.Dot(me - goal, t.Travel) > 0.5f && pace > MHR_Mover.SpeedWalk) pace--;
@@ -248,7 +278,7 @@ namespace Companions
                 s.Regrouped = true;
                 PickSpot(ai, s, t, pp, maxD, true, 0f);
                 s.IdleGoal = Goal(ai, s, t, pp, tid); s.IdleAnchor = s.IdleGoal; s.IdleMoving = true;
-                Dbg(c.m_name + " regrouping after " + still.ToString("F0") + "s");
+                if (CompanionsPlugin.LogDetailed) Dbg(c.m_name + " regrouping after " + still.ToString("F0") + "s");
             }
 
             // indoors: sit down (a chair if there's a free one, otherwise the floor)
@@ -320,12 +350,12 @@ namespace Companions
                 }
                 if (best < 0)
                 {
-                    if (now >= s.NextPathLog) { s.NextPathLog = now + 15f; Dbg(c.m_name + " can't follow your path: none of your last " + st.Count + " steps is on its level within 12 m (came by portal, or the path is older than that)"); }
+                    if (now >= s.NextPathLog) { s.NextPathLog = now + 15f; if (CompanionsPlugin.LogDetailed) Dbg(c.m_name + " can't follow your path: none of your last " + st.Count + " steps is on its level within 12 m (came by portal, or the path is older than that)"); }
                     return false;
                 }
                 s.OnPath = true; s.PathIdx = best; s.PathProgressAt = now; s.PathApproach = bd > 1.0f;
                 MHR_Mover.Release(ai);
-                if (CompanionsPlugin.Log != null) CompanionsPlugin.Log.LogInfo("[Follow] " + c.m_name + " is " + Mathf.Abs(pp.y - me.y).ToString("F1") + "m " + (pp.y > me.y ? "below" : "above") + " you - following your path (" + (st.Count - best) + " steps, starting " + bd.ToString("F1") + "m away)");
+                if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Follow] " + c.m_name + " is " + Mathf.Abs(pp.y - me.y).ToString("F1") + "m " + (pp.y > me.y ? "below" : "above") + " you - following your path (" + (st.Count - best) + " steps, starting " + bd.ToString("F1") + "m away)");
             }
             if (s.PathIdx >= st.Count) s.PathIdx = st.Count - 1;
             // getting to where the player's path starts: the normal planner
@@ -378,14 +408,41 @@ namespace Companions
                 if (!wallTop) c.Jump(false);
                 s.PathJumpAt = now + 1.0f;
             }
-            if (now >= s.NextPathLog) { s.NextPathLog = now + 3f; Dbg(c.m_name + " on your path: step " + s.PathIdx + "/" + (st.Count - 1) + " at " + next.ToString("F1") + ", me " + me.ToString("F1")); }
+            if (now >= s.NextPathLog) { s.NextPathLog = now + 3f; if (CompanionsPlugin.LogDetailed) Dbg(c.m_name + " on your path: step " + s.PathIdx + "/" + (st.Count - 1) + " at " + next.ToString("F1") + ", me " + me.ToString("F1")); }
             return true;
+        }
+
+        // 1.5.82: where the player stepped onto this ship - the last step before their recorded steps on its deck, and the first
+        // one on it (a jump, or the ladder) - for a companion that can't find its own way aboard
+        internal static bool StepsOnto(GameObject player, Ship ship, out Vector3 from, out Vector3 to)
+        {
+            from = to = Vector3.zero;
+            T t;
+            if (player == null || ship == null || !s_t.TryGetValue(player.GetInstanceID(), out t) || t.Steps.Count < 2) return false;
+            int vehicle = LayerMask.GetMask("vehicle");
+            List<Vector3> st = t.Steps;
+            bool next = OnShip(st[st.Count - 1], ship, vehicle);
+            for (int i = st.Count - 2; i >= 0; i--)
+            {
+                bool on = OnShip(st[i], ship, vehicle);
+                if (next && !on) { from = st[i]; to = st[i + 1]; return true; }
+                next = on;
+            }
+            return false;
+        }
+
+        static bool OnShip(Vector3 p, Ship ship, int vehicle)
+        {
+            RaycastHit hit;
+            if (!Physics.Raycast(p + Vector3.up * 0.5f, Vector3.down, out hit, 1.5f, vehicle)) return false;
+            Ship s = hit.collider.attachedRigidbody != null ? hit.collider.attachedRigidbody.GetComponent<Ship>() : hit.collider.GetComponentInParent<Ship>();
+            return s == ship;
         }
 
         static void EndPath(S s, string why)
         {
             s.OnPath = false; s.PathApproach = false;
-            if (why.Length > 0 && CompanionsPlugin.Log != null) CompanionsPlugin.Log.LogInfo("[Follow] stopped following your path: " + why);
+            if (why.Length > 0 && CompanionsPlugin.Log != null) if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Follow] stopped following your path: " + why);
         }
 
         // walk while the player walks, run while they run, a step faster to close a gap, run when far behind
@@ -455,7 +512,7 @@ namespace Companions
             if (!Physics.Raycast(new Vector3(w.x, pp.y + 2.5f, w.z), Vector3.down, out hit, 6f, GroundMask())) return false;
             if (hit.normal.y < 0.6f || Mathf.Abs(hit.point.y - pp.y) > 2.5f) return false;
             if (MHR_Water.DepthAt(hit.point) > 1.0f) return false;
-            if (MHR_Mover.InFire(hit.point)) return false;   // 1.4.88: not in the fire pit
+            if (MHR_Mover.NearFire(hit.point, 1.2f)) return false;   // 1.4.88: not in the fire pit (1.5.44: nor at its edge)
             g = hit.point;
             return true;
         }
@@ -538,11 +595,14 @@ namespace Companions
             if (now >= s.ChairFailUntil && now >= s.NextChairLook)
             {
                 s.NextChairLook = now + 3f;
-                Chair ch = FindChair(ai, pp, maxD + 1.5f);
+                // 1.5.57: a chair in the same room a few meters further off beats the floor (user: "look for a nearby chair
+                // or whatever to rest on rather than the floor"; log 9232441a: "sat down on the floor" 3x indoors) - it
+                // used to look only within its follow spot distance + 1.5 m of you
+                Chair ch = FindChair(ai, pp, Mathf.Max(maxD + 1.5f, ModConfig.FollowChairRange?.Value ?? 8f));
                 if (ch != null)
                 {
                     s.Chair = ch; s.GoingToChair = true; s.ChairUntil = now + 15f;
-                    Dbg(c.m_name + " heading for " + ch.m_name + " at " + MHR_Mover.Fmt(ch.m_attachPoint.position));
+                    if (CompanionsPlugin.LogDetailed) Dbg(c.m_name + " heading for " + ch.m_name + " at " + MHR_Mover.Fmt(ch.m_attachPoint.position));
                     return true;
                 }
             }
@@ -562,12 +622,15 @@ namespace Companions
         }
 
         // a free chair or bench seat near the player, on their level and in sight of them (not on a ship)
+        static string s_noChairWhy;
+
         static Chair FindChair(CompanionAI ai, Vector3 pp, float range)
         {
             s_pieces.Clear();
             Piece.GetAllPiecesInRadius(pp, range, s_pieces);
             Vector3 me = ai.transform.position;
             Chair best = null; float bd = float.MaxValue;
+            int seen = 0, level = 0, taken = 0, hidden = 0;
             for (int i = 0; i < s_pieces.Count; i++)
             {
                 Piece p = s_pieces[i];
@@ -578,13 +641,18 @@ namespace Companions
                     Chair ch = chairs[k];
                     if (ch == null || ch.m_inShip || ch.m_attachPoint == null) continue;
                     Vector3 ap = ch.m_attachPoint.position;
-                    if (Mathf.Abs(ap.y - pp.y) > 2f || Flat(ap, pp) > range || ChairTaken(ch, ai)) continue;
+                    if (Flat(ap, pp) > range) continue;
+                    seen++;
+                    if (Mathf.Abs(ap.y - pp.y) > 2f) { level++; continue; }
+                    if (ChairTaken(ch, ai)) { taken++; continue; }
                     RaycastHit hit;
-                    if (Physics.Linecast(pp + Vector3.up * 1.6f, ap + Vector3.up * 1.2f, out hit, LosMask()) && hit.collider.GetComponentInParent<Piece>() != p) continue;
+                    if (Physics.Linecast(pp + Vector3.up * 1.6f, ap + Vector3.up * 1.2f, out hit, LosMask()) && hit.collider.GetComponentInParent<Piece>() != p) { hidden++; continue; }
                     float d = Vector3.Distance(me, ap);
                     if (d < bd) { bd = d; best = ch; }
                 }
             }
+            // 1.5.57: why it ended up on the floor, for the log
+            s_noChairWhy = best != null ? null : seen == 0 ? $"no chair within {range:F0} m of you" : $"{seen} chair(s) within {range:F0} m: {level} on another level, {taken} in use, {hidden} out of your sight";
             return best;
         }
 
@@ -592,7 +660,7 @@ namespace Companions
         {
             MHR_Mover.Release(ai);
             ai.StopMoving();
-            s.GoingToChair = false; s.SitChair = true; s.SitPlayerPos = pp; s.ChairAnim = ch.m_attachAnimation;
+            s.GoingToChair = false; s.SitChair = true; s.SitPlayerPos = pp; s.ChairAnim = ch.m_attachAnimation; s.OutOfSightSince = 0f;
             // pass through the chair itself (like ship seats) so physics doesn't push the companion off it
             Piece piece = ch.GetComponentInParent<Piece>();
             s.ChairCols = piece != null ? piece.GetComponentsInChildren<Collider>() : ch.GetComponentsInChildren<Collider>();
@@ -601,7 +669,7 @@ namespace Companions
             ZSyncAnimation za = ai.GetComponent<ZSyncAnimation>();
             if (za != null && !string.IsNullOrEmpty(s.ChairAnim)) za.SetBool(s.ChairAnim, true);
             SetResting(ai, true);
-            Dbg(ai.GetComponent<Character>().m_name + " sat down on " + ch.m_name);
+            if (CompanionsPlugin.LogDetailed) Dbg(ai.GetComponent<Character>().m_name + " sat down on " + ch.m_name);
         }
         // keep the seated companion on the seat. Not kinematic: the game sets every character's velocity each physics
         // tick, and on a kinematic body that's a Unity warning every time (1.4.76 test log: thousands of them).
@@ -628,11 +696,11 @@ namespace Companions
             ai.StopMoving();
             Vector3 d = pp - ai.transform.position; d.y = 0f;
             if (d.sqrMagnitude > 0.01f) ai.transform.rotation = Quaternion.LookRotation(d.normalized);
-            s.SitFloor = true; s.SitPlayerPos = pp;
+            s.SitFloor = true; s.SitPlayerPos = pp; s.OutOfSightSince = 0f;
             ZSyncAnimation za = ai.GetComponent<ZSyncAnimation>();
             if (za != null) { za.SetTrigger("emote_sit"); za.SetBool("emote_sit", true); }
             SetResting(ai, true);
-            Dbg(ai.GetComponent<Character>().m_name + " sat down on the floor");
+            if (CompanionsPlugin.LogDetailed) Dbg(ai.GetComponent<Character>().m_name + " sat down on the floor" + (s_noChairWhy != null ? " (" + s_noChairWhy + ")" : ""));
         }
 
         static void SetResting(CompanionAI ai, bool on)
@@ -656,7 +724,7 @@ namespace Companions
                     RaycastHit hit;
                     if (!Physics.Raycast(p + Vector3.up * 1.0f, Vector3.down, out hit, 2.5f, GroundMask()) || hit.normal.y <= 0.6f) continue;
                     if (hit.point.y > seat.y + 0.3f) continue;   // on top of something (a hearth, a table), not the floor
-                    if (hit.collider.GetComponentInParent<Fireplace>() != null || MHR_Chests.IsFurniture(hit.collider) || MHR_Mover.InFire(hit.point)) continue;
+                    if (hit.collider.GetComponentInParent<Fireplace>() != null || MHR_Chests.IsFurniture(hit.collider) || MHR_Mover.NearFire(hit.point, 1.2f)) continue;
                     if (Physics.CheckCapsule(hit.point + Vector3.up * 0.6f, hit.point + Vector3.up * 1.6f, 0.3f, GroundMask())) continue;
                     spot = hit.point + Vector3.up * 0.05f;
                     return true;
@@ -690,7 +758,7 @@ namespace Companions
             }
             if (s.SitFloor && !keepAnim && za != null) { za.SetTrigger("emote_stop"); za.SetBool("emote_sit", false); }
             if (!keepAnim) SetResting(ai, false);
-            Dbg(ai.GetComponent<Character>().m_name + " got up (" + why + ")");
+            if (CompanionsPlugin.LogDetailed) Dbg(ai.GetComponent<Character>().m_name + " got up (" + why + ")");
             s.SitChair = false; s.SitFloor = false; s.Chair = null; s.GoingToChair = false; s.IdleSeat = false;
             s.UnloadAsked = false; s.HasIdle = false; s.IdleMoving = false; s.SettleDelay = UnityEngine.Random.Range(5f, 10f);
         }
@@ -758,7 +826,23 @@ namespace Companions
                     T t;
                     bool indoors = s_t.TryGetValue(s.TargetId, out t) && t.Indoors;
                     float moved = Flat(f.transform.position, s.SitPlayerPos);
-                    if (moved > 2.5f || (!indoors && moved > 1f)) why = "player moved";
+                    // 1.5.41: indoors it stays seated while the player potters about nearby (user: "If the NPC sits down or
+                    // something it can stay there for a bit while I am running around indoors ... like 10m")
+                    if (indoors)
+                    {
+                        float stay = ModConfig.FollowSitStayRange != null ? ModConfig.FollowSitStayRange.Value : 10f;
+                        if (Vector3.Distance(f.transform.position, ai.transform.position) > stay) why = "player moved off";
+                        // 1.5.8: in a dungeon the 10 m is straight through walls - in the next room it stayed down (user:
+                        // "Companion sat on the floor until I came back and opened their inventory"); out of sight for 2 s gets
+                        // it up too. Not at home: there it sits and waits while you go about a bigger base (user)
+                        else if (Character.InInterior(ai.transform.position) && !Los(ai.transform.position, f.transform.position))
+                        {
+                            if (s.OutOfSightSince <= 0f) s.OutOfSightSince = Time.time;
+                            else if (Time.time - s.OutOfSightSince > 2f) why = "player out of sight";
+                        }
+                        else s.OutOfSightSince = 0f;
+                    }
+                    else if (moved > 1f) why = "player moved";
                 }
                 if (why != null) StandUp(ai, s, keepAnim, why);
                 else if (s.SitChair) Pin(ai, s);

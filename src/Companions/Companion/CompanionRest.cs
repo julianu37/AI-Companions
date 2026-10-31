@@ -262,7 +262,7 @@ public class CompanionRest : MonoBehaviour
 		if (_navigating)
 		{
 			_navigating = false;
-			CompanionsPlugin.Log.LogDebug($"[Rest] Arrived at nav target — bed={_bedTarget != null}, fire={_fireTarget != null}");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Rest] Arrived at nav target — bed={_bedTarget != null}, fire={_fireTarget != null}");
 			if (_bedTarget != null)
 			{
 				FinalizeSleep();
@@ -282,23 +282,47 @@ public class CompanionRest : MonoBehaviour
 			if (!(component == null))
 			{
 				component._mhrStayAwake = true;
-				CompanionsPlugin.Log.LogInfo("[Rest] Recalled - staying awake until you next go to bed");
+				if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Rest] Recalled - staying awake until you next go to bed");
 			}
 		}
 	}
 
 	public void DirectSit(GameObject fire)
 	{
+		DirectSit(fire, fromOrder: false);
+	}
+
+	/// <summary>
+	/// Fase 2.0 (audit fix): <paramref name="fromOrder"/> marks a chat/voice order ("senta"), as opposed to the
+	/// command key. The key is a TOGGLE (pointing at a fire while sitting there stands up), but an order is not: with
+	/// the toggle, ordering the fire it was already sitting at stood it up and the order then answered "nobody took
+	/// it", and ordering ANOTHER fire only stood it up. From an order the same fire is a confirmation and a
+	/// different fire is "get up and walk over there".
+	/// </summary>
+	public void DirectSit(GameObject fire, bool fromOrder)
+	{
 		if (fire == null)
 		{
 			return;
 		}
-		CompanionsPlugin.Log.LogDebug($"[Rest] DirectSit called — sitting={_isSitting}, sleeping={_isSleeping}, " + $"directed={_isDirected}, navigating={_navigating}, fire=\"{fire.name}\"");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Rest] DirectSit called — sitting={_isSitting}, sleeping={_isSleeping}, " + $"directed={_isDirected}, navigating={_navigating}, fromOrder={fromOrder}, fire=\"{fire.name}\"");
 		if ((_isSitting || _navigating) && _isDirected)
 		{
-			CompanionsPlugin.Log.LogDebug("[Rest] DirectSit TOGGLE OFF — calling StopAll");
-			StopAll();
-			return;
+			if (!fromOrder)
+			{
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Rest] DirectSit TOGGLE OFF — calling StopAll");
+				StopAll();
+				return;
+			}
+			if (_fireTarget == fire)
+			{
+				// already doing exactly what the order asked: keep sitting, and push the standing-up timeout out
+				_fireTarget = fire;
+				_directedRestTimer = DirectedSitTimeout;
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Rest] DirectSit order for the fire it is already at — keeping it");
+				return;
+			}
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Rest] DirectSit order for ANOTHER fire — standing up and going there");
 		}
 		if (_isSitting || _isSleeping || _navigating)
 		{
@@ -320,7 +344,7 @@ public class CompanionRest : MonoBehaviour
 		{
 			_ai.SetFollowTarget(null);
 		}
-		CompanionsPlugin.Log.LogDebug($"[Rest] Navigating to fire — dist={num:F1}m, timeout=15s");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Rest] Navigating to fire — dist={num:F1}m, timeout=15s");
 	}
 
 	public bool DirectSleep(Bed bed)
@@ -341,10 +365,10 @@ public class CompanionRest : MonoBehaviour
 			}
 			ClaimBed(bed);
 		}
-		CompanionsPlugin.Log.LogDebug($"[Rest] DirectSleep called — sleeping={_isSleeping}, sitting={_isSitting}, " + $"directed={_isDirected}, navigating={_navigating}, bed=\"{bed.name}\" myPos={base.transform.position:F2}");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Rest] DirectSleep called — sleeping={_isSleeping}, sitting={_isSitting}, " + $"directed={_isDirected}, navigating={_navigating}, bed=\"{bed.name}\" myPos={base.transform.position:F2}");
 		if (_isSleeping || _navigating)
 		{
-			CompanionsPlugin.Log.LogDebug("[Rest] DirectSleep TOGGLE OFF — calling StopAll");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Rest] DirectSleep TOGGLE OFF — calling StopAll");
 			StopAll();
 			return true;
 		}
@@ -504,12 +528,12 @@ public class CompanionRest : MonoBehaviour
 		_navTimeout -= Time.deltaTime;
 		if (_navTimeout <= 0f)
 		{
-			CompanionsPlugin.Log.LogDebug("[Rest] Navigation timed out — cancelling");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Rest] Navigation timed out — cancelling");
 			CancelNavigation();
 		}
 		else if (_bedTarget == null && _fireTarget == null)
 		{
-			CompanionsPlugin.Log.LogDebug("[Rest] Navigation target destroyed — cancelling");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Rest] Navigation target destroyed — cancelling");
 			CancelNavigation();
 		}
 	}
@@ -518,7 +542,7 @@ public class CompanionRest : MonoBehaviour
 	{
 		if (_isAutoSleep && EnvMan.instance != null && !EnvMan.IsNight() && !OwnerInBed())
 		{
-			CompanionsPlugin.Log.LogDebug("[Rest] Auto-sleep — day started, waking up");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Rest] Auto-sleep — day started, waking up");
 			_isAutoSleep = false;
 			_isDirected = false;
 			StopSleeping();
@@ -526,7 +550,7 @@ public class CompanionRest : MonoBehaviour
 		}
 		if (HasEnemyNearby())
 		{
-			CompanionsPlugin.Log.LogDebug("[Rest] UpdateSleeping — enemy nearby, waking up!");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Rest] UpdateSleeping — enemy nearby, waking up!");
 			_isAutoSleep = false;
 			_isDirected = false;
 			StopSleeping();
@@ -534,7 +558,7 @@ public class CompanionRest : MonoBehaviour
 		}
 		if (_bedTarget == null || !_bedTarget)
 		{
-			CompanionsPlugin.Log.LogDebug("[Rest] UpdateSleeping — bed destroyed/null, waking up!");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Rest] UpdateSleeping — bed destroyed/null, waking up!");
 			_isAutoSleep = false;
 			_isDirected = false;
 			StopSleeping();
@@ -585,7 +609,7 @@ public class CompanionRest : MonoBehaviour
 			_directedRestTimer -= Time.deltaTime;
 			if (_directedRestTimer <= 0f)
 			{
-				CompanionsPlugin.Log.LogDebug("[Rest] Directed sit timed out — stopping");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Rest] Directed sit timed out — stopping");
 				flag = true;
 			}
 			else
@@ -596,7 +620,7 @@ public class CompanionRest : MonoBehaviour
 					float num = Vector3.Distance(base.transform.position, localPlayer.transform.position);
 					if (num > 50f)
 					{
-						CompanionsPlugin.Log.LogDebug($"[Rest] Directed sit — player too far ({num:F1}m > {50f}m), stopping");
+						if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Rest] Directed sit — player too far ({num:F1}m > {50f}m), stopping");
 						flag = true;
 					}
 				}
@@ -678,6 +702,11 @@ public class CompanionRest : MonoBehaviour
 		{
 			return;
 		}
+		CompanionAI orderAi = GetComponent<CompanionAI>();
+		if (orderAi != null && orderAi.HasOrder)
+		{
+			return;
+		}
 		bool flag = default(bool);
 		if (ModConfig.SleepWhenPlayerSleeps.Value && OwnerInBed())
 		{
@@ -715,8 +744,10 @@ public class CompanionRest : MonoBehaviour
 		_needsBed = false;
 		if (MHR_BedInRange())
 		{
-			CompanionsPlugin.Log.LogInfo(flag ? "[Rest] Going to bed: you went to bed" : "[Rest] Going to bed: it's night and the bed is in range");
-			CompanionsPlugin.Log.LogDebug($"[Rest] Auto-sleep — night detected, bed=\"{claimedBed.name}\" at {claimedBed.transform.position:F1}");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo(flag ? "[Rest] Going to bed: you went to bed" : "[Rest] Going to bed: it's night and the bed is in range");
+			// 1.5.43 (phase 3): action line
+			GetComponent<CompanionTalk>()?.Speak(ModLocalization.Loc("hc_act_bed"), CompanionTalk.Priority.Event, "act:bed");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Rest] Auto-sleep — night detected, bed=\"{claimedBed.name}\" at {claimedBed.transform.position:F1}");
 			BeginSleep(claimedBed, isAuto: true);
 		}
 	}
@@ -732,7 +763,7 @@ public class CompanionRest : MonoBehaviour
 				MHR_SetBedClaim(_claimedBed, value, MHR_MyId());
 				return;
 			}
-			CompanionsPlugin.Log.LogInfo("[Rest] Its bed now belongs to a player (or is its owner's spawn bed) - looking for another");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Rest] Its bed now belongs to a player (or is its owner's spawn bed) - looking for another");
 			ReleaseClaimedBed();
 			if (_nview != null)
 			{
@@ -765,7 +796,7 @@ public class CompanionRest : MonoBehaviour
 						_bedClaimScanTimer = Mathf.Min(_bedClaimScanTimer, 5f);
 						return;
 					}
-					CompanionsPlugin.Log.LogInfo($"[Rest] Its bed at {vec:F0} is gone - looking for another");
+					if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Rest] Its bed at {vec:F0} is gone - looking for another");
 				}
 				_bedMissingSince = -1f;
 				if (!(bed == null) && MHR_BedOwnerOk(bed, keeping: true) && !MHR_BedClaimedByOther(bed))
@@ -775,7 +806,7 @@ public class CompanionRest : MonoBehaviour
 					string value = MHR_MyName();
 					_bedClaimNames[bed.GetInstanceID()] = value;
 					MHR_SetBedClaim(bed, value, MHR_MyId());
-					CompanionsPlugin.Log.LogInfo($"[Rest] Re-linked to its claimed bed as \"{value}\"");
+					if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Rest] Re-linked to its claimed bed as \"{value}\"");
 					_needsBed = false;
 					_bedFailReason = null;
 					return;
@@ -839,7 +870,7 @@ public class CompanionRest : MonoBehaviour
 		if (reason != _bedFailReason)
 		{
 			_bedFailReason = reason;
-			CompanionsPlugin.Log.LogInfo("[Rest] No bed to claim: " + reason);
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Rest] No bed to claim: " + reason);
 		}
 	}
 
@@ -937,7 +968,7 @@ public class CompanionRest : MonoBehaviour
 		_isSitting = true;
 		_fireTarget = fire;
 		_healTimer = 0f;
-		CompanionsPlugin.Log.LogDebug("[Rest] Sitting near fire \"" + fire.name + "\" — starting heal + stamina regen " + $"pos={base.transform.position:F2}");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Rest] Sitting near fire \"" + fire.name + "\" — starting heal + stamina regen " + $"pos={base.transform.position:F2}");
 		if (_ai != null)
 		{
 			_ai.SetFollowTarget(null);
@@ -949,7 +980,7 @@ public class CompanionRest : MonoBehaviour
 		{
 			base.transform.rotation = Quaternion.LookRotation(vector.normalized);
 		}
-		CompanionsPlugin.Log.LogDebug($"[Rest] StartSitting anim — HasPlayerAnims={HasPlayerAnims} " + $"canWearArmor={_setup?.CanWearArmor()} zanim={_zanim != null}");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Rest] StartSitting anim — HasPlayerAnims={HasPlayerAnims} " + $"canWearArmor={_setup?.CanWearArmor()} zanim={_zanim != null}");
 		if (_zanim != null && HasPlayerAnims)
 		{
 			_zanim.SetTrigger("emote_sit");
@@ -968,7 +999,7 @@ public class CompanionRest : MonoBehaviour
 
 	private void StopAll()
 	{
-		CompanionsPlugin.Log.LogDebug($"[Rest] StopAll — sitting={_isSitting}, sleeping={_isSleeping}, " + $"directed={_isDirected}, autoSleep={_isAutoSleep}, navigating={_navigating}, pos={base.transform.position:F2}");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Rest] StopAll — sitting={_isSitting}, sleeping={_isSleeping}, " + $"directed={_isDirected}, autoSleep={_isAutoSleep}, navigating={_navigating}, pos={base.transform.position:F2}");
 		_isAutoSleep = false;
 		bool navigating = _navigating;
 		_navigating = false;
@@ -1020,7 +1051,7 @@ public class CompanionRest : MonoBehaviour
 				zDO.Set(CompanionSetup.HasHomeBedHash, value: true);
 			}
 		}
-		CompanionsPlugin.Log.LogInfo($"[Rest] Claimed bed \"{bed.name}\" as standing home bed");
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Rest] Claimed bed \"{bed.name}\" as standing home bed");
 		_needsBed = false;
 		_bedFailReason = null;
 	}
@@ -1053,7 +1084,7 @@ public class CompanionRest : MonoBehaviour
 		{
 			_ai.SetFollowTarget(null);
 		}
-		CompanionsPlugin.Log.LogDebug($"[Rest] Navigating to bed — dist={num:F1}m, auto={isAuto}");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Rest] Navigating to bed — dist={num:F1}m, auto={isAuto}");
 	}
 
 	internal bool MHR_BedInRange()
@@ -1106,9 +1137,16 @@ public class CompanionRest : MonoBehaviour
 		return true;
 	}
 
+	// 1.5.41: not when it has a bed back home that just isn't loaded out here (user: out wandering at night it kept
+	// saying "all the beds are taken" - constantly)
 	public bool NeedsBed()
 	{
-		return _needsBed;
+		if (!_needsBed)
+		{
+			return false;
+		}
+		ZDO zdo = _nview?.GetZDO();
+		return zdo == null || !zdo.GetBool(CompanionSetup.HasHomeBedHash);
 	}
 
 	private void FinalizeSleep()
@@ -1143,7 +1181,7 @@ public class CompanionRest : MonoBehaviour
 			_body.linearVelocity = Vector3.zero;
 			_body.useGravity = false;
 		}
-		CompanionsPlugin.Log.LogDebug($"[Rest] FinalizeSleep anim — HasPlayerAnims={HasPlayerAnims} " + $"canWearArmor={_setup?.CanWearArmor()} zanim={_zanim != null}");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Rest] FinalizeSleep anim — HasPlayerAnims={HasPlayerAnims} " + $"canWearArmor={_setup?.CanWearArmor()} zanim={_zanim != null}");
 		if (_zanim != null && HasPlayerAnims)
 		{
 			_zanim.SetBool("attach_bed", value: true);
@@ -1160,7 +1198,7 @@ public class CompanionRest : MonoBehaviour
 		{
 		}
 		MHR_SetBedCollisionIgnored(_bedTarget, ignore: true);
-		CompanionsPlugin.Log.LogDebug($"[Rest] FinalizeSleep — positioned at {transform.position:F2}");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Rest] FinalizeSleep — positioned at {transform.position:F2}");
 	}
 
 	private void CancelNavigation()
@@ -1208,7 +1246,7 @@ public class CompanionRest : MonoBehaviour
 				Physics.IgnoreCollision(component, collider, ignore);
 			}
 		}
-		CompanionsPlugin.Log.LogDebug(string.Format("[Rest] Bed collisions {0} ({1} bed collider(s))", ignore ? "ignored while sleeping" : "restored", componentsInChildren.Length));
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug(string.Format("[Rest] Bed collisions {0} ({1} bed collider(s))", ignore ? "ignored while sleeping" : "restored", componentsInChildren.Length));
 	}
 
 	private void StopSitting()
@@ -1216,7 +1254,7 @@ public class CompanionRest : MonoBehaviour
 		_isSitting = false;
 		_fireTarget = null;
 		_isDirected = false;
-		CompanionsPlugin.Log.LogDebug("[Rest] Stopped sitting — resuming normal behavior");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Rest] Stopped sitting — resuming normal behavior");
 		if (_zanim != null && HasPlayerAnims)
 		{
 			_zanim.SetTrigger("emote_stop");
@@ -1259,7 +1297,7 @@ public class CompanionRest : MonoBehaviour
 		_isSleeping = false;
 		_isAutoSleep = false;
 		_bedTarget = null;
-		CompanionsPlugin.Log.LogDebug("[Rest] Stopped sleeping — resuming normal behavior");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Rest] Stopped sleeping — resuming normal behavior");
 		if (_zanim != null && HasPlayerAnims)
 		{
 			_zanim.SetBool("attach_bed", value: false);
@@ -1338,7 +1376,7 @@ public class CompanionRest : MonoBehaviour
 			_body.linearVelocity = Vector3.zero;
 			_body.position = base.transform.position;
 		}
-		CompanionsPlugin.Log.LogDebug("[Rest] Got up and stepped off the bed");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Rest] Got up and stepped off the bed");
 	}
 
 	internal void MHR_StandUpFromBed(Bed bed)
@@ -1359,7 +1397,7 @@ public class CompanionRest : MonoBehaviour
 				component.linearVelocity = Vector3.zero;
 				component.position = base.transform.position;
 			}
-			CompanionsPlugin.Log.LogDebug("[Rest] Got up at the bed's sleeping spot");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Rest] Got up at the bed's sleeping spot");
 		}
 	}
 
@@ -1556,7 +1594,7 @@ public class CompanionRest : MonoBehaviour
 		{
 			_nview.GetZDO()?.Set(CompanionSetup.HasHomeBedHash, value: false);
 		}
-		CompanionsPlugin.Log.LogInfo("[Rest] Despawn: released the companion's bed");
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Rest] Despawn: released the companion's bed");
 	}
 
 	private void ReleaseClaimedBed()
@@ -1601,7 +1639,7 @@ public class CompanionRest : MonoBehaviour
 			}
 			zDO.Set(MHR_BedClaimNameHash, name);
 			zDO.Set(MHR_BedClaimIdHash, id);
-			CompanionsPlugin.Log.LogInfo($"[Rest] Bed claim saved on the bed: \"{name}\" (ID {id})");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Rest] Bed claim saved on the bed: \"{name}\" (ID {id})");
 		}
 	}
 

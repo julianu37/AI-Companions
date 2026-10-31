@@ -32,7 +32,9 @@ internal static class MHR_Roster
 		Alive,
 		Dead,
 		Lost,
-		Unknown
+		Unknown,
+		// 1.5.80: despawned this session - can be brought back (no gear) until the character next loads the world
+		Unsummoned
 	}
 
 	internal class Entry
@@ -62,7 +64,29 @@ internal static class MHR_Roster
 		public Vector3 LastPos;
 		public double LastSeen;
 		public bool Dead;
+
+		// 1.5.42: added at the end of the saved entry (older entries just don't have it)
+		public string FarmZones;
+
+		// 1.5.80: despawned (unsummoned) - kept for recovery without gear; also at the end
+		public bool Unsummoned;
+
+		// Fase 3.10 (auditoria A6): the AI profile of this companion - the voice it speaks with and the personality it
+		// answers in - so a companion recovered from the roster comes back talking like itself instead of falling back to
+		// the [AI] defaults. Same four keys the tombstone already carries (see CompanionTombstoneResurrect.WriteAiProfile)
+		// and written at the end of the entry, so a roster saved before this change still loads.
+		public int AiVoice;
+		public bool AiPersonaSet;
+		public string AiPreset = "";
+		public string AiPersona = "";
 	}
+
+	// 1.5.80: companions unsummoned in this game session (user: "the unsummoned recovery should only be until the player
+	// logs in again. So that the list does not get full of unsummoned NPC's. Maybe have this as a toggle in the settings").
+	// A new session (new ZNet - the world loaded again) drops the rest when the roster loads.
+	private static readonly HashSet<string> s_sessionUnsummoned = new HashSet<string>();
+
+	private static ZNet s_sessionNet;
 
 	private static readonly List<Entry> s_entries = new List<Entry>();
 
@@ -135,6 +159,18 @@ internal static class MHR_Roster
 				}
 			}
 		}
+		// 1.5.80: unsummoned companions are only kept for the session they were unsummoned in
+		if ((object)s_sessionNet != ZNet.instance)
+		{
+			s_sessionNet = ZNet.instance;
+			s_sessionUnsummoned.Clear();
+		}
+		int dropped = s_entries.RemoveAll((Entry e) => e.Unsummoned && !s_sessionUnsummoned.Contains(e.Id));
+		if (dropped > 0)
+		{
+			Save(toDisk: false);
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Roster] Dropped {dropped} companion(s) unsummoned in an earlier session");
+		}
 		return true;
 	}
 
@@ -194,6 +230,13 @@ internal static class MHR_Roster
 		zPackage.Write(e.LastPos);
 		zPackage.Write(e.LastSeen);
 		zPackage.Write(e.Dead);
+		zPackage.Write(e.FarmZones ?? "");
+		zPackage.Write(e.Unsummoned);
+		// Fase 3.10 (auditoria A6): the AI profile, after everything else - see the note on Entry
+		zPackage.Write(e.AiVoice);
+		zPackage.Write(e.AiPersonaSet);
+		zPackage.Write(e.AiPreset ?? "");
+		zPackage.Write(e.AiPersona ?? "");
 		return zPackage.GetBase64();
 	}
 
@@ -232,13 +275,59 @@ internal static class MHR_Roster
 				Inventory = zPackage.ReadString(),
 				LastPos = zPackage.ReadVector3(),
 				LastSeen = zPackage.ReadDouble(),
-				Dead = zPackage.ReadBool()
+				Dead = zPackage.ReadBool(),
+				FarmZones = ReadOptionalString(zPackage),
+				Unsummoned = ReadOptionalBool(zPackage),
+				// Fase 3.10 (auditoria A6): entries saved before this change end here - each reader answers its own
+				// "nothing written" value, so an old roster keeps loading (the companion just follows [AI])
+				AiVoice = ReadOptionalInt(zPackage),
+				AiPersonaSet = ReadOptionalBool(zPackage),
+				AiPreset = ReadOptionalString(zPackage),
+				AiPersona = ReadOptionalString(zPackage)
 			};
 		}
 		catch (Exception ex)
 		{
 			CompanionsPlugin.Log.LogWarning("[Roster] Skipped an unreadable roster entry: " + ex.Message);
 			return null;
+		}
+	}
+
+	private static bool ReadOptionalBool(ZPackage p)
+	{
+		try
+		{
+			return p.GetPos() < p.Size() && p.ReadBool();
+		}
+		catch
+		{
+			return false;
+		}
+	}
+
+	private static string ReadOptionalString(ZPackage p)
+	{
+		try
+		{
+			return (p.GetPos() < p.Size()) ? p.ReadString() : "";
+		}
+		catch
+		{
+			return "";
+		}
+	}
+
+	/// <summary>Fase 3.10 (auditoria A6): the int half of <see cref="ReadOptionalString"/> - 0 ("nothing written") for a
+	/// roster entry that predates the AI profile.</summary>
+	private static int ReadOptionalInt(ZPackage p)
+	{
+		try
+		{
+			return (p.GetPos() < p.Size()) ? p.ReadInt() : 0;
+		}
+		catch
+		{
+			return 0;
 		}
 	}
 
@@ -318,7 +407,8 @@ internal static class MHR_Roster
 	/// unknown - the entries saved with the character) plus every live companion the roster hasn't snapshotted yet
 	/// (the first snapshot only happens a few seconds after entering the world). Used by the
 	/// <c>[General] MaxCompanions</c> ceiling - dying does not free a place, because the tombstone brings the same
-	/// companion back instead of creating one.
+	/// companion back instead of creating one. A live companion whose id this game cannot read yet is counted once, from
+	/// the roster: see the note in the loop below.
 	/// </summary>
 	internal static int CountMine()
 	{
@@ -360,7 +450,23 @@ internal static class MHR_Roster
 				continue;
 			}
 			string id = zdo.GetString(CompanionSetup.MHR_CompanionIdHash, "");
-			if (!string.IsNullOrEmpty(id) && ids.Contains(id))
+			if (string.IsNullOrEmpty(id))
+			{
+				// Fase 3.19 (auditoria A2): a live companion with no HC_CompanionId yet is one of two things, and only
+				// the second one may add a place of its own:
+				//   (a) one of OUR companions being run by another player's game - the id is only written by the game
+				//       that owns the ZDO, so this client never sees it - which is already counted from the roster
+				//       above; counting it again made the ceiling refuse with "you already have 11";
+				//   (b) a companion created moments ago (every spawn path writes the id on its first Update), which
+				//       still has to count - and only the empty roster leaves room for one, since every existing
+				//       companion of ours is an entry here.
+				if (s_entries.Count == 0)
+				{
+					count++;
+				}
+				continue;
+			}
+			if (ids.Contains(id))
 			{
 				continue;   // already counted from the roster
 			}
@@ -540,6 +646,14 @@ internal static class MHR_Roster
 		entry.CombatStance = zdo.GetInt(CompanionSetup.CombatStanceHash);
 		entry.HasBed = zdo.GetBool(CompanionSetup.HasHomeBedHash);
 		entry.BedPos = zdo.GetVec3(CompanionSetup.HomeBedPosHash, Vector3.zero);
+		entry.FarmZones = zdo.GetString(FarmZoneSerializer.FarmZonesHash);
+		// Fase 3.10 (auditoria A6): its own voice and personality are part of the companion, so they travel with the
+		// roster copy too (the same four keys CompanionTombstoneResurrect.WriteAiProfile copies to the tombstone).
+		// Read straight from the ZDO here: this runs only on the game that owns it (IsMine above).
+		entry.AiVoice = zdo.GetInt(CompanionProfile.VoiceHash, 0);
+		entry.AiPersonaSet = zdo.GetBool(CompanionProfile.PersonaSetHash, false);
+		entry.AiPreset = zdo.GetString(CompanionProfile.PresetHash, "") ?? "";
+		entry.AiPersona = zdo.GetString(CompanionProfile.PersonaTextHash, "") ?? "";
 		Inventory inventory = c.GetComponent<Humanoid>()?.GetInventory();
 		if (inventory != null)
 		{
@@ -569,7 +683,8 @@ internal static class MHR_Roster
 		}
 	}
 
-	// the Despawn button removes a companion for good - drop it from the roster so it can't be "recovered"
+	// the Despawn button removes a companion - drop it from the roster so it can't be "recovered"; 1.5.80: or, with
+	// [General] RecoverUnsummoned, keep it (no gear - that's in the tombstone) as Unsummoned until the next session
 	internal static void Forget(CompanionSetup c)
 	{
 		if (c._mhrStale || !EnsureLoaded() || !IsMine(c, out var _, out var zdo))
@@ -579,10 +694,20 @@ internal static class MHR_Roster
 		Entry entry = Find(zdo.GetString(CompanionSetup.MHR_CompanionIdHash));
 		if (entry != null)
 		{
+			if (ModConfig.RecoverUnsummoned?.Value ?? true)
+			{
+				entry.Unsummoned = true;
+				entry.Inventory = "";
+				entry.Gen++;
+				s_sessionUnsummoned.Add(entry.Id);
+				Save(toDisk: true);
+				if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Roster] \"" + entry.Name + "\" was unsummoned - Odin's Shrine can bring it back (without gear) until you next load this world");
+				return;
+			}
 			s_entries.Remove(entry);
 			s_byId.Remove(entry.Id);
 			Save(toDisk: true);
-			CompanionsPlugin.Log.LogInfo("[Roster] \"" + entry.Name + "\" was despawned - removed from your companion roster");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Roster] \"" + entry.Name + "\" was despawned - removed from your companion roster");
 		}
 	}
 
@@ -598,6 +723,7 @@ internal static class MHR_Roster
 			if (zDO != null && zDO.GetString(CompanionSetup.MHR_CompanionIdHash) == id)
 			{
 				Character component = allCompanion.GetComponent<Character>();
+				s_where[id] = allCompanion.transform.position;
 				if (component != null && component.GetHealth() > 0f)
 				{
 					return true;
@@ -610,12 +736,36 @@ internal static class MHR_Roster
 	// works out each companion's status. Single player and the host hold every object in the world, so they can tell
 	// Alive, Dead (a tombstone that will bring it back) and Lost (nothing left). A client of a dedicated server only
 	// holds the area around it, so a companion that isn't nearby is Unknown there.
+	// 1.5.44: where each alive companion is (issue #16: it came back at its bed far away and the roster only said
+	// "Alive" - no map pin, no answer to the command key), filled by GetStatuses
+	private static readonly Dictionary<string, Vector3> s_where = new Dictionary<string, Vector3>();
+
+	// "Meadows, 850 m from you"
+	internal static string WhereText(Vector3 pos)
+	{
+		string biome = "";
+		try
+		{
+			if (WorldGenerator.instance != null)
+			{
+				Heightmap.Biome b = WorldGenerator.instance.GetBiome(pos);
+				biome = Localization.instance?.Localize("$biome_" + b.ToString().ToLowerInvariant()) ?? b.ToString();
+			}
+		}
+		catch
+		{
+		}
+		float dist = (Player.m_localPlayer != null) ? Vector3.Distance(Player.m_localPlayer.transform.position, pos) : 0f;
+		return ModLocalization.LocFmt("hc_where", biome, dist.ToString("F0"));
+	}
+
 	internal static Dictionary<string, Status> GetStatuses()
 	{
 		Dictionary<string, Status> dictionary = new Dictionary<string, Status>();
+		s_where.Clear();
 		foreach (Entry s_entry in s_entries)
 		{
-			dictionary[s_entry.Id] = (IsLoaded(s_entry.Id) ? Status.Alive : Status.Unknown);
+			dictionary[s_entry.Id] = s_entry.Unsummoned ? Status.Unsummoned : (IsLoaded(s_entry.Id) ? Status.Alive : Status.Unknown);
 		}
 		if (!ZNet.instance.IsServer() || ZDOMan.instance == null || !(s_objectsById?.GetValue(ZDOMan.instance) is IDictionary dictionary2))
 		{
@@ -635,6 +785,7 @@ internal static class MHR_Roster
 				if (zDO.GetInt(GenHash) >= Find(text).Gen)
 				{
 					hashSet.Add(text);
+					s_where[text] = zDO.GetPosition();
 				}
 				continue;
 			}
@@ -646,7 +797,7 @@ internal static class MHR_Roster
 		}
 		foreach (Entry s_entry2 in s_entries)
 		{
-			if (dictionary[s_entry2.Id] != Status.Alive)
+			if (dictionary[s_entry2.Id] != Status.Alive && dictionary[s_entry2.Id] != Status.Unsummoned)
 			{
 				dictionary[s_entry2.Id] = (hashSet.Contains(s_entry2.Id) ? Status.Alive : (hashSet2.Contains(s_entry2.Id) ? Status.Dead : Status.Lost));
 			}
@@ -689,7 +840,7 @@ internal static class MHR_Roster
 		s_goneCache[id] = new KeyValuePair<bool, float>(flag, Time.unscaledTime);
 		if (flag && s_goneLogged.Add(id))
 		{
-			CompanionsPlugin.Log.LogInfo("[Rest] A bed is claimed by a companion that no longer exists (ID " + id + ") - the claim is ignored");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Rest] A bed is claimed by a companion that no longer exists (ID " + id + ") - the claim is ignored");
 		}
 		return flag;
 	}
@@ -705,6 +856,12 @@ internal static class MHR_Roster
 		string text = e.Name + ": " + StatusName(s);
 		switch (s)
 		{
+		case Status.Alive:
+			if (s_where.TryGetValue(e.Id, out var pos))
+			{
+				text += " (" + WhereText(pos) + ")";
+			}
+			break;
 		case Status.Dead:
 			text += ModLocalization.Loc("hc_roster_dead_note");
 			break;
@@ -713,6 +870,9 @@ internal static class MHR_Roster
 			break;
 		case Status.Unknown:
 			text += ModLocalization.LocFmt(e.Dead ? "hc_roster_unknown_died" : "hc_roster_unknown_seen", e.LastPos.x.ToString("F0"), e.LastPos.z.ToString("F0"));
+			break;
+		case Status.Unsummoned:
+			text += " (unsummoned - Odin's Shrine can bring it back without its gear until you next load this world)";
 			break;
 		}
 		return text;
@@ -732,7 +892,7 @@ internal static class MHR_Roster
 		{
 			string text = Describe(s_entry, statuses[s_entry.Id]);
 			stringBuilder.Append(text).Append('\n');
-			CompanionsPlugin.Log.LogInfo("[Roster] " + text);
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Roster] " + text);
 		}
 		MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, stringBuilder.ToString().TrimEnd('\n'));
 	}
@@ -790,7 +950,7 @@ internal static class MHR_Roster
 						s_confirmUntil = Time.unscaledTime + ConfirmSeconds;
 						string text = ModLocalization.LocFmt("hc_roster_unknown_confirm", s_entry2.Name, ConfirmSeconds.ToString("F0"));
 						MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, text);
-						CompanionsPlugin.Log.LogInfo("[Roster] " + text);
+						if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Roster] " + text);
 						return;
 					}
 					entry = s_entry2;
@@ -807,7 +967,7 @@ internal static class MHR_Roster
 				text2 = text2 + "\n" + Describe(s_entry3, statuses[s_entry3.Id]);
 			}
 			MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, text2);
-			CompanionsPlugin.Log.LogInfo("[Roster] Recover: nothing to recover");
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Roster] Recover: nothing to recover");
 			return;
 		}
 		Recover(entry, statuses[entry.Id]);
@@ -845,7 +1005,7 @@ internal static class MHR_Roster
 			MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, Describe(e, status));
 			return false;
 		}
-		if (status != Status.Lost && status != Status.Unknown)
+		if (status != Status.Lost && status != Status.Unknown && status != Status.Unsummoned)
 		{
 			MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, Describe(e, status));
 			return false;
@@ -900,6 +1060,14 @@ internal static class MHR_Roster
 		}
 		zDO.Set(CompanionSetup.HasHomeBedHash, e.HasBed);
 		zDO.Set(CompanionSetup.HomeBedPosHash, e.BedPos);
+		if (!string.IsNullOrEmpty(e.FarmZones))
+		{
+			zDO.Set(FarmZoneSerializer.FarmZonesHash, e.FarmZones);
+		}
+		// Fase 3.10 (auditoria A6): and the voice and personality it had, through the one helper that writes a profile
+		// to a freshly created ZDO (the same the starter panel uses): nothing is written for a companion that had no
+		// choice of its own, so it keeps following [AI] exactly as before.
+		CompanionProfile.ApplyAtSpawn(zDO, e.AiVoice, e.AiPersonaSet, e.AiPreset, e.AiPersona);
 		zDO.Persistent = true;
 		if (!string.IsNullOrEmpty(e.Inventory))
 		{
@@ -939,6 +1107,8 @@ internal static class MHR_Roster
 		}
 		e.Gen = num;
 		e.Dead = false;
+		e.Unsummoned = false;
+		s_sessionUnsummoned.Remove(e.Id);
 		e.LastPos = vector;
 		e.LastSeen = ZNet.instance.GetTimeSeconds();
 		Save(toDisk: true);

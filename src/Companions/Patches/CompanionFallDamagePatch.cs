@@ -66,7 +66,7 @@ internal static class CompanionFallDamagePatch
 				hitData.m_dir = Vector3.up;
 				hitData.m_hitType = HitData.HitType.Fall;
 				__instance.Damage(hitData);
-				CompanionsPlugin.Log.LogInfo($"[Move] \"{__instance.m_name}\" fell {__state:F1} m and took {damage:F0} fall damage");
+				if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Move] \"{__instance.m_name}\" fell {__state:F1} m and took {damage:F0} fall damage");
 			}
 		}
 		catch

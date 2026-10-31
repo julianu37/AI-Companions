@@ -274,7 +274,7 @@ public class FarmZonePlacer : MonoBehaviour
 	{
 		if (!(_hintLabel == null))
 		{
-			_hintLabel.text = (ZInput.IsGamepadActive() ? ModLocalization.Loc("hc_farmzone_hint_gamepad") : ModLocalization.Loc("hc_farmzone_hint"));
+			_hintLabel.text = (ZInput.IsGamepadActive() ? ModLocalization.LocFmt("hc_farmzone_hint_gamepad", MHR_Pad.GlyphOf("JoyButtonA"), MHR_Pad.GlyphOf("JoyButtonX"), MHR_Pad.GlyphOf("JoyLTrigger"), MHR_Pad.GlyphOf("JoyRTrigger"), MHR_Pad.GlyphOf("JoyDPadUp") + "/" + MHR_Pad.GlyphOf("JoyDPadDown"), MHR_Pad.GlyphOf("JoyMenu")) : ModLocalization.Loc("hc_farmzone_hint"));
 		}
 	}
 
@@ -307,7 +307,7 @@ public class FarmZonePlacer : MonoBehaviour
 	{
 		if (!_active)
 		{
-			if (Player.m_localPlayer != null && !InventoryGui.IsVisible() && !Menu.IsVisible() && !Minimap.IsOpen() && !FarmZoneCropPicker.IsOpen && Input.GetKeyDown(ModConfig.FarmZoneKey.Value) && Input.GetKey(ModConfig.FarmZoneModifier.Value))
+			if (Player.m_localPlayer != null && !InventoryGui.IsVisible() && !Menu.IsVisible() && !Minimap.IsOpen() && !FarmZoneCropPicker.IsOpen && ((Input.GetKeyDown(ModConfig.FarmZoneKey.Value) && Input.GetKey(ModConfig.FarmZoneModifier.Value)) || (ZInput.IsGamepadActive() && MHR_Pad.Down(ModConfig.PadFarmZone, ModConfig.PadFarmZoneModifier))))
 			{
 				CompanionSetup companionSetup = FindNearestCompanion();
 				if (companionSetup != null)
@@ -322,7 +322,7 @@ public class FarmZonePlacer : MonoBehaviour
 		}
 		else if (!_pickingCrop)
 		{
-			if (Input.GetKeyDown(KeyCode.Escape) || ZInput.GetButtonDown("JoyMenu") || (Input.GetKeyDown(ModConfig.FarmZoneKey.Value) && Input.GetKey(ModConfig.FarmZoneModifier.Value)))
+			if (Input.GetKeyDown(KeyCode.Escape) || ZInput.GetButtonDown("JoyMenu") || (Input.GetKeyDown(ModConfig.FarmZoneKey.Value) && Input.GetKey(ModConfig.FarmZoneModifier.Value)) || (ZInput.IsGamepadActive() && MHR_Pad.Down(ModConfig.PadFarmZone, ModConfig.PadFarmZoneModifier)))
 			{
 				Hide();
 				return;

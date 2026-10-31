@@ -112,7 +112,7 @@ namespace Companions
             if (FarmController.s_seedToPlant == null) return;
             List<string> names = new List<string>(FarmController.s_seedToPlant.Keys);
             names.Sort(StringComparer.OrdinalIgnoreCase);
-            if (CompanionsPlugin.Log != null) CompanionsPlugin.Log.LogDebug("[Farm] Things a cultivator can plant (" + names.Count + "): " + string.Join(", ", names.ToArray()));
+            if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Farm] Things a cultivator can plant (" + names.Count + "): " + string.Join(", ", names.ToArray()));
             foreach (string k in FarmController.s_seedToPlant.Keys)
             {
                 s_lower[k.ToLowerInvariant()] = k;
@@ -245,14 +245,13 @@ namespace Companions
                     int idx = ((cur + step) % n + n) % n;
                     if (!ok[idx]) continue;
                     r.Cur = order[idx]; r.Count = 0;
-                    if (CompanionsPlugin.Log != null)
-                        CompanionsPlugin.Log.LogDebug("[Farm] Planting group: next up \"" + r.Cur + "\" (" + (key == "*" ? "Any zone" : "zone " + key) + ")");
+                    if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Farm] Planting group: next up \"" + r.Cur + "\" (" + (key == "*" ? "Any zone" : "zone " + key) + ")");
                     return r.Cur;
                 }
                 if (Time.time >= s_nextNothingLog && CompanionsPlugin.Log != null)
                 {
                     s_nextNothingLog = Time.time + 60f;
-                    CompanionsPlugin.Log.LogInfo("[Farm] Nothing to plant in " + (key == "*" ? "Any zones" : "\"" + key + "\" zones") + " (pack + chests near home): " + (report.Length > 0 ? report.ToString() : "the PlantAny list is empty"));
+                    if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Farm] Nothing to plant in " + (key == "*" ? "Any zones" : "\"" + key + "\" zones") + " (pack + chests near home): " + (report.Length > 0 ? report.ToString() : "the PlantAny list is empty"));
                 }
                 return null;
             }
@@ -369,7 +368,7 @@ namespace Companions
                     if (n >= it.m_stack) pack.RemoveItem(it); else pack.RemoveItem(it, n);
                     InvalidateCount();
                     stored++;
-                    if (CompanionsPlugin.Log != null) CompanionsPlugin.Log.LogDebug("[Farm]   Stored \"" + name + "\" x" + n);
+                    if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Farm]   Stored \"" + name + "\" x" + n);
                 }
                 catch (Exception e) { if (CompanionsPlugin.Log != null) CompanionsPlugin.Log.LogWarning("[Farm] Store: " + e.Message); }
             }

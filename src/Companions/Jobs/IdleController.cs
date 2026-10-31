@@ -232,7 +232,7 @@ public class IdleController : MonoBehaviour
 		{
 			_center = _setup.GetHomePosition();
 		}
-		Log("Nothing to do - idling around " + MHR_Mover.Fmt(_center));
+		if (CompanionsPlugin.LogNormal) Log("Nothing to do - idling around " + MHR_Mover.Fmt(_center));
 		SayWhy();
 		_nextChoreTry = 0f;
 		Pause(1f, 3f);
@@ -253,7 +253,7 @@ public class IdleController : MonoBehaviour
 			_ai.StopMoving();
 			MHR_Mover.Release(_ai);
 		}
-		LogDebug("Stopped idling (" + why + ")");
+		if (CompanionsPlugin.LogDetailed) LogDebug("Stopped idling (" + why + ")");
 		_act = Act.Off;
 		_chair = null;
 		_buddy = null;
@@ -332,11 +332,11 @@ public class IdleController : MonoBehaviour
 		if (_chair == null)
 		{
 			MHR_Follow.IdleSitFloor(_ai, base.transform.position + base.transform.forward);
-			LogDebug("Sitting down for a bit");
+			if (CompanionsPlugin.LogDetailed) LogDebug("Sitting down for a bit");
 			_act = Act.Seated;
 			return true;
 		}
-		LogDebug("Going to sit on the " + _chair.m_name);
+		if (CompanionsPlugin.LogDetailed) LogDebug("Going to sit on the " + _chair.m_name);
 		_act = Act.ToSeat;
 		_goal = _chair.m_attachPoint.position;
 		_until = Time.time + 20f;   // to get there
@@ -389,7 +389,7 @@ public class IdleController : MonoBehaviour
 					continue;
 				}
 				p = hit.point;
-				if (Mathf.Abs(p.y - me.y) > 3f || MHR_Water.WouldSwim(_character, p) || MHR_Mover.InFire(p) || Vector3.Distance(p, me) < 2f || !MHR_Mover.CanGetTo(me, p))
+				if (Mathf.Abs(p.y - me.y) > 3f || MHR_Water.WouldSwim(_character, p) || MHR_Mover.NearFire(p, 1.2f) || Vector3.Distance(p, me) < 2f || !MHR_Mover.CanGetTo(me, p))
 				{
 					continue;
 				}
@@ -494,7 +494,7 @@ public class IdleController : MonoBehaviour
 		{
 			return false;
 		}
-		LogDebug("Going over to " + _buddy.m_name);
+		if (CompanionsPlugin.LogDetailed) LogDebug("Going over to " + _buddy.m_name);
 		_act = Act.Social;
 		_until = Time.time + Random.Range(15f, 30f);
 		return true;
@@ -528,7 +528,11 @@ public class IdleController : MonoBehaviour
 			_nextChat = Time.time + Mathf.Max(60f, every * 0.5f);
 			if (Random.value < 0.6f)
 			{
-				_talk?.Say(ModLocalization.Loc("hc_idle_chat_" + Random.Range(1, 7)));
+				// 1.5.41: chat that fits (no "fine day" at night), from speech.json
+				if (_talk != null)
+				{
+					_talk.Speak(_talk.Pick(SpeechConfig.Instance.Chat), CompanionTalk.Priority.Ambient, null);
+				}
 			}
 		}
 	}
@@ -543,11 +547,16 @@ public class IdleController : MonoBehaviour
 		{
 			return;
 		}
-		string key = "hc_idle_why_" + Mode();
-		string line = ModLocalization.Loc(key);
-		if (string.IsNullOrEmpty(line) || line == key)
+		// 1.5.42: the real reason its job has stopped, when the job recorded one (CompanionStatus); else the job's general line
+		string line = CompanionStatus.SpokenReason(this);
+		if (string.IsNullOrEmpty(line))
 		{
-			return;
+			string key = "hc_idle_why_" + Mode();
+			line = ModLocalization.Loc(key);
+			if (string.IsNullOrEmpty(line) || line == key || line.StartsWith("["))
+			{
+				return;
+			}
 		}
 		_lastWhy = Time.time;
 		_talk.Say(line);
@@ -555,11 +564,11 @@ public class IdleController : MonoBehaviour
 
 	private void Log(string msg)
 	{
-		CompanionsPlugin.Log?.LogInfo("[Idle|" + (_character != null ? _character.m_name : "?") + "] " + msg);
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log?.LogInfo("[Idle|" + (_character != null ? _character.m_name : "?") + "] " + msg);
 	}
 
 	private void LogDebug(string msg)
 	{
-		CompanionsPlugin.Log?.LogDebug("[Idle|" + (_character != null ? _character.m_name : "?") + "] " + msg);
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log?.LogDebug("[Idle|" + (_character != null ? _character.m_name : "?") + "] " + msg);
 	}
 }

@@ -39,13 +39,13 @@ public static class ContainerAwakePatch
 		if (component3 != null && component3.GetZDO() != null && CompanionTierData.IsDvergerVariant(component3.GetZDO().GetPrefab()))
 		{
 			ForceInventoryDimensions(__instance.GetInventory(), 8, 4);
-			CompanionsPlugin.Log.LogDebug("[ContainerAwake] Dverger variant, keeping separate inventories");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[ContainerAwake] Dverger variant, keeping separate inventories");
 			return;
 		}
 		if ((component3 == null || component3.GetZDO() == null) && __instance.gameObject.name.Contains("Dverger"))
 		{
 			ForceInventoryDimensions(__instance.GetInventory(), 8, 4);
-			CompanionsPlugin.Log.LogDebug("[ContainerAwake] Dverger variant (name check), keeping separate inventories");
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[ContainerAwake] Dverger variant (name check), keeping separate inventories");
 			return;
 		}
 		Inventory inventory = component2.GetInventory();
@@ -66,7 +66,7 @@ public static class ContainerAwakePatch
 			inventory.m_onChanged = (Action)Delegate.Remove(inventory.m_onChanged, action);
 			inventory.m_onChanged = (Action)Delegate.Combine(inventory.m_onChanged, action);
 		}
-		CompanionsPlugin.Log.LogDebug($"[ContainerAwake] Shared inventory, container={__instance.m_width}x{__instance.m_height} " + $"humanoidInv dim {width}x{height} -> {num}x{num2} items={inventory.NrOfItems()}");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[ContainerAwake] Shared inventory, container={__instance.m_width}x{__instance.m_height} " + $"humanoidInv dim {width}x{height} -> {num}x{num2} items={inventory.NrOfItems()}");
 	}
 
 	private static void ForceInventoryDimensions(Inventory inv, int width, int height)
@@ -118,6 +118,6 @@ public static class ContainerAwakePatch
 				itemData2.m_gridPos = new Vector2i(num2 % targetWidth, num2 / targetWidth);
 			}
 		}
-		CompanionsPlugin.Log.LogDebug($"[ContainerAwake] Normalized companion inventory layout to {targetWidth}-wide grid");
+		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[ContainerAwake] Normalized companion inventory layout to {targetWidth}-wide grid");
 	}
 }

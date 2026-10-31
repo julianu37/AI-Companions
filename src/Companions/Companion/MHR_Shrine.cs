@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Text;
 using TMPro;
 using UnityEngine;
 
@@ -85,7 +84,7 @@ internal static class MHR_Shrine
 			if (ModConfig.ShrineBuildable.Value)
 			{
 				pieceTable.m_pieces.Add(s_prefab);
-				CompanionsPlugin.Log.LogInfo("[Shrine] Odin's Shrine added to the hammer (Misc), recipe " + ModConfig.ShrineRecipe.Value + " at a workbench");
+				if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Shrine] Odin's Shrine added to the hammer (Misc), recipe " + ModConfig.ShrineRecipe.Value + " at a workbench");
 			}
 		}
 		catch (Exception ex)
@@ -191,7 +190,7 @@ internal static class MHR_Shrine
 		gameObject.AddComponent<CompanionShrine>().m_hoverOffset = hoverOffset;
 		s_prefab = gameObject;
 		s_model = model;
-		CompanionsPlugin.Log.LogInfo("[Shrine] Odin's Shrine piece created (model: " + model + ")");
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Shrine] Odin's Shrine piece created (model: " + model + ")");
 		return true;
 	}
 
@@ -242,89 +241,6 @@ internal static class MHR_Shrine
 		}
 		return list.ToArray();
 	}
-
-	private static string StatusText(MHR_Roster.Status s)
-	{
-		return s switch
-		{
-			MHR_Roster.Status.Alive => "<color=#80E080>" + ModLocalization.Loc("hc_roster_alive") + "</color>",
-			MHR_Roster.Status.Dead => "<color=#C0C0C0>" + ModLocalization.Loc("hc_roster_dead") + "</color>" + ModLocalization.Loc("hc_roster_dead_note"),
-			MHR_Roster.Status.Lost => "<color=#FF7060>" + ModLocalization.Loc("hc_roster_lost") + "</color>",
-			_ => "<color=#FFCC50>" + ModLocalization.Loc("hc_roster_unknown") + "</color>" + ModLocalization.Loc("hc_roster_unknown_note"),
-		};
-	}
-
-	// Using the shrine: the roster in the game's message window, then a Yes / No for each companion that can be brought
-	// back (Lost first, then Unknown). No moves on to the next one.
-	internal static void Use(CompanionShrine shrine)
-	{
-		if (!UnifiedPopup.IsAvailable() || UnifiedPopup.IsVisible())
-		{
-			return;
-		}
-		List<KeyValuePair<MHR_Roster.Entry, MHR_Roster.Status>> roster = MHR_Roster.GetRoster();
-		CompanionsPlugin.Log.LogInfo($"[Shrine] Used - {roster.Count} companion(s) on the roster");
-		StringBuilder stringBuilder = new StringBuilder();
-		List<KeyValuePair<MHR_Roster.Entry, MHR_Roster.Status>> list = new List<KeyValuePair<MHR_Roster.Entry, MHR_Roster.Status>>();
-		foreach (KeyValuePair<MHR_Roster.Entry, MHR_Roster.Status> item in roster)
-		{
-			stringBuilder.Append(item.Key.Name).Append(": ").Append(StatusText(item.Value))
-				.Append('\n');
-			if (item.Value == MHR_Roster.Status.Lost)
-			{
-				list.Add(item);
-			}
-		}
-		foreach (KeyValuePair<MHR_Roster.Entry, MHR_Roster.Status> item2 in roster)
-		{
-			if (item2.Value == MHR_Roster.Status.Unknown)
-			{
-				list.Add(item2);
-			}
-		}
-		string text = stringBuilder.ToString().TrimEnd('\n');
-		if (roster.Count == 0)
-		{
-			text = ModLocalization.Loc("hc_shrine_empty");
-		}
-		if (list.Count == 0)
-		{
-			UnifiedPopup.Push(new WarningPopup(LocalizedName(), text + ((roster.Count > 0) ? "\n\n" + ModLocalization.Loc("hc_shrine_none_to_recover") : ""), delegate
-			{
-				UnifiedPopup.Pop();
-			}, localizeText: false));
-		}
-		else
-		{
-			Ask(shrine, text, list, 0);
-		}
-	}
-
-	private static void Ask(CompanionShrine shrine, string rosterText, List<KeyValuePair<MHR_Roster.Entry, MHR_Roster.Status>> candidates, int index)
-	{
-		if (index >= candidates.Count || shrine == null)
-		{
-			return;
-		}
-		MHR_Roster.Entry entry = candidates[index].Key;
-		string text = rosterText + "\n\n" + ModLocalization.LocFmt("hc_shrine_bring_back", entry.Name);
-		if (candidates[index].Value == MHR_Roster.Status.Unknown)
-		{
-			text = text + "\n\n<color=#FFCC50>" + ModLocalization.Loc("hc_shrine_warning") + "</color> " + ModLocalization.LocFmt(entry.Dead ? "hc_shrine_unknown_dead" : "hc_shrine_unknown_alive", entry.Name);
-		}
-		UnifiedPopup.Push(new YesNoPopup(LocalizedName(), text, delegate
-		{
-			UnifiedPopup.Pop();
-			if (shrine != null)
-			{
-				MHR_Roster.RecoverAt(entry, shrine.transform.position + shrine.transform.forward * 2f);
-			}
-		}, delegate
-		{
-			UnifiedPopup.Pop();
-			Ask(shrine, rosterText, candidates, index + 1);
-		}, localizeText: false));
-	}
 }
 
 public class CompanionShrine : MonoBehaviour, Hoverable, Interactable
@@ -333,7 +249,8 @@ public class CompanionShrine : MonoBehaviour, Hoverable, Interactable
 
 	public string GetHoverText()
 	{
-		return Localization.instance.Localize(ModLocalization.Loc("hc_shrine_name") + "\n[<color=yellow><b>$KEY_Use</b></color>] " + ModLocalization.Loc("hc_shrine_hover"));
+		// 1.5.77: one use - the shrine menu (recover lost companions / purchase a new one); the alt-use hire is gone
+		return Localization.instance.Localize(MHR_Shrine.DisplayName + "\n[<color=yellow><b>$KEY_Use</b></color>] " + ModLocalization.Loc("hc_shrine_use"));
 	}
 
 	public string GetHoverName()
@@ -348,11 +265,11 @@ public class CompanionShrine : MonoBehaviour, Hoverable, Interactable
 
 	public bool Interact(Humanoid user, bool hold, bool alt)
 	{
-		if (hold || user == null || user != Player.m_localPlayer)
+		if (hold || user == null || user != Player.m_localPlayer || ShrinePanel.IsOpen || ShrinePanel.JustClosed || StarterCompanionPanel.Instance != null)
 		{
 			return false;
 		}
-		MHR_Shrine.Use(this);
+		ShrinePanel.Show(this);
 		return true;
 	}
 

@@ -162,7 +162,7 @@ pieces stay in the bag instead of equipped.
 
 | Comes from the upstream (Offline Companions Reborn, MIT) | Is ours |
 |---|---|
-| The companion: jobs, food, stamina, skills, home, rest, portals, cart | **The localization in five languages** — 737 UI keys and 186 lines per language, with **English native** |
+| The companion: jobs, food, stamina, skills, home, rest, portals, cart | **The localization in five languages** — 914 UI keys and 221 lines per language, with **English native** |
 | The movement and combat AI, the jobs, the radial menu and the base UI | The **AI layer**: chat/voice orders, personality, memory, conversation |
 | All the game logic the orders trigger | The **local TTS** (Kokoro) and the **local STT** (Whisper) |
 | | The **AI panel** (key `I`) |

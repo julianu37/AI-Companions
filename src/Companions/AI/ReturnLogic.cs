@@ -109,7 +109,7 @@ internal static class ReturnLogic
 			if (!(instance == null) && !(instance != Player.m_localPlayer))
 			{
 				OwnerDead = true;
-				Log("[Return] owner died - Follow-mode companions may fall in with a nearby ally until respawn");
+				if (CompanionsPlugin.LogDetailed) Log("[Return] owner died - Follow-mode companions may fall in with a nearby ally until respawn");
 			}
 		}
 		catch (Exception)
@@ -179,7 +179,7 @@ internal static class ReturnLogic
 				CompanionSetup csBack = setupComp as CompanionSetup;
 				ZDO zBack = csBack != null ? csBack.GetComponent<ZNetView>()?.GetZDO() : null;
 				if (csBack != null && zBack != null) csBack.ApplyFollowMode(zBack.GetInt(CompanionSetup.ActionModeHash), true);
-				Log("[Return] back in range (" + num.ToString("F1") + "m) for \"" + setupComp.name + "\" - resuming normal behavior.");
+				if (CompanionsPlugin.LogDetailed) Log("[Return] back in range (" + num.ToString("F1") + "m) for \"" + setupComp.name + "\" - resuming normal behavior.");
 				return;
 			}
 			if (num <= 60f)
@@ -397,7 +397,7 @@ internal static class ReturnLogic
 		}
 		catch (Exception ex8)
 		{
-			Log("[Return] Trigger failed: " + ex8.Message);
+			if (CompanionsPlugin.LogDetailed) Log("[Return] Trigger failed: " + ex8.Message);
 		}
 		return false;
 	}
@@ -511,7 +511,7 @@ internal static class ReturnLogic
 		if (_logs < 60)
 		{
 			_logs++;
-			CompanionsPlugin.Log?.LogInfo(s);
+			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log?.LogInfo(s);
 		}
 	}
 
@@ -520,11 +520,11 @@ internal static class ReturnLogic
 		try
 		{
 			OwnerDead = false;
-			Log("[Return] " + source + ": respawn hook fired");
+			if (CompanionsPlugin.LogDetailed) Log("[Return] " + source + ": respawn hook fired");
 			Player localPlayer = Player.m_localPlayer;
 			if (localPlayer == null)
 			{
-				Log("[Return] " + source + ": skipped - Player.m_localPlayer is null");
+				if (CompanionsPlugin.LogDetailed) Log("[Return] " + source + ": skipped - Player.m_localPlayer is null");
 				return;
 			}
 			GameObject gameObject = localPlayer.gameObject;
@@ -535,7 +535,7 @@ internal static class ReturnLogic
 			}
 			if (_setupType == null)
 			{
-				Log("[Return] " + source + ": skipped - CompanionSetup type not found");
+				if (CompanionsPlugin.LogDetailed) Log("[Return] " + source + ": skipped - CompanionSetup type not found");
 				return;
 			}
 			if (_allCompanionsM == null)
@@ -544,12 +544,12 @@ internal static class ReturnLogic
 			}
 			if (_allCompanionsM == null)
 			{
-				Log("[Return] " + source + ": skipped - get_AllCompanions not found");
+				if (CompanionsPlugin.LogDetailed) Log("[Return] " + source + ": skipped - get_AllCompanions not found");
 				return;
 			}
 			if (!(_allCompanionsM.Invoke(null, null) is IEnumerable enumerable))
 			{
-				Log("[Return] " + source + ": skipped - AllCompanions returned null");
+				if (CompanionsPlugin.LogDetailed) Log("[Return] " + source + ": skipped - AllCompanions returned null");
 				return;
 			}
 			if (_interactType == null)
@@ -589,16 +589,16 @@ internal static class ReturnLogic
 			}
 			if (num == 0)
 			{
-				Log("[Return] " + source + ": AllCompanions was empty (0 found)");
+				if (CompanionsPlugin.LogDetailed) Log("[Return] " + source + ": AllCompanions was empty (0 found)");
 			}
 			else if (num2 == 0)
 			{
-				Log("[Return] " + source + ": found " + num + " companion(s), none owned by this player (ownerId=" + text + ")");
+				if (CompanionsPlugin.LogDetailed) Log("[Return] " + source + ": found " + num + " companion(s), none owned by this player (ownerId=" + text + ")");
 			}
 		}
 		catch (Exception ex2)
 		{
-			Log("[Return] " + source + " failed: " + ex2.Message);
+			if (CompanionsPlugin.LogDetailed) Log("[Return] " + source + " failed: " + ex2.Message);
 		}
 	}
 
@@ -655,7 +655,7 @@ internal static class ReturnLogic
 				{
 				}
 			}
-			Log("[Return] \"" + setupComp.name + "\" - owner is dead, tagging along with \"" + player.name + "\" until they respawn.");
+			if (CompanionsPlugin.LogDetailed) Log("[Return] \"" + setupComp.name + "\" - owner is dead, tagging along with \"" + player.name + "\" until they respawn.");
 		}
 		catch (Exception)
 		{
@@ -829,7 +829,7 @@ internal static class ReturnLogic
 		}
 		catch (Exception ex7)
 		{
-			Log("[Return] teleport recall failed: " + ex7.Message);
+			if (CompanionsPlugin.LogDetailed) Log("[Return] teleport recall failed: " + ex7.Message);
 		}
 		return false;
 	}

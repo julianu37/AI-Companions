@@ -30,7 +30,7 @@ internal static class GridFix
 			if (!_logged)
 			{
 				_logged = true;
-				CompanionsPlugin.Log?.LogInfo("[GridFix] Bound vanilla InventoryGui.CanDropDragOntoItem to the companion grid.");
+				if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log?.LogInfo("[GridFix] Bound vanilla InventoryGui.CanDropDragOntoItem to the companion grid.");
 			}
 		}
 	}

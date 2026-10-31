@@ -42,7 +42,7 @@ public static class CombatPatches
 				if (Time.time - _lastHealthLogTime > 5f)
 				{
 					_lastHealthLogTime = Time.time;
-					CompanionsPlugin.Log.LogDebug($"[Combat] GetMaxHealth — base={baseHealth:F0} + food={totalHealthBonus:F1} " + $"= {num:F1} (vanilla was {__result:F1}) " + "companion=\"" + __instance.m_name + "\"");
+					if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug($"[Combat] GetMaxHealth — base={baseHealth:F0} + food={totalHealthBonus:F1} " + $"= {num:F1} (vanilla was {__result:F1}) " + "companion=\"" + __instance.m_name + "\"");
 				}
 				__result = num;
 			}

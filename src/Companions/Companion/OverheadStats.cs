@@ -78,7 +78,7 @@ internal static class OverheadStats
 		}
 		catch (Exception ex)
 		{
-			Log("[OverheadStats] update failed: " + ex.Message);
+			if (CompanionsPlugin.LogNormal) Log("[OverheadStats] update failed: " + ex.Message);
 		}
 	}
 
@@ -87,7 +87,7 @@ internal static class OverheadStats
 		if (_logs < 20)
 		{
 			_logs++;
-			CompanionsPlugin.Log?.LogInfo(s);
+			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log?.LogInfo(s);
 		}
 	}
 

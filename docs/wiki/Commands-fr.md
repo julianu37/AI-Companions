@@ -110,6 +110,29 @@ signalé — et rien n'est ordonné —, mais une forme d'adresse continue à va
 > Le ramassage prend **même ce qu'il a lâché exprès** — ce que l'aimant automatique du jeu ignore justement. Il
 > renonce si l'objet ne rentre pas entier dans son sac ou s'il est trop loin.
 
+### Portes, ruches, bateaux, feux et coffres
+
+| Tu dis | Ce qu'il fait |
+|---|---|
+| `ferme la porte` / `ouvre la porte` | Ouvre ou ferme la **porte** qu'il regarde |
+| `vide la ruche` / `prends le miel` | Vide la **ruche** et garde le miel |
+| `monte sur le bateau` / `embarque` | Monte sur le **bateau**, à la place que tu désignes |
+| `assieds-toi près du feu` | S'assoit près du **feu** qu'il regarde |
+| `range ça dans le coffre` / `range-le` | Range ce qu'il porte dans le **coffre** |
+
+> La cible est l'objet que **tu regardes**, avec le même rayon et les mêmes couches que la touche de commande. Sans
+> rien dans le viseur il prend le plus proche de toi : **20 m** pour une porte ou une ruche, **30 m** pour un bateau,
+> **5 m** pour un feu ou un coffre — jamais son propre sac. L'ordre n'arrive qu'à **un** compagnon : celui que tu as
+> nommé, ou le plus proche de cet objet qui peut recevoir des ordres.
+
+> Sa réponse dit ce qui s'est passé : « Je ferme la porte. », « À bord ! », « Je m'assois près du feu. », « Je range
+> 12 objet(s) dans le coffre. ». Une porte **verrouillée** répond « C'est verrouillé. », une ruche **vide** « Pas
+> encore de miel là-dedans. » et un coffre **plein** « Il n'y a plus de place dans ce coffre. » ; sans rien autour il
+> dit qu'il n'en voit pas.
+
+> Le feu doit être **allumé**, et le coffre doit être un vrai coffre libre d'accès : pas une tombe, une charrette, la
+> cale d'un bateau, un coffre de donjon ou un coffre dans une zone protégée où il ne peut pas entrer.
+
 ### Inventaire
 
 | Tu dis | Ce qu'il fait |

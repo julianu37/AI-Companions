@@ -36,8 +36,8 @@ nell'elenco sullo schermo.
 Questo progetto è un **progetto indipendente** basato su [Offline Companions Reborn](https://github.com/MaddhattrRocks/Offline-Companions-Reborn)
 (**MIT**) — che a sua volta è un fork di *Offline Companions*, di **ProfMags** — con due cose nostre sopra:
 
-1. **Cinque lingue** — **portoghese del Brasile, inglese, spagnolo, francese e italiano**: l'interfaccia (737 chiavi),
-   le frasi del compagno (186 righe), i preset di personalità e il contratto del LLM seguono la **lingua del gioco**,
+1. **Cinque lingue** — **portoghese del Brasile, inglese, spagnolo, francese e italiano**: l'interfaccia (914 chiavi),
+   le frasi del compagno (221 righe), i preset di personalità e il contratto del LLM seguono la **lingua del gioco**,
    con l'**inglese come lingua nativa**, e una lingua nuova è **un file**.
 2. **Uno strato di IA**: ordini in **linguaggio naturale** (testo nella chat o **voce** con push-to-talk), con
    **personalità**, **memoria** e **conversazione libera** — e la voce e il riconoscimento vocale **scelgono la lingua

@@ -11,7 +11,10 @@ Le mod a **deux** parties de voix, et elles sont indépendantes :
 Les deux tournent **dans le jeu**, sur ta machine, sans service externe — et **les deux suivent la langue du jeu** :
 les cinq langues sont portugais du Brésil, anglais, espagnol, français et italien, et `[AI] VoiceLanguage`,
 `TtsLanguage` et `TtsVoice` sont **automatiques** (`auto`, `auto`, `0`). **Changer la langue du jeu ne demande pas de
-redémarrer** — le modèle est chargé une fois et la phrase suivante sort déjà dans la nouvelle langue.
+redémarrer** — le modèle de la voix se reconstruit dans la nouvelle langue (le Kokoro n'est qu'un fichier, mais le
+phonémiseur est choisi au chargement : le modèle est donc rechargé et l'audio de l'ancienne langue est jeté) et la
+phrase suivante sort déjà dans la nouvelle langue. Seules les cinq langues ci-dessus sont proposées : le modèle est le
+même pour toutes.
 
 ---
 

@@ -109,6 +109,29 @@ viene ordinato niente —, ma una forma di cortesia continua a valere (`capo, ra
 > La raccolta prende **anche quello che ha lasciato apposta** — che è proprio quello che la calamita automatica del
 > gioco ignora. Rinuncia se l'oggetto non entra intero nella sacca o se è troppo lontano.
 
+### Porte, alveari, navi, fuochi e casse
+
+| Tu dici | Cosa fa |
+|---|---|
+| `chiudi la porta` / `apri la porta` | Apre o chiude la **porta** che sta guardando |
+| `svuota l'alveare` / `prendi il miele` | Svuota l'**alveare** e tiene il miele |
+| `sali sulla nave` / `imbarca` | Sale sulla **nave**, nel posto che indichi |
+| `siediti accanto al fuoco` | Si siede accanto al **fuoco** che sta guardando |
+| `metti questo nella cassa` / `mettilo via` | Mette quello che porta nella **cassa** |
+
+> Il bersaglio è l'oggetto che **stai guardando**, con lo stesso raggio e gli stessi strati del tasto di comando.
+> Senza niente nel mirino prende il più vicino a te: **20 m** per una porta o un alveare, **30 m** per una nave,
+> **5 m** per un fuoco o una cassa — mai la sua sacca. L'ordine arriva a **un** compagno: quello che hai chiamato per
+> nome, o il più vicino a quell'oggetto che può ricevere ordini.
+
+> La risposta dice cosa è successo: "Chiudo la porta.", "Sono a bordo!", "Mi siedo accanto al fuoco.", "Metto 12
+> oggetto/i nella cassa.". Una porta **chiusa a chiave** risponde "È chiusa a chiave.", un alveare **vuoto** "Non c'è
+> ancora miele lì dentro." e una cassa **piena** "In quella cassa non c'è più posto."; senza niente intorno dice che
+> non ne vede.
+
+> Il fuoco dev'essere **acceso**, e la cassa dev'essere una vera cassa libera da usare: non una lapide, un carro, la
+> stiva di una nave, una cassa di un sotterraneo o una dentro un'area protetta dove non può entrare.
+
 ### Inventario
 
 | Dici | Cosa fa |

@@ -2051,6 +2051,67 @@ desenho do radial, o dropdown do painel da IA, o comportamento de clique do pain
 tocada), e que o bloqueio de input do painel da IA vem dos patches (`Hud.InRadial`, `Player.TakeInput`,
 `PlayerController.TakeInput`) e não do alvo de clique do fundo do painel.
 
+---
+
+### Fase 2.0 — a sincronização com o upstream 1.5.8 e as 5 ordens de interação (1.9.2, branch `feat/ordens-interacao`)
+
+Antes de tudo: **este é o primeiro sync do upstream desde a base `1.5.4`**. Ele foi feito **incremental por release**
+(`1.5.5` → `1.5.6` → `1.5.7` → `1.5.8`, merges `f7c4761`, `bc6016f`, `c0b81f2`, `6a1205d` + as correções `3433292` e
+`baba127`), com a regra combinada: **o upstream manda em comportamento/jogo; nós mandamos na camada de IA, na
+localização, nas chaves de config e nas camadas de UI.** 121 arquivos, +14.907/−2.600, **63 byte a byte idênticos**.
+
+#### 1. O que veio do upstream (e ficou)
+
+Combate como um jogador (bloqueio/aparada, táticas, arcos), navios e assento, colmeias, tochas, lava, peso efetivo
+(marcha, sem correr/pular, stamina), fazenda em terra arada, o Santuário de Odin (recuperar/invocar +
+`[General] RecoverUnsummoned`), a **reforma da fala** (fila com prioridade, dedupe por assunto, **linha de status** com
+o motivo quando o trabalho trava, mensagem no canto quando você está longe) e o **suporte a controle** (binds, F8
+navegável, `[Advanced] LogLevel`). O que é **nosso** e ficou: o teto de peso `CompanionCarry` (o `CarryLimit` deles
+saiu de todos os 17 pontos), `[Speech] Chatter` como **bool**, o `SpeechConfig` da M1 (retry de 30 s) e a faixa de UI
+**1701+**.
+
+#### 2. As 5 ordens (`hive`, `door`, `board`, `sit`, `deposit`)
+
+Implementadas em branch **empilhada** para o teste ter um build só. Detalhes e armadilhas na seção da *Fase 2.0* do
+`AGENTS.md`; o resumo: reusam as `Direct*` da **tecla de comando**, resolvem o alvo (apontado → mais próximo), chegam a
+**um** companheiro (`MHR_InScope`), silenciam a fala aleatória da `Direct*` durante a ordem (`Silent`) e respondem com a
+**sua** linha. `ValidActions` 30 → **35** (fonte do `enum` do schema) e +7 linhas em cada um dos 5 contratos.
+
+#### 3. A auditoria antes do teste (7 frentes, read-only)
+
+Relatório completo em **`docs/audit-upstream-1.9.2.md`**. Sete frentes independentes (global, IA/voz/ordens,
+config/UI/localização, rede/ZDO, Harmony, "o que do upstream ficou de fora" e contrato/schema), com harness de reflexão
+sobre a DLL real (172 + 184 casos) e o decompilado do Valheim + o Harmony do BepInEx. **27 achados**, dos quais 3 altos:
+
+- **A1 — as zonas de plantio sumiam no túmulo** (o leitor do `HC_Respawn_FarmZones` sobreviveu ao merge, o escritor não).
+- **P1 — o F8 gravava o primeiro valor de `LogLevel`/`PortalItems`/`RespawnStance`** (o nosso `BuildChoiceRow` da M2
+  recebia as listas genéricas do upstream e devolvia a lista de idiomas do Whisper; o `Clamp` do BepInEx transformava
+  qualquer escolha em `Off`/`AllowAll`/`Passive`).
+- **B1 — "fecha a porta" fechava o inventário** (com `StructuredOutput` o modelo só pode responder `inventory_close`).
+
+Corrigidos também: `senta` duas vezes, `deposit` contando pilhas e ignorando cerca/privacidade/posse do baú, o alvo
+apontado olhando só o 1º hit, a postura roubando as 5 ordens, `MHR_Recover.Cancel` sem chamador, o perfil de IA não
+sobrevivendo ao Santuário, a dupla contagem do `MaxCompanions`, o claim no "desarmar o túmulo", 4 escritas diretas de
+`HC_ActionMode`, os **75 rótulos do F8 + 2 abas** sem tradução, as **5 pools de fala** (`Wood`/`Stone`/`Ore`/`Upkeep`/
+`Chat`) que estavam mudas nos 5 idiomas, a chave morta `GatheringSwingInterval`, o log duplicado da localização e o
+custo dos patches novos do upstream com o log desligado (H1/H2/H4/H5).
+
+**Adiados de propósito** (com o motivo no relatório): `LogLevel = Off` ainda não cala a camada de IA (B5), o memo de peso
+por frame (H3), a liberação **semântica** da vaga no Despawn (só o texto ficou honesto), a bolha/voz em companheiros
+diferentes (B9, pré-existente) e a medição das 5 ações novas com o `qwen2.5-3b-instruct`.
+
+#### 4. Receita de teste (para o jogador)
+
+1. **Zonas de plantio** (A1): 2 zonas no Fazendeiro → matar → ressuscitar pelo túmulo → as zonas voltam.
+2. **Porta** (B1): "fecha a porta" com o inventário aberto → fecha a **porta**; "fecha o inventário" → fecha a janela.
+3. **As 5 ordens** (B2/B3/B4/B7/B8): sem apontar e apontando; "senta" duas vezes (mesmo fogo e outro); 50 madeiras no
+   baú → "Guardando 50 item(ns)"; uma delas com "na postura passiva" → faz a ordem, não só troca a postura.
+4. **Recuperação** (A7): postura pelo radial durante a recuperação → ele para de ir ao túmulo.
+5. **F8** (P1): escolher `Detailed`, `AllowAll` e `Keep` e conferir no `.cfg` que gravou o escolhido.
+6. **Fala** (B6): cortar madeira, minerar pedra e minério, "Repair and Restock" → falas próprias; dois companheiros
+   perto → o papo (`Chat`).
+7. **Multiplayer** (A3/A4), se houver: "guarda isso no baú" no baú privado de outro jogador → recusa.
+
 
 
 

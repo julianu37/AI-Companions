@@ -9,7 +9,9 @@ namespace Companions
     {
         class Per
         {
-            public int LimitRejects, OtherRejects;
+            public int LimitRejects, OtherRejects, NearBaseRejects;
+            // upstream 1.5.x: which resources stopped the scan because the stock limit (or the order cap) was reached
+            public readonly Dictionary<string, KeyValuePair<int, int>> AtLimit = new Dictionary<string, KeyValuePair<int, int>>();
             // Fase 3.2: candidates this frame's scan turned away because an order's target was met (see CapReject)
             public int CapRejects; public int CapFrame;
             // Fase 3.3d: is the number an order asked for already in the pack? Decided once per frame per mode (see
@@ -205,7 +207,7 @@ namespace Companions
                 if (sh != null && sh.GetInventory() != null && CountIn(sh.GetInventory(), "Stone") >= 50 && StartPile(h)) return null;
             }
             Per p = P(h);
-            p.LimitRejects = 0; p.OtherRejects = 0;
+            p.LimitRejects = 0; p.OtherRejects = 0; p.NearBaseRejects = 0; p.AtLimit.Clear();
             GameObject r = h.ScanForTarget(mode);
             // Fase 3.2: when an order's target is what stopped this scan, the caller ends the order instead
             // (MHR_GatherRules.OrderDone) - the "at its limit - waiting" line is for the config's own limits.
@@ -213,7 +215,7 @@ namespace Companions
             if (r == null && !byCeiling && p.LimitRejects > 0 && mode >= 1 && mode <= 3 && Time.time >= p.NextPlenty)
             {
                 p.NextPlenty = Time.time + 120f;
-                Info("Everything it can reach on the " + (mode == 1 ? "wood" : mode == 2 ? "stone" : "ore") + " list is at its limit - waiting");
+                if (CompanionsPlugin.LogNormal) Info("Everything it can reach on the " + (mode == 1 ? "wood" : mode == 2 ? "stone" : "ore") + " list is at its limit - waiting");
                 CompanionTalk talk = h.GetComponent<CompanionTalk>();
                 if (talk != null) talk.Say(ModLocalization.Loc(mode == 1 ? "hc_speech_plenty_wood" : mode == 2 ? "hc_speech_plenty_stone" : "hc_speech_plenty_ore"), false);
             }
@@ -371,7 +373,7 @@ namespace Companions
                             string s = part.Trim();
                             if (s.Length > 0 && go.name.IndexOf(s, StringComparison.OrdinalIgnoreCase) >= 0) { p.OtherRejects++; return false; }
                         }
-                    if (NearBuildings(go)) { p.OtherRejects++; return false; }
+                    if (NearBuildings(go)) { p.OtherRejects++; p.NearBaseRejects++; return false; }
                 }
                 MHR_List list = Parse(mode);
                 if (list == null) return true;
@@ -495,7 +497,7 @@ namespace Companions
                 if (Mode(h) == 3 && StartPile(h)) return false;
                 if (h.FindNearestChest(cs != null && cs.HasHomePosition() ? cs.GetHomePosition() : h.transform.position) != null)
                 {
-                    if (!p.PackFull) Info("Pack is full - taking a load to the chest");
+                    if (!p.PackFull) if (CompanionsPlugin.LogNormal) Info("Pack is full - taking a load to the chest");
                     p.PackFull = true;           // IsOverweight() now reports true until a slot frees up
                     return false;
                 }
@@ -514,7 +516,7 @@ namespace Companions
                     inv.RemoveItem(it);
                     dropped++; names += (names.Length > 0 ? ", " : "") + nm;
                 }
-                if (dropped > 0) Info("Dropped " + dropped + " junk item(s) to make room: " + names);
+                if (dropped > 0) if (CompanionsPlugin.LogNormal) Info("Dropped " + dropped + " junk item(s) to make room: " + names);
                 return inv.CanAddItem(incoming, incoming.m_stack);
             }
             catch (Exception e) { Warn("TryMakeRoom: " + e.Message); return false; }
@@ -560,7 +562,9 @@ namespace Companions
         {
             try
             {
-                if (targetType != "TreeBase" && targetType != "TreeLog") return;
+                // 1.5.66: only a felled tree comes down on it - a broken log just leaves its pieces lying (user, log 2285db5e:
+                // "Runs off a few steps after chopping a log then goes back to get the dropped items")
+                if (targetType != "TreeBase") return;
                 Transform t = h.transform;
                 Vector3 fwd = t.forward; fwd.y = 0f;
                 if (fwd.sqrMagnitude < 0.01f) return;
@@ -571,7 +575,7 @@ namespace Companions
                 Vector3 pick = ha >= hb ? a : b;          // uphill side: rolling logs go downhill
                 Per p = P(h);
                 p.DodgePoint = pick; p.DodgeUntil = Time.time + 2.5f;
-                Debug("Stepping aside from the falling " + (targetType == "TreeBase" ? "tree" : "log"));
+                if (CompanionsPlugin.LogDetailed) Debug("Stepping aside from the falling " + (targetType == "TreeBase" ? "tree" : "log"));
             }
             catch { }
         }
@@ -624,7 +628,7 @@ namespace Companions
                     Container c = h.FindNearestChest(cs != null && cs.HasHomePosition() ? cs.GetHomePosition() : h.transform.position);
                     if (c != null && ai != null && hum != null)
                     {
-                        Info("Too heavy - taking a load to \"" + c.m_name + "\" " + Vector3.Distance(h.transform.position, c.transform.position).ToString("F0") + "m away");
+                        if (CompanionsPlugin.LogNormal) Info("Too heavy - taking a load to \"" + c.m_name + "\" " + Vector3.Distance(h.transform.position, c.transform.position).ToString("F0") + "m away");
                         h.ResetToIdle();
                         h.RestoreLoadout();
                         ai.SetPendingDeposit(c, hum);
@@ -635,7 +639,7 @@ namespace Companions
                 if (!p.TooHeavy)
                 {
                     p.TooHeavy = true;
-                    Info("Too heavy and nowhere to put things - pausing the job until there's room");
+                    if (CompanionsPlugin.LogNormal) Info("Too heavy and nowhere to put things - pausing the job until there's room");
                     h.ResetToIdle();
                     h.RestoreLoadout();
                 }
@@ -643,7 +647,7 @@ namespace Companions
                 {
                     p.NextHeavySpeak = now + 60f;
                     CompanionTalk t = h.GetComponent<CompanionTalk>();
-                    if (t != null) t.Say(ModLocalization.Loc("hc_speech_overweight"), false);
+                    if (t != null) t.SayProblem("overweight", ModLocalization.Loc("hc_speech_overweight"));
                 }
             }
             catch (Exception e) { Warn("HandleOverweight: " + e.Message); }
@@ -666,6 +670,9 @@ namespace Companions
                     if (c == null || c.GetInventory() == null || !c.GetInventory().HaveEmptySlot()) continue;
                     if (c.GetComponent<TombStone>() != null || c.GetComponentInParent<TombStone>() != null) continue;
                     if (c.GetComponentInParent<Character>() != null) continue;
+                    // 1.5.70: a chest, cart or ship a player built - not a world chest in a hut or camp
+                    Piece built = c.GetComponentInParent<Piece>();
+                    if (built == null || !built.IsPlacedByPlayer()) continue;
                     bool mobile = c.GetComponentInParent<Vagon>() != null || c.GetComponentInParent<Ship>() != null;
                     if (mobile && atHome) continue;                   // at home, chests only
                     if (MHR_Chests.InUse(c)) continue;   // 1.4.153: also open on another player's game
@@ -746,7 +753,7 @@ namespace Companions
                 p.PileSpot = spot; p.PileHas = true;
             }
             p.PilePoint = p.PileSpot; p.PileActive = true; p.PileUntil = Time.time + 25f;
-            Info("Taking the stone to a pile out of the way");
+            if (CompanionsPlugin.LogNormal) Info("Taking the stone to a pile out of the way");
             return true;
         }
         static void DropStone(HarvestController h, Per p)
@@ -769,7 +776,7 @@ namespace Companions
                 n += count;
             }
             P(h).PackFull = false;
-            if (n > 0) Info("Piled " + n + " stone");
+            if (n > 0) if (CompanionsPlugin.LogNormal) Info("Piled " + n + " stone");
         }
 
         // Approach trees and logs from the uphill side when the ground slopes.
@@ -808,8 +815,8 @@ namespace Companions
             ZNetView nv = c.GetComponent<ZNetView>();
             return (nv != null && nv.IsValid() && nv.GetZDO() != null) ? nv.GetZDO().GetInt(CompanionSetup.ActionModeHash, 0) : 0;
         }
-        static void Info(string m) { if (CompanionsPlugin.Log != null) CompanionsPlugin.Log.LogInfo("[Gather] " + m); }
-        static void Debug(string m) { if (CompanionsPlugin.Log != null) CompanionsPlugin.Log.LogDebug("[Gather] " + m); }
+        static void Info(string m) { if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Gather] " + m); }
+        static void Debug(string m) { if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[Gather] " + m); }
         static void Warn(string m) { if (CompanionsPlugin.Log != null) CompanionsPlugin.Log.LogWarning("[Gather] " + m); }
     }
 }

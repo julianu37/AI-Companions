@@ -13,6 +13,9 @@ internal struct FarmZone
 
 	public float Rotation;
 
+	// 1.5.42: not a zone the player set - a patch of ground they tilled, used as an "Any" zone ([Farming] PlantTilledGround)
+	public bool Tilled;
+
 	public bool IsValid => HalfSize > 0f;
 
 	public bool Contains(Vector3 pos)
