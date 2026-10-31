@@ -1024,6 +1024,11 @@ comandos de console e spawna coisas, então não é feature de jogador.
   `Commands.cs` chama `CompanionSetup`/`CompanionManager` **direto** (mesma assembly), sem reflexão.
 - **Ligar:** `[Advanced] DevBridge = true` no `AiCompanions.cfg` e reiniciar o jogo; o log diz
   `[DevBridge] listening on 127.0.0.1:47110`.
+- **Regra ao entrar no mundo:** `world_enter` já roda o `world.setup` — `devcommands` (**uma vez**; o comando é um
+  toggle), `tod 0.5` (meio-dia) e `god on` + `heal`. **Nunca** dirigir o player sem isso (o agente já morreu para um
+  greyling enquanto mexia no bridge). O `god` do Valheim 1.0 **não** cancela o dano: ele trava o HP em **1** quando o
+  golpe mataria (`Character.cs`), então o `heal` é obrigatório para a barra não ficar em 1. `setup: false` no
+  `world_enter` desliga.
 - **Testar:** `python tools/mcp-devbridge/test_mcp_devbridge.py` (mock, sem jogo) — 41 checks.
 - **Docs:** `docs/mcp-devbridge.md` (arquitetura, protocolo, as **37** ferramentas, a receita de **jogar pelo agente**
   e as evidências dos testes da 1.9.4) e `tools/mcp-devbridge/README.md` (parâmetros/exemplos).
