@@ -989,7 +989,9 @@ public class CompanionSetup : MonoBehaviour
 			int actionModeSchema = zDO.GetInt(ActionModeSchemaHash);
 			bool follow = zDO.GetBool(FollowHash, defaultValue: true);
 			bool stayHome = zDO.GetBool(StayHomeHash);
-			bool autoPickup = zDO.GetBool(AutoPickupHash, defaultValue: true);
+			// 1.9.4: dying while it is getting its gear back must record what the PLAYER chose, not the values the
+			// recovery forces (auto-pickup off, stance Passive) - see MHR_Recover.RememberedAutoPickup.
+			bool autoPickup = MHR_Recover.RememberedAutoPickup(zDO);
 			bool wander = zDO.GetBool(WanderHash);
 			int num = zDO.GetInt(IsCommandableHash, 1);
 			int formationSlot = zDO.GetInt(FormationSlotHash, -1);
@@ -1037,7 +1039,7 @@ public class CompanionSetup : MonoBehaviour
 			}
 			bool flag2 = HasHomePosition();
 			Vector3 homePos = (flag2 ? GetHomePosition() : Vector3.zero);
-			int combatStance = zDO.GetInt(CombatStanceHash);
+			int combatStance = MHR_Recover.RememberedStance(zDO);
 			bool hasHomeBed = zDO.GetBool(HasHomeBedHash);
 			Vector3 vec = zDO.GetVec3(HomeBedPosHash, Vector3.zero);
 			CreateCompanionTombstone(text, vector, tombstoneId, prefabName, appearance, ownerId, actionMode, actionModeSchema, follow, stayHome, autoPickup, wander, num != 0, formationSlot, skillsSerialized, flag2, homePos, combatStance, hasHomeBed, vec);
