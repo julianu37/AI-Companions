@@ -91,6 +91,18 @@ found and is fixed here:
   (`Wood`, `Stone`, `Ore`, `Upkeep`, `Chat`), and `SpeechConfig.Merge` fills any pool a hand-edited file omits.
 - **75 F8 labels and 2 tab names** that were still in English are translated; **991 keys per language**.
 
+### Fixed after the first test of the 2.0.0 build (the voice)
+
+- **The voice follows the game language, including when you change it with the world open.** The Kokoro model is one
+  file for every language, but it picks the **phonemizer when it is loaded** — and it was loaded once and kept, so
+  switching the game to Portuguese kept `pf_dora` reading Portuguese with English phonemes (the panel and the log both
+  said `pt-br`, and the audio was English-sounding). The model is now rebuilt on the synthesis thread, with the audio
+  cache dropped, whenever the effective language changes — by the game's language or by `[AI] TtsLanguage`.
+- **`[AI] TtsLanguage` offers only the five languages the mod speaks** (`pt-br`, `en-us`, `es`, `fr`, `it`), each one
+  synthesized out of the game with the shipped model. `en-gb` and `fr-fr` load but fail on the first synthesis (a
+  `NullReferenceException` from the binding), and `ja`/`zh`/`hi` have no interface or lines here. A hand-edited code
+  outside the five **keeps the working model** instead of leaving the companion mute.
+
 ## 1.9.1 — 26/10/2026
 
 **A ~54 MB lighter package.** The `ggml-base-q5_1.bin` model (57 MB) is **no longer shipped**: the mod never used it

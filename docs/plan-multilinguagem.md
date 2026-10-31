@@ -24,6 +24,12 @@ depois **JA/ZH** (dependem de validação no sherpa e, no zh, dos `lexicon-zh.tx
 > **trocar o idioma sem reiniciar** (F8, painel `I` e os formatos do HUD), e o `[TTS] idioma efetivo` deixou de chamar
 > de "auto" uma voz explícita que foi substituída.
 >
+> ⚠️ **O que a M1 não entregou (corrigido na 2.0.0):** a UI, as falas e o STT seguiam o idioma, mas o **modelo do TTS
+> não** — o `Lang` do Kokoro escolhe o fonemizador **no load** e o `OfflineTts` era carregado uma vez e mantido, então
+> trocar o jogo para PT-BR deixava a voz portuguesa (`pf_dora`) lendo português com fonemas ingleses (soava como
+> inglês) e o cache de áudio continuava servindo as amostras antigas. Agora o worker compara `Language` com o idioma
+> com que o modelo foi construído, recarrega antes da fala seguinte e esvazia o cache. Ver `docs/re/tts-kokoro-sherpa-onnx.md` §4.
+>
 > **M3 entregue (ver `AGENTS.md`, *Fase M3 da multilinguagem*):** `Translations/Spanish.json` + `French.json` (737
 > chaves, mesma ordem do PT) e `Speech/Spanish.json` + `French.json` (15 categorias / 186 linhas, 1:1), gerados por
 > `tools/gen_translations.py` a partir do PT; os presets de personalidade (`AI/CompanionPersona.cs`) passaram a ter

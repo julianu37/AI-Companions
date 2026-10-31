@@ -76,6 +76,16 @@ at), **`sit`** (sit by a fire) and **`deposit`** (put what the companion carries
   and personality) survives being recovered at Odin's Shrine; the log of the new patches costs nothing with the log
   off; and the `[General] MaxCompanions` description now says when a dismissed companion's slot comes free.
 
+### The voice follows the game's language now
+
+- **Changing the language with the world open rebuilds the voice.** The Kokoro model picks the phonemizer when it is
+  loaded, so switching to Portuguese used to keep an English-sounding voice (with the panel and the log both saying
+  `pt-BR · pf_dora`). The line after the switch now comes out in the new language, and the audio generated with the old
+  one is thrown away.
+- **`[AI] TtsLanguage` lists the five languages of the mod** (`pt-br`, `en-us`, `es`, `fr`, `it`). `en-gb` and `fr-fr`
+  load the model but fail on the first synthesis, and `ja`/`zh`/`hi` have no interface or lines here. A code outside the
+  five keeps the voice that works instead of silencing the companion.
+
 ## How to update
 
 1. Close the game and **unzip over the old folder** (keep `BepInEx\config\AiCompanions.cfg` — your settings, the AI

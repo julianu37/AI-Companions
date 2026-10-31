@@ -274,7 +274,17 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
 - **Fase 3.4 — o companheiro FALA (TTS local, Kokoro-82M via sherpa-onnx):** o espelho do `WhisperStt`. Novo
   `AI/CompanionTts.cs`: o `OfflineTts` (NuGet **`org.k2fsa.sherpa.onnx`** 1.13.8, **Apache-2.0**, `netstandard2.0`
   → net472; nativos `sherpa-onnx-c-api.dll` + `onnxruntime.dll` do `...runtime.win-x64`) é carregado **uma vez**
-  (`TryGetTts`, lazy) e mantido; `Prewarm()` carrega em segundo plano quando você entra no mundo. A síntese roda
+  (`TryGetTts`, lazy) e mantido; `Prewarm()` carrega em segundo plano quando você entra no mundo. **2.0.0: até o
+  idioma mudar** — o `Lang` do Kokoro escolhe o **fonemizador** no load, então trocar o idioma do jogo (ou
+  `[AI] TtsLanguage`) com o mundo aberto deixava a voz `pf_dora` lendo português com fonemas ingleses (soava como
+  inglês; o log dizia `idioma pt-br` e mentia, porque `_loadedLanguage` não existia). Agora o worker compara
+  `Language` com `_loadedLanguage` antes de cada fala, **libera e recarrega** o modelo (só ele toca no nativo) e
+  **esvazia o cache** (`ClearCache`, as amostras eram do fonemizador antigo); `NoticeLanguageChange` (postfix do
+  `SetupLanguage` + `SettingChanged` do `[AI] TtsLanguage`) só levanta o flag e acorda a thread, então o postfix
+  continua sem tocar a camada de plataforma. Um código **fora dos 5 do mod** não recarrega nada (o modelo que
+  funciona fica, com um aviso): medido fora do jogo com o modelo empacotado, **`en-gb` e `fr-fr` carregam mas
+  `Generate` estoura `NullReferenceException`** — por isso a lista do F8 tem só `pt-br`/`en-us`/`es`/`fr`/`it`.
+  A síntese roda
   numa **thread de fundo dedicada** (`ModIA-CompanionTts`) alimentada por `ConcurrentQueue` + `SemaphoreSlim`
   (teto de 3 pedidos), e os pedaços prontos voltam por outra `ConcurrentQueue` drenada no `Update` — o jogo nunca
   espera. **Por frase** (`SplitSentences`: `.` `!` `?` `…` e quebras de linha; ponto entre dígitos é decimal; uma

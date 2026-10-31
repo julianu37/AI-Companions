@@ -25,7 +25,7 @@ O `LlmClient` é a única coisa que sai da máquina.
 | `a` | inglês americano | `en-us` | `English` |
 | `b` | inglês britânico | `en-gb` | (não existe no jogo; opção do jogador) |
 | `e` | espanhol | `es` | `Spanish` |
-| `f` | francês | `fr-fr` | `French` |
+| `f` | francês | **`fr`** (`fr-fr` **não funciona** — ver abaixo) | `French` |
 | `h` | hindi | `hi` | (não existe no jogo) |
 | `i` | italiano | `it` | `Italian` |
 | `j` | japonês | (G2P próprio) | `Japanese` |
@@ -34,6 +34,12 @@ O `LlmClient` é a única coisa que sai da máquina.
 
 `[AI] TtsLanguage` é **obrigatório** para este modelo (vazio ⇒ o sherpa recusa carregar): `pt-br`, `en-us`,
 `en-gb`, `es`, `fr`, `hi`, `it`, `ja`, `zh`.
+
+**Medido no jogo (30/10/2026, harness com o modelo empacotado):** funcionam `pt-br`, `pt`, `en-us`, `es`, `fr`,
+`it`, `ja`, `zh`, `hi`. **`en-gb` e `fr-fr` carregam (`NumSpeakers` > 0) mas `Generate` estoura
+`NullReferenceException`** — o código tem que ser exatamente o do espeak que este export embarca (`fr`, não `fr-fr`;
+`en-us`, não `en-gb`). Por isso a lista do F8 do mod tem **apenas os 5** que ele fala (`pt-br`, `en-us`, `es`, `fr`,
+`it`), e um código fora deles não derruba o modelo que está carregado.
 
 Três nuances que a lista de `lang_code` do projeto Python **não** conta:
 
@@ -87,6 +93,12 @@ melhoria pendente.
 - **Uma `AudioSource` 3D** na posição do companheiro, **`reverbZoneMix = 0`** (a `AudioReverbZone` global do
   Valheim tem raio de 1000 m e 4 s de cauda — sem isso a fala ecoa), uma fala por vez, `AudioClip` destruído no fim.
 - **Síntese em thread de fundo** (`SemaphoreSlim` + filas), cache por **bytes** (32 MB) só das linhas do mod.
+- **Trocar o idioma recarrega o modelo (2.0.0)**: o `Lang` escolhe o **fonemizador no load**, então o `OfflineTts`
+  um-dia-carregado ficava no idioma antigo (voz `pf_dora` lendo português com fonemas ingleses, com o log dizendo
+  `idioma pt-br`). Agora `_loadedLanguage` + `DropModelIfLanguageChanged` (só a thread de síntese libera, nunca outra)
+  e `NoticeLanguageChange` (postfix do `SetupLanguage` + `SettingChanged` do `[AI] TtsLanguage`) reconstroem o modelo
+  antes da fala seguinte e **esvaziam o cache** (as amostras eram do fonemizador antigo). Não reverter para "carrega
+  uma vez e nunca mais".
 - **RTF medido nesta máquina**: 0,73–1,07 com 4 threads (mais rápido que o tempo real). Na Raspberry Pi 4 o
   sherpa mede 3,19 com 4 threads — CPU fraca é o caso em que a fala "atrasa".
 - **`Shutdown`** espera a thread (`Join(5000)`) e libera o `OfflineTts`; `Process`/`Speak` recusam depois do
