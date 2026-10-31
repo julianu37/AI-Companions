@@ -324,6 +324,27 @@ TOOLS = [
         },
     },
     {
+        "name": "world_aim",
+        "description": "Raycasts the crosshair and reports what is under it (name, distance, point, whether it is a tree or which creature).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"max": {"type": "number", "minimum": 1, "maximum": 200, "default": 100}},
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "world_nearest",
+        "description": "Finds the nearest tree or creature around the player (kind 'tree' or 'creature') - the target to aim at.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "kind": {"type": "string", "enum": ["tree", "creature"], "default": "tree"},
+                "max": {"type": "number", "minimum": 1, "maximum": 300, "default": 100},
+            },
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "world_time",
         "description": (
             "Reads/sets the world clock. 'day' is the 0-based EnvMan day, 'time' is seconds into the day "
@@ -664,6 +685,10 @@ def run_tool(name, args):
             if key in args:
                 payload[key] = args[key]
         return require_ok(call_bridge("world.spawn", **payload))
+    if name == "world_aim":
+        return require_ok(call_bridge("world.aim", max=args.get("max", 100)))
+    if name == "world_nearest":
+        return require_ok(call_bridge("world.nearest", kind=args.get("kind", "tree"), max=args.get("max", 100)))
     if name == "world_time":
         payload = {}
         for key in ("day", "time", "fraction", "skip"):

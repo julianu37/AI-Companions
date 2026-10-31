@@ -87,6 +87,8 @@ internal static class Commands
 			case "player.inventory": return PlayerInventory(args);
 			case "world.spawn": return WorldSpawn(args);
 			case "world.time": return WorldTime(args);
+			case "world.aim": return WorldAim(args);
+			case "world.nearest": return WorldNearest(args);
 			case "screenshot": return Screenshot(args);
 			case "render.view": return RenderView(args);
 			case "input.focus": return InputFocus();
@@ -154,7 +156,125 @@ internal static class Commands
 		data["day"] = DayNumber();
 		data["dayFraction"] = EnvMan.instance != null ? EnvMan.instance.GetDayFraction() : 0f;
 		data["time"] = ZNet.instance != null ? ZNet.instance.GetTimeSeconds() : 0f;
+		data["yaw"] = p.transform.eulerAngles.y;
+		Camera cam = ViewCamera();
+		if (cam != null)
+		{
+			Vector3 forward = cam.transform.forward;
+			data["pitch"] = -Mathf.Asin(Mathf.Clamp(forward.y, -1f, 1f)) * Mathf.Rad2Deg;
+			data["camYaw"] = Mathf.Atan2(forward.x, forward.z) * Mathf.Rad2Deg;
+		}
 		return Ok(data);
+	}
+
+	/// <summary>The camera the player is looking through (the game camera, or the main camera as a fallback).</summary>
+	private static Camera ViewCamera()
+	{
+		if (GameCamera.instance != null)
+		{
+			Camera cam = GameCamera.instance.GetComponentInChildren<Camera>();
+			if (cam != null)
+			{
+				return cam;
+			}
+		}
+		return Camera.main;
+	}
+
+	/// <summary>What the crosshair is on: the hit collider, its distance and whether it is a tree/creature.</summary>
+	private static string WorldAim(Dictionary<string, object> args)
+	{
+		Player p = Player.m_localPlayer;
+		if (p == null)
+		{
+			return Fail("no player in the world");
+		}
+		Camera cam = ViewCamera();
+		if (cam == null)
+		{
+			return Fail("no camera");
+		}
+		float max = Mathf.Clamp(Json.Float(args, "max", 100f), 1f, 200f);
+		Ray ray = cam.ScreenPointToRay(new Vector3(Screen.width * 0.5f, Screen.height * 0.5f, 0f));
+		if (!Physics.Raycast(ray, out RaycastHit hit, max, ~0, QueryTriggerInteraction.Ignore))
+		{
+			return Ok(new Dictionary<string, object> { { "hit", false }, { "max", max } });
+		}
+		GameObject go = hit.collider != null ? hit.collider.gameObject : null;
+		TreeBase tree = go != null ? go.GetComponentInParent<TreeBase>() : null;
+		Character creature = go != null ? go.GetComponentInParent<Character>() : null;
+		return Ok(new Dictionary<string, object>
+		{
+			{ "hit", true },
+			{ "name", go != null ? go.name : null },
+			{ "distance", hit.distance },
+			{ "x", hit.point.x },
+			{ "y", hit.point.y },
+			{ "z", hit.point.z },
+			{ "tree", tree != null },
+			{ "creature", creature != null ? creature.GetHoverName() : null }
+		});
+	}
+
+	/// <summary>The nearest tree or creature around the player (a dev aid to aim at something real).</summary>
+	private static string WorldNearest(Dictionary<string, object> args)
+	{
+		Player p = Player.m_localPlayer;
+		if (p == null)
+		{
+			return Fail("no player in the world");
+		}
+		string kind = (Json.Str(args, "kind") ?? "tree").Trim().ToLowerInvariant();
+		float max = Mathf.Clamp(Json.Float(args, "max", 100f), 1f, 300f);
+		Vector3 pos = p.transform.position;
+		Transform best = null;
+		float bestDistance = float.MaxValue;
+		if (kind == "tree")
+		{
+			foreach (TreeBase tree in UnityEngine.Object.FindObjectsByType<TreeBase>(UnityEngine.FindObjectsSortMode.None))
+			{
+				if (tree == null)
+				{
+					continue;
+				}
+				float d = Vector3.Distance(pos, tree.transform.position);
+				if (d < bestDistance && d <= max)
+				{
+					bestDistance = d;
+					best = tree.transform;
+				}
+			}
+		}
+		else
+		{
+			foreach (Character c in UnityEngine.Object.FindObjectsByType<Character>(UnityEngine.FindObjectsSortMode.None))
+			{
+				if (c == null || c.IsPlayer() || c.IsDead())
+				{
+					continue;
+				}
+				float d = Vector3.Distance(pos, c.transform.position);
+				if (d < bestDistance && d <= max)
+				{
+					bestDistance = d;
+					best = c.transform;
+				}
+			}
+		}
+		if (best == null)
+		{
+			return Ok(new Dictionary<string, object> { { "found", false }, { "kind", kind }, { "max", max } });
+		}
+		return Ok(new Dictionary<string, object>
+		{
+			{ "found", true },
+			{ "kind", kind },
+			{ "name", best.gameObject.name },
+			{ "distance", bestDistance },
+			{ "x", best.position.x },
+			{ "y", best.position.y },
+			{ "z", best.position.z }
+		});
 	}
 
 	private static int DayNumber()
