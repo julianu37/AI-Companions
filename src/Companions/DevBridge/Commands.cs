@@ -89,6 +89,7 @@ internal static class Commands
 			case "world.time": return WorldTime(args);
 			case "world.aim": return WorldAim(args);
 			case "world.nearest": return WorldNearest(args);
+			case "world.setup": return WorldSetup(args);
 			case "screenshot": return Screenshot(args);
 			case "render.view": return RenderView(args);
 			case "input.focus": return InputFocus();
@@ -157,6 +158,7 @@ internal static class Commands
 		data["dayFraction"] = EnvMan.instance != null ? EnvMan.instance.GetDayFraction() : 0f;
 		data["time"] = ZNet.instance != null ? ZNet.instance.GetTimeSeconds() : 0f;
 		data["yaw"] = p.transform.eulerAngles.y;
+		data["god"] = p.InGodMode();
 		Camera cam = ViewCamera();
 		if (cam != null)
 		{
@@ -285,6 +287,31 @@ internal static class Commands
 		}
 		MethodInfo m = typeof(EnvMan).GetMethod("GetCurrentDay", BindingFlags.Instance | BindingFlags.NonPublic);
 		return m != null ? Convert.ToInt32(m.Invoke(EnvMan.instance, null)) : 0;
+	}
+
+	/// <summary>Dev setup right after entering the world: dev commands (toggled only once - the command flips a bool),
+	/// the time of day (0.5 = midday) and god mode, so the agent can drive the player without dying.</summary>
+	private static string WorldSetup(Dictionary<string, object> args)
+	{
+		if (global::Console.instance == null)
+		{
+			return Fail("the console is not available");
+		}
+		if (!global::Console.m_cheat)
+		{
+			global::Console.instance.TryRunCommand("devcommands", silentFail: true);
+		}
+		float fraction = Mathf.Clamp(Json.Float(args, "time", 0.5f), 0f, 0.999f);
+		global::Console.instance.TryRunCommand("tod " + fraction.ToString(CultureInfo.InvariantCulture), silentFail: true);
+		bool wantGod = Json.Bool(args, "god", true);
+		global::Console.instance.TryRunCommand(wantGod ? "god on" : "god off", silentFail: true);
+		Player p = Player.m_localPlayer;
+		return Ok(new Dictionary<string, object>
+		{
+			{ "cheats", global::Console.m_cheat },
+			{ "god", p != null && p.InGodMode() },
+			{ "time", EnvMan.instance != null ? EnvMan.instance.GetDayFraction() : 0f }
+		});
 	}
 
 	private static string ConsoleCommand(Dictionary<string, object> args)

@@ -127,7 +127,7 @@ def main():
 
         tools = rpc("tools/list", request_id=2).get("result", {}).get("tools", [])
         names = {tool["name"] for tool in tools}
-        check("tools/list has 36 tools", len(tools) == 36, "%d tools" % len(tools))
+        check("tools/list has 37 tools", len(tools) == 37, "%d tools" % len(tools))
         for expected in ("devbridge_ping", "game_status", "companions_list", "companions_order", "screenshot", "log_tail",
                          "player_kill", "player_inventory", "world_time", "companions_kill", "companions_tier",
                          "companions_hire", "companions_resurrect", "companions_farm_zone", "log_watch"):
@@ -223,4 +223,5 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+
 

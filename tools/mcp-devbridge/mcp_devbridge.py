@@ -117,6 +117,12 @@ def world_enter(args):
             time.sleep(step_delay)
         data = poll(min(wait, 45))
         if data:
+            # Always set the world up for driving the player: dev commands, midday and god mode. Without it the
+            # agent dies to a greyling while it is busy with the bridge.
+            if args.get("setup", True):
+                time.sleep(1.5)
+                data = dict(data)
+                data["setup"] = require_ok(call_bridge("world.setup", time=args.get("time", 0.5)))
             return data
         time.sleep(2)
     raise RuntimeError("the key sequence did not load the world in %d s (Space > Down > Enter x3, 3 attempts)" % wait)
@@ -345,6 +351,18 @@ TOOLS = [
         },
     },
     {
+        "name": "world_setup",
+        "description": "Dev setup for driving the player: enables dev commands (once), sets the time of day (0.5 = midday) and turns god mode on (or off with god=false).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "time": {"type": "number", "minimum": 0, "maximum": 0.999, "default": 0.5},
+                "god": {"type": "boolean", "default": True},
+            },
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "world_time",
         "description": (
             "Reads/sets the world clock. 'day' is the 0-based EnvMan day, 'time' is seconds into the day "
@@ -490,10 +508,15 @@ TOOLS = [
     },
     {
         "name": "world_enter",
-        "description": "Skips the intro and enters the world (Space > Down > Enter > Enter > Enter) and waits for it to load. Use after launching the game.",
+        "description": "Skips the intro and enters the world (Space > Down > Enter > Enter > Enter) and waits for it to load. Then runs the dev setup (devcommands, tod 0.5, god on) so the agent can drive the player without dying.",
         "inputSchema": {
             "type": "object",
-            "properties": {"wait": {"type": "integer", "minimum": 10, "maximum": 300, "default": 120}},
+            "properties": {
+                "wait": {"type": "integer", "minimum": 10, "maximum": 300, "default": 120},
+                "delay": {"type": "integer", "minimum": 0, "maximum": 180, "default": 0},
+                "setup": {"type": "boolean", "default": True, "description": "run devcommands + tod 0.5 + god on after loading"},
+                "time": {"type": "number", "minimum": 0, "maximum": 0.999, "default": 0.5},
+            },
             "additionalProperties": False,
         },
     },
@@ -689,6 +712,9 @@ def run_tool(name, args):
         return require_ok(call_bridge("world.aim", max=args.get("max", 100)))
     if name == "world_nearest":
         return require_ok(call_bridge("world.nearest", kind=args.get("kind", "tree"), max=args.get("max", 100)))
+    if name == "world_setup":
+        payload = {"time": args.get("time", 0.5), "god": args.get("god", True)}
+        return require_ok(call_bridge("world.setup", **payload))
     if name == "world_time":
         payload = {}
         for key in ("day", "time", "fraction", "skip"):
