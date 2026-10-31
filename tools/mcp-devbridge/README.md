@@ -108,6 +108,32 @@ Single-player host only (it writes `ZNet.SetNetTime`).
 { "before": 1234.5, "time": 3600.0, "day": 3, "fraction": 0.5, "dayLength": 1200 }
 ```
 
+### `world_aim`
+
+Raycasts the crosshair and reports what is under it. Useful to check the aim before attacking.
+
+| param | type | default |
+|---|---|---|
+| `max` | number (1..200) | 100 |
+
+```json
+{"hit": true, "name": "viewblock", "distance": 5.17, "x": -63.5, "y": 82.75, "z": 55.95, "tree": true, "creature": null}
+```
+
+### `world_nearest`
+
+The nearest **tree** or **creature** around the player - the target to aim at (pair with `game_status` `camYaw` and
+`input_mouse_move`).
+
+| param | type | default |
+|---|---|---|
+| `kind` | `tree` / `creature` | `tree` |
+| `max` | number (1..300) | 100 |
+
+```json
+{"found": true, "kind": "tree", "name": "Beech1(Clone)", "distance": 8.37, "x": -63.39, "y": 82.1, "z": 55.57}
+```
+
 ### `screenshot`
 
 | param | type |
@@ -141,18 +167,21 @@ An **independent off-screen camera**: it renders the world from any point/angle 
 Returns the PNG inline (same shape as `screenshot`). The bridge command is `render.view` and answers `path`, `size`,
 `bytes`, `target` and `camera` (the position it used).
 
-### `input_focus` / `input_key` / `input_key_down` / `input_key_up` / `input_text` / `input_click`
+### `input_focus` / `input_key` / `input_key_down` / `input_key_up` / `input_text` / `input_click` / `input_mouse_down` / `input_mouse_up` / `input_mouse_move`
 
-Keyboard/mouse injection for the game window (Windows `SendInput`). Every call focuses the Valheim window first and
-refuses to type when another window has the focus, so it cannot type into another application.
+Keyboard/mouse injection. Every call focuses the Valheim window first (best effort: the synthetic events go straight
+into the Unity **Input System**, which the game reads, so they work even when Windows refuses the focus). The legacy
+`SendInput` is sent too - that is the path the mod's own UI uses.
 
 | tool | params |
 |---|---|
 | `input_focus` | — |
-| `input_key` | `key` (KeyCode name: `Escape`, `F8`, `Return`, `W`, `Alpha1`) |
-| `input_key_down` / `input_key_up` | `key` (for holds: the command wheel) |
+| `input_key` | `key` (KeyCode name: `Escape`, `F8`, `Return`, `W`, `LeftShift`, `Alpha1`) |
+| `input_key_down` / `input_key_up` | `key` (holds: walk with `W`, run with `LeftShift` + `W`) |
 | `input_text` | `text` (Unicode: accents work) |
 | `input_click` | `x`, `y` (game screen pixels - the same coordinates as `screenshot`) |
+| `input_mouse_down` / `input_mouse_up` | `x`, `y` (attack: press/release in separate frames) |
+| `input_mouse_move` | `dx`, `dy` (camera turn; measured **0.05 deg/px**) |
 
 ### `log_tail`
 | param | type | default |

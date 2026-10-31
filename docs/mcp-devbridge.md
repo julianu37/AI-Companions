@@ -116,14 +116,18 @@ o cursor logo depois dela).
 `Wander`, `Follow`, `StayHome`, `HomeRadius`, `OrderCap`, `OrderCapMode`, `OrderCapItem`, `TombstoneId`, `Stamina`,
 `Recovering`, `RecoverStance`, `RecoverPickup`, `Voice`, `Gen`, `FarmZones` (`"<none>"` ou `"N chars"`).
 
-## Ferramentas MCP (30)
+## Ferramentas MCP (36)
 
-Genéricas: `devbridge_ping`, `game_status`, `game_console`, `player_give`, `player_teleport`, `player_kill`,
-`player_inventory`, `world_spawn`, `world_time`, `screenshot` (a visão do jogador), `render_view` (câmera **off-screen**,
-não mexe na visão do jogador), `log_tail`, `log_watch`.
+Genéricas: `devbridge_ping`, `game_status` (posição, hp/stamina, bioma, dia, **yaw** do player e **camYaw/pitch** da
+câmera), `game_console`, `player_give`, `player_teleport`, `player_kill`, `player_inventory`, `world_spawn`,
+`world_time`, `world_aim` (o que está **sob a mira**: nome, distância, ponto, se é árvore/criatura), `world_nearest`
+(a **árvore** ou **criatura** mais próxima — o alvo para mirar), `screenshot` (a visão do jogador), `render_view`
+(câmera **off-screen**, não mexe na visão do jogador), `log_tail`, `log_watch`.
 
-Input (teclado/mouse via `SendInput`, só com a janela do jogo em foco): `input_focus`, `input_key`, `input_key_down`,
-`input_key_up`, `input_text`, `input_click`.
+Input (teclado/mouse no **Unity Input System** — o caminho que o jogo lê — e também no `SendInput` legado, que é o
+da UI do mod): `input_focus`, `input_key`, `input_key_down`, `input_key_up` (seguram teclas, então `Shift+W` corre e
+`W` anda), `input_text`, `input_click`, `input_mouse_down`, `input_mouse_up`, `input_mouse_move` (**gira a câmera**:
+manda o delta do `<Mouse>/delta`, que é o eixo do `ZInput.GetMouseDelta`).
 
 Companheiros: `companions_list`, `companions_spawn`, `companions_order`, `companions_teleport`, `companions_give`,
 `companions_zdo`, `companions_kill`, `companions_tier`, `companions_hire`, `companions_resurrect`,
@@ -141,6 +145,7 @@ Parâmetros e exemplos: `tools/mcp-devbridge/README.md`.
 | plugin separado no jogo | **removido**; agora só existe o módulo dentro da `Companions.dll` |
 | ponta a ponta no jogo, módulo **standalone** (mundo `test3`) | **os 4 testes da 1.9.4 passaram** |
 | ponta a ponta no jogo, módulo **na DLL** (mundo `test3`, 31/10/2026) | **24/24 PASS** — as **23 ferramentas**, incluindo kill/resurrect/tier/hire |
+| **controle do player** (mundo `test3`, 31/10/2026) | **andar, correr, pular, olhar, atacar e cortar uma árvore** — `Shift+W` gastou stamina (50 → 33,6), `mouse_move` girou a câmera, 16 golpes derrubaram a `Beech1` e a madeira entrou no inventário (2 → 3) |
 
 ### Validação na DLL (mundo `test3`, 31/10/2026)
 
@@ -227,6 +232,26 @@ meio, `screenshot` mostra a tela.
 
 `render_view` com `x`/`z` do ponto, `yaw`/`pitch` orbitando e `dist` — a câmera é off-screen, não mexe na visão do jogador.
 
+### Jogar pelo agente (andar, correr, pular, olhar, atacar, cortar árvore)
+
+Provado em jogo no mundo `test3` (31/10/2026): o agente andou, correu, pulou, girou a câmera, atacou com o machado e
+**derrubou uma árvore** ("Adicionado(a) Madeira", tronco no chão, madeira no inventário). A receita:
+
+1. **Andar/correr:** `input_key_down W` → `time.sleep(...)` → `input_key_up W`. Para correr, segure
+   `LeftShift` **junto** (`input_key_down LeftShift`, `input_key_down W`, depois solte os dois). O estado do teclado
+   acumula as teclas seguradas (`HashSet<Key> Held`), senão o segundo `key_down` soltava o primeiro.
+2. **Pular:** `input_key Space`. Custa stamina (50 → 39,5).
+3. **Olhar (câmera):** `input_mouse_move dx dy` — manda o **delta** do `<Mouse>/delta`, zerado no frame seguinte. A
+   calibração medida no jogo é **0,05 grau/px** (`dx = erro_em_graus / 0,05`).
+4. **Mirar em algo real:** `world_nearest kind=tree` (ou `creature`) dá a posição do alvo; `status` dá `x/z` do player
+   e `camYaw`. O yaw do alvo é `atan2(tx - px, tz - pz)` em graus; gire com `input_mouse_move` até o erro < 1,5°.
+   `world_aim` confirma o que está na mira (`tree: true`, distância, ponto).
+5. **Chegar perto:** segure `W` em passos de 0,5 s até `world_nearest` dizer ~3 m.
+6. **Atacar:** `input_mouse_down` + `input_mouse_up` no centro da tela (840, 525 no cliente 1680×1050). Cada golpe de
+   machado custa ~14 de stamina; a árvore cai e a madeira entra no inventário (`player_inventory`).
+
+Números medidos: andar ~3,5 m/s; correr ~5,1 m/s (stamina 50 → 33,6 em 2 s); 16 golpes derrubaram a `Beech1`.
+
 ## Armadilhas (já resolvidas, não repetir)
 
 - **O `ZInput` do Valheim 1.0 lê o Unity Input System NOVO** (`Keyboard.current[key].wasPressedThisFrame`), não o
@@ -237,9 +262,12 @@ meio, `screenshot` mostra a tela.
 - **Foco:** o Windows bloqueia `SetForegroundWindow` vindo do processo do jogo em background. O servidor MCP roda sob o
   app em foco e foca a janela (`FindWindowW("UnityWndClass")`) antes de cada input; o bridge ainda faz `SetFocus` na
   thread dona da janela.
-- **Mouse:** o clique vai por `SendInput` + `MouseState.WithButton(MouseButton.Left)` no Input System, mas a UI do
-  **mod** (uGUI/`Input` legado) só recebe o clique com a janela realmente focada; a injeção do Input System não chega
-  nela. Para clicar em painel do mod, o jogo precisa estar em primeiro plano de verdade.
+- **Mouse:** o clique e o olhar vão por `SendInput` **e** pelo Input System (`MouseState.WithButton`,
+  `<Mouse>/delta`). No **jogo** isso funciona (atacar, mirar, girar a câmera); na UI do **mod** (uGUI/`Input` legado)
+  só chega com a janela realmente em primeiro plano — a injeção do Input System não chega nela.
+- **Teclas seguradas:** um `QueueStateEvent` **substitui** o estado inteiro do teclado. `input_key_down` guarda as
+  teclas num `HashSet<Key>` e manda todas juntas; sem isso o `Shift+W` corria como `W` (o segundo `key_down` soltava o
+  primeiro) e o `key_up` de uma tecla soltava todas.
 - `EnvMan.GetCurrentDay()` é **privado** → reflexão (`Commands.DayNumber`).
 - O console do jogo é `Console : Terminal` (global) → usar `global::Console` para não colidir com `System.Console`.
 - `ScreenCapture.CaptureScreenshot` grava **no fim do quadro** → o servidor espera o arquivo (até 4 s).
