@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.LowLevel;
 
 namespace Companions.DevBridge;
 
@@ -218,17 +220,105 @@ internal static class InputSim
 
 	public static bool Tap(ushort vk)
 	{
-		return Send(KeyEvent(vk, up: false), KeyEvent(vk, up: true));
+		bool legacy = Send(KeyEvent(vk, up: false), KeyEvent(vk, up: true));
+		TapNew(vk);
+		return legacy;
 	}
 
 	public static bool Down(ushort vk)
 	{
-		return Send(KeyEvent(vk, up: false));
+		bool legacy = Send(KeyEvent(vk, up: false));
+		DownNew(vk);
+		return legacy;
 	}
 
 	public static bool Up(ushort vk)
 	{
-		return Send(KeyEvent(vk, up: true));
+		bool legacy = Send(KeyEvent(vk, up: true));
+		UpNew();
+		return legacy;
+	}
+
+	// ---- the game's own input (Valheim 1.0 uses the NEW Input System: ZInput.GetKeyDown reads
+	// Keyboard.current[key].wasPressedThisFrame, which SendInput alone does not feed) ----
+	private static int _releaseFrame = -1;
+
+	/// <summary>Queues the key press into the new Input System and schedules the release for the next frame, so the
+	/// game's Update sees the key down for at least one frame.</summary>
+	public static void TapNew(ushort vk)
+	{
+		Key key = ToKey(vk);
+		if (key == Key.None || Keyboard.current == null)
+		{
+			return;
+		}
+		InputSystem.QueueStateEvent(Keyboard.current, new KeyboardState(key));
+		_releaseFrame = Time.frameCount + 1;
+	}
+
+	public static void DownNew(ushort vk)
+	{
+		Key key = ToKey(vk);
+		if (key == Key.None || Keyboard.current == null)
+		{
+			return;
+		}
+		InputSystem.QueueStateEvent(Keyboard.current, new KeyboardState(key));
+		_releaseFrame = -1;
+	}
+
+	public static void UpNew()
+	{
+		if (Keyboard.current == null)
+		{
+			return;
+		}
+		InputSystem.QueueStateEvent(Keyboard.current, new KeyboardState());
+		_releaseFrame = -1;
+	}
+
+	/// <summary>Called every frame by the bridge: releases a tap after the game had a frame to see it.</summary>
+	public static void PumpNew()
+	{
+		if (_releaseFrame >= 0 && Time.frameCount >= _releaseFrame && Keyboard.current != null)
+		{
+			InputSystem.QueueStateEvent(Keyboard.current, new KeyboardState());
+			_releaseFrame = -1;
+		}
+	}
+
+	private static Key ToKey(ushort vk)
+	{
+		switch (vk)
+		{
+		case 0x20: return Key.Space;
+		case 0x0D: return Key.Enter;
+		case 0x1B: return Key.Escape;
+		case 0x28: return Key.DownArrow;
+		case 0x26: return Key.UpArrow;
+		case 0x25: return Key.LeftArrow;
+		case 0x27: return Key.RightArrow;
+		case 0x09: return Key.Tab;
+		case 0x08: return Key.Backspace;
+		case 0x2E: return Key.Delete;
+		}
+		if (vk >= 0x70 && vk <= 0x7B)
+		{
+			return (Key)((int)Key.F1 + (vk - 0x70));
+		}
+		if (vk >= 'A' && vk <= 'Z')
+		{
+			return (Key)((int)Key.A + (vk - 'A'));
+		}
+		if (vk == '0')
+		{
+			return Key.Digit0;
+		}
+		if (vk >= '1' && vk <= '9')
+		{
+			return (Key)((int)Key.Digit1 + (vk - '1'));
+		}
+		return Key.None;
 	}
 
 	/// <summary>Types the text as Unicode characters (works for accents and any layout).</summary>

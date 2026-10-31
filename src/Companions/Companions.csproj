@@ -85,6 +85,8 @@
     <Reference Include="UnityEngine.ScreenCaptureModule" HintPath="$(ManagedDir)\UnityEngine.ScreenCaptureModule.dll" Private="false" />
     <!-- DevBridge: Texture2D.EncodeToPNG for the off-screen render_view -->
     <Reference Include="UnityEngine.ImageConversionModule" HintPath="$(ManagedDir)\UnityEngine.ImageConversionModule.dll" Private="false" />
+    <!-- DevBridge: the game's ZInput reads the NEW Input System (InputSystem.QueueStateEvent for synthetic keys) -->
+    <Reference Include="Unity.InputSystem" HintPath="$(ManagedDir)\Unity.InputSystem.dll" Private="false" />
   </ItemGroup>
 
   <!-- UI textures, loaded at runtime by manifest resource name

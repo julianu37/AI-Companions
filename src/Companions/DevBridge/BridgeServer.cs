@@ -74,6 +74,7 @@ internal sealed class BridgeServer
 	/// <summary>Called from the plugin's Update: executes everything the clients asked for, on the main thread.</summary>
 	public void Pump()
 	{
+		InputSim.PumpNew();
 		while (_jobs.TryDequeue(out Job job))
 		{
 			try
