@@ -32,6 +32,11 @@ O `LlmClient` é a única coisa que sai da máquina.
 | `p` | português do Brasil | `pt-br` | `Portuguese_Brazilian` |
 | `z` | mandarim | (G2P próprio) | `Chinese` |
 
+> **`pt-br`, não `pt`** (pergunta recorrente): o próprio `espeak-ng-data\lang\roa\pt` diz `name Portuguese (Portugal)`
+> com `phonemes pt-pt`; o `lang\roa\pt-BR` diz `name Portuguese (Brazil)`, `language pt-br`. No harness o mesmo texto
+> sai com **80.058** amostras em `pt-br` e **72.154** em `pt` — são vozes diferentes, e a voz do mod (`pf_dora`) é a
+> brasileira. Trocar para `pt` mudaria o sotaque de quem já funciona.
+
 `[AI] TtsLanguage` é **obrigatório** para este modelo (vazio ⇒ o sherpa recusa carregar): `pt-br`, `en-us`,
 `en-gb`, `es`, `fr`, `hi`, `it`, `ja`, `zh`.
 

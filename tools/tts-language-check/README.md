@@ -34,6 +34,17 @@ modelo e o mesmo texto muda de áudio entre `pt-br` e `en-us`.
    escolhe o fonemizador (e, portanto, de que o modelo precisa ser recarregado quando o idioma muda).
 4. Os códigos que o F8 **não** oferece: `en-gb`, `fr-fr` (quebram no `Generate`), `pt` (português de Portugal, funciona).
 
+## Por que `pt-br` e não `pt` (está escrito no próprio espeak-ng empacotado)
+
+`espeak-ng-data\lang\roa\pt` diz `name Portuguese (Portugal)`, `language pt`, `language pt-pt`,
+`phonemes pt-pt`. O `espeak-ng-data\lang\roa\pt-BR` diz `name Portuguese (Brazil)`, `language pt-br`,
+`language pt 6` (o `pt` só como fallback de prioridade 6). São **duas vozes diferentes**, e no harness o mesmo texto
+sai com **80.058** amostras em `pt-br` e **72.154** em `pt`.
+
+O mesmo arquivo explica o `en-gb`: `lang\gmw\en` é `name English (Great Britain)` com `language en-gb` mas **sem linha
+`phonemes`** (só `en-US` tem `phonemes en-us`), então o Kokoro recebe um conjunto de fonemas vazio e o `Generate` falha.
+Regra: use o código que o espeak define **com fonemas** — `pt-br`, `en-us`, `es`, `fr`, `it`.
+
 ## Quando rodar
 
 - Depois de mexer em `CompanionTts`, `CompanionLocale` ou no catálogo de vozes.
