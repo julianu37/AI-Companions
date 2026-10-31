@@ -2118,6 +2118,48 @@ que é onde o modelo erra. Harness: 5 × 5 × 2 = 50 requisições, ~3,2 s cada 
    perto → o papo (`Chat`).
 7. **Multiplayer** (A3/A4), se houver: "guarda isso no baú" no baú privado de outro jogador → recusa.
 
+### 1.9.4 — a barba da companheira feminina: a 1.9.3 trocou um bug por outro (✅ build 0 erros, 1 aviso — o do `s_noDark`, que não é deste escopo; branch `fix/barba-sentinela`; **o teste em jogo é do jogador**)
+
+**O relato (31/10/2026, print do painel do starter):** gênero **Feminino** selecionado e a prévia 3D com a **barba do
+masculino**. O log da 1.9.3 entregou o caminho inteiro:
+
+```
+[AppearanceDiag] preview: gender=1 hair="Hair1"(1043840419) beard=""(0) | depois: hairInst=True beardInst=True
+prefabHair=True prefabBeard=False ...
+```
+
+O hash está certo (`0`), o prefab não existe (`prefabBeard=False`, esperado) e a instância **continua anexada**
+(`beardInst=True`).
+
+**Causa raiz (decompilado do `VisEquipment`):** `SetBeardEquipped` só destrói a instância quando o hash é
+**diferente** do que ele tem no cache —
+
+```csharp
+if (m_currentBeardItemHash == hash) return false;   // VisEquipment.cs:1133
+```
+
+— e o nosso `ResetVisualItemCache` (`CompanionSetup.cs:450-451`) limpava o cache com **`0`**, que é exatamente o
+valor de "sem barba". Resultado: `PrepareVisualAttach` gravava `0`, o `SetBeardEquipped(0)` **casava com o cache** e
+saía **antes de destruir** a barba do masculino. A 1.9.2 não tinha isso porque mandava `hash("")` (371857150): o hash
+**não** casava, o jogo destruía a barba e falhava ao anexar o prefab inexistente — remoção **por acidente**, com hash
+lixo no ZDO (era o `zdoBeard=371857150` do log antigo). **A 1.9.3 consertou o hash e quebrou a remoção.**
+
+**Correção (duas linhas):** o sentinela do cache é `int.MinValue`, **nunca `0`**. Assim `SetBeardEquipped(0)` roda o
+ramo que destrói e não anexa nada, e `SetBeardEquipped(<hash real>)` continua anexando. Vale para os **dois** caminhos
+(o apply real de `ApplyAppearance` e a prévia do editor), porque os dois chamam
+`VisEquipment.UpdateVisuals` → `UpdateEquipmentVisuals` → `SetBeardEquipped` logo depois dos setters.
+
+**Alcance:** a prévia do painel (o print) e a **troca de aparência** de um companheiro existente. Um companheiro
+**novo** já nasce sem barba para destruir, então provavelmente saía certo antes — o teste em jogo confirma.
+
+**Contorno até o build novo:** escolher o item **`BeardNone`** na lista de barbas (hash real de uma barba invisível)
+em vez de "Nenhuma".
+
+**Lição registrada:** o fix da 1.9.3 **nunca foi testado em jogo** — o log da sessão era da 1.9.2, e foi o QA que
+apontou isso na caça da 1.9.4. Um "hash certo" não basta quando o consumidor compara com um cache que **nós**
+preenchemos; e a lista de achados que sobrou está em `docs/audit-bughunt-1.9.4.md`.
+
+
 
 
 

@@ -2,7 +2,25 @@
 
 All the changes to this project, derived from ProfMags' Offline Companions. The versions before 1.4.0 are the original mod (see the original mod's history, from ProfMags, for those versions) plus the first batch of compatibility fixes for the Valheim 1.0 API that made the mod load and run. **The entries below 1.5.4 are the upstream history and stay as they are (in English) — our sections (from 1.6.0 on) are ours.**
 
-## 1.9.3 — 31/10/2026
+## 1.9.4 - in progress (31/10/2026)
+
+**One fix so far: a female companion kept the beard of the male preview.** 1.9.3 made "no beard" hash `0` (which is
+what the game expects), but it also left the game's attach cache cleared to `0` - and `0` is exactly the value of "no
+beard". `VisEquipment.SetBeardEquipped` returns early when the hash matches the cached one, so the beard of the
+previous appearance was never destroyed.
+
+- **The cache is cleared to `int.MinValue` now** (`CompanionSetup.ResetVisualItemCache`), a value that is never a real
+  item hash: `SetBeardEquipped(0)` runs the destroy branch and then skips the attach, which is what "no beard" means.
+  Both paths are covered - the real companion (`ApplyAppearance`) and the 3D preview of the editor.
+- **A brand new companion was already fine** (it has no beard to destroy); the bug showed up when switching the
+  preview from male to female and when editing the appearance of an existing companion.
+- **Workaround on 1.9.3:** pick the `BeardNone` item in the beard list (a real hash for an invisible beard) instead of
+  "None".
+- Nothing else changes: same config, same saves, same models.
+
+More fixes are planned for this version - the full list is in `docs/audit-bughunt-1.9.4.md`.
+
+## 1.9.3 - 31/10/2026
 
 **One fix: the companion's beard.** A companion with no beard was asking the game for a beard that does not exist.
 
