@@ -141,8 +141,20 @@ An **independent off-screen camera**: it renders the world from any point/angle 
 Returns the PNG inline (same shape as `screenshot`). The bridge command is `render.view` and answers `path`, `size`,
 `bytes`, `target` and `camera` (the position it used).
 
-### `log_tail`
+### `input_focus` / `input_key` / `input_key_down` / `input_key_up` / `input_text` / `input_click`
 
+Keyboard/mouse injection for the game window (Windows `SendInput`). Every call focuses the Valheim window first and
+refuses to type when another window has the focus, so it cannot type into another application.
+
+| tool | params |
+|---|---|
+| `input_focus` | — |
+| `input_key` | `key` (KeyCode name: `Escape`, `F8`, `Return`, `W`, `Alpha1`) |
+| `input_key_down` / `input_key_up` | `key` (for holds: the command wheel) |
+| `input_text` | `text` (Unicode: accents work) |
+| `input_click` | `x`, `y` (game screen pixels - the same coordinates as `screenshot`) |
+
+### `log_tail`
 | param | type | default |
 |---|---|---|
 | `lines` | integer (1â€“2000) | 80 |

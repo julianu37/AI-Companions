@@ -1,0 +1,279 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+using UnityEngine;
+
+namespace Companions.DevBridge;
+
+/// <summary>
+/// Keyboard/mouse injection for the DevBridge (development tool). It uses the Windows <c>SendInput</c> API because
+/// Unity reads the OS input queue - there is no supported way to fake <c>Input.GetKeyDown</c> from inside the game.
+///
+/// Safety: every send first brings the game window to the foreground and refuses to type when another window ends up
+/// focused, so a request can never type into another application.
+/// </summary>
+internal static class InputSim
+{
+	private const int InputMouse = 0;
+	private const int InputKeyboard = 1;
+	private const uint KeyeventfKeyup = 0x0002;
+	private const uint KeyeventfUnicode = 0x0004;
+	private const uint MouseeventfMove = 0x0001;
+	private const uint MouseeventfLeftdown = 0x0002;
+	private const uint MouseeventfLeftup = 0x0004;
+	private const uint MouseeventfAbsolute = 0x8000;
+	private const int SwRestore = 9;
+
+	[StructLayout(LayoutKind.Sequential)]
+	private struct MouseInput
+	{
+		public int Dx;
+		public int Dy;
+		public uint MouseData;
+		public uint Flags;
+		public uint Time;
+		public IntPtr ExtraInfo;
+	}
+
+	[StructLayout(LayoutKind.Sequential)]
+	private struct KeybdInput
+	{
+		public ushort Vk;
+		public ushort Scan;
+		public uint Flags;
+		public uint Time;
+		public IntPtr ExtraInfo;
+	}
+
+	[StructLayout(LayoutKind.Sequential)]
+	private struct HardwareInput
+	{
+		public uint Msg;
+		public ushort ParamL;
+		public ushort ParamH;
+	}
+
+	[StructLayout(LayoutKind.Explicit)]
+	private struct InputUnion
+	{
+		[FieldOffset(0)] public MouseInput Mouse;
+		[FieldOffset(0)] public KeybdInput Keyboard;
+		[FieldOffset(0)] public HardwareInput Hardware;
+	}
+
+	[StructLayout(LayoutKind.Sequential)]
+	private struct InputEvent
+	{
+		public uint Type;
+		public InputUnion Union;
+	}
+
+	[StructLayout(LayoutKind.Sequential)]
+	private struct Rect
+	{
+		public int Left;
+		public int Top;
+		public int Right;
+		public int Bottom;
+	}
+
+	[DllImport("user32.dll", SetLastError = true)]
+	private static extern uint SendInput(uint count, InputEvent[] events, int size);
+
+	[DllImport("user32.dll")]
+	private static extern IntPtr GetForegroundWindow();
+
+	[DllImport("user32.dll")]
+	private static extern bool SetForegroundWindow(IntPtr window);
+
+	[DllImport("user32.dll")]
+	private static extern bool ShowWindow(IntPtr window, int command);
+
+	[DllImport("user32.dll")]
+	private static extern bool GetWindowRect(IntPtr window, out Rect rect);
+
+	[DllImport("user32.dll")]
+	private static extern int GetSystemMetrics(int index);
+
+	private static readonly Dictionary<string, ushort> Special = new Dictionary<string, ushort>(StringComparer.OrdinalIgnoreCase)
+	{
+		{ "escape", 0x1B }, { "esc", 0x1B }, { "return", 0x0D }, { "enter", 0x0D }, { "space", 0x20 },
+		{ "tab", 0x09 }, { "backspace", 0x08 }, { "delete", 0x2E }, { "insert", 0x2D },
+		{ "uparrow", 0x26 }, { "downarrow", 0x28 }, { "leftarrow", 0x25 }, { "rightarrow", 0x27 },
+		{ "home", 0x24 }, { "end", 0x23 }, { "pageup", 0x21 }, { "pagedown", 0x22 },
+		{ "leftshift", 0xA0 }, { "rightshift", 0xA1 }, { "leftcontrol", 0xA2 }, { "rightcontrol", 0xA3 },
+		{ "leftalt", 0xA4 }, { "rightalt", 0xA5 },
+		{ "f1", 0x70 }, { "f2", 0x71 }, { "f3", 0x72 }, { "f4", 0x73 }, { "f5", 0x74 }, { "f6", 0x75 },
+		{ "f7", 0x76 }, { "f8", 0x77 }, { "f9", 0x78 }, { "f10", 0x79 }, { "f11", 0x7A }, { "f12", 0x7B }
+	};
+
+	public static IntPtr GameWindow()
+	{
+		try
+		{
+			return Process.GetCurrentProcess().MainWindowHandle;
+		}
+		catch
+		{
+			return IntPtr.Zero;
+		}
+	}
+
+	/// <summary>Brings the game window to the foreground. Returns true when the game really has the focus.</summary>
+	public static bool FocusGame()
+	{
+		IntPtr window = GameWindow();
+		if (window == IntPtr.Zero)
+		{
+			return false;
+		}
+		ShowWindow(window, SwRestore);
+		SetForegroundWindow(window);
+		return GetForegroundWindow() == window;
+	}
+
+	public static bool IsGameFocused()
+	{
+		IntPtr window = GameWindow();
+		return window != IntPtr.Zero && GetForegroundWindow() == window;
+	}
+
+	public static ushort VirtualKey(string name)
+	{
+		if (string.IsNullOrEmpty(name))
+		{
+			return 0;
+		}
+		if (Special.TryGetValue(name, out ushort vk))
+		{
+			return vk;
+		}
+		if (name.Length == 1)
+		{
+			char c = char.ToUpperInvariant(name[0]);
+			if ((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'))
+			{
+				return c;
+			}
+		}
+		if (name.Length == 6 && name.StartsWith("Alpha", StringComparison.OrdinalIgnoreCase) && char.IsDigit(name[5]))
+		{
+			return (ushort)('0' + (name[5] - '0'));
+		}
+		if (name.Length == 7 && name.StartsWith("Keypad", StringComparison.OrdinalIgnoreCase) && char.IsDigit(name[6]))
+		{
+			return (ushort)(0x60 + (name[6] - '0'));
+		}
+		return 0;
+	}
+
+	public static bool Tap(ushort vk)
+	{
+		return Send(KeyEvent(vk, up: false), KeyEvent(vk, up: true));
+	}
+
+	public static bool Down(ushort vk)
+	{
+		return Send(KeyEvent(vk, up: false));
+	}
+
+	public static bool Up(ushort vk)
+	{
+		return Send(KeyEvent(vk, up: true));
+	}
+
+	/// <summary>Types the text as Unicode characters (works for accents and any layout).</summary>
+	public static bool Text(string text)
+	{
+		if (string.IsNullOrEmpty(text))
+		{
+			return false;
+		}
+		List<InputEvent> events = new List<InputEvent>(text.Length * 2);
+		foreach (char c in text)
+		{
+			events.Add(UnicodeEvent(c, up: false));
+			events.Add(UnicodeEvent(c, up: true));
+		}
+		return Send(events.ToArray());
+	}
+
+	public static bool Click(int x, int y)
+	{
+		IntPtr window = GameWindow();
+		if (window == IntPtr.Zero)
+		{
+			return false;
+		}
+		GetWindowRect(window, out Rect rect);
+		int screenWidth = Math.Max(1, GetSystemMetrics(0));
+		int screenHeight = Math.Max(1, GetSystemMetrics(1));
+		// SendInput absolute coordinates are normalized over the whole virtual screen, so the window origin is added
+		int px = Math.Max(0, Math.Min(screenWidth - 1, rect.Left + x));
+		int py = Math.Max(0, Math.Min(screenHeight - 1, rect.Top + y));
+		int nx = (int)(px * 65535.0 / (screenWidth - 1));
+		int ny = (int)(py * 65535.0 / (screenHeight - 1));
+		return Send(MouseEvent(nx, ny, MouseeventfMove | MouseeventfAbsolute),
+			MouseEvent(nx, ny, MouseeventfLeftdown),
+			MouseEvent(nx, ny, MouseeventfLeftup));
+	}
+
+	private static InputEvent KeyEvent(ushort vk, bool up)
+	{
+		return new InputEvent
+		{
+			Type = InputKeyboard,
+			Union = new InputUnion
+			{
+				Keyboard = new KeybdInput
+				{
+					Vk = vk,
+					Flags = up ? KeyeventfKeyup : 0u
+				}
+			}
+		};
+	}
+
+	private static InputEvent UnicodeEvent(char c, bool up)
+	{
+		return new InputEvent
+		{
+			Type = InputKeyboard,
+			Union = new InputUnion
+			{
+				Keyboard = new KeybdInput
+				{
+					Scan = c,
+					Flags = KeyeventfUnicode | (up ? KeyeventfKeyup : 0u)
+				}
+			}
+		};
+	}
+
+	private static InputEvent MouseEvent(int dx, int dy, uint flags)
+	{
+		return new InputEvent
+		{
+			Type = InputMouse,
+			Union = new InputUnion
+			{
+				Mouse = new MouseInput
+				{
+					Dx = dx,
+					Dy = dy,
+					Flags = flags
+				}
+			}
+		};
+	}
+
+	private static bool Send(params InputEvent[] events)
+	{
+		if (events == null || events.Length == 0)
+		{
+			return false;
+		}
+		return SendInput((uint)events.Length, events, Marshal.SizeOf(typeof(InputEvent))) == events.Length;
+	}
+}

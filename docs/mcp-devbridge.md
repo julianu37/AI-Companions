@@ -86,6 +86,10 @@ Uma conexão por chamada; **um JSON por linha**, nas duas direções.
 | `world.spawn` | `prefab`, `count`, `x?`, `y?`, `z?` | `prefab`, `count` |
 | `screenshot` | `path?` | `path` |
 | `render.view` | `x`, `z`, `y?`, `yaw?`, `pitch?`, `dist?`, `size?` | `path`, `size`, `bytes`, `target{}`, `camera{}` |
+| `input.focus` | — | `focused`, `window` |
+| `input.key` / `input.key_down` / `input.key_up` | `key` | `key`, `vk`, `mode`, `sent`, `focused` |
+| `input.text` | `text` | `text`, `sent`, `focused` |
+| `input.click` | `x`, `y` (pixels da tela do jogo) | `x`, `y`, `sent`, `focused` |
 | `companions.list` | — | `count`, `companions[]` |
 | `companions.spawn` | — | `spawned` |
 | `companions.order` | `action`, `name?` | `action`, `mode`/`stance`/`value`, `applied` |
@@ -112,11 +116,14 @@ o cursor logo depois dela).
 `Wander`, `Follow`, `StayHome`, `HomeRadius`, `OrderCap`, `OrderCapMode`, `OrderCapItem`, `TombstoneId`, `Stamina`,
 `Recovering`, `RecoverStance`, `RecoverPickup`, `Voice`, `Gen`, `FarmZones` (`"<none>"` ou `"N chars"`).
 
-## Ferramentas MCP (24)
+## Ferramentas MCP (30)
 
 Genéricas: `devbridge_ping`, `game_status`, `game_console`, `player_give`, `player_teleport`, `player_kill`,
 `player_inventory`, `world_spawn`, `world_time`, `screenshot` (a visão do jogador), `render_view` (câmera **off-screen**,
 não mexe na visão do jogador), `log_tail`, `log_watch`.
+
+Input (teclado/mouse via `SendInput`, só com a janela do jogo em foco): `input_focus`, `input_key`, `input_key_down`,
+`input_key_up`, `input_text`, `input_click`.
 
 Companheiros: `companions_list`, `companions_spawn`, `companions_order`, `companions_teleport`, `companions_give`,
 `companions_zdo`, `companions_kill`, `companions_tier`, `companions_hire`, `companions_resurrect`,

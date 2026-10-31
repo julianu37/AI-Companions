@@ -89,6 +89,12 @@ internal static class Commands
 			case "world.time": return WorldTime(args);
 			case "screenshot": return Screenshot(args);
 			case "render.view": return RenderView(args);
+			case "input.focus": return InputFocus();
+			case "input.key": return InputKey(args, "tap");
+			case "input.key_down": return InputKey(args, "down");
+			case "input.key_up": return InputKey(args, "up");
+			case "input.text": return InputText(args);
+			case "input.click": return InputClick(args);
 			case "companions.list": return CompanionsList();
 			case "companions.spawn": return CompanionsSpawn();
 			case "companions.order": return CompanionsOrder(args);
@@ -977,6 +983,81 @@ internal static class Commands
 			{ "action", action },
 			{ "count", after.Split('|').Length },
 			{ "zones", ParseFarmZones(after) }
+		});
+	}
+
+	private static string InputFocus()
+	{
+		bool focused = InputSim.FocusGame();
+		return Ok(new Dictionary<string, object>
+		{
+			{ "focused", focused },
+			{ "window", InputSim.GameWindow().ToInt64() }
+		});
+	}
+
+	private static string InputKey(Dictionary<string, object> args, string mode)
+	{
+		string key = Json.Str(args, "key");
+		ushort vk = InputSim.VirtualKey(key);
+		if (vk == 0)
+		{
+			return Fail("unknown key: " + key + " (use KeyCode names: Escape, F8, Return, W, Alpha1...)");
+		}
+		if (!InputSim.FocusGame())
+		{
+			return Fail("could not focus the game window - another window has the focus");
+		}
+		bool sent = mode == "down" ? InputSim.Down(vk) : mode == "up" ? InputSim.Up(vk) : InputSim.Tap(vk);
+		return Ok(new Dictionary<string, object>
+		{
+			{ "key", key },
+			{ "vk", (int)vk },
+			{ "mode", mode },
+			{ "sent", sent },
+			{ "focused", InputSim.IsGameFocused() }
+		});
+	}
+
+	private static string InputText(Dictionary<string, object> args)
+	{
+		string text = Json.Str(args, "text");
+		if (string.IsNullOrEmpty(text))
+		{
+			return Fail("missing 'text'");
+		}
+		if (!InputSim.FocusGame())
+		{
+			return Fail("could not focus the game window - another window has the focus");
+		}
+		bool sent = InputSim.Text(text);
+		return Ok(new Dictionary<string, object>
+		{
+			{ "text", text },
+			{ "sent", sent },
+			{ "focused", InputSim.IsGameFocused() }
+		});
+	}
+
+	private static string InputClick(Dictionary<string, object> args)
+	{
+		int x = Json.Int(args, "x", -1);
+		int y = Json.Int(args, "y", -1);
+		if (x < 0 || y < 0)
+		{
+			return Fail("missing 'x'/'y' (game screen pixels)");
+		}
+		if (!InputSim.FocusGame())
+		{
+			return Fail("could not focus the game window - another window has the focus");
+		}
+		bool sent = InputSim.Click(x, y);
+		return Ok(new Dictionary<string, object>
+		{
+			{ "x", x },
+			{ "y", y },
+			{ "sent", sent },
+			{ "focused", InputSim.IsGameFocused() }
 		});
 	}
 

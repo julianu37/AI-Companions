@@ -319,6 +319,64 @@ TOOLS = [
         },
     },
     {
+        "name": "input_focus",
+        "description": "Brings the Valheim window to the foreground. The input tools do it automatically; use this to check the focus.",
+        "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
+        "name": "input_key",
+        "description": "Sends a key tap to the game (KeyCode name: Escape, F8, Return, W, Alpha1...). Focuses the game first.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"key": {"type": "string"}},
+            "required": ["key"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "input_key_down",
+        "description": "Holds a key down (for holds: the command wheel, sprint...). Pair with input_key_up.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"key": {"type": "string"}},
+            "required": ["key"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "input_key_up",
+        "description": "Releases a key held with input_key_down.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"key": {"type": "string"}},
+            "required": ["key"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "input_text",
+        "description": "Types text into the focused game field (Unicode: accents work).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"text": {"type": "string"}},
+            "required": ["text"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "input_click",
+        "description": "Left-clicks at game screen pixels (x, y) - the screenshot uses the same coordinates.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "x": {"type": "integer", "minimum": 0},
+                "y": {"type": "integer", "minimum": 0},
+            },
+            "required": ["x", "y"],
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "log_tail",
         "description": "Returns the last lines of BepInEx\\LogOutput.log (works even with the game closed).",
         "inputSchema": {
@@ -516,6 +574,18 @@ def run_tool(name, args):
         return screenshot(args)
     if name == "render_view":
         return render_view(args)
+    if name == "input_focus":
+        return require_ok(call_bridge("input.focus"))
+    if name == "input_key":
+        return require_ok(call_bridge("input.key", key=args["key"]))
+    if name == "input_key_down":
+        return require_ok(call_bridge("input.key_down", key=args["key"]))
+    if name == "input_key_up":
+        return require_ok(call_bridge("input.key_up", key=args["key"]))
+    if name == "input_text":
+        return require_ok(call_bridge("input.text", text=args["text"]))
+    if name == "input_click":
+        return require_ok(call_bridge("input.click", x=args["x"], y=args["y"]))
     if name == "log_tail":
         return log_tail(int(args.get("lines", 80)))
     if name == "log_watch":
