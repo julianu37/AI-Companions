@@ -95,7 +95,7 @@ commits das traduções e da wiki (B6, P2, 75 + 2 chaves, 5 pools de fala).
 | **#7** | A ordem escolhe o alvo mais próximo e **depois** valida (colmeia vazia, baú cheio, porta trancada) e recusa, em vez de tentar o segundo | comportamento defensável; mexer agora troca um erro por outro |
 | **coleta** | O "por que está parado" da coleta (`AtLimit`/`CompanionStatus.WhyRotate`, 4 chaves `hc_why_gather_*` órfãs) não voltou no merge | informação, não função. Coleta continua funcionando |
 | **peso** | `Game.m_carryWeightRate` não escala o teto do companheiro | decisão de produto: o nosso teto é `[General] MaxCarryWeight` + cinto. Anotar na wiki |
-| **3B** | Medição das 5 ações novas com o `qwen2.5-3b-instruct` (como a M5) — `hive`/`board`/`sit` não têm exemplo no contrato, só a lista | exige modelo + provedor; o teste em jogo já mede sem custo |
+| **3B** | Medição das 5 ações novas com o `qwen2.5-3b-instruct` (como a M5) — `hive`/`board`/`sit` não têm exemplo no contrato, só a lista | **medido em 31/10/2026**: `qwen2.5-3b-instruct` (LM Studio, temperatura 0,1, 2 rodadas, o **contrato e o schema reais** da DLL): **50/50 (100%)** nas 5 ações × 5 idiomas — e as redes também 50/50 (as frases canônicas o modelo acerta sozinho; as redes ficam para as variantes). Deixa de ser pendência |
 
 ## 4. O que foi provado intacto
 

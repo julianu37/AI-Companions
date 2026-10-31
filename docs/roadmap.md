@@ -2097,8 +2097,14 @@ sobrevivendo ao Santuário, a dupla contagem do `MaxCompanions`, o claim no "des
 custo dos patches novos do upstream com o log desligado (H1/H2/H4/H5).
 
 **Adiados de propósito** (com o motivo no relatório): `LogLevel = Off` ainda não cala a camada de IA (B5), o memo de peso
-por frame (H3), a liberação **semântica** da vaga no Despawn (só o texto ficou honesto), a bolha/voz em companheiros
-diferentes (B9, pré-existente) e a medição das 5 ações novas com o `qwen2.5-3b-instruct`.
+por frame (H3), a liberação **semântica** da vaga no Despawn (só o texto ficou honesto) e a bolha/voz em companheiros
+diferentes (B9, pré-existente).
+
+**Medição das 5 ações novas (M5, 2ª metade, 31/10/2026):** `qwen2.5-3b-instruct` no LM Studio (temperatura 0,1,
+2 rodadas, o **contrato e o schema reais** lidos da DLL por reflexão) → **50/50 (100%)**: as 5 ações × 5 idiomas, e
+com as redes por palavras também 50/50. As frases canônicas o 3B acerta sozinho (o `enum` do schema estreita muito a
+saída); as redes continuam valendo para as **variantes** ("sobe no barco", "põe isso no baú", "esvazia a colmeia aí"),
+que é onde o modelo erra. Harness: 5 × 5 × 2 = 50 requisições, ~3,2 s cada (fora do repositório, em `%TEMP%`).
 
 #### 4. Receita de teste (para o jogador)
 

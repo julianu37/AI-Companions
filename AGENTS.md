@@ -605,6 +605,11 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
     `deposit` conta **itens** (não pilhas), usa as regras dos jobs (`MHR_Chests.Usable` + `PrivateArea`, nada de túmulo/
     carrinho/navio/baú privado de outro jogador) e a posse do baú; `Pointed<T>`/`PointedShip` varrem **todos** os hits
     do raio (como a tecla) e as 4 escritas diretas de `HC_ActionMode` passaram pela fila da 3.19. Nenhuma chave nova.
+  - **Medição das 5 ações novas (M5, 2ª metade, 31/10/2026):** `qwen2.5-3b-instruct` no LM Studio (temperatura 0,1,
+    2 rodadas, o **contrato e o schema reais** lidos da DLL por reflexão): **50/50 (100%)** nas 5 ações × 5 idiomas —
+    e as redes por palavras também 50/50. Leitura: as frases **canônicas** o 3B acerta sozinho (o `enum` do schema
+    estreita a saída); as redes continuam valendo para as **variantes** ("sobe no barco", "põe isso no baú", "esvazia
+    a colmeia aí"), que é onde ele erra. Harness: 50 requisições (~3,2 s cada), fora do repositório.
 - Backend/contrato de referência: `docs/re/backend-contract.md`; mapa da fase: `docs/roadmap.md` (Trilha D);
   pipeline de voz: `docs/re/stt-voz-pipeline.md`; fala do companheiro: `docs/re/tts-kokoro-sherpa-onnx.md`.
 - **Status (out/2026):** as fases da camada de IA estão **validadas em jogo** pelo jogador (3.1, 3.1-saída
