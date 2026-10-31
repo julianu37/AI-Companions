@@ -145,21 +145,42 @@ def log_watch(pattern, regex=False, timeout_ms=15000, since=None, case_sensitive
         time.sleep(0.2)
 
 
-def screenshot(args):
-    data = require_ok(call_bridge("screenshot", **({"path": args["path"]} if args.get("path") else {})))
-    path = data["path"]
-    for _ in range(40):
+def _wait_for_file(path, timeout=4.0):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
         if os.path.exists(path) and os.path.getsize(path) > 0:
-            break
+            return True
         time.sleep(0.1)
-    if not os.path.exists(path):
-        raise RuntimeError("the game did not write the screenshot yet: " + path)
+    return os.path.exists(path) and os.path.getsize(path) > 0
+
+
+def _image_result(path):
     with open(path, "rb") as handle:
         encoded = base64.b64encode(handle.read()).decode("ascii")
     return [
         {"type": "image", "data": encoded, "mimeType": "image/png"},
         {"type": "text", "text": path},
     ]
+
+
+def screenshot(args):
+    data = require_ok(call_bridge("screenshot", **({"path": args["path"]} if args.get("path") else {})))
+    path = data["path"]
+    if not _wait_for_file(path):
+        raise RuntimeError("the game did not write the screenshot yet: " + path)
+    return _image_result(path)
+
+
+def render_view(args):
+    payload = {"x": args["x"], "z": args["z"]}
+    for key in ("y", "yaw", "pitch", "dist", "size"):
+        if key in args:
+            payload[key] = args[key]
+    data = require_ok(call_bridge("render.view", **payload))
+    path = data["path"]
+    if not _wait_for_file(path):
+        raise RuntimeError("the game did not write the render yet: " + path)
+    return _image_result(path)
 
 
 # ----------------------------------------------------------------------------------------------------------------
@@ -273,6 +294,27 @@ TOOLS = [
         "inputSchema": {
             "type": "object",
             "properties": {"path": {"type": "string", "description": "optional absolute .png path"}},
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "render_view",
+        "description": (
+            "Renders the world from an independent off-screen camera (the player's view is not touched) and returns "
+            "the PNG. (x, z) is the point to look at; yaw/pitch orbit the camera around it and dist is how far it sits."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "x": {"type": "number"},
+                "z": {"type": "number"},
+                "y": {"type": "number", "description": "default: the player's height"},
+                "yaw": {"type": "number", "default": 0},
+                "pitch": {"type": "number", "default": 15},
+                "dist": {"type": "number", "default": 8},
+                "size": {"type": "integer", "minimum": 128, "maximum": 2048, "default": 768},
+            },
+            "required": ["x", "z"],
             "additionalProperties": False,
         },
     },
@@ -472,6 +514,8 @@ def run_tool(name, args):
         return require_ok(call_bridge("world.time", **payload))
     if name == "screenshot":
         return screenshot(args)
+    if name == "render_view":
+        return render_view(args)
     if name == "log_tail":
         return log_tail(int(args.get("lines", 80)))
     if name == "log_watch":

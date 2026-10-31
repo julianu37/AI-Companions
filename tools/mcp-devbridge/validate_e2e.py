@@ -90,6 +90,9 @@ def main():
     check("game_console help", lambda: mcp.require_ok(mcp.call_bridge("console", command="help")))
     check("world_time (read/same)", lambda: mcp.require_ok(mcp.call_bridge("world.time")))
     check("screenshot", lambda: mcp.screenshot({}))
+    if status:
+        check("render_view (off-screen camera)",
+              lambda: mcp.render_view({"x": status["x"], "z": status["z"], "dist": 6, "yaw": 30, "pitch": 20}))
 
     listing = check("companions_list", lambda: mcp.require_ok(mcp.call_bridge("companions.list")))
     companion = first_companion()

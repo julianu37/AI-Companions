@@ -88,6 +88,7 @@ internal static class Commands
 			case "world.spawn": return WorldSpawn(args);
 			case "world.time": return WorldTime(args);
 			case "screenshot": return Screenshot(args);
+			case "render.view": return RenderView(args);
 			case "companions.list": return CompanionsList();
 			case "companions.spawn": return CompanionsSpawn();
 			case "companions.order": return CompanionsOrder(args);
@@ -439,6 +440,100 @@ internal static class Commands
 		}
 		ScreenCapture.CaptureScreenshot(file, 1);
 		return Ok(new Dictionary<string, object> { { "path", file } });
+	}
+
+	/// <summary>
+	/// 1.9.4 (vision): renders the world from an INDEPENDENT off-screen camera - it never touches the player's view.
+	/// (x, z) is the point to look at; yaw/pitch orbit the camera around it and dist is how far the camera sits. The
+	/// camera is created disabled and rendered by hand into a temporary RenderTexture, so it cannot leak a frame to
+	/// the screen. UI canvases are Screen Space - Overlay, so they are not in the picture (this is the world only).
+	/// </summary>
+	private static string RenderView(Dictionary<string, object> args)
+	{
+		if (ZNetScene.instance == null)
+		{
+			return Fail("the world isn't loaded");
+		}
+		float x = Json.Float(args, "x", float.NaN);
+		float z = Json.Float(args, "z", float.NaN);
+		if (float.IsNaN(x) || float.IsNaN(z))
+		{
+			return Fail("missing 'x'/'z' (the point to look at)");
+		}
+		Player p = Player.m_localPlayer;
+		float y = Json.Float(args, "y", p != null ? p.transform.position.y : 0f);
+		float yaw = Json.Float(args, "yaw", 0f);
+		float pitch = Mathf.Clamp(Json.Float(args, "pitch", 15f), -85f, 85f);
+		float dist = Mathf.Clamp(Json.Float(args, "dist", 8f), 1f, 200f);
+		int size = Mathf.Clamp(Json.Int(args, "size", 768), 128, 2048);
+		Vector3 target = new Vector3(x, y, z);
+		float yawRad = yaw * Mathf.Deg2Rad;
+		float pitchRad = pitch * Mathf.Deg2Rad;
+		Vector3 offset = new Vector3(
+			Mathf.Sin(yawRad) * Mathf.Cos(pitchRad),
+			Mathf.Sin(pitchRad),
+			Mathf.Cos(yawRad) * Mathf.Cos(pitchRad)) * dist;
+
+		GameObject go = new GameObject("DevBridgeRenderCam");
+		Camera cam = go.AddComponent<Camera>();
+		cam.enabled = false;
+		cam.clearFlags = CameraClearFlags.Skybox;
+		cam.cullingMask = ~0;
+		cam.nearClipPlane = 0.3f;
+		cam.farClipPlane = 2000f;
+		cam.fieldOfView = 60f;
+		cam.transform.position = target + offset;
+		cam.transform.LookAt(target);
+
+		RenderTexture rt = RenderTexture.GetTemporary(size, size, 24);
+		RenderTexture previous = RenderTexture.active;
+		Texture2D tex = null;
+		try
+		{
+			cam.targetTexture = rt;
+			cam.Render();
+			RenderTexture.active = rt;
+			tex = new Texture2D(size, size, TextureFormat.RGB24, false);
+			tex.ReadPixels(new Rect(0f, 0f, size, size), 0, 0);
+			tex.Apply();
+			byte[] png = tex.EncodeToPNG();
+			string dir = Path.Combine(Paths.BepInExRootPath, "DevBridge");
+			Directory.CreateDirectory(dir);
+			string file = Json.Str(args, "path");
+			if (string.IsNullOrEmpty(file))
+			{
+				file = Path.Combine(dir, "render-" + DateTime.Now.ToString("yyyyMMdd-HHmmss-fff") + ".png");
+			}
+			File.WriteAllBytes(file, png);
+			return Ok(new Dictionary<string, object>
+			{
+				{ "path", file },
+				{ "size", size },
+				{ "bytes", png.Length },
+				{ "target", new Dictionary<string, object> { { "x", target.x }, { "y", target.y }, { "z", target.z } } },
+				{ "camera", new Dictionary<string, object>
+					{
+						{ "x", cam.transform.position.x },
+						{ "y", cam.transform.position.y },
+						{ "z", cam.transform.position.z },
+						{ "yaw", yaw },
+						{ "pitch", pitch },
+						{ "dist", dist }
+					}
+				}
+			});
+		}
+		finally
+		{
+			cam.targetTexture = null;
+			RenderTexture.active = previous;
+			RenderTexture.ReleaseTemporary(rt);
+			if (tex != null)
+			{
+				UnityEngine.Object.Destroy(tex);
+			}
+			UnityEngine.Object.Destroy(go);
+		}
 	}
 
 	private static string CompanionsList()

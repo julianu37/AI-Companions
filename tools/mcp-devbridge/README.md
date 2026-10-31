@@ -120,6 +120,27 @@ Returns the PNG as an image plus the path:
 [{"type":"image","mimeType":"image/png","data":"<base64>"}, {"type":"text","text":"C:\\â€¦\\BepInEx\\DevBridge\\shot-â€¦.png"}]
 ```
 
+### `render_view`
+
+An **independent off-screen camera**: it renders the world from any point/angle and never touches the player's view
+(the UI is not in the picture - it is a Screen Space overlay).
+
+| param | type | default |
+|---|---|---|
+| `x`, `z` | number (the point to look at) | required |
+| `y` | number | the player's height |
+| `yaw` | number (degrees, orbit) | 0 |
+| `pitch` | number (degrees, -85..85) | 15 |
+| `dist` | number (meters) | 8 |
+| `size` | integer (128..2048) | 768 |
+
+```json
+{"x": -58.0, "z": 63.0, "yaw": 45, "pitch": 20, "dist": 6}
+```
+
+Returns the PNG inline (same shape as `screenshot`). The bridge command is `render.view` and answers `path`, `size`,
+`bytes`, `target` and `camera` (the position it used).
+
 ### `log_tail`
 
 | param | type | default |

@@ -85,6 +85,7 @@ Uma conexão por chamada; **um JSON por linha**, nas duas direções.
 | `player.teleport` | `x`, `y`, `z` | `x`, `y`, `z` |
 | `world.spawn` | `prefab`, `count`, `x?`, `y?`, `z?` | `prefab`, `count` |
 | `screenshot` | `path?` | `path` |
+| `render.view` | `x`, `z`, `y?`, `yaw?`, `pitch?`, `dist?`, `size?` | `path`, `size`, `bytes`, `target{}`, `camera{}` |
 | `companions.list` | — | `count`, `companions[]` |
 | `companions.spawn` | — | `spawned` |
 | `companions.order` | `action`, `name?` | `action`, `mode`/`stance`/`value`, `applied` |
@@ -111,10 +112,11 @@ o cursor logo depois dela).
 `Wander`, `Follow`, `StayHome`, `HomeRadius`, `OrderCap`, `OrderCapMode`, `OrderCapItem`, `TombstoneId`, `Stamina`,
 `Recovering`, `RecoverStance`, `RecoverPickup`, `Voice`, `Gen`, `FarmZones` (`"<none>"` ou `"N chars"`).
 
-## Ferramentas MCP (23)
+## Ferramentas MCP (24)
 
 Genéricas: `devbridge_ping`, `game_status`, `game_console`, `player_give`, `player_teleport`, `player_kill`,
-`player_inventory`, `world_spawn`, `world_time`, `screenshot` (devolve **imagem**), `log_tail`, `log_watch`.
+`player_inventory`, `world_spawn`, `world_time`, `screenshot` (a visão do jogador), `render_view` (câmera **off-screen**,
+não mexe na visão do jogador), `log_tail`, `log_watch`.
 
 Companheiros: `companions_list`, `companions_spawn`, `companions_order`, `companions_teleport`, `companions_give`,
 `companions_zdo`, `companions_kill`, `companions_tier`, `companions_hire`, `companions_resurrect`,
