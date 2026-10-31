@@ -82,6 +82,38 @@ Estes não dependem do relato de nenhum agente:
 
 ---
 
+## 3b. A lápide do companheiro não some depois de esvaziada (confirmado em jogo, 31/10/2026)
+
+**Sintoma (jogador):** dispensou o Companheiro 2, virou lápide, pegou todos os itens — e a lápide ficou no mundo.
+
+**Regra do jogo:** `TombStone.UpdateDespawn` roda a cada 2 s e destrói a lápide quando `m_nview.IsValid()`,
+`m_nview.IsOwner()`, `!Container.IsInUse()` e `NrOfItems() <= 0` (`TombStone.cs`). O mod usa o **mesmo prefab**
+(`Player_tombstone`, via `Player.m_tombstone`) e não desliga nada disso.
+
+**Reprodução limpa (mundo `test3`, bridge):** `companions.spawn` + `companions.give Stone 10` +
+`companions.dismiss` → lápide com 1 pilha (10 pedras); `world.tombstone_take` (`Container.TakeAll`, **sem abrir a
+UI**) → 1 → 0 pilhas. Diagnóstico (`world_tombstone_diag`) por 9 s:
+
+```
+enabled=true  activeInHierarchy=true  isInvoking=true  nviewValid=true  isOwner=true  inUse=false  items=0
+```
+
+**e a lápide não some.** Chamar o `UpdateDespawn` privado por reflexão (`tick=true`) **também não destrói**, mas
+`ZNetView.Destroy()` pelo bridge (`world_tombstone_destroy`) **destrói na hora** — o caminho de destruição funciona.
+A lápide vazia **não sobrevive ao reload** do mundo (some ao carregar), então o estado fica só na sessão.
+
+**Leitura:** o despawn vanilla não dispara para a lápide do mod mesmo com as quatro condições visíveis cumpridas
+(no caso do jogador havia ainda `inUse=true`, que bloqueia por si). O mod só limpa lápide vazia no
+`MHR_DoCleanup`, e ele roda **apenas** com `_cleanupOnly` (companheiro já renasceu) — **não** cobre a lápide de
+**dispensa**.
+
+**Correção proposta (não implementada):** no `CompanionTombstoneResurrect.Update`, se a lápide **não** tem
+`HC_Respawn_Prefab` (dispensa: só equipamento) e o container está vazio e fora de uso → `_cleanupOnly = true`,
+reusando o `ClaimOwnership()` + `ZNetScene.Destroy` que já existe. Lápide de **morte** (com dados de ressurreição)
+fica intocada.
+
+---
+
 ## 4. P2 — config, UI e docs que mentem
 
 | # | achado | evidência |

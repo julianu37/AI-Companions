@@ -90,6 +90,10 @@ internal static class Commands
 			case "world.aim": return WorldAim(args);
 			case "world.nearest": return WorldNearest(args);
 			case "world.prefabs": return WorldPrefabs(args);
+			case "world.tombstones": return WorldTombstones(args);
+			case "world.tombstone_take": return WorldTombstoneTake(args);
+			case "world.tombstone_destroy": return WorldTombstoneDestroy(args);
+			case "world.tombstone_diag": return WorldTombstoneDiag(args);
 			case "world.setup": return WorldSetup(args);
 			case "screenshot": return Screenshot(args);
 			case "render.view": return RenderView(args);
@@ -109,6 +113,8 @@ internal static class Commands
 			case "companions.give": return CompanionsGive(args);
 			case "companions.zdo": return CompanionsZdo(args);
 			case "companions.kill": return CompanionsKill(args);
+			case "companions.dismiss": return CompanionsDismiss(args);
+			case "companions.inventory": return CompanionInventory(args);
 			case "companions.tier": return CompanionsTier(args);
 			case "companions.hire": return CompanionsHire();
 			case "companions.resurrect": return CompanionsResurrect(args);
@@ -596,6 +602,257 @@ internal static class Commands
 			{ "weight", inv.GetTotalWeight() },
 			{ "maxWeight", p.GetMaxCarryWeight() }
 		});
+	}
+
+	/// <summary>A companion's inventory (the same stack list as the player's), so a test can confirm what it carries.</summary>
+	private static string CompanionInventory(Dictionary<string, object> args)
+	{
+		CompanionSetup setup = FindLiveCompanion(Json.Str(args, "name"));
+		if (setup == null)
+		{
+			return Fail("companion not found (or dead)");
+		}
+		Humanoid humanoid = setup.GetComponent<Humanoid>();
+		Inventory inv = humanoid != null ? humanoid.GetInventory() : null;
+		if (inv == null)
+		{
+			return Fail("the companion has no inventory");
+		}
+		List<object> stacks = new List<object>();
+		foreach (ItemDrop.ItemData data in inv.GetAllItems())
+		{
+			if (data == null || data.m_shared == null)
+			{
+				continue;
+			}
+			stacks.Add(new Dictionary<string, object>
+			{
+				{ "prefab", data.m_dropPrefab != null ? data.m_dropPrefab.name : null },
+				{ "name", data.m_shared.m_name },
+				{ "amount", data.m_stack },
+				{ "grid", data.m_gridPos.x + "," + data.m_gridPos.y }
+			});
+		}
+		return Ok(new Dictionary<string, object>
+		{
+			{ "name", humanoid != null ? humanoid.m_name : setup.name },
+			{ "stacks", stacks },
+			{ "totalStacks", inv.NrOfItems() }
+		});
+	}
+
+	/// <summary>Dismisses a companion exactly like the radial menu: the gear goes to a tombstone and the body is
+	/// removed (CompanionRadialMenu.MHR_DespawnConfirmed).</summary>
+	private static string CompanionsDismiss(Dictionary<string, object> args)
+	{
+		CompanionSetup setup = FindLiveCompanion(Json.Str(args, "name"));
+		if (setup == null)
+		{
+			return Fail("companion not found (or dead)");
+		}
+		ZNetView nview = setup.GetComponent<ZNetView>();
+		if (nview == null)
+		{
+			return Fail("the companion has no ZNetView");
+		}
+		string name = nview.GetZDO() != null ? nview.GetZDO().GetString(CompanionSetup.NameHash, "Companion") : "Companion";
+		setup.PrepareForDespawn();
+		CompanionRest rest = setup.GetComponent<CompanionRest>();
+		if (rest != null)
+		{
+			rest.MHR_ReleaseBedForDespawn();
+		}
+		setup.DespawnWithTombstone();
+		Humanoid humanoid = setup.GetComponent<Humanoid>();
+		if (humanoid != null)
+		{
+			humanoid.m_onDeath = null;
+		}
+		nview.Destroy();
+		return Ok(new Dictionary<string, object> { { "name", name }, { "dismissed", true } });
+	}
+
+	/// <summary>The tombstones loaded around the player, with what decides the vanilla despawn (item count, ZDO owner
+	/// and whether the container is in use) plus whether it carries companion resurrection data.</summary>
+	private static string WorldTombstones(Dictionary<string, object> args)
+	{
+		Player p = Player.m_localPlayer;
+		List<object> graves = new List<object>();
+		foreach (TombStone tomb in UnityEngine.Object.FindObjectsByType<TombStone>(UnityEngine.FindObjectsSortMode.None))
+		{
+			if (tomb == null)
+			{
+				continue;
+			}
+			Container container = tomb.GetComponent<Container>();
+			ZNetView nview = tomb.GetComponent<ZNetView>();
+			ZDO zdo = nview != null ? nview.GetZDO() : null;
+			Vector3 pos = tomb.transform.position;
+			List<object> contents = new List<object>();
+			if (container != null && container.GetInventory() != null)
+			{
+				foreach (ItemDrop.ItemData data in container.GetInventory().GetAllItems())
+				{
+					if (data != null && data.m_shared != null)
+					{
+						contents.Add(new Dictionary<string, object>
+						{
+							{ "prefab", data.m_dropPrefab != null ? data.m_dropPrefab.name : null },
+							{ "amount", data.m_stack },
+							{ "grid", data.m_gridPos.x + "," + data.m_gridPos.y }
+						});
+					}
+				}
+			}
+			graves.Add(new Dictionary<string, object>
+			{
+				{ "name", container != null ? container.m_name : tomb.name },
+				{ "x", pos.x },
+				{ "y", pos.y },
+				{ "z", pos.z },
+				{ "distance", p != null ? Vector3.Distance(p.transform.position, pos) : 0f },
+				{ "items", container != null && container.GetInventory() != null ? container.GetInventory().NrOfItems() : -1 },
+				{ "inUse", container != null && container.IsInUse() },
+				{ "isOwner", nview != null && nview.IsOwner() },
+				{ "owner", zdo != null ? zdo.GetOwner() : 0L },
+				{ "tombstoneId", zdo != null ? zdo.GetLong(CompanionSetup.TombstoneIdHash, 0L) : 0L },
+				{ "respawnPrefab", zdo != null ? zdo.GetString(CompanionTombstoneResurrect.RespawnPrefabHash, "") : "" },
+				{ "contents", contents }
+			});
+		}
+		return Ok(new Dictionary<string, object> { { "count", graves.Count }, { "tombstones", graves } });
+	}
+
+	/// <summary>Loots the nearest tombstone with items through the game's own entry point
+	/// (<see cref="TombStone.Interact"/>, the same method the E key calls - it takes everything when it fits).</summary>
+	private static string WorldTombstoneTake(Dictionary<string, object> args)
+	{
+		Player p = Player.m_localPlayer;
+		if (p == null)
+		{
+			return Fail("no player in the world");
+		}
+		TombStone best = null;
+		float bestDistance = float.MaxValue;
+		foreach (TombStone tomb in UnityEngine.Object.FindObjectsByType<TombStone>(UnityEngine.FindObjectsSortMode.None))
+		{
+			if (tomb == null)
+			{
+				continue;
+			}
+			Container container = tomb.GetComponent<Container>();
+			if (container == null || container.GetInventory() == null || container.GetInventory().NrOfItems() == 0)
+			{
+				continue;
+			}
+			float d = Vector3.Distance(p.transform.position, tomb.transform.position);
+			if (d < bestDistance)
+			{
+				bestDistance = d;
+				best = tomb;
+			}
+		}
+		if (best == null)
+		{
+			return Fail("no tombstone with items nearby");
+		}
+		Container grave = best.GetComponent<Container>();
+		int before = grave != null && grave.GetInventory() != null ? grave.GetInventory().NrOfItems() : 0;
+		// TakeAll is the call the game makes when the grave fits in the inventory - and it does NOT touch
+		// Container.m_inUse, unlike Interact (which opens the container). Try it first so the test matches the
+		// player path that lets the tombstone despawn.
+		bool used = grave != null && grave.TakeAll(p);
+		int after = grave != null && grave.GetInventory() != null ? grave.GetInventory().NrOfItems() : 0;
+		if (after == before)
+		{
+			used = best.Interact(p, hold: false, alt: false);
+			after = grave != null && grave.GetInventory() != null ? grave.GetInventory().NrOfItems() : 0;
+		}
+		return Ok(new Dictionary<string, object>
+		{
+			{ "name", grave != null ? grave.m_name : best.name },
+			{ "distance", bestDistance },
+			{ "used", used },
+			{ "stacksBefore", before },
+			{ "stacksAfter", after }
+		});
+	}
+
+	/// <summary>Destroys the companion tombstones around the player (dev cleanup for tests); 'includePlayer' also
+	/// removes the player's own tombstones.</summary>
+	private static string WorldTombstoneDestroy(Dictionary<string, object> args)
+	{
+		bool includePlayer = Json.Bool(args, "includePlayer", false);
+		int destroyed = 0;
+		List<object> names = new List<object>();
+		foreach (TombStone tomb in UnityEngine.Object.FindObjectsByType<TombStone>(UnityEngine.FindObjectsSortMode.None))
+		{
+			if (tomb == null)
+			{
+				continue;
+			}
+			ZNetView nview = tomb.GetComponent<ZNetView>();
+			ZDO zdo = nview != null ? nview.GetZDO() : null;
+			if (zdo == null)
+			{
+				continue;
+			}
+			if (zdo.GetLong(CompanionSetup.TombstoneIdHash, 0L) == 0 && !includePlayer)
+			{
+				continue;
+			}
+			Container container = tomb.GetComponent<Container>();
+			names.Add(container != null ? container.m_name : tomb.name);
+			if (!nview.IsOwner())
+			{
+				nview.ClaimOwnership();
+			}
+			nview.Destroy();
+			destroyed++;
+		}
+		return Ok(new Dictionary<string, object> { { "destroyed", destroyed }, { "names", names } });
+	}
+
+	/// <summary>Diagnostics for the tombstone despawn: the component state, whether the repeating UpdateDespawn is
+	/// running, the ZNetView validity and, with 'tick', a forced call to the private UpdateDespawn.</summary>
+	private static string WorldTombstoneDiag(Dictionary<string, object> args)
+	{
+		bool tick = Json.Bool(args, "tick", false);
+		List<object> rows = new List<object>();
+		MethodInfo update = typeof(TombStone).GetMethod("UpdateDespawn", BindingFlags.Instance | BindingFlags.NonPublic);
+		foreach (TombStone tomb in UnityEngine.Object.FindObjectsByType<TombStone>(UnityEngine.FindObjectsSortMode.None))
+		{
+			if (tomb == null)
+			{
+				continue;
+			}
+			ZNetView nview = tomb.GetComponent<ZNetView>();
+			Container container = tomb.GetComponent<Container>();
+			ZDO zdo = nview != null ? nview.GetZDO() : null;
+			if (zdo == null || zdo.GetLong(CompanionSetup.TombstoneIdHash, 0L) == 0)
+			{
+				continue;
+			}
+			Dictionary<string, object> row = new Dictionary<string, object>
+			{
+				{ "name", container != null ? container.m_name : tomb.name },
+				{ "enabled", tomb.enabled },
+				{ "activeInHierarchy", tomb.gameObject.activeInHierarchy },
+				{ "isInvoking", tomb.IsInvoking("UpdateDespawn") },
+				{ "nviewValid", nview != null && nview.IsValid() },
+				{ "isOwner", nview != null && nview.IsOwner() },
+				{ "inUse", container != null && container.IsInUse() },
+				{ "items", container != null && container.GetInventory() != null ? container.GetInventory().NrOfItems() : -1 }
+			};
+			if (tick && update != null)
+			{
+				update.Invoke(tomb, null);
+				row["ticked"] = true;
+				row["itemsAfterTick"] = container != null && container.GetInventory() != null ? container.GetInventory().NrOfItems() : -1;
+			}
+			rows.Add(row);
+		}
+		return Ok(new Dictionary<string, object> { { "count", rows.Count }, { "tombstones", rows } });
 	}
 
 	private static string WorldSpawn(Dictionary<string, object> args)

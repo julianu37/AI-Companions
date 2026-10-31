@@ -116,7 +116,7 @@ o cursor logo depois dela).
 `Wander`, `Follow`, `StayHome`, `HomeRadius`, `OrderCap`, `OrderCapMode`, `OrderCapItem`, `TombstoneId`, `Stamina`,
 `Recovering`, `RecoverStance`, `RecoverPickup`, `Voice`, `Gen`, `FarmZones` (`"<none>"` ou `"N chars"`).
 
-## Ferramentas MCP (38)
+## Ferramentas MCP (44)
 
 Genéricas: `devbridge_ping`, `game_status` (posição, hp/stamina, bioma, dia, **yaw** do player, **camYaw/pitch** da
 câmera e **god**), `game_console` (**roda um comando do console e devolve a saída**: liga os dev commands sozinho e,
@@ -133,8 +133,14 @@ da UI do mod): `input_focus`, `input_key`, `input_key_down`, `input_key_up` (seg
 manda o delta do `<Mouse>/delta`, que é o eixo do `ZInput.GetMouseDelta`).
 
 Companheiros: `companions_list`, `companions_spawn`, `companions_order`, `companions_teleport`, `companions_give`,
-`companions_zdo`, `companions_kill`, `companions_tier`, `companions_hire`, `companions_resurrect`,
-`companions_farm_zone`.
+`companions_zdo`, `companions_kill`, `companions_dismiss` (**o mesmo caminho do menu radial**: equipamento vai para a
+lápide e o corpo sai), `companions_inventory` (o que ele carrega), `companions_tier`, `companions_hire`,
+`companions_resurrect`, `companions_farm_zone`.
+
+Lápides: `world_tombstones` (as carregadas perto de você com **itens, `inUse`, `isOwner`, `tombstoneId`,
+`respawnPrefab` e o conteúdo**), `world_tombstone_take` (saque pelo `Container.TakeAll`, o mesmo do "cabe na
+mochila"), `world_tombstone_destroy` (limpeza de teste) e `world_tombstone_diag` (estado do componente,
+`IsInvoking`, ZNetView válido e um `tick` que chama o `UpdateDespawn` privado).
 
 Parâmetros e exemplos: `tools/mcp-devbridge/README.md`.
 

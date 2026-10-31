@@ -650,6 +650,57 @@ TOOLS = [
         },
     },
     {
+        "name": "companions_dismiss",
+        "description": "Dismisses a companion exactly like the radial menu (gear goes to a tombstone, the body is removed) - for tombstone tests.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"name": {"type": "string", "description": "companion name (contains, case-insensitive)"}},
+            "required": ["name"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "companions_inventory",
+        "description": "Lists what a companion is carrying (prefab, name, amount, grid slot).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"name": {"type": "string", "description": "companion name (contains, case-insensitive)"}},
+            "required": ["name"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "world_tombstones",
+        "description": (
+            "Lists the tombstones loaded around the player with what decides the vanilla despawn: item count, ZDO "
+            "owner (isOwner), whether the container is in use, plus the companion tombstone id and its respawn data."
+        ),
+        "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
+        "name": "world_tombstone_take",
+        "description": "Loots the nearest tombstone with items through the game's own TombStone.Interact (what the E key calls): takes everything when it fits.",
+        "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
+        "name": "world_tombstone_destroy",
+        "description": "Destroys the companion tombstones around the player (dev cleanup for tests); includePlayer also removes the player's own tombstones.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"includePlayer": {"type": "boolean", "default": False}},
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "world_tombstone_diag",
+        "description": "Diagnostics for the companion tombstone despawn (component enabled, IsInvoking, ZNetView valid, owner, in use, items); tick=true forces the game's private UpdateDespawn.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"tick": {"type": "boolean", "default": False}},
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "companions_tier",
         "description": (
             "Changes a companion's tier through CompanionManager.ChangeTier (the same swap the AI panel does): "
@@ -824,6 +875,18 @@ def run_tool(name, args):
         if args.get("damage"):
             payload["damage"] = args["damage"]
         return require_ok(call_bridge("companions.kill", **payload))
+    if name == "companions_dismiss":
+        return require_ok(call_bridge("companions.dismiss", name=args["name"]))
+    if name == "companions_inventory":
+        return require_ok(call_bridge("companions.inventory", name=args["name"]))
+    if name == "world_tombstones":
+        return require_ok(call_bridge("world.tombstones"))
+    if name == "world_tombstone_take":
+        return require_ok(call_bridge("world.tombstone_take"))
+    if name == "world_tombstone_destroy":
+        return require_ok(call_bridge("world.tombstone_destroy", includePlayer=args.get("includePlayer", False)))
+    if name == "world_tombstone_diag":
+        return require_ok(call_bridge("world.tombstone_diag", tick=args.get("tick", False)))
     if name == "companions_tier":
         payload = {"tier": args["tier"]}
         if args.get("name"):
