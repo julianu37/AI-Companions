@@ -131,7 +131,30 @@ Parâmetros e exemplos: `tools/mcp-devbridge/README.md`.
 | teste do parser JSON em C# | **11 PASS / 0 FAIL** |
 | plugin separado no jogo | **removido**; agora só existe o módulo dentro da `Companions.dll` |
 | ponta a ponta no jogo, módulo **standalone** (mundo `test3`) | **os 4 testes da 1.9.4 passaram** |
-| ponta a ponta no jogo, módulo **na DLL** | **pendente de um restart** (o porte é mecânico; build verde) |
+| ponta a ponta no jogo, módulo **na DLL** (mundo `test3`, 31/10/2026) | **24/24 PASS** — as **23 ferramentas**, incluindo kill/resurrect/tier/hire |
+
+### Validação na DLL (mundo `test3`, 31/10/2026)
+
+`python tools/mcp-devbridge/validate_e2e.py --destructive` → **18 PASS / 0 FAIL**, mais 6 ferramentas conferidas em
+seguida (`player_give`, `player_teleport`, `world_spawn`, `companions_give`, `companions_spawn`, `log_watch`) → **24
+checks, 0 falhas**.
+
+- `ping` → `bridge: Companions.DevBridge`, `version: 1.9.4`, `inGame: true`, `world: test3`.
+- `status` → `Gruncho`, hp 25/25, bioma Meadows; `player_inventory` listou os stacks reais.
+- `screenshot` → PNG (base64) entregue; `log_tail` e `log_watch` leram o log real (`log_watch` casou `[DevBridge]`).
+- `game_console help` e `world_time` (sem argumentos, mesmo instante) → ok; `dayLength = 1800` confirmado.
+- `companions_list` → 2 companheiros (`Maria`); `companions_zdo` → todas as chaves `HC_*` resolvidas.
+- `companions_order follow` → `applied: true`; `companions_teleport` e `player_teleport` → posições conferidas.
+- `companions_farm_zone list` → 1 zona (a do teste 2); `companions_tier companion` → mesmo prefab (no-op esperado).
+- `companions_kill` → `Maria` com `hpAfter: 0`; `companions_resurrect` → `resurrected: true`, `hp: 25`.
+- `companions_hire` → `hired: false`, `reason: "not enough coins"` (0 moedas) — **a recusa é o comportamento certo**.
+- `player_kill` → `killed: true`, `hpAfter: 0`; o jogador respawnou no ponto de nascimento.
+- `player_give`/`companions_give` (1 Wood) e `world_spawn` (Wood) → ok; `companions_spawn` → `spawned: true` (o mundo
+  `test3` ficou com um companheiro a mais — dispensar pelo painel/roda se quiser).
+
+> O mundo `test3` é de teste: o `player_kill`, o `companions_kill`/`resurrect` e o `companions_spawn` alteraram o save
+> de propósito. O script é seguro por padrão (só leitura + ações inofensivas) e os destrutivos só rodam com
+> `--destructive`.
 
 ### Evidências dos 4 testes da 1.9.4 (mundo `test3`, plugin standalone)
 
@@ -156,15 +179,13 @@ Parâmetros e exemplos: `tools/mcp-devbridge/README.md`.
 - `world_time` reportou `dayLength = 1800` (não 1200): usar o campo retornado, nunca hardcode.
 - `ApplyActionMode` grava via `MHR_WriteOrQueue`: espere ~1 s antes de ler o modo ou trocar de tier.
 
-> **Ressalva:** essas evidências são do plugin **standalone** (build anterior). O módulo na DLL foi portado com as
-> mesmas funções (chamada direta em vez de reflexão) e o build está verde, mas **precisa ser revalidado em jogo**
-> depois de um restart.
+> **Nota:** as evidências acima são do plugin **standalone** (mundo `test3`); a validação do módulo **na DLL** está na
+> subseção *Validação na DLL* — 24 checks, 0 falhas.
 
 ## Próximos passos
 
-1. **P0 — revalidar na DLL**: ligar `[Advanced] DevBridge`, **reiniciar o Valheim**, `devbridge_ping` → `inGame: true`,
-   `mod: 1.9.4`; repetir os 4 testes de `tools/mcp-devbridge/README.md` (seção "The four 1.9.4 tests"). O mundo `test3`
-   ficou com um segundo companheiro do teste 1 — dispensar pelo painel/roda se quiser o mundo como estava.
+1. **P0 — feito (31/10/2026):** validação na DLL no mundo `test3` — **24 checks, 0 falhas** (ver acima). O mundo ficou
+   com um companheiro a mais do `companions_spawn`; dispensar pelo painel/roda se quiser.
 2. **P1 — o que sobrou**: o pré-check visual do Santuário (`ShrinePanel.Summon`, antes de abrir o painel) continua
    manual; `companions_hire` cobre a cobrança e o spawn, não o clique.
 3. **P2 — conforto**: `companions.order` com `amount` (teto da coleta via `SetOrderCap`), `zdo_set`, empacotamento do
