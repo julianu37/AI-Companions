@@ -2221,6 +2221,26 @@ IA/lifecycle) **antes** de qualquer linha de código. Dois laudos corrigiram o d
 (buffs de comida) e o H4 (`s_state`/`s_tombCache` por `InstanceID`, sem `ReferenceEquals` nem limpeza) — ambos reais,
 ficam para a 1.9.5.
 
+#### Combate de volta ao da 1.9.1 (`FightLikePlayer = false`, 31/10/2026) — ✅ build 0 erros · ✅ validado em jogo
+
+O jogador relatou que os companheiros **bloqueiam demais** depois da 1.9.2. A causa é o **"combate como um jogador"**
+do upstream 1.5.6 (`cd0b2e7`, arquivo novo `AI/CompanionCombatTactics.cs`): com arma corpo a corpo o companheiro faz
+combos curtos, **guarda o escudo entre os combos**, sai do golpe (`TryEvade`) e recua para recuperar stamina
+(`StaminaReserve`). É tudo atrás de `_tacticsOn`, que vem de **`[Combat] FightLikePlayer`** — e a descrição do próprio
+upstream já dizia *"Off: the older way (one swing at a time on the weapon's timer)"*.
+
+- **Decisão:** o **padrão passou a `false`** (`ModConfig`), ou seja, o comportamento da 1.9.1: um golpe por vez no
+  timer da arma (`flag4 || (flag2 && flag3)`), **sem** guardar entre combos, **sem** sair do golpe e **sem** recuar por
+  stamina; o bloqueio volta a ser só **reação** ao golpe (0,2 s de reação + 0,2 s de guarda).
+- **Não muda:** o resto da 1.5.6 — arcos, navios, o scan de bloqueio mais preciso (`SwingAtUs`: alcance real e ângulo,
+  em vez do primeiro inimigo em 8 m da 1.9.1) e o sorteio de **parry** (`ParryChance`, em vez de todo bloqueio ser
+  parry). Ou seja, o bloqueio que sobra é **menor** que o da 1.9.1, nunca maior.
+- **Prova:** `status` do DevBridge ganhou `fightLikePlayer` e devolveu `false` no mundo `test3` com o `.cfg` editado;
+  o companheiro voltou a atacar no timer da arma (screenshot da luta com greylings). O `CONFIGURATION.md` foi regerado
+  (`tools/gen_config_doc.py`) e o `.cfg` do jogador foi ajustado à mão.
+- **Como voltar ao combate novo:** `[Combat] FightLikePlayer = true` no `AiCompanions.cfg` (nada de código).
+
+
 
 
 

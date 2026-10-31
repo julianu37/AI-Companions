@@ -81,7 +81,11 @@ config é **`BepInEx\config\AiCompanions.cfg`** (o GUID não dá mais nome a ele
   (31/10/2026, tag `v1.9.3`) tentou corrigir só a barba (`hash("")` → `0`) e **trocou um bug por outro** — a
   companheira feminina ficava com a barba do masculino; a **1.9.4** corrige de verdade (sentinela do cache em
   `int.MinValue`, ver `docs/release-notes-1.9.4.md`) e traz os três altos (Santuário, `ChangeTier`, dupla morte)
-  corrigidos e **validados em jogo** (mundo `test3`, 31/10/2026). A **caça a bugs da 1.9.4** (6 frentes, read-only, ~60 achados
+  corrigidos e **validados em jogo** (mundo `test3`, 31/10/2026). A 1.9.4 também **volta o combate ao da 1.9.1**:
+  o `[Combat] FightLikePlayer` (o "combate como um jogador" do upstream 1.5.6, que guardava o escudo entre combos e
+  recuava por stamina) passou a nascer **`false`** — um golpe por vez no timer da arma e bloqueio só de reação. Quem
+  quiser o combate novo liga a chave. Detalhes em `docs/roadmap.md` (1.9.4 — combate de volta ao da 1.9.1).
+  A **caça a bugs da 1.9.4** (6 frentes, read-only, ~60 achados
   distintos) está em **`docs/audit-bughunt-1.9.4.md`** — é de lá que sai o escopo da 1.9.4/1.9.5. Histórico: as
   releases saíram em sequência em 23–26/10 (`1.7.0` → `1.8.0` → `1.8.1` → `1.8.2` → `1.8.3` → `1.9.0` → `1.9.1`;
   a **1.7.1 foi pulada de propósito**, pedido do jogador) e a **1.9.1** só tirou o `ggml-base-q5_1.bin` (57 MB) do

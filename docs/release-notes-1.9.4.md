@@ -48,6 +48,11 @@
 - **The controller legend is back** (`BuildPadHint` was dead code - nothing called it).
 - **The starter and appearance panels lost the dark overlay** (`s_noDark` was never assigned; the build now has **zero
   warnings**).
+- **Combat is back to the 1.9.1 behaviour.** The upstream 1.5.6 "fight like a player" (`[Combat] FightLikePlayer`) made
+  a melee companion keep its guard up between combos, step out of swings and back off to catch its breath - in practice
+  it spends most of the fight defending. The default is now **off**: one swing at a time on the weapon's timer,
+  blocking only as a reaction, like 1.9.1. Set `[Combat] FightLikePlayer = true` in `AiCompanions.cfg` to get the new
+  combat back; the rest of 1.5.6 (bows, ships, the smarter block scan, the parry roll) is unchanged.
 - **No other change.** Same `.cfg`, same saves, same `Companions.dll` name, same models and the same AI layer.
 
 ## How to update

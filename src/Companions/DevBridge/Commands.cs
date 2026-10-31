@@ -160,6 +160,7 @@ internal static class Commands
 		data["time"] = ZNet.instance != null ? ZNet.instance.GetTimeSeconds() : 0f;
 		data["yaw"] = p.transform.eulerAngles.y;
 		data["god"] = p.InGodMode();
+		data["fightLikePlayer"] = CompanionCombatAI.FightLikePlayer;
 		Camera cam = ViewCamera();
 		if (cam != null)
 		{

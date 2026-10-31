@@ -314,8 +314,8 @@ Chance (0.3 = 30%) that a companion with no Blocking skill times a block as a pa
 **ParryChanceMax** — Default: 0.7 · Range: 0 – 1  
 Chance (0.7 = 70%) that a companion times a block as a parry at Blocking skill 100.
 
-**FightLikePlayer** — Default: On  
-With a melee weapon, companions fight like a player: short combos when there's an opening, guarding in between, stepping out of swings, getting clear when several enemies are on them, and backing off to catch their breath when low on stamina. Off: the older way (one swing at a time on the weapon's timer).
+**FightLikePlayer** — Default: Off  
+With a melee weapon, companions fight like a player: short combos when there's an opening, guarding in between, stepping out of swings, getting clear when several enemies are on them, and backing off to catch their breath when low on stamina. Off (default, the 1.9.1 way): one swing at a time on the weapon's timer, blocking only as a reaction.
 
 **ComboHits** — Default: 3 · Range: 1 – 5  
 Most swings in one combo. Companions follow their weapon's own combo (3 swings on melee weapons, the last doing double damage) up to this many; now and then one short, and shorter when stamina is low.
