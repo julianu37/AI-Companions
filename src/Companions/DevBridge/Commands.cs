@@ -1007,10 +1007,8 @@ internal static class Commands
 		{
 			return Fail("unknown key: " + key + " (use KeyCode names: Escape, F8, Return, W, Alpha1...)");
 		}
-		if (!InputSim.FocusGame())
-		{
-			return Fail("could not focus the game window - another window has the focus");
-		}
+		// Best effort: the synthetic events go straight into the Input System, which does not need the window focused.
+		InputSim.FocusGame();
 		bool sent = mode == "down" ? InputSim.Down(vk) : mode == "up" ? InputSim.Up(vk) : InputSim.Tap(vk);
 		return Ok(new Dictionary<string, object>
 		{
@@ -1029,10 +1027,8 @@ internal static class Commands
 		{
 			return Fail("missing 'text'");
 		}
-		if (!InputSim.FocusGame())
-		{
-			return Fail("could not focus the game window - another window has the focus");
-		}
+		// Best effort: the synthetic events go straight into the Input System, which does not need the window focused.
+		InputSim.FocusGame();
 		bool sent = InputSim.Text(text);
 		return Ok(new Dictionary<string, object>
 		{
@@ -1050,10 +1046,8 @@ internal static class Commands
 		{
 			return Fail("missing 'x'/'y' (game screen pixels)");
 		}
-		if (!InputSim.FocusGame())
-		{
-			return Fail("could not focus the game window - another window has the focus");
-		}
+		// Best effort: the synthetic events go straight into the Input System, which does not need the window focused.
+		InputSim.FocusGame();
 		bool sent = InputSim.Click(x, y);
 		return Ok(new Dictionary<string, object>
 		{
@@ -1090,10 +1084,8 @@ internal static class Commands
 		{
 			return Fail("missing 'x'/'y' (game screen pixels)");
 		}
-		if (!InputSim.FocusGame())
-		{
-			return Fail("could not focus the game window - another window has the focus");
-		}
+		// Best effort: the synthetic events go straight into the Input System, which does not need the window focused.
+		InputSim.FocusGame();
 		bool sent = down ? InputSim.MouseDown(x, y) : InputSim.MouseUp(x, y);
 		return Ok(new Dictionary<string, object>
 		{
