@@ -154,11 +154,14 @@ internal static class InputSim
 		{
 			return false;
 		}
-		IntPtr foreground = GetForegroundWindow();
-		if (foreground == window)
+		// The bridge runs on the Unity main thread, which owns the window: SetFocus here is what actually gives the
+		// game the KEYBOARD focus. SetForegroundWindow from another process only makes it the foreground window.
+		SetFocus(window);
+		if (GetForegroundWindow() == window)
 		{
 			return true;
 		}
+		IntPtr foreground = GetForegroundWindow();
 		uint foregroundThread = GetWindowThreadProcessId(foreground, IntPtr.Zero);
 		uint myThread = GetCurrentThreadId();
 		bool attached = foregroundThread != 0 && foregroundThread != myThread && AttachThreadInput(myThread, foregroundThread, attach: true);
