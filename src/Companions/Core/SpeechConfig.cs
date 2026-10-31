@@ -231,7 +231,7 @@ public class SpeechConfig
 
 	/// <summary>1.8.3: fills in the categories the file doesn't have (null OR empty array - an empty list would show
 	/// nothing at all) from <see cref="Defaults"/>, and says in the log which ones were missing.</summary>
-	/// <remarks>2.0.0 (upstream 1.5.5, the speech overhaul): the pools are found by <b>reflection</b> over the public
+	/// <remarks>1.9.2 (upstream 1.5.5, the speech overhaul): the pools are found by <b>reflection</b> over the public
 	/// <c>string[]</c> fields instead of a hand-written list. The list stayed at the old 15 categories after
 	/// Wood/Stone/Ore/Upkeep/Chat were added, so those pools came back <b>empty</b> from every language file:
 	/// Wood/Stone/Ore silently fell back to <c>Gather</c> in <c>CompanionTalk.Or</c> and Upkeep/Chat said nothing at

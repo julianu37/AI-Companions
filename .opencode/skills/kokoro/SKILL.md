@@ -98,7 +98,7 @@ melhoria pendente.
 - **Uma `AudioSource` 3D** na posição do companheiro, **`reverbZoneMix = 0`** (a `AudioReverbZone` global do
   Valheim tem raio de 1000 m e 4 s de cauda — sem isso a fala ecoa), uma fala por vez, `AudioClip` destruído no fim.
 - **Síntese em thread de fundo** (`SemaphoreSlim` + filas), cache por **bytes** (32 MB) só das linhas do mod.
-- **Trocar o idioma recarrega o modelo (2.0.0)**: o `Lang` escolhe o **fonemizador no load**, então o `OfflineTts`
+- **Trocar o idioma recarrega o modelo (1.9.2)**: o `Lang` escolhe o **fonemizador no load**, então o `OfflineTts`
   um-dia-carregado ficava no idioma antigo (voz `pf_dora` lendo português com fonemas ingleses, com o log dizendo
   `idioma pt-br`). Agora `_loadedLanguage` + `DropModelIfLanguageChanged` (só a thread de síntese libera, nunca outra)
   e `NoticeLanguageChange` (postfix do `SetupLanguage` + `SettingChanged` do `[AI] TtsLanguage`) reconstroem o modelo

@@ -1776,7 +1776,7 @@ public class ConfigPanel : MonoBehaviour
 		if (!IsChoiceSetting(entry))
 		{
 			// 1.5.77 (upstream) settings with a fixed list (Advanced > LogLevel, General > PortalItems, Death >
-			// RespawnStance): the options are the ones the setting itself declares. 2.0.0 fix - the merge sent these rows
+			// RespawnStance): the options are the ones the setting itself declares. 1.9.2 fix - the merge sent these rows
 			// here, but this builder only knew the AI keys and fell through to the Whisper language list, so any pick
 			// wrote a value outside the setting's own list and BepInEx clamped it to the first one (LogLevel became
 			// Off, PortalItems became AllowAll, RespawnStance became Passive).

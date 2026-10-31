@@ -60,11 +60,12 @@ config é **`BepInEx\config\AiCompanions.cfg`** (o GUID não dá mais nome a ele
   listar o Jotunn como requisito em release/README. (A skill `jotunn` da equipe continua no repositório como
   referência de framework, mas **não** se aplica a este mod.)
 - Target: **.NET Framework 4.7.2 (net472)**, C#.
-- Versão: **2.0.0** — **multilíngue (5 idiomas: PT-BR, EN, ES, FR, IT)** (fonte única: `PluginVersion` em
-  `src/Companions/Core/CompanionsPlugin.cs`). A **2.0.0** (branch `feat/ordens-interacao`, **ainda não publicada**)
+- Versão: **1.9.2** — **multilíngue (5 idiomas: PT-BR, EN, ES, FR, IT)** (fonte única: `PluginVersion` em
+  `src/Companions/Core/CompanionsPlugin.cs`). A **1.9.2** (branch `feat/ordens-interacao`, **mergeada na `main` e
+  publicada em 31/10/2026**, tag `v1.9.2`)
   é a **sincronização com o upstream 1.5.4 → 1.5.8** (121 arquivos, +14.907/−2.600; **63 byte a byte idênticos**,
   58 conflitos resolvidos à mão) **+ as 5 ordens de interação** por chat/voz (`hive`/`door`/`board`/`sit`/`deposit`,
-  `ValidActions` 30 → **35**). A auditoria das 7 frentes está em **`docs/audit-upstream-2.0.0.md`**: ela achou
+  `ValidActions` 30 → **35**). A auditoria das 7 frentes está em **`docs/audit-upstream-1.9.2.md`**: ela achou
   **2 regressões altas** do merge (as zonas de plantio sumiam no túmulo e o F8 gravava o **primeiro** valor de
   `LogLevel`/`PortalItems`/`RespawnStance`) e o que ficou adiado de propósito está listado lá. Histórico: as
   releases saíram em sequência em 23–26/10 (`1.7.0` → `1.8.0` → `1.8.1` → `1.8.2` → `1.8.3` → `1.9.0` → `1.9.1`;
@@ -274,7 +275,7 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
 - **Fase 3.4 — o companheiro FALA (TTS local, Kokoro-82M via sherpa-onnx):** o espelho do `WhisperStt`. Novo
   `AI/CompanionTts.cs`: o `OfflineTts` (NuGet **`org.k2fsa.sherpa.onnx`** 1.13.8, **Apache-2.0**, `netstandard2.0`
   → net472; nativos `sherpa-onnx-c-api.dll` + `onnxruntime.dll` do `...runtime.win-x64`) é carregado **uma vez**
-  (`TryGetTts`, lazy) e mantido; `Prewarm()` carrega em segundo plano quando você entra no mundo. **2.0.0: até o
+  (`TryGetTts`, lazy) e mantido; `Prewarm()` carrega em segundo plano quando você entra no mundo. **1.9.2: até o
   idioma mudar** — o `Lang` do Kokoro escolhe o **fonemizador** no load, então trocar o idioma do jogo (ou
   `[AI] TtsLanguage`) com o mundo aberto deixava a voz `pf_dora` lendo português com fonemas ingleses (soava como
   inglês; o log dizia `idioma pt-br` e mentia, porque `_loadedLanguage` não existia). Agora o worker compara
@@ -590,7 +591,7 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   `hc_ai_<ação>_none`. 17 chaves novas nos 5 idiomas. Rede extra no `LlmIntent` (`IsDoorWord`, no mesmo molde do
   `IsInventoryWord`): uma ação que **nomeia a porta** (`fecha_a_porta`) vale mais que o verbo, que o 3B manda como
   `inventory_close` (o `"fecha"` é apelido dessa ação desde a 3.8).
-  - **Correções da auditoria da 2.0.0** (rodada antes do teste; detalhes em `docs/audit-upstream-2.0.0.md`): a rede
+  - **Correções da auditoria da 1.9.2** (rodada antes do teste; detalhes em `docs/audit-upstream-1.9.2.md`): a rede
     da porta **não bastava** — com `StructuredOutput` (padrão) o schema só aceita o enum das 35 ações, então o modelo
     devolve `inventory_close` e o `IsDoorWord`, que lê a **ação**, nunca dispara: o companheiro fechava a janela do
     jogador. O novo **`CompanionOrders.IsDoorRequest`** lê as **palavras** (porta + verbo de abrir/fechar e **sem**

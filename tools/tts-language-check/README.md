@@ -1,7 +1,7 @@
 # tts-language-check — o Kokoro fala os 5 idiomas do mod?
 
 Teste **fora do jogo** que carrega o **modelo e os nativos que o mod empacota** e sintetiza uma frase em cada idioma,
-com as vozes que o painel oferece. É o teste que faltou antes da 2.0.0: em 30/10/2026 ele mostrou que
+com as vozes que o painel oferece. É o teste que faltou antes da 1.9.2: em 30/10/2026 ele mostrou que
 **`en-gb` e `fr-fr` carregam mas quebram no `Generate`** (e não que o idioma fosse só "cosmético"), e que
 **o idioma muda mesmo o áudio** — o mesmo texto em `pt-br` gera 80.062 amostras e em `en-us` 76.495.
 

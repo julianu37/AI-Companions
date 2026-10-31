@@ -46,7 +46,7 @@ internal static class MHR_Encumbrance
 
 	internal static bool Over(Character c)
 	{
-		// TODO(after 2.0.0 test): memoize the weight per inventory if the profiling says it matters (~2000 sums/frame).
+		// TODO(after 1.9.2 test): memoize the weight per inventory if the profiling says it matters (~2000 sums/frame).
 		Inventory inv = (c as Humanoid)?.GetInventory();
 		// upstream 1.5.62 measured the ceiling with CompanionTierData.CarryLimit; we use CompanionCarry (Fase 3.22:
 		// [General] MaxCarryWeight + the belt bonus read from the item asset)

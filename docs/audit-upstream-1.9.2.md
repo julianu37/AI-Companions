@@ -1,4 +1,4 @@
-# Auditoria da 2.0.0 — merge do upstream 1.5.4 → 1.5.8 + as 5 ordens de interação
+# Auditoria da 1.9.2 — merge do upstream 1.5.4 → 1.5.8 + as 5 ordens de interação
 
 Branch auditada: **`feat/ordens-interacao`** (base `main` = `f338d50`, a **1.9.1** publicada).
 O que a branch contém: o merge incremental do upstream (`f7c4761` 1.5.5, `bc6016f` 1.5.6, `c0b81f2` 1.5.7,
@@ -63,7 +63,7 @@ commits das traduções e da wiki (B6, P2, 75 + 2 chaves, 5 pools de fala).
 | **B3** | **`senta` com o companheiro já sentado por ordem: ele levanta e a resposta diz que ninguém atendeu.** `DirectSit` desliga sempre que `_isDirected && (_isSitting \|\| _navigating)`, ignorando **qual** fogo; `OrderSit` então devolve `Companion = null` ⇒ `hc_ai_no_companion` | `CompanionRest.cs:297-302`; `CompanionInteract.cs:2170-2178`; `CompanionChatAI.cs:1050-1054` | **corrigido** |
 | **B8** | **O alvo "apontado" das ordens novas não é o da tecla.** `Pointed<T>` olha só o **1º hit** do raio; a tecla varre todos até achar o componente ⇒ alvo semi-ocluo cai silenciosamente no "mais próximo" (baú errado a 5 m, porta errada a 20 m) | `CompanionInteract.cs:1847-1877` × `:775-883` | **corrigido** |
 | **A2** | **`MaxCompanions` não libera vaga no Despawn com `RecoverUnsummoned = true`** (padrão): o entry vira `Unsummoned`, `CountMine` conta todos e a limpeza só acontece ao recarregar o mundo — o texto da config promete que despawnar libera. Bônus: `CountMine` conta duas vezes o companheiro **sem id** (spawn recém-carregado em dedicado ⇒ "você já tem 11") | `MHR_Roster.cs:628-654,378-425,153-164`; `ModConfig.cs:733` | **corrigido** (texto honesto + dupla contagem; a semântica **não** muda antes do teste) |
-| **P2** | **75 rótulos do F8 + 2 abas sem tradução** nos 4 idiomas (265 de 340 traduzidos) — exatamente as configs que a 2.0.0 restaurou/introduziu | `ConfigPanel.cs:1245,1054` × `Translations/*.json` | **corrigido** |
+| **P2** | **75 rótulos do F8 + 2 abas sem tradução** nos 4 idiomas (265 de 340 traduzidos) — exatamente as configs que a 1.9.2 restaurou/introduziu | `ConfigPanel.cs:1245,1054` × `Translations/*.json` | **corrigido** |
 
 ### 3.3 Baixo
 

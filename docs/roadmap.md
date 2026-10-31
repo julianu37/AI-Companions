@@ -2053,7 +2053,7 @@ tocada), e que o bloqueio de input do painel da IA vem dos patches (`Hud.InRadia
 
 ---
 
-### Fase 2.0 — a sincronização com o upstream 1.5.8 e as 5 ordens de interação (2.0.0, branch `feat/ordens-interacao`)
+### Fase 2.0 — a sincronização com o upstream 1.5.8 e as 5 ordens de interação (1.9.2, branch `feat/ordens-interacao`)
 
 Antes de tudo: **este é o primeiro sync do upstream desde a base `1.5.4`**. Ele foi feito **incremental por release**
 (`1.5.5` → `1.5.6` → `1.5.7` → `1.5.8`, merges `f7c4761`, `bc6016f`, `c0b81f2`, `6a1205d` + as correções `3433292` e
@@ -2079,7 +2079,7 @@ Implementadas em branch **empilhada** para o teste ter um build só. Detalhes e 
 
 #### 3. A auditoria antes do teste (7 frentes, read-only)
 
-Relatório completo em **`docs/audit-upstream-2.0.0.md`**. Sete frentes independentes (global, IA/voz/ordens,
+Relatório completo em **`docs/audit-upstream-1.9.2.md`**. Sete frentes independentes (global, IA/voz/ordens,
 config/UI/localização, rede/ZDO, Harmony, "o que do upstream ficou de fora" e contrato/schema), com harness de reflexão
 sobre a DLL real (172 + 184 casos) e o decompilado do Valheim + o Harmony do BepInEx. **27 achados**, dos quais 3 altos:
 

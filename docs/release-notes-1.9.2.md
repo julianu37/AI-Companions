@@ -1,4 +1,4 @@
-# 2.0.0 — the companions catch up with the game (and take five new orders)
+# 1.9.2 — the companions catch up with the game (and take five new orders)
 
 ![AI Companions — AI NPC companions for Valheim](https://raw.githubusercontent.com/julianu37/AI-Companions/main/docs/images/banner.png)
 

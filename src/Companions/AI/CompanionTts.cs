@@ -204,7 +204,7 @@ internal static class CompanionTts
 	private static OfflineTts _tts;
 
 	/// <summary>
-	/// Multilanguage M1 (fix 2.0.0): the language the loaded model was <b>built</b> with. The Kokoro model is one file
+	/// Multilanguage M1 (fix 1.9.2): the language the loaded model was <b>built</b> with. The Kokoro model is one file
 	/// for every language, but the phonemizer (espeak-ng) is chosen when it is loaded - so a model loaded while the game
 	/// was in English keeps reading Portuguese with English phonemes (it sounds like English) no matter which voice is
 	/// selected. Compared on every line; when it differs from <see cref="Language"/> the model is rebuilt.
@@ -479,7 +479,7 @@ internal static class CompanionTts
 			CompanionsPlugin.Log?.LogInfo($"[TTS] Vozes (\"{Path.Combine(dir, VoicesFileName)}\", {DescribeFile(Path.Combine(dir, VoicesFileName))}), "
 				+ $"tokens (\"{Path.Combine(dir, TokensFileName)}\", {DescribeFile(Path.Combine(dir, TokensFileName))}) e "
 				+ $"espeak-ng-data (\"{Path.Combine(dir, EspeakDataDirName)}\") - tudo procurado na MESMA pasta do modelo.");
-			// fix 2.0.0: [AI] TtsLanguage changed in the F8 (or by hand in the .cfg) - the loaded model has the phonemizer
+			// fix 1.9.2: [AI] TtsLanguage changed in the F8 (or by hand in the .cfg) - the loaded model has the phonemizer
 			// of the old language, so it has to be rebuilt. The synthesis thread does it (see DropModelIfLanguageChanged).
 			if (ModConfig.TtsLanguage != null)
 			{
@@ -849,7 +849,7 @@ internal static class CompanionTts
 			{
 				return;
 			}
-			// fix 2.0.0: the language changed while the model was loaded - rebuild it here, before the next line, so the
+			// fix 1.9.2: the language changed while the model was loaded - rebuild it here, before the next line, so the
 			// first sentence after the switch already comes out in the new language (the load takes a second or two, and
 			// this is the synthesis thread, so the game never waits for it).
 			if (_reloadRequested)
@@ -905,7 +905,7 @@ internal static class CompanionTts
 		{
 			return;
 		}
-		// fix 2.0.0: the model carries the phonemizer of the language it was loaded in, so a language change (the game's
+		// fix 1.9.2: the model carries the phonemizer of the language it was loaded in, so a language change (the game's
 		// or [AI] TtsLanguage) has to rebuild it - this is the synthesis thread, the only place where it is safe.
 		DropModelIfLanguageChanged();
 		if (!TryGetTts(out OfflineTts tts, out string error))
@@ -1064,7 +1064,7 @@ internal static class CompanionTts
 	}
 
 	/// <summary>
-	/// Multilanguage M1 (fix 2.0.0): the game language (or <c>[AI] TtsLanguage</c>) changed, and the loaded model speaks
+	/// Multilanguage M1 (fix 1.9.2): the game language (or <c>[AI] TtsLanguage</c>) changed, and the loaded model speaks
 	/// the language it was <b>built</b> with (see <see cref="_loadedLanguage"/>). All this does is ask the synthesis
 	/// thread to rebuild it: that thread is the only user of the native model, and it is where freeing it is safe. Cheap
 	/// and Unity-free, so it can be called from the <c>Localization.SetupLanguage</c> postfix and from the config hook.

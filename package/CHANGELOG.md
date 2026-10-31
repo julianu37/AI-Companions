@@ -2,7 +2,7 @@
 
 All the changes to this project, derived from ProfMags' Offline Companions. The versions before 1.4.0 are the original mod (see the original mod's history, from ProfMags, for those versions) plus the first batch of compatibility fixes for the Valheim 1.0 API that made the mod load and run. **The entries below 1.5.4 are the upstream history and stay as they are (in English) — our sections (from 1.6.0 on) are ours.**
 
-## 2.0.0 — 30/10/2026
+## 1.9.2 — 31/10/2026
 
 **Upstream sync: 1.5.4 → 1.5.8.** Four upstream releases are in — combat, ships, the Shrine, torches, controller support —
 with our AI layer, localization and UI band kept.
@@ -56,7 +56,7 @@ companion carries into a chest).
   door order: the words you typed are checked for a door word and the absence of a pack word, the same idea as the
   rule that reads the pack from the action word.
 
-### Fixed in the merge (found by the 2.0.0 audit)
+### Fixed in the merge (found by the 1.9.2 audit)
 
 Seven independent reviews of the whole branch (AI layer, config/UI/localization, netcode/ZDO, Harmony, the prompt
 contract, "what of the upstream did not make it" and a global pass over this document) before the release. What they
@@ -91,7 +91,7 @@ found and is fixed here:
   (`Wood`, `Stone`, `Ore`, `Upkeep`, `Chat`), and `SpeechConfig.Merge` fills any pool a hand-edited file omits.
 - **75 F8 labels and 2 tab names** that were still in English are translated; **991 keys per language**.
 
-### Fixed after the first test of the 2.0.0 build (the voice)
+### Fixed after the first test of the 1.9.2 build (the voice)
 
 - **The voice follows the game language, including when you change it with the world open.** The Kokoro model is one
   file for every language, but it picks the **phonemizer when it is loaded** — and it was loaded once and kept, so

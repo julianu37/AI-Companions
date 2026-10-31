@@ -24,7 +24,7 @@ depois **JA/ZH** (dependem de validação no sherpa e, no zh, dos `lexicon-zh.tx
 > **trocar o idioma sem reiniciar** (F8, painel `I` e os formatos do HUD), e o `[TTS] idioma efetivo` deixou de chamar
 > de "auto" uma voz explícita que foi substituída.
 >
-> ⚠️ **O que a M1 não entregou (corrigido na 2.0.0):** a UI, as falas e o STT seguiam o idioma, mas o **modelo do TTS
+> ⚠️ **O que a M1 não entregou (corrigido na 1.9.2):** a UI, as falas e o STT seguiam o idioma, mas o **modelo do TTS
 > não** — o `Lang` do Kokoro escolhe o fonemizador **no load** e o `OfflineTts` era carregado uma vez e mantido, então
 > trocar o jogo para PT-BR deixava a voz portuguesa (`pf_dora`) lendo português com fonemas ingleses (soava como
 > inglês) e o cache de áudio continuava servindo as amostras antigas. Agora o worker compara `Language` com o idioma
