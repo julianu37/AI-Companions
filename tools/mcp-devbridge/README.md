@@ -25,15 +25,40 @@ No parameters. `inGame: false` when the world is not loaded (main menu).
 
 ### `game_console`
 
-| param | type | required |
+| param | type | default |
 |---|---|---|
-| `command` | string | yes |
+| `command` | string | - (required) |
+| `cheats` | boolean | `true` |
 
 ```json
-{"command": "devcommands"}
+{"command": "spawn PickaxeBlackMetal 5", "ok": true, "cheats": true, "output": [], "prefab": "PickaxeBlackMetal", "prefabFound": true}
+{"command": "tod 0.5", "ok": true, "cheats": true, "output": ["Setting time of day:0,5"]}
+{"command": "naoexiste", "ok": false, "cheats": true, "output": ["'naoexiste' is not a recognized command. Type 'help' to see a list of valid commands."]}
 ```
 
-The command runs exactly like typing it in the in-game console (cheats still require `devcommands`).
+Runs the command exactly like typing it in the in-game console (F5) and returns **what it printed** - the bridge reads
+`Terminal.m_chatBuffer` before and after and returns only the new lines.
+
+- **Dev commands are enabled first** when needed: `spawn`/`tod`/`god` are cheats and the game refuses them silently
+  without `devcommands`. The command is a **toggle**, so the bridge only sends it when `Console.m_cheat` is false.
+- **`spawn` reports whether the prefab exists** (`prefabFound`): `AxeBlackmetal` does **not** exist, the right name is
+  **`AxeBlackMetal`** (case-sensitive). Use `world_prefabs` to find names.
+- `spawn` drops the item at the player's feet; `player_give` puts it in the inventory. `spawn` also takes the game's
+  extras: `spawn <prefab> [amount] [level] [radius] [p/e/i]` (`p` tries to pick up, `e` equips).
+- `ok: false` means the console answered "not a recognized command" or "not valid in the current context".
+
+### `world_prefabs`
+
+| param | type | default |
+|---|---|---|
+| `filter` | string (case-insensitive substring) | `""` |
+| `limit` | integer (1..500) | 60 |
+
+```json
+{"filter": "pickaxe", "count": 9, "names": ["dvergrprops_pickaxe", "PickaxeAntler", "PickaxeBlackMetal", "PickaxeBronze", "PickaxeIron", "PickaxeStone", "sfx_pickaxe_hit", "sfx_pickaxe_hit_vibration_only", "sfx_pickaxe_swing"]}
+```
+
+The prefab names the world knows - the exact spelling for `spawn` and `world_spawn`.
 
 ### `player_give`
 

@@ -258,10 +258,23 @@ TOOLS = [
     },
     {
         "name": "game_console",
-        "description": "Runs a Valheim console command (same as typing it in the in-game console).",
+        "description": (
+            "Runs a Valheim console command exactly as typed in the F5 console and returns what it printed. Dev "
+            "commands (cheats) are enabled first when needed - 'devcommands' is a toggle, so the bridge only sends it "
+            "once. Examples: 'spawn PickaxeBlackMetal 5', 'spawn AxeBlackmetal', 'tod 0.5' (midday), 'god on', "
+            "'heal', 'ghost on', 'env Clear', 'find Beech1', 'help'. 'spawn' drops the item at the player's feet "
+            "(use player_give to put it in the inventory); the reply also says whether the prefab exists."
+        ),
         "inputSchema": {
             "type": "object",
-            "properties": {"command": {"type": "string", "description": "e.g. 'devcommands', 'spawn Troll 2'"}},
+            "properties": {
+                "command": {"type": "string", "description": "e.g. 'spawn PickaxeBlackMetal 5' or 'tod 0.5'"},
+                "cheats": {
+                    "type": "boolean",
+                    "default": True,
+                    "description": "enable dev commands first (needed by spawn/tod/god)",
+                },
+            },
             "required": ["command"],
             "additionalProperties": False,
         },
@@ -346,6 +359,18 @@ TOOLS = [
             "properties": {
                 "kind": {"type": "string", "enum": ["tree", "creature"], "default": "tree"},
                 "max": {"type": "number", "minimum": 1, "maximum": 300, "default": 100},
+            },
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "world_prefabs",
+        "description": "Lists the prefab names the world knows, filtered by a substring - the exact name for 'spawn' (e.g. filter 'axe' shows AxeBlackmetal, AxeBronze...).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "filter": {"type": "string", "description": "case-insensitive substring, empty = everything"},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 500, "default": 60},
             },
             "additionalProperties": False,
         },
@@ -688,7 +713,7 @@ def run_tool(name, args):
     if name == "game_status":
         return require_ok(call_bridge("status"))
     if name == "game_console":
-        return require_ok(call_bridge("console", command=args["command"]))
+        return require_ok(call_bridge("console", command=args["command"], cheats=args.get("cheats", True)))
     if name == "player_give":
         return require_ok(call_bridge("player.give", item=args["item"], amount=args.get("amount", 1)))
     if name == "player_teleport":
@@ -712,6 +737,8 @@ def run_tool(name, args):
         return require_ok(call_bridge("world.aim", max=args.get("max", 100)))
     if name == "world_nearest":
         return require_ok(call_bridge("world.nearest", kind=args.get("kind", "tree"), max=args.get("max", 100)))
+    if name == "world_prefabs":
+        return require_ok(call_bridge("world.prefabs", filter=args.get("filter", ""), limit=args.get("limit", 60)))
     if name == "world_setup":
         payload = {"time": args.get("time", 0.5), "god": args.get("god", True)}
         return require_ok(call_bridge("world.setup", **payload))

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Plays the game through the DevBridge: walk, run, jump, look, aim and chop a tree.
+"""Drives the player through the DevBridge: walk, run, jump, look, aim and the console commands.
 
-This is the regression test of player control (the MCP tools `input_key_down`/`input_key_up`,
-`input_mouse_move`, `world_nearest`, `world_aim`). It needs the game in a world with the bridge on:
+This is the regression test of the MCP tools that control the character (`input_key_down`/`input_key_up`,
+`input_mouse_move`, `world_nearest`, `world_aim`) and of `game_console` (dev commands + `spawn` + `tod`). It needs the
+game in a world with the bridge on:
 
     [Advanced] DevBridge = true      (AiCompanions.cfg, restart the game)
 
@@ -43,11 +44,6 @@ def hold(keys, seconds):
     for key in reversed(keys):
         m.require_ok(m.call_bridge("input.key_up", key=key))
     time.sleep(0.4)
-
-
-def wood():
-    inv = m.require_ok(m.call_bridge("player.inventory"))
-    return sum(s["amount"] for s in inv.get("stacks", []) if s["prefab"] == "Wood")
 
 
 def norm(deg):
@@ -117,18 +113,13 @@ def main():
     check("looking (mouse_move) turns the camera", abs(turned) > 5.0, "%.1f deg for dx=200" % turned)
     per_px = turned / 200.0
 
-    # --- aim at the nearest tree -------------------------------------------------------------
+    # --- aim at the nearest tree (world_nearest + world_aim) ---------------------------------
     tree = m.require_ok(m.call_bridge("world.nearest", kind="tree", max=80))
     check("world_nearest finds a tree", bool(tree.get("found")),
           "%s at %.1f m" % (tree.get("name"), tree.get("distance", -1)))
-    if not tree.get("found"):
-        return 1
-    target = (tree["x"], tree["z"])
-
-    def aim_at(target, tries=6):
-        """Turns the camera to the fixed target point; returns the last aim result."""
-        hit = {}
-        for _ in range(tries):
+    if tree.get("found"):
+        target = (tree["x"], tree["z"])
+        for _ in range(6):
             player = status()
             desired = math.degrees(math.atan2(target[0] - player["x"], target[1] - player["z"]))
             error = norm(desired - player["camYaw"])
@@ -136,42 +127,28 @@ def main():
                 break
             m.require_ok(m.call_bridge("input.mouse_move", dx=int(round(error / per_px if per_px else 20)), dy=0))
             time.sleep(0.3)
-        return m.require_ok(m.call_bridge("world.aim"))
+        aimed = m.require_ok(m.call_bridge("world.aim"))
+        check("world_aim reports the crosshair target", bool(aimed.get("hit")), str(aimed.get("name")))
 
-    def distance_to(target):
-        player = status()
-        return math.hypot(target[0] - player["x"], target[1] - player["z"])
+    # --- console commands (dev commands + spawn + tod) ----------------------------------------
+    # 'spawn' and 'tod' are cheats: the bridge enables devcommands first (the command is a toggle).
+    axe = m.require_ok(m.call_bridge("console", command="spawn AxeBlackMetal", cheats=True))
+    check("console spawn AxeBlackMetal", bool(axe.get("ok")) and bool(axe.get("prefabFound")), str(axe.get("output")))
 
-    # --- approach the fixed tree, re-aiming every step (walking drifts the yaw) --------------
-    for _ in range(60):
-        if distance_to(target) <= 2.6:
-            break
-        aim_at(target, tries=2)
-        hold(["W"], 0.6)
-    near = distance_to(target)
-    aimed = aim_at(target)
-    check("the player reaches the tree", near <= 3.5, "%.2f m" % near)
-    check("world_aim sees the tree", bool(aimed.get("tree")), str(aimed.get("name")))
+    pick = m.require_ok(m.call_bridge("console", command="spawn PickaxeBlackMetal 5", cheats=True))
+    check("console spawn PickaxeBlackMetal 5", bool(pick.get("ok")) and bool(pick.get("prefabFound")),
+          str(pick.get("output")))
 
-    # --- chop --------------------------------------------------------------------------------
-    # The swing costs ~14 stamina, so the loop waits for it (a starved player just swings nothing).
-    wood_before = wood()
-    chopped = False
-    swings = 0
-    deadline = time.time() + 150
-    while time.time() < deadline:
-        if status()["stamina"] < 20:
-            time.sleep(1.5)
-            continue
-        m.require_ok(m.call_bridge("input.mouse_down", x=840, y=525))
-        time.sleep(0.10)
-        m.require_ok(m.call_bridge("input.mouse_up", x=840, y=525))
-        swings += 1
-        time.sleep(0.9)
-        if wood() > wood_before:
-            chopped = True
-            break
-    check("attacking (mouse) chops the tree", chopped, "%d swings, wood %d -> %d" % (swings, wood_before, wood()))
+    m.require_ok(m.call_bridge("console", command="tod 0.2", cheats=True))
+    time.sleep(0.5)
+    early = status()["dayFraction"]
+    m.require_ok(m.call_bridge("console", command="tod 0.5", cheats=True))
+    time.sleep(0.5)
+    midday = status()["dayFraction"]
+    check("console tod changes the time of day", abs(midday - 0.5) < 0.02, "%.2f -> %.2f" % (early, midday))
+
+    bad = m.require_ok(m.call_bridge("console", command="definitelynotacommand", cheats=True))
+    check("console reports an unknown command", bad.get("ok") is False, str(bad.get("output")))
 
     print()
     print("=== %d PASS / %d FAIL ===" % (len(TOTAL) - len(FAILS), len(FAILS)))

@@ -116,14 +116,16 @@ o cursor logo depois dela).
 `Wander`, `Follow`, `StayHome`, `HomeRadius`, `OrderCap`, `OrderCapMode`, `OrderCapItem`, `TombstoneId`, `Stamina`,
 `Recovering`, `RecoverStance`, `RecoverPickup`, `Voice`, `Gen`, `FarmZones` (`"<none>"` ou `"N chars"`).
 
-## Ferramentas MCP (37)
+## Ferramentas MCP (38)
 
 Genéricas: `devbridge_ping`, `game_status` (posição, hp/stamina, bioma, dia, **yaw** do player, **camYaw/pitch** da
-câmera e **god**), `game_console`, `player_give`, `player_teleport`, `player_kill`, `player_inventory`, `world_spawn`,
+câmera e **god**), `game_console` (**roda um comando do console e devolve a saída**: liga os dev commands sozinho e,
+num `spawn`, diz se o prefab existe), `player_give`, `player_teleport`, `player_kill`, `player_inventory`, `world_spawn`,
 `world_time`, `world_aim` (o que está **sob a mira**: nome, distância, ponto, se é árvore/criatura), `world_nearest`
-(a **árvore** ou **criatura** mais próxima — o alvo para mirar), `world_setup` (**devcommands + `tod` + `god on` +
-`heal`** — o setup para dirigir o player), `screenshot` (a visão do jogador), `render_view` (câmera **off-screen**,
-não mexe na visão do jogador), `log_tail`, `log_watch`.
+(a **árvore** ou **criatura** mais próxima — o alvo para mirar), `world_prefabs` (os nomes de prefab que o mundo
+conhece, filtrados — é como se descobre `AxeBlackMetal` em vez de adivinhar), `world_setup` (**devcommands + `tod` +
+`god on` + `heal`** — o setup para dirigir o player), `screenshot` (a visão do jogador), `render_view` (câmera
+**off-screen**, não mexe na visão do jogador), `log_tail`, `log_watch`.
 
 Input (teclado/mouse no **Unity Input System** — o caminho que o jogo lê — e também no `SendInput` legado, que é o
 da UI do mod): `input_focus`, `input_key`, `input_key_down`, `input_key_up` (seguram teclas, então `Shift+W` corre e
@@ -148,6 +150,7 @@ Parâmetros e exemplos: `tools/mcp-devbridge/README.md`.
 | ponta a ponta no jogo, módulo **na DLL** (mundo `test3`, 31/10/2026) | **24/24 PASS** — as **23 ferramentas**, incluindo kill/resurrect/tier/hire |
 | **controle do player** (mundo `test3`, 31/10/2026) | **andar, correr, pular, olhar, atacar e cortar uma árvore** — `Shift+W` gastou stamina (50 → 33,6), `mouse_move` girou a câmera, 16 golpes derrubaram a `Beech1` e a madeira entrou no inventário (2 → 3) |
 | **setup automático ao entrar** (mundo `test3`, 31/10/2026) | `world_enter` devolveu `setup: {cheats: true, god: true, hp: 25}` e `dayFraction 0.5`; 3 greylings baixaram o HP para 10,76 e **o player não morreu** (o `god` do Valheim 1.0 trava o HP em 1), `heal` devolveu 25 |
+| **comandos de console** (mundo `test3`, 31/10/2026) | `spawn PickaxeBlackMetal 5` → `ok: true, prefabFound: true`; `spawn AxeBlackmetal` → `prefabFound: false` (o certo é `AxeBlackMetal`); `tod 0.5` → saída real `Setting time of day:0,5` e `dayFraction 0.5`; comando inválido → `ok: false` com a mensagem do jogo; `demo_play.py` **12 PASS / 0 FAIL** |
 
 ### Validação na DLL (mundo `test3`, 31/10/2026)
 
@@ -235,6 +238,28 @@ cancela o dano:** ele **trava o HP em 1** quando o golpe mataria (`Character.cs`
 health = 1`). Medido em jogo: 3 greylings baixaram o HP de 25 para 10,76 em 15 s e **o player não morreu**; o `heal`
 devolveu 25. Ou seja: `god` cumpre "não morrer", mas o HP continua caindo — para os inimigos **ignorarem** o player
 existe o `ghost on` (comando do jogo, não ligado por padrão).
+
+### Rodar comandos de console (`devcommands`, `spawn`, `tod`)
+
+`game_console` roda **o mesmo comando que você digitaria no F5** e devolve o que ele imprimiu:
+
+| pedido | chamada | resposta |
+|---|---|---|
+| ligar os cheats | `game_console command=devcommands` | `{"cheats": true}` (o bridge só manda uma vez: o comando é **toggle**) |
+| item no chão | `game_console command="spawn PickaxeBlackMetal 5"` | `{"ok": true, "prefabFound": true, "output": []}` |
+| meio-dia | `game_console command="tod 0.5"` | `{"ok": true, "output": ["Setting time of day:0,5"]}` |
+| comando errado | `game_console command=naoexiste` | `{"ok": false, "output": ["'naoexiste' is not a recognized command..."]}` |
+
+- **Os cheats vêm ligados por padrão** (`cheats: true`): sem `devcommands` o jogo **recusa** `spawn`/`tod`/`god` em
+  silêncio. O `game_console` liga antes de rodar e só manda o `devcommands` se `Console.m_cheat` estiver falso.
+- **A saída é real:** o bridge lê o `Terminal.m_chatBuffer` (por reflexão) antes e depois e devolve só as linhas novas
+  — é assim que `tod` diz "Setting time of day:0,5" e o `help` devolve a lista inteira.
+- **`spawn` avisa se o prefab existe** (`prefabFound`). Isso pega erro de digitação/caixa: **`AxeBlackmetal` não
+  existe**, o certo é **`AxeBlackMetal`** (o Valheim é case-sensitive). Para descobrir o nome, use
+  **`world_prefabs filter=axe`** → `AxeBlackMetal`, `AxeBronze`, `AxeFlint`...; `filter=pickaxe` → `PickaxeBlackMetal`...
+- `spawn` **joga o item no chão** (aos pés do player). Para ir direto para a mochila, `player_give`.
+- `spawn` aceita os extras do jogo: `spawn <prefab> [amount] [level] [radius] [p/e/i]` — `p` tenta pegar, `e` equipa.
+  Ex.: `spawn AxeBlackMetal 1 1 1 e` já equipa o machado.
 
 ### Testar um painel (ex.: o bind do F8)
 

@@ -89,6 +89,7 @@ internal static class Commands
 			case "world.time": return WorldTime(args);
 			case "world.aim": return WorldAim(args);
 			case "world.nearest": return WorldNearest(args);
+			case "world.prefabs": return WorldPrefabs(args);
 			case "world.setup": return WorldSetup(args);
 			case "screenshot": return Screenshot(args);
 			case "render.view": return RenderView(args);
@@ -289,6 +290,41 @@ internal static class Commands
 		return m != null ? Convert.ToInt32(m.Invoke(EnvMan.instance, null)) : 0;
 	}
 
+	/// <summary>The prefab names the world knows (a filtered list), so the agent can find the exact name for
+	/// <c>spawn</c> instead of guessing (e.g. 'AxeBlackmetal' vs 'AxeBlackMetal').</summary>
+	private static string WorldPrefabs(Dictionary<string, object> args)
+	{
+		if (ZNetScene.instance == null)
+		{
+			return Fail("the world isn't loaded");
+		}
+		string filter = (Json.Str(args, "filter") ?? string.Empty).Trim();
+		int limit = Mathf.Clamp(Json.Int(args, "limit", 60), 1, 500);
+		List<string> matches = new List<string>();
+		foreach (string name in ZNetScene.instance.GetPrefabNames())
+		{
+			if (name == null)
+			{
+				continue;
+			}
+			if (filter.Length == 0 || name.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0)
+			{
+				matches.Add(name);
+			}
+		}
+		matches.Sort(StringComparer.OrdinalIgnoreCase);
+		if (matches.Count > limit)
+		{
+			matches.RemoveRange(limit, matches.Count - limit);
+		}
+		return Ok(new Dictionary<string, object>
+		{
+			{ "filter", filter },
+			{ "count", matches.Count },
+			{ "names", matches }
+		});
+	}
+
 	/// <summary>Dev setup right after entering the world: dev commands (toggled only once - the command flips a bool),
 	/// the time of day (0.5 = midday) and god mode, so the agent can drive the player without dying.</summary>
 	private static string WorldSetup(Dictionary<string, object> args)
@@ -329,8 +365,55 @@ internal static class Commands
 		{
 			return Fail("the console is not available");
 		}
-		global::Console.instance.TryRunCommand(command, silentFail: true);
-		return Ok(new Dictionary<string, object> { { "command", command } });
+		// 'spawn', 'tod', 'god'... are cheats: the game only runs them after 'devcommands', which is a toggle.
+		if (Json.Bool(args, "cheats", true) && !global::Console.m_cheat)
+		{
+			global::Console.instance.TryRunCommand("devcommands", silentFail: true);
+		}
+		List<string> before = ChatBuffer();
+		global::Console.instance.TryRunCommand(command, silentFail: false);
+		List<string> output = NewLines(ChatBuffer(), before);
+		bool failed = output.Exists(line =>
+			line.IndexOf("not a recognized command", StringComparison.OrdinalIgnoreCase) >= 0 ||
+			line.IndexOf("not valid in the current context", StringComparison.OrdinalIgnoreCase) >= 0);
+		Dictionary<string, object> data = new Dictionary<string, object>
+		{
+			{ "command", command },
+			{ "ok", !failed },
+			{ "cheats", global::Console.m_cheat },
+			{ "output", output }
+		};
+		// 'spawn <prefab> [count]': say up front whether the prefab exists, so a typo is not a silent no-op.
+		string[] parts = command.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+		if (parts.Length >= 2 && parts[0].Equals("spawn", StringComparison.OrdinalIgnoreCase) && ZNetScene.instance != null)
+		{
+			data["prefab"] = parts[1];
+			data["prefabFound"] = ZNetScene.instance.GetPrefab(parts[1]) != null;
+		}
+		return Ok(data);
+	}
+
+	/// <summary>A copy of the console chat buffer (Terminal.m_chatBuffer, protected): the commands write their
+	/// answers there, and diffing before/after is how the bridge reports what a command said.</summary>
+	private static List<string> ChatBuffer()
+	{
+		FieldInfo field = typeof(Terminal).GetField("m_chatBuffer", BindingFlags.Instance | BindingFlags.NonPublic);
+		List<string> buffer = field != null && global::Console.instance != null
+			? field.GetValue(global::Console.instance) as List<string>
+			: null;
+		return buffer != null ? new List<string>(buffer) : new List<string>();
+	}
+
+	/// <summary>The lines the command added: everything after the last line of the previous snapshot (the buffer
+	/// keeps 300 lines, so it can also have rotated).</summary>
+	private static List<string> NewLines(List<string> after, List<string> before)
+	{
+		if (before.Count == 0)
+		{
+			return after;
+		}
+		int index = after.LastIndexOf(before[before.Count - 1]);
+		return index >= 0 ? after.GetRange(index + 1, after.Count - index - 1) : after;
 	}
 
 	private static string PlayerGive(Dictionary<string, object> args)

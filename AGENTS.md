@@ -1030,8 +1030,9 @@ comandos de console e spawna coisas, então não é feature de jogador.
   golpe mataria (`Character.cs`), então o `heal` é obrigatório para a barra não ficar em 1. `setup: false` no
   `world_enter` desliga.
 - **Testar:** `python tools/mcp-devbridge/test_mcp_devbridge.py` (mock, sem jogo) — 41 checks.
-- **Docs:** `docs/mcp-devbridge.md` (arquitetura, protocolo, as **37** ferramentas, a receita de **jogar pelo agente**
-  e as evidências dos testes da 1.9.4) e `tools/mcp-devbridge/README.md` (parâmetros/exemplos).
+- **Docs:** `docs/mcp-devbridge.md` (arquitetura, protocolo, as **38** ferramentas, a receita de **jogar pelo agente**
+  e a de **comandos de console**, e as evidências dos testes da 1.9.4) e `tools/mcp-devbridge/README.md`
+  (parâmetros/exemplos).
 - **Não** empacotar o servidor Python no zip; o módulo vai na DLL, desligado.
 
 ## MCP servers disponíveis
