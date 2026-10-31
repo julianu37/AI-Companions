@@ -377,6 +377,32 @@ TOOLS = [
         },
     },
     {
+        "name": "input_mouse_down",
+        "description": "Presses the left mouse button at client (x, y) and keeps it down - pair with input_mouse_up across a few frames for a click the UI cannot miss.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "x": {"type": "integer", "minimum": 0},
+                "y": {"type": "integer", "minimum": 0},
+            },
+            "required": ["x", "y"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "input_mouse_up",
+        "description": "Releases the left mouse button at client (x, y).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "x": {"type": "integer", "minimum": 0},
+                "y": {"type": "integer", "minimum": 0},
+            },
+            "required": ["x", "y"],
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "log_tail",
         "description": "Returns the last lines of BepInEx\\LogOutput.log (works even with the game closed).",
         "inputSchema": {
@@ -586,6 +612,10 @@ def run_tool(name, args):
         return require_ok(call_bridge("input.text", text=args["text"]))
     if name == "input_click":
         return require_ok(call_bridge("input.click", x=args["x"], y=args["y"]))
+    if name == "input_mouse_down":
+        return require_ok(call_bridge("input.mouse_down", x=args["x"], y=args["y"]))
+    if name == "input_mouse_up":
+        return require_ok(call_bridge("input.mouse_up", x=args["x"], y=args["y"]))
     if name == "log_tail":
         return log_tail(int(args.get("lines", 80)))
     if name == "log_watch":

@@ -78,6 +78,13 @@ internal static class InputSim
 		public int Bottom;
 	}
 
+	[StructLayout(LayoutKind.Sequential)]
+	private struct Point
+	{
+		public int X;
+		public int Y;
+	}
+
 	[DllImport("user32.dll", SetLastError = true)]
 	private static extern uint SendInput(uint count, InputEvent[] events, int size);
 
@@ -92,6 +99,9 @@ internal static class InputSim
 
 	[DllImport("user32.dll")]
 	private static extern bool GetWindowRect(IntPtr window, out Rect rect);
+
+	[DllImport("user32.dll")]
+	private static extern bool ClientToScreen(IntPtr window, ref Point point);
 
 	[DllImport("user32.dll")]
 	private static extern int GetSystemMetrics(int index);
@@ -199,24 +209,61 @@ internal static class InputSim
 		return Send(events.ToArray());
 	}
 
+	/// <summary>
+	/// Clicks at a <b>client</b> coordinate (the same pixels as the screenshot). The point is mapped with
+	/// <c>ClientToScreen</c>, so the window border and title bar are accounted for. Down and up are sent in the same
+	/// batch - Unity's EventSystem can miss a click whose press and release land in the same frame, so use
+	/// <see cref="MouseDown"/> + <see cref="MouseUp"/> (with a small delay between them) when a click must land.
+	/// </summary>
 	public static bool Click(int x, int y)
 	{
+		if (!ClientToAbsolute(x, y, out int nx, out int ny))
+		{
+			return false;
+		}
+		return Send(MouseEvent(nx, ny, MouseeventfMove | MouseeventfAbsolute),
+			MouseEvent(nx, ny, MouseeventfLeftdown),
+			MouseEvent(nx, ny, MouseeventfLeftup));
+	}
+
+	public static bool MouseDown(int x, int y)
+	{
+		if (!ClientToAbsolute(x, y, out int nx, out int ny))
+		{
+			return false;
+		}
+		return Send(MouseEvent(nx, ny, MouseeventfMove | MouseeventfAbsolute),
+			MouseEvent(nx, ny, MouseeventfLeftdown));
+	}
+
+	public static bool MouseUp(int x, int y)
+	{
+		if (!ClientToAbsolute(x, y, out int nx, out int ny))
+		{
+			return false;
+		}
+		return Send(MouseEvent(nx, ny, MouseeventfLeftup));
+	}
+
+	private static bool ClientToAbsolute(int x, int y, out int nx, out int ny)
+	{
+		nx = 0;
+		ny = 0;
 		IntPtr window = GameWindow();
 		if (window == IntPtr.Zero)
 		{
 			return false;
 		}
-		GetWindowRect(window, out Rect rect);
+		Point point = new Point { X = x, Y = y };
+		if (!ClientToScreen(window, ref point))
+		{
+			return false;
+		}
 		int screenWidth = Math.Max(1, GetSystemMetrics(0));
 		int screenHeight = Math.Max(1, GetSystemMetrics(1));
-		// SendInput absolute coordinates are normalized over the whole virtual screen, so the window origin is added
-		int px = Math.Max(0, Math.Min(screenWidth - 1, rect.Left + x));
-		int py = Math.Max(0, Math.Min(screenHeight - 1, rect.Top + y));
-		int nx = (int)(px * 65535.0 / (screenWidth - 1));
-		int ny = (int)(py * 65535.0 / (screenHeight - 1));
-		return Send(MouseEvent(nx, ny, MouseeventfMove | MouseeventfAbsolute),
-			MouseEvent(nx, ny, MouseeventfLeftdown),
-			MouseEvent(nx, ny, MouseeventfLeftup));
+		nx = (int)(Math.Max(0, Math.Min(screenWidth - 1, point.X)) * 65535.0 / (screenWidth - 1));
+		ny = (int)(Math.Max(0, Math.Min(screenHeight - 1, point.Y)) * 65535.0 / (screenHeight - 1));
+		return true;
 	}
 
 	private static InputEvent KeyEvent(ushort vk, bool up)

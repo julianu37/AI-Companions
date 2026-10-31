@@ -95,6 +95,8 @@ internal static class Commands
 			case "input.key_up": return InputKey(args, "up");
 			case "input.text": return InputText(args);
 			case "input.click": return InputClick(args);
+			case "input.mouse_down": return InputMouse(args, down: true);
+			case "input.mouse_up": return InputMouse(args, down: false);
 			case "companions.list": return CompanionsList();
 			case "companions.spawn": return CompanionsSpawn();
 			case "companions.order": return CompanionsOrder(args);
@@ -1056,6 +1058,29 @@ internal static class Commands
 		{
 			{ "x", x },
 			{ "y", y },
+			{ "sent", sent },
+			{ "focused", InputSim.IsGameFocused() }
+		});
+	}
+
+	private static string InputMouse(Dictionary<string, object> args, bool down)
+	{
+		int x = Json.Int(args, "x", -1);
+		int y = Json.Int(args, "y", -1);
+		if (x < 0 || y < 0)
+		{
+			return Fail("missing 'x'/'y' (game screen pixels)");
+		}
+		if (!InputSim.FocusGame())
+		{
+			return Fail("could not focus the game window - another window has the focus");
+		}
+		bool sent = down ? InputSim.MouseDown(x, y) : InputSim.MouseUp(x, y);
+		return Ok(new Dictionary<string, object>
+		{
+			{ "x", x },
+			{ "y", y },
+			{ "down", down },
 			{ "sent", sent },
 			{ "focused", InputSim.IsGameFocused() }
 		});
