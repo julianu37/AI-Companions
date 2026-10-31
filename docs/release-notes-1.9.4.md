@@ -48,6 +48,11 @@
 - **The controller legend is back** (`BuildPadHint` was dead code - nothing called it).
 - **The starter and appearance panels lost the dark overlay** (`s_noDark` was never assigned; the build now has **zero
   warnings**).
+- **The pause menu's "Mod Options" no longer points at itself** (the "down" navigation is captured once per menu;
+  on the second opening the controller could not move past it).
+- **AOE hits no longer throw**: the companion terrain-hit suppression used to return `null` to `Aoe.OnHit`, which
+  dereferences it when the effect has `springDelay`/`placeOnGround`; it now gets a throwaway object destroyed at the
+  end of the frame.
 - **Combat is back to the 1.9.1 behaviour.** The upstream 1.5.6 "fight like a player" (`[Combat] FightLikePlayer`) made
   a melee companion keep its guard up between combos, step out of swings and back off to catch its breath - in practice
   it spends most of the fight defending. The default is now **off**: one swing at a time on the weapon's timer,

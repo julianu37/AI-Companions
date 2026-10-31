@@ -45,6 +45,12 @@ so the beard of the previous appearance was never destroyed.
 - **The controller legend is back.** `BuildPadHint` existed but nothing called it, so the gamepad footer never showed.
 - **The starter and appearance panels lost the dark overlay.** `s_noDark` was never assigned - it was the only
   compiler warning in the build. The panels now use the light sections the upstream moved to.
+- **The pause menu's "Mod Options" no longer points at itself.** On the second opening, the button's "down"
+  navigation was re-read from `Settings.selectOnDown`, which by then was the Mod Options button itself - the
+  controller got stuck there. The original target is now captured once per menu.
+- **AOE hits no longer throw.** `Attack.SpawnOnHitTerrain` was suppressed for companions by returning `null`, and
+  `Aoe.OnHit` dereferences the result when the effect has `springDelay`/`placeOnGround` - one `NullReferenceException`
+  per hit. It now gets a throwaway object that is destroyed at the end of the frame (nothing is spawned).
 - **Combat back to the 1.9.1 behaviour: companions block as a reaction again.** The upstream 1.5.6 "fight like a
   player" (`[Combat] FightLikePlayer`) made a melee companion keep its guard up between combos, step out of swings and
   back off to catch its breath - in practice it spends most of the fight defending. The default is now **off**: one
