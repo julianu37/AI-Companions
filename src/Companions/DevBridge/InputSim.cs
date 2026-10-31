@@ -92,6 +92,18 @@ internal static class InputSim
 	private static extern IntPtr GetForegroundWindow();
 
 	[DllImport("user32.dll")]
+	private static extern uint GetWindowThreadProcessId(IntPtr window, IntPtr processId);
+
+	[DllImport("kernel32.dll")]
+	private static extern uint GetCurrentThreadId();
+
+	[DllImport("user32.dll")]
+	private static extern bool AttachThreadInput(uint attachFrom, uint attachTo, bool attach);
+
+	[DllImport("user32.dll")]
+	private static extern IntPtr SetFocus(IntPtr window);
+
+	[DllImport("user32.dll")]
 	private static extern bool SetForegroundWindow(IntPtr window);
 
 	[DllImport("user32.dll")]
@@ -130,7 +142,11 @@ internal static class InputSim
 		}
 	}
 
-	/// <summary>Brings the game window to the foreground. Returns true when the game really has the focus.</summary>
+	/// <summary>
+	/// Brings the game window to the foreground. Windows refuses <c>SetForegroundWindow</c> from a background process
+	/// (the foreground lock), so the calling thread is temporarily attached to the foreground window's thread - the
+	/// standard way to steal the focus on purpose. Returns true when the game really has the focus.
+	/// </summary>
 	public static bool FocusGame()
 	{
 		IntPtr window = GameWindow();
@@ -138,8 +154,27 @@ internal static class InputSim
 		{
 			return false;
 		}
-		ShowWindow(window, SwRestore);
-		SetForegroundWindow(window);
+		IntPtr foreground = GetForegroundWindow();
+		if (foreground == window)
+		{
+			return true;
+		}
+		uint foregroundThread = GetWindowThreadProcessId(foreground, IntPtr.Zero);
+		uint myThread = GetCurrentThreadId();
+		bool attached = foregroundThread != 0 && foregroundThread != myThread && AttachThreadInput(myThread, foregroundThread, attach: true);
+		try
+		{
+			ShowWindow(window, SwRestore);
+			SetForegroundWindow(window);
+			SetFocus(window);
+		}
+		finally
+		{
+			if (attached)
+			{
+				AttachThreadInput(myThread, foregroundThread, attach: false);
+			}
+		}
 		return GetForegroundWindow() == window;
 	}
 
