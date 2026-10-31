@@ -80,7 +80,8 @@ config é **`BepInEx\config\AiCompanions.cfg`** (o GUID não dá mais nome a ele
   `LogLevel`/`PortalItems`/`RespawnStance`) e o que ficou adiado de propósito está listado lá. A **1.9.3**
   (31/10/2026, tag `v1.9.3`) tentou corrigir só a barba (`hash("")` → `0`) e **trocou um bug por outro** — a
   companheira feminina ficava com a barba do masculino; a **1.9.4** corrige de verdade (sentinela do cache em
-  `int.MinValue`, ver `docs/release-notes-1.9.4.md`). A **caça a bugs da 1.9.4** (6 frentes, read-only, ~60 achados
+  `int.MinValue`, ver `docs/release-notes-1.9.4.md`) e traz os três altos (Santuário, `ChangeTier`, dupla morte)
+  corrigidos e **pendentes de verificação em jogo**. A **caça a bugs da 1.9.4** (6 frentes, read-only, ~60 achados
   distintos) está em **`docs/audit-bughunt-1.9.4.md`** — é de lá que sai o escopo da 1.9.4/1.9.5. Histórico: as
   releases saíram em sequência em 23–26/10 (`1.7.0` → `1.8.0` → `1.8.1` → `1.8.2` → `1.8.3` → `1.9.0` → `1.9.1`;
   a **1.7.1 foi pulada de propósito**, pedido do jogador) e a **1.9.1** só tirou o `ggml-base-q5_1.bin` (57 MB) do

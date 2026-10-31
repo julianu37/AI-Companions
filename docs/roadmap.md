@@ -2186,7 +2186,11 @@ preenchemos; e a lista de achados que sobrou está em `docs/audit-bughunt-1.9.4.
   `GatherIntent` real da DLL 1.9.4 (harness, casos `gather`): "ramasse 10 bois" → `wood/10`, "junte a madeira do
   chão" → `null` (pickup legítimo), "colete 10 pedras" → `stone/10` — **todos PASS**.
 
-#### Os três altos da 1.9.4 (branch `fix/altos-194`, 31/10/2026)
+#### Os três altos da 1.9.4 (branch `fix/altos-194`, 31/10/2026) — ✅ build 0 erros · ⏳ **pendente de verificação em jogo**
+
+> **Status:** as três correções estão commitadas e deployadas (versão 1.9.4), mas **o teste em jogo foi adiado pelo
+> jogador** em 31/10/2026 — nada aqui está validado em jogo ainda. O plano de teste (com as linhas de log que provam
+> cada passo) está no fim desta seção e no relatório de cada especialista.
 
 Confirmados por **três especialistas independentes** (reverse-engineering contra o upstream e o decompilado; netcode;
 IA/lifecycle) **antes** de qualquer linha de código. Dois laudos corrigiram o diagnóstico inicial e um achado caiu:
