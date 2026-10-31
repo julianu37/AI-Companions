@@ -455,6 +455,19 @@ TOOLS = [
         },
     },
     {
+        "name": "input_mouse_move",
+        "description": "Turns the camera by a mouse delta (dx, dy in pixels): the game reads <Mouse>/delta, so this is how the player looks around. The delta lasts one frame.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "dx": {"type": "integer"},
+                "dy": {"type": "integer"},
+            },
+            "required": ["dx", "dy"],
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "world_enter",
         "description": "Skips the intro and enters the world (Space > Down > Enter > Enter > Enter) and waits for it to load. Use after launching the game.",
         "inputSchema": {
@@ -684,6 +697,9 @@ def run_tool(name, args):
     if name == "input_mouse_up":
         focus_game()
         return require_ok(call_bridge("input.mouse_up", x=args["x"], y=args["y"]))
+    if name == "input_mouse_move":
+        focus_game()
+        return require_ok(call_bridge("input.mouse_move", dx=args["dx"], dy=args["dy"]))
     if name == "world_enter":
         return world_enter(args)
     if name == "log_tail":

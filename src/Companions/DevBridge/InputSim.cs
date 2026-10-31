@@ -292,6 +292,11 @@ internal static class InputSim
 			InputSystem.QueueStateEvent(Mouse.current, new MouseState { position = _mousePosition });
 			_mouseReleaseFrame = -1;
 		}
+		if (_lookResetFrame >= 0 && Time.frameCount >= _lookResetFrame && Mouse.current != null)
+		{
+			InputSystem.QueueStateEvent(Mouse.current, new MouseState { position = _mousePosition });
+			_lookResetFrame = -1;
+		}
 	}
 
 	public static void ClickNew(int x, int y)
@@ -327,6 +332,25 @@ internal static class InputSim
 		_mouseReleaseFrame = -1;
 	}
 
+	private static int _lookResetFrame = -1;
+
+	/// <summary>Rotates the camera: the game reads &lt;Mouse&gt;/delta (ZInput.GetMouseDelta), so the look is a
+	/// one-frame delta event. The delta is zeroed on the next frame (PumpNew), otherwise the camera would keep
+	/// turning at that speed.</summary>
+	public static void MouseMove(int dx, int dy)
+	{
+		if (Mouse.current == null)
+		{
+			return;
+		}
+		InputSystem.QueueStateEvent(Mouse.current, new MouseState
+		{
+			position = _mousePosition,
+			delta = new Vector2(dx, dy)
+		});
+		_lookResetFrame = Time.frameCount + 1;
+	}
+
 	private static Key ToKey(ushort vk)
 	{
 		switch (vk)
@@ -341,6 +365,17 @@ internal static class InputSim
 		case 0x09: return Key.Tab;
 		case 0x08: return Key.Backspace;
 		case 0x2E: return Key.Delete;
+		case 0x2D: return Key.Insert;
+		case 0x24: return Key.Home;
+		case 0x23: return Key.End;
+		case 0x21: return Key.PageUp;
+		case 0x22: return Key.PageDown;
+		case 0xA0: return Key.LeftShift;
+		case 0xA1: return Key.RightShift;
+		case 0xA2: return Key.LeftCtrl;
+		case 0xA3: return Key.RightCtrl;
+		case 0xA4: return Key.LeftAlt;
+		case 0xA5: return Key.RightAlt;
 		}
 		if (vk >= 0x70 && vk <= 0x7B)
 		{
