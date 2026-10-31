@@ -229,6 +229,17 @@ meio, `screenshot` mostra a tela.
 
 ## Armadilhas (já resolvidas, não repetir)
 
+- **O `ZInput` do Valheim 1.0 lê o Unity Input System NOVO** (`Keyboard.current[key].wasPressedThisFrame`), não o
+  `Input` legado. `SendInput` sozinho **não** alimenta o menu do jogo: por isso o F8 do mod (legado) funcionava e o
+  menu não. `input.key` agora faz as duas coisas: `SendInput` (UI do mod) **e**
+  `InputSystem.QueueStateEvent(Keyboard.current, new KeyboardState(key))`, com a soltura no frame seguinte
+  (`BridgeServer.Pump` → `InputSim.PumpNew`). Foi o que destravou o `world_enter`.
+- **Foco:** o Windows bloqueia `SetForegroundWindow` vindo do processo do jogo em background. O servidor MCP roda sob o
+  app em foco e foca a janela (`FindWindowW("UnityWndClass")`) antes de cada input; o bridge ainda faz `SetFocus` na
+  thread dona da janela.
+- **Mouse:** o clique vai por `SendInput` + `MouseState.WithButton(MouseButton.Left)` no Input System, mas a UI do
+  **mod** (uGUI/`Input` legado) só recebe o clique com a janela realmente focada; a injeção do Input System não chega
+  nela. Para clicar em painel do mod, o jogo precisa estar em primeiro plano de verdade.
 - `EnvMan.GetCurrentDay()` é **privado** → reflexão (`Commands.DayNumber`).
 - O console do jogo é `Console : Terminal` (global) → usar `global::Console` para não colidir com `System.Console`.
 - `ScreenCapture.CaptureScreenshot` grava **no fim do quadro** → o servidor espera o arquivo (até 4 s).
