@@ -1025,7 +1025,7 @@ comandos de console e spawna coisas, então não é feature de jogador.
 - **Ligar:** `[Advanced] DevBridge = true` no `AiCompanions.cfg` e reiniciar o jogo; o log diz
   `[DevBridge] listening on 127.0.0.1:47110`.
 - **Testar:** `python tools/mcp-devbridge/test_mcp_devbridge.py` (mock, sem jogo) — 41 checks.
-- **Docs:** `docs/mcp-devbridge.md` (arquitetura, protocolo, as **36** ferramentas, a receita de **jogar pelo agente**
+- **Docs:** `docs/mcp-devbridge.md` (arquitetura, protocolo, as **37** ferramentas, a receita de **jogar pelo agente**
   e as evidências dos testes da 1.9.4) e `tools/mcp-devbridge/README.md` (parâmetros/exemplos).
 - **Não** empacotar o servidor Python no zip; o módulo vai na DLL, desligado.
 

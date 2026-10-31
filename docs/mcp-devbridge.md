@@ -116,13 +116,14 @@ o cursor logo depois dela).
 `Wander`, `Follow`, `StayHome`, `HomeRadius`, `OrderCap`, `OrderCapMode`, `OrderCapItem`, `TombstoneId`, `Stamina`,
 `Recovering`, `RecoverStance`, `RecoverPickup`, `Voice`, `Gen`, `FarmZones` (`"<none>"` ou `"N chars"`).
 
-## Ferramentas MCP (36)
+## Ferramentas MCP (37)
 
-Genéricas: `devbridge_ping`, `game_status` (posição, hp/stamina, bioma, dia, **yaw** do player e **camYaw/pitch** da
-câmera), `game_console`, `player_give`, `player_teleport`, `player_kill`, `player_inventory`, `world_spawn`,
+Genéricas: `devbridge_ping`, `game_status` (posição, hp/stamina, bioma, dia, **yaw** do player, **camYaw/pitch** da
+câmera e **god**), `game_console`, `player_give`, `player_teleport`, `player_kill`, `player_inventory`, `world_spawn`,
 `world_time`, `world_aim` (o que está **sob a mira**: nome, distância, ponto, se é árvore/criatura), `world_nearest`
-(a **árvore** ou **criatura** mais próxima — o alvo para mirar), `screenshot` (a visão do jogador), `render_view`
-(câmera **off-screen**, não mexe na visão do jogador), `log_tail`, `log_watch`.
+(a **árvore** ou **criatura** mais próxima — o alvo para mirar), `world_setup` (**devcommands + `tod` + `god on` +
+`heal`** — o setup para dirigir o player), `screenshot` (a visão do jogador), `render_view` (câmera **off-screen**,
+não mexe na visão do jogador), `log_tail`, `log_watch`.
 
 Input (teclado/mouse no **Unity Input System** — o caminho que o jogo lê — e também no `SendInput` legado, que é o
 da UI do mod): `input_focus`, `input_key`, `input_key_down`, `input_key_up` (seguram teclas, então `Shift+W` corre e
@@ -146,6 +147,7 @@ Parâmetros e exemplos: `tools/mcp-devbridge/README.md`.
 | ponta a ponta no jogo, módulo **standalone** (mundo `test3`) | **os 4 testes da 1.9.4 passaram** |
 | ponta a ponta no jogo, módulo **na DLL** (mundo `test3`, 31/10/2026) | **24/24 PASS** — as **23 ferramentas**, incluindo kill/resurrect/tier/hire |
 | **controle do player** (mundo `test3`, 31/10/2026) | **andar, correr, pular, olhar, atacar e cortar uma árvore** — `Shift+W` gastou stamina (50 → 33,6), `mouse_move` girou a câmera, 16 golpes derrubaram a `Beech1` e a madeira entrou no inventário (2 → 3) |
+| **setup automático ao entrar** (mundo `test3`, 31/10/2026) | `world_enter` devolveu `setup: {cheats: true, god: true, hp: 25}` e `dayFraction 0.5`; 3 greylings baixaram o HP para 10,76 e **o player não morreu** (o `god` do Valheim 1.0 trava o HP em 1), `heal` devolveu 25 |
 
 ### Validação na DLL (mundo `test3`, 31/10/2026)
 
@@ -221,6 +223,18 @@ seguida (`player_give`, `player_teleport`, `world_spawn`, `companions_give`, `co
 
 Equivalente manual: `input_key` com essas teclas e ~1 s entre elas; depois `ping` até `inGame: true`. Se parar no
 meio, `screenshot` mostra a tela.
+
+**Depois de carregar, o `world_enter` roda o `world.setup` sozinho** (`setup: false` desliga): `devcommands` (só se
+ainda não estiver ligado — o comando é um **toggle**), `tod 0.5` (meio-dia) e `god on` + `heal`. Sem isso o agente
+morre para um greyling enquanto está ocupado com o bridge.
+
+### Deixar o player invencível (e por que o `god` sozinho não basta)
+
+`world_setup` (ou `game_console` com `devcommands`, `tod 0.5`, `god on`, `heal`). **No Valheim 1.0 o `god` não
+cancela o dano:** ele **trava o HP em 1** quando o golpe mataria (`Character.cs`, `health <= 0 && InGodMode() →
+health = 1`). Medido em jogo: 3 greylings baixaram o HP de 25 para 10,76 em 15 s e **o player não morreu**; o `heal`
+devolveu 25. Ou seja: `god` cumpre "não morrer", mas o HP continua caindo — para os inimigos **ignorarem** o player
+existe o `ghost on` (comando do jogo, não ligado por padrão).
 
 ### Testar um painel (ex.: o bind do F8)
 

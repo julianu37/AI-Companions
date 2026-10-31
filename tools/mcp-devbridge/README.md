@@ -134,6 +134,24 @@ The nearest **tree** or **creature** around the player - the target to aim at (p
 {"found": true, "kind": "tree", "name": "Beech1(Clone)", "distance": 8.37, "x": -63.39, "y": 82.1, "z": 55.57}
 ```
 
+### `world_setup`
+
+The dev setup for driving the player, in one call: `devcommands` (only when it is still off - the command is a
+**toggle**), `tod <time>` (0.5 = midday) and `god on` + `heal`.
+
+| param | type | default |
+|---|---|---|
+| `time` | number 0..0.999 (day fraction) | 0.5 |
+| `god` | boolean | `true` |
+
+```json
+{"cheats": true, "god": true, "hp": 25, "time": 0.5}
+```
+
+**Valheim 1.0's `god` does not cancel damage**: it clamps a killing blow to **1 HP** (`Character.cs`). The player does
+not die, but the bar keeps dropping - that is why the setup runs `heal` too. `ghost on` (a game command, not enabled
+here) is what makes enemies ignore the player.
+
 ### `screenshot`
 
 | param | type |
