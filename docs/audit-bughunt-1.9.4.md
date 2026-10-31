@@ -47,10 +47,10 @@ Estes não dependem do relato de nenhum agente:
 
 | # | achado | evidência | status |
 |---|---|---|---|
-| 1 | **O Santuário de Odin invoca companheiro de graça**: o painel mostra o preço (`CompanionPrice` = 1000), mas o confirm chama o spawn do starter (sem moeda). `HireWithCoins` **não tem chamador**. Efeito colateral: `StarterFix.MarkSpawned()` marca "starter já invocado", então quem invoca no Santuário antes do starter **nunca ganha o starter** | `ShrinePanel.cs:155-166` → `StarterCompanionPanel.cs:149-160`; `CompanionManager.cs:1066`; upstream `8aa6f53:StarterCompanionPanel.cs:147-160` tem o ramo `_hire` | ✅ **corrigido** na `fix/altos-194` (ramo `_hire` restaurado + overload interno de `HireWithCoins` com o `aiDraft`, porque `CompanionAiDraft` é `internal` → CS0051). **Correção do laudo:** a remoção foi no merge da **1.5.6** (`bc6016f`), não no da 1.5.8; e o efeito colateral do starter tem **duas** causas — `MarkSpawned()` (fechada) **e** a regra "qualquer companheiro na cena dispensa o starter" (`CompanionManager.cs:1018-1026`), que continua valendo por desenho — ⏳ **pendente de verificação em jogo** |
-| 2 | **`ChangeTier` perde `HC_FarmZones`** — o Fazendeiro perde as zonas de plantio (com a cultura de cada uma) | `CompanionManager.cs:505-508,651-688`; `FarmZoneSerializer.cs:10` | ✅ **corrigido** na `fix/altos-194` (`FarmZoneSerializer.FarmZonesHash` em `CarriedStringKeys`). A lápide e o roster já preservavam as zonas; só a troca de tipo não — ⏳ **pendente de verificação em jogo** |
-| 3 | **`ChangeTier` perde `HC_Recovering`/`HC_RecoverStance`/`HC_RecoverPickup`** → corpo novo nasce com `HC_AutoPickup = false` e sem o flag de recuperação ⇒ **auto-pickup desligado para sempre** | `CompanionManager.cs:349,455,505-508` × `MHR_Recover.cs:64-68,84-89,288-299` | ✅ **corrigido** na `fix/altos-194` (`CopyRecovery` copia as 3 chaves como bloco, só quando `HC_Recovering` está ligado) — ⏳ **pendente de verificação em jogo** |
-| 4 | **Morrer 2× durante a recuperação** → `OnRevived` grava `AutoPickup = false`, o túmulo copia esse `false`, o próximo revive grava `RecoverPickup = false` ⇒ mesma sequela, silenciosa. **A perda atinge também a postura** (`HC_RecoverStance` vira `Passive`) | `MHR_Recover.cs:56-60,291` → `CompanionSetup.cs:992,1040` → `CompanionTombstoneResurrect.cs:410,429` | ✅ **corrigido** na `fix/altos-194` (`MHR_Recover.RememberedAutoPickup`/`RememberedStance` na morte leem o valor lembrado quando `HC_Recovering`) — ⏳ **pendente de verificação em jogo** |
+| 1 | **O Santuário de Odin invoca companheiro de graça**: o painel mostra o preço (`CompanionPrice` = 1000), mas o confirm chama o spawn do starter (sem moeda). `HireWithCoins` **não tem chamador**. Efeito colateral: `StarterFix.MarkSpawned()` marca "starter já invocado", então quem invoca no Santuário antes do starter **nunca ganha o starter** | `ShrinePanel.cs:155-166` → `StarterCompanionPanel.cs:149-160`; `CompanionManager.cs:1066`; upstream `8aa6f53:StarterCompanionPanel.cs:147-160` tem o ramo `_hire` | ✅ **corrigido** na `fix/altos-194` (ramo `_hire` restaurado + overload interno de `HireWithCoins` com o `aiDraft`, porque `CompanionAiDraft` é `internal` → CS0051). **Correção do laudo:** a remoção foi no merge da **1.5.6** (`bc6016f`), não no da 1.5.8; e o efeito colateral do starter tem **duas** causas — `MarkSpawned()` (fechada) **e** a regra "qualquer companheiro na cena dispensa o starter" (`CompanionManager.cs:1018-1026`), que continua valendo por desenho — ✅ **validado em jogo** (mundo `test3`, 31/10/2026) |
+| 2 | **`ChangeTier` perde `HC_FarmZones`** — o Fazendeiro perde as zonas de plantio (com a cultura de cada uma) | `CompanionManager.cs:505-508,651-688`; `FarmZoneSerializer.cs:10` | ✅ **corrigido** na `fix/altos-194` (`FarmZoneSerializer.FarmZonesHash` em `CarriedStringKeys`). A lápide e o roster já preservavam as zonas; só a troca de tipo não — ✅ **validado em jogo** (mundo `test3`, 31/10/2026) |
+| 3 | **`ChangeTier` perde `HC_Recovering`/`HC_RecoverStance`/`HC_RecoverPickup`** → corpo novo nasce com `HC_AutoPickup = false` e sem o flag de recuperação ⇒ **auto-pickup desligado para sempre** | `CompanionManager.cs:349,455,505-508` × `MHR_Recover.cs:64-68,84-89,288-299` | ✅ **corrigido** na `fix/altos-194` (`CopyRecovery` copia as 3 chaves como bloco, só quando `HC_Recovering` está ligado) — ✅ **validado em jogo** (mundo `test3`, 31/10/2026) |
+| 4 | **Morrer 2× durante a recuperação** → `OnRevived` grava `AutoPickup = false`, o túmulo copia esse `false`, o próximo revive grava `RecoverPickup = false` ⇒ mesma sequela, silenciosa. **A perda atinge também a postura** (`HC_RecoverStance` vira `Passive`) | `MHR_Recover.cs:56-60,291` → `CompanionSetup.cs:992,1040` → `CompanionTombstoneResurrect.cs:410,429` | ✅ **corrigido** na `fix/altos-194` (`MHR_Recover.RememberedAutoPickup`/`RememberedStance` na morte leem o valor lembrado quando `HC_Recovering`) — ✅ **validado em jogo** (mundo `test3`, 31/10/2026) |
 | 5 | **A barba da companheira feminina** (1.9.3 trocou um bug por outro) | `CompanionSetup.cs:450-451` × `VisEquipment.cs:1133` | ✅ **corrigido** na branch `fix/barba-sentinela` (ver `docs/roadmap.md`, seção da 1.9.4) |
 
 **Falsos positivos e buracos novos da investigação (31/10/2026, 3 especialistas independentes):**
@@ -74,7 +74,7 @@ Estes não dependem do relato de nenhum agente:
 | 10 | **`HC_Respawn_Inventory` volta com `m_equipped` sujo** — é o único dos 3 caminhos de restauração que não limpa as flags; com `DeathItemRule = 1/2` a mochila enche e a coleta para | `CompanionTombstoneResurrect.cs:463-465` |
 | 11 | **`MHR_ResurrectCore` sem `try/catch`** — exceção no `inventory.Load` deixa corpo novo + túmulo armado ⇒ **duplicata** na recarga da zona | `CompanionTombstoneResurrect.cs:400-597` |
 | 12 | **`MHR_Roster.Recover` sem `try/catch`** e grava `Persistent = true` antes do load ⇒ corpo meio-construído persistente + geração sem bump | `MHR_Roster.cs:1027-1114` |
-| 13 | **F8: Esc fecha o painel no meio do bind** e a tecla seguinte é gravada na config (o guard do upstream sumiu no merge) | `ConfigPanel.cs:529-571`; upstream `8aa6f53:ConfigPanel.cs:351-354` |
+| 13 | **F8: Esc fecha o painel no meio do bind** e a tecla seguinte é gravada na config (o guard do upstream sumiu no merge) | `ConfigPanel.cs:529-571`; upstream `8aa6f53:ConfigPanel.cs:351-354` | ✅ **corrigido** na `fix/altos-194` (guard de `Capturing`/`CaptureEndFrame` no `Update`) |
 | 14 | **"Mod Options" aponta para si mesmo** na 2ª abertura do menu (down do controle trava) | `MenuPatches.cs:79-81` |
 | 15 | **`SpawnOnHitTerrain` devolve `null` ao `Aoe.OnHit`**, que desreferencia sem checar ⇒ NRE por golpe em AOE com `springDelay`/`placeOnGround` | `CombatPatches.cs:322-332`; `Aoe.cs:638-657` |
 | 16 | **A afirmação sobre um objeto vira trabalho** — "o forno está aceso" → `smelt`; "a cozinha está limpa" → `cook` | `RadialIntent.cs:195-228` |
@@ -91,8 +91,8 @@ Estes não dependem do relato de nenhum agente:
 | 19 | **Os 3 sliders do LLM são mais estreitos que o `.cfg` e gravam clampado** — `TimeoutSeconds = 200` aparece como 120 e qualquer toque grava 120 | `CompanionAiPanel.cs:1689-1691,1964-1985` × `ModConfig.cs:1075-1079` |
 | 20 | **`package/LEIA-ME.txt` ainda é 1.9.1** — vai **dentro** dos zips | `package/LEIA-ME.txt:2,24,117` |
 | 21 | **A wiki anuncia 1.9.1** como última release (×5 idiomas) | `docs/wiki/_Footer.md:1`; `Home*.md:111-116` |
-| 22 | **`s_noDark` nunca é atribuído** → painel do starter/aparência com a camada escura que o upstream removeu (é o **único warning do build**) | `CompanionPanel.cs:264,266,268`; upstream `:169` |
-| 23 | **`BuildPadHint` nunca é chamado** → a legenda do controle (gamepad) não existe | `ConfigPanel.cs:1088,1130` |
+| 22 | **`s_noDark` nunca é atribuído** → painel do starter/aparência com a camada escura que o upstream removeu (é o **único warning do build**) | `CompanionPanel.cs:264,266,268`; upstream `:169` | ✅ **corrigido** na `fix/altos-194` (`s_noDark = StarterMode` no `Build`; o build ficou **0 avisos**) |
+| 23 | **`BuildPadHint` nunca é chamado** → a legenda do controle (gamepad) não existe | `ConfigPanel.cs:1088,1130` | ✅ **corrigido** na `fix/altos-194` (`Build()` chama `BuildPadHint`) |
 | 24 | **Inglês fixo no F8**: `"Press a key..."`, `"Press a button..."`, `"None"` e a dica do controle | `KeyBindListener.cs:49`; `PadBindListener.cs:36,50`; `ConfigPanel.cs:1138` |
 | 25 | Starter/aparência/zona de casa/plantio **não seguem a troca de idioma** em sessão | `StarterCompanionPanel.cs:58`; `HomeZonePanel.cs:136`; `FarmZonePlacer.cs:218` |
 | 26 | 2 chaves `hc_cfg_*` órfãs ×4 idiomas; o `gen_config_doc` lista 22 de 24 seções e em PT num doc EN | `Translations/*.json:452,609`; `tools/gen_config_doc.py:85` |
@@ -224,26 +224,27 @@ Só o `MHR_Encumbrance` foi corrigido na 1.9.2; sobraram **9**:
 | **Teto da coleta no caminho normal** | `Order target: mode 2 stops at 10 Stone` + `[Gather] Order target reached` |
 | **"colete pedras" sem número** (achado 16b) | `O modelo devolveu amount=10 mas a mensagem nao tem numero` + `Order "stone" -> 1 companion(s)` (sem `x10`) |
 
-### ⏳ Pendente de verificação em jogo (adiado pelo jogador em 31/10/2026)
+### ✅ Validado em jogo (mundo `test3`, 31/10/2026)
 
-Corrigidos na branch `fix/altos-194` (build 0 erros), **sem teste em jogo até agora**:
+Os 4 testes rodaram no mundo `test3` com o mod 1.9.4 (via MCP, antes de o bridge virar módulo da DLL):
 
-| item | o que precisa ser conferido |
+| item | evidência |
 |---|---|
-| **Santuário cobra a oferenda** (achado 1) | `[Shrine] Summon - offering 1000` → `Summoned a companion for an offering of 1000 coins (N-1000 left)`; mochila −1000; com 1.500 recusa antes de abrir; **não** aparecer a linha do `MarkSpawned` |
-| **`ChangeTier` × zonas** (achado 2) | `[Tier] … farmZones=yes`; voltar a Fazendeiro e as 2 zonas com as culturas certas |
-| **`ChangeTier` × recuperação** (achado 3) | `[Tier] … recovering=yes` → `[Recovery] Found its own tombstone` → `[Recover] Gear back on and fed - back to stance N` → `Recovery over - auto-pickup on` |
-| **Dupla morte na recuperação** (achado 4) | `(auto-pickup was True)` nas **duas** mortes e `stance N` (não 1); no fim, Recolher **ON**; contraprova com Recolher OFF na mão continua OFF |
+| **Santuário cobra a oferenda** (achado 1) | 2.000 moedas → `hired: true`, `coinsAfter: 1000`, log `Summoned a companion for an offering of 1000 coins (1000 left)` e **nenhuma** linha do `MarkSpawned`; com 999 a recusa apareceu. Revalidado depois com o módulo na DLL (`docs/mcp-devbridge.md`). |
+| **`ChangeTier` × zonas** (achado 2) | `farmZones=yes` nas duas trocas e `farmZones[0].crop = CarrotSeeds` sobreviveu ao round-trip Companion → Warrior → Companion. |
+| **`ChangeTier` × recuperação** (achado 3) | `[Tier] … recovering=yes` → `Revived Passive … stance 3 (auto-pickup was True)` → `Recovery over - auto-pickup on` → `Gear back on and fed - back to stance 3`. A linha `Found its own tombstone` não apareceu porque o `MHR_ResurrectCore` já transferiu os 28 itens do túmulo (ressalva registrada). |
+| **Dupla morte na recuperação** (achado 4) | duas mortes, **duas** linhas `(auto-pickup was True)` com stance 3, final `Recovery over - auto-pickup on`; contraprova com Recolher OFF manual → `(auto-pickup was False)` e final OFF. |
 
-O plano de teste completo está em `docs/roadmap.md` (seção da 1.9.4, "os três altos") e no relatório de cada especialista
-citado ali.
+**O que continua manual:** o pré-check visual do Santuário (`ShrinePanel.Summon`, antes de abrir o painel) — o
+`companions_hire` cobre a cobrança e o spawn, não o clique. Detalhes e o validador: `docs/mcp-devbridge.md`.
 
 ### Próximos passos
 
 - **Para a 1.9.5:** `HC_Food_0..4` (buffs de comida no `ChangeTier`) e o **H4** (`s_state`/`s_tombCache` por
   `InstanceID`) — ambos reais, adiados por decisão do jogador.
-- **Escopo ainda aberto da 1.9.4:** P1 inteiro (6–16), os itens 17/18/19 (config), 20/21 (o que já está publicado
-  errado), 22/23/24 (UI) e o **27 documentado** (decidir RPC vs recheck após 1 quadro).
+- **Escopo ainda aberto da 1.9.4:** P1 (6–12, 14–16), os itens 17/18/19 (config), 20/21 (o que já está publicado
+  errado), 24/25/26 (UI/i18n) e o **27 documentado** (decidir RPC vs recheck após 1 quadro). Os itens **13, 22 e 23**
+  (F8 × bind, `s_noDark`, legenda do controle) foram corrigidos na `fix/altos-194`.
 - **Para a 1.9.5 (continuação):** os `try/catch` de rede (11/12 — mexem em respawn, querem teste em jogo), o P3
   multiplayer (precisa de servidor), o P4 (9 arquivos, mecânico) e o P5.
 - **Nada aqui foi validado em servidor dedicado.**
