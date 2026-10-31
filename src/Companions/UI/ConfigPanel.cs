@@ -369,6 +369,8 @@ public class ConfigPanel : MonoBehaviour
 		BuildCloseButton(_root.transform);
 		BuildTabColumn(_root.transform);
 		BuildContentArea(_root.transform);
+		// 1.9.4 (audit): the controller legend was built by a method nobody called - it existed only as dead code.
+		BuildPadHint(_root.transform);
 		// Multilanguage M2: the floating list of the rows that are a closed set of values (the two languages and the
 		// voice). Same overlay layer as the AI panel's list (the two panels never open together) and created after
 		// every control, so an open list is never clipped by the content's mask nor drawn behind a row.
@@ -536,6 +538,12 @@ public class ConfigPanel : MonoBehaviour
 			{
 				Hide();
 			}
+			return;
+		}
+		// 1.9.4 (audit): while a key binding is waiting, the panel must not react to Esc (that cancels the binding)
+		// nor to the key that closed it in this very frame - the listener consumes that key and writes the entry.
+		if (KeyBindListener.Capturing || KeyBindListener.CaptureEndFrame == Time.frameCount)
+		{
 			return;
 		}
 		if (Input.GetKeyDown(ModConfig.ConfigPanelKey.Value) || (ZInput.IsGamepadActive() && MHR_Pad.Down(ModConfig.PadSettings, ModConfig.PadSettingsModifier)))
