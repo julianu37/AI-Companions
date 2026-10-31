@@ -242,6 +242,8 @@ internal static class InputSim
 	// ---- the game's own input (Valheim 1.0 uses the NEW Input System: ZInput.GetKeyDown reads
 	// Keyboard.current[key].wasPressedThisFrame, which SendInput alone does not feed) ----
 	private static int _releaseFrame = -1;
+	private static int _mouseReleaseFrame = -1;
+	private static Vector2 _mousePosition;
 
 	/// <summary>Queues the key press into the new Input System and schedules the release for the next frame, so the
 	/// game's Update sees the key down for at least one frame.</summary>
@@ -285,6 +287,44 @@ internal static class InputSim
 			InputSystem.QueueStateEvent(Keyboard.current, new KeyboardState());
 			_releaseFrame = -1;
 		}
+		if (_mouseReleaseFrame >= 0 && Time.frameCount >= _mouseReleaseFrame && Mouse.current != null)
+		{
+			InputSystem.QueueStateEvent(Mouse.current, new MouseState { position = _mousePosition });
+			_mouseReleaseFrame = -1;
+		}
+	}
+
+	public static void ClickNew(int x, int y)
+	{
+		if (Mouse.current == null)
+		{
+			return;
+		}
+		_mousePosition = new Vector2(x, y);
+		InputSystem.QueueStateEvent(Mouse.current, new MouseState { position = _mousePosition });
+		InputSystem.QueueStateEvent(Mouse.current, new MouseState { position = _mousePosition }.WithButton(MouseButton.Left));
+		_mouseReleaseFrame = Time.frameCount + 1;
+	}
+
+	public static void DownNew(int x, int y)
+	{
+		if (Mouse.current == null)
+		{
+			return;
+		}
+		_mousePosition = new Vector2(x, y);
+		InputSystem.QueueStateEvent(Mouse.current, new MouseState { position = _mousePosition }.WithButton(MouseButton.Left));
+		_mouseReleaseFrame = -1;
+	}
+
+	public static void MouseUpNew()
+	{
+		if (Mouse.current == null)
+		{
+			return;
+		}
+		InputSystem.QueueStateEvent(Mouse.current, new MouseState { position = _mousePosition });
+		_mouseReleaseFrame = -1;
 	}
 
 	private static Key ToKey(ushort vk)
@@ -345,6 +385,7 @@ internal static class InputSim
 	/// </summary>
 	public static bool Click(int x, int y)
 	{
+		ClickNew(x, y);
 		if (!ClientToAbsolute(x, y, out int nx, out int ny))
 		{
 			return false;
@@ -356,6 +397,7 @@ internal static class InputSim
 
 	public static bool MouseDown(int x, int y)
 	{
+		DownNew(x, y);
 		if (!ClientToAbsolute(x, y, out int nx, out int ny))
 		{
 			return false;
@@ -366,6 +408,7 @@ internal static class InputSim
 
 	public static bool MouseUp(int x, int y)
 	{
+		MouseUpNew();
 		if (!ClientToAbsolute(x, y, out int nx, out int ny))
 		{
 			return false;
