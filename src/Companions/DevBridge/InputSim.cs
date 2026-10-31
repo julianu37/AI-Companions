@@ -235,7 +235,7 @@ internal static class InputSim
 	public static bool Up(ushort vk)
 	{
 		bool legacy = Send(KeyEvent(vk, up: true));
-		UpNew();
+		UpNew(vk);
 		return legacy;
 	}
 
@@ -244,6 +244,21 @@ internal static class InputSim
 	private static int _releaseFrame = -1;
 	private static int _mouseReleaseFrame = -1;
 	private static Vector2 _mousePosition;
+	private static readonly HashSet<Key> Held = new HashSet<Key>();
+	private static Key _tapKey = Key.None;
+
+	/// <summary>Pushes the whole held set as one keyboard state: a state event replaces the previous one, so every
+	/// held key has to be sent together (otherwise pressing W would release the Shift of a run).</summary>
+	private static void QueueHeld()
+	{
+		if (Keyboard.current == null)
+		{
+			return;
+		}
+		Key[] keys = new Key[Held.Count];
+		Held.CopyTo(keys);
+		InputSystem.QueueStateEvent(Keyboard.current, new KeyboardState(keys));
+	}
 
 	/// <summary>Queues the key press into the new Input System and schedules the release for the next frame, so the
 	/// game's Update sees the key down for at least one frame.</summary>
@@ -254,7 +269,9 @@ internal static class InputSim
 		{
 			return;
 		}
-		InputSystem.QueueStateEvent(Keyboard.current, new KeyboardState(key));
+		Held.Add(key);
+		_tapKey = key;
+		QueueHeld();
 		_releaseFrame = Time.frameCount + 1;
 	}
 
@@ -265,17 +282,23 @@ internal static class InputSim
 		{
 			return;
 		}
-		InputSystem.QueueStateEvent(Keyboard.current, new KeyboardState(key));
+		Held.Add(key);
+		QueueHeld();
 		_releaseFrame = -1;
 	}
 
-	public static void UpNew()
+	public static void UpNew(ushort vk)
 	{
+		Key key = ToKey(vk);
 		if (Keyboard.current == null)
 		{
 			return;
 		}
-		InputSystem.QueueStateEvent(Keyboard.current, new KeyboardState());
+		if (key != Key.None)
+		{
+			Held.Remove(key);
+		}
+		QueueHeld();
 		_releaseFrame = -1;
 	}
 
@@ -284,7 +307,9 @@ internal static class InputSim
 	{
 		if (_releaseFrame >= 0 && Time.frameCount >= _releaseFrame && Keyboard.current != null)
 		{
-			InputSystem.QueueStateEvent(Keyboard.current, new KeyboardState());
+			Held.Remove(_tapKey);
+			_tapKey = Key.None;
+			QueueHeld();
 			_releaseFrame = -1;
 		}
 		if (_mouseReleaseFrame >= 0 && Time.frameCount >= _mouseReleaseFrame && Mouse.current != null)
