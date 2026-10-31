@@ -726,7 +726,11 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   KokoroCode, Voices (padrão primeiro), DefaultVoice, SpeechPrompt}` para **PT-BR, EN, ES e FR**, mais `HasVoice`,
   `ResolveVoice`, `ResolveKokoro`, `ResolveWhisper`, `ResolvePrompt`, `VoiceName`/`VoiceGender` (mapa `sid → nome` do
   export do sherpa; o gênero é a 2ª letra do nome). Idioma sem voz no Kokoro (de, ru, pl, tr, ko, sv, uk) cai no
-  **inglês** com uma linha no log. O perfil é **cacheado** (`Current`), resolvido **na main thread** (a língua vem do
+  **inglês** com uma linha no log. **Essa é a regra e ela é verificada no DLL:** `tools/locale-fallback-check.ps1`
+  confere os 5 perfis (`pt-br`/42, `en-us`/3, `es`/28, `fr`/30, `it`/35) e **17 idiomas do jogo sem perfil** — todos
+  têm de cair em `en-us`/`en`/voz 3, e `ResolveKokoro("auto")`/`ResolveWhisper("auto")` têm de responder o inglês
+  quando não há `Localization` (é o caso do `Awake` do plugin). Rode-o antes de release que mexa em idioma. O perfil é
+  **cacheado** (`Current`), resolvido **na main thread** (a língua vem do
   `Localization.SetupLanguage` via `CompanionLocale.NotifyLanguage`, porque ler `GetSelectedLanguage()` dentro do
   postfix é o que recursava no hotfix da 1.8.3) e **invalidado** no postfix (`Invalidate()`) e no `OnSceneLoaded`;
   sem `Localization` (o `Awake` do plugin) responde inglês **sem** cachear. **Config:** `[AI] VoiceLanguage` e

@@ -50,3 +50,9 @@ Regra: use o código que o espeak define **com fonemas** — `pt-br`, `en-us`, `
 - Depois de mexer em `CompanionTts`, `CompanionLocale` ou no catálogo de vozes.
 - Depois de trocar o pacote do sherpa-onnx ou os arquivos de `tts\kokoro`.
 - Antes de publicar uma release que mexa em voz/idioma.
+
+## A outra metade: idioma do JOGO sem perfil cai no inglês
+
+Este harness testa os **códigos** do `Lang`. A regra do **idioma do jogo** (PT/EN/ES/FR/IT têm perfil; qualquer outro
+cai em `en-us`/`en`/voz 3) é testada por `tools/locale-fallback-check.ps1`, que lê a DLL compilada e confere os 5
+perfis + 17 idiomas sem perfil. Rode os dois.

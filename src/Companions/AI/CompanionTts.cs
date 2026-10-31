@@ -1110,9 +1110,9 @@ internal static class CompanionTts
 				if (!string.Equals(_warnedLanguage, language, StringComparison.Ordinal))
 				{
 					_warnedLanguage = language;
-					CompanionsPlugin.Log?.LogWarning($"[TTS] \"{language}\" nao e um dos idiomas que o mod fala "
-						+ $"({string.Join(", ", SupportedLanguages)}) - o modelo carregado (\"{_loadedLanguage}\") continua, "
-						+ "nada foi recarregado. Use um dos codigos da lista ou \"auto\".");
+					CompanionsPlugin.Log?.LogWarning($"[TTS] \"{language}\" nao tem voz propria neste Kokoro: o modelo "
+						+ $"carregado (\"{_loadedLanguage}\") continua e nada foi recarregado. O padrao e \"auto\" - com ele, "
+						+ "qualquer idioma do jogo fora dos 5 cai no ingles (en-us / af_heart).");
 				}
 				return;
 			}
@@ -1219,9 +1219,11 @@ internal static class CompanionTts
 				if (!IsSupportedLanguage(language) && !string.Equals(_warnedLanguage, language, StringComparison.Ordinal))
 				{
 					_warnedLanguage = language;
-					CompanionsPlugin.Log?.LogWarning($"[TTS] [AI] TtsLanguage = \"{language}\" nao e um dos idiomas que o mod fala "
-						+ $"({string.Join(", ", SupportedLanguages)}) - o modelo vai carregar assim mesmo, mas as falas do mod sao "
-						+ "escritas em PT/EN/ES/FR/IT. Use \"auto\" ou um dos codigos da lista.");
+					CompanionsPlugin.Log?.LogWarning($"[TTS] [AI] TtsLanguage = \"{language}\" nao tem voz propria neste Kokoro. "
+						+ $"O padrao e \"auto\": com ele, qualquer um dos 5 idiomas ({string.Join(", ", SupportedLanguages)}) usa "
+						+ "a voz dele e QUALQUER outro idioma do jogo (de, ru, pl, tr, ko, sv, uk...) cai no ingles (en-us / "
+						+ "af_heart), como sempre foi. O modelo vai carregar o codigo escrito mesmo assim, mas as falas do mod "
+						+ "sao escritas em PT/EN/ES/FR/IT.");
 				}
 				// The struct constructors fill every string with "" and every sub-config with its own defaults; the
 				// explicit assignments below make that independent of the language version (a struct left at its
