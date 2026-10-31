@@ -117,6 +117,11 @@ melhoria pendente.
 - Painel `I` → aba do companheiro → **Ouvir** fala a amostra com a voz **daquele** companheiro.
 - `BepInEx\LogOutput.log`: `[TTS] Modelo CARREGADO ... | N vozes`, `Frase i/N: X ms, RTF y`, `AudioSource 3D`
   e `ReverbZoneMix da voz`.
+- **Fora do jogo** (o que prova o idioma e as vozes de verdade, com o modelo empacotado):
+  - `tools/tts-language-check` — sintetiza nos 5 idiomas e confere as 14 vozes do painel (`TODOS OS TESTES
+    PASSARAM`); mostra que o mesmo texto muda de áudio entre `pt-br` e `en-us`.
+  - `tools/locale-fallback-check.ps1` — a regra do **idioma do jogo**: os 5 perfis e 17 idiomas sem perfil
+    caindo em `en-us`/`en`/voz 3.
 
 ## Mais detalhes
 
