@@ -53,6 +53,7 @@
   it spends most of the fight defending. The default is now **off**: one swing at a time on the weapon's timer,
   blocking only as a reaction, like 1.9.1. Set `[Combat] FightLikePlayer = true` in `AiCompanions.cfg` to get the new
   combat back; the rest of 1.5.6 (bows, ships, the smarter block scan, the parry roll) is unchanged.
+  **Validated in game by the player (31/10/2026): "combat is much better after the revert".**
 - **No other change.** Same `.cfg`, same saves, same `Companions.dll` name, same models and the same AI layer.
 
 ## How to update

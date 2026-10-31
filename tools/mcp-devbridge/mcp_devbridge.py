@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """MCP server for the Valheim DevBridge (AI Companions).
 
-It speaks the Model Context Protocol over stdio and forwards every tool call to the in-game BepInEx plugin
-(plugin/DevBridge.csproj) over a loopback TCP socket. The game must be running with the plugin loaded; when it is
-not, every tool returns a clear error instead of hanging.
+It speaks the Model Context Protocol over stdio and forwards every tool call to the in-game BepInEx module
+(`src/Companions/DevBridge/`, compiled into Companions.dll) over a loopback TCP socket. The game must be running with
+the bridge enabled; when it is not, every tool returns a clear error instead of hanging.
 
 Configuration (environment variables):
   DEVRIDGE_HOST   default 127.0.0.1

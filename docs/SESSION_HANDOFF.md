@@ -1,5 +1,10 @@
 # Session handoff (2026-10-08)
 
+> ⚠️ **Documento HISTÓRICO do upstream (Offline Companions Reborn), não do nosso projeto.** Foi herdado no merge e
+> descreve o repositório/branches do autor (`claude/relaxed-archimedes-ecoh6h`, versões 1.4.x–1.5.8). **Não use como
+> handoff daqui**: o nosso estado é o `AGENTS.md` + `docs/roadmap.md`. Mantido só como referência histórica do
+> upstream (MIT).
+
 Paste this into a new session to pick up where we left off. Details per version are in `docs/DEV_NOTES.md` (NEXT BUILD section, newest first) and `package/CHANGELOG.md`.
 
 ## Repo and workflow

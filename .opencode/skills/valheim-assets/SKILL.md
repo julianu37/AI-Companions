@@ -5,7 +5,7 @@ description: AssetBundles e SoftReferenceableAssets no Valheim 1.0 (Unity 6) —
 
 # Assets no Valheim 1.0
 
-> **Estado atual (1.9.2): o mod não empacota AssetBundle nenhum.** Aparência dos companheiros = clones de
+> **Estado atual (1.9.4): o mod não empacota AssetBundle nenhum.** Aparência dos companheiros = clones de
 > prefabs vanilla; ícones = sprites do jogo; o único áudio próprio é a voz do TTS, criada em **runtime**
 > (`AudioClip`/`AudioSource` por reflexão, destruída ao terminar). Use esta skill só se um dia entrarmos com
 > modelo/textura/som empacotado — e aí siga o pipeline abaixo, sem tocar no que já funciona.

@@ -159,6 +159,39 @@ The nearest **tree** or **creature** around the player - the target to aim at (p
 {"found": true, "kind": "tree", "name": "Beech1(Clone)", "distance": 8.37, "x": -63.39, "y": 82.1, "z": 55.57}
 ```
 
+### `world_tombstones`
+
+The tombstones loaded around the player, with what decides the vanilla despawn: **item count**, **ZDO owner**
+(`isOwner`), whether the **container is in use** (`inUse`), plus `tombstoneId`, `respawnPrefab` and the **contents**
+(prefab/amount/grid). No parameters.
+
+```json
+{"count": 1, "tombstones": [{"name": "Companheiro 2", "x": 4.93, "y": 82.12, "z": 2.82, "distance": 2.0, "items": 1, "inUse": false, "isOwner": true, "owner": 1247168093, "tombstoneId": 639290843717192268, "respawnPrefab": "", "contents": [{"prefab": "Stone", "amount": 10, "grid": "0,3"}]}]}
+```
+
+### `world_tombstone_take`
+
+Loots the **nearest tombstone with items** through the game's own entry point: `Container.TakeAll` first (what the game
+calls when the grave fits in the inventory - and it does **not** set `m_inUse`), then `TombStone.Interact` (the E key)
+if nothing moved. No parameters.
+
+### `world_tombstone_destroy`
+
+Destroys the companion tombstones around the player (dev cleanup for tests).
+
+| param | type | default |
+|---|---|---|
+| `includePlayer` | boolean (also the player's own tombstones) | `false` |
+
+### `world_tombstone_diag`
+
+Diagnostics for the companion tombstone despawn: component `enabled`, `activeInHierarchy`, `IsInvoking("UpdateDespawn")`,
+`nviewValid`, `isOwner`, `inUse`, `items` and, with `tick`, a forced call to the game's private `UpdateDespawn`.
+
+| param | type | default |
+|---|---|---|
+| `tick` | boolean | `false` |
+
 ### `world_setup`
 
 The dev setup for driving the player, in one call: `devcommands` (only when it is still off - the command is a
@@ -326,6 +359,31 @@ Dumps the companion's `HC_*` keys â€” the fastest way to diagnose a stuck s
 { "name": "Maria", "keys": { "ActionMode": 1, "CombatStance": 3, "AutoPickup": true, "Recovering": false,
   "RecoverPickup": true, "OrderCap": 10, "FarmZones": "184 chars" },
   "farmZones": [ { "x": 100.0, "y": 30.0, "z": -40.0, "halfSize": 4.0, "crop": "CarrotSeeds", "rotation": 0.0 } ] }
+```
+
+### `companions_dismiss`
+
+Dismisses a companion through the **same path as the radial menu** (`PrepareForDespawn` + release the bed +
+`DespawnWithTombstone` + remove the body): the gear goes to a tombstone. Useful for tombstone tests.
+
+| param | type |
+|---|---|
+| `name` | string (contains, case-insensitive) |
+
+```json
+{"name": "Companheiro 2", "dismissed": true}
+```
+
+### `companions_inventory`
+
+Lists what a companion is carrying (prefab, name, amount, grid slot).
+
+| param | type |
+|---|---|
+| `name` | string (contains, case-insensitive) |
+
+```json
+{"name": "Companheiro", "stacks": [{"prefab": "Stone", "name": "$item_stone", "amount": 10, "grid": "0,3"}], "totalStacks": 1}
 ```
 
 ### `companions_kill`

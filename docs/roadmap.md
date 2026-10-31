@@ -2236,9 +2236,21 @@ upstream já dizia *"Off: the older way (one swing at a time on the weapon's tim
   em vez do primeiro inimigo em 8 m da 1.9.1) e o sorteio de **parry** (`ParryChance`, em vez de todo bloqueio ser
   parry). Ou seja, o bloqueio que sobra é **menor** que o da 1.9.1, nunca maior.
 - **Prova:** `status` do DevBridge ganhou `fightLikePlayer` e devolveu `false` no mundo `test3` com o `.cfg` editado;
-  o companheiro voltou a atacar no timer da arma (screenshot da luta com greylings). O `CONFIGURATION.md` foi regerado
+  o companheiro voltou a atacar no timer da arma (screenshot da luta com greylings). **Validado em jogo pelo
+  jogador (31/10/2026): "o combate ficou bem melhor depois que revertemos".** O `CONFIGURATION.md` foi regerado
   (`tools/gen_config_doc.py`) e o `.cfg` do jogador foi ajustado à mão.
 - **Como voltar ao combate novo:** `[Combat] FightLikePlayer = true` no `AiCompanions.cfg` (nada de código).
+
+#### DevBridge — o MCP de desenvolvimento dentro da DLL (31/10/2026) — ✅ build 0/0 · ✅ usado em jogo
+
+Ferramenta **de dev** (não vai para o jogador; nasce `[Advanced] DevBridge = false`): módulo
+`src/Companions/DevBridge/` dentro da `Companions.dll` + servidor MCP em `tools/mcp-devbridge/` (**44 ferramentas**),
+que dá ao agente o jogo em `127.0.0.1:47110` (status, console com cheats e **saída real**, spawn, companheiros, lápides,
+`world.setup` com `devcommands` + `tod 0.5` + `god` + `heal`, screenshots, log). Descobertas que custaram caro e estão
+no doc: o `ZInput` do Valheim 1.0 lê o **Input System novo** (o `SendInput` sozinho não alimenta o menu; o bridge injeta
+`KeyboardState`/`MouseState`), o `god` do 1.0 **trava o HP em 1** (não cancela o dano) e as teclas seguradas precisam
+ser enviadas juntas. Detalhes e receitas: `docs/mcp-devbridge.md`. **Não empacotar o servidor Python no zip.**
+
 
 
 

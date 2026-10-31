@@ -70,8 +70,11 @@ config é **`BepInEx\config\AiCompanions.cfg`** (o GUID não dá mais nome a ele
   listar o Jotunn como requisito em release/README. (A skill `jotunn` da equipe continua no repositório como
   referência de framework, mas **não** se aplica a este mod.)
 - Target: **.NET Framework 4.7.2 (net472)**, C#.
-- Versão: **1.9.4** (em andamento, branch `fix/barba-sentinela`) — **multilíngue (5 idiomas: PT-BR, EN, ES, FR, IT)**
-  (fonte única: `PluginVersion` em `src/Companions/Core/CompanionsPlugin.cs`). A **1.9.2** (branch
+- Versão: **1.9.4** (em andamento) — **multilíngue (5 idiomas: PT-BR, EN, ES, FR, IT)**
+  (fonte única: `PluginVersion` em `src/Companions/Core/CompanionsPlugin.cs`). A **`main`** já tem a 1.9.4 parcial
+  (barba + teto da coleta + `tokens/s`, merge `f36e311`) e a **`fix/altos-194`** (não mergeada) traz o resto:
+  os **três altos** (Santuário, `ChangeTier`, dupla morte), os **3 fixes de UI**, o **`FightLikePlayer = false`**
+  (combate da 1.9.1, validado em jogo) e o **DevBridge**. A **1.9.2** (branch
   `feat/ordens-interacao`, **mergeada na `main` e publicada em 31/10/2026**, tag `v1.9.2`)
   é a **sincronização com o upstream 1.5.4 → 1.5.8** (121 arquivos, +14.907/−2.600; **63 byte a byte idênticos**,
   58 conflitos resolvidos à mão) **+ as 5 ordens de interação** por chat/voz (`hive`/`door`/`board`/`sit`/`deposit`,
@@ -85,17 +88,20 @@ config é **`BepInEx\config\AiCompanions.cfg`** (o GUID não dá mais nome a ele
   o `[Combat] FightLikePlayer` (o "combate como um jogador" do upstream 1.5.6, que guardava o escudo entre combos e
   recuava por stamina) passou a nascer **`false`** — um golpe por vez no timer da arma e bloqueio só de reação. Quem
   quiser o combate novo liga a chave. Detalhes em `docs/roadmap.md` (1.9.4 — combate de volta ao da 1.9.1).
+  **Validado em jogo pelo jogador (31/10/2026): "o combate ficou bem melhor depois que revertemos".**
   A **caça a bugs da 1.9.4** (6 frentes, read-only, ~60 achados
   distintos) está em **`docs/audit-bughunt-1.9.4.md`** — é de lá que sai o escopo da 1.9.4/1.9.5. Histórico: as
   releases saíram em sequência em 23–26/10 (`1.7.0` → `1.8.0` → `1.8.1` → `1.8.2` → `1.8.3` → `1.9.0` → `1.9.1`;
   a **1.7.1 foi pulada de propósito**, pedido do jogador) e a **1.9.1** só tirou o `ggml-base-q5_1.bin` (57 MB) do
-  pacote (~368 MB → ~314 MB no zip completo). **Branches de fase — todas mergeadas na `main` e apagáveis** (conferido
-  em 31/10/2026 com `git branch --merged main`, nenhuma não-mergeada): `feat/multi-companheiro` (3.9–3.20),
+  pacote (~368 MB → ~314 MB no zip completo). **Branches de fase** (conferido em 31/10/2026 com
+  `git branch --merged main`): **mergeadas na `main` e apagáveis** — `feat/multi-companheiro` (3.9–3.20),
   `fix/peso-cinto` (3.22), `fix/renascer-30` (`RespawnDelay` 300→30), `fix/dverger-combate` (dverger só combate),
-  `feat/idiomas-auto` (M1–M5), `languages` (4.0), `feat/llm-groq` (1.8.1), `feat/provedor-llm` (3.24) e
-  `feat/upstream-1.5.8` (o merge 1.5.4→1.5.8 que virou a 1.9.2); a `feat/ordens-interacao` foi apagada (local e
-  `origin`) depois do merge da 1.9.2. As que existem no `origin` saem com `git push origin --delete <nome>`. A `main`
-  é a linha de release.
+  `feat/idiomas-auto` (M1–M5), `languages` (4.0), `feat/llm-groq` (1.8.1), `feat/provedor-llm` (3.24),
+  `feat/upstream-1.5.8` (o merge 1.5.4→1.5.8 que virou a 1.9.2), `fix/teto-e-tokens` e `fix/barba-sentinela`
+  (as duas da 1.9.4 já na `main`, merge `f36e311`); a `feat/ordens-interacao` foi apagada (local e `origin`) depois
+  do merge da 1.9.2. **Não mergeada:** **`fix/altos-194`** — o trabalho em andamento da 1.9.4 (três altos, 3 fixes
+  de UI, `FightLikePlayer = false` e o DevBridge). As que existem no `origin` saem com
+  `git push origin --delete <nome>`. A `main` é a linha de release.
 
 ## Caminhos desta máquina
 

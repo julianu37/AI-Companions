@@ -5,7 +5,7 @@ Checkout local (reference do OpenCode): `...\repos\github.com\MaddhattrRocks\Off
 
 **Foco atual: single-player.** ZDO/multiplayer adiados (ver `docs/vision.md`).
 Regra: **reaproveitar lógica** da referência (com atribuição MIT), sempre confirmando APIs no
-`assembly_valheim.dll` 1.0.17.
+`assembly_valheim.dll` 1.0.20.
 
 ---
 

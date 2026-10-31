@@ -1,4 +1,4 @@
-# Referência rápida — corpo e respostas (1.9.2)
+# Referência rápida - corpo e respostas (1.9.4)
 
 Documento histórico do Thrall (endpoints `/instruct_agent`, `/synthesize_audio`): `docs/re/backend-contract.md`.
 **O nosso contrato é o abaixo.**

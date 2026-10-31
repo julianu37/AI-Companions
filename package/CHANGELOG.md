@@ -50,6 +50,7 @@ so the beard of the previous appearance was never destroyed.
   back off to catch its breath - in practice it spends most of the fight defending. The default is now **off**: one
   swing at a time on the weapon's timer, blocking only as a reaction, exactly like 1.9.1. The switch stays for whoever
   wants the new combat; the rest of 1.5.6 (bows, ships, the smarter block scan and the parry roll) is untouched.
+  **Validated in game by the player (31/10/2026): "combat is much better after the revert".**
 - Same config, same saves, same models.
 
 More fixes are planned for this version - the full list is in `docs/audit-bughunt-1.9.4.md`.

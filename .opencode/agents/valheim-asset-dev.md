@@ -14,7 +14,7 @@ permissions:
   - { action: "subagent", resource: "*", effect: "deny" }
 ---
 
-> **Estado atual (1.9.2):** o mod **não** empacota AssetBundle. Aparência = clones de prefabs vanilla;
+> **Estado atual (1.9.4):** o mod **não** empacota AssetBundle. Aparência = clones de prefabs vanilla;
 > ícones = sprites do jogo; o único áudio próprio é a **voz do TTS**, criada em runtime
 > (`AudioClip`/`AudioSource` por reflexão) e destruída ao terminar. Não introduza assets sem pedido.
 

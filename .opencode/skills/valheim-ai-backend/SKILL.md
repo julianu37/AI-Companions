@@ -3,7 +3,7 @@ name: Valheim AI Backend
 description: Contrato real do "cérebro" do companheiro (LLM por API compatível com OpenAI: Groq, LM Studio/Ollama, OpenRouter), o schema JSON, a cadeia de fallback e o que é local (STT/TTS no processo). Use ao mexer em LlmClient, contrato, schema ou provedor.
 ---
 
-# O "cérebro" do companheiro — contrato real (1.9.2)
+# O "cérebro" do companheiro — contrato real (1.9.4)
 
 > **Não existe serviço nosso.** O mod fala **direto** com um endpoint compatível com a OpenAI
 > (`POST {BaseUrl}/chat/completions`). O `docs/re/backend-contract.md` é o **registro histórico** do que o
