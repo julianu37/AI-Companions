@@ -9,8 +9,9 @@ skills, casa, dormir, portais, carroça, menu radial). Nosso trabalho aqui é:
 1. **Traduzir completamente para PT-BR** (o mod tem sistema próprio de tradução).
 2. **Adicionar a camada de IA** (LLM/voz/fala) por cima — a "Fase 3".
 
-O trabalho é feito pela equipe de agentes em `.opencode/agents/` (comandada por `valheim-mod-lead`) e pelas
-skills em `.opencode/skills/`. Leia este arquivo antes de agir.
+O trabalho é feito pela equipe de agentes especialistas em `.opencode/agents/` (cada um com a sua frente:
+IA/ordens, LLM, Harmony, rede/ZDO, assets, arquitetura, revisão, QA e docs) e pelas skills em `.opencode/skills/`.
+Leia este arquivo antes de agir.
 
 ## Nome e repositório (renomeação de 23/10/2026)
 
