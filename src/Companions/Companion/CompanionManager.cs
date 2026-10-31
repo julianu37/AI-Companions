@@ -359,6 +359,9 @@ public static class CompanionManager
 		string companionId = companion.MHR_EnsureCompanionId();
 		int gen = old.GetInt(MHR_Roster.GenHash);
 		long tombstoneId = old.GetLong(CompanionSetup.TombstoneIdHash, 0L);
+		// 1.9.4: read BEFORE nv.Destroy() - the old ZDO goes back to the pool, so this is the only moment to log it
+		bool hasZones = !string.IsNullOrEmpty(old.GetString(FarmZoneSerializer.FarmZonesHash, ""));
+		bool recovering = old.GetBool(MHR_Recover.RecoveringHash);
 		int cap = old.GetInt(CompanionSetup.OrderCapHash, 0);
 		int capMode = old.GetInt(CompanionSetup.OrderCapModeHash, 0);
 		string capItem = old.GetString(CompanionSetup.OrderCapItemHash, "");
@@ -506,6 +509,10 @@ public static class CompanionManager
 			// a tier change - the cook forgot what it had already produced for the job (and ate its food), the
 			// borrowed tools never came back and the stamina started over.
 			CopyCarriedKeys(old, zdo);
+			// 1.9.4: RecoverFirst is a THREE-key state and the new body used to get only the "auto-pickup off" half
+			// of it (HC_AutoPickup is copied above and it is false while recovering), so nothing ever put the pickup
+			// or the stance back - MHR_Recover.Tick and .Cancel both bail out on the missing flag.
+			CopyRecovery(old, zdo);
 			zdo.Persistent = true;
 
 			// auto-equip is held off until the pack is in place: OnInventoryChanged runs from inside Inventory.Load,
@@ -633,6 +640,7 @@ public static class CompanionManager
 			+ $"companionId={(string.IsNullOrEmpty(companionId) ? "none" : companionId)}, gen={gen}, "
 			+ $"orderCap={(cap > 0 ? cap + " " + capItem : "none")}, aiVoice={(aiVoice > 0 ? aiVoice.ToString() : "default")}, "
 			+ $"personality={(personaSet ? "\"" + personaPreset + "\"" : "default ([AI])")}, "
+			+ $"farmZones={(hasZones ? "yes" : "no")}, recovering={(recovering ? "yes" : "no")}, "
 			+ $"inventory={items} item(s), equipped={equippedCount}");
 		return spawned.GetComponent<CompanionSetup>();
 	}
@@ -674,17 +682,40 @@ public static class CompanionManager
 		}
 	}
 
+	/// <summary>
+	/// The recovery of <c>[Death] RespawnStance = RecoverFirst</c> is a three-key state (<c>HC_Recovering</c>,
+	/// <c>HC_RecoverStance</c>, <c>HC_RecoverPickup</c>) and a tier change used to carry only <c>HC_AutoPickup</c>,
+	/// which is <b>false</b> while recovering (<c>MHR_Recover.OnRevived</c>). The new body was born Passive, picking
+	/// nothing up, and nothing ever undid it: <c>MHR_Recover.Tick</c> and <c>MHR_Recover.Cancel</c> both bail out on
+	/// the missing flag, so even setting a stance left the auto-pickup off. Copied as a block, and only when the old
+	/// body was really recovering - a companion that is not recovering gets exactly what it got before. The new
+	/// instance starts with its own (empty) recovery bookkeeping, so it goes for its tombstone at any distance,
+	/// re-equips, eats, and only then goes back to the stance it died with (<c>MHR_Recover.End</c>).
+	/// </summary>
+	private static void CopyRecovery(ZDO from, ZDO to)
+	{
+		if (from == null || to == null || !from.GetBool(MHR_Recover.RecoveringHash))
+		{
+			return;
+		}
+		to.Set(MHR_Recover.RecoveringHash, value: true);
+		to.Set(MHR_Recover.RecoverStanceHash, from.GetInt(MHR_Recover.RecoverStanceHash, 0));
+		to.Set(MHR_Recover.RecoverPickupHash, from.GetBool(MHR_Recover.RecoverPickupHash, defaultValue: true));
+	}
+
 	/// <summary>String keys of <see cref="CopyCarriedKeys"/> - written by their owners, copied here verbatim.</summary>
-	private static readonly int[] CarriedStringKeys = new int[2]
+	private static readonly int[] CarriedStringKeys = new int[3]
 	{
 		"HC_CookLedger".GetStableHashCode(),   // Jobs/CookController.cs
-		"HC_Borrowed".GetStableHashCode()      // Jobs/MHR_ToolKeeper.cs
+		"HC_Borrowed".GetStableHashCode(),     // Jobs/MHR_ToolKeeper.cs
+		FarmZoneSerializer.FarmZonesHash       // UI/FarmZonePlacer.cs - the planting zones the player drew
 	};
 
 	/// <summary>Float keys of <see cref="CopyCarriedKeys"/>.</summary>
-	private static readonly int[] CarriedFloatKeys = new int[1]
+	private static readonly int[] CarriedFloatKeys = new int[2]
 	{
-		CompanionSetup.StaminaHash   // Companion/CompanionStamina.cs
+		CompanionSetup.StaminaHash,    // Companion/CompanionStamina.cs
+		CompanionSetup.HomeRadiusHash  // Companion/CompanionSetup.cs - SetHomeRadius, a player choice
 	};
 
 	/// <summary>The tier a prefab hash belongs to (the same table the UI lists), or null when it isn't one of ours.</summary>
