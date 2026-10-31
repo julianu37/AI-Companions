@@ -20,6 +20,10 @@ so the beard of the previous appearance was never destroyed.
   `pickup` is corrected to `wood`, with the number read from the player's own text - but the job was started with the
   model's amount (0), so no cap was set: the companion gathered forever while the chat said "(10)". The job now uses
   the corrected amount. The normal path (the model returns the gather action with its number) was already fine.
+- **A gather order with no number no longer gets one invented by the model.** `qwen2.5-3b-instruct` answers
+  "colete pedras" with `{"action":"stone","amount":10}`; that silently capped an order that is meant to run until the
+  player stops it (unloading at a chest when the pack fills). For the jobs that take a cap, the number is only used
+  when the player's own message has one.
 - **The `tokens/s` line in the log** said it counted "prompt and response together" but divided only the response
   tokens. It now says "generation - response only" and points at the `[IA] Prompt:` line above.
 - Same config, same saves, same models.

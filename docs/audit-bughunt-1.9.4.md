@@ -70,6 +70,7 @@ Estes não dependem do relato de nenhum agente:
 | 14 | **"Mod Options" aponta para si mesmo** na 2ª abertura do menu (down do controle trava) | `MenuPatches.cs:79-81` |
 | 15 | **`SpawnOnHitTerrain` devolve `null` ao `Aoe.OnHit`**, que desreferencia sem checar ⇒ NRE por golpe em AOE com `springDelay`/`placeOnGround` | `CombatPatches.cs:322-332`; `Aoe.cs:638-657` |
 | 16 | **A afirmação sobre um objeto vira trabalho** — "o forno está aceso" → `smelt`; "a cozinha está limpa" → `cook` | `RadialIntent.cs:195-228` |
+| 16b | **"colete pedras" (sem número) virava coleta com teto 10** — o 3B devolve `{"action":"stone","amount":10}` mesmo sem número na mensagem e o `Apply` confiava nele; a coleta é para rodar **até o jogador parar** (descarregando no baú quando enche) | `CompanionOrders.cs:187` × `GatherIntent.NumberIn` | ✅ **corrigido** na `fix/teto-e-tokens` (o número só vale quando está no **texto do jogador**) |
 
 ---
 

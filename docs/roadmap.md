@@ -2159,7 +2159,7 @@ em vez de "Nenhuma".
 apontou isso na caça da 1.9.4. Um "hash certo" não basta quando o consumidor compara com um cache que **nós**
 preenchemos; e a lista de achados que sobrou está em `docs/audit-bughunt-1.9.4.md`.
 
-#### Os outros dois achados do teste de 31/10/2026 (branch `fix/teto-e-tokens`)
+#### Os outros achados do teste de 31/10/2026 (branch `fix/teto-e-tokens`)
 
 - **O teto da coleta no caminho corrigido.** O teste do jogador (`colete 10 pedras`) **funcionou** — o modelo devolveu
   `stone` com `amount:10` e o log trouxe `Order target: mode 2 stops at 10 Stone in the pack` + `[Gather] Order target
@@ -2170,6 +2170,13 @@ preenchemos; e a lista de achados que sobrou está em `docs/audit-bughunt-1.9.4.
   (o prompt de 2.219 tokens ficava de fora). O texto passou a dizer "de geracao - so a resposta", apontando para a
   linha `[IA] Prompt:` acima. Medição real da sessão: 115 car. ≈ 29 tokens em 1.189 ms = ~24,4 tokens/s de geração
   (e não os ~2.377 tok/s que a soma daria).
+- **"colete pedras" sem número virava coleta com teto 10.** O `qwen2.5-3b-instruct` devolve
+  `{"action":"stone","amount":10}` mesmo quando a mensagem não tem número, e o `Apply` confiava nele — mas a coleta
+  sem número é para rodar **até o jogador mandar parar** (descarregando no baú quando enche). Agora, nos trabalhos que
+  aceitam teto (`wood`/`stone`/`ore`), o número só vale quando está no **texto do jogador** (`GatherIntent.NumberIn`,
+  que passou a ser `internal`); sem número, `outcome.Amount = 0` e o log avisa
+  `O modelo devolveu amount=10 mas a mensagem nao tem numero - "stone" sem teto`. Descoberto no teste do jogador de
+  31/10/2026 (o log mostrou `colete pedras → stops at 10 Stone`).
 
 
 
