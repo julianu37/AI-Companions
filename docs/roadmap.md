@@ -2177,6 +2177,14 @@ preenchemos; e a lista de achados que sobrou está em `docs/audit-bughunt-1.9.4.
   que passou a ser `internal`); sem número, `outcome.Amount = 0` e o log avisa
   `O modelo devolveu amount=10 mas a mensagem nao tem numero - "stone" sem teto`. Descoberto no teste do jogador de
   31/10/2026 (o log mostrou `colete pedras → stops at 10 Stone`).
+- **Medição fora do jogo (31/10/2026, para fechar o item do teto corrigido):** com o **contrato francês real** da DLL
+  e o `qwen2.5-3b-instruct` (temperatura 0,1, schema `strict` real): "ramasse 10 bois" → `wood/10` (**não** `pickup`),
+  "ramasse 10 pierres" → `stone/10`, "ramasse du bois" (sem número) → `amount:null`, "ramasse le bois par terre" →
+  `pickup` (legítimo), "coupe 10 arbres" → `wood/10`. Em PT: "pega 10 pedras"/"recolhe 10 pedras"/"junta 10 madeiras"
+  → a ação certa com 10; "pega umas pedras do chao" → `pickup`. Ou seja: **o modelo não troca mais coleta por
+  `pickup`** — o contrato por idioma (M3) fechou a causa e a rede virou segurança. Forçando `pickup` no
+  `GatherIntent` real da DLL 1.9.4 (harness, casos `gather`): "ramasse 10 bois" → `wood/10`, "junte a madeira do
+  chão" → `null` (pickup legítimo), "colete 10 pedras" → `stone/10` — **todos PASS**.
 
 
 
