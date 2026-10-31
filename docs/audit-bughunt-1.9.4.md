@@ -85,6 +85,9 @@ Estes não dependem do relato de nenhum agente:
 ## 3b. A lápide do companheiro não some depois de esvaziada (confirmado em jogo, 31/10/2026)
 
 **Sintoma (jogador):** dispensou o Companheiro 2, virou lápide, pegou todos os itens — e a lápide ficou no mundo.
+**Correção do relato (31/10/2026):** o jogador confundiu a **própria** lápide (`Gruncho`, 28 pilhas, em
+`-71, 79, 25.9`) com a do companheiro. O que segue abaixo foi **reproduzido à parte**, com uma cobaia nova — o
+sintoma original não se confirma.
 
 **Regra do jogo:** `TombStone.UpdateDespawn` roda a cada 2 s e destrói a lápide quando `m_nview.IsValid()`,
 `m_nview.IsOwner()`, `!Container.IsInUse()` e `NrOfItems() <= 0` (`TombStone.cs`). O mod usa o **mesmo prefab**
