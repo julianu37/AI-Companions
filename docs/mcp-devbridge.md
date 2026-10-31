@@ -202,6 +202,26 @@ seguida (`player_give`, `player_teleport`, `world_spawn`, `companions_give`, `co
 3. **P2 — conforto**: `companions.order` com `amount` (teto da coleta via `SetOrderCap`), `zdo_set`, empacotamento do
    servidor Python.
 
+## Receitas
+
+### Entrar no mundo sozinho
+
+1. `input_focus` (foca a janela do Valheim; as ferramentas de input já fazem isso).
+2. Espere a intro cinematográfica terminar (ou `input_key Space` na tela de **loading** que vem depois do "Continuar").
+3. `screenshot` → o botão **Continuar** está na mesma coordenada da imagem (1920×1080).
+4. `input_click` com o `x`/`y` do botão.
+5. `ping` até `inGame: true`.
+
+### Testar um painel (ex.: o bind do F8)
+
+1. `input_key F8` → `screenshot` (o painel abriu).
+2. `input_click` na linha da tecla → `input_key Escape`.
+3. `screenshot`: o painel **continua aberto** e o bind foi cancelado (o fix do `Capturing`).
+
+### Ver o mundo de outro ângulo
+
+`render_view` com `x`/`z` do ponto, `yaw`/`pitch` orbitando e `dist` — a câmera é off-screen, não mexe na visão do jogador.
+
 ## Armadilhas (já resolvidas, não repetir)
 
 - `EnvMan.GetCurrentDay()` é **privado** → reflexão (`Commands.DayNumber`).
