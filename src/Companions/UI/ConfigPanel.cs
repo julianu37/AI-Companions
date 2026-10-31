@@ -1810,9 +1810,13 @@ public class ConfigPanel : MonoBehaviour
 		}
 		if (key == "TtsLanguage")
 		{
-			// the languages this Kokoro speaks (the model is one file; the code picks the phonemizer)
+			// The languages the mod really speaks: the interface, the companion's lines, the personality presets and the
+			// prompt contract only exist in these five, and each one was synthesized out of the game with the shipped
+			// model (see the kokoro skill / docs/re/tts-kokoro-sherpa-onnx.md). Not offered on purpose:
+			// en-gb (the shipped binding throws when it generates), ja/zh/hi (they load, but the mod has no words for
+			// them, so an English line read with a Japanese phonemizer would only sound wrong).
 			return ChoiceOf(entry, AutoCodeOption(CompanionTts.Language),
-				new string[] { "en-us", "en-gb", "pt-br", "es", "fr", "it", "ja", "zh", "hi" });
+				new string[] { "pt-br", "en-us", "es", "fr", "it" });
 		}
 		// VoiceLanguage: the codes Whisper accepts (the model is multilingual and detects too, but "auto" follows the
 		// game language, which is what makes the orders be understood in it)

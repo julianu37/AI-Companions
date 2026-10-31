@@ -984,6 +984,11 @@ public static class ModLocalization
 			if (_initialized)
 			{
 				InjectTranslations(__instance);
+				// fix 2.0.0: the voice has to follow too - the Kokoro model is loaded once and the phonemizer is chosen
+				// when it is loaded, so a language change needs the synthesis thread to rebuild it (a Portuguese voice
+				// reading Portuguese with English phonemes sounds like English). Unity-free on purpose: this postfix
+				// must not touch the platform layer (see the note above).
+				CompanionTts.NoticeLanguageChange();
 			}
 		}
 		catch (Exception ex)
