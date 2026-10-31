@@ -305,11 +305,15 @@ internal static class Commands
 		global::Console.instance.TryRunCommand("tod " + fraction.ToString(CultureInfo.InvariantCulture), silentFail: true);
 		bool wantGod = Json.Bool(args, "god", true);
 		global::Console.instance.TryRunCommand(wantGod ? "god on" : "god off", silentFail: true);
+		// Valheim 1.0's god mode does NOT cancel damage: it clamps a killing blow to 1 HP (Character.cs). Heal after
+		// it so the bar is full and the player is not stuck at 1.
+		global::Console.instance.TryRunCommand("heal", silentFail: true);
 		Player p = Player.m_localPlayer;
 		return Ok(new Dictionary<string, object>
 		{
 			{ "cheats", global::Console.m_cheat },
 			{ "god", p != null && p.InGodMode() },
+			{ "hp", p != null ? p.GetHealth() : 0f },
 			{ "time", EnvMan.instance != null ? EnvMan.instance.GetDayFraction() : 0f }
 		});
 	}

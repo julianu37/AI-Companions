@@ -79,6 +79,10 @@ def main():
     if not ping.get("inGame"):
         return 1
 
+    # Never drive the player without the dev setup: god on (Valheim 1.0 clamps a killing blow to 1 HP) + heal.
+    setup = m.require_ok(m.call_bridge("world.setup", time=0.5, god=True))
+    check("world setup (devcommands + midday + god)", bool(setup.get("cheats")) and bool(setup.get("god")), str(setup))
+
     # --- walk -------------------------------------------------------------------------------
     clear = face_clear()
     start = status()
