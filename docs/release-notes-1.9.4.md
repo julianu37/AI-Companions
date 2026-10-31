@@ -43,6 +43,11 @@
   Passive; the death used to save those forced values as if the player had chosen them, so the next revive remembered
   "off" and "Passive" for good. The death now reads `HC_RecoverPickup`/`HC_RecoverStance` when the companion is
   recovering.
+- **F8: a pending key binding is not cancelled by Esc anymore**, and the next key press is not written into the config
+  by accident.
+- **The controller legend is back** (`BuildPadHint` was dead code - nothing called it).
+- **The starter and appearance panels lost the dark overlay** (`s_noDark` was never assigned; the build now has **zero
+  warnings**).
 - **No other change.** Same `.cfg`, same saves, same `Companions.dll` name, same models and the same AI layer.
 
 ## How to update

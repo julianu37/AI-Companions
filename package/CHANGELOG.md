@@ -39,6 +39,12 @@ so the beard of the previous appearance was never destroyed.
   Passive; the death used to save those forced values as if the player had chosen them, so the next revive remembered
   "off" and "Passive" for good. The death now reads `HC_RecoverPickup`/`HC_RecoverStance` when the companion is
   recovering.
+- **F8: a pending key binding is not cancelled by Esc anymore.** While the panel was waiting for a key, Esc closed the
+  panel and the next key press was written into the config. The panel now ignores input while the listener is
+  capturing (and on the frame the capture ends).
+- **The controller legend is back.** `BuildPadHint` existed but nothing called it, so the gamepad footer never showed.
+- **The starter and appearance panels lost the dark overlay.** `s_noDark` was never assigned - it was the only
+  compiler warning in the build. The panels now use the light sections the upstream moved to.
 - Same config, same saves, same models.
 
 More fixes are planned for this version - the full list is in `docs/audit-bughunt-1.9.4.md`.
