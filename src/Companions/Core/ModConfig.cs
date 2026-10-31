@@ -164,6 +164,12 @@ internal static class ModConfig
 	// do painel da IA) e so serve para investigar clique/UI estranha. Ver UI/ModUiAudit.cs.
 	internal static ConfigEntry<bool> UiDiag;
 
+	// [Advanced] - o DevBridge (ferramenta de desenvolvimento): modulo que expoe o jogo em 127.0.0.1 para o servidor
+	// MCP (tools/mcp-devbridge). Desligado por padrao; ver docs/mcp-devbridge.md.
+	internal static ConfigEntry<bool> DevBridge;
+	internal static ConfigEntry<int> DevBridgePort;
+	internal static ConfigEntry<string> DevBridgeToken;
+
 	internal static ConfigEntry<bool> AutoRespawnEnabled;
 
 	internal static ConfigEntry<float> AutoRespawnDelaySeconds;
@@ -1064,6 +1070,10 @@ internal static class ModConfig
 		// porque diagnostica um componente da IA (a voz do companheiro); este e o bucket dos ajustes que ninguem
 		// mexe no dia a dia, que e o caso de um despejo de diagnostico.
 		UiDiag = Bind(cfg, "Advanced", "UiDiag", defaultValue: false, "UI diagnostics: when on, writes to the log what is in front of the controls of the F8 panel and the AI panel (once per session, the first time each panel is opened): how many click targets each panel has (the controls and the ones that are there on purpose), every active layer in the scene (name and order) and, for each canvas above the panel, the targets that cover the controls column. It is what you turn on when a click or the UI looks odd (a button that doesn't answer, text on top of something, a swallowed click): the log says who is in front. Off (default) writes nothing and costs nothing; on, the log grows a lot (one summary line per panel, plus one line per suspect target). It changes nothing in the game - it only reports.");
+
+		DevBridge = Bind(cfg, "Advanced", "DevBridge", defaultValue: false, "Development tool (MCP): starts a TCP server on 127.0.0.1 that the MCP server in tools/mcp-devbridge drives - player and companion state, console commands, spawn, screenshots. Loopback only and off by default: it can run console commands, so leave it off unless you are developing. See docs/mcp-devbridge.md.");
+		DevBridgePort = Bind(cfg, "Advanced", "DevBridgePort", 47110, "Development tool (MCP): TCP port of the DevBridge (loopback only). The MCP server reads DEVRIDGE_PORT or uses the same default.", new AcceptableValueRange<int>(1024, 65535));
+		DevBridgeToken = Bind(cfg, "Advanced", "DevBridgeToken", "", "Development tool (MCP): optional shared secret. When set, every request from the MCP server must carry it (DEVRIDGE_TOKEN).");
 
 		// [AI] - Phase 3.1: the player types an order in the game chat and an LLM (Groq's free tier by default, a local
 		// LM Studio / Ollama, or any OpenAI-compatible /chat/completions endpoint) turns it into an action. See CompanionChatAI.

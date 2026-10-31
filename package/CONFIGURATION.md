@@ -1074,6 +1074,15 @@ Death: seconds a companion keeps trying to get to its tombstone before giving up
 **UiDiag** — Default: Off  
 UI diagnostics: when on, writes to the log what is in front of the controls of the F8 panel and the AI panel (once per session, the first time each panel is opened): how many click targets each panel has (the controls and the ones that are there on purpose), every active layer in the scene (name and order) and, for each canvas above the panel, the targets that cover the controls column. It is what you turn on when a click or the UI looks odd (a button that doesn't answer, text on top of something, a swallowed click): the log says who is in front. Off (default) writes nothing and costs nothing; on, the log grows a lot (one summary line per panel, plus one line per suspect target). It changes nothing in the game - it only reports.
 
+**DevBridge** — Default: Off  
+Development tool (MCP): starts a TCP server on 127.0.0.1 that the MCP server in tools/mcp-devbridge drives - player and companion state, console commands, spawn, screenshots. Loopback only and off by default: it can run console commands, so leave it off unless you are developing. See docs/mcp-devbridge.md.
+
+**DevBridgePort** — Default: 47110 · Range: 1024 – 65535  
+Development tool (MCP): TCP port of the DevBridge (loopback only). The MCP server reads DEVRIDGE_PORT or uses the same default.
+
+**DevBridgeToken** — Default: ``  
+Development tool (MCP): optional shared secret. When set, every request from the MCP server must carry it (DEVRIDGE_TOKEN).
+
 ## AI
 
 The AI layer of the project: text and voice orders, personality, memory, speech recognition and the companion's voice.
