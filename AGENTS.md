@@ -72,7 +72,8 @@ config é **`BepInEx\config\AiCompanions.cfg`** (o GUID não dá mais nome a ele
 - Target: **.NET Framework 4.7.2 (net472)**, C#.
 - Versão: **1.9.2** — **multilíngue (5 idiomas: PT-BR, EN, ES, FR, IT)** (fonte única: `PluginVersion` em
   `src/Companions/Core/CompanionsPlugin.cs`). A **1.9.2** (branch `feat/ordens-interacao`, **mergeada na `main` e
-  publicada em 31/10/2026**, tag `v1.9.2`)
+  publicada em 31/10/2026**, tag `v1.9.2`) — e a **1.9.3** (31/10/2026, tag `v1.9.3`) corrige só a barba (`hash("")` em
+  vez de `0`, ver `docs/release-notes-1.9.3.md`)
   é a **sincronização com o upstream 1.5.4 → 1.5.8** (121 arquivos, +14.907/−2.600; **63 byte a byte idênticos**,
   58 conflitos resolvidos à mão) **+ as 5 ordens de interação** por chat/voz (`hive`/`door`/`board`/`sit`/`deposit`,
   `ValidActions` 30 → **35**). A auditoria das 7 frentes está em **`docs/audit-upstream-1.9.2.md`**: ela achou
@@ -944,10 +945,10 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   nome do mundo aparece por trás do centro transparente da roda — cosmético, visto nas capturas da 1.7.0); o
   **risco médio do roster com N companheiros**; e a
   **posse do ZDO no spawn em multiplayer** (revisar quando houver teste em servidor dedicado). O
-  **release/empacotamento da 1.8.3 está fechado** (25/10/2026): tag `v1.8.3` no `c023ca1`, GitHub Release
-  `releases/tag/v1.8.3` com os dois zips — `AI_Companions-1.8.3.zip` (385.866.837 bytes, md5 `340d320d…`) e
-  `…-sem-modelos.zip` (29.846.898 bytes, md5 `0372b807…`), gerados de `pkg183\stage` sem `speech.json` (runtime) e sem
-  os marcadores do Vortex; falta só o upload manual no Nexus (`Temp\opencode\nexus\publicar-183.md`). A
+  **release/empacotamento da 1.9.2 e da 1.9.3 está fechado** (31/10/2026): tags `v1.9.2` (no merge `e9953e1`, **sem** o fix
+  da barba) e `v1.9.3` (no fix `fe1b8ff`), cada uma com GitHub Release e os dois zips gerados de `pkg\<versão>\stage`
+  (sem `speech.json`, sem `Translations\English.json`, sem marcador do Vortex); falta só o upload manual no **Nexus**
+  (guia em `pkg\<versão>\nexus\publicar-<versão>.md`). A
   branch `origin/claude/relaxed-archimedes-ecoh6h` **não** é pendência: é o **WIP do autor do upstream** e **não**
   deve ser mergeada nem usada como referência. Detalhes na subseção *Pendências conhecidas* do `docs/roadmap.md`.
 

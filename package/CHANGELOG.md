@@ -2,6 +2,18 @@
 
 All the changes to this project, derived from ProfMags' Offline Companions. The versions before 1.4.0 are the original mod (see the original mod's history, from ProfMags, for those versions) plus the first batch of compatibility fixes for the Valheim 1.0 API that made the mod load and run. **The entries below 1.5.4 are the upstream history and stay as they are (in English) — our sections (from 1.6.0 on) are ours.**
 
+## 1.9.3 — 31/10/2026
+
+**One fix: the companion's beard.** A companion with no beard was asking the game for a beard that does not exist.
+
+- **"No beard" is hash `0` now.** The appearance code passed the hash of an **empty string** (371857150) instead of `0`;
+  the game then tried to attach a beard prefab with that hash, logged `Missing attach item: 371857150` in the Unity log
+  and the beard never appeared. The decompiled `VisEquipment.SetBeardEquipped` treats `0` as "remove/skip" — the mod now
+  sends `0`, in the real companion and in the appearance preview.
+- **The `[AppearanceDiag]` warning** only fires when the prefab exists and the object did not appear (it used to fire on
+  every companion without a beard).
+- Nothing else changes: same config, same saves, same `Companions.dll`, same models.
+
 ## 1.9.2 — 31/10/2026
 
 **Upstream sync: 1.5.4 → 1.5.8.** Four upstream releases are in — combat, ships, the Shrine, torches, controller support —
