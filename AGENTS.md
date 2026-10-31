@@ -13,6 +13,15 @@ O trabalho é feito pela equipe de agentes especialistas em `.opencode/agents/` 
 IA/ordens, LLM, Harmony, rede/ZDO, assets, arquitetura, revisão, QA e docs) e pelas skills em `.opencode/skills/`.
 Leia este arquivo antes de agir.
 
+## Regra prioritária — tudo documentado
+
+**Nada entra, muda ou é decidido no projeto sem estar documentado no mesmo ciclo.** Código, config, decisão de
+produto, medição, correção, exceção, pendência, release, caminho de pasta: se não está neste `AGENTS.md` (ou no doc
+que ele aponta), **não aconteceu**. Na dúvida entre "documentar depois" e "documentar agora", é **agora** — o
+"depois" já custou retrabalho (a 1.9.2 teve que reconstruir o que a voz prometia e não fazia, e uma frase errada
+minha sobre onde o pacote era montado virou discussão). Vale para agente e para humano: **documentação é entrega,
+não sobra.**
+
 ## Nome e repositório (renomeação de 23/10/2026)
 
 O mod se chama **AI Companions** (até 23/10/2026 era **ModAI-BR-Companions**): repositório
@@ -81,7 +90,8 @@ config é **`BepInEx\config\AiCompanions.cfg`** (o GUID não dá mais nome a ele
 
 ## Caminhos desta máquina
 
-- Repositório: `C:\Users\revenda33\Desktop\AI-Companions`
+- Repositório: `C:\Users\revenda33\Desktop\ModAI-BR-Companions` (a pasta manteve o nome antigo; o repo no GitHub é
+  `AI-Companions`)
 - Jogo: `C:\Program Files (x86)\Steam\steamapps\common\Valheim`
 - Plugins: `...\BepInEx\plugins\AI-Companions`
 - Traduções (runtime): `...\BepInEx\plugins\AI-Companions\Translations\*.json` (UI) e
@@ -108,7 +118,21 @@ config é **`BepInEx\config\AiCompanions.cfg`** (o GUID não dá mais nome a ele
 - **BepInEx manual (sem gerenciador):** BepInEx **5.4.23.5** (o pack do Nexus é o `5.4.2351`), extraído na raiz do
   jogo: `winhttp.dll` + `doorstop_config.ini` (`target_assembly=BepInEx\core\BepInEx.Preloader.dll`) +
   `.doorstop_version` + `BepInEx\core\`. O `.cfg` do mod e a pasta `plugins\` **sobrevivem** a reinstalar o
-  BepInEx.
+  BepInEx. Download: `https://github.com/BepInEx/BepInEx/releases/download/v5.4.23.5/BepInEx_win_x64_5.4.23.5.zip`
+  (extrair na raiz do jogo; o `.ini` já vem com `enabled = true` e o `target_assembly` certo).
+- **Pacote/release (1.9.2 em diante):** o staging fica **na pasta do projeto**, em `pkg\<versão>\` (gitignored —
+  `pkg/`), **nunca mais em `%TEMP%`**: `pkg\<versão>\stage` (o que vai no zip) e `pkg\<versão>\models\` (os modelos,
+  que vêm do release anterior: Whisper `ggml-small-q5_1.bin` 181 MB e `tts\kokoro\` ~155 MB). Motivo: os modelos
+  **sobrevivem** a reinstalar o Valheim (uma instalação limpa apaga a pasta do jogo, inclusive `BepInEx\plugins`,
+  e aí não há de onde copiá-los).
+- **Conteúdo do zip:** completa = DLL + dependências + `runtimes\win-x64\native` + `tts\kokoro\` +
+  `whisper\ggml-small-q5_1.bin` + `Translations\` + `Speech\` + `LICENSES\` + `LEIA-ME.txt`; "sem-modelos" = o mesmo
+  **sem** `tts\kokoro\` e **sem** `whisper\`. **Nunca** levar `speech.json` (runtime), `Translations\English.json`
+  (runtime; o inglês é nativo no código) nem `__folder_managed_by_vortex`.
+- **Publicação:** o **GitHub** (release + os dois assets + SHA-256) é do **agente**; o **Nexus** é do **jogador**,
+  com o guia que o agente escreve em `pkg\<versão>\nexus\publicar-<versão>.md`.
+- **`gh` neste repositório resolve o remote `upstream` por padrão** (o fork compartilha a história): em tudo que for
+  do nosso repo use `gh -R julianu37/AI-Companions ...` (ou `GH_REPO=julianu37/AI-Companions`).
 
 ## Arquitetura do projeto (`src/Companions/`)
 

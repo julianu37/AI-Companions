@@ -28,3 +28,7 @@ packages/
 Thumbs.db
 __pycache__/
 *.pyc
+
+# staging de pacote/release e modelos (ficam no projeto, fora do git)
+pkg/
+
