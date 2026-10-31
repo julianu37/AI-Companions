@@ -15,6 +15,7 @@ Only the Python standard library is used.
 """
 
 import base64
+import ctypes
 import json
 import os
 import re
@@ -38,6 +39,22 @@ PROTOCOL_VERSION = "2024-11-05"
 # ----------------------------------------------------------------------------------------------------------------
 # Bridge client
 # ----------------------------------------------------------------------------------------------------------------
+
+def focus_game():
+    """Brings the Valheim window to the foreground. The MCP server runs under the foreground application (the editor
+    or the terminal), which is allowed to set the foreground window - the game process itself is blocked by the
+    Windows foreground lock when it is in the background."""
+    try:
+        user32 = ctypes.windll.user32
+        hwnd = user32.FindWindowW("UnityWndClass", None)
+        if not hwnd:
+            return False
+        user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+        user32.SetForegroundWindow(hwnd)
+        return bool(user32.GetForegroundWindow() == hwnd)
+    except Exception:  # noqa: BLE001 - best effort, the bridge reports the real state
+        return False
+
 
 def call_bridge(cmd, **args):
     payload = {"cmd": cmd, "args": args}
@@ -71,25 +88,38 @@ def require_ok(result):
 
 
 def world_enter(args):
-    """Skips the intro and enters the world: Space > Down > Enter > Enter > Enter (the sequence the player uses),
-    then waits for the world to load."""
+    """Skips the intro and enters the world with the KEY sequence the player uses:
+    Space > Down > Enter > Enter > Enter. No mouse. If the first pass lands before the intro video starts, it tries
+    again (the Space is only consumed while the video/menu is up)."""
     wait = max(10, min(300, int(args.get("wait", 120))))
-    steps = [("Space", 0.9), ("DownArrow", 0.6), ("Return", 1.4), ("Return", 1.4), ("Return", 1.4)]
-    for key, delay in steps:
-        require_ok(call_bridge("input.key", key=key))
+    delay = max(0, min(180, int(args.get("delay", 0))))
+    if delay:
         time.sleep(delay)
-    deadline = time.time() + wait
-    last = None
-    while time.time() < deadline:
-        try:
-            data = require_ok(call_bridge("ping"))
-            last = data
-            if data.get("inGame"):
-                return data
-        except Exception as exc:  # noqa: BLE001 - the bridge may be busy while the world loads
-            last = {"error": str(exc)}
+    steps = [("Space", 0.9), ("DownArrow", 0.7), ("Return", 1.5), ("Return", 1.5), ("Return", 1.5)]
+
+    def poll(seconds):
+        deadline = time.time() + seconds
+        last = None
+        while time.time() < deadline:
+            try:
+                last = require_ok(call_bridge("ping"))
+                if last.get("inGame"):
+                    return last
+            except Exception as exc:  # noqa: BLE001 - the bridge may be busy while the world loads
+                last = {"error": str(exc)}
+            time.sleep(2)
+        return None
+
+    for attempt in range(1, 4):
+        for key, step_delay in steps:
+            focus_game()
+            require_ok(call_bridge("input.key", key=key))
+            time.sleep(step_delay)
+        data = poll(min(wait, 45))
+        if data:
+            return data
         time.sleep(2)
-    raise RuntimeError("the world did not load in %d s (last: %s)" % (wait, last))
+    raise RuntimeError("the key sequence did not load the world in %d s (Space > Down > Enter x3, 3 attempts)" % wait)
 
 
 def log_tail(lines):
@@ -632,20 +662,27 @@ def run_tool(name, args):
     if name == "render_view":
         return render_view(args)
     if name == "input_focus":
-        return require_ok(call_bridge("input.focus"))
+        return {"focused": focus_game()}
     if name == "input_key":
+        focus_game()
         return require_ok(call_bridge("input.key", key=args["key"]))
     if name == "input_key_down":
+        focus_game()
         return require_ok(call_bridge("input.key_down", key=args["key"]))
     if name == "input_key_up":
+        focus_game()
         return require_ok(call_bridge("input.key_up", key=args["key"]))
     if name == "input_text":
+        focus_game()
         return require_ok(call_bridge("input.text", text=args["text"]))
     if name == "input_click":
+        focus_game()
         return require_ok(call_bridge("input.click", x=args["x"], y=args["y"]))
     if name == "input_mouse_down":
+        focus_game()
         return require_ok(call_bridge("input.mouse_down", x=args["x"], y=args["y"]))
     if name == "input_mouse_up":
+        focus_game()
         return require_ok(call_bridge("input.mouse_up", x=args["x"], y=args["y"]))
     if name == "world_enter":
         return world_enter(args)
