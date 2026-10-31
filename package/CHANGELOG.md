@@ -4,10 +4,10 @@ All the changes to this project, derived from ProfMags' Offline Companions. The 
 
 ## 1.9.4 - in progress (31/10/2026)
 
-**One fix so far: a female companion kept the beard of the male preview.** 1.9.3 made "no beard" hash `0` (which is
-what the game expects), but it also left the game's attach cache cleared to `0` - and `0` is exactly the value of "no
-beard". `VisEquipment.SetBeardEquipped` returns early when the hash matches the cached one, so the beard of the
-previous appearance was never destroyed.
+**Three fixes so far.** The first one is the beard: a female companion kept the beard of the male preview. 1.9.3 made "no beard"
+hash `0` (which is what the game expects), but it also left the game's attach cache cleared to `0` - and `0` is
+exactly the value of "no beard". `VisEquipment.SetBeardEquipped` returns early when the hash matches the cached one,
+so the beard of the previous appearance was never destroyed.
 
 - **The cache is cleared to `int.MinValue` now** (`CompanionSetup.ResetVisualItemCache`), a value that is never a real
   item hash: `SetBeardEquipped(0)` runs the destroy branch and then skips the attach, which is what "no beard" means.
@@ -16,7 +16,13 @@ previous appearance was never destroyed.
   preview from male to female and when editing the appearance of an existing companion.
 - **Workaround on 1.9.3:** pick the `BeardNone` item in the beard list (a real hash for an invisible beard) instead of
   "None".
-- Nothing else changes: same config, same saves, same models.
+- **The gather cap now applies when a word net corrected the action.** "collect 10 wood" answered by the model as
+  `pickup` is corrected to `wood`, with the number read from the player's own text - but the job was started with the
+  model's amount (0), so no cap was set: the companion gathered forever while the chat said "(10)". The job now uses
+  the corrected amount. The normal path (the model returns the gather action with its number) was already fine.
+- **The `tokens/s` line in the log** said it counted "prompt and response together" but divided only the response
+  tokens. It now says "generation - response only" and points at the `[IA] Prompt:` line above.
+- Same config, same saves, same models.
 
 More fixes are planned for this version - the full list is in `docs/audit-bughunt-1.9.4.md`.
 

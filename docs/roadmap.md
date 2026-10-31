@@ -2159,6 +2159,18 @@ em vez de "Nenhuma".
 apontou isso na caça da 1.9.4. Um "hash certo" não basta quando o consumidor compara com um cache que **nós**
 preenchemos; e a lista de achados que sobrou está em `docs/audit-bughunt-1.9.4.md`.
 
+#### Os outros dois achados do teste de 31/10/2026 (branch `fix/teto-e-tokens`)
+
+- **O teto da coleta no caminho corrigido.** O teste do jogador (`colete 10 pedras`) **funcionou** — o modelo devolveu
+  `stone` com `amount:10` e o log trouxe `Order target: mode 2 stops at 10 Stone in the pack` + `[Gather] Order target
+  reached`. O bug era só quando a **rede por palavras** corrige a ação (`GatherIntent`): o `outcome.Amount` vinha do
+  texto do jogador (10), mas o `Apply` recebia o `intent.Amount` do modelo (0) ⇒ sem `SetOrderCap`, com o chat
+  anunciando `(10)`. Agora o `Apply` usa `outcome.Amount` (no caminho normal os dois são iguais, então nada muda).
+- **O `tokens/s` do log.** A linha dizia "contando prompt e resposta juntos" mas dividia só os tokens da **resposta**
+  (o prompt de 2.219 tokens ficava de fora). O texto passou a dizer "de geracao - so a resposta", apontando para a
+  linha `[IA] Prompt:` acima. Medição real da sessão: 115 car. ≈ 29 tokens em 1.189 ms = ~24,4 tokens/s de geração
+  (e não os ~2.377 tok/s que a soma daria).
+
 
 
 

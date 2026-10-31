@@ -62,7 +62,7 @@ Estes não dependem do relato de nenhum agente:
 | 6 | **`ataca aquele` nunca engaja** — o contrato obriga `target`, o 3B manda `"aquele"`, o fallback da mira só roda com `target` vazio ⇒ "Não vejo nenhum aquele por perto" | `CompanionOrders.cs:335-339`; `OrderTargets.cs:55-68` |
 | 7 | **`"no"` desliga os comandos** — "aceita os comandos **no** combate" → o modelo diz `command` e a rede inverte para `nocommand` | `RadialIntent.cs:428,163` |
 | 8 | **"Primeiro, colete 10 pedras" é recusado** como nome desconhecido (e a voz piora: o Whisper capitaliza o início) | `CompanionChatAI.cs:1171-1179`; `CompanionNames.cs:365-427` |
-| 9 | **O teto da coleta não é aplicado** — o chat diz "Ok: coletar madeira (10)" e o `Apply` recebe o amount do **modelo** (0) | `CompanionOrders.cs:187` × `:278` |
+| 9 | **O teto da coleta não é aplicado — mas só quando a rede por palavras corrige a ação.** No caminho normal (o modelo devolve `stone` com `amount` 10) **funciona** — confirmado em jogo em 31/10/2026: `Order target: mode 2 stops at 10 Stone in the pack` e `[Gather] Order target reached`. Quando o `GatherIntent` corrige `pickup` → `wood`, o número sai do texto do jogador (`outcome.Amount = 10`) mas o `Apply` recebia o amount do **modelo** (0) ⇒ sem `SetOrderCap`, com o chat anunciando `(10)` | `CompanionOrders.cs:187` × `:278` | ✅ **corrigido** na branch `fix/teto-e-tokens` (`outcome.Amount`) |
 | 10 | **`HC_Respawn_Inventory` volta com `m_equipped` sujo** — é o único dos 3 caminhos de restauração que não limpa as flags; com `DeathItemRule = 1/2` a mochila enche e a coleta para | `CompanionTombstoneResurrect.cs:463-465` |
 | 11 | **`MHR_ResurrectCore` sem `try/catch`** — exceção no `inventory.Load` deixa corpo novo + túmulo armado ⇒ **duplicata** na recarga da zona | `CompanionTombstoneResurrect.cs:400-597` |
 | 12 | **`MHR_Roster.Recover` sem `try/catch`** e grava `Persistent = true` antes do load ⇒ corpo meio-construído persistente + geração sem bump | `MHR_Roster.cs:1027-1114` |
@@ -140,6 +140,7 @@ Só o `MHR_Encumbrance` foi corrigido na 1.9.2; sobraram **9**:
 | achado | evidência |
 |---|---|
 | A fila de fala **descarta a linha de *Problem*** (`RemoveAt(0)`) — contradiz o "never lost" do cabeçalho e do CHANGELOG | `CompanionTalk.cs:251-254` |
+| O log mente no `tokens/s`: diz "contando prompt e resposta juntos" mas divide só os tokens da **resposta** (o prompt de 2.219 tokens não entra) | `LlmClient.cs:304-305` | ✅ **corrigido** na `fix/teto-e-tokens` (o texto passa a dizer "de geracao - so a resposta") |
 | `SmeltController` **pula um item** ao esvaziar pilha inteira (varredura para trás sobre a lista viva) | `SmeltController.cs:560-588` |
 | `HC_StarterGear` é escrito em todo init e **ninguém lê** | `CompanionSetup.cs:103,2119-2125` |
 | `QueueRespawn`/`ProcessRespawns` mortos nos **dois lados** (a fila nunca é drenada; o `DoRespawn` re-enfileira no erro) | `CompanionManager.cs:772,804,849-856` |
