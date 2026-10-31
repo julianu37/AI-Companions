@@ -2186,6 +2186,38 @@ preenchemos; e a lista de achados que sobrou está em `docs/audit-bughunt-1.9.4.
   `GatherIntent` real da DLL 1.9.4 (harness, casos `gather`): "ramasse 10 bois" → `wood/10`, "junte a madeira do
   chão" → `null` (pickup legítimo), "colete 10 pedras" → `stone/10` — **todos PASS**.
 
+#### Os três altos da 1.9.4 (branch `fix/altos-194`, 31/10/2026)
+
+Confirmados por **três especialistas independentes** (reverse-engineering contra o upstream e o decompilado; netcode;
+IA/lifecycle) **antes** de qualquer linha de código. Dois laudos corrigiram o diagnóstico inicial e um achado caiu:
+
+- **Santuário cobrando a oferenda** (`StarterCompanionPanel.OnConfirm` + `CompanionManager.HireWithCoins`). O ramo
+  `if (_hire)` foi perdido na resolução do conflito do merge da **1.5.6** (`bc6016f`) — não no da 1.5.8. O painel do
+  Santuário rodava o spawn **grátis** do starter e o `StarterFix.MarkSpawned()` marcava o starter do mundo como usado.
+  Restaurado do upstream, adaptado ao nosso painel: `HireWithCoins` ganhou um **overload interno** com o `aiDraft`
+  (voz, personalidade e **nome**), porque `CompanionAiDraft` é `internal` (CS0051 no `public`). Prova em IL: o
+  `OnConfirm` compilado não chamava `HireWithCoins` (0 chamadores). **O que não muda:** o painel do starter normal
+  (`_hire` só é `true` pelo Santuário) e a regra "qualquer companheiro na cena dispensa o starter" — quem contrata
+  antes do starter continua sem o starter, por desenho.
+- **`ChangeTier` preservando as escolhas** (`CompanionManager`). `CopyCarriedKeys` passou a levar `HC_FarmZones` (as
+  zonas de plantio, com a cultura de cada uma — a lápide e o roster já as preservavam, só a troca de tipo não) e
+  `HC_HomeRadius` (buraco novo da investigação). O novo `CopyRecovery` copia
+  `HC_Recovering`/`HC_RecoverStance`/`HC_RecoverPickup` como bloco, **só quando o corpo antigo estava recuperando**:
+  sem ele o corpo novo nascia com `HC_AutoPickup = false` (copiado no meio da recuperação) e sem o flag que faria o
+  `MHR_Recover` terminar — nem trocar de postura consertava. A linha `[Tier]` passou a mostrar `farmZones=` e
+  `recovering=` (lidos antes do `Destroy` do corpo velho).
+- **Dupla morte não perde mais o valor do jogador** (`MHR_Recover.RememberedAutoPickup`/`RememberedStance` + duas
+  linhas em `CompanionSetup.OnCompanionDeath`). O `OnRevived` força `HC_AutoPickup = false` e
+  `HC_CombatStance = Passive` e guarda o original em `HC_RecoverPickup`/`HC_RecoverStance`; a morte lia as chaves
+  **forçadas** e gravava o `false`/`Passive` na lápide como se fossem a escolha do jogador, e o ciclo se
+  auto-perpetuava. Agora a morte lê o valor lembrado quando `HC_Recovering` está ligado. **A perda atingia também a
+  postura** — o laudo inicial só citava o auto-pickup. O `End`/`Cancel` passaram a logar o estado do auto-pickup.
+
+**Falso positivo:** `HC_WanderFollowMigrated` **não** se perde (o `TryInit` do corpo novo migra antes das cópias e o
+`ChangeTier` sobrescreve `HC_Wander` com o valor do jogador). **Adiados por decisão do jogador:** `HC_Food_0..4`
+(buffs de comida) e o H4 (`s_state`/`s_tombCache` por `InstanceID`, sem `ReferenceEquals` nem limpeza) — ambos reais,
+ficam para a 1.9.5.
+
 
 
 

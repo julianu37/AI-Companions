@@ -30,6 +30,19 @@
   when the player's own message has one.
 - **The `tokens/s` line in the log** said it counted "prompt and response together" but divided only the response
   tokens; it now says "generation - response only" and points at the `[IA] Prompt:` line above.
+- **Odin's Shrine charges the offering again.** The hire panel showed the price but ran the starter's **free** spawn,
+  and `StarterFix.MarkSpawned()` consumed the free starter of the world on top of it. The `if (_hire)` branch was lost
+  when the 1.5.6 merge resolved `OnConfirm`; it is back, and `HireWithCoins` now takes the AI draft (voice, personality
+  and the name typed in the panel) through an internal overload - `CompanionAiDraft` is `internal`, so a public
+  signature with it is CS0051. The normal starter panel is untouched.
+- **Changing the companion's type keeps the player's choices.** `HC_FarmZones` (the planting zones, with the crop of
+  each one) and `HC_HomeRadius` are copied now, and a recovery in progress is carried over as a block
+  (`HC_Recovering`/`HC_RecoverStance`/`HC_RecoverPickup`). Without it the new body was born with auto-pickup off and no
+  flag to finish the recovery - not even setting a stance fixed it.
+- **Dying twice while recovering no longer loses the setting.** The recovery forces auto-pickup off and the stance
+  Passive; the death used to save those forced values as if the player had chosen them, so the next revive remembered
+  "off" and "Passive" for good. The death now reads `HC_RecoverPickup`/`HC_RecoverStance` when the companion is
+  recovering.
 - **No other change.** Same `.cfg`, same saves, same `Companions.dll` name, same models and the same AI layer.
 
 ## How to update

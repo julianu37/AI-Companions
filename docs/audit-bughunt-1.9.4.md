@@ -47,11 +47,19 @@ Estes não dependem do relato de nenhum agente:
 
 | # | achado | evidência | status |
 |---|---|---|---|
-| 1 | **O Santuário de Odin invoca companheiro de graça**: o painel mostra o preço (`CompanionPrice` = 1000), mas o confirm chama o spawn do starter (sem moeda). `HireWithCoins` **não tem chamador**. Efeito colateral: `StarterFix.MarkSpawned()` marca "starter já invocado", então quem invoca no Santuário antes do starter **nunca ganha o starter** | `ShrinePanel.cs:155-166` → `StarterCompanionPanel.cs:149-160`; `CompanionManager.cs:1066`; upstream `8aa6f53:StarterCompanionPanel.cs:147-160` tem o ramo `_hire` — **removido no merge da 1.5.8** (`cd0b2e7` = 1.5.6) | **aberto** |
-| 2 | **`ChangeTier` perde `HC_FarmZones`** — o Fazendeiro perde as zonas de plantio | `CompanionManager.cs:505-508,651-688`; `FarmZoneSerializer.cs:10` | **aberto** |
-| 3 | **`ChangeTier` perde `HC_Recovering`/`HC_RecoverStance`/`HC_RecoverPickup`** → corpo novo nasce com `HC_AutoPickup = false` e sem o flag de recuperação ⇒ **auto-pickup desligado para sempre** | `CompanionManager.cs:349,455,505-508` × `MHR_Recover.cs:64-68,84-89,288-299` | **aberto** |
-| 4 | **Morrer 2× durante a recuperação** → `OnRevived` grava `AutoPickup = false`, o túmulo copia esse `false`, o próximo revive grava `RecoverPickup = false` ⇒ mesma sequela, silenciosa | `MHR_Recover.cs:56-60,291` → `CompanionSetup.cs:983,1034,2351` → `CompanionTombstoneResurrect.cs:410,429` | **aberto** |
+| 1 | **O Santuário de Odin invoca companheiro de graça**: o painel mostra o preço (`CompanionPrice` = 1000), mas o confirm chama o spawn do starter (sem moeda). `HireWithCoins` **não tem chamador**. Efeito colateral: `StarterFix.MarkSpawned()` marca "starter já invocado", então quem invoca no Santuário antes do starter **nunca ganha o starter** | `ShrinePanel.cs:155-166` → `StarterCompanionPanel.cs:149-160`; `CompanionManager.cs:1066`; upstream `8aa6f53:StarterCompanionPanel.cs:147-160` tem o ramo `_hire` | ✅ **corrigido** na `fix/altos-194` (ramo `_hire` restaurado + overload interno de `HireWithCoins` com o `aiDraft`, porque `CompanionAiDraft` é `internal` → CS0051). **Correção do laudo:** a remoção foi no merge da **1.5.6** (`bc6016f`), não no da 1.5.8; e o efeito colateral do starter tem **duas** causas — `MarkSpawned()` (fechada) **e** a regra "qualquer companheiro na cena dispensa o starter" (`CompanionManager.cs:1018-1026`), que continua valendo por desenho |
+| 2 | **`ChangeTier` perde `HC_FarmZones`** — o Fazendeiro perde as zonas de plantio (com a cultura de cada uma) | `CompanionManager.cs:505-508,651-688`; `FarmZoneSerializer.cs:10` | ✅ **corrigido** na `fix/altos-194` (`FarmZoneSerializer.FarmZonesHash` em `CarriedStringKeys`). A lápide e o roster já preservavam as zonas; só a troca de tipo não |
+| 3 | **`ChangeTier` perde `HC_Recovering`/`HC_RecoverStance`/`HC_RecoverPickup`** → corpo novo nasce com `HC_AutoPickup = false` e sem o flag de recuperação ⇒ **auto-pickup desligado para sempre** | `CompanionManager.cs:349,455,505-508` × `MHR_Recover.cs:64-68,84-89,288-299` | ✅ **corrigido** na `fix/altos-194` (`CopyRecovery` copia as 3 chaves como bloco, só quando `HC_Recovering` está ligado) |
+| 4 | **Morrer 2× durante a recuperação** → `OnRevived` grava `AutoPickup = false`, o túmulo copia esse `false`, o próximo revive grava `RecoverPickup = false` ⇒ mesma sequela, silenciosa. **A perda atinge também a postura** (`HC_RecoverStance` vira `Passive`) | `MHR_Recover.cs:56-60,291` → `CompanionSetup.cs:992,1040` → `CompanionTombstoneResurrect.cs:410,429` | ✅ **corrigido** na `fix/altos-194` (`MHR_Recover.RememberedAutoPickup`/`RememberedStance` na morte leem o valor lembrado quando `HC_Recovering`) |
 | 5 | **A barba da companheira feminina** (1.9.3 trocou um bug por outro) | `CompanionSetup.cs:450-451` × `VisEquipment.cs:1133` | ✅ **corrigido** na branch `fix/barba-sentinela` (ver `docs/roadmap.md`, seção da 1.9.4) |
+
+**Falsos positivos e buracos novos da investigação (31/10/2026, 3 especialistas independentes):**
+
+- **`HC_WanderFollowMigrated` não se perde** (falso positivo): o `TryInit` do corpo novo roda a migração **antes** das cópias e o `ChangeTier` sobrescreve `HC_Wander` com o valor do jogador. Nada muda.
+- **`HC_HomeRadius` se perdia** (mesma classe, não estava na lista) — corrigido junto, na lista de floats.
+- **`HC_Food_0..4` se perdem** (os buffs de comida com o tempo restante) — **adiado** para a 1.9.5 por decisão do jogador.
+- **H4** (`MHR_Recover.s_state`/`s_tombCache` por `InstanceID`, sem `ReferenceEquals` nem limpeza) é **real, mas amplificador** — adiado para a 1.9.5.
+- **`hc_ui_btn_hire`** existe nos 5 idiomas e **não tem chamador** (em `HireMode` o botão usa `hc_ui_btn_spawn`) — chave órfã, higiene.
 
 ---
 
