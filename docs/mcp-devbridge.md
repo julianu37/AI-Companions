@@ -206,11 +206,16 @@ seguida (`player_give`, `player_teleport`, `world_spawn`, `companions_give`, `co
 
 ### Entrar no mundo sozinho
 
-1. `input_focus` (foca a janela do Valheim; as ferramentas de input já fazem isso).
-2. Espere a intro cinematográfica terminar (ou `input_key Space` na tela de **loading** que vem depois do "Continuar").
-3. `screenshot` → o botão **Continuar** está na mesma coordenada da imagem (1920×1080).
-4. `input_click` com o `x`/`y` do botão.
-5. `ping` até `inGame: true`.
+**`world_enter`** faz a sequência que o jogador usa e espera o mundo carregar:
+
+| passo | tecla |
+|---|---|
+| 1 | `Space` (pula a intro) |
+| 2 | `DownArrow` (seleciona o mundo) |
+| 3-5 | `Return` ×3 (abre/confirma/entra) |
+
+Equivalente manual: `input_key` com essas teclas e ~1 s entre elas; depois `ping` até `inGame: true`. Se parar no
+meio, `screenshot` mostra a tela.
 
 ### Testar um painel (ex.: o bind do F8)
 

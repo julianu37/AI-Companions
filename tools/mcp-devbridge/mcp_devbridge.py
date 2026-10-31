@@ -70,6 +70,28 @@ def require_ok(result):
     return result.get("data")
 
 
+def world_enter(args):
+    """Skips the intro and enters the world: Space > Down > Enter > Enter > Enter (the sequence the player uses),
+    then waits for the world to load."""
+    wait = max(10, min(300, int(args.get("wait", 120))))
+    steps = [("Space", 0.9), ("DownArrow", 0.6), ("Return", 1.4), ("Return", 1.4), ("Return", 1.4)]
+    for key, delay in steps:
+        require_ok(call_bridge("input.key", key=key))
+        time.sleep(delay)
+    deadline = time.time() + wait
+    last = None
+    while time.time() < deadline:
+        try:
+            data = require_ok(call_bridge("ping"))
+            last = data
+            if data.get("inGame"):
+                return data
+        except Exception as exc:  # noqa: BLE001 - the bridge may be busy while the world loads
+            last = {"error": str(exc)}
+        time.sleep(2)
+    raise RuntimeError("the world did not load in %d s (last: %s)" % (wait, last))
+
+
 def log_tail(lines):
     if not os.path.exists(LOG_PATH):
         raise RuntimeError("log not found: " + LOG_PATH)
@@ -403,6 +425,15 @@ TOOLS = [
         },
     },
     {
+        "name": "world_enter",
+        "description": "Skips the intro and enters the world (Space > Down > Enter > Enter > Enter) and waits for it to load. Use after launching the game.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"wait": {"type": "integer", "minimum": 10, "maximum": 300, "default": 120}},
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "log_tail",
         "description": "Returns the last lines of BepInEx\\LogOutput.log (works even with the game closed).",
         "inputSchema": {
@@ -616,6 +647,8 @@ def run_tool(name, args):
         return require_ok(call_bridge("input.mouse_down", x=args["x"], y=args["y"]))
     if name == "input_mouse_up":
         return require_ok(call_bridge("input.mouse_up", x=args["x"], y=args["y"]))
+    if name == "world_enter":
+        return world_enter(args)
     if name == "log_tail":
         return log_tail(int(args.get("lines", 80)))
     if name == "log_watch":
