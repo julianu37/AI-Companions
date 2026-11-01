@@ -56,6 +56,7 @@ Legenda: ✅ concluído · 🔄 em andamento · ⏳ pendente
 | **3** | IA e voz: comandos por voz/chat, STT, TTS, personalidade — **neste projeto, ver Trilha D** | ✅ (3.1, 3.1-saída estruturada, 3.1b, 3.1c, 3.1d, 3.2, 3.2c, 3.3, 3.3b, 3.3c, 3.3d, 3.4, 3.5, 3.6, 3.6b, 3.7, 3.8 — **todas validadas em jogo**) |
 | **4** | Backend híbrido (LLM local + API), endpoints do "cérebro" | ⏳ |
 | **5** | Empacotamento (README, ícone) + revisão final | ⏳ |
+| **6** | **Construção autônoma** (o companheiro constrói: bancada → oficina → estruturas → blueprints) — ver **Trilha E** | ⏳ planejado |
 
 ---
 
@@ -2304,6 +2305,34 @@ Branch `feat/1.9.5`. O que entrou (20 itens; a lista completa e o que ficou de f
   jogador pedir).
 - **Nota de combate:** o `ShieldLogic` passou a ver o escudo na mão esquerda (o `GetLeftItem` refletido **não existia**),
   então o "já estou com escudo" finalmente funciona — **muda o ritmo do combate, precisa de teste em jogo com escudo**.
+
+---
+
+## Trilha E — Construção autônoma (planejada, 31/10/2026)
+
+> **Só planejado.** O plano completo (arquitetura, fases, critérios de aceite, riscos e a pesquisa do PlanBuild)
+> está em **`docs/plan-construcao.md`**. Nada de código foi escrito ainda.
+
+A meta: `Maria, construa uma bancada de trabalho aqui` → a companheira resolve a receita, os materiais
+(mochila → baús → coleta), acha um local válido, coloca a peça e **confirma** que ela funciona. Depois: baú,
+fogueira, cama, estruturas pequenas e, talvez, blueprints do PlanBuild.
+
+| Fase | O que entrega | Status |
+|---|---|---|
+| **E0** | Sonda `modia_build_probe` (flags/receita/estação da `piece_workbench`) + `docs/re/building-notes.md` | ⏳ |
+| **E1** | `AI/BuildExecutor.cs` — a sequência do `Player.PlacePiece` sem `Player` (claim → `SetCreator` → `WearNTear`/`IPlaced`/`MakePiece`/efeito) + `modia_build_test` | ⏳ |
+| **E2** | `AI/BuildSite.cs` — busca de local em anéis + validador dirigido pelas flags do `Piece` + `modia_build_find` | ⏳ |
+| **E3** | Ordem `build` por chat/voz (`ValidActions` 35 → 36, `target` obrigatório + rede por palavras) — **MVP** | ⏳ |
+| **E4** | `AI/BuildStock.cs` + coleta do que falta (teto = falta, reusa `HarvestController`) | ⏳ |
+| **E5** | Baú, fogueira e cama no catálogo (a oficina mínima) | ⏳ |
+| **E6** | Estruturas pequenas: plano de peças relativas, snap e ordem topológica com suporte | ⏳ |
+| **E7** | PlanBuild (opcional): ler o `.blueprint` (texto, sem dependência) e construir peça por peça | ⏳ |
+
+**Decisões já propostas no plano:** o executor **não** usa `Player.TryPlacePiece` (é `private` e preso à câmera); o
+dono da peça é **o jogador** (`MHR_Owner.CreatorId`); o custo sai de `Piece.m_resources` (nunca de tabela nossa);
+"aqui" = o que o jogador aponta; `RequireHammer = false`; PlanBuild **sem** dependência (o `Blueprint` dele é
+`internal` e exige Jötunn). Multiplayer continua **congelado**.
+
 
 
 
