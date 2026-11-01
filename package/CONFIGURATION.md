@@ -314,8 +314,8 @@ Chance (0.3 = 30%) that a companion with no Blocking skill times a block as a pa
 **ParryChanceMax** — Default: 0.7 · Range: 0 – 1  
 Chance (0.7 = 70%) that a companion times a block as a parry at Blocking skill 100.
 
-**FightLikePlayer** — Default: On  
-With a melee weapon, companions fight like a player: short combos when there's an opening, guarding in between, stepping out of swings, getting clear when several enemies are on them, and backing off to catch their breath when low on stamina. Off: the older way (one swing at a time on the weapon's timer).
+**FightLikePlayer** — Default: Off  
+With a melee weapon, companions fight like a player: short combos when there's an opening, guarding in between, stepping out of swings, getting clear when several enemies are on them, and backing off to catch their breath when low on stamina. Off (default, the 1.9.1 way): one swing at a time on the weapon's timer, blocking only as a reaction.
 
 **ComboHits** — Default: 3 · Range: 1 – 5  
 Most swings in one combo. Companions follow their weapon's own combo (3 swings on melee weapons, the last doing double damage) up to this many; now and then one short, and shorter when stamina is low.
@@ -1073,6 +1073,15 @@ Death: seconds a companion keeps trying to get to its tombstone before giving up
 
 **UiDiag** — Default: Off  
 UI diagnostics: when on, writes to the log what is in front of the controls of the F8 panel and the AI panel (once per session, the first time each panel is opened): how many click targets each panel has (the controls and the ones that are there on purpose), every active layer in the scene (name and order) and, for each canvas above the panel, the targets that cover the controls column. It is what you turn on when a click or the UI looks odd (a button that doesn't answer, text on top of something, a swallowed click): the log says who is in front. Off (default) writes nothing and costs nothing; on, the log grows a lot (one summary line per panel, plus one line per suspect target). It changes nothing in the game - it only reports.
+
+**DevBridge** — Default: Off  
+Development tool (MCP): starts a TCP server on 127.0.0.1 that the MCP server in tools/mcp-devbridge drives - player and companion state, console commands, spawn, screenshots. Loopback only and off by default: it can run console commands, so leave it off unless you are developing. See docs/mcp-devbridge.md.
+
+**DevBridgePort** — Default: 47110 · Range: 1024 – 65535  
+Development tool (MCP): TCP port of the DevBridge (loopback only). The MCP server reads DEVRIDGE_PORT or uses the same default.
+
+**DevBridgeToken** — Default: ``  
+Development tool (MCP): optional shared secret. When set, every request from the MCP server must carry it (DEVRIDGE_TOKEN).
 
 ## AI
 

@@ -1,0 +1,64 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Local paths (Valheim install). Same import as src/Companions/Companions.csproj: Environment.props is not
+       committed, so the defaults below are the standard Steam install. -->
+  <Import Project="$(MSBuildThisFileDirectory)..\..\Environment.props" Condition="Exists('$(MSBuildThisFileDirectory)..\..\Environment.props')" />
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net472</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>AiIntentsCheck</AssemblyName>
+    <RootNamespace>AiIntentsCheck</RootNamespace>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <!-- CS0436: Stubs.cs shadows the game's ObjectDB on purpose (see the comment there) - the real one cannot even
+         be loaded outside the game, and OrderItems.Known is written for the "no database yet" case. -->
+    <NoWarn>$(NoWarn);0436</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <ValheimDir Condition="'$(ValheimDir)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Valheim</ValheimDir>
+    <ManagedDir Condition="'$(ManagedDir)' == ''">$(ValheimDir)\valheim_Data\Managed</ManagedDir>
+    <BepInExCoreDir Condition="'$(BepInExCoreDir)' == ''">$(ValheimDir)\BepInEx\core</BepInExCoreDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- Compile-time only (Private="false"): Program.cs resolves them at run time from the paths baked in below, the
+       same way the game loads the mod (AssemblyResolve -> valheim_Data\Managed + BepInEx\core). BepInEx is the one
+       the harness really loads at run time (ConfigEntry), so it travels next to the exe. -->
+  <ItemGroup>
+    <Reference Include="BepInEx" HintPath="$(BepInExCoreDir)\BepInEx.dll" Private="true" />
+    <Reference Include="assembly_valheim" HintPath="$(ManagedDir)\assembly_valheim.dll" Private="false" />
+    <!-- Localization lives in assembly_guiutils, not in assembly_valheim (MHR_List.Local reads it) -->
+    <Reference Include="assembly_guiutils" HintPath="$(ManagedDir)\assembly_guiutils.dll" Private="false" />
+    <Reference Include="UnityEngine" HintPath="$(ManagedDir)\UnityEngine.dll" Private="false" />
+    <Reference Include="UnityEngine.CoreModule" HintPath="$(ManagedDir)\UnityEngine.CoreModule.dll" Private="false" />
+  </ItemGroup>
+
+  <!-- The build paths, so the harness looks for the game assemblies in the same folders the build used
+       (Program.InstallAssemblyProbe reads these). -->
+  <ItemGroup>
+    <AssemblyMetadata Include="ManagedDir" Value="$(ManagedDir)" />
+    <AssemblyMetadata Include="BepInExCoreDir" Value="$(BepInExCoreDir)" />
+  </ItemGroup>
+
+  <!-- THE REAL SOURCES. The word nets are pure on purpose (see the summary of each file), so they are compiled
+       straight from src/ - nothing is copied and nothing is reimplemented. Stubs.cs holds the few members of the
+       Unity/config side those files touch (and only those). -->
+  <ItemGroup>
+    <Compile Include="..\..\src\Companions\AI\LlmIntent.cs" Link="src\AI\LlmIntent.cs" />
+    <Compile Include="..\..\src\Companions\AI\RadialIntent.cs" Link="src\AI\RadialIntent.cs" />
+    <Compile Include="..\..\src\Companions\AI\PickupIntent.cs" Link="src\AI\PickupIntent.cs" />
+    <Compile Include="..\..\src\Companions\AI\GatherIntent.cs" Link="src\AI\GatherIntent.cs" />
+    <Compile Include="..\..\src\Companions\AI\InteractionIntent.cs" Link="src\AI\InteractionIntent.cs" />
+    <Compile Include="..\..\src\Companions\AI\OrderItems.cs" Link="src\AI\OrderItems.cs" />
+    <Compile Include="..\..\src\Companions\AI\CompanionNames.cs" Link="src\AI\CompanionNames.cs" />
+    <Compile Include="..\..\src\Companions\AI\MHR_Owner.cs" Link="src\AI\MHR_Owner.cs" />
+    <Compile Include="..\..\src\Companions\Core\MHR_List.cs" Link="src\Core\MHR_List.cs" />
+  </ItemGroup>
+
+</Project>

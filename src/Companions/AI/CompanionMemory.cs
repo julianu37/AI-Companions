@@ -112,12 +112,16 @@ internal static class CompanionMemory
 			return;
 		}
 		string who = string.IsNullOrEmpty(companionName) ? ModLocalization.Loc("hc_ai_default_name") : companionName;
-		builder.Append("\nConversa recente com o jogador (do mais antigo para o mais novo; use para lembrar o contexto):\n");
+		// Multilanguage (1.9.4): the block follows the game's language like the header and the contract. English is the
+		// native text (ModLocalization defaults) and PT/ES/FR/IT come from Translations/*.json.
+		string header = ModLocalization.Loc("hc_ai_memory_header");
+		string playerLabel = ModLocalization.Loc("hc_ai_memory_player") + ": ";
+		builder.Append('\n').Append(header).Append('\n');
 		for (int i = 0; i < turns.Count; i++)
 		{
 			if (turns[i].FromPlayer)
 			{
-				builder.Append("Jogador: ");
+				builder.Append(playerLabel);
 			}
 			else
 			{

@@ -9,6 +9,13 @@ internal static class MenuPatches
 {
 	private const string ButtonName = "HC_ModOptions";
 
+	// The game's own "down from Settings" target, captured once per menu instance: after the first pass
+	// Settings.selectOnDown is the Mod Options button itself, so re-reading it on the next Show would point
+	// Mod Options at itself and the controller could not move down (audit 1.9.4 #14).
+	private static Button _settingsButton;
+
+	private static Selectable _settingsDown;
+
 	[HarmonyPostfix]
 	[HarmonyPatch(typeof(Menu), "Show")]
 	private static void MenuShow_Postfix(Menu __instance)
@@ -72,15 +79,19 @@ internal static class MenuPatches
 			if (!(button == null) && !(button2 == null))
 			{
 				Navigation navigation = button.navigation;
+				if (button != _settingsButton || _settingsDown == null)
+				{
+					_settingsButton = button;
+					_settingsDown = navigation.selectOnDown;
+				}
 				Navigation navigation2 = component.navigation;
 				Navigation navigation3 = button2.navigation;
 				navigation2.mode = Navigation.Mode.Explicit;
 				navigation2.selectOnUp = button;
-				navigation2.selectOnDown = navigation.selectOnDown;
+				navigation2.selectOnDown = _settingsDown;
 				component.navigation = navigation2;
 				navigation.selectOnDown = component;
 				button.navigation = navigation;
-				_ = navigation.selectOnDown != null;
 				navigation3.selectOnUp = component;
 				button2.navigation = navigation3;
 			}

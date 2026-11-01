@@ -319,7 +319,7 @@ public static class CombatPatches
 	[HarmonyPatch(typeof(Attack), "SpawnOnHitTerrain")]
 	private static class SpawnOnHitTerrain_NoNpcTerrain
 	{
-		private static bool Prefix(Character character)
+		private static bool Prefix(Character character, ref GameObject __result)
 		{
 			try
 			{
@@ -329,6 +329,11 @@ public static class CombatPatches
 					return true;
 				}
 				character.GetComponent<HarvestController>()?.NotifyTerrainHit();
+				// 1.9.4 (auditoria #15): returning null made Aoe.OnHit dereference it (springDelay/placeOnGround) and
+				// throw per hit. Hand it a throwaway object that dies at the end of the frame - nothing is spawned and
+				// the caller still has something valid to poke.
+				__result = new GameObject("HC_TerrainHitSuppressed");
+				UnityEngine.Object.Destroy(__result);
 				return false;
 			}
 			catch

@@ -125,6 +125,9 @@ public class CompanionsPlugin : BaseUnityPlugin
 
 	private bool _started;
 
+	// [Advanced] DevBridge: the in-DLL development tool (tools/mcp-devbridge). Null when it is off.
+	private DevBridge.DevBridgeService _devBridge;
+
 	private static bool OriginalInstalled()
 	{
 		return Chainloader.PluginInfos.ContainsKey(OriginalGUID);
@@ -150,6 +153,7 @@ public class CompanionsPlugin : BaseUnityPlugin
 		ModConfig.Init(MHR_GetConfigFile());
 		ApplyLogLevel();
 		ModConfig.LogLevel.SettingChanged += delegate { ApplyLogLevel(); };
+		StartDevBridge();
 		_harmony = new Harmony(PluginGUID);
 		MHR_ApplyPatches();
 		EquipDiag.Install(_harmony);
@@ -166,6 +170,20 @@ public class CompanionsPlugin : BaseUnityPlugin
 		// Fase 3.7: the in-game AI panel (personality, voice, push-to-talk) - built on first open, hidden until then
 		CompanionAiPanel.Create();
 		FarmZonePlacer.EnsureInstance();
+	}
+
+	/// <summary>
+	/// Development tool (<c>[Advanced] DevBridge</c>, off by default): starts the loopback TCP server the MCP server
+	/// talks to. It can run console commands, so it only starts when the player asked for it. See docs/mcp-devbridge.md.
+	/// </summary>
+	private void StartDevBridge()
+	{
+		if (ModConfig.DevBridge == null || !ModConfig.DevBridge.Value)
+		{
+			return;
+		}
+		_devBridge = new DevBridge.DevBridgeService(ModConfig.DevBridgePort.Value, ModConfig.DevBridgeToken.Value);
+		_devBridge.Start();
 	}
 
 	// 1.8.3 (patch audit): one try/catch PER PATCH CLASS. A single broken target (a soft dependency that renamed a
@@ -270,6 +288,8 @@ public class CompanionsPlugin : BaseUnityPlugin
 			return;
 		}
 		_started = false;
+		_devBridge?.Stop();
+		_devBridge = null;
 		SceneManager.sceneLoaded -= OnSceneLoaded;
 		Game.m_playerInitialSpawn -= CompanionManager.MHR_StarterOnce;
 		// Fase 3.3: stop recording (and free the microphone clip) and release the native Whisper model
@@ -417,5 +437,7 @@ public class CompanionsPlugin : BaseUnityPlugin
 		{
 			Log.LogWarning("[TTS] Error: " + ex6.ToString());
 		}
+		// development tool: runs whatever the MCP server queued (no-op when [Advanced] DevBridge is off)
+		_devBridge?.Pump();
 	}
 }

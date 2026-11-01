@@ -3,7 +3,7 @@ name: Valheim AI Orders
 description: Como uma mensagem (chat ou voz) vira ordem no companheiro — pipeline CompanionChatAI → LlmClient → LlmIntent → CompanionOrders, as redes por palavras (Pickup/Gather/Radial/Interaction/IsDoorRequest/IsInventoryRequest), as 5 ordens de interação e como testar. Use ao mexer em ordens, contrato, intents ou parser.
 ---
 
-# Ordens do companheiro (1.9.2)
+# Ordens do companheiro (1.9.4)
 
 ## O caminho completo
 

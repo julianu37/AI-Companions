@@ -58,13 +58,44 @@ internal static class MHR_Recover
 		zdo.Set(RecoverPickupHash, autoPickup);
 		// so it never ends up leaving something in the tombstone (user)
 		zdo.Set(CompanionSetup.AutoPickupHash, value: false);
-		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Recover] Revived Passive with auto-pickup off - getting its gear back before going back to stance " + diedStance);
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Recover] Revived Passive with auto-pickup off - getting its gear back before going back to stance " + diedStance + " (auto-pickup was " + autoPickup + ")");
 	}
 
 	internal static bool IsRecovering(Component c)
 	{
 		ZDO zdo = c?.GetComponent<ZNetView>()?.GetZDO();
 		return zdo != null && zdo.GetBool(RecoveringHash);
+	}
+
+	// 1.9.4: while it is recovering its gear HC_AutoPickup is forced off and HC_CombatStance is forced Passive - the
+	// values the PLAYER chose live in HC_RecoverPickup/HC_RecoverStance until End/Cancel puts them back. Anything that
+	// copies the companion's state out (the tombstone, see CompanionSetup.OnCompanionDeath) must copy THOSE: a death
+	// during the recovery used to record the forced values as if they were the player's, so the next revive remembered
+	// "auto-pickup off" (and "stance Passive") and the recovery could never give them back.
+	internal static bool RememberedAutoPickup(ZDO zdo)
+	{
+		if (zdo == null)
+		{
+			return true;
+		}
+		if (zdo.GetBool(RecoveringHash))
+		{
+			return zdo.GetBool(RecoverPickupHash, defaultValue: true);
+		}
+		return zdo.GetBool(CompanionSetup.AutoPickupHash, defaultValue: true);
+	}
+
+	internal static int RememberedStance(ZDO zdo)
+	{
+		if (zdo == null)
+		{
+			return CompanionSetup.StanceBalanced;
+		}
+		if (zdo.GetBool(RecoveringHash))
+		{
+			return zdo.GetInt(RecoverStanceHash);
+		}
+		return zdo.GetInt(CompanionSetup.CombatStanceHash);
 	}
 
 	// the hover status line while recovering, else null
@@ -88,7 +119,7 @@ internal static class MHR_Recover
 		zdo.Set(RecoveringHash, value: false);
 		zdo.Set(CompanionSetup.AutoPickupHash, zdo.GetBool(RecoverPickupHash, defaultValue: true));
 		s_state.Remove(cs.gameObject.GetInstanceID());
-		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Recover] You set a stance - recovery over");
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Recover] You set a stance - recovery over (auto-pickup " + (zdo.GetBool(CompanionSetup.AutoPickupHash) ? "on" : "off") + ")");
 	}
 
 	// while recovering it's Passive, but it does fight back when something attacks it and it has a weapon in hand
@@ -289,6 +320,7 @@ internal static class MHR_Recover
 	{
 		zdo.Set(RecoveringHash, value: false);
 		zdo.Set(CompanionSetup.AutoPickupHash, zdo.GetBool(RecoverPickupHash, defaultValue: true));
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Recover] Recovery over - auto-pickup " + (zdo.GetBool(CompanionSetup.AutoPickupHash) ? "on" : "off") + " (the value it had before the recovery)");
 		if (restoreStance)
 		{
 			int stance = zdo.GetInt(RecoverStanceHash);

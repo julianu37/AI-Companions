@@ -70,8 +70,12 @@ config é **`BepInEx\config\AiCompanions.cfg`** (o GUID não dá mais nome a ele
   listar o Jotunn como requisito em release/README. (A skill `jotunn` da equipe continua no repositório como
   referência de framework, mas **não** se aplica a este mod.)
 - Target: **.NET Framework 4.7.2 (net472)**, C#.
-- Versão: **1.9.4** (em andamento, branch `fix/barba-sentinela`) — **multilíngue (5 idiomas: PT-BR, EN, ES, FR, IT)**
-  (fonte única: `PluginVersion` em `src/Companions/Core/CompanionsPlugin.cs`). A **1.9.2** (branch
+- Versão: **1.9.4** (publicada em **31/10/2026**, tag `v1.9.4`, só no GitHub — o Nexus fica para a 1.9.5) —
+  **multilíngue (5 idiomas: PT-BR, EN, ES, FR, IT)** (fonte única: `PluginVersion` em
+  `src/Companions/Core/CompanionsPlugin.cs`). A 1.9.4 é a **barba + teto da coleta + `tokens/s`** (merge `f36e311`)
+  **+ os três altos** (Santuário, `ChangeTier`, dupla morte) **+ os 3 fixes de UI + o `FightLikePlayer = false`**
+  (combate da 1.9.1, validado em jogo) **+ a lápide com o dono certo + a memória localizada + o DevBridge**, tudo
+  mergeado da `fix/altos-194`. A **1.9.2** (branch
   `feat/ordens-interacao`, **mergeada na `main` e publicada em 31/10/2026**, tag `v1.9.2`)
   é a **sincronização com o upstream 1.5.4 → 1.5.8** (121 arquivos, +14.907/−2.600; **63 byte a byte idênticos**,
   58 conflitos resolvidos à mão) **+ as 5 ordens de interação** por chat/voz (`hive`/`door`/`board`/`sit`/`deposit`,
@@ -80,17 +84,24 @@ config é **`BepInEx\config\AiCompanions.cfg`** (o GUID não dá mais nome a ele
   `LogLevel`/`PortalItems`/`RespawnStance`) e o que ficou adiado de propósito está listado lá. A **1.9.3**
   (31/10/2026, tag `v1.9.3`) tentou corrigir só a barba (`hash("")` → `0`) e **trocou um bug por outro** — a
   companheira feminina ficava com a barba do masculino; a **1.9.4** corrige de verdade (sentinela do cache em
-  `int.MinValue`, ver `docs/release-notes-1.9.4.md`). A **caça a bugs da 1.9.4** (6 frentes, read-only, ~60 achados
+  `int.MinValue`, ver `docs/release-notes-1.9.4.md`) e traz os três altos (Santuário, `ChangeTier`, dupla morte)
+  corrigidos e **validados em jogo** (mundo `test3`, 31/10/2026). A 1.9.4 também **volta o combate ao da 1.9.1**:
+  o `[Combat] FightLikePlayer` (o "combate como um jogador" do upstream 1.5.6, que guardava o escudo entre combos e
+  recuava por stamina) passou a nascer **`false`** — um golpe por vez no timer da arma e bloqueio só de reação. Quem
+  quiser o combate novo liga a chave. Detalhes em `docs/roadmap.md` (1.9.4 — combate de volta ao da 1.9.1).
+  **Validado em jogo pelo jogador (31/10/2026): "o combate ficou bem melhor depois que revertemos".**
+  A **caça a bugs da 1.9.4** (6 frentes, read-only, ~60 achados
   distintos) está em **`docs/audit-bughunt-1.9.4.md`** — é de lá que sai o escopo da 1.9.4/1.9.5. Histórico: as
   releases saíram em sequência em 23–26/10 (`1.7.0` → `1.8.0` → `1.8.1` → `1.8.2` → `1.8.3` → `1.9.0` → `1.9.1`;
   a **1.7.1 foi pulada de propósito**, pedido do jogador) e a **1.9.1** só tirou o `ggml-base-q5_1.bin` (57 MB) do
-  pacote (~368 MB → ~314 MB no zip completo). **Branches de fase — todas mergeadas na `main` e apagáveis** (conferido
-  em 31/10/2026 com `git branch --merged main`, nenhuma não-mergeada): `feat/multi-companheiro` (3.9–3.20),
+  pacote (~368 MB → ~314 MB no zip completo). **Branches de fase** (conferido em 31/10/2026 com
+  `git branch --merged main`): **mergeadas na `main` e apagáveis** — `feat/multi-companheiro` (3.9–3.20),
   `fix/peso-cinto` (3.22), `fix/renascer-30` (`RespawnDelay` 300→30), `fix/dverger-combate` (dverger só combate),
-  `feat/idiomas-auto` (M1–M5), `languages` (4.0), `feat/llm-groq` (1.8.1), `feat/provedor-llm` (3.24) e
-  `feat/upstream-1.5.8` (o merge 1.5.4→1.5.8 que virou a 1.9.2); a `feat/ordens-interacao` foi apagada (local e
-  `origin`) depois do merge da 1.9.2. As que existem no `origin` saem com `git push origin --delete <nome>`. A `main`
-  é a linha de release.
+  `feat/idiomas-auto` (M1–M5), `languages` (4.0), `feat/llm-groq` (1.8.1), `feat/provedor-llm` (3.24),
+  `feat/upstream-1.5.8` (o merge 1.5.4→1.5.8 que virou a 1.9.2), `fix/teto-e-tokens` e `fix/barba-sentinela`
+  (as duas da 1.9.4 já na `main`, merge `f36e311`) e **`fix/altos-194`** (o resto da 1.9.4, tag `v1.9.4`); a
+  `feat/ordens-interacao` foi apagada (local e `origin`) depois do merge da 1.9.2. As que existem no `origin` saem com
+  `git push origin --delete <nome>`. A `main` é a linha de release.
 
 ## Caminhos desta máquina
 
@@ -128,12 +139,25 @@ config é **`BepInEx\config\AiCompanions.cfg`** (o GUID não dá mais nome a ele
   `pkg/`), **nunca mais em `%TEMP%`**: `pkg\<versão>\stage` (o que vai no zip) e `pkg\<versão>\models\` (os modelos,
   que vêm do release anterior: Whisper `ggml-small-q5_1.bin` 181 MB e `tts\kokoro\` ~155 MB). Motivo: os modelos
   **sobrevivem** a reinstalar o Valheim (uma instalação limpa apaga a pasta do jogo, inclusive `BepInEx\plugins`,
-  e aí não há de onde copiá-los).
+  e aí não há de onde copiá-los). **O staging é montado por `tools/stage_release.py`** (allow-list fechada +
+  asserts): `python tools/stage_release.py --version <v> --from <pasta do plugin> --to pkg/<v>/stage [--no-models]`
+  — falha se achar `speech.json`, `Translations\English.json`, marcador do Vortex ou idioma fora dos 4, e coloca
+  `tts\`/`whisper\` **dentro de `BepInEx\plugins\AI-Companions\`** (é onde o `CompanionTts`/`WhisperStt` procuram;
+  o **1.9.1**, o pacote do Nexus, já estava assim — os zips 1.9.2/1.9.3 regrediram e tinham os modelos na raiz).
+  No "sem-modelos" saem **só** os 3 arquivos grandes (`model.int8.onnx`, `voices.bin`, `whisper\*.bin`); `tokens.txt`
+  e `espeak-ng-data` **ficam** (são o fonemizador).
 - **Conteúdo do zip:** completa = DLL + dependências + `runtimes\win-x64\native` + `tts\kokoro\` +
-  `whisper\ggml-small-q5_1.bin` + `Translations\` + `Speech\` + `LICENSES\` + `LEIA-ME.txt`; "sem-modelos" = o mesmo
-  **sem** `tts\kokoro\` e **sem** `whisper\`. **Nunca** levar `speech.json` (runtime), `Translations\English.json`
-  (runtime; o inglês é nativo no código) nem `__folder_managed_by_vortex`.
-- **Publicação:** o **GitHub** (release + os dois assets + SHA-256) é do **agente**; o **Nexus** é do **jogador**,
+  `whisper\ggml-small-q5_1.bin` + `Translations\` + `Speech\` + `LICENSES\` + `LEIA-ME.txt`. **Nunca** levar
+  `speech.json` (runtime), `Translations\English.json` (runtime; o inglês é nativo no código) nem
+  `__folder_managed_by_vortex`. **Layout (regra com regressão registrada):** `tts\` e `whisper\` vão **dentro de
+  `BepInEx\plugins\AI-Companions\`** (é onde o `CompanionTts`/`WhisperStt` procuram — `Assembly.Location`); o 1.9.1
+  estava certo, os zips **1.9.2/1.9.3** puseram os modelos na **raiz** e quebraram a voz em instalação nova, e o
+  **1.9.4** voltou ao layout do 1.9.1. Detalhes, histórico e o gate de conferência: `docs/re/packaging-layout.md`.
+- **"Sem modelos" descontinuado:** a partir da **1.9.4** só o pacote **completo** é distribuído; a última release
+  do "sem-modelos" é a **1.9.1** (Nexus). O `--no-models` do `tools/stage_release.py` continua para uso local e
+  tira só `model.int8.onnx`, `voices.bin` e `whisper\*.bin` (o `tokens.txt`/`espeak-ng-data` ficam — são o
+  fonemizador).
+- **Publicação:** o **GitHub** (release + o asset completo + SHA-256) é do **agente**; o **Nexus** é do **jogador**,
   com o guia que o agente escreve em `pkg\<versão>\nexus\publicar-<versão>.md`.
 - **`gh` neste repositório resolve o remote `upstream` por padrão** (o fork compartilha a história): em tudo que for
   do nosso repo use `gh -R julianu37/AI-Companions ...` (ou `GH_REPO=julianu37/AI-Companions`).
@@ -975,7 +999,11 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
 - `docs/plan-multilinguagem.md` — plano da multilinguagem (EN/PT/ES/FR): `Locale`, config `auto`, catálogo de
   vozes por idioma e as fases M1–M5.
 - `docs/audit-vs-offline-companions.md` — auditoria do nosso mod anterior vs o upstream.
+- `docs/backlog-1.9.5.md` — **o que ficou sem correção** depois da revisão de 10 especialistas (detalhado: o que
+  está quebrado, o que pode quebrar, por que corrigir e o esforço), com o que já foi feito na 1.9.4 no fim.
 - `docs/re/` — engenharia reversa do Valheim 1.0 (APIs, diff de versão).
+- `docs/re/packaging-layout.md` — **o layout do zip** (o que vai em `BepInEx\plugins\AI-Companions\`, por que os
+  modelos ficam lá, o histórico da regressão 1.9.2/1.9.3 e o gate de conferência antes de zipar).
 - `docs/re/stt-whisper-net-spike.md` — o spike do STT local (Whisper.net in-process) e o loader nativo.
 - `docs/re/stt-voz-pipeline.md` — o pipeline de voz da Fase 3.3 (push-to-talk → STT → ordens) e a receita de teste.
 - `docs/re/tts-kokoro-sherpa-onnx.md` — a Fase 3.4 (Kokoro-82M via sherpa-onnx: carregamento dos nativos,
@@ -1013,8 +1041,35 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
    `package/LEIA-ME.txt` fica em **PT**. **Comentários de código continuam em inglês** (convenção do repositório) e
    as **mensagens de log em PT-BR**. O mod (UI/falas) segue o idioma do jogo. Plano: `docs/plan-i18n-docs.md`.
 
+## DevBridge (ferramenta de desenvolvimento)
+
+O `Companions.dll` carrega um módulo de dev (`src/Companions/DevBridge/`) que expõe o jogo em `127.0.0.1:47110` para o
+servidor MCP em `tools/mcp-devbridge/`. **Desligado por padrão** (`[Advanced] DevBridge`), loopback only — ele roda
+comandos de console e spawna coisas, então não é feature de jogador.
+
+- **Arquitetura:** TCP loopback + fila; a API do jogo só roda na main thread (`DevBridgeService.Pump` no `Update`).
+  `Commands.cs` chama `CompanionSetup`/`CompanionManager` **direto** (mesma assembly), sem reflexão.
+- **Ligar:** `[Advanced] DevBridge = true` no `AiCompanions.cfg` e reiniciar o jogo; o log diz
+  `[DevBridge] listening on 127.0.0.1:47110`.
+- **Regra ao entrar no mundo:** `world_enter` já roda o `world.setup` — `devcommands` (**uma vez**; o comando é um
+  toggle), `tod 0.5` (meio-dia) e `god on` + `heal`. **Nunca** dirigir o player sem isso (o agente já morreu para um
+  greyling enquanto mexia no bridge). O `god` do Valheim 1.0 **não** cancela o dano: ele trava o HP em **1** quando o
+  golpe mataria (`Character.cs`), então o `heal` é obrigatório para a barra não ficar em 1. `setup: false` no
+  `world_enter` desliga.
+- **Testar:** `python tools/mcp-devbridge/test_mcp_devbridge.py` (mock, sem jogo) — 41 checks.
+- **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check` — **224 asserções** das redes por
+  palavras (`RadialIntent`, `PickupIntent`, `GatherIntent`, `InteractionIntent`, `LlmIntent`, `OrderItems`,
+  `CompanionNameMatch`) com os `.cs` reais linkados, mais o cross-check das cópias do `Stubs.cs` contra a
+  `Companions.dll` (seção (h) — impede drift). Build 0/0 e exit 0 são o gate.
+- **Docs:** `docs/mcp-devbridge.md` (arquitetura, protocolo, as **44** ferramentas, a receita de **jogar pelo agente**
+  e a de **comandos de console**, e as evidências dos testes da 1.9.4) e `tools/mcp-devbridge/README.md`
+  (parâmetros/exemplos).
+- **Não** empacotar o servidor Python no zip; o módulo vai na DLL, desligado.
+
 ## MCP servers disponíveis
 
+- **`valheim-devbridge`** — MCP de dev do mod, **neste repo**: `tools/mcp-devbridge/` (servidor) + o módulo
+  `src/Companions/DevBridge/` na DLL. Ver `docs/mcp-devbridge.md`.
 - **`alvin`** — MCP do **Visual Studio** (build, debug, Output, terminal, testes). Requer o VS aberto.
 - **`context7`** — documentação atualizada de bibliotecas.
 - **`learn`** — Microsoft Learn (.NET/C#/Azure).

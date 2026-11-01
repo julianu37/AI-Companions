@@ -989,7 +989,9 @@ public class CompanionSetup : MonoBehaviour
 			int actionModeSchema = zDO.GetInt(ActionModeSchemaHash);
 			bool follow = zDO.GetBool(FollowHash, defaultValue: true);
 			bool stayHome = zDO.GetBool(StayHomeHash);
-			bool autoPickup = zDO.GetBool(AutoPickupHash, defaultValue: true);
+			// 1.9.4: dying while it is getting its gear back must record what the PLAYER chose, not the values the
+			// recovery forces (auto-pickup off, stance Passive) - see MHR_Recover.RememberedAutoPickup.
+			bool autoPickup = MHR_Recover.RememberedAutoPickup(zDO);
 			bool wander = zDO.GetBool(WanderHash);
 			int num = zDO.GetInt(IsCommandableHash, 1);
 			int formationSlot = zDO.GetInt(FormationSlotHash, -1);
@@ -1037,7 +1039,7 @@ public class CompanionSetup : MonoBehaviour
 			}
 			bool flag2 = HasHomePosition();
 			Vector3 homePos = (flag2 ? GetHomePosition() : Vector3.zero);
-			int combatStance = zDO.GetInt(CombatStanceHash);
+			int combatStance = MHR_Recover.RememberedStance(zDO);
 			bool hasHomeBed = zDO.GetBool(HasHomeBedHash);
 			Vector3 vec = zDO.GetVec3(HomeBedPosHash, Vector3.zero);
 			CreateCompanionTombstone(text, vector, tombstoneId, prefabName, appearance, ownerId, actionMode, actionModeSchema, follow, stayHome, autoPickup, wander, num != 0, formationSlot, skillsSerialized, flag2, homePos, combatStance, hasHomeBed, vec);
@@ -2337,8 +2339,21 @@ public class CompanionSetup : MonoBehaviour
 			TombStone component2 = gameObject2.GetComponent<TombStone>();
 			if (component2 != null)
 			{
-				component2.Setup(companionName, tombstoneId);
-				CompanionsPlugin.Log.LogDebug($"[Setup] Tombstone ownership set — name=\"{companionName}\" id={tombstoneId}");
+				// 1.9.4 (auditoria de APIs): the second parameter of TombStone.Setup is the OWNER PLAYER ID (it becomes
+				// ZDOVars.s_owner, and TombStone.IsOwner compares it with the player's id) - passing the tombstone id
+				// there left every companion tombstone "owned by nobody": no "take all" shortcut, no own-tombstone stat
+				// and no loot status effect. The HC_TombstoneId keeps living in its own ZDO key (set below).
+				long tombOwnerUid = 0L;
+				if (!string.IsNullOrEmpty(ownerId))
+				{
+					long.TryParse(ownerId, out tombOwnerUid);
+				}
+				if (tombOwnerUid == 0L && Player.m_localPlayer != null)
+				{
+					tombOwnerUid = Player.m_localPlayer.GetPlayerID();
+				}
+				component2.Setup(companionName, tombOwnerUid);
+				CompanionsPlugin.Log.LogDebug($"[Setup] Tombstone ownership set — name=\"{companionName}\" id={tombstoneId} owner={tombOwnerUid}");
 			}
 			ZNetView component3 = gameObject2.GetComponent<ZNetView>();
 			if (component3?.GetZDO() != null)

@@ -2118,7 +2118,7 @@ que é onde o modelo erra. Harness: 5 × 5 × 2 = 50 requisições, ~3,2 s cada 
    perto → o papo (`Chat`).
 7. **Multiplayer** (A3/A4), se houver: "guarda isso no baú" no baú privado de outro jogador → recusa.
 
-### 1.9.4 — a barba da companheira feminina: a 1.9.3 trocou um bug por outro (✅ build 0 erros, 1 aviso — o do `s_noDark`, que não é deste escopo; branch `fix/barba-sentinela`; **o teste em jogo é do jogador**)
+### 1.9.4 — a barba da companheira feminina: a 1.9.3 trocou um bug por outro (✅ publicada em 31/10/2026, tag `v1.9.4`, só no GitHub; build 0 erros, 0 avisos; branch `fix/barba-sentinela` + `fix/altos-194`; **o teste em jogo é do jogador**)
 
 **O relato (31/10/2026, print do painel do starter):** gênero **Feminino** selecionado e a prévia 3D com a **barba do
 masculino**. O log da 1.9.3 entregou o caminho inteiro:
@@ -2185,6 +2185,90 @@ preenchemos; e a lista de achados que sobrou está em `docs/audit-bughunt-1.9.4.
   `pickup`** — o contrato por idioma (M3) fechou a causa e a rede virou segurança. Forçando `pickup` no
   `GatherIntent` real da DLL 1.9.4 (harness, casos `gather`): "ramasse 10 bois" → `wood/10`, "junte a madeira do
   chão" → `null` (pickup legítimo), "colete 10 pedras" → `stone/10` — **todos PASS**.
+
+#### Os três altos da 1.9.4 (branch `fix/altos-194`, 31/10/2026) — ✅ build 0 erros · ✅ **validado em jogo** (mundo `test3`)
+
+> **Status:** validado em jogo no mundo `test3` (31/10/2026) — os 4 testes passaram (tabela em
+> `docs/audit-bughunt-1.9.4.md` §10). O pré-check visual do Santuário (`ShrinePanel.Summon`) continua manual.
+
+Confirmados por **três especialistas independentes** (reverse-engineering contra o upstream e o decompilado; netcode;
+IA/lifecycle) **antes** de qualquer linha de código. Dois laudos corrigiram o diagnóstico inicial e um achado caiu:
+
+- **Santuário cobrando a oferenda** (`StarterCompanionPanel.OnConfirm` + `CompanionManager.HireWithCoins`). O ramo
+  `if (_hire)` foi perdido na resolução do conflito do merge da **1.5.6** (`bc6016f`) — não no da 1.5.8. O painel do
+  Santuário rodava o spawn **grátis** do starter e o `StarterFix.MarkSpawned()` marcava o starter do mundo como usado.
+  Restaurado do upstream, adaptado ao nosso painel: `HireWithCoins` ganhou um **overload interno** com o `aiDraft`
+  (voz, personalidade e **nome**), porque `CompanionAiDraft` é `internal` (CS0051 no `public`). Prova em IL: o
+  `OnConfirm` compilado não chamava `HireWithCoins` (0 chamadores). **O que não muda:** o painel do starter normal
+  (`_hire` só é `true` pelo Santuário) e a regra "qualquer companheiro na cena dispensa o starter" — quem contrata
+  antes do starter continua sem o starter, por desenho.
+- **`ChangeTier` preservando as escolhas** (`CompanionManager`). `CopyCarriedKeys` passou a levar `HC_FarmZones` (as
+  zonas de plantio, com a cultura de cada uma — a lápide e o roster já as preservavam, só a troca de tipo não) e
+  `HC_HomeRadius` (buraco novo da investigação). O novo `CopyRecovery` copia
+  `HC_Recovering`/`HC_RecoverStance`/`HC_RecoverPickup` como bloco, **só quando o corpo antigo estava recuperando**:
+  sem ele o corpo novo nascia com `HC_AutoPickup = false` (copiado no meio da recuperação) e sem o flag que faria o
+  `MHR_Recover` terminar — nem trocar de postura consertava. A linha `[Tier]` passou a mostrar `farmZones=` e
+  `recovering=` (lidos antes do `Destroy` do corpo velho).
+- **Dupla morte não perde mais o valor do jogador** (`MHR_Recover.RememberedAutoPickup`/`RememberedStance` + duas
+  linhas em `CompanionSetup.OnCompanionDeath`). O `OnRevived` força `HC_AutoPickup = false` e
+  `HC_CombatStance = Passive` e guarda o original em `HC_RecoverPickup`/`HC_RecoverStance`; a morte lia as chaves
+  **forçadas** e gravava o `false`/`Passive` na lápide como se fossem a escolha do jogador, e o ciclo se
+  auto-perpetuava. Agora a morte lê o valor lembrado quando `HC_Recovering` está ligado. **A perda atingia também a
+  postura** — o laudo inicial só citava o auto-pickup. O `End`/`Cancel` passaram a logar o estado do auto-pickup.
+
+**Falso positivo:** `HC_WanderFollowMigrated` **não** se perde (o `TryInit` do corpo novo migra antes das cópias e o
+`ChangeTier` sobrescreve `HC_Wander` com o valor do jogador). **Adiados por decisão do jogador:** `HC_Food_0..4`
+(buffs de comida) e o H4 (`s_state`/`s_tombCache` por `InstanceID`, sem `ReferenceEquals` nem limpeza) — ambos reais,
+ficam para a 1.9.5.
+
+#### Combate de volta ao da 1.9.1 (`FightLikePlayer = false`, 31/10/2026) — ✅ build 0 erros · ✅ validado em jogo
+
+O jogador relatou que os companheiros **bloqueiam demais** depois da 1.9.2. A causa é o **"combate como um jogador"**
+do upstream 1.5.6 (`cd0b2e7`, arquivo novo `AI/CompanionCombatTactics.cs`): com arma corpo a corpo o companheiro faz
+combos curtos, **guarda o escudo entre os combos**, sai do golpe (`TryEvade`) e recua para recuperar stamina
+(`StaminaReserve`). É tudo atrás de `_tacticsOn`, que vem de **`[Combat] FightLikePlayer`** — e a descrição do próprio
+upstream já dizia *"Off: the older way (one swing at a time on the weapon's timer)"*.
+
+- **Decisão:** o **padrão passou a `false`** (`ModConfig`), ou seja, o comportamento da 1.9.1: um golpe por vez no
+  timer da arma (`flag4 || (flag2 && flag3)`), **sem** guardar entre combos, **sem** sair do golpe e **sem** recuar por
+  stamina; o bloqueio volta a ser só **reação** ao golpe (0,2 s de reação + 0,2 s de guarda).
+- **Não muda:** o resto da 1.5.6 — arcos, navios, o scan de bloqueio mais preciso (`SwingAtUs`: alcance real e ângulo,
+  em vez do primeiro inimigo em 8 m da 1.9.1) e o sorteio de **parry** (`ParryChance`, em vez de todo bloqueio ser
+  parry). Ou seja, o bloqueio que sobra é **menor** que o da 1.9.1, nunca maior.
+- **Prova:** `status` do DevBridge ganhou `fightLikePlayer` e devolveu `false` no mundo `test3` com o `.cfg` editado;
+  o companheiro voltou a atacar no timer da arma (screenshot da luta com greylings). **Validado em jogo pelo
+  jogador (31/10/2026): "o combate ficou bem melhor depois que revertemos".** O `CONFIGURATION.md` foi regerado
+  (`tools/gen_config_doc.py`) e o `.cfg` do jogador foi ajustado à mão.
+- **Como voltar ao combate novo:** `[Combat] FightLikePlayer = true` no `AiCompanions.cfg` (nada de código).
+
+#### Lápide do companheiro com dono de verdade + memória no idioma (31/10/2026) — ✅ build 0/0 · ✅ testado em jogo
+
+Dois achados da revisão de 10 especialistas:
+
+- **`TombStone.Setup(companionName, tombstoneId)` passava o id da lápide no parâmetro `ownerUID`** — o jogo grava
+  esse valor em `ZDOVars.s_owner` e o `TombStone.IsOwner()` compara com o **id do jogador**. Resultado: nenhuma lápide
+  de companheiro era "do jogador" (sem o atalho de pegar tudo ao interagir, estatística de lápide de outro, sem o
+  status effect de saque). Agora vai o **id do dono** (parse do `HC_Owner`, com o jogador local como reserva) e o
+  `HC_TombstoneId` continua na chave própria dele. Diagnóstico: `world.tombstones` ganhou `ownerUid`/`localPlayerId`.
+- **A memória da conversa era PT-BR fixo em todos os idiomas e vinha DEPOIS do contrato** (o invariante da 3.5 é o
+  contrato ser a última coisa que o modelo lê). Agora o bloco é localizado como o `Header` (inglês nativo em
+  `ModLocalization` + PT/ES/FR/IT nos JSON) e entra **antes** do contrato. Chaves novas:
+  `hc_ai_memory_header`/`hc_ai_memory_player` (996 chaves de UI nos 4 idiomas, `audit_translations.py` 0 lacunas).
+- **Anotado para o futuro (não corrigido, decisão do jogador):** o `rolloffMode` do `AudioSource` do TTS é o padrão
+  logarítmico, então a fala cai rápido com a distância (~15% do volume a 10 m). O jogador **quer** ouvir só os que
+  estão perto — fica como está, para rever se um dia reclamarem.
+
+#### DevBridge — o MCP de desenvolvimento dentro da DLL (31/10/2026) — ✅ build 0/0 · ✅ usado em jogo
+
+Ferramenta **de dev** (não vai para o jogador; nasce `[Advanced] DevBridge = false`): módulo
+`src/Companions/DevBridge/` dentro da `Companions.dll` + servidor MCP em `tools/mcp-devbridge/` (**44 ferramentas**),
+que dá ao agente o jogo em `127.0.0.1:47110` (status, console com cheats e **saída real**, spawn, companheiros, lápides,
+`world.setup` com `devcommands` + `tod 0.5` + `god` + `heal`, screenshots, log). Descobertas que custaram caro e estão
+no doc: o `ZInput` do Valheim 1.0 lê o **Input System novo** (o `SendInput` sozinho não alimenta o menu; o bridge injeta
+`KeyboardState`/`MouseState`), o `god` do 1.0 **trava o HP em 1** (não cancela o dano) e as teclas seguradas precisam
+ser enviadas juntas. Detalhes e receitas: `docs/mcp-devbridge.md`. **Não empacotar o servidor Python no zip.**
+
+
 
 
 

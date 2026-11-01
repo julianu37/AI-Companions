@@ -81,6 +81,12 @@
     <Reference Include="UnityEngine.InputLegacyModule" HintPath="$(ManagedDir)\UnityEngine.InputLegacyModule.dll" Private="false" />
     <Reference Include="UnityEngine.IMGUIModule" HintPath="$(ManagedDir)\UnityEngine.IMGUIModule.dll" Private="false" />
     <Reference Include="UnityEngine.TextRenderingModule" HintPath="$(ManagedDir)\UnityEngine.TextRenderingModule.dll" Private="false" />
+    <!-- DevBridge (development tool, [Advanced] DevBridge): ScreenCapture.CaptureScreenshot -->
+    <Reference Include="UnityEngine.ScreenCaptureModule" HintPath="$(ManagedDir)\UnityEngine.ScreenCaptureModule.dll" Private="false" />
+    <!-- DevBridge: Texture2D.EncodeToPNG for the off-screen render_view -->
+    <Reference Include="UnityEngine.ImageConversionModule" HintPath="$(ManagedDir)\UnityEngine.ImageConversionModule.dll" Private="false" />
+    <!-- DevBridge: the game's ZInput reads the NEW Input System (InputSystem.QueueStateEvent for synthetic keys) -->
+    <Reference Include="Unity.InputSystem" HintPath="$(ManagedDir)\Unity.InputSystem.dll" Private="false" />
   </ItemGroup>
 
   <!-- UI textures, loaded at runtime by manifest resource name

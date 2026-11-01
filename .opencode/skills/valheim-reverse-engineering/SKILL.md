@@ -3,7 +3,7 @@ name: Valheim Reverse Engineering
 description: Como decompilar o Valheim 1.0 (e ler o upstream) para confirmar classes, métodos e assinaturas antes de patchar — ferramentas, onde ficam as assemblies e como registrar o que foi descoberto. Use ao investigar APIs do jogo.
 ---
 
-# Reverse engineering do Valheim (1.9.2)
+# Reverse engineering do Valheim (1.9.4)
 
 Entender o que o jogo **1.0** expõe — e como o **upstream** (Offline Companions Reborn) resolve o mesmo
 problema — para implementar com segurança. O **Thrall/ego.ai não é referência do projeto**: o mod nasceu
@@ -25,7 +25,7 @@ AssemblyPublicizer.
 
 - Assemblies do jogo: `...\Valheim\valheim_Data\Managed` (`assembly_valheim.dll`, `assembly_utils.dll`,
   `assembly_guiutils.dll`, `Splatform.dll`, `UnityEngine.*`).
-- Decompilado em `%TEMP%\opencode\re_full` (gerado nas sessões de RE) — não versionado.
+- Decompilado em `%TEMP%\opencode\vh-decomp` (`vh-decomp\valheim\*.cs`, `vh-decomp\utils\*.cs`) — não versionado.
 - **Código do mod** é a outra fonte: `CompanionTts`/`CompanionAI`/`MHR_*` mostram o que já foi confirmado
   contra o jogo (e os comentários dizem a versão em que foi verificado).
 

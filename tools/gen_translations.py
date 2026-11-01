@@ -43,6 +43,11 @@ def normalize(text):
 
 # --------------------------------------------------------------------------------------------------- espanol (es-ES)
 ES_UI = {
+    'DevBridge (ferramenta de desenvolvimento)': 'DevBridge (herramienta de desarrollo)',
+    'Porta do DevBridge': 'Puerto del DevBridge',
+    'Token do DevBridge': 'Token del DevBridge',
+    'Conversa recente com o jogador (do mais antigo para o mais novo; use para lembrar o contexto):': 'Conversación reciente con el jugador (de lo más antiguo a lo más nuevo; úsala para recordar el contexto):',
+    'Jogador': 'Jugador',
     'Companheiros': 'Compañeros',
     'Escolha seu Companheiro': 'Elige a tu compañero',
     'Invocar Companheiro': 'Invocar compañero',
@@ -1012,6 +1017,11 @@ ES_UI = {
 # --------------------------------------------------------------------------------------------------- frances (fr-FR)
 # Frances da Franca, tratamento informal ("tu"), com o espaco tipografico antes de : ; ! ?
 FR_UI = {
+    'DevBridge (ferramenta de desenvolvimento)': 'DevBridge (outil de développement)',
+    'Porta do DevBridge': 'Port du DevBridge',
+    'Token do DevBridge': 'Jeton du DevBridge',
+    'Conversa recente com o jogador (do mais antigo para o mais novo; use para lembrar o contexto):': 'Conversation récente avec le joueur (du plus ancien au plus récent ; utilise-la pour te souvenir du contexte) :',
+    'Jogador': 'Joueur',
     'Companheiros': 'Compagnons',
     'Escolha seu Companheiro': 'Choisis ton compagnon',
     'Invocar Companheiro': 'Invoquer un compagnon',
@@ -2518,6 +2528,11 @@ FR_SPEECH = {
 # --------------------------------------------------------------------------------------------------- italiano (it-IT)
 # Italiano, trattamento informale ("tu").
 IT_UI = {
+    'DevBridge (ferramenta de desenvolvimento)': 'DevBridge (strumento di sviluppo)',
+    'Porta do DevBridge': 'Porta del DevBridge',
+    'Token do DevBridge': 'Token del DevBridge',
+    'Conversa recente com o jogador (do mais antigo para o mais novo; use para lembrar o contexto):': 'Conversazione recente con il giocatore (dal più vecchio al più recente; usala per ricordare il contesto):',
+    'Jogador': 'Giocatore',
     'Companheiros': 'Compagni',
     'Escolha seu Companheiro': 'Scegli il tuo compagno',
     'Invocar Companheiro': 'Evoca un compagno',

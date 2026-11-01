@@ -7,6 +7,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{42289D31-EF6
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Companions", "src\Companions\Companions.csproj", "{D31A8DA5-C2E6-4A15-9953-CBBDF2ED9FE4}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{07C2787E-EAC7-C090-1BA3-A61EC2A24D84}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ai-intents-check", "tools\ai-intents-check\ai-intents-check.csproj", "{9908BE08-2196-4E9E-BB11-DA5E29A69AFD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -20,8 +24,13 @@ Global
 		{D31A8DA5-C2E6-4A15-9953-CBBDF2ED9FE4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D31A8DA5-C2E6-4A15-9953-CBBDF2ED9FE4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D31A8DA5-C2E6-4A15-9953-CBBDF2ED9FE4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9908BE08-2196-4E9E-BB11-DA5E29A69AFD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9908BE08-2196-4E9E-BB11-DA5E29A69AFD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9908BE08-2196-4E9E-BB11-DA5E29A69AFD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9908BE08-2196-4E9E-BB11-DA5E29A69AFD}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{D31A8DA5-C2E6-4A15-9953-CBBDF2ED9FE4} = {42289D31-EF62-4BF2-A069-81D13F66E816}
+		{9908BE08-2196-4E9E-BB11-DA5E29A69AFD} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
 	EndGlobalSection
 EndGlobal

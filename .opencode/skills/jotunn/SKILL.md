@@ -42,5 +42,5 @@ Detalhes em `references/managers.md`. Conteúdo em `references/prefabs-itens-rec
 - Prefabs/aparência: clones de prefabs vanilla (`CompanionPrefabs`, `CompanionSetup.ApplyAppearance`).
 - UI: painéis próprios de madeira (`UI/CompanionPanel.cs` e derivados), faixa **1701+** (`ModUiLayers`).
 - Localização: `ModLocalization` + `Translations/*.json` (inglês nativo, sem arquivo).
-- Comandos de console: `BaseUnityPlugin` + `ConsoleCommand` do BepInEx? Não — usamos `Terminal`/`Chat`
-  do jogo e o comando `modia_tts_teste` via `Console` patch.
+- Comandos de console: registrados pelo patch do `Terminal` do jogo (`ConsoleCommand`), como o `modia_tts_teste`
+  — não usamos `BaseUnityPlugin`/`ConsoleCommand` do BepInEx para isso.

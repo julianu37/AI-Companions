@@ -164,6 +164,12 @@ internal static class ModConfig
 	// do painel da IA) e so serve para investigar clique/UI estranha. Ver UI/ModUiAudit.cs.
 	internal static ConfigEntry<bool> UiDiag;
 
+	// [Advanced] - o DevBridge (ferramenta de desenvolvimento): modulo que expoe o jogo em 127.0.0.1 para o servidor
+	// MCP (tools/mcp-devbridge). Desligado por padrao; ver docs/mcp-devbridge.md.
+	internal static ConfigEntry<bool> DevBridge;
+	internal static ConfigEntry<int> DevBridgePort;
+	internal static ConfigEntry<string> DevBridgeToken;
+
 	internal static ConfigEntry<bool> AutoRespawnEnabled;
 
 	internal static ConfigEntry<float> AutoRespawnDelaySeconds;
@@ -823,7 +829,10 @@ internal static class ModConfig
 		ShieldMultiAttackerCount = Bind(cfg, "Combat", "ShieldMultiAttackerCount", 3, "When this many enemies attack a companion at once, it switches to its shield with the best block.", new AcceptableValueRange<int>(1, 10));
 		ParryChance = Bind(cfg, "Combat", "ParryChance", 0.3f, "Chance (0.3 = 30%) that a companion with no Blocking skill times a block as a parry (more damage stopped, less stamina, and many attackers are staggered). It rises with Blocking skill up to ParryChanceMax. Shields without a parry bonus never parry.", new AcceptableValueRange<float>(0f, 1f));
 		ParryChanceMax = Bind(cfg, "Combat", "ParryChanceMax", 0.7f, "Chance (0.7 = 70%) that a companion times a block as a parry at Blocking skill 100.", new AcceptableValueRange<float>(0f, 1f));
-		FightLikePlayer = Bind(cfg, "Combat", "FightLikePlayer", true, "With a melee weapon, companions fight like a player: short combos when there's an opening, guarding in between, stepping out of swings, getting clear when several enemies are on them, and backing off to catch their breath when low on stamina. Off: the older way (one swing at a time on the weapon's timer).");
+		// 1.9.4 (nosso): default OFF, como na 1.9.1. O "combate como um jogador" do upstream 1.5.6 (guardar entre
+		// combos, sair do golpe, recuar por stamina) deixava o companheiro defendendo demais para o nosso jogador; quem
+		// quiser o comportamento novo liga esta chave.
+		FightLikePlayer = Bind(cfg, "Combat", "FightLikePlayer", false, "With a melee weapon, companions fight like a player: short combos when there's an opening, guarding in between, stepping out of swings, getting clear when several enemies are on them, and backing off to catch their breath when low on stamina. Off (default, the 1.9.1 way): one swing at a time on the weapon's timer, blocking only as a reaction.");
 		CombatComboHits = Bind(cfg, "Combat", "ComboHits", 3, "Most swings in one combo. Companions follow their weapon's own combo (3 swings on melee weapons, the last doing double damage) up to this many; now and then one short, and shorter when stamina is low.", new AcceptableValueRange<int>(1, 5));
 		CombatComboPause = Bind(cfg, "Combat", "ComboPause", 0.5f, "Seconds (roughly - it varies) between combos, guarding or stepping back out of reach.", new AcceptableValueRange<float>(0.2f, 5f));
 		CombatStaminaReserve = Bind(cfg, "Combat", "StaminaReserve", 0.3f, "Share of its stamina (0.3 = 30%) a companion keeps for blocking. A combo is only started above it and may dip to half of it; below it, the companion backs out of reach to get its breath back.", new AcceptableValueRange<float>(0f, 0.9f));
@@ -1064,6 +1073,10 @@ internal static class ModConfig
 		// porque diagnostica um componente da IA (a voz do companheiro); este e o bucket dos ajustes que ninguem
 		// mexe no dia a dia, que e o caso de um despejo de diagnostico.
 		UiDiag = Bind(cfg, "Advanced", "UiDiag", defaultValue: false, "UI diagnostics: when on, writes to the log what is in front of the controls of the F8 panel and the AI panel (once per session, the first time each panel is opened): how many click targets each panel has (the controls and the ones that are there on purpose), every active layer in the scene (name and order) and, for each canvas above the panel, the targets that cover the controls column. It is what you turn on when a click or the UI looks odd (a button that doesn't answer, text on top of something, a swallowed click): the log says who is in front. Off (default) writes nothing and costs nothing; on, the log grows a lot (one summary line per panel, plus one line per suspect target). It changes nothing in the game - it only reports.");
+
+		DevBridge = Bind(cfg, "Advanced", "DevBridge", defaultValue: false, "Development tool (MCP): starts a TCP server on 127.0.0.1 that the MCP server in tools/mcp-devbridge drives - player and companion state, console commands, spawn, screenshots. Loopback only and off by default: it can run console commands, so leave it off unless you are developing. See docs/mcp-devbridge.md.");
+		DevBridgePort = Bind(cfg, "Advanced", "DevBridgePort", 47110, "Development tool (MCP): TCP port of the DevBridge (loopback only). The MCP server reads DEVRIDGE_PORT or uses the same default.", new AcceptableValueRange<int>(1024, 65535));
+		DevBridgeToken = Bind(cfg, "Advanced", "DevBridgeToken", "", "Development tool (MCP): optional shared secret. When set, every request from the MCP server must carry it (DEVRIDGE_TOKEN).");
 
 		// [AI] - Phase 3.1: the player types an order in the game chat and an LLM (Groq's free tier by default, a local
 		// LM Studio / Ollama, or any OpenAI-compatible /chat/completions endpoint) turns it into an action. See CompanionChatAI.

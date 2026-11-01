@@ -3,7 +3,7 @@ name: BepInEx
 description: Como o plugin BepInEx deste mod funciona (plugin/ciclo de vida, config, logging com LogLevel, Harmony e os alvos de build/deploy). Use sempre que escrever ou revisar código de plugin, config ou build.
 ---
 
-# BepInEx neste projeto (1.9.2)
+# BepInEx neste projeto (1.9.4)
 
 O mod é **um** plugin `BaseUnityPlugin` (`Core/CompanionsPlugin.cs`). Antes de qualquer detalhe técnico,
 leia o `AGENTS.md`: ele é a fonte da verdade (arquitetura, fases, decisões e pendências).
@@ -23,7 +23,8 @@ leia o `AGENTS.md`: ele é a fonte da verdade (arquitetura, fases, decisões e p
 
 ## Config
 
-- `ModConfig.Init(ConfigFile)` é o lugar de todo `Bind`; **340 opções em 24 seções** hoje.
+- `ModConfig.Init(ConfigFile)` é o lugar de todo `Bind`; **342 opções em 24 seções** hoje (o número sai do
+  `python tools/gen_config_doc.py ...` — ele imprime `N settings M sections`).
 - **Chaves e descrições em inglês** (o PT é tradução em `Translations/Portuguese_Brazilian.json`, via
   `hc_cfg_<seção>_<chave>`); o F8 mostra `LocOr(...)` e cai na própria chave em inglês.
 - Defaults que mudam de valor precisam de **migração** em `ApplyMultilanguageDefaults` (regra: só o padrão

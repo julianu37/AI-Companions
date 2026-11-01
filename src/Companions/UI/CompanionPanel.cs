@@ -298,6 +298,9 @@ public class CompanionPanel
 
 	public void Build(Transform parent, float colTopInset, float bottomPad, TMP_FontAsset font, GameObject buttonTemplate, float buttonHeight, float leftXL, float leftXR, float midXL, float midXR, float rightXL, float rightXR, float panelHeight)
 	{
+		// 1.9.4 (audit): the starter/appearance panels drop the dark section/tint layers the upstream removed in
+		// 1.5.81. The flag is read by SectionBg/Tint, and nothing ever assigned it (the CS0649 warning of the build).
+		s_noDark = StarterMode;
 		// the editor starts from the look the companion already has (its HC_Appearance), never from Default(): the panel
 		// has to show what is there before the player changes it. The tier is only used for the preview prefab and for
 		// whether the appearance even applies (a dverger's look is its prefab), so it is read from the target too.

@@ -1,4 +1,4 @@
-# 1.9.4 — in progress
+# 1.9.4 — 31/10/2026
 
 ![AI Companions — AI NPC companions for Valheim](https://raw.githubusercontent.com/julianu37/AI-Companions/main/docs/images/banner.png)
 
@@ -30,6 +30,42 @@
   when the player's own message has one.
 - **The `tokens/s` line in the log** said it counted "prompt and response together" but divided only the response
   tokens; it now says "generation - response only" and points at the `[IA] Prompt:` line above.
+- **Odin's Shrine charges the offering again.** The hire panel showed the price but ran the starter's **free** spawn,
+  and `StarterFix.MarkSpawned()` consumed the free starter of the world on top of it. The `if (_hire)` branch was lost
+  when the 1.5.6 merge resolved `OnConfirm`; it is back, and `HireWithCoins` now takes the AI draft (voice, personality
+  and the name typed in the panel) through an internal overload - `CompanionAiDraft` is `internal`, so a public
+  signature with it is CS0051. The normal starter panel is untouched.
+- **Changing the companion's type keeps the player's choices.** `HC_FarmZones` (the planting zones, with the crop of
+  each one) and `HC_HomeRadius` are copied now, and a recovery in progress is carried over as a block
+  (`HC_Recovering`/`HC_RecoverStance`/`HC_RecoverPickup`). Without it the new body was born with auto-pickup off and no
+  flag to finish the recovery - not even setting a stance fixed it.
+- **Dying twice while recovering no longer loses the setting.** The recovery forces auto-pickup off and the stance
+  Passive; the death used to save those forced values as if the player had chosen them, so the next revive remembered
+  "off" and "Passive" for good. The death now reads `HC_RecoverPickup`/`HC_RecoverStance` when the companion is
+  recovering.
+- **F8: a pending key binding is not cancelled by Esc anymore**, and the next key press is not written into the config
+  by accident.
+- **The controller legend is back** (`BuildPadHint` was dead code - nothing called it).
+- **The starter and appearance panels lost the dark overlay** (`s_noDark` was never assigned; the build now has **zero
+  warnings**).
+- **The pause menu's "Mod Options" no longer points at itself** (the "down" navigation is captured once per menu;
+  on the second opening the controller could not move past it).
+- **AOE hits no longer throw**: the companion terrain-hit suppression used to return `null` to `Aoe.OnHit`, which
+  dereferences it when the effect has `springDelay`/`placeOnGround`; it now gets a throwaway object destroyed at the
+  end of the frame.
+- **The zip layout is the 1.9.1 one again**: `tts\` and `whisper\` were at the root of the **1.9.2/1.9.3** zips, but the
+  mod looks for them **inside** `BepInEx\plugins\AI-Companions\` (the 1.9.1 package, the one on Nexus, was right) -
+  that is where they go now. **Only the complete package is published from 1.9.4 on** - the "no models" package
+  stops at 1.9.1.
+- **Companion tombstones belong to you now** (`TombStone.Setup` was receiving the tombstone id where the game expects
+  the owner player id, so the "take everything" shortcut never triggered).
+- **The conversation memory follows the game's language** and is placed before the JSON contract again.
+- **Combat is back to the 1.9.1 behaviour.** The upstream 1.5.6 "fight like a player" (`[Combat] FightLikePlayer`) made
+  a melee companion keep its guard up between combos, step out of swings and back off to catch its breath - in practice
+  it spends most of the fight defending. The default is now **off**: one swing at a time on the weapon's timer,
+  blocking only as a reaction, like 1.9.1. Set `[Combat] FightLikePlayer = true` in `AiCompanions.cfg` to get the new
+  combat back; the rest of 1.5.6 (bows, ships, the smarter block scan, the parry roll) is unchanged.
+  **Validated in game by the player (31/10/2026): "combat is much better after the revert".**
 - **No other change.** Same `.cfg`, same saves, same `Companions.dll` name, same models and the same AI layer.
 
 ## How to update

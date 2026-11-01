@@ -2,12 +2,13 @@
 
 All the changes to this project, derived from ProfMags' Offline Companions. The versions before 1.4.0 are the original mod (see the original mod's history, from ProfMags, for those versions) plus the first batch of compatibility fixes for the Valheim 1.0 API that made the mod load and run. **The entries below 1.5.4 are the upstream history and stay as they are (in English) — our sections (from 1.6.0 on) are ours.**
 
-## 1.9.4 - in progress (31/10/2026)
+## 1.9.4 - 31/10/2026
 
-**Three fixes so far.** The first one is the beard: a female companion kept the beard of the male preview. 1.9.3 made "no beard"
-hash `0` (which is what the game expects), but it also left the game's attach cache cleared to `0` - and `0` is
-exactly the value of "no beard". `VisEquipment.SetBeardEquipped` returns early when the hash matches the cached one,
-so the beard of the previous appearance was never destroyed.
+**The beard, three high-severity fixes, the UI batch, combat back to 1.9.1 and the release pipeline.** The beard fix is
+the headline: a female companion kept the beard of the male preview. 1.9.3 made "no beard" hash `0` (which is what the
+game expects), but it also left the game's attach cache cleared to `0` - and `0` is exactly the value of "no beard".
+`VisEquipment.SetBeardEquipped` returns early when the hash matches the cached one, so the beard of the previous
+appearance was never destroyed.
 
 - **The cache is cleared to `int.MinValue` now** (`CompanionSetup.ResetVisualItemCache`), a value that is never a real
   item hash: `SetBeardEquipped(0)` runs the destroy branch and then skips the attach, which is what "no beard" means.
@@ -26,6 +27,51 @@ so the beard of the previous appearance was never destroyed.
   when the player's own message has one.
 - **The `tokens/s` line in the log** said it counted "prompt and response together" but divided only the response
   tokens. It now says "generation - response only" and points at the `[IA] Prompt:` line above.
+- **Odin's Shrine charges the offering again.** The hire panel showed the price but ran the starter's **free** spawn,
+  and `StarterFix.MarkSpawned()` consumed the free starter of the world on top of it. The `if (_hire)` branch was lost
+  when the 1.5.6 merge resolved `OnConfirm`; it is back, and `HireWithCoins` now takes the AI draft (voice, personality
+  and the name typed in the panel) through an internal overload - `CompanionAiDraft` is `internal`, so a public
+  signature with it is CS0051. The normal starter panel is untouched.
+- **Changing the companion's type keeps the player's choices.** `HC_FarmZones` (the planting zones, with the crop of
+  each one) and `HC_HomeRadius` are copied now, and a recovery in progress is carried over as a block
+  (`HC_Recovering`/`HC_RecoverStance`/`HC_RecoverPickup`). Without it the new body was born with auto-pickup off and no
+  flag to finish the recovery - not even setting a stance fixed it.
+- **Dying twice while recovering no longer loses the setting.** The recovery forces auto-pickup off and the stance
+  Passive; the death used to save those forced values as if the player had chosen them, so the next revive remembered
+  "off" and "Passive" for good. The death now reads `HC_RecoverPickup`/`HC_RecoverStance` when the companion is
+  recovering.
+- **F8: a pending key binding is not cancelled by Esc anymore.** While the panel was waiting for a key, Esc closed the
+  panel and the next key press was written into the config. The panel now ignores input while the listener is
+  capturing (and on the frame the capture ends).
+- **The controller legend is back.** `BuildPadHint` existed but nothing called it, so the gamepad footer never showed.
+- **The starter and appearance panels lost the dark overlay.** `s_noDark` was never assigned - it was the only
+  compiler warning in the build. The panels now use the light sections the upstream moved to.
+- **The pause menu's "Mod Options" no longer points at itself.** On the second opening, the button's "down"
+  navigation was re-read from `Settings.selectOnDown`, which by then was the Mod Options button itself - the
+  controller got stuck there. The original target is now captured once per menu.
+- **AOE hits no longer throw.** `Attack.SpawnOnHitTerrain` was suppressed for companions by returning `null`, and
+  `Aoe.OnHit` dereferences the result when the effect has `springDelay`/`placeOnGround` - one `NullReferenceException`
+  per hit. It now gets a throwaway object that is destroyed at the end of the frame (nothing is spawned).
+- **The package layout is back to the 1.9.1 one.** The 1.9.2/1.9.3 zips put `tts\kokoro\` and `whisper\` at the
+  **root of the zip**, but the mod resolves `[AI] TtsModel`/`[AI] SttModel` **relative to the plugin folder**
+  (`BepInEx\plugins\AI-Companions\`) - a fresh install from those two would not find the voice models. The **1.9.1**
+  package (the one on Nexus) was correct and 1.9.4 goes back to it: the models go inside the plugin folder, exactly
+  where `LEIA-ME.txt` always told you to put them. The staging is built by `tools/stage_release.py` (allow-list +
+  asserts) instead of copying the folder by hand. **Only the complete package ships from 1.9.4 on** - the last
+  "no models" release stays 1.9.1.
+- **Companion tombstones now belong to you.** `TombStone.Setup` was called with the **tombstone id** where the game
+  expects the **owner player id** (`ZDOVars.s_owner`), so `TombStone.IsOwner()` was never true: no "take everything"
+  shortcut on interact, the tombstone counted as somebody else's and the loot status effect never fired. It now gets
+  the owner's player id (the `HC_TombstoneId` stays in its own ZDO key).
+- **The conversation memory follows the game's language and goes before the contract.** The block was Portuguese-only
+  in every language, and it was appended *after* the JSON contract, which is meant to be the last thing the model
+  reads. It is now localized like the header (English native + PT/ES/FR/IT) and comes before the contract.
+- **Combat back to the 1.9.1 behaviour: companions block as a reaction again.** The upstream 1.5.6 "fight like a
+  player" (`[Combat] FightLikePlayer`) made a melee companion keep its guard up between combos, step out of swings and
+  back off to catch its breath - in practice it spends most of the fight defending. The default is now **off**: one
+  swing at a time on the weapon's timer, blocking only as a reaction, exactly like 1.9.1. The switch stays for whoever
+  wants the new combat; the rest of 1.5.6 (bows, ships, the smarter block scan and the parry roll) is untouched.
+  **Validated in game by the player (31/10/2026): "combat is much better after the revert".**
 - Same config, same saves, same models.
 
 More fixes are planned for this version - the full list is in `docs/audit-bughunt-1.9.4.md`.

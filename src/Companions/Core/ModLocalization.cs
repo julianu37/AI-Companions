@@ -646,6 +646,8 @@ public static class ModLocalization
 			{ "hc_ai_deposit_done", "Putting {0} item(s) in the chest." },
 			// Fase 3.5: personality presets (shown in the log), free conversation and the memory
 			{ "hc_ai_default_name", "Companion" },
+			{ "hc_ai_memory_header", "Recent conversation with the player (oldest to newest; use it to remember the context):" },
+			{ "hc_ai_memory_player", "Player" },
 			{ "hc_ai_preset_default", "Default" },
 			// Fase 3.12: the "default personality" entry of a COMPANION's list, which also has "follow the [AI]
 			// default" right above it - two different choices, so they must not read the same
