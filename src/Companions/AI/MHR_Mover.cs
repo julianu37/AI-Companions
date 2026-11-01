@@ -132,6 +132,16 @@ namespace Companions
             if (c != null && s.Walking) { c.SetWalk(false); s.Walking = false; }
         }
 
+        // 1.9.5 (auditoria B8): the per-companion state is keyed by the GameObject's instance id and nothing ever
+        // removed it - a companion that died, was dismissed or left the world kept its entry (and the doors it
+        // opened) in memory for the rest of the session, and Unity reuses instance ids. Called from
+        // CompanionSetup.OnDestroy. Nothing else changes: a companion that is still around keeps its state.
+        internal static void Forget(int id)
+        {
+            s_s.Remove(id);
+            s_opened.Remove(id);
+        }
+
         // ---------- main entry ----------
         // Returns true once within 'dist' (flat) and on the same level (within 1.5m up/down).
         public static bool Go(CompanionAI ai, float dt, Vector3 goal, float dist, bool allowRun, string tag)

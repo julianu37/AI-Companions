@@ -118,4 +118,15 @@ internal static class MHR_RiseWatch
 		}
 		return names.Count > 0 ? string.Join(", ", names) : "none";
 	}
+
+	/// <summary>1.9.5 (auditoria B8): drops the three per-companion dictionaries keyed by the GameObject's instance id
+	/// (the samples, the next tick and the quiet window). Called from <see cref="CompanionSetup.OnDestroy"/> - a dead,
+	/// dismissed or unloaded companion kept them for the rest of the session, and Unity reuses instance ids. The
+	/// diagnostic itself does not change.</summary>
+	internal static void Forget(int id)
+	{
+		s_samples.Remove(id);
+		s_next.Remove(id);
+		s_quietUntil.Remove(id);
+	}
 }

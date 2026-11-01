@@ -5,47 +5,6 @@ namespace Companions;
 
 public static class CompanionManager
 {
-	public struct RespawnData
-	{
-		public string PrefabName;
-
-		public string Name;
-
-		public string AppearanceSerialized;
-
-		public string OwnerId;
-
-		/// <summary>Fase 3.19 (auditoria): the companion's permanent id (HC_CompanionId), when the caller knows it.
-		/// It is what tells two companions with the same name apart when a respawn checks whether it already happened.</summary>
-		public string CompanionId;
-
-		public int ActionMode;
-
-		public int ActionModeSchema;
-
-		public bool Follow;
-
-		public bool StayHome;
-
-		public bool AutoPickup;
-
-		public bool Wander;
-
-		public bool IsCommandable;
-
-		public int FormationSlot;
-
-		public long TombstoneId;
-
-		public string SkillsSerialized;
-
-		public float Timer;
-
-		public bool HasHomePos;
-
-		public Vector3 HomePos;
-	}
-
 	private static Game s_mhrStarterGame;
 
 	private static Game s_mhrSeenGame;
@@ -53,8 +12,6 @@ public static class CompanionManager
 	private static float s_mhrSeenAt;
 
 	private const string BankDataKey = "TraderSharedBank_Balance";
-
-	private static readonly List<RespawnData> _respawnQueue = new List<RespawnData>();
 
 	public static void MHR_StarterOnce()
 	{
@@ -800,61 +757,10 @@ public static class CompanionManager
 		}
 	}
 
-	public static void QueueRespawn(RespawnData data)
-	{
-		for (int i = 0; i < _respawnQueue.Count; i++)
-		{
-			RespawnData respawnData = _respawnQueue[i];
-			if (!(respawnData.OwnerId == data.OwnerId))
-			{
-				continue;
-			}
-			bool num;
-			if (data.TombstoneId == 0L)
-			{
-				if (!(respawnData.Name == data.Name))
-				{
-					continue;
-				}
-				num = respawnData.AppearanceSerialized == data.AppearanceSerialized;
-			}
-			else
-			{
-				num = respawnData.TombstoneId == data.TombstoneId;
-			}
-			if (num)
-			{
-				CompanionsPlugin.Log.LogWarning("[CompanionManager] Duplicate respawn blocked for \"" + data.Name + "\" " + $"(owner={data.OwnerId} tombstoneId={data.TombstoneId}) — already queued");
-				return;
-			}
-		}
-		_respawnQueue.Add(data);
-		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[CompanionManager] Queued respawn for \"{data.Name}\" in {data.Timer}s");
-	}
-
-	public static void ProcessRespawns(float dt)
-	{
-		if (_respawnQueue.Count == 0)
-		{
-			return;
-		}
-		for (int num = _respawnQueue.Count - 1; num >= 0; num--)
-		{
-			RespawnData respawnData = _respawnQueue[num];
-			respawnData.Timer -= dt;
-			_respawnQueue[num] = respawnData;
-			if (respawnData.Timer <= 0f)
-			{
-				_respawnQueue.RemoveAt(num);
-				DoRespawn(respawnData);
-			}
-		}
-	}
-
 	/// <summary>
-	/// Fase 3.19 (auditoria): is this ZDO the companion the respawn data is about? The permanent id answers whenever
-	/// both sides have one, then the tombstone it came from; the name is only the fallback of an old save that has
-	/// neither. Comparing names alone blocked the second of two companions that share a name.
+	/// Fase 3.19 (auditoria): is this ZDO the companion the tombstone is about to bring back? The permanent id answers
+	/// whenever both sides have one, then the tombstone it came from; the name is only the fallback of an old save that
+	/// has neither. Comparing names alone blocked the second of two companions that share a name.
 	/// </summary>
 	/// <param name="companionId">Id of the companion being brought back (""/null when the caller doesn't know it).</param>
 	/// <param name="tombstoneId">The tombstone that respawned it (0 when there is none).</param>
@@ -875,120 +781,6 @@ public static class CompanionManager
 			return otherTomb == tombstoneId;
 		}
 		return zdo.GetString(CompanionSetup.NameHash) == name;
-	}
-
-	private static void DoRespawn(RespawnData data)
-	{
-		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[CompanionManager] Processing respawn for \"" + data.Name + "\" — prefab=" + data.PrefabName);
-		if (Player.m_localPlayer == null)
-		{
-			data.Timer = 1f;
-			_respawnQueue.Add(data);
-			if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[CompanionManager] Player not loaded — re-queued respawn");
-			return;
-		}
-		foreach (CompanionSetup allCompanion in CompanionSetup.AllCompanions)
-		{
-			ZDO zDO = allCompanion.GetComponent<ZNetView>()?.GetZDO();
-			if (zDO == null)
-			{
-				continue;
-			}
-			// Fase 3.19 (auditoria): the comparison used owner+name, so a second companion with the same name could
-			// never come back (the first one "already exists"). See IsSameCompanion.
-			if (IsSameCompanion(zDO, data.OwnerId, data.Name, data.CompanionId, data.TombstoneId))
-			{
-				Character component = allCompanion.GetComponent<Character>();
-				if (component != null && component.GetHealth() > 0f)
-				{
-					CompanionsPlugin.Log.LogWarning("[CompanionManager] Duplicate respawn aborted — \"" + data.Name + "\" " + $"already exists in scene with health {component.GetHealth():F0}");
-					return;
-				}
-			}
-		}
-		Vector3 vector;
-		if (data.HasHomePos)
-		{
-			vector = data.HomePos;
-			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[CompanionManager] Respawning at home position: {vector:F1}");
-		}
-		else
-		{
-			vector = GetWorldSpawnPoint();
-			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[CompanionManager] Respawning at world spawn: {vector:F1}");
-		}
-		GameObject gameObject = ZNetScene.instance?.GetPrefab(data.PrefabName);
-		if (gameObject == null)
-		{
-			CompanionsPlugin.Log.LogError("[CompanionManager] Respawn failed — prefab not found: " + data.PrefabName);
-			return;
-		}
-		Vector3 vector2 = (data.HasHomePos ? vector : FindSpawnPosition(vector, 4f));
-		Quaternion rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
-		GameObject gameObject2 = Object.Instantiate(gameObject, vector2, rotation);
-		ZNetView component2 = gameObject2.GetComponent<ZNetView>();
-		if (component2?.GetZDO() == null)
-		{
-			CompanionsPlugin.Log.LogError("[CompanionManager] Respawn failed — ZDO not available.");
-			Object.Destroy(gameObject2);
-			return;
-		}
-		ZDO zDO2 = component2.GetZDO();
-		zDO2.Set(CompanionSetup.AppearanceHash, data.AppearanceSerialized);
-		zDO2.Set(CompanionSetup.OwnerHash, data.OwnerId);
-		zDO2.Set(CompanionSetup.NameHash, data.Name);
-		zDO2.Set(CompanionSetup.TombstoneIdHash, data.TombstoneId);
-		zDO2.Set(CompanionSetup.FollowHash, data.Follow);
-		zDO2.Set(CompanionSetup.ActionModeHash, data.ActionMode);
-		zDO2.Set(CompanionSetup.ActionModeSchemaHash, data.ActionModeSchema);
-		zDO2.Set(CompanionSetup.StayHomeHash, data.StayHome);
-		zDO2.Set(CompanionSetup.AutoPickupHash, data.AutoPickup);
-		zDO2.Set(CompanionSetup.WanderHash, data.Wander);
-		zDO2.Set(CompanionSetup.IsCommandableHash, data.IsCommandable ? 1 : 0);
-		zDO2.Set(CompanionSetup.FormationSlotHash, data.FormationSlot);
-		if (data.HasHomePos)
-		{
-			zDO2.Set(CompanionSetup.HomePosHash, data.HomePos);
-			zDO2.Set(CompanionSetup.HomePosSetHash, value: true);
-		}
-		if (!string.IsNullOrEmpty(data.SkillsSerialized))
-		{
-			zDO2.Set(CompanionSkills.SkillsHash, data.SkillsSerialized);
-		}
-		zDO2.Persistent = true;
-		CompanionAppearance a = CompanionAppearance.Deserialize(data.AppearanceSerialized);
-		CompanionSetup component3 = gameObject2.GetComponent<CompanionSetup>();
-		if (component3 != null)
-		{
-			component3.ApplyAppearance(a);
-		}
-		Character component4 = gameObject2.GetComponent<Character>();
-		if (component4 != null && !string.IsNullOrEmpty(data.Name))
-		{
-			component4.m_name = data.Name;
-		}
-		CompanionAI component5 = gameObject2.GetComponent<CompanionAI>();
-		if (data.HasHomePos && component5 != null)
-		{
-			component5.SetPatrolPointAt(data.HomePos);
-		}
-		if (data.StayHome && data.HasHomePos && component5 != null)
-		{
-			component5.SetFollowTarget(null);
-			component5.SetPatrolPointAt(data.HomePos);
-		}
-		else if (data.Follow && Player.m_localPlayer != null)
-		{
-			component5?.SetFollowTarget(Player.m_localPlayer.gameObject);
-		}
-		if (component5 != null)
-		{
-			component5.FreezeTimer = 5f;
-		}
-		string arg = (data.HasHomePos ? "home" : "world spawn");
-		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[CompanionManager] Respawned \"{data.Name}\" at {arg} {vector2:F1} — " + $"tombstoneId={data.TombstoneId}");
-		string text3 = (data.HasHomePos ? ModLocalization.Loc("hc_msg_location_home") : ModLocalization.Loc("hc_msg_location_spawn"));
-		MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, ModLocalization.LocFmt("hc_msg_returned", data.Name, text3));
 	}
 
 	internal static Vector3 GetWorldSpawnPoint()

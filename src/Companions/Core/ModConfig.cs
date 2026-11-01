@@ -705,6 +705,13 @@ internal static class ModConfig
 	internal static ConfigEntry<float> TtsReverbZoneMix;
 
 	internal static ConfigEntry<bool> TtsEcoDiag;
+
+	/// <summary>1.9.5 (auditoria C2): the stamp of the config migrations. It is written once, at the end of
+	/// <see cref="Init"/> (the file is saved once there), with <see cref="CurrentConfigVersion"/>; the one-time
+	/// migrations only run while the file still holds an older stamp, so a value the player sets back to an old
+	/// default on purpose is no longer moved again on the next boot.</summary>
+	internal static ConfigEntry<int> ConfigVersion;
+
 	// 1.5.72: controller binds - a button and a modifier held with it (MHR_Pad.Choices)
 	internal static ConfigEntry<string> PadCommand, PadCommandModifier, PadWheel, PadWheelModifier, PadSettings, PadSettingsModifier, PadFarmZone, PadFarmZoneModifier, PadPassive, PadPassiveModifier, PadBalanced, PadBalancedModifier, PadRanged, PadRangedModifier, PadMelee, PadMeleeModifier;
 
@@ -1073,6 +1080,9 @@ internal static class ModConfig
 		// porque diagnostica um componente da IA (a voz do companheiro); este e o bucket dos ajustes que ninguem
 		// mexe no dia a dia, que e o caso de um despejo de diagnostico.
 		UiDiag = Bind(cfg, "Advanced", "UiDiag", defaultValue: false, "UI diagnostics: when on, writes to the log what is in front of the controls of the F8 panel and the AI panel (once per session, the first time each panel is opened): how many click targets each panel has (the controls and the ones that are there on purpose), every active layer in the scene (name and order) and, for each canvas above the panel, the targets that cover the controls column. It is what you turn on when a click or the UI looks odd (a button that doesn't answer, text on top of something, a swallowed click): the log says who is in front. Off (default) writes nothing and costs nothing; on, the log grows a lot (one summary line per panel, plus one line per suspect target). It changes nothing in the game - it only reports.");
+		// 1.9.5 (auditoria C2): the stamp of the one-time config migrations (see CurrentConfigVersion). It is written by
+		// the mod itself at the end of the boot that runs them; there is nothing to tune here.
+		ConfigVersion = Bind(cfg, "Advanced", "ConfigVersion", 0, "Internal: version stamp of the config migrations. The mod writes it once (the version of the last boot that applied the old-default migrations) and uses it to run them only once - that is what keeps a value you set back to an old default from being moved again on every start. Leave it alone; setting it back to 0 makes the migrations run one more time.");
 
 		DevBridge = Bind(cfg, "Advanced", "DevBridge", defaultValue: false, "Development tool (MCP): starts a TCP server on 127.0.0.1 that the MCP server in tools/mcp-devbridge drives - player and companion state, console commands, spawn, screenshots. Loopback only and off by default: it can run console commands, so leave it off unless you are developing. See docs/mcp-devbridge.md.");
 		DevBridgePort = Bind(cfg, "Advanced", "DevBridgePort", 47110, "Development tool (MCP): TCP port of the DevBridge (loopback only). The MCP server reads DEVRIDGE_PORT or uses the same default.", new AcceptableValueRange<int>(1024, 65535));
@@ -1137,7 +1147,12 @@ internal static class ModConfig
 		// Fase 3.3b: the voice defaults changed after the first test in game. A .cfg written before this version still
 		// holds the old values and BepInEx keeps whatever is in the file, so a value that is EXACTLY the old default is
 		// moved to the new one (and said so in the log). Anything else was chosen by the player and is left alone.
-		ApplyVoiceDefaultsPhase33b();
+		// 1.9.5 (auditoria C2): and they run ONCE - see MigrateConfig.
+		bool migrated = MigrateConfig;
+		if (migrated)
+		{
+			ApplyVoiceDefaultsPhase33b();
+		}
 
 		// 1.4.149: settings moved/renamed in the config clean-up keep the values players set; leftovers are removed.
 		// 1.4.150: the fix-ups below only run on such an upgrade (a file from before the clean-up), not on every start -
@@ -1157,16 +1172,48 @@ internal static class ModConfig
 		// Fase 3.3c: the gathering radii grew (the companion searches and works further away). Same rule as 3.3b: a
 		// value that is EXACTLY the old default is moved to the new one and said so in the log; anything else stays.
 		// This runs after the config clean-up above, so a file still using the pre-1.4.149 names ([Harvest] FollowRange)
-		// is covered too.
-		ApplyGatheringDefaultsPhase33c();
+		// is covered too. 1.9.5 (auditoria C2): once only, like the 3.3b one.
 		// Multilanguage M2 fix: the four [AI] language/voice defaults became "auto" (the game language decides). A
 		// file written before that still holds the old fixed values, and BepInEx keeps whatever is in the file - so a
-		// value that is EXACTLY the old default is moved to the new one (see ApplyMultilanguageDefaults).
-		ApplyMultilanguageDefaults();
+		// value that is EXACTLY the old default is moved to the new one (see ApplyMultilanguageDefaults). Also once.
+		if (migrated)
+		{
+			ApplyGatheringDefaultsPhase33c();
+			ApplyMultilanguageDefaults();
+		}
 		// 1.4.92: a config file still holding the 1.4.87 draft gets the reviewed table
 		if (CookMeadFocus.Value == "start: MeadBaseHealthMinor, MeadBaseStaminaMinor; eikthyr: MeadBaseHealthMinor, MeadBaseStaminaMinor, MeadBasePoisonResist; gdking: MeadBaseHealthMinor, MeadBaseStaminaMinor, MeadBasePoisonResist; bonemass: MeadBaseHealthMedium, MeadBaseStaminaMedium, MeadBaseFrostResist; dragon: MeadBaseHealthMedium, MeadBaseStaminaMedium, MeadBaseFrostResist, BarleyWineBase; goblinking: MeadBaseHealthMajor, MeadBaseStaminaMedium, MeadBaseEitrMinor, BarleyWineBase; queen: MeadBaseHealthMajor, MeadBaseStaminaLingering, MeadBaseEitrMinor, BarleyWineBase; fader: MeadBaseHealthMajor, MeadBaseHealthLingering, MeadBaseStaminaLingering, MeadBaseEitrMinor, BarleyWineBase")
 		{
 			CookMeadFocus.Value = "start: MeadBaseHealthMinor, MeadBaseStaminaMinor; eikthyr: MeadBaseHealthMinor, MeadBaseStaminaMinor, MeadBasePoisonResist; gdking: MeadBasePoisonResist, MeadBaseHealthMedium, MeadBaseStaminaMinor; bonemass: MeadBaseFrostResist, MeadBaseHealthMedium, MeadBaseStaminaMedium; dragon: MeadBaseHealthMedium, MeadBaseStaminaMedium, MeadBaseTasty, BarleyWineBase; goblinking: MeadBaseHealthMajor, MeadBaseStaminaMedium, MeadBaseEitrMinor, MeadBaseLightfoot; queen: BarleyWineBase, MeadBaseHealthMajor, MeadBaseStaminaLingering, MeadBaseHealthLingering, MeadBaseEitrMinor; fader: MeadBaseFrostResist, MeadBaseHealthMajor, MeadBaseHealthLingering, MeadBaseStaminaLingering, MeadBaseEitrMinor; kall: MeadBaseFrostResist, MeadBaseHealthMajor, MeadBaseHealthLingering, MeadBaseStaminaLingering, MeadBaseEitrMinor";
+		}
+		// 1.9.5 (auditoria C2): the stamp goes in last, after the migrations have run. The file is written once, at the
+		// end of Init (the per-Bind saves are off around all of this), so the next boot finds it and skips them.
+		if (migrated && ConfigVersion != null)
+		{
+			ConfigVersion.Value = CurrentConfigVersion;
+			CompanionsPlugin.Log?.LogInfo($"[Config] ConfigVersion {CurrentConfigVersion} gravada no .cfg: as migracoes de padroes antigos nao rodam mais a cada boot "
+				+ "(um valor que voce colocar de volta num padrao antigo agora fica).");
+		}
+	}
+
+	/// <summary>1.9.5 (auditoria C2): the version of the config migrations this build knows about. Bump it whenever a
+	/// new one-time migration is added: a file stamped with an older value runs the migration block once more (they are
+	/// all "only the EXACT old default" rules, so running them again is harmless) and gets the new stamp.</summary>
+	private const int CurrentConfigVersion = 195;
+
+	/// <summary>1.9.5 (auditoria C2): should the one-time default migrations run on this boot? They used to run on
+	/// <b>every</b> boot, which quietly undid a choice the player made back to an old default (set the silence
+	/// threshold to 0.02 or the memory to 6 on purpose and the next start moved it again, while the log claimed
+	/// "your choices are not touched"). Now they run only while the file holds a stamp older than
+	/// <see cref="CurrentConfigVersion"/>, and <see cref="BindEntries"/> writes the stamp at the end. A file from
+	/// before the stamp (the key is new, so it reads 0) and a brand new file both run them once - with all the values
+	/// already on the new defaults, nothing moves.</summary>
+	private static bool MigrateConfig
+	{
+		get
+		{
+			// the stamp is bound in [Advanced], before any of the callers below; a null here means the bind failed
+			return ConfigVersion == null || ConfigVersion.Value < CurrentConfigVersion;
 		}
 	}
 

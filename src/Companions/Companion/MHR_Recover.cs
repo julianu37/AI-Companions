@@ -362,4 +362,14 @@ internal static class MHR_Recover
 		Inventory inv = tomb.GetComponent<Container>()?.GetInventory();
 		return inv != null && inv.NrOfItems() > 0;
 	}
+
+	/// <summary>1.9.5 (auditoria B8): drops everything this companion left in the two dictionaries keyed by its
+	/// GameObject's instance id (the recovery state and the tombstone cache). Called from
+	/// <see cref="CompanionSetup.OnDestroy"/> - without it a dead, dismissed or unloaded companion kept both entries for
+	/// the rest of the session, and Unity reuses instance ids. Behaviour is unchanged for a companion still around.</summary>
+	internal static void Forget(int id)
+	{
+		s_state.Remove(id);
+		s_tombCache.Remove(id);
+	}
 }

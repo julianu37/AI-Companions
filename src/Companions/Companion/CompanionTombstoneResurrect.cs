@@ -41,6 +41,11 @@ public class CompanionTombstoneResurrect : MonoBehaviour
 
 	internal static readonly int RespawnHomePosHash = "HC_Respawn_HomePos".GetStableHashCode();
 
+	// 1.9.5 (auditoria B2): the size of the companion's home area (HC_HomeRadius) - a player choice made in the home
+	// panel, so it comes back with the companion instead of falling back to [General] HomeRadius. 0/absent = never
+	// changed (a tombstone from an older version), which keeps the old behaviour.
+	internal static readonly int RespawnHomeRadiusHash = "HC_Respawn_HomeRadius".GetStableHashCode();
+
 	internal static readonly int RespawnCombatStanceHash = "HC_Respawn_CombatStance".GetStableHashCode();
 
 	internal static readonly int RespawnHasBedHash = "HC_Respawn_HasBed".GetStableHashCode();
@@ -178,7 +183,7 @@ public class CompanionTombstoneResurrect : MonoBehaviour
 		}
 	}
 
-	internal static void WriteRespawnData(ZDO tombZdo, string prefabName, string name, string appearance, string ownerId, int actionMode, int actionModeSchema, bool follow, bool stayHome, bool autoPickup, bool wander, bool commandable, int formationSlot, string skillsSerialized, bool hasHome, Vector3 homePos, int combatStance, bool hasHomeBed, Vector3 homeBedPos, string inventorySerialized)
+	internal static void WriteRespawnData(ZDO tombZdo, string prefabName, string name, string appearance, string ownerId, int actionMode, int actionModeSchema, bool follow, bool stayHome, bool autoPickup, bool wander, bool commandable, int formationSlot, string skillsSerialized, bool hasHome, Vector3 homePos, int combatStance, bool hasHomeBed, Vector3 homeBedPos, string inventorySerialized, float homeRadius = 0f)
 	{
 		tombZdo.Set(RespawnPrefabHash, prefabName);
 		tombZdo.Set(RespawnNameHash, name);
@@ -195,6 +200,9 @@ public class CompanionTombstoneResurrect : MonoBehaviour
 		tombZdo.Set(RespawnSkillsHash, skillsSerialized);
 		tombZdo.Set(RespawnHasHomeHash, hasHome);
 		tombZdo.Set(RespawnHomePosHash, homePos);
+		// 1.9.5 (auditoria B2): the home area the player had set (0 = never changed - the [General] HomeRadius default
+		// keeps deciding, exactly as before)
+		tombZdo.Set(RespawnHomeRadiusHash, homeRadius);
 		tombZdo.Set(RespawnCombatStanceHash, combatStance);
 		tombZdo.Set(RespawnHasBedHash, hasHomeBed);
 		tombZdo.Set(RespawnBedPosHash, homeBedPos);
@@ -431,6 +439,14 @@ public class CompanionTombstoneResurrect : MonoBehaviour
 		{
 			zDO2.Set(CompanionSetup.HomePosHash, vec);
 			zDO2.Set(CompanionSetup.HomePosSetHash, value: true);
+		}
+		// 1.9.5 (auditoria B2): the home area size the player had set for it comes back too (nothing for a companion
+		// that never had one changed, or for a tombstone made before this key existed - the [General] HomeRadius
+		// default keeps deciding, as it did)
+		float homeRadius = tombZdo.GetFloat(RespawnHomeRadiusHash, 0f);
+		if (homeRadius > 0f)
+		{
+			zDO2.Set(CompanionSetup.HomeRadiusHash, homeRadius);
 		}
 		if (!string.IsNullOrEmpty(value6))
 		{
