@@ -29,7 +29,7 @@ same actions.
 
 What the **AI Companions** project adds:
 
-1. **The localization in five languages** — Portuguese (Brazil), English, Spanish, French and Italian: 914 interface
+1. **The localization in five languages** — Portuguese (Brazil), English, Spanish, French and Italian: 1001 interface
    keys and 221 companion lines per language, audited (no English text visible to a player of those languages), with
    **English as the native language**.
 2. **The AI layer:**

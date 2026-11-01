@@ -15,7 +15,7 @@ Every setting of the mod: what it does and the value it starts with.
   - `Name:Number` = that one, with its own amount (`0` = no limit)
   - Names can be the item or creature name in game or the internal name (prefab). The names you can use in cooking, hunting and fishing are written to `OfflineCompanionsReborn.Cooking.txt`, `.Hunting.txt` and `.Fishing.txt` in the config folder every time the game starts.
 - Updating from an old version? The options you changed are moved to the new names automatically the first time you enter a world. **Since 1.8.3** the file is `AiCompanions.cfg` and the keys and descriptions are in English (the native language of the mod; Portuguese is a translation): the old `.cfg` (`Maddhattr.OfflineCompanionsReborn.cfg`) is ignored and the settings go back to their default values.
-- The section names below are the same as in the `.cfg` file (the `F8` panel shows them translated to the game language): `General` = **Geral**, `Controls` = **Controles**, `Follow` = **Seguir**, `Movement` = **Movimento**, `Combat` = **Combate**, `Food` = **Comida**, `Stamina` = **Stamina**, `Rest` = **Descanso**, `Death` = **Morte**, `Looting` = **Saque**, `GearRepair` = **Reparo de Equip.**, `Gathering` = **Coleta**, `Hunting` = **Caça**, `Fishing` = **Pesca**, `Farming` = **Plantio**, `Smelting` = **Fundição**, `Cooking` = **Cozinha**, `RepairAndRestock` = **Reparar e Reabastecer**, `Idle` = **Ócio**, `Speech` = **Fala**, `Advanced` = **Avançado**, `AI` = **IA**.
+- The section names below are the same as in the `.cfg` file (the `F8` panel shows them translated to the game language): `General` = **Geral**, `Controls` = **Controles**, `Controller` = **Gamepad**, `Follow` = **Seguir**, `Movement` = **Movimento**, `Combat` = **Combate**, `Torch` = **Tocha**, `Food` = **Comida**, `Stamina` = **Stamina**, `Rest` = **Descanso**, `Death` = **Morte**, `Looting` = **Saque**, `GearRepair` = **Reparo de Equip.**, `Gathering` = **Coleta**, `Hunting` = **Caça**, `Fishing` = **Pesca**, `Farming` = **Plantio**, `Smelting` = **Fundição**, `Cooking` = **Cozinha**, `RepairAndRestock` = **Reparar e Reabastecer**, `Idle` = **Ócio**, `Speech` = **Fala**, `Advanced` = **Avançado**, `AI` = **IA**.
 
 ## Sections
 
@@ -144,7 +144,7 @@ Sets the Melee stance, like PassiveKey.
 
 ## Controller
 
-
+The gamepad buttons for the order menu and the stances, used while you play with a controller.
 
 **Command** — Default: `Y`  
 Controller command button: tap while looking at something to send your companions to it, hold to call them to you. None = off. Use and Alt follow the game's controller layout (Alt is the game's own modifier - your block button); the rest are fixed buttons.
@@ -412,7 +412,7 @@ No torch opener on enemies with less maximum health than this - not worth it.
 
 ## Torch
 
-
+When a companion lights a torch (night, dark dungeons) and how that torch burns down.
 
 **BurnsDown** — Default: On  
 A torch in a companion's hand burns down like yours and is gone at 0 durability. Off: companions' torches last forever (the game itself only burns down players' torches).
@@ -1073,6 +1073,9 @@ Death: seconds a companion keeps trying to get to its tombstone before giving up
 
 **UiDiag** — Default: Off  
 UI diagnostics: when on, writes to the log what is in front of the controls of the F8 panel and the AI panel (once per session, the first time each panel is opened): how many click targets each panel has (the controls and the ones that are there on purpose), every active layer in the scene (name and order) and, for each canvas above the panel, the targets that cover the controls column. It is what you turn on when a click or the UI looks odd (a button that doesn't answer, text on top of something, a swallowed click): the log says who is in front. Off (default) writes nothing and costs nothing; on, the log grows a lot (one summary line per panel, plus one line per suspect target). It changes nothing in the game - it only reports.
+
+**ConfigVersion** — Default: 0  
+Internal: version stamp of the config migrations. The mod writes it once (the version of the last boot that applied the old-default migrations) and uses it to run them only once - that is what keeps a value you set back to an old default from being moved again on every start. Leave it alone; setting it back to 0 makes the migrations run one more time.
 
 **DevBridge** — Default: Off  
 Development tool (MCP): starts a TCP server on 127.0.0.1 that the MCP server in tools/mcp-devbridge drives - player and companion state, console commands, spawn, screenshots. Loopback only and off by default: it can run console commands, so leave it off unless you are developing. See docs/mcp-devbridge.md.

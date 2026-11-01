@@ -36,7 +36,7 @@ roster on the screen.
 This project is an **independent project** based on [Offline Companions Reborn](https://github.com/MaddhattrRocks/Offline-Companions-Reborn)
 (**MIT**) — which in turn is a fork of *Offline Companions*, by **ProfMags** — with two things of ours on top:
 
-1. **Five languages** — **Portuguese (Brazil), English, Spanish, French and Italian**: the interface (914 keys),
+1. **Five languages** — **Portuguese (Brazil), English, Spanish, French and Italian**: the interface (1001 keys),
    the companion's speech (221 lines), the personality presets and the LLM contract follow the **game's language**,
    with **English as the native language**, and a new language is **one file**.
 2. **An AI layer**: orders in **natural language** (text in the chat or **voice** through push-to-talk), with
@@ -96,7 +96,7 @@ and keeps working the same — the AI is only a **new entry point** for the same
 | **[Configuration](Configuration)** | The `.cfg`, the `[AI]` section and the `F8` and `I` panels |
 | **[Troubleshooting](Troubleshooting)** | Symptom → cause → solution |
 | **[How it works](How-it-works)** | Architecture and the path of an order |
-| **[Changelog](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)** | The full changelog, from 1.6.0 to 1.9.1 |
+| **[Changelog](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)** | The full changelog, from 1.6.0 to 1.9.5 |
 | **[Credits and license](Credits-and-license)** | Upstream, third parties and licenses |
 
 ## Quick links
@@ -108,16 +108,30 @@ and keeps working the same — the AI is only a **new entry point** for the same
 | **Changelog** | https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md |
 | **Upstream (MIT)** | https://github.com/MaddhattrRocks/Offline-Companions-Reborn |
 
-The most recent published release is **1.9.1** (26/10/2026), with **two** files to choose from:
+The most recent published release is **1.9.5** (31/10/2026), with **one** package:
 
 | File | Size | What comes in it |
 |---|---|---|
-| `AI_Companions-1.9.1.zip` | ~314 MB | The mod **and** the voice models (STT + TTS) ready to use |
-| `AI_Companions-1.9.1-sem-modelos.zip` | ~28.5 MB | Only the mod and the translations — you download the models separately |
+| `AI_Companions-1.9.5.zip` | ~314 MB | The mod, the translations **and** the voice models (STT + TTS) ready to use |
 
-> **Which one should you pick?** If you just want to install and play, take the **full** one. If your internet is
-> slow (or you already have the models), take the **no-models** one and follow the models section in
-> **[Installation](Installation)**.
+> **One package only.** Since **1.9.4** the release ships **with** the voice models, already **inside**
+> `BepInEx\plugins\AI-Companions\` (`whisper\` and `tts\`) — there is nothing to download separately. The
+> *no-models* package was **discontinued** (the last one was 1.9.1).
+
+> **1.9.5 in short — the batch from the 10-specialist review.** Twenty fixes, no new gameplay feature:
+>
+> - **The Shrine and the roster speak all five languages** — the "bring back" confirmation and the
+>   "last known/died" lines were hardcoded English.
+> - **Safer tombstone:** if the internal game call the patch uses breaks, it now logs once and lets the
+>   game remove the tombstone as usual, instead of holding it forever; the bed is only logged as saved
+>   when it really saved.
+> - **The home area survives** death, revival and the roster (`HC_Respawn_HomeRadius`), and the
+>   "already holding a shield" check works — the old lookup did not exist.
+> - **`[Speech] MinInterval`/`MaxInterval` are real:** the idle chatter uses them (15–30 s by default; the
+>   code had 90–180 s hardcoded).
+> - **The LLM stopped paying three requests per order** (after the server refuses both structured forms,
+>   the next messages go straight to the old format), **`[Advanced] ConfigVersion`** makes the config
+>   migrations run once, and **`F8` stopped allocating per frame**.
 
 > **1.9.1:** the package is ~54 MB lighter — the unused `ggml-base-q5_1.bin` model is no longer shipped (it is still
 > an optional download).

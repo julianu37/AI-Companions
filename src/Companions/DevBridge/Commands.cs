@@ -289,12 +289,14 @@ internal static class Commands
 
 	private static int DayNumber()
 	{
-		if (EnvMan.instance == null)
+		// EnvMan.GetDay() reads the time from ZNet (decompiled 1.0.20: "return GetDay(ZNet.instance.GetTimeSeconds());"),
+		// so it needs a connection - the same guard the caller uses for "world"/"time".
+		if (EnvMan.instance == null || ZNet.instance == null)
 		{
 			return 0;
 		}
-		MethodInfo m = typeof(EnvMan).GetMethod("GetCurrentDay", BindingFlags.Instance | BindingFlags.NonPublic);
-		return m != null ? Convert.ToInt32(m.Invoke(EnvMan.instance, null)) : 0;
+		// B14 (audit 1.9.4): GetCurrentDay() is private, but EnvMan.GetDay() is public and answers the same day number.
+		return EnvMan.instance.GetDay();
 	}
 
 	/// <summary>The prefab names the world knows (a filtered list), so the agent can find the exact name for

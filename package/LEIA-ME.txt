@@ -1,5 +1,5 @@
 ================================================================================
- AI Companions 1.9.4
+ AI Companions 1.9.5
  Companheiro NPC com IA para Valheim 1.0 - cinco idiomas, seguindo o idioma do jogo
 ================================================================================
 
@@ -20,6 +20,27 @@ o mod usa um LLM: o recomendado e um modelo local no LM Studio (gratis, privado 
 funciona sem internet - o texto das ordens nao sai da sua maquina); o Groq (servico
 remoto, so a chave gratuita e a internet) e a alternativa pratica, e o OpenRouter
 tambem funciona, mas o tier gratuito dele e mais lento. Veja "O CEREBRO (LLM)".
+
+NOVIDADES DA 1.9.5
+------------------
+- LOTE DE CORRECOES da revisao de 10 especialistas: 20 itens, sem recurso novo e sem chave renomeada.
+- SANTUARIO E LISTA DE COMPANHEIROS nos 5 idiomas: a confirmacao de "trazer de volta" e as linhas
+  "visto por ultimo/morreu perto" estavam em ingles fixo (duas nem existiam); agora estao traduzidas.
+- LAPIDE DO COMPANHEIRO mais segura: se a checagem interna falhar, o jogo volta a remover a lapide vazia
+  (antes ela podia ficar para sempre) e o log avisa uma vez.
+- CAMA: o claim agora e gravado so com posse (relê o dado depois do claim), e o raio da casa escolhido
+  sobrevive a morte, ao renascer e a recuperacao pelo Santuario.
+- ESCUDO: o companheiro finalmente "ve" o escudo na mao esquerda (a checagem antiga nao existia), entao
+  nao reequipa o escudo toda hora - o ritmo do combate muda um pouco.
+- FALA OCIOSA: [Speech] MinInterval/MaxInterval agora valem de verdade (15-30 s por padrao). Continuam
+  valendo SO com [Speech] Chatter ligado (que segue desligado por padrao).
+- LLM: quando o servidor recusa a saida estruturada, o mod para de gastar 3 requisicoes por ordem (vai
+  direto no formato antigo); e um erro de modelo ("model not found") nao e mais confundido com recusa de formato.
+- CONFIG: as migracoes de padroes antigos rodam UMA vez (chave nova [Advanced] ConfigVersion) - um valor
+  que voce colocar de volta num padrao antigo nao e mais revertido a cada inicio.
+- F8 sem alocacao por frame e sem destruir a textura compartilhada dos paineis.
+- O pacote agora e so o COMPLETO (o "sem modelos" parou na 1.9.1) e os modelos vao dentro de
+  BepInEx\plugins\AI-Companions (como no 1.9.1).
 
 NOVIDADES DA 1.9.4
 ------------------
@@ -141,7 +162,7 @@ INSTALACAO
    modelos" (bem menor) nao traz nenhum deles - copie os seus para as pastas
    acima.
 4. Entre no jogo. Se o BepInEx carregar o mod, o BepInEx\LogOutput.log mostra
-   "Loading [AI Companions 1.9.4]".
+   "Loading [AI Companions 1.9.5]".
 
 COMO USAR
 ---------

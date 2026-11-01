@@ -184,6 +184,18 @@ internal static class ContainerFix
 		}
 	}
 
+	/// <summary>1.9.5 (auditoria B8): drops this companion's two entries (the ownership flag and the last saved item
+	/// bytes) from the guard's tables. Both are keyed by the Container's instance id, which is the companion's own
+	/// GameObject id (<see cref="IsCompanionContainer"/>: same object as the Humanoid), and nothing ever removed them -
+	/// every companion that died, was dismissed or left the world left two entries behind for the rest of the session,
+	/// and Unity reuses instance ids. Called from <see cref="CompanionSetup.OnDestroy"/>; the guard's behaviour for a
+	/// companion that is still around is unchanged.</summary>
+	internal static void Forget(int id)
+	{
+		_owned.Remove(id);
+		_bytes.Remove(id);
+	}
+
 	private static void PatchOne(object harmony, MethodInfo patchMethod, Type hmType, string methodName, string prefixName, string postfixName)
 	{
 		try

@@ -309,7 +309,17 @@ public class CompanionTalk : MonoBehaviour
 	{
 		// upstream 1.5.5: one small talk line every 1.5-3 minutes. Their Rare/Often variants are gone with the bool
 		// [Speech] Chatter; with it off the timer is never counted down, so this is only ever rolled for nothing.
-		_talkTimer = Random.Range(90f, 180f);
+		// 1.9.5 (auditoria B13): [Speech] MinInterval/MaxInterval existed and were never read - the range they
+		// describe (15-30 s by default) is what this timer uses now. The old 90-180 s is still one edit away: set both
+		// settings to 90 and 180 in the .cfg (or in the F8 panel).
+		float min = ModConfig.SpeechMinInterval != null ? ModConfig.SpeechMinInterval.Value : 15f;
+		float max = ModConfig.SpeechMaxInterval != null ? ModConfig.SpeechMaxInterval.Value : 30f;
+		// the two settings are independent: a max below the min would make Random.Range refuse the range
+		if (max < min)
+		{
+			max = min;
+		}
+		_talkTimer = Random.Range(min, max);
 	}
 
 	private void Update()

@@ -38,6 +38,9 @@ idiomas acima são oferecidos: o modelo é o mesmo para todos eles.
 | `whisper\ggml-small-q5_1.bin` | 181 MB | **Padrão.** Bem mais preciso que o `base`, em qualquer idioma |
 | `whisper\ggml-base-q5_1.bin` | 57 MB | Mais rápido e menos preciso — **não vem no pacote**: baixe e mude o `[AI] SttModel` |
 
+Os arquivos vão em `BepInEx\plugins\AI-Companions\whisper\` — **dentro da pasta do plugin**, que é onde o mod
+procura (o pacote já vem assim).
+
 Onde baixar: https://huggingface.co/ggerganov/whisper.cpp/tree/main
 
 Medição do projeto (CPU de 16 núcleos, 8 threads, clipe de 2 s): **~638 ms** com o `base` contra **~2187 ms**
@@ -134,7 +137,8 @@ A regra é: **a voz acompanha o que está escrito na tela.**
 |---|---|
 | `tts\kokoro\` | `model.int8.onnx` (109 MB), `voices.bin` (27 MB), `tokens.txt` e a pasta `espeak-ng-data\` |
 
-As vozes, os tokens e o `espeak-ng-data` são procurados na **mesma pasta** do modelo.
+As vozes, os tokens e o `espeak-ng-data` são procurados na **mesma pasta** do modelo. Essa pasta é
+`BepInEx\plugins\AI-Companions\tts\kokoro\` — dentro da pasta do plugin, onde o pacote já a coloca.
 
 Onde baixar: releases do https://github.com/k2-fsa/sherpa-onnx (pacote do modelo **`kokoro-int8-multi-lang`**).
 

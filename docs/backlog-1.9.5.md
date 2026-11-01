@@ -4,6 +4,11 @@ Origem: revisão de 10 especialistas (31/10/2026) + decisões do jogador. Cada i
 hoje**, **o que pode quebrar se ficar**, **por que corrigir** e **o esforço**. Nada aqui foi corrigido na 1.9.4
 (exceto o que está marcado como feito no `docs/roadmap.md`).
 
+> **Status na 1.9.5 (branch `feat/1.9.5`):** feitos **A3, A4, A7, A8, A9, A10, A11, A12, B2, B3, B8, B10, B11, B13,
+> B14, B15, B18, C2, C3, C4, C5, C6, C7**. **Documentado para verificar futuramente:** A6. **Fora por decisão do
+> jogador:** A1, A2, A5, B1, B4, B5, B6, B7, B9, B12, B16, B17, todo o bloco de MP (C1) e a wiki (C8, só quando ele
+> pedir). O detalhe do que entrou está na seção 1.9.5 do `docs/roadmap.md` e no `package/CHANGELOG.md`.
+
 ## A. Vitória rápida (1 linha cada, alto valor)
 
 | # | O que está quebrado hoje | O que pode quebrar | Por que corrigir | Onde | Esforço |
@@ -13,7 +18,7 @@ hoje**, **o que pode quebrar se ficar**, **por que corrigir** e **o esforço**. 
 | A3 | O modal de recuperar companheiro no Santuário é **inglês fixo** (`"Bring X back here?"`, `"Warning:"`) | Jogador PT/ES/FR/IT não entende a confirmação de uma ação destrutiva (gasta a lápide) | 5 chaves já existem no JSON PT; é a promessa de 5 idiomas | `UI/ShrinePanel.cs:130,133,137` | 3 chamadas + 1 chave nova |
 | A4 | O roster mostra `" (unsummoned - Odin's Shrine can bring it back...)"` em inglês | Texto em inglês no meio da UI traduzida | Mesma regra do A3 | `Companion/MHR_Roster.cs:875` (e `:851` cai no fallback) | 2 chaves novas nos 5 idiomas |
 | A5 | A durabilidade da armadura não cai pela parte de **fogo/veneno/espírito** do golpe (o `RPC_Damage` zera esses campos antes do postfix ler) | Armadura dura mais que no vanilla; o jogador não entende por que a peça não desgasta | É o dano que mais desgasta armadura no jogo | `Patches/DurabilityPatches.cs:104` | Prefix + `__state` (padrão do `CompanionBlockLog`) |
-| A6 | `CompanionHitLog` roda em **todo** dano do jogo sem `try/catch` | Uma exceção no log **aborta o dano do golpe** (e o frame do atacante) | Todos os vizinhos de caminho quente são fail-open | `Patches/CompanionHitLog.cs:11-32` | `try/catch` |
+| A6 | `CompanionHitLog` roda em **todo** dano do jogo sem `try/catch` | Uma exceção no log **aborta o dano do golpe** (e o frame do atacante) | Todos os vizinhos de caminho quente são fail-open | `Patches/CompanionHitLog.cs:11-32` | **documentado para verificar futuramente (decisão do jogador):** não corrigido; se aparecer relato de golpe que "não faz nada", checar aqui primeiro |
 | A7 | `TombstonePreventDespawnPatch` faz `catch { return false; }` (fail-**closed**, silencioso) | Se a reflexão falhar (jogo mudou), a lápide do companheiro **nunca despawna** — o sintoma que o jogador já viu | Devolver o `UpdateDespawn` ao jogo é o comportamento seguro | `Patches/TombstonePreventDespawnPatch.cs:22-37` | `catch` com aviso + `return true` |
 | A8 | `EnemyHud` faz `transform.GetComponent<RectTransform>().rect.height` sem null-check | NRE dentro do `ShowHud` do jogo se o prefab do `Health` deixar de ser UI | O código já prevê o caso degenerado (`num <= 0 → 8f`), falta só o componente nulo | `Patches/EnemyHudPatches.cs:53-58` | 2 linhas |
 | A9 | `readme_to_nexus.py` manda instalar em `BepInEx/plugins/OfflineCompanionsReborn/` | O jogador instala na pasta errada e reporta "não carrega" | É o texto que vira a página do Nexus | `tools/readme_to_nexus.py:15` | 1 linha |

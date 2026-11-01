@@ -21,10 +21,35 @@ internal static class MenuPatches
 	private static void MenuShow_Postfix(Menu __instance)
 	{
 		Transform menuDialog = __instance.m_menuDialog;
-		if (menuDialog == null || menuDialog.Find("MenuEntries/HC_ModOptions") != null)
+		if (menuDialog == null)
 		{
 			return;
 		}
+		if (menuDialog.Find("MenuEntries/HC_ModOptions") == null)
+		{
+			InjectButton(__instance, menuDialog);
+		}
+		// C4 (audit 1.9.4): Menu.Show() calls UpdateNavigation() BEFORE this postfix adds the button, so on the
+		// first open the button kept the navigation it was cloned with (down went to Settings' own target and
+		// Settings still pointed past it) - the wiring only came back on the next open, or when the Save button
+		// flipped. Wire it here, in the same Show. The _settingsButton/_settingsDown cache still keeps the button
+		// from pointing at itself (#14).
+		WireNavigation(__instance);
+	}
+
+	[HarmonyPatch(typeof(Menu), "UpdateNavigation")]
+	[HarmonyPostfix]
+	private static void UpdateNavigation_Postfix(Menu __instance)
+	{
+		WireNavigation(__instance);
+	}
+
+	/// <summary>
+	/// Clones the game's "Settings" entry as "Mod Options" (right below it) and points it at the config panel.
+	/// Runs once per menu: the button survives the Show/Hide of the dialog.
+	/// </summary>
+	private static void InjectButton(Menu menu, Transform menuDialog)
+	{
 		GameObject gameObject = menuDialog.Find("MenuEntries/Settings")?.gameObject;
 		if (gameObject == null)
 		{
@@ -47,7 +72,7 @@ internal static class MenuPatches
 			component.onClick.RemoveAllListeners();
 			component.onClick.AddListener(delegate
 			{
-				__instance.Hide();
+				menu.Hide();
 				if (ConfigPanel.Instance != null)
 				{
 					ConfigPanel.Instance.Show();
@@ -57,11 +82,14 @@ internal static class MenuPatches
 		if (CompanionsPlugin.LogDetailed) CompanionsPlugin.Log.LogDebug("[MenuPatches] Injected 'Mod Options' button into pause menu");
 	}
 
-	[HarmonyPatch(typeof(Menu), "UpdateNavigation")]
-	[HarmonyPostfix]
-	private static void UpdateNavigation_Postfix(Menu __instance)
+	/// <summary>
+	/// Chains the controller navigation of the pause menu: Continue/Save -> ... -> Settings -> Mod Options -> the
+	/// game's own "down from Settings" target (Logout), and back up the same way. Safe to call any number of
+	/// times - it does nothing while the button is not in the menu.
+	/// </summary>
+	private static void WireNavigation(Menu menu)
 	{
-		Transform menuDialog = __instance.m_menuDialog;
+		Transform menuDialog = menu.m_menuDialog;
 		if (menuDialog == null)
 		{
 			return;

@@ -2,6 +2,51 @@
 
 All the changes to this project, derived from ProfMags' Offline Companions. The versions before 1.4.0 are the original mod (see the original mod's history, from ProfMags, for those versions) plus the first batch of compatibility fixes for the Valheim 1.0 API that made the mod load and run. **The entries below 1.5.4 are the upstream history and stay as they are (in English) — our sections (from 1.6.0 on) are ours.**
 
+## 1.9.5 - 31/10/2026
+
+**The batch from the 10-specialist review.** Twenty fixes across localization, patches, the companion, the LLM layer,
+the UI and the release pipeline. No new gameplay feature and no config key renamed; one key was added
+(`[Advanced] ConfigVersion`, see below).
+
+- **The Shrine and the roster speak all five languages.** The "bring back" confirmation and the "last known/died"
+  lines were hardcoded English (two of the keys did not exist at all); the roster's "unsummoned" note was too. Five
+  keys added in EN/PT/ES/FR/IT.
+- **Companion tombstones fail open.** If the private `UpdateFloater`/`PositionCheck` reflection ever breaks, the patch
+  now logs once and lets the game run its own `UpdateDespawn` instead of suppressing it forever (the "tombstone that
+  never despawns" report).
+- **AOE-safe HUD and audit.** `EnemyHud` no longer dereferences a missing `RectTransform`, and the raycast audit knows
+  the appearance panel (1709) instead of reporting the mod's own window.
+- **Bed claims are written with ownership.** `MHR_SetBedClaim` re-reads the ZDO after the claim and only logs "saved"
+  when it really saved (same fix as the AI profile).
+- **No more reflection where the game has a public API**: `Bed.GetOwner` (it is `zdo.GetLong(s_owner)`),
+  `EnvMan.GetDay` and `Humanoid.LeftItem`/`RightItem`. Latent bug fixed with it: the old `GetLeftItem` lookup did not
+  exist, so the "already holding a shield" check was always false.
+- **A chest opened on another player's game counts as in use** (cook and tombstone recovery use `MHR_Chests.InUse`,
+  local flag + ZDO) - single-player behaviour is unchanged.
+- **The pause menu's controller navigation is wired on the first open** (it only came back on the second one).
+- **The home area size survives death, revival and the roster** (`HC_Respawn_HomeRadius`; 0 = never changed, which
+  keeps following `[General] HomeRadius`), and `SetHomeRadius` goes through the ownership queue.
+- **The per-companion caches are pruned on destroy** (mover, recovery, status, rise watch and the container fix), so a
+  long session with many deaths/type changes stops growing.
+- **`[Speech] MinInterval`/`MaxInterval` are real now**: the idle chatter uses them (15-30 s by default; they were
+  documented but the code had 90-180 s hardcoded).
+- **Dead respawn code removed** (`QueueRespawn`/`ProcessRespawns`/`DoRespawn`): it had no caller and did not copy
+  `HC_CompanionId`, so reviving it would have duplicated the roster entry.
+- **The structured-output warning is true**: after the server refuses both structured forms, the next messages go
+  straight to the old format (one request instead of three). Changing `[AI] BaseUrl`/`Model` or toggling
+  `[AI] StructuredOutput` tries again. Only a 400 whose body names `response_format`/`json_schema` (or a 400 with no
+  body) is treated as a format refusal - "model not found" now fails once with its own detail.
+- **`[Advanced] ConfigVersion`**: the one-time config migrations (3.3b/3.3c/multilanguage) run **once** and stamp the
+  file, instead of moving a value the player set back to an old default on every boot.
+- **The DevBridge cannot take the mod down**: it starts after the patches and a port that cannot be opened just drops
+  the service (the mod loads without it).
+- **F8 stopped allocating per frame** (`NoUnitySelection` only when the controls change; the gamepad legend only when
+  the state changes) and the shared `TextureLoader` texture is no longer destroyed with a panel.
+- **`tools/release-check.ps1`**: one gate for the release - build, version, the three translations, the locale rules,
+  the generated config doc, the MCP test (41) and the word-net harness (224), PASS/FAIL per item and exit 1.
+  `locale-fallback-check.ps1` now asserts the `auto` rules instead of printing them.
+- Same `.cfg` (one key added), same saves, same models.
+
 ## 1.9.4 - 31/10/2026
 
 **The beard, three high-severity fixes, the UI batch, combat back to 1.9.1 and the release pipeline.** The beard fix is

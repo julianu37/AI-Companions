@@ -1036,9 +1036,10 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 	/// Multilanguage M2 fix: drops everything <see cref="Build"/> created, so the panel can be built again in another
 	/// language. Every reference that points inside the old <c>_root</c> is cleared (the new Build reassigns them; a
 	/// stale Unity reference would compare <c>== null</c> anyway, but clearing keeps the next build honest), and so are
-	/// the lists that would otherwise grow on every rebuild. The font and the panel sprite are <b>not</b> touched: they
-	/// carry no text, the sprite is owned by this panel and freed in <see cref="OnDestroy"/>, and the Canvas components
-	/// of the GameObject are reused by <see cref="Build"/>.
+	/// the lists that would otherwise grow on every rebuild. The font is <b>not</b> touched (it carries no text and it
+	/// belongs to the game), the panel sprite <b>is</b> freed here (1.9.5, audit C7: it is created by this panel in
+	/// <see cref="Build"/> and the language rebuild would leak one per rebuild if it were only freed in
+	/// <see cref="OnDestroy"/>), and the Canvas components of the GameObject are reused by <see cref="Build"/>.
 	/// </summary>
 	private void DestroyBuiltControls()
 	{
@@ -1053,6 +1054,14 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 			_backdrop.SetActive(false);
 			UnityEngine.Object.Destroy(_backdrop);
 			_backdrop = null;
+		}
+		// 1.9.5 (audit C7): the wooden background belongs to this build - a rebuild (see Show) would create another
+		// Sprite and the old one would live until the panel GameObject died. Only the Sprite: the Texture2D is
+		// TextureLoader's cache, shared with the other panels (see LoadPanelSprite).
+		if (_panelSprite != null)
+		{
+			UnityEngine.Object.Destroy(_panelSprite);
+			_panelSprite = null;
 		}
 		_tabs.Clear();
 		_tabObjects.Clear();

@@ -169,7 +169,10 @@ internal static class ModUiAudit
 				|| walk.GetComponent<HomeZonePanel>() != null
 				|| walk.GetComponent<StarterCompanionPanel>() != null
 				|| walk.GetComponent<FarmZonePlacer>() != null
-				|| walk.GetComponent<FarmZoneCropPicker>() != null)
+				|| walk.GetComponent<FarmZoneCropPicker>() != null
+				// A12 (audit 1.9.4): the appearance editor (ModUiLayers.AppearancePanel, 1709) was missing from the
+				// list, so its canvas was probed as if it were a foreign window and reported over the panel.
+				|| walk.GetComponent<CompanionAppearancePanel>() != null)
 			{
 				return true;
 			}

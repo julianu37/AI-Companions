@@ -202,7 +202,7 @@ vale.
 **Cinque lingue: portoghese del Brasile, inglese, spagnolo, francese e italiano** — e l'**inglese è la lingua nativa**
 della mod:
 
-- **La lingua del gioco decide tutto**: l'interfaccia (914 chiavi), le frasi del compagno (221 righe), i preset di
+- **La lingua del gioco decide tutto**: l'interfaccia (1001 chiavi), le frasi del compagno (221 righe), i preset di
   personalità, il contratto del LLM e la **voce e il riconoscimento vocale**. Con il gioco in **portoghese**, i nomi
   delle opzioni del **`F8`** e le schede appaiono in **PT** (`Ligado`, `Modelo`, `VozTecla`…); con il gioco in
   **inglese**, appaiono i nomi nativi (`Enabled`, `Model`, `VoiceKey`…); spagnolo, francese e italiano hanno un file
@@ -217,7 +217,7 @@ della mod:
 - **Nel `.cfg`**, le **chiavi e le descrizioni sono in inglese, sempre** — **non** cambia con la lingua del gioco
   (vale lo stesso per `package/CONFIGURATION.md`). È per questo che il **nome della chiave è l'inglese**, anche con il
   gioco in italiano: la chiave è l'identificatore dell'opzione, non l'etichetta che leggi sullo schermo.
-- **Le lingue nuove entrano con un file**, senza toccare il codice: `Translations/<Lingua>.json` (914 chiavi) porta i
+- **Le lingue nuove entrano con un file**, senza toccare il codice: `Translations/<Lingua>.json` (1001 chiavi) porta i
   testi dell'interfaccia (compresi i nomi delle opzioni e delle schede dell'`F8`) e `Speech/<Lingua>.json` (221 righe)
   porta le **frasi del compagno** — lo stesso schema. **L'inglese non ha bisogno di un file**, perché le chiavi
   **sono** il testo.

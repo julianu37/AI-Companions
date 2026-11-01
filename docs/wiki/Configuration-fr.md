@@ -204,7 +204,7 @@ vigueur.
 **Cinq langues : portugais du Brésil, anglais, espagnol, français et italien** — et l'**anglais est la langue native**
 du mod :
 
-- **La langue du jeu décide de tout** : l'interface (914 clés), les phrases du compagnon (221 lignes), les presets de
+- **La langue du jeu décide de tout** : l'interface (1001 clés), les phrases du compagnon (221 lignes), les presets de
   personnalité, le contrat du LLM et la **voix et la reconnaissance vocale**. Avec le jeu en **portugais**, les noms
   des options du **`F8`** et les onglets apparaissent en **PT** (`Ligado`, `Modelo`, `VozTecla`…) ; avec le jeu en
   **anglais**, les noms natifs apparaissent (`Enabled`, `Model`, `VoiceKey`…) ; l'espagnol, le français et l'italien
@@ -219,7 +219,7 @@ du mod :
 - **Dans le `.cfg`**, les **clés et les descriptions sont en anglais, toujours** — ça **ne** change pas avec la langue
   du jeu (pareil pour `package/CONFIGURATION.md`). C'est pour ça que le **nom de la clé est l'anglais**, même avec le
   jeu en français : la clé est l'identifiant de l'option, pas le libellé que tu lis à l'écran.
-- **Les nouvelles langues entrent par un fichier**, sans toucher au code : `Translations/<Langue>.json` (914 clés)
+- **Les nouvelles langues entrent par un fichier**, sans toucher au code : `Translations/<Langue>.json` (1001 clés)
   apporte les textes de l'interface (y compris les noms des options et des onglets du `F8`) et
   `Speech/<Langue>.json` (221 lignes) apporte les **phrases du compagnon** — le même schéma. **L'anglais n'a pas
   besoin de fichier**, parce que les clés **sont** le texte.

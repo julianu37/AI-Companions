@@ -79,6 +79,12 @@ internal static class MHR_Roster
 		public bool AiPersonaSet;
 		public string AiPreset = "";
 		public string AiPersona = "";
+
+		// 1.9.5 (auditoria B2): the size of its home area, when the player changed it in the home panel - it is a player
+		// choice, so a companion recovered from the roster comes back with the same area (the same value ChangeTier
+		// already carries through CarriedFloatKeys). 0 = never changed = the [General] HomeRadius default, which is
+		// also what an entry saved before this change reads (written at the end, like the other later keys).
+		public float HomeRadius;
 	}
 
 	// 1.5.80: companions unsummoned in this game session (user: "the unsummoned recovery should only be until the player
@@ -237,6 +243,8 @@ internal static class MHR_Roster
 		zPackage.Write(e.AiPersonaSet);
 		zPackage.Write(e.AiPreset ?? "");
 		zPackage.Write(e.AiPersona ?? "");
+		// 1.9.5 (auditoria B2): the home area size, after everything else - see the note on Entry
+		zPackage.Write(e.HomeRadius);
 		return zPackage.GetBase64();
 	}
 
@@ -283,7 +291,9 @@ internal static class MHR_Roster
 				AiVoice = ReadOptionalInt(zPackage),
 				AiPersonaSet = ReadOptionalBool(zPackage),
 				AiPreset = ReadOptionalString(zPackage),
-				AiPersona = ReadOptionalString(zPackage)
+				AiPersona = ReadOptionalString(zPackage),
+				// 1.9.5 (auditoria B2): 0 for an entry saved before the home area size was kept
+				HomeRadius = ReadOptionalFloat(zPackage)
 			};
 		}
 		catch (Exception ex)
@@ -328,6 +338,21 @@ internal static class MHR_Roster
 		catch
 		{
 			return 0;
+		}
+	}
+
+	/// <summary>1.9.5 (auditoria B2): the float half of <see cref="ReadOptionalString"/> - 0 ("nothing written") for a
+	/// roster entry that predates the home area size. (ZPackage writes a float with <c>Write(float)</c> and reads it
+	/// back with <c>ReadSingle()</c> - there is no ReadFloat in the Valheim 1.0 API.)</summary>
+	private static float ReadOptionalFloat(ZPackage p)
+	{
+		try
+		{
+			return (p.GetPos() < p.Size()) ? p.ReadSingle() : 0f;
+		}
+		catch
+		{
+			return 0f;
 		}
 	}
 
@@ -643,6 +668,9 @@ internal static class MHR_Roster
 		entry.Skills = ((component != null) ? component.SerializeSkills() : zdo.GetString(CompanionSkills.SkillsHash));
 		entry.HasHome = c.HasHomePosition();
 		entry.HomePos = (entry.HasHome ? c.GetHomePosition() : Vector3.zero);
+		// 1.9.5 (auditoria B2): the size of the home area is a player choice - kept with the rest so the Shrine
+		// recovery gives it back (raw ZDO value: 0 = never changed, the [General] HomeRadius default decides)
+		entry.HomeRadius = zdo.GetFloat(CompanionSetup.HomeRadiusHash, 0f);
 		entry.CombatStance = zdo.GetInt(CompanionSetup.CombatStanceHash);
 		entry.HasBed = zdo.GetBool(CompanionSetup.HasHomeBedHash);
 		entry.BedPos = zdo.GetVec3(CompanionSetup.HomeBedPosHash, Vector3.zero);
@@ -848,6 +876,13 @@ internal static class MHR_Roster
 	// the status name and the notes are localized; a status with no key falls back to its own name
 	private static string StatusName(Status s)
 	{
+		// 1.9.5 (auditoria A4): the unsummoned status names its key explicitly (it is the one with a note of its own
+		// below); the others keep the name→key mapping. LocOr is what keeps the fallback the comment promises when a
+		// translation is missing.
+		if (s == Status.Unsummoned)
+		{
+			return ModLocalization.LocOr("hc_roster_unsummoned", s.ToString());
+		}
 		return ModLocalization.LocOr("hc_roster_" + s.ToString().ToLowerInvariant(), s.ToString());
 	}
 
@@ -872,7 +907,9 @@ internal static class MHR_Roster
 			text += ModLocalization.LocFmt(e.Dead ? "hc_roster_unknown_died" : "hc_roster_unknown_seen", e.LastPos.x.ToString("F0"), e.LastPos.z.ToString("F0"));
 			break;
 		case Status.Unsummoned:
-			text += " (unsummoned - Odin's Shrine can bring it back without its gear until you next load this world)";
+			// 1.9.5 (auditoria A4): was a hard-coded English sentence - now a key (it carries its own leading space,
+			// like hc_roster_dead_note/hc_roster_lost_note)
+			text += ModLocalization.Loc("hc_roster_unsummoned_note");
 			break;
 		}
 		return text;
@@ -1053,6 +1090,12 @@ internal static class MHR_Roster
 		{
 			zDO.Set(CompanionSetup.HomePosHash, e.HomePos);
 			zDO.Set(CompanionSetup.HomePosSetHash, value: true);
+		}
+		// 1.9.5 (auditoria B2): the home area the player had set for it (nothing for a companion that never had one
+		// changed, which keeps following [General] HomeRadius exactly as before)
+		if (e.HomeRadius > 0f)
+		{
+			zDO.Set(CompanionSetup.HomeRadiusHash, e.HomeRadius);
 		}
 		if (!string.IsNullOrEmpty(e.Skills))
 		{

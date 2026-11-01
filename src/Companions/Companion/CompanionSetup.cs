@@ -2372,7 +2372,7 @@ public class CompanionSetup : MonoBehaviour
 					zDO.Set(TombInvHeightHash, inventory4.GetHeight());
 					zDO.Set(MHR_TombItemsHash, inventory4.NrOfItems());
 				}
-				CompanionTombstoneResurrect.WriteRespawnData(zDO, prefabName, companionName, appearance, ownerId, actionMode, actionModeSchema, follow, stayHome, autoPickup, wander, commandable, formationSlot, skillsSerialized, hasHome, homePos, combatStance, hasHomeBed, homeBedPos, inventorySerialized);
+				CompanionTombstoneResurrect.WriteRespawnData(zDO, prefabName, companionName, appearance, ownerId, actionMode, actionModeSchema, follow, stayHome, autoPickup, wander, commandable, formationSlot, skillsSerialized, hasHome, homePos, combatStance, hasHomeBed, homeBedPos, inventorySerialized, _nview?.GetZDO()?.GetFloat(HomeRadiusHash, 0f) ?? 0f);
 				// Fase 3.10: the AI profile (voice and personality) of this companion goes with the respawn data, so the
 				// companion that comes back is the same one in the way it talks - see CompanionTombstoneResurrect.
 				CompanionTombstoneResurrect.WriteAiProfile(zDO, _nview?.GetZDO());
@@ -2475,6 +2475,16 @@ public class CompanionSetup : MonoBehaviour
 		_allCompanions.Remove(this);
 		// Fase 3.19: nothing may run on a companion that is going away
 		_mhrPendingWrites.Clear();
+		// 1.9.5 (auditoria B8): every static cache keyed by this GameObject's instance id is dropped with it. Without
+		// this, a companion that died, was dismissed or left the world kept its entries (movement state, recovery state,
+		// status text, rise samples, the container guard's tables) for the rest of the session - and Unity reuses
+		// instance ids, so the next object could inherit them.
+		int id = gameObject.GetInstanceID();
+		MHR_Mover.Forget(id);
+		MHR_Recover.Forget(id);
+		CompanionStatus.Forget(id);
+		MHR_RiseWatch.Forget(id);
+		ContainerFix.Forget(id);
 		// Fase 3.5: dismissal/despawn (and leaving the world) forgets this companion's conversation
 		CompanionMemory.Clear(MHR_CachedCompanionId);
 		if (_dead || _removePinOnDestroy)
@@ -2668,9 +2678,15 @@ public class CompanionSetup : MonoBehaviour
 		});
 	}
 
+	/// <summary>1.9.5 (auditoria B2): written through the ownership queue like every other key of this class - a write
+	/// without ownership is reverted by the game, so the home area size the player picked in the panel could be lost
+	/// on the next save (and it is the value the tombstone/roster copy carries now).</summary>
 	internal void SetHomeRadius(float r)
 	{
-		_nview?.GetZDO()?.Set(HomeRadiusHash, Mathf.Clamp(r, 5f, 200f));
+		MHR_WriteOrQueue(delegate
+		{
+			_nview?.GetZDO()?.Set(HomeRadiusHash, Mathf.Clamp(r, 5f, 200f));
+		});
 	}
 
 	private void UnequipIfMissing(List<ItemDrop.ItemData> items, ItemDrop.ItemData equipped)

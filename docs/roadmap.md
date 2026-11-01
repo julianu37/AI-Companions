@@ -2268,6 +2268,42 @@ no doc: o `ZInput` do Valheim 1.0 lê o **Input System novo** (o `SendInput` soz
 `KeyboardState`/`MouseState`), o `god` do 1.0 **trava o HP em 1** (não cancela o dano) e as teclas seguradas precisam
 ser enviadas juntas. Detalhes e receitas: `docs/mcp-devbridge.md`. **Não empacotar o servidor Python no zip.**
 
+#### 1.9.5 — o lote da revisão de 10 especialistas (31/10/2026) — ✅ publicada, tag `v1.9.5` (GitHub + Nexus)
+
+Branch `feat/1.9.5`. O que entrou (20 itens; a lista completa e o que ficou de fora estão em
+`docs/backlog-1.9.5.md`):
+
+- **Localização (A3/A4):** confirmação do Santuário e as linhas "last known/died" estavam em inglês fixo — **duas
+  chaves nem existiam**; o texto "unsummoned" do roster idem. 5 chaves novas em EN/PT/ES/FR/IT.
+- **Patches (A7/A8/A12):** a lápide do companheiro voltou a **fail-open** (se a reflexão quebrar, o jogo roda o
+  `UpdateDespawn`; antes a lápide nunca despawnava), `EnemyHud` sem NRE no `RectTransform` e o `ModUiAudit` conhece o
+  painel de aparência (1709).
+- **Companheiro (B2/B3/B8):** `HC_HomeRadius` sobrevive à morte/recuperação/roster (`HC_Respawn_HomeRadius`, 0 = nunca
+  mudou) e `SetHomeRadius` usa a fila de posse; o claim da cama relê o ZDO depois do claim e só loga "saved" quando
+  salvou; `Forget(id)` nos 5 caches por `GetInstanceID()`, chamado do `OnDestroy`.
+- **Fala (B13):** `[Speech] MinInterval`/`MaxInterval` passaram a valer (15–30 s); o código tinha 90–180 s fixos.
+- **Código morto (B18):** `QueueRespawn`/`ProcessRespawns`/`DoRespawn` removidos (−214 linhas; sem chamador e não
+  copiavam `HC_CompanionId`).
+- **LLM (B10/B11):** o aviso "não tenta mais nesta sessão" virou verdade (`_structuredRejected` por endpoint+modelo;
+  muda `BaseUrl`/`Model` ou religa `StructuredOutput` e tenta de novo) e só um 400 que **cita** o formato (ou vem sem
+  corpo) desce a cadeia — "model not found" falha uma vez com o detalhe.
+- **Config (C2):** `[Advanced] ConfigVersion` (195) faz as 3 migrações rodarem **uma vez**; valor do jogador não é mais
+  revertido a cada boot.
+- **DevBridge (C3):** sobe **depois** do Harmony e `Start()` devolve `bool` (porta ocupada = serviço descartado, o mod
+  carrega sem ele).
+- **Menu (C4):** a navegação do controle é fiada no **`Show`** (`WireNavigation`), então o "Mod Options" é alcançável na
+  1ª abertura; o cache do #14 fica.
+- **UI (C5/C7):** o F8 não aloca mais por frame (`NoUnitySelection` só quando os controles mudam; legenda do gamepad só
+  na transição) e a textura compartilhada do `TextureLoader` não é mais destruída com o painel.
+- **Release (C6):** `tools/release-check.ps1` (9 itens: build, versão, 3 traduções, locale, config-doc `--check`, MCP
+  41, ai-intents 224; PASS/FAIL e exit 1) e o `locale-fallback-check.ps1` agora **assevera** as regras do `auto`.
+- **A6 (decisão do jogador):** `CompanionHitLog` sem `try/catch` ficou **documentado para verificar futuramente**.
+- **Fora por decisão:** A1/A2/A5, B1/B4/B5/B6/B7/B9/B12/B16/B17, todo o bloco de MP (C1) e a wiki (C8, só quando o
+  jogador pedir).
+- **Nota de combate:** o `ShieldLogic` passou a ver o escudo na mão esquerda (o `GetLeftItem` refletido **não existia**),
+  então o "já estou com escudo" finalmente funciona — **muda o ritmo do combate, precisa de teste em jogo com escudo**.
+
+
 
 
 

@@ -47,8 +47,27 @@ internal sealed class BridgeServer
 	public void Start()
 	{
 		// loopback only on purpose: this can run console commands, it must never be reachable from the network
-		_listener = new TcpListener(IPAddress.Loopback, _port);
-		_listener.Start();
+		TcpListener listener = new TcpListener(IPAddress.Loopback, _port);
+		try
+		{
+			listener.Start();
+		}
+		catch
+		{
+			// 1.9.5 (C3): the port is taken (another game/bridge) or the socket failed. Release it and rethrow so the
+			// caller can report it - the half-started server stays inert (no listener, _running false), which keeps
+			// Pump/Stop as no-ops instead of throwing on a listener that never started.
+			try
+			{
+				listener.Stop();
+			}
+			catch
+			{
+				// nothing left to free
+			}
+			throw;
+		}
+		_listener = listener;
 		_running = true;
 		_thread = new Thread(AcceptLoop)
 		{

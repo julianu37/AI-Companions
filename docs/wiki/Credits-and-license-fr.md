@@ -29,7 +29,7 @@ entrée** pour ces mêmes actions.
 
 Ce que le projet **AI Companions** ajoute :
 
-1. **La traduction en cinq langues** — portugais du Brésil, anglais, espagnol, français et italien : 914 clés
+1. **La traduction en cinq langues** — portugais du Brésil, anglais, espagnol, français et italien : 1001 clés
    d'interface et 221 phrases du compagnon par langue, auditées (aucun texte en anglais visible pour un joueur de ces
    langues), avec l'**anglais comme langue native**.
 2. **La couche d'IA :**

@@ -8,7 +8,7 @@
 This project is an **independent project** based on [Offline Companions Reborn](https://github.com/MaddhattrRocks/Offline-Companions-Reborn)
 (**MIT**) with two things of ours on top:
 
-1. **Five languages** — **Portuguese (Brazil), English, Spanish, French and Italian**: the interface (996 keys),
+1. **Five languages** — **Portuguese (Brazil), English, Spanish, French and Italian**: the interface (1001 keys),
    the companion's speech (221 lines), the personality presets and the LLM contract follow the **game's language**,
    with **English as the native language**, and a new language is **one file**.
 2. **An AI layer**: orders in **natural language** (text in the chat or **voice** through push-to-talk), with

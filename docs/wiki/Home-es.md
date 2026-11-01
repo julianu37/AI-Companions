@@ -36,7 +36,7 @@ de la pantalla.
 Este proyecto es un **proyecto independiente** basado en [Offline Companions Reborn](https://github.com/MaddhattrRocks/Offline-Companions-Reborn)
 (**MIT**) — que a su vez es un fork de *Offline Companions*, de **ProfMags** — con dos cosas nuestras encima:
 
-1. **Cinco idiomas** — **portugués de Brasil, inglés, español, francés e italiano**: la interfaz (914 claves), las
+1. **Cinco idiomas** — **portugués de Brasil, inglés, español, francés e italiano**: la interfaz (1001 claves), las
    frases del compañero (221 líneas), los presets de personalidad y el contrato del LLM siguen el **idioma del
    juego**, con el **inglés como idioma nativo**, y un idioma nuevo es **un archivo**.
 2. **Una capa de IA**: órdenes en **lenguaje natural** (texto en el chat o **voz** por push-to-talk), con
@@ -96,7 +96,7 @@ upstream y sigue funcionando igual — la IA es solo una **nueva entrada** para 
 | **[Configuración](Configuration-es)** | El `.cfg`, la sección `[AI]` y los paneles `F8` e `I` |
 | **[Problemas comunes](Troubleshooting-es)** | Síntoma → causa → solución |
 | **[Cómo funciona](How-it-works-es)** | Arquitectura y el camino de una orden |
-| **[Historial de versiones](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)** | El changelog completo, de la 1.6.0 a la 1.9.1 |
+| **[Historial de versiones](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)** | El changelog completo, de la 1.6.0 a la 1.9.5 |
 | **[Créditos y licencia](Credits-and-license-es)** | Upstream, terceros y licencias |
 
 ## Enlaces rápidos
@@ -108,15 +108,30 @@ upstream y sigue funcionando igual — la IA es solo una **nueva entrada** para 
 | **Changelog** | https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md |
 | **Upstream (MIT)** | https://github.com/MaddhattrRocks/Offline-Companions-Reborn |
 
-La release publicada más reciente es la **1.9.1** (26/10/2026), con **dos** archivos para elegir:
+La release publicada más reciente es la **1.9.5** (31/10/2026), con **un** paquete:
 
 | Archivo | Tamaño | Qué viene |
 |---|---|---|
-| `AI_Companions-1.9.1.zip` | ~314 MB | El mod **y** los modelos de voz (STT + TTS) ya listos |
-| `AI_Companions-1.9.1-sem-modelos.zip` | ~28,5 MB | Solo el mod y las traducciones — tú descargas los modelos aparte |
+| `AI_Companions-1.9.5.zip` | ~314 MB | El mod, las traducciones **y** los modelos de voz (STT + TTS) ya listos |
 
-> **¿Cuál elegir?** Si solo quieres instalar y jugar, toma el **completo**. Si tu internet es lenta (o ya tienes los
-> modelos), toma el **sin modelos** y sigue la sección de modelos en **[Instalación](Installation-es)**.
+> **Un solo paquete.** Desde la **1.9.4** la release viene **con** los modelos de voz, ya **dentro** de
+> `BepInEx\plugins\AI-Companions\` (`whisper\` y `tts\`) — no hay nada que descargar aparte. El paquete
+> **sin modelos** quedó **descontinuado** (el último fue el de la 1.9.1).
+
+> **La 1.9.5 en resumen — el lote de la revisión de 10 especialistas.** Veinte correcciones, ninguna función nueva:
+>
+> - **El Santuario y la lista de compañeros hablan los cinco idiomas** — la confirmación de "traer de vuelta"
+>   y las líneas de "visto por última vez/murió" estaban fijas en inglés.
+> - **Lápida más segura:** si la llamada interna del juego que usa el parche se rompe, ahora avisa una vez en
+>   el log y deja que el juego retire la lápida como siempre, en vez de retenerla para siempre; y la cama
+>   solo se registra como guardada cuando se guardó de verdad.
+> - **El radio de la casa sobrevive** a la muerte, al renacer y a la lista de compañeros
+>   (`HC_Respawn_HomeRadius`), y la comprobación de "ya lleva escudo" funciona — la búsqueda antigua no existía.
+> - **`[Speech] MinInterval`/`MaxInterval` valen de verdad:** la frase ociosa usa los dos (15–30 s por defecto;
+>   el código tenía 90–180 s fijos).
+> - **El LLM dejó de pagar tres peticiones por orden** (cuando el servidor rechaza las dos formas estructuradas,
+>   los siguientes mensajes van directo en el formato antiguo), el **`[Advanced] ConfigVersion`** hace que las
+>   migraciones de config corran **una vez** y el **`F8` dejó de asignar memoria por frame**.
 
 > **1.9.1:** el paquete es ~54 MB más ligero — el modelo `ggml-base-q5_1.bin`, que no se usaba, ya no viene (sigue
 > siendo una descarga opcional).

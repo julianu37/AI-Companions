@@ -24,7 +24,7 @@ public class CompanionsPlugin : BaseUnityPlugin
 
 	public const string PluginName = "AI Companions";
 
-	public const string PluginVersion = "1.9.4";
+	public const string PluginVersion = "1.9.5";
 
 	// 1.5.76/1.5.77 (upstream): [Advanced] LogLevel - every mod log line checks one of these first, so a level that's
 	// off costs nothing (the text isn't even built). Normal until the config is read.
@@ -153,9 +153,11 @@ public class CompanionsPlugin : BaseUnityPlugin
 		ModConfig.Init(MHR_GetConfigFile());
 		ApplyLogLevel();
 		ModConfig.LogLevel.SettingChanged += delegate { ApplyLogLevel(); };
-		StartDevBridge();
 		_harmony = new Harmony(PluginGUID);
 		MHR_ApplyPatches();
+		// 1.9.5 (C3): the DevBridge comes up only after the mod is patched. A development tool that cannot bind its
+		// port must never be able to take the patches, the panels and the companion down with it - see StartDevBridge.
+		StartDevBridge();
 		EquipDiag.Install(_harmony);
 		ModLocalization.Init();
 		ModLocalization.EnsureDefaultFile();
@@ -175,6 +177,11 @@ public class CompanionsPlugin : BaseUnityPlugin
 	/// <summary>
 	/// Development tool (<c>[Advanced] DevBridge</c>, off by default): starts the loopback TCP server the MCP server
 	/// talks to. It can run console commands, so it only starts when the player asked for it. See docs/mcp-devbridge.md.
+	///
+	/// <para>1.9.5 (C3): called <b>after</b> <see cref="MHR_ApplyPatches"/> and guarded. The bridge is a development
+	/// tool: a taken port (another game or bridge on 47110) or a socket failure has to cost the bridge and nothing
+	/// else - anything thrown out of here would abort <c>Awake</c> and leave the plugin without patches and without
+	/// panels. On failure the field goes back to null, so <see cref="Update"/> and <c>Shutdown</c> skip it.</para>
 	/// </summary>
 	private void StartDevBridge()
 	{
@@ -182,8 +189,22 @@ public class CompanionsPlugin : BaseUnityPlugin
 		{
 			return;
 		}
-		_devBridge = new DevBridge.DevBridgeService(ModConfig.DevBridgePort.Value, ModConfig.DevBridgeToken.Value);
-		_devBridge.Start();
+		try
+		{
+			_devBridge = new DevBridge.DevBridgeService(ModConfig.DevBridgePort.Value, ModConfig.DevBridgeToken.Value);
+			// 1.9.5 (auditoria C3): Start() answers false when the socket could not be opened (port taken by another
+			// instance, for example). Dropping the field here keeps Update/Shutdown from pumping a dead server.
+			if (!_devBridge.Start())
+			{
+				_devBridge = null;
+			}
+		}
+		catch (Exception ex)
+		{
+			// the mod keeps loading without the development tool: this is never a reason to lose the patches
+			Log.LogWarning("[DevBridge] falha ao iniciar o bridge de desenvolvimento na porta " + ModConfig.DevBridgePort.Value + " (" + ex.Message + ") - o mod continua carregando sem ele. [Advanced] DevBridge");
+			_devBridge = null;
+		}
 	}
 
 	// 1.8.3 (patch audit): one try/catch PER PATCH CLASS. A single broken target (a soft dependency that renamed a

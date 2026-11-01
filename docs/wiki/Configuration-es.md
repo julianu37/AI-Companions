@@ -201,7 +201,7 @@ incluidos). Los valores por defecto son los del código fuente: si nunca tocaste
 **Cinco idiomas: portugués de Brasil, inglés, español, francés e italiano** — y el **inglés es el idioma nativo** del
 mod:
 
-- **El idioma del juego lo decide todo**: la interfaz (914 claves), las frases del compañero (221 líneas), los presets
+- **El idioma del juego lo decide todo**: la interfaz (1001 claves), las frases del compañero (221 líneas), los presets
   de personalidad, el contrato del LLM y la **voz y el reconocimiento del habla**. Con el juego en **portugués**, los
   nombres de las opciones del **`F8`** y las pestañas aparecen en **PT** (`Ligado`, `Modelo`, `VozTecla`…); con el
   juego en **inglés**, aparecen los nombres nativos (`Enabled`, `Model`, `VoiceKey`…); español, francés e italiano
@@ -216,7 +216,7 @@ mod:
 - **En el `.cfg`**, las **claves y las descripciones están en inglés, siempre** — **no** cambia con el idioma del
   juego (lo mismo vale para el `package/CONFIGURATION.md`). Por eso el **nombre de la clave es el inglés**, incluso
   con el juego en español: la clave es el identificador de la opción, no la etiqueta que lees en la pantalla.
-- **Los idiomas nuevos entran por un archivo**, sin tocar el código: `Translations/<Idioma>.json` (914 claves) trae
+- **Los idiomas nuevos entran por un archivo**, sin tocar el código: `Translations/<Idioma>.json` (1001 claves) trae
   los textos de la interfaz (incluidos los nombres de las opciones y de las pestañas del `F8`) y
   `Speech/<Idioma>.json` (221 líneas) trae las **frases del compañero** — el mismo esquema. **El inglés no necesita
   archivo**, porque las claves **son** el texto.

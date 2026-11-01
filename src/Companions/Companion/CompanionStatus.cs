@@ -146,6 +146,17 @@ internal static class CompanionStatus
 		}
 	}
 
+	/// <summary>1.9.5 (auditoria B8): forgets everything this companion left in the three dictionaries keyed by its
+	/// GameObject's instance id (the reason, what it is doing and the rotation counter). Called from
+	/// <see cref="CompanionSetup.OnDestroy"/> - a dead, dismissed or unloaded companion used to keep its entries for the
+	/// rest of the session, and Unity reuses instance ids. Behaviour is unchanged for a companion still around.</summary>
+	internal static void Forget(int id)
+	{
+		s_why.Remove(id);
+		s_doing.Remove(id);
+		s_turn.Remove(id);
+	}
+
 	// the current reason it isn't working, or null
 	internal static string Reason(Component c, float within = Fresh)
 	{

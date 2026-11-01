@@ -55,7 +55,10 @@ public static class EnemyHudPatches
 			{
 				return;
 			}
-			float num = transform.GetComponent<RectTransform>().rect.height;
+			// A8 (audit 1.9.4): the "Health" node of another mod's/another game version's HUD may not be a
+			// RectTransform - the null dereference used to throw out of the game's ShowHud.
+			RectTransform rectTransform = transform.GetComponent<RectTransform>();
+			float num = rectTransform != null ? rectTransform.rect.height : 8f;
 			if (num <= 0f)
 			{
 				num = 8f;

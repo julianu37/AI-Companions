@@ -188,7 +188,7 @@ inclusive). Os valores padrão são os do código-fonte: se você nunca mexeu, �
 **Cinco idiomas: português do Brasil, inglês, espanhol, francês e italiano** — e o **inglês é o idioma nativo** do
 mod:
 
-- **O idioma do jogo decide tudo**: a interface (914 chaves), as falas do companheiro (221 linhas), os presets de
+- **O idioma do jogo decide tudo**: a interface (1001 chaves), as falas do companheiro (221 linhas), os presets de
   personalidade, o contrato do LLM e a **voz e o reconhecimento da fala**. Com o jogo em **português**, os nomes das
   opções do **`F8`** e as abas aparecem em **PT** (`Ligado`, `Modelo`, `VozTecla`…); com o jogo em **inglês**,
   aparecem os nomes nativos (`Enabled`, `Model`, `VoiceKey`…); espanhol, francês e italiano têm arquivo próprio. O
@@ -203,7 +203,7 @@ mod:
 - **No `.cfg`**, as **chaves e as descrições são em inglês, sempre** — ele **não** muda com o idioma do jogo (o
   mesmo vale para o `package/CONFIGURATION.md`). É por isso que o **nome da chave é o inglês**, mesmo com o jogo
   em português: a chave é o identificador da opção, não o rótulo que você lê na tela.
-- **Novos idiomas entram por um arquivo**, sem tocar no código: `Translations/<Idioma>.json` (914 chaves) traz os
+- **Novos idiomas entram por um arquivo**, sem tocar no código: `Translations/<Idioma>.json` (1001 chaves) traz os
   textos da interface (inclusive os nomes das opções e das abas do `F8`) e `Speech/<Idioma>.json` (221 linhas) traz
   as **falas do companheiro** — o mesmo esquema. O **inglês não precisa de arquivo**, porque as chaves **são** o
   texto.

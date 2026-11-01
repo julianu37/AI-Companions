@@ -274,7 +274,7 @@ sitio y pesaba.
 
 | Dónde mirar | Qué buscar |
 |---|---|
-| `LogOutput.log` | `AI Companions v1.9.1 loading...` y `AI Companions loaded successfully! (N methods patched)` — el `v1.9.1` es la versión que instalaste |
+| `LogOutput.log` | `AI Companions v1.9.5 loading...` y `AI Companions loaded successfully! (N methods patched)` — el `v1.9.5` es la versión que instalaste |
 
 **Causas probables:**
 

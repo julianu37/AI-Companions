@@ -41,6 +41,13 @@ internal sealed class LlmResult
 	/// <summary>HTTP status of the attempt that failed, or 0 when there was no HTTP answer at all (timeout, dead
 	/// socket). Used to tell a server refusing response_format (400) from a real failure.</summary>
 	internal int StatusCode;
+
+	/// <summary>
+	/// Fase 1.9.5 (B11): the server answered with a status but with no body at all (or the body could not be read).
+	/// A 400 like that is the only failure with no clue in it, so it is still taken as a format refusal; a 400 that
+	/// DOES have a body is read first and only descends the chain when the body names the format.
+	/// </summary>
+	internal bool EmptyErrorBody;
 }
 
 /// <summary>
@@ -75,6 +82,25 @@ internal static class LlmClient
 
 	/// <summary>Fase 3.1 (saída estruturada): said once, when the server made the mod give up on it.</summary>
 	private static bool _warnedNoStructured;
+
+	/// <summary>
+	/// Fase 1.9.5 (B10): the server refused both structured forms, so the chain is not built again in this session
+	/// (see <see cref="SkipStructuredChain"/>). Without this the warning below only silenced the message while every
+	/// new message still cost three requests - a server that refuses response_format answered three times per order,
+	/// forever. Written on the background thread (release), read on the main thread (acquire).
+	/// </summary>
+	private static volatile bool _structuredRejected;
+
+	/// <summary>Fase 1.9.5 (B10): the endpoint+model the refusal belongs to (see <see cref="ServerKey"/>). A different
+	/// server or model makes the old refusal meaningless, so the chain is tried once more. Never logged.</summary>
+	private static string _structuredRejectedKey;
+
+	/// <summary>Fase 1.9.5 (B10): [AI] StructuredOutput was turned off after the refusal. Turning it back on is the
+	/// player asking for a new try, so the refusal is forgotten instead of surviving the toggle.</summary>
+	private static bool _structuredOffSinceRefusal;
+
+	/// <summary>Fase 1.9.5 (B10): the "going straight to the old format" line is said once per skip, not per message.</summary>
+	private static bool _loggedStructuredSkip;
 
 	/// <summary>True while a request is in flight (one at a time, so a chat burst can't flood the model).</summary>
 	internal static bool Busy => Volatile.Read(ref _busy) != 0;
@@ -154,18 +180,24 @@ internal static class LlmClient
 		int timeoutSeconds = ModConfig.AiTimeoutSeconds != null ? ModConfig.AiTimeoutSeconds.Value : 30;
 		int timeoutMs = Mathf.Max(1000, timeoutSeconds * 1000);
 		bool structured = ModConfig.AiStructuredOutput != null && ModConfig.AiStructuredOutput.Value;
+		// Fase 1.9.5 (B10): the refusal of the structured output is a property of the server, so it is remembered per
+		// endpoint+model pair (see SkipStructuredChain).
+		string serverKey = ServerKey(url, model);
+
+		// Fase 3.1 (saída estruturada): the tries are built here, on the main thread, together with every other
+		// config value - the background task only sends them. The first one is the request that normally goes out.
+		LlmAttempt[] attempts = BuildAttempts(model, systemPrompt, userText, temperature, structured, serverKey);
 		// Fase 3.1 (saída estruturada): one message may cost up to three tries (json_schema -> json_object -> plain),
 		// each with its own timeout, so the watchdog has to cover all of them. Fase 3.23 (auditoria): the deadline is
 		// fixed HERE, with the values this request froze - it used to be recomputed from the config on every frame, so
 		// editing the timeout in the F8 panel mid-request could free the slot in the middle of the fallback chain.
-		_busyDeadline = _busySince + timeoutSeconds * (structured ? 3 : 1) + WatchdogMarginSeconds;
+		// Fase 1.9.5 (B10): the count is the number of tries REALLY built, so a message that skips the chain (the
+		// server already refused it) does not make the watchdog wait three times longer than its single POST.
+		_busyDeadline = _busySince + timeoutSeconds * attempts.Length + WatchdogMarginSeconds;
 
-		// Fase 3.1 (saída estruturada): the tries are built here, on the main thread, together with every other
-		// config value - the background task only sends them. The first one is the request that normally goes out.
-		LlmAttempt[] attempts = BuildAttempts(model, systemPrompt, userText, temperature, structured);
 		string body = attempts[0].Body;
 		CompanionsPlugin.Log?.LogInfo($"[IA] Request #{id} -> {DescribeEndpoint(url)} (model \"{model}\", timeout {timeoutSeconds}s) :: {userText}");
-		if (structured)
+		if (attempts[0].ResponseFormat != null)
 		{
 			LogStructuredOnce(body.Length);
 		}
@@ -179,7 +211,7 @@ internal static class LlmClient
 			LlmResult result;
 			try
 			{
-				result = Post(url, apiKey, attempts, timeoutMs, userText);
+				result = Post(url, apiKey, attempts, timeoutMs, userText, serverKey);
 			}
 			catch (Exception ex)
 			{
@@ -265,11 +297,13 @@ internal static class LlmClient
 
 	/// <summary>
 	/// Sends the tries in order and stops at the first one the server accepts. Fase 3.1 (saída estruturada): the only
-	/// reason to try again is the server REFUSING the requested response_format (HTTP 400, or an error naming
-	/// response_format/json_schema) - a timeout or a dead socket is a real failure and repeating it would only make
-	/// the player wait twice as long for the same error. The same body is never sent twice.
+	/// reason to try again is the server refusing the requested response_format - a body naming response_format or
+	/// json_schema, or a 400 that came with no body at all (see <see cref="RejectedFormat"/>). Fase 1.9.5 (B11): any
+	/// other 400 ("model not found", "invalid_request_error") is a real failure like a timeout or a dead socket and
+	/// stops the chain with its own detail, because repeating it would only cost two more requests and make the log
+	/// blame the format. The same body is never sent twice.
 	/// </summary>
-	private static LlmResult Post(string url, string apiKey, LlmAttempt[] attempts, int timeoutMs, string userText)
+	private static LlmResult Post(string url, string apiKey, LlmAttempt[] attempts, int timeoutMs, string userText, string serverKey)
 	{
 		long started = DateTime.UtcNow.Ticks;
 		LlmResult result = null;
@@ -281,7 +315,7 @@ internal static class LlmClient
 			{
 				if (i > 0)
 				{
-					CompanionsPlugin.Log?.LogWarning($"[IA] Saida estruturada: o servidor recusou o formato pedido e a resposta veio \"{attempt.Label}\". "
+					CompanionsPlugin.Log?.LogWarning($"[IA] Saida estruturada: o formato pedido nao passou e a resposta veio \"{attempt.Label}\". "
 						+ "Funciona igual, so sem a garantia de JSON valido - se isso se repetir em toda mensagem, desligue [AI] StructuredOutput.");
 				}
 				break;
@@ -290,10 +324,13 @@ internal static class LlmClient
 			{
 				break;
 			}
-			CompanionsPlugin.Log?.LogWarning($"[IA] Saida estruturada (\"{attempt.Label}\") recusada pelo servidor: {result.ErrorDetail ?? result.Error}");
+			CompanionsPlugin.Log?.LogWarning($"[IA] Saida estruturada (\"{attempt.Label}\"): {FormatFailureText(result)} - tentando \"{attempts[i + 1].Label}\".");
 			if (attempts[i + 1].ResponseFormat == null)
 			{
-				WarnNoStructuredOnce(result.ErrorDetail ?? result.Error);
+				// Fase 1.9.5 (B10): the chain fell all the way to the old format, so it is not built again in this
+				// session - which is exactly what the warning below says (it used to only silence the message while
+				// every order still cost three requests).
+				MarkStructuredRejected(serverKey, result.ErrorDetail ?? result.Error);
 			}
 		}
 		result.ElapsedMs = (int)((DateTime.UtcNow.Ticks - started) / TimeSpan.TicksPerMillisecond);
@@ -358,9 +395,11 @@ internal static class LlmClient
 		{
 			result.Ok = false;
 			// the full text is kept for the format check (RejectedFormat) and for the log; only a readable head of it
-			// reaches the chat/HUD (see MaxErrorChars)
-			string detail = ReadWebException(wex);
+			// reaches the chat/HUD (see MaxErrorChars). Fase 1.9.5 (B11): "the body came empty" is kept apart, because
+			// a 400 with no body is the only one where the format is still the likely culprit.
+			string detail = ReadWebException(wex, out bool emptyBody);
 			result.StatusCode = StatusCodeOf(wex);
+			result.EmptyErrorBody = emptyBody;
 			result.ErrorDetail = detail;
 			result.Error = ShortError(detail);
 			CompanionsPlugin.Log?.LogWarning("[IA] Request failed: " + detail);
@@ -402,19 +441,42 @@ internal static class LlmClient
 	}
 
 	/// <summary>
-	/// True when the failure looks like the server refusing the requested response_format. HTTP 400 is the usual
-	/// answer (LM Studio, llama.cpp); the message is also read because some servers say it in the body with another
-	/// status. Anything else - timeout, dead socket, 500 - is a real failure and is reported as it is.
+	/// Fase 1.9.5 (B11): true only when the failure is ABOUT the requested response_format. The body is the evidence:
+	/// a failure naming response_format/json_schema is a refusal, and a 400 whose body came empty is treated as one
+	/// too (some servers answer only the status, and the format is the usual reason for a 400 on this request). Any
+	/// other 400 - "model not found", "invalid_request_error", a bad key - and every non-400 (timeout, dead socket,
+	/// 500) is a real failure: repeating it would cost two more requests and make the log blame the wrong thing.
 	/// </summary>
 	private static bool RejectedFormat(LlmResult result)
 	{
-		if (result.StatusCode == 400)
+		if (MentionsFormat(result.ErrorDetail ?? result.Error))
 		{
 			return true;
 		}
+		return result.StatusCode == 400 && result.EmptyErrorBody;
+	}
+
+	/// <summary>Fase 1.9.5 (B11): the server said the format's name - the one piece of evidence that the failure is
+	/// about the format and not about the request as a whole.</summary>
+	private static bool MentionsFormat(string text)
+	{
+		return !string.IsNullOrEmpty(text)
+			&& (text.IndexOf("response_format", StringComparison.OrdinalIgnoreCase) >= 0
+				|| text.IndexOf("json_schema", StringComparison.OrdinalIgnoreCase) >= 0);
+	}
+
+	/// <summary>
+	/// Fase 1.9.5 (B11): what the log says when the chain moves on. A body that names the format is a refusal and is
+	/// said as such; an empty 400 has no clue in it, so the line says what was seen instead of guessing.
+	/// </summary>
+	private static string FormatFailureText(LlmResult result)
+	{
 		string error = result.ErrorDetail ?? result.Error ?? "";
-		return error.IndexOf("response_format", StringComparison.OrdinalIgnoreCase) >= 0
-			|| error.IndexOf("json_schema", StringComparison.OrdinalIgnoreCase) >= 0;
+		if (MentionsFormat(error))
+		{
+			return "o servidor recusou o formato pedido: " + error;
+		}
+		return $"o servidor respondeu {result.StatusCode} sem corpo, sem dizer o motivo - tratado como recusa de formato";
 	}
 
 	private static int StatusCodeOf(WebException wex)
@@ -447,8 +509,10 @@ internal static class LlmClient
 	}
 
 	/// <summary>
-	/// Fase 3.1: the mod is about to send the request the old way. Said once, because the server not supporting
-	/// structured output is a property of the server and not of the message - the mod keeps working either way.
+	/// Fase 3.1: the mod is about to send the request the old way. Said once per refusal period, because the server
+	/// not supporting structured output is a property of the server and not of the message - the mod keeps working
+	/// either way. Fase 1.9.5 (B10): what this promises is true now - <see cref="MarkStructuredRejected"/> is what
+	/// makes <see cref="BuildAttempts"/> stop rebuilding the chain, so "não tenta mais nesta sessão" is not a lie.
 	/// </summary>
 	private static void WarnNoStructuredOnce(string reason)
 	{
@@ -458,8 +522,85 @@ internal static class LlmClient
 		}
 		_warnedNoStructured = true;
 		CompanionsPlugin.Log?.LogWarning("[IA] Saida estruturada: o servidor nao aceitou response_format/json_schema nem {\"type\":\"json_object\"} "
-			+ $"({reason}). O mod segue no formato antigo (sem response_format) e nao vai tentar de novo nesta sessao - as ordens continuam "
-			+ "funcionando, so sem a garantia de que o modelo responde um JSON valido. Para parar as tentativas de uma vez, desligue [AI] StructuredOutput.");
+			+ $"({reason}). O mod segue no formato antigo (sem response_format) e nao tenta mais nesta sessao - as ordens continuam "
+			+ "funcionando, so sem a garantia de que o modelo responde um JSON valido. Para tentar de novo, mude [AI] BaseUrl/Model, "
+			+ "desligue e ligue [AI] StructuredOutput, ou reinicie o jogo.");
+	}
+
+	/// <summary>
+	/// Fase 1.9.5 (B10): the refusal is a property of the server, so it is remembered for this endpoint+model pair.
+	/// The endpoint goes through <see cref="DescribeEndpoint"/>, so a key written in the URL is never kept (the key
+	/// is only compared, never logged).
+	/// </summary>
+	private static string ServerKey(string url, string model)
+	{
+		return DescribeEndpoint(url) + "\n" + (model ?? "");
+	}
+
+	/// <summary>
+	/// Fase 1.9.5 (B10): true when the chain must be skipped because this server already refused both structured
+	/// forms earlier in the session - the promise <see cref="WarnNoStructuredOnce"/> makes. Without it every message
+	/// rebuilt the three tries, so a server that refuses response_format answered three requests per order, forever.
+	/// Changing [AI] BaseUrl/Model (another server, another model) or turning [AI] StructuredOutput off and on again
+	/// is the player asking for a new try: the refusal is forgotten and the log says why.
+	/// Main thread only (called from <see cref="BuildAttempts"/>, which runs in <see cref="Request"/>).
+	/// </summary>
+	private static bool SkipStructuredChain(string serverKey, bool structured)
+	{
+		if (!structured)
+		{
+			// [AI] StructuredOutput is off: no chain is built at all. Noting it here is what lets the next request
+			// with it back on try again instead of being skipped by a refusal of the previous setting.
+			if (_structuredRejected)
+			{
+				_structuredOffSinceRefusal = true;
+			}
+			return false;
+		}
+		if (!_structuredRejected)
+		{
+			return false;
+		}
+		bool serverChanged = !string.Equals(serverKey, _structuredRejectedKey, StringComparison.Ordinal);
+		if (serverChanged || _structuredOffSinceRefusal)
+		{
+			ForgetStructuredRefusal();
+			CompanionsPlugin.Log?.LogInfo("[IA] Saida estruturada: "
+				+ (serverChanged ? "o servidor/modelo mudou" : "[AI] StructuredOutput foi desligado e ligado de novo")
+				+ " desde a recusa anterior - vou tentar response_format/json_schema de novo.");
+			return false;
+		}
+		if (!_loggedStructuredSkip)
+		{
+			_loggedStructuredSkip = true;
+			CompanionsPlugin.Log?.LogInfo("[IA] Saida estruturada: este servidor ja recusou response_format nesta sessao, entao cada mensagem "
+				+ "vai direto no formato antigo (uma requisicao, sem response_format) - e o que o aviso anterior prometeu. Para tentar de novo, "
+				+ "mude [AI] BaseUrl/Model, desligue e ligue [AI] StructuredOutput, ou reinicie o jogo.");
+		}
+		return true;
+	}
+
+	/// <summary>
+	/// Fase 1.9.5 (B10): the chain fell all the way to the old format - both structured forms were refused, so it is
+	/// not built again in this session. Runs on the background thread: the key is written BEFORE the flag (volatile
+	/// write = release), so the main thread never sees the flag without the key it belongs to.
+	/// </summary>
+	private static void MarkStructuredRejected(string serverKey, string reason)
+	{
+		_structuredRejectedKey = serverKey;
+		_structuredRejected = true;
+		WarnNoStructuredOnce(reason);
+	}
+
+	/// <summary>Fase 1.9.5 (B10): back to a clean slate, so the next message tries json_schema again (and the warning
+	/// can be said again if the new server refuses it too).</summary>
+	private static void ForgetStructuredRefusal()
+	{
+		_structuredRejected = false;
+		_structuredRejectedKey = null;
+		_structuredOffSinceRefusal = false;
+		_loggedStructuredSkip = false;
+		_warnedNoStructured = false;
 	}
 
 	/// <summary>Above this, the log says out loud that the model is the bottleneck (Fase 3.3b).</summary>
@@ -474,8 +615,14 @@ internal static class LlmClient
 		return chars <= 0 ? 0 : (chars + 3) / 4;
 	}
 
-	private static string ReadWebException(WebException wex)
+	/// <summary>
+	/// The failure text: the HTTP status plus the body when there is one, or the exception message when there is
+	/// nothing to read. Fase 1.9.5 (B11): <paramref name="emptyBody"/> tells the caller whether the server answered
+	/// without a body - a 400 like that has no clue in it, and it is the only 400 still taken as a format refusal.
+	/// </summary>
+	private static string ReadWebException(WebException wex, out bool emptyBody)
 	{
+		emptyBody = true;
 		string text = wex.Message;
 		try
 		{
@@ -488,8 +635,9 @@ internal static class LlmClient
 						using (StreamReader reader = new StreamReader(stream, Encoding.UTF8))
 						{
 							string body = reader.ReadToEnd();
-							if (!string.IsNullOrEmpty(body))
+							if (!string.IsNullOrWhiteSpace(body))
 							{
+								emptyBody = false;
 								text = $"HTTP {(int)response.StatusCode} {response.StatusDescription}: {body}";
 							}
 						}
@@ -519,9 +667,11 @@ internal static class LlmClient
 
 	/// <summary>
 	/// Fase 3.1 (saída estruturada): the chain of tries, one each, built on the main thread. The first one is what
-	/// normally goes out; the others only happen when the server refuses the format (see Post).
+	/// normally goes out; the others only happen when the server refuses the format (see Post). Fase 1.9.5 (B10):
+	/// when the server already refused both structured forms in this session the chain is a single try, the old
+	/// request without response_format (see <see cref="SkipStructuredChain"/>).
 	/// </summary>
-	private static LlmAttempt[] BuildAttempts(string model, string systemPrompt, string userText, float temperature, bool structured)
+	private static LlmAttempt[] BuildAttempts(string model, string systemPrompt, string userText, float temperature, bool structured, string serverKey)
 	{
 		LlmAttempt plain = new LlmAttempt
 		{
@@ -529,7 +679,10 @@ internal static class LlmClient
 			ResponseFormat = null,
 			Body = BuildRequestBody(model, systemPrompt, userText, temperature, null)
 		};
-		if (!structured)
+		// The call is made even with the setting off, because it is also what notices [AI] StructuredOutput being
+		// turned off and on again (the refusal must not survive the toggle).
+		bool skip = SkipStructuredChain(serverKey, structured);
+		if (!structured || skip)
 		{
 			return new LlmAttempt[] { plain };
 		}
