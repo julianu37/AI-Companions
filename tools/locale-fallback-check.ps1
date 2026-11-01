@@ -7,7 +7,11 @@
 #   QUALQUER OUTRO (de, ru, pl, tr, ko, sv, uk, ja, zh...) -> INGLES (en-us / en / voz 3)
 #
 # Le so a DLL compilada (nao abre o jogo, nao compila nada) e chama CompanionLocale.ByGameLanguage por reflexao.
+# Assevera as tres familias da regra: os 5 idiomas com perfil, os idiomas sem perfil (-> ingles) e as respostas do
+# "auto" (ResolveKokoro/ResolveWhisper/ResolveVoice fora do Unity, onde nao ha Localization = ingles). Qualquer FAIL
+# incrementa o contador e o exit e 1.
 # Uso: powershell -NoProfile -ExecutionPolicy Bypass -File tools\locale-fallback-check.ps1
+# Exit: 0 = tudo passou, 1 = alguma regra falhou, 2 = a DLL nao existe (compile antes).
 $ErrorActionPreference = 'Stop'
 
 $game = $env:VALHEIM_DIR
@@ -44,6 +48,15 @@ function Check([string]$gameLanguage, [string]$kokoro, [string]$whisper, [int]$v
   }
 }
 
+function CheckValue([string]$name, $expected, $actual) {
+  if ("$expected" -eq "$actual") {
+    "ok    {0,-24} {1}" -f $name, $actual
+  } else {
+    "FAIL  {0,-24} esperado {1}, veio {2}" -f $name, $expected, $actual
+    $script:fail++
+  }
+}
+
 $fail = 0
 Write-Host '=== idiomas do jogo com perfil proprio ==='
 Check 'Portuguese_Brazilian' 'pt-br' 'pt' 42
@@ -61,12 +74,15 @@ foreach ($l in 'German','Russian','Polish','Turkish','Korean','Swedish','Ukraini
 
 Write-Host ''
 Write-Host '=== [AI] TtsLanguage / VoiceLanguage = auto ==='
-foreach ($m in 'ResolveKokoro','ResolveWhisper') {
-  $v = $locale.GetMethod($m, $BF).Invoke($null, @('auto'))
-  "auto -> $m = $v (fora do Unity o perfil e o ingles)"
-}
-$rv = $locale.GetMethod('ResolveVoice', $BF).Invoke($null, @(42))
-Write-Host "ResolveVoice(42) = $rv (voz de outro idioma cai na padrao do idioma ativo)"
+# Estas tres linhas ja foram Write-Host (nao passavam por Check e nao contavam no $fail): se o "auto" voltasse a
+# resolver pt-br/42 o script dizia TODOS OS TESTES PASSARAM. Fora do Unity nao ha Localization, entao o perfil e o
+# ingles e estas sao as respostas que a regra da M1 exige.
+CheckValue 'ResolveKokoro("auto")' 'en-us' $locale.GetMethod('ResolveKokoro', $BF).Invoke($null, @('auto'))
+CheckValue 'ResolveWhisper("auto")' 'en' $locale.GetMethod('ResolveWhisper', $BF).Invoke($null, @('auto'))
+CheckValue 'ResolveVoice(42)' 3 $locale.GetMethod('ResolveVoice', $BF).Invoke($null, @(42))
+# A outra metade da regra: o valor explicito do jogador sempre ganha do "auto".
+CheckValue 'ResolveKokoro("pt-br")' 'pt-br' $locale.GetMethod('ResolveKokoro', $BF).Invoke($null, @('pt-br'))
+CheckValue 'ResolveWhisper("pt")' 'pt' $locale.GetMethod('ResolveWhisper', $BF).Invoke($null, @('pt'))
 
 Write-Host ''
 Write-Host ($(if ($fail -eq 0) { 'TODOS OS TESTES PASSARAM' } else { "$fail FALHA(S)" }))

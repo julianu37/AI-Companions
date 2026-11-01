@@ -18,16 +18,21 @@ internal sealed class DevBridgeService
 		_server = new BridgeServer(port, token);
 	}
 
-	public void Start()
+	/// <summary>Starts the loopback listener. Answers false when the port could not be opened (another instance of
+	/// the game, a socket left behind, another app): the caller drops the service and the mod keeps running without
+	/// the development tool.</summary>
+	public bool Start()
 	{
 		try
 		{
 			_server.Start();
 			CompanionsPlugin.Log?.LogInfo($"[DevBridge] listening on 127.0.0.1:{_port} (v{CompanionsPlugin.PluginVersion}) - development tool, [Advanced] DevBridge");
+			return true;
 		}
 		catch (Exception ex)
 		{
 			CompanionsPlugin.Log?.LogError("[DevBridge] could not start on port " + _port + ": " + ex.Message);
+			return false;
 		}
 	}
 
