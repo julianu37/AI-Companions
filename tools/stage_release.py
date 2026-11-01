@@ -4,7 +4,8 @@
 
 O staging nunca e "copiar a pasta do plugin": a lista e fechada, e o que nao esta nela nao
 entra no pacote. Foi assim que `speech.json`, `Translations\\English.json` (gerados em runtime)
-e o marcador `__folder_managed_by_vortex` chegaram ao zip da 1.9.2/1.9.3.
+e o marcador `__folder_managed_by_vortex` chegaram ao zip (o do 1.9.1 tem o English.json:
+399 arquivos contra os 398 do 1.9.2/1.9.3).
 
 Uso:
     python tools/stage_release.py --version 1.9.4 ^
@@ -12,7 +13,7 @@ Uso:
         --to "pkg/1.9.4/stage"
     python tools/stage_release.py --version 1.9.4 --from ... --to "pkg/1.9.4/stage-sem-modelos" --no-models
 
-Layout produzido (igual ao dos pacotes 1.9.2/1.9.3, com os MODELOS no lugar certo):
+Layout produzido (igual ao do pacote 1.9.1 do Nexus, com os MODELOS no lugar certo):
 
     <to>\\CHANGELOG.md, CONFIGURATION.md, GUIDE.md, icon.png, LEIA-ME.txt, README.md   <- package/
     <to>\\BepInEx\\plugins\\AI-Companions\\Companions.dll + 8 DLLs de dependencia
@@ -21,14 +22,20 @@ Layout produzido (igual ao dos pacotes 1.9.2/1.9.3, com os MODELOS no lugar cert
     <to>\\BepInEx\\plugins\\AI-Companions\\LICENSES\\
     <to>\\BepInEx\\plugins\\AI-Companions\\Translations\\<4 idiomas>.json
     <to>\\BepInEx\\plugins\\AI-Companions\\Speech\\<4 idiomas>.json
-    <to>\\BepInEx\\plugins\\AI-Companions\\tts\\kokoro\\...      [so no pacote completo]
-    <to>\\BepInEx\\plugins\\AI-Companions\\whisper\\*.bin       [so no pacote completo]
+    <to>\\BepInEx\\plugins\\AI-Companions\\tts\\kokoro\\LICENSE, tokens.txt, espeak-ng-data\\**   (sempre)
+    <to>\\BepInEx\\plugins\\AI-Companions\\tts\\kokoro\\model.int8.onnx, voices.bin    [so no completo]
+    <to>\\BepInEx\\plugins\\AI-Companions\\whisper\\*.bin                            [so no completo]
+
+O --no-models tira SO os 3 arquivos grandes (model.int8.onnx, voices.bin e whisper\\*.bin):
+`tokens.txt`, `LICENSE` e `espeak-ng-data\\` ficam, porque sao o FONEMIZADOR - sem eles a voz
+nao funciona nem depois de o jogador por o modelo. (No 1.9.1: 399 -> 396, exatamente 3 a menos.)
 
 Os modelos ficam DENTRO da pasta do plugin porque e ali que o mod os procura: `[AI] TtsModel`
 e `[AI] SttModel` sao relativos a pasta do `Companions.dll` (WhisperStt.PluginDirectory /
 CompanionTts) e o proprio LEIA-ME manda copiar `tts\\` e `whisper\\` para
-`...\\BepInEx\\plugins\\AI-Companions\\`. Os zips de 1.9.2/1.9.3 traziam os modelos na RAIZ do
-zip (fora da pasta do plugin) - um pacote assim nao tem voz nem STT depois de extraido.
+`...\\BepInEx\\plugins\\AI-Companions\\`. O zip do 1.9.1 ja estava assim; os de 1.9.2/1.9.3
+regrediram e traziam os modelos na RAIZ do zip - um pacote assim nao tem voz nem STT depois
+de extraido.
 
 Codigos de saida:
     0  staging montado e conferido
@@ -96,9 +103,13 @@ PACKAGE_DOCS = (
     "icon.png",
 )
 
-# Tudo o que o tts\\kokoro precisa ter para a voz funcionar (CompanionTts le os 4 da mesma pasta).
-KOKORO_REQUIRED_FILES = ("model.int8.onnx", "voices.bin", "tokens.txt")
+# O tts\kokoro e fonemizador + modelo. O pacote "sem modelos" tira SO os arquivos grandes
+# (KOKORO_MODEL_FILES e whisper\*.bin): tokens.txt, LICENSE e espeak-ng-data\ FICAM, porque sem
+# eles a voz nao funciona nem depois de o jogador por o modelo. Foi assim no 1.9.1 do Nexus:
+# 399 -> 396 arquivos, exatamente 3 a menos.
+KOKORO_REQUIRED_FILES = ("tokens.txt",)
 KOKORO_REQUIRED_DIRS = ("espeak-ng-data",)
+KOKORO_MODEL_FILES = ("model.int8.onnx", "voices.bin")
 
 # Modelo de STT padrao ([AI] SttModel). Outros .bin entram (a allow-list e whisper\\*.bin), mas
 # sao avisados: o ggml-base-q5_1.bin saiu do pacote na 1.9.1 (57 MB).
@@ -253,23 +264,33 @@ def plan_stage(from_dir, to_dir, package_dir, include_models):
         add(from_dir / "Speech" / (name + ".json"),
             PLUGIN_SUBDIR / "Speech" / (name + ".json"), "speech")
 
-    # modelos
-    if include_models:
-        kokoro = from_dir / "tts" / "kokoro"
-        if not kokoro.is_dir():
-            missing.append(str(kokoro))
-        else:
-            for name in KOKORO_REQUIRED_FILES:
+    # tts\kokoro: entra nos DOIS pacotes (e o fonemizador). O --no-models tira so os arquivos
+    # grandes do modelo; tokens.txt, LICENSE e espeak-ng-data\ ficam.
+    kokoro = from_dir / "tts" / "kokoro"
+    model_names = {name.casefold() for name in KOKORO_MODEL_FILES}
+    if not kokoro.is_dir():
+        missing.append(str(kokoro))
+    else:
+        for name in KOKORO_REQUIRED_FILES:
+            if not (kokoro / name).is_file():
+                missing.append(str(kokoro / name))
+        for name in KOKORO_REQUIRED_DIRS:
+            if not (kokoro / name).is_dir():
+                missing.append(str(kokoro / name) + os.sep)
+        if include_models:
+            for name in KOKORO_MODEL_FILES:
                 if not (kokoro / name).is_file():
                     missing.append(str(kokoro / name))
-            for name in KOKORO_REQUIRED_DIRS:
-                if not (kokoro / name).is_dir():
-                    missing.append(str(kokoro / name) + os.sep)
-            for path in files_under(kokoro):
-                add(path, PLUGIN_SUBDIR / "tts" / "kokoro" / path.relative_to(kokoro), "tts")
+        for path in files_under(kokoro):
+            if not include_models and path.parent == kokoro \
+                    and path.name.casefold() in model_names:
+                continue
+            add(path, PLUGIN_SUBDIR / "tts" / "kokoro" / path.relative_to(kokoro), "tts")
 
-        whisper = from_dir / "whisper"
-        bins = sorted(whisper.glob("*.bin")) if whisper.is_dir() else []
+    # whisper: so o modelo, e so no pacote completo
+    whisper = from_dir / "whisper"
+    bins = sorted(whisper.glob("*.bin")) if whisper.is_dir() else []
+    if include_models:
         if not bins:
             missing.append(str(whisper / "*.bin"))
         for path in bins:
@@ -325,6 +346,41 @@ def version_warnings(version, from_dir):
     return out
 
 
+# --- checagem do destino ------------------------------------------------------------------
+def check_destination(payload, include_models):
+    """O que o staging TEM de conter (e o que nao pode) para o modo pedido.
+
+    Separado do main para poder ser exercitado direto (o caso de erro so apareceria se a
+    copia falhasse). Devolve a lista de erros; vazia = ok.
+    """
+    errors = []
+    kokoro = payload / "tts" / "kokoro"
+    if include_models:
+        if not (payload / "tts").is_dir():
+            errors.append("destino sem tts\\ (pacote completo)")
+        for name in KOKORO_MODEL_FILES:
+            if not (kokoro / name).is_file():
+                errors.append("destino sem tts\\kokoro\\%s (pacote completo)" % name)
+        if not list((payload / "whisper").glob("*.bin")):
+            errors.append("destino sem whisper\\*.bin (pacote completo)")
+    else:
+        # O --no-models tira SO os 3 arquivos grandes: o fonemizador tem de estar la.
+        for name in KOKORO_REQUIRED_FILES:
+            if not (kokoro / name).is_file():
+                errors.append("destino sem tts\\kokoro\\%s (o fonemizador vai nos dois pacotes)"
+                              % name)
+        for name in KOKORO_REQUIRED_DIRS:
+            if not (kokoro / name).is_dir():
+                errors.append("destino sem tts\\kokoro\\%s\\ (o fonemizador vai nos dois pacotes)"
+                              % name)
+        for name in KOKORO_MODEL_FILES:
+            if (kokoro / name).exists():
+                errors.append("destino tem tts\\kokoro\\%s num pacote --no-models" % name)
+        if (payload / "whisper").exists():
+            errors.append("destino tem whisper\\ num pacote --no-models")
+    return errors
+
+
 # --- main ---------------------------------------------------------------------------------
 def main(argv):
     ap = argparse.ArgumentParser(
@@ -338,7 +394,9 @@ def main(argv):
     ap.add_argument("--to", dest="to_dir", required=True,
                     help="raiz do staging (ex.: pkg/1.9.4/stage)")
     ap.add_argument("--no-models", action="store_true",
-                    help="pacote sem modelos: omite tts\\ e whisper\\")
+                    help="pacote sem modelos: omite SO os 3 arquivos grandes "
+                         "(tts\\kokoro\\model.int8.onnx, voices.bin e whisper\\*.bin); "
+                         "tokens.txt, LICENSE e espeak-ng-data\\ ficam (fonemizador)")
     ap.add_argument("--package-dir", default=None,
                     help="pasta com os docs do pacote (padrao: package/ do repositorio)")
     ap.add_argument("--force", action="store_true",
@@ -355,12 +413,17 @@ def main(argv):
     package_dir = Path(args.package_dir).expanduser().resolve() if args.package_dir \
         else Path(__file__).resolve().parent.parent / "package"
     include_models = not args.no_models
+    labels = dict(SECTION_LABELS)
+    if not include_models:
+        # The --no-models package still ships the phonemizer, just not the model.
+        labels["tts"] = "fonemizador (tts\\kokoro, sem o modelo)"
 
     print("== AI Companions %s - staging do pacote ==" % args.version)
     print("origem : %s" % from_dir)
     print("destino: %s%s" % (to_dir, "  (dry-run)" if args.dry_run else ""))
-    print("modo   : %s" % ("completo (tts\\ + whisper\\)" if include_models
-                           else "sem modelos (tts\\ e whisper\\ omitidos)"))
+    print("modo   : %s" % ("completo (com o modelo de voz e o de STT)" if include_models
+                           else "sem modelos (tira so model.int8.onnx, voices.bin e "
+                                "whisper\\*.bin; o fonemizador fica)"))
     print("")
 
     errors = []
@@ -442,7 +505,7 @@ def main(argv):
         size = sum(src.stat().st_size for src, _rel in rows)
         totals[section] = (len(rows), size)
         print("")
-        print("-- %s: %s, %s --" % (SECTION_LABELS[section], fmt_count(len(rows), "arquivo",
+        print("-- %s: %s, %s --" % (labels[section], fmt_count(len(rows), "arquivo",
                                                                       "arquivos"), fmt_bytes(size)))
         width = min(74, max(len(str(rel)) for _src, rel in rows))
         for src, rel in rows:
@@ -458,16 +521,7 @@ def main(argv):
                 print("[erro] destino: %s (%s)" % (rel, reason))
             errors.append("%d arquivo(s) proibido(s) no destino" % len(dest_hits))
 
-        if include_models:
-            payload = to_dir / PLUGIN_SUBDIR
-            for folder in ("tts", "whisper"):
-                if not (payload / folder).is_dir():
-                    errors.append("destino sem %s\\ (pacote completo)" % folder)
-        else:
-            payload = to_dir / PLUGIN_SUBDIR
-            for folder in ("tts", "whisper"):
-                if (payload / folder).exists():
-                    errors.append("destino tem %s\\ num pacote --no-models" % folder)
+        errors.extend(check_destination(payload, include_models))
 
     # 9. resumo
     total_files = sum(n for n, _b in totals.values())
@@ -477,7 +531,7 @@ def main(argv):
     for section in SECTION_ORDER:
         if section in totals:
             n, size = totals[section]
-            print("   %-50s %5d  %s" % (SECTION_LABELS[section], n, fmt_bytes(size)))
+            print("   %-50s %5d  %s" % (labels[section], n, fmt_bytes(size)))
     print("   %-50s %5d  %s" % ("TOTAL", total_files, fmt_bytes(total_bytes)))
     print("")
     print("   zip: compacte o CONTEUDO de %s" % to_dir)
