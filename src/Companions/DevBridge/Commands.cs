@@ -716,6 +716,8 @@ internal static class Commands
 				{ "isOwner", nview != null && nview.IsOwner() },
 				{ "owner", zdo != null ? zdo.GetOwner() : 0L },
 				{ "tombstoneId", zdo != null ? zdo.GetLong(CompanionSetup.TombstoneIdHash, 0L) : 0L },
+				{ "ownerUid", zdo != null ? zdo.GetLong(ZDOVars.s_owner, 0L) : 0L },
+				{ "localPlayerId", p != null ? p.GetPlayerID() : 0L },
 				{ "respawnPrefab", zdo != null ? zdo.GetString(CompanionTombstoneResurrect.RespawnPrefabHash, "") : "" },
 				{ "contents", contents }
 			});

@@ -2241,6 +2241,23 @@ upstream já dizia *"Off: the older way (one swing at a time on the weapon's tim
   (`tools/gen_config_doc.py`) e o `.cfg` do jogador foi ajustado à mão.
 - **Como voltar ao combate novo:** `[Combat] FightLikePlayer = true` no `AiCompanions.cfg` (nada de código).
 
+#### Lápide do companheiro com dono de verdade + memória no idioma (31/10/2026) — ✅ build 0/0 · ✅ testado em jogo
+
+Dois achados da revisão de 10 especialistas:
+
+- **`TombStone.Setup(companionName, tombstoneId)` passava o id da lápide no parâmetro `ownerUID`** — o jogo grava
+  esse valor em `ZDOVars.s_owner` e o `TombStone.IsOwner()` compara com o **id do jogador**. Resultado: nenhuma lápide
+  de companheiro era "do jogador" (sem o atalho de pegar tudo ao interagir, estatística de lápide de outro, sem o
+  status effect de saque). Agora vai o **id do dono** (parse do `HC_Owner`, com o jogador local como reserva) e o
+  `HC_TombstoneId` continua na chave própria dele. Diagnóstico: `world.tombstones` ganhou `ownerUid`/`localPlayerId`.
+- **A memória da conversa era PT-BR fixo em todos os idiomas e vinha DEPOIS do contrato** (o invariante da 3.5 é o
+  contrato ser a última coisa que o modelo lê). Agora o bloco é localizado como o `Header` (inglês nativo em
+  `ModLocalization` + PT/ES/FR/IT nos JSON) e entra **antes** do contrato. Chaves novas:
+  `hc_ai_memory_header`/`hc_ai_memory_player` (996 chaves de UI nos 4 idiomas, `audit_translations.py` 0 lacunas).
+- **Anotado para o futuro (não corrigido, decisão do jogador):** o `rolloffMode` do `AudioSource` do TTS é o padrão
+  logarítmico, então a fala cai rápido com a distância (~15% do volume a 10 m). O jogador **quer** ouvir só os que
+  estão perto — fica como está, para rever se um dia reclamarem.
+
 #### DevBridge — o MCP de desenvolvimento dentro da DLL (31/10/2026) — ✅ build 0/0 · ✅ usado em jogo
 
 Ferramenta **de dev** (não vai para o jogador; nasce `[Advanced] DevBridge = false`): módulo

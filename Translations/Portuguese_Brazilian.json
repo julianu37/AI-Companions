@@ -710,6 +710,8 @@
         { "key": "hc_ai_deposit_full", "value": "Não cabe mais nada nesse baú." },
         { "key": "hc_ai_deposit_done", "value": "Guardando {0} item(ns) no baú." },
         { "key": "hc_ai_default_name", "value": "Companheiro" },
+        { "key": "hc_ai_memory_header", "value": "Conversa recente com o jogador (do mais antigo para o mais novo; use para lembrar o contexto):" },
+        { "key": "hc_ai_memory_player", "value": "Jogador" },
         { "key": "hc_ai_preset_default", "value": "Padrão" },
         { "key": "hc_ai_preset_neutral", "value": "Neutra (o padrão)" },
         { "key": "hc_ai_preset_custom", "value": "Texto livre" },

@@ -710,6 +710,8 @@
         { "key": "hc_ai_deposit_full", "value": "No cabe nada más en ese cofre." },
         { "key": "hc_ai_deposit_done", "value": "Guardando {0} objeto(s) en el cofre." },
         { "key": "hc_ai_default_name", "value": "Compañero" },
+        { "key": "hc_ai_memory_header", "value": "Conversación reciente con el jugador (de lo más antiguo a lo más nuevo; úsala para recordar el contexto):" },
+        { "key": "hc_ai_memory_player", "value": "Jugador" },
         { "key": "hc_ai_preset_default", "value": "Predeterminado" },
         { "key": "hc_ai_preset_neutral", "value": "Neutra (la de siempre)" },
         { "key": "hc_ai_preset_custom", "value": "Texto libre" },

@@ -53,6 +53,9 @@
 - **AOE hits no longer throw**: the companion terrain-hit suppression used to return `null` to `Aoe.OnHit`, which
   dereferences it when the effect has `springDelay`/`placeOnGround`; it now gets a throwaway object destroyed at the
   end of the frame.
+- **Companion tombstones belong to you now** (`TombStone.Setup` was receiving the tombstone id where the game expects
+  the owner player id, so the "take everything" shortcut never triggered).
+- **The conversation memory follows the game's language** and is placed before the JSON contract again.
 - **Combat is back to the 1.9.1 behaviour.** The upstream 1.5.6 "fight like a player" (`[Combat] FightLikePlayer`) made
   a melee companion keep its guard up between combos, step out of swings and back off to catch its breath - in practice
   it spends most of the fight defending. The default is now **off**: one swing at a time on the weapon's timer,

@@ -710,6 +710,8 @@
         { "key": "hc_ai_deposit_full", "value": "Il n'y a plus de place dans ce coffre." },
         { "key": "hc_ai_deposit_done", "value": "Je range {0} objet(s) dans le coffre." },
         { "key": "hc_ai_default_name", "value": "Compagnon" },
+        { "key": "hc_ai_memory_header", "value": "Conversation récente avec le joueur (du plus ancien au plus récent ; utilise-la pour te souvenir du contexte) :" },
+        { "key": "hc_ai_memory_player", "value": "Joueur" },
         { "key": "hc_ai_preset_default", "value": "Par défaut" },
         { "key": "hc_ai_preset_neutral", "value": "Neutre (par défaut)" },
         { "key": "hc_ai_preset_custom", "value": "Texte libre" },

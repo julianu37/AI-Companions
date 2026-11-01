@@ -51,6 +51,13 @@ so the beard of the previous appearance was never destroyed.
 - **AOE hits no longer throw.** `Attack.SpawnOnHitTerrain` was suppressed for companions by returning `null`, and
   `Aoe.OnHit` dereferences the result when the effect has `springDelay`/`placeOnGround` - one `NullReferenceException`
   per hit. It now gets a throwaway object that is destroyed at the end of the frame (nothing is spawned).
+- **Companion tombstones now belong to you.** `TombStone.Setup` was called with the **tombstone id** where the game
+  expects the **owner player id** (`ZDOVars.s_owner`), so `TombStone.IsOwner()` was never true: no "take everything"
+  shortcut on interact, the tombstone counted as somebody else's and the loot status effect never fired. It now gets
+  the owner's player id (the `HC_TombstoneId` stays in its own ZDO key).
+- **The conversation memory follows the game's language and goes before the contract.** The block was Portuguese-only
+  in every language, and it was appended *after* the JSON contract, which is meant to be the last thing the model
+  reads. It is now localized like the header (English native + PT/ES/FR/IT) and comes before the contract.
 - **Combat back to the 1.9.1 behaviour: companions block as a reaction again.** The upstream 1.5.6 "fight like a
   player" (`[Combat] FightLikePlayer`) made a melee companion keep its guard up between combos, step out of swings and
   back off to catch its breath - in practice it spends most of the fight defending. The default is now **off**: one

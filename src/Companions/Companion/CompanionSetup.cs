@@ -2339,8 +2339,21 @@ public class CompanionSetup : MonoBehaviour
 			TombStone component2 = gameObject2.GetComponent<TombStone>();
 			if (component2 != null)
 			{
-				component2.Setup(companionName, tombstoneId);
-				CompanionsPlugin.Log.LogDebug($"[Setup] Tombstone ownership set — name=\"{companionName}\" id={tombstoneId}");
+				// 1.9.4 (auditoria de APIs): the second parameter of TombStone.Setup is the OWNER PLAYER ID (it becomes
+				// ZDOVars.s_owner, and TombStone.IsOwner compares it with the player's id) - passing the tombstone id
+				// there left every companion tombstone "owned by nobody": no "take all" shortcut, no own-tombstone stat
+				// and no loot status effect. The HC_TombstoneId keeps living in its own ZDO key (set below).
+				long tombOwnerUid = 0L;
+				if (!string.IsNullOrEmpty(ownerId))
+				{
+					long.TryParse(ownerId, out tombOwnerUid);
+				}
+				if (tombOwnerUid == 0L && Player.m_localPlayer != null)
+				{
+					tombOwnerUid = Player.m_localPlayer.GetPlayerID();
+				}
+				component2.Setup(companionName, tombOwnerUid);
+				CompanionsPlugin.Log.LogDebug($"[Setup] Tombstone ownership set — name=\"{companionName}\" id={tombstoneId} owner={tombOwnerUid}");
 			}
 			ZNetView component3 = gameObject2.GetComponent<ZNetView>();
 			if (component3?.GetZDO() != null)

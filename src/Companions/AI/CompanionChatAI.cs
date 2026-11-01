@@ -798,8 +798,11 @@ internal static class CompanionChatAI
 		// Fase 3.11: who the player has, by name - the only names the model may put in "companion". Empty when there
 		// is nobody (the line is simply not there), and short by design: this is sent with every message.
 		builder.Append(CompanionNames.PromptLine());
-		builder.Append(contract);
+		// Fase 3.5: the recent conversation goes BEFORE the contract, which stays the last thing the model reads (the
+		// invariant this class documents). It used to be appended after it, so with [AI] Memory = 12 the contract was
+		// up to 24 turns away from the end of the prompt.
 		CompanionMemory.AppendTo(builder, memoryKey, name);
+		builder.Append(contract);
 		return builder.ToString();
 	}
 
