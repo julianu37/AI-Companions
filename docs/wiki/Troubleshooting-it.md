@@ -277,7 +277,7 @@ occupava solo spazio e pesava.
 
 | Dove guardare | Cosa cercare |
 |---|---|
-| `LogOutput.log` | `AI Companions v1.9.1 loading...` e `AI Companions loaded successfully! (N methods patched)` — il `v1.9.1` è la versione che hai installato |
+| `LogOutput.log` | `AI Companions v1.9.5 loading...` e `AI Companions loaded successfully! (N methods patched)` — il `v1.9.5` è la versione che hai installato |
 
 **Cause probabili:**
 

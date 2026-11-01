@@ -41,7 +41,7 @@ companheiro.
 Este projeto é um **projeto independente** baseado em [Offline Companions Reborn](https://github.com/MaddhattrRocks/Offline-Companions-Reborn)
 (**MIT**) — que por sua vez é um fork do *Offline Companions*, do **ProfMags** — com duas coisas nossas por cima:
 
-1. **Cinco idiomas** — **português do Brasil, inglês, espanhol, francês e italiano**: a interface (914 chaves), as
+1. **Cinco idiomas** — **português do Brasil, inglês, espanhol, francês e italiano**: a interface (1001 chaves), as
    falas do companheiro (221 linhas), os presets de personalidade e o contrato do LLM seguem o **idioma do jogo**,
    com o **inglês como idioma nativo**, e um idioma novo é **um arquivo**.
 2. **Uma camada de IA**: ordens em **linguagem natural** (texto no chat ou **voz** por push-to-talk), com
@@ -101,7 +101,7 @@ vem do upstream e continua funcionando igual — a IA é só uma **nova entrada*
 | **[Configuração](Configuration-pt)** | O `.cfg`, a seção `[AI]` e os painéis `F8` e `I` |
 | **[Problemas comuns](Troubleshooting-pt)** | Sintoma → causa → solução |
 | **[Como funciona](How-it-works-pt)** | Arquitetura e o caminho de uma ordem |
-| **[Histórico de versões](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)** | O changelog completo, da 1.6.0 à 1.9.1 |
+| **[Histórico de versões](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)** | O changelog completo, da 1.6.0 à 1.9.5 |
 | **[Créditos e licença](Credits-and-license-pt)** | Upstream, terceiros e licenças |
 
 ## Links rápidos
@@ -113,15 +113,30 @@ vem do upstream e continua funcionando igual — a IA é só uma **nova entrada*
 | **Changelog** | https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md |
 | **Upstream (MIT)** | https://github.com/MaddhattrRocks/Offline-Companions-Reborn |
 
-A release publicada mais recente é a **1.9.1** (26/10/2026), com **dois** arquivos para escolher:
+A release publicada mais recente é a **1.9.5** (31/10/2026), com **um** pacote:
 
 | Arquivo | Tamanho | O que vem |
 |---|---|---|
-| `AI_Companions-1.9.1.zip` | ~314 MB | O mod **e** os modelos de voz (STT + TTS) já prontos |
-| `AI_Companions-1.9.1-sem-modelos.zip` | ~28,5 MB | Só o mod e as traduções — você baixa os modelos por fora |
+| `AI_Companions-1.9.5.zip` | ~314 MB | O mod, as traduções **e** os modelos de voz (STT + TTS) já prontos |
 
-> **Qual escolher?** Se você quer só instalar e usar, pegue o **completo**. Se a sua internet é lenta (ou você já
-> tem os modelos), pegue o **sem-modelos** e siga a seção de modelos em **[Instalação](Installation-pt)**.
+> **Um pacote só.** Desde a **1.9.4** a release vem **com** os modelos de voz, já **dentro** de
+> `BepInEx\plugins\AI-Companions\` (`whisper\` e `tts\`) — não há nada para baixar por fora. O pacote
+> **sem-modelos** foi **descontinuado** (o último foi o da 1.9.1).
+
+> **A 1.9.5 em resumo — o lote da revisão de 10 especialistas.** Vinte correções, nenhuma feature nova:
+>
+> - **O Santuário e a lista de companheiros falam os cinco idiomas** — a confirmação de "trazer de volta" e
+>   as linhas de "visto por último/morreu" estavam fixas em inglês.
+> - **Lápide mais segura:** se a chamada interna do jogo que o patch usa quebrar, ele agora avisa uma vez no
+>   log e deixa o jogo remover a lápide como sempre, em vez de segurá-la para sempre; e a cama só é
+>   registrada como salva quando foi salva de verdade.
+> - **O raio da casa sobrevive** à morte, ao renascer e à lista de companheiros (`HC_Respawn_HomeRadius`), e a
+>   checagem de "já está com escudo" funciona — a busca antiga não existia.
+> - **`[Speech] MinInterval`/`MaxInterval` valem de verdade:** a fala ociosa usa os dois (15–30 s por padrão;
+>   o código tinha 90–180 s fixos).
+> - **O LLM deixou de pagar três requisições por ordem** (depois que o servidor recusa as duas formas
+>   estruturadas, as próximas mensagens vão direto no formato antigo), o **`[Advanced] ConfigVersion`** faz as
+>   migrações de config rodarem **uma vez** e o **`F8` parou de alocar por frame**.
 
 > **1.9.1:** o pacote está ~54 MB mais leve — o modelo `ggml-base-q5_1.bin`, que não era usado, não vem mais (continua
 > sendo um download opcional).

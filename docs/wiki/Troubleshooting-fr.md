@@ -282,7 +282,7 @@ ne faisait qu'occuper de la place et peser.
 
 | Où regarder | Quoi chercher |
 |---|---|
-| `LogOutput.log` | `AI Companions v1.9.1 loading...` et `AI Companions loaded successfully! (N methods patched)` — le `v1.9.1` est la version que tu as installée |
+| `LogOutput.log` | `AI Companions v1.9.5 loading...` et `AI Companions loaded successfully! (N methods patched)` — le `v1.9.5` est la version que tu as installée |
 
 **Causes probables :**
 

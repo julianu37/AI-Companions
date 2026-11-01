@@ -29,14 +29,13 @@ The mod works in **two independent layers**: the **text orders in the chat** (th
 |---|---|
 | **Microphone** | Only for the **voice orders** (push-to-talk). Without one, use the chat |
 | **GPU** | Only makes a difference in the **local** option: the LLM in LM Studio runs **much** faster with a GPU. On Groq (and on OpenRouter), the model runs on their server |
-| **Voice models** | They already come in the **full** package. In the **no-models** package you download them separately. The same Kokoro `voices.bin` carries the voices of the **five languages** |
+| **Voice models** | They already come in the package, **inside** `BepInEx\plugins\AI-Companions\` (`whisper\` and `tts\`). The same Kokoro `voices.bin` carries the voices of the **five languages** |
 
 ## Disk space
 
 | What | Size |
 |---|---|
-| **Full** package (mod + models) | ~314 MB (zip) |
-| **No-models** package (mod + translations) | ~28.4 MB (zip) |
+| **Package** (mod + models) | ~314 MB (zip) |
 | Mod installed (plugin folder) | ~371 MB |
 | Whisper model `ggml-small-q5_1.bin` (STT default) | 181 MB |
 | Kokoro model (TTS) `model.int8.onnx` | 109 MB |

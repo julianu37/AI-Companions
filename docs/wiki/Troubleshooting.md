@@ -274,7 +274,7 @@ default `300`), and this line confirms it in `LogOutput.log`:
 
 | Where to look | What to look for |
 |---|---|
-| `LogOutput.log` | `AI Companions v1.9.1 loading...` and `AI Companions loaded successfully! (N methods patched)` — the `v1.9.1` is the version you installed |
+| `LogOutput.log` | `AI Companions v1.9.5 loading...` and `AI Companions loaded successfully! (N methods patched)` — the `v1.9.5` is the version you installed |
 
 **Probable causes:**
 

@@ -29,7 +29,7 @@ stesse azioni.
 
 Quello che il progetto **AI Companions** aggiunge:
 
-1. **La traduzione in cinque lingue** — portoghese del Brasile, inglese, spagnolo, francese e italiano: 914 chiavi di
+1. **La traduzione in cinque lingue** — portoghese del Brasile, inglese, spagnolo, francese e italiano: 1001 chiavi di
    interfaccia e 221 frasi del compagno per lingua, verificate (nessun testo in inglese visibile a un giocatore di
    quelle lingue), con l'**inglese come lingua nativa**.
 2. **Lo strato di IA:**

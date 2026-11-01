@@ -202,7 +202,7 @@ what is in force.
 **Five languages: Portuguese (Brazil), English, Spanish, French and Italian** — and **English is the mod's native
 language**:
 
-- **The game's language decides everything**: the interface (914 keys), the companion's speech (221 lines), the
+- **The game's language decides everything**: the interface (1001 keys), the companion's speech (221 lines), the
   personality presets, the LLM contract and the **voice and the speech recognition**. With the game in
   **Portuguese**, the names of the **`F8`** options and the tabs appear in **PT** (`Ligado`, `Modelo`, `VozTecla`…);
   with the game in **English**, the native names appear (`Enabled`, `Model`, `VoiceKey`…); Spanish, French and
@@ -217,7 +217,7 @@ language**:
 - **In the `.cfg`**, the **keys and the descriptions are in English, always** — it **does not** change with the
   game's language (the same goes for `package/CONFIGURATION.md`). That is why the **key name is the English one**,
   even with the game in Portuguese: the key is the identifier of the option, not the label you read on the screen.
-- **New languages come in through a file**, without touching the code: `Translations/<Language>.json` (914 keys)
+- **New languages come in through a file**, without touching the code: `Translations/<Language>.json` (1001 keys)
   brings the interface texts (including the names of the `F8` options and tabs) and `Speech/<Language>.json` (221
   lines) brings the **companion's lines** — the same scheme. **English does not need a file**, because the keys
   **are** the text.

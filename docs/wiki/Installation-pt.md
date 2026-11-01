@@ -35,14 +35,15 @@ Documentação oficial: https://docs.bepinex.dev/
 
 ## 3. Baixe a release do mod
 
-Vá em **https://github.com/julianu37/AI-Companions/releases** e baixe **um** dos dois arquivos:
+Vá em **https://github.com/julianu37/AI-Companions/releases** e baixe o pacote:
 
-| Arquivo | Tamanho | Quando escolher |
+| Arquivo | Tamanho | O que vem |
 |---|---|---|
-| `AI_Companions-1.9.1.zip` | ~314 MB | **Recomendado.** Já vem com os modelos de voz (STT + TTS). Instala e usa |
-| `AI_Companions-1.9.1-sem-modelos.zip` | ~28,5 MB | Internet lenta, ou você já tem os modelos e quer baixá-los separado |
+| `AI_Companions-1.9.5.zip` | ~314 MB | O mod, as traduções **e** os modelos de voz (STT + TTS) — instala e usa |
 
-> A diferença é **só** os modelos de voz. O mod e as traduções são os mesmos nos dois.
+> **Um pacote só:** desde a **1.9.4** a release vem **com** os modelos de voz, já **dentro** de
+> `BepInEx\plugins\AI-Companions\` (`whisper\` e `tts\`). O pacote **sem-modelos** foi **descontinuado**
+> (o último foi o da 1.9.1).
 >
 > *(A **1.9.0** é a release dos **cinco idiomas** — português, inglês, espanhol, francês e italiano —, com a voz e o
 > reconhecimento da fala **automáticos**, seguindo o **idioma do jogo**. A **1.8.3** é onde o inglês virou o
@@ -105,17 +106,16 @@ No fim, a pasta deve ficar assim:
 
 ## 5. Modelos de voz
 
-**Se você baixou o pacote completo, este passo está pronto** — os modelos já vieram nas pastas `whisper\` e `tts\`.
+**Este passo está pronto** — o pacote já vem com os modelos, **dentro da pasta do plugin**:
+`BepInEx\plugins\AI-Companions\whisper\` e `BepInEx\plugins\AI-Companions\tts\`. É aí que o mod procura, então
+`tts\` e `whisper\` **não** podem ficar na raiz do Valheim nem em `BepInEx\plugins\`.
 
-Se você baixou o **sem-modelos**, coloque os arquivos assim:
+Se você apagou os modelos (ou quer trocar um), os arquivos vão assim:
 
 | Onde colocar | Arquivos |
 |---|---|
 | `...\AI-Companions\whisper\` | `ggml-small-q5_1.bin` (181 MB) — o padrão do reconhecimento de voz |
 | `...\AI-Companions\tts\kokoro\` | `model.int8.onnx` (109 MB), `voices.bin` (27 MB), `tokens.txt` e a pasta `espeak-ng-data\` |
-
-> No pacote **sem-modelos** o `tokens.txt` e a pasta `espeak-ng-data\` **já vêm** — faltam só o
-> `ggml-small-q5_1.bin` (Whisper) e o `model.int8.onnx` + `voices.bin` (Kokoro).
 
 Onde baixar:
 
@@ -166,13 +166,13 @@ O guia completo dos três caminhos (LM Studio → Groq → OpenRouter) está em
 3. Procure estas duas linhas:
 
 ```
-AI Companions v1.9.1 loading...
+AI Companions v1.9.5 loading...
 AI Companions loaded successfully! (N methods patched)
 ```
 
 Se elas aparecerem, o mod carregou.
 
-> O `v1.9.1` é a **versão que você instalou** (o número do zip que você baixou) e o `N` é quantos métodos do jogo
+> O `v1.9.5` é a **versão que você instalou** (o número do zip que você baixou) e o `N` é quantos métodos do jogo
 > o mod ajustou — esse número pode mudar de uma versão para outra.
 
 > Na **primeira execução depois de atualizar da 1.8.2 ou anterior** o log também mostra que o arquivo de
@@ -203,7 +203,7 @@ Para ver todas as teclas e ordens, vá em **[Comandos](Commands-pt)**.
 
 - [ ] Valheim 1.0.x instalado
 - [ ] BepInEx 5.4.2351 extraído na raiz do jogo
-- [ ] Release **1.9.1** baixada (o pacote completo ou o sem-modelos)
+- [ ] Release **1.9.5** baixada (o pacote já vem com os modelos de voz)
 - [ ] Pasta `BepInEx\plugins\AI-Companions\` criada com o `Companions.dll` e as dependências
 - [ ] Modelos de voz em `whisper\` e `tts\kokoro\`
 - [ ] Configuração **conferida** em `BepInEx\config\AiCompanions.cfg` (só volta aos padrões se você vem da
