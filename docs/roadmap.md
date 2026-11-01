@@ -2298,6 +2298,8 @@ Branch `feat/1.9.5`. O que entrou (20 itens; a lista completa e o que ficou de f
 - **Release (C6):** `tools/release-check.ps1` (9 itens: build, versão, 3 traduções, locale, config-doc `--check`, MCP
   41, ai-intents 224; PASS/FAIL e exit 1) e o `locale-fallback-check.ps1` agora **assevera** as regras do `auto`.
 - **A6 (decisão do jogador):** `CompanionHitLog` sem `try/catch` ficou **documentado para verificar futuramente**.
+- **Wiki (C8):** atualizada nos **5 idiomas** para a 1.9.5 (pacote único, modelos dentro do plugin, bloco de destaques
+  e a contagem corrigida para **1001 chaves**) e publicada no repo `AI-Companions.wiki`.
 - **Fora por decisão:** A1/A2/A5, B1/B4/B5/B6/B7/B9/B12/B16/B17, todo o bloco de MP (C1) e a wiki (C8, só quando o
   jogador pedir).
 - **Nota de combate:** o `ShieldLogic` passou a ver o escudo na mão esquerda (o `GetLeftItem` refletido **não existia**),
