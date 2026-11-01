@@ -93,6 +93,7 @@ internal static class Commands
 		case "build.inspect": return BuildInspect(args);
 		case "build.sites": return BuildSites(args);
 		case "build.pieces": return BuildPieces(args);
+		case "build.find": return BuildFind(args);
 			case "world.tombstones": return WorldTombstones(args);
 			case "world.tombstone_take": return WorldTombstoneTake(args);
 			case "world.tombstone_destroy": return WorldTombstoneDestroy(args);
@@ -477,6 +478,67 @@ internal static class Commands
 			{ "radius", radius },
 			{ "count", found.Count },
 			{ "pieces", found }
+		});
+	}
+
+	/// <summary>
+	/// Fase E2: where the piece would go. It runs the real search (<see cref="BuildSite.Find"/>) from a hint - the
+	/// aim of the player when no coordinates are given - and returns the chosen pose, the distance from the hint and
+	/// how many candidates were refused for each reason. Nothing is placed.
+	/// </summary>
+	private static string BuildFind(Dictionary<string, object> args)
+	{
+		if (ZNetScene.instance == null)
+		{
+			return Fail("the world isn't loaded");
+		}
+		string prefab = (Json.Str(args, "prefab") ?? string.Empty).Trim();
+		if (prefab.Length == 0)
+		{
+			return Fail("prefab is required (e.g. piece_workbench)");
+		}
+		Piece piece = BuildProbe.PieceOf(prefab);
+		if (piece == null)
+		{
+			return Fail("no Piece component on '" + prefab + "'");
+		}
+		Player player = Player.m_localPlayer;
+		Vector3 forward = player != null ? player.transform.forward : Vector3.forward;
+		Vector3 hint;
+		if (player != null && BuildFindCommand.Hint(player, out hint))
+		{
+			// the aim is the natural "here"
+		}
+		else if (player != null)
+		{
+			Vector3 flat = player.transform.position + new Vector3(forward.x, 0f, forward.z).normalized * 3f;
+			float y = ZoneSystem.instance != null ? ZoneSystem.instance.GetGroundHeight(flat) : flat.y;
+			hint = new Vector3(flat.x, y, flat.z);
+		}
+		else
+		{
+			hint = new Vector3(Json.Float(args, "x", 0f), Json.Float(args, "y", 0f), Json.Float(args, "z", 0f));
+		}
+		if (args.ContainsKey("x") || args.ContainsKey("z"))
+		{
+			hint = new Vector3(Json.Float(args, "x", hint.x), Json.Float(args, "y", hint.y), Json.Float(args, "z", hint.z));
+		}
+		float radius = Mathf.Clamp(Json.Float(args, "radius", 8f), 1f, 40f);
+		int rings = Mathf.Clamp(Json.Int(args, "rings", 3), 1, 8);
+		int dirs = Mathf.Clamp(Json.Int(args, "dirs", 8), 4, 24);
+		BuildSiteResult site = BuildSite.Find(piece, hint, forward, radius, rings, dirs);
+		return Ok(new Dictionary<string, object>
+		{
+			{ "prefab", prefab },
+			{ "ok", site.Ok },
+			{ "status", site.Status },
+			{ "hint", new Dictionary<string, object> { { "x", hint.x }, { "y", hint.y }, { "z", hint.z } } },
+			{ "pos", new Dictionary<string, object> { { "x", site.Pos.x }, { "y", site.Pos.y }, { "z", site.Pos.z } } },
+			{ "yaw", site.Rot.eulerAngles.y },
+			{ "distance", site.Distance },
+			{ "tried", site.Tried },
+			{ "reasons", site.Reasons },
+			{ "tally", site.Tally }
 		});
 	}
 

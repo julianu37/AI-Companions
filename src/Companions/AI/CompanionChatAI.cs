@@ -95,6 +95,9 @@ internal static class CompanionChatAI
 		+ "cook (cozinhar comida), stop (parar o que está fazendo e voltar a seguir), come (vir até o jogador),\n"
 		+ "sethome (definir a casa aqui), wander (vagar por perto), nowander (parar de vagar),\n"
 		+ "pickup (recolher itens do chão), nopickup (parar de recolher),\n"
+		+ "build (construir uma peça NOVA no chão perto do jogador: bancada de trabalho, baú, fogueira, cama),\n"
+		+ "- build é CONSTRUIR uma peça nova \"aqui\", onde o jogador está olhando: \"target\" é OBRIGATÓRIO e é o NOME da peça\n"
+		+ "  (\"bancada de trabalho\", \"baú\", \"fogueira\", \"cama\") e \"amount\" é null. build NÃO é deposit (guardar) nem equip.\n"
 		+ "command (aceitar comandos), nocommand (ignorar comandos),\n"
 		+ "stance_balanced, stance_passive (defensivo), stance_ranged (à distância), stance_melee (corpo a corpo),\n"
 		+ "none (a mensagem NÃO é uma ordem para o companheiro: conversa, pergunta, saudação ou algo que você não entende).\n"
@@ -154,6 +157,8 @@ internal static class CompanionChatAI
 		+ "\"fecha o inventário\" -> {\"action\":\"inventory_close\",\"reply\":\"Fechando.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"fecha a porta\" -> {\"action\":\"door\",\"reply\":\"Já vou.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"guarda isso no baú\" -> {\"action\":\"deposit\",\"reply\":\"Guardando.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
+		+ "\"construa uma bancada de trabalho aqui\" -> {\"action\":\"build\",\"reply\":\"Deixa comigo.\",\"target\":\"bancada de trabalho\",\"resource\":null,\"amount\":null}\n"
+		+ "\"constrói uma fogueira aí\" -> {\"action\":\"build\",\"reply\":\"Vou levantar a fogueira.\",\"target\":\"fogueira\",\"resource\":null,\"amount\":null}\n"
 		+ "\"segue\" -> {\"action\":\"follow\",\"reply\":\"Estou com você.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"para\" -> {\"action\":\"stop\",\"reply\":\"Parando.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"vem cá\" -> {\"action\":\"come\",\"reply\":\"Já vou.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
@@ -178,6 +183,10 @@ internal static class CompanionChatAI
 		+ "cook (cook food), stop (stop what you are doing and follow again), come (come to the player),\n"
 		+ "sethome (set the home here), wander (wander around), nowander (stop wandering),\n"
 		+ "pickup (pick items up from the ground), nopickup (stop picking items up),\n"
+		+ "build (build a NEW piece on the ground near the player: workbench, chest, campfire, bed),\n"
+		+ "- build means BUILDING a new piece \"here\", where the player is looking: \"target\" is REQUIRED and is the NAME of\n"
+		+ "  the piece (\"workbench\", \"chest\", \"campfire\", \"bed\") and \"amount\" is null. build is NOT deposit (store) nor equip.\n"
+		+ "  Example: \"build a workbench here\" -> {\"action\":\"build\",\"reply\":\"On it.\",\"target\":\"workbench\",\"resource\":null,\"amount\":null}\n"
 		+ "command (accept orders), nocommand (ignore orders),\n"
 		+ "stance_balanced, stance_passive (defensive), stance_ranged (ranged), stance_melee (melee),\n"
 		+ "none (the message is NOT an order for the companion: conversation, question, greeting, or something you don't understand).\n"
@@ -262,6 +271,10 @@ internal static class CompanionChatAI
 		+ "cook (cocinar comida), stop (parar lo que estás haciendo y volver a seguir), come (venir hasta el jugador),\n"
 		+ "sethome (fijar la casa aquí), wander (vagar por aquí), nowander (dejar de vagar),\n"
 		+ "pickup (recoger objetos del suelo), nopickup (dejar de recoger),\n"
+		+ "build (construir una pieza NUEVA en el suelo cerca del jugador: mesa de trabajo, cofre, fogata, cama),\n"
+		+ "- build es CONSTRUIR una pieza nueva \"aquí\", donde mira el jugador: \"target\" es OBLIGATORIO y es el NOMBRE de la\n"
+		+ "  pieza (\"mesa de trabajo\", \"cofre\", \"fogata\", \"cama\") y \"amount\" es null. build NO es deposit (guardar) ni equip.\n"
+		+ "  Ejemplo: \"construye una mesa de trabajo aquí\" -> {\"action\":\"build\",\"reply\":\"Voy.\",\"target\":\"mesa de trabajo\",\"resource\":null,\"amount\":null}\n"
 		+ "command (aceptar comandos), nocommand (ignorar comandos),\n"
 		+ "stance_balanced, stance_passive (defensiva), stance_ranged (a distancia), stance_melee (cuerpo a cuerpo),\n"
 		+ "none (el mensaje NO es una orden para el compañero: conversación, pregunta, saludo o algo que no entiendes).\n"
@@ -345,6 +358,10 @@ internal static class CompanionChatAI
 		+ "cook (cuisiner de la nourriture), stop (arrêter ce que tu fais et suivre de nouveau), come (venir vers le joueur),\n"
 		+ "sethome (définir la maison ici), wander (flâner dans le coin), nowander (arrêter de flâner),\n"
 		+ "pickup (ramasser les objets au sol), nopickup (arrêter de ramasser),\n"
+		+ "build (construire une pièce NOUVELLE au sol près du joueur : établi, coffre, feu de camp, lit),\n"
+		+ "- build, c'est CONSTRUIRE une pièce nouvelle « ici », là où regarde le joueur : « target » est OBLIGATOIRE et c'est le\n"
+		+ "  NOM de la pièce (« établi », « coffre », « feu de camp », « lit ») et « amount » est null. build n'est PAS deposit ni equip.\n"
+		+ "  Exemple : « construis un établi ici » -> {\"action\":\"build\",\"reply\":\"J'y vais.\",\"target\":\"établi\",\"resource\":null,\"amount\":null}\n"
 		+ "command (accepter les ordres), nocommand (ignorer les ordres),\n"
 		+ "stance_balanced, stance_passive (défensive), stance_ranged (à distance), stance_melee (corps à corps),\n"
 		+ "none (le message N'EST PAS un ordre pour le compagnon : conversation, question, salutation ou quelque chose que tu ne comprends pas).\n"
@@ -430,6 +447,10 @@ internal static class CompanionChatAI
 		+ "cook (cucinare il cibo), stop (fermare quello che stai facendo e tornare a seguire), come (venire dal giocatore),\n"
 		+ "sethome (impostare la casa qui), wander (gironzolare qui intorno), nowander (smettere di gironzolare),\n"
 		+ "pickup (raccogliere oggetti da terra), nopickup (smettere di raccogliere),\n"
+		+ "build (costruire una pezzo NUOVO a terra vicino al giocatore: banco da lavoro, cassa, falò, letto),\n"
+		+ "- build è COSTRUIRE un pezzo nuovo \"qui\", dove guarda il giocatore: \"target\" è OBBLIGATORIO ed è il NOME del\n"
+		+ "  pezzo (\"banco da lavoro\", \"cassa\", \"falò\", \"letto\") e \"amount\" è null. build NON è deposit (mettere via) né equip.\n"
+		+ "  Esempio: \"costruisci un banco da lavoro qui\" -> {\"action\":\"build\",\"reply\":\"Vado.\",\"target\":\"banco da lavoro\",\"resource\":null,\"amount\":null}\n"
 		+ "command (accettare ordini), nocommand (ignorare gli ordini),\n"
 		+ "stance_balanced, stance_passive (difensiva), stance_ranged (a distanza), stance_melee (corpo a corpo),\n"
 		+ "none (il messaggio NON è un ordine per il compagno: conversazione, domanda, saluto o qualcosa che non capisci).\n"
@@ -510,7 +531,9 @@ internal static class CompanionChatAI
 		// Fase 2.0: the five interactions the command key already does (see CompanionInteract.Order*)
 		"hive", "door", "board", "sit", "deposit",
 		"farm", "fish", "repair", "cook", "stop", "come", "sethome", "wander", "nowander", "pickup", "nopickup",
-		"command", "nocommand", "stance_balanced", "stance_passive", "stance_ranged", "stance_melee", "none"
+		"command", "nocommand", "stance_balanced", "stance_passive", "stance_ranged", "stance_melee", "none",
+		// Trilha E: construir uma peça nova no chão (BuildCatalog: bancada, baú, fogueira, cama)
+		"build"
 	};
 
 	private const int MaxRawShown = 400;

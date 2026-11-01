@@ -1703,6 +1703,11 @@ public class CompanionAI : BaseAI
 		}
 		// Fase 3.1: the player's own "go and pick up what's on the ground" order (MHR_Collect). Before MHR_Loot: an
 		// explicit order wins, and the kill-loot job's own clock pauses while it isn't being driven.
+		// Trilha E: a build order (MHR_Build) drives first - it is an explicit order too, and it walks with the mover.
+		if (MHR_Build.Drive(this, dt))
+		{
+			return true;
+		}
 		if (MHR_Collect.Drive(this, dt))
 		{
 			ClearFollowMovementOverrides();

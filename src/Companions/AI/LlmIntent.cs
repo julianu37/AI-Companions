@@ -653,6 +653,8 @@ internal sealed class LlmIntent
 		Add(map, "nowander", "nowander", "no_wander", "parar_de_vagar", "nao_vagar", "sem_vagar", "parado");
 		Add(map, "pickup", "pickup", "auto_pickup", "autopickup", "recolher", "recolher_itens", "pegar_itens", "catar");
 		Add(map, "nopickup", "nopickup", "no_pickup", "nao_recolher", "parar_de_recolher", "nao_pegar", "nao_catar");
+		// Trilha E: "construa uma bancada de trabalho aqui" - build a NEW piece on the ground (BuildCatalog).
+		Add(map, "build", "build", "construir", "construa", "constroi", "constroem", "levanta", "levante", "levantar", "ergue", "erguer", "edifica", "edificar", "faz_uma", "fazer_uma", "build_it", "erigir", "monta", "montar", "cria", "criar");
 		Add(map, "command", "command", "commandable", "comandos", "aceitar_comandos", "obedecer", "ligar_comandos", "me_obedeca");
 		Add(map, "nocommand", "nocommand", "no_command", "nocommandable", "ignorar_comandos", "desobedecer", "desligar_comandos", "nao_obedecer");
 		Add(map, "stance_balanced", "stance_balanced", "balanced", "equilibrado", "balanceado", "postura_equilibrada", "normal", "neutro", "modo_normal");

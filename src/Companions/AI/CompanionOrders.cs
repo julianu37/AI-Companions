@@ -243,6 +243,14 @@ internal static class CompanionOrders
 			return outcome;
 		}
 
+		// Trilha E: build a NEW piece on the ground ("Maria, construa uma bancada de trabalho aqui"). One companion,
+		// like attack/equip/drop; the piece comes from the model's target or from the player's own words
+		// (BuildCatalog), and the spot is the one the player is looking at.
+		if (action == "build")
+		{
+			return Build(player, intent, userText, outcome, addressee, speaker);
+		}
+
 		// Fase 3.6: the orders that point at one creature or one item in the companion's pack. Fase 3.6b: the
 		// player's own message goes with them, because the model does not always fill in "target" (see
 		// ResolveItemTarget / Attack). Fase 3.11: with a name, only that companion's pack/world counts.
@@ -260,8 +268,7 @@ internal static class CompanionOrders
 		}
 
 		// Fase 3.8: the one order that is about ONE companion - the player sees its pack
-		if (action == "inventory")
-		{
+		if (action == "inventory")		{
 			// Fase 3.12: no "??" with Unity objects - a directed order asks for THAT companion, anything else falls
 			// back to the speaker of the message
 			return Inventory(player, IsDirected(addressee) ? addressee : speaker, outcome, IsDirected(addressee));
@@ -1006,8 +1013,60 @@ internal static class CompanionOrders
 	}
 
 	/// <summary>True when this companion took the order. Null-safe, main thread only.</summary>
-	private static bool Apply(CompanionSetup companion, string action, int amount, string resource, OrderOutcome outcome)
+	/// <summary>
+	/// Trilha E (E3): "Maria, construa uma bancada de trabalho aqui". The piece comes from the model's target, or from
+	/// the player's own words (<see cref="BuildCatalog"/>) - the same net as the 3.6b drop/equip. The order goes to one
+	/// companion (the addressed one, else the speaker of the message) and the spot is the one the player is looking
+	/// at (<see cref="BuildFindCommand.Hint"/>) or 3 m ahead. The job itself (find, walk, pay, place, verify) is
+	/// <see cref="MHR_Build"/>.
+	/// </summary>
+	private static OrderOutcome Build(Player player, LlmIntent intent, string userText, OrderOutcome outcome, CompanionSetup addressee, CompanionSetup speaker)
 	{
+		if (ModConfig.BuildEnabled != null && !ModConfig.BuildEnabled.Value)
+		{
+			outcome.Message = ModLocalization.Loc("hc_ai_build_disabled");
+			return outcome;
+		}
+		string prefab = BuildCatalog.Resolve(intent != null ? intent.Target : null) ?? BuildCatalog.Resolve(userText);
+		if (prefab == null || !BuildCatalog.Allowed(prefab))
+		{
+			outcome.Message = ModLocalization.Loc("hc_ai_build_no_recipe");
+			return outcome;
+		}
+		Piece piece = BuildProbe.PieceOf(prefab);
+		if (piece == null || (player != null && !player.IsRecipeKnown(piece.m_name)))
+		{
+			outcome.Message = ModLocalization.Loc("hc_ai_build_no_recipe");
+			return outcome;
+		}
+		CompanionSetup target = IsDirected(addressee) ? addressee : speaker;
+		if (target == null)
+		{
+			return outcome;
+		}
+		MHR_Owner.TakeControl(target);
+		Vector3 hint;
+		if (!BuildFindCommand.Hint(player, out hint))
+		{
+			Vector3 forward = player.transform.forward;
+			forward.y = 0f;
+			forward = forward.sqrMagnitude < 0.01f ? Vector3.forward : forward.normalized;
+			Vector3 flat = player.transform.position + forward * 3f;
+			float y = ZoneSystem.instance != null ? ZoneSystem.instance.GetGroundHeight(flat) : flat.y;
+			hint = new Vector3(flat.x, y, flat.z);
+		}
+		if (!MHR_Build.Start(target, prefab, hint))
+		{
+			outcome.Message = ModLocalization.Loc("hc_ai_build_no_recipe");
+			return outcome;
+		}
+		outcome.Count = 1;
+		outcome.LabelKey = "hc_ai_order_build";
+		outcome.LabelArg = Localization.instance != null ? Localization.instance.Localize(piece.m_name) : prefab;
+		return outcome;
+	}
+
+	private static bool Apply(CompanionSetup companion, string action, int amount, string resource, OrderOutcome outcome)	{
 		if (companion == null || companion.GetComponent<ZNetView>()?.GetZDO() == null)
 		{
 			return false;

@@ -154,6 +154,11 @@ internal static class ModConfig
 
 	internal static ConfigEntry<float> AutoPickupRange;
 
+	// [Building] (Trilha E)
+	internal static ConfigEntry<bool> BuildEnabled;
+	internal static ConfigEntry<float> BuildSiteSearchRadius;
+	internal static ConfigEntry<float> BuildMaxDistanceFromHome;
+
 	internal static ConfigEntry<float> TombstoneScanInterval;
 
 	internal static ConfigEntry<float> TombstoneNavTimeout;
@@ -915,6 +920,10 @@ internal static class ModConfig
 		LootMaxDistance = Bind(cfg, "Looting", "MaxDistance", 30f, "Kills further away than this (meters), or that you've moved this far away from while it follows you, are left.", new AcceptableValueRange<float>(5f, 100f));
 		CollectRadius = Bind(cfg, "Looting", "CollectRadius", 10f, "With the \"collect the items on the ground\" order, how far (meters) from the companion it looks for loose things on the ground - including what you or it dropped on purpose. It walks to each item and picks them up one by one, until nothing is left in range, the bag is full or the order goes past 30 seconds.", new AcceptableValueRange<float>(1f, 30f));
 		AutoPickupRange = Bind(cfg, "Looting", "AutoPickupRange", 2f, "With Auto Pickup on in the wheel, a companion picks up items within this many meters of itself as it goes, like a player's auto-pickup.", new AcceptableValueRange<float>(0.5f, 10f));
+		// [Building] (Trilha E) - the autonomous construction. E3: one piece per order, from its own bag.
+		BuildEnabled = Bind(cfg, "Building", "Enabled", true, "Let a companion build when you ask it (\"Maria, build a workbench here\"). It checks the recipe, looks for a free spot with the game's own rules, walks there, places the piece and confirms it. Phase E3: it builds from its own bag only (no gathering yet) and only the pieces of the workshop (workbench, chest, fire pit, bed).");
+		BuildSiteSearchRadius = Bind(cfg, "Building", "SiteSearchRadius", 8f, "How far (meters) around the spot you are looking at the companion looks for a place where the piece fits (the game's rules: ground, water, ward, no-build zone, station in range and no clipping into other pieces).", new AcceptableValueRange<float>(1f, 30f));
+		BuildMaxDistanceFromHome = Bind(cfg, "Building", "MaxDistanceFromHome", 40f, "A build order is refused when the spot is further than this (meters) from the companion's home, so it does not wander off to build across the world. 0 = no limit.", new AcceptableValueRange<float>(0f, 200f));
 		// [GearRepair]
 		RepairDurabilityThreshold = Bind(cfg, "GearRepair", "DurabilityThreshold", 0.5f, "A companion takes its gear to a crafting station to repair it when something drops below this share of durability (0.5 = 50%).", new AcceptableValueRange<float>(0.1f, 0.9f));
 		RepairHomeThreshold = Bind(cfg, "GearRepair", "HomeThreshold", 0.8f, "At home (or, without a home set, inside a base - a workbench's area), gear is repaired a bit sooner: below this share (0.8 = 80%). 1 = at any wear. Away from home DurabilityThreshold applies.", new AcceptableValueRange<float>(0.1f, 1f));

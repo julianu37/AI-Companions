@@ -291,7 +291,9 @@ internal static class RadialIntent
 	{
 		"attack", "equip", "drop", "inventory", "inventory_close",
 		"hive", "door", "board", "sit", "deposit",
-		"wood", "stone", "ore", "forage", "pickup", "nopickup"
+		"wood", "stone", "ore", "forage", "pickup", "nopickup",
+		// Trilha E: "construa uma bancada" carrega a peça no texto - uma palavra de postura na mesma frase não pode engolir
+		"build"
 	};
 
 	/// <summary>The actions the wander rule may fix (the model answers "stop" for "stop wandering" and "nowander" for "vaga").</summary>

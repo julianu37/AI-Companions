@@ -44,7 +44,7 @@ internal static class BuildProbe
 
 	/// <summary>The layers the vanilla placement ray looks through (<c>Player.m_placeWaterRayMask</c>, decompiled
 	/// 1.0.20): the first hit tells us ground, piece or water.</summary>
-	private static int PlaceMask()
+	internal static int PlaceMask()
 	{
 		if (_placeMask < 0)
 		{

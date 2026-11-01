@@ -419,6 +419,29 @@ TOOLS = [
         },
     },
     {
+        "name": "build_find",
+        "description": (
+            "Where the piece would go (E2): runs the real placement search from a hint - the player's aim when no "
+            "coordinates are given - and returns the chosen pose, the distance from the hint, how many candidates "
+            "were tried and how many failed for each reason (clipping, no_ground, no_build_zone, ward, "
+            "needs_station...). It does NOT place anything. This is the 'aqui' of the build order."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "prefab": {"type": "string", "description": "prefab name, e.g. 'piece_workbench'"},
+                "x": {"type": "number", "description": "hint (default: what the player is looking at, else 3 m ahead)"},
+                "y": {"type": "number"},
+                "z": {"type": "number"},
+                "radius": {"type": "number", "minimum": 1, "maximum": 40, "default": 8},
+                "rings": {"type": "integer", "minimum": 1, "maximum": 8, "default": 3},
+                "dirs": {"type": "integer", "minimum": 4, "maximum": 24, "default": 8},
+            },
+            "required": ["prefab"],
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "build_pieces",
         "description": (
             "Lists the build pieces already standing near a point (default: the player): prefab, name, creator, "
@@ -861,6 +884,12 @@ def run_tool(name, args):
             if key in args:
                 payload[key] = args[key]
         return require_ok(call_bridge("build.sites", **payload))
+    if name == "build_find":
+        payload = {"prefab": args["prefab"], "radius": args.get("radius", 8), "rings": args.get("rings", 3), "dirs": args.get("dirs", 8)}
+        for key in ("x", "y", "z"):
+            if key in args:
+                payload[key] = args[key]
+        return require_ok(call_bridge("build.find", **payload))
     if name == "build_pieces":
         payload = {"radius": args.get("radius", 10)}
         if args.get("filter"):

@@ -940,6 +940,8 @@ namespace Companions
             // still while it walks about, exactly like the orders below (they all drive through the same MHR_Mover,
             // and two tags steering at once reset each other's route every frame)
             if (MHR_Collect.Active(c)) return true;
+            // Trilha E: a build order in progress (it steers through the same mover)
+            if (MHR_Build.Active(c)) return true;
             CompanionAI ai = c.GetComponent<CompanionAI>();
             if (ai != null && (ai.PendingMoveTarget.HasValue || ai.PendingCartAttach != null || ai.PendingDepositContainer != null || ai.IsRecoveringTombstone || ai.IsBoardingShip)) return true;
             // 1.4.147: open that door; sit by that fire / sleep in that bed
