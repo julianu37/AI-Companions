@@ -497,13 +497,21 @@ bancada no raio; fogueira exige chão; cama precisa de espaço).
 **Aceite:** 4 ordens seguidas (`bancada`, `baú`, `fogueira`, `cama`) montam uma oficina funcional, sem
 nenhuma falhar por posicionamento.
 
+> **"Funcional" tem dois sentidos - medido no decompilado (01/11/2026, ver `docs/re/building-notes.md` §9):**
+> **colocar** peça só precisa da estação **no raio** (`HaveBuildStationInRange`, sem telhado); **craftar item** na
+> bancada passa por `CheckUsable`, que exige `underRoof` e **70% de cobertura**. Então a E5 prova as **quatro peças
+> colocadas** (a bancada valendo de estação para baú e cama); o telhado - a oficina **usável** - é a **E6**, e o
+> primeiro template dela é o **abrigo da bancada**.
+
 ### Fase 6 — Estruturas pequenas por **template** (2–3 dias)
 
 **Entrega:** ordem com plano (`constrói um chão 2x2 e quatro paredes aqui`) → lista de peças **relativas** ao
 âncora + **snap** (`Piece.GetSnapPoints`) + ordem topológica (fundação → parede → telhado) + checagem de
 suporte (`WearNTear.GetSupport`).
 
-**Aceite:** 2x2 de piso + 4 paredes + telhado, tudo encaixado, sem peça "solta no ar".
+**Aceite:** 2x2 de piso + 4 paredes + telhado, tudo encaixado, sem peça "solta no ar". O **primeiro** template é o
+**abrigo da bancada** (o telhado que o `CheckUsable` exige para craftar - §9 das notas de construção), que é o que
+fecha o sentido "usável" da E5.
 
 > A partir daqui a pergunta "template ou plano do jogador?" já está respondida pelas duas fases seguintes: o
 > template é nosso (curto e previsível); o plano grande é do BuildOrders.

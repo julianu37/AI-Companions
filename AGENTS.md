@@ -1001,7 +1001,7 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
 - `docs/plan-fases.md` — plano das fases com mapa do upstream.
 - `docs/plan-multilinguagem.md` — plano da multilinguagem (EN/PT/ES/FR): `Locale`, config `auto`, catálogo de
   vozes por idioma e as fases M1–M5.
-- `docs/plan-construcao.md` — **plano da construção autônoma (Trilha E, só planejado)**: a ordem `build`
+- `docs/plan-construcao.md` — **plano da construção autônoma (Trilha E, E0-E5 feitas)**: a ordem `build`
   (bancada → baú/fogueira/cama → estruturas por template → **planos do BuildOrders**), o validador de local
   dirigido pelas flags do `Piece`, o executor (`Player.PlacePiece` quando o `Player` do dono existe + reserva
   própria), a sonda `modia_build_probe` da Fase 0 e as armadilhas confirmadas (`Piece.SetCreator` só grava com
@@ -1070,19 +1070,29 @@ comandos de console e spawna coisas, então não é feature de jogador.
   greyling enquanto mexia no bridge). O `god` do Valheim 1.0 **não** cancela o dano: ele trava o HP em **1** quando o
   golpe mataria (`Character.cs`), então o `heal` é obrigatório para a barra não ficar em 1. `setup: false` no
   `world_enter` desliga.
-- **Testar:** `python tools/mcp-devbridge/test_mcp_devbridge.py` (mock, sem jogo) — 55 checks.
-- **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check` — **224 asserções** das redes por
+- **Testar:** `python tools/mcp-devbridge/test_mcp_devbridge.py` (mock, sem jogo) — 57 checks.
+- **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check` — **273 asserções** das redes por
   palavras (`RadialIntent`, `PickupIntent`, `GatherIntent`, `InteractionIntent`, `LlmIntent`, `OrderItems`,
   `CompanionNameMatch`) com os `.cs` reais linkados, mais o cross-check das cópias do `Stubs.cs` contra a
   `Companions.dll` (seção (h) — impede drift). Build 0/0 e exit 0 são o gate.
 - **Gate de release:** `powershell -ExecutionPolicy Bypass -File tools\release-check.ps1 -Version <versão>` — roda o
   build, a versão (`PluginVersion` × nome do zip), as 3 traduções, o `locale-fallback-check.ps1` (agora com asserts),
-  o `gen_config_doc.py --check`, o teste do MCP (55) e as 224 asserções; **PASS/FAIL por item e exit 1**. É o que tem
+  o `gen_config_doc.py --check`, o teste do MCP (57) e as 273 asserções; **PASS/FAIL por item e exit 1**. É o que tem
   de passar antes de tag/zip (`-SkipGame`/`-SkipIntents` para rodar parte).
-- **Docs:** `docs/mcp-devbridge.md` (arquitetura, protocolo, as **50** ferramentas, a receita de **jogar pelo agente**
+- **Docs:** `docs/mcp-devbridge.md` (arquitetura, protocolo, as **51** ferramentas, a receita de **jogar pelo agente**
   e a de **comandos de console**, e as evidências dos testes da 1.9.4) e `tools/mcp-devbridge/README.md`
   (parâmetros/exemplos).
-- **Construção (Trilha E):** `build.inspect` / `build.sites` são as duas ferramentas da **E0** (a sonda): leem a ficha
+- **Construção (Trilha E):** E0-E5 medidas em jogo. **E5 (a oficina mínima, 01/11/2026):** 4 ordens seguidas pelo
+  chat (bancada 4 s → baú 4 s → fogueira 2 s → cama 6 s), todas em `hc_ai_build_done`, o baú e a cama usando a
+  bancada recém-construída como estação. **Colocar** peça só precisa da estação no raio
+  (`CraftingStation.HaveBuildStationInRange`); **craftar** na bancada passa por `CheckUsable` e exige **telhado**
+  (`m_craftRequireRoof`, 70% de cobertura) - o telhado é a E6 e o primeiro template dela é o **abrigo da bancada**
+  (`docs/re/building-notes.md` §9). O catálogo resolve os nomes nos 5 idiomas **com plural** (49 casos no harness,
+  seção (i)). As particularidades saíram do validador: **fogueira em cima de madeira -> `not_on_wood`**
+  (medido: 1 `not_on_wood` + 3 `valid`, e baú/cama `valid` no mesmo ponto), baú/cama sem estação ->
+  `needs_station`, e o "espaço" da cama é o **encaixe do fantasma** (`m_spaceRequirement` só vale para
+  `StationExtension`). `player.look` (MCP) vira a mira - que é o `hint` da ordem - e `down` **positivo = olhar para baixo**
+  (`SetMouseLook` subtrai o y). `build.inspect` / `build.sites` são as duas ferramentas da **E0** (a sonda): leem a ficha
   real de uma peça (receita, estação, flags de `Piece`, `WearNTear`, ward) e o veredito de anéis de pontos **sem
   colocar nada**. `companions.build` (E3) dá a ordem sem o LLM (o job sozinho) e `build.pieces` (E1) lista o que **já está no mundo** (prefab, criador, `mine`, `zdo`, vida,
   estação) — é como o relog foi provado. A mesma função atende os comandos `modia_build_probe [prefab] [raio]` e

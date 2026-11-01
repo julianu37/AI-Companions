@@ -40,8 +40,20 @@ its own bag, places the piece and confirms it works.
   `[Building] GatherForBuild` (true) turns the whole thing off. With nothing to collect inside the radius the order
   refuses at once and says what is missing (it does not hand the gather a job it cannot do); if a gather starts but
   does not finish, it says what is missing before ending.
+- **The minimal workshop (E5):** four orders in a row - bench, chest, fire pit and bed - through the chat, each
+  one placed on the first try (4 s, 4 s, 2 s and 6 s), the chest and the bed using the bench the companion had
+  just built as their station. The piece names are resolved in the five languages, **plurals included** ("two
+  beds", "dois baús"), and "cama" is the cheap bed while only "cama de dragão" is the dragon one.
+  **Roofs:** placing a chest or a bed only needs the station in range (`HaveBuildStationInRange`), so it works
+  with the bench under the open sky; **crafting** at the bench goes through `CheckUsable` and needs a roof with
+  70% cover - that roof is the first structure template (E6). The particularities come from the validator: a
+  fire pit on top of a wooden piece is refused (`not_on_wood` - measured: 1 refused + 3 valid, while the chest
+  and the bed accept the same point), and the bed's "space" is the placement ghost's own collider test
+  (`m_spaceRequirement` only applies to station extensions).
 - **New dev tooling:** `modia_build_probe [prefab] [radius]` and `modia_build_find [prefab] [radius]` in the game
-  console, and the MCP tools `build_inspect`, `build_sites`, `build_find`, `build_pieces` and `companions_build`.
+  console, and the MCP tools `build_inspect`, `build_sites`, `build_find`, `build_pieces`, `companions_build`,
+  `companions_sethome` and `player_look` (the build order takes its spot from your aim, so a test has to be
+  able to look down).
   The measurements of the five workshop pieces are in `docs/re/building-notes.md`; the plan is
   `docs/plan-construcao.md`.
 

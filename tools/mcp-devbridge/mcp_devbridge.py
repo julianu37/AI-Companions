@@ -307,6 +307,18 @@ TOOLS = [
         },
     },
     {
+        "name": "player_look",
+        "description": "Turns the player's view (the build order takes its hint from the aim ray). 'down' is degrees to pitch down; the answer includes where the aim lands.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "down": {"type": "number", "description": "degrees to pitch down (negative looks up)"},
+                "right": {"type": "number", "description": "degrees to turn right"},
+            },
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "player_kill",
         "description": "Kills the player once (no god mode). Useful to test death/respawn flows quickly.",
         "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
@@ -881,6 +893,13 @@ def run_tool(name, args):
         return require_ok(call_bridge("player.give", item=args["item"], amount=args.get("amount", 1)))
     if name == "player_teleport":
         return require_ok(call_bridge("player.teleport", x=args["x"], y=args["y"], z=args["z"]))
+    if name == "player_look":
+        payload = {}
+        if "down" in args:
+            payload["down"] = args["down"]
+        if "right" in args:
+            payload["right"] = args["right"]
+        return require_ok(call_bridge("player.look", **payload))
     if name == "player_kill":
         return require_ok(call_bridge("player.kill"))
     if name == "player_inventory":

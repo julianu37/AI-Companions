@@ -2310,8 +2310,8 @@ Branch `feat/1.9.5`. O que entrou (20 itens; a lista completa e o que ficou de f
 
 ## Trilha E — Construção autônoma (planejada, 31/10/2026 · rev. 01/11/2026)
 
-> **Só planejado.** O plano completo (arquitetura, fases, critérios de aceite, riscos e a pesquisa do
-> ecossistema) está em **`docs/plan-construcao.md`**. Nada de código foi escrito ainda.
+> **E0–E5 feitas** (medidas em jogo, 01/11/2026); E6–E10 são plano. O plano completo (arquitetura, fases,
+> critérios de aceite, riscos e a pesquisa do ecossistema) está em **`docs/plan-construcao.md`**.
 
 A meta: `Maria, construa uma bancada de trabalho aqui` → a companheira resolve a receita, os materiais
 (mochila → baús → coleta), acha um local válido, coloca a peça e **confirma** que ela funciona. Depois: baú,
@@ -2329,8 +2329,8 @@ madeiras, **bancada em 96 s**. `[Building] GatherRadius` 120 m (máx. 200): se o
 travar. Um dono do `MHR_Mover` por vez (o vigia `s_pending` não dirige). **Sem recurso no raio** (raio 10 m de propósito):
 `no resource within 10 m - refusing` → `order ended: hc_ai_build_missing` **na hora** (não espera os 300 s); no
 estouro do prazo o vigia **fala** o que falta. **`MaxDistanceFromHome` exercitado**: spot a 4 m da casa com máximo
-1 m → `the spot is 4 m from the companion's home (max 1 m)`. 351 configs, MCP 50 ferramentas / 55 checks. (A primeira tentativa, com a coleta DENTRO do job, foi revertida: dois donos do movimento) |: mochila→baús (tudo ou nada), distância da casa barrando a ordem, martelo opcional e ruído desligável **entraram** (349 configs, gate 9/9); a **coleta dentro do job foi revertida** — dois sistemas dirigindo o mesmo `MHR_Mover` embaralharam o movimento do companheiro (relato do jogador). Fica a **E4b**: coleta como ordem separada |
-| **E5** | Baú, fogueira e cama no catálogo (a oficina mínima) | ⏳ |
+1 m → `the spot is 4 m from the companion's home (max 1 m)`. 351 configs, MCP 50 ferramentas / 55 checks. (A primeira tentativa, com a coleta DENTRO do job, foi revertida: dois donos do movimento) |
+| **E5** | Baú, fogueira e cama no catálogo (a oficina mínima) | ✅ 01/11/2026 - **4 ordens seguidas pelo chat** (`qwen2.5-3b-instruct`, 532-1355 ms cada): bancada 4 s → baú 4 s → fogueira 2 s → cama 6 s, **todas em `hc_ai_build_done`, nenhuma falha de posicionamento** (o baú e a cama a ~10 m da bancada, `needs_station` satisfeito **sem telhado**). O catálogo ganhou os **plurais** ("duas camas", "dois baús") e 49 casos novos no harness (273). **Medido no decompilado:** *colocar* peça só precisa da estação no raio (`HaveBuildStationInRange`); *craftar* na bancada passa por `CheckUsable` e exige **telhado (70% de cobertura)** - o telhado é a E6, cujo primeiro template é o **abrigo da bancada**. Nova ferramenta `player.look` (a mira é o `hint` da ordem). MCP 51 ferramentas / 57 checks |
 | **E6** | Estruturas pequenas por **template**: peças relativas, snap e ordem topológica com suporte | ⏳ |
 | **E7** | **Ponte BuildOrders** (opcional): o companheiro constrói os fantasmas que o jogador planejou (`Count`/`Next`/`Place`/`Blockers` por `AppDomain`, pagando de mochila+baús) | ⏳ |
 | **E8** | O companheiro **gera** o plano de um blueprint JSON (`TryCreateGhostPlan`/`TryCreateBuildingShell`, até 2.048 peças) | ⏳ |

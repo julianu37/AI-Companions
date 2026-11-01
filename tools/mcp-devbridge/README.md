@@ -106,6 +106,22 @@ with a stable status name - `valid`, `no_ground`, `in_water`, `no_water`, `need_
 It is the checks of `Player.UpdatePlacementGhost` that do not need the ghost; the ghost-clipping test
 (`m_noClipping`) comes in E2.
 
+### `player_look`
+
+| param | type | default |
+|---|---|---|
+| `down` | number | 0 |
+| `right` | number | 0 |
+
+```json
+{"down": 45, "right": 0, "forward": {"x": 0.1, "y": -0.7, "z": 0.7}, "distance": 2.4}
+```
+
+Turns the player's view through the game's own `Player.SetMouseLook`. It matters because the build order takes its
+spot from the aim ray (`BuildFindCommand.Hint`, 50 m): a test that wants the piece at the player's feet has to look
+down. **`down` positive looks DOWN** - `SetMouseLook` subtracts the y of the delta, so the bridge passes it negated.
+The answer includes where the aim lands (`distance` is missing when it hits nothing).
+
 ### `companions_sethome`
 
 | param | type | default |

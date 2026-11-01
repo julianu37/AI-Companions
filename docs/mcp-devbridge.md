@@ -83,6 +83,7 @@ Uma conexão por chamada; **um JSON por linha**, nas duas direções.
 | `console` | `command` | `command` |
 | `player.give` | `item`, `amount` | `item`, `amount`, `added` |
 | `player.teleport` | `x`, `y`, `z` | `x`, `y`, `z` |
+| `player.look` | `down?`, `right?` (graus) | `down`, `right`, `forward{}`, `distance`, `x`, `y`, `z` |
 | `world.spawn` | `prefab`, `count`, `x?`, `y?`, `z?` | `prefab`, `count` |
 | `build.inspect` | `prefab` | `found`, `name`, `resources[]`, `station{}`, `flags{}`, `space{}`, `wearNTear{}`, `craftingStation{}`, `inHammer`, `recipeKnown` |
 | `build.sites` | `prefab`, `x?`, `y?`, `z?`, `radius?`, `rings?`, `dirs?` | `total`, `valid`, `points[]` (cada um com `status`, `reasons[]`, `ground{}`, `biome`, `cultivated`, `hasStation`, `wardOk`, `noBuildZone`) |
@@ -122,7 +123,7 @@ o cursor logo depois dela).
 `Wander`, `Follow`, `StayHome`, `HomeRadius`, `OrderCap`, `OrderCapMode`, `OrderCapItem`, `TombstoneId`, `Stamina`,
 `Recovering`, `RecoverStance`, `RecoverPickup`, `Voice`, `Gen`, `FarmZones` (`"<none>"` ou `"N chars"`).
 
-## Ferramentas MCP (50)
+## Ferramentas MCP (51)
 
 Genéricas: `devbridge_ping`, `game_status` (posição, hp/stamina, bioma, dia, **yaw** do player, **camYaw/pitch** da
 câmera e **god**), `game_console` (**roda um comando do console e devolve a saída**: liga os dev commands sozinho e,

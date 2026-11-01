@@ -75,6 +75,8 @@ internal static class Program
 		Items();
 		Section("(g) CompanionNameMatch - quem o jogador chamou (bonus)");
 		Names();
+		Section("(i) BuildCatalog - o nome da peca vira o prefab (E5: oficina)");
+		Build();
 		CrossCheckDoorRule();
 
 		Out.WriteLine();
@@ -311,6 +313,84 @@ internal static class Program
 		Check("GatherAction(\"attack\", \"stone\") == null (nao e coleta)", OrderItems.GatherAction("attack", "stone") == null);
 		Check("GatherAction(\"wood\", null) == null", OrderItems.GatherAction("wood", null) == null);
 		Check("GatherAction(\"wood\", \"xyz\") == null", OrderItems.GatherAction("wood", "xyz") == null);
+	}
+
+	/// <summary>
+	/// Section (i): the recipe resolver of the build order (E5). It is pure - the whole point of the design - so the
+	/// names the player may say can be tested outside the game, in the five languages, with the plurals and the
+	/// longest-alias rule ("cama de dragão" must not fall into "cama").
+	/// </summary>
+	private static void Build()
+	{
+		// Portuguese: the four pieces of the workshop, and the dragon bed winning over the simple one
+		BuildCase("construa uma bancada de trabalho aqui", "piece_workbench");
+		BuildCase("faz um baú aí", "piece_chest_wood");
+		BuildCase("acende uma fogueira", "fire_pit");
+		BuildCase("coloca uma cama", "bed");
+		BuildCase("constrói a cama de dragão", "piece_bed02");
+		BuildCase("monta um baú de madeira", "piece_chest_wood");
+		// plurals (the first E5 test would have failed silently on "duas camas")
+		BuildCase("constrói duas camas", "bed");
+		BuildCase("faz duas bancadas", "piece_workbench");
+		BuildCase("dois baús", "piece_chest_wood");
+		BuildCase("três fogueiras", "fire_pit");
+		// accents and case are folded
+		BuildCase("BAÚ", "piece_chest_wood");
+		BuildCase("BAU", "piece_chest_wood");
+		BuildCase("CAMA-DE-DRAGAO", "piece_bed02");
+		// English
+		BuildCase("build a workbench here", "piece_workbench");
+		BuildCase("place a wooden chest", "piece_chest_wood");
+		BuildCase("make a campfire", "fire_pit");
+		BuildCase("build two beds", "bed");
+		BuildCase("the dragon bed", "piece_bed02");
+		// Spanish
+		BuildCase("construye un banco de trabajo", "piece_workbench");
+		BuildCase("pon un cofre de madera", "piece_chest_wood");
+		BuildCase("haz una fogata", "fire_pit");
+		BuildCase("una cama sencilla", "bed");
+		// French
+		BuildCase("construis un établi", "piece_workbench");
+		BuildCase("un coffre en bois", "piece_chest_wood");
+		BuildCase("un feu de camp", "fire_pit");
+		BuildCase("deux lits", "bed");
+		// Italian
+		BuildCase("costruisci un banco da lavoro", "piece_workbench");
+		BuildCase("una cassa", "piece_chest_wood");
+		BuildCase("un falò", "fire_pit");
+		BuildCase("due letti", "bed");
+
+		// nothing named / something outside the table: null (the order refuses with its own line)
+		Check("Resolve(\"constrói uma parede\") == null (fora da allow-list)", BuildCatalog.Resolve("constrói uma parede") == null);
+		Check("Resolve(\"\") == null", BuildCatalog.Resolve(string.Empty) == null);
+		Check("Resolve(null) == null", BuildCatalog.Resolve(null) == null);
+		// whole words only: "camada" is not "cama"
+		Check("Resolve(\"uma camada de terra\") == null (palavra inteira)", BuildCatalog.Resolve("uma camada de terra") == null);
+		Check("Resolve(\"bancadinha\") == null (palavra inteira)", BuildCatalog.Resolve("uma bancadinha") == null);
+
+		// the allow-list gate the order uses
+		foreach (string prefab in BuildCatalog.Prefabs())
+		{
+			Check("Allowed(\"" + prefab + "\")", BuildCatalog.Allowed(prefab));
+		}
+		Check("Prefabs() tem 5 pecas", BuildCatalog.Prefabs().Length == 5);
+		Check("Allowed(\"wood_wall\") == false", !BuildCatalog.Allowed("wood_wall"));
+		Check("Allowed(null) == false", !BuildCatalog.Allowed(null));
+
+		// the label used in the log/refusal
+		CheckText("Label(piece_workbench)", "bancada de trabalho", BuildCatalog.Label("piece_workbench"));
+		CheckText("Label(piece_bed02)", "cama de dragão", BuildCatalog.Label("piece_bed02"));
+		CheckText("Label(desconhecida) devolve o proprio nome", "xyz", BuildCatalog.Label("xyz"));
+
+		// the word helpers the order uses to read the sentence
+		Check("HasWord(\"constrói uma cama aqui\", \"cama\")", BuildCatalog.HasWord("constrói uma cama aqui", "cama"));
+		Check("HasWord(\"camada\", \"cama\") == false", !BuildCatalog.HasWord("camada", "cama"));
+		Check("HasAnyWord(\"faz um baú\", \"cama\", \"bau\")", BuildCatalog.HasAnyWord("faz um bau", "cama", "bau"));
+	}
+
+	private static void BuildCase(string text, string expected)
+	{
+		CheckText("Resolve(" + Show(text) + ")", expected, BuildCatalog.Resolve(text));
 	}
 
 	private static void Names()

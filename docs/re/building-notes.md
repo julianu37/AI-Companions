@@ -90,8 +90,9 @@ Saída do comando (log, mundo `test3`, 01/11/2026):
 | Prefab | Nome (PT) | Custo (`m_resources`) | Estação | `supports` | Flags verdadeiras |
 |---|---|---|---|---|---|
 | `piece_workbench` | Bancada | Madeira x10 | — | **false** | noInWater, notOnTiltingSurface, **noClipping** |
-| `piece_chest_wood` | Baú | Madeira x10 | `$piece_workbench` | true | noInWater, notOnTiltingSurface, noClipping |
+| `piece_chest_wood` | Baú | Madeira x10 | `$piece_workbench` | **false** | noInWater, notOnTiltingSurface, noClipping |
 | `fire_pit` | Fogueira | Pedra x5, Madeira x2 | — | true | noInWater, **notOnWood**, notOnTiltingSurface, noClipping, **allowedInDungeons** |
+| `bed` | Cama | Madeira x8 | `$piece_workbench` | true | noInWater, notOnTiltingSurface, noClipping |
 | `piece_bed02` | Cama de dragão | Madeira x40, Pele de cervo x7, Couro de lobo x4, Penas x10, Pregos de ferro x15 | `$piece_workbench` | true | noInWater, notOnTiltingSurface, noClipping |
 | `wood_floor` | Piso de madeira 2x2 | Madeira x2 | `$piece_workbench` | true | **(nenhuma)** |
 
@@ -321,3 +322,83 @@ a coleira `[Building] MaxDistanceFromHome` foi exercitada (`the spot is 4 m from
 `build.pieces radius 45` = **0 bancadas**, 10 madeira na mochila, `baus depois: 0` — a checagem de estação roda
 **antes** de pagar, então a ordem não custa nada. O `Finish` agora loga `order ended: <chave> (<motivo>)`: é o que
 permite provar no log qual linha o companheiro falou (a fala em si vai para o balão/TTS).
+
+
+---
+
+## 9. A bancada em qualquer lugar, mas **usar** exige telhado (decompilado, 01/11/2026)
+
+Ponto do jogador, confirmado no código do jogo 1.0.20: **construir** a bancada não exige nada além de chão
+(flags `noInWater` / `notOnTiltingSurface` / `noClipping`, medidas na §1), mas **usar** a bancada (craftar item)
+exige **telhado**. São duas checagens **diferentes** - e é por isso que a confusão aparece:
+
+| onde | o que checa | telhado? |
+|---|---|---|
+| `CraftingStation.HaveBuildStationInRange(name, point)` (`CraftingStation.cs` L271) | nome da estação + `GetStationBuildRange()`; achata o `y` do ponto no `y` da estação | **não** |
+| `CraftingStation.CheckUsable(player, showMessage)` (`CraftingStation.cs` L142) | `m_craftRequireRoof` -> `Cover.GetCoverForPoint(m_roofCheckPoint.position)` e exige `underRoof` **e** `coverPercentage >= 0,7`; `m_craftRequireFire` -> `m_haveFire` | **sim** (70% de cobertura) |
+
+Quem chama o quê:
+
+- **Colocar peça** (baú, cama, qualquer peça com `m_craftingStation`) -> `HaveBuildStationInRange`, a mesma função
+  que o `BuildProbe.CheckPoint` usa para o motivo `needs_station`. **Sem telhado.**
+- **Craftar item na bancada** (a janela do inventário) -> `InventoryGui` L1574 / L2164 / L2198 e
+  `CraftingStation.Interact` L127 chamam `CheckUsable`. **Com telhado** (`$msg_stationneedroof` /
+  `$msg_stationtooexposed`).
+
+O asset da bancada: `m_craftRequireRoof = true`, `m_craftRequireFire = false`, `m_rangeBuild = 20`,
+`m_useDistance = 2` (o `build.inspect` mostra os três; o `m_roofCheckPoint` é o ponto do prefab usado na cobertura).
+
+**Consequência para o plano:**
+
+- **E5** (oficina mínima) entrega as **quatro peças colocadas**: a bancada serve de estação para o baú e a cama
+  **sem telhado** (é o caminho do `needs_station`) - é o que a ordem de construção tem de provar.
+- **"Oficina funcional" no sentido do jogador** (craftar na bancada) precisa do **telhado** -> entra na **E6**
+  (estruturas por template), e o primeiro template é justamente o **abrigo da bancada** (piso + 4 paredes + telhado).
+- O companheiro **não** passa por `CheckUsable` em nada que ele faça hoje: os jobs dele não craftam em bancada.
+
+## 10. E5 - as quatro ordens seguidas (medido em 01/11/2026)
+
+Quatro ordens **pelo chat** (`qwen2.5-3b-instruct` no LM Studio), uma atrás da outra, com 40 madeira e 10 pedra na
+mochila do companheiro (o material é E4; aqui só se prova o **posicionamento**):
+
+```
+[IA] Order from chat: "Companheiro, construa um(a) bancada de trabalho aqui"
+[Build] site at (-197,9, 71,4, -239,3), 10,0 m from the hint, 15 tried (clipping x14, valid x1)
+[Build] done: piece_workbench at (-197,9, 71,4, -239,3)         4 s
+[IA] Order from chat: "Companheiro, construa um(a) bau aqui"
+[Build] done: piece_chest_wood at (-197,9, 69,2, -249,2)        4 s   (bancada a 10 m: needs_station satisfeito)
+[IA] Order from chat: "Companheiro, construa um(a) fogueira aqui"
+[Build] done: fire_pit at (-198,2, 69,0, -249,3)                2 s
+[IA] Order from chat: "Companheiro, construa um(a) cama aqui"
+[Build] done: bed at (-188,2, 70,0, -249,3)                     6 s   (bancada a ~10 m)
+```
+
+**4/4, nenhuma falha de posicionamento**, todas terminando em `hc_ai_build_done`. O LLM devolveu `build` nas quatro
+(532 / 1282 / 1355 / 1296 ms) e o `BuildCatalog` resolveu `bancada de trabalho` / `bau` / `fogueira` / `cama`.
+
+**A mira é o `hint` da ordem** (`BuildFindCommand.Hint`, raio de 50 m): a primeira tentativa construiu a bancada a
+**42 m** do jogador porque a câmera estava no horizonte. Para testar "aqui", a nova ferramenta do DevBridge
+`player.look {down}` vira a câmera (usa o `Player.SetMouseLook` do jogo; **positivo = olhar para baixo** - o
+`SetMouseLook` **subtrai** o y do delta, então o parâmetro vai negado).
+
+**A particularidade da fogueira (`notOnWood`) exercitada:** com o ponto em cima de uma peça de **madeira** (a
+fogueira que já estava lá - `WearNTear.m_materialType = Wood`), o validador devolve `not_on_wood` para a fogueira e
+`valid` para o baú e a cama (que **não** têm a flag):
+
+```
+fire_pit          {'not_on_wood': 1, 'valid': 3}
+   chao: fire_pit(Clone) | wearSupports: True | motivos: ['not_on_wood']
+bed               {'valid': 4}
+piece_chest_wood  {'valid': 4}
+```
+
+**A "falta de espaço" da cama é o `noClipping`, não o `m_spaceRequirement`:** o `build.inspect` mostra
+`spaceRequirement = 0` para as três peças - o `m_spaceRequirement` do vanilla só vale para `StationExtension`
+(`Player.cs` L3838). O espaço da cama é o teste de **encaixe do fantasma** (5 recusas `clipping` antes do ponto
+válido no teste das 4 ordens), exatamente o mesmo caminho da bancada.
+
+**A ficha das três peças novas** (`build.inspect`): baú = Madeira x10, `m_craftingStation` = Bancada, flags
+`noInWater notOnTiltingSurface noClipping`, `supports=false`; fogueira = Pedra x5 + Madeira x2, **sem estação**,
+flags `noInWater notOnWood notOnTiltingSurface noClipping allowedInDungeons`; cama = Madeira x8, estação Bancada,
+`supports=true`. A **cama de dragão** (`piece_bed02`, 40 de madeira fina + 7 de couro + 4 de pele de lobo + 10 penas
++ 15 pregos de ferro) tem `recipeKnown=false` no mundo de teste - é o caminho da recusa `hc_ai_build_recipe_locked`.

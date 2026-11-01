@@ -83,6 +83,7 @@ internal static class Commands
 			case "console": return ConsoleCommand(args);
 			case "player.give": return PlayerGive(args);
 			case "player.teleport": return PlayerTeleport(args);
+		case "player.look": return PlayerLook(args);
 			case "player.kill": return PlayerKill();
 			case "player.inventory": return PlayerInventory(args);
 			case "world.spawn": return WorldSpawn(args);
@@ -839,6 +840,41 @@ internal static class Commands
 		Vector3 pos = TargetPosition(args, p.transform.position);
 		p.transform.position = pos;
 		return Ok(new Dictionary<string, object> { { "x", pos.x }, { "y", pos.y }, { "z", pos.z } });
+	}
+
+	/// <summary>
+	/// Trilha E (E5): turns the player's view. The build order takes its <c>hint</c> from the aim ray
+	/// (<see cref="BuildFindCommand.Hint"/>), so a test that wants the piece at the player's feet has to look down -
+	/// the first E5 run built the bench 42 m away because the camera was on the horizon. It goes through the game's
+	/// own <c>Player.SetMouseLook</c>, so the eye, the camera and the placement ghost all follow.
+	/// </summary>
+	private static string PlayerLook(Dictionary<string, object> args)
+	{
+		Player p = Player.m_localPlayer;
+		if (p == null)
+		{
+			return Fail("not in game");
+		}
+		float down = Json.Float(args, "down", 0f);
+		float right = Json.Float(args, "right", 0f);
+		// SetMouseLook SUBTRACTS the y of the delta from the pitch, so a positive y looks UP - "down" is passed
+		// negated (the game's own mouse input does the same with the screen delta)
+		p.SetMouseLook(new Vector2(right, -down));
+		Vector3 forward = p.m_eye != null ? p.m_eye.forward : p.transform.forward;
+		Dictionary<string, object> result = new Dictionary<string, object>
+		{
+			{ "down", down },
+			{ "right", right },
+			{ "forward", new Dictionary<string, object> { { "x", forward.x }, { "y", forward.y }, { "z", forward.z } } }
+		};
+		if (Physics.Raycast(p.m_eye.position, forward, out RaycastHit hit, 50f, BuildProbe.PlaceMask(), QueryTriggerInteraction.Ignore))
+		{
+			result["distance"] = hit.distance;
+			result["x"] = hit.point.x;
+			result["y"] = hit.point.y;
+			result["z"] = hit.point.z;
+		}
+		return Ok(result);
 	}
 
 	private static string PlayerKill()
