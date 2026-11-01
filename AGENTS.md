@@ -143,7 +143,9 @@ config é **`BepInEx\config\AiCompanions.cfg`** (o GUID não dá mais nome a ele
   asserts): `python tools/stage_release.py --version <v> --from <pasta do plugin> --to pkg/<v>/stage [--no-models]`
   — falha se achar `speech.json`, `Translations\English.json`, marcador do Vortex ou idioma fora dos 4, e coloca
   `tts\`/`whisper\` **dentro de `BepInEx\plugins\AI-Companions\`** (é onde o `CompanionTts`/`WhisperStt` procuram;
-  os zips 1.9.2/1.9.3 tinham os modelos na raiz e estavam errados).
+  o **1.9.1**, o pacote do Nexus, já estava assim — os zips 1.9.2/1.9.3 regrediram e tinham os modelos na raiz).
+  No "sem-modelos" saem **só** os 3 arquivos grandes (`model.int8.onnx`, `voices.bin`, `whisper\*.bin`); `tokens.txt`
+  e `espeak-ng-data` **ficam** (são o fonemizador).
 - **Conteúdo do zip:** completa = DLL + dependências + `runtimes\win-x64\native` + `tts\kokoro\` +
   `whisper\ggml-small-q5_1.bin` + `Translations\` + `Speech\` + `LICENSES\` + `LEIA-ME.txt`; "sem-modelos" = o mesmo
   **sem** `tts\kokoro\` e **sem** `whisper\`. **Nunca** levar `speech.json` (runtime), `Translations\English.json`
@@ -1044,6 +1046,10 @@ comandos de console e spawna coisas, então não é feature de jogador.
   golpe mataria (`Character.cs`), então o `heal` é obrigatório para a barra não ficar em 1. `setup: false` no
   `world_enter` desliga.
 - **Testar:** `python tools/mcp-devbridge/test_mcp_devbridge.py` (mock, sem jogo) — 41 checks.
+- **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check` — **224 asserções** das redes por
+  palavras (`RadialIntent`, `PickupIntent`, `GatherIntent`, `InteractionIntent`, `LlmIntent`, `OrderItems`,
+  `CompanionNameMatch`) com os `.cs` reais linkados, mais o cross-check das cópias do `Stubs.cs` contra a
+  `Companions.dll` (seção (h) — impede drift). Build 0/0 e exit 0 são o gate.
 - **Docs:** `docs/mcp-devbridge.md` (arquitetura, protocolo, as **44** ferramentas, a receita de **jogar pelo agente**
   e a de **comandos de console**, e as evidências dos testes da 1.9.4) e `tools/mcp-devbridge/README.md`
   (parâmetros/exemplos).

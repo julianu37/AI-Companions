@@ -53,8 +53,9 @@
 - **AOE hits no longer throw**: the companion terrain-hit suppression used to return `null` to `Aoe.OnHit`, which
   dereferences it when the effect has `springDelay`/`placeOnGround`; it now gets a throwaway object destroyed at the
   end of the frame.
-- **The zip layout was fixed**: `tts\` and `whisper\` were at the root of the 1.9.2/1.9.3 zips, but the mod looks for
-  them **inside** `BepInEx\plugins\AI-Companions\` - that is where they go now.
+- **The zip layout is the 1.9.1 one again**: `tts\` and `whisper\` were at the root of the **1.9.2/1.9.3** zips, but the
+  mod looks for them **inside** `BepInEx\plugins\AI-Companions\` (the 1.9.1 package, the one on Nexus, was right) -
+  that is where they go now.
 - **Companion tombstones belong to you now** (`TombStone.Setup` was receiving the tombstone id where the game expects
   the owner player id, so the "take everything" shortcut never triggered).
 - **The conversation memory follows the game's language** and is placed before the JSON contract again.
