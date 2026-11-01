@@ -388,7 +388,7 @@ no `CompanionOrders`, a rede `CompanionOrders.IsBuildRequest` no lado `none`, o 
    medido a **140 m** da oficina (`build.pieces radius 45` = 0 bancadas), com 10 madeira na mochila: **nada foi
    construído** (`baus depois: 0`) e **nada foi gasto** — a checagem roda antes de pagar. O motivo agora aparece
    também no log (`order ended: <chave> (<motivo>)`), que é como o teste prova qual linha saiu;
-7. ⏳ **voz (push-to-talk): teste do JOGADOR.** O caminho é o **mesmo** `CompanionChatAI.Submit` do chat (nada de
+7. 👤 **voz (push-to-talk): teste do JOGADOR** (não é pendência de código). O caminho é o **mesmo** `CompanionChatAI.Submit` do chat (nada de
    lógica duplicada) e a voz foi validada em jogo nas Fases 3.3/3.3b/3.3d, mas o agente **não tem microfone**: falar
    "Maria, construa uma bancada de trabalho aqui" segurando `V` é o único passo que fica com o jogador.
 
