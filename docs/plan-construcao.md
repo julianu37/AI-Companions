@@ -516,6 +516,28 @@ fecha o sentido "usável" da E5.
 > A partir daqui a pergunta "template ou plano do jogador?" já está respondida pelas duas fases seguintes: o
 > template é nosso (curto e previsível); o plano grande é do BuildOrders.
 
+**Implementada em 01/11/2026 (medida em jogo):**
+
+- **`AI/BuildTemplates.cs`** (puro, no harness - seção (j)): os templates em **coordenadas relativas ao âncora**
+  (prefab + x/y/z + yaw + nível) e `Ordered()` (fundação → parede → telhado). Os deslocamentos saem dos **pontos de
+  encaixe** medidos (`build.snaps`): piso com a origem no centro e o topo em y = 0, parede com a origem no centro
+  (1 m acima do piso), telhado 45° subindo 2 m em 2 m (beiral 1 m fora, cumeeira 1 m dentro) - a tabela está em
+  `docs/re/building-notes.md` §11.
+- **`hut`** = 1 piso + 4 paredes + 2 telhados (7 peças, o aceite) e **`canopy`** = 4 postes + 4 telhados (8 peças,
+  o abrigo da bancada).
+- **`MHR_Build` em modo plano:** `FindAnchor` valida o **template inteiro** em cada candidato (o âncora é do
+  template, não da 1ª peça), o material do plano é checado **antes** da primeira peça, e cada passo passa por
+  `Goto`/`Place`/`Verify` como uma peça única - com o prazo **por peça**.
+- **Apoio ("sem peça solta no ar"):** `AI/BuildSupport.cs` lê o veredito do **próprio jogo**
+  (`WearNTear.UpdateSupport`/`HaveSupport` por reflexão, fail-open) depois de cada peça; o `BuildProbe.CheckPoint`
+  ganhou o teste de **pegada** (caixas crescidas 0,15 m procurando o chão ou uma peça que apoia) para peças acima
+  do chão, e um **`ignore`** para o companheiro não bloquear a própria peça.
+- **O companheiro constrói sozinho** (decisão do jogador): o executor não usa mais o `Player.PlacePiece` para ele.
+- **Aceite:** 7/7 peças `supported`, todas `placed (Direct)`; o log completo está em
+  `docs/re/building-notes.md` §11.
+- **Limitações:** o chão tem que ser razoavelmente plano (nivelar é a **E10**); o plano **não** manda a coleta
+  (falta material → recusa com o total) - a coleta de plano é o próximo passo.
+
 ### Fase 7 — O companheiro constrói os planos do BuildOrders (2–3 dias) — **a ponte**
 
 **Entrega:** `AI/BuildOrdersLink.cs` + o dever "construir os planos da casa" (ou uma ordem `build plans`):

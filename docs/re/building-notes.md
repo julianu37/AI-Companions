@@ -402,3 +402,66 @@ válido no teste das 4 ordens), exatamente o mesmo caminho da bancada.
 flags `noInWater notOnWood notOnTiltingSurface noClipping allowedInDungeons`; cama = Madeira x8, estação Bancada,
 `supports=true`. A **cama de dragão** (`piece_bed02`, 40 de madeira fina + 7 de couro + 4 de pele de lobo + 10 penas
 + 15 pregos de ferro) tem `recipeKnown=false` no mundo de teste - é o caminho da recusa `hc_ai_build_recipe_locked`.
+
+
+---
+
+## 11. E6 - a estrutura por template (medido em 01/11/2026)
+
+**Os pontos de encaixe** (`build.snaps`, `Piece.GetSnapPoints` - os filhos com a tag `snappoint`), que são a
+**fonte** dos deslocamentos do template (nada de chute):
+
+| prefab | snaps (no espaço do prefab) | leitura |
+|---|---|---|
+| `wood_floor` (2x2) | (±1, 0, ±1) | origem no **centro** do piso, **topo em y = 0** -> a grade é de 2 em 2 m |
+| `woodwall` | (±1, ±1, 0) | origem no **centro** de uma parede de 2 x 2 m -> sobre um piso ela fica **1 m acima** |
+| `wood_roof_45` | (±1, ±1, ∓1) | sobe **2 m em 2 m** no eixo z, origem no centro; o **beiral** 1 m fora e a **cumeeira** 1 m dentro |
+| `wood_pole2` | (0, ±1, 0) | 2 m, origem no centro |
+| `wood_wall_roof_45` | (0, 2, 0) e (±1, 0, 0) | a empena: base em y = 0, topo em y = 2 |
+| `wood_beam_45` | (-1, -1, 0) / (1, 1, 0) | viga em 45° |
+
+**As medidas** (`build.inspect` -> `bounds`, dos renderers): `wood_floor` 2,27 x 0,26 x 2,29 (topo em +0,12);
+`woodwall` 2,25 x 2,16 x 0,53; `wood_roof_45` 3,12 x 3,28 x 2,30 (o beiral explica o tamanho); `wood_pole2`
+0,42 x 2,00 x 0,42; bancada 3,74 x 1,85 x 2,10 (a base no origin); baú 1,52 x 0,79 x 1,80; cama 2,25 x 0,74 x 3,78.
+
+**Os dois templates** (`AI/BuildTemplates.cs`, puro e no harness - seção (j)):
+
+- **`hut`** (cabana) = **1 piso + 4 paredes + 2 telhados** (7 peças) - o aceite da E6. Piso em (0,0,0), paredes a
+  y = 1 nos quatro lados, telhados a y = 3 com 1 m de beiral e cumeeira 2 m acima das paredes.
+- **`canopy`** (abrigo da bancada) = **4 postes + 4 telhados** (8 peças) - o telhado que o `CheckUsable` exige (§9).
+
+**Aceite medido em jogo (cabana):** 7/7 peças, **todas `supported`**, todas pelo caminho **`Direct`**:
+
+```
+[Build] order: build plan hut (7 pieces) near (-202,0, 69,3, -251,7)
+[Build] plan hut: 7 pieces, 6 poses checked, anchor at (-202,0, 69,3, -251,7)
+[Build] done: hut at (-202,0, 69,3, -251,7) (1/7) supported          <- piso
+[Build] done: woodwall at (-202,6, 70,3, -252,5) (2/7) supported     <- parede
+...                                                                   <- 4 paredes
+[Build] done: wood_roof_45 at (-202,6, 72,3, -252,5) (6/7) supported  <- telhado
+[Build] done: wood_roof_45 at (-201,4, 72,3, -251,0) (7/7) supported
+[Build] order ended: hc_ai_build_plan_done
+```
+
+### As três lições de jogo (todas custaram uma rodada)
+
+1. **O apoio não existe antes das peças.** Validar o plano inteiro *antes* de construir recusou o telhado com
+   `no_support` - as paredes em que ele se apoia ainda eram fantasmas. Agora o plano valida a **geometria** antes
+   (ignorando `no_support` para nível > 0) e **revalida cada peça na hora de colocar**, com as anteriores de pé
+   (`MHR_Build.Place`).
+2. **O companheiro bloqueia a própria peça.** Ele anda até 2,5 m da peça para colocá-la, então a 5ª parede voltou
+   `blocked_by_player` (ele mesmo dentro do raio de 0,6 m). `BuildProbe.CheckPoint` ganhou um **`ignore`** (o próprio
+   companheiro); o jogador e os outros companheiros continuam contando.
+3. **O âncora é do template, não da primeira peça.** Procurar o local só para o passo 0 pôs o abrigo **11 m** longe
+   da bancada (o poste cabia ali, o resto não). O novo `FindAnchor` valida o **template inteiro** em cada candidato
+   (o mesmo anel de busca, 3 anéis x 8 direções).
+
+**O chão tem que ser plano.** O abrigo de 4x2 m precisa dos 4 postes no mesmo nível: num terreno inclinado os
+postes do lado de baixo ficam sem apoio e o plano recusa (foi o que aconteceu sobre a bancada da E5, num barranco) -
+o `FindAnchor` então procura outro ponto. Nivelar o terreno é a **E10**.
+
+**O companheiro constrói sozinho (decisão do jogador, 01/11/2026).** O executor **não** usa mais o
+`Player.PlacePiece` para o companheiro: a peça é criada pela sequência própria (`Instantiate` + claim +
+`SetCreator` + `OnPlaced` + `IPlaced`), com o criador = o **dono** (o jogador) e o barulho saindo do **companheiro**
+(`[Building] Quiet` silencia). O caminho do `Player.PlacePiece` dava o crédito, o barulho e as estatísticas de
+`MaxBuildingHeight` ao **jogador** - e quem constrói é o companheiro. Ele fica só para um teste sem construtor.

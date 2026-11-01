@@ -255,7 +255,113 @@ internal static class BuildProbe
 
 		result["itemDrop"] = piece.GetComponent<ItemDrop>() != null;
 		result["placeEffect"] = piece.m_placeEffect != null && piece.m_placeEffect.m_effectPrefabs != null && piece.m_placeEffect.m_effectPrefabs.Length > 0;
+		result["bounds"] = Bounds(piece);
 		return result;
+	}
+
+	/// <summary>
+	/// E6: how big the piece is and where its box sits relative to the prefab's origin - the numbers the templates
+	/// are written with (a floor is 2x2, a wall is 2 wide x 2 high and 0,2 thick, and the origin is at the base).
+	/// It reads the renderers of the prefab (the meshes are there even with the prefab inactive) and falls back to
+	/// the colliders when a piece has no renderer.
+	/// </summary>
+	internal static Dictionary<string, object> Bounds(Piece piece)
+	{
+		Dictionary<string, object> result = new Dictionary<string, object>();
+		if (piece == null)
+		{
+			return result;
+		}
+		try
+		{
+			Bounds box;
+			if (!BoxOf(piece, out box))
+			{
+				result["known"] = false;
+				return result;
+			}
+			Vector3 origin = piece.transform.position;
+			result["known"] = true;
+			result["size"] = new Dictionary<string, object> { { "x", box.size.x }, { "y", box.size.y }, { "z", box.size.z } };
+			result["center"] = new Dictionary<string, object>
+			{
+				{ "x", box.center.x - origin.x },
+				{ "y", box.center.y - origin.y },
+				{ "z", box.center.z - origin.z }
+			};
+			result["min"] = new Dictionary<string, object>
+			{
+				{ "x", box.min.x - origin.x },
+				{ "y", box.min.y - origin.y },
+				{ "z", box.min.z - origin.z }
+			};
+			result["max"] = new Dictionary<string, object>
+			{
+				{ "x", box.max.x - origin.x },
+				{ "y", box.max.y - origin.y },
+				{ "z", box.max.z - origin.z }
+			};
+		}
+		catch (Exception ex)
+		{
+			result["known"] = false;
+			result["error"] = ex.Message;
+		}
+		return result;
+	}
+
+	/// <summary>
+	/// The piece's box in the world, from its renderers (the meshes are there even with the prefab inactive) and,
+	/// when it has none, from its colliders. It is what <see cref="Bounds"/> reports and what the E6 footprint
+	/// support test uses.
+	/// </summary>
+	internal static bool BoxOf(Piece piece, out Bounds box)
+	{
+		box = new Bounds();
+		if (piece == null)
+		{
+			return false;
+		}
+		bool any = false;
+		Renderer[] renderers = piece.GetComponentsInChildren<Renderer>(true);
+		foreach (Renderer renderer in renderers)
+		{
+			// the effect renderers of a prefab have zero bounds and would drag the box to the origin
+			if (renderer == null || renderer is LineRenderer || renderer is TrailRenderer || renderer.bounds.size.sqrMagnitude < 0.0001f)
+			{
+				continue;
+			}
+			if (!any)
+			{
+				box = renderer.bounds;
+				any = true;
+			}
+			else
+			{
+				box.Encapsulate(renderer.bounds);
+			}
+		}
+		if (!any)
+		{
+			Collider[] colliders = piece.GetComponentsInChildren<Collider>(true);
+			foreach (Collider collider in colliders)
+			{
+				if (collider == null || collider.isTrigger)
+				{
+					continue;
+				}
+				if (!any)
+				{
+					box = collider.bounds;
+					any = true;
+				}
+				else
+				{
+					box.Encapsulate(collider.bounds);
+				}
+			}
+		}
+		return any;
 	}
 
 	/// <summary>Is the piece in the player's hammer table? (the authoritative "you can build this" list, mods
@@ -294,6 +400,25 @@ internal static class BuildProbe
 	/// <c>too_close_piece</c>, <c>blocked_by_player</c>, <c>no_support</c>.
 	/// </summary>
 	internal static Dictionary<string, object> CheckPoint(Piece piece, Vector3 point)
+	{
+		return CheckPoint(piece, point, Quaternion.identity);
+	}
+
+	/// <summary>
+	/// The same check for a piece at a <b>known rotation</b> (E6): a template places walls and roofs with a yaw, and
+	/// the footprint support test has to use the turned box.
+	/// </summary>
+	internal static Dictionary<string, object> CheckPoint(Piece piece, Vector3 point, Quaternion rot)
+	{
+		return CheckPoint(piece, point, rot, null);
+	}
+
+	/// <summary>
+	/// The same check with a <b>character to ignore</b> (E6): the companion that is placing the piece must not count as
+	/// an obstacle for its own piece - it walks up to it, so it is always inside the spacing radius. The player and the
+	/// other companions still count.
+	/// </summary>
+	internal static Dictionary<string, object> CheckPoint(Piece piece, Vector3 point, Quaternion rot, Component ignore)
 	{
 		Dictionary<string, object> result = new Dictionary<string, object>();
 		result["x"] = point.x;
@@ -424,7 +549,7 @@ internal static class BuildProbe
 				}
 			}
 		}
-		if (BlockedByCharacter(surface))
+		if (BlockedByCharacter(surface, ignore))
 		{
 			reasons.Add("blocked_by_player");
 		}
@@ -432,13 +557,26 @@ internal static class BuildProbe
 		// "if (wearNTear && !wearNTear.m_supports) status = Invalid" - that is what stops a piece being put on top of
 		// a workbench (furniture does not carry support). The probe got this wrong on the first run and every point
 		// came back no_support.
-		if (groundWear != null && !groundWear.m_supports)
+		// E6: for a piece ABOVE the ground (a wall on a floor, a roof on a wall) the piece under its CENTRE can be
+		// furniture that does not support while the piece is really held by walls/poles at its edges - so up there the
+		// test is the footprint, the same idea the game's own UpdateSupport uses (the collider boxes grown by 0,15 m
+		// looking for the ground or for a supporting piece).
+		bool elevated = hasHit && point.y - surface.y > 0.6f;
+		if (elevated)
+		{
+			if (!FootprintSupported(piece, point, rot))
+			{
+				reasons.Add("no_support");
+			}
+		}
+		else if (groundWear != null && !groundWear.m_supports)
 		{
 			reasons.Add("no_support");
 		}
 
 		result["ok"] = reasons.Count == 0;
 		result["status"] = reasons.Count == 0 ? "valid" : reasons[0];
+		result["elevated"] = elevated;
 		result["reasons"] = reasons;
 		result["ground"] = new Dictionary<string, object>
 		{
@@ -463,21 +601,57 @@ internal static class BuildProbe
 		return result;
 	}
 
+	/// <summary>
+	/// E6: is there the ground (the terrain) or a supporting piece inside the piece's footprint, grown by 0,15 m? It
+	/// is the elevated-piece half of the <c>no_support</c> rule - the same reach the game's <c>UpdateSupport</c> uses.
+	/// No box to test (an exotic prefab) answers <c>true</c>: never a refusal for a missing measurement.
+	/// </summary>
+	private static bool FootprintSupported(Piece piece, Vector3 pos, Quaternion rot)
+	{
+		Bounds box;
+		if (!BoxOf(piece, out box))
+		{
+			return true;
+		}
+		Vector3 localCenter = box.center - piece.transform.position;
+		Vector3 center = pos + rot * localCenter;
+		Vector3 half = box.extents + new Vector3(0.15f, 0.15f, 0.15f);
+		int terrain = LayerMask.NameToLayer("terrain");
+		Collider[] near = Physics.OverlapBox(center, half, rot, PlaceMask(), QueryTriggerInteraction.Ignore);
+		foreach (Collider collider in near)
+		{
+			if (collider == null || !collider.enabled || collider.isTrigger)
+			{
+				continue;
+			}
+			if (terrain >= 0 && collider.gameObject.layer == terrain)
+			{
+				return true;
+			}
+			WearNTear wear = collider.GetComponentInParent<WearNTear>();
+			if (wear != null && wear.m_supports)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/// <summary>A player or a companion inside <see cref="MinSpacing"/> of the spot (the vanilla ghost check, cheap
 	/// version: the game tests the ghost's colliders against every character within 30 m).</summary>
-	private static bool BlockedByCharacter(Vector3 point)
+	private static bool BlockedByCharacter(Vector3 point, Component ignore)
 	{
 		float sqr = MinSpacing * MinSpacing;
 		foreach (Player player in Player.GetAllPlayers())
 		{
-			if (player != null && (player.transform.position - point).sqrMagnitude < sqr)
+			if (player != null && !ReferenceEquals(player, ignore) && (player.transform.position - point).sqrMagnitude < sqr)
 			{
 				return true;
 			}
 		}
 		foreach (CompanionSetup setup in CompanionSetup.AllCompanions)
 		{
-			if (setup != null && (setup.transform.position - point).sqrMagnitude < sqr)
+			if (setup != null && !ReferenceEquals(setup, ignore) && (setup.transform.position - point).sqrMagnitude < sqr)
 			{
 				return true;
 			}

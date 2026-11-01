@@ -1070,19 +1070,29 @@ comandos de console e spawna coisas, então não é feature de jogador.
   greyling enquanto mexia no bridge). O `god` do Valheim 1.0 **não** cancela o dano: ele trava o HP em **1** quando o
   golpe mataria (`Character.cs`), então o `heal` é obrigatório para a barra não ficar em 1. `setup: false` no
   `world_enter` desliga.
-- **Testar:** `python tools/mcp-devbridge/test_mcp_devbridge.py` (mock, sem jogo) — 57 checks.
-- **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check` — **273 asserções** das redes por
+- **Testar:** `python tools/mcp-devbridge/test_mcp_devbridge.py` (mock, sem jogo) — 64 checks.
+- **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check` — **316 asserções** das redes por
   palavras (`RadialIntent`, `PickupIntent`, `GatherIntent`, `InteractionIntent`, `LlmIntent`, `OrderItems`,
   `CompanionNameMatch`) com os `.cs` reais linkados, mais o cross-check das cópias do `Stubs.cs` contra a
   `Companions.dll` (seção (h) — impede drift). Build 0/0 e exit 0 são o gate.
 - **Gate de release:** `powershell -ExecutionPolicy Bypass -File tools\release-check.ps1 -Version <versão>` — roda o
   build, a versão (`PluginVersion` × nome do zip), as 3 traduções, o `locale-fallback-check.ps1` (agora com asserts),
-  o `gen_config_doc.py --check`, o teste do MCP (57) e as 273 asserções; **PASS/FAIL por item e exit 1**. É o que tem
+  o `gen_config_doc.py --check`, o teste do MCP (64) e as 316 asserções; **PASS/FAIL por item e exit 1**. É o que tem
   de passar antes de tag/zip (`-SkipGame`/`-SkipIntents` para rodar parte).
-- **Docs:** `docs/mcp-devbridge.md` (arquitetura, protocolo, as **51** ferramentas, a receita de **jogar pelo agente**
+- **Docs:** `docs/mcp-devbridge.md` (arquitetura, protocolo, as **54** ferramentas, a receita de **jogar pelo agente**
   e a de **comandos de console**, e as evidências dos testes da 1.9.4) e `tools/mcp-devbridge/README.md`
   (parâmetros/exemplos).
-- **Construção (Trilha E):** E0-E5 medidas em jogo. **E5 (a oficina mínima, 01/11/2026):** 4 ordens seguidas pelo
+- **Construção (Trilha E):** E0-E6 medidas em jogo. **E6 (estruturas por template, 01/11/2026):** `hut` (1 piso + 4
+  paredes + 2 telhados) e `canopy` (4 postes + 4 telhados) em `AI/BuildTemplates.cs` (puro, seção (j) do harness),
+  deslocamentos tirados dos **snaps** (`build.snaps`) - a tabela está em `docs/re/building-notes.md` §11. O
+  `MHR_Build` ganhou o modo **plano** (`StartPlan`, `FindAnchor` validando o template inteiro, prazo por peça) e o
+  apoio é o veredito do **próprio jogo** (`AI/BuildSupport.cs`: `WearNTear.UpdateSupport`/`HaveSupport` por
+  reflexão, fail-open). **Aceite:** cabana **7/7 `supported`**, todas `placed (Direct)` - **o companheiro constrói
+  sozinho** (o executor não usa mais o `Player.PlacePiece`, que dava crédito/barulho/estatística ao jogador).
+  Três lições: o apoio não existe antes das peças (revalidar no `Place`), o companheiro bloqueava a própria peça
+  (`ignore` no validador) e o âncora é do template (11 m de erro antes). Novas ferramentas: `build.check`,
+  `build.snaps`, `build.usable` (a regra do telhado) e `companions.build plan=`. Chão plano é a **E10**.
+- **Construção (Trilha E, base):** E0-E5 medidas em jogo. **E5 (a oficina mínima, 01/11/2026):** 4 ordens seguidas pelo
   chat (bancada 4 s → baú 4 s → fogueira 2 s → cama 6 s), todas em `hc_ai_build_done`, o baú e a cama usando a
   bancada recém-construída como estação. **Colocar** peça só precisa da estação no raio
   (`CraftingStation.HaveBuildStationInRange`); **craftar** na bancada passa por `CheckUsable` e exige **telhado**

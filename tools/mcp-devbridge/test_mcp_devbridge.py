@@ -127,11 +127,11 @@ def main():
 
         tools = rpc("tools/list", request_id=2).get("result", {}).get("tools", [])
         names = {tool["name"] for tool in tools}
-        check("tools/list has 51 tools", len(tools) == 51, "%d tools" % len(tools))
+        check("tools/list has 54 tools", len(tools) == 54, "%d tools" % len(tools))
         for expected in ("devbridge_ping", "game_status", "companions_list", "companions_order", "screenshot", "log_tail",
                          "player_kill", "player_inventory", "world_time", "companions_kill", "companions_tier",
                          "companions_hire", "companions_resurrect", "companions_farm_zone", "log_watch",
-                         "build_inspect", "build_sites", "build_find", "build_pieces", "companions_build", "companions_sethome", "player_look"):
+                         "build_inspect", "build_sites", "build_find", "build_pieces", "companions_build", "companions_sethome", "player_look", "build_check", "build_snaps", "build_usable"):
             check("tools/list includes %s" % expected, expected in names)
 
         ping = rpc("tools/call", {"name": "devbridge_ping", "arguments": {}}, request_id=3)
@@ -189,8 +189,12 @@ def main():
             (32, "build_pieces", {"radius": 5}, "build.pieces"),
             (33, "build_find", {"prefab": "piece_workbench", "radius": 5}, "build.find"),
             (34, "companions_build", {"prefab": "piece_workbench", "name": "Maria"}, "companions.build"),
+            (40, "companions_build", {"plan": "hut"}, "companions.build"),
             (35, "companions_sethome", {"name": "Maria"}, "companions.sethome"),
             (36, "player_look", {"down": 40}, "player.look"),
+            (37, "build_check", {"prefab": "woodwall", "x": 1, "y": 2, "z": 3, "yaw": 90}, "build.check"),
+            (38, "build_snaps", {"prefab": "wood_roof_45"}, "build.snaps"),
+            (39, "build_usable", {}, "build.usable"),
         ):
             reply = rpc("tools/call", {"name": tool, "arguments": arguments}, request_id=request_id)
             text = reply.get("result", {}).get("content", [{}])[0].get("text", "")

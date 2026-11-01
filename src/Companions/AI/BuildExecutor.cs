@@ -9,7 +9,8 @@ namespace Companions;
 internal enum BuildRoute
 {
 	None,
-	/// <summary><c>Player.PlacePiece</c> - the vanilla path, with the owner's <c>Player</c> loaded here.</summary>
+	/// <summary><c>Player.PlacePiece</c> - the vanilla path, kept only for a test with no builder at all (E6: the
+	/// companion builds through <see cref="Direct"/>, so the build is never credited to the player).</summary>
 	PlayerPlacePiece,
 	/// <summary>Our own <c>Instantiate</c> + <c>OnPlaced</c> + <c>SetCreator</c> sequence (no <c>Player</c> needed).</summary>
 	Direct
@@ -71,7 +72,12 @@ internal static class BuildExecutor
 		}
 		Player local = Player.m_localPlayer;
 		long creator = CreatorOf(builder, local);
-		bool playerRoute = !forceDirect && local != null && (builder == null || MHR_Owner.Of(builder) == local);
+		// E6 (player's call, 01/11/2026): the COMPANION builds alone. The piece is created by our own sequence
+		// (instantiate + claim + SetCreator + OnPlaced), never by Player.PlacePiece: that route credits the build to
+		// the player (the player's id as creator, the noise at the player's position, the MaxBuildingHeight stats on
+		// the player's profile) and it is the player's hand, not the companion's. The player route stays only for a
+		// test with no builder at all (modia_build_test with the player as the "builder" already goes direct).
+		bool playerRoute = !forceDirect && local != null && builder == null;
 		if (playerRoute)
 		{
 			BuildResult viaPlayer = PlaceViaPlayer(local, piece, pos, rot);

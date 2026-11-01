@@ -50,6 +50,16 @@ its own bag, places the piece and confirms it works.
   fire pit on top of a wooden piece is refused (`not_on_wood` - measured: 1 refused + 3 valid, while the chest
   and the bed accept the same point), and the bed's "space" is the placement ghost's own collider test
   (`m_spaceRequirement` only applies to station extensions).
+- **Structures (E6):** "construa uma cabana aqui" / "build a small hut" builds a **2x2 floor, four walls and a
+  gable roof** - seven pieces, one after another, foundation first. The offsets come from the game's own snap
+  points (a floor is 2x2 with its top at the origin, a wall stands 1 m above it, a 45° roof rises 2 m over 2 m
+  with a 1 m overhang), and a second template, the **bench shelter** (four poles and four roof pieces), is what
+  gives a workbench the roof that crafting requires. Every piece is validated again right before it goes up
+  (the roof's support comes from the walls, which are only planned at first) and the game itself is asked
+  whether the piece stands (`WearNTear.UpdateSupport`/`HaveSupport`) - "nothing floating in the air", measured:
+  7/7 supported. **The companion builds alone:** the piece is no longer placed through `Player.PlacePiece`,
+  which credited the build to the player (the player's id, the player's noise, the player's building-height
+  stats); the cost still comes from the companion's bag and the creator is still you.
 - **New dev tooling:** `modia_build_probe [prefab] [radius]` and `modia_build_find [prefab] [radius]` in the game
   console, and the MCP tools `build_inspect`, `build_sites`, `build_find`, `build_pieces`, `companions_build`,
   `companions_sethome` and `player_look` (the build order takes its spot from your aim, so a test has to be

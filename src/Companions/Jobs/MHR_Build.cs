@@ -67,6 +67,21 @@ internal static class MHR_Build
 		internal int GatherMode;
 		internal string GatherItem;
 		internal int GatherAmount;
+		/// <summary>E6: the template being built (null for a single-piece order).</summary>
+		internal BuildTemplates.Template Template;
+		/// <summary>E6: the resolved poses of the plan, in build order.</summary>
+		internal List<PlannedStep> Plan;
+		/// <summary>E6: which step is being built (0-based).</summary>
+		internal int Index;
+	}
+
+	/// <summary>E6: one piece of a plan, already resolved to a world pose.</summary>
+	private sealed class PlannedStep
+	{
+		internal string Prefab;
+		internal Piece Piece;
+		internal Vector3 Pos;
+		internal Quaternion Rot;
 	}
 
 	private static readonly Dictionary<int, State> s_state = new Dictionary<int, State>();
@@ -121,6 +136,41 @@ internal static class MHR_Build
 		};
 		s_state[ai.GetInstanceID()] = state;
 		Log(ai, "order: build " + prefab + " near (" + F(hint.x) + ", " + F(hint.y) + ", " + F(hint.z) + ")");
+		return true;
+	}
+
+	/// <summary>
+	/// E6: starts a <b>plan</b> - a template (several pieces, foundation first). The caller has checked the config;
+	/// the material of the whole plan is checked in <see cref="FindPlan"/>, before anything is paid.
+	/// </summary>
+	internal static bool StartPlan(CompanionSetup cs, BuildTemplates.Template template, Vector3 hint)
+	{
+		if (cs == null || template == null)
+		{
+			return false;
+		}
+		CompanionAI ai = cs.GetComponent<CompanionAI>();
+		if (ai == null)
+		{
+			return false;
+		}
+		Player owner = MHR_Owner.Of(cs);
+		Vector3 forward = owner != null ? owner.transform.forward : cs.transform.forward;
+		State state = new State
+		{
+			Active = true,
+			Start = Time.time,
+			LastDrive = Time.time,
+			StartMode = ModeOf(cs),
+			Template = template,
+			Prefab = template.Name,
+			Hint = hint,
+			Forward = forward,
+			Plan = new List<PlannedStep>(),
+			Phase = Phase.Find
+		};
+		s_state[ai.GetInstanceID()] = state;
+		Log(ai, "order: build plan " + template.Name + " (" + template.Steps.Length + " pieces) near (" + F(hint.x) + ", " + F(hint.y) + ", " + F(hint.z) + ")");
 		return true;
 	}
 
@@ -228,7 +278,7 @@ internal static class MHR_Build
 		switch (state.Phase)
 		{
 			case Phase.Find:
-				return Find(ai, state);
+				return state.Template != null ? FindPlan(ai, state) : Find(ai, state);
 			case Phase.Goto:
 				return Goto(ai, state, dt);
 			case Phase.Place:
@@ -241,6 +291,184 @@ internal static class MHR_Build
 				Finish(ai, state, null, "done");
 				return false;
 		}
+	}
+
+	/// <summary>
+	/// E6: resolves a template into world poses. The first step (a floor) is found with the normal site search around
+	/// the hint; every other step is the anchor plus its offset (turned by the anchor's yaw) and goes through the
+	/// <b>same validator</b> - with a small nudge when the ground is uneven. A single piece that cannot be placed stops
+	/// the plan <b>before</b> anything is paid.
+	/// </summary>
+	private static bool FindPlan(CompanionAI ai, State state)
+	{
+		List<BuildTemplates.Step> steps = state.Template.Ordered();
+		if (steps.Count == 0)
+		{
+			Finish(ai, state, "hc_ai_build_failed", "empty plan", state.Template.Label);
+			return false;
+		}
+		Piece anchorPiece = BuildProbe.PieceOf(steps[0].Prefab);
+		if (anchorPiece == null)
+		{
+			Finish(ai, state, "hc_ai_build_failed", "unknown prefab " + steps[0].Prefab, state.Template.Label);
+			return false;
+		}
+		float radius = ModConfig.BuildSiteSearchRadius != null ? ModConfig.BuildSiteSearchRadius.Value : 8f;
+		Vector3 anchor;
+		Quaternion baseRot;
+		string anchorStatus;
+		int anchorTried;
+		if (!FindAnchor(steps, state.Hint, state.Forward, radius, Self(ai), out anchor, out baseRot, out anchorStatus, out anchorTried))
+		{
+			Log(ai, "plan: no anchor - " + anchorTried + " poses tried, last " + anchorStatus);
+			Piece firstPiece = BuildProbe.PieceOf(steps[0].Prefab);
+			if (firstPiece != null && firstPiece.m_craftingStation != null && anchorStatus == "needs_station")
+			{
+				string station = Localization.instance != null ? Localization.instance.Localize(firstPiece.m_craftingStation.m_name) : firstPiece.m_craftingStation.m_name;
+				Finish(ai, state, "hc_ai_build_needs_station", "no candidate had the station", station);
+				return false;
+			}
+			Finish(ai, state, "hc_ai_build_no_site", anchorStatus, state.Template.Label);
+			return false;
+		}
+		List<PlannedStep> plan = new List<PlannedStep>();
+		string failure = null;
+		string failureStatus = null;
+		int checkedPoses = 0;
+		foreach (BuildTemplates.Step step in steps)
+		{
+			Piece piece = BuildProbe.PieceOf(step.Prefab);
+			if (piece == null)
+			{
+				failure = step.Prefab;
+				failureStatus = "unknown prefab";
+				break;
+			}
+			Vector3 pos = anchor + baseRot * new Vector3(step.X, step.Y, step.Z);
+			Quaternion rot = baseRot * Quaternion.Euler(0f, step.Yaw, 0f);
+			if (plan.Count > 0)
+			{
+				// the anchor was found by the search; every other piece has to pass the validator at its pose. The
+				// SUPPORT of a piece above the ground is not knowable here: it comes from the pieces of the plan, which
+				// are not placed yet - it is checked again at placement time, when they exist (E6, measured 01/11/2026:
+				// the roof was refused with no_support because the walls it stands on were still only planned).
+				checkedPoses++;
+				Dictionary<string, object> check = BuildSite.Check(piece, pos, rot, Self(ai));
+				if (!OkForPlan(check, step.Level > 0))
+				{
+					bool nudged = false;
+					foreach (Vector3 nudge in Nudges())
+					{
+						Dictionary<string, object> again = BuildSite.Check(piece, pos + nudge, rot, Self(ai));
+						checkedPoses++;
+						if (OkForPlan(again, step.Level > 0))
+						{
+							pos += nudge;
+							nudged = true;
+							break;
+						}
+					}
+					if (!nudged)
+					{
+						failure = step.Prefab;
+						failureStatus = Convert.ToString(check["status"]);
+						break;
+					}
+				}
+			}
+			plan.Add(new PlannedStep { Prefab = step.Prefab, Piece = piece, Pos = pos, Rot = rot });
+		}
+		if (failure != null)
+		{
+			Log(ai, "plan: " + failure + " refused (" + failureStatus + ") - nothing was paid");
+			Finish(ai, state, "hc_ai_build_plan_no_site", failureStatus, state.Template.Label, failure);
+			return false;
+		}
+		// the material of the WHOLE plan, before the first piece: a plan does not hand the order to the gather (E6)
+		Humanoid humanoid = ai.GetComponent<Humanoid>();
+		Inventory bag = humanoid != null ? humanoid.GetInventory() : null;
+		bool useChests = ModConfig.BuildUseChests == null || ModConfig.BuildUseChests.Value;
+		Dictionary<string, int> missing = PlanMissing(bag, plan, anchor, ai, useChests);
+		if (missing.Count > 0)
+		{
+			Log(ai, "plan missing: " + MissingText(missing));
+			Finish(ai, state, "hc_ai_build_missing", "the plan is short", MissingText(missing), state.Template.Label);
+			return false;
+		}
+		state.Plan = plan;
+		state.Index = 0;
+		state.Piece = plan[0].Piece;
+		state.Pos = plan[0].Pos;
+		state.Rot = plan[0].Rot;
+		state.Phase = Phase.Goto;
+		Log(ai, "plan " + state.Template.Name + ": " + plan.Count + " pieces, " + checkedPoses + " poses checked, anchor at ("
+			+ F(anchor.x) + ", " + F(anchor.y) + ", " + F(anchor.z) + ")");
+		return true;
+	}
+
+	/// <summary>
+	/// E6: the anchor of a plan - the spot that accepts <b>every piece of the template</b>, not just the first one. It
+	/// is the same ring search the single-piece order uses, but each candidate is the whole structure: measured
+	/// 01/11/2026, searching only the first piece put the bench shelter 11 m away from the bench.
+	/// </summary>
+	private static bool FindAnchor(List<BuildTemplates.Step> steps, Vector3 hint, Vector3 forward, float radius, Component ignore,
+		out Vector3 anchor, out Quaternion rot, out string status, out int tried)
+	{
+		anchor = hint;
+		rot = Quaternion.LookRotation(Flat(forward), Vector3.up);
+		status = "no_candidate";
+		tried = 0;
+		int rings = 3;
+		int dirs = 8;
+		List<Vector3> candidates = new List<Vector3> { hint };
+		for (int ring = 0; ring < rings; ring++)
+		{
+			float distance = radius * (ring + 1) / rings;
+			for (int dir = 0; dir < dirs; dir++)
+			{
+				float angle = Mathf.PI * 2f * dir / dirs;
+				candidates.Add(hint + new Vector3(Mathf.Cos(angle) * distance, 0f, Mathf.Sin(angle) * distance));
+			}
+		}
+		foreach (Vector3 candidate in candidates)
+		{
+			float y = ZoneSystem.instance != null ? ZoneSystem.instance.GetGroundHeight(candidate) : candidate.y;
+			Vector3 spot = new Vector3(candidate.x, y, candidate.z);
+			bool all = true;
+			foreach (BuildTemplates.Step step in steps)
+			{
+				Piece piece = BuildProbe.PieceOf(step.Prefab);
+				if (piece == null)
+				{
+					all = false;
+					status = "unknown_prefab";
+					break;
+				}
+				Vector3 pos = spot + rot * new Vector3(step.X, step.Y, step.Z);
+				Quaternion pieceRot = rot * Quaternion.Euler(0f, step.Yaw, 0f);
+				tried++;
+				Dictionary<string, object> check = BuildSite.Check(piece, pos, pieceRot, ignore);
+				if (!OkForPlan(check, step.Level > 0))
+				{
+					all = false;
+					status = check != null ? Convert.ToString(check["status"]) : "unknown";
+					break;
+				}
+			}
+			if (all)
+			{
+				anchor = spot;
+				status = "valid";
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static Vector3 Flat(Vector3 direction)
+	{
+		direction.y = 0f;
+		return direction.sqrMagnitude < 0.01f ? Vector3.forward : direction.normalized;
 	}
 
 	private static bool Find(CompanionAI ai, State state)
@@ -257,7 +485,7 @@ internal static class MHR_Build
 			return false;
 		}
 		float radius = ModConfig.BuildSiteSearchRadius != null ? ModConfig.BuildSiteSearchRadius.Value : 8f;
-		BuildSiteResult site = BuildSite.Find(state.Piece, state.Hint, state.Forward, radius, 3, 8);
+		BuildSiteResult site = BuildSite.Find(state.Piece, state.Hint, state.Forward, radius, 3, 8, 48, Self(ai));
 		state.Tried = site.Tried;
 		if (!site.Ok)
 		{
@@ -303,6 +531,19 @@ internal static class MHR_Build
 
 	private static bool Place(CompanionAI ai, State state, CompanionSetup cs, Inventory bag)
 	{
+		// E6: a plan step is checked AGAIN now, with the pieces the plan already built standing - the roof's support
+		// comes from the walls, and up-front they were only planned (measured: the roof was refused with no_support)
+		if (state.Template != null && state.Plan != null && state.Index > 0)
+		{
+			Dictionary<string, object> check = BuildSite.Check(state.Piece, state.Pos, state.Rot, cs);
+			if (!Ok(check))
+			{
+				string status = check != null ? Convert.ToString(check["status"]) : "unknown";
+				Log(ai, "piece " + state.Prefab + " refused now (" + status + ") - the plan stops");
+				Finish(ai, state, "hc_ai_build_plan_no_site", status, state.Template.Label, state.Prefab);
+				return false;
+			}
+		}
 		// [Building] RequireHammer: off by default (the executor does not need one); when the player turns it on, a
 		// companion without a hammer refuses before paying anything
 		if (ModConfig.BuildRequireHammer != null && ModConfig.BuildRequireHammer.Value && !HasHammer(bag))
@@ -322,7 +563,9 @@ internal static class MHR_Build
 			// E4b: the gather is a SEPARATE order. This one ends (with the line that says it is going to get it), the
 			// normal gather order takes over the movement, and a small watcher starts a new build order when the
 			// materials are in the bag. One owner of MHR_Mover at a time - the 01/11/2026 lesson.
-			bool gather = ModConfig.BuildGatherForBuild == null || ModConfig.BuildGatherForBuild.Value;
+			// E6: a plan checked the material of ALL its pieces before the first one, so a shortfall here means the bag
+			// changed under us - it stops with what is missing instead of handing the plan to a gather
+			bool gather = state.Template == null && (ModConfig.BuildGatherForBuild == null || ModConfig.BuildGatherForBuild.Value);
 			if (gather)
 			{
 				GatherStart start = BeginGather(ai, state, cs, missing);
@@ -366,7 +609,42 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			Finish(ai, state, "hc_ai_build_failed", reason, LabelOf(state));
 			return false;
 		}
-		Log(ai, "done: " + state.Prefab + " at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", " + F(state.Pos.z) + ")");
+		// E6: the acceptance "sem peça solta no ar" - the game's own verdict (WearNTear.UpdateSupport/HaveSupport).
+		// It is asked for every piece, single or plan; null (the reflection did not resolve) is never a refusal.
+		WearNTear wear = state.Placed != null ? state.Placed.GetComponent<WearNTear>() : null;
+		bool? supported = BuildSupport.Supported(wear);
+		if (supported == false)
+		{
+			float? value = BuildSupport.Value(wear);
+			float? min = BuildSupport.Min(wear);
+			Log(ai, "UNSUPPORTED: " + state.Prefab + " (support " + (value.HasValue ? value.Value.ToString("F1") : "?")
+				+ " < min " + (min.HasValue ? min.Value.ToString("F1") : "?") + ")");
+			Finish(ai, state, "hc_ai_build_unsupported", "no support", LabelOf(state));
+			return false;
+		}
+		Log(ai, "done: " + state.Prefab + " at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", " + F(state.Pos.z) + ")"
+			+ (state.Template != null ? " (" + (state.Index + 1) + "/" + state.Plan.Count + ")" : string.Empty)
+			+ (supported.HasValue ? " supported" : string.Empty));
+		// E6: next piece of the plan (the timeout is per piece, so a long plan is not a slow piece)
+		if (state.Template != null && state.Plan != null && state.Index + 1 < state.Plan.Count)
+		{
+			state.Index++;
+			PlannedStep next = state.Plan[state.Index];
+			state.Prefab = next.Prefab;
+			state.Piece = next.Piece;
+			state.Pos = next.Pos;
+			state.Rot = next.Rot;
+			state.Placed = null;
+			state.Start = Time.time;
+			state.Phase = Phase.Goto;
+			Log(ai, "next: " + next.Prefab + " (" + (state.Index + 1) + "/" + state.Plan.Count + ")");
+			return true;
+		}
+		if (state.Template != null && state.Plan != null)
+		{
+			Finish(ai, state, "hc_ai_build_plan_done", null, state.Template.Label, state.Plan.Count);
+			return false;
+		}
 		Finish(ai, state, "hc_ai_build_done", null, LabelOf(state));
 		return false;
 	}
@@ -461,6 +739,107 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			return false;
 		}
 		MHR_Mover.Go(ai, dt, state.GatherTarget, 3f, true, "BuildGather");
+		return true;
+	}
+
+	/// <summary>The shortfall of the WHOLE plan (all pieces together) against the bag and the usable chests.</summary>
+	private static Dictionary<string, int> PlanMissing(Inventory bag, List<PlannedStep> plan, Vector3 center, Component who, bool useChests)
+	{
+		Dictionary<string, int> missing = new Dictionary<string, int>();
+		if (bag == null || plan == null || plan.Count == 0)
+		{
+			return missing;
+		}
+		Dictionary<string, int> have = BuildStock.Available(bag, plan[0].Piece, center, who, useChests);
+		Dictionary<string, int> need = new Dictionary<string, int>();
+		foreach (PlannedStep step in plan)
+		{
+			if (step.Piece == null || step.Piece.m_resources == null)
+			{
+				continue;
+			}
+			foreach (Piece.Requirement requirement in step.Piece.m_resources)
+			{
+				if (requirement == null || requirement.m_resItem == null)
+				{
+					continue;
+				}
+				string name = requirement.m_resItem.m_itemData.m_shared.m_name;
+				int amount = requirement.GetAmount(1);
+				if (amount <= 0)
+				{
+					continue;
+				}
+				int seen;
+				need.TryGetValue(name, out seen);
+				need[name] = seen + amount;
+			}
+		}
+		foreach (KeyValuePair<string, int> kv in need)
+		{
+			int got;
+			have.TryGetValue(kv.Key, out got);
+			if (got < kv.Value)
+			{
+				missing[kv.Key] = kv.Value - got;
+			}
+		}
+		return missing;
+	}
+
+	/// <summary>The small offsets tried around a planned pose (the ground under a template is never perfectly flat).</summary>
+	private static IEnumerable<Vector3> Nudges()
+	{
+		yield return new Vector3(0f, 0.25f, 0f);
+		yield return new Vector3(0f, -0.25f, 0f);
+		yield return new Vector3(0.25f, 0f, 0f);
+		yield return new Vector3(-0.25f, 0f, 0f);
+		yield return new Vector3(0f, 0f, 0.25f);
+		yield return new Vector3(0f, 0f, -0.25f);
+		yield return new Vector3(0f, 0.5f, 0f);
+		yield return new Vector3(0f, -0.5f, 0f);
+		yield return new Vector3(0.5f, 0f, 0f);
+		yield return new Vector3(-0.5f, 0f, 0f);
+		yield return new Vector3(0f, 0f, 0.5f);
+		yield return new Vector3(0f, 0f, -0.5f);
+	}
+
+	private static bool Ok(Dictionary<string, object> check)
+	{
+		return check != null && check["ok"] is bool ok && ok;
+	}
+
+	/// <summary>
+	/// E6: the verdict of a planned pose. A piece <b>above the ground</b> is allowed to fail only on
+	/// <c>no_support</c> here - its support comes from the pieces of the plan, which are still ghosts at this point;
+	/// <see cref="Place"/> checks it again when they are standing.
+	/// </summary>
+	private static bool OkForPlan(Dictionary<string, object> check, bool aboveGround)
+	{
+		if (check == null)
+		{
+			return false;
+		}
+		if (check["ok"] is bool ok && ok)
+		{
+			return true;
+		}
+		if (!aboveGround)
+		{
+			return false;
+		}
+		List<string> reasons = check["reasons"] as List<string>;
+		if (reasons == null || reasons.Count == 0)
+		{
+			return false;
+		}
+		foreach (string reason in reasons)
+		{
+			if (reason != "no_support")
+			{
+				return false;
+			}
+		}
 		return true;
 	}
 
@@ -689,6 +1068,14 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		{
 			LogDebug(ai, "couldn't speak: " + ex.Message);
 		}
+	}
+
+	/// <summary>The companion itself, as the "character to ignore" of the validator: it walks up to the piece, so it
+	/// would always be inside the spacing radius of its own build (E6, measured: the 5th wall refused with
+	/// <c>blocked_by_player</c> because the companion was standing there).</summary>
+	private static Component Self(CompanionAI ai)
+	{
+		return ai != null ? ai.GetComponent<CompanionSetup>() : null;
 	}
 
 	private static string Who(CompanionAI ai)

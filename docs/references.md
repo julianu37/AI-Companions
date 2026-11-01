@@ -11,6 +11,7 @@ projetos de terceiros com licença permissiva. Leia as **regras de uso** no fim 
 | **Whisper.net** / **whisper.cpp** | **MIT** ✅ redistribuído | STT local das ordens por voz (`WhisperStt`, Fase 3.3) |
 | **sherpa-onnx** (k2-fsa) | **Apache-2.0** ✅ redistribuído | TTS local da fala do companheiro (`CompanionTts`, Fase 3.4) |
 | **Kokoro-82M** (hexgrad) | **Apache-2.0** ✅ redistribuído | O modelo de voz que o TTS usa (`tts\kokoro\`) |
+| **valheim-mods** (HardHeadHackerHead) | **MIT** ✅ uso livre | Coleção de mods de Valheim **com as sources**: **BuildOrders** (o alvo das fases E7/E8), `BuildFromChests`/`CraftFromChests`/`FeedFromChests` (material de baú), `Shared`/`Scripts.Engine`. É de lá que vem a referência do **apoio/estabilidade** e dos **fantasmas** |
 | **Thrall** (ego.ai) | **All rights reserved** ⚠️ | Apenas referência **conceitual**; **não** copiar código nem redistribuir binários (ver `NOTICE.md`) |
 
 ---
@@ -45,6 +46,25 @@ projetos de terceiros com licença permissiva. Leia as **regras de uso** no fim 
 - Cite a fonte no commit/CHANGELOG quando a implementação for derivada.
 
 ---
+
+---
+
+## valheim-mods (HardHeadHackerHead, MIT)
+
+- Repositório: <https://github.com/HardHeadHackerHead/valheim-mods> — uma pasta por mod, **com o código-fonte**.
+- **MIT**, o jogador confirmou o uso livre (01/11/2026). Ao derivar algo, cite a fonte no commit/CHANGELOG (regra 3).
+- O que interessa hoje:
+
+| Mod / arquivo | Para que consultar |
+|---|---|
+| `BuildOrders/Stability.cs` | **A referência do "sem peça solta no ar":** ele simula o `WearNTear.UpdateSupport` do jogo (caixas de colisão da peça crescidas **0,15 m**; o chão ou qualquer sólido que não é peça dá apoio cheio; de uma peça encostada, o apoio dela menos a perda do material pela distância entre os centros de massa - horizontal ou vertical; dois apoios em lados opostos são **mediados**; abaixo do mínimo do material a peça quebra e o que estava em cima é recalculado). Lido na E6 |
+| `BuildOrders/Ghosts.cs` | Como o jogo monta o fantasma de colocação (instanciar com rede desligada e tirar física/som/luz/partículas) - o mesmo caminho do `BuildSite.CreateGhost` |
+| `BuildOrders/Orders.cs`, `Plugin.Api.cs` | A API dos planos (`Count`/`Next`/`Place`/`Blockers`) que a **E7** vai chamar |
+| `BuildFromChests`, `CraftFromChests` | Material vindo dos baús (o nosso `BuildStock` já faz isso; serve de conferência) |
+
+> **O que não copiamos:** o `Stability.cs` é uma **simulação** do apoio (necessária para ele, que constrói planos
+> grandes de uma vez). A E6 usa o **próprio jogo** (`WearNTear.UpdateSupport`/`HaveSupport` por reflexão) depois de
+> cada peça, o que é mais simples e é a mesma resposta - ver `docs/re/building-notes.md` §11.
 
 ## Regras de uso
 

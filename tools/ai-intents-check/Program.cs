@@ -77,6 +77,8 @@ internal static class Program
 		Names();
 		Section("(i) BuildCatalog - o nome da peca vira o prefab (E5: oficina)");
 		Build();
+		Section("(j) BuildTemplates - a estrutura por template (E6: cabana e abrigo)");
+		Templates();
 		CrossCheckDoorRule();
 
 		Out.WriteLine();
@@ -388,6 +390,100 @@ internal static class Program
 		Check("HasAnyWord(\"faz um baú\", \"cama\", \"bau\")", BuildCatalog.HasAnyWord("faz um bau", "cama", "bau"));
 	}
 
+	/// <summary>
+	/// Section (j): the templates of E6 - the aliases in the five languages, the build order (foundation, walls,
+	/// roof) and the composition of each structure. Pure, so it runs outside the game.
+	/// </summary>
+	private static void Templates()
+	{
+		// the names, in the five languages
+		TemplateCase("constrói uma cabana aqui", "hut");
+		TemplateCase("constrói um abrigo para a bancada", "canopy");
+		TemplateCase("abrigo da bancada", "canopy");
+		TemplateCase("build a small hut", "hut");
+		TemplateCase("a shelter for the bench", "canopy");
+		TemplateCase("construye una choza", "hut");
+		TemplateCase("un cobertizo", "canopy");
+		TemplateCase("construis une cabane", "hut");
+		TemplateCase("un auvent", "canopy");
+		TemplateCase("costruisci una casetta", "hut");
+		TemplateCase("un riparo", "canopy");
+		Check("Resolve(\"constrói uma parede\") == null (template nao e peca)", BuildTemplates.Resolve("constrói uma parede") == null);
+		Check("Resolve(null) == null", BuildTemplates.Resolve(null) == null);
+		// "cabana" nao pode ser lida como a peca "cama" (o catalogo da E5 nao conhece cabana)
+		Check("BuildCatalog.Resolve(\"cabana\") == null (nao e peca)", BuildCatalog.Resolve("uma cabana") == null);
+		Check("BuildCatalog.Resolve(\"cama\") == \"bed\"", BuildCatalog.Resolve("uma cama") == "bed");
+
+		BuildTemplates.Template hut = BuildTemplates.ByName("hut");
+		BuildTemplates.Template canopy = BuildTemplates.ByName("canopy");
+		Check("ByName(\"hut\")", hut != null);
+		Check("ByName(\"canopy\")", canopy != null);
+		Check("ByName(\"xyz\") == null", BuildTemplates.ByName("xyz") == null);
+
+		// a composicao da cabana: 1 piso + 4 paredes + 2 telhados (o aceite da E6)
+		CheckInt("cabana: 7 pecas", 7, hut.Steps.Length);
+		CheckInt("cabana: 1 piso", 1, CountPrefab(hut, "wood_floor"));
+		CheckInt("cabana: 4 paredes", 4, CountPrefab(hut, "woodwall"));
+		CheckInt("cabana: 2 telhados", 2, CountPrefab(hut, "wood_roof_45"));
+		CheckInt("abrigo: 8 pecas", 8, canopy.Steps.Length);
+		CheckInt("abrigo: 4 postes", 4, CountPrefab(canopy, "wood_pole2"));
+		CheckInt("abrigo: 4 telhados", 4, CountPrefab(canopy, "wood_roof_45"));
+
+		// a ordem de construcao: fundacao -> parede -> telhado
+		System.Collections.Generic.List<BuildTemplates.Step> ordered = hut.Ordered();
+		CheckText("cabana: a 1a peca e o piso", "wood_floor", ordered[0].Prefab);
+		CheckInt("cabana: o piso e nivel 0", 0, ordered[0].Level);
+		CheckText("cabana: a ultima peca e o telhado", "wood_roof_45", ordered[ordered.Count - 1].Prefab);
+		CheckInt("cabana: o telhado e nivel 2", 2, ordered[ordered.Count - 1].Level);
+		int lastLevel = -1;
+		bool sorted = true;
+		foreach (BuildTemplates.Step step in ordered)
+		{
+			if (step.Level < lastLevel)
+			{
+				sorted = false;
+			}
+			lastLevel = step.Level;
+		}
+		Check("cabana: Ordered() nunca volta de nivel", sorted);
+		CheckInt("abrigo: os 4 primeiros sao os postes (nivel 0)", 0, canopy.Ordered()[3].Level);
+		CheckInt("abrigo: o 5o ja e telhado (nivel 2)", 2, canopy.Ordered()[4].Level);
+
+		// os deslocamentos medidos (snaps): piso no centro, parede 1 m acima, telhado 3 m acima
+		CheckFloat("piso em (0,0,0)", 0f, ordered[0].X);
+		CheckFloat("parede a 1 m", 1f, ordered[1].Y);
+		CheckFloat("telhado a 3 m", 3f, ordered[ordered.Count - 1].Y);
+		CheckFloat("telhado com 1 m de beiral", 1f, Math.Abs(ordered[ordered.Count - 1].Z));
+
+		// a allow-list dos planos
+		foreach (string prefab in BuildTemplates.Prefabs())
+		{
+			Check("Allowed(\"" + prefab + "\")", BuildTemplates.Allowed(prefab));
+		}
+		Check("Allowed(\"piece_workbench\") == false (nao e peca de template)", !BuildTemplates.Allowed("piece_workbench"));
+		Check("Allowed(null) == false", !BuildTemplates.Allowed(null));
+		CheckInt("Prefabs() sem repeticao", 4, BuildTemplates.Prefabs().Length);
+	}
+
+	private static int CountPrefab(BuildTemplates.Template template, string prefab)
+	{
+		int count = 0;
+		foreach (BuildTemplates.Step step in template.Steps)
+		{
+			if (step.Prefab == prefab)
+			{
+				count++;
+			}
+		}
+		return count;
+	}
+
+	private static void TemplateCase(string text, string expected)
+	{
+		BuildTemplates.Template template = BuildTemplates.Resolve(text);
+		CheckText("Template(" + Show(text) + ")", expected, template != null ? template.Name : null);
+	}
+
 	private static void BuildCase(string text, string expected)
 	{
 		CheckText("Resolve(" + Show(text) + ")", expected, BuildCatalog.Resolve(text));
@@ -619,6 +715,12 @@ internal static class Program
 	{
 		Check(name + " -> " + Show(expected), string.Equals(expected, actual, StringComparison.Ordinal),
 			"obtido " + Show(actual));
+	}
+
+	/// <summary>E6: a float assertion with a small tolerance (the template offsets are metres).</summary>
+	private static void CheckFloat(string name, float expected, float actual)
+	{
+		Check(name + " -> " + expected.ToString("0.##"), Math.Abs(expected - actual) < 0.001f, "obtido " + actual.ToString("0.###"));
 	}
 
 	private static void CheckInt(string name, int expected, int actual)

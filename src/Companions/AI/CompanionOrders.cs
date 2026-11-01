@@ -1060,21 +1060,38 @@ internal static class CompanionOrders
 			Refuse(ModLocalization.Loc("hc_ai_build_disabled"));
 			return outcome;
 		}
-		string prefab = BuildCatalog.Resolve(intent != null ? intent.Target : null) ?? BuildCatalog.Resolve(userText);
-		if (prefab == null || !BuildCatalog.Allowed(prefab))
+		// E6: a TEMPLATE first ("constrói uma cabana aqui", "um abrigo para a bancada") - it is a plan of several
+		// pieces, resolved before the single-piece catalog. A single piece still goes through BuildCatalog below.
+		BuildTemplates.Template template = BuildTemplates.Resolve(userText) ?? BuildTemplates.Resolve(intent != null ? intent.Target : null);
+		string prefab = template != null ? null : BuildCatalog.Resolve(intent != null ? intent.Target : null) ?? BuildCatalog.Resolve(userText);
+		if (template == null && (prefab == null || !BuildCatalog.Allowed(prefab)))
 		{
 			Refuse(ModLocalization.Loc("hc_ai_build_no_recipe"));
 			return outcome;
 		}
-		Piece piece = BuildProbe.PieceOf(prefab);
-		if (piece == null)
+		Piece piece = template != null ? null : BuildProbe.PieceOf(prefab);
+		if (template == null && piece == null)
 		{
 			Refuse(ModLocalization.Loc("hc_ai_build_no_recipe"));
 			return outcome;
 		}
 		// the piece is one of ours but the player has not unlocked its recipe yet: say THAT, not "I don't know how to
 		// build it" (which reads as if the companion had never heard of a bed) - found in the player's test, 01/11/2026
-		if (player != null && !player.IsRecipeKnown(piece.m_name))
+		// E6: a plan checks every piece of the template, not just the first
+		if (player != null && template != null)
+		{
+			foreach (BuildTemplates.Step step in template.Ordered())
+			{
+				Piece stepPiece = BuildProbe.PieceOf(step.Prefab);
+				if (stepPiece != null && !player.IsRecipeKnown(stepPiece.m_name))
+				{
+					string lockedStep = Localization.instance != null ? Localization.instance.Localize(stepPiece.m_name) : step.Prefab;
+					Refuse(string.Format(ModLocalization.Loc("hc_ai_build_recipe_locked"), lockedStep));
+					return outcome;
+				}
+			}
+		}
+		if (player != null && piece != null && !player.IsRecipeKnown(piece.m_name))
 		{
 			string lockedName = Localization.instance != null ? Localization.instance.Localize(piece.m_name) : prefab;
 			Refuse(string.Format(ModLocalization.Loc("hc_ai_build_recipe_locked"), lockedName));
@@ -1114,12 +1131,20 @@ internal static class CompanionOrders
 			Refuse(string.Format(ModLocalization.Loc("hc_ai_build_too_far"), Mathf.RoundToInt(max)));
 			return outcome;
 		}
-		if (!MHR_Build.Start(target, prefab, hint))
+		// E6: the plan (a template) goes through its own start; a single piece keeps the E3 path
+		bool started = template != null ? MHR_Build.StartPlan(target, template, hint) : MHR_Build.Start(target, prefab, hint);
+		if (!started)
 		{
 			Refuse(ModLocalization.Loc("hc_ai_build_no_recipe"));
 			return outcome;
 		}
 		outcome.Count = 1;
+		if (template != null)
+		{
+			outcome.LabelKey = "hc_ai_order_build_plan";
+			outcome.LabelArg = template.Label;
+			return outcome;
+		}
 		outcome.LabelKey = "hc_ai_order_build";
 		outcome.LabelArg = Localization.instance != null ? Localization.instance.Localize(piece.m_name) : prefab;
 		return outcome;

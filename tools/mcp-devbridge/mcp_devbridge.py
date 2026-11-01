@@ -431,6 +431,41 @@ TOOLS = [
         },
     },
     {
+        "name": "build_usable",
+        "description": "Is the workbench in range of a point USABLE? (the game's CraftingStation.CheckUsable: the roof rule - 70% cover - that placing a piece does not ask for).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"},
+            },
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "build_check",
+        "description": "Would the game accept this exact pose? (E6: the y is NOT snapped to the ground, so a wall on a floor can be checked).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "prefab": {"type": "string"},
+                "x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"},
+                "yaw": {"type": "number", "description": "degrees around Y"},
+            },
+            "required": ["prefab", "x", "y", "z"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "build_snaps",
+        "description": "The piece's snap points (Piece.GetSnapPoints) in the prefab space - how the game lines a roof onto a wall.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"prefab": {"type": "string"}},
+            "required": ["prefab"],
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "build_find",
         "description": (
             "Where the piece would go (E2): runs the real placement search from a hint - the player's aim when no "
@@ -467,15 +502,19 @@ TOOLS = [
         "description": (
             "Gives a companion a build order without the LLM (Trilha E, E3): it checks the recipe, finds a valid spot "
             "near the player's aim, walks there, pays the materials from its own bag, places the piece and verifies "
-            "it. The piece must be in the allow-list (piece_workbench, piece_chest_wood, fire_pit, piece_bed02)."
+            "it. The piece must be in the allow-list (piece_workbench, piece_chest_wood, fire_pit, bed, piece_bed02)."
+            " With 'plan' it builds a whole TEMPLATE instead (E6: hut = 2x2 floor + 4 walls + gable roof; "
+            "canopy = 4 poles + 4 roofs over the bench)."
         ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "prefab": {"type": "string", "description": "e.g. 'piece_workbench'"},
+                "prefab": {"type": "string", "description": "e.g. 'piece_workbench' (omit when using plan)"},
+                "plan": {"type": "string", "description": "a template: 'hut' or 'canopy'"},
+                "x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"},
                 "name": {"type": "string", "description": "companion name; default: the first one"},
             },
-            "required": ["prefab"],
+            "required": [],
             "additionalProperties": False,
         },
     },
@@ -929,6 +968,17 @@ def run_tool(name, args):
             if key in args:
                 payload[key] = args[key]
         return require_ok(call_bridge("build.sites", **payload))
+    if name == "build_usable":
+        payload = {}
+        for key in ("x", "y", "z"):
+            if key in args:
+                payload[key] = args[key]
+        return require_ok(call_bridge("build.usable", **payload))
+    if name == "build_check":
+        return require_ok(call_bridge("build.check", prefab=args["prefab"], x=args["x"], y=args["y"], z=args["z"],
+                                      **({"yaw": args["yaw"]} if "yaw" in args else {})))
+    if name == "build_snaps":
+        return require_ok(call_bridge("build.snaps", prefab=args["prefab"]))
     if name == "build_find":
         payload = {"prefab": args["prefab"], "radius": args.get("radius", 8), "rings": args.get("rings", 3), "dirs": args.get("dirs", 8)}
         for key in ("x", "y", "z"):
@@ -941,9 +991,16 @@ def run_tool(name, args):
             payload["name"] = args["name"]
         return require_ok(call_bridge("companions.sethome", **payload))
     if name == "companions_build":
-        payload = {"prefab": args["prefab"]}
+        payload = {}
+        if args.get("prefab"):
+            payload["prefab"] = args["prefab"]
+        if args.get("plan"):
+            payload["plan"] = args["plan"]
         if args.get("name"):
             payload["name"] = args["name"]
+        for key in ("x", "y", "z"):
+            if key in args:
+                payload[key] = args[key]
         return require_ok(call_bridge("companions.build", **payload))
     if name == "build_pieces":
         payload = {"radius": args.get("radius", 10)}

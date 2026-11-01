@@ -95,6 +95,9 @@ internal static class Commands
 		case "build.sites": return BuildSites(args);
 		case "build.pieces": return BuildPieces(args);
 		case "build.find": return BuildFind(args);
+		case "build.check": return BuildCheck(args);
+		case "build.snaps": return BuildSnaps(args);
+		case "build.usable": return BuildUsable(args);
 		case "companions.build": return CompanionsBuild(args);
 		case "companions.sethome": return CompanionsSetHome(args);
 			case "world.tombstones": return WorldTombstones(args);
@@ -489,6 +492,127 @@ internal static class Commands
 	/// aim of the player when no coordinates are given - and returns the chosen pose, the distance from the hint and
 	/// how many candidates were refused for each reason. Nothing is placed.
 	/// </summary>
+	/// <summary>
+	/// Trilha E (E6): would the game accept this <b>exact</b> pose? It is the check the plan runs for every step -
+	/// unlike <c>build.sites</c>, the y is <b>not</b> snapped to the ground (a wall on a floor or a roof on a wall
+	/// lives above the terrain).
+	/// </summary>
+	private static string BuildCheck(Dictionary<string, object> args)
+	{
+		if (ZNetScene.instance == null)
+		{
+			return Fail("the world isn't loaded");
+		}
+		string prefab = (Json.Str(args, "prefab") ?? string.Empty).Trim();
+		Piece piece = BuildProbe.PieceOf(prefab);
+		if (piece == null)
+		{
+			return Fail(prefab.Length == 0 ? "prefab is required" : "no Piece component on '" + prefab + "'");
+		}
+		Vector3 pos = new Vector3(Json.Float(args, "x", 0f), Json.Float(args, "y", 0f), Json.Float(args, "z", 0f));
+		float yaw = Json.Float(args, "yaw", 0f);
+		Dictionary<string, object> check = BuildSite.Check(piece, pos, Quaternion.Euler(0f, yaw, 0f));
+		check["prefab"] = prefab;
+		return Ok(check);
+	}
+
+	/// <summary>
+	/// Trilha E (E6): the piece's <b>snap points</b> (<c>Piece.GetSnapPoints</c>, the children tagged
+	/// <c>snappoint</c>), in the prefab's own space. They are how the game lines a roof onto a wall; the template
+	/// offsets were derived from them (see <c>docs/re/building-notes.md</c>).
+	/// </summary>
+	private static string BuildSnaps(Dictionary<string, object> args)
+	{
+		string prefab = (Json.Str(args, "prefab") ?? string.Empty).Trim();
+		Piece piece = BuildProbe.PieceOf(prefab);
+		if (piece == null)
+		{
+			return Fail(prefab.Length == 0 ? "prefab is required" : "no Piece component on '" + prefab + "'");
+		}
+		List<Transform> points = new List<Transform>();
+		piece.GetSnapPoints(points);
+		List<object> list = new List<object>();
+		foreach (Transform point in points)
+		{
+			if (point == null)
+			{
+				continue;
+			}
+			Vector3 local = piece.transform.InverseTransformPoint(point.position);
+			list.Add(new Dictionary<string, object>
+			{
+				{ "name", point.name },
+				{ "x", local.x },
+				{ "y", local.y },
+				{ "z", local.z }
+			});
+		}
+		return Ok(new Dictionary<string, object> { { "prefab", prefab }, { "count", list.Count }, { "points", list } });
+	}
+
+	/// <summary>
+	/// Trilha E (E6): can the workbench in range of a point be <b>used</b>? It is the game's own
+	/// <c>CraftingStation.CheckUsable</c> - the roof rule (<c>m_craftRequireRoof</c>, 70% cover) that placing a piece
+	/// does not ask for. It is how the shelter is proved to turn the bench usable.
+	/// </summary>
+	private static string BuildUsable(Dictionary<string, object> args)
+	{
+		Player player = Player.m_localPlayer;
+		if (player == null)
+		{
+			return Fail("no player in the world");
+		}
+		Vector3 pos = TargetPosition(args, player.transform.position);
+		// the CLOSEST bench, not the first one the game lists: with two benches in range the registry order would
+		// answer for the wrong one (measured 01/11/2026: the shelter was built over a bench and the tool still read the
+		// old, uncovered one 10 m away)
+		CraftingStation station = null;
+		float best = float.MaxValue;
+		List<CraftingStation> stations = new List<CraftingStation>();
+		CraftingStation.FindStationsInRange("$piece_workbench", pos, 40f, stations);
+		foreach (CraftingStation candidate in stations)
+		{
+			if (candidate == null)
+			{
+				continue;
+			}
+			float distance = Vector3.Distance(candidate.transform.position, pos);
+			if (distance <= candidate.GetStationBuildRange() && distance < best)
+			{
+				best = distance;
+				station = candidate;
+			}
+		}
+		if (station == null)
+		{
+			return Fail("no workbench in range of that point");
+		}
+		bool usable = station.CheckUsable(player, false);
+		float cover = -1f;
+		bool underRoof = false;
+		try
+		{
+			if (station.m_roofCheckPoint != null)
+			{
+				Cover.GetCoverForPoint(station.m_roofCheckPoint.position, out cover, out underRoof);
+			}
+		}
+		catch (Exception)
+		{
+			// a diagnostic of the cover must not turn a question into an error
+		}
+		return Ok(new Dictionary<string, object>
+		{
+			{ "station", station.m_name },
+			{ "usable", usable },
+			{ "cover", cover },
+			{ "underRoof", underRoof },
+			{ "x", station.transform.position.x },
+			{ "y", station.transform.position.y },
+			{ "z", station.transform.position.z }
+		});
+	}
+
 	private static string BuildFind(Dictionary<string, object> args)
 	{
 		if (ZNetScene.instance == null)
@@ -562,23 +686,49 @@ internal static class Commands
 			return Fail("no player in the world");
 		}
 		string prefab = (Json.Str(args, "prefab") ?? string.Empty).Trim();
-		if (prefab.Length == 0)
+		string planName = (Json.Str(args, "plan") ?? string.Empty).Trim();
+		BuildTemplates.Template template = null;
+		if (planName.Length > 0)
 		{
-			return Fail("prefab is required (e.g. piece_workbench)");
+			// E6: a whole structure (a template) instead of one piece
+			template = BuildTemplates.ByName(planName) ?? BuildTemplates.Resolve(planName);
+			if (template == null)
+			{
+				return Fail("unknown plan '" + planName + "'");
+			}
+			foreach (BuildTemplates.Step step in template.Ordered())
+			{
+				Piece stepPiece = BuildProbe.PieceOf(step.Prefab);
+				if (stepPiece == null)
+				{
+					return Fail("no Piece component on '" + step.Prefab + "'");
+				}
+				if (player != null && !player.IsRecipeKnown(stepPiece.m_name))
+				{
+					return Fail("the player has not unlocked the recipe of '" + step.Prefab + "'");
+				}
+			}
 		}
-		if (!BuildCatalog.Allowed(prefab))
+		else
 		{
-			return Fail("'" + prefab + "' is not in the build allow-list");
-		}
-		if (BuildProbe.PieceOf(prefab) == null)
-		{
-			return Fail("no Piece component on '" + prefab + "'");
-		}
-		// the same recipe gate the chat order uses: the companion does not build what the player has not unlocked
-		Piece bedPiece = BuildProbe.PieceOf(prefab);
-		if (player != null && bedPiece != null && !player.IsRecipeKnown(bedPiece.m_name))
-		{
-			return Fail("the player has not unlocked the recipe of '" + prefab + "'");
+			if (prefab.Length == 0)
+			{
+				return Fail("prefab or plan is required (e.g. piece_workbench, plan=hut)");
+			}
+			if (!BuildCatalog.Allowed(prefab))
+			{
+				return Fail("'" + prefab + "' is not in the build allow-list");
+			}
+			if (BuildProbe.PieceOf(prefab) == null)
+			{
+				return Fail("no Piece component on '" + prefab + "'");
+			}
+			// the same recipe gate the chat order uses: the companion does not build what the player has not unlocked
+			Piece bedPiece = BuildProbe.PieceOf(prefab);
+			if (player != null && bedPiece != null && !player.IsRecipeKnown(bedPiece.m_name))
+			{
+				return Fail("the player has not unlocked the recipe of '" + prefab + "'");
+			}
 		}
 		CompanionSetup target = null;
 		string name = (Json.Str(args, "name") ?? string.Empty).Trim();
@@ -610,7 +760,12 @@ internal static class Commands
 			return Fail(name.Length > 0 ? "no companion named '" + name + "'" : "no companion in the world");
 		}
 		Vector3 hint;
-		if (!BuildFindCommand.Hint(player, out hint))
+		if (args.ContainsKey("x") || args.ContainsKey("z"))
+		{
+			// a test may name the spot (E6: the canopy has to be anchored on the bench it shelters)
+			hint = new Vector3(Json.Float(args, "x", player.transform.position.x), Json.Float(args, "y", player.transform.position.y), Json.Float(args, "z", player.transform.position.z));
+		}
+		else if (!BuildFindCommand.Hint(player, out hint))
 		{
 			Vector3 forward = player.transform.forward;
 			forward.y = 0f;
@@ -630,11 +785,13 @@ internal static class Commands
 				return Fail("the spot is " + Mathf.RoundToInt(fromHome) + " m from the companion's home (max " + Mathf.RoundToInt(max) + " m)");
 			}
 		}
-		bool started = MHR_Build.Start(target, prefab, hint);
+		bool started = template != null ? MHR_Build.StartPlan(target, template, hint) : MHR_Build.Start(target, prefab, hint);
 		return Ok(new Dictionary<string, object>
 		{
 			{ "started", started },
-			{ "prefab", prefab },
+			{ "prefab", template != null ? template.Name : prefab },
+			{ "plan", template != null ? template.Name : null },
+			{ "pieces", template != null ? template.Steps.Length : 1 },
 			{ "name", target.GetComponent<ZNetView>()?.GetZDO()?.GetString(CompanionSetup.NameHash, "Companion") },
 			{ "hint", new Dictionary<string, object> { { "x", hint.x }, { "y", hint.y }, { "z", hint.z } } }
 		});

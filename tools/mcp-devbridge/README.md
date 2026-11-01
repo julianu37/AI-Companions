@@ -135,6 +135,48 @@ The answer includes where the aim lands (`distance` is missing when it hits noth
 Sets the companion's home where it stands (the same `SetHomePosition` the wheel's "set home here" uses). It is how
 the build leash (`[Building] MaxDistanceFromHome`) is tested from the outside.
 
+### `build_check`
+
+| param | type | default |
+|---|---|---|
+| `prefab` | string | - |
+| `x`, `y`, `z` | number | - |
+| `yaw` | number | 0 |
+
+```json
+{"prefab": "woodwall", "x": -202.6, "y": 70.3, "z": -252.5, "yaw": 90, "status": "valid", "reasons": [], "elevated": true}
+```
+
+Would the game accept this **exact** pose? Unlike `build_sites`, the y is **not** snapped to the ground, so a wall on a
+floor or a roof on a wall can be checked (E6). `elevated` tells which support rule was used (the footprint one above
+the ground).
+
+### `build_snaps`
+
+| param | type | default |
+|---|---|---|
+| `prefab` | string | - |
+
+```json
+{"prefab": "wood_floor", "count": 4, "points": [{"name": "$hud_snappoint_corner 1", "x": 1.0, "y": 0.0, "z": -1.0}]}
+```
+
+The piece's snap points in its own space (`Piece.GetSnapPoints`). They are where the template offsets come from: the
+floor's corners are at ±1, the wall's snaps at ±1 in x and y (origin at the centre), the 45° roof rises 2 m over 2 m.
+
+### `build_usable`
+
+| param | type | default |
+|---|---|---|
+| `x`, `y`, `z` | number | the player |
+
+```json
+{"station": "$piece_workbench", "usable": false, "cover": 0.41, "underRoof": false, "x": -235.1, "y": 76.2, "z": -263.6}
+```
+
+The game's own `CraftingStation.CheckUsable` for the **closest** workbench: it is the roof rule (70% cover) that
+*placing* a piece does not ask for. It is how the bench shelter is proved to make the bench usable.
+
 ### `build_pieces`
 
 | param | type | default |
@@ -190,6 +232,10 @@ materials from the companion's own bag, places the piece and verifies it (object
 frame later - the station in the game's registry). It is how the job is tested on its own; the chat/voice path goes
 through the same `MHR_Build`. The allow-list is `piece_workbench`, `piece_chest_wood`, `fire_pit` and `piece_bed02`;
 a piece that needs a station (chest, bed) answers `hc_ai_build_needs_station` when no workbench is in range.
+
+With `plan` it builds a whole **template** (E6): `plan=hut` (1 floor + 4 walls + 2 roofs) or
+`plan=canopy` (4 poles + 4 roofs over the bench). `x`/`y`/`z` pin the anchor (the canopy must be anchored on
+the bench it shelters).
 
 ### `player_give`
 

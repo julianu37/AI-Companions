@@ -89,6 +89,9 @@ Uma conexão por chamada; **um JSON por linha**, nas duas direções.
 | `build.sites` | `prefab`, `x?`, `y?`, `z?`, `radius?`, `rings?`, `dirs?` | `total`, `valid`, `points[]` (cada um com `status`, `reasons[]`, `ground{}`, `biome`, `cultivated`, `hasStation`, `wardOk`, `noBuildZone`) |
 | `build.pieces` | `x?`, `y?`, `z?`, `radius?`, `filter?` | `count`, `pieces[]` (`prefab`, `name`, `creator`, `mine`, `distance`, `zdo`, `health`, `station`) |
 | `build.find` | `prefab`, `x?`, `y?`, `z?`, `radius?`, `rings?`, `dirs?` | `ok`, `status`, `pos{}`, `yaw`, `distance`, `tried`, `reasons[]`, `tally{}` |
+| `build.check` | `prefab`, `x`, `y`, `z`, `yaw?` | o **mesmo** veredito do `BuildSite.Check` numa pose **exata** (o `y` não é achatado no chão - é assim que se testa parede sobre piso e telhado sobre parede) |
+| `build.snaps` | `prefab` | `count`, `points[]` (`name`, `x`, `y`, `z`) - os `snappoint` do prefab (a origem dos deslocamentos dos templates da E6) |
+| `build.usable` | `x?`, `y?`, `z?` | `station`, `usable` (o `CraftingStation.CheckUsable` do jogo: a regra do **telhado**, 70% de cobertura), `cover`, `underRoof`, `x/y/z` da estação **mais próxima** |
 | `companions.build` | `prefab`, `name?` | `started`, `prefab`, `name`, `hint{}` |
 | `companions.sethome` | `name?` | `name`, `x`, `y`, `z` |
 | `screenshot` | `path?` | `path` |
@@ -123,7 +126,7 @@ o cursor logo depois dela).
 `Wander`, `Follow`, `StayHome`, `HomeRadius`, `OrderCap`, `OrderCapMode`, `OrderCapItem`, `TombstoneId`, `Stamina`,
 `Recovering`, `RecoverStance`, `RecoverPickup`, `Voice`, `Gen`, `FarmZones` (`"<none>"` ou `"N chars"`).
 
-## Ferramentas MCP (51)
+## Ferramentas MCP (54)
 
 Genéricas: `devbridge_ping`, `game_status` (posição, hp/stamina, bioma, dia, **yaw** do player, **camYaw/pitch** da
 câmera e **god**), `game_console` (**roda um comando do console e devolve a saída**: liga os dev commands sozinho e,
