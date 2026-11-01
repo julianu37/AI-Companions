@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
@@ -398,15 +398,21 @@ internal static class Program
 	{
 		// the names, in the five languages
 		TemplateCase("constrói uma cabana aqui", "hut");
+		TemplateCase("constrói um abrigo aqui", "house");
+		TemplateCase("construa uma casa aqui", "house");
 		TemplateCase("constrói um abrigo para a bancada", "canopy");
 		TemplateCase("abrigo da bancada", "canopy");
 		TemplateCase("build a small hut", "hut");
+		TemplateCase("build a small house", "house");
 		TemplateCase("a shelter for the bench", "canopy");
 		TemplateCase("construye una choza", "hut");
+		TemplateCase("construye una casita", "house");
 		TemplateCase("un cobertizo", "canopy");
 		TemplateCase("construis une cabane", "hut");
+		TemplateCase("construis une petite maison", "house");
 		TemplateCase("un auvent", "canopy");
 		TemplateCase("costruisci una casetta", "hut");
+		TemplateCase("costruisci una casa piccola", "house");
 		TemplateCase("un riparo", "canopy");
 		Check("Resolve(\"constrói uma parede\") == null (template nao e peca)", BuildTemplates.Resolve("constrói uma parede") == null);
 		Check("Resolve(null) == null", BuildTemplates.Resolve(null) == null);
@@ -416,9 +422,29 @@ internal static class Program
 
 		BuildTemplates.Template hut = BuildTemplates.ByName("hut");
 		BuildTemplates.Template canopy = BuildTemplates.ByName("canopy");
+		BuildTemplates.Template house = BuildTemplates.ByName("house");
 		Check("ByName(\"hut\")", hut != null);
 		Check("ByName(\"canopy\")", canopy != null);
+		Check("ByName(\"house\")", house != null);
 		Check("ByName(\"xyz\") == null", BuildTemplates.ByName("xyz") == null);
+
+		// a casa simples: 8x8 (16 pisos), 12 paredes, 1 porta, 1 janela (meia-parede), 16 telhados e 8 empenas
+		CheckInt("casa: 56 pecas", 56, house.Steps.Length);
+		CheckInt("casa: 16 pisos", 16, CountPrefab(house, "wood_floor"));
+		CheckInt("casa: 14 paredes (16 tiles - porta - janela)", 14, CountPrefab(house, "woodwall"));
+		CheckInt("casa: 1 porta", 1, CountPrefab(house, "wood_door"));
+		CheckInt("casa: 1 janela (meia-parede)", 1, CountPrefab(house, "wood_wall_half"));
+		CheckInt("casa: 16 telhados", 16, CountPrefab(house, "wood_roof_45"));
+		CheckInt("casa: 8 empenas", 8, CountPrefab(house, "wood_wall_roof_45"));
+		CheckText("casa: a 1a peca e o piso", "wood_floor", house.Ordered()[0].Prefab);
+		CheckInt("casa: o piso e nivel 0", 0, house.Ordered()[0].Level);
+		CheckText("casa: a ultima peca e telhado/empena", "wood_wall_roof_45", house.Ordered()[house.Steps.Length - 1].Prefab);
+		CheckInt("casa: a porta esta no nivel 1 (parede)", 1, LevelOf(house, "wood_door"));
+		CheckInt("casa: a janela esta no nivel 1 (parede)", 1, LevelOf(house, "wood_wall_half"));
+		// a frente e o lado -z: a porta e a janela estao em z = -4 (o lado que o jogador encara)
+		CheckFloat("casa: a porta esta na frente (z = -4)", -4f, ZOf(house, "wood_door"));
+		CheckFloat("casa: a janela esta na frente (z = -4)", -4f, ZOf(house, "wood_wall_half"));
+		CheckFloat("casa: a janela tem peitoril de 0,5 m", 0.5f, YOf(house, "wood_wall_half"));
 
 		// a composicao da cabana: 1 piso + 4 paredes + 2 telhados (o aceite da E6)
 		CheckInt("cabana: 7 pecas", 7, hut.Steps.Length);
@@ -462,7 +488,46 @@ internal static class Program
 		}
 		Check("Allowed(\"piece_workbench\") == false (nao e peca de template)", !BuildTemplates.Allowed("piece_workbench"));
 		Check("Allowed(null) == false", !BuildTemplates.Allowed(null));
-		CheckInt("Prefabs() sem repeticao", 4, BuildTemplates.Prefabs().Length);
+		CheckInt("Prefabs() sem repeticao", 7, BuildTemplates.Prefabs().Length);
+	}
+
+	/// <summary>E6: the level of the first step of a prefab (0 foundation, 1 walls, 2 roof).</summary>
+	private static int LevelOf(BuildTemplates.Template template, string prefab)
+	{
+		foreach (BuildTemplates.Step step in template.Steps)
+		{
+			if (step.Prefab == prefab)
+			{
+				return step.Level;
+			}
+		}
+		return -1;
+	}
+
+	/// <summary>E6: the z offset of the first step of a prefab.</summary>
+	private static float ZOf(BuildTemplates.Template template, string prefab)
+	{
+		foreach (BuildTemplates.Step step in template.Steps)
+		{
+			if (step.Prefab == prefab)
+			{
+				return step.Z;
+			}
+		}
+		return 999f;
+	}
+
+	/// <summary>E6: the y offset of the first step of a prefab.</summary>
+	private static float YOf(BuildTemplates.Template template, string prefab)
+	{
+		foreach (BuildTemplates.Step step in template.Steps)
+		{
+			if (step.Prefab == prefab)
+			{
+				return step.Y;
+			}
+		}
+		return 999f;
 	}
 
 	private static int CountPrefab(BuildTemplates.Template template, string prefab)

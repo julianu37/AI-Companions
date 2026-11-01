@@ -617,6 +617,8 @@ public static class ModLocalization
 			{ "hc_ai_build_plan_done", "The {0} is up: {1} pieces." },
 			{ "hc_ai_build_plan_no_site", "I couldn't fit the {0}: the {1} piece doesn't go there." },
 			{ "hc_ai_build_unsupported", "The {0} would be left without support." },
+			{ "hc_ai_build_cant_reach", "I can't get to the {0}." },
+			{ "hc_ai_build_too_heavy", "I'm carrying too much to build ({0}/{1})." },
 			{ "hc_ai_build_failed", "I couldn't build the {0}." },
 			{ "hc_ai_build_needs_station", "I need a {0} nearby." },
 			{ "hc_ai_build_collecting", "I'll go get {0}." },

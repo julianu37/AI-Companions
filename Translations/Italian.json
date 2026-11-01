@@ -683,6 +683,8 @@
         { "key": "hc_ai_build_plan_done", "value": "{0} finito: {1} pezzi." },
         { "key": "hc_ai_build_plan_no_site", "value": "Non sono riuscito a incastrare {0}: il pezzo {1} non ci sta." },
         { "key": "hc_ai_build_unsupported", "value": "{0} resterebbe senza appoggio." },
+        { "key": "hc_ai_build_cant_reach", "value": "Non riesco ad arrivare al {0}." },
+        { "key": "hc_ai_build_too_heavy", "value": "Porto troppo peso per costruire ({0}/{1})." },
         { "key": "hc_ai_build_failed", "value": "Non sono riuscito a costruire {0}." },
         { "key": "hc_ai_build_needs_station", "value": "Mi serve {0} qui vicino." },
         { "key": "hc_ai_build_collecting", "value": "Vado a prendere {0}." },

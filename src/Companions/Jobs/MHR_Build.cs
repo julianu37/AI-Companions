@@ -269,6 +269,14 @@ internal static class MHR_Build
 		{
 			why = "the order took too long";
 		}
+		// E6 (measured 01/11/2026): an encumbered companion cannot walk - the game's Encumbered effect slows it to a
+		// crawl and MHR_Mover gives up after 8 s without progress, which used to end the order with "no site" (a lie).
+		if (why == null && humanoid != null && CompanionCarry.Fraction(humanoid) > 1f)
+		{
+			Log(ai, "overweight: " + humanoid.GetInventory().GetTotalWeight().ToString("F0") + "/" + CompanionCarry.Max(humanoid).ToString("F0"));
+			Finish(ai, state, "hc_ai_build_too_heavy", "encumbered", humanoid.GetInventory().GetTotalWeight().ToString("F0"), CompanionCarry.Max(humanoid).ToString("F0"));
+			return false;
+		}
 		if (why != null)
 		{
 			Finish(ai, state, "hc_ai_build_failed", why);
@@ -435,7 +443,10 @@ internal static class MHR_Build
 			float y = ZoneSystem.instance != null ? ZoneSystem.instance.GetGroundHeight(candidate) : candidate.y;
 			Vector3 spot = new Vector3(candidate.x, y, candidate.z);
 			bool all = true;
-			foreach (BuildTemplates.Step step in steps)
+			// a big template (the house has 54 pieces) would cost 25 x 54 ghost tests: the search samples the
+			// FOUNDATION (up to 5 pieces, spread through the list) and FindPlan validates the whole plan once, at the
+			// anchor that won
+			foreach (BuildTemplates.Step step in Sample(steps))
 			{
 				Piece piece = BuildProbe.PieceOf(step.Prefab);
 				if (piece == null)
@@ -463,6 +474,38 @@ internal static class MHR_Build
 			}
 		}
 		return false;
+	}
+
+	/// <summary>Up to five foundation pieces spread through the template (the sample the anchor search validates).</summary>
+	private static List<BuildTemplates.Step> Sample(List<BuildTemplates.Step> steps)
+	{
+		List<BuildTemplates.Step> ground = new List<BuildTemplates.Step>();
+		foreach (BuildTemplates.Step step in steps)
+		{
+			if (step.Level == 0)
+			{
+				ground.Add(step);
+			}
+		}
+		if (ground.Count == 0)
+		{
+			ground.Add(steps[0]);
+		}
+		if (ground.Count <= 5)
+		{
+			return ground;
+		}
+		List<BuildTemplates.Step> sample = new List<BuildTemplates.Step>();
+		int[] picks = { 0, ground.Count / 4, ground.Count / 2, ground.Count * 3 / 4, ground.Count - 1 };
+		foreach (int pick in picks)
+		{
+			BuildTemplates.Step step = ground[pick];
+			if (!sample.Contains(step))
+			{
+				sample.Add(step);
+			}
+		}
+		return sample;
 	}
 
 	private static Vector3 Flat(Vector3 direction)
@@ -522,8 +565,10 @@ internal static class MHR_Build
 		MHR_Mover.Go(ai, dt, state.Pos, Reach, true, "Build");
 		if (MHR_Mover.GaveUp(ai))
 		{
+			// "no site" was a lie here: the spot is fine, the way to it is not (a wall, a tree, the furniture the player
+			// built, or the companion being too heavy to walk) - measured 01/11/2026
 			Log(ai, "can't get to the spot");
-			Finish(ai, state, "hc_ai_build_no_site", null, LabelOf(state));
+			Finish(ai, state, "hc_ai_build_cant_reach", null, LabelOf(state));
 			return false;
 		}
 		return true;

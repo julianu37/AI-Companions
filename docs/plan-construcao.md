@@ -540,6 +540,22 @@ fecha o sentido "usável" da E5.
 - **Limitações:** o chão tem que ser razoavelmente plano (nivelar é a **E10**); o plano **não** manda a coleta
   (falta material → recusa com o total) - a coleta de plano é o próximo passo.
 
+**E6b - a casa simples (pedido do jogador, 01/11/2026):** `"construa um abrigo aqui"` levanta uma **casa 8x8** com
+**piso, paredes, teto, uma porta e uma janela na frente** (56 peças: 16 pisos, 14 paredes, 1 porta, 1 meia-parede de
+janela, 16 telhados e 8 empenas).
+
+- **Por que 8x8:** o telhado 45° sobe 2 m em 2 m, então a água de 4 m de uma casa de 8 m dá **exatamente 2 peças** e
+  a **cumeeira fica no meio**. Numa casa de 6 m seriam 1,5 peças por água e a cumeeira cairia 1 m fora do centro.
+- **A porta** (`wood_door`, Madeira x4) é 2x2 com a **mesma origem da parede** - ela **toma o lugar** de um tile.
+  **A janela** é uma `wood_wall_half` (2x1, Madeira x1) a **0,5 m do piso**, deixando 1 m de abertura em cima.
+- A **frente é o lado local -z** (o lado que o jogador encara): porta no tile da esquerda do centro e janela no da
+  direita (medido: `build.snaps` da porta = (±1, ±1, 0), o mesmo da parede).
+- **Aceite em jogo:** pendente (o terreno precisa de um descampado de 8x8; o jogador está procurando um).
+- **Duas falas novas que o teste da casa achou:** `hc_ai_build_cant_reach` ("não consigo chegar até a peça") no
+  lugar do "não achei lugar" quando o `MHR_Mover` desiste - o local está bom, o caminho não - e
+  `hc_ai_build_too_heavy` ("carregado demais para construir (peso/máximo)") quando o companheiro está acima do
+  limite (ele não anda; antes a ordem falhava com "não achei lugar").
+
 ### Fase 7 — O companheiro constrói os planos do BuildOrders (2–3 dias) — **a ponte**
 
 **Entrega:** `AI/BuildOrdersLink.cs` + o dever "construir os planos da casa" (ou uma ordem `build plans`):

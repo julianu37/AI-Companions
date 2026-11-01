@@ -62,6 +62,13 @@ its own bag, places the piece and confirms it works.
   stats); the cost still comes from the companion's bag and the creator is still you. Measured: the bench under
   the shelter answers `usable=True, cover=0.94, underRoof=True` to the game's own `CheckUsable`, while the
   uncovered benches next to it answer `usable=False, cover=0.18` - a workbench you can actually craft at.
+- **A simple house (E6b):** "construa um abrigo aqui" / "build a small house" raises an **8x8 m house** -
+  sixteen floor tiles, walls on the four sides, a **door** and a **window** on the front, a 45° gable roof with a
+  centred ridge and closed gables (56 pieces). 8x8 is the size that fits the roof: its 4 m slope is exactly two
+  pieces, so the ridge lands in the middle. The door (`wood_door`, 2x2) takes a wall's place and the window is a
+  half wall at 0.5 m, leaving a 1 m opening. **Two new lines** came out of testing it: "I can't get to the {0}"
+  (the spot is fine, the way to it is not - it used to say "no place for it") and "I'm carrying too much to
+  build ({0}/{1})" (an encumbered companion cannot walk).
 - **New dev tooling:** `modia_build_probe [prefab] [radius]` and `modia_build_find [prefab] [radius]` in the game
   console, and the MCP tools `build_inspect`, `build_sites`, `build_find`, `build_pieces`, `companions_build`,
   `companions_sethome` and `player_look` (the build order takes its spot from your aim, so a test has to be

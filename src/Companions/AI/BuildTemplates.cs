@@ -85,8 +85,8 @@ internal static class BuildTemplates
 	/// </summary>
 	private static readonly Template Hut = new Template("hut", "cabana", new[]
 	{
-		"cabana", "casinha", "choupana", "chao 2x2", "chao de 2x2", "quatro paredes",
-		"hut", "small hut", "cabin",
+		"cabana", "choupana", "chao 2x2", "chao de 2x2", "quatro paredes",
+		"hut", "small hut",
 		"cabana pequena", "choza",
 		"cabane", "cabane simple",
 		"casetta", "capanna", "stanza 2x2"
@@ -106,13 +106,13 @@ internal static class BuildTemplates
 	/// <c>CraftingStation.CheckUsable</c> asks for (a roof with 70% cover) and it is the "usável" half of E5.
 	/// The poles stand at the eaves, outside the bench's footprint (the bench is 3,7 x 2,1 m).
 	/// </summary>
-	private static readonly Template Canopy = new Template("canopy", "abrigo", new[]
+	private static readonly Template Canopy = new Template("canopy", "abrigo da bancada", new[]
 	{
-		"abrigo", "abrigo da bancada", "telhado para a bancada", "telhado da bancada", "cobertura", "toldo",
-		"shelter", "bench shelter", "canopy", "roof for the bench",
-		"cobertizo", "techo para la mesa",
-		"abri", "auvent", "toit pour l etabli",
-		"riparo", "tettoia", "tetto per il banco"
+		"abrigo da bancada", "abrigo para a bancada", "telhado para a bancada", "telhado da bancada", "cobertura", "toldo",
+		"bench shelter", "canopy", "roof for the bench", "shelter for the bench",
+		"cobertizo", "cobertizo de la mesa", "techo para la mesa",
+		"auvent", "toit pour l etabli",
+		"riparo", "riparo del banco", "tettoia", "tetto per il banco"
 	}, new[]
 	{
 		new Step("wood_pole2", 1f, 1f, 2f, 0f, 0),
@@ -125,7 +125,76 @@ internal static class BuildTemplates
 		new Step("wood_roof_45", -1f, 3f, -1f, 180f, 2)
 	});
 
-	private static readonly Template[] All = { Hut, Canopy };
+	/// <summary>
+	/// A <b>simple house</b>: 8x8 m (4x4 floor tiles), walls on the four sides, a <b>door</b> and a <b>window</b> on
+	/// the front (the side facing the player, local -z), a 45° gable roof with a centred ridge and closed gables.
+	///
+	/// <para>8x8 is the size that fits the 45° roof cleanly: the piece rises 2 m over 2 m, so a 4 m run per slope is
+	/// exactly <b>two pieces</b> and the ridge lands in the middle. A 6 m house would need 1,5 pieces per slope and
+	/// put the ridge 1 m off centre.</para>
+	///
+	/// <para><b>Door and window</b> (measured): <c>wood_door</c> is 2x2 with the same origin as a wall (it takes the
+	/// wall's place), and <c>wood_wall_half</c> is 2x1 with its origin at the centre - placed at y = 0,5 it leaves a
+	/// 1 m opening above it, which is the window.</para>
+	/// </summary>
+	private static readonly Template House = new Template("house", "casa", new[]
+	{
+		"abrigo", "casa", "casinha", "casa simples", "casa de madeira", "casebre",
+		"house", "small house", "shelter", "cabin",
+		"casa pequeña", "casita", "refugio",
+		"maison", "petite maison", "abri",
+		"casa piccola", "casupola", "rifugio"
+	}, HouseSteps());
+
+	private static Step[] HouseSteps()
+	{
+		List<Step> steps = new List<Step>();
+		// the floor: 4x4 tiles of 2x2 m, level 0
+		float[] grid = { -3f, -1f, 1f, 3f };
+		foreach (float x in grid)
+		{
+			foreach (float z in grid)
+			{
+				steps.Add(new Step("wood_floor", x, 0f, z, 0f, 0));
+			}
+		}
+		// the walls, level 1: the FRONT is local -z (the side the player faces when the house goes up)
+		//   front: a wall, the DOOR, the WINDOW (half wall at y=0,5) and a wall
+		steps.Add(new Step("woodwall", -3f, 1f, -4f, 0f, 1));
+		steps.Add(new Step("wood_door", -1f, 1f, -4f, 0f, 1));
+		steps.Add(new Step("wood_wall_half", 1f, 0.5f, -4f, 0f, 1));
+		steps.Add(new Step("woodwall", 3f, 1f, -4f, 0f, 1));
+		//   back
+		foreach (float x in grid)
+		{
+			steps.Add(new Step("woodwall", x, 1f, 4f, 0f, 1));
+		}
+		//   left and right
+		foreach (float z in grid)
+		{
+			steps.Add(new Step("woodwall", -4f, 1f, z, 90f, 1));
+			steps.Add(new Step("woodwall", 4f, 1f, z, 90f, 1));
+		}
+		// the roof, level 2: the eave at the wall top (y=2) and the ridge 4 m above it (z=0), 2 pieces per slope
+		foreach (float x in grid)
+		{
+			steps.Add(new Step("wood_roof_45", x, 3f, 3f, 0f, 2));
+			steps.Add(new Step("wood_roof_45", x, 5f, 1f, 0f, 2));
+			steps.Add(new Step("wood_roof_45", x, 3f, -3f, 180f, 2));
+			steps.Add(new Step("wood_roof_45", x, 5f, -1f, 180f, 2));
+		}
+		// the gables (the triangular ends), level 2: two pieces per side, rising toward the ridge
+		foreach (float x in new float[] { -4f, 4f })
+		{
+			steps.Add(new Step("wood_wall_roof_45", x, 2f, 3f, 90f, 2));
+			steps.Add(new Step("wood_wall_roof_45", x, 4f, 1f, 90f, 2));
+			steps.Add(new Step("wood_wall_roof_45", x, 2f, -3f, 270f, 2));
+			steps.Add(new Step("wood_wall_roof_45", x, 4f, -1f, 270f, 2));
+		}
+		return steps.ToArray();
+	}
+
+	private static readonly Template[] All = { House, Hut, Canopy };
 
 	internal static Template[] Templates()
 	{
