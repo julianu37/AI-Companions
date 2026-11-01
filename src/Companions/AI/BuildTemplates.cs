@@ -97,8 +97,11 @@ internal static class BuildTemplates
 		new Step("woodwall", 0f, 1f, -1f, 0f, 1),
 		new Step("woodwall", 1f, 1f, 0f, 90f, 1),
 		new Step("woodwall", -1f, 1f, 0f, 90f, 1),
-		new Step("wood_roof_45", 0f, 3f, 1f, 0f, 2),
-		new Step("wood_roof_45", 0f, 3f, -1f, 180f, 2)
+		// the roof rests ON the wall: at y = 2 its surface crosses the wall top (y = 2) at z = ±1, the eave hangs 1 m
+		// beyond it (z = ±2, y = 1) and the ridge meets at z = 0, y = 3. At y = 3 it would float 1 m above the walls -
+		// measured in the player's own hut, 01/11/2026: "UNSUPPORTED: wood_roof_45 (support 0,0 < min 10,0)"
+		new Step("wood_roof_45", 0f, 2f, 1f, 0f, 2),
+		new Step("wood_roof_45", 0f, 2f, -1f, 180f, 2)
 	});
 
 	/// <summary>

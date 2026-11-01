@@ -478,7 +478,7 @@ internal static class Program
 		// os deslocamentos medidos (snaps): piso no centro, parede 1 m acima, telhado 3 m acima
 		CheckFloat("piso em (0,0,0)", 0f, ordered[0].X);
 		CheckFloat("parede a 1 m", 1f, ordered[1].Y);
-		CheckFloat("telhado a 3 m", 3f, ordered[ordered.Count - 1].Y);
+		CheckFloat("telhado a 2 m (a agua encosta no topo da parede)", 2f, ordered[ordered.Count - 1].Y);
 		CheckFloat("telhado com 1 m de beiral", 1f, Math.Abs(ordered[ordered.Count - 1].Z));
 
 		// a allow-list dos planos

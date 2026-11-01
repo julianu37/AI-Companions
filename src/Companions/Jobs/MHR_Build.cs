@@ -63,6 +63,8 @@ internal static class MHR_Build
 		internal Phase Phase;
 		internal int Tried;
 		internal GameObject Placed;
+		/// <summary>E6: when the piece was placed (the support verdict is asked again for a moment).</summary>
+		internal float PlacedAt;
 		internal Vector3 GatherTarget;
 		internal int GatherMode;
 		internal string GatherItem;
@@ -637,6 +639,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			return false;
 		}
 		state.Placed = result.GameObject;
+		state.PlacedAt = Time.time;
 		state.Phase = Phase.Verify;
 		Log(ai, "placed (" + result.Route + "), verifying next frame");
 		return true;
@@ -656,10 +659,16 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		}
 		// E6: the acceptance "sem peça solta no ar" - the game's own verdict (WearNTear.UpdateSupport/HaveSupport).
 		// It is asked for every piece, single or plan; null (the reflection did not resolve) is never a refusal.
+		// The support of a piece flows from what is below it, and the piece below may have had its own support computed
+		// in the same frame: a "no support" answer is asked again for a couple of frames before it becomes a refusal.
 		WearNTear wear = state.Placed != null ? state.Placed.GetComponent<WearNTear>() : null;
 		bool? supported = BuildSupport.Supported(wear);
 		if (supported == false)
 		{
+			if (Time.time - state.PlacedAt < 1.5f)
+			{
+				return true;   // ask again next frame (the piece below may still be settling)
+			}
 			float? value = BuildSupport.Value(wear);
 			float? min = BuildSupport.Min(wear);
 			Log(ai, "UNSUPPORTED: " + state.Prefab + " (support " + (value.HasValue ? value.Value.ToString("F1") : "?")
