@@ -70,9 +70,11 @@ config é **`BepInEx\config\AiCompanions.cfg`** (o GUID não dá mais nome a ele
   listar o Jotunn como requisito em release/README. (A skill `jotunn` da equipe continua no repositório como
   referência de framework, mas **não** se aplica a este mod.)
 - Target: **.NET Framework 4.7.2 (net472)**, C#.
-- Versão: **1.9.4** (publicada em **31/10/2026**, tag `v1.9.4`, só no GitHub — o Nexus fica para a 1.9.5) —
-  **multilíngue (5 idiomas: PT-BR, EN, ES, FR, IT)** (fonte única: `PluginVersion` em
-  `src/Companions/Core/CompanionsPlugin.cs`). A 1.9.4 é a **barba + teto da coleta + `tokens/s`** (merge `f36e311`)
+- Versão: **1.9.5** (em andamento, branch `feat/1.9.5`; a **1.9.4** saiu em 31/10/2026, tag `v1.9.4`, só no
+  GitHub — o Nexus fica para a 1.9.5, quando o jogador mandar) — **multilíngue (5 idiomas: PT-BR, EN, ES, FR, IT)**
+  (fonte única: `PluginVersion` em `src/Companions/Core/CompanionsPlugin.cs`). A 1.9.5 é o **lote da revisão de 10
+  especialistas** (20 itens; ver `docs/backlog-1.9.5.md` e a seção 1.9.5 do `docs/roadmap.md`). A 1.9.4 é a
+  **barba + teto da coleta + `tokens/s`** (merge `f36e311`)
   **+ os três altos** (Santuário, `ChangeTier`, dupla morte) **+ os 3 fixes de UI + o `FightLikePlayer = false`**
   (combate da 1.9.1, validado em jogo) **+ a lápide com o dono certo + a memória localizada + o DevBridge**, tudo
   mergeado da `fix/altos-194`. A **1.9.2** (branch

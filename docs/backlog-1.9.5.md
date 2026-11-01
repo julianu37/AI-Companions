@@ -4,6 +4,11 @@ Origem: revisão de 10 especialistas (31/10/2026) + decisões do jogador. Cada i
 hoje**, **o que pode quebrar se ficar**, **por que corrigir** e **o esforço**. Nada aqui foi corrigido na 1.9.4
 (exceto o que está marcado como feito no `docs/roadmap.md`).
 
+> **Status na 1.9.5 (branch `feat/1.9.5`):** feitos **A3, A4, A7, A8, A9, A10, A11, A12, B2, B3, B8, B10, B11, B13,
+> B14, B15, B18, C2, C3, C4, C5, C6, C7**. **Documentado para verificar futuramente:** A6. **Fora por decisão do
+> jogador:** A1, A2, A5, B1, B4, B5, B6, B7, B9, B12, B16, B17, todo o bloco de MP (C1) e a wiki (C8, só quando ele
+> pedir). O detalhe do que entrou está na seção 1.9.5 do `docs/roadmap.md` e no `package/CHANGELOG.md`.
+
 ## A. Vitória rápida (1 linha cada, alto valor)
 
 | # | O que está quebrado hoje | O que pode quebrar | Por que corrigir | Onde | Esforço |
