@@ -1,11 +1,18 @@
 # Writes package/CONFIGURATION.md (PT-BR page, English settings) from the settings in src/Companions/Core/ModConfig.cs.
 # Usage: python3 tools/gen_config_doc.py src/Companions/Core/ModConfig.cs package/CONFIGURATION.md
+#        python3 tools/gen_config_doc.py --check src/Companions/Core/ModConfig.cs package/CONFIGURATION.md
+# `--check` renders the page in memory and compares it with the file on disk: prints `[ok]` and exits 0 when it is
+# up to date, prints a short diff and exits 1 when it is not (the release gate calls it this way). Nothing is written.
 # The setting DESCRIPTIONS come from ModConfig.cs, so they are translated there (this file only
 # holds the page's own text). Section/key names are kept as they are, because they are what the
 # player sees in the .cfg file and in the F8 panel tabs.
-import io,re,sys
-src=io.open(sys.argv[1],encoding='utf-8').read()
-out=sys.argv[2]
+import difflib,io,re,sys
+CHECK='--check' in sys.argv
+ARGS=[a for a in sys.argv[1:] if a!='--check']
+if len(ARGS)!=2:
+    sys.exit('usage: gen_config_doc.py [--check] <ModConfig.cs> <CONFIGURATION.md>')
+src=io.open(ARGS[0],encoding='utf-8').read()
+out=ARGS[1]
 init=src[src.index('internal static void Init(ConfigFile cfg)'):]
 init=init[:init.index('MigrateAndClean(cfg);')]
 rows=[]
@@ -44,9 +51,11 @@ NAMES={'GearRepair':'Gear Repair','RepairAndRestock':'Repair and Restock'}
 INTRO={
 'General':'The basics: what a companion costs, its health, stamina and carry limits, and how far "home" reaches.',
 'Controls':'The keys and how far your orders reach.',
+'Controller':'The gamepad buttons for the order menu and the stances, used while you play with a controller.',
 'Follow':'How companions follow you.',
 'Movement':'How companions move: speeds, how far they see and how they get around obstacles (doors, steps, water, jumps).',
 'Combat':'When companions fight and how they pick weapon and shield.',
+'Torch':'When a companion lights a torch (night, dark dungeons) and how that torch burns down.',
 'Food':'When companions drink meads.',
 'Stamina':'How fast companions spend and recover stamina.',
 'Rest':'Sleeping in beds, sitting by the fire and the Rested effect.',
@@ -82,7 +91,7 @@ L.append('  - `-Name` = never that one')
 L.append('  - `Name:Number` = that one, with its own amount (`0` = no limit)')
 L.append('  - Names can be the item or creature name in game or the internal name (prefab). The names you can use in cooking, hunting and fishing are written to `OfflineCompanionsReborn.Cooking.txt`, `.Hunting.txt` and `.Fishing.txt` in the config folder every time the game starts.')
 L.append('- Updating from an old version? The options you changed are moved to the new names automatically the first time you enter a world. **Since 1.8.3** the file is `AiCompanions.cfg` and the keys and descriptions are in English (the native language of the mod; Portuguese is a translation): the old `.cfg` (`Maddhattr.OfflineCompanionsReborn.cfg`) is ignored and the settings go back to their default values.')
-L.append('- The section names below are the same as in the `.cfg` file (the `F8` panel shows them translated to the game language): `General` = **Geral**, `Controls` = **Controles**, `Follow` = **Seguir**, `Movement` = **Movimento**, `Combat` = **Combate**, `Food` = **Comida**, `Stamina` = **Stamina**, `Rest` = **Descanso**, `Death` = **Morte**, `Looting` = **Saque**, `GearRepair` = **Reparo de Equip.**, `Gathering` = **Coleta**, `Hunting` = **Caça**, `Fishing` = **Pesca**, `Farming` = **Plantio**, `Smelting` = **Fundição**, `Cooking` = **Cozinha**, `RepairAndRestock` = **Reparar e Reabastecer**, `Idle` = **Ócio**, `Speech` = **Fala**, `Advanced` = **Avançado**, `AI` = **IA**.\n')
+L.append('- The section names below are the same as in the `.cfg` file (the `F8` panel shows them translated to the game language): `General` = **Geral**, `Controls` = **Controles**, `Controller` = **Gamepad**, `Follow` = **Seguir**, `Movement` = **Movimento**, `Combat` = **Combate**, `Torch` = **Tocha**, `Food` = **Comida**, `Stamina` = **Stamina**, `Rest` = **Descanso**, `Death` = **Morte**, `Looting` = **Saque**, `GearRepair` = **Reparo de Equip.**, `Gathering` = **Coleta**, `Hunting` = **Caça**, `Fishing` = **Pesca**, `Farming` = **Plantio**, `Smelting` = **Fundição**, `Cooking` = **Cozinha**, `RepairAndRestock` = **Reparar e Reabastecer**, `Idle` = **Ócio**, `Speech` = **Fala**, `Advanced` = **Avançado**, `AI` = **IA**.\n')
 L.append('## Sections\n')
 for s in order:
     L.append('- [%s](#%s)'%(NAMES.get(s,s), NAMES.get(s,s).lower().replace(' ','-')))
@@ -104,5 +113,30 @@ for s in order:
             if key=='MeadFocus': v=v.replace('; ',';\n')
             L.append('\nDefault value:\n\n```\n%s\n```'%v)
         L.append('')
-io.open(out,'w',encoding='utf-8').write('\n'.join(L).rstrip()+'\n')
+text='\n'.join(L).rstrip()+'\n'
+if CHECK:
+    # the file on disk is CRLF (written in text mode on Windows); compare with the same line endings
+    try:
+        current=io.open(out,encoding='utf-8',newline='').read().replace('\r\n','\n')
+    except OSError as ex:
+        print('[out of date] %s cannot be read: %s'%(out,ex))
+        sys.exit(1)
+    if current==text:
+        print('[ok] %s is up to date (%d settings, %d sections)'%(out,len(rows),len(order)))
+        sys.exit(0)
+    diff=list(difflib.unified_diff(current.splitlines(True),text.splitlines(True),
+                                   fromfile=out+' (on disk)',tofile=out+' (generated from ModConfig.cs)',n=1))
+    print('[out of date] %s does not match ModConfig.cs: %d diff line(s)'%(out,len(diff)))
+    for line in diff[:40]:
+        line=line if line.endswith('\n') else line+'\n'
+        try:
+            sys.stdout.write(line)
+        except UnicodeEncodeError:
+            # a console in a legacy code page: show the line with '?' instead of dying on an accented label
+            enc=sys.stdout.encoding or 'utf-8'
+            sys.stdout.write(line.encode(enc,'replace').decode(enc))
+    if len(diff)>40:
+        print('... %d more diff line(s)'%(len(diff)-40))
+    sys.exit(1)
+io.open(out,'w',encoding='utf-8').write(text)
 print(len(rows),'settings',len(order),'sections')
