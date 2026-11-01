@@ -609,7 +609,9 @@ depende da busca de local. O orquestrador revisa o diff, roda build + gate e com
 
 - **Multiplayer dedicado** (posse do ZDO, criador quando o dono não está online).
 - **Remover/editar** peças existentes.
-- **Terraformar** (nivelar) — o BuildOrders já nivela os planos dele; o nosso template não nivela.
+- **Terraformar** — **aceito no escopo em 01/11/2026** (decisão do jogador): entra como **E10**, depois da E6 —
+  nivelar o terreno antes de colocar a peça (reusando o que o BuildOrders já faz nos planos dele: `TerrainCompiler`,
+  o mesmo que a enxada usa). Hoje o nosso template não nivela.
 - **LLM desenhando geometria** (blueprint por prompt) — caro e frágil; o desenho é do jogador/assistente dele.
 - **Qualquer dependência nova no `.csproj`** (nem Jötunn, nem PlanBuild, nem BuildOrders).
 
