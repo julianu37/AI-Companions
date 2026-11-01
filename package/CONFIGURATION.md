@@ -562,6 +562,15 @@ How far (meters) around the spot you are looking at the companion looks for a pl
 **MaxDistanceFromHome** — Default: 40 · Range: 0 – 200  
 A build order is refused when the spot is further than this (meters) from the companion's home, so it does not wander off to build across the world. 0 = no limit.
 
+**UseChests** — Default: On  
+Take the missing materials from the chests it may use (a chest a player built, inside a ward that lets it in, not someone else's private chest, not open) before gathering. The bag is always used first.
+
+**RequireHammer** — Default: Off  
+Only build with a hammer in the companion's bag. Off by default: the placement does not need one (the game's own Player.PlacePiece does not check it).
+
+**Quiet** — Default: Off  
+Do not make the placement noise (the game adds one when a piece goes up, which can pull creatures). Only the hand-written placement path is silenced; the vanilla Player.PlacePiece path keeps its noise.
+
 ## Gear Repair
 
 Repairing the companion's own weapons, armour and tools at a bench.

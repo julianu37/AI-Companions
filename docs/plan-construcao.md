@@ -412,7 +412,24 @@ no `CompanionOrders`, a rede `CompanionOrders.IsBuildRequest` no lado `none`, o 
 **Ainda pendente de propósito (E4+):** coletar o que falta, checar baús, a distância da casa no `Build()` e o
 teste em jogo de baú/fogueira/cama.
 
-### Fase 4 — Coletar o que falta (1 dia)
+### Fase 4 — Coletar o que falta (1 dia) — ⚠️ **parcial: a coleta embutida foi revertida**
+
+**O que entrou (medido, gate 9/9):** `AI/BuildStock.cs` — o custo sai da **mochila e depois dos baús usáveis**
+(`MHR_Chests.Usable`: baú que um jogador construiu, dentro de ward que deixa passar, não privado de outro, não
+aberto), **tudo ou nada** (claim antes de mexer, como manda o `MHR_Chests.Claim`); `[Building] UseChests`,
+`RequireHammer` (com a linha `hc_ai_build_no_hammer`), `Quiet` (sem o `AddNoise` do caminho próprio) e o
+**`MaxDistanceFromHome` barrando a ordem** no despacho (linha `hc_ai_build_too_far`). CONFIGURATION.md 349/25.
+
+**O que foi REVERTIDO (e por quê):** a coleta **dentro** do job. A primeira versão desligava o Follow, andava até
+o recurso e deixava o `HarvestController` dirigir enquanto o `MHR_Build` voltava a dirigir depois — **dois sistemas
+no mesmo `MHR_Mover`**, e o movimento do companheiro ficou todo embaralhado (relato do jogador, 01/11/2026). O
+`MHR_Build` voltou ao estado da E3 (`b0d4db8`) + o `BuildStock`; as chaves `GatherForBuild`/`GatherRadius` saíram.
+
+**E4b (o desenho certo, para depois):** a coleta é uma **ordem própria** (o `colete N` que já funciona), e a ordem
+de construção só **diz o que falta e espera** — ou o jogador manda coletar, ou a E4b dispara a coleta como uma
+ordem separada (nunca dois donos do mesmo movimento).
+
+#### O texto original da fase (para referência)
 
 **Entrega:** `BuildStock` ligado ao `HarvestController` com **teto = o que falta** (`HC_OrderCap`), volta e
 constrói. `[Building] GatherForBuild` desliga.

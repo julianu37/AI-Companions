@@ -200,7 +200,11 @@ internal static class BuildExecutor
 		}
 		if (builder is Character character)
 		{
-			character.AddNoise(50f);
+			// [Building] Quiet: the vanilla path (Player.PlacePiece) keeps its own noise; this one can be silenced
+			if (ModConfig.BuildQuiet == null || !ModConfig.BuildQuiet.Value)
+			{
+				character.AddNoise(50f);
+			}
 		}
 		result.Ok = true;
 		result.GameObject = go;

@@ -289,6 +289,14 @@ O alias "cama" caía na cama de dragão (a cara, travada) e a ordem respondia "n
 `BuildCatalog` agora tem as duas: `bed` para "cama"/"bed"/"lit"/"letto" e `piece_bed02` só para
 "cama de dragão"/"dragon bed". Medido em jogo: `done: bed` e `camas depois: 2`.
 
+### E4 — a lição do movimento (01/11/2026)
+
+A coleta embutida na ordem de construção **não pode** acontecer: o `MHR_Build` desligava o Follow, andava até o
+recurso e devolvia o controle ao `HarvestController`; como o `MHR_Build.Drive` volta a rodar no frame seguinte e o
+harvest também, os dois escrevem no mesmo `MHR_Mover` (tags diferentes) e o companheiro **embaralha o movimento**.
+Regra que fica: **um dono do movimento por vez** — a coleta tem que ser uma **ordem separada** (E4b), e a ordem de
+construção só diz o que falta.
+
 ### A recusa de estação (medida a 140 m da oficina)
 
 ```

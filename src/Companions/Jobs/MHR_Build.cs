@@ -272,19 +272,26 @@ internal static class MHR_Build
 
 	private static bool Place(CompanionAI ai, State state, CompanionSetup cs, Inventory bag)
 	{
-		Dictionary<string, int> missing = BuildExecutor.Missing(bag, state.Piece);
-		if (missing.Count > 0)
+		// [Building] RequireHammer: off by default (the executor does not need one); when the player turns it on, a
+		// companion without a hammer refuses before paying anything
+		if (ModConfig.BuildRequireHammer != null && ModConfig.BuildRequireHammer.Value && !HasHammer(bag))
+		{
+			Log(ai, "no hammer in the bag (RequireHammer is on)");
+			Finish(ai, state, "hc_ai_build_no_hammer", "no hammer", LabelOf(state));
+			return false;
+		}
+		// E4 (the safe half): the bag first, then the chests it may use, all or nothing. Gathering stays OUT of this
+		// job - an attempt to gather inside it turned Follow off and let the harvest steer while the AI also steered,
+		// and the companion's movement went haywire (player report, 01/11/2026). Gathering is its own order.
+		bool useChests = ModConfig.BuildUseChests == null || ModConfig.BuildUseChests.Value;
+		Dictionary<string, int> missing;
+		if (!BuildStock.Take(bag, state.Piece, state.Pos, cs, useChests, out missing))
 		{
 			Log(ai, "missing: " + MissingText(missing));
 			Finish(ai, state, "hc_ai_build_missing", null, MissingText(missing), LabelOf(state));
 			return false;
 		}
-		if (!BuildExecutor.Consume(bag, state.Piece))
-		{
-			Finish(ai, state, "hc_ai_build_missing", "the bag changed on the way", MissingText(BuildExecutor.Missing(bag, state.Piece)), LabelOf(state));
-			return false;
-		}
-		BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
+BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		if (!result.Ok)
 		{
 			Log(ai, "executor failed (" + result.Route + "): " + result.Error);
@@ -318,6 +325,12 @@ internal static class MHR_Build
 
 	/// <summary>Gives the piece's cost back to the bag when the placement itself failed (the consume already
 	/// happened). Never called after a success.</summary>
+	/// <summary>Is a hammer in the bag? (only asked when <c>[Building] RequireHammer</c> is on).</summary>
+	private static bool HasHammer(Inventory bag)
+	{
+		return bag != null && bag.HaveItem("$item_hammer");
+	}
+
 	private static void Refund(Inventory bag, Piece piece)
 	{
 		if (bag == null || piece == null || piece.m_resources == null)

@@ -1107,6 +1107,13 @@ internal static class CompanionOrders
 			float y = ZoneSystem.instance != null ? ZoneSystem.instance.GetGroundHeight(flat) : flat.y;
 			hint = new Vector3(flat.x, y, flat.z);
 		}
+		// E4: [Building] MaxDistanceFromHome - the leash of the build order, measured from the companion's home
+		float max = ModConfig.BuildMaxDistanceFromHome != null ? ModConfig.BuildMaxDistanceFromHome.Value : 40f;
+		if (max > 0f && target.HasHomePosition() && Vector3.Distance(target.GetHomePosition(), hint) > max)
+		{
+			Refuse(string.Format(ModLocalization.Loc("hc_ai_build_too_far"), Mathf.RoundToInt(max)));
+			return outcome;
+		}
 		if (!MHR_Build.Start(target, prefab, hint))
 		{
 			Refuse(ModLocalization.Loc("hc_ai_build_no_recipe"));

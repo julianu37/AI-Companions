@@ -615,6 +615,7 @@ public static class ModLocalization
 			{ "hc_ai_build_failed", "I couldn't build the {0}." },
 			{ "hc_ai_build_needs_station", "I need a {0} nearby." },
 			{ "hc_ai_build_collecting", "I'll go get {0}." },
+			{ "hc_ai_build_no_hammer", "I need a hammer to build." },			{ "hc_ai_build_too_far", "That's too far from my home (at most {0} m)." },
 			{ "hc_ai_order_command", "take orders" },
 			{ "hc_ai_order_nocommand", "ignore orders" },
 			{ "hc_ai_order_stance_balanced", "balanced stance" },

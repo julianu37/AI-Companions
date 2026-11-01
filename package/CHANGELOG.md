@@ -28,7 +28,12 @@ its own bag, places the piece and confirms it works.
 - **Refusals** have their own line: unknown piece, combat-only type (the dvergers), building turned off, no spot,
   missing material, failed placement - and a piece that needs a station (a chest, a bed) says **which station** it
   needs when none is in range, before paying anything ("Bancada is not in range of the spot").
-- **New config, `[Building]`:** `Enabled` (true), `SiteSearchRadius` (8 m) and `MaxDistanceFromHome` (40 m).
+- **New config, `[Building]`:** `Enabled` (true), `SiteSearchRadius` (8 m), `MaxDistanceFromHome` (40 m - now it
+  really refuses a spot too far from the companion's home), `UseChests` (true - the missing materials come from
+  the bag and then from the chests it may use, all or nothing), `RequireHammer` (false) and `Quiet` (false).
+- **Gathering the missing materials is not part of this build order yet:** an attempt to gather inside it left two
+  systems steering the companion at once and the movement went haywire, so it was reverted; it will be its own
+  order (the "collect N" that already works).
 - **New dev tooling:** `modia_build_probe [prefab] [radius]` and `modia_build_find [prefab] [radius]` in the game
   console, and the MCP tools `build_inspect`, `build_sites`, `build_find`, `build_pieces` and `companions_build`.
   The measurements of the five workshop pieces are in `docs/re/building-notes.md`; the plan is
