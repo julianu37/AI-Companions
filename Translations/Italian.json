@@ -690,6 +690,7 @@
         { "key": "hc_cfg_building_quiet", "value": "Senza rumore" },
         { "key": "hc_cfg_building_requirehammer", "value": "Richiedere un martello" },
         { "key": "hc_cfg_building_gatherforbuild", "value": "Raccogliere ciò che manca" },
+        { "key": "hc_cfg_building_gatherradius", "value": "Raggio di raccolta (m)" },
         { "key": "hc_cfg_building_usechests", "value": "Usare le casse" },
         { "key": "hc_ai_order_command", "value": "accettare ordini" },
         { "key": "hc_ai_order_nocommand", "value": "ignorare gli ordini" },

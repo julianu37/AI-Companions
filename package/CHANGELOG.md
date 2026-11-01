@@ -34,7 +34,10 @@ its own bag, places the piece and confirms it works.
 - **Gathering the missing materials (E4b):** when the bag and the chests are short, the companion takes the normal
   gather order for exactly the shortfall ("I'll go get 3 wood"), the harvest owns the movement, and a watcher
   starts a fresh build order when the materials are in - one owner of the movement at a time. Measured: 3 wood
-  collected and the bench placed in 136 s. `[Building] GatherForBuild` (true) turns it off.
+  collected and the bench placed in 136 s; with an empty bag, 10 wood and the bench in 96 s. When the resource is
+  farther than 20 m the build walks there itself before handing the order over (`[Building] GatherRadius`, 120 m,
+  up to 200 - the harvest's own radius is measured from the player, which made the search look tiny).
+  `[Building] GatherForBuild` (true) turns the whole thing off.
 - **New dev tooling:** `modia_build_probe [prefab] [radius]` and `modia_build_find [prefab] [radius]` in the game
   console, and the MCP tools `build_inspect`, `build_sites`, `build_find`, `build_pieces` and `companions_build`.
   The measurements of the five workshop pieces are in `docs/re/building-notes.md`; the plan is

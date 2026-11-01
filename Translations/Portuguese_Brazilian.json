@@ -690,6 +690,7 @@
         { "key": "hc_cfg_building_quiet", "value": "Sem ruído" },
         { "key": "hc_cfg_building_requirehammer", "value": "Exigir martelo" },
         { "key": "hc_cfg_building_gatherforbuild", "value": "Buscar o que falta" },
+        { "key": "hc_cfg_building_gatherradius", "value": "Raio da coleta (m)" },
         { "key": "hc_cfg_building_usechests", "value": "Usar baús" },
         { "key": "hc_ai_order_command", "value": "aceitar comandos" },
         { "key": "hc_ai_order_nocommand", "value": "ignorar comandos" },

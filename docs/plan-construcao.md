@@ -446,6 +446,25 @@ BANCADA NOVA em 136 s (3 madeiras coletadas + caminhada + colocação)
 
 **Chave:** `[Building] GatherForBuild` (true) — desligada, a ordem só diz o que falta e encerra.
 
+**Raio e caminhada (relato do jogador: "o raio de busca está muito baixo"):** a coleta do jogo mede o raio **do
+jogador** enquanto o companheiro segue (25 m), então uma árvore a 54 m ficava fora. Agora `[Building] GatherRadius`
+(**120 m**, máximo **200**) procura o recurso; se ele estiver a mais de **20 m**, o **próprio job caminha** até lá
+em modo Follow (a coleta está ociosa — só um dono do `MHR_Mover`) e **só ao chegar** passa o controle à coleta.
+
+**Aceite (mochila VAZIA, 01/11/2026):** companheiro novo com `AxeBlackMetal` + `PickaxeBlackMetal`, **0 madeira**:
+
+```
+[Build] Companheiro 2: missing: Madeira x10
+[Build] Companheiro 2: gathering 10x $item_wood (mode 1) - the build resumes after it
+[Build] Companheiro 2: order ended: hc_ai_build_collecting (gathering first)
+[Build] Companheiro 2: materials ready - resuming the build
+[Build] Companheiro 2: site at (-249,1, 83,9, -220,0), 1 tried (valid x1)
+BANCADA NOVA em 96 s (0 -> 3 -> 6 -> 10 madeiras coletadas, volta e colocação)
+```
+
+**Movimento (a regressão que forçou a reversão):** medido com a ordem de coleta — o companheiro andou **22,3 m**
+(de 30,6 m para 8,6 m do jogador) sem travar, e depois seguiu normalmente.
+
 #### O texto original da fase (para referência)
 
 **Entrega:** `BuildStock` ligado ao `HarvestController` com **teto = o que falta** (`HC_OrderCap`), volta e

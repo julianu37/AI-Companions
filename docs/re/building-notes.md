@@ -298,7 +298,11 @@ Regra que fica: **um dono do movimento por vez**. O desenho final (E4b): a ordem
 `hc_ai_build_collecting`, dispara a **ordem de coleta normal** (modo + teto = o que falta) e deixa um **vigia**
 (`s_pending`) que **não dirige** — quando o custo está coberto ele limpa a coleta, volta ao modo Follow e começa
 uma ordem de construção **nova** (que reencontra o local e caminha de volta). Medido: 3 madeiras coletadas e a
-bancada no lugar em **136 s**.
+bancada no lugar em **136 s**; com mochila vazia (0 madeira), **96 s**.
+
+**O raio:** a coleta mede o raio **do jogador** enquanto segue (25 m), e foi por isso que a busca parecia minúscula.
+`[Building] GatherRadius` (**120 m**, máx. **200**) acha o recurso; a mais de 20 m o **job caminha** até ele em
+modo Follow (coleta ociosa) e **só ao chegar** entrega a ordem — um dono do movimento por vez.
 
 ### A recusa de estação (medida a 140 m da oficina)
 

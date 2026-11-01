@@ -42,6 +42,8 @@ internal static class MHR_Build
 		Find,
 		Goto,
 		Place,
+		/// <summary>E4b: walking to the resource BEFORE the gather mode is set (only the build steers here).</summary>
+		GatherWalk,
 		Verify,
 		Done
 	}
@@ -61,6 +63,10 @@ internal static class MHR_Build
 		internal Phase Phase;
 		internal int Tried;
 		internal GameObject Placed;
+		internal Vector3 GatherTarget;
+		internal int GatherMode;
+		internal string GatherItem;
+		internal int GatherAmount;
 	}
 
 	private static readonly Dictionary<int, State> s_state = new Dictionary<int, State>();
@@ -209,7 +215,7 @@ internal static class MHR_Build
 		{
 			why = "another job was picked";
 		}
-		else if (Time.time - state.Start > Timeout)
+		else if (state.Phase != Phase.GatherWalk && Time.time - state.Start > Timeout)
 		{
 			why = "the order took too long";
 		}
@@ -227,6 +233,8 @@ internal static class MHR_Build
 				return Goto(ai, state, dt);
 			case Phase.Place:
 				return Place(ai, state, cs, bag);
+			case Phase.GatherWalk:
+				return GatherWalk(ai, state, cs, dt);
 			case Phase.Verify:
 				return Verify(ai, state, cs);
 			default:
@@ -315,10 +323,18 @@ internal static class MHR_Build
 			// normal gather order takes over the movement, and a small watcher starts a new build order when the
 			// materials are in the bag. One owner of MHR_Mover at a time - the 01/11/2026 lesson.
 			bool gather = ModConfig.BuildGatherForBuild == null || ModConfig.BuildGatherForBuild.Value;
-			if (gather && StartGather(ai, state, cs, missing))
+			if (gather)
 			{
-				Finish(ai, state, "hc_ai_build_collecting", "gathering first", MissingText(missing), LabelOf(state));
-				return false;
+				GatherStart start = BeginGather(ai, state, cs, missing);
+				if (start == GatherStart.Walking)
+				{
+					return true;   // the build walks to the resource; the gather takes over when it arrives
+				}
+				if (start == GatherStart.Handed)
+				{
+					Finish(ai, state, "hc_ai_build_collecting", "gathering first", MissingText(missing), LabelOf(state));
+					return false;
+				}
 			}
 			Finish(ai, state, "hc_ai_build_missing", null, MissingText(missing), LabelOf(state));
 			return false;
@@ -357,11 +373,20 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 
 	/// <summary>Gives the piece's cost back to the bag when the placement itself failed (the consume already
 	/// happened). Never called after a success.</summary>
+	private enum GatherStart
+	{
+		None,
+		Walking,
+		Handed
+	}
+
 	/// <summary>
-	/// E4b: turns the missing materials into the NORMAL gather order (mode + order target = exactly the shortfall)
-	/// and remembers a pending build for the watcher. The build order ENDS here - the harvest owns the movement.
+	/// E4b: decides how the gather starts. If the nearest resource is far (beyond the harvest's own reach around
+	/// the player, which is what made it look like a 25 m radius), the BUILD walks there first - with the mode still
+	/// Follow, so the harvest is idle and only the build steers. On arrival <see cref="HandOver"/> gives the order
+	/// to the normal gather and the build ends.
 	/// </summary>
-	private static bool StartGather(CompanionAI ai, State state, CompanionSetup cs, Dictionary<string, int> missing)
+	private static GatherStart BeginGather(CompanionAI ai, State state, CompanionSetup cs, Dictionary<string, int> missing)
 	{
 		string item = null;
 		int mode = 0;
@@ -380,20 +405,97 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		}
 		if (mode == 0 || cs == null)
 		{
-			return false;
+			return GatherStart.None;
 		}
-		CompanionSetup.ApplyActionMode(cs, mode, false);
-		CompanionSetup.SetOrderCap(cs, mode, amount, item);
+		state.GatherMode = mode;
+		state.GatherItem = item;
+		state.GatherAmount = amount;
+		float radius = ModConfig.BuildGatherRadius != null ? ModConfig.BuildGatherRadius.Value : 120f;
+		Transform resource = NearestResource(state.Pos, radius, item);
+		float distance = resource != null ? Vector3.Distance(state.Pos, resource.position) : 0f;
+		if (resource != null && distance > 20f)
+		{
+			state.GatherTarget = resource.position;
+			state.Phase = Phase.GatherWalk;
+			Log(ai, "missing " + amount + "x " + item + " - walking to " + resource.gameObject.name + " at " + distance.ToString("F0") + " m first");
+			return GatherStart.Walking;
+		}
+		HandOver(ai, state, cs);
+		return GatherStart.Handed;
+	}
+
+	/// <summary>Gives the movement to the normal gather order (mode + target = the shortfall) and leaves the
+	/// pending build for the watcher. Called once, with nothing else steering.</summary>
+	private static void HandOver(CompanionAI ai, State state, CompanionSetup cs)
+	{
+		CompanionSetup.ApplyActionMode(cs, state.GatherMode, false);
+		CompanionSetup.SetOrderCap(cs, state.GatherMode, state.GatherAmount, state.GatherItem);
 		s_pending[ai.GetInstanceID()] = new Pending
 		{
 			Prefab = state.Prefab,
 			Hint = state.Hint,
-			Mode = mode,
-			Item = item,
+			Mode = state.GatherMode,
+			Item = state.GatherItem,
 			Start = Time.time
 		};
-		Log(ai, "gathering " + amount + "x " + item + " first (mode " + mode + ") - the build resumes after it");
+		Log(ai, "gathering " + state.GatherAmount + "x " + state.GatherItem + " (mode " + state.GatherMode + ") - the build resumes after it");
+	}
+
+	/// <summary>E4b: the build's own walk to the resource (the gather mode is NOT set yet, so nothing else steers).</summary>
+	private static bool GatherWalk(CompanionAI ai, State state, CompanionSetup cs, float dt)
+	{
+		if (Vector3.Distance(ai.transform.position, state.GatherTarget) <= 4f || MHR_Mover.GaveUp(ai))
+		{
+			ai.StopMoving();
+			MHR_Mover.Release(ai);
+			HandOver(ai, state, cs);
+			Finish(ai, state, "hc_ai_build_collecting", "arrived at the resource", state.GatherItem + " x" + state.GatherAmount, LabelOf(state));
+			return false;
+		}
+		MHR_Mover.Go(ai, dt, state.GatherTarget, 3f, true, "BuildGather");
 		return true;
+	}
+
+	/// <summary>The nearest tree (wood) or rock (stone/ore) inside <c>[Building] GatherRadius</c>, once per order.</summary>
+	private static Transform NearestResource(Vector3 center, float radius, string item)
+	{
+		string folded = (item ?? string.Empty).ToLowerInvariant();
+		bool wood = folded.Contains("wood") || folded.Contains("roundlog");
+		Transform best = null;
+		float bestDistance = radius;
+		if (wood)
+		{
+			foreach (TreeBase tree in UnityEngine.Object.FindObjectsByType<TreeBase>(FindObjectsSortMode.None))
+			{
+				if (tree == null)
+				{
+					continue;
+				}
+				float distance = Vector3.Distance(center, tree.transform.position);
+				if (distance < bestDistance)
+				{
+					bestDistance = distance;
+					best = tree.transform;
+				}
+			}
+		}
+		else
+		{
+			foreach (MineRock5 rock in UnityEngine.Object.FindObjectsByType<MineRock5>(FindObjectsSortMode.None))
+			{
+				if (rock == null)
+				{
+					continue;
+				}
+				float distance = Vector3.Distance(center, rock.transform.position);
+				if (distance < bestDistance)
+				{
+					bestDistance = distance;
+					best = rock.transform;
+				}
+			}
+		}
+		return best;
 	}
 
 	/// <summary>

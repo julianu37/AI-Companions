@@ -565,6 +565,9 @@ A build order is refused when the spot is further than this (meters) from the co
 **GatherForBuild** — Default: On  
 When the piece's materials are missing and a job can collect them (wood, stone or ore), the companion takes the normal gather order for exactly the shortfall, gathers, and then the build order resumes by itself. Off: it says what is missing and the order ends.
 
+**GatherRadius** — Default: 120 · Range: 10 – 200  
+How far (meters) from the build spot the companion looks for the resource it has to gather. The harvest's own radius is measured from the player while it follows (25 m), which made the search look tiny; when the resource is farther than 20 m the build walks there itself BEFORE the gather takes over - one owner of the movement at a time.
+
 **UseChests** — Default: On  
 Take the missing materials from the chests it may use (a chest a player built, inside a ward that lets it in, not someone else's private chest, not open) before gathering. The bag is always used first.
 

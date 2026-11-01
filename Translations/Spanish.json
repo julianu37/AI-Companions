@@ -690,6 +690,7 @@
         { "key": "hc_cfg_building_quiet", "value": "Sin ruido" },
         { "key": "hc_cfg_building_requirehammer", "value": "Exigir martillo" },
         { "key": "hc_cfg_building_gatherforbuild", "value": "Buscar lo que falta" },
+        { "key": "hc_cfg_building_gatherradius", "value": "Radio de recolecciÃ³n (m)" },
         { "key": "hc_cfg_building_usechests", "value": "Usar cofres" },
         { "key": "hc_ai_order_command", "value": "aceptar comandos" },
         { "key": "hc_ai_order_nocommand", "value": "ignorar comandos" },
