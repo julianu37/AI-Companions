@@ -55,7 +55,8 @@
   end of the frame.
 - **The zip layout is the 1.9.1 one again**: `tts\` and `whisper\` were at the root of the **1.9.2/1.9.3** zips, but the
   mod looks for them **inside** `BepInEx\plugins\AI-Companions\` (the 1.9.1 package, the one on Nexus, was right) -
-  that is where they go now.
+  that is where they go now. **Only the complete package is published from 1.9.4 on** - the "no models" package
+  stops at 1.9.1.
 - **Companion tombstones belong to you now** (`TombStone.Setup` was receiving the tombstone id where the game expects
   the owner player id, so the "take everything" shortcut never triggered).
 - **The conversation memory follows the game's language** and is placed before the JSON contract again.

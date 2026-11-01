@@ -147,10 +147,17 @@ config é **`BepInEx\config\AiCompanions.cfg`** (o GUID não dá mais nome a ele
   No "sem-modelos" saem **só** os 3 arquivos grandes (`model.int8.onnx`, `voices.bin`, `whisper\*.bin`); `tokens.txt`
   e `espeak-ng-data` **ficam** (são o fonemizador).
 - **Conteúdo do zip:** completa = DLL + dependências + `runtimes\win-x64\native` + `tts\kokoro\` +
-  `whisper\ggml-small-q5_1.bin` + `Translations\` + `Speech\` + `LICENSES\` + `LEIA-ME.txt`; "sem-modelos" = o mesmo
-  **sem** `tts\kokoro\` e **sem** `whisper\`. **Nunca** levar `speech.json` (runtime), `Translations\English.json`
-  (runtime; o inglês é nativo no código) nem `__folder_managed_by_vortex`.
-- **Publicação:** o **GitHub** (release + os dois assets + SHA-256) é do **agente**; o **Nexus** é do **jogador**,
+  `whisper\ggml-small-q5_1.bin` + `Translations\` + `Speech\` + `LICENSES\` + `LEIA-ME.txt`. **Nunca** levar
+  `speech.json` (runtime), `Translations\English.json` (runtime; o inglês é nativo no código) nem
+  `__folder_managed_by_vortex`. **Layout (regra com regressão registrada):** `tts\` e `whisper\` vão **dentro de
+  `BepInEx\plugins\AI-Companions\`** (é onde o `CompanionTts`/`WhisperStt` procuram — `Assembly.Location`); o 1.9.1
+  estava certo, os zips **1.9.2/1.9.3** puseram os modelos na **raiz** e quebraram a voz em instalação nova, e o
+  **1.9.4** voltou ao layout do 1.9.1. Detalhes, histórico e o gate de conferência: `docs/re/packaging-layout.md`.
+- **"Sem modelos" descontinuado:** a partir da **1.9.4** só o pacote **completo** é distribuído; a última release
+  do "sem-modelos" é a **1.9.1** (Nexus). O `--no-models` do `tools/stage_release.py` continua para uso local e
+  tira só `model.int8.onnx`, `voices.bin` e `whisper\*.bin` (o `tokens.txt`/`espeak-ng-data` ficam — são o
+  fonemizador).
+- **Publicação:** o **GitHub** (release + o asset completo + SHA-256) é do **agente**; o **Nexus** é do **jogador**,
   com o guia que o agente escreve em `pkg\<versão>\nexus\publicar-<versão>.md`.
 - **`gh` neste repositório resolve o remote `upstream` por padrão** (o fork compartilha a história): em tudo que for
   do nosso repo use `gh -R julianu37/AI-Companions ...` (ou `GH_REPO=julianu37/AI-Companions`).
@@ -993,6 +1000,8 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   vozes por idioma e as fases M1–M5.
 - `docs/audit-vs-offline-companions.md` — auditoria do nosso mod anterior vs o upstream.
 - `docs/re/` — engenharia reversa do Valheim 1.0 (APIs, diff de versão).
+- `docs/re/packaging-layout.md` — **o layout do zip** (o que vai em `BepInEx\plugins\AI-Companions\`, por que os
+  modelos ficam lá, o histórico da regressão 1.9.2/1.9.3 e o gate de conferência antes de zipar).
 - `docs/re/stt-whisper-net-spike.md` — o spike do STT local (Whisper.net in-process) e o loader nativo.
 - `docs/re/stt-voz-pipeline.md` — o pipeline de voz da Fase 3.3 (push-to-talk → STT → ordens) e a receita de teste.
 - `docs/re/tts-kokoro-sherpa-onnx.md` — a Fase 3.4 (Kokoro-82M via sherpa-onnx: carregamento dos nativos,

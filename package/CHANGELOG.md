@@ -56,7 +56,8 @@ so the beard of the previous appearance was never destroyed.
   (`BepInEx\plugins\AI-Companions\`) - a fresh install from those two would not find the voice models. The **1.9.1**
   package (the one on Nexus) was correct and 1.9.4 goes back to it: the models go inside the plugin folder, exactly
   where `LEIA-ME.txt` always told you to put them. The staging is built by `tools/stage_release.py` (allow-list +
-  asserts) instead of copying the folder by hand.
+  asserts) instead of copying the folder by hand. **Only the complete package ships from 1.9.4 on** - the last
+  "no models" release stays 1.9.1.
 - **Companion tombstones now belong to you.** `TombStone.Setup` was called with the **tombstone id** where the game
   expects the **owner player id** (`ZDOVars.s_owner`), so `TombStone.IsOwner()` was never true: no "take everything"
   shortcut on interact, the tombstone counted as somebody else's and the loot status effect never fired. It now gets
