@@ -2118,7 +2118,7 @@ que é onde o modelo erra. Harness: 5 × 5 × 2 = 50 requisições, ~3,2 s cada 
    perto → o papo (`Chat`).
 7. **Multiplayer** (A3/A4), se houver: "guarda isso no baú" no baú privado de outro jogador → recusa.
 
-### 1.9.4 — a barba da companheira feminina: a 1.9.3 trocou um bug por outro (✅ build 0 erros, 1 aviso — o do `s_noDark`, que não é deste escopo; branch `fix/barba-sentinela`; **o teste em jogo é do jogador**)
+### 1.9.4 — a barba da companheira feminina: a 1.9.3 trocou um bug por outro (✅ publicada em 31/10/2026, tag `v1.9.4`, só no GitHub; build 0 erros, 0 avisos; branch `fix/barba-sentinela` + `fix/altos-194`; **o teste em jogo é do jogador**)
 
 **O relato (31/10/2026, print do painel do starter):** gênero **Feminino** selecionado e a prévia 3D com a **barba do
 masculino**. O log da 1.9.3 entregou o caminho inteiro:

@@ -1,4 +1,4 @@
-# 1.9.4 — in progress
+# 1.9.4 — 31/10/2026
 
 ![AI Companions — AI NPC companions for Valheim](https://raw.githubusercontent.com/julianu37/AI-Companions/main/docs/images/banner.png)
 

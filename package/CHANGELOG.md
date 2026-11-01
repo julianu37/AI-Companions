@@ -2,12 +2,13 @@
 
 All the changes to this project, derived from ProfMags' Offline Companions. The versions before 1.4.0 are the original mod (see the original mod's history, from ProfMags, for those versions) plus the first batch of compatibility fixes for the Valheim 1.0 API that made the mod load and run. **The entries below 1.5.4 are the upstream history and stay as they are (in English) — our sections (from 1.6.0 on) are ours.**
 
-## 1.9.4 - in progress (31/10/2026)
+## 1.9.4 - 31/10/2026
 
-**Three fixes so far.** The first one is the beard: a female companion kept the beard of the male preview. 1.9.3 made "no beard"
-hash `0` (which is what the game expects), but it also left the game's attach cache cleared to `0` - and `0` is
-exactly the value of "no beard". `VisEquipment.SetBeardEquipped` returns early when the hash matches the cached one,
-so the beard of the previous appearance was never destroyed.
+**The beard, three high-severity fixes, the UI batch, combat back to 1.9.1 and the release pipeline.** The beard fix is
+the headline: a female companion kept the beard of the male preview. 1.9.3 made "no beard" hash `0` (which is what the
+game expects), but it also left the game's attach cache cleared to `0` - and `0` is exactly the value of "no beard".
+`VisEquipment.SetBeardEquipped` returns early when the hash matches the cached one, so the beard of the previous
+appearance was never destroyed.
 
 - **The cache is cleared to `int.MinValue` now** (`CompanionSetup.ResetVisualItemCache`), a value that is never a real
   item hash: `SetBeardEquipped(0)` runs the destroy branch and then skips the attach, which is what "no beard" means.
