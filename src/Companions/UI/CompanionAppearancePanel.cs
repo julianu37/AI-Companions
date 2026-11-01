@@ -286,6 +286,16 @@ internal sealed class CompanionAppearancePanel : MonoBehaviour
 		_panel?.Teardown();
 		_panel = null;
 		_target = null;
+		// 1.9.5 (audit C7): the wooden background is a Sprite created by this window (GetPanelBgSprite) and it used to
+		// live forever in the static - one per session, and a stale one kept alive by nothing. Only the Sprite goes:
+		// the Texture2D is TextureLoader's cache, shared with the other panels (CompanionPanel, the F8 panel and the AI
+		// panel read the same "PanelBackground"), so it is never destroyed here. Clearing the static lets the next open
+		// build a fresh Sprite from the cached texture.
+		if (_panelBgSprite != null)
+		{
+			Object.Destroy(_panelBgSprite);
+			_panelBgSprite = null;
+		}
 		if (Instance == this)
 		{
 			Instance = null;

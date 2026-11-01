@@ -191,6 +191,11 @@ public class ConfigPanel : MonoBehaviour
 		_root.SetActive(value: true);
 		_visible = true;
 		_selectedRowIndex = -1;
+		// 1.9.5 (audit C5): the "one highlight only" pass over every Selectable of the panel is expensive (it allocates
+		// an array per call), so it runs here - once per open, after the panel is on screen - instead of every frame.
+		// The rebuild above already ran it (through SelectCategory/RefreshCategory); running it again is harmless and
+		// keeps this path independent of the rebuild.
+		NoUnitySelection();
 		Cursor.lockState = CursorLockMode.None;
 		Cursor.visible = true;
 		if (EventSystem.current == null)
@@ -434,6 +439,10 @@ public class ConfigPanel : MonoBehaviour
 		_dropdownHost = null;
 		_choiceList = null;
 		_rootRT = null;
+		// 1.9.5 (audit C5): the legend lived inside the root that was just destroyed - the next build creates a new one
+		// and its state starts at "nothing applied yet"
+		_padHint = null;
+		_padHintState = -1;
 		_selectedRowIndex = -1;
 	}
 
@@ -580,9 +589,18 @@ public class ConfigPanel : MonoBehaviour
 
 	private void UpdateControllerInput()
 	{
-		UpdatePadHint();
-		NoUnitySelection();
-		if (!ZInput.IsGamepadActive())
+		// 1.9.5 (audit C5): one read of the input device per frame, shared by the legend and by the pad controls (the
+		// value cannot change inside a frame), instead of one per call site.
+		bool pad = ZInput.IsGamepadActive();
+		UpdatePadHint(pad);
+		// 1.9.5 (audit C5): the pass of NoUnitySelection that walks every Selectable of the panel (a
+		// GetComponentsInChildren, i.e. a new array on every call) used to run here, every frame and even with the
+		// mouse. It now runs only where the set of controls can change - the open (Show), a category change and the
+		// opening of a list (RefreshCategory/OpenChoice). What is left per frame is its cheap half: drop Unity's own
+		// selection if it landed inside the panel (one reference compare, no allocation). The navigation = None it
+		// applies stays written on the controls, so nothing has to be re-applied.
+		ClearUnitySelection();
+		if (!pad)
 		{
 			return;
 		}
@@ -712,16 +730,17 @@ public class ConfigPanel : MonoBehaviour
 		DestroySprite(ref _btnBgSprite);
 	}
 
+	/// <summary>
+	/// Frees one of the sprites this panel creates. 1.9.5 (audit C7): only the Sprite is ours - the Texture2D comes from
+	/// <see cref="TextureLoader"/>'s cache and is shared with every other panel of the mod (the same rule
+	/// <c>CompanionPanel</c> and <c>CompanionAiPanel.LoadPanelSprite</c> follow), so destroying it here left the rest of
+	/// the session pointing at a destroyed texture. Destroying the sprite alone is what keeps the texture alive.
+	/// </summary>
 	private static void DestroySprite(ref Sprite sprite)
 	{
 		if (!(sprite == null))
 		{
-			Texture2D texture = sprite.texture;
 			UnityEngine.Object.Destroy(sprite);
-			if (texture != null)
-			{
-				UnityEngine.Object.Destroy(texture);
-			}
 			sprite = null;
 		}
 	}
@@ -883,6 +902,10 @@ public class ConfigPanel : MonoBehaviour
 		{
 			SetSelectedRow(_selectedRowIndex);
 		}
+		// 1.9.5 (audit C5): this is where the set of controls of the panel is created - the rows of a category are
+		// destroyed and rebuilt here - so this is one of the three places (with Show and OpenChoice) that pay the
+		// Selectable pass; nothing re-applies it per frame.
+		NoUnitySelection();
 	}
 
 	private void ScrollToRow(int index)
@@ -1093,6 +1116,10 @@ public class ConfigPanel : MonoBehaviour
 	// 1.5.73: what the controller buttons do, in the game's own icons (shown while a controller is in use)
 	private TMP_Text _padHint;
 
+	/// <summary>1.9.5 (audit C5): the state the legend currently shows - -1 = nothing applied yet (a fresh build),
+	/// 0 = hidden (mouse), 1 = shown (controller). The text is only written when this changes.</summary>
+	private int _padHintState = -1;
+
 	private void BuildPadHint(Transform parent)
 	{
 		// 1.5.74: black - the light words got lost on the light panel (user)
@@ -1107,10 +1134,14 @@ public class ConfigPanel : MonoBehaviour
 		_padHint = go.GetComponent<TMP_Text>();
 		_padHint.alignment = TextAlignmentOptions.Center;
 		_padHint.raycastTarget = false;
+		// a new label starts empty: the first UpdateControllerInput of this build writes it (and shows/hides it) once
+		_padHintState = -1;
 	}
 
 	// 1.5.74: one highlight only - the game's controller input also moved Unity's own button selection round the panel
 	// (user: "When I go to move the thumbstick I end up with 2 gold highights")
+	// 1.9.5 (audit C5): not a per-frame method any more - see ClearUnitySelection for the half that still runs each
+	// frame. Call it only after the set of controls was created or replaced (Show, RefreshCategory, OpenChoice).
 	private void NoUnitySelection()
 	{
 		if (_root == null)
@@ -1127,19 +1158,36 @@ public class ConfigPanel : MonoBehaviour
 				};
 			}
 		}
-		if (EventSystem.current != null && EventSystem.current.currentSelectedGameObject != null && EventSystem.current.currentSelectedGameObject.transform.IsChildOf(_root.transform))
+		ClearUnitySelection();
+	}
+
+	/// <summary>The cheap half of <see cref="NoUnitySelection"/>: Unity's EventSystem must not keep one of our controls
+	/// selected (the game's pad input would fire it a second time). Two reference compares and an IsChildOf, no
+	/// allocation - this is the only part that runs per frame.</summary>
+	private void ClearUnitySelection()
+	{
+		EventSystem es = EventSystem.current;
+		if (es != null && es.currentSelectedGameObject != null && _root != null && es.currentSelectedGameObject.transform.IsChildOf(_root.transform))
 		{
-			EventSystem.current.SetSelectedGameObject(null);
+			es.SetSelectedGameObject(null);
 		}
 	}
 
-	private void UpdatePadHint()
+	private void UpdatePadHint(bool pad)
 	{
 		if (_padHint == null)
 		{
 			return;
 		}
-		bool pad = ZInput.IsGamepadActive();
+		// 1.9.5 (audit C5): the legend is six strings and six glyph lookups - it used to be rebuilt every frame while a
+		// controller was in use. The only thing that can change it is the "a controller is in use" bool, so the text is
+		// written once per change of that state (and the label is shown/hidden by the same bool, exactly as before).
+		int state = pad ? 1 : 0;
+		if (state == _padHintState)
+		{
+			return;
+		}
+		_padHintState = state;
 		_padHint.gameObject.SetActive(pad);
 		if (pad)
 		{
@@ -1983,6 +2031,9 @@ public class ConfigPanel : MonoBehaviour
 			{
 				ApplyChoice(choice, index);
 			});
+		// 1.9.5 (audit C5): the items of the list are new Selectables (created by the widget), so they need the same
+		// navigation = None the rest of the panel gets - this is the third place the pass runs, never per frame.
+		NoUnitySelection();
 	}
 
 	/// <summary>Writes one option into the setting (the .cfg is saved by BepInEx on the write, as with every row).</summary>
