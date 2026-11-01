@@ -139,7 +139,11 @@ config é **`BepInEx\config\AiCompanions.cfg`** (o GUID não dá mais nome a ele
   `pkg/`), **nunca mais em `%TEMP%`**: `pkg\<versão>\stage` (o que vai no zip) e `pkg\<versão>\models\` (os modelos,
   que vêm do release anterior: Whisper `ggml-small-q5_1.bin` 181 MB e `tts\kokoro\` ~155 MB). Motivo: os modelos
   **sobrevivem** a reinstalar o Valheim (uma instalação limpa apaga a pasta do jogo, inclusive `BepInEx\plugins`,
-  e aí não há de onde copiá-los).
+  e aí não há de onde copiá-los). **O staging é montado por `tools/stage_release.py`** (allow-list fechada +
+  asserts): `python tools/stage_release.py --version <v> --from <pasta do plugin> --to pkg/<v>/stage [--no-models]`
+  — falha se achar `speech.json`, `Translations\English.json`, marcador do Vortex ou idioma fora dos 4, e coloca
+  `tts\`/`whisper\` **dentro de `BepInEx\plugins\AI-Companions\`** (é onde o `CompanionTts`/`WhisperStt` procuram;
+  os zips 1.9.2/1.9.3 tinham os modelos na raiz e estavam errados).
 - **Conteúdo do zip:** completa = DLL + dependências + `runtimes\win-x64\native` + `tts\kokoro\` +
   `whisper\ggml-small-q5_1.bin` + `Translations\` + `Speech\` + `LICENSES\` + `LEIA-ME.txt`; "sem-modelos" = o mesmo
   **sem** `tts\kokoro\` e **sem** `whisper\`. **Nunca** levar `speech.json` (runtime), `Translations\English.json`

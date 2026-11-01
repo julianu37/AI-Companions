@@ -51,6 +51,11 @@ so the beard of the previous appearance was never destroyed.
 - **AOE hits no longer throw.** `Attack.SpawnOnHitTerrain` was suppressed for companions by returning `null`, and
   `Aoe.OnHit` dereferences the result when the effect has `springDelay`/`placeOnGround` - one `NullReferenceException`
   per hit. It now gets a throwaway object that is destroyed at the end of the frame (nothing is spawned).
+- **The package layout now matches what the mod looks for.** The 1.9.2/1.9.3 zips put `tts\kokoro\` and `whisper\` at
+  the **root of the zip**, but the mod resolves `[AI] TtsModel`/`[AI] SttModel` **relative to the plugin folder**
+  (`BepInEx\plugins\AI-Companions\`) - a fresh install would not find the voice models. They now go inside the plugin
+  folder, exactly where `LEIA-ME.txt` always told you to put them. The staging is built by
+  `tools/stage_release.py` (allow-list + asserts) instead of copying the folder by hand.
 - **Companion tombstones now belong to you.** `TombStone.Setup` was called with the **tombstone id** where the game
   expects the **owner player id** (`ZDOVars.s_owner`), so `TombStone.IsOwner()` was never true: no "take everything"
   shortcut on interact, the tombstone counted as somebody else's and the loot status effect never fired. It now gets
