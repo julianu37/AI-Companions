@@ -235,4 +235,45 @@ O `AI/BuildExecutor.cs` coloca a peça por uma de duas rotas, e **as duas passar
 
 `build.pieces` (raio, `filter`) lista as peças **já no mundo** com prefab, nome, criador, `mine`, distância,
 posição, `zdo`, vida e estação. Foi com ela que o relog foi provado de fora do jogo — e é ela que vai
-conferir as construções do companheiro na E3. O servidor MCP passou a **47 ferramentas** e **49 checks**.
+conferir as construções do companheiro na E3. O servidor MCP passou a **49 ferramentas** e **53 checks**.
+
+---
+
+## 8. E3 — a ordem completa (medido em 01/11/2026)
+
+```
+[IA] Order from chat: "Maria, construa uma bancada de trabalho aqui"
+[IA] Request #2 -> http://127.0.0.1:1234/v1/chat/completions (model "qwen2.5-3b-instruct")
+[IA] Applied "build" to 1 companion(s) in 1085 ms
+[IA] Voz (Fase 3.4): falando "Ok: construir Bancada"
+[Build] maria: order: build piece_workbench near (-223,8, 77,0, -268,7)
+[Build] maria: site at (-223,8, 77,0, -268,7), 0,0 m from the hint, 1 tried (valid x1)
+[Build] maria: placed (PlayerPlacePiece), verifying next frame
+[Build] maria: done: piece_workbench at (-223,8, 77,0, -268,7)
+```
+
+`build.pieces` achou a bancada nova **6 s** depois da mensagem (`mine: true`); pelo caminho do job sozinho
+(`companions.build piece_workbench`, sem LLM) foram **2 s**. O `qwen2.5-3b-instruct` (LM Studio) acertou
+`action:"build"` + `target` na primeira tentativa.
+
+### O bug que só o jogo mostrou: o fantasma colidia consigo mesmo
+
+A primeira ordem em jogo deu **0 de 48** candidatos válidos, todos `clipping`. Causa:
+`Transform.IsChildOf(transform)` é **false para o próprio objeto**, então um collider no **root** do prefab
+(a bancada tem um) era comparado com os colliders do próprio fantasma em `Physics.ComputePenetration` — o
+fantasma "penetrava" a si mesmo em todo candidato. Correção em `BuildSite.Clips`:
+
+```csharp
+if (other.gameObject == ghost || other.transform.IsChildOf(ghost.transform)) continue;
+```
+
+Depois: `site at ..., 33 tried (clipping x32, valid x1)` na encosta e `1 tried (valid x1)` no plano — a
+contagem por motivo (`tally`) é o que torna esse tipo de erro visível no log.
+
+### O que a E3 **não** faz (por plano)
+
+- **não coleta** o que falta (E4): paga da mochila, tudo ou nada;
+- **não procura em baús** (E4: `BuildStock`);
+- **não aplica** `[Building] MaxDistanceFromHome` no despacho da ordem (a chave existe; entra na E4/E5 com a
+  casa);
+- **não constrói** estruturas nem blueprints (E6–E8).

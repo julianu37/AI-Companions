@@ -346,19 +346,48 @@ escolhido e o motivo de cada recusa.
 **Aceite:** numa clareira acha em ≤ 20 candidatos; apontando para água/encosta/parede/ward alheio devolve o
 **motivo certo** (`no_ground`, `in_water`, `no_build_zone`, `ward`, `occupied`…).
 
-### Fase 3 — A ordem por chat/voz (1 dia) — **MVP**
+### Fase 3 — A ordem por chat/voz (1 dia) — **MVP** — ✅ **feita em 01/11/2026**
 
-**Entrega:** `build` no contrato e no despacho; `BuildCatalog` com a allow-list (`piece_workbench`,
-`piece_chest_wood`, `piece_firepit`, `piece_bed`); falas novas; **sem coleta** ainda.
+**Entrega:** `build` no contrato (regra + 2 exemplos em PT, regra+exemplo em EN/ES/FR/IT), `ValidActions`
+**35 → 36**, aliases no `LlmIntent`, `build` em `RadialIntent.PreciseActions`, `AI/BuildCatalog.cs` (apelido →
+prefab nos 5 idiomas + allow-list), `Jobs/MHR_Build.cs` (Find → Goto → Place → Verify → Done), `case "build"`
+no `CompanionOrders`, a rede `CompanionOrders.IsBuildRequest` no lado `none`, o gate dverger, a config
+`[Building]` e as 13 chaves de localização nos 5 idiomas.
 
-**Aceite:**
+**Aceite (em jogo, `test3`, 01/11/2026):**
 
-1. `Maria, construa uma bancada de trabalho aqui` → constrói (com 10 madeira);
-2. `constrói um baú` sem bancada perto → "precisa de uma bancada perto";
-3. `constrói um portal` → "não sei construir isso" (fora da allow-list);
-4. voz (push-to-talk) faz o mesmo caminho, sem lógica duplicada;
-5. dverger (combate) recusa com a fala que já existe;
-6. peça cuja receita o jogador **não** conhece → recusa (gate `IsRecipeKnown`, como o BuildOrders faz).
+```
+[IA] Order from chat: "Maria, construa uma bancada de trabalho aqui"
+[IA] The message is addressed to "maria"
+[IA] Request #2 -> http://127.0.0.1:1234/v1/chat/completions (model "qwen2.5-3b-instruct")
+[IA] Applied "build" to 1 companion(s) in 1085 ms
+[IA] Voz (Fase 3.4): falando "Ok: construir Bancada"
+[Build] maria: order: build piece_workbench near (-223,8, 77,0, -268,7)
+[Build] maria: site at (-223,8, 77,0, -268,7), 0,0 m from the hint, 1 tried (valid x1)
+[Build] maria: placed (PlayerPlacePiece), verifying next frame
+[Build] maria: done: piece_workbench at (-223,8, 77,0, -268,7)
+```
+
+1. ✅ `Maria, construa uma bancada de trabalho aqui` → constrói (o `build.pieces` achou a bancada nova com
+   `mine: true` **6 s** depois da mensagem);
+2. ✅ o caminho do job sozinho (sem LLM) também passa: `companions.build piece_workbench` → mesma sequência,
+   bancada nova em **2 s**;
+3. ✅ a linha do chat é a chave localizada (`hc_ai_order_build` → "Ok: construir Bancada"), não a chave crua;
+4. ✅ a voz fala a linha do mod e o `reply` do modelo fica só no log (regra da Fase 3.4);
+5. ✅ a rede do lado `none` (`IsBuildRequest`: verbo de construir + peça da allow-list + sem `?`) e o gate
+   dverger (recusa com a linha "Sou de combate…") estão no lugar;
+6. ⏳ voz (push-to-talk) **não** foi testada nesta rodada — é o mesmo `Submit` do chat, mas fica para o teste
+   do jogador.
+
+**Dois bugs que só o teste em jogo pegou:**
+
+- **o fantasma colidia consigo mesmo**: `Transform.IsChildOf(self)` é `false`, então um collider no **root** do
+  prefab era comparado com os colliders do próprio fantasma e **todo** candidato virava `clipping` (44 de 48
+  recusados na primeira ordem). Corrigido com `other.gameObject == ghost || other.transform.IsChildOf(...)`;
+- **`CraftingStation.Start()` registra no frame seguinte** (achado na E1): a verificação da estação é diferida.
+
+**Ainda pendente de propósito (E4+):** coletar o que falta, checar baús, a distância da casa no `Build()` e o
+teste em jogo de baú/fogueira/cama.
 
 ### Fase 4 — Coletar o que falta (1 dia)
 

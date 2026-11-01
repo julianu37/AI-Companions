@@ -94,6 +94,7 @@ internal static class Commands
 		case "build.sites": return BuildSites(args);
 		case "build.pieces": return BuildPieces(args);
 		case "build.find": return BuildFind(args);
+		case "companions.build": return CompanionsBuild(args);
 			case "world.tombstones": return WorldTombstones(args);
 			case "world.tombstone_take": return WorldTombstoneTake(args);
 			case "world.tombstone_destroy": return WorldTombstoneDestroy(args);
@@ -539,6 +540,85 @@ internal static class Commands
 			{ "tried", site.Tried },
 			{ "reasons", site.Reasons },
 			{ "tally", site.Tally }
+		});
+	}
+
+	/// <summary>
+	/// Trilha E (E3): gives a companion a build order without the LLM, so the job (find, walk, pay, place, verify) can
+	/// be tested on its own. The piece must be in <see cref="BuildCatalog"/>; the spot is the player's aim, or 3 m
+	/// ahead when nothing is under the crosshair.
+	/// </summary>
+	private static string CompanionsBuild(Dictionary<string, object> args)
+	{
+		if (ZNetScene.instance == null)
+		{
+			return Fail("the world isn't loaded");
+		}
+		Player player = Player.m_localPlayer;
+		if (player == null)
+		{
+			return Fail("no player in the world");
+		}
+		string prefab = (Json.Str(args, "prefab") ?? string.Empty).Trim();
+		if (prefab.Length == 0)
+		{
+			return Fail("prefab is required (e.g. piece_workbench)");
+		}
+		if (!BuildCatalog.Allowed(prefab))
+		{
+			return Fail("'" + prefab + "' is not in the build allow-list");
+		}
+		if (BuildProbe.PieceOf(prefab) == null)
+		{
+			return Fail("no Piece component on '" + prefab + "'");
+		}
+		CompanionSetup target = null;
+		string name = (Json.Str(args, "name") ?? string.Empty).Trim();
+		foreach (CompanionSetup setup in CompanionSetup.AllCompanions)
+		{
+			if (setup == null)
+			{
+				continue;
+			}
+			if (name.Length == 0)
+			{
+				if (target == null)
+				{
+					target = setup;
+				}
+				continue;
+			}
+			ZNetView nv = setup.GetComponent<ZNetView>();
+			ZDO zdo = nv != null ? nv.GetZDO() : null;
+			string theirName = zdo != null ? zdo.GetString(CompanionSetup.NameHash, string.Empty) : string.Empty;
+			if (string.Equals(theirName, name, StringComparison.OrdinalIgnoreCase))
+			{
+				target = setup;
+				break;
+			}
+		}
+		if (target == null)
+		{
+			return Fail(name.Length > 0 ? "no companion named '" + name + "'" : "no companion in the world");
+		}
+		Vector3 hint;
+		if (!BuildFindCommand.Hint(player, out hint))
+		{
+			Vector3 forward = player.transform.forward;
+			forward.y = 0f;
+			forward = forward.sqrMagnitude < 0.01f ? Vector3.forward : forward.normalized;
+			Vector3 flat = player.transform.position + forward * 3f;
+			float y = ZoneSystem.instance != null ? ZoneSystem.instance.GetGroundHeight(flat) : flat.y;
+			hint = new Vector3(flat.x, y, flat.z);
+		}
+		MHR_Owner.TakeControl(target);
+		bool started = MHR_Build.Start(target, prefab, hint);
+		return Ok(new Dictionary<string, object>
+		{
+			{ "started", started },
+			{ "prefab", prefab },
+			{ "name", target.GetComponent<ZNetView>()?.GetZDO()?.GetString(CompanionSetup.NameHash, "Companion") },
+			{ "hint", new Dictionary<string, object> { { "x", hint.x }, { "y", hint.y }, { "z", hint.z } } }
 		});
 	}
 

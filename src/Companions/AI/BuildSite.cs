@@ -189,7 +189,10 @@ internal static class BuildSite
 					{
 						continue;
 					}
-					if (other.transform.IsChildOf(ghost.transform))
+					// skip anything that belongs to the ghost itself - INCLUDING the root: IsChildOf(self) is false, so a
+					// collider on the prefab's root was being compared with the ghost's own colliders and every candidate
+					// "clipped" (measured in the game: 44 of 48 refused with clipping before this fix)
+					if (other.gameObject == ghost || other.transform.IsChildOf(ghost.transform))
 					{
 						continue;
 					}

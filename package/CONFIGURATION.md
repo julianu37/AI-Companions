@@ -31,6 +31,7 @@ Every setting of the mod: what it does and the value it starts with.
 - [Rest](#rest)
 - [Death](#death)
 - [Looting](#looting)
+- [Building](#building)
 - [Gear Repair](#gear-repair)
 - [Gathering](#gathering)
 - [Hunting](#hunting)
@@ -547,6 +548,19 @@ With the "collect the items on the ground" order, how far (meters) from the comp
 
 **AutoPickupRange** — Default: 2 · Range: 0.5 – 10  
 With Auto Pickup on in the wheel, a companion picks up items within this many meters of itself as it goes, like a player's auto-pickup.
+
+## Building
+
+
+
+**Enabled** — Default: On  
+Let a companion build when you ask it ("Maria, build a workbench here"). It checks the recipe, looks for a free spot with the game's own rules, walks there, places the piece and confirms it. Phase E3: it builds from its own bag only (no gathering yet) and only the pieces of the workshop (workbench, chest, fire pit, bed).
+
+**SiteSearchRadius** — Default: 8 · Range: 1 – 30  
+How far (meters) around the spot you are looking at the companion looks for a place where the piece fits (the game's rules: ground, water, ward, no-build zone, station in range and no clipping into other pieces).
+
+**MaxDistanceFromHome** — Default: 40 · Range: 0 – 200  
+A build order is refused when the spot is further than this (meters) from the companion's home, so it does not wander off to build across the world. 0 = no limit.
 
 ## Gear Repair
 

@@ -743,8 +743,29 @@ internal static class CompanionOrders
 	/// "quanto pesa a tua mochila?" stay conversation, and "abre a porta" is not an inventory either.
 	/// </summary>
 	/// <param name="close">true when the message asks to CLOSE the window instead of opening it.</param>
-	internal static bool IsInventoryRequest(string message, out bool close)
+	/// <summary>
+	/// Trilha E (E3), the "none" side: the model answered a conversation but the player asked for a piece to be built.
+	/// Narrow on purpose, like <see cref="IsInventoryRequest"/>: it needs a build verb, a piece this phase knows
+	/// (<see cref="BuildCatalog"/>) and no question mark - "o que é uma bancada?" stays a conversation.
+	/// </summary>
+	internal static bool IsBuildRequest(string message, out string prefab)
 	{
+		prefab = null;
+		if (string.IsNullOrEmpty(message) || message.IndexOf('?') >= 0)
+		{
+			return false;
+		}
+		if (!BuildCatalog.HasAnyWord(message, "construa", "constroi", "construir", "construam", "levanta", "levante", "levantar",
+			"ergue", "erguer", "monta", "montar", "edifica", "edificar", "build", "make", "faz", "fazer",
+			"construye", "construir", "construis", "construire", "costruisci", "costruire"))
+		{
+			return false;
+		}
+		prefab = BuildCatalog.Resolve(message);
+		return prefab != null && BuildCatalog.Allowed(prefab);
+	}
+
+	internal static bool IsInventoryRequest(string message, out bool close)	{
 		close = false;
 		if (string.IsNullOrEmpty(message))
 		{
@@ -1042,6 +1063,18 @@ internal static class CompanionOrders
 		CompanionSetup target = IsDirected(addressee) ? addressee : speaker;
 		if (target == null)
 		{
+			return outcome;
+		}
+		// fix/dverger-combate: building is a work mode, so a combat-only type (the dverger ones) refuses it - the same
+		// line the other work orders use, said out loud and counted as an answer.
+		if (!target.CanWearArmor())
+		{
+			outcome.RefusedCombatOnly++;
+			CompanionTalk refusal = target.GetComponent<CompanionTalk>();
+			if (refusal != null)
+			{
+				refusal.Say(ModLocalization.Loc(CombatOnlyKey), true, withVoice: false);
+			}
 			return outcome;
 		}
 		MHR_Owner.TakeControl(target);

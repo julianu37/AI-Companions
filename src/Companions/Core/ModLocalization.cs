@@ -602,6 +602,18 @@ public static class ModLocalization
 			// nothing (before this the order answered "Ok" and stayed silent while nothing happened)
 			{ "hc_ai_collect_nothing", "There's nothing on the ground nearby." },
 			{ "hc_ai_collect_full", "My pack is full." },
+			// Trilha E (E3): the build order and the lines of the build job (MHR_Build). English is the code default;
+			// the other four languages live in Translations/*.json.
+			{ "hc_ai_order_build", "build {0}" },
+			{ "hc_ai_build_disabled", "I can't build right now: building is turned off." },
+			{ "hc_ai_build_no_recipe", "I don't know how to build that." },
+			{ "hc_ai_build_not_allowed", "I can't build that yet; for now I can do a workbench, a chest, a campfire and a bed." },
+			{ "hc_ai_build_missing", "We're missing {0} for the {1}." },
+			{ "hc_ai_build_no_site", "I couldn't find a place for the {0} here." },
+			{ "hc_ai_build_done", "The {0} is up." },
+			{ "hc_ai_build_failed", "I couldn't build the {0}." },
+			{ "hc_ai_build_needs_station", "I need a {0} nearby." },
+			{ "hc_ai_build_collecting", "I'll go get {0}." },
 			{ "hc_ai_order_command", "take orders" },
 			{ "hc_ai_order_nocommand", "ignore orders" },
 			{ "hc_ai_order_stance_balanced", "balanced stance" },

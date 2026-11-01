@@ -442,6 +442,23 @@ TOOLS = [
         },
     },
     {
+        "name": "companions_build",
+        "description": (
+            "Gives a companion a build order without the LLM (Trilha E, E3): it checks the recipe, finds a valid spot "
+            "near the player's aim, walks there, pays the materials from its own bag, places the piece and verifies "
+            "it. The piece must be in the allow-list (piece_workbench, piece_chest_wood, fire_pit, piece_bed02)."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "prefab": {"type": "string", "description": "e.g. 'piece_workbench'"},
+                "name": {"type": "string", "description": "companion name; default: the first one"},
+            },
+            "required": ["prefab"],
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "build_pieces",
         "description": (
             "Lists the build pieces already standing near a point (default: the player): prefab, name, creator, "
@@ -890,6 +907,11 @@ def run_tool(name, args):
             if key in args:
                 payload[key] = args[key]
         return require_ok(call_bridge("build.find", **payload))
+    if name == "companions_build":
+        payload = {"prefab": args["prefab"]}
+        if args.get("name"):
+            payload["name"] = args["name"]
+        return require_ok(call_bridge("companions.build", **payload))
     if name == "build_pieces":
         payload = {"radius": args.get("radius", 10)}
         if args.get("filter"):

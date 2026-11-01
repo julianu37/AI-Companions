@@ -132,6 +132,34 @@ internal static class BuildCatalog
 		return prefab ?? string.Empty;
 	}
 
+	/// <summary>Does the text contain this word (or phrase)? Folded, whole words only - the same matching the
+	/// resolver uses.</summary>
+	internal static bool HasWord(string text, string word)
+	{
+		if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(word))
+		{
+			return false;
+		}
+		return (" " + Fold(text) + " ").IndexOf(" " + Fold(word) + " ", StringComparison.Ordinal) >= 0;
+	}
+
+	/// <summary>Any of the words (a verb, a marker) in the text, whole words only.</summary>
+	internal static bool HasAnyWord(string text, params string[] words)
+	{
+		if (words == null)
+		{
+			return false;
+		}
+		foreach (string word in words)
+		{
+			if (HasWord(text, word))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/// <summary>
 	/// Lower case, accents removed, everything that is not a letter or a digit turned into a single space. It is what
 	/// makes "baú", "BAU" and "bau" the same word and "bancada-de-trabalho" two words.

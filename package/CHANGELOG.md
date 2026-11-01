@@ -2,6 +2,33 @@
 
 All the changes to this project, derived from ProfMags' Offline Companions. The versions before 1.4.0 are the original mod (see the original mod's history, from ProfMags, for those versions) plus the first batch of compatibility fixes for the Valheim 1.0 API that made the mod load and run. **The entries below 1.5.4 are the upstream history and stay as they are (in English) — our sections (from 1.6.0 on) are ours.**
 
+## 1.9.6 - in progress
+
+**Autonomous building, phases E0-E3 (the MVP).** A companion now builds a piece when you ask it, in the five
+languages: it resolves the recipe, looks for a spot with the game's own rules, walks there, pays the materials from
+its own bag, places the piece and confirms it works.
+
+- **The order:** "Maria, construa uma bancada de trabalho aqui" / "build a workbench here" / "construye una mesa de
+  trabajo aquí" / "construis un établi ici" / "costruisci un banco da lavoro qui" - the new `build` action
+  (`ValidActions` 35 -> 36), with the piece in `target` and the player's own words as the safety net.
+- **What it can build (E3 allow-list):** workbench (`piece_workbench`), wooden chest (`piece_chest_wood`), fire pit
+  (`fire_pit`) and the dragon bed (`piece_bed02`). Anything else answers "I don't know how to build that".
+- **Where it builds:** the spot you are looking at (up to 10 m), else 3 m ahead. The spot is checked with the game's
+  rules - ground, water, biome, ward, no-build zone, station in range, players and **clipping** (the piece's real
+  colliders against everything solid, 0,2 m of tolerance, the same test the game does for its placement ghost).
+- **How it pays:** the cost is always `Piece.m_resources` (never a table of ours), taken from its own bag, all or
+  nothing. Gathering the missing materials comes in E4.
+- **How it confirms:** the piece has a valid ZDO, the right creator (you), full health and - when it is a station -
+  the game's own registry sees it (`CraftingStation.HaveBuildStationInRange`, checked one frame later because
+  `CraftingStation.Start` registers on the next frame).
+- **Refusals** have their own line: unknown piece, combat-only type (the dvergers), building turned off, no spot,
+  missing material, failed placement.
+- **New config, `[Building]`:** `Enabled` (true), `SiteSearchRadius` (8 m) and `MaxDistanceFromHome` (40 m).
+- **New dev tooling:** `modia_build_probe [prefab] [radius]` and `modia_build_find [prefab] [radius]` in the game
+  console, and the MCP tools `build_inspect`, `build_sites`, `build_find`, `build_pieces` and `companions_build`.
+  The measurements of the five workshop pieces are in `docs/re/building-notes.md`; the plan is
+  `docs/plan-construcao.md`.
+
 ## 1.9.5 - 31/10/2026
 
 **The batch from the 10-specialist review.** Twenty fixes across localization, patches, the companion, the LLM layer,

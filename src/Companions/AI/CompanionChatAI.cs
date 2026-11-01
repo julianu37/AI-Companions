@@ -1015,6 +1015,18 @@ internal static class CompanionChatAI
 			// as conversation left the player with "não entendi". Same idea, same place, one line of log per fix.
 			if (string.Equals(intent.Action, GatherIntent.NoneAction, StringComparison.Ordinal))
 			{
+				string byBuildPrefab;
+				if (CompanionOrders.IsBuildRequest(result.UserText, out byBuildPrefab))
+				{
+					CompanionsPlugin.Log?.LogInfo($"[IA] O modelo devolveu \"none\" mas o jogador pediu para construir {BuildCatalog.Label(byBuildPrefab)} - usei \"build\".");
+					intent.Action = "build";
+					intent.Target = null;
+					intent.Resource = null;
+					intent.Amount = 0;
+				}
+			}
+			if (string.Equals(intent.Action, GatherIntent.NoneAction, StringComparison.Ordinal))
+			{
 				string byInteractionReason = null;
 				string byInteraction = InteractionIntent.Correct(intent.Action, result.UserText, out byInteractionReason);
 				if (byInteraction != null)

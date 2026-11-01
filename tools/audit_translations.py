@@ -296,6 +296,8 @@ IDENTICAL_OK = {
         # P2 (rotulos do F8 da 1.9.2): a tecla da postura equilibrada
         'Tecla equilibrada',
         # palavras que o espanhol e o portugues escrevem igual (ou quase: só o acento muda)
+        # Trilha E: o rotulo da ordem de construcao - "construir" e a mesma palavra nos dois idiomas
+        'construir {0}',
         'Aplicar', 'Automático', 'Automático ({0})', 'Aviso:', 'Banco: {0}', 'Cama de {0}', 'Cancelar', 'Comando',
         'Comandos', 'Combate', 'Comida', 'Comidas', 'Comprar {0} ({1})', 'Controles', 'Cura por segundo',
         'Defensivo', 'Descansado', 'Descanso', 'Dispositivo', 'Equilibrado', 'Estado', 'Fundir',
