@@ -1040,6 +1040,10 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
    **release notes** (`docs/release-notes-*.md`) são **EN** (viram o corpo da release no GitHub) e o
    `package/LEIA-ME.txt` fica em **PT**. **Comentários de código continuam em inglês** (convenção do repositório) e
    as **mensagens de log em PT-BR**. O mod (UI/falas) segue o idioma do jogo. Plano: `docs/plan-i18n-docs.md`.
+10. **Paralelismo com revisão (regra do jogador, 31/10/2026):** tarefas **independentes** podem ser distribuídas a
+   **subagentes em paralelo** para agilizar (frentes com arquivos disjuntos). O **orquestrador revisa o diff, roda
+   build/testes e commita** — nada entra sem revisão; e **tudo é documentado no mesmo ciclo** (AGENTS/CHANGELOG/
+   release notes/roadmap/backlog), como na regra 2.
 
 ## DevBridge (ferramenta de desenvolvimento)
 
