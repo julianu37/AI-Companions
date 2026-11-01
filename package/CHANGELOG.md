@@ -2,7 +2,7 @@
 
 All the changes to this project, derived from ProfMags' Offline Companions. The versions before 1.4.0 are the original mod (see the original mod's history, from ProfMags, for those versions) plus the first batch of compatibility fixes for the Valheim 1.0 API that made the mod load and run. **The entries below 1.5.4 are the upstream history and stay as they are (in English) — our sections (from 1.6.0 on) are ours.**
 
-## 1.9.5 - in progress (31/10/2026)
+## 1.9.5 - 31/10/2026
 
 **The batch from the 10-specialist review.** Twenty fixes across localization, patches, the companion, the LLM layer,
 the UI and the release pipeline. No new gameplay feature and no config key renamed; one key was added

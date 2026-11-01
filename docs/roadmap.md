@@ -2268,7 +2268,7 @@ no doc: o `ZInput` do Valheim 1.0 lê o **Input System novo** (o `SendInput` soz
 `KeyboardState`/`MouseState`), o `god` do 1.0 **trava o HP em 1** (não cancela o dano) e as teclas seguradas precisam
 ser enviadas juntas. Detalhes e receitas: `docs/mcp-devbridge.md`. **Não empacotar o servidor Python no zip.**
 
-#### 1.9.5 — o lote da revisão de 10 especialistas (31/10/2026) — ✅ build 0/0 · ✅ gate 9/9 · ✅ 224 testes · ⏳ teste em jogo
+#### 1.9.5 — o lote da revisão de 10 especialistas (31/10/2026) — ✅ publicada, tag `v1.9.5` (GitHub + Nexus)
 
 Branch `feat/1.9.5`. O que entrou (20 itens; a lista completa e o que ficou de fora estão em
 `docs/backlog-1.9.5.md`):

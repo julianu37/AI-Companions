@@ -70,10 +70,10 @@ config é **`BepInEx\config\AiCompanions.cfg`** (o GUID não dá mais nome a ele
   listar o Jotunn como requisito em release/README. (A skill `jotunn` da equipe continua no repositório como
   referência de framework, mas **não** se aplica a este mod.)
 - Target: **.NET Framework 4.7.2 (net472)**, C#.
-- Versão: **1.9.5** (em andamento, branch `feat/1.9.5`; a **1.9.4** saiu em 31/10/2026, tag `v1.9.4`, só no
-  GitHub — o Nexus fica para a 1.9.5, quando o jogador mandar) — **multilíngue (5 idiomas: PT-BR, EN, ES, FR, IT)**
-  (fonte única: `PluginVersion` em `src/Companions/Core/CompanionsPlugin.cs`). A 1.9.5 é o **lote da revisão de 10
-  especialistas** (20 itens; ver `docs/backlog-1.9.5.md` e a seção 1.9.5 do `docs/roadmap.md`). A 1.9.4 é a
+- Versão: **1.9.5** (publicada em **31/10/2026**, tag `v1.9.5`, GitHub **e** Nexus) — **multilíngue (5 idiomas: PT-BR,
+  EN, ES, FR, IT)** (fonte única: `PluginVersion` em `src/Companions/Core/CompanionsPlugin.cs`). A 1.9.5 é o **lote da
+  revisão de 10 especialistas** (20 itens; ver `docs/backlog-1.9.5.md` e a seção 1.9.5 do `docs/roadmap.md`). A 1.9.4
+  (31/10/2026, tag `v1.9.4`, só no GitHub) é a
   **barba + teto da coleta + `tokens/s`** (merge `f36e311`)
   **+ os três altos** (Santuário, `ChangeTier`, dupla morte) **+ os 3 fixes de UI + o `FightLikePlayer = false`**
   (combate da 1.9.1, validado em jogo) **+ a lápide com o dono certo + a memória localizada + o DevBridge**, tudo
@@ -101,7 +101,8 @@ config é **`BepInEx\config\AiCompanions.cfg`** (o GUID não dá mais nome a ele
   `fix/peso-cinto` (3.22), `fix/renascer-30` (`RespawnDelay` 300→30), `fix/dverger-combate` (dverger só combate),
   `feat/idiomas-auto` (M1–M5), `languages` (4.0), `feat/llm-groq` (1.8.1), `feat/provedor-llm` (3.24),
   `feat/upstream-1.5.8` (o merge 1.5.4→1.5.8 que virou a 1.9.2), `fix/teto-e-tokens` e `fix/barba-sentinela`
-  (as duas da 1.9.4 já na `main`, merge `f36e311`) e **`fix/altos-194`** (o resto da 1.9.4, tag `v1.9.4`); a
+  (as duas da 1.9.4 já na `main`, merge `f36e311`), **`fix/altos-194`** (o resto da 1.9.4, tag `v1.9.4`) e
+  **`feat/1.9.5`** (o lote da revisão, tag `v1.9.5`); a
   `feat/ordens-interacao` foi apagada (local e `origin`) depois do merge da 1.9.2. As que existem no `origin` saem com
   `git push origin --delete <nome>`. A `main` é a linha de release.
 
