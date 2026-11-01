@@ -1,7 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection;
-using HarmonyLib;
 using UnityEngine;
 
 namespace Companions;
@@ -9,8 +7,6 @@ namespace Companions;
 public class CompanionRest : MonoBehaviour
 {
 	private static readonly List<CompanionRest> _instances = new List<CompanionRest>();
-
-	private static readonly MethodInfo _bedGetOwnerMethod = AccessTools.Method(typeof(Bed), "GetOwner");
 
 	private ZNetView _nview;
 
@@ -222,13 +218,11 @@ public class CompanionRest : MonoBehaviour
 		{
 			return 0L;
 		}
-		if ((object)_bedGetOwnerMethod == null)
-		{
-			return 0L;
-		}
+		// B14 (audit 1.9.4): Bed.GetOwner() is private, but it is exactly this read - decompiled 1.0.20:
+		// "return m_nview.GetZDO().GetLong(ZDOVars.s_owner, 0L);" with 0 when there is no ZDO. No reflection needed.
 		try
 		{
-			return (long)_bedGetOwnerMethod.Invoke(bed, null);
+			return bed.GetComponent<ZNetView>()?.GetZDO()?.GetLong(ZDOVars.s_owner, 0L) ?? 0L;
 		}
 		catch (Exception)
 		{
@@ -805,8 +799,8 @@ public class CompanionRest : MonoBehaviour
 					_claimedBeds.Add(bed.GetInstanceID());
 					string value = MHR_MyName();
 					_bedClaimNames[bed.GetInstanceID()] = value;
-					MHR_SetBedClaim(bed, value, MHR_MyId());
-					if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Rest] Re-linked to its claimed bed as \"{value}\"");
+					bool claimSaved = MHR_SetBedClaim(bed, value, MHR_MyId());
+					if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Rest] Re-linked to its claimed bed as \"{value}\"" + (claimSaved ? "" : " (the claim on the bed waits for its ownership)"));
 					_needsBed = false;
 					_bedFailReason = null;
 					return;
@@ -1041,7 +1035,7 @@ public class CompanionRest : MonoBehaviour
 		_claimedBeds.Add(bed.GetInstanceID());
 		string value = MHR_MyName();
 		_bedClaimNames[bed.GetInstanceID()] = value;
-		MHR_SetBedClaim(bed, value, MHR_MyId());
+		bool claimSaved = MHR_SetBedClaim(bed, value, MHR_MyId());
 		if (_nview != null)
 		{
 			ZDO zDO = _nview.GetZDO();
@@ -1051,7 +1045,7 @@ public class CompanionRest : MonoBehaviour
 				zDO.Set(CompanionSetup.HasHomeBedHash, value: true);
 			}
 		}
-		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Rest] Claimed bed \"{bed.name}\" as standing home bed");
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Rest] Claimed bed \"{bed.name}\" as standing home bed" + (claimSaved ? "" : " (the claim on the bed waits for its ownership)"));
 		_needsBed = false;
 		_bedFailReason = null;
 	}
@@ -1611,7 +1605,7 @@ public class CompanionRest : MonoBehaviour
 		}
 	}
 
-	internal static void MHR_SetBedClaim(Bed bed, string name, string id)
+	internal static bool MHR_SetBedClaim(Bed bed, string name, string id)
 	{
 		if (name == null)
 		{
@@ -1623,24 +1617,40 @@ public class CompanionRest : MonoBehaviour
 		}
 		if (bed == null)
 		{
-			return;
+			return false;
 		}
 		ZNetView component = bed.GetComponent<ZNetView>();
 		if (component == null)
 		{
-			return;
+			return false;
 		}
 		ZDO zDO = component.GetZDO();
-		if (zDO != null && (zDO.GetString(MHR_BedClaimNameHash) != name || zDO.GetString(MHR_BedClaimIdHash) != id))
+		if (zDO == null)
 		{
-			if (!component.IsOwner())
-			{
-				component.ClaimOwnership();
-			}
-			zDO.Set(MHR_BedClaimNameHash, name);
-			zDO.Set(MHR_BedClaimIdHash, id);
-			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Rest] Bed claim saved on the bed: \"{name}\" (ID {id})");
+			return false;
 		}
+		if (zDO.GetString(MHR_BedClaimNameHash) == name && zDO.GetString(MHR_BedClaimIdHash) == id)
+		{
+			// already what we wanted (including the "clear" of a release): nothing to claim, nothing to write
+			return true;
+		}
+		if (!component.IsOwner())
+		{
+			component.ClaimOwnership();
+			// B3 (audit 1.9.4): claiming can hand this game a NEW ZDO instance (the one read above was a replica) -
+			// writing to it would be lost while this method still logged "saved" and answered true. Read it again
+			// and only write when the ownership really arrived (same fix as CompanionProfile.Write).
+			zDO = component.IsValid() ? component.GetZDO() : null;
+			if (!component.IsOwner() || zDO == null)
+			{
+				if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Rest] Bed claim not saved (no ownership of the bed yet): \"{name}\" (ID {id})");
+				return false;
+			}
+		}
+		zDO.Set(MHR_BedClaimNameHash, name);
+		zDO.Set(MHR_BedClaimIdHash, id);
+		if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo($"[Rest] Bed claim saved on the bed: \"{name}\" (ID {id})");
+		return true;
 	}
 
 	internal string MHR_MyName()

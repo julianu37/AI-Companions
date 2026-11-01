@@ -20,8 +20,6 @@ internal static class TorchOpener
 
 	private static Hashtable _cooldown = new Hashtable();
 
-	private static FieldInfo _rightField;
-
 	private static int _logs;
 
 	internal static bool TrySelect(Humanoid h, Character target, int stance, bool huntMode)
@@ -231,11 +229,8 @@ internal static class TorchOpener
 
 	private static ItemDrop.ItemData Right(Humanoid h)
 	{
-		if (_rightField == null)
-		{
-			_rightField = typeof(Humanoid).GetField("m_rightItem", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-		}
-		return (!(_rightField == null)) ? ((ItemDrop.ItemData)_rightField.GetValue(h)) : null;
+		// B14 (audit 1.9.4): Humanoid.RightItem is a public property (m_rightItem behind it) - no reflection needed
+		return h != null ? h.RightItem : null;
 	}
 
 	private static bool IsTorch(ItemDrop.ItemData it)

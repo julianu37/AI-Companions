@@ -1696,7 +1696,9 @@ public partial class CookController : MonoBehaviour
 		List<Container> list = new List<Container>();
 		foreach (Container chest in _chests)
 		{
-			if (chest != null && !chest.IsInUse() && !_unreachable.Contains(chest.GetInstanceID()) && HasItem(chest.GetInventory(), item))
+			// B15 (audit 1.9.4): MHR_Chests.InUse - the local flag AND the synced one (another player's game can
+			// have the chest open); Container.IsInUse() only knows about this machine
+			if (chest != null && !MHR_Chests.InUse(chest) && !_unreachable.Contains(chest.GetInstanceID()) && HasItem(chest.GetInventory(), item))
 			{
 				list.Add(chest);
 			}
@@ -1735,7 +1737,8 @@ public partial class CookController : MonoBehaviour
 		float d3 = float.MaxValue;
 		foreach (Container chest in _chests)
 		{
-			if (chest == null || chest.IsInUse() || _unreachable.Contains(chest.GetInstanceID()))
+			// B15 (audit 1.9.4): MHR_Chests.InUse - local flag + the synced one (see ChestWith)
+			if (chest == null || MHR_Chests.InUse(chest) || _unreachable.Contains(chest.GetInstanceID()))
 			{
 				continue;
 			}

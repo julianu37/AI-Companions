@@ -973,7 +973,9 @@ public class CompanionAI : BaseAI
 			if (num < 3f)
 			{
 				Container component = _pendingTombstone.GetComponent<Container>();
-				if (component != null && component.IsInUse())
+				// B15 (audit 1.9.4): MHR_Chests.InUse - the local flag AND the synced one (the tombstone may be
+				// open on another player's game); null is kept as "not a container", so the check stays explicit
+				if (component != null && MHR_Chests.InUse(component))
 				{
 					StopMoving();
 					return true;

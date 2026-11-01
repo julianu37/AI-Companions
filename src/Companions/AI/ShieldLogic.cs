@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Reflection;
 using UnityEngine;
 
 namespace Companions;
@@ -11,8 +10,6 @@ internal static class ShieldLogic
 	private static Hashtable _lastCategory = new Hashtable();
 
 	private static int _logs;
-
-	private static MethodInfo _getLeftItemMethod;
 
 	internal static ItemDrop.ItemData SelectShield(Humanoid h, Character self)
 	{
@@ -62,8 +59,10 @@ internal static class ShieldLogic
 			int num3 = CountNearbyEnemies(self, 15f);
 			ItemDrop.ItemData itemData4 = ((!(healthPercentage < RetreatPct()) && num3 < MultiAttackerCount()) ? (itemData ?? itemData2) : (itemData2 ?? itemData));
 			string text = ((itemData4 != itemData2) ? "parry" : "block");
-			ItemDrop.ItemData leftItemViaReflection = GetLeftItemViaReflection(h);
-			bool flag = leftItemViaReflection != null && leftItemViaReflection.m_shared != null && leftItemViaReflection.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Shield;
+			// B14 (audit 1.9.4): Humanoid.LeftItem is a public property - and the old lookup ("GetLeftItem") found
+			// nothing at all, so this "already holding a shield" check was always false
+			ItemDrop.ItemData leftItem = h.LeftItem;
+			bool flag = leftItem != null && leftItem.m_shared != null && leftItem.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Shield;
 			int instanceID = self.GetInstanceID();
 			if (flag)
 			{
@@ -145,19 +144,6 @@ internal static class ShieldLogic
 		{
 		}
 		return num;
-	}
-
-	private static ItemDrop.ItemData GetLeftItemViaReflection(Humanoid h)
-	{
-		if (_getLeftItemMethod == null)
-		{
-			_getLeftItemMethod = typeof(Humanoid).GetMethod("GetLeftItem", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-		}
-		if (_getLeftItemMethod == null)
-		{
-			return null;
-		}
-		return (ItemDrop.ItemData)_getLeftItemMethod.Invoke(h, null);
 	}
 
 	private static bool Usable(ItemDrop.ItemData it)

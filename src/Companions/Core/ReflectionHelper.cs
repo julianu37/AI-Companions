@@ -9,10 +9,6 @@ internal static class ReflectionHelper
 {
 	private static readonly FieldInfo _blockingField = AccessTools.Field(typeof(Character), "m_blocking");
 
-	internal static readonly FieldInfo LeftItemField = AccessTools.Field(typeof(Humanoid), "m_leftItem");
-
-	internal static readonly FieldInfo RightItemField = AccessTools.Field(typeof(Humanoid), "m_rightItem");
-
 	private static readonly FieldInfo _blockTimerField = AccessTools.Field(typeof(Humanoid), "m_blockTimer");
 
 	private static readonly FieldInfo _attackDrawTimeField = AccessTools.Field(typeof(Humanoid), "m_attackDrawTime");
@@ -73,34 +69,14 @@ internal static class ReflectionHelper
 
 	internal static ItemDrop.ItemData GetLeftItem(Humanoid h)
 	{
-		if (h == null || LeftItemField == null)
-		{
-			return null;
-		}
-		try
-		{
-			return LeftItemField.GetValue(h) as ItemDrop.ItemData;
-		}
-		catch
-		{
-			return null;
-		}
+		// B14 (audit 1.9.4): Humanoid.LeftItem is a public property (m_leftItem behind it) - no FieldInfo needed
+		return h != null ? h.LeftItem : null;
 	}
 
 	internal static ItemDrop.ItemData GetRightItem(Humanoid h)
 	{
-		if (h == null || RightItemField == null)
-		{
-			return null;
-		}
-		try
-		{
-			return RightItemField.GetValue(h) as ItemDrop.ItemData;
-		}
-		catch
-		{
-			return null;
-		}
+		// B14 (audit 1.9.4): Humanoid.RightItem is a public property (m_rightItem behind it) - no FieldInfo needed
+		return h != null ? h.RightItem : null;
 	}
 
 	internal static bool TrySetBlockTimer(Humanoid h, float value)
