@@ -534,7 +534,9 @@ fecha o sentido "usável" da E5.
   do chão, e um **`ignore`** para o companheiro não bloquear a própria peça.
 - **O companheiro constrói sozinho** (decisão do jogador): o executor não usa mais o `Player.PlacePiece` para ele.
 - **Aceite:** 7/7 peças `supported`, todas `placed (Direct)`; o log completo está em
-  `docs/re/building-notes.md` §11.
+  `docs/re/building-notes.md` §11. **O abrigo fecha o "usável" da E5:** a bancada sob o `canopy` responde
+  `usable=True cover=0.94 underRoof=True` (o `CheckUsable` do jogo) e as descobertas ao lado `usable=False
+  cover=0.18`.
 - **Limitações:** o chão tem que ser razoavelmente plano (nivelar é a **E10**); o plano **não** manda a coleta
   (falta material → recusa com o total) - a coleta de plano é o próximo passo.
 

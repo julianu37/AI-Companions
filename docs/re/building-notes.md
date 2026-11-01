@@ -456,6 +456,13 @@ flags `noInWater notOnWood notOnTiltingSurface noClipping allowedInDungeons`; ca
    da bancada (o poste cabia ali, o resto não). O novo `FindAnchor` valida o **template inteiro** em cada candidato
    (o mesmo anel de busca, 3 anéis x 8 direções).
 
+**O abrigo deixa a bancada usável (medido):** a bancada sob o `canopy` responde
+`usable=True cover=0.94 underRoof=True` (`CraftingStation.CheckUsable` + `Cover.GetCoverForPoint`), e as bancadas
+descobertas ao lado respondem `usable=False cover=0.18` / `0.24` - a regra do telhado do §9, fechando o "usável" da
+E5. O `build.usable` procura a bancada **mais próxima** do ponto: `HaveBuildStationInRange` devolve a primeira do
+registro, e com duas no raio ele respondia pela errada (foi o que fez o primeiro teste parecer que o abrigo não
+funcionava).
+
 **O chão tem que ser plano.** O abrigo de 4x2 m precisa dos 4 postes no mesmo nível: num terreno inclinado os
 postes do lado de baixo ficam sem apoio e o plano recusa (foi o que aconteceu sobre a bancada da E5, num barranco) -
 o `FindAnchor` então procura outro ponto. Nivelar o terreno é a **E10**.

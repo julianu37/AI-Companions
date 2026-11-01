@@ -1091,7 +1091,10 @@ comandos de console e spawna coisas, então não é feature de jogador.
   sozinho** (o executor não usa mais o `Player.PlacePiece`, que dava crédito/barulho/estatística ao jogador).
   Três lições: o apoio não existe antes das peças (revalidar no `Place`), o companheiro bloqueava a própria peça
   (`ignore` no validador) e o âncora é do template (11 m de erro antes). Novas ferramentas: `build.check`,
-  `build.snaps`, `build.usable` (a regra do telhado) e `companions.build plan=`. Chão plano é a **E10**.
+  `build.snaps`, `build.usable` (a regra do telhado) e `companions.build plan=`. **O abrigo fecha o "usável" da
+  E5:** a bancada sob o `canopy` responde `usable=True cover=0.94 underRoof=True` e as descobertas ao lado
+  `usable=False cover=0.18` (o `build.usable` pega a bancada MAIS PRÓXIMA - o registro do jogo devolvia a
+  primeira e respondia pela errada). Chão plano é a **E10**.
 - **Construção (Trilha E, base):** E0-E5 medidas em jogo. **E5 (a oficina mínima, 01/11/2026):** 4 ordens seguidas pelo
   chat (bancada 4 s → baú 4 s → fogueira 2 s → cama 6 s), todas em `hc_ai_build_done`, o baú e a cama usando a
   bancada recém-construída como estação. **Colocar** peça só precisa da estação no raio

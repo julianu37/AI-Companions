@@ -59,7 +59,9 @@ its own bag, places the piece and confirms it works.
   whether the piece stands (`WearNTear.UpdateSupport`/`HaveSupport`) - "nothing floating in the air", measured:
   7/7 supported. **The companion builds alone:** the piece is no longer placed through `Player.PlacePiece`,
   which credited the build to the player (the player's id, the player's noise, the player's building-height
-  stats); the cost still comes from the companion's bag and the creator is still you.
+  stats); the cost still comes from the companion's bag and the creator is still you. Measured: the bench under
+  the shelter answers `usable=True, cover=0.94, underRoof=True` to the game's own `CheckUsable`, while the
+  uncovered benches next to it answer `usable=False, cover=0.18` - a workbench you can actually craft at.
 - **New dev tooling:** `modia_build_probe [prefab] [radius]` and `modia_build_find [prefab] [radius]` in the game
   console, and the MCP tools `build_inspect`, `build_sites`, `build_find`, `build_pieces`, `companions_build`,
   `companions_sethome` and `player_look` (the build order takes its spot from your aim, so a test has to be
