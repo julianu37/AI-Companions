@@ -277,3 +277,15 @@ contagem por motivo (`tally`) é o que torna esse tipo de erro visível no log.
 - **não aplica** `[Building] MaxDistanceFromHome` no despacho da ordem (a chave existe; entra na E4/E5 com a
   casa);
 - **não constrói** estruturas nem blueprints (E6–E8).
+
+### A recusa de estação (medida a 140 m da oficina)
+
+```
+[Build] Companheiro 2: order: build piece_chest_wood near (-118,4, 46,5, -164,6)
+[Build] Companheiro 2: needs a station: Bancada is not in range of the spot
+[Build] Companheiro 2: order ended: hc_ai_build_needs_station (station out of range)
+```
+
+`build.pieces radius 45` = **0 bancadas**, 10 madeira na mochila, `baus depois: 0` — a checagem de estação roda
+**antes** de pagar, então a ordem não custa nada. O `Finish` agora loga `order ended: <chave> (<motivo>)`: é o que
+permite provar no log qual linha o companheiro falou (a fala em si vai para o balão/TTS).

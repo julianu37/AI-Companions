@@ -376,8 +376,21 @@ no `CompanionOrders`, a rede `CompanionOrders.IsBuildRequest` no lado `none`, o 
 4. ✅ a voz fala a linha do mod e o `reply` do modelo fica só no log (regra da Fase 3.4);
 5. ✅ a rede do lado `none` (`IsBuildRequest`: verbo de construir + peça da allow-list + sem `?`) e o gate
    dverger (recusa com a linha "Sou de combate…") estão no lugar;
-6. ⏳ voz (push-to-talk) **não** foi testada nesta rodada — é o mesmo `Submit` do chat, mas fica para o teste
-   do jogador.
+6. ✅ **peça que exige estação, sem estação por perto** — a recusa tem a **sua** linha (antes o job dizia "não achei
+   lugar", que é mentira: faltava bancada, não espaço):
+
+   ```
+   [Build] Companheiro 2: order: build piece_chest_wood near (-118,4, 46,5, -164,6)
+   [Build] Companheiro 2: needs a station: Bancada is not in range of the spot
+   [Build] Companheiro 2: order ended: hc_ai_build_needs_station (station out of range)
+   ```
+
+   medido a **140 m** da oficina (`build.pieces radius 45` = 0 bancadas), com 10 madeira na mochila: **nada foi
+   construído** (`baus depois: 0`) e **nada foi gasto** — a checagem roda antes de pagar. O motivo agora aparece
+   também no log (`order ended: <chave> (<motivo>)`), que é como o teste prova qual linha saiu;
+7. ⏳ **voz (push-to-talk): teste do JOGADOR.** O caminho é o **mesmo** `CompanionChatAI.Submit` do chat (nada de
+   lógica duplicada) e a voz foi validada em jogo nas Fases 3.3/3.3b/3.3d, mas o agente **não tem microfone**: falar
+   "Maria, construa uma bancada de trabalho aqui" segurando `V` é o único passo que fica com o jogador.
 
 **Dois bugs que só o teste em jogo pegou:**
 

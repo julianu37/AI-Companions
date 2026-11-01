@@ -22,7 +22,8 @@ its own bag, places the piece and confirms it works.
   the game's own registry sees it (`CraftingStation.HaveBuildStationInRange`, checked one frame later because
   `CraftingStation.Start` registers on the next frame).
 - **Refusals** have their own line: unknown piece, combat-only type (the dvergers), building turned off, no spot,
-  missing material, failed placement.
+  missing material, failed placement - and a piece that needs a station (a chest, a bed) says **which station** it
+  needs when none is in range, before paying anything ("Bancada is not in range of the spot").
 - **New config, `[Building]`:** `Enabled` (true), `SiteSearchRadius` (8 m) and `MaxDistanceFromHome` (40 m).
 - **New dev tooling:** `modia_build_probe [prefab] [radius]` and `modia_build_find [prefab] [radius]` in the game
   console, and the MCP tools `build_inspect`, `build_sites`, `build_find`, `build_pieces` and `companions_build`.

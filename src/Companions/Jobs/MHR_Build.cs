@@ -214,12 +214,30 @@ internal static class MHR_Build
 
 	private static bool Find(CompanionAI ai, State state)
 	{
+		// a piece that needs a station (a chest, a bed) is refused with its own line BEFORE the search: without the
+		// station every candidate would fail with needs_station, and "no place for it here" would be a lie - the
+		// player needs a workbench, not more room.
+		if (state.Piece != null && state.Piece.m_craftingStation != null
+			&& CraftingStation.HaveBuildStationInRange(state.Piece.m_craftingStation.m_name, state.Hint) == null)
+		{
+			string station = Localization.instance != null ? Localization.instance.Localize(state.Piece.m_craftingStation.m_name) : state.Piece.m_craftingStation.m_name;
+			Log(ai, "needs a station: " + station + " is not in range of the spot");
+			Finish(ai, state, "hc_ai_build_needs_station", "station out of range", station);
+			return false;
+		}
 		float radius = ModConfig.BuildSiteSearchRadius != null ? ModConfig.BuildSiteSearchRadius.Value : 8f;
 		BuildSiteResult site = BuildSite.Find(state.Piece, state.Hint, state.Forward, radius, 3, 8);
 		state.Tried = site.Tried;
 		if (!site.Ok)
 		{
 			Log(ai, "no site: " + site.Tried + " tried, last " + site.Status + " " + TallyText(site.Tally));
+			// the search may still end on needs_station when the station is near the player but not near the spot
+			if (state.Piece != null && state.Piece.m_craftingStation != null && site.Tally.ContainsKey("needs_station"))
+			{
+				string station = Localization.instance != null ? Localization.instance.Localize(state.Piece.m_craftingStation.m_name) : state.Piece.m_craftingStation.m_name;
+				Finish(ai, state, "hc_ai_build_needs_station", "no candidate had the station", station);
+				return false;
+			}
 			Finish(ai, state, "hc_ai_build_no_site", null, LabelOf(state));
 			return false;
 		}
@@ -325,13 +343,11 @@ internal static class MHR_Build
 		state.Active = false;
 		s_state.Remove(ai.GetInstanceID());
 		MHR_Mover.Release(ai);
+		// one line per order end, with the key that was spoken: it is how a test proves which refusal came out
+		Log(ai, "order ended: " + (key ?? "(silent)") + (string.IsNullOrEmpty(why) ? string.Empty : " (" + why + ")"));
 		if (key != null)
 		{
 			Say(ai, key, args);
-		}
-		if (!string.IsNullOrEmpty(why))
-		{
-			LogDebug(ai, "order ended: " + why);
 		}
 	}
 

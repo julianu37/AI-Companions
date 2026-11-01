@@ -123,6 +123,45 @@ The pieces **already standing** near a point: prefab, name, creator, whether the
 distance, position, valid ZDO, health (0..1) and the crafting station it carries. It is how a placement - or a
 relog - is proven from the outside, and how the companion's builds are checked.
 
+### `build_find`
+
+| param | type | default |
+|---|---|---|
+| `prefab` | string | - |
+| `x`, `y`, `z` | number | what the player is looking at, else 3 m ahead |
+| `radius` | number (1..40) | 8 |
+| `rings` | integer (1..8) | 3 |
+| `dirs` | integer (4..24) | 8 |
+
+```json
+{"prefab": "piece_workbench", "ok": true, "status": "valid",
+ "pos": {"x": -223.8, "y": 77.0, "z": -268.7}, "yaw": 180.0, "distance": 0.0, "tried": 1,
+ "reasons": [], "tally": {"valid": 1}}
+```
+
+**Where the piece would go** (E2): runs the real placement search - the aim first, then rings - with the point rules
+plus the **ghost clipping** test (the piece's own colliders, 0,2 m of tolerance), and returns the pose, how far it is
+from the hint, how many candidates were tried and how many failed for each reason. **It places nothing.** This is the
+"here" of the build order.
+
+### `companions_build`
+
+| param | type | default |
+|---|---|---|
+| `prefab` | string | - |
+| `name` | string | the first companion |
+
+```json
+{"started": true, "prefab": "piece_workbench", "name": "maria",
+ "hint": {"x": -223.8, "y": 77.0, "z": -268.7}}
+```
+
+**The build order without the LLM** (E3): the job checks the recipe, finds a valid spot, walks there, pays the
+materials from the companion's own bag, places the piece and verifies it (object, ZDO, creator, health and - one
+frame later - the station in the game's registry). It is how the job is tested on its own; the chat/voice path goes
+through the same `MHR_Build`. The allow-list is `piece_workbench`, `piece_chest_wood`, `fire_pit` and `piece_bed02`;
+a piece that needs a station (chest, bed) answers `hc_ai_build_needs_station` when no workbench is in range.
+
 ### `player_give`
 
 | param | type | default |
