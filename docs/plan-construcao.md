@@ -394,6 +394,10 @@ no `CompanionOrders`, a rede `CompanionOrders.IsBuildRequest` no lado `none`, o 
    companheiro não conhecia a peça. Agora há uma linha própria, `hc_ai_build_recipe_locked` ("Ainda não
    desbloqueamos essa receita: falta a {0}."), nos 5 idiomas, e o `companions.build` do MCP aplica o **mesmo**
    gate. Dverger (item 4) e os ajustes de mira/idioma (5 e 6) ficaram para depois, por decisão do jogador.
+   **O catálogo estava errado:** existem DUAS camas — `bed` ("Cama", **Madeira x8**, receita **destravada**) e
+   `piece_bed02` ("Cama de dragão", 40 de madeira de qualidade + peles + pregos, travada). O alias "cama" caía na
+   cara. Corrigido: `bed` é a entrada de "cama"/"bed"/"lit"/"letto" e `piece_bed02` só responde a "cama de
+   dragão"/"dragon bed". Medido em jogo: `[Build] ... done: bed at (-275,5, 81,7, -301,9)` e `camas depois: 2`.
 8. 👤 **voz (push-to-talk): teste do JOGADOR** (não é pendência de código). O caminho é o **mesmo** `CompanionChatAI.Submit` do chat (nada de
    lógica duplicada) e a voz foi validada em jogo nas Fases 3.3/3.3b/3.3d, mas o agente **não tem microfone**: falar
    "Maria, construa uma bancada de trabalho aqui" segurando `V` é o único passo que fica com o jogador.

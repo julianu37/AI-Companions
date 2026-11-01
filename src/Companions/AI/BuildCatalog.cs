@@ -57,12 +57,18 @@ internal static class BuildCatalog
 			"fogata", "hoguera",
 			"feu de camp", "feu",
 			"falo", "falò"),
-		new Entry("piece_bed02", "cama",
-			"cama", "cama de dragao", "cama de drago",
-			"bed", "dragon bed",
+		new Entry("bed", "cama",
+			"cama", "cama simples", "cama de madeira", "cama de dormir",
+			"bed", "simple bed", "wooden bed",
+			"cama sencilla",
+			"lit", "lit simple",
+			"letto", "letto semplice"),
+		new Entry("piece_bed02", "cama de dragão",
+			"cama de dragao", "cama de drago", "cama dragao", "cama do dragao",
+			"dragon bed", "bed02",
 			"cama de dragon",
-			"lit", "lit de dragon",
-			"letto")
+			"lit de dragon",
+			"letto drago", "letto di drago")
 	};
 
 	/// <summary>Every prefab this phase may build (the allow-list).</summary>

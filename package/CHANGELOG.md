@@ -12,7 +12,8 @@ its own bag, places the piece and confirms it works.
   trabajo aquí" / "construis un établi ici" / "costruisci un banco da lavoro qui" - the new `build` action
   (`ValidActions` 35 -> 36), with the piece in `target` and the player's own words as the safety net.
 - **What it can build (E3 allow-list):** workbench (`piece_workbench`), wooden chest (`piece_chest_wood`), fire pit
-  (`fire_pit`) and the dragon bed (`piece_bed02`). Anything else answers "I don't know how to build that".
+  (`fire_pit`), the **bed** (`bed`, 8 wood) and the dragon bed (`piece_bed02`). "cama"/"bed" resolves to the cheap
+  one; the dragon bed only to "cama de dragão"/"dragon bed". Anything else answers "I don't know how to build that".
 - **Where it builds:** the spot you are looking at (up to 10 m), else 3 m ahead. The spot is checked with the game's
   rules - ground, water, biome, ward, no-build zone, station in range, players and **clipping** (the piece's real
   colliders against everything solid, 0,2 m of tolerance, the same test the game does for its placement ghost).

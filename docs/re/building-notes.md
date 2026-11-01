@@ -278,6 +278,17 @@ contagem por motivo (`tally`) é o que torna esse tipo de erro visível no log.
   casa);
 - **não constrói** estruturas nem blueprints (E6–E8).
 
+### As duas camas (medido com a sonda, 01/11/2026)
+
+| prefab | nome | custo | estação | `recipeKnown` |
+|---|---|---|---|---|
+| `bed` | Cama | **Madeira x8** | `$piece_workbench` | **true** |
+| `piece_bed02` | Cama de dragão | Madeira de qualidade x40, Pele de cervo x7, Couro de lobo x4, Penas x10, Pregos de ferro x15 | `$piece_workbench` | **false** (neste perfil) |
+
+O alias "cama" caía na cama de dragão (a cara, travada) e a ordem respondia "não sei construir isso". O
+`BuildCatalog` agora tem as duas: `bed` para "cama"/"bed"/"lit"/"letto" e `piece_bed02` só para
+"cama de dragão"/"dragon bed". Medido em jogo: `done: bed` e `camas depois: 2`.
+
 ### A recusa de estação (medida a 140 m da oficina)
 
 ```
