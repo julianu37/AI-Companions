@@ -562,6 +562,9 @@ How far (meters) around the spot you are looking at the companion looks for a pl
 **MaxDistanceFromHome** — Default: 40 · Range: 0 – 200  
 A build order is refused when the spot is further than this (meters) from the companion's home, so it does not wander off to build across the world. 0 = no limit.
 
+**GatherForBuild** — Default: On  
+When the piece's materials are missing and a job can collect them (wood, stone or ore), the companion takes the normal gather order for exactly the shortfall, gathers, and then the build order resumes by itself. Off: it says what is missing and the order ends.
+
 **UseChests** — Default: On  
 Take the missing materials from the chests it may use (a chest a player built, inside a ward that lets it in, not someone else's private chest, not open) before gathering. The bag is always used first.
 

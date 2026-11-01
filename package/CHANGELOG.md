@@ -31,9 +31,10 @@ its own bag, places the piece and confirms it works.
 - **New config, `[Building]`:** `Enabled` (true), `SiteSearchRadius` (8 m), `MaxDistanceFromHome` (40 m - now it
   really refuses a spot too far from the companion's home), `UseChests` (true - the missing materials come from
   the bag and then from the chests it may use, all or nothing), `RequireHammer` (false) and `Quiet` (false).
-- **Gathering the missing materials is not part of this build order yet:** an attempt to gather inside it left two
-  systems steering the companion at once and the movement went haywire, so it was reverted; it will be its own
-  order (the "collect N" that already works).
+- **Gathering the missing materials (E4b):** when the bag and the chests are short, the companion takes the normal
+  gather order for exactly the shortfall ("I'll go get 3 wood"), the harvest owns the movement, and a watcher
+  starts a fresh build order when the materials are in - one owner of the movement at a time. Measured: 3 wood
+  collected and the bench placed in 136 s. `[Building] GatherForBuild` (true) turns it off.
 - **New dev tooling:** `modia_build_probe [prefab] [radius]` and `modia_build_find [prefab] [radius]` in the game
   console, and the MCP tools `build_inspect`, `build_sites`, `build_find`, `build_pieces` and `companions_build`.
   The measurements of the five workshop pieces are in `docs/re/building-notes.md`; the plan is

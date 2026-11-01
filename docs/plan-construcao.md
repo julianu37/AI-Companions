@@ -412,7 +412,7 @@ no `CompanionOrders`, a rede `CompanionOrders.IsBuildRequest` no lado `none`, o 
 **Ainda pendente de propósito (E4+):** coletar o que falta, checar baús, a distância da casa no `Build()` e o
 teste em jogo de baú/fogueira/cama.
 
-### Fase 4 — Coletar o que falta (1 dia) — ⚠️ **parcial: a coleta embutida foi revertida**
+### Fase 4 — Coletar o que falta (1 dia) — ✅ **feita (E4b: a coleta é uma ordem separada)**
 
 **O que entrou (medido, gate 9/9):** `AI/BuildStock.cs` — o custo sai da **mochila e depois dos baús usáveis**
 (`MHR_Chests.Usable`: baú que um jogador construiu, dentro de ward que deixa passar, não privado de outro, não
@@ -425,9 +425,26 @@ o recurso e deixava o `HarvestController` dirigir enquanto o `MHR_Build` voltava
 no mesmo `MHR_Mover`**, e o movimento do companheiro ficou todo embaralhado (relato do jogador, 01/11/2026). O
 `MHR_Build` voltou ao estado da E3 (`b0d4db8`) + o `BuildStock`; as chaves `GatherForBuild`/`GatherRadius` saíram.
 
-**E4b (o desenho certo, para depois):** a coleta é uma **ordem própria** (o `colete N` que já funciona), e a ordem
-de construção só **diz o que falta e espera** — ou o jogador manda coletar, ou a E4b dispara a coleta como uma
-ordem separada (nunca dois donos do mesmo movimento).
+**E4b (feita em 01/11/2026):** a coleta é uma **ordem separada**. Quando falta material e `[Building] GatherForBuild`
+está ligado, a ordem de construção **encerra** com `hc_ai_build_collecting` ("Vou buscar X"), dispara a **ordem de
+coleta normal** (`ApplyActionMode` + `SetOrderCap` = exatamente o que falta) e deixa um **vigia** (`s_pending`)
+olhando a mochila — o vigia **não dirige**: só quando o custo está coberto ele limpa a coleta, volta ao modo Follow
+e **começa uma ordem de construção nova** (que reencontra o local e caminha de volta). Um dono do `MHR_Mover` por
+vez, sempre. Se o jogador trocar o trabalho, o companheiro morrer ou passarem 300 s, o pendente é esquecido.
+
+**Medido em jogo (01/11/2026):**
+
+```
+[Build] Companheiro 2: missing: Madeira x3
+[Build] Companheiro 2: gathering 3x $item_wood first (mode 1) - the build resumes after it
+[Build] Companheiro 2: order ended: hc_ai_build_collecting (gathering first)
+[Build] Companheiro 2: materials ready - resuming the build
+[Build] Companheiro 2: order: build piece_workbench near (-283,0, 81,8, -303,7)
+[Build] Companheiro 2: site at (-283,0, 81,7, -303,7), 2 tried (clipping x1, valid x1)
+BANCADA NOVA em 136 s (3 madeiras coletadas + caminhada + colocação)
+```
+
+**Chave:** `[Building] GatherForBuild` (true) — desligada, a ordem só diz o que falta e encerra.
 
 #### O texto original da fase (para referência)
 

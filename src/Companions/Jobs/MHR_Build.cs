@@ -32,6 +32,9 @@ internal static class MHR_Build
 	/// <summary>How close to the spot it stops and places.</summary>
 	internal const float Reach = 2.5f;
 
+	/// <summary>E4b: how long a pending build waits for the gather before it is dropped.</summary>
+	internal const float GatherTimeout = 300f;
+
 	private const string LogTag = "[Build] ";
 
 	private enum Phase
@@ -61,6 +64,22 @@ internal static class MHR_Build
 	}
 
 	private static readonly Dictionary<int, State> s_state = new Dictionary<int, State>();
+
+	/// <summary>
+	/// E4b: a build order waiting for its materials. The companion is gathering with the NORMAL gather order (the
+	/// harvest owns the movement - one owner at a time, the lesson of 01/11/2026); this record only watches the bag
+	/// and, when the piece is covered, starts a fresh build order (which re-finds the spot and walks back).
+	/// </summary>
+	private sealed class Pending
+	{
+		internal string Prefab;
+		internal Vector3 Hint;
+		internal int Mode;
+		internal string Item;
+		internal float Start;
+	}
+
+	private static readonly Dictionary<int, Pending> s_pending = new Dictionary<int, Pending>();
 
 	/// <summary>Starts an order. <paramref name="prefab"/> must be in <see cref="BuildCatalog"/>; the caller has
 	/// already checked the config and the recipe.</summary>
@@ -120,6 +139,7 @@ internal static class MHR_Build
 		{
 			state.Active = false;
 			s_state.Remove(c.GetInstanceID());
+			s_pending.Remove(c.GetInstanceID());
 			CompanionAI ai = c.GetComponent<CompanionAI>();
 			if (ai != null)
 			{
@@ -130,6 +150,7 @@ internal static class MHR_Build
 
 	internal static void CancelAll()
 	{
+		s_pending.Clear();
 		List<int> keys = new List<int>(s_state.Keys);
 		foreach (int key in keys)
 		{
@@ -153,6 +174,8 @@ internal static class MHR_Build
 		State state;
 		if (!s_state.TryGetValue(ai.GetInstanceID(), out state) || state == null || !state.Active)
 		{
+			// E4b: nothing to drive, but a build may be waiting for the gather to finish
+			CheckPending(ai);
 			return false;
 		}
 		// a fight in between (or anything else that kept UpdateAI from driving us) does not use up the order's time
@@ -288,6 +311,15 @@ internal static class MHR_Build
 		if (!BuildStock.Take(bag, state.Piece, state.Pos, cs, useChests, out missing))
 		{
 			Log(ai, "missing: " + MissingText(missing));
+			// E4b: the gather is a SEPARATE order. This one ends (with the line that says it is going to get it), the
+			// normal gather order takes over the movement, and a small watcher starts a new build order when the
+			// materials are in the bag. One owner of MHR_Mover at a time - the 01/11/2026 lesson.
+			bool gather = ModConfig.BuildGatherForBuild == null || ModConfig.BuildGatherForBuild.Value;
+			if (gather && StartGather(ai, state, cs, missing))
+			{
+				Finish(ai, state, "hc_ai_build_collecting", "gathering first", MissingText(missing), LabelOf(state));
+				return false;
+			}
 			Finish(ai, state, "hc_ai_build_missing", null, MissingText(missing), LabelOf(state));
 			return false;
 		}
@@ -325,6 +357,101 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 
 	/// <summary>Gives the piece's cost back to the bag when the placement itself failed (the consume already
 	/// happened). Never called after a success.</summary>
+	/// <summary>
+	/// E4b: turns the missing materials into the NORMAL gather order (mode + order target = exactly the shortfall)
+	/// and remembers a pending build for the watcher. The build order ENDS here - the harvest owns the movement.
+	/// </summary>
+	private static bool StartGather(CompanionAI ai, State state, CompanionSetup cs, Dictionary<string, int> missing)
+	{
+		string item = null;
+		int mode = 0;
+		int amount = 0;
+		foreach (KeyValuePair<string, int> kv in missing)
+		{
+			int candidate = BuildStock.GatherMode(kv.Key);
+			if (candidate == 0)
+			{
+				continue;
+			}
+			item = kv.Key;
+			mode = candidate;
+			amount = kv.Value;
+			break;
+		}
+		if (mode == 0 || cs == null)
+		{
+			return false;
+		}
+		CompanionSetup.ApplyActionMode(cs, mode, false);
+		CompanionSetup.SetOrderCap(cs, mode, amount, item);
+		s_pending[ai.GetInstanceID()] = new Pending
+		{
+			Prefab = state.Prefab,
+			Hint = state.Hint,
+			Mode = mode,
+			Item = item,
+			Start = Time.time
+		};
+		Log(ai, "gathering " + amount + "x " + item + " first (mode " + mode + ") - the build resumes after it");
+		return true;
+	}
+
+	/// <summary>
+	/// E4b: the watcher. Runs only when there is no build order running (so it never steers): if the gather is
+	/// still short it does nothing, and when the bag covers the piece it clears the gather and starts a fresh build
+	/// order (which re-finds the spot and walks back). The player changing the work mode, death or the gather
+	/// timeout forget the pending build.
+	/// </summary>
+	private static void CheckPending(CompanionAI ai)
+	{
+		Pending pending;
+		if (!s_pending.TryGetValue(ai.GetInstanceID(), out pending) || pending == null)
+		{
+			return;
+		}
+		CompanionSetup cs = ai.GetComponent<CompanionSetup>();
+		Humanoid humanoid = ai.GetComponent<Humanoid>();
+		Inventory bag = humanoid != null ? humanoid.GetInventory() : null;
+		ZNetView nv = ai.GetComponent<ZNetView>();
+		if (cs == null || bag == null || nv == null || !nv.IsValid() || !nv.IsOwner() || humanoid == null || humanoid.IsDead())
+		{
+			s_pending.Remove(ai.GetInstanceID());
+			return;
+		}
+		Piece piece = BuildProbe.PieceOf(pending.Prefab);
+		if (piece == null)
+		{
+			s_pending.Remove(ai.GetInstanceID());
+			return;
+		}
+		if (ModeOf(cs) != pending.Mode)
+		{
+			s_pending.Remove(ai.GetInstanceID());
+			Log(ai, "the work changed - the build order was dropped");
+			return;
+		}
+		if (Time.time - pending.Start > GatherTimeout)
+		{
+			s_pending.Remove(ai.GetInstanceID());
+			CompanionSetup.ClearOrderCap(cs);
+			Log(ai, "gathering took too long - the build order was dropped");
+			return;
+		}
+		bool useChests = ModConfig.BuildUseChests == null || ModConfig.BuildUseChests.Value;
+		if (BuildStock.Missing(bag, piece, pending.Hint, cs, useChests).Count > 0)
+		{
+			return;   // still gathering
+		}
+		s_pending.Remove(ai.GetInstanceID());
+		CompanionSetup.ClearOrderCap(cs);
+		// back to Follow mode BEFORE the build starts: the harvest must not keep steering while the build does
+		CompanionSetup.ApplyActionMode(cs, CompanionSetup.ModeFollow, false);
+		if (Start(cs, pending.Prefab, pending.Hint))
+		{
+			Log(ai, "materials ready - resuming the build");
+		}
+	}
+
 	/// <summary>Is a hammer in the bag? (only asked when <c>[Building] RequireHammer</c> is on).</summary>
 	private static bool HasHammer(Inventory bag)
 	{

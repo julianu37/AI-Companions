@@ -294,8 +294,11 @@ O alias "cama" caía na cama de dragão (a cara, travada) e a ordem respondia "n
 A coleta embutida na ordem de construção **não pode** acontecer: o `MHR_Build` desligava o Follow, andava até o
 recurso e devolvia o controle ao `HarvestController`; como o `MHR_Build.Drive` volta a rodar no frame seguinte e o
 harvest também, os dois escrevem no mesmo `MHR_Mover` (tags diferentes) e o companheiro **embaralha o movimento**.
-Regra que fica: **um dono do movimento por vez** — a coleta tem que ser uma **ordem separada** (E4b), e a ordem de
-construção só diz o que falta.
+Regra que fica: **um dono do movimento por vez**. O desenho final (E4b): a ordem de construção **encerra** com
+`hc_ai_build_collecting`, dispara a **ordem de coleta normal** (modo + teto = o que falta) e deixa um **vigia**
+(`s_pending`) que **não dirige** — quando o custo está coberto ele limpa a coleta, volta ao modo Follow e começa
+uma ordem de construção **nova** (que reencontra o local e caminha de volta). Medido: 3 madeiras coletadas e a
+bancada no lugar em **136 s**.
 
 ### A recusa de estação (medida a 140 m da oficina)
 

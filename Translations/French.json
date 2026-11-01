@@ -689,6 +689,7 @@
         { "key": "hc_cfg_building_maxdistancefromhome", "value": "Distance max de la maison (m)" },
         { "key": "hc_cfg_building_quiet", "value": "Sans bruit" },
         { "key": "hc_cfg_building_requirehammer", "value": "Exiger un marteau" },
+        { "key": "hc_cfg_building_gatherforbuild", "value": "Aller chercher ce qui manque" },
         { "key": "hc_cfg_building_usechests", "value": "Utiliser les coffres" },
         { "key": "hc_ai_order_command", "value": "accepter les ordres" },
         { "key": "hc_ai_order_nocommand", "value": "ignorer les ordres" },

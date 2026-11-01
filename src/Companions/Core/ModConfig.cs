@@ -158,6 +158,7 @@ internal static class ModConfig
 	internal static ConfigEntry<bool> BuildEnabled;
 	internal static ConfigEntry<float> BuildSiteSearchRadius;
 	internal static ConfigEntry<float> BuildMaxDistanceFromHome;
+	internal static ConfigEntry<bool> BuildGatherForBuild;
 	internal static ConfigEntry<bool> BuildUseChests;
 	internal static ConfigEntry<bool> BuildRequireHammer;
 	internal static ConfigEntry<bool> BuildQuiet;
@@ -927,6 +928,7 @@ internal static class ModConfig
 		BuildEnabled = Bind(cfg, "Building", "Enabled", true, "Let a companion build when you ask it (\"Maria, build a workbench here\"). It checks the recipe, looks for a free spot with the game's own rules, walks there, places the piece and confirms it. Phase E3: it builds from its own bag only (no gathering yet) and only the pieces of the workshop (workbench, chest, fire pit, bed).");
 		BuildSiteSearchRadius = Bind(cfg, "Building", "SiteSearchRadius", 8f, "How far (meters) around the spot you are looking at the companion looks for a place where the piece fits (the game's rules: ground, water, ward, no-build zone, station in range and no clipping into other pieces).", new AcceptableValueRange<float>(1f, 30f));
 		BuildMaxDistanceFromHome = Bind(cfg, "Building", "MaxDistanceFromHome", 40f, "A build order is refused when the spot is further than this (meters) from the companion's home, so it does not wander off to build across the world. 0 = no limit.", new AcceptableValueRange<float>(0f, 200f));
+		BuildGatherForBuild = Bind(cfg, "Building", "GatherForBuild", true, "When the piece's materials are missing and a job can collect them (wood, stone or ore), the companion takes the normal gather order for exactly the shortfall, gathers, and then the build order resumes by itself. Off: it says what is missing and the order ends.");
 		BuildUseChests = Bind(cfg, "Building", "UseChests", true, "Take the missing materials from the chests it may use (a chest a player built, inside a ward that lets it in, not someone else's private chest, not open) before gathering. The bag is always used first.");
 		BuildRequireHammer = Bind(cfg, "Building", "RequireHammer", false, "Only build with a hammer in the companion's bag. Off by default: the placement does not need one (the game's own Player.PlacePiece does not check it).");
 		BuildQuiet = Bind(cfg, "Building", "Quiet", false, "Do not make the placement noise (the game adds one when a piece goes up, which can pull creatures). Only the hand-written placement path is silenced; the vanilla Player.PlacePiece path keeps its noise.");
