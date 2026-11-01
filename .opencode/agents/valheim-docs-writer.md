@@ -44,8 +44,8 @@ Você cuida de **documentação e localização**. Leia `AGENTS.md` (regra 9 e *
   `CONFIGURATION.md` é **gerado**; nunca edite à mão.
 - `python tools/gen_translations.py` escreve ES/FR/IT a partir do PT (mapas `*_UI`/`*_SPEECH`) e é
   **idempotente** (`--check` = 0/0). Mexeu no PT? Rode o gerador e o audit.
-- Contagens atuais (medidas em 31/10/2026): **994 chaves de UI** e **20 categorias / 221 falas** por idioma;
-  **342 opções** de config em 24 seções (o gerador imprime `N settings M sections`). Se mudar, atualize
+- Contagens atuais (medidas em 31/10/2026, 1.9.5): **1001 chaves de UI** e **20 categorias / 221 falas** por idioma;
+  **343 opções** de config em 24 seções (o gerador imprime `N settings M sections`). Se mudar, atualize
   **todos** os lugares (AGENTS, CHANGELOG, wiki ×5, release notes).
 
 ## Documentos que você mantém

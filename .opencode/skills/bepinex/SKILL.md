@@ -23,7 +23,7 @@ leia o `AGENTS.md`: ele é a fonte da verdade (arquitetura, fases, decisões e p
 
 ## Config
 
-- `ModConfig.Init(ConfigFile)` é o lugar de todo `Bind`; **342 opções em 24 seções** hoje (o número sai do
+- `ModConfig.Init(ConfigFile)` é o lugar de todo `Bind`; **343 opções em 24 seções** hoje (o número sai do
   `python tools/gen_config_doc.py ...` — ele imprime `N settings M sections`).
 - **Chaves e descrições em inglês** (o PT é tradução em `Translations/Portuguese_Brazilian.json`, via
   `hc_cfg_<seção>_<chave>`); o F8 mostra `LocOr(...)` e cai na própria chave em inglês.

@@ -5,9 +5,9 @@ hoje**, **o que pode quebrar se ficar**, **por que corrigir** e **o esforço**. 
 (exceto o que está marcado como feito no `docs/roadmap.md`).
 
 > **Status na 1.9.5 (branch `feat/1.9.5`):** feitos **A3, A4, A7, A8, A9, A10, A11, A12, B2, B3, B8, B10, B11, B13,
-> B14, B15, B18, C2, C3, C4, C5, C6, C7**. **Documentado para verificar futuramente:** A6. **Fora por decisão do
-> jogador:** A1, A2, A5, B1, B4, B5, B6, B7, B9, B12, B16, B17, todo o bloco de MP (C1) e a wiki (C8, só quando ele
-> pedir). O detalhe do que entrou está na seção 1.9.5 do `docs/roadmap.md` e no `package/CHANGELOG.md`.
+> B14, B15, B18, C2, C3, C4, C5, C6, C7 e C8**. **Documentado para verificar futuramente:** A6. **Fora por decisão do
+> jogador:** A1, A2, A5, B1, B4, B5, B6, B7, B9, B12, B16, B17 e todo o bloco de MP (C1). O detalhe do que entrou
+> está na seção 1.9.5 do `docs/roadmap.md` e no `package/CHANGELOG.md`.
 
 ## A. Vitória rápida (1 linha cada, alto valor)
 
@@ -60,7 +60,7 @@ hoje**, **o que pode quebrar se ficar**, **por que corrigir** e **o esforço**. 
 | C5 | O F8 aloca por frame (`GetComponentsInChildren<Selectable>` + concatenação da legenda) | GC contínuo com o painel aberto | Regra "sem alocação por frame" | `ConfigPanel.cs:577-583,1120` | pequeno |
 | C6 | Falta um **gate único de release**: `release-check` (build + traduções + locale + config + MCP), `merge-harness` sem fonte versionada, `locale-fallback-check.ps1` imprime 2 regras em vez de asseverar, `audit_translations.py` no PT sempre sai 1, `gen_config_doc.py` sem `--check` | Release passa com doc/config divergente ou teste que não falha | Evita a classe de bug que a 1.9.4 passou o dia caçando | `tools/*` | médio |
 | C7 | `ConfigPanel.OnDestroy` destrói a **textura compartilhada** do `TextureLoader`; `CompanionAiPanel` não libera `_panelSprite` no rebuild por idioma | Mina: o cache fica com textura destruída e todos os painéis caem na cor chapada até reiniciar | Vazamento/mina de UI | `ConfigPanel.cs:715-727`, `CompanionAiPanel.cs:957,1043` | pequeno |
-| C8 | A wiki anuncia 1.9.1 e "914 chaves" (86 ocorrências em 5 idiomas) | Quem instala pelo guia baixa duas releases atrás | **Decisão do jogador:** atualizar só quando ele pedir | `docs/wiki/*` | médio |
+| C8 | A wiki anunciava 1.9.1 e "914 chaves" (86 ocorrências em 5 idiomas) | Quem instala pelo guia baixava duas releases atrás | Atualizada na 1.9.5: versão, pacote único, modelos dentro do plugin, destaques e **1001 chaves** | `docs/wiki/*` | ✅ feito |
 
 ## Feito na 1.9.4 (para não repetir)
 

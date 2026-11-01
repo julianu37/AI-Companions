@@ -1068,6 +1068,10 @@ comandos de console e spawna coisas, então não é feature de jogador.
   palavras (`RadialIntent`, `PickupIntent`, `GatherIntent`, `InteractionIntent`, `LlmIntent`, `OrderItems`,
   `CompanionNameMatch`) com os `.cs` reais linkados, mais o cross-check das cópias do `Stubs.cs` contra a
   `Companions.dll` (seção (h) — impede drift). Build 0/0 e exit 0 são o gate.
+- **Gate de release:** `powershell -ExecutionPolicy Bypass -File tools\release-check.ps1 -Version <versão>` — roda o
+  build, a versão (`PluginVersion` × nome do zip), as 3 traduções, o `locale-fallback-check.ps1` (agora com asserts),
+  o `gen_config_doc.py --check`, o teste do MCP (41) e as 224 asserções; **PASS/FAIL por item e exit 1**. É o que tem
+  de passar antes de tag/zip (`-SkipGame`/`-SkipIntents` para rodar parte).
 - **Docs:** `docs/mcp-devbridge.md` (arquitetura, protocolo, as **44** ferramentas, a receita de **jogar pelo agente**
   e a de **comandos de console**, e as evidências dos testes da 1.9.4) e `tools/mcp-devbridge/README.md`
   (parâmetros/exemplos).
