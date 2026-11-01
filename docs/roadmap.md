@@ -2319,8 +2319,8 @@ fogueira, cama, estruturas pequenas e — para as construções grandes — os p
 
 | Fase | O que entrega | Status |
 |---|---|---|
-| **E0** | Sonda `modia_build_probe` (flags/receita/estação da `piece_workbench`) + `docs/re/building-notes.md` | ⏳ |
-| **E1** | `AI/BuildExecutor.cs` — `Player.PlacePiece` quando o `Player` do dono existe; reserva própria (claim → `SetCreator` → `WearNTear`/`IPlaced`/`MakePiece`) + `modia_build_test` | ⏳ |
+| **E0** | Sonda `modia_build_probe` (flags/receita/estação da `piece_workbench`) + `docs/re/building-notes.md` | ✅ 01/11/2026 — medido em jogo (`test3`): bancada = Madeira x10, sem estação, `noInWater`/`notOnTiltingSurface`/**`noClipping`**, `supports=false`, `rangeBuild=20`; 11 válidos de 16 pontos; baú recusado com `needs_station`; **achou um bug** (o `m_supports` é o da peça de baixo). Também virou as ferramentas `build.inspect`/`build.sites` do MCP (46) |
+| **E1** | `AI/BuildExecutor.cs` — `Player.PlacePiece` quando o `Player` do dono existe; reserva própria (claim → `SetCreator` → `WearNTear`/`IPlaced`/`MakePiece`) + `modia_build_test` | ✅ 01/11/2026 — as **duas rotas** passaram em jogo: peça com criador = jogador, ZDO válido, estação no registro (verificada 2 frames depois — o `Start` do `CraftingStation` registra no frame seguinte), material exato (40→20) e **relog** (2 bancadas com `mine:true` depois de matar o processo). Achou também que `MinSpacing` 1,5 m recusa o ponto óbvio → 0,6 m. Nova ferramenta `build.pieces` (47 no MCP) |
 | **E2** | `AI/BuildSite.cs` — busca de local em anéis + validador dirigido pelas flags do `Piece` + `modia_build_find` | ⏳ |
 | **E3** | Ordem `build` por chat/voz (`ValidActions` 35 → 36, `target` obrigatório + rede por palavras) — **MVP** | ⏳ |
 | **E4** | `AI/BuildStock.cs` + coleta do que falta (teto = falta, reusa `HarvestController`) | ⏳ |

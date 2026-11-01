@@ -376,6 +376,69 @@ TOOLS = [
         },
     },
     {
+        "name": "build_inspect",
+        "description": (
+            "Reads a buildable piece from the live game (E0 of the autonomous building plan): the recipe "
+            "(m_resources), the crafting station it needs, every placement flag of Piece (groundOnly, groundPiece, "
+            "noInWater, notOnWood, onlyInBiome, noClipping...), the space/connection rules, WearNTear (supports, "
+            "material, health), the private-area radius, whether it is in the player's hammer table and whether the "
+            "player knows the recipe. The flags are not published anywhere - they live in the asset bundle - so this "
+            "is how the real requirements are known instead of guessed."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "prefab": {"type": "string", "description": "prefab name, e.g. 'piece_workbench' or 'piece_chest_wood'"},
+            },
+            "required": ["prefab"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "build_sites",
+        "description": (
+            "Tests candidate spots for a buildable piece without placing anything (E0): rings of points around the "
+            "player (or around x/y/z) up to 'radius', each with a stable status name (valid, no_ground, in_water, "
+            "need_cultivated, not_on_wood, too_steep, no_build_zone, ward, needs_station, blocked_by_player...) plus "
+            "the ground facts (heightmap, normal, drop, biome, station in range, ward). Use it to learn where the "
+            "companion would be able to place a piece."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "prefab": {"type": "string", "description": "prefab name, e.g. 'piece_workbench'"},
+                "x": {"type": "number", "description": "centre (default: the player)"},
+                "y": {"type": "number"},
+                "z": {"type": "number"},
+                "radius": {"type": "number", "minimum": 0.5, "maximum": 40, "default": 4},
+                "rings": {"type": "integer", "minimum": 1, "maximum": 8, "default": 2},
+                "dirs": {"type": "integer", "minimum": 1, "maximum": 24, "default": 8},
+            },
+            "required": ["prefab"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "build_pieces",
+        "description": (
+            "Lists the build pieces already standing near a point (default: the player): prefab, name, creator, "
+            "whether the creator is the local player, distance, position, valid ZDO, health and the crafting station "
+            "it carries. Use it to prove a placement (or a relog) from the outside, and to check the companion's "
+            "builds."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "x": {"type": "number", "description": "centre (default: the player)"},
+                "y": {"type": "number"},
+                "z": {"type": "number"},
+                "radius": {"type": "number", "minimum": 0.5, "maximum": 100, "default": 10},
+                "filter": {"type": "string", "description": "case-insensitive substring of the prefab or piece name"},
+            },
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "world_setup",
         "description": "Dev setup for driving the player: enables dev commands (once), sets the time of day (0.5 = midday) and turns god mode on (or off with god=false).",
         "inputSchema": {
@@ -790,6 +853,22 @@ def run_tool(name, args):
         return require_ok(call_bridge("world.nearest", kind=args.get("kind", "tree"), max=args.get("max", 100)))
     if name == "world_prefabs":
         return require_ok(call_bridge("world.prefabs", filter=args.get("filter", ""), limit=args.get("limit", 60)))
+    if name == "build_inspect":
+        return require_ok(call_bridge("build.inspect", prefab=args["prefab"]))
+    if name == "build_sites":
+        payload = {"prefab": args["prefab"], "radius": args.get("radius", 4), "rings": args.get("rings", 2), "dirs": args.get("dirs", 8)}
+        for key in ("x", "y", "z"):
+            if key in args:
+                payload[key] = args[key]
+        return require_ok(call_bridge("build.sites", **payload))
+    if name == "build_pieces":
+        payload = {"radius": args.get("radius", 10)}
+        if args.get("filter"):
+            payload["filter"] = args["filter"]
+        for key in ("x", "y", "z"):
+            if key in args:
+                payload[key] = args[key]
+        return require_ok(call_bridge("build.pieces", **payload))
     if name == "world_setup":
         payload = {"time": args.get("time", 0.5), "god": args.get("god", True)}
         return require_ok(call_bridge("world.setup", **payload))

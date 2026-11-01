@@ -84,6 +84,9 @@ Uma conexão por chamada; **um JSON por linha**, nas duas direções.
 | `player.give` | `item`, `amount` | `item`, `amount`, `added` |
 | `player.teleport` | `x`, `y`, `z` | `x`, `y`, `z` |
 | `world.spawn` | `prefab`, `count`, `x?`, `y?`, `z?` | `prefab`, `count` |
+| `build.inspect` | `prefab` | `found`, `name`, `resources[]`, `station{}`, `flags{}`, `space{}`, `wearNTear{}`, `craftingStation{}`, `inHammer`, `recipeKnown` |
+| `build.sites` | `prefab`, `x?`, `y?`, `z?`, `radius?`, `rings?`, `dirs?` | `total`, `valid`, `points[]` (cada um com `status`, `reasons[]`, `ground{}`, `biome`, `cultivated`, `hasStation`, `wardOk`, `noBuildZone`) |
+| `build.pieces` | `x?`, `y?`, `z?`, `radius?`, `filter?` | `count`, `pieces[]` (`prefab`, `name`, `creator`, `mine`, `distance`, `zdo`, `health`, `station`) |
 | `screenshot` | `path?` | `path` |
 | `render.view` | `x`, `z`, `y?`, `yaw?`, `pitch?`, `dist?`, `size?` | `path`, `size`, `bytes`, `target{}`, `camera{}` |
 | `input.focus` | — | `focused`, `window` |
@@ -116,7 +119,7 @@ o cursor logo depois dela).
 `Wander`, `Follow`, `StayHome`, `HomeRadius`, `OrderCap`, `OrderCapMode`, `OrderCapItem`, `TombstoneId`, `Stamina`,
 `Recovering`, `RecoverStance`, `RecoverPickup`, `Voice`, `Gen`, `FarmZones` (`"<none>"` ou `"N chars"`).
 
-## Ferramentas MCP (44)
+## Ferramentas MCP (47)
 
 Genéricas: `devbridge_ping`, `game_status` (posição, hp/stamina, bioma, dia, **yaw** do player, **camYaw/pitch** da
 câmera e **god**), `game_console` (**roda um comando do console e devolve a saída**: liga os dev commands sozinho e,
@@ -126,6 +129,14 @@ num `spawn`, diz se o prefab existe), `player_give`, `player_teleport`, `player_
 conhece, filtrados — é como se descobre `AxeBlackMetal` em vez de adivinhar), `world_setup` (**devcommands + `tod` +
 `god on` + `heal`** — o setup para dirigir o player), `screenshot` (a visão do jogador), `render_view` (câmera
 **off-screen**, não mexe na visão do jogador), `log_tail`, `log_watch`.
+
+Construção (E0 da Trilha E): `build_inspect` (a **ficha** de uma peça construível, lida do prefab no jogo: receita,
+estação, **todas** as flags de posicionamento do `Piece`, regras de espaço/conexão, `WearNTear`, raio de ward, se está
+no martelo e se a receita é conhecida) e `build_sites` (o veredito de **anéis de pontos** em volta do jogador ou de
+`x/y/z`, com status estável — `valid`, `no_ground`, `in_water`, `no_build_zone`, `ward`, `needs_station`… — sem colocar
+nada). `build_pieces` (E1) lista as peças **já no mundo** num raio (prefab, nome, criador, `mine`, distância, `zdo`,
+vida, estação) — é como o teste de relog foi provado. É a mesma função dos comandos `modia_build_probe` e
+`modia_build_test` (`AI/BuildProbe.cs`, `AI/BuildExecutor.cs`); a medição está em `docs/re/building-notes.md`.
 
 Input (teclado/mouse no **Unity Input System** — o caminho que o jogo lê — e também no `SendInput` legado, que é o
 da UI do mod): `input_focus`, `input_key`, `input_key_down`, `input_key_up` (seguram teclas, então `Shift+W` corre e
@@ -149,11 +160,12 @@ Parâmetros e exemplos: `tools/mcp-devbridge/README.md`.
 | prova | resultado |
 |---|---|
 | build do mod com o módulo | **0 erros**, 1 aviso conhecido (`s_noDark`) |
-| teste do servidor MCP (mock, sem jogo) | **41 PASS / 0 FAIL** |
+| teste do servidor MCP (mock, sem jogo) | **47 PASS / 0 FAIL** (46 ferramentas) |
 | teste do parser JSON em C# | **11 PASS / 0 FAIL** |
 | plugin separado no jogo | **removido**; agora só existe o módulo dentro da `Companions.dll` |
 | ponta a ponta no jogo, módulo **standalone** (mundo `test3`) | **os 4 testes da 1.9.4 passaram** |
 | ponta a ponta no jogo, módulo **na DLL** (mundo `test3`, 31/10/2026) | **24/24 PASS** — as **23 ferramentas**, incluindo kill/resurrect/tier/hire |
+| **E0 da construção** (mundo `test3`, 01/11/2026) | `build.inspect piece_workbench` devolveu a ficha real (Madeira x10, sem estação, `noInWater`/`notOnTiltingSurface`/`noClipping`, `supports=false`, `rangeBuild=20`); `build.sites` deu **11 válidos de 16** (2 `blocked_by_player`, 3 `no_build_zone`); `build.sites piece_chest_wood` deu **0 válidos** com `needs_station` (a prova da checagem de estação); o comando `modia_build_probe` gravou as 23 linhas no log. Detalhes e as 5 peças medidas: `docs/re/building-notes.md` |
 | **controle do player** (mundo `test3`, 31/10/2026) | **andar, correr, pular, olhar, atacar e cortar uma árvore** — `Shift+W` gastou stamina (50 → 33,6), `mouse_move` girou a câmera, 16 golpes derrubaram a `Beech1` e a madeira entrou no inventário (2 → 3) |
 | **setup automático ao entrar** (mundo `test3`, 31/10/2026) | `world_enter` devolveu `setup: {cheats: true, god: true, hp: 25}` e `dayFraction 0.5`; 3 greylings baixaram o HP para 10,76 e **o player não morreu** (o `god` do Valheim 1.0 trava o HP em 1), `heal` devolveu 25 |
 | **comandos de console** (mundo `test3`, 31/10/2026) | `spawn PickaxeBlackMetal 5` → `ok: true, prefabFound: true`; `spawn AxeBlackmetal` → `prefabFound: false` (o certo é `AxeBlackMetal`); `tod 0.5` → saída real `Setting time of day:0,5` e `dayFraction 0.5`; comando inválido → `ok: false` com a mensagem do jogo; `demo_play.py` **12 PASS / 0 FAIL** |

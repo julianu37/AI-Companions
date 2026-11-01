@@ -1070,18 +1070,23 @@ comandos de console e spawna coisas, então não é feature de jogador.
   greyling enquanto mexia no bridge). O `god` do Valheim 1.0 **não** cancela o dano: ele trava o HP em **1** quando o
   golpe mataria (`Character.cs`), então o `heal` é obrigatório para a barra não ficar em 1. `setup: false` no
   `world_enter` desliga.
-- **Testar:** `python tools/mcp-devbridge/test_mcp_devbridge.py` (mock, sem jogo) — 41 checks.
+- **Testar:** `python tools/mcp-devbridge/test_mcp_devbridge.py` (mock, sem jogo) — 49 checks.
 - **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check` — **224 asserções** das redes por
   palavras (`RadialIntent`, `PickupIntent`, `GatherIntent`, `InteractionIntent`, `LlmIntent`, `OrderItems`,
   `CompanionNameMatch`) com os `.cs` reais linkados, mais o cross-check das cópias do `Stubs.cs` contra a
   `Companions.dll` (seção (h) — impede drift). Build 0/0 e exit 0 são o gate.
 - **Gate de release:** `powershell -ExecutionPolicy Bypass -File tools\release-check.ps1 -Version <versão>` — roda o
   build, a versão (`PluginVersion` × nome do zip), as 3 traduções, o `locale-fallback-check.ps1` (agora com asserts),
-  o `gen_config_doc.py --check`, o teste do MCP (41) e as 224 asserções; **PASS/FAIL por item e exit 1**. É o que tem
+  o `gen_config_doc.py --check`, o teste do MCP (49) e as 224 asserções; **PASS/FAIL por item e exit 1**. É o que tem
   de passar antes de tag/zip (`-SkipGame`/`-SkipIntents` para rodar parte).
-- **Docs:** `docs/mcp-devbridge.md` (arquitetura, protocolo, as **44** ferramentas, a receita de **jogar pelo agente**
+- **Docs:** `docs/mcp-devbridge.md` (arquitetura, protocolo, as **47** ferramentas, a receita de **jogar pelo agente**
   e a de **comandos de console**, e as evidências dos testes da 1.9.4) e `tools/mcp-devbridge/README.md`
   (parâmetros/exemplos).
+- **Construção (Trilha E):** `build.inspect` / `build.sites` são as duas ferramentas da **E0** (a sonda): leem a ficha
+  real de uma peça (receita, estação, flags de `Piece`, `WearNTear`, ward) e o veredito de anéis de pontos **sem
+  colocar nada**. `build.pieces` (E1) lista o que **já está no mundo** (prefab, criador, `mine`, `zdo`, vida,
+  estação) — é como o relog foi provado. A mesma função atende os comandos `modia_build_probe [prefab] [raio]` e
+  `modia_build_test [prefab] [auto|direct]`; a medição está em `docs/re/building-notes.md`.
 - **Não** empacotar o servidor Python no zip; o módulo vai na DLL, desligado.
 
 ## MCP servers disponíveis

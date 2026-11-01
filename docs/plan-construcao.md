@@ -113,7 +113,8 @@ placa). Mas na rota normal **não precisamos disso**: `Player.PlacePiece` já fa
 | Peça que exige estação falha **em silêncio** se a estação não estiver no raio | `HaveRequirements` → `CraftingStation.HaveBuildStationInRange` (L271) | validar `m_craftingStation` **no ponto** (é o que o BuildOrders faz no `HelperMayBuild`) |
 | `m_spaceRequirement` **não** é "espaço livre" — só vale com `StationExtension` | `UpdatePlacementGhost` | o teste de espaço real é `m_blockRadius`/`m_noClipping` |
 | `PlacePiece` **não** valida: coloca em qualquer lugar | L3099 (não checa nada) | a validação é **nossa**, antes de chamar |
-| Peça em cima do jogador | `CheckPlacementGhostVSPlayers` (L4195) | recusar candidato a < 1,5 m de qualquer `Player`/companheiro |
+| Peça em cima do jogador | `CheckPlacementGhostVSPlayers` (L4195) | recusar candidato a < 0,6 m de qualquer `Player`/companheiro (a regra real é colisão de collider — E2) |
+| `CraftingStation.Start()` registra a estação **no frame seguinte** | `CraftingStation.cs` L80 (`Start`) | verificar `HaveBuildStationInRange` só no frame seguinte; no mesmo frame dá `station_not_registered` (medido em 01/11/2026) |
 
 ---
 
@@ -262,35 +263,69 @@ Integração (pontos que já existem):
 
 ## 5. Fases (cada uma é um entregável testável)
 
-### Fase 0 — Sonda: parar de adivinhar (½ dia)
+### Fase 0 — Sonda: parar de adivinhar (½ dia) — ✅ **feita em 01/11/2026**
 
-**Entrega:** comando de console **de dev** `modia_build_probe [prefab]` (padrão do `modia_tts_teste`) que
+**Entrega:** comando de console **de dev** `modia_build_probe [prefab] [raio]` (padrão do `modia_tts_teste`) que
 imprime, para `piece_workbench` (e o que mais for passado):
 
 - `Piece`: `m_name`, `m_resources`, `m_craftingStation`, `m_canRotate`, `m_spaceRequirement`,
   `m_blockRadius`, **todas** as flags de posicionamento;
 - `WearNTear`: `m_supports`, `m_materialType`, `m_noSupportWear`;
 - `CraftingStation`: `m_name`, `m_rangeBuild`;
-- teste de posicionamento em **8 pontos** ao redor do jogador (2 m e 4 m, 4 direções): status e motivo.
+- o veredito de **16 pontos** ao redor do jogador (2 anéis × 8 direções), com status e motivo.
 
 **Saída obrigatória:** `docs/re/building-notes.md` com a ficha da bancada (o mesmo papel do
 `docs/re/harvesting-notes.md`). **Sem isso, a Fase 2 é chute.**
 
-**Aceite:** o log mostra a ficha completa e o veredito dos 8 pontos, sem exceção.
+**Aceite:** o log mostra a ficha completa e o veredito dos pontos, sem exceção. ✅ (23 linhas no log; 11
+válidos de 16; o baú recusado com `needs_station`)
 
-### Fase 1 — Executor (1 dia)
+**Resultado medido (o que a fase descobriu, e que muda a E2):**
 
-**Entrega:** `AI/BuildExecutor.cs` + comando `modia_build_test <prefab>` que coloca a peça **1,5 m à frente
-do jogador**, com o material consumido da mochila do jogador, sem IA.
+1. a regra de "espaço" da bancada é **`m_noClipping`** (não `m_spaceRequirement`, que é 0);
+2. `WearNTear.m_supports` é lido na **peça de baixo** — a bancada não sustenta nada (não se constrói em cima
+   dela). A primeira execução da sonda errou isso e **todos** os 16 pontos voltaram `no_support`;
+3. a bancada **não** exige chão (`m_groundOnly = false`): vale piso de madeira;
+4. os prefabs são `fire_pit` / `piece_bed02` / `wood_floor` — `piece_firepit` e `piece_bed` **não existem**;
+5. `wood_floor` não tem flag nenhuma: o validador tem que aceitar "nada a checar".
 
-**Aceite (em jogo, `test3`):**
+**Além do plano:** a sonda virou também as ferramentas `build.inspect` e `build.sites` do MCP (o agente mede
+sozinho, sem ler log), e o teste do servidor MCP subiu de 41 para **47 checks** (46 ferramentas).
 
-1. a peça aparece e **funciona** (a bancada abre a janela de craft);
-2. `Piece.GetCreator()` = id do jogador; `ZNetView` válido; `WearNTear` com vida cheia;
-3. **relog**: continua lá, do mesmo dono;
-4. material consumido **exatamente** `m_resources`;
-5. log sem exceção; nenhum objeto "fantasma" quando a posição é inválida;
-6. com o `Player` do dono carregado, o caminho é o `PlacePiece` (o log diz qual rota foi usada).
+
+### Fase 1 — Executor (1 dia) — ✅ **feita em 01/11/2026**
+
+**Entrega:** `AI/BuildExecutor.cs` + comando `modia_build_test <prefab> [auto|direct]` que coloca **uma** peça
+1,5 m à frente do jogador (ou no primeiro ponto válido em volta), com o material consumido da mochila do jogador,
+sem IA.
+
+**As duas rotas (medidas em jogo, as duas passam):**
+
+| rota | quando | o que faz |
+|---|---|---|
+| `PlayerPlacePiece` | o `Player` do dono é o local (single/host — o caso normal) | `Player.PlacePiece(piece, pos, rot, doAttack: false)` — vanilla inteiro: `Instantiate`, `AddKnownStation`, `PrivateArea.Setup`, `WearNTear.OnPlaced`, `IPlaced.OnPlaced`, `ItemDrop.MakePiece`, efeito, stats e criador = jogador |
+| `Direct` | o `Player` do dono não está carregado aqui, ou teste forçado | a sequência da §2.4 à mão (claim → `SetCreator` → `OnPlaced` → `IPlaced` → `MakePiece` → efeito), criador = `MHR_Owner.CreatorId` |
+
+**Aceite (em jogo, `test3`, 01/11/2026):**
+
+1. ✅ a peça aparece e **funciona** (a bancada entrou no registro de estações do jogo);
+2. ✅ `Piece.GetCreator()` = id do jogador; `ZNetView` válido; vida cheia;
+3. ✅ **relog** (mata o processo → abre → entra): as bancadas continuam lá, do mesmo criador, com ZDO e a
+   estação registrada (`build.pieces` depois do relog: 2 peças, `mine: true`, `zdo: true`, `health: 1`,
+   `station: $piece_workbench`);
+4. ✅ material consumido **exatamente** `m_resources` (40 → 20 em duas colocações de 10);
+5. ✅ log sem exceção; ponto inválido é **recusado antes** de qualquer coisa acontecer;
+6. ✅ o log diz a rota usada em cada colocação.
+
+**Duas armadilhas novas, achadas no teste (entraram na §2.5):**
+
+- **`CraftingStation.Start()` registra a estação no frame SEGUINTE** — verificar `HaveBuildStationInRange` no
+  mesmo frame do `Instantiate` **sempre** falha (`station_not_registered`). A verificação imediata não checa a
+  estação; a diferida (o job, ou o teste 2 frames depois) checa.
+- **`MinSpacing` de 1,5 m recusa o óbvio**: 1,5 m à frente do jogador é exatamente a distância do teste, e o
+  vanilla coloca bancada do lado do jogador. A regra real é a colisão dos colliders do fantasma
+  (`CheckPlacementGhostVSPlayers`); o guarda barato agora é **0,6 m**, e a E2 traz o teste de colisão de verdade.
+
 
 ### Fase 2 — Busca de local (1,5 dia)
 

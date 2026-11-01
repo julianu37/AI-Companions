@@ -127,15 +127,16 @@ def main():
 
         tools = rpc("tools/list", request_id=2).get("result", {}).get("tools", [])
         names = {tool["name"] for tool in tools}
-        check("tools/list has 44 tools", len(tools) == 44, "%d tools" % len(tools))
+        check("tools/list has 47 tools", len(tools) == 47, "%d tools" % len(tools))
         for expected in ("devbridge_ping", "game_status", "companions_list", "companions_order", "screenshot", "log_tail",
                          "player_kill", "player_inventory", "world_time", "companions_kill", "companions_tier",
-                         "companions_hire", "companions_resurrect", "companions_farm_zone", "log_watch"):
+                         "companions_hire", "companions_resurrect", "companions_farm_zone", "log_watch",
+                         "build_inspect", "build_sites", "build_pieces"):
             check("tools/list includes %s" % expected, expected in names)
 
         ping = rpc("tools/call", {"name": "devbridge_ping", "arguments": {}}, request_id=3)
         text = ping["result"]["content"][0]["text"]
-        check("devbridge_ping reaches the bridge", "DevBridge" in text and "1.9.4" in text, text.replace("\n", " ")[:60])
+        check("devbridge_ping reaches the bridge", "DevBridge" in text and '"inGame"' in text, text.replace("\n", " ")[:60])
 
         listing = rpc("tools/call", {"name": "companions_list", "arguments": {}}, request_id=4)
         text = listing["result"]["content"][0]["text"]
@@ -183,10 +184,18 @@ def main():
             (27, "companions_hire", {}, "companions.hire"),
             (28, "companions_resurrect", {"name": "Maria"}, "companions.resurrect"),
             (29, "companions_farm_zone", {"action": "add", "crop": "CarrotSeeds"}, "companions.farm_zone"),
+            (30, "build_inspect", {"prefab": "piece_workbench"}, "build.inspect"),
+            (31, "build_sites", {"prefab": "piece_workbench", "radius": 3}, "build.sites"),
+            (32, "build_pieces", {"radius": 5}, "build.pieces"),
         ):
             reply = rpc("tools/call", {"name": tool, "arguments": arguments}, request_id=request_id)
             text = reply.get("result", {}).get("content", [{}])[0].get("text", "")
             check("%s forwards %s" % (tool, command), '"echo": "%s"' % command in text, text.replace("\n", " ")[:50])
+
+        check("build_inspect sends the prefab",
+              any(r.get("cmd") == "build.inspect" and r.get("args", {}).get("prefab") == "piece_workbench" for r in bridge.requests))
+        check("build_sites sends prefab and radius",
+              any(r.get("cmd") == "build.sites" and r.get("args", {}).get("radius") == 3 for r in bridge.requests))
 
         check("companions_kill sends the name",
               any(r.get("cmd") == "companions.kill" and r.get("args", {}).get("name") == "Maria" for r in bridge.requests))

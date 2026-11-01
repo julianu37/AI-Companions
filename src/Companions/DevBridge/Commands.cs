@@ -90,6 +90,9 @@ internal static class Commands
 			case "world.aim": return WorldAim(args);
 			case "world.nearest": return WorldNearest(args);
 			case "world.prefabs": return WorldPrefabs(args);
+		case "build.inspect": return BuildInspect(args);
+		case "build.sites": return BuildSites(args);
+		case "build.pieces": return BuildPieces(args);
 			case "world.tombstones": return WorldTombstones(args);
 			case "world.tombstone_take": return WorldTombstoneTake(args);
 			case "world.tombstone_destroy": return WorldTombstoneDestroy(args);
@@ -331,6 +334,149 @@ internal static class Commands
 			{ "filter", filter },
 			{ "count", matches.Count },
 			{ "names", matches }
+		});
+	}
+
+	/// <summary>
+	/// Fase E0 (construção autônoma): the <b>sonda</b> - what a buildable piece is, read from the live prefab. The
+	/// flags of <c>Piece</c> are not published anywhere (they live in the asset bundle), so this is how the agent
+	/// learns what the workbench really needs instead of guessing.
+	/// </summary>
+	private static string BuildInspect(Dictionary<string, object> args)
+	{
+		if (ZNetScene.instance == null)
+		{
+			return Fail("the world isn't loaded");
+		}
+		string prefab = (Json.Str(args, "prefab") ?? string.Empty).Trim();
+		if (prefab.Length == 0)
+		{
+			return Fail("prefab is required (e.g. piece_workbench)");
+		}
+		Dictionary<string, object> data = BuildProbe.Describe(prefab);
+		if (!(data.TryGetValue("found", out object found) && found is bool ok && ok))
+		{
+			return Fail(Convert.ToString(data["reason"]));
+		}
+		return Ok(data);
+	}
+
+	/// <summary>
+	/// Fase E0: tests a ring of candidate spots around the player (or around x/y/z) against the piece's placement
+	/// rules, without placing anything. Each point comes with a stable status name, so a test in the game already
+	/// speaks the vocabulary of the feature.
+	/// </summary>
+	private static string BuildSites(Dictionary<string, object> args)
+	{
+		if (ZNetScene.instance == null)
+		{
+			return Fail("the world isn't loaded");
+		}
+		string prefab = (Json.Str(args, "prefab") ?? string.Empty).Trim();
+		if (prefab.Length == 0)
+		{
+			return Fail("prefab is required (e.g. piece_workbench)");
+		}
+		Piece piece = BuildProbe.PieceOf(prefab);
+		if (piece == null)
+		{
+			return Fail("no Piece component on '" + prefab + "'");
+		}
+		Player p = Player.m_localPlayer;
+		Vector3 center = p != null ? p.transform.position : Vector3.zero;
+		float x = Json.Float(args, "x", center.x);
+		float y = Json.Float(args, "y", center.y);
+		float z = Json.Float(args, "z", center.z);
+		center = new Vector3(x, y, z);
+		float radius = Mathf.Clamp(Json.Float(args, "radius", 4f), 0.5f, 40f);
+		int rings = Mathf.Clamp(Json.Int(args, "rings", 2), 1, 8);
+		int dirs = Mathf.Clamp(Json.Int(args, "dirs", 8), 1, 24);
+		List<object> points = BuildProbe.Scan(piece, center, radius, rings, dirs);
+		int valid = 0;
+		foreach (object entry in points)
+		{
+			Dictionary<string, object> point = entry as Dictionary<string, object>;
+			if (point != null && point["ok"] is bool ok && ok)
+			{
+				valid++;
+			}
+		}
+		return Ok(new Dictionary<string, object>
+		{
+			{ "prefab", prefab },
+			{ "name", piece.m_name },
+			{ "center", new Dictionary<string, object> { { "x", center.x }, { "y", center.y }, { "z", center.z } } },
+			{ "radius", radius },
+			{ "rings", rings },
+			{ "dirs", dirs },
+			{ "total", points.Count },
+			{ "valid", valid },
+			{ "points", points }
+		});
+	}
+
+	/// <summary>
+	/// The pieces already standing near a point (default: the player), with what the verification asks: the prefab,
+	/// the creator, the health, whether it has a station and a valid ZDO. It is how a test proves a placement (or a
+	/// relog) from the outside, and how the job's "Task Verification" is checked.
+	/// </summary>
+	private static string BuildPieces(Dictionary<string, object> args)
+	{
+		if (ZNetScene.instance == null)
+		{
+			return Fail("the world isn't loaded");
+		}
+		Player player = Player.m_localPlayer;
+		Vector3 center = player != null ? player.transform.position : Vector3.zero;
+		float x = Json.Float(args, "x", center.x);
+		float y = Json.Float(args, "y", center.y);
+		float z = Json.Float(args, "z", center.z);
+		center = new Vector3(x, y, z);
+		float radius = Mathf.Clamp(Json.Float(args, "radius", 10f), 0.5f, 100f);
+		string filter = (Json.Str(args, "filter") ?? string.Empty).Trim();
+		long me = player != null ? player.GetPlayerID() : 0L;
+		List<object> found = new List<object>();
+		foreach (Piece piece in UnityEngine.Object.FindObjectsByType<Piece>(UnityEngine.FindObjectsSortMode.None))
+		{
+			if (piece == null || !piece.gameObject.scene.IsValid())
+			{
+				continue;
+			}
+			float distance = Vector3.Distance(piece.transform.position, center);
+			if (distance > radius)
+			{
+				continue;
+			}
+			if (filter.Length > 0 && piece.gameObject.name.IndexOf(filter, StringComparison.OrdinalIgnoreCase) < 0
+				&& piece.m_name.IndexOf(filter, StringComparison.OrdinalIgnoreCase) < 0)
+			{
+				continue;
+			}
+			ZNetView nv = piece.GetComponent<ZNetView>();
+			WearNTear wear = piece.GetComponent<WearNTear>();
+			CraftingStation station = piece.GetComponentInChildren<CraftingStation>();
+			found.Add(new Dictionary<string, object>
+			{
+				{ "prefab", piece.gameObject.name },
+				{ "name", piece.m_name },
+				{ "creator", piece.GetCreator() },
+				{ "mine", me != 0L && piece.GetCreator() == me },
+				{ "distance", distance },
+				{ "x", piece.transform.position.x },
+				{ "y", piece.transform.position.y },
+				{ "z", piece.transform.position.z },
+				{ "zdo", nv != null && nv.IsValid() && nv.GetZDO() != null },
+				{ "health", wear != null ? wear.GetHealthPercentage() : -1f },
+				{ "station", station != null ? station.m_name : null }
+			});
+		}
+		found.Sort((a, b) => ((float)((Dictionary<string, object>)a)["distance"]).CompareTo(((Dictionary<string, object>)b)["distance"]));
+		return Ok(new Dictionary<string, object>
+		{
+			{ "center", new Dictionary<string, object> { { "x", center.x }, { "y", center.y }, { "z", center.z } } },
+			{ "radius", radius },
+			{ "count", found.Count },
+			{ "pieces", found }
 		});
 	}
 

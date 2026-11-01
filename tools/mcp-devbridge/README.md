@@ -60,6 +60,69 @@ Runs the command exactly like typing it in the in-game console (F5) and returns 
 
 The prefab names the world knows - the exact spelling for `spawn` and `world_spawn`.
 
+### `build_inspect`
+
+| param | type | default |
+|---|---|---|
+| `prefab` | string | - |
+
+```json
+{"prefab": "piece_workbench", "found": true, "name": "Bancada", "rawName": "$piece_workbench",
+ "inHammer": true, "recipeKnown": true,
+ "resources": [{"item": "Wood", "name": "Madeira", "amount": 10}],
+ "flags": {"noInWater": true, "notOnTiltingSurface": true, "noClipping": true, "groundOnly": false},
+ "space": {"spaceRequirement": 0, "blockRadius": 0, "blockingPieces": [], "onlyInBiome": "None"},
+ "wearNTear": {"supports": false, "material": "Wood", "health": 200},
+ "craftingStation": {"rawName": "$piece_workbench", "rangeBuild": 20, "requireRoof": true}}
+```
+
+The real sheet of a buildable piece, read from the live prefab: recipe, station, **every** placement flag of
+`Piece`, the space/connection rules, `WearNTear`, the private-area radius, whether it is in the player's hammer
+table and whether the player knows the recipe. The flags are not published anywhere (they live in the asset
+bundle), so this is how the requirements are known instead of guessed. Phase E0 of `docs/plan-construcao.md`;
+the measured pieces are in `docs/re/building-notes.md`.
+
+### `build_sites`
+
+| param | type | default |
+|---|---|---|
+| `prefab` | string | - |
+| `x`, `y`, `z` | number | the player's position |
+| `radius` | number (0.5..40) | 4 |
+| `rings` | integer (1..8) | 2 |
+| `dirs` | integer (1..24) | 8 |
+
+```json
+{"prefab": "piece_workbench", "total": 16, "valid": 11,
+ "points": [{"ring": 1, "dir": 0, "x": -278.2, "y": 81.2, "z": -271.5, "ok": true, "status": "valid", "reasons": [],
+             "ground": {"name": "Terrain", "isHeightmap": true, "normalY": 0.99, "drop": 0.0}}]}
+```
+
+Tests candidate spots **without placing anything**: rings of points around the player (or around `x/y/z`), each
+with a stable status name - `valid`, `no_ground`, `in_water`, `no_water`, `need_cultivated`, `need_dirt`,
+`not_on_wood`, `too_steep`, `not_ceiling`, `not_on_floor`, `no_teleport_area`, `not_in_dungeon`, `deep_snow`,
+`no_snow`, `wrong_biome`, `no_build_zone`, `ward`, `needs_station`, `too_close_piece`, `blocked_by_player`,
+`no_support` - plus the ground facts (heightmap, normal, drop, biome, station in range, ward, no-build zone).
+It is the checks of `Player.UpdatePlacementGhost` that do not need the ghost; the ghost-clipping test
+(`m_noClipping`) comes in E2.
+
+### `build_pieces`
+
+| param | type | default |
+|---|---|---|
+| `x`, `y`, `z` | number | the player's position |
+| `radius` | number (0.5..100) | 10 |
+| `filter` | string (substring of the prefab or piece name) | `""` |
+
+```json
+{"count": 1, "pieces": [{"prefab": "piece_workbench(Clone)", "name": "$piece_workbench", "creator": 1738272368,
+                          "mine": true, "distance": 1.5, "zdo": true, "health": 1.0, "station": "$piece_workbench"}]}
+```
+
+The pieces **already standing** near a point: prefab, name, creator, whether the creator is the local player,
+distance, position, valid ZDO, health (0..1) and the crafting station it carries. It is how a placement - or a
+relog - is proven from the outside, and how the companion's builds are checked.
+
 ### `player_give`
 
 | param | type | default |
