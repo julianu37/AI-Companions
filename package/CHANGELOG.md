@@ -21,6 +21,9 @@ its own bag, places the piece and confirms it works.
 - **How it confirms:** the piece has a valid ZDO, the right creator (you), full health and - when it is a station -
   the game's own registry sees it (`CraftingStation.HaveBuildStationInRange`, checked one frame later because
   `CraftingStation.Start` registers on the next frame).
+- **A piece whose recipe the player has not unlocked** says so in its own line ("We haven't unlocked that recipe
+  yet: {0} is missing.") instead of "I don't know how to build that" - found in the player's test with the bed,
+  whose recipe needs wolf pelt and iron nails.
 - **Refusals** have their own line: unknown piece, combat-only type (the dvergers), building turned off, no spot,
   missing material, failed placement - and a piece that needs a station (a chest, a bed) says **which station** it
   needs when none is in range, before paying anything ("Bancada is not in range of the spot").

@@ -607,6 +607,7 @@ public static class ModLocalization
 			{ "hc_ai_order_build", "build {0}" },
 			{ "hc_ai_build_disabled", "I can't build right now: building is turned off." },
 			{ "hc_ai_build_no_recipe", "I don't know how to build that." },
+			{ "hc_ai_build_recipe_locked", "We haven't unlocked that recipe yet: {0} is missing." },
 			{ "hc_ai_build_not_allowed", "I can't build that yet; for now I can do a workbench, a chest, a campfire and a bed." },
 			{ "hc_ai_build_missing", "We're missing {0} for the {1}." },
 			{ "hc_ai_build_no_site", "I couldn't find a place for the {0} here." },

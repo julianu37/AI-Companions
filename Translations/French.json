@@ -674,6 +674,7 @@
         { "key": "hc_ai_order_build", "value": "construire {0}" },
         { "key": "hc_ai_build_disabled", "value": "Je ne peux pas construire maintenant : la construction est désactivée." },
         { "key": "hc_ai_build_no_recipe", "value": "Je ne sais pas construire ça." },
+        { "key": "hc_ai_build_recipe_locked", "value": "Nous n'avons pas encore débloqué cette recette : il manque {0}." },
         { "key": "hc_ai_build_not_allowed", "value": "Je ne sais pas encore construire ça ; pour l'instant je sais faire un établi, un coffre, un feu de camp et un lit." },
         { "key": "hc_ai_build_missing", "value": "Il manque {0} pour {1}." },
         { "key": "hc_ai_build_no_site", "value": "Je n'ai pas trouvé de place pour {0} ici." },

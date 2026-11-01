@@ -674,6 +674,7 @@
         { "key": "hc_ai_order_build", "value": "costruire {0}" },
         { "key": "hc_ai_build_disabled", "value": "Non posso costruire adesso: la costruzione è disattivata." },
         { "key": "hc_ai_build_no_recipe", "value": "Non so costruire questo." },
+        { "key": "hc_ai_build_recipe_locked", "value": "Non abbiamo ancora sbloccato quella ricetta: manca {0}." },
         { "key": "hc_ai_build_not_allowed", "value": "Non so ancora costruire questo; per ora so fare banco da lavoro, cassa, falò e letto." },
         { "key": "hc_ai_build_missing", "value": "Mancano {0} per {1}." },
         { "key": "hc_ai_build_no_site", "value": "Non ho trovato un posto per {0} qui." },

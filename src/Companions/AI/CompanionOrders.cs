@@ -1055,9 +1055,17 @@ internal static class CompanionOrders
 			return outcome;
 		}
 		Piece piece = BuildProbe.PieceOf(prefab);
-		if (piece == null || (player != null && !player.IsRecipeKnown(piece.m_name)))
+		if (piece == null)
 		{
 			outcome.Message = ModLocalization.Loc("hc_ai_build_no_recipe");
+			return outcome;
+		}
+		// the piece is one of ours but the player has not unlocked its recipe yet: say THAT, not "I don't know how to
+		// build it" (which reads as if the companion had never heard of a bed) - found in the player's test, 01/11/2026
+		if (player != null && !player.IsRecipeKnown(piece.m_name))
+		{
+			string lockedName = Localization.instance != null ? Localization.instance.Localize(piece.m_name) : prefab;
+			outcome.Message = string.Format(ModLocalization.Loc("hc_ai_build_recipe_locked"), lockedName);
 			return outcome;
 		}
 		CompanionSetup target = IsDirected(addressee) ? addressee : speaker;

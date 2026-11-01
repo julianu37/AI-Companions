@@ -388,7 +388,13 @@ no `CompanionOrders`, a rede `CompanionOrders.IsBuildRequest` no lado `none`, o 
    medido a **140 m** da oficina (`build.pieces radius 45` = 0 bancadas), com 10 madeira na mochila: **nada foi
    construído** (`baus depois: 0`) e **nada foi gasto** — a checagem roda antes de pagar. O motivo agora aparece
    também no log (`order ended: <chave> (<motivo>)`), que é como o teste prova qual linha saiu;
-7. 👤 **voz (push-to-talk): teste do JOGADOR** (não é pendência de código). O caminho é o **mesmo** `CompanionChatAI.Submit` do chat (nada de
+7. ✅ **teste do JOGADOR (01/11/2026):** voz (push-to-talk) **funciona**, fogueira **funciona**, e a **cama**
+   respondeu *"não sei construir isso"* — o gate de receita (`IsRecipeKnown`) estava certo (`build.inspect`
+   mostra `recipeKnown: false` para a `piece_bed02` neste perfil), mas a **mensagem** confundia: parecia que o
+   companheiro não conhecia a peça. Agora há uma linha própria, `hc_ai_build_recipe_locked` ("Ainda não
+   desbloqueamos essa receita: falta a {0}."), nos 5 idiomas, e o `companions.build` do MCP aplica o **mesmo**
+   gate. Dverger (item 4) e os ajustes de mira/idioma (5 e 6) ficaram para depois, por decisão do jogador.
+8. 👤 **voz (push-to-talk): teste do JOGADOR** (não é pendência de código). O caminho é o **mesmo** `CompanionChatAI.Submit` do chat (nada de
    lógica duplicada) e a voz foi validada em jogo nas Fases 3.3/3.3b/3.3d, mas o agente **não tem microfone**: falar
    "Maria, construa uma bancada de trabalho aqui" segurando `V` é o único passo que fica com o jogador.
 

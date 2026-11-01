@@ -572,6 +572,12 @@ internal static class Commands
 		{
 			return Fail("no Piece component on '" + prefab + "'");
 		}
+		// the same recipe gate the chat order uses: the companion does not build what the player has not unlocked
+		Piece bedPiece = BuildProbe.PieceOf(prefab);
+		if (player != null && bedPiece != null && !player.IsRecipeKnown(bedPiece.m_name))
+		{
+			return Fail("the player has not unlocked the recipe of '" + prefab + "'");
+		}
 		CompanionSetup target = null;
 		string name = (Json.Str(args, "name") ?? string.Empty).Trim();
 		foreach (CompanionSetup setup in CompanionSetup.AllCompanions)
