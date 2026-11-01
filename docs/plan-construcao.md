@@ -465,6 +465,22 @@ BANCADA NOVA em 96 s (0 -> 3 -> 6 -> 10 madeiras coletadas, volta e colocação)
 **Movimento (a regressão que forçou a reversão):** medido com a ordem de coleta — o companheiro andou **22,3 m**
 (de 30,6 m para 8,6 m do jogador) sem travar, e depois seguiu normalmente.
 
+**Sem recurso no raio (o outro ramo do aceite):** com `GatherRadius = 10` de propósito, a ordem **recusa na hora**
+— não entrega a coleta e não espera os 300 s:
+
+```
+[Build] missing: Madeira x10
+[Build] no resource within 10 m - refusing
+[Build] order ended: hc_ai_build_missing
+```
+
+E se a coleta **começar** mas não terminar em 300 s, o vigia agora **fala** o que falta (`hc_ai_build_missing`)
+antes de encerrar (antes só escrevia no log).
+
+**`MaxDistanceFromHome` exercitado** (home no companheiro, `MaxDistanceFromHome = 1` de propósito):
+`{"ok": false, "error": "the spot is 4 m from the companion's home (max 1 m)"}` — a coleira barra a ordem
+(no jogo a linha é `hc_ai_build_too_far`).
+
 #### O texto original da fase (para referência)
 
 **Entrega:** `BuildStock` ligado ao `HarvestController` com **teto = o que falta** (`HC_OrderCap`), volta e

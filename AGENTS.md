@@ -1070,16 +1070,16 @@ comandos de console e spawna coisas, então não é feature de jogador.
   greyling enquanto mexia no bridge). O `god` do Valheim 1.0 **não** cancela o dano: ele trava o HP em **1** quando o
   golpe mataria (`Character.cs`), então o `heal` é obrigatório para a barra não ficar em 1. `setup: false` no
   `world_enter` desliga.
-- **Testar:** `python tools/mcp-devbridge/test_mcp_devbridge.py` (mock, sem jogo) — 53 checks.
+- **Testar:** `python tools/mcp-devbridge/test_mcp_devbridge.py` (mock, sem jogo) — 55 checks.
 - **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check` — **224 asserções** das redes por
   palavras (`RadialIntent`, `PickupIntent`, `GatherIntent`, `InteractionIntent`, `LlmIntent`, `OrderItems`,
   `CompanionNameMatch`) com os `.cs` reais linkados, mais o cross-check das cópias do `Stubs.cs` contra a
   `Companions.dll` (seção (h) — impede drift). Build 0/0 e exit 0 são o gate.
 - **Gate de release:** `powershell -ExecutionPolicy Bypass -File tools\release-check.ps1 -Version <versão>` — roda o
   build, a versão (`PluginVersion` × nome do zip), as 3 traduções, o `locale-fallback-check.ps1` (agora com asserts),
-  o `gen_config_doc.py --check`, o teste do MCP (53) e as 224 asserções; **PASS/FAIL por item e exit 1**. É o que tem
+  o `gen_config_doc.py --check`, o teste do MCP (55) e as 224 asserções; **PASS/FAIL por item e exit 1**. É o que tem
   de passar antes de tag/zip (`-SkipGame`/`-SkipIntents` para rodar parte).
-- **Docs:** `docs/mcp-devbridge.md` (arquitetura, protocolo, as **49** ferramentas, a receita de **jogar pelo agente**
+- **Docs:** `docs/mcp-devbridge.md` (arquitetura, protocolo, as **50** ferramentas, a receita de **jogar pelo agente**
   e a de **comandos de console**, e as evidências dos testes da 1.9.4) e `tools/mcp-devbridge/README.md`
   (parâmetros/exemplos).
 - **Construção (Trilha E):** `build.inspect` / `build.sites` são as duas ferramentas da **E0** (a sonda): leem a ficha

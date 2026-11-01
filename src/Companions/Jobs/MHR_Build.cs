@@ -412,7 +412,15 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		state.GatherAmount = amount;
 		float radius = ModConfig.BuildGatherRadius != null ? ModConfig.BuildGatherRadius.Value : 120f;
 		Transform resource = NearestResource(state.Pos, radius, item);
-		float distance = resource != null ? Vector3.Distance(state.Pos, resource.position) : 0f;
+		if (resource == null)
+		{
+			// nothing to collect inside the radius: answer NOW with what is missing instead of handing the order to a
+			// harvest that has nothing to do and waiting the 300 s out (acceptance of E4: "no trees in range -> says
+			// what is missing and ends, no loop")
+			Log(ai, "no resource within " + radius.ToString("F0") + " m - refusing");
+			return GatherStart.None;
+		}
+		float distance = Vector3.Distance(state.Pos, resource.position);
 		if (resource != null && distance > 20f)
 		{
 			state.GatherTarget = resource.position;
@@ -532,14 +540,18 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			Log(ai, "the work changed - the build order was dropped");
 			return;
 		}
+		bool useChests = ModConfig.BuildUseChests == null || ModConfig.BuildUseChests.Value;
 		if (Time.time - pending.Start > GatherTimeout)
 		{
 			s_pending.Remove(ai.GetInstanceID());
 			CompanionSetup.ClearOrderCap(cs);
-			Log(ai, "gathering took too long - the build order was dropped");
+			// the order has to SAY what is still missing (acceptance of E4: it must not end in silence)
+			Dictionary<string, int> still = BuildStock.Missing(bag, piece, pending.Hint, cs, useChests);
+			string label = Localization.instance != null ? Localization.instance.Localize(piece.m_name) : pending.Prefab;
+			Log(ai, "gathering took too long - saying what is missing");
+			Say(ai, "hc_ai_build_missing", MissingText(still), label);
 			return;
 		}
-		bool useChests = ModConfig.BuildUseChests == null || ModConfig.BuildUseChests.Value;
 		if (BuildStock.Missing(bag, piece, pending.Hint, cs, useChests).Count > 0)
 		{
 			return;   // still gathering

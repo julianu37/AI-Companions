@@ -442,6 +442,15 @@ TOOLS = [
         },
     },
     {
+        "name": "companions_sethome",
+        "description": "Sets the companion's home where it stands (the wheel's set-home action), so the build leash ([Building] MaxDistanceFromHome) can be tested from the outside.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"name": {"type": "string", "description": "companion name; default: the first one"}},
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "companions_build",
         "description": (
             "Gives a companion a build order without the LLM (Trilha E, E3): it checks the recipe, finds a valid spot "
@@ -907,6 +916,11 @@ def run_tool(name, args):
             if key in args:
                 payload[key] = args[key]
         return require_ok(call_bridge("build.find", **payload))
+    if name == "companions_sethome":
+        payload = {}
+        if args.get("name"):
+            payload["name"] = args["name"]
+        return require_ok(call_bridge("companions.sethome", **payload))
     if name == "companions_build":
         payload = {"prefab": args["prefab"]}
         if args.get("name"):

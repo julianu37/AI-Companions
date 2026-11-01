@@ -95,6 +95,7 @@ internal static class Commands
 		case "build.pieces": return BuildPieces(args);
 		case "build.find": return BuildFind(args);
 		case "companions.build": return CompanionsBuild(args);
+		case "companions.sethome": return CompanionsSetHome(args);
 			case "world.tombstones": return WorldTombstones(args);
 			case "world.tombstone_take": return WorldTombstoneTake(args);
 			case "world.tombstone_destroy": return WorldTombstoneDestroy(args);
@@ -618,6 +619,16 @@ internal static class Commands
 			hint = new Vector3(flat.x, y, flat.z);
 		}
 		MHR_Owner.TakeControl(target);
+		// the same leash the chat order applies (CompanionOrders.Build): the harness must behave like the order
+		float max = ModConfig.BuildMaxDistanceFromHome != null ? ModConfig.BuildMaxDistanceFromHome.Value : 40f;
+		if (max > 0f && target.HasHomePosition())
+		{
+			float fromHome = Vector3.Distance(target.GetHomePosition(), hint);
+			if (fromHome > max)
+			{
+				return Fail("the spot is " + Mathf.RoundToInt(fromHome) + " m from the companion's home (max " + Mathf.RoundToInt(max) + " m)");
+			}
+		}
 		bool started = MHR_Build.Start(target, prefab, hint);
 		return Ok(new Dictionary<string, object>
 		{
@@ -625,6 +636,54 @@ internal static class Commands
 			{ "prefab", prefab },
 			{ "name", target.GetComponent<ZNetView>()?.GetZDO()?.GetString(CompanionSetup.NameHash, "Companion") },
 			{ "hint", new Dictionary<string, object> { { "x", hint.x }, { "y", hint.y }, { "z", hint.z } } }
+		});
+	}
+
+	/// <summary>Trilha E (E4): sets the companion's home where it stands (the same call the wheel's "set home here"
+	/// makes), so the build leash (<c>[Building] MaxDistanceFromHome</c>) can be exercised from the outside.</summary>
+	private static string CompanionsSetHome(Dictionary<string, object> args)
+	{
+		if (ZNetScene.instance == null)
+		{
+			return Fail("the world isn't loaded");
+		}
+		string name = (Json.Str(args, "name") ?? string.Empty).Trim();
+		CompanionSetup target = null;
+		foreach (CompanionSetup setup in CompanionSetup.AllCompanions)
+		{
+			if (setup == null)
+			{
+				continue;
+			}
+			if (name.Length == 0)
+			{
+				if (target == null)
+				{
+					target = setup;
+				}
+				continue;
+			}
+			ZNetView nv = setup.GetComponent<ZNetView>();
+			ZDO zdo = nv != null ? nv.GetZDO() : null;
+			if (string.Equals(zdo != null ? zdo.GetString(CompanionSetup.NameHash, string.Empty) : string.Empty, name, StringComparison.OrdinalIgnoreCase))
+			{
+				target = setup;
+				break;
+			}
+		}
+		if (target == null)
+		{
+			return Fail(name.Length > 0 ? "no companion named '" + name + "'" : "no companion in the world");
+		}
+		MHR_Owner.TakeControl(target);
+		target.SetHomePosition(target.transform.position);
+		Vector3 pos = target.transform.position;
+		return Ok(new Dictionary<string, object>
+		{
+			{ "name", target.GetComponent<ZNetView>()?.GetZDO()?.GetString(CompanionSetup.NameHash, "Companion") },
+			{ "x", pos.x },
+			{ "y", pos.y },
+			{ "z", pos.z }
 		});
 	}
 

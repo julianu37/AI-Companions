@@ -106,6 +106,19 @@ with a stable status name - `valid`, `no_ground`, `in_water`, `no_water`, `need_
 It is the checks of `Player.UpdatePlacementGhost` that do not need the ghost; the ghost-clipping test
 (`m_noClipping`) comes in E2.
 
+### `companions_sethome`
+
+| param | type | default |
+|---|---|---|
+| `name` | string | the first companion |
+
+```json
+{"name": "Companheiro 2", "x": -260.1, "y": 78.9, "z": -254.0}
+```
+
+Sets the companion's home where it stands (the same `SetHomePosition` the wheel's "set home here" uses). It is how
+the build leash (`[Building] MaxDistanceFromHome`) is tested from the outside.
+
 ### `build_pieces`
 
 | param | type | default |

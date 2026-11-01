@@ -304,6 +304,12 @@ bancada no lugar em **136 s**; com mochila vazia (0 madeira), **96 s**.
 `[Building] GatherRadius` (**120 m**, máx. **200**) acha o recurso; a mais de 20 m o **job caminha** até ele em
 modo Follow (coleta ociosa) e **só ao chegar** entrega a ordem — um dono do movimento por vez.
 
+**Sem recurso no raio:** recusa **na hora** (`no resource within N m - refusing` → `hc_ai_build_missing`), sem
+entregar a coleta nem esperar o prazo; e no estouro dos 300 s o vigia **fala** o que falta antes de encerrar.
+
+**`companions.sethome`** (MCP): põe a casa onde o companheiro está (o mesmo `SetHomePosition` da roda) — foi como
+a coleira `[Building] MaxDistanceFromHome` foi exercitada (`the spot is 4 m from the companion's home (max 1 m)`).
+
 ### A recusa de estação (medida a 140 m da oficina)
 
 ```

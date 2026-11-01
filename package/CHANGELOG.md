@@ -37,7 +37,9 @@ its own bag, places the piece and confirms it works.
   collected and the bench placed in 136 s; with an empty bag, 10 wood and the bench in 96 s. When the resource is
   farther than 20 m the build walks there itself before handing the order over (`[Building] GatherRadius`, 120 m,
   up to 200 - the harvest's own radius is measured from the player, which made the search look tiny).
-  `[Building] GatherForBuild` (true) turns the whole thing off.
+  `[Building] GatherForBuild` (true) turns the whole thing off. With nothing to collect inside the radius the order
+  refuses at once and says what is missing (it does not hand the gather a job it cannot do); if a gather starts but
+  does not finish, it says what is missing before ending.
 - **New dev tooling:** `modia_build_probe [prefab] [radius]` and `modia_build_find [prefab] [radius]` in the game
   console, and the MCP tools `build_inspect`, `build_sites`, `build_find`, `build_pieces` and `companions_build`.
   The measurements of the five workshop pieces are in `docs/re/building-notes.md`; the plan is
