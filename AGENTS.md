@@ -1095,10 +1095,14 @@ comandos de console e spawna coisas, então não é feature de jogador.
   E5:** a bancada sob o `canopy` responde `usable=True cover=0.94 underRoof=True` e as descobertas ao lado
   `usable=False cover=0.18` (o `build.usable` pega a bancada MAIS PRÓXIMA - o registro do jogo devolvia a
   primeira e respondia pela errada). **E6b - a casa simples:** `"construa um abrigo aqui"` -> 8x8 com piso,
-  paredes, teto, **porta** (`wood_door`, 2x2, toma o lugar da parede) e **janela** (`wood_wall_half` a 0,5 m), 56
-  peças; 8x8 é o tamanho que fecha o telhado 45° (2 peças por água, cumeeira no centro). Duas falas novas: 
+  paredes, teto, **porta** (`wood_door`, 2x2, toma o lugar da parede) e **janela** (`wood_wall_half` a 0,5 m), 57
+  peças (com a bancada); 8x8 é o tamanho que fecha o telhado 45° (2 peças por água, cumeeira no centro). Duas falas novas: 
   `hc_ai_build_cant_reach` (o `MHR_Mover` desistiu - o local está bom, o caminho não) e `hc_ai_build_too_heavy`
-  (acima do peso o companheiro não anda). Chão plano é a **E10**.
+  (acima do peso o companheiro não anda). **Aceite em jogo (01/11/2026): 57/57 peças, todas `supported`**, todas
+  `placed (Direct)` - a casa **traz a própria bancada** (passo 0, a estação vem do plano), a **porta é a última**
+  (senão ele fica trancado dentro e não alcança o telhado), o alcance é o do jogo (**5 m do olho**,
+  `Player.m_maxPlaceDistance` - a fileira de cima do telhado fica a 4,9 m dos pés) e **madeira pesa 2** (160 =
+  320/300, o mover desiste). Custo: 123 unidades. Detalhes em `docs/re/building-notes.md` §12. Chão plano é a **E10**.
 - **Construção (Trilha E, base):** E0-E5 medidas em jogo. **E5 (a oficina mínima, 01/11/2026):** 4 ordens seguidas pelo
   chat (bancada 4 s → baú 4 s → fogueira 2 s → cama 6 s), todas em `hc_ai_build_done`, o baú e a cama usando a
   bancada recém-construída como estação. **Colocar** peça só precisa da estação no raio

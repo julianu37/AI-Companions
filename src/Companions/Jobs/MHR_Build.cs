@@ -29,8 +29,19 @@ internal static class MHR_Build
 	/// <summary>Longest an order may take (walking + placing). Time not driven (a fight, resting) does not count.</summary>
 	internal const float Timeout = 60f;
 
-	/// <summary>How close to the spot it stops and places.</summary>
+	/// <summary>How close to the spot it stops and places (horizontal).</summary>
 	internal const float Reach = 2.5f;
+
+	/// <summary>
+	/// How far from the companion's <b>eye</b> a piece may be placed. It is the game's own
+	/// <c>Player.m_maxPlaceDistance</c> (5 m, decompiled 1.0.20): the old rule (2,5 m flat and 3 m up) could not
+	/// reach the upper roof row of the house (y = 5, i.e. 4,9 m above the feet) - the companion walked in circles
+	/// until the order timed out (player report, 01/11/2026: "parece que não alcança").
+	/// </summary>
+	internal const float MaxPlace = 5f;
+
+	/// <summary>The companion's eye height above its feet (the game measures the placement distance from the eye).</summary>
+	private const float EyeHeight = 1.5f;
 
 	/// <summary>E4b: how long a pending build waits for the gather before it is dropped.</summary>
 	internal const float GatherTimeout = 300f;
@@ -557,7 +568,11 @@ internal static class MHR_Build
 	{
 		Vector3 me = ai.transform.position;
 		float flat = new Vector2(me.x - state.Pos.x, me.z - state.Pos.z).magnitude;
-		if (flat <= Reach && Mathf.Abs(me.y - state.Pos.y) <= 3f)
+		// the game places a piece up to 5 m from the EYE (Player.m_maxPlaceDistance); the companion's eye is ~1,5 m
+		// above its feet, so a roof 4,9 m up is within reach even though the feet are 4,9 m below it
+		Vector3 eye = new Vector3(me.x, me.y + EyeHeight, me.z);
+		bool inReach = flat <= Reach + 0.5f && Vector3.Distance(eye, state.Pos) <= MaxPlace;
+		if (inReach)
 		{
 			ai.StopMoving();
 			MHR_Mover.Release(ai);
@@ -587,6 +602,14 @@ internal static class MHR_Build
 			{
 				string status = check != null ? Convert.ToString(check["status"]) : "unknown";
 				Log(ai, "piece " + state.Prefab + " refused now (" + status + ") - the plan stops");
+				if (status == "needs_station" && state.Piece != null && state.Piece.m_craftingStation != null)
+				{
+					// say WHICH station is missing, not "it doesn't fit" (E6: a plan may bring its own, and if it did
+					// not reach the spot the player has to know what is missing)
+					string station = Localization.instance != null ? Localization.instance.Localize(state.Piece.m_craftingStation.m_name) : state.Piece.m_craftingStation.m_name;
+					Finish(ai, state, "hc_ai_build_needs_station", status, station);
+					return false;
+				}
 				Finish(ai, state, "hc_ai_build_plan_no_site", status, state.Template.Label, state.Prefab);
 				return false;
 			}
@@ -866,7 +889,8 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 	/// <summary>
 	/// E6: the verdict of a planned pose. A piece <b>above the ground</b> is allowed to fail only on
 	/// <c>no_support</c> here - its support comes from the pieces of the plan, which are still ghosts at this point;
-	/// <see cref="Place"/> checks it again when they are standing.
+	/// <see cref="Place"/> checks it again when they are standing. <c>needs_station</c> is also allowed: the plan may
+	/// bring its own station (the house brings a workbench), so the station is only provable at placement time.
 	/// </summary>
 	private static bool OkForPlan(Dictionary<string, object> check, bool aboveGround)
 	{
@@ -878,10 +902,6 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		{
 			return true;
 		}
-		if (!aboveGround)
-		{
-			return false;
-		}
 		List<string> reasons = check["reasons"] as List<string>;
 		if (reasons == null || reasons.Count == 0)
 		{
@@ -889,10 +909,15 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		}
 		foreach (string reason in reasons)
 		{
-			if (reason != "no_support")
+			if (reason == "needs_station")
 			{
-				return false;
+				continue;
 			}
+			if (aboveGround && reason == "no_support")
+			{
+				continue;
+			}
+			return false;
 		}
 		return true;
 	}

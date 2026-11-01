@@ -152,6 +152,11 @@ internal static class BuildTemplates
 	private static Step[] HouseSteps()
 	{
 		List<Step> steps = new List<Step>();
+		// the house brings its OWN workbench (inside, back-left corner): every wooden piece needs a station in range, so
+		// without it the order would need the player to have one - and a bench dropped at the spot ends up INSIDE the
+		// house, in the way of the floor (measured 01/11/2026: "a bancada atrapalhou"). It goes FIRST: the floors
+		// themselves need the station it provides.
+		steps.Add(new Step("piece_workbench", -2.3f, 0.12f, 2f, 0f, 0));
 		// the floor: 4x4 tiles of 2x2 m, level 0
 		float[] grid = { -3f, -1f, 1f, 3f };
 		foreach (float x in grid)
@@ -162,9 +167,8 @@ internal static class BuildTemplates
 			}
 		}
 		// the walls, level 1: the FRONT is local -z (the side the player faces when the house goes up)
-		//   front: a wall, the DOOR, the WINDOW (half wall at y=0,5) and a wall
+		//   front: a wall, the DOOR (level 3 - it goes in LAST), the WINDOW (half wall at y=0,5) and a wall
 		steps.Add(new Step("woodwall", -3f, 1f, -4f, 0f, 1));
-		steps.Add(new Step("wood_door", -1f, 1f, -4f, 0f, 1));
 		steps.Add(new Step("wood_wall_half", 1f, 0.5f, -4f, 0f, 1));
 		steps.Add(new Step("woodwall", 3f, 1f, -4f, 0f, 1));
 		//   back
@@ -194,6 +198,10 @@ internal static class BuildTemplates
 			steps.Add(new Step("wood_wall_roof_45", x, 2f, -3f, 270f, 2));
 			steps.Add(new Step("wood_wall_roof_45", x, 4f, -1f, 270f, 2));
 		}
+		// the DOOR goes in LAST (level 3): with the four walls up and the door in place the companion is locked INSIDE
+		// the house and cannot reach the roof - measured 01/11/2026, "the order took too long" at 33/56. The open door
+		// slot lets it walk in and out during the whole build.
+		steps.Add(new Step("wood_door", -1f, 1f, -4f, 0f, 3));
 		return steps.ToArray();
 	}
 

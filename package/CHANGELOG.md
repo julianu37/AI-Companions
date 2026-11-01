@@ -66,7 +66,10 @@ its own bag, places the piece and confirms it works.
   sixteen floor tiles, walls on the four sides, a **door** and a **window** on the front, a 45° gable roof with a
   centred ridge and closed gables (56 pieces). 8x8 is the size that fits the roof: its 4 m slope is exactly two
   pieces, so the ridge lands in the middle. The door (`wood_door`, 2x2) takes a wall's place and the window is a
-  half wall at 0.5 m, leaving a 1 m opening. **Two new lines** came out of testing it: "I can't get to the {0}"
+  half wall at 0.5 m, leaving a 1 m opening. **Measured: 57/57 pieces, all supported** - the house brings its own
+  workbench (first piece, every wooden piece needs a station), the door goes in **last** (with it in place the
+  companion was locked inside and could not reach the roof) and the reach is the game's own 5 m from the eye
+  (the top roof row sits 4.9 m above the feet). **Two new lines** came out of testing it: "I can't get to the {0}"
   (the spot is fine, the way to it is not - it used to say "no place for it") and "I'm carrying too much to
   build ({0}/{1})" (an encumbered companion cannot walk).
 - **New dev tooling:** `modia_build_probe [prefab] [radius]` and `modia_build_find [prefab] [radius]` in the game

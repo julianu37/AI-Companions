@@ -550,7 +550,14 @@ janela, 16 telhados e 8 empenas).
   **A janela** é uma `wood_wall_half` (2x1, Madeira x1) a **0,5 m do piso**, deixando 1 m de abertura em cima.
 - A **frente é o lado local -z** (o lado que o jogador encara): porta no tile da esquerda do centro e janela no da
   direita (medido: `build.snaps` da porta = (±1, ±1, 0), o mesmo da parede).
-- **Aceite em jogo:** pendente (o terreno precisa de um descampado de 8x8; o jogador está procurando um).
+- **Aceite em jogo (01/11/2026):** **57/57 peças, todas `supported`** no terreno que o jogador nivelou - a
+  bancada da casa, 16 pisos, 14 paredes, a janela (19/57), 16 telhados (a fileira de cima a 4,9 m dos pés), 8
+  empenas e a **porta em último** (57/57). `hc_ai_build_plan_done`.
+- **Quatro lições do teste:** (1) a **porta é a última** - com ela no lugar o companheiro fica trancado dentro e
+  não alcança o telhado; (2) o alcance é o do jogo (**5 m do olho**, `Player.m_maxPlaceDistance`), não 3 m acima
+  dos pés - a fileira de cima do telhado ficava inalcançável; (3) a **casa traz a própria bancada** como passo 0
+  (a estação vem do plano; uma bancada do jogador no meio do terreno atrapalha o piso); (4) **madeira pesa 2** -
+  160 unidades = 320/300 e o companheiro não anda. Detalhes em `docs/re/building-notes.md` §12.
 - **Duas falas novas que o teste da casa achou:** `hc_ai_build_cant_reach` ("não consigo chegar até a peça") no
   lugar do "não achei lugar" quando o `MHR_Mover` desiste - o local está bom, o caminho não - e
   `hc_ai_build_too_heavy` ("carregado demais para construir (peso/máximo)") quando o companheiro está acima do

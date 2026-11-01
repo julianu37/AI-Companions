@@ -429,17 +429,17 @@ internal static class Program
 		Check("ByName(\"xyz\") == null", BuildTemplates.ByName("xyz") == null);
 
 		// a casa simples: 8x8 (16 pisos), 12 paredes, 1 porta, 1 janela (meia-parede), 16 telhados e 8 empenas
-		CheckInt("casa: 56 pecas", 56, house.Steps.Length);
+		CheckInt("casa: 57 pecas (com a bancada)", 57, house.Steps.Length);
 		CheckInt("casa: 16 pisos", 16, CountPrefab(house, "wood_floor"));
 		CheckInt("casa: 14 paredes (16 tiles - porta - janela)", 14, CountPrefab(house, "woodwall"));
 		CheckInt("casa: 1 porta", 1, CountPrefab(house, "wood_door"));
 		CheckInt("casa: 1 janela (meia-parede)", 1, CountPrefab(house, "wood_wall_half"));
 		CheckInt("casa: 16 telhados", 16, CountPrefab(house, "wood_roof_45"));
 		CheckInt("casa: 8 empenas", 8, CountPrefab(house, "wood_wall_roof_45"));
-		CheckText("casa: a 1a peca e o piso", "wood_floor", house.Ordered()[0].Prefab);
-		CheckInt("casa: o piso e nivel 0", 0, house.Ordered()[0].Level);
-		CheckText("casa: a ultima peca e telhado/empena", "wood_wall_roof_45", house.Ordered()[house.Steps.Length - 1].Prefab);
-		CheckInt("casa: a porta esta no nivel 1 (parede)", 1, LevelOf(house, "wood_door"));
+		CheckText("casa: a 1a peca e a BANCADA (os pisos precisam dela)", "piece_workbench", house.Ordered()[0].Prefab);
+		CheckInt("casa: a bancada e nivel 0", 0, house.Ordered()[0].Level);
+		CheckText("casa: a ultima peca e a porta", "wood_door", house.Ordered()[house.Steps.Length - 1].Prefab);
+		CheckInt("casa: a porta e a ULTIMA (nivel 3 - senao ele se tranca dentro)", 3, LevelOf(house, "wood_door"));
 		CheckInt("casa: a janela esta no nivel 1 (parede)", 1, LevelOf(house, "wood_wall_half"));
 		// a frente e o lado -z: a porta e a janela estao em z = -4 (o lado que o jogador encara)
 		CheckFloat("casa: a porta esta na frente (z = -4)", -4f, ZOf(house, "wood_door"));
@@ -486,9 +486,10 @@ internal static class Program
 		{
 			Check("Allowed(\"" + prefab + "\")", BuildTemplates.Allowed(prefab));
 		}
-		Check("Allowed(\"piece_workbench\") == false (nao e peca de template)", !BuildTemplates.Allowed("piece_workbench"));
+		Check("Allowed(\"piece_workbench\") (a casa traz a bancada)", BuildTemplates.Allowed("piece_workbench"));
+		Check("Allowed(\"wood_beam_45\") == false (nao e peca de template)", !BuildTemplates.Allowed("wood_beam_45"));
 		Check("Allowed(null) == false", !BuildTemplates.Allowed(null));
-		CheckInt("Prefabs() sem repeticao", 7, BuildTemplates.Prefabs().Length);
+		CheckInt("Prefabs() sem repeticao", 8, BuildTemplates.Prefabs().Length);
 	}
 
 	/// <summary>E6: the level of the first step of a prefab (0 foundation, 1 walls, 2 roof).</summary>

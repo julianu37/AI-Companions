@@ -472,3 +472,43 @@ o `FindAnchor` então procura outro ponto. Nivelar o terreno é a **E10**.
 `SetCreator` + `OnPlaced` + `IPlaced`), com o criador = o **dono** (o jogador) e o barulho saindo do **companheiro**
 (`[Building] Quiet` silencia). O caminho do `Player.PlacePiece` dava o crédito, o barulho e as estatísticas de
 `MaxBuildingHeight` ao **jogador** - e quem constrói é o companheiro. Ele fica só para um teste sem construtor.
+
+
+---
+
+## 12. E6b - a casa simples (medido em 01/11/2026)
+
+**Aceite:** 57/57 peças, **todas `supported`**, todas `placed (Direct)`, no terreno nivelado pelo jogador:
+
+```
+plan house: 57 pieces, 56 poses checked, anchor at (-279,3, 81,7, -299,0)
+done: house ... (1/57) supported                  <- a bancada da propria casa
+done: wood_floor ... (2..17/57) supported         <- 16 pisos
+done: woodwall ... (18..32/57) supported          <- 14 paredes
+done: wood_wall_half ... (19/57) supported        <- a JANELA (peitoril de 0,5 m)
+done: wood_roof_45 ... (33..48/57) supported      <- 16 telhados (a fileira de cima a y = 86,7)
+done: wood_wall_roof_45 ... (49..56/57) supported <- 8 empenas
+done: wood_door ... (57/57) supported             <- a PORTA, por ultimo
+order ended: hc_ai_build_plan_done
+```
+
+`build.pieces` no local: **16 pisos, 14 paredes, 1 porta, 1 meia-parede, 16 telhados, 8 empenas e 1 bancada** = 57,
+todas `mine=True`, `zdo=True`, `health=1.00`.
+
+### As quatro coisas que o teste da casa ensinou
+
+1. **A porta tem que ser a ÚLTIMA.** Com as quatro paredes de pé e a porta no lugar, o companheiro fica **trancado
+   dentro** e não alcança o telhado ("the order took too long" em 33/57). A porta é nível **3** no template; o vão
+   aberto deixa ele entrar e sair durante a obra.
+2. **O alcance é o do jogo: 5 m do OLHO** (`Player.m_maxPlaceDistance = 5f`), não 3 m acima dos pés. A fileira de
+   cima do telhado fica a **4,9 m** dos pés (y = 5) e era inalcançável - o companheiro andava em círculos até o
+   prazo ("parece que não alcança", relato do jogador).
+3. **A casa traz a própria bancada** (primeira peça, canto de dentro): toda peça de madeira precisa de estação no
+   raio, e uma bancada do jogador **no meio do terreno** atrapalha o piso ("a bancada atrapalhou"). Com a bancada
+   como **passo 0 do plano**, a casa se constrói sozinha - e o planejamento passou a aceitar `needs_station` como
+   "a estação vem do plano" (a checagem real é no `Place`, com a bancada já de pé).
+4. **Madeira pesa 2** (não 1): 160 unidades = **320/300** de peso, o companheiro fica `Encumbered` e o `MHR_Mover`
+   desiste em 8 s. A casa custa **123 unidades (246 de peso)** - cabe, mas com pouca folga.
+
+**Custo da casa:** 123 unidades de madeira (16x2 pisos + 14x2 paredes + 10 bancada + 1 meia-parede + 16x2 telhados +
+8x2 empenas + 4 porta). **Tempo:** a resolução do plano leva ~35 s (56 poses com o fantasma) e a obra ~5-8 min.
