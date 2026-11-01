@@ -2308,30 +2308,35 @@ Branch `feat/1.9.5`. O que entrou (20 itens; a lista completa e o que ficou de f
 
 ---
 
-## Trilha E — Construção autônoma (planejada, 31/10/2026)
+## Trilha E — Construção autônoma (planejada, 31/10/2026 · rev. 01/11/2026)
 
-> **Só planejado.** O plano completo (arquitetura, fases, critérios de aceite, riscos e a pesquisa do PlanBuild)
-> está em **`docs/plan-construcao.md`**. Nada de código foi escrito ainda.
+> **Só planejado.** O plano completo (arquitetura, fases, critérios de aceite, riscos e a pesquisa do
+> ecossistema) está em **`docs/plan-construcao.md`**. Nada de código foi escrito ainda.
 
 A meta: `Maria, construa uma bancada de trabalho aqui` → a companheira resolve a receita, os materiais
 (mochila → baús → coleta), acha um local válido, coloca a peça e **confirma** que ela funciona. Depois: baú,
-fogueira, cama, estruturas pequenas e, talvez, blueprints do PlanBuild.
+fogueira, cama, estruturas pequenas e — para as construções grandes — os planos do **BuildOrders**.
 
 | Fase | O que entrega | Status |
 |---|---|---|
 | **E0** | Sonda `modia_build_probe` (flags/receita/estação da `piece_workbench`) + `docs/re/building-notes.md` | ⏳ |
-| **E1** | `AI/BuildExecutor.cs` — a sequência do `Player.PlacePiece` sem `Player` (claim → `SetCreator` → `WearNTear`/`IPlaced`/`MakePiece`/efeito) + `modia_build_test` | ⏳ |
+| **E1** | `AI/BuildExecutor.cs` — `Player.PlacePiece` quando o `Player` do dono existe; reserva própria (claim → `SetCreator` → `WearNTear`/`IPlaced`/`MakePiece`) + `modia_build_test` | ⏳ |
 | **E2** | `AI/BuildSite.cs` — busca de local em anéis + validador dirigido pelas flags do `Piece` + `modia_build_find` | ⏳ |
 | **E3** | Ordem `build` por chat/voz (`ValidActions` 35 → 36, `target` obrigatório + rede por palavras) — **MVP** | ⏳ |
 | **E4** | `AI/BuildStock.cs` + coleta do que falta (teto = falta, reusa `HarvestController`) | ⏳ |
 | **E5** | Baú, fogueira e cama no catálogo (a oficina mínima) | ⏳ |
-| **E6** | Estruturas pequenas: plano de peças relativas, snap e ordem topológica com suporte | ⏳ |
-| **E7** | PlanBuild (opcional): ler o `.blueprint` (texto, sem dependência) e construir peça por peça | ⏳ |
+| **E6** | Estruturas pequenas por **template**: peças relativas, snap e ordem topológica com suporte | ⏳ |
+| **E7** | **Ponte BuildOrders** (opcional): o companheiro constrói os fantasmas que o jogador planejou (`Count`/`Next`/`Place`/`Blockers` por `AppDomain`, pagando de mochila+baús) | ⏳ |
+| **E8** | O companheiro **gera** o plano de um blueprint JSON (`TryCreateGhostPlan`/`TryCreateBuildingShell`, até 2.048 peças) | ⏳ |
+| **E9** | Conversão de `.blueprint` do PlanBuild para o JSON do BuildOrders (acervo do BiomeBlueprints/valheimians) — só se o jogador pedir | ⏳ |
 
-**Decisões já propostas no plano:** o executor **não** usa `Player.TryPlacePiece` (é `private` e preso à câmera); o
-dono da peça é **o jogador** (`MHR_Owner.CreatorId`); o custo sai de `Piece.m_resources` (nunca de tabela nossa);
-"aqui" = o que o jogador aponta; `RequireHammer = false`; PlanBuild **sem** dependência (o `Blueprint` dele é
-`internal` e exige Jötunn). Multiplayer continua **congelado**.
+**Decisões já propostas no plano:** o validador de local é **nosso** (nenhum mod do ecossistema procura local —
+todos recebem poses prontas); o executor reusa o `Player.PlacePiece` (público) e só cai na sequência própria
+quando o `Player` do dono não está carregado; o dono da peça é **o jogador** (`MHR_Owner.CreatorId`); o custo
+sai de `Piece.m_resources` (nunca de tabela nossa); receita tem que ser conhecida (`IsRecipeKnown`); "aqui" =
+o que o jogador aponta; `RequireHammer = false`; **BuildOrders** (MIT, sem Jötunn, API documentada) é o alvo das
+construções grandes — o PlanBuild fica só como **fonte de arquivo**. Multiplayer continua **congelado**.
+
 
 
 

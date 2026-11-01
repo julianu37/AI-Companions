@@ -1002,10 +1002,12 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
 - `docs/plan-multilinguagem.md` — plano da multilinguagem (EN/PT/ES/FR): `Locale`, config `auto`, catálogo de
   vozes por idioma e as fases M1–M5.
 - `docs/plan-construcao.md` — **plano da construção autônoma (Trilha E, só planejado)**: a ordem `build`
-  (bancada → baú/fogueira/cama → estruturas pequenas → PlanBuild), o validador de local dirigido pelas flags do
-  `Piece`, o executor sem `Player` (a sequência do `Player.PlacePiece`), a sonda `modia_build_probe` da Fase 0 e as
-  armadilhas confirmadas (`Piece.SetCreator` só grava com posse, `m_name` é token, `m_spaceRequirement` não é
-  "espaço livre"). As fases 0–7 com critério de aceite estão lá.
+  (bancada → baú/fogueira/cama → estruturas por template → **planos do BuildOrders**), o validador de local
+  dirigido pelas flags do `Piece`, o executor (`Player.PlacePiece` quando o `Player` do dono existe + reserva
+  própria), a sonda `modia_build_probe` da Fase 0 e as armadilhas confirmadas (`Piece.SetCreator` só grava com
+  posse, `m_name` é token, `m_spaceRequirement` não é "espaço livre"). As fases 0–9 com critério de aceite
+  estão lá, e a §3 é a pesquisa do ecossistema (BuildOrders MIT com API + helpers `Count`/`Next`/`Place`/
+  `Blockers`, Quad's Companion que já constrói planos, PlanBuild WTFPL só como fonte de arquivo).
 - `docs/audit-vs-offline-companions.md` — auditoria do nosso mod anterior vs o upstream.
 - `docs/backlog-1.9.5.md` — **o que ficou sem correção** depois da revisão de 10 especialistas (detalhado: o que
   está quebrado, o que pode quebrar, por que corrigir e o esforço), com o que já foi feito na 1.9.4 no fim.
