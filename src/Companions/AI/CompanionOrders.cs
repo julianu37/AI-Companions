@@ -1043,21 +1043,33 @@ internal static class CompanionOrders
 	/// </summary>
 	private static OrderOutcome Build(Player player, LlmIntent intent, string userText, OrderOutcome outcome, CompanionSetup addressee, CompanionSetup speaker)
 	{
+		// the refusals of a build order must reach the BUBBLE too, not only the chat: the chat shows
+		// outcome.Message, and the bubble is a CompanionTalk.Say - the player's test showed the line only in the chat
+		CompanionSetup target = IsDirected(addressee) ? addressee : speaker;
+		void Refuse(string text)
+		{
+			outcome.Message = text;
+			CompanionTalk talk = target != null ? target.GetComponent<CompanionTalk>() : null;
+			if (talk != null)
+			{
+				talk.Say(text, true, withVoice: false);
+			}
+		}
 		if (ModConfig.BuildEnabled != null && !ModConfig.BuildEnabled.Value)
 		{
-			outcome.Message = ModLocalization.Loc("hc_ai_build_disabled");
+			Refuse(ModLocalization.Loc("hc_ai_build_disabled"));
 			return outcome;
 		}
 		string prefab = BuildCatalog.Resolve(intent != null ? intent.Target : null) ?? BuildCatalog.Resolve(userText);
 		if (prefab == null || !BuildCatalog.Allowed(prefab))
 		{
-			outcome.Message = ModLocalization.Loc("hc_ai_build_no_recipe");
+			Refuse(ModLocalization.Loc("hc_ai_build_no_recipe"));
 			return outcome;
 		}
 		Piece piece = BuildProbe.PieceOf(prefab);
 		if (piece == null)
 		{
-			outcome.Message = ModLocalization.Loc("hc_ai_build_no_recipe");
+			Refuse(ModLocalization.Loc("hc_ai_build_no_recipe"));
 			return outcome;
 		}
 		// the piece is one of ours but the player has not unlocked its recipe yet: say THAT, not "I don't know how to
@@ -1065,10 +1077,9 @@ internal static class CompanionOrders
 		if (player != null && !player.IsRecipeKnown(piece.m_name))
 		{
 			string lockedName = Localization.instance != null ? Localization.instance.Localize(piece.m_name) : prefab;
-			outcome.Message = string.Format(ModLocalization.Loc("hc_ai_build_recipe_locked"), lockedName);
+			Refuse(string.Format(ModLocalization.Loc("hc_ai_build_recipe_locked"), lockedName));
 			return outcome;
 		}
-		CompanionSetup target = IsDirected(addressee) ? addressee : speaker;
 		if (target == null)
 		{
 			return outcome;
@@ -1098,7 +1109,7 @@ internal static class CompanionOrders
 		}
 		if (!MHR_Build.Start(target, prefab, hint))
 		{
-			outcome.Message = ModLocalization.Loc("hc_ai_build_no_recipe");
+			Refuse(ModLocalization.Loc("hc_ai_build_no_recipe"));
 			return outcome;
 		}
 		outcome.Count = 1;
