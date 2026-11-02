@@ -463,6 +463,12 @@ E5. O `build.usable` procura a bancada **mais próxima** do ponto: `HaveBuildSta
 registro, e com duas no raio ele respondia pela errada (foi o que fez o primeiro teste parecer que o abrigo não
 funcionava).
 
+**Materiais de um plano (desenho do jogador, 01/11/2026):** a obra começa com o que a mochila tem e paga **peça por
+peça** (mochila → baús usáveis, `BuildStock.Take`). Quando uma peça fica sem material, o `MHR_Build` **entrega a ordem
+à coleta** (`HandOver` + `Pending.Template`) e o **vigia** (`CheckPending`) rearma a coleta até o **total do template**
+estar coberto (`TemplateMissing`), então **retoma a obra sozinha**. O antigo "o plano exige tudo antes" saiu: numa
+construção grande não faz sentido, e o bug do teste (nivelou, faltou madeira e **parou**) era exatamente isso.
+
 **O chão tem que ser plano.** O abrigo de 4x2 m precisa dos 4 postes no mesmo nível: num terreno inclinado os
 postes do lado de baixo ficam sem apoio e o plano recusa (foi o que aconteceu sobre a bancada da E5, num barranco) -
 o `FindAnchor` então procura outro ponto. Nivelar o terreno é a **E10**.

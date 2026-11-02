@@ -114,6 +114,8 @@ internal static class MHR_Build
 	private sealed class Pending
 	{
 		internal string Prefab;
+		/// <summary>E6b: the template of the plan waiting for its materials (null for a single piece).</summary>
+		internal string Template;
 		internal Vector3 Hint;
 		internal int Mode;
 		internal string Item;
@@ -525,16 +527,16 @@ internal static class MHR_Build
 			Finish(ai, state, "hc_ai_build_plan_no_site", failureStatus, state.Template.Label, failure);
 			return false;
 		}
-		// the material of the WHOLE plan, before the first piece: a plan does not hand the order to the gather (E6)
+		// E6b (player's design, 01/11/2026): the plan starts with what the bag has and pays piece by piece (bag, then the
+		// chests). When a piece is short the build hands the order to the gather and resumes by itself - the same E4b
+		// handover the single pieces use. Requiring the whole cost up front made no sense for a big structure.
 		Humanoid humanoid = ai.GetComponent<Humanoid>();
 		Inventory bag = humanoid != null ? humanoid.GetInventory() : null;
 		bool useChests = ModConfig.BuildUseChests == null || ModConfig.BuildUseChests.Value;
 		Dictionary<string, int> missing = PlanMissing(bag, plan, anchor, ai, useChests);
 		if (missing.Count > 0)
 		{
-			Log(ai, "plan missing: " + MissingText(missing));
-			Finish(ai, state, "hc_ai_build_missing", "the plan is short", MissingText(missing), state.Template.Label);
-			return false;
+			Log(ai, "plan short at the start: " + MissingText(missing) + " - the gather takes over when the first piece needs it");
 		}
 		state.Plan = plan;
 		state.Index = 0;
@@ -753,9 +755,9 @@ internal static class MHR_Build
 			// E4b: the gather is a SEPARATE order. This one ends (with the line that says it is going to get it), the
 			// normal gather order takes over the movement, and a small watcher starts a new build order when the
 			// materials are in the bag. One owner of MHR_Mover at a time - the 01/11/2026 lesson.
-			// E6: a plan checked the material of ALL its pieces before the first one, so a shortfall here means the bag
-			// changed under us - it stops with what is missing instead of handing the plan to a gather
-			bool gather = state.Template == null && (ModConfig.BuildGatherForBuild == null || ModConfig.BuildGatherForBuild.Value);
+			// E6b: a plan gathers too now - the piece that is short hands the order to the gather and the plan resumes
+			// by itself (the player's design: start with what the bag has, take from the chests, and go gather the rest)
+			bool gather = ModConfig.BuildGatherForBuild == null || ModConfig.BuildGatherForBuild.Value;
 			if (gather)
 			{
 				GatherStart start = BeginGather(ai, state, cs, missing);
@@ -916,6 +918,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		s_pending[ai.GetInstanceID()] = new Pending
 		{
 			Prefab = state.Prefab,
+			Template = state.Template != null ? state.Template.Name : null,
 			Hint = state.Hint,
 			Mode = state.GatherMode,
 			Item = state.GatherItem,
@@ -940,6 +943,55 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 	}
 
 	/// <summary>The shortfall of the WHOLE plan (all pieces together) against the bag and the usable chests.</summary>
+	/// <summary>
+	/// E6b: the shortfall of a whole <b>template</b> (all its pieces together) against the bag and the usable chests -
+	/// the watcher of a plan waiting for materials uses it.
+	/// </summary>
+	private static Dictionary<string, int> TemplateMissing(Inventory bag, BuildTemplates.Template template, Vector3 center, Component who, bool useChests)
+	{
+		Dictionary<string, int> missing = new Dictionary<string, int>();
+		if (bag == null || template == null || template.Steps.Length == 0)
+		{
+			return missing;
+		}
+		Dictionary<string, int> need = new Dictionary<string, int>();
+		foreach (BuildTemplates.Step step in template.Steps)
+		{
+			Piece piece = BuildProbe.PieceOf(step.Prefab);
+			if (piece == null || piece.m_resources == null)
+			{
+				continue;
+			}
+			foreach (Piece.Requirement requirement in piece.m_resources)
+			{
+				if (requirement == null || requirement.m_resItem == null)
+				{
+					continue;
+				}
+				string name = requirement.m_resItem.m_itemData.m_shared.m_name;
+				int amount = requirement.GetAmount(1);
+				if (amount <= 0)
+				{
+					continue;
+				}
+				int seen;
+				need.TryGetValue(name, out seen);
+				need[name] = seen + amount;
+			}
+		}
+		Dictionary<string, int> have = BuildStock.Available(bag, BuildProbe.PieceOf(template.Steps[0].Prefab), center, who, useChests);
+		foreach (KeyValuePair<string, int> kv in need)
+		{
+			int got;
+			have.TryGetValue(kv.Key, out got);
+			if (got < kv.Value)
+			{
+				missing[kv.Key] = kv.Value - got;
+			}
+		}
+		return missing;
+	}
+
 	private static Dictionary<string, int> PlanMissing(Inventory bag, List<PlannedStep> plan, Vector3 center, Component who, bool useChests)
 	{
 		Dictionary<string, int> missing = new Dictionary<string, int>();
@@ -1106,8 +1158,10 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			s_pending.Remove(ai.GetInstanceID());
 			return;
 		}
-		Piece piece = BuildProbe.PieceOf(pending.Prefab);
-		if (piece == null)
+		// E6b: a plan waiting for its materials (the template) or a single piece
+		BuildTemplates.Template template = pending.Template != null ? BuildTemplates.ByName(pending.Template) : null;
+		Piece piece = pending.Template != null ? null : BuildProbe.PieceOf(pending.Prefab);
+		if (pending.Template != null ? template == null : piece == null)
 		{
 			s_pending.Remove(ai.GetInstanceID());
 			return;
@@ -1124,13 +1178,20 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			s_pending.Remove(ai.GetInstanceID());
 			CompanionSetup.ClearOrderCap(cs);
 			// the order has to SAY what is still missing (acceptance of E4: it must not end in silence)
-			Dictionary<string, int> still = BuildStock.Missing(bag, piece, pending.Hint, cs, useChests);
-			string label = Localization.instance != null ? Localization.instance.Localize(piece.m_name) : pending.Prefab;
+			Dictionary<string, int> still = template != null
+				? TemplateMissing(bag, template, pending.Hint, cs, useChests)
+				: BuildStock.Missing(bag, piece, pending.Hint, cs, useChests);
+			string label = template != null
+				? template.Label
+				: (Localization.instance != null ? Localization.instance.Localize(piece.m_name) : pending.Prefab);
 			Log(ai, "gathering took too long - saying what is missing");
 			Say(ai, "hc_ai_build_missing", MissingText(still), label);
 			return;
 		}
-		if (BuildStock.Missing(bag, piece, pending.Hint, cs, useChests).Count > 0)
+		Dictionary<string, int> shortfall = template != null
+			? TemplateMissing(bag, template, pending.Hint, cs, useChests)
+			: BuildStock.Missing(bag, piece, pending.Hint, cs, useChests);
+		if (shortfall.Count > 0)
 		{
 			return;   // still gathering
 		}
@@ -1138,7 +1199,8 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		CompanionSetup.ClearOrderCap(cs);
 		// back to Follow mode BEFORE the build starts: the harvest must not keep steering while the build does
 		CompanionSetup.ApplyActionMode(cs, CompanionSetup.ModeFollow, false);
-		if (Start(cs, pending.Prefab, pending.Hint))
+		bool resumed = template != null ? StartPlan(cs, template, pending.Hint) : Start(cs, pending.Prefab, pending.Hint);
+		if (resumed)
 		{
 			Log(ai, "materials ready - resuming the build");
 		}
