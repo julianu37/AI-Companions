@@ -38,6 +38,8 @@ stopped.
   the order said "I can't get to the spot"): `CompanionCarry.Fraction` clamps to 0..1 for the HUD bar, so the
   `Fraction > 1` check was dead code - an encumbered companion tried to walk, the mover gave up in 8 s and the refusal
   blamed the spot. It now compares the real weight with the carry ceiling and says `hc_ai_build_too_heavy`.
+  Measured right after: with **120 wood (240 of 300 weight)** the same 985-piece blueprint **walked and built 60 pieces**
+  in ~3 minutes (all supported) before handing the order to the gather for the rest.
 - **A piece that does not stand YET is retried, not lost** (the BuildOrders "build what stands" loop without the mod):
   a piece refused for no support, unreachable, too slow or not materialized goes back to a queue and is tried again when
   the rest of the plan is up (up to 3 passes) - the game's own support verdict decides, no stability simulation. Only

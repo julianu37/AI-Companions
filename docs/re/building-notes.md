@@ -746,10 +746,14 @@ blueprint que nao fica de pe nesta passada - `no_support`, `can't reach it`, `to
 e anexada e tentada de novo (`MaxPasses = 3`). O que continuar falhando na ultima passada e **pulado e contado**.
 Log: `retry later: <peca> (<motivo>) at (x, y, z) - pass N` e `retry pass N with X piece(s) that did not stand yet`.
 
-**Primeira medicao (03/11/2026):** no arquivo de 985 pecas o retry entrou em acao ja nas primeiras pecas
-(`retry later: wood_floor (can't reach it) ... pass 0`) - mas ali o problema era **o canteiro**: a casa de 30x30 m caiu
-num morro/mata e o `MHR_Mover` desiste depois de ~8 s sem progresso, entao ele nao chegava em 8 pecas seguidas. Num
-plano grande o **local plano e aberto** e pre-requisito (o nivelamento nao corta morro nem derruba arvore).
+**Medicao (03/11/2026):** no arquivo de 985 pecas o retry entrou em acao (`retry later: wood_floor (can't reach it)
+... pass 0`) - mas a causa era o **teste**, nao o canteiro: o companheiro estava com **200 madeiras (400 de peso, teto
+300)**, ou seja *encumbered*, e o `MHR_Mover` desiste em 8 s sem progresso. Com **120 madeiras (240 de peso)** ele
+**andou e construiu 60 pecas** em ~3 min (todas `supported`) e so entao entregou a coleta (2325 que faltavam).
+**O guarda do peso era codigo morto** (`CompanionCarry.Fraction` faz `Clamp01`, entao `Fraction > 1` nunca era verdade):
+corrigido para comparar o peso real com `CompanionCarry.Max` - a ordem agora diz `hc_ai_build_too_heavy` em vez de
+culpar o lugar. Num plano grande o **local plano e aberto** continua sendo pre-requisito (o nivelamento nao corta morro
+nem derruba arvore).
 
 ### 15.3 Medido em jogo (02/11/2026)
 
