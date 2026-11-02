@@ -122,32 +122,38 @@ internal static class MHR_Level
 		return true;
 	}
 
-	internal static bool Active(Component c)
+	private static CompanionAI Owner(Component c)
 	{
 		if (c == null)
 		{
-			return false;
+			return null;
 		}
+		CompanionAI ai = c as CompanionAI;
+		return ai != null ? ai : c.GetComponent<CompanionAI>();
+	}
+
+	/// <summary>E10: the states are keyed by the <see cref="CompanionAI"/>'s id - the callers ask from other behaviours of
+	/// the same GameObject, so the companion is resolved first (same fix as <c>MHR_Build.Active</c>, 03/11/2026).</summary>
+	internal static bool Active(Component c)
+	{
+		CompanionAI ai = Owner(c);
 		State state;
-		return s_state.TryGetValue(c.GetInstanceID(), out state) && state != null && state.Active;
+		return ai != null && s_state.TryGetValue(ai.GetInstanceID(), out state) && state != null && state.Active;
 	}
 
 	internal static void Cancel(Component c)
 	{
-		if (c == null)
+		CompanionAI ai = Owner(c);
+		if (ai == null)
 		{
 			return;
 		}
 		State state;
-		if (s_state.TryGetValue(c.GetInstanceID(), out state) && state != null && state.Active)
+		if (s_state.TryGetValue(ai.GetInstanceID(), out state) && state != null && state.Active)
 		{
 			state.Active = false;
-			s_state.Remove(c.GetInstanceID());
-			CompanionAI ai = c.GetComponent<CompanionAI>();
-			if (ai != null)
-			{
-				MHR_Mover.Release(ai);
-			}
+			s_state.Remove(ai.GetInstanceID());
+			MHR_Mover.Release(ai);
 		}
 	}
 

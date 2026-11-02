@@ -713,7 +713,9 @@ public class HarvestController : MonoBehaviour
 			return;
 		}
 		// 1.4.150: loot pickup and orders come before the stone-pile walk / tree dodge (they all steer)
-		if (MHR_Loot.Active(this) || MHR_JobRules.OrderPending(this))
+		// E7: while the build order is CLEARING the site the harvest is the one working (the build sends it at one tree
+		// with the directed target) - it is the only job exempt from the order
+		if (MHR_Loot.Active(this) || (MHR_JobRules.OrderPending(this) && !MHR_Build.Clearing(this)))
 		{
 			return;
 		}

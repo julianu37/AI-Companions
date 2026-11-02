@@ -881,6 +881,28 @@ nao da peca.
 acrescentou fazem parte dele. Reconstruir o plano agora (com as bancadas ja de pe) inseriria menos bancadas e **todo
 indice depois delas andaria**, perdendo as pecas do meio em silencio.
 
+### 15.2g "O companheiro esta tremendo e parou" - dois donos do movimento (03/11/2026)
+
+Relato do jogador no teste seguinte: o companheiro **tremia no lugar e parava**, enquanto o log mostrava pecas subindo
+normalmente (`done: wood_floor ... supported`) **e** o job de ocio trabalhando no meio da obra:
+
+```
+[Idle|Companheiro 2] Nothing to do - idling around (-148,5, 38,9, -428,6)
+[Build] Companheiro 2: done: wood_floor at ...
+```
+
+**Causa:** `MHR_Build.Active(Component c)` (e `MHR_Level.Active`) comparavam `c.GetInstanceID()` com o dicionario, mas o
+estado e guardado pelo id do **`CompanionAI`**. Quem chama e outro comportamento do **mesmo GameObject**
+(`HarvestController`, `IdleController`, `CompanionTalk`...), cujo `GetInstanceID()` e **outro** - a comparacao **nunca**
+casava. Resultado: `MHR_JobRules.OtherOrder` respondia **false** durante uma obra, o job de ocio continuava andando e
+**os dois `MHR_Mover` empurravam o mesmo corpo** - tremor e travamento. O `Cancel` tinha o mesmo defeito (nao removia
+nada). Medido: 0 excecoes no log, nenhum erro - so o `[Idle]` no meio do `[Build]`.
+
+**Correcao:** `StateOf(Component)`/`Owner(Component)` resolvem o **`CompanionAI`** do GameObject (o proprio componente
+ou `GetComponent`) e usam o id dele; `Active`/`Cancel` passam por ali nos dois jobs. Com isso o `OtherOrder` responde
+**true** durante a obra (todos os jobs param, como o desenho sempre disse) e o **harvest ganhou uma unica excecao**: com
+`MHR_Build.Clearing(c)` verdadeiro (fase `Clear`) ele e a ferramenta da limpeza e continua trabalhando.
+
 ### 15.3 Medido em jogo (02/11/2026)
 
 | arquivo | pecas | resultado |

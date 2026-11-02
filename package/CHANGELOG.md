@@ -40,6 +40,11 @@ stopped.
   blamed the spot. It now compares the real weight with the carry ceiling and says `hc_ai_build_too_heavy`.
   Measured right after: with **120 wood (240 of 300 weight)** the same 985-piece blueprint **walked and built 60 pieces**
   in ~3 minutes (all supported) before handing the order to the gather for the rest.
+- **"He is shaking and stopped"**: `MHR_Build.Active` and `MHR_Level.Active` compared the instance id of the **component**
+  they were called from (HarvestController, IdleController, CompanionTalk...) with a table keyed by the companion's own id,
+  so the match never happened: `MHR_JobRules.OtherOrder` said "no order" while a build was running and the **idle job kept
+  walking** - two movers over the same body. Both jobs now resolve the companion first, every job holds still during a
+  build (as designed) and the harvest keeps working only while the build is **clearing the site**.
 - **The chests are the site's stock, not the piece's** (player's report, 03/11/2026: "he went to chop wood instead of
   taking it from the chests next to the player"): the chest search used the piece's own position (30 m), so at the far
   corner of a 32 m house the base chests were ~35 m away - the companion handed the order to the gather with more than a

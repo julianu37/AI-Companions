@@ -623,12 +623,38 @@ internal static class MHR_Build
 
 	internal static bool Active(Component c)
 	{
+		State state;
+		return StateOf(c, out state) && state.Active;
+	}
+
+	/// <summary>E7: this companion's build order is <b>clearing the site</b> - the harvest is the tool then, so it is the
+	/// only job allowed to run (it must not be held still by the order).</summary>
+	internal static bool Clearing(Component c)
+	{
+		State state;
+		return StateOf(c, out state) && state.Active && state.Phase == Phase.Clear;
+	}
+
+	/// <summary>
+	/// The build state of the companion a component belongs to. The states are keyed by the <see cref="CompanionAI"/>'s
+	/// instance id and the callers ask from other behaviours of the same GameObject (HarvestController, IdleController,
+	/// CompanionTalk...): comparing the id of the <b>component</b> never matched, so <c>MHR_JobRules.OtherOrder</c>
+	/// answered false while a build was running and the idle job kept walking - two movers over the same body, which is
+	/// why the companion shook in place and stopped (player's report, 03/11/2026).
+	/// </summary>
+	private static bool StateOf(Component c, out State state)
+	{
+		state = null;
 		if (c == null)
 		{
 			return false;
 		}
-		State state;
-		return s_state.TryGetValue(c.GetInstanceID(), out state) && state != null && state.Active;
+		CompanionAI ai = c as CompanionAI;
+		if (ai == null)
+		{
+			ai = c.GetComponent<CompanionAI>();
+		}
+		return ai != null && s_state.TryGetValue(ai.GetInstanceID(), out state) && state != null;
 	}
 
 	internal static void Cancel(Component c)
@@ -637,17 +663,26 @@ internal static class MHR_Build
 		{
 			return;
 		}
+		CompanionAI owner = c as CompanionAI;
+		if (owner == null)
+		{
+			owner = c.GetComponent<CompanionAI>();
+		}
+		if (owner == null)
+		{
+			return;
+		}
 		State state;
 		Pending pending = null;
-		if (s_state.TryGetValue(c.GetInstanceID(), out state) && state != null && state.Active)
+		if (s_state.TryGetValue(owner.GetInstanceID(), out state) && state != null && state.Active)
 		{
 			state.Active = false;
-			s_state.Remove(c.GetInstanceID());
-			if (s_pending.TryGetValue(c.GetInstanceID(), out pending))
+			s_state.Remove(owner.GetInstanceID());
+			if (s_pending.TryGetValue(owner.GetInstanceID(), out pending))
 			{
-				s_pending.Remove(c.GetInstanceID());
+				s_pending.Remove(owner.GetInstanceID());
 			}
-			CompanionAI ai = c.GetComponent<CompanionAI>();
+			CompanionAI ai = owner;
 			if (ai != null)
 			{
 				MHR_Mover.Release(ai);
