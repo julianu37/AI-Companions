@@ -1097,6 +1097,35 @@ escadas que ja tem pouso (`HasLanding`), com a linha `N ladder(s) have their flo
 Consequencia para qualquer andaime: a peca tem que ser girada com o **-Z virado para a peca alvo**
 (`rot = LookRotation(ponto - peca)`), senao ela sobe para o lado contrario.
 
+### 15.2q A escadinha provisoria (03/11/2026)
+
+Pedido do jogador: *"vamos tentar aquele seu plano de fazer escadinhas provisorias, pq ele ainda esta apanhando tentando
+colocar uma peca no teto alto"*. A ideia: quando a peca esta **acima do alcance do olho** (5 m) e o companheiro ja esta
+parado embaixo dela, um degrau resolve o que andar nao resolve.
+
+**A peca: `wood_stair`, e nao `wood_stepladder`.** Medido com `build.inspect` (03/11/2026): as duas custam **2 madeiras**,
+exigem **bancada em 20 m** (`$piece_workbench`, rangeBuild=20) e tem `WearNTear.supports = true` (precisam de apoio).
+A diferenca e o comportamento: a `wood_stepladder` sobe **+2 m** mas e **escada** (pelo nome, `MHR_Mover.IsLadder` casa,
+`MHR_Mover.cs:1172-1176`) e o topo **sem piso** e a armadilha de queda de 03/11/2026 (`HasLanding`); a `wood_stair` sobe
+**+1 m** e e uma **rampa** - o mover sobe como geometria pura (26,6° passa no `rise <= 1,1` da linha de rota,
+`MHR_Mover.cs:2291`, e a `LedgeAhead` nao a le como borda). Para andaime, rampa que nao precisa de pouso e o certo.
+
+**Direcao (medida, `build.snaps`):** a rampa sobe para o **-Z local** (`y=0,z=+1` -> `y=1,z=-1`), entao o `+Z` tem que
+apontar para LONGE da peca: `Quaternion.LookRotation(-toPiece)`.
+
+**Como entra no `MHR_Build.Goto`:** (1) quando `!inReach` e `flat <= MaxPlace` e a distancia do olho passa de 5 m (a
+peca e alta demais e ele ja esta embaixo); (2) quando a trava de 12 s sem progresso dispara com `flat <= MaxPlace` (ele
+esta perto, mas o beiral/empena corta o caminho). O `TryScaffold` procura um ponto nos aneis de 1,2/2,2/3,2 m em leque
+(-50° a +50°), **raycast para baixo** para assentar no piso (recusa desnivel > 1,2 m), recusa ponto onde o **plano ainda
+vai por peca** (`BlockedByPlan`, 1 m em XZ), valida com `BuildSite.Check` e paga pelo `BuildStock.Take` (mochila ->
+baus) - falhou o `BuildExecutor.Place`, o `Refund` devolve. Teto de **3 por peca**, 1 a cada 4 s, e sucesso reseta o
+relogio de progresso. Config nova **`[Building] TempScaffold`** (bool, padrao **true**).
+
+**Limpeza:** as escadas provisorias **nao sao do plano** - ficam em `State.Scaffolds` e o `ClearScaffolds` as remove no
+**fim da ordem** (`Finish`) e no **cancelamento** (`Cancel`), com a linha `N temporary stair(s) removed`. Nao sao contadas
+como peca colocada. Uma obra retomada depois da morte comeca com a lista vazia (as escadas antigas ficam no mundo e sao
+limpas pelo `build.delete`).
+
 ### 15.3 Medido em jogo (02/11/2026)
 
 | arquivo | pecas | resultado |

@@ -49,6 +49,11 @@ stopped.
   house/blueprint only happened on "leveled" or "already flat", so a site that stopped at 0,30 m against the 0,20 m
   tolerance ended the whole order without a single piece. A failed leveling now hands the order back too, and the build
   goes on with the ground it has (the pieces that do not fit are retried).
+- **A temporary stair for the pieces above the reach** (player's idea, 03/11/2026: "let's try that plan of temporary ladders,
+  he is still struggling to place a piece on the high roof"): when a piece is above the game's 5 m reach and the companion
+  is already standing under it - or when it stops making progress within 5 m of it - it places a **temporary wood stair**
+  (2 wood, +1 m, a ramp the mover simply walks up), retries the piece from the top and **removes the stair when the order
+  ends**. At most 3 per piece. New `[Building] TempScaffold` (on by default).
 - **The placement reach is the game's own again** (player's report, 03/11/2026: "he is still struggling to place a piece on
   the high roof"): the companion refused to place a gable top **15 cm** outside the mod's old flat cap (3,0 m) while the
   game allows 5 m from the eye. The flat cap is now 4,5 m and the eye rule (5 m) is what decides.

@@ -1229,6 +1229,14 @@ comandos de console e spawna coisas, então não é feature de jogador.
   **própria água do telhado** e coloca a peça de cima — 20 peças acima de 43 m no log, com `wood_roof_45` a 43,8/45,8 e
   `wood_wall_roof_top_45` a 44,8/46,8. Sem teleporte: é a razão de a trava de progresso ser conservadora (12 s **sem chegar
   mais perto**, nunca por tempo total).
+  **A escadinha provisória (pedido "vamos tentar aquele seu plano de fazer escadinhas provisórias", 03/11/2026):** quando a
+  peça está acima dos 5 m do olho e ele já está embaixo dela - ou quando a trava de 12 s dispara a menos de 5 m - o
+  `TryScaffold` coloca uma **`wood_stair` provisória** (2 madeiras, **+1 m**, rampa: o mover sobe como geometria, sem
+  lógica de escada nem pouso para cair), tenta a peça de cima e **remove a escada no fim da ordem** (`ClearScaffolds` no
+  `Finish` e no `Cancel`). Teto de 3 por peça, 1 a cada 4 s; a rampa sobe para o **-Z local** (`LookRotation(-toPiece)`) e
+  não pode ocupar o lugar de uma peça do plano (`BlockedByPlan`). Config `[Building] TempScaffold` (padrão **true**).
+  A `wood_stepladder` (+2 m) foi descartada para isso: é escada (o `MHR_Mover.IsLadder` casa pelo nome) e topo sem piso é
+  a armadilha de queda de 03/11/2026.
   **O alcance era menor que o do jogo (relato "ele ainda está apanhando tentando colocar uma peça no teto alto", 03/11/2026):**
   a regra era `flat <= Reach + 0,5` (3,0 m) **e** olho ≤ 5 m; um topo de empena a 3,15 m planos (3,3 m em 3D) era recusado
   por 15 cm. Agora o limite plano é `MaxPlace - 0,5` (**4,5 m**) e vale a regra do jogo (5 m do olho); o `Reach` (2,5 m)
