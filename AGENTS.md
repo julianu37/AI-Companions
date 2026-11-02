@@ -1160,7 +1160,10 @@ comandos de console e spawna coisas, então não é feature de jogador.
   (sem apoio, inalcançável, lenta ou que não materializa) vai para a fila e é **tentada de novo** quando o resto do
   plano sobe (`MaxPasses = 3`), com o **veredito do próprio jogo**; o que falha na última passada é pulado e contado.
   Plano grande exige **local plano e aberto** (o mover desiste em ~8 s sem progresso; o nivelamento não corta
-  morro nem derruba árvore). Análise do AICompanion deles em `docs/plan-e7.md` §7 (não nivela; o módulo é a lógica).
+  morro nem derruba árvore). **Bug do mesmo teste (03/11/2026):** a fala "carregando demais para construir" era **código
+  morto** - `CompanionCarry.Fraction` faz `Mathf.Clamp01` (é a barra do HUD), então `Fraction > 1f` nunca era verdade; o
+  companheiro tentava andar carregado, o mover desistia em 8 s e a ordem culpava o lugar ("can't get to the spot").
+  Agora compara o **peso real** com o teto (`CompanionCarry.Max`). Análise do AICompanion deles em `docs/plan-e7.md` §7 (não nivela; o módulo é a lógica).
   **A ponte do BuildOrders (F11) fica para depois** (barata, API pública).
   O vigia do E6b deixou de comparar **total-da-mochila** com
   **o-que-falta** (a 4x4 entrava em loop na porta); agora recalcula o que falta e retoma quando é zero. Harness

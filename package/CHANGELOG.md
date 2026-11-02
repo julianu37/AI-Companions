@@ -34,6 +34,10 @@ stopped.
   first** when it is uneven (the hoe job takes over and the build resumes); a workbench in range is asked **before** the
   first piece (the refusal names the station); and a piece that cannot be reached, that takes too long or that does not
   materialize is **skipped and counted** instead of ending the build.
+- **The "carrying too much to build" line never fired** (the player's test, 03/11/2026: the companion would not walk and
+  the order said "I can't get to the spot"): `CompanionCarry.Fraction` clamps to 0..1 for the HUD bar, so the
+  `Fraction > 1` check was dead code - an encumbered companion tried to walk, the mover gave up in 8 s and the refusal
+  blamed the spot. It now compares the real weight with the carry ceiling and says `hc_ai_build_too_heavy`.
 - **A piece that does not stand YET is retried, not lost** (the BuildOrders "build what stands" loop without the mod):
   a piece refused for no support, unreachable, too slow or not materialized goes back to a queue and is tried again when
   the rest of the plan is up (up to 3 passes) - the game's own support verdict decides, no stability simulation. Only

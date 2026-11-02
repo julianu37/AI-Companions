@@ -629,7 +629,11 @@ internal static class MHR_Build
 		}
 		// E6 (measured 01/11/2026): an encumbered companion cannot walk - the game's Encumbered effect slows it to a
 		// crawl and MHR_Mover gives up after 8 s without progress, which used to end the order with "no site" (a lie).
-		if (why == null && humanoid != null && CompanionCarry.Fraction(humanoid) > 1f)
+		// BUG do teste do jogador (03/11/2026): CompanionCarry.Fraction faz Mathf.Clamp01, entao "Fraction > 1" NUNCA era
+		// verdade - a fala hc_ai_build_too_heavy era codigo morto e o companheiro tentava andar carregado (o mover
+		// desistia em 8 s e a ordem dizia "can't get to the spot", uma mentira). Compara o peso com o teto de verdade.
+		if (why == null && humanoid != null && humanoid.GetInventory() != null
+			&& humanoid.GetInventory().GetTotalWeight() > CompanionCarry.Max(humanoid))
 		{
 			Log(ai, "overweight: " + humanoid.GetInventory().GetTotalWeight().ToString("F0") + "/" + CompanionCarry.Max(humanoid).ToString("F0"));
 			Finish(ai, state, "hc_ai_build_too_heavy", "encumbered", humanoid.GetInventory().GetTotalWeight().ToString("F0"), CompanionCarry.Max(humanoid).ToString("F0"));
