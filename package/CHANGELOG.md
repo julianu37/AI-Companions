@@ -40,6 +40,11 @@ stopped.
   blamed the spot. It now compares the real weight with the carry ceiling and says `hc_ai_build_too_heavy`.
   Measured right after: with **120 wood (240 of 300 weight)** the same 985-piece blueprint **walked and built 60 pieces**
   in ~3 minutes (all supported) before handing the order to the gather for the rest.
+- **The chests are the site's stock, not the piece's** (player's report, 03/11/2026: "he went to chop wood instead of
+  taking it from the chests next to the player"): the chest search used the piece's own position (30 m), so at the far
+  corner of a 32 m house the base chests were ~35 m away - the companion handed the order to the gather with more than a
+  thousand wood still in them. The bag/chest stock is now looked for around the **site's anchor**, which is what a chest
+  next to the build is.
 - **Every piece needs a workbench (the game's own rule) and the first test proved it the hard way**: the station pass
   counted 983 pieces, then three things went wrong in a row - the exit of the site clearing did not re-anchor the order's
   clock (the workbench was skipped as "took too long"), a `needs_station` refusal ended the whole blueprint instead of

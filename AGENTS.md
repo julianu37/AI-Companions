@@ -1191,7 +1191,12 @@ comandos de console e spawna coisas, então não é feature de jogador.
   (needs_station)`) — sem bancada no raio da peça nada sobe. Teste de 03/11/2026: a bancada era buscada **dentro** da casa
   (tomava o lugar de um piso) → agora vai **fora do footprint, no lado da peça, no chão**; a saída "clearing stopped" não
   reancorava o relógio (a bancada foi pulada como "took too long") → corrigido; e `needs_station` **matava** o blueprint →
-  agora vai para o **retry**. O orçamento da limpeza **pausa** enquanto ele leva carga ao baú.
+  agora vai para o **retry**.
+  **Os baús são o estoque do CANTEIRO (03/11/2026):** `Take`/`WithdrawTemplate`/`PlanMissing` procuravam baús ao redor
+  da **peça** (30 m) e, no canto oposto de uma casa de 32 m, os baús da base ficavam a ~35 m — ele entregou a coleta com
+  **mais de mil madeiras nos baús**; agora a busca é ao redor da **âncora da obra** (`state.Anchor`). Segundo teste com as
+  correções: bancadas **fora** do footprint (17,8 m do centro), `done: piece_workbench ... supported`, **119 peças**, 98
+  `no_support` (andares de cima, para o retry pass) e nenhum `needs_station` fatal.
   **A ponte do BuildOrders (F11) fica para depois** (barata, API pública).
   O vigia do E6b deixou de comparar **total-da-mochila** com
   **o-que-falta** (a 4x4 entrava em loop na porta); agora recalcula o que falta e retoma quando é zero. Harness

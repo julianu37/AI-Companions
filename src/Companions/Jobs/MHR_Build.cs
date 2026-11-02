@@ -1695,8 +1695,13 @@ internal static class MHR_Build
 		// job - an attempt to gather inside it turned Follow off and let the harvest steer while the AI also steered,
 		// and the companion's movement went haywire (player report, 01/11/2026). Gathering is its own order.
 		bool useChests = ModConfig.BuildUseChests == null || ModConfig.BuildUseChests.Value;
+		// E7 (player's report, 03/11/2026: "he went to chop wood instead of taking it from the chests next to the player"):
+		// the chests are the SITE's stock, so they are looked for around the site's ANCHOR, not around the piece. At the far
+		// corner of a 32 m house the base chests were ~35 m away - outside the 30 m search - and the companion went
+		// gathering with more than a thousand wood still in them.
+		Vector3 stock = state.Plan != null && state.AnchorKnown ? state.Anchor : state.Pos;
 		Dictionary<string, int> missing;
-		if (!state.Free && !BuildStock.Take(bag, state.Piece, state.Pos, cs, useChests, out missing))
+		if (!state.Free && !BuildStock.Take(bag, state.Piece, stock, cs, useChests, out missing))
 		{
 			Log(ai, "missing: " + MissingText(missing));
 			// E4b: the gather is a SEPARATE order. This one ends (with the line that says it is going to get it), the
@@ -1822,8 +1827,9 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			bool useChests = ModConfig.BuildUseChests == null || ModConfig.BuildUseChests.Value;
 			// E6b (player's request, 02/11/2026): take what the chests hold BEFORE going out - the wood in a chest is
 			// wood the house can use, and the player must not watch it chop while a chest still holds 30
+			Vector3 stock = state.Plan != null && state.AnchorKnown ? state.Anchor : state.Pos;
 			int moved = state.Template != null
-				? BuildStock.WithdrawTemplate(bag, state.Template, state.Pos, cs, useChests)
+				? BuildStock.WithdrawTemplate(bag, state.Template, stock, cs, useChests)
 				: 0;
 			if (moved > 0)
 			{
@@ -1831,8 +1837,8 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			}
 			// only what is LEFT of the plan (from the piece that is short): the whole template asked for 122 when 75 were missing
 			Dictionary<string, int> total = state.Plan != null
-				? PlanMissing(bag, state.Plan, state.Index, state.Pos, cs, useChests)
-				: TemplateMissing(bag, state.Template, state.Pos, cs, useChests);
+				? PlanMissing(bag, state.Plan, state.Index, stock, cs, useChests)
+				: TemplateMissing(bag, state.Template, stock, cs, useChests);
 			if (total.Count > 0)
 			{
 				need = total;

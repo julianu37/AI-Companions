@@ -865,6 +865,18 @@ peca (`centro + direcao * (metade do footprint + 2,5 m)`) e **no chao** (`ZoneSy
 antigo se nao houver lugar la. O orcamento da limpeza tambem **pausa** enquanto ele leva carga ao bau (na medição foram
 ~60 s dos 261 s carregando madeira).
 
+**Segundo teste (03/11/2026, com as correcoes):** funcionou o que tinha que funcionar - `workbench ... added at
+(-140,5, 37,7, -431,4)` e `(-172,8, 38,8, -443,8)` (**fora** do footprint, 17,8 m do centro), `the site is clear (1
+obstacle(s) in 33 s)`, **`done: piece_workbench ... supported`** e os pisos atras, pagos da mochila e de baus a 16-24 m -
+**119 pecas** e 98 `no_support` (os andares de cima, que o retry pass pega no fim). O `needs_station` nao matou mais nada.
+
+**O achado seguinte (relato do jogador: "ele foi cortar madeira ao inves de vir pegar nos baus aqui perto do player"):**
+os baus eram procurados **ao redor da PECA** (`BuildStock.ChestRadius` = 30 m), e no canto oposto de uma casa de 32 m os
+baus da base ficavam a ~35 m -> `missing: Madeira x2` -> entregou a coleta com **mais de mil madeiras ainda nos baus**
+(o vigia, que conta a partir da **ancora**, dizia `Madeira x890`). Agora o `Take`, o `WithdrawTemplate` e o `PlanMissing`
+procuram o estoque **ao redor da ancora da obra** (`state.Anchor`, o centro do plano) - o bau e o estoque do **canteiro**,
+nao da peca.
+
 **Retomada:** a ordem retomada usa o **plano exato** da primeira parte (`pending.Plan`) - as bancadas que ela mesma
 acrescentou fazem parte dele. Reconstruir o plano agora (com as bancadas ja de pe) inseriria menos bancadas e **todo
 indice depois delas andaria**, perdendo as pecas do meio em silencio.
