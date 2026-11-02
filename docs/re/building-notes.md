@@ -538,6 +538,20 @@ vai por `RPC_ApplyOperation` e o heightmap **assenta em ~0,5 s** (medido: a vari
 | alvo = altura **máxima** (só levantar) | também divergiu ✗ |
 | banco de **3 m** | estaciona em ~1,35 m ✗ (o ±1 m do soft não vence) |
 
+**Dois becos sem saída (medidos, para não repetir):**
+
+- **O raise** ("Erguer", `raise_v2`, raio 2, delta 1,0, até ±8 m) parecia a resposta para barrancos, mas **não compõe**:
+  as operações **sobrepõem-se** e cada vértice recebe 1-4 delas - uma área de 0,84 m saiu **4,13 m** mais alta; com a
+  grade espaçada em 2x o raio ainda subiu ~2,4 m. Revertido a pedido do jogador ("esquece o rise", 01/11/2026); o
+  código ficou só como ferramenta (`LevelToMax`/`FillLow`/`ApplyFill`), **sem uso no job**. Os montes do teste ficaram
+  no mundo `test3`.
+- **O grid denso** (espaçamento 1,5 m, 49 ops) **diverge mesmo com 2 s entre as passadas**: 0,85 → 1,25 → 2,41 →
+  1,68 → 2,44 → 1,78 → 2,44... (um ciclo de 2). As operações sobrepostas brigam entre si - não é (só) timing.
+
+**A régua ("bom o suficiente"):** a **casa** usa `[Building] LevelTolerance` = **0,35 m** (é o limite físico do piso:
+acima disso o piso fica sem apoio e o jogo derruba) e a **ordem de nivelar** aceita **0,6 m** - um piso a 0,6 m já lê
+como plano, e a ordem não precisa de espelho.
+
 **A regra:** o grid é **espaçado pelo raio** (sem sobreposição), o alvo é a **mediana**, e a variação máxima aceita é
 **1,2 m** - acima disso a ordem recusa (`hc_ai_build_too_steep`) em vez de cavar um buraco.
 

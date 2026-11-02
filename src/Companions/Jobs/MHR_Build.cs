@@ -46,7 +46,7 @@ internal static class MHR_Build
 	/// <summary>E10: how many leveling passes a job may apply before it gives up (each moves the ground by at most 1 m).</summary>
 	internal const int MaxLevelPasses = 4;
 	/// <summary>E10: above this height variation (metres) the soft level cannot win - the spot is refused instead of digging a crater.</summary>
-	internal const float MaxLevelVariation = 1.2f;
+	internal const float MaxLevelVariation = 1.8f;
 
 	/// <summary>E4b: how long a pending build waits for the gather before it is dropped.</summary>
 	internal const float GatherTimeout = 300f;
@@ -92,6 +92,8 @@ internal static class MHR_Build
 		/// <summary>E10: the variation before the last pass (a pass that does not improve stops the job).</summary>
 		internal float LevelBest;
 		internal float LevelTarget;
+		/// <summary>E10: fill the low side with the raise operation (a slope) instead of the soft level.</summary>
+		internal bool LevelFill;
 		internal Vector3 GatherTarget;
 		internal int GatherMode;
 		internal string GatherItem;
@@ -418,15 +420,17 @@ internal static class MHR_Build
 			zanim.SetTrigger(animation);
 		}
 		string error;
+		float fillTarget = bestTarget;
 		int applied = BuildTerrain.Level(best, size, bestTarget, out error);
-		Log(ai, "leveling " + size.ToString("F1") + " m: pass 1, " + applied + " operation(s), variation " + bestVariation.ToString("F2")
-			+ " m -> target " + bestTarget.ToString("F1") + (string.IsNullOrEmpty(error) ? string.Empty : " (" + error + ")"));
+		Log(ai, "leveling " + size.ToString("F1") + " m: " + applied + " operation(s), variation " + bestVariation.ToString("F2")
+			+ " m -> target " + fillTarget.ToString("F1") + (string.IsNullOrEmpty(error) ? string.Empty : " (" + error + ")"));
 		if (applied == 0)
 		{
 			Finish(ai, state, "hc_ai_build_level_failed", error ?? "no operation", bestVariation.ToString("F1"));
 			return false;
 		}
-		state.LevelTarget = bestTarget;
+		state.LevelTarget = fillTarget;
+		state.LevelFill = false;
 		state.LevelPasses = 1;
 		state.LevelBest = bestVariation;
 		state.LevelAt = Time.time;
@@ -459,7 +463,7 @@ internal static class MHR_Build
 			state.Phase = Phase.Find;
 			return true;
 		}
-		if (state.LevelPasses >= MaxLevelPasses || variation > state.LevelBest - 0.05f)
+		if (state.LevelPasses >= MaxLevelPasses || variation > state.LevelBest + 0.05f)
 		{
 			Log(ai, "after " + state.LevelPasses + " leveling pass(es): still " + variation.ToString("F2") + " m of variation (stopping)");
 			Finish(ai, state, "hc_ai_build_level_failed", "still uneven", variation.ToString("F1"));

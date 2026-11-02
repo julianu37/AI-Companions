@@ -30,6 +30,9 @@ internal static class BuildTerrain
 	/// <summary>True when the operation is the game's soft level (the smooth one): it moves the terrain by at most 1 m
 	/// per operation and needs a few passes.</summary>
 	private static bool _soft = true;
+	/// <summary>E10: the hoe's <b>raise</b> piece - it lifts the ground by up to 8 m, which is how a bank is leveled.</summary>
+	private static GameObject _raise;
+	private static float _raiseRadius = 2f;
 
 	private static void Look()
 	{
@@ -64,6 +67,12 @@ internal static class BuildTerrain
 					{
 						continue;
 					}
+					if (op.m_settings.m_raise && _raise == null)
+					{
+						_raise = candidate;
+						_raiseRadius = Mathf.Max(1f, op.m_settings.m_raiseRadius);
+						continue;
+					}
 					// the game's "level ground" is a SOFT level: it pulls the terrain toward the operation's y with a
 					// falloff (TerrainComp.SmoothTerrain), clamped to 1 m per operation - it needs a few passes
 					bool level = op.m_settings.m_level;
@@ -76,6 +85,9 @@ internal static class BuildTerrain
 					_radius = Mathf.Max(1f, level ? op.m_settings.m_levelRadius : op.m_settings.m_smoothRadius);
 					_square = level && op.m_settings.m_square;
 					_soft = !level;
+				}
+				if (_level != null && _raise != null)
+				{
 					return;
 				}
 			}
@@ -149,6 +161,12 @@ internal static class BuildTerrain
 	/// </summary>
 	internal static int Level(Vector3 center, float size, float targetY, out string error)
 	{
+		return Level(center, size, targetY, 1f, out error);
+	}
+
+	/// <summary>E10: one leveling pass with a grid spacing factor (1 = the radius, 0.5 = dense).</summary>
+	internal static int Level(Vector3 center, float size, float targetY, float spacingFactor, out string error)
+	{
 		error = null;
 		Look();
 		if (_level == null)
@@ -158,7 +176,7 @@ internal static class BuildTerrain
 		}
 		// the grid is spaced by the RADIUS on purpose: overlapping operations fight each other (measured 01/11/2026:
 		// a 1,5 m grid diverged 0,55 -> 0,95 -> 1,33 -> 2,01 m while a grid spaced by the 3 m radius converged)
-		float spacing = _radius;
+		float spacing = Mathf.Max(0.5f, _radius * Mathf.Clamp(spacingFactor, 0.25f, 2f));
 		int steps = Mathf.Clamp(Mathf.CeilToInt(size / spacing), 1, 12);
 		float half = size * 0.5f;
 		float cell = size / steps;
@@ -182,6 +200,109 @@ internal static class BuildTerrain
 			}
 		}
 		return applied;
+	}
+
+	/// <summary>True when the hoe's <b>raise</b> operation is available (it fills a bank up to 8 m).</summary>
+	internal static bool RaiseAvailable()
+	{
+		Look();
+		return _raise != null;
+	}
+
+	/// <summary>
+	/// E10: <b>fills the low side up to <paramref name="targetY"/></b> with the hoe's raise operation - the way a player
+	/// levels a bank (the soft level alone is capped at ±1 m, so it cannot win a 2 m slope; the raise goes up to 8 m).
+	/// One operation lifts the ground by up to 1 m, so the number of operations per point comes from the gap.
+	/// </summary>
+	internal static int FillLow(Vector3 center, float size, float targetY, out string error)
+	{
+		error = null;
+		Look();
+		if (_raise == null)
+		{
+			error = "the hoe's raise piece was not found";
+			return 0;
+		}
+		// spacing = 2x the radius: the raise covers a 4 m diameter, and closer points overlap (4 operations on the same vertex lifted 3,7 m)
+		float spacing = _raiseRadius * 2f;
+		int steps = Mathf.Clamp(Mathf.CeilToInt(size / spacing), 1, 12);
+		float cell = size / steps;
+		int applied = 0;
+		for (int i = 0; i < steps; i++)
+		{
+			for (int j = 0; j < steps; j++)
+			{
+				float x = center.x - size * 0.5f + (i + 0.5f) * cell;
+				float z = center.z - size * 0.5f + (j + 0.5f) * cell;
+				float ground = ZoneSystem.instance != null ? ZoneSystem.instance.GetGroundHeight(new Vector3(x, center.y, z)) : center.y;
+				float need = targetY - ground;
+				if (need <= 0.15f)
+				{
+					continue;
+				}
+				// ONE operation per point per pass: the raise lifts the ground by ~1 m and the operations OVERLAP, so
+				// asking for "as many as the gap" multiplied the lift (measured 01/11/2026: a 0,84 m area came out
+				// 4,13 m high). The pass loop measures between passes instead.
+				try
+				{
+					UnityEngine.Object.Instantiate(_raise, new Vector3(x, targetY, z), Quaternion.identity);
+					applied++;
+				}
+				catch (Exception ex)
+				{
+					error = ex.Message;
+					return applied;
+				}
+			}
+		}
+		return applied;
+	}
+
+	/// <summary>
+	/// E10: levels an area the way a player does on a slope - <b>fills the low side up to the highest point</b> with the
+	/// hoe's raise operation (up to 8 m per operation), instead of cutting. The soft level alone is capped at ±1 m and
+	/// stalls at ~0,45 m of variation on real ground (measured 01/11/2026), while the raise is what a player uses to
+	/// bring a bank up to a build site.
+	/// </summary>
+	internal static int LevelToMax(Vector3 center, float size, out float target, out string error)
+	{
+		error = null;
+		target = center.y;
+		float min;
+		float max;
+		float median;
+		FlatEnough(center, size, 0.01f, out min, out max, out median);
+		target = max + 0.05f;
+		return FillLow(center, size, target, out error);
+	}
+
+	/// <summary>
+	/// E10: one <b>raise</b> operation at a point, enough of them to close the gap to <paramref name="targetY"/> (one
+	/// operation lifts the ground by up to 1 m). It is the per-point version of <see cref="FillLow"/>, so the leveling
+	/// job keeps its point-by-point pacing while filling a slope.
+	/// </summary>
+	internal static int ApplyFill(Vector3 point, float targetY)
+	{
+		Look();
+		if (_raise == null)
+		{
+			return 0;
+		}
+		float ground = ZoneSystem.instance != null ? ZoneSystem.instance.GetGroundHeight(point) : point.y;
+		float need = targetY - ground;
+		if (need <= 0.1f)
+		{
+			return 0;
+		}
+		try
+		{
+			UnityEngine.Object.Instantiate(_raise, new Vector3(point.x, targetY, point.z), Quaternion.identity);
+			return 1;
+		}
+		catch (Exception)
+		{
+			return 0;
+		}
 	}
 
 	/// <summary>One leveling operation at a point (the swing the job does at each spot).</summary>

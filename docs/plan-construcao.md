@@ -578,6 +578,9 @@ nivelamento automático antes de uma estrutura (a fase Level do MHR_Build).
   vai ao **centro** da área, vira para cada ponto, bate a enxada (animação) e a operação cai 0,45 s depois.
 - **Aceite medido:** 8 m com 1,06 m de variação → **0,33 m em 3 passadas, 165 s** (hc_ai_level_done).
 - **Cancelamento:** é ordem de um tiro (qualquer outra ordem a derruba) - sem isso o companheiro ficava travado.
+- **O raise foi testado e abandonado:** as operações de "Erguer" se sobrepõem e um terreno de 0,84 m saiu 4,13 m mais
+  alto (ver `docs/re/building-notes.md` §13). O nivelamento é o soft level, com a régua em **0,35 m** para a casa e
+  **0,6 m** para a ordem ("bom o suficiente").
 
 ---
 

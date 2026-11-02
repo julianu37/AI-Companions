@@ -30,7 +30,7 @@ internal static class MHR_Level
 	internal const float Timeout = 900f;
 
 	/// <summary>Above this height variation the soft level cannot win - the order refuses instead of digging.</summary>
-	internal const float MaxVariation = 1.2f;
+	internal const float MaxVariation = 1.8f;
 
 	/// <summary>How many times the whole area is worked before the job gives up.</summary>
 	internal const int MaxPasses = 10;
@@ -54,6 +54,8 @@ internal static class MHR_Level
 		internal Vector3 Center;
 		internal float Size;
 		internal float Target;
+		/// <summary>E10: fill the low side with the raise operation (a slope) instead of the soft level.</summary>
+		internal bool Fill;
 		internal int Pass;
 		internal int Index;
 		internal List<Vector3> Points;
@@ -223,6 +225,7 @@ internal static class MHR_Level
 			return false;
 		}
 		state.Target = target;
+		state.Fill = false;
 		state.Points = Grid(state.Center, state.Size, BuildTerrain.Radius());
 		state.Pass = 1;
 		state.Index = 0;
@@ -312,7 +315,8 @@ internal static class MHR_Level
 				zanim.SetTrigger(animation);
 			}
 		}
-		if (BuildTerrain.ApplyOne(point, state.Target))
+		int worked = state.Fill ? BuildTerrain.ApplyFill(point, state.Target) : (BuildTerrain.ApplyOne(point, state.Target) ? 1 : 0);
+		if (worked > 0)
 		{
 			LogDebug(ai, "worked point " + (state.Index + 1) + "/" + state.Points.Count + " of pass " + state.Pass);
 		}

@@ -699,7 +699,8 @@ internal static class Commands
 		float size = Mathf.Clamp(Json.Float(args, "size", 8f), 1f, 40f);
 		float target = Json.Float(args, "target", pos.y);
 		string error;
-		int applied = BuildTerrain.Level(pos, size, target, out error);
+		float spacing = Json.Float(args, "spacing", 1f);
+		int applied = BuildTerrain.Level(pos, size, target, spacing, out error);
 		return Ok(new Dictionary<string, object>
 		{
 			{ "applied", applied },
