@@ -718,6 +718,17 @@ jogador nivela antes com a ordem `level`, se quiser).
 
 Sem a bancada perto o `wood_beam` recusa com `needs_station` e a ordem encerra dizendo qual estacao falta (medido).
 
+**As 3 builds de teste deixadas na pasta (02/11/2026, baixadas do BiomeBlueprints):**
+
+| arquivo (o nome que se fala) | `#Name:` | peças | pede |
+|---|---|---|---|
+| `hs_meadows_hut` | Meadow Hut | 28 | bancada no raio (vigas) - **28/28 validada** |
+| `hs_meadows_stilt_hut` | Meadow Stilt Hut | 32 | bancada + palafitas (`wood_pole2`) |
+| `hs_meadows_hive_tower` | Hive Tower | 75 | bancada + **colmeias** (`piece_beehive`, receita de 10 abelhas na rainha) |
+
+As grandes (4554/1244/505/184 peças) e as fixtures do PlanBuild ficaram em `blueprints\grandes\` e
+`blueprints\teste\` - o mod **não lê subpasta**, então elas não aparecem nas ordens.
+
 **Onde os arquivos ficam:** `BepInEx/config/AI-Companions/blueprints/` (o mod cria a pasta). A ordem usa o **nome do
 arquivo** sem a extensao ("construa a hs_meadows_hut aqui"), porque o `#Name:` de muitas builds e "Custom Name".
 
