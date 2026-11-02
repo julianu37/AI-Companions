@@ -25,6 +25,137 @@ internal static class BuildStock
 
 	private static readonly List<Container> s_chests = new List<Container>();
 
+	/// <summary>
+	/// E6b (player's request, 02/11/2026): <b>takes from the chests into the bag before going out to gather</b> - the wood
+	/// in a chest is wood the house can use, and the player must not watch it chop while a chest still holds 30. It moves
+	/// up to the piece's need per item (for a plan, the whole structure's), leaves the rest where it is and logs what it
+	/// took.
+	/// </summary>
+	internal static int Withdraw(Inventory bag, Piece piece, Vector3 center, Component who, bool useChests)
+	{
+		if (bag == null || piece == null || piece.m_resources == null)
+		{
+			return 0;
+		}
+		Dictionary<string, int> need = new Dictionary<string, int>();
+		foreach (Piece.Requirement requirement in piece.m_resources)
+		{
+			if (requirement == null || requirement.m_resItem == null)
+			{
+				continue;
+			}
+			string name = requirement.m_resItem.m_itemData.m_shared.m_name;
+			int amount = requirement.GetAmount(1);
+			int seen;
+			need.TryGetValue(name, out seen);
+			need[name] = seen + amount;
+		}
+		return MoveFromChests(bag, need, center, who, useChests);
+	}
+
+	/// <summary>E6b: the same for a whole structure - the need is the sum of every piece of the template.</summary>
+	internal static int WithdrawTemplate(Inventory bag, BuildTemplates.Template template, Vector3 center, Component who, bool useChests)
+	{
+		if (bag == null || template == null)
+		{
+			return 0;
+		}
+		Dictionary<string, int> need = new Dictionary<string, int>();
+		foreach (BuildTemplates.Step step in template.Steps)
+		{
+			Piece piece = BuildProbe.PieceOf(step.Prefab);
+			if (piece == null || piece.m_resources == null)
+			{
+				continue;
+			}
+			foreach (Piece.Requirement requirement in piece.m_resources)
+			{
+				if (requirement == null || requirement.m_resItem == null)
+				{
+					continue;
+				}
+				string name = requirement.m_resItem.m_itemData.m_shared.m_name;
+				int amount = requirement.GetAmount(1);
+				int seen;
+				need.TryGetValue(name, out seen);
+				need[name] = seen + amount;
+			}
+		}
+		return MoveFromChests(bag, need, center, who, useChests);
+	}
+
+	/// <summary>Moves what the chests hold into the bag, up to the need (what the bag already has counts).</summary>
+	private static int MoveFromChests(Inventory bag, Dictionary<string, int> need, Vector3 center, Component who, bool useChests)
+	{
+		if (bag == null || need == null || !useChests)
+		{
+			return 0;
+		}
+		List<Container> chests = Chests(center, who);
+		if (chests.Count == 0)
+		{
+			return 0;
+		}
+		int moved = 0;
+		foreach (KeyValuePair<string, int> kv in need)
+		{
+			string name = kv.Key;
+			int left = kv.Value - bag.CountItems(name);
+			if (left <= 0)
+			{
+				continue;
+			}
+			foreach (Container chest in chests)
+			{
+				if (left <= 0)
+				{
+					break;
+				}
+				Inventory chestBag = chest != null ? chest.GetInventory() : null;
+				if (chestBag == null)
+				{
+					continue;
+				}
+				int take = Mathf.Min(left, chestBag.CountItems(name));
+				if (take <= 0)
+				{
+					continue;
+				}
+				GameObject prefab = PrefabOf(name);
+				if (prefab == null)
+				{
+					continue;
+				}
+				MHR_Chests.Claim(chest);
+				chestBag.RemoveItem(name, take);
+				bag.AddItem(prefab, take);
+				left -= take;
+				moved += take;
+				CompanionsPlugin.Log?.LogInfo("[Build] stock: moved " + take + "x " + name + " from the chest \"" + chest.gameObject.name
+					+ "\" to the bag (" + Vector3.Distance(chest.transform.position, center).ToString("F0") + " m from the spot)");
+			}
+		}
+		return moved;
+	}
+
+	/// <summary>The prefab for a shared item name (the item the chest holds, so the bag takes the same object).</summary>
+	private static GameObject PrefabOf(string sharedName)
+	{
+		if (string.IsNullOrEmpty(sharedName) || ObjectDB.instance == null || ObjectDB.instance.m_items == null)
+		{
+			return null;
+		}
+		foreach (GameObject item in ObjectDB.instance.m_items)
+		{
+			ItemDrop drop = item != null ? item.GetComponent<ItemDrop>() : null;
+			if (drop != null && drop.m_itemData != null && drop.m_itemData.m_shared != null && drop.m_itemData.m_shared.m_name == sharedName)
+			{
+				return item;
+			}
+		}
+		return null;
+	}
+
 	/// <summary>What the piece needs, counting the bag and the usable chests near <paramref name="center"/>.</summary>
 	internal static Dictionary<string, int> Available(Inventory bag, Piece piece, Vector3 center, Component who, bool useChests)
 	{

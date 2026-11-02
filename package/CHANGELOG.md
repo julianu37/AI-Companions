@@ -91,6 +91,8 @@ its own bag, places the piece and confirms it works.
   **Gathering for the whole structure:** if it has to chop wood anyway, it brings enough for the rest of the build (or
   until the bag is nearly full) instead of coming back for one piece at a time - and the log now says where each
   material came from (bag or chest, with the distance).
+  **Before going out to gather it empties the chests:** whatever the chests hold (up to what the structure needs) is
+  moved into the bag first - no more chopping while a chest still holds a stack - and the log says what was moved.
 - **New dev tooling:** `modia_build_probe [prefab] [radius]` and `modia_build_find [prefab] [radius]` in the game
   console, and the MCP tools `build_inspect`, `build_sites`, `build_find`, `build_pieces`, `companions_build`,
   `companions_sethome` and `player_look` (the build order takes its spot from your aim, so a test has to be

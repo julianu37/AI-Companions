@@ -130,6 +130,8 @@ internal static class MHR_Build
 		internal int Index;
 		internal Vector3 Anchor;
 		internal Quaternion AnchorRot;
+		/// <summary>E6b: the last count written to the log (the watcher is otherwise silent while it waits).</summary>
+		internal int LastLogged = -1;
 		internal float Start;
 	}
 
@@ -906,6 +908,13 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			Humanoid humanoid = ai.GetComponent<Humanoid>();
 			Inventory bag = humanoid != null ? humanoid.GetInventory() : null;
 			bool useChests = ModConfig.BuildUseChests == null || ModConfig.BuildUseChests.Value;
+			// E6b (player's request, 02/11/2026): take what the chests hold BEFORE going out - the wood in a chest is
+			// wood the house can use, and the player must not watch it chop while a chest still holds 30
+			int moved = BuildStock.WithdrawTemplate(bag, state.Template, state.Pos, cs, useChests);
+			if (moved > 0)
+			{
+				Log(ai, "withdrew " + moved + " item(s) from the chests before gathering");
+			}
 			Dictionary<string, int> total = TemplateMissing(bag, state.Template, state.Pos, cs, useChests);
 			if (total.Count > 0)
 			{
@@ -1252,8 +1261,18 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		bool nearlyFull = humanoid.GetInventory().GetTotalWeight() >= CompanionCarry.Max(humanoid) * 0.8f;
 		if (got < pending.Amount && !nearlyFull)
 		{
+			// E6b diagnostics (the player's test showed the order sitting in the gather without a word): one line per
+			// change of the count, so the log says WHY the build is still waiting
+			if (pending.LastLogged != got)
+			{
+				pending.LastLogged = got;
+				Log(ai, "waiting for " + pending.Item + ": have " + got + "/" + pending.Amount
+					+ (string.IsNullOrEmpty(pending.Template) ? string.Empty : " for the " + pending.Template)
+					+ " (mode " + ModeOf(cs) + ", expected " + pending.Mode + ")");
+			}
 			return;   // still gathering
 		}
+		Log(ai, "gather done (have " + got + "/" + pending.Amount + (nearlyFull ? ", bag nearly full" : string.Empty) + ") - resuming");
 		s_pending.Remove(ai.GetInstanceID());
 		CompanionSetup.ClearOrderCap(cs);
 		// back to Follow mode BEFORE the build starts: the harvest must not keep steering while the build does
@@ -1264,6 +1283,11 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		if (resumed)
 		{
 			Log(ai, "materials ready - resuming the build");
+		}
+		else
+		{
+			Log(ai, "could not resume the " + (pending.Template ?? pending.Prefab) + " - the order ends");
+			Say(ai, "hc_ai_build_failed", pending.Template ?? pending.Prefab);
 		}
 	}
 

@@ -1116,7 +1116,10 @@ comandos de console e spawna coisas, então não é feature de jogador.
   bancada** e uma casa nova ao lado). **A coleta pede o que falta para a CASA TODA (02/11/2026):** se ele tem que
   cortar madeira, volta com o suficiente para o resto da obra **ou até a mochila encher** (80% do limite) - o total do
   template pode não caber no saco. E o log diz **de onde** veio o material (`[Build] stock: took Nx <item> from the
-  bag|the chest "..." (N m)`). **Aceite: 1,06 m → 0,33 m em 3 passadas, 165 s.** É ordem de um tiro (qualquer outra
+  bag|the chest "..." (N m)`). **Antes de sair para coletar ele RECOLHE DOS BAÚS (02/11/2026):**
+  `BuildStock.WithdrawTemplate` move para a mochila o que os baús têm, até o total da estrutura, e só então
+  `TemplateMissing` decide o que coletar (o jogador viu uma pilha de 50 virar 8 e outra de 30 intocada enquanto o
+  companheiro ia cortar). **Aceite: 1,06 m → 0,33 m em 3 passadas, 165 s.** É ordem de um tiro (qualquer outra
   cancela - sem isso ele ficava travado). `ValidActions` 36 → 37, 5 idiomas, config 353.
   **Aceite em jogo (01/11/2026): 57/57 peças, todas `supported`**, todas
   `placed (Direct)` - a casa **traz a própria bancada** (passo 0, a estação vem do plano), a **porta é a última**

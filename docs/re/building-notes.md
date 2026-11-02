@@ -486,6 +486,13 @@ atingido **ou** a mochila está a **80%** do limite (`CompanionCarry.Max`) - o t
 **Onde o material foi pego agora aparece no log** (`[Build] stock: took Nx <item> from the bag|the chest "..." (N m
 from the spot)`) - antes era silencioso e o jogador (com razão) duvidou do baú.
 
+**Antes de sair para coletar, ele RECOLHE DOS BAÚS (pedido do jogador, 02/11/2026):** o jogador viu uma pilha de 50
+(da qual ele deixou 8) e outra de 30 intocada enquanto o companheiro ia cortar madeira. A obra pagava peça por peça
+(pegando só o que a peça precisava) e o cálculo da coleta contava o baú, mas o material ficava lá. Agora o
+`BuildStock.WithdrawTemplate` **move para a mochila** o que os baús têm, até o total da estrutura, **antes** de
+`TemplateMissing` decidir o que coletar - e a linha `[Build] stock: moved Nx <item> from the chest "..." to the bag`
+mostra cada retirada. O que sobra no baú continua lá (a obra usa nas peças seguintes).
+
 **O chão tem que ser plano.** O abrigo de 4x2 m precisa dos 4 postes no mesmo nível: num terreno inclinado os
 postes do lado de baixo ficam sem apoio e o plano recusa (foi o que aconteceu sobre a bancada da E5, num barranco) -
 o `FindAnchor` então procura outro ponto. Nivelar o terreno é a **E10**.

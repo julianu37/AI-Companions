@@ -543,6 +543,9 @@ fecha o sentido "usável" da E5.
   custo inteiro antes de começar - numa construção grande isso não faz sentido.
 - **Limitações:** o chão tem que ser razoavelmente plano (o nivelamento é a **E10** e agora é visível: a obra entrega
   ao job de nivelar e retoma).
+- **Antes de coletar, recolhe dos baús (02/11/2026):** `BuildStock.WithdrawTemplate` move para a mochila o que os
+  baús têm, até o total da estrutura, e só então o que falta vira a ordem de coleta (o jogador viu uma pilha de 50
+  virar 8 e outra de 30 intocada enquanto ele ia cortar).
 - **A coleta pede o que falta para a casa toda (02/11/2026):** se o companheiro tem que cortar madeira, volta com o
   suficiente para o resto da obra (ou até encher a mochila, 80% do limite) - não uma peça por vez. E o log diz
   **de onde** o material veio (mochila ou baú, com a distância).
