@@ -49,6 +49,10 @@ stopped.
   house/blueprint only happened on "leveled" or "already flat", so a site that stopped at 0,30 m against the 0,20 m
   tolerance ended the whole order without a single piece. A failed leveling now hands the order back too, and the build
   goes on with the ground it has (the pieces that do not fit are retried).
+- **The build survives the companion's death** (player's report, 03/11/2026: "it fell and died, and the build did not go on"):
+  a build order used to die with the companion - after the respawn it came back in Follow and the house stood half built.
+  The plan (piece, anchor, rotation, retry queue) now waits for the respawn and the order **resumes at the same piece**;
+  a player's "stop" still drops it.
 - **No more 60 s stuck on a piece it cannot reach** (player's report, 03/11/2026: "she is struggling with the tip of the
   roof"): the roof tip pieces are refused with no_support (deferred at once, they come back in the retry pass) but the ones
   the companion walks to and cannot get closer to burned the whole 60 s timeout each. A piece it does not get **0,5 m

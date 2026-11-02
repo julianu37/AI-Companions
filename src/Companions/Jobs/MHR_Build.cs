@@ -209,6 +209,9 @@ internal static class MHR_Build
 		/// <summary>E7: the blueprint waiting for its materials (label and file; null for a template/piece).</summary>
 		internal string Blueprint;
 		internal string BlueprintFile;
+		/// <summary>E7 (player's report, 03/11/2026: "it fell and died, and the build did not go on"): the order is waiting
+		/// for the RESPAWN - it resumes by itself (same plan, same anchor, same piece) when the companion is alive again.</summary>
+		internal bool AfterDeath;
 		/// <summary>E7: the pieces that did not stand yet when the gather took over - the resumed order must carry them, or
 		/// the 2nd storey of the house is lost for good (the retry pass of the first part never runs).</summary>
 		internal List<PlannedStep> Retry;
@@ -808,6 +811,31 @@ internal static class MHR_Build
 		}
 		else if (self.IsDead())
 		{
+			// E7 (player's report, 03/11/2026: "it fell and died, and the build did not go on"): a plan is not lost on death -
+			// the order waits for the respawn and resumes at the SAME piece, anchor and rotation (the same path the gather
+			// handover uses).
+			if (state.Plan != null && state.Plan.Count > 0 && (state.Blueprint != null || state.Template != null))
+			{
+				s_pending[ai.GetInstanceID()] = new Pending
+				{
+					Prefab = state.Prefab,
+					Template = state.Template != null ? state.Template.Name : null,
+					Blueprint = state.Blueprint,
+					BlueprintFile = state.BlueprintFile,
+					Hint = state.Hint,
+					Anchor = state.AnchorKnown ? state.Anchor : state.Hint,
+					AnchorRot = state.AnchorRot,
+					Index = state.Index,
+					Plan = state.Plan,
+					Retry = state.Retry,
+					Passes = state.Passes,
+					AfterDeath = true,
+					Start = Time.time,
+					LastProgressAt = Time.time
+				};
+				Log(ai, "it died during the build - the order resumes after the respawn (piece " + (state.Index + 1) + "/"
+					+ state.Plan.Count + ")");
+			}
 			why = "it's dead";
 		}
 		else if (nv.IsValid() && !nv.IsOwner())
@@ -2516,10 +2544,51 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		Humanoid humanoid = ai.GetComponent<Humanoid>();
 		Inventory bag = humanoid != null ? humanoid.GetInventory() : null;
 		ZNetView nv = ai.GetComponent<ZNetView>();
-		if (cs == null || bag == null || nv == null || !nv.IsValid() || !nv.IsOwner() || humanoid == null || humanoid.IsDead())
+		if (cs == null || bag == null || nv == null || !nv.IsValid() || !nv.IsOwner() || humanoid == null
+			|| (humanoid.IsDead() && !pending.AfterDeath))
 		{
 			s_pending.Remove(ai.GetInstanceID());
 			RestoreFollow(ai, cs, pending);
+			return;
+		}
+		if (pending.AfterDeath)
+		{
+			if (humanoid.IsDead())
+			{
+				return;      // waiting for the respawn - nothing else to do
+			}
+			// alive again: resume the SAME order (the plan travels with the pending)
+			s_pending.Remove(ai.GetInstanceID());
+			bool back;
+			if (pending.BlueprintFile != null)
+			{
+				Blueprint saved = BuildBlueprints.Load(pending.BlueprintFile);
+				string ignoredPrefab;
+				string ignoredStation;
+				back = saved != null
+					&& ResumeBlueprint(cs, saved, pending.Hint, pending.Index, pending.AnchorRot, out ignoredPrefab,
+						out ignoredStation, pending.Plan) == BlueprintStart.Started;
+			}
+			else
+			{
+				BuildTemplates.Template savedTemplate = pending.Template != null ? BuildTemplates.ByName(pending.Template) : null;
+				back = savedTemplate != null
+					&& StartPlan(cs, savedTemplate, pending.Hint, pending.Index, pending.Anchor, pending.AnchorRot, true);
+			}
+			if (back)
+			{
+				State fresh;
+				if (s_state.TryGetValue(ai.GetInstanceID(), out fresh) && fresh != null)
+				{
+					fresh.Retry = pending.Retry;
+					fresh.Passes = pending.Passes;
+				}
+				Log(ai, "back from the dead - resuming the build at piece " + (pending.Index + 1));
+			}
+			else
+			{
+				Log(ai, "could not resume the build after the respawn - the order ends");
+			}
 			return;
 		}
 		// E6b: a plan waiting for its materials (a template, or a blueprint) or a single piece
@@ -2534,7 +2603,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			RestoreFollow(ai, cs, pending);
 			return;
 		}
-		if (ModeOf(cs) != pending.Mode)
+		if (!pending.AfterDeath && ModeOf(cs) != pending.Mode)
 		{
 			s_pending.Remove(ai.GetInstanceID());
 			RestoreFollow(ai, cs, pending);

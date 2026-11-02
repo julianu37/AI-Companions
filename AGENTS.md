@@ -1221,6 +1221,10 @@ comandos de console e spawna coisas, então não é feature de jogador.
   **Escadinha no vazio + queda em loop (03/11/2026):** o salão de pé-direito duplo não tem piso no nível 2, a escadinha do
   plano terminava no vazio e ele **subia e caía até morrer**. Agora `HasLanding` sonda o topo (o ponto + anel de 0,6 m) e
   **não coloca** a escada sem piso do outro lado, e **duas quedas (>0,8 m/frame) na mesma peça** a pulam. Falta o andar
+  **A obra retoma depois da morte (relato "ele caiu e morreu, aí não continuou a build", 03/11/2026):** na morte o plano vai
+  para o `Pending` com `AfterDeath` (prefab, blueprint/template, âncora, rotação, `Index`, `Plan`, `Retry`, `Passes`) e o
+  `CheckPending` **espera o respawn** e retoma **na mesma peça** pelo `ResumeBlueprint`/`StartPlan(anchorKnown)`; um "para"
+  do jogador continua derrubando (`Cancel` limpa o pending).
   **Ele usa a obra como andaime (relato "subiu pelo telhado pra fazer a ponta", 03/11/2026):** o `MHR_Mover` sobe pela
   **própria água do telhado** e coloca a peça de cima — 20 peças acima de 43 m no log, com `wood_roof_45` a 43,8/45,8 e
   `wood_wall_roof_top_45` a 44,8/46,8. Sem teleporte: é a razão de a trava de progresso ser conservadora (12 s **sem chegar

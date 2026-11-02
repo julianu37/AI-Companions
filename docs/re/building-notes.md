@@ -1049,6 +1049,19 @@ conservadora (so desiste depois de 12 s *sem chegar mais perto*, nunca por tempo
 (`no progress towards the <peca> for 12 s (N m away) - retrying it later`), em vez de esperar os 60 s. Continua valendo o
 retry pass (ate 3 passadas) e o pulo com contagem no fim.
 
+### 15.2n A obra retoma depois da morte (03/11/2026)
+
+Relato do jogador: *"ele caiu e morreu, ai nao continuou a build"*. O `Drive` terminava a ordem com `why = "it's dead"` e
+**nada** guardava o plano - depois do respawn (30 s, no lar ou na lapide) o companheiro voltava em Follow e a obra ficava
+pela metade.
+
+**Correcao:** na morte, o estado do plano vai para o **`Pending`** com a flag `AfterDeath`: prefab, template/blueprint,
+`Hint`, `Anchor`, `AnchorRot`, `Index`, `Plan`, `Retry` e `Passes`. O `CheckPending` (que roda sempre que nao ha obra
+ativa) **espera o respawn** (`humanoid.IsDead()` com `AfterDeath` nao descarta o pending) e, vivo de novo, **retoma na
+mesma peca, ancora e rotacao** pelo `ResumeBlueprint`/`StartPlan(..., anchorKnown: true)`, carregando o `Retry`.
+Logs: `it died during the build - the order resumes after the respawn (piece N/M)` e `back from the dead - resuming the
+build at piece N`. Um `stop` do jogador continua **derrubando** o pending (`Cancel` limpa `s_pending`).
+
 ### 15.3 Medido em jogo (02/11/2026)
 
 | arquivo | pecas | resultado |
