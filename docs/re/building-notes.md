@@ -1124,11 +1124,17 @@ baus) - falhou o `BuildExecutor.Place`, o `Refund` devolve. Teto de **3 por peca
 relogio de progresso. Config nova **`[Building] TempScaffold`** (bool, padrao **true**).
 
 **Limpeza:** as escadas provisorias **nao sao do plano** - ficam em `State.Scaffolds` e o `ClearScaffolds` as remove no
-**fim da ordem** (`Finish`), no **cancelamento** (`Cancel`) e no **`CancelAll`** (ordem sem endereçado: "segue", "para",
-"colete 20"), com a linha `N temporary stair(s) removed`. Nao sao contadas como peca colocada. Na **morte** a obra termina
-em `Finish`, que tambem chama o `ClearScaffolds` - as escadas saem na morte e a retomada (`Pending.AfterDeath`) comeca com
-a lista vazia. O `ClearScaffolds` **mantem** a escada quando uma peca aceita com ela de pe perdeu o apoio
-(`PieceDependsOnScaffold`, com as pecas guardadas em `State.Scaffolded`), e a madeira volta para a mochila no fim.
+**fim da ordem** (`Finish`), no **cancelamento** (`Cancel`), no **`CancelAll`** (ordem sem endereçado: "segue", "para",
+"colete 20"), quando uma **ordem nova de build** substitui a que estava rodando (`DiscardState`) e no **`Shutdown`** do
+plugin (senao a peca ficaria no save). Nao sao contadas como peca colocada.
+
+**Apoio antes de remover (revisado duas vezes em 03/11/2026):** a primeira versao perguntava `BuildSupport.Supported`
+com a escada **de pe** - e a escada e um `WearNTear` com `m_supports`, entao a resposta era sempre "tem apoio" e a
+protecao nao protegia nada. Agora o `StairHoldsPiece` **desliga os colliders daquela escada**, pergunta o apoio so das
+pecas a **4 m em XZ / 3 m em Y** dela (`State.Scaffolded`, que so guarda pecas colocadas perto de alguma escada) e
+religa os colliders; se alguma perdeu o apoio, **so aquela** escada fica, com `LogWarning` (`kept N temporary
+stair(s)`). A madeira volta para a mochila **so quando a peca realmente saiu do mundo e foi paga** (`!state.Free`, ZDO
+removido) - no `BlueprintFree` a escada nunca e paga, e estornar ali criaria madeira do nada.
 
 ### 15.3 Medido em jogo (02/11/2026)
 

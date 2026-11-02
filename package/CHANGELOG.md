@@ -53,7 +53,8 @@ stopped.
   he is still struggling to place a piece on the high roof"): when a piece is above the game's 5 m reach and the companion
   is already standing under it - or, in a blueprint, when it stops making progress within 5 m of it - it places a **temporary wood stair**
   (2 wood, +1 m, a ramp the mover simply walks up), retries the piece from the top and **removes the stair when the order
-  ends**. At most 3 per piece. New `[Building] TempScaffold` (on by default).
+  ends** - the wood comes back, and a stair is kept only when a piece placed next to it has no support without it. At most
+  3 attempts per piece position. New `[Building] TempScaffold` (on by default).
 - **The placement reach is the game's own again** (player's report, 03/11/2026: "he is still struggling to place a piece on
   the high roof"): the companion refused to place a gable top **15 cm** outside the mod's old flat cap (3,0 m) while the
   game allows 5 m from the eye. The flat cap is now 4,5 m and the eye rule (5 m) is what decides.

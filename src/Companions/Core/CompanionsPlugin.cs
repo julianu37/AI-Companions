@@ -309,6 +309,16 @@ public class CompanionsPlugin : BaseUnityPlugin
 			return;
 		}
 		_started = false;
+		// E7 (review, 03/11/2026): the temporary stairs of a running build are pieces in the save - they are removed while
+		// the scene is still loaded, or they would survive the session
+		try
+		{
+			MHR_Build.CancelAll();
+		}
+		catch (Exception ex)
+		{
+			Logger?.LogWarning("[Build] could not clear the temporary stairs on shutdown: " + ex.Message);
+		}
 		_devBridge?.Stop();
 		_devBridge = null;
 		SceneManager.sceneLoaded -= OnSceneLoaded;

@@ -1242,11 +1242,14 @@ comandos de console e spawna coisas, então não é feature de jogador.
   menos de 5 m - o
   `TryScaffold` coloca uma **`wood_stair` provisória** (2 madeiras, **+1 m**, rampa: o mover sobe como geometria, sem
   lógica de escada nem pouso para cair), tenta a peça de cima e **remove a escada no fim da ordem** (`ClearScaffolds` no
-  `Finish`, no `Cancel` e no `CancelAll`), devolvendo a madeira. Teto de **3 por pose** (não por passo do plano: retry pass
-  não renova o orçamento), 1 a cada 4 s; a rampa sobe para o **-Z local** (`LookRotation(-toPiece)`) e não pode ocupar o
-  lugar de uma peça do plano **nem de uma que está na fila de retry** (`BlockedByPlan`, 1,5 m em XZ e 2 m em Y). A escada
-  só é removida se as peças aceitas com ela de pé continuarem com apoio (`PieceDependsOnScaffold`); senão fica e o log
-  avisa. Config `[Building] TempScaffold` (padrão **true**).
+  `Finish`, no `Cancel`, no `CancelAll`, quando uma **ordem nova de build** substitui a que roda (`DiscardState`) e no
+  `Shutdown` do plugin), devolvendo a madeira **só quando ela foi paga e o ZDO saiu** (no `BlueprintFree` não há estorno).
+  Teto de **3 tentativas por pose** (não por passo do plano: retry pass não renova o orçamento), 1 a cada 4 s, e as saídas
+  "sem madeira"/"sem bancada" **não gastam** tentativa; a rampa sobe para o **-Z local** (`LookRotation(-toPiece)`) e não
+  pode ocupar o lugar de uma peça do plano **nem de uma que está na fila de retry** (`BlockedByPlan`, 1,5 m em XZ e 2 m em
+  Y). Antes de remover, o `StairHoldsPiece` **desliga os colliders** da escada (de pé ela conta como apoio) e pergunta o
+  apoio só das peças a 4 m/3 m dela: se alguma perdeu, **aquela** escada fica e o log avisa. Config `[Building]
+  TempScaffold` (padrão **true**).
   A `wood_stepladder` (+2 m) foi descartada para isso: é escada (o `MHR_Mover.IsLadder` casa pelo nome) e topo sem piso é
   a armadilha de queda de 03/11/2026.
   **O alcance era menor que o do jogo (relato "ele ainda está apanhando tentando colocar uma peça no teto alto", 03/11/2026):**
