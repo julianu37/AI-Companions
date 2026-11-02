@@ -1196,6 +1196,7 @@ comandos de console e spawna coisas, então não é feature de jogador.
   da **peça** (30 m) e, no canto oposto de uma casa de 32 m, os baús da base ficavam a ~35 m — ele entregou a coleta com
   **mais de mil madeiras nos baús**; agora a busca é ao redor da **âncora da obra** (`state.Anchor`). Segundo teste com as
   correções: bancadas **fora** do footprint (17,8 m do centro), `done: piece_workbench ... supported`, **119 peças**, 98
+  `no_support` (andares de cima, para o retry pass) e nenhum `needs_station` fatal.
   **"Tremendo e parou" (03/11/2026):** `MHR_Build.Active`/`MHR_Level.Active` comparavam o `GetInstanceID()` do **componente**
   chamador com um dicionário chaveado pelo do **`CompanionAI`** — nunca casava, o `OtherOrder` respondia false durante a obra
   e o **job de ócio andava junto** (dois `MHR_Mover` no mesmo corpo). Agora `StateOf`/`Owner` resolvem o `CompanionAI` do
