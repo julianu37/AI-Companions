@@ -801,7 +801,12 @@ internal static class MHR_Build
 				}
 				if (start == GatherStart.Handed)
 				{
-					Finish(ai, state, "hc_ai_build_collecting", "gathering first", MissingText(missing), LabelOf(state));
+					// E6b (player's test, 02/11/2026): the line says the number the GATHER was asked for (the rest of the
+					// plan), not the piece's 1 wood - the player heard "1" while the companion would bring 75
+					string asked = state.GatherItem != null
+						? (Localization.instance != null ? Localization.instance.Localize(state.GatherItem) : state.GatherItem) + " x" + state.GatherAmount
+						: MissingText(missing);
+					Finish(ai, state, "hc_ai_build_collecting", "gathering first", asked, LabelOf(state));
 					return false;
 				}
 			}
@@ -915,7 +920,10 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			{
 				Log(ai, "withdrew " + moved + " item(s) from the chests before gathering");
 			}
-			Dictionary<string, int> total = TemplateMissing(bag, state.Template, state.Pos, cs, useChests);
+			// only what is LEFT of the plan (from the piece that is short): the whole template asked for 122 when 75 were missing
+			Dictionary<string, int> total = state.Plan != null
+				? PlanMissing(bag, state.Plan, state.Index, state.Pos, cs, useChests)
+				: TemplateMissing(bag, state.Template, state.Pos, cs, useChests);
 			if (total.Count > 0)
 			{
 				need = total;
@@ -1054,6 +1062,15 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 
 	private static Dictionary<string, int> PlanMissing(Inventory bag, List<PlannedStep> plan, Vector3 center, Component who, bool useChests)
 	{
+		return PlanMissing(bag, plan, 0, center, who, useChests);
+	}
+
+	/// <summary>
+	/// E6b (player's test, 02/11/2026): the shortfall of the plan <b>from step <paramref name="startIndex"/> on</b> - the
+	/// whole template counted what was already built and asked for 122 wood when 75 were missing.
+	/// </summary>
+	private static Dictionary<string, int> PlanMissing(Inventory bag, List<PlannedStep> plan, int startIndex, Vector3 center, Component who, bool useChests)
+	{
 		Dictionary<string, int> missing = new Dictionary<string, int>();
 		if (bag == null || plan == null || plan.Count == 0)
 		{
@@ -1061,8 +1078,9 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		}
 		Dictionary<string, int> have = BuildStock.Available(bag, plan[0].Piece, center, who, useChests);
 		Dictionary<string, int> need = new Dictionary<string, int>();
-		foreach (PlannedStep step in plan)
+		for (int index = Mathf.Clamp(startIndex, 0, plan.Count - 1); index < plan.Count; index++)
 		{
+			PlannedStep step = plan[index];
 			if (step.Piece == null || step.Piece.m_resources == null)
 			{
 				continue;

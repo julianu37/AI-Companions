@@ -93,6 +93,9 @@ its own bag, places the piece and confirms it works.
   material came from (bag or chest, with the distance).
   **Before going out to gather it empties the chests:** whatever the chests hold (up to what the structure needs) is
   moved into the bag first - no more chopping while a chest still holds a stack - and the log says what was moved.
+  **The number is what is LEFT of the plan:** the shortfall used to count the whole template (it asked for 122 wood
+  with 75 missing, 24 of 57 pieces already placed); it now counts from the piece being built - and the spoken line
+  (`hc_ai_build_collecting`) says that same number instead of the single piece's one wood.
 - **New dev tooling:** `modia_build_probe [prefab] [radius]` and `modia_build_find [prefab] [radius]` in the game
   console, and the MCP tools `build_inspect`, `build_sites`, `build_find`, `build_pieces`, `companions_build`,
   `companions_sethome` and `player_look` (the build order takes its spot from your aim, so a test has to be

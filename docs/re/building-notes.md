@@ -493,6 +493,13 @@ from the spot)`) - antes era silencioso e o jogador (com razão) duvidou do baú
 `TemplateMissing` decidir o que coletar - e a linha `[Build] stock: moved Nx <item> from the chest "..." to the bag`
 mostra cada retirada. O que sobra no baú continua lá (a obra usa nas peças seguintes).
 
+**O número da coleta é o RESTO do plano (bug do teste, 02/11/2026):** o `PlanMissing` contava o template inteiro e
+pedia **122** madeiras quando faltavam ~75 (24 de 57 peças já no chão). Agora ele recebe o **índice da peça** e só soma
+do que ainda falta construir (`PlanMissing(bag, plan, startIndex, ...)`); o `TemplateMissing` continua valendo para a
+primeira peça (nada construído = plano inteiro). **A fala segue o mesmo número:** `hc_ai_build_collecting` usa
+`state.GatherItem x state.GatherAmount` (o que a coleta pediu) em vez do buraco da peça - o jogador ouviu "Vou buscar
+1 madeira" enquanto a ordem era de 75.
+
 **O chão tem que ser plano.** O abrigo de 4x2 m precisa dos 4 postes no mesmo nível: num terreno inclinado os
 postes do lado de baixo ficam sem apoio e o plano recusa (foi o que aconteceu sobre a bancada da E5, num barranco) -
 o `FindAnchor` então procura outro ponto. Nivelar o terreno é a **E10**.

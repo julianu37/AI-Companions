@@ -546,6 +546,9 @@ fecha o sentido "usável" da E5.
 - **Antes de coletar, recolhe dos baús (02/11/2026):** `BuildStock.WithdrawTemplate` move para a mochila o que os
   baús têm, até o total da estrutura, e só então o que falta vira a ordem de coleta (o jogador viu uma pilha de 50
   virar 8 e outra de 30 intocada enquanto ele ia cortar).
+- **O número é o resto do plano, e a fala é o número (02/11/2026):** `PlanMissing` recebe o índice da peça e conta só
+  do que falta construir (pedia 122 com 75 faltando); a fala `hc_ai_build_collecting` passa a usar o item/quantidade
+  que a coleta pediu, não o buraco de uma peça ("Vou buscar 1 madeira").
 - **A coleta pede o que falta para a casa toda (02/11/2026):** se o companheiro tem que cortar madeira, volta com o
   suficiente para o resto da obra (ou até encher a mochila, 80% do limite) - não uma peça por vez. E o log diz
   **de onde** o material veio (mochila ou baú, com a distância).
