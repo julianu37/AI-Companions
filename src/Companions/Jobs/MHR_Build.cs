@@ -99,6 +99,13 @@ internal static class MHR_Build
 		internal Vector3 Anchor;
 		internal Quaternion AnchorRot;
 		internal int StartIndex;
+		/// <summary>E7: the blueprint being built (its label; null for a template or a single piece).</summary>
+		internal string Blueprint;
+		/// <summary>E7: [Building] BlueprintFree - do not pay for the pieces (a test/creative switch).</summary>
+		internal bool Free;
+		/// <summary>E7: pieces placed and pieces skipped (a blueprint skips what it cannot stand instead of stopping).</summary>
+		internal int PlacedCount;
+		internal int Skipped;
 	}
 
 	/// <summary>E6: one piece of a plan, already resolved to a world pose.</summary>
@@ -232,6 +239,151 @@ internal static class MHR_Build
 		};
 		s_state[ai.GetInstanceID()] = state;
 		Log(ai, "order: build plan " + template.Name + " (" + template.Steps.Length + " pieces) near (" + F(hint.x) + ", " + F(hint.y) + ", " + F(hint.z) + ")");
+		return true;
+	}
+
+	/// <summary>
+	/// E6/E7: moves to the next piece of the plan (a template or a blueprint) or ends the order. Returns true while
+	/// there is a next piece to build.
+	/// </summary>
+	private static bool Advance(CompanionAI ai, State state)
+	{
+		if (state.Plan != null && state.Index + 1 < state.Plan.Count)
+		{
+			state.Index++;
+			PlannedStep next = state.Plan[state.Index];
+			state.Prefab = next.Prefab;
+			state.Piece = next.Piece;
+			state.Pos = next.Pos;
+			state.Rot = next.Rot;
+			state.Placed = null;
+			state.Start = Time.time;
+			state.Phase = Phase.Goto;
+			Log(ai, "next: " + next.Prefab + " (" + (state.Index + 1) + "/" + state.Plan.Count + ")");
+			return true;
+		}
+		if (state.Blueprint != null)
+		{
+			Finish(ai, state, "hc_ai_blueprint_done", null, state.Blueprint, state.PlacedCount, state.Skipped);
+			return false;
+		}
+		if (state.Template != null)
+		{
+			Finish(ai, state, "hc_ai_build_plan_done", null, state.Template.Label, state.Plan != null ? state.Plan.Count : 0);
+			return false;
+		}
+		// a single piece
+		Finish(ai, state, "hc_ai_build_done", null, LabelOf(state));
+		return false;
+	}
+
+	/// <summary>
+	/// E7: builds a <b>blueprint</b> from the player's library (<c>.blueprint</c> from PlanBuild/BiomeBlueprints/
+	/// valheimians). The poses are the blueprint's own, turned by the yaw of the player's aim and anchored where they
+	/// are looking; the order is bottom-up (the loader sorted by height) and a piece that cannot stand in this spot is
+	/// skipped instead of ending the build. <paramref name="missingPrefab"/> names the first piece the game does not
+	/// have (the caller refuses with that name).
+	/// </summary>
+	internal static bool StartBlueprint(CompanionSetup cs, Blueprint blueprint, Vector3 hint, out string missingPrefab)
+	{
+		missingPrefab = null;
+		if (cs == null || blueprint == null || blueprint.Pieces.Count == 0)
+		{
+			return false;
+		}
+		CompanionAI ai = cs.GetComponent<CompanionAI>();
+		if (ai == null)
+		{
+			return false;
+		}
+		int max = ModConfig.BuildBlueprintMaxPieces != null ? ModConfig.BuildBlueprintMaxPieces.Value : 2000;
+		if (blueprint.Pieces.Count > max)
+		{
+			CompanionsPlugin.Log?.LogWarning("[Build] blueprint " + blueprint.Label + ": " + blueprint.Pieces.Count
+				+ " pieces is over the limit (" + max + ")");
+			return false;
+		}
+		Player owner = MHR_Owner.Of(cs);
+		Vector3 forward = owner != null ? owner.transform.forward : cs.transform.forward;
+		Quaternion rot = Quaternion.LookRotation(Flat(forward), Vector3.up);
+		// every prefab is resolved BEFORE the first piece. A blueprint is somebody else's design: the lines that are
+		// not a buildable piece in THIS game (an item, a rug, a mod's prefab) or whose recipe the player has not
+		// unlocked are SKIPPED and counted - refusing the whole build because of one line would make most downloaded
+		// blueprints useless. With nothing buildable at all it IS a refusal, naming the first prefab it could not use.
+		List<PlannedStep> plan = new List<PlannedStep>();
+		int skipped = 0;
+		string firstSkip = null;
+		Player local = Player.m_localPlayer;
+		foreach (BlueprintPiece piece in blueprint.Pieces)
+		{
+			Piece resolved = BuildProbe.PieceOf(piece.Prefab);
+			if (resolved == null)
+			{
+				if (missingPrefab == null)
+				{
+					missingPrefab = piece.Prefab;
+				}
+				if (firstSkip == null)
+				{
+					firstSkip = piece.Prefab + " (not a piece here)";
+				}
+				skipped++;
+				continue;
+			}
+			if (local != null && !local.IsRecipeKnown(resolved.m_name))
+			{
+				if (firstSkip == null)
+				{
+					firstSkip = piece.Prefab + " (recipe not unlocked)";
+				}
+				skipped++;
+				continue;
+			}
+			plan.Add(new PlannedStep
+			{
+				Prefab = piece.Prefab,
+				Piece = resolved,
+				Pos = hint + rot * Vector3.Scale(piece.Pos, new Vector3(piece.Scale, piece.Scale, piece.Scale)),
+				Rot = rot * piece.Rot
+			});
+		}
+		if (plan.Count == 0)
+		{
+			CompanionsPlugin.Log?.LogWarning("[Build] blueprint " + blueprint.Label + ": nothing buildable here ("
+				+ skipped + " line(s) skipped, first '" + (missingPrefab ?? "?") + "')");
+			return false;
+		}
+		if (skipped > 0)
+		{
+			CompanionsPlugin.Log?.LogInfo("[Build] blueprint " + blueprint.Label + ": " + skipped
+				+ " line(s) skipped, first: " + (firstSkip ?? "?"));
+		}
+		bool free = ModConfig.BuildBlueprintFree != null && ModConfig.BuildBlueprintFree.Value;
+		State state = new State
+		{
+			Active = true,
+			Start = Time.time,
+			LastDrive = Time.time,
+			StartMode = ModeOf(cs),
+			Blueprint = blueprint.Label,
+			Free = free,
+			Skipped = skipped,
+			Hint = hint,
+			Forward = forward,
+			Anchor = hint,
+			AnchorRot = rot,
+			AnchorKnown = true,
+			Plan = plan,
+			Index = 0,
+			Prefab = plan[0].Prefab,
+			Piece = plan[0].Piece,
+			Pos = plan[0].Pos,
+			Rot = plan[0].Rot,
+			Phase = Phase.Goto
+		};
+		s_state[ai.GetInstanceID()] = state;
+		Log(ai, "blueprint " + blueprint.Label + ": " + plan.Count + " pieces near (" + F(hint.x) + ", " + F(hint.y) + ", " + F(hint.z) + ")"
+			+ (free ? " - BlueprintFree is on (no material)" : string.Empty));
 		return true;
 	}
 
@@ -779,7 +931,7 @@ internal static class MHR_Build
 	{
 		// E6: a plan step is checked AGAIN now, with the pieces the plan already built standing - the roof's support
 		// comes from the walls, and up-front they were only planned (measured: the roof was refused with no_support)
-		if (state.Template != null && state.Plan != null && state.Index > 0)
+		if ((state.Template != null || state.Blueprint != null) && state.Plan != null && state.Index > 0)
 		{
 			Dictionary<string, object> check = BuildSite.Check(state.Piece, state.Pos, state.Rot, cs);
 			if (!Ok(check))
@@ -809,6 +961,13 @@ internal static class MHR_Build
 					Finish(ai, state, "hc_ai_build_needs_station", status, station);
 					return false;
 				}
+				if (state.Blueprint != null)
+				{
+					// E7: a blueprint is a build somebody else designed - a piece that does not fit in THIS spot (or that
+					// the terrain refuses) is skipped, not a reason to drop the whole build
+					state.Skipped++;
+					return Advance(ai, state);
+				}
 				Finish(ai, state, "hc_ai_build_plan_no_site", status, state.Template.Label, state.Prefab);
 				return false;
 			}
@@ -826,7 +985,7 @@ internal static class MHR_Build
 		// and the companion's movement went haywire (player report, 01/11/2026). Gathering is its own order.
 		bool useChests = ModConfig.BuildUseChests == null || ModConfig.BuildUseChests.Value;
 		Dictionary<string, int> missing;
-		if (!BuildStock.Take(bag, state.Piece, state.Pos, cs, useChests, out missing))
+		if (!state.Free && !BuildStock.Take(bag, state.Piece, state.Pos, cs, useChests, out missing))
 		{
 			Log(ai, "missing: " + MissingText(missing));
 			// E4b: the gather is a SEPARATE order. This one ends (with the line that says it is going to get it), the
@@ -900,34 +1059,21 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			float? min = BuildSupport.Min(wear);
 			Log(ai, "UNSUPPORTED: " + state.Prefab + " (support " + (value.HasValue ? value.Value.ToString("F1") : "?")
 				+ " < min " + (min.HasValue ? min.Value.ToString("F1") : "?") + ")");
+			if (state.Blueprint != null)
+			{
+				state.Skipped++;
+				return Advance(ai, state);
+			}
 			Finish(ai, state, "hc_ai_build_unsupported", "no support", LabelOf(state));
 			return false;
 		}
 		Log(ai, "done: " + state.Prefab + " at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", " + F(state.Pos.z) + ") yaw " + F(state.Rot.eulerAngles.y)
 			+ (state.Template != null ? " (" + (state.Index + 1) + "/" + state.Plan.Count + ")" : string.Empty)
 			+ (supported.HasValue ? " supported" : string.Empty));
-		// E6: next piece of the plan (the timeout is per piece, so a long plan is not a slow piece)
-		if (state.Template != null && state.Plan != null && state.Index + 1 < state.Plan.Count)
-		{
-			state.Index++;
-			PlannedStep next = state.Plan[state.Index];
-			state.Prefab = next.Prefab;
-			state.Piece = next.Piece;
-			state.Pos = next.Pos;
-			state.Rot = next.Rot;
-			state.Placed = null;
-			state.Start = Time.time;
-			state.Phase = Phase.Goto;
-			Log(ai, "next: " + next.Prefab + " (" + (state.Index + 1) + "/" + state.Plan.Count + ")");
-			return true;
-		}
-		if (state.Template != null && state.Plan != null)
-		{
-			Finish(ai, state, "hc_ai_build_plan_done", null, state.Template.Label, state.Plan.Count);
-			return false;
-		}
-		Finish(ai, state, "hc_ai_build_done", null, LabelOf(state));
-		return false;
+		state.PlacedCount++;
+		// E6/E7: next piece of the plan (the timeout is per piece, so a long plan is not a slow piece). The same block
+		// serves a template and a blueprint - both have state.Plan
+		return Advance(ai, state);
 	}
 
 	/// <summary>Gives the piece's cost back to the bag when the placement itself failed (the consume already

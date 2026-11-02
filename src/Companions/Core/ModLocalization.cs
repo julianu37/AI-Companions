@@ -615,6 +615,11 @@ public static class ModLocalization
 			// E6: a template (a plan of pieces) has its own order line, its own ending and the support refusal
 			{ "hc_ai_order_build_plan", "build the {0}" },
 			{ "hc_ai_build_plan_done", "The {0} is up: {1} pieces." },
+			// E7: a blueprint from the player's library (a .blueprint file in the mod's folder)
+			{ "hc_ai_blueprint_done", "The {0} is up: {1} pieces, {2} skipped." },
+			{ "hc_ai_blueprint_unknown", "I don't know a build called {0}. I have: {1}." },
+			{ "hc_ai_blueprint_none", "I don't have any build in my library yet. Put a .blueprint file in {0}." },
+			{ "hc_ai_blueprint_piece_missing", "That build uses a piece this world doesn't have: {0}." },
 			{ "hc_ai_build_plan_no_site", "I couldn't fit the {0}: the {1} piece doesn't go there." },
 			{ "hc_ai_build_unsupported", "The {0} would be left without support." },
 			{ "hc_ai_build_cant_reach", "I can't get to the {0}." },

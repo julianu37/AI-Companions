@@ -87,7 +87,21 @@ internal static class BuildProbe
 		{
 			return null;
 		}
-		GameObject go = ZNetScene.instance.GetPrefab(prefab.Trim());
+		string name = prefab.Trim();
+		GameObject go = ZNetScene.instance.GetPrefab(name);
+		if (go == null && ZNetScene.instance.m_prefabs != null)
+		{
+			// E7: a .blueprint may spell the prefab with another case ("Piece_grausten_floor_2x2" x
+			// "piece_grausten_floor_2x2" - the BiomeBlueprints files do) and GetPrefab is an exact lookup
+			foreach (GameObject candidate in ZNetScene.instance.m_prefabs)
+			{
+				if (candidate != null && string.Equals(candidate.name, name, StringComparison.OrdinalIgnoreCase))
+				{
+					go = candidate;
+					break;
+				}
+			}
+		}
 		return go != null ? go.GetComponent<Piece>() : null;
 	}
 

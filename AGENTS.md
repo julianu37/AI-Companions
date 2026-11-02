@@ -1144,7 +1144,14 @@ comandos de console e spawna coisas, então não é feature de jogador.
   recusado) e a **porta foi para a vaga da direita**; o telhado **gira** (`roofAlongZ`: empena em cima da porta) e as
   **empenas estavam com o yaw trocado** (entravam como asas - yaw 180 no lado +x). A **trava de 90° no yaw do plano foi
   tentada e revertida** (deixava a casa torta; o plano usa o yaw da mira, como a 8x8) e o anel de nivelamento caiu de
-  4 m para 1,5 m (a casa ia para outro terreno). **Aceite do jogador: "tudo certo!"**. O vigia do E6b deixou de comparar **total-da-mochila** com
+  4 m para 1,5 m (a casa ia para outro terreno). **Aceite do jogador: "tudo certo!"**. **E7 - os planos do jogador (02/11/2026):** o companheiro constrói as builds
+  da biblioteca **`.blueprint`** (PlanBuild/BiomeBlueprints/valheimians): pasta `BepInEx/config/AI-Companions/blueprints/`,
+  ordem pelo **nome do arquivo** ("construa a hs_meadows_hut aqui"), leitura em `AI/BuildBlueprintParser.cs` (texto,
+  `#Name` + `#Pieces`, V1/V2, vírgula antiga, prefab sem caixa) e `MHR_Build.StartBlueprint` (de baixo para cima, linha
+  que não serve é **pulada e contada**, `needs_station` nomeia a estação, `BlueprintFree`/`BlueprintMaxPieces`). **Sem
+  PlanBuild em runtime** (ele só cria/coloca o fantasma). **Medido: `hs_meadows_hut` 28/28 `supported`**, `TestBox_V2`
+  5/5 com 1 pulada. Harness **405 → 430**. **A ponte do BuildOrders (F11) fica para depois** (barata, API pública).
+  O vigia do E6b deixou de comparar **total-da-mochila** com
   **o-que-falta** (a 4x4 entrava em loop na porta); agora recalcula o que falta e retoma quando é zero. Harness
   **363 → 401**. Armadilha: `"casa pequeña"` (ES) e `"casa pequena"` (PT) **empatam** no Fold - apelidos iguais depois
   do Fold não podem existir em templates diferentes. **Aceite: 1,06 m → 0,33 m em 3 passadas, 165 s.** É ordem de um tiro (qualquer outra

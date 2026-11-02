@@ -660,6 +660,60 @@ A casa e 6x6 com 46 pecas / 101 madeiras (2 m de parede, beiral de 1 m com 4 pos
 tinha `"casa pequeña"` e a 4x4 `"casa pequena"`; a 4x4 nunca casava. O apelido ES saiu da 8x8 (ficou `"casita"`) e o
 harness passou a cobrir os dois idiomas.
 
+## 15. E7 - construindo os planos do jogador: o `.blueprint` (medido em 02/11/2026)
+
+A biblioteca grande de builds do Valheim e a do **PlanBuild**: 353 blueprints do **BiomeBlueprints**, o acervo do
+**valheimians** e a captura do proprio jogo. O companheiro passou a **ler esses arquivos** e construir com o executor
+da E6 - **sem** precisar do PlanBuild instalado (o PlanBuild so serve para *criar* ou *colocar* o fantasma).
+
+### 15.1 O formato (texto, nao JSON)
+
+```
+#Name: Meadow Hut
+#Creator: ...
+#Category: Blueprints
+#SnapPoints
+<linhas de snap>
+#Terrain
+<linhas de terreno>
+#Pieces
+<prefab>;<categoria>;<px>;<py>;<pz>;<rx>;<ry>;<rz>;<rw>;<info>;<sx>;<sy>;<sz>
+```
+
+- numeros com **ponto** (arquivos antigos com virgula sao aceitos: a virgula vira ponto antes do parse);
+- **V1** (captura antiga) nao tem cabecalho: todas as linhas sao pecas;
+- secoes desconhecidas (`#TerrainHeight` de outro mod) sao **puladas** ate o proximo cabecalho conhecido.
+
+**O que lemos:** `#Name:` (o nome bonito) e a secao `#Pieces`. `#SnapPoints` e `#Terrain` ficam de fora na v1 (o
+jogador nivela antes com a ordem `level`, se quiser).
+
+### 15.2 O que o executor faz com isso
+
+- **Prefab:** `BuildProbe.PieceOf` (exato e, se falhar, **sem caixa** - os arquivos do BiomeBlueprints escrevem
+  `Piece_grausten_floor_2x2` enquanto o jogo tem `piece_grausten_floor_2x2`).
+- **Nao e peca** (item, rug, mobilia de outro mod) ou **receita nao desbloqueada:** a linha e **pulada e contada** (uma
+  build baixada nao pode ser recusada por causa de uma linha). So recusa quando **nada** e construivel.
+- **Ordem:** de baixo para cima (`y` crescente, estavel no empate) - piso, parede, telhado.
+- **Posicao:** o blueprint e ancorado **no ponto mirado**, girado pelo yaw da mira (como os templates).
+- **Material:** mochila -> baus -> coleta (o mesmo `BuildStock`), com retomada no ponto exato. `[Building]
+  BlueprintFree` (padrao **false**) constroi sem pagar, para teste.
+- **Peca que nao cabe/paisagem recusa:** e **pulada** (`state.Skipped`), nao derruba a build; o fim diz
+  `{colocadas}` e `{puladas}`.
+- **Estacao:** a regra do jogo vale (uma build baixada **nao traz** bancada) - o `needs_station` diz qual estacao falta.
+  Na pratica: coloque uma bancada perto antes (ou mande o companheiro construir uma).
+
+### 15.3 Medido em jogo (02/11/2026)
+
+| arquivo | pecas | resultado |
+|---|---|---|
+| `TestBox_V2.blueprint` (fixture do PlanBuild) | 6 | 5/5 `supported`, 1 pulada (`stone_floor_2x2`, receita nao desbloqueada), `hc_ai_blueprint_done` |
+| `hs_meadows_hut.blueprint` (BiomeBlueprints, "Meadow Hut") | 28 | **28/28 `supported`** - pisos, vigas, paredes, **porta**, telhado e as tampas de empena - `hc_ai_blueprint_done` (com uma bancada perto) |
+
+Sem a bancada perto o `wood_beam` recusa com `needs_station` e a ordem encerra dizendo qual estacao falta (medido).
+
+**Onde os arquivos ficam:** `BepInEx/config/AI-Companions/blueprints/` (o mod cria a pasta). A ordem usa o **nome do
+arquivo** sem a extensao ("construa a hs_meadows_hut aqui"), porque o `#Name:` de muitas builds e "Custom Name".
+
 ## 13. E10 - nivelar o terreno com a enxada (medido em 01/11/2026)
 
 **Como o jogo nivela (decompilado 1.0.20):** a enxada não tem uma operação de "level" duro. O menu dela é uma

@@ -59,6 +59,7 @@
     <Compile Include="..\..\src\Companions\AI\CompanionNames.cs" Link="src\AI\CompanionNames.cs" />
   <Compile Include="..\..\src\Companions\AI\BuildCatalog.cs" Link="src\AI\BuildCatalog.cs" />
   <Compile Include="..\..\src\Companions\AI\BuildTemplates.cs" Link="src/AI/BuildTemplates.cs" />
+    <Compile Include="..\..\src\Companions\AI\BuildBlueprintParser.cs" Link="src/AI/BuildBlueprintParser.cs" />
   <Compile Include="..\..\src\Companions\AI\LevelIntent.cs" Link="src/AI/LevelIntent.cs" />
     <Compile Include="..\..\src\Companions\AI\MHR_Owner.cs" Link="src\AI\MHR_Owner.cs" />
     <Compile Include="..\..\src\Companions\Core\MHR_List.cs" Link="src\Core\MHR_List.cs" />

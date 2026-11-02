@@ -1022,7 +1022,10 @@ internal static class CompanionChatAI
 				string byBuildPrefab;
 				if (CompanionOrders.IsBuildRequest(result.UserText, out byBuildPrefab))
 				{
-					CompanionsPlugin.Log?.LogInfo($"[IA] O modelo devolveu \"none\" mas o jogador pediu para construir {BuildCatalog.Label(byBuildPrefab)} - usei \"build\".");
+					string built = byBuildPrefab != null
+						? BuildCatalog.Label(byBuildPrefab)
+						: (BuildBlueprints.Resolve(result.UserText)?.Label ?? "?");
+					CompanionsPlugin.Log?.LogInfo($"[IA] O modelo devolveu \"none\" mas o jogador pediu para construir {built} - usei \"build\".");
 					intent.Action = "build";
 					intent.Target = null;
 					intent.Resource = null;

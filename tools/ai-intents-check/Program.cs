@@ -81,6 +81,8 @@ internal static class Program
 		Templates();
 		Section("(k) LevelIntent - a ordem de nivelar o terreno (E10)");
 		Leveling();
+		Section("(l) BuildBlueprintParser - o .blueprint do PlanBuild (E7)");
+		Blueprints();
 		CrossCheckDoorRule();
 
 		Out.WriteLine();
@@ -426,6 +428,92 @@ internal static class Program
 		CheckFloat("sem tamanho -> o padrao", 8f, LevelIntent.Size("nivele o terreno aqui", 8f));
 		CheckFloat("numero pequeno demais nao vale", 8f, LevelIntent.Size("nivela 1x1", 8f));
 		CheckFloat("numero grande demais nao vale", 8f, LevelIntent.Size("nivela 99x99", 8f));
+	}
+
+
+	/// <summary>
+	/// E7: the .blueprint reader. The format is PlanBuild's (BiomeBlueprints/valheimians): text with the headers and
+	/// sections, and one line per piece. The tests are hermetic (the text is here, not a file on disk).
+	/// </summary>
+	private static void Blueprints()
+	{
+		string name;
+		string error;
+		int broken;
+		System.Collections.Generic.List<BuildBlueprintParser.Line> pieces;
+
+		// V2: headers + sections; only #Pieces lines are pieces
+		string v2 = string.Join("\n", new string[] {
+			"#Name: Casa Viking",
+			"#Creator: somebody",
+			"#Description:",
+			"two lines of text",
+			"#Category: Blueprints",
+			"#SnapPoints",
+			"1;2;3",
+			"-0.7653809;4;1.847778",
+			"#Terrain",
+			"4;5;6",
+			"#Pieces",
+			"wood_floor;Building;0;0;0;0;0;0;1;",
+			"woodwall;Building;1;1;0;0;0;0;1;",
+			"wood_roof_45(Clone);Building;2;3;0;0;0;0;1;;1;2;3",
+			"#TerrainHeight",
+			"99;99;99"
+		});
+		bool ok = BuildBlueprintParser.Parse(v2.Split('\n'), out name, out pieces, out error, out broken);
+		Check("V2: leu", ok);
+		CheckText("V2: nome do #Name", "Casa Viking", name);
+		CheckInt("V2: 3 pecas (#SnapPoints/#Terrain/#TerrainHeight fora)", 3, pieces.Count);
+		CheckInt("V2: nenhuma linha quebrada", 0, broken);
+		CheckText("V2: (Clone) fora do prefab", "wood_roof_45", pieces[2].Prefab);
+		CheckFloat("V2: px", 2f, pieces[2].Px);
+		CheckFloat("V2: py", 3f, pieces[2].Py);
+		CheckFloat("V2: escala x", 1f, pieces[2].Scale);
+		CheckFloat("V2: rotacao w", 1f, pieces[2].Rw);
+
+		// V1: no headers at all - every line is a piece (the old format, from the player's own capture)
+		string v1 = string.Join("\n", new string[] {
+			"stone_floor_2x2;Building;1;0;1;0;1;0;-4.371139E-08;",
+			"woodwall;Building;0;1.5;1;0;0.7071068;0;-0.7071068;"
+		});
+		ok = BuildBlueprintParser.Parse(v1.Split('\n'), out name, out pieces, out error, out broken);
+		Check("V1: leu", ok);
+		CheckInt("V1: 2 pecas", 2, pieces.Count);
+		CheckText("V1: nome nulo (nao tem cabecalho)", "", name ?? "");
+		CheckFloat("V1: py da parede", 1.5f, pieces[1].Py);
+
+		// virgula decimal (arquivos antigos)
+		string commas = "wood_floor;Building;1,5;0,25;2,75;0;0;0;1;";
+		ok = BuildBlueprintParser.Parse(new string[] { commas }, out name, out pieces, out error, out broken);
+		Check("virgula: leu", ok);
+		CheckFloat("virgula: px 1,5", 1.5f, pieces[0].Px);
+		CheckFloat("virgula: pz 2,75", 2.75f, pieces[0].Pz);
+
+		// linha quebrada e contada, nao entra
+		ok = BuildBlueprintParser.Parse(new string[] { "wood_floor;Building;0;0", "woodwall;Building;0;1;0;0;0;0;1;" },
+			out name, out pieces, out error, out broken);
+		Check("quebrada: ainda leu a boa", ok);
+		CheckInt("quebrada: 1 peca", 1, pieces.Count);
+		CheckInt("quebrada: 1 contada", 1, broken);
+
+		// vazio
+		ok = BuildBlueprintParser.Parse(new string[] { "#Name: x", "#Pieces" }, out name, out pieces, out error, out broken);
+		Check("vazio: recusa", !ok);
+		CheckText("vazio: motivo", "no pieces", error);
+		ok = BuildBlueprintParser.Parse(null, out name, out pieces, out error, out broken);
+		Check("null: recusa", !ok);
+
+		// ordem: sobe por altura (e estavel)
+		BuildBlueprintParser.Line a = new BuildBlueprintParser.Line { Prefab = "roof", Py = 4f };
+		BuildBlueprintParser.Line b = new BuildBlueprintParser.Line { Prefab = "floor", Py = 0f };
+		BuildBlueprintParser.Line c = new BuildBlueprintParser.Line { Prefab = "wall", Py = 2f };
+		BuildBlueprintParser.Line d = new BuildBlueprintParser.Line { Prefab = "wall2", Py = 2f };
+		System.Collections.Generic.List<BuildBlueprintParser.Line> ordered = BuildBlueprintParser.Ordered(
+			new System.Collections.Generic.List<BuildBlueprintParser.Line> { a, b, c, d });
+		CheckText("ordem: piso primeiro", "floor", ordered[0].Prefab);
+		CheckText("ordem: telhado por ultimo", "roof", ordered[3].Prefab);
+		CheckText("ordem: empate mantem a ordem do arquivo", "wall", ordered[1].Prefab);
 	}
 
 	private static void Templates()

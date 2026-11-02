@@ -580,6 +580,12 @@ Do not make the placement noise (the game adds one when a piece goes up, which c
 **LevelGround** — Default: On  
 Level the ground before a structure (a plan) when it is uneven: a house of 8x8 needs a flat area, and the walls and roof are all at the anchor's height. It uses the game's own leveling (the hoe's level operation) and needs a hoe in the companion's bag - without one it says so and the order ends.
 
+**BlueprintFree** — Default: Off  
+Build a blueprint without paying for the pieces (a test/creative switch: the companion places the pieces from the file and takes nothing from the bag or the chests). Off by default - a blueprint costs the same as any other build.
+
+**BlueprintMaxPieces** — Default: 2000 · Range: 1 – 20000  
+Refuse a blueprint with more pieces than this (a guard against a huge or broken file). The message says the file has more pieces than the limit.
+
 **LevelTolerance** — Default: 0.35 · Range: 0.05 – 2  
 How much height variation (meters) a build site may have before the ground is leveled. Measured: a floor is refused when the ground under it is more than ~0.3 m below the anchor.
 

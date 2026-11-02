@@ -2,6 +2,32 @@
 
 All the changes to this project, derived from ProfMags' Offline Companions. The versions before 1.4.0 are the original mod (see the original mod's history, from ProfMags, for those versions) plus the first batch of compatibility fixes for the Valheim 1.0 API that made the mod load and run. **The entries below 1.5.4 are the upstream history and stay as they are (in English) — our sections (from 1.6.0 on) are ours.**
 
+## 1.9.7 - in progress
+
+**Build the plans you download (E7 - the blueprint library).** The companion reads the `.blueprint` files the Valheim
+community shares - the 353 of BiomeBlueprints, the valheimians library and your own captures - and builds them with the
+same executor as the structures: it pays from its bag and the chests, gathers what is missing and resumes where it
+stopped.
+
+- **The order:** "construa a hs_meadows_hut aqui" / "build the hs_meadows_hut here" - the **file name** (without the
+  extension) is what you say, because many blueprints carry "Custom Name" inside. Without a name the answer lists the
+  builds in the folder.
+- **The folder:** `BepInEx/config/AI-Companions/blueprints/` (the mod creates it). **PlanBuild is not needed in game**:
+  it is only how you *create* or *place* a blueprint; the file format is text and the mod reads it directly.
+- **What it reads:** the `#Name:` and the `#Pieces` section (`prefab;category;px;py;pz;rx;ry;rz;rw;info;sx;sy;sz`, dots
+  or commas, V1 files without headers too). `#SnapPoints`/`#Terrain` are left for later (level the ground first with
+  "nivele um terreno ... aqui").
+- **What it does with a line it cannot use:** a prefab that is not a piece in this game, a recipe you have not unlocked
+  or a piece that does not fit in this spot is **skipped and counted** - one line never throws the whole build away.
+  With nothing buildable at all it refuses and names the first piece it could not use.
+- **Order and support:** bottom-up by height, and the game's own support verdict is asked for every piece (the same
+  `WearNTear` check of the structures).
+- **Stations:** a downloaded build does not bring a workbench - the game's rule applies and the refusal names the
+  station that is missing (put one near, or ask for a workbench first).
+- **New `[Building]` keys:** `BlueprintFree` (false - build without paying, for tests) and `BlueprintMaxPieces` (2000).
+- **Measured:** a 28-piece meadow hut from BiomeBlueprints built **28/28 supported** (floors, beams, walls, door, roof,
+  gable tops), plus the PlanBuild fixtures (6 pieces, 1 skipped by the recipe gate).
+
 ## 1.9.6 - 02/11/2026
 
 **Autonomous building, phases E0-E3 (the MVP).** A companion now builds a piece when you ask it, in the five

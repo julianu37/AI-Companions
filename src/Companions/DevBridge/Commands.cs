@@ -983,6 +983,19 @@ internal static class Commands
 		}
 		string prefab = (Json.Str(args, "prefab") ?? string.Empty).Trim();
 		string planName = (Json.Str(args, "plan") ?? string.Empty).Trim();
+		string blueprintName = (Json.Str(args, "blueprint") ?? string.Empty).Trim();
+		// E7: a .blueprint from the player's library - the name (a file in the mod's folder) or a full path
+		Blueprint blueprint = null;
+		if (blueprintName.Length > 0)
+		{
+			blueprint = System.IO.Path.IsPathRooted(blueprintName)
+				? BuildBlueprints.Load(blueprintName)
+				: BuildBlueprints.Resolve(blueprintName);
+			if (blueprint == null)
+			{
+				return Fail("no blueprint named '" + blueprintName + "' (folder: " + BuildBlueprints.Folder() + ")");
+			}
+		}
 		BuildTemplates.Template template = null;
 		if (planName.Length > 0)
 		{
@@ -1007,24 +1020,76 @@ internal static class Commands
 		}
 		else
 		{
-			if (prefab.Length == 0)
+			if (prefab.Length == 0 && blueprint == null)
 			{
-				return Fail("prefab or plan is required (e.g. piece_workbench, plan=hut)");
+				return Fail("prefab, plan or blueprint is required (e.g. piece_workbench, plan=hut, blueprint=myhouse)");
 			}
-			if (!BuildCatalog.Allowed(prefab))
+			if (blueprint == null)
 			{
-				return Fail("'" + prefab + "' is not in the build allow-list");
+				// (the blueprint path resolves its own pieces at StartBlueprint)
+				if (!BuildCatalog.Allowed(prefab))
+				{
+					return Fail("'" + prefab + "' is not in the build allow-list");
+				}
+				if (BuildProbe.PieceOf(prefab) == null)
+				{
+					return Fail("no Piece component on '" + prefab + "'");
+				}
+				// the same recipe gate the chat order uses: the companion does not build what the player has not unlocked
+				Piece bedPiece = BuildProbe.PieceOf(prefab);
+				if (player != null && bedPiece != null && !player.IsRecipeKnown(bedPiece.m_name))
+				{
+					return Fail("the player has not unlocked the recipe of '" + prefab + "'");
+				}
 			}
-			if (BuildProbe.PieceOf(prefab) == null)
+		}
+		if (blueprint != null)
+		{
+			CompanionSetup who = null;
+			string whoName = (Json.Str(args, "name") ?? string.Empty).Trim();
+			foreach (CompanionSetup setup in CompanionSetup.AllCompanions)
 			{
-				return Fail("no Piece component on '" + prefab + "'");
+				if (setup == null)
+				{
+					continue;
+				}
+				if (whoName.Length == 0)
+				{
+					who = who ?? setup;
+					continue;
+				}
+				ZNetView nv = setup.GetComponent<ZNetView>();
+				ZDO zdo = nv != null ? nv.GetZDO() : null;
+				if (zdo != null && string.Equals(zdo.GetString(CompanionSetup.NameHash, string.Empty), whoName, StringComparison.OrdinalIgnoreCase))
+				{
+					who = setup;
+					break;
+				}
 			}
-			// the same recipe gate the chat order uses: the companion does not build what the player has not unlocked
-			Piece bedPiece = BuildProbe.PieceOf(prefab);
-			if (player != null && bedPiece != null && !player.IsRecipeKnown(bedPiece.m_name))
+			if (who == null)
 			{
-				return Fail("the player has not unlocked the recipe of '" + prefab + "'");
+				return Fail(whoName.Length > 0 ? "no companion named '" + whoName + "'" : "no companion in the world");
 			}
+			Vector3 spot;
+			if (args.ContainsKey("x") || args.ContainsKey("z"))
+			{
+				spot = new Vector3(Json.Float(args, "x", player.transform.position.x), Json.Float(args, "y", player.transform.position.y), Json.Float(args, "z", player.transform.position.z));
+			}
+			else if (!BuildFindCommand.Hint(player, out spot))
+			{
+				spot = player.transform.position + player.transform.forward * 4f;
+			}
+			string missing;
+			bool built = MHR_Build.StartBlueprint(who, blueprint, spot, out missing);
+			return Ok(new Dictionary<string, object>
+			{
+				{ "blueprint", blueprint.Label },
+				{ "file", System.IO.Path.GetFileName(blueprint.File) },
+				{ "pieces", blueprint.Pieces.Count },
+				{ "started", built },
+				{ "missing", missing },
+				{ "name", who.name }
+			});
 		}
 		CompanionSetup target = null;
 		string name = (Json.Str(args, "name") ?? string.Empty).Trim();

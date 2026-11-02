@@ -782,7 +782,14 @@ internal static class CompanionOrders
 			return false;
 		}
 		prefab = BuildCatalog.Resolve(message);
-		return prefab != null && BuildCatalog.Allowed(prefab);
+		if (prefab != null && BuildCatalog.Allowed(prefab))
+		{
+			return true;
+		}
+		// E7: a build from the player's library ("construa a casa viking aqui") - the name is a .blueprint file, not a
+		// piece, so there is no prefab to answer with (Build() resolves the file from the same words)
+		prefab = null;
+		return BuildBlueprints.Resolve(message) != null;
 	}
 
 	internal static bool IsInventoryRequest(string message, out bool close)	{
@@ -1149,13 +1156,33 @@ internal static class CompanionOrders
 		// pieces, resolved before the single-piece catalog. A single piece still goes through BuildCatalog below.
 		BuildTemplates.Template template = BuildTemplates.Resolve(userText) ?? BuildTemplates.Resolve(intent != null ? intent.Target : null);
 		string prefab = template != null ? null : BuildCatalog.Resolve(intent != null ? intent.Target : null) ?? BuildCatalog.Resolve(userText);
-		if (template == null && (prefab == null || !BuildCatalog.Allowed(prefab)))
+		if (prefab != null && !BuildCatalog.Allowed(prefab))
 		{
-			Refuse(ModLocalization.Loc("hc_ai_build_no_recipe"));
-			return outcome;
+			prefab = null;
 		}
-		Piece piece = template != null ? null : BuildProbe.PieceOf(prefab);
-		if (template == null && piece == null)
+		// E7: a BLUEPRINT from the player's library ("construa a casa viking aqui") - the last resolution, because a
+		// template or a piece name is more specific (a file called "casa" must not take over "construa uma casa")
+		Blueprint blueprint = null;
+		if (template == null && prefab == null)
+		{
+			blueprint = BuildBlueprints.Resolve(userText) ?? BuildBlueprints.Resolve(intent != null ? intent.Target : null);
+			if (blueprint == null)
+			{
+				System.Collections.Generic.List<string> names = BuildBlueprints.Names();
+				if (names.Count == 0)
+				{
+					Refuse(string.Format(ModLocalization.Loc("hc_ai_blueprint_none"), BuildBlueprints.Folder()));
+				}
+				else
+				{
+					string said = intent != null && !string.IsNullOrEmpty(intent.Target) ? intent.Target : userText;
+					Refuse(string.Format(ModLocalization.Loc("hc_ai_blueprint_unknown"), said, string.Join(", ", names.ToArray())));
+				}
+				return outcome;
+			}
+		}
+		Piece piece = template != null || blueprint != null ? null : BuildProbe.PieceOf(prefab);
+		if (template == null && blueprint == null && piece == null)
 		{
 			Refuse(ModLocalization.Loc("hc_ai_build_no_recipe"));
 			return outcome;
@@ -1216,8 +1243,26 @@ internal static class CompanionOrders
 			Refuse(string.Format(ModLocalization.Loc("hc_ai_build_too_far"), Mathf.RoundToInt(max)));
 			return outcome;
 		}
-		// E6: the plan (a template) goes through its own start; a single piece keeps the E3 path
-		bool started = template != null ? MHR_Build.StartPlan(target, template, hint) : MHR_Build.Start(target, prefab, hint);
+		// E6: the plan (a template) goes through its own start; E7: a blueprint has its own; a single piece keeps the E3 path
+		bool started;
+		if (template != null)
+		{
+			started = MHR_Build.StartPlan(target, template, hint);
+		}
+		else if (blueprint != null)
+		{
+			string missingPiece;
+			started = MHR_Build.StartBlueprint(target, blueprint, hint, out missingPiece);
+			if (!started && !string.IsNullOrEmpty(missingPiece))
+			{
+				Refuse(string.Format(ModLocalization.Loc("hc_ai_blueprint_piece_missing"), missingPiece));
+				return outcome;
+			}
+		}
+		else
+		{
+			started = MHR_Build.Start(target, prefab, hint);
+		}
 		if (!started)
 		{
 			Refuse(ModLocalization.Loc("hc_ai_build_no_recipe"));
@@ -1228,6 +1273,12 @@ internal static class CompanionOrders
 		{
 			outcome.LabelKey = "hc_ai_order_build_plan";
 			outcome.LabelArg = template.Label;
+			return outcome;
+		}
+		if (blueprint != null)
+		{
+			outcome.LabelKey = "hc_ai_order_build_plan";
+			outcome.LabelArg = blueprint.Label;
 			return outcome;
 		}
 		outcome.LabelKey = "hc_ai_order_build";

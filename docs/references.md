@@ -11,6 +11,8 @@ projetos de terceiros com licença permissiva. Leia as **regras de uso** no fim 
 | **Whisper.net** / **whisper.cpp** | **MIT** ✅ redistribuído | STT local das ordens por voz (`WhisperStt`, Fase 3.3) |
 | **sherpa-onnx** (k2-fsa) | **Apache-2.0** ✅ redistribuído | TTS local da fala do companheiro (`CompanionTts`, Fase 3.4) |
 | **Kokoro-82M** (hexgrad) | **Apache-2.0** ✅ redistribuído | O modelo de voz que o TTS usa (`tts\kokoro\`) |
+| **PlanBuild** (sirskunkalot) | **WTFPL** ✅ só o **formato** `.blueprint` | O formato de arquivo que a E7 lê (BiomeBlueprints/valheimians); **não** é dependência (sem Jotunn no mod) |
+| **BiomeBlueprints** (OverDrive) | sem licença declarada ⚠️ uso **local** | 353 builds `.blueprint` de onde saiu o `hs_meadows_hut` do teste; **não** vai no pacote |
 | **valheim-mods** (HardHeadHackerHead) | **MIT** ✅ uso livre | Coleção de mods de Valheim **com as sources**: **BuildOrders** (o alvo das fases E7/E8), `BuildFromChests`/`CraftFromChests`/`FeedFromChests` (material de baú), `Shared`/`Scripts.Engine`. É de lá que vem a referência do **apoio/estabilidade** e dos **fantasmas** |
 | **Thrall** (ego.ai) | **All rights reserved** ⚠️ | Apenas referência **conceitual**; **não** copiar código nem redistribuir binários (ver `NOTICE.md`) |
 
@@ -99,3 +101,10 @@ O pacote do mod embute os binários das duas metades da voz. Todos são de licen
 > O **mapa de `sid` vale para o export do sherpa**, não para a ordem alfabética do Hugging Face (a do HF tem 54
 > vozes; o mapa do sherpa v1_0 tem 53 — falta `em_santa`). A skill `.opencode/skills/kokoro/` consolida o catálogo,
 > a integração e as armadilhas.
+
+## Fixtures de teste da E7 (o leitor `.blueprint`)
+
+As fixtures do harness e dos testes em jogo vêm do repositório do **PlanBuild** (`PlanBuildTest/resources/`:
+`TestBox_V1.blueprint`, `TestBox_V2.blueprint`, `Tree_V2_SnapPoints.blueprint`) - **WTFPL** - e do **BiomeBlueprints**
+(`hs_meadows_hut.blueprint`). Elas **não** vão no zip: o leitor é testado com texto embutido no harness e o jogador
+baixa as builds dele.
