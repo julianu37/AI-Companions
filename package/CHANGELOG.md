@@ -88,6 +88,9 @@ its own bag, places the piece and confirms it works.
   The resume is at the exact point: the watcher waits for **what was missing** (not the whole structure's cost, which
   timed out) and the build continues **from the same anchor and the piece where it stopped** - it used to restart at
   the first piece, which put a second workbench and a second house next to the first.
+  **Gathering for the whole structure:** if it has to chop wood anyway, it brings enough for the rest of the build (or
+  until the bag is nearly full) instead of coming back for one piece at a time - and the log now says where each
+  material came from (bag or chest, with the distance).
 - **New dev tooling:** `modia_build_probe [prefab] [radius]` and `modia_build_find [prefab] [radius]` in the game
   console, and the MCP tools `build_inspect`, `build_sites`, `build_find`, `build_pieces`, `companions_build`,
   `companions_sethome` and `player_look` (the build order takes its spot from your aim, so a test has to be

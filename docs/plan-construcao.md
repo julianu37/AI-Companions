@@ -543,6 +543,9 @@ fecha o sentido "usável" da E5.
   custo inteiro antes de começar - numa construção grande isso não faz sentido.
 - **Limitações:** o chão tem que ser razoavelmente plano (o nivelamento é a **E10** e agora é visível: a obra entrega
   ao job de nivelar e retoma).
+- **A coleta pede o que falta para a casa toda (02/11/2026):** se o companheiro tem que cortar madeira, volta com o
+  suficiente para o resto da obra (ou até encher a mochila, 80% do limite) - não uma peça por vez. E o log diz
+  **de onde** o material veio (mochila ou baú, com a distância).
 - **A retomada é no ponto exato (dois bugs do teste):** o vigia espera **o que faltou** (não o custo inteiro do
   template, que estourava os 300 s) e o `Pending` guarda **a peça e a âncora** - o `StartPlan(..., anchorKnown: true)`
   continua da mesma pose em vez de recomeçar do passo 0 (que criava outra bancada e uma casa nova ao lado).

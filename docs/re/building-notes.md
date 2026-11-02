@@ -479,6 +479,13 @@ construção grande não faz sentido, e o bug do teste (nivelou, faltou madeira 
    `Pending` guarda **o índice da peça e a âncora** (`Index`/`Anchor`/`AnchorRot`) e o `StartPlan(..., anchorKnown:
    true)` **continua da mesma pose e da peça onde parou** (`resuming at the same anchor ... from piece N`).
 
+**A coleta de um plano pede o que falta para a CASA TODA (pedido do jogador, 02/11/2026):** se ele tem que cortar
+madeira de qualquer jeito, volta com o suficiente para o resto da obra (ou até a mochila encher) em vez de uma peça
+por vez. `BeginGather` usa o **total do template** (`TemplateMissing`) para o item; o vigia retoma quando o número é
+atingido **ou** a mochila está a **80%** do limite (`CompanionCarry.Max`) - o total pode não caber no saco.
+**Onde o material foi pego agora aparece no log** (`[Build] stock: took Nx <item> from the bag|the chest "..." (N m
+from the spot)`) - antes era silencioso e o jogador (com razão) duvidou do baú.
+
 **O chão tem que ser plano.** O abrigo de 4x2 m precisa dos 4 postes no mesmo nível: num terreno inclinado os
 postes do lado de baixo ficam sem apoio e o plano recusa (foi o que aconteceu sobre a bancada da E5, num barranco) -
 o `FindAnchor` então procura outro ponto. Nivelar o terreno é a **E10**.

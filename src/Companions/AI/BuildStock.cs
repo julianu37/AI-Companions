@@ -108,6 +108,8 @@ internal static class BuildStock
 			{
 				bag.RemoveItem(name, fromBag);
 				left -= fromBag;
+				// same reason as the chest line below: the player must be able to SEE where the material came from
+				CompanionsPlugin.Log?.LogInfo("[Build] stock: took " + fromBag + "x " + name + " from the bag");
 			}
 			foreach (Container chest in chests)
 			{
@@ -128,6 +130,10 @@ internal static class BuildStock
 				MHR_Chests.Claim(chest);
 				chestBag.RemoveItem(name, take);
 				left -= take;
+				// E6b (player's test, 01/11/2026): it must be visible WHERE the wood came from - "took it from the
+				// chest" was a guess because this was silent
+				CompanionsPlugin.Log?.LogInfo("[Build] stock: took " + take + "x " + name + " from the chest \"" + chest.gameObject.name
+					+ "\" (" + Vector3.Distance(chest.transform.position, center).ToString("F0") + " m from the spot)");
 			}
 			if (left > 0)
 			{

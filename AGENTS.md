@@ -1113,7 +1113,10 @@ comandos de console e spawna coisas, então não é feature de jogador.
   nivelou, faltou madeira e parou). **A retomada é no ponto exato:** o vigia espera **o que faltou** (`Pending.Amount`,
   não o custo inteiro - estourava os 300 s) e o `Pending` guarda a **peça e a âncora** (`Index`/`Anchor`/`AnchorRot`);
   `StartPlan(..., anchorKnown: true)` continua da mesma pose em vez de recomeçar do passo 0 (que criava **outra
-  bancada** e uma casa nova ao lado). **Aceite: 1,06 m → 0,33 m em 3 passadas, 165 s.** É ordem de um tiro (qualquer outra
+  bancada** e uma casa nova ao lado). **A coleta pede o que falta para a CASA TODA (02/11/2026):** se ele tem que
+  cortar madeira, volta com o suficiente para o resto da obra **ou até a mochila encher** (80% do limite) - o total do
+  template pode não caber no saco. E o log diz **de onde** veio o material (`[Build] stock: took Nx <item> from the
+  bag|the chest "..." (N m)`). **Aceite: 1,06 m → 0,33 m em 3 passadas, 165 s.** É ordem de um tiro (qualquer outra
   cancela - sem isso ele ficava travado). `ValidActions` 36 → 37, 5 idiomas, config 353.
   **Aceite em jogo (01/11/2026): 57/57 peças, todas `supported`**, todas
   `placed (Direct)` - a casa **traz a própria bancada** (passo 0, a estação vem do plano), a **porta é a última**

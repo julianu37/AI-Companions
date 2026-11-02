@@ -897,10 +897,25 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 	/// </summary>
 	private static GatherStart BeginGather(CompanionAI ai, State state, CompanionSetup cs, Dictionary<string, int> missing)
 	{
+		// E6b (player's request, 02/11/2026): for a PLAN the gather asks for the WHOLE structure's shortfall, not the
+		// piece's - if it has to chop wood anyway, it brings enough for the rest of the house (or until the bag is
+		// nearly full) and comes back once instead of once per piece.
+		Dictionary<string, int> need = missing;
+		if (state.Template != null)
+		{
+			Humanoid humanoid = ai.GetComponent<Humanoid>();
+			Inventory bag = humanoid != null ? humanoid.GetInventory() : null;
+			bool useChests = ModConfig.BuildUseChests == null || ModConfig.BuildUseChests.Value;
+			Dictionary<string, int> total = TemplateMissing(bag, state.Template, state.Pos, cs, useChests);
+			if (total.Count > 0)
+			{
+				need = total;
+			}
+		}
 		string item = null;
 		int mode = 0;
 		int amount = 0;
-		foreach (KeyValuePair<string, int> kv in missing)
+		foreach (KeyValuePair<string, int> kv in need)
 		{
 			int candidate = BuildStock.GatherMode(kv.Key);
 			if (candidate == 0)
@@ -1231,7 +1246,11 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		Dictionary<string, int> have = BuildStock.Available(bag, stock, pending.Hint, cs, useChests);
 		int got;
 		have.TryGetValue(pending.Item ?? string.Empty, out got);
-		if (got < pending.Amount)
+		// E6b (player's request, 02/11/2026): the plan asked for the WHOLE structure's shortfall, which can be more than
+		// the bag holds. When the bag is nearly full the build resumes with what it has - the rest is gathered on the
+		// next shortfall instead of standing in the forest waiting for a number that never fits.
+		bool nearlyFull = humanoid.GetInventory().GetTotalWeight() >= CompanionCarry.Max(humanoid) * 0.8f;
+		if (got < pending.Amount && !nearlyFull)
 		{
 			return;   // still gathering
 		}
