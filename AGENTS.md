@@ -1066,10 +1066,12 @@ comandos de console e spawna coisas, então não é feature de jogador.
 - **Ligar:** `[Advanced] DevBridge = true` no `AiCompanions.cfg` e reiniciar o jogo; o log diz
   `[DevBridge] listening on 127.0.0.1:47110`.
 - **Regra ao entrar no mundo:** `world_enter` já roda o `world.setup` — `devcommands` (**uma vez**; o comando é um
-  toggle), `tod 0.5` (meio-dia) e `god on` + `heal`. **Nunca** dirigir o player sem isso (o agente já morreu para um
-  greyling enquanto mexia no bridge). O `god` do Valheim 1.0 **não** cancela o dano: ele trava o HP em **1** quando o
-  golpe mataria (`Character.cs`), então o `heal` é obrigatório para a barra não ficar em 1. `setup: false` no
-  `world_enter` desliga.
+  toggle), `tod 0.5` (meio-dia) e `god on` + `heal`, mais a **stamina infinita** (`stamina`, padrão ligado;
+  `stamina: false` desliga; comando solto `player.stamina`). O `god` do Valheim 1.0 **não** cancela o dano: ele trava
+  o HP em **1** quando o golpe mataria (`Character.cs`), então o `heal` é obrigatório para a barra não ficar em 1. A
+  stamina é reposta **a cada 0,25 s** pelo `Pump` (não há `SetStamina` na 1.0 nem comando de console - o campo privado
+  é escrito por reflexão, escolhido **pelo valor** igual ao `GetStamina()`, com uma linha de log dizendo qual).
+  `setup: false` no `world_enter` desliga.
 - **Testar:** `python tools/mcp-devbridge/test_mcp_devbridge.py` (mock, sem jogo) — 70 checks.
 - **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check` — **363 asserções** das redes por
   palavras (`RadialIntent`, `PickupIntent`, `GatherIntent`, `InteractionIntent`, `LlmIntent`, `OrderItems`,

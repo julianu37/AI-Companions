@@ -82,6 +82,7 @@ Uma conexão por chamada; **um JSON por linha**, nas duas direções.
 | `status` | — | jogador, posição, hp, stamina, bioma, dia, mundo |
 | `console` | `command` | `command` |
 | `player.give` | `item`, `amount` | `item`, `amount`, `added` |
+| `player.stamina` | `on?` (padrão `true`) | `infiniteStamina`, `stamina`, `maxStamina` |
 | `player.teleport` | `x`, `y`, `z` | `x`, `y`, `z` |
 | `player.look` | `down?`, `right?` (graus) | `down`, `right`, `forward{}`, `distance`, `x`, `y`, `z` |
 | `world.spawn` | `prefab`, `count`, `x?`, `y?`, `z?` | `prefab`, `count` |
@@ -253,8 +254,20 @@ Equivalente manual: `input_key` com essas teclas e ~1 s entre elas; depois `ping
 meio, `screenshot` mostra a tela.
 
 **Depois de carregar, o `world_enter` roda o `world.setup` sozinho** (`setup: false` desliga): `devcommands` (só se
-ainda não estiver ligado — o comando é um **toggle**), `tod 0.5` (meio-dia) e `god on` + `heal`. Sem isso o agente
-morre para um greyling enquanto está ocupado com o bridge.
+ainda não estiver ligado - o comando é um **toggle**), `tod 0.5` (meio-dia), `god on` + `heal` e **stamina infinita**
+(`stamina`, padrão **ligado**; `stamina: false` desliga). Sem isso o agente morre para um greyling enquanto está
+ocupado com o bridge.
+
+### Stamina infinita nas sessões de teste
+
+Pedido do jogador (02/11/2026): as sessões de teste de construção cortam muita madeira e a barra de stamina acaba
+no meio. O `god` não ajuda nisso (ele só trava o HP em 1) e o console do jogo **não** tem comando de stamina - o
+`setkey` desta build aceita **só o nome** (não existe `staminarate`). Então o DevBridge faz: com a opção ligada
+(`world.setup` com `stamina` ou `player.stamina`), o `Pump` (main thread) **repõe a stamina a cada 0,25 s** quando
+ela está abaixo do máximo. No Valheim 1.0 não existe setter (`Character` tem `GetStamina`/`UseStamina`, não
+`SetStamina`), então o valor é escrito por **reflexão** no campo privado - e o campo é escolhido **pelo valor**
+(o `float` cujo conteúdo é igual ao `GetStamina()` na hora), não pelo nome; uma linha no log diz qual foi
+(`[DevBridge] stamina infinita: Character.m_stamina`). É ferramenta de dev: sem `[Advanced] DevBridge` nada disso roda.
 
 ### Deixar o player invencível (e por que o `god` sozinho não basta)
 

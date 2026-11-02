@@ -82,6 +82,7 @@ internal static class Commands
 			case "status": return Status();
 			case "console": return ConsoleCommand(args);
 			case "player.give": return PlayerGive(args);
+			case "player.stamina": return PlayerStamina(args);
 			case "player.teleport": return PlayerTeleport(args);
 		case "player.look": return PlayerLook(args);
 			case "player.kill": return PlayerKill();
@@ -1102,13 +1103,43 @@ internal static class Commands
 		// Valheim 1.0's god mode does NOT cancel damage: it clamps a killing blow to 1 HP (Character.cs). Heal after
 		// it so the bar is full and the player is not stuck at 1.
 		global::Console.instance.TryRunCommand("heal", silentFail: true);
+		// Player's request (02/11/2026): a test session runs with infinite stamina - build tests cut a lot of wood and
+		// god says nothing about stamina. `stamina: false` turns it off.
+		bool wantStamina = Json.Bool(args, "stamina", true);
+		DevBridgeService.InfiniteStamina = wantStamina;
 		Player p = Player.m_localPlayer;
+		if (wantStamina)
+		{
+			DevBridgeService.FillStamina(p);
+		}
 		return Ok(new Dictionary<string, object>
 		{
 			{ "cheats", global::Console.m_cheat },
 			{ "god", p != null && p.InGodMode() },
 			{ "hp", p != null ? p.GetHealth() : 0f },
-			{ "time", EnvMan.instance != null ? EnvMan.instance.GetDayFraction() : 0f }
+			{ "time", EnvMan.instance != null ? EnvMan.instance.GetDayFraction() : 0f },
+			{ "infiniteStamina", DevBridgeService.InfiniteStamina },
+			{ "stamina", p != null ? p.GetStamina() : 0f },
+			{ "maxStamina", p != null ? p.GetMaxStamina() : 0f }
+		});
+	}
+
+	/// <summary>Dev-only: turns the infinite stamina of <see cref="DevBridgeService.InfiniteStamina"/> on or off
+	/// (<c>{"on": true}</c>), and fills the bar right away when turning it on.</summary>
+	private static string PlayerStamina(Dictionary<string, object> args)
+	{
+		bool on = Json.Bool(args, "on", true);
+		DevBridgeService.InfiniteStamina = on;
+		Player p = Player.m_localPlayer;
+		if (on)
+		{
+			DevBridgeService.FillStamina(p);
+		}
+		return Ok(new Dictionary<string, object>
+		{
+			{ "infiniteStamina", on },
+			{ "stamina", p != null ? p.GetStamina() : 0f },
+			{ "maxStamina", p != null ? p.GetMaxStamina() : 0f }
 		});
 	}
 

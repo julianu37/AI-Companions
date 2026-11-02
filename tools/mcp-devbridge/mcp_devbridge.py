@@ -571,12 +571,16 @@ TOOLS = [
     },
     {
         "name": "world_setup",
-        "description": "Dev setup for driving the player: enables dev commands (once), sets the time of day (0.5 = midday) and turns god mode on (or off with god=false).",
+        "description": (
+            "Dev setup for driving the player: enables dev commands (once), sets the time of day (0.5 = midday), "
+            "turns god mode on (or off with god=false) and keeps the player's stamina full (stamina=false turns that off)."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
                 "time": {"type": "number", "minimum": 0, "maximum": 0.999, "default": 0.5},
                 "god": {"type": "boolean", "default": True},
+                "stamina": {"type": "boolean", "default": True},
             },
             "additionalProperties": False,
         },
@@ -1056,7 +1060,11 @@ def run_tool(name, args):
                 payload[key] = args[key]
         return require_ok(call_bridge("build.pieces", **payload))
     if name == "world_setup":
-        payload = {"time": args.get("time", 0.5), "god": args.get("god", True)}
+        payload = {
+            "time": args.get("time", 0.5),
+            "god": args.get("god", True),
+            "stamina": args.get("stamina", True),
+        }
         return require_ok(call_bridge("world.setup", **payload))
     if name == "world_time":
         payload = {}

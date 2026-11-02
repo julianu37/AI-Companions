@@ -372,16 +372,23 @@ Diagnostics for the companion tombstone despawn: component `enabled`, `activeInH
 ### `world_setup`
 
 The dev setup for driving the player, in one call: `devcommands` (only when it is still off - the command is a
-**toggle**), `tod <time>` (0.5 = midday) and `god on` + `heal`.
+**toggle**), `tod <time>` (0.5 = midday), `god on` + `heal` and **infinite stamina**.
 
 | param | type | default |
 |---|---|---|
 | `time` | number 0..0.999 (day fraction) | 0.5 |
 | `god` | boolean | `true` |
+| `stamina` | boolean | `true` |
 
 ```json
-{"cheats": true, "god": true, "hp": 25, "time": 0.5}
+{"cheats": true, "god": true, "hp": 25, "time": 0.5, "infiniteStamina": true, "stamina": 25, "maxStamina": 25}
 ```
+
+**Infinite stamina** (`stamina`, on by default; `player.stamina` turns it on/off alone): the bridge refills the bar
+every 0.25 s while it is below the maximum. Valheim 1.0 has no `SetStamina` (only `GetStamina`/`UseStamina`) and no
+console command for it - `setkey` takes the name only (there is no `staminarate`), so the private float is written
+through reflection. The field is picked **by value** (the `float` equal to `GetStamina()`), and the log says which:
+`[DevBridge] stamina infinita: Character.m_stamina`.
 
 **Valheim 1.0's `god` does not cancel damage**: it clamps a killing blow to **1 HP** (`Character.cs`). The player does
 not die, but the bar keeps dropping - that is why the setup runs `heal` too. `ghost on` (a game command, not enabled

@@ -1,4 +1,6 @@
 using System;
+using System.Reflection;
+using UnityEngine;
 
 namespace Companions.DevBridge;
 
@@ -42,11 +44,101 @@ internal sealed class DevBridgeService
 		try
 		{
 			_server.Pump();
+			TopUpStamina();
 		}
 		catch (Exception ex)
 		{
 			CompanionsPlugin.Log?.LogWarning("[DevBridge] pump error: " + ex.Message);
 		}
+	}
+
+	/// <summary>
+	/// Dev-only: keeps the player's stamina full (the player's request for test sessions, 02/11/2026 - god mode clamps a
+	/// killing blow to 1 HP but says nothing about stamina, so cutting a forest for the build tests runs dry).
+	/// Turned on by <c>world.setup</c> (<c>stamina</c>, default on) and by <c>player.stamina</c>. The bridge is off
+	/// unless <c>[Advanced] DevBridge</c> is on, so this never reaches a player.
+	/// </summary>
+	internal static bool InfiniteStamina;
+
+	private static float s_nextTopUp;
+	private static FieldInfo s_staminaField;
+	private static bool s_staminaTried;
+
+	private static void TopUpStamina()
+	{
+		if (!InfiniteStamina)
+		{
+			return;
+		}
+		Player player = Player.m_localPlayer;
+		if (player == null)
+		{
+			return;
+		}
+		float now = Time.time;
+		if (now < s_nextTopUp)
+		{
+			return;
+		}
+		s_nextTopUp = now + 0.25f;
+		FillStamina(player);
+	}
+
+	/// <summary>Dev-only: fills the player's stamina right now (world.setup / player.stamina call it when turning the
+	/// option on; the pump then keeps it full).</summary>
+	internal static void FillStamina(Player player)
+	{
+		if (player == null)
+		{
+			return;
+		}
+		float max = player.GetMaxStamina();
+		if (player.GetStamina() >= max)
+		{
+			return;
+		}
+		if (!s_staminaTried)
+		{
+			s_staminaTried = true;
+			s_staminaField = FindStaminaField(player);
+			CompanionsPlugin.Log?.LogInfo("[DevBridge] stamina infinita: "
+				+ (s_staminaField != null ? "Character." + s_staminaField.Name : "campo de stamina nao encontrado - a opcao nao faz efeito"));
+		}
+		// 1.0 has GetStamina/Humanoid.UseStamina but no setter: the bar is a private float, so it is written through
+		// reflection. FindStaminaField picks the field whose value IS GetStamina() - not a name guess.
+		if (s_staminaField != null)
+		{
+			s_staminaField.SetValue(player, max);
+		}
+	}
+
+	private static FieldInfo FindStaminaField(Player player)
+	{
+		FieldInfo exact = typeof(Character).GetField("m_stamina", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+		if (exact != null && exact.FieldType == typeof(float))
+		{
+			return exact;
+		}
+		float current = player.GetStamina();
+		foreach (FieldInfo field in typeof(Character).GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+		{
+			if (field.FieldType != typeof(float) || field.Name.IndexOf("stamina", StringComparison.OrdinalIgnoreCase) < 0)
+			{
+				continue;
+			}
+			try
+			{
+				if (Mathf.Abs((float)field.GetValue(player) - current) < 0.01f)
+				{
+					return field;
+				}
+			}
+			catch
+			{
+				// a field that can't be read is not the one
+			}
+		}
+		return null;
 	}
 
 	public void Stop()
