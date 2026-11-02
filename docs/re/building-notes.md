@@ -553,6 +553,44 @@ todas `mine=True`, `zdo=True`, `health=1.00`.
 
 ---
 
+## 12.1 E6c - a entrega da coleta: Follow, guarda da base e o prazo (medido em 02/11/2026)
+
+**A causa raiz estava no Follow, não na coleta.** O modo madeira **mantém o Follow ligado** de propósito
+(`MHR_JobRules.KeepsFollow`: com follow ele trabalha "o que estiver perto de você e senão te segue", o comportamento
+da roda/chat do upstream). Com Follow ligado o harvest só enxerga `[Gathering] FollowRange` (**25 m**) ao redor do
+**jogador** — e no canteiro de uma casa nova a árvore mais próxima estava a **1,3 m** de uma peça construída, então o
+guarda da base (`BaseProtectRadius`, 10 m) a recusava **em silêncio** (`AllowTarget` → `NearBuildings` → `OtherRejects`,
+que não loga). Resultado do teste: a ordem entregava a coleta e o companheiro ficava em Follow, sem nada para cortar,
+até o prazo de 300 s.
+
+**As cinco correções (todas medidas no teste em jogo):**
+
+1. **Follow desligado na entrega** (`HandOver`): `cs.SetFollow(false)` e um `ApplyFollowMode(mode, force: true)` logo
+   depois, porque a escrita do Follow passa por `MHR_WriteOrQueue` e pode ficar na fila. Com Follow off o harvest
+   trabalha a **área do canteiro** (`[Gathering] Range` = 60 m, âncora em `UpdateAnchor`), que é o que uma obra
+   precisa. O valor anterior vai em `Pending.FollowWas` e o `RestoreFollow` devolve o Follow em **todas** as saídas:
+   retomada, prazo, sem-recurso, troca de trabalho e `MHR_Build.Cancel` (outra ordem chegando). Só devolve se ainda
+   estiver desligado (o jogador pode ter ligado na mão).
+2. **A caminhada do build não escolhe árvore protegida:** `MHR_GatherRules.GatherRefusesTree` (hoje = guarda da base)
+   filtra o `NearestResource`, com a linha `[Build] N tree(s) skipped: too close to the buildings (base guard)`.
+   Antes ele andava até a árvore e a coleta a recusava.
+3. **O prazo deixou de ser relógio fixo:** `Pending.LastProgressAt` é atualizado a cada madeira que **entra** e o prazo
+   de 300 s conta desde o último progresso (`gathering made no progress for 300 s`). O teste perdeu **36/39** porque o
+   relógio fixo cortou uma coleta que estava funcionando.
+4. **Vigia de ociosidade:** se o harvest fica **20 s** sem nada para fazer (e não está em combate nem pausado por
+   `CompanionRest.MHR_ShouldPauseWork`), a ordem encerra dizendo o que falta - com o **resto do plano** (`PlanMissing`
+   a partir do índice), não o template inteiro - em vez de esperar 300 s calado. O aviso de vigia é 1×/min.
+5. **Ao encerrar, volta ao modo Follow** (`ApplyActionMode(ModeFollow)`): antes ele ficava em **modo madeira** sem
+   alvo e continuava trabalhando troncos no caminho de volta - o relato "não parou a coleta".
+
+**Aceite em jogo (02/11/2026):** o jogador testou e respondeu *"agora parece que funcionou perfeitamente"*. No log da
+coleta: contagem de **4 → 36/39** cortando faia, bétula e troncos; o único travamento foi um tronco fora de alcance
+(`Its swings aren't reaching "beech_log_half"`, 27-32 m), que com o prazo por progresso não derruba mais a obra.
+
+**O custo da casa, conferido com `build.inspect`:** **123 madeiras** (246 de peso) - bancada 10, 16 pisos 32, 14
+paredes 28, janela (meia parede) 1, 16 telhados 32, 8 empenas 16 e porta 4. Com o limite de 300 e a regra dos 80% da
+mochila, uma casa pode exigir **duas viagens** de coleta quando ele já está carregado.
+
 ## 13. E10 - nivelar o terreno com a enxada (medido em 01/11/2026)
 
 **Como o jogo nivela (decompilado 1.0.20):** a enxada não tem uma operação de "level" duro. O menu dela é uma

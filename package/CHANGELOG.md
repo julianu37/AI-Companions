@@ -96,6 +96,15 @@ its own bag, places the piece and confirms it works.
   **The number is what is LEFT of the plan:** the shortfall used to count the whole template (it asked for 122 wood
   with 75 missing, 24 of 57 pieces already placed); it now counts from the piece being built - and the spoken line
   (`hc_ai_build_collecting`) says that same number instead of the single piece's one wood.
+  **The gather for a build works the spot, not the player:** wood/stone/ore keep Follow on upstream (targets of
+  opportunity around you), which leashed the harvest to 25 m around the player - and around a new house every tree is
+  inside the base guard (10 m of a placed piece) or already gone, so the handover left the companion following you with
+  nothing to chop. The build now turns Follow off for the gather (and restores it on every exit: resume, timeout,
+  nothing to gather, another order), skips the trees the gather would refuse
+  (`[Build] N tree(s) skipped: too close to the buildings`), and its 300 s limit counts from the last wood that
+  ARRIVED instead of from the handover (a test lost 36/39 to the fixed clock). Twenty seconds of an idle gather end the
+  order saying what is missing (the rest of the plan, not the whole template), and it goes back to Follow mode instead
+  of staying in wood mode chopping logs on the way home.
 - **New dev tooling:** `modia_build_probe [prefab] [radius]` and `modia_build_find [prefab] [radius]` in the game
   console, and the MCP tools `build_inspect`, `build_sites`, `build_find`, `build_pieces`, `companions_build`,
   `companions_sethome` and `player_look` (the build order takes its spot from your aim, so a test has to be

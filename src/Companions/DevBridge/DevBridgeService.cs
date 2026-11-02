@@ -62,7 +62,7 @@ internal sealed class DevBridgeService
 
 	private static float s_nextTopUp;
 	private static FieldInfo s_staminaField;
-	private static bool s_staminaTried;
+	private static bool s_staminaLogged;
 
 	private static void TopUpStamina()
 	{
@@ -97,48 +97,74 @@ internal sealed class DevBridgeService
 		{
 			return;
 		}
-		if (!s_staminaTried)
-		{
-			s_staminaTried = true;
-			s_staminaField = FindStaminaField(player);
-			CompanionsPlugin.Log?.LogInfo("[DevBridge] stamina infinita: "
-				+ (s_staminaField != null ? "Character." + s_staminaField.Name : "campo de stamina nao encontrado - a opcao nao faz efeito"));
-		}
 		// 1.0 has GetStamina/Humanoid.UseStamina but no setter: the bar is a private float, so it is written through
-		// reflection. FindStaminaField picks the field whose value IS GetStamina() - not a name guess.
-		if (s_staminaField != null)
+		// reflection. FindStaminaField picks the field whose value IS GetStamina() - not a name guess - and the search
+		// is retried on later frames while nothing was found (a world load can change what is reachable).
+		if (s_staminaField == null)
 		{
-			s_staminaField.SetValue(player, max);
+			s_staminaField = FindStaminaField(player);
 		}
+		if (s_staminaField == null)
+		{
+			if (!s_staminaLogged)
+			{
+				s_staminaLogged = true;
+				CompanionsPlugin.Log?.LogWarning("[DevBridge] stamina infinita: nenhum campo de stamina com o valor de GetStamina() - a opcao nao faz efeito");
+			}
+			return;
+		}
+		if (!s_staminaLogged)
+		{
+			s_staminaLogged = true;
+			CompanionsPlugin.Log?.LogInfo("[DevBridge] stamina infinita: " + s_staminaField.DeclaringType?.Name + "." + s_staminaField.Name);
+		}
+		s_staminaField.SetValue(player, max);
 	}
 
+	/// <summary>The float that holds the player's stamina. Valheim 1.0 keeps it in a private field somewhere in the
+	/// hierarchy (Player/Humanoid/Character) and only exposes <c>GetStamina()</c>, so the field is picked by <b>value</b>:
+	/// the one equal to <c>GetStamina()</c> right now. Names with max/regen/rate/drain are never candidates.</summary>
 	private static FieldInfo FindStaminaField(Player player)
 	{
-		FieldInfo exact = typeof(Character).GetField("m_stamina", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-		if (exact != null && exact.FieldType == typeof(float))
-		{
-			return exact;
-		}
 		float current = player.GetStamina();
-		foreach (FieldInfo field in typeof(Character).GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+		FieldInfo best = null;
+		float bestDelta = float.MaxValue;
+		for (Type type = player.GetType(); type != null && type != typeof(object); type = type.BaseType)
 		{
-			if (field.FieldType != typeof(float) || field.Name.IndexOf("stamina", StringComparison.OrdinalIgnoreCase) < 0)
+			foreach (FieldInfo field in type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
 			{
-				continue;
-			}
-			try
-			{
-				if (Mathf.Abs((float)field.GetValue(player) - current) < 0.01f)
+				if (field.FieldType != typeof(float))
 				{
-					return field;
+					continue;
+				}
+				string name = field.Name;
+				if (name.IndexOf("stamina", StringComparison.OrdinalIgnoreCase) < 0)
+				{
+					continue;
+				}
+				if (name.IndexOf("max", StringComparison.OrdinalIgnoreCase) >= 0
+					|| name.IndexOf("regen", StringComparison.OrdinalIgnoreCase) >= 0
+					|| name.IndexOf("rate", StringComparison.OrdinalIgnoreCase) >= 0
+					|| name.IndexOf("drain", StringComparison.OrdinalIgnoreCase) >= 0)
+				{
+					continue;
+				}
+				try
+				{
+					float delta = Mathf.Abs((float)field.GetValue(player) - current);
+					if (delta < bestDelta)
+					{
+						bestDelta = delta;
+						best = field;
+					}
+				}
+				catch
+				{
+					// a field that can't be read is not the one
 				}
 			}
-			catch
-			{
-				// a field that can't be read is not the one
-			}
 		}
-		return null;
+		return bestDelta <= 1f ? best : null;
 	}
 
 	public void Stop()

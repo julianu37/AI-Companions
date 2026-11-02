@@ -1123,7 +1123,14 @@ comandos de console e spawna coisas, então não é feature de jogador.
   `TemplateMissing` decide o que coletar (o jogador viu uma pilha de 50 virar 8 e outra de 30 intocada enquanto o
   companheiro ia cortar). **O número da coleta é o RESTO do plano (02/11/2026):** `PlanMissing` recebe o índice da peça e
   conta só do que falta construir (pedia 122 madeiras com 75 faltando), e a fala `hc_ai_build_collecting` usa o
-  item/quantidade que a coleta pediu - o jogador ouviu "Vou buscar 1 madeira" enquanto a ordem era de 75. **Aceite: 1,06 m → 0,33 m em 3 passadas, 165 s.** É ordem de um tiro (qualquer outra
+  item/quantidade que a coleta pediu - o jogador ouviu "Vou buscar 1 madeira" enquanto a ordem era de 75. **E6c - a coleta do build trabalha o CANTEIRO (02/11/2026):** o
+  modo madeira **mantém o Follow ligado** no upstream (`KeepsFollow`), e isso prendia o harvest a 25 m do **jogador**
+  enquanto o guarda da base (10 m de qualquer peça) recusava as árvores do canteiro **em silêncio** - o companheiro
+  ficava te seguindo. Agora `HandOver` **desliga o Follow** e o `RestoreFollow` devolve em todas as saídas
+  (`FollowWas`), o `NearestResource` pula árvore protegida (`MHR_GatherRules.GatherRefusesTree`), o prazo de 300 s
+  conta **desde o último progresso** (`LastProgressAt`, o relógio fixo cortou 36/39), 20 s de harvest ocioso encerram
+  dizendo o **resto do plano** e o companheiro volta ao **modo Follow** (antes seguia catando tronco). Aceite do
+  jogador: *"agora parece que funcionou perfeitamente"*. A casa custa **123 madeiras** (246 de peso). **Aceite: 1,06 m → 0,33 m em 3 passadas, 165 s.** É ordem de um tiro (qualquer outra
   cancela - sem isso ele ficava travado). `ValidActions` 36 → 37, 5 idiomas, config 353.
   **Aceite em jogo (01/11/2026): 57/57 peças, todas `supported`**, todas
   `placed (Direct)` - a casa **traz a própria bancada** (passo 0, a estação vem do plano), a **porta é a última**

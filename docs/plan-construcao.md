@@ -549,6 +549,12 @@ fecha o sentido "usável" da E5.
 - **O número é o resto do plano, e a fala é o número (02/11/2026):** `PlanMissing` recebe o índice da peça e conta só
   do que falta construir (pedia 122 com 75 faltando); a fala `hc_ai_build_collecting` passa a usar o item/quantidade
   que a coleta pediu, não o buraco de uma peça ("Vou buscar 1 madeira").
+- **A coleta do build trabalha o CANTEIRO, não o jogador (02/11/2026):** o modo madeira mantém o Follow ligado no
+  upstream, o que prendia o harvest a **25 m do jogador** - e no canteiro toda árvore está protegida pelo guarda da
+  base (10 m). A entrega agora **desliga o Follow** (e devolve em todas as saídas, via `FollowWas`/`RestoreFollow`),
+  pula as árvores que a coleta recusaria (`GatherRefusesTree`) e o prazo de 300 s conta **desde o último progresso**
+  (`LastProgressAt`); 20 s de harvest ocioso encerram a ordem dizendo o **resto do plano**, e o companheiro volta ao
+  **modo Follow** (antes ficava catando tronco no caminho). Custo da casa: **123 madeiras**.
 - **A coleta pede o que falta para a casa toda (02/11/2026):** se o companheiro tem que cortar madeira, volta com o
   suficiente para o resto da obra (ou até encher a mochila, 80% do limite) - não uma peça por vez. E o log diz
   **de onde** o material veio (mochila ou baú, com a distância).

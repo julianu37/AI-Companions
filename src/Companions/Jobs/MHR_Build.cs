@@ -48,7 +48,8 @@ internal static class MHR_Build
 	/// <summary>E10: above this height variation (metres) the soft level cannot win - the spot is refused instead of digging a crater.</summary>
 	internal const float MaxLevelVariation = 1.8f;
 
-	/// <summary>E4b: how long a pending build waits for the gather before it is dropped.</summary>
+	/// <summary>E4b: how long a pending build waits for the gather <b>without any progress</b> before it is dropped. Any
+	/// wood that arrives resets it (see <see cref="Pending.LastProgressAt"/>).</summary>
 	internal const float GatherTimeout = 300f;
 
 	private const string LogTag = "[Build] ";
@@ -126,10 +127,19 @@ internal static class MHR_Build
 		internal string Item;
 		/// <summary>E6b: the shortfall that was handed over (the watcher resumes when the bag covers it).</summary>
 		internal int Amount;
+		/// <summary>E6b: when the count last went up. The gather timeout counts from HERE, not from the handover - a
+		/// gather that keeps bringing wood never times out (the player's test lost 36/39 to the fixed 300 s clock).</summary>
+		internal float LastProgressAt;
 		/// <summary>E6b: where the plan stopped - the watcher resumes at the SAME anchor and from this piece.</summary>
 		internal int Index;
 		internal Vector3 Anchor;
 		internal Quaternion AnchorRot;
+		/// <summary>E6b: Follow was on when the gather was handed over (HandOver turns it off) - restore it after.</summary>
+		internal bool FollowWas;
+		/// <summary>E6b: when the gather was first seen with nothing to do (0 = it is working).</summary>
+		internal float IdleSince;
+		/// <summary>E6b: when the "nothing to work" line was last written (it is a watch, not an event).</summary>
+		internal float LastIdleLog;
 		/// <summary>E6b: the last count written to the log (the watcher is otherwise silent while it waits).</summary>
 		internal int LastLogged = -1;
 		internal float Start;
@@ -236,16 +246,22 @@ internal static class MHR_Build
 			return;
 		}
 		State state;
+		Pending pending = null;
 		if (s_state.TryGetValue(c.GetInstanceID(), out state) && state != null && state.Active)
 		{
 			state.Active = false;
 			s_state.Remove(c.GetInstanceID());
-			s_pending.Remove(c.GetInstanceID());
+			if (s_pending.TryGetValue(c.GetInstanceID(), out pending))
+			{
+				s_pending.Remove(c.GetInstanceID());
+			}
 			CompanionAI ai = c.GetComponent<CompanionAI>();
 			if (ai != null)
 			{
 				MHR_Mover.Release(ai);
 			}
+			// E6b: the gather turned Follow off - another order cancels the build and Follow has to come back
+			RestoreFollow(ai, c.GetComponent<CompanionSetup>(), pending);
 		}
 	}
 
@@ -977,7 +993,24 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 	/// pending build for the watcher. Called once, with nothing else steering.</summary>
 	private static void HandOver(CompanionAI ai, State state, CompanionSetup cs)
 	{
+		// E6b (player's test, 02/11/2026): Follow goes OFF for the gather. Wood/Stone/Ore/Forage keep Follow on upstream
+		// ("targets of opportunity while following you" - MHR_JobRules.KeepsFollow), which leashes the harvest to
+		// [Gathering] FollowRange around the PLAYER. Around a new house every tree is protected (10 m of any piece) or
+		// already gone, so the order handed over and the companion just followed the player, with nothing to chop, until
+		// the 300 s timeout. With Follow off the gather works the AREA of the spot ([Gathering] Range) - what a build
+		// order needs - and Follow comes back when the build resumes (RestoreFollow).
+		bool follow = cs != null && cs.GetFollow();
+		if (follow)
+		{
+			cs.SetFollow(false);
+			Log(ai, "follow off while it gathers for the build (it works the area around the spot, [Gathering] Range)");
+		}
 		CompanionSetup.ApplyActionMode(cs, state.GatherMode, false);
+		if (follow && cs != null)
+		{
+			// the queued Follow write may land after the mode one: make sure the old follow target is gone now
+			cs.ApplyFollowMode(state.GatherMode, true);
+		}
 		CompanionSetup.SetOrderCap(cs, state.GatherMode, state.GatherAmount, state.GatherItem);
 		s_pending[ai.GetInstanceID()] = new Pending
 		{
@@ -990,9 +1023,71 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			Index = state.Index,
 			Anchor = state.Anchor,
 			AnchorRot = state.AnchorRot,
-			Start = Time.time
+			FollowWas = follow,
+			Start = Time.time,
+			LastProgressAt = Time.time
 		};
 		Log(ai, "gathering " + state.GatherAmount + "x " + state.GatherItem + " (mode " + state.GatherMode + ") - the build resumes after it");
+	}
+
+	/// <summary>E6b: undoes the Follow that <see cref="HandOver"/> turned off. Only when it is still off (you may have
+	/// turned it back on yourself) and only when this pending was the one that turned it off.</summary>
+	private static void RestoreFollow(CompanionAI ai, CompanionSetup cs, Pending pending)
+	{
+		if (pending == null || !pending.FollowWas || cs == null)
+		{
+			return;
+		}
+		pending.FollowWas = false;
+		if (!cs.GetFollow())
+		{
+			cs.SetFollow(true);
+			Log(ai, "follow back on");
+		}
+	}
+
+	/// <summary>E6b: ends a pending build with the line that says what is still missing (the order must never end in
+	/// silence) - shared by the 300 s timeout and by "the gather found nothing it can work". For a plan the number is the
+	/// REST of the plan (from the piece that is short), never the whole template.</summary>
+	private static void EndPendingMissing(CompanionAI ai, CompanionSetup cs, Pending pending, Inventory bag,
+		BuildTemplates.Template template, Piece piece, bool useChests)
+	{
+		if (pending == null)
+		{
+			return;
+		}
+		s_pending.Remove(ai.GetInstanceID());
+		RestoreFollow(ai, cs, pending);
+		CompanionSetup.ClearOrderCap(cs);
+		// the order is over: back to Follow (mode 0). Without this the companion stayed in WOOD mode with no target and
+		// kept working logs on the way home - the player's "it never stopped gathering" (02/11/2026).
+		CompanionSetup.ApplyActionMode(cs, CompanionSetup.ModeFollow, false);
+		Dictionary<string, int> still;
+		if (template != null && pending.Index > 0)
+		{
+			List<PlannedStep> plan = new List<PlannedStep>();
+			foreach (BuildTemplates.Step step in template.Ordered())
+			{
+				Piece stepPiece = BuildProbe.PieceOf(step.Prefab);
+				if (stepPiece != null)
+				{
+					plan.Add(new PlannedStep { Prefab = step.Prefab, Piece = stepPiece });
+				}
+			}
+			still = PlanMissing(bag, plan, pending.Index, pending.Hint, cs, useChests);
+		}
+		else if (template != null)
+		{
+			still = TemplateMissing(bag, template, pending.Hint, cs, useChests);
+		}
+		else
+		{
+			still = BuildStock.Missing(bag, piece, pending.Hint, cs, useChests);
+		}
+		string label = template != null
+			? template.Label
+			: (piece != null && Localization.instance != null ? Localization.instance.Localize(piece.m_name) : pending.Prefab);
+		Say(ai, "hc_ai_build_missing", MissingText(still), label);
 	}
 
 	/// <summary>E4b: the build's own walk to the resource (the gather mode is NOT set yet, so nothing else steers).</summary>
@@ -1179,12 +1274,21 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		bool wood = folded.Contains("wood") || folded.Contains("roundlog");
 		Transform best = null;
 		float bestDistance = radius;
+		int protectedTrees = 0;
 		if (wood)
 		{
 			foreach (TreeBase tree in UnityEngine.Object.FindObjectsByType<TreeBase>(FindObjectsSortMode.None))
 			{
 				if (tree == null)
 				{
+					continue;
+				}
+				// E6b (player's test, 02/11/2026): the gather refuses trees next to player-placed pieces (the base guard,
+				// 10 m) and handing over to one of those left the order sitting in Follow. The nearest tree has to be one
+				// the harvest can actually take.
+				if (MHR_GatherRules.GatherRefusesTree(tree.gameObject))
+				{
+					protectedTrees++;
 					continue;
 				}
 				float distance = Vector3.Distance(center, tree.transform.position);
@@ -1211,6 +1315,11 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 				}
 			}
 		}
+		if (protectedTrees > 0)
+		{
+			// E6b: says why the companion walks past the closest tree (it is inside the base guard radius)
+			CompanionsPlugin.Log?.LogInfo("[Build] " + protectedTrees + " tree(s) skipped: too close to the buildings (base guard)");
+		}
 		return best;
 	}
 
@@ -1234,6 +1343,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		if (cs == null || bag == null || nv == null || !nv.IsValid() || !nv.IsOwner() || humanoid == null || humanoid.IsDead())
 		{
 			s_pending.Remove(ai.GetInstanceID());
+			RestoreFollow(ai, cs, pending);
 			return;
 		}
 		// E6b: a plan waiting for its materials (the template) or a single piece
@@ -1242,28 +1352,23 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		if (pending.Template != null ? template == null : piece == null)
 		{
 			s_pending.Remove(ai.GetInstanceID());
+			RestoreFollow(ai, cs, pending);
 			return;
 		}
 		if (ModeOf(cs) != pending.Mode)
 		{
 			s_pending.Remove(ai.GetInstanceID());
+			RestoreFollow(ai, cs, pending);
 			Log(ai, "the work changed - the build order was dropped");
 			return;
 		}
 		bool useChests = ModConfig.BuildUseChests == null || ModConfig.BuildUseChests.Value;
-		if (Time.time - pending.Start > GatherTimeout)
+		// E6b (player's test, 02/11/2026): the clock counts from the last wood that ARRIVED, not from the handover. The
+		// fixed 300 s cut a gather that was at 36/39 and the build was dropped with the last three pieces missing.
+		if (Time.time - pending.LastProgressAt > GatherTimeout)
 		{
-			s_pending.Remove(ai.GetInstanceID());
-			CompanionSetup.ClearOrderCap(cs);
-			// the order has to SAY what is still missing (acceptance of E4: it must not end in silence)
-			Dictionary<string, int> still = template != null
-				? TemplateMissing(bag, template, pending.Hint, cs, useChests)
-				: BuildStock.Missing(bag, piece, pending.Hint, cs, useChests);
-			string label = template != null
-				? template.Label
-				: (Localization.instance != null ? Localization.instance.Localize(piece.m_name) : pending.Prefab);
-			Log(ai, "gathering took too long - saying what is missing");
-			Say(ai, "hc_ai_build_missing", MissingText(still), label);
+			Log(ai, "gathering made no progress for " + GatherTimeout.ToString("F0") + " s - saying what is missing");
+			EndPendingMissing(ai, cs, pending, bag, template, piece, useChests);
 			return;
 		}
 		// E6b (bug found in the player's test, 01/11/2026): the watcher resumes when the SHORTFALL that was handed over
@@ -1284,14 +1389,43 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			if (pending.LastLogged != got)
 			{
 				pending.LastLogged = got;
+				pending.LastProgressAt = Time.time;
 				Log(ai, "waiting for " + pending.Item + ": have " + got + "/" + pending.Amount
 					+ (string.IsNullOrEmpty(pending.Template) ? string.Empty : " for the " + pending.Template)
 					+ " (mode " + ModeOf(cs) + ", expected " + pending.Mode + ")");
 			}
+			// E6b (player's test, 02/11/2026): the gather can end up with NOTHING it may work - every tree around the spot
+			// is protected by the base guard or already gone, the player carried the wood away. Before, the order waited
+			// the whole 300 s in silence while the companion followed the player; now 20 s of an idle gather (not in
+			// combat, not resting) ends it saying what is missing.
+			HarvestController harvest = ai.GetComponent<HarvestController>();
+			bool working = (harvest != null && harvest.IsActive) || ai.IsInCombat || CompanionRest.MHR_ShouldPauseWork(ai);
+			if (working || Time.time - pending.Start < 5f)
+			{
+				pending.IdleSince = 0f;
+				return;   // still gathering
+			}
+			if (pending.IdleSince <= 0f)
+			{
+				pending.IdleSince = Time.time;
+				if (Time.time - pending.LastIdleLog > 60f)
+				{
+					pending.LastIdleLog = Time.time;
+					Log(ai, "the gather has nothing to work - watching it for 20 s");
+				}
+				return;
+			}
+			if (Time.time - pending.IdleSince < 20f)
+			{
+				return;
+			}
+			Log(ai, "the gather found nothing it can work - saying what is missing");
+			EndPendingMissing(ai, cs, pending, bag, template, piece, useChests);
 			return;   // still gathering
 		}
 		Log(ai, "gather done (have " + got + "/" + pending.Amount + (nearlyFull ? ", bag nearly full" : string.Empty) + ") - resuming");
 		s_pending.Remove(ai.GetInstanceID());
+		RestoreFollow(ai, cs, pending);
 		CompanionSetup.ClearOrderCap(cs);
 		// back to Follow mode BEFORE the build starts: the harvest must not keep steering while the build does
 		CompanionSetup.ApplyActionMode(cs, CompanionSetup.ModeFollow, false);

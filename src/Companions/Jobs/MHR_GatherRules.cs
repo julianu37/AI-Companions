@@ -410,6 +410,25 @@ namespace Companions
             catch (Exception e) { Warn("AllowTarget: " + e.Message); return true; }
         }
 
+        /// <summary>
+        /// E6b (player's test, 02/11/2026): a standing tree the gather itself would refuse to chop - today the ones the
+        /// base protection guard turns away (a tree too close to a player-placed piece, <c>[Gathering] BaseProtectRadius</c>).
+        /// The build's own walk uses it so it never delivers the companion to a tree the harvest cannot take: that handover
+        /// left the order sitting in Follow while the companion stood next to a protected tree.
+        /// </summary>
+        internal static bool GatherRefusesTree(GameObject go)
+        {
+            try
+            {
+                return go != null && go.GetComponent<TreeBase>() != null && NearBuildings(go);
+            }
+            catch (Exception e)
+            {
+                Warn("GatherRefusesTree: " + e.Message);
+                return false;
+            }
+        }
+
         static bool NearBuildings(GameObject tree)
         {
             float r = ModConfig.BaseProtectRadius != null ? ModConfig.BaseProtectRadius.Value : 10f;
