@@ -400,8 +400,11 @@ internal static class MHR_Build
 			Vector3 candidate = state.Hint;
 			if (i > 0)
 			{
+				// E6d (player's test, 02/11/2026): "ele foi em outro terreno". The ring was 4 m and the house could end up
+				// 4 m (level) + 8 m (anchor search) away from where the player aimed. It stays close now: a small ring to
+				// dodge a bump, never another spot.
 				float angle = Mathf.PI * 2f * (i - 1) / 8f;
-				candidate = state.Hint + new Vector3(Mathf.Cos(angle) * 4f, 0f, Mathf.Sin(angle) * 4f);
+				candidate = state.Hint + new Vector3(Mathf.Cos(angle) * 1.5f, 0f, Mathf.Sin(angle) * 1.5f);
 				candidate.y = ZoneSystem.instance != null ? ZoneSystem.instance.GetGroundHeight(candidate) : state.Hint.y;
 			}
 			float min;
@@ -478,6 +481,9 @@ internal static class MHR_Build
 		float minZ;
 		float maxZ;
 		template.Footprint(out minX, out maxX, out minZ, out maxZ);
+		// E6d (player's test, 02/11/2026): the level job is centred on the ANCHOR (see StartPlan), so the footprint plus a
+		// small margin is all the square needs - a corner of the house outside the leveled square was refused with
+		// "no_support" and the 6x6 stopped at 2/46.
 		return Mathf.Max(maxX - minX, maxZ - minZ) + 1.5f;
 	}
 
@@ -779,7 +785,22 @@ internal static class MHR_Build
 			if (!Ok(check))
 			{
 				string status = check != null ? Convert.ToString(check["status"]) : "unknown";
-				Log(ai, "piece " + state.Prefab + " refused now (" + status + ") - the plan stops");
+				// E6d (player's test, 02/11/2026): the 6x6 floor was refused with no_support on flat ground and the same
+				// pose passes BuildSite.Check from the bridge - the line carries the pose and the ground it hit so the
+				// next test says WHY instead of guessing
+				try
+				{
+					Dictionary<string, object> ground = check != null && check.ContainsKey("ground") ? check["ground"] as Dictionary<string, object> : null;
+					Log(ai, "piece " + state.Prefab + " refused now (" + status + ") at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
+						+ F(state.Pos.z) + ") yaw " + F(state.Rot.eulerAngles.y) + (ground != null
+							? " | ground=" + Convert.ToString(ground["name"]) + " drop=" + Convert.ToString(ground["drop"])
+								+ " heightmap=" + Convert.ToString(ground["isHeightmap"]) + " wear=" + Convert.ToString(ground["wearSupports"])
+							: string.Empty) + " - the plan stops");
+				}
+				catch (Exception)
+				{
+					Log(ai, "piece " + state.Prefab + " refused now (" + status + ") - the plan stops");
+				}
 				if (status == "needs_station" && state.Piece != null && state.Piece.m_craftingStation != null)
 				{
 					// say WHICH station is missing, not "it doesn't fit" (E6: a plan may bring its own, and if it did
@@ -882,7 +903,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			Finish(ai, state, "hc_ai_build_unsupported", "no support", LabelOf(state));
 			return false;
 		}
-		Log(ai, "done: " + state.Prefab + " at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", " + F(state.Pos.z) + ")"
+		Log(ai, "done: " + state.Prefab + " at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", " + F(state.Pos.z) + ") yaw " + F(state.Rot.eulerAngles.y)
 			+ (state.Template != null ? " (" + (state.Index + 1) + "/" + state.Plan.Count + ")" : string.Empty)
 			+ (supported.HasValue ? " supported" : string.Empty));
 		// E6: next piece of the plan (the timeout is per piece, so a long plan is not a slow piece)

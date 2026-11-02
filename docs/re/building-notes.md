@@ -634,15 +634,25 @@ chão 2 m à frente. Os postes ficam **nos snap points** da aresta alta (x = ±2
 
 **Três correções que vieram do teste:**
 
-1. **A bancada do 6x6** ficava atravessada atrás da porta (3,7 m de bancada numa parede de 6 m). Agora ela vai
-   **encostada na parede esquerda, girada 90°** - o corredor da porta fica livre. No 8x8 nada mudou.
-2. **O telhado do 6x6 foi girado** (`roofAlongZ: true`, pedido do jogador: "rotaciona o telhado da 6x6"): a cumeeira
-   corre em **z** e a **empena (triângulo) fica em cima da porta**; as águas caem para os lados.
-3. **O vigia do E6b tinha um loop**: ele comparava o **total da mochila** com o **que faltava**. Na 4x4 a mochila já
-   tinha as 2 que ele pediu, então ele "retomava" e a porta (4) nunca era paga: `resuming ... from piece 20` →
-   `plan short` → coleta 2 → volta, para sempre. Agora o vigia **recalcula o que falta** com a mesma função do build
-   (`PlanMissing` a partir do índice, guardado no `Pending.Plan`) e só retoma quando **não falta nada** (ou a mochila
-   está a 80%). Uma vez por segundo, não por frame.
+1. **A bancada do 6x6 fica na MESMA posicao da 8x8** (canto dos fundos). A primeira tentativa foi encostar a
+   bancada na parede esquerda, girada 90 graus, para nao atravessar a porta - mas ai ela ficou **em cima de uma peca de
+   piso** e aquele piso era recusado com `no_support` (`ground=collider`, o tampo da bancada a 1,17 m). O que resolveu o
+   corredor foi mover a **porta do 6x6 para a vaga da direita** (`doorSlot: 2`).
+2. **O telhado do 6x6 e girado** (`roofAlongZ: true`, pedido do jogador: "rotaciona o telhado da 6x6"): a cumeeira
+   corre em **z** e a **empena (triangulo) fica em cima da porta**. As empenas estavam com o **yaw trocado** e entravam
+   como asas ("as paredes 45 parecem invertidas"): no lado +x a empena sobe para **-x**, que e **yaw 180** (yaw 0 sobe
+   para +x). Corrigido, o jogador respondeu **"tudo certo!"**.
+3. **A trava de 90 graus no yaw do plano foi tentada e REVERTIDA.** O plano usava o yaw livre da mira (348,6 no teste)
+   e os pisos entravam tortos; travar em 90 graus parecia a correcao, mas a casa saiu **deitada/torta** na pratica e o
+   jogador pediu para desfazer. O plano voltou a usar o yaw da mira, **igual a 8x8** (que sempre funcionou).
+4. **O anel de procura de terreno caiu de 4 m para 1,5 m** ("ele foi em outro terreno"): a casa ia para ate 4 m
+   (nivelamento) + 8 m (ancora) do ponto que o jogador mirou.
+5. **Peca de nivel 0 tem que ter apoio no chao na validacao do plano.** Os postes do beiral, quando empilhados (paredes
+   de 4 m), precisam entrar no nivel da fiada de cima - no nivel 0 a validacao exige apoio no chao e a busca de ancora
+   falha inteira (`no_support`, que o jogador ouviu como "nao tem espaco" num lugar onde a 8x8 cabia).
+
+**Aceite em jogo (02/11/2026):** com as empenas no yaw certo, o jogador testou a 6x6 e respondeu **"tudo certo!"**.
+A casa e 6x6 com 46 pecas / 101 madeiras (2 m de parede, beiral de 1 m com 4 postes, bancada, porta e janela).
 
 **Armadilha de apelido (custou um teste vermelho):** o Fold tira os acentos, então `"casa pequeña"` (ES) e
 `"casa pequena"` (PT) viram **a mesma string** - o `Resolve` empata e o primeiro template da lista ganha. A casa 8x8

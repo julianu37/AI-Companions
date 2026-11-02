@@ -503,7 +503,8 @@ internal static class Program
 		// a composicao da cabana: 1 piso + 4 paredes + 2 telhados (o aceite da E6)
 		CheckInt("cabana: 7 pecas", 7, hut.Steps.Length);
 		CheckInt("cabana: 1 piso", 1, CountPrefab(hut, "wood_floor"));
-		CheckInt("cabana: 4 paredes", 4, CountPrefab(hut, "woodwall"));
+		CheckInt("cabana: 3 paredes + 1 porta (E6d)", 3, CountPrefab(hut, "woodwall"));
+		CheckInt("cabana: 1 porta", 1, CountPrefab(hut, "wood_door"));
 		CheckInt("cabana: 2 telhados", 2, CountPrefab(hut, "wood_roof_45"));
 		CheckInt("abrigo: 8 pecas", 8, canopy.Steps.Length);
 		CheckInt("abrigo: 4 postes", 4, CountPrefab(canopy, "wood_pole2"));
@@ -517,6 +518,8 @@ internal static class Program
 		Check("ByName(\"house4\")", house4 != null);
 		CheckInt("casa 6x6: 9 pisos", 9, CountPrefab(house6, "wood_floor"));
 		CheckInt("casa 6x6: 10 paredes (12 tiles - porta - janela)", 10, CountPrefab(house6, "woodwall"));
+		CheckInt("casa 6x6: 1 porta", 1, CountPrefab(house6, "wood_door"));
+		CheckInt("casa 6x6: 1 janela", 1, CountPrefab(house6, "wood_wall_half"));
 		CheckInt("casa 6x6: 12 telhados (3 colunas x 2 aguas x 2 pecas)", 12, CountPrefab(house6, "wood_roof_45"));
 		CheckInt("casa 6x6: 8 empenas", 8, CountPrefab(house6, "wood_wall_roof_45"));
 		CheckInt("casa 6x6: 4 postes do beiral", 4, CountPrefab(house6, "wood_pole2"));
@@ -537,8 +540,8 @@ internal static class Program
 		System.Collections.Generic.List<BuildTemplates.Step> ordered = hut.Ordered();
 		CheckText("cabana: a 1a peca e o piso", "wood_floor", ordered[0].Prefab);
 		CheckInt("cabana: o piso e nivel 0", 0, ordered[0].Level);
-		CheckText("cabana: a ultima peca e o telhado", "wood_roof_45", ordered[ordered.Count - 1].Prefab);
-		CheckInt("cabana: o telhado e nivel 2", 2, ordered[ordered.Count - 1].Level);
+		CheckText("cabana: a ultima peca e a PORTA (E6d - e a ultima, senao ele se tranca)", "wood_door", ordered[ordered.Count - 1].Prefab);
+		CheckInt("cabana: a porta e nivel 3", 3, ordered[ordered.Count - 1].Level);
 		int lastLevel = -1;
 		bool sorted = true;
 		foreach (BuildTemplates.Step step in ordered)
@@ -556,8 +559,9 @@ internal static class Program
 		// os deslocamentos medidos (snaps): piso no centro, parede 1 m acima, telhado 3 m acima
 		CheckFloat("piso em (0,0,0)", 0f, ordered[0].X);
 		CheckFloat("parede a 1 m", 1f, ordered[1].Y);
-		CheckFloat("telhado a 2 m (a agua encosta no topo da parede)", 2f, ordered[ordered.Count - 1].Y);
-		CheckFloat("telhado com 1 m de beiral", 1f, Math.Abs(ordered[ordered.Count - 1].Z));
+		BuildTemplates.Step hutRoof = ordered.Find(delegate (BuildTemplates.Step step) { return step.Prefab == "wood_roof_45"; });
+		CheckFloat("telhado a 2 m (a agua encosta no topo da parede)", 2f, hutRoof.Y);
+		CheckFloat("telhado com 1 m de beiral", 1f, Math.Abs(hutRoof.Z));
 
 		// a allow-list dos planos
 		foreach (string prefab in BuildTemplates.Prefabs())

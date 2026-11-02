@@ -107,9 +107,9 @@ its own bag, places the piece and confirms it works.
   of staying in wood mode chopping logs on the way home.
   **Smaller structures:** the house now comes in three sizes and the build order understands them by size -
   `4x4` (20 pieces, no workbench: it does not fit a 4x4 m room, so a station has to be near), `6x6` (46 pieces, a 1 m
-  eave held by four corner posts) and the original `8x8` (57 pieces). The `6x6` workbench sits turned 90 degrees
-  against the left wall (it used to block the doorway) and its roof can run with the gable over the door
-  (`roofAlongZ`). There is also a **tent** now: a 4x2 m lean-to of two poles and two 45 degree pieces (8 wood) - the
+  eave held by four corner posts) and the original `8x8` (57 pieces). The `6x6` workbench keeps the 8x8's corner and the door moved to the right slot (the bench used to block the way in);
+    its roof runs with the gable over the door (`roofAlongZ`) and the gable pieces are turned the right way
+    (they went in like wings). There is also a **tent** now: a 4x2 m lean-to of two poles and two 45 degree pieces (8 wood) - the
   cheap shelter, measured 4/4 supported. "Barraco" resolves to the 2x2 hut. The build watcher no longer compares the
   bag TOTAL with the shortfall (a 4x4 test looped forever on the door's 4 wood): it recomputes what is missing and
   resumes only when nothing is. Measured end to end: withdrew 1 item(s) from the chests,gathering 15x (the rest of the plan, not the 123 of the whole house), gather done (have 15/15), ollow back on,
