@@ -49,6 +49,10 @@ stopped.
   house/blueprint only happened on "leveled" or "already flat", so a site that stopped at 0,30 m against the 0,20 m
   tolerance ended the whole order without a single piece. A failed leveling now hands the order back too, and the build
   goes on with the ground it has (the pieces that do not fit are retried).
+- **A ladder into open air is no longer a trap** (player's report, 03/11/2026: "he fell off the ladder in a loop until he
+  died"): a blueprint's hall has no floor at that height, and the ladder the plan brings ended in the void - the companion
+  climbed it and fell, over and over. A ladder whose **top has no floor** under it is now skipped (probe straight down and
+  a 0,6 m ring from the top), and **two falls** while walking to the same piece skip it instead of trying again.
 - **The house is built one storey at a time** (player's report, 03/11/2026: "he didn't build the 2nd floor - he is already
   putting up the roof frame"): the plan sorted every floor of the house into the first pass, and the upper ones are refused
   until the walls below exist - they all fell to the retry pass at the end, so the roof went up before the floor it stands

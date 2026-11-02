@@ -985,6 +985,29 @@ olho sobe com o corpo e a mesma regra cobre a peca, exatamente o que um jogador 
 **0,9 s** (`State.NextJumpAt`) para nao virar pula-pula, e o log (Detailed) diz
 `a hop to reach the <peca> at 0,4 m beyond the reach`.
 
+### 15.2l Escadinha que termina no vazio + queda em loop (03/11/2026)
+
+Relato do jogador com screenshot: *"ele ficou em loop caindo da escada ate morrer"*. A casa tem um **salao de pe-direito
+duplo**: naquela area **nao existe piso no nivel 2** (o "2o piso" do blueprint ali e o 3o nivel). O plano traz uma
+`wood_stepladder` naquele nivel, ela e colocada (o `BuildSite.Check` valida a base e as paredes, **nao o topo**), o
+`MHR_Mover` monta a corrente de escadas e **sobe** - e o topo da no vazio. Ele cai, tenta de novo, cai... ate morrer.
+
+**Duas travas (as duas no `MHR_Build`):**
+
+1. **Escadinha que termina no vazio nao e colocada:** antes de andar ate a peca, um `HasLanding` sonda **para baixo** do
+   topo (a 2,6 m da base) no proprio ponto e num anel de 0,6 m (o jogador fica **ao lado** da escada, nao em cima dela);
+   sem piso/peca ali, a peca conta como `skipped` com a linha `skipping <peca> at (...) - its top has no floor to stand
+   on`. Fail-open se as layers nao existirem.
+2. **Queda repetida = peca pulada:** um **tombo de mais de 0,8 m entre frames** enquanto anda ate a peca conta
+   (`State.FallDrops`); **duas** quedas na mesma peca e ela e pulada (`falling from the way to the <peca> - skipping it`),
+   em vez de tentar de novo. O contador zera a cada peca nova.
+
+O companheiro **morreu** no loop e voltou sozinho (respawn do mod) - o `companions.list` mostrou `dead: false`, 25/25.
+
+**Ainda em aberto (proximo passo):** o andar de uma peca hoje e o ultimo `floor` do **predio inteiro** abaixo dela; num
+salao isso mente (a escadinha do nivel 2 tem piso do terreo abaixo, mas nao do lado). O certo e o andar **por area**
+(ultimo piso a ~2 m em XZ da peca), que e o que faria o piso nascer a partir da escada, como o jogador pediu.
+
 ### 15.3 Medido em jogo (02/11/2026)
 
 | arquivo | pecas | resultado |

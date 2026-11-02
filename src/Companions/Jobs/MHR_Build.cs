@@ -172,6 +172,10 @@ internal static class MHR_Build
 		internal bool NeedsClear;
 		/// <summary>E7: the cooldown of the "jump and place" hop (it must not be a bunny hop every frame).</summary>
 		internal float NextJumpAt;
+		/// <summary>E7 (test of 03/11/2026: the companion fell off a ladder to nowhere until it died): the last height
+		/// seen and how many big drops happened while walking to the current piece.</summary>
+		internal float LastY;
+		internal int FallDrops;
 	}
 
 	/// <summary>E6: one piece of a plan, already resolved to a world pose.</summary>
@@ -377,6 +381,7 @@ internal static class MHR_Build
 			state.Placed = null;
 			state.Start = Time.time;
 			state.Checked = false;
+			state.FallDrops = 0;
 			state.Phase = Phase.Goto;
 			Log(ai, "next: " + next.Prefab + " (" + (state.Index + 1) + "/" + state.Plan.Count + ")");
 			return true;
@@ -1193,6 +1198,42 @@ internal static class MHR_Build
 		return false;
 	}
 
+	/// <summary>Is this the piece a companion climbs (a stepladder, a ladder)?</summary>
+	private static bool IsLadderPrefab(string prefab)
+	{
+		return prefab != null && prefab.IndexOf("ladder", StringComparison.OrdinalIgnoreCase) >= 0;
+	}
+
+	/// <summary>
+	/// E7 (test of 03/11/2026): is there <b>floor under the top of a ladder</b>? The blueprint's hall has no floor at that
+	/// height, so the plan's ladder ended in the void and the mover climbed it anyway - it fell in a loop until it died.
+	/// Probes straight down from the top and a ring of 0,6 m around it (a player stands beside the ladder, not on its axe).
+	/// Fails <b>open</b> when the layers are not available.
+	/// </summary>
+	private static bool HasLanding(Vector3 spot)
+	{
+		int mask = LayerMask.GetMask("Default", "static_solid", "piece", "terrain");
+		if (mask == 0)
+		{
+			return true;
+		}
+		Vector3 top = new Vector3(spot.x, spot.y + 2.6f, spot.z);
+		for (int i = -1; i <= 1; i++)
+		{
+			for (int j = -1; j <= 1; j++)
+			{
+				Vector3 origin = top + new Vector3(i * 0.6f, 0f, j * 0.6f);
+				RaycastHit hit;
+				if (Physics.Raycast(origin, Vector3.down, out hit, 1.6f, mask, QueryTriggerInteraction.Ignore)
+					&& hit.point.y > spot.y + 1.3f)
+				{
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
 	/// <summary>Cancels the directed harvest the clearing set (any ending of the order must not leave the companion
 	/// swinging at a tree of a build that no longer exists).</summary>
 	private static void ReleaseHarvest(CompanionAI ai, State state)
@@ -1736,6 +1777,20 @@ internal static class MHR_Build
 		// walked to one by one and refused with no_support - 60 in a row across 40 s - because what holds a 2nd/3rd floor
 		// up is not up yet. The verdict is the SAME from far away (the pose is the piece's, not the companion's), so the
 		// piece is deferred to the retry pass BEFORE the walk: one cheap raycast instead of a 20 m round trip.
+		// E7 (test of 03/11/2026: "he built the ladder into an open hall and fell in a loop until he died"): a LADDER whose
+		// top has no floor under it is a trap - it is skipped instead of placed. The hall of a blueprint has no floor at that
+		// height, so the ladder ends in the void and the mover climbs it anyway.
+		if (!state.Checked && state.Blueprint != null && state.Prefab != null && IsLadderPrefab(state.Prefab))
+		{
+			state.Checked = true;
+			if (!HasLanding(state.Pos))
+			{
+				state.Skipped++;
+				Log(ai, "skipping " + state.Prefab + " at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", " + F(state.Pos.z)
+					+ ") - its top has no floor to stand on (" + state.Skipped + " skipped)");
+				return Advance(ai, state);
+			}
+		}
 		if (!state.Checked && cs != null && (state.Template != null || state.Blueprint != null)
 			&& state.Plan != null && state.Index > 0)
 		{
@@ -1750,6 +1805,20 @@ internal static class MHR_Build
 			}
 		}
 		Vector3 me = ai.transform.position;
+		// E7 (same test): a big drop while walking to the piece means the way is a trap (a ladder into the void, a hole) -
+		// two of them on the same piece and it is skipped instead of tried again (it fell to death in a loop)
+		if (state.LastY > 0.01f && me.y < state.LastY - 0.8f)
+		{
+			state.FallDrops++;
+			if (state.FallDrops >= 2 && state.Blueprint != null)
+			{
+				Log(ai, "falling from the way to the " + state.Prefab + " - skipping it (" + state.FallDrops + " fall(s))");
+				state.Skipped++;
+				state.FallDrops = 0;
+				return Advance(ai, state);
+			}
+		}
+		state.LastY = me.y;
 		float flat = new Vector2(me.x - state.Pos.x, me.z - state.Pos.z).magnitude;
 		// the game places a piece up to 5 m from the EYE (Player.m_maxPlaceDistance); the companion's eye is ~1,5 m
 		// above its feet, so a roof 4,9 m up is within reach even though the feet are 4,9 m below it
