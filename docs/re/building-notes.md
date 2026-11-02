@@ -923,6 +923,13 @@ o terreno converge para um piso e nao desce mais. Agora o `NextPass` guarda a va
 `hc_ai_level_failed` ("no improvement"), deixando a obra seguir (o `StartBlueprint` ja tem o guarda de 90 s e constroi
 mesmo assim, com as pecas que nao couberem no retry).
 
+**Consequencia obrigatoria (03/11/2026, relato "nao fez"):** quando o nivelamento **desiste** (`hc_ai_level_failed`,
+"no improvement"), a obra tambem tem que **retomar** - antes o `MHR_Level.Finish` so chamava o build nos casos
+`hc_ai_level_done`/`hc_ai_level_already`, entao um sitio que parava em 0,30 m contra a tolerancia de 0,20 m terminava a
+ordem inteira sem colocar uma peca. Agora `resumeBuild` inclui o `hc_ai_level_failed` e o log diz
+`the ground is as flat as it gets - back to the build`; o `StartBlueprint` cai no guarda de 90 s (`s_levelTried`) e
+constroi com o terreno que tem (as pecas que nao couberem vao para o retry).
+
 ### 15.3 Medido em jogo (02/11/2026)
 
 | arquivo | pecas | resultado |

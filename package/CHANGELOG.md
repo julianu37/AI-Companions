@@ -40,6 +40,10 @@ stopped.
   blamed the spot. It now compares the real weight with the carry ceiling and says `hc_ai_build_too_heavy`.
   Measured right after: with **120 wood (240 of 300 weight)** the same 985-piece blueprint **walked and built 60 pieces**
   in ~3 minutes (all supported) before handing the order to the gather for the rest.
+- **A leveling that gives up no longer kills the build** (player's report, 03/11/2026: "não fez"): the handover back to the
+  house/blueprint only happened on "leveled" or "already flat", so a site that stopped at 0,30 m against the 0,20 m
+  tolerance ended the whole order without a single piece. A failed leveling now hands the order back too, and the build
+  goes on with the ground it has (the pieces that do not fit are retried).
 - **Leveling stops when the ground stops getting flatter** (measured, 03/11/2026): the hoe's level is a smooth with a cap per
   operation, so a site converges to a floor - the job kept walking the whole grid for its 10 passes (5 x 24 s at the same
   0,26 m). Two passes in a row without a gain now end the leveling and the build goes on.

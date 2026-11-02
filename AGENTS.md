@@ -1206,7 +1206,9 @@ comandos de console e spawna coisas, então não é feature de jogador.
   início da ordem, então bancada derrubada depois (ou longe num sítio de 32 m) deixava peças recusadas só no retry.
   **Nivelamento para quando estagna (03/11/2026):** o `NextPass` guarda a variação da passada anterior e **duas passadas
   seguidas sem ganho** encerram com `hc_ai_level_failed` — antes ia até `MaxPasses = 10` (5 passadas de 24 s no mesmo
-  0,26 m, porque o "para quando não melhora" estava só na doc).
+  0,26 m, porque o "para quando não melhora" estava só na doc). **A desistência do nivelamento devolve a ordem**
+  (03/11/2026, relato "não fez"): `resumeBuild` inclui `hc_ai_level_failed`, senão um sítio que para em 0,30 m contra a
+  tolerância de 0,20 m terminava a obra sem colocar uma peça.
   **A ponte do BuildOrders (F11) fica para depois** (barata, API pública).
   O vigia do E6b deixou de comparar **total-da-mochila** com
   **o-que-falta** (a 4x4 entrava em loop na porta); agora recalcula o que falta e retoma quando é zero. Harness
