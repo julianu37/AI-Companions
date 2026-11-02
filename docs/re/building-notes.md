@@ -1036,6 +1036,14 @@ antecipada de apoio); e as **aguas do telhado na ponta** (`wood_roof_45` a 41,8/
 companheiro anda/sobe, **nao consegue se aproximar** e so desiste no **timeout de 60 s** - 2 a 3 minutos por peca, que e o
 "apanhar" que o jogador viu.
 
+**A solucao que ELE achou (relato do jogador com screenshot, 03/11/2026: "ele foi esperto e subiu pelo telhado pra fazer a
+ponta no alto"):** quando a peca da ponta nao fecha por baixo, o `MHR_Mover` **sobe pela propria agua do telhado** (o mesmo
+`Steer`/`LedgeAhead` que usa em escada, com o passo e o pulo) e coloca a peca **de cima**: o log confirma 20 pecas acima de
+43 m, incluindo `wood_roof_45` a **43,8 e 45,8** e `wood_wall_roof_top_45` a **44,8 e 46,8**. Ou seja o "apanhar" era o
+**caminho**, nao a peca: com o tempo (ou a trava de 12 s) ele acha o angulo. Vale registrar porque e o comportamento
+desejado: **ele usa a propria obra como andaime**, sem teleporte nem trapaça - e a razao de a trava de progresso ser
+conservadora (so desiste depois de 12 s *sem chegar mais perto*, nunca por tempo total).
+
 **Correcao:** nova trava de **progresso** no `Goto`: guarda a menor distancia ja alcancada ate a peca
 (`State.BestDistance`/`BestAt`, zerados por peca); **12 s sem chegar 0,5 m mais perto** mandam a peca para o **retry**
 (`no progress towards the <peca> for 12 s (N m away) - retrying it later`), em vez de esperar os 60 s. Continua valendo o

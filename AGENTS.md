@@ -1221,6 +1221,10 @@ comandos de console e spawna coisas, então não é feature de jogador.
   **Escadinha no vazio + queda em loop (03/11/2026):** o salão de pé-direito duplo não tem piso no nível 2, a escadinha do
   plano terminava no vazio e ele **subia e caía até morrer**. Agora `HasLanding` sonda o topo (o ponto + anel de 0,6 m) e
   **não coloca** a escada sem piso do outro lado, e **duas quedas (>0,8 m/frame) na mesma peça** a pulam. Falta o andar
+  **Ele usa a obra como andaime (relato "subiu pelo telhado pra fazer a ponta", 03/11/2026):** o `MHR_Mover` sobe pela
+  **própria água do telhado** e coloca a peça de cima — 20 peças acima de 43 m no log, com `wood_roof_45` a 43,8/45,8 e
+  `wood_wall_roof_top_45` a 44,8/46,8. Sem teleporte: é a razão de a trava de progresso ser conservadora (12 s **sem chegar
+  mais perto**, nunca por tempo total).
   **Ponta do telhado (relato "ela tá apanhando pra fazer essa ponta", 03/11/2026):** as peças da empena no topo vão para o
   retry por `no_support` (adiadas sem andar), mas as águas da ponta gastavam os **60 s** do timeout andando sem chegar. Nova
   trava de **progresso** no `Goto`: **12 s sem chegar 0,5 m mais perto** → retry (`no progress ...`).
