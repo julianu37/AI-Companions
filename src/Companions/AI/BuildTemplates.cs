@@ -404,6 +404,15 @@ internal static class BuildTemplates
 	/// piece catalog, so "cama" cannot swallow "cabana").</summary>
 	internal static Template Resolve(string text)
 	{
+		int matched;
+		return Resolve(text, out matched);
+	}
+
+	/// <summary>The same resolution, also answering <b>how many characters of the text were matched</b> - E7 uses it to
+	/// let the longest name win between a template alias ("hut") and a blueprint file ("hs_meadows_hut").</summary>
+	internal static Template Resolve(string text, out int matched)
+	{
+		matched = 0;
 		if (string.IsNullOrEmpty(text))
 		{
 			return null;
@@ -423,6 +432,7 @@ internal static class BuildTemplates
 				}
 			}
 		}
+		matched = bestLength;
 		return best;
 	}
 

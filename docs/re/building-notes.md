@@ -689,6 +689,12 @@ jogador nivela antes com a ordem `level`, se quiser).
 
 ### 15.2 O que o executor faz com isso
 
+- **Qual nome ganha (teste do chat, 02/11/2026):** o **nome mais longo** entre o template e o arquivo. O 3B
+  respondeu `target: "hut"` para "construa a hs_meadows_hut aqui" e o template da cabana ganhava; agora o arquivo
+  (`hs_meadows_hut`, 15 caracteres) vence o alias (`hut`, 3) e, no empate, o template embutido ganha (um arquivo
+  chamado "casa" nao toma o lugar de "construa uma casa").
+- **Custo por mensagem:** a pasta e listada com **cache de 10 s** e o casamento e pelo **nome do arquivo** (sem abrir
+  353 arquivos por mensagem); o `#Name:` interno so e lido quando a pasta tem ate 25 builds.
 - **Prefab:** `BuildProbe.PieceOf` (exato e, se falhar, **sem caixa** - os arquivos do BiomeBlueprints escrevem
   `Piece_grausten_floor_2x2` enquanto o jogo tem `piece_grausten_floor_2x2`).
 - **Nao e peca** (item, rug, mobilia de outro mod) ou **receita nao desbloqueada:** a linha e **pulada e contada** (uma
@@ -708,6 +714,7 @@ jogador nivela antes com a ordem `level`, se quiser).
 |---|---|---|
 | `TestBox_V2.blueprint` (fixture do PlanBuild) | 6 | 5/5 `supported`, 1 pulada (`stone_floor_2x2`, receita nao desbloqueada), `hc_ai_blueprint_done` |
 | `hs_meadows_hut.blueprint` (BiomeBlueprints, "Meadow Hut") | 28 | **28/28 `supported`** - pisos, vigas, paredes, **porta**, telhado e as tampas de empena - `hc_ai_blueprint_done` (com uma bancada perto) |
+| o **chat** com o LLM: "construa a hs_meadows_hut aqui" | 28 | resolve o **arquivo** (nao o template "hut") - `[Build] blueprint Meadow Hut: 28 pieces` no log |
 
 Sem a bancada perto o `wood_beam` recusa com `needs_station` e a ordem encerra dizendo qual estacao falta (medido).
 

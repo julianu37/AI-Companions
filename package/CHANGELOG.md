@@ -10,8 +10,9 @@ same executor as the structures: it pays from its bag and the chests, gathers wh
 stopped.
 
 - **The order:** "construa a hs_meadows_hut aqui" / "build the hs_meadows_hut here" - the **file name** (without the
-  extension) is what you say, because many blueprints carry "Custom Name" inside. Without a name the answer lists the
-  builds in the folder.
+  extension) is what you say, because many blueprints carry "Custom Name" inside. The **longest name wins**: the file
+  "hs_meadows_hut" beats the built-in "hut" template (a small language model answered "hut" for that order), and a file
+  that ties with a built-in name loses to it. Without a name the answer lists the builds in the folder.
 - **The folder:** `BepInEx/config/AI-Companions/blueprints/` (the mod creates it). **PlanBuild is not needed in game**:
   it is only how you *create* or *place* a blueprint; the file format is text and the mod reads it directly.
 - **What it reads:** the `#Name:` and the `#Pieces` section (`prefab;category;px;py;pz;rx;ry;rz;rw;info;sx;sy;sz`, dots

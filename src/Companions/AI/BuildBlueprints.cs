@@ -75,9 +75,19 @@ internal static class BuildBlueprints
 		}
 	}
 
+	// The folder listing is cached for a few seconds: a chat order resolves a name on every message, and a library of
+	// 353 files (BiomeBlueprints) must not cost a directory scan each time.
+	private static List<string> s_cache;
+	private static float s_cacheAt = -60f;
+	private const float CacheSeconds = 10f;
+
 	/// <summary>Every <c>.blueprint</c> in the folder (empty when there is none).</summary>
 	internal static List<string> Files()
 	{
+		if (s_cache != null && Time.realtimeSinceStartup - s_cacheAt < CacheSeconds)
+		{
+			return new List<string>(s_cache);
+		}
 		List<string> files = new List<string>();
 		try
 		{
@@ -92,7 +102,16 @@ internal static class BuildBlueprints
 			CompanionsPlugin.Log?.LogWarning("[Blueprint] could not list the folder: " + e.Message);
 		}
 		files.Sort(StringComparer.OrdinalIgnoreCase);
-		return files;
+		s_cache = files;
+		s_cacheAt = Time.realtimeSinceStartup;
+		return new List<string>(files);
+	}
+
+	/// <summary>Forgets the cached listing (a file dropped in the folder is seen at once).</summary>
+	internal static void Invalidate()
+	{
+		s_cache = null;
+		s_cacheAt = -60f;
 	}
 
 	/// <summary>The names the player can say (file names without the extension), for the "I have: ..." line.</summary>
@@ -157,35 +176,53 @@ internal static class BuildBlueprints
 	/// </summary>
 	internal static Blueprint Resolve(string text)
 	{
+		int matched;
+		return Resolve(text, out matched);
+	}
+
+	/// <summary>The same resolution, also answering how many characters of the text were matched (see
+	/// <see cref="MHR_Build"/>'s note: the longest name wins between a template and a blueprint).</summary>
+	internal static Blueprint Resolve(string text, out int matched)
+	{
+		matched = 0;
 		if (string.IsNullOrEmpty(text))
 		{
 			return null;
 		}
 		string haystack = " " + BuildCatalog.Fold(text) + " ";
-		Blueprint best = null;
+		List<string> files = Files();
+		// 1) the FILE NAME first, without loading anything: it is what the order says ("construa a hs_meadows_hut")
+		string bestFile = null;
 		int bestLength = 0;
-		foreach (string file in Files())
+		foreach (string file in files)
 		{
-			string id = Path.GetFileNameWithoutExtension(file);
-			Blueprint candidate = Load(file);
-			if (candidate == null)
+			string needle = " " + BuildCatalog.Fold(Path.GetFileNameWithoutExtension(file)) + " ";
+			if (needle.Length > bestLength && haystack.IndexOf(needle, StringComparison.Ordinal) >= 0)
 			{
-				continue;
+				bestFile = file;
+				bestLength = needle.Length;
 			}
-			foreach (string name in new string[] { id, candidate.Name })
+		}
+		// 2) only for a small library, the #Name: inside the file (reading all 353 files of a big library on every
+		// message would cost more than it is worth - the file name is the documented way to ask)
+		if (bestFile == null && files.Count <= 25)
+		{
+			foreach (string file in files)
 			{
-				if (string.IsNullOrEmpty(name))
+				Blueprint candidate = Load(file);
+				if (candidate == null || string.IsNullOrEmpty(candidate.Name))
 				{
 					continue;
 				}
-				string needle = " " + BuildCatalog.Fold(name) + " ";
+				string needle = " " + BuildCatalog.Fold(candidate.Name) + " ";
 				if (needle.Length > bestLength && haystack.IndexOf(needle, StringComparison.Ordinal) >= 0)
 				{
-					best = candidate;
+					bestFile = file;
 					bestLength = needle.Length;
 				}
 			}
 		}
-		return best;
+		matched = bestLength;
+		return bestFile != null ? Load(bestFile) : null;
 	}
 }

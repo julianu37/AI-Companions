@@ -1154,32 +1154,48 @@ internal static class CompanionOrders
 		}
 		// E6: a TEMPLATE first ("constrói uma cabana aqui", "um abrigo para a bancada") - it is a plan of several
 		// pieces, resolved before the single-piece catalog. A single piece still goes through BuildCatalog below.
-		BuildTemplates.Template template = BuildTemplates.Resolve(userText) ?? BuildTemplates.Resolve(intent != null ? intent.Target : null);
-		string prefab = template != null ? null : BuildCatalog.Resolve(intent != null ? intent.Target : null) ?? BuildCatalog.Resolve(userText);
+		int templateLength = 0;
+		BuildTemplates.Template template = BuildTemplates.Resolve(userText, out templateLength);
+		if (template == null && intent != null)
+		{
+			template = BuildTemplates.Resolve(intent.Target, out templateLength);
+		}
+		// E7: a BLUEPRINT from the player's library ("construa a hs_meadows_hut aqui"). The LONGEST name wins: the file
+		// name "hs_meadows_hut" beats the "hut" template (the 3B answered target "hut" for that order in the player's
+		// test) and a short file called "casa" still loses to the built-in "casa" (a tie goes to the template).
+		int blueprintLength = 0;
+		Blueprint blueprint = BuildBlueprints.Resolve(userText, out blueprintLength);
+		if (blueprint == null && intent != null)
+		{
+			blueprint = BuildBlueprints.Resolve(intent.Target, out blueprintLength);
+		}
+		if (blueprint != null && template != null && blueprintLength <= templateLength)
+		{
+			blueprint = null;
+		}
+		if (blueprint != null)
+		{
+			template = null;
+		}
+		string prefab = template != null || blueprint != null ? null : BuildCatalog.Resolve(intent != null ? intent.Target : null) ?? BuildCatalog.Resolve(userText);
 		if (prefab != null && !BuildCatalog.Allowed(prefab))
 		{
 			prefab = null;
 		}
-		// E7: a BLUEPRINT from the player's library ("construa a casa viking aqui") - the last resolution, because a
-		// template or a piece name is more specific (a file called "casa" must not take over "construa uma casa")
-		Blueprint blueprint = null;
-		if (template == null && prefab == null)
+		if (template == null && blueprint == null && prefab == null)
 		{
-			blueprint = BuildBlueprints.Resolve(userText) ?? BuildBlueprints.Resolve(intent != null ? intent.Target : null);
-			if (blueprint == null)
+			// nothing resolved: if the player has a library, the answer lists it (the name is the file name)
+			System.Collections.Generic.List<string> names = BuildBlueprints.Names();
+			if (names.Count == 0)
 			{
-				System.Collections.Generic.List<string> names = BuildBlueprints.Names();
-				if (names.Count == 0)
-				{
-					Refuse(string.Format(ModLocalization.Loc("hc_ai_blueprint_none"), BuildBlueprints.Folder()));
-				}
-				else
-				{
-					string said = intent != null && !string.IsNullOrEmpty(intent.Target) ? intent.Target : userText;
-					Refuse(string.Format(ModLocalization.Loc("hc_ai_blueprint_unknown"), said, string.Join(", ", names.ToArray())));
-				}
-				return outcome;
+				Refuse(string.Format(ModLocalization.Loc("hc_ai_blueprint_none"), BuildBlueprints.Folder()));
 			}
+			else
+			{
+				string said = intent != null && !string.IsNullOrEmpty(intent.Target) ? intent.Target : userText;
+				Refuse(string.Format(ModLocalization.Loc("hc_ai_blueprint_unknown"), said, string.Join(", ", names.ToArray())));
+			}
+			return outcome;
 		}
 		Piece piece = template != null || blueprint != null ? null : BuildProbe.PieceOf(prefab);
 		if (template == null && blueprint == null && piece == null)

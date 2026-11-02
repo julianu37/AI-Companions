@@ -1146,7 +1146,9 @@ comandos de console e spawna coisas, então não é feature de jogador.
   tentada e revertida** (deixava a casa torta; o plano usa o yaw da mira, como a 8x8) e o anel de nivelamento caiu de
   4 m para 1,5 m (a casa ia para outro terreno). **Aceite do jogador: "tudo certo!"**. **E7 - os planos do jogador (02/11/2026):** o companheiro constrói as builds
   da biblioteca **`.blueprint`** (PlanBuild/BiomeBlueprints/valheimians): pasta `BepInEx/config/AI-Companions/blueprints/`,
-  ordem pelo **nome do arquivo** ("construa a hs_meadows_hut aqui"), leitura em `AI/BuildBlueprintParser.cs` (texto,
+  ordem pelo **nome do arquivo** ("construa a hs_meadows_hut aqui"; o **nome mais longo ganha** do template - o 3B
+  devolvia "hut" para `hs_meadows_hut`; empate fica com o template - e a pasta tem cache de 10 s para nao abrir 353
+  arquivos por mensagem), leitura em `AI/BuildBlueprintParser.cs` (texto,
   `#Name` + `#Pieces`, V1/V2, vírgula antiga, prefab sem caixa) e `MHR_Build.StartBlueprint` (de baixo para cima, linha
   que não serve é **pulada e contada**, `needs_station` nomeia a estação, `BlueprintFree`/`BlueprintMaxPieces`). **Sem
   PlanBuild em runtime** (ele só cria/coloca o fantasma). **Medido: `hs_meadows_hut` 28/28 `supported`**, `TestBox_V2`
