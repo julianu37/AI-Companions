@@ -1268,7 +1268,23 @@ internal static class CompanionOrders
 		else if (blueprint != null)
 		{
 			string missingPiece;
-			started = MHR_Build.StartBlueprint(target, blueprint, hint, out missingPiece);
+			string missingStation;
+			MHR_Build.BlueprintStart bpStart = MHR_Build.StartBlueprint(target, blueprint, hint, out missingPiece, out missingStation);
+			if (bpStart == MHR_Build.BlueprintStart.Leveling)
+			{
+				// the hoe job took over; the build comes back by itself when the ground is ready
+				outcome.Count = 1;
+				outcome.LabelKey = "hc_ai_order_build_plan";
+				outcome.LabelArg = blueprint.Label;
+				return outcome;
+			}
+			started = bpStart == MHR_Build.BlueprintStart.Started;
+			if (!started && !string.IsNullOrEmpty(missingStation))
+			{
+				string station = Localization.instance != null ? Localization.instance.Localize(missingStation) : missingStation;
+				Refuse(string.Format(ModLocalization.Loc("hc_ai_build_needs_station"), station));
+				return outcome;
+			}
 			if (!started && !string.IsNullOrEmpty(missingPiece))
 			{
 				Refuse(string.Format(ModLocalization.Loc("hc_ai_blueprint_piece_missing"), missingPiece));

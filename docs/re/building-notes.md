@@ -708,6 +708,35 @@ jogador nivela antes com a ordem `level`, se quiser).
 - **Estacao:** a regra do jogo vale (uma build baixada **nao traz** bancada) - o `needs_station` diz qual estacao falta.
   Na pratica: coloque uma bancada perto antes (ou mande o companheiro construir uma).
 
+### 15.2b As licoes do teste com uma build da comunidade (Nexus 1807, 985 pecas)
+
+O jogador testou o `Community starter home` (MutantArtCat, `.blueprint` de 2022, 985 pecas). Quatro problemas que so
+aparecem num arquivo grande e antigo - todos corrigidos:
+
+1. **Ordem de construcao:** ordenar so por altura pegou um `wood_wall_roof_top_45` como "primeira peca" (a origem do
+   arquivo fica **abaixo** da obra, entao a peca mais baixa era um topo de telhado). Agora a ordem e por **classe**
+   (`BuildBlueprintParser.ClassOf`): piso/bancada (0) -> parede/viga/poste/porta/mobilia (1) -> telhado/empena (2), e
+   dentro da classe por altura.
+2. **Ancora:** a origem do arquivo e **onde o autor estava**, nao o meio da obra - a casa de 30x30 m era ancorada num
+   canto. Agora o **footprint e centrado no ponto mirado**.
+3. **Nivelar primeiro** (pedido do jogador): o caminho do `.blueprint` ia direto para a primeira peca, e num desnivel de
+   2,7 m os pisos eram recusados um a um. Agora ele entrega o nivelamento ao job da enxada e **retoma sozinho**
+   (`MHR_Level.Start(..., arquivo, blueprint: true)` -> `StartBlueprint` no fim). Duas armadilhas medidas:
+   o nivelador trabalha no maximo **20 m** e medir 32 m gerava **loop** ("leveling first" -> "already flat" -> de novo);
+   agora a medicao usa a **mesma area** e uma segunda tentativa seguida **prossegue** (as pecas que nao couberem sao
+   puladas). Com desnivel acima do limite o job responde `hc_ai_build_too_steep` (o jogador precisa de um planalto).
+4. **Nada derruba a build:** peca que **nao da para alcancar** em 60 s (`took too long`), que o caminho nao chega
+   (`can't reach it`) ou que **nao materializa** (`verification failed: not_found`) e **pulada e contada** com a pose no
+   log - antes a ordem morria na peca 2, na 50, ou no primeiro canto impossivel.
+5. **Estacao antes da primeira peca:** o blueprint nao traz bancada, e a ordem morria na 2a peca com `needs_station`.
+   Agora a checagem e **antes de comecar** (a menos que o proprio arquivo traga uma bancada) e a fala diz qual estacao
+   falta.
+
+**A build de 985 pecas, depois das correcoes (02/11/2026):** `construa CommHomeBasicBP` -> **pisos subindo de verdade**
+(76/983 no log, todos `supported`, sem loop de nivelamento) e, quando a madeira acabou, a coleta assumiu pedindo o
+**total que falta para a casa: 2293**. O vigia retoma a cada vez que a mochila enche (a casa inteira nao cabe no saco),
+como nas estruturas.
+
 ### 15.3 Medido em jogo (02/11/2026)
 
 | arquivo | pecas | resultado |

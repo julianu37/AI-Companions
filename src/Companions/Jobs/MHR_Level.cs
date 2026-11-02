@@ -58,6 +58,8 @@ internal static class MHR_Level
 		internal bool Fill;
 		/// <summary>E10: the template to build when the ground is ready (a house asks for the leveling first).</summary>
 		internal string ThenBuild;
+		/// <summary>E7: the blueprint FILE to build when the ground is ready (a downloaded build asks for the same).</summary>
+		internal string ThenBlueprint;
 		internal int Pass;
 		internal int Index;
 		internal List<Vector3> Points;
@@ -72,6 +74,23 @@ internal static class MHR_Level
 	internal static bool Start(CompanionSetup cs, Vector3 center, float size)
 	{
 		return Start(cs, center, size, null);
+	}
+
+	/// <summary>E7: the same job, and when the ground is ready it starts the build of a <b>blueprint file</b>.</summary>
+	internal static bool Start(CompanionSetup cs, Vector3 center, float size, string thenBlueprint, bool blueprint)
+	{
+		if (!Start(cs, center, size, (string)null))
+		{
+			return false;
+		}
+		CompanionAI ai = cs.GetComponent<CompanionAI>();
+		State state;
+		if (ai != null && s_state.TryGetValue(ai.GetInstanceID(), out state) && state != null)
+		{
+			state.ThenBlueprint = thenBlueprint;
+			return true;
+		}
+		return false;
 	}
 
 	/// <summary>E10: the same job, and when the ground is ready it starts the build of <paramref name="thenBuild"/>
@@ -385,6 +404,19 @@ internal static class MHR_Level
 			if (cs != null && template != null && MHR_Build.StartPlan(cs, template, state.Center))
 			{
 				Log(ai, "the ground is ready - back to the house");
+			}
+		}
+		// E7: the same handover for a downloaded build (a .blueprint)
+		if (state.ThenBlueprint != null && (key == "hc_ai_level_done" || key == "hc_ai_level_already"))
+		{
+			CompanionSetup cs = ai.GetComponent<CompanionSetup>();
+			Blueprint blueprint = BuildBlueprints.Load(state.ThenBlueprint);
+			string missingPrefab;
+			string missingStation;
+			if (cs != null && blueprint != null
+				&& MHR_Build.StartBlueprint(cs, blueprint, state.Center, out missingPrefab, out missingStation) == MHR_Build.BlueprintStart.Started)
+			{
+				Log(ai, "the ground is ready - back to the build");
 			}
 		}
 	}

@@ -1152,7 +1152,11 @@ comandos de console e spawna coisas, então não é feature de jogador.
   `#Name` + `#Pieces`, V1/V2, vírgula antiga, prefab sem caixa) e `MHR_Build.StartBlueprint` (de baixo para cima, linha
   que não serve é **pulada e contada**, `needs_station` nomeia a estação, `BlueprintFree`/`BlueprintMaxPieces`). **Sem
   PlanBuild em runtime** (ele só cria/coloca o fantasma). **Medido: `hs_meadows_hut` 28/28 `supported`**, `TestBox_V2`
-  5/5 com 1 pulada. Harness **405 → 430**. **A ponte do BuildOrders (F11) fica para depois** (barata, API pública).
+  5/5 com 1 pulada. Numa build **grande** da comunidade (985 peças, Nexus 1807) o teste achou e corrigiu: ordem por
+  **classe** de peça (piso → parede → telhado; por altura começava num topo de telhado), **footprint centrado na mira**
+  (a origem do arquivo é onde o autor estava), **nivelar primeiro** com retomada (e a **mesma área** de 20 m, senão vira
+  loop), **estação checada antes** da 1ª peça e **pular** a peça inalcançável/que não materializa em vez de derrubar a
+  ordem. Harness **405 → 430**. **A ponte do BuildOrders (F11) fica para depois** (barata, API pública).
   O vigia do E6b deixou de comparar **total-da-mochila** com
   **o-que-falta** (a 4x4 entrava em loop na porta); agora recalcula o que falta e retoma quando é zero. Harness
   **363 → 401**. Armadilha: `"casa pequeña"` (ES) e `"casa pequena"` (PT) **empatam** no Fold - apelidos iguais depois

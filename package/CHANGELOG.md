@@ -28,6 +28,14 @@ stopped.
 - **New `[Building]` keys:** `BlueprintFree` (false - build without paying, for tests) and `BlueprintMaxPieces` (2000).
 - **Measured:** a 28-piece meadow hut from BiomeBlueprints built **28/28 supported** (floors, beams, walls, door, roof,
   gable tops), plus the PlanBuild fixtures (6 pieces, 1 skipped by the recipe gate).
+- **Big community builds** (a 985-piece starter home from the Nexus, 30x30 m): the build order is **by piece class**
+  (floor/workbench, then walls/beams/poles/furniture, then roofs) instead of by height (which started with a roof top -
+  the file's origin is below the build); the footprint is **centred on the spot you aim at**; the ground is **leveled
+  first** when it is uneven (the hoe job takes over and the build resumes); a workbench in range is asked **before** the
+  first piece (the refusal names the station); and a piece that cannot be reached, that takes too long or that does not
+  materialize is **skipped and counted** instead of ending the build. Measured: the 985-piece home started placing floors (76/983 in the
+  log, all supported) and, out of wood, handed the order to the gather asking for the **rest of the house (2293)** - the
+  watcher resumes each time the bag fills.
 
 ## 1.9.6 - 02/11/2026
 

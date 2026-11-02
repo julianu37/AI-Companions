@@ -1080,14 +1080,18 @@ internal static class Commands
 				spot = player.transform.position + player.transform.forward * 4f;
 			}
 			string missing;
-			bool built = MHR_Build.StartBlueprint(who, blueprint, spot, out missing);
+			string missingStation;
+			MHR_Build.BlueprintStart start = MHR_Build.StartBlueprint(who, blueprint, spot, out missing, out missingStation);
+			bool built = start == MHR_Build.BlueprintStart.Started;
 			return Ok(new Dictionary<string, object>
 			{
 				{ "blueprint", blueprint.Label },
 				{ "file", System.IO.Path.GetFileName(blueprint.File) },
 				{ "pieces", blueprint.Pieces.Count },
 				{ "started", built },
+				{ "leveling", start == MHR_Build.BlueprintStart.Leveling },
 				{ "missing", missing },
+				{ "missingStation", missingStation },
 				{ "name", who.name }
 			});
 		}

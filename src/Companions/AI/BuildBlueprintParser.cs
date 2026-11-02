@@ -89,14 +89,42 @@ internal static class BuildBlueprintParser
 		return true;
 	}
 
-	/// <summary>Bottom-up order: by height, then the original order (stable) - the ground pieces first, the roof last.</summary>
+	/// <summary>
+	/// The build order: <b>by piece class first</b> (foundation/workbench -> walls, beams, poles, doors, furniture ->
+	/// roofs) and, inside a class, by height. Sorting by height alone put a <c>wood_wall_roof_top_45</c> first in the
+	/// player's 983-piece blueprint (its origin was below the build, so the "lowest" piece was a roof top) - measured
+	/// 02/11/2026.
+	/// </summary>
 	internal static List<Line> Ordered(List<Line> pieces)
 	{
 		if (pieces == null)
 		{
 			return new List<Line>();
 		}
-		return pieces.OrderBy(delegate (Line piece) { return piece.Py; }).ToList();
+		return pieces
+			.OrderBy(delegate (Line piece) { return ClassOf(piece.Prefab); })
+			.ThenBy(delegate (Line piece) { return piece.Py; })
+			.ToList();
+	}
+
+	/// <summary>0 = ground (floors, foundations, the workbench), 1 = what stands on it (walls, beams, poles, doors,
+	/// furniture), 2 = roofs and gables.</summary>
+	internal static int ClassOf(string prefab)
+	{
+		string name = (prefab ?? string.Empty).ToLowerInvariant();
+		if (name.IndexOf("workbench", StringComparison.Ordinal) >= 0)
+		{
+			return 0;      // a blueprint that carries its own station places it first (it enables the rest)
+		}
+		if (name.IndexOf("floor", StringComparison.Ordinal) >= 0 || name.IndexOf("foundation", StringComparison.Ordinal) >= 0)
+		{
+			return 0;
+		}
+		if (name.IndexOf("roof", StringComparison.Ordinal) >= 0)
+		{
+			return 2;      // includes wood_wall_roof_45 / _top (a gable is roof)
+		}
+		return 1;
 	}
 
 	private static Line ParseLine(string line)

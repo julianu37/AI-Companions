@@ -119,6 +119,9 @@ internal static class MHR_Build
 
 	private static readonly Dictionary<int, State> s_state = new Dictionary<int, State>();
 
+	/// <summary>E7: when a blueprint last asked for the ground to be leveled (a guard against the measure/level loop).</summary>
+	private static readonly Dictionary<string, float> s_levelTried = new Dictionary<string, float>();
+
 	/// <summary>
 	/// E4b: a build order waiting for its materials. The companion is gathering with the NORMAL gather order (the
 	/// harvest owns the movement - one owner at a time, the lesson of 01/11/2026); this record only watches the bag
@@ -284,24 +287,29 @@ internal static class MHR_Build
 	/// skipped instead of ending the build. <paramref name="missingPrefab"/> names the first piece the game does not
 	/// have (the caller refuses with that name).
 	/// </summary>
-	internal static bool StartBlueprint(CompanionSetup cs, Blueprint blueprint, Vector3 hint, out string missingPrefab)
+	/// <summary>E7: how a blueprint order starts - <see cref="Leveling"/> means the hoe job took over and the build
+	/// comes back by itself when the ground is ready.</summary>
+	internal enum BlueprintStart { Failed, Started, Leveling }
+
+	internal static BlueprintStart StartBlueprint(CompanionSetup cs, Blueprint blueprint, Vector3 hint, out string missingPrefab, out string missingStation)
 	{
 		missingPrefab = null;
+		missingStation = null;
 		if (cs == null || blueprint == null || blueprint.Pieces.Count == 0)
 		{
-			return false;
+			return BlueprintStart.Failed;
 		}
 		CompanionAI ai = cs.GetComponent<CompanionAI>();
 		if (ai == null)
 		{
-			return false;
+			return BlueprintStart.Failed;
 		}
 		int max = ModConfig.BuildBlueprintMaxPieces != null ? ModConfig.BuildBlueprintMaxPieces.Value : 2000;
 		if (blueprint.Pieces.Count > max)
 		{
 			CompanionsPlugin.Log?.LogWarning("[Build] blueprint " + blueprint.Label + ": " + blueprint.Pieces.Count
 				+ " pieces is over the limit (" + max + ")");
-			return false;
+			return BlueprintStart.Failed;
 		}
 		Player owner = MHR_Owner.Of(cs);
 		Vector3 forward = owner != null ? owner.transform.forward : cs.transform.forward;
@@ -314,6 +322,26 @@ internal static class MHR_Build
 		int skipped = 0;
 		string firstSkip = null;
 		Player local = Player.m_localPlayer;
+		// the blueprint's origin is where its AUTHOR stood when capturing it, not the middle of the build: centring the
+		// footprint on the aim makes "construa a maccommhomebasicbp aqui" put the house where the player is looking
+		float minX = float.MaxValue;
+		float maxX = float.MinValue;
+		float minZ = float.MaxValue;
+		float maxZ = float.MinValue;
+		bool hasBounds = false;
+		foreach (BlueprintPiece piece in blueprint.Pieces)
+		{
+			if (piece == null)
+			{
+				continue;
+			}
+			minX = Mathf.Min(minX, piece.Pos.x);
+			maxX = Mathf.Max(maxX, piece.Pos.x);
+			minZ = Mathf.Min(minZ, piece.Pos.z);
+			maxZ = Mathf.Max(maxZ, piece.Pos.z);
+			hasBounds = true;
+		}
+		Vector3 centre = hasBounds ? new Vector3((minX + maxX) * 0.5f, 0f, (minZ + maxZ) * 0.5f) : Vector3.zero;
 		foreach (BlueprintPiece piece in blueprint.Pieces)
 		{
 			Piece resolved = BuildProbe.PieceOf(piece.Prefab);
@@ -343,7 +371,7 @@ internal static class MHR_Build
 			{
 				Prefab = piece.Prefab,
 				Piece = resolved,
-				Pos = hint + rot * Vector3.Scale(piece.Pos, new Vector3(piece.Scale, piece.Scale, piece.Scale)),
+				Pos = hint + rot * Vector3.Scale(piece.Pos - centre, new Vector3(piece.Scale, piece.Scale, piece.Scale)),
 				Rot = rot * piece.Rot
 			});
 		}
@@ -351,12 +379,82 @@ internal static class MHR_Build
 		{
 			CompanionsPlugin.Log?.LogWarning("[Build] blueprint " + blueprint.Label + ": nothing buildable here ("
 				+ skipped + " line(s) skipped, first '" + (missingPrefab ?? "?") + "')");
-			return false;
+			return BlueprintStart.Failed;
 		}
 		if (skipped > 0)
 		{
 			CompanionsPlugin.Log?.LogInfo("[Build] blueprint " + blueprint.Label + ": " + skipped
 				+ " line(s) skipped, first: " + (firstSkip ?? "?"));
+		}
+		// the game's station rule applies to a downloaded build too, and the order died at the SECOND piece with
+		// "needs station" in the player's test (02/11/2026): ask it up front and name the station instead
+		missingStation = null;
+		bool bringsStation = false;
+		foreach (PlannedStep step in plan)
+		{
+			if (step.Prefab != null && step.Prefab.IndexOf("workbench", StringComparison.OrdinalIgnoreCase) >= 0)
+			{
+				bringsStation = true;
+				break;
+			}
+		}
+		if (!bringsStation)
+		{
+			foreach (PlannedStep step in plan)
+			{
+				if (step.Piece == null || step.Piece.m_craftingStation == null)
+				{
+					continue;
+				}
+				if (CraftingStation.HaveBuildStationInRange(step.Piece.m_craftingStation.m_name, hint) == null)
+				{
+					missingStation = step.Piece.m_craftingStation.m_name;
+					CompanionsPlugin.Log?.LogInfo("[Build] blueprint " + blueprint.Label + ": a station is missing ("
+						+ missingStation + ") - refusing before the first piece");
+					return BlueprintStart.Failed;
+				}
+			}
+		}
+		// E7 (player's call, 02/11/2026): LEVEL THE GROUND FIRST, like the templates do. A downloaded build on uneven
+		// ground has its floors refused one after the other (no_support); the hoe job takes over and the build comes
+		// back by itself, centred where the player aimed.
+		if (hasBounds && (ModConfig.BuildLevelGround == null || ModConfig.BuildLevelGround.Value))
+		{
+			// the level job works up to 20 m (its own clamp): measuring a 32 m footprint against a 20 m leveling made an
+			// ENDLESS loop in the player's test (02/11/2026) - "leveling first" -> "already flat" -> back to the build
+			// -> "leveling needed" again. The check uses the SAME area the job will work, and a second pass in a row
+			// proceeds anyway (the pieces that do not fit are skipped and counted).
+			float footprint = Mathf.Max(maxX - minX, maxZ - minZ) + 1.5f;
+			float size = Mathf.Clamp(footprint, 2f, 20f);
+			float tolerance = ModConfig.BuildLevelTolerance != null ? ModConfig.BuildLevelTolerance.Value : 0.35f;
+			float minY;
+			float maxY;
+			float target;
+			bool flat = BuildTerrain.FlatEnough(hint, size, tolerance, out minY, out maxY, out target);
+			Log(ai, "blueprint footprint " + footprint.ToString("F1") + " m (leveling " + size.ToString("F1")
+				+ " m), ground variation " + (maxY - minY).ToString("F2") + " m (tolerance " + tolerance.ToString("F2")
+				+ ") - " + (flat ? "flat enough" : "leveling needed"));
+			float tried;
+			bool justTried = s_levelTried.TryGetValue(blueprint.File, out tried) && Time.time - tried < 90f;
+			if (!flat && !justTried)
+			{
+				Humanoid humanoid = ai.GetComponent<Humanoid>();
+				Inventory bag = humanoid != null ? humanoid.GetInventory() : null;
+				if (bag != null && bag.HaveItem("$item_hoe") && BuildTerrain.Available()
+					&& MHR_Level.Start(cs, hint, size, blueprint.File, true))
+				{
+					s_levelTried[blueprint.File] = Time.time;
+					Log(ai, "the ground is uneven (" + (maxY - minY).ToString("F2") + " m in " + size.ToString("F1")
+						+ " m) - leveling first");
+					return BlueprintStart.Leveling;
+				}
+				Log(ai, "the ground is uneven (" + (maxY - minY).ToString("F2") + " m) and there is no hoe - building anyway");
+			}
+			else if (!flat)
+			{
+				Log(ai, "the ground is still uneven after leveling (" + (maxY - minY).ToString("F2")
+					+ " m) - building anyway (the pieces that do not fit are skipped)");
+			}
 		}
 		bool free = ModConfig.BuildBlueprintFree != null && ModConfig.BuildBlueprintFree.Value;
 		State state = new State
@@ -384,7 +482,7 @@ internal static class MHR_Build
 		s_state[ai.GetInstanceID()] = state;
 		Log(ai, "blueprint " + blueprint.Label + ": " + plan.Count + " pieces near (" + F(hint.x) + ", " + F(hint.y) + ", " + F(hint.z) + ")"
 			+ (free ? " - BlueprintFree is on (no material)" : string.Empty));
-		return true;
+		return BlueprintStart.Started;
 	}
 
 	internal static bool Active(Component c)
@@ -495,6 +593,16 @@ internal static class MHR_Build
 			Log(ai, "overweight: " + humanoid.GetInventory().GetTotalWeight().ToString("F0") + "/" + CompanionCarry.Max(humanoid).ToString("F0"));
 			Finish(ai, state, "hc_ai_build_too_heavy", "encumbered", humanoid.GetInventory().GetTotalWeight().ToString("F0"), CompanionCarry.Max(humanoid).ToString("F0"));
 			return false;
+		}
+		if (why == "the order took too long" && state.Blueprint != null)
+		{
+			// E7 (player's test, 02/11/2026): a 983-piece blueprint always has a piece the companion cannot reach in
+			// 60 s (a roof corner, a spot inside the hill). Skipping it keeps the other 982 going - and the log says
+			// WHERE, so a bad anchor is visible instead of "the order took too long"
+			state.Skipped++;
+			Log(ai, "skipping " + state.Prefab + " (took too long) at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
+				+ F(state.Pos.z) + ") - " + state.Skipped + " skipped");
+			return Advance(ai, state);
 		}
 		if (why != null)
 		{
@@ -921,6 +1029,13 @@ internal static class MHR_Build
 			// "no site" was a lie here: the spot is fine, the way to it is not (a wall, a tree, the furniture the player
 			// built, or the companion being too heavy to walk) - measured 01/11/2026
 			Log(ai, "can't get to the spot");
+			if (state.Blueprint != null)
+			{
+				state.Skipped++;
+				Log(ai, "skipping " + state.Prefab + " (can't reach it) at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
+					+ F(state.Pos.z) + ") - " + state.Skipped + " skipped");
+				return Advance(ai, state);
+			}
 			Finish(ai, state, "hc_ai_build_cant_reach", null, LabelOf(state));
 			return false;
 		}
@@ -1040,6 +1155,13 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		if (reason != null)
 		{
 			Log(ai, "verification failed: " + reason);
+			if (state.Blueprint != null)
+			{
+				state.Skipped++;
+				Log(ai, "skipping " + state.Prefab + " (verification: " + reason + ") at (" + F(state.Pos.x) + ", "
+					+ F(state.Pos.y) + ", " + F(state.Pos.z) + ") - " + state.Skipped + " skipped");
+				return Advance(ai, state);
+			}
 			Finish(ai, state, "hc_ai_build_failed", reason, LabelOf(state));
 			return false;
 		}
