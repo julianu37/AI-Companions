@@ -40,6 +40,12 @@ stopped.
   blamed the spot. It now compares the real weight with the carry ceiling and says `hc_ai_build_too_heavy`.
   Measured right after: with **120 wood (240 of 300 weight)** the same 985-piece blueprint **walked and built 60 pieces**
   in ~3 minutes (all supported) before handing the order to the gather for the rest.
+- **No more "just walking around the site"** (measured, 03/11/2026): the upper storeys of a blueprint were walked to one
+  by one and refused with `no_support` (60 in a row in 40 s) because what holds them up was not up yet. The support
+  verdict is the same from far away, so it is now asked **before the walk** (once per piece) and the piece goes straight
+  to the retry pass. Two more from the same test: the per-tree clearing timer pauses while the companion takes an
+  overweight load to a chest (44 s, it was giving up on a healthy tree), and the order's clock is re-anchored when the
+  clearing ends (the first piece was being skipped as "took too long").
 - **The build site is cleared before the first piece** (player's request, 03/11/2026): the trees, stumps and fallen logs
   inside the plan's footprint refuse the floors and block the walking, and leveling does not cut anything - a 985-piece
   blueprint on a wooded hill stopped at the first row. The companion now **chops what is inside the footprint** with the

@@ -1170,7 +1170,12 @@ comandos de console e spawna coisas, então não é feature de jogador.
   ferramenta/tier baixo, o obstáculo é ignorado). Orçamentos: 45 s por obstáculo, 40 obstáculos, 240 s por ordem, 5
   recusas seguidas encerram; o que sobra fica para o retry/skip. O guarda de peso fica suspenso na fase Clear (a madeira
   da limpeza cai na mochila que paga a obra) e volta na construção. Ordem: **nivelar → limpar → construir** (a enxada
-  alisa o terreno com as árvores em cima). Fala `hc_ai_build_clearing` (5 idiomas).
+  alisa o terreno com as árvores em cima). Fala `hc_ai_build_clearing` (5 idiomas). **Medido em jogo (03/11/2026, 983 peças):** nivelar 0,37 → 0,13 m, limpar
+  **7 obstáculos em 156 s** (3 árvores no quadrado de 30 m; 44 s foram o harvest levando carga ao baú — o timer por
+  obstáculo **pausa** acima do `UnloadThreshold`), depois a obra. O teste também expôs o **"só anda pela obra"**: o 2º/3º
+  piso era recusado com `no_support` **~60× em 40 s**, cada um com caminhada; o `Goto` agora faz o `BuildSite.Check`
+  **antes de andar** (`State.Checked`, 1×/peça) e manda a peça para o retry pass, e a limpeza **reancora** o relógio da
+  ordem (a 1ª peça era pulada como "took too long").
   **A ponte do BuildOrders (F11) fica para depois** (barata, API pública).
   O vigia do E6b deixou de comparar **total-da-mochila** com
   **o-que-falta** (a 4x4 entrava em loop na porta); agora recalcula o que falta e retoma quando é zero. Harness

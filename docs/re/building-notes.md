@@ -779,7 +779,22 @@ construir ({0} arvores/troncos).") nos 5 idiomas. Logs: `clearing the site: N tr
 `clearing the site: cutting "Beech1" (3/12)`, `giving up on "..." (over 45 s)`, `can't cut "..." (no tool for it) -
 leaving it`, `the site is clear (12 obstacle(s) in 96 s)`.
 
-**Medicao:** *(pendente - o jogador da a ordem em jogo e o log e conferido na mesma sessao).*
+**Medido em jogo (03/11/2026, `CommHomeBasicBP` de 983 pecas, canteiro com arvores):** nivelamento **0,37 -> 0,13 m**
+em 2 passadas (`[Level]`), depois **3 arvores dentro do quadrado de 30 m** (footprint de 32,1 m) e **7 obstaculos** no
+total (as arvores derrubadas viram toco/tronco, que tambem sao alvo) em **156 s** - dos quais **44 s** parado porque a
+mochila chegou ao limite e o harvest levou a carga para um bau ("Too heavy - taking a load to chest"): o **timer por
+obstaculo pausa** enquanto o companheiro esta acima do `UnloadThreshold` (o `ClearPerObstacle` de 45 s dava a arvore por
+perdida nesse caso - aconteceu). Depois: `the site is clear (7 obstacle(s) in 156 s)` e a construcao comecou.
+
+**O problema que o teste expos (as 60 recusas):** o **2o e o 3o piso** do plano (y = 42,8/43,8/44,8, `drop` de 3,9 a 5,9 m)
+foram recusados com `no_support` **~60 vezes em 40 s**, cada um com a caminhada ate a peca - o jogador viu "ele so anda
+pela obra". O veredito e o **mesmo de longe** (a pose e da peca), entao o `Goto` agora faz o `BuildSite.Check` **antes de
+andar** (uma vez por peca, `State.Checked`) e manda a peca para o retry pass no `no_support`. Tambem: ao terminar a
+limpeza o relogio da ordem e **reancorado** (`state.Start`), senao a 1a peca chegava com 156 s e era pulada como "took too
+long" (aconteceu **1 vez** - `skipping wood_floor (took too long) ... - 3 skipped`, contando as 2 linhas do blueprint).
+
+**Obra medida:** 223/983 pecas em ~7 min (~4 s/peca), todas `supported`; a partir da peca ~190 ele passou a pagar dos
+baus (2 madeiras por peca, baus a 3-25 m) e 3 `wood_beam` falharam a verificacao (`not_found`) e foram para o retry.
 
 ### 15.3 Medido em jogo (02/11/2026)
 

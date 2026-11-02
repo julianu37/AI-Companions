@@ -137,6 +137,10 @@ internal static class MHR_Build
 		internal float ClearTargetAt;
 		/// <summary>E7: when the clearing began and how many obstacles it saw / tried.</summary>
 		internal float ClearStart;
+		/// <summary>E7: the 2 s after a tree falls (the harvest walks its drops before the next obstacle).</summary>
+		internal float ClearWait;
+		/// <summary>E7: this piece already passed the up-front support check (once per piece, not per frame).</summary>
+		internal bool Checked;
 		internal int ClearTotal;
 		internal int ClearCount;
 		internal int ClearRejects;
@@ -330,6 +334,7 @@ internal static class MHR_Build
 			state.Rot = next.Rot;
 			state.Placed = null;
 			state.Start = Time.time;
+			state.Checked = false;
 			state.Phase = Phase.Goto;
 			Log(ai, "next: " + next.Prefab + " (" + (state.Index + 1) + "/" + state.Plan.Count + ")");
 			return true;
@@ -594,6 +599,7 @@ internal static class MHR_Build
 			{
 				MHR_Mover.Release(ai);
 			}
+			ReleaseHarvest(ai, state);
 			// E6b: the gather turned Follow off - another order cancels the build and Follow has to come back
 			RestoreFollow(ai, c.GetComponent<CompanionSetup>(), pending);
 		}
@@ -704,7 +710,7 @@ internal static class MHR_Build
 			case Phase.Find:
 				return state.Template != null ? FindPlan(ai, state) : Find(ai, state);
 			case Phase.Goto:
-				return Goto(ai, state, dt);
+				return Goto(ai, state, cs, dt);
 			case Phase.Place:
 				return Place(ai, state, cs, bag);
 			case Phase.GatherWalk:
@@ -756,6 +762,15 @@ internal static class MHR_Build
 		}
 		if (state.ClearTarget != null)
 		{
+			// the harvest stops the directed target to take a load to a chest when the bag is at the unload threshold
+			// (measured 03/11/2026: "Too heavy - taking a load to chest", 44 s, and the 45 s timer gave up on a tree that
+			// was fine). Overweight is not stuck: the clock waits.
+			Humanoid body = ai.GetComponent<Humanoid>();
+			Inventory pack = body != null ? body.GetInventory() : null;
+			if (pack != null && pack.GetTotalWeight() >= CompanionCarry.UnloadThreshold(pack) - 2f)
+			{
+				state.ClearTargetAt = Time.time;
+			}
 			// the object is destroyed when the tree falls (a stump and the logs are new objects): that is the "done"
 			if (Time.time - state.ClearTargetAt > ClearPerObstacle)
 			{
@@ -764,6 +779,18 @@ internal static class MHR_Build
 				harvest.CancelDirectedTarget();
 				state.ClearTarget = null;
 			}
+			return true;
+		}
+		if (!ReferenceEquals(state.ClearTarget, null))
+		{
+			// the reference is still there but the object is gone (Unity's == null): the tree is down. Wait a moment so the
+			// harvest grabs the drops of the cut (the wood is the same bag the build pays from) before the next tree.
+			state.ClearTarget = null;
+			state.ClearWait = Time.time + 2f;
+			return true;
+		}
+		if (Time.time < state.ClearWait)
+		{
 			return true;
 		}
 		if (state.ClearCount >= ClearMaxObstacles || Time.time - state.ClearStart > ClearBudget)
@@ -779,6 +806,10 @@ internal static class MHR_Build
 		{
 			harvest.CancelDirectedTarget();
 			state.Phase = Phase.Goto;
+			// the order's clock follows the PIECE: without this the first piece was already 156 s old when the clearing
+			// ended and it was skipped as "took too long" (measured 03/11/2026)
+			state.Start = Time.time;
+			state.Checked = false;
 			Log(ai, "the site is clear (" + state.ClearCount + " obstacle(s) in " + (Time.time - state.ClearStart).ToString("F0")
 				+ " s)");
 			return true;
@@ -800,8 +831,24 @@ internal static class MHR_Build
 		state.ClearCount++;
 		state.ClearTarget = next;
 		state.ClearTargetAt = Time.time;
-		Log(ai, "clearing the site: cutting \"" + next.name + "\" (" + state.ClearCount + "/" + state.ClearTotal + ")");
+		Log(ai, "clearing the site: cutting \"" + next.name + "\" (#" + state.ClearCount + ")");
 		return true;
+	}
+
+	/// <summary>Cancels the directed harvest the clearing set (any ending of the order must not leave the companion
+	/// swinging at a tree of a build that no longer exists).</summary>
+	private static void ReleaseHarvest(CompanionAI ai, State state)
+	{
+		if (ai == null || state == null || (state.Phase != Phase.Clear && state.ClearTarget == null))
+		{
+			return;
+		}
+		HarvestController harvest = ai.GetComponent<HarvestController>();
+		if (harvest != null)
+		{
+			harvest.CancelDirectedTarget();
+		}
+		state.ClearTarget = null;
 	}
 
 	/// <summary>The nearest tree/log inside the footprint that has not been given up yet (null when none).</summary>
@@ -1244,8 +1291,25 @@ internal static class MHR_Build
 		return true;
 	}
 
-	private static bool Goto(CompanionAI ai, State state, float dt)
+	private static bool Goto(CompanionAI ai, State state, CompanionSetup cs, float dt)
 	{
+		// E7 (player's report, 03/11/2026: "he is only walking around the site"): the upper storeys of a blueprint were
+		// walked to one by one and refused with no_support - 60 in a row across 40 s - because what holds a 2nd/3rd floor
+		// up is not up yet. The verdict is the SAME from far away (the pose is the piece's, not the companion's), so the
+		// piece is deferred to the retry pass BEFORE the walk: one cheap raycast instead of a 20 m round trip.
+		if (!state.Checked && cs != null && (state.Template != null || state.Blueprint != null)
+			&& state.Plan != null && state.Index > 0)
+		{
+			state.Checked = true;
+			Dictionary<string, object> early = BuildSite.Check(state.Piece, state.Pos, state.Rot, cs);
+			if (early != null && !Ok(early) && Convert.ToString(early["status"]) == "no_support")
+			{
+				LogDebug(ai, "deferring " + state.Prefab + " at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
+					+ F(state.Pos.z) + "): it needs what is below it, which is not up yet - retry pass");
+				QueueRetry(ai, state, "no_support");
+				return Advance(ai, state);
+			}
+		}
 		Vector3 me = ai.transform.position;
 		float flat = new Vector2(me.x - state.Pos.x, me.z - state.Pos.z).magnitude;
 		// the game places a piece up to 5 m from the EYE (Player.m_maxPlaceDistance); the companion's eye is ~1,5 m
@@ -2014,6 +2078,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		state.Active = false;
 		s_state.Remove(ai.GetInstanceID());
 		MHR_Mover.Release(ai);
+		ReleaseHarvest(ai, state);
 		// one line per order end, with the key that was spoken: it is how a test proves which refusal came out
 		Log(ai, "order ended: " + (key ?? "(silent)") + (string.IsNullOrEmpty(why) ? string.Empty : " (" + why + ")"));
 		if (key != null)
