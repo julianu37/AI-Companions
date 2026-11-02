@@ -731,7 +731,7 @@ que você construiu). O mod **não** precisa do PlanBuild para ler nenhum deles.
 |---|---|---|---|
 | `hs_meadows_hut` | Meadow Hut | 28 | bancada no raio (vigas) - **28/28 validada** |
 | `hs_meadows_stilt_hut` | Meadow Stilt Hut | 32 | bancada + palafitas (`wood_pole2`) |
-| `hs_meadows_hive_tower` | Hive Tower | 75 | bancada + **colmeias** (`piece_beehive`, receita de 10 abelhas na rainha) |
+| `hs_meadows_hive_tower` | Hive Tower (de **ModestyPooh**, <https://www.valheimians.com/build/hive-tower/>) | 75 | bancada + **colmeias** (`piece_beehive`, receita de 10 abelhas na rainha) |
 
 As grandes (4554/1244/505/184 peças) e as fixtures do PlanBuild ficaram em `blueprints\grandes\` e
 `blueprints\teste\` - o mod **não lê subpasta**, então elas não aparecem nas ordens.
