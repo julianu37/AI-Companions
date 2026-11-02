@@ -387,8 +387,9 @@ The dev setup for driving the player, in one call: `devcommands` (only when it i
 **Infinite stamina** (`stamina`, on by default; `player.stamina` turns it on/off alone): the bridge refills the bar
 every 0.25 s while it is below the maximum. Valheim 1.0 has no `SetStamina` (only `GetStamina`/`UseStamina`) and no
 console command for it - `setkey` takes the name only (there is no `staminarate`), so the private float is written
-through reflection. The field is picked **by value** (the `float` equal to `GetStamina()`), and the log says which:
-`[DevBridge] stamina infinita: Character.m_stamina`.
+through reflection: the search walks the whole hierarchy (`Player` -> `Humanoid` -> `Character`; in practice the field
+is `Player.m_stamina`), and it is picked **by value** (the `float` equal to `GetStamina()`). The log says which:
+`[DevBridge] stamina infinita: Player.m_stamina`.
 
 **Valheim 1.0's `god` does not cancel damage**: it clamps a killing blow to **1 HP** (`Character.cs`). The player does
 not die, but the bar keeps dropping - that is why the setup runs `heal` too. `ghost on` (a game command, not enabled

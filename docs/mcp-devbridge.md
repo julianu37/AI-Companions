@@ -265,9 +265,10 @@ no meio. O `god` não ajuda nisso (ele só trava o HP em 1) e o console do jogo 
 `setkey` desta build aceita **só o nome** (não existe `staminarate`). Então o DevBridge faz: com a opção ligada
 (`world.setup` com `stamina` ou `player.stamina`), o `Pump` (main thread) **repõe a stamina a cada 0,25 s** quando
 ela está abaixo do máximo. No Valheim 1.0 não existe setter (`Character` tem `GetStamina`/`UseStamina`, não
-`SetStamina`), então o valor é escrito por **reflexão** no campo privado - e o campo é escolhido **pelo valor**
+`SetStamina`), então o valor é escrito por **reflexão** no campo privado - a busca percorre a **hierarquia toda**
+(`Player` → `Humanoid` → `Character`; na prática o campo é o `Player.m_stamina`) e ele é escolhido **pelo valor**
 (o `float` cujo conteúdo é igual ao `GetStamina()` na hora), não pelo nome; uma linha no log diz qual foi
-(`[DevBridge] stamina infinita: Character.m_stamina`). É ferramenta de dev: sem `[Advanced] DevBridge` nada disso roda.
+(`[DevBridge] stamina infinita: Player.m_stamina`). É ferramenta de dev: sem `[Advanced] DevBridge` nada disso roda.
 
 ### Deixar o player invencível (e por que o `god` sozinho não basta)
 
