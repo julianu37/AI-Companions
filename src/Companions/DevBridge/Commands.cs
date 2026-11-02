@@ -98,7 +98,12 @@ internal static class Commands
 		case "build.check": return BuildCheck(args);
 		case "build.snaps": return BuildSnaps(args);
 		case "build.usable": return BuildUsable(args);
+		case "build.hoe": return BuildHoe();
+		case "terrain.check": return TerrainCheck(args);
+		case "terrain.level": return TerrainLevel(args);
+		case "terrain.ops": return TerrainOps();
 		case "companions.build": return CompanionsBuild(args);
+		case "companions.level": return CompanionsLevel(args);
 		case "companions.sethome": return CompanionsSetHome(args);
 			case "world.tombstones": return WorldTombstones(args);
 			case "world.tombstone_take": return WorldTombstoneTake(args);
@@ -613,6 +618,172 @@ internal static class Commands
 		});
 	}
 
+	/// <summary>
+	/// Trilha E (E10): how uneven is the ground over a square area? The same sampling the build order does before it
+	/// decides to level (<see cref="BuildTerrain.FlatEnough"/>), with the median height it would level to.
+	/// </summary>
+	private static string TerrainCheck(Dictionary<string, object> args)
+	{
+		if (ZNetScene.instance == null)
+		{
+			return Fail("the world isn't loaded");
+		}
+		Vector3 pos = TargetPosition(args, Player.m_localPlayer != null ? Player.m_localPlayer.transform.position : Vector3.zero);
+		float size = Mathf.Clamp(Json.Float(args, "size", 8f), 1f, 40f);
+		float tolerance = Json.Float(args, "tolerance", BuildTerrain.DefaultTolerance);
+		float min;
+		float max;
+		float target;
+		bool flat = BuildTerrain.FlatEnough(pos, size, tolerance, out min, out max, out target);
+		return Ok(new Dictionary<string, object>
+		{
+			{ "flat", flat },
+			{ "min", min },
+			{ "max", max },
+			{ "variation", max - min },
+			{ "target", target },
+			{ "size", size },
+			{ "tolerance", tolerance },
+			{ "hoePiece", BuildTerrain.Available() },
+			{ "levelRadius", BuildTerrain.Radius() },
+			{ "x", pos.x },
+			{ "y", pos.y },
+			{ "z", pos.z }
+		});
+	}
+
+	/// <summary>
+	/// Trilha E (E10): every terrain operation the game registered (<c>ObjectDB.m_terrainOps</c>) - the ones a hard
+	/// level would use. The hoe's menu only carries soft/smooth/raise ones, so this is how we know whether a
+	/// <c>m_level</c> operation exists anywhere in the game.
+	/// </summary>
+	private static string TerrainOps()
+	{
+		List<object> list = new List<object>();
+		if (ObjectDB.instance != null && ObjectDB.instance.m_terrainOps != null)
+		{
+			foreach (TerrainOp op in ObjectDB.instance.m_terrainOps)
+			{
+				if (op == null || op.m_settings == null)
+				{
+					continue;
+				}
+				list.Add(new Dictionary<string, object>
+				{
+					{ "prefab", op.gameObject.name },
+					{ "level", op.m_settings.m_level },
+					{ "levelRadius", op.m_settings.m_levelRadius },
+					{ "square", op.m_settings.m_square },
+					{ "raise", op.m_settings.m_raise },
+					{ "raiseRadius", op.m_settings.m_raiseRadius },
+					{ "raiseDelta", op.m_settings.m_raiseDelta },
+					{ "raisePower", op.m_settings.m_raisePower },
+					{ "smooth", op.m_settings.m_smooth },
+					{ "smoothRadius", op.m_settings.m_smoothRadius },
+					{ "paint", op.m_settings.m_paintCleared },
+					{ "levelOffset", op.m_settings.m_levelOffset }
+				});
+			}
+		}
+		return Ok(new Dictionary<string, object> { { "count", list.Count }, { "ops", list } });
+	}
+
+	/// <summary>Trilha E (E10): one leveling pass over an area (the game's soft level), for iterating on the numbers.</summary>
+	private static string TerrainLevel(Dictionary<string, object> args)
+	{
+		if (ZNetScene.instance == null)
+		{
+			return Fail("the world isn't loaded");
+		}
+		Vector3 pos = TargetPosition(args, Player.m_localPlayer != null ? Player.m_localPlayer.transform.position : Vector3.zero);
+		float size = Mathf.Clamp(Json.Float(args, "size", 8f), 1f, 40f);
+		float target = Json.Float(args, "target", pos.y);
+		string error;
+		int applied = BuildTerrain.Level(pos, size, target, out error);
+		return Ok(new Dictionary<string, object>
+		{
+			{ "applied", applied },
+			{ "error", error },
+			{ "target", target },
+			{ "size", size },
+			{ "radius", BuildTerrain.Radius() },
+			{ "soft", BuildTerrain.Soft() }
+		});
+	}
+
+	/// <summary>Trilha E (E10): what the <b>hoe</b> can do</summary>
+	private static string BuildHoe()
+	{
+		GameObject prefab = ZNetScene.instance != null ? ZNetScene.instance.GetPrefab("Hoe") : null;
+		ItemDrop drop = prefab != null ? prefab.GetComponent<ItemDrop>() : null;
+		if (drop == null)
+		{
+			return Fail("no Hoe prefab");
+		}
+		List<object> pieces = new List<object>();
+		PieceTable table = drop.m_itemData != null && drop.m_itemData.m_shared != null ? drop.m_itemData.m_shared.m_buildPieces : null;
+		if (table != null && table.m_pieces != null)
+		{
+			foreach (GameObject go in table.m_pieces)
+			{
+				if (go == null)
+				{
+					continue;
+				}
+				TerrainOp[] ops = go.GetComponentsInChildren<TerrainOp>(true);
+				TerrainModifier[] modifiers = go.GetComponentsInChildren<TerrainModifier>(true);
+				Dictionary<string, object> entry = new Dictionary<string, object>
+				{
+					{ "prefab", go.name },
+					{ "name", go.GetComponent<Piece>() != null ? go.GetComponent<Piece>().m_name : null },
+					{ "terrainOps", ops.Length },
+					{ "modifiers", modifiers.Length }
+				};
+				List<object> opList = new List<object>();
+				foreach (TerrainOp op in ops)
+				{
+					if (op == null || op.m_settings == null)
+					{
+						continue;
+					}
+					opList.Add(new Dictionary<string, object>
+					{
+						{ "level", op.m_settings.m_level },
+						{ "levelRadius", op.m_settings.m_levelRadius },
+						{ "square", op.m_settings.m_square },
+						{ "raise", op.m_settings.m_raise },
+						{ "raiseRadius", op.m_settings.m_raiseRadius },
+						{ "smooth", op.m_settings.m_smooth },
+						{ "smoothRadius", op.m_settings.m_smoothRadius },
+						{ "paint", op.m_settings.m_paintCleared },
+						{ "paintRadius", op.m_settings.m_paintRadius },
+						{ "levelOffset", op.m_settings.m_levelOffset }
+					});
+				}
+				entry["ops"] = opList;
+				if (ops.Length > 0 && ops[0] != null && ops[0].m_settings != null)
+				{
+					entry["level"] = ops[0].m_settings.m_level;
+					entry["levelRadius"] = ops[0].m_settings.m_levelRadius;
+				}
+				if (modifiers.Length > 0 && modifiers[0] != null)
+				{
+					entry["modifierRadius"] = modifiers[0].GetRadius();
+				}
+				pieces.Add(entry);
+			}
+		}
+		string spawn = drop.m_itemData != null && drop.m_itemData.m_shared != null && drop.m_itemData.m_shared.m_spawnOnHitTerrain != null
+			? drop.m_itemData.m_shared.m_spawnOnHitTerrain.name
+			: null;
+		return Ok(new Dictionary<string, object>
+		{
+			{ "spawnOnHitTerrain", spawn },
+			{ "count", pieces.Count },
+			{ "pieces", pieces }
+		});
+	}
+
 	private static string BuildFind(Dictionary<string, object> args)
 	{
 		if (ZNetScene.instance == null)
@@ -674,6 +845,72 @@ internal static class Commands
 	/// be tested on its own. The piece must be in <see cref="BuildCatalog"/>; the spot is the player's aim, or 3 m
 	/// ahead when nothing is under the crosshair.
 	/// </summary>
+	/// <summary>Trilha E (E10): the leveling job without the LLM - the companion works the ground point by point.</summary>
+	private static string CompanionsLevel(Dictionary<string, object> args)
+	{
+		if (ZNetScene.instance == null)
+		{
+			return Fail("the world isn't loaded");
+		}
+		Player player = Player.m_localPlayer;
+		if (player == null)
+		{
+			return Fail("no player in the world");
+		}
+		CompanionSetup target = null;
+		string name = (Json.Str(args, "name") ?? string.Empty).Trim();
+		foreach (CompanionSetup setup in CompanionSetup.AllCompanions)
+		{
+			if (setup == null)
+			{
+				continue;
+			}
+			if (name.Length == 0)
+			{
+				if (target == null)
+				{
+					target = setup;
+				}
+				continue;
+			}
+			ZNetView nv = setup.GetComponent<ZNetView>();
+			ZDO zdo = nv != null ? nv.GetZDO() : null;
+			if (string.Equals(zdo != null ? zdo.GetString(CompanionSetup.NameHash, string.Empty) : string.Empty, name, StringComparison.OrdinalIgnoreCase))
+			{
+				target = setup;
+				break;
+			}
+		}
+		if (target == null)
+		{
+			return Fail(name.Length > 0 ? "no companion named '" + name + "'" : "no companion in the world");
+		}
+		Vector3 hint;
+		if (args.ContainsKey("x") || args.ContainsKey("z"))
+		{
+			hint = new Vector3(Json.Float(args, "x", player.transform.position.x), Json.Float(args, "y", player.transform.position.y), Json.Float(args, "z", player.transform.position.z));
+		}
+		else if (!BuildFindCommand.Hint(player, out hint))
+		{
+			Vector3 forward = player.transform.forward;
+			forward.y = 0f;
+			forward = forward.sqrMagnitude < 0.01f ? Vector3.forward : forward.normalized;
+			Vector3 flat = player.transform.position + forward * 3f;
+			float y = ZoneSystem.instance != null ? ZoneSystem.instance.GetGroundHeight(flat) : flat.y;
+			hint = new Vector3(flat.x, y, flat.z);
+		}
+		float size = Mathf.Clamp(Json.Float(args, "size", 8f), 2f, 20f);
+		MHR_Owner.TakeControl(target);
+		bool started = MHR_Level.Start(target, hint, size);
+		return Ok(new Dictionary<string, object>
+		{
+			{ "started", started },
+			{ "size", size },
+			{ "name", target.GetComponent<ZNetView>()?.GetZDO()?.GetString(CompanionSetup.NameHash, "Companion") },
+			{ "hint", new Dictionary<string, object> { { "x", hint.x }, { "y", hint.y }, { "z", hint.z } } }
+		});
+	}
+
 	private static string CompanionsBuild(Dictionary<string, object> args)
 	{
 		if (ZNetScene.instance == null)

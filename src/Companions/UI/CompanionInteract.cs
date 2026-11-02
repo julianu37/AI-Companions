@@ -2703,6 +2703,8 @@ public class CompanionInteract : MonoBehaviour
 		// Fase 3.1: the wheel's orders drop a "recolhe os itens do chão" that is running (a one-shot order, like the
 		// ones above) - the chat path does the same in CompanionOrders.Run.
 		MHR_Collect.Cancel(setup);
+		// E10: the leveling job is a one-shot order too - any wheel order stops it (same as the chat path)
+		MHR_Level.Cancel(setup);
 		setup.GetComponent<HarvestController>()?.CancelDirectedTarget();
 		setup.GetComponent<DoorHandler>()?.Cancel();
 		RepairController component3 = setup.GetComponent<RepairController>();

@@ -563,6 +563,25 @@ janela, 16 telhados e 8 empenas).
   `hc_ai_build_too_heavy` ("carregado demais para construir (peso/máximo)") quando o companheiro está acima do
   limite (ele não anda; antes a ordem falhava com "não achei lugar").
 
+### Fase 10 - Terraformar (implementada em 01/11/2026)
+
+**Entrega:** a ordem própria **
+ivele um terreno 10x10 aqui** (AI/LevelIntent.cs puro + Jobs/MHR_Level.cs) e o
+nivelamento automático antes de uma estrutura (a fase Level do MHR_Build).
+
+- **Como o jogo nivela:** não existe level duro no 1.0 - o Nivelar da enxada é um **smooth** (mud_road_v2,
+  raio 3, potência 3) que puxa o terreno para a altura do clique com queda por distância e **±1 m por operação**.
+- **A regra:** grid **espaçado pelo raio** (sobrepor operações as faz brigar: o grid de 1,5 m divergiu 0,55 → 2,01 m),
+  alvo na **mediana**, até **10 passadas** ou a tolerância ([Building] LevelTolerance, 0,2 m), e recusa acima de
+  **1,2 m** de variação (hc_ai_build_too_steep).
+- **Cara de jogador:** o companheiro **não anda até cada ponto** (o mover desiste e ele treme no lugar - medido); ele
+  vai ao **centro** da área, vira para cada ponto, bate a enxada (animação) e a operação cai 0,45 s depois.
+- **Aceite medido:** 8 m com 1,06 m de variação → **0,33 m em 3 passadas, 165 s** (hc_ai_level_done).
+- **Cancelamento:** é ordem de um tiro (qualquer outra ordem a derruba) - sem isso o companheiro ficava travado.
+
+---
+
+
 ### Fase 7 — O companheiro constrói os planos do BuildOrders (2–3 dias) — **a ponte**
 
 **Entrega:** `AI/BuildOrdersLink.cs` + o dever "construir os planos da casa" (ou uma ordem `build plans`):

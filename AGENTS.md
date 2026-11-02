@@ -1070,16 +1070,16 @@ comandos de console e spawna coisas, então não é feature de jogador.
   greyling enquanto mexia no bridge). O `god` do Valheim 1.0 **não** cancela o dano: ele trava o HP em **1** quando o
   golpe mataria (`Character.cs`), então o `heal` é obrigatório para a barra não ficar em 1. `setup: false` no
   `world_enter` desliga.
-- **Testar:** `python tools/mcp-devbridge/test_mcp_devbridge.py` (mock, sem jogo) — 64 checks.
-- **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check` — **316 asserções** das redes por
+- **Testar:** `python tools/mcp-devbridge/test_mcp_devbridge.py` (mock, sem jogo) — 70 checks.
+- **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check` — **363 asserções** das redes por
   palavras (`RadialIntent`, `PickupIntent`, `GatherIntent`, `InteractionIntent`, `LlmIntent`, `OrderItems`,
   `CompanionNameMatch`) com os `.cs` reais linkados, mais o cross-check das cópias do `Stubs.cs` contra a
   `Companions.dll` (seção (h) — impede drift). Build 0/0 e exit 0 são o gate.
 - **Gate de release:** `powershell -ExecutionPolicy Bypass -File tools\release-check.ps1 -Version <versão>` — roda o
   build, a versão (`PluginVersion` × nome do zip), as 3 traduções, o `locale-fallback-check.ps1` (agora com asserts),
-  o `gen_config_doc.py --check`, o teste do MCP (64) e as 316 asserções; **PASS/FAIL por item e exit 1**. É o que tem
+  o `gen_config_doc.py --check`, o teste do MCP (70) e as 363 asserções; **PASS/FAIL por item e exit 1**. É o que tem
   de passar antes de tag/zip (`-SkipGame`/`-SkipIntents` para rodar parte).
-- **Docs:** `docs/mcp-devbridge.md` (arquitetura, protocolo, as **54** ferramentas, a receita de **jogar pelo agente**
+- **Docs:** `docs/mcp-devbridge.md` (arquitetura, protocolo, as **57** ferramentas, a receita de **jogar pelo agente**
   e a de **comandos de console**, e as evidências dos testes da 1.9.4) e `tools/mcp-devbridge/README.md`
   (parâmetros/exemplos).
 - **Construção (Trilha E):** E0-E6 medidas em jogo. **E6 (estruturas por template, 01/11/2026):** `hut` (1 piso + 4
@@ -1098,7 +1098,15 @@ comandos de console e spawna coisas, então não é feature de jogador.
   paredes, teto, **porta** (`wood_door`, 2x2, toma o lugar da parede) e **janela** (`wood_wall_half` a 0,5 m), 57
   peças (com a bancada); 8x8 é o tamanho que fecha o telhado 45° (2 peças por água, cumeeira no centro). Duas falas novas: 
   `hc_ai_build_cant_reach` (o `MHR_Mover` desistiu - o local está bom, o caminho não) e `hc_ai_build_too_heavy`
-  (acima do peso o companheiro não anda). **Aceite em jogo (01/11/2026): 57/57 peças, todas `supported`**, todas
+  (acima do peso o companheiro não anda). **E10 - terraplanagem (01/11/2026):** a ordem própria "nivele um terreno
+  10x10 aqui" (`AI/LevelIntent.cs` puro + `Jobs/MHR_Level.cs`) e o nivelamento automático antes da obra (fase `Level`
+  do `MHR_Build`, que escolhe o canto mais plano). **O jogo não tem "level" duro:** o Nivelar da enxada é um
+  **smooth** (`mud_road_v2`, raio 3, potência 3, **±1 m por operação**) - grid **espaçado pelo raio** (o denso
+  divergia 0,55 → 2,01 m), alvo na mediana, até 10 passadas ou 0,2 m, recusa acima de 1,2 m. **O companheiro não anda
+  até cada ponto** (o mover desiste e ele treme no lugar): vai ao **centro**, vira, bate a enxada (animação) e a
+  operação cai 0,45 s depois. **Aceite: 1,06 m → 0,33 m em 3 passadas, 165 s.** É ordem de um tiro (qualquer outra
+  cancela - sem isso ele ficava travado). `ValidActions` 36 → 37, 5 idiomas, config 353.
+  **Aceite em jogo (01/11/2026): 57/57 peças, todas `supported`**, todas
   `placed (Direct)` - a casa **traz a própria bancada** (passo 0, a estação vem do plano), a **porta é a última**
   (senão ele fica trancado dentro e não alcança o telhado), o alcance é o do jogo (**5 m do olho**,
   `Player.m_maxPlaceDistance` - a fileira de cima do telhado fica a 4,9 m dos pés) e **madeira pesa 2** (160 =

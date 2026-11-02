@@ -158,6 +158,9 @@ internal static class CompanionChatAI
 		+ "\"fecha a porta\" -> {\"action\":\"door\",\"reply\":\"Já vou.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"guarda isso no baú\" -> {\"action\":\"deposit\",\"reply\":\"Guardando.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"construa uma bancada de trabalho aqui\" -> {\"action\":\"build\",\"reply\":\"Deixa comigo.\",\"target\":\"bancada de trabalho\",\"resource\":null,\"amount\":null}\n"
+		+ "- \"level\" = NIVELAR o terreno com a enxada (\"nivele um terreno 10x10 aqui\", \"nivela o chão 6x6\"): o\n"
+		+ "  tamanho do terreno vem na mensagem. NUNCA é conversa.\n"
+		+ "\"nivele o terreno 8x8 aqui\" -> {\"action\":\"level\",\"reply\":\"Vou nivelar o terreno.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"constrói uma fogueira aí\" -> {\"action\":\"build\",\"reply\":\"Vou levantar a fogueira.\",\"target\":\"fogueira\",\"resource\":null,\"amount\":null}\n"
 		+ "\"segue\" -> {\"action\":\"follow\",\"reply\":\"Estou com você.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
 		+ "\"para\" -> {\"action\":\"stop\",\"reply\":\"Parando.\",\"target\":null,\"resource\":null,\"amount\":null}\n"
@@ -532,8 +535,9 @@ internal static class CompanionChatAI
 		"hive", "door", "board", "sit", "deposit",
 		"farm", "fish", "repair", "cook", "stop", "come", "sethome", "wander", "nowander", "pickup", "nopickup",
 		"command", "nocommand", "stance_balanced", "stance_passive", "stance_ranged", "stance_melee", "none",
-		// Trilha E: construir uma peça nova no chão (BuildCatalog: bancada, baú, fogueira, cama)
-		"build"
+		// Trilha E: construir uma peça nova no chão (BuildCatalog: bancada, baú, fogueira, cama) e as estruturas por
+		// template (E6: cabana, casa, abrigo) - e a E10, nivelar o terreno com a enxada
+		"build", "level"
 	};
 
 	private const int MaxRawShown = 400;
@@ -1020,6 +1024,17 @@ internal static class CompanionChatAI
 				{
 					CompanionsPlugin.Log?.LogInfo($"[IA] O modelo devolveu \"none\" mas o jogador pediu para construir {BuildCatalog.Label(byBuildPrefab)} - usei \"build\".");
 					intent.Action = "build";
+					intent.Target = null;
+					intent.Resource = null;
+					intent.Amount = 0;
+				}
+			}
+			if (string.Equals(intent.Action, GatherIntent.NoneAction, StringComparison.Ordinal))
+			{
+				if (LevelIntent.IsRequest(result.UserText))
+				{
+					CompanionsPlugin.Log?.LogInfo("[IA] O modelo devolveu \"none\" mas o jogador pediu para nivelar o terreno - usei \"level\".");
+					intent.Action = "level";
 					intent.Target = null;
 					intent.Resource = null;
 					intent.Amount = 0;

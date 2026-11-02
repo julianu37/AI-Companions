@@ -77,6 +77,37 @@ internal static class BuildTemplates
 			});
 			return list;
 		}
+
+		/// <summary>
+		/// The horizontal extent of the structure - the ground it needs. E10 uses it to know how much terrain to level
+		/// before the first piece.
+		/// </summary>
+		internal void Footprint(out float minX, out float maxX, out float minZ, out float maxZ)
+		{
+			minX = float.MaxValue;
+			maxX = float.MinValue;
+			minZ = float.MaxValue;
+			maxZ = float.MinValue;
+			foreach (Step step in Steps)
+			{
+				if (step.X < minX)
+				{
+					minX = step.X;
+				}
+				if (step.X > maxX)
+				{
+					maxX = step.X;
+				}
+				if (step.Z < minZ)
+				{
+					minZ = step.Z;
+				}
+				if (step.Z > maxZ)
+				{
+					maxZ = step.Z;
+				}
+			}
+		}
 	}
 
 	/// <summary>

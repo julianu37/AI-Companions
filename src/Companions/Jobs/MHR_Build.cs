@@ -43,6 +43,11 @@ internal static class MHR_Build
 	/// <summary>The companion's eye height above its feet (the game measures the placement distance from the eye).</summary>
 	private const float EyeHeight = 1.5f;
 
+	/// <summary>E10: how many leveling passes a job may apply before it gives up (each moves the ground by at most 1 m).</summary>
+	internal const int MaxLevelPasses = 4;
+	/// <summary>E10: above this height variation (metres) the soft level cannot win - the spot is refused instead of digging a crater.</summary>
+	internal const float MaxLevelVariation = 1.2f;
+
 	/// <summary>E4b: how long a pending build waits for the gather before it is dropped.</summary>
 	internal const float GatherTimeout = 300f;
 
@@ -50,6 +55,10 @@ internal static class MHR_Build
 
 	private enum Phase
 	{
+		/// <summary>E10: leveling the ground before a plan (the house needs a flat 8x8).</summary>
+		Level,
+		/// <summary>E10: waiting for the leveling operations to reach the heightmap, then re-checking.</summary>
+		LevelWait,
 		Find,
 		Goto,
 		Place,
@@ -76,6 +85,13 @@ internal static class MHR_Build
 		internal GameObject Placed;
 		/// <summary>E6: when the piece was placed (the support verdict is asked again for a moment).</summary>
 		internal float PlacedAt;
+		/// <summary>E10: when the ground was leveled (the heightmap is written through an RPC, so it needs a moment).</summary>
+		internal float LevelAt;
+		/// <summary>E10: how many leveling passes were applied, and the height they level to.</summary>
+		internal int LevelPasses;
+		/// <summary>E10: the variation before the last pass (a pass that does not improve stops the job).</summary>
+		internal float LevelBest;
+		internal float LevelTarget;
 		internal Vector3 GatherTarget;
 		internal int GatherMode;
 		internal string GatherItem;
@@ -180,7 +196,7 @@ internal static class MHR_Build
 			Hint = hint,
 			Forward = forward,
 			Plan = new List<PlannedStep>(),
-			Phase = Phase.Find
+			Phase = Phase.Level
 		};
 		s_state[ai.GetInstanceID()] = state;
 		Log(ai, "order: build plan " + template.Name + " (" + template.Steps.Length + " pieces) near (" + F(hint.x) + ", " + F(hint.y) + ", " + F(hint.z) + ")");
@@ -298,6 +314,10 @@ internal static class MHR_Build
 
 		switch (state.Phase)
 		{
+			case Phase.Level:
+				return LevelGround(ai, state);
+			case Phase.LevelWait:
+				return LevelWait(ai, state);
 			case Phase.Find:
 				return state.Template != null ? FindPlan(ai, state) : Find(ai, state);
 			case Phase.Goto:
@@ -312,6 +332,161 @@ internal static class MHR_Build
 				Finish(ai, state, null, "done");
 				return false;
 		}
+	}
+
+	/// <summary>
+	/// E10: the ground of a plan is leveled <b>before</b> the first piece when it is uneven (a house needs a flat 8x8:
+	/// the walls and the roof are all at the anchor's height). It uses the game's own leveling - the hoe's level piece,
+	/// the same operation a player clicking the hoe applies - and needs a <b>hoe</b> in the bag, which is the point of
+	/// the whole thing: the companion works the ground like a player would.
+	///
+	/// <para>The game's "level ground" is a <b>soft</b> level (it pulls the terrain toward the operation's height with a
+	/// falloff, at most 1 m per operation and ~0,35 m per pass on real ground), so the spot is chosen as the
+	/// <b>flattest</b> one around the hint, the passes are spaced by 1,5 s (the heightmap settles in ~0,5 s) and the
+	/// job gives up when a pass stops improving.</para>
+	/// </summary>
+	private static bool LevelGround(CompanionAI ai, State state)
+	{
+		state.Phase = Phase.Find;
+		if (state.Template == null || ModConfig.BuildLevelGround == null || !ModConfig.BuildLevelGround.Value)
+		{
+			return true;
+		}
+		float size = FootprintSize(state.Template);
+		float tolerance = ModConfig.BuildLevelTolerance != null ? ModConfig.BuildLevelTolerance.Value : BuildTerrain.DefaultTolerance;
+		// the flattest spot around the hint: a hillside has one corner that is much better than the rest, and the soft
+		// level cannot win a 3 m bank anyway
+		Vector3 best = state.Hint;
+		float bestVariation = float.MaxValue;
+		float bestTarget = state.Hint.y;
+		for (int i = 0; i < 9; i++)
+		{
+			Vector3 candidate = state.Hint;
+			if (i > 0)
+			{
+				float angle = Mathf.PI * 2f * (i - 1) / 8f;
+				candidate = state.Hint + new Vector3(Mathf.Cos(angle) * 4f, 0f, Mathf.Sin(angle) * 4f);
+				candidate.y = ZoneSystem.instance != null ? ZoneSystem.instance.GetGroundHeight(candidate) : state.Hint.y;
+			}
+			float min;
+			float max;
+			float target;
+			BuildTerrain.FlatEnough(candidate, size, tolerance, out min, out max, out target);
+			float variation = max - min;
+			if (variation < bestVariation)
+			{
+				bestVariation = variation;
+				best = candidate;
+				bestTarget = target;
+			}
+		}
+		state.Hint = best;
+		float size2 = size;
+		float min2;
+		float max2;
+		float target2;
+		if (BuildTerrain.FlatEnough(best, size2, tolerance, out min2, out max2, out target2))
+		{
+			Log(ai, "ground is flat enough (" + (max2 - min2).ToString("F2") + " m of variation in " + size.ToString("F1") + " m)");
+			return true;
+		}
+		Log(ai, "flattest spot around the hint: " + bestVariation.ToString("F2") + " m of variation (target " + bestTarget.ToString("F1") + ")");
+		if (bestVariation > MaxLevelVariation)
+		{
+			Log(ai, "too steep to level (" + bestVariation.ToString("F2") + " m)");
+			Finish(ai, state, "hc_ai_build_too_steep", "too steep", bestVariation.ToString("F1"));
+			return false;
+		}
+		Humanoid humanoid = ai.GetComponent<Humanoid>();
+		Inventory bag = humanoid != null ? humanoid.GetInventory() : null;
+		if (bag == null || !bag.HaveItem("$item_hoe"))
+		{
+			Log(ai, "the ground is uneven (" + bestVariation.ToString("F2") + " m) and there is no hoe");
+			Finish(ai, state, "hc_ai_build_no_hoe", "no hoe", bestVariation.ToString("F1"));
+			return false;
+		}
+		if (!BuildTerrain.Available())
+		{
+			Log(ai, "the hoe's level piece was not found in this game version");
+			Finish(ai, state, "hc_ai_build_level_failed", "no level piece", bestVariation.ToString("F1"));
+			return false;
+		}
+		string animation = BuildTerrain.HoeAnimation(bag);
+		ZSyncAnimation zanim = humanoid != null ? humanoid.GetComponent<ZSyncAnimation>() : null;
+		if (zanim != null && !string.IsNullOrEmpty(animation))
+		{
+			zanim.SetTrigger(animation);
+		}
+		string error;
+		int applied = BuildTerrain.Level(best, size, bestTarget, out error);
+		Log(ai, "leveling " + size.ToString("F1") + " m: pass 1, " + applied + " operation(s), variation " + bestVariation.ToString("F2")
+			+ " m -> target " + bestTarget.ToString("F1") + (string.IsNullOrEmpty(error) ? string.Empty : " (" + error + ")"));
+		if (applied == 0)
+		{
+			Finish(ai, state, "hc_ai_build_level_failed", error ?? "no operation", bestVariation.ToString("F1"));
+			return false;
+		}
+		state.LevelTarget = bestTarget;
+		state.LevelPasses = 1;
+		state.LevelBest = bestVariation;
+		state.LevelAt = Time.time;
+		state.Phase = Phase.LevelWait;
+		return true;
+	}
+
+	/// <summary>
+	/// E10: the leveling goes through an RPC into the heightmap and the game's "level ground" is a soft one (it moves
+	/// the terrain by at most 1 m per operation), so the job applies <b>passes</b> - spaced by 1,5 s, because a pass
+	/// computed against a heightmap that has not settled makes the next one overshoot (measured 01/11/2026: the
+	/// variation oscillated between 1,95 and 2,85 m).
+	/// </summary>
+	private static bool LevelWait(CompanionAI ai, State state)
+	{
+		if (Time.time - state.LevelAt < 1.5f)
+		{
+			return true;
+		}
+		float size = FootprintSize(state.Template);
+		float tolerance = ModConfig.BuildLevelTolerance != null ? ModConfig.BuildLevelTolerance.Value : BuildTerrain.DefaultTolerance;
+		float min;
+		float max;
+		float target;
+		bool flat = BuildTerrain.FlatEnough(state.Hint, size, tolerance, out min, out max, out target);
+		float variation = max - min;
+		if (flat)
+		{
+			Log(ai, "after " + state.LevelPasses + " leveling pass(es): " + variation.ToString("F2") + " m of variation (flat enough)");
+			state.Phase = Phase.Find;
+			return true;
+		}
+		if (state.LevelPasses >= MaxLevelPasses || variation > state.LevelBest - 0.05f)
+		{
+			Log(ai, "after " + state.LevelPasses + " leveling pass(es): still " + variation.ToString("F2") + " m of variation (stopping)");
+			Finish(ai, state, "hc_ai_build_level_failed", "still uneven", variation.ToString("F1"));
+			return false;
+		}
+		string error;
+		int applied = BuildTerrain.Level(state.Hint, size, state.LevelTarget, out error);
+		state.LevelPasses++;
+		state.LevelBest = variation;
+		state.LevelAt = Time.time;
+		Log(ai, "leveling pass " + state.LevelPasses + ": " + applied + " operation(s), still " + variation.ToString("F2") + " m");
+		return true;
+	}
+
+	/// <summary>The side of the square the template needs, with a margin for the walls' thickness.</summary>
+	private static float FootprintSize(BuildTemplates.Template template)
+	{
+		if (template == null)
+		{
+			return 4f;
+		}
+		float minX;
+		float maxX;
+		float minZ;
+		float maxZ;
+		template.Footprint(out minX, out maxX, out minZ, out maxZ);
+		return Mathf.Max(maxX - minX, maxZ - minZ) + 1.5f;
 	}
 
 	/// <summary>

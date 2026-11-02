@@ -127,11 +127,11 @@ def main():
 
         tools = rpc("tools/list", request_id=2).get("result", {}).get("tools", [])
         names = {tool["name"] for tool in tools}
-        check("tools/list has 54 tools", len(tools) == 54, "%d tools" % len(tools))
+        check("tools/list has 57 tools", len(tools) == 57, "%d tools" % len(tools))
         for expected in ("devbridge_ping", "game_status", "companions_list", "companions_order", "screenshot", "log_tail",
                          "player_kill", "player_inventory", "world_time", "companions_kill", "companions_tier",
                          "companions_hire", "companions_resurrect", "companions_farm_zone", "log_watch",
-                         "build_inspect", "build_sites", "build_find", "build_pieces", "companions_build", "companions_sethome", "player_look", "build_check", "build_snaps", "build_usable"):
+                         "build_inspect", "build_sites", "build_find", "build_pieces", "companions_build", "companions_sethome", "player_look", "build_check", "build_snaps", "build_usable", "terrain_check", "build_hoe", "companions_level"):
             check("tools/list includes %s" % expected, expected in names)
 
         ping = rpc("tools/call", {"name": "devbridge_ping", "arguments": {}}, request_id=3)
@@ -195,6 +195,9 @@ def main():
             (37, "build_check", {"prefab": "woodwall", "x": 1, "y": 2, "z": 3, "yaw": 90}, "build.check"),
             (38, "build_snaps", {"prefab": "wood_roof_45"}, "build.snaps"),
             (39, "build_usable", {}, "build.usable"),
+            (41, "terrain_check", {"size": 8}, "terrain.check"),
+            (42, "build_hoe", {}, "build.hoe"),
+            (43, "companions_level", {"size": 8}, "companions.level"),
         ):
             reply = rpc("tools/call", {"name": tool, "arguments": arguments}, request_id=request_id)
             text = reply.get("result", {}).get("content", [{}])[0].get("text", "")

@@ -212,6 +212,19 @@ internal static class CompanionOrders
 				MHR_Collect.CancelAll();
 			}
 		}
+		// E10: the leveling job is also a one-shot order - any other order (or a "para") stops it. Without this the
+		// companion kept working the ground forever and the normal AI never ran again (player report: "ficou travado").
+		if (action != "level")
+		{
+			if (IsDirected(addressee))
+			{
+				MHR_Level.Cancel(addressee);
+			}
+			else
+			{
+				MHR_Level.CancelAll();
+			}
+		}
 
 		if (action == "come")
 		{
@@ -249,6 +262,13 @@ internal static class CompanionOrders
 		if (action == "build")
 		{
 			return Build(player, intent, userText, outcome, addressee, speaker);
+		}
+
+		// E10: leveling the ground on its own ("nivele um terreno 10x10 aqui") - the size comes from the player's words,
+		// and the job works the ground point by point, like a player with a hoe
+		if (action == "level")
+		{
+			return LevelOrder(player, userText, outcome, addressee, speaker);
 		}
 
 		// Fase 3.6: the orders that point at one creature or one item in the companion's pack. Fase 3.6b: the
@@ -1041,6 +1061,71 @@ internal static class CompanionOrders
 	/// at (<see cref="BuildFindCommand.Hint"/>) or 3 m ahead. The job itself (find, walk, pay, place, verify) is
 	/// <see cref="MHR_Build"/>.
 	/// </summary>
+	/// <summary>
+	/// E10: the leveling order - "nivele um terreno 10x10 aqui". The size is read from the player's own words (the model
+	/// has no size field), the spot is the one being looked at, and the leash of the build order applies. The job walks
+	/// to each point and swings the hoe there, so the ground goes down like a player working it.
+	/// </summary>
+	private static OrderOutcome LevelOrder(Player player, string userText, OrderOutcome outcome, CompanionSetup addressee, CompanionSetup speaker)
+	{
+		CompanionSetup target = IsDirected(addressee) ? addressee : speaker;
+		void Refuse(string text)
+		{
+			outcome.Message = text;
+			CompanionTalk talk = target != null ? target.GetComponent<CompanionTalk>() : null;
+			if (talk != null)
+			{
+				talk.Say(text, true, withVoice: false);
+			}
+		}
+		if (ModConfig.BuildEnabled != null && !ModConfig.BuildEnabled.Value)
+		{
+			Refuse(ModLocalization.Loc("hc_ai_build_disabled"));
+			return outcome;
+		}
+		float size = LevelIntent.Size(userText, 8f);
+		if (target == null)
+		{
+			return outcome;
+		}
+		if (!target.CanWearArmor())
+		{
+			outcome.RefusedCombatOnly++;
+			CompanionTalk refusal = target.GetComponent<CompanionTalk>();
+			if (refusal != null)
+			{
+				refusal.Say(ModLocalization.Loc(CombatOnlyKey), true, withVoice: false);
+			}
+			return outcome;
+		}
+		MHR_Owner.TakeControl(target);
+		Vector3 hint;
+		if (!BuildFindCommand.Hint(player, out hint))
+		{
+			Vector3 forward = player.transform.forward;
+			forward.y = 0f;
+			forward = forward.sqrMagnitude < 0.01f ? Vector3.forward : forward.normalized;
+			Vector3 flat = player.transform.position + forward * 3f;
+			float y = ZoneSystem.instance != null ? ZoneSystem.instance.GetGroundHeight(flat) : flat.y;
+			hint = new Vector3(flat.x, y, flat.z);
+		}
+		float max = ModConfig.BuildMaxDistanceFromHome != null ? ModConfig.BuildMaxDistanceFromHome.Value : 40f;
+		if (max > 0f && target.HasHomePosition() && Vector3.Distance(target.GetHomePosition(), hint) > max)
+		{
+			Refuse(string.Format(ModLocalization.Loc("hc_ai_build_too_far"), Mathf.RoundToInt(max)));
+			return outcome;
+		}
+		if (!MHR_Level.Start(target, hint, size))
+		{
+			Refuse(ModLocalization.Loc("hc_ai_build_failed"));
+			return outcome;
+		}
+		outcome.Count = 1;
+		outcome.LabelKey = "hc_ai_order_level";
+		outcome.LabelArg = Mathf.RoundToInt(size) + "x" + Mathf.RoundToInt(size);
+		return outcome;
+	}
+
 	private static OrderOutcome Build(Player player, LlmIntent intent, string userText, OrderOutcome outcome, CompanionSetup addressee, CompanionSetup speaker)
 	{
 		// the refusals of a build order must reach the BUBBLE too, not only the chat: the chat shows

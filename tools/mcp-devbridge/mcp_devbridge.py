@@ -442,6 +442,24 @@ TOOLS = [
         },
     },
     {
+        "name": "terrain_check",
+        "description": "How uneven is the ground over a square area? (E10: the sampling the build order does before leveling, with the median height it would level to).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"},
+                "size": {"type": "number", "description": "side of the square in metres (default 8)"},
+                "tolerance": {"type": "number"},
+            },
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "build_hoe",
+        "description": "The hoe's terrain pieces (the game's own leveling operations) and the prefab its attack spawns.",
+        "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
         "name": "build_check",
         "description": "Would the game accept this exact pose? (E6: the y is NOT snapped to the ground, so a wall on a floor can be checked).",
         "inputSchema": {
@@ -494,6 +512,19 @@ TOOLS = [
         "inputSchema": {
             "type": "object",
             "properties": {"name": {"type": "string", "description": "companion name; default: the first one"}},
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "companions_level",
+        "description": "Gives a companion a leveling job without the LLM (E10): it walks to each point of the area and swings the hoe there, pass by pass, until the ground is flat enough. It needs a hoe in its bag.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "size": {"type": "number", "description": "side of the square in metres (default 8)"},
+                "x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"},
+                "name": {"type": "string", "description": "companion name; default: the first one"},
+            },
             "additionalProperties": False,
         },
     },
@@ -974,6 +1005,14 @@ def run_tool(name, args):
             if key in args:
                 payload[key] = args[key]
         return require_ok(call_bridge("build.usable", **payload))
+    if name == "terrain_check":
+        payload = {"size": args.get("size", 8)}
+        for key in ("x", "y", "z", "tolerance"):
+            if key in args:
+                payload[key] = args[key]
+        return require_ok(call_bridge("terrain.check", **payload))
+    if name == "build_hoe":
+        return require_ok(call_bridge("build.hoe"))
     if name == "build_check":
         return require_ok(call_bridge("build.check", prefab=args["prefab"], x=args["x"], y=args["y"], z=args["z"],
                                       **({"yaw": args["yaw"]} if "yaw" in args else {})))
@@ -990,6 +1029,12 @@ def run_tool(name, args):
         if args.get("name"):
             payload["name"] = args["name"]
         return require_ok(call_bridge("companions.sethome", **payload))
+    if name == "companions_level":
+        payload = {"size": args.get("size", 8)}
+        for key in ("x", "y", "z", "name"):
+            if key in args:
+                payload[key] = args[key]
+        return require_ok(call_bridge("companions.level", **payload))
     if name == "companions_build":
         payload = {}
         if args.get("prefab"):

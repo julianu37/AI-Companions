@@ -79,6 +79,8 @@ internal static class Program
 		Build();
 		Section("(j) BuildTemplates - a estrutura por template (E6: cabana e abrigo)");
 		Templates();
+		Section("(k) LevelIntent - a ordem de nivelar o terreno (E10)");
+		Leveling();
 		CrossCheckDoorRule();
 
 		Out.WriteLine();
@@ -394,6 +396,38 @@ internal static class Program
 	/// Section (j): the templates of E6 - the aliases in the five languages, the build order (foundation, walls,
 	/// roof) and the composition of each structure. Pure, so it runs outside the game.
 	/// </summary>
+	/// <summary>
+	/// Section (k): the leveling order (E10) - the verb in the five languages and the size the player said. Pure, so it
+	/// runs outside the game.
+	/// </summary>
+	private static void Leveling()
+	{
+		// the request, in the five languages
+		Check("nivele um terreno 10x10 aqui", LevelIntent.IsRequest("nivele um terreno 10x10 aqui"));
+		Check("nivela o chão aí", LevelIntent.IsRequest("nivela o chão aí"));
+		Check("aplana o terreno", LevelIntent.IsRequest("aplana o terreno"));
+		Check("level the ground 12 by 12", LevelIntent.IsRequest("level the ground 12 by 12"));
+		Check("flatten the area", LevelIntent.IsRequest("flatten the area"));
+		Check("allana el terreno", LevelIntent.IsRequest("allana el terreno"));
+		Check("aplatir le terrain", LevelIntent.IsRequest("aplatir le terrain"));
+		Check("livella il terreno", LevelIntent.IsRequest("livella il terreno"));
+		// and what is NOT a leveling order
+		Check("bom dia, tudo bem? nao e nivelar", !LevelIntent.IsRequest("bom dia, tudo bem?"));
+		Check("constroi uma casa aqui nao e nivelar", !LevelIntent.IsRequest("constroi uma casa aqui"));
+		Check("colete 10 madeiras nao e nivelar", !LevelIntent.IsRequest("colete 10 madeiras"));
+		Check("null nao e nivelar", !LevelIntent.IsRequest(null));
+
+		// the size, in the ways the player writes it
+		CheckFloat("10x10 -> 10", 10f, LevelIntent.Size("nivele um terreno 10x10 aqui", 8f));
+		CheckFloat("6 x 6 -> 6", 6f, LevelIntent.Size("nivela o chão 6 x 6", 8f));
+		CheckFloat("12 por 12 -> 12", 12f, LevelIntent.Size("aplana 12 por 12", 8f));
+		CheckFloat("12 by 12 -> 12", 12f, LevelIntent.Size("level the ground 12 by 12", 8f));
+		CheckFloat("8m -> 8", 8f, LevelIntent.Size("nivela 8m aqui", 5f));
+		CheckFloat("sem tamanho -> o padrao", 8f, LevelIntent.Size("nivele o terreno aqui", 8f));
+		CheckFloat("numero pequeno demais nao vale", 8f, LevelIntent.Size("nivela 1x1", 8f));
+		CheckFloat("numero grande demais nao vale", 8f, LevelIntent.Size("nivela 99x99", 8f));
+	}
+
 	private static void Templates()
 	{
 		// the names, in the five languages

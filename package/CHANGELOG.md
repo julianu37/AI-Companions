@@ -72,6 +72,13 @@ its own bag, places the piece and confirms it works.
   (the top roof row sits 4.9 m above the feet). **Two new lines** came out of testing it: "I can't get to the {0}"
   (the spot is fine, the way to it is not - it used to say "no place for it") and "I'm carrying too much to
   build ({0}/{1})" (an encumbered companion cannot walk).
+- **Leveling the ground (E10):** "nivele um terreno 10x10 aqui" / "level the ground 12 by 12" / "aplana 12 por
+  12" - the companion takes the **hoe** and works the area the way a player does: it walks to the middle, turns to
+  each spot, swings and the ground goes down, pass by pass, until it is flat enough (measured: 1.06 m of variation
+  to 0.33 m in three passes, 165 s). The size comes from your words (10x10, 6 x 6, 12 by 12, 8 m; 8 m when you
+  don't say). A house also levels its spot first, picking the flattest corner around where you are looking. The
+  game's own leveling is a soft one (it moves the ground by at most ~1 m per operation), so a bank steeper than
+  1.2 m is refused instead of dug out. `[Building] LevelGround` (true) and `LevelTolerance` (0.2 m).
 - **New dev tooling:** `modia_build_probe [prefab] [radius]` and `modia_build_find [prefab] [radius]` in the game
   console, and the MCP tools `build_inspect`, `build_sites`, `build_find`, `build_pieces`, `companions_build`,
   `companions_sethome` and `player_look` (the build order takes its spot from your aim, so a test has to be

@@ -577,6 +577,12 @@ Only build with a hammer in the companion's bag. Off by default: the placement d
 **Quiet** — Default: Off  
 Do not make the placement noise (the game adds one when a piece goes up, which can pull creatures). Only the hand-written placement path is silenced; the vanilla Player.PlacePiece path keeps its noise.
 
+**LevelGround** — Default: On  
+Level the ground before a structure (a plan) when it is uneven: a house of 8x8 needs a flat area, and the walls and roof are all at the anchor's height. It uses the game's own leveling (the hoe's level operation) and needs a hoe in the companion's bag - without one it says so and the order ends.
+
+**LevelTolerance** — Default: 0.2 · Range: 0.05 – 2  
+How much height variation (meters) a build site may have before the ground is leveled. Measured: a floor is refused when the ground under it is more than ~0.3 m below the anchor.
+
 ## Gear Repair
 
 Repairing the companion's own weapons, armour and tools at a bench.

@@ -163,6 +163,10 @@ internal static class ModConfig
 	internal static ConfigEntry<bool> BuildUseChests;
 	internal static ConfigEntry<bool> BuildRequireHammer;
 	internal static ConfigEntry<bool> BuildQuiet;
+	/// <summary>E10: level the ground of a plan before the first piece (needs a hoe in the bag).</summary>
+	internal static ConfigEntry<bool> BuildLevelGround;
+	/// <summary>E10: how much height variation (metres) a build site may have before the ground is leveled.</summary>
+	internal static ConfigEntry<float> BuildLevelTolerance;
 
 	internal static ConfigEntry<float> TombstoneScanInterval;
 
@@ -934,6 +938,8 @@ internal static class ModConfig
 		BuildUseChests = Bind(cfg, "Building", "UseChests", true, "Take the missing materials from the chests it may use (a chest a player built, inside a ward that lets it in, not someone else's private chest, not open) before gathering. The bag is always used first.");
 		BuildRequireHammer = Bind(cfg, "Building", "RequireHammer", false, "Only build with a hammer in the companion's bag. Off by default: the placement does not need one (the game's own Player.PlacePiece does not check it).");
 		BuildQuiet = Bind(cfg, "Building", "Quiet", false, "Do not make the placement noise (the game adds one when a piece goes up, which can pull creatures). Only the hand-written placement path is silenced; the vanilla Player.PlacePiece path keeps its noise.");
+		BuildLevelGround = Bind(cfg, "Building", "LevelGround", true, "Level the ground before a structure (a plan) when it is uneven: a house of 8x8 needs a flat area, and the walls and roof are all at the anchor's height. It uses the game's own leveling (the hoe's level operation) and needs a hoe in the companion's bag - without one it says so and the order ends.");
+		BuildLevelTolerance = Bind(cfg, "Building", "LevelTolerance", 0.2f, "How much height variation (meters) a build site may have before the ground is leveled. Measured: a floor is refused when the ground under it is more than ~0.3 m below the anchor.", new AcceptableValueRange<float>(0.05f, 2f));
 		// [GearRepair]
 		RepairDurabilityThreshold = Bind(cfg, "GearRepair", "DurabilityThreshold", 0.5f, "A companion takes its gear to a crafting station to repair it when something drops below this share of durability (0.5 = 50%).", new AcceptableValueRange<float>(0.1f, 0.9f));
 		RepairHomeThreshold = Bind(cfg, "GearRepair", "HomeThreshold", 0.8f, "At home (or, without a home set, inside a base - a workbench's area), gear is repaired a bit sooner: below this share (0.8 = 80%). 1 = at any wear. Away from home DurabilityThreshold applies.", new AcceptableValueRange<float>(0.1f, 1f));

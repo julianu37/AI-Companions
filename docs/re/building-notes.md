@@ -512,3 +512,54 @@ todas `mine=True`, `zdo=True`, `health=1.00`.
 
 **Custo da casa:** 123 unidades de madeira (16x2 pisos + 14x2 paredes + 10 bancada + 1 meia-parede + 16x2 telhados +
 8x2 empenas + 4 porta). **Tempo:** a resolução do plano leva ~35 s (56 poses com o fantasma) e a obra ~5-8 min.
+
+
+---
+
+## 13. E10 - nivelar o terreno com a enxada (medido em 01/11/2026)
+
+**Como o jogo nivela (decompilado 1.0.20):** a enxada não tem uma operação de "level" duro. O menu dela é uma
+`PieceTable` com 7 peças; a de **"Nivelar"** (`$piece_levelground`) é o prefab `mud_road_v2`, cujo `TerrainOp` tem
+`m_smooth = true` (**raio 3, potência 3**) e o paint. Dos **28** `TerrainOp` registrados no `ObjectDB`, **nenhum** tem
+`m_level = true` - o único caminho é o **soft**.
+
+O `TerrainComp.SmoothTerrain` puxa cada vértice do heightmap para a **altura do ponto** com queda por distância
+(`t = 1 - (d/r)^3`), com o delta **limitado a ±1 m por operação**; a operação aplica no `Awake` (instanciar o prefab),
+vai por `RPC_ApplyOperation` e o heightmap **assenta em ~0,5 s** (medido: a variação não muda mais depois disso).
+
+### O que funciona e o que não funciona (medido)
+
+| tentativa | resultado |
+|---|---|
+| **grid espaçado no raio** (9 ops num 9,5 m), 1 passada | 1,01 → 0,76 m ✓ |
+| 4 passadas do mesmo grid | → 0,39 m ✓ (convergindo) |
+| **grid denso** (1,5 m, 49 ops), 1 passada | 0,55 → 0,95 m ✗ |
+| 4 passadas do grid denso | → 1,33 → 2,01 m ✗ (as operações **brigam** entre si) |
+| alvo = altura **máxima** (só levantar) | também divergiu ✗ |
+| banco de **3 m** | estaciona em ~1,35 m ✗ (o ±1 m do soft não vence) |
+
+**A regra:** o grid é **espaçado pelo raio** (sem sobreposição), o alvo é a **mediana**, e a variação máxima aceita é
+**1,2 m** - acima disso a ordem recusa (`hc_ai_build_too_steep`) em vez de cavar um buraco.
+
+### O job (`Jobs/MHR_Level.cs`) - "nivele um terreno 10x10 aqui"
+
+- **Tamanho da mensagem:** `LevelIntent.Size` lê "10x10", "6 x 6", "12 por 12", "12 by 12", "8m", "8 metros" (2..40 m;
+  sem tamanho = 8). O `IsRequest` casa o verbo nos 5 idiomas (nivele/nivela/nivelar, level, flatten, allana, aplatir,
+  livella...).
+- **Trabalha de UM lugar:** anda até o **centro** da área e daí gira e bate a enxada em cada ponto (a operação é
+  colocada **no ponto**, a até ~5 m - o alcance de colocação do jogo). **Andar até cada ponto não funciona:** o
+  `MHR_Mover` desiste dos pontos atrás de uma lomba/peça e o jogador viu o companheiro **tremendo no lugar**
+  ("can't reach point N").
+- **Cara de jogador:** vira para o ponto, dispara a animação de ataque da **enxada** (`ZSyncAnimation.SetTrigger`) e
+  **0,45 s** depois a operação cai; o próximo ponto. Cada passada é uma volta completa; até **10 passadas** ou a
+  tolerância (`[Building] LevelTolerance`, **0,2 m**).
+- **É ordem de um tiro:** qualquer outra ordem (ou um "para") cancela - sem isso o companheiro ficava preso (o
+  `Drive` devolvia `true` e o AI normal nunca mais rodava: "ficou todo travado").
+- **Sem enxada:** `hc_ai_build_no_hoe`; já plano: `hc_ai_level_already`; fim: `hc_ai_level_done` com a variação.
+
+**Aceite medido:** numa área de 8 m com **1,06 m** de variação, o companheiro nivelou em **3 passadas** -
+1,06 → 0,62 → 0,44 → **0,33 m** - em **165 s**, andando até o meio e batendo a enxada ponto por ponto
+(`order ended: hc_ai_level_done`). O jogador: *"parece que melhorou bastante a terraplanagem"*.
+
+**A casa usa o mesmo caminho (E6):** `MHR_Build` tem uma fase `Level` antes do `FindAnchor` - escolhe o canto **mais
+plano** dos 9 candidatos, nivela com a enxada (passadas de 1,5 s) e só então procura o local da obra.
