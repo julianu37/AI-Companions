@@ -70,6 +70,9 @@ stopped.
 - **A hop to reach a beam just above the 5 m rule** (player's idea, 03/11/2026): with the feet in place and the piece up to
   1 m beyond the reach, the companion **jumps** and places it in the air - the eye goes up with the body, the same 5 m rule
   then covers it, exactly like a player placing a roof beam. 0,9 s cooldown.
+- **...of the whole build, not of the storey** (player's report right after: "he built the ground floor doors while still
+  working on the ground floor"): with the doors at the end of their storey, the ground floor door was already there for the
+  rest of the work. Doors/gates are now the **last thing of the entire build**, whatever the storey.
 - **Doors and gates are the last pieces** (player's suggestion, 03/11/2026: "he wastes time opening and closing them"): a
   door placed with the walls is a door the companion opens and closes on every trip through the house while the work goes
   on. Doors/gates now go in **after the roof**, so the doorway stays an open hole until the end - the same rule the

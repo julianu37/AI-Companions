@@ -115,7 +115,11 @@ internal static class BuildBlueprintParser
 			}
 		}
 		return pieces
-			.OrderBy(delegate (Line piece) { return StoreyOf(floors, piece); })
+			// E7 (player's report, 03/11/2026: "he built the ground floor doors while still working on the ground floor"):
+			// doors and gates are the LAST thing of the WHOLE BUILD, not of the storey - a door that exists is a door he
+			// opens and closes on every trip for the rest of the work. The class 4 (doors) goes after every storey.
+			.OrderBy(delegate (Line piece) { return ClassOf(piece.Prefab) == 4 ? 1 : 0; })
+			.ThenBy(delegate (Line piece) { return StoreyOf(floors, piece); })
 			.ThenBy(delegate (Line piece) { return ClassOf(piece.Prefab); })
 			.ThenBy(delegate (Line piece) { return piece.Py; })
 			.ToList();

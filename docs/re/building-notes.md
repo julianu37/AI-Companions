@@ -966,6 +966,12 @@ tratamento de porta do mover e para atravessar, nao para ficar aberta). E a mesm
 3 telhado, **4 porta/portao**). Durante a obra o vao da porta fica **aberto** (parede em volta segura o conjunto) e a
 porta entra no fim - sem abrir/fechar, sem tempo perdido e sem risco de trancar.
 
+**Correcao (relato do jogador, 03/11/2026: "ele fez as portas no terreo enquanto trabalha no terreo"):** a primeira versao
+da regra punha porta/portao no fim **do andar** (classe 4 dentro do andar), o que ainda deixava a porta do terreo fechada
+durante o resto da obra. Agora `door`/`gate` sao a **ultima coisa da OBRA inteira**: o `Ordered` ordena primeiro por
+"e porta? 0/1" e so depois por andar/classe/altura - as portas de todos os andares entram no fim, quando ninguem mais
+precisa atravessar.
+
 ### 15.2k A obra anda ANDAR POR ANDAR + o pulinho do alcance (03/11/2026)
 
 Dois achados do mesmo teste (screenshot do jogador: paredes do terreo de pe, escada grande a direita e o vao do 2o piso

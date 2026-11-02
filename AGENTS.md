@@ -1221,6 +1221,9 @@ comandos de console e spawna coisas, então não é feature de jogador.
   **Escadinha no vazio + queda em loop (03/11/2026):** o salão de pé-direito duplo não tem piso no nível 2, a escadinha do
   plano terminava no vazio e ele **subia e caía até morrer**. Agora `HasLanding` sonda o topo (o ponto + anel de 0,6 m) e
   **não coloca** a escada sem piso do outro lado, e **duas quedas (>0,8 m/frame) na mesma peça** a pulam. Falta o andar
+  **Porta/portão são o último item da OBRA (relato "ele fez as portas no térreo enquanto trabalha no térreo", 03/11/2026):**
+  a classe 4 valia só dentro do andar; agora o `Ordered` ordena "é porta? 0/1" **antes** do andar — as portas de todos os
+  andares entram no fim de tudo.
   **Erro nosso corrigido (relato "ele não fez a escada"):** a guarda `HasLanding` **pulava** a escadinha sem piso no topo
   (`Skipped++`) e a casa terminava sem ela. Agora ela vai para o **retry** (`top has no floor yet`) e é colocada no retry pass,
   quando o piso de cima existe; só depois de 3 passadas sem piso ela é pulada.
