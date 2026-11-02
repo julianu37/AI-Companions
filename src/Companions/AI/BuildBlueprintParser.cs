@@ -108,7 +108,7 @@ internal static class BuildBlueprintParser
 	}
 
 	/// <summary>0 = ground (floors, foundations, the workbench), 1 = the way UP (stairs, stepladders, ladders), 2 = what
-	/// stands on it (walls, beams, poles, doors, furniture), 3 = roofs and gables.</summary>
+	/// stands on it (walls, beams, poles, furniture), 3 = roofs and gables, 4 = doors and gates (LAST).</summary>
 	internal static int ClassOf(string prefab)
 	{
 		string name = (prefab ?? string.Empty).ToLowerInvariant();
@@ -132,6 +132,14 @@ internal static class BuildBlueprintParser
 		if (name.IndexOf("roof", StringComparison.Ordinal) >= 0)
 		{
 			return 3;      // includes wood_wall_roof_45 / _top (a gable is roof)
+		}
+		// E7 (player's suggestion, 03/11/2026: "leave each floor's doors for last - he wastes time opening and closing them"):
+		// a door placed early is a door he opens and closes on every trip through the house. Placed LAST (after the roof)
+		// the doorway is an open hole while the work goes on and the door goes in at the end - the same rule the templates
+		// already follow (the door is always the last piece, or the companion locks itself inside).
+		if (name.IndexOf("door", StringComparison.Ordinal) >= 0 || name.IndexOf("gate", StringComparison.Ordinal) >= 0)
+		{
+			return 4;
 		}
 		return 2;
 	}

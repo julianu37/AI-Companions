@@ -49,6 +49,10 @@ stopped.
   house/blueprint only happened on "leveled" or "already flat", so a site that stopped at 0,30 m against the 0,20 m
   tolerance ended the whole order without a single piece. A failed leveling now hands the order back too, and the build
   goes on with the ground it has (the pieces that do not fit are retried).
+- **Doors and gates are the last pieces** (player's suggestion, 03/11/2026: "he wastes time opening and closing them"): a
+  door placed with the walls is a door the companion opens and closes on every trip through the house while the work goes
+  on. Doors/gates now go in **after the roof**, so the doorway stays an open hole until the end - the same rule the
+  templates already follow.
 - **Stairs and ladders are built before the walls** (player's report, 03/11/2026: "he is having problems doing the 2nd floor
   - he forgot the ladder part"): the way up shared the walls' class, which is ordered by height, so the walls around the
   ladder shaft went up first and closed it - the companion stood 2,8 m from the foot of a ladder it had just built and

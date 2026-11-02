@@ -1210,7 +1210,9 @@ comandos de console e spawna coisas, então não é feature de jogador.
   **Escada antes das paredes (03/11/2026):** `ClassOf` tinha escada/escadinha na **mesma classe das paredes** (ordenada por
   altura), então as paredes fechavam o poço antes da escadinha de cima e o companheiro ficava **preso a 2,8 m do pé** dela
   (`stuck on ladder 1/2`), sem chegar ao 2º/3º piso. Agora a ordem é **piso → escada/escadinha → paredes → telhado**
-  (classes 0/1/2/3) — 787/983 com as peças de cima pendentes para o retry pass.
+  **Porta/portão por último (sugestão do jogador, 03/11/2026):** classe **4** (`door`/`gate`), depois do telhado — durante a
+  obra o vão fica aberto e o `MHR_Mover` não abre/fecha a porta a cada passagem (mesma regra dos templates, onde a porta é
+  sempre a última peça).
   **"Tremendo e parou" (03/11/2026):** `MHR_Build.Active`/`MHR_Level.Active` comparavam o `GetInstanceID()` do **componente**
   chamador com um dicionário chaveado pelo do **`CompanionAI`** — nunca casava, o `OtherOrder` respondia false durante a obra
   e o **job de ócio andava junto** (dois `MHR_Mover` no mesmo corpo). Agora `StateOf`/`Owner` resolvem o `CompanionAI` do

@@ -955,6 +955,17 @@ inalcancaveis: `couldn't get to (-152,2, 47,8, -421,7) from (-152,7, 38,9, -422,
 maneira de subir** -> paredes -> telhado. Medido no mesmo teste: 787/983 com as pecas de cima pendentes (o retry pass
 tenta-las de novo no fim).
 
+### 15.2j Porta e portao por ULTIMO (sugestao do jogador, 03/11/2026)
+
+"No deixar as portas de cada andar por ultimo, ja que ele perde tempo abrindo e fechando toda hora". Correto: uma porta
+posta na fase das paredes vira uma porta que o `MHR_Mover` **abre e fecha em cada passagem** durante o resto da obra (o
+tratamento de porta do mover e para atravessar, nao para ficar aberta). E a mesma regra que os **templates** ja seguem
+(a porta e sempre a ultima peca, senao o companheiro se tranca dentro).
+
+**Correcao:** `ClassOf` ganhou a classe **4** para `door`/`gate`, depois do telhado (0 piso, 1 escada, 2 paredes,
+3 telhado, **4 porta/portao**). Durante a obra o vao da porta fica **aberto** (parede em volta segura o conjunto) e a
+porta entra no fim - sem abrir/fechar, sem tempo perdido e sem risco de trancar.
+
 ### 15.3 Medido em jogo (02/11/2026)
 
 | arquivo | pecas | resultado |
