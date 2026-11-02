@@ -913,6 +913,16 @@ ou `GetComponent`) e usam o id dele; `Active`/`Cancel` passam por ali nos dois j
 **true** durante a obra (todos os jobs param, como o desenho sempre disse) e o **harvest ganhou uma unica excecao**: com
 `MHR_Build.Clearing(c)` verdadeiro (fase `Clear`) ele e a ferramenta da limpeza e continua trabalhando.
 
+### 15.2h O nivelamento que nao converge para de andar (03/11/2026)
+
+No teste seguinte o `[Level]` rodou **5 passadas de 24 s** com a mesma variacao (`0,26 m` -> `0,26 m` -> `0,26 m`) e ia
+ate a `MaxPasses = 10` (~4 min) porque o `NextPass` so parava em "flat" ou no teto de passadas - o "para quando nao
+melhora" estava escrito na doc do job mas **nao no codigo**. O nivelar do jogo e um **smooth com teto por operacao**:
+o terreno converge para um piso e nao desce mais. Agora o `NextPass` guarda a variacao da passada anterior
+(`State.LastVariation`/`Stalled`) e **duas passadas seguidas sem ganho** (>= 0,02 m de folga) encerram com
+`hc_ai_level_failed` ("no improvement"), deixando a obra seguir (o `StartBlueprint` ja tem o guarda de 90 s e constroi
+mesmo assim, com as pecas que nao couberem no retry).
+
 ### 15.3 Medido em jogo (02/11/2026)
 
 | arquivo | pecas | resultado |

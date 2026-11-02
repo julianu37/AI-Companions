@@ -65,6 +65,10 @@ internal static class MHR_Level
 		internal List<Vector3> Points;
 		internal Phase Phase;
 		internal float WorkUntil;
+		/// <summary>E10 (player's test, 03/11/2026): the variation of the last pass and how many passes in a row gained
+		/// nothing - the soft level has a floor and the job must stop at it, not walk the grid 10 times.</summary>
+		internal float LastVariation = -1f;
+		internal int Stalled;
 		internal float WorkAt;
 	}
 
@@ -379,9 +383,28 @@ internal static class MHR_Level
 			Finish(ai, state, "hc_ai_level_done", null, (max - min).ToString("F1"));
 			return false;
 		}
+		// E10 (measured 03/11/2026: five passes of 24 s stuck at 0,26 m): the game's level is a smooth with a cap per
+		// operation, so a ground converges to a floor and then does not move. Two passes in a row without a gain mean
+		// "this is as flat as it gets here" - stop and let the build go on (the pieces that do not fit are retried).
+		float variation = max - min;
+		if (state.LastVariation > 0f && variation >= state.LastVariation - 0.02f)
+		{
+			state.Stalled++;
+		}
+		else
+		{
+			state.Stalled = 0;
+		}
+		state.LastVariation = variation;
+		if (state.Stalled >= 2)
+		{
+			Log(ai, "the ground does not get flatter (" + variation.ToString("F2") + " m, " + state.Stalled + " pass(es) without a gain) - stopping");
+			Finish(ai, state, "hc_ai_level_failed", "no improvement", variation.ToString("F1"));
+			return false;
+		}
 		if (state.Pass >= MaxPasses)
 		{
-			Finish(ai, state, "hc_ai_level_failed", "still uneven", (max - min).ToString("F1"));
+			Finish(ai, state, "hc_ai_level_failed", "still uneven", variation.ToString("F1"));
 			return false;
 		}
 		state.Pass++;

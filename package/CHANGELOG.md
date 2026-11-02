@@ -40,6 +40,9 @@ stopped.
   blamed the spot. It now compares the real weight with the carry ceiling and says `hc_ai_build_too_heavy`.
   Measured right after: with **120 wood (240 of 300 weight)** the same 985-piece blueprint **walked and built 60 pieces**
   in ~3 minutes (all supported) before handing the order to the gather for the rest.
+- **Leveling stops when the ground stops getting flatter** (measured, 03/11/2026): the hoe's level is a smooth with a cap per
+  operation, so a site converges to a floor - the job kept walking the whole grid for its 10 passes (5 x 24 s at the same
+  0,26 m). Two passes in a row without a gain now end the leveling and the build goes on.
 - **A missing workbench is fixed on the spot** (player's report, 03/11/2026): the station pass reads the world as it is when
   the order starts, so a bench destroyed later (or simply far from a 32 m site) left pieces refused with `needs_station`
   forever - they were only retried. Now the piece that is refused **gets a workbench inserted right before it**, found at a
