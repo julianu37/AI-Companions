@@ -101,49 +101,24 @@ internal static class BuildBlueprintParser
 		{
 			return new List<Line>();
 		}
-		// E7 (player's report, 03/11/2026: "he didn't build the 2nd floor - he is already putting up the roof frame"): the
-		// plan is ordered **one storey at a time**. Sorting by class first put EVERY floor of the house (ground, 2nd, 3rd)
-		// in the first pass - and the upper ones are refused with no_support until the walls below exist, so they all fell
-		// to the retry pass at the END, and the roof went up before the floor it stands on. The storey of a piece is the
-		// last FLOOR at or below it, which is exactly how a player builds a house.
-		List<float> floors = new List<float>();
+		// E7 (player's report, 03/11/2026: "in this hall the 2nd floor is really the 3rd - he climbs the ladder and falls"):
+		// the plan is ordered **one storey at a time**, and the storey of a piece is the highest FLOOR **near it** (3 m in
+		// XZ, then 8 m) that is under it - not the highest floor of the whole building. In a double-height hall there is no
+		// floor at the mid level where the ladder is, so the ladder stands on the ground floor and is placed with it.
+		List<Line> floors = new List<Line>();
 		foreach (Line piece in pieces)
 		{
-			if (piece != null && piece.Prefab != null && ClassOf(piece.Prefab) == 0
+			if (piece != null && piece.Prefab != null
 				&& piece.Prefab.IndexOf("floor", StringComparison.OrdinalIgnoreCase) >= 0)
 			{
-				floors.Add(piece.Py);
+				floors.Add(piece);
 			}
 		}
-		floors.Sort();
-		float[] levels = floors.ToArray();
 		return pieces
-			.OrderBy(delegate (Line piece) { return StoreyOf(levels, piece.Py); })
+			.OrderBy(delegate (Line piece) { return StoreyOf(floors, piece); })
 			.ThenBy(delegate (Line piece) { return ClassOf(piece.Prefab); })
 			.ThenBy(delegate (Line piece) { return piece.Py; })
 			.ToList();
-	}
-
-	/// <summary>Which storey a piece belongs to: the last floor at or below it (0 when there is no floor below).</summary>
-	internal static int StoreyOf(float[] floors, float y)
-	{
-		if (floors == null || floors.Length == 0)
-		{
-			return 0;
-		}
-		int storey = 0;
-		for (int i = 0; i < floors.Length; i++)
-		{
-			if (y + 0.6f >= floors[i])
-			{
-				storey = i;
-			}
-			else
-			{
-				break;
-			}
-		}
-		return storey;
 	}
 
 	/// <summary>0 = ground (floors, foundations, the workbench), 1 = the way UP (stairs, stepladders, ladders), 2 = what
@@ -159,11 +134,6 @@ internal static class BuildBlueprintParser
 		{
 			return 0;
 		}
-		// E7 (player's report, 03/11/2026: "he is having problems doing the 2nd floor - he forgot the ladder part"): the
-		// STAIRS AND LADDERS are their own class and come right after the floors, BEFORE the walls. They used to share the
-		// walls' class, which is ordered by height - so the walls around the ladder shaft went up first and closed it, and
-		// the companion could not reach the foot of the ladder it had just built ("stuck on ladder 1/2 ... looking again",
-		// measured: 2,8 m from the foot, behind a wood_wall_half).
 		if (name.IndexOf("stair", StringComparison.Ordinal) >= 0 || name.IndexOf("ladder", StringComparison.Ordinal) >= 0)
 		{
 			return 1;
@@ -172,15 +142,58 @@ internal static class BuildBlueprintParser
 		{
 			return 3;      // includes wood_wall_roof_45 / _top (a gable is roof)
 		}
-		// E7 (player's suggestion, 03/11/2026: "leave each floor's doors for last - he wastes time opening and closing them"):
-		// a door placed early is a door he opens and closes on every trip through the house. Placed LAST (after the roof)
-		// the doorway is an open hole while the work goes on and the door goes in at the end - the same rule the templates
-		// already follow (the door is always the last piece, or the companion locks itself inside).
 		if (name.IndexOf("door", StringComparison.Ordinal) >= 0 || name.IndexOf("gate", StringComparison.Ordinal) >= 0)
 		{
-			return 4;
+			return 4;      // last: the doorway stays open while the work goes on (the templates already do this)
 		}
 		return 2;
+	}
+
+	/// <summary>
+	/// The height of the floor a piece stands on: the highest floor under it within 3 m in XZ (a player builds around him),
+	/// then within 8 m, and only as a last resort the highest floor anywhere below - that last one is what made the hall of
+	/// the player's blueprint put the ladder at a level with no floor (<c>falling off the ladder in a loop</c>).
+	/// </summary>
+	internal static float StoreyOf(List<Line> floors, Line piece)
+	{
+		if (floors == null || floors.Count == 0 || piece == null)
+		{
+			return 0f;
+		}
+		float near = float.MinValue;
+		float mid = float.MinValue;
+		float anywhere = float.MinValue;
+		foreach (Line floor in floors)
+		{
+			if (floor == null || floor.Py > piece.Py + 0.6f)
+			{
+				continue;
+			}
+			if (floor.Py > anywhere)
+			{
+				anywhere = floor.Py;
+			}
+			float dx = floor.Px - piece.Px;
+			float dz = floor.Pz - piece.Pz;
+			float square = dx * dx + dz * dz;
+			if (square <= 9f && floor.Py > near)
+			{
+				near = floor.Py;          // 3 m
+			}
+			if (square <= 64f && floor.Py > mid)
+			{
+				mid = floor.Py;           // 8 m
+			}
+		}
+		if (near > float.MinValue)
+		{
+			return near;
+		}
+		if (mid > float.MinValue)
+		{
+			return mid;
+		}
+		return anywhere > float.MinValue ? anywhere : 0f;
 	}
 
 	private static Line ParseLine(string line)

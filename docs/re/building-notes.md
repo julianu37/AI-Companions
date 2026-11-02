@@ -1004,6 +1004,13 @@ duplo**: naquela area **nao existe piso no nivel 2** (o "2o piso" do blueprint a
 
 O companheiro **morreu** no loop e voltou sozinho (respawn do mod) - o `companions.list` mostrou `dead: false`, 25/25.
 
+**Corrigido em seguida (03/11/2026): o andar e POR AREA.** `StoreyOf` passou a receber a lista de pisos e a peca: o andar
+e o **piso mais alto abaixo dela a ate 3 m em XZ** (um jogador constroi em volta dele), depois ate **8 m**, e so como
+ultimo recurso o piso mais alto do predio abaixo. Num **salao de pe-direito duplo** a escadinha do nivel intermediario
+tem, a 3/8 m, apenas o **piso do terreo** - entao ela entra junto com o terreo e o piso do 3o nivel nasce depois, na ordem
+certa ("ele deveria comecar a fazer o piso a partir da escada"). O `ClassOf` continua dentro do andar: piso -> escada ->
+parede -> telhado -> porta.
+
 **Ainda em aberto (proximo passo):** o andar de uma peca hoje e o ultimo `floor` do **predio inteiro** abaixo dela; num
 salao isso mente (a escadinha do nivel 2 tem piso do terreo abaixo, mas nao do lado). O certo e o andar **por area**
 (ultimo piso a ~2 m em XZ da peca), que e o que faria o piso nascer a partir da escada, como o jogador pediu.

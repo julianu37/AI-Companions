@@ -1221,7 +1221,8 @@ comandos de console e spawna coisas, então não é feature de jogador.
   **Escadinha no vazio + queda em loop (03/11/2026):** o salão de pé-direito duplo não tem piso no nível 2, a escadinha do
   plano terminava no vazio e ele **subia e caía até morrer**. Agora `HasLanding` sonda o topo (o ponto + anel de 0,6 m) e
   **não coloca** a escada sem piso do outro lado, e **duas quedas (>0,8 m/frame) na mesma peça** a pulam. Falta o andar
-  **por área** (o último piso a ~2 m em XZ, não o do prédio inteiro) — é o que faz o piso nascer a partir da escada.
+  **Andar POR ÁREA (03/11/2026):** `StoreyOf` passou a usar o **piso mais alto abaixo da peça a até 3 m em XZ** (depois 8 m,
+  e só então o prédio inteiro) — no salão de pé-direito duplo a escadinha entra com o térreo e o piso nasce a partir dela.
   **"Tremendo e parou" (03/11/2026):** `MHR_Build.Active`/`MHR_Level.Active` comparavam o `GetInstanceID()` do **componente**
   chamador com um dicionário chaveado pelo do **`CompanionAI`** — nunca casava, o `OtherOrder` respondia false durante a obra
   e o **job de ócio andava junto** (dois `MHR_Mover` no mesmo corpo). Agora `StateOf`/`Owner` resolvem o `CompanionAI` do
