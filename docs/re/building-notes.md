@@ -736,6 +736,12 @@ que você construiu). O mod **não** precisa do PlanBuild para ler nenhum deles.
 As grandes (4554/1244/505/184 peças) e as fixtures do PlanBuild ficaram em `blueprints\grandes\` e
 `blueprints\teste\` - o mod **não lê subpasta**, então elas não aparecem nas ordens.
 
+**Caso pendente (o jogador perguntou em 02/11/2026):** o `Community starter home` (Nexus 1807) é um `.blueprint` de
+**2022** com peças vanilla e baús/camas de mobília - o leitor aceita o formato (V1/V2) e baú/cama são `Piece`; o que
+pode acontecer é alguma linha usar um prefab que mudou desde então (ela é **pulada e contada**, não derruba a build). O
+download é do jogador (login no Nexus e a licença **proíbe redistribuir** o arquivo); o teste em jogo ainda não foi
+feito.
+
 **Onde os arquivos ficam:** `BepInEx/config/AI-Companions/blueprints/` (o mod cria a pasta). A ordem usa o **nome do
 arquivo** sem a extensao ("construa a hs_meadows_hut aqui"), porque o `#Name:` de muitas builds e "Custom Name".
 
