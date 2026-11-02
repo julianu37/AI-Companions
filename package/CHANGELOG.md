@@ -49,6 +49,12 @@ stopped.
   house/blueprint only happened on "leveled" or "already flat", so a site that stopped at 0,30 m against the 0,20 m
   tolerance ended the whole order without a single piece. A failed leveling now hands the order back too, and the build
   goes on with the ground it has (the pieces that do not fit are retried).
+- **The placement reach is the game's own again** (player's report, 03/11/2026: "he is still struggling to place a piece on
+  the high roof"): the companion refused to place a gable top **15 cm** outside the mod's old flat cap (3,0 m) while the
+  game allows 5 m from the eye. The flat cap is now 4,5 m and the eye rule (5 m) is what decides.
+- **A ladder comes back into the plan as soon as its floor exists** (player's question, 03/11/2026: "why is there no
+  ladder here yet?"): a ladder deferred with "top has no floor yet" waited for the final retry pass - the last piece of a
+  985-piece house. Every floor placed now brings the deferred ladders that already have a landing right back into the plan.
 - **The build survives the companion's death** (player's report, 03/11/2026: "it fell and died, and the build did not go on"):
   a build order used to die with the companion - after the respawn it came back in Follow and the house stood half built.
   The plan (piece, anchor, rotation, retry queue) now waits for the respawn and the order **resumes at the same piece**;

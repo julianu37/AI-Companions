@@ -1062,6 +1062,41 @@ mesma peca, ancora e rotacao** pelo `ResumeBlueprint`/`StartPlan(..., anchorKnow
 Logs: `it died during the build - the order resumes after the respawn (piece N/M)` e `back from the dead - resuming the
 build at piece N`. Um `stop` do jogador continua **derrubando** o pending (`Cancel` limpa `s_pending`).
 
+### 15.2o O alcance da colocacao era menor que o do jogo (03/11/2026)
+
+Relato do jogador: *"ele ainda esta apanhando tentando colocar uma peca no teto alto"*. O log da peca presa dizia
+`no progress towards the wood_wall_roof_top_45 for 12 s (3,3 m away)` - ou seja, ele estava a **3,3 m em 3D** (3,15 m
+na horizontal, ~1 m abaixo da peca) e o teste do proprio mod recusava colocar. A regra era **dupla**:
+
+```csharp
+bool inReach = flat <= Reach + 0.5f && Vector3.Distance(eye, state.Pos) <= MaxPlace;   // 3,0 m planos + 5 m do olho
+```
+
+O jogo coloca a peca a ate **5 m do OLHO** (`Player.m_maxPlaceDistance`), e o companheiro ainda tem 1,5 m de olho
+acima dos pes: um beiral 1 m acima dos pes, a 3,15 m na horizontal, esta **dentro** da regra do jogo (distancia do
+olho ~3,3 m) e era recusado por **15 cm** no limite plano - e ele andava em circulos 12 s ate o retry. **Correcao:**
+o limite plano passou a ser `MaxPlace - 0,5` (**4,5 m**) e a regra do olho continua sendo a do jogo (5 m). O `Reach`
+(2,5 m) segue sendo so a distancia que o `MHR_Mover` usa para **parar** de andar - ele nao limita mais a colocacao.
+O "pulinho" (pe da peca + 1 m) continua com o limite antigo (so de perto).
+
+### 15.2p A escadinha volta para o plano assim que o piso existe (03/11/2026)
+
+Pergunta do jogador com screenshot: *"pq nao tem escada aqui ainda?"*. As 4 `wood_stepladder` do plano foram adiadas
+com `top has no floor yet` (o piso de cima ainda nao existia) e iam para o **retry pass final** - que so roda depois da
+**ultima** peca de uma casa de 985 (5 h de obra), entao a casa inteira subia **sem escada nenhuma**. Agora, **sempre
+que um piso e colocado**, o `RequeueLadders` varre a fila de retry e devolve ao plano (logo depois da peca atual) as
+escadas que ja tem pouso (`HasLanding`), com a linha `N ladder(s) have their floor now - back in the plan`.
+
+**Medido com `build.snaps` no jogo (03/11/2026)** - os snaps locais das duas pecas de subida:
+
+| prefab | snaps de baixo | snaps de cima | sobe para | ganho |
+|---|---|---|---|---|
+| `wood_stair` | y=0, z=+1 | y=1, z=-1 | **-Z** local | +1 m |
+| `wood_stepladder` | y=0, z=+1 | y=2, z=-1 | **-Z** local | **+2 m** |
+
+Consequencia para qualquer andaime: a peca tem que ser girada com o **-Z virado para a peca alvo**
+(`rot = LookRotation(ponto - peca)`), senao ela sobe para o lado contrario.
+
 ### 15.3 Medido em jogo (02/11/2026)
 
 | arquivo | pecas | resultado |

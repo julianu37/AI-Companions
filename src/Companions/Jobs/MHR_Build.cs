@@ -1239,6 +1239,43 @@ internal static class MHR_Build
 	}
 
 	/// <summary>
+	/// E7 (player's question, 03/11/2026: "why is there no ladder here yet?"): a ladder deferred with "top has no floor
+	/// yet" waited for the FINAL retry pass - which only runs after the last piece of a 985-piece house, so the house was
+	/// built for hours without a single ladder. As soon as a <b>floor</b> goes up, every deferred ladder whose landing now
+	/// exists goes back into the plan right after the piece being built: the companion can climb to the storey it is
+	/// working on instead of getting the ladder at the end.
+	/// </summary>
+	private static void RequeueLadders(CompanionAI ai, State state)
+	{
+		if (state.Plan == null || state.Retry == null || state.Retry.Count == 0)
+		{
+			return;
+		}
+		int insertAt = state.Index + 1;
+		int back = 0;
+		for (int i = state.Retry.Count - 1; i >= 0; i--)
+		{
+			PlannedStep step = state.Retry[i];
+			if (step == null || !IsLadderPrefab(step.Prefab) || !HasLanding(step.Pos))
+			{
+				continue;
+			}
+			state.Retry.RemoveAt(i);
+			if (insertAt > state.Plan.Count)
+			{
+				insertAt = state.Plan.Count;
+			}
+			state.Plan.Insert(insertAt, step);
+			insertAt++;
+			back++;
+		}
+		if (back > 0)
+		{
+			Log(ai, back + " ladder(s) have their floor now - back in the plan");
+		}
+	}
+
+	/// <summary>
 	/// E7 (test of 03/11/2026): is there <b>floor under the top of a ladder</b>? The blueprint's hall has no floor at that
 	/// height, so the plan's ladder ended in the void and the mover climbed it anyway - it fell in a loop until it died.
 	/// Probes straight down from the top and a ring of 0,6 m around it (a player stands beside the ladder, not on its axe).
@@ -1875,7 +1912,11 @@ internal static class MHR_Build
 		// the game places a piece up to 5 m from the EYE (Player.m_maxPlaceDistance); the companion's eye is ~1,5 m
 		// above its feet, so a roof 4,9 m up is within reach even though the feet are 4,9 m below it
 		Vector3 eye = new Vector3(me.x, me.y + EyeHeight, me.z);
-		bool inReach = flat <= Reach + 0.5f && Vector3.Distance(eye, state.Pos) <= MaxPlace;
+		// E7 (player's report, 03/11/2026: "he is still struggling to place a piece on the high roof"): the flat cap was
+		// Reach + 0,5 = 3,0 m while the game allows 5 m from the EYE - the gable top at 42,8 with the companion standing
+		// 3,15 m away flat (3,3 m in 3D) was refused by 15 cm and he walked in circles for 12 s. The eye rule is the
+		// game's own; the flat cap only has to keep him from placing through the far side of the house.
+		bool inReach = flat <= MaxPlace - 0.5f && Vector3.Distance(eye, state.Pos) <= MaxPlace;
 		if (inReach)
 		{
 			ai.StopMoving();
@@ -2085,6 +2126,12 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			+ (state.Template != null ? " (" + (state.Index + 1) + "/" + state.Plan.Count + ")" : string.Empty)
 			+ (supported.HasValue ? " supported" : string.Empty));
 		state.PlacedCount++;
+		// E7 (player's question, 03/11/2026: "why is there no ladder here yet?"): a floor is what a ladder was waiting
+		// for - the ladders deferred with "top has no floor yet" come back into the plan right now, not at the end.
+		if (state.Prefab != null && state.Prefab.IndexOf("floor", StringComparison.OrdinalIgnoreCase) >= 0)
+		{
+			RequeueLadders(ai, state);
+		}
 		// E6/E7: next piece of the plan (the timeout is per piece, so a long plan is not a slow piece). The same block
 		// serves a template and a blueprint - both have state.Plan
 		return Advance(ai, state);

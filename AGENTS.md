@@ -1229,6 +1229,14 @@ comandos de console e spawna coisas, então não é feature de jogador.
   **própria água do telhado** e coloca a peça de cima — 20 peças acima de 43 m no log, com `wood_roof_45` a 43,8/45,8 e
   `wood_wall_roof_top_45` a 44,8/46,8. Sem teleporte: é a razão de a trava de progresso ser conservadora (12 s **sem chegar
   mais perto**, nunca por tempo total).
+  **O alcance era menor que o do jogo (relato "ele ainda está apanhando tentando colocar uma peça no teto alto", 03/11/2026):**
+  a regra era `flat <= Reach + 0,5` (3,0 m) **e** olho ≤ 5 m; um topo de empena a 3,15 m planos (3,3 m em 3D) era recusado
+  por 15 cm. Agora o limite plano é `MaxPlace - 0,5` (**4,5 m**) e vale a regra do jogo (5 m do olho); o `Reach` (2,5 m)
+  ficou só como distância de parada do `MHR_Mover`.
+  **A escadinha volta ao plano quando o piso existe (pergunta "pq nao tem escada aqui ainda?", 03/11/2026):** as escadas
+  adiadas com `top has no floor yet` iam para o retry pass **final** (depois da última peça de 985); agora cada piso
+  colocado chama `RequeueLadders` e devolve ao plano as que já têm pouso. Medido com `build.snaps`: `wood_stair` sobe
+  +1 m e `wood_stepladder` **+2 m**, ambas para o **-Z local** (o andaime tem que ser girado com o -Z virado para a peça).
   **Ponta do telhado (relato "ela tá apanhando pra fazer essa ponta", 03/11/2026):** as peças da empena no topo vão para o
   retry por `no_support` (adiadas sem andar), mas as águas da ponta gastavam os **60 s** do timeout andando sem chegar. Nova
   trava de **progresso** no `Goto`: **12 s sem chegar 0,5 m mais perto** → retry (`no progress ...`).
