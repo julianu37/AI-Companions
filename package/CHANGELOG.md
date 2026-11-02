@@ -23,22 +23,27 @@ stopped.
   With nothing buildable at all it refuses and names the first piece it could not use.
 - **Order and support:** bottom-up by height, and the game's own support verdict is asked for every piece (the same
   `WearNTear` check of the structures).
-- **Stations:** a downloaded build does not bring a workbench - the game's rule applies and the refusal names the
-  station that is missing (put one near, or ask for a workbench first).
-- **New `[Building]` keys:** `BlueprintFree` (false - build without paying, for tests) and `BlueprintMaxPieces` (2000).
+- **Stations:** the game's rule is per piece and the mod answers it by itself - a piece with no workbench in range of
+  *its own* pose gets one **planned into the build right before it**, and a bench destroyed later (or a far side of a
+  big site left without one) gets a **new bench inserted before the piece that was refused**. Only a station the mod
+  cannot make (stonecutter, forge...) still refuses, and it names the station.
+- **New `[Building]` keys:** `BlueprintFree` (false - build without paying, for tests), `BlueprintMaxPieces` (2000) and
+  `ClearSite` (true - cut what is inside the plan's footprint before the first piece).
 - **Measured:** a 28-piece meadow hut from BiomeBlueprints built **28/28 supported** (floors, beams, walls, door, roof,
   gable tops), plus the PlanBuild fixtures (6 pieces, 1 skipped by the recipe gate).
-- **Big community builds** (a 985-piece starter home from the Nexus, 30x30 m): the build order is **by piece class**
+- **Big community builds** (a starter home from the Nexus: **985 lines in the file, 983 pieces in the plan** - two are
+  skipped at load - on a 30x30 m spot): the build order is **by piece class**
   (floor/workbench, then walls/beams/poles/furniture, then roofs) instead of by height (which started with a roof top -
   the file's origin is below the build); the footprint is **centred on the spot you aim at**; the ground is **leveled
   first** when it is uneven (the hoe job takes over and the build resumes); a workbench in range is asked **before** the
-  first piece (the refusal names the station); and a piece that cannot be reached, that takes too long or that does not
+  first piece (and one is planned when there is none; only a station the mod cannot make is refused, by name); and a
+  piece that cannot be reached, that takes too long or that does not
   materialize is **skipped and counted** instead of ending the build.
 - **The "carrying too much to build" line never fired** (the player's test, 03/11/2026: the companion would not walk and
   the order said "I can't get to the spot"): `CompanionCarry.Fraction` clamps to 0..1 for the HUD bar, so the
   `Fraction > 1` check was dead code - an encumbered companion tried to walk, the mover gave up in 8 s and the refusal
   blamed the spot. It now compares the real weight with the carry ceiling and says `hc_ai_build_too_heavy`.
-  Measured right after: with **120 wood (240 of 300 weight)** the same 985-piece blueprint **walked and built 60 pieces**
+  Measured right after: with **120 wood (240 of 300 weight)** the same 983-piece blueprint **walked and built 60 pieces**
   in ~3 minutes (all supported) before handing the order to the gather for the rest.
 - **A leveling that gives up no longer kills the build** (player's report, 03/11/2026: "não fez"): the handover back to the
   house/blueprint only happened on "leveled" or "already flat", so a site that stopped at 0,30 m against the 0,20 m
@@ -71,10 +76,11 @@ stopped.
   inside *its* range (`m_rangeBuild`, 20 m, and the height is ignored), and a downloaded house with chests on three floors
   can easily have none. Every piece that needs a workbench is now checked against the stations around it **and** against
   the benches the plan brings; where there is none, the companion **adds a workbench to the plan right before that
-  piece**, at a spot the game accepts (on the piece's own floor, not on the terrain below), paid like any other piece.
+  piece**, at a spot the game accepts - **outside the footprint, on the ground on the piece's side** (a bench inside the
+  house would take a floor's place; the piece's own floor is only the fallback) - paid like any other piece.
   Stations it cannot make (stonecutter, forge...) still refuse with their name.
 - **A blueprint resumes as the blueprint, not as one piece** (player's test, 03/11/2026): when the wood ran out the order
-  went to the gather and came back as "build one wood_beam" - the 985-piece house ended there. The pending order now
+  went to the gather and came back as "build one wood_beam" - the 983-piece house ended there. The pending order now
   carries the blueprint (file, anchor, rotation, piece index) and the **pieces that did not stand yet**, so the resumed
   order continues where it stopped, without repeating the leveling or the clearing. The gather of a blueprint also asks
   for the **rest of the plan** (it was ordered 2 wood while 1927 were missing).
@@ -92,7 +98,7 @@ stopped.
   overweight load to a chest (44 s, it was giving up on a healthy tree), and the order's clock is re-anchored when the
   clearing ends (the first piece was being skipped as "took too long").
 - **The build site is cleared before the first piece** (player's request, 03/11/2026): the trees, stumps and fallen logs
-  inside the plan's footprint refuse the floors and block the walking, and leveling does not cut anything - a 985-piece
+  inside the plan's footprint refuse the floors and block the walking, and leveling does not cut anything - a 983-piece
   blueprint on a wooded hill stopped at the first row. The companion now **chops what is inside the footprint** with the
   same directed harvest the radial uses (axe, tool tier, walking, drops: all the game's code) and the wood goes to the
   bag the build pays from. Hard stops: 45 s per obstacle, 40 obstacles, 240 s per order, and a refusal ("no axe for
@@ -101,7 +107,7 @@ stopped.
   a piece refused for no support, unreachable, too slow or not materialized goes back to a queue and is tried again when
   the rest of the plan is up (up to 3 passes) - the game's own support verdict decides, no stability simulation. Only
   what keeps failing on the last pass is counted as skipped. Note for big plans: the spot has to be **flat and open** -
-  the mover gives up after ~8 s without progress, and leveling does not cut a hill or fell trees. Measured: the 985-piece home started placing floors (76/983 in the
+  the mover gives up after ~8 s without progress, and leveling does not cut a hill or fell trees. Measured: the 983-piece home started placing floors (76/983 in the
   log, all supported) and, out of wood, handed the order to the gather asking for the **rest of the house (2293)** - the
   watcher resumes each time the bag fills.
 

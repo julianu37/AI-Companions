@@ -889,8 +889,10 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   vazias, **placeholders divergentes**, valores **iguais ao PT** (só os legitimamente iguais passam: nome de voz,
   string só com placeholders/códigos e a lista documentada `IDENTICAL_OK` — palavra que o idioma escreve igual, token
   técnico, nome próprio) e **cara de inglês** (`EN_HINTS`, sem as palavras que o ES/FR também usam, como "panel"),
-  mais as falas (categorias/contagem/linhas iguais ao PT). O modo sem argumento continua idêntico (267 lacunas
-  pré-existentes do PT, as `hc_cfg_*` que só existem no JSON). Resultado: **ES 0 e FR 0**.
+  mais as falas (categorias/contagem/linhas iguais ao PT). O modo sem argumento continua idêntico, agora com **366
+  lacunas** (03/11/2026): **359** são as `hc_cfg_*`/`hc_cat_*` que só existem no JSON (por desenho) e **7** são
+  literais em inglês em linhas de UI, dos quais 3 são o `why` que só vai para o log (`MHR_Build`) e 2 são pré-existentes
+  (`KeyBindListener`/`PadBindListener`). Resultado: **ES 0, FR 0 e IT 0**.
 - **Correção do teste em francês da M3 (branch `feat/idiomas-auto`) — o contrato do LLM no idioma do jogador + a
   rede de segurança da coleta:** o jogador, com o jogo em **francês**, disse "maria ramasse 10 bois" e o modelo
   devolveu `pickup` ("Je prends les bois.") - o companheiro foi catar item no chão. **Causa:** o
@@ -977,9 +979,17 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   upstream** está **em dia com a 1.5.8** (era 1.5.4 — ver a seção *Upstream e licença*), mas o autor publica
   rápido: conferir o `main` antes de cada release; a **sobreposição do nome do companheiro no centro do radial** (o
   nome do mundo aparece por trás do centro transparente da roda — cosmético, visto nas capturas da 1.7.0); o
-  **risco médio do roster com N companheiros**; e a
-  **posse do ZDO no spawn em multiplayer** (revisar quando houver teste em servidor dedicado). O
-  **release/empacotamento da 1.9.2 e da 1.9.3 está fechado** (31/10/2026): tags `v1.9.2` (no merge `e9953e1`, **sem** o fix
+  **risco médio do roster com N companheiros**; a
+  **posse do ZDO no spawn em multiplayer** (revisar quando houver teste em servidor dedicado); e o
+  **débito do `tools/gen_translations.py`** (medido em 03/11/2026): o mapa `ES_UI`/`FR_UI`/`IT_UI` está **44 chaves
+  atrás** do PT — o bloco `hc_cfg_building_*` e as falas de construção/nivelamento (`hc_ai_build_*`, `hc_ai_level_*`)
+  foram escritas à mão nos 4 JSONs e nunca entraram no gerador, então **`python tools/gen_translations.py --check`
+  sai 1 (44 chaves sem tradução por idioma)** e, sem `--check`, o script **não grava nada** (só escreve quando a lista
+  está vazia). Cada `hc_cfg_*`/fala nova escrita só nos JSONs **aumenta** esse número (as 5 `hc_cfg_building_*` de
+  03/11/2026 o levaram de 39 para 44). O `tools/release-check.ps1` **não roda esse script** (roda só o
+  `audit_translations.py` dos 3 idiomas), por isso o gate de release passa com o gerador quebrado. Consertar =
+  completar os mapas, não relaxar o `--check`.
+  O **release/empacotamento da 1.9.2 e da 1.9.3 está fechado** (31/10/2026): tags `v1.9.2` (no merge `e9953e1`, **sem** o fix
   da barba) e `v1.9.3` (no fix `fe1b8ff`), cada uma com GitHub Release e os dois zips gerados de `pkg\<versão>\stage`
   (sem `speech.json`, sem `Translations\English.json`, sem marcador do Vortex); falta só o upload manual no **Nexus**
   (guia em `pkg\<versão>\nexus\publicar-<versão>.md`). A
@@ -1152,7 +1162,8 @@ comandos de console e spawna coisas, então não é feature de jogador.
   `#Name` + `#Pieces`, V1/V2, vírgula antiga, prefab sem caixa) e `MHR_Build.StartBlueprint` (de baixo para cima, linha
   que não serve é **pulada e contada**, `needs_station` nomeia a estação, `BlueprintFree`/`BlueprintMaxPieces`). **Sem
   PlanBuild em runtime** (ele só cria/coloca o fantasma). **Medido: `hs_meadows_hut` 28/28 `supported`**, `TestBox_V2`
-  5/5 com 1 pulada. Numa build **grande** da comunidade (985 peças, Nexus 1807) o teste achou e corrigiu: ordem por
+  5/5 com 1 pulada. Numa build **grande** da comunidade (Nexus 1807: **985 linhas no arquivo / 983 peças no plano**,
+  porque 2 são puladas na leitura) o teste achou e corrigiu: ordem por
   **classe** de peça (piso → parede → telhado; por altura começava num topo de telhado), **footprint centrado na mira**
   (a origem do arquivo é onde o autor estava), **nivelar primeiro** com retomada (e a **mesma área** de 20 m, senão vira
   loop), **estação checada antes** da 1ª peça e **pular** a peça inalcançável/que não materializa em vez de derrubar a
@@ -1200,6 +1211,10 @@ comandos de console e spawna coisas, então não é feature de jogador.
   **"Tremendo e parou" (03/11/2026):** `MHR_Build.Active`/`MHR_Level.Active` comparavam o `GetInstanceID()` do **componente**
   chamador com um dicionário chaveado pelo do **`CompanionAI`** — nunca casava, o `OtherOrder` respondia false durante a obra
   e o **job de ócio andava junto** (dois `MHR_Mover` no mesmo corpo). Agora `StateOf`/`Owner` resolvem o `CompanionAI` do
+  GameObject (o próprio componente ou `GetComponent<CompanionAI>()`) e usam o id dele; o `Cancel` tinha o mesmo defeito e
+  também passa por ali (`MHR_Build.cs:648`/`:663`, `MHR_Level.cs:129`). Com isso o `OtherOrder` responde **true** durante a
+  obra (todo job para, como o desenho sempre disse), com **uma exceção**: o **harvest** continua trabalhando enquanto a
+  fase é `Clear` (`MHR_Build.Clearing`, `HarvestController.cs:718`) — ele é a ferramenta da limpeza do canteiro.
   **Bancada auto-curada (03/11/2026):** o `Place`, ao receber `needs_station` numa peça que precisa de bancada, chama o
   **`InsertBenchStep`** — procura o lugar (fora do footprint, no chão, 4 rotações, `BuildSite.Check`), **insere a bancada
   no plano logo antes da peça** e a torna o passo atual (teto de 8/ordem). Era o furo: o passe de estações só lê o mundo no
@@ -1214,7 +1229,8 @@ comandos de console e spawna coisas, então não é feature de jogador.
   **o-que-falta** (a 4x4 entrava em loop na porta); agora recalcula o que falta e retoma quando é zero. Harness
   **363 → 401**. Armadilha: `"casa pequeña"` (ES) e `"casa pequena"` (PT) **empatam** no Fold - apelidos iguais depois
   do Fold não podem existir em templates diferentes. **Aceite: 1,06 m → 0,33 m em 3 passadas, 165 s.** É ordem de um tiro (qualquer outra
-  cancela - sem isso ele ficava travado). `ValidActions` 36 → 37, 5 idiomas, config 353.
+  cancela - sem isso ele ficava travado). `ValidActions` 36 → 37, 5 idiomas, config **356 opções / 25 seções**
+  (medido com `python tools/gen_config_doc.py --check src/Companions/Core/ModConfig.cs package/CONFIGURATION.md`).
   **Aceite em jogo (01/11/2026): 57/57 peças, todas `supported`**, todas
   `placed (Direct)` - a casa **traz a própria bancada** (passo 0, a estação vem do plano), a **porta é a última**
   (senão ele fica trancado dentro e não alcança o telhado), o alcance é o do jogo (**5 m do olho**,

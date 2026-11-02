@@ -2841,6 +2841,26 @@
             "value": "Usare le casse"
         },
         {
+            "key": "hc_cfg_building_levelground",
+            "value": "Livellare il terreno"
+        },
+        {
+            "key": "hc_cfg_building_clearsite",
+            "value": "Liberare il cantiere"
+        },
+        {
+            "key": "hc_cfg_building_blueprintfree",
+            "value": "Costruire senza materiali"
+        },
+        {
+            "key": "hc_cfg_building_blueprintmaxpieces",
+            "value": "Pezzi massimi (costruzione)"
+        },
+        {
+            "key": "hc_cfg_building_leveltolerance",
+            "value": "Tolleranza del livellamento (m)"
+        },
+        {
             "key": "hc_ai_order_command",
             "value": "accettare ordini"
         },

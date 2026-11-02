@@ -226,6 +226,19 @@ internal static class CompanionOrders
 			}
 		}
 
+		// E7 (review A3, 03/11/2026): same for a build order - any other order (or a "para") drops it
+		if (action != "build")
+		{
+			if (IsDirected(addressee))
+			{
+				MHR_Build.Cancel(addressee);
+			}
+			else
+			{
+				MHR_Build.CancelAll();
+			}
+		}
+
 		if (action == "come")
 		{
 			if (IsDirected(addressee))

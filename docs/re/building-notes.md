@@ -843,9 +843,12 @@ estivessem fora desse raio cairiam em `needs_station` um a um.
 **Agora (`PlanStations`, antes da primeira peca):** o plano e percorrido em ordem; para cada peca com
 `piece.m_craftingStation` (so a bancada e "construivel" pelo mod), se **nenhuma** estacao daquele tipo esta no raio
 **daquela** peca e **nenhuma bancada planejada** ja a cobre (distancia **horizontal**), uma **bancada e inserida no plano
-logo antes dela** - procurada em aneis de 1,6/3,2/4,8 m **no Y da peca** (bancada dentro de casa fica no piso, nao no
-terreno) e com as 4 rotacoes, pelo `BuildSite.Check` (apoio, espaco, clipe). O executor constroi como qualquer peca: sai
-da mesma mochila/baus e entra no `PlanMissing` (10 madeiras cada). Teto de **8 bancadas** por ordem. Log:
+logo antes dela** - procurada em aneis de **0 / 1,6 / 3,2 m** (`FindBenchSpot`, `ring 0..2`, 8 direcoes) e com as 4
+rotacoes, pelo `BuildSite.Check` (apoio, espaco, clipe). **A bancada de fora fica NO CHAO**
+(`ZoneSystem.GetGroundHeight`); o Y da peca so vale como fallback, quando o ponto esta a 3 m ou mais do terreno (bancada
+que tem que ir para dentro, no piso). O executor constroi como qualquer peca: sai
+da mesma mochila/baus e entra no `PlanMissing` (10 madeiras cada). Teto de **8 bancadas** por ordem, e o passe para de
+procurar depois de **6 buscas** (`MaxBenchSearches`) - sitio sem lugar livre nao trava o frame. Log:
 `workbench for the <peca> (none in range of it): added at (x, y, z) - covers 20,0 m` e o resumo
 `station: N piece(s) need a workbench, M workbench(es) added to the plan`. Estacoes que o mod **nao** fabrica
 (stonecutter, forge...) continuam sendo recusa nomeada, como antes.
@@ -920,8 +923,7 @@ ate a `MaxPasses = 10` (~4 min) porque o `NextPass` so parava em "flat" ou no te
 melhora" estava escrito na doc do job mas **nao no codigo**. O nivelar do jogo e um **smooth com teto por operacao**:
 o terreno converge para um piso e nao desce mais. Agora o `NextPass` guarda a variacao da passada anterior
 (`State.LastVariation`/`Stalled`) e **duas passadas seguidas sem ganho** (>= 0,02 m de folga) encerram com
-`hc_ai_level_failed` ("no improvement"), deixando a obra seguir (o `StartBlueprint` ja tem o guarda de 90 s e constroi
-mesmo assim, com as pecas que nao couberem no retry).
+`hc_ai_level_failed` ("no improvement") - e a obra **retoma** nesse caso (a consequencia obrigatoria logo abaixo).
 
 **Consequencia obrigatoria (03/11/2026, relato "nao fez"):** quando o nivelamento **desiste** (`hc_ai_level_failed`,
 "no improvement"), a obra tambem tem que **retomar** - antes o `MHR_Level.Finish` so chamava o build nos casos

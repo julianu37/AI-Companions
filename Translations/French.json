@@ -2841,6 +2841,26 @@
             "value": "Utiliser les coffres"
         },
         {
+            "key": "hc_cfg_building_levelground",
+            "value": "Niveler le terrain"
+        },
+        {
+            "key": "hc_cfg_building_clearsite",
+            "value": "Dégager le terrain"
+        },
+        {
+            "key": "hc_cfg_building_blueprintfree",
+            "value": "Construire sans matériaux"
+        },
+        {
+            "key": "hc_cfg_building_blueprintmaxpieces",
+            "value": "Pièces maximum (construction)"
+        },
+        {
+            "key": "hc_cfg_building_leveltolerance",
+            "value": "Tolérance du nivellement (m)"
+        },
+        {
             "key": "hc_ai_order_command",
             "value": "accepter les ordres"
         },

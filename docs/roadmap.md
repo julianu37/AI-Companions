@@ -2306,6 +2306,48 @@ Branch `feat/1.9.5`. O que entrou (20 itens; a lista completa e o que ficou de f
 - **Nota de combate:** o `ShieldLogic` passou a ver o escudo na mão esquerda (o `GetLeftItem` refletido **não existia**),
   então o "já estou com escudo" finalmente funciona — **muda o ritmo do combate, precisa de teste em jogo com escudo**.
 
+#### 1.9.7 — a construção autônoma em escala (03/11/2026) — ⏳ em andamento na `main` (sem tag)
+
+O lote que o teste com uma build da comunidade (Nexus 1807: **985 linhas no arquivo / 983 peças no plano**, 2 puladas na
+leitura) exigiu — tudo medido em jogo:
+
+- **Limpar o canteiro antes da primeira peça** (`Phase.Clear` + `[Building] ClearSite`, padrão true): árvores, **cepos e
+  troncos** dentro do footprint, pelo **alvo dirigido do harvest** (machado, tier, caminhada, golpes e drops são o
+  código do jogo). Orçamentos: 45 s por obstáculo, 40 obstáculos, 240 s por ordem, 5 recusas seguidas; o que sobra vai
+  para o retry. Quadrado de **40 m** (o footprint medido tinha 32,1 m), **tronco julgado pelos limites**
+  (`Renderer.bounds`), varredura extra **2 s** depois e **segunda chance** para os ignorados; o timer por obstáculo
+  **pausa** enquanto ele leva carga ao baú.
+- **Retry passes:** peça que não fica de pé (sem apoio, inalcançável, lenta ou que não materializa) volta para a fila e
+  é tentada de novo (até **3 passadas**, `MaxPasses`), com o veredito do próprio jogo; a que falha na última é pulada e
+  contada.
+- **A bancada é planejada por peça** (`PlanStations`): a regra do jogo é por peça (`HaveBuildStationInRange`,
+  `m_rangeBuild` = **20 m**, Y achatado) e no 1.0 **toda peça pede bancada**. Cada peça sem bancada no raio **dela** e
+  sem bancada já planejada ganha uma **inserida no plano logo antes**, fora do footprint, no chão do lado da peça
+  (teto de 8 por ordem; 6 buscas de lugar). **Auto-cura:** peça recusada com `needs_station` faz o `Place` chamar
+  **`InsertBenchStep`** e a bancada entra na frente dela. Só estação que o mod não fabrica (stonecutter, forge) recusa
+  pelo nome.
+- **O blueprint retoma como blueprint:** o `Pending` leva `Blueprint`/`BlueprintFile`, o **plano exato** (`pending.Plan`)
+  e o `Retry`; a coleta pede o **resto do plano** (pedia 2 madeiras com 1927 faltando) e a retomada continua na mesma
+  âncora, rotação e peça, sem repetir nivelamento nem limpeza.
+- **Os baús são o estoque do canteiro:** `Take`/`WithdrawTemplate`/`PlanMissing` procuram perto da **âncora da obra**
+  (no canto oposto de uma casa de 32 m os baús ficavam a ~35 m e ele saía para coletar com mais de mil madeiras neles).
+- **"Tremendo e parou":** `Active`/`Cancel`/`Clearing` comparavam o id do **componente** chamador com o dicionário
+  chaveado pelo **`CompanionAI`**; nunca casava, o `OtherOrder` respondia false e o job de ócio andava junto (dois
+  `MHR_Mover` no mesmo corpo). Agora `StateOf`/`Owner` resolvem o `CompanionAI` do GameObject e o **harvest segue só na
+  fase `Clear`**.
+- **Nivelamento que estagna para e devolve a ordem:** duas passadas seguidas sem ganho (folga de 0,02 m) encerram com
+  `hc_ai_level_failed`, e o `resumeBuild` **retoma a obra** (antes só "flat"/"already flat" retomavam, e um sítio que
+  parava em 0,30 m contra 0,20 m de tolerância terminava sem colocar uma peça).
+- **Apoio antes de andar:** o `Goto` faz o `BuildSite.Check` **uma vez por peça** antes da caminhada (eram ~60
+  `no_support` em 40 s andando pela obra) e a limpeza **reancora** o relógio da ordem (a 1ª peça era pulada como
+  "took too long").
+
+**Medido em jogo (03/11/2026):** nivelar **0,37 → 0,13 m**; limpar **7 obstáculos em 156 s** (3 árvores dentro do
+quadrado; 44 s levando carga ao baú); 2ª rodada com bancadas **fora** do footprint (17,8 m do centro):
+`done: piece_workbench ... supported`, **119 peças** e 98 `no_support` para o retry; a 3ª expôs a bancada derrubada no
+meio da obra e a **auto-cura**. Harness **430**, MCP 70, config **356 opções / 25 seções**, ES/FR/IT **0 lacunas**.
+Detalhe técnico: `docs/re/building-notes.md` §15.2b-§15.2h.
+
 #### 1.9.6 — a construção autônoma (02/11/2026) — ✅ publicada, tag `v1.9.6` (GitHub + Nexus)
 
 A **Trilha E** inteira (E0-E10) entrou nesta release: o companheiro constrói sozinho, do pedido ao último prego, nos
@@ -2367,7 +2409,7 @@ estouro do prazo o vigia **fala** o que falta. **`MaxDistanceFromHome` exercitad
 | **E6** | Estruturas pequenas por **template**: peças relativas, snap e ordem topológica com suporte | ✅ 01/11/2026 - `AI/BuildTemplates.cs` (puro, 43 casos no harness): `hut` (1 piso + 4 paredes + 2 telhados = 7) e `canopy` (4 postes + 4 telhados = 8), com os deslocamentos tirados dos **snaps** medidos. `MHR_Build` em modo plano: `FindAnchor` valida o **template inteiro**, o material é checado antes da 1ª peça, o prazo é por peça. **Aceite medido:** cabana **7/7 `supported`**, todas `placed (Direct)` - o companheiro constrói **sozinho** (o executor não usa mais o `Player.PlacePiece`, que dava o crédito/barulho/estatística ao jogador). Apoio pelo **próprio jogo** (`WearNTear.UpdateSupport`/`HaveSupport`, reflexão fail-open). Três lições: o apoio não existe antes das peças (revalidar no `Place`), o companheiro bloqueava a própria peça (`ignore` no validador) e o âncora é do template (11 m de erro antes). MCP 54 ferramentas / 64 checks, harness 316. **O abrigo fecha o "usável" da E5:** a bancada sob o `canopy`
 responde `usable=True cover=0.94 underRoof=True` e as descobertas ao lado `usable=False cover=0.18` |
 | **E10** | **Terraformar**: a ordem "nivele um terreno 10x10 aqui" e o nivelamento automático antes da obra | ✅ 01/11/2026 - o jogo não tem "level" duro (o Nivelar da enxada é um **smooth**, ±1 m por operação): grid espaçado pelo raio (o denso divergia), alvo na mediana, até 10 passadas ou 0,2 m, recusa acima de 1,2 m. O companheiro vai ao **centro** e bate a enxada ponto por ponto (andar até cada ponto o fazia tremer no lugar). **Aceite: 1,06 m → 0,33 m em 3 passadas, 165 s**; a casa nivela antes do `FindAnchor` (o canto mais plano). `ValidActions` 36 → 37, 5 idiomas, MCP 57/70, harness 363 |
-| **E7** | **Os planos do jogador**: o companheiro constrói as builds da biblioteca **`.blueprint`** (e a ponte do BuildOrders fica como opção de quem planeja no F11) | ✅ 02/11/2026 - o caminho do `.blueprint`: `AI/BuildBlueprintParser.cs` (texto, `#Name` + `#Pieces`, V1/V2, vírgula antiga, prefab sem caixa) + `BuildBlueprints` (pasta `BepInEx/config/AI-Companions/blueprints/`, ordem pelo **nome do arquivo**) + `MHR_Build.StartBlueprint` (de baixo para cima, linha que não serve é **pulada e contada**, `needs_station` nomeia a estação, `BlueprintFree`/`BlueprintMaxPieces`), **sem PlanBuild em runtime**. **Medido: `hs_meadows_hut` 28/28 `supported`** e `TestBox_V2` 5/5 (1 pulada por receita). Harness **405 → 430**. A ponte do BuildOrders (F11) segue como próximo passo |
+| **E7** | **Os planos do jogador**: o companheiro constrói as builds da biblioteca **`.blueprint`** (e a ponte do BuildOrders fica como opção de quem planeja no F11) | ✅ 02/11/2026 - o caminho do `.blueprint`: `AI/BuildBlueprintParser.cs` (texto, `#Name` + `#Pieces`, V1/V2, vírgula antiga, prefab sem caixa) + `BuildBlueprints` (pasta `BepInEx/config/AI-Companions/blueprints/`, ordem pelo **nome do arquivo**) + `MHR_Build.StartBlueprint` (de baixo para cima, linha que não serve é **pulada e contada**, `needs_station` nomeia a estação, `BlueprintFree`/`BlueprintMaxPieces`), **sem PlanBuild em runtime**. **Medido: `hs_meadows_hut` 28/28 `supported`** e `TestBox_V2` 5/5 (1 pulada por receita). Harness **405 → 430**. **03/11/2026 (a build de 985 linhas / 983 peças):** limpeza do canteiro (`Phase.Clear`/`ClearSite`), cepos e troncos, pedra/tronco no retry, bancada **planejada por peça** + **auto-curada** (`PlanStations`/`InsertBenchStep`), retomada como **blueprint** (plano exato + `Retry`), baús na **âncora** e o fim do "tremendo e parou" (`StateOf`/`Owner`) - ver a seção **1.9.7** e `docs/re/building-notes.md` §15.2b-§15.2h. A ponte do BuildOrders (F11) segue como próximo passo |
 | **E8** | O companheiro **gera** o plano de um blueprint JSON (`TryCreateGhostPlan`/`TryCreateBuildingShell`, até 2.048 peças) | ⏳ |
 | **E9** | Conversão de `.blueprint` do PlanBuild para o JSON do BuildOrders (acervo do BiomeBlueprints/valheimians) — só se o jogador pedir | ⏳ |
 

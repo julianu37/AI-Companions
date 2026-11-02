@@ -85,6 +85,9 @@ namespace Companions
             if (MHR_Mover.EscapeFire(ai)) return true;
             CompanionSetup cs = ai.GetComponent<CompanionSetup>();
             if (cs == null) return false;
+            // E7 (review B5, 03/11/2026): an order (the build) drives through the same MHR_Mover - a tool trip in the middle
+            // of it steals the movement and the build stands still until the trip ends
+            if (MHR_JobRules.OrderPending(ai)) return false;
             State st;
             if (!s_state.TryGetValue(cs.GetInstanceID(), out st) || st.Phase == 0) return false;
             if (ai.GetFollowTarget() != null) ai.SetFollowTarget(null);

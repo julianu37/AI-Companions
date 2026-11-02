@@ -2705,6 +2705,9 @@ public class CompanionInteract : MonoBehaviour
 		MHR_Collect.Cancel(setup);
 		// E10: the leveling job is a one-shot order too - any wheel order stops it (same as the chat path)
 		MHR_Level.Cancel(setup);
+		// E7 (review A3, 03/11/2026): a build order is a one-shot order too - without this a build in Follow mode ignored
+		// "para" and ran to the end of the plan
+		MHR_Build.Cancel(setup);
 		setup.GetComponent<HarvestController>()?.CancelDirectedTarget();
 		setup.GetComponent<DoorHandler>()?.Cancel();
 		RepairController component3 = setup.GetComponent<RepairController>();

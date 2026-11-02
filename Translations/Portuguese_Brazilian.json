@@ -2841,6 +2841,26 @@
             "value": "Usar baús"
         },
         {
+            "key": "hc_cfg_building_levelground",
+            "value": "Nivelar o terreno"
+        },
+        {
+            "key": "hc_cfg_building_clearsite",
+            "value": "Limpar o canteiro"
+        },
+        {
+            "key": "hc_cfg_building_blueprintfree",
+            "value": "Construir sem material"
+        },
+        {
+            "key": "hc_cfg_building_blueprintmaxpieces",
+            "value": "Máximo de peças (build)"
+        },
+        {
+            "key": "hc_cfg_building_leveltolerance",
+            "value": "Tolerância do nivelamento (m)"
+        },
+        {
             "key": "hc_ai_order_command",
             "value": "aceitar comandos"
         },

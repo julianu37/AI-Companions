@@ -635,6 +635,9 @@ public class HarvestController : MonoBehaviour
 		_moveTargetLocked = false;
 		_swingCount = 0;
 		_totalAttempts = 0;
+		// E7 (review B2, 03/11/2026): the previous target of a directed harvest is released first - the clearing directs 40
+		// obstacles per order and every id stayed in the claim set (a recycled id marked a NEW tree as taken)
+		UnclaimTarget();
 		ClaimTarget();
 		_scanTimer = ScanInterval;
 		ItemDrop.ItemData itemData = FindBestTool(num);

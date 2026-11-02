@@ -168,6 +168,8 @@ internal static class MHR_Build
 		/// <summary>E7: workbenches inserted in front of a piece refused with <c>needs_station</c> (the self-healing
 		/// half of the station pass, capped like it).</summary>
 		internal int BenchInserts;
+		/// <summary>E7: a template clears the site after the leveling (a blueprint does it before the first piece).</summary>
+		internal bool NeedsClear;
 	}
 
 	/// <summary>E6: one piece of a plan, already resolved to a world pose.</summary>
@@ -265,6 +267,7 @@ internal static class MHR_Build
 			Phase = Phase.Find
 		};
 		s_state[ai.GetInstanceID()] = state;
+		DropPending(ai, cs);
 		Log(ai, "order: build " + prefab + " near (" + F(hint.x) + ", " + F(hint.y) + ", " + F(hint.z) + ")");
 		return true;
 	}
@@ -303,13 +306,21 @@ internal static class MHR_Build
 			Hint = hint,
 			Forward = forward,
 			Plan = new List<PlannedStep>(),
+			// E7 (review, 03/11/2026): the retry queue has to exist for a template too - the up-front support check sends the
+			// piece that does not stand yet to `QueueRetry`, and with a null list it was silently skipped for good
+			Retry = new List<PlannedStep>(),
 			Phase = anchorKnown ? Phase.Find : Phase.Level,
 			StartIndex = startIndex,
 			Anchor = anchor,
 			AnchorRot = anchorRot,
-			AnchorKnown = anchorKnown
+			AnchorKnown = anchorKnown,
+			// E7: the site clearing runs for a template too, right after the leveling (and never on a resume)
+			NeedsClear = !anchorKnown && (ModConfig.BuildClearSite == null || ModConfig.BuildClearSite.Value),
+			ClearCenter = hint,
+			ClearSize = !anchorKnown ? FootprintSize(template) : 0f
 		};
 		s_state[ai.GetInstanceID()] = state;
+		DropPending(ai, cs);
 		Log(ai, "order: build plan " + template.Name + " (" + template.Steps.Length + " pieces) near (" + F(hint.x) + ", " + F(hint.y) + ", " + F(hint.z) + ")");
 		return true;
 	}
@@ -508,6 +519,7 @@ internal static class MHR_Build
 			CompanionsPlugin.Log?.LogInfo("[Build] blueprint " + blueprint.Label + ": " + skipped
 				+ " line(s) skipped, first: " + (firstSkip ?? "?"));
 		}
+		float resumeSize = 0f;
 		if (resuming && storedPlan != null && storedPlan.Count > 0)
 		{
 			// E7: the resumed order reuses the EXACT plan of the first part - the workbenches the station pass added are
@@ -515,6 +527,23 @@ internal static class MHR_Build
 			// so the pieces in between would never be built.
 			plan.Clear();
 			plan.AddRange(storedPlan);
+			// E7 (review B4, 03/11/2026): on a resume the clearing square is not rebuilt, so it is measured from the plan -
+			// without it InsertBenchStep thinks the footprint is 0 and puts the bench INSIDE the house
+			float rx0 = float.MaxValue;
+			float rx1 = float.MinValue;
+			float rz0 = float.MaxValue;
+			float rz1 = float.MinValue;
+			foreach (PlannedStep step in plan)
+			{
+				rx0 = Mathf.Min(rx0, step.Pos.x);
+				rx1 = Mathf.Max(rx1, step.Pos.x);
+				rz0 = Mathf.Min(rz0, step.Pos.z);
+				rz1 = Mathf.Max(rz1, step.Pos.z);
+			}
+			if (rx1 >= rx0)
+			{
+				resumeSize = Mathf.Clamp(Mathf.Max(rx1 - rx0, rz1 - rz0) + 1.5f, 2f, ClearMaxSize);
+			}
 		}
 		// E7 (player's request, 03/11/2026): THE WORKBENCH IS PLANNED, NOT ASSUMED. The game's rule is per piece
 		// (CraftingStation.HaveBuildStationInRange from the piece's own pose) and the workbench covers 5 m: "there is a
@@ -590,7 +619,7 @@ internal static class MHR_Build
 		// cut anything: the player's 985-piece plan on a wooded hill got 8 "can't reach it" in a row and never got past
 		// the first row. The harvest does the cutting (its directed target is the same one the radial uses).
 		bool clear = !resuming && hasBounds && (ModConfig.BuildClearSite == null || ModConfig.BuildClearSite.Value);
-		float clearSize = clear ? Mathf.Clamp(Mathf.Max(maxX - minX, maxZ - minZ) + 1.5f, 2f, ClearMaxSize) : 0f;
+		float clearSize = clear ? Mathf.Clamp(Mathf.Max(maxX - minX, maxZ - minZ) + 1.5f, 2f, ClearMaxSize) : resumeSize;
 		State state = new State
 		{
 			Active = true,
@@ -618,6 +647,7 @@ internal static class MHR_Build
 			ClearSize = clearSize
 		};
 		s_state[ai.GetInstanceID()] = state;
+		DropPending(ai, cs);
 		Log(ai, "blueprint " + blueprint.Label + ": " + plan.Count + " pieces near (" + F(hint.x) + ", " + F(hint.y) + ", " + F(hint.z) + ")"
 			+ (start > 0 ? " - resuming at piece " + (start + 1) : string.Empty)
 			+ (free ? " - BlueprintFree is on (no material)" : string.Empty));
@@ -645,6 +675,24 @@ internal static class MHR_Build
 	/// answered false while a build was running and the idle job kept walking - two movers over the same body, which is
 	/// why the companion shook in place and stopped (player's report, 03/11/2026).
 	/// </summary>
+	/// <summary>E7 (review M2, 03/11/2026): a new order drops the build that was waiting for materials - it used to survive
+	/// and resurrect itself (on its old anchor) as soon as the new order ended.</summary>
+	private static void DropPending(CompanionAI ai, CompanionSetup cs)
+	{
+		if (ai == null)
+		{
+			return;
+		}
+		Pending pending;
+		if (s_pending.TryGetValue(ai.GetInstanceID(), out pending) && pending != null)
+		{
+			s_pending.Remove(ai.GetInstanceID());
+			RestoreFollow(ai, cs, pending);
+			CompanionSetup.ClearOrderCap(cs);
+			Log(ai, "a build waiting for materials was dropped (a new order came)");
+		}
+	}
+
 	private static bool StateOf(Component c, out State state)
 	{
 		state = null;
@@ -788,7 +836,7 @@ internal static class MHR_Build
 		}
 		if (why != null)
 		{
-			Finish(ai, state, "hc_ai_build_failed", why);
+			Finish(ai, state, "hc_ai_build_failed", why, LabelOf(state));
 			return false;
 		}
 
@@ -834,7 +882,7 @@ internal static class MHR_Build
 		if (harvest == null)
 		{
 			Log(ai, "there is no harvest to clear the site with - building as it is");
-			state.Phase = Phase.Goto;
+			state.Phase = state.Template != null ? Phase.Find : Phase.Goto;
 			return true;
 		}
 		if (state.ClearStart <= 0f)
@@ -844,7 +892,7 @@ internal static class MHR_Build
 			if (state.ClearTotal == 0)
 			{
 				Log(ai, "the site is clear (nothing to cut inside " + F(state.ClearSize) + " m)");
-				state.Phase = Phase.Goto;
+				state.Phase = state.Template != null ? Phase.Find : Phase.Goto;
 				return true;
 			}
 			Log(ai, "clearing the site: " + state.ClearTotal + " tree(s)/log(s) inside the " + F(state.ClearSize)
@@ -890,7 +938,7 @@ internal static class MHR_Build
 		if (state.ClearCount >= ClearMaxObstacles || Time.time - state.ClearStart > ClearBudget)
 		{
 			harvest.CancelDirectedTarget();
-			state.Phase = Phase.Goto;
+			state.Phase = state.Template != null ? Phase.Find : Phase.Goto;
 			// the order's clock follows the PIECE (the site is clear before the first one) - without this the first piece
 			// (here the workbench the station pass added) was already far past the 60 s and was skipped as "took too long"
 			state.Start = Time.time;
@@ -921,7 +969,7 @@ internal static class MHR_Build
 				return true;
 			}
 			harvest.CancelDirectedTarget();
-			state.Phase = Phase.Goto;
+			state.Phase = state.Template != null ? Phase.Find : Phase.Goto;
 			// the order's clock follows the PIECE: without this the first piece was already 156 s old when the clearing
 			// ended and it was skipped as "took too long" (measured 03/11/2026)
 			state.Start = Time.time;
@@ -938,7 +986,7 @@ internal static class MHR_Build
 			Log(ai, "can't cut \"" + next.name + "\" (no tool for it) - leaving it");
 			if (state.ClearRejects >= ClearMaxRejects)
 			{
-				state.Phase = Phase.Goto;
+				state.Phase = state.Template != null ? Phase.Find : Phase.Goto;
 				Log(ai, "nothing here I can cut - building as it is");
 			}
 			return true;
@@ -1117,7 +1165,7 @@ internal static class MHR_Build
 		// the fallback (the piece's own spot) keeps its height, for a bench that has to go inside
 		float groundY = ZoneSystem.instance != null ? ZoneSystem.instance.GetGroundHeight(near) : near.y;
 		bool outdoors = Mathf.Abs(groundY - near.y) < 3f;
-		for (int ring = 0; ring <= 2; ring++)
+		for (int ring = 0; ring <= 1; ring++)
 		{
 			float distance = 1.6f * ring;
 			for (int dir = 0; dir < 8; dir++)
@@ -1304,7 +1352,8 @@ internal static class MHR_Build
 	/// </summary>
 	private static bool LevelGround(CompanionAI ai, State state)
 	{
-		state.Phase = Phase.Find;
+		// E7: the template's order is level -> clear -> find (a blueprint levels before the state exists and clears first)
+		state.Phase = state.NeedsClear ? Phase.Clear : Phase.Find;
 		if (state.Template == null || ModConfig.BuildLevelGround == null || !ModConfig.BuildLevelGround.Value)
 		{
 			return true;
@@ -1371,6 +1420,15 @@ internal static class MHR_Build
 			Finish(ai, state, "hc_ai_build_level_failed", "no level piece", bestVariation.ToString("F1"));
 			return false;
 		}
+		// E7 (review C1, 03/11/2026): the leveling may GIVE UP (the soft level has a floor) and the order comes back here -
+		// without this guard it is an endless level -> build -> level (the blueprint path has s_levelTried for exactly
+		// this; a template uses its name). One try per 90 s; after that the house is built with the ground it has.
+		float templateTriedAt;
+		if (s_levelTried.TryGetValue("template:" + state.Template.Name, out templateTriedAt) && Time.time - templateTriedAt < 90f)
+		{
+			Log(ai, "the ground is still uneven (" + bestVariation.ToString("F2") + " m) after leveling - building anyway");
+			return true;
+		}
 		string animation = BuildTerrain.HoeAnimation(bag);
 		ZSyncAnimation zanim = humanoid != null ? humanoid.GetComponent<ZSyncAnimation>() : null;
 		if (zanim != null && !string.IsNullOrEmpty(animation))
@@ -1386,6 +1444,7 @@ internal static class MHR_Build
 			Finish(ai, state, "hc_ai_build_level_failed", "could not start the leveling", bestVariation.ToString("F1"));
 			return false;
 		}
+		s_levelTried["template:" + state.Template.Name] = Time.time;
 		Log(ai, "leveling first, with the hoe (" + size.ToString("F1") + " m, " + bestVariation.ToString("F2") + " m of variation)");
 		Finish(ai, state, "hc_ai_build_leveling", "leveling first", size.ToString("F1"));
 		return false;
@@ -2022,7 +2081,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			Plan = state.Plan,
 			Retry = state.Retry,
 			Passes = state.Passes,
-			Anchor = state.Anchor,
+			Anchor = state.AnchorKnown ? state.Anchor : state.Hint,
 			AnchorRot = state.AnchorRot,
 			FollowWas = follow,
 			Start = Time.time,
@@ -2075,11 +2134,11 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 					plan.Add(new PlannedStep { Prefab = step.Prefab, Piece = stepPiece });
 				}
 			}
-			still = PlanMissing(bag, plan, pending.Index, pending.Hint, cs, useChests);
+			still = PlanMissing(bag, plan, pending.Index, pending.Anchor, cs, useChests);
 		}
 		else if (template != null)
 		{
-			still = TemplateMissing(bag, template, pending.Hint, cs, useChests);
+			still = TemplateMissing(bag, template, pending.Anchor, cs, useChests);
 		}
 		else if (pending.Plan != null && pending.Plan.Count > 0)
 		{
@@ -2088,7 +2147,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		}
 		else
 		{
-			still = BuildStock.Missing(bag, piece, pending.Hint, cs, useChests);
+			still = BuildStock.Missing(bag, piece, pending.Anchor, cs, useChests);
 		}
 		string label = template != null
 			? template.Label
@@ -2392,8 +2451,8 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		}
 		pending.NextCheck = Time.time + 1f;
 		Dictionary<string, int> still = pending.Plan != null && pending.Plan.Count > 0
-			? PlanMissing(bag, pending.Plan, pending.Index, pending.Hint, cs, useChests)
-			: BuildStock.Missing(bag, piece, pending.Hint, cs, useChests);
+			? PlanMissing(bag, pending.Plan, pending.Index, pending.Anchor, cs, useChests)
+			: BuildStock.Missing(bag, piece, pending.Anchor, cs, useChests);
 		int got = 0;
 		foreach (KeyValuePair<string, int> shortfall in still)
 		{
@@ -2632,6 +2691,11 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 
 	private static void Log(CompanionAI ai, string message)
 	{
+		// E7 (review B1, 03/11/2026): [Advanced] LogLevel is the switch - a 985-piece plan writes thousands of lines
+		if (!CompanionsPlugin.LogNormal)
+		{
+			return;
+		}
 		if (CompanionsPlugin.Log != null)
 		{
 			CompanionsPlugin.Log.LogInfo(LogTag + Who(ai) + message);
