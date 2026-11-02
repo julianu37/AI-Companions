@@ -353,6 +353,14 @@ Números medidos: andar ~3,5 m/s; correr ~5,1 m/s (stamina 50 → 33,6 em 2 s); 
 - `ScreenCapture.CaptureScreenshot` grava **no fim do quadro** → o servidor espera o arquivo (até 4 s).
 - `companions.order` sem `name` usa o **primeiro** companheiro — com vários, passe o nome.
 - O módulo é compilado junto: renomear um campo `*Hash` do mod **quebra o build** (é o que se quer).
+- **Encher um baú não tem ferramenta** (pedido do jogador em 03/11/2026: *"criar 4 baús cheios de madeira do lado do
+  player"* — **cancelado** por ele quando soube do custo). O `world.spawn` cria o `piece_chest_wood` mas ele nasce
+  **vazio**, e o conteúdo de um `Container` só chega ao ZDO pelo `Container.Save` (**privado**, disparado no
+  `Inventory.m_onChanged` → `OnContainerChanged`); o bridge escreve só chaves tipadas (`companions.zdo`), não o
+  `byte[]` dos itens. Encher exigiria um comando novo (`world.chest`: `Player.PlacePiece` + `Inventory.AddItem`), e
+  comando novo só vale **depois de reiniciar o jogo** (a DLL carrega no boot) — o que derrubaria a obra de 985 peças
+  que estava em andamento. Alternativa sem reinício: `player.give` põe a madeira no inventário do jogador (mas ele
+  fica acima do peso e anda travado), e o companheiro já corta o que falta pelo próprio canteiro.
 
 ## Segurança
 
