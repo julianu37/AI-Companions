@@ -1213,6 +1213,7 @@ comandos de console e spawna coisas, então não é feature de jogador.
   (classes 0/1/2/3) — 787/983 com as peças de cima pendentes para o retry pass.
   **Porta/portão por último (sugestão do jogador, 03/11/2026):** classe **4** (`door`/`gate`), depois do telhado — durante a
   obra o vão fica aberto e o `MHR_Mover` não abre/fecha a porta a cada passagem (mesma regra dos templates, onde a porta é
+  sempre a última peça).
   **Obra andar por andar + pulinho (03/11/2026):** o plano era ordenado por **classe no plano inteiro**, então todos os
   pisos entravam na 1ª leva; os de cima caíam em `no_support`/retry e o **telhado subia antes do piso** ("ele não colocou o
   2º piso"). Agora `StoreyOf` (o último `floor` na altura ou abaixo) ordena **por andar** e, dentro dele, piso → escada →
