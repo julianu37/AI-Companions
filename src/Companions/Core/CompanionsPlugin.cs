@@ -24,7 +24,7 @@ public class CompanionsPlugin : BaseUnityPlugin
 
 	public const string PluginName = "AI Companions";
 
-	public const string PluginVersion = "1.9.5";
+	public const string PluginVersion = "1.9.6";
 
 	// 1.5.76/1.5.77 (upstream): [Advanced] LogLevel - every mod log line checks one of these first, so a level that's
 	// off costs nothing (the text isn't even built). Normal until the config is read.

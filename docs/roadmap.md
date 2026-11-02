@@ -2306,6 +2306,36 @@ Branch `feat/1.9.5`. O que entrou (20 itens; a lista completa e o que ficou de f
 - **Nota de combate:** o `ShieldLogic` passou a ver o escudo na mão esquerda (o `GetLeftItem` refletido **não existia**),
   então o "já estou com escudo" finalmente funciona — **muda o ritmo do combate, precisa de teste em jogo com escudo**.
 
+#### 1.9.6 — a construção autônoma (02/11/2026) — ✅ publicada, tag `v1.9.6` (GitHub + Nexus)
+
+A **Trilha E** inteira (E0-E10) entrou nesta release: o companheiro constrói sozinho, do pedido ao último prego, nos
+cinco idiomas. O que o jogador vê:
+
+- **A ordem** `build` de **peça única** (bancada, baú, fogueira, cama) e as **estruturas por template**: cabana 2x2
+  **com porta** (7 peças), abrigo da bancada (8), **tenda** de 4x2 m (4), **casas 4x4** (21, bancada num anexo fora),
+  **6x6** (46, beiral de 1 m com 4 postes e telhado girado com a empena em cima da porta) e **8x8** (57, com porta e
+  janela) - a **porta é sempre a última** peça (senão ele se tranca dentro).
+- **Materiais:** a obra começa com o que a mochila tem, **esvazia os baús** antes de sair, coleta **o resto da obra**
+  (não uma peça por vez), retoma **no mesmo âncora e na mesma peça** e, quando o harvest fica ocioso, encerra dizendo
+  o que falta em vez de esperar 300 s calado.
+- **Nivelamento visível:** a ordem `level` ("nivele um terreno 10x10 aqui") e o nivelamento automático antes da obra -
+  ele anda ao centro, vira e bate a enxada ponto por ponto; a casa volta sozinha quando o chão está plano.
+- **A coleta da obra trabalha o canteiro**, não o jogador: Follow desligado na entrega, árvores do raio da base
+  puladas, prazo contando desde a última madeira que chegou.
+- **DevBridge:** `build.check`/`build.snaps`/`build.usable`/`build.delete`, `terrain.check`/`terrain.level`,
+  `companions.build`/`companions.level`, `player.look` e a stamina infinita das sessões de teste.
+
+**Aceites em jogo (jogador, 02/11/2026):** cabana 7/7, abrigo 8/8, casa **57/57 `supported`** com a porta por último,
+6x6 **46/46** ("tudo certo!"), 4x4 com o anexo ("tudo certo"), tenda 4/4 e o abrigo deixando a bancada
+`usable=True cover=0.94`. O detalhe técnico (snaps, custos, as lições de cada teste) está em
+`docs/re/building-notes.md` §9-§14 e o plano em `docs/plan-construcao.md`.
+
+**Notas:** o `6x6` tem um **beiral de 1 m** porque a peça de 45° cobre 2 m (a meia-largura de 3 m não fecha com peça
+inteira); a **4x4** não tem bancada dentro (não cabe) e a leva num **anexo** ao lado; a trava de 90° no yaw do plano
+foi **tentada e revertida** (deixava a casa torta). Harness **405**, MCP **70**, gate 9/9.
+
+---
+
 ---
 
 ## Trilha E — Construção autônoma (planejada, 31/10/2026 · rev. 01/11/2026)

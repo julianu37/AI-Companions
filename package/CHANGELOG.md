@@ -2,7 +2,7 @@
 
 All the changes to this project, derived from ProfMags' Offline Companions. The versions before 1.4.0 are the original mod (see the original mod's history, from ProfMags, for those versions) plus the first batch of compatibility fixes for the Valheim 1.0 API that made the mod load and run. **The entries below 1.5.4 are the upstream history and stay as they are (in English) — our sections (from 1.6.0 on) are ours.**
 
-## 1.9.6 - in progress
+## 1.9.6 - 02/11/2026
 
 **Autonomous building, phases E0-E3 (the MVP).** A companion now builds a piece when you ask it, in the five
 languages: it resolves the recipe, looks for a spot with the game's own rules, walks there, pays the materials from
@@ -105,22 +105,17 @@ its own bag, places the piece and confirms it works.
   ARRIVED instead of from the handover (a test lost 36/39 to the fixed clock). Twenty seconds of an idle gather end the
   order saying what is missing (the rest of the plan, not the whole template), and it goes back to Follow mode instead
   of staying in wood mode chopping logs on the way home.
-  **Smaller structures:** the house now comes in three sizes and the build order understands them by size -
-  `4x4` (21 pieces: the workbench does not fit a 4x4 m room, so it stands OUTSIDE in an annex and goes in first), `6x6` (46 pieces, a 1 m
-  eave held by four corner posts) and the original `8x8` (57 pieces). The `6x6` workbench keeps the 8x8's corner and the door moved to the right slot (the bench used to block the way in);
-    its roof runs with the gable over the door (`roofAlongZ`) and the gable pieces are turned the right way
-    (they went in like wings). There is also a **tent** now: a 4x2 m lean-to of two poles and two 45 degree pieces (8 wood) - the
-  cheap shelter, measured 4/4 supported. "Barraco" resolves to the 2x2 hut. The build watcher no longer compares the
-  bag TOTAL with the shortfall (a 4x4 test looped forever on the door's 4 wood): it recomputes what is missing and
-  resumes only when nothing is. Measured end to end: withdrew 1 item(s) from the chests,gathering 15x (the rest of the plan, not the 123 of the whole house), gather done (have 15/15), ollow back on,
-esuming at the same anchor ... from piece 51, done: wood_door (57/57).
-- **New dev tooling:** `modia_build_probe [prefab] [radius]` and `modia_build_find [prefab] [radius]` in the game
-  console, and the MCP tools `build_inspect`, `build_sites`, `build_find`, `build_pieces`, `companions_build`,
-  `companions_sethome` and `player_look` (the build order takes its spot from your aim, so a test has to be
-  able to look down).
-  The measurements of the five workshop pieces are in `docs/re/building-notes.md`; the plan is
-  `docs/plan-construcao.md`.
-
+  **Smaller structures:** the house now comes in three sizes and the build order understands them by size - the
+  `4x4` (21 pieces: the workbench does not fit a 4x4 m room, so it stands OUTSIDE in an annex and goes in first), the
+  `6x6` (46 pieces, a 1 m eave held by four corner posts, its roof turned so the gable faces the door) and the
+  original `8x8` (57 pieces). The `6x6` keeps the workbench in the 8x8's corner and moved its door to the right slot
+  (the bench used to block the way in); its gable pieces were going in like wings - they are turned the right way now.
+  There is also a **tent**: a 4x2 m lean-to of two poles and two 45 degree pieces (8 wood), the cheap shelter,
+  measured 4/4 supported, and "barraco" resolves to the 2x2 hut. The build watcher no longer compares the bag TOTAL
+  with the shortfall (a 4x4 test looped forever on the door's 4 wood): it recomputes what is missing and resumes only
+  when nothing is. Measured end to end: `withdrew 1 item(s) from the chests`, `gathering 15x` (the rest of the plan,
+  not the 123 of the whole house), `gather done (have 15/15)`, `follow back on`, `resuming at the same anchor ...
+  from piece 51`, `done: wood_door (57/57)`.
 ## 1.9.5 - 31/10/2026
 
 **The batch from the 10-specialist review.** Twenty fixes across localization, patches, the companion, the LLM layer,

@@ -70,9 +70,13 @@ config é **`BepInEx\config\AiCompanions.cfg`** (o GUID não dá mais nome a ele
   listar o Jotunn como requisito em release/README. (A skill `jotunn` da equipe continua no repositório como
   referência de framework, mas **não** se aplica a este mod.)
 - Target: **.NET Framework 4.7.2 (net472)**, C#.
-- Versão: **1.9.5** (publicada em **31/10/2026**, tag `v1.9.5`, GitHub **e** Nexus) — **multilíngue (5 idiomas: PT-BR,
-  EN, ES, FR, IT)** (fonte única: `PluginVersion` em `src/Companions/Core/CompanionsPlugin.cs`). A 1.9.5 é o **lote da
-  revisão de 10 especialistas** (20 itens; ver `docs/backlog-1.9.5.md` e a seção 1.9.5 do `docs/roadmap.md`). A 1.9.4
+- Versão: **1.9.6** (publicada em **02/11/2026**, tag `v1.9.6`, GitHub **e** Nexus) — **multilíngue (5 idiomas: PT-BR,
+  EN, ES, FR, IT)** (fonte única: `PluginVersion` em `src/Companions/Core/CompanionsPlugin.cs`). A 1.9.6 é a
+  **construção autônoma (Trilha E, E0-E10)**: o `build` de peça única, as **estruturas por template** (cabana com
+  porta, abrigo da bancada, tenda, casas 4x4/6x6/8x8), a **coleta para a obra** (baús → resto do plano → retomada no
+  ponto exato), o **nivelamento com a enxada** e o `build.delete` do DevBridge — ver `docs/plan-construcao.md`,
+  `docs/re/building-notes.md` e a seção 1.9.6 do `docs/roadmap.md`. A 1.9.5 é o **lote da revisão de 10 especialistas**
+  (20 itens; ver `docs/backlog-1.9.5.md` e a seção 1.9.5 do `docs/roadmap.md`). A 1.9.4
   (31/10/2026, tag `v1.9.4`, só no GitHub) é a
   **barba + teto da coleta + `tokens/s`** (merge `f36e311`)
   **+ os três altos** (Santuário, `ChangeTier`, dupla morte) **+ os 3 fixes de UI + o `FightLikePlayer = false`**
