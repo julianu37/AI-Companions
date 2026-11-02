@@ -1207,7 +1207,10 @@ comandos de console e spawna coisas, então não é feature de jogador.
   da **peça** (30 m) e, no canto oposto de uma casa de 32 m, os baús da base ficavam a ~35 m — ele entregou a coleta com
   **mais de mil madeiras nos baús**; agora a busca é ao redor da **âncora da obra** (`state.Anchor`). Segundo teste com as
   correções: bancadas **fora** do footprint (17,8 m do centro), `done: piece_workbench ... supported`, **119 peças**, 98
-  `no_support` (andares de cima, para o retry pass) e nenhum `needs_station` fatal.
+  **Escada antes das paredes (03/11/2026):** `ClassOf` tinha escada/escadinha na **mesma classe das paredes** (ordenada por
+  altura), então as paredes fechavam o poço antes da escadinha de cima e o companheiro ficava **preso a 2,8 m do pé** dela
+  (`stuck on ladder 1/2`), sem chegar ao 2º/3º piso. Agora a ordem é **piso → escada/escadinha → paredes → telhado**
+  (classes 0/1/2/3) — 787/983 com as peças de cima pendentes para o retry pass.
   **"Tremendo e parou" (03/11/2026):** `MHR_Build.Active`/`MHR_Level.Active` comparavam o `GetInstanceID()` do **componente**
   chamador com um dicionário chaveado pelo do **`CompanionAI`** — nunca casava, o `OtherOrder` respondia false durante a obra
   e o **job de ócio andava junto** (dois `MHR_Mover` no mesmo corpo). Agora `StateOf`/`Owner` resolvem o `CompanionAI` do

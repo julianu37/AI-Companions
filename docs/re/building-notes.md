@@ -932,6 +932,29 @@ ordem inteira sem colocar uma peca. Agora `resumeBuild` inclui o `hc_ai_level_fa
 `the ground is as flat as it gets - back to the build`; o `StartBlueprint` cai no guarda de 90 s (`s_levelTried`) e
 constroi com o terreno que tem (as pecas que nao couberem vao para o retry).
 
+### 15.2i O 2o/3o piso: escada e escadinha sao classe propria, antes das paredes (03/11/2026)
+
+Relato do jogador no teste com a casa de 983 pecas ("ele esta com problemas no 2o piso, parece que esqueceu a parte da
+escada"). O que o log e o `build.pieces` mostraram: a escadinha **estava construida** (2 `wood_stepladder` no piso
+terreo a 38,8 e 2 no 2o piso a 40,8 - a "corrente de 2 escadas ate 42,9" que o `MHR_Mover` planeja), mas o companheiro
+ficava **preso a 2,8 m do pe da escada**:
+
+```
+[Move|Build] climbing a chain of 2 ladders up to 42,9 (first foot (-163,6, 38,9, -439,3))
+[Move|Build] stuck on ladder 1/2 at (-166,3, 38,8, -440,2) - looking again
+```
+
+E `build.pieces` em volta do ponto mostrou **parede no caminho**: `wood_wall_half` em (-165,5, 38,3, -440,2) e `woodwall`
+em (-165,5, 39,8, -440,2) - o **poço da escada ja estava fechado**. Causa: `BuildBlueprintParser.ClassOf` punha
+**escada/escadinha na MESMA classe das paredes** (classe 1, ordenada por altura), entao as paredes em volta subiam
+**antes** da escadinha de 40,8 - e o caminho para o pe dela deixava de existir. As pecas de cima (y = 45,8/47,8) ficavam
+inalcancaveis: `couldn't get to (-152,2, 47,8, -421,7) from (-152,7, 38,9, -422,1) - giving up`.
+
+**Correcao:** classe propria para **circulacao vertical** (0 = piso/bancada, **1 = escada, escadinha, escada de mao**,
+2 = paredes/vigas/postes/portas/moveis, 3 = telhado). A obra passa a subir na ordem que um jogador usa: piso -> **a
+maneira de subir** -> paredes -> telhado. Medido no mesmo teste: 787/983 com as pecas de cima pendentes (o retry pass
+tenta-las de novo no fim).
+
 ### 15.3 Medido em jogo (02/11/2026)
 
 | arquivo | pecas | resultado |

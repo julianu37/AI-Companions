@@ -107,8 +107,8 @@ internal static class BuildBlueprintParser
 			.ToList();
 	}
 
-	/// <summary>0 = ground (floors, foundations, the workbench), 1 = what stands on it (walls, beams, poles, doors,
-	/// furniture), 2 = roofs and gables.</summary>
+	/// <summary>0 = ground (floors, foundations, the workbench), 1 = the way UP (stairs, stepladders, ladders), 2 = what
+	/// stands on it (walls, beams, poles, doors, furniture), 3 = roofs and gables.</summary>
 	internal static int ClassOf(string prefab)
 	{
 		string name = (prefab ?? string.Empty).ToLowerInvariant();
@@ -120,11 +120,20 @@ internal static class BuildBlueprintParser
 		{
 			return 0;
 		}
+		// E7 (player's report, 03/11/2026: "he is having problems doing the 2nd floor - he forgot the ladder part"): the
+		// STAIRS AND LADDERS are their own class and come right after the floors, BEFORE the walls. They used to share the
+		// walls' class, which is ordered by height - so the walls around the ladder shaft went up first and closed it, and
+		// the companion could not reach the foot of the ladder it had just built ("stuck on ladder 1/2 ... looking again",
+		// measured: 2,8 m from the foot, behind a wood_wall_half).
+		if (name.IndexOf("stair", StringComparison.Ordinal) >= 0 || name.IndexOf("ladder", StringComparison.Ordinal) >= 0)
+		{
+			return 1;
+		}
 		if (name.IndexOf("roof", StringComparison.Ordinal) >= 0)
 		{
-			return 2;      // includes wood_wall_roof_45 / _top (a gable is roof)
+			return 3;      // includes wood_wall_roof_45 / _top (a gable is roof)
 		}
-		return 1;
+		return 2;
 	}
 
 	private static Line ParseLine(string line)
