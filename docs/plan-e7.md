@@ -113,6 +113,49 @@ colocar um totem — o companheiro viraria "operador de totem". Fora.
 - nome errado → fala a lista; peça desconhecida → fala e não começa;
 - sem pasta/arquivo: nada quebra.
 
+## 7. Avaliação do **AICompanion** (Quad) como módulo (03/11/2026)
+
+O jogador perguntou se não estamos reinventando a roda, já que o **AICompanion** do mesmo repo (MIT) "constrói sozinho".
+Li o `mods/AICompanion/Building.cs` (424 linhas) e varri os **48 arquivos** do projeto. O que ele faz, exatamente:
+
+1. `Count(home, raio)` a cada 5 s → quantos fantasmas do BuildOrders faltam perto da casa;
+2. `Next(home, raio, 24)` a cada 10 s → até 24 peças **na ordem de apoio** ("as que vão ficar de pé"), com uma
+   *blacklist* por peça de 600 s (`BuildSkip`);
+3. exige **martelo** (faz um se não tiver) - decisão de projeto deles, não do jogo;
+4. paga da **mochila**; se não cobre, faz uma **viagem aos baús** levando o material de **várias** peças de uma vez
+   (orçamento de 60% da capacidade de carga) e `Take` no baú;
+5. se nem os baús cobrem, vira um **objetivo** (`Goals.ForNeeds`): coletar/fundir/fabricar/pedir a você - e um
+   `CatchUp` faz o mesmo enquanto você estava fora;
+6. `Place(id)` = **`Player.PlacePiece` deles** (crédito/barulho/estatística vão para o jogador) e desconta o material;
+7. quando nada dá, usa `Blockers` (`unlocked|station|protected`) para **dizer por que** não dá.
+
+**Nivelamento de terreno: NÃO faz.** A varredura dos 48 arquivos não achou `Terrain`/`Hoe`/nivelar (só o
+`Attack_SpawnOnHitTerrain` do jogo e "level" de bancada/EpicMMO). Quem nivela é o planejador do BuildOrders (ação
+"Level" em blueprint), não o companheiro. Ou seja: a nossa E10 (enxada ponto por ponto) é **mais** que eles, e é o
+nosso diferencial.
+
+**Por que NÃO importar o AICompanion "como módulo":** ele não é um módulo de construção - é um **cérebro de companheiro
+inteiro** (48 arquivos: `Brain`, `Duties`, `Work`, `Life`, `Needs`, `Menu`, `Journal`, `Profile`, `StarLevels`,
+`EpicMmo`...). O equivalente no nosso mod é `CompanionSetup` + `CompanionAI` + os jobs. Trazer "como módulo" seria
+trazer um segundo cérebro e brigar com o nosso. A licença MIT permite; a arquitetura não recomenda.
+
+**O que vale trazer (as ideias, não o framework):**
+
+| deles | como entra no nosso |
+|---|---|
+| `Count`/`Next`/`Place`/`Blockers` (AppDomain) | **a ponte** (`AI/BuildOrdersLink.cs`): ordem de apoio e "por que não" calculados pelo planejador |
+| `TryCreateBuildingShell` (2.048 peças validadas) | transformar o `.blueprint` num **plano do BuildOrders** e deixar a estabilidade para ele |
+| `Blockers` → fala (`unlocked`/`station`/`protected`) | as nossas recusas de plano passam a usar o motivo real do planejador |
+| `piece.FreeBuildKey()` (mundo com custo zero) | o `BlueprintFree` passa a **respeitar o modificador do mundo** também |
+| viagem aos baús com orçamento de várias peças | já temos (`BuildStock.WithdrawTemplate`), mas o orçamento de 60% é uma ideia boa para builds grandes |
+| martelo obrigatório | **não** copiar (o nosso executor não precisa; é escolha de projeto) |
+| `Place` deles (`Player.PlacePiece`) | **não** copiar: o nosso executor coloca sozinho (E6) - mas para um plano do BuildOrders a peça só existe com o `Place` deles, então ali o crédito vai para o jogador (documentar) |
+
+**Decisão proposta:** `AI/BuildOrdersLink.cs` (2-3 dias): os 4 helpers por `AppDomain`, o `Shell` por reflexão com
+`PlanningApiVersion == 1`, e um modo `Orders` no `MHR_Build` (`Next` → andar → pagar → `Place` → verificar, com
+`Blockers` na recusa). Com BuildOrders instalado, o `.blueprint` **também** passa pelo `Shell` (estabilidade deles);
+sem ele, a nossa leitura continua valendo. É o "módulo" no sentido certo: a **lógica** deles dentro da nossa casa.
+
 ### Perguntas abertas
 
 1. ~~Confirma a B primeiro?~~ **Confirmado: B.** O A (F11) fica para o próximo passo
