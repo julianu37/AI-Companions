@@ -52,12 +52,28 @@ internal static class MHR_Build
 	/// wood that arrives resets it (see <see cref="Pending.LastProgressAt"/>).</summary>
 	internal const float GatherTimeout = 300f;
 
+	/// <summary>E7 (player's request, 03/11/2026): how long the site clearing may take before the build goes on without
+	/// it - clearing a whole forest is not a build site.</summary>
+	internal const float ClearBudget = 240f;
+	/// <summary>E7: how long one tree/log may take before it is given up (the harvest can be stuck on it).</summary>
+	private const float ClearPerObstacle = 45f;
+	/// <summary>E7: most obstacles one order clears (what is left is handled by the retry/skip of the pieces).</summary>
+	private const int ClearMaxObstacles = 40;
+	/// <summary>E7: consecutive refusals (no axe, or one below the tree's tier) that mean "I cannot cut here".</summary>
+	private const int ClearMaxRejects = 5;
+	/// <summary>E7: the clearing square never grows past this (the leveling job works up to 20 m, and a plan bigger than
+	/// this one needs a flat open spot anyway).</summary>
+	private const float ClearMaxSize = 30f;
+
 	private const string LogTag = "[Build] ";
 
 	private enum Phase
 	{
 		/// <summary>E10: leveling the ground before a plan (the house needs a flat 8x8).</summary>
 		Level,
+		/// <summary>E7 (player's request, 03/11/2026): cutting the trees/stumps/logs inside the plan's footprint before
+		/// the first piece - they refuse the floors and block the walking.</summary>
+		Clear,
 		Find,
 		Goto,
 		Place,
@@ -113,6 +129,19 @@ internal static class MHR_Build
 		/// </summary>
 		internal List<PlannedStep> Retry;
 		internal int Passes;
+		/// <summary>E7: the square the site clearing covers (the plan's footprint, centred on the aim).</summary>
+		internal Vector3 ClearCenter;
+		internal float ClearSize;
+		/// <summary>E7: the tree/log being cut right now and since when (one that cannot be cut is given up).</summary>
+		internal GameObject ClearTarget;
+		internal float ClearTargetAt;
+		/// <summary>E7: when the clearing began and how many obstacles it saw / tried.</summary>
+		internal float ClearStart;
+		internal int ClearTotal;
+		internal int ClearCount;
+		internal int ClearRejects;
+		/// <summary>E7: obstacles the harvest refused (no tool for it) - never tried again.</summary>
+		internal readonly HashSet<int> ClearSkip = new HashSet<int>();
 	}
 
 	/// <summary>E6: one piece of a plan, already resolved to a world pose.</summary>
@@ -497,6 +526,12 @@ internal static class MHR_Build
 			}
 		}
 		bool free = ModConfig.BuildBlueprintFree != null && ModConfig.BuildBlueprintFree.Value;
+		// E7 (player's request, 03/11/2026): CLEAR THE SITE FIRST. The trees, stumps and fallen logs inside the footprint
+		// refuse the floors (no_support) and block the walking (the mover gives up after 8 s), and the leveling does not
+		// cut anything: the player's 985-piece plan on a wooded hill got 8 "can't reach it" in a row and never got past
+		// the first row. The harvest does the cutting (its directed target is the same one the radial uses).
+		bool clear = hasBounds && (ModConfig.BuildClearSite == null || ModConfig.BuildClearSite.Value);
+		float clearSize = clear ? Mathf.Clamp(Mathf.Max(maxX - minX, maxZ - minZ) + 1.5f, 2f, ClearMaxSize) : 0f;
 		State state = new State
 		{
 			Active = true,
@@ -518,7 +553,9 @@ internal static class MHR_Build
 			Piece = plan[0].Piece,
 			Pos = plan[0].Pos,
 			Rot = plan[0].Rot,
-			Phase = Phase.Goto
+			Phase = clear ? Phase.Clear : Phase.Goto,
+			ClearCenter = hint,
+			ClearSize = clearSize
 		};
 		s_state[ai.GetInstanceID()] = state;
 		Log(ai, "blueprint " + blueprint.Label + ": " + plan.Count + " pieces near (" + F(hint.x) + ", " + F(hint.y) + ", " + F(hint.z) + ")"
@@ -623,8 +660,9 @@ internal static class MHR_Build
 		{
 			why = "another job was picked";
 		}
-		else if (state.Phase != Phase.GatherWalk && Time.time - state.Start > Timeout)
+		else if (state.Phase != Phase.GatherWalk && state.Phase != Phase.Clear && Time.time - state.Start > Timeout)
 		{
+			// E7: the clearing has its own budget (ClearBudget) - a 60 s clock would end the order on the second tree
 			why = "the order took too long";
 		}
 		// E6 (measured 01/11/2026): an encumbered companion cannot walk - the game's Encumbered effect slows it to a
@@ -632,7 +670,9 @@ internal static class MHR_Build
 		// BUG do teste do jogador (03/11/2026): CompanionCarry.Fraction faz Mathf.Clamp01, entao "Fraction > 1" NUNCA era
 		// verdade - a fala hc_ai_build_too_heavy era codigo morto e o companheiro tentava andar carregado (o mover
 		// desistia em 8 s e a ordem dizia "can't get to the spot", uma mentira). Compara o peso com o teto de verdade.
-		if (why == null && humanoid != null && humanoid.GetInventory() != null
+		// E7: while CLEARING the site the baggage is not an error - the wood of the chopped trees lands in the same bag
+		// the build pays from, and the check fires on the first building frame anyway (with the honest numbers).
+		if (why == null && state.Phase != Phase.Clear && humanoid != null && humanoid.GetInventory() != null
 			&& humanoid.GetInventory().GetTotalWeight() > CompanionCarry.Max(humanoid))
 		{
 			Log(ai, "overweight: " + humanoid.GetInventory().GetTotalWeight().ToString("F0") + "/" + CompanionCarry.Max(humanoid).ToString("F0"));
@@ -659,6 +699,8 @@ internal static class MHR_Build
 		{
 			case Phase.Level:
 				return LevelGround(ai, state);
+			case Phase.Clear:
+				return ClearSite(ai, state);
 			case Phase.Find:
 				return state.Template != null ? FindPlan(ai, state) : Find(ai, state);
 			case Phase.Goto:
@@ -673,6 +715,155 @@ internal static class MHR_Build
 				Finish(ai, state, null, "done");
 				return false;
 		}
+	}
+
+	/// <summary>
+	/// E7 (player's request, 03/11/2026): <b>clear the build site</b> before the first piece. The trees, stumps and fallen
+	/// logs inside the plan's footprint refuse the floors and block the walking, and the leveling does not cut anything.
+	///
+	/// <para>This only <b>picks the next obstacle and waits</b>: the cutting itself is the <see cref="HarvestController"/>'s
+	/// <b>directed target</b> - the very path the radial uses to send the companion at one tree - so the axe, the tool
+	/// tier, the walking, the swings and the drops are the game's own code (and the wood goes to the bag the build pays
+	/// from, a bonus).</para>
+	///
+	/// <para>Every stop is deliberate: an obstacle the harvest refuses (no axe, or one below the tree's tier) is not tried
+	/// again, one it cannot finish in <see cref="ClearPerObstacle"/> seconds is given up, and
+	/// <see cref="ClearMaxObstacles"/> obstacles or <see cref="ClearBudget"/> seconds end the clearing - the build goes on
+	/// and the pieces that do not fit are retried and skipped anyway.</para>
+	/// </summary>
+	private static bool ClearSite(CompanionAI ai, State state)
+	{
+		HarvestController harvest = ai.GetComponent<HarvestController>();
+		if (harvest == null)
+		{
+			Log(ai, "there is no harvest to clear the site with - building as it is");
+			state.Phase = Phase.Goto;
+			return true;
+		}
+		if (state.ClearStart <= 0f)
+		{
+			state.ClearStart = Time.time;
+			state.ClearTotal = CountObstacles(state);
+			if (state.ClearTotal == 0)
+			{
+				Log(ai, "the site is clear (nothing to cut inside " + F(state.ClearSize) + " m)");
+				state.Phase = Phase.Goto;
+				return true;
+			}
+			Log(ai, "clearing the site: " + state.ClearTotal + " tree(s)/log(s) inside the " + F(state.ClearSize)
+				+ " m footprint");
+			Say(ai, "hc_ai_build_clearing", state.ClearTotal);
+		}
+		if (state.ClearTarget != null)
+		{
+			// the object is destroyed when the tree falls (a stump and the logs are new objects): that is the "done"
+			if (Time.time - state.ClearTargetAt > ClearPerObstacle)
+			{
+				state.ClearSkip.Add(state.ClearTarget.GetInstanceID());
+				Log(ai, "giving up on \"" + state.ClearTarget.name + "\" (over " + ClearPerObstacle.ToString("F0") + " s)");
+				harvest.CancelDirectedTarget();
+				state.ClearTarget = null;
+			}
+			return true;
+		}
+		if (state.ClearCount >= ClearMaxObstacles || Time.time - state.ClearStart > ClearBudget)
+		{
+			harvest.CancelDirectedTarget();
+			state.Phase = Phase.Goto;
+			Log(ai, "clearing stopped (" + state.ClearCount + " cut, " + (Time.time - state.ClearStart).ToString("F0")
+				+ " s) - building with what is clear");
+			return true;
+		}
+		GameObject next = NextObstacle(state);
+		if (next == null)
+		{
+			harvest.CancelDirectedTarget();
+			state.Phase = Phase.Goto;
+			Log(ai, "the site is clear (" + state.ClearCount + " obstacle(s) in " + (Time.time - state.ClearStart).ToString("F0")
+				+ " s)");
+			return true;
+		}
+		if (!harvest.SetDirectedTarget(next))
+		{
+			// no axe / a tier below the tree: the harvest said no and would say no again next frame
+			state.ClearSkip.Add(next.GetInstanceID());
+			state.ClearRejects++;
+			Log(ai, "can't cut \"" + next.name + "\" (no tool for it) - leaving it");
+			if (state.ClearRejects >= ClearMaxRejects)
+			{
+				state.Phase = Phase.Goto;
+				Log(ai, "nothing here I can cut - building as it is");
+			}
+			return true;
+		}
+		state.ClearRejects = 0;
+		state.ClearCount++;
+		state.ClearTarget = next;
+		state.ClearTargetAt = Time.time;
+		Log(ai, "clearing the site: cutting \"" + next.name + "\" (" + state.ClearCount + "/" + state.ClearTotal + ")");
+		return true;
+	}
+
+	/// <summary>The nearest tree/log inside the footprint that has not been given up yet (null when none).</summary>
+	private static GameObject NextObstacle(State state)
+	{
+		float half = state.ClearSize * 0.5f;
+		GameObject best = null;
+		float bestDistance = float.MaxValue;
+		foreach (TreeBase tree in UnityEngine.Object.FindObjectsByType<TreeBase>(FindObjectsSortMode.None))
+		{
+			ConsiderObstacle(state, tree != null ? tree.gameObject : null, half, ref best, ref bestDistance);
+		}
+		foreach (TreeLog log in UnityEngine.Object.FindObjectsByType<TreeLog>(FindObjectsSortMode.None))
+		{
+			ConsiderObstacle(state, log != null ? log.gameObject : null, half, ref best, ref bestDistance);
+		}
+		return best;
+	}
+
+	private static int CountObstacles(State state)
+	{
+		float half = state.ClearSize * 0.5f;
+		int count = 0;
+		foreach (TreeBase tree in UnityEngine.Object.FindObjectsByType<TreeBase>(FindObjectsSortMode.None))
+		{
+			if (IsObstacle(state, tree != null ? tree.gameObject : null, half))
+			{
+				count++;
+			}
+		}
+		foreach (TreeLog log in UnityEngine.Object.FindObjectsByType<TreeLog>(FindObjectsSortMode.None))
+		{
+			if (IsObstacle(state, log != null ? log.gameObject : null, half))
+			{
+				count++;
+			}
+		}
+		return count;
+	}
+
+	private static void ConsiderObstacle(State state, GameObject go, float half, ref GameObject best, ref float bestDistance)
+	{
+		if (!IsObstacle(state, go, half))
+		{
+			return;
+		}
+		float distance = Vector3.Distance(state.ClearCenter, go.transform.position);
+		if (distance < bestDistance)
+		{
+			bestDistance = distance;
+			best = go;
+		}
+	}
+
+	private static bool IsObstacle(State state, GameObject go, float half)
+	{
+		if (go == null || state.ClearSkip.Contains(go.GetInstanceID()))
+		{
+			return false;
+		}
+		Vector3 point = go.transform.position;
+		return Mathf.Abs(point.x - state.ClearCenter.x) <= half && Mathf.Abs(point.z - state.ClearCenter.z) <= half;
 	}
 
 	/// <summary>

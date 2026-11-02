@@ -2781,6 +2781,10 @@
             "value": "Prima livello il terreno ({0} m)."
         },
         {
+            "key": "hc_ai_build_clearing",
+            "value": "Prima di costruire libero il cantiere ({0} alberi/tronchi)."
+        },
+        {
             "key": "hc_ai_build_level_failed",
             "value": "Non sono riuscito a livellare il terreno qui (restano {0} m di dislivello)."
         },

@@ -1164,6 +1164,13 @@ comandos de console e spawna coisas, então não é feature de jogador.
   morto** - `CompanionCarry.Fraction` faz `Mathf.Clamp01` (é a barra do HUD), então `Fraction > 1f` nunca era verdade; o
   companheiro tentava andar carregado, o mover desistia em 8 s e a ordem culpava o lugar ("can't get to the spot").
   Agora compara o **peso real** com o teto (`CompanionCarry.Max`). Análise do AICompanion deles em `docs/plan-e7.md` §7 (não nivela; o módulo é a lógica).
+  **Limpar o canteiro (03/11/2026):** antes da primeira peça o companheiro **corta as árvores/tocos/troncos dentro do
+  footprint** (`Phase.Clear` + `[Building] ClearSite`, padrão true), pelo **alvo dirigido do harvest** (o mesmo do radial:
+  machado, tier, caminhada, golpes e drops são do jogo) — o `SetDirectedTarget` agora devolve `bool` (false = sem
+  ferramenta/tier baixo, o obstáculo é ignorado). Orçamentos: 45 s por obstáculo, 40 obstáculos, 240 s por ordem, 5
+  recusas seguidas encerram; o que sobra fica para o retry/skip. O guarda de peso fica suspenso na fase Clear (a madeira
+  da limpeza cai na mochila que paga a obra) e volta na construção. Ordem: **nivelar → limpar → construir** (a enxada
+  alisa o terreno com as árvores em cima). Fala `hc_ai_build_clearing` (5 idiomas).
   **A ponte do BuildOrders (F11) fica para depois** (barata, API pública).
   O vigia do E6b deixou de comparar **total-da-mochila** com
   **o-que-falta** (a 4x4 entrava em loop na porta); agora recalcula o que falta e retoma quando é zero. Harness

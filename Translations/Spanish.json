@@ -2781,6 +2781,10 @@
             "value": "Voy a nivelar el terreno primero ({0} m)."
         },
         {
+            "key": "hc_ai_build_clearing",
+            "value": "Voy a despejar el terreno antes de construir ({0} árboles/troncos)."
+        },
+        {
             "key": "hc_ai_build_level_failed",
             "value": "No pude nivelar el terreno aquí (sigue con {0} m de desnivel)."
         },

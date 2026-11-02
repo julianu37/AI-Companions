@@ -580,6 +580,9 @@ Do not make the placement noise (the game adds one when a piece goes up, which c
 **LevelGround** — Default: On  
 Level the ground before a structure (a plan) when it is uneven: a house of 8x8 needs a flat area, and the walls and roof are all at the anchor's height. It uses the game's own leveling (the hoe's level operation) and needs a hoe in the companion's bag - without one it says so and the order ends.
 
+**ClearSite** — Default: On  
+Clear the build site before the first piece: the trees, stumps and fallen logs inside the plan's footprint are cut (the same directed harvest the radial uses) and the wood goes to the bag the build pays from. The ground under them is not changed - leveling is its own step (LevelGround). Up to 40 obstacles / 240 s per order; what is left is handled by the piece retry.
+
 **BlueprintFree** — Default: Off  
 Build a blueprint without paying for the pieces (a test/creative switch: the companion places the pieces from the file and takes nothing from the bag or the chests). Off by default - a blueprint costs the same as any other build.
 

@@ -40,6 +40,12 @@ stopped.
   blamed the spot. It now compares the real weight with the carry ceiling and says `hc_ai_build_too_heavy`.
   Measured right after: with **120 wood (240 of 300 weight)** the same 985-piece blueprint **walked and built 60 pieces**
   in ~3 minutes (all supported) before handing the order to the gather for the rest.
+- **The build site is cleared before the first piece** (player's request, 03/11/2026): the trees, stumps and fallen logs
+  inside the plan's footprint refuse the floors and block the walking, and leveling does not cut anything - a 985-piece
+  blueprint on a wooded hill stopped at the first row. The companion now **chops what is inside the footprint** with the
+  same directed harvest the radial uses (axe, tool tier, walking, drops: all the game's code) and the wood goes to the
+  bag the build pays from. Hard stops: 45 s per obstacle, 40 obstacles, 240 s per order, and a refusal ("no axe for
+  it") is left alone - what is left over is handled by the piece retry. New `[Building] ClearSite` (on by default).
 - **A piece that does not stand YET is retried, not lost** (the BuildOrders "build what stands" loop without the mod):
   a piece refused for no support, unreachable, too slow or not materialized goes back to a queue and is tried again when
   the rest of the plan is up (up to 3 passes) - the game's own support verdict decides, no stability simulation. Only

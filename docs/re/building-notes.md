@@ -755,6 +755,32 @@ corrigido para comparar o peso real com `CompanionCarry.Max` - a ordem agora diz
 culpar o lugar. Num plano grande o **local plano e aberto** continua sendo pre-requisito (o nivelamento nao corta morro
 nem derruba arvore).
 
+### 15.2d Limpar o canteiro antes da primeira peca (03/11/2026)
+
+Pedido do jogador depois do teste do arquivo de 985 pecas: as arvores, tocos e troncos caidos **dentro do footprint**
+recusam o piso (`no_support`) e barram o caminho (o `MHR_Mover` desiste em ~8 s sem progresso) - e o nivelamento **nao
+corta nada**. A ordem agora tem a fase `Phase.Clear`, que roda **antes** da primeira peca (e **depois** do nivelamento,
+que e uma operacao de terreno: a enxada alisa o chao com as arvores em cima - por isso a ordem e nivelar, limpar,
+construir).
+
+**Quem corta e o harvest**, pelo **alvo dirigido** (`HarvestController.SetDirectedTarget`, o mesmo caminho do radial que
+manda o companheiro numa arvore): machado, tier da ferramenta, caminhada, golpes e drops sao o codigo do jogo. O
+`MHR_Build` so **escolhe o proximo obstaculo e espera** - quando o objeto some (a arvore cai e viram toco/tronco novos),
+ele pega o proximo. `SetDirectedTarget` passou a devolver **`bool`** (false = recusou: sem ferramenta ou tier abaixo), e
+ai o obstaculo entra na lista de ignorados em vez de prender a ordem por 45 s.
+
+**Orcamentos (todos de proposito):** 45 s por obstaculo, **40 obstaculos** e **240 s** por ordem; **5 recusas seguidas**
+("nao tenho machado") encerram a limpeza. O que sobrar fica para o **retry/skip** das pecas - a casa nao para por causa
+de uma arvore. O guarda de **peso** fica suspenso durante a fase Clear (a madeira das arvores cai na **mesma mochila** que
+paga a obra - virou material) e volta a valer no primeiro frame de construcao, com os numeros honestos.
+
+**Config `[Building] ClearSite`** (bool, **true**). Fala nova: `hc_ai_build_clearing` ("Vou limpar o canteiro antes de
+construir ({0} arvores/troncos).") nos 5 idiomas. Logs: `clearing the site: N tree(s)/log(s) inside the X m footprint`,
+`clearing the site: cutting "Beech1" (3/12)`, `giving up on "..." (over 45 s)`, `can't cut "..." (no tool for it) -
+leaving it`, `the site is clear (12 obstacle(s) in 96 s)`.
+
+**Medicao:** *(pendente - o jogador da a ordem em jogo e o log e conferido na mesma sessao).*
+
 ### 15.3 Medido em jogo (02/11/2026)
 
 | arquivo | pecas | resultado |

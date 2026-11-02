@@ -590,17 +590,20 @@ public class HarvestController : MonoBehaviour
 		return -1;
 	}
 
-	public void SetDirectedTarget(GameObject target)
+	/// <summary>Sends the companion at one specific tree/rock (the radial and the build site's clearing both use it).
+	/// Returns <b>false</b> when it refused the target (no tool for it, or one below its tier) - the caller then knows
+	/// it must not wait for this object to change.</summary>
+	public bool SetDirectedTarget(GameObject target)
 	{
 		if (target == null)
 		{
-			return;
+			return false;
 		}
 		int num = DetermineHarvestModeStatic(target);
 		if (num < 0)
 		{
 			if (CompanionsPlugin.LogDetailed) Log("SetDirectedTarget REJECTED — can't determine tool for \"" + target.name + "\"");
-			return;
+			return false;
 		}
 		int minToolTier = GetMinToolTier(target);
 		int bestToolTier = GetBestToolTier(num);
@@ -620,7 +623,7 @@ public class HarvestController : MonoBehaviour
 			{
 				Player.m_localPlayer?.Message(MessageHud.MessageType.Center, ModLocalization.LocFmt("hc_msg_tools_weak", text));
 			}
-			return;
+			return false;
 		}
 		_directedTarget = target;
 		_directedMode = num;
@@ -641,6 +644,7 @@ public class HarvestController : MonoBehaviour
 		}
 		float num2 = Vector3.Distance(base.transform.position, target.transform.position);
 		if (CompanionsPlugin.LogDetailed) Log("[PointTo] SetDirectedTarget — \"" + target.name + "\" type=" + _targetType + " " + string.Format("mode={0} tool=\"{1}\" ", num, itemData?.m_shared?.m_name ?? "NONE") + $"dist={num2:F1}m targetPos={target.transform.position:F1} " + $"myPos={base.transform.position:F1}");
+		return true;
 	}
 
 	public void CancelDirectedTarget()
