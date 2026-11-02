@@ -40,6 +40,12 @@ stopped.
   blamed the spot. It now compares the real weight with the carry ceiling and says `hc_ai_build_too_heavy`.
   Measured right after: with **120 wood (240 of 300 weight)** the same 985-piece blueprint **walked and built 60 pieces**
   in ~3 minutes (all supported) before handing the order to the gather for the rest.
+- **Every piece needs a workbench (the game's own rule) and the first test proved it the hard way**: the station pass
+  counted 983 pieces, then three things went wrong in a row - the exit of the site clearing did not re-anchor the order's
+  clock (the workbench was skipped as "took too long"), a `needs_station` refusal ended the whole blueprint instead of
+  retrying the piece, and the planned bench was being searched **inside** the house (it would take a floor's place). Now
+  the bench goes **outside the footprint on the piece's side, on the ground**, a `needs_station` piece of a blueprint is
+  retried, and the clearing budget pauses while the companion hauls an overweight load to a chest.
 - **The workbench is planned, not assumed** (player's request, 03/11/2026): the game frees a piece only when a station is
   inside *its* range (`m_rangeBuild`, 20 m, and the height is ignored), and a downloaded house with chests on three floors
   can easily have none. Every piece that needs a workbench is now checked against the stations around it **and** against

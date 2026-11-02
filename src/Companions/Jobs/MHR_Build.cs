@@ -68,7 +68,7 @@ internal static class MHR_Build
 	private const int MaxPlannedBenches = 8;
 	/// <summary>E7: most spot searches for those benches - every search runs the game's placement ghost up to 96 times and
 	/// a site with nothing free must not freeze the frame (one search is one <c>BuildSite.Check</c> ring walk).</summary>
-	private const int MaxBenchSearches = 12;
+	private const int MaxBenchSearches = 6;
 	/// <summary>The workbench's coverage in metres when the prefab cannot be read: <c>CraftingStation.m_rangeBuild</c> is 20
 	/// (the radius in which a station frees building - measured, see <c>docs/re/building-notes.md</c>).</summary>
 	private const float BenchDefaultRadius = 20f;
@@ -520,7 +520,8 @@ internal static class MHR_Build
 		missingStation = null;
 		if (!resuming)
 		{
-			PlanStations(cs, plan, rot, Self(ai), ai);
+			float extent = hasBounds ? Mathf.Max(maxX - minX, maxZ - minZ) : 0f;
+			PlanStations(cs, plan, hint, extent * 0.5f + 2.5f, rot, Self(ai), ai);
 		}
 		// a station this build cannot make by itself (stonecutter, forge, black forge...) is still a refusal, and it names
 		// the station instead of dying at the piece
@@ -758,7 +759,7 @@ internal static class MHR_Build
 			case Phase.Level:
 				return LevelGround(ai, state);
 			case Phase.Clear:
-				return ClearSite(ai, state);
+				return ClearSite(ai, state, dt);
 			case Phase.Find:
 				return state.Template != null ? FindPlan(ai, state) : Find(ai, state);
 			case Phase.Goto:
@@ -789,7 +790,7 @@ internal static class MHR_Build
 	/// <see cref="ClearMaxObstacles"/> obstacles or <see cref="ClearBudget"/> seconds end the clearing - the build goes on
 	/// and the pieces that do not fit are retried and skipped anyway.</para>
 	/// </summary>
-	private static bool ClearSite(CompanionAI ai, State state)
+	private static bool ClearSite(CompanionAI ai, State state, float dt)
 	{
 		HarvestController harvest = ai.GetComponent<HarvestController>();
 		if (harvest == null)
@@ -821,7 +822,10 @@ internal static class MHR_Build
 			Inventory pack = body != null ? body.GetInventory() : null;
 			if (pack != null && pack.GetTotalWeight() >= CompanionCarry.UnloadThreshold(pack) - 2f)
 			{
+				// hauling a load to a chest is not the clearing working: neither the per-obstacle clock nor the order
+				// budget may run (measured 03/11/2026: 261 s of budget, ~60 s of it carrying wood)
 				state.ClearTargetAt = Time.time;
+				state.ClearStart += dt;
 			}
 			// the object is destroyed when the tree falls (a stump and the logs are new objects): that is the "done"
 			if (Time.time - state.ClearTargetAt > ClearPerObstacle)
@@ -849,6 +853,10 @@ internal static class MHR_Build
 		{
 			harvest.CancelDirectedTarget();
 			state.Phase = Phase.Goto;
+			// the order's clock follows the PIECE (the site is clear before the first one) - without this the first piece
+			// (here the workbench the station pass added) was already far past the 60 s and was skipped as "took too long"
+			state.Start = Time.time;
+			state.Checked = false;
 			Log(ai, "clearing stopped (" + state.ClearCount + " cut, " + (Time.time - state.ClearStart).ToString("F0")
 				+ " s) - building with what is clear");
 			return true;
@@ -926,7 +934,8 @@ internal static class MHR_Build
 	/// it is paid from the same bag/chests and the plan's shortfall counts it. Benches the blueprint itself brings cover
 	/// what is around them.
 	/// </summary>
-	private static int PlanStations(CompanionSetup cs, List<PlannedStep> plan, Quaternion rot, Component who, CompanionAI ai)
+	private static int PlanStations(CompanionSetup cs, List<PlannedStep> plan, Vector3 centre, float outside, Quaternion rot,
+		Component who, CompanionAI ai)
 	{
 		Piece bench = BuildProbe.PieceOf(BenchPrefab);
 		if (bench == null || plan == null || plan.Count == 0)
@@ -961,10 +970,21 @@ internal static class MHR_Build
 			{
 				continue;
 			}
+			// a bench INSIDE the house would take the place of a floor (the blueprint's own grid) - it goes OUTSIDE the
+			// footprint, on the piece's side of the site, and its 20 m still cover the piece (the height is ignored by
+			// HaveBuildStationInRange)
+			Vector3 outward = step.Pos - centre;
+			outward.y = 0f;
+			if (outward.sqrMagnitude < 1f)
+			{
+				outward = new Vector3(1f, 0f, 0f);
+			}
+			Vector3 anchor = centre + outward.normalized * Mathf.Max(outside, 2.5f);
 			Vector3 spot;
 			Quaternion benchRot;
 			tries++;
-			if (!FindBenchSpot(bench, step.Pos, rot, who, out spot, out benchRot))
+			if (!FindBenchSpot(bench, anchor, rot, who, out spot, out benchRot)
+				&& !FindBenchSpot(bench, step.Pos, rot, who, out spot, out benchRot))
 			{
 				LogDebug(ai, "no room for a workbench next to the " + step.Prefab + " at (" + F(step.Pos.x) + ", "
 					+ F(step.Pos.y) + ", " + F(step.Pos.z) + ") - it will be refused and retried");
@@ -1009,13 +1029,18 @@ internal static class MHR_Build
 	private static bool FindBenchSpot(Piece bench, Vector3 near, Quaternion rot, Component who, out Vector3 spot,
 		out Quaternion benchRot)
 	{
-		for (int ring = 1; ring <= 3; ring++)
+		// the OUTDOOR spot is on the ground (a bench outside the house stands on the terrain, not at the floor's height);
+		// the fallback (the piece's own spot) keeps its height, for a bench that has to go inside
+		float groundY = ZoneSystem.instance != null ? ZoneSystem.instance.GetGroundHeight(near) : near.y;
+		bool outdoors = Mathf.Abs(groundY - near.y) < 3f;
+		for (int ring = 0; ring <= 2; ring++)
 		{
 			float distance = 1.6f * ring;
 			for (int dir = 0; dir < 8; dir++)
 			{
 				float angle = Mathf.PI * 2f * dir / 8f;
-				Vector3 candidate = new Vector3(near.x + Mathf.Cos(angle) * distance, near.y, near.z + Mathf.Sin(angle) * distance);
+				Vector3 candidate = new Vector3(near.x + Mathf.Cos(angle) * distance, outdoors ? groundY : near.y,
+					near.z + Mathf.Sin(angle) * distance);
 				for (int yaw = 0; yaw < 4; yaw++)
 				{
 					Quaternion candidateRot = rot * Quaternion.Euler(0f, yaw * 90f, 0f);
@@ -1635,7 +1660,10 @@ internal static class MHR_Build
 				{
 					Log(ai, "piece " + state.Prefab + " refused now (" + status + ") - the plan stops");
 				}
-				if (status == "needs_station" && state.Piece != null && state.Piece.m_craftingStation != null)
+				// E7 (player's test, 03/11/2026): a BLUEPRINT never ends on needs_station - the workbench the station pass
+				// added may still be ahead in the plan, and the piece is retried at the end (the order died here: bench
+				// skipped, first floor refused, whole 985-piece house lost)
+				if (status == "needs_station" && state.Blueprint == null && state.Piece != null && state.Piece.m_craftingStation != null)
 				{
 					// say WHICH station is missing, not "it doesn't fit" (E6: a plan may bring its own, and if it did
 					// not reach the spot the player has to know what is missing)

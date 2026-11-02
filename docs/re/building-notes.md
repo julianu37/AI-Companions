@@ -850,6 +850,21 @@ da mesma mochila/baus e entra no `PlanMissing` (10 madeiras cada). Teto de **8 b
 `station: N piece(s) need a workbench, M workbench(es) added to the plan`. Estacoes que o mod **nao** fabrica
 (stonecutter, forge...) continuam sendo recusa nomeada, como antes.
 
+**A REGRA E MAIS DURA DO QUE PARECIA (medido em jogo, 03/11/2026):** no Valheim 1.0 **toda peca** tem
+`m_craftingStation` = bancada - nao e so movel. O log do teste disse `station: 983 piece(s) need a workbench` (as 983
+pecas do plano) e `piece wood_floor refused now (needs_station)`: sem bancada no raio **da peca** nada sobe, nem piso.
+
+**Os tres bugs do primeiro teste (03/11/2026, todos corrigidos):** (1) a saida "clearing stopped" (orcamento) **nao
+reancorava** o relogio da ordem - so a saida "the site is clear" fazia isso -, entao a 1a peca (a bancada) chegou com
+261 s de limpeza nas costas e foi pulada como `skipping piece_workbench (took too long)`; (2) o `needs_station` **matava a
+ordem inteira** (o `Finish hc_ai_build_needs_station` vem antes do `QueueRetry` do blueprint), e com a bancada pulada o
+2o passo (`wood_floor`) derrubou as 983 pecas (`order ended: hc_ai_build_needs_station`); agora, num blueprint,
+`needs_station` vai para o **retry** (a bancada pode estar mais a frente no plano); (3) a bancada era procurada **perto da
+peca**, ou seja **dentro** da casa, e ia **tomar o lugar de um piso** - agora ela vai **fora do footprint**, no lado da
+peca (`centro + direcao * (metade do footprint + 2,5 m)`) e **no chao** (`ZoneSystem.GetGroundHeight`), com o fallback
+antigo se nao houver lugar la. O orcamento da limpeza tambem **pausa** enquanto ele leva carga ao bau (na medição foram
+~60 s dos 261 s carregando madeira).
+
 **Retomada:** a ordem retomada usa o **plano exato** da primeira parte (`pending.Plan`) - as bancadas que ela mesma
 acrescentou fazem parte dele. Reconstruir o plano agora (com as bancadas ja de pe) inseriria menos bancadas e **todo
 indice depois delas andaria**, perdendo as pecas do meio em silencio.

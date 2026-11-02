@@ -1187,6 +1187,11 @@ comandos de console e spawna coisas, então não é feature de jogador.
   raio **dela** (nem bancada já planejada), **insere uma bancada no plano logo antes** — procurada no **Y da peça** (piso,
   não terreno), 4 rotações, pelo `BuildSite.Check`; teto de 8. Estação que o mod não fabrica continua recusa nomeada. A
   retomada usa o **plano exato** (`pending.Plan`), senão os índices andariam ao reconstruir sem as bancadas já de pé.
+  **No 1.0 TODA peça tem `m_craftingStation`** (medido: `station: 983 piece(s) need a workbench`, `wood_floor refused
+  (needs_station)`) — sem bancada no raio da peça nada sobe. Teste de 03/11/2026: a bancada era buscada **dentro** da casa
+  (tomava o lugar de um piso) → agora vai **fora do footprint, no lado da peça, no chão**; a saída "clearing stopped" não
+  reancorava o relógio (a bancada foi pulada como "took too long") → corrigido; e `needs_station` **matava** o blueprint →
+  agora vai para o **retry**. O orçamento da limpeza **pausa** enquanto ele leva carga ao baú.
   **A ponte do BuildOrders (F11) fica para depois** (barata, API pública).
   O vigia do E6b deixou de comparar **total-da-mochila** com
   **o-que-falta** (a 4x4 entrava em loop na porta); agora recalcula o que falta e retoma quando é zero. Harness
