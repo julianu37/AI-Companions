@@ -814,12 +814,15 @@ TOOLS = [
     },
     {
         "name": "companions_give",
-        "description": "Adds an item to a companion's inventory.",
+        "description": (
+            "Adds an item to a companion's inventory. A NEGATIVE amount takes it away again (a test that overfed the "
+            "companion leaves it encumbered and unable to move: 150 wood is 300 weight, the carry limit)."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
                 "item": {"type": "string"},
-                "amount": {"type": "integer", "minimum": 1, "default": 1},
+                "amount": {"type": "integer", "default": 1},
                 "name": {"type": "string"},
             },
             "required": ["item"],

@@ -116,8 +116,8 @@ internal static class BuildTemplates
 	/// </summary>
 	private static readonly Template Hut = new Template("hut", "cabana", new[]
 	{
-		"cabana", "choupana", "chao 2x2", "chao de 2x2", "quatro paredes",
-		"hut", "small hut",
+		"cabana", "choupana", "barraco", "barracao", "chao 2x2", "chao de 2x2", "quatro paredes",
+		"hut", "small hut", "shack", "shed",
 		"cabana pequena", "choza",
 		"cabane", "cabane simple",
 		"casetta", "capanna", "stanza 2x2"
@@ -173,23 +173,100 @@ internal static class BuildTemplates
 	/// </summary>
 	private static readonly Template House = new Template("house", "casa", new[]
 	{
-		"abrigo", "casa", "casinha", "casa simples", "casa de madeira", "casebre",
-		"house", "small house", "shelter", "cabin",
-		"casa pequeña", "casita", "refugio",
-		"maison", "petite maison", "abri",
-		"casa piccola", "casupola", "rifugio"
-	}, HouseSteps());
+		"abrigo", "casa", "casinha", "casa simples", "casa de madeira", "casebre", "casa grande",
+		"house", "small house", "shelter", "cabin", "big house",
+		"casita", "refugio", "casa grande",
+		"maison", "petite maison", "abri", "grande maison",
+		"casa piccola", "casupola", "rifugio", "casa grande"
+	}, HouseSteps(4, 1, 2));
 
-	private static Step[] HouseSteps()
+	/// <summary>
+	/// The <b>6x6</b> house (player's request, 02/11/2026): the same design as the measured 8x8 with one size down.
+	/// The roof is the part that changes: the run from the wall to the ridge is 3 m and a 45 deg piece covers 2 m, so it
+	/// takes <b>2 pieces per slope with the eave 1 m past the wall</b> (the player's choice) - and a roof 1 m past the
+	/// wall has nothing under it, so the plan brings a <b>2 m post at each corner of the eave</b> (the veranda look).
+	/// </summary>
+	private static readonly Template House6 = new Template("house6", "casa 6x6", new[]
+	{
+		"casa 6x6", "casa media", "casa média", "casa mediana", "casa de 6x6", "6x6",
+		"house 6x6", "medium house", "6x6 house",
+		"casa 6x6 mediana", "casa de 6x6",
+		"maison 6x6", "maison moyenne",
+		"casa 6x6 media", "casa media", "casa di 6x6"
+	}, HouseSteps(3, 1, 2, roofAlongZ: true));
+
+	/// <summary>
+	/// The <b>4x4</b> house (player's request, 02/11/2026): two tiles on each side, one 45 deg piece per slope (the
+	/// pieces meet exactly at the ridge) and <b>no workbench</b> - a 3,7 x 2,1 m bench inside a 4x4 m room leaves no
+	/// floor, so this one needs a bench (any crafting station) within the game's radius. Door and window share the two
+	/// front slots.
+	/// </summary>
+	private static readonly Template House4 = new Template("house4", "casa 4x4", new[]
+	{
+		"casa 4x4", "casa pequena", "casa pequena 4x4", "casa de 4x4", "4x4", "casebre 4x4",
+		"house 4x4", "small house 4x4", "4x4 house",
+		"casa pequeña 4x4", "casa pequeña de 4x4", "casita 4x4",
+		"maison 4x4", "petite maison 4x4",
+		"casa 4x4 piccola", "casetta 4x4"
+	}, HouseSteps(2, 0, 1));
+
+	/// <summary>
+	/// The <b>tent</b> (player's request, 02/11/2026): a 4x2 m lean-to - two 2 m poles hold the high edge of two 45 deg
+	/// pieces at the back and the roof runs down to the ground 2 m in front. Open on every side; 8 wood, and it is
+	/// the cheap "cover the bench" shelter (the piece covers 2 m). The poles stand on the roof's own snap points (the
+	/// outer corners of the high edge), which is what gives the pieces their support.
+	/// </summary>
+	private static readonly Template Tent = new Template("tent", "tenda", new[]
+	{
+		"tenda", "toldo", "abrigo de uma agua", "abrigo de 1 agua", "abrigo de uma água", "barraca",
+		"tent", "lean to", "lean-to", "awning",
+		"tienda", "toldo de una agua", "toldo de una agua",
+		"tente", "auvent incline",
+		"tenda da campo", "pensilina", "tettoia a una falda"
+	}, new[]
+	{
+		// the poles at the eave's outer snaps (x = ±2, z = 0): their tops are the roof's high edge
+		new Step("wood_pole2", 2f, 1f, 0f, 0f, 0),
+		new Step("wood_pole2", -2f, 1f, 0f, 0f, 0),
+		// the roof: origin at (y = 1, z = 1), high edge at z = 0 / y = 2 and the eave on the ground at z = 2 / y = 0
+		new Step("wood_roof_45", 1f, 1f, 1f, 0f, 2),
+		new Step("wood_roof_45", -1f, 1f, 1f, 0f, 2)
+	});
+
+	/// <summary>
+	/// A house of <paramref name="tiles"/> x <paramref name="tiles"/> tiles of 2 m: 4x4, 6x6 and 8x8 wall to wall. The
+	/// 8x8 is the one measured in game (57/57, 01/11/2026) and its poses are unchanged; the smaller ones are the same
+	/// recipe with the roof adapted to the run from the wall to the ridge:
+	/// <list type="bullet">
+	/// <item><b>4x4</b> (half = 2): one 45 deg piece per slope, eave on the wall - the two pieces meet at the ridge.</item>
+	/// <item><b>6x6</b> (half = 3): the run is 3 m, so 2 pieces per slope with the eave 1 m past the wall, plus a 2 m
+	/// post at each corner of the eave (nothing else would hold it).</item>
+	/// <item><b>8x8</b> (half = 4): 2 pieces per slope, eave on the wall.</item>
+	/// </list>
+	/// </summary>
+	private static Step[] HouseSteps(int tiles, int doorSlot, int windowSlot, bool roofAlongZ = false)
 	{
 		List<Step> steps = new List<Step>();
-		// the house brings its OWN workbench (inside, back-left corner): every wooden piece needs a station in range, so
-		// without it the order would need the player to have one - and a bench dropped at the spot ends up INSIDE the
-		// house, in the way of the floor (measured 01/11/2026: "a bancada atrapalhou"). It goes FIRST: the floors
-		// themselves need the station it provides.
-		steps.Add(new Step("piece_workbench", -2.3f, 0.12f, 2f, 0f, 0));
-		// the floor: 4x4 tiles of 2x2 m, level 0
-		float[] grid = { -3f, -1f, 1f, 3f };
+		float half = tiles;
+		float[] grid = new float[tiles];
+		for (int i = 0; i < tiles; i++)
+		{
+			grid[i] = -half + 1f + 2f * i;
+		}
+		// the house brings its OWN workbench (inside, back-left corner): every wooden piece needs a station in range.
+		// The 4x4 has no room for it (a 3,7 x 2,1 m bench in a 4x4 m room) - that one needs a station nearby. The 6x6
+		// cannot take it along the back wall either (3,7 m of bench in a 6 m wall leaves no corridor in front of the
+		// door), so there it stands against the LEFT wall, turned 90 degrees (the player's "nao passa pela porta",
+		// 02/11/2026).
+		if (tiles >= 4)
+		{
+			steps.Add(new Step("piece_workbench", -half + 1.7f, 0.12f, half - 2f, 0f, 0));
+		}
+		else if (tiles == 3)
+		{
+			steps.Add(new Step("piece_workbench", -half + 1.05f, 0.12f, 0f, 90f, 0));
+		}
+		// the floor: tiles x tiles tiles of 2x2 m, level 0
 		foreach (float x in grid)
 		{
 			foreach (float z in grid)
@@ -197,46 +274,90 @@ internal static class BuildTemplates
 				steps.Add(new Step("wood_floor", x, 0f, z, 0f, 0));
 			}
 		}
-		// the walls, level 1: the FRONT is local -z (the side the player faces when the house goes up)
-		//   front: a wall, the DOOR (level 3 - it goes in LAST), the WINDOW (half wall at y=0,5) and a wall
-		steps.Add(new Step("woodwall", -3f, 1f, -4f, 0f, 1));
-		steps.Add(new Step("wood_wall_half", 1f, 0.5f, -4f, 0f, 1));
-		steps.Add(new Step("woodwall", 3f, 1f, -4f, 0f, 1));
-		//   back
+		// the walls, level 1: the FRONT is local -z (the side the player faces when the house goes up) - the door slot is
+		// left open (the door goes in LAST) and the window slot gets the half wall
+		for (int i = 0; i < tiles; i++)
+		{
+			if (i == doorSlot)
+			{
+				continue;
+			}
+			steps.Add(i == windowSlot
+				? new Step("wood_wall_half", grid[i], 0.5f, -half, 0f, 1)
+				: new Step("woodwall", grid[i], 1f, -half, 0f, 1));
+		}
 		foreach (float x in grid)
 		{
-			steps.Add(new Step("woodwall", x, 1f, 4f, 0f, 1));
+			steps.Add(new Step("woodwall", x, 1f, half, 0f, 1));
 		}
-		//   left and right
 		foreach (float z in grid)
 		{
-			steps.Add(new Step("woodwall", -4f, 1f, z, 90f, 1));
-			steps.Add(new Step("woodwall", 4f, 1f, z, 90f, 1));
+			steps.Add(new Step("woodwall", -half, 1f, z, 90f, 1));
+			steps.Add(new Step("woodwall", half, 1f, z, 90f, 1));
 		}
-		// the roof, level 2: the eave at the wall top (y=2) and the ridge 4 m above it (z=0), 2 pieces per slope
-		foreach (float x in grid)
+		// the roof: 45 deg, one piece per 2 m of run from the eave to the ridge. When the run does not fit whole pieces
+		// (6x6: 3 m) the eave goes 1 m PAST the wall and a post holds each corner of it. With roofAlongZ the ridge runs
+		// along z instead of x (the player's "rotaciona o telhado da 6x6", 02/11/2026): the gable then faces the door and
+		// the slopes fall to the left and right.
+		bool veranda = half % 2f > 0.01f;
+		float eave = veranda ? half + 1f : half;
+		int perSlope = (int)(eave / 2f);
+		if (veranda)
 		{
-			steps.Add(new Step("wood_roof_45", x, 3f, 3f, 0f, 2));
-			steps.Add(new Step("wood_roof_45", x, 5f, 1f, 0f, 2));
-			steps.Add(new Step("wood_roof_45", x, 3f, -3f, 180f, 2));
-			steps.Add(new Step("wood_roof_45", x, 5f, -1f, 180f, 2));
+			foreach (float a in new float[] { -half, half })
+			{
+				foreach (float b in new float[] { eave, -eave })
+				{
+					steps.Add(roofAlongZ
+						? new Step("wood_pole2", b, 1f, a, 0f, 0)
+						: new Step("wood_pole2", a, 1f, b, 0f, 0));
+				}
+			}
 		}
-		// the gables (the triangular ends), level 2: two pieces per side, rising toward the ridge
-		foreach (float x in new float[] { -4f, 4f })
+		foreach (float along in grid)
 		{
-			steps.Add(new Step("wood_wall_roof_45", x, 2f, 3f, 90f, 2));
-			steps.Add(new Step("wood_wall_roof_45", x, 4f, 1f, 90f, 2));
-			steps.Add(new Step("wood_wall_roof_45", x, 2f, -3f, 270f, 2));
-			steps.Add(new Step("wood_wall_roof_45", x, 4f, -1f, 270f, 2));
+			for (int k = 0; k < perSlope; k++)
+			{
+				float z = eave - 1f - 2f * k;
+				float y = 3f + 2f * k;
+				if (roofAlongZ)
+				{
+					steps.Add(new Step("wood_roof_45", z, y, along, 90f, 2));
+					steps.Add(new Step("wood_roof_45", -z, y, along, 270f, 2));
+				}
+				else
+				{
+					steps.Add(new Step("wood_roof_45", along, y, z, 0f, 2));
+					steps.Add(new Step("wood_roof_45", along, y, -z, 180f, 2));
+				}
+			}
+		}
+		// the gables (the triangular ends), level 2: one piece per slope, following the roof plane
+		for (int k = 0; k < perSlope; k++)
+		{
+			float z = eave - 1f - 2f * k;
+			float y = 2f + 2f * k;
+			foreach (float end in new float[] { -half, half })
+			{
+				if (roofAlongZ)
+				{
+					steps.Add(new Step("wood_wall_roof_45", z, y, end, 0f, 2));
+					steps.Add(new Step("wood_wall_roof_45", -z, y, end, 180f, 2));
+				}
+				else
+				{
+					steps.Add(new Step("wood_wall_roof_45", end, y, z, 90f, 2));
+					steps.Add(new Step("wood_wall_roof_45", end, y, -z, 270f, 2));
+				}
+			}
 		}
 		// the DOOR goes in LAST (level 3): with the four walls up and the door in place the companion is locked INSIDE
 		// the house and cannot reach the roof - measured 01/11/2026, "the order took too long" at 33/56. The open door
 		// slot lets it walk in and out during the whole build.
-		steps.Add(new Step("wood_door", -1f, 1f, -4f, 0f, 3));
+		steps.Add(new Step("wood_door", grid[doorSlot], 1f, -half, 0f, 3));
 		return steps.ToArray();
 	}
-
-	private static readonly Template[] All = { House, Hut, Canopy };
+	private static readonly Template[] All = { House, House6, House4, Tent, Hut, Canopy };
 
 	internal static Template[] Templates()
 	{

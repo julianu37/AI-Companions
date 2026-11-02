@@ -82,6 +82,7 @@ Uma conexão por chamada; **um JSON por linha**, nas duas direções.
 | `status` | — | jogador, posição, hp, stamina, bioma, dia, mundo |
 | `console` | `command` | `command` |
 | `player.give` | `item`, `amount` | `item`, `amount`, `added` |
+| `companions.give` | `item`, `amount`, `name?` | `item`, `amount`, `added` (ou `removed` com `amount` **negativo**) |
 | `player.stamina` | `on?` (padrão `true`) | `infiniteStamina`, `stamina`, `maxStamina` |
 | `player.teleport` | `x`, `y`, `z` | `x`, `y`, `z` |
 | `player.look` | `down?`, `right?` (graus) | `down`, `right`, `forward{}`, `distance`, `x`, `y`, `z` |

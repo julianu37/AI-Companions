@@ -2025,11 +2025,27 @@ internal static class Commands
 			return Fail("the companion has no inventory");
 		}
 		string item = Json.Str(args, "item");
-		int amount = Math.Max(1, Json.Int(args, "amount", 1));
+		int requested = Json.Int(args, "amount", 1);
+		bool removing = requested < 0;
+		int amount = Math.Max(1, Math.Abs(requested));
 		GameObject prefab = ObjectDB.instance != null ? ObjectDB.instance.GetItemPrefab(item) : null;
 		if (prefab == null)
 		{
 			return Fail("unknown item: " + item);
+		}
+		ItemDrop drop = prefab.GetComponent<ItemDrop>();
+		string shared = drop != null && drop.m_itemData != null && drop.m_itemData.m_shared != null ? drop.m_itemData.m_shared.m_name : null;
+		if (removing)
+		{
+			// negative amount = take it away again (a test that overfed the companion cannot fix it from here otherwise;
+			// 120 wood is 240 weight and past that it cannot move at all). Added 02/11/2026 after exactly that.
+			int have = shared != null ? h.GetInventory().CountItems(shared) : 0;
+			int take = Math.Min(amount, have);
+			if (take > 0)
+			{
+				h.GetInventory().RemoveItem(shared, take);
+			}
+			return Ok(new Dictionary<string, object> { { "item", item }, { "amount", take }, { "removed", take } });
 		}
 		bool added = AddItems(h.GetInventory(), prefab, amount) == amount;
 		return Ok(new Dictionary<string, object> { { "item", item }, { "amount", amount }, { "added", added } });

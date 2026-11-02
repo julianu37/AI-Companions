@@ -104,7 +104,16 @@ its own bag, places the piece and confirms it works.
   (`[Build] N tree(s) skipped: too close to the buildings`), and its 300 s limit counts from the last wood that
   ARRIVED instead of from the handover (a test lost 36/39 to the fixed clock). Twenty seconds of an idle gather end the
   order saying what is missing (the rest of the plan, not the whole template), and it goes back to Follow mode instead
-  of staying in wood mode chopping logs on the way home. Measured end to end: withdrew 1 item(s) from the chests,gathering 15x (the rest of the plan, not the 123 of the whole house), gather done (have 15/15), ollow back on,esuming at the same anchor ... from piece 51, done: wood_door (57/57).
+  of staying in wood mode chopping logs on the way home.
+  **Smaller structures:** the house now comes in three sizes and the build order understands them by size -
+  `4x4` (20 pieces, no workbench: it does not fit a 4x4 m room, so a station has to be near), `6x6` (46 pieces, a 1 m
+  eave held by four corner posts) and the original `8x8` (57 pieces). The `6x6` workbench sits turned 90 degrees
+  against the left wall (it used to block the doorway) and its roof can run with the gable over the door
+  (`roofAlongZ`). There is also a **tent** now: a 4x2 m lean-to of two poles and two 45 degree pieces (8 wood) - the
+  cheap shelter, measured 4/4 supported. "Barraco" resolves to the 2x2 hut. The build watcher no longer compares the
+  bag TOTAL with the shortfall (a 4x4 test looped forever on the door's 4 wood): it recomputes what is missing and
+  resumes only when nothing is. Measured end to end: withdrew 1 item(s) from the chests,gathering 15x (the rest of the plan, not the 123 of the whole house), gather done (have 15/15), ollow back on,
+esuming at the same anchor ... from piece 51, done: wood_door (57/57).
 - **New dev tooling:** `modia_build_probe [prefab] [radius]` and `modia_build_find [prefab] [radius]` in the game
   console, and the MCP tools `build_inspect`, `build_sites`, `build_find`, `build_pieces`, `companions_build`,
   `companions_sethome` and `player_look` (the build order takes its spot from your aim, so a test has to be

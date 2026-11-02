@@ -528,7 +528,7 @@ Without `name` the **first** companion is used â€” pass the name when there
 | param | type | default |
 |---|---|---|
 | `item` | string | â€” |
-| `amount` | integer | 1 |
+| `amount` | integer (**negative takes it away**) | 1 |
 | `name` | string (optional) | â€” |
 
 ### `companions_zdo`

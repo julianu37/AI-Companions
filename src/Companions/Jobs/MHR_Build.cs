@@ -125,8 +125,14 @@ internal static class MHR_Build
 		internal Vector3 Hint;
 		internal int Mode;
 		internal string Item;
-		/// <summary>E6b: the shortfall that was handed over (the watcher resumes when the bag covers it).</summary>
+		/// <summary>E6b: the shortfall that was handed over (for the log/speech - the watcher recomputes it).</summary>
 		internal int Amount;
+		/// <summary>E6b: the plan that was handed over, so the watcher can recompute the shortfall without rebuilding it
+		/// (the player's test of the 4x4 looped because it compared the BAG TOTAL with the SHORTFALL: the bag already had
+		/// the 2 it asked for and the door still needed 4).</summary>
+		internal List<PlannedStep> Plan;
+		/// <summary>E6b: when the watcher last recomputed the shortfall (once a second is enough).</summary>
+		internal float NextCheck;
 		/// <summary>E6b: when the count last went up. The gather timeout counts from HERE, not from the handover - a
 		/// gather that keeps bringing wood never times out (the player's test lost 36/39 to the fixed 300 s clock).</summary>
 		internal float LastProgressAt;
@@ -140,8 +146,8 @@ internal static class MHR_Build
 		internal float IdleSince;
 		/// <summary>E6b: when the "nothing to work" line was last written (it is a watch, not an event).</summary>
 		internal float LastIdleLog;
-		/// <summary>E6b: the last count written to the log (the watcher is otherwise silent while it waits).</summary>
-		internal int LastLogged = -1;
+		/// <summary>E6b: the last shortfall text written to the log (the watcher is otherwise silent while it waits).</summary>
+		internal string LastLoggedText;
 		internal float Start;
 	}
 
@@ -1021,6 +1027,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			Item = state.GatherItem,
 			Amount = state.GatherAmount,
 			Index = state.Index,
+			Plan = state.Plan,
 			Anchor = state.Anchor,
 			AnchorRot = state.AnchorRot,
 			FollowWas = follow,
@@ -1371,26 +1378,37 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			EndPendingMissing(ai, cs, pending, bag, template, piece, useChests);
 			return;
 		}
-		// E6b (bug found in the player's test, 01/11/2026): the watcher resumes when the SHORTFALL that was handed over
-		// is covered - the plan pays piece by piece, so waiting for the whole template made the order time out with the
-		// piece's wood already in the bag ("gathering took too long" after gathering the 2 wood it asked for)
-		Piece stock = template != null ? BuildProbe.PieceOf(template.Steps[0].Prefab) : piece;
-		Dictionary<string, int> have = BuildStock.Available(bag, stock, pending.Hint, cs, useChests);
-		int got;
-		have.TryGetValue(pending.Item ?? string.Empty, out got);
+		// E6b (player's test, 02/11/2026): the watcher RECOMPUTES what is still missing with the same function the build
+		// uses (the plan from the piece that was short, or the piece's own cost) and resumes when nothing is missing.
+		// Comparing the bag TOTAL with the shortfall looped the 4x4 forever: the bag already had the 2 it asked for and
+		// the door's 4 were never covered. Once a second is enough for this.
+		if (Time.time < pending.NextCheck)
+		{
+			return;
+		}
+		pending.NextCheck = Time.time + 1f;
+		Dictionary<string, int> still = pending.Plan != null && pending.Plan.Count > 0
+			? PlanMissing(bag, pending.Plan, pending.Index, pending.Hint, cs, useChests)
+			: BuildStock.Missing(bag, piece, pending.Hint, cs, useChests);
+		int got = 0;
+		foreach (KeyValuePair<string, int> shortfall in still)
+		{
+			got += shortfall.Value;
+		}
 		// E6b (player's request, 02/11/2026): the plan asked for the WHOLE structure's shortfall, which can be more than
 		// the bag holds. When the bag is nearly full the build resumes with what it has - the rest is gathered on the
 		// next shortfall instead of standing in the forest waiting for a number that never fits.
 		bool nearlyFull = humanoid.GetInventory().GetTotalWeight() >= CompanionCarry.Max(humanoid) * 0.8f;
-		if (got < pending.Amount && !nearlyFull)
+		if (got > 0 && !nearlyFull)
 		{
 			// E6b diagnostics (the player's test showed the order sitting in the gather without a word): one line per
-			// change of the count, so the log says WHY the build is still waiting
-			if (pending.LastLogged != got)
+			// change of the shortfall, so the log says WHY the build is still waiting
+			string shortText = MissingText(still);
+			if (pending.LastLoggedText != shortText)
 			{
-				pending.LastLogged = got;
+				pending.LastLoggedText = shortText;
 				pending.LastProgressAt = Time.time;
-				Log(ai, "waiting for " + pending.Item + ": have " + got + "/" + pending.Amount
+				Log(ai, "waiting for materials: " + shortText
 					+ (string.IsNullOrEmpty(pending.Template) ? string.Empty : " for the " + pending.Template)
 					+ " (mode " + ModeOf(cs) + ", expected " + pending.Mode + ")");
 			}
@@ -1423,7 +1441,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			EndPendingMissing(ai, cs, pending, bag, template, piece, useChests);
 			return;   // still gathering
 		}
-		Log(ai, "gather done (have " + got + "/" + pending.Amount + (nearlyFull ? ", bag nearly full" : string.Empty) + ") - resuming");
+		Log(ai, "gather done (" + (nearlyFull ? "bag nearly full" : "nothing missing") + ") - resuming");
 		s_pending.Remove(ai.GetInstanceID());
 		RestoreFollow(ai, cs, pending);
 		CompanionSetup.ClearOrderCap(cs);

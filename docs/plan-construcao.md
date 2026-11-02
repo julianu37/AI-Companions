@@ -549,6 +549,11 @@ fecha o sentido "usável" da E5.
 - **O número é o resto do plano, e a fala é o número (02/11/2026):** `PlanMissing` recebe o índice da peça e conta só
   do que falta construir (pedia 122 com 75 faltando); a fala `hc_ai_build_collecting` passa a usar o item/quantidade
   que a coleta pediu, não o buraco de uma peça ("Vou buscar 1 madeira").
+- **Os templates pequenos (02/11/2026):** `tent` (toldo de 1 água 4x2 m: 2 postes + 2 telhados, 8 de madeira),
+  `house4` (4x4, 20 peças, 41, **sem bancada** - não cabe) e `house6` (6x6, 46 peças, 101, beiral de 1 m com 4 postes
+  nos cantos). A casa virou **função do tamanho** (`HouseSteps`). O "barraco" é apelido da cabana 2x2. Porta sempre a
+  última peça; no 6x6 a bancada fica girada 90° na parede esquerda (atravessava a porta) e o telhado gira
+  (`roofAlongZ`: empena em cima da porta).
 - **A coleta do build trabalha o CANTEIRO, não o jogador (02/11/2026):** o modo madeira mantém o Follow ligado no
   upstream, o que prendia o harvest a **25 m do jogador** - e no canteiro toda árvore está protegida pelo guarda da
   base (10 m). A entrega agora **desliga o Follow** (e devolve em todas as saídas, via `FollowWas`/`RestoreFollow`),

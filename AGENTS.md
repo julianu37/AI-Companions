@@ -1130,7 +1130,15 @@ comandos de console e spawna coisas, então não é feature de jogador.
   (`FollowWas`), o `NearestResource` pula árvore protegida (`MHR_GatherRules.GatherRefusesTree`), o prazo de 300 s
   conta **desde o último progresso** (`LastProgressAt`, o relógio fixo cortou 36/39), 20 s de harvest ocioso encerram
   dizendo o **resto do plano** e o companheiro volta ao **modo Follow** (antes seguia catando tronco). Aceite do
-  jogador: *"agora parece que funcionou perfeitamente"*. A casa custa **123 madeiras** (246 de peso). **Aceite: 1,06 m → 0,33 m em 3 passadas, 165 s.** É ordem de um tiro (qualquer outra
+  jogador: *"agora parece que funcionou perfeitamente"*. A casa custa **123 madeiras** (246 de peso). **E6d - os templates pequenos (02/11/2026):** a casa virou
+  **função do tamanho** (`HouseSteps(tiles, door, window, roofAlongZ)`): **4x4** (20 peças, 41, **sem bancada** - não
+  cabe), **6x6** (46 peças, 101, beiral de 1 m com **4 postes** nos cantos) e **8x8** (57, 123, intacta). A **tenda**
+  (`tent`) é um toldo de 1 água de 4x2 m (2 postes + 2 telhados, 8 de madeira, **4/4 `supported`**) e o **"barraco"** é
+  apelido da cabana 2x2. No 6x6 a bancada fica **girada 90° na parede esquerda** (atravessava a porta) e o telhado
+  **gira** (`roofAlongZ`: empena em cima da porta). O vigia do E6b deixou de comparar **total-da-mochila** com
+  **o-que-falta** (a 4x4 entrava em loop na porta); agora recalcula o que falta e retoma quando é zero. Harness
+  **363 → 401**. Armadilha: `"casa pequeña"` (ES) e `"casa pequena"` (PT) **empatam** no Fold - apelidos iguais depois
+  do Fold não podem existir em templates diferentes. **Aceite: 1,06 m → 0,33 m em 3 passadas, 165 s.** É ordem de um tiro (qualquer outra
   cancela - sem isso ele ficava travado). `ValidActions` 36 → 37, 5 idiomas, config 353.
   **Aceite em jogo (01/11/2026): 57/57 peças, todas `supported`**, todas
   `placed (Direct)` - a casa **traz a própria bancada** (passo 0, a estação vem do plano), a **porta é a última**

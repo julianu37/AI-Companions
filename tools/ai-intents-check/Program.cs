@@ -448,6 +448,26 @@ internal static class Program
 		TemplateCase("costruisci una casetta", "hut");
 		TemplateCase("costruisci una casa piccola", "house");
 		TemplateCase("un riparo", "canopy");
+		// E6c (02/11/2026): as casas 6x6 e 4x4, a tenda e o "barraco" (a cabana 2x2)
+		TemplateCase("construa uma casa 6x6 aqui", "house6");
+		TemplateCase("constrói uma casa média aqui", "house6");
+		TemplateCase("build a 6x6 house", "house6");
+		TemplateCase("construye una casa 6x6", "house6");
+		TemplateCase("construis une maison 6x6", "house6");
+		TemplateCase("costruisci una casa 6x6", "house6");
+		TemplateCase("construa uma casa 4x4 aqui", "house4");
+		TemplateCase("constrói uma casa pequena", "house4");
+		TemplateCase("build a 4x4 house", "house4");
+		TemplateCase("construye una casita 4x4", "house4");
+		TemplateCase("construis une petite maison 4x4", "house4");
+		TemplateCase("constrói uma tenda aqui", "tent");
+		TemplateCase("monta um toldo aqui", "tent");
+		TemplateCase("build a tent", "tent");
+		TemplateCase("construye una tienda de campaña", "tent");
+		TemplateCase("construis une tente", "tent");
+		TemplateCase("costruisci una tenda", "tent");
+		TemplateCase("constrói um barraco aqui", "hut");
+		TemplateCase("build a shack", "hut");
 		Check("Resolve(\"constrói uma parede\") == null (template nao e peca)", BuildTemplates.Resolve("constrói uma parede") == null);
 		Check("Resolve(null) == null", BuildTemplates.Resolve(null) == null);
 		// "cabana" nao pode ser lida como a peca "cama" (o catalogo da E5 nao conhece cabana)
@@ -488,6 +508,30 @@ internal static class Program
 		CheckInt("abrigo: 8 pecas", 8, canopy.Steps.Length);
 		CheckInt("abrigo: 4 postes", 4, CountPrefab(canopy, "wood_pole2"));
 		CheckInt("abrigo: 4 telhados", 4, CountPrefab(canopy, "wood_roof_45"));
+
+		// E6c: a casa 6x6 (3x3 tiles) - 2 pecas de telhado por agua + 4 postes do beiral + a bancada
+		BuildTemplates.Template house6 = BuildTemplates.ByName("house6");
+		BuildTemplates.Template house4 = BuildTemplates.ByName("house4");
+		BuildTemplates.Template tent = BuildTemplates.ByName("tent");
+		Check("ByName(\"house6\")", house6 != null);
+		Check("ByName(\"house4\")", house4 != null);
+		CheckInt("casa 6x6: 9 pisos", 9, CountPrefab(house6, "wood_floor"));
+		CheckInt("casa 6x6: 10 paredes (12 tiles - porta - janela)", 10, CountPrefab(house6, "woodwall"));
+		CheckInt("casa 6x6: 12 telhados (3 colunas x 2 aguas x 2 pecas)", 12, CountPrefab(house6, "wood_roof_45"));
+		CheckInt("casa 6x6: 8 empenas", 8, CountPrefab(house6, "wood_wall_roof_45"));
+		CheckInt("casa 6x6: 4 postes do beiral", 4, CountPrefab(house6, "wood_pole2"));
+		CheckInt("casa 6x6: 46 pecas", 46, house6.Steps.Length);
+		CheckText("casa 6x6: a porta e a ULTIMA", "wood_door", house6.Ordered()[house6.Steps.Length - 1].Prefab);
+		CheckFloat("casa 6x6: a parede da frente em z = -3", -3f, ZOf(house6, "wood_door"));
+		CheckInt("casa 4x4: 4 pisos", 4, CountPrefab(house4, "wood_floor"));
+		CheckInt("casa 4x4: 4 telhados (2 colunas x 2 aguas x 1 peca)", 4, CountPrefab(house4, "wood_roof_45"));
+		CheckInt("casa 4x4: 20 pecas (sem bancada - nao cabe)", 20, house4.Steps.Length);
+		CheckInt("casa 4x4: nenhuma bancada", 0, CountPrefab(house4, "piece_workbench"));
+		CheckText("casa 4x4: a porta e a ULTIMA", "wood_door", house4.Ordered()[house4.Steps.Length - 1].Prefab);
+		CheckInt("tenda: 4 pecas (2 postes + 2 telhados)", 4, tent.Steps.Length);
+		CheckInt("tenda: 2 postes", 2, CountPrefab(tent, "wood_pole2"));
+		CheckInt("tenda: 2 telhados", 2, CountPrefab(tent, "wood_roof_45"));
+		CheckInt("tenda: nenhum piso (aberta)", 0, CountPrefab(tent, "wood_floor"));
 
 		// a ordem de construcao: fundacao -> parede -> telhado
 		System.Collections.Generic.List<BuildTemplates.Step> ordered = hut.Ordered();

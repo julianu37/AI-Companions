@@ -606,6 +606,49 @@ prazo por progresso não derruba mais a obra.
 paredes 28, janela (meia parede) 1, 16 telhados 32, 8 empenas 16 e porta 4. Com o limite de 300 e a regra dos 80% da
 mochila, uma casa pode exigir **duas viagens** de coleta quando ele já está carregado.
 
+## 14. E6d - a tenda, a casa 4x4 e a casa 6x6 (medido em 02/11/2026)
+
+Pedido do jogador: faltavam na E6 a **tenda**, o **barraco** e as construções **4x4** e **6x6**.
+
+| template | nome na ordem | peças | madeira | medido |
+|---|---|---|---|---|
+| `tent` | "tenda", "toldo", "barraca" | 4 (2 postes + 2 telhados, 1 água) | 8 | **4/4 `supported`** |
+| `hut` | "cabana", **"barraco"**, "choupana" | 7 | 22 | já medido (E6) |
+| `canopy` | "abrigo da bancada" | 8 | 12 | já medido (E6) |
+| `house4` | "casa 4x4", "casa pequena" | 20 | 41 | 19/20 `supported` (a porta parou por falta de madeira) |
+| `house6` | "casa 6x6", "casa média" | 46 | 101 | **46/46 `supported`** (`plan_done`) |
+| `house` | "casa", "abrigo" | 57 | 123 | já medido (E6b) |
+
+**A casa é uma função do tamanho** (`HouseSteps(tiles, doorSlot, windowSlot, roofAlongZ)`): 2x2 tiles = 4x4,
+3x3 = 6x6, 4x4 = 8x8. Pisos, paredes, porta (última), janela, telhado e empenas saem da mesma receita; o que muda é o
+telhado, porque a água de 45° cobre 2 m:
+
+- **4x4** (meio vão 2 m): 1 peça por água, beiral **na** parede, as duas peças fecham na cumeeira. **Não traz bancada**
+  (a de 3,7 x 2,1 m não caberia num cômodo de 4x4) - precisa de uma estação no raio.
+- **6x6** (meio vão 3 m): 2 peças por água com o beiral **1 m além da parede** (escolha do jogador) e **4 postes de
+  2 m** em cada canto do beiral, porque telhado 1 m para fora da parede não tem onde apoiar. Medido: 46/46.
+- **8x8** (meio vão 4 m): 2 peças por água, beiral na parede - o desenho original da E6b, intacto.
+
+**A tenda** é um toldo de 1 água de 4x2 m: 2 postes de 2 m seguram a aresta alta e as 2 peças de telhado descem até o
+chão 2 m à frente. Os postes ficam **nos snap points** da aresta alta (x = ±2), que é de onde vem o apoio das peças.
+
+**Três correções que vieram do teste:**
+
+1. **A bancada do 6x6** ficava atravessada atrás da porta (3,7 m de bancada numa parede de 6 m). Agora ela vai
+   **encostada na parede esquerda, girada 90°** - o corredor da porta fica livre. No 8x8 nada mudou.
+2. **O telhado do 6x6 foi girado** (`roofAlongZ: true`, pedido do jogador: "rotaciona o telhado da 6x6"): a cumeeira
+   corre em **z** e a **empena (triângulo) fica em cima da porta**; as águas caem para os lados.
+3. **O vigia do E6b tinha um loop**: ele comparava o **total da mochila** com o **que faltava**. Na 4x4 a mochila já
+   tinha as 2 que ele pediu, então ele "retomava" e a porta (4) nunca era paga: `resuming ... from piece 20` →
+   `plan short` → coleta 2 → volta, para sempre. Agora o vigia **recalcula o que falta** com a mesma função do build
+   (`PlanMissing` a partir do índice, guardado no `Pending.Plan`) e só retoma quando **não falta nada** (ou a mochila
+   está a 80%). Uma vez por segundo, não por frame.
+
+**Armadilha de apelido (custou um teste vermelho):** o Fold tira os acentos, então `"casa pequeña"` (ES) e
+`"casa pequena"` (PT) viram **a mesma string** - o `Resolve` empata e o primeiro template da lista ganha. A casa 8x8
+tinha `"casa pequeña"` e a 4x4 `"casa pequena"`; a 4x4 nunca casava. O apelido ES saiu da 8x8 (ficou `"casita"`) e o
+harness passou a cobrir os dois idiomas.
+
 ## 13. E10 - nivelar o terreno com a enxada (medido em 01/11/2026)
 
 **Como o jogo nivela (decompilado 1.0.20):** a enxada não tem uma operação de "level" duro. O menu dela é uma
