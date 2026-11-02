@@ -877,6 +877,16 @@ baus da base ficavam a ~35 m -> `missing: Madeira x2` -> entregou a coleta com *
 procuram o estoque **ao redor da ancora da obra** (`state.Anchor`, o centro do plano) - o bau e o estoque do **canteiro**,
 nao da peca.
 
+**Terceiro teste (03/11/2026): a bancada agora e AUTO-CURADA.** O plano acrescentou **1** bancada (a de
+(-172,8) do teste anterior continuava de pe e cobria o outro lado - a checagem funcionou) e colocou os pisos; dali a pouco
+o jogador **derrubou a bancada junto com a obra** que estava limpando, e as pecas do lado leste (x -141..-150) comecaram a
+ser recusadas com `needs_station` - `build.check` confirmou: `hasStation=false` a 24-27 m de qualquer bancada (o sitio
+tem 32 m e as bancadas que sobraram ficam na base). Antes isso so ia para o **retry** (a parede nunca subia). Agora o
+proprio `Place`, ao ver `needs_station` numa peca que precisa de bancada, chama o **`InsertBenchStep`**: procura um lugar
+(fora do footprint, no lado da peca, no chao, 4 rotacoes, `BuildSite.Check`), **insere a bancada no plano logo antes
+daquela peca** e a torna o passo atual; a peca recusada vem no indice seguinte. Teto de 8 por ordem (o mesmo
+`MaxPlannedBenches`), log `no workbench in range of the <peca> - one added in front of it at (x, y, z)`.
+
 **Retomada:** a ordem retomada usa o **plano exato** da primeira parte (`pending.Plan`) - as bancadas que ela mesma
 acrescentou fazem parte dele. Reconstruir o plano agora (com as bancadas ja de pe) inseriria menos bancadas e **todo
 indice depois delas andaria**, perdendo as pecas do meio em silencio.

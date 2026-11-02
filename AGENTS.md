@@ -1200,7 +1200,10 @@ comandos de console e spawna coisas, então não é feature de jogador.
   **"Tremendo e parou" (03/11/2026):** `MHR_Build.Active`/`MHR_Level.Active` comparavam o `GetInstanceID()` do **componente**
   chamador com um dicionário chaveado pelo do **`CompanionAI`** — nunca casava, o `OtherOrder` respondia false durante a obra
   e o **job de ócio andava junto** (dois `MHR_Mover` no mesmo corpo). Agora `StateOf`/`Owner` resolvem o `CompanionAI` do
-  GameObject; todos os jobs param na obra e o **harvest só roda na fase `Clear`** (`MHR_Build.Clearing`).
+  **Bancada auto-curada (03/11/2026):** o `Place`, ao receber `needs_station` numa peça que precisa de bancada, chama o
+  **`InsertBenchStep`** — procura o lugar (fora do footprint, no chão, 4 rotações, `BuildSite.Check`), **insere a bancada
+  no plano logo antes da peça** e a torna o passo atual (teto de 8/ordem). Era o furo: o passe de estações só lê o mundo no
+  início da ordem, então bancada derrubada depois (ou longe num sítio de 32 m) deixava peças recusadas só no retry.
   **A ponte do BuildOrders (F11) fica para depois** (barata, API pública).
   O vigia do E6b deixou de comparar **total-da-mochila** com
   **o-que-falta** (a 4x4 entrava em loop na porta); agora recalcula o que falta e retoma quando é zero. Harness

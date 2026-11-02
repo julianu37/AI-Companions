@@ -165,6 +165,9 @@ internal static class MHR_Build
 		internal int ClearRejects;
 		/// <summary>E7: obstacles the harvest refused (no tool for it) - never tried again.</summary>
 		internal readonly HashSet<int> ClearSkip = new HashSet<int>();
+		/// <summary>E7: workbenches inserted in front of a piece refused with <c>needs_station</c> (the self-healing
+		/// half of the station pass, capped like it).</summary>
+		internal int BenchInserts;
 	}
 
 	/// <summary>E6: one piece of a plan, already resolved to a world pose.</summary>
@@ -1039,6 +1042,52 @@ internal static class MHR_Build
 		return added;
 	}
 
+	/// <summary>
+	/// E7 (player's report, 03/11/2026): <b>insert a workbench right before the piece that was refused with
+	/// <c>needs_station</c></b>. The station pass plans from the world as it was when the order started; a bench that is
+	/// destroyed later (or the plan's own bench being far away) leaves part of a 32 m site without a station, and the
+	/// pieces there were only retried - the wall of the house that never went up. The bench becomes the step being carried
+	/// out; the refused piece comes right after it (one index down the plan).
+	/// </summary>
+	private static bool InsertBenchStep(CompanionAI ai, State state, CompanionSetup cs, string refusedPrefab)
+	{
+		Piece bench = BuildProbe.PieceOf(BenchPrefab);
+		if (bench == null)
+		{
+			return false;
+		}
+		Vector3 centre = state.AnchorKnown ? state.Anchor : state.Pos;
+		Vector3 outward = state.Pos - centre;
+		outward.y = 0f;
+		if (outward.sqrMagnitude < 1f)
+		{
+			outward = new Vector3(1f, 0f, 0f);
+		}
+		float outside = Mathf.Max(state.ClearSize * 0.5f, 6f) + 2.5f;
+		Vector3 anchor = centre + outward.normalized * outside;
+		Vector3 spot;
+		Quaternion benchRot;
+		if (!FindBenchSpot(bench, anchor, state.Rot, Self(ai), out spot, out benchRot)
+			&& !FindBenchSpot(bench, state.Pos, state.Rot, Self(ai), out spot, out benchRot))
+		{
+			Log(ai, "no room for a workbench near the " + refusedPrefab + " - the piece is only retried");
+			return false;
+		}
+		state.Plan.Insert(state.Index, new PlannedStep { Prefab = BenchPrefab, Piece = bench, Pos = spot, Rot = benchRot });
+		state.BenchInserts++;
+		state.Prefab = BenchPrefab;
+		state.Piece = bench;
+		state.Pos = spot;
+		state.Rot = benchRot;
+		state.Placed = null;
+		state.Start = Time.time;
+		state.Checked = false;
+		state.Phase = Phase.Goto;
+		Log(ai, "no workbench in range of the " + refusedPrefab + " - one added in front of it at (" + F(spot.x) + ", "
+			+ F(spot.y) + ", " + F(spot.z) + ")");
+		return true;
+	}
+
 	/// <summary>Is <paramref name="point"/> inside the coverage of one of the planned benches? <b>Horizontal</b> distance:
 	/// <c>HaveBuildStationInRange</c> flattens the point's Y onto the station's Y (measured, `docs/re/building-notes.md`), so
 	/// a bench on the ground floor covers the chests of the upper floors too.</summary>
@@ -1694,6 +1743,19 @@ internal static class MHR_Build
 				catch (Exception)
 				{
 					Log(ai, "piece " + state.Prefab + " refused now (" + status + ") - the plan stops");
+				}
+				// E7 (player's report, 03/11/2026): a piece refused with needs_station gets a workbench inserted RIGHT BEFORE
+				// it (the station pass only reads the world as it was when the order started; a bench destroyed later - or
+				// the plan's own bench being far - left the far side of the site with none, and the piece was only retried)
+				if (status == "needs_station" && state.Blueprint != null && state.Plan != null && state.Piece != null
+					&& state.Piece.m_craftingStation != null && IsBenchKind(state.Piece.m_craftingStation.m_name)
+					&& state.BenchInserts < MaxPlannedBenches)
+				{
+					string refusedPrefab = state.Prefab;
+					if (InsertBenchStep(ai, state, cs, refusedPrefab))
+					{
+						return true;   // the bench is the step being carried out now
+					}
 				}
 				// E7 (player's test, 03/11/2026): a BLUEPRINT never ends on needs_station - the workbench the station pass
 				// added may still be ahead in the plan, and the piece is retried at the end (the order died here: bench

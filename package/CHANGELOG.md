@@ -40,6 +40,10 @@ stopped.
   blamed the spot. It now compares the real weight with the carry ceiling and says `hc_ai_build_too_heavy`.
   Measured right after: with **120 wood (240 of 300 weight)** the same 985-piece blueprint **walked and built 60 pieces**
   in ~3 minutes (all supported) before handing the order to the gather for the rest.
+- **A missing workbench is fixed on the spot** (player's report, 03/11/2026): the station pass reads the world as it is when
+  the order starts, so a bench destroyed later (or simply far from a 32 m site) left pieces refused with `needs_station`
+  forever - they were only retried. Now the piece that is refused **gets a workbench inserted right before it**, found at a
+  spot the game accepts, outside the footprint on the piece's side; the bench is placed and the piece follows.
 - **"He is shaking and stopped"**: `MHR_Build.Active` and `MHR_Level.Active` compared the instance id of the **component**
   they were called from (HarvestController, IdleController, CompanionTalk...) with a table keyed by the companion's own id,
   so the match never happened: `MHR_JobRules.OtherOrder` said "no order" while a build was running and the **idle job kept
