@@ -263,6 +263,14 @@ internal static class BuildTemplates
 		{
 			steps.Add(new Step("piece_workbench", -half + 1.7f, 0.12f, half - 2f, 0f, 0));
 		}
+		else
+		{
+			// E6d (player's request, 02/11/2026): "a casa 4x4 pode ganhar uma bancada embutida fora (um anexo)". A 3,7 x
+			// 2,1 m bench does not fit a 4x4 m room, so it stands OUTSIDE, beside the right wall - close enough that the
+			// station covers the whole house (the corner at the far side is ~6,3 m away, the game's range is 8) and it
+			// goes FIRST, or the floors would have no station.
+			steps.Add(new Step("piece_workbench", half + 2.2f, 0.12f, 0f, 0f, 0));
+		}
 		// the floor: tiles x tiles tiles of 2x2 m, level 0
 		foreach (float x in grid)
 		{

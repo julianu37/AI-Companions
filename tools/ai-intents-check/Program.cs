@@ -528,8 +528,9 @@ internal static class Program
 		CheckFloat("casa 6x6: a parede da frente em z = -3", -3f, ZOf(house6, "wood_door"));
 		CheckInt("casa 4x4: 4 pisos", 4, CountPrefab(house4, "wood_floor"));
 		CheckInt("casa 4x4: 4 telhados (2 colunas x 2 aguas x 1 peca)", 4, CountPrefab(house4, "wood_roof_45"));
-		CheckInt("casa 4x4: 20 pecas (sem bancada - nao cabe)", 20, house4.Steps.Length);
-		CheckInt("casa 4x4: nenhuma bancada", 0, CountPrefab(house4, "piece_workbench"));
+		CheckInt("casa 4x4: 21 pecas (a bancada vai no anexo, fora)", 21, house4.Steps.Length);
+		CheckInt("casa 4x4: 1 bancada (anexo fora)", 1, CountPrefab(house4, "piece_workbench"));
+		CheckText("casa 4x4: a bancada e a 1a peca (os pisos precisam dela)", "piece_workbench", house4.Ordered()[0].Prefab);
 		CheckText("casa 4x4: a porta e a ULTIMA", "wood_door", house4.Ordered()[house4.Steps.Length - 1].Prefab);
 		CheckInt("tenda: 4 pecas (2 postes + 2 telhados)", 4, tent.Steps.Length);
 		CheckInt("tenda: 2 postes", 2, CountPrefab(tent, "wood_pole2"));

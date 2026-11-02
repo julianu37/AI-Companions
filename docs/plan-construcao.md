@@ -550,7 +550,7 @@ fecha o sentido "usável" da E5.
   do que falta construir (pedia 122 com 75 faltando); a fala `hc_ai_build_collecting` passa a usar o item/quantidade
   que a coleta pediu, não o buraco de uma peça ("Vou buscar 1 madeira").
 - **Os templates pequenos (02/11/2026):** `tent` (toldo de 1 água 4x2 m: 2 postes + 2 telhados, 8 de madeira),
-  `house4` (4x4, 20 peças, 41, **sem bancada** - não cabe) e `house6` (6x6, 46 peças, 101, beiral de 1 m com 4 postes
+  `house4` (4x4, 21 peças, 51, bancada num **anexo fora**) e `house6` (6x6, 46 peças, 101, beiral de 1 m com 4 postes
   nos cantos). A casa virou **função do tamanho** (`HouseSteps`). O "barraco" é apelido da cabana 2x2. Porta sempre a
   última peça; no 6x6 a bancada fica na posição da 8x8, a porta vai para a vaga da direita e o telhado gira
   (`roofAlongZ`: empena em cima da porta, com o yaw certo - trocado ele entra como asa).

@@ -615,7 +615,7 @@ Pedido do jogador: faltavam na E6 a **tenda**, o **barraco** e as construções 
 | `tent` | "tenda", "toldo", "barraca" | 4 (2 postes + 2 telhados, 1 água) | 8 | **4/4 `supported`** |
 | `hut` | "cabana", **"barraco"**, "choupana" | 7 | 22 | já medido (E6) |
 | `canopy` | "abrigo da bancada" | 8 | 12 | já medido (E6) |
-| `house4` | "casa 4x4", "casa pequena" | 20 | 41 | 19/20 `supported` (a porta parou por falta de madeira) |
+| `house4` | "casa 4x4", "casa pequena" | 21 | 51 | **bancada no anexo fora**, colocada primeiro (a estação cobre a casa) |
 | `house6` | "casa 6x6", "casa média" | 46 | 101 | **46/46 `supported`** (`plan_done`) |
 | `house` | "casa", "abrigo" | 57 | 123 | já medido (E6b) |
 
@@ -623,8 +623,9 @@ Pedido do jogador: faltavam na E6 a **tenda**, o **barraco** e as construções 
 3x3 = 6x6, 4x4 = 8x8. Pisos, paredes, porta (última), janela, telhado e empenas saem da mesma receita; o que muda é o
 telhado, porque a água de 45° cobre 2 m:
 
-- **4x4** (meio vão 2 m): 1 peça por água, beiral **na** parede, as duas peças fecham na cumeeira. **Não traz bancada**
-  (a de 3,7 x 2,1 m não caberia num cômodo de 4x4) - precisa de uma estação no raio.
+- **4x4** (meio vão 2 m): 1 peça por água, beiral **na** parede, as duas peças fecham na cumeeira. A bancada (3,7 x
+  2,1 m) não cabe no cômodo de 4x4, então ela vai num **anexo fora**, encostada na parede direita (4,2 m do centro) e
+  **primeiro passo** do plano - a estação cobre a casa toda (o canto mais longe fica ~6,3 m; o alcance do jogo é 8).
 - **6x6** (meio vão 3 m): 2 peças por água com o beiral **1 m além da parede** (escolha do jogador) e **4 postes de
   2 m** em cada canto do beiral, porque telhado 1 m para fora da parede não tem onde apoiar. Medido: 46/46.
 - **8x8** (meio vão 4 m): 2 peças por água, beiral na parede - o desenho original da E6b, intacto.

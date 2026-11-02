@@ -106,7 +106,7 @@ its own bag, places the piece and confirms it works.
   order saying what is missing (the rest of the plan, not the whole template), and it goes back to Follow mode instead
   of staying in wood mode chopping logs on the way home.
   **Smaller structures:** the house now comes in three sizes and the build order understands them by size -
-  `4x4` (20 pieces, no workbench: it does not fit a 4x4 m room, so a station has to be near), `6x6` (46 pieces, a 1 m
+  `4x4` (21 pieces: the workbench does not fit a 4x4 m room, so it stands OUTSIDE in an annex and goes in first), `6x6` (46 pieces, a 1 m
   eave held by four corner posts) and the original `8x8` (57 pieces). The `6x6` workbench keeps the 8x8's corner and the door moved to the right slot (the bench used to block the way in);
     its roof runs with the gable over the door (`roofAlongZ`) and the gable pieces are turned the right way
     (they went in like wings). There is also a **tent** now: a 4x2 m lean-to of two poles and two 45 degree pieces (8 wood) - the
