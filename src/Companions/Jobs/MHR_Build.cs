@@ -61,6 +61,18 @@ internal static class MHR_Build
 	private const int ClearMaxObstacles = 40;
 	/// <summary>E7: consecutive refusals (no axe, or one below the tree's tier) that mean "I cannot cut here".</summary>
 	private const int ClearMaxRejects = 5;
+	/// <summary>E7: the only station this mod can build by itself (the piece the player's own bench is).</summary>
+	private const string BenchPrefab = "piece_workbench";
+	/// <summary>E7: most workbenches one order adds (a 30 m house with chests on three floors needs a few; a broken file
+	/// must not turn the plan into a bench factory).</summary>
+	private const int MaxPlannedBenches = 8;
+	/// <summary>E7: most spot searches for those benches - every search runs the game's placement ghost up to 96 times and
+	/// a site with nothing free must not freeze the frame (one search is one <c>BuildSite.Check</c> ring walk).</summary>
+	private const int MaxBenchSearches = 12;
+	/// <summary>The workbench's coverage in metres when the prefab cannot be read: <c>CraftingStation.m_rangeBuild</c> is 20
+	/// (the radius in which a station frees building - measured, see <c>docs/re/building-notes.md</c>).</summary>
+	private const float BenchDefaultRadius = 20f;
+
 	/// <summary>E7: the clearing square never grows past this. It was 30 m and the player's plan measured 32,1 m, so the
 	/// outer ring of the site kept its trees and the logs of the ones inside rolled into it (report, 03/11/2026).</summary>
 	private const float ClearMaxSize = 40f;
@@ -390,14 +402,14 @@ internal static class MHR_Build
 	/// 985-piece house lost the other 700 pieces the moment it ran out of wood. The plan is rebuilt from the file (that is
 	/// deterministic) and the indices line up; the leveling and the clearing are NOT repeated.
 	/// </summary>
-	internal static BlueprintStart ResumeBlueprint(CompanionSetup cs, Blueprint blueprint, Vector3 hint, int startIndex,
-		Quaternion anchorRot, out string missingPrefab, out string missingStation)
+	private static BlueprintStart ResumeBlueprint(CompanionSetup cs, Blueprint blueprint, Vector3 hint, int startIndex,
+		Quaternion anchorRot, out string missingPrefab, out string missingStation, List<PlannedStep> storedPlan)
 	{
-		return StartBlueprint(cs, blueprint, hint, out missingPrefab, out missingStation, startIndex, anchorRot, true);
+		return StartBlueprint(cs, blueprint, hint, out missingPrefab, out missingStation, startIndex, anchorRot, true, storedPlan);
 	}
 
 	private static BlueprintStart StartBlueprint(CompanionSetup cs, Blueprint blueprint, Vector3 hint, out string missingPrefab,
-		out string missingStation, int startIndex, Quaternion anchorRot, bool resuming)
+		out string missingStation, int startIndex, Quaternion anchorRot, bool resuming, List<PlannedStep> storedPlan = null)
 	{
 		missingPrefab = null;
 		missingStation = null;
@@ -493,33 +505,37 @@ internal static class MHR_Build
 			CompanionsPlugin.Log?.LogInfo("[Build] blueprint " + blueprint.Label + ": " + skipped
 				+ " line(s) skipped, first: " + (firstSkip ?? "?"));
 		}
-		// the game's station rule applies to a downloaded build too, and the order died at the SECOND piece with
-		// "needs station" in the player's test (02/11/2026): ask it up front and name the station instead
+		if (resuming && storedPlan != null && storedPlan.Count > 0)
+		{
+			// E7: the resumed order reuses the EXACT plan of the first part - the workbenches the station pass added are
+			// part of it. Rebuilding it would add fewer benches now that they stand and every index after them would shift,
+			// so the pieces in between would never be built.
+			plan.Clear();
+			plan.AddRange(storedPlan);
+		}
+		// E7 (player's request, 03/11/2026): THE WORKBENCH IS PLANNED, NOT ASSUMED. The game's rule is per piece
+		// (CraftingStation.HaveBuildStationInRange from the piece's own pose) and the workbench covers 5 m: "there is a
+		// bench near the site" - the old check, against the hint - passed while most of the chests of a 30 m house had
+		// none. CommHomeBasicBP has ~70 chests on three floors and brings no workbench at all.
 		missingStation = null;
-		bool bringsStation = false;
+		if (!resuming)
+		{
+			PlanStations(cs, plan, rot, Self(ai), ai);
+		}
+		// a station this build cannot make by itself (stonecutter, forge, black forge...) is still a refusal, and it names
+		// the station instead of dying at the piece
 		foreach (PlannedStep step in plan)
 		{
-			if (step.Prefab != null && step.Prefab.IndexOf("workbench", StringComparison.OrdinalIgnoreCase) >= 0)
+			if (step.Piece == null || step.Piece.m_craftingStation == null || IsBenchKind(step.Piece.m_craftingStation.m_name))
 			{
-				bringsStation = true;
-				break;
+				continue;
 			}
-		}
-		if (!bringsStation)
-		{
-			foreach (PlannedStep step in plan)
+			if (CraftingStation.HaveBuildStationInRange(step.Piece.m_craftingStation.m_name, step.Pos) == null)
 			{
-				if (step.Piece == null || step.Piece.m_craftingStation == null)
-				{
-					continue;
-				}
-				if (CraftingStation.HaveBuildStationInRange(step.Piece.m_craftingStation.m_name, hint) == null)
-				{
-					missingStation = step.Piece.m_craftingStation.m_name;
-					CompanionsPlugin.Log?.LogInfo("[Build] blueprint " + blueprint.Label + ": a station is missing ("
-						+ missingStation + ") - refusing before the first piece");
-					return BlueprintStart.Failed;
-				}
+				missingStation = step.Piece.m_craftingStation.m_name;
+				CompanionsPlugin.Log?.LogInfo("[Build] blueprint " + blueprint.Label + ": a station is missing ("
+					+ missingStation + ") - refusing before the first piece");
+				return BlueprintStart.Failed;
 			}
 		}
 		// E7 (player's call, 02/11/2026): LEVEL THE GROUND FIRST, like the templates do. A downloaded build on uneven
@@ -888,6 +904,134 @@ internal static class MHR_Build
 		state.ClearTargetAt = Time.time;
 		Log(ai, "clearing the site: cutting \"" + next.name + "\" (#" + state.ClearCount + ")");
 		return true;
+	}
+
+	/// <summary>Is this the station the mod can build (the workbench)?</summary>
+	private static bool IsBenchKind(string station)
+	{
+		return station != null && station.IndexOf("workbench", StringComparison.OrdinalIgnoreCase) >= 0;
+	}
+
+	/// <summary>The bench's own coverage, read from the prefab (<c>CraftingStation.m_rangeBuild</c>), with 20 m as the floor.</summary>
+	private static float BenchRadius(Piece bench)
+	{
+		CraftingStation station = bench != null ? bench.GetComponent<CraftingStation>() : null;
+		return station != null && station.m_rangeBuild > 0f ? station.m_rangeBuild : BenchDefaultRadius;
+	}
+
+	/// <summary>
+	/// E7 (player's request, 03/11/2026): <b>every piece that needs a workbench is made to have one</b>. The pass walks the
+	/// plan in order; for a piece with no workbench in range of <b>its own pose</b> (and none already planned near it) it
+	/// <b>inserts a workbench right before it</b>, at a pose the game accepts. The executor builds it like any other piece:
+	/// it is paid from the same bag/chests and the plan's shortfall counts it. Benches the blueprint itself brings cover
+	/// what is around them.
+	/// </summary>
+	private static int PlanStations(CompanionSetup cs, List<PlannedStep> plan, Quaternion rot, Component who, CompanionAI ai)
+	{
+		Piece bench = BuildProbe.PieceOf(BenchPrefab);
+		if (bench == null || plan == null || plan.Count == 0)
+		{
+			return 0;
+		}
+		float radius = BenchRadius(bench);
+		List<Vector3> planned = new List<Vector3>();
+		foreach (PlannedStep step in plan)
+		{
+			if (step.Prefab != null && IsBenchKind(step.Prefab))
+			{
+				planned.Add(step.Pos);
+			}
+		}
+		int needed = 0;
+		int added = 0;
+		int tries = 0;
+		for (int i = 0; i < plan.Count && added < MaxPlannedBenches && tries < MaxBenchSearches; i++)
+		{
+			PlannedStep step = plan[i];
+			if (step.Piece == null || step.Piece.m_craftingStation == null || !IsBenchKind(step.Piece.m_craftingStation.m_name))
+			{
+				continue;
+			}
+			needed++;
+			if (CraftingStation.HaveBuildStationInRange(step.Piece.m_craftingStation.m_name, step.Pos) != null)
+			{
+				continue;
+			}
+			if (CoveredBy(planned, step.Pos, radius))
+			{
+				continue;
+			}
+			Vector3 spot;
+			Quaternion benchRot;
+			tries++;
+			if (!FindBenchSpot(bench, step.Pos, rot, who, out spot, out benchRot))
+			{
+				LogDebug(ai, "no room for a workbench next to the " + step.Prefab + " at (" + F(step.Pos.x) + ", "
+					+ F(step.Pos.y) + ", " + F(step.Pos.z) + ") - it will be refused and retried");
+				continue;
+			}
+			plan.Insert(i, new PlannedStep { Prefab = BenchPrefab, Piece = bench, Pos = spot, Rot = benchRot });
+			planned.Add(spot);
+			added++;
+			i++;   // the bench that was just inserted is the step to look at now
+			Log(ai, "workbench for the " + step.Prefab + " (none in range of it): added at (" + F(spot.x) + ", "
+				+ F(spot.y) + ", " + F(spot.z) + ") - covers " + radius.ToString("F1") + " m");
+		}
+		if (needed > 0)
+		{
+			Log(ai, "station: " + needed + " piece(s) need a workbench, " + added + " workbench(es) added to the plan");
+		}
+		return added;
+	}
+
+	/// <summary>Is <paramref name="point"/> inside the coverage of one of the planned benches? <b>Horizontal</b> distance:
+	/// <c>HaveBuildStationInRange</c> flattens the point's Y onto the station's Y (measured, `docs/re/building-notes.md`), so
+	/// a bench on the ground floor covers the chests of the upper floors too.</summary>
+	private static bool CoveredBy(List<Vector3> spots, Vector3 point, float radius)
+	{
+		for (int i = 0; i < spots.Count; i++)
+		{
+			float dx = spots[i].x - point.x;
+			float dz = spots[i].z - point.z;
+			if (Mathf.Sqrt(dx * dx + dz * dz) <= radius)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/// <summary>
+	/// A pose next to <paramref name="near"/> <b>at the piece's own height</b> (a bench inside the house stands on the floor,
+	/// not on the terrain under it) that the game's placement rules accept. The four yaws are tried because the bench may
+	/// not fit in one of them (the same thing a player does).
+	/// </summary>
+	private static bool FindBenchSpot(Piece bench, Vector3 near, Quaternion rot, Component who, out Vector3 spot,
+		out Quaternion benchRot)
+	{
+		for (int ring = 1; ring <= 3; ring++)
+		{
+			float distance = 1.6f * ring;
+			for (int dir = 0; dir < 8; dir++)
+			{
+				float angle = Mathf.PI * 2f * dir / 8f;
+				Vector3 candidate = new Vector3(near.x + Mathf.Cos(angle) * distance, near.y, near.z + Mathf.Sin(angle) * distance);
+				for (int yaw = 0; yaw < 4; yaw++)
+				{
+					Quaternion candidateRot = rot * Quaternion.Euler(0f, yaw * 90f, 0f);
+					Dictionary<string, object> check = BuildSite.Check(bench, candidate, candidateRot, who);
+					if (Ok(check))
+					{
+						spot = candidate;
+						benchRot = candidateRot;
+						return true;
+					}
+				}
+			}
+		}
+		spot = near;
+		benchRot = rot;
+		return false;
 	}
 
 	/// <summary>Cancels the directed harvest the clearing set (any ending of the order must not leave the companion
@@ -2187,7 +2331,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			string ignoredPrefab;
 			string ignoredStation;
 			resumed = ResumeBlueprint(cs, blueprint, pending.Hint, pending.Index, pending.AnchorRot, out ignoredPrefab,
-				out ignoredStation) == BlueprintStart.Started;
+				out ignoredStation, pending.Plan) == BlueprintStart.Started;
 		}
 		else
 		{

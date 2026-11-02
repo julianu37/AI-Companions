@@ -40,6 +40,12 @@ stopped.
   blamed the spot. It now compares the real weight with the carry ceiling and says `hc_ai_build_too_heavy`.
   Measured right after: with **120 wood (240 of 300 weight)** the same 985-piece blueprint **walked and built 60 pieces**
   in ~3 minutes (all supported) before handing the order to the gather for the rest.
+- **The workbench is planned, not assumed** (player's request, 03/11/2026): the game frees a piece only when a station is
+  inside *its* range (`m_rangeBuild`, 20 m, and the height is ignored), and a downloaded house with chests on three floors
+  can easily have none. Every piece that needs a workbench is now checked against the stations around it **and** against
+  the benches the plan brings; where there is none, the companion **adds a workbench to the plan right before that
+  piece**, at a spot the game accepts (on the piece's own floor, not on the terrain below), paid like any other piece.
+  Stations it cannot make (stonecutter, forge...) still refuse with their name.
 - **A blueprint resumes as the blueprint, not as one piece** (player's test, 03/11/2026): when the wood ran out the order
   went to the gather and came back as "build one wood_beam" - the 985-piece house ended there. The pending order now
   carries the blueprint (file, anchor, rotation, piece index) and the **pieces that did not stand yet**, so the resumed

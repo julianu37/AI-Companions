@@ -828,6 +828,32 @@ para o cepo.
 **Obra medida:** 223/983 pecas em ~7 min (~4 s/peca), todas `supported`; a partir da peca ~190 ele passou a pagar dos
 baus (2 madeiras por peca, baus a 3-25 m) e 3 `wood_beam` falharam a verificacao (`not_found`) e foram para o retry.
 
+### 15.2f A bancada: a cobertura e por peca (03/11/2026)
+
+Pedido do jogador: a obra tem que **verificar a bancada e o raio dela**, e construir uma em lugar adequado quando nao
+cobre. A regra do jogo e **por peca** - `CraftingStation.HaveBuildStationInRange(name, ponto)` (a mesma funcao do
+`Place`) - e o raio e **`m_rangeBuild` = 20 m**, nao 5 (o `5` e o `m_spaceRequirement` que apareceu no teste da bancada;
+ver a tabela do §3). Dois detalhes medidos antes e que decidem o desenho: a funcao **achata o Y** do ponto no Y da
+estacao (uma bancada no terreo cobre os baus do 2o andar) e a bancada **nao precisa estar na mesma peca de chao**.
+
+O `CommHomeBasicBP` tem **~70 `piece_chest_wood`** em tres andares e **nao traz bancada nenhuma**; a checagem antiga
+perguntava uma vez, do **centro do footprint** (`hint`), e passava com uma bancada qualquer a 20 m - e os baus que
+estivessem fora desse raio cairiam em `needs_station` um a um.
+
+**Agora (`PlanStations`, antes da primeira peca):** o plano e percorrido em ordem; para cada peca com
+`piece.m_craftingStation` (so a bancada e "construivel" pelo mod), se **nenhuma** estacao daquele tipo esta no raio
+**daquela** peca e **nenhuma bancada planejada** ja a cobre (distancia **horizontal**), uma **bancada e inserida no plano
+logo antes dela** - procurada em aneis de 1,6/3,2/4,8 m **no Y da peca** (bancada dentro de casa fica no piso, nao no
+terreno) e com as 4 rotacoes, pelo `BuildSite.Check` (apoio, espaco, clipe). O executor constroi como qualquer peca: sai
+da mesma mochila/baus e entra no `PlanMissing` (10 madeiras cada). Teto de **8 bancadas** por ordem. Log:
+`workbench for the <peca> (none in range of it): added at (x, y, z) - covers 20,0 m` e o resumo
+`station: N piece(s) need a workbench, M workbench(es) added to the plan`. Estacoes que o mod **nao** fabrica
+(stonecutter, forge...) continuam sendo recusa nomeada, como antes.
+
+**Retomada:** a ordem retomada usa o **plano exato** da primeira parte (`pending.Plan`) - as bancadas que ela mesma
+acrescentou fazem parte dele. Reconstruir o plano agora (com as bancadas ja de pe) inseriria menos bancadas e **todo
+indice depois delas andaria**, perdendo as pecas do meio em silencio.
+
 ### 15.3 Medido em jogo (02/11/2026)
 
 | arquivo | pecas | resultado |
