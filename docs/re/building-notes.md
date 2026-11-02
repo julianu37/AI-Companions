@@ -718,6 +718,13 @@ jogador nivela antes com a ordem `level`, se quiser).
 
 Sem a bancada perto o `wood_beam` recusa com `needs_station` e a ordem encerra dizendo qual estacao falta (medido).
 
+**De onde baixar (02/11/2026):** as 3 saíram do **BiomeBlueprints** (OverDrive) -
+<https://thunderstore.io/c/valheim/p/OverDrive/BiomeBlueprints/> (download direto:
+<https://thunderstore.io/package/download/OverDrive/BiomeBlueprints/1.0.3/>). Dentro do zip, os 353 arquivos estão na
+pasta **`blueprints/`** - é só copiar os `.blueprint` que quiser para `BepInEx\config\AI-Companions\blueprints\`.
+Outras fontes: **valheimians.com** (acervo da comunidade) e a **captura do próprio PlanBuild** (salva um `.blueprint` do
+que você construiu). O mod **não** precisa do PlanBuild para ler nenhum deles.
+
 **As 3 builds de teste deixadas na pasta (02/11/2026, baixadas do BiomeBlueprints):**
 
 | arquivo (o nome que se fala) | `#Name:` | peças | pede |
