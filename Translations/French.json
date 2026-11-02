@@ -1117,6 +1117,10 @@
             "value": "Butin"
         },
         {
+            "key": "hc_cat_building",
+            "value": "Construction"
+        },
+        {
             "key": "hc_cat_gearrepair",
             "value": "Réparation d'équip."
         },
@@ -2847,6 +2851,10 @@
         {
             "key": "hc_cfg_building_clearsite",
             "value": "Dégager le terrain"
+        },
+        {
+            "key": "hc_cfg_building_tempscaffold",
+            "value": "Escalier provisoire"
         },
         {
             "key": "hc_cfg_building_blueprintfree",

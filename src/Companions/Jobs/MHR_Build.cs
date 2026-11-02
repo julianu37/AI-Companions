@@ -34,11 +34,13 @@ internal static class MHR_Build
 
 	/// <summary>
 	/// How far from the companion's <b>eye</b> a piece may be placed. It is the game's own
-	/// <c>Player.m_maxPlaceDistance</c> (5 m, decompiled 1.0.20): the old rule (2,5 m flat and 3 m up) could not
+	/// <c>Player.m_maxPlaceDistance</c> (5 m, decompiled 1.0.20). The flat cap used to be 2,5 m and could not
 	/// reach the upper roof row of the house (y = 5, i.e. 4,9 m above the feet) - the companion walked in circles
 	/// until the order timed out (player report, 01/11/2026: "parece que não alcança").
 	/// </summary>
 	internal const float MaxPlace = 5f;
+	/// <summary>E7 (review, 03/11/2026): the walk still stops at <see cref="Reach"/>; the flat cap opens to
+	/// <c>MaxPlace - 0,5</c> (4,5 m) only after 3 s without getting closer, and the eye distance is always this 5 m.</summary>
 
 	/// <summary>The companion's eye height above its feet (the game measures the placement distance from the eye).</summary>
 	private const float EyeHeight = 1.5f;
@@ -192,6 +194,12 @@ internal static class MHR_Build
 		/// <summary>E7: how many temporary stairs this piece already got, and the cooldown before the next one.</summary>
 		internal int ScaffoldTries;
 		internal float NextScaffoldAt;
+		/// <summary>E7: the pose the scaffold budget belongs to - a piece that goes to the retry pass and comes back
+		/// (up to 3 passes) must NOT get 3 new stairs in every pass.</summary>
+		internal Vector3 ScaffoldPose;
+		/// <summary>E7 (review, 03/11/2026): the pieces accepted while a temporary stair stood - they are asked again for
+		/// support before the stair is removed, so a roof that was held up by it does not get a hole.</summary>
+		internal readonly List<GameObject> Scaffolded = new List<GameObject>();
 	}
 
 	/// <summary>E6: one piece of a plan, already resolved to a world pose.</summary>
@@ -201,9 +209,14 @@ internal static class MHR_Build
 		internal Piece Piece;
 		internal Vector3 Pos;
 		internal Quaternion Rot;
+		/// <summary>E7 (review, 03/11/2026): why the piece went to the retry queue - the ladder requeue only undoes the
+		/// "top has no floor yet" deferral, never a refusal by support/path/station.</summary>
+		internal string Why;
 	}
 
 	private static readonly Dictionary<int, State> s_state = new Dictionary<int, State>();
+	/// <summary>E7: cached layer mask of the scaffold probe (-1 = not resolved yet).</summary>
+	private static int s_scaffoldMask = -1;
 
 	/// <summary>E7: when a blueprint last asked for the ground to be leveled (a guard against the measure/level loop).</summary>
 	private static readonly Dictionary<string, float> s_levelTried = new Dictionary<string, float>();
@@ -362,7 +375,7 @@ internal static class MHR_Build
 	{
 		if (state.Retry != null && state.Passes < MaxPasses && state.Piece != null)
 		{
-			state.Retry.Add(new PlannedStep { Prefab = state.Prefab, Piece = state.Piece, Pos = state.Pos, Rot = state.Rot });
+			state.Retry.Add(new PlannedStep { Prefab = state.Prefab, Piece = state.Piece, Pos = state.Pos, Rot = state.Rot, Why = why });
 			Log(ai, "retry later: " + state.Prefab + " (" + why + ") at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
 				+ F(state.Pos.z) + ") - pass " + state.Passes);
 			return;
@@ -403,7 +416,11 @@ internal static class MHR_Build
 			state.FallDrops = 0;
 			state.BestDistance = 0f;
 			state.BestAt = Time.time;
-			state.ScaffoldTries = 0;
+			if (state.ScaffoldPose != next.Pos)
+			{
+				state.ScaffoldPose = next.Pos;
+				state.ScaffoldTries = 0;
+			}
 			state.NextScaffoldAt = 0f;
 			state.Phase = Phase.Goto;
 			Log(ai, "next: " + next.Prefab + " (" + (state.Index + 1) + "/" + state.Plan.Count + ")");
@@ -784,6 +801,9 @@ internal static class MHR_Build
 			State state;
 			if (s_state.TryGetValue(key, out state))
 			{
+				// E7 (review, 03/11/2026): a temporary stair must not survive the order - "seguir", "para" and any other
+				// order without a target come through here, and a piece left in the save is junk in the player's house
+				ClearScaffolds(null, state);
 				state.Active = false;
 			}
 			s_state.Remove(key);
@@ -1247,7 +1267,6 @@ internal static class MHR_Build
 		return false;
 	}
 
-	/// <summary>Is this the piece a companion climbs (a stepladder, a ladder)?</summary>
 	/// <summary>The companion's bag (the scaffold is paid from it, like any piece).</summary>
 	private static Inventory BagOf(CompanionAI ai)
 	{
@@ -1263,22 +1282,31 @@ internal static class MHR_Build
 	/// ends: it is not part of the plan and does not stay in the player's house. At most <see cref="MaxScaffolds"/> per
 	/// piece, one every 4 s.
 	/// </summary>
-	private static bool TryScaffold(CompanionAI ai, State state, CompanionSetup cs, Inventory bag)
+	private static bool TryScaffold(CompanionAI ai, State state, CompanionSetup cs)
 	{
 		if (ModConfig.BuildTempScaffold == null || !ModConfig.BuildTempScaffold.Value)
 		{
 			return false;
 		}
-		if (bag == null || state.ScaffoldTries >= MaxScaffolds || Time.time < state.NextScaffoldAt)
+		if (ai == null || state.ScaffoldTries >= MaxScaffolds || Time.time < state.NextScaffoldAt)
 		{
 			return false;
 		}
 		Piece stair = BuildProbe.PieceOf(ScaffoldPrefab);
-		if (stair == null)
+		// the bag is resolved AFTER the guards: the rejected paths must not pay a GetComponent per frame (review, 03/11/2026)
+		Inventory bag = BagOf(ai);
+		if (stair == null || bag == null)
 		{
 			return false;
 		}
 		Vector3 me = ai.transform.position;
+		// every piece needs a workbench in range in 1.0 and the stair is no exception - asking ONCE here saves up to 8 ghost
+		// checks in the loop below (and says nothing when the plan's own bench does not reach this corner)
+		if (stair.m_craftingStation != null
+			&& CraftingStation.HaveBuildStationInRange(stair.m_craftingStation.m_name, me) == null)
+		{
+			return false;
+		}
 		Vector3 toPiece = state.Pos - me;
 		toPiece.y = 0f;
 		if (toPiece.sqrMagnitude < 0.25f)
@@ -1289,15 +1317,18 @@ internal static class MHR_Build
 		// measured with build.snaps (03/11/2026): the stair rises towards its own -Z, so its +Z faces AWAY from the piece
 		Quaternion rot = Quaternion.LookRotation(-toPiece, Vector3.up);
 		state.NextScaffoldAt = Time.time + 4f;
+		// the attempt is spent even when it fails: 3 tries per POSE (State.ScaffoldTries is reset by pose, not by plan step)
+		state.ScaffoldTries++;
 		bool useChests = ModConfig.BuildUseChests == null || ModConfig.BuildUseChests.Value;
 		Vector3 stock = state.Plan != null && state.AnchorKnown ? state.Anchor : state.Pos;
-		int mask = LayerMask.GetMask("Default", "static_solid", "piece", "terrain");
-		for (int ring = 0; ring <= 2; ring++)
+		int mask = ScaffoldMask();
+		string last = null;
+		for (int ring = 0; ring <= 1; ring++)
 		{
-			float distance = 1.2f + ring * 1.0f;
-			for (int i = 0; i < 6; i++)
+			float distance = 1.2f + ring * 1.1f;
+			for (int i = 0; i < 4; i++)
 			{
-				Vector3 candidate = me + Quaternion.Euler(0f, -50f + i * 20f, 0f) * toPiece * distance;
+				Vector3 candidate = me + Quaternion.Euler(0f, -35f + i * 23f, 0f) * toPiece * distance;
 				RaycastHit hit;
 				if (mask == 0
 					|| !Physics.Raycast(new Vector3(candidate.x, me.y + 2f, candidate.z), Vector3.down, out hit, 3f, mask,
@@ -1312,10 +1343,13 @@ internal static class MHR_Build
 				}
 				if (BlockedByPlan(state, candidate))
 				{
-					continue;   // a planned piece goes here - the stair would take its place
+					last = "blocked by the plan";
+					continue;   // a planned piece (or one waiting in the retry queue) goes here
 				}
-				if (!Ok(BuildSite.Check(stair, candidate, rot, cs)))
+				Dictionary<string, object> check = BuildSite.Check(stair, candidate, rot, cs);
+				if (!Ok(check))
 				{
+					last = check != null ? Convert.ToString(check["status"]) : "unknown";
 					continue;
 				}
 				if (!state.Free)
@@ -1323,7 +1357,7 @@ internal static class MHR_Build
 					Dictionary<string, int> missing;
 					if (!BuildStock.Take(bag, stair, stock, cs, useChests, out missing))
 					{
-						Log(ai, "no wood for a temporary stair - the piece goes to the retry pass");
+						Log(ai, "no wood for a temporary stair");
 						return false;
 					}
 				}
@@ -1334,10 +1368,10 @@ internal static class MHR_Build
 					{
 						Refund(bag, stair);
 					}
+					last = "executor: " + placed.Error;
 					continue;
 				}
 				state.Scaffolds.Add(placed.GameObject);
-				state.ScaffoldTries++;
 				state.BestDistance = 0f;
 				state.BestAt = Time.time;
 				Log(ai, "temporary stair at (" + F(candidate.x) + ", " + F(candidate.y) + ", " + F(candidate.z)
@@ -1345,40 +1379,79 @@ internal static class MHR_Build
 				return true;
 			}
 		}
+		// say WHY there is no stair (the usual one is needs_station at the far side of a big plan) - once per 4 s, bounded
+		// by MaxScaffolds per pose
+		Log(ai, "no room for a temporary stair near the " + state.Prefab + " (" + (last ?? "no ground") + ")");
 		return false;
 	}
 
-	/// <summary>Is a planned piece going to take this spot? (the scaffold must not steal a floor's place)</summary>
+	/// <summary>Layer mask of the scaffold's ground probe (cached: <c>LayerMask.GetMask</c> allocates an array per call).</summary>
+	private static int ScaffoldMask()
+	{
+		if (s_scaffoldMask < 0)
+		{
+			s_scaffoldMask = LayerMask.GetMask("Default", "static_solid", "piece", "terrain");
+		}
+		return s_scaffoldMask;
+	}
+
+	/// <summary>
+	/// Is a planned piece going to take this spot? The scaffold must not steal a floor's place, and the queue that
+	/// matters is not only <c>Plan</c>: a piece waiting in <c>Retry</c> comes back to that same pose (review, 03/11/2026).
+	/// The test is 1,5 m in XZ and 2 m in Y - a piece 20 m above does not care about a stair on the ground.
+	/// </summary>
 	private static bool BlockedByPlan(State state, Vector3 spot)
 	{
-		if (state.Plan == null)
+		if (NearPiece(state.Pos, spot))
 		{
-			return false;
+			return true;
 		}
-		for (int i = state.Index + 1; i < state.Plan.Count; i++)
+		if (state.Plan != null)
 		{
-			PlannedStep step = state.Plan[i];
-			if (step == null)
+			for (int i = state.Index + 1; i < state.Plan.Count; i++)
 			{
-				continue;
+				PlannedStep step = state.Plan[i];
+				if (step != null && NearPiece(step.Pos, spot))
+				{
+					return true;
+				}
 			}
-			float dx = step.Pos.x - spot.x;
-			float dz = step.Pos.z - spot.z;
-			if (dx * dx + dz * dz < 1.0f)
+		}
+		if (state.Retry != null)
+		{
+			for (int i = 0; i < state.Retry.Count; i++)
 			{
-				return true;
+				PlannedStep step = state.Retry[i];
+				if (step != null && NearPiece(step.Pos, spot))
+				{
+					return true;
+				}
 			}
 		}
 		return false;
 	}
 
-	/// <summary>Removes the temporary stairs of an order (end of the plan, cancellation). The plan's own pieces stay.</summary>
+	private static bool NearPiece(Vector3 piece, Vector3 spot)
+	{
+		float dx = piece.x - spot.x;
+		float dz = piece.z - spot.z;
+		return dx * dx + dz * dz < 2.25f && Mathf.Abs(piece.y - spot.y) < 2f;
+	}
+
+	/// <summary>
+	/// Removes the temporary stairs of an order (end of the plan, cancellation, death - the death path ends in
+	/// <see cref="Finish"/> too). The plan's own pieces stay, and the wood comes back to the bag: the stair is a tool, not a
+	/// piece of the house. A stair that a piece placed while it stood now DEPENDS on is kept - the piece passed
+	/// <c>Verify</c> with support <b>while the stair was up</b> (review, 03/11/2026: a roof accepted with the leg of a
+	/// temporary stair would get a hole). <paramref name="ai"/> may be null (CancelAll has no component to ask).
+	/// </summary>
 	private static void ClearScaffolds(CompanionAI ai, State state)
 	{
 		if (state == null || state.Scaffolds.Count == 0)
 		{
 			return;
 		}
+		bool keep = PieceDependsOnScaffold(state);
 		int removed = 0;
 		foreach (GameObject go in state.Scaffolds)
 		{
@@ -1386,17 +1459,32 @@ internal static class MHR_Build
 			{
 				continue;
 			}
+			if (keep)
+			{
+				continue;
+			}
 			try
 			{
+				Piece piece = go.GetComponent<Piece>();
 				ZNetView view = go.GetComponent<ZNetView>();
 				if (view != null && view.IsValid())
 				{
+					// the claim before the destroy is what makes ZNetScene.Destroy enqueue the ZDO - without it the other
+					// clients keep the piece (ZNetView.Destroy is exactly ZNetScene.instance.Destroy)
 					view.ClaimOwnership();
 					view.Destroy();
+				}
+				else if (ZNetScene.instance != null)
+				{
+					ZNetScene.instance.Destroy(go);
 				}
 				else
 				{
 					UnityEngine.Object.Destroy(go);
+				}
+				if (ai != null && piece != null)
+				{
+					Refund(BagOf(ai), piece);
 				}
 				removed++;
 			}
@@ -1406,12 +1494,36 @@ internal static class MHR_Build
 			}
 		}
 		state.Scaffolds.Clear();
+		state.Scaffolded.Clear();
 		if (removed > 0)
 		{
-			Log(ai, removed + " temporary stair(s) removed");
+			CompanionsPlugin.Log?.LogInfo("[Build] " + removed + " temporary stair(s) removed");
+		}
+		if (keep)
+		{
+			CompanionsPlugin.Log?.LogWarning("[Build] kept the temporary stair(s): a piece placed with them has no support without it");
 		}
 	}
 
+	/// <summary>Did a piece accepted while a temporary stair stood lose its support? (asked right before removing them)</summary>
+	private static bool PieceDependsOnScaffold(State state)
+	{
+		foreach (GameObject go in state.Scaffolded)
+		{
+			if (go == null)
+			{
+				continue;
+			}
+			WearNTear wear = go.GetComponent<WearNTear>();
+			if (wear != null && BuildSupport.Supported(wear) == false)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/// <summary>Is this the piece a companion climbs (a stepladder, a ladder)?</summary>
 	private static bool IsLadderPrefab(string prefab)
 	{
 		return prefab != null && prefab.IndexOf("ladder", StringComparison.OrdinalIgnoreCase) >= 0;
@@ -1435,7 +1547,7 @@ internal static class MHR_Build
 		for (int i = state.Retry.Count - 1; i >= 0; i--)
 		{
 			PlannedStep step = state.Retry[i];
-			if (step == null || !IsLadderPrefab(step.Prefab) || !HasLanding(step.Pos))
+			if (step == null || !IsLadderPrefab(step.Prefab) || step.Why != "top has no floor yet" || !HasLanding(step.Pos))
 			{
 				continue;
 			}
@@ -2086,7 +2198,7 @@ internal static class MHR_Build
 			// E7 (player's idea, 03/11/2026): he is close but the way is blocked (an eave, the ridge) - a step may open the
 			// angle before the piece goes to the retry pass.
 			if (new Vector2(me.x - state.Pos.x, me.z - state.Pos.z).magnitude <= MaxPlace
-				&& TryScaffold(ai, state, cs, BagOf(ai)))
+				&& TryScaffold(ai, state, cs))
 			{
 				return true;
 			}
@@ -2102,11 +2214,20 @@ internal static class MHR_Build
 		// Reach + 0,5 = 3,0 m while the game allows 5 m from the EYE - the gable top at 42,8 with the companion standing
 		// 3,15 m away flat (3,3 m in 3D) was refused by 15 cm and he walked in circles for 12 s. The eye rule is the
 		// game's own; the flat cap only has to keep him from placing through the far side of the house.
-		bool inReach = flat <= MaxPlace - 0.5f && Vector3.Distance(eye, state.Pos) <= MaxPlace;
+		bool inReach = flat <= Reach + 0.5f && Vector3.Distance(eye, state.Pos) <= MaxPlace;
+		// E7 (player's report, 03/11/2026: "he is still struggling to place a piece on the high roof"): the flat cap of 3,0 m
+		// was stricter than the game (5 m from the eye) and refused a gable top 3,15 m away by 15 cm. The relaxed cap is used
+		// ONLY when he stopped getting closer for 3 s: the normal walk still ends at Reach, so a piece is not placed from
+		// 4,5 m just because he walked past the radius.
+		if (!inReach && flat <= MaxPlace - 0.5f && Vector3.Distance(eye, state.Pos) <= MaxPlace
+			&& Time.time - state.BestAt > 3f)
+		{
+			inReach = true;
+		}
 		// E7 (player's idea, 03/11/2026): the piece is above the eye's 5 m and he is already standing under it - no amount of
 		// walking fixes that; a temporary stair does (it is removed when the order ends).
 		if (!inReach && flat <= MaxPlace && Vector3.Distance(eye, state.Pos) > MaxPlace
-			&& TryScaffold(ai, state, cs, BagOf(ai)))
+			&& TryScaffold(ai, state, cs))
 		{
 			return true;
 		}
@@ -2319,6 +2440,10 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			+ (state.Template != null ? " (" + (state.Index + 1) + "/" + state.Plan.Count + ")" : string.Empty)
 			+ (supported.HasValue ? " supported" : string.Empty));
 		state.PlacedCount++;
+		if (state.Scaffolds.Count > 0 && state.Placed != null)
+		{
+			state.Scaffolded.Add(state.Placed);
+		}
 		// E7 (player's question, 03/11/2026: "why is there no ladder here yet?"): a floor is what a ladder was waiting
 		// for - the ladders deferred with "top has no floor yet" come back into the plan right now, not at the end.
 		if (state.Prefab != null && state.Prefab.IndexOf("floor", StringComparison.OrdinalIgnoreCase) >= 0)

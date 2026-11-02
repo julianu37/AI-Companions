@@ -51,7 +51,7 @@ stopped.
   goes on with the ground it has (the pieces that do not fit are retried).
 - **A temporary stair for the pieces above the reach** (player's idea, 03/11/2026: "let's try that plan of temporary ladders,
   he is still struggling to place a piece on the high roof"): when a piece is above the game's 5 m reach and the companion
-  is already standing under it - or when it stops making progress within 5 m of it - it places a **temporary wood stair**
+  is already standing under it - or, in a blueprint, when it stops making progress within 5 m of it - it places a **temporary wood stair**
   (2 wood, +1 m, a ramp the mover simply walks up), retries the piece from the top and **removes the stair when the order
   ends**. At most 3 per piece. New `[Building] TempScaffold` (on by default).
 - **The placement reach is the game's own again** (player's report, 03/11/2026: "he is still struggling to place a piece on
@@ -66,8 +66,8 @@ stopped.
   a player's "stop" still drops it.
 - **No more 60 s stuck on a piece it cannot reach** (player's report, 03/11/2026: "she is struggling with the tip of the
   roof"): the roof tip pieces are refused with no_support (deferred at once, they come back in the retry pass) but the ones
-  the companion walks to and cannot get closer to burned the whole 60 s timeout each. A piece it does not get **0,5 m
-  closer** to for **12 s** now goes to the retry pass instead.
+  the companion walks to and cannot get closer to burned the whole 60 s timeout each. In a blueprint, a piece it does not
+  get **0,5 m closer** to for **12 s** now goes to the retry pass instead.
 - **A storey is what is under the piece where it is** (player's report, 03/11/2026: "in this hall the 2nd floor is really
   the 3rd - he should start the floor from the ladder"): the storey of a piece was the highest floor of the **whole
   building** below it, so inside a double-height hall the ladder stood at a level with no floor. It is now the highest

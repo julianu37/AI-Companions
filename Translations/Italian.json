@@ -1117,6 +1117,10 @@
             "value": "Bottino"
         },
         {
+            "key": "hc_cat_building",
+            "value": "Costruzione"
+        },
+        {
             "key": "hc_cat_gearrepair",
             "value": "Riparazione equip."
         },
@@ -2847,6 +2851,10 @@
         {
             "key": "hc_cfg_building_clearsite",
             "value": "Liberare il cantiere"
+        },
+        {
+            "key": "hc_cfg_building_tempscaffold",
+            "value": "Scala provvisoria"
         },
         {
             "key": "hc_cfg_building_blueprintfree",

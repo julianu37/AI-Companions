@@ -43,6 +43,8 @@ def normalize(text):
 
 # --------------------------------------------------------------------------------------------------- espanol (es-ES)
 ES_UI = {
+    'Construcao': 'Construccion',
+    'Escada provisoria': 'Escalera provisional',
     'DevBridge (ferramenta de desenvolvimento)': 'DevBridge (herramienta de desarrollo)',
     'Porta do DevBridge': 'Puerto del DevBridge',
     'Token do DevBridge': 'Token del DevBridge',
@@ -1021,6 +1023,8 @@ ES_UI = {
 # --------------------------------------------------------------------------------------------------- frances (fr-FR)
 # Frances da Franca, tratamento informal ("tu"), com o espaco tipografico antes de : ; ! ?
 FR_UI = {
+    'Construcao': 'Construction',
+    'Escada provisoria': 'Escalier provisoire',
     'DevBridge (ferramenta de desenvolvimento)': 'DevBridge (outil de développement)',
     'Porta do DevBridge': 'Port du DevBridge',
     'Token do DevBridge': 'Jeton du DevBridge',
@@ -2536,6 +2540,8 @@ FR_SPEECH = {
 # --------------------------------------------------------------------------------------------------- italiano (it-IT)
 # Italiano, trattamento informale ("tu").
 IT_UI = {
+    'Construcao': 'Costruzione',
+    'Escada provisoria': 'Scala provvisoria',
     'DevBridge (ferramenta de desenvolvimento)': 'DevBridge (strumento di sviluppo)',
     'Porta do DevBridge': 'Porta del DevBridge',
     'Token do DevBridge': 'Token del DevBridge',

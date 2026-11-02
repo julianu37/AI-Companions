@@ -1117,6 +1117,10 @@
             "value": "Saque"
         },
         {
+            "key": "hc_cat_building",
+            "value": "Construção"
+        },
+        {
             "key": "hc_cat_gearrepair",
             "value": "Reparo de Equip."
         },
@@ -2847,6 +2851,10 @@
         {
             "key": "hc_cfg_building_clearsite",
             "value": "Limpar o canteiro"
+        },
+        {
+            "key": "hc_cfg_building_tempscaffold",
+            "value": "Escada provisória"
         },
         {
             "key": "hc_cfg_building_blueprintfree",

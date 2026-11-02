@@ -1068,6 +1068,14 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
    **subagentes em paralelo** para agilizar (frentes com arquivos disjuntos). O **orquestrador revisa o diff, roda
    build/testes e commita** — nada entra sem revisão; e **tudo é documentado no mesmo ciclo** (AGENTS/CHANGELOG/
    release notes/roadmap/backlog), como na regra 2.
+11. **Padrão de trabalho: orquestrador + especialistas (regra do jogador, 03/11/2026).** Toda frente que mexe em
+    comportamento, rede, assets, localização ou release **começa distribuída**: carregue a skill da área e acione os
+    subagentes especialistas em **paralelo e read-only** (`valheim-mod-reviewer`, `valheim-netcode-dev`,
+    `valheim-reverse-engineer`, `valheim-qa-engineer`, `valheim-docs-writer`, `ai-npc-developer`, `llm-backend-dev`,
+    `harmony-patcher`, `valheim-mod-architect`), dizendo a cada um o alvo, o que responder e o formato. O orquestrador
+    consolida os achados por severidade, **aplica as correções, roda build/gate, documenta e commita** — nenhuma
+    frente relevante entra sem a leitura de um especialista, e número/medida se confirma com o engenheiro reverso ou o
+    QA (nunca "de memória"). Registrar no mesmo ciclo quem foi acionado, o que achou e o que foi aplicado.
 
 ## DevBridge (ferramenta de desenvolvimento)
 
@@ -1087,13 +1095,13 @@ comandos de console e spawna coisas, então não é feature de jogador.
   é escrito por reflexão, escolhido **pelo valor** igual ao `GetStamina()`, com uma linha de log dizendo qual).
   `setup: false` no `world_enter` desliga.
 - **Testar:** `python tools/mcp-devbridge/test_mcp_devbridge.py` (mock, sem jogo) — 70 checks.
-- **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check` — **363 asserções** das redes por
+- **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check` — **430 asserções** das redes por
   palavras (`RadialIntent`, `PickupIntent`, `GatherIntent`, `InteractionIntent`, `LlmIntent`, `OrderItems`,
   `CompanionNameMatch`) com os `.cs` reais linkados, mais o cross-check das cópias do `Stubs.cs` contra a
   `Companions.dll` (seção (h) — impede drift). Build 0/0 e exit 0 são o gate.
 - **Gate de release:** `powershell -ExecutionPolicy Bypass -File tools\release-check.ps1 -Version <versão>` — roda o
   build, a versão (`PluginVersion` × nome do zip), as 3 traduções, o `locale-fallback-check.ps1` (agora com asserts),
-  o `gen_config_doc.py --check`, o teste do MCP (70) e as 363 asserções; **PASS/FAIL por item e exit 1**. É o que tem
+  o `gen_config_doc.py --check`, o teste do MCP (70) e as 430 asserções; **PASS/FAIL por item e exit 1**. É o que tem
   de passar antes de tag/zip (`-SkipGame`/`-SkipIntents` para rodar parte).
 - **Docs:** `docs/mcp-devbridge.md` (arquitetura, protocolo, as **57** ferramentas, a receita de **jogar pelo agente**
   e a de **comandos de console**, e as evidências dos testes da 1.9.4) e `tools/mcp-devbridge/README.md`
@@ -1230,17 +1238,22 @@ comandos de console e spawna coisas, então não é feature de jogador.
   `wood_wall_roof_top_45` a 44,8/46,8. Sem teleporte: é a razão de a trava de progresso ser conservadora (12 s **sem chegar
   mais perto**, nunca por tempo total).
   **A escadinha provisória (pedido "vamos tentar aquele seu plano de fazer escadinhas provisórias", 03/11/2026):** quando a
-  peça está acima dos 5 m do olho e ele já está embaixo dela - ou quando a trava de 12 s dispara a menos de 5 m - o
+  peça está acima dos 5 m do olho e ele já está embaixo dela - ou, **em blueprint**, quando a trava de 12 s dispara a
+  menos de 5 m - o
   `TryScaffold` coloca uma **`wood_stair` provisória** (2 madeiras, **+1 m**, rampa: o mover sobe como geometria, sem
   lógica de escada nem pouso para cair), tenta a peça de cima e **remove a escada no fim da ordem** (`ClearScaffolds` no
-  `Finish` e no `Cancel`). Teto de 3 por peça, 1 a cada 4 s; a rampa sobe para o **-Z local** (`LookRotation(-toPiece)`) e
-  não pode ocupar o lugar de uma peça do plano (`BlockedByPlan`). Config `[Building] TempScaffold` (padrão **true**).
+  `Finish`, no `Cancel` e no `CancelAll`), devolvendo a madeira. Teto de **3 por pose** (não por passo do plano: retry pass
+  não renova o orçamento), 1 a cada 4 s; a rampa sobe para o **-Z local** (`LookRotation(-toPiece)`) e não pode ocupar o
+  lugar de uma peça do plano **nem de uma que está na fila de retry** (`BlockedByPlan`, 1,5 m em XZ e 2 m em Y). A escada
+  só é removida se as peças aceitas com ela de pé continuarem com apoio (`PieceDependsOnScaffold`); senão fica e o log
+  avisa. Config `[Building] TempScaffold` (padrão **true**).
   A `wood_stepladder` (+2 m) foi descartada para isso: é escada (o `MHR_Mover.IsLadder` casa pelo nome) e topo sem piso é
   a armadilha de queda de 03/11/2026.
   **O alcance era menor que o do jogo (relato "ele ainda está apanhando tentando colocar uma peça no teto alto", 03/11/2026):**
   a regra era `flat <= Reach + 0,5` (3,0 m) **e** olho ≤ 5 m; um topo de empena a 3,15 m planos (3,3 m em 3D) era recusado
   por 15 cm. Agora o limite plano é `MaxPlace - 0,5` (**4,5 m**) e vale a regra do jogo (5 m do olho); o `Reach` (2,5 m)
-  ficou só como distância de parada do `MHR_Mover`.
+  ficou como distância de parada do `MHR_Mover` **e** como limite do "pulinho" (`flat <= Reach + 0,5`); o teto de
+  4,5 m só abre depois de 3 s sem chegar mais perto.
   **A escadinha volta ao plano quando o piso existe (pergunta "pq nao tem escada aqui ainda?", 03/11/2026):** as escadas
   adiadas com `top has no floor yet` iam para o retry pass **final** (depois da última peça de 985); agora cada piso
   colocado chama `RequeueLadders` e devolve ao plano as que já têm pouso. Medido com `build.snaps`: `wood_stair` sobe
@@ -1277,7 +1290,7 @@ comandos de console e spawna coisas, então não é feature de jogador.
   **o-que-falta** (a 4x4 entrava em loop na porta); agora recalcula o que falta e retoma quando é zero. Harness
   **363 → 401**. Armadilha: `"casa pequeña"` (ES) e `"casa pequena"` (PT) **empatam** no Fold - apelidos iguais depois
   do Fold não podem existir em templates diferentes. **Aceite: 1,06 m → 0,33 m em 3 passadas, 165 s.** É ordem de um tiro (qualquer outra
-  cancela - sem isso ele ficava travado). `ValidActions` 36 → 37, 5 idiomas, config **356 opções / 25 seções**
+  cancela - sem isso ele ficava travado). `ValidActions` 36 → 37, 5 idiomas, config **357 opções / 25 seções**
   (medido com `python tools/gen_config_doc.py --check src/Companions/Core/ModConfig.cs package/CONFIGURATION.md`).
   **Aceite em jogo (01/11/2026): 57/57 peças, todas `supported`**, todas
   `placed (Direct)` - a casa **traz a própria bancada** (passo 0, a estação vem do plano), a **porta é a última**

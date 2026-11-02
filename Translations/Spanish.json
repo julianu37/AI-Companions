@@ -1117,6 +1117,10 @@
             "value": "Botín"
         },
         {
+            "key": "hc_cat_building",
+            "value": "Construcción"
+        },
+        {
             "key": "hc_cat_gearrepair",
             "value": "Reparación de equip."
         },
@@ -2847,6 +2851,10 @@
         {
             "key": "hc_cfg_building_clearsite",
             "value": "Despejar el terreno"
+        },
+        {
+            "key": "hc_cfg_building_tempscaffold",
+            "value": "Escalera provisional"
         },
         {
             "key": "hc_cfg_building_blueprintfree",

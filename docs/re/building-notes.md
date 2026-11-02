@@ -1114,17 +1114,21 @@ A diferenca e o comportamento: a `wood_stepladder` sobe **+2 m** mas e **escada*
 apontar para LONGE da peca: `Quaternion.LookRotation(-toPiece)`.
 
 **Como entra no `MHR_Build.Goto`:** (1) quando `!inReach` e `flat <= MaxPlace` e a distancia do olho passa de 5 m (a
-peca e alta demais e ele ja esta embaixo); (2) quando a trava de 12 s sem progresso dispara com `flat <= MaxPlace` (ele
-esta perto, mas o beiral/empena corta o caminho). O `TryScaffold` procura um ponto nos aneis de 1,2/2,2/3,2 m em leque
+peca e alta demais e ele ja esta embaixo) - vale para template e peca solta tambem; (2) quando a trava de 12 s sem
+progresso dispara com `flat <= MaxPlace` (ele esta perto, mas o beiral/empena corta o caminho) - **so em blueprint**, porque
+a trava de 12 s existe apenas nesse caminho. O limite plano normal continua **3,0 m** (`Reach + 0,5`); os **4,5 m** so
+valem depois de **3 s sem chegar mais perto** (review, 03/11/2026: senao ele passaria a colocar peca de longe sempre). O `TryScaffold` procura um ponto nos aneis de 1,2/2,2/3,2 m em leque
 (-50° a +50°), **raycast para baixo** para assentar no piso (recusa desnivel > 1,2 m), recusa ponto onde o **plano ainda
 vai por peca** (`BlockedByPlan`, 1 m em XZ), valida com `BuildSite.Check` e paga pelo `BuildStock.Take` (mochila ->
 baus) - falhou o `BuildExecutor.Place`, o `Refund` devolve. Teto de **3 por peca**, 1 a cada 4 s, e sucesso reseta o
 relogio de progresso. Config nova **`[Building] TempScaffold`** (bool, padrao **true**).
 
 **Limpeza:** as escadas provisorias **nao sao do plano** - ficam em `State.Scaffolds` e o `ClearScaffolds` as remove no
-**fim da ordem** (`Finish`) e no **cancelamento** (`Cancel`), com a linha `N temporary stair(s) removed`. Nao sao contadas
-como peca colocada. Uma obra retomada depois da morte comeca com a lista vazia (as escadas antigas ficam no mundo e sao
-limpas pelo `build.delete`).
+**fim da ordem** (`Finish`), no **cancelamento** (`Cancel`) e no **`CancelAll`** (ordem sem endereçado: "segue", "para",
+"colete 20"), com a linha `N temporary stair(s) removed`. Nao sao contadas como peca colocada. Na **morte** a obra termina
+em `Finish`, que tambem chama o `ClearScaffolds` - as escadas saem na morte e a retomada (`Pending.AfterDeath`) comeca com
+a lista vazia. O `ClearScaffolds` **mantem** a escada quando uma peca aceita com ela de pe perdeu o apoio
+(`PieceDependsOnScaffold`, com as pecas guardadas em `State.Scaffolded`), e a madeira volta para a mochila no fim.
 
 ### 15.3 Medido em jogo (02/11/2026)
 
