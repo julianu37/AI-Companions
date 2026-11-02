@@ -89,6 +89,7 @@ Uma conexão por chamada; **um JSON por linha**, nas duas direções.
 | `world.spawn` | `prefab`, `count`, `x?`, `y?`, `z?` | `prefab`, `count` |
 | `build.inspect` | `prefab` | `found`, `name`, `resources[]`, `station{}`, `flags{}`, `space{}`, `wearNTear{}`, `craftingStation{}`, `inHammer`, `recipeKnown` |
 | `build.sites` | `prefab`, `x?`, `y?`, `z?`, `radius?`, `rings?`, `dirs?` | `total`, `valid`, `points[]` (cada um com `status`, `reasons[]`, `ground{}`, `biome`, `cultivated`, `hasStation`, `wardOk`, `noBuildZone`) |
+| `build.delete` | `x?`, `y?`, `z?`, `radius?`, `filter?`, `drops?` | `destroyed`, `items` (limpeza de área de teste: apaga as peças num raio de até 120 m; `filter` por nome, `drops` leva os itens soltos junto) |
 | `build.pieces` | `x?`, `y?`, `z?`, `radius?`, `filter?` | `count`, `pieces[]` (`prefab`, `name`, `creator`, `mine`, `distance`, `zdo`, `health`, `station`) |
 | `build.find` | `prefab`, `x?`, `y?`, `z?`, `radius?`, `rings?`, `dirs?` | `ok`, `status`, `pos{}`, `yaw`, `distance`, `tried`, `reasons[]`, `tally{}` |
 | `build.check` | `prefab`, `x`, `y`, `z`, `yaw?` | o **mesmo** veredito do `BuildSite.Check` numa pose **exata** (o `y` não é achatado no chão - é assim que se testa parede sobre piso e telhado sobre parede) |

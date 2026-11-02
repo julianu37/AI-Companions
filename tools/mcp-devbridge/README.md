@@ -194,6 +194,21 @@ The pieces **already standing** near a point: prefab, name, creator, whether the
 distance, position, valid ZDO, health (0..1) and the crafting station it carries. It is how a placement - or a
 relog - is proven from the outside, and how the companion's builds are checked.
 
+### `build_delete`
+
+The cleanup of a test area: destroys the player-built pieces inside a radius. `forcedelete` (the game's own command)
+has a radius cap and has to be called once per name, so wiping a test house took many calls and still missed pieces.
+
+| param | type | default |
+|---|---|---|
+| `x`, `y`, `z` | number (default: the player) | - |
+| `radius` | number 1..120 | 10 |
+| `filter` | string (substring of the prefab or of the game name) | "" (every piece) |
+| `drops` | boolean (also removes the loose item drops) | `false` |
+
+Returns `{"destroyed": N, "items": N, "filter", "radius", "center"}`. Measured 02/11/2026: 138 pieces + 16 drops in
+one pass over the build-test area, then 0 left.
+
 ### `build_find`
 
 | param | type | default |

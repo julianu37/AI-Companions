@@ -95,6 +95,7 @@ internal static class Commands
 		case "build.inspect": return BuildInspect(args);
 		case "build.sites": return BuildSites(args);
 		case "build.pieces": return BuildPieces(args);
+		case "build.delete": return BuildDelete(args);
 		case "build.find": return BuildFind(args);
 		case "build.check": return BuildCheck(args);
 		case "build.snaps": return BuildSnaps(args);
@@ -783,6 +784,62 @@ internal static class Commands
 			{ "spawnOnHitTerrain", spawn },
 			{ "count", pieces.Count },
 			{ "pieces", pieces }
+		});
+	}
+
+	/// <summary>
+	/// Dev-only: <b>destroys the player-built pieces inside a radius</b> - the cleanup of a test area (`forcedelete` has
+	/// a radius cap and has to be called once per name). <c>filter</c> is a substring of the prefab or of the game name
+	/// (empty = every <see cref="Piece"/>); <c>drops</c> also removes the loose item drops in the same radius. Added
+	/// 02/11/2026 to wipe the houses of the build tests.
+	/// </summary>
+	private static string BuildDelete(Dictionary<string, object> args)
+	{
+		if (ZNetScene.instance == null)
+		{
+			return Fail("the world isn't loaded");
+		}
+		Player player = Player.m_localPlayer;
+		Vector3 center = player != null ? player.transform.position : Vector3.zero;
+		center = new Vector3(Json.Float(args, "x", center.x), Json.Float(args, "y", center.y), Json.Float(args, "z", center.z));
+		float radius = Mathf.Clamp(Json.Float(args, "radius", 10f), 1f, 120f);
+		string filter = (Json.Str(args, "filter") ?? string.Empty).Trim();
+		bool drops = Json.Bool(args, "drops", false);
+		int pieces = 0;
+		int items = 0;
+		foreach (Piece piece in UnityEngine.Object.FindObjectsByType<Piece>(UnityEngine.FindObjectsSortMode.None))
+		{
+			if (piece == null || !piece.gameObject.scene.IsValid() || Vector3.Distance(piece.transform.position, center) > radius)
+			{
+				continue;
+			}
+			if (filter.Length > 0 && piece.gameObject.name.IndexOf(filter, StringComparison.OrdinalIgnoreCase) < 0
+				&& (piece.m_name ?? string.Empty).IndexOf(filter, StringComparison.OrdinalIgnoreCase) < 0)
+			{
+				continue;
+			}
+			ZNetScene.instance.Destroy(piece.gameObject);
+			pieces++;
+		}
+		if (drops)
+		{
+			foreach (ItemDrop item in UnityEngine.Object.FindObjectsByType<ItemDrop>(UnityEngine.FindObjectsSortMode.None))
+			{
+				if (item == null || !item.gameObject.scene.IsValid() || Vector3.Distance(item.transform.position, center) > radius)
+				{
+					continue;
+				}
+				ZNetScene.instance.Destroy(item.gameObject);
+				items++;
+			}
+		}
+		return Ok(new Dictionary<string, object>
+		{
+			{ "destroyed", pieces },
+			{ "items", items },
+			{ "filter", filter },
+			{ "radius", radius },
+			{ "center", new Dictionary<string, object> { { "x", center.x }, { "y", center.y }, { "z", center.z } } }
 		});
 	}
 

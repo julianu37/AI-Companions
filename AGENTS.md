@@ -1093,7 +1093,9 @@ comandos de console e spawna coisas, então não é feature de jogador.
   sozinho** (o executor não usa mais o `Player.PlacePiece`, que dava crédito/barulho/estatística ao jogador).
   Três lições: o apoio não existe antes das peças (revalidar no `Place`), o companheiro bloqueava a própria peça
   (`ignore` no validador) e o âncora é do template (11 m de erro antes). Novas ferramentas: `build.check`,
-  `build.snaps`, `build.usable` (a regra do telhado) e `companions.build plan=`. **O abrigo fecha o "usável" da
+  `build.snaps`, `build.usable` (a regra do telhado), `build.delete` (limpeza de área de teste: raio até 120 m,
+  `filter` por nome, `drops` leva os itens soltos - o `forcedelete` do jogo tem teto de raio e é um comando por nome;
+  medido em 02/11/2026: 138 peças + 16 itens numa passada) e `companions.build plan=`. **O abrigo fecha o "usável" da
   E5:** a bancada sob o `canopy` responde `usable=True cover=0.94 underRoof=True` e as descobertas ao lado
   `usable=False cover=0.18` (o `build.usable` pega a bancada MAIS PRÓXIMA - o registro do jogo devolvia a
   primeira e respondia pela errada). **E6b - a casa simples:** `"construa um abrigo aqui"` -> 8x8 com piso,
