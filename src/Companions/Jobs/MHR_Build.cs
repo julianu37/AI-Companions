@@ -61,9 +61,9 @@ internal static class MHR_Build
 	private const int ClearMaxObstacles = 40;
 	/// <summary>E7: consecutive refusals (no axe, or one below the tree's tier) that mean "I cannot cut here".</summary>
 	private const int ClearMaxRejects = 5;
-	/// <summary>E7: the clearing square never grows past this (the leveling job works up to 20 m, and a plan bigger than
-	/// this one needs a flat open spot anyway).</summary>
-	private const float ClearMaxSize = 30f;
+	/// <summary>E7: the clearing square never grows past this. It was 30 m and the player's plan measured 32,1 m, so the
+	/// outer ring of the site kept its trees and the logs of the ones inside rolled into it (report, 03/11/2026).</summary>
+	private const float ClearMaxSize = 40f;
 
 	private const string LogTag = "[Build] ";
 
@@ -141,6 +141,11 @@ internal static class MHR_Build
 		internal float ClearWait;
 		/// <summary>E7: this piece already passed the up-front support check (once per piece, not per frame).</summary>
 		internal bool Checked;
+		/// <summary>E7: one extra look 2 s after the square reads empty (a felled tree spawns its logs a moment later and
+		/// a log rolls).</summary>
+		internal int ClearEmptyScans;
+		/// <summary>E7: the obstacles that were given up on already got their second look.</summary>
+		internal bool ClearSkipTried;
 		internal int ClearTotal;
 		internal int ClearCount;
 		internal int ClearRejects;
@@ -804,6 +809,24 @@ internal static class MHR_Build
 		GameObject next = NextObstacle(state);
 		if (next == null)
 		{
+			// E7 (player's report, 03/11/2026: "the logs of the trees were left rolling in the site"): a felled tree
+			// spawns its logs a moment after it is destroyed and a log keeps rolling, so an empty square is not the end.
+			// One more look 2 s later, and the obstacles that were given up on get a second chance before the build.
+			if (state.ClearEmptyScans < 1)
+			{
+				state.ClearEmptyScans = 1;
+				state.ClearWait = Time.time + 2f;
+				return true;
+			}
+			if (!state.ClearSkipTried && state.ClearSkip.Count > 0)
+			{
+				state.ClearSkipTried = true;
+				int again = state.ClearSkip.Count;
+				state.ClearSkip.Clear();
+				state.ClearEmptyScans = 0;
+				Log(ai, "second look at " + again + " obstacle(s) left behind");
+				return true;
+			}
 			harvest.CancelDirectedTarget();
 			state.Phase = Phase.Goto;
 			// the order's clock follows the PIECE: without this the first piece was already 156 s old when the clearing
@@ -828,6 +851,7 @@ internal static class MHR_Build
 			return true;
 		}
 		state.ClearRejects = 0;
+		state.ClearEmptyScans = 0;
 		state.ClearCount++;
 		state.ClearTarget = next;
 		state.ClearTargetAt = Time.time;
@@ -859,11 +883,14 @@ internal static class MHR_Build
 		float bestDistance = float.MaxValue;
 		foreach (TreeBase tree in UnityEngine.Object.FindObjectsByType<TreeBase>(FindObjectsSortMode.None))
 		{
-			ConsiderObstacle(state, tree != null ? tree.gameObject : null, half, ref best, ref bestDistance);
+			// a standing tree is a point (its pivot is the trunk)
+			ConsiderObstacle(state, tree != null ? tree.gameObject : null, half, false, ref best, ref bestDistance);
 		}
 		foreach (TreeLog log in UnityEngine.Object.FindObjectsByType<TreeLog>(FindObjectsSortMode.None))
 		{
-			ConsiderObstacle(state, log != null ? log.gameObject : null, half, ref best, ref bestDistance);
+			// a LOG is a body: its pivot sits at one end and a log that rolled lies partly outside the square - the
+			// bounds decide, otherwise a trunk inside the site counts as outside (player's report, 03/11/2026)
+			ConsiderObstacle(state, log != null ? log.gameObject : null, half, true, ref best, ref bestDistance);
 		}
 		return best;
 	}
@@ -874,14 +901,14 @@ internal static class MHR_Build
 		int count = 0;
 		foreach (TreeBase tree in UnityEngine.Object.FindObjectsByType<TreeBase>(FindObjectsSortMode.None))
 		{
-			if (IsObstacle(state, tree != null ? tree.gameObject : null, half))
+			if (IsObstacle(state, tree != null ? tree.gameObject : null, half, false))
 			{
 				count++;
 			}
 		}
 		foreach (TreeLog log in UnityEngine.Object.FindObjectsByType<TreeLog>(FindObjectsSortMode.None))
 		{
-			if (IsObstacle(state, log != null ? log.gameObject : null, half))
+			if (IsObstacle(state, log != null ? log.gameObject : null, half, true))
 			{
 				count++;
 			}
@@ -889,9 +916,10 @@ internal static class MHR_Build
 		return count;
 	}
 
-	private static void ConsiderObstacle(State state, GameObject go, float half, ref GameObject best, ref float bestDistance)
+	private static void ConsiderObstacle(State state, GameObject go, float half, bool byBounds, ref GameObject best,
+		ref float bestDistance)
 	{
-		if (!IsObstacle(state, go, half))
+		if (!IsObstacle(state, go, half, byBounds))
 		{
 			return;
 		}
@@ -903,14 +931,61 @@ internal static class MHR_Build
 		}
 	}
 
-	private static bool IsObstacle(State state, GameObject go, float half)
+	/// <summary>Is the object inside the clearing square? A standing tree is judged by its pivot; a log (or anything with
+	/// a body) by its <b>bounds</b>, because a trunk lying in the site can have its pivot outside it.</summary>
+	private static bool IsObstacle(State state, GameObject go, float half, bool byBounds)
 	{
 		if (go == null || state.ClearSkip.Contains(go.GetInstanceID()))
 		{
 			return false;
 		}
-		Vector3 point = go.transform.position;
-		return Mathf.Abs(point.x - state.ClearCenter.x) <= half && Mathf.Abs(point.z - state.ClearCenter.z) <= half;
+		Vector3 centre = state.ClearCenter;
+		if (!byBounds)
+		{
+			Vector3 point = go.transform.position;
+			return Mathf.Abs(point.x - centre.x) <= half && Mathf.Abs(point.z - centre.z) <= half;
+		}
+		Vector3 pivot = go.transform.position;
+		// the bounds of every log in the world would be a lot of work per scan: the pivot filter keeps it local (a log is
+		// never 12 m long)
+		float margin = half + 12f;
+		if (Mathf.Abs(pivot.x - centre.x) > margin || Mathf.Abs(pivot.z - centre.z) > margin)
+		{
+			return false;
+		}
+		Bounds bounds = BoundsOf(go);
+		if (bounds.size == Vector3.zero)
+		{
+			return Mathf.Abs(pivot.x - centre.x) <= half && Mathf.Abs(pivot.z - centre.z) <= half;
+		}
+		return bounds.max.x >= centre.x - half && bounds.min.x <= centre.x + half
+			&& bounds.max.z >= centre.z - half && bounds.min.z <= centre.z + half;
+	}
+
+	/// <summary>The object's own box (every renderer below it), or a zero-size box at its pivot when it has none.</summary>
+	private static Bounds BoundsOf(GameObject go)
+	{
+		Renderer[] renderers = go.GetComponentsInChildren<Renderer>();
+		Bounds box = new Bounds(go.transform.position, Vector3.zero);
+		bool any = false;
+		for (int i = 0; i < renderers.Length; i++)
+		{
+			Renderer renderer = renderers[i];
+			if (renderer == null)
+			{
+				continue;
+			}
+			if (!any)
+			{
+				box = renderer.bounds;
+				any = true;
+			}
+			else
+			{
+				box.Encapsulate(renderer.bounds);
+			}
+		}
+		return box;
 	}
 
 	/// <summary>

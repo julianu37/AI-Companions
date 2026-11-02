@@ -40,6 +40,11 @@ stopped.
   blamed the spot. It now compares the real weight with the carry ceiling and says `hc_ai_build_too_heavy`.
   Measured right after: with **120 wood (240 of 300 weight)** the same 985-piece blueprint **walked and built 60 pieces**
   in ~3 minutes (all supported) before handing the order to the gather for the rest.
+- **The logs of the felled trees are no longer left rolling in the site** (player's report, 03/11/2026): the clearing
+  square stopped at 30 m while the plan's footprint measured 32,1 m (the outer ring kept its trees); a log was judged by
+  its pivot, which sits at one end, so a trunk lying inside counted as outside; a felled tree spawns its logs a moment
+  later and they roll; and an obstacle that had been given up on was never tried again. The square is now 40 m, logs are
+  judged by their **bounds**, an empty scan is double-checked 2 s later and the ones left behind get a second look.
 - **No more "just walking around the site"** (measured, 03/11/2026): the upper storeys of a blueprint were walked to one
   by one and refused with `no_support` (60 in a row in 40 s) because what holds them up was not up yet. The support
   verdict is the same from far away, so it is now asked **before the walk** (once per piece) and the piece goes straight

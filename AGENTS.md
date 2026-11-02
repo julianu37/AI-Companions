@@ -1175,7 +1175,11 @@ comandos de console e spawna coisas, então não é feature de jogador.
   obstáculo **pausa** acima do `UnloadThreshold`), depois a obra. O teste também expôs o **"só anda pela obra"**: o 2º/3º
   piso era recusado com `no_support` **~60× em 40 s**, cada um com caminhada; o `Goto` agora faz o `BuildSite.Check`
   **antes de andar** (`State.Checked`, 1×/peça) e manda a peça para o retry pass, e a limpeza **reancora** o relógio da
-  ordem (a 1ª peça era pulada como "took too long").
+  ordem (a 1ª peça era pulada como "took too long"). **Troncos rolando no canteiro (relato do jogador, 03/11/2026):**
+  o quadrado parava em 30 m (footprint 32,1 m), o filtro olhava o **pivô** (a tora tem o pivô numa ponta), a árvore
+  derrubada spawna as toras depois e elas rolam, e o obstáculo "perdido" nunca era retentado — agora o quadrado é **40 m**,
+  `TreeLog` é julgado pelos **limites** (`Renderer.bounds`), há uma **varredura extra 2 s depois** e uma **segunda chance**
+  para os ignorados.
   **A ponte do BuildOrders (F11) fica para depois** (barata, API pública).
   O vigia do E6b deixou de comparar **total-da-mochila** com
   **o-que-falta** (a 4x4 entrava em loop na porta); agora recalcula o que falta e retoma quando é zero. Harness

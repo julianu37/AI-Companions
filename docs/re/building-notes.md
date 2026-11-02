@@ -793,6 +793,17 @@ andar** (uma vez por peca, `State.Checked`) e manda a peca para o retry pass no 
 limpeza o relogio da ordem e **reancorado** (`state.Start`), senao a 1a peca chegava com 156 s e era pulada como "took too
 long" (aconteceu **1 vez** - `skipping wood_floor (took too long) ... - 3 skipped`, contando as 2 linhas do blueprint).
 
+**Os troncos que ficaram rolando no canteiro (relato do jogador, 03/11/2026):** quatro causas somadas, todas
+corrigidas. (1) O quadrado parava em **30 m** e o footprint medido era **32,1 m** - a borda do canteiro nunca era
+limpa; o teto foi para **40 m** (o numero de obstaculos e o prazo continuam segurando). (2) O filtro de "dentro do
+quadrado" olhava o **pivo** do objeto: a tora tem o pivo numa das pontas e uma tora que rolou fica **meio fora** - para
+`TreeLog` o teste agora e pelos **limites** (`Renderer.bounds` de todos os filhos, com um filtro de pivo de +12 m para
+nao medir tora do mundo inteiro); arvore em pe continua sendo julgada pelo pivo. (3) A arvore derrubada **spawna as
+toras um instante depois** e a tora continua rolando: um quadrado vazio nao e o fim - o job da **uma varredura extra
+2 s depois**. (4) O obstaculo dado como perdido (o `giving up on "Birch_log"` do teste, causado pelo "too heavy") entrava
+na lista de ignorados **para sempre**: agora ha uma **segunda chance** para eles antes de a obra comecar
+(`second look at N obstacle(s) left behind`).
+
 **Obra medida:** 223/983 pecas em ~7 min (~4 s/peca), todas `supported`; a partir da peca ~190 ele passou a pagar dos
 baus (2 madeiras por peca, baus a 3-25 m) e 3 `wood_beam` falharam a verificacao (`not_found`) e foram para o retry.
 
