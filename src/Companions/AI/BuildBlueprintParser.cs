@@ -101,10 +101,49 @@ internal static class BuildBlueprintParser
 		{
 			return new List<Line>();
 		}
+		// E7 (player's report, 03/11/2026: "he didn't build the 2nd floor - he is already putting up the roof frame"): the
+		// plan is ordered **one storey at a time**. Sorting by class first put EVERY floor of the house (ground, 2nd, 3rd)
+		// in the first pass - and the upper ones are refused with no_support until the walls below exist, so they all fell
+		// to the retry pass at the END, and the roof went up before the floor it stands on. The storey of a piece is the
+		// last FLOOR at or below it, which is exactly how a player builds a house.
+		List<float> floors = new List<float>();
+		foreach (Line piece in pieces)
+		{
+			if (piece != null && piece.Prefab != null && ClassOf(piece.Prefab) == 0
+				&& piece.Prefab.IndexOf("floor", StringComparison.OrdinalIgnoreCase) >= 0)
+			{
+				floors.Add(piece.Py);
+			}
+		}
+		floors.Sort();
+		float[] levels = floors.ToArray();
 		return pieces
-			.OrderBy(delegate (Line piece) { return ClassOf(piece.Prefab); })
+			.OrderBy(delegate (Line piece) { return StoreyOf(levels, piece.Py); })
+			.ThenBy(delegate (Line piece) { return ClassOf(piece.Prefab); })
 			.ThenBy(delegate (Line piece) { return piece.Py; })
 			.ToList();
+	}
+
+	/// <summary>Which storey a piece belongs to: the last floor at or below it (0 when there is no floor below).</summary>
+	internal static int StoreyOf(float[] floors, float y)
+	{
+		if (floors == null || floors.Length == 0)
+		{
+			return 0;
+		}
+		int storey = 0;
+		for (int i = 0; i < floors.Length; i++)
+		{
+			if (y + 0.6f >= floors[i])
+			{
+				storey = i;
+			}
+			else
+			{
+				break;
+			}
+		}
+		return storey;
 	}
 
 	/// <summary>0 = ground (floors, foundations, the workbench), 1 = the way UP (stairs, stepladders, ladders), 2 = what

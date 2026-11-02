@@ -966,6 +966,25 @@ tratamento de porta do mover e para atravessar, nao para ficar aberta). E a mesm
 3 telhado, **4 porta/portao**). Durante a obra o vao da porta fica **aberto** (parede em volta segura o conjunto) e a
 porta entra no fim - sem abrir/fechar, sem tempo perdido e sem risco de trancar.
 
+### 15.2k A obra anda ANDAR POR ANDAR + o pulinho do alcance (03/11/2026)
+
+Dois achados do mesmo teste (screenshot do jogador: paredes do terreo de pe, escada grande a direita e o vao do 2o piso
+vazio, com a armacao do telhado ja subindo).
+
+**(1) A ordem era por CLASSE no plano inteiro:** `Ordered` fazia `ClassOf` e depois `Py`, entao **todos os pisos da casa**
+(terreo, 2o, 3o) entravam na primeira leva. Os de cima sao recusados com `no_support` (falta a parede embaixo) e caiam no
+**retry pass do fim** - resultado: o telhado subia **antes** do piso que o sustenta e a casa parecia "sem o 2o andar".
+Agora o plano e ordenado **por andar**: o andar de uma peca e o **ultimo piso (`floor`) na mesma altura ou abaixo dela**
+(`StoreyOf`), e dentro do andar vale a ordem de sempre (piso -> escada -> parede -> telhado -> porta). E como um jogador
+constroi, e cada andar ja tem o de baixo pronto quando comeca.
+
+**(2) O "pulinho" (ideia do jogador):** a regra do jogo e 5 m do **olho** ate a peca (`Player.m_maxPlaceDistance`). Uma
+viga 10 cm acima disso obrigava o companheiro a achar escada/andar de cima. Agora, com os **pes ** no lugar (distancia
+horizontal dentro do `Reach`) e a peca **ate 1 m alem** do alcance, ele **pula** (`Character.Jump`) e coloca no ar - o
+olho sobe com o corpo e a mesma regra cobre a peca, exatamente o que um jogador faz com viga de telhado. Cooldown de
+**0,9 s** (`State.NextJumpAt`) para nao virar pula-pula, e o log (Detailed) diz
+`a hop to reach the <peca> at 0,4 m beyond the reach`.
+
 ### 15.3 Medido em jogo (02/11/2026)
 
 | arquivo | pecas | resultado |

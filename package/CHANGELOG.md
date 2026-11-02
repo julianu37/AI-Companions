@@ -49,6 +49,14 @@ stopped.
   house/blueprint only happened on "leveled" or "already flat", so a site that stopped at 0,30 m against the 0,20 m
   tolerance ended the whole order without a single piece. A failed leveling now hands the order back too, and the build
   goes on with the ground it has (the pieces that do not fit are retried).
+- **The house is built one storey at a time** (player's report, 03/11/2026: "he didn't build the 2nd floor - he is already
+  putting up the roof frame"): the plan sorted every floor of the house into the first pass, and the upper ones are refused
+  until the walls below exist - they all fell to the retry pass at the end, so the roof went up before the floor it stands
+  on. Pieces are now ordered by **storey** (the last floor at or below them) and, inside it, floors -> stairs -> walls ->
+  roof -> doors.
+- **A hop to reach a beam just above the 5 m rule** (player's idea, 03/11/2026): with the feet in place and the piece up to
+  1 m beyond the reach, the companion **jumps** and places it in the air - the eye goes up with the body, the same 5 m rule
+  then covers it, exactly like a player placing a roof beam. 0,9 s cooldown.
 - **Doors and gates are the last pieces** (player's suggestion, 03/11/2026: "he wastes time opening and closing them"): a
   door placed with the walls is a door the companion opens and closes on every trip through the house while the work goes
   on. Doors/gates now go in **after the roof**, so the doorway stays an open hole until the end - the same rule the

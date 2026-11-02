@@ -170,6 +170,8 @@ internal static class MHR_Build
 		internal int BenchInserts;
 		/// <summary>E7: a template clears the site after the leveling (a blueprint does it before the first piece).</summary>
 		internal bool NeedsClear;
+		/// <summary>E7: the cooldown of the "jump and place" hop (it must not be a bunny hop every frame).</summary>
+		internal float NextJumpAt;
 	}
 
 	/// <summary>E6: one piece of a plan, already resolved to a world pose.</summary>
@@ -1759,6 +1761,20 @@ internal static class MHR_Build
 			MHR_Mover.Release(ai);
 			state.Phase = Phase.Place;
 			return true;
+		}
+		// E7 (player's idea, 03/11/2026): the "pulinho" - a player jumps to reach a beam that is just above the game's 5 m
+		// rule; the eye goes up with the body, so the same rule then covers it. Only with the feet already in place and the
+		// piece at most 1 m beyond the reach (a hop, not a flight), with a cooldown so it is not a bunny hop.
+		if (flat <= Reach + 0.5f && Time.time >= state.NextJumpAt)
+		{
+			Character body = ai.GetComponent<Character>();
+			float gap = Vector3.Distance(eye, state.Pos);
+			if (body != null && !body.IsDead() && body.IsOnGround() && gap > MaxPlace && gap <= MaxPlace + 1.0f)
+			{
+				body.Jump(false);
+				state.NextJumpAt = Time.time + 0.9f;
+				LogDebug(ai, "a hop to reach the " + state.Prefab + " at " + (gap - MaxPlace).ToString("F1") + " m beyond the reach");
+			}
 		}
 		MHR_Mover.Go(ai, dt, state.Pos, Reach, true, "Build");
 		if (MHR_Mover.GaveUp(ai))
