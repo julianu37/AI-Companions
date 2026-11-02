@@ -54,6 +54,10 @@ stopped.
   building** below it, so inside a double-height hall the ladder stood at a level with no floor. It is now the highest
   floor **within 3 m in XZ** (then 8 m), and only as a last resort the highest floor anywhere below - the floor is built
   from the ladder, as the player asked.
+- **...and the ladder is not thrown away** (player's report right after: "he didn't build the ladder"): the first version of
+  the guard skipped the ladder of a level with no floor above it **for good**, so the house ended without it. A ladder with
+  no landing *yet* now goes to the **retry queue** and is placed at the end, when the floor above exists; only a ladder that
+  still has no landing after the 3 passes is skipped and counted.
 - **A ladder into open air is no longer a trap** (player's report, 03/11/2026: "he fell off the ladder in a loop until he
   died"): a blueprint's hall has no floor at that height, and the ladder the plan brings ended in the void - the companion
   climbed it and fell, over and over. A ladder whose **top has no floor** under it is now skipped (probe straight down and

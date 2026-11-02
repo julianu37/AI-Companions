@@ -1785,9 +1785,12 @@ internal static class MHR_Build
 			state.Checked = true;
 			if (!HasLanding(state.Pos))
 			{
-				state.Skipped++;
-				Log(ai, "skipping " + state.Prefab + " at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", " + F(state.Pos.z)
-					+ ") - its top has no floor to stand on (" + state.Skipped + " skipped)");
+				// E7 (player's report, 03/11/2026: "he didn't build the ladder"): the ladder is NOT thrown away - the floor
+				// above it is simply not built yet. It goes to the retry queue and is placed at the end, when the landing
+				// exists (the retry pass has up to 3 tries); only if it keeps having no landing is it skipped and counted.
+				Log(ai, "the " + state.Prefab + " at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", " + F(state.Pos.z)
+					+ ") has no floor on top yet - retrying it at the end");
+				QueueRetry(ai, state, "top has no floor yet");
 				return Advance(ai, state);
 			}
 		}

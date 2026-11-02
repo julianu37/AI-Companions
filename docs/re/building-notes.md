@@ -998,6 +998,12 @@ duplo**: naquela area **nao existe piso no nivel 2** (o "2o piso" do blueprint a
    topo (a 2,6 m da base) no proprio ponto e num anel de 0,6 m (o jogador fica **ao lado** da escada, nao em cima dela);
    sem piso/peca ali, a peca conta como `skipped` com a linha `skipping <peca> at (...) - its top has no floor to stand
    on`. Fail-open se as layers nao existirem.
+**Correcao de um erro NOSSO no item 1 (relato do jogador, 03/11/2026: "ele nao fez a escada"):** a primeira versao da
+guarda **pulava** a escadinha para sempre (`state.Skipped++`), e a casa terminava **sem ela**. O certo e **adiar**: sem piso
+no topo *ainda*, a escada vai para o **retry** (`QueueRetry`, `top has no floor yet`) e e colocada no **retry pass** do
+fim, quando o piso de cima existe; so se continuar sem piso nas 3 passadas ela e pulada e contada. O log agora e
+`the <peca> at (x, y, z) has no floor on top yet - retrying it at the end`.
+
 2. **Queda repetida = peca pulada:** um **tombo de mais de 0,8 m entre frames** enquanto anda ate a peca conta
    (`State.FallDrops`); **duas** quedas na mesma peca e ela e pulada (`falling from the way to the <peca> - skipping it`),
    em vez de tentar de novo. O contador zera a cada peca nova.
