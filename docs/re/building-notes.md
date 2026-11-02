@@ -583,9 +583,24 @@ até o prazo de 300 s.
 5. **Ao encerrar, volta ao modo Follow** (`ApplyActionMode(ModeFollow)`): antes ele ficava em **modo madeira** sem
    alvo e continuava trabalhando troncos no caminho de volta - o relato "não parou a coleta".
 
-**Aceite em jogo (02/11/2026):** o jogador testou e respondeu *"agora parece que funcionou perfeitamente"*. No log da
-coleta: contagem de **4 → 36/39** cortando faia, bétula e troncos; o único travamento foi um tronco fora de alcance
-(`Its swings aren't reaching "beech_log_half"`, 27-32 m), que com o prazo por progresso não derruba mais a obra.
+**Aceite em jogo (02/11/2026):** o jogador testou e respondeu *"agora parece que funcionou perfeitamente"*. O log da
+ordem que fechou a casa, na íntegra:
+
+```
+[Build] withdrew 1 item(s) from the chests before gathering
+[Build] gathering 15x $item_wood (mode 1) - the build resumes after it
+[Build] gather done (have 15/15) - resuming
+[Build] follow back on
+[Build] resuming at the same anchor (-105,8, 35,6, -391,7) from piece 51
+[Build] next: wood_door (57/57)
+[Build] done: wood_door at (-109,7, 36,6, -393,1) (57/57) supported
+```
+
+Ou seja: o baú foi usado antes de sair, o número pedido era o **resto** (15, não o template de 123), ela **parou em
+15/15**, o Follow voltou, a obra retomou **no mesmo âncora a partir da peça 51** e a **porta foi a última** das 57
+peças. No teste anterior (antes destas correções) a contagem tinha chegado a **4 → 36/39** cortando faia, bétula e
+troncos e só travou num tronco fora de alcance (`Its swings aren't reaching "beech_log_half"`, 27-32 m) - que com o
+prazo por progresso não derruba mais a obra.
 
 **O custo da casa, conferido com `build.inspect`:** **123 madeiras** (246 de peso) - bancada 10, 16 pisos 32, 14
 paredes 28, janela (meia parede) 1, 16 telhados 32, 8 empenas 16 e porta 4. Com o limite de 300 e a regra dos 80% da

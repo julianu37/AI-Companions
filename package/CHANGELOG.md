@@ -104,7 +104,7 @@ its own bag, places the piece and confirms it works.
   (`[Build] N tree(s) skipped: too close to the buildings`), and its 300 s limit counts from the last wood that
   ARRIVED instead of from the handover (a test lost 36/39 to the fixed clock). Twenty seconds of an idle gather end the
   order saying what is missing (the rest of the plan, not the whole template), and it goes back to Follow mode instead
-  of staying in wood mode chopping logs on the way home.
+  of staying in wood mode chopping logs on the way home. Measured end to end: withdrew 1 item(s) from the chests,gathering 15x (the rest of the plan, not the 123 of the whole house), gather done (have 15/15), ollow back on,esuming at the same anchor ... from piece 51, done: wood_door (57/57).
 - **New dev tooling:** `modia_build_probe [prefab] [radius]` and `modia_build_find [prefab] [radius]` in the game
   console, and the MCP tools `build_inspect`, `build_sites`, `build_find`, `build_pieces`, `companions_build`,
   `companions_sethome` and `player_look` (the build order takes its spot from your aim, so a test has to be
