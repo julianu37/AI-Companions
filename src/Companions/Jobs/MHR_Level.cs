@@ -56,6 +56,8 @@ internal static class MHR_Level
 		internal float Target;
 		/// <summary>E10: fill the low side with the raise operation (a slope) instead of the soft level.</summary>
 		internal bool Fill;
+		/// <summary>E10: the template to build when the ground is ready (a house asks for the leveling first).</summary>
+		internal string ThenBuild;
 		internal int Pass;
 		internal int Index;
 		internal List<Vector3> Points;
@@ -68,6 +70,13 @@ internal static class MHR_Level
 
 	/// <summary>Starts a leveling job over a square area centred on <paramref name="center"/>.</summary>
 	internal static bool Start(CompanionSetup cs, Vector3 center, float size)
+	{
+		return Start(cs, center, size, null);
+	}
+
+	/// <summary>E10: the same job, and when the ground is ready it starts the build of <paramref name="thenBuild"/>
+	/// (a template name) - the house that needed the leveling resumes by itself.</summary>
+	internal static bool Start(CompanionSetup cs, Vector3 center, float size, string thenBuild)
 	{
 		if (cs == null)
 		{
@@ -86,6 +95,7 @@ internal static class MHR_Level
 			StartMode = ModeOf(cs),
 			Center = center,
 			Size = Mathf.Clamp(size, 2f, 20f),
+			ThenBuild = thenBuild,
 			Phase = Phase.Prepare
 		};
 		s_state[ai.GetInstanceID()] = state;
@@ -365,6 +375,17 @@ internal static class MHR_Level
 		if (key != null)
 		{
 			Say(ai, key, args);
+		}
+		// E10: the house that asked for the leveling resumes by itself once the ground is ready (the same handover the
+		// E4b gather uses: one owner of the work at a time)
+		if (state.ThenBuild != null && (key == "hc_ai_level_done" || key == "hc_ai_level_already"))
+		{
+			CompanionSetup cs = ai.GetComponent<CompanionSetup>();
+			BuildTemplates.Template template = BuildTemplates.ByName(state.ThenBuild);
+			if (cs != null && template != null && MHR_Build.StartPlan(cs, template, state.Center))
+			{
+				Log(ai, "the ground is ready - back to the house");
+			}
 		}
 	}
 

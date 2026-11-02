@@ -691,6 +691,7 @@
         { "key": "hc_ai_level_done", "value": "Terrain nivelé ({0} m de dénivelé)." },
         { "key": "hc_ai_level_already", "value": "Le terrain ici est déjà plat ({0} m)." },
         { "key": "hc_ai_level_failed", "value": "Je n'ai pas pu tout niveler (encore {0} m)." },
+        { "key": "hc_ai_build_leveling", "value": "Je vais niveler le terrain d'abord ({0} m)." },
         { "key": "hc_ai_build_level_failed", "value": "Je n'ai pas pu niveler le terrain ici (il reste {0} m de dénivelé)." },
         { "key": "hc_ai_build_failed", "value": "Je n'ai pas réussi à construire {0}." },
         { "key": "hc_ai_build_needs_station", "value": "J'ai besoin de {0} à côté." },

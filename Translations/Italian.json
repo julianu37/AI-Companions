@@ -691,6 +691,7 @@
         { "key": "hc_ai_level_done", "value": "Terreno livellato ({0} m di dislivello)." },
         { "key": "hc_ai_level_already", "value": "Il terreno qui è già piano ({0} m)." },
         { "key": "hc_ai_level_failed", "value": "Non sono riuscito a livellarlo tutto (ancora {0} m)." },
+        { "key": "hc_ai_build_leveling", "value": "Prima livello il terreno ({0} m)." },
         { "key": "hc_ai_build_level_failed", "value": "Non sono riuscito a livellare il terreno qui (restano {0} m di dislivello)." },
         { "key": "hc_ai_build_failed", "value": "Non sono riuscito a costruire {0}." },
         { "key": "hc_ai_build_needs_station", "value": "Mi serve {0} qui vicino." },

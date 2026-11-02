@@ -78,7 +78,10 @@ its own bag, places the piece and confirms it works.
   to 0.33 m in three passes, 165 s). The size comes from your words (10x10, 6 x 6, 12 by 12, 8 m; 8 m when you
   don't say). A house also levels its spot first, picking the flattest corner around where you are looking. The
   game's own leveling is a soft one (it moves the ground by at most ~1 m per operation), so a bank steeper than
-  1.2 m is refused instead of dug out. `[Building] LevelGround` (true) and `LevelTolerance` (0.2 m).
+  1.2 m is refused instead of dug out. `[Building] LevelGround` (true) and `LevelTolerance` (0.35 m, and 0.6 m for the
+  leveling order alone). **The leveling is visible:** a house does not flatten the ground in one go - it hands the job
+  to the same leveling the "level the ground" order uses (the companion walks to the middle, turns and swings the hoe,
+  spot by spot) and comes back to the build by itself when the ground is flat ("I'll level the ground first").
 - **New dev tooling:** `modia_build_probe [prefab] [radius]` and `modia_build_find [prefab] [radius]` in the game
   console, and the MCP tools `build_inspect`, `build_sites`, `build_find`, `build_pieces`, `companions_build`,
   `companions_sethome` and `player_look` (the build order takes its spot from your aim, so a test has to be

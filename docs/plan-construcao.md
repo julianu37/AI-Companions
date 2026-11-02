@@ -578,6 +578,10 @@ nivelamento automático antes de uma estrutura (a fase Level do MHR_Build).
   vai ao **centro** da área, vira para cada ponto, bate a enxada (animação) e a operação cai 0,45 s depois.
 - **Aceite medido:** 8 m com 1,06 m de variação → **0,33 m em 3 passadas, 165 s** (hc_ai_level_done).
 - **Cancelamento:** é ordem de um tiro (qualquer outra ordem a derruba) - sem isso o companheiro ficava travado.
+- **A casa NÃO nivela em lote (pedido do jogador):** ela entrega o serviço ao `MHR_Level` (a mesma ordem "nivele um
+  terreno") e retoma sozinha quando o chão fica plano (`the ground is ready - back to the house`) - o nivelamento é
+  **visível**, com o companheiro batendo a enxada ponto por ponto. Medido: 1,07 → 0,59 → 0,34 → 0,21 → **0,13 m em 4
+  passadas** e então 57/57 peças.
 - **O raise foi testado e abandonado:** as operações de "Erguer" se sobrepõem e um terreno de 0,84 m saiu 4,13 m mais
   alto (ver `docs/re/building-notes.md` §13). O nivelamento é o soft level, com a régua em **0,35 m** para a casa e
   **0,6 m** para a ordem ("bom o suficiente").

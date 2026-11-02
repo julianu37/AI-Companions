@@ -1104,7 +1104,10 @@ comandos de console e spawna coisas, então não é feature de jogador.
   **smooth** (`mud_road_v2`, raio 3, potência 3, **±1 m por operação**) - grid **espaçado pelo raio** (o denso
   divergia 0,55 → 2,01 m), alvo na mediana, até 10 passadas ou 0,2 m, recusa acima de 1,2 m. **O companheiro não anda
   até cada ponto** (o mover desiste e ele treme no lugar): vai ao **centro**, vira, bate a enxada (animação) e a
-  operação cai 0,45 s depois. **Aceite: 1,06 m → 0,33 m em 3 passadas, 165 s.** É ordem de um tiro (qualquer outra
+  operação cai 0,45 s depois. **A casa entrega o nivelamento ao job** (`MHR_Level`, o mesmo da ordem) e retoma
+  sozinha (`hc_ai_build_leveling` -> `the ground is ready - back to the house`) - o nivelamento é **visível**, nunca
+  em lote (pedido do jogador, 01/11/2026: medido 1,07 -> 0,59 -> 0,34 -> 0,21 -> **0,13 m em 4 passadas** e 57/57
+  peças). **Aceite: 1,06 m → 0,33 m em 3 passadas, 165 s.** É ordem de um tiro (qualquer outra
   cancela - sem isso ele ficava travado). `ValidActions` 36 → 37, 5 idiomas, config 353.
   **Aceite em jogo (01/11/2026): 57/57 peças, todas `supported`**, todas
   `placed (Direct)` - a casa **traz a própria bancada** (passo 0, a estação vem do plano), a **porta é a última**

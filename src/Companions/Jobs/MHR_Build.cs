@@ -57,8 +57,6 @@ internal static class MHR_Build
 	{
 		/// <summary>E10: leveling the ground before a plan (the house needs a flat 8x8).</summary>
 		Level,
-		/// <summary>E10: waiting for the leveling operations to reach the heightmap, then re-checking.</summary>
-		LevelWait,
 		Find,
 		Goto,
 		Place,
@@ -85,15 +83,6 @@ internal static class MHR_Build
 		internal GameObject Placed;
 		/// <summary>E6: when the piece was placed (the support verdict is asked again for a moment).</summary>
 		internal float PlacedAt;
-		/// <summary>E10: when the ground was leveled (the heightmap is written through an RPC, so it needs a moment).</summary>
-		internal float LevelAt;
-		/// <summary>E10: how many leveling passes were applied, and the height they level to.</summary>
-		internal int LevelPasses;
-		/// <summary>E10: the variation before the last pass (a pass that does not improve stops the job).</summary>
-		internal float LevelBest;
-		internal float LevelTarget;
-		/// <summary>E10: fill the low side with the raise operation (a slope) instead of the soft level.</summary>
-		internal bool LevelFill;
 		internal Vector3 GatherTarget;
 		internal int GatherMode;
 		internal string GatherItem;
@@ -318,8 +307,6 @@ internal static class MHR_Build
 		{
 			case Phase.Level:
 				return LevelGround(ai, state);
-			case Phase.LevelWait:
-				return LevelWait(ai, state);
 			case Phase.Find:
 				return state.Template != null ? FindPlan(ai, state) : Find(ai, state);
 			case Phase.Goto:
@@ -419,65 +406,19 @@ internal static class MHR_Build
 		{
 			zanim.SetTrigger(animation);
 		}
-		string error;
-		float fillTarget = bestTarget;
-		int applied = BuildTerrain.Level(best, size, bestTarget, out error);
-		Log(ai, "leveling " + size.ToString("F1") + " m: " + applied + " operation(s), variation " + bestVariation.ToString("F2")
-			+ " m -> target " + fillTarget.ToString("F1") + (string.IsNullOrEmpty(error) ? string.Empty : " (" + error + ")"));
-		if (applied == 0)
+		// the companion works the ground with the HOE IN HAND, point by point (MHR_Level) - not 16 operations in one
+		// frame: the player wants to SEE the work (request of 01/11/2026), and the house resumes by itself when the
+		// ground is ready (the same handover the E4b gather uses - one owner of the work at a time)
+		CompanionSetup self = ai.GetComponent<CompanionSetup>();
+		if (self == null || !MHR_Level.Start(self, best, size, state.Template.Name))
 		{
-			Finish(ai, state, "hc_ai_build_level_failed", error ?? "no operation", bestVariation.ToString("F1"));
+			Finish(ai, state, "hc_ai_build_level_failed", "could not start the leveling", bestVariation.ToString("F1"));
 			return false;
 		}
-		state.LevelTarget = fillTarget;
-		state.LevelFill = false;
-		state.LevelPasses = 1;
-		state.LevelBest = bestVariation;
-		state.LevelAt = Time.time;
-		state.Phase = Phase.LevelWait;
-		return true;
+		Log(ai, "leveling first, with the hoe (" + size.ToString("F1") + " m, " + bestVariation.ToString("F2") + " m of variation)");
+		Finish(ai, state, "hc_ai_build_leveling", "leveling first", size.ToString("F1"));
+		return false;
 	}
-
-	/// <summary>
-	/// E10: the leveling goes through an RPC into the heightmap and the game's "level ground" is a soft one (it moves
-	/// the terrain by at most 1 m per operation), so the job applies <b>passes</b> - spaced by 1,5 s, because a pass
-	/// computed against a heightmap that has not settled makes the next one overshoot (measured 01/11/2026: the
-	/// variation oscillated between 1,95 and 2,85 m).
-	/// </summary>
-	private static bool LevelWait(CompanionAI ai, State state)
-	{
-		if (Time.time - state.LevelAt < 1.5f)
-		{
-			return true;
-		}
-		float size = FootprintSize(state.Template);
-		float tolerance = ModConfig.BuildLevelTolerance != null ? ModConfig.BuildLevelTolerance.Value : BuildTerrain.DefaultTolerance;
-		float min;
-		float max;
-		float target;
-		bool flat = BuildTerrain.FlatEnough(state.Hint, size, tolerance, out min, out max, out target);
-		float variation = max - min;
-		if (flat)
-		{
-			Log(ai, "after " + state.LevelPasses + " leveling pass(es): " + variation.ToString("F2") + " m of variation (flat enough)");
-			state.Phase = Phase.Find;
-			return true;
-		}
-		if (state.LevelPasses >= MaxLevelPasses || variation > state.LevelBest + 0.05f)
-		{
-			Log(ai, "after " + state.LevelPasses + " leveling pass(es): still " + variation.ToString("F2") + " m of variation (stopping)");
-			Finish(ai, state, "hc_ai_build_level_failed", "still uneven", variation.ToString("F1"));
-			return false;
-		}
-		string error;
-		int applied = BuildTerrain.Level(state.Hint, size, state.LevelTarget, out error);
-		state.LevelPasses++;
-		state.LevelBest = variation;
-		state.LevelAt = Time.time;
-		Log(ai, "leveling pass " + state.LevelPasses + ": " + applied + " operation(s), still " + variation.ToString("F2") + " m");
-		return true;
-	}
-
 	/// <summary>The side of the square the template needs, with a margin for the walls' thickness.</summary>
 	private static float FootprintSize(BuildTemplates.Template template)
 	{

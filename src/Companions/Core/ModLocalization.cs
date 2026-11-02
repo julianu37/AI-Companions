@@ -625,6 +625,7 @@ public static class ModLocalization
 			{ "hc_ai_level_done", "The ground is leveled ({0} m of variation)." },
 			{ "hc_ai_level_already", "The ground here is already flat ({0} m)." },
 			{ "hc_ai_level_failed", "I couldn't level all of it (still {0} m)." },
+			{ "hc_ai_build_leveling", "I'll level the ground first ({0} m)." },
 			{ "hc_ai_build_level_failed", "I couldn't level the ground here (it is still {0} m uneven)." },
 			{ "hc_ai_build_failed", "I couldn't build the {0}." },
 			{ "hc_ai_build_needs_station", "I need a {0} nearby." },

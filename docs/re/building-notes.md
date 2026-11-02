@@ -548,6 +548,25 @@ vai por `RPC_ApplyOperation` e o heightmap **assenta em ~0,5 s** (medido: a vari
 - **O grid denso** (espaçamento 1,5 m, 49 ops) **diverge mesmo com 2 s entre as passadas**: 0,85 → 1,25 → 2,41 →
   1,68 → 2,44 → 1,78 → 2,44... (um ciclo de 2). As operações sobrepostas brigam entre si - não é (só) timing.
 
+**O nivelamento é VISÍVEL (pedido do jogador, 01/11/2026):** a casa **não** aplica as operações em lote - ela
+**entrega o serviço ao `MHR_Level`** (o mesmo job da ordem "nivele um terreno") e **retoma sozinha** quando o chão
+fica plano (o mesmo repasse da coleta da E4b: um dono do trabalho por vez). A casa termina com
+`hc_ai_build_leveling` ("Vou nivelar o terreno primeiro") e o job trabalha **ponto por ponto, virando e batendo a
+enxada**; no fim, `the ground is ready - back to the house` e o `MHR_Build` recomeça o plano.
+
+**Aceite medido (mundo `tests`, 01/11/2026):** "Companheiro 2, construa uma casa aqui" numa área de **1,07 m** de
+variação:
+
+```
+[Build] flattest spot around the hint: 1,07 m of variation
+[Level] order: level 9,5 m around (-206,1, 39,3, -427,3)
+[Build] leveling first, with the hoe (9,5 m, 1,07 m of variation)   <- a casa entrega
+[Level] pass 1: 0,59  ->  pass 2: 0,34  ->  pass 3: 0,21  ->  pass 4: 0,13 m (flat enough)
+[Level] order ended: hc_ai_level_done
+[Build] the ground is ready - back to the house                      <- a casa volta sozinha
+[Build] plan house: 57 pieces, 56 poses checked -> 57/57 supported -> hc_ai_build_plan_done
+```
+
 **A régua ("bom o suficiente"):** a **casa** usa `[Building] LevelTolerance` = **0,35 m** (é o limite físico do piso:
 acima disso o piso fica sem apoio e o jogo derruba) e a **ordem de nivelar** aceita **0,6 m** - um piso a 0,6 m já lê
 como plano, e a ordem não precisa de espelho.
