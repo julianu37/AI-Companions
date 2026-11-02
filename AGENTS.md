@@ -1156,7 +1156,12 @@ comandos de console e spawna coisas, então não é feature de jogador.
   **classe** de peça (piso → parede → telhado; por altura começava num topo de telhado), **footprint centrado na mira**
   (a origem do arquivo é onde o autor estava), **nivelar primeiro** com retomada (e a **mesma área** de 20 m, senão vira
   loop), **estação checada antes** da 1ª peça e **pular** a peça inalcançável/que não materializa em vez de derrubar a
-  ordem. Harness **405 → 430**. **A ponte do BuildOrders (F11) fica para depois** (barata, API pública).
+  ordem. Harness **405 → 430**. **O RETRY PASSE entrou no lugar da simulação de estabilidade (03/11/2026):** peça que não fica de pé
+  (sem apoio, inalcançável, lenta ou que não materializa) vai para a fila e é **tentada de novo** quando o resto do
+  plano sobe (`MaxPasses = 3`), com o **veredito do próprio jogo**; o que falha na última passada é pulado e contado.
+  Plano grande exige **local plano e aberto** (o mover desiste em ~8 s sem progresso; o nivelamento não corta
+  morro nem derruba árvore). Análise do AICompanion deles em `docs/plan-e7.md` §7 (não nivela; o módulo é a lógica).
+  **A ponte do BuildOrders (F11) fica para depois** (barata, API pública).
   O vigia do E6b deixou de comparar **total-da-mochila** com
   **o-que-falta** (a 4x4 entrava em loop na porta); agora recalcula o que falta e retoma quando é zero. Harness
   **363 → 401**. Armadilha: `"casa pequeña"` (ES) e `"casa pequena"` (PT) **empatam** no Fold - apelidos iguais depois

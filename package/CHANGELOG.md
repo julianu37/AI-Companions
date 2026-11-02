@@ -33,7 +33,12 @@ stopped.
   the file's origin is below the build); the footprint is **centred on the spot you aim at**; the ground is **leveled
   first** when it is uneven (the hoe job takes over and the build resumes); a workbench in range is asked **before** the
   first piece (the refusal names the station); and a piece that cannot be reached, that takes too long or that does not
-  materialize is **skipped and counted** instead of ending the build. Measured: the 985-piece home started placing floors (76/983 in the
+  materialize is **skipped and counted** instead of ending the build.
+- **A piece that does not stand YET is retried, not lost** (the BuildOrders "build what stands" loop without the mod):
+  a piece refused for no support, unreachable, too slow or not materialized goes back to a queue and is tried again when
+  the rest of the plan is up (up to 3 passes) - the game's own support verdict decides, no stability simulation. Only
+  what keeps failing on the last pass is counted as skipped. Note for big plans: the spot has to be **flat and open** -
+  the mover gives up after ~8 s without progress, and leveling does not cut a hill or fell trees. Measured: the 985-piece home started placing floors (76/983 in the
   log, all supported) and, out of wood, handed the order to the gather asking for the **rest of the house (2293)** - the
   watcher resumes each time the bag fills.
 

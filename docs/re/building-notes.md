@@ -737,6 +737,20 @@ aparecem num arquivo grande e antigo - todos corrigidos:
 **total que falta para a casa: 2293**. O vigia retoma a cada vez que a mochila enche (a casa inteira nao cabe no saco),
 como nas estruturas.
 
+### 15.2c Retry passes - o "constroi o que fica de pe e volta para o resto" (03/11/2026)
+
+O `Next` do **BuildOrders** devolve so as pecas **que vao ficar de pe** com o que ja existe (a estabilidade deles).
+Nos nao precisamos da simulacao: usamos o **veredito do proprio jogo** (a regra da E6) e **retentamos**. Toda peca de
+blueprint que nao fica de pe nesta passada - `no_support`, `can't reach it`, `took too long` ou
+`verification failed: not_found` - vai para a fila (`State.Retry`) em vez de ser perdida; quando o plano termina, a fila
+e anexada e tentada de novo (`MaxPasses = 3`). O que continuar falhando na ultima passada e **pulado e contado**.
+Log: `retry later: <peca> (<motivo>) at (x, y, z) - pass N` e `retry pass N with X piece(s) that did not stand yet`.
+
+**Primeira medicao (03/11/2026):** no arquivo de 985 pecas o retry entrou em acao ja nas primeiras pecas
+(`retry later: wood_floor (can't reach it) ... pass 0`) - mas ali o problema era **o canteiro**: a casa de 30x30 m caiu
+num morro/mata e o `MHR_Mover` desiste depois de ~8 s sem progresso, entao ele nao chegava em 8 pecas seguidas. Num
+plano grande o **local plano e aberto** e pre-requisito (o nivelamento nao corta morro nem derruba arvore).
+
 ### 15.3 Medido em jogo (02/11/2026)
 
 | arquivo | pecas | resultado |
