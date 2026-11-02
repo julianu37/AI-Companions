@@ -1027,6 +1027,20 @@ parede -> telhado -> porta.
 salao isso mente (a escadinha do nivel 2 tem piso do terreo abaixo, mas nao do lado). O certo e o andar **por area**
 (ultimo piso a ~2 m em XZ da peca), que e o que faria o piso nascer a partir da escada, como o jogador pediu.
 
+### 15.2m A ponta do telhado: 60 s por peca inalcancavel (03/11/2026)
+
+Relato do jogador com screenshot (ela em cima das aguas, na ponta): *"ela ta apanhando pra fazer essa ponta do telhado"*. O
+log mostra duas coisas: as pecas da **empena no topo** (`wood_wall_roof_top_45` a 43,8, 45,8 e 47,8 na mesma coluna) sao
+recusadas com `no_support` - precisam da de baixo, e o **retry pass** resolve (e o `Goto` ja adia sem andar, pela checagem
+antecipada de apoio); e as **aguas do telhado na ponta** (`wood_roof_45` a 41,8/43,8) caem em `took too long`: o
+companheiro anda/sobe, **nao consegue se aproximar** e so desiste no **timeout de 60 s** - 2 a 3 minutos por peca, que e o
+"apanhar" que o jogador viu.
+
+**Correcao:** nova trava de **progresso** no `Goto`: guarda a menor distancia ja alcancada ate a peca
+(`State.BestDistance`/`BestAt`, zerados por peca); **12 s sem chegar 0,5 m mais perto** mandam a peca para o **retry**
+(`no progress towards the <peca> for 12 s (N m away) - retrying it later`), em vez de esperar os 60 s. Continua valendo o
+retry pass (ate 3 passadas) e o pulo com contagem no fim.
+
 ### 15.3 Medido em jogo (02/11/2026)
 
 | arquivo | pecas | resultado |

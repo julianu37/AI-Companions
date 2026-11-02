@@ -176,6 +176,10 @@ internal static class MHR_Build
 		/// seen and how many big drops happened while walking to the current piece.</summary>
 		internal float LastY;
 		internal int FallDrops;
+		/// <summary>E7 (player's report, 03/11/2026: "she is struggling with the tip of the roof"): the closest it ever got
+		/// to the piece and since when - one it cannot get closer to for 12 s is retried instead of timing out in 60 s.</summary>
+		internal float BestDistance;
+		internal float BestAt;
 	}
 
 	/// <summary>E6: one piece of a plan, already resolved to a world pose.</summary>
@@ -382,6 +386,8 @@ internal static class MHR_Build
 			state.Start = Time.time;
 			state.Checked = false;
 			state.FallDrops = 0;
+			state.BestDistance = 0f;
+			state.BestAt = Time.time;
 			state.Phase = Phase.Goto;
 			Log(ai, "next: " + next.Prefab + " (" + (state.Index + 1) + "/" + state.Plan.Count + ")");
 			return true;
@@ -1822,6 +1828,21 @@ internal static class MHR_Build
 			}
 		}
 		state.LastY = me.y;
+		// E7 (same report): walking to a piece it can never get closer to (a roof tip behind the ridge, a beam over a hole)
+		// burned the whole 60 s timeout and looked like "struggling". 12 s without getting 0,5 m closer and the piece goes
+		// to the retry pass - it may stand once the neighbours are up.
+		float walkGap = Vector3.Distance(me, state.Pos);
+		if (state.BestDistance <= 0f || walkGap < state.BestDistance - 0.5f)
+		{
+			state.BestDistance = walkGap;
+			state.BestAt = Time.time;
+		}
+		else if (state.Blueprint != null && Time.time - state.BestAt > 12f)
+		{
+			Log(ai, "no progress towards the " + state.Prefab + " for 12 s (" + F(walkGap) + " m away) - retrying it later");
+			QueueRetry(ai, state, "no progress");
+			return Advance(ai, state);
+		}
 		float flat = new Vector2(me.x - state.Pos.x, me.z - state.Pos.z).magnitude;
 		// the game places a piece up to 5 m from the EYE (Player.m_maxPlaceDistance); the companion's eye is ~1,5 m
 		// above its feet, so a roof 4,9 m up is within reach even though the feet are 4,9 m below it

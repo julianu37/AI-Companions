@@ -49,6 +49,10 @@ stopped.
   house/blueprint only happened on "leveled" or "already flat", so a site that stopped at 0,30 m against the 0,20 m
   tolerance ended the whole order without a single piece. A failed leveling now hands the order back too, and the build
   goes on with the ground it has (the pieces that do not fit are retried).
+- **No more 60 s stuck on a piece it cannot reach** (player's report, 03/11/2026: "she is struggling with the tip of the
+  roof"): the roof tip pieces are refused with no_support (deferred at once, they come back in the retry pass) but the ones
+  the companion walks to and cannot get closer to burned the whole 60 s timeout each. A piece it does not get **0,5 m
+  closer** to for **12 s** now goes to the retry pass instead.
 - **A storey is what is under the piece where it is** (player's report, 03/11/2026: "in this hall the 2nd floor is really
   the 3rd - he should start the floor from the ladder"): the storey of a piece was the highest floor of the **whole
   building** below it, so inside a double-height hall the ladder stood at a level with no floor. It is now the highest
