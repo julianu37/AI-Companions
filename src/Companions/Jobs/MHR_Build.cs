@@ -106,6 +106,13 @@ internal static class MHR_Build
 		/// <summary>E7: pieces placed and pieces skipped (a blueprint skips what it cannot stand instead of stopping).</summary>
 		internal int PlacedCount;
 		internal int Skipped;
+		/// <summary>
+		/// E7 (a ideia do "Build all" deles sem o BuildOrders, 03/11/2026): a piece that does not stand YET (no support: its
+		/// floor is not up, its wall is missing) goes to this queue instead of being lost. When the plan ends it is tried
+		/// again - the second pass is what makes a house converge (floors, then walls, then roof).
+		/// </summary>
+		internal List<PlannedStep> Retry;
+		internal int Passes;
 	}
 
 	/// <summary>E6: one piece of a plan, already resolved to a world pose.</summary>
@@ -245,12 +252,45 @@ internal static class MHR_Build
 		return true;
 	}
 
+	/// <summary>How many times the pieces that did not stand are tried again before they are given up.</summary>
+	internal const int MaxPasses = 3;
+
+	/// <summary>
+	/// E7: the current piece goes back to the retry queue (it may stand once its neighbours are up) or is counted as
+	/// skipped when the passes are used up. This is the "build what stands, come back for the rest" loop of their
+	/// BuildOrders, done with the game's own verdict instead of a stability simulation.
+	/// </summary>
+	private static void QueueRetry(CompanionAI ai, State state, string why)
+	{
+		if (state.Retry != null && state.Passes < MaxPasses && state.Piece != null)
+		{
+			state.Retry.Add(new PlannedStep { Prefab = state.Prefab, Piece = state.Piece, Pos = state.Pos, Rot = state.Rot });
+			Log(ai, "retry later: " + state.Prefab + " (" + why + ") at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
+				+ F(state.Pos.z) + ") - pass " + state.Passes);
+			return;
+		}
+		state.Skipped++;
+		Log(ai, "skipping " + state.Prefab + " (" + why + ") at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
+			+ F(state.Pos.z) + ") - " + state.Skipped + " skipped");
+	}
+
 	/// <summary>
 	/// E6/E7: moves to the next piece of the plan (a template or a blueprint) or ends the order. Returns true while
 	/// there is a next piece to build.
 	/// </summary>
 	private static bool Advance(CompanionAI ai, State state)
 	{
+		if (state.Plan != null && state.Index + 1 >= state.Plan.Count
+			&& state.Retry != null && state.Retry.Count > 0 && state.Passes < MaxPasses)
+		{
+			state.Passes++;
+			List<PlannedStep> again = state.Retry;
+			state.Retry = new List<PlannedStep>();
+			int first = state.Plan.Count;
+			state.Plan.AddRange(again);
+			state.Index = first - 1;
+			Log(ai, "retry pass " + state.Passes + " with " + again.Count + " piece(s) that did not stand yet");
+		}
 		if (state.Plan != null && state.Index + 1 < state.Plan.Count)
 		{
 			state.Index++;
@@ -472,6 +512,7 @@ internal static class MHR_Build
 			AnchorRot = rot,
 			AnchorKnown = true,
 			Plan = plan,
+			Retry = new List<PlannedStep>(),
 			Index = 0,
 			Prefab = plan[0].Prefab,
 			Piece = plan[0].Piece,
@@ -1031,9 +1072,7 @@ internal static class MHR_Build
 			Log(ai, "can't get to the spot");
 			if (state.Blueprint != null)
 			{
-				state.Skipped++;
-				Log(ai, "skipping " + state.Prefab + " (can't reach it) at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
-					+ F(state.Pos.z) + ") - " + state.Skipped + " skipped");
+				QueueRetry(ai, state, "can't reach it");
 				return Advance(ai, state);
 			}
 			Finish(ai, state, "hc_ai_build_cant_reach", null, LabelOf(state));
@@ -1079,8 +1118,9 @@ internal static class MHR_Build
 				if (state.Blueprint != null)
 				{
 					// E7: a blueprint is a build somebody else designed - a piece that does not fit in THIS spot (or that
-					// the terrain refuses) is skipped, not a reason to drop the whole build
-					state.Skipped++;
+					// the terrain refuses) is retried at the end (the neighbours may not be up yet), not a reason to drop
+					// the whole build
+					QueueRetry(ai, state, status);
 					return Advance(ai, state);
 				}
 				Finish(ai, state, "hc_ai_build_plan_no_site", status, state.Template.Label, state.Prefab);
@@ -1157,9 +1197,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			Log(ai, "verification failed: " + reason);
 			if (state.Blueprint != null)
 			{
-				state.Skipped++;
-				Log(ai, "skipping " + state.Prefab + " (verification: " + reason + ") at (" + F(state.Pos.x) + ", "
-					+ F(state.Pos.y) + ", " + F(state.Pos.z) + ") - " + state.Skipped + " skipped");
+				QueueRetry(ai, state, "verification: " + reason);
 				return Advance(ai, state);
 			}
 			Finish(ai, state, "hc_ai_build_failed", reason, LabelOf(state));
@@ -1183,7 +1221,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 				+ " < min " + (min.HasValue ? min.Value.ToString("F1") : "?") + ")");
 			if (state.Blueprint != null)
 			{
-				state.Skipped++;
+				QueueRetry(ai, state, "no support");
 				return Advance(ai, state);
 			}
 			Finish(ai, state, "hc_ai_build_unsupported", "no support", LabelOf(state));

@@ -104,6 +104,18 @@ O pacote do mod embute os binários das duas metades da voz. Todos são de licen
 > vozes; o mapa do sherpa v1_0 tem 53 — falta `em_santa`). A skill `.opencode/skills/kokoro/` consolida o catálogo,
 > a integração e as armadilhas.
 
+## Clones locais para consulta (03/11/2026)
+
+Para consultar o source sem depender da web (pedido do jogador), os dois repos de referência da E7 estão clonados
+(shallow) em:
+
+| repo | caminho local | conteúdo |
+|---|---|---|
+| `HardHeadHackerHead/valheim-mods` (**MIT**) | `C:\Users\revenda33\.local\share\opencode\repos\github.com\HardHeadHackerHead\valheim-mods` | 36 mods com source: **BuildOrders** (26 `.cs`, 431 KB) e **AICompanion** (48 `.cs`) |
+| `sirskunkalot/PlanBuild` (**WTFPL**) | `C:\Users\revenda33\.local\share\opencode\repos\github.com\sirskunkalot\PlanBuild` | 70 `.cs`: o formato `.blueprint`, o totem e o martelo de plano |
+
+Atualizar: `git -C <pasta> pull --depth 1` (ou apagar e clonar de novo).
+
 ## Fixtures de teste da E7 (o leitor `.blueprint`)
 
 As fixtures do harness e dos testes em jogo vêm do repositório do **PlanBuild** (`PlanBuildTest/resources/`:
