@@ -543,6 +543,9 @@ fecha o sentido "usável" da E5.
   custo inteiro antes de começar - numa construção grande isso não faz sentido.
 - **Limitações:** o chão tem que ser razoavelmente plano (o nivelamento é a **E10** e agora é visível: a obra entrega
   ao job de nivelar e retoma).
+- **A retomada é no ponto exato (dois bugs do teste):** o vigia espera **o que faltou** (não o custo inteiro do
+  template, que estourava os 300 s) e o `Pending` guarda **a peça e a âncora** - o `StartPlan(..., anchorKnown: true)`
+  continua da mesma pose em vez de recomeçar do passo 0 (que criava outra bancada e uma casa nova ao lado).
 
 **E6b - a casa simples (pedido do jogador, 01/11/2026):** `"construa um abrigo aqui"` levanta uma **casa 8x8** com
 **piso, paredes, teto, uma porta e uma janela na frente** (56 peças: 16 pisos, 14 paredes, 1 porta, 1 meia-parede de

@@ -1110,7 +1110,10 @@ comandos de console e spawna coisas, então não é feature de jogador.
   peças). **Materiais de um plano (desenho do jogador, 01/11/2026):** a obra **começa com o que tem** e paga **peça
   por peça** (mochila → baús); quando falta, **entrega à coleta** (`Pending.Template`) e **volta sozinha** quando o
   total do template estiver coberto (`TemplateMissing`) - o antigo "exige tudo antes" saiu (era o bug do teste:
-  nivelou, faltou madeira e parou). **Aceite: 1,06 m → 0,33 m em 3 passadas, 165 s.** É ordem de um tiro (qualquer outra
+  nivelou, faltou madeira e parou). **A retomada é no ponto exato:** o vigia espera **o que faltou** (`Pending.Amount`,
+  não o custo inteiro - estourava os 300 s) e o `Pending` guarda a **peça e a âncora** (`Index`/`Anchor`/`AnchorRot`);
+  `StartPlan(..., anchorKnown: true)` continua da mesma pose em vez de recomeçar do passo 0 (que criava **outra
+  bancada** e uma casa nova ao lado). **Aceite: 1,06 m → 0,33 m em 3 passadas, 165 s.** É ordem de um tiro (qualquer outra
   cancela - sem isso ele ficava travado). `ValidActions` 36 → 37, 5 idiomas, config 353.
   **Aceite em jogo (01/11/2026): 57/57 peças, todas `supported`**, todas
   `placed (Direct)` - a casa **traz a própria bancada** (passo 0, a estação vem do plano), a **porta é a última**

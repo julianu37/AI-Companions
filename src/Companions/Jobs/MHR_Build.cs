@@ -93,6 +93,11 @@ internal static class MHR_Build
 		internal List<PlannedStep> Plan;
 		/// <summary>E6: which step is being built (0-based).</summary>
 		internal int Index;
+		/// <summary>E6b: resume after a gather at the SAME anchor and from the piece where it stopped.</summary>
+		internal bool AnchorKnown;
+		internal Vector3 Anchor;
+		internal Quaternion AnchorRot;
+		internal int StartIndex;
 	}
 
 	/// <summary>E6: one piece of a plan, already resolved to a world pose.</summary>
@@ -119,6 +124,12 @@ internal static class MHR_Build
 		internal Vector3 Hint;
 		internal int Mode;
 		internal string Item;
+		/// <summary>E6b: the shortfall that was handed over (the watcher resumes when the bag covers it).</summary>
+		internal int Amount;
+		/// <summary>E6b: where the plan stopped - the watcher resumes at the SAME anchor and from this piece.</summary>
+		internal int Index;
+		internal Vector3 Anchor;
+		internal Quaternion AnchorRot;
 		internal float Start;
 	}
 
@@ -167,6 +178,12 @@ internal static class MHR_Build
 	/// </summary>
 	internal static bool StartPlan(CompanionSetup cs, BuildTemplates.Template template, Vector3 hint)
 	{
+		return StartPlan(cs, template, hint, 0, Vector3.zero, Quaternion.identity, false);
+	}
+
+	/// <summary>E6b: the same plan, resumed at the SAME anchor and from <paramref name="startIndex"/> - what the watcher does after the gather (otherwise it started a second house next to the first).</summary>
+	internal static bool StartPlan(CompanionSetup cs, BuildTemplates.Template template, Vector3 hint, int startIndex, Vector3 anchor, Quaternion anchorRot, bool anchorKnown)
+	{
 		if (cs == null || template == null)
 		{
 			return false;
@@ -189,7 +206,11 @@ internal static class MHR_Build
 			Hint = hint,
 			Forward = forward,
 			Plan = new List<PlannedStep>(),
-			Phase = Phase.Level
+			Phase = anchorKnown ? Phase.Find : Phase.Level,
+			StartIndex = startIndex,
+			Anchor = anchor,
+			AnchorRot = anchorRot,
+			AnchorKnown = anchorKnown
 		};
 		s_state[ai.GetInstanceID()] = state;
 		Log(ai, "order: build plan " + template.Name + " (" + template.Steps.Length + " pieces) near (" + F(hint.x) + ", " + F(hint.y) + ", " + F(hint.z) + ")");
@@ -461,7 +482,15 @@ internal static class MHR_Build
 		Quaternion baseRot;
 		string anchorStatus;
 		int anchorTried;
-		if (!FindAnchor(steps, state.Hint, state.Forward, radius, Self(ai), out anchor, out baseRot, out anchorStatus, out anchorTried))
+		if (state.AnchorKnown)
+		{
+			// E6b: resuming after a gather - the SAME anchor and the SAME poses, so the plan continues where it stopped
+			// (searching again could pick another spot and start a second house next to the first one)
+			anchor = state.Anchor;
+			baseRot = state.AnchorRot;
+			Log(ai, "resuming at the same anchor (" + F(anchor.x) + ", " + F(anchor.y) + ", " + F(anchor.z) + ") from piece " + (state.StartIndex + 1));
+		}
+		else if (!FindAnchor(steps, state.Hint, state.Forward, radius, Self(ai), out anchor, out baseRot, out anchorStatus, out anchorTried))
 		{
 			Log(ai, "plan: no anchor - " + anchorTried + " poses tried, last " + anchorStatus);
 			Piece firstPiece = BuildProbe.PieceOf(steps[0].Prefab);
@@ -539,10 +568,13 @@ internal static class MHR_Build
 			Log(ai, "plan short at the start: " + MissingText(missing) + " - the gather takes over when the first piece needs it");
 		}
 		state.Plan = plan;
-		state.Index = 0;
-		state.Piece = plan[0].Piece;
-		state.Pos = plan[0].Pos;
-		state.Rot = plan[0].Rot;
+		state.Anchor = anchor;
+		state.AnchorRot = baseRot;
+		state.AnchorKnown = true;
+		state.Index = Mathf.Clamp(state.StartIndex, 0, plan.Count - 1);
+		state.Piece = plan[state.Index].Piece;
+		state.Pos = plan[state.Index].Pos;
+		state.Rot = plan[state.Index].Rot;
 		state.Phase = Phase.Goto;
 		Log(ai, "plan " + state.Template.Name + ": " + plan.Count + " pieces, " + checkedPoses + " poses checked, anchor at ("
 			+ F(anchor.x) + ", " + F(anchor.y) + ", " + F(anchor.z) + ")");
@@ -922,6 +954,10 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			Hint = state.Hint,
 			Mode = state.GatherMode,
 			Item = state.GatherItem,
+			Amount = state.GatherAmount,
+			Index = state.Index,
+			Anchor = state.Anchor,
+			AnchorRot = state.AnchorRot,
 			Start = Time.time
 		};
 		Log(ai, "gathering " + state.GatherAmount + "x " + state.GatherItem + " (mode " + state.GatherMode + ") - the build resumes after it");
@@ -1188,10 +1224,14 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			Say(ai, "hc_ai_build_missing", MissingText(still), label);
 			return;
 		}
-		Dictionary<string, int> shortfall = template != null
-			? TemplateMissing(bag, template, pending.Hint, cs, useChests)
-			: BuildStock.Missing(bag, piece, pending.Hint, cs, useChests);
-		if (shortfall.Count > 0)
+		// E6b (bug found in the player's test, 01/11/2026): the watcher resumes when the SHORTFALL that was handed over
+		// is covered - the plan pays piece by piece, so waiting for the whole template made the order time out with the
+		// piece's wood already in the bag ("gathering took too long" after gathering the 2 wood it asked for)
+		Piece stock = template != null ? BuildProbe.PieceOf(template.Steps[0].Prefab) : piece;
+		Dictionary<string, int> have = BuildStock.Available(bag, stock, pending.Hint, cs, useChests);
+		int got;
+		have.TryGetValue(pending.Item ?? string.Empty, out got);
+		if (got < pending.Amount)
 		{
 			return;   // still gathering
 		}
@@ -1199,7 +1239,9 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		CompanionSetup.ClearOrderCap(cs);
 		// back to Follow mode BEFORE the build starts: the harvest must not keep steering while the build does
 		CompanionSetup.ApplyActionMode(cs, CompanionSetup.ModeFollow, false);
-		bool resumed = template != null ? StartPlan(cs, template, pending.Hint) : Start(cs, pending.Prefab, pending.Hint);
+		bool resumed = template != null
+			? StartPlan(cs, template, pending.Hint, pending.Index, pending.Anchor, pending.AnchorRot, true)
+			: Start(cs, pending.Prefab, pending.Hint);
 		if (resumed)
 		{
 			Log(ai, "materials ready - resuming the build");

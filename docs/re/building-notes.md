@@ -469,6 +469,16 @@ peça** (mochila → baús usáveis, `BuildStock.Take`). Quando uma peça fica s
 estar coberto (`TemplateMissing`), então **retoma a obra sozinha**. O antigo "o plano exige tudo antes" saiu: numa
 construção grande não faz sentido, e o bug do teste (nivelou, faltou madeira e **parou**) era exatamente isso.
 
+**A retomada é no ponto exato (dois bugs achados no teste do jogador, 01/11/2026):**
+
+1. **O vigia esperava o total da casa.** Depois de entregar "faltam 2 madeiras", ele comparava com o **custo inteiro**
+   do template (123) - a mochila nunca chegava lá e a ordem estourava os 300 s ("gathering took too long") com as 2 já
+   no saco. Agora ele espera **o que faltou** (`Pending.Amount` do item) e retoma na hora.
+2. **A retomada recomeçava do zero.** `StartPlan` refazia a busca de âncora e começava no passo 0 - o jogador viu uma
+   **segunda bancada** e uma **casa nova ao lado** ("ele cria outra workbench e começa uma casa do zero"). Agora o
+   `Pending` guarda **o índice da peça e a âncora** (`Index`/`Anchor`/`AnchorRot`) e o `StartPlan(..., anchorKnown:
+   true)` **continua da mesma pose e da peça onde parou** (`resuming at the same anchor ... from piece N`).
+
 **O chão tem que ser plano.** O abrigo de 4x2 m precisa dos 4 postes no mesmo nível: num terreno inclinado os
 postes do lado de baixo ficam sem apoio e o plano recusa (foi o que aconteceu sobre a bancada da E5, num barranco) -
 o `FindAnchor` então procura outro ponto. Nivelar o terreno é a **E10**.
