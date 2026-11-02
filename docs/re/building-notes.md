@@ -804,6 +804,27 @@ toras um instante depois** e a tora continua rolando: um quadrado vazio nao e o 
 na lista de ignorados **para sempre**: agora ha uma **segunda chance** para eles antes de a obra comecar
 (`second look at N obstacle(s) left behind`).
 
+### 15.2e Os tres achados do fim do teste (03/11/2026)
+
+**(1) O blueprint voltava como UMA peca.** Quando a madeira acabou, o `BeginGather` entregou a ordem a coleta e o watcher
+(`CheckPending`) retomou com `Start(cs, pending.Prefab, ...)` - ou seja `order: build wood_beam` e `order ended:
+hc_ai_build_done` 6 s depois: **a casa de 983 pecas virou uma viga**. O `Pending` guarda `Template` (template) mas nao
+guardava o **blueprint**; a retomada so sabia refazer plano de template. Agora `Pending` leva `Blueprint`/`BlueprintFile`
+e o **`ResumeBlueprint`** reabre o arquivo, remonta o plano (deterministico) e continua **na mesma ancora, na mesma
+rotacao e na mesma peca** (`Index`), **sem repetir nivelamento nem limpeza**. E o **`Retry`** (as pecas que nao ficaram de
+pe nem nesta passada - o 2o piso) viaja no `Pending` e volta para o estado retomado: sem isso a casa perdia o piso de
+cima em cada coleta.
+
+**(2) A coleta do blueprint pedia 2 madeiras.** O `BeginGather` so trocava o pedido pelo **resto do plano** quando
+`state.Template != null`; um blueprint caia no custo da peca (`gathering 2x $item_wood`) enquanto o watcher esperava
+**1927**. Agora o blueprint tambem pede o resto do plano (`PlanMissing` da peca que faltou); o saque previo dos baus
+continua so para template (o `BuildStock.Take` por peca ja usa os baus).
+
+**(3) Cepos ficando no canteiro** (relato do jogador): a varredura procurava `TreeBase` e `TreeLog`, mas o **cepo** e um
+`Destructible` cujo nome tem `"stub"` (a mesma regra que o harvest usa para classifica-lo) - e um cepo embaixo de um piso
+recusa a peca como um tronco. Entraram os tres (arvore, tronco, cepo), com `DetermineHarvestModeStatic` devolvendo modo 1
+para o cepo.
+
 **Obra medida:** 223/983 pecas em ~7 min (~4 s/peca), todas `supported`; a partir da peca ~190 ele passou a pagar dos
 baus (2 madeiras por peca, baus a 3-25 m) e 3 `wood_beam` falharam a verificacao (`not_found`) e foram para o retry.
 

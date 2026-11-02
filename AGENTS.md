@@ -1179,7 +1179,10 @@ comandos de console e spawna coisas, então não é feature de jogador.
   o quadrado parava em 30 m (footprint 32,1 m), o filtro olhava o **pivô** (a tora tem o pivô numa ponta), a árvore
   derrubada spawna as toras depois e elas rolam, e o obstáculo "perdido" nunca era retentado — agora o quadrado é **40 m**,
   `TreeLog` é julgado pelos **limites** (`Renderer.bounds`), há uma **varredura extra 2 s depois** e uma **segunda chance**
-  para os ignorados.
+  para os ignorados. **Cepos** também entram (são `Destructible` com `"stub"` no nome). **Blueprint retomado como
+  blueprint (03/11/2026):** o `Pending` leva `Blueprint`/`BlueprintFile` + `Retry`, e o `ResumeBlueprint` continua na mesma
+  âncora/rotação/peça sem repetir nivelamento nem limpeza — antes a casa de 983 peças voltava como `build wood_beam` e
+  terminava. A coleta de um blueprint pede o **resto do plano** (pedia 2 madeiras com 1927 faltando).
   **A ponte do BuildOrders (F11) fica para depois** (barata, API pública).
   O vigia do E6b deixou de comparar **total-da-mochila** com
   **o-que-falta** (a 4x4 entrava em loop na porta); agora recalcula o que falta e retoma quando é zero. Harness

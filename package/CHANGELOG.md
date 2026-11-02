@@ -40,6 +40,13 @@ stopped.
   blamed the spot. It now compares the real weight with the carry ceiling and says `hc_ai_build_too_heavy`.
   Measured right after: with **120 wood (240 of 300 weight)** the same 985-piece blueprint **walked and built 60 pieces**
   in ~3 minutes (all supported) before handing the order to the gather for the rest.
+- **A blueprint resumes as the blueprint, not as one piece** (player's test, 03/11/2026): when the wood ran out the order
+  went to the gather and came back as "build one wood_beam" - the 985-piece house ended there. The pending order now
+  carries the blueprint (file, anchor, rotation, piece index) and the **pieces that did not stand yet**, so the resumed
+  order continues where it stopped, without repeating the leveling or the clearing. The gather of a blueprint also asks
+  for the **rest of the plan** (it was ordered 2 wood while 1927 were missing).
+- **Stumps are cleared too** (player's report, 03/11/2026): a chopped tree leaves a stub (`Destructible` whose name says
+  "stub") and a stump under a floor refuses the piece like a log. The site clearing now takes trees, logs and stumps.
 - **The logs of the felled trees are no longer left rolling in the site** (player's report, 03/11/2026): the clearing
   square stopped at 30 m while the plan's footprint measured 32,1 m (the outer ring kept its trees); a log was judged by
   its pivot, which sits at one end, so a trunk lying inside counted as outside; a felled tree spawns its logs a moment

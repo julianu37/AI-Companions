@@ -117,6 +117,8 @@ internal static class MHR_Build
 		internal int StartIndex;
 		/// <summary>E7: the blueprint being built (its label; null for a template or a single piece).</summary>
 		internal string Blueprint;
+		/// <summary>E7: the file of that blueprint - the order is resumed from it after a gather (the plan is rebuilt).</summary>
+		internal string BlueprintFile;
 		/// <summary>E7: [Building] BlueprintFree - do not pay for the pieces (a test/creative switch).</summary>
 		internal bool Free;
 		/// <summary>E7: pieces placed and pieces skipped (a blueprint skips what it cannot stand instead of stopping).</summary>
@@ -177,6 +179,13 @@ internal static class MHR_Build
 		internal string Prefab;
 		/// <summary>E6b: the template of the plan waiting for its materials (null for a single piece).</summary>
 		internal string Template;
+		/// <summary>E7: the blueprint waiting for its materials (label and file; null for a template/piece).</summary>
+		internal string Blueprint;
+		internal string BlueprintFile;
+		/// <summary>E7: the pieces that did not stand yet when the gather took over - the resumed order must carry them, or
+		/// the 2nd storey of the house is lost for good (the retry pass of the first part never runs).</summary>
+		internal List<PlannedStep> Retry;
+		internal int Passes;
 		internal Vector3 Hint;
 		internal int Mode;
 		internal string Item;
@@ -372,6 +381,24 @@ internal static class MHR_Build
 
 	internal static BlueprintStart StartBlueprint(CompanionSetup cs, Blueprint blueprint, Vector3 hint, out string missingPrefab, out string missingStation)
 	{
+		return StartBlueprint(cs, blueprint, hint, out missingPrefab, out missingStation, 0, Quaternion.identity, false);
+	}
+
+	/// <summary>
+	/// E7 (player's test, 03/11/2026): <b>resumes</b> a blueprint after the gather handover - the same anchor, the same
+	/// rotation and the same piece. The order used to come back as "build one wood_beam" (a single piece) and ended, so a
+	/// 985-piece house lost the other 700 pieces the moment it ran out of wood. The plan is rebuilt from the file (that is
+	/// deterministic) and the indices line up; the leveling and the clearing are NOT repeated.
+	/// </summary>
+	internal static BlueprintStart ResumeBlueprint(CompanionSetup cs, Blueprint blueprint, Vector3 hint, int startIndex,
+		Quaternion anchorRot, out string missingPrefab, out string missingStation)
+	{
+		return StartBlueprint(cs, blueprint, hint, out missingPrefab, out missingStation, startIndex, anchorRot, true);
+	}
+
+	private static BlueprintStart StartBlueprint(CompanionSetup cs, Blueprint blueprint, Vector3 hint, out string missingPrefab,
+		out string missingStation, int startIndex, Quaternion anchorRot, bool resuming)
+	{
 		missingPrefab = null;
 		missingStation = null;
 		if (cs == null || blueprint == null || blueprint.Pieces.Count == 0)
@@ -392,7 +419,8 @@ internal static class MHR_Build
 		}
 		Player owner = MHR_Owner.Of(cs);
 		Vector3 forward = owner != null ? owner.transform.forward : cs.transform.forward;
-		Quaternion rot = Quaternion.LookRotation(Flat(forward), Vector3.up);
+		// a resumed order keeps the rotation it was given (the player may be looking somewhere else by now)
+		Quaternion rot = resuming ? anchorRot : Quaternion.LookRotation(Flat(forward), Vector3.up);
 		// every prefab is resolved BEFORE the first piece. A blueprint is somebody else's design: the lines that are
 		// not a buildable piece in THIS game (an item, a rug, a mod's prefab) or whose recipe the player has not
 		// unlocked are SKIPPED and counted - refusing the whole build because of one line would make most downloaded
@@ -497,7 +525,7 @@ internal static class MHR_Build
 		// E7 (player's call, 02/11/2026): LEVEL THE GROUND FIRST, like the templates do. A downloaded build on uneven
 		// ground has its floors refused one after the other (no_support); the hoe job takes over and the build comes
 		// back by itself, centred where the player aimed.
-		if (hasBounds && (ModConfig.BuildLevelGround == null || ModConfig.BuildLevelGround.Value))
+		if (!resuming && hasBounds && (ModConfig.BuildLevelGround == null || ModConfig.BuildLevelGround.Value))
 		{
 			// the level job works up to 20 m (its own clamp): measuring a 32 m footprint against a 20 m leveling made an
 			// ENDLESS loop in the player's test (02/11/2026) - "leveling first" -> "already flat" -> back to the build
@@ -536,11 +564,12 @@ internal static class MHR_Build
 			}
 		}
 		bool free = ModConfig.BuildBlueprintFree != null && ModConfig.BuildBlueprintFree.Value;
+		int start = resuming ? Mathf.Clamp(startIndex, 0, plan.Count - 1) : 0;
 		// E7 (player's request, 03/11/2026): CLEAR THE SITE FIRST. The trees, stumps and fallen logs inside the footprint
 		// refuse the floors (no_support) and block the walking (the mover gives up after 8 s), and the leveling does not
 		// cut anything: the player's 985-piece plan on a wooded hill got 8 "can't reach it" in a row and never got past
 		// the first row. The harvest does the cutting (its directed target is the same one the radial uses).
-		bool clear = hasBounds && (ModConfig.BuildClearSite == null || ModConfig.BuildClearSite.Value);
+		bool clear = !resuming && hasBounds && (ModConfig.BuildClearSite == null || ModConfig.BuildClearSite.Value);
 		float clearSize = clear ? Mathf.Clamp(Mathf.Max(maxX - minX, maxZ - minZ) + 1.5f, 2f, ClearMaxSize) : 0f;
 		State state = new State
 		{
@@ -549,6 +578,7 @@ internal static class MHR_Build
 			LastDrive = Time.time,
 			StartMode = ModeOf(cs),
 			Blueprint = blueprint.Label,
+			BlueprintFile = blueprint.File,
 			Free = free,
 			Skipped = skipped,
 			Hint = hint,
@@ -558,17 +588,18 @@ internal static class MHR_Build
 			AnchorKnown = true,
 			Plan = plan,
 			Retry = new List<PlannedStep>(),
-			Index = 0,
-			Prefab = plan[0].Prefab,
-			Piece = plan[0].Piece,
-			Pos = plan[0].Pos,
-			Rot = plan[0].Rot,
+			Index = start,
+			Prefab = plan[start].Prefab,
+			Piece = plan[start].Piece,
+			Pos = plan[start].Pos,
+			Rot = plan[start].Rot,
 			Phase = clear ? Phase.Clear : Phase.Goto,
 			ClearCenter = hint,
 			ClearSize = clearSize
 		};
 		s_state[ai.GetInstanceID()] = state;
 		Log(ai, "blueprint " + blueprint.Label + ": " + plan.Count + " pieces near (" + F(hint.x) + ", " + F(hint.y) + ", " + F(hint.z) + ")"
+			+ (start > 0 ? " - resuming at piece " + (start + 1) : string.Empty)
 			+ (free ? " - BlueprintFree is on (no material)" : string.Empty));
 		return BlueprintStart.Started;
 	}
@@ -892,6 +923,17 @@ internal static class MHR_Build
 			// bounds decide, otherwise a trunk inside the site counts as outside (player's report, 03/11/2026)
 			ConsiderObstacle(state, log != null ? log.gameObject : null, half, true, ref best, ref bestDistance);
 		}
+		foreach (Destructible stub in UnityEngine.Object.FindObjectsByType<Destructible>(FindObjectsSortMode.None))
+		{
+			// E7 (player's report, 03/11/2026: "some stumps were left"): chopping a tree leaves a stub - a Destructible whose
+			// name says "stub" (the same rule the harvest uses to classify it) - and a stump under a floor refuses the piece
+			// exactly like a log. A stump does not move, so the pivot is enough.
+			if (stub == null || stub.gameObject.name.IndexOf("stub", StringComparison.OrdinalIgnoreCase) < 0)
+			{
+				continue;
+			}
+			ConsiderObstacle(state, stub.gameObject, half, false, ref best, ref bestDistance);
+		}
 		return best;
 	}
 
@@ -909,6 +951,14 @@ internal static class MHR_Build
 		foreach (TreeLog log in UnityEngine.Object.FindObjectsByType<TreeLog>(FindObjectsSortMode.None))
 		{
 			if (IsObstacle(state, log != null ? log.gameObject : null, half, true))
+			{
+				count++;
+			}
+		}
+		foreach (Destructible stub in UnityEngine.Object.FindObjectsByType<Destructible>(FindObjectsSortMode.None))
+		{
+			if (stub != null && stub.gameObject.name.IndexOf("stub", StringComparison.OrdinalIgnoreCase) >= 0
+				&& IsObstacle(state, stub.gameObject, half, false))
 			{
 				count++;
 			}
@@ -1591,14 +1641,18 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		// piece's - if it has to chop wood anyway, it brings enough for the rest of the house (or until the bag is
 		// nearly full) and comes back once instead of once per piece.
 		Dictionary<string, int> need = missing;
-		if (state.Template != null)
+		// E7 (player's test, 03/11/2026): a BLUEPRINT asks for the rest of the plan too - it was ordered "2 wood" (the
+		// piece's cost) while 1927 were missing, so the gather stopped at nothing and the watcher had to wait for the bag
+		if (state.Template != null || (state.Blueprint != null && state.Plan != null))
 		{
 			Humanoid humanoid = ai.GetComponent<Humanoid>();
 			Inventory bag = humanoid != null ? humanoid.GetInventory() : null;
 			bool useChests = ModConfig.BuildUseChests == null || ModConfig.BuildUseChests.Value;
 			// E6b (player's request, 02/11/2026): take what the chests hold BEFORE going out - the wood in a chest is
 			// wood the house can use, and the player must not watch it chop while a chest still holds 30
-			int moved = BuildStock.WithdrawTemplate(bag, state.Template, state.Pos, cs, useChests);
+			int moved = state.Template != null
+				? BuildStock.WithdrawTemplate(bag, state.Template, state.Pos, cs, useChests)
+				: 0;
 			if (moved > 0)
 			{
 				Log(ai, "withdrew " + moved + " item(s) from the chests before gathering");
@@ -1683,12 +1737,16 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		{
 			Prefab = state.Prefab,
 			Template = state.Template != null ? state.Template.Name : null,
+			Blueprint = state.Blueprint,
+			BlueprintFile = state.BlueprintFile,
 			Hint = state.Hint,
 			Mode = state.GatherMode,
 			Item = state.GatherItem,
 			Amount = state.GatherAmount,
 			Index = state.Index,
 			Plan = state.Plan,
+			Retry = state.Retry,
+			Passes = state.Passes,
 			Anchor = state.Anchor,
 			AnchorRot = state.AnchorRot,
 			FollowWas = follow,
@@ -1748,13 +1806,20 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		{
 			still = TemplateMissing(bag, template, pending.Hint, cs, useChests);
 		}
+		else if (pending.Plan != null && pending.Plan.Count > 0)
+		{
+			// a blueprint (or a plan without its template): the REST of the plan from the piece that is short
+			still = PlanMissing(bag, pending.Plan, pending.Index, pending.Hint, cs, useChests);
+		}
 		else
 		{
 			still = BuildStock.Missing(bag, piece, pending.Hint, cs, useChests);
 		}
 		string label = template != null
 			? template.Label
-			: (piece != null && Localization.instance != null ? Localization.instance.Localize(piece.m_name) : pending.Prefab);
+			: (!string.IsNullOrEmpty(pending.Blueprint)
+				? pending.Blueprint
+				: (piece != null && Localization.instance != null ? Localization.instance.Localize(piece.m_name) : pending.Prefab));
 		Say(ai, "hc_ai_build_missing", MissingText(still), label);
 	}
 
@@ -2014,10 +2079,13 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			RestoreFollow(ai, cs, pending);
 			return;
 		}
-		// E6b: a plan waiting for its materials (the template) or a single piece
+		// E6b: a plan waiting for its materials (a template, or a blueprint) or a single piece
 		BuildTemplates.Template template = pending.Template != null ? BuildTemplates.ByName(pending.Template) : null;
-		Piece piece = pending.Template != null ? null : BuildProbe.PieceOf(pending.Prefab);
-		if (pending.Template != null ? template == null : piece == null)
+		Blueprint blueprint = pending.BlueprintFile != null ? BuildBlueprints.Load(pending.BlueprintFile) : null;
+		Piece piece = pending.Template == null && pending.BlueprintFile == null ? BuildProbe.PieceOf(pending.Prefab) : null;
+		bool broken = pending.Template != null ? template == null
+			: (pending.BlueprintFile != null ? blueprint == null : piece == null);
+		if (broken)
 		{
 			s_pending.Remove(ai.GetInstanceID());
 			RestoreFollow(ai, cs, pending);
@@ -2070,7 +2138,8 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 				pending.LastLoggedText = shortText;
 				pending.LastProgressAt = Time.time;
 				Log(ai, "waiting for materials: " + shortText
-					+ (string.IsNullOrEmpty(pending.Template) ? string.Empty : " for the " + pending.Template)
+					+ (string.IsNullOrEmpty(pending.Template) && string.IsNullOrEmpty(pending.Blueprint) ? string.Empty
+						: " for the " + (pending.Template ?? pending.Blueprint))
 					+ " (mode " + ModeOf(cs) + ", expected " + pending.Mode + ")");
 			}
 			// E6b (player's test, 02/11/2026): the gather can end up with NOTHING it may work - every tree around the spot
@@ -2108,17 +2177,41 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		CompanionSetup.ClearOrderCap(cs);
 		// back to Follow mode BEFORE the build starts: the harvest must not keep steering while the build does
 		CompanionSetup.ApplyActionMode(cs, CompanionSetup.ModeFollow, false);
-		bool resumed = template != null
-			? StartPlan(cs, template, pending.Hint, pending.Index, pending.Anchor, pending.AnchorRot, true)
-			: Start(cs, pending.Prefab, pending.Hint);
+		bool resumed;
+		if (template != null)
+		{
+			resumed = StartPlan(cs, template, pending.Hint, pending.Index, pending.Anchor, pending.AnchorRot, true);
+		}
+		else if (blueprint != null)
+		{
+			string ignoredPrefab;
+			string ignoredStation;
+			resumed = ResumeBlueprint(cs, blueprint, pending.Hint, pending.Index, pending.AnchorRot, out ignoredPrefab,
+				out ignoredStation) == BlueprintStart.Started;
+		}
+		else
+		{
+			resumed = Start(cs, pending.Prefab, pending.Hint);
+		}
 		if (resumed)
 		{
+			// E7 (player's test, 03/11/2026): the pieces that did not stand yet travelled with the pending order (they are
+			// the upper storeys, waiting for what is below them). A resumed order starts with an empty retry queue, so
+			// without this the 2nd floor of the house was dropped on every gather.
+			State fresh;
+			if (pending.Retry != null && pending.Retry.Count > 0 && s_state.TryGetValue(ai.GetInstanceID(), out fresh) && fresh != null)
+			{
+				fresh.Retry = pending.Retry;
+				fresh.Passes = pending.Passes;
+				Log(ai, "carrying " + pending.Retry.Count + " piece(s) that did not stand yet to the resumed order");
+			}
 			Log(ai, "materials ready - resuming the build");
 		}
 		else
 		{
-			Log(ai, "could not resume the " + (pending.Template ?? pending.Prefab) + " - the order ends");
-			Say(ai, "hc_ai_build_failed", pending.Template ?? pending.Prefab);
+			string label = pending.Template ?? pending.Blueprint ?? pending.Prefab;
+			Log(ai, "could not resume the " + label + " - the order ends");
+			Say(ai, "hc_ai_build_failed", label);
 		}
 	}
 
