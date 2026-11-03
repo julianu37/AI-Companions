@@ -1285,6 +1285,11 @@ comandos de console e spawna coisas, então não é feature de jogador.
   pés está ao alcance (5 m do olho), então ele constrói o andar de cima **do nível em que está**. A 1ª versão movia com
   `RemoveAt`/`Insert` e **pulava o tile mais perto da escada** (reprovada na simulação do especialista); a final reconstrói a
   lista no lugar (`head` + escolhidos por distância + resto), porque `Pending.Plan` guarda a mesma referência.
+  **O loop da escada (relato "fica subindo/descendo e caindo da escada", 03/11/2026) — corrigido:** a recusa do
+  `LadderLanding` não marcava a escada como ruim, então a busca de rota (2 s) escolhia a mesma de novo e o relógio de
+  progresso de 12 s nunca vencia (cada subida aproximava da peça). Agora a recusa chama `MarkBadLadder(..., 60 s)` e a
+  peça vai para o retry pass. Detalhes em `building-notes` §15.2x.
+
   **A escada é peça da obra; o pouso é do mover (pedido "a escada da build deve ser feita a partir do piso", 03/11/2026):**
   o adiamento por `HasLanding` **saiu** (a casa ficava horas sem escada) - a escada é colocada quando o plano chega nela,
   apoiada no piso de baixo. Quem não sobe é o **mover**: `MHR_Mover.LadderLanding` recusa subir para o vazio nas rotas
