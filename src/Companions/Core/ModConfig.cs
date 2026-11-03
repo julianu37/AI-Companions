@@ -945,7 +945,7 @@ internal static class ModConfig
 		BuildQuiet = Bind(cfg, "Building", "Quiet", false, "Do not make the placement noise (the game adds one when a piece goes up, which can pull creatures). Only the hand-written placement path is silenced; the vanilla Player.PlacePiece path keeps its noise.");
 		BuildLevelGround = Bind(cfg, "Building", "LevelGround", true, "Level the ground before a structure (a plan) when it is uneven: a house of 8x8 needs a flat area, and the walls and roof are all at the anchor's height. It uses the game's own leveling (the hoe's level operation) and needs a hoe in the companion's bag - without one it says so and the order ends.");
 		BuildClearSite = Bind(cfg, "Building", "ClearSite", true, "Clear the build site before the first piece: the trees, stumps and fallen logs inside the plan's footprint are cut (the same directed harvest the radial uses) and the wood goes to the bag the build pays from. The ground under them is not changed - leveling is its own step (LevelGround). Up to 40 obstacles / 240 s per order; what is left is handled by the piece retry.");
-		BuildTempScaffold = Bind(cfg, "Building", "TempScaffold", true, "Place a temporary wood stair (2 wood) when the piece is above the game's 5 m placement reach and the companion is already standing under it - a ridge, the top of a gable, the last row of a roof. The stair is a ramp the companion walks up, it is paid from the bag/chests like any piece and the wood comes back when it is removed at the end of the order (it is not part of the plan). At most 3 attempts per piece position; each stair is +1 m. A stair is kept only when a piece placed next to it has no support without it.");
+		BuildTempScaffold = Bind(cfg, "Building", "TempScaffold", false, "Off by default (the test of 03/11/2026 covered the site in stairs). Place a temporary wood stair (2 wood) when the piece is above the game's 5 m placement reach and the companion is already standing under it - a ridge, the top of a gable, the last row of a roof. The stair is a ramp the companion walks up, it is paid from the bag/chests like any piece and the wood comes back when it is removed at the end of the order (it is not part of the plan). At most 4 per order and the stair is removed as soon as the piece it was placed for goes up; each stair is +1 m. A stair is kept only when a piece placed next to it has no support without it.");
 		BuildBlueprintFree = Bind(cfg, "Building", "BlueprintFree", false, "Build a blueprint without paying for the pieces (a test/creative switch: the companion places the pieces from the file and takes nothing from the bag or the chests). Off by default - a blueprint costs the same as any other build.");
 		BuildBlueprintMaxPieces = Bind(cfg, "Building", "BlueprintMaxPieces", 2000, "Refuse a blueprint with more pieces than this (a guard against a huge or broken file). The message says the file has more pieces than the limit.", new AcceptableValueRange<int>(1, 20000));
 		BuildLevelTolerance = Bind(cfg, "Building", "LevelTolerance", 0.35f, "How much height variation (meters) a build site may have before the ground is leveled. Measured: a floor is refused when the ground under it is more than ~0.3 m below the anchor.", new AcceptableValueRange<float>(0.05f, 2f));
@@ -1233,7 +1233,7 @@ internal static class ModConfig
 	/// <summary>1.9.5 (auditoria C2): the version of the config migrations this build knows about. Bump it whenever a
 	/// new one-time migration is added: a file stamped with an older value runs the migration block once more (they are
 	/// all "only the EXACT old default" rules, so running them again is harmless) and gets the new stamp.</summary>
-	private const int CurrentConfigVersion = 195;
+	private const int CurrentConfigVersion = 196;
 
 	/// <summary>1.9.5 (auditoria C2): should the one-time default migrations run on this boot? They used to run on
 	/// <b>every</b> boot, which quietly undid a choice the player made back to an old default (set the silence
@@ -1306,6 +1306,22 @@ internal static class ModConfig
 		MovedDefault(HarvestDropScanRadius, 8f, "os drops de uma arvore derrubada ou rocha quebrada sao catados ate 12 m do ponto da queda");
 	}
 
+	/// <summary>
+	/// E7 (test of 03/11/2026: "the site filled with stairs"): a boolean default that moved. <c>TempScaffold</c> was born
+	/// <b>true</b> in the same release and is now <b>false</b> - a file written by that build still holds true, which would
+	/// keep the feature on for exactly the player who reported it. Only the exact old default moves.
+	/// </summary>
+	private static void MovedDefaultBool(ConfigEntry<bool> entry, bool oldDefault, string why)
+	{
+		if (entry == null || entry.Value != oldDefault)
+		{
+			return;
+		}
+		entry.Value = (bool)entry.DefaultValue;
+		CompanionsPlugin.Log?.LogInfo($"[Config] [{entry.Definition.Section}] {entry.Definition.Key} estava no default antigo "
+			+ $"({oldDefault}) - agora {entry.Value}: {why}.");
+	}
+
 	/// <summary>Fase 3.3c: moves one setting from an old default to the new one, saying what and why in the log.</summary>
 	private static void MovedDefault(ConfigEntry<float> entry, float oldDefault, string why)
 	{
@@ -1366,6 +1382,10 @@ internal static class ModConfig
 			VozPromptInitial.Value = (string)VozPromptInitial.DefaultValue;
 			moved.Add("VoiceInitialPrompt");
 		}
+		// E7 (test of 03/11/2026: "the site filled with stairs"): the temporary stair was born ON in this same release and is
+		// now OFF - a .cfg written by that build still holds true, which would keep it on for exactly the player who
+		// reported it. Runs even when the language moves found nothing.
+		MovedDefaultBool(BuildTempScaffold, true, "a escadinha provisoria encheu o sitio no teste de 03/11/2026 - agora nasce desligada");
 		if (moved.Count == 0)
 		{
 			return;

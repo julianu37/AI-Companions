@@ -1169,6 +1169,50 @@ namespace Companions
             return null;
         }
 
+        /// <summary>
+        /// E7 (player's idea, 03/11/2026 - "the ladder of the build must be made from the floor"): is there <b>floor to
+        /// stand on</b> at the top of this ladder? The piece may be placed before the floor above it (it is part of the
+        /// house), but the mover must not climb it into the void - the hall of a blueprint has no floor at that height and
+        /// the climb ended in a fall loop until it died.
+        ///
+        /// <para>The probe is the ladder's <b>top tip</b>, not the middle of the piece: a <c>wood_stepladder</c> is 2 m deep
+        /// and its origin sits in the middle, so a ring around the centre lands on its own ramp (review, 03/11/2026). The tip
+        /// is <c>center + forward * depth</c>, the same <c>depth</c> the foot uses. A landing must be a <b>horizontal</b>
+        /// surface (<c>normal.y &gt;= 0,85</c> - a wall's top or a roof slope is not floor) <b>with head room</b> for the body,
+        /// and the ladder itself never counts (a world ladder has no <c>Piece</c>, hence <see cref="LadderRoot"/>). Fails
+        /// <b>open</b> when the layers are not available.</para>
+        /// </summary>
+        static bool LadderLanding(Bounds b, Vector3 forward)
+        {
+            int mask = Mask();
+            if (mask == 0) return true;
+            Vector3 f = forward; f.y = 0f;
+            if (f.sqrMagnitude < 0.01f) f = Vector3.forward;
+            f.Normalize();
+            float depth = Mathf.Abs(f.x) * b.extents.x + Mathf.Abs(f.z) * b.extents.z;
+            Vector3 tip = new Vector3(b.center.x + f.x * depth, b.max.y, b.center.z + f.z * depth);
+            Vector3 side = new Vector3(-f.z, 0f, f.x);
+            Vector3[] spots =
+            {
+                tip, tip - f * 0.6f, tip + side * 0.5f, tip - side * 0.5f, tip + f * 0.5f
+            };
+            for (int i = 0; i < spots.Length; i++)
+            {
+                Vector3 spot = spots[i];
+                // head room: the body is ~1,8 m and a landing under a beam is not a landing
+                if (Physics.Raycast(spot + Vector3.up * 0.15f, Vector3.up, 1.85f, mask, QueryTriggerInteraction.Ignore)) continue;
+                RaycastHit hit;
+                if (!Physics.Raycast(spot + Vector3.up * 0.6f, Vector3.down, out hit, 1.0f, mask, QueryTriggerInteraction.Ignore)) continue;
+                if (hit.normal.y < 0.85f) continue;                            // a wall/roof slope, not floor
+                if (hit.point.y < b.max.y - 0.7f) continue;                    // the floor below, not the landing
+                Piece piece;
+                GameObject root = LadderRoot(hit.collider, out piece);
+                if (root != null && IsLadder(root, piece, hit.collider)) continue;   // the ladder's own top
+                return true;
+            }
+            return false;
+        }
+
         static bool IsLadder(GameObject root, Piece piece, Collider col)
         {
             string n = (root.name + " " + (col != null ? col.gameObject.name : "") + " " + (piece != null ? piece.m_name : "")).ToLowerInvariant();
@@ -1319,7 +1363,7 @@ namespace Companions
 
         // the next ladder up from a ladder's top: its foot on the landing (within 1 m of the top's height, 3.5 m of it) and
         // it goes higher; nearest foot wins
-        static List<LadderStep> PlanChain(GameObject first, Bounds firstB, int firstId, Vector3 firstFoot, Vector3 firstDir, float needY)
+        static List<LadderStep> PlanChain(GameObject first, Bounds firstB, int firstId, Vector3 firstFoot, Vector3 firstDir, float needY, bool requireLanding)
         {
             var chain = new List<LadderStep> { MakeStep(firstB, firstFoot, firstDir, firstId, first) };
             var used = new HashSet<int> { firstId };
@@ -1344,6 +1388,9 @@ namespace Companions
                     Vector3 f = lg.transform.forward; f.y = 0f;
                     if (f.sqrMagnitude < 0.01f) continue;
                     f.Normalize();
+                    // E7 (review, 03/11/2026): a chain whose LAST step ends in the void is the same fall loop - every
+                    // step of it needs its own landing before it is planned
+                    if (requireLanding && !LadderLanding(b, f)) continue;
                     Vector3 spot; bool room;
                     // 1.5.3: 4.5 m (was 3.5 - the ruin's third ladder fell just outside and split the chain in two)
                     if (!LadderFoot(b, f, out spot, out room) || Mathf.Abs(spot.y - cur.max.y) > 1.0f || Flat(spot, top) > 4.5f) continue;
@@ -1776,14 +1823,32 @@ namespace Companions
                 // 1.5.2: it goes up from here. Ladder pieces are ~2.2 m, so one starting at our feet only rises about that much
                 // (user log: on the first floor the next ladder up was skipped as "not going up 2 m" - "no ladder found").
                 if (b.max.y < pos.y + 1.0f) continue;
+                // E7 (player's idea, 03/11/2026: the ladder of the build must be made from the floor): the ladder is
+                // a piece of the house and may already be built while the floor above it is not - climbing it into the
+                // void is what killed him in the hall of a blueprint (fall loop). The ROUTE skips a ladder without a
+                // landing; the piece itself stays where the plan put it. Only the build tags: in Follow/Combat the
+                // companion must keep climbing ladders the player built (review, 03/11/2026).
+                AutoJumpLedge climbLedge = root.GetComponentInChildren<AutoJumpLedge>(true);
+                Vector3 climbF = climbLedge != null ? climbLedge.transform.forward : Vector3.zero; climbF.y = 0f;
+                if ((tag == "Build" || tag == "BuildGather") && !LadderLanding(b, climbF))
+                {
+                    if (now >= s.NextLadderLog)
+                    {
+                        s.NextLadderLog = now + 30f;
+                        if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Move|" + tag + "] the ladder "
+                            + root.name.Replace("(Clone)", "") + " at " + Fmt(b.center) + " has no floor at its top (top "
+                            + b.max.y.ToString("F1") + ") - not climbing it");
+                    }
+                    continue;
+                }
                 // 1.5.2 (user: "look for a path to where it needs to go, or at least close. Picking a ladder near its feet that
                 // it can either walk up or jump onto"): its foot is on our level and we can get there; best = short walk to it
                 // and its top as near the goal as possible (height counts double)
                 Vector3 topAt = new Vector3(b.center.x, b.max.y, b.center.z);
                 float toGoal = Flat(topAt, s.Goal) + 2f * Mathf.Abs(needY - b.max.y);
                 float d;
-                AutoJumpLedge lg = root.GetComponentInChildren<AutoJumpLedge>(true);
-                Vector3 lf = lg != null ? lg.transform.forward : Vector3.zero; lf.y = 0f;
+                AutoJumpLedge lg = climbLedge;
+                Vector3 lf = climbF;
                 Vector3 spot; bool room;
                 if (lf.sqrMagnitude > 0.01f && LadderFoot(b, lf.normalized, out spot, out room))
                 {
@@ -1861,7 +1926,9 @@ namespace Companions
             // small floors between ladders took him off the edge (user log: "fell 4.1 m" on the way to the next ladder)
             // 1.5.3 (user: "Is there a better way ... less awkward for the NPC flow?"): plan the chain of ladders above this one
             // now - this one's top by the next one's foot, and so on - and climb it in one go
-            List<LadderStep> chain = s.ClimbAuto ? PlanChain(best, bestB, bestId, s.ClimbBase, s.ClimbDir, needY) : null;
+            List<LadderStep> chain = s.ClimbAuto
+                ? PlanChain(best, bestB, bestId, s.ClimbBase, s.ClimbDir, needY, tag == "Build" || tag == "BuildGather")
+                : null;
             if (chain != null && chain.Count >= 2 && !(Flat(pos, s.ClimbBase) > 3.0f || Mathf.Abs(pos.y - s.ClimbBase.y) > 1.0f))
             {
                 StartChain(s, chain, 0, pos, now, tag);

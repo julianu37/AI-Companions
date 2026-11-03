@@ -395,6 +395,9 @@ public class CompanionsPlugin : BaseUnityPlugin
 		// the request in flight (a new world is a new conversation and a new set of companions)
 		CompanionChatAI.Reset();
 		LlmClient.Reset();
+		// E7 (review, 03/11/2026): a build order is in-memory and dies with the world - its temporary stairs are pieces in
+		// the save, so the order ends here (CancelAll removes what is still standing)
+		MHR_Build.CancelAll();
 	}
 
 	private void OnDestroy()

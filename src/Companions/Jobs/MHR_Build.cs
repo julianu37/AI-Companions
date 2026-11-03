@@ -48,8 +48,12 @@ internal static class MHR_Build
 	/// not a ladder: it is a ramp the mover walks up as plain geometry (no ladder logic and no landing to fall from - the
 	/// trap of 03/11/2026). Measured with build.snaps: +1 m, rising towards its own -Z.</summary>
 	private const string ScaffoldPrefab = "wood_stair";
-	/// <summary>How many attempts one piece POSITION may get (each stair is +1 m; the retry pass does not renew it).</summary>
-	internal const int MaxScaffolds = 3;
+	/// <summary>
+	/// How many temporary stairs one ORDER may place. It is a tool, not scaffolding for the whole house: with the budget
+	/// per piece the player's test of 03/11/2026 ended with the site covered in stairs (985 pieces x 3). Each one is +1 m
+	/// and it is removed as soon as the piece it was placed for goes up.
+	/// </summary>
+	internal const int MaxScaffolds = 4;
 
 	/// <summary>E10: how many leveling passes a job may apply before it gives up (each moves the ground by at most 1 m).</summary>
 	internal const int MaxLevelPasses = 4;
@@ -194,9 +198,6 @@ internal static class MHR_Build
 		/// <summary>E7: how many temporary stairs this piece already got, and the cooldown before the next one.</summary>
 		internal int ScaffoldTries;
 		internal float NextScaffoldAt;
-		/// <summary>E7: the pose the scaffold budget belongs to - a piece that goes to the retry pass and comes back
-		/// (up to 3 passes) must NOT get 3 new stairs in every pass.</summary>
-		internal Vector3 ScaffoldPose;
 		/// <summary>E7 (review, 03/11/2026): the pieces accepted while a temporary stair stood - they are asked again for
 		/// support before the stair is removed, so a roof that was held up by it does not get a hole.</summary>
 		internal readonly List<GameObject> Scaffolded = new List<GameObject>();
@@ -209,9 +210,6 @@ internal static class MHR_Build
 		internal Piece Piece;
 		internal Vector3 Pos;
 		internal Quaternion Rot;
-		/// <summary>E7 (review, 03/11/2026): why the piece went to the retry queue - the ladder requeue only undoes the
-		/// "top has no floor yet" deferral, never a refusal by support/path/station.</summary>
-		internal string Why;
 	}
 
 	private static readonly Dictionary<int, State> s_state = new Dictionary<int, State>();
@@ -367,9 +365,6 @@ internal static class MHR_Build
 
 	/// <summary>How many times the pieces that did not stand are tried again before they are given up.</summary>
 	internal const int MaxPasses = 3;
-	/// <summary>Why a ladder goes to the retry queue when the floor above it is not built yet - the only deferral the
-	/// floor-placed hook undoes (the string was written in three places).</summary>
-	internal const string NoLandingWhy = "top has no floor yet";
 
 	/// <summary>
 	/// E7: the current piece goes back to the retry queue (it may stand once its neighbours are up) or is counted as
@@ -380,7 +375,7 @@ internal static class MHR_Build
 	{
 		if (state.Retry != null && state.Passes < MaxPasses && state.Piece != null)
 		{
-			state.Retry.Add(new PlannedStep { Prefab = state.Prefab, Piece = state.Piece, Pos = state.Pos, Rot = state.Rot, Why = why });
+			state.Retry.Add(new PlannedStep { Prefab = state.Prefab, Piece = state.Piece, Pos = state.Pos, Rot = state.Rot });
 			Log(ai, "retry later: " + state.Prefab + " (" + why + ") at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
 				+ F(state.Pos.z) + ") - pass " + state.Passes);
 			return;
@@ -421,11 +416,6 @@ internal static class MHR_Build
 			state.FallDrops = 0;
 			state.BestDistance = 0f;
 			state.BestAt = Time.time;
-			if (state.ScaffoldPose != next.Pos)
-			{
-				state.ScaffoldPose = next.Pos;
-				state.ScaffoldTries = 0;
-			}
 			state.NextScaffoldAt = 0f;
 			state.Phase = Phase.Goto;
 			Log(ai, "next: " + next.Prefab + " (" + (state.Index + 1) + "/" + state.Plan.Count + ")");
@@ -1332,8 +1322,6 @@ internal static class MHR_Build
 		{
 			return false;
 		}
-		// from here on it IS an attempt: 3 per POSE (ScaffoldTries resets by pose, not by plan step)
-		state.ScaffoldTries++;
 		int mask = ScaffoldMask();
 		string last = null;
 		for (int ring = 0; ring <= 1; ring++)
@@ -1385,6 +1373,7 @@ internal static class MHR_Build
 					continue;
 				}
 				state.Scaffolds.Add(placed.GameObject);
+				state.ScaffoldTries++;   // the budget counts STAIRS PLACED, not attempts (a 'blocked by the plan' is not a stair)
 				state.BestDistance = 0f;
 				state.BestAt = Time.time;
 				Log(ai, "temporary stair at (" + F(candidate.x) + ", " + F(candidate.y) + ", " + F(candidate.z)
@@ -1548,6 +1537,7 @@ internal static class MHR_Build
 			}
 		}
 		bool holds = false;
+		List<WearNTear> asked = new List<WearNTear>();
 		try
 		{
 			foreach (GameObject go in state.Scaffolded)
@@ -1564,7 +1554,12 @@ internal static class MHR_Build
 					continue;
 				}
 				WearNTear wear = go.GetComponent<WearNTear>();
-				if (wear != null && BuildSupport.Supported(wear) == false)
+				if (wear == null)
+				{
+					continue;
+				}
+				asked.Add(wear);
+				if (BuildSupport.Supported(wear) == false)
 				{
 					holds = true;
 					break;
@@ -1580,12 +1575,22 @@ internal static class MHR_Build
 					collider.enabled = true;
 				}
 			}
+			// the question WROTE WearNTear.m_support for the pieces asked with the stair still off - ask again now that
+			// it is back, or the piece we decided to protect would keep the low number the game uses to break it
+			// (review, 03/11/2026)
+			foreach (WearNTear wear in asked)
+			{
+				if (wear != null)
+				{
+					BuildSupport.Supported(wear);
+				}
+			}
 		}
 		return holds;
 	}
 
 	/// <summary>Is this pose close enough to a temporary stair to have been held up by it? (the same 4 m / 3 m window)</summary>
-	private static bool NearScaffold(State state, Vector3 pos)
+	private static bool NearScaffold(State state, Vector3 pos, float radius = 6f)
 	{
 		foreach (GameObject stair in state.Scaffolds)
 		{
@@ -1596,7 +1601,7 @@ internal static class MHR_Build
 			Vector3 at = stair.transform.position;
 			float dx = at.x - pos.x;
 			float dz = at.z - pos.z;
-			if (dx * dx + dz * dz < 16f && Mathf.Abs(at.y - pos.y) < 3f)
+			if (dx * dx + dz * dz < radius * radius && Mathf.Abs(at.y - pos.y) < 3f)
 			{
 				return true;
 			}
@@ -1625,78 +1630,7 @@ internal static class MHR_Build
 		MHR_Mover.Release(ai);
 	}
 
-	/// <summary>Is this the piece a companion climbs (a stepladder, a ladder)?</summary>
-	private static bool IsLadderPrefab(string prefab)
-	{
-		return prefab != null && prefab.IndexOf("ladder", StringComparison.OrdinalIgnoreCase) >= 0;
-	}
 
-	/// <summary>
-	/// E7 (player's question, 03/11/2026: "why is there no ladder here yet?"): a ladder deferred with "top has no floor
-	/// yet" waited for the FINAL retry pass - which only runs after the last piece of a 985-piece house, so the house was
-	/// built for hours without a single ladder. As soon as a <b>floor</b> goes up, every deferred ladder whose landing now
-	/// exists goes back into the plan right after the piece being built: the companion can climb to the storey it is
-	/// working on instead of getting the ladder at the end.
-	/// </summary>
-	private static void RequeueLadders(CompanionAI ai, State state)
-	{
-		if (state.Plan == null || state.Retry == null || state.Retry.Count == 0)
-		{
-			return;
-		}
-		int insertAt = state.Index + 1;
-		int back = 0;
-		for (int i = state.Retry.Count - 1; i >= 0; i--)
-		{
-			PlannedStep step = state.Retry[i];
-			if (step == null || !IsLadderPrefab(step.Prefab) || step.Why != NoLandingWhy || !HasLanding(step.Pos))
-			{
-				continue;
-			}
-			state.Retry.RemoveAt(i);
-			if (insertAt > state.Plan.Count)
-			{
-				insertAt = state.Plan.Count;
-			}
-			state.Plan.Insert(insertAt, step);
-			insertAt++;
-			back++;
-		}
-		if (back > 0)
-		{
-			Log(ai, back + " ladder(s) have their floor now - back in the plan");
-		}
-	}
-
-	/// <summary>
-	/// E7 (test of 03/11/2026): is there <b>floor under the top of a ladder</b>? The blueprint's hall has no floor at that
-	/// height, so the plan's ladder ended in the void and the mover climbed it anyway - it fell in a loop until it died.
-	/// Probes straight down from the top and a ring of 0,6 m around it (a player stands beside the ladder, not on its axe).
-	/// Fails <b>open</b> when the layers are not available.
-	/// </summary>
-	private static bool HasLanding(Vector3 spot)
-	{
-		int mask = LayerMask.GetMask("Default", "static_solid", "piece", "terrain");
-		if (mask == 0)
-		{
-			return true;
-		}
-		Vector3 top = new Vector3(spot.x, spot.y + 2.6f, spot.z);
-		for (int i = -1; i <= 1; i++)
-		{
-			for (int j = -1; j <= 1; j++)
-			{
-				Vector3 origin = top + new Vector3(i * 0.6f, 0f, j * 0.6f);
-				RaycastHit hit;
-				if (Physics.Raycast(origin, Vector3.down, out hit, 1.6f, mask, QueryTriggerInteraction.Ignore)
-					&& hit.point.y > spot.y + 1.3f)
-				{
-					return true;
-				}
-			}
-		}
-		return false;
-	}
 
 	/// <summary>Cancels the directed harvest the clearing set (any ending of the order must not leave the companion
 	/// swinging at a tree of a build that no longer exists).</summary>
@@ -2241,23 +2175,11 @@ internal static class MHR_Build
 		// walked to one by one and refused with no_support - 60 in a row across 40 s - because what holds a 2nd/3rd floor
 		// up is not up yet. The verdict is the SAME from far away (the pose is the piece's, not the companion's), so the
 		// piece is deferred to the retry pass BEFORE the walk: one cheap raycast instead of a 20 m round trip.
-		// E7 (test of 03/11/2026: "he built the ladder into an open hall and fell in a loop until he died"): a LADDER whose
-		// top has no floor under it is a trap - it is skipped instead of placed. The hall of a blueprint has no floor at that
-		// height, so the ladder ends in the void and the mover climbs it anyway.
-		if (!state.Checked && state.Blueprint != null && state.Prefab != null && IsLadderPrefab(state.Prefab))
-		{
-			state.Checked = true;
-			if (!HasLanding(state.Pos))
-			{
-				// E7 (player's report, 03/11/2026: "he didn't build the ladder"): the ladder is NOT thrown away - the floor
-				// above it is simply not built yet. It goes to the retry queue and is placed at the end, when the landing
-				// exists (the retry pass has up to 3 tries); only if it keeps having no landing is it skipped and counted.
-				Log(ai, "the " + state.Prefab + " at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", " + F(state.Pos.z)
-					+ ") has no floor on top yet - retrying it at the end");
-				QueueRetry(ai, state, NoLandingWhy);
-				return Advance(ai, state);
-			}
-		}
+		// E7 (player's idea, 03/11/2026: "the ladder of the build must be made from the floor, like it was in the
+		// beginning"): a ladder IS a piece of the house - it is placed when the plan reaches it, standing on the floor (the
+		// support is the floor below, which the plan built before it). What must NOT happen is the MOVER climbing a ladder
+		// whose top has no landing yet: that is what killed him in the hall of a blueprint, and it is guarded in MHR_Mover
+		// (LadderLanding). The piece used to be deferred to the retry pass, which left the house without a ladder for hours.
 		if (!state.Checked && cs != null && (state.Template != null || state.Blueprint != null)
 			&& state.Plan != null && state.Index > 0)
 		{
@@ -2297,9 +2219,12 @@ internal static class MHR_Build
 		}
 		else if (state.Blueprint != null && Time.time - state.BestAt > 12f)
 		{
-			// E7 (player's idea, 03/11/2026): he is close but the way is blocked (an eave, the ridge) - a step may open the
-			// angle before the piece goes to the retry pass.
+			// E7 (player's idea, 03/11/2026 - revised after the player's test: "the site filled with little stairs"): a stair
+			// only helps when the piece is ABOVE the eye's 5 m - if he is stuck for any other reason (a wall, a hole) it would
+			// be junk. And it is placed only here, after 12 s of real struggle, never just because he walked past.
+			Vector3 eyeNow = new Vector3(me.x, me.y + EyeHeight, me.z);
 			if (new Vector2(me.x - state.Pos.x, me.z - state.Pos.z).magnitude <= MaxPlace
+				&& Vector3.Distance(eyeNow, state.Pos) > MaxPlace
 				&& TryScaffold(ai, state, cs))
 			{
 				return true;
@@ -2325,13 +2250,6 @@ internal static class MHR_Build
 			&& Time.time - state.BestAt > 3f)
 		{
 			inReach = true;
-		}
-		// E7 (player's idea, 03/11/2026): the piece is above the eye's 5 m and he is already standing under it - no amount of
-		// walking fixes that; a temporary stair does (it is removed when the order ends).
-		if (!inReach && flat <= MaxPlace && Vector3.Distance(eye, state.Pos) > MaxPlace
-			&& TryScaffold(ai, state, cs))
-		{
-			return true;
 		}
 		if (inReach)
 		{
@@ -2542,15 +2460,18 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			+ (state.Template != null ? " (" + (state.Index + 1) + "/" + state.Plan.Count + ")" : string.Empty)
 			+ (supported.HasValue ? " supported" : string.Empty));
 		state.PlacedCount++;
-		if (state.Scaffolds.Count > 0 && state.Placed != null && NearScaffold(state, state.Pos))
+		bool usedStairs = state.Scaffolds.Count > 0 && NearScaffold(state, state.Pos);
+		if (usedStairs && state.Placed != null)
 		{
 			state.Scaffolded.Add(state.Placed);
 		}
-		// E7 (player's question, 03/11/2026: "why is there no ladder here yet?"): a floor is what a ladder was waiting
-		// for - the ladders deferred with "top has no floor yet" come back into the plan right now, not at the end.
-		if (state.Prefab != null && state.Prefab.IndexOf("floor", StringComparison.OrdinalIgnoreCase) >= 0)
+		// E7 (player's test, 03/11/2026: "the site filled with little stairs"): the stair did its job - it goes away NOW,
+		// not at the end of the order. ClearScaffolds keeps it only when this very piece has no support without it.
+		// E7 (review, 03/11/2026): the stair is removed now, but not with him standing on it - he went up for the piece, so a
+		// 1 m drop on the next frame would count as a fall (two of them skip the piece). 1,5 m around the stair = still on it.
+		if (usedStairs && !NearScaffold(state, ai.transform.position, 1.5f))
 		{
-			RequeueLadders(ai, state);
+			ClearScaffolds(ai, state);
 		}
 		// E6/E7: next piece of the plan (the timeout is per piece, so a long plan is not a slow piece). The same block
 		// serves a template and a blueprint - both have state.Plan

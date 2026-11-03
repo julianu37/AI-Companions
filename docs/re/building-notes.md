@@ -1117,11 +1117,7 @@ apontar para LONGE da peca: `Quaternion.LookRotation(-toPiece)`.
 peca e alta demais e ele ja esta embaixo) - vale para template e peca solta tambem; (2) quando a trava de 12 s sem
 progresso dispara com `flat <= MaxPlace` (ele esta perto, mas o beiral/empena corta o caminho) - **so em blueprint**, porque
 a trava de 12 s existe apenas nesse caminho. O limite plano normal continua **3,0 m** (`Reach + 0,5`); os **4,5 m** so
-valem depois de **3 s sem chegar mais perto** (review, 03/11/2026: senao ele passaria a colocar peca de longe sempre). O `TryScaffold` procura um ponto nos aneis de 1,2/2,2/3,2 m em leque
-(-50° a +50°), **raycast para baixo** para assentar no piso (recusa desnivel > 1,2 m), recusa ponto onde o **plano ainda
-vai por peca** (`BlockedByPlan`, 1 m em XZ), valida com `BuildSite.Check` e paga pelo `BuildStock.Take` (mochila ->
-baus) - falhou o `BuildExecutor.Place`, o `Refund` devolve. Teto de **3 por peca**, 1 a cada 4 s, e sucesso reseta o
-relogio de progresso. Config nova **`[Building] TempScaffold`** (bool, padrao **true**).
+valem depois de **3 s sem chegar mais perto** (review, 03/11/2026: senao ele passaria a colocar peca de longe sempre). O `TryScaffold` procura um ponto em **2 aneis (1,2 e 2,3 m) num leque de -35° a +34°** (4 direcoes), **raycast para baixo** para assentar no piso (recusa desnivel > 1,2 m), recusa ponto onde o **plano ainda vai por peca ou onde uma peca espera no retry** (`BlockedByPlan`, **1,5 m em XZ e 2 m em Y**), valida com `BuildSite.Check` e paga pelo `BuildStock.Take` (mochila -> baus) - falhou o `BuildExecutor.Place`, o `Refund` devolve. Teto de **4 escadas COLOCADAS por ordem** (`MaxScaffolds`; tentativa recusada nao gasta), 1 a cada 4 s, e a escada e **removida quando a peca sobe** (`Verify`), **nunca com ele em cima** (1,5 m ao redor). Config **`[Building] TempScaffold`** (bool, padrao **false** desde o teste de 03/11/2026, com migracao `true -> false`).
 
 **Limpeza:** as escadas provisorias **nao sao do plano** - ficam em `State.Scaffolds` e o `ClearScaffolds` as remove no
 **fim da ordem** (`Finish`), no **cancelamento** (`Cancel`), no **`CancelAll`** (ordem sem endereçado: "segue", "para",
@@ -1133,8 +1129,30 @@ com a escada **de pe** - e a escada e um `WearNTear` com `m_supports`, entao a r
 protecao nao protegia nada. Agora o `StairHoldsPiece` **desliga os colliders daquela escada**, pergunta o apoio so das
 pecas a **4 m em XZ / 3 m em Y** dela (`State.Scaffolded`, que so guarda pecas colocadas perto de alguma escada) e
 religa os colliders; se alguma perdeu o apoio, **so aquela** escada fica, com `LogWarning` (`kept N temporary
-stair(s)`). A madeira volta para a mochila **so quando a peca realmente saiu do mundo e foi paga** (`!state.Free`, ZDO
-removido) - no `BlueprintFree` a escada nunca e paga, e estornar ali criaria madeira do nada.
+stair(s)`). O `Supported` **escreve** `WearNTear.m_support`, entao as pecas consultadas sao perguntadas **de novo** depois
+de religar os colliders (senao a peca protegida ficaria com o numero baixo que o jogo usa para quebra-la). A madeira volta
+para a mochila **so quando a peca realmente saiu do mundo e foi paga** (`!state.Free`, ZDO removido) - no `BlueprintFree` a
+escada nunca e paga, e estornar ali criaria madeira do nada.
+
+### 15.2r A escada e peca da obra; o pouso e do mover (03/11/2026)
+
+Pedido do jogador: *"a escada da build deve ser feita a partir do piso como no comeco era"*. O adiamento que eu tinha
+posto (sem `HasLanding`, a escada ia para o retry e so entrava no fim) deixava a casa **horas sem escada** - e o
+companheiro precisa dela para o andar de cima. A separacao certa e outra: **a peca e do plano** (e colocada quando o
+plano chega nela, apoiada no piso de baixo, como qualquer peca) e **a subida e do mover** (ele nao sobe escada sem
+pouso no topo).
+
+**O guarda (`MHR_Mover.LadderLanding`), refeito depois da 1a revisao:** a primeira versao sondava um anel de 0,6 m em
+torno do **centro** da peca - e a `wood_stepladder` tem 2 m de profundidade com a origem no meio, entao as sondas caíam
+na propria rampa (**falso negativo**: ele nunca subia) - e aceitava qualquer solido na janela (**falso positivo**: topo
+de parede/telhado contava como piso, deixando passar exatamente o acidente). Versao final: sonda a **ponta de cima**
+(`center + forward * depth`, o mesmo `depth` que o pe usa), exige superficie **horizontal** (`normal.y >= 0,85`) **com
+espaco para o corpo** (raycast para cima de 1,85 m) e nunca aceita a propria escada (`LadderRoot` + `IsLadder`, porque
+escada do mundo nao tem `Piece`). Vale **so nas rotas de build** (`tag` "Build"/"BuildGather") - em Follow/Combat ele
+continua subindo a escada que voce construiu - e tambem em cada degrau da **corrente** (`PlanChain(..., requireLanding)`),
+que antes passava por fora. Recusa gera uma linha por 30 s (`the ladder X at (...) has no floor at its top`).
+Limitacao conhecida: o `AutoJumpLedge` ainda levanta quem **anda** na direcao da escada (`CompanionLadderBumpPatch`), entao
+uma rota que empurre o corpo contra ela sobe sem passar pelo guarda - o caminho observado era o `Climb`.
 
 ### 15.3 Medido em jogo (02/11/2026)
 

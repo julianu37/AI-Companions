@@ -2186,6 +2186,9 @@ public class CompanionSetup : MonoBehaviour
 
 	internal void PrepareForDespawn()
 	{
+		// E7 (review, 03/11/2026): a build order dies with the companion - a temporary stair left behind is a piece in the
+		// save, so the order is cancelled here (it removes them)
+		MHR_Build.Cancel(this);
 		_removePinOnDestroy = true;
 		MHR_Roster.Forget(this);
 	}

@@ -1257,10 +1257,14 @@ comandos de console e spawna coisas, então não é feature de jogador.
   por 15 cm. Agora o limite plano é `MaxPlace - 0,5` (**4,5 m**) e vale a regra do jogo (5 m do olho); o `Reach` (2,5 m)
   ficou como distância de parada do `MHR_Mover` **e** como limite do "pulinho" (`flat <= Reach + 0,5`); o teto de
   4,5 m só abre depois de 3 s sem chegar mais perto.
-  **A escadinha volta ao plano quando o piso existe (pergunta "pq nao tem escada aqui ainda?", 03/11/2026):** as escadas
-  adiadas com `top has no floor yet` iam para o retry pass **final** (depois da última peça de 985); agora cada piso
-  colocado chama `RequeueLadders` e devolve ao plano as que já têm pouso. Medido com `build.snaps`: `wood_stair` sobe
-  +1 m e `wood_stepladder` **+2 m**, ambas para o **-Z local** (o andaime tem que ser girado com o -Z virado para a peça).
+  **A escada é peça da obra; o pouso é do mover (pedido "a escada da build deve ser feita a partir do piso", 03/11/2026):**
+  o adiamento por `HasLanding` **saiu** (a casa ficava horas sem escada) - a escada é colocada quando o plano chega nela,
+  apoiada no piso de baixo. Quem não sobe é o **mover**: `MHR_Mover.LadderLanding` recusa escada sem pouso no topo nas rotas
+  de **build** (e em cada degrau da corrente `PlanChain(..., requireLanding)`), sondando a **ponta de cima**
+  (`center + forward * depth`), exigindo superfície **horizontal** (`normal.y >= 0,85`) **com espaço para o corpo** (1,85 m)
+  e nunca a própria escada. A 1ª versão sondava o **centro** da peça (falso negativo: a `wood_stepladder` tem 2 m de
+  profundidade) e aceitava parede/telhado (falso positivo) - corrigida na revisão. Medido com `build.snaps`: `wood_stair`
+  sobe +1 m e `wood_stepladder` **+2 m**, ambas para o **-Z local**.
   **Ponta do telhado (relato "ela tá apanhando pra fazer essa ponta", 03/11/2026):** as peças da empena no topo vão para o
   retry por `no_support` (adiadas sem andar), mas as águas da ponta gastavam os **60 s** do timeout andando sem chegar. Nova
   trava de **progresso** no `Goto`: **12 s sem chegar 0,5 m mais perto** → retry (`no progress ...`).

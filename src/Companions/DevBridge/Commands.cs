@@ -2114,6 +2114,12 @@ internal static class Commands
 		{
 			return Fail("unknown action: " + action);
 		}
+		// E7 (test of 03/11/2026: "you didn't stop him"): a build order is a one-shot order, exactly like in the chat and
+		// in the wheel - changing the mode alone does NOT end it, so it kept building after `companions.order follow`.
+		// There is no "build" action in ModeOf (it returns -1 and the caller has already refused), so EVERY accepted
+		// action cancels the build (review, 03/11/2026). The leveling job is a one-shot order too (the chat cancels both).
+		MHR_Build.Cancel(target);
+		MHR_Level.Cancel(target);
 		bool applied = CompanionSetup.ApplyActionMode(target, mode, toggle: false);
 		return Ok(new Dictionary<string, object>
 		{
