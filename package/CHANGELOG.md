@@ -191,6 +191,15 @@ stopped.
   the mover gives up after ~8 s without progress, and leveling does not cut a hill or fell trees. Measured: the 983-piece home started placing floors (76/983 in the
   log, all supported) and, out of wood, handed the order to the gather asking for the **rest of the house (2293)** - the
   watcher resumes each time the bag fills.
+- **The floors of an upper storey are taken nearest-first** (test of the 985-piece house, 03/11/2026): the blueprint
+  order is a static snake that starts where the previous run ended, and after a fall, a death or a recover the
+  companion can be 10-17 m from the next floor - the mover cannot cross the floor that is not built yet
+  (`no progress ... 12 s`). For floors of the **same level** the plan now takes the nearest one to where he is
+  standing (first a floor he can place **without walking** - 3.0 m flat, the normal reach, with the eye rule; then the
+  nearest up to 7 m), once per piece, never touching a piece that `PullSupports`/`PullFloorsAbove` brought forward and never a floor one storey above or
+  below (1.5 m guard). It also covers the **first piece of a resumed order** (death/gather), which was the measured
+  case. Measured before the fix: 720/983 with the stall on the level-2 floors; the reorder is in test on the same
+  plan.
 
 ## 1.9.6 - 02/11/2026
 

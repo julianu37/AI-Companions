@@ -169,6 +169,10 @@ internal static class MHR_Build
 		internal float ClearWait;
 		/// <summary>E7: this piece already passed the up-front support check (once per piece, not per frame).</summary>
 		internal bool Checked;
+		/// <summary>E7 (review, 03/11/2026): the current piece was already offered to the nearest-floor reorder (once per piece).</summary>
+		internal bool FloorPreferDone;
+		/// <summary>E7 (review, 03/11/2026): last plan index brought forward by PullSupports/PullFloorsAbove; the floor reorder must not touch it.</summary>
+		internal int PullUntil = -1;
 		/// <summary>E7: one extra look 2 s after the square reads empty (a felled tree spawns its logs a moment later and
 		/// a log rolls).</summary>
 		internal int ClearEmptyScans;
@@ -393,6 +397,103 @@ internal static class MHR_Build
 	}
 
 	/// <summary>
+	/// E7 (test of the 985-piece house, 03/11/2026): the blueprint order is a snake that starts where the previous run
+	/// ended, not where the companion is standing. After a fall, a death or a recover he can be 10-17 m from the next
+	/// floor and the mover cannot cross the floor that is not built yet ("no progress ... 12 s"). For FLOORS of the same
+	/// height, take the nearest one to where he is standing now: the floor is filled around him instead of from the far
+	/// end of the snake. Only the order changes; no piece is added or removed. Review (03/11/2026): the pieces brought
+	/// forward by <see cref="PullSupports"/>/<see cref="PullFloorsAbove"/> keep their place (<c>PullUntil</c>), and a
+	/// floor he can place without walking (4,5 m) wins over a nearer-looking one that still needs a walk.
+	/// </summary>
+	private static bool PreferNearFloor(CompanionAI ai, State state, int index)
+	{
+		if (state.Plan == null || index < 0 || index + 1 >= state.Plan.Count)
+		{
+			return false;
+		}
+		// a piece brought forward by PullSupports/PullFloorsAbove keeps its place: it is what holds the refused piece up
+		if (index <= state.PullUntil)
+		{
+			return false;
+		}
+		PlannedStep next = state.Plan[index];
+		if (!IsFloorStep(next))
+		{
+			return false;
+		}
+		Vector3 me = ai.transform.position;
+		// a floor one storey above/below needs the ladder, not a reorder (a storey is 2 m)
+		if (Mathf.Abs(me.y - next.Pos.y) > 1.5f)
+		{
+			return false;
+		}
+		float current = FlatDistance(me, next.Pos);
+		if (current <= MaxPlace + 1f)
+		{
+			return false;
+		}
+		// first any floor he can place WITHOUT WALKING (the normal Reach + 0,5 = 3 m and the eye rule); only then the
+		// nearest up to 7 m, which he still has to walk to
+		int best = -1;
+		float bestDist = float.MaxValue;
+		Vector3 eye = new Vector3(me.x, me.y + EyeHeight, me.z);
+		for (int pass = 0; pass < 2 && best < 0; pass++)
+		{
+			float limit = pass == 0 ? Reach + 0.5f : MaxPlace + 2f;
+			for (int i = index + 1; i < state.Plan.Count; i++)
+			{
+				PlannedStep step = state.Plan[i];
+				if (!IsFloorStep(step) || Mathf.Abs(step.Pos.y - next.Pos.y) > 0.75f)
+				{
+					continue;
+				}
+				if (pass == 0 && Vector3.Distance(eye, step.Pos) > MaxPlace)
+				{
+					continue;
+				}
+				float d = FlatDistance(me, step.Pos);
+				if (d <= limit && d < bestDist)
+				{
+					bestDist = d;
+					best = i;
+				}
+			}
+		}
+		if (best < 0 || bestDist >= current - 1f)
+		{
+			return false;
+		}
+		PlannedStep pick = state.Plan[best];
+		state.Plan[best] = next;
+		state.Plan[index] = pick;
+		LogDebug(ai, "floor order: (" + F(pick.Pos.x) + ", " + F(pick.Pos.z) + ") is " + F(bestDist)
+			+ " m from the companion - before the one at " + F(current) + " m");
+		return true;
+	}
+
+	private static bool IsFloorStep(PlannedStep step)
+	{
+		if (step == null || string.IsNullOrEmpty(step.Prefab))
+		{
+			return false;
+		}
+		// ClassOf also gives 0 to the workbench - the station is not a floor (review, 03/11/2026)
+		if (step.Prefab.IndexOf("workbench", StringComparison.OrdinalIgnoreCase) >= 0)
+		{
+			return false;
+		}
+		return step.Prefab.IndexOf("floor", StringComparison.OrdinalIgnoreCase) >= 0
+			|| step.Prefab.IndexOf("foundation", StringComparison.OrdinalIgnoreCase) >= 0;
+	}
+
+	private static float FlatDistance(Vector3 a, Vector3 b)
+	{
+		float dx = a.x - b.x;
+		float dz = a.z - b.z;
+		return Mathf.Sqrt(dx * dx + dz * dz);
+	}
+
+	/// <summary>
 	/// E6/E7: moves to the next piece of the plan (a template or a blueprint) or ends the order. Returns true while
 	/// there is a next piece to build.
 	/// </summary>
@@ -409,6 +510,10 @@ internal static class MHR_Build
 			state.Index = first - 1;
 			Log(ai, "retry pass " + state.Passes + " with " + again.Count + " piece(s) that did not stand yet");
 		}
+		if (state.Plan != null && state.Blueprint != null)
+		{
+			PreferNearFloor(ai, state, state.Index + 1);
+		}
 		if (state.Plan != null && state.Index + 1 < state.Plan.Count)
 		{
 			state.Index++;
@@ -420,6 +525,7 @@ internal static class MHR_Build
 			state.Placed = null;
 			state.Start = Time.time;
 			state.Checked = false;
+			state.FloorPreferDone = false;
 			state.FallDrops = 0;
 			state.BestDistance = 0f;
 			state.BestAt = Time.time;
@@ -1797,6 +1903,7 @@ internal static class MHR_Build
 		state.Plan.AddRange(head);
 		state.Plan.AddRange(pulled);
 		state.Plan.AddRange(rest);
+		state.PullUntil = state.Index + pulled.Count;
 		Log(ai, pulled.Count + " floor piece(s) over the " + state.Prefab + " brought forward so it leads somewhere");
 	}
 
@@ -1855,6 +1962,7 @@ internal static class MHR_Build
 		state.Plan.InsertRange(at, pulled);
 		state.Plan.Insert(at + pulled.Count, current);
 		// the NEXT Advance takes the first support; the refused piece comes right after them (review, 03/11/2026)
+		state.PullUntil = at + pulled.Count - 1;
 		state.Index = at - 1;
 		Log(ai, pulled.Count + " support piece(s) under the " + state.Prefab + " brought forward so it can stand");
 		return true;
@@ -2442,6 +2550,22 @@ internal static class MHR_Build
 
 	private static bool Goto(CompanionAI ai, State state, CompanionSetup cs, float dt)
 	{
+		// E7 (review, 03/11/2026): a resumed order starts at the piece where it stopped, which after a fall/death can be
+		// 10-17 m from the companion; reorder the CURRENT piece once, before the walk, or the retry pass burns 12 s first.
+		if (!state.FloorPreferDone && state.Blueprint != null && state.Index >= 0)
+		{
+			state.FloorPreferDone = true;
+			if (PreferNearFloor(ai, state, state.Index))
+			{
+				PlannedStep current = state.Plan[state.Index];
+				state.Prefab = current.Prefab;
+				state.Piece = current.Piece;
+				state.Pos = current.Pos;
+				state.Rot = current.Rot;
+				state.BestDistance = 0f;
+				state.BestAt = Time.time;
+			}
+		}
 		// E7 (player's report, 03/11/2026: "he is only walking around the site"): the upper storeys of a blueprint were
 		// walked to one by one and refused with no_support - 60 in a row across 40 s - because what holds a 2nd/3rd floor
 		// up is not up yet. The verdict is the SAME from far away (the pose is the piece's, not the companion's), so the

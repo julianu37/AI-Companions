@@ -1456,5 +1456,8 @@ plano** dos 9 candidatos, nivela com a enxada (passadas de 1,5 s) e só então p
 - **Hipótese principal:** o piso do nível 2 é colocado de fora para dentro e o mover não atravessa o vão (não há piso
   sob o próximo tile); `LadderLanding`/`TryDetour` não têm por onde chegar. As fases B (links na navmesh) e C
   (navmesh própria) continuam as opções de `docs/re/navegacao-companheiro.md`.
-- **Próximo teste:** limpar por fatias de `y` e repetir num plano menor (6x6/8x8) para isolar; medir se o
-  `PullFloorsAbove`/`PullSupports` puxa o piso antes da parede e se o `no_support` é do piso ou do apoio.
+- **Fix em teste (branch `fix/pisos-nivel-2`, 03/11/2026):** `MHR_Build.PreferNearFloor` reordena os pisos do
+  **mesmo nível** pelo mais perto do companheiro (primeiro um que ele coloque **sem andar**, 3,0 m; depois até 7 m),
+  uma vez por peça e **sem tocar** no que `PullSupports`/`PullFloorsAbove` puxou (`PullUntil`) nem no piso 1 andar
+  acima/abaixo (guarda de 1,5 m). Cobre também a **primeira peça da retomada** (morte/gather), que era o caso medido.
+  **Aceite:** o mesmo `CommHomeBasicBP` passa dos 720/983 sem `no progress ... 12 s` repetido nos pisos do nível 2.
