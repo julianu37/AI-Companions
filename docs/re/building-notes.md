@@ -1172,11 +1172,15 @@ ali"*. A ordem do plano constroi o andar de cima **so depois** de todas as pared
 `wood_stepladder` era colocada e ficava **sem patamar** por muito tempo - ele subia e ficava empoleirado na beirada sem
 piso para trabalhar, e as pecas de cima falhavam com `no_support`.
 
-**Correcao:** o inverso do adiamento antigo. Quando uma **escada** e aceita (`Verify`), o `PullLanding` varre o resto do
-plano e **puxa para a frente** (logo depois dela, `Index+1`) os **pisos** que caem no topo: prefab com "floor", XZ a
-ate **2,5 m** do pe da escada e |Y - topo| <= **1,2 m** (topo lido do `Renderer.bounds.max.y`; fallback `Pos.y + 2`).
-Teto de **6 pecas** por escada, com o guarda `insertAt >= i` (sem isso a reinsercao poderia cair depois do ponto de
-varredura). Log: `N floor piece(s) over the ladder brought forward so it leads somewhere`.
+**Correcao (generalizada no pedido seguinte: "ele pode colocar o piso de baixo pra cima tambem"):** o inverso do adiamento
+antigo. Sempre que uma peca que **sustenta** e aceita (`Verify`), o `PullFloorsAbove` varre o resto do plano e **puxa para a
+frente** (logo depois dela, `Index+1`) os **pisos** que caem na altura alvo: prefab com "floor", XZ a ate **2,5 m** e
+|Y - alvo| <= **1,2 m**. O alvo e o **topo da escada** (`Renderer.bounds.max.y`, fallback `Pos.y + 2`) ou, para parede/viga/
+piso/pole (qualquer peca com `WearNTear.m_supports`), **um andar acima** (`Pos.y + 2`). Teto de **6 pecas** por passo, com o
+guarda `insertAt >= i`. Log: `N floor piece(s) over the ladder brought forward so it leads somewhere`.
+
+Como o jogo coloca peca a ate 5 m do olho, um piso 2 m acima dos pes esta **ao alcance** - entao ele constroi o piso do
+andar de cima **do nivel em que esta**, sem esperar terminar o andar de baixo (que era o que deixava a escada sem patamar).
 
 Fica valendo o resto: o piso ainda passa por `BuildSite.Check` antes de andar (se a parede daquele canto nao subiu, ele
 vai para o retry pass como qualquer peca) e o mover continua recusando subir para o vazio (`LadderLanding`).

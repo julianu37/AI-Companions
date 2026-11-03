@@ -49,11 +49,12 @@ stopped.
   house/blueprint only happened on "leveled" or "already flat", so a site that stopped at 0,30 m against the 0,20 m
   tolerance ended the whole order without a single piece. A failed leveling now hands the order back too, and the build
   goes on with the ground it has (the pieces that do not fit are retried).
-- **The landing at the top of a ladder is built right away** (player's request, 03/11/2026, with a screenshot: "he has to
-  know he should place the piece at the top of the ladder and build the floor there"): the plan built the next storey only
-  after every wall of this one, so a ladder stood with nothing on top and the companion ended up on the edge with no floor
-  to work from. When a ladder is accepted, the floor pieces that land on its top (within 2,5 m and 1,2 m above) are moved to
-  the front of the plan, right after it.
+- **The floor rises with its support** (player's requests, 03/11/2026: "he has to know he should place the piece at the top
+  of the ladder and build the floor there" and "he can build the floor from the bottom up too, he does not need to wait until
+  he is at the floor height"): the plan built the next storey only after the whole storey below was done, so a ladder stood
+  with nothing on top and the upper floor waited. Every time a piece that **supports** (a wall, a beam, a floor, a pole or a
+  ladder) is accepted, the floor pieces that land on it (within 2,5 m and 1,2 m of the target height - the ladder's top or one
+  storey up) are moved to the front of the plan, so the upper floor is built from the level the companion is standing on.
 - **A temporary stair for the pieces above the reach** (player's idea, 03/11/2026: "let's try that plan of temporary ladders,
   he is still struggling to place a piece on the high roof"): in a blueprint, after 12 s without getting closer and with the
   piece above the game's 5 m reach, it places a **temporary wood stair** (2 wood, +1 m, a ramp the mover simply walks up),

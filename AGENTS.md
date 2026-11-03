@@ -1255,10 +1255,12 @@ comandos de console e spawna coisas, então não é feature de jogador.
   por 15 cm. Agora o limite plano é `MaxPlace - 0,5` (**4,5 m**) e vale a regra do jogo (5 m do olho); o `Reach` (2,5 m)
   ficou como distância de parada do `MHR_Mover` **e** como limite do "pulinho" (`flat <= Reach + 0,5`); o teto de
   4,5 m só abre depois de 3 s sem chegar mais perto.
-  **O patamar da escada vem primeiro (pedido "ele tem que identificar que deveria colocar a peça do fim da escada e já fazer
-  o piso ali", 03/11/2026):** quando uma escada é aceita, o `PullLanding` puxa para a frente do plano (logo depois dela) os
-  **pisos** que caem no topo (prefab "floor", ≤2,5 m em XZ do pé e |ΔY| ≤ 1,2 m do `Renderer.bounds.max.y`), teto de 6 por
-  escada e guarda `insertAt >= i`. Assim a escada leva a algum lugar na hora, em vez de esperar as paredes do andar.
+  **O piso sobe junto com o apoio (pedidos "ele tem que fazer o piso no fim da escada" e "pode colocar o piso de baixo pra
+  cima também", 03/11/2026):** sempre que uma peça que **sustenta** (`WearNTear.m_supports`) é aceita, o `PullFloorsAbove`
+  puxa para a frente do plano (logo depois dela) os **pisos** que caem na altura alvo - **topo da escada**
+  (`Renderer.bounds.max.y`) ou **um andar acima** (`Pos.y + 2`) para parede/viga/piso/pole -, com ≤2,5 m em XZ e |ΔY| ≤ 1,2 m,
+  teto de 6 por passo e guarda `insertAt >= i`. O piso 2 m acima dos pés está ao alcance (5 m do olho), então ele constrói
+  o andar de cima **do nível em que está**, sem esperar o andar de baixo terminar.
   **A escada é peça da obra; o pouso é do mover (pedido "a escada da build deve ser feita a partir do piso", 03/11/2026):**
   o adiamento por `HasLanding` **saiu** (a casa ficava horas sem escada) - a escada é colocada quando o plano chega nela,
   apoiada no piso de baixo. Quem não sobe é o **mover**: `MHR_Mover.LadderLanding` recusa subir para o vazio nas rotas

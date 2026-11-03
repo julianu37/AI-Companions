@@ -1594,27 +1594,32 @@ internal static class MHR_Build
 	}
 
 	/// <summary>
-	/// E7 (player's request, 03/11/2026: "he has to know he should place the piece at the top of the ladder and build the floor
-	/// there"): the floors that land on the top of a ladder are moved to the FRONT of the plan, right after it. The storey
-	/// order builds the next floor only when the walls of this one are done, so the ladder sat in the void for a long time and
-	/// the companion had nothing to stand on up there; with the landing first the ladder leads somewhere at once (and the
-	/// pieces upstairs stop failing with no_support).
+	/// E7 (player's requests, 03/11/2026: "he has to know he should place the piece at the top of the ladder and build the floor
+	/// there" and "he can build the floor from the bottom up too, he does not need to wait until he is at the floor height"): the
+	/// floors that land on <paramref name="topY"/> are moved to the FRONT of the plan, right after the piece just placed. The
+	/// storey order builds the next floor only when the whole storey below is done, so the upper floor waited and the ladder sat
+	/// in the void; with the floor pulled forward it is built from the level the companion is standing on (the game places a
+	/// piece up to 5 m from the eye, so a floor 2 m above his feet is within reach) and the pieces upstairs stop failing with
+	/// no_support.
 	/// </summary>
-	private static void PullLanding(CompanionAI ai, State state)
+	private static float LadderTop(State state)
+	{
+		try
+		{
+			Renderer renderer = state.Placed != null ? state.Placed.GetComponentInChildren<Renderer>() : null;
+			return renderer != null ? renderer.bounds.max.y : state.Pos.y + 2f;
+		}
+		catch (Exception)
+		{
+			return state.Pos.y + 2f;
+		}
+	}
+
+	private static void PullFloorsAbove(CompanionAI ai, State state, float topY)
 	{
 		if (state.Plan == null || state.Placed == null)
 		{
 			return;
-		}
-		float topY;
-		try
-		{
-			Renderer renderer = state.Placed.GetComponentInChildren<Renderer>();
-			topY = renderer != null ? renderer.bounds.max.y : state.Pos.y + 2f;
-		}
-		catch (Exception)
-		{
-			topY = state.Pos.y + 2f;
 		}
 		int insertAt = state.Index + 1;
 		int moved = 0;
@@ -2518,11 +2523,26 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			+ (state.Template != null ? " (" + (state.Index + 1) + "/" + state.Plan.Count + ")" : string.Empty)
 			+ (supported.HasValue ? " supported" : string.Empty));
 		state.PlacedCount++;
-		// E7 (player's request, 03/11/2026: "he has to know he should place the piece at the top of the ladder and build
-		// the floor there"): a ladder leads nowhere until its landing exists - the floors over it are pulled forward
+		// E7 (player's requests, 03/11/2026: "he has to know he should place the piece at the top of the ladder and build
+		// the floor there" + "he can build the floor from the bottom up too, he does not need to wait until he is at the floor
+		// height"): a floor that lands on what was just placed comes to the front of the plan, so the upper floor is built
+		// from the level he is standing on instead of waiting for the whole storey below to finish
+		float above = float.NaN;
 		if (state.Prefab != null && state.Prefab.IndexOf("ladder", StringComparison.OrdinalIgnoreCase) >= 0)
 		{
-			PullLanding(ai, state);
+			above = LadderTop(state);
+		}
+		else if (state.Placed != null)
+		{
+			WearNTear support = state.Placed.GetComponent<WearNTear>();
+			if (support != null && support.m_supports)
+			{
+				above = state.Pos.y + 2f;   // one storey (the game's grid is 2 m)
+			}
+		}
+		if (!float.IsNaN(above))
+		{
+			PullFloorsAbove(ai, state, above);
 		}
 		bool usedStairs = state.Scaffolds.Count > 0 && NearScaffold(state, state.Pos);
 		if (usedStairs && state.Placed != null)
