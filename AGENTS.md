@@ -978,8 +978,10 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   um lado para o outro** porque, dentro do grupo (andar → classe → altura), a ordem era a do arquivo `.blueprint` (a ordem em
   que o autor desenhou as peças, não um caminho). Agora o `BuildBlueprintParser.NearestWithin` reordena **cada run** que
   compartilha (flag de porta, `StoreyOf`, `ClassOf`, `Py` ±0,01) por um caminho **guloso de vizinho mais próximo**, começando
-  onde o run anterior terminou; **nada muda de grupo** e porta/portão continuam por último. O parser é puro e o harness cobre
-  a ordenação (seção nova em `tools/ai-intents-check`).
+  onde o run anterior terminou; **nada muda de grupo** e porta/portão continuam por último, e o guloso **nunca fica pior que o
+  arquivo** (o `PathLength` compara e mantém o menor). O `BuildBlueprints.Load` ganhou **cache por caminho +
+  `LastWriteTimeUtc`** porque o `CheckPending` o chamava **por frame** enquanto a obra esperava material. O parser é puro e o
+  harness cobre a ordenação (seção (m) em `tools/ai-intents-check`).
 - **Pendências conhecidas (abertas):** a **voz não passa pelo
   mixer do jogo** (por isso ignora os sliders de volume do Valheim e só obedece `[AI] TtsVolume`); o **sync com o
   upstream** está **em dia com a 1.5.8** (era 1.5.4 — ver a seção *Upstream e licença*), mas o autor publica

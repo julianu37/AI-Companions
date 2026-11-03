@@ -28,6 +28,10 @@ falha (ou algo foi pulado) e `2` quando o harness não conseguiu subir (assembli
 | `AI/LlmIntent.cs` | `Parse`, `ExtractContent`, `Normalize`, `IsIntentWord` |
 | `AI/OrderItems.cs` | `Resolve`/`GatherAction` — o item da ordem nos 5 idiomas |
 | `AI/CompanionNames.cs` | `CompanionNameMatch` (as regras de "quem foi chamado") |
+| `AI/BuildCatalog.cs` | `Resolve`/`HasWord`/`HasAnyWord` — o nome da peça → prefab (E5) |
+| `AI/BuildTemplates.cs` | os templates da E6/E6d (aliases nos 5 idiomas, peças, ordem) |
+| `AI/BuildBlueprintParser.cs` | `Parse` (V1/V2) e `Ordered` (classe/andar/altura + `NearestWithin`) |
+| `AI/LevelIntent.cs` | a ordem de nivelar o terreno e o tamanho (E10) |
 | `AI/MHR_Owner.cs`, `Core/MHR_List.cs` | dependências reais dos acima |
 
 `Stubs.cs` tem **só** os membros do lado Unity/config que esses arquivos tocam, e cada um está comentado com o
@@ -61,6 +65,11 @@ arquivo:linha real de onde veio:
 | (f) | `OrderItems.Resolve` nos **5 idiomas** (PT/EN/ES/FR/IT) para madeira, pedra, minério e forrageio, o caminho "sem recurso" (`wood` → `Wood`, `ore` → `null`), o recurso desconhecido, e a **lista do trabalho** como último lugar procurado; `GatherAction` (o recurso manda) |
 | (g) | `CompanionNameMatch`: nome no começo, com vírgula, depois de `"Ei,"`, nunca no meio da frase, artigo, acento, e o `AddressCandidate` (`"Fulano,"` sim; `"mano,"`, `"bom dia,"`, sem separador, `"Ei,"` não) |
 | (h) | as cópias do `Stubs.cs` contra a **`Companions.dll` real** por reflexão (18 mensagens × `IsDoorRequest`, 18 ações × `JobMode`) |
+| (i) | `BuildCatalog`: o nome da peça vira o prefab (bancada, baú, fogueira, cama) nos 5 idiomas e as palavras (`HasWord`/`HasAnyWord`) |
+| (j) | `BuildTemplates`: os nomes nos 5 idiomas, a composição de cada estrutura (cabana 7, abrigo 8, casa 57/46/21, tenda 4), a ordem (bancada → piso → parede → telhado → porta) e os deslocamentos medidos |
+| (k) | `LevelIntent`: a ordem de nivelar nos 5 idiomas e o tamanho que o jogador disse |
+| (l) | `BuildBlueprintParser.Parse`: V1/V2, vírgula decimal, linha quebrada, arquivo vazio, `(Clone)` fora do prefab, e `Ordered` pela classe/altura |
+| (m) | `BuildBlueprintParser.NearestWithin` (a ordem **dentro** do grupo): o zigue-zague vira caminho curto (12 m em vez de 30,05), os grupos não se misturam (y=0 antes de y=4 e o de cima começa onde o de baixo parou), a porta continua por último (inclusive o run das portas), o run de 1 peça não é tocado, 5 mm de altura não abrem grupo, e a estabilidade (duas listas iguais → mesma ordem; a lista do chamador não é reordenada) |
 
 ## O que **não** é coberto (e por quê)
 

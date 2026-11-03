@@ -192,12 +192,18 @@ internal static class BuildBlueprintParser
 					cx = chosen.Px;
 					cz = chosen.Pz;
 				}
-				for (int i = 0; i < count; i++)
+				// E7 (review, 03/11/2026): the greedy walk is better on every realistic layout measured (12-23% of the original
+				// path), but a pathological one is not impossible - if it comes out LONGER than the run as it was, the original
+				// order stays. Three lines, and "never worse than the file" becomes a guarantee instead of a measurement.
+				if (PathLength(path) <= PathLength(sorted.GetRange(start, count)))
 				{
-					sorted[start + i] = path[i];
+					for (int i = 0; i < count; i++)
+					{
+						sorted[start + i] = path[i];
+					}
 				}
-				cursorX = path[count - 1].Px;
-				cursorZ = path[count - 1].Pz;
+				cursorX = sorted[end - 1].Px;
+				cursorZ = sorted[end - 1].Pz;
 			}
 			else
 			{
@@ -206,6 +212,19 @@ internal static class BuildBlueprintParser
 			}
 			start = end;
 		}
+	}
+
+	/// <summary>The length of a walk that visits the pieces in the given order (XZ only: the climbs are the same).</summary>
+	private static float PathLength(List<Line> run)
+	{
+		float total = 0f;
+		for (int i = 1; i < run.Count; i++)
+		{
+			float dx = run[i].Px - run[i - 1].Px;
+			float dz = run[i].Pz - run[i - 1].Pz;
+			total += (float)Math.Sqrt(dx * dx + dz * dz);
+		}
+		return total;
 	}
 
 	/// <summary>0 = ground (floors, foundations, the workbench), 1 = the way UP (stairs, stepladders, ladders), 2 = what

@@ -125,6 +125,16 @@ internal static class BuildBlueprints
 		return names;
 	}
 
+	/// <summary>
+	/// E7 (review, 03/11/2026): the last file read, by path and write time. <see cref="Load"/> is called from
+	/// <c>MHR_Build.CheckPending</c> on EVERY FRAME while a blueprint order waits for its material, and since the order is
+	/// rebuilt (parse + sort) that put a 985-line read and an O(n^2) sort on the main thread every frame. The file hardly
+	/// changes, so the parsed plan is kept until the write time changes.
+	/// </summary>
+	private static string s_cachedPath;
+	private static DateTime s_cachedWrite;
+	private static Blueprint s_cachedBlueprint;
+
 	/// <summary>Reads one file. Returns null (and logs why) when it has no piece.</summary>
 	internal static Blueprint Load(string file)
 	{
@@ -134,6 +144,11 @@ internal static class BuildBlueprints
 		}
 		try
 		{
+			DateTime write = File.GetLastWriteTimeUtc(file);
+			if (s_cachedBlueprint != null && s_cachedPath == file && s_cachedWrite == write)
+			{
+				return s_cachedBlueprint;
+			}
 			List<string> lines = new List<string>(File.ReadAllLines(file, Encoding.UTF8));
 			string name;
 			List<BuildBlueprintParser.Line> pieces;
@@ -160,6 +175,9 @@ internal static class BuildBlueprints
 					Scale = line.Scale
 				});
 			}
+			s_cachedPath = file;
+			s_cachedWrite = write;
+			s_cachedBlueprint = blueprint;
 			return blueprint;
 		}
 		catch (Exception e)

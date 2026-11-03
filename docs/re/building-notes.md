@@ -1222,7 +1222,13 @@ uma travessia.
 quatro criterios e, no fim, o **`NearestWithin`** percorre a lista em **runs** que compartilham (flag de porta, `StoreyOf`,
 `ClassOf`, `Py` +-0,01) e reordena **cada run** por um caminho **guloso de vizinho mais proximo**, comecando na posicao da
 ultima peca do run anterior (o primeiro run parte da primeira peca). **Nada muda de grupo**, nada e adicionado ou removido, e
-porta/portao continuam no fim de tudo. Custo: O(n^2) por run na carga do plano (985 pecas: irrelevante, uma vez por ordem).
+porta/portao continuam no fim de tudo.
+
+**Duas redes de seguranca (revisao, 03/11/2026):** (1) **cache no `BuildBlueprints.Load`** por caminho + `LastWriteTimeUtc`
+- o `CheckPending` chamava o parser **a cada frame** enquanto uma obra de blueprint esperava material (a leitura do arquivo
+de 985 linhas + a ordenacao caíam na main thread o tempo todo); (2) o guloso **nunca fica pior que o arquivo**: o
+`PathLength` compara o caminho novo com o do run original e mantem o menor (garantia, nao medicao - o guloso deu 12-23% do
+caminho original em todos os casos realistas, inclusive 19.477 -> 2.636 numa casa de 1066 pecas embaralhada).
 
 O parser e **puro** (sem Unity), entao o harness o linka: a ordenacao tem secao propria em `tools/ai-intents-check`
 (zigue-zague, grupos que nao se misturam, porta por ultimo, run de 1 peca e estabilidade).

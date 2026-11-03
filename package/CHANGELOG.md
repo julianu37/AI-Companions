@@ -58,7 +58,9 @@ stopped.
   from one side of the build to the other"): the plan's order was storey -> class -> height -> **the order written in the
   .blueprint file**, and that file is in the order the author drew the pieces, not a path. Inside each group (same door
   flag, storey, class and height) the pieces are now ordered by a **nearest-neighbour walk** that starts where the previous
-  group ended. No piece changes group and doors/gates are still the last thing of the build.
+  group ended. No piece changes group and doors/gates are still the last thing of the build, and the walk is never longer
+  than the file's order. The blueprint file is also cached by write time now - the watcher used to re-read and re-sort it on
+  every frame while a blueprint build waited for its wood.
 - **The floor rises with its support** (player's requests, 03/11/2026: "he has to know he should place the piece at the top
   of the ladder and build the floor there" and "he can build the floor from the bottom up too, he does not need to wait until
   he is at the floor height"): the plan built the next storey only after the whole storey below was done, so a ladder stood

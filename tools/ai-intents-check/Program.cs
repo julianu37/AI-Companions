@@ -83,6 +83,8 @@ internal static class Program
 		Leveling();
 		Section("(l) BuildBlueprintParser - o .blueprint do PlanBuild (E7)");
 		Blueprints();
+		Section("(m) BuildBlueprintParser.NearestWithin - a ordem dentro do grupo (vizinho mais proximo)");
+		BlueprintOrder();
 		CrossCheckDoorRule();
 
 		Out.WriteLine();
@@ -514,6 +516,267 @@ internal static class Program
 		CheckText("ordem: piso primeiro", "floor", ordered[0].Prefab);
 		CheckText("ordem: telhado por ultimo", "roof", ordered[3].Prefab);
 		CheckText("ordem: empate mantem a ordem do arquivo", "wall", ordered[1].Prefab);
+	}
+
+	/// <summary>
+	/// Section (m): E7 (player's report, 03/11/2026: "he walks back and forth across the build even on the ground
+	/// floor"). The four sort keys decide the GROUPS; inside one run of pieces that share them (door flag, storey,
+	/// class and height +-0.01) the order is the greedy nearest-neighbour path from where the previous run ended.
+	/// What this section pins: the path is short (no zigzag), the groups are not mixed (a piece never changes group,
+	/// none is added or lost), the doors stay last, a one-piece run is not touched, and the same input twice gives the
+	/// same output. Pure, so every plan here is written by hand - there is no .blueprint file.
+	/// </summary>
+	private static void BlueprintOrder()
+	{
+		// (a) the zigzag: the file alternates between the two sides of a 10 m wide, 1 m deep floor
+		System.Collections.Generic.List<BuildBlueprintParser.Line> zigzag = ZigzagPlan();
+		System.Collections.Generic.List<BuildBlueprintParser.Line> zigzagOrder = BuildBlueprintParser.Ordered(zigzag);
+		CheckInt("vizinho: 4 pisos, 4 pecas na saida", 4, zigzagOrder.Count);
+		Check("vizinho: nenhuma peca inventada nem perdida", SamePieces(zigzag, zigzagOrder));
+		CheckText("vizinho: caminho curto a partir do 1o piso", "0,0 0,1 10,1 10,0", TraceXZ(zigzagOrder));
+		CheckFloat("vizinho: soma do caminho 12 m (10 de largura + 1 de fundo, nao 3 travessias)", 12f, PathLength(zigzagOrder));
+		CheckInt("vizinho: atravessa a obra UMA vez (a ordem do arquivo atravessava 3)", 1, LongJumps(zigzagOrder, 5f));
+
+		// a tolerancia da chave: 5 mm de altura nao criam outro run (o limite e +-0,01)
+		System.Collections.Generic.List<BuildBlueprintParser.Line> jitter = Plan(
+			Piece("wood_floor", 0f, 0f, 0f),
+			Piece("wood_floor", 10f, 0.005f, 0f),
+			Piece("wood_floor", 0f, 0f, 1f),
+			Piece("wood_floor", 10f, 0.005f, 1f));
+		CheckText("vizinho: 5 mm de altura nao abrem outro grupo", "0,0 0,1 10,1 10,0",
+			TraceXZ(BuildBlueprintParser.Ordered(jitter)));
+
+		// (b) two groups that are not mixed: 2 floors at y=0 and 2 at y=4, interleaved in the file on purpose
+		System.Collections.Generic.List<BuildBlueprintParser.Line> groups = Plan(
+			Piece("wood_floor", 0f, 0f, 0f),
+			Piece("wood_floor", 0f, 4f, 0f),
+			Piece("wood_floor", 2f, 0f, 0f),
+			Piece("wood_floor", 2f, 4f, 0f));
+		System.Collections.Generic.List<BuildBlueprintParser.Line> groupsOrder = BuildBlueprintParser.Ordered(groups);
+		CheckText("grupos: os dois de y=0 antes dos dois de y=4", "0 0 4 4", TraceY(groupsOrder));
+		CheckText("grupos: o andar de cima comeca onde o de baixo terminou", "0,0 2,0 2,0 0,0", TraceXZ(groupsOrder));
+
+		// (c) the door is written in the middle of the file and still goes last
+		System.Collections.Generic.List<BuildBlueprintParser.Line> doorPlan = Plan(
+			Piece("woodwall", 0f, 0f, 0f),
+			Piece("wood_door", 4f, 0f, 0f),
+			Piece("woodwall", 1f, 0f, 0f),
+			Piece("woodwall", 2f, 0f, 0f));
+		System.Collections.Generic.List<BuildBlueprintParser.Line> doorOrder = BuildBlueprintParser.Ordered(doorPlan);
+		CheckText("porta: por ultimo", "wood_door", doorOrder[doorOrder.Count - 1].Prefab);
+		CheckText("porta: as 3 paredes em caminho antes dela", "woodwall woodwall woodwall wood_door", TracePrefabs(doorOrder));
+		CheckInt("porta: nada de outra classe depois da 1a porta", 0, NotDoorAfterFirstDoor(doorOrder));
+
+		// and the run of the doors itself follows the path (the first door of the file is the FAR one:
+		// the walk starts where the last wall ended, not at the top of the file)
+		System.Collections.Generic.List<BuildBlueprintParser.Line> twoDoors = Plan(
+			Piece("wood_door", -8f, 0f, 0f),
+			Piece("woodwall", 0f, 0f, 0f),
+			Piece("wood_door", 8f, 0f, 0f),
+			Piece("woodwall", 1f, 0f, 0f));
+		CheckText("porta: o run das portas sai em caminho (a 1a do arquivo e a mais longe)", "0,0 1,0 8,0 -8,0",
+			TraceXZ(BuildBlueprintParser.Ordered(twoDoors)));
+
+		// (d) a run of ONE piece is not touched: the stair keeps the place its class gives it
+		System.Collections.Generic.List<BuildBlueprintParser.Line> single = Plan(
+			Piece("woodwall", 9f, 0f, 9f),
+			Piece("wood_floor", 0f, 0f, 0f),
+			Piece("wood_stair", 5f, 0f, 0f),
+			Piece("wood_floor", 1f, 0f, 0f));
+		System.Collections.Generic.List<BuildBlueprintParser.Line> singleOrder = BuildBlueprintParser.Ordered(single);
+		CheckText("run de 1: piso -> escada -> parede (a classe manda)", "wood_floor wood_floor wood_stair woodwall",
+			TracePrefabs(singleOrder));
+		CheckInt("run de 1: a escada fica no indice que a classe dela da", 2, IndexOfPrefab(singleOrder, "wood_stair"));
+		System.Collections.Generic.List<BuildBlueprintParser.Line> tiny = Plan(
+			Piece("woodwall", 3f, 0f, 3f),
+			Piece("wood_floor", 0f, 0f, 0f));
+		CheckText("run de 1: com 2 pecas so a classe decide", "wood_floor woodwall",
+			TracePrefabs(BuildBlueprintParser.Ordered(tiny)));
+
+		// (e) stability: the same input twice gives the same output, and the caller's list is not reordered
+		System.Collections.Generic.List<BuildBlueprintParser.Line> first = BuildBlueprintParser.Ordered(ZigzagPlan());
+		System.Collections.Generic.List<BuildBlueprintParser.Line> second = BuildBlueprintParser.Ordered(ZigzagPlan());
+		CheckText("estabilidade: duas listas iguais dao a mesma ordem", TraceXZ(first), TraceXZ(second));
+		System.Collections.Generic.List<BuildBlueprintParser.Line> again = BuildBlueprintParser.Ordered(zigzag);
+		Check("estabilidade: Ordered() na MESMA lista devolve a mesma ordem", SameOrder(zigzagOrder, again));
+		CheckText("estabilidade: a lista do chamador continua na ordem do arquivo", "0,0 10,0 0,1 10,1", TraceXZ(zigzag));
+	}
+
+	/// <summary>The plan of case (a)/(e) of section (m): a fresh list every call (case (e) needs two of them).</summary>
+	private static System.Collections.Generic.List<BuildBlueprintParser.Line> ZigzagPlan()
+	{
+		return Plan(
+			Piece("wood_floor", 0f, 0f, 0f),
+			Piece("wood_floor", 10f, 0f, 0f),
+			Piece("wood_floor", 0f, 0f, 1f),
+			Piece("wood_floor", 10f, 0f, 1f));
+	}
+
+	private static BuildBlueprintParser.Line Piece(string prefab, float px, float py, float pz)
+	{
+		return new BuildBlueprintParser.Line { Prefab = prefab, Px = px, Py = py, Pz = pz };
+	}
+
+	private static System.Collections.Generic.List<BuildBlueprintParser.Line> Plan(
+		params BuildBlueprintParser.Line[] pieces)
+	{
+		return new System.Collections.Generic.List<BuildBlueprintParser.Line>(pieces);
+	}
+
+	/// <summary>E7: "x,z" of the ordered plan - the path, without the heights.</summary>
+	private static string TraceXZ(System.Collections.Generic.List<BuildBlueprintParser.Line> ordered)
+	{
+		StringBuilder text = new StringBuilder();
+		for (int i = 0; i < ordered.Count; i++)
+		{
+			if (i > 0)
+			{
+				text.Append(' ');
+			}
+			text.Append(Number(ordered[i].Px)).Append(',').Append(Number(ordered[i].Pz));
+		}
+		return text.ToString();
+	}
+
+	private static string TraceY(System.Collections.Generic.List<BuildBlueprintParser.Line> ordered)
+	{
+		StringBuilder text = new StringBuilder();
+		for (int i = 0; i < ordered.Count; i++)
+		{
+			if (i > 0)
+			{
+				text.Append(' ');
+			}
+			text.Append(Number(ordered[i].Py));
+		}
+		return text.ToString();
+	}
+
+	private static string TracePrefabs(System.Collections.Generic.List<BuildBlueprintParser.Line> ordered)
+	{
+		StringBuilder text = new StringBuilder();
+		for (int i = 0; i < ordered.Count; i++)
+		{
+			if (i > 0)
+			{
+				text.Append(' ');
+			}
+			text.Append(ordered[i].Prefab);
+		}
+		return text.ToString();
+	}
+
+	/// <summary>Section (m): the ordered list is a permutation of the input (by reference - no piece is created).</summary>
+	private static bool SamePieces(System.Collections.Generic.List<BuildBlueprintParser.Line> input,
+		System.Collections.Generic.List<BuildBlueprintParser.Line> output)
+	{
+		if (input == null || output == null || input.Count != output.Count)
+		{
+			return false;
+		}
+		System.Collections.Generic.List<BuildBlueprintParser.Line> pool =
+			new System.Collections.Generic.List<BuildBlueprintParser.Line>(input);
+		for (int i = 0; i < output.Count; i++)
+		{
+			int at = pool.IndexOf(output[i]);
+			if (at < 0)
+			{
+				return false;
+			}
+			pool.RemoveAt(at);
+		}
+		return true;
+	}
+
+	private static bool SameOrder(System.Collections.Generic.List<BuildBlueprintParser.Line> a,
+		System.Collections.Generic.List<BuildBlueprintParser.Line> b)
+	{
+		if (a == null || b == null || a.Count != b.Count)
+		{
+			return false;
+		}
+		for (int i = 0; i < a.Count; i++)
+		{
+			if (!ReferenceEquals(a[i], b[i]))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/// <summary>Section (m): the length of the walk the companion does (sum of the XZ steps, in metres).</summary>
+	private static float PathLength(System.Collections.Generic.List<BuildBlueprintParser.Line> ordered)
+	{
+		float total = 0f;
+		for (int i = 1; i < ordered.Count; i++)
+		{
+			float dx = ordered[i].Px - ordered[i - 1].Px;
+			float dz = ordered[i].Pz - ordered[i - 1].Pz;
+			total += (float)Math.Sqrt(dx * dx + dz * dz);
+		}
+		return total;
+	}
+
+	/// <summary>Section (m): how many consecutive steps are longer than <paramref name="minDistance"/> - the zigzag
+	/// crosses the build at every step, the path crosses it once.</summary>
+	private static int LongJumps(System.Collections.Generic.List<BuildBlueprintParser.Line> ordered, float minDistance)
+	{
+		int jumps = 0;
+		for (int i = 1; i < ordered.Count; i++)
+		{
+			float dx = ordered[i].Px - ordered[i - 1].Px;
+			float dz = ordered[i].Pz - ordered[i - 1].Pz;
+			if (Math.Sqrt(dx * dx + dz * dz) > minDistance)
+			{
+				jumps++;
+			}
+		}
+		return jumps;
+	}
+
+	private static int NotDoorAfterFirstDoor(System.Collections.Generic.List<BuildBlueprintParser.Line> ordered)
+	{
+		int firstDoor = -1;
+		for (int i = 0; i < ordered.Count; i++)
+		{
+			if (BuildBlueprintParser.ClassOf(ordered[i].Prefab) == 4)
+			{
+				firstDoor = i;
+				break;
+			}
+		}
+		if (firstDoor < 0)
+		{
+			return ordered.Count;      // no door at all: the case that wanted one fails, as it should
+		}
+		int others = 0;
+		for (int i = firstDoor + 1; i < ordered.Count; i++)
+		{
+			if (BuildBlueprintParser.ClassOf(ordered[i].Prefab) != 4)
+			{
+				others++;
+			}
+		}
+		return others;
+	}
+
+	private static int IndexOfPrefab(System.Collections.Generic.List<BuildBlueprintParser.Line> ordered, string prefab)
+	{
+		for (int i = 0; i < ordered.Count; i++)
+		{
+			if (string.Equals(ordered[i].Prefab, prefab, StringComparison.Ordinal))
+			{
+				return i;
+			}
+		}
+		return -1;
+	}
+
+	/// <summary>Section (m): a float without the culture (the trace text is compared with CheckText).</summary>
+	private static string Number(float value)
+	{
+		return value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
 	}
 
 	private static void Templates()
