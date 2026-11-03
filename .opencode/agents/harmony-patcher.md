@@ -25,7 +25,8 @@ Você é o especialista em **Harmony** deste mod.
 
 ## Antes de qualquer coisa
 
-Leia `AGENTS.md` (as seções *Correções* dos patches e a *Camada de IA*) e carregue **`bepinex`** (leia
+Leia o `AGENTS.md` (estado atual) e o histórico em `docs/re/camada-ia-e-construcao.md` (as *Correções* dos
+patches e a *Camada de IA*); carregue **`bepinex`** (leia
 `references/harmony.md`). Para o alvo, confirme no **decompilado do Valheim 1.0** — nunca de memória.
 
 ## Como este mod patcheia

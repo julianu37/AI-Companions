@@ -25,7 +25,8 @@ Você cuida da **camada LLM** do mod (não existe backend nosso).
 
 ## Antes de qualquer coisa
 
-Leia `AGENTS.md` (seção *Camada de IA*) e carregue as skills **`valheim-ai-backend`** e
+Leia o `AGENTS.md` (seção *Camada de IA e construção — estado atual*) e o detalhe em
+`docs/re/camada-ia-e-construcao.md`; carregue as skills **`valheim-ai-backend`** e
 **`valheim-ai-orders`** (e `bepinex` se mexer em config/log).
 
 ## Frentes

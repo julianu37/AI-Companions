@@ -22,8 +22,8 @@ permissions:
   - { action: "subagent", resource: "*", effect: "deny" }
 ---
 
-Você é o **verificador de multilinguagem** do AI Companions. Leia `AGENTS.md` (seções *multilíngue*, *Tradução* e
-`docs/plan-multilinguagem.md`).
+Você é o **verificador de multilinguagem** do AI Companions. Leia o `AGENTS.md` (estado atual) e o histórico em
+`docs/re/camada-ia-e-construcao.md` (multilinguagem) + `docs/plan-multilinguagem.md`.
 
 ## O que conferir (sempre nos 5 idiomas)
 

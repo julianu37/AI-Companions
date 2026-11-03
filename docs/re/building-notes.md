@@ -1447,3 +1447,14 @@ como plano, e a ordem não precisa de espelho.
 
 **A casa usa o mesmo caminho (E6):** `MHR_Build` tem uma fase `Level` antes do `FindAnchor` - escolhe o canto **mais
 plano** dos 9 candidatos, nivela com a enxada (passadas de 1,5 s) e só então procura o local da obra.
+
+## 16. Teste da `CommHomeBasicBP` (985 peças, 03/11/2026) — o teto do andar
+
+- **Medido:** a obra subiu ~650 peças (709 no raio, incluindo a base) e entrou em `no_support` e
+  `no progress ... for 12 s (12–17 m)` nos pisos do **nível 2** (y≈42,8), com o companheiro em y≈42,9. O `TryDetour`
+  da fase A não resolveu; o `Goto` desiste depois de 12 s sem chegar 0,5 m mais perto e a peça vai para o retry pass.
+- **Hipótese principal:** o piso do nível 2 é colocado de fora para dentro e o mover não atravessa o vão (não há piso
+  sob o próximo tile); `LadderLanding`/`TryDetour` não têm por onde chegar. As fases B (links na navmesh) e C
+  (navmesh própria) continuam as opções de `docs/re/navegacao-companheiro.md`.
+- **Próximo teste:** limpar por fatias de `y` e repetir num plano menor (6x6/8x8) para isolar; medir se o
+  `PullFloorsAbove`/`PullSupports` puxa o piso antes da parede e se o `no_support` é do piso ou do apoio.

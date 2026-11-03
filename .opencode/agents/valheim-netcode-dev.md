@@ -25,7 +25,8 @@ Você é o especialista em **rede/multiplayer** deste mod.
 
 ## Antes de qualquer coisa
 
-Leia `AGENTS.md` (fases 3.19/1.7–1.9 e as *Correções* de ZDO) e carregue **`bepinex`**.
+Leia o `AGENTS.md` (estado atual) e o histórico em `docs/re/camada-ia-e-construcao.md` (fases 3.19/1.7–1.9 e as
+*Correções* de ZDO); carregue **`bepinex`**.
 
 ## O modelo do projeto (não invente outro)
 
