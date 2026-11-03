@@ -889,8 +889,8 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   vazias, **placeholders divergentes**, valores **iguais ao PT** (só os legitimamente iguais passam: nome de voz,
   string só com placeholders/códigos e a lista documentada `IDENTICAL_OK` — palavra que o idioma escreve igual, token
   técnico, nome próprio) e **cara de inglês** (`EN_HINTS`, sem as palavras que o ES/FR também usam, como "panel"),
-  mais as falas (categorias/contagem/linhas iguais ao PT). O modo sem argumento continua idêntico, agora com **366
-  lacunas** (03/11/2026): **359** são as `hc_cfg_*`/`hc_cat_*` que só existem no JSON (por desenho) e **7** são
+  mais as falas (categorias/contagem/linhas iguais ao PT). O modo sem argumento continua idêntico, agora com **368
+  lacunas** (03/11/2026): **361** são as `hc_cfg_*`/`hc_cat_*` que só existem no JSON (por desenho) e **7** são
   literais em inglês em linhas de UI, dos quais 3 são o `why` que só vai para o log (`MHR_Build`) e 2 são pré-existentes
   (`KeyBindListener`/`PadBindListener`). Resultado: **ES 0, FR 0 e IT 0**.
 - **Correção do teste em francês da M3 (branch `feat/idiomas-auto`) — o contrato do LLM no idioma do jogador + a
@@ -1227,8 +1227,9 @@ comandos de console e spawna coisas, então não é feature de jogador.
   2º piso"). Agora `StoreyOf` (o último `floor` na altura ou abaixo) ordena **por andar** e, dentro dele, piso → escada →
   parede → telhado → porta. E o **pulinho**: peça até **1 m além** dos 5 m do olho, com os pés no lugar, ele `Jump` e
   **Escadinha no vazio + queda em loop (03/11/2026):** o salão de pé-direito duplo não tem piso no nível 2, a escadinha do
-  plano terminava no vazio e ele **subia e caía até morrer**. Agora `HasLanding` sonda o topo (o ponto + anel de 0,6 m) e
-  **não coloca** a escada sem piso do outro lado, e **duas quedas (>0,8 m/frame) na mesma peça** a pulam. Falta o andar
+  plano terminava no vazio e ele **subia e caía até morrer**. O `HasLanding` do build **foi removido** (§15.2r): a escada é
+  peça do plano e quem recusa a **subida** para o vazio é o `MHR_Mover.LadderLanding` (fail-open). Ficam **duas quedas
+  (>0,8 m/frame) na mesma peça** → ela é pulada (só em blueprint).
   **A obra retoma depois da morte (relato "ele caiu e morreu, aí não continuou a build", 03/11/2026):** na morte o plano vai
   para o `Pending` com `AfterDeath` (prefab, blueprint/template, âncora, rotação, `Index`, `Plan`, `Retry`, `Passes`) e o
   `CheckPending` **espera o respawn** e retoma **na mesma peça** pelo `ResumeBlueprint`/`StartPlan(anchorKnown)`; um "para"
@@ -1237,20 +1238,18 @@ comandos de console e spawna coisas, então não é feature de jogador.
   **própria água do telhado** e coloca a peça de cima — 20 peças acima de 43 m no log, com `wood_roof_45` a 43,8/45,8 e
   `wood_wall_roof_top_45` a 44,8/46,8. Sem teleporte: é a razão de a trava de progresso ser conservadora (12 s **sem chegar
   mais perto**, nunca por tempo total).
-  **A escadinha provisória (pedido "vamos tentar aquele seu plano de fazer escadinhas provisórias", 03/11/2026):** quando a
-  peça está acima dos 5 m do olho e ele já está embaixo dela - ou, **em blueprint**, quando a trava de 12 s dispara a
-  menos de 5 m - o
-  `TryScaffold` coloca uma **`wood_stair` provisória** (2 madeiras, **+1 m**, rampa: o mover sobe como geometria, sem
-  lógica de escada nem pouso para cair), tenta a peça de cima e **remove a escada no fim da ordem** (`ClearScaffolds` no
-  `Finish`, no `Cancel`, no `CancelAll`, quando uma **ordem nova de build** substitui a que roda (`DiscardState`) e no
-  `Shutdown` do plugin), devolvendo a madeira **só quando ela foi paga e o ZDO saiu** (no `BlueprintFree` não há estorno).
-  Teto de **4 escadas colocadas por ordem** (`MaxScaffolds`; tentativa recusada não gasta), 1 a cada 4 s; a rampa sobe para o **-Z local** (`LookRotation(-toPiece)`) e não
-  pode ocupar o lugar de uma peça do plano **nem de uma que está na fila de retry** (`BlockedByPlan`, 1,5 m em XZ e 2 m em
-  Y). Antes de remover, o `StairHoldsPiece` **desliga os colliders** da escada (de pé ela conta como apoio) e pergunta o
-  apoio só das peças a 4 m/3 m dela: se alguma perdeu, **aquela** escada fica e o log avisa. Config `[Building]
-  TempScaffold` (padrão **true**).
-  A `wood_stepladder` (+2 m) foi descartada para isso: é escada (o `MHR_Mover.IsLadder` casa pelo nome) e topo sem piso é
-  a armadilha de queda de 03/11/2026.
+  **A escadinha provisória (pedido "vamos tentar aquele seu plano de fazer escadinhas provisórias", 03/11/2026):** só em
+  **blueprint**, quando a trava de **12 s sem chegar mais perto** dispara **e** a peça está acima do alcance do olho, o
+  `TryScaffold` coloca uma **`wood_stair` provisória** (2 madeiras, **+1 m**, rampa: o mover sobe como geometria, sem lógica
+  de escada nem pouso para cair), tenta a peça de cima e **remove a escada assim que a peça sobe** (`Verify`), **nunca com
+  ele a ≤1,5 m dela**; `Finish`/`Cancel`/`CancelAll`/`DiscardState`/`OnSceneLoaded`/`Shutdown` limpam só as sobras,
+  devolvendo a madeira **só quando ela foi paga e o ZDO saiu** (no `BlueprintFree` não há estorno). Teto de **4 escadas
+  colocadas por ordem** (`MaxScaffolds`; tentativa recusada não gasta), 1 a cada 4 s; a rampa sobe para o **-Z local**
+  (`LookRotation(-toPiece)`) e não pode ocupar o lugar de uma peça do plano **nem de uma que está na fila de retry**
+  (`BlockedByPlan`, 1,5 m em XZ e 2 m em Y). Antes de remover, o `StairHoldsPiece` **desliga os colliders** da escada (de pé
+  ela conta como apoio), pergunta o apoio só das peças a 4 m/3 m dela e **recalcula depois** de religar; se alguma perdeu,
+  **aquela** escada fica e o log avisa. Config `[Building] TempScaffold` (padrão **false**, com migração `true → false` e
+  `CurrentConfigVersion = 196`).
   **O alcance era menor que o do jogo (relato "ele ainda está apanhando tentando colocar uma peça no teto alto", 03/11/2026):**
   a regra era `flat <= Reach + 0,5` (3,0 m) **e** olho ≤ 5 m; um topo de empena a 3,15 m planos (3,3 m em 3D) era recusado
   por 15 cm. Agora o limite plano é `MaxPlace - 0,5` (**4,5 m**) e vale a regra do jogo (5 m do olho); o `Reach` (2,5 m)
@@ -1258,7 +1257,7 @@ comandos de console e spawna coisas, então não é feature de jogador.
   4,5 m só abre depois de 3 s sem chegar mais perto.
   **A escada é peça da obra; o pouso é do mover (pedido "a escada da build deve ser feita a partir do piso", 03/11/2026):**
   o adiamento por `HasLanding` **saiu** (a casa ficava horas sem escada) - a escada é colocada quando o plano chega nela,
-  apoiada no piso de baixo. Quem não sobe é o **mover**: `MHR_Mover.LadderLanding` recusa escada sem pouso no topo nas rotas
+  apoiada no piso de baixo. Quem não sobe é o **mover**: `MHR_Mover.LadderLanding` recusa subir para o vazio nas rotas
   de **build** (e em cada degrau da corrente `PlanChain(..., requireLanding)`), e a corrente lembrada (`UseKnownChain`) não
   é usada no build (ela não passa pelo guarda). **Regra de regressão: só o VAZIO é recusado** - o guarda pergunta se
   existe **qualquer coisa** ao alcance do topo que não seja a própria escada (piso/topo de parede até 1,4 m abaixo do alvo,
@@ -1272,9 +1271,9 @@ comandos de console e spawna coisas, então não é feature de jogador.
   **Porta/portão são o último item da OBRA (relato "ele fez as portas no térreo enquanto trabalha no térreo", 03/11/2026):**
   a classe 4 valia só dentro do andar; agora o `Ordered` ordena "é porta? 0/1" **antes** do andar — as portas de todos os
   andares entram no fim de tudo.
-  **Erro nosso corrigido (relato "ele não fez a escada"):** a guarda `HasLanding` **pulava** a escadinha sem piso no topo
-  (`Skipped++`) e a casa terminava sem ela. Agora ela vai para o **retry** (`top has no floor yet`) e é colocada no retry pass,
-  quando o piso de cima existe; só depois de 3 passadas sem piso ela é pulada.
+  **Erro nosso corrigido (relato "ele não fez a escada") - superado em 03/11/2026 (§15.2r):** a guarda `HasLanding`
+  **pulava** a escadinha sem piso no topo e a casa terminava sem ela; a correção seguinte (adiar para o retry) também saiu -
+  hoje a escada é **peça do plano**, colocada quando o plano chega nela, e a subida é que é barrada pelo mover.
   **Andar POR ÁREA (03/11/2026):** `StoreyOf` passou a usar o **piso mais alto abaixo da peça a até 3 m em XZ** (depois 8 m,
   e só então o prédio inteiro) — no salão de pé-direito duplo a escadinha entra com o térreo e o piso nasce a partir dela.
   **"Tremendo e parou" (03/11/2026):** `MHR_Build.Active`/`MHR_Level.Active` comparavam o `GetInstanceID()` do **componente**
@@ -1296,7 +1295,7 @@ comandos de console e spawna coisas, então não é feature de jogador.
   **A ponte do BuildOrders (F11) fica para depois** (barata, API pública).
   O vigia do E6b deixou de comparar **total-da-mochila** com
   **o-que-falta** (a 4x4 entrava em loop na porta); agora recalcula o que falta e retoma quando é zero. Harness
-  **363 → 401**. Armadilha: `"casa pequeña"` (ES) e `"casa pequena"` (PT) **empatam** no Fold - apelidos iguais depois
+  **430**. Armadilha: `"casa pequeña"` (ES) e `"casa pequena"` (PT) **empatam** no Fold - apelidos iguais depois
   do Fold não podem existir em templates diferentes. **Aceite: 1,06 m → 0,33 m em 3 passadas, 165 s.** É ordem de um tiro (qualquer outra
   cancela - sem isso ele ficava travado). `ValidActions` 36 → 37, 5 idiomas, config **357 opções / 25 seções**
   (medido com `python tools/gen_config_doc.py --check src/Companions/Core/ModConfig.cs package/CONFIGURATION.md`).

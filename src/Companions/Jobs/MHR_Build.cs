@@ -1277,9 +1277,10 @@ internal static class MHR_Build
 	/// E7 (player's idea, 03/11/2026: "temporary ladders"): places a <b>temporary</b> wood stair next to the companion,
 	/// rising towards the piece, so a piece above the game's 5 m eye rule (the ridge, the top of a gable, the last row of
 	/// a roof) becomes reachable. It is a RAMP the mover walks up as geometry - no ladder logic and no landing to fall
-	/// from (the trap of the same test). Paid like any piece (bag, then the site's chests) and removed when the order
-	/// ends: it is not part of the plan and does not stay in the player's house. At most <see cref="MaxScaffolds"/> per
-	/// piece, one every 4 s.
+	/// from (the trap of the same test). Paid like any piece (bag, then the site's chests), removed as soon as the piece it
+	/// was placed for goes up (never with the companion within 1,5 m), and the end of the order only cleans leftovers: it is
+	/// not part of the plan and does not stay in the player's house. At most <see cref="MaxScaffolds"/> for the whole ORDER,
+	/// one every 4 s.
 	/// </summary>
 	private static bool TryScaffold(CompanionAI ai, State state, CompanionSetup cs)
 	{

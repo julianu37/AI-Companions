@@ -50,16 +50,17 @@ stopped.
   tolerance ended the whole order without a single piece. A failed leveling now hands the order back too, and the build
   goes on with the ground it has (the pieces that do not fit are retried).
 - **A temporary stair for the pieces above the reach** (player's idea, 03/11/2026: "let's try that plan of temporary ladders,
-  he is still struggling to place a piece on the high roof"): when a piece is above the game's 5 m reach and the companion
-  is already standing under it - or, in a blueprint, when it stops making progress within 5 m of it - it places a **temporary wood stair**
-  (2 wood, +1 m, a ramp the mover simply walks up), retries the piece from the top and **removes the stair when the order
-  ends** - the wood comes back, and a stair is kept only when a piece placed next to it has no support without it. At most
-  **4 per order** (and the stair is removed as soon as the piece goes up; the first version allowed 3 **per piece**, which
-  covered the site in stairs on a 985-piece house). New `[Building] TempScaffold` (**off by default**; a `.cfg` that
-  saved the old default `true` is moved to `false` once).
+  he is still struggling to place a piece on the high roof"): in a blueprint, after 12 s without getting closer and with the
+  piece above the game's 5 m reach, it places a **temporary wood stair** (2 wood, +1 m, a ramp the mover simply walks up),
+  retries the piece from the top and **removes the stair as soon as the piece goes up** (never with the companion within 1,5 m
+  of it; the end of the order only cleans leftovers). The wood comes back, and a stair is kept only when a piece placed next
+  to it has no support without it. At most **4 per order** (the first version allowed 3 **per piece**, which covered the site
+  in stairs on a 985-piece house). New `[Building] TempScaffold` (**off by default**; a `.cfg` that saved the old default
+  `true` is moved to `false` once).
 - **The placement reach is the game's own again** (player's report, 03/11/2026: "he is still struggling to place a piece on
   the high roof"): the companion refused to place a gable top **15 cm** outside the mod's old flat cap (3,0 m) while the
-  game allows 5 m from the eye. The flat cap is now 4,5 m and the eye rule (5 m) is what decides.
+  game allows 5 m from the eye. The normal cap stays 3,0 m; it opens to 4,5 m only after 3 s without getting closer, and the
+  eye rule (5 m) is what decides.
 - **The ladder is a piece of the house again** (player's request, 03/11/2026: "the build's ladder must be made from
   the floor, like it was in the beginning"): the ladder used to be deferred to the final retry pass while the floor above
   it did not exist, which left a 985-piece house without a single ladder for hours. It is now placed when the plan reaches
@@ -79,14 +80,11 @@ stopped.
   building** below it, so inside a double-height hall the ladder stood at a level with no floor. It is now the highest
   floor **within 3 m in XZ** (then 8 m), and only as a last resort the highest floor anywhere below - the floor is built
   from the ladder, as the player asked.
-- **...and the ladder is not thrown away** (player's report right after: "he didn't build the ladder"): the first version of
-  the guard skipped the ladder of a level with no floor above it **for good**, so the house ended without it. A ladder with
-  no landing *yet* now goes to the **retry queue** and is placed at the end, when the floor above exists; only a ladder that
-  still has no landing after the 3 passes is skipped and counted.
 - **A ladder into open air is no longer a trap** (player's report, 03/11/2026: "he fell off the ladder in a loop until he
-  died"): a blueprint's hall has no floor at that height, and the ladder the plan brings ended in the void - the companion
-  climbed it and fell, over and over. A ladder whose **top has no floor** under it is now skipped (probe straight down and
-  a 0,6 m ring from the top), and **two falls** while walking to the same piece skip it instead of trying again.
+  died"): a blueprint's hall has no floor at that height, and the ladder the plan brings ends in the void - the companion
+  climbed it and fell, over and over. The **mover** now refuses to climb a ladder whose top has nothing to stand on (any
+  floor or wall top near the climb target lets it climb; only the open void refuses, build routes only), and **two falls**
+  while walking to the same piece skip it instead of trying again (blueprints).
 - **The house is built one storey at a time** (player's report, 03/11/2026: "he didn't build the 2nd floor - he is already
   putting up the roof frame"): the plan sorted every floor of the house into the first pass, and the upper ones are refused
   until the walls below exist - they all fell to the retry pass at the end, so the roof went up before the floor it stands

@@ -1079,9 +1079,9 @@ bool inReach = flat <= Reach + 0.5f && Vector3.Distance(eye, state.Pos) <= MaxPl
 O jogo coloca a peca a ate **5 m do OLHO** (`Player.m_maxPlaceDistance`), e o companheiro ainda tem 1,5 m de olho
 acima dos pes: um beiral 1 m acima dos pes, a 3,15 m na horizontal, esta **dentro** da regra do jogo (distancia do
 olho ~3,3 m) e era recusado por **15 cm** no limite plano - e ele andava em circulos 12 s ate o retry. **Correcao:**
-o limite plano passou a ser `MaxPlace - 0,5` (**4,5 m**) e a regra do olho continua sendo a do jogo (5 m). O `Reach`
-(2,5 m) segue sendo so a distancia que o `MHR_Mover` usa para **parar** de andar - ele nao limita mais a colocacao.
-O "pulinho" (pe da peca + 1 m) continua com o limite antigo (so de perto).
+o limite plano **normal** continua `Reach + 0,5` (**3,0 m**) e ele **abre para `MaxPlace - 0,5` (4,5 m) so depois de
+**3 s sem chegar mais perto** (revisao de 03/11/2026: senao ele passaria a colocar peca de longe sempre); a regra do olho
+continua sendo a do jogo (5 m) e o `Reach` (2,5 m) voltou a limitar a colocacao (e tambem o "pulinho", `Reach + 0,5`).
 
 ### 15.2p A escadinha volta para o plano assim que o piso existe (03/11/2026)
 
@@ -1113,23 +1113,23 @@ parado embaixo dela, um degrau resolve o que andar nao resolve.
 **A peca: `wood_stair`, e nao `wood_stepladder`.** Medido com `build.inspect` (03/11/2026): as duas custam **2 madeiras**,
 exigem **bancada em 20 m** (`$piece_workbench`, rangeBuild=20) e tem `WearNTear.supports = true` (precisam de apoio).
 A diferenca e o comportamento: a `wood_stepladder` sobe **+2 m** mas e **escada** (pelo nome, `MHR_Mover.IsLadder` casa,
-`MHR_Mover.cs:1172-1176`) e o topo **sem piso** e a armadilha de queda de 03/11/2026 (`HasLanding`); a `wood_stair` sobe
+`MHR_Mover.cs:1172-1176`) e o topo **sem piso** e a armadilha de queda de 03/11/2026 (hoje barrada pelo
+`MHR_Mover.LadderLanding`); a `wood_stair` sobe
 **+1 m** e e uma **rampa** - o mover sobe como geometria pura (26,6° passa no `rise <= 1,1` da linha de rota,
 `MHR_Mover.cs:2291`, e a `LedgeAhead` nao a le como borda). Para andaime, rampa que nao precisa de pouso e o certo.
 
 **Direcao (medida, `build.snaps`):** a rampa sobe para o **-Z local** (`y=0,z=+1` -> `y=1,z=-1`), entao o `+Z` tem que
 apontar para LONGE da peca: `Quaternion.LookRotation(-toPiece)`.
 
-**Como entra no `MHR_Build.Goto`:** (1) quando `!inReach` e `flat <= MaxPlace` e a distancia do olho passa de 5 m (a
-peca e alta demais e ele ja esta embaixo) - vale para template e peca solta tambem; (2) quando a trava de 12 s sem
-progresso dispara com `flat <= MaxPlace` (ele esta perto, mas o beiral/empena corta o caminho) - **so em blueprint**, porque
-a trava de 12 s existe apenas nesse caminho. O limite plano normal continua **3,0 m** (`Reach + 0,5`); os **4,5 m** so
+**Como entra no `MHR_Build.Goto`:** **so em blueprint**, quando a trava de **12 s sem progresso** dispara com
+`flat <= MaxPlace` (ele esta perto, mas o beiral/empena corta o caminho) **e** a peca esta acima do alcance do olho - o
+gatilho "peca alta" que existia antes foi removido (era ele que enchia o sitio de escadas). O limite plano normal continua **3,0 m** (`Reach + 0,5`); os **4,5 m** so
 valem depois de **3 s sem chegar mais perto** (review, 03/11/2026: senao ele passaria a colocar peca de longe sempre). O `TryScaffold` procura um ponto em **2 aneis (1,2 e 2,3 m) num leque de -35° a +34°** (4 direcoes), **raycast para baixo** para assentar no piso (recusa desnivel > 1,2 m), recusa ponto onde o **plano ainda vai por peca ou onde uma peca espera no retry** (`BlockedByPlan`, **1,5 m em XZ e 2 m em Y**), valida com `BuildSite.Check` e paga pelo `BuildStock.Take` (mochila -> baus) - falhou o `BuildExecutor.Place`, o `Refund` devolve. Teto de **4 escadas COLOCADAS por ordem** (`MaxScaffolds`; tentativa recusada nao gasta), 1 a cada 4 s, e a escada e **removida quando a peca sobe** (`Verify`), **nunca com ele em cima** (1,5 m ao redor). Config **`[Building] TempScaffold`** (bool, padrao **false** desde o teste de 03/11/2026, com migracao `true -> false`).
 
 **Limpeza:** as escadas provisorias **nao sao do plano** - ficam em `State.Scaffolds` e o `ClearScaffolds` as remove no
 **fim da ordem** (`Finish`), no **cancelamento** (`Cancel`), no **`CancelAll`** (ordem sem endereçado: "segue", "para",
-"colete 20"), quando uma **ordem nova de build** substitui a que estava rodando (`DiscardState`) e no **`Shutdown`** do
-plugin (senao a peca ficaria no save). Nao sao contadas como peca colocada.
+"colete 20"), quando uma **ordem nova de build** substitui a que estava rodando (`DiscardState`), no **despawn** do companheiro, ao
+**entrar/sair do mundo** (`OnSceneLoaded`) e no **`Shutdown`** do plugin (senao a peca ficaria no save). Nao sao contadas como peca colocada.
 
 **Apoio antes de remover (revisado duas vezes em 03/11/2026):** a primeira versao perguntava `BuildSupport.Supported`
 com a escada **de pe** - e a escada e um `WearNTear` com `m_supports`, entao a resposta era sempre "tem apoio" e a
@@ -1155,7 +1155,8 @@ qualquer solido na janela (falso positivo: topo de parede/telhado). A 2a tentou 
 espaco** para o corpo - e isso recusava **todo andar com teto** (pe-direito de 2 m com laje de 0,25 m da ~1,75 m livres):
 outro falso negativo, o pior tipo. **Versao final, regressao em primeiro lugar: so o VAZIO e recusado.** O guarda pergunta
 o contrario - "existe QUALQUER coisa ai em cima que nao seja a propria escada?" - e aceita se houver piso/topo de parede ate
-**1,4 m abaixo** do alvo da subida (ou qualquer solido ate **1,3 m acima**, para a escada que termina um pouco curta, caso
+um raycast de **1,4 m para baixo** a partir de `alvo + 0,4` (cobre ~1,0 m abaixo do alvo) ou de **1,3 m para cima** a
+partir de `alvo + 0,3` (~1,6 m acima), para a escada que termina um pouco curta, caso
 do `LadderTopHop`). O alvo e `min(topo da peca, needY + 0,5)`, entao uma **pilha** de escadas e julgada no piso do andar em
 construcao, nao no topo da pilha. Sem nada acima **e** nada abaixo = o vazio do salao onde ele caiu em loop. Fail-open sem
 mascara ou sem `Piece`. Vale **so nas rotas de build** (`tag` "Build"/"BuildGather"); a corrente lembrada (`UseKnownChain`)

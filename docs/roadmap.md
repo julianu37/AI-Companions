@@ -2348,6 +2348,23 @@ quadrado; 44 s levando carga ao baú); 2ª rodada com bancadas **fora** do footp
 meio da obra e a **auto-cura**. Harness **430**, MCP 70, config **356 opções / 25 seções**, ES/FR/IT **0 lacunas**.
 Detalhe técnico: `docs/re/building-notes.md` §15.2b-§15.2h.
 
+#### 1.9.7 - a escada da obra e o guarda de subida (03/11/2026) - em andamento
+
+O lote saiu do teste de campo da `CommHomeBasicBP` (985 peças). O que mudou:
+- **A escada é peça do plano**: o adiamento por `HasLanding` (a escada ia para o retry e só entrava no fim) **saiu** -
+  ela é colocada quando o plano chega nela, apoiada no piso. `RequeueLadders`/`HasLanding`/`IsLadderPrefab`/
+  `NoLandingWhy`/`PlannedStep.Why` foram removidos.
+- **O mover não sobe para o vazio**: `MHR_Mover.LadderLanding`, **fail-open** (só recusa quando não há nada acima **e**
+  nada abaixo do alvo `min(topo, needY+0,5)`), só nas rotas `Build`/`BuildGather` e em cada degrau de `PlanChain`;
+  `UseKnownChain` não é usada no build. Resposta ao loop de queda que matou o companheiro no salão de pé-direito duplo.
+- **Escadinha provisória** (`[Building] TempScaffold`): nasce **false** (migração `true→false`, `CurrentConfigVersion`
+  196), só em blueprint depois de 12 s travado **e** com a peça acima do olho, teto de **4 escadas colocadas por ordem**,
+  removida assim que a peça sobe (nunca com ele a ≤1,5 m) e limpa em `Finish`/`Cancel`/`CancelAll`/`DiscardState`/
+  `OnSceneLoaded`/`Shutdown`. Resposta ao "encheu de escadinha por tudo" (70 escadas com orçamento por peça).
+- **Alcance**: `3,0 m` normal, `4,5 m` só depois de 3 s sem chegar mais perto, olho a 5 m (regra do jogo).
+- **Bridge**: `companions.order` cancela `MHR_Build` e `MHR_Level` (antes um `follow` deixava a obra rodando).
+Evidência: `docs/re/building-notes.md` §15.2o-§15.2r; gate 9/9 (430 asserções, MCP 70, config 357/25, ES/FR/IT 0 lacunas).
+
 #### 1.9.6 — a construção autônoma (02/11/2026) — ✅ publicada, tag `v1.9.6` (GitHub + Nexus)
 
 A **Trilha E** inteira (E0-E10) entrou nesta release: o companheiro constrói sozinho, do pedido ao último prego, nos

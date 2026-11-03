@@ -121,7 +121,8 @@ Uma conexão por chamada; **um JSON por linha**, nas duas direções.
 `log_watch` não é comando do bridge: o servidor lê o `LogOutput.log` por cursor (devolve a **primeira** linha casada e
 o cursor logo depois dela).
 
-`companions.order` aceita: `follow`, `wood`, `stone`, `ore`, `forage`, `smelt`, `hunt`, `farm`, `fish`, `repair`,
+`companions.order` **cancela `MHR_Build` e `MHR_Level`** em qualquer ação aceita (ordem de um tiro, como no
+chat/roda) e aceita: `follow`, `wood`, `stone`, `ore`, `forage`, `smelt`, `hunt`, `farm`, `fish`, `repair`,
 `restock`, `cook`, `stay`, `stance_balanced`, `stance_passive`, `stance_ranged`, `stance_melee`, `autopickup_on`,
 `autopickup_off`.
 
