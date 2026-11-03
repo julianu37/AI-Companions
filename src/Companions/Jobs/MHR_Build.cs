@@ -54,6 +54,8 @@ internal static class MHR_Build
 	/// and it is removed as soon as the piece it was placed for goes up.
 	/// </summary>
 	internal const int MaxScaffolds = 4;
+	/// <summary>How many floor pieces one step may pull forward (a landing needs ONE tile; 2 is slack).</summary>
+	private const int MaxPulledFloors = 2;
 
 	/// <summary>E10: how many leveling passes a job may apply before it gives up (each moves the ground by at most 1 m).</summary>
 	internal const int MaxLevelPasses = 4;
@@ -236,6 +238,10 @@ internal static class MHR_Build
 		/// <summary>E7 (player's report, 03/11/2026: "it fell and died, and the build did not go on"): the order is waiting
 		/// for the RESPAWN - it resumes by itself (same plan, same anchor, same piece) when the companion is alive again.</summary>
 		internal bool AfterDeath;
+		/// <summary>E7 (player's report, 03/11/2026: "he died and did not go on with the build"): the PERMANENT id of the
+		/// companion. The respawn may build a new object (a new instance id), and the pending is keyed by it - the id is what
+		/// lets <see cref="Reattach"/> hand the order to the new body.</summary>
+		internal string CompanionId;
 		/// <summary>E7: the pieces that did not stand yet when the gather took over - the resumed order must carry them, or
 		/// the 2nd storey of the house is lost for good (the retry pass of the first part never runs).</summary>
 		internal List<PlannedStep> Retry;
@@ -809,6 +815,107 @@ internal static class MHR_Build
 		}
 	}
 
+	/// <summary>
+	/// E7 (player's report, 03/11/2026: "he died and did not go on with the build"): the death has to be seen HERE, called from
+	/// <c>CompanionSetup.OnCompanionDeath</c>, because <see cref="Drive"/> never runs on a dead body - the order was dropped by
+	/// the respawn's re-initialisation (mode 0) without a pending being written. It saves the plan, removes the state and takes
+	/// the temporary stairs with it.
+	/// </summary>
+	internal static void OnDeath(CompanionAI ai)
+	{
+		if (ai == null)
+		{
+			return;
+		}
+		State state;
+		if (!s_state.TryGetValue(ai.GetInstanceID(), out state) || state == null)
+		{
+			return;
+		}
+		bool saved = TrySaveDeathPending(ai, state, ai.GetComponent<CompanionSetup>());
+		ClearScaffolds(ai, state);
+		state.Active = false;
+		s_state.Remove(ai.GetInstanceID());
+		MHR_Mover.Release(ai);
+		if (!saved)
+		{
+			Log(ai, "the build ended with the companion's death (there was no plan to resume)");
+		}
+	}
+
+	/// <summary>Saves the running plan as a pending that waits for the respawn. True when there was a plan to save.</summary>
+	private static bool TrySaveDeathPending(CompanionAI ai, State state, CompanionSetup cs)
+	{
+		if (state == null || state.Plan == null || state.Plan.Count == 0
+			|| (state.Blueprint == null && state.Template == null))
+		{
+			return false;
+		}
+		s_pending[ai.GetInstanceID()] = new Pending
+		{
+			Prefab = state.Prefab,
+			Template = state.Template != null ? state.Template.Name : null,
+			Blueprint = state.Blueprint,
+			BlueprintFile = state.BlueprintFile,
+			Hint = state.Hint,
+			Anchor = state.AnchorKnown ? state.Anchor : state.Hint,
+			AnchorRot = state.AnchorRot,
+			Index = state.Index,
+			Plan = state.Plan,
+			Retry = state.Retry,
+			Passes = state.Passes,
+			AfterDeath = true,
+			CompanionId = cs != null ? cs.MHR_CachedCompanionId : null,
+			Start = Time.time,
+			LastProgressAt = Time.time
+		};
+		Log(ai, "it died during the build - the order resumes after the respawn (piece " + (state.Index + 1) + "/"
+			+ state.Plan.Count + ")");
+		return true;
+	}
+
+	/// <summary>
+	/// E7 (player's report, 03/11/2026: "he died and did not go on with the build"): the respawn may build a NEW object, so the
+	/// pending saved under the old instance id is handed to this body. Called from <c>CompanionSetup.TryInit</c> with the
+	/// permanent companion id.
+	/// </summary>
+	internal static void Reattach(CompanionSetup cs)
+	{
+		if (cs == null)
+		{
+			return;
+		}
+		CompanionAI ai = cs.GetComponent<CompanionAI>();
+		if (ai == null)
+		{
+			return;
+		}
+		string id = cs.MHR_CachedCompanionId;
+		if (string.IsNullOrEmpty(id))
+		{
+			return;
+		}
+		int key = ai.GetInstanceID();
+		List<int> keys = new List<int>(s_pending.Keys);
+		foreach (int old in keys)
+		{
+			if (old == key)
+			{
+				continue;
+			}
+			Pending pending;
+			if (!s_pending.TryGetValue(old, out pending) || pending == null || !pending.AfterDeath || pending.CompanionId != id)
+			{
+				continue;
+			}
+			s_pending.Remove(old);
+			pending.Start = Time.time;
+			pending.LastProgressAt = Time.time;   // the clock restarts with the new body
+			s_pending[key] = pending;
+			CompanionsPlugin.Log?.LogInfo("[Build] the build order of \"" + id + "\" was handed to the companion that just came back");
+		}
+	}
+
 	/// <summary>Driven from <c>CompanionAI.UpdateAI</c> before <see cref="MHR_Collect"/> and <see cref="MHR_Loot"/>:
 	/// true while the order is running.</summary>
 	internal static bool Drive(CompanionAI ai, float dt)
@@ -845,31 +952,7 @@ internal static class MHR_Build
 		}
 		else if (self.IsDead())
 		{
-			// E7 (player's report, 03/11/2026: "it fell and died, and the build did not go on"): a plan is not lost on death -
-			// the order waits for the respawn and resumes at the SAME piece, anchor and rotation (the same path the gather
-			// handover uses).
-			if (state.Plan != null && state.Plan.Count > 0 && (state.Blueprint != null || state.Template != null))
-			{
-				s_pending[ai.GetInstanceID()] = new Pending
-				{
-					Prefab = state.Prefab,
-					Template = state.Template != null ? state.Template.Name : null,
-					Blueprint = state.Blueprint,
-					BlueprintFile = state.BlueprintFile,
-					Hint = state.Hint,
-					Anchor = state.AnchorKnown ? state.Anchor : state.Hint,
-					AnchorRot = state.AnchorRot,
-					Index = state.Index,
-					Plan = state.Plan,
-					Retry = state.Retry,
-					Passes = state.Passes,
-					AfterDeath = true,
-					Start = Time.time,
-					LastProgressAt = Time.time
-				};
-				Log(ai, "it died during the build - the order resumes after the respawn (piece " + (state.Index + 1) + "/"
-					+ state.Plan.Count + ")");
-			}
+			TrySaveDeathPending(ai, state, cs);
 			why = "it's dead";
 		}
 		else if (nv.IsValid() && !nv.IsOwner())
@@ -1602,54 +1685,117 @@ internal static class MHR_Build
 	/// piece up to 5 m from the eye, so a floor 2 m above his feet is within reach) and the pieces upstairs stop failing with
 	/// no_support.
 	/// </summary>
+	/// <summary>The top of the ladder just placed: the <b>highest collider</b> of the piece (a prefab may have more than one
+	/// renderer and the first is not always the body), falling back to the renderer, then to <c>Pos.y + 2</c>.</summary>
 	private static float LadderTop(State state)
 	{
-		try
+		if (state.Placed != null)
 		{
-			Renderer renderer = state.Placed != null ? state.Placed.GetComponentInChildren<Renderer>() : null;
-			return renderer != null ? renderer.bounds.max.y : state.Pos.y + 2f;
+			try
+			{
+				float top = float.MinValue;
+				foreach (Collider collider in state.Placed.GetComponentsInChildren<Collider>())
+				{
+					if (collider != null && collider.bounds.max.y > top)
+					{
+						top = collider.bounds.max.y;
+					}
+				}
+				if (top > float.MinValue)
+				{
+					return top;
+				}
+			}
+			catch (Exception)
+			{
+			}
+			try
+			{
+				Renderer renderer = state.Placed.GetComponentInChildren<Renderer>();
+				if (renderer != null)
+				{
+					return renderer.bounds.max.y;
+				}
+			}
+			catch (Exception)
+			{
+			}
 		}
-		catch (Exception)
-		{
-			return state.Pos.y + 2f;
-		}
+		return state.Pos.y + 2f;
 	}
 
-	private static void PullFloorsAbove(CompanionAI ai, State state, float topY)
+	/// <summary>
+	/// E7 (player's requests, 03/11/2026: "he has to know he should place the piece at the top of the ladder and build the floor
+	/// there" and "he can build the floor from the bottom up too, he does not need to wait until he is at the floor height"): the
+	/// floor pieces that land on <paramref name="topY"/> are moved to the FRONT of the plan, right after the piece just placed -
+	/// the nearest ones first (a landing needs one tile), and on a ladder only the side it rises to. The plan is rebuilt in place
+	/// (<c>Clear</c> + <c>AddRange</c>) because <c>Pending.Plan</c> holds the same list reference for a resumed order.
+	///
+	/// <para>The first version moved the pieces with <c>RemoveAt</c>/<c>Insert</c> while walking the list backwards: the indexes
+	/// stayed valid but the neighbour just below the cursor was skipped and the order came out reversed - and the skipped one was
+	/// exactly the tile nearest the ladder (review with a simulation, 03/11/2026).</para>
+	/// </summary>
+	private static void PullFloorsAbove(CompanionAI ai, State state, float topY, bool ladder)
 	{
-		if (state.Plan == null || state.Placed == null)
+		if (state.Plan == null || state.Placed == null || state.Index + 1 >= state.Plan.Count)
 		{
 			return;
 		}
-		int insertAt = state.Index + 1;
-		int moved = 0;
-		for (int i = state.Plan.Count - 1; i > state.Index && moved < 6; i--)
+		Vector3 rise = ladder ? state.Rot * Vector3.back : Vector3.zero;   // a ladder rises towards its own -Z
+		List<int> candidates = new List<int>();
+		List<float> distance = new List<float>();
+		for (int i = state.Index + 1; i < state.Plan.Count; i++)
 		{
 			PlannedStep step = state.Plan[i];
-			if (step == null || step.Prefab == null
-				|| step.Prefab.IndexOf("floor", StringComparison.OrdinalIgnoreCase) < 0)
+			if (step == null || step.Prefab == null || step.Prefab.IndexOf("floor", StringComparison.OrdinalIgnoreCase) < 0)
 			{
 				continue;
 			}
 			float dx = step.Pos.x - state.Pos.x;
 			float dz = step.Pos.z - state.Pos.z;
-			if (dx * dx + dz * dz > 6.25f || Mathf.Abs(step.Pos.y - topY) > 1.2f)
+			float flat = dx * dx + dz * dz;
+			if (flat > 6.25f || Mathf.Abs(step.Pos.y - topY) > 1.2f)
 			{
 				continue;
 			}
-			if (insertAt >= i)
+			if (ladder && rise.sqrMagnitude > 0.01f && dx * rise.x + dz * rise.z < -0.5f)
 			{
-				break;   // no room left to bring it forward
+				continue;   // behind the ladder, on the side it does not climb to
 			}
-			state.Plan.RemoveAt(i);
-			state.Plan.Insert(insertAt, step);
-			insertAt++;
-			moved++;
+			int at = candidates.Count;
+			while (at > 0 && distance[at - 1] > flat)
+			{
+				at--;
+			}
+			candidates.Insert(at, i);
+			distance.Insert(at, flat);
 		}
-		if (moved > 0)
+		if (candidates.Count == 0)
 		{
-			Log(ai, moved + " floor piece(s) over the ladder brought forward so it leads somewhere");
+			return;
 		}
+		int take = Mathf.Min(MaxPulledFloors, candidates.Count);
+		HashSet<int> chosen = new HashSet<int>();
+		List<PlannedStep> pulled = new List<PlannedStep>();
+		for (int i = 0; i < take; i++)
+		{
+			chosen.Add(candidates[i]);
+			pulled.Add(state.Plan[candidates[i]]);
+		}
+		List<PlannedStep> head = state.Plan.GetRange(0, state.Index + 1);
+		List<PlannedStep> rest = new List<PlannedStep>();
+		for (int i = state.Index + 1; i < state.Plan.Count; i++)
+		{
+			if (!chosen.Contains(i))
+			{
+				rest.Add(state.Plan[i]);
+			}
+		}
+		state.Plan.Clear();
+		state.Plan.AddRange(head);
+		state.Plan.AddRange(pulled);
+		state.Plan.AddRange(rest);
+		Log(ai, pulled.Count + " floor piece(s) over the " + state.Prefab + " brought forward so it leads somewhere");
 	}
 
 	/// <summary>Is this pose close enough to a temporary stair to have been held up by it? (the same 4 m / 3 m window)</summary>
@@ -2527,8 +2673,9 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		// the floor there" + "he can build the floor from the bottom up too, he does not need to wait until he is at the floor
 		// height"): a floor that lands on what was just placed comes to the front of the plan, so the upper floor is built
 		// from the level he is standing on instead of waiting for the whole storey below to finish
+		bool isLadder = state.Prefab != null && state.Prefab.IndexOf("ladder", StringComparison.OrdinalIgnoreCase) >= 0;
 		float above = float.NaN;
-		if (state.Prefab != null && state.Prefab.IndexOf("ladder", StringComparison.OrdinalIgnoreCase) >= 0)
+		if (isLadder)
 		{
 			above = LadderTop(state);
 		}
@@ -2542,7 +2689,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		}
 		if (!float.IsNaN(above))
 		{
-			PullFloorsAbove(ai, state, above);
+			PullFloorsAbove(ai, state, above, isLadder);
 		}
 		bool usedStairs = state.Scaffolds.Count > 0 && NearScaffold(state, state.Pos);
 		if (usedStairs && state.Placed != null)

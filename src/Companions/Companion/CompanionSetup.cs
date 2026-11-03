@@ -956,6 +956,9 @@ public class CompanionSetup : MonoBehaviour
 	private void OnCompanionDeath()
 	{
 		_mhrDying = true;
+		// E7 (player's report, 03/11/2026: "he died and did not go on with the build"): the build never sees the death
+		// (Drive does not run on a dead body) - the plan is saved here and resumed after the respawn
+		MHR_Build.OnDeath(GetComponent<CompanionAI>());
 		if (_dead)
 		{
 			return;
@@ -1064,6 +1067,9 @@ public class CompanionSetup : MonoBehaviour
 			if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo(string.Format("[Setup] Initialized — mode={0} appearance={1} ", num, string.IsNullOrEmpty(text) ? "default" : "saved") + $"pos={base.transform.position:F1}");
 			_instantEquipUntil = Time.time + 10f;
 			_initialized = true;
+			// E7: a body that comes back (resurrection) may be a NEW object - the pending build order saved on death is handed
+			// to it by the permanent companion id
+			MHR_Build.Reattach(this);
 		}
 	}
 

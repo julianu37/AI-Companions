@@ -1177,13 +1177,38 @@ antigo. Sempre que uma peca que **sustenta** e aceita (`Verify`), o `PullFloorsA
 frente** (logo depois dela, `Index+1`) os **pisos** que caem na altura alvo: prefab com "floor", XZ a ate **2,5 m** e
 |Y - alvo| <= **1,2 m**. O alvo e o **topo da escada** (`Renderer.bounds.max.y`, fallback `Pos.y + 2`) ou, para parede/viga/
 piso/pole (qualquer peca com `WearNTear.m_supports`), **um andar acima** (`Pos.y + 2`). Teto de **6 pecas** por passo, com o
-guarda `insertAt >= i`. Log: `N floor piece(s) over the ladder brought forward so it leads somewhere`.
+guarda `insertAt >= i`.
+
+**A 1a versao foi reprovada na revisao (simulacao do especialista, 03/11/2026):** mover com `RemoveAt`/`Insert` andando a
+lista de tras para frente mantinha os indices validos mas **pulava o vizinho logo abaixo do cursor** e invertia a ordem -
+e o pulado era justamente o tile **mais perto da escada** (o do print do jogador). A versao final **reconstroi a lista no
+lugar** (`Clear` + `AddRange`, porque `Pending.Plan` guarda a mesma referencia): `head` (0..Index) + ate **2 pisos**
+escolhidos por **distancia** + o resto na ordem original, e numa escada so o lado para onde ela sobe
+(`state.Rot * Vector3.back`). O topo vem do **maior collider** (um prefab pode ter mais de um renderer e o primeiro nem
+sempre e o corpo), com fallback para o renderer e para `Pos.y + 2`. Log: `N floor piece(s) over the <peca> brought forward
+so it leads somewhere`.
 
 Como o jogo coloca peca a ate 5 m do olho, um piso 2 m acima dos pes esta **ao alcance** - entao ele constroi o piso do
 andar de cima **do nivel em que esta**, sem esperar terminar o andar de baixo (que era o que deixava a escada sem patamar).
 
 Fica valendo o resto: o piso ainda passa por `BuildSite.Check` antes de andar (se a parede daquele canto nao subiu, ele
 vai para o retry pass como qualquer peca) e o mover continua recusando subir para o vazio (`LadderLanding`).
+
+### 15.2t A obra retoma depois da morte - agora de verdade (03/11/2026)
+
+Relato do jogador: *"ele morreu e nao continuou a build"*, mesmo com o `AfterDeath` da `c7b9c13`. Duas causas somadas:
+
+1. **O `Drive` nunca ve a morte.** Ele e chamado pelo `CompanionAI.UpdateAI`, que nao roda com o corpo morto - entao o
+   ramo `self.IsDead()` que gravava o `Pending` **nunca executava**. O que acontecia: o respawn reinicializava o companheiro
+   (`[Setup] Initialized - mode=0`) e a obra morria sem plano salvo.
+2. **O respawn pode criar um objeto novo.** O `Pending` era chaveado pelo `GetInstanceID()` do GameObject; com um corpo
+   novo o id muda e o pending ficava orfao.
+
+**Correcao:** o `MHR_Build.OnDeath(ai)` e chamado do **`CompanionSetup.OnCompanionDeath`** (o gancho de morte de verdade) e
+grava o `Pending` com `AfterDeath` **e o id permanente** do companheiro (`HC_CompanionId`), remove o estado, solta o mover
+e leva as escadas provisorias. O `MHR_Build.Reattach(cs)` roda no **`TryInit`** (todo corpo que nasce/renasce) e passa o
+pending do id antigo para o novo, reiniciando os relogios. Logs: `it died during the build - the order resumes after the
+respawn (piece N/M)` e `the build order of "<id>" was handed to the companion that just came back`.
 
 ### 15.3 Medido em jogo (02/11/2026)
 

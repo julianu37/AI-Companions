@@ -1230,10 +1230,12 @@ comandos de console e spawna coisas, então não é feature de jogador.
   plano terminava no vazio e ele **subia e caía até morrer**. O `HasLanding` do build **foi removido** (§15.2r): a escada é
   peça do plano e quem recusa a **subida** para o vazio é o `MHR_Mover.LadderLanding` (fail-open). Ficam **duas quedas
   (>0,8 m/frame) na mesma peça** → ela é pulada (só em blueprint).
-  **A obra retoma depois da morte (relato "ele caiu e morreu, aí não continuou a build", 03/11/2026):** na morte o plano vai
-  para o `Pending` com `AfterDeath` (prefab, blueprint/template, âncora, rotação, `Index`, `Plan`, `Retry`, `Passes`) e o
-  `CheckPending` **espera o respawn** e retoma **na mesma peça** pelo `ResumeBlueprint`/`StartPlan(anchorKnown)`; um "para"
-  do jogador continua derrubando (`Cancel` limpa o pending).
+  **A obra retoma depois da morte (relatos "ele caiu e morreu, aí não continuou a build" e "ele morreu e não continuou",
+  03/11/2026) - corrigido de verdade em §15.2t:** o `Drive` **não roda com o corpo morto**, então o `Pending` não era
+  gravado; e o respawn pode criar um **objeto novo** (novo `GetInstanceID`). Agora o `MHR_Build.OnDeath` é chamado do
+  **`CompanionSetup.OnCompanionDeath`**, grava o plano com `AfterDeath` + o **id permanente** (`HC_CompanionId`), e o
+  `MHR_Build.Reattach` (no `TryInit`) passa o pending do id antigo para o corpo novo; o `CheckPending` **espera o respawn** e
+  retoma **na mesma peça** pelo `ResumeBlueprint`/`StartPlan(anchorKnown)`. Um "para" do jogador continua derrubando.
   **Ele usa a obra como andaime (relato "subiu pelo telhado pra fazer a ponta", 03/11/2026):** o `MHR_Mover` sobe pela
   **própria água do telhado** e coloca a peça de cima — 20 peças acima de 43 m no log, com `wood_roof_45` a 43,8/45,8 e
   `wood_wall_roof_top_45` a 44,8/46,8. Sem teleporte: é a razão de a trava de progresso ser conservadora (12 s **sem chegar
@@ -1259,8 +1261,10 @@ comandos de console e spawna coisas, então não é feature de jogador.
   cima também", 03/11/2026):** sempre que uma peça que **sustenta** (`WearNTear.m_supports`) é aceita, o `PullFloorsAbove`
   puxa para a frente do plano (logo depois dela) os **pisos** que caem na altura alvo - **topo da escada**
   (`Renderer.bounds.max.y`) ou **um andar acima** (`Pos.y + 2`) para parede/viga/piso/pole -, com ≤2,5 m em XZ e |ΔY| ≤ 1,2 m,
-  teto de 6 por passo e guarda `insertAt >= i`. O piso 2 m acima dos pés está ao alcance (5 m do olho), então ele constrói
-  o andar de cima **do nível em que está**, sem esperar o andar de baixo terminar.
+  teto de **2 pisos** por passo (um patamar precisa de um tile) e só no **lado de subida** da escada. O piso 2 m acima dos
+  pés está ao alcance (5 m do olho), então ele constrói o andar de cima **do nível em que está**. A 1ª versão movia com
+  `RemoveAt`/`Insert` e **pulava o tile mais perto da escada** (reprovada na simulação do especialista); a final reconstrói a
+  lista no lugar (`head` + escolhidos por distância + resto), porque `Pending.Plan` guarda a mesma referência.
   **A escada é peça da obra; o pouso é do mover (pedido "a escada da build deve ser feita a partir do piso", 03/11/2026):**
   o adiamento por `HasLanding` **saiu** (a casa ficava horas sem escada) - a escada é colocada quando o plano chega nela,
   apoiada no piso de baixo. Quem não sobe é o **mover**: `MHR_Mover.LadderLanding` recusa subir para o vazio nas rotas

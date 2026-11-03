@@ -49,6 +49,11 @@ stopped.
   house/blueprint only happened on "leveled" or "already flat", so a site that stopped at 0,30 m against the 0,20 m
   tolerance ended the whole order without a single piece. A failed leveling now hands the order back too, and the build
   goes on with the ground it has (the pieces that do not fit are retried).
+- **The build survives the companion's death, for real** (player's report, 03/11/2026: "he died and did not go on with the
+  build", still with the previous fix in place): the build never saw the death - the job is not driven on a dead body, so
+  the plan was never saved - and the respawn may build a NEW object (a new instance id), which orphaned a pending keyed by
+  the old one. The plan is now saved by `CompanionSetup.OnCompanionDeath` with the companion's **permanent id**, and the body
+  that comes back takes it over (`Reattach`), resuming at the same piece.
 - **The floor rises with its support** (player's requests, 03/11/2026: "he has to know he should place the piece at the top
   of the ladder and build the floor there" and "he can build the floor from the bottom up too, he does not need to wait until
   he is at the floor height"): the plan built the next storey only after the whole storey below was done, so a ladder stood
