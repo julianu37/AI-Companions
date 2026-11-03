@@ -69,7 +69,7 @@ arquivo:linha real de onde veio:
 | (j) | `BuildTemplates`: os nomes nos 5 idiomas, a composição de cada estrutura (cabana 7, abrigo 8, casa 57/46/21, tenda 4), a ordem (bancada → piso → parede → telhado → porta) e os deslocamentos medidos |
 | (k) | `LevelIntent`: a ordem de nivelar nos 5 idiomas e o tamanho que o jogador disse |
 | (l) | `BuildBlueprintParser.Parse`: V1/V2, vírgula decimal, linha quebrada, arquivo vazio, `(Clone)` fora do prefab, e `Ordered` pela classe/altura |
-| (m) | `BuildBlueprintParser.NearestWithin` (a ordem **dentro** do grupo): o zigue-zague vira caminho curto (12 m em vez de 30,05), os grupos não se misturam (y=0 antes de y=4 e o de cima começa onde o de baixo parou), a porta continua por último (inclusive o run das portas), o run de 1 peça não é tocado, 5 mm de altura não abrem grupo, e a estabilidade (duas listas iguais → mesma ordem; a lista do chamador não é reordenada) |
+| (m) | `BuildBlueprintParser.NearestWithin` (a ordem **dentro** do grupo): o zigue-zague vira caminho curto (12 m em vez de 30,05), os grupos não se misturam (y=0 antes de y=4 e o de cima começa onde o de baixo parou), a porta continua por último (inclusive o run das portas), o run de 1 peça não é tocado, 5 mm de altura não abrem grupo, o guloso **nunca fica pior que o arquivo** (o caso da armadilha 0/10/20 a partir de x=10: 30 m × 20 m, o arquivo fica) e a estabilidade (duas listas iguais → mesma ordem; a lista do chamador não é reordenada) |
 
 ## O que **não** é coberto (e por quê)
 

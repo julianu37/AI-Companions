@@ -593,6 +593,17 @@ internal static class Program
 		CheckText("run de 1: com 2 pecas so a classe decide", "wood_floor woodwall",
 			TracePrefabs(BuildBlueprintParser.Ordered(tiny)));
 
+		// the guarantee added in review (03/11/2026): the walk never comes out worse than the .blueprint - a run the
+		// greedy would LENGTHEN keeps the file order. Here the tie trap: the previous run ends at x=10, the walls are
+		// 0/10/20, and the walk 10 -> 0 -> 20 (30 m) is longer than the file 0 -> 10 -> 20 (20 m).
+		System.Collections.Generic.List<BuildBlueprintParser.Line> trap = Plan(
+			Piece("wood_floor", 10f, 0f, 0f),
+			Piece("woodwall", 0f, 0f, 0f),
+			Piece("woodwall", 10f, 0f, 0f),
+			Piece("woodwall", 20f, 0f, 0f));
+		CheckText("nunca pior: guloso de 30 m perde para o arquivo de 20 m (o arquivo fica)", "10,0 0,0 10,0 20,0",
+			TraceXZ(BuildBlueprintParser.Ordered(trap)));
+
 		// (e) stability: the same input twice gives the same output, and the caller's list is not reordered
 		System.Collections.Generic.List<BuildBlueprintParser.Line> first = BuildBlueprintParser.Ordered(ZigzagPlan());
 		System.Collections.Generic.List<BuildBlueprintParser.Line> second = BuildBlueprintParser.Ordered(ZigzagPlan());
