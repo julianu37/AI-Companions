@@ -2345,7 +2345,7 @@ leitura) exigiu — tudo medido em jogo:
 **Medido em jogo (03/11/2026):** nivelar **0,37 → 0,13 m**; limpar **7 obstáculos em 156 s** (3 árvores dentro do
 quadrado; 44 s levando carga ao baú); 2ª rodada com bancadas **fora** do footprint (17,8 m do centro):
 `done: piece_workbench ... supported`, **119 peças** e 98 `no_support` para o retry; a 3ª expôs a bancada derrubada no
-meio da obra e a **auto-cura**. Harness **449**, MCP 70, config **356 opções / 25 seções**, ES/FR/IT **0 lacunas**.
+meio da obra e a **auto-cura**. Harness **461**, MCP 70, config **356 opções / 25 seções**, ES/FR/IT **0 lacunas**.
 Detalhe técnico: `docs/re/building-notes.md` §15.2b-§15.2h.
 
 #### 1.9.7 - a escada da obra e o guarda de subida (03/11/2026) - em andamento
@@ -2363,7 +2363,7 @@ O lote saiu do teste de campo da `CommHomeBasicBP` (985 peças). O que mudou:
   `OnSceneLoaded`/`Shutdown`. Resposta ao "encheu de escadinha por tudo" (70 escadas com orçamento por peça).
 - **Alcance**: `3,0 m` normal, `4,5 m` só depois de 3 s sem chegar mais perto, olho a 5 m (regra do jogo).
 - **Bridge**: `companions.order` cancela `MHR_Build` e `MHR_Level` (antes um `follow` deixava a obra rodando).
-Evidência: `docs/re/building-notes.md` §15.2o-§15.2r; gate 9/9 (449 asserções, MCP 70, config 357/25, ES/FR/IT 0 lacunas).
+Evidência: `docs/re/building-notes.md` §15.2o-§15.2r; gate 9/9 (461 asserções, MCP 70, config 357/25, ES/FR/IT 0 lacunas).
 - **A ordem das peças dentro do andar (ideia do jogador, 03/11/2026) - implementada:** dentro do grupo (andar →
   classe → altura) a ordem era a do arquivo `.blueprint`, e era isso que fazia o companheiro atravessar a obra; o
   `BuildBlueprintParser.NearestWithin` agora reordena cada run por **vizinho mais próximo** (guloso, a partir de onde o

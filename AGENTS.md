@@ -1111,13 +1111,13 @@ comandos de console e spawna coisas, então não é feature de jogador.
   é escrito por reflexão, escolhido **pelo valor** igual ao `GetStamina()`, com uma linha de log dizendo qual).
   `setup: false` no `world_enter` desliga.
 - **Testar:** `python tools/mcp-devbridge/test_mcp_devbridge.py` (mock, sem jogo) — 70 checks.
-- **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check` — **449 asserções** das redes por
+- **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check` — **461 asserções** das redes por
   palavras (`RadialIntent`, `PickupIntent`, `GatherIntent`, `InteractionIntent`, `LlmIntent`, `OrderItems`,
   `CompanionNameMatch`) com os `.cs` reais linkados, mais o cross-check das cópias do `Stubs.cs` contra a
   `Companions.dll` (seção (h) — impede drift). Build 0/0 e exit 0 são o gate.
 - **Gate de release:** `powershell -ExecutionPolicy Bypass -File tools\release-check.ps1 -Version <versão>` — roda o
   build, a versão (`PluginVersion` × nome do zip), as 3 traduções, o `locale-fallback-check.ps1` (agora com asserts),
-  o `gen_config_doc.py --check`, o teste do MCP (70) e as 449 asserções; **PASS/FAIL por item e exit 1**. É o que tem
+  o `gen_config_doc.py --check`, o teste do MCP (70) e as 461 asserções; **PASS/FAIL por item e exit 1**. É o que tem
   de passar antes de tag/zip (`-SkipGame`/`-SkipIntents` para rodar parte).
 - **Docs:** `docs/mcp-devbridge.md` (arquitetura, protocolo, as **57** ferramentas, a receita de **jogar pelo agente**
   e a de **comandos de console**, e as evidências dos testes da 1.9.4) e `tools/mcp-devbridge/README.md`

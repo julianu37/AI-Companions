@@ -85,6 +85,8 @@ internal static class Program
 		Blueprints();
 		Section("(m) BuildBlueprintParser.NearestWithin - a ordem dentro do grupo (vizinho mais proximo)");
 		BlueprintOrder();
+		Section("(n) BuildBlueprintParser.Ordered - a chave do telhado (andar da laje que cobre)");
+		BlueprintRoofKey();
 		CrossCheckDoorRule();
 
 		Out.WriteLine();
@@ -611,6 +613,99 @@ internal static class Program
 		System.Collections.Generic.List<BuildBlueprintParser.Line> again = BuildBlueprintParser.Ordered(zigzag);
 		Check("estabilidade: Ordered() na MESMA lista devolve a mesma ordem", SameOrder(zigzagOrder, again));
 		CheckText("estabilidade: a lista do chamador continua na ordem do arquivo", "0,0 10,0 0,1 10,1", TraceXZ(zigzag));
+	}
+
+	/// <summary>
+	/// Section (n): E7 (review, 03/11/2026) - the storey key of a roof/gable piece (class 3) is the <b>slab it covers</b>:
+	/// the nearest floor ABOVE it (0.3-6 m up, 2.5 m in XZ). Every case here is a handicap the older keys fail: the plain
+	/// <c>StoreyOf</c> puts the roof in the lower storey (cases a and c - it comes out BEFORE the floor it covers), and
+	/// the short-lived <c>StoreyOf + 2</c> only reached a 2 m ceiling, not the 2.5-3 m of the game (case a has the floor
+	/// at 3 m). The floor that covers the roof wins by CLASS (the keys tie), no piece is moved between storeys, a roof
+	/// with no slab above falls back to the storey below, and a floor out of the window does not count. Pure, like
+	/// section (m): every plan is written by hand.
+	/// </summary>
+	private static void BlueprintRoofKey()
+	{
+		// (a) the roof is written BEFORE the slab it covers, one real storey (3 m) above it: the floor comes first -
+		// and it comes first by CLASS, because both resolve to the same storey key (the floor is "above", not "below").
+		System.Collections.Generic.List<BuildBlueprintParser.Line> covered = Plan(
+			Piece("wood_roof_45", 0f, 0f, 0f),
+			Piece("wood_floor", 0f, 3f, 0f));
+		System.Collections.Generic.List<BuildBlueprintParser.Line> coveredOrder = BuildBlueprintParser.Ordered(covered);
+		CheckText("telhado coberto: o piso 3 m acima vem ANTES do telhado", "wood_floor wood_roof_45",
+			TracePrefabs(coveredOrder));
+
+		// (b) no floor ABOVE the roof: the key falls back to the storey below. Alone it is still the one piece, and a
+		// floor on the SAME level (dy = 0 is not "above") does not become the slab the roof covers.
+		System.Collections.Generic.List<BuildBlueprintParser.Line> alone = Plan(Piece("wood_roof_45", 0f, 0f, 0f));
+		CheckText("telhado sem piso acima: sozinho continua o telhado", "wood_roof_45",
+			TracePrefabs(BuildBlueprintParser.Ordered(alone)));
+		System.Collections.Generic.List<BuildBlueprintParser.Line> sameLevel = Plan(
+			Piece("wood_roof_45", 0f, 0f, 0f),
+			Piece("wood_floor", 0f, 0f, 0f));
+		CheckText("telhado sem piso acima: o piso do MESMO nivel nao conta como laje coberta",
+			"wood_floor wood_roof_45", TracePrefabs(BuildBlueprintParser.Ordered(sameLevel)));
+
+		// (c) a tall ceiling (5 m) is still inside the window (0.3-6 m): the upper floor comes first.
+		System.Collections.Generic.List<BuildBlueprintParser.Line> tall = Plan(
+			Piece("wood_roof_45", 0f, 0f, 0f),
+			Piece("wood_floor", 0f, 5f, 0f));
+		CheckText("telhado coberto: piso a 5 m (pe-direito alto) tambem vem antes", "wood_floor wood_roof_45",
+			TracePrefabs(BuildBlueprintParser.Ordered(tall)));
+
+		// (d) out of the window (7 m): that floor is NOT the slab this roof covers, so it does not move the roof - the
+		// roof keeps the storey below and is built before the floor far above it.
+		System.Collections.Generic.List<BuildBlueprintParser.Line> far = Plan(
+			Piece("wood_roof_45", 0f, 0f, 0f),
+			Piece("wood_floor", 0f, 7f, 0f));
+		CheckText("telhado sem piso na janela: piso a 7 m NAO conta (o telhado fica no andar de baixo)",
+			"wood_roof_45 wood_floor", TracePrefabs(BuildBlueprintParser.Ordered(far)));
+
+		// (d2) the window has a radius too (2.5 m in XZ): a slab 2.4 m to the side still covers the roof; one 3 m to
+		// the side does not (the roof falls back to the storey below and is built first).
+		System.Collections.Generic.List<BuildBlueprintParser.Line> nearSide = Plan(
+			Piece("wood_roof_45", 0f, 0f, 0f),
+			Piece("wood_floor", 2.4f, 3f, 0f));
+		CheckText("telhado coberto: piso 2,4 m ao lado (dentro dos 2,5 m) conta como a laje", "wood_floor wood_roof_45",
+			TracePrefabs(BuildBlueprintParser.Ordered(nearSide)));
+		System.Collections.Generic.List<BuildBlueprintParser.Line> farSide = Plan(
+			Piece("wood_roof_45", 0f, 0f, 0f),
+			Piece("wood_floor", 3f, 3f, 0f));
+		CheckText("telhado sem piso na janela: piso 3 m ao lado (fora dos 2,5 m) NAO conta",
+			"wood_roof_45 wood_floor", TracePrefabs(BuildBlueprintParser.Ordered(farSide)));
+
+		// (d3) the slab is the NEAREST floor above, not the highest one: with floors at 3 m and 5 m the roof goes
+		// between them (the 3 m one covers it, the 5 m one belongs to the storey above).
+		System.Collections.Generic.List<BuildBlueprintParser.Line> twoSlabs = Plan(
+			Piece("wood_roof_45", 0f, 0f, 0f),
+			Piece("wood_floor", 0f, 5f, 0f),
+			Piece("wood_floor", 0f, 3f, 0f));
+		CheckText("telhado coberto: a laje e o piso MAIS PROXIMO acima (3 m), nao o mais alto (5 m)",
+			"wood_floor wood_roof_45 wood_floor", TracePrefabs(BuildBlueprintParser.Ordered(twoSlabs)));
+		CheckText("telhado coberto: alturas na ordem (piso 3, telhado 0, piso 5)", "3 0 5",
+			TraceY(BuildBlueprintParser.Ordered(twoSlabs)));
+
+		// (e) the key cannot push a door to the middle: two storeys (floors at 0 and 3, the roof at 0 covering the slab
+		// at 3) with the door written in the middle of the file - the door is still the LAST piece of the whole build.
+		System.Collections.Generic.List<BuildBlueprintParser.Line> roofDoor = Plan(
+			Piece("wood_roof_45", 0f, 0f, 0f),
+			Piece("wood_door", 4f, 0f, 0f),
+			Piece("woodwall", 0f, 0f, 0f),
+			Piece("wood_floor", 0f, 3f, 0f),
+			Piece("wood_floor", 0f, 0f, 0f));
+		System.Collections.Generic.List<BuildBlueprintParser.Line> roofDoorOrder = BuildBlueprintParser.Ordered(roofDoor);
+		CheckText("porta com telhado: piso de baixo, parede, piso de cima, telhado e a PORTA",
+			"wood_floor woodwall wood_floor wood_roof_45 wood_door", TracePrefabs(roofDoorOrder));
+		CheckInt("porta com telhado: nada de outra classe depois da 1a porta", 0, NotDoorAfterFirstDoor(roofDoorOrder));
+
+		// (f) one storey only (floor, wall and roof on the same floor, written in the worst order): the floor comes
+		// before the wall and both before the roof - the covered-slab lookup changes nothing inside a storey.
+		System.Collections.Generic.List<BuildBlueprintParser.Line> oneStorey = Plan(
+			Piece("wood_roof_45", 0f, 0f, 0f),
+			Piece("woodwall", 0f, 0f, 0f),
+			Piece("wood_floor", 0f, 0f, 0f));
+		CheckText("um andar so: piso -> parede -> telhado", "wood_floor woodwall wood_roof_45",
+			TracePrefabs(BuildBlueprintParser.Ordered(oneStorey)));
 	}
 
 	/// <summary>The plan of case (a)/(e) of section (m): a fresh list every call (case (e) needs two of them).</summary>

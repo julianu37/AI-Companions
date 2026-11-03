@@ -30,7 +30,7 @@ falha (ou algo foi pulado) e `2` quando o harness não conseguiu subir (assembli
 | `AI/CompanionNames.cs` | `CompanionNameMatch` (as regras de "quem foi chamado") |
 | `AI/BuildCatalog.cs` | `Resolve`/`HasWord`/`HasAnyWord` — o nome da peça → prefab (E5) |
 | `AI/BuildTemplates.cs` | os templates da E6/E6d (aliases nos 5 idiomas, peças, ordem) |
-| `AI/BuildBlueprintParser.cs` | `Parse` (V1/V2) e `Ordered` (classe/andar/altura + `NearestWithin`) |
+| `AI/BuildBlueprintParser.cs` | `Parse` (V1/V2), `Ordered` (classe/andar/altura + `NearestWithin`) e a chave do telhado (`StoreyKey`) |
 | `AI/LevelIntent.cs` | a ordem de nivelar o terreno e o tamanho (E10) |
 | `AI/MHR_Owner.cs`, `Core/MHR_List.cs` | dependências reais dos acima |
 
@@ -70,6 +70,7 @@ arquivo:linha real de onde veio:
 | (k) | `LevelIntent`: a ordem de nivelar nos 5 idiomas e o tamanho que o jogador disse |
 | (l) | `BuildBlueprintParser.Parse`: V1/V2, vírgula decimal, linha quebrada, arquivo vazio, `(Clone)` fora do prefab, e `Ordered` pela classe/altura |
 | (m) | `BuildBlueprintParser.NearestWithin` (a ordem **dentro** do grupo): o zigue-zague vira caminho curto (12 m em vez de 30,05), os grupos não se misturam (y=0 antes de y=4 e o de cima começa onde o de baixo parou), a porta continua por último (inclusive o run das portas), o run de 1 peça não é tocado, 5 mm de altura não abrem grupo, o guloso **nunca fica pior que o arquivo** (o caso da armadilha 0/10/20 a partir de x=10: 30 m × 20 m, o arquivo fica) e a estabilidade (duas listas iguais → mesma ordem; a lista do chamador não é reordenada) |
+| (n) | `BuildBlueprintParser.StoreyKey` (a chave do telhado): a peça de **telhado** (classe 3) pertence ao andar da **laje que ela cobre** — o piso mais próximo **acima** dela (0,3–6 m, 2,5 m em XZ). Casos: telhado escrito ANTES do piso a **3 m** (pé-direito real) → o piso vem antes; piso a **5 m** (pé-direito alto) → o piso ainda vem antes; piso a **7 m** (fora da janela) → não conta e o telhado fica no andar de baixo; piso **2,4 m ao lado** (dentro dos 2,5 m) conta e **3 m ao lado** não conta; com pisos a 3 m e 5 m a laje é a **mais próxima** (a ordem sai 3, 0, 5); telhado sozinho e telhado sobre um piso do **mesmo nível** (dy = 0 não é "acima") → andar de baixo; **porta por último** com piso de baixo, parede, piso de cima e telhado; e um andar só (piso → parede → telhado). **Cobertura provada por mutação** (03/11/2026, cópia do parser em `%TEMP%`, `src/` intocado): voltando a chave a `StoreyOf` puro **6 asserções falham** (3 m, 5 m, 2,4 m ao lado, mais próxima, alturas e a ordem completa do caso da porta); com a chave antiga `StoreyOf + 2` (commit `63d8096`) **as mesmas 6 falham** — antes desta seção o harness passava nos dois casos |
 
 ## O que **não** é coberto (e por quê)
 
