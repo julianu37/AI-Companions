@@ -250,7 +250,9 @@ a piece that needs a station (chest, bed) answers `hc_ai_build_needs_station` wh
 
 With `plan` it builds a whole **template** (E6): `plan=hut` (1 floor + 4 walls + 2 roofs) or
 `plan=canopy` (4 poles + 4 roofs over the bench). `x`/`y`/`z` pin the anchor (the canopy must be anchored on
-the bench it shelters).
+the bench it shelters). With `blueprint` it builds a **.blueprint** from
+`BepInEx/config/AI-Companions/blueprints` (E7; the file name or a full path); the footprint is centred on the
+hint/aim and the order is floor → stairs → walls → roof → door.
 
 ### `player_give`
 

@@ -35,6 +35,14 @@
         "type": "remote",
         "url": "https://mcp.context7.com/mcp"
       },
+      "valheim-devbridge": {
+        "type": "local",
+        "command": [
+          "python",
+          "C:\\Users\\revenda33\\Desktop\\ModAI-BR-Companions\\tools\\mcp-devbridge\\mcp_devbridge.py"
+        ],
+        "enabled": true
+      },
       "learn": {
         "type": "remote",
         "url": "https://learn.microsoft.com/api/mcp"

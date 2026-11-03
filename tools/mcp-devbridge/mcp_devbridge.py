@@ -535,13 +535,15 @@ TOOLS = [
             "near the player's aim, walks there, pays the materials from its own bag, places the piece and verifies "
             "it. The piece must be in the allow-list (piece_workbench, piece_chest_wood, fire_pit, bed, piece_bed02)."
             " With 'plan' it builds a whole TEMPLATE instead (E6: hut = 2x2 floor + 4 walls + gable roof; "
-            "canopy = 4 poles + 4 roofs over the bench)."
+            "canopy = 4 poles + 4 roofs over the bench). With 'blueprint' it builds a .blueprint from the player's "
+            "library (E7: BepInEx/config/AI-Companions/blueprints), centered on the hint/aim."
         ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "prefab": {"type": "string", "description": "e.g. 'piece_workbench' (omit when using plan)"},
+                "prefab": {"type": "string", "description": "e.g. 'piece_workbench' (omit when using plan/blueprint)"},
                 "plan": {"type": "string", "description": "a template: 'hut' or 'canopy'"},
+                "blueprint": {"type": "string", "description": "a .blueprint name or full path (E7)"},
                 "x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"},
                 "name": {"type": "string", "description": "companion name; default: the first one"},
             },
@@ -1048,6 +1050,8 @@ def run_tool(name, args):
             payload["prefab"] = args["prefab"]
         if args.get("plan"):
             payload["plan"] = args["plan"]
+        if args.get("blueprint"):
+            payload["blueprint"] = args["blueprint"]
         if args.get("name"):
             payload["name"] = args["name"]
         for key in ("x", "y", "z"):

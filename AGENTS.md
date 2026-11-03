@@ -1062,7 +1062,8 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
 
 ## Skills (carregue antes de escrever/revisar código)
 
-- `bepinex` · `jotunn` · `valheim-reverse-engineering` · `valheim-ai-backend` · `valheim-assets` · `kokoro`
+- `bepinex` · `jotunn` · `valheim-reverse-engineering` · `valheim-ai-backend` · `valheim-assets` · `kokoro` ·
+  `valheim-devbridge`
 
 ## Regras de trabalho
 

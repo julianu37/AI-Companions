@@ -95,7 +95,7 @@ Uma conexão por chamada; **um JSON por linha**, nas duas direções.
 | `build.check` | `prefab`, `x`, `y`, `z`, `yaw?` | o **mesmo** veredito do `BuildSite.Check` numa pose **exata** (o `y` não é achatado no chão - é assim que se testa parede sobre piso e telhado sobre parede) |
 | `build.snaps` | `prefab` | `count`, `points[]` (`name`, `x`, `y`, `z`) - os `snappoint` do prefab (a origem dos deslocamentos dos templates da E6) |
 | `build.usable` | `x?`, `y?`, `z?` | `station`, `usable` (o `CraftingStation.CheckUsable` do jogo: a regra do **telhado**, 70% de cobertura), `cover`, `underRoof`, `x/y/z` da estação **mais próxima** |
-| `companions.build` | `prefab`, `name?` | `started`, `prefab`, `name`, `hint{}` |
+| `companions.build` | `prefab?`, `plan?`, `blueprint?`, `name?`, `x/y/z?` | `started`, `blueprint`, `pieces`, `missing`, `missingStation`, `name` |
 | `companions.sethome` | `name?` | `name`, `x`, `y`, `z` |
 | `screenshot` | `path?` | `path` |
 | `render.view` | `x`, `z`, `y?`, `yaw?`, `pitch?`, `dist?`, `size?` | `path`, `size`, `bytes`, `target{}`, `camera{}` |
@@ -130,7 +130,7 @@ chat/roda) e aceita: `follow`, `wood`, `stone`, `ore`, `forage`, `smelt`, `hunt`
 `Wander`, `Follow`, `StayHome`, `HomeRadius`, `OrderCap`, `OrderCapMode`, `OrderCapItem`, `TombstoneId`, `Stamina`,
 `Recovering`, `RecoverStance`, `RecoverPickup`, `Voice`, `Gen`, `FarmZones` (`"<none>"` ou `"N chars"`).
 
-## Ferramentas MCP (54)
+## Ferramentas MCP (57 em 03/11/2026)
 
 Genéricas: `devbridge_ping`, `game_status` (posição, hp/stamina, bioma, dia, **yaw** do player, **camYaw/pitch** da
 câmera e **god**), `game_console` (**roda um comando do console e devolve a saída**: liga os dev commands sozinho e,
