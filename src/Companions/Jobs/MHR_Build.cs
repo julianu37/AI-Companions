@@ -2744,19 +2744,9 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		// height"): a floor that lands on what was just placed comes to the front of the plan, so the upper floor is built
 		// from the level he is standing on instead of waiting for the whole storey below to finish
 		bool isLadder = state.Prefab != null && state.Prefab.IndexOf("ladder", StringComparison.OrdinalIgnoreCase) >= 0;
-		float above = float.NaN;
-		if (isLadder)
-		{
-			above = LadderTop(state);
-		}
-		else if (state.Placed != null)
-		{
-			WearNTear support = state.Placed.GetComponent<WearNTear>();
-			if (support != null && support.m_supports)
-			{
-				above = state.Pos.y + 2f;   // one storey (the game's grid is 2 m)
-			}
-		}
+		// E7 (player's report, 03/11/2026: "the site is too ugly"): ONLY the ladder pulls a floor forward. Generalising it to
+		// every support (wall/beam/pole) pulled a floor 2 m above each of them, which filled the site with floating floors.
+		float above = isLadder ? LadderTop(state) : float.NaN;
 		if (!float.IsNaN(above))
 		{
 			PullFloorsAbove(ai, state, above, isLadder);

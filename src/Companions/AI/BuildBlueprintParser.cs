@@ -123,7 +123,11 @@ internal static class BuildBlueprintParser
 			// (class 3) covers the slab of the level ABOVE it, so it belongs to that storey - the sort key moves it there instead of
 			// moving pieces around (the first version pulled the floor out of its storey and broke the invariant the StoreyOf exists
 			// for: "in this hall the 2nd floor is really the 3rd"). Review, 03/11/2026.
-			.ThenBy(delegate (Line piece) { return StoreyKey(floors, piece); })
+			// E7 (player's report, 03/11/2026: "the site is too ugly, storey by storey would be perfect"): the key is the
+			// piece's OWN height, not the floor below it. With the floor below, a wall at y=0 belonged to the storey of the floor
+			// at y=-0,5 and was built BEFORE that floor; the house has levels every metre and the site came out as floating
+			// floors. By own height the build walks the levels upwards: floors -> walls -> roofs of one level, then the next.
+			.ThenBy(delegate (Line piece) { return LevelKey(floors, piece); })
 			.ThenBy(delegate (Line piece) { return ClassOf(piece.Prefab); })
 			.ThenBy(delegate (Line piece) { return piece.Py; })
 			.ToList();
@@ -154,14 +158,14 @@ internal static class BuildBlueprintParser
 		{
 			Line first = sorted[start];
 			int door = ClassOf(first.Prefab) == 4 ? 1 : 0;
-			float storey = StoreyKey(floors, first);
+			float storey = LevelKey(floors, first);
 			int cls = ClassOf(first.Prefab);
 			float y = first.Py;
 			int end = start + 1;
 			while (end < sorted.Count)
 			{
 				Line next = sorted[end];
-				if ((ClassOf(next.Prefab) == 4 ? 1 : 0) != door || Math.Abs(StoreyKey(floors, next) - storey) > 0.01f
+				if ((ClassOf(next.Prefab) == 4 ? 1 : 0) != door || Math.Abs(LevelKey(floors, next) - storey) > 0.01f
 					|| ClassOf(next.Prefab) != cls || Math.Abs(next.Py - y) > 0.01f)
 				{
 					break;
@@ -232,17 +236,18 @@ internal static class BuildBlueprintParser
 	}
 
 	/// <summary>
-	/// E7 (player's report, 03/11/2026: "he still tries to place those beams up top before the time"): the storey key of a
-	/// <b>roof/gable</b> (class 3) is the <b>slab it covers</b> - the nearest floor ABOVE it (0,3-6 m up, 2,5 m in XZ). A constant
-	/// "storey + 2" only works for a 2 m ceiling; the house in the log has 2,5-3 m and the roof still came first (review,
-	/// 03/11/2026). Any other class keeps the floor below it. Falls back to the storey below when no slab is above.
+	/// E7 (player's reports, 03/11/2026): the LEVEL of a piece is <b>its own height</b> - the build walks the levels upwards
+	/// (floors, walls, roofs of one height, then the next), which is the "storey by storey" the player asked for. The old key
+	/// was the floor BELOW the piece, and it put a wall at y=0 in the storey of the floor at y=-0,5 (built before it).
+	/// <para>Exception: a <b>roof/gable</b> (class 3) belongs to the <b>slab it covers</b> - the nearest floor above it (0,3-6 m,
+	/// 2,5 m in XZ) - or it would be built before the floor it covers.</para>
 	/// </summary>
-	private static float StoreyKey(List<Line> floors, Line piece)
+	private static float LevelKey(List<Line> floors, Line piece)
 	{
-		float below = StoreyOf(floors, piece);
+		float own = (float)Math.Round(piece != null ? piece.Py : 0f, 2);
 		if (piece == null || piece.Prefab == null || ClassOf(piece.Prefab) != 3 || floors == null)
 		{
-			return below;
+			return own;
 		}
 		float best = float.MaxValue;
 		foreach (Line floor in floors)
@@ -267,7 +272,7 @@ internal static class BuildBlueprintParser
 				best = dy;
 			}
 		}
-		return best < float.MaxValue ? piece.Py + best : below;
+		return best < float.MaxValue ? piece.Py + best : own;
 	}
 
 	/// <summary>0 = ground (floors, foundations, the workbench), 1 = the way UP (stairs, stepladders, ladders), 2 = what

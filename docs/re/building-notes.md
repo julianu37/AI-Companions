@@ -1285,11 +1285,18 @@ niveis. E o mesmo tipo de problema do telhado antes do piso (§15.2v acima): a o
 Os dois achados abertos (§15.2v) tinham a **mesma causa**: a ordem era **andar -> classe -> altura -> arquivo**, sem modelar
 **dependencia**. Duas correcoes cirurgicas:
 
-1. **A chave de ordenacao (parser, puro) - `StoreyKey`:** uma peca de **telhado/empena** (classe 3) cobre a laje do nivel
-   **acima**, entao o andar dela e o **piso mais proximo acima** (0,3-6 m, 2,5 m em XZ); as outras classes continuam com o
-   piso **abaixo**. O piso de cima entra **antes** dela por classe (0 antes de 3), sem mexer em nenhuma lista. Duas
-   tentativas anteriores foram reprovadas na revisao: **mover o piso** com `RemoveAt/Insert` (tirava o piso do andar dele) e
-   **`StoreyOf + 2`** (so funcionava com pe-direito de 2 m; o do jogo e 2,5-3 m e o telhado continuava vindo antes).
+1. **A chave de ordenacao (parser, puro) - `LevelKey`:** o nivel de uma peca e a **altura dela mesma** (`round(Py, 2)`),
+   entao a obra sobe **nivel por nivel** (relato do jogador: *"andar a andar seria perfeito"*): num nivel, piso -> escada ->
+   parede -> telhado -> porta. **Excecao:** uma peca de **telhado/empena** (classe 3) pertence a **laje que ela cobre** (o
+   piso mais proximo acima, 0,3-6 m, 2,5 m em XZ) ou, se nao houver laje acima, ao proprio nivel - o que cobre o caso do
+   **telhado que comeca no chao** (o jogador confirmou que a build tem um). Tres tentativas anteriores foram reprovadas:
+   mover o piso com `RemoveAt/Insert` (tirava o piso do andar dele), `StoreyOf + 2` (so valia para pe-direito de 2 m) e a
+   chave pelo **piso abaixo** (`StoreyOf`), que punha uma parede em y=0 no andar do piso em y=-0,5 e a construia **antes**
+   desse piso - a causa do canteiro "feio" com pisos soltos em varios niveis.
+1b. **`PullFloorsAbove` voltou a ser SO da escada:** generaliza-lo para qualquer peca que sustenta (`WearNTear.m_supports`)
+   puxava um piso 2 m acima de **cada** viga/poste e encheu o canteiro de pisos flutuantes (relato: *"ta muito feio esse
+   canteiro"*). O piso do patamar continua sendo puxado pelo **topo da escada**.
+
 2. **`PullSupports` (runtime):** quando uma peca e recusada com **`no_support`** (o caso do piso do patamar em 43,8), as
    pecas do plano **abaixo dela** (mesmo XZ a 1,5 m, 0,5-2,6 m de altura, ate 3) sao movidas para logo depois do passo
    atual, entao sao construidas **antes** de a peca voltar do retry. Era o furo do `PullFloorsAbove`: o piso era puxado,
