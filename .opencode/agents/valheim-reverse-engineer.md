@@ -10,6 +10,7 @@ permissions:
   - { action: "edit", resource: "*", effect: "deny" }
   - { action: "edit", resource: "docs/re/*", effect: "allow" }
   - { action: "shell", resource: "*", effect: "allow" }
+  - { action: "shell", resource: "*--force*", effect: "deny" }
   - { action: "webfetch", resource: "*", effect: "allow" }
   - { action: "websearch", resource: "*", effect: "allow" }
   - { action: "external_directory", resource: "*", effect: "allow" }
