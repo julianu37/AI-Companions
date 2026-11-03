@@ -1280,6 +1280,21 @@ sustentam (as vigas/paredes logo abaixo) precisam vir antes dele. Caminho de cor
 piso - ou no proprio `PullFloorsAbove` - puxar tambem os **apoios** desse piso (mesmo XZ, Y logo abaixo), repetindo ate 2
 niveis. E o mesmo tipo de problema do telhado antes do piso (§15.2v acima): a ordem atual nao modela dependencia.
 
+### 15.2w Dependencia: o telhado espera o piso e o piso sem apoio puxa os apoios (03/11/2026)
+
+Os dois achados abertos (§15.2v) tinham a **mesma causa**: a ordem era **andar -> classe -> altura -> arquivo**, sem modelar
+**dependencia**. Duas correcoes cirurgicas:
+
+1. **`FloorAboveBeforeRoof` (parser, puro):** para cada peca de **telhado/empena** (classe 3), o piso mais proximo **acima**
+   dela (0,3 a 4,5 m de altura, 2,5 m em XZ) e movido para **antes** dela, se ainda estiver a frente na lista. Era isso que
+   fazia as vigas do topo subirem "antes da hora". Nada muda de classe nem de andar.
+2. **`PullSupports` (runtime):** quando uma peca e recusada com **`no_support`** (o caso do piso do patamar em 43,8), as
+   pecas do plano **abaixo dela** (mesmo XZ a 1,5 m, 0,5-2,6 m de altura, ate 3) sao movidas para logo depois do passo
+   atual, entao sao construidas **antes** de a peca voltar do retry. Era o furo do `PullFloorsAbove`: o piso era puxado,
+   mas o que o sustenta continuava la na frente.
+
+Log novo: `N support piece(s) under the <peca> brought forward so it can stand`.
+
 ### 15.3 Medido em jogo (02/11/2026)
 
 | arquivo | pecas | resultado |

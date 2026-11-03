@@ -982,11 +982,12 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   arquivo** (o `PathLength` compara e mantém o menor). O `BuildBlueprints.Load` ganhou **cache por caminho +
   `LastWriteTimeUtc`** porque o `CheckPending` o chamava **por frame** enquanto a obra esperava material. O parser é puro e o
   harness cobre a ordenação (seção (m) em `tools/ai-intents-check`).
-- **Aberto (relato do jogador, 03/11/2026) — telhado/empena antes do piso do andar de cima:** o log de 715/985 mostra
-  `wood_wall_roof_45`/`wood_roof_45` a **40,8/41,8/42,8** colocados enquanto os pisos do andar seguinte ainda não existem (e
-  esses pisos caem em `no_support` a 43,8). Causa provável: o `StoreyOf` resolve o andar pelo piso **abaixo** da peça, então
-  um telhado sem laje de apoio vira "andar de baixo" e a **classe 3** entra antes do andar seguinte inteiro (a ordem é
-  andar → classe). **Não corrigido nesta rodada** (pedido para documentar e aguardar); caminhos em `building-notes` §15.2v.
+- **Dependência na ordem das peças (relatos "telhado antes da hora" e "de novo a escada sem piso", 03/11/2026) — corrigida:**
+  os dois tinham a mesma causa (a ordem não modelava dependência). (1) `BuildBlueprintParser.FloorAboveBeforeRoof` move o
+  **piso acima** de uma peça de **telhado** (classe 3) para antes dela (0,3-4,5 m acima, 2,5 m em XZ) - as vigas do topo não
+  sobem mais antes do piso que cobrem; (2) `MHR_Build.PullSupports` puxa os **apoios** (mesmo XZ a 1,5 m, 0,5-2,6 m abaixo,
+  até 3) de uma peça recusada com `no_support`, então o piso do patamar é puxado **com** o que o sustenta. Log:
+  `N support piece(s) under the <peça> brought forward so it can stand`. Detalhes em `building-notes` §15.2v e §15.2w.
 - **Pendências conhecidas (abertas):** a **voz não passa pelo
   mixer do jogo** (por isso ignora os sliders de volume do Valheim e só obedece `[AI] TtsVolume`); o **sync com o
   upstream** está **em dia com a 1.5.8** (era 1.5.4 — ver a seção *Upstream e licença*), mas o autor publica

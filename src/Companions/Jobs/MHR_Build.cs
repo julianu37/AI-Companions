@@ -1800,6 +1800,53 @@ internal static class MHR_Build
 		Log(ai, pulled.Count + " floor piece(s) over the " + state.Prefab + " brought forward so it leads somewhere");
 	}
 
+	/// <summary>
+	/// E7 (player's report, 03/11/2026: "a ladder with no floor again"): a piece refused with <c>no_support</c> needs what is
+	/// directly under it. The pieces in the plan within 1,5 m in XZ and 0,5-2,6 m below it (up to 3) are moved to right after
+	/// the current step, so they are built BEFORE it comes back from the retry queue. Nothing is added or removed.
+	/// </summary>
+	private static bool PullSupports(CompanionAI ai, State state)
+	{
+		if (state.Plan == null || state.Index + 1 >= state.Plan.Count)
+		{
+			return false;
+		}
+		List<int> found = new List<int>();
+		List<PlannedStep> pulled = new List<PlannedStep>();
+		for (int i = state.Index + 1; i < state.Plan.Count && found.Count < 3; i++)
+		{
+			PlannedStep step = state.Plan[i];
+			if (step == null || step.Prefab == null)
+			{
+				continue;
+			}
+			float dx = step.Pos.x - state.Pos.x;
+			float dz = step.Pos.z - state.Pos.z;
+			if (dx * dx + dz * dz > 2.25f)
+			{
+				continue;
+			}
+			float dy = state.Pos.y - step.Pos.y;
+			if (dy < 0.5f || dy > 2.6f)
+			{
+				continue;
+			}
+			found.Add(i);
+			pulled.Add(step);
+		}
+		if (pulled.Count == 0)
+		{
+			return false;
+		}
+		for (int i = found.Count - 1; i >= 0; i--)
+		{
+			state.Plan.RemoveAt(found[i]);
+		}
+		state.Plan.InsertRange(state.Index + 1, pulled);
+		Log(ai, pulled.Count + " support piece(s) under the " + state.Prefab + " brought forward so it can stand");
+		return true;
+	}
+
 	/// <summary>Is this pose close enough to a temporary stair to have been held up by it? (the same 4 m / 3 m window)</summary>
 	private static bool NearScaffold(State state, Vector3 pos, float radius = 6f)
 	{
@@ -2398,6 +2445,9 @@ internal static class MHR_Build
 			Dictionary<string, object> early = BuildSite.Check(state.Piece, state.Pos, state.Rot, cs);
 			if (early != null && !Ok(early) && Convert.ToString(early["status"]) == "no_support")
 			{
+				// E7 (player's report, 03/11/2026: "a ladder with no floor again"): the floor over a ladder is pulled forward and
+				// then refused with no_support because the frame UNDER it is still ahead in the plan - the supports come first.
+				PullSupports(ai, state);
 				LogDebug(ai, "deferring " + state.Prefab + " at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
 					+ F(state.Pos.z) + "): it needs what is below it, which is not up yet - retry pass");
 				QueueRetry(ai, state, "no_support");

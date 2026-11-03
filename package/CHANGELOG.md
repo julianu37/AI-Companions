@@ -54,6 +54,11 @@ stopped.
   the plan was never saved - and the respawn may build a NEW object (a new instance id), which orphaned a pending keyed by
   the old one. The plan is now saved by `CompanionSetup.OnCompanionDeath` with the companion's **permanent id**, and the body
   that comes back takes it over (`Reattach`), resuming at the same piece.
+- **The roof waits for the floor it covers, and a floor without support brings its frame** (player's reports, 03/11/2026: "he
+  still tries to place those beams up top before the time" and "a ladder with no floor again"): both were the same gap - the
+  order did not model dependency. A roof/gable piece is now built only after the floor right above it (0,3-4,5 m, within 2,5 m),
+  and a piece refused with no_support pulls the pieces under it (same spot, 0,5-2,6 m below, up to 3) to the front of the plan,
+  so the landing over a ladder is built together with its frame.
 - **He no longer walks back and forth across the site** (player's report, 03/11/2026: "even the ground floor he is going
   from one side of the build to the other"): the plan's order was storey -> class -> height -> **the order written in the
   .blueprint file**, and that file is in the order the author drew the pieces, not a path. Inside each group (same door
