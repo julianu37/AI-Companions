@@ -31,13 +31,13 @@ Leia `AGENTS.md` (seção *Upstream e licença*) e carregue a skill **`valheim-r
   problema. Clone local em `~/.local/share/opencode/repos/github.com/MaddhattrRocks/Offline-Companions-Reborn`.
   **Nunca** use a branch `claude/relaxed-archimedes-ecoh6h` como referência.
 - **Nossa árvore:** `git diff <commit do upstream>..HEAD -- <arquivo>` para separar "o que veio" de
-  "o que é nosso"; 63 dos 121 arquivos do 1.5.8 são byte a byte idênticos.
+  "o que é nosso"; no merge da 1.9.2 (31/10/2026), 63 dos 121 arquivos do 1.5.8 eram byte a byte idênticos.
 
 ## Como provar
 
 - **Harness de reflexão** sobre a `Companions.dll` real é o padrão da equipe: carregar o assembly (resolver
   Unity/BepInEx da pasta do jogo), chamar o método e imprimir o resultado. Foi assim que se provou o
-  `ValidActions` = 35, o `IsDoorRequest` e o fallback de idioma.
+  `ValidActions` (37 no array), o `IsDoorRequest` e o fallback de idioma.
 - Para IL: `ilspycmd`/dnSpyEx; confirme o alvo antes de qualquer patch (nomes podem ter mudado).
 - Assets: `Resources.FindObjectsOfTypeAll` no jogo ou o decompilado (ex.: `Rock_3` → `Rock_3_frac`).
 

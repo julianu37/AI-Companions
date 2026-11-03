@@ -26,13 +26,14 @@ Você é o especialista no **companheiro** do AI Companions (fork do Offline Com
 ## Antes de qualquer coisa
 
 Leia **`AGENTS.md`** (fonte da verdade: versão, arquitetura, fases, decisões e pendências) e carregue as
-skills **`bepinex`**, **`kokoro`** e **`valheim-ai-orders`**.
+skills **`bepinex`** e **`valheim-ai-orders`**.
 
 ## Frentes
 
-- **Companheiro:** `CompanionSetup` (ZDO, tiers `CompanionTierData`, aparência, stamina, comida, descanso,
-  rename), `CompanionManager` (spawn/`SpawnFree`/`ChangeTier`), lápide/respawn (`CompanionTombstoneResurrect`,
-  `MHR_Recover`), roster (`MHR_Roster`).
+- **Companheiro:** `CompanionSetup` (tiers `CompanionTierData`, aparência, stamina, comida, descanso, rename),
+  `CompanionManager` (spawn/`SpawnFree`/`ChangeTier`) e `MHR_Recover`. **ZDO/posse, roster (`MHR_Roster`) e
+  lápide/respawn (`CompanionTombstoneResurrect`) são do `valheim-netcode-dev`** — você consome as regras deles,
+  não as reescreve.
 - **Movimento e combate:** `CompanionAI`, `CompanionCombatAI`, `MHR_Mover`, arma/escudo, tocha, água, portas,
   navio/assento (`MHR_Board`), peso (`CompanionCarry`: `[General] MaxCarryWeight` + cinto lido do asset).
 - **Jobs:** harvest, farm, fish, hunt, cook, smelt, repair, upkeep, loot, `MHR_Collect`, tool keeper.

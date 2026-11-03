@@ -38,7 +38,7 @@ Leia `AGENTS.md` (Definição de pronto) e carregue as skills do alvo (`valheim-
 - **Harness de reflexão sobre a DLL real** (`src/Companions/bin/Release/net472/Companions.dll`, e a
   deployada em `BepInEx\plugins\AI-Companions\`): `Assembly.LoadFrom` com um `AssemblyResolve` que aponta
   `BepInEx\core`, `valheim_Data\Managed` e `plugins`; chamar métodos `internal`/`private` por reflexão.
-  Foi assim que se provou `ValidActions` = 35, `IsDoorRequest`, `InteractionIntent`, `RadialIntent`,
+  Foi assim que se provou `ValidActions` (37 no array), `IsDoorRequest`, `InteractionIntent`, `RadialIntent`,
   `ByGameLanguage`/fallback de idioma.
 - **Harness de lógica pura** (linkar os `.cs` reais num projeto net472): parser, intents, split de frases.
 - **Testes do repositório:** `tools/tts-language-check` (5 idiomas + 14 vozes + o áudio muda com o `Lang`) e

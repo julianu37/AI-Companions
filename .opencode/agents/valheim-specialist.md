@@ -44,8 +44,8 @@ Você é o **especialista de domínio do Valheim** do AI Companions. Leia `AGENT
 3. **Desenho técnico**: arquivos, métodos, assinaturas, invariantes, config nova (se houver) e o que **não** muda.
 4. **Critério de aceite** observável (log, número, peça, comportamento) e **receita de teste**.
 5. **Delegação**: o que vai para o `csharp-engineer` e o que precisa do `valheim-reverse-engineer` antes. Você
-   devolve o desenho; **o arquiteto abre o executor** e confere os arquivos tocados por `git status`/`git diff --stat`
-   (nunca por auto-relato). Se você abrir o executor, diga quais arquivos delegou.
+   **pode abrir o executor** (`subagent_depth = 2`), mas **o arquiteto controla a execução** e confere os arquivos
+   tocados por `git status`/`git diff --stat` (nunca por auto-relato) — diga sempre quais arquivos delegou.
 
 ## Invariantes
 

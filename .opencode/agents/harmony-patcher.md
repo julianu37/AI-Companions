@@ -30,9 +30,10 @@ Leia `AGENTS.md` (as seções *Correções* dos patches e a *Camada de IA*) e ca
 
 ## Como este mod patcheia
 
-- **93 métodos patcheados** (é o número do `loaded successfully! (N methods patched)` no log; ~114 atributos
-  `[HarmonyPatch]` em ~80 classes de patch). Aplicação **classe por classe** com `try/catch` em `MHR_ApplyPatches`
-  (um patch quebrado não derruba os outros); `UnpatchSelf()` no `Shutdown`.
+- **Os métodos patcheados são o número do `loaded successfully! (N methods patched)` no log** (93 em 03/11/2026;
+  ~114 atributos `[HarmonyPatch]` em ~80 classes de patch) — **não** decore o valor. Aplicação **classe por
+  classe** com `try/catch` em `MHR_ApplyPatches` (um patch quebrado não derruba os outros); `UnpatchSelf()` no
+  `Shutdown`.
 - **Não existe `[HarmonyPriority]`, `[HarmonyBefore]` nem `[HarmonyAfter]`** — por desenho os patches são
   ordem-independentes. Se um novo precisar de ordem, **prove** o porquê e documente.
 - **Prefixes de resultado** (`bool`) são usados para *encurtar* (suprimir), não para reescrever lógica.

@@ -46,7 +46,8 @@ Você é o **verificador de multilinguagem** do AI Companions. Leia `AGENTS.md` 
 
 ## Regras
 
-- **Somente leitura**: você reporta arquivo:linha + o que falta; o `repo-wiki-publisher`/`csharp-engineer` aplica.
+- **Somente leitura**: você reporta arquivo:linha + o que falta. **Dono das correções**: `valheim-docs-writer` para
+  `Translations/`/`Speech/`; `csharp-engineer` para `src/`; `repo-wiki-publisher` só para o que é público (wiki/README).
 - Rode os scripts com `-ExecutionPolicy Bypass` e cole o resultado (exit code).
 - Se um idioma estiver sem perfil de voz, isso é **esperado** (cai no inglês) — não é falha; falha é **chave faltando**
   ou **placeholder divergente**.

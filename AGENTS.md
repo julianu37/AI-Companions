@@ -1073,14 +1073,14 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
 3. **Não quebre o comportamento do upstream** — nossas mudanças são: **tradução PT-BR** + **camada de IA**.
    Mudanças de lógica só com motivo claro e documentado.
 4. **Tradução**: use o sistema de localização do próprio mod (`Translations/*.json`, `ModLocalization.cs`) —
-   UI/hover/HUD — e `Translations/speech/<Idioma>.json` para as falas (`SpeechConfig`).
-   Não hardcode PT-BR no código quando houver token de localização.
+   UI/hover/HUD — e `Speech/<Idioma>.json` para as falas (`SpeechConfig`). O inglês é **nativo** (não tem arquivo);
+   os **4** JSONs são PT/ES/FR/IT. Não hardcode PT-BR no código quando houver token de localização.
 5. **Sem segredos** hardcoded (chaves de LLM/API via `ConfigEntry` ou variável de ambiente).
 6. **Código vai em branch, não direto na `main`** (combinado em 22/10/2026): `feat/<tema>` ou `fix/<tema>` →
    **o jogador testa em jogo** → merge na `main`. **Um commit por hipótese** (não junte coisas independentes num
    commit só). Docs e release podem ir direto na `main`.
-7. **Sempre commitar e dar push** ao terminar (`git add -A && git commit && git push`), mensagem no padrão
-   `tipo(escopo): resumo`.
+7. **Sempre commitar e dar push** ao terminar (`git add -A && git commit && git push` **pelo arquiteto**; os demais
+   agentes usam **caminhos explícitos**, nunca `-A`), mensagem no padrão `tipo(escopo): resumo`.
 8. Atualize a documentação correspondente (`README.md`, `package/CHANGELOG.md`, `docs/roadmap.md`,
    `AGENTS.md`) quando algo mudar.
 9. **Idioma da documentação:** o **público é em inglês** (`README.md`, `package/*`, a wiki com o **padrão EN** e os
@@ -1101,7 +1101,8 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
     `valheim-docs-writer`, `multilanguage-verifier`, `repo-wiki-publisher`, `ai-npc-developer`, `llm-backend-dev`,
     `harmony-patcher`, `valheim-mod-architect`, `valheim-asset-dev`), dizendo a cada um o alvo, o que responder e o
     formato. `experimental.subagent_depth = 2` (`.opencode/opencode.jsonc`): o especialista pode chamar o executor
-    (ex.: `valheim-specialist` → `csharp-engineer` → `valheim-reverse-engineer`). O orquestrador
+    (ex.: `valheim-specialist` → `csharp-engineer`; o `csharp-engineer` tem `subagent: deny`, então a cadeia para em
+    2 níveis). O orquestrador
     consolida os achados por severidade, **aplica as correções, roda build/gate, documenta e commita** — nenhuma
     frente relevante entra sem a leitura de um especialista, e número/medida se confirma com o engenheiro reverso ou o
     QA (nunca "de memória"). Registrar no mesmo ciclo quem foi acionado, o que achou e o que foi aplicado.
@@ -1113,17 +1114,17 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
 | **`ai-companions-architect`** | orquestrador (primary): entende, divide, despacha, revisa, integra, valida e reporta |
 | `valheim-specialist` | domínio do jogo; decide e **delega** (`csharp-engineer`/`valheim-reverse-engineer`) |
 | `csharp-engineer` | implementação C# genérica |
-| `ai-integration` | LLM + STT + TTS |
+| `ai-integration` | transporte do LLM (`LlmClient`), STT e TTS |
 | `ai-npc-developer` | companheiro NPC (setup, movimento/combate, jobs, fala, ordens) |
-| `llm-backend-dev` | "cérebro": contrato/prompt, schema, provedor |
+| `llm-backend-dev` | "cérebro": contrato/prompt, schema, parser, persona/memória, redes por palavra |
 | `valheim-reverse-engineer` | APIs/asset/upstream com `arquivo:linha` |
 | `valheim-netcode-dev` | ZDO, posse, roster, lápide |
 | `harmony-patcher` | patches seguros |
-| `valheim-qa-engineer` | papel **mcp-test-engineer**: harness fora do jogo + testes no jogo (DevBridge) |
+| `valheim-qa-engineer` | papel **mcp-test-engineer**: harness fora do jogo + receita/DevBridge (quem roda o jogo é o arquiteto) |
 | `valheim-mod-reviewer` | papel **code-reviewer**: revisão independente, read-only |
 | `multilanguage-verifier` | 5 idiomas ponta a ponta (UI, falas, contratos, vozes, config) |
-| `repo-wiki-publisher` | repo + wiki nos 5 idiomas, release notes |
-| `valheim-docs-writer` | docs internas: AGENTS, roadmap, CHANGELOG, `building-notes` |
+| `repo-wiki-publisher` | repo + wiki nos 5 idiomas, README/CHANGELOG/release notes |
+| `valheim-docs-writer` | docs internas: AGENTS, roadmap, `docs/re`, `building-notes` e os 4 JSONs de tradução |
 | `valheim-mod-architect` | csproj, pacotes congelados, versão, config |
 | `valheim-asset-dev` | AssetBundles/SoftReferenceableAssets |
 | `jotunn-developer` | **não usado** (o mod não usa Jotunn); só se a adoção for pedida |
