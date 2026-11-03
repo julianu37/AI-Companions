@@ -54,6 +54,11 @@ stopped.
   the plan was never saved - and the respawn may build a NEW object (a new instance id), which orphaned a pending keyed by
   the old one. The plan is now saved by `CompanionSetup.OnCompanionDeath` with the companion's **permanent id**, and the body
   that comes back takes it over (`Reattach`), resuming at the same piece.
+- **He no longer walks back and forth across the site** (player's report, 03/11/2026: "even the ground floor he is going
+  from one side of the build to the other"): the plan's order was storey -> class -> height -> **the order written in the
+  .blueprint file**, and that file is in the order the author drew the pieces, not a path. Inside each group (same door
+  flag, storey, class and height) the pieces are now ordered by a **nearest-neighbour walk** that starts where the previous
+  group ended. No piece changes group and doors/gates are still the last thing of the build.
 - **The floor rises with its support** (player's requests, 03/11/2026: "he has to know he should place the piece at the top
   of the ladder and build the floor there" and "he can build the floor from the bottom up too, he does not need to wait until
   he is at the floor height"): the plan built the next storey only after the whole storey below was done, so a ladder stood

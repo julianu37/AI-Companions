@@ -114,7 +114,7 @@ internal static class BuildBlueprintParser
 				floors.Add(piece);
 			}
 		}
-		return pieces
+		List<Line> sorted = pieces
 			// E7 (player's report, 03/11/2026: "he built the ground floor doors while still working on the ground floor"):
 			// doors and gates are the LAST thing of the WHOLE BUILD, not of the storey - a door that exists is a door he
 			// opens and closes on every trip for the rest of the work. The class 4 (doors) goes after every storey.
@@ -123,6 +123,89 @@ internal static class BuildBlueprintParser
 			.ThenBy(delegate (Line piece) { return ClassOf(piece.Prefab); })
 			.ThenBy(delegate (Line piece) { return piece.Py; })
 			.ToList();
+		// E7 (player's report, 03/11/2026: "he walks back and forth across the build even on the ground floor"): the four keys
+		// above decided the GROUPS, but inside a group the order was the one written in the .blueprint - and that file is in the
+		// order the author placed the pieces, not a path. Each group is reordered by NEAREST NEIGHBOUR from where the previous
+		// group ended; no piece changes group, is added or is removed.
+		NearestWithin(sorted, floors);
+		return sorted;
+	}
+
+	/// <summary>
+	/// E7 (player's request, 03/11/2026): within one run of pieces that share the sort keys (door flag, storey, class and
+	/// height) the greedy path from where the previous run ended decides the order - the "nearest neighbour" walk. The runs
+	/// themselves, the storeys, the classes and the last-place doors are untouched: this only decides WHICH piece of a group
+	/// comes first. Pure, like the rest of the parser (no Unity).
+	/// </summary>
+	private static void NearestWithin(List<Line> sorted, List<Line> floors)
+	{
+		if (sorted == null || sorted.Count < 3)
+		{
+			return;
+		}
+		float cursorX = sorted[0].Px;
+		float cursorZ = sorted[0].Pz;
+		int start = 0;
+		while (start < sorted.Count)
+		{
+			Line first = sorted[start];
+			int door = ClassOf(first.Prefab) == 4 ? 1 : 0;
+			float storey = StoreyOf(floors, first);
+			int cls = ClassOf(first.Prefab);
+			float y = first.Py;
+			int end = start + 1;
+			while (end < sorted.Count)
+			{
+				Line next = sorted[end];
+				if ((ClassOf(next.Prefab) == 4 ? 1 : 0) != door || Math.Abs(StoreyOf(floors, next) - storey) > 0.01f
+					|| ClassOf(next.Prefab) != cls || Math.Abs(next.Py - y) > 0.01f)
+				{
+					break;
+				}
+				end++;
+			}
+			int count = end - start;
+			if (count > 1)
+			{
+				List<Line> run = sorted.GetRange(start, count);
+				List<Line> path = new List<Line>(count);
+				float cx = cursorX;
+				float cz = cursorZ;
+				while (run.Count > 0)
+				{
+					int best = 0;
+					float bestDistance = float.MaxValue;
+					for (int i = 0; i < run.Count; i++)
+					{
+						float dx = run[i].Px - cx;
+						float dz = run[i].Pz - cz;
+						float distance = dx * dx + dz * dz;
+						if (distance < bestDistance)
+						{
+							bestDistance = distance;
+							best = i;
+						}
+					}
+					Line chosen = run[best];
+					run.RemoveAt(best);
+					path.Add(chosen);
+					cx = chosen.Px;
+					cz = chosen.Pz;
+				}
+				for (int i = 0; i < count; i++)
+				{
+					sorted[start + i] = path[i];
+				}
+				cursorX = path[count - 1].Px;
+				cursorZ = path[count - 1].Pz;
+			}
+			else
+			{
+				cursorX = first.Px;
+				cursorZ = first.Pz;
+			}
+			start = end;
+		}
 	}
 
 	/// <summary>0 = ground (floors, foundations, the workbench), 1 = the way UP (stairs, stepladders, ladders), 2 = what

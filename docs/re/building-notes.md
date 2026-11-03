@@ -1210,6 +1210,23 @@ e leva as escadas provisorias. O `MHR_Build.Reattach(cs)` roda no **`TryInit`** 
 pending do id antigo para o novo, reiniciando os relogios. Logs: `it died during the build - the order resumes after the
 respawn (piece N/M)` e `the build order of "<id>" was handed to the companion that just came back`.
 
+### 15.2u A ordem das pecas: vizinho mais proximo dentro do grupo (03/11/2026)
+
+Relato do jogador: *"ate o piso do terreo ele fica de um lado para o outro da build colocando as pecas"*. A ordem do plano
+sempre foi **andar -> classe (piso -> escada -> parede -> telhado -> porta) -> altura -> ordem do arquivo `.blueprint`**, e o
+ultimo criterio e o problema: o `.blueprint` esta na ordem em que o autor desenhou as pecas, nao num caminho. Como o
+companheiro anda ate **cada** peca (`MHR_Mover.Go` com a pose dela), duas pecas vizinhas no arquivo e distantes no mundo viram
+uma travessia.
+
+**Correcao (o desempate que o jogador pediu):** o `BuildBlueprintParser.Ordered` continua montando os grupos com os mesmos
+quatro criterios e, no fim, o **`NearestWithin`** percorre a lista em **runs** que compartilham (flag de porta, `StoreyOf`,
+`ClassOf`, `Py` +-0,01) e reordena **cada run** por um caminho **guloso de vizinho mais proximo**, comecando na posicao da
+ultima peca do run anterior (o primeiro run parte da primeira peca). **Nada muda de grupo**, nada e adicionado ou removido, e
+porta/portao continuam no fim de tudo. Custo: O(n^2) por run na carga do plano (985 pecas: irrelevante, uma vez por ordem).
+
+O parser e **puro** (sem Unity), entao o harness o linka: a ordenacao tem secao propria em `tools/ai-intents-check`
+(zigue-zague, grupos que nao se misturam, porta por ultimo, run de 1 peca e estabilidade).
+
 ### 15.3 Medido em jogo (02/11/2026)
 
 | arquivo | pecas | resultado |

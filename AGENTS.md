@@ -974,11 +974,12 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   painéis, dverger, cache e camadas de UI intocados.** Verificado fora do jogo com a `Companions.dll` real
   (reflexão): as 7 falhas medidas + os casos de não-regressão dos 5 idiomas + as guardas — **95 casos, ALL CHECKS
   PASSED**.
-- **Pendência (ideia do jogador, 03/11/2026) — a ordem das peças dentro do andar:** hoje é **andar → classe (piso → escada →
-  parede → telhado → porta) → altura → ordem do arquivo `.blueprint`**, e é a ordem do arquivo que faz o companheiro
-  **atravessar a obra de um lado para o outro** mesmo no térreo (o `.blueprint` não está ordenado por proximidade). A ideia,
-  para testar **outro dia**, é um desempate por **vizinho mais próximo** dentro do mesmo andar + classe + altura (a ordem do
-  caminho a partir da peça anterior), sem tocar em andar/classe/porta. Nada implementado.
+- **A ordem das peças dentro do andar (ideia do jogador, 03/11/2026) — implementada:** o companheiro **atravessava a obra de
+  um lado para o outro** porque, dentro do grupo (andar → classe → altura), a ordem era a do arquivo `.blueprint` (a ordem em
+  que o autor desenhou as peças, não um caminho). Agora o `BuildBlueprintParser.NearestWithin` reordena **cada run** que
+  compartilha (flag de porta, `StoreyOf`, `ClassOf`, `Py` ±0,01) por um caminho **guloso de vizinho mais próximo**, começando
+  onde o run anterior terminou; **nada muda de grupo** e porta/portão continuam por último. O parser é puro e o harness cobre
+  a ordenação (seção nova em `tools/ai-intents-check`).
 - **Pendências conhecidas (abertas):** a **voz não passa pelo
   mixer do jogo** (por isso ignora os sliders de volume do Valheim e só obedece `[AI] TtsVolume`); o **sync com o
   upstream** está **em dia com a 1.5.8** (era 1.5.4 — ver a seção *Upstream e licença*), mas o autor publica
