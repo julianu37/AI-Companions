@@ -123,7 +123,7 @@ internal static class BuildBlueprintParser
 			// (class 3) covers the slab of the level ABOVE it, so it belongs to that storey - the sort key moves it there instead of
 			// moving pieces around (the first version pulled the floor out of its storey and broke the invariant the StoreyOf exists
 			// for: "in this hall the 2nd floor is really the 3rd"). Review, 03/11/2026.
-			.ThenBy(delegate (Line piece) { return StoreyOf(floors, piece) + (ClassOf(piece.Prefab) == 3 ? 2f : 0f); })
+			.ThenBy(delegate (Line piece) { return StoreyKey(floors, piece); })
 			.ThenBy(delegate (Line piece) { return ClassOf(piece.Prefab); })
 			.ThenBy(delegate (Line piece) { return piece.Py; })
 			.ToList();
@@ -154,14 +154,14 @@ internal static class BuildBlueprintParser
 		{
 			Line first = sorted[start];
 			int door = ClassOf(first.Prefab) == 4 ? 1 : 0;
-			float storey = StoreyOf(floors, first);
+			float storey = StoreyKey(floors, first);
 			int cls = ClassOf(first.Prefab);
 			float y = first.Py;
 			int end = start + 1;
 			while (end < sorted.Count)
 			{
 				Line next = sorted[end];
-				if ((ClassOf(next.Prefab) == 4 ? 1 : 0) != door || Math.Abs(StoreyOf(floors, next) - storey) > 0.01f
+				if ((ClassOf(next.Prefab) == 4 ? 1 : 0) != door || Math.Abs(StoreyKey(floors, next) - storey) > 0.01f
 					|| ClassOf(next.Prefab) != cls || Math.Abs(next.Py - y) > 0.01f)
 				{
 					break;
@@ -229,6 +229,45 @@ internal static class BuildBlueprintParser
 			total += (float)Math.Sqrt(dx * dx + dz * dz);
 		}
 		return total;
+	}
+
+	/// <summary>
+	/// E7 (player's report, 03/11/2026: "he still tries to place those beams up top before the time"): the storey key of a
+	/// <b>roof/gable</b> (class 3) is the <b>slab it covers</b> - the nearest floor ABOVE it (0,3-6 m up, 2,5 m in XZ). A constant
+	/// "storey + 2" only works for a 2 m ceiling; the house in the log has 2,5-3 m and the roof still came first (review,
+	/// 03/11/2026). Any other class keeps the floor below it. Falls back to the storey below when no slab is above.
+	/// </summary>
+	private static float StoreyKey(List<Line> floors, Line piece)
+	{
+		float below = StoreyOf(floors, piece);
+		if (piece == null || piece.Prefab == null || ClassOf(piece.Prefab) != 3 || floors == null)
+		{
+			return below;
+		}
+		float best = float.MaxValue;
+		foreach (Line floor in floors)
+		{
+			if (floor == null)
+			{
+				continue;
+			}
+			float dy = floor.Py - piece.Py;
+			if (dy < 0.3f || dy > 6f)
+			{
+				continue;
+			}
+			float dx = floor.Px - piece.Px;
+			float dz = floor.Pz - piece.Pz;
+			if (dx * dx + dz * dz > 6.25f)
+			{
+				continue;
+			}
+			if (dy < best)
+			{
+				best = dy;
+			}
+		}
+		return best < float.MaxValue ? piece.Py + best : below;
 	}
 
 	/// <summary>0 = ground (floors, foundations, the workbench), 1 = the way UP (stairs, stepladders, ladders), 2 = what

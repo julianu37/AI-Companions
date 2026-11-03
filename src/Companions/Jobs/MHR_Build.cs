@@ -1807,7 +1807,7 @@ internal static class MHR_Build
 	/// </summary>
 	private static bool PullSupports(CompanionAI ai, State state)
 	{
-		if (state.Plan == null || state.Index + 1 >= state.Plan.Count)
+		if (state.Plan == null || state.Index < 0 || state.Index >= state.Plan.Count)
 		{
 			return false;
 		}
@@ -1817,6 +1817,13 @@ internal static class MHR_Build
 		{
 			PlannedStep step = state.Plan[i];
 			if (step == null || step.Prefab == null)
+			{
+				continue;
+			}
+			// a roof (3) or a door (4) is never what holds a piece up - and pulling a door would break "doors last"
+			// (review, 03/11/2026: one line, a door could become the first piece of the build)
+			int cls = BuildBlueprintParser.ClassOf(step.Prefab);
+			if (cls == 3 || cls == 4)
 			{
 				continue;
 			}
@@ -1838,11 +1845,17 @@ internal static class MHR_Build
 		{
 			return false;
 		}
+		PlannedStep current = state.Plan[state.Index];
 		for (int i = found.Count - 1; i >= 0; i--)
 		{
 			state.Plan.RemoveAt(found[i]);
 		}
-		state.Plan.InsertRange(state.Index + 1, pulled);
+		int at = state.Index;
+		state.Plan.RemoveAt(at);
+		state.Plan.InsertRange(at, pulled);
+		state.Plan.Insert(at + pulled.Count, current);
+		// the NEXT Advance takes the first support; the refused piece comes right after them (review, 03/11/2026)
+		state.Index = at - 1;
 		Log(ai, pulled.Count + " support piece(s) under the " + state.Prefab + " brought forward so it can stand");
 		return true;
 	}
@@ -2446,8 +2459,13 @@ internal static class MHR_Build
 			if (early != null && !Ok(early) && Convert.ToString(early["status"]) == "no_support")
 			{
 				// E7 (player's report, 03/11/2026: "a ladder with no floor again"): the floor over a ladder is pulled forward and
-				// then refused with no_support because the frame UNDER it is still ahead in the plan - the supports come first.
-				PullSupports(ai, state);
+				// then refused with no_support because the frame UNDER it is still ahead in the plan. The supports come first and
+				// the refused piece is tried again RIGHT AFTER them - not at the end of the plan (review, 03/11/2026: the ladder
+				// stayed without its floor until the whole house was done).
+				if (PullSupports(ai, state))
+				{
+					return Advance(ai, state);
+				}
 				LogDebug(ai, "deferring " + state.Prefab + " at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
 					+ F(state.Pos.z) + "): it needs what is below it, which is not up yet - retry pass");
 				QueueRetry(ai, state, "no_support");

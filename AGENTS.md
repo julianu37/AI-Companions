@@ -983,9 +983,10 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   `LastWriteTimeUtc`** porque o `CheckPending` o chamava **por frame** enquanto a obra esperava material. O parser é puro e o
   harness cobre a ordenação (seção (m) em `tools/ai-intents-check`).
 - **Dependência na ordem das peças (relatos "telhado antes da hora" e "de novo a escada sem piso", 03/11/2026) — corrigida:**
-  os dois tinham a mesma causa (a ordem não modelava dependência). (1) **Chave de ordenação:** peça de **telhado** (classe 3)
-  pertence ao andar da **laje que cobre** (`StoreyOf + 2`), então o piso de cima entra antes dela por classe - a 1ª tentativa
-  (mover o piso de andar com `RemoveAt/Insert`) foi **reprovada**: quebrava o invariante do `StoreyOf`. (2)
+  os dois tinham a mesma causa (a ordem não modelava dependência). (1) **Chave de ordenação `StoreyKey`:** peça de **telhado** (classe 3)
+  pertence ao andar da **laje que cobre** (o piso mais próximo **acima**, 0,3-6 m, 2,5 m em XZ), então o piso de cima entra
+  antes dela por classe. Duas tentativas reprovadas: mover o piso de andar com `RemoveAt/Insert` (quebrava o invariante do
+  `StoreyOf`) e `StoreyOf + 2` (só valia para pé-direito de 2 m; o do jogo é 2,5-3 m). (2)
   `MHR_Build.PullSupports` puxa os **apoios** (mesmo XZ a 1,5 m, 0,5-2,6 m abaixo, até 3, **nunca porta nem telhado**) de uma
   peça recusada com `no_support` e a **retenta logo depois deles** (não no fim do plano). Log:
   `N support piece(s) under the <peça> brought forward so it can stand`. Detalhes em `building-notes` §15.2v e §15.2w.

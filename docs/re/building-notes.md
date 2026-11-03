@@ -1285,11 +1285,11 @@ niveis. E o mesmo tipo de problema do telhado antes do piso (§15.2v acima): a o
 Os dois achados abertos (§15.2v) tinham a **mesma causa**: a ordem era **andar -> classe -> altura -> arquivo**, sem modelar
 **dependencia**. Duas correcoes cirurgicas:
 
-1. **A chave de ordenacao (parser, puro):** uma peca de **telhado/empena** (classe 3) cobre a laje do nivel **acima**, entao
-   ela pertence a esse andar: a chave virou `StoreyOf(floors, piece) + (ClassOf == 3 ? 2 : 0)`. Assim o piso de cima entra
-   **antes** dela por classe (0 antes de 3), sem mexer em nenhuma lista. **A 1a tentativa (mover o piso com
-   `RemoveAt/Insert`)** foi reprovada na revisao: ela tirava o piso do **andar dele** e o enfiava no meio do andar de baixo -
-   exatamente o que o `StoreyOf` existe para impedir (o relato "no salao o 2o andar e o 3o").
+1. **A chave de ordenacao (parser, puro) - `StoreyKey`:** uma peca de **telhado/empena** (classe 3) cobre a laje do nivel
+   **acima**, entao o andar dela e o **piso mais proximo acima** (0,3-6 m, 2,5 m em XZ); as outras classes continuam com o
+   piso **abaixo**. O piso de cima entra **antes** dela por classe (0 antes de 3), sem mexer em nenhuma lista. Duas
+   tentativas anteriores foram reprovadas na revisao: **mover o piso** com `RemoveAt/Insert` (tirava o piso do andar dele) e
+   **`StoreyOf + 2`** (so funcionava com pe-direito de 2 m; o do jogo e 2,5-3 m e o telhado continuava vindo antes).
 2. **`PullSupports` (runtime):** quando uma peca e recusada com **`no_support`** (o caso do piso do patamar em 43,8), as
    pecas do plano **abaixo dela** (mesmo XZ a 1,5 m, 0,5-2,6 m de altura, ate 3) sao movidas para logo depois do passo
    atual, entao sao construidas **antes** de a peca voltar do retry. Era o furo do `PullFloorsAbove`: o piso era puxado,
