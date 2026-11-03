@@ -47,13 +47,13 @@ Leia `AGENTS.md` (as seções *Correções* dos patches e a *Camada de IA*) e ca
   `"Joy*"`/mouse **passam**; não toca o `EventSystem`.
 - **`Hud.InRadial`** (3 postfixes monotônicos) e os postfixes de `Player.TakeInput`/
   `PlayerController.TakeInput` são o gate dos painéis; a faixa de UI é **1701+** (`ModUiLayers`).
-- **`HarvestHitRegister`** (postfix novo do upstream) roda **mesmo** quando o nosso prefix suprime o dano —
+- **`HarvestHitRegister`** (postfix do upstream 1.5.6) roda **mesmo** quando o nosso prefix suprime o dano —
   é isso que registra o golpe; não "conserte" isso.
 
 ## Regras
 
 - Nunca altere fluxo que quebre save/multiplayer sem decisão explícita.
-- Prefira Postfix a Prefix; transpiler só quando inevitável (o único hoje é
+- Prefira Postfix a Prefix; transpiler só quando inevitável (o único transpiler é
   `CompanionWorldModifierPatch`, que degrada com aviso se o IL mudar).
 - **Custo com o log desligado é zero**: `if (!CompanionsPlugin.LogDetailed) return;` **antes** de montar
   string/reflexão (ver `MHR_PieceDamageLog`, `CompanionBlockLog`).

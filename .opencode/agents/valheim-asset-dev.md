@@ -1,5 +1,5 @@
 ---
-description: Especialista em assets (AssetBundles e SoftReferenceableAssets do Unity 6). O mod hoje não empacota assets próprios — atue só se um modelo/textura/som empacotado for pedido.
+description: Especialista em assets (AssetBundles e SoftReferenceableAssets do Unity 6). O mod não empacota assets próprios (estado em 03/11/2026) — atue só se um modelo/textura/som empacotado for pedido.
 mode: subagent
 hidden: true
 color: "#f08c00"

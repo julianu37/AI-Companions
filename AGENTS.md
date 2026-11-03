@@ -1140,6 +1140,10 @@ subagente). `valheim-specialist` e `valheim-mod-reviewer` **não editam** e roda
 `AGENTS.md`, `docs/**` (menos `wiki/` e `release-notes-*`), `Translations/**`, `Speech/**` e o `CONFIGURATION.md`
 gerado; os engenheiros editam `src/**` + `tools/ai-intents-check`. O **build/deploy do `Companions.sln` é só do
 arquiteto** (os executores rodam o harness, que não deploya), e nenhum agente pode `--force`.
+**Testado no runtime em 03/11/2026** (5 subagentes reais): `valheim-specialist` fica **sem** ferramenta de escrita (o
+`edit` nem aparece no catálogo) e `git push` volta `permission.rejected`; `csharp-engineer` edita `src/` e é negado em
+`docs/`; `valheim-docs-writer` edita `docs/` e é negado em `src/`; `valheim-qa-engineer` edita `tools/` e é negado em
+`src/`; `repo-wiki-publisher` edita `docs/wiki/` e é negado em `src/`. Nenhum arquivo de teste ficou na árvore.
 
 ## DevBridge (ferramenta de desenvolvimento)
 
