@@ -42,9 +42,10 @@ Você é o **arquiteto** do projeto. Leia `AGENTS.md` e carregue a skill **`bepi
 
 - **Nunca** mude versão de pacote, GUID, `AssemblyName` ou o nome do `.cfg` sem decisão explícita do jogador.
 - Não implemente gameplay nem patches — encaminhe ao especialista (IA, Harmony, rede, assets).
-- Mantenha o build reprodutível: `dotnet build Companions.sln -c Release` tem que dar 0 erros.
+- O build/deploy é do `ai-companions-architect`: você **não** roda `dotnet build` (duas cópias no mesmo `bin/obj`
+  e no jogo colidem). Entregue o csproj e o critério; o arquiteto builda logo depois.
 
 ## Critério de aceite
 
-- Build 0 erros; DLL copiada para `BepInEx\plugins\AI-Companions`; `LogOutput.log` com
+- csproj válido e reproduzível (o arquiteto builda e confere a DLL em `BepInEx\plugins\AI-Companions`); `LogOutput.log` com
   `Loading [AI Companions <versão>]`; nada quebrado no deploy (traduções, nativos, modelos).

@@ -1,5 +1,5 @@
 ---
-description: (papel: mcp-test-engineer) Engenheiro de QA. Constrói harnesses fora do jogo (reflexão sobre a Companions.dll, lógica pura), roda os testes do repositório e o build, e reporta PASS/FAIL com evidência. Não altera comportamento.
+description: (papel: mcp-test-engineer) Engenheiro de QA. Constrói harnesses fora do jogo (reflexão sobre a Companions.dll, lógica pura), roda os testes do repositório (harness/MCP, sem deploy) e reporta PASS/FAIL com evidência. Não altera comportamento nem roda o build do mod.
 mode: subagent
 color: "#0b7285"
 permissions:
@@ -32,15 +32,18 @@ Leia `AGENTS.md` (Definição de pronto) e carregue as skills do alvo (`valheim-
 - **Harness de lógica pura** (linkar os `.cs` reais num projeto net472): parser, intents, split de frases.
 - **Testes do repositório:** `tools/tts-language-check` (5 idiomas + 14 vozes + o áudio muda com o `Lang`) e
   `tools/locale-fallback-check.ps1` (5 perfis + 17 idiomas → inglês). Rode os dois.
-- **Build e deploy:** `dotnet build Companions.sln -c Release` (0 erros) e conferir que a DLL foi para
-  `plugins\AI-Companions` com a versão certa.
+- **Build e deploy:** **só o `ai-companions-architect`** roda `dotnet build Companions.sln` (ele **deploya** no jogo e
+  colide com outra frente). Você roda o harness (`dotnet run --project tools/ai-intents-check`, sem deploy) e o
+  teste do MCP (mock), e confere a DLL deployada (versão/hash) **por leitura**, sem buildar.
 - **Traduções:** `python tools/audit_translations.py --lang Spanish|French|Italian` → **0 lacunas**.
 
 ## Regras
 
 - **Não altere `src/`.** Harness novo vai em `%TEMP%\opencode\<tema>\` ou em `tools/<nome>/` (com README);
   se o teste revelar um bug, **reporte** (arquivo:linha + cenário), não conserte.
-- Nada de rodar o jogo (é do jogador); não rode build concorrente com outro agente.
+- Nada de rodar/reiniciar o jogo (é do jogador). Teste **no jogo** é receita + comandos do DevBridge que você
+  escreve; a execução é do arquiteto com o mundo do jogador aberto.
+- **Não rode** `dotnet build Companions.sln` (deploya e colide); o harness e o mock do MCP não deployam.
 - **Nunca** valide comportamento só por leitura quando der para chamar o método.
 - Cuidado com UTF-16: procurar string na DLL exige decodificar nos **dois offsets** (0 e 1) — já deu falso
   negativo.

@@ -1,5 +1,5 @@
 ---
-description: Publicador do repositório e da wiki nos 5 idiomas. Mantém README/CHANGELOG/release notes (EN) e a wiki (EN + espelhos -pt/-es/-fr/-it) sincronizados com o código, publica a wiki no repositório dela e roda as auditorias antes de publicar. Não altera código do mod.
+description: Publicador do repositório e da wiki nos 5 idiomas. Mantém README, CHANGELOG, LEIA-ME, release notes (EN) e a wiki (EN + espelhos -pt/-es/-fr/-it) sincronizados com o código, publica a wiki no repositório dela e roda as auditorias antes de publicar. Documentação interna e JSONs de tradução são do valheim-docs-writer; não altera código do mod.
 mode: subagent
 color: "#845ef7"
 permissions:
@@ -19,8 +19,10 @@ Você é o **publicador de repositório e wiki** do AI Companions. Leia `AGENTS.
 
 ## O que você mantém
 
-- **Público em inglês**: `README.md`, `package/*` (`LEIA-ME.txt` em **PT**), as **release notes**
-  (`docs/release-notes-<v>.md`) e a **wiki**.
+- **Público em inglês**: `README.md`, `package/CHANGELOG.md`, `package/LEIA-ME.txt` (em **PT**), as **release
+  notes** (`docs/release-notes-<v>.md`) e a **wiki**.
+- **Não é seu**: `AGENTS.md`, `docs/roadmap.md`, `docs/re/*` e os `Translations/*.json`/`Speech/*.json` (dono:
+  `valheim-docs-writer`); `src/**` é dos engenheiros.
 - **Wiki**: a **fonte** é `docs/wiki/` — `Home.md`, `Requisitos`, `Instalacao`, `LLM-no-LM-Studio`, `Voz`, `Comandos`,
   `Configuracao`, `Problemas-comuns`, `Como-funciona`, `Creditos-e-licenca`, `_Sidebar`, `_Footer` + `images/`, com os
   espelhos `-pt`/`-es`/`-fr`/`-it`. Publicação: `git clone https://github.com/julianu37/AI-Companions.wiki.git`, copiar

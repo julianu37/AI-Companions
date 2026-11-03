@@ -26,8 +26,9 @@ qualquer coisa — ele é a fonte da verdade (arquitetura, fases, decisões, pen
 3. **Dividir o trabalho** em frentes com **arquivos disjuntos**, que possam rodar em paralelo.
 4. **Coordenar implementação e revisão**: quem implementa não é quem aprova; a revisão é **independente** e vem **antes**
    de qualquer teste em jogo.
-5. **Integrar e validar**: aplicar os achados um a um, `dotnet build` + `dotnet run --project tools/ai-intents-check` +
-   `powershell -ExecutionPolicy Bypass -File tools\release-check.ps1 -Version <v>`, e conferir a árvore limpa.
+5. **Integrar e validar**: aplicar os achados um a um. **Só você roda** `dotnet build Companions.sln -c Release`
+   (deploya no jogo) e o gate `powershell -ExecutionPolicy Bypass -File tools\release-check.ps1 -Version <v>`; os
+   executores rodam só o harness (`tools/ai-intents-check`), que não deploya. Confira a árvore limpa.
 6. **Reportar**: o que foi **efetivamente testado** (com o comando/saída/número), o que **não** foi, e o que ficou
    **pendente** (com o arquivo/sistema e o porquê).
 
@@ -39,16 +40,18 @@ qualquer coisa — ele é a fonte da verdade (arquitetura, fases, decisões, pen
 | especialista de domínio do Valheim (decide e **delega** ao C#/pesquisador) | `valheim-specialist` |
 | implementação C# no mod (qualquer pasta) | `csharp-engineer` |
 | companheiro NPC: setup, movimento/combate, jobs, fala, ordens | `ai-npc-developer` |
-| LLM, contrato/prompt, schema, STT, TTS | `ai-integration` (ou `llm-backend-dev` para o "cérebro") |
+| contrato/prompt, schema, parser, persona/memória, redes por palavra | `llm-backend-dev` |
+| transporte do LLM (LlmClient), STT, TTS | `ai-integration` |
 | Harmony (prefix/postfix/transpiler) | `harmony-patcher` |
 | rede, ZDO, posse, roster, lápide | `valheim-netcode-dev` |
 | csproj, pacotes congelados, versão, config | `valheim-mod-architect` |
 | assets (bundle/SoftReferenceableAssets) | `valheim-asset-dev` |
-| testes fora do jogo (harness/reflexão) e no jogo (DevBridge/MCP) | `valheim-qa-engineer` (papel "mcp-test-engineer") |
+| testes fora do jogo (harness/reflexão) | `valheim-qa-engineer` (papel "mcp-test-engineer") |
+| receita/comandos de teste no jogo (DevBridge) — quem executa é você, com o mundo do jogador aberto | `valheim-qa-engineer` |
 | revisão independente (correção, performance, threading, ZDO, i18n) | `valheim-mod-reviewer` (papel "code-reviewer") |
 | 5 idiomas: chaves, placeholders, contratos por idioma, vozes | `multilanguage-verifier` |
 | repo + wiki nos 5 idiomas, release notes | `repo-wiki-publisher` |
-| documentação interna, CHANGELOG, roadmap | `valheim-docs-writer` |
+| documentação interna, roadmap, `docs/re`, JSONs de tradução | `valheim-docs-writer` |
 
 `experimental.subagent_depth = 2` está ligado: um especialista pode chamar um executor (ex.: `valheim-specialist` →
 `csharp-engineer`). Você continua dono da execução: **nada** é mergeado sem a sua revisão do diff e o gate.
@@ -56,7 +59,9 @@ qualquer coisa — ele é a fonte da verdade (arquitetura, fases, decisões, pen
 ## Protocolo (obrigatório)
 
 1. **Plano curto antes de agir**: o pedido, os sistemas, as frentes, quem faz o quê, o critério de aceite.
-2. **Despache em paralelo** o que for independente; **nunca** dois agentes editando o mesmo arquivo.
+2. **Despache em paralelo** o que for independente; **nunca** dois agentes editando o mesmo arquivo. **Nunca aceite
+   auto-relato de arquivos tocados**: `git status --porcelain` + `git diff --stat` antes de commitar (a delegação
+   aninhada pode editar via subagente).
 3. **Consolide os achados por severidade** e **conteste**: número/medida se confirma com o pesquisador ou o QA, nunca
    "de memória"; geometria/algoritmo se confirma por **simulação** ou harness.
 4. **Aplique** só o que tem evidência. Mudança de comportamento sem revisão independente **não** vai para teste.
