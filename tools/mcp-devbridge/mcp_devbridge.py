@@ -89,13 +89,14 @@ def require_ok(result):
 
 def world_enter(args):
     """Skips the intro and enters the world with the KEY sequence the player uses:
-    Space > Down > Enter > Enter > Enter. No mouse. If the first pass lands before the intro video starts, it tries
-    again (the Space is only consumed while the video/menu is up)."""
+    Space (repeated) > Down > Enter > Enter > Enter. No mouse. The intro video only consumes a Space while it is
+    up, so one 0.9 s press used to be eaten by the logos and the first retry waited up to 45 s - the player watched
+    almost the whole video. Now Space is pressed every 0.7 s for the first ~11 s, until the intro is gone."""
     wait = max(10, min(300, int(args.get("wait", 120))))
     delay = max(0, min(180, int(args.get("delay", 0))))
     if delay:
         time.sleep(delay)
-    steps = [("Space", 0.9), ("DownArrow", 0.7), ("Return", 1.5), ("Return", 1.5), ("Return", 1.5)]
+    steps = [("DownArrow", 0.7), ("Return", 1.5), ("Return", 1.5), ("Return", 1.5)]
 
     def poll(seconds):
         deadline = time.time() + seconds
@@ -111,17 +112,30 @@ def world_enter(args):
         return None
 
     for attempt in range(1, 4):
-        for key, step_delay in steps:
+        entered = None
+        for _ in range(16):
             focus_game()
-            require_ok(call_bridge("input.key", key=key))
-            time.sleep(step_delay)
-        data = poll(min(wait, 45))
-        if data:
+            require_ok(call_bridge("input.key", key="Space"))
+            time.sleep(0.7)
+            try:
+                ping = require_ok(call_bridge("ping"))
+                if ping.get("inGame"):
+                    entered = ping
+                    break
+            except Exception:  # noqa: BLE001 - the bridge may be busy while the world loads
+                pass
+        if entered is None:
+            for key, step_delay in steps:
+                focus_game()
+                require_ok(call_bridge("input.key", key=key))
+                time.sleep(step_delay)
+            entered = poll(min(wait, 30))
+        if entered:
+            data = dict(entered)
             # Always set the world up for driving the player: dev commands, midday and god mode. Without it the
             # agent dies to a greyling while it is busy with the bridge.
             if args.get("setup", True):
                 time.sleep(1.5)
-                data = dict(data)
                 data["setup"] = require_ok(call_bridge("world.setup", time=args.get("time", 0.5)))
             return data
         time.sleep(2)
