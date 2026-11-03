@@ -1170,58 +1170,56 @@ namespace Companions
         }
 
         /// <summary>
-        /// E7 (player's idea, 03/11/2026 - "the ladder of the build must be made from the floor"): is there <b>floor to
+        /// E7 (player's idea, 03/11/2026 - "the ladder of the build must be made from the floor"): is there <b>anything to
         /// stand on</b> at the top of this ladder? The piece may be placed before the floor above it (it is part of the
-        /// house), but the mover must not climb it into the void - the hall of a blueprint has no floor at that height and
-        /// the climb ended in a fall loop until it died.
+        /// house), but the mover must not climb it into the void - the double-height hall of a blueprint has nothing at that
+        /// height and the climb ended in a fall loop until it died.
         ///
-        /// <para>The probe is the ladder's <b>top tip</b>, not the middle of the piece: a <c>wood_stepladder</c> is 2 m deep
-        /// and its origin sits in the middle, so a ring around the centre lands on its own ramp (review, 03/11/2026). The tip
-        /// is <c>center + forward * depth</c>, the same <c>depth</c> the foot uses. A landing must be a <b>horizontal</b>
-        /// surface (<c>normal.y &gt;= 0,85</c> - a wall's top or a roof slope is not floor) <b>with head room</b> for the body,
-        /// and the ladder itself never counts (a world ladder has no <c>Piece</c>, hence <see cref="LadderRoot"/>). Fails
-        /// <b>open</b> when the layers are not available.</para>
+        /// <para><b>Regression-first (03/11/2026): only the OPEN VOID is refused.</b> The first version tried to prove a
+        /// landing (top tip + horizontal surface + 1,85 m of head room) and rejected every storey with a ceiling - a false
+        /// "no landing" blocks the whole upper floor of the house. This one asks the opposite question: is there <b>anything</b>
+        /// at the top that is not the ladder itself? A floor or a wall top within 1,4 m below the climb target, or any solid
+        /// within 1,3 m above it, is enough (the ladder may end a little short - <c>LadderTopHop</c> jumps up to ~1 m). No
+        /// answer above <b>and</b> below is the void. The target is <c>min(piece top, needY + 0,5)</c>, so a STACK of ladders
+        /// is judged at the floor being built, not at the top of the pile. Fails <b>open</b> when the layers are unavailable
+        /// or the piece has no <c>Piece</c> (a world ladder).</para>
         /// </summary>
-        static bool LadderLanding(Bounds b, Vector3 forward)
+        static bool LadderLanding(Bounds b, float needY)
         {
             int mask = Mask();
             if (mask == 0) return true;
-            Vector3 f = forward; f.y = 0f;
-            if (f.sqrMagnitude < 0.01f) f = Vector3.forward;
-            f.Normalize();
-            float depth = Mathf.Abs(f.x) * b.extents.x + Mathf.Abs(f.z) * b.extents.z;
-            Vector3 side = new Vector3(-f.z, 0f, f.x);
-            // the prefab's own forward is not guaranteed to be the climb side (the -Z convention was measured on the piece,
-            // not on the AutoJumpLedge child), so BOTH ends of the piece are probed
-            Vector3[] tips =
+            // the climb target is the piece top or the floor it is heading for - a STACK of ladders has its highest bound far
+            // above the floor of the storey being built (review, 03/11/2026)
+            float topY = Mathf.Min(b.max.y, needY + 0.5f);
+            Vector3 c = new Vector3(b.center.x, topY, b.center.z);
+            // 1) something to STAND ON at / just below the top (a floor, a wall top, the terrain)
+            for (int i = 0; i < 5; i++)
             {
-                new Vector3(b.center.x + f.x * depth, b.max.y, b.center.z + f.z * depth),
-                new Vector3(b.center.x - f.x * depth, b.max.y, b.center.z - f.z * depth)
-            };
-            bool something = false;
-            for (int t = 0; t < tips.Length; t++)
-            {
-                Vector3 tip = tips[t];
-                Vector3[] spots = { tip, tip + side * 0.6f, tip - side * 0.6f, tip + f * 0.5f, tip - f * 0.5f };
-                for (int i = 0; i < spots.Length; i++)
-                {
-                    Vector3 spot = spots[i];
-                    // head room: the body is ~1,8 m and a landing under a beam is not a landing
-                    if (Physics.Raycast(spot + Vector3.up * 0.15f, Vector3.up, 1.85f, mask, QueryTriggerInteraction.Ignore)) continue;
-                    RaycastHit hit;
-                    if (!Physics.Raycast(spot + Vector3.up * 0.6f, Vector3.down, out hit, 1.0f, mask, QueryTriggerInteraction.Ignore)) continue;
-                    Piece piece;
-                    GameObject root = LadderRoot(hit.collider, out piece);
-                    if (root != null && IsLadder(root, piece, hit.collider)) continue;   // the ladder's own top
-                    something = true;
-                    if (hit.normal.y >= 0.85f && hit.point.y >= b.max.y - 0.7f) return true;   // a real landing
-                }
+                Vector3 spot = c + (i == 1 ? new Vector3(0.6f, 0f, 0f) : i == 2 ? new Vector3(-0.6f, 0f, 0f)
+                    : i == 3 ? new Vector3(0f, 0f, 0.6f) : i == 4 ? new Vector3(0f, 0f, -0.6f) : Vector3.zero);
+                RaycastHit hit;
+                if (!Physics.Raycast(spot + Vector3.up * 0.4f, Vector3.down, out hit, 1.4f, mask, QueryTriggerInteraction.Ignore)) continue;
+                Piece piece;
+                GameObject root = LadderRoot(hit.collider, out piece);
+                if (root != null && IsLadder(root, piece, hit.collider)) continue;   // the ladder's own top
+                return true;
             }
-            // REGRESSION-FIRST (03/11/2026): anything solid above the ladder that is not the ladder itself counts as "maybe
-            // there is a floor" - a false "no landing" blocks the whole upper floor of the house, while a wrong climb is
-            // already covered by the two-fall guard (2 drops on the same piece and it is skipped). Only the OPEN VOID is
-            // refused: the double-height hall where he climbed into nothing and fell in a loop until he died.
-            return something;
+            // 2) nothing below: the ladder may end a little SHORT of the floor (LadderTopHop jumps up to ~1 m) - anything solid
+            // right above the top that is not the ladder means there is a floor to reach
+            for (int i = 0; i < 5; i++)
+            {
+                Vector3 spot = c + (i == 1 ? new Vector3(0.6f, 0f, 0f) : i == 2 ? new Vector3(-0.6f, 0f, 0f)
+                    : i == 3 ? new Vector3(0f, 0f, 0.6f) : i == 4 ? new Vector3(0f, 0f, -0.6f) : Vector3.zero);
+                RaycastHit hit;
+                if (!Physics.Raycast(spot + Vector3.up * 0.3f, Vector3.up, out hit, 1.3f, mask, QueryTriggerInteraction.Ignore)) continue;
+                Piece piece;
+                GameObject root = LadderRoot(hit.collider, out piece);
+                if (root != null && IsLadder(root, piece, hit.collider)) continue;
+                return true;
+            }
+            // NOTHING above and NOTHING below: the open void of the double-height hall where he climbed and fell in a loop
+            // until he died. This is the ONLY case refused (regression-first: a false "no landing" blocks a whole storey).
+            return false;
         }
 
         static bool IsLadder(GameObject root, Piece piece, Collider col)
@@ -1401,7 +1399,7 @@ namespace Companions
                     f.Normalize();
                     // E7 (review, 03/11/2026): a chain whose LAST step ends in the void is the same fall loop - every
                     // step of it needs its own landing before it is planned
-                    if (requireLanding && !LadderLanding(b, f)) continue;
+                    if (requireLanding && !LadderLanding(b, b.max.y)) continue;
                     Vector3 spot; bool room;
                     // 1.5.3: 4.5 m (was 3.5 - the ruin's third ladder fell just outside and split the chain in two)
                     if (!LadderFoot(b, f, out spot, out room) || Mathf.Abs(spot.y - cur.max.y) > 1.0f || Flat(spot, top) > 4.5f) continue;
@@ -1814,8 +1812,10 @@ namespace Companions
             // 1.5.3: 1.5 m, not 2 - a skeleton exactly 2.0 m up on the next floor got no ladder search (user log: stepped off
             // the ladder's top instead and fell)
             if (needY < pos.y + 1.5f) return false;
-            // 1.5.3: a chain of ladders that has worked before, starting by our feet: straight onto it
-            if (UseKnownChain(s, pos, needY, now, tag)) return true;
+            // 1.5.3: a chain of ladders that has worked before, starting by our feet: straight onto it.
+            // E7 (review, 03/11/2026): NOT on a build route - a remembered chain is static and was never checked for a
+            // landing; the build re-plans instead (it is an optimization, not a behaviour)
+            if (tag != "Build" && tag != "BuildGather" && UseKnownChain(s, pos, needY, now, tag)) return true;
             Collider[] cols = Physics.OverlapSphere(pos + Vector3.up * 2f, 14f, Mask());
             GameObject best = null; Bounds bestB = default(Bounds); float bestD = float.MaxValue; int bestId = 0;
             var seen = new HashSet<int>();
@@ -1841,7 +1841,7 @@ namespace Companions
                 // companion must keep climbing ladders the player built (review, 03/11/2026).
                 AutoJumpLedge climbLedge = root.GetComponentInChildren<AutoJumpLedge>(true);
                 Vector3 climbF = climbLedge != null ? climbLedge.transform.forward : Vector3.zero; climbF.y = 0f;
-                if ((tag == "Build" || tag == "BuildGather") && !LadderLanding(b, climbF))
+                if ((tag == "Build" || tag == "BuildGather") && !LadderLanding(b, needY))
                 {
                     if (now >= s.NextLadderLog)
                     {

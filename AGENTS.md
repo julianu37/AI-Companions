@@ -1259,14 +1259,13 @@ comandos de console e spawna coisas, então não é feature de jogador.
   **A escada é peça da obra; o pouso é do mover (pedido "a escada da build deve ser feita a partir do piso", 03/11/2026):**
   o adiamento por `HasLanding` **saiu** (a casa ficava horas sem escada) - a escada é colocada quando o plano chega nela,
   apoiada no piso de baixo. Quem não sobe é o **mover**: `MHR_Mover.LadderLanding` recusa escada sem pouso no topo nas rotas
-  de **build** (e em cada degrau da corrente `PlanChain(..., requireLanding)`), sondando a **ponta de cima**
-  (`center + forward * depth`), exigindo superfície **horizontal** (`normal.y >= 0,85`) **com espaço para o corpo** (1,85 m)
-  e nunca a própria escada, nos **dois extremos** da peça (o forward do `AutoJumpLedge` não é garantidamente o lado da
-  subida). **Regra de regressão: fail-open** - se não achar piso "de verdade" mas houver **qualquer sólido acima**, deixa
-  subir; só o **vazio aberto** é recusado (falso negativo trava o andar de cima inteiro; falso positivo já é coberto pelas
-  2 quedas). A 1ª versão sondava o **centro** da peça (falso negativo: a `wood_stepladder` tem 2 m de profundidade) e
-  aceitava parede/telhado - corrigida na revisão. Medido com `build.snaps`: `wood_stair` sobe +1 m e `wood_stepladder`
-  **+2 m**, ambas para o **-Z local**.
+  de **build** (e em cada degrau da corrente `PlanChain(..., requireLanding)`), e a corrente lembrada (`UseKnownChain`) não
+  é usada no build (ela não passa pelo guarda). **Regra de regressão: só o VAZIO é recusado** - o guarda pergunta se
+  existe **qualquer coisa** ao alcance do topo que não seja a própria escada (piso/topo de parede até 1,4 m abaixo do alvo,
+  ou sólido até 1,3 m acima para a escada que termina curta), no alvo `min(topo da peça, needY + 0,5)`. As duas versões
+  anteriores erraram: a 1ª sondava o **centro** (falso negativo: 2 m de profundidade) e a 2ª exigia **1,85 m de espaço**
+  (recusava todo andar com teto). Falso negativo trava o andar de cima inteiro; falso positivo já é coberto pelas 2
+  quedas. Medido com `build.snaps`: `wood_stair` sobe +1 m e `wood_stepladder` **+2 m**, ambas para o **-Z local**.
   **Ponta do telhado (relato "ela tá apanhando pra fazer essa ponta", 03/11/2026):** as peças da empena no topo vão para o
   retry por `no_support` (adiadas sem andar), mas as águas da ponta gastavam os **60 s** do timeout andando sem chegar. Nova
   trava de **progresso** no `Goto`: **12 s sem chegar 0,5 m mais perto** → retry (`no progress ...`).

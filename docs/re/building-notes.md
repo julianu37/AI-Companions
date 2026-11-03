@@ -1142,21 +1142,18 @@ companheiro precisa dela para o andar de cima. A separacao certa e outra: **a pe
 plano chega nela, apoiada no piso de baixo, como qualquer peca) e **a subida e do mover** (ele nao sobe escada sem
 pouso no topo).
 
-**O guarda (`MHR_Mover.LadderLanding`), refeito depois da 1a revisao:** a primeira versao sondava um anel de 0,6 m em
-torno do **centro** da peca - e a `wood_stepladder` tem 2 m de profundidade com a origem no meio, entao as sondas caíam
-na propria rampa (**falso negativo**: ele nunca subia) - e aceitava qualquer solido na janela (**falso positivo**: topo
-de parede/telhado contava como piso, deixando passar exatamente o acidente). Versao final: sonda a **ponta de cima**
-(`center + forward * depth`, o mesmo `depth` que o pe usa), exige superficie **horizontal** (`normal.y >= 0,85`) **com
-espaco para o corpo** (raycast para cima de 1,85 m) e nunca aceita a propria escada (`LadderRoot` + `IsLadder`, porque
-escada do mundo nao tem `Piece`). Vale **so nas rotas de build** (`tag` "Build"/"BuildGather") - em Follow/Combat ele
-continua subindo a escada que voce construiu - e tambem em cada degrau da **corrente** (`PlanChain(..., requireLanding)`),
-que antes passava por fora. Recusa gera uma linha por 30 s (`the ladder X at (...) has no floor at its top`).
+**O guarda (`MHR_Mover.LadderLanding`), refeito DUAS vezes na revisao:** a 1a versao sondava um anel em torno do
+**centro** da peca (falso negativo: a `wood_stepladder` tem 2 m de profundidade, as sondas caiam na propria rampa) e aceitava
+qualquer solido na janela (falso positivo: topo de parede/telhado). A 2a tentou exigir piso horizontal + **1,85 m de
+espaco** para o corpo - e isso recusava **todo andar com teto** (pe-direito de 2 m com laje de 0,25 m da ~1,75 m livres):
+outro falso negativo, o pior tipo. **Versao final, regressao em primeiro lugar: so o VAZIO e recusado.** O guarda pergunta
+o contrario - "existe QUALQUER coisa ai em cima que nao seja a propria escada?" - e aceita se houver piso/topo de parede ate
+**1,4 m abaixo** do alvo da subida (ou qualquer solido ate **1,3 m acima**, para a escada que termina um pouco curta, caso
+do `LadderTopHop`). O alvo e `min(topo da peca, needY + 0,5)`, entao uma **pilha** de escadas e julgada no piso do andar em
+construcao, nao no topo da pilha. Sem nada acima **e** nada abaixo = o vazio do salao onde ele caiu em loop. Fail-open sem
+mascara ou sem `Piece`. Vale **so nas rotas de build** (`tag` "Build"/"BuildGather"); a corrente lembrada (`UseKnownChain`)
+**nao** e usada no build (ela nao passa pelo guarda - o build replaneja, que e o que ele ja faz).
 
-**Regra de regressao (03/11/2026): fail-open.** A sonda roda nos **dois extremos** da peca (o forward do `AutoJumpLedge`
-nao e garantidamente o lado da subida) e, se nao achar um piso "de verdade" (normal horizontal + espaco), **ainda deixa
-subir quando existe QUALQUER solido acima** que nao seja a propria escada. Só o **vazio aberto** e recusado - o salao de
-pe-direito duplo onde ele subiu para o nada e caiu em loop. Motivo: falso negativo trava o andar de cima da casa inteira;
-falso positivo ja esta coberto pelas **2 quedas na mesma peca -> skip**.
 Limitacao conhecida: o `AutoJumpLedge` ainda levanta quem **anda** na direcao da escada (`CompanionLadderBumpPatch`), entao
 uma rota que empurre o corpo contra ela sobe sem passar pelo guarda - o caminho observado era o `Climb`.
 
