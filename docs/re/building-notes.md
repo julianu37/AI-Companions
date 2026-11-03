@@ -1165,6 +1165,22 @@ mascara ou sem `Piece`. Vale **so nas rotas de build** (`tag` "Build"/"BuildGath
 Limitacao conhecida: o `AutoJumpLedge` ainda levanta quem **anda** na direcao da escada (`CompanionLadderBumpPatch`), entao
 uma rota que empurre o corpo contra ela sobe sem passar pelo guarda - o caminho observado era o `Climb`.
 
+### 15.2s O patamar da escada vem primeiro (03/11/2026)
+
+Pedido do jogador com screenshot: *"ele tem que identificar que deveria colocar a peca do fim da escada e ja fazer o piso
+ali"*. A ordem do plano constroi o andar de cima **so depois** de todas as paredes do terreo (`StoreyOf`), entao a
+`wood_stepladder` era colocada e ficava **sem patamar** por muito tempo - ele subia e ficava empoleirado na beirada sem
+piso para trabalhar, e as pecas de cima falhavam com `no_support`.
+
+**Correcao:** o inverso do adiamento antigo. Quando uma **escada** e aceita (`Verify`), o `PullLanding` varre o resto do
+plano e **puxa para a frente** (logo depois dela, `Index+1`) os **pisos** que caem no topo: prefab com "floor", XZ a
+ate **2,5 m** do pe da escada e |Y - topo| <= **1,2 m** (topo lido do `Renderer.bounds.max.y`; fallback `Pos.y + 2`).
+Teto de **6 pecas** por escada, com o guarda `insertAt >= i` (sem isso a reinsercao poderia cair depois do ponto de
+varredura). Log: `N floor piece(s) over the ladder brought forward so it leads somewhere`.
+
+Fica valendo o resto: o piso ainda passa por `BuildSite.Check` antes de andar (se a parede daquele canto nao subiu, ele
+vai para o retry pass como qualquer peca) e o mover continua recusando subir para o vazio (`LadderLanding`).
+
 ### 15.3 Medido em jogo (02/11/2026)
 
 | arquivo | pecas | resultado |

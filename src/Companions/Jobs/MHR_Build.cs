@@ -1593,6 +1593,60 @@ internal static class MHR_Build
 		return holds;
 	}
 
+	/// <summary>
+	/// E7 (player's request, 03/11/2026: "he has to know he should place the piece at the top of the ladder and build the floor
+	/// there"): the floors that land on the top of a ladder are moved to the FRONT of the plan, right after it. The storey
+	/// order builds the next floor only when the walls of this one are done, so the ladder sat in the void for a long time and
+	/// the companion had nothing to stand on up there; with the landing first the ladder leads somewhere at once (and the
+	/// pieces upstairs stop failing with no_support).
+	/// </summary>
+	private static void PullLanding(CompanionAI ai, State state)
+	{
+		if (state.Plan == null || state.Placed == null)
+		{
+			return;
+		}
+		float topY;
+		try
+		{
+			Renderer renderer = state.Placed.GetComponentInChildren<Renderer>();
+			topY = renderer != null ? renderer.bounds.max.y : state.Pos.y + 2f;
+		}
+		catch (Exception)
+		{
+			topY = state.Pos.y + 2f;
+		}
+		int insertAt = state.Index + 1;
+		int moved = 0;
+		for (int i = state.Plan.Count - 1; i > state.Index && moved < 6; i--)
+		{
+			PlannedStep step = state.Plan[i];
+			if (step == null || step.Prefab == null
+				|| step.Prefab.IndexOf("floor", StringComparison.OrdinalIgnoreCase) < 0)
+			{
+				continue;
+			}
+			float dx = step.Pos.x - state.Pos.x;
+			float dz = step.Pos.z - state.Pos.z;
+			if (dx * dx + dz * dz > 6.25f || Mathf.Abs(step.Pos.y - topY) > 1.2f)
+			{
+				continue;
+			}
+			if (insertAt >= i)
+			{
+				break;   // no room left to bring it forward
+			}
+			state.Plan.RemoveAt(i);
+			state.Plan.Insert(insertAt, step);
+			insertAt++;
+			moved++;
+		}
+		if (moved > 0)
+		{
+			Log(ai, moved + " floor piece(s) over the ladder brought forward so it leads somewhere");
+		}
+	}
+
 	/// <summary>Is this pose close enough to a temporary stair to have been held up by it? (the same 4 m / 3 m window)</summary>
 	private static bool NearScaffold(State state, Vector3 pos, float radius = 6f)
 	{
@@ -2464,6 +2518,12 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			+ (state.Template != null ? " (" + (state.Index + 1) + "/" + state.Plan.Count + ")" : string.Empty)
 			+ (supported.HasValue ? " supported" : string.Empty));
 		state.PlacedCount++;
+		// E7 (player's request, 03/11/2026: "he has to know he should place the piece at the top of the ladder and build
+		// the floor there"): a ladder leads nowhere until its landing exists - the floors over it are pulled forward
+		if (state.Prefab != null && state.Prefab.IndexOf("ladder", StringComparison.OrdinalIgnoreCase) >= 0)
+		{
+			PullLanding(ai, state);
+		}
 		bool usedStairs = state.Scaffolds.Count > 0 && NearScaffold(state, state.Pos);
 		if (usedStairs && state.Placed != null)
 		{
