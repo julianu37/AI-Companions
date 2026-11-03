@@ -1210,6 +1210,14 @@ e leva as escadas provisorias. O `MHR_Build.Reattach(cs)` roda no **`TryInit`** 
 pending do id antigo para o novo, reiniciando os relogios. Logs: `it died during the build - the order resumes after the
 respawn (piece N/M)` e `the build order of "<id>" was handed to the companion that just came back`.
 
+**2o bug, do proprio teste seguinte (03/11/2026):** o log mostrou `it died during the build - the order resumes after the
+respawn (piece 767/985)` (o `OnDeath` funcionou) e **nenhuma** linha de `handed to the companion`. Causa: o `Reattach` roda
+no `TryInit` e lia `MHR_CachedCompanionId`, mas o **id permanente (`_mhrId`) so e resolvido depois**, sob demanda
+(`MHR_ResolveCompanionId`, chamado no `MHR_Tick`) - naquele instante ele era `""` e o metodo saia. **Correcao:** o
+`Reattach` e o `TrySaveDeathPending` usam `MHR_ResolveCompanionId()` (le/cria o id no ZDO, seguro no `TryInit`) **e** o
+`CheckPending` chama o `Reattach` **todo frame** antes de procurar o pending - o dicionario tem uma ou duas entradas, e
+assim a entrega nao depende da ordem de inicializacao.
+
 ### 15.2u A ordem das pecas: vizinho mais proximo dentro do grupo (03/11/2026)
 
 Relato do jogador: *"ate o piso do terreo ele fica de um lado para o outro da build colocando as pecas"*. A ordem do plano

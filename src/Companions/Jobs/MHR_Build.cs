@@ -865,7 +865,7 @@ internal static class MHR_Build
 			Retry = state.Retry,
 			Passes = state.Passes,
 			AfterDeath = true,
-			CompanionId = cs != null ? cs.MHR_CachedCompanionId : null,
+			CompanionId = cs != null ? cs.MHR_ResolveCompanionId() : null,
 			Start = Time.time,
 			LastProgressAt = Time.time
 		};
@@ -890,7 +890,9 @@ internal static class MHR_Build
 		{
 			return;
 		}
-		string id = cs.MHR_CachedCompanionId;
+		// NOT the cached one: in TryInit the permanent id is still empty (it is resolved later, on demand) -
+		// MHR_ResolveCompanionId reads/creates it from the ZDO and is safe here (review of the test of 03/11/2026)
+		string id = cs.MHR_ResolveCompanionId();
 		if (string.IsNullOrEmpty(id))
 		{
 			return;
@@ -3154,6 +3156,14 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 	/// </summary>
 	private static void CheckPending(CompanionAI ai)
 	{
+		// E7 (test of 03/11/2026: "he died and did not go on with the build"): the body that comes back may be a NEW object and
+		// the permanent id is only resolved later in TryInit, so the order is handed over HERE too (the dictionary holds one or
+		// two entries) - the init hook alone was not enough.
+		CompanionSetup owner = ai.GetComponent<CompanionSetup>();
+		if (owner != null)
+		{
+			Reattach(owner);
+		}
 		Pending pending;
 		if (!s_pending.TryGetValue(ai.GetInstanceID(), out pending) || pending == null)
 		{

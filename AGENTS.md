@@ -1247,7 +1247,9 @@ comandos de console e spawna coisas, então não é feature de jogador.
   03/11/2026) - corrigido de verdade em §15.2t:** o `Drive` **não roda com o corpo morto**, então o `Pending` não era
   gravado; e o respawn pode criar um **objeto novo** (novo `GetInstanceID`). Agora o `MHR_Build.OnDeath` é chamado do
   **`CompanionSetup.OnCompanionDeath`**, grava o plano com `AfterDeath` + o **id permanente** (`HC_CompanionId`), e o
-  `MHR_Build.Reattach` (no `TryInit`) passa o pending do id antigo para o corpo novo; o `CheckPending` **espera o respawn** e
+  `MHR_Build.Reattach` passa o pending do id antigo para o corpo novo (com `MHR_ResolveCompanionId`, porque no `TryInit` o id
+  ainda não estava resolvido - 2º bug do mesmo teste) e o `CheckPending` chama o `Reattach` **todo frame** antes de procurar o
+  pending; o `CheckPending` **espera o respawn** e
   retoma **na mesma peça** pelo `ResumeBlueprint`/`StartPlan(anchorKnown)`. Um "para" do jogador continua derrubando.
   **Ele usa a obra como andaime (relato "subiu pelo telhado pra fazer a ponta", 03/11/2026):** o `MHR_Mover` sobe pela
   **própria água do telhado** e coloca a peça de cima — 20 peças acima de 43 m no log, com `wood_roof_45` a 43,8/45,8 e
