@@ -7,11 +7,12 @@ permissions:
   - { action: "read", resource: "*", effect: "allow" }
   - { action: "glob", resource: "*", effect: "allow" }
   - { action: "grep", resource: "*", effect: "allow" }
-  - { action: "edit", resource: "*", effect: "allow" }
+  - { action: "edit", resource: "*", effect: "deny" }
+  - { action: "edit", resource: "docs/re/*", effect: "allow" }
   - { action: "shell", resource: "*", effect: "allow" }
-  - { action: "external_directory", resource: "*", effect: "allow" }
   - { action: "webfetch", resource: "*", effect: "allow" }
   - { action: "websearch", resource: "*", effect: "allow" }
+  - { action: "external_directory", resource: "*", effect: "allow" }
   - { action: "subagent", resource: "*", effect: "deny" }
 ---
 

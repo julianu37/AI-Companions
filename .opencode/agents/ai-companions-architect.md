@@ -9,6 +9,7 @@ permissions:
   - { action: "grep", resource: "*", effect: "allow" }
   - { action: "edit", resource: "*", effect: "allow" }
   - { action: "shell", resource: "*", effect: "allow" }
+  - { action: "shell", resource: "*--force*", effect: "deny" }
   - { action: "webfetch", resource: "*", effect: "allow" }
   - { action: "websearch", resource: "*", effect: "allow" }
   - { action: "external_directory", resource: "*", effect: "allow" }

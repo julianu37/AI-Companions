@@ -1132,6 +1132,15 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
 especialista, e o especialista pode despachar o executor. Quem tem `subagent: deny` (a maioria dos agentes antigos)
 continua sem poder abrir subagente — é proposital.
 
+**Permissões por caminho** (03/11/2026): a permissão é a primeira barreira; a segunda é o `git status --porcelain` +
+`git diff --stat` do arquiteto **antes de commitar** (nunca auto-relato — a delegação aninhada pode editar via
+subagente). `valheim-specialist` e `valheim-mod-reviewer` **não editam** e rodam só git de leitura;
+`valheim-qa-engineer` edita `tools/**` e o harness em `%TEMP%\opencode`; `repo-wiki-publisher` edita `README.md`,
+`package/*`, as release notes, `docs/wiki/**` e o clone da wiki (nunca `src/**`); `valheim-docs-writer` edita
+`AGENTS.md`, `docs/**` (menos `wiki/` e `release-notes-*`), `Translations/**`, `Speech/**` e o `CONFIGURATION.md`
+gerado; os engenheiros editam `src/**` + `tools/ai-intents-check`. O **build/deploy do `Companions.sln` é só do
+arquiteto** (os executores rodam o harness, que não deploya), e nenhum agente pode `--force`.
+
 ## DevBridge (ferramenta de desenvolvimento)
 
 O `Companions.dll` carrega um módulo de dev (`src/Companions/DevBridge/`) que expõe o jogo em `127.0.0.1:47110` para o

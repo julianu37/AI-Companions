@@ -7,8 +7,16 @@ permissions:
   - { action: "read", resource: "*", effect: "allow" }
   - { action: "glob", resource: "*", effect: "allow" }
   - { action: "grep", resource: "*", effect: "allow" }
-  - { action: "edit", resource: "*", effect: "allow" }
-  - { action: "shell", resource: "*", effect: "allow" }
+  - { action: "edit", resource: "*", effect: "deny" }
+  - { action: "edit", resource: "src/*", effect: "allow" }
+  - { action: "edit", resource: "tools/ai-intents-check/*", effect: "allow" }
+  - { action: "shell", resource: "*", effect: "deny" }
+  - { action: "shell", resource: "git status *", effect: "allow" }
+  - { action: "shell", resource: "git diff *", effect: "allow" }
+  - { action: "shell", resource: "git log *", effect: "allow" }
+  - { action: "shell", resource: "git show *", effect: "allow" }
+  - { action: "shell", resource: "python tools/mcp-devbridge/*", effect: "allow" }
+  - { action: "shell", resource: "dotnet run --project tools/ai-intents-check *", effect: "allow" }
   - { action: "webfetch", resource: "*", effect: "allow" }
   - { action: "external_directory", resource: "*", effect: "allow" }
   - { action: "subagent", resource: "*", effect: "deny" }

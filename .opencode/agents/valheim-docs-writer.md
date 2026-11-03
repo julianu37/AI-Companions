@@ -7,10 +7,24 @@ permissions:
   - { action: "read", resource: "*", effect: "allow" }
   - { action: "glob", resource: "*", effect: "allow" }
   - { action: "grep", resource: "*", effect: "allow" }
-  - { action: "edit", resource: "*", effect: "allow" }
-  - { action: "shell", resource: "*", effect: "allow" }
-  - { action: "external_directory", resource: "*", effect: "allow" }
+  - { action: "edit", resource: "*", effect: "deny" }
+  - { action: "edit", resource: "AGENTS.md", effect: "allow" }
+  - { action: "edit", resource: "docs/*", effect: "allow" }
+  - { action: "edit", resource: "docs/wiki/*", effect: "deny" }
+  - { action: "edit", resource: "docs/release-notes-*", effect: "deny" }
+  - { action: "edit", resource: "Translations/*", effect: "allow" }
+  - { action: "edit", resource: "Speech/*", effect: "allow" }
+  - { action: "edit", resource: "package/CONFIGURATION.md", effect: "allow" }
+  - { action: "shell", resource: "*", effect: "deny" }
+  - { action: "shell", resource: "git status *", effect: "allow" }
+  - { action: "shell", resource: "git diff *", effect: "allow" }
+  - { action: "shell", resource: "git log *", effect: "allow" }
+  - { action: "shell", resource: "git show *", effect: "allow" }
+  - { action: "shell", resource: "python tools/audit_translations.py *", effect: "allow" }
+  - { action: "shell", resource: "python tools/gen_config_doc.py *", effect: "allow" }
+  - { action: "shell", resource: "python tools/gen_translations.py *", effect: "allow" }
   - { action: "webfetch", resource: "*", effect: "allow" }
+  - { action: "external_directory", resource: "*", effect: "allow" }
   - { action: "subagent", resource: "*", effect: "deny" }
 ---
 

@@ -7,8 +7,18 @@ permissions:
   - { action: "read", resource: "*", effect: "allow" }
   - { action: "glob", resource: "*", effect: "allow" }
   - { action: "grep", resource: "*", effect: "allow" }
-  - { action: "shell", resource: "*", effect: "allow" }
   - { action: "edit", resource: "*", effect: "deny" }
+  - { action: "shell", resource: "*", effect: "deny" }
+  - { action: "shell", resource: "git status *", effect: "allow" }
+  - { action: "shell", resource: "git diff *", effect: "allow" }
+  - { action: "shell", resource: "git log *", effect: "allow" }
+  - { action: "shell", resource: "git show *", effect: "allow" }
+  - { action: "shell", resource: "python tools/audit_translations.py *", effect: "allow" }
+  - { action: "shell", resource: "python tools/gen_config_doc.py --check *", effect: "allow" }
+  - { action: "shell", resource: "python tools/gen_translations.py --check *", effect: "allow" }
+  - { action: "shell", resource: "powershell -ExecutionPolicy Bypass -File tools/locale-fallback-check.ps1 *", effect: "allow" }
+  - { action: "shell", resource: "powershell -ExecutionPolicy Bypass -File tools\\locale-fallback-check.ps1 *", effect: "allow" }
+  - { action: "external_directory", resource: "*", effect: "allow" }
   - { action: "subagent", resource: "*", effect: "deny" }
 ---
 

@@ -7,8 +7,19 @@ permissions:
   - { action: "read", resource: "*", effect: "allow" }
   - { action: "glob", resource: "*", effect: "allow" }
   - { action: "grep", resource: "*", effect: "allow" }
-  - { action: "edit", resource: "*", effect: "allow" }
-  - { action: "shell", resource: "*", effect: "allow" }
+  - { action: "edit", resource: "*", effect: "deny" }
+  - { action: "edit", resource: "README.md", effect: "allow" }
+  - { action: "edit", resource: "package/*", effect: "allow" }
+  - { action: "edit", resource: "docs/release-notes-*", effect: "allow" }
+  - { action: "edit", resource: "docs/wiki/*", effect: "allow" }
+  - { action: "edit", resource: "~/AppData/Local/Temp/opencode/*", effect: "allow" }
+  - { action: "edit", resource: "package/CONFIGURATION.md", effect: "deny" }
+  - { action: "shell", resource: "*", effect: "deny" }
+  - { action: "shell", resource: "git *", effect: "allow" }
+  - { action: "shell", resource: "*--force*", effect: "deny" }
+  - { action: "shell", resource: "gh -R julianu37/AI-Companions *", effect: "allow" }
+  - { action: "shell", resource: "python tools/audit_translations.py *", effect: "allow" }
+  - { action: "shell", resource: "python tools/gen_config_doc.py --check *", effect: "allow" }
   - { action: "webfetch", resource: "*", effect: "allow" }
   - { action: "external_directory", resource: "*", effect: "allow" }
   - { action: "subagent", resource: "*", effect: "deny" }

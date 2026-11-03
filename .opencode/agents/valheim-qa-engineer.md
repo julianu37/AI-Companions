@@ -7,10 +7,21 @@ permissions:
   - { action: "read", resource: "*", effect: "allow" }
   - { action: "glob", resource: "*", effect: "allow" }
   - { action: "grep", resource: "*", effect: "allow" }
-  - { action: "edit", resource: "*", effect: "allow" }
-  - { action: "shell", resource: "*", effect: "allow" }
-  - { action: "external_directory", resource: "*", effect: "allow" }
+  - { action: "edit", resource: "*", effect: "deny" }
+  - { action: "edit", resource: "tools/*", effect: "allow" }
+  - { action: "edit", resource: "~/AppData/Local/Temp/opencode/*", effect: "allow" }
+  - { action: "shell", resource: "*", effect: "deny" }
+  - { action: "shell", resource: "git status *", effect: "allow" }
+  - { action: "shell", resource: "git diff *", effect: "allow" }
+  - { action: "shell", resource: "git log *", effect: "allow" }
+  - { action: "shell", resource: "git show *", effect: "allow" }
+  - { action: "shell", resource: "dotnet *", effect: "allow" }
+  - { action: "shell", resource: "*Companions.sln*", effect: "deny" }
+  - { action: "shell", resource: "python tools/*", effect: "allow" }
+  - { action: "shell", resource: "powershell -ExecutionPolicy Bypass -File tools/*", effect: "allow" }
+  - { action: "shell", resource: "powershell -ExecutionPolicy Bypass -File tools\\*", effect: "allow" }
   - { action: "webfetch", resource: "*", effect: "allow" }
+  - { action: "external_directory", resource: "*", effect: "allow" }
   - { action: "subagent", resource: "*", effect: "deny" }
 ---
 

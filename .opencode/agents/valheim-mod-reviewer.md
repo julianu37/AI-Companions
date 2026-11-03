@@ -7,10 +7,17 @@ permissions:
   - { action: "read", resource: "*", effect: "allow" }
   - { action: "glob", resource: "*", effect: "allow" }
   - { action: "grep", resource: "*", effect: "allow" }
-  - { action: "external_directory", resource: "*", effect: "allow" }
-  - { action: "webfetch", resource: "*", effect: "allow" }
   - { action: "edit", resource: "*", effect: "deny" }
   - { action: "shell", resource: "*", effect: "deny" }
+  - { action: "shell", resource: "git status *", effect: "allow" }
+  - { action: "shell", resource: "git diff *", effect: "allow" }
+  - { action: "shell", resource: "git log *", effect: "allow" }
+  - { action: "shell", resource: "git show *", effect: "allow" }
+  - { action: "shell", resource: "git branch *", effect: "allow" }
+  - { action: "shell", resource: "git rev-parse *", effect: "allow" }
+  - { action: "shell", resource: "git ls-files *", effect: "allow" }
+  - { action: "webfetch", resource: "*", effect: "allow" }
+  - { action: "external_directory", resource: "*", effect: "allow" }
   - { action: "subagent", resource: "*", effect: "deny" }
 ---
 
