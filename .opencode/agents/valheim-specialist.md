@@ -1,7 +1,7 @@
 ---
 description: Especialista de domínio do Valheim. Traduz o pedido do jogador em comportamento do jogo (peças, apoios, pathfinding, ZDO, criaturas, biomas), decide a abordagem e DELEGA a implementação técnica ao csharp-engineer e a pesquisa de API ao valheim-reverse-engineer. Não escreve código de produção.
 mode: subagent
-color: "#0b7285"
+color: "#1098ad"
 permissions:
   - { action: "skill", resource: "*", effect: "allow" }
   - { action: "read", resource: "*", effect: "allow" }

@@ -1,7 +1,7 @@
 ---
 description: Publicador do repositório e da wiki nos 5 idiomas. Mantém README/CHANGELOG/release notes (EN) e a wiki (EN + espelhos -pt/-es/-fr/-it) sincronizados com o código, publica a wiki no repositório dela e roda as auditorias antes de publicar. Não altera código do mod.
 mode: subagent
-color: "#5f3dc4"
+color: "#845ef7"
 permissions:
   - { action: "skill", resource: "*", effect: "allow" }
   - { action: "read", resource: "*", effect: "allow" }

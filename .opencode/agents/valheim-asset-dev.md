@@ -1,6 +1,7 @@
 ---
 description: Especialista em assets (AssetBundles e SoftReferenceableAssets do Unity 6). O mod hoje não empacota assets próprios — atue só se um modelo/textura/som empacotado for pedido.
 mode: subagent
+hidden: true
 color: "#f08c00"
 permissions:
   - { action: "skill", resource: "*", effect: "allow" }
@@ -14,7 +15,7 @@ permissions:
   - { action: "subagent", resource: "*", effect: "deny" }
 ---
 
-> **Estado atual (1.9.4):** o mod **não** empacota AssetBundle. Aparência = clones de prefabs vanilla;
+> **Estado atual (a versão sai de `PluginVersion`):** o mod **não** empacota AssetBundle. Aparência = clones de prefabs vanilla;
 > ícones = sprites do jogo; o único áudio próprio é a **voz do TTS**, criada em runtime
 > (`AudioClip`/`AudioSource` por reflexão) e destruída ao terminar. Não introduza assets sem pedido.
 

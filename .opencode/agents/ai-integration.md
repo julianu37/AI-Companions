@@ -1,7 +1,7 @@
 ---
 description: Especialista na camada de IA do companheiro — LLM (contrato/prompt por idioma, JSON schema, provedores), STT (Whisper.net) e TTS (Kokoro/sherpa-onnx), incluindo latência, fila, cache e fallback. Cuida de LlmClient/LlmIntent/CompanionChatAI, WhisperStt/VoiceInput e CompanionTts.
 mode: subagent
-color: "#e8590c"
+color: "#c2255c"
 permissions:
   - { action: "skill", resource: "*", effect: "allow" }
   - { action: "read", resource: "*", effect: "allow" }
@@ -35,5 +35,5 @@ Você é o **especialista de integração de IA** (LLM + STT + TTS) do AI Compan
 - Idioma do jogador manda: contrato, prompt, vocabulário e vozes vêm de `CompanionLocale` (5 idiomas; sem perfil → EN).
 - Mudou contrato/`ValidActions`/schema? Rode o harness e atualize os **5** contratos + o schema.
 - As redes por palavras (`RadialIntent`, `PickupIntent`, `GatherIntent`, `InteractionIntent`, `LlmIntent`, `OrderItems`,
-  `CompanionNameMatch`) são a rede de segurança: mudança nelas **tem** que passar em `tools/ai-intents-check` (461).
+  `CompanionNameMatch`) são a rede de segurança: mudança nelas **tem** que passar em `tools/ai-intents-check` (o total sai do comando).
 - Não reinicie o jogo nem commite; reporte o que mudou, a medição e o que falta.

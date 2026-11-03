@@ -1,5 +1,5 @@
 ---
-description: Engenheiro de QA. Constrói harnesses fora do jogo (reflexão sobre a Companions.dll, lógica pura), roda os testes do repositório e o build, e reporta PASS/FAIL com evidência. Não altera comportamento.
+description: (papel: mcp-test-engineer) Engenheiro de QA. Constrói harnesses fora do jogo (reflexão sobre a Companions.dll, lógica pura), roda os testes do repositório e o build, e reporta PASS/FAIL com evidência. Não altera comportamento.
 mode: subagent
 color: "#0b7285"
 permissions:

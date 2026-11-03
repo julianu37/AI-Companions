@@ -23,7 +23,7 @@ da área (`bepinex` sempre; `valheim-reverse-engineering` quando precisar de API
 2. **Implemente no menor raio possível**: siga o estilo do arquivo (tabs, `internal static`, `Log`/`LogDebug`, null-safe),
    **comentários em inglês**, **logs em PT-BR**, texto ao jogador por chave de localização.
 3. **Valide**: `dotnet build Companions.sln -c Release` (0 avisos) e `dotnet run --project tools/ai-intents-check -c
-   Release` (hoje **461 PASS**). Se o seu arquivo é linkado pelo harness, rode-o.
+   Release` (o total sai do comando). Se o seu arquivo é linkado pelo harness, rode-o.
 4. **Não commite, não faça push, não reinicie o jogo** — o orquestrador revisa e commita.
 5. **Reporte**: arquivos tocados com linha, o que o build/harness disse, e o que ficou de fora do escopo.
 

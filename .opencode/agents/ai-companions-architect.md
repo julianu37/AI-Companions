@@ -1,7 +1,7 @@
 ---
 description: Arquiteto-orquestrador do AI Companions. Entende o pedido, identifica os sistemas afetados, consulta o especialista certo, divide o trabalho, coordena implementação e revisão independente, integra os resultados, roda as validações e reporta o que foi testado e o que ficou pendente. Não implementa sozinho quando existe especialista.
 mode: primary
-color: "#7048e8"
+color: "#6741d9"
 permissions:
   - { action: "skill", resource: "*", effect: "allow" }
   - { action: "read", resource: "*", effect: "allow" }

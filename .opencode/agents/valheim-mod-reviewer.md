@@ -1,5 +1,5 @@
 ---
-description: Revisor de mods Valheim. Audita correção, performance, threading, vazamentos, multiplayer, ZDO, localização e paridade com a versão anterior, sem alterar arquivos.
+description: (papel: code-reviewer) Revisor de mods Valheim. Audita correção, performance, threading, vazamentos, multiplayer, ZDO, localização e paridade com a versão anterior, sem alterar arquivos.
 mode: subagent
 color: "#e03131"
 permissions:
