@@ -1190,27 +1190,38 @@ namespace Companions
             if (f.sqrMagnitude < 0.01f) f = Vector3.forward;
             f.Normalize();
             float depth = Mathf.Abs(f.x) * b.extents.x + Mathf.Abs(f.z) * b.extents.z;
-            Vector3 tip = new Vector3(b.center.x + f.x * depth, b.max.y, b.center.z + f.z * depth);
             Vector3 side = new Vector3(-f.z, 0f, f.x);
-            Vector3[] spots =
+            // the prefab's own forward is not guaranteed to be the climb side (the -Z convention was measured on the piece,
+            // not on the AutoJumpLedge child), so BOTH ends of the piece are probed
+            Vector3[] tips =
             {
-                tip, tip - f * 0.6f, tip + side * 0.5f, tip - side * 0.5f, tip + f * 0.5f
+                new Vector3(b.center.x + f.x * depth, b.max.y, b.center.z + f.z * depth),
+                new Vector3(b.center.x - f.x * depth, b.max.y, b.center.z - f.z * depth)
             };
-            for (int i = 0; i < spots.Length; i++)
+            bool something = false;
+            for (int t = 0; t < tips.Length; t++)
             {
-                Vector3 spot = spots[i];
-                // head room: the body is ~1,8 m and a landing under a beam is not a landing
-                if (Physics.Raycast(spot + Vector3.up * 0.15f, Vector3.up, 1.85f, mask, QueryTriggerInteraction.Ignore)) continue;
-                RaycastHit hit;
-                if (!Physics.Raycast(spot + Vector3.up * 0.6f, Vector3.down, out hit, 1.0f, mask, QueryTriggerInteraction.Ignore)) continue;
-                if (hit.normal.y < 0.85f) continue;                            // a wall/roof slope, not floor
-                if (hit.point.y < b.max.y - 0.7f) continue;                    // the floor below, not the landing
-                Piece piece;
-                GameObject root = LadderRoot(hit.collider, out piece);
-                if (root != null && IsLadder(root, piece, hit.collider)) continue;   // the ladder's own top
-                return true;
+                Vector3 tip = tips[t];
+                Vector3[] spots = { tip, tip + side * 0.6f, tip - side * 0.6f, tip + f * 0.5f, tip - f * 0.5f };
+                for (int i = 0; i < spots.Length; i++)
+                {
+                    Vector3 spot = spots[i];
+                    // head room: the body is ~1,8 m and a landing under a beam is not a landing
+                    if (Physics.Raycast(spot + Vector3.up * 0.15f, Vector3.up, 1.85f, mask, QueryTriggerInteraction.Ignore)) continue;
+                    RaycastHit hit;
+                    if (!Physics.Raycast(spot + Vector3.up * 0.6f, Vector3.down, out hit, 1.0f, mask, QueryTriggerInteraction.Ignore)) continue;
+                    Piece piece;
+                    GameObject root = LadderRoot(hit.collider, out piece);
+                    if (root != null && IsLadder(root, piece, hit.collider)) continue;   // the ladder's own top
+                    something = true;
+                    if (hit.normal.y >= 0.85f && hit.point.y >= b.max.y - 0.7f) return true;   // a real landing
+                }
             }
-            return false;
+            // REGRESSION-FIRST (03/11/2026): anything solid above the ladder that is not the ladder itself counts as "maybe
+            // there is a floor" - a false "no landing" blocks the whole upper floor of the house, while a wrong climb is
+            // already covered by the two-fall guard (2 drops on the same piece and it is skipped). Only the OPEN VOID is
+            // refused: the double-height hall where he climbed into nothing and fell in a loop until he died.
+            return something;
         }
 
         static bool IsLadder(GameObject root, Piece piece, Collider col)

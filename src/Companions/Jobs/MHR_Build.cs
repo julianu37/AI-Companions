@@ -773,6 +773,8 @@ internal static class MHR_Build
 			ClearScaffolds(owner, state);
 			state.Active = false;
 			s_state.Remove(owner.GetInstanceID());
+			// E7 (review, 03/11/2026): the pending must fall even when there is no ACTIVE state (the gather handover removes
+			// the state and leaves the watcher) - its key is the instance id, which Unity reuses
 			if (s_pending.TryGetValue(owner.GetInstanceID(), out pending))
 			{
 				s_pending.Remove(owner.GetInstanceID());

@@ -1244,8 +1244,7 @@ comandos de console e spawna coisas, então não é feature de jogador.
   lógica de escada nem pouso para cair), tenta a peça de cima e **remove a escada no fim da ordem** (`ClearScaffolds` no
   `Finish`, no `Cancel`, no `CancelAll`, quando uma **ordem nova de build** substitui a que roda (`DiscardState`) e no
   `Shutdown` do plugin), devolvendo a madeira **só quando ela foi paga e o ZDO saiu** (no `BlueprintFree` não há estorno).
-  Teto de **3 tentativas por pose** (não por passo do plano: retry pass não renova o orçamento), 1 a cada 4 s, e as saídas
-  "sem madeira"/"sem bancada" **não gastam** tentativa; a rampa sobe para o **-Z local** (`LookRotation(-toPiece)`) e não
+  Teto de **4 escadas colocadas por ordem** (`MaxScaffolds`; tentativa recusada não gasta), 1 a cada 4 s; a rampa sobe para o **-Z local** (`LookRotation(-toPiece)`) e não
   pode ocupar o lugar de uma peça do plano **nem de uma que está na fila de retry** (`BlockedByPlan`, 1,5 m em XZ e 2 m em
   Y). Antes de remover, o `StairHoldsPiece` **desliga os colliders** da escada (de pé ela conta como apoio) e pergunta o
   apoio só das peças a 4 m/3 m dela: se alguma perdeu, **aquela** escada fica e o log avisa. Config `[Building]
@@ -1262,9 +1261,12 @@ comandos de console e spawna coisas, então não é feature de jogador.
   apoiada no piso de baixo. Quem não sobe é o **mover**: `MHR_Mover.LadderLanding` recusa escada sem pouso no topo nas rotas
   de **build** (e em cada degrau da corrente `PlanChain(..., requireLanding)`), sondando a **ponta de cima**
   (`center + forward * depth`), exigindo superfície **horizontal** (`normal.y >= 0,85`) **com espaço para o corpo** (1,85 m)
-  e nunca a própria escada. A 1ª versão sondava o **centro** da peça (falso negativo: a `wood_stepladder` tem 2 m de
-  profundidade) e aceitava parede/telhado (falso positivo) - corrigida na revisão. Medido com `build.snaps`: `wood_stair`
-  sobe +1 m e `wood_stepladder` **+2 m**, ambas para o **-Z local**.
+  e nunca a própria escada, nos **dois extremos** da peça (o forward do `AutoJumpLedge` não é garantidamente o lado da
+  subida). **Regra de regressão: fail-open** - se não achar piso "de verdade" mas houver **qualquer sólido acima**, deixa
+  subir; só o **vazio aberto** é recusado (falso negativo trava o andar de cima inteiro; falso positivo já é coberto pelas
+  2 quedas). A 1ª versão sondava o **centro** da peça (falso negativo: a `wood_stepladder` tem 2 m de profundidade) e
+  aceitava parede/telhado - corrigida na revisão. Medido com `build.snaps`: `wood_stair` sobe +1 m e `wood_stepladder`
+  **+2 m**, ambas para o **-Z local**.
   **Ponta do telhado (relato "ela tá apanhando pra fazer essa ponta", 03/11/2026):** as peças da empena no topo vão para o
   retry por `no_support` (adiadas sem andar), mas as águas da ponta gastavam os **60 s** do timeout andando sem chegar. Nova
   trava de **progresso** no `Goto`: **12 s sem chegar 0,5 m mais perto** → retry (`no progress ...`).

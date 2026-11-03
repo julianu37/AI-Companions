@@ -1151,6 +1151,12 @@ espaco para o corpo** (raycast para cima de 1,85 m) e nunca aceita a propria esc
 escada do mundo nao tem `Piece`). Vale **so nas rotas de build** (`tag` "Build"/"BuildGather") - em Follow/Combat ele
 continua subindo a escada que voce construiu - e tambem em cada degrau da **corrente** (`PlanChain(..., requireLanding)`),
 que antes passava por fora. Recusa gera uma linha por 30 s (`the ladder X at (...) has no floor at its top`).
+
+**Regra de regressao (03/11/2026): fail-open.** A sonda roda nos **dois extremos** da peca (o forward do `AutoJumpLedge`
+nao e garantidamente o lado da subida) e, se nao achar um piso "de verdade" (normal horizontal + espaco), **ainda deixa
+subir quando existe QUALQUER solido acima** que nao seja a propria escada. Só o **vazio aberto** e recusado - o salao de
+pe-direito duplo onde ele subiu para o nada e caiu em loop. Motivo: falso negativo trava o andar de cima da casa inteira;
+falso positivo ja esta coberto pelas **2 quedas na mesma peca -> skip**.
 Limitacao conhecida: o `AutoJumpLedge` ainda levanta quem **anda** na direcao da escada (`CompanionLadderBumpPatch`), entao
 uma rota que empurre o corpo contra ela sobe sem passar pelo guarda - o caminho observado era o `Climb`.
 
