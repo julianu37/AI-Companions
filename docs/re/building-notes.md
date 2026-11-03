@@ -998,6 +998,10 @@ duplo**: naquela area **nao existe piso no nivel 2** (o "2o piso" do blueprint a
 `wood_stepladder` naquele nivel, ela e colocada (o `BuildSite.Check` valida a base e as paredes, **nao o topo**), o
 `MHR_Mover` monta a corrente de escadas e **sobe** - e o topo da no vazio. Ele cai, tenta de novo, cai... ate morrer.
 
+> **Superado em 03/11/2026 (§15.2r):** o `HasLanding` e o adiamento para o retry **saíram**. A escada é **peça do plano**
+> (colocada quando o plano chega nela, apoiada no piso) e quem recusa a **subida** para o vazio é o
+> `MHR_Mover.LadderLanding` (fail-open: só o vazio). O texto abaixo fica como histórico do acidente.
+
 **Duas travas (as duas no `MHR_Build`):**
 
 1. **Escadinha que termina no vazio nao e colocada:** antes de andar ate a peca, um `HasLanding` sonda **para baixo** do
@@ -1080,6 +1084,9 @@ o limite plano passou a ser `MaxPlace - 0,5` (**4,5 m**) e a regra do olho conti
 O "pulinho" (pe da peca + 1 m) continua com o limite antigo (so de perto).
 
 ### 15.2p A escadinha volta para o plano assim que o piso existe (03/11/2026)
+
+> **Superado em 03/11/2026 (§15.2r):** o `RequeueLadders` foi **removido** junto com o adiamento - a escada não é mais
+> adiada, é colocada quando o plano chega nela. O texto abaixo fica como histórico.
 
 Pergunta do jogador com screenshot: *"pq nao tem escada aqui ainda?"*. As 4 `wood_stepladder` do plano foram adiadas
 com `top has no floor yet` (o piso de cima ainda nao existia) e iam para o **retry pass final** - que so roda depois da

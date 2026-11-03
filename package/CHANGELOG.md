@@ -54,13 +54,18 @@ stopped.
   is already standing under it - or, in a blueprint, when it stops making progress within 5 m of it - it places a **temporary wood stair**
   (2 wood, +1 m, a ramp the mover simply walks up), retries the piece from the top and **removes the stair when the order
   ends** - the wood comes back, and a stair is kept only when a piece placed next to it has no support without it. At most
-  3 attempts per piece position. New `[Building] TempScaffold` (on by default).
+  **4 per order** (and the stair is removed as soon as the piece goes up; the first version allowed 3 **per piece**, which
+  covered the site in stairs on a 985-piece house). New `[Building] TempScaffold` (**off by default**; a `.cfg` that
+  saved the old default `true` is moved to `false` once).
 - **The placement reach is the game's own again** (player's report, 03/11/2026: "he is still struggling to place a piece on
   the high roof"): the companion refused to place a gable top **15 cm** outside the mod's old flat cap (3,0 m) while the
   game allows 5 m from the eye. The flat cap is now 4,5 m and the eye rule (5 m) is what decides.
-- **A ladder comes back into the plan as soon as its floor exists** (player's question, 03/11/2026: "why is there no
-  ladder here yet?"): a ladder deferred with "top has no floor yet" waited for the final retry pass - the last piece of a
-  985-piece house. Every floor placed now brings the deferred ladders that already have a landing right back into the plan.
+- **The ladder is a piece of the house again** (player's request, 03/11/2026: "the build's ladder must be made from
+  the floor, like it was in the beginning"): the ladder used to be deferred to the final retry pass while the floor above
+  it did not exist, which left a 985-piece house without a single ladder for hours. It is now placed when the plan reaches
+  it, standing on the floor below. What changed instead is the **mover**: it does not CLIMB a ladder whose top has nothing
+  to stand on (the double-height hall where the companion fell in a loop until it died) - and that check is **fail-open**:
+  any floor or wall top near the climb target lets it climb, only the open void refuses (build routes only).
 - **The build survives the companion's death** (player's report, 03/11/2026: "it fell and died, and the build did not go on"):
   a build order used to die with the companion - after the respawn it came back in Follow and the house stood half built.
   The plan (piece, anchor, rotation, retry queue) now waits for the respawn and the order **resumes at the same piece**;

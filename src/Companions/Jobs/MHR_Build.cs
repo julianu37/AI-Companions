@@ -195,7 +195,8 @@ internal static class MHR_Build
 		/// <summary>E7 (player's idea, 03/11/2026): the temporary stairs placed to reach a piece above the 5 m eye rule.
 		/// They are NOT part of the plan and are removed when the order ends.</summary>
 		internal readonly List<GameObject> Scaffolds = new List<GameObject>();
-		/// <summary>E7: how many temporary stairs this piece already got, and the cooldown before the next one.</summary>
+		/// <summary>E7: how many temporary stairs this ORDER already placed, and the cooldown before the next attempt
+		/// (the budget is per order, never per piece - 985 pieces x 3 covered the site in stairs).</summary>
 		internal int ScaffoldTries;
 		internal float NextScaffoldAt;
 		/// <summary>E7 (review, 03/11/2026): the pieces accepted while a temporary stair stood - they are asked again for
@@ -1384,7 +1385,7 @@ internal static class MHR_Build
 			}
 		}
 		// say WHY there is no stair (the usual one is needs_station at the far side of a big plan) - once per 4 s, bounded
-		// by MaxScaffolds per pose
+		// by MaxScaffolds for the whole order
 		Log(ai, "no room for a temporary stair near the " + state.Prefab + " (" + (last ?? "no ground") + ")");
 		return false;
 	}
