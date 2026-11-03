@@ -476,6 +476,7 @@ namespace Companions
 
         static void Reset(S s, Vector3 goal, Vector3 pos, float now, string tag)
         {
+            s.DetourTries = 0; s.NextDetourAt = 0f;   // new goal: its own 3 alternative-route tries
             // 1.5.2: a target that moves about (a skeleton pacing on the tower) mustn't make us forget the ladder on the way to it
             bool keepLadder = s.UseLadder != null && s.Tag == tag && now <= s.LadderUntil && goal.y > pos.y + 1.5f;
             // 1.5.2: same for a ladder climb in progress (the player walking about on the platform above moves the goal)
@@ -1052,9 +1053,11 @@ namespace Companions
             if (step == 0 && TryHopUp(ai, c, s, pos, now, tag)) { s.Ladder = 0; return; }
             if (step == 0 && TryLadderDown(ai, c, s, pos, now, tag)) { s.Ladder = 0; return; }
             if (step == 0 && TryDropDown(ai, c, s, pos, now, tag)) { s.Ladder = 0; return; }
-            if (step == 0 && TryDetour(ai, s, pos, now, tag, dir)) { s.Ladder = 0; return; }
             // 1.4.82: down in a pit with no route out: climb out like a player before anything else
             if (step == 0 && TryStartClimb(ai, c, s, pos, now, tag, why)) { s.Ladder = 0; return; }
+            // E7 (review, 03/11/2026): the alternative route comes AFTER the way out of a pit - it used to spend its three
+            // tries on a 2 m ledge while the climb-out could have solved it
+            if (step == 0 && TryDetour(ai, s, pos, now, tag, dir)) { s.Ladder = 0; return; }
             switch (step)
             {
                 case 0:
@@ -2784,15 +2787,19 @@ namespace Companions
         static bool TryDetour(CompanionAI ai, S s, Vector3 pos, float now, string tag, Vector3 dir)
         {
             if (now < s.NextDetourAt || s.DetourTries >= 3) return false;
+            if (!ai || !ai.GetComponent<Character>().IsOnGround()) return false;
+            // E7 (review, 03/11/2026): the height gain is a BUILD need (roof/beam above); in Follow/Combat it made him climb
+            // tables and walls while the player waited at the same level
+            bool buildTag = tag == "Build" || tag == "BuildGather";
             Vector3 goal = s.Goal;
             float flatHere = Flat(pos, goal);
-            bool goalAbove = goal.y > pos.y + 0.8f;
+            bool goalAbove = buildTag && goal.y > pos.y + 0.8f;
             int mask = Mask();
             float bestScore = float.MinValue; Vector3 best = Vector3.zero; bool found = false;
             for (int h = 0; h < 3; h++)
             {
                 float up = h == 1 ? 1.6f : (h == 2 ? 3.2f : 0f);
-                for (int k = 0; k < 8; k++)
+                for (int k = 1; k <= 8; k++)   // k = 0 is straight at the wall that just blocked us
                 {
                     Vector3 side = Quaternion.Euler(0f, k * 45f, 0f) * dir;
                     for (int d = 1; d <= 2; d++)
@@ -2809,13 +2816,26 @@ namespace Companions
                             QueryTriggerInteraction.Ignore)) continue;                              // a wall between us
                         float flat = Flat(hit.point, goal);
                         float gain = hit.point.y - pos.y;
+                        // E7 (review, 03/11/2026): a 2,3 m "step" is only reachable on a tilted surface (roof); an upright one is
+                        // a hop of ~1 m at most - the old window elected the top of a wall he could never reach
+                        if (gain > 1.1f && (gain > 2.3f || hit.normal.y > 0.9f)) continue;
+                        if (gain > 0.4f)
+                        {
+                            float radius = 0.3f;
+                            if (Physics.CheckCapsule(hit.point + Vector3.up * (radius + 0.05f),
+                                hit.point + Vector3.up * 1.5f, radius, mask, QueryTriggerInteraction.Ignore)) continue;   // no room to stand
+                        }
                         if (flat > flatHere - 0.3f && (!goalAbove || gain < 0.7f)) continue;            // neither closer nor higher
                         float score = gain * 2f + (flatHere - flat);
                         if (score > bestScore) { bestScore = score; best = hit.point; found = true; }
                     }
                 }
             }
-            if (!found) return false;
+            if (!found)
+            {
+                if (CompanionsPlugin.LogDetailed) Dbg("[Move|" + tag + "] no alternative route near " + Fmt(pos) + " (goal " + Fmt(goal) + ")");
+                return false;
+            }
             s.DetourTries++;
             s.NextDetourAt = now + 3f;
             s.HasDetour = true; s.Detour = best; s.DetourUntil = now + 4f; s.NextPlan = 0f;

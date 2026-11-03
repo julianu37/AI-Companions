@@ -39,7 +39,15 @@ existe uma **busca de rota alternativa** — o que o jogador pediu ("seria só e
 > falharam: 8 direcoes x 2 distancias (1,5/3,0 m) x 3 alturas (0/+1,6/+3,2 m), aceitando superficie com chao, espaco de
 > cabeca, linha do peito livre e que **aproxime do alvo** ou **ganhe altura** (alvo acima); ele anda ate o ponto por 4 s
 > (`HasDetour`/`Detour`) e a rota normal continua. **3 tentativas por alvo**, 1 a cada 3 s, zeradas quando o alvo muda.
-> Log: `the way is blocked - trying another one at (…) (N m up)`.
+> Log: `the way is blocked - trying another one at (…) (N m up)`; sem alternativa, `no alternative route near (…)` (LogDetailed).
+
+**Correcoes da revisao (03/11/2026):** (1) `DetourTries`/`NextDetourAt` zeram no **`Reset`** (o reset tinha caido no
+`Release` - a fase A morria depois de 3 detours no save); (2) ganho de altura limitado a **1,1 m em superficie vertical** e
+ate **2,3 m so em superficie inclinada** (telhado) - a janela antiga elegia o **topo de parede** que o `Linecast` deixava
+passar e que ele nunca alcancava; (3) `CheckCapsule` no destino quando o degrau passa de 0,4 m (cabe o corpo?); (4) o
+**ganho de altura so vale em rota de build** (em Follow/Combat subia em mesa/parede com o jogador no mesmo nivel);
+(5) `TryDetour` roda **depois** do `TryStartClimb` (a saida de buraco primeiro); (6) a sonda comeca em `k = 1` (nao repete a
+direcao que acabou de falhar); (7) so com `IsOnGround()`.
 Uma **sonda em cruz** em volta do companheiro: 8 direções × 2 distâncias (1,5 e 3,0 m) × 3 alturas (atual, +1,5 m e
 +3 m — telhado/viga). Cada candidato é aceito se houver **chão** (raycast para baixo), **espaço de cabeça**, a linha do
 peito até ele estiver **livre** e ele **aproximar do alvo** (XZ) — e, quando o alvo está **acima**, ganhar **altura**
