@@ -1255,6 +1255,23 @@ correcao a avaliar depois: (a) uma peca de **telhado** pertence ao andar da **la
 sustenta), nao ao de baixo; (b) ordenar telhado **depois** dos pisos de todos os andares; (c) puxar para a frente o piso
 que falta quando a peca de telhado for adiada por `no_support` (o inverso do `PullFloorsAbove`).
 
+**Achado seguinte (03/11/2026, mesma rodada):** o relato virou *"de novo a escada sem piso"*, e o log mostra que **nao e**
+o adiamento antigo - o patamar **foi puxado** e **nao tinha apoio**:
+
+```
+done: wood_stepladder at (-166,0, 40,8, -436,3) supported
+1 floor piece(s) over the wood_stepladder brought forward so it leads somewhere
+next: wood_floor (547/985)
+retry later: wood_floor (no_support) at (-164,8, 43,8, -435,4) - pass 0
+```
+
+O `PullFloorsAbove` fez a parte dele (o piso veio logo depois da escada), mas o **piso em 43,8 nao tem o que o sustente**
+(as vigas/paredes daquele nivel ainda nao existem), entao ele cai no `no_support` e a escada fica sem pouso ate o retry.
+**O que falta e ordenar por dependencia, nao por classe:** quando o piso puxado falha por `no_support`, as pecas que o
+sustentam (as vigas/paredes logo abaixo) precisam vir antes dele. Caminho de correcao (a decidir): no `QueueRetry` do
+piso - ou no proprio `PullFloorsAbove` - puxar tambem os **apoios** desse piso (mesmo XZ, Y logo abaixo), repetindo ate 2
+niveis. E o mesmo tipo de problema do telhado antes do piso (§15.2v acima): a ordem atual nao modela dependencia.
+
 ### 15.3 Medido em jogo (02/11/2026)
 
 | arquivo | pecas | resultado |
