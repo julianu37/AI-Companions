@@ -2364,6 +2364,9 @@ O lote saiu do teste de campo da `CommHomeBasicBP` (985 peças). O que mudou:
 - **Alcance**: `3,0 m` normal, `4,5 m` só depois de 3 s sem chegar mais perto, olho a 5 m (regra do jogo).
 - **Bridge**: `companions.order` cancela `MHR_Build` e `MHR_Level` (antes um `follow` deixava a obra rodando).
 Evidência: `docs/re/building-notes.md` §15.2o-§15.2r; gate 9/9 (430 asserções, MCP 70, config 357/25, ES/FR/IT 0 lacunas).
+- **Pendente (ideia do jogador, 03/11/2026):** desempate por **vizinho mais próximo** na ordem das peças
+  (hoje: andar → classe → altura → ordem do `.blueprint`), para ele parar de atravessar a obra de um lado para o
+  outro no mesmo andar. Sem implementação; testar depois.
 
 #### 1.9.6 — a construção autônoma (02/11/2026) — ✅ publicada, tag `v1.9.6` (GitHub + Nexus)
 
