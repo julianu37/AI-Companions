@@ -1321,6 +1321,15 @@ de 12 s do build nao vencia porque cada subida aproximava da peca e reiniciava o
 `MarkBadLadder(id, now, 60f)` - a escada sai da rota por 1 min, o relogio vence e a peca vai para o retry pass (quando o piso
 de cima existir ela volta). Mecanismo que ja existia (usado em queda/recusa de cadeia); nenhuma regra nova.
 
+### 15.2y A descida bloqueada ("ficou um tempo bugado aqui em cima", 03/11/2026)
+
+Relato do jogador: *"ficou um tempo bugado aqui em cima, mas depois caiu e parece que esta continuando"*. O log mostra o
+`TryDropDown` escolhendo **a mesma descida** para 41,5 a partir de 42,2 **dez vezes seguidas** (uma linha por tentativa),
+sem cair - a beirada estava bloqueada - ate um tombo de 4,1 m resolver. **Causa:** o `TryDropDown` nao tinha contador; a
+cada frame em que o caminho ficava preso ele reescolhia a mesma beirada. **Correcao:** `S.DropTries`/`DropUntil` - tres
+tentativas da mesma altura e aquele caminho de descida e abandonado por 8 s (`the way down at (...) is blocked - giving up on
+it for a moment`), com o contador zerando quando a altura muda 0,5 m. Nenhuma regra de queda mudou.
+
 ### 15.3 Medido em jogo (02/11/2026)
 
 | arquivo | pecas | resultado |

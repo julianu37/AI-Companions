@@ -39,7 +39,8 @@ namespace Companions
             public bool ClimbLadder, ClimbAuto, LadderPending; public Vector3 ClimbDir, ClimbBase; public float ClimbStartY, ClimbStartAt, ClimbBottomY, NextEdgeLog, ClimbViaUntil, ClimbFootBest, ClimbFootAt, ClimbFaceAt; public Vector3 ClimbFace;
             // 1.5.3: a whole chain of ladders planned at once and climbed in one go
             public List<LadderStep> Chain, PendingChain; public bool OnChain, ChainDown, PendingDown; public int ChainIdx, ChainJumps;
-            public AutoJumpLedge[] ClimbLedges; public float ChainProgressAt, ChainBestY, ChainJumpAt, ChainPushAt, ChainRestUntil, ChainFootBest, ChainFootAt, ChainViaUntil; public Vector3 ChainVia; public Vector3 ClimbVia; public int ClimbJumps; public int ClimbLadderId; public float NextLadderClimbSearch, NextLadderLog; public readonly HashSet<int> LadderClimbsTried = new HashSet<int>(); public readonly Dictionary<int, Vector2> LadderUses = new Dictionary<int, Vector2>();
+            public AutoJumpLedge[] ClimbLedges; public float ChainProgressAt, ChainBestY, ChainJumpAt, ChainPushAt, ChainRestUntil, ChainFootBest, ChainFootAt, ChainViaUntil;
+        public int DropTries; public float DropY, DropUntil; public Vector3 ChainVia; public Vector3 ClimbVia; public int ClimbJumps; public int ClimbLadderId; public float NextLadderClimbSearch, NextLadderLog; public readonly HashSet<int> LadderClimbsTried = new HashSet<int>(); public readonly Dictionary<int, Vector2> LadderUses = new Dictionary<int, Vector2>();
             public Ladder UseLadder; public float LadderUntil, NextLadderSearch; public readonly HashSet<Ladder> LaddersUsed = new HashSet<Ladder>();
             public bool MainPartial;
             public Vector3 GoodPos; public float GoodAt; public bool HasGood;
@@ -2783,6 +2784,15 @@ namespace Companions
             Vector3 goal = s.Goal;
             float below = pos.y - goal.y;
             if (below < 1.5f) return false;
+            // E7 (player's report, 03/11/2026: "it was bugged up there for a while"): the same drop was chosen over and
+            // over (10 lines in the log) because the edge was blocked and he never fell. Three tries from the same height
+            // and this way down is given up for a few seconds (the stuck path then looks for another option).
+            if (now < s.DropUntil) return false;
+            if (Mathf.Abs(s.DropY - pos.y) > 0.5f)
+            {
+                s.DropTries = 0;
+            }
+            s.DropY = pos.y;
             // 1.5.2: companions take fall damage now: never a drop that would cost more than 30% of its health right now
             float maxDrop = Mathf.Min(ModConfig.StuckDrop != null ? ModConfig.StuckDrop.Value : 8f, CompanionFallDamagePatch.SafeDrop(c, 0.3f));
             float here = Flat(pos, goal);
@@ -2812,6 +2822,14 @@ namespace Companions
             Rigidbody rb = ai.GetComponent<Rigidbody>();
             if (rb != null) { Vector3 v = rb.linearVelocity; v.x = bestDir.x * 3f; v.z = bestDir.z * 3f; rb.linearVelocity = v; }
             s.StepDir = bestDir; s.StepRun = false; s.StepUntil = now + 0.5f + bestEdge * 0.3f;
+            s.DropTries++;
+            if (s.DropTries >= 3)
+            {
+                s.DropUntil = now + 8f;
+                s.DropTries = 0;
+                if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Move|" + tag + "] the way down at " + Fmt(pos) + " is blocked - giving up on it for a moment");
+                return false;
+            }
             if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Move|" + tag + "] " + below.ToString("F1") + "m above where it needs to be - dropping down to " + Fmt(bestLand) + " (" + (pos.y - bestLand.y).ToString("F1") + "m)");
             return true;
         }
