@@ -1850,6 +1850,11 @@ namespace Companions
                             + root.name.Replace("(Clone)", "") + " at " + Fmt(b.center) + " has no floor at its top (top "
                             + b.max.y.ToString("F1") + ") - not climbing it");
                     }
+                    // E7 (player's report, 03/11/2026: "he keeps going up and down the ladder and falling"): without this
+                    // the search (every 2 s) picked the SAME refused ladder again - climb, refuse, come down, climb. The
+                    // ladder is put aside for a minute so the build's 12 s progress clock expires and the piece goes to the
+                    // retry pass (by then the floor above may exist).
+                    MarkBadLadder(id, now, 60f);
                     continue;
                 }
                 // 1.5.2 (user: "look for a path to where it needs to go, or at least close. Picking a ladder near its feet that

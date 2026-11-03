@@ -1304,6 +1304,23 @@ Os dois achados abertos (§15.2v) tinham a **mesma causa**: a ordem era **andar 
 
 Log novo: `N support piece(s) under the <peca> brought forward so it can stand`.
 
+### 15.2x O loop da escada: recusa que nao marca a escada como ruim (03/11/2026)
+
+Relato do jogador com screenshot: *"tava indo tao bem, mas fica subindo/descendo e caindo da escada"*. O log mostra o ciclo:
+
+```
+heading for the ladder wood_stepladder, foot at (…), top at 40,9
+at the foot of the ladder - climbing / climbed the ladder at (-163,1, 40,3, -443,2)
+the ladder at (-165,9, 41,8, -443,1) has no floor at its top (top 42,9) - not climbing it
+1,7m below ... heading for the ladder ... (de novo)
+```
+
+**Causa:** o guarda `LadderLanding` recusava a 2a escada (o piso de 42,9 ainda nao existe) mas **nao marcava a escada como
+ruim**, entao a busca de rota (a cada 2 s) escolhia a mesma de novo - subir, recusar, descer, subir. O relogio de progresso
+de 12 s do build nao vencia porque cada subida aproximava da peca e reiniciava o relogio. **Correcao:** a recusa chama
+`MarkBadLadder(id, now, 60f)` - a escada sai da rota por 1 min, o relogio vence e a peca vai para o retry pass (quando o piso
+de cima existir ela volta). Mecanismo que ja existia (usado em queda/recusa de cadeia); nenhuma regra nova.
+
 ### 15.3 Medido em jogo (02/11/2026)
 
 | arquivo | pecas | resultado |
