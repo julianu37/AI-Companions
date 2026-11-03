@@ -15,8 +15,20 @@ permissions:
   - { action: "shell", resource: "git diff *", effect: "allow" }
   - { action: "shell", resource: "git log *", effect: "allow" }
   - { action: "shell", resource: "git show *", effect: "allow" }
-  - { action: "shell", resource: "dotnet *", effect: "allow" }
+  - { action: "shell", resource: "dotnet run --project tools/*", effect: "allow" }
+  - { action: "shell", resource: "dotnet build tools/*", effect: "allow" }
+  - { action: "shell", resource: "dotnet test tools/*", effect: "allow" }
+  - { action: "shell", resource: "dotnet new * -o tools/*", effect: "allow" }
+  - { action: "shell", resource: "dotnet new * --output tools/*", effect: "allow" }
+  - { action: "shell", resource: "dotnet add tools/* *", effect: "allow" }
+  - { action: "shell", resource: "dotnet restore tools/*", effect: "allow" }
+  - { action: "shell", resource: "dotnet run --project ~/AppData/Local/Temp/opencode/*", effect: "allow" }
+  - { action: "shell", resource: "dotnet build ~/AppData/Local/Temp/opencode/*", effect: "allow" }
+  - { action: "shell", resource: "dotnet new * -o ~/AppData/Local/Temp/opencode/*", effect: "allow" }
+  - { action: "shell", resource: "dotnet new * --output ~/AppData/Local/Temp/opencode/*", effect: "allow" }
+  - { action: "shell", resource: "dotnet add ~/AppData/Local/Temp/opencode/* *", effect: "allow" }
   - { action: "shell", resource: "*Companions.sln*", effect: "deny" }
+  - { action: "shell", resource: "*Companions.csproj*", effect: "deny" }
   - { action: "shell", resource: "python tools/*", effect: "allow" }
   - { action: "shell", resource: "powershell -ExecutionPolicy Bypass -File tools/*", effect: "allow" }
   - { action: "shell", resource: "powershell -ExecutionPolicy Bypass -File tools\\*", effect: "allow" }
@@ -55,6 +67,8 @@ Leia `AGENTS.md` (Definição de pronto) e carregue as skills do alvo (`valheim-
 - Nada de rodar/reiniciar o jogo (é do jogador). Teste **no jogo** é receita + comandos do DevBridge que você
   escreve; a execução é do arquiteto com o mundo do jogador aberto.
 - **Não rode** `dotnet build Companions.sln` (deploya e colide); o harness e o mock do MCP não deployam.
+- **Serialize o harness**: não rode `dotnet run --project tools/ai-intents-check` ao mesmo tempo que outro agente
+  (o arquiteto coordena); dois ao mesmo tempo disputam `obj/bin`.
 - **Nunca** valide comportamento só por leitura quando der para chamar o método.
 - Cuidado com UTF-16: procurar string na DLL exige decodificar nos **dois offsets** (0 e 1) — já deu falso
   negativo.

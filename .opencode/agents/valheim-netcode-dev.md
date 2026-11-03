@@ -54,6 +54,8 @@ Leia `AGENTS.md` (fases 3.19/1.7–1.9 e as *Correções* de ZDO) e carregue **`
 - `[General] MaxCompanions`, `[AI] TargetRange` etc. são **por cliente** (o mod não usa `[ServerSync]`):
   documente quando dois jogadores virem limites diferentes.
 - Nunca troque `Container.m_inventory` no `Awake` (já revertido uma vez); nada de escrita sem posse.
+- No `tools/ai-intents-check`, o seu diff **só adiciona asserção** (nunca relaxa/remove as existentes):
+  é o teste que aprova a sua mudança, e o revisor/arquiteto conferem o diff.
 
 ## Critério de aceite
 

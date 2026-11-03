@@ -9,7 +9,30 @@ permissions:
   - { action: "grep", resource: "*", effect: "allow" }
   - { action: "edit", resource: "*", effect: "deny" }
   - { action: "edit", resource: "docs/re/*", effect: "allow" }
-  - { action: "shell", resource: "*", effect: "allow" }
+  - { action: "shell", resource: "*", effect: "deny" }
+  - { action: "shell", resource: "git status *", effect: "allow" }
+  - { action: "shell", resource: "git diff *", effect: "allow" }
+  - { action: "shell", resource: "git log *", effect: "allow" }
+  - { action: "shell", resource: "git show *", effect: "allow" }
+  - { action: "shell", resource: "git branch --list*", effect: "allow" }
+  - { action: "shell", resource: "git branch --show-current*", effect: "allow" }
+  - { action: "shell", resource: "git ls-files *", effect: "allow" }
+  - { action: "shell", resource: "git rev-parse *", effect: "allow" }
+  - { action: "shell", resource: "git fetch *", effect: "allow" }
+  - { action: "shell", resource: "git -C * status *", effect: "allow" }
+  - { action: "shell", resource: "git -C * diff *", effect: "allow" }
+  - { action: "shell", resource: "git -C * log *", effect: "allow" }
+  - { action: "shell", resource: "git -C * show *", effect: "allow" }
+  - { action: "shell", resource: "git -C * fetch *", effect: "allow" }
+  - { action: "shell", resource: "git -C * ls-files *", effect: "allow" }
+  - { action: "shell", resource: "git -C * rev-parse *", effect: "allow" }
+  - { action: "shell", resource: "git -C * branch --list*", effect: "allow" }
+  - { action: "shell", resource: "git -C * branch --show-current*", effect: "allow" }
+  - { action: "shell", resource: "ilspycmd *", effect: "allow" }
+  - { action: "shell", resource: "dotnet tool *", effect: "allow" }
+  - { action: "shell", resource: "python tools/*", effect: "allow" }
+  - { action: "shell", resource: "python -c *", effect: "allow" }
+  - { action: "shell", resource: "powershell -ExecutionPolicy Bypass -File tools/*", effect: "allow" }
   - { action: "shell", resource: "*--force*", effect: "deny" }
   - { action: "webfetch", resource: "*", effect: "allow" }
   - { action: "websearch", resource: "*", effect: "allow" }

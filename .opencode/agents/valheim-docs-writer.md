@@ -15,6 +15,8 @@ permissions:
   - { action: "edit", resource: "Translations/*", effect: "allow" }
   - { action: "edit", resource: "Speech/*", effect: "allow" }
   - { action: "edit", resource: "package/CONFIGURATION.md", effect: "allow" }
+  - { action: "edit", resource: "tools/gen_translations.py", effect: "allow" }
+  - { action: "edit", resource: "tools/audit_translations.py", effect: "allow" }
   - { action: "shell", resource: "*", effect: "deny" }
   - { action: "shell", resource: "git status *", effect: "allow" }
   - { action: "shell", resource: "git diff *", effect: "allow" }

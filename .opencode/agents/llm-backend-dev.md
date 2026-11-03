@@ -52,6 +52,8 @@ Leia `AGENTS.md` (seção *Camada de IA*) e carregue as skills **`valheim-ai-bac
 - Prompt montado **por mensagem** na main thread; a `Task` só envia. Nada de segredo em log.
 - Chave de API só em `ConfigEntry`; nada hardcoded.
 - **Nunca troque dependências** (System.Text.Json 10.0.2 etc. são da stack validada).
+- No `tools/ai-intents-check`, o seu diff **só adiciona asserção** (nunca relaxa/remove as existentes):
+  é o teste que aprova a sua mudança, e o revisor/arquiteto conferem o diff.
 
 ## Critério de aceite
 

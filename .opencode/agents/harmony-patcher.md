@@ -59,6 +59,8 @@ Leia `AGENTS.md` (as seções *Correções* dos patches e a *Camada de IA*) e ca
 - **Custo com o log desligado é zero**: `if (!CompanionsPlugin.LogDetailed) return;` **antes** de montar
   string/reflexão (ver `MHR_PieceDamageLog`, `CompanionBlockLog`).
 - Nada de `GetComponent`/`Find*` por frame em método quente sem cache.
+- No `tools/ai-intents-check`, o seu diff **só adiciona asserção** (nunca relaxa/remove as existentes):
+  é o teste que aprova a sua mudança, e o revisor/arquiteto conferem o diff.
 
 ## Critério de aceite
 

@@ -48,3 +48,5 @@ Você é o **especialista em transporte e áudio da IA** do AI Companions. Leia 
 - Qualquer mudança no transporte/áudio **tem** que passar em `tools/ai-intents-check` (o total sai do comando) e no
   teste do MCP (`python tools/mcp-devbridge/test_mcp_devbridge.py`) quando tocar em ferramenta exposta.
 - Não reinicie o jogo nem commite; reporte o que mudou, a medição e o que falta.
+- No `tools/ai-intents-check`, o seu diff **só adiciona asserção** (nunca relaxa/remove as existentes):
+  é o teste que aprova a sua mudança, e o revisor/arquiteto conferem o diff.

@@ -97,8 +97,9 @@
     </EmbeddedResource>
   </ItemGroup>
 
-  <!-- Optional: copy the built DLL into BepInEx/plugins after each build. -->
-  <Target Name="DeployToPlugins" AfterTargets="Build" Condition="'$(DeployDir)' != ''">
+  <!-- Optional: copy the built DLL into BepInEx/plugins after each build.
+       -p:SkipDeploy=true compiles without touching the game folder (worktrees/agents). -->
+  <Target Name="DeployToPlugins" AfterTargets="Build" Condition="'$(DeployDir)' != '' and '$(SkipDeploy)' != 'true'">
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(DeployDir)" />
     <Message Importance="high" Text="Deployed $(TargetFileName) to $(DeployDir)" />
   </Target>
@@ -109,7 +110,7 @@
        and its own dependencies). Microsoft.Extensions.AI.Abstractions / System.Text.Json stay out on purpose.
        The natives keep their runtimes\win-x64 tree, which is exactly where Whisper.net's loader looks
        (NativeLibraryLoader.GetRuntimePaths -> <LibraryPath dir>\runtimes\win-x64). -->
-  <Target Name="DeployWhisperNet" AfterTargets="DeployToPlugins" Condition="'$(DeployDir)' != ''">
+  <Target Name="DeployWhisperNet" AfterTargets="DeployToPlugins" Condition="'$(DeployDir)' != '' and '$(SkipDeploy)' != 'true'">
     <ItemGroup>
       <WhisperManaged Include="@(ReferenceCopyLocalPaths)"
                       Condition="'%(Filename)' == 'Whisper.net'
@@ -133,7 +134,7 @@
        The natives are copied from the NuGet package folder itself (Pkg... path from GeneratePathProperty): a
        RID-less build does NOT copy runtimes\<rid>\native\* to the output (only runtimes\<rid>\*.dll, which is the
        non-standard layout the Whisper.net.Runtime package uses), so $(TargetDir) has nothing to pick up. -->
-  <Target Name="DeploySherpaOnnx" AfterTargets="DeployToPlugins" Condition="'$(DeployDir)' != ''">
+  <Target Name="DeploySherpaOnnx" AfterTargets="DeployToPlugins" Condition="'$(DeployDir)' != '' and '$(SkipDeploy)' != 'true'">
     <ItemGroup>
       <SherpaManaged Include="@(ReferenceCopyLocalPaths)" Condition="'%(Filename)' == 'sherpa-onnx'" />
       <SherpaNative Include="$(Pkgorg_k2fsa_sherpa_onnx_runtime_win-x64)\runtimes\win-x64\native\*.dll" />
@@ -157,12 +158,12 @@
   <!-- The third-party licence texts travel WITH the binaries they cover (the package redistributes
        Whisper.net/whisper.cpp/sherpa-onnx/onnxruntime and the Kokoro/espeak-ng data), so they are
        deployed next to the DLL as <DeployDir>\LICENSES\. -->
-  <Target Name="DeployLicenses" AfterTargets="Build" Condition="'$(DeployDir)' != '' and '@(LicenseFiles)' != ''">
+  <Target Name="DeployLicenses" AfterTargets="Build" Condition="'$(DeployDir)' != '' and '$(SkipDeploy)' != 'true' and '@(LicenseFiles)' != ''">
     <Copy SourceFiles="@(LicenseFiles)" DestinationFiles="@(LicenseFiles->'$(DeployDir)\LICENSES\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
     <Message Importance="high" Text="Deployed @(LicenseFiles->Count()) third-party licence file(s) to $(DeployDir)\LICENSES" />
   </Target>
 
-  <Target Name="DeployTranslations" AfterTargets="Build" Condition="'$(DeployDir)' != '' and ('@(TranslationFiles)' != '' or '@(SpeechFiles)' != '')">
+  <Target Name="DeployTranslations" AfterTargets="Build" Condition="'$(DeployDir)' != '' and '$(SkipDeploy)' != 'true' and ('@(TranslationFiles)' != '' or '@(SpeechFiles)' != '')">
     <Copy SourceFiles="@(TranslationFiles)" DestinationFiles="@(TranslationFiles->'$(DeployDir)\Translations\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(SpeechFiles)" DestinationFiles="@(SpeechFiles->'$(DeployDir)\Speech\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
     <Message Importance="high" Text="Deployed @(TranslationFiles->Count()) translation file(s) to $(DeployDir)\Translations and @(SpeechFiles->Count()) speech file(s) to $(DeployDir)\Speech" />

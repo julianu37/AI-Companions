@@ -127,7 +127,8 @@ config é **`BepInEx\config\AiCompanions.cfg`** (o GUID não dá mais nome a ele
 - `Environment.props` na raiz define `ValheimDir` e `DeployDir` (é **gitignored**; há o
   `Environment.props.example`).
 - **Build:** `dotnet build Companions.sln -c Release` → gera `src/Companions/bin/Release/net472/Companions.dll`
-  e copia para `DeployDir`.
+  e copia para `DeployDir`. `-p:SkipDeploy=true` compila **sem** tocar na pasta do jogo (worktree/agente);
+  o build/deploy normal continua sendo **só do arquiteto**.
 - **Teste:** iniciar o jogo e conferir `BepInEx\LogOutput.log` (deve listar
   `Loading [AI Companions <versão>]` + `loaded successfully! (N methods patched)`).
 - **Pasta de deploy:** o build copia para `DeployDir` = `...\BepInEx\plugins\AI-Companions\`. **Não** deixe
@@ -1139,12 +1140,21 @@ subagente). `valheim-specialist` e `valheim-mod-reviewer` **não editam** e roda
 `valheim-qa-engineer` edita `tools/**` e o harness em `%TEMP%\opencode`; `repo-wiki-publisher` edita `README.md`,
 `package/*`, as release notes, `docs/wiki/**` e o clone da wiki (nunca `src/**`); `valheim-docs-writer` edita
 `AGENTS.md`, `docs/**` (menos `wiki/` e `release-notes-*`), `Translations/**`, `Speech/**` e o `CONFIGURATION.md`
-gerado; os engenheiros editam `src/**` + `tools/ai-intents-check`. O **build/deploy do `Companions.sln` é só do
-arquiteto** (os executores rodam o harness, que não deploya), e nenhum agente pode `--force`.
-**Testado no runtime em 03/11/2026** (5 subagentes reais): `valheim-specialist` fica **sem** ferramenta de escrita (o
-`edit` nem aparece no catálogo) e `git push` volta `permission.rejected`; `csharp-engineer` edita `src/` e é negado em
-`docs/`; `valheim-docs-writer` edita `docs/` e é negado em `src/`; `valheim-qa-engineer` edita `tools/` e é negado em
-`src/`; `repo-wiki-publisher` edita `docs/wiki/` e é negado em `src/`. Nenhum arquivo de teste ficou na árvore.
+gerado; os engenheiros editam `src/**` + `tools/ai-intents-check`; o `valheim-mod-architect` edita só `src/**`,
+`Companions.sln` e `Environment.props.example`; o `valheim-reverse-engineer` edita só `docs/re/**` e roda uma
+allowlist de pesquisa (git de leitura/fetch, `ilspycmd`, `dotnet tool`, `python tools/*`). O **build/deploy do
+`Companions.sln` é só do arquiteto** (os executores rodam o harness, que não deploya), e nenhum agente pode
+`--force`. O diff do harness (`tools/ai-intents-check`) **só adiciona asserção** (quem implementa não afrouxa o
+teste que o aprova), e o arquiteto **serializa** as execuções do harness (duas ao mesmo tempo disputam `obj/bin`).
+`repo-wiki-publisher` usa **caminhos explícitos** no `git add` (nunca `-A`/`.`/`-u`, nem `reset`/`checkout`/
+`clean`/stash/force).
+**Testado no runtime em 03/11/2026** (9 subagentes reais): `valheim-specialist` e `multilanguage-verifier` ficam
+**sem** ferramenta de escrita (o `edit` nem aparece no catálogo); `csharp-engineer`, `ai-integration` e
+`valheim-mod-architect` editam `src/` e são negados em `docs/`; `valheim-docs-writer` edita `docs/` e é negado em
+`src/`; `valheim-qa-engineer` edita `tools/` e é negado em `src/`; `repo-wiki-publisher` edita `docs/wiki/` e é
+negado em `src/`; `valheim-reverse-engineer` edita `docs/re/` e é negado em `src/`. `git push`/`git commit` voltam
+`permission.rejected` onde não são permitidos, e o `verifier` só roda `gen_translations.py --check` (sem `--check` é
+negado). Nenhum arquivo de teste ficou na árvore.
 
 ## DevBridge (ferramenta de desenvolvimento)
 

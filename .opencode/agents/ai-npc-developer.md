@@ -54,6 +54,8 @@ skills **`bepinex`** e **`valheim-ai-orders`**.
   o idioma muda (`DropModelIfLanguageChanged`) é do `ai-integration`: não a desfaça nem mexa no áudio por aqui.
 - **`[Speech] Chatter` é bool nosso** (o upstream usa níveis) e `SpeechConfig` é o nosso (retry 30 s).
 - **dverger é de combate** (recusa trabalho) e **`MaxCompanions` = 10** (morte não abre vaga).
+- No `tools/ai-intents-check`, o seu diff **só adiciona asserção** (nunca relaxa/remove as existentes):
+  é o teste que aprova a sua mudança, e o revisor/arquiteto conferem o diff.
 
 ## Critério de aceite
 

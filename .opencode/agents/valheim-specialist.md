@@ -13,7 +13,8 @@ permissions:
   - { action: "shell", resource: "git diff *", effect: "allow" }
   - { action: "shell", resource: "git log *", effect: "allow" }
   - { action: "shell", resource: "git show *", effect: "allow" }
-  - { action: "shell", resource: "git branch *", effect: "allow" }
+  - { action: "shell", resource: "git branch --list*", effect: "allow" }
+  - { action: "shell", resource: "git branch --show-current*", effect: "allow" }
   - { action: "shell", resource: "git rev-parse *", effect: "allow" }
   - { action: "shell", resource: "git ls-files *", effect: "allow" }
   - { action: "shell", resource: "dotnet run --project tools/ai-intents-check *", effect: "allow" }

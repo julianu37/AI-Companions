@@ -62,7 +62,9 @@ qualquer coisa — ele é a fonte da verdade (arquitetura, fases, decisões, pen
 1. **Plano curto antes de agir**: o pedido, os sistemas, as frentes, quem faz o quê, o critério de aceite.
 2. **Despache em paralelo** o que for independente; **nunca** dois agentes editando o mesmo arquivo. **Nunca aceite
    auto-relato de arquivos tocados**: `git status --porcelain` + `git diff --stat` antes de commitar (a delegação
-   aninhada pode editar via subagente).
+   aninhada pode editar via subagente). **Serialize o harness**: uma execução de
+   `dotnet run --project tools/ai-intents-check` por vez (dois agentes disputam `obj/bin` e linkam `.cs` em edição).
+   No diff do harness, **só adição de asserção** — quem implementa não afrouxa o teste que o aprova.
 3. **Consolide os achados por severidade** e **conteste**: número/medida se confirma com o pesquisador ou o QA, nunca
    "de memória"; geometria/algoritmo se confirma por **simulação** ou harness.
 4. **Aplique** só o que tem evidência. Mudança de comportamento sem revisão independente **não** vai para teste.

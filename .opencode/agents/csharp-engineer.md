@@ -48,4 +48,6 @@ da área (`bepinex` sempre; `valheim-reverse-engineering` quando precisar de API
 - Config nova = `Bind` em `ModConfig.cs` (texto em **inglês**) + a chave `hc_cfg_<secao>_<chave>` nos **4** JSONs
   (PT/ES/FR/IT; o inglês é nativo). **Você não edita** `Translations/`/`Speech/` nem docs: reporte as chaves novas
   (texto em inglês) e o `valheim-docs-writer` aplica.
+- No `tools/ai-intents-check`, o seu diff **só adiciona asserção** (nunca relaxa/remove as existentes):
+  é o teste que aprova a sua mudança, e o revisor/arquiteto conferem o diff.
 - Falha de comportamento em jogo: **log honesto** (uma linha por evento, sem log por frame) antes de qualquer "fix".

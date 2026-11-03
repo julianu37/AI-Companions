@@ -16,6 +16,31 @@ permissions:
   - { action: "edit", resource: "package/CONFIGURATION.md", effect: "deny" }
   - { action: "shell", resource: "*", effect: "deny" }
   - { action: "shell", resource: "git *", effect: "allow" }
+  - { action: "shell", resource: "git add -A*", effect: "deny" }
+  - { action: "shell", resource: "git add --all*", effect: "deny" }
+  - { action: "shell", resource: "git add -u*", effect: "deny" }
+  - { action: "shell", resource: "git add --update*", effect: "deny" }
+  - { action: "shell", resource: "git add .*", effect: "deny" }
+  - { action: "shell", resource: "git add :/*", effect: "deny" }
+  - { action: "shell", resource: "git -C * add -A*", effect: "deny" }
+  - { action: "shell", resource: "git -C * add --all*", effect: "deny" }
+  - { action: "shell", resource: "git -C * add -u*", effect: "deny" }
+  - { action: "shell", resource: "git -C * add --update*", effect: "deny" }
+  - { action: "shell", resource: "git -C * add .*", effect: "deny" }
+  - { action: "shell", resource: "git -C * add :/*", effect: "deny" }
+  - { action: "shell", resource: "git reset *", effect: "deny" }
+  - { action: "shell", resource: "git -C * reset *", effect: "deny" }
+  - { action: "shell", resource: "git checkout *", effect: "deny" }
+  - { action: "shell", resource: "git -C * checkout *", effect: "deny" }
+  - { action: "shell", resource: "git clean *", effect: "deny" }
+  - { action: "shell", resource: "git -C * clean *", effect: "deny" }
+  - { action: "shell", resource: "git stash *", effect: "deny" }
+  - { action: "shell", resource: "git commit -a*", effect: "deny" }
+  - { action: "shell", resource: "git -C * commit -a*", effect: "deny" }
+  - { action: "shell", resource: "git push -f*", effect: "deny" }
+  - { action: "shell", resource: "git push *+*", effect: "deny" }
+  - { action: "shell", resource: "git -C * push -f*", effect: "deny" }
+  - { action: "shell", resource: "git -C * push *+*", effect: "deny" }
   - { action: "shell", resource: "*--force*", effect: "deny" }
   - { action: "shell", resource: "gh -R julianu37/AI-Companions *", effect: "allow" }
   - { action: "shell", resource: "python tools/audit_translations.py *", effect: "allow" }

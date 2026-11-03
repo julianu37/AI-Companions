@@ -13,7 +13,8 @@ permissions:
   - { action: "shell", resource: "git diff *", effect: "allow" }
   - { action: "shell", resource: "git log *", effect: "allow" }
   - { action: "shell", resource: "git show *", effect: "allow" }
-  - { action: "shell", resource: "git branch *", effect: "allow" }
+  - { action: "shell", resource: "git branch --list*", effect: "allow" }
+  - { action: "shell", resource: "git branch --show-current*", effect: "allow" }
   - { action: "shell", resource: "git rev-parse *", effect: "allow" }
   - { action: "shell", resource: "git ls-files *", effect: "allow" }
   - { action: "webfetch", resource: "*", effect: "allow" }
@@ -41,6 +42,8 @@ Carregue as skills que o tema pedir (`bepinex`, `kokoro`, `valheim-ai-orders`, `
   gate de log (`LogNormal`/`LogDetailed`).
 - **Contrato/intents:** `ValidActions` × contrato × schema; rede por palavras roubando ação precisa;
   `amount` contado no lugar errado; `?` virando ordem.
+- **Harness:** o diff de `tools/ai-intents-check` **só adiciona asserção**? Remover/afrouxar teste para passar é
+  falha crítica.
 - **Localização:** texto hardcoded; chave ausente nos 4 JSON; contagem/placeholder divergente; inglês
   mostrando chave crua é o esperado (`hc_cfg_*`), português não.
 - **Config:** default mudado sem migração; chave morta; descrição que promete o que o código não faz.
@@ -52,6 +55,7 @@ Carregue as skills que o tema pedir (`bepinex`, `kokoro`, `valheim-ai-orders`, `
 1. Tabela `achado | severidade | evidência (arquivo:linha) | cenário que dispara | correção sugerida`.
 2. **Lista priorizada** (crítico → menor) e o que **não** é bug (risco/estilo) separado.
 3. O que não deu para verificar (build/jogo/multiplayer) e por quê.
-4. `git status --porcelain` (tem que estar vazio — você não altera nada).
+4. `git status --porcelain` **antes e depois** (você não altera nada; o diff do autor pode estar não commitado —
+   compare o estado, não exija vazio).
 
 Diferencie **bug**, **risco** e **estilo**. Não reescreva o código: descreva a correção.
