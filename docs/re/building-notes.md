@@ -1233,6 +1233,28 @@ caminho original em todos os casos realistas, inclusive 19.477 -> 2.636 numa cas
 O parser e **puro** (sem Unity), entao o harness o linka: a ordenacao tem secao propria em `tools/ai-intents-check`
 (zigue-zague, grupos que nao se misturam, porta por ultimo, run de 1 peca e estabilidade).
 
+### 15.2v Telhado/empena antes do piso do andar de cima (03/11/2026) - ABERTO
+
+Relato do jogador com screenshot: *"ele ainda fica tentando colocar aquelas vigas la de cima antes da hora"*. No log da
+rodada de 03/11/2026 (715/985) a sequencia mostra **classe 3** entrando antes dos pisos do andar seguinte:
+
+```
+done: wood_wall_roof_45      at (…, 40,8, …) supported   <- empena
+done: wood_roof_45           at (…, 41,8, …) supported   <- agua do telhado
+done: wood_wall_roof_45      at (…, 42,8, …) supported
+```
+E os pisos de cima, quando chegam, sao adiados: `retry later: wood_floor (no_support) at (…, 43,8, …)`.
+
+**Causa (provavel, pelo codigo):** o `StoreyOf` acha o andar pelo **piso mais alto abaixo da peca**; uma peca de telhado
+cuja laje de apoio ainda nao existe resolve para o andar de **baixo**, e dentro desse andar a classe 3 vem **depois das
+paredes e antes do andar seguinte inteiro** (o `Ordered` ordena por andar antes de por classe). Resultado: sobe telhado
+antes do piso que ele cobre.
+
+**Nao corrigido de proposito nesta rodada** (o jogador pediu para documentar e esperar o fim da obra). Caminhos de
+correcao a avaliar depois: (a) uma peca de **telhado** pertence ao andar da **laje que ela cobre** (um acima da que a
+sustenta), nao ao de baixo; (b) ordenar telhado **depois** dos pisos de todos os andares; (c) puxar para a frente o piso
+que falta quando a peca de telhado for adiada por `no_support` (o inverso do `PullFloorsAbove`).
+
 ### 15.3 Medido em jogo (02/11/2026)
 
 | arquivo | pecas | resultado |
