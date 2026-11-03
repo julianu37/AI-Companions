@@ -992,6 +992,13 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   viga/poste e enchia o canteiro de pisos soltos). `MHR_Build.PullSupports` puxa os **apoios** (mesmo XZ a 1,5 m, 0,5-2,6 m abaixo, até 3, **nunca porta nem telhado**) de uma
   peça recusada com `no_support` e a **retenta logo depois deles** (não no fim do plano). Log:
   `N support piece(s) under the <peça> brought forward so it can stand`. Detalhes em `building-notes` §15.2v e §15.2w.
+- **Navegação em obra (pesquisa + plano: `docs/re/navegacao-companheiro.md`, 03/11/2026):** o mover só tinha primitivas
+  **locais** (andar/pular/escada/descer) e repetia a mesma quando o caminho falhava. A **fase A** (`MHR_Mover.TryDetour`)
+  procura uma rota alternativa em volta (8 direções × 2 distâncias × 3 alturas, exigindo chão, espaço de cabeça, linha
+  livre e ganho de proximidade **ou de altura**) e anda até lá por 4 s; 3 tentativas por alvo. **B** (links de
+  escada/telhado na navmesh) e **C** (navmesh própria por grade, como o Vikings for Hire) ficam como opções se a A não
+  resolver. Base da pesquisa: a navmesh do jogo não serve para base de jogador (Vikings for Hire, Nexus 4057); nosso
+  `MHR_CompanionNavMesh` já usa agente próprio (tipo 40, sem portas, sobe 0,6 m).
 - **Pendências conhecidas (abertas):** a **voz não passa pelo
   mixer do jogo** (por isso ignora os sliders de volume do Valheim e só obedece `[AI] TtsVolume`); o **sync com o
   upstream** está **em dia com a 1.5.8** (era 1.5.4 — ver a seção *Upstream e licença*), mas o autor publica

@@ -40,7 +40,8 @@ namespace Companions
             // 1.5.3: a whole chain of ladders planned at once and climbed in one go
             public List<LadderStep> Chain, PendingChain; public bool OnChain, ChainDown, PendingDown; public int ChainIdx, ChainJumps;
             public AutoJumpLedge[] ClimbLedges; public float ChainProgressAt, ChainBestY, ChainJumpAt, ChainPushAt, ChainRestUntil, ChainFootBest, ChainFootAt, ChainViaUntil;
-        public int DropTries; public float DropY, DropUntil; public Vector3 ChainVia; public Vector3 ClimbVia; public int ClimbJumps; public int ClimbLadderId; public float NextLadderClimbSearch, NextLadderLog; public readonly HashSet<int> LadderClimbsTried = new HashSet<int>(); public readonly Dictionary<int, Vector2> LadderUses = new Dictionary<int, Vector2>();
+        public int DropTries; public float DropY, DropUntil;
+        public int DetourTries; public float NextDetourAt; public Vector3 ChainVia; public Vector3 ClimbVia; public int ClimbJumps; public int ClimbLadderId; public float NextLadderClimbSearch, NextLadderLog; public readonly HashSet<int> LadderClimbsTried = new HashSet<int>(); public readonly Dictionary<int, Vector2> LadderUses = new Dictionary<int, Vector2>();
             public Ladder UseLadder; public float LadderUntil, NextLadderSearch; public readonly HashSet<Ladder> LaddersUsed = new HashSet<Ladder>();
             public bool MainPartial;
             public Vector3 GoodPos; public float GoodAt; public bool HasGood;
@@ -129,6 +130,7 @@ namespace Companions
             S s = Peek(ai);
             if (s == null) return;
             s.LastGo = 0f; s.GaveUp = false; s.Path.Clear(); s.HasDetour = false; s.RouteDoor = null;
+        s.DetourTries = 0; s.NextDetourAt = 0f;   // a new goal gets its own 3 alternative-route tries
             Character c = ai.GetComponent<Character>();
             if (c != null && s.Walking) { c.SetWalk(false); s.Walking = false; }
         }
@@ -1050,6 +1052,7 @@ namespace Companions
             if (step == 0 && TryHopUp(ai, c, s, pos, now, tag)) { s.Ladder = 0; return; }
             if (step == 0 && TryLadderDown(ai, c, s, pos, now, tag)) { s.Ladder = 0; return; }
             if (step == 0 && TryDropDown(ai, c, s, pos, now, tag)) { s.Ladder = 0; return; }
+            if (step == 0 && TryDetour(ai, s, pos, now, tag, dir)) { s.Ladder = 0; return; }
             // 1.4.82: down in a pit with no route out: climb out like a player before anything else
             if (step == 0 && TryStartClimb(ai, c, s, pos, now, tag, why)) { s.Ladder = 0; return; }
             switch (step)
@@ -2772,6 +2775,54 @@ namespace Companions
 
         static bool Clear(Vector3 pos, Vector3 dir) { return Clear(pos, dir, 1.5f); }
         static bool SafeClear(Vector3 pos, Vector3 dir) { return Clear(pos, dir) && !DropAhead(pos, dir, 1.5f, 1.2f); }
+
+        // E7 (player's request, 03/11/2026: "he has to be smarter and find another route - he could just go up over the roof"):
+        // a cross of probes around the companion - 8 directions x 2 distances x 3 heights - looking for a surface that is
+        // reachable (clear line from the chest, head room) and that gets CLOSER to the goal, or HIGHER when the goal is above
+        // (the roof/beam way up). He walks there for a moment and the normal route resumes; 3 tries per goal, one every 3 s.
+        // This is Phase A of docs/re/navegacao-companheiro.md (B = navmesh links, C = own voxel nav, only if A fails).
+        static bool TryDetour(CompanionAI ai, S s, Vector3 pos, float now, string tag, Vector3 dir)
+        {
+            if (now < s.NextDetourAt || s.DetourTries >= 3) return false;
+            Vector3 goal = s.Goal;
+            float flatHere = Flat(pos, goal);
+            bool goalAbove = goal.y > pos.y + 0.8f;
+            int mask = Mask();
+            float bestScore = float.MinValue; Vector3 best = Vector3.zero; bool found = false;
+            for (int h = 0; h < 3; h++)
+            {
+                float up = h == 1 ? 1.6f : (h == 2 ? 3.2f : 0f);
+                for (int k = 0; k < 8; k++)
+                {
+                    Vector3 side = Quaternion.Euler(0f, k * 45f, 0f) * dir;
+                    for (int d = 1; d <= 2; d++)
+                    {
+                        float dist = d == 1 ? 1.5f : 3.0f;
+                        Vector3 probe = pos + side * dist + Vector3.up * up;
+                        RaycastHit hit;
+                        if (!Physics.Raycast(new Vector3(probe.x, probe.y + 2.6f, probe.z), Vector3.down, out hit, 4.6f,
+                            mask, QueryTriggerInteraction.Ignore)) continue;
+                        if (hit.point.y < pos.y - 1.0f || hit.point.y > pos.y + 2.3f) continue;
+                        if (Physics.Raycast(hit.point + Vector3.up * 0.15f, Vector3.up, 1.9f, mask,
+                            QueryTriggerInteraction.Ignore)) continue;                              // no head room
+                        if (Physics.Linecast(pos + Vector3.up * 1.2f, hit.point + Vector3.up * 1.2f, mask,
+                            QueryTriggerInteraction.Ignore)) continue;                              // a wall between us
+                        float flat = Flat(hit.point, goal);
+                        float gain = hit.point.y - pos.y;
+                        if (flat > flatHere - 0.3f && (!goalAbove || gain < 0.7f)) continue;            // neither closer nor higher
+                        float score = gain * 2f + (flatHere - flat);
+                        if (score > bestScore) { bestScore = score; best = hit.point; found = true; }
+                    }
+                }
+            }
+            if (!found) return false;
+            s.DetourTries++;
+            s.NextDetourAt = now + 3f;
+            s.HasDetour = true; s.Detour = best; s.DetourUntil = now + 4f; s.NextPlan = 0f;
+            if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Move|" + tag + "] the way is blocked - trying another one at "
+                + Fmt(best) + " (" + (best.y - pos.y).ToString("F1") + "m up)");
+            return true;
+        }
 
         // 1.5.2: stuck above where it needs to be (user: "what about going down a ladder? ... jump down to lower ledge? ...
         // a player will jump even if its not safe as long as its not a fall that will kill them"). Look for an edge in reach
