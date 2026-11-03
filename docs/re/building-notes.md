@@ -1241,7 +1241,7 @@ caminho original em todos os casos realistas, inclusive 19.477 -> 2.636 numa cas
 O parser e **puro** (sem Unity), entao o harness o linka: a ordenacao tem secao propria em `tools/ai-intents-check`
 (zigue-zague, grupos que nao se misturam, porta por ultimo, run de 1 peca e estabilidade).
 
-### 15.2v Telhado/empena antes do piso do andar de cima (03/11/2026) - ABERTO
+### 15.2v Telhado/empena antes do piso do andar de cima (03/11/2026) - corrigido em 15.2w
 
 Relato do jogador com screenshot: *"ele ainda fica tentando colocar aquelas vigas la de cima antes da hora"*. No log da
 rodada de 03/11/2026 (715/985) a sequencia mostra **classe 3** entrando antes dos pisos do andar seguinte:
@@ -1285,9 +1285,11 @@ niveis. E o mesmo tipo de problema do telhado antes do piso (§15.2v acima): a o
 Os dois achados abertos (§15.2v) tinham a **mesma causa**: a ordem era **andar -> classe -> altura -> arquivo**, sem modelar
 **dependencia**. Duas correcoes cirurgicas:
 
-1. **`FloorAboveBeforeRoof` (parser, puro):** para cada peca de **telhado/empena** (classe 3), o piso mais proximo **acima**
-   dela (0,3 a 4,5 m de altura, 2,5 m em XZ) e movido para **antes** dela, se ainda estiver a frente na lista. Era isso que
-   fazia as vigas do topo subirem "antes da hora". Nada muda de classe nem de andar.
+1. **A chave de ordenacao (parser, puro):** uma peca de **telhado/empena** (classe 3) cobre a laje do nivel **acima**, entao
+   ela pertence a esse andar: a chave virou `StoreyOf(floors, piece) + (ClassOf == 3 ? 2 : 0)`. Assim o piso de cima entra
+   **antes** dela por classe (0 antes de 3), sem mexer em nenhuma lista. **A 1a tentativa (mover o piso com
+   `RemoveAt/Insert`)** foi reprovada na revisao: ela tirava o piso do **andar dele** e o enfiava no meio do andar de baixo -
+   exatamente o que o `StoreyOf` existe para impedir (o relato "no salao o 2o andar e o 3o").
 2. **`PullSupports` (runtime):** quando uma peca e recusada com **`no_support`** (o caso do piso do patamar em 43,8), as
    pecas do plano **abaixo dela** (mesmo XZ a 1,5 m, 0,5-2,6 m de altura, ate 3) sao movidas para logo depois do passo
    atual, entao sao construidas **antes** de a peca voltar do retry. Era o furo do `PullFloorsAbove`: o piso era puxado,

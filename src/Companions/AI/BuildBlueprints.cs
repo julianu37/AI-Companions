@@ -126,14 +126,17 @@ internal static class BuildBlueprints
 	}
 
 	/// <summary>
-	/// E7 (review, 03/11/2026): the last file read, by path and write time. <see cref="Load"/> is called from
+	/// E7 (review, 03/11/2026): the parsed plans, by path and write time. <see cref="Load"/> is called from
 	/// <c>MHR_Build.CheckPending</c> on EVERY FRAME while a blueprint order waits for its material, and since the order is
-	/// rebuilt (parse + sort) that put a 985-line read and an O(n^2) sort on the main thread every frame. The file hardly
-	/// changes, so the parsed plan is kept until the write time changes.
+	/// rebuilt (parse + sort) that put a 985-line read and an O(n^2) sort on the main thread every frame. A small MAP, not
+	/// one slot: two companions waiting for different files used to evict each other and reparse both every frame.
 	/// </summary>
-	private static string s_cachedPath;
-	private static DateTime s_cachedWrite;
-	private static Blueprint s_cachedBlueprint;
+	private sealed class PlanCache
+	{
+		internal DateTime Write;
+		internal Blueprint Plan;
+	}
+	private static readonly Dictionary<string, PlanCache> s_plans = new Dictionary<string, PlanCache>();
 
 	/// <summary>Reads one file. Returns null (and logs why) when it has no piece.</summary>
 	internal static Blueprint Load(string file)
@@ -145,9 +148,10 @@ internal static class BuildBlueprints
 		try
 		{
 			DateTime write = File.GetLastWriteTimeUtc(file);
-			if (s_cachedBlueprint != null && s_cachedPath == file && s_cachedWrite == write)
+			PlanCache cached;
+			if (s_plans.TryGetValue(file, out cached) && cached != null && cached.Write == write)
 			{
-				return s_cachedBlueprint;
+				return cached.Plan;
 			}
 			List<string> lines = new List<string>(File.ReadAllLines(file, Encoding.UTF8));
 			string name;
@@ -175,9 +179,13 @@ internal static class BuildBlueprints
 					Scale = line.Scale
 				});
 			}
-			s_cachedPath = file;
-			s_cachedWrite = write;
-			s_cachedBlueprint = blueprint;
+			// a small map, not one slot: two companions waiting for DIFFERENT blueprints used to evict each other and
+			// reparse both every frame (review, 03/11/2026)
+			if (s_plans.Count > 4)
+			{
+				s_plans.Clear();
+			}
+			s_plans[file] = new PlanCache { Write = write, Plan = blueprint };
 			return blueprint;
 		}
 		catch (Exception e)

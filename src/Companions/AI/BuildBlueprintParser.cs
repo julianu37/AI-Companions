@@ -119,7 +119,11 @@ internal static class BuildBlueprintParser
 			// doors and gates are the LAST thing of the WHOLE BUILD, not of the storey - a door that exists is a door he
 			// opens and closes on every trip for the rest of the work. The class 4 (doors) goes after every storey.
 			.OrderBy(delegate (Line piece) { return ClassOf(piece.Prefab) == 4 ? 1 : 0; })
-			.ThenBy(delegate (Line piece) { return StoreyOf(floors, piece); })
+			// E7 (player's report, 03/11/2026: "he still tries to place those beams up top before the time"): a roof/gable piece
+			// (class 3) covers the slab of the level ABOVE it, so it belongs to that storey - the sort key moves it there instead of
+			// moving pieces around (the first version pulled the floor out of its storey and broke the invariant the StoreyOf exists
+			// for: "in this hall the 2nd floor is really the 3rd"). Review, 03/11/2026.
+			.ThenBy(delegate (Line piece) { return StoreyOf(floors, piece) + (ClassOf(piece.Prefab) == 3 ? 2f : 0f); })
 			.ThenBy(delegate (Line piece) { return ClassOf(piece.Prefab); })
 			.ThenBy(delegate (Line piece) { return piece.Py; })
 			.ToList();
@@ -128,10 +132,6 @@ internal static class BuildBlueprintParser
 		// order the author placed the pieces, not a path. Each group is reordered by NEAREST NEIGHBOUR from where the previous
 		// group ended; no piece changes group, is added or is removed.
 		NearestWithin(sorted, floors);
-		// E7 (player's report, 03/11/2026: "he still tries to place those beams up top before the time"): a roof/gable piece
-		// (class 3) whose floor is right above it was going up while that floor did not exist yet. The floor that COVERS the roof
-		// comes first; nothing else changes.
-		FloorAboveBeforeRoof(sorted);
 		return sorted;
 	}
 
@@ -215,58 +215,6 @@ internal static class BuildBlueprintParser
 				cursorZ = first.Pz;
 			}
 			start = end;
-		}
-	}
-
-	/// <summary>
-	/// E7 (player's report, 03/11/2026): a <b>roof/gable</b> piece (class 3) must not be built before the <b>floor right above
-	/// it</b> - otherwise the frame stands open while the level it covers has no floor (the player saw the beams up top before
-	/// the time). For each class-3 piece, the nearest floor above it (0,3 m to 4,5 m up, 2,5 m in XZ) is moved to just before
-	/// it when it was still ahead in the list. Bounded and deterministic; no piece changes class or storey.
-	/// </summary>
-	private static void FloorAboveBeforeRoof(List<Line> sorted)
-	{
-		for (int i = 0; i < sorted.Count; i++)
-		{
-			Line roof = sorted[i];
-			if (roof == null || roof.Prefab == null || ClassOf(roof.Prefab) != 3)
-			{
-				continue;
-			}
-			int best = -1;
-			float bestDy = float.MaxValue;
-			for (int j = i + 1; j < sorted.Count; j++)
-			{
-				Line other = sorted[j];
-				if (other == null || other.Prefab == null
-					|| other.Prefab.IndexOf("floor", StringComparison.OrdinalIgnoreCase) < 0)
-				{
-					continue;
-				}
-				float dy = other.Py - roof.Py;
-				if (dy < 0.3f || dy > 4.5f)
-				{
-					continue;
-				}
-				float dx = other.Px - roof.Px;
-				float dz = other.Pz - roof.Pz;
-				if (dx * dx + dz * dz > 6.25f)
-				{
-					continue;
-				}
-				if (dy < bestDy)
-				{
-					bestDy = dy;
-					best = j;
-				}
-			}
-			if (best < 0)
-			{
-				continue;
-			}
-			Line floor = sorted[best];
-			sorted.RemoveAt(best);
-			sorted.Insert(i, floor);
 		}
 	}
 
