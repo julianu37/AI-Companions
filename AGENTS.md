@@ -1093,14 +1093,44 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
    **subagentes em paralelo** para agilizar (frentes com arquivos disjuntos). O **orquestrador revisa o diff, roda
    build/testes e commita** — nada entra sem revisão; e **tudo é documentado no mesmo ciclo** (AGENTS/CHANGELOG/
    release notes/roadmap/backlog), como na regra 2.
-11. **Padrão de trabalho: orquestrador + especialistas (regra do jogador, 03/11/2026).** Toda frente que mexe em
-    comportamento, rede, assets, localização ou release **começa distribuída**: carregue a skill da área e acione os
-    subagentes especialistas em **paralelo e read-only** (`valheim-mod-reviewer`, `valheim-netcode-dev`,
-    `valheim-reverse-engineer`, `valheim-qa-engineer`, `valheim-docs-writer`, `ai-npc-developer`, `llm-backend-dev`,
-    `harmony-patcher`, `valheim-mod-architect`), dizendo a cada um o alvo, o que responder e o formato. O orquestrador
+11. **Padrão de trabalho: arquiteto-orquestrador + especialistas (regra do jogador, 03/11/2026).** Toda frente que
+    mexe em comportamento, rede, assets, localização ou release **começa distribuída**: carregue a skill da área e
+    acione os subagentes especialistas em **paralelo e read-only** (`ai-companions-architect` comanda;
+    `valheim-specialist`, `csharp-engineer`, `ai-integration`, `valheim-reverse-engineer`, `valheim-qa-engineer`
+    (papel *mcp-test-engineer*), `valheim-mod-reviewer` (papel *code-reviewer*), `valheim-netcode-dev`,
+    `valheim-docs-writer`, `multilanguage-verifier`, `repo-wiki-publisher`, `ai-npc-developer`, `llm-backend-dev`,
+    `harmony-patcher`, `valheim-mod-architect`, `valheim-asset-dev`), dizendo a cada um o alvo, o que responder e o
+    formato. `experimental.subagent_depth = 2` (`.opencode/opencode.jsonc`): o especialista pode chamar o executor
+    (ex.: `valheim-specialist` → `csharp-engineer` → `valheim-reverse-engineer`). O orquestrador
     consolida os achados por severidade, **aplica as correções, roda build/gate, documenta e commita** — nenhuma
     frente relevante entra sem a leitura de um especialista, e número/medida se confirma com o engenheiro reverso ou o
     QA (nunca "de memória"). Registrar no mesmo ciclo quem foi acionado, o que achou e o que foi aplicado.
+
+## Equipe de agentes (`.opencode/agents/`)
+
+| agente | papel |
+|---|---|
+| **`ai-companions-architect`** | orquestrador (primary): entende, divide, despacha, revisa, integra, valida e reporta |
+| `valheim-specialist` | domínio do jogo; decide e **delega** (`csharp-engineer`/`valheim-reverse-engineer`) |
+| `csharp-engineer` | implementação C# genérica |
+| `ai-integration` | LLM + STT + TTS |
+| `ai-npc-developer` | companheiro NPC (setup, movimento/combate, jobs, fala, ordens) |
+| `llm-backend-dev` | "cérebro": contrato/prompt, schema, provedor |
+| `valheim-reverse-engineer` | APIs/asset/upstream com `arquivo:linha` |
+| `valheim-netcode-dev` | ZDO, posse, roster, lápide |
+| `harmony-patcher` | patches seguros |
+| `valheim-qa-engineer` | papel **mcp-test-engineer**: harness fora do jogo + testes no jogo (DevBridge) |
+| `valheim-mod-reviewer` | papel **code-reviewer**: revisão independente, read-only |
+| `multilanguage-verifier` | 5 idiomas ponta a ponta (UI, falas, contratos, vozes, config) |
+| `repo-wiki-publisher` | repo + wiki nos 5 idiomas, release notes |
+| `valheim-docs-writer` | docs internas: AGENTS, roadmap, CHANGELOG, `building-notes` |
+| `valheim-mod-architect` | csproj, pacotes congelados, versão, config |
+| `valheim-asset-dev` | AssetBundles/SoftReferenceableAssets |
+| `jotunn-developer` | **não usado** (o mod não usa Jotunn); só se a adoção for pedida |
+
+`experimental.subagent_depth = 2` está no `.opencode/opencode.jsonc`: o `ai-companions-architect` despacha o
+especialista, e o especialista pode despachar o executor. Quem tem `subagent: deny` (a maioria dos agentes antigos)
+continua sem poder abrir subagente — é proposital.
 
 ## DevBridge (ferramenta de desenvolvimento)
 

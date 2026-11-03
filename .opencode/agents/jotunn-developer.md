@@ -1,6 +1,7 @@
 ---
 description: Especialista em Jotunn (prefabs, itens, receitas, peças, localização, GUI, comandos). Este mod NÃO usa Jotunn — só atue se a adoção for pedida explicitamente.
 mode: subagent
+hidden: true
 color: "#2f9e44"
 permissions:
   - { action: "skill", resource: "*", effect: "allow" }
