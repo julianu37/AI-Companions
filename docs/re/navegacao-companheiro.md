@@ -69,3 +69,33 @@ dias de trabalho e mexe no coração do movimento — só com o A e o B esgotado
 - no loop de descida: 3 tentativas e o caminho é abandonado por 8 s (`S.DropTries`/`DropUntil`);
 - com o alvo acima e o caminho direto bloqueado: ele **procura uma altura** (telhado/viga) e tenta por lá;
 - nada de `no progress` repetido na **mesma** peça por mais de 12 s (o retry pass assume).
+
+## 6. Vikings for Hire 1.6.6 — o que eles fazem de verdade (inspeção da DLL, 03/11/2026)
+
+Fonte: pacote público do Thunderstore `Worobeyko/VikingsForHire` **1.6.6** (o Nexus exige login),
+`plugins/ValheimNpc.dll` (SHA-256 `4db116450d9aad9735279158c1bfead71003f1954a5b8b7996855940218a336b`), decompilado com
+`ilspycmd 9.1.0`. Tudo abaixo é **leitura de CIL/C# decompilado**, não execução.
+
+- **Agente próprio na navmesh do jogo:** `VikingPathAgent` (postfix de `Pathfinding.SetupAgents`) chama o `AddAgent`
+  privado e registra o **agent type 61** a partir das configurações do Humanoid: `agentRadius` 0.25–0.35
+  (`BodyRadius` 0.37), `agentHeight` 1.5, **`agentClimb` 0.3**, `agentSlope` 85, `overrideVoxelSize` e
+  **`voxelSize` 0.1**.
+- **A navmesh não é substituída; é acordada:** `VikingNavmesh` usa `Pathfinding.PokeTile`/`m_tiles`; `WarmZone`
+  (raio, 20 s por zona) e `Invalidate(point)` marcam `m_buildTime = -1000` nos tiles em volta (±2 m), o que faz o
+  `BuildTile` do jogo reconstruí-los; `DoorSettleSeconds` 1.2.
+- **Ganchos na obra:** `[HarmonyPatch(typeof(WearNTear), "OnPlaced")]` postfix e `WearNTear.Destroy` prefix chamam
+  `VikingNavmesh.Invalidate(transform.position)` + `NavMap.DirtyPiece`; `Door.SetState` postfix chama
+  `NavMemory.Forget` + `NavMap.DirtyPiece`. **É isso que faz o piso novo existir para o agente.**
+- **Escadas com link explícito:** `StairLinks` varre peças a 40 m/4 s, acha escadas com `rise >= 1 m` e cria
+  `NavMeshLinkInstance` entre o pé e o topo (0.6 m para fora), em vez de confiar só no `BuildTile`.
+- **A\* próprio para os assentamentos:** `NavMap` (célula 0.5 m, 6 níveis, step 0.55, body 0.28, headroom 0.6–1.55,
+  normal >= 0.55, trail/door cost 0.6, heurística peso 2, 20k expansões, jobs com budget de 300 ms, smoothing por LOS,
+  memória de falha/caminho) + `NavMemory` (célula 0.5 m, `LevelTolerance` 1.2, `BlockedAt` 1.5, `MaxScore` 4,
+  `MaxNodes` 4000, save a cada 300 s, versão 3). O `SmartNavigation.Enabled` é só um flag; o A* é do `NavMap`.
+
+**O que falta no nosso `MHR_CompanionNavMesh`:** ele já registra o agente 40 (climb 0.6) e reconstrói o tile no
+`Pathfinding.BuildTile` (sem portas), mas **não invalida o tile quando uma peça é colocada/removida**. Sem isso, o piso
+novo só entra na navmesh quando outro evento invalida o tile. O gancho barato é o mesmo deles: postfix em
+`WearNTear.OnPlaced` + prefix em `WearNTear.Destroy` chamando um `InvalidateAround(pos)` que marca `m_buildTime = -1000`
+nos tiles do agente 40 em ±2 m (reaproveita o `BuildTile_Patch`). É a fase B "barata", sem A* próprio; o
+`PreferNearFloor` (branch `fix/pisos-nivel-2`) resolve a **ordem**, este gancho resolve a **navmesh**.
