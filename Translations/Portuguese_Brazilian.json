@@ -2885,6 +2885,10 @@
             "value": "Apoio de emergência"
         },
         {
+            "key": "hc_cfg_building_bodyretry",
+            "value": "Tentar de novo quando alguém está no lugar"
+        },
+        {
             "key": "hc_ai_order_command",
             "value": "aceitar comandos"
         },

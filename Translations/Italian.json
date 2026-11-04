@@ -2885,6 +2885,10 @@
             "value": "Supporto d'emergenza"
         },
         {
+            "key": "hc_cfg_building_bodyretry",
+            "value": "Riprova quando qualcuno è nel posto"
+        },
+        {
             "key": "hc_ai_order_command",
             "value": "accettare ordini"
         },

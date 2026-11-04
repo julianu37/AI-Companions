@@ -2885,6 +2885,10 @@
             "value": "Appui d'urgence"
         },
         {
+            "key": "hc_cfg_building_bodyretry",
+            "value": "Réessayer quand quelqu'un occupe la place"
+        },
+        {
             "key": "hc_ai_order_command",
             "value": "accepter les ordres"
         },
