@@ -544,6 +544,15 @@ internal static class MHR_Build
 		/// <c>Asked</c> - the dedup and the anti ping-pong of a pair are not asks).</summary>
 		internal int AsideAsked;
 		/// <summary>
+		/// 11/11/2026 (the run of 20:06, the loop of the same piece): how many step-aside asks the plan index in
+		/// <see cref="AsideTriesAt"/> already made. On the <see cref="MHR_Build.AsideAskLimit"/>-th refusal the ask is not made
+		/// any more and the piece goes to the site's queue (measured: 12 asks + 12 identical destinations cost 60 s of watchdog
+		/// and 7 pieces given up, for one <c>wood_roof_45</c>).
+		/// </summary>
+		internal int AsideTries;
+		/// <summary>The plan index <see cref="AsideTries"/> belongs to (-1 = none yet).</summary>
+		internal int AsideTriesAt = -1;
+		/// <summary>
 		/// 11/11/2026 (the player's rule "build everything within reach first"): how many meters this order walked to the pieces
 		/// it took - <see cref="MHR_Build.EnterStep"/> measures the body to the piece, once per piece entered (the walk, the
 		/// retry and the barrier all go through it). The site keeps its own sum (<c>MHR_BuildGroup.AddWalk</c>) and the summary
@@ -1239,11 +1248,10 @@ internal static class MHR_Build
 				// single worker (and try the group's end) with the plan still open.
 				if (!MHR_BuildGroup.MayTake(state.Group, next))
 				{
-					// 11/11/2026 (Run 17; the review of the gate): the COUNT is one per continuous hold (the PHASE is the hold -
-					// the wait re-asks the gate and stays in WaitRetry), and the SECONDS are the wait's. They used to be added
-					// here, but this call carries dt = 0 from a dozen callers and runs once a second from the wait, so the
-					// number never meant anything: the flag is what WaitRetry accumulates frame by frame.
-					if (state.Phase != Phase.WaitRetry)
+					// 11/11/2026 (the line of the run of 20:06: "portão 0 (8,6 s)"): the count was "the phase was not WaitRetry",
+					// which NEVER fires for a gate re-asked from the wait - it printed 0 while the gate held 8,6 s. The count is
+					// a NEW hold: the flag is only false after the gate let the walk through (or a piece was entered).
+					if (!state.GateHeld)
 					{
 						state.BarrierHolds++;
 					}
@@ -6677,6 +6685,19 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			return false;
 		}
 		string who = CompanionNames.NameOf(other);
+		// 11/11/2026 (the run of 20:06, the loop of the same piece): the site already spent its asks on this plan index - stop
+		// here and let the piece go to the queue (the caller queues it when this answers true), instead of 12 walks to the same
+		// spot and 60 s of the stall watchdog.
+		if (state.AsideTriesAt == state.Index && state.AsideTries >= AsideAskLimit)
+		{
+			if (!state.AsideLogged && CompanionsPlugin.LogNormal)
+			{
+				state.AsideLogged = true;
+				Log(ai, "\"" + who + "\" já foi chamado " + state.AsideTries + "x para a peça " + (state.Index + 1)
+					+ " - não peço de novo, a peça vai para a fila");
+			}
+			return true;
+		}
 		Vector3 to;
 		if (!AsideSpot(state, ai, mover, state.Pos, out to))
 		{
@@ -6709,6 +6730,13 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			// 11/11/2026 (Run 14, the spread of the crew): the number of the acceptance log - only a request the site really
 			// stored is an ask (the dedup of 4 s and the anti ping-pong of a pair are not)
 			state.AsideAsked++;
+			// 11/11/2026 (the run of 20:06): the asks of THIS plan index, so the third refusal does not walk anywhere
+			if (state.AsideTriesAt != state.Index)
+			{
+				state.AsideTriesAt = state.Index;
+				state.AsideTries = 0;
+			}
+			state.AsideTries++;
 			if (!state.AsideLogged && CompanionsPlugin.LogNormal)
 			{
 				state.AsideLogged = true;
@@ -6744,6 +6772,15 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 	/// <summary>How long one step aside may take. It is a <b>step</b>: arriving is not required (the mover may be blocked by
 	/// the site itself), the worker goes back to its wait and the request is gone.</summary>
 	private const float AsideSeconds = 2.5f;
+
+	/// <summary>
+	/// 11/11/2026 (the run of 20:06, the loop of the <b>same piece</b>): how many step-aside asks one plan index gets. Two asks
+	/// are the budget - the third refusal does not ask and the piece goes to the site's queue, as when there is no spot at all.
+	/// The measured defect: piece 921 (<c>wood_roof_45</c> at -150,9, 46,8, -435,7) was refused <b>12 times</b> and the companion
+	/// was sent to the <b>same destination</b> 12 times, which cost <b>60 s</b> of the stall watchdog, 4 watchdogs and
+	/// <b>7 pieces given up</b> for one piece that never moved.
+	/// </summary>
+	private const int AsideAskLimit = 2;
 
 	/// <summary>
 	/// 11/11/2026 (Run 10, the companion blocker): the wait of a worker that was asked to move (<c>TakeStepAside</c>). The
@@ -6806,13 +6843,18 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 	/// rank first, and <b>nothing within 1,5 m of a pending piece</b>. The first candidate with ground at the companion's
 	/// level and a safe step to it wins (<see cref="StepTo"/>); none = no ask at all.
 	///
-	/// <para>11/11/2026 (REVERTED, measured): an exact body test was tried here - the candidate's capsule against the rotated
-	/// box of every pending piece (<c>BuildProbe.BoxOf</c>/<c>CapsuleOf</c> + <c>BuildBody.HalfY</c>/<c>Blocks</c>). It is the
-	/// right idea with the wrong granularity: <c>BuildBody.Blocks</c> has no tolerance, so a pending floor <b>above</b> the spot
-	/// (the box span of <c>HalfY</c> plus the 1,8 m capsule) or a neighbouring tile refused every candidate - the run measured
-	/// <b>424</b> <c>sem lugar livre</c> and <b>429</b> <c>corpo no caminho</c> in 638 pieces (67% of the plan refused for a
-	/// body) against 4,4 per 100 with the circle. Back to the circle; the exact test is debt, not a solution (it needs a
-	/// tolerance/height window that the circle already approximates).</para>
+	/// <para>11/11/2026 (REVERTED, measured): an exact body test was tried here against <b>every pending piece</b>
+	/// (<c>BuildProbe.BoxOf</c>/<c>CapsuleOf</c> + <c>BuildBody.HalfY</c>/<c>Blocks</c>). It is the right idea with the wrong
+	/// granularity: <c>BuildBody.Blocks</c> has no tolerance, so a pending floor <b>above</b> the spot (the box span of
+	/// <c>HalfY</c> plus the 1,8 m capsule) or a neighbouring tile refused every candidate - <b>424</b> <c>sem lugar livre</c> and
+	/// <b>429</b> <c>corpo no caminho</c> in 638 pieces (67% of the plan refused for a body) against 4,4 per 100 with the circle.
+	/// Back to the circle for the pending set.</para>
+	///
+	/// <para>11/11/2026 (the run of 20:06, the SAME piece asked 12 times): the pending set is not the problem - the piece being
+	/// placed is. Candidate 1 is chosen 2,2 m from it, which for a wide or high piece still puts the <b>body inside it</b>, and
+	/// the placer refuses again (piece 921, <c>wood_roof_45</c> at -150,9, 46,8, -435,7: 12 refusals, the same destination
+	/// 12 times, 60 s of watchdog and 7 pieces given up). So the candidate is now tested against <b>this one piece</b> - the
+	/// window the placer itself obeys - and against nothing else.</para>
 	/// </summary>
 	private static bool AsideSpot(State state, CompanionAI ai, CompanionAI mover, Vector3 from, out Vector3 target)
 	{
@@ -6826,6 +6868,33 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		Vector3 away = new Vector3(-facing.x, 0f, -facing.z);
 		MHR_BuildGroup.PendingNear(state.Group, from, AsideDistance + BuildAsideSpot.Clearance, s_asidePending);
 		int count = BuildAsideSpot.Plan(feet, from, away, s_asidePending, AsideDistance, s_asideSpots);
+		// the piece being placed as the body window sees it, ONCE (the prefab's box, its centre moved by the pivot and the
+		// pose, the vertical span as the AABB of the rotated box) - the same numbers BuildProbe.BlockedByCharacter builds.
+		Character body = mover.GetComponent<Character>();
+		Vector3 axis = Vector3.zero;
+		float capBottom = 0f;
+		float capTop = 0f;
+		float capRadius = 0f;
+		bool capsule = body != null && BuildProbe.CapsuleOf(body, out axis, out capBottom, out capTop, out capRadius);
+		Bounds pieceBox = new Bounds();
+		bool box = state.Piece != null && BuildProbe.BoxOf(state.Piece, out pieceBox);
+		Vector3 center = state.Pos;
+		float halfX = 0f;
+		float halfZ = 0f;
+		float pieceBottom = state.Pos.y;
+		float pieceTop = state.Pos.y;
+		if (box)
+		{
+			Vector3 localCenter = pieceBox.center - state.Piece.transform.position;
+			center = state.Pos + state.Rot * localCenter;
+			halfX = pieceBox.extents.x;
+			halfZ = pieceBox.extents.z;
+			float halfY = BuildBody.HalfY(halfX, pieceBox.extents.y, halfZ, (state.Rot * Vector3.right).y,
+				(state.Rot * Vector3.up).y, (state.Rot * Vector3.forward).y);
+			pieceBottom = center.y - halfY;
+			pieceTop = center.y + halfY;
+		}
+		Quaternion inverse = Quaternion.Inverse(state.Rot);
 		for (int i = 0; i < count; i++)
 		{
 			// 11/11/2026 (Run 14): the spot must not be inside the PLACER either - the first preference points that way
@@ -6836,11 +6905,26 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 				continue;
 			}
 			Vector3 goal;
-			if (StepTo(feet, s_asideSpots[i], out goal))
+			if (!StepTo(feet, s_asideSpots[i], out goal))
 			{
-				target = goal;
-				return true;
+				continue;
 			}
+			// 11/11/2026 (the same piece asked 12 times): the body has to LEAVE this piece - the capsule standing at the goal
+			// against its rotated box. A spot that still crosses it is skipped; none left on the ring means no ask (the piece
+			// goes to the site's queue), which is the behaviour of before.
+			if (capsule && box)
+			{
+				float shiftY = goal.y - feet.y;
+				Vector3 moved = axis + (goal - feet);   // the body AS IF standing at the candidate
+				Vector3 local = inverse * (moved - center);
+				if (BuildBody.Blocks(local.x, local.z, halfX, halfZ, pieceBottom, pieceTop, capBottom + shiftY,
+					capTop + shiftY, capRadius))
+				{
+					continue;
+				}
+			}
+			target = goal;
+			return true;
 		}
 		return false;
 	}
@@ -7820,9 +7904,14 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		// 11/11/2026 (the abandoned piece): the piece this worker was on is NOT lost with it - with the site alive it goes
 		// back to the queue (a dependency: no attempt spent, not counted as skipped), and without a site it is counted.
 		AbandonPiece(state);
-		// 11/11/2026 (the player's rule "build everything within reach first"): the meters the order walked - read while the
-		// site is still alive (the block below drops it), so a crew order prints the SITE's number and a single worker its own.
-		float walked = state.Group != null ? MHR_BuildGroup.Walk(state.Group) : state.WalkMeters;
+		// 11/11/2026 (the line of the run of 20:06 LIED in three things): every number below is read HERE, while the site is
+		// still alive - the block below drops it, and reading the walk after that printed THIS WORKER's meters with the site's
+		// label (the five lines of the measured run were not even monotonic: 1380,0 · 1584,6 · 1724,9 · 1625,4 · 1638,8, and the
+		// site walked 7.953,7 m). `placed`/`skipped` are the same numbers the speech gets (the site's sets while it exists).
+		int placed = state.Group != null ? MHR_BuildGroup.Placed(state.Group) : state.PlacedIndices.Count;
+		int skippedCount = state.Group != null ? MHR_BuildGroup.Skipped(state.Group) : state.SkippedIndices.Count;
+		int planned = state.Plan != null && state.Plan.Count > 0 ? state.Plan.Count : 1;
+		float siteWalked = state.Group != null ? MHR_BuildGroup.Walk(state.Group) : state.WalkMeters;
 		// P1 (multi-build): the worker leaves the site - its piece is free for the others right away, and the group is
 		// dropped when the last one leaves (the plan's pieces that are left are lost with it, like a cancelled order)
 		if (state.Group != null)
@@ -7836,12 +7925,14 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		// 11/11/2026 (Run 17): the same line carries the WAIT - the seconds the crew stood still and why (the barrier with a
 		// body x a dependency, the site's queue, the step aside). It is what makes the A/B of the body barrier honest
 		// instead of a guess.
-		// 11/11/2026 (the player's rule "build everything within reach first"): it also carries the WALK - the meters the
-		// order covered from the body to the pieces it took (the site's sum while it is alive, this worker's otherwise).
+		// 11/11/2026 (the line of the run of 20:06): it also carries the PIECES (the numbers used to exist only in the speech,
+		// which is localized and split in up to 4 lines - that is why the automatic reading saw "skipped 0" with 3 real ones)
+		// and the WALK of the SITE next to this worker's (the site's sum includes every worker; this one is the same number the
+		// old line printed).
 		if (state.SpreadSkipped > 0 || state.SpreadResumed > 0 || state.AsideAsked > 0
 			|| state.WaitBody > 0f || state.WaitDependency > 0f || state.WaitQueueEnd > 0f || state.WaitAhead > 0f
 			|| state.WaitGate > 0f || state.WaitAside > 0f
-			|| state.BodyHolds > 0 || state.BarrierHolds > 0 || walked > 0f)
+			|| state.BodyHolds > 0 || state.BarrierHolds > 0 || siteWalked > 0f)
 		{
 			// 11/11/2026 (Run 18): the queue split by where the walk is (the END of the plan x the MIDDLE of it) and the
 			// gate's own seconds - the gate ran with dt = 0 and fell in no bucket, and a good part of the "fila" of the
@@ -7854,7 +7945,8 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 				+ state.BodyHolds + " retenção(ões) " + F(state.WaitBody) + " corpo/" + F(state.WaitDependency)
 				+ " dependência, fila " + F(queue) + " s (fim " + F(state.WaitQueueEnd) + " s, meio "
 				+ F(state.WaitAhead) + " s), passo " + F(state.WaitAside) + " s, portão "
-				+ state.BarrierHolds + " (" + F(state.WaitGate) + " s)) · caminhada: " + F(walked) + " m");
+				+ state.BarrierHolds + " (" + F(state.WaitGate) + " s)) · peças: " + placed + "/" + planned + ", "
+				+ skippedCount + " pulada(s) · caminhada: " + F(siteWalked) + " m (este: " + F(state.WalkMeters) + " m)");
 		}
 		// one line per order end, with the key that was spoken: it is how a test proves which refusal came out
 		Log(ai, "order ended: " + (key ?? "(silent)") + (string.IsNullOrEmpty(why) ? string.Empty : " (" + why + ")"));

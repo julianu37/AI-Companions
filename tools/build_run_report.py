@@ -49,11 +49,32 @@ O que ele NAO cobre (declarado): ordens que nao sao blueprint (template/peca uni
 inicio); o `blueprint` de cada seguidor conta como continuacao da mesma ordem (mesmo label, sem
 `order ended` no meio); duas ordens simultaneas de jogadores diferentes no mesmo log seriam somadas.
 
+A FALA FINAL (`[TTS]`) e o segundo contador de puladas (11/2026)
+--------------------------------------------------------------
+O contador `N pulada(s)` so aparece nas linhas `desistindo de` (o `SkipPiece`). Quando o CANTEIRO da a
+peca por vencida no watchdog (`sem progresso ha ... - N peca(s) sem apoio ficam de fora`), ninguem passa
+pelo `SkipPiece`: o numero vai para o conjunto do canteiro e sai **na fala** do fim da obra
+(`hc_ai_blueprint_done`, 5 idiomas), que o TTS escreve em ate 4 linhas `[TTS] ... "<frase>"`
+(enfileirada / Frase / pronta / Tocando). O relatorio le essas linhas, deduplica pelo TEXTO e faz o
+`skipped` do relatorio vir da FALA quando ela existe (`skipped_source` = `speech`); o `skipped_counter`
+continua no JSON como estava. Foi o que separou, num run de 11/2026, as 3 puladas reais do 0 do
+contador (o watchdog tinha dado 7 pecas por vencidas e 4 voltaram a subir).
+
+A CAMINHADA (11/11/2026)
+------------------------
+O sufixo `· caminhada: X m` depois do `)` do `espera:` e o que CADA WORKER andou: a soma da distancia do
+corpo ate a peca no instante em que a peca e tomada (`MHR_Build.EnterStep` -> `State.WalkMeters`). A
+linha sai uma vez por worker, e no fim do plano de um grupo o `state.Group` ja e `null`
+(`MHR_Build.cs:1358`), entao **cada linha e de um worker** - a soma das linhas e a caminhada da ORDEM e
+nenhuma linha e um pedaco das outras. Por isso o relatorio soma e divide pelas pecas colocadas.
+
 Schema JSON (v1): log, log_lines, scope, order_count, orders[] com index/label/status/start/
 window/end/ends/plan/plan_blueprint/workers/group_workers/lines/build_lines/lines_per_piece/duration_s/
-duration_note/placed/skipped_counter/skipped_named_lines/skipped_named_pieces/watchdog_calls/
+duration_note/placed/skipped/skipped_source/speech{label,lang,placed,skipped,sum,text}/speech_lines/
+speech_distinct/placed_from_speech/skipped_counter/skipped_named_lines/skipped_named_pieces/watchdog_calls/
 watchdog_dropped/retries{...}/source_totals/body_on_piece/emergency_posts/emergency_refused{...}/deaths/
-unsupported/wait{lines,unparsed,workers[],total{...},holds_cap_s}/spread{...}/aside_lines{...}.
+unsupported/wait{lines,unparsed,workers[],total{...},holds_cap_s,walk,walk_per_piece}/spread{...}/
+aside_lines{...}.
 
 `status`: `done` (o ultimo `order ended` e uma chave de obra concluida: blueprint_done / build_plan_done
 / build_done), `ended` (encerrou com outra chave - `..._too_heavy`, `..._needs_station`, `..._collecting`:
@@ -74,6 +95,7 @@ DEFAULT_LOG = r"C:\Program Files (x86)\Steam\steamapps\common\Valheim\BepInEx\Lo
 
 BUILD_TAG = "[Build] "
 LEVEL_TAG = "[Level] "
+TTS_TAG = "[TTS] "
 
 # --------------------------------------------------------------------------------------------------
 # leitura das linhas
@@ -188,7 +210,10 @@ WAIT = re.compile(
     r"\(barreira (?P<barrier>-?[\d.,]+) s em (?P<holds>\d+) retenção\(ões\) "
     r"(?P<body>-?[\d.,]+) corpo/(?P<dep>-?[\d.,]+) dependência, "
     r"fila (?P<queue>-?[\d.,]+) s(?: \(fim (?P<queue_end>-?[\d.,]+) s, meio (?P<queue_ahead>-?[\d.,]+) s\))?, "
-    r"passo (?P<aside>-?[\d.,]+) s, portão (?P<gate>\d+)(?: \((?P<gate_seconds>-?[\d.,]+) s\))?\)")
+    r"passo (?P<aside>-?[\d.,]+) s, portão (?P<gate>\d+)(?: \((?P<gate_seconds>-?[\d.,]+) s\))?\)"
+    # 11/11/2026: o sufixo novo (`· caminhada: X m`) e OPCIONAL - o formato do Run 22 e anteriores nao
+    # tem, e a regex antiga ja tolerava o sufixo por nao ter `$` no fim (ele so era jogado fora)
+    r"(?: \u00b7 caminhada: (?P<walk>-?[\d.,]+) m)?")
 # detalhe da dispersao (so com LogDetailed) :1189
 SPREAD_DETAIL = re.compile(r"^dispersão: a peça (?P<i>\d+)/(?P<n>\d+) fica para depois - pegando ")
 # a linha do Finish com `espera:` que o WAIT acima nao entendeu (o formato mudou?): nao perde em
@@ -198,6 +223,54 @@ WAIT_UNPARSED = re.compile(r"^dispersão: .*espera: ")
 ASIDE_ASK = re.compile(r'^".+" está na peça \d+ - pedindo para sair da frente')
 ASIDE_NO_ROOM = re.compile(r'^".+" está na peça \d+ - sem lugar livre para ele sair da frente')
 ASIDE_DONE = re.compile(r"^saindo da frente \(peça em ")
+
+# a fala do fim da obra (`Say(ai, "hc_ai_blueprint_done", ...)`), nos 5 idiomas do mod: o ingles e NATIVO
+# (ModLocalization.cs:619) e os outros 4 vem de `Translations\<idioma>.json`. A linha do TTS nao leva o
+# prefixo `[Build] ` - ela e `[TTS] ` e sai ate 4 vezes para a MESMA frase:
+#   [TTS] Fala enfileirada: "A MACCommHomeBasicBP está de pé: 982 peças, 3 puladas." (voz 42, ...)
+#   [TTS] Frase 1/1: 4677 ms, RTF 0,94 ... | "A MACCommHomeBasicBP está de pé: 982 peças, 3 puladas."
+#   [TTS] Fala #4 pronta: 4679 ms no total, ... | "A ..."
+#   [TTS] Tocando "A ..." (4,99 s, 24000 Hz) na posicao de "HC_Companion(Clone)".
+SPEECH_DONE = re.compile(
+    r"^(?P<label>.+?):\s*(?P<placed>\d+)\s+(?:peças|pieces|piezas|pièces|pezzi),\s*"
+    r"(?P<skipped>\d+)\s+(?:puladas|skipped|omitidas|ignorées|saltati)\.$")
+# a moldura de cada idioma, para o rotulo da fala virar so o nome do blueprint
+SPEECH_WRAP = (
+    (re.compile(r"^A (?P<label>.+) está de pé$"), "pt"),
+    (re.compile(r"^The (?P<label>.+) is up$"), "en"),
+    (re.compile(r"^La (?P<label>.+) está en pie$"), "es"),
+    (re.compile(r"^La (?P<label>.+) est debout$"), "fr"),
+    (re.compile(r"^La (?P<label>.+) è in piedi$"), "it"),
+)
+QUOTED = re.compile(r'"([^"]*)"')
+
+
+def parse_speech(text):
+    """(label, placed, skipped, sum) da fala de fim de obra; None quando a frase nao e essa.
+
+    `sum` = placed + skipped e e o que fecha com o plano (num run de 11/2026: 982 + 3 = 985 pecas)."""
+    m = SPEECH_DONE.match(text)
+    if not m:
+        return None
+    head = text[:m.start("placed")].rstrip()
+    if head.endswith(":"):
+        head = head[:-1].rstrip()
+    label, lang = head, ""
+    for rx, code in SPEECH_WRAP:
+        w = rx.match(head)
+        if w:
+            label, lang = w.group("label"), code
+            break
+    placed = int(m.group("placed"))
+    skipped = int(m.group("skipped"))
+    return {
+        "label": label.strip(),
+        "lang": lang,
+        "placed": placed,
+        "skipped": skipped,
+        "sum": placed + skipped,
+        "text": text,
+    }
 
 
 def parse_message(msg):
@@ -253,6 +326,7 @@ class Block:
         self.group_plan = None
         self.events = []          # (line, kind, who, data)
         self.ends = []            # (line, key, why, texto, linhas [Build] ate aqui)
+        self.speeches = []        # (line, {label, placed, skipped, sum, text}) - as linhas do TTS
         self.build_count = 0      # toda linha `[Build] ` na janela
         self.window_end = first_line
 
@@ -282,6 +356,16 @@ def scan(path):
                 # o nivelamento que devolve a obra termina com `[Level] order ended:` - nao fecha o
                 # bloco do build, mas explica por que a obra recomeca (o `blueprint ... pieces` sai
                 # de novo depois do `the ground is ready`)
+                continue
+            if text.startswith(TTS_TAG):
+                # 11/2026: a fala do fim da obra e do `Say` do `Finish` e sai DEPOIS do `order ended` (e
+                # em ate 4 linhas, uma por estagio do TTS). Ela e do bloco que esta aberto agora: o `cur`
+                # so muda no `blueprint ... pieces` da proxima ordem, e `window_end` fecha a janela.
+                if cur is not None:
+                    for phrase in QUOTED.findall(text[len(TTS_TAG):]):
+                        speech = parse_speech(phrase)
+                        if speech is not None:
+                            cur.speeches.append((n, speech))
                 continue
             if not text.startswith(BUILD_TAG):
                 continue
@@ -348,6 +432,12 @@ def finalize(block, index, barrier_seconds):
     lines = max(0, end_line - first_line + 1)
     build_lines = end[4] if end else block.build_count
     events = [e for e in block.events if first_line <= e[0] <= end_line]
+
+    # 11/2026: a fala final da obra - o numero que o JOGADOR ouviu. O `skipped` do relatorio passa a vir
+    # dela quando existe: o contador `N pulada(s)` so conta `desistindo de`, e a peca que o WATCHDOG do
+    # canteiro da por vencida nao passa por la (Run de 11/2026: fala 3, contador 0).
+    speeches = [s for line, s in block.speeches if first_line <= line <= block.window_end]
+    speech = speeches[-1] if speeches else None
 
     placed = 0
     skipped_counter = 0
@@ -426,6 +516,7 @@ def finalize(block, index, barrier_seconds):
                     "worker": w, "total": 0.0, "barrier": 0.0, "body": 0.0,
                     "dependency": 0.0, "queue": 0.0, "aside": 0.0, "holds": 0, "gate": 0,
                     "queue_end": 0.0, "queue_ahead": 0.0, "gate_seconds": 0.0,
+                    "walk": 0.0, "walk_lines": 0,
                 }
             row["total"] += num(data["total"])
             row["barrier"] += num(data["barrier"])
@@ -435,6 +526,11 @@ def finalize(block, index, barrier_seconds):
             row["aside"] += num(data["aside"])
             row["holds"] += int(data["holds"])
             row["gate"] += int(data["gate"])
+            # 11/11/2026: os metros que ESTE worker andou (o sufixo `· caminhada: X m`). Ausente nas
+            # linhas do Run 22 e anteriores -> 0 e `walk_lines` diz quantas linhas trouxeram o numero.
+            if data.get("walk") is not None:
+                row["walk"] += num(data["walk"])
+                row["walk_lines"] += 1
             # 11/11/2026 (Run 19): the fields of the single-clock barrier - the two halves of the queue
             # (end of plan x middle of plan) and the seconds the gate itself held. Absent on the older
             # format (Run 18 and before), so they default to 0 instead of breaking the line.
@@ -475,6 +571,8 @@ def finalize(block, index, barrier_seconds):
             "queue_end": round(row["queue_end"], 1),
             "queue_ahead": round(row["queue_ahead"], 1),
             "gate_seconds": round(row["gate_seconds"], 1),
+            "walk": round(row["walk"], 1),
+            "walk_lines": row["walk_lines"],
         })
     wait_total = {
         "total": round(sum(r["total"] for r in wait_rows), 1),
@@ -488,7 +586,11 @@ def finalize(block, index, barrier_seconds):
         "queue_end": round(sum(r["queue_end"] for r in wait_rows), 1),
         "queue_ahead": round(sum(r["queue_ahead"] for r in wait_rows), 1),
         "gate_seconds": round(sum(r["gate_seconds"] for r in wait_rows), 1),
+        # a caminhada da ORDEM = a soma das linhas (uma por worker), nunca uma das linhas
+        "walk": round(sum(r["walk"] for r in wait_rows), 1),
+        "walk_lines": sum(r["walk_lines"] for r in wait_rows),
     }
+    wait_total["walk_per_piece"] = (round(wait_total["walk"] / placed, 2) if placed else None)
 
     return {
         "index": index,
@@ -513,6 +615,14 @@ def finalize(block, index, barrier_seconds):
         "duration_s": None,
         "duration_note": "sem timestamp no log - nao estimada a partir de linhas",
         "placed": placed,
+        # 11/2026: o `skipped` do relatorio vem da FALA final quando ela existe (o contador das linhas so
+        # ve o `desistindo de`); `skipped_counter` continua no JSON para quem comparava com ele.
+        "skipped": (speech["skipped"] if speech else skipped_counter),
+        "skipped_source": ("speech" if speech else ("counter" if skipped_counter else "none")),
+        "speech": speech,
+        "speech_lines": len(speeches),
+        "speech_distinct": len({s["text"] for s in speeches}),
+        "placed_from_speech": (speech["placed"] if speech else None),
         "skipped_counter": skipped_counter,
         "skipped_named_lines": len(named),
         "skipped_named_pieces": named_unique,
@@ -622,6 +732,22 @@ def print_order(o, total_orders, out):
     print("   done (colocadas): ........... %d" % o["placed"], file=out)
     print("   puladas (contador): ......... %d   (maior \"N pulada(s)\" do run)"
           % o["skipped_counter"], file=out)
+    if o["speech"]:
+        sp = o["speech"]
+        print("   puladas (a FALA final): ..... %d   (%d colocada(s) + %d = %d do plano | %s)"
+              % (sp["skipped"], sp["placed"], sp["skipped"], sp["sum"], sp["text"]), file=out)
+        if o["speech_lines"] > 1:
+            print("        (a mesma frase em %d linha(s) do TTS; o texto e a chave da deduplicacao)"
+                  % o["speech_lines"], file=out)
+        if sp["skipped"] != o["skipped_counter"]:
+            print("        ATENCAO: a fala diz %d e o contador das linhas diz %d - o contador so conta"
+                  " `desistindo de`;" % (sp["skipped"], o["skipped_counter"]), file=out)
+            print("        a peca dada por vencida pelo watchdog do canteiro nao passa por ele", file=out)
+        if sp["placed"] != o["placed"]:
+            print("        ATENCAO: a fala diz %d colocada(s) e o log tem %d linha(s) `done:`"
+                  % (sp["placed"], o["placed"]), file=out)
+    else:
+        print("   puladas (a FALA final): ..... -- (nenhuma fala de fim de obra nesta ordem)", file=out)
     print("   \"sem apoio:\" nomeadas: ...... %d linha(s) / %d peça(s) distinta(s)  (watchdog)"
           % (o["skipped_named_lines"], o["skipped_named_pieces"]), file=out)
     print("   watchdog: ................... %d chamada(s), %d peça(s) \"ficam de fora\" (soma)"
@@ -655,18 +781,18 @@ def print_order(o, total_orders, out):
     print("", file=out)
     print(" ESPERA (a linha do Finish; a coluna \"espera\" é tempo MEDIDO pelo mod)", file=out)
     if o["wait"]["lines"]:
-        print("   %-20s %8s %9s %7s %9s %6s %7s %10s %7s"
+        print("   %-20s %8s %9s %7s %9s %6s %7s %10s %7s %10s"
               % ("worker", "espera", "barreira", "corpo", "depend.", "fila", "passo",
-                 "retenções", "portão"), file=out)
+                 "retenções", "portão", "caminhada"), file=out)
         for row in o["wait"]["workers"]:
-            print("   %-20s %8s %9s %7s %9s %6s %7s %10d %7d"
+            print("   %-20s %8s %9s %7s %9s %6s %7s %10d %7d %10s"
                   % (row["worker"], f1(row["total"]), f1(row["barrier"]), f1(row["body"]),
                      f1(row["dependency"]), f1(row["queue"]), f1(row["aside"]),
-                     row["holds"], row["gate"]), file=out)
+                     row["holds"], row["gate"], f1(row["walk"])), file=out)
         t = o["wait"]["total"]
-        print("   %-20s %8s %9s %7s %9s %6s %7s %10d %7d"
+        print("   %-20s %8s %9s %7s %9s %6s %7s %10d %7d %10s"
               % ("TOTAL", f1(t["total"]), f1(t["barrier"]), f1(t["body"]), f1(t["dependency"]),
-                 f1(t["queue"]), f1(t["aside"]), t["holds"], t["gate"]), file=out)
+                 f1(t["queue"]), f1(t["aside"]), t["holds"], t["gate"], f1(t["walk"])), file=out)
         print("   retenções: %d no total -> teto %s s cada = %s s (TETO da barreira, não tempo "
               "medido;" % (t["holds"], f1(o["wait"]["barrier_seconds"]),
                            f1(o["wait"]["holds_cap_s"])), file=out)
@@ -674,6 +800,15 @@ def print_order(o, total_orders, out):
         # 11/11/2026 (Run 19): the queue split and the gate's own seconds (fields of the run 19+ line)
         print("   fila por metade: fim de plano %s s | meio de plano %s s | portão %s s em %d retenção(ões)"
               % (f1(t["queue_end"]), f1(t["queue_ahead"]), f1(t["gate_seconds"]), t["gate"]), file=out)
+        # 11/11/2026: a caminhada - uma linha por worker, entao a soma e a da ORDEM
+        if t["walk_lines"]:
+            media = ("%s m/peça" % f2(t["walk_per_piece"])) if t["walk_per_piece"] else "-"
+            print("   caminhada: %s m somando as %d linha(s) = %s - CADA LINHA E DE UM WORKER, nao um"
+                  " pedaco das outras:" % (f1(t["walk"]), t["walk_lines"], media), file=out)
+            print("   na saida do grupo o `state.Group` ja e nulo (`MHR_Build.cs:1358`), entao nenhuma"
+                  " linha e o total - o total e a SOMA", file=out)
+        else:
+            print("   caminhada: -- (as linhas desta ordem nao tem o sufixo `· caminhada: X m`)", file=out)
     else:
         if not o["wait"]["unparsed"]:
             print("   nenhuma linha \"espera:\" nesta ordem (a linha só sai quando algum contador é > 0)",
@@ -711,16 +846,20 @@ def print_order(o, total_orders, out):
                  for reason, row in sorted(o["retries"].items(), key=lambda kv: -kv[1]["total"])]
         print("   distribuição: %s (%d recusa(s))" % (", ".join(parts), total_retry), file=out)
     print("", file=out)
-    print(" RESUMO: %s | %s peças | done %d | puladas %d | mortes %d | [Build] %d | "
+    print(" RESUMO: %s | %s peças | done %d | puladas %d%s | mortes %d | [Build] %d | "
           "linhas/peça %s | espera %s s (fila %s: fim %s/meio %s, portão %s s) | retenções %d | "
-          "step-aside %d | %s"
-          % (o["label"], o["plan"], o["placed"], o["skipped_counter"], o["deaths"],
+          "step-aside %d | caminhada %s | %s"
+          % (o["label"], o["plan"], o["placed"], o["skipped"],
+             (" (" + o["skipped_source"] + ")") if o["skipped_source"] == "counter" else "",
+             o["deaths"],
              o["build_lines"],
              f2(o["lines_per_piece"]) if o["lines_per_piece"] is not None else "-",
              f1(o["wait"]["total"]["total"]), f1(o["wait"]["total"]["queue"]),
              f1(o["wait"]["total"]["queue_end"]), f1(o["wait"]["total"]["queue_ahead"]),
              f1(o["wait"]["total"]["gate_seconds"]), o["wait"]["total"]["holds"],
-             o["spread"]["aside_asked"], status_text(o)), file=out)
+             o["spread"]["aside_asked"],
+             (f1(o["wait"]["total"]["walk"]) + " m") if o["wait"]["total"]["walk_lines"] else "-",
+             status_text(o)), file=out)
 
 
 def main(argv=None):
@@ -792,7 +931,7 @@ def main(argv=None):
               % ("#", "label", "plano", "done", "puladas", "mortes", "l/peça", "status"), file=out)
         for o in reports:
             print("   %-3d %-26s %7s %6d %8d %7d %10s  %s"
-                  % (o["index"], o["label"], o["plan"], o["placed"], o["skipped_counter"],
+                  % (o["index"], o["label"], o["plan"], o["placed"], o["skipped"],
                      o["deaths"],
                      f2(o["lines_per_piece"]) if o["lines_per_piece"] is not None else "-",
                      status_text(o)), file=out)
