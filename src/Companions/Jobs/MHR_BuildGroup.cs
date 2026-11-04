@@ -72,6 +72,13 @@ internal static class MHR_BuildGroup
 		/// never spends an attempt (nobody's fault) and it is not a dependency either: the wait is the short, fixed
 		/// <c>BuildFailure.BodyRetryDelay</c>.</summary>
 		internal int Blocked;
+		/// <summary>
+		/// 11/11/2026 (Run 14, the spread of the crew): the piece was <b>left for later</b> by <c>MHR_Build.SpreadWindow</c> -
+		/// another companion was building right next to it, so the worker took a piece of the same row that was free
+		/// (<c>BuildSpread</c>). It spends no attempt (nothing failed) and it comes back through <see cref="NextRetry"/>
+		/// only when the neighbourhood is free. A real retry never has this mark.
+		/// </summary>
+		internal bool Spread;
 		/// <summary>When it may be pulled again.</summary>
 		internal float At;
 	}
@@ -183,6 +190,11 @@ internal static class MHR_BuildGroup
 	/// <summary>P1 (review A12, 03/11/2026): scratch buffer of the pruning paths - the hot path must not allocate a list
 	/// per call (main thread only, cleared before and after each use).</summary>
 	private static readonly List<int> s_drop = new List<int>();
+
+	/// <summary>11/11/2026 (Run 14, the spread of the crew): the poses of the pieces the site is building right now - the
+	/// neighbourhood a queued piece waits to be free of (<see cref="SpreadFree"/>). ONE list reused (main thread, asked
+	/// per queue entry, never per frame).</summary>
+	private static readonly List<Vector3> s_claims = new List<Vector3>();
 
 	/// <summary>
 	/// P1: the key of a site - the label of the blueprint/template, the anchor rounded to 1 m, the yaw rounded to 5
@@ -491,6 +503,58 @@ internal static class MHR_BuildGroup
 			return 0;
 		}
 		return holder;
+	}
+
+	/// <summary>
+	/// 11/11/2026 (Run 14, the spread of the crew): the poses of the pieces the site is <b>building right now</b> (the live
+	/// claims) - what a candidate of <c>BuildSpread.Pick</c> keeps away from, and what a queued spread piece waits to be
+	/// free of. Clears and fills <paramref name="into"/> (a buffer of the caller: main thread, asked per piece, never per
+	/// frame) and answers how many there are. <paramref name="except"/> leaves one plan index out - the piece being tested
+	/// is not its own neighbourhood.
+	/// </summary>
+	internal static int ClaimPoses(string key, List<Vector3> into, int except = -1)
+	{
+		if (into != null)
+		{
+			into.Clear();
+		}
+		Group group;
+		if (into == null || string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null)
+		{
+			return 0;
+		}
+		return ClaimPoses(group, into, except);
+	}
+
+	private static int ClaimPoses(Group group, List<Vector3> into, int except)
+	{
+		if (group == null || group.Plan == null || into == null)
+		{
+			return 0;
+		}
+		float now = Time.time;
+		int found = 0;
+		foreach (KeyValuePair<int, int> claim in group.Claims)
+		{
+			int index = claim.Key;
+			float at;
+			if (index == except || index < 0 || index >= group.Plan.Count)
+			{
+				continue;
+			}
+			if (!group.ClaimAt.TryGetValue(index, out at) || now - at >= ClaimSeconds)
+			{
+				continue;   // an expired claim is nobody's: it is not what the crew is building
+			}
+			MHR_Build.PlannedStep step = group.Plan[index];
+			if (step == null)
+			{
+				continue;
+			}
+			into.Add(step.Pos);
+			found++;
+		}
+		return found;
 	}
 
 	/// <summary>P1: keeps the piece alive while the worker walks to it (the 20 s expiry is for a worker that went
@@ -974,6 +1038,9 @@ internal static class MHR_BuildGroup
 			entry = new RetryEntry { Index = index };
 			group.Retry.Add(entry);
 		}
+		// 11/11/2026 (Run 14, the spread of the crew): the piece was WALKED TO and did not stand, so it is a real retry now -
+		// it no longer waits for the neighbourhood to be free (that gate is only for a piece nobody tried yet).
+		entry.Spread = false;
 		if (kind == BuildFailure.Kind.Dependency)
 		{
 			entry.Dependency++;
@@ -998,6 +1065,71 @@ internal static class MHR_BuildGroup
 		return true;
 	}
 
+	/// <summary>
+	/// 11/11/2026 (Run 14, the <b>spread of the crew</b>): the pieces a worker <b>walked past</b> to take one that is far
+	/// from what the others are building (<c>BuildSpread.Pick</c>) keep their turn here - the first
+	/// <paramref name="count"/> indices of <paramref name="indices"/> go to the site's queue with the
+	/// <see cref="RetryEntry.Spread"/> mark. Nothing failed: no attempt is spent, nothing is counted as skipped, and the
+	/// piece comes back through <see cref="NextRetry"/> as soon as the neighbourhood is free (the same dedup per plan
+	/// index of <see cref="TryQueueRetry"/>: a piece is one entry, and an entry a real failure already created is never
+	/// turned into a spread one - a failure must keep its own clock).
+	/// </summary>
+	internal static void NoteSpread(string key, List<int> indices, int count)
+	{
+		Group group;
+		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null || group.Plan == null
+			|| indices == null || count <= 0)
+		{
+			return;
+		}
+		int limit = count < indices.Count ? count : indices.Count;
+		for (int i = 0; i < limit; i++)
+		{
+			int index = indices[i];
+			if (index < 0 || index >= group.Plan.Count || group.Done.Contains(index) || group.SkippedIndex.Contains(index))
+			{
+				continue;   // up, or out of the site for good: not a piece to come back to
+			}
+			bool queued = false;
+			for (int j = 0; j < group.Retry.Count; j++)
+			{
+				if (group.Retry[j] != null && group.Retry[j].Index == index)
+				{
+					queued = true;
+					break;
+				}
+			}
+			if (queued)
+			{
+				continue;   // the same dedup of TryQueueRetry: one entry per plan index
+			}
+			group.Retry.Add(new RetryEntry { Index = index, At = Time.time + RetryDelay, Spread = true });
+		}
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the spread of the crew): may this piece of the site's queue be walked to <b>now</b>? A piece that was
+	/// left for later to give the others room (<see cref="RetryEntry.Spread"/>) only comes back when nothing else is being
+	/// built within <c>BuildSpread.SpreadDistance</c> of it - the point of the deferral was to stop two companions standing
+	/// on each other's piece. A real retry (a failure) never asks this: it is not waiting for room, it is waiting for what
+	/// holds it up.
+	/// </summary>
+	private static bool SpreadFree(Group group, int index)
+	{
+		if (group == null || group.Plan == null || index < 0 || index >= group.Plan.Count)
+		{
+			return true;
+		}
+		MHR_Build.PlannedStep step = group.Plan[index];
+		if (step == null)
+		{
+			return true;
+		}
+		s_claims.Clear();
+		ClaimPoses(group, s_claims, index);
+		return BuildSpread.Far(step.Pos, s_claims, BuildSpread.SpreadDistance);
+	}
+
 	/// <summary>P1: does the site still have pieces waiting for another attempt?</summary>
 	internal static bool RetryPending(string key)
 	{
@@ -1010,9 +1142,16 @@ internal static class MHR_BuildGroup
 	/// never pull the same index. -1 when there is nothing for it right now (all claimed by others, or not due yet).
 	/// A built piece leaves the queue through <see cref="MarkDone"/>; an index that is done anyway (a stale entry) is
 	/// dropped here (review B1, 03/11/2026).
+	///
+	/// <para>11/11/2026 (Run 14, the spread of the crew): a piece that was only <b>left for later</b>
+	/// (<see cref="RetryEntry.Spread"/>) is also held back while another companion is building within
+	/// <c>BuildSpread.SpreadDistance</c> of it - it is the hole the plan walked past, and it is pulled when that place is
+	/// free. <paramref name="spread"/> says whether the piece answered is one of those (the caller counts it in the
+	/// order's summary line).</para>
 	/// </summary>
-	internal static int NextRetry(string key, int workerId)
+	internal static int NextRetry(string key, int workerId, out bool spread)
 	{
+		spread = false;
 		Group group;
 		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null || group.Plan == null)
 		{
@@ -1040,10 +1179,16 @@ internal static class MHR_BuildGroup
 			{
 				continue;
 			}
+			// 11/11/2026 (the spread of the crew): a piece left for later waits for the neighbourhood to be free.
+			if (entry.Spread && !SpreadFree(group, entry.Index))
+			{
+				continue;
+			}
 			if (!TryClaim(group, entry.Index, workerId))
 			{
 				continue;   // another worker is on it
 			}
+			spread = entry.Spread;
 			return entry.Index;
 		}
 		return -1;

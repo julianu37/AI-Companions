@@ -169,6 +169,11 @@ internal static class ModConfig
 	/// site's retry queue and is tried again <b>before the plan climbs a storey</b> (instead of only in the end-of-plan retry
 	/// pass); the same barrier settles the pieces still waiting for a support before going up.</summary>
 	internal static ConfigEntry<bool> BuildBodyRetry;
+	/// <summary>11/11/2026 (Run 14, the spread of the crew): a shared plan is not walked in a line - each worker takes a
+	/// piece of the next few of its run that is <b>far</b> from what the others are building (<c>BuildSpread</c>), and the
+	/// pieces it walked past keep their turn in the site's queue. The measured reason: 88 <c>corpo na peça</c> and 32
+	/// step-aside asks in the Run 14 because consecutive indices are neighbours in space.</summary>
+	internal static ConfigEntry<bool> BuildSpreadWorkers;
 	/// <summary>11/11/2026 (Run 10, the companion blocker): a companion of the site that is only <b>waiting</b> steps out of the
 	/// way of a piece another one has to place (2,2 m through the mover, never a teleport, and never the player).</summary>
 	internal static ConfigEntry<bool> BuildStepAside;
@@ -970,6 +975,7 @@ internal static class ModConfig
 		BuildDeckLift = Bind(cfg, "Building", "DeckLift", 1f, "How high the whole blueprint rises above the ground: the ground floor sits on a deck on top of the poles, with the stairs reaching it. 0 keeps the blueprint's own level. Default 1 (a low deck).", new AcceptableValueRange<float>(0f, 3f));
 		BuildSupportFallback = Bind(cfg, "Building", "SupportFallback", true, "When a plan piece is refused for no support and the plan has nothing under it, the companion puts a wooden post under it and places the piece (the house gets a few extra posts). Off = the piece waits and is left out. At most 24 posts per order.");
 		BuildBodyRetry = Bind(cfg, "Building", "BodyRetry", true, "A piece refused because a body (you or another companion) was in the way is not given up: it goes back to the site's retry queue and is tried again BEFORE the plan climbs a storey, instead of only at the end of the build. The same barrier also settles the pieces still waiting for a support before going up. Off: they only come back in the end-of-plan retry pass.");
+		BuildSpreadWorkers = Bind(cfg, "Building", "SpreadWorkers", true, "The crew does not build in a line: on a shared plan each companion takes a piece of the next few of the same row that is a few meters away from what the others are building, instead of everyone reaching for the same corner at the same time. The pieces a companion walked past keep their turn and are built as soon as that place is free. Off: they work the plan in the order of the file, all together, as before.");
 		BuildStepAside = Bind(cfg, "Building", "StepAside", true, "A companion of the build group that is only waiting steps 2,2 m out of the way of a piece another one has to place (asked by the one placing it, walked with its own movement, never a teleport). You are never moved. Off: the piece waits for the companion to move on its own, as before.");
 		BuildReachWalk = Bind(cfg, "Building", "ReachWalk", true, "Walk to the nearest spot the piece can be reached from (a finished floor or roof row) instead of walking at the piece in mid-air.");
 		BuildMaxDistanceFromHome = Bind(cfg, "Building", "MaxDistanceFromHome", 40f, "A build order is refused when the spot is further than this (meters) from the companion's home, so it does not wander off to build across the world. 0 = no limit.", new AcceptableValueRange<float>(0f, 200f));
@@ -1269,7 +1275,7 @@ internal static class ModConfig
 	/// <summary>1.9.5 (auditoria C2): the version of the config migrations this build knows about. Bump it whenever a
 	/// new one-time migration is added: a file stamped with an older value runs the migration block once more (they are
 	/// all "only the EXACT old default" rules, so running them again is harmless) and gets the new stamp.</summary>
-	private const int CurrentConfigVersion = 198;
+	private const int CurrentConfigVersion = 199;
 
 	/// <summary>1.9.5 (auditoria C2): should the one-time default migrations run on this boot? They used to run on
 	/// <b>every</b> boot, which quietly undid a choice the player made back to an old default (set the silence

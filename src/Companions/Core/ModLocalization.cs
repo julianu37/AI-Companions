@@ -844,6 +844,10 @@ public static class ModLocalization
 			// 11/11/2026 (the storey barrier): the [Building] BodyRetry label - a piece a body is standing on is not given
 			// up; it comes back before the plan climbs a storey. Short for the same F8 row.
 			{ "hc_cfg_building_bodyretry", "Retry blocked pieces" },
+			// 11/11/2026 (Run 14, the spread of the crew): the [Building] SpreadWorkers label - of the next few pieces of
+			// the same row each companion takes one that is a few meters from what the others are building. Short for the
+			// same F8 row.
+			{ "hc_cfg_building_spreadworkers", "Spread the crew out" },
 			// 11/11/2026 (Run 10, the companion blocker): the [Building] StepAside label - a waiting companion of the group
 			// steps out of the way of the piece another one is placing. Short for the same F8 row.
 			{ "hc_cfg_building_stepaside", "Move aside" },

@@ -577,6 +577,9 @@ When a plan piece is refused for no support and the plan has nothing under it, t
 **BodyRetry** — Default: On  
 A piece refused because a body (you or another companion) was in the way is not given up: it goes back to the site's retry queue and is tried again BEFORE the plan climbs a storey, instead of only at the end of the build. The same barrier also settles the pieces still waiting for a support before going up. Off: they only come back in the end-of-plan retry pass.
 
+**SpreadWorkers** — Default: On  
+The crew does not build in a line: on a shared plan each companion takes a piece of the next few of the same row that is a few meters away from what the others are building, instead of everyone reaching for the same corner at the same time. The pieces a companion walked past keep their turn and are built as soon as that place is free. Off: they work the plan in the order of the file, all together, as before.
+
 **StepAside** — Default: On  
 A companion of the build group that is only waiting steps 2,2 m out of the way of a piece another one has to place (asked by the one placing it, walked with its own movement, never a teleport). You are never moved. Off: the piece waits for the companion to move on its own, as before.
 

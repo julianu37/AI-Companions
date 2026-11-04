@@ -68,6 +68,19 @@ internal static class MHR_Build
 		}
 	}
 
+	/// <summary>
+	/// 11/11/2026 (Run 14): <c>[Building] SpreadWorkers</c> - a shared site is not walked in a line: each worker takes a
+	/// piece of the next few of its run that is <b>far</b> from what the others are building (<see cref="BuildSpread"/>).
+	/// Read on every use like <see cref="ReachWalk"/>; a missing entry answers the switch's default (on).
+	/// </summary>
+	private static bool SpreadWorkers
+	{
+		get
+		{
+			return ModConfig.BuildSpreadWorkers == null || ModConfig.BuildSpreadWorkers.Value;
+		}
+	}
+
 	/// <summary>The companion's eye height above its feet (the game measures the placement distance from the eye).</summary>
 	private const float EyeHeight = 1.5f;
 	/// <summary>E7 (player's idea, 03/11/2026: "temporary ladders"): the temporary step of a scaffold. A wood STAIR and
@@ -122,6 +135,21 @@ internal static class MHR_Build
 	/// <summary>11/11/2026 (Run 14, the step aside): the spots a companion may step to, in the order they are tried
 	/// (<see cref="BuildAsideSpot.Plan"/>: away from the placer's front first, then its sides).</summary>
 	private static readonly Vector3[] s_asideSpots = new Vector3[BuildAsideSpot.Ring];
+
+	/// <summary>
+	/// 11/11/2026 (Run 14, the spread of the crew): the plan indices of the current <b>window</b> (the piece the walk is on
+	/// plus the next ones of the same run, at most <see cref="BuildSpread.Window"/>), and their poses - ONE list each,
+	/// reused (the window is built per piece, never per frame, and a plan has 1000 of them).
+	/// </summary>
+	private static readonly List<int> s_spreadWindow = new List<int>(BuildSpread.Window);
+
+	/// <summary>11/11/2026 (Run 14, the spread of the crew): the poses of <see cref="s_spreadWindow"/>, in the same order
+	/// (the candidates of <see cref="BuildSpread.Pick"/>).</summary>
+	private static readonly List<Vector3> s_spreadPoses = new List<Vector3>(BuildSpread.Window);
+
+	/// <summary>11/11/2026 (Run 14, the spread of the crew): the poses of the pieces the other workers of the site are on
+	/// (<see cref="MHR_BuildGroup.ClaimPoses"/>) - what a candidate keeps away from. ONE list reused.</summary>
+	private static readonly List<Vector3> s_spreadClaims = new List<Vector3>();
 
 	/// <summary>P1 (04/11/2026, measured with the deck run of the 985-piece house: 16 pieces - floors and roofs of the east
 	/// gable and of the north-west corner, 40,8 to 46,8 - were left out with <c>no_support</c>): the author's blueprint has
@@ -448,6 +476,19 @@ internal static class MHR_Build
 		internal int WalkRays;
 		/// <summary>11/11/2026 (Run 14): the surfaces that search found (see <see cref="WalkRays"/>).</summary>
 		internal int WalkFound;
+		/// <summary>
+		/// 11/11/2026 (Run 14, the spread of the crew): how many pieces of the plan this worker <b>left for later</b> to take
+		/// one that was far from what the others were building (<see cref="MHR_Build.SpreadWindow"/>), how many of those it
+		/// took back from the site's queue, and how many <b>step-aside</b> asks it made. They are the three numbers of the
+		/// one summary line of <see cref="MHR_Build.Finish"/> (the Run 14 log had to be grepped line by line).
+		/// </summary>
+		internal int SpreadSkipped;
+		/// <summary>11/11/2026 (Run 14): how many pieces left for later this worker pulled back from the site's queue as a
+		/// spread entry (see <see cref="SpreadSkipped"/>).</summary>
+		internal int SpreadResumed;
+		/// <summary>11/11/2026 (Run 14): how many step-aside asks this order really made (a request that the site answered
+		/// <c>Asked</c> - the dedup and the anti ping-pong of a pair are not asks).</summary>
+		internal int AsideAsked;
 	}
 
 	/// <summary>E6: one piece of a plan, already resolved to a world pose.</summary>
@@ -951,6 +992,74 @@ internal static class MHR_Build
 	}
 
 	/// <summary>
+	/// 11/11/2026 (Run 14): the <b>fast path</b> of the spread - only a <b>blueprint</b> plan shared by <b>more than one</b>
+	/// worker spreads (a template and a single piece have one worker each, and the switch may be off). False keeps the walk
+	/// byte for byte as it was.
+	/// </summary>
+	private static bool SpreadOn(State state)
+	{
+		return state != null && state.Plan != null && state.Blueprint != null && state.Group != null && SpreadWorkers
+			&& MHR_BuildGroup.IsShared(state.Group);
+	}
+
+	/// <summary>
+	/// 11/11/2026 (Run 14, the <b>spread of the crew</b>, the player's report <i>"eles parecem estar disputando pra ver quem
+	/// coloca a peça primeiro, em vez de trabalhar em equipe"</i>): the pieces of the plan this worker may take instead of
+	/// <paramref name="next"/> - the next one plus the ones right after it, at most <see cref="BuildSpread.Window"/>, and
+	/// only while they are the <b>same run</b> (<see cref="BuildSpread.SameRun"/>: same storey key, same class, same
+	/// height, which is exactly the block <c>BuildBlueprintParser.NearestWithin</c> reorders). The plan's consecutive
+	/// indices are neighbours in space, so five companions on the same plan reach for the same corner at the same time -
+	/// the Run 14 log measured 88 <c>corpo na peça</c> and 32 step-aside asks.
+	///
+	/// <para>A piece another worker already holds or that the site already built is <b>not a candidate</b> (it is not work
+	/// looking for a body); the first piece of another run <b>ends</b> the window - the plan's own order says where the row
+	/// ends. Fills <paramref name="indices"/> and <paramref name="poses"/> in the same order (the first one is always
+	/// <paramref name="next"/>) and answers how many there are: 0 or 1 means there is nothing to spread with and the walk
+	/// takes <paramref name="next"/>, exactly as before.</para>
+	/// </summary>
+	private static int SpreadWindow(State state, int next, List<int> indices, List<Vector3> poses)
+	{
+		if (state == null || state.Plan == null || indices == null || poses == null || next < 0 || next >= state.Plan.Count)
+		{
+			return 0;
+		}
+		PlannedStep first = state.Plan[next];
+		if (first == null)
+		{
+			return 0;
+		}
+		indices.Clear();
+		poses.Clear();
+		int firstClass = BuildBlueprintParser.ClassOf(first.Prefab);
+		indices.Add(next);
+		poses.Add(first.Pos);
+		for (int i = next + 1; i < state.Plan.Count && indices.Count < BuildSpread.Window; i++)
+		{
+			PlannedStep step = state.Plan[i];
+			if (step == null || string.IsNullOrEmpty(step.Prefab))
+			{
+				continue;
+			}
+			if (!BuildSpread.Finite(step.Pos))
+			{
+				continue;   // a pose that is not a number is never a destination (and never enters the site's queue)
+			}
+			if (!BuildSpread.SameRun(firstClass, first.Level, first.Pos.y,
+				BuildBlueprintParser.ClassOf(step.Prefab), step.Level, step.Pos.y))
+			{
+				break;   // another run of the plan: the window is this row, never the whole storey
+			}
+			if (state.Group != null && (MHR_BuildGroup.IsDone(state.Group, i) || MHR_BuildGroup.OwnerOf(state.Group, i) != 0))
+			{
+				continue;   // already up, or another companion is on it
+			}
+			indices.Add(i);
+			poses.Add(step.Pos);
+		}
+		return indices.Count;
+	}
+
+	/// <summary>
 	/// E6/E7: moves to the next piece of the plan (a template or a blueprint) or ends the order. Returns true while
 	/// there is a next piece to build.
 	///
@@ -1038,17 +1147,39 @@ internal static class MHR_Build
 				{
 					continue;
 				}
+				// 11/11/2026 (Run 14, the spread of the crew): the plan's consecutive indices are NEIGHBOURS in space, so
+				// five companions all reach for the same corner (88 "corpo na peça" and 32 step-aside asks in the measured
+				// log). With a shared site this worker takes the first piece of a small window of the SAME RUN that is FAR
+				// from what the others are building (BuildSpread); the pieces it walked past keep their turn in the site's
+				// queue (NoteSpread) and come back when that place is free. Single worker, template or the switch off: pick
+				// is next, byte for byte the walk of before.
+				int pick = next;
+				if (SpreadOn(state) && SpreadWindow(state, next, s_spreadWindow, s_spreadPoses) > 1)
+				{
+					MHR_BuildGroup.ClaimPoses(state.Group, s_spreadClaims);
+					int passed;
+					int at = BuildSpread.Pick(s_spreadPoses, s_spreadClaims, BuildSpread.SpreadDistance, out passed);
+					pick = s_spreadWindow[at];
+					if (pick != next)
+					{
+						state.SpreadSkipped += passed;
+						MHR_BuildGroup.NoteSpread(state.Group, s_spreadWindow, passed);
+						LogDetailed(ai, "dispersão: a peça " + (next + 1) + "/" + state.Plan.Count
+							+ " fica para depois - pegando " + (pick + 1) + " (" + passed + " adiada(s))");
+					}
+				}
 				// P1: a piece another companion is building belongs to it - pass it by (the claim expires in 20 s, and
 				// this worker may come back to it through the retry queue)
-				if (state.Group != null && !MHR_BuildGroup.TryClaim(state.Group, next, worker))
+				if (state.Group != null && !MHR_BuildGroup.TryClaim(state.Group, pick, worker))
 				{
 					if (CompanionsPlugin.LogNormal)
 					{
-						LogDebug(ai, "a peça " + (next + 1) + "/" + state.Plan.Count + " é de outro companheiro - seguindo");
+						LogDebug(ai, "a peça " + (pick + 1) + "/" + state.Plan.Count + " é de outro companheiro - seguindo");
 					}
+					state.Index = pick;
 					continue;
 				}
-				EnterStep(state, next);
+				EnterStep(state, pick);
 				Log(ai, "next: " + state.Prefab + " (" + (state.Index + 1) + "/" + state.Plan.Count + ")");
 				return true;
 			}
@@ -1059,9 +1190,14 @@ internal static class MHR_Build
 			// pieces that did not stand yet
 			if (state.Group != null && state.Plan != null)
 			{
-				int retry = MHR_BuildGroup.NextRetry(state.Group, worker);
+				bool spread;
+				int retry = MHR_BuildGroup.NextRetry(state.Group, worker, out spread);
 				if (retry >= 0 && retry < state.Plan.Count)
 				{
+					if (spread)
+					{
+						state.SpreadResumed++;   // 11/11/2026 (the spread of the crew): a piece left for later came back
+					}
 					EnterStep(state, retry);
 					Log(ai, "retry do grupo: " + state.Prefab + " (" + (retry + 1) + "/" + state.Plan.Count + ")");
 					return true;
@@ -3429,9 +3565,14 @@ internal static class MHR_Build
 		{
 			return Advance(ai, state);
 		}
-		int retry = MHR_BuildGroup.NextRetry(state.Group, ai.GetInstanceID());
+		bool spread;
+		int retry = MHR_BuildGroup.NextRetry(state.Group, ai.GetInstanceID(), out spread);
 		if (retry >= 0 && retry < state.Plan.Count)
 		{
+			if (spread)
+			{
+				state.SpreadResumed++;   // 11/11/2026 (the spread of the crew): a piece left for later came back
+			}
 			EnterStep(state, retry);
 			Log(ai, "retry do grupo: " + state.Prefab + " (" + (retry + 1) + "/" + state.Plan.Count + ")");
 			return true;
@@ -6290,11 +6431,17 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			}
 			return true;
 		}
-		if (ask == MHR_BuildGroup.AsideAsk.Asked && !state.AsideLogged && CompanionsPlugin.LogNormal)
+		if (ask == MHR_BuildGroup.AsideAsk.Asked)
 		{
-			state.AsideLogged = true;
-			Log(ai, "\"" + who + "\" está na peça " + (state.Index + 1) + " - pedindo para sair da frente ("
-				+ F(to.x) + ", " + F(to.z) + ")");
+			// 11/11/2026 (Run 14, the spread of the crew): the number of the acceptance log - only a request the site really
+			// stored is an ask (the dedup of 4 s and the anti ping-pong of a pair are not)
+			state.AsideAsked++;
+			if (!state.AsideLogged && CompanionsPlugin.LogNormal)
+			{
+				state.AsideLogged = true;
+				Log(ai, "\"" + who + "\" está na peça " + (state.Index + 1) + " - pedindo para sair da frente ("
+					+ F(to.x) + ", " + F(to.z) + ")");
+			}
 		}
 		return false;
 	}
@@ -7397,6 +7544,13 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			MHR_BuildGroup.Leave(state.Group, ai.GetInstanceID());
 			state.Group = null;
 		}
+		// 11/11/2026 (Run 14, the spread of the crew): the three numbers of the order in ONE line - what the acceptance run
+		// reads (the Run 14 log had to be grepped line by line for "corpo na peça" and "pedindo para sair da frente")
+		if (state.SpreadSkipped > 0 || state.SpreadResumed > 0 || state.AsideAsked > 0)
+		{
+			Log(ai, "dispersão: " + state.SpreadSkipped + " adiada(s), " + state.SpreadResumed + " retomada(s) · step-aside: "
+				+ state.AsideAsked + " pedido(s)");
+		}
 		// one line per order end, with the key that was spoken: it is how a test proves which refusal came out
 		Log(ai, "order ended: " + (key ?? "(silent)") + (string.IsNullOrEmpty(why) ? string.Empty : " (" + why + ")"));
 		if (key != null)
@@ -7520,6 +7674,21 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 
 	private static void LogDebug(CompanionAI ai, string message)
 	{
+		if (CompanionsPlugin.Log != null)
+		{
+			CompanionsPlugin.Log.LogDebug(LogTag + Who(ai) + message);
+		}
+	}
+
+	/// <summary>11/11/2026 (Run 14, the spread of the crew): a detail line - only with <c>[Advanced] LogLevel = Detailed</c>.
+	/// The spread happens on most pieces of a shared plan, so it is not Normal-level news (the one summary line of
+	/// <see cref="Finish"/> is).</summary>
+	private static void LogDetailed(CompanionAI ai, string message)
+	{
+		if (!CompanionsPlugin.LogDetailed)
+		{
+			return;
+		}
 		if (CompanionsPlugin.Log != null)
 		{
 			CompanionsPlugin.Log.LogDebug(LogTag + Who(ai) + message);

@@ -40,6 +40,11 @@ namespace AiIntentsCheck;
 /// (Run 13, 11/11/2026 - the ridge of the <c>CommHomeBasicBP</c> walked the wrong way). The same storey first, then the
 /// highest surface the game's eye rule still covers; none = the piece itself, the old target.</para>
 ///
+/// <para>Section (z) is <c>BuildSpread</c>: <b>how far apart the crew of a site builds</b> (Run 14, 11/11/2026 - the player
+/// measured five companions racing for the same corner: 88 <c>corpo na peça</c> and 32 step-aside asks). A shared plan is
+/// not walked in a line: a worker takes the first piece of a small window of the same run that is far from what the others
+/// are building, and the pieces it walked past keep their turn in the site's queue.</para>
+///
 /// <para>Run: <c>dotnet run --project tools/ai-intents-check</c> (after <c>dotnet build Companions.sln -c Release</c>,
 /// which the cross-check reads). Exit code 0 only when every case passed and nothing was skipped.</para>
 /// </summary>
@@ -129,6 +134,8 @@ internal static class Program
 		WalkSpotCases();
 		Section("(y) BuildAsideSpot.Plan - para onde o companheiro sai da frente (o StepAside do Run 14)");
 		AsideSpots();
+		Section("(z) BuildSpread - a dispersao dos workers (ninguem disputa a peca, Run 14)");
+		SpreadCases();
 		CrossCheckDoorRule();
 
 		Out.WriteLine();
@@ -1662,6 +1669,101 @@ internal static class Program
 	private static bool AsideSame(UnityEngine.Vector3 a, UnityEngine.Vector3 b)
 	{
 		return (a - b).sqrMagnitude < 0.0001f;
+	}
+
+	// ============================================================================================ (z) a dispersao dos workers
+
+	/// <summary>
+	/// Section (z): <c>BuildSpread</c> - <b>how far apart the crew builds</b> (11/11/2026, Run 14: the player's report
+	/// <i>"eles parecem estar disputando pra ver quem coloca a peça primeiro, em vez de trabalhar em equipe"</i>, with 88
+	/// <c>corpo na peça</c> and 32 step-aside asks in the log). The plan's consecutive indices are neighbours in space (the
+	/// parser orders by storey/class/height and then walks each run as a nearest-neighbour path), so a worker takes the
+	/// first piece of a small window of the SAME RUN that is <b>far from what the others are building</b>; the pieces it
+	/// walked past keep their turn in the site's queue and come back when that place is free.
+	///
+	/// <para><c>Pick</c> is the choice inside the window (the first candidate far from every claim, and how many came
+	/// before it); <c>Far</c> is the one distance rule (XZ, exactly the distance is free, a candidate that is not a number
+	/// is never far, a claim that is not a number is ignored); <c>SameRun</c> is the window's edge (the parser's own keys:
+	/// storey key and height with 0,01 of slack, class exactly).</para>
+	/// </summary>
+	private static void SpreadCases()
+	{
+		float d = BuildSpread.SpreadDistance;
+
+		// --- Pick: the position of the first candidate far from every claim, and how many it left behind
+		SpreadPick("janela vazia: nada a escolher", null, null, d, 0, 0);
+		SpreadPick("uma candidata so: ela mesma, nada adiado", new[] { SpreadPoint(0f) }, null, d, 0, 0);
+		SpreadPick("minDistance 0: hoje (a primeira, nada adiado)", new[] { SpreadPoint(0f), SpreadPoint(10f) },
+			new[] { SpreadPoint(0f) }, 0f, 0, 0);
+		SpreadPick("exatamente 3 m de um claim: livre", new[] { SpreadPoint(3f) }, new[] { SpreadPoint(0f) }, d, 0, 0);
+		SpreadPick("a 1a em cima de um claim: a 2a entra, 1 adiada", new[] { SpreadPoint(0f), SpreadPoint(10f) },
+			new[] { SpreadPoint(0f) }, d, 1, 1);
+		SpreadPick("todas perto: a primeira (hoje) e nada adiado", new[] { SpreadPoint(0f), SpreadPoint(0.5f) },
+			new[] { SpreadPoint(0f) }, d, 0, 0);
+		// the buffer: the window of 6 with the first 5 on claims - the last one is taken with 5 passed, never 6
+		SpreadPick("6 candidatas, as 5 primeiras com claim: #6 e 5 adiadas",
+			new[] { SpreadPoint(0f), SpreadPoint(10f), SpreadPoint(20f), SpreadPoint(30f), SpreadPoint(40f), SpreadPoint(50f) },
+			new[] { SpreadPoint(0f), SpreadPoint(10f), SpreadPoint(20f), SpreadPoint(30f), SpreadPoint(40f) }, d, 5, 5);
+		SpreadPick("candidata NaN: a proxima e escolhida",
+			new[] { new UnityEngine.Vector3(float.NaN, 40f, 0f), SpreadPoint(50f) }, null, d, 1, 1);
+		SpreadPick("claim NaN ignorado: a 1a entra", new[] { SpreadPoint(0f) },
+			new[] { new UnityEngine.Vector3(float.NaN, 40f, 0f) }, d, 0, 0);
+		SpreadPick("minDistance NaN: hoje, nada adiado", new[] { SpreadPoint(0f), SpreadPoint(10f) },
+			new[] { SpreadPoint(0f) }, float.NaN, 0, 0);
+		SpreadPick("sem claims: a 1a entra", new[] { SpreadPoint(0f), SpreadPoint(10f) }, null, d, 0, 0);
+
+		// --- Far: the one distance rule (XZ, the edge is free, a broken pose never freezes the site)
+		SpreadFar("mesmo XZ 10 m acima: perto", new UnityEngine.Vector3(0f, 50f, 0f), new[] { SpreadPoint(0f) }, d, false);
+		SpreadFar("exatamente 3 m: longe", SpreadPoint(3f), new[] { SpreadPoint(0f) }, d, true);
+		SpreadFar("minDistance 0: longe", SpreadPoint(0f), new[] { SpreadPoint(0f) }, 0f, true);
+		SpreadFar("candidata NaN: nunca longe", new UnityEngine.Vector3(float.NaN, 40f, 0f), new[] { SpreadPoint(0f) },
+			d, false);
+		SpreadFar("claim NaN ignorado: longe", SpreadPoint(0f), new[] { new UnityEngine.Vector3(float.NaN, 40f, 0f) }, d, true);
+		SpreadFar("sem claims: longe", SpreadPoint(0f), null, d, true);
+
+		// --- SameRun: the keys of the parser cut the window (storey key and height 0,01, class exactly)
+		SpreadRun("mesma run", 0, 10f, 40f, 0, 10f, 40f, true);
+		SpreadRun("Level 0,02 acima: outra run", 0, 10f, 40f, 0, 10.02f, 40f, false);
+		SpreadRun("classe diferente: outra run", 0, 10f, 40f, 2, 10f, 40f, false);
+		SpreadRun("altura 0,02 acima: outra run", 0, 10f, 40f, 0, 10f, 40.02f, false);
+		SpreadRun("altura NaN: outra run", 0, 10f, float.NaN, 0, 10f, 40f, false);
+	}
+
+	/// <summary>Section (z): one <c>Pick</c> case - the expected position in the window and how many it left behind.</summary>
+	private static void SpreadPick(string name, UnityEngine.Vector3[] window, UnityEngine.Vector3[] claims, float distance,
+		int expectedAt, int expectedPassed)
+	{
+		List<UnityEngine.Vector3> pool = window == null ? null : new List<UnityEngine.Vector3>(window);
+		List<UnityEngine.Vector3> known = claims == null ? null : new List<UnityEngine.Vector3>(claims);
+		int passed;
+		int at = BuildSpread.Pick(pool, known, distance, out passed);
+		Check(name + " -> #" + (expectedAt + 1) + ", " + expectedPassed + " adiada(s)",
+			at == expectedAt && passed == expectedPassed,
+			"obtido #" + (at + 1) + ", " + passed + " adiada(s)");
+	}
+
+	/// <summary>Section (z): one <c>Far</c> case - the candidate and the claims the site is building right now.</summary>
+	private static void SpreadFar(string name, UnityEngine.Vector3 piece, UnityEngine.Vector3[] claims, float distance,
+		bool expected)
+	{
+		List<UnityEngine.Vector3> known = claims == null ? null : new List<UnityEngine.Vector3>(claims);
+		bool far = BuildSpread.Far(piece, known, distance);
+		Check(name + " -> " + (expected ? "longe" : "perto"), far == expected, "obtido " + (far ? "longe" : "perto"));
+	}
+
+	/// <summary>Section (z): one <c>SameRun</c> case - two pieces of the plan and whether they are the same run.</summary>
+	private static void SpreadRun(string name, int classA, float levelA, float yA, int classB, float levelB, float yB,
+		bool expected)
+	{
+		bool same = BuildSpread.SameRun(classA, levelA, yA, classB, levelB, yB);
+		Check(name + " -> " + (expected ? "mesma run" : "outra run"), same == expected,
+			"obtido " + (same ? "mesma run" : "outra run"));
+	}
+
+	/// <summary>Section (z): a pose of the plan - every case is on y = 40 (the spread measures XZ only).</summary>
+	private static UnityEngine.Vector3 SpreadPoint(float x, float z = 0f)
+	{
+		return new UnityEngine.Vector3(x, 40f, z);
 	}
 
 	/// <summary>The plan of case (a)/(e) of section (m): a fresh list every call (case (e) needs two of them).</summary>
