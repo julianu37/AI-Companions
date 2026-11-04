@@ -2721,6 +2721,10 @@ saindo da frente (peça em -160,7, -424,6) para (-162,3, -426,2)      → o dest
 4. **O custo:** o log passa a imprimir `M raio(s)` por peça e o `PendingNear` roda por pedido — nenhum dos dois foi
    cronometrado. O número sai de graça do Run 15 (é só ler as linhas), mas **não** foi medido em ms.
 
+**O que o Run 15 (§17.21) respondeu disto:** a **cumeeira não subiu** — a peça fora foi outra `wood_roof_45`, em
+(-151,3, 48,8, -431,3), por `no progress` —, e a **contagem** das linhas `pedindo para sair da frente` saiu (**33**, com
+a ressalva de métrica do §17.21); o **custo em ms** continua sem medida. O A/B completo está no §17.21.
+
 **Contas e limites desta seção:** o run é o **Run 14** do jogador (**984 + 1 = 985**, a única pulada por
 `blocked_by_player` em (-161,9, 46,8, -426,2)); as duas linhas do ping-pong e a do `no progress` com `walk spot` são as
 **do log do run**, e a distância de **0,4 m** entre o destino e a peça pulada é **aritmética** sobre as poses medidas.
@@ -2728,5 +2732,103 @@ O resto é o **medido fora do run**: harness **684 PASS** (666 + **18** da seç�
 **0/0** e gate **9/9** no lote `1ee93b1`; **config 365/25** (o lote **não** acrescentou chave) e **nenhuma chave de
 tradução nova** (as linhas novas são **log em PT-BR**, não texto de jogador). Esta seção **não** rodou harness, build nem
 gate — os números são os do lote, e o que o run **não** contou está listado acima.
+
+### 17.21 A dispersão dos workers (11/11/2026, `[Building] SpreadWorkers`, lote `a29dedc`) — o A/B dos Runs 15 e 16
+
+> Continuação do **Run 14** (§17.20) pelo contador de runs do jogador. O Run 14 mediu **dois defeitos** de rota e de
+> passo; este lote ataca a **disputa** que o jogador descreveu — *"eles parecem estar disputando pra ver quem coloca a
+> peça primeiro, em vez de trabalhar em equipe"* (`AI/BuildSpread.cs:7`) — e mede o efeito num **A/B**. **A ressalva do
+> fim vale para tudo:** no run em que a dispersão estava ligada o contador dela saiu **0**.
+
+#### (A) Por que existe: a ordem do plano põe vizinhos em índices vizinhos
+
+- O plano de um blueprint é ordenado por **andar → classe → altura** e cada run de chaves iguais é percorrida como
+  caminho de **vizinho mais próximo** (`BuildBlueprintParser.Ordered`/`NearestWithin`, §15.2u). A consequência é direta:
+  **índices consecutivos são vizinhos no espaço**, então cinco companheiros no mesmo plano chegam ao **mesmo canto** ao
+  mesmo tempo. A medida do Run 14: **88 `corpo na peça`** e **32** pedidos de step-aside (§17.20).
+- **A regra** (`AI/BuildSpread.cs`, **puro**: vetores e floats, sem `Physics`, sem `Time`, sem grupo — a tabela é a seção
+  **(z)** do harness):
+  - ao pegar a próxima peça, o worker olha uma **janela de 6** (`Window`, `:41`) — a peça dele e as 5 seguintes,
+    **até o fim da run** (`SameRun`, `:127`: `Level` e altura com folga de **0,01 m** — `KeySlack`, `:47`, a mesma do
+    parser — e a **classe exata**; a primeira peça de **outra run encerra** a janela, porque é o próprio plano que diz
+    onde a fileira acaba);
+  - escolhe a **primeira** da janela que está a **≥ 3 m em XZ** (`SpreadDistance`, `:34`) de **todo claim ativo** de
+    outro worker (`Far`, `:58`; `Pick`, `:94`). Os 3 m são **duas janelas de corpo** (`BuildAsideSpot.Clearance` =
+    1,5 m): uma é "estar no caminho", duas é "trabalhar sem pisar no outro";
+  - **nenhuma livre → pega a primeira mesmo** (`Pick` responde **0**): é **exatamente o comportamento antigo**, e é o
+    **fallback** que garante que a peça nunca fica sem dono;
+  - candidata que **não é número** nunca é escolhida, e um **claim** que não é número é **ignorado** — uma pose quebrada
+    no canteiro não pode congelar a equipe;
+  - os claims vêm de `MHR_BuildGroup.ClaimPoses` (`Jobs/MHR_BuildGroup.cs:515`) com **claim expirado fora**
+    (`ClaimSeconds` = 20 s): é "o que a equipe está construindo **agora**", não o histórico.
+- **O que NÃO muda:** o **plano nunca é reordenado**, e os **claims**, a **barreira de andar** e o **teto de retry**
+  ficam iguais. A peça que o worker passou não é perdida: entra na **fila que já existe**, marcada `Spread`
+  (`RetryEntry.Spread`, `MHR_BuildGroup.cs:81`, escrita por `NoteSpread`, `:1077`), **sem gastar tentativa** (nada
+  falhou), e só é puxada quando a **vizinhança está livre** (`SpreadFree`, `:1117`, dentro do `NextRetry`, `:1152`). Um
+  **retry real** — a peça foi caminhada e não ficou de pé — **nunca** ganha essa espera: `TryQueueRetry` limpa a marca
+  (`:1043`), porque a falha espera **o que a segura**, não espaço.
+- **Fast path:** `SpreadOn` (`MHR_Build.cs:999`) só liga com **plano + blueprint + grupo compartilhado + a chave**.
+  Template, peça única e **1** worker não entram — o caminho é byte a byte o de antes.
+- **A chave:** `[Building] SpreadWorkers` (bool, **padrão true**, `Core/ModConfig.cs:978`; rótulo
+  `hc_cfg_building_spreadworkers`, "Spread the crew out", `Core/ModLocalization.cs:850`), lida a cada uso. O
+  `CurrentConfigVersion` foi para **199** (`ModConfig.cs:1278`) **sem migração** — não há default antigo a corrigir.
+- **O log:** **uma** linha no `Finish` (`MHR_Build.cs:7551`), `dispersão: N adiada(s), M retomada(s) · step-aside: K
+  pedido(s)` — os três números que no Run 14 exigiram `grep` linha a linha —, e o detalhe por salto só com
+  `LogDetailed` (`:7686`): `dispersão: a peça X/N fica para depois - pegando Y (K adiada(s))`. O `K` é `AsideAsked`
+  (`:6438`) e conta **todo** pedido aceito; a linha crua `… pedindo para sair da frente` é **1 por peça**
+  (`AsideLogged` zerado em `EnterStep`, `:1270`).
+
+#### (B) O A/B (11/11/2026): a mesma casa, a mesma âncora, 5 workers, canteiro vazio nos dois
+
+| | **Run 15** (árvore `1ee93b1`, **sem** a dispersão) | **Run 16** (árvore `a29dedc`, **com**) |
+|---|---|---|
+| colocadas | **984 + 1 pulada = 985** | **985/985** |
+| a única fora | `wood_roof_45` em **(-151,3, 48,8, -431,3)** por **`no progress`** | **nenhuma** (`FALTANDO` vazio, **23/23** prefabs) |
+| `corpo na peça` | **194** | **50** |
+| `pedindo para sair da frente` | **33** | **12** (`step-aside` da linha do `Finish`) |
+| `no progress` | **66** | **4** |
+
+- **O Run 16, além da tabela:** **0 mortes**, **0 `UNSUPPORTED`**, **watchdog `0`** e **1014 peças** no canteiro.
+- **As duas árvores diferem só nisso:** `1ee93b1` → `0f33e54` (**só doc**) → `a29dedc` (a dispersão). Os dois consertos
+  do `1ee93b1` — o **destino** do `StepAside` e o `WalkSpot` em **anéis de 1,5/3 m** com `WalkHits = 3` (§17.20) —
+  estão **nas duas**, então o A/B é "com a chave × sem a chave", não "antes × depois" dos consertos.
+- **A queda dos três contadores é real como número, e é só isso que ela vale.** O run com a dispersão **fecha a casa**
+  (985/985) e o baseline deixa a **cumeeira** fora de novo (48,8, `no progress`) — a mesma peça que o Run 13 perdeu em
+  (-152,6, 48,8, -423,6) e que o Run 14 perdeu em outra pose, a 46,8 (§17.20). Isso é um **fato do run**, não a prova
+  do mecanismo.
+- **Ressalva honesta — o contador `dispersão:` saiu `0 adiada(s) / 0 retomada(s)`.** Neste run a regra **nunca precisou
+  adiar ninguém** (a primeira da janela já estava a 3 m dos claims em toda peça). Se ela **não agiu**, a queda dos
+  marcadores **não se atribui a ela**: o que falta é o **A/B limpo** — a **mesma árvore**, `SpreadWorkers = false` ×
+  `true` —, que **não foi rodado**; e, mesmo nele, caminhos, corpos e tempo não se repetem, então o ruído é grande.
+- **Uma segunda ressalva, de métrica:** o **33** do Run 15 são **linhas de log** (uma por peça com pedido, `AsideLogged`
+  em `MHR_Build.cs:1270`) e o **12** do Run 16 é o **contador** do resumo (`AsideAsked`, `:6438`), que conta **mais**
+  do que as linhas (todo `Asked`). Como o contador é o lado que conta **mais**, a **direção** (caiu) é confiável — no
+  Run 16 houve **no máximo 12** pedidos —, mas os dois números **não são a mesma unidade**.
+- **O que este A/B NÃO diz:** que a dispersão seja a causa de a casa fechar; que o `WalkSpot` em anéis baste (o **Run
+  15** tem os anéis e **não** fechou); e **nada** sobre custo — o `ClaimPoses` roda **por peça** da janela, nunca por
+  frame, e **não foi cronometrado**.
+
+#### (C) O Run 17 — em andamento
+
+**Run 17** (11/11/2026, **canteiro zerado de propósito**, dispersão ligada) é a confirmação da **casa do zero**, sem
+herança de peças de runs anteriores no terreno. **Status: em andamento — sem número** (o placar entra aqui quando o
+jogador fechar o run). O que ele responde:
+
+1. a **casa do zero** fecha com a dispersão ligada? (o Run 16 fechou, mas sobre o canteiro dos anteriores);
+2. o contador `dispersão:` sai **≠ 0** em algum run? É a pergunta que o Run 16 deixou aberta — a regra existe, mas
+   **não se mediu** um run em que ela **adie** peça;
+3. as linhas de disputa (`corpo na peça` / `pedindo`) se sustentam no mesmo patamar (**50** / **12**) ou o número do
+   Run 16 era sorte de caminho.
+
+**Contas e limites desta seção:** o A/B é o do jogador — **Runs 15 e 16**, de 11/11/2026, mesma casa/âncora/5 workers
+e canteiro vazio nos dois; os números são os **do log dos runs**, e o único cálculo aqui é a aritmética óbvia
+(`984 + 1 = 985`). O **medido fora dos runs**: harness **706 PASS** (684 + **22** da seção **(z)** — **11** de `Pick`,
+**6** de `Far`, **5** de `SameRun`), **config 367/25** (`SpreadWorkers` é a **367ª**; o `package/CONFIGURATION.md` foi
+regenerado e o `--check` responde `[ok] … (367 settings, 25 sections)`), build **0/0**, gate **9/9** e MCP **122**.
+**Nenhuma** chave de tradução de jogador nova — a linha da dispersão é **log em PT-BR**. **Localização (achado aberto):**
+o rótulo `hc_cfg_building_spreadworkers` está **só no inglês** (o audit acusa **1 ausente no PT-BR**), então o F8 mostra
+a **chave crua** em PT/ES/FR/IT até a chave entrar nos **4** JSONs — ver `AGENTS.md`, pendências. **Não medido:** o
+custo por peça do `ClaimPoses`, **quantas** peças a dispersão adiou (o contador deu **0**), o **A/B limpo** e o **Run
+17**.
 
 

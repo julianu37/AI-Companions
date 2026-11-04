@@ -196,9 +196,11 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
 - **Provedores (config `[AI]`):** Groq (`openai/gpt-oss-20b`, padrão) → LM Studio/Ollama (`127.0.0.1:1234`) →
   OpenRouter; tudo por `BaseUrl`/`Model`/`ApiKey` (a chave é `ConfigEntry`, nunca hardcoded). Saída estruturada
   `json_schema` → `json_object` → sem formato, **só** em recusa de formato.
-- **Config:** as chaves e os defaults vivem em `Core/ModConfig.cs` (**365** opções / 25 seções, medidas em
-  11/11/2026 pelo `python tools/gen_config_doc.py`; eram **361** em 04/11/2026 e as chaves novas do ciclo são
-  `[Building] BodyRetry`, `[Building] StepAside`, `[Building] BlueprintStations` e `[Controls] BuildPanelKey`). A doc
+- **Config:** as chaves e os defaults vivem em `Core/ModConfig.cs` (**367** opções / 25 seções, medidas em
+  11/11/2026 pelo `python tools/gen_config_doc.py --check …` → `[ok] … (367 settings, 25 sections)`; eram **361** em
+  04/11/2026 e as chaves novas do ciclo são `[Building] BodyRetry`, `[Building] StepAside`,
+  `[Building] BlueprintStations`, `[Controls] BuildPanelKey`, `[Building] ReachWalk` (**365 → 366**) e
+  `[Building] SpreadWorkers` (**366 → 367**)). A doc
   gerada é `package/CONFIGURATION.md` — **nunca** editar à mão: rodar o gerador e depois o `--check`. O `.cfg` é
   `BepInEx\config\AiCompanions.cfg`.
   A `[Building] PlaceReach` desta rodada (float, padrão **10**, faixa **5..20**; rótulo `hc_cfg_building_placereach`,
@@ -214,11 +216,22 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   o companheiro **em espera** no grupo de obra dar um passo de **2,2 m** para fora do caminho de uma peça que outro vai
   colocar — pedido por quem coloca, andando com o próprio mover, **nunca teleporte** e **nunca o jogador**; desligada, a
   peça espera o companheiro sair sozinho. **MEDIDA no Run 11** (11/11/2026): rodou **ligada** no run de **0 puladas** —
-  a **contagem** das linhas `pedindo para sair da frente`/`saindo da frente` **não** foi medida; ver §17.17.
+  a **contagem** das linhas `pedindo para sair da frente`/`saindo da frente` saiu nos **Runs 15/16** (**33** linhas ×
+  **`step-aside: 12`**, com ressalva de métrica — ver §17.21); ver §17.17.
   **O destino passou a ser escolhido por quem coloca** (Run 14, 11/11/2026 — §17.20): `AI/BuildAsideSpot.cs` (puro,
   seção **(y)**) monta o anel de 8 direções a 2,2 m e **descarta** o destino a menos de **1,5 m em XZ** de uma peça
   **pendente** do plano (±2 m de altura); **sem candidato o pedido não é feito** e a peça vai para a fila. No grupo, a
   mesma dupla trocando de **peça** em < **20 s** responde `Repeating` — não pede de novo (a barreira de andar continua).
+  A `[Building] SpreadWorkers` (bool, padrão **true**; rótulo `hc_cfg_building_spreadworkers`, "Spread the crew out" no
+  inglês nativo, `Core/ModLocalization.cs:850`) é a **dispersão dos workers** (lote `a29dedc`, 11/11/2026 — §17.21): ao
+  pegar a próxima peça, o worker olha uma **janela de 6** posições da **mesma run** (`AI/BuildSpread.cs`, puro, seção
+  **(z)** do harness) e escolhe a **primeira que está a 3 m ou mais (XZ)** de um **claim ativo** de outro; **nenhuma
+  livre → pega a primeira mesmo** (o comportamento antigo). As adiadas entram na **fila de retry que já existe** marcadas
+  `Spread` (`MHR_BuildGroup.NoteSpread`, `Jobs/MHR_BuildGroup.cs:1077`), **sem gastar tentativa**, e só são puxadas
+  quando a vizinhança está livre (`SpreadFree`, `:1117`); **retry real nunca ganha esse teste** (`:1043`). Sem
+  blueprint, sem **grupo compartilhado** ou com **1** worker → **fast path** (custo zero, `MHR_Build.SpreadOn`, `:999`). Resumo de
+  **uma** linha no `Finish` (`dispersão: N adiada(s), M retomada(s) · step-aside: K pedido(s)`, `:7551`) e o detalhe por
+  salto só com `LogDetailed`.
   A `[Building] BlueprintStations` (bool, padrão **true**; rótulo `hc_cfg_building_blueprintstations`, "Blueprint: no
   stations" no inglês nativo) **dispensa a estação só no blueprint**: com ela ligada o `PlanStations` **não** roda, o
   `BuildSite.Check` não devolve `needs_station` (`AI/BuildProbe.cs:566-569`, com o `hasStation` do resultado ainda
@@ -292,19 +305,20 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   pior caso: N× o resto do plano, com até **3 coletando ao mesmo tempo** — o `Stock` é a metade aberta do P1); grupo
   só de **blueprint**; **em memória** (não persiste); "para" = todos, "para, <nome>" = um, um modo num companheiro
   tira só ele; nivelar/limpar com **um** (P5). **Nenhuma** chave de tradução nova (reusa `hc_ai_no_companion` e
-  `hc_ai_build_failed`) — harness **684** (471 + **28** da **(p)** + 26 da **(q)** + **66** da **(r)** — `CanSupport`,
+  `hc_ai_build_failed`) — harness **706** (471 + **28** da **(p)** + 26 da **(q)** + **66** da **(r)** — `CanSupport`,
   `PickPost`, `UsefulSurface`, `HoldsPlacedPiece` e as constantes da barreira — + **18** da **(s)** — `AI/BuildBody.cs`,
   a janela do corpo (`Blocks`, `HalfY` e os casos medidos do Run 10) — + **27** da **(t)** — a **barreira de andar**,
   11/11/2026 — + **6** da **(u)** —
   `BuildSupportBelow.FallbackPostAllowed`, o poste quando o apoio do plano não vem — + **5** da **(v)**,
   `BuildStationCover.Required` — + **9** da **(w)**, `BuildMaterials.Add`/`Total` — + **10** da **(x)**,
   `BuildWalkSpot.Choose` (de onde a peça é alcançada, o walk spot do Run 13) — + **18** da **(y)**,
-  `BuildAsideSpot.Plan`, para onde o companheiro sai da frente (o `StepAside` do Run 14)), MCP
+  `BuildAsideSpot.Plan`, para onde o companheiro sai da frente (o `StepAside` do Run 14) — + **22** da **(z)**,
+  `BuildSpread.Far`/`Pick`/`SameRun`, a **dispersão dos workers** (lote `a29dedc`, Run 15/16)), MCP
   **122** (as **12**
   asserções de 03/11/2026 cobrem o contrato do grupo: `workers`, `refused` e `name` vazio = todos; as **6** de
   11/11/2026 cobrem o `stop` do `companions.order`; e as do `blueprints_list`/`blueprints_inspect` a biblioteca e o
-  relatório sem ordem), config **365/25** e build **0/0**.
-  **Medido em jogo (`CommHomeBasicBP`, `BlueprintFree = true`) — treze runs documentados entre 04 e 11/11/2026** (1–3 com 3
+  relatório sem ordem), config **367/25** e build **0/0**.
+  **Medido em jogo (`CommHomeBasicBP`, `BlueprintFree = true`) — quinze runs documentados entre 04 e 11/11/2026** (1–3 com 3
   companheiros e `PlaceReach` 10/15/15+guarda; 4 com o deck; 5 com 5 companheiros; **6 em 11/11/2026** com os dois
   lotes → **969 + 18 = 987**, watchdog **0**, **985 de 987** no canteiro, **`apoio de emergência` = 0**, **telhado
   fechado** no `render_view`, **1 morte** e `blocked_by_player` **≈770**, o jogador dentro do canteiro — §17.13;
@@ -382,7 +396,21 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   companheiro parado longe. **Os dois foram consertados no lote:** `AI/BuildAsideSpot.cs` (puro, seção **(y)**) escolhe
   o destino **fora das peças pendentes** e o grupo **para de pedir** quando a mesma dupla troca de peça em < **20 s**; e
   o `MHR_Build.WalkSpot` passou a **anéis de 1,5/3 m** (17 raios) com `WalkHits = 3`, atravessando até 3 hits que **não
-  são superfície** (corpo em cima do ponto, peça acima, mobília) em vez de perder a coluna no primeiro — §17.20; 1 e 2
+  são superfície** (corpo em cima do ponto, peça acima, mobília) em vez de perder a coluna no primeiro — §17.20;
+  **15 em 11/11/2026** = o **baseline do A/B** (árvore `1ee93b1`, **sem** a dispersão; a mesma casa, a mesma âncora, os
+  mesmos **5** companheiros e o canteiro **vazio nos dois**) → **984 colocadas + 1 pulada = 985**, a **única** fora um
+  `wood_roof_45` em **(-151,3, 48,8, -431,3)** por **`no progress`** (a **cumeeira** de novo, pose diferente da do Run
+  13), com **`corpo na peça` 194**, **`pedindo para sair da frente` 33** e **`no progress` 66**; **16 em 11/11/2026** = a
+  **dispersão** (árvore `a29dedc`, `[Building] SpreadWorkers` no padrão **true**, o mesmo canteiro vazio) →
+  **985/985 colocadas**, **`FALTANDO` vazio** (**23/23** prefabs), **0 mortes**, **0 `UNSUPPORTED`**, **watchdog `0`**,
+  **1014 peças** no canteiro, e os marcadores de disputa em queda: **`corpo na peça` 50** (eram **194**), **`pedindo`
+  12** (eram **33**) e **`no progress` 4** (eram **66**). **Ressalva honesta (confirmada pelo arquiteto):** o contador
+  `dispersão:` do `Finish` saiu **0 adiada(s) / 0 retomada(s)** — **nenhuma peça foi adiada neste run** —, e a queda dos
+  marcadores vem **junto** com os dois consertos do Run 14 (o `WalkSpot` em anéis e o destino novo do `StepAside`), que
+  já estão **nas duas** árvores; como a dispersão **não agiu**, **não se atribui a queda a ela** — o que fecha a conta é
+  o **A/B limpo** (mesma árvore, `SpreadWorkers` false × true), que **ainda não foi rodado** — ver §17.21; **17 em
+  andamento** (11/11/2026, **canteiro zerado de propósito**, dispersão ligada): é a confirmação da casa do zero, sem
+  número ainda. **Dos runs 1–3:** 1 e 2
   diferem só no `PlaceReach` (10 = padrão do código; 15 = config de teste) e o
   3 roda em 15 com a guarda anti-loop: com **10**,
   **970 + 15 = 985** — a fala final fecha (`970 peças, 15 puladas`), `no_ground` **~25 → 0**, `blocked_by_player`
@@ -410,7 +438,7 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   peças de pé**, **0 mortes**, piso do térreo ~**1 m** acima do chão com as **escadas das entradas encontrando**; **2 dos
   3** workers fecharam com `0 peça(s) sem apoio` e o terceiro parou com **6 telhados** nomeados (42,8/44,8/46,8) + **4**
   `falls`, e a visão (`render_view`) mostrou a **faixa da água sul** faltando e a **empenha leste aberta**. **Lote do
-  telhado (build 0/0, harness **601** naquele lote — hoje **684**; medido no run de 11/11):** (a) **telhado apoia
+  telhado (build 0/0, harness **601** naquele lote — hoje **706**; medido no run de 11/11):** (a) **telhado apoia
   telhado** — o `DirectSupportIndex`
   excluía a **classe
   3** como apoio, então numa **empena** a fileira de cima (apoiada pela de baixo, também telhado) **nunca** era puxada;
@@ -534,7 +562,8 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   A **barreira de andar** foi **MEDIDA no Run 10** (abaixo) — saiu desta lista.
   O **Run 8** do lote do poste **foi medido** em 11/11/2026 (§17.14) — saiu desta lista também.
   A **sonda de corpo** (cápsula × caixa girada) e a **`[Building] StepAside`** foram **MEDIDAS no Run 11** (abaixo, e
-  §17.17) — saíram desta lista; o que **continua aberto** nelas é a **criatura** e a **contagem** das linhas do step-aside.
+  §17.17) — saíram desta lista; o que **continua aberto** nelas é a **criatura** e a **contagem** das linhas do step-aside,
+  que saiu nos **Runs 15/16** com ressalva de métrica (**33** linhas × **`step-aside: 12`**, item (8) das pendências).
   **Pendência aberta — o vão do deck (`DeckLift = 1`):** a folga de ~1 m entre o piso do deck e o chão **prende
   corpos**; depois do run de 11/11 o arquiteto **apagou 41 peças do piso** (**25 + 16**) para libertar o jogador e os
   companheiros, e a casa ficou de piso furado até o **Run 8** recolocar o plano inteiro (**987/987**, §17.14). Opções
@@ -579,20 +608,26 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   o Run 14, é escolhido por quem coloca** (`AI/BuildAsideSpot.cs`, fora das peças pendentes do plano — §17.20) e não
   mais "o mais perto dos 8 pontos", que era o que fazia o passo cair na peça seguinte. **MEDIDA no Run 11
   (11/11/2026, §17.17):** rodou **ligada** no run de **0 puladas** (a chave **não existia** na árvore do Run 10); a
-  **contagem** das linhas `pedindo para sair da frente`/`saindo da frente` **não** foi medida. **Em aberto:** a sonda
-  **não testa criaturas** (um javali em cima da peça ainda passa) — §17.16.
+  **contagem** das linhas `pedindo para sair da frente`/`saindo da frente` saiu nos **Runs 15/16** (§17.21). **Em aberto:**
+  a sonda **não testa criaturas** (um javali em cima da peça ainda passa) — §17.16.
 - **Pendências conhecidas (abertas):** (1) navegação no andar em obra; (2) a voz não passa pelo mixer do jogo (só
   `[AI] TtsVolume`); (3) sync com o upstream `main` (1.5.8) em dia — conferir antes de cada release; (4) o nome do
   companheiro no centro do radial (cosmético); (5) posse do ZDO no spawn em multiplayer dedicado; (6) a dívida de
-  **49** chaves por idioma do `gen_translations.py --check` (**47 → 49 em 11/11/2026**: o mapa indexa por texto PT e
-  não cobre o bloco `hc_cfg_building_*` nem as falas de construção, e as **2** strings novas deste ciclo — `Blueprint:
-  sem estações` e `Tecla do painel de obra` — não estão nele); (7) a coleta do build com a mochila no teto de peso (o run dos 1045
-  ficou 300 s sem entregar a madeira); (8) a sonda de corpo do build **não testa criaturas** (um javali em cima da peça
+  **106** chaves por idioma do `gen_translations.py --check` (**49 → 106 em 11/11/2026**: o mapa indexa por texto PT e
+  não cobre o bloco `hc_cfg_building_*` nem as falas de construção, e o lote do painel de obra pôs **57** chaves novas
+  nos **4** JSONs (`48e2e96`, 56 do painel + `hc_cfg_building_reachwalk`) **sem** pôr essas strings no mapa — 49 + 57 =
+  **106**, medido com `python tools/gen_translations.py --check` neste ciclo);
+  (7) a coleta do build com a mochila no teto de peso (o run dos 1045 ficou 300 s sem entregar a madeira);
+  (8) a sonda de corpo do build **não testa criaturas** (um javali em cima da peça
   ainda passa) — a `[Building] StepAside` e a sonda por **cápsula real × caixa girada** **foram medidas no Run 11**
   (§17.17: `987 peças, 0 puladas`, 98 terminais + 145 curtas, barreira disparada **56×**), e o que fica aberto nelas é a
   **criatura** e a **contagem** das linhas do step-aside — no Run 14 o **defeito do destino** apareceu medido (o passo
-  caía na peça seguinte, §17.20) e foi consertado no lote `1ee93b1`; a **contagem** de quantas vezes ele anda continua
-  sem número; (9) as **2 `stone_floor_2x2`** do `CommHomeBasicBP`
+  caía na peça seguinte, §17.20) e foi consertado no lote `1ee93b1`. **A contagem saiu nos Runs 15/16, com ressalva de
+  métrica:** o Run 15 (árvore `1ee93b1`) tem **33** linhas `pedindo para sair da frente` (a linha é **1 por peça** —
+  `AsideLogged` zerado em `EnterStep`, `MHR_Build.cs:1270`) e o Run 16 (árvore `a29dedc`) imprime **`step-aside: 12
+  pedido(s)`** na linha do `Finish`, que conta **todo** pedido aceito (`AsideAsked`, `:6438`); como o contador conta
+  **mais** do que as linhas, a **direção** da queda (33 → 12) é confiável — no Run 16 houve **no máximo 12** pedidos —,
+  mas a **atribuição** não (§17.21); (9) as **2 `stone_floor_2x2`** do `CommHomeBasicBP`
   **saíram do teto no Run 13** (11/11/2026): com a receita aprendida na sessão e a `[Building] BlueprintStations`
   (padrão **true**) as **2 subiram sem talhador no mundo** (§17.18) — o que continua fora é **aprender a receita do
   zero** (exige pedra no jogador) e o catálogo do mod (`AI/BuildCatalog.cs:40-72`) **não construir talhador**;
@@ -601,8 +636,11 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   (a mesma frente do item 1), com pose exata, e a `TempScaffold` **está vetada pelo jogador** (fica false). **O Run 14
   mostrou o que a navegação estava perdendo:** o **walk spot** de uma peça de telhado saía **7 m abaixo** dela (41,9
   para uma peça a 48,8, com `no progress … 23,4 m away, walk spot (-161,1, 41,9, -422,4)`) — o lote `1ee93b1` trocou
-  os raios pelos **anéis de 1,5/3 m** (17) e o `WalkHits = 3` (§17.20), mas **isso ainda não foi medido**: quem diz se
-  a cumeeira sobe é o **Run 15**;
+  os raios pelos **anéis de 1,5/3 m** (17) e o `WalkHits = 3` (§17.20). **O Run 15 mediu e NÃO resolveu:** a única
+  peça fora dele foi **outra** `wood_roof_45`, em **(-151,3, 48,8, -431,3)**, por **`no progress`** — mesmo sintoma, na
+  mesma altura, em pose diferente da do Run 13; o **Run 16** (mesma casa, com a dispersão) fechou **985/985**, mas o
+  A/B **não isola** a causa (o contador da dispersão saiu **0**, §17.21). Ou seja: **a rota até a cumeeira continua
+  aberta** — é a mesma frente do item 1, e a `TempScaffold` continua vetada pelo jogador;
   (11) **um companheiro acima do peso derruba a obra** — `MHR_Build.cs:3120-3128` encerra a ordem **daquele** worker
   com `hc_ai_build_too_heavy` e o `Finish` tira ele do grupo (`:7006-7013`), então **com todos pesados o canteiro
   morre** (no ciclo de teste eram **25–32 stacks** cada, resolvido com a ferramenta de teste
@@ -619,6 +657,14 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   "… : sans établis" / "…: senza stazioni") — e as auditorias fecharam: **PT 0 ausentes** (eram 2) e **ES/FR/IT 0
   lacunas** (`python tools/audit_translations.py [--lang …]`); a dívida do `gen_translations.py --check` foi de **47
   para 49** (item 6).
+
+  **Achado de localização ABERTO (11/11/2026, ciclo do Run 15/16):** a chave **nova** `hc_cfg_building_spreadworkers`
+  (`Core/ModLocalization.cs:850`, "Spread the crew out") **não está em nenhum dos 4 JSONs** — o
+  `python tools/audit_translations.py` acusa **1 ausente no PT-BR** (`hc_cfg_building_spreadworkers`) e ES/FR/IT
+  continuam **0 lacunas** só porque a comparação é **contra o PT** (os quatro têm as mesmas **1113** chaves). Efeito: no
+  F8 em PT/ES/FR/IT a linha do `SpreadWorkers` mostra a **chave crua**. **Não corrigido neste ciclo** (o
+  `Translations/**` ficou fora do escopo do agente de docs, por instrução do arquiteto) — **pendente:** pôr a chave nos
+  **4** JSONs e revalidar o audit (PT **0 ausentes** e ES/FR/IT **0 lacunas**).
 
 ## Nossas docs
 
@@ -647,7 +693,8 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   estão lá, e a §3 é a pesquisa do ecossistema (BuildOrders MIT com API + helpers `Count`/`Next`/`Place`/
   `Blockers`, Quad's Companion que já constrói planos, PlanBuild WTFPL só como fonte de arquivo).
 - `docs/plan-multi-build.md` — **o plano do multi-build**: o **P1 MVP (grupo de obra) implementado e medido em jogo**
-  (04/11/2026, §3: plano/claims/retry/líder/`PlanLocked`/limitações), a **P2 medida em jogo**, o **P4** (nomes múltiplos)
+  (04/11/2026, §3: plano/claims/retry/líder/`PlanLocked`/limitações), a **P2 medida em jogo**, a **dispersão dos workers**
+  (`[Building] SpreadWorkers`, 11/11/2026, §3 + os Runs 15/16 em §7), o **P4** (nomes múltiplos)
   desenhado e o que falta (P3/P5 + a reserva de material + o run do lote da empenha/`falls`).
 - `docs/audit-vs-offline-companions.md` — auditoria do nosso mod anterior vs o upstream.
 - `docs/backlog-1.9.5.md` — **o que ficou sem correção** depois da revisão de 10 especialistas (detalhado: o que
@@ -655,8 +702,9 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
 - `docs/re/` — engenharia reversa do Valheim 1.0 (APIs, diff de versão).
 - `docs/re/building-notes.md` — **a construção medida**, run a run (§15 o `.blueprint`, §17 o grupo de obra e o portão de
   apoio, §17.10–§17.17 os runs 4–11, **§17.18 o Run 13**, §17.19 **receita de teste × comportamento**: o que é bancada
-  de teste e o que é produto, com o `arquivo:linha` de cada default, e **§17.20 o Run 14** — o ping-pong do `StepAside` e
-  o walk spot 7 m abaixo, com o que fica para o Run 15).
+  de teste e o que é produto, com o `arquivo:linha` de cada default, **§17.20 o Run 14** — o ping-pong do `StepAside` e
+  o walk spot 7 m abaixo — e **§17.21 a dispersão dos workers** (`[Building] SpreadWorkers`) com o **A/B dos Runs 15/16**
+  e a ressalva do contador).
 - `docs/re/camada-ia-e-construcao.md` — o histórico detalhado da camada de IA e da construção (extraído do
   AGENTS em 03/11/2026; o resumo/estado atual fica aqui).
 - `docs/re/packaging-layout.md` — **o layout do zip** (o que vai em `BepInEx\plugins\AI-Companions\`, por que os
@@ -799,7 +847,7 @@ comandos de console e spawna coisas, então não é feature de jogador.
   mochila **sem dropar** — ferramenta de teste, `DevBridge/Commands.cs:1832-1847`) e `blueprints.list`/`blueprints.inspect`
   (`:628-746`): a biblioteca e **o que a ordem faria** com um arquivo, **sem começar nada**, pelo mesmo leitor do painel
   (`AI/BuildBlueprintReport.cs`).
-- **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check -c Release` — **684 asserções** (medidas
+- **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check -c Release` — **706 asserções** (medidas
   em 11/11/2026) das redes por
   palavras (`RadialIntent`, `PickupIntent`, `GatherIntent`, `InteractionIntent`, `LlmIntent`, `OrderItems`,
   `CompanionNameMatch`) e das tabelas puras (`NavTileMath` na **(o)**, `BuildFailure.Classify` na **(p)** — 28 casos,
@@ -823,15 +871,19 @@ comandos de console e spawna coisas, então não é feature de jogador.
   peça pela regra do olho); e a **(y)** — **18** (`AI/BuildAsideSpot.cs`, Run 14, 11/11/2026: o **anel de 8 direções** a
   2,2 m ordenado por **rank** — atrás do colocador → lados → **frente nunca** —, dentro do rank a direção mais "atrás" e
   depois o passo mais curto, com o **filtro** de **1,5 m em XZ** de uma peça **pendente** de ±2 m de altura e o
-  `NaN`/passo 0/anel curto) — **soma medida em 11/11/2026: 684 PASS** com os `.cs` reais
-  linkados. Os `.csproj` ganharam quatro links com esses lotes (`BuildStationCover.cs`, `BuildMaterials.cs`,
-  `BuildWalkSpot.cs`, `BuildAsideSpot.cs`), então o
+  `NaN`/passo 0/anel curto); e a **(z)** — **22** (`AI/BuildSpread.cs`, lote `a29dedc`, 11/11/2026: a **dispersão dos
+  workers** — **11** de `Pick` (a posição da primeira candidata longe de todo claim e quantas ficaram para trás,
+  inclusive a janela de 6 com as 5 primeiras ocupadas), **6** de `Far` (XZ, exatamente 3 m é livre, candidata `NaN`
+  nunca é longe, claim `NaN` ignorado) e **5** de `SameRun` (as chaves do parser: `Level`/altura com 0,01 e classe
+  exata) — **soma medida em 11/11/2026: 706 PASS** com os `.cs` reais
+  linkados. Os `.csproj` ganharam cinco links com esses lotes (`BuildStationCover.cs`, `BuildMaterials.cs`,
+  `BuildWalkSpot.cs`, `BuildAsideSpot.cs`, `BuildSpread.cs`), então o
   "nenhuma seção nova exigiu arquivo novo" que valia até a (u) **não vale mais**),
   mais o cross-check das cópias do `Stubs.cs` contra a `Companions.dll` (seção (h) — impede drift). Build 0/0 e exit 0
   são o gate.
 - **Gate de release:** `powershell -ExecutionPolicy Bypass -File tools\release-check.ps1 -Version <versão>` — roda o
   build, a versão (`PluginVersion` × nome do zip), as 3 traduções, o `locale-fallback-check.ps1` (agora com asserts),
-  o `gen_config_doc.py --check`, o teste do MCP (**122**) e as **684** asserções; **PASS/FAIL por item e exit 1**. É o que tem
+  o `gen_config_doc.py --check`, o teste do MCP (**122**) e as **706** asserções; **PASS/FAIL por item e exit 1**. É o que tem
   de passar antes de tag/zip (`-SkipGame`/`-SkipIntents` para rodar parte).
 - **Docs:** `docs/mcp-devbridge.md` (arquitetura, protocolo, as **62** ferramentas, a receita de **jogar pelo agente**
   e a de **comandos de console**, e as evidências dos testes da 1.9.4) e `tools/mcp-devbridge/README.md`

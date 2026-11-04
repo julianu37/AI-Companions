@@ -173,6 +173,14 @@ não perturbar um canteiro em andamento.
 - **Não** é "a peça não reivindicada mais perto" como o desenho dizia: a decisão foi **ordem do plano + claims**,
   porque com vários workers andando pelo mesmo índice um "mais perto" por worker embaralharia a ordem do plano (e as
   peças que dependem uma da outra: piso → parede → telhado).
+- **Dispersão (`[Building] SpreadWorkers`, 11/11/2026, `AI/BuildSpread.cs` puro, seção **(z)** do harness):** o plano
+  **não** é reordenado, mas cada worker olha uma **janela de 6** posições da **mesma run** e pega a **primeira que está
+  a ≥ 3 m (XZ)** de um **claim ativo** de outro; **nenhuma livre → pega a primeira** (o comportamento antigo). As
+  adiadas vão para a **fila que já existe** marcadas `Spread`, **sem gastar tentativa**, e só voltam quando a
+  vizinhança está livre (`SpreadFree`); **retry real não passa por esse teste**. Template, peça única e 1 worker →
+  **fast path**. Resumo numa linha no `Finish`: `dispersão: N adiada(s), M retomada(s) · step-aside: K pedido(s)`.
+  Motivo medido: o Run 14 teve **88 `corpo na peça`** e **32** pedidos de step-aside porque índices consecutivos são
+  **vizinhos no espaço** (`docs/re/building-notes.md` §17.21).
 - `PreferNearFloor`, `PullSupports` e `PullFloorsAbove` continuam valendo com **um** worker; com **≥2**
   (`PlanLocked`, `MHR_Build.cs:908`) ficam desligados — reordenar o plano de um deixaria os índices dos outros
   apontando para outras peças (e os claims com eles). O retry do canteiro é o que cobre o que o reorder resolvia.
@@ -543,8 +551,24 @@ está lá em §17.6, §17.9 e §17.10 (**os Runs 6, 7, 8, 9 e 10, de 11/11/2026,
   **`WalkHits = 3`** (a coluna atravessa até 3 hits que não são superfície), com dedup por collider+altura e o log
   `walk spot (...) - a peça está X m acima (N superfície(s) em M raio(s))`. O **`PlaceReach` não mudou**; `17
   raios/peça` no caso comum, **uma vez por índice** (e quando a pose muda), nunca por frame.
-  **Estado: consertado e no gate; a validação em jogo é o Run 15** (a cumeeira do Run 13 e a contagem das linhas do
-  step-aside). Detalhe: `docs/re/building-notes.md` §17.20.
+  **Estado naquele momento: consertado e no gate; a validação em jogo ficou para o Run 15** (abaixo — a cumeeira e a
+  contagem das linhas do step-aside). Detalhe: `docs/re/building-notes.md` §17.20.
+- **Run 15 — 11/11/2026, o baseline do A/B da dispersão (árvore `1ee93b1`, 5 companheiros, mesma casa/âncora e canteiro
+  vazio):** **984 colocadas + 1 pulada = 985**, a **única** fora um `wood_roof_45` em **(-151,3, 48,8, -431,3)** por
+  **`no progress`** — a **cumeeira** de novo (a **mesma altura** do Run 13, pose diferente) —, com **`corpo na peça`
+  194**, **`pedindo para sair da frente` 33** e **`no progress` 66**. **O que o run diz do lote `1ee93b1`:** os
+  anéis de 1,5/3 m **não** fecharam a cumeeira sozinhos (a rota continua aberta, item 8 do "falta medir").
+- **Run 16 — 11/11/2026, o mesmo A/B com a dispersão (árvore `a29dedc`, `[Building] SpreadWorkers` no padrão true):**
+  **985/985 colocadas**, **`FALTANDO` vazio** (**23/23** prefabs), **0 mortes**, **0 `UNSUPPORTED`**, **watchdog `0`**,
+  **1014 peças** no canteiro, e os marcadores de disputa em queda: **`corpo na peça` 50** (eram **194**), **`pedindo`
+  12** (eram **33**) e **`no progress` 4** (eram **66**). **Ressalva honesta:** o contador `dispersão:` saiu **0
+  adiada(s) / 0 retomada(s)** — **nenhuma peça foi adiada** neste run —, a árvore difere do Run 15 **só** pelo lote da
+  dispersão (`0f33e54` entre eles é só doc) e o **A/B limpo** (mesma árvore, `SpreadWorkers` false × true) **ainda não
+  foi rodado**; a atribuição fica em aberto (`docs/re/building-notes.md` §17.21). **Ressalva de métrica:** o `33` do
+  Run 15 são **linhas de log** (1 por peça) e o `12` do Run 16 é o **contador** `AsideAsked` (todo pedido), que conta
+  mais que as linhas — a **direção** da queda é confiável, a unidade não é a mesma.
+- **Run 17 — em andamento (11/11/2026, canteiro zerado de propósito, dispersão ligada):** a confirmação da **casa do
+  zero**, sem número ainda; ele também responde se o contador da dispersão sai **≠ 0** em algum run.
 - **A sonda de corpo e o `StepAside` — MEDIDOS no Run 11:** o "bloqueador companheiro" do Run 10 era **FALSO POSITIVO** da
   sonda; o caso medido (`wood_beam` em (-168,1, 41,8, -421,1) × **Companheiro 6** em (-167,1, 39,9, -421,5) —
   **1,08 m** em XZ e **1,9 m** abaixo) **não** era corpo atravessando peça: `BuildProbe` calculava
@@ -576,7 +600,10 @@ está lá em §17.6, §17.9 e §17.10 (**os Runs 6, 7, 8, 9 e 10, de 11/11/2026,
 - seguidores em `WaitGroup` sem relógio e sem guarda de peso; líder que sai antes do `BuildPhase` abre a fase;
 - plano **não** reordenado com ≥2; bancada anexada ao fim; `station: N precisam, M planejadas, K sem cobertura`;
 - segunda ordem do jogador recusada (`SiteBusy`);
-- nivelamento do blueprint devolve **os N** (`SetThenWorkers`/`GroupWorkers`) e `NoteLeveled` impede nivelar de novo.
+- nivelamento do blueprint devolve **os N** (`SetThenWorkers`/`GroupWorkers`) e `NoteLeveled` impede nivelar de novo;
+- a **dispersão** (`SpreadWorkers`) rodou nos Runs 15/16, mas **sem um run em que ela adie peça**: o contador dela saiu
+  **0** no Run 16 (§17.21) — o caminho "adia e volta quando a vizinhança libera" (`NoteSpread` → `SpreadFree` → `NextRetry`)
+  continua **sem medida em jogo**.
 
 **Falta medir:**
 1. **O lote de 04/11 (o aceite que falta):** a **empenha leste** fechar e a **água sul** ganhar a faixa — as 6 de
@@ -616,8 +643,10 @@ está lá em §17.6, §17.9 e §17.10 (**os Runs 6, 7, 8, 9 e 10, de 11/11/2026,
    98 terminais + 145 curtas, barreira disparada **56×**). **Aberto:** a sonda **não testa criaturas** e a **contagem** das
    linhas do step-aside **não** foi feita (o que se mediu é o resultado com a chave ligada, não quantas vezes ele andou).
    **O Run 14 (§17.20) mediu o defeito do destino** — a saída de uma peça caía na seguinte — e o lote `1ee93b1` passou a
-   escolher o destino entre os pontos **fora das peças pendentes**, com o corte de **20 s** por dupla; a **contagem**
-   segue em aberto.
+   escolher o destino entre os pontos **fora das peças pendentes**, com o corte de **20 s** por dupla. **A contagem saiu
+   nos Runs 15/16, com ressalva de métrica:** **33** linhas `pedindo para sair da frente` no Run 15 (1 por peça) contra
+   **`step-aside: 12 pedido(s)`** no Run 16 (o contador `AsideAsked`, que conta **todo** pedido — logo a queda de direção
+   é confiável, a unidade não é a mesma); a **atribuição** depende do A/B limpo (§17.21).
    **Também sem run:** o `FallbackPostAllowed` (o poste de emergência assume o apoio **do plano** quando ele foi desistido
    ou quando ninguém o reivindica e a peça já esperou `SupportGrace` = 2, ~20 s) — `docs/re/building-notes.md` §17.16.
 7. **As 2 `stone_floor_2x2` do arquivo — MEDIDAS no Run 13:** deixaram de ser "teto do blueprint". O que as mantinha
@@ -626,7 +655,7 @@ está lá em §17.6, §17.9 e §17.10 (**os Runs 6, 7, 8, 9 e 10, de 11/11/2026,
    **2 subiram SEM talhador no mundo** (§17.18 — `done: stone_floor_2x2 at (-159,7, 39,3, -424,6) yaw 228,9 supported`,
    depois de 2 recusas por corpo). **Continua sem teste:** aprender a receita **do zero** num run (exige **pedra no
    jogador** — o catálogo do mod, `AI/BuildCatalog.cs:40-72`, não constrói talhador).
-8. **A rota até a cumeeira — conserto no lote `1ee93b1`, validação pendente (Run 15):** no Run 13 o `wood_roof_45` em
+8. **A rota até a cumeeira — conserto no lote `1ee93b1`, medido no Run 15 e AINDA ABERTO:** no Run 13 o `wood_roof_45` em
    **(-152,6, 48,8, -423,6)** — ≈10 m acima do chão do canteiro — ficou **fora** com `no progress` (12 s, **22,8 → 23,5
    m**, `MHR_Build.cs:5580`; `desistindo … 1 pulada(s)`, `:779-780`). É **navegação**, não apoio (a recusa não é
    `no_support`) nem alcance (`PlaceReach` 15 no teste, 10 no padrão, contra 22,8 m de distância). A `[Building]
@@ -637,8 +666,10 @@ está lá em §17.6, §17.9 e §17.10 (**os Runs 6, 7, 8, 9 e 10, de 11/11/2026,
    não embaixo. **O que mudou:** anéis de **1,5 m e 3 m** (**17 raios**) e **`WalkHits = 3`** — a coluna atravessa até 3
    hits que não são superfície (corpo em cima do ponto, peça acima, mobília) —, com dedup por collider+altura e o
    `M raio(s)` no log (`MHR_Build.WalkSpot`, `MHR_Build.cs:5797`; seção **(x)** do harness, `BuildWalkSpot.Choose`).
-   O **`PlaceReach` não mudou**. **Aberto:** **medir** — a peça é a **mesma pose** do Run 13, então o Run 15 responde
-   com uma linha de log (a contagem de superfícies/raios vem junto). Detalhe: `docs/re/building-notes.md` §17.20.
+   O **`PlaceReach` não mudou**. **Medido no Run 15 (11/11/2026): NÃO resolveu** — a única peça fora foi **outra**
+   `wood_roof_45`, em **(-151,3, 48,8, -431,3)**, por **`no progress`** (mesma altura, pose diferente da do Run 13); o
+   **Run 16** fechou **985/985**, mas sem isolar a causa (§17.21). Ou seja: **a rota até a cumeeira continua aberta** e é
+   a mesma frente da navegação. Detalhe: `docs/re/building-notes.md` §17.20/§17.21.
 9. **Um companheiro acima do peso derruba a obra (aberto):** `MHR_Build.cs:3120-3128` encerra a ordem **daquele** worker
    com `hc_ai_build_too_heavy` e o `Finish` **tira ele do grupo** (`:7006-7013`) — com todos pesados o canteiro morre (no
    ciclo de teste eram **25–32 stacks** cada e o contorno foi a ferramenta de teste `companions.inventory action=clear`,
@@ -649,9 +680,7 @@ está lá em §17.6, §17.9 e §17.10 (**os Runs 6, 7, 8, 9 e 10, de 11/11/2026,
 "para, Maria" → só a Maria; "para" → todos; "Maria e João, ataquem o greydwarf" → as duas; "Maria, equipa a
 picareta" → só a Maria; "Maria e o cachorro, ..." → Maria + aviso do desconhecido, sem inventar.
 
-**Gate:** harness **684** (471 + **28** da **(p)** + 26 da **(q)** + **66** da **(r)** + 18 da **(s)** + **27** da **(t)**
-+ **6** da **(u)** + **5** da **(v)** + **9** da **(w)** + **10** da **(x)** + **18** da **(y)** — medido em 11/11/2026),
-MCP **122**, config **365/25** e build **0/0**.
+**Gate:** harness **706** (471 + **28** da **(p)** + 26 da **(q)** + **66** da **(r)** + 18 da **(s)** + **27** da **(t)** + **6** da **(u)** + **5** da **(v)** + **9** da **(w)** + **10** da **(x)** + **18** da **(y)** + **22** da **(z)** — medido em 11/11/2026), MCP **122**, config **367/25** e build **0/0**.
 
 ## 8. Perguntas para o jogador — respostas registradas (03/11/2026)
 
@@ -701,6 +730,10 @@ MCP **122**, config **365/25** e build **0/0**.
   materiais), o mesmo do painel da obra e do `blueprints.inspect` (`DevBridge/Commands.cs:683-746`).
 - `AI/BuildMaterials.cs` — **a necessidade de material de um plano** (seção **(w)**, 9 casos), a mesma conta que o
   `BuildStock` paga peça por peça.
+- `AI/BuildSpread.cs` — **a dispersão dos workers** (seção **(z)**, 22 casos, 11/11/2026): `Far` (XZ, exatamente 3 m é
+  livre), `Pick` (a primeira candidata longe de todo claim e quantas ficaram para trás) e `SameRun` (a janela é uma run
+  do parser); quem decide é `MHR_Build.SpreadOn`/`SpreadWindow` (`:999`/`:1020`) e a fila é `MHR_BuildGroup.NoteSpread`/
+  `SpreadFree` (`:1077`/`:1117`).
 - `DevBridge/Commands.cs` — `CompanionsBuild` (o ramo do blueprint, `:1204-1330`), `BlueprintsList`/`BlueprintsInspect`
   (`:628-746`) e `CompanionInventory` com `action=clear` (`:1819-1869`, ferramenta de teste).
 - `AI/CompanionNames.cs` — `FromMessage` (um nome), `Find`, `CompanionNameMatch` (P4).
