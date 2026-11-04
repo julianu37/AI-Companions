@@ -6,7 +6,9 @@
 passada principal chegou a **987/987**, **972 colocadas** e **0 mortes**, sobrando **13**; no **Run 3** (15 + a
 guarda anti-loop) **`970 peças, 16 puladas`** = **986**, **0 mortes** e **382 KB** de log, e as 16 nomeadas revelaram
 o **plano abaixo do terreno** — o desenho novo é a **obra inteira subir `[Building] DeckLift`** (padrão 1) com as
-pontas de estaca assentadas no chão (**em teste**, §7). O código é
+pontas de estaca assentadas no chão, **medido no run seguinte** (§7 e `docs/re/building-notes.md` §17.10: ~**972 peças
+de pé**, **0 mortes**, piso ~**1 m** acima do chão e escadas das entradas encontrando — o deck está certo; sobraram
+**6 telhados** em 42,8/44,8/46,8 e **4 `falls`**, atacados no lote de 04/11, **sem run ainda**). O código é
 `Jobs/MHR_BuildGroup.cs` mais
 `StartBlueprintGroup`/`Phase.WaitGroup`/`Phase.WaitRetry`/`QueueRetry`/`MarkDone`/`IsLeader`/`PlanLocked` em
 `Jobs/MHR_Build.cs`, e o ciclo de 04/11 fechou o **portão de apoio** (`AI/BuildFailure.cs`), o **watchdog de
@@ -15,13 +17,14 @@ estagnação**, a **cobertura de bancadas** e o validador (`attached`/`nudge`/`b
 **medida em jogo** em 03/11/2026) fechados; **P3** (UI do grupo), **P4** (nomes múltiplos) e **P5**
 (persistência/limpeza paralela) **não**.
 
-Números deste ciclo (04/11/2026): build **0/0**, harness `tools/ai-intents-check` **539 asserções** (471 + **23** da
-seção **(p)**, `AI/BuildFailure.cs`, + **26** da **(q)**, `AI/BuildPieceKind.cs`, + **19** da **(r)**,
-`AI/BuildSupportBelow.cs` — as três puras e linkadas), teste do
-MCP **101** (as **12** asserções de 03/11 cobrem o contrato do `companions.build` do grupo), config **359 opções / 25
-seções**, ES/FR/IT **0 lacunas**, dívida do `gen_translations.py` **45** e **nenhuma chave de tradução nova** (as
-recusas reusam `hc_ai_no_companion` e `hc_ai_build_failed`). **O que falta medir** está no §7 (o run com material pago
-e as **13** peças do Run 2, que são o alvo do lote seguinte).
+Números deste ciclo (04/11/2026): build **0/0**, harness `tools/ai-intents-check` **549 asserções** (471 + **23** da
+seção **(p)**, `AI/BuildFailure.cs`, + **26** da **(q)**, `AI/BuildPieceKind.cs`, + **29** da **(r)**,
+`AI/BuildSupportBelow.cs` — as **10** últimas de `CanSupport`, telhado apoia telhado; as três puras e linkadas), teste do
+MCP **101** (as **12** asserções de 03/11 cobrem o contrato do `companions.build` do grupo), config **360 opções / 25
+seções** (medido com `python tools/gen_config_doc.py --check`), ES/FR/IT **0 lacunas**, dívida do
+`gen_translations.py` **45** e **nenhuma chave de tradução nova** (as
+recusas reusam `hc_ai_no_companion` e `hc_ai_build_failed`). **O que falta medir** está no §7 (o run do lote novo, o
+run com material pago e o teste pequeno de 2 companheiros num 6x6).
 
 ## 1. O que existe hoje (medido no código)
 
@@ -81,7 +84,7 @@ não perturbar um canteiro em andamento.
   (`HashSet<int>`: a peça contada **uma vez**), `Retry` (fila do canteiro), `Placed`, `Skipped`.
 - **Só a main thread** toca no grupo (claims e veredito são por frame: sem lock, buffer de rascunho em campo).
 
-**Tempos (`MHR_BuildGroup.cs:40`, `MHR_Build.cs:85` e `:551`)**
+**Tempos (`MHR_BuildGroup.cs:36`, `MHR_Build.cs:85` e `:581`)**
 - Claim: **20 s** (`ClaimSeconds`) — renovado a **cada frame dirigido** (`Refresh`), então o prazo é para o worker
   que **sumiu**, não para uma caminhada longa.
 - Retry **real**: **2 s** de espera antes de a peça poder ser puxada de novo (`RetryDelay`), teto de **3** tentativas
@@ -123,7 +126,7 @@ não perturbar um canteiro em andamento.
   porque com vários workers andando pelo mesmo índice um "mais perto" por worker embaralharia a ordem do plano (e as
   peças que dependem uma da outra: piso → parede → telhado).
 - `PreferNearFloor`, `PullSupports` e `PullFloorsAbove` continuam valendo com **um** worker; com **≥2**
-  (`PlanLocked`, `MHR_Build.cs:878`) ficam desligados — reordenar o plano de um deixaria os índices dos outros
+  (`PlanLocked`, `MHR_Build.cs:908`) ficam desligados — reordenar o plano de um deixaria os índices dos outros
   apontando para outras peças (e os claims com eles). O retry do canteiro é o que cobre o que o reorder resolvia.
 
 **Estação (bancada)**
@@ -151,12 +154,15 @@ não perturbar um canteiro em andamento.
   para sempre.
 - **Apoio imediato (`PullDirectSupport`, 04/11/2026):** num grupo ninguém reordena o plano (`PlanLocked`), então o
   **apoio direto** de uma peça recusada com `no_support` é **puxado por fora da ordem** (`AI/BuildSupportBelow.cs`: 0,4–2,5 m
-  abaixo × 2,5 m em XZ, seção **(r)**; estrutura só, nunca telhado/porta, nunca peça já construída), sem tocar no plano —
-  a peça recusada fica na fila do canteiro como **dependência**. **Guarda obrigatória:** `State.PulledSupport`
-  (`MHR_Build.cs:209`/`:3064`) puxa **uma vez por índice de peça** e no máximo **24 por ordem**; na 2ª recusa o pull não
-  acontece e ela segue o portão. **Por que:** o build `290afc1` entrou em loop infinito (recusa → puxa → apoio falha →
-  recusa) e escreveu **344 MB** de log em ~10 min, travando o jogo — o watchdog não pegou porque só é lido em
-  `WaitRetry` e o loop nunca espera (`docs/re/building-notes.md` §17.8).
+  abaixo × 2,5 m em XZ, seção **(r)**; só peça **estrutural** e nunca já construída), sem tocar no plano —
+  a peça recusada fica na fila do canteiro como **dependência**. **Quem pode apoiar** é o `CanSupport`
+  (`AI/BuildSupportBelow.cs:72`, lote de 04/11/2026): **telhado apoia telhado** (a fileira de baixo da água — sem isso a
+  **empenha** nunca puxava nada, §7), telhado no piso/parede/viga/escada, **porta nunca apoia** e piso/parede **não** são
+  apoiados por telhado; **mobília** já foi cortada antes pelo `BuildPieceKind.IsStructural`. **Guarda obrigatória:**
+  `State.PulledSupport` (`MHR_Build.cs:213`/`:3110`) puxa **uma vez por índice de peça** e no máximo **24 por ordem**; na
+  2ª recusa o pull não acontece e ela segue o portão. **Por que:** o build `290afc1` entrou em loop infinito (recusa →
+  puxa → apoio falha → recusa) e escreveu **344 MB** de log em ~10 min, travando o jogo — o watchdog não pegou porque só
+  é lido em `WaitRetry` e o loop nunca espera (`docs/re/building-notes.md` §17.8).
 
 **Materiais (o que ainda não existe)**
 - **Sem reserva por peça:** cada worker conta mochila + baús do canteiro para a **peça dele**. Duas pilhas podem ser
@@ -177,7 +183,7 @@ não perturbar um canteiro em andamento.
 - Grupo **em memória**: não vai para o save (como o `Pending`).
 
 **Anti-duplicata**
-- Claim **revalidado antes de pagar** (`Place`, `MHR_Build.cs:3711`): se o claim expirou enquanto ele lutava/carregava
+- Claim **revalidado antes de pagar** (`Place`, `MHR_Build.cs:3927`): se o claim expirou enquanto ele lutava/carregava
   madeira, a pose é perguntada ao mundo **antes** de pagar de novo — peça que outro já construiu **nunca** é colocada
   duas vezes.
 - `MarkDone` conta **1× por índice**; `VerifyAt` (pose **e** yaw: `PlacedRadius` = 0,35 m, `PlacedYaw` = ±25°,
@@ -242,14 +248,17 @@ teste mock do MCP (**101 PASS**, **12 asserções novas para o contrato do grupo
    de apoio** (`BuildFailure`, dependência não gasta tentativa), o **watchdog de 60 s**, a **cobertura de bancadas**
    (12/32, fora do footprint, no terreno) e o **validador ampliado**: `AttachedToStructure` a **4,0 m** (era 2,6 — o
    grid do telhado tem ~2 m e a vizinha fica na diagonal, a ~2,8–3,5 m), **`NudgePiece` universal** (qualquer peça com
-   `too_steep`/`no_ground`: **estrutural ≤ 1 m**, **mobília até 2,5 m**, por `BuildPieceKind`) e `blocked_by_player`
-   **sem contar companheiro** (`BlockedByCharacter` ignora quem tem `CompanionAI` — eram 17+). **Medido nos três
-   runs (§7):** `PlaceReach = 10` → **970/985** (15 puladas, `no_ground` ~25 → **0**, `blocked_by_player` 17+ → **0**,
+   `too_steep`/`no_ground`, com o raio do `BuildPieceKind`: **estrutural ≤ 1 m**, **mobília até 5 m** desde o `290afc1`,
+   que subiu de 2,5 m e passou a varrer 3 anéis × 12) e `blocked_by_player` **sem contar companheiro**
+   (`BlockedByCharacter` ignora quem tem `CompanionAI` — eram 17+). **Medido nos runs (§7):**
+   `PlaceReach = 10` → **970/985** (15 puladas, `no_ground` ~25 → **0**, `blocked_by_player` 17+ → **0**,
    `log ajustado` 6, 1 morte); `PlaceReach = 15` (só config) → passada principal **987/987**, **972 colocadas** e **0
    mortes**; **Run 3** (15 + guarda anti-loop) → **`970 peças, 16 puladas`** = **986**, **0 mortes** e **382 KB** de
-   log. **Aberto:** a **reserva de material** (`Stock` — cada worker conta o canteiro por conta própria), um run com
-   **material pago**, o **deck (`DeckLift`) em teste** e o lote que ataca as 13 (nudge 5 m/3×12,
-   `TryBenchAt` sem `clipping`, cadeia de apoio do andar de cima).
+   log; **Run 4** (com o **deck**, `DeckLift = 1`) → ~**972 peças de pé**, **0 mortes**, deck certo, **6 telhados**
+   nomeados e **4 `falls`**. **Fechado depois:** o lote das 13 (nudge de mobília 5 m/3×12, `TryBenchAt` sem `clipping`, apoio imediato)
+   e o **deck (`DeckLift`)**. **Aberto:** a **reserva de material** (`Stock` — cada worker conta o canteiro por conta
+   própria), um run com **material pago**, o run do lote desta rodada (**telhado apoia telhado** + **`falls` com uma
+   segunda tentativa a 1 m**, `building-notes` §17.10) e o teste pequeno de 2 companheiros num 6x6.
 3. **P2 — navmesh/latência — MEDIDO EM JOGO (implementado e testado em 03/11/2026):** (a) **medido o `why`** do run de 03/11/2026:
    **36 `no progress`**, 17 `no_support`, 9 `no_ground`, 6 `too_steep` — os 36 **não** são "tile invisível": são o
    `SnapToNavMesh` (1,5/3/6/12 m) mandando o alvo para o chão sob o piso, com a trava de 12 s do `Goto` queimando;
@@ -293,7 +302,8 @@ teste mock do MCP (**101 PASS**, **12 asserções novas para o contrato do grupo
 
 **Medido em jogo (04/11/2026, `CommHomeBasicBP`, 3 companheiros, `BlueprintFree = true`)** — três runs: 1 e 2 diferem
 só no `PlaceReach` (10 = padrão do código; 15 = config de teste), o **Run 3** roda em 15 **com a guarda anti-loop**
-(§17.8 de `docs/re/building-notes.md`). O detalhe está lá em §17.6 e §17.9:
+(§17.8 de `docs/re/building-notes.md`), e o **Run 4** é o primeiro **com o deck** (`DeckLift = 1`, o padrão). O detalhe
+está lá em §17.6, §17.9 e §17.10:
 
 | | Run 1 (`PlaceReach = 10`) | Run 2 (`PlaceReach = 15`) | **Run 3 (15 + guarda)** |
 |---|---|---|---|
@@ -323,9 +333,16 @@ só no `PlaceReach` (10 = padrão do código; 15 = config de teste), o **Run 3**
   acima falha `no_support` em cascata. **Desenho novo** (substitui o clamp por peça do `0f13878`, que punha o piso no
   nível do chão): a **obra inteira sobe `[Building] DeckLift`** (**padrão 1**, faixa **0..3**, rótulo
   `hc_cfg_building_decklift`) e as **pontas de estaca** que ainda ficariam abaixo do terreno **assentam no chão**
-  (`MHR_Build.cs:1088-1122`, log `a obra sobe X m (deck) - N peça(s) de fundação assentadas no terreno`). Sem a config o
-  "subir pelo ponto mais baixo" levantava **2,00 m** (as estacas do arquivo estão enterradas 2 m). **Em teste** (run em
-  andamento).
+  (`MHR_Build.cs:1093-1124`, log `a obra sobe X m (deck) - N peça(s) de fundação assentadas no terreno`). Sem a config o
+  "subir pelo ponto mais baixo" levantava **2,00 m** (as estacas do arquivo estão enterradas 2 m). **Medido no Run 4.**
+- **Run 4 — o primeiro com o deck:** ~**972 peças de pé**, **0 mortes** e o **deck confirmado** (piso do térreo ~**1 m**
+  acima do chão, apoiado nas estacas, e as **escadas das entradas encontrando** o piso); **2 dos 3** workers terminaram
+  com o watchdog em `0 peça(s) sem apoio` e o **terceiro** parou com **6** nomeadas — todas **telhado em 42,8/44,8/46,8**
+  — mais **4** peças dadas por **`falls`**. A visão (`render_view`) mostrou a **faixa de telhado da água sul** faltando e
+  a **empenha leste aberta**: o plano abaixo do terreno deixou de ser o problema, o que sobrou é a **camada de cima do
+  telhado**. Diagnóstico e correção em `docs/re/building-notes.md` §17.10: **telhado apoia telhado** no pull
+  (`BuildSupportBelow.CanSupport`) e **`falls` com uma tentativa em pose ajustada até 1 m**
+  (`AdjustFallenPose`/`AdjustPose`). **Sem run** com o código novo.
 
 **Coberto pelo código e ainda sem run dedicado:**
 - claim expira em 20 s, renovado por frame; retry real teto de 3 por índice, 2 s; espera por dependência 8/12/20/25 s;
@@ -336,20 +353,22 @@ só no `PlaceReach` (10 = padrão do código; 15 = config de teste), o **Run 3**
 - nivelamento do blueprint devolve **os N** (`SetThenWorkers`/`GroupWorkers`) e `NoteLeveled` impede nivelar de novo.
 
 **Falta medir:**
-1. **O deck (`DeckLift`) — em teste:** as **16 nomeadas do Run 3** (colunas verticais a oeste/leste + os 4 baús em
-   39,9) devem subir com a **obra inteira `DeckLift` m acima do chão** e as pontas de estaca **assentadas**
-   (`MHR_Build.cs:1088-1122`); ler `N peça(s) de fundação assentadas no terreno` (> 0), o piso do térreo ~1 m acima do
-   chão com a escada alcançando, `sem apoio: <prefab> em (x, y, z)` do watchdog (idealmente vazio), o buraco do lado
-   leste fechado e o log pequeno. `DeckLift = 0` mantém o nível do arquivo (só assenta as estacas). Aceite ainda não.
-2. **As 13 peças do Run 2** (o alvo do lote em implementação, nenhuma com aceite): **2 baús** `piece_chest_wood` em
-   (-168,2, 39,9, -434,9) por `too_steep` (o nudge de 2,5 m não achou lugar); **1 bancada** `piece_workbench` em
-   (-178,3, 38,6, -431,7) por `clipping` (a âncora externa colide); parte do **andar de cima**
-   (`wood_floor`/`wood_roof_45` em 43,8/45,8) por `no_support` até o watchdog — o resto dessa lista pode ser o mesmo
-   **plano abaixo do terreno** (por isso o Run 3 e o §17.9 vinham primeiro). O lote ataca: nudge de mobília **5 m** com
-   **3 anéis × 12**, `TryBenchAt` rejeitando `clipping` e a **cadeia de apoio do andar de cima**.
-3. **Run com material pago** (sem `BlueprintFree`): 3 workers pagando peça por peça — é onde a falta de reserva de
+1. **O lote de 04/11 (o aceite que falta):** a **empenha leste** fechar e a **água sul** ganhar a faixa — as 6 de
+   42,8/44,8/46,8 fora de `sem apoio: <prefab> em (x, y, z)` e em `done: ... supported`; `log ajustado ... - falls`
+   aparecendo **antes** de um `skipping it` (a peça que cair de novo depois do ajuste é pulada — não há terceira
+   chance); e watchdog idealmente `0 peça(s) sem apoio` nos **3** workers.
+2. **O deck (`DeckLift`) — medido:** Run 4 (~**972** de pé, **0 mortes**, piso ~1 m, escadas encontrando); o que ficou
+   pendente dele é só o telhado do item 1. `DeckLift = 0` mantém o nível do arquivo (só assenta as estacas).
+3. **As 13 peças do Run 2 — atacadas e sem run dedicado:** **2 baús** `piece_chest_wood` em (-168,2, 39,9, -434,9) por
+   `too_steep`; **1 bancada** `piece_workbench` em (-178,3, 38,6, -431,7) por `clipping` (a âncora externa colide); parte
+   do **andar de cima** (`wood_floor`/`wood_roof_45` em 43,8/45,8) por `no_support` até o watchdog. O lote do `290afc1`
+   (nudge de mobília **5 m** com **3 anéis × 12**, `TryBenchAt` rejeitando `clipping`, apoio imediato) está no código e o
+   Run 4 é o primeiro com ele — **nenhum baú e nenhuma bancada** entre as 6 nomeadas, então os dois primeiros itens
+   parecem cobertos; o `no_support` do andar de cima era o **plano abaixo do terreno** (§17.9) e, agora, a **empenha**
+   (§17.10). Aceite formal ainda não.
+4. **Run com material pago** (sem `BlueprintFree`): 3 workers pagando peça por peça — é onde a falta de reserva de
    material aparece (o pior caso documentado é N× o resto do plano, com até 3 coletando ao mesmo tempo).
-4. **2 companheiros num 6x6 (46 peças)** — o teste pequeno que fecha a mecânica sem o ruído de uma casa de 985 peças:
+5. **2 companheiros num 6x6 (46 peças)** — o teste pequeno que fecha a mecânica sem o ruído de uma casa de 985 peças:
    as duas entram com a ordem sem nome, uma nivela/limpa, as duas constroem, "para" para as duas, matar uma não para a
    outra, e com nome só aquela começa.
 
@@ -357,7 +376,7 @@ só no `PlaceReach` (10 = padrão do código; 15 = config de teste), o **Run 3**
 "para, Maria" → só a Maria; "para" → todos; "Maria e João, ataquem o greydwarf" → as duas; "Maria, equipa a
 picareta" → só a Maria; "Maria e o cachorro, ..." → Maria + aviso do desconhecido, sem inventar.
 
-**Gate:** harness **539** (471 + 23 da seção **(p)** + 26 da **(q)** + 19 da **(r)**), MCP **101** e build **0/0**.
+**Gate:** harness **549** (471 + 23 da seção **(p)** + 26 da **(q)** + **29** da **(r)**), MCP **101** e build **0/0**.
 
 ## 8. Perguntas para o jogador — respostas registradas (03/11/2026)
 
@@ -374,22 +393,28 @@ picareta" → só a Maria; "Maria e o cachorro, ..." → Maria + aviso do descon
 
 - `Jobs/MHR_BuildGroup.cs` — o canteiro: `KeyOf`, `SiteBusy`, `TryCreate`/`Join`/`Leave`, claims (`TryClaim`,
   `Refresh`, `Release`, `ReleaseAll`), `MarkDone`, `TryQueueRetry`/`NextRetry`, `IsLeader`, `BuildPhase`.
-- `Jobs/MHR_Build.cs` — `StartBlueprintGroup` (`:1215`), `WaitGroup` (`:1840`), `WaitRetry` (`:1895`), `Advance`
-  (`:737`), `QueueRetry` (`:461`), `CountPlaced` (`:908`), `PlanLocked` (`:878`), `IsLeader` (`:888`),
-  `InsertBenchStep` (`:2288`), `RejoinGroup` (`:1631`), `NamesOf`/`GroupWorkers` (`:1343`/`:1364`), `Pending.Group`,
-  `StallSeconds`/`StallOut` (`:85`/`:1951`), `DependencyDelay`/`GroundUnder` (`:551`/`:543`).
+- `Jobs/MHR_Build.cs` — `StartBlueprintGroup` (`:1281`), `WaitGroup` (`:1906`), `WaitRetry` (`:1961`), `Advance`
+  (`:767`), `QueueRetry` (`:491`), `CountPlaced` (`:938`), `PlanLocked` (`:908`), `IsLeader` (`:918`),
+  `InsertBenchStep` (`:2354`), `RejoinGroup` (`:1697`), `NamesOf`/`GroupWorkers` (`:1409`/`:1430`), `Pending.Group`,
+  `StallSeconds`/`StallOut` (`:85`/`:2017`), `DependencyDelay`/`GroundUnder` (`:581`/`:573`), `PullDirectSupport`/
+  `DirectSupportIndex` (`:3094`/`:3128`), `NudgePiece` (`:4148`), `AdjustFallenPose`/`AdjustPose` (`:4172`/`:4200`) e
+  as guardas `State.PulledSupport`/`State.FallAdjusted` (`:213`/`:217`).
 - `AI/CompanionOrders.cs` — `Run` (modos), `Build` (`:1161`, o blueprint em `:1295`), `BlueprintWorkers` (`:1381`),
   `LevelOrder`, `IsNotAddressee`; o cancelamento de build de qualquer outra ordem (`:229-240`).
 - `AI/BuildFailure.cs` — **o portão de apoio** (04/11/2026): `Classify`/`IsDependency` puros (a tabela da seção **(p)**
-  do harness), sem Unity e sem config; o mundo entra por `MHR_Build.GroundUnder` (`:543`).
+  do harness), sem Unity e sem config; o mundo entra por `MHR_Build.GroundUnder` (`:573`).
 - `AI/BuildPieceKind.cs` — **estrutural × mobília** (04/11/2026, seção **(q)** do harness): `Classify`/`IsStructural`
-  por nome do prefab; decide o raio do `NudgePiece` (**1 m** × **2,5 m**) em `MHR_Build.cs:3916-3932`.
-- `AI/BuildSupportBelow.cs` — **o apoio direto de uma peça** (04/11/2026, seção **(r)**, 19 casos): `IsDirectSupport`
-  (0,4–2,5 m **abaixo** × 2,5 m em XZ) e `Rank` (a queda pesa 10×); é a decisão do `PullDirectSupport`
-  (`MHR_Build.cs:3048`), cuja guarda é `State.PulledSupport` (`:209`/`:3064`, uma vez por índice e teto de 24).
-- `AI/BuildProbe.cs` — `AttachedRadius` **4,0 m** (`:49`, `AttachedToStructure` em `:637`) e
+  por nome do prefab; decide o raio do `NudgePiece` (**1 m** × **5 m**) e a busca larga (3 anéis × 12) em
+  `MHR_Build.cs:125-129`/`:4159-4160`.
+- `AI/BuildSupportBelow.cs` — **o apoio direto de uma peça** (04/11/2026, seção **(r)**, **29 casos**): `IsDirectSupport`
+  (0,4–2,5 m **abaixo** × 2,5 m em XZ) e `Rank` (a queda pesa 10×), mais o `CanSupport` (`:72`) — **telhado apoia
+  telhado** (a fileira de baixo da água), telhado no piso/parede/escada, **porta nunca apoia** e piso/parede **não**
+  apoiados por telhado; é a decisão do `PullDirectSupport` (`MHR_Build.cs:3094`/`:3152`), cuja guarda é
+  `State.PulledSupport` (`:213`/`:3110`, uma vez por índice e teto de 24).
+- `AI/BuildProbe.cs` — `AttachedRadius` **4,0 m** (`:49`, `AttachedToStructure` em `:641`) e
   `BlockedByCharacter` (`:705`: companheiro com `CompanionAI` não conta como jogador).
-- `Jobs/MHR_Level.cs` — `SetThenWorkers` (`:138`) e a retomada com `GroupWorkers`/`NoteLeveled` (`:467-497`).
+- `Jobs/MHR_Level.cs` — `SetThenWorkers` (`:138`) e a retomada com `GroupWorkers`/`NoteLeveled` (o `NoteLeveled` é do
+  `MHR_Build`, `:315`, chamado em `MHR_Level.cs:477`).
 - `AI/BuildExecutor.cs` — `PlacedRadius`/`PlacedYaw` e `VerifyAt` (`:65-68`, `:278`).
 - `DevBridge/Commands.cs` — `CompanionsBuild` (o ramo do blueprint, `:1107-1193`).
 - `AI/CompanionNames.cs` — `FromMessage` (um nome), `Find`, `CompanionNameMatch` (P4).

@@ -1573,17 +1573,18 @@ plano** dos 9 candidatos, nivela com a enxada (passadas de 1,5 s) e só então p
 
 ### 17.5 Gate do ciclo
 
-Harness **539 PASS** (471 até a **(o)** + **23** da seção **(p)** — `AI/BuildFailure.cs` — + **26** da **(q)** —
-`AI/BuildPieceKind.cs` — + **19** da **(r)** — `AI/BuildSupportBelow.cs`; os três linkados no
-`ai-intents-check.csproj`), MCP **101 PASS**, **config 359/25**, ES/FR/IT **0 lacunas**, dívida do
-`gen_translations.py` **45** e build **0/0**.
+Harness **549 PASS** (471 até a **(o)** + **23** da seção **(p)** — `AI/BuildFailure.cs` — + **26** da **(q)** —
+`AI/BuildPieceKind.cs` — + **29** da **(r)** — `AI/BuildSupportBelow.cs`, as **10** últimas de `CanSupport`, §17.10; os
+três linkados no `ai-intents-check.csproj`), MCP **101 PASS**, **config 360/25** (medido com
+`python tools/gen_config_doc.py --check`), ES/FR/IT **0 lacunas**, dívida do `gen_translations.py` **45** e build
+**0/0**.
 
 ### 17.6 O resultado dos três runs (04/11/2026)
 
 Os três runs são a mesma casa (`CommHomeBasicBP`), os mesmos 3 companheiros, `BlueprintFree = true` e o lote do
 validador já no código (4,0 m, `NudgePiece` universal, companheiro fora do `blocked_by_player`). A diferença entre os
 dois primeiros é `[Building] PlaceReach`: **10** (o padrão do código) × **15** (valor de teste, mudado só no `.cfg` —
-o **default continua 10**, `ModConfig.cs:945`, faixa 5..20). O **Run 3** roda em 15 e já com a **guarda anti-loop** do
+o **default continua 10**, `ModConfig.cs:948`, faixa 5..20). O **Run 3** roda em 15 e já com a **guarda anti-loop** do
 §17.8.
 
 | | Run 1 | Run 2 | **Run 3** |
@@ -1626,16 +1627,21 @@ o **default continua 10**, `ModConfig.cs:945`, faixa 5..20). O **Run 3** roda em
   3. **≈10 do andar de cima** — `wood_floor`/`wood_roof_45` em **43,8/45,8**, `no_support` **até o watchdog**: a
      cadeia de apoio do andar de cima não fecha (o piso/telhado de cima não tem, no momento da tentativa, o que o
      sustenta — e o portão de apoio, corretamente, não gasta tentativa: espera até o watchdog).
-- **O lote seguinte (em implementação, ainda não no código):** nudge de **mobília até 5 m** com **3 anéis × 12
-  direções** (hoje é 2,5 m, `NudgePiece` `MHR_Build.cs:3910`, `BuildSite.Find` 2 × 8); `TryBenchAt` **rejeitando
-  `clipping`** (hoje `Ok(check)` deixa passar, e a bancada é perdida depois); e a **cadeia de apoio do andar de cima**
-  (os ~10 pisos/telhados que param em `no_support`). Estes três são exatamente as 13 peças acima — nenhum deles tem
-  aceite medido ainda.
+- **O lote seguinte entrou no `290afc1`** (harness **539** naquele build): nudge de **mobília até 5 m** com **3 anéis ×
+  12 direções** (`NudgeFurnitureRadius` = 5, `MHR_Build.cs:126`, com o orçamento `NudgeChecksWide` = 37 × 4 em `:121`;
+  o estrutural fica no **1 m** de antes, `:129`), `TryBenchAt` **rejeitando `clipping`** e a **cadeia de apoio do andar
+  de cima** (o apoio imediato — que na 1ª versão virou loop e travou o jogo, §17.8). Esses três são exatamente as 13
+  peças acima e o **primeiro run com eles é o de §17.10**: as **6 nomeadas** de lá são todas **telhado em 42,8/44,8/46,8**
+  (nenhum baú e nenhuma bancada entre elas) e a **empenha** que sobrou é outro caminho, o de `CanSupport`.
 
 ### 17.7 O que fica pendente
 
-- **As 13 peças do Run 2** (2 baús `too_steep`, 1 bancada `clipping`, ~10 pisos/telhados de cima `no_support`) são o
-  alvo do **lote seguinte** (§17.6) — **sem aceite**.
+- **As 13 peças do Run 2** (2 baús `too_steep`, 1 bancada `clipping`, ~10 pisos/telhados de cima `no_support`): o lote
+  do `290afc1` (§17.6) atacou os três e o run de **§17.10** é o primeiro com ele — os baús e a bancada não voltaram a
+  ser nomeados pelo watchdog, e o que sobrou de lá foi a **empenha** (6 telhados de 42,8/44,8/46,8), corrigida neste
+  ciclo (§17.10) — **aceite medido ainda não**.
+- **A empenha e o `falls` (§17.10):** as 6 do telhado (telhado apoia telhado, `CanSupport`) e as 4 dadas por `falls`
+  (uma segunda tentativa em pose ajustada a 1 m) **ainda não têm run** com o código novo.
 - **Run com material pago** (sem `BlueprintFree`): o P1 nunca foi medido pagando peça por peça com 3 workers; a
   **reserva de material** continua não existindo (cada worker conta mochila+baús por conta própria → pior caso N× o
   resto do plano).
@@ -1667,9 +1673,9 @@ o **default continua 10**, `ModConfig.cs:945`, faixa 5..20). O **Run 3** roda em
 
   Na **segunda** recusa da mesma peça o pull **não** acontece: ela segue o caminho normal do portão — volta como
   **dependência** (espera **8/12/20/25 s**, sem gastar tentativa) e, se nada subir em **60 s**, o watchdog a deixa de
-  fora nomeando-a. Build **0/0**, harness **539** (471 + 23 (p) + 26 (q) + **19** da **(r)**, `BuildSupportBelow`
-  linkado). **Medido no run seguinte:** o log ficou em **30 KB nos primeiros 20 s** (o loop escreveu ~344 MB em
-  ~10 min).
+  fora nomeando-a. Build **0/0** e o gate **daquele** ciclo em **539** (471 + 23 (p) + 26 (q) + **19** da **(r)**, com
+  `BuildSupportBelow` linkado — a seção foi a **29** casos no §17.10). **Medido no run seguinte:** o log ficou em
+  **30 KB nos primeiros 20 s** (o loop escreveu ~344 MB em ~10 min).
 - **Por que o watchdog de estagnação não salvou:** ele só é **lido** em `WaitRetry` (`MHR_Build.cs:1904`), e no loop o
   worker **nunca chega a esperar** — sai da recusa direto para o apoio puxado; o relógio do canteiro
   (`LastProgressAt`) nunca era consultado. Pior: cada volta **escrevia log**, então o loop piorava o estrago em vez de
@@ -1727,7 +1733,71 @@ o **default continua 10**, `ModConfig.cs:945`, faixa 5..20). O **Run 3** roda em
 - **O que ler no run em teste (pendente):** o **piso do térreo ~1 m acima do chão**, apoiado nas estacas e com a
   escada alcançando; `N peça(s) de fundação assentadas` **> 0** no log (as pontas que iam abaixo do chão); as 16 do
   Run 3 fora de `sem apoio: <prefab> em (x, y, z)` (as colunas do lado **leste** fecham o buraco da visão); e nenhuma
-  peça enterrada recusada. Build **0/0** e harness **539**; **aceite medido ainda não**.
+  peça enterrada recusada. Build **0/0** e harness **539** naquele build; **aceite medido ainda não**.
+- **Medido no run seguinte (04/11/2026):** o deck está **certo** (piso do térreo **~1 m** acima do chão, escadas das
+  entradas encontrando) e o **plano abaixo do terreno** deixou de ser o problema — o que falta agora é a **empenha** e
+  as 4 peças perdidas por `falls`: **§17.10**.
+
+### 17.10 A empenha e o `falls` (04/11/2026)
+
+**O run (o primeiro com o deck):** a mesma `CommHomeBasicBP`, 3 companheiros, `BlueprintFree = true` e
+`[Building] DeckLift = 1` (o padrão), já com o lote do `290afc1` (nudge de mobília **5 m** em 3 anéis × 12, `TryBenchAt`
+recusando `clipping`) e a guarda anti-loop do §17.8. Resultado: **~972 peças de pé**, **0 mortes**, e o **deck
+confirmado** — o piso do térreo fica **~1 m acima do chão**, apoiado nas estacas, e as **escadas das entradas
+encontram** o piso (o aceite que o §17.9 devia). O que sobrou **não** é mais o plano abaixo do terreno: **2 dos 3**
+workers terminaram com o watchdog em `0 peça(s) sem apoio` e o **terceiro** parou com **6 peças nomeadas**
+(`sem apoio: <prefab> em (x, y, z)`), mais **4** peças dadas por **`falls`**.
+
+- **A imagem (`render_view`):** a **faixa de telhado da água sul** faltando e a **empenha leste aberta** — buraco na
+  **camada de cima**, não mais a cascata de colunas do Run 3 (§17.6): o que está embaixo está de pé.
+- **O diagnóstico das 6 (medido):** as 6 estão em **y 42,8 / 44,8 / 46,8** — as **fileiras de cima da empena/da água**.
+  Numa empena a fileira de cima é sustentada pela **de baixo**, que também é **telhado** (`wood_wall_roof_45`/`_top` caem
+  na **classe 3** de `BuildBlueprintParser.ClassOf`, `AI/BuildBlueprintParser.cs:295-298`). O `DirectSupportIndex`
+  (`MHR_Build.cs:3128`) — o que o `PullDirectSupport` (`:3094`) pode puxar — **excluía toda peça de classe 3** como
+  apoio: só piso/parede/viga/escada podiam ser puxados. Para essas 6 **não havia apoio a puxar**: o pull devolvia `-1`,
+  a peça voltava pela fila como **dependência** (sem gastar tentativa, §17.2) e o watchdog a deixava de fora aos **60 s**.
+  Ou seja: **a empenha não fecharia nunca** por esse caminho, por mais tempo que se esperasse — não era falta de
+  tentativa, era o candidato nunca sendo considerado.
+- **A correção (1): telhado apoia telhado** — `BuildSupportBelow.CanSupport(pieceClass, candidateClass)`
+  (`AI/BuildSupportBelow.cs:72`), chamado em `DirectSupportIndex` (`MHR_Build.cs:3152`) **depois** do
+  `BuildPieceKind.IsStructural` (`:3148`):
+  - **telhado (3)** é apoiado por **telhado (3)** — a fileira de baixo da mesma água, o caso medido —, por **piso (0)**
+    (o `roof` em 46,8 sobre o `floor` em 44,8, medido), por **parede/viga (2)** e por **escada (1)**;
+  - **piso (0) e parede (2) não são apoiados por telhado** (um telhado acima não segura nada) — é o que impede o pull de
+    puxar um telhado para uma parede que ainda não subiu;
+  - **porta (4) nunca apoia nada** — e a **porta como peça** continua podendo ser apoiada por parede, então "portas por
+    último" segue valendo;
+  - **mobília nunca entra**, e não é o `CanSupport` que a barra: o `BuildPieceKind.IsStructural` já a corta antes
+    (`:3148`) — baú/cama sob um piso não é o que o jogo lê como apoio;
+  - **a janela (0,4–2,5 m abaixo × 2,5 m em XZ) e o `Rank` (a queda pesa 10×) não mudaram** — o que mudou é **quem**
+    pode ser candidato.
+- **A correção (2): `falls` com uma segunda chance** — as **4** foram dadas por perdidas com `falling from the way to
+  the ... - skipping it (2 fall(s))` (`MHR_Build.cs:3836`): o companheiro subia e caía **duas vezes** no caminho até a
+  pose (topo de empena sobre o vazio) e a peça era pulada na hora, sem tentativa nenhuma em outro lugar. Agora, antes
+  de desistir, ele **ajusta a pose uma vez, até 1 m** (`AdjustFallenPose`, `:4172`, chamado em `:3830`) — o caminho é
+  **só de blueprint** (`state.Blueprint != null`, `:3825`), o mesmo do skip que ele substitui. O `State.FallAdjusted`
+  (`:217`) guarda o **índice do plano** — como o `PulledSupport` (`:213`) —, então é **uma tentativa por peça**; a
+  queda é da **caminhada**, então repetir o ajuste a cada duas quedas só o mandaria no mesmo buraco. O raio é o do
+  **nudge estrutural** (`NudgeStructuralRadius` = **1 m**, `:129`: 1 m ao lado é a mesma casa) e a busca é a **mesma
+  metade de código** do `NudgePiece`: `AdjustPose` (`:4200`) — `BuildSite.Find` 2 anéis × 8, teto em XZ do próprio raio,
+  regra do olho do jogo (`MaxPlace`) e a linha de log. O `NudgePiece` (`:4148`) passou a **delegar** nela (`:4160`),
+  então os dois caminhos (nudge e queda) não podem divergir. O log é o do nudge com o status novo:
+  `log ajustado: <prefab> de (...) para (...) - falls`; o `BestDistance`/`BestAt` da caminhada **zeram**
+  (`:4188-4189`) para a trava de "12 s sem chegar mais perto" não punir o alvo novo, e o `FallDrops` é zerado no
+  caminho ajustado (`:3832`) — a peça ganha um par novo de quedas para o ajuste valer. **Sem pose válida** (fora do
+  alcance do olho, todas as direções ocupadas, o `BuildSite.Find` recusando) ele desiste **como antes**: o ajuste não
+  esconde a peça inalcançável.
+- **O que ler no run (o aceite que falta):**
+  1. a **empenha leste fecha** e a **água sul** ganha a faixa: as 6 de **42,8/44,8/46,8** saem de
+     `sem apoio: <prefab> em (x, y, z)` e aparecem como `done: <prefab> ... supported`;
+  2. **`log ajustado ... - falls`** aparece **antes** de um `skipping it` — é o ajuste agindo nas 4; a peça que cair de
+     novo **depois** do ajuste é pulada como antes (não há terceira chance);
+  3. watchdog idealmente `0 peça(s) sem apoio` nos **3** workers (2 fecharam assim neste run);
+  4. o **deck** segue como medido (piso ~1 m, escadas encontrando), com
+     `a obra sobe 1 m (deck) - N peça(s) de fundação assentadas no terreno` no log.
+  Build **0/0** e harness **549** (**539** + as **10** novas da seção **(r)**, agora **29** casos: `CanSupport` com
+  telhado sobre telhado, telhado no piso/parede/escada, piso e parede **não** apoiados por telhado, a porta que nunca
+  apoia e a porta **como peça**); **aceite medido ainda não**.
 
 
 
