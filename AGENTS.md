@@ -196,9 +196,11 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
 - **Provedores (config `[AI]`):** Groq (`openai/gpt-oss-20b`, padrão) → LM Studio/Ollama (`127.0.0.1:1234`) →
   OpenRouter; tudo por `BaseUrl`/`Model`/`ApiKey` (a chave é `ConfigEntry`, nunca hardcoded). Saída estruturada
   `json_schema` → `json_object` → sem formato, **só** em recusa de formato.
-- **Config:** as chaves e os defaults vivem em `Core/ModConfig.cs` (**363** opções / 25 seções, medidas em 11/11/2026 —
-  eram **361** em 04/11/2026; as chaves novas do lote são a `[Building] BodyRetry` e a `[Building] StepAside`); quem
-  conta é `python tools/gen_config_doc.py`, que imprime `363 settings 25 sections`. A doc gerada é
+- **Config:** as chaves e os defaults vivem em `Core/ModConfig.cs` (**365** opções / 25 seções, contadas no
+  `package/CONFIGURATION.md` **gerado** em 11/11/2026 — **365** linhas `**Nome** — Default:` e **25** seções; o gerador
+  **não** foi rodado nesta documentação, então quem fecha a conta é `python tools/gen_config_doc.py`, e o gate é o
+  `--check`) — eram **361** em 04/11/2026; as chaves novas são `[Building] BodyRetry`, `[Building] StepAside`,
+  `[Building] BlueprintStations` e `[Controls] BuildPanelKey`. A doc gerada é
   `package/CONFIGURATION.md` — **nunca** editar à mão: rodar o gerador e depois o `--check`. O `.cfg` é
   `BepInEx\config\AiCompanions.cfg`.
   A `[Building] PlaceReach` desta rodada (float, padrão **10**, faixa **5..20**; rótulo `hc_cfg_building_placereach`,
@@ -234,7 +236,8 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   **cancela** obra/nivelamento.
 - **Construção (Trilha E):** `MHR_Build` — peça única (`prefab`), template (`plan=hut|canopy|tent|house4|…`) e
   `.blueprint` (`BepInEx/config/AI-Companions/blueprints`). Ordem: **andar → piso → escada → parede → telhado →
-  porta**; a estação é planejada; nivelar → limpar → construir; a coleta entrega à obra e retoma na mesma peça;
+  porta**; a estação é planejada (**fora do blueprint**: no blueprint ela é dispensada com a `[Building] BlueprintStations`,
+  padrão true); nivelar → limpar → construir; a coleta entrega à obra e retoma na mesma peça;
   retry pass (3); scaffold provisório **off** por padrão. Medições: `building-notes` §15 e `plan-construcao`.
   **Receita de teste × comportamento (regra do jogador, 11/11/2026:** *"âncora, mochilas, auto-pickup, etc é só nos
   testes, depois dos testes ficam normal"* **e** *"ninguém vai fazer a mesma construção no mesmo lugar"***):** âncora
@@ -283,9 +286,11 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   a janela do corpo (`Blocks`, `HalfY` e os casos medidos do Run 10) — + **27** da **(t)** — a **barreira de andar**,
   11/11/2026 — + **6** da **(u)** —
   `BuildSupportBelow.FallbackPostAllowed`, o poste quando o apoio do plano não vem), MCP
-  **107** (as **12**
+  **122** (as **12**
   asserções de 03/11/2026 cobrem o contrato do grupo: `workers`, `refused` e `name` vazio = todos; as **6** de
-  11/11/2026 cobrem o `stop` do `companions.order`), config **363/25**.
+  11/11/2026 cobrem o `stop` do `companions.order`; e as do `blueprints_list`/`blueprints_inspect` a biblioteca e o
+  relatório sem ordem), config **365/25** (contagem do `CONFIGURATION.md` gerado — ver o
+  bullet de config acima).
   **Medido em jogo (`CommHomeBasicBP`, `BlueprintFree = true`) — doze runs documentados entre 04 e 11/11/2026** (1–3 com 3
   companheiros e `PlaceReach` 10/15/15+guarda; 4 com o deck; 5 com 5 companheiros; **6 em 11/11/2026** com os dois
   lotes → **969 + 18 = 987**, watchdog **0**, **985 de 987** no canteiro, **`apoio de emergência` = 0**, **telhado
@@ -334,7 +339,8 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   **98** recusas terminais + **145** curtas e a **barreira disparou 56×** (`nada acima de … m é pego por … s`). **O plano
   do Run 11 tem 987 índices** (983 do arquivo + **4** bancadas) contra **990** (983 + **7**) do Run 10: menos bancadas,
   total absoluto menor — o número que conta é **puladas 1 → 0**. Fora do plano continuam só as **2 `stone_floor_2x2`**,
-  puladas na **leitura** (`recipe not unlocked`, `MHR_Build.cs:1502-1509`): peça do **talhador de pedras** (alcance
+  puladas na **leitura** (`recipe not unlocked` — `MHR_Build.cs:1504-1506`, a regra pura em
+  `AI/BuildBlueprintSkip.cs:25-36`): peça do **talhador de pedras** (alcance
   20 m), que exige **pedra** — o inventário do jogador está **vazio** (medido) e o catálogo do mod
   (`AI/BuildCatalog.cs:40-72`, **5** prefabs) **não constrói talhador**; é o **teto do blueprint** nesta instalação,
   não falha da obra — §17.17; **13 em 11/11/2026** = o run da **`[Building] BlueprintStations`** (lote `f93f290`, a
@@ -357,7 +363,7 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   bridge + MCP (**122 checks**, **62 ferramentas**). Detalhe, tabela Run 11 × Run 13 e o que **não** foi contado:
   `docs/re/building-notes.md` §17.18, com a seção **"receita de teste × comportamento"** no §17.19; 1 e 2
   diferem só no `PlaceReach` (10 = padrão do código; 15 = config de teste) e o
-  3 roda em 15 com a guarda anti-loop:** com **10**,
+  3 roda em 15 com a guarda anti-loop: com **10**,
   **970 + 15 = 985** — a fala final fecha (`970 peças, 15 puladas`), `no_ground` **~25 → 0**, `blocked_by_player`
   **17+ → 0** *(naquele build, com o ignore de companheiro ligado — **revertido**, ver o validador)*, `log ajustado`
   **6** (o nudge agindo), **1 morte** e watchdog `15 peça(s) sem apoio`; com **15**, a
@@ -578,7 +584,7 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   **Achado de localização (11/11/2026, não corrigido):** `hc_cfg_building_blueprintstations`
   (`Core/ModLocalization.cs:852`) e `hc_cfg_controls_buildpanelkey` (`:855`) estão **só no inglês** — nenhum dos **4**
   JSONs os tem, então PT/ES/FR/IT mostram a **chave crua** no F8 e o `audit_translations.py` (modo PT,
-  `tools/audit_translations.py:213-216`) conta **1 ausente** por chave.
+  `tools/audit_translations.py:213-216`) conta **1 ausente** por chave **pela leitura do script** (não rodado aqui).
 
 ## Nossas docs
 
@@ -613,6 +619,9 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
 - `docs/backlog-1.9.5.md` — **o que ficou sem correção** depois da revisão de 10 especialistas (detalhado: o que
   está quebrado, o que pode quebrar, por que corrigir e o esforço), com o que já foi feito na 1.9.4 no fim.
 - `docs/re/` — engenharia reversa do Valheim 1.0 (APIs, diff de versão).
+- `docs/re/building-notes.md` — **a construção medida**, run a run (§15 o `.blueprint`, §17 o grupo de obra e o portão de
+  apoio, §17.10–§17.17 os runs 4–11, **§17.18 o Run 13**, §17.19 **receita de teste × comportamento**: o que é bancada
+  de teste e o que é produto, com o `arquivo:linha` de cada default).
 - `docs/re/camada-ia-e-construcao.md` — o histórico detalhado da camada de IA e da construção (extraído do
   AGENTS em 03/11/2026; o resumo/estado atual fica aqui).
 - `docs/re/packaging-layout.md` — **o layout do zip** (o que vai em `BepInEx\plugins\AI-Companions\`, por que os
@@ -755,7 +764,8 @@ comandos de console e spawna coisas, então não é feature de jogador.
   mochila **sem dropar** — ferramenta de teste, `DevBridge/Commands.cs:1832-1847`) e `blueprints.list`/`blueprints.inspect`
   (`:628-746`): a biblioteca e **o que a ordem faria** com um arquivo, **sem começar nada**, pelo mesmo leitor do painel
   (`AI/BuildBlueprintReport.cs`).
-- **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check` — **642 asserções** das redes por
+- **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check` — **642 asserções** (a última medida;
+  com a **(v)** e a **(w)** de 11/11/2026 o total está **sem reconferência** — ver o fim desta lista) das redes por
   palavras (`RadialIntent`, `PickupIntent`, `GatherIntent`, `InteractionIntent`, `LlmIntent`, `OrderItems`,
   `CompanionNameMatch`) e das tabelas puras (`NavTileMath` na **(o)**, `BuildFailure.Classify` na **(p)** — 28 casos,
   `AI/BuildFailure.cs`, incluindo as constantes da barreira; `BuildPieceKind` na **(q)** — 26, `AI/BuildPieceKind.cs`;
@@ -768,19 +778,25 @@ comandos de console e spawna coisas, então não é feature de jogador.
   `AI/BuildBody.cs`, a janela do corpo do `blocked_by_player` (`Blocks`, `HalfY` da viga a 45° e o par do **falso positivo**
   do Run 10);
   a **barreira de andar** na **(t)** — **27**, 11/11/2026
-  (`BuildFailure.IsTransient`/`ShortRetry`, as constantes e o `BuildBlueprintParser.Line.Level`); e a **(u)** — **6**,
+  (`BuildFailure.IsTransient`/`ShortRetry`, as constantes e o `BuildBlueprintParser.Line.Level`); a **(u)** — **6**,
   `BuildSupportBelow.FallbackPostAllowed`, o poste quando o apoio do plano está reivindicado e não vem (`SupportGrace` =
-  **2**, ~**20 s** = 8 + 12 s de espera de dependência; **imediato** se o apoio foi desistido); os quatro
-  linkados no `.csproj` continuam os mesmos — nenhuma seção nova exigiu arquivo novo) com os `.cs` reais linkados,
+  **2**, ~**20 s** = 8 + 12 s de espera de dependência; **imediato** se o apoio foi desistido); a **(v)** — **5**,
+  `BuildStationCover.Required` (`AI/BuildStationCover.cs`, a `[Building] BlueprintStations`: template e peça única
+  nunca dispensam); e a **(w)** — **9**, `BuildMaterials.Add`/`Total` (`AI/BuildMaterials.cs`, a necessidade de
+  material do plano, a mesma conta do painel da obra). **A contagem total não foi reconferida** neste ciclo: a última
+  medida é **642** (anterior à (v) e à (w)) e a soma das seções daria **656** — número **não medido**. Os `.csproj`
+  ganharam dois links com esse lote (`BuildStationCover.cs`, `BuildMaterials.cs`), então o "nenhuma seção nova exigiu
+  arquivo novo" que valia até a (u) **não vale mais**) com os `.cs` reais linkados,
   mais o cross-check das cópias do `Stubs.cs` contra a `Companions.dll` (seção (h) — impede drift). Build 0/0 e exit 0
   são o gate.
 - **Gate de release:** `powershell -ExecutionPolicy Bypass -File tools\release-check.ps1 -Version <versão>` — roda o
   build, a versão (`PluginVersion` × nome do zip), as 3 traduções, o `locale-fallback-check.ps1` (agora com asserts),
-  o `gen_config_doc.py --check`, o teste do MCP (107) e as 642 asserções; **PASS/FAIL por item e exit 1**. É o que tem
+  o `gen_config_doc.py --check`, o teste do MCP (122) e as 642 asserções; **PASS/FAIL por item e exit 1**. É o que tem
   de passar antes de tag/zip (`-SkipGame`/`-SkipIntents` para rodar parte).
-- **Docs:** `docs/mcp-devbridge.md` (arquitetura, protocolo, as **60** ferramentas, a receita de **jogar pelo agente**
+- **Docs:** `docs/mcp-devbridge.md` (arquitetura, protocolo, as **62** ferramentas, a receita de **jogar pelo agente**
   e a de **comandos de console**, e as evidências dos testes da 1.9.4) e `tools/mcp-devbridge/README.md`
-  (parâmetros/exemplos).
+  (parâmetros/exemplos) — a contagem de ferramentas **dentro** de `docs/mcp-devbridge.md` é **histórica** (46 no teste
+  mock de então, 23 no e2e) e **não** foi atualizada no ciclo do Run 13.
 - **Construção (Trilha E):** E0-E6 medidas em jogo. **E6 (estruturas por template, 01/11/2026):** `hut` (1 piso + 4
   paredes + 2 telhados) e `canopy` (4 postes + 4 telhados) em `AI/BuildTemplates.cs` (puro, seção (j) do harness),
   deslocamentos tirados dos **snaps** (`build.snaps`) - a tabela está em `docs/re/building-notes.md` §11. O

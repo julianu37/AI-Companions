@@ -2396,6 +2396,11 @@ NO LUGAR`). **1 morte**, ignorada por decisão do jogador (mesma regra do Run 9,
 - **Consequência honesta:** as 2 peças são o **teto do blueprint** nesta instalação, não um bug da obra. Para medir um
   run com elas seria preciso **pedra no inventário do jogador + talhador de pedras de pé e a ≤20 m** do canteiro — isso
   **não foi testado** em nenhum run até aqui.
+- **Atualização (Run 13, §17.18):** o **teto caiu** — com a receita aprendida na sessão e a
+  `[Building] BlueprintStations` (padrão **true**) as **2 subiram sem talhador no mundo**. E a regra de descarte mudou
+  de lugar: hoje ela é `BuildBlueprintSkip.Reason` (`AI/BuildBlueprintSkip.cs:25-36`), chamada em
+  `MHR_Build.cs:1504-1506` — o `:1502-1509` citado acima é o mesmo trecho, com o texto extraído para a classe pura que
+  o `blueprints.inspect` também usa.
 - **Ficha medida da estação e da peça (04/11/2026):** `docs/re/stone-and-stonecutter.md` — receita do talhador
   (Madeira 10 + Ferro 2 + Pedra 4), que ele **exige bancada** a ≤20 m, `m_rangeBuild` **20**, `m_discoverRange` **4**,
   `noClipping`/`notOnTiltingSurface`/`noInWater` ligados, `m_supports = false` (nada em cima dele), a prova de que a
@@ -2509,8 +2514,10 @@ seguem exigindo a estação (`AI/BuildStationCover.cs:35-42` — `isBlueprint ==
 
 - **Como ler:** o plano do Run 13 é **menor** (985 × 987) porque o Run 11 tinha **4** bancadas dentro do plano e aqui
   há **0** — o número absoluto não é o placar. O que o run mede é outra coisa: **a casa sobe sem bancada**, as **2 de
-  pedra entram** e a **única** peça que falta é de **navegação**. As **puladas** não são comparáveis como "piorou"
-  (0 → 1): no Run 11 a cumeeira **subiu** e o `TempScaffold` estava desligado nos dois.
+  pedra entram** e a **única** peça que falta é de **navegação**. **As puladas (0 → 1) não são placar de regressão:** no
+  Run 11 **nenhuma** peça ficou de fora, mas o canteiro **se acumula entre runs** (peça que já está de pé conta como
+  colocada), então a cumeeira pode simplesmente ter ficado para trás nesta passada — o que se afirma aqui é o **motivo
+  medido** (`no progress` de 22,8 → 23,5 m), não uma comparação de qualidade entre os dois runs.
 - **O canteiro fecha na aritmética: 984 + 30 = 1014.**
 
 **Contas e limites desta seção:** os números são os do run (fala final, contadores do log, `build.pieces` e o canteiro);
@@ -2519,12 +2526,15 @@ linha), a contagem das linhas do `StepAside` (§17.16/§17.17 seguem sem essa co
 "peça(s) que precisariam" e quantos dos **30** postes vieram da `FallbackPostAllowed` (§17.16 continua **sem run**
 para ela). O número de **122 checks** é o do lote (rodado pelo arquiteto no `f93f290`/`f36e323`) — **não** foi
 reconferido nesta documentação, assim como o `harness`: a seção **(v)** (`BuildStationCover`, `AI/BuildStationCover.cs`)
-entrou com esse lote e a contagem total **não** foi reconferida (a última medida é **642**).
+entrou com esse lote e a contagem total **não** foi reconferida (a última medida é **642**). A árvore deste run é
+**365 opções / 25 seções**, contadas no `package/CONFIGURATION.md` **gerado** (que já lista a `BlueprintStations` e a
+`BuildPanelKey`) — o `gen_config_doc.py` **não** foi rodado aqui; o gate continua sendo o `--check`.
 
 **Achado de localização deste lote (não corrigido aqui):** o rótulo `hc_cfg_building_blueprintstations` está **só no
 inglês nativo** (`Core/ModLocalization.cs:852`) e **não** existe em nenhum dos **4** JSONs (`Translations/`), então em
-PT/ES/FR/IT o F8 mostra a **chave crua** — e o `audit_translations.py` (modo PT) conta **1 ausente**
-(`tools/audit_translations.py:213-216`, `gaps` em `:225`). O mesmo vale para `hc_cfg_controls_buildpanelkey`
+PT/ES/FR/IT o F8 mostra a **chave crua** — e o `audit_translations.py` (modo PT) conta **1 ausente** por chave
+(`tools/audit_translations.py:213-216`, `gaps` em `:225`; **pela leitura do script** — ele **não** foi rodado nesta
+documentação). O mesmo vale para `hc_cfg_controls_buildpanelkey`
 (`ModLocalization.cs:855`), do lote do painel da obra. Os dois são de **11/11/2026** e faltam nos 4 arquivos.
 
 ### 17.19 Receita de teste × comportamento — o que é do teste e o que é do jogador
@@ -2540,7 +2550,7 @@ lugar é da receita**; qualquer coisa que **só funcione assim** é bug de desen
 |---|---|---|
 | **âncora fixa no script** | `companions.build blueprint=… x=… y=… z=…` (coordenada medida de um run anterior) | o jogador **não digita coordenada**: a ordem ancora na **mira**/posição dele (`BuildFindCommand.Hint`, `DevBridge/Commands.cs:1313-1321`). Repetir o **mesmo ponto** é o que permite comparar runs — e é justamente o que **ninguém** faz no jogo |
 | **`BlueprintFree = true`** | peça de graça, sem tirar de mochila/baú (`Core/ModConfig.cs:979`, padrão **false**) | **dinheiro infinito de teste**: no jogo a casa custa o mesmo que qualquer obra e é paga peça por peça (`BuildStock.Take`) |
-| **`PlaceReach = 15`** | alcance de colocação esticado (`:965`, padrão **10**, faixa 5..20) | é config **do jogador** para partidas impacientes; o run usa 15 para **tirar o alcance da conta** e medir o resto (foi o que separou "não alcança" de "não chega" na cumeeira) |
+| **`PlaceReach = 15`** | alcance de colocação esticado (`:965`, padrão **10**, faixa 5..20) | é config **do jogador** para partidas impacientes; o run usa **15** (contra o padrão **10**) e é isso que permite afirmar que a cumeeira **não** parou por alcance — ela parou por **rota** (22,8 m de distância, `no progress`) |
 | **`LevelGround = false`** | nivelamento desligado (`:976`, padrão **true**) | **contorno** de um defeito (item (c) do §17.18): no jogo o nivelamento é o padrão e a obra **tem** de voltar quando ele dá `too_steep` |
 | **mochila zerada (`companions.inventory action=clear`)** | `RemoveAll()` na mochila de cada companheiro (`DevBridge/Commands.cs:1836-1847`) | ferramenta **de teste, declarada como tal** no código: apaga os stacks sem dropar nada. No jogo o companheiro carrega o que tem e a guarda de peso é **real** (`MHR_Build.cs:3120-3128`) |
 | **`companions.order action=autopickup_off`** | auto-pickup **do companheiro** desligado (`DevBridge/Commands.cs:2397-2401`) | evita que a mochila recém-zerada encha de lixo andando pelo canteiro; no jogo o **auto-pickup é o do jogador** e a configuração dele vale — o mod não o desliga |
@@ -2553,7 +2563,7 @@ lugar é da receita**; qualquer coisa que **só funcione assim** é bug de desen
 | item | default | onde |
 |---|---|---|
 | **âncora na mira/posição do jogador** | — (é a ordem) | `BuildFindCommand.Hint` (`AI/BuildFindCommand.cs:127-149`); sem mira, jogador + 4 m (`DevBridge/Commands.cs:1318-1321`) |
-| **peso e auto-pickup do jogador** | do jogo | o companheiro **para** a obra com `hc_ai_build_too_heavy` quando passa do teto (`MHR_Build.cs:3120-3128`) — a mochila do jogador e as regras de pickup **não** são tocadas |
+| **peso e auto-pickup do jogador** | do jogo | o companheiro **sai** da obra com `hc_ai_build_too_heavy` quando passa do teto (`MHR_Build.cs:3120-3128`; com o canteiro inteiro pesado a ordem morre) — a mochila do jogador e as regras de pickup **não** são tocadas |
 | **`[Building] PlaceReach`** | **10** (5..20) | `Core/ModConfig.cs:161`/`:965` — `MaxPlace` do `MHR_Build` |
 | **`[Building] DeckLift`** | **1** (0..3) | `:164`/`:966` (o deck) |
 | **`[Building] SupportFallback`** | **true** | `:167`/`:967` (o poste de emergência) |

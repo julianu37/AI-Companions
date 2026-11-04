@@ -27,25 +27,36 @@ watchdog **0**, **1020 peças** no canteiro (**987 + 33 postes**) e **23/23 pref
 **98 terminais + 145 curtas**, com sonda e barreira madura); **o "bloqueador companheiro" do Run 10 era falso positivo da
 sonda** (peça tratada como disco de 1 m): a sonda agora é a **cápsula real × caixa girada** e a `StepAside` (2,2 m,
 nunca o jogador) é a **segunda linha** — **as duas medidas no Run 11**; aberto: a sonda **não testa criaturas** e as
-**2 `stone_floor_2x2`** do arquivo, que são **teto do blueprint** nesta instalação (receita do talhador de pedras).
+**2 `stone_floor_2x2`** do arquivo, que eram **teto do blueprint** nesta instalação (receita do talhador de pedras).
+**Estado do Run 13 (11/11/2026, §7):** a `[Building] BlueprintStations` (lote `f93f290`) **medida** — **0 bancadas
+inseridas** (antes 4–7) e **as 2 de pedra de pé SEM talhador no mundo**, com **984 colocadas + 1 pulada = 985** (o plano
+**985 = 983 + 2**), **30 postes**, **1014 peças** no canteiro, **watchdog 0**, **0 `UNSUPPORTED`**, **0 mortes**; a
+**única** fora é a **cumeeira** (`wood_roof_45` em (-152,6, 48,8, -423,6), `no progress` de 22,8 → 23,5 m) — **é
+navegação, não apoio nem alcance**, e a `TempScaffold` está **vetada pelo jogador**. Detalhe: `docs/re/building-notes.md`
+§17.18, com a **receita de teste × comportamento** no §17.19.
 
 Números deste ciclo (11/11/2026): build **0/0**, harness `tools/ai-intents-check` **642 asserções** (471 + **28** da
 seção **(p)**, `AI/BuildFailure.cs` — inclui as constantes da barreira —, + **26** da **(q)**, `AI/BuildPieceKind.cs`,
 + **66** da **(r)**, `AI/BuildSupportBelow.cs` — `CanSupport`, `PickPost`, `UsefulSurface` e `HoldsPlacedPiece` —,
 + **18** da **(s)**, `AI/BuildBody.cs` — `Blocks`, `HalfY` e o par do **falso positivo** do Run 10 —, + **27** da **(t)** — a **barreira
 de andar** — e + **6** da
-**(u)** — `BuildSupportBelow.FallbackPostAllowed`, `SupportGrace` = **2**), teste do MCP **107** (as **12** asserções de
+**(u)** — `BuildSupportBelow.FallbackPostAllowed`, `SupportGrace` = **2**), teste do MCP **122** (as **12** asserções de
 03/11 cobrem o contrato
-do `companions.build` do grupo e as **6** de 11/11 o `stop` do `companions.order`), config **363 opções / 25 seções**
+do `companions.build` do grupo, as **6** de 11/11 o `stop` do `companions.order` e as de 11/11 do
+`blueprints_list`/`blueprints_inspect` a biblioteca e o relatório sem ordem), config **365 opções / 25 seções**
 (as chaves novas são a `[Building] BodyRetry` e a `[Building] StepAside`),
 ES/FR/IT **0 lacunas**, dívida do `gen_translations.py --check` **47** por idioma e **nenhuma chave de tradução funcional
 nova** (as recusas reusam `hc_ai_no_companion` e `hc_ai_build_failed`; os rótulos `hc_cfg_building_bodyretry` e
-`hc_cfg_building_stepaside` são os das chaves novas). **O Run 11 não acrescenta número de build/harness/config:** ele roda
-na árvore já medida acima (**harness 642**, **config 363/25**) e o que traz é **medição em jogo** — não foi feita
-reconferência de build/harness nesta rodada (§17.17).
+`hc_cfg_building_stepaside` são os das chaves novas). **Os Runs 11 e 13 não acrescentam número de build/harness/config:**
+eles rodam na árvore já medida acima (**harness 642**, **config 365/25**) e o que trazem é **medição em jogo** — não foi
+feita reconferência de build/harness nessas rodadas (§17.17 e §17.18). **Depois delas** entraram as seções **(v)** —
+**5**, `BuildStationCover.Required` — e **(w)** — **9**, `BuildMaterials.Add`/`Total` —, com os links
+`AI/BuildStationCover.cs`/`AI/BuildMaterials.cs` no `.csproj`: **a contagem do harness não foi reconferida** (a soma daria
+**656**, número **não medido**) e **2 rótulos novos ficaram fora dos 4 JSONs**
+(`hc_cfg_building_blueprintstations`, `hc_cfg_controls_buildpanelkey` — ver o achado em `docs/re/building-notes.md` §17.18).
 **O que falta medir** está no §7 (o **`FallbackPostAllowed`**, o vão do deck, run com material pago, o teste pequeno de
-2 companheiros num 6x6) — a **barreira de andar** foi medida no Run 10 (§7 e `docs/re/building-notes.md` §17.16) e a
-**sonda por cápsula** + o **`StepAside`** no Run 11 (§7 e §17.17).
+2 companheiros num 6x6 e a **rota até a cumeeira**) — a **barreira de andar** foi medida no Run 10 (§7 e
+`docs/re/building-notes.md` §17.16) e a **sonda por cápsula** + o **`StepAside`** no Run 11 (§7 e §17.17).
 
 ## 1. O que existe hoje (medido no código)
 
@@ -473,10 +484,29 @@ está lá em §17.6, §17.9 e §17.10 (**os Runs 6, 7, 8, 9 e 10, de 11/11/2026,
   curtas (2,5 s), com a **barreira disparando 56×** (`nada acima de … m é pego por … s`). **O plano do Run 11 tem 987
   índices** (983 do arquivo + **4** bancadas) contra **990** (983 + **7**) do Run 10 — **menos bancadas**, então o total
   absoluto é menor: o número que conta é **puladas 1 → 0**. **Fora do plano continuam só as 2 `stone_floor_2x2`**, puladas
-  na **leitura** (`recipe not unlocked`, `MHR_Build.cs:1502-1509`): são peça do **talhador de pedras** (alcance 20 m),
+  na **leitura** (`recipe not unlocked` — `MHR_Build.cs:1504-1506`, a regra pura em `AI/BuildBlueprintSkip.cs:25-36`):
+  são peça do **talhador de pedras** (alcance 20 m),
   exigem **pedra no inventário do jogador** (vazio, medido) e o catálogo do mod (`AI/BuildCatalog.cs:40-72`, **5**
-  prefabs) **não constrói talhador** — é o **teto do blueprint** nesta instalação, não falha da obra. Detalhe (tabela
-  Run 10 × Run 11, o que não foi contado): `docs/re/building-notes.md` §17.17.
+  prefabs) **não constrói talhador** — é o **teto do blueprint** nesta instalação (até o **Run 13**, que o derrubou),
+  não falha da obra. Detalhe (tabela Run 10 × Run 11, o que não foi contado): `docs/re/building-notes.md` §17.17.
+- **Run 13 — 11/11/2026, a `[Building] BlueprintStations` MEDIDA (5 companheiros, `BlueprintFree`, `PlaceReach = 15`,
+  `LevelGround = false` — contorno, ver abaixo —, `[Building] BlueprintStations = true` no padrão, `TempScaffold` false e
+  o jogador andando no canteiro):** a pergunta era se a casa sobe **sem bancada planejada** e se as **2
+  `stone_floor_2x2`** entram sem talhador no mundo (a receita foi aprendida na sessão e o talhador temporário **apagado
+  antes da ordem**). **Plano 985 = 983 do arquivo + as 2 de pedra**, **984 colocadas + 1 pulada = 985**, **0 bancadas
+  inseridas** (Runs 8–11 tinham 4–7), as **2 de pedra de pé SEM estação** (`done: stone_floor_2x2 at (-159,7, 39,3,
+  -424,6) yaw 228,9 supported`, depois de 2 recusas por corpo), **30 postes**, **1014 peças** no canteiro (**984 + 30**),
+  **watchdog `0`**, **`UNSUPPORTED` = 0**, **0 mortes**. **A única fora é a cumeeira** — e ela **não é apoio nem
+  alcance**: `wood_roof_45` em **(-152,6, 48,8, -423,6)** (≈10 m acima do chão do canteiro), `no progress` de **22,8 m**
+  para **23,5 m** em 12 s (o companheiro **se afastou**) e `desistindo … 1 pulada(s)` (`MHR_Build.cs:5580`/`:779-780`);
+  com `PlaceReach` 15 a peça a 22,8 m, o limite de colocação **nem entrou na conta**. **O ciclo deste run também
+  consertou 4 coisas de ferramenta:** a **âncora** de `companions.build` sem `x`/`z` passou a ser a **mira/posição do
+  jogador** (`BuildFindCommand.Hint`, `DevBridge/Commands.cs:1313-1321` — antes a casa foi para o **barranco** e um run
+  se perdeu); o **peso** ganhou `companions.inventory action=clear` (`f36e323`, ferramenta de teste); o **nivelamento com
+  `hc_ai_build_too_steep` não devolve a obra** (a chave não está na lista de retomada, `Jobs/MHR_Level.cs:455` — daí o
+  `LevelGround = false` no run); e `blueprints.list`/`inspect` entraram no bridge + MCP (**122 checks**, **62
+  ferramentas**). Detalhe (tabela Run 11 × Run 13 e o que não foi contado): `docs/re/building-notes.md` §17.18; **o que
+  é de teste e o que é produto**: §17.19.
 - **A sonda de corpo e o `StepAside` — MEDIDOS no Run 11:** o "bloqueador companheiro" do Run 10 era **FALSO POSITIVO** da
   sonda; o caso medido (`wood_beam` em (-168,1, 41,8, -421,1) × **Companheiro 6** em (-167,1, 39,9, -421,5) —
   **1,08 m** em XZ e **1,9 m** abaixo) **não** era corpo atravessando peça: `BuildProbe` calculava
@@ -549,18 +579,31 @@ está lá em §17.6, §17.9 e §17.10 (**os Runs 6, 7, 8, 9 e 10, de 11/11/2026,
    linhas do step-aside **não** foi feita (o que se mediu é o resultado com a chave ligada, não quantas vezes ele andou).
    **Também sem run:** o `FallbackPostAllowed` (o poste de emergência assume o apoio **do plano** quando ele foi desistido
    ou quando ninguém o reivindica e a peça já esperou `SupportGrace` = 2, ~20 s) — `docs/re/building-notes.md` §17.16.
-7. **As 2 `stone_floor_2x2` do arquivo (teto do blueprint, com o porquê medido):** são descartadas na **leitura**
-   (`recipe not unlocked`, `MHR_Build.cs:1502-1509`) porque a receita é do **talhador de pedras** (alcance 20 m) e ela
-   exige **pedra** — o inventário do jogador está **vazio** (medido) — e o catálogo do mod (`AI/BuildCatalog.cs:40-72`,
-   5 prefabs) **não constrói talhador**. Para exercitar esse caminho é preciso **pedra no jogador + talhador de pé a
-   ≤20 m** do canteiro; **não testado** em nenhum run. §17.17.
+7. **As 2 `stone_floor_2x2` do arquivo — MEDIDAS no Run 13:** deixaram de ser "teto do blueprint". O que as mantinha
+   fora era a **receita** não aprendida (`recipe not unlocked`, hoje em `AI/BuildBlueprintSkip.cs:25-36`, chamado em
+   `MHR_Build.cs:1504-1506`): com a receita aprendida na sessão e a `[Building] BlueprintStations` (padrão **true**) as
+   **2 subiram SEM talhador no mundo** (§17.18 — `done: stone_floor_2x2 at (-159,7, 39,3, -424,6) yaw 228,9 supported`,
+   depois de 2 recusas por corpo). **Continua sem teste:** aprender a receita **do zero** num run (exige **pedra no
+   jogador** — o catálogo do mod, `AI/BuildCatalog.cs:40-72`, não constrói talhador).
+8. **A rota até a cumeeira (aberto, medido no Run 13):** `wood_roof_45` em **(-152,6, 48,8, -423,6)** — ≈10 m acima do
+   chão do canteiro — ficou **fora** com `no progress` (12 s, **22,8 → 23,5 m**, `MHR_Build.cs:5580`; `desistindo …
+   1 pulada(s)`, `:779-780`). É **navegação**, não apoio (a recusa não é `no_support`) nem alcance (`PlaceReach` 15 no
+   teste, 10 no padrão, contra 22,8 m de distância). A `[Building] TempScaffold` existe para esse sintoma (§15.2q) e está
+   **vetada pelo jogador** — o caminho tem de ser o **mover**. É a mesma frente do item 1 (`building-notes` §17.13/§17.15)
+   com uma pose exata para reproduzir.
+9. **Um companheiro acima do peso derruba a obra (aberto):** `MHR_Build.cs:3120-3128` encerra a ordem **daquele** worker
+   com `hc_ai_build_too_heavy` e o `Finish` **tira ele do grupo** (`:7006-7013`) — com todos pesados o canteiro morre (no
+   ciclo de teste eram **25–32 stacks** cada e o contorno foi a ferramenta de teste `companions.inventory action=clear`,
+   `DevBridge/Commands.cs:1832-1847`). Falta a decisão de produto: o worker pesado **sai** do grupo (perde-se a mão de
+   obra) ou **espera** e volta quando o material for gasto? Depende da **reserva de material** (item 4).
 
 **P4 (quando existir):** "Maria e João, construam a cabana aqui" → as duas; "Zé, colete 10 madeiras" → só o Zé;
 "para, Maria" → só a Maria; "para" → todos; "Maria e João, ataquem o greydwarf" → as duas; "Maria, equipa a
 picareta" → só a Maria; "Maria e o cachorro, ..." → Maria + aviso do desconhecido, sem inventar.
 
 **Gate:** harness **642** (471 + **28** da **(p)** + 26 da **(q)** + **66** da **(r)** + 18 da **(s)** + **27** da **(t)**
-+ **6** da **(u)**), MCP **107** e build **0/0**.
++ **6** da **(u)**) — **a contagem está sem reconferência**: com a **(v)** (**5**, `BuildStationCover`) e a **(w)** (**9**,
+`BuildMaterials`) a soma daria **656**, número **não medido** —, MCP **122** e build **0/0**.
 
 ## 8. Perguntas para o jogador — respostas registradas (03/11/2026)
 
@@ -600,7 +643,18 @@ picareta" → só a Maria; "Maria e o cachorro, ..." → Maria + aviso do descon
 - `Jobs/MHR_Level.cs` — `SetThenWorkers` (`:138`) e a retomada com `GroupWorkers`/`NoteLeveled` (o `NoteLeveled` é do
   `MHR_Build`, `:315`, chamado em `MHR_Level.cs:477`).
 - `AI/BuildExecutor.cs` — `PlacedRadius`/`PlacedYaw` e `VerifyAt` (`:65-68`, `:278`).
-- `DevBridge/Commands.cs` — `CompanionsBuild` (o ramo do blueprint, `:1107-1193`).
+- `AI/BuildStationCover.cs` — **a bancada exigida só fora do blueprint** (11/11/2026, seção **(v)**, 5 casos):
+  `Required(isBlueprint, config)`; `Default` = **true** é o mesmo fallback do `MHR_Build.StationRequired`, que pergunta
+  a ela em `MHR_Build.cs:3556-3560`.
+- `AI/BuildBlueprintSkip.cs` — **por que uma linha do `.blueprint` não entra no plano** (`not a piece here` ×
+  `recipe not unlocked`), chamada em `MHR_Build.cs:1504-1506` e pelo `blueprints.inspect`; foi ela que ficou no lugar
+  do bloco `:1502-1509` citado nos runs antigos.
+- `AI/BuildBlueprintReport.cs` — **o relatório de um arquivo** (peças, puladas e por quê, estações, limites, andares,
+  materiais), o mesmo do painel da obra e do `blueprints.inspect` (`DevBridge/Commands.cs:683-746`).
+- `AI/BuildMaterials.cs` — **a necessidade de material de um plano** (seção **(w)**, 9 casos), a mesma conta que o
+  `BuildStock` paga peça por peça.
+- `DevBridge/Commands.cs` — `CompanionsBuild` (o ramo do blueprint, `:1204-1330`), `BlueprintsList`/`BlueprintsInspect`
+  (`:628-746`) e `CompanionInventory` com `action=clear` (`:1819-1869`, ferramenta de teste).
 - `AI/CompanionNames.cs` — `FromMessage` (um nome), `Find`, `CompanionNameMatch` (P4).
 - `Patches/MHR_CompanionNavMesh.cs` — agente 40, `BuildTile` sem portas; o `OnPlaced`/`Destroy` chegou na P2.
 - `docs/re/navegacao-companheiro.md` §6 — o que o Vikings for Hire faz (invalidação/links).
