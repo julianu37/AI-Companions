@@ -225,9 +225,9 @@ stopped.
   this first stage: the **materials are counted per companion** (there is no per-piece reservation between the workers
   yet, so the same stack may be counted twice and they can gather more than the plan needs), the group lives **in
   memory** (it is **not in the save**), and the group is **blueprints only** - a single piece and a template still have
-  one companion on them. Build 0/0 and the harness at **520 assertions** pass (23 of them are the failure classification and
-  **26** the piece-kind table of the support gate and of the pose adjustment below); **in test** - the numbers of the
-  04/11/2026 run end this cycle.
+  one companion on them. Build 0/0 and the harness at **539 assertions** pass (23 of them are the failure classification,
+  **26** the piece-kind table and **19** the support window of the pose adjustment and of the support gate below);
+  **in test** - the numbers of the 04/11/2026 runs end this cycle.
   - **New `[Building] PlaceReach`** (**in test**): how far the companion may place a piece **once it is stuck** - it
     keeps walking to the piece as before, and only after **3 s without getting closer** does it place from farther
     away, up to this distance (float, default **10**, range **5–20**). `5` is the game's own reach
@@ -273,9 +273,23 @@ stopped.
   turns** - and every anchor sits **on the ground**, an outside bench does not stand at the house's floor height) and it
   says what it did: the line `station: N peça(s) precisam, M planejada(s)` now ends with the pieces left **without
   coverage** (the run said `983 peça(s) precisam, 2 planejada(s)`, and the target of the new pass is `0 sem cobertura`).
-- **The run of 04/11/2026 (in test):** ~**957 of 985** pieces, **0 pieces discarded by dependency**, `no progress` give-ups
-  **58 -> 6** and **0 deaths** in the round with the 10 m reach. Build 0/0, harness **520** (23 assertions of the failure
-  classification plus **26** of the piece-kind table), MCP **101** and config **359/25**.
+- **The run of 04/11/2026 (in test)** - two runs of the **CommHomeBasicBP** (**985** pieces, **3 companions**,
+  `BlueprintFree`), the only difference being `PlaceReach` (**10** is the code default, **15** was a test config):
+  - **With the default reach (10 m):** **970 placed + 15 skipped = 985** - the closing line adds up now ("970 pieces, 15
+    skipped"); `no_ground` on the ridge **~25 -> 0** (the 4 m sphere), `blocked_by_player` **17+ -> 0** (a companion no
+    longer counts as a player for placement), `log ajustado` **6** (the pose nudge acting on the chest and the bed), `no
+    progress` give-ups **58 -> 6** and **1 death**; **no piece was lost by dependency**.
+  - **With `PlaceReach = 15`** (a test config; the code default is **still 10**): the main pass reached **987/987**, **972
+    placed** and **0 deaths**, and the stall watchdog reported the **13 pieces left out**: **2 chests**
+    (`piece_chest_wood` at -168,2 / 39,9 / -434,9, `too_steep` - the 2,5 m furniture nudge found no place), **1 workbench**
+    (`piece_workbench` at -178,3 / 38,6 / -431,7, `clipping` - the outside anchor colliding) and **~10 of the upper
+    storey** (`wood_floor`/`wood_roof_45` at y 43,8/45,8, `no_support` until the watchdog).
+  - **Next batch (in implementation):** the **furniture nudge goes to 5 m** (**3 rings x 12 directions**; a structural
+    piece stays at **1 m**), a bench spot that **rejects a `clipping` pose**, and the group **pulling the direct support of
+    a refused piece by index** (`AI/BuildSupportBelow.cs` - the window is **0,4-2,5 m below** the piece and **≤2,5 m in
+    XZ**, harness section **(r)**).
+  Build 0/0, harness **539** (471 + **23** of the failure classification + **26** of the piece-kind table + **19** of the
+  support window), MCP **101** and config **359/25**.
 
 ## 1.9.6 - 02/11/2026
 
