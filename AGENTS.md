@@ -256,11 +256,15 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   pior caso: N× o resto do plano, com até **3 coletando ao mesmo tempo** — o `Stock` é a metade aberta do P1); grupo
   só de **blueprint**; **em memória** (não persiste); "para" = todos, "para, <nome>" = um, um modo num companheiro
   tira só ele; nivelar/limpar com **um** (P5). **Nenhuma** chave de tradução nova (reusa `hc_ai_no_companion` e
-  `hc_ai_build_failed`) — harness **562** (471 + 23 da **(p)** + 26 da **(q)** + **42** da **(r)** — `CanSupport` +
-  `PickPost`, o poste de emergência, **13** casos novos), MCP **101** (as **12**
+  `hc_ai_build_failed`) — harness **596** (471 + 23 da **(p)** + 26 da **(q)** + **61** da **(r)** — `CanSupport`,
+  `PickPost`, `UsefulSurface` e `HoldsPlacedPiece` — + **15** da **(s)** — `AI/BuildBody.cs`, a janela do corpo), MCP
+  **101** (as **12**
   asserções de 03/11/2026 cobrem o contrato do grupo: `workers`, `refused` e `name` vazio = todos), config **361/25**.
-  **Medido em jogo (04/11/2026, `CommHomeBasicBP`, 3 companheiros, `BlueprintFree = true`) — quatro runs (o 4º, com o
-  deck, em `building-notes` §17.10); 1 e 2 diferem só no `PlaceReach` (10 = padrão do código; 15 = config de teste) e o
+  **Medido em jogo (`CommHomeBasicBP`, `BlueprintFree = true`) — seis runs entre 04 e 11/11/2026** (1–3 com 3
+  companheiros e `PlaceReach` 10/15/15+guarda; 4 com o deck; 5 com 5 companheiros; **6 em 11/11/2026** com os dois
+  lotes → **969 + 18 = 987**, watchdog **0**, **985 de 987** no canteiro, **`apoio de emergência` = 0**, **telhado
+  fechado** no `render_view`, **1 morte** e `blocked_by_player` **≈770**, o jogador dentro do canteiro — §17.13); 1 e 2
+  diferem só no `PlaceReach` (10 = padrão do código; 15 = config de teste) e o
   3 roda em 15 com a guarda anti-loop:** com **10**,
   **970 + 15 = 985** — a fala final fecha (`970 peças, 15 puladas`), `no_ground` **~25 → 0**, `blocked_by_player`
   **17+ → 0** *(naquele build, com o ignore de companheiro ligado — **revertido**, ver o validador)*, `log ajustado`
@@ -286,16 +290,23 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   `DeckLiftDefault = 1f`, `:111`). **Medido no run do deck (04/11/2026, `docs/re/building-notes.md` §17.10):** ~**972
   peças de pé**, **0 mortes**, piso do térreo ~**1 m** acima do chão com as **escadas das entradas encontrando**; **2 dos
   3** workers fecharam com `0 peça(s) sem apoio` e o terceiro parou com **6 telhados** nomeados (42,8/44,8/46,8) + **4**
-  `falls`, e a visão (`render_view`) mostrou a **faixa da água sul** faltando e a **empenha leste aberta**. **Lote desta
-  rodada (build 0/0, harness **562**; sem run):** (a) **telhado apoia telhado** — o `DirectSupportIndex` excluía a **classe
+  `falls`, e a visão (`render_view`) mostrou a **faixa da água sul** faltando e a **empenha leste aberta**. **Lote do
+  telhado (build 0/0, harness 596; medido no run de 11/11):** (a) **telhado apoia telhado** — o `DirectSupportIndex`
+  excluía a **classe
   3** como apoio, então numa **empena** a fileira de cima (apoiada pela de baixo, também telhado) **nunca** era puxada;
-  agora o `BuildSupportBelow.CanSupport` (`AI/BuildSupportBelow.cs:72`, usado em `MHR_Build.cs:3152`) permite
+  agora o `BuildSupportBelow.CanSupport` (`AI/BuildSupportBelow.cs:145`, usado no `MHR_Build`) permite
   telhado→telhado (e telhado no piso/parede/viga/escada), **porta nunca apoia** e a **mobília** continua fora pelo
-  `IsStructural`, com a janela 0,4–2,5 m abaixo × 2,5 m em XZ e o `Rank` **intactos**; (b) **`falls` com uma segunda
-  tentativa** — a peça que sobe e cai **duas vezes** ganha **uma** tentativa em **pose ajustada até 1 m**
-  (`AdjustFallenPose`/`AdjustPose`, `MHR_Build.cs:4172`/`:4200`, guarda `State.FallAdjusted` `:217`, log
-  `log ajustado … - falls`) e só desiste sem pose válida; o `NudgePiece` passou a **delegar** no `AdjustPose`
-  (`:4160`). O grupo distribuiu o plano por índices distintos, **promoveu o líder** depois da morte
+  `IsStructural`, com a janela 0,4–2,5 m abaixo × 2,5 m em XZ e o `Rank` **intactos**; (b) **a peça colocada**:
+  `BuildProbe.FootprintSupported` (`:672`) só aceitava `WearNTear` com **`m_supports = true`**, e **telhado no Valheim
+  tem `m_supports = false`** (ele se apoia pela **borda**, na fileira de baixo) — **13 peças** de telhado
+  (42,8/44,8/46,8) ficaram **5 rodadas** em `no_support` e a casa não fechava; agora
+  `BuildSupportBelow.HoldsPlacedPiece(pieceClass, isTerrain, hasWear, wearSupports)` (`:172`) decide por **classe**:
+  **terreno** segura tudo, **telhado (3)** é apoiado por **qualquer `WearNTear`** mesmo com `m_supports = false`, e as
+  **outras classes** continuam exigindo `m_supports` (senão uma parede subiria em cima de um baú); (c) **`falls` com
+  uma segunda tentativa** — a peça que sobe e cai **duas vezes** ganha **uma** tentativa em **pose ajustada até 1 m**
+  (`AdjustFallenPose`/`AdjustPose`, guarda `State.FallAdjusted`, log `log ajustado … - falls`) e só desiste sem pose
+  válida; o `NudgePiece` passou a **delegar** no `AdjustPose`. O grupo distribuiu o plano por índices distintos,
+  **promoveu o líder** depois da morte
   (`o líder do grupo ... saiu - outro companheiro assumiu`) e **retomou** no mesmo plano (`voltou para o grupo ... na
   peça X`). O ciclo fechou o **portão de apoio**
   (`AI/BuildFailure.cs`, puro, tabela da seção **(p)**; `no_support`/`no support`/`needs_station`/`no_ground` **com
@@ -317,36 +328,45 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   padrão true, rótulo `hc_cfg_building_supportfallback`; 04/11/2026):** quando a peça do plano é recusada com
   `no_support` e **o plano não tem nada embaixo dela** (`DirectSupportIndex < 0` — o pull do apoio imediato responde
   −1), o companheiro **finca um poste vertical sob ela**: a **base na superfície de baixo** (chão, piso do andar de
-  baixo ou topo de viga — `Physics.Raycast` de `piece.y + 0,05` por **10 m**, `PostReach`, fail-open no
-  `GetGroundHeight`) e o **comprimento escolhido pelo vão** (`gap = peça − base`): `BuildSupportBelow.PickPost`
-  (`AI/BuildSupportBelow.cs:74`) pega o **mais curto que alcança**, até **0,20 m mais curto** (`ShortTolerance`) e no
-  máximo **0,35 m mais longo** (`MaxOverlap`) — candidatos `wood_beam_1` (1 m), `wood_beam` (2 m), `wood_pole2`
-  (2 m) e `wood_beam_45` (2,83 m), com o comprimento **medido dos snaps**; centro em `baseY + comprimento/2`. (**A 1ª
-  versão usava `wood_beam` fixo com o centro em `y − 1`: para uma peça ~1 m acima do chão a base ficava enterrada e o
+  baixo ou topo de viga) e o **comprimento escolhido pelo vão** (`gap = peça − base`). **O raio desce em laço**: cada
+  superfície **mais perto que `MinPostGap` = 0,4 m** (`MHR_Build.cs:97`) é **atravessada** e a passada seguinte começa
+  **5 cm abaixo do hit**, até **`MaxPostPasses` = 4** (`:101`), com os vãos num buffer fixo (`s_postDepths`, `:105`) e a
+  decisão **pura** em `BuildSupportBelow.UsefulSurface` (`AI/BuildSupportBelow.cs:118`); o alcance (`PostReach` = 10 m,
+  `:92`) é o **total da caminhada**, e sem hit útil cai no `GetGroundHeight` (fail-open). **Motivo medido:** **318
+  recusas** com `vão de 0,16 m` — uma **beira de telhado colada** sob o piso de 40,8 parava o raio, e o apoio útil era o
+  **piso do deck a 1,02 m**. `BuildSupportBelow.PickPost` (`:74`) pega o **mais curto que alcança**: até **0,20 m mais
+  curto** (`ShortTolerance`) e no máximo **0,35 m mais longo** (`MaxOverlap`); candidatos `wood_beam_1` (1 m),
+  `wood_beam` (2 m), `wood_pole2` (2 m) e `wood_beam_45` (2,83 m), com o comprimento **medido dos snaps**; centro em
+  `baseY + comprimento/2`. (**A 1ª versão usava `wood_beam` fixo com o centro em `y − 1`: a base ficava enterrada e o
   jogo recusava o próprio poste** — no run de 5 o `apoio de emergência` ficou em **0**.) Validado pelo jogo
   (`BuildSite.Check`: chão, estação, sem clipping), **pago** como qualquer peça (`BuildStock.Take` — baús/mochila, ou
   de graça com `BlueprintFree`) e colocado pelo executor; a peça mantém índice, claim e pose e sobe em cima do poste
   no frame seguinte (a coluna fecha **de baixo para cima**). **Uma vez por peça** (`State.FallbackPosts`) e **teto de
   24 por ordem** (`MaxFallbackPosts`), nunca onde o plano já tem apoio; log
   `apoio de emergência: <prefab> (<len> m) sob <prefab> em (x, y, z)`, e as recusas dizem o motivo
-  (`- vão de X,XX m`, `- <status>`, `sem material …`, `- <erro>`). Não há peça vertical de ~4 m em vanilla → vão >
-  ~3,1 m **não recebe poste**. É o que fecha as **16 peças** que sobravam na `CommHomeBasicBP` (colunas na
-  **empenha leste** e no **canto noroeste**, 40,8→46,8, + 4 baús) — **em teste no run**.
+  (`- vão de X,XX m (N superfície(s) colada(s) ignorada(s))`, `- <status>`, `sem material …`, `- <erro>`). Não há peça
+  vertical de ~4 m em vanilla → vão > ~3,1 m **não recebe poste**. No **run de 11/11** ele **não foi necessário**
+  (`apoio de emergência` = 0): o que faltava era a regra do telhado, abaixo.
   **O validador (lote de
   04/11/2026, medido):** `AttachedToStructure` com **4,0 m** de `OverlapSphere` (2,6 m não achava a vizinha do
   telhado, que fica a ~2,8–3,5 m na diagonal; com 4,0 m o `no_ground` foi **~25 → 0**); **`NudgePiece` universal**
   (qualquer peça com `too_steep`/`no_ground`, não só mobília de chão) com raio por tipo via `BuildPieceKind` —
   **estrutural ≤ 1 m**, **mobília até 2,5 m** naquele lote (o `290afc1` levou a mobília a **5 m** com **3 anéis × 12**,
   `NudgeFurnitureRadius` em `MHR_Build.cs:126`; baú/cama em y 39,9 eram mobília e nunca eram ajustados; `log ajustado`
-  **6** no run); e **`blocked_by_player` voltou**: o ignore de companheiro no `BlockedByCharacter`
-  (`BuildProbe.cs:719-729`) foi **REVERTIDO** — a peça era colocada **dentro** do companheiro e ele **afundava**
-  (regressão registrada) —, então o companheiro **é obstáculo** de novo e o bloqueio (**20** no run de 5) é **retry**:
-  falha real no portão (gasta uma das 3 tentativas), mas a peça volta e sobe quando ele sai de cima — o que nunca mais
-  acontece é a peça **nascer dentro** dele. (**Nota:** o docstring de `BlockedByCharacter` ainda descreve o ignore
-  antigo — comentário desatualizado, reportado; `src/**` não é meu.) Detalhe medido em `docs/re/building-notes.md` §17.
-  **Falta medir:** run com **material pago** (a reserva por peça não existe); o run do **lote desta rodada** (telhado
-  apoia telhado + `falls` com a segunda tentativa + o **poste de emergência por vão**, sem run ainda); e o teste pequeno
-  de 2 companheiros num 6x6 segue como receita barata em `docs/plan-multi-build.md` §7.
+  **6** no run); e **`blocked_by_player` voltou**, agora pela **janela do corpo** (`AI/BuildBody.cs`, seção **(s)**): o
+  companheiro **é obstáculo** — o ignore dele foi **REVERTIDO** (a peça era colocada **dentro** do companheiro e ele
+  **afundava**) e o teste deixou de ser *ponto × pés a 0,6 m*: o **corpo é uma coluna** (pés −0,5 m a +2,0 m) e a
+  **peça uma caixa** (raio plano + **0,45 m** em XZ, vão vertical em Y), então um piso **sobre a cabeça** bloqueia (era
+  o bug "dois companions travados embaixo do piso") e um vizinho **ao lado** não. `BlockedByCharacter`
+  (`BuildProbe.cs:720`) usa `BuildBody.Blocked` para jogador **e** companheiro; o bloqueio (**20** no run de 5,
+  **≈770** no de 11/11 — o jogador estava **dentro do canteiro**) é **retry**: falha real (gasta uma das 3), a peça
+  volta e sobe quando o corpo sai. Detalhe medido em `docs/re/building-notes.md` §17.11 e §17.13.
+  **Falta medir:** o **vão do deck** (abaixo), run com **material pago** e o teste pequeno de 2 companheiros num 6x6.
+  **Pendência aberta — o vão do deck (`DeckLift = 1`):** a folga de ~1 m entre o piso do deck e o chão **prende
+  corpos**; depois do run de 11/11 o arquiteto **apagou 41 peças do piso** (**25 + 16**) para libertar o jogador e os
+  companheiros, então o estado atual da casa **não** tem o piso íntegro. Opções (decisão **do jogador**): **(1)**
+  `DeckLift = 0` (sem deck), **(2)** **saia em volta** fechando o perímetro, **(3)** **regra de rota** para o mover não
+  entrar/parar sob o deck (`docs/re/building-notes.md` §17.13).
 - **Pendências conhecidas (abertas):** (1) navegação no andar em obra; (2) a voz não passa pelo mixer do jogo (só
   `[AI] TtsVolume`); (3) sync com o upstream `main` (1.5.8) em dia — conferir antes de cada release; (4) o nome do
   companheiro no centro do radial (cosmético); (5) posse do ZDO no spawn em multiplayer dedicado; (6) a dívida de
@@ -513,18 +533,18 @@ comandos de console e spawna coisas, então não é feature de jogador.
 - **Testar:** `python tools/mcp-devbridge/test_mcp_devbridge.py` (mock, sem jogo) — **101 checks** (as **12** novas de
   03/11/2026 cobrem o contrato do `companions.build` do grupo: `workers`, `refused` só quando recusa e `name` vazio =
   todos).
-- **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check` — **562 asserções** das redes por
+- **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check` — **596 asserções** das redes por
   palavras (`RadialIntent`, `PickupIntent`, `GatherIntent`, `InteractionIntent`, `LlmIntent`, `OrderItems`,
   `CompanionNameMatch`) e das tabelas puras (`NavTileMath` na **(o)**, `BuildFailure.Classify` na **(p)** — 23 casos,
-  `AI/BuildFailure.cs`; `BuildPieceKind` na **(q)** — 26, `AI/BuildPieceKind.cs`; `BuildSupportBelow` na **(r)** — **42**,
-  `AI/BuildSupportBelow.cs`, incluindo `CanSupport` (telhado apoia telhado, porta nunca apoia) e o `PickPost` do
-  **poste de emergência** (o mais curto que alcança o vão) — os **13** últimos do lote de 04/11/2026; os três linkados
-  no `.csproj`) com os `.cs` reais linkados,
+  `AI/BuildFailure.cs`; `BuildPieceKind` na **(q)** — 26, `AI/BuildPieceKind.cs`; `BuildSupportBelow` na **(r)** — **61**,
+  `AI/BuildSupportBelow.cs`, com `CanSupport`, o `PickPost` do poste de emergência, a `UsefulSurface` (a caminhada do
+  raio) e o `HoldsPlacedPiece` (a regra do telhado); `BuildBody` na **(s)** — **15**, `AI/BuildBody.cs`, a janela do
+  corpo do `blocked_by_player`; os quatro linkados no `.csproj`) com os `.cs` reais linkados,
   mais o cross-check das cópias do `Stubs.cs` contra a `Companions.dll` (seção (h) — impede drift). Build 0/0 e exit 0
   são o gate.
 - **Gate de release:** `powershell -ExecutionPolicy Bypass -File tools\release-check.ps1 -Version <versão>` — roda o
   build, a versão (`PluginVersion` × nome do zip), as 3 traduções, o `locale-fallback-check.ps1` (agora com asserts),
-  o `gen_config_doc.py --check`, o teste do MCP (101) e as 562 asserções; **PASS/FAIL por item e exit 1**. É o que tem
+  o `gen_config_doc.py --check`, o teste do MCP (101) e as 596 asserções; **PASS/FAIL por item e exit 1**. É o que tem
   de passar antes de tag/zip (`-SkipGame`/`-SkipIntents` para rodar parte).
 - **Docs:** `docs/mcp-devbridge.md` (arquitetura, protocolo, as **60** ferramentas, a receita de **jogar pelo agente**
   e a de **comandos de console**, e as evidências dos testes da 1.9.4) e `tools/mcp-devbridge/README.md`

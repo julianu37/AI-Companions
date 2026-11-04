@@ -17,14 +17,14 @@ estagnação**, a **cobertura de bancadas** e o validador (`attached`/`nudge`/`b
 **medida em jogo** em 03/11/2026) fechados; **P3** (UI do grupo), **P4** (nomes múltiplos) e **P5**
 (persistência/limpeza paralela) **não**.
 
-Números deste ciclo (04/11/2026): build **0/0**, harness `tools/ai-intents-check` **562 asserções** (471 + **23** da
-seção **(p)**, `AI/BuildFailure.cs`, + **26** da **(q)**, `AI/BuildPieceKind.cs`, + **42** da **(r)**,
-`AI/BuildSupportBelow.cs` — `CanSupport` + o poste de emergência (`PickPost`), **13** casos novos; as três tabelas
-puras e linkadas), teste do MCP **101** (as **12** asserções de 03/11 cobrem o contrato do `companions.build` do grupo),
-config **361 opções / 25 seções** (medido com `python tools/gen_config_doc.py --check`), ES/FR/IT **0 lacunas**, dívida
-do `gen_translations.py` **45** e **nenhuma chave de tradução nova** (as recusas reusam `hc_ai_no_companion` e
-`hc_ai_build_failed`). **O que falta medir** está no §7 (o run do lote novo, o run com material pago e o teste pequeno
-de 2 companheiros num 6x6).
+Números deste ciclo (11/11/2026): build **0/0**, harness `tools/ai-intents-check` **596 asserções** (471 + **23** da
+seção **(p)**, `AI/BuildFailure.cs`, + **26** da **(q)**, `AI/BuildPieceKind.cs`, + **61** da **(r)**,
+`AI/BuildSupportBelow.cs` — `CanSupport`, `PickPost`, `UsefulSurface` e `HoldsPlacedPiece` —, + **15** da **(s)**,
+`AI/BuildBody.cs` — a janela do corpo), teste do MCP **101** (as **12** asserções de 03/11 cobrem o contrato do
+`companions.build` do grupo), config **361 opções / 25 seções** (medido com `python tools/gen_config_doc.py --check`),
+ES/FR/IT **0 lacunas**, dívida do `gen_translations.py` **45** e **nenhuma chave de tradução nova** (as recusas reusam
+`hc_ai_no_companion` e `hc_ai_build_failed`). **O que falta medir** está no §7 (o vão do deck, run com material pago e o
+teste pequeno de 2 companheiros num 6x6).
 
 ## 1. O que existe hoje (medido no código)
 
@@ -259,11 +259,13 @@ teste mock do MCP (**101 PASS**, **12 asserções novas para o contrato do grupo
    **987/987**, **972 colocadas** e **0 mortes**; **Run 3** (15 + guarda anti-loop) → **`970 peças, 16 puladas`** =
    **986**, **0 mortes** e **382 KB** de log; **Run 4** (com o **deck**, `DeckLift = 1`) → ~**972 peças de pé**, **0
    mortes**, deck certo, **6 telhados** nomeados e **4 `falls`**; **Run 5** (5 companheiros, antes do poste por vão) →
-   **972 + 13 = 985**, watchdog **0**, **0 mortes**, `apoio de emergência` **0**. **Fechado depois:** o lote das 13
-   (nudge de mobília 5 m/3×12, `TryBenchAt` sem `clipping`, apoio imediato) e o **deck (`DeckLift`)**. **Aberto:** a
-   **reserva de material** (`Stock` — cada worker conta o canteiro por conta própria), um run com **material pago**, o
-   run do lote desta rodada (**telhado apoia telhado** + **`falls` com uma segunda tentativa a 1 m**, `building-notes`
-   §17.10, + o **poste por vão** do `SupportFallback`, §17.11) e o teste pequeno de 2 companheiros num 6x6.
+   **972 + 13 = 985**, watchdog **0**, **0 mortes**, `apoio de emergência` **0**; **Run 6** (11/11, com os dois lotes)
+   → **969 + 18 = 987**, watchdog **0**, **telhado fechado**, **0 postes**, **1 morte**, `blocked_by_player` ≈**770**
+   (o corpo conta e o jogador estava no canteiro). **Fechado depois:** o lote das 13 (nudge de mobília 5 m/3×12,
+   `TryBenchAt` sem `clipping`, apoio imediato), o **deck (`DeckLift`)**, o **poste por vão** (`PickPost` +
+   `UsefulSurface`) e a **regra do telhado** (`HoldsPlacedPiece`). **Aberto:** o **vão do deck** (`DeckLift = 1` prende
+   corpos; 3 opções, decisão do jogador — §17.13), a **reserva de material** (`Stock` — cada worker conta o canteiro por
+   conta própria), um run com **material pago** e o teste pequeno de 2 companheiros num 6x6.
 3. **P2 — navmesh/latência — MEDIDO EM JOGO (implementado e testado em 03/11/2026):** (a) **medido o `why`** do run de 03/11/2026:
    **36 `no progress`**, 17 `no_support`, 9 `no_ground`, 6 `too_steep` — os 36 **não** são "tile invisível": são o
    `SnapToNavMesh` (1,5/3/6/12 m) mandando o alvo para o chão sob o piso, com a trava de 12 s do `Goto` queimando;
@@ -361,6 +363,19 @@ está lá em §17.6, §17.9 e §17.10:
   alcança: até **0,20 m mais curto** / **0,35 m mais longo**), candidatos `wood_beam_1`/`wood_beam`/`wood_pole2`/
   `wood_beam_45` com o comprimento medido dos snaps; sem peça vertical de ~4 m em vanilla, vão > ~3,1 m **não recebe
   poste** (`docs/re/building-notes.md` §17.11). **Sem run** com o poste novo.
+- **Run 6 — 11/11/2026, 5 companheiros, `DeckLift = 1`, `BlueprintFree`, com os dois lotes (poste por vão + telhado):**
+  **969 colocadas + 18 puladas = 987**, **watchdog `0`**, canteiro com **985 de 987**, **`apoio de emergência` = 0**
+  (não era apoio que faltava), **telhado visualmente fechado** (`render_view`), **1 morte** e `blocked_by_player`
+  **≈770** — o **corpo conta** (janela do `BuildBody`, `building-notes` §17.11) e o **jogador estava dentro do
+  canteiro**. O lote do telhado: `FootprintSupported` exigia `WearNTear.m_supports`, e **telhado no Valheim tem
+  `m_supports = false`** (se apoia pela **borda**, na fileira de baixo) — 13 peças passavam **5 rodadas** em
+  `no_support`; agora `BuildSupportBelow.HoldsPlacedPiece` (`:172`) decide por **classe** (terreno segura tudo;
+  telhado é apoiado por **qualquer** `WearNTear`; as outras classes seguem exigindo `m_supports`) — §17.12.
+- **Ressalva do Run 6 + pendência aberta (o vão do deck):** depois do run o arquiteto **apagou 41 peças do piso do
+  deck** (**25 + 16**) para **libertar o jogador e os companheiros presos no vão de ~1 m** — o estado atual da casa
+  **não** tem o piso íntegro e mede o que sobrou. O **vão do deck (`DeckLift = 1`)** é a pendência: (1) `DeckLift = 0`
+  (sem deck), (2) **saia em volta** fechando o perímetro, (3) **regra de rota** para o mover não entrar/parar sob o
+  deck. A decisão é do jogador (`building-notes` §17.13).
 
 **Coberto pelo código e ainda sem run dedicado:**
 - claim expira em 20 s, renovado por frame; retry real teto de 3 por índice, 2 s; espera por dependência 8/12/20/25 s;
@@ -378,8 +393,11 @@ está lá em §17.6, §17.9 e §17.10:
    (`[Building] SupportFallback`, `building-notes` §17.11) subindo **pelo vão** — log
    `apoio de emergência: <prefab> (<len> m) sob <peça> em (…)`, uma vez por peça e teto de 24; sem poste que alcance
    (vão > ~3,1 m) ele diz `- vão de X,XX m` e a peça segue a fila.
-2. **O deck (`DeckLift`) — medido:** Run 4 (~**972** de pé, **0 mortes**, piso ~1 m, escadas encontrando); o que ficou
-   pendente dele é só o telhado do item 1. `DeckLift = 0` mantém o nível do arquivo (só assenta as estacas).
+2. **O deck (`DeckLift`) — medido e com pendência aberta:** Run 4 (~**972** de pé, **0 mortes**, piso ~1 m, escadas
+   encontrando) e Run 6 (11/11, telhado fechado); o que falta é o **vão do deck**: `DeckLift = 1` cria ~1 m entre o piso
+   e o chão e **prende corpos** (41 peças do piso foram **apagadas** para libertar o jogador e os companheiros). Opções:
+   `DeckLift = 0`, saia em volta ou regra de rota no mover — **decisão do jogador** (`building-notes` §17.13).
+   `DeckLift = 0` mantém o nível do arquivo (só assenta as estacas).
 3. **As 13 peças do Run 2 — atacadas e sem run dedicado:** **2 baús** `piece_chest_wood` em (-168,2, 39,9, -434,9) por
    `too_steep`; **1 bancada** `piece_workbench` em (-178,3, 38,6, -431,7) por `clipping` (a âncora externa colide); parte
    do **andar de cima** (`wood_floor`/`wood_roof_45` em 43,8/45,8) por `no_support` até o watchdog. O lote do `290afc1`
@@ -397,7 +415,8 @@ está lá em §17.6, §17.9 e §17.10:
 "para, Maria" → só a Maria; "para" → todos; "Maria e João, ataquem o greydwarf" → as duas; "Maria, equipa a
 picareta" → só a Maria; "Maria e o cachorro, ..." → Maria + aviso do desconhecido, sem inventar.
 
-**Gate:** harness **562** (471 + 23 da seção **(p)** + 26 da **(q)** + 42 da **(r)**), MCP **101** e build **0/0**.
+**Gate:** harness **596** (471 + 23 da **(p)** + 26 da **(q)** + 61 da **(r)** + 15 da **(s)**), MCP **101** e build
+**0/0**.
 
 ## 8. Perguntas para o jogador — respostas registradas (03/11/2026)
 
