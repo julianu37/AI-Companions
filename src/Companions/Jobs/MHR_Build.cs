@@ -1048,6 +1048,7 @@ internal static class MHR_Build
 		state.NextScaffoldAt = 0f;
 		state.BodyTries = 0;   // 11/11/2026: the short retries of a body are per piece
 		state.BodyLogged = false;   // 11/11/2026 (Run 10): the body of the new piece is named once
+		state.AsideLogged = false;   // 11/11/2026 (Run 10): and the step-aside of the new piece is asked once in the log
 		// 11/11/2026 (Run 10): a new piece ends any step-aside walk - the walk (Goto) is the one steering from here
 		state.AsideTarget = Vector3.zero;
 		state.AsideUntil = 0f;
@@ -5060,8 +5061,9 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			return;
 		}
 		MHR_BuildGroup.RequestStepAside(state.Group, mover.GetInstanceID(), state.Pos);
-		if (!state.BodyLogged && CompanionsPlugin.LogNormal)
+		if (!state.AsideLogged && CompanionsPlugin.LogNormal)
 		{
+			state.AsideLogged = true;
 			Log(ai, "\"" + CompanionNames.NameOf(other) + "\" está na peça " + (state.Index + 1)
 				+ " - pedindo para sair da frente");
 		}

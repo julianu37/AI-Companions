@@ -2889,6 +2889,10 @@
             "value": "Riprova quando qualcuno è nel posto"
         },
         {
+            "key": "hc_cfg_building_stepaside",
+            "value": "Spostarsi quando qualcuno deve costruire"
+        },
+        {
             "key": "hc_ai_order_command",
             "value": "accettare ordini"
         },

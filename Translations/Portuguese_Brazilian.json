@@ -2889,6 +2889,10 @@
             "value": "Tentar de novo quando alguém está no lugar"
         },
         {
+            "key": "hc_cfg_building_stepaside",
+            "value": "Sair do caminho quando alguém vai construir"
+        },
+        {
             "key": "hc_ai_order_command",
             "value": "aceitar comandos"
         },
