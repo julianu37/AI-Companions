@@ -544,6 +544,15 @@ internal static class MHR_Build
 		/// <c>Asked</c> - the dedup and the anti ping-pong of a pair are not asks).</summary>
 		internal int AsideAsked;
 		/// <summary>
+		/// 11/11/2026 (the run of 20:06: the SAME piece got 12 asks for the same destination): how many step-aside asks the
+		/// plan index in <see cref="AsideTriesAt"/> already made. On the <see cref="MHR_Build.AsideAskLimit"/>-th refusal the
+		/// ask is not made any more and the piece goes to the site's queue - 12 asks cost 60 s of the stall watchdog, 4
+		/// watchdogs and 3 skipped pieces for one <c>wood_roof_45</c>. This is the loop break ALONE: no destination filter.
+		/// </summary>
+		internal int AsideTries;
+		/// <summary>The plan index <see cref="AsideTries"/> belongs to (-1 = none yet).</summary>
+		internal int AsideTriesAt = -1;
+		/// <summary>
 		/// 11/11/2026 (the line of the run of 20:06: it printed THIS WORKER's numbers with the site's label): the site's counters
 		/// captured in <see cref="MHR_Build.Advance"/> <b>before</b> the group is released and dropped - by the time
 		/// <see cref="MHR_Build.Finish"/> runs the group key is already null, so `MHR_BuildGroup.Placed/Skipped/Walk` cannot answer
@@ -6670,6 +6679,12 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 	/// cref="BuildAsideSpot"/>). Nothing free, or the same pair already shuffling pieces from one piece to the next
 	/// (<see cref="MHR_BuildGroup.AsideAsk.Repeating"/>): no ask, the log says why and <b>true</b> comes back - the piece goes
 	/// to the site's queue instead of repeating the ping-pong of the ridge rows.</para>
+	///
+	/// <para>11/11/2026 (the run of 20:06: piece 921 asked 12 times for the SAME destination, 60 s of watchdog and 3 pieces
+	/// skipped): one plan index gets <see cref="AsideAskLimit"/> asks. From the third refusal on the ask is not made, the log
+	/// says so and <b>true</b> comes back - the piece goes to the site's queue and the queue/retry does the rest. The
+	/// destination is <b>not</b> filtered: the current-piece box test was measured worse (1373 s of wait against 870) and stays
+	/// out.</para>
 	/// </summary>
 	private static bool AskStepAside(CompanionAI ai, State state, CompanionSetup cs)
 	{
@@ -6693,6 +6708,20 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			return false;
 		}
 		string who = CompanionNames.NameOf(other);
+		// 11/11/2026 (the run of 20:06, the loop of the same piece): the site already spent its asks on this plan index - stop
+		// here and let the piece go to the queue (the caller queues it when this answers true), instead of 12 walks to the same
+		// spot and 60 s of the stall watchdog. The line is NOT behind <see cref="State.AsideLogged"/> on purpose: the first ask
+		// already used it, and this one is the line the run reads to see the loop break.
+		if (state.AsideTriesAt == state.Index && state.AsideTries >= AsideAskLimit)
+		{
+			state.AsideLogged = true;
+			if (CompanionsPlugin.LogNormal)
+			{
+				Log(ai, "\"" + who + "\" já foi chamado " + state.AsideTries + "x para a peça " + (state.Index + 1)
+					+ " - não peço de novo, a peça vai para a fila");
+			}
+			return true;
+		}
 		Vector3 to;
 		if (!AsideSpot(state, ai, mover, state.Pos, out to))
 		{
@@ -6725,6 +6754,14 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			// 11/11/2026 (Run 14, the spread of the crew): the number of the acceptance log - only a request the site really
 			// stored is an ask (the dedup of 4 s and the anti ping-pong of a pair are not)
 			state.AsideAsked++;
+			// 11/11/2026 (the run of 20:06): the asks of THIS plan index, so the third refusal does not walk anywhere. Re-based
+			// when the worker moves to another piece (the counter is per index, not per order).
+			if (state.AsideTriesAt != state.Index)
+			{
+				state.AsideTriesAt = state.Index;
+				state.AsideTries = 0;
+			}
+			state.AsideTries++;
 			if (!state.AsideLogged && CompanionsPlugin.LogNormal)
 			{
 				state.AsideLogged = true;
@@ -6760,6 +6797,16 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 	/// <summary>How long one step aside may take. It is a <b>step</b>: arriving is not required (the mover may be blocked by
 	/// the site itself), the worker goes back to its wait and the request is gone.</summary>
 	private const float AsideSeconds = 2.5f;
+
+	/// <summary>
+	/// 11/11/2026 (the run of 20:06, the loop of the <b>same piece</b>): how many step-aside asks one plan index gets. Two asks
+	/// are the budget - the third refusal does not ask and the piece goes to the site's queue, as when there is no spot at all.
+	/// The measured defect: piece 921 (<c>wood_roof_45</c> at -150,9, 46,8, -435,7) was refused <b>12 times</b> and the companion
+	/// was sent to the <b>same destination</b> 12 times, which cost <b>60 s</b> of the stall watchdog, 4 watchdogs and
+	/// <b>3 pieces skipped</b> for one piece that never moved. This cuts the asks only - the destination is <b>not</b> filtered
+	/// (the current-piece box test was measured worse and stays out: 1373 s of wait against 870).
+	/// </summary>
+	private const int AsideAskLimit = 2;
 
 	/// <summary>
 	/// 11/11/2026 (Run 10, the companion blocker): the wait of a worker that was asked to move (<c>TakeStepAside</c>). The
