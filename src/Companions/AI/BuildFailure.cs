@@ -204,6 +204,26 @@ internal static class BuildFailure
 		return 6f;   // parked: the queue keeps it, but the workers stop walking to it every other piece
 	}
 
+	/// <summary>
+	/// 11/11/2026 (the <b>cut</b> of the storey barrier): is it worth <b>standing still</b> for a piece whose clock says
+	/// <paramref name="dueAt"/>? True while the patience that is left (<paramref name="patience"/>) still covers it - the piece
+	/// can be served before the barrier gives up. False when the piece comes later than the patience (the worker climbs
+	/// instead of waiting for something it will never see) and false on a <c>NaN</c> clock (it never holds a worker). A
+	/// <paramref name="dueAt"/> of 0 or less means "there is no clock to read": the caller already knows there is a piece
+	/// below, so it <b>holds</b> - the behaviour of before this cut.
+	///
+	/// <para>Pure on purpose: the harness pins the two cases the review asked for (the lowest piece due in 20 s with one above
+	/// it due in 2 s is a 2 s wait, held; everything later than the patience is not held).</para>
+	/// </summary>
+	internal static bool BodyWaitsFor(float dueAt, float now, float patience)
+	{
+		if (!(dueAt > 0f))
+		{
+			return !float.IsNaN(dueAt);   // no clock: hold (a NaN clock is not a reason to wait)
+		}
+		return dueAt - now <= patience;
+	}
+
 	private static bool Same(string why, string label)
 	{
 		return string.Equals(why, label, StringComparison.OrdinalIgnoreCase);

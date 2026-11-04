@@ -482,11 +482,18 @@ internal static class MHR_Build
 		/// </summary>
 		internal float WaitAhead;
 		/// <summary>
-		/// 11/11/2026 (Run 18): seconds the site's <b>gate</b> itself held this worker (<c>MHR_BuildGroup.MayTake</c> false
-		/// inside <see cref="MHR_Build.Advance"/>). Until now that time fell in <b>no</b> bucket at all: the wait called
-		/// Advance with <c>dt = 0</c>, so the gate was invisible in the summary line.
+		/// 11/11/2026 (Run 18; the review of the gate): seconds the site's <b>gate</b> itself held this worker
+		/// (<c>MHR_BuildGroup.MayTake</c> false inside <see cref="MHR_Build.Advance"/>). It is filled by the <b>wait</b>
+		/// (<see cref="MHR_Build.WaitRetry"/>), frame by frame, while <see cref="GateHeld"/> is set: <c>Advance</c> runs once a
+		/// second from the wait and with <c>dt = 0</c> from a dozen other callers, so adding dt there measured nothing.
 		/// </summary>
 		internal float WaitGate;
+		/// <summary>
+		/// 11/11/2026 (Run 22, the review of the gate): the gate refused the piece the walk was about to take and the worker is
+		/// <b>standing at it</b>. It is the <b>stay</b> that <see cref="WaitGate"/> measures, not the call. Set on the refusal,
+		/// cleared when the gate lets the walk through and when a piece is entered (<see cref="EnterStep"/>).
+		/// </summary>
+		internal bool GateHeld;
 		/// <summary>
 		/// 11/11/2026 (Run 22, <b>the park</b>): when this worker last asked the plan again from inside the wait
 		/// (<see cref="MHR_Build.WaitRetry"/> - the queue saying "there is something" is not the same as "something for ME").
@@ -943,6 +950,40 @@ internal static class MHR_Build
 	}
 
 	/// <summary>
+	/// 11/11/2026 (the <b>abandoned piece</b>): a worker that leaves the site without putting its piece up (a "para, Fulano",
+	/// a mode change in the radial, a death that does not resume) used to drop the piece in silence - the claim was freed
+	/// (<c>MHR_BuildGroup.ReleaseAllOf</c>) and the piece was neither rebuilt nor counted, so the player could hear a number
+	/// <b>smaller than the plan</b> with no line saying why. The walk itself skips a piece another worker has claimed
+	/// (<see cref="Advance"/>), and the claim of a worker that LEFT is no reason to forget it.
+	///
+	/// <para>With the site alive the piece goes back to its queue as a <b>dependency</b>: it spends no attempt and is not
+	/// counted as skipped (it was never tried). Without a site there is nobody to rebuild it, so it is counted skipped here -
+	/// <c>Placed + Skipped</c> closes with the plan either way.</para>
+	/// </summary>
+	private static void AbandonPiece(State state)
+	{
+		if (state == null || state.Plan == null || state.Index < 0 || state.Index >= state.Plan.Count)
+		{
+			return;
+		}
+		if (state.PlacedIndices.Contains(state.Index) || state.SkippedIndices.Contains(state.Index))
+		{
+			return;   // up, or already given up by this worker
+		}
+		if (state.Group != null && (MHR_BuildGroup.IsDone(state.Group, state.Index)
+			|| MHR_BuildGroup.GivenUp(state.Group, state.Index)))
+		{
+			return;   // the SITE already has it: another worker put it up, or the watchdog gave it up (that verdict is final)
+		}
+		if (state.Group != null && MHR_BuildGroup.TryQueueRetry(state.Group, state.Index, BuildFailure.Kind.Dependency))
+		{
+			return;   // the site keeps it: another worker (or this one, after a resume) puts it up
+		}
+		state.SkippedIndices.Add(state.Index);
+		MHR_BuildGroup.AddSkipped(state.Group, state.Index);
+	}
+
+	/// <summary>
 	/// E7 (test of the 985-piece house, 03/11/2026): the blueprint order is a snake that starts where the previous run
 	/// ended, not where the companion is standing. After a fall, a death or a recover he can be 10-17 m from the next
 	/// floor and the mover cannot cross the floor that is not built yet ("no progress ... 12 s"). For FLOORS of the same
@@ -1176,22 +1217,20 @@ internal static class MHR_Build
 				// single worker (and try the group's end) with the plan still open.
 				if (!MHR_BuildGroup.MayTake(state.Group, next))
 				{
-					// 11/11/2026 (Run 17): one count per continuous hold - the wait is re-asked every frame (Advance is
-					// called from inside WaitRetry), so only the frame that ENTERS the wait is a hold of the gate
-					if (state.Phase == Phase.WaitRetry)
-					{
-						// 11/11/2026 (Run 18): the seconds of the gate itself, counted where they happen. This branch is
-						// BEFORE ServeBarrier and both return, so it never overlaps the body/dependency seconds.
-						state.WaitGate += dt;
-					}
-					else
+					// 11/11/2026 (Run 17; the review of the gate): the COUNT is one per continuous hold (the PHASE is the hold -
+					// the wait re-asks the gate and stays in WaitRetry), and the SECONDS are the wait's. They used to be added
+					// here, but this call carries dt = 0 from a dozen callers and runs once a second from the wait, so the
+					// number never meant anything: the flag is what WaitRetry accumulates frame by frame.
+					if (state.Phase != Phase.WaitRetry)
 					{
 						state.BarrierHolds++;
 					}
+					state.GateHeld = true;
 					state.Phase = Phase.WaitRetry;
 					state.Start = Time.time;
 					return true;
 				}
+				state.GateHeld = false;   // the gate let the walk through: whatever hold there was is over
 				// 11/11/2026 (the STOREY BARRIER, the player's rule of the Run 9: "they may skip, but come back and try again
 				// before going up"): before the plan climbs a storey, the pieces of the queue that are BELOW the next one get
 				// their turn back - the entrance steps a body refused, the floor still waiting for its support. It runs
@@ -1339,6 +1378,7 @@ internal static class MHR_Build
 		state.WalkRays = 0;   // 11/11/2026 (Run 14): the counters of the surface search are the new piece's own
 		state.WalkFound = 0;
 		state.AdvanceAskedAt = 0f;   // 11/11/2026 (Run 22): a new piece starts the re-ask window of the wait again
+		state.GateHeld = false;      // 11/11/2026 (the review of the gate): a new piece is not standing at the gate
 		state.Phase = Phase.Goto;
 	}
 
@@ -1456,6 +1496,24 @@ internal static class MHR_Build
 		int below = PendingBelowIndex(ai, state, state.BarrierNextIndex, state.BarrierNextY);
 		if (below >= 0)
 		{
+			// 11/11/2026 (the REVIEW of the barrier's cost): a piece that cannot be served inside the patience that is left is
+			// not worth standing still for. `NextRetryBelow` answers -1 while the entry is not due (its `At`), but this
+			// question (`PendingBelowIndex`) ignores the clock - so the worker could wait for something 8-25 s away while the
+			// patience is 10 s (a DependencyDelay of 12 s or more never fits inside BodyRetryMaxWait = 10 s). The `dependência`
+			// bucket of the measured Run 22 was 357,0 s of the 402,7 s of barrier wait, and the impossible subset is at most
+			// that - the bucket is the measure, the waste is a ceiling on it, not the other way round.
+			//
+			// The clock read is the EARLIEST At among ALL the pieces below (MHR_BuildGroup.ReadySoonest), not the one of the
+			// lowest piece: the lowest may be due in 20 s while a piece above it is due in 2 s, and the barrier would have
+			// dropped a service that was 2 s away. The decision itself is pure (BuildFailure.BodyWaitsFor).
+			float patience = BuildFailure.BodyRetryMaxWait - (Time.time - state.BarrierStart);
+			float dueAt = MHR_BuildGroup.ReadySoonest(state.Group, state.BarrierNextIndex, state.BarrierNextY,
+				state.BarrierServed);
+			if (!BuildFailure.BodyWaitsFor(dueAt, Time.time, patience))
+			{
+				ResetBarrier(state);
+				return false;   // it cannot be served before the patience runs out: climb instead of waiting the impossible
+			}
 			// 11/11/2026 (Run 17, the wait instrumented): the seconds the plan stood still here, counted apart - a body and
 			// a dependency are different problems and the A/B needs the two numbers to tell which one cost the time.
 			// One count per continuous hold - the wait is re-asked every frame, so only the frame that ENTERS it counts
@@ -2417,6 +2475,9 @@ internal static class MHR_Build
 		if (s_state.TryGetValue(owner.GetInstanceID(), out state) && state != null && state.Active)
 		{
 			ClearScaffolds(owner, state);
+			// 11/11/2026 (the abandoned piece): "para, Fulano" gives the piece BACK to the site before the claim is freed -
+			// otherwise it vanished (not rebuilt, not counted) and the final number came out smaller than the plan.
+			AbandonPiece(state);
 			state.Active = false;
 			s_state.Remove(owner.GetInstanceID());
 			// P1 (multi-build): "para, Maria" takes HER out of the group and frees her piece - the others go on (the group
@@ -2456,6 +2517,9 @@ internal static class MHR_Build
 				// E7 (review, 03/11/2026): a temporary stair must not survive the order - "seguir", "para" and any other
 				// order without a target come through here, and a piece left in the save is junk in the player's house
 				ClearScaffolds(null, state);
+				// 11/11/2026 (the abandoned piece): the sites were dropped above (the player cancelled the whole thing), so
+				// there is no queue to give the piece back to - it is counted here so this worker's numbers still close.
+				AbandonPiece(state);
 				state.Active = false;
 			}
 			s_state.Remove(key);
@@ -3730,7 +3794,13 @@ internal static class MHR_Build
 		// is the legitimate way forward) or in the MIDDLE of it (a piece was right ahead). The throttle above returns before
 		// these counters on ONE frame per second, so the middle number keeps growing on the other frames of that second -
 		// it is the number the A/B of the Run 22 reads.
-		if (ahead)
+		if (state.GateHeld)
+		{
+			// 11/11/2026 (the review of the gate): the gate is why this worker is standing, so the frame belongs to it and not
+			// to the queue - the buckets stay disjoint, which is what makes `espera` add up.
+			state.WaitGate += dt;
+		}
+		else if (ahead)
 		{
 			state.WaitAhead += dt;
 		}
@@ -7693,6 +7763,9 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		s_state.Remove(ai.GetInstanceID());
 		MHR_Mover.Release(ai);
 		ReleaseHarvest(ai, state);
+		// 11/11/2026 (the abandoned piece): the piece this worker was on is NOT lost with it - with the site alive it goes
+		// back to the queue (a dependency: no attempt spent, not counted as skipped), and without a site it is counted.
+		AbandonPiece(state);
 		// P1 (multi-build): the worker leaves the site - its piece is free for the others right away, and the group is
 		// dropped when the last one leaves (the plan's pieces that are left are lost with it, like a cancelled order)
 		if (state.Group != null)

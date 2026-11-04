@@ -6,6 +6,9 @@ Uso:
     python tools/audit_translations.py --quiet              # so os totais
     python tools/audit_translations.py --lang Spanish       # audita UMA traducao contra o PT-BR
     python tools/audit_translations.py --lang French --quiet
+    python tools/audit_translations.py --check-config           # so as chaves de config (exit 1 se faltar)
+    python tools/audit_translations.py --selftest-config        # prova negativa da checagem de config (nao toca no repo)
+    python tools/audit_translations.py --check-config --translations-dir <pasta>   # audita uma COPIA
 
 O que ele checa no modo PT-BR (e o que cada numero quer dizer):
 
@@ -24,6 +27,13 @@ O que ele checa no modo PT-BR (e o que cada numero quer dizer):
               hover, botoes, labels, `Say(`...) e que NAO passam por `Loc`. Linhas de log/diagnostico
               (`Log*`, `Dbg`, `Diag`) e nomes de GameObject/componente sao descartados de proposito - o
               jogador nao os ve (so no LogOutput.log).
+5. Config   - (11/11/2026) as chaves de rotulo do F8 (`hc_cfg_<secao>_<chave>`, montadas por `ConfigPanel.EntryLabel`)
+              saem do CODIGO - os literais `hc_cfg_*` do `ModLocalization.cs` mais uma por opcao do `ModConfig.cs` - e
+              sao cruzadas com os QUATRO arquivos de idioma, em qualquer modo. E a checagem que faltava: essas chaves
+              nao tem default em ingles (o ingles mostra o nome curto da opcao), entao uma delas ausente dos 4 JSONs
+              aparecia so como "sobrando por desenho" e o F8 ficava com o rotulo em ingles (foi o
+              `hc_cfg_building_spreadworkers`, 11/11/2026). Conta no exit code como as outras; as chaves que so
+              existem no ModConfig e faltam entram como aviso (ver `CONFIG_OPTION_ONLY_FAILS`).
 
 O modo `--lang <NomeDoArquivoSemExtensao>` (Multilanguage M3) valida `Translations/<Nome>.json` e
 `Speech/<Nome>.json` contra o PT-BR:
@@ -61,7 +71,18 @@ def language_argument():
     return None
 
 
+def translations_argument():
+    """`--translations-dir <pasta>`: le os arquivos de idioma de uma COPIA (prova negativa; o gate usa o padrao)."""
+    for i, arg in enumerate(sys.argv):
+        if arg == '--translations-dir' and i + 1 < len(sys.argv):
+            return sys.argv[i + 1]
+        if arg.startswith('--translations-dir='):
+            return arg.split('=', 1)[1]
+    return None
+
+
 LANG = language_argument()
+TR_DIR = translations_argument() or os.path.join(ROOT, 'Translations')
 
 ENTRY = re.compile(r'"key"\s*:\s*"((?:[^"\\]|\\.)*)"[^"]*"value"\s*:\s*"((?:[^"\\]|\\.)*)"')
 DEFAULT_ENTRY = re.compile(r'\{\s*"((?:[^"\\]|\\.)*)"\s*,\s*"((?:[^"\\]|\\.)*)"\s*\}')
@@ -126,10 +147,15 @@ def english_defaults():
     return {unescape(k): unescape(v) for k, v in DEFAULT_ENTRY.findall(block)}
 
 
-def translation_file(rel):
-    path = os.path.join(ROOT, rel)
+def read_entries(path):
+    """As entradas (key/value) de um `Translations/*.json` - a mesma leitura para o arquivo do repo e o de uma copia."""
     txt = open(path, encoding='utf-8').read()
     return {unescape(k): unescape(v) for k, v in ENTRY.findall(txt)}
+
+
+def translation_file(lang):
+    """As entradas do arquivo de um idioma (`<TR_DIR>/<lang>.json` - o repo ou uma copia, ver `--translations-dir`)."""
+    return read_entries(os.path.join(TR_DIR, lang + '.json'))
 
 
 def code_keys():
@@ -152,6 +178,88 @@ def code_keys():
                     else:
                         used.add(key)
     return used, prefixes, literals
+
+
+# ----------------------------------------------------------------------------------------------------------------
+# Checagem de CONFIG (11/11/2026) - a que faltava: uma chave `hc_cfg_*` ausente dos 4 arquivos passava verde.
+# O rotulo de uma opcao do F8 e montado por `ConfigPanel.EntryLabel` (`hc_cfg_<secao>_<chave>`, minusculas) e, em
+# ingles, cai no nome curto da opcao (`entry.Definition.Key`); por isso a maioria dessas chaves NAO tem default no
+# `_englishDefaults` e o modo PT so as via como "sobrando por desenho" (nao tem contraparte em ingles para faltar).
+# Defeito real (11/11/2026): o `hc_cfg_building_spreadworkers` (registrado, `ModLocalization.cs:850`) ficou fora dos
+# 4 arquivos e o F8 mostrou o rotulo em ingles em PT/ES/FR/IT. As chaves saem do CODIGO e sao cruzadas com os QUATRO
+# arquivos em qualquer modo, e o exit code nao passa verde com chave de config faltando.
+#
+# Duas classes, pelo que o jogador ve (medido no codigo, nao suposto):
+#  - REGISTRADA (tem default em `_englishDefaults`): o ingles e injetado primeiro (`ModLocalization.cs:996-1002`) e o
+#    arquivo do idioma sobrescreve depois (`:1009-1018`); faltando no arquivo, a linha do F8 fica em INGLES no jogo
+#    traduzido. E o defeito que ja foi para producao -> conta como lacuna (exit 1).
+#  - SO-OPCAO (so existe no ModConfig): o `LocOr` cai no fallback (`ModLocalization.cs:948-959`) e a linha mostra o
+#    NOME CURTO da opcao ("ConfigVersion"), nao o token `hc_...`. E rotulo nao traduzido, nao token cru -> hoje avisa
+#    sem reprovar; vira reprovacao com `CONFIG_OPTION_ONLY_FAILS = True` (ver o aviso no fim da secao).
+# ----------------------------------------------------------------------------------------------------------------
+
+CONFIG_LANGS = ('Portuguese_Brazilian', 'Spanish', 'French', 'Italian')
+# a mesma leitura do `gen_config_doc.py`: cada opcao e uma linha `X = Bind(cfg, "<secao>", "<chave>", ...);`
+BIND_OPTION = re.compile(r'^\t\t\w+ = Bind\(cfg, "([^"]+)", "([^"]+)", (.*)\);$', re.M)
+# as chaves que so existem no ModConfig tambem reprovam (mude quando elas estiverem traduzidas nos 4 arquivos)
+CONFIG_OPTION_ONLY_FAILS = False
+
+
+def config_registered_keys():
+    """As chaves `hc_cfg_*` literais no `ModLocalization.cs` (as que tem rotulo ingles proprio)."""
+    cs = open(os.path.join(ROOT, 'src', 'Companions', 'Core', 'ModLocalization.cs'), encoding='utf-8').read()
+    return set(re.findall(r'"(hc_cfg_[A-Za-z0-9_]*)"', cs))
+
+
+def config_option_keys():
+    """`hc_cfg_<secao>_<chave>` de TODA opcao do `ModConfig.cs` - a mesma conta do `ConfigPanel.EntryLabel`."""
+    cs = open(os.path.join(ROOT, 'src', 'Companions', 'Core', 'ModConfig.cs'), encoding='utf-8').read()
+    init = cs[cs.index('internal static void Init(ConfigFile cfg)'):]
+    init = init[:init.index('MigrateAndClean(cfg);')]
+    return {'hc_cfg_%s_%s' % (section.lower(), key.lower()) for section, key, _rest in BIND_OPTION.findall(init)}
+
+
+def config_missing(folder=None):
+    """(registradas, so-opcao, [(idioma, ausentes registradas, ausentes so-opcao)]) contra os 4 arquivos de `folder`."""
+    folder = folder or TR_DIR
+    registered = config_registered_keys()
+    option_only = config_option_keys() - registered
+    gaps = []
+    for lang in CONFIG_LANGS:
+        entries = read_entries(os.path.join(folder, lang + '.json'))
+        gaps.append((lang,
+                     sorted(k for k in registered if k not in entries),
+                     sorted(k for k in option_only if k not in entries)))
+    return registered, option_only, gaps
+
+
+def report_config(folder=None):
+    """A secao de config; devolve quantas lacunas ela soma no `gaps` (ou seja, no exit code)."""
+    print('== config (rotulos do F8: hc_cfg_*, checagem separada da UI) ==')
+    try:
+        registered, option_only, gaps = config_missing(folder)
+    except OSError as ex:
+        print('   [erro] nao consegui ler os arquivos de idioma em %s: %s' % (folder or TR_DIR, ex))
+        print('   ausentes (config): 1 (a checagem nao rodou)')
+        return 1
+    print('   chaves de config no codigo: %d (%d registradas no ModLocalization.cs + %d so no ModConfig.cs)'
+          % (len(registered) + len(option_only), len(registered), len(option_only)))
+    missing = sum(len(m) for _lang, m, _soft in gaps)
+    print('   ausentes (config): %d' % missing)
+    for lang, keys, _soft in gaps:
+        if keys:
+            print('      %s.json: %s' % (lang, ', '.join(keys)))
+    soft = sum(len(s) for _lang, _m, s in gaps)
+    if soft:
+        names = sorted({k for _lang, _m, s in gaps for k in s})
+        files = sum(1 for _lang, _m, s in gaps if s)
+        print('   sem rotulo (config, %s): %d chave(s) em %d arquivo(s) -> %s'
+              % ('conta como lacuna' if CONFIG_OPTION_ONLY_FAILS else 'so avisa, nao entra no exit code',
+                 len(names), files, ', '.join(names)))
+        print('      o F8 mostra o nome curto da opcao no lugar do rotulo traduzido (LocOr -> Definition.Key)')
+        if CONFIG_OPTION_ONLY_FAILS:
+            missing += soft
+    return missing
 
 
 def speech_defaults():
@@ -206,7 +314,7 @@ def ui_literals():
 def report():
     gaps = 0
     en = english_defaults()
-    pt = translation_file('Translations/Portuguese_Brazilian.json')
+    pt = translation_file('Portuguese_Brazilian')
     print('== UI ==')
     print('   ModLocalization (ingles): %d chaves' % len(en))
     print('   Translations/Portuguese_Brazilian.json: %d chaves' % len(pt))
@@ -223,6 +331,8 @@ def report():
     print('   destas, so-de-JSON por desenho (hc_cfg_*/hc_cat_*, o ingles mostra a chave): %d' % len(by_design))
     print('   valor igual ao ingles: %d -> %s' % (len(same), ', '.join(same)))
     gaps += len(missing) + len(extra)
+
+    gaps += report_config()
 
     print('== codigo ==')
     used, prefixes, literals = code_keys()
@@ -370,11 +480,19 @@ def speech_file(rel):
         return None
 
 
+def check_config_mode():
+    """So a secao de config (o gate desta checagem): imprime e sai com 1 quando falta chave de config."""
+    missing = report_config()
+    print('== resumo (config) ==')
+    print('   lacunas: %d' % missing)
+    return 0 if missing == 0 else 1
+
+
 def report_language(lang):
     """Audita UMA traducao (UI + falas) contra o PT-BR, que e a fonte."""
     gaps = 0
-    pt = translation_file('Translations/Portuguese_Brazilian.json')
-    tr = translation_file('Translations/%s.json' % lang)
+    pt = translation_file('Portuguese_Brazilian')
+    tr = translation_file(lang)
     print('== UI (%s) ==' % lang)
     print('   PT-BR: %d chaves, %s: %d chaves' % (len(pt), lang, len(tr)))
     missing = [k for k in pt if k not in tr]
@@ -396,6 +514,8 @@ def report_language(lang):
         for key, word in english:
             print('      %s | "%s" (%s)' % (key, tr[key], word))
     gaps += len(missing) + len(extra) + len(empty) + len(bad_ph) + len(same) + len(english)
+
+    gaps += report_config()
 
     print('== falas (%s) ==' % lang)
     pt_speech = speech_file('Speech/Portuguese_Brazilian.json') or {}
@@ -425,5 +545,86 @@ def report_language(lang):
     return 0 if gaps == 0 else 1
 
 
+# ----------------------------------------------------------------------------------------------------------------
+# --selftest-config: a prova negativa da checagem de config, sem tocar em `Translations/`.
+# ----------------------------------------------------------------------------------------------------------------
+
+SELFTEST_VICTIM = 'hc_cfg_building_spreadworkers'   # a chave que passou verde em 11/11/2026
+SELFTEST_VICTIM_ES = 'hc_cfg_building_stepaside'    # a mesma classe, tirando de outro arquivo (o ES)
+
+
+def cut_entry(path, key):
+    """Remove a entrada de `key` de um `Translations/*.json` - so na COPIA da prova negativa, nunca no repositorio."""
+    text = open(path, encoding='utf-8').read()
+    entry = re.compile(r'\s*\{\s*"key"\s*:\s*"%s"\s*,\s*"value"\s*:\s*"(?:[^"\\]|\\.)*"\s*\},?' % re.escape(key))
+    new, removed = entry.subn('', text)
+    open(path, 'w', encoding='utf-8', newline='').write(new)
+    return removed
+
+
+def selftest_config():
+    """Copia os 4 arquivos para `%TEMP%\\opencode\\audit-config-selftest`, apaga UMA chave de config de DOIS arquivos
+    na copia e exige que a checagem acuse cada uma no seu arquivo. Prova os dois lados sem editar o repositorio."""
+    import shutil
+    import tempfile
+
+    temp = os.path.abspath(tempfile.gettempdir())
+    base = os.path.join(temp, 'opencode', 'audit-config-selftest')
+    if os.path.isdir(base) and os.path.abspath(base).startswith(temp):
+        shutil.rmtree(base)
+    os.makedirs(base)
+    for lang in CONFIG_LANGS:
+        shutil.copyfile(os.path.join(ROOT, 'Translations', lang + '.json'), os.path.join(base, lang + '.json'))
+
+    ok = True
+    print('== selftest da checagem de config ==')
+    print('   copia byte a byte dos 4 arquivos: %s' % base)
+
+    registered, option_only, gaps = config_missing(base)
+    clean = sum(len(m) for _lang, m, _soft in gaps)
+    print('   [%s] sem alteracao: %d ausentes (config) em %d chaves x %d arquivos'
+          % ('PASS' if clean == 0 else 'FAIL', clean, len(registered) + len(option_only), len(CONFIG_LANGS)))
+    ok = ok and clean == 0
+
+    victims = []
+    for lang, wanted in (('Portuguese_Brazilian', SELFTEST_VICTIM), ('Spanish', SELFTEST_VICTIM_ES)):
+        path = os.path.join(base, lang + '.json')
+        entries = read_entries(path)
+        victim = wanted if wanted in entries else (sorted(config_registered_keys() & set(entries)) or [''])[0]
+        before = len(entries)
+        removed = cut_entry(path, victim)
+        after = len(read_entries(path))
+        valid = True
+        try:
+            json.load(open(path, encoding='utf-8'))
+        except Exception as ex:
+            valid = False
+            print('   [FAIL] %s deixou de ser JSON valido: %s' % (lang, ex))
+        cut_ok = removed == 1 and valid and after == before - 1
+        print('   [%s] removi "%s" da copia do %s (%d -> %d entradas, JSON %s)'
+              % ('PASS' if cut_ok else 'FAIL', victim, lang, before, after, 'valido' if valid else 'invalido'))
+        ok = ok and cut_ok
+        victims.append((lang, victim))
+
+    registered, option_only, gaps = config_missing(base)
+    hit = dict((lang, keys) for lang, keys, _soft in gaps)
+    detected = all(hit[lang] == [victim] for lang, victim in victims)
+    print('   -- relatorio da secao de config na copia alterada (a prova) --')
+    found = report_config(base)
+    print('   -- fim --')
+    detected = detected and found == len(victims)
+    print('   [%s] a checagem acusou: %s'
+          % ('PASS' if detected else 'FAIL',
+             '; '.join('%s.json: %s' % (lang, ', '.join(keys)) for lang, keys, _soft in gaps if keys) or 'nada (buraco!)'))
+    ok = ok and detected
+
+    print('   resultado: %s (exit %d)' % ('PASS' if ok else 'FAIL', 0 if ok else 1))
+    return 0 if ok else 1
+
+
 if __name__ == '__main__':
+    if '--selftest-config' in sys.argv:
+        sys.exit(selftest_config())
+    if '--check-config' in sys.argv:
+        sys.exit(check_config_mode())
     sys.exit(report_language(LANG) if LANG else report())

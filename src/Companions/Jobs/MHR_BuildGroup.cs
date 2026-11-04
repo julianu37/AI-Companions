@@ -1457,6 +1457,42 @@ internal static class MHR_BuildGroup
 		return Workers(key) > 1;
 	}
 
+	/// <summary>
+	/// 11/11/2026 (the cut of the storey barrier): the <b>earliest</b> clock among the pieces of the queue that the barrier
+	/// considers "below" the walk - the same predicate <see cref="PendingBelow"/> uses (<see cref="IsBelow"/>), never a second
+	/// copy of the rule. <b>0</b> when there is none.
+	///
+	/// <para>Why not the piece <see cref="PendingBelow"/> answers: that one is the <b>lowest by Y</b>, and asking only it made
+	/// the cut lie - a column whose lowest piece is due in 20 s with a piece above it due in 2 s was declared impossible and
+	/// the worker climbed over a piece it could have served in 2 s.</para>
+	/// </summary>
+	internal static float ReadySoonest(string key, int nextIndex, float nextY, HashSet<int> served)
+	{
+		Group group;
+		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null || group.Plan == null)
+		{
+			return 0f;
+		}
+		float soonest = 0f;
+		for (int i = 0; i < group.Retry.Count; i++)
+		{
+			RetryEntry entry = group.Retry[i];
+			if (!IsBelow(group, entry, nextIndex, nextY, served))
+			{
+				continue;
+			}
+			if (entry.At <= 0f)
+			{
+				continue;   // no clock to read
+			}
+			if (soonest <= 0f || entry.At < soonest)
+			{
+				soonest = entry.At;
+			}
+		}
+		return soonest;
+	}
+
 	/// <summary>P1: a piece of the plan was given up (the retry queue ran out of real attempts, or the watchdog dropped
 	/// it). Counted <b>once per plan index</b> - and never for a piece that is already up.</summary>
 	internal static bool AddSkipped(string key, int index)

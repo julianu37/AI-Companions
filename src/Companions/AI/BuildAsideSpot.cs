@@ -38,9 +38,17 @@ internal static class BuildAsideSpot
 	/// window of the game (<c>BuildBody</c>: the capsule plus the piece's box) with room for the walk.</summary>
 	internal const float Clearance = 1.5f;
 
-	/// <summary>How far above/below the piece being placed another pending piece still shares its <b>row</b> - a piece of
-	/// the storey above (a floor 2 m up) is not something the step lands on.</summary>
-	internal const float Height = 2f;
+	/// <summary>
+	/// How far above/below the spot another pending piece still shares its <b>row</b> - a piece of the storey above (a floor
+	/// 2 m up) is not something the step lands on.
+	///
+	/// <para>11/11/2026 (measured: <b>42 of 52</b> blocked pieces never moved anybody, 81%): it was <b>2,0 m</b> and the test
+	/// is <c>&gt; Height</c>, so a row <b>exactly</b> 2,0 m above (the 46,8 tiles of the measured house against the 48,8 ones)
+	/// counted as blocking a spot where the companion was only <b>under</b> it - the body is 1,8 m tall
+	/// (<c>BuildProbe.CapsuleOf</c>/<c>BuildBody</c>), so a piece 2,0 m up cannot be what the step lands on. <b>1,8 m</b> is the
+	/// capsule: a piece lower than that still counts (the companion's head is inside it).</para>
+	/// </summary>
+	internal const float Height = 1.8f;
 
 	/// <summary>The ring of directions a spot is picked from (8 = 45 degrees apart).</summary>
 	internal const int Ring = 8;

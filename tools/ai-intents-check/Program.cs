@@ -843,6 +843,26 @@ internal static class Program
 				&& Math.Abs(BuildFailure.BodyRetryMaxWait - 10f) < 0.001f,
 			"obtido " + BuildFailure.BodyRetryDelay.ToString("F2") + " / " + BuildFailure.BodyRetryStep.ToString("F2")
 				+ " / " + BuildFailure.BodyRetryMaxWait.ToString("F2"));
+
+		// 11/11/2026 (the cut of the storey barrier): does the site hold a worker for a piece whose clock says dueAt?
+		// True while the patience left covers it - with the lowest piece due in 20 s and one above it due in 2 s what is
+		// read is the 2 s (the min(At) of the barrier) - false for a NaN clock or an exhausted patience, and a clock of
+		// 0 or less is "there is no clock to read": hold, the behaviour of before this cut.
+		float now = 500f;   // the site's clock, in seconds (a value where now +/- 2, 10 and 12 are exact floats)
+		BodyWaitCase("BodyWaitsFor(now + 2, now, 10) -> true (2 s cabem em 10 s: o min(At) da peca de cima)", now + 2f, now, 10f, true);
+		BodyWaitCase("BodyWaitsFor(now + 12, now, 10) -> false (nao cabe na paciencia: sobe)", now + 12f, now, 10f, false);
+		BodyWaitCase("BodyWaitsFor(now + 10, now, 10) -> true (borda: exatamente a paciencia ainda espera)", now + 10f, now, 10f, true);
+		BodyWaitCase("BodyWaitsFor(0, now, 10) -> true (sem relogio: o comportamento de antes do corte)", 0f, now, 10f, true);
+		BodyWaitCase("BodyWaitsFor(NaN, now, 10) -> false (NaN nunca segura)", float.NaN, now, 10f, false);
+		BodyWaitCase("BodyWaitsFor(now + 2, now, 0) -> false (paciencia esgotada)", now + 2f, now, 0f, false);
+	}
+
+	/// <summary>Section (p): one <c>BodyWaitsFor</c> case - the piece's clock (an absolute time; 0 or less = no clock),
+	/// the current time, the patience left and whether the site holds a worker for that piece.</summary>
+	private static void BodyWaitCase(string name, float dueAt, float now, float patience, bool expected)
+	{
+		bool actual = BuildFailure.BodyWaitsFor(dueAt, now, patience);
+		Check(name, actual == expected, "obtido " + (actual ? "true" : "false"));
 	}
 
 	/// <summary>Section (p): one classification, with the probe's answer and what the gate expects.</summary>
@@ -1570,7 +1590,8 @@ internal static class Program
 	/// <para>The table asserted here is the ring <c>Plan</c> returns: away from the placer's front first (the 3 directions
 	/// behind it - straight behind and the two 45 degrees), then its two <b>sides</b>, its <b>front never</b> (the plan's
 	/// next pieces are there); inside a rank the direction most directly behind wins, then the shortest step; and a spot
-	/// <b>1,5 m</b> (XZ) from a <b>pending</b> piece of the same row (within 2 m of the piece being placed) is out. All of
+	/// <b>1,5 m</b> (XZ) from a <b>pending</b> piece of the same row (within <see cref="BuildAsideSpot.Height"/> - the
+	/// body's capsule, 1,8 m - of the piece being placed) is out. All of
 	/// them out = <b>no step at all</b> (the caller does not ask and the piece goes to the site's queue). The coordinates
 	/// are the exact ring values (2,2 m and 2,2 x cos45) and the tolerance is a centimetre: the cases are about the rule,
 	/// not about float rounding.</para>
@@ -1610,11 +1631,21 @@ internal static class Program
 		AsideCase("peça pendente 4 m acima nao bloqueia", piece, back,
 			new[] { new UnityEngine.Vector3(2.2f, 14f, 0f) }, 5, new UnityEngine.Vector3(2.2f, 10f, 0f));
 
-		// 5) the 2 m band is EXCLUSIVE-ish: 2,1 m above is already another storey (the boundary is 2,0 m, which does block)
+		// 5) the band is Height = 1,8 m - the body's capsule, not the storey - and the edge is INCLUSIVE. It was 2,0 m
+		// (11/11/2026, measured: 42 of the 52 pieces blocked by a companion never moved anybody, 81%): the 46,8 tiles of
+		// the house against the 48,8 ones are exactly 2,0 m apart, and they took a destination from a companion that was
+		// only UNDER them. So 2,1 m above was never the first free height - 2,0 m already is one.
 		AsideCase("peça pendente 2,1 m acima ja nao bloqueia", piece, back,
 			new[] { new UnityEngine.Vector3(2.2f, 12.1f, 0f) }, 5, new UnityEngine.Vector3(2.2f, 10f, 0f));
-		AsideCase("peça pendente 2,0 m acima ainda bloqueia", piece, back,
-			new[] { new UnityEngine.Vector3(2.2f, 12f, 0f) }, 4, new UnityEngine.Vector3(diag, 10f, -diag));
+		// the exact edge is asserted from the ground: 1,8f is not reachable from y = 10 in a float (11,8f - 10f = 1,80000019
+		// against Height = 1,79999995, measured by a probe in this section), so the piece being placed sits at 0 - and the
+		// pending one at the LITERAL 1,8f, not at the constant: a band narrowed to 1,5 m would let this piece through (5
+		// destinations) and a band of 2,0 m or more is caught by the case below, so the pair pins the number 1,8
+		AsideCase("peça pendente a 1,8 m acima ainda bloqueia o destino", UnityEngine.Vector3.zero, back,
+			new[] { new UnityEngine.Vector3(2.2f, 1.8f, 0f) }, 4,
+			new UnityEngine.Vector3(diag, 0f, -diag), 0, 0f);
+		AsideCase("peça pendente a 2,0 m acima não bloqueia mais o destino", piece, back,
+			new[] { new UnityEngine.Vector3(2.2f, 12f, 0f) }, 5, new UnityEngine.Vector3(2.2f, 10f, 0f));
 
 		// 6) the 1,5 m clearance is INCLUSIVE at the edge: exactly 1,5 m away is free, 1,4 m is out
 		AsideCase("peça pendente a 1,5 m do destino: livre", piece, back,
@@ -1664,12 +1695,13 @@ internal static class Program
 	}
 
 	/// <summary>Section (y): one <c>Plan</c> case - the expected count and a spot that must be at <paramref name="slot"/>.
-	/// The piece being placed is always (0, 10, 0) here; <paramref name="me"/> is the companion's own feet.</summary>
+	/// The piece being placed is (0, <paramref name="pieceY"/>, 0) here (10 m up unless a case needs the exact band edge
+	/// measured from the ground); <paramref name="me"/> is the companion's own feet.</summary>
 	private static void AsideCase(string name, UnityEngine.Vector3 me, UnityEngine.Vector3 away,
-		UnityEngine.Vector3[] pending, int expected, UnityEngine.Vector3 spot, int slot = 0)
+		UnityEngine.Vector3[] pending, int expected, UnityEngine.Vector3 spot, int slot = 0, float pieceY = 10f)
 	{
 		UnityEngine.Vector3[] spots = new UnityEngine.Vector3[BuildAsideSpot.Ring];
-		int count = BuildAsideSpot.Plan(me, new UnityEngine.Vector3(0f, 10f, 0f), away,
+		int count = BuildAsideSpot.Plan(me, new UnityEngine.Vector3(0f, pieceY, 0f), away,
 			new System.Collections.Generic.List<UnityEngine.Vector3>(pending), 2.2f, spots);
 		bool ok = count == expected && slot < count && AsideSame(spots[slot], spot);
 		Check(name + " -> #" + (slot + 1) + " " + Vec(spot) + " (" + expected + " destinos)", ok,
