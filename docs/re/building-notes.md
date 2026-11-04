@@ -1498,8 +1498,9 @@ plano** dos 9 candidatos, nivela com a enxada (passadas de 1,5 s) e só então p
   `Piece`/`WearNTear`); o **baú e a cama no barranco** eram `too_steep` e ganharam o `NudgePiece`
   (`MHR_Build.cs:3910`: `BuildSite.Find` a **2,5 m** para mobília — estrutural só **1 m** —, 2 anéis × 8 direções, 48
   candidatos, ignorando o próprio companheiro — o run perdeu **4** peças ali).
-- **Resultado final (os dois runs com o lote completo): §17.6** — **970/985** com `PlaceReach = 10` e **972
-  colocadas + 0 mortes** com `15`.
+- **Resultado final (os três runs com o lote completo): §17.6** — **970/985** com `PlaceReach = 10`, **972
+  colocadas + 0 mortes** com `15` e, no **Run 3** (15 + guarda anti-loop), **`970 peças, 16 puladas`** = **986**, **0
+  mortes** e **382 KB** de log; o que sobrou no Run 3 é o **clamp do terreno** (§17.9, em teste).
 
 ### 17.2 O portão de apoio (`AI/BuildFailure.cs` + `MHR_Build.QueueRetry`)
 
@@ -1576,26 +1577,28 @@ Harness **539 PASS** (471 até a **(o)** + **23** da seção **(p)** — `AI/Bui
 `ai-intents-check.csproj`), MCP **101 PASS**, **config 359/25**, ES/FR/IT **0 lacunas**, dívida do
 `gen_translations.py` **45** e build **0/0**.
 
-### 17.6 O resultado dos dois runs (04/11/2026)
+### 17.6 O resultado dos três runs (04/11/2026)
 
-Os dois runs são a mesma casa (`CommHomeBasicBP`), os mesmos 3 companheiros, `BlueprintFree = true` e o lote do
-validador já no código (4,0 m, `NudgePiece` universal, companheiro fora do `blocked_by_player`). A **única diferença**
-entre eles é `[Building] PlaceReach`: **10** (o padrão do código) × **15** (valor de teste, mudado só no `.cfg` — o
-**default continua 10**, `ModConfig.cs:945`, faixa 5..20).
+Os três runs são a mesma casa (`CommHomeBasicBP`), os mesmos 3 companheiros, `BlueprintFree = true` e o lote do
+validador já no código (4,0 m, `NudgePiece` universal, companheiro fora do `blocked_by_player`). A diferença entre os
+dois primeiros é `[Building] PlaceReach`: **10** (o padrão do código) × **15** (valor de teste, mudado só no `.cfg` —
+o **default continua 10**, `ModConfig.cs:945`, faixa 5..20). O **Run 3** roda em 15 e já com a **guarda anti-loop** do
+§17.8.
 
-| | Run 1 | Run 2 |
-|---|---|---|
-| `PlaceReach` | **10** | **15** (config de teste) |
-| colocadas | **970** | **972** |
-| fora (puladas) | **15** | **13** (watchdog) |
-| total fechado | **985** (`970 peças, 15 puladas` — `hc_ai_blueprint_done`) | passada principal **987/987** |
-| mortes | **1** | **0** |
-| `no_ground` | **0** (era ~25) | — |
-| `blocked_by_player` | **0** (era **17+**) | — |
-| `log ajustado` (nudge) | **6** | — |
-| `too_steep` | **4** | — |
-| `no progress` | **69** | — |
-| watchdog | `15 peça(s) sem apoio` | `13 peça(s) sem apoio` |
+| | Run 1 | Run 2 | **Run 3** |
+|---|---|---|---|
+| `PlaceReach` | **10** | **15** (config) | **15** (config) + guarda |
+| colocadas | **970** | **972** | **970** (`969` `done` no log) |
+| fora (puladas) | **15** | **13** (watchdog) | **16** (watchdog, **nomeadas**) |
+| total fechado | **985** (`970 peças, 15 puladas`) | passada principal **987/987** | **986** (`970 peças, 16 puladas`) |
+| mortes | **1** | **0** | **0** |
+| log | — | — | **382 KB** (sem loop) |
+| `no_ground` | **0** (era ~25) | — | — |
+| `blocked_by_player` | **0** (era **17+**) | — | — |
+| `log ajustado` (nudge) | **6** | — | — |
+| `too_steep` | **4** | — | — |
+| `no progress` | **69** | — | — |
+| watchdog | `15 peça(s) sem apoio` | `13 peça(s) sem apoio` | **16 peça(s) sem apoio** |
 
 - **O que fechou no Run 1:** o `no_ground` da cumeeira **zerou** (~25 → 0) com o `AttachedRadius` de **4,0 m**, o
   `blocked_by_player` **zerou** (17+ → 0) com o companheiro fora do teste de personagem, e o `log ajustado` **6** é o
@@ -1605,6 +1608,14 @@ entre eles é `[Building] PlaceReach`: **10** (o padrão do código) × **15** (
   mortes**. O canteiro tinha **984 peças** no raio (inclui a base do jogador) e o `PlanStations` **insere bancadas** no
   plano (`MHR_Build.cs:2250`), então os denominadores (984/985/987) não são o mesmo número por construção — os valores
   acima são os do log, `Placed`/`Skipped` contam **índices**.
+- **Run 3 (04/11/2026, com a guarda anti-loop do §17.8):** a fala final foi **"970 peças, 16 puladas"** = **986** (o
+  plano ganhou **1 bancada** em relação ao Run 1), **969** linhas `done`, **0 mortes**, **382 KB** de log (o loop do
+  `290afc1` valia 344 MB) e **976 peças** no raio do canteiro (inclui a base do jogador). As **16** ficaram
+  **nomeadas** pelo watchdog (`sem apoio: <prefab> em (x, y, z)`, `MHR_Build.cs:2021`) — todas em **colunas verticais**:
+  `wood_beam_45` em **y 37,8 e 39,8** (oeste, ~(-175, -427,7)); `wood_floor` em **39,8 e 43,8** + `wood_roof_45` em
+  **41,8/45,8** (leste, ~(-157 a -166, -419 a -429)); e **4 baús** em **(-157 a -159, 39,9, -419 a -420)**. A **visão**
+  (`render_view`, duas capturas) confirmou o diagnóstico no espaço: telhado **quase completo**, com **buraco no lado
+  leste** (a água norte perto da cumeeira e a empena leste) — as colunas que faltam. Causa e correção: **§17.9**.
 - **As 13 que sobraram no Run 2, com a causa de cada uma:**
   1. **2 baús** (`piece_chest_wood`) em **(-168,2, 39,9, -434,9)** — `too_steep`: o nudge de mobília tem **2,5 m** e
      não achou pose válida nesse raio (é o achado que motivou o lote seguinte).
@@ -1669,5 +1680,39 @@ entre eles é `[Building] PlaceReach`: **10** (o padrão do código) × **15** (
      `LastProgressAt` e só é consultado no caminho de espera.
   3. **Log de diagnóstico dentro de caminho que pode repetir por frame precisa de dedupe/rate-limit próprio** —
      `[Build]` escreve por evento; num ciclo de recusa→pull ele virou 344 MB.
+
+### 17.9 O clamp do terreno: nenhuma peça abaixo do chão (04/11/2026)
+
+- **O problema (as 16 do Run 3, medidas):** o plano ancora pela **origem do arquivo** do blueprint — `centre` é o centro
+  em XZ com **`y = 0`** (`MHR_Build.cs:1043`) e a pose sai de `hint + rot·(piece.Pos − centre)`
+  (`:1074`) —, então o **Y do arquivo** é somado ao Y da mira *como está*. Na `CommHomeBasicBP` a fundação está em
+  **y 37,8** e o terreno do sítio é plano na altura da mira: **1 m abaixo do chão**. O jogo **recusa/destrói peça
+  enterrada**, e o que estava acima dela falha em **cascata** de `no_support` — exatamente as colunas verticais
+  nomeadas no §17.6 (`wood_beam_45` em 37,8/39,8 a oeste; `wood_floor` 39,8/43,8 e `wood_roof_45` 41,8/45,8 a leste) e
+  os 4 baús em 39,9. Nenhum ajuste de alcance ou de bancada resolveria: **a base da casa não existia**.
+- **A correção (build `0f13878`):** **nenhuma peça é planejada abaixo do terreno que ela pisa** —
+  `MHR_Build.cs:1075-1082`:
+
+  ```csharp
+  if (ZoneSystem.instance != null)
+  {
+      float ground = ZoneSystem.instance.GetGroundHeight(placed);
+      if (placed.y < ground - 0.05f)
+      {
+          placed.y = ground;   // a peça enterrada assenta no chão e segura as de cima
+      }
+  }
+  ```
+
+  A tolerância de **0,05 m** é folga de arredondamento, não uma licença para enterrar. A fundação passa a ficar **no
+  chão** e o resto da coluna encontra apoio nela; o `no_support` em cascata some pela raiz em vez de ser retentado.
+- **Alcance:** o clamp roda quando o **plano é montado** (`StartBlueprint`); a **retomada** reusa o plano guardado
+  (`storedPlan`) e herda o que já foi calculado.
+- **O que ler no run em teste (pendente):** as **16 que o Run 3 nomeou** deixam de aparecer em `sem apoio: <prefab> em
+  (x, y, z)` — em especial as colunas do lado **leste** (piso/telhado), que fecham o **buraco da visão**; o log
+  continua pequeno (sem loop); se sobrar algum `no_support`, olhar se o apoio daquela peça agora é a fundação
+  assentada e se o terreno sob ela é o mesmo sítio plano (o clamp usa o **chão sob cada peça**, não a média do sítio).
+  Build **0/0** e harness **539**; **aceite medido ainda não**.
+
 
 

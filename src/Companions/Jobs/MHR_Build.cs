@@ -1066,20 +1066,7 @@ internal static class MHR_Build
 				skipped++;
 				continue;
 			}
-			// P1 (04/11/2026, the last 16 pieces of the 985 house): the plan is anchored by the FILE's origin, so a
-			// blueprint whose foundations are 1 m below its floor level put them UNDER our terrain (the site is flat at
-			// the aim's height): the game refuses/destroys a buried piece, and everything above it fails `no_support` in
-			// a cascade (measured: 16 pieces in vertical columns, wood_beam at y 37,8 under floors at 39,8). No piece is
-			// planned below the ground it stands on - the buried ones sit ON the terrain and hold the rest up.
 			Vector3 placed = hint + rot * Vector3.Scale(piece.Pos - centre, new Vector3(piece.Scale, piece.Scale, piece.Scale));
-			if (ZoneSystem.instance != null)
-			{
-				float ground = ZoneSystem.instance.GetGroundHeight(placed);
-				if (placed.y < ground - 0.05f)
-				{
-					placed.y = ground;
-				}
-			}
 			plan.Add(new PlannedStep
 			{
 				Prefab = piece.Prefab,
@@ -1093,6 +1080,33 @@ internal static class MHR_Build
 			CompanionsPlugin.Log?.LogWarning("[Build] blueprint " + blueprint.Label + ": nothing buildable here ("
 				+ skipped + " line(s) skipped, first '" + (missingPrefab ?? "?") + "')");
 			return BlueprintStart.Failed;
+		}
+		// P1 (04/11/2026, player's report: "the whole build should be raised, not only the entrance stairs - the ground
+		// floor should sit a little above the ground, on the poles; it is like a deck"): the plan is anchored by the
+		// FILE's origin, so a blueprint whose foundations sit 1 m below its floor level was built with the floor ON the
+		// terrain and the foundations buried (clamping each buried piece to the ground puts the floor at the ground too,
+		// which is the bug the player saw). The WHOLE plan rises by the depth of its lowest piece: the foundations stand
+		// on the ground and the floor lands on the deck the author drew, on top of the poles, with the stairs reaching it.
+		if (ZoneSystem.instance != null && plan.Count > 0)
+		{
+			float lowest = float.MaxValue;
+			for (int i = 0; i < plan.Count; i++)
+			{
+				if (plan[i].Pos.y < lowest)
+				{
+					lowest = plan[i].Pos.y;
+				}
+			}
+			float lift = ZoneSystem.instance.GetGroundHeight(hint) - lowest;
+			if (lift > 0.05f && lift < 3f)
+			{
+				for (int i = 0; i < plan.Count; i++)
+				{
+					plan[i].Pos = new Vector3(plan[i].Pos.x, plan[i].Pos.y + lift, plan[i].Pos.z);
+				}
+				CompanionsPlugin.Log?.LogInfo("[Build] blueprint " + blueprint.Label + ": o ponto mais baixo do plano estava "
+					+ lift.ToString("F2") + " m abaixo do terreno - a obra inteira sobe para o piso ficar sobre as estacas");
+			}
 		}
 		if (skipped > 0)
 		{

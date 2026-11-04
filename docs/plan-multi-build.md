@@ -3,7 +3,9 @@
 **Status (04/11/2026):** **P1 MEDIDO EM JOGO** na branch `fix/pisos-nivel-2` (3 companheiros na `CommHomeBasicBP`,
 `BlueprintFree = true`): com `PlaceReach = 10` (padrão) **970 + 15 = 985** peças — a fala final fecha, **`no_ground`
 ~25 → 0**, **`blocked_by_player` 17+ → 0**, `log ajustado` **6**, 1 morte; com `PlaceReach = 15` (config de teste) a
-passada principal chegou a **987/987**, **972 colocadas** e **0 mortes**, sobrando **13** (§7). O código é
+passada principal chegou a **987/987**, **972 colocadas** e **0 mortes**, sobrando **13**; no **Run 3** (15 + a
+guarda anti-loop) **`970 peças, 16 puladas`** = **986**, **0 mortes** e **382 KB** de log, e as 16 nomeadas revelaram
+o **plano abaixo do terreno** — corrigido (`0f13878`: **nenhuma peça abaixo do chão**) e **em teste** (§7). O código é
 `Jobs/MHR_BuildGroup.cs` mais
 `StartBlueprintGroup`/`Phase.WaitGroup`/`Phase.WaitRetry`/`QueueRetry`/`MarkDone`/`IsLeader`/`PlanLocked` em
 `Jobs/MHR_Build.cs`, e o ciclo de 04/11 fechou o **portão de apoio** (`AI/BuildFailure.cs`), o **watchdog de
@@ -240,12 +242,13 @@ teste mock do MCP (**101 PASS**, **12 asserções novas para o contrato do grupo
    (12/32, fora do footprint, no terreno) e o **validador ampliado**: `AttachedToStructure` a **4,0 m** (era 2,6 — o
    grid do telhado tem ~2 m e a vizinha fica na diagonal, a ~2,8–3,5 m), **`NudgePiece` universal** (qualquer peça com
    `too_steep`/`no_ground`: **estrutural ≤ 1 m**, **mobília até 2,5 m**, por `BuildPieceKind`) e `blocked_by_player`
-   **sem contar companheiro** (`BlockedByCharacter` ignora quem tem `CompanionAI` — eram 17+). **Medido nos dois
+   **sem contar companheiro** (`BlockedByCharacter` ignora quem tem `CompanionAI` — eram 17+). **Medido nos três
    runs (§7):** `PlaceReach = 10` → **970/985** (15 puladas, `no_ground` ~25 → **0**, `blocked_by_player` 17+ → **0**,
    `log ajustado` 6, 1 morte); `PlaceReach = 15` (só config) → passada principal **987/987**, **972 colocadas** e **0
-   mortes**; sobraram **13** (2 baús `too_steep`, 1 bancada `clipping`, ~10 do andar de cima `no_support`). **Aberto:** a
-   **reserva de material** (`Stock` — cada worker conta o canteiro por conta própria), um run com **material pago** e o
-   lote que ataca as 13 (nudge 5 m/3×12, `TryBenchAt` sem `clipping`, cadeia de apoio do andar de cima).
+   mortes**; **Run 3** (15 + guarda anti-loop) → **`970 peças, 16 puladas`** = **986**, **0 mortes** e **382 KB** de
+   log. **Aberto:** a **reserva de material** (`Stock` — cada worker conta o canteiro por conta própria), um run com
+   **material pago**, o **clamp do terreno** (`0f13878`) **em teste** e o lote que ataca as 13 (nudge 5 m/3×12,
+   `TryBenchAt` sem `clipping`, cadeia de apoio do andar de cima).
 3. **P2 — navmesh/latência — MEDIDO EM JOGO (implementado e testado em 03/11/2026):** (a) **medido o `why`** do run de 03/11/2026:
    **36 `no progress`**, 17 `no_support`, 9 `no_ground`, 6 `too_steep` — os 36 **não** são "tile invisível": são o
    `SnapToNavMesh` (1,5/3/6/12 m) mandando o alvo para o chão sob o piso, com a trava de 12 s do `Goto` queimando;
@@ -287,29 +290,37 @@ teste mock do MCP (**101 PASS**, **12 asserções novas para o contrato do grupo
 
 ## 7. Critério de aceite
 
-**Medido em jogo (04/11/2026, `CommHomeBasicBP`, 3 companheiros, `BlueprintFree = true`)** — dois runs, a **única**
-diferença é `PlaceReach` (10 = padrão do código; 15 = config de teste). O detalhe está em `docs/re/building-notes.md`
-§17.6:
+**Medido em jogo (04/11/2026, `CommHomeBasicBP`, 3 companheiros, `BlueprintFree = true`)** — três runs: 1 e 2 diferem
+só no `PlaceReach` (10 = padrão do código; 15 = config de teste), o **Run 3** roda em 15 **com a guarda anti-loop**
+(§17.8 de `docs/re/building-notes.md`). O detalhe está lá em §17.6 e §17.9:
 
-| | Run 1 (`PlaceReach = 10`) | Run 2 (`PlaceReach = 15`) |
-|---|---|---|
-| colocadas | **970** | **972** |
-| fora | **15** | **13** (watchdog) |
-| total | **fecham**: `970 peças, 15 puladas` (970 + 15 = **985**) | passada principal **987/987** |
-| mortes | 1 | **0** |
-| `no_ground` | **0** (era ~25) | — |
-| `blocked_by_player` | **0** (era 17+) | — |
-| `log ajustado` | **6** | — |
+| | Run 1 (`PlaceReach = 10`) | Run 2 (`PlaceReach = 15`) | **Run 3 (15 + guarda)** |
+|---|---|---|---|
+| colocadas | **970** | **972** | **970** (`969` `done`) |
+| fora | **15** | **13** (watchdog) | **16** (watchdog, nomeadas) |
+| total | **fecham**: `970 peças, 15 puladas` (970 + 15 = **985**) | passada principal **987/987** | **986** (`970 peças, 16 puladas`) |
+| mortes | 1 | **0** | **0** |
+| log | — | — | **382 KB** (sem loop) |
+| `no_ground` | **0** (era ~25) | — | — |
+| `blocked_by_player` | **0** (era 17+) | — | — |
+| `log ajustado` | **6** | — | — |
 
 - **fechou:** os **contadores** (`Placed`/`Skipped` por índice → a fala final fecha com o plano), a **cumeeira** deixa de
   ser `no_ground` (~25 → **0**, `AttachedRadius` 4,0 m), o **companheiro não bloqueia** a colocação (17+ → **0**,
   `BlockedByCharacter`), o **nudge** age (`log ajustado` 6) e o **baú/cama** de mobília passam a ser ajustados; com
-  15 m a ordem chega a **0 mortes** e a passada principal a **987/987**;
+  15 m a ordem chega a **0 mortes** e a passada principal a **987/987**; o **Run 3** mostra **0 mortes e 382 KB de log**
+  com a guarda anti-loop (o `290afc1` tinha feito 344 MB);
 - **o grupo em si:** um plano por índices distintos (`a peça X já foi construída pelo grupo`), **promoção do líder**
   (`o líder do grupo ... saiu - outro companheiro assumiu`) e **retomada** no mesmo plano (`voltou para o grupo ... na
-  peça X`) continuam valendo nos dois runs;
+  peça X`) continuam valendo nos três runs;
 - **portão de apoio:** as peças que só esperavam o apoio **não** gastaram tentativa (74 no primeiro run do dia) e as
-  que não fecharam foram ditas pelo **watchdog** (15 no Run 1, **13 no Run 2**), cada uma nomeada no log.
+  que não fecharam foram ditas pelo **watchdog** (15/13/**16**), cada uma **nomeada** (`sem apoio: <prefab> em (x, y, z)`);
+- **Run 3 — o que sobrou aponta um bug de plano, não de worker:** as 16 nomeadas formam **colunas verticais**
+  (`wood_beam_45` em y 37,8/39,8 a oeste; `wood_floor` 39,8/43,8 + `wood_roof_45` 41,8/45,8 a leste; 4 baús em 39,9) e
+  a visão (`render_view`) mostrou o telhado **quase completo com um buraco no lado leste**. Causa: o plano ancora pela
+  **origem do arquivo** e a fundação do blueprint está **1 m abaixo do terreno** — o jogo recusa a peça enterrada e tudo
+  acima falha `no_support` em cascata. Correção `0f13878`: **nenhuma peça abaixo do terreno**
+  (`MHR_Build.cs:1075-1082`, sobe para `GetGroundHeight - 0,05`). **Em teste** (run em andamento).
 
 **Coberto pelo código e ainda sem run dedicado:**
 - claim expira em 20 s, renovado por frame; retry real teto de 3 por índice, 2 s; espera por dependência 8/12/20/25 s;
@@ -320,14 +331,20 @@ diferença é `PlaceReach` (10 = padrão do código; 15 = config de teste). O de
 - nivelamento do blueprint devolve **os N** (`SetThenWorkers`/`GroupWorkers`) e `NoteLeveled` impede nivelar de novo.
 
 **Falta medir:**
-1. **As 13 peças do Run 2** (o alvo do lote seguinte, nenhuma com aceite): **2 baús** `piece_chest_wood` em
+1. **O clamp do terreno (`0f13878`) — em teste:** as **16 nomeadas do Run 3** (colunas verticais a oeste/leste + os 4
+   baús em 39,9) devem subir com a fundação **assentada no chão** (`MHR_Build.cs:1075-1082`, `placed.y <
+   GetGroundHeight - 0,05` → `placed.y = ground`) e o buraco do lado leste da visão deve fechar; ler `sem apoio:
+   <prefab> em (x, y, z)` do watchdog (idealmente vazio), o log (pequeno, sem loop) e a fala final
+   (`hc_ai_blueprint_done`). Aceite ainda não.
+2. **As 13 peças do Run 2** (o alvo do lote em implementação, nenhuma com aceite): **2 baús** `piece_chest_wood` em
    (-168,2, 39,9, -434,9) por `too_steep` (o nudge de 2,5 m não achou lugar); **1 bancada** `piece_workbench` em
-   (-178,3, 38,6, -431,7) por `clipping` (a âncora externa colide); **≈10 do andar de cima**
-   (`wood_floor`/`wood_roof_45` em 43,8/45,8) por `no_support` até o watchdog. O lote em implementação ataca: nudge de
-   mobília **5 m** com **3 anéis × 12**, `TryBenchAt` rejeitando `clipping` e a **cadeia de apoio do andar de cima**.
-2. **Run com material pago** (sem `BlueprintFree`): 3 workers pagando peça por peça — é onde a falta de reserva de
+   (-178,3, 38,6, -431,7) por `clipping` (a âncora externa colide); parte do **andar de cima**
+   (`wood_floor`/`wood_roof_45` em 43,8/45,8) por `no_support` até o watchdog — o resto dessa lista pode ser o mesmo
+   bug do clamp (por isso o Run 3 e o §17.9 vinham primeiro). O lote ataca: nudge de mobília **5 m** com **3 anéis ×
+   12**, `TryBenchAt` rejeitando `clipping` e a **cadeia de apoio do andar de cima**.
+3. **Run com material pago** (sem `BlueprintFree`): 3 workers pagando peça por peça — é onde a falta de reserva de
    material aparece (o pior caso documentado é N× o resto do plano, com até 3 coletando ao mesmo tempo).
-3. **2 companheiros num 6x6 (46 peças)** — o teste pequeno que fecha a mecânica sem o ruído de uma casa de 985 peças:
+4. **2 companheiros num 6x6 (46 peças)** — o teste pequeno que fecha a mecânica sem o ruído de uma casa de 985 peças:
    as duas entram com a ordem sem nome, uma nivela/limpa, as duas constroem, "para" para as duas, matar uma não para a
    outra, e com nome só aquela começa.
 

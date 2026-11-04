@@ -254,15 +254,23 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   tira só ele; nivelar/limpar com **um** (P5). **Nenhuma** chave de tradução nova (reusa `hc_ai_no_companion` e
   `hc_ai_build_failed`) — harness **539** (471 + 23 da **(p)** + 26 da **(q)** + 19 da **(r)**), MCP **101** (as **12**
   asserções de 03/11/2026 cobrem o contrato do grupo: `workers`, `refused` e `name` vazio = todos), config **359/25**.
-  **Medido em jogo (04/11/2026, `CommHomeBasicBP`, 3 companheiros, `BlueprintFree = true`) — dois runs, a única diferença
-  é o `PlaceReach` (10 = padrão do código; 15 = config de teste):** com **10**, **970 + 15 = 985** — a fala final fecha
-  (`970 peças, 15 puladas`), `no_ground` **~25 → 0**, `blocked_by_player` **17+ → 0**, `log ajustado` **6** (o nudge
-  agindo), **1 morte** e watchdog `15 peça(s) sem apoio`; com **15**, a passada principal chegou a **987/987**, **972
-  colocadas**, **0 mortes** e watchdog `13 peça(s) sem apoio`. **As 13 que sobraram:** **2 baús** (`piece_chest_wood`
+  **Medido em jogo (04/11/2026, `CommHomeBasicBP`, 3 companheiros, `BlueprintFree = true`) — três runs, 1 e 2 diferem
+  só no `PlaceReach` (10 = padrão do código; 15 = config de teste) e o 3 roda em 15 com a guarda anti-loop:** com **10**,
+  **970 + 15 = 985** — a fala final fecha (`970 peças, 15 puladas`), `no_ground` **~25 → 0**, `blocked_by_player`
+  **17+ → 0**, `log ajustado` **6** (o nudge agindo), **1 morte** e watchdog `15 peça(s) sem apoio`; com **15**, a
+  passada principal chegou a **987/987**, **972 colocadas**, **0 mortes** e watchdog `13 peça(s) sem apoio`; no
+  **Run 3** (15 + guarda), **`970 peças, 16 puladas`** = **986** (**969** `done`), **0 mortes**, **382 KB** de log (sem
+  loop) e **16 peças sem apoio nomeadas** pelo watchdog. **As 13 do Run 2:** **2 baús** (`piece_chest_wood`
   em (-168,2, 39,9, -434,9), `too_steep` — o nudge de mobília de 2,5 m não achou lugar), **1 bancada**
   (`piece_workbench` em (-178,3, 38,6, -431,7), `clipping` — âncora externa colidindo) e **≈10 do andar de cima**
   (`wood_floor`/`wood_roof_45` em 43,8/45,8, `no_support` até o watchdog) — é o alvo do lote seguinte (nudge 5 m com
-  3 anéis × 12, `TryBenchAt` sem `clipping`, cadeia de apoio do andar de cima). O grupo distribuiu o plano por índices
+  3 anéis × 12, `TryBenchAt` sem `clipping`, cadeia de apoio do andar de cima). **As 16 do Run 3 são colunas
+  verticais** (`wood_beam_45` em y 37,8/39,8 a oeste; `wood_floor` 39,8/43,8 + `wood_roof_45` 41,8/45,8 a leste; 4 baús
+  em 39,9) e a **visão** (`render_view`) mostrou o telhado quase completo com **buraco no lado leste** — diagnóstico:
+  o plano ancora pela **origem do arquivo** e a fundação do blueprint fica **1 m abaixo do terreno**, o jogo recusa a
+  peça enterrada e tudo acima falha em cascata. **Correção `0f13878`: nenhuma peça abaixo do terreno** — no plano, se
+  `placed.y < GetGroundHeight(placed) − 0,05`, ela **sobe para o chão** e segura as de cima (`MHR_Build.cs:1075-1082`);
+  build 0/0 e harness **539**, **run com o clamp em teste**. O grupo distribuiu o plano por índices
   distintos, **promoveu o líder** depois da morte (`o líder do grupo ... saiu - outro companheiro assumiu`) e
   **retomou** no mesmo plano (`voltou para o grupo ... na peça X`). O ciclo fechou o **portão de apoio**
   (`AI/BuildFailure.cs`, puro, tabela da seção **(p)**; `no_support`/`no support`/`needs_station`/`no_ground` **com
