@@ -196,9 +196,12 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
 - **Provedores (config `[AI]`):** Groq (`openai/gpt-oss-20b`, padrão) → LM Studio/Ollama (`127.0.0.1:1234`) →
   OpenRouter; tudo por `BaseUrl`/`Model`/`ApiKey` (a chave é `ConfigEntry`, nunca hardcoded). Saída estruturada
   `json_schema` → `json_object` → sem formato, **só** em recusa de formato.
-- **Config:** as chaves e os defaults vivem em `Core/ModConfig.cs` (358 opções / 25 seções em 03/11/2026, contadas por
-  `Bind(`; o `package/CONFIGURATION.md` é gerado e ainda não tinha a `PathingOnBuild`); a doc
-  gerada é `package/CONFIGURATION.md`. O `.cfg` é `BepInEx\config\AiCompanions.cfg`.
+- **Config:** as chaves e os defaults vivem em `Core/ModConfig.cs` (**359** opções / 25 seções, medidas em 03/11/2026
+  com `python tools/gen_config_doc.py`, que imprime `359 settings 25 sections`); a doc gerada é
+  `package/CONFIGURATION.md` — **nunca** editar à mão: rodar o gerador e depois o `--check`. O `.cfg` é
+  `BepInEx\config\AiCompanions.cfg`.
+  A `[Building] PlaceReach` desta rodada (float, padrão **10**, faixa **5..20**; rótulo `hc_cfg_building_placereach`,
+  "Place reach" no inglês nativo) é o `MaxPlace` do `MHR_Build` — ver o alcance de colocação na seção da construção.
 - **5 idiomas (PT/EN/ES/FR/IT):** `CompanionLocale` resolve voz/idioma; o inglês é **nativo** (sem arquivo) e os
   **4** JSONs são PT/ES/FR/IT; contrato/prompt/presets por idioma; o texto livre do jogador **nunca** é traduzido.
 - **Voz:** STT `Whisper.net` in-process (16 kHz mono, `whisper\ggml-small-q5_1.bin`); TTS `Kokoro-82M` via
@@ -249,7 +252,7 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   só de **blueprint**; **em memória** (não persiste); "para" = todos, "para, <nome>" = um, um modo num companheiro
   tira só ele; nivelar/limpar com **um** (P5). **Nenhuma** chave de tradução nova (reusa `hc_ai_no_companion` e
   `hc_ai_build_failed`) — harness **471** inalterado, MCP **101** (as **12 asserções novas** de 03/11/2026 cobrem o
-  contrato do grupo: `workers`, `refused` e `name` vazio = todos), config **358/25**. **Teste em jogo pendente**
+  contrato do grupo: `workers`, `refused` e `name` vazio = todos), config **359/25**. **Teste em jogo pendente**
   (2 companheiros num 6x6; receita em `docs/plan-multi-build.md` §7).
 - **Pendências conhecidas (abertas):** (1) navegação no andar em obra; (2) a voz não passa pelo mixer do jogo (só
   `[AI] TtsVolume`); (3) sync com o upstream `main` (1.5.8) em dia — conferir antes de cada release; (4) o nome do
@@ -578,15 +581,17 @@ comandos de console e spawna coisas, então não é feature de jogador.
   `CurrentConfigVersion = 196`).
   **O alcance era menor que o do jogo (relato "ele ainda está apanhando tentando colocar uma peça no teto alto", 03/11/2026):**
   a regra era `flat <= Reach + 0,5` (3,0 m) **e** olho ≤ 5 m; um topo de empena a 3,15 m planos (3,3 m em 3D) era recusado
-  por 15 cm. Agora o limite plano é `MaxPlace - 0,5` (**4,5 m**) e vale a regra do jogo (5 m do olho); o `Reach` (2,5 m)
-  ficou como distância de parada do `MHR_Mover` **e** como limite do "pulinho" (`flat <= Reach + 0,5`); o teto de
-  4,5 m só abre depois de 3 s sem chegar mais perto.
+  por 15 cm. Agora o limite plano é `MaxPlace - 0,5` e vale a regra do olho (`Vector3.Distance(eye, pos) <= MaxPlace`); o
+  `Reach` (2,5 m) ficou como distância de parada do `MHR_Mover` **e** como limite do "pulinho" (`flat <= Reach + 0,5`); o
+  teto relaxado só abre depois de 3 s sem chegar mais perto. **`MaxPlace` é a config `[Building] PlaceReach`** (float,
+  padrão **10**, faixa **5..20**, lida a cada uso: mudar no F8 vale para a ordem em andamento e o `null` cai no vanilla
+  **5**): com o padrão, plano relaxado **9,5 m** e olho **10 m**; com `5` volta ao de antes (4,5 m / 5 m).
   **O piso sobe junto com o apoio (pedidos "ele tem que fazer o piso no fim da escada" e "pode colocar o piso de baixo pra
   cima também", 03/11/2026):** sempre que uma peça que **sustenta** (`WearNTear.m_supports`) é aceita, o `PullFloorsAbove`
   puxa para a frente do plano (logo depois dela) os **pisos** que caem na altura alvo - **topo da escada**
   (`Renderer.bounds.max.y`) ou **um andar acima** (`Pos.y + 2`) para parede/viga/piso/pole -, com ≤2,5 m em XZ e |ΔY| ≤ 1,2 m,
   teto de **2 pisos** por passo (um patamar precisa de um tile) e só no **lado de subida** da escada. O piso 2 m acima dos
-  pés está ao alcance (5 m do olho), então ele constrói o andar de cima **do nível em que está**. A 1ª versão movia com
+  pés está ao alcance (o olho padrão é 10 m, `[Building] PlaceReach`), então ele constrói o andar de cima **do nível em que está**. A 1ª versão movia com
   `RemoveAt`/`Insert` e **pulava o tile mais perto da escada** (reprovada na simulação do especialista); a final reconstrói a
   lista no lugar (`head` + escolhidos por distância + resto), porque `Pending.Plan` guarda a mesma referência.
   **O loop da escada (relato "fica subindo/descendo e caindo da escada", 03/11/2026) — corrigido:** a recusa do

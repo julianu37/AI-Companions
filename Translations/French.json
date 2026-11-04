@@ -2873,6 +2873,10 @@
             "value": "Tolérance du nivellement (m)"
         },
         {
+            "key": "hc_cfg_building_placereach",
+            "value": "Portée de pose"
+        },
+        {
             "key": "hc_ai_order_command",
             "value": "accepter les ordres"
         },

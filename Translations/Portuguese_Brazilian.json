@@ -2873,6 +2873,10 @@
             "value": "Tolerância do nivelamento (m)"
         },
         {
+            "key": "hc_cfg_building_placereach",
+            "value": "Alcance de colocação"
+        },
+        {
             "key": "hc_ai_order_command",
             "value": "aceitar comandos"
         },

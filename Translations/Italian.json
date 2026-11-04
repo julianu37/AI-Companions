@@ -2873,6 +2873,10 @@
             "value": "Tolleranza del livellamento (m)"
         },
         {
+            "key": "hc_cfg_building_placereach",
+            "value": "Portata di posa"
+        },
+        {
             "key": "hc_ai_order_command",
             "value": "accettare ordini"
         },

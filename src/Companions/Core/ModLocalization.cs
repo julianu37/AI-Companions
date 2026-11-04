@@ -831,6 +831,10 @@ public static class ModLocalization
 			// Multilanguage M2 fix: the short form for the narrow field of the F8 rows (the long one above is the AI
 			// panel's footer, where "outro idioma" fits). "pf_dora is the pick; af_heart is what is spoken".
 			{ "hc_cfg_voice_out_of_language", "{0} ({1}) - using {2}" },
+			// Request of 03/11/2026: the [Building] PlaceReach label. The settings labels come from the language file
+			// (hc_cfg_<section>_<key>); the English native default is the short name for the narrow F8 field, because the
+			// fallback there is the raw config key ("PlaceReach").
+			{ "hc_cfg_building_placereach", "Place reach" },
 			// Fase 3.10: voice and personality of ONE companion (its own ZDO), with the [AI] values as the default.
 			// Used by the companion tab of the AI panel and by the starter panel's "AI" section.
 			{ "hc_ai_profile_title", "Companion AI" },

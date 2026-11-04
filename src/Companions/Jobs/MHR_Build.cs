@@ -33,14 +33,26 @@ internal static class MHR_Build
 	internal const float Reach = 2.5f;
 
 	/// <summary>
-	/// How far from the companion's <b>eye</b> a piece may be placed. It is the game's own
-	/// <c>Player.m_maxPlaceDistance</c> (5 m, decompiled 1.0.20). The flat cap used to be 2,5 m and could not
-	/// reach the upper roof row of the house (y = 5, i.e. 4,9 m above the feet) - the companion walked in circles
-	/// until the order timed out (player report, 01/11/2026: "parece que não alcança").
+	/// How far from the companion's <b>eye</b> a piece may be placed. Vanilla is the game's own
+	/// <c>Player.m_maxPlaceDistance</c> (5 m, decompiled 1.0.20); the player may raise it in the F8 panel
+	/// (<c>[Building] PlaceReach</c>, 5..20, 10 by default - "it is a mod, it does not have to be realistic", request of
+	/// 03/11/2026). The flat cap used to be 2,5 m and could not reach the upper roof row of the house (y = 5, i.e. 4,9 m
+	/// above the feet) - the companion walked in circles until the order timed out (player report, 01/11/2026: "parece
+	/// que não alcança").
+	///
+	/// <para>It is read from the config on every use (a property, not a const): a value changed in the F8 panel applies to
+	/// the orders that are already running, and a missing entry falls back to the vanilla 5 m.</para>
 	/// </summary>
-	internal const float MaxPlace = 5f;
+	private static float MaxPlace
+	{
+		get
+		{
+			return ModConfig.BuildPlaceReach != null ? ModConfig.BuildPlaceReach.Value : 5f;
+		}
+	}
 	/// <summary>E7 (review, 03/11/2026): the walk still stops at <see cref="Reach"/>; the flat cap opens to
-	/// <c>MaxPlace - 0,5</c> (4,5 m) only after 3 s without getting closer, and the eye distance is always this 5 m.</summary>
+	/// <c>MaxPlace - 0,5</c> only after 3 s without getting closer, and the eye distance is always <see cref="MaxPlace"/>
+	/// (vanilla 5 m, configurable up to 20 m).</summary>
 
 	/// <summary>The companion's eye height above its feet (the game measures the placement distance from the eye).</summary>
 	private const float EyeHeight = 1.5f;
@@ -214,8 +226,9 @@ internal static class MHR_Build
 		/// to the piece and since when - one it cannot get closer to for 12 s is retried instead of timing out in 60 s.</summary>
 		internal float BestDistance;
 		internal float BestAt;
-		/// <summary>E7 (player's idea, 03/11/2026): the temporary stairs placed to reach a piece above the 5 m eye rule.
-		/// They are NOT part of the plan and are removed when the order ends.</summary>
+		/// <summary>E7 (player's idea, 03/11/2026): the temporary stairs placed to reach a piece above the eye rule
+		/// (<see cref="MaxPlace"/> - vanilla 5 m, <c>[Building] PlaceReach</c>). They are NOT part of the plan and are
+		/// removed when the order ends.</summary>
 		internal readonly List<GameObject> Scaffolds = new List<GameObject>();
 		/// <summary>E7: how many temporary stairs this ORDER already placed, and the cooldown before the next attempt
 		/// (the budget is per order, never per piece - 985 pieces x 3 covered the site in stairs).</summary>
@@ -459,7 +472,9 @@ internal static class MHR_Build
 	/// height, take the nearest one to where he is standing now: the floor is filled around him instead of from the far
 	/// end of the snake. Only the order changes; no piece is added or removed. Review (03/11/2026): the pieces brought
 	/// forward by <see cref="PullSupports"/>/<see cref="PullFloorsAbove"/> keep their place (<c>PullUntil</c>), and a
-	/// floor he can place without walking (4,5 m) wins over a nearer-looking one that still needs a walk.
+	/// floor he can place without walking wins over a nearer-looking one that still needs a walk. Both windows follow
+	/// <see cref="MaxPlace"/> (the configurable reach): the "close enough" one is <c>MaxPlace + 1</c> and the second pass
+	/// looks up to <c>MaxPlace + 2</c>.
 	/// </summary>
 	private static bool PreferNearFloor(CompanionAI ai, State state, int index)
 	{
@@ -3264,8 +3279,9 @@ internal static class MHR_Build
 		else if (state.Blueprint != null && Time.time - state.BestAt > 12f)
 		{
 			// E7 (player's idea, 03/11/2026 - revised after the player's test: "the site filled with little stairs"): a stair
-			// only helps when the piece is ABOVE the eye's 5 m - if he is stuck for any other reason (a wall, a hole) it would
-			// be junk. And it is placed only here, after 12 s of real struggle, never just because he walked past.
+			// only helps when the piece is ABOVE the eye rule (<see cref="MaxPlace"/> - vanilla 5 m, [Building] PlaceReach) -
+			// if he is stuck for any other reason (a wall, a hole) it would be junk. And it is placed only here, after 12 s
+			// of real struggle, never just because he walked past.
 			Vector3 eyeNow = new Vector3(me.x, me.y + EyeHeight, me.z);
 			if (new Vector2(me.x - state.Pos.x, me.z - state.Pos.z).magnitude <= MaxPlace
 				&& Vector3.Distance(eyeNow, state.Pos) > MaxPlace
@@ -3278,18 +3294,19 @@ internal static class MHR_Build
 			return Advance(ai, state);
 		}
 		float flat = new Vector2(me.x - state.Pos.x, me.z - state.Pos.z).magnitude;
-		// the game places a piece up to 5 m from the EYE (Player.m_maxPlaceDistance); the companion's eye is ~1,5 m
-		// above its feet, so a roof 4,9 m up is within reach even though the feet are 4,9 m below it
+		// a piece may be placed up to <see cref="MaxPlace"/> from the EYE (vanilla Player.m_maxPlaceDistance = 5 m, and
+		// [Building] PlaceReach raises it); the companion's eye is ~1,5 m above its feet, so a roof 4,9 m up is within
+		// reach even though the feet are 4,9 m below it
 		Vector3 eye = new Vector3(me.x, me.y + EyeHeight, me.z);
 		// E7 (player's report, 03/11/2026: "he is still struggling to place a piece on the high roof"): the flat cap was
 		// Reach + 0,5 = 3,0 m while the game allows 5 m from the EYE - the gable top at 42,8 with the companion standing
 		// 3,15 m away flat (3,3 m in 3D) was refused by 15 cm and he walked in circles for 12 s. The eye rule is the
-		// game's own; the flat cap only has to keep him from placing through the far side of the house.
+		// game's own (now configurable); the flat cap only has to keep him from placing through the far side of the house.
 		bool inReach = flat <= Reach + 0.5f && Vector3.Distance(eye, state.Pos) <= MaxPlace;
 		// E7 (player's report, 03/11/2026: "he is still struggling to place a piece on the high roof"): the flat cap of 3,0 m
-		// was stricter than the game (5 m from the eye) and refused a gable top 3,15 m away by 15 cm. The relaxed cap is used
-		// ONLY when he stopped getting closer for 3 s: the normal walk still ends at Reach, so a piece is not placed from
-		// 4,5 m just because he walked past the radius.
+		// was stricter than the eye rule and refused a gable top 3,15 m away by 15 cm. The relaxed cap (<c>MaxPlace - 0,5</c>,
+		// which is 4,5 m at the vanilla 5 and 9,5 m at the default 10) is used ONLY when he stopped getting closer for 3 s:
+		// the normal walk still ends at Reach, so a piece is not placed from far away just because he walked past the radius.
 		if (!inReach && flat <= MaxPlace - 0.5f && Vector3.Distance(eye, state.Pos) <= MaxPlace
 			&& Time.time - state.BestAt > 3f)
 		{
@@ -3302,9 +3319,10 @@ internal static class MHR_Build
 			state.Phase = Phase.Place;
 			return true;
 		}
-		// E7 (player's idea, 03/11/2026): the "pulinho" - a player jumps to reach a beam that is just above the game's 5 m
-		// rule; the eye goes up with the body, so the same rule then covers it. Only with the feet already in place and the
-		// piece at most 1 m beyond the reach (a hop, not a flight), with a cooldown so it is not a bunny hop.
+		// E7 (player's idea, 03/11/2026): the "pulinho" - a player jumps to reach a beam that is just above the eye rule
+		// (<see cref="MaxPlace"/> - vanilla 5 m, [Building] PlaceReach); the eye goes up with the body, so the same rule
+		// then covers it. Only with the feet already in place and the piece at most 1 m beyond the reach (a hop, not a
+		// flight), with a cooldown so it is not a bunny hop.
 		if (flat <= Reach + 0.5f && Time.time >= state.NextJumpAt)
 		{
 			Character body = ai.GetComponent<Character>();

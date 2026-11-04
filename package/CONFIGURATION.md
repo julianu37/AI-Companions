@@ -562,6 +562,9 @@ Let a companion build when you ask it ("Maria, build a workbench here"). It chec
 **SiteSearchRadius** — Default: 8 · Range: 1 – 30  
 How far (meters) around the spot you are looking at the companion looks for a place where the piece fits (the game's rules: ground, water, ward, no-build zone, station in range and no clipping into other pieces).
 
+**PlaceReach** — Default: 10 · Range: 5 – 20  
+How far (in meters) the companion may place a piece when it cannot walk any closer. Vanilla allows 5 m; the companion still walks first and only opens this limit after 3 s stuck. 10 is the default; up to 20 for impatient players (it looks less realistic).
+
 **MaxDistanceFromHome** — Default: 40 · Range: 0 – 200  
 A build order is refused when the spot is further than this (meters) from the companion's home, so it does not wander off to build across the world. 0 = no limit.
 
@@ -587,7 +590,7 @@ Level the ground before a structure (a plan) when it is uneven: a house of 8x8 n
 Clear the build site before the first piece: the trees, stumps and fallen logs inside the plan's footprint are cut (the same directed harvest the radial uses) and the wood goes to the bag the build pays from. The ground under them is not changed - leveling is its own step (LevelGround). Up to 40 obstacles / 240 s per order; what is left is handled by the piece retry.
 
 **TempScaffold** — Default: Off  
-Off by default (the test of 03/11/2026 covered the site in stairs). In a blueprint, after 12 s without getting closer, place a temporary wood stair (2 wood) when the piece is above the game's 5 m placement reach - a ridge, the top of a gable, the last row of a roof. The stair is a ramp the companion walks up, it is paid from the bag/chests like any piece and the wood comes back when it is removed at the end of the order (it is not part of the plan). At most 4 per order and the stair is removed as soon as the piece it was placed for goes up; each stair is +1 m. A stair is kept only when a piece placed next to it has no support without it.
+Off by default (the test of 03/11/2026 covered the site in stairs). In a blueprint, after 12 s without getting closer, place a temporary wood stair (2 wood) when the piece is above the placement reach ([Building] PlaceReach - vanilla 5 m) - a ridge, the top of a gable, the last row of a roof. The stair is a ramp the companion walks up, it is paid from the bag/chests like any piece and the wood comes back when it is removed at the end of the order (it is not part of the plan). At most 4 per order and the stair is removed as soon as the piece it was placed for goes up; each stair is +1 m. A stair is kept only when a piece placed next to it has no support without it.
 
 **BlueprintFree** — Default: Off  
 Build a blueprint without paying for the pieces (a test/creative switch: the companion places the pieces from the file and takes nothing from the bag or the chests). Off by default - a blueprint costs the same as any other build.
