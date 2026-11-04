@@ -8,21 +8,26 @@ guarda anti-loop) **`970 peças, 16 puladas`** = **986**, **0 mortes** e **382 K
 o **plano abaixo do terreno** — o desenho novo é a **obra inteira subir `[Building] DeckLift`** (padrão 1) com as
 pontas de estaca assentadas no chão, **medido no run seguinte** (§7 e `docs/re/building-notes.md` §17.10: ~**972 peças
 de pé**, **0 mortes**, piso ~**1 m** acima do chão e escadas das entradas encontrando — o deck está certo; sobraram
-**6 telhados** em 42,8/44,8/46,8 e **4 `falls`**, atacados no lote de 04/11, **sem run ainda**). O código é
+**6 telhados** em 42,8/44,8/46,8 e **4 `falls`**, atacados no lote de 04/11 e medidos no **Run 8** — `UNSUPPORTED` = 0 e
+**0 `falls`** (§7, item 1)). O código é
 `Jobs/MHR_BuildGroup.cs` mais
 `StartBlueprintGroup`/`Phase.WaitGroup`/`Phase.WaitRetry`/`QueueRetry`/`MarkDone`/`IsLeader`/`PlanLocked` em
 `Jobs/MHR_Build.cs`, e o ciclo de 04/11 fechou o **portão de apoio** (`AI/BuildFailure.cs`), o **watchdog de
 estagnação**, a **cobertura de bancadas** e o validador (`attached`/`nudge`/`blocked_by_player`) — detalhe medido em
 `docs/re/building-notes.md` §17. **P0** (quem tem 1 companheiro não vê diferença) e **P2** (navmesh/latência,
 **medida em jogo** em 03/11/2026) fechados; **P3** (UI do grupo), **P4** (nomes múltiplos) e **P5**
-(persistência/limpeza paralela) **não**. **Estado de 11/11/2026 (Runs 7–10, §7):** o lote do poste fechou o degrau de
+(persistência/limpeza paralela) **não**. **Estado de 11/11/2026 (Runs 7–11, §7):** o lote do poste fechou o degrau de
 0,6 m (**Run 8**, 987/987), o **Run 9** rodou com o **jogador andando** no canteiro → **977 + 11 = 988** (as 11 puladas
-medidas em 2 causas) e o **Run 10** **mediu a barreira de andar** (`[Building] BodyRetry`, lote `fbda4ee`) → **989 + 1 =
-990**, com puladas **11 → 1** (a única é a **7ª bancada** com `clipping`, e é ela que fecha a conta: **983 + 7 = 990**);
-o `blocked_by_player` **não** se compara direto (Run 9 **235 terminais** × Run 10 **141 terminais + 224 curtas**);
-**o "bloqueador companheiro" do Run 10 era falso positivo da sonda** (peça tratada como disco de 1 m): a sonda agora é
-a **cápsula real × caixa girada** e a `StepAside` (2,2 m, nunca o jogador) ficou como **segunda linha**, **em teste, sem
-run** — aberto: a sonda **não testa criaturas**.
+medidas em 2 causas), o **Run 10** **mediu a barreira de andar** (`[Building] BodyRetry`, lote `fbda4ee`) → **989 + 1 =
+990**, com puladas **11 → 1** (a única é a **7ª bancada** com `clipping`, e é ela que fecha a conta: **983 + 7 = 990**),
+e o **Run 11** é o **primeiro run com `0 puladas`** — **987 + 0 = 987** (`987 peças, 0 puladas`), com a sonda por
+**cápsula × caixa girada** e a **`[Building] StepAside` ligada**, **0 `UNSUPPORTED`**, **0 mortes**, **0 `falls`**,
+watchdog **0**, **1020 peças** no canteiro (**987 + 33 postes**) e **23/23 prefabs** do blueprint no lugar. O
+`blocked_by_player` **não** se compara direto (Run 9 **235 terminais** × Run 10 **141 terminais + 224 curtas** × Run 11
+**98 terminais + 145 curtas**, com sonda e barreira madura); **o "bloqueador companheiro" do Run 10 era falso positivo da
+sonda** (peça tratada como disco de 1 m): a sonda agora é a **cápsula real × caixa girada** e a `StepAside` (2,2 m,
+nunca o jogador) é a **segunda linha** — **as duas medidas no Run 11**; aberto: a sonda **não testa criaturas** e as
+**2 `stone_floor_2x2`** do arquivo, que são **teto do blueprint** nesta instalação (receita do talhador de pedras).
 
 Números deste ciclo (11/11/2026): build **0/0**, harness `tools/ai-intents-check` **642 asserções** (471 + **28** da
 seção **(p)**, `AI/BuildFailure.cs` — inclui as constantes da barreira —, + **26** da **(q)**, `AI/BuildPieceKind.cs`,
@@ -35,10 +40,12 @@ do `companions.build` do grupo e as **6** de 11/11 o `stop` do `companions.order
 (as chaves novas são a `[Building] BodyRetry` e a `[Building] StepAside`),
 ES/FR/IT **0 lacunas**, dívida do `gen_translations.py --check` **47** por idioma e **nenhuma chave de tradução funcional
 nova** (as recusas reusam `hc_ai_no_companion` e `hc_ai_build_failed`; os rótulos `hc_cfg_building_bodyretry` e
-`hc_cfg_building_stepaside` são os das chaves novas).
-**O que falta medir** está no §7 (o **StepAside**, o **`FallbackPostAllowed`**, o vão do deck, run com material pago, o
-teste pequeno de 2 companheiros num 6x6) — a **barreira de andar** foi medida no Run 10 (§7 e
-`docs/re/building-notes.md` §17.16).
+`hc_cfg_building_stepaside` são os das chaves novas). **O Run 11 não acrescenta número de build/harness/config:** ele roda
+na árvore já medida acima (**harness 642**, **config 363/25**) e o que traz é **medição em jogo** — não foi feita
+reconferência de build/harness nesta rodada (§17.17).
+**O que falta medir** está no §7 (o **`FallbackPostAllowed`**, o vão do deck, run com material pago, o teste pequeno de
+2 companheiros num 6x6) — a **barreira de andar** foi medida no Run 10 (§7 e `docs/re/building-notes.md` §17.16) e a
+**sonda por cápsula** + o **`StepAside`** no Run 11 (§7 e §17.17).
 
 ## 1. O que existe hoje (medido no código)
 
@@ -287,9 +294,10 @@ teste mock do MCP (**107 PASS**, **12 asserções para o contrato do grupo** em 
    `docs/re/support-rule-wearntear.md` §5), e o **degrau de 0,6 m** (o run do degrau travou em **950/987** —
    `building-notes` §17.12 — e o **Run 8** fez os pisos de **40,4** subirem em cima de **39** postes, §17.14).
    **Aberto:** o **bloqueador companheiro** da barreira — o caso do Run 10 era **falso positivo** da sonda (disco de
-   1 m no lugar da peça), corrigido pela **cápsula real × caixa girada**; a `StepAside` está **implementada, em teste
-   sem run** (segunda linha de defesa) e a sonda **não testa criaturas**; a barreira em si foi **MEDIDA**: puladas
-   **11 → 1** (`building-notes` §17.16), o **vão do deck** (`DeckLift = 1` prende
+   1 m no lugar da peça), corrigido pela **cápsula real × caixa girada**; a `StepAside` **rodou ligada no Run 11** e a
+   sonda por cápsula **é a do Run 11** (as duas **medidas**, §17.17 — o que resta aberto nelas é a **criatura** e a
+   **contagem** das linhas do step-aside); a barreira em si foi **MEDIDA**: puladas
+   **11 → 1** no Run 10 (`building-notes` §17.16) e **1 → 0** no Run 11 (§17.17), o **vão do deck** (`DeckLift = 1` prende
    corpos; 3 opções, decisão do jogador — §17.13), a **reserva de material** (`Stock` — cada worker conta
    o canteiro por conta própria), um run com **material pago** e o teste pequeno de 2 companheiros num 6x6.
 3. **P2 — navmesh/latência — MEDIDO EM JOGO (implementado e testado em 03/11/2026):** (a) **medido o `why`** do run de 03/11/2026:
@@ -453,8 +461,24 @@ está lá em §17.6, §17.9 e §17.10 (**os Runs 6, 7, 8, 9 e 10, de 11/11/2026,
   **andou** depois das curtas (peças **367-379** colocadas) e as paredes deixaram de subir com o térreo aberto. É o
   defeito do Run 9 resolvido. Detalhe (constantes, linhas de log, a tabela e a ressalva de contagem): `docs/re/building-notes.md`
   §17.16.
-- **O "bloqueador COMPANHEIRO" do Run 10 era FALSO POSITIVO da sonda; o `StepAside` ficou como segunda linha (em teste,
-  sem run):** o caso medido (`wood_beam` em (-168,1, 41,8, -421,1) × **Companheiro 6** em (-167,1, 39,9, -421,5) —
+- **Run 11 — 11/11/2026, o primeiro run com `0 puladas` (sonda por cápsula × caixa girada + os dois furos da barreira;
+  5 companheiros, `DeckLift = 1`, `PlaceReach = 15`, `BlueprintFree`, `[Building] BodyRetry = true` e
+  `[Building] StepAside = true`):** a chave que **distingue** este run do Run 10 é a `StepAside` — ela **não existia**
+  na árvore do Run 10 (lote posterior a `fbda4ee`). Variável do jogador igual à do Run 9: posicionado **uma vez** em
+  **(-166,92, 39,92, -401,59)** e depois **andando livre**, **entrando no canteiro várias vezes** e **subindo até y 45**
+  (em cima da obra). **987 colocadas + 0 puladas = 987** (a fala final **tocou**: `987 peças, 0 puladas`), **watchdog
+  `0`**, **`UNSUPPORTED` = 0**, **0 mortes**, **0 `falls`**, **1020 peças** no canteiro (**987 + 33 postes**), **4
+  bancadas** inseridas e **todas colocadas** — a **7ª bancada** com `clipping` do Run 10 **não apareceu** — e **23/23
+  prefabs do blueprint no lugar** (`accept_run.py`). Corpo: **98** recusas terminais (`blocked_by_player`) + **145**
+  curtas (2,5 s), com a **barreira disparando 56×** (`nada acima de … m é pego por … s`). **O plano do Run 11 tem 987
+  índices** (983 do arquivo + **4** bancadas) contra **990** (983 + **7**) do Run 10 — **menos bancadas**, então o total
+  absoluto é menor: o número que conta é **puladas 1 → 0**. **Fora do plano continuam só as 2 `stone_floor_2x2`**, puladas
+  na **leitura** (`recipe not unlocked`, `MHR_Build.cs:1502-1509`): são peça do **talhador de pedras** (alcance 20 m),
+  exigem **pedra no inventário do jogador** (vazio, medido) e o catálogo do mod (`AI/BuildCatalog.cs:40-72`, **5**
+  prefabs) **não constrói talhador** — é o **teto do blueprint** nesta instalação, não falha da obra. Detalhe (tabela
+  Run 10 × Run 11, o que não foi contado): `docs/re/building-notes.md` §17.17.
+- **A sonda de corpo e o `StepAside` — MEDIDOS no Run 11:** o "bloqueador companheiro" do Run 10 era **FALSO POSITIVO** da
+  sonda; o caso medido (`wood_beam` em (-168,1, 41,8, -421,1) × **Companheiro 6** em (-167,1, 39,9, -421,5) —
   **1,08 m** em XZ e **1,9 m** abaixo) **não** era corpo atravessando peça: `BuildProbe` calculava
   `flat = max(size.x, size.z)/2` e tratava a peça como um **disco de 1 m em qualquer direção**, ignorando **pivô e
   rotação** — um feixe de 2 m virava disco de 1 m e batia no companheiro 1,08 m ao lado. O jogo testa o ghost contra a
@@ -462,12 +486,14 @@ está lá em §17.6, §17.9 e §17.10 (**os Runs 6, 7, 8, 9 e 10, de 11/11/2026,
   usar a **cápsula real** (`Collider.bounds.min.y`/`max.y` + raio, `BuildProbe.CapsuleOf`, `AI/BuildProbe.cs:813`) contra
   a **caixa girada** da peça (`center = point + rot*(box.center − piece.transform.position)`, AABB do OBB pelo
   `BuildBody.HalfY`, `:733-793`), com **toque = livre**; o log imprime os números na 1ª recusa (`corpo na peça X -
-  cápsula 0,00-1,80 m, r 0,30`). A **`[Building] StepAside`** (bool, padrão true, `Core/ModConfig.cs:174`/`:962`)
-  **continua implementada** e é a **segunda linha de defesa**: quem coloca **pede** (`MHR_BuildGroup.RequestStepAside`,
-  dedup de **4 s**) e o companheiro **em espera** anda **2,2 m** com o próprio mover (8 direções,
-  `MHR_Mover.SafeStep`; passo de até **2,5 s**) — **nunca teleporte, nunca o jogador**; desligada, a peça espera (o
-  comportamento do Run 10). **Em teste, sem run** (Run 11 é o run dela). **Em aberto:** a sonda **não testa criaturas**
-  (um javali em cima da peça ainda passa) — `docs/re/building-notes.md` §17.16.
+  cápsula 0,00-1,80 m, r 0,30`). A **`[Building] StepAside`** (bool, padrão true, `Core/ModConfig.cs:174`/`:962`) é a
+  **segunda linha de defesa**: quem coloca **pede** (`MHR_BuildGroup.RequestStepAside`, dedup de **4 s**) e o companheiro
+  **em espera** anda **2,2 m** com o próprio mover (8 direções, `MHR_Mover.SafeStep`; passo de até **2,5 s**) — **nunca
+  teleporte, nunca o jogador**; desligada, a peça espera (o comportamento do Run 10). **Medido no Run 11:** as duas
+  rodaram no run de **0 puladas** — a sonda é a que conta as **98** recusas terminais e a `StepAside` estava **ligada**
+  o tempo todo; a **contagem** das linhas `pedindo para sair da frente`/`saindo da frente` **não** foi medida. **Em
+  aberto:** a sonda **não testa criaturas** (um javali em cima da peça ainda passa) — `docs/re/building-notes.md`
+  §17.16/§17.17.
 - **Ressalva do Run 6 + pendência aberta (o vão do deck):** depois do Run 6 o arquiteto **apagou 41 peças do piso do
   deck** (**25 + 16**) para **libertar o jogador e os companheiros presos no vão de ~1 m**. O **Run 8** voltou a
   colocar o **plano inteiro** (987/987 índices) no mesmo canteiro, então o piso apagado **entrou de novo** — é
@@ -515,12 +541,19 @@ está lá em §17.6, §17.9 e §17.10 (**os Runs 6, 7, 8, 9 e 10, de 11/11/2026,
 5. **2 companheiros num 6x6 (46 peças)** — o teste pequeno que fecha a mecânica sem o ruído de uma casa de 985 peças:
    as duas entram com a ordem sem nome, uma nivela/limpa, as duas constroem, "para" para as duas, matar uma não para a
    outra, e com nome só aquela começa.
-6. **A sonda de corpo e a `StepAside` — em teste, sem run:** a barreira foi **medida** no Run 10 (puladas **11 → 1** —
-   §17.16) e o "bloqueador companheiro" daquele run era **falso positivo** do disco. A sonda agora é a **cápsula real ×
-   caixa girada** (a regra do jogo, com **toque = livre**) e o `StepAside` (2,2 m, via mover, nunca o jogador) é a
-   **segunda linha** — nenhum dos dois **medido em jogo** (Run 11). **Aberto:** a sonda **não testa criaturas**.
+6. **A sonda de corpo e a `StepAside` — MEDIDAS no Run 11 (11/11/2026, §17.17):** a barreira foi medida no Run 10
+   (puladas **11 → 1** — §17.16) e o "bloqueador companheiro" daquele run era **falso positivo** do disco. A sonda agora é
+   a **cápsula real × caixa girada** (a regra do jogo, com **toque = livre**) e o `StepAside` (2,2 m, via mover, nunca o
+   jogador) é a **segunda linha** — as duas rodaram no **Run 11**, o primeiro com **`0 puladas`** (`987 peças, 0 puladas`,
+   98 terminais + 145 curtas, barreira disparada **56×**). **Aberto:** a sonda **não testa criaturas** e a **contagem** das
+   linhas do step-aside **não** foi feita (o que se mediu é o resultado com a chave ligada, não quantas vezes ele andou).
    **Também sem run:** o `FallbackPostAllowed` (o poste de emergência assume o apoio **do plano** quando ele foi desistido
    ou quando ninguém o reivindica e a peça já esperou `SupportGrace` = 2, ~20 s) — `docs/re/building-notes.md` §17.16.
+7. **As 2 `stone_floor_2x2` do arquivo (teto do blueprint, com o porquê medido):** são descartadas na **leitura**
+   (`recipe not unlocked`, `MHR_Build.cs:1502-1509`) porque a receita é do **talhador de pedras** (alcance 20 m) e ela
+   exige **pedra** — o inventário do jogador está **vazio** (medido) — e o catálogo do mod (`AI/BuildCatalog.cs:40-72`,
+   5 prefabs) **não constrói talhador**. Para exercitar esse caminho é preciso **pedra no jogador + talhador de pé a
+   ≤20 m** do canteiro; **não testado** em nenhum run. §17.17.
 
 **P4 (quando existir):** "Maria e João, construam a cabana aqui" → as duas; "Zé, colete 10 madeiras" → só o Zé;
 "para, Maria" → só a Maria; "para" → todos; "Maria e João, ataquem o greydwarf" → as duas; "Maria, equipa a

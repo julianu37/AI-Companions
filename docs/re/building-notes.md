@@ -2245,7 +2245,8 @@ NO LUGAR`). **1 morte**, ignorada por decisão do jogador (mesma regra do Run 9,
   224 curtas** no Run 10, e as **16 peças** em `curta 3/3` são as que **esgotaram** as curtas e foram para a fila. Como o
   critério **e** a árvore mudaram, a linha do `blocked_by_player` **não é comparável**; o número **comparável** é o das
   **puladas** (**11 → 1**). Ressalva extra: os números do Run 10 saíram da sonda **disco** (antes do conserto por
-  cápsula), então parte das recusas por corpo pode ser **falso positivo** — o **Run 11** mede com a cápsula real.
+  cápsula), então parte das recusas por corpo pode ser **falso positivo** — o **Run 11** mede com a cápsula real
+  (**medido**: puladas **1 → 0**, §17.17).
 - **A ÚNICA pulada não é peça da casa:** `piece_workbench` em **(-156,5, 38,4, -410,6)**, recusada por **`clipping`**. É a
   **7ª bancada** — das que o `PlanStations`/`InsertBenchStep` inserem para cobrir a exigência de estação por peça
   (§17.3) — e as **outras 6** subiram. Por isso o aceite da casa fecha: **23/23 prefabs do blueprint no
@@ -2281,9 +2282,11 @@ NO LUGAR`). **1 morte**, ignorada por decisão do jogador (mesma regra do Run 9,
   aconteceu. A resposta só existe no **wait** (`WaitRetry`, `:2402`/`:2408`): worker que não está esperando **não** consome
   o pedido, e o pedido expira se a peça já foi resolvida. Desligada, a peça espera o companheiro sair sozinho (o
   comportamento do Run 10).
-- **Em teste, sem run:** a `StepAside` foi implementada em **11/11/2026** e **não** foi medida em jogo — o **Run 11** é o
-  run dela. O log da rodada dirá `"<nome>" está na peça N - pedindo para sair da frente` (`:5067`) e
-  `saindo da frente (peça em x, z) para (x, z)` (`:5143`).
+- **Medida no Run 11 (11/11/2026) — §17.17:** a `StepAside` foi implementada em **11/11/2026** e **não existia** na
+  árvore do Run 10 (o lote é posterior a `fbda4ee`); ela rodou **ligada** (`true`, o padrão) no **Run 11**, o run com
+  **0 puladas**. As duas linhas de log do caminho — `"<nome>" está na peça N - pedindo para sair da frente` (`:5067`) e
+  `saindo da frente (peça em x, z) para (x, z)` (`:5143`) — **não foram contadas** nesta rodada: o que está medido é o
+  resultado **com a chave ligada**, não quantas vezes o companheiro foi pedido a sair (§17.17).
 - **Em aberto:** a sonda **não testa criaturas** — um **javali em cima da peça** ainda passa, porque a janela só percorre
   `Player.GetAllPlayers()` e `CompanionSetup.AllCompanions` (`AI/BuildProbe.cs:756-791`).
 
@@ -2304,7 +2307,101 @@ NO LUGAR`). **1 morte**, ignorada por decisão do jogador (mesma regra do Run 9,
   está reivindicado e não vem (`SupportGrace` = **2**: ~**20 s** = 8 + 12 s de espera por dependência; **imediato** se o
   apoio foi desistido) — o congelamento da coluna do Run 9, §17.15; **em teste, sem run**. MCP **107** (inalterado).
 
+### 17.17 O Run 11 (11/11/2026) — o primeiro run com **`0 puladas`** (sonda por cápsula + os dois furos da barreira)
 
+- **A pergunta do run:** o lote da **sonda de corpo** (cápsula real × caixa girada) mais os **dois furos da barreira de
+  andar** (`PendingBelowIndex` e a paciência só **depois do "due"**, §17.16) mantêm a casa de pé **sem pulada**? E a
+  `[Building] StepAside` — implementada em 11/11/2026 e **sem run** até aqui (§17.16) — roda em jogo?
+- **Montagem:** **5 companheiros**, `BlueprintFree = true`, `[Building] DeckLift = 1`, `PlaceReach = 15`,
+  **`[Building] BodyRetry = true`** e **`[Building] StepAside = true`** (as duas no **padrão**). O `SupportFallback` e o
+  `TempScaffold` **não foram reconferidos** nesta rodada (a leitura é a dos runs anteriores). A chave que **distingue**
+  este run do Run 10 é a `StepAside`: o Run 10 rodou no lote `fbda4ee`, **antes** do lote que a implementou (§17.16), e
+  aqui ela está **ligada**. Mesma casa (`CommHomeBasicBP`). **Jogador:** posicionado **uma vez** em
+  **(-166,92, 39,92, -401,59)** e depois **andando livre** — **entrou no canteiro várias vezes** e **subiu até y 45**
+  (em cima da obra). É a variável mais dura dos runs com o corpo na obra: o jogador é obstáculo e não é movido pelo mod.
 
+**Resultado (o melhor run até agora):**
+
+- **987 colocadas + 0 puladas = 987** — a fala final **tocou** e foi medida: **`987 peças, 0 puladas`**.
+- **watchdog `0`**, **0 `UNSUPPORTED`** (o veredito do próprio jogo, `MHR_Build.Verify`), **0 mortes**, **0 `falls`**.
+- **1020 peças** no canteiro = **987 do plano + 33 postes** de emergência. **4 bancadas** inseridas e **todas
+  colocadas** — a **7ª bancada** recusada por `clipping` no Run 10 **não apareceu** nesta rodada (§17.16).
+- **23/23 prefabs** do blueprint no lugar (`accept_run.py`: `TODAS AS PECAS DO BLUEPRINT NO LUGAR`).
+- **Corpo (sonda nova):** **98** recusas **terminais** (`blocked_by_player`) + **145** **curtas** (2,5 s), e a
+  **barreira disparou 56×** — a linha `nada acima de … m é pego por … s` (`MHR_BuildGroup.NoteBody`,
+  `MHR_BuildGroup.cs:538-540`) apareceu **56** vezes no log.
+
+**O que este run validou do lote:**
+
+1. **A sonda é a cápsula real × caixa girada** (`BuildProbe.CapsuleOf`, `AI/BuildProbe.cs:813`, chamada de
+   `BlockedByCharacter`, `:733-793`, com o `BuildBody.Blocks`/`HalfY`) e **não** o disco de `max(size.x, size.z)/2`.
+   O efeito medido é indireto mas consistente: o corpo **ainda** bloqueia (**98** terminais, prova de que a sonda **vê**
+   o corpo de verdade) e as recusas **caem** frente ao Run 10 (**141 + 224 → 98 + 145**). Não há, nesta rodada, contagem
+   de falsos positivos do disco — a comparação é a da tabela abaixo, com a ressalva de que **critério e sonda mudaram
+   juntos**.
+2. **Os dois furos da barreira estão fechados — medido pelo uso:** a barreira **disparou 56×**. No Run 10 ela só era
+   **desenhada** quando a próxima peça estava **>1 m** acima (`BodyRetryStep`) e a paciência contava **do desenho**,
+   vencendo antes de a peça ficar **devida**; agora **qualquer peça pendente abaixo** desenha (`PendingBelowIndex`,
+   `MHR_Build.cs:1103`/`:1213`) e a paciência só corre **depois do "due"** (`PendingBelowAt`, `:1253`, usado em
+   `:1141-1145`). O número **56** é a evidência de que o caminho é exercitado **de verdade** num run em que o jogador
+   anda no canteiro.
+3. **`[Building] StepAside = true` roda dentro do run mais duro** e o resultado **não tem pulada**. Isso tira a chave
+   do estado "em teste, sem run". **O que NÃO foi medido:** a **contagem** das linhas do step-aside
+   (`"<nome>" está na peça N - pedindo para sair da frente`, `MHR_Build.cs:5067`, e
+   `saindo da frente (peça em x, z) para (x, z)`, `:5143`) — o log desta rodada **não foi contado** por esse filtro, então
+   não se afirma **quantas** vezes o companheiro foi pedido a sair nem **quantas** vezes ele andou. O que se afirma é o
+   que foi medido: **com a chave ligada, 0 puladas**.
+4. **`0 falls` de novo:** o caminho `log ajustado … - falls` (`AdjustFallenPose`) **não foi exercitado** (o Run 8 também
+   teve 0), então ele continua **sem run** — não há terceira chance para a peça que cai duas vezes.
+5. **`0 mortes`:** Runs 9 e 10 tiveram **1 morte cada** (a do Run 9 foi queda de 8,1 m do telhado, ignorada por decisão
+   do jogador, §17.15); aqui **nenhuma**. É um **dado**, não uma prova de correção — não houve lote dedicado à queda e o
+   jogador subiu a **y 45** sem que nada caísse.
+
+**Run 10 × Run 11 (o que é e o que não é comparável):**
+
+| | Run 10 (`fbda4ee`) | **Run 11** |
+|---|---|---|
+| índices do plano | **990** (983 + **7** bancadas) | **987** (983 + **4** bancadas) |
+| colocadas | 989 | **987** |
+| **puladas** | **1** (a 7ª bancada, `clipping`) | **0** |
+| bancadas inseridas | 7 (**6 de pé**) | **4, todas colocadas** |
+| `blocked_by_player` — terminais | 141 | **98** |
+| `blocked_by_player` — curtas (2,5 s) | 224 | **145** |
+| vezes que a barreira disparou | não contado | **56** |
+| watchdog / `UNSUPPORTED` | 0 / 0 | **0 / 0** |
+| mortes / `falls` | 1 / não contado | **0 / 0** |
+| canteiro | **1022** (989 + 33) | **1020** (**987 + 33**) |
+| sonda de corpo | **disco** de `max(size.x, size.z)/2` | **cápsula real × caixa girada** |
+
+- **Como ler a tabela (honestidade):** o **total absoluto cai** (990 → 987) porque o **plano mudou**: o Run 11 tem
+  **987 índices** (983 do arquivo + **4** bancadas) contra **990** (983 + **7**). O planejador inseriu **3 bancadas a
+  menos** e **todas** as 4 subiram — o número que importa é **puladas 1 → 0**, não o total. O `blocked_by_player`
+  **não é comparável direto** (mudaram **critério e sonda**: a árvore do Run 10 media o disco, a do Run 11 mede a cápsula
+  e a barreira madura); o comparável é a linha das **puladas**.
+- **O canteiro fecha na aritmética: 987 + 33 = 1020.**
+
+**O que continua fora do plano — as 2 `stone_floor_2x2` (limite do arquivo/save, com o porquê medido):**
+
+- O arquivo tem **985 linhas** e **2** são descartadas na **leitura** — não é falha de colocação: o
+  `MHR_Build.cs:1502-1509` descarta a linha quando `Player.IsRecipeKnown(resolved.m_name)` é falso e loga
+  `<prefab> (recipe not unlocked)`. **985 − 2 = 983**, que é a conta que fecha os índices do plano.
+- **Por que a receita não está destravada:** `stone_floor_2x2` é peça do **talhador de pedras** (`build.inspect` medido:
+  `$piece_stonecutter`, alcance **20 m**), e a receita do talhador **exige pedra** — o inventário do jogador estava
+  **vazio** nesta rodada (medido). Ou seja: falta **pedra no jogador** para a receita existir e **um talhador a ≤20 m**
+  para a peça ser aceita.
+- **O catálogo do mod não resolve isso:** `AI/BuildCatalog.cs:40-72` é a lista fechada da oficina mínima — **5** prefabs
+  (`piece_workbench`, `piece_chest_wood`, `fire_pit`, `bed`, `piece_bed02`). **Não há talhador de pedras** no catálogo,
+  então o companheiro **não constrói** a estação que destravaria a peça. (O texto antigo dizia "só bancada/baú/cama";
+  a lista real é de **5** e nenhuma delas é o talhador — a conclusão não muda, a contagem sim.)
+- **Consequência honesta:** as 2 peças são o **teto do blueprint** nesta instalação, não um bug da obra. Para medir um
+  run com elas seria preciso **pedra no inventário do jogador + talhador de pedras de pé e a ≤20 m** do canteiro — isso
+  **não foi testado** em nenhum run até aqui.
+
+**Contas e limites desta seção:** os números acima são os **medidos** no run (fala final, contadores do log,
+`accept_run.py` e a contagem do canteiro); **não** foram medidos nesta rodada — a contagem das linhas do `StepAside`, a
+contagem de falsos positivos do disco (não há como reler a sonda antiga), quais dos 33 postes vieram da
+`FallbackPostAllowed` (§17.16 continua **sem run** para ela) e o comportamento do `log ajustado … - falls` (0 `falls`).
+A árvore é a do §17.16 — **363 opções / 25 seções** (`gen_config_doc.py`) e **harness 642** —, medidas naquele lote:
+**não** houve reconferência nesta rodada e **nenhuma chave nova** entrou com o run.
 
 

@@ -213,7 +213,8 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   A `[Building] StepAside` (bool, padrão **true**; rótulo `hc_cfg_building_stepaside`, "Move aside" no inglês nativo) faz
   o companheiro **em espera** no grupo de obra dar um passo de **2,2 m** para fora do caminho de uma peça que outro vai
   colocar — pedido por quem coloca, andando com o próprio mover, **nunca teleporte** e **nunca o jogador**; desligada, a
-  peça espera o companheiro sair sozinho. **Em teste, sem run** (implementada em 11/11/2026, não medida em jogo).
+  peça espera o companheiro sair sozinho. **MEDIDA no Run 11** (11/11/2026): rodou **ligada** no run de **0 puladas** —
+  a **contagem** das linhas `pedindo para sair da frente`/`saindo da frente` **não** foi medida; ver §17.17.
 - **5 idiomas (PT/EN/ES/FR/IT):** `CompanionLocale` resolve voz/idioma; o inglês é **nativo** (sem arquivo) e os
   **4** JSONs são PT/ES/FR/IT; contrato/prompt/presets por idioma; o texto livre do jogador **nunca** é traduzido.
 - **Voz:** STT `Whisper.net` in-process (16 kHz mono, `whisper\ggml-small-q5_1.bin`); TTS `Kokoro-82M` via
@@ -272,7 +273,7 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   **107** (as **12**
   asserções de 03/11/2026 cobrem o contrato do grupo: `workers`, `refused` e `name` vazio = todos; as **6** de
   11/11/2026 cobrem o `stop` do `companions.order`), config **363/25**.
-  **Medido em jogo (`CommHomeBasicBP`, `BlueprintFree = true`) — dez runs entre 04 e 11/11/2026** (1–3 com 3
+  **Medido em jogo (`CommHomeBasicBP`, `BlueprintFree = true`) — onze runs entre 04 e 11/11/2026** (1–3 com 3
   companheiros e `PlaceReach` 10/15/15+guarda; 4 com o deck; 5 com 5 companheiros; **6 em 11/11/2026** com os dois
   lotes → **969 + 18 = 987**, watchdog **0**, **985 de 987** no canteiro, **`apoio de emergência` = 0**, **telhado
   fechado** no `render_view`, **1 morte** e `blocked_by_player` **≈770**, o jogador dentro do canteiro — §17.13;
@@ -309,7 +310,21 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   do plano (não há "sobra de 1"). **Frente ao Run 9: as puladas caem 11 → 1**, com **16 peças** que chegaram a
   `curta 3/3` e voltaram **antes** de o plano subir (as peças 367-379 subiram depois das curtas; as paredes deixaram de
   subir com o térreo aberto); o `blocked_by_player` **não** é comparável direto — Run 9 **235** terminais contra Run 10
-  **141 terminais + 224 curtas** (critério diferente, §17.16) — §17.16); 1 e 2
+  **141 terminais + 224 curtas** (critério diferente, §17.16) — §17.16; **11 em 11/11/2026** = o **primeiro run com
+  `0 puladas`** (o lote da sonda por **cápsula × caixa girada** + os **dois furos da barreira**, com
+  `[Building] BodyRetry = true` **e** `[Building] StepAside = true` — a chave **não existia** na árvore do Run 10; mesmos
+  5 companheiros, `DeckLift = 1`, `PlaceReach = 15`, `BlueprintFree` e o **jogador andando** — posicionado uma vez em
+  (-166,92, 39,92, -401,59), depois livre, entrou no canteiro várias vezes e **subiu até y 45**) → **987 colocadas + 0
+  puladas = 987** (a fala final medida: `987 peças, 0 puladas`), **watchdog `0`**, **0 `UNSUPPORTED`**, **0 mortes**,
+  **0 `falls`**, **1020 peças** no canteiro (**987 + 33 postes**), **4 bancadas** inseridas e **todas colocadas** (a 7ª
+  bancada com `clipping` do Run 10 **não apareceu**) e **23/23 prefabs do blueprint no lugar** (`accept_run.py`); corpo:
+  **98** recusas terminais + **145** curtas e a **barreira disparou 56×** (`nada acima de … m é pego por … s`). **O plano
+  do Run 11 tem 987 índices** (983 do arquivo + **4** bancadas) contra **990** (983 + **7**) do Run 10: menos bancadas,
+  total absoluto menor — o número que conta é **puladas 1 → 0**. Fora do plano continuam só as **2 `stone_floor_2x2`**,
+  puladas na **leitura** (`recipe not unlocked`, `MHR_Build.cs:1502-1509`): peça do **talhador de pedras** (alcance
+  20 m), que exige **pedra** — o inventário do jogador está **vazio** (medido) e o catálogo do mod
+  (`AI/BuildCatalog.cs:40-72`, **5** prefabs) **não constrói talhador**; é o **teto do blueprint** nesta instalação,
+  não falha da obra — §17.17; 1 e 2
   diferem só no `PlaceReach` (10 = padrão do código; 15 = config de teste) e o
   3 roda em 15 com a guarda anti-loop:** com **10**,
   **970 + 15 = 985** — a fala final fecha (`970 peças, 15 puladas`), `no_ground` **~25 → 0**, `blocked_by_player`
@@ -368,7 +383,7 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   (y 40,4/41,4) **+ 12 baús** recusados e o run **travou em 950/987** no retry (`wood_floor` **297/298/304** repetindo):
   ali o `no_support` estava **CERTO** — colocar faria o jogo derrubar (§17.12 e §4/§6 item 6 da nota). **O lote do poste
   (`ae9ebc3`, 11/11/2026) fechou esse furo** — `MaxOverlap` **0,45**, janela do `wood_beam_1` `[0,55; 1,20]`, o vão de
-  0,60 m passa a caber (§17.14); o run de validação ainda está em andamento (números pendentes); (c) **`falls` com
+  0,60 m passa a caber (§17.14); o run de validação foi o **Run 8** (**987/987**, §17.14); (c) **`falls` com
   uma segunda tentativa** — a peça que sobe e cai **duas vezes** ganha **uma** tentativa em **pose ajustada até 1 m**
   (`AdjustFallenPose`/`AdjustPose`, guarda `State.FallAdjusted`, log `log ajustado … - falls`) e só desiste sem pose
   válida; o `NudgePiece` passou a **delegar** no `AdjustPose`. O grupo distribuiu o plano por índices distintos,
@@ -460,6 +475,8 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   **Falta medir:** o **vão do deck** (abaixo), run com **material pago** e o teste pequeno de 2 companheiros num 6x6.
   A **barreira de andar** foi **MEDIDA no Run 10** (abaixo) — saiu desta lista.
   O **Run 8** do lote do poste **foi medido** em 11/11/2026 (§17.14) — saiu desta lista também.
+  A **sonda de corpo** (cápsula × caixa girada) e a **`[Building] StepAside`** foram **MEDIDAS no Run 11** (abaixo, e
+  §17.17) — saíram desta lista; o que **continua aberto** nelas é a **criatura** e a **contagem** das linhas do step-aside.
   **Pendência aberta — o vão do deck (`DeckLift = 1`):** a folga de ~1 m entre o piso do deck e o chão **prende
   corpos**; depois do run de 11/11 o arquiteto **apagou 41 peças do piso** (**25 + 16**) para libertar o jogador e os
   companheiros, e a casa ficou de piso furado até o **Run 8** recolocar o plano inteiro (**987/987**, §17.14). Opções
@@ -498,19 +515,23 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   O conserto **não** foi mexer no número: a sonda passou a usar a **cápsula real** do corpo contra a **caixa girada** da
   peça (**toque = livre**), a mesma regra do jogo (`Player.cs:4195-4225`, `ComputePenetration`), e o log imprime os
   números na **1ª** recusa (`corpo na peça X - cápsula 0,00-1,80 m, r 0,30`; `MHR_Build.cs:5030-5032`, `CapsuleText` em
-  `:5074`). A `[Building] StepAside` (padrão **true**) **continua implementada** e agora é a **segunda linha de defesa**:
+  `:5074`). A `[Building] StepAside` (padrão **true**) é a **segunda linha de defesa**:
   quem coloca **pede** (`RequestStepAside`, dedup de 4 s) e o companheiro **em espera** anda **2,2 m** com o próprio
-  mover (8 direções, `MHR_Mover.SafeStep`; passo de até 2,5 s) — **nunca teleporte, nunca o jogador**. **Em teste, sem
-  run** (**Run 11** é o run dela). **Em aberto:** a sonda **não testa criaturas** (um javali em cima da peça ainda
-  passa) — §17.16.
+  mover (8 direções, `MHR_Mover.SafeStep`; passo de até 2,5 s) — **nunca teleporte, nunca o jogador**. **MEDIDA no Run 11
+  (11/11/2026, §17.17):** rodou **ligada** no run de **0 puladas** (a chave **não existia** na árvore do Run 10); a
+  **contagem** das linhas `pedindo para sair da frente`/`saindo da frente` **não** foi medida. **Em aberto:** a sonda
+  **não testa criaturas** (um javali em cima da peça ainda passa) — §17.16.
 - **Pendências conhecidas (abertas):** (1) navegação no andar em obra; (2) a voz não passa pelo mixer do jogo (só
   `[AI] TtsVolume`); (3) sync com o upstream `main` (1.5.8) em dia — conferir antes de cada release; (4) o nome do
   companheiro no centro do radial (cosmético); (5) posse do ZDO no spawn em multiplayer dedicado; (6) a dívida de
   **47** chaves por idioma do `gen_translations.py --check` (o mapa indexa por texto PT e não cobre o bloco
   `hc_cfg_building_*` nem as falas de construção); (7) a coleta do build com a mochila no teto de peso (o run dos 1045
   ficou 300 s sem entregar a madeira); (8) a sonda de corpo do build **não testa criaturas** (um javali em cima da peça
-  ainda passa) e a `[Building] StepAside` **não foi medida em jogo** (**Run 11** é o run dela; a sonda já é a cápsula
-  real × caixa girada, acima).
+  ainda passa) — a `[Building] StepAside` e a sonda por **cápsula real × caixa girada** **foram medidas no Run 11**
+  (§17.17: `987 peças, 0 puladas`, 98 terminais + 145 curtas, barreira disparada **56×**), e o que fica aberto nelas é a
+  **criatura** e a **contagem** das linhas do step-aside; (9) as **2 `stone_floor_2x2`** do `CommHomeBasicBP` são
+  **teto do blueprint** nesta instalação — exigem **pedra no inventário do jogador** (a receita) + **talhador de pedras a
+  ≤20 m**, e o catálogo do mod (`AI/BuildCatalog.cs:40-72`) **não constrói talhador**.
 
 ## Nossas docs
 
