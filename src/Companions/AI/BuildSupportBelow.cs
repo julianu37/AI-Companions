@@ -58,4 +58,27 @@ internal static class BuildSupportBelow
 	{
 		return drop * 10f + (float)Math.Sqrt(dx * dx + dz * dz);
 	}
+
+	/// <summary>
+	/// P1 (04/11/2026, measured on the 985-piece house): can a piece of the <paramref name="candidateClass"/> class
+	/// (<c>BuildBlueprintParser.ClassOf</c>) hold up a piece of the <paramref name="pieceClass"/> class?
+	///
+	/// <para>A <b>door</b> (4) never holds anything up - and pulling one would break "doors last". A <b>roof</b> (3) holds
+	/// only a <b>roof</b>: in a gable the row of a slope is supported by the row below it, which is also a roof (roof 45 over
+	/// the wall, gable over the slope), while a floor is never held by a roof above it. Everything else that is structural
+	/// (floors, walls, beams, poles, stairs) holds up anything that is not a door. The east gable of that run stayed open
+	/// because the pull refused every roof as a support and never fired.</para>
+	/// </summary>
+	internal static bool CanSupport(int pieceClass, int candidateClass)
+	{
+		if (candidateClass == 4)
+		{
+			return false;   // a door is never what holds a piece up (and it is built last on purpose)
+		}
+		if (candidateClass == 3)
+		{
+			return pieceClass == 3;   // roof on roof: the row below the slope, never the roof over a floor
+		}
+		return true;
+	}
 }

@@ -856,10 +856,12 @@ internal static class Program
 	}
 
 	/// <summary>
-	/// P1 (04/11/2026): the <b>direct support</b> of a piece - the one decision <c>MHR_Build.PullDirectSupport</c> makes when
-	/// a piece of a group's plan is refused with <c>no_support</c>: which plan piece (0,4 to 2,5 m <b>below</b>, up to 2,5 m
-	/// in XZ) is what holds it up. The measured case: <c>wood_floor</c>/<c>wood_roof_45</c> at y 43,8/45,8 waiting for the
-	/// floor/beam at 42,8 that was still ahead in the plan (the group may not reorder it).
+	/// P1 (04/11/2026): the <b>direct support</b> of a piece - the decisions <c>MHR_Build.PullDirectSupport</c> makes when a
+	/// piece of a group's plan is refused with <c>no_support</c>: which plan piece (0,4 to 2,5 m <b>below</b>, up to 2,5 m in
+	/// XZ) is what holds it up (<c>IsDirectSupport</c>/<c>Rank</c>), and which CLASSES can hold what (<c>CanSupport</c>: a
+	/// door never, a roof only a roof - the row below the slope of a gable). The measured case: <c>wood_floor</c>/<c>
+	/// wood_roof_45</c> at 43,8/45,8/46,8 waiting for the floor/beam at 42,8 that was still ahead in the plan, and the east
+	/// gable that stayed open because every roof was refused as a support.
 	/// </summary>
 	private static void SupportBelow()
 	{
@@ -897,6 +899,17 @@ internal static class Program
 			"obtido " + BuildSupportBelow.MaxDrop.ToString("F2"));
 		Check("MinDrop == 0,4 m", Math.Abs(BuildSupportBelow.MinDrop - 0.4f) < 0.001f,
 			"obtido " + BuildSupportBelow.MinDrop.ToString("F2"));
+		// the CLASS rule (04/11/2026, the east gable of the deck run): a roof is held by another roof, never the other way
+		CanSupportCase(3, 3, true, "telhado sobre telhado: a fileira de baixo da agua (o caso medido)");
+		CanSupportCase(3, 0, true, "telhado apoiado no piso 2 m abaixo (medido: roof 46,8 / floor 44,8)");
+		CanSupportCase(3, 2, true, "telhado no topo da parede/viga");
+		CanSupportCase(3, 1, true, "telhado no topo da escada");
+		CanSupportCase(0, 3, false, "piso nao e apoiado por telhado");
+		CanSupportCase(2, 3, false, "parede nao e apoiada por telhado");
+		CanSupportCase(3, 4, false, "telhado nao e apoiado por porta");
+		CanSupportCase(0, 4, false, "porta nunca apoia nada (piso)");
+		CanSupportCase(0, 0, true, "piso sobre piso");
+		CanSupportCase(4, 2, true, "a porta e a PECA: pode ser apoiada por uma parede");
 	}
 
 	/// <summary>Section (r): one candidate of the direct-support window.</summary>
@@ -906,6 +919,14 @@ internal static class Program
 		Check("IsDirectSupport(" + dx.ToString("F1") + ", " + dz.ToString("F1") + ", " + drop.ToString("F2") + ") -> "
 			+ (expected ? "true" : "false") + " (" + why + ")", actual == expected,
 			"obtido " + (actual ? "true" : "false"));
+	}
+
+	/// <summary>Section (r): one (piece class, candidate class) pair of the support rule.</summary>
+	private static void CanSupportCase(int piece, int candidate, bool expected, string why)
+	{
+		bool actual = BuildSupportBelow.CanSupport(piece, candidate);
+		Check("CanSupport(peca " + piece + ", apoio " + candidate + ") -> " + (expected ? "true" : "false") + " (" + why + ")",
+			actual == expected, "obtido " + (actual ? "true" : "false"));
 	}
 
 	/// <summary>The plan of case (a)/(e) of section (m): a fresh list every call (case (e) needs two of them).</summary>

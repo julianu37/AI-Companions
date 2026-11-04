@@ -211,6 +211,10 @@ internal static class MHR_Build
 		/// Pulling it again for the same piece loops forever (refused -> support -> refused; the log of the 290afc1 run
 		/// had 1.4M lines and the game froze), so it is once per piece, with a small cap per order.</summary>
 		internal readonly HashSet<int> PulledSupport = new HashSet<int>();
+		/// <summary>P1 (04/11/2026): the plan indices whose pose was already adjusted ONCE after a fall (a piece the
+		/// companion fell from twice, see <c>MHR_Build.AdjustFallenPose</c>) - one adjustment per piece, like the support
+		/// pull: repeating it every two falls would walk him into the same hole again.</summary>
+		internal readonly HashSet<int> FallAdjusted = new HashSet<int>();
 		/// <summary>
 		/// E7 (a ideia do "Build all" deles sem o BuildOrders, 03/11/2026): a piece that does not stand YET (no support: its
 		/// floor is not up, its wall is missing) goes to this queue instead of being lost. When the plan ends it is tried
@@ -3080,10 +3084,12 @@ internal static class MHR_Build
 	/// the site's retry queue as a <b>dependency</b> (no attempt spent) - <see cref="Advance"/> pulls it again from there.
 	///
 	/// <para>The candidate is the best one of <see cref="BuildSupportBelow"/>: 0,4 to 2,5 m below and up to 2,5 m in XZ, a
-	/// <b>structural</b> piece only (<see cref="BuildPieceKind"/>: a chest or a bed under a floor is not support), a roof or a
-	/// door never (<c>ClassOf</c> 3/4 - a door stays last), and never a piece the site already built. Because the drop is
-	/// always positive the pull only walks <b>down</b> the plan, so a chain of refusals cannot loop. A support that another
-	/// companion holds is left to it (the piece is only retried): the support is already on its way.</para>
+	/// <b>structural</b> piece only (<see cref="BuildPieceKind"/>: a chest or a bed under a floor is not support), a door
+	/// never (<c>ClassOf</c> 4 - a door stays last) and a <b>roof only for a roof</b> (<c>ClassOf</c> 3: in a gable the row
+	/// of a slope is held by the row below it, which is also a roof - the run of 04/11/2026 lost the east gable because the
+	/// pull refused every roof and never fired), and never a piece the site already built. Because the drop is always
+	/// positive the pull only walks <b>down</b> the plan, so a chain of refusals cannot loop. A support that another companion
+	/// holds is left to it (the piece is only retried): the support is already on its way.</para>
 	/// </summary>
 	private static bool PullDirectSupport(CompanionAI ai, State state)
 	{
@@ -3121,6 +3127,9 @@ internal static class MHR_Build
 	/// <see cref="PullDirectSupport"/> for the window and for why only <b>below</b> counts).</summary>
 	private static int DirectSupportIndex(State state)
 	{
+		// a piece of the ROOF (class 3) is held by another roof - the row of the slope below it (measured in the run of
+		// 04/11/2026: the east gable of the house stayed open because every roof was refused as a support)
+		int own = BuildBlueprintParser.ClassOf(state.Prefab);
 		int best = -1;
 		float bestRank = float.MaxValue;
 		for (int i = 0; i < state.Plan.Count; i++)
@@ -3140,10 +3149,9 @@ internal static class MHR_Build
 			{
 				continue;
 			}
-			int cls = BuildBlueprintParser.ClassOf(step.Prefab);
-			if (cls == 3 || cls == 4)
+			if (!BuildSupportBelow.CanSupport(own, BuildBlueprintParser.ClassOf(step.Prefab)))
 			{
-				continue;   // a roof or a door never holds a piece up - and pulling a door would break "doors last"
+				continue;   // a door never holds anything up; a roof holds only a roof (the layer below it)
 			}
 			if (MHR_BuildGroup.IsDone(state.Group, i))
 			{
@@ -3816,6 +3824,15 @@ internal static class MHR_Build
 			state.FallDrops++;
 			if (state.FallDrops >= 2 && state.Blueprint != null)
 			{
+				// P1 (04/11/2026): before giving the piece up, ONE adjusted pose inside the structural 1 m (the walk to the
+				// plan's pose goes over a hole / past the edge - a gable top above the void). The set is the piece's plan
+				// index, so the second pair of falls skips it as before.
+				if (AdjustFallenPose(ai, state))
+				{
+					state.FallDrops = 0;
+					state.LastY = me.y;   // the drop he just took is counted: the next frame starts a new pair
+					return true;          // walking to the adjusted pose
+				}
 				Log(ai, "falling from the way to the " + state.Prefab + " - skipping it (" + state.FallDrops + " fall(s))");
 				SkipPiece(ai, state, "falls");
 				state.FallDrops = 0;
@@ -4140,9 +4157,51 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			return false;   // a structural piece is not moved off the plan for a clipping verdict (the plan overlaps itself)
 		}
 		float radius = structural ? NudgeStructuralRadius : NudgeFurnitureRadius;
+		return AdjustPose(ai, state, status, radius, !structural && status != "clipping");
+	}
+
+	/// <summary>
+	/// P1 (04/11/2026, measured: 4 pieces of the east gable were given up with <c>falls</c> in the run of the deck): a piece
+	/// the companion fell from <b>twice</b> used to be skipped on the spot. Before giving up, ONE attempt at another pose
+	/// inside the <b>structural</b> limit (1 m - the same radius a wall/roof gets from <see cref="NudgePiece"/>): the fall
+	/// means the way to the pose goes over a hole or past the edge of the build (a gable top above the void), and a metre to
+	/// the side is the same house. Once per piece (<see cref="State.FallAdjusted"/>, like the support pull): the fall is about
+	/// the WALK, so adjusting it again every two falls would only send him into the same hole. Same index, same claim - only
+	/// the working pose changes (the plan keeps the original).
+	/// </summary>
+	private static bool AdjustFallenPose(CompanionAI ai, State state)
+	{
+		if (ai == null || state == null || state.Piece == null)
+		{
+			return false;
+		}
+		int index = PieceIndex(state);
+		if (index < 0 || !state.FallAdjusted.Add(index))
+		{
+			return false;   // this piece was already adjusted once after a fall
+		}
+		if (!AdjustPose(ai, state, "falls", NudgeStructuralRadius, false))
+		{
+			return false;
+		}
+		// the target moved: the "no progress towards it" clock of the walk restarts from here
+		state.BestDistance = 0f;
+		state.BestAt = Time.time;
+		return true;
+	}
+
+	/// <summary>
+	/// P1 (04/11/2026): the shared half of <see cref="NudgePiece"/> and <see cref="AdjustFallenPose"/> - the closest pose the
+	/// game's own rules accept around the plan's one (<see cref="BuildSite.Find"/>, <paramref name="radius"/> metres, 2 rings
+	/// x 8 directions bounded by <see cref="NudgeChecks"/>), the XZ cap of the radius itself (a piece moved further is not the
+	/// same piece), the game's eye rule (<see cref="MaxPlace"/>) and the line that says what moved. A refused search returns
+	/// false and the caller keeps its normal path.
+	/// </summary>
+	private static bool AdjustPose(CompanionAI ai, State state, string status, float radius, bool wide)
+	{
 		Vector3 forward = state.Forward.sqrMagnitude > 0.01f ? state.Forward : ai.transform.forward;
 		BuildSiteResult site = BuildSite.Find(state.Piece, state.Pos, forward, radius, 2, 8, NudgeChecks, Self(ai));
-		if ((site == null || !site.Ok) && !structural && status != "clipping")
+		if ((site == null || !site.Ok) && wide)
 		{
 			// the furniture of a bank does not fit inside 2,5 m: walk the wider rings once before losing the piece
 			site = BuildSite.Find(state.Piece, state.Pos, forward, radius, 3, 12, NudgeChecksWide, Self(ai));
@@ -4151,14 +4210,11 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		{
 			return false;   // no pose of the game's rules accepted: the retry queue / refusal takes over
 		}
-		if (structural)
+		float dx = site.Pos.x - state.Pos.x;
+		float dz = site.Pos.z - state.Pos.z;
+		if (dx * dx + dz * dz > radius * radius)
 		{
-			float dx = site.Pos.x - state.Pos.x;
-			float dz = site.Pos.z - state.Pos.z;
-			if (dx * dx + dz * dz > NudgeStructuralRadius * NudgeStructuralRadius)
-			{
-				return false;   // a structural piece 1 m off the plan is not the same house
-			}
+			return false;   // a structural piece 1 m off the plan is not the same house (a 5 m furniture pose is already capped)
 		}
 		Vector3 me = ai.transform.position;
 		Vector3 eye = new Vector3(me.x, me.y + EyeHeight, me.z);
