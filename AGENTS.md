@@ -196,8 +196,9 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
 - **Provedores (config `[AI]`):** Groq (`openai/gpt-oss-20b`, padrão) → LM Studio/Ollama (`127.0.0.1:1234`) →
   OpenRouter; tudo por `BaseUrl`/`Model`/`ApiKey` (a chave é `ConfigEntry`, nunca hardcoded). Saída estruturada
   `json_schema` → `json_object` → sem formato, **só** em recusa de formato.
-- **Config:** as chaves e os defaults vivem em `Core/ModConfig.cs` (**361** opções / 25 seções, medidas em 04/11/2026
-  com `python tools/gen_config_doc.py`, que imprime `361 settings 25 sections`); a doc gerada é
+- **Config:** as chaves e os defaults vivem em `Core/ModConfig.cs` (**363** opções / 25 seções, medidas em 11/11/2026 —
+  eram **361** em 04/11/2026; as chaves novas do lote são a `[Building] BodyRetry` e a `[Building] StepAside`); quem
+  conta é `python tools/gen_config_doc.py`, que imprime `363 settings 25 sections`. A doc gerada é
   `package/CONFIGURATION.md` — **nunca** editar à mão: rodar o gerador e depois o `--check`. O `.cfg` é
   `BepInEx\config\AiCompanions.cfg`.
   A `[Building] PlaceReach` desta rodada (float, padrão **10**, faixa **5..20**; rótulo `hc_cfg_building_placereach`,
@@ -206,6 +207,13 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   inglês nativo) é o quanto a **obra inteira sobe** acima do chão — ver o deck na seção da construção.
   A `[Building] SupportFallback` (bool, padrão **true**; rótulo `hc_cfg_building_supportfallback`, "Emergency support"
   no inglês nativo) liga o **apoio de emergência** — ver a empenha na seção da construção.
+  A `[Building] BodyRetry` (bool, padrão **true**; rótulo `hc_cfg_building_bodyretry`, "Retry blocked pieces" no inglês
+  nativo) liga a **barreira de andar** — peça recusada por corpo volta e é re-tentada antes de o plano subir de andar;
+  ver a barreira (Run 10) na seção da construção e `docs/re/building-notes.md` §17.16.
+  A `[Building] StepAside` (bool, padrão **true**; rótulo `hc_cfg_building_stepaside`, "Move aside" no inglês nativo) faz
+  o companheiro **em espera** no grupo de obra dar um passo de **2,2 m** para fora do caminho de uma peça que outro vai
+  colocar — pedido por quem coloca, andando com o próprio mover, **nunca teleporte** e **nunca o jogador**; desligada, a
+  peça espera o companheiro sair sozinho. **Em teste, sem run** (implementada em 11/11/2026, não medida em jogo).
 - **5 idiomas (PT/EN/ES/FR/IT):** `CompanionLocale` resolve voz/idioma; o inglês é **nativo** (sem arquivo) e os
   **4** JSONs são PT/ES/FR/IT; contrato/prompt/presets por idioma; o texto livre do jogador **nunca** é traduzido.
 - **Voz:** STT `Whisper.net` in-process (16 kHz mono, `whisper\ggml-small-q5_1.bin`); TTS `Kokoro-82M` via
@@ -256,12 +264,15 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   pior caso: N× o resto do plano, com até **3 coletando ao mesmo tempo** — o `Stock` é a metade aberta do P1); grupo
   só de **blueprint**; **em memória** (não persiste); "para" = todos, "para, <nome>" = um, um modo num companheiro
   tira só ele; nivelar/limpar com **um** (P5). **Nenhuma** chave de tradução nova (reusa `hc_ai_no_companion` e
-  `hc_ai_build_failed`) — harness **601** (471 + 23 da **(p)** + 26 da **(q)** + **66** da **(r)** — `CanSupport`,
-  `PickPost`, `UsefulSurface` e `HoldsPlacedPiece` — + **15** da **(s)** — `AI/BuildBody.cs`, a janela do corpo), MCP
+  `hc_ai_build_failed`) — harness **642** (471 + **28** da **(p)** + 26 da **(q)** + **66** da **(r)** — `CanSupport`,
+  `PickPost`, `UsefulSurface`, `HoldsPlacedPiece` e as constantes da barreira — + **18** da **(s)** — `AI/BuildBody.cs`,
+  a janela do corpo (`Blocks`, `HalfY` e os casos medidos do Run 10) — + **27** da **(t)** — a **barreira de andar**,
+  11/11/2026 — + **6** da **(u)** —
+  `BuildSupportBelow.FallbackPostAllowed`, o poste quando o apoio do plano não vem), MCP
   **107** (as **12**
   asserções de 03/11/2026 cobrem o contrato do grupo: `workers`, `refused` e `name` vazio = todos; as **6** de
-  11/11/2026 cobrem o `stop` do `companions.order`), config **361/25**.
-  **Medido em jogo (`CommHomeBasicBP`, `BlueprintFree = true`) — nove runs entre 04 e 11/11/2026** (1–3 com 3
+  11/11/2026 cobrem o `stop` do `companions.order`), config **363/25**.
+  **Medido em jogo (`CommHomeBasicBP`, `BlueprintFree = true`) — dez runs entre 04 e 11/11/2026** (1–3 com 3
   companheiros e `PlaceReach` 10/15/15+guarda; 4 com o deck; 5 com 5 companheiros; **6 em 11/11/2026** com os dois
   lotes → **969 + 18 = 987**, watchdog **0**, **985 de 987** no canteiro, **`apoio de emergência` = 0**, **telhado
   fechado** no `render_view`, **1 morte** e `blocked_by_player` **≈770**, o jogador dentro do canteiro — §17.13;
@@ -275,7 +286,8 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   antes da ordem e depois **livre** — a guarda de posição foi removida a pedido dele: *"pra que eu possa andar com ele
   pelo jogo depois sem ser teleportado"*) → **977 colocadas + 11 puladas = 988** (a fala final medida foi
   `977 peças, 11 puladas`), **watchdog `0`**, **0 `UNSUPPORTED`**, **1023 peças** no canteiro e **5 bancadas**
-  inseridas, `blocked_by_player` **235**, **1 morte** (o companheiro 4 caiu **8,1 m do telhado** na peça **962/988**,
+  inseridas, `blocked_by_player` **235** (recusas **terminais** — nesta árvore ainda não existia a curta), **1 morte**
+  (o companheiro 4 caiu **8,1 m do telhado** na peça **962/988**,
   lápide com **26 itens**; o mod logou `it died during the build - the order resumes after respawn` e o **próprio
   companheiro 4 encerrou a ordem** com `hc_ai_blueprint_done` depois do respawn — a morte é **ignorada por decisão do
   jogador**, não é investigação aberta) e as **11 puladas** com **2 causas medidas**: **1 `wood_gate`** em (-163,3,
@@ -285,7 +297,19 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   39,8, vigas em 39,8/40,8/41,8) e o que faltou foi **o tile exato de 39,8**, recusado por corpo e mandado à fila de
   retry; o piso de **40,8** acima dele vê peça **do plano** embaixo (`DirectSupportIndex >= 0`) e por isso **não pede
   poste** ("nunca onde o plano já tem apoio"), mas essa peça do plano **não estava no mundo** → a coluna congelou —
-  §17.15); 1 e 2
+  §17.15; **10 em 11/11/2026** = a **barreira de andar MEDIDA** (lote `fbda4ee`, `[Building] BodyRetry = true`, o
+  **padrão**; mesmos 5 companheiros, `DeckLift = 1`, `PlaceReach = 15`, `BlueprintFree` e o **jogador andando** —
+  posicionado uma vez em (-166,92, 39,92, -401,59) e depois livre, entrando no canteiro) → **989 colocadas + 1 pulada =
+  990** (a fala final: `989 peças, 1 puladas`), **watchdog `0`**, **0 `UNSUPPORTED`**, **1022 peças** no canteiro
+  (**989 + 33 postes**), **33 postes** de emergência (**0** recusas) e **23/23 prefabs do blueprint no lugar**
+  (`accept_run.py`), **1 morte** (ignorada por decisão do jogador); **o plano fecha: 983 do arquivo + 7 bancadas
+  inseridas = 990** (o run nasceu com **986** e o planejador inseriu bancadas durante a obra; **6 de pé + 1 recusada por
+  `clipping` = 7**). **A única pulada não é peça da casa** — `piece_workbench` em (-156,5, 38,4, -410,6) por
+  **`clipping`**, a 7ª bancada do `PlanStations`/`InsertBenchStep` (as outras **6** subiram), e é ela que fecha a conta
+  do plano (não há "sobra de 1"). **Frente ao Run 9: as puladas caem 11 → 1**, com **16 peças** que chegaram a
+  `curta 3/3` e voltaram **antes** de o plano subir (as peças 367-379 subiram depois das curtas; as paredes deixaram de
+  subir com o térreo aberto); o `blocked_by_player` **não** é comparável direto — Run 9 **235** terminais contra Run 10
+  **141 terminais + 224 curtas** (critério diferente, §17.16) — §17.16); 1 e 2
   diferem só no `PlaceReach` (10 = padrão do código; 15 = config de teste) e o
   3 roda em 15 com a guarda anti-loop:** com **10**,
   **970 + 15 = 985** — a fala final fecha (`970 peças, 15 puladas`), `no_ground` **~25 → 0**, `blocked_by_player`
@@ -313,7 +337,8 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   peças de pé**, **0 mortes**, piso do térreo ~**1 m** acima do chão com as **escadas das entradas encontrando**; **2 dos
   3** workers fecharam com `0 peça(s) sem apoio` e o terceiro parou com **6 telhados** nomeados (42,8/44,8/46,8) + **4**
   `falls`, e a visão (`render_view`) mostrou a **faixa da água sul** faltando e a **empenha leste aberta**. **Lote do
-  telhado (build 0/0, harness 601; medido no run de 11/11):** (a) **telhado apoia telhado** — o `DirectSupportIndex`
+  telhado (build 0/0, harness **601** naquele lote — hoje **642**; medido no run de 11/11):** (a) **telhado apoia
+  telhado** — o `DirectSupportIndex`
   excluía a **classe
   3** como apoio, então numa **empena** a fileira de cima (apoiada pela de baixo, também telhado) **nunca** era puxada;
   agora o `BuildSupportBelow.CanSupport` (`AI/BuildSupportBelow.cs:145`, usado no `MHR_Build`) permite
@@ -422,35 +447,70 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   `NudgeFurnitureRadius` em `MHR_Build.cs:126`; baú/cama em y 39,9 eram mobília e nunca eram ajustados; `log ajustado`
   **6** no run); e **`blocked_by_player` voltou**, agora pela **janela do corpo** (`AI/BuildBody.cs`, seção **(s)**): o
   companheiro **é obstáculo** — o ignore dele foi **REVERTIDO** (a peça era colocada **dentro** do companheiro e ele
-  **afundava**) e o teste deixou de ser *ponto × pés a 0,6 m*: o **corpo é uma coluna** (pés −0,5 m a +2,0 m) e a
-  **peça uma caixa** (raio plano + **0,45 m** em XZ, vão vertical em Y), então um piso **sobre a cabeça** bloqueia (era
-  o bug "dois companions travados embaixo do piso") e um vizinho **ao lado** não. `BlockedByCharacter`
-  (`BuildProbe.cs:720`) usa `BuildBody.Blocked` para jogador **e** companheiro; o bloqueio (**20** no run de 5,
-  **≈770** no de 11/11 — o jogador estava **dentro do canteiro**) é **retry**: falha real (gasta uma das 3), a peça
-  volta e sobe quando o corpo sai. Detalhe medido em `docs/re/building-notes.md` §17.11 e §17.13.
-  **Falta medir:** o **vão do deck** (abaixo), run com **material pago**, o teste pequeno de 2 companheiros num 6x6 e a
-  **barreira de andar** (abaixo, **em implementação**).
-  O **Run 8** do lote do poste **foi medido** em 11/11/2026 (§17.14) — saiu desta lista.
+  **afundava**). A janela é a do jogo (`Player.UpdatePlacementGhost` → `Character`): a **cápsula real** do corpo
+  (`Collider.bounds.min.y`/`max.y` + raio, `BuildProbe.CapsuleOf`, `AI/BuildProbe.cs:813`) contra a **caixa girada** da
+  peça (`center = point + rot*(box.center − piece.transform.position)`, `halfY` pelo `BuildBody.HalfY`, `:733-793`), com
+  **toque = livre** (`pieceTop <= capsuleBottom || pieceBottom >= capsuleTop`, `AI/BuildBody.cs:45`): um piso **sobre a
+  cabeça** bloqueia (era o bug "dois companions travados embaixo do piso") e um vizinho **ao lado** não. Isso **matou o
+  disco**: até 11/11 o teste tratava a peça como um **disco** de `max(size.x, size.z)/2` (sem pivô nem rotação) e o
+  **Run 10 pagou** — um feixe de 2 m virava um disco de 1 m e "prendia" o Companheiro 6 a 1,08 m (§17.16).
+  O bloqueio (**20** no run de 5, **≈770** no de 11/11 — o jogador estava **dentro do canteiro**) é **retry**: falha
+  real (gasta uma das 3), a peça volta e sobe quando o corpo sai. Detalhe medido em `docs/re/building-notes.md` §17.11,
+  §17.13 e §17.16.
+  **Falta medir:** o **vão do deck** (abaixo), run com **material pago** e o teste pequeno de 2 companheiros num 6x6.
+  A **barreira de andar** foi **MEDIDA no Run 10** (abaixo) — saiu desta lista.
+  O **Run 8** do lote do poste **foi medido** em 11/11/2026 (§17.14) — saiu desta lista também.
   **Pendência aberta — o vão do deck (`DeckLift = 1`):** a folga de ~1 m entre o piso do deck e o chão **prende
   corpos**; depois do run de 11/11 o arquiteto **apagou 41 peças do piso** (**25 + 16**) para libertar o jogador e os
   companheiros, e a casa ficou de piso furado até o **Run 8** recolocar o plano inteiro (**987/987**, §17.14). Opções
   (decisão **do jogador**): **(1)**
   `DeckLift = 0` (sem deck), **(2)** **saia em volta** fechando o perímetro, **(3)** **regra de rota** para o mover não
   entrar/parar sob o deck (`docs/re/building-notes.md` §17.13).
-  **Pendência aberta — "peça recusada por corpo só volta no fim" (medida no Run 9, 11/11/2026):** as **escadas da
-  entrada** são as peças **8, 9 e 10 de 988** do plano — tentaram **primeiro**, foram recusadas por corpo
-  (`blocked_by_player`) e **só subiram na fase de retry, no fim**, depois da casa inteira. O jogador pediu (com print):
+  **Barreira de andar — MEDIDA no Run 10 (11/11/2026, lote `fbda4ee`):** o defeito que a originou foi o do **Run 9**
+  (acima): as **escadas da entrada** são as peças **8, 9 e 10 de 988** do plano — tentaram **primeiro**, foram recusadas
+  por corpo (`blocked_by_player`) e **só subiram na fase de retry, no fim**. A regra do jogador, com print:
   *"essa parte da escadinha da entrada e esses dois pisos já deveriam estar ali antes de continuarem construindo pra
   cima"* e *"recusado por causa de alguém em cima/na posição, eles podem pular, mas retornar e tentar novamente antes
-  de continuar erguendo pra cima"*. **A regra dele, então, é: recusa por corpo pode pular, mas a peça volta e é
-  re-tentada ANTES de o plano subir de andar** — o desenho é a **barreira de andar**. **Estado: EM IMPLEMENTAÇÃO, sem
-  run** — a config `[Building] BodyRetry` **ainda não existe** no código desta árvore (`grep -r BodyRetry` = **0**
-  ocorrências em 11/11/2026), e **nada** da barreira foi medido em jogo.
+  de continuar erguendo pra cima"*. **O que entrou:** `blocked_by_player` virou a classe `Kind.Blocked` do
+  `BuildFailure` (não gasta tentativa), a peça ganha **3 curtas na mesma pose** (2,5 s, contadas para o canteiro) e, com
+  a chave `[Building] BodyRetry` (bool, **padrão true**, `Core/ModConfig.cs:958`), o canteiro **não entrega nada acima
+  de 1,5 m** do nível da peça bloqueada por **20 s** (a primeira recusa carimba o relógio) e a subida de andar **serve
+  antes** a peça da fila que ficou embaixo, desistindo em **25 s** (`BuildFailure.BodySameStorey`/`BodyBarrierSeconds`/
+  `BodyRetryMaxWait`; `MHR_BuildGroup.MayTake`/`NextRetryBelow`; `MHR_Build.StoreyBarrier`).
+  **Refinada no mesmo lote:** a barreira roda **antes do `TryClaim`** (`MHR_Build.cs:945`/`:960`) — peça adiada não fica
+  reivindicada 20 s pelo worker que a adiou — e, depois de servir a peça da fila, o `Advance` **volta ao índice da
+  subida** (`State.ResumeIndex`, `MHR_Build.cs:898-902`, carimbado em `:1163`), sem re-caminhar o que já subiu.
+  **Dois furos reais corrigidos:** (i) ela **só era desenhada** quando a próxima peça estava **>1 m** acima
+  (`BodyRetryStep`) — a parede do 1º andar tem o **mesmo y** do feixe (**41,8**) com os tiles pendentes em **39,8**, então
+  **nunca desenhava**; agora **qualquer peça pendente abaixo** da próxima desenha (`PendingBelowIndex`,
+  `MHR_Build.cs:1103`; o `BodyRetryStep` ficou como constante **sem uso**); (ii) a paciência contava **do desenho**, mas
+  um `dependency` espera até **25 s** (`DependencyDelay`) e ela expirava antes de a peça ficar **devida** — agora a
+  paciência só corre **depois do "due"** (`PendingBelowAt`, `:1141-1145`), com **25 s de tentativas reais** e o watchdog
+  de **60 s** como teto.
+  **Medido:** **989 + 1 = 990**, **puladas 11 → 1** (a única é a **7ª bancada**, com `clipping`, não peça da casa),
+  **16 peças** chegaram a `curta 3/3` e voltaram **antes** de o plano subir. O `blocked_by_player` **não** se compara
+  direto: Run 9 **235 terminais** (não havia curta) contra Run 10 **141 terminais + 224 curtas** — o número comparável é
+  o de puladas.
+  Detalhe (constantes, log, tabela Run 9 × Run 10): `docs/re/building-notes.md` §17.16.
+  **O "bloqueador COMPANHEIRO" do Run 10 era FALSO POSITIVO da nossa sonda — corrigido no lote seguinte:** o caso medido
+  (`wood_beam` em (-168,1, 41,8, -421,1) × **Companheiro 6** em (-167,1, 39,9, -421,5): **1,08 m** em XZ, **1,9 m**
+  abaixo) **não** era corpo atravessando peça — era o **disco** de 1 m da sonda (um feixe de 2 m virava disco de 1 m).
+  O conserto **não** foi mexer no número: a sonda passou a usar a **cápsula real** do corpo contra a **caixa girada** da
+  peça (**toque = livre**), a mesma regra do jogo (`Player.cs:4195-4225`, `ComputePenetration`), e o log imprime os
+  números na **1ª** recusa (`corpo na peça X - cápsula 0,00-1,80 m, r 0,30`; `MHR_Build.cs:5030-5032`, `CapsuleText` em
+  `:5074`). A `[Building] StepAside` (padrão **true**) **continua implementada** e agora é a **segunda linha de defesa**:
+  quem coloca **pede** (`RequestStepAside`, dedup de 4 s) e o companheiro **em espera** anda **2,2 m** com o próprio
+  mover (8 direções, `MHR_Mover.SafeStep`; passo de até 2,5 s) — **nunca teleporte, nunca o jogador**. **Em teste, sem
+  run** (**Run 11** é o run dela). **Em aberto:** a sonda **não testa criaturas** (um javali em cima da peça ainda
+  passa) — §17.16.
 - **Pendências conhecidas (abertas):** (1) navegação no andar em obra; (2) a voz não passa pelo mixer do jogo (só
   `[AI] TtsVolume`); (3) sync com o upstream `main` (1.5.8) em dia — conferir antes de cada release; (4) o nome do
   companheiro no centro do radial (cosmético); (5) posse do ZDO no spawn em multiplayer dedicado; (6) a dívida de
-  45 chaves do `gen_translations.py`; (7) a coleta do build com a mochila no teto de peso (o run dos 1045 ficou
-  300 s sem entregar a madeira); (8) a **barreira de andar** — peça recusada por corpo só volta no fim (acima).
+  **47** chaves por idioma do `gen_translations.py --check` (o mapa indexa por texto PT e não cobre o bloco
+  `hc_cfg_building_*` nem as falas de construção); (7) a coleta do build com a mochila no teto de peso (o run dos 1045
+  ficou 300 s sem entregar a madeira); (8) a sonda de corpo do build **não testa criaturas** (um javali em cima da peça
+  ainda passa) e a `[Building] StepAside` **não foi medida em jogo** (**Run 11** é o run dela; a sonda já é a cápsula
+  real × caixa girada, acima).
 
 ## Nossas docs
 
@@ -619,21 +679,28 @@ comandos de console e spawna coisas, então não é feature de jogador.
   03/11/2026 cobrem o contrato do `companions.build` do grupo: `workers`, `refused` só quando recusa e `name` vazio =
   todos; as **6** de 11/11/2026 cobrem o `stop`: a descrição da ferramenta, o repasse, `action`/`cancelled`,
   `build`/`level`, `name` vazio devolvendo a lista e o `build`/`level` por companheiro).
-- **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check` — **601 asserções** das redes por
+- **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check` — **642 asserções** das redes por
   palavras (`RadialIntent`, `PickupIntent`, `GatherIntent`, `InteractionIntent`, `LlmIntent`, `OrderItems`,
-  `CompanionNameMatch`) e das tabelas puras (`NavTileMath` na **(o)**, `BuildFailure.Classify` na **(p)** — 23 casos,
-  `AI/BuildFailure.cs`; `BuildPieceKind` na **(q)** — 26, `AI/BuildPieceKind.cs`; `BuildSupportBelow` na **(r)** — **66**,
+  `CompanionNameMatch`) e das tabelas puras (`NavTileMath` na **(o)**, `BuildFailure.Classify` na **(p)** — 28 casos,
+  `AI/BuildFailure.cs`, incluindo as constantes da barreira; `BuildPieceKind` na **(q)** — 26, `AI/BuildPieceKind.cs`;
+  `BuildSupportBelow` na **(r)** — **66**,
   `AI/BuildSupportBelow.cs`, com `CanSupport`, o `PickPost` do poste de emergência (as janelas de 0,45, os vãos medidos
   de 0,60 e 1,60 m e o buraco de 1,30 m), a `UsefulSurface` (a caminhada do raio **com o `holds`**: a superfície tem de
   segurar, não só ser funda) e o `HoldsPlacedPiece` (a regra do telhado — **inócua** hoje: dois dos 10 casos usam
   `m_supports = false` numa
-  peça estrutural, estado que não existe na 1.0.20; ver §17.12 de `building-notes`); `BuildBody` na **(s)** — **15**,
-  `AI/BuildBody.cs`, a janela do corpo do `blocked_by_player`; os quatro linkados no `.csproj`) com os `.cs` reais linkados,
+  peça estrutural, estado que não existe na 1.0.20; ver §17.12 de `building-notes`); `BuildBody` na **(s)** — **18**,
+  `AI/BuildBody.cs`, a janela do corpo do `blocked_by_player` (`Blocks`, `HalfY` da viga a 45° e o par do **falso positivo**
+  do Run 10);
+  a **barreira de andar** na **(t)** — **27**, 11/11/2026
+  (`BuildFailure.IsTransient`/`ShortRetry`, as constantes e o `BuildBlueprintParser.Line.Level`); e a **(u)** — **6**,
+  `BuildSupportBelow.FallbackPostAllowed`, o poste quando o apoio do plano está reivindicado e não vem (`SupportGrace` =
+  **2**, ~**20 s** = 8 + 12 s de espera de dependência; **imediato** se o apoio foi desistido); os quatro
+  linkados no `.csproj` continuam os mesmos — nenhuma seção nova exigiu arquivo novo) com os `.cs` reais linkados,
   mais o cross-check das cópias do `Stubs.cs` contra a `Companions.dll` (seção (h) — impede drift). Build 0/0 e exit 0
   são o gate.
 - **Gate de release:** `powershell -ExecutionPolicy Bypass -File tools\release-check.ps1 -Version <versão>` — roda o
   build, a versão (`PluginVersion` × nome do zip), as 3 traduções, o `locale-fallback-check.ps1` (agora com asserts),
-  o `gen_config_doc.py --check`, o teste do MCP (107) e as 601 asserções; **PASS/FAIL por item e exit 1**. É o que tem
+  o `gen_config_doc.py --check`, o teste do MCP (107) e as 642 asserções; **PASS/FAIL por item e exit 1**. É o que tem
   de passar antes de tag/zip (`-SkipGame`/`-SkipIntents` para rodar parte).
 - **Docs:** `docs/mcp-devbridge.md` (arquitetura, protocolo, as **60** ferramentas, a receita de **jogar pelo agente**
   e a de **comandos de console**, e as evidências dos testes da 1.9.4) e `tools/mcp-devbridge/README.md`

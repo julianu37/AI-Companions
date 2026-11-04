@@ -15,20 +15,30 @@ de pé**, **0 mortes**, piso ~**1 m** acima do chão e escadas das entradas enco
 estagnação**, a **cobertura de bancadas** e o validador (`attached`/`nudge`/`blocked_by_player`) — detalhe medido em
 `docs/re/building-notes.md` §17. **P0** (quem tem 1 companheiro não vê diferença) e **P2** (navmesh/latência,
 **medida em jogo** em 03/11/2026) fechados; **P3** (UI do grupo), **P4** (nomes múltiplos) e **P5**
-(persistência/limpeza paralela) **não**. **Estado de 11/11/2026 (Runs 7–9, §7):** o lote do poste fechou o degrau de
-0,6 m (**Run 8**, 987/987) e o **Run 9** rodou com o **jogador andando** no canteiro → **977 + 11 = 988**, com as 11
-puladas medidas em 2 causas; **aberto: a barreira de andar** (`[Building] BodyRetry`, **em implementação, sem run**).
+(persistência/limpeza paralela) **não**. **Estado de 11/11/2026 (Runs 7–10, §7):** o lote do poste fechou o degrau de
+0,6 m (**Run 8**, 987/987), o **Run 9** rodou com o **jogador andando** no canteiro → **977 + 11 = 988** (as 11 puladas
+medidas em 2 causas) e o **Run 10** **mediu a barreira de andar** (`[Building] BodyRetry`, lote `fbda4ee`) → **989 + 1 =
+990**, com puladas **11 → 1** (a única é a **7ª bancada** com `clipping`, e é ela que fecha a conta: **983 + 7 = 990**);
+o `blocked_by_player` **não** se compara direto (Run 9 **235 terminais** × Run 10 **141 terminais + 224 curtas**);
+**o "bloqueador companheiro" do Run 10 era falso positivo da sonda** (peça tratada como disco de 1 m): a sonda agora é
+a **cápsula real × caixa girada** e a `StepAside` (2,2 m, nunca o jogador) ficou como **segunda linha**, **em teste, sem
+run** — aberto: a sonda **não testa criaturas**.
 
-Números deste ciclo (11/11/2026): build **0/0**, harness `tools/ai-intents-check` **601 asserções** (471 + **23** da
-seção **(p)**, `AI/BuildFailure.cs`, + **26** da **(q)**, `AI/BuildPieceKind.cs`, + **66** da **(r)**,
-`AI/BuildSupportBelow.cs` — `CanSupport`, `PickPost`, `UsefulSurface` e `HoldsPlacedPiece` —, + **15** da **(s)**,
-`AI/BuildBody.cs` — a janela do corpo), teste do MCP **107** (as **12** asserções de 03/11 cobrem o contrato do
-`companions.build` do grupo e as **6** de 11/11 o `stop` do `companions.order`), config **361 opções / 25 seções**
-(medido com `python tools/gen_config_doc.py --check`),
-ES/FR/IT **0 lacunas**, dívida do `gen_translations.py` **45** e **nenhuma chave de tradução nova** (as recusas reusam
-`hc_ai_no_companion` e `hc_ai_build_failed`). **O que falta medir** está no §7 (o vão do deck, run com material pago, o
-teste pequeno de 2 companheiros num 6x6 e a **barreira de andar**, **em implementação, sem run** — §7 e
-`docs/re/building-notes.md` §17.15).
+Números deste ciclo (11/11/2026): build **0/0**, harness `tools/ai-intents-check` **642 asserções** (471 + **28** da
+seção **(p)**, `AI/BuildFailure.cs` — inclui as constantes da barreira —, + **26** da **(q)**, `AI/BuildPieceKind.cs`,
++ **66** da **(r)**, `AI/BuildSupportBelow.cs` — `CanSupport`, `PickPost`, `UsefulSurface` e `HoldsPlacedPiece` —,
++ **18** da **(s)**, `AI/BuildBody.cs` — `Blocks`, `HalfY` e o par do **falso positivo** do Run 10 —, + **27** da **(t)** — a **barreira
+de andar** — e + **6** da
+**(u)** — `BuildSupportBelow.FallbackPostAllowed`, `SupportGrace` = **2**), teste do MCP **107** (as **12** asserções de
+03/11 cobrem o contrato
+do `companions.build` do grupo e as **6** de 11/11 o `stop` do `companions.order`), config **363 opções / 25 seções**
+(as chaves novas são a `[Building] BodyRetry` e a `[Building] StepAside`),
+ES/FR/IT **0 lacunas**, dívida do `gen_translations.py --check` **47** por idioma e **nenhuma chave de tradução funcional
+nova** (as recusas reusam `hc_ai_no_companion` e `hc_ai_build_failed`; os rótulos `hc_cfg_building_bodyretry` e
+`hc_cfg_building_stepaside` são os das chaves novas).
+**O que falta medir** está no §7 (o **StepAside**, o **`FallbackPostAllowed`**, o vão do deck, run com material pago, o
+teste pequeno de 2 companheiros num 6x6) — a **barreira de andar** foi medida no Run 10 (§7 e
+`docs/re/building-notes.md` §17.16).
 
 ## 1. O que existe hoje (medido no código)
 
@@ -276,8 +286,10 @@ teste mock do MCP (**107 PASS**, **12 asserções para o contrato do grupo** em 
    `UsefulSurface`) e a **regra do telhado** (`HoldsPlacedPiece` — **inócua**: o `m_supports` do telhado é `true`,
    `docs/re/support-rule-wearntear.md` §5), e o **degrau de 0,6 m** (o run do degrau travou em **950/987** —
    `building-notes` §17.12 — e o **Run 8** fez os pisos de **40,4** subirem em cima de **39** postes, §17.14).
-   **Aberto:** a **barreira de andar** (peça recusada por **corpo** volta só no fim; `[Building] BodyRetry` **em
-   implementação, sem run** — §17.15 de `building-notes`), o **vão do deck** (`DeckLift = 1` prende
+   **Aberto:** o **bloqueador companheiro** da barreira — o caso do Run 10 era **falso positivo** da sonda (disco de
+   1 m no lugar da peça), corrigido pela **cápsula real × caixa girada**; a `StepAside` está **implementada, em teste
+   sem run** (segunda linha de defesa) e a sonda **não testa criaturas**; a barreira em si foi **MEDIDA**: puladas
+   **11 → 1** (`building-notes` §17.16), o **vão do deck** (`DeckLift = 1` prende
    corpos; 3 opções, decisão do jogador — §17.13), a **reserva de material** (`Stock` — cada worker conta
    o canteiro por conta própria), um run com **material pago** e o teste pequeno de 2 companheiros num 6x6.
 3. **P2 — navmesh/latência — MEDIDO EM JOGO (implementado e testado em 03/11/2026):** (a) **medido o `why`** do run de 03/11/2026:
@@ -325,7 +337,7 @@ teste mock do MCP (**107 PASS**, **12 asserções para o contrato do grupo** em 
 `PlaceReach` (10 = padrão do código; 15 = config de teste), o **Run 3** roda em 15 **com a guarda anti-loop** (§17.8 de
 `docs/re/building-notes.md`), o **Run 4** é o primeiro **com o deck** (`DeckLift = 1`, o padrão) e o **Run 5** é o de
 **5 companheiros**, antes do poste por vão. O detalhe
-está lá em §17.6, §17.9 e §17.10 (**os Runs 6, 7, 8 e 9, de 11/11/2026, vêm nos bullets abaixo** — §17.12 a §17.15):
+está lá em §17.6, §17.9 e §17.10 (**os Runs 6, 7, 8, 9 e 10, de 11/11/2026, vêm nos bullets abaixo** — §17.12 a §17.16):
 
 | | Run 1 (`PlaceReach = 10`) | Run 2 (`PlaceReach = 15`) | **Run 3 (15 + guarda)** |
 |---|---|---|---|
@@ -424,14 +436,38 @@ está lá em §17.6, §17.9 e §17.10 (**os Runs 6, 7, 8 e 9, de 11/11/2026, vê
   plano** embaixo (`DirectSupportIndex`, `MHR_Build.cs:3177`) e por isso **não pede poste** (`:3275-3278`, "nunca
   onde o plano já tem apoio") — mas essa peça **não estava no mundo**, então a coluna congelou. Não é o `no_support`
   do §17.12: o apoio existia **no plano**, não no **mundo**. Detalhe em `docs/re/building-notes.md` §17.15.
-- **Aberto — a barreira de andar (Run 9):** as **escadas da entrada** são as peças **8, 9 e 10 de 988** do plano —
-  tentaram **primeiro**, foram recusadas **por corpo** e **só subiram no retry, no fim**, depois da casa inteira. O
-  jogador pediu (com print): *"essa parte da escadinha da entrada e esses dois pisos já deveriam estar ali antes de
-  continuarem construindo pra cima"* e *"recusado por causa de alguém em cima/na posição, eles podem pular, mas
-  retornar e tentar novamente antes de continuar erguendo pra cima"*. O desenho é a **barreira de andar**: peça
-  recusada por corpo volta e é re-tentada **antes** de o plano subir de andar, com a chave `[Building] BodyRetry`.
-  **Em implementação, sem run:** `grep -r BodyRetry` = **0** ocorrências nesta árvore (11/11/2026) — nenhum número da
-  barreira foi medido, e ela **não** pode ser tratada como entregue.
+- **Run 10 — 11/11/2026, a barreira de andar MEDIDA (lote `fbda4ee`; 5 companheiros, `DeckLift = 1`, `PlaceReach = 15`,
+  `BlueprintFree`, `SupportFallback` ligado, `TempScaffold` desligado e **`[Building] BodyRetry = true`**, o padrão):** a
+  variável é a mesma do Run 9 — o jogador foi posicionado **uma vez** em **(-166,92, 39,92, -401,59)** e depois **andou
+  livre**, chegando a **(-180, 38,2, -423)** e **entrando no canteiro** em vários momentos. **989 colocadas + 1 pulada =
+  990** (a fala final **tocou**: `989 peças, 1 puladas`), **watchdog `0`**, **`UNSUPPORTED` = 0**, **1022 peças** no
+  canteiro (**989 + 33 postes**), **33 postes** de emergência com **0 recusas**, **7 bancadas** inseridas (**6 de pé** +
+  a **7ª** recusada) e **23/23 prefabs do
+  blueprint no lugar** (`accept_run.py`: `TODAS AS PECAS DO BLUEPRINT NO LUGAR`); **1 morte**, ignorada por decisão do
+  jogador. **A única pulada NÃO é peça da casa:** `piece_workbench` em (-156,5, 38,4, -410,6) por **`clipping`** — a
+  **7ª bancada** do `PlanStations`/`InsertBenchStep` (as **outras 6** subiram) e o índice que **fecha a conta** (**983 do
+  arquivo + 7 = 990**; o run nasceu com **986** e **4** bancadas entraram durante a obra). **Frente ao Run 9
+  (mesma config, mesma casa):** puladas **11 → 1**, watchdog/`UNSUPPORTED` **0/0 → 0/0** e canteiro **1023 → 1022** — o
+  `blocked_by_player` **não** se compara (Run 9 **235 terminais**, sem curta naquela árvore, × Run 10 **141 terminais +
+  224 curtas**) — e **16 peças** chegaram a **`curta 3/3`** e voltaram **antes** de o plano subir: o plano
+  **andou** depois das curtas (peças **367-379** colocadas) e as paredes deixaram de subir com o térreo aberto. É o
+  defeito do Run 9 resolvido. Detalhe (constantes, linhas de log, a tabela e a ressalva de contagem): `docs/re/building-notes.md`
+  §17.16.
+- **O "bloqueador COMPANHEIRO" do Run 10 era FALSO POSITIVO da sonda; o `StepAside` ficou como segunda linha (em teste,
+  sem run):** o caso medido (`wood_beam` em (-168,1, 41,8, -421,1) × **Companheiro 6** em (-167,1, 39,9, -421,5) —
+  **1,08 m** em XZ e **1,9 m** abaixo) **não** era corpo atravessando peça: `BuildProbe` calculava
+  `flat = max(size.x, size.z)/2` e tratava a peça como um **disco de 1 m em qualquer direção**, ignorando **pivô e
+  rotação** — um feixe de 2 m virava disco de 1 m e batia no companheiro 1,08 m ao lado. O jogo testa o ghost contra a
+  **cápsula do `Character`** (`Player.cs:4195-4225`, `ComputePenetration`). **O conserto não é número:** a sonda passou a
+  usar a **cápsula real** (`Collider.bounds.min.y`/`max.y` + raio, `BuildProbe.CapsuleOf`, `AI/BuildProbe.cs:813`) contra
+  a **caixa girada** da peça (`center = point + rot*(box.center − piece.transform.position)`, AABB do OBB pelo
+  `BuildBody.HalfY`, `:733-793`), com **toque = livre**; o log imprime os números na 1ª recusa (`corpo na peça X -
+  cápsula 0,00-1,80 m, r 0,30`). A **`[Building] StepAside`** (bool, padrão true, `Core/ModConfig.cs:174`/`:962`)
+  **continua implementada** e é a **segunda linha de defesa**: quem coloca **pede** (`MHR_BuildGroup.RequestStepAside`,
+  dedup de **4 s**) e o companheiro **em espera** anda **2,2 m** com o próprio mover (8 direções,
+  `MHR_Mover.SafeStep`; passo de até **2,5 s**) — **nunca teleporte, nunca o jogador**; desligada, a peça espera (o
+  comportamento do Run 10). **Em teste, sem run** (Run 11 é o run dela). **Em aberto:** a sonda **não testa criaturas**
+  (um javali em cima da peça ainda passa) — `docs/re/building-notes.md` §17.16.
 - **Ressalva do Run 6 + pendência aberta (o vão do deck):** depois do Run 6 o arquiteto **apagou 41 peças do piso do
   deck** (**25 + 16**) para **libertar o jogador e os companheiros presos no vão de ~1 m**. O **Run 8** voltou a
   colocar o **plano inteiro** (987/987 índices) no mesmo canteiro, então o piso apagado **entrou de novo** — é
@@ -479,17 +515,19 @@ está lá em §17.6, §17.9 e §17.10 (**os Runs 6, 7, 8 e 9, de 11/11/2026, vê
 5. **2 companheiros num 6x6 (46 peças)** — o teste pequeno que fecha a mecânica sem o ruído de uma casa de 985 peças:
    as duas entram com a ordem sem nome, uma nivela/limpa, as duas constroem, "para" para as duas, matar uma não para a
    outra, e com nome só aquela começa.
-6. **A barreira de andar — em implementação, sem run:** peça recusada **por corpo** deve voltar e ser re-tentada
-   **antes** de o plano subir de andar (a chave `[Building] BodyRetry` ainda **não existe** no código: `grep -r
-   BodyRetry` = 0 em 11/11/2026). O Run 9 mediu o **defeito** (escadas da entrada, peças 8/9/10 de 988, subiram só
-   no retry do fim) e **nada** da correção — ver `docs/re/building-notes.md` §17.15.
+6. **A sonda de corpo e a `StepAside` — em teste, sem run:** a barreira foi **medida** no Run 10 (puladas **11 → 1** —
+   §17.16) e o "bloqueador companheiro" daquele run era **falso positivo** do disco. A sonda agora é a **cápsula real ×
+   caixa girada** (a regra do jogo, com **toque = livre**) e o `StepAside` (2,2 m, via mover, nunca o jogador) é a
+   **segunda linha** — nenhum dos dois **medido em jogo** (Run 11). **Aberto:** a sonda **não testa criaturas**.
+   **Também sem run:** o `FallbackPostAllowed` (o poste de emergência assume o apoio **do plano** quando ele foi desistido
+   ou quando ninguém o reivindica e a peça já esperou `SupportGrace` = 2, ~20 s) — `docs/re/building-notes.md` §17.16.
 
 **P4 (quando existir):** "Maria e João, construam a cabana aqui" → as duas; "Zé, colete 10 madeiras" → só o Zé;
 "para, Maria" → só a Maria; "para" → todos; "Maria e João, ataquem o greydwarf" → as duas; "Maria, equipa a
 picareta" → só a Maria; "Maria e o cachorro, ..." → Maria + aviso do desconhecido, sem inventar.
 
-**Gate:** harness **601** (471 + 23 da **(p)** + 26 da **(q)** + **66** da **(r)** + 15 da **(s)**), MCP **107** e build
-**0/0**.
+**Gate:** harness **642** (471 + **28** da **(p)** + 26 da **(q)** + **66** da **(r)** + 18 da **(s)** + **27** da **(t)**
++ **6** da **(u)**), MCP **107** e build **0/0**.
 
 ## 8. Perguntas para o jogador — respostas registradas (03/11/2026)
 
