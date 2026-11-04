@@ -265,6 +265,11 @@ stopped.
     three companions on the same site - the space test walked the player list and the workers stand right next to the
     piece they are building. A **companion is not a player** for placement (the game pushes an NPC out of the way instead
     of refusing the piece), so any character with a `CompanionAI` is ignored; only a **real player** still blocks it.
+  - **The group only pulls the piece below it once** (**in test**, fix of 04/11/2026): the first version of the "build
+    the support first" pass could **loop** - a piece refused for `no_support` pulled the piece under it, which failed,
+    came back, pulled again. In about ten minutes the log reached **344 MB** (**1,4 million lines**) and the game
+    **froze**. The support is now pulled **once per piece** (and at most **24 per order**); on the second refusal the
+    piece follows the normal wait (**8-25 s**, stall watchdog). Same build, next run: the log stayed at **30 KB**.
 - **The workbenches cover the whole site** (**in test**, 04/11/2026 - and the reason is measured): the station pass walked
   the plan but stopped after **6 searches** with only **2 benches** planned on a 32 m footprint, and the rest of the plan
   fell to the fallback that appends a bench at the **end** of the list - the middle of the house had no station in range
