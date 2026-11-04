@@ -1,0 +1,102 @@
+# Backlog da construção (ordem de execução)
+
+> Síntese das **cinco revisões de 04/11/2026** (lógica/invariantes, performance, rede/ZDO, domínio do jogo,
+> idiomas/config/docs) mais as medições dos Runs 18–22. **Ordem = ordem de ataque**, não ordem de importância.
+> Escopo: **single-player**; multiplayer é o **último item** e só se o jogador decidir investir (ver `AGENTS.md`,
+> "ESCOPO DO PROJETO").
+
+## O que já está medido (ponto de partida)
+
+| indicador | valor | onde |
+|---|---|---|
+| melhor run (985 peças, 5 companheiros, receita de **teste**) | **12 min 07 s**, 985/985, 0 puladas, 0 mortes, 0 `UNSUPPORTED`, watchdog 0, `FALTANDO` vazio | §17.24 |
+| baseline anterior (mesma casa) | 14 min 04 s | §17.22 |
+| espera total / `fila` (o parque) | **414,1 s** / **4,5 s** (era 1292,8 / 1040,2) | §17.24 |
+| barreira de andar | **402,7 s em 99 retenções** (era 244,9/73) — *[I]* absorveu a fila | §17.24 |
+| `corpo na peça` / `sem lugar livre` | 34 peças distintas em 36 linhas (**rotação zerada** pelo `Height` 1,8) / 4,4 por 100 peças | Runs 20–21 |
+| harness / config / MCP / gate | **718** / **368/25** / 122 / **9/9** | — |
+
+## Fila de trabalho
+
+### 1. O run da **receita de produto** (o que decide a frase "está pronta")
+`BlueprintFree=false`, `PlaceReach=10`, `LevelGround=true`, `DeckLift=1`, material **pago** de mochila + baús,
+inventário real (peso), jogador andando. É o único cenário que ainda **não** foi jogado e é onde vivem as pendências
+(7), (11) e (12).
+**Aceite:** 985/985 (ou falta **nomeada**), 1 pulada 0, 0 mortes, 0 `UNSUPPORTED`, watchdog 0, `FALTANDO` vazio,
+duração ≤ ~800 s, **sem** `missing material` em loop e **sem** `too_heavy` encerrando a ordem.
+**Risco previsto:** com 25–32 stacks por companheiro o `MHR_Build.cs:3564-3567` encerra a ordem daquele worker; a
+reserva de material é a metade aberta do P1 (`MHR_BuildGroup.cs:27-30`).
+
+### 2. `too_steep` no nivelamento **mata a obra** (pendência 12)
+`hc_ai_build_too_steep` (`Jobs/MHR_Level.cs:282`) não está na lista de retomada (`:455`, só `done`/`already`/
+`failed`), então `LevelGround` (padrão **true**) encerra a ordem em terreno íngreme em vez de devolver ao build.
+**Menor mudança:** incluir a recusa do nivelamento no `resumeBuild` (a obra volta e constrói o que dá).
+**Aceite:** num terreno com variação > `LevelTolerance`, a obra **não** encerra — ela constrói ou diz o que falta.
+
+### 3. `step-aside` no andar sendo telado (a dívida do `Clearance`)
+`BuildAsideSpot.Clearance = 1,5 m` (`AI/BuildAsideSpot.cs:39`) é um **círculo em XZ** contra peças pendentes: num
+andar em obra **todo** ponto a 2,2 m está a <1,5 m de uma peça pendente → o anel cai → `sem lugar livre` → peça na
+fila + barreira de 10 s. Medido: **42 de 52** casos de corpo não moviam ninguém; o andar de cima foi o gargalo de
+um run inteiro (17 min 40 s).
+**Tentativa revertida (com o número):** o teste exato cápsula × caixa girada (`CrossesPending`) recusou **67 % do
+plano** (424 `sem lugar` em 638 peças) porque `BuildBody.Blocks` não tem tolerância e o span vertical pega piso
+**acima** do candidato — revertido em `e594f7e`.
+**Antes de codar:** a triagem que falta (item 4). Ela diz se é `Blocked` (regra), `StepTo` (não tem chão no nível) ou
+`SafeStep` (não tem rota). **Se for `StepTo`, não existe ajuste de anel** e a resposta é aceitar a fila.
+
+### 4. Instrumento: a triagem do `sem lugar livre` e do `no progress` (log, sem run)
+- `AskStepAside` registra **por que** falhou: `Blocked` (1,5 m de pendente) × `StepTo` (chão/level) × `SafeStep`.
+- `SkipPiece` com `no_support` registra o `DirectSupportIndex` e o estado dele (`done` / na fila com `At` / claimado /
+  nada no raio) — separa "efeito de ordem" de "buraco real" (poste).
+- `no progress` agrupado por **pose** (`prefab@x,y,z`) + ΔY do walk spot + rota `partial|full` — hoje são 10–20
+  linhas que não se sabe se são a cumeeira (pendência 10) ou lugar novo.
+- Poste: `apoio do plano: nenhum|reivindicado|deferido N|desistido` na linha do `apoio de emergência` — 26 postes sem
+  proveniência não distinguem apoio legítimo de andaime.
+
+### 5. Custo por frame **medido** (pendência 15)
+Não existe cronômetro. Proposta: `Stopwatch` no `MHR_Build.Drive` (µs/frame por worker), contador em
+`MHR_BuildGroup.Ready` (avaliações de fila/frame) e `GC.GetTotalMemory` no `Finish` (bytes por ordem). A revisão
+estimou **~4,2 ms/frame** nos 5 (≈25 % de 16,6 ms) e **10–12 MB/s de GC** com a obra travada; o `ClassOf` memoizado
+já tirou a alocação, mas a **varredura** de `IsBelow`/`ServeBarrier` a 60 Hz continua.
+**Aceite:** `cpu: X µs/frame` na linha do `Finish` e um run com `BodyAt` de pico registrado.
+
+### 6. A cumeeira (pendência 10) — navegação
+`no progress` recorrente em `wood_roof_45` a **48,8 m** (Runs 13/15/20). O walk spot já foi corrigido (anéis 1,5/3 m,
+`WalkHits` 3) e ainda falha. `TempScaffold` está **vetada** pelo jogador — a resposta é rota, não andaime.
+**Antes:** a triagem do item 4 (pose + walk spot + rota) para não repetir o Run 14 (walk spot 7 m abaixo).
+
+### 7. Vão do deck — **decisão do jogador**
+`DeckLift=1` deixa ~1 m entre o piso e o chão e prende corpos (41 peças de piso foram apagadas à mão uma vez).
+Opções: **A** `DeckLift=0`; **B** saia em volta fechando o perímetro; **C** regra de rota para o mover não
+entrar/parar sob o deck. Nada disso se decide sem ele.
+
+### 8. As duas frases erradas do `CHANGELOG` público (revisão de lógica, A8)
+`package/CHANGELOG.md:16` diz que os blueprints ficam em `config/…/blueprints` (o código usa `<plugin>/blueprints`,
+`AI/BuildBlueprints.cs:54/70-74`) e `:35` diz que a ordem é "por classe de peça … em vez de por altura" (o parser
+ordena **por altura primeiro**, `AI/BuildBlueprintParser.cs:146`). Correção de uma linha cada, com o mesmo ciclo.
+
+### 9. A data dos documentos
+`AGENTS.md` e `docs/re/building-notes.md` datam os runs de hoje como **11/11/2026**; o `git log` desta máquina diz
+**04/11/2026**. Uma das duas está errada em ~200 ocorrências — passe dedicado, não no meio de um ciclo de código.
+
+### 10. Reserva de material por peça (limitação declarada do P1)
+Cada worker conta a mesma pilha por conta própria (pior caso: N× o resto do plano, com até 3 coletando juntos). Só
+aparece no run **pago** (item 1). O desenho é o `Stock` da metade aberta do P1 em `docs/plan-multi-build.md`.
+
+## Declarado e **fora** do caminho crítico
+
+- **Multiplayer** (pendências 5, 16, 17): troca de posse do corpo a cada 2 s para a obra em silêncio e trava o
+  `SiteBusy`; pagamento por baú sem `SetInUse`. **Último item de todos**, só se o jogador investir.
+- **Corpus baixado** (pendência 14): 279 de 354 blueprints perdem linha por `recipe not unlocked` e o mod **pula em
+  silêncio** — falta a **tela e a fala** dizendo qual receita falta. É decisão de produto, o dado já existe
+  (`BuildBlueprintReport.SkippedReasons`).
+- **Criatura como bloqueador**: a sonda de corpo não testa criaturas (um javali em cima da peça passa).
+
+## Regras que valem para qualquer item desta fila
+
+1. **Uma mudança por build**, com o corte de aceite escrito **antes** do run.
+2. **Reverter na hora** se `puladas > 0`, `desistindo > 0`, morte, `UNSUPPORTED` ou watchdog — o baseline fecha
+   985/985 com 0, então qualquer um deles é regressão.
+3. Regra pura vai para o harness **no mesmo ciclo** (hoje **718** asserções); quem implementa não afrouxa a asserção.
+4. O que foi revertido fica **documentado com o número que o matou** (escopo XZ: ~33 min; `ahead` por frame: 38 vs 78
+   peças/min; `CrossesPending`: 67 % do plano).

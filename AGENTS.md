@@ -765,6 +765,12 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   sem `SetInUse`, enquanto o resto do mod usa `MHR_Chests.Open`, que confere a posse depois do claim e recusa
   (`Jobs/MHR_ToolKeeper.cs:1063-1072`). Com dois jogadores tirando da mesma pilha, um `Save` perde no desempate por
   `DataRevision` → **duplicar ou perder** material (janela estreita, sem teste aqui).
+  **ESCOPO DO PROJETO (decisão do jogador, 11/2026):** o **multiplayer é o ÚLTIMO item de tudo** e só entra **se o
+  jogador decidir investir nele** — as pendências (5), (16) e (17) e o achado de "posse do corpo redistribuída a cada
+  2 s" ficam **declarados e parados**, não são trabalho em andamento. O alvo do produto hoje é **single-player**: a
+  obra de blueprint terminar **985/985 sem pulada, sem morte e sem greve** na receita de produto (material pago,
+  `PlaceReach` 10, `LevelGround` ligado, peso real). Nada de desenho de rede entra no caminho crítico até essa ordem
+  mudar.
   **Achado de localização (11/11/2026, CORRIGIDO no mesmo dia):** `hc_cfg_building_blueprintstations`
   (`Core/ModLocalization.cs:860`) e `hc_cfg_controls_buildpanelkey` (`:863`) estavam **só no inglês** — em PT/ES/FR/IT
   o F8 mostrava o **rótulo em inglês** ("Blueprint: no stations", "Build panel key"), **não** a chave crua: as duas
