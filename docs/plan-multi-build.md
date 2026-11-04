@@ -15,9 +15,11 @@ a obra de 985 peças mostrou que o gargalo é a **ordem/navegação**, não o n�
   `Reattach` e estações próprios. Dois `StartBlueprint` no mesmo anchor = **dois planos** sobre as mesmas peças.
 - **Nome:** `CompanionNames.FromMessage` devolve **um** nome (o primeiro antes da vírgula/segmento); o campo
   `companion` do modelo é um `Find` separado. Não existe "Maria e João".
-- **Navmesh:** `MHR_CompanionNavMesh` (agente 40, climb 0.6, `Pathfinding.BuildTile` sem portas) **não invalida**
-  o tile quando a obra coloca/remove peça — a metade que o Vikings for Hire tem (`WearNTear.OnPlaced`/`Destroy` →
-  `m_buildTime = -1000`; `docs/re/navegacao-companheiro.md` §6).
+- **Navmesh:** `MHR_CompanionNavMesh` (agente 40, climb 0.6, `Pathfinding.BuildTile` sem portas) não invalida
+  **explicitamente**; o jogo re-pokeia no `GetPath` e reconstrói o tile em até **5 s** (`m_updateInterval`). O
+  `no progress` de 12–17 m é o `SnapToNavMesh` (1,5/3/6/12 m), não o tile invisível. A P2 reduz a latência
+  (`m_pokeTime` + `m_buildTime = now - 5,1`, coalescido) e cobre a remoção (`ClearScaffolds`/`build.delete` via
+  `ZNetScene.Destroy`). Detalhe: `docs/re/navmesh-tiles.md` e `docs/re/navegacao-companheiro.md` §6.
 
 ## 2. Objetivo e não-objetivo
 
@@ -107,8 +109,13 @@ recusa e pede "para" (evita duas casas ao mesmo tempo).
 2. **P1 — grupo:** `MHR_BuildGroup` + workers/claims + stop/um + morte/retomada + materiais/estação + `Build`
    aceitando a lista de alvos (sem nome = todos os que podem receber ordem; com nome = os nomeados). Teste com
    **2 companheiros** num **6x6** (46 peças) antes do 985.
-3. **P2 — navmesh:** `WearNTear.OnPlaced`/`Destroy` → `InvalidateAround` no agente 40 (fase B barata do §6);
-   independente do grupo, mas necessário para o piso novo.
+3. **P2 — navmesh/latência (medir antes):** (a) **medir os `why`** do run (03/11/2026: 36 `no progress`, 17
+   `no_support`, 9 `no_ground`, 6 `too_steep`); (b) **carência do mover** (`MHR_Mover.Plan`: rota `Partial` + alvo
+   acima → ~6 s antes de `Unstick`/`no progress`, só `Build`/`BuildGather`) — ataca os 36; (c) **invalidação
+   coalescida** (`m_pokeTime` + `m_buildTime = now - 5,1`, só tiles existentes, 0,35 s; postfix `OnPlaced` + prefix
+   `Destroy` + chamadas em `PlaceDirect`/`ClearScaffolds`/`build.delete`), config `[Movement] PathingOnBuild`, tools
+   `nav.tiles`/`nav.probe`/`nav.stats` e harness puro `NavTileMath`. O `-1000` literal é tempestade (985×9 bakes);
+   detalhe em `docs/re/navmesh-tiles.md`.
 4. **P3 — UI/feedback:** progresso do grupo (`N/M`, workers), quem está com qual peça; o painel por companheiro
    mostra "obra: X".
 5. **P4 — nomes múltiplos:** `FromMessageList` + `Addressees` + os filtros + harness. **Por último** entre as
@@ -127,8 +134,9 @@ recusa e pede "para" (evita duas casas ao mesmo tempo).
 - **Não** duplicar peça/estação/coleta; `PlanStations`/`InsertBenchStep` uma vez.
 - O `MHR_Build.Active`/`OtherOrder`/harvest da limpeza precisam responder pelo **grupo** (a limpeza é fase do
   grupo; o harvest do `Clear` continua sendo a ferramenta).
-- A navmesh nova (P2) é pré-requisito para o piso recém-colocado; sem ela, o grupo pode ter o mesmo
-  `no progress` de hoje, só que com mais trabalhadores.
+- A invalidação da navmesh (P2) reduz a latência do piso novo (~5 s → ~0,3–1,3 s) e cobre a remoção; a
+  **carência do mover** ataca os `no progress` medidos (36). Sem as duas, o grupo pode ter o mesmo `no progress`
+  de hoje, só que com mais trabalhadores.
 
 ## 7. Critério de aceite
 

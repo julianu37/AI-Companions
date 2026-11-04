@@ -93,9 +93,26 @@ Fonte: pacote público do Thunderstore `Worobeyko/VikingsForHire` **1.6.6** (o N
   memória de falha/caminho) + `NavMemory` (célula 0.5 m, `LevelTolerance` 1.2, `BlockedAt` 1.5, `MaxScore` 4,
   `MaxNodes` 4000, save a cada 300 s, versão 3). O `SmartNavigation.Enabled` é só um flag; o A* é do `NavMap`.
 
-**O que falta no nosso `MHR_CompanionNavMesh`:** ele já registra o agente 40 (climb 0.6) e reconstrói o tile no
-`Pathfinding.BuildTile` (sem portas), mas **não invalida o tile quando uma peça é colocada/removida**. Sem isso, o piso
-novo só entra na navmesh quando outro evento invalida o tile. O gancho barato é o mesmo deles: postfix em
-`WearNTear.OnPlaced` + prefix em `WearNTear.Destroy` chamando um `InvalidateAround(pos)` que marca `m_buildTime = -1000`
-nos tiles do agente 40 em ±2 m (reaproveita o `BuildTile_Patch`). É a fase B "barata", sem A* próprio; o
-`PreferNearFloor` (branch `fix/pisos-nivel-2`) resolve a **ordem**, este gancho resolve a **navmesh**.
+**Correção (03/11/2026, decompilado do Valheim 1.0.20 — `docs/re/navmesh-tiles.md`):** o "não invalida" acima é
+impreciso e o `m_buildTime = -1000` literal é uma tempestade. O que o jogo faz:
+
+- **Já re-pokeia no `GetPath`:** `PokeArea(from/to, agentType)` marca 3×3 tiles do **agente pedido**
+  (`Pathfinding.cs:352-356`, `:526-541`); `Buildtiles` reconstrói **1 tile por 0,1 s** quando
+  `m_pokeTime - m_buildTime > m_updateInterval` (**5 s**) (`:554-576`); o tile do canteiro **entra** no mapa, com até
+  ~5 s de atraso. **Nenhum** código do jogo invalida a navmesh ao colocar/remover peça (`WearNTear.OnPlaced`/`Destroy`
+  não falam com `Pathfinding`).
+- **O sintoma dos 12–17 m é o `SnapToNavMesh`, não o "tile invisível":** o `GetPath` com `havePath: false` procura o
+  alvo a **1,5 → 3 → 6 → 12 m** (`:458-498`); enquanto o piso não está no mapa, o alvo é **redirecionado para o chão
+  sob o piso**, o mover anda para o lugar errado, o `Partial` fica true e a trava de 12 s do `Goto` queima. Medido no
+  run de 03/11/2026: **36 `no progress`**, 17 `no_support`, 9 `no_ground`, 6 `too_steep`.
+- **A invalidação certa (P2, reduzida):** `m_pokeTime = Time.time` **e** `m_buildTime = Time.time - 5,1` (elegível no
+  próximo tique, **sem** dar prioridade máxima e **sem** derrubar o throttle), só em tiles **que já existem**
+  (`Contains`, nunca `GetNavTile`/`PokeTile`, que criam tile e disparam um bake de 32×32 m), coalescido **0,35 s**
+  (`HashSet<Vector3Int>`), fail-open. `-1000` só com a coalescência; sozinho ele anula os 5 s e gera ~8.900 bakes
+  (985 peças × 9 tiles) contra ~500 naturais, disputando a fila única com o Humanoid.
+- **Ganchos:** postfix `WearNTear.OnPlaced` (pega jogador + companheiro: `BuildExecutor.PlaceDirect` chama
+  `wear.OnPlaced()`) e prefix `WearNTear.Destroy`; **mais** as chamadas diretas em `BuildExecutor.PlaceDirect`,
+  `ClearScaffolds` e `build.delete` (eles usam `ZNetScene.Destroy`, que **pula** o `WearNTear.Destroy` — sem isso a
+  escada provisória fica como rampa fantasma).
+- **Complemento (B):** no `MHR_Mover.Plan`, quando a rota é `Partial` e o alvo está acima, dar ~6 s (o intervalo do
+  bake) antes de `Unstick`/`no progress`, restrito a `Build`/`BuildGather`.
