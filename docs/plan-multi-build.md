@@ -15,7 +15,9 @@ de pé**, **0 mortes**, piso ~**1 m** acima do chão e escadas das entradas enco
 estagnação**, a **cobertura de bancadas** e o validador (`attached`/`nudge`/`blocked_by_player`) — detalhe medido em
 `docs/re/building-notes.md` §17. **P0** (quem tem 1 companheiro não vê diferença) e **P2** (navmesh/latência,
 **medida em jogo** em 03/11/2026) fechados; **P3** (UI do grupo), **P4** (nomes múltiplos) e **P5**
-(persistência/limpeza paralela) **não**.
+(persistência/limpeza paralela) **não**. **Estado de 11/11/2026 (Runs 7–9, §7):** o lote do poste fechou o degrau de
+0,6 m (**Run 8**, 987/987) e o **Run 9** rodou com o **jogador andando** no canteiro → **977 + 11 = 988**, com as 11
+puladas medidas em 2 causas; **aberto: a barreira de andar** (`[Building] BodyRetry`, **em implementação, sem run**).
 
 Números deste ciclo (11/11/2026): build **0/0**, harness `tools/ai-intents-check` **601 asserções** (471 + **23** da
 seção **(p)**, `AI/BuildFailure.cs`, + **26** da **(q)**, `AI/BuildPieceKind.cs`, + **66** da **(r)**,
@@ -24,8 +26,9 @@ seção **(p)**, `AI/BuildFailure.cs`, + **26** da **(q)**, `AI/BuildPieceKind.c
 `companions.build` do grupo e as **6** de 11/11 o `stop` do `companions.order`), config **361 opções / 25 seções**
 (medido com `python tools/gen_config_doc.py --check`),
 ES/FR/IT **0 lacunas**, dívida do `gen_translations.py` **45** e **nenhuma chave de tradução nova** (as recusas reusam
-`hc_ai_no_companion` e `hc_ai_build_failed`). **O que falta medir** está no §7 (o vão do deck, run com material pago e o
-teste pequeno de 2 companheiros num 6x6).
+`hc_ai_no_companion` e `hc_ai_build_failed`). **O que falta medir** está no §7 (o vão do deck, run com material pago, o
+teste pequeno de 2 companheiros num 6x6 e a **barreira de andar**, **em implementação, sem run** — §7 e
+`docs/re/building-notes.md` §17.15).
 
 ## 1. O que existe hoje (medido no código)
 
@@ -265,12 +268,16 @@ teste mock do MCP (**107 PASS**, **12 asserções para o contrato do grupo** em 
    → **969 + 18 = 987**, watchdog **0**, **telhado fechado**, **0 postes**, **1 morte**, `blocked_by_player` ≈**770**
    (o corpo conta e o jogador estava no canteiro); **Run 7** (11/11, o degrau de 0,6 m com `MaxOverlap` 0,35) →
    travou em **950/987**; **Run 8** (11/11, validação do lote do poste) → **987/987**, **0 puladas**, **39 postes**,
-   **`UNSUPPORTED` 0**, **watchdog `0`**, **0 mortes**. **Fechado depois:** o lote das 13 (nudge de mobília 5 m/3×12,
+   **`UNSUPPORTED` 0**, **watchdog `0`**, **0 mortes**; **Run 9** (11/11, o jogador **andando** no canteiro) →
+   **977 + 11 = 988**, **watchdog `0`**, **`UNSUPPORTED` 0**, **1 morte** (queda de telhado, **ignorada por decisão
+   do jogador**) e as **11 puladas** com **2 causas medidas** (1 portão por corpo + 10 numa coluna que esperou um
+   apoio **do plano** que não estava no **mundo**). **Fechado depois:** o lote das 13 (nudge de mobília 5 m/3×12,
    `TryBenchAt` sem `clipping`, apoio imediato), o **deck (`DeckLift`)**, o **poste por vão** (`PickPost` +
    `UsefulSurface`) e a **regra do telhado** (`HoldsPlacedPiece` — **inócua**: o `m_supports` do telhado é `true`,
    `docs/re/support-rule-wearntear.md` §5), e o **degrau de 0,6 m** (o run do degrau travou em **950/987** —
    `building-notes` §17.12 — e o **Run 8** fez os pisos de **40,4** subirem em cima de **39** postes, §17.14).
-   **Aberto:** o **vão do deck** (`DeckLift = 1` prende
+   **Aberto:** a **barreira de andar** (peça recusada por **corpo** volta só no fim; `[Building] BodyRetry` **em
+   implementação, sem run** — §17.15 de `building-notes`), o **vão do deck** (`DeckLift = 1` prende
    corpos; 3 opções, decisão do jogador — §17.13), a **reserva de material** (`Stock` — cada worker conta
    o canteiro por conta própria), um run com **material pago** e o teste pequeno de 2 companheiros num 6x6.
 3. **P2 — navmesh/latência — MEDIDO EM JOGO (implementado e testado em 03/11/2026):** (a) **medido o `why`** do run de 03/11/2026:
@@ -318,7 +325,7 @@ teste mock do MCP (**107 PASS**, **12 asserções para o contrato do grupo** em 
 `PlaceReach` (10 = padrão do código; 15 = config de teste), o **Run 3** roda em 15 **com a guarda anti-loop** (§17.8 de
 `docs/re/building-notes.md`), o **Run 4** é o primeiro **com o deck** (`DeckLift = 1`, o padrão) e o **Run 5** é o de
 **5 companheiros**, antes do poste por vão. O detalhe
-está lá em §17.6, §17.9 e §17.10 (**os Runs 6, 7 e 8, de 11/11/2026, vêm nos bullets abaixo** — §17.12 a §17.14):
+está lá em §17.6, §17.9 e §17.10 (**os Runs 6, 7, 8 e 9, de 11/11/2026, vêm nos bullets abaixo** — §17.12 a §17.15):
 
 | | Run 1 (`PlaceReach = 10`) | Run 2 (`PlaceReach = 15`) | **Run 3 (15 + guarda)** |
 |---|---|---|---|
@@ -399,6 +406,32 @@ está lá em §17.6, §17.9 e §17.10 (**os Runs 6, 7 e 8, de 11/11/2026, vêm n
   `build.inspect` medido), limite do arquivo/save: é o que fecha a **conta do arquivo** (985 linhas − 2 = 983 → + 4
   bancadas = 987 índices) que aparecia como "2 peças" não explicadas desde o Run 6. Detalhe em
   `docs/re/building-notes.md` §17.14.
+- **Run 9 — 11/11/2026, o jogador andando no canteiro (5 companheiros, `DeckLift = 1`, `BlueprintFree`,
+  `PlaceReach = 15`, `SupportFallback` ligado, `TempScaffold` desligado):** a **única** diferença para o Run 8 é que o
+  jogador foi posicionado **uma vez** antes da ordem e depois **andou livre** (a guarda de posição foi removida —
+  pedido dele: *"pra que eu possa andar com ele pelo jogo depois sem ser teleportado"*). **977 colocadas + 11 puladas
+  = 988**, com a **fala final medida** (`977 peças, 11 puladas` — no Run 8 ela não tocou), **watchdog `0`**,
+  **`UNSUPPORTED` = 0**, **1023 peças** no canteiro, **5 bancadas** (o Run 8 tinha 4) e **`blocked_by_player` 235**;
+  **1 morte** — o companheiro 4 caiu **8,1 m do telhado** na peça **962/988**, deixou **lápide com 26 itens** e o
+  **próprio companheiro 4 encerrou a ordem** depois do respawn (`hc_ai_blueprint_done`), o `OnDeath`/`Reattach` do
+  §15.2t funcionando com o corpo novo (leitura do log); a queda é **ignorada por decisão do jogador**, não é
+  investigação aberta. As
+  **11 puladas** têm **2 causas medidas**: **1 `wood_gate`** em (-163,3, 40,8, -422,9) por `blocked_by_player`
+  repetido (era onde o jogador estava parado — o portão da entrada) e **10 numa coluna em x≈-152,7** (3 `wood_floor`
+  em 39,8/40,8/40,8, 3 `wood_roof_45` em 42,8 e 4 `piece_chest_wood` em 40,9) em `no_support` até o watchdog. **A
+  cascata:** a vizinhança está de pé (5 `wood_beam_1` em 39,3 = postes, pisos em 39,8, vigas em 39,8/40,8/41,8) e o
+  que faltou foi **o tile de 39,8**, recusado **por corpo** e mandado ao retry; o piso de **40,8** vê peça **do
+  plano** embaixo (`DirectSupportIndex`, `MHR_Build.cs:3177`) e por isso **não pede poste** (`:3275-3278`, "nunca
+  onde o plano já tem apoio") — mas essa peça **não estava no mundo**, então a coluna congelou. Não é o `no_support`
+  do §17.12: o apoio existia **no plano**, não no **mundo**. Detalhe em `docs/re/building-notes.md` §17.15.
+- **Aberto — a barreira de andar (Run 9):** as **escadas da entrada** são as peças **8, 9 e 10 de 988** do plano —
+  tentaram **primeiro**, foram recusadas **por corpo** e **só subiram no retry, no fim**, depois da casa inteira. O
+  jogador pediu (com print): *"essa parte da escadinha da entrada e esses dois pisos já deveriam estar ali antes de
+  continuarem construindo pra cima"* e *"recusado por causa de alguém em cima/na posição, eles podem pular, mas
+  retornar e tentar novamente antes de continuar erguendo pra cima"*. O desenho é a **barreira de andar**: peça
+  recusada por corpo volta e é re-tentada **antes** de o plano subir de andar, com a chave `[Building] BodyRetry`.
+  **Em implementação, sem run:** `grep -r BodyRetry` = **0** ocorrências nesta árvore (11/11/2026) — nenhum número da
+  barreira foi medido, e ela **não** pode ser tratada como entregue.
 - **Ressalva do Run 6 + pendência aberta (o vão do deck):** depois do Run 6 o arquiteto **apagou 41 peças do piso do
   deck** (**25 + 16**) para **libertar o jogador e os companheiros presos no vão de ~1 m**. O **Run 8** voltou a
   colocar o **plano inteiro** (987/987 índices) no mesmo canteiro, então o piso apagado **entrou de novo** — é
@@ -446,6 +479,10 @@ está lá em §17.6, §17.9 e §17.10 (**os Runs 6, 7 e 8, de 11/11/2026, vêm n
 5. **2 companheiros num 6x6 (46 peças)** — o teste pequeno que fecha a mecânica sem o ruído de uma casa de 985 peças:
    as duas entram com a ordem sem nome, uma nivela/limpa, as duas constroem, "para" para as duas, matar uma não para a
    outra, e com nome só aquela começa.
+6. **A barreira de andar — em implementação, sem run:** peça recusada **por corpo** deve voltar e ser re-tentada
+   **antes** de o plano subir de andar (a chave `[Building] BodyRetry` ainda **não existe** no código: `grep -r
+   BodyRetry` = 0 em 11/11/2026). O Run 9 mediu o **defeito** (escadas da entrada, peças 8/9/10 de 988, subiram só
+   no retry do fim) e **nada** da correção — ver `docs/re/building-notes.md` §17.15.
 
 **P4 (quando existir):** "Maria e João, construam a cabana aqui" → as duas; "Zé, colete 10 madeiras" → só o Zé;
 "para, Maria" → só a Maria; "para" → todos; "Maria e João, ataquem o greydwarf" → as duas; "Maria, equipa a
@@ -471,7 +508,7 @@ picareta" → só a Maria; "Maria e o cachorro, ..." → Maria + aviso do descon
   `Refresh`, `Release`, `ReleaseAll`), `MarkDone`, `TryQueueRetry`/`NextRetry`, `IsLeader`, `BuildPhase`.
 - `Jobs/MHR_Build.cs` — `StartBlueprintGroup` (`:1281`), `WaitGroup` (`:1906`), `WaitRetry` (`:1961`), `Advance`
   (`:767`), `QueueRetry` (`:491`), `CountPlaced` (`:938`), `PlanLocked` (`:908`), `IsLeader` (`:918`),
-  `InsertBenchStep` (`:2354`), `RejoinGroup` (`:1697`), `NamesOf`/`GroupWorkers` (`:1409`/`:1430`), `Pending.Group`,
+  `InsertBenchStep` (`:2403`), `RejoinGroup` (`:1697`), `NamesOf`/`GroupWorkers` (`:1409`/`:1430`), `Pending.Group`,
   `StallSeconds`/`StallOut` (`:85`/`:2017`), `DependencyDelay`/`GroundUnder` (`:581`/`:573`), `PullDirectSupport`/
   `DirectSupportIndex` (`:3094`/`:3128`), `NudgePiece` (`:4148`), `AdjustFallenPose`/`AdjustPose` (`:4172`/`:4200`) e
   as guardas `State.PulledSupport`/`State.FallAdjusted` (`:213`/`:217`).

@@ -261,7 +261,7 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   **107** (as **12**
   asserções de 03/11/2026 cobrem o contrato do grupo: `workers`, `refused` e `name` vazio = todos; as **6** de
   11/11/2026 cobrem o `stop` do `companions.order`), config **361/25**.
-  **Medido em jogo (`CommHomeBasicBP`, `BlueprintFree = true`) — oito runs entre 04 e 11/11/2026** (1–3 com 3
+  **Medido em jogo (`CommHomeBasicBP`, `BlueprintFree = true`) — nove runs entre 04 e 11/11/2026** (1–3 com 3
   companheiros e `PlaceReach` 10/15/15+guarda; 4 com o deck; 5 com 5 companheiros; **6 em 11/11/2026** com os dois
   lotes → **969 + 18 = 987**, watchdog **0**, **985 de 987** no canteiro, **`apoio de emergência` = 0**, **telhado
   fechado** no `render_view`, **1 morte** e `blocked_by_player` **≈770**, o jogador dentro do canteiro — §17.13;
@@ -271,7 +271,21 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   **39 postes**), **watchdog `0`**, **0 `UNSUPPORTED`** (o veredito do próprio jogo, `MHR_Build.Verify`,
   `MHR_Build.cs:4561`), **0 mortes**, **0 `falls`**, **telhado fechado** e **empena leste fechada** no `render_view`,
   `blocked_by_player` **120** (116 voltaram para a fila + 4 `desistindo`) e `no progress` **11**, com o jogador **fora**
-  do canteiro — §17.14); 1 e 2
+  do canteiro — §17.14; **9 em 11/11/2026** = o run com o **jogador andando** no canteiro (posicionado **uma vez**
+  antes da ordem e depois **livre** — a guarda de posição foi removida a pedido dele: *"pra que eu possa andar com ele
+  pelo jogo depois sem ser teleportado"*) → **977 colocadas + 11 puladas = 988** (a fala final medida foi
+  `977 peças, 11 puladas`), **watchdog `0`**, **0 `UNSUPPORTED`**, **1023 peças** no canteiro e **5 bancadas**
+  inseridas, `blocked_by_player` **235**, **1 morte** (o companheiro 4 caiu **8,1 m do telhado** na peça **962/988**,
+  lápide com **26 itens**; o mod logou `it died during the build - the order resumes after respawn` e o **próprio
+  companheiro 4 encerrou a ordem** com `hc_ai_blueprint_done` depois do respawn — a morte é **ignorada por decisão do
+  jogador**, não é investigação aberta) e as **11 puladas** com **2 causas medidas**: **1 `wood_gate`** em (-163,3,
+  40,8, -422,9) por `blocked_by_player` repetido — era onde o jogador estava parado, o portão da entrada — e **10 numa
+  coluna em x≈-152,7** (3 `wood_floor` em **39,8/40,8/40,8**, 3 `wood_roof_45` em **42,8** e 4 `piece_chest_wood` em
+  **40,9**), todas `no_support` até o watchdog: a vizinhança está de pé (**5** `wood_beam_1` em **39,3**, pisos em
+  39,8, vigas em 39,8/40,8/41,8) e o que faltou foi **o tile exato de 39,8**, recusado por corpo e mandado à fila de
+  retry; o piso de **40,8** acima dele vê peça **do plano** embaixo (`DirectSupportIndex >= 0`) e por isso **não pede
+  poste** ("nunca onde o plano já tem apoio"), mas essa peça do plano **não estava no mundo** → a coluna congelou —
+  §17.15); 1 e 2
   diferem só no `PlaceReach` (10 = padrão do código; 15 = config de teste) e o
   3 roda em 15 com a guarda anti-loop:** com **10**,
   **970 + 15 = 985** — a fala final fecha (`970 peças, 15 puladas`), `no_ground` **~25 → 0**, `blocked_by_player`
@@ -414,7 +428,8 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   (`BuildProbe.cs:720`) usa `BuildBody.Blocked` para jogador **e** companheiro; o bloqueio (**20** no run de 5,
   **≈770** no de 11/11 — o jogador estava **dentro do canteiro**) é **retry**: falha real (gasta uma das 3), a peça
   volta e sobe quando o corpo sai. Detalhe medido em `docs/re/building-notes.md` §17.11 e §17.13.
-  **Falta medir:** o **vão do deck** (abaixo), run com **material pago** e o teste pequeno de 2 companheiros num 6x6.
+  **Falta medir:** o **vão do deck** (abaixo), run com **material pago**, o teste pequeno de 2 companheiros num 6x6 e a
+  **barreira de andar** (abaixo, **em implementação**).
   O **Run 8** do lote do poste **foi medido** em 11/11/2026 (§17.14) — saiu desta lista.
   **Pendência aberta — o vão do deck (`DeckLift = 1`):** a folga de ~1 m entre o piso do deck e o chão **prende
   corpos**; depois do run de 11/11 o arquiteto **apagou 41 peças do piso** (**25 + 16**) para libertar o jogador e os
@@ -422,11 +437,20 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   (decisão **do jogador**): **(1)**
   `DeckLift = 0` (sem deck), **(2)** **saia em volta** fechando o perímetro, **(3)** **regra de rota** para o mover não
   entrar/parar sob o deck (`docs/re/building-notes.md` §17.13).
+  **Pendência aberta — "peça recusada por corpo só volta no fim" (medida no Run 9, 11/11/2026):** as **escadas da
+  entrada** são as peças **8, 9 e 10 de 988** do plano — tentaram **primeiro**, foram recusadas por corpo
+  (`blocked_by_player`) e **só subiram na fase de retry, no fim**, depois da casa inteira. O jogador pediu (com print):
+  *"essa parte da escadinha da entrada e esses dois pisos já deveriam estar ali antes de continuarem construindo pra
+  cima"* e *"recusado por causa de alguém em cima/na posição, eles podem pular, mas retornar e tentar novamente antes
+  de continuar erguendo pra cima"*. **A regra dele, então, é: recusa por corpo pode pular, mas a peça volta e é
+  re-tentada ANTES de o plano subir de andar** — o desenho é a **barreira de andar**. **Estado: EM IMPLEMENTAÇÃO, sem
+  run** — a config `[Building] BodyRetry` **ainda não existe** no código desta árvore (`grep -r BodyRetry` = **0**
+  ocorrências em 11/11/2026), e **nada** da barreira foi medido em jogo.
 - **Pendências conhecidas (abertas):** (1) navegação no andar em obra; (2) a voz não passa pelo mixer do jogo (só
   `[AI] TtsVolume`); (3) sync com o upstream `main` (1.5.8) em dia — conferir antes de cada release; (4) o nome do
   companheiro no centro do radial (cosmético); (5) posse do ZDO no spawn em multiplayer dedicado; (6) a dívida de
   45 chaves do `gen_translations.py`; (7) a coleta do build com a mochila no teto de peso (o run dos 1045 ficou
-  300 s sem entregar a madeira).
+  300 s sem entregar a madeira); (8) a **barreira de andar** — peça recusada por corpo só volta no fim (acima).
 
 ## Nossas docs
 

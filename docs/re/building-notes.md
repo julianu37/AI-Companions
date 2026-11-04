@@ -2092,6 +2092,80 @@ workers terminaram com o watchdog em `0 peça(s) sem apoio` e o **terceiro** par
   (`building-notes` §17.13: "canteiro com 985 das 987") é **outra** conta — peças de pé contra índices do plano — e
   **não** é o 985 de linhas do arquivo.
 
+### 17.15 O Run 9 (11/11/2026) — o jogador andando no canteiro, as 11 puladas e a barreira (em teste)
+
+- **O que muda em relação ao Run 8:** a **guarda de posição do jogador foi removida**. Ele foi posicionado **uma vez**
+  antes da ordem e depois **andou livre** pelo canteiro — pedido dele: *"pra que eu possa andar com ele pelo jogo
+  depois sem ser teleportado"*. É o único parâmetro que muda: o resto da config é o do Run 8 (**5 companheiros**,
+  `BlueprintFree = true`, `DeckLift = 1`, `PlaceReach = 15`, `SupportFallback = true`, `TempScaffold = false`). O
+  objetivo do run é justamente medir o que o corpo **móvel** faz com o canteiro.
+- **Números (medidos):** **977 colocadas + 11 puladas = 988** — a fala final **tocou** desta vez:
+  `977 peças, 11 puladas` (no Run 8 ela não tocou e o `987/0` veio dos contadores do grupo, §17.14); **watchdog `0`**;
+  **`UNSUPPORTED` = 0** (o veredito do próprio jogo, `MHR_Build.Verify`); **1023 peças** no canteiro; **5 bancadas**
+  inseridas; **`blocked_by_player` = 235**; **1 morte** (abaixo).
+  - **Os 988 índices:** **983** peças do arquivo + **5 bancadas** (o Run 8 tinha **4**, do `PlanStations`). A conta do
+    arquivo é a do §17.14 (985 linhas − 2 `stone_floor_2x2` com `recipe not unlocked` = 983). **Não medido neste
+    run:** quantas das 5 bancadas são **planejadas** e quantas vieram do **`InsertBenchStep`** (a auto-cura,
+    `MHR_Build.cs:2403`).
+  - **As 1023 do canteiro:** pela mesma aritmética do Run 8 (**canteiro = colocadas + peças fora do plano**, lá
+    1026 = 987 + 39), sobram **46 peças fora do plano** — os **postes de emergência**. **Ressalva:** este run **não
+    trouxe a contagem de `apoio de emergência`**; os **46** são **derivados da conta**, não lidos do log.
+  - **`blocked_by_player` = 235** com o jogador andando: ~2× o Run 8 (**120**, jogador fora) e **muito** abaixo do
+    Run 6 (**≈770**, jogador **dentro** do canteiro). Os três não são comparáveis ao pé da letra — o número mede
+    **trânsito de corpo ao redor das peças**, não "jogador parado", e a posição dele muda a cada peça no Run 9.
+- **A morte (registrada, e ignorada por decisão do jogador):** o **companheiro 4** caiu **8,1 m do telhado** na peça
+  **962/988**, deixou **lápide com 26 itens**, e o mod logou
+  `it died during the build - the order resumes after the respawn (piece 962/988)` (`MHR_Build.cs:1691`). Depois do
+  respawn, **o próprio companheiro 4 encerrou a ordem** com `hc_ai_blueprint_done` (`MHR_Build.cs:913`/`:916`) — lido
+  do log: o `OnDeath` gravou o pending e o **corpo novo** retomou o plano (o `Reattach` do §15.2t), terminando na mão de
+  quem caiu. **Não é investigação aberta:** o jogador decidiu **não** perseguir este caso. Queda de telhado durante uma
+  obra de 988 peças é risco conhecido (§17.10, `falls`) e o `AdjustPose` cobre a **peça**, não o **corpo** — nada aqui
+  sugere regressão, e não foi tratado como uma.
+- **As 11 puladas — duas causas, medidas:**
+  1. **1 `wood_gate`** em **(-163,3, 40,8, -422,9)**: `blocked_by_player` **repetido** até esgotar — era exatamente
+     onde o **jogador estava parado** (o portão da entrada). Sem corpo ali, a peça sobe.
+  2. **10 peças numa coluna em x≈-152,7**: **3 `wood_floor`** (**39,8 / 40,8 / 40,8**), **3 `wood_roof_45`**
+     (**42,8**) e **4 `piece_chest_wood`** (**40,9**) — todas em `no_support` ("sem apoio ainda … não gasta
+     tentativa, volta com espera", o portão do §17.2) até o **watchdog** encerrar.
+- **A cascata da coluna (o achado que vale a nota):** a **vizinhança está de pé** — **5 `wood_beam_1` em 39,3** (postes
+  de emergência), pisos em **39,8** e vigas em **39,8 / 40,8 / 41,8**. O que faltou foi **o tile exato de 39,8**: ele
+  foi recusado **por corpo** e mandado para a **fila de retry**. O piso de **40,8** logo acima dele vê, na **lista do
+  plano**, uma peça **abaixo de si** (`DirectSupportIndex`, `MHR_Build.cs:3177`, chamado em `:3150` e `:3275`) e por
+  isso **não pede poste**: a guarda do apoio de emergência é explícita —
+  `// the plan has something under it: the pull is the path (never a post over the plan's own support)`
+  (`:3275-3278`). Só que **a peça do plano não estava no mundo**: `DirectSupportIndex` responde pela **lista**, não
+  pelo estado do canteiro. Resultado: a coluna inteira espera um apoio que está **na fila de retry** e **congela até
+  o watchdog**.
+  - **Isto não é o `no_support` do §17.12.** Lá faltava apoio **de verdade** (0,6 m de vão sem peça que alcançasse) e
+    o **poste por vão** resolveu. Aqui o apoio **existe no plano** e **não existe no mundo**: o caminho declarado
+    ("o pull é o caminho") é o certo — ele só chega **tarde**, porque o retry da peça recusada por corpo acontece
+    **no fim**.
+  - Ou seja: as **11 puladas** e o defeito abaixo são **o mesmo problema de ordem**, vistos por dois ângulos. A
+    coluna é a versão **silenciosa** (o portão de dependência espera 8/12/20/25 s, não gasta tentativa e nunca conta
+    como pulada — mas o watchdog encerra igual); a escada da entrada é a versão **visível** (o jogador vê a casa
+    subir sem a escada).
+- **O defeito que o jogador viu:** as **escadas da entrada** são as peças **8, 9 e 10 de 988** do plano — tentaram
+  **primeiro** (a obra anda **por andar** e, dentro dele, piso → escada → parede → telhado → porta: `StoreyOf`,
+  `AI/BuildBlueprintParser.cs:327`; §15.2i/§15.2j/§15.2k), foram recusadas **por corpo** e **só subiram na fase de
+  retry, no fim**, depois da casa inteira. É exatamente a queixa,
+  com print: *"essa parte da escadinha da entrada e esses dois pisos já deveriam estar ali antes de continuarem
+  construindo pra cima"* e *"recusado por causa de alguém em cima/na posição, eles podem pular, mas retornar e tentar
+  novamente antes de continuar erguendo pra cima"*.
+- **O desenho da barreira — EM TESTE, SEM RUN:** a regra do jogador é: recusa **por corpo** pode pular, mas a peça
+  **volta e é re-tentada antes** de o plano **subir de andar**. O desenho em teste é uma **barreira de andar**: a peça
+  recusada por corpo entra numa lista de retorno **daquele andar**, e o plano não avança para o andar seguinte (a
+  ordenação por `StoreyOf`, §15.2k) enquanto essa lista não esvaziar; `[Building] BodyRetry` é a chave prevista para
+  ligar/desligar.
+  **Status honesto, e é o ponto:** está **em implementação**, **sem run**. Nesta árvore (11/11/2026) **não existe**
+  `BodyRetry` nem barreira no código — `grep -r BodyRetry` devolve **0** ocorrências —, então **nada** disto é medida:
+  nem o comportamento, nem o nome/faixa/default da chave, nem o efeito sobre o número de puladas. Quem ler esta seção
+  não pode tratar a barreira como entregue.
+- **O que este run NÃO mediu:** a contagem de `apoio de emergência` (só a diferença de **46** no canteiro, derivada);
+  quantas bancadas foram **planejadas** × **auto-curadas**; e o comportamento da barreira (sem run). **Config:** o run
+  não mudou nenhuma chave em relação ao Run 8 e **não há chave nova nesta árvore** (`BodyRetry` não existe), mas o
+  gerador **não foi rodado** para esta nota — as **361 opções / 25 seções** são a medida de 04/11/2026 que já está no
+  `AGENTS.md`, não uma reconferência desta rodada.
+
 
 
 
