@@ -1066,11 +1066,25 @@ internal static class MHR_Build
 				skipped++;
 				continue;
 			}
+			// P1 (04/11/2026, the last 16 pieces of the 985 house): the plan is anchored by the FILE's origin, so a
+			// blueprint whose foundations are 1 m below its floor level put them UNDER our terrain (the site is flat at
+			// the aim's height): the game refuses/destroys a buried piece, and everything above it fails `no_support` in
+			// a cascade (measured: 16 pieces in vertical columns, wood_beam at y 37,8 under floors at 39,8). No piece is
+			// planned below the ground it stands on - the buried ones sit ON the terrain and hold the rest up.
+			Vector3 placed = hint + rot * Vector3.Scale(piece.Pos - centre, new Vector3(piece.Scale, piece.Scale, piece.Scale));
+			if (ZoneSystem.instance != null)
+			{
+				float ground = ZoneSystem.instance.GetGroundHeight(placed);
+				if (placed.y < ground - 0.05f)
+				{
+					placed.y = ground;
+				}
+			}
 			plan.Add(new PlannedStep
 			{
 				Prefab = piece.Prefab,
 				Piece = resolved,
-				Pos = hint + rot * Vector3.Scale(piece.Pos - centre, new Vector3(piece.Scale, piece.Scale, piece.Scale)),
+				Pos = placed,
 				Rot = rot * piece.Rot
 			});
 		}

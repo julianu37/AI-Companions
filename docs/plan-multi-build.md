@@ -12,8 +12,9 @@ estagnação**, a **cobertura de bancadas** e o validador (`attached`/`nudge`/`b
 **medida em jogo** em 03/11/2026) fechados; **P3** (UI do grupo), **P4** (nomes múltiplos) e **P5**
 (persistência/limpeza paralela) **não**.
 
-Números deste ciclo (04/11/2026): build **0/0**, harness `tools/ai-intents-check` **520 asserções** (471 + **23** da
-seção **(p)**, `AI/BuildFailure.cs`, + **26** da **(q)**, `AI/BuildPieceKind.cs` — os dois puros e linkados), teste do
+Números deste ciclo (04/11/2026): build **0/0**, harness `tools/ai-intents-check` **539 asserções** (471 + **23** da
+seção **(p)**, `AI/BuildFailure.cs`, + **26** da **(q)**, `AI/BuildPieceKind.cs`, + **19** da **(r)**,
+`AI/BuildSupportBelow.cs` — as três puras e linkadas), teste do
 MCP **101** (as **12** asserções de 03/11 cobrem o contrato do `companions.build` do grupo), config **359 opções / 25
 seções**, ES/FR/IT **0 lacunas**, dívida do `gen_translations.py` **45** e **nenhuma chave de tradução nova** (as
 recusas reusam `hc_ai_no_companion` e `hc_ai_build_failed`). **O que falta medir** está no §7 (o run com material pago
@@ -145,6 +146,14 @@ não perturbar um canteiro em andamento.
 - **Watchdog:** se o canteiro passa **60 s sem uma peça subir**, a fila é descartada (cada índice contado uma vez),
   nomeada no log, e a ordem encerra — uma dependência que nunca vem (buraco, piso que não existe) não segura a obra
   para sempre.
+- **Apoio imediato (`PullDirectSupport`, 04/11/2026):** num grupo ninguém reordena o plano (`PlanLocked`), então o
+  **apoio direto** de uma peça recusada com `no_support` é **puxado por fora da ordem** (`AI/BuildSupportBelow.cs`: 0,4–2,5 m
+  abaixo × 2,5 m em XZ, seção **(r)**; estrutura só, nunca telhado/porta, nunca peça já construída), sem tocar no plano —
+  a peça recusada fica na fila do canteiro como **dependência**. **Guarda obrigatória:** `State.PulledSupport`
+  (`MHR_Build.cs:209`/`:3064`) puxa **uma vez por índice de peça** e no máximo **24 por ordem**; na 2ª recusa o pull não
+  acontece e ela segue o portão. **Por que:** o build `290afc1` entrou em loop infinito (recusa → puxa → apoio falha →
+  recusa) e escreveu **344 MB** de log em ~10 min, travando o jogo — o watchdog não pegou porque só é lido em
+  `WaitRetry` e o loop nunca espera (`docs/re/building-notes.md` §17.8).
 
 **Materiais (o que ainda não existe)**
 - **Sem reserva por peça:** cada worker conta mochila + baús do canteiro para a **peça dele**. Duas pilhas podem ser
@@ -326,7 +335,7 @@ diferença é `PlaceReach` (10 = padrão do código; 15 = config de teste). O de
 "para, Maria" → só a Maria; "para" → todos; "Maria e João, ataquem o greydwarf" → as duas; "Maria, equipa a
 picareta" → só a Maria; "Maria e o cachorro, ..." → Maria + aviso do desconhecido, sem inventar.
 
-**Gate:** harness **520** (471 + 23 da seção **(p)** + 26 da **(q)**), MCP **101** e build **0/0**.
+**Gate:** harness **539** (471 + 23 da seção **(p)** + 26 da **(q)** + 19 da **(r)**), MCP **101** e build **0/0**.
 
 ## 8. Perguntas para o jogador — respostas registradas (03/11/2026)
 
@@ -353,6 +362,9 @@ picareta" → só a Maria; "Maria e o cachorro, ..." → Maria + aviso do descon
   do harness), sem Unity e sem config; o mundo entra por `MHR_Build.GroundUnder` (`:543`).
 - `AI/BuildPieceKind.cs` — **estrutural × mobília** (04/11/2026, seção **(q)** do harness): `Classify`/`IsStructural`
   por nome do prefab; decide o raio do `NudgePiece` (**1 m** × **2,5 m**) em `MHR_Build.cs:3916-3932`.
+- `AI/BuildSupportBelow.cs` — **o apoio direto de uma peça** (04/11/2026, seção **(r)**, 19 casos): `IsDirectSupport`
+  (0,4–2,5 m **abaixo** × 2,5 m em XZ) e `Rank` (a queda pesa 10×); é a decisão do `PullDirectSupport`
+  (`MHR_Build.cs:3048`), cuja guarda é `State.PulledSupport` (`:209`/`:3064`, uma vez por índice e teto de 24).
 - `AI/BuildProbe.cs` — `AttachedRadius` **4,0 m** (`:49`, `AttachedToStructure` em `:637`) e
   `BlockedByCharacter` (`:705`: companheiro com `CompanionAI` não conta como jogador).
 - `Jobs/MHR_Level.cs` — `SetThenWorkers` (`:138`) e a retomada com `GroupWorkers`/`NoteLeveled` (`:467-497`).

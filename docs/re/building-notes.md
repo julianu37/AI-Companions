@@ -1571,9 +1571,10 @@ plano** dos 9 candidatos, nivela com a enxada (passadas de 1,5 s) e só então p
 
 ### 17.5 Gate do ciclo
 
-Harness **520 PASS** (471 até a **(o)** + **23** da seção **(p)** — `AI/BuildFailure.cs` — + **26** da **(q)** —
-`AI/BuildPieceKind.cs`; os dois linkados no `ai-intents-check.csproj`), MCP **101 PASS**, **config 359/25**, ES/FR/IT
-**0 lacunas**, dívida do `gen_translations.py` **45** e build **0/0**.
+Harness **539 PASS** (471 até a **(o)** + **23** da seção **(p)** — `AI/BuildFailure.cs` — + **26** da **(q)** —
+`AI/BuildPieceKind.cs` — + **19** da **(r)** — `AI/BuildSupportBelow.cs`; os três linkados no
+`ai-intents-check.csproj`), MCP **101 PASS**, **config 359/25**, ES/FR/IT **0 lacunas**, dívida do
+`gen_translations.py` **45** e build **0/0**.
 
 ### 17.6 O resultado dos dois runs (04/11/2026)
 
@@ -1628,4 +1629,45 @@ entre eles é `[Building] PlaceReach`: **10** (o padrão do código) × **15** (
   resto do plano).
 - **Grupo em memória** (não persiste) e **só de blueprint** (template/peça seguem com um).
 - **Guarda de peso antes do `HandOver`** — a pendência do §16 continua aberta.
+
+### 17.8 O incidente do apoio imediato (04/11/2026) — a lição
+
+- **O que era (build `290afc1`):** o apoio imediato por índice — `MHR_Build.PullDirectSupport` (`:3048`) escolhendo o
+  **apoio direto** de uma peça recusada com `no_support` (`AI/BuildSupportBelow.cs`, a janela de 0,4–2,5 m **abaixo** ×
+  2,5 m em XZ, seção **(r)** do harness) e **entrando nele fora de ordem**, sem tocar no plano. A justificativa
+  teórica estava no próprio código (`:3045`): "a queda é sempre positiva, então o pull só desce o plano e **não pode
+  entrar em loop**".
+- **O que aconteceu no run de 3 companheiros:** a teoria não sobreviveu. Peça recusada por `no_support` → o worker
+  puxa o apoio direto → **o apoio falha** → a peça volta pela fila → é recusada de novo → **puxa de novo** — sem nunca
+  sair do ciclo. Em **~10 minutos** o log chegou a **344 MB**, com **1.403.973** linhas `sem apoio ainda` e
+  **332.967** `apoio imediato`; os três companheiros ficaram parados com o índice congelado (**434/930/722**) e **o
+  jogo travou** — a sessão teve de ser encerrada. O log foi preservado e truncado em
+  `%TEMP%\opencode\log-loop-290afc1.log`.
+- **A correção (build `797003c`):** `State.PulledSupport` (`HashSet<int>`, `MHR_Build.cs:209`) com a guarda em
+  `:3064` — o apoio é puxado **uma vez por índice de peça** e no máximo **24 por ordem**:
+
+  ```csharp
+  if (!state.PulledSupport.Add(state.Index) || state.PulledSupport.Count > 24)
+  {
+      return false;
+  }
+  ```
+
+  Na **segunda** recusa da mesma peça o pull **não** acontece: ela segue o caminho normal do portão — volta como
+  **dependência** (espera **8/12/20/25 s**, sem gastar tentativa) e, se nada subir em **60 s**, o watchdog a deixa de
+  fora nomeando-a. Build **0/0**, harness **539** (471 + 23 (p) + 26 (q) + **19** da **(r)**, `BuildSupportBelow`
+  linkado). **Medido no run seguinte:** o log ficou em **30 KB nos primeiros 20 s** (o loop escreveu ~344 MB em
+  ~10 min).
+- **Por que o watchdog de estagnação não salvou:** ele só é **lido** em `WaitRetry` (`MHR_Build.cs:1904`), e no loop o
+  worker **nunca chega a esperar** — sai da recusa direto para o apoio puxado; o relógio do canteiro
+  (`LastProgressAt`) nunca era consultado. Pior: cada volta **escrevia log**, então o loop piorava o estrago em vez de
+  se auto-limitar.
+- **A lição (vale para qualquer gancho novo):**
+  1. **Gancho que reordena o trabalho por índice precisa de guarda de idempotência por peça e de um teto por ordem.**
+     "A geometria garante que não repete" não é guarda — foi exatamente a hipótese que caiu.
+  2. **O watchdog de estagnação não protege contra loop que não espera** (e que continua gerando log): ele olha
+     `LastProgressAt` e só é consultado no caminho de espera.
+  3. **Log de diagnóstico dentro de caminho que pode repetir por frame precisa de dedupe/rate-limit próprio** —
+     `[Build]` escreve por evento; num ciclo de recusa→pull ele virou 344 MB.
+
 

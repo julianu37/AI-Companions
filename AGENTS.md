@@ -252,8 +252,8 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   pior caso: N× o resto do plano, com até **3 coletando ao mesmo tempo** — o `Stock` é a metade aberta do P1); grupo
   só de **blueprint**; **em memória** (não persiste); "para" = todos, "para, <nome>" = um, um modo num companheiro
   tira só ele; nivelar/limpar com **um** (P5). **Nenhuma** chave de tradução nova (reusa `hc_ai_no_companion` e
-  `hc_ai_build_failed`) — harness **520** (471 + 23 da seção **(p)** + 26 da **(q)**), MCP **101** (as **12** asserções
-  de 03/11/2026 cobrem o contrato do grupo: `workers`, `refused` e `name` vazio = todos), config **359/25**.
+  `hc_ai_build_failed`) — harness **539** (471 + 23 da **(p)** + 26 da **(q)** + 19 da **(r)**), MCP **101** (as **12**
+  asserções de 03/11/2026 cobrem o contrato do grupo: `workers`, `refused` e `name` vazio = todos), config **359/25**.
   **Medido em jogo (04/11/2026, `CommHomeBasicBP`, 3 companheiros, `BlueprintFree = true`) — dois runs, a única diferença
   é o `PlaceReach` (10 = padrão do código; 15 = config de teste):** com **10**, **970 + 15 = 985** — a fala final fecha
   (`970 peças, 15 puladas`), `no_ground` **~25 → 0**, `blocked_by_player` **17+ → 0**, `log ajustado` **6** (o nudge
@@ -269,7 +269,17 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   algo embaixo** = dependência, espera **8/12/20/25 s**, não gasta tentativa, nunca conta como pulada; o resto gasta
   uma das 3), o **watchdog de 60 s** sem peça subir (`StallSeconds`, do `LastProgressAt` do canteiro) e a **cobertura
   de bancadas** (`MaxPlannedBenches` 8 → **12**, `MaxBenchSearches` 6 → **32**, âncoras **fora do footprint** e no
-  **terreno**, até 4 por peça, resumo `station: N precisam, M planejadas, K sem cobertura`). **O validador (lote de
+  **terreno**, até 4 por peça, resumo `station: N precisam, M planejadas, K sem cobertura`). **O apoio imediato
+  (04/11/2026) e a sua guarda:** num grupo o plano anda por índice e ninguém reordena (`PlanLocked`), então uma peça
+  recusada com `no_support` tem o **apoio direto** puxado **por fora da ordem** (`PullDirectSupport` +
+  `AI/BuildSupportBelow.cs`: 0,4–2,5 m abaixo × 2,5 m em XZ, seção **(r)**) sem tocar no plano; a guarda é
+  **`State.PulledSupport`** (`MHR_Build.cs:209`/`:3064`) — **uma vez por índice de peça e no máximo 24 por ordem** — e
+  na segunda recusa o pull não acontece (a peça segue o portão: 8/12/20/25 s + watchdog). **Por que a guarda existe
+  (incidente do build `290afc1`, 04/11/2026):** sem ela o ciclo recusa → puxa → apoio falha → recusa virou **loop
+  infinito**, com **344 MB** de log em ~10 min (**1.403.973** `sem apoio ainda` + **332.967** `apoio imediato`), índice
+  congelado (434/930/722) e o **jogo travado**; o watchdog não protege disso porque só é lido em `WaitRetry` e o loop
+  nunca espera. Corrigido em `797003c` (build 0/0, harness **539**); no run seguinte o log ficou em **30 KB em 20 s**.
+  Detalhe e lições em `docs/re/building-notes.md` §17.8. **O validador (lote de
   04/11/2026, medido):** `AttachedToStructure` com **4,0 m** de `OverlapSphere` (2,6 m não achava a vizinha do
   telhado, que fica a ~2,8–3,5 m na diagonal; com 4,0 m o `no_ground` foi **~25 → 0**); **`NudgePiece` universal**
   (qualquer peça com `too_steep`/`no_ground`, não só mobília de chão) com raio por tipo via `BuildPieceKind` —
@@ -444,15 +454,15 @@ comandos de console e spawna coisas, então não é feature de jogador.
 - **Testar:** `python tools/mcp-devbridge/test_mcp_devbridge.py` (mock, sem jogo) — **101 checks** (as **12** novas de
   03/11/2026 cobrem o contrato do `companions.build` do grupo: `workers`, `refused` só quando recusa e `name` vazio =
   todos).
-- **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check` — **520 asserções** das redes por
+- **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check` — **539 asserções** das redes por
   palavras (`RadialIntent`, `PickupIntent`, `GatherIntent`, `InteractionIntent`, `LlmIntent`, `OrderItems`,
   `CompanionNameMatch`) e das tabelas puras (`NavTileMath` na **(o)**, `BuildFailure.Classify` na **(p)** — 23 casos,
-  `AI/BuildFailure.cs` e `BuildPieceKind` na **(q)** — 26 casos, `AI/BuildPieceKind.cs`; os dois linkados no
-  `.csproj`) com os `.cs` reais linkados, mais o cross-check das cópias do `Stubs.cs` contra a
-  `Companions.dll` (seção (h) — impede drift). Build 0/0 e exit 0 são o gate.
+  `AI/BuildFailure.cs`; `BuildPieceKind` na **(q)** — 26, `AI/BuildPieceKind.cs`; `BuildSupportBelow` na **(r)** — 19,
+  `AI/BuildSupportBelow.cs`; os três linkados no `.csproj`) com os `.cs` reais linkados, mais o cross-check das cópias
+  do `Stubs.cs` contra a `Companions.dll` (seção (h) — impede drift). Build 0/0 e exit 0 são o gate.
 - **Gate de release:** `powershell -ExecutionPolicy Bypass -File tools\release-check.ps1 -Version <versão>` — roda o
   build, a versão (`PluginVersion` × nome do zip), as 3 traduções, o `locale-fallback-check.ps1` (agora com asserts),
-  o `gen_config_doc.py --check`, o teste do MCP (101) e as 520 asserções; **PASS/FAIL por item e exit 1**. É o que tem
+  o `gen_config_doc.py --check`, o teste do MCP (101) e as 539 asserções; **PASS/FAIL por item e exit 1**. É o que tem
   de passar antes de tag/zip (`-SkipGame`/`-SkipIntents` para rodar parte).
 - **Docs:** `docs/mcp-devbridge.md` (arquitetura, protocolo, as **60** ferramentas, a receita de **jogar pelo agente**
   e a de **comandos de console**, e as evidências dos testes da 1.9.4) e `tools/mcp-devbridge/README.md`
