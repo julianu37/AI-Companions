@@ -217,17 +217,21 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
 - **Estado medido (03/11/2026):** a `CommHomeBasicBP` (985 peças) subiu ~650 peças e **travou no nível 2**:
   `no_support` e `no progress ... 12 s` (12–17 m) nos pisos de y≈42,8 — o mover não atravessa o piso incompleto.
   É a pendência aberta da navegação (a fase A `TryDetour` não resolveu; B/C em `docs/re/navegacao-companheiro.md`).
-- **P2 da navegação (multi-build) — em teste:** `[Movement] PathingOnBuild` (bool, **true**; exige `[Movement] Pathing`) faz a rota do companheiro
+- **P2 da navegação (multi-build) — medida em jogo (03/11/2026):** `[Movement] PathingOnBuild` (bool, **true**; exige `[Movement] Pathing`) faz a rota do companheiro
   enxergar a peça assim que ela é colocada — os ganchos `WearNTear.OnPlaced`/`Destroy` (+ chamadas em
   `PlaceDirect`/`ClearScaffolds`/`build.delete`/`MHR_Level.NextPass`) adiantam o tile (`m_pokeTime` +
   `m_buildTime = now - 5,1`, coalescido **0,35 s**, **só tiles existentes**, nunca `-1000`) e o `MHR_Mover.Plan` dá
   ~6 s de carência em rota `Partial` com alvo acima (só `Build`/`BuildGather`); tools `nav.tiles`/`nav.probe`/
   `nav.stats`. Medição que o justificou: **36 `no progress`**, 17 `no_support`, 9 `no_ground`, 6 `too_steep` —
   evidência em `docs/re/navmesh-tiles.md`, desenho/implementação em `docs/re/navegacao-companheiro.md` §6.1.
+  **Medido:** a bancada colocada pelo companheiro levou o `pokes` 0 → 1 e o `rebuilds` +9 (2 no `build.delete`),
+  `maxCollectMs` 2,65 ms; a `CommHomeBasicBP` foi de **720/983 para 1045/1078** e parou por falta de 77 madeiras
+  (coleta 300 s sem entregar, mochila em 302/300).
 - **Pendências conhecidas (abertas):** (1) navegação no andar em obra; (2) a voz não passa pelo mixer do jogo (só
   `[AI] TtsVolume`); (3) sync com o upstream `main` (1.5.8) em dia — conferir antes de cada release; (4) o nome do
   companheiro no centro do radial (cosmético); (5) posse do ZDO no spawn em multiplayer dedicado; (6) a dívida de
-  45 chaves do `gen_translations.py`.
+  45 chaves do `gen_translations.py`; (7) a coleta do build com a mochila no teto de peso (o run dos 1045 ficou
+  300 s sem entregar a madeira).
 
 ## Nossas docs
 

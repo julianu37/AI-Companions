@@ -198,9 +198,10 @@ stopped.
   standing (first a floor he can place **without walking** - 3.0 m flat, the normal reach, with the eye rule; then the
   nearest up to 7 m), once per piece, never touching a piece that `PullSupports`/`PullFloorsAbove` brought forward and never a floor one storey above or
   below (1.5 m guard). It also covers the **first piece of a resumed order** (death/gather), which was the measured
-  case. Measured before the fix: 720/983 with the stall on the level-2 floors; the reorder is in test on the same
-  plan.
-- **The companion's route map wakes up when a piece goes up or comes down** (the build's walking, **in test**): the map
+  case. Measured before the fix: 720/983 with the stall on the level-2 floors. Measured after it (03/11/2026, same
+  plan): the structure went to 981 of 986 pieces and, with the retry pass, to 1045 of 1078 - it stopped for lack
+  of wood, not for the route.
+- **The companion's route map wakes up when a piece goes up or comes down** (the build's walking, **measured in game**): the map
   the companion walks on (agent 40, `[Movement] Pathing`) only rebuilt a tile when a route asked for it, and the game
   throttles that to one rebuild every **5 s** - so a floor placed a moment ago was not on the route yet, and the
   build's temporary stair, once taken down, stayed on it. Placing and removing a piece now **invalidates the
@@ -208,7 +209,9 @@ stopped.
   for tiles that already exist - and the same covers a piece going **away**, the build's temporary stair and the
   `build.delete` cleanup. The mover also waits about **6 s** before giving up when the route comes back `Partial` and
   the target is **above** it (the game snaps a route to the map up to 12 m away), instead of dropping the piece at
-  once. New `[Movement] PathingOnBuild` (on by default; needs `[Movement] Pathing`). **No acceptance run in game yet.**
+  once. New `[Movement] PathingOnBuild` (on by default; needs `[Movement] Pathing`). **Measured in game (03/11/2026):**
+  a workbench placed by the companion took `nav.stats.pokes` from 0 to 1 and made the game rebuild **+9 tiles**
+  (the exact tiles the hook marks); removing it took the counter to 2.
 
 ## 1.9.6 - 02/11/2026
 

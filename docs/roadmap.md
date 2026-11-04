@@ -2369,13 +2369,20 @@ Evidência: `docs/re/building-notes.md` §15.2o-§15.2r; gate 9/9 (461 asserçõ
   `BuildBlueprintParser.NearestWithin` agora reordena cada run por **vizinho mais próximo** (guloso, a partir de onde o
   run anterior terminou), sem mudar grupo e com as portas ainda por último. Coberto pelo harness.
 
-- **O piso do andar de cima (03/11/2026, em teste na `fix/pisos-nivel-2`):** a `CommHomeBasicBP` (985 peças) subiu
+- **O piso do andar de cima (03/11/2026, medido na `fix/pisos-nivel-2`):** a `CommHomeBasicBP` (985 peças) subiu
   720/983 e travou nos pisos do nível 2 (`no_support`/`no progress ... 12 s`, 12–17 m): o plano é um snake que começa
   no fim do run anterior e, depois de queda/morte, o companheiro fica longe. `MHR_Build.PreferNearFloor` passa a
   escolher, para pisos do **mesmo nível**, o mais perto dele (primeiro um que ele coloque sem andar, 3,0 m; depois até
   7 m), uma vez por peça, sem tocar no que `PullSupports`/`PullFloorsAbove` puxou (`PullUntil`) e com guarda de 1,5 m
   para não trocar andar. Cobre também a 1ª peça da retomada (morte/gather). **Aceite:** o mesmo plano de 985 passa dos
   720/983 sem o `no progress` repetido.
+
+- **Medido em jogo (03/11/2026) — o piso do andar de cima + a navmesh da obra:** a mesma `CommHomeBasicBP` foi de
+  **575 → 981/986** e, com o retry pass, a **1045/1078** (uma morte no 864, retomada no respawn); o que parou o run
+  foi **falta de material** (77 madeiras; a coleta ficou 300 s sem entregar e a mochila estava em 302/300), não a
+  rota. A P2 da navmesh foi provada à parte: uma bancada colocada pelo companheiro levou `pokes` 0 → 1 e
+  `rebuilds` +9 (2 no `build.delete`), `maxCollectMs` 2,65 ms. Detalhe em `docs/re/building-notes.md` §16 e
+  `docs/re/navegacao-companheiro.md` §6.1.
 
 #### 1.9.6 — a construção autônoma (02/11/2026) — ✅ publicada, tag `v1.9.6` (GitHub + Nexus)
 

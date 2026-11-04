@@ -1461,3 +1461,15 @@ plano** dos 9 candidatos, nivela com a enxada (passadas de 1,5 s) e só então p
   uma vez por peça e **sem tocar** no que `PullSupports`/`PullFloorsAbove` puxou (`PullUntil`) nem no piso 1 andar
   acima/abaixo (guarda de 1,5 m). Cobre também a **primeira peça da retomada** (morte/gather), que era o caso medido.
   **Aceite:** o mesmo `CommHomeBasicBP` passa dos 720/983 sem `no progress ... 12 s` repetido nos pisos do nível 2.
+- **Medido (03/11/2026, branch `fix/pisos-nivel-2` com a P2 da navmesh + o `PreferNearFloor`):** a mesma
+  `CommHomeBasicBP` foi de **575 → 981/986** peças (estrutura inteira: piso, paredes, 2º andar, telhado e o portão
+  por último) e, quando o retry pass reenfileirou ~92 peças, chegou a **1045/1078** — contra as ~650–720 que
+  travavam no nível 2. Morreu uma vez (peça 864) e **retomou sozinha no respawn** (`it died during the build ...
+  resumes after the respawn`, 865/986). **A contagem de `why` não foi feita** (o log foi sobrescrito no restart
+  seguinte); a evidência é a progressão do vigia.
+- **O que parou o run não foi a navegação:** aos 1045/1078 faltaram **77 madeiras**; ele andou até uma `Beech1` a
+  30 m, a coleta ficou **300 s** sem entregar (`waiting for materials: Madeira x77 (mode 1)` → `gathering made no
+  progress for 300 s`) e o `EndPendingMissing` devolveu o Follow (`follow back on`). A leitura seguinte já mostrou
+  **302/300 de peso** (`hc_ai_build_too_heavy` na ordem seguinte, que morreu em 1 min): o suspeito nº 1 é a
+  **mochila no teto** — o `HandOver` manda coletar sem olhar o peso e, carregado, o companheiro não pega mais nada.
+  **Pendência nova:** guarda de peso antes do `HandOver` (ou descarte no baú).

@@ -318,7 +318,11 @@ paga; a parte assíncrona fica fora da main thread e só uma roda por vez.
   `Pathfinding.instance.m_tileSize` (campo público). Um canteiro de 32 m cai em **1 a 4 tiles** dependendo do
   alinhamento com múltiplos de `m_tileSize`.
 - Nenhum harness de reflexão rodou nesta rodada (shell negado ao subagente); nada foi medido em jogo.
-- Custo real (ms) de um `CollectSources` de 32 m com uma casa de 983 peças.
+- ~~Custo real (ms) de um `CollectSources` de 32 m~~ **medido em 03/11/2026: `maxCollectMs` 2,65 ms** (o
+  `CollectSources` + `RemoveAll` de portas de um tile, com a casa de 983 peças).
+- **O gancho medido em jogo (03/11/2026):** `nav.stats` antes/depois de uma `piece_workbench` colocada pelo
+  companheiro → `pokes` 0 → 1 (um flush = as 9 chaves coalescidas) e `rebuilds` 291 → 300 (**+9**, exatamente os
+  tiles marcados); o `build.delete` da mesma peça levou o `pokes` a 2.
 - Se `m_layers` inclui a layer `piece` — **inferência forte** (o filtro de `Door` do nosso prefix só faz
   diferença se as portas entrarem na lista de sources), não leitura do prefab.
 - Ordem multiplayer: se o cliente também roda `ZNetScene.Destroy` para peça de outro dono.

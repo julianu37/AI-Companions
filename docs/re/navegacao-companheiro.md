@@ -117,7 +117,7 @@ impreciso e o `m_buildTime = -1000` literal é uma tempestade. O que o jogo faz:
 - **Complemento (B):** no `MHR_Mover.Plan`, quando a rota é `Partial` e o alvo está acima, dar ~6 s (o intervalo do
   bake) antes de `Unstick`/`no progress`, restrito a `Build`/`BuildGather`.
 
-### 6.1 A P2 implementada — `[Movement] PathingOnBuild` (03/11/2026, **em teste no jogo**)
+### 6.1 A P2 implementada — `[Movement] PathingOnBuild` (03/11/2026, **medida em jogo**)
 
 Decidida pela medição do run de 03/11/2026 (**36 `no progress`**, 17 `no_support`, 9 `no_ground`, 6 `too_steep`) e
 pelo decompilado do 1.0.20 (`docs/re/navmesh-tiles.md` — é a evidência: inventário do `Pathfinding`, a chave do
@@ -183,7 +183,17 @@ vanilla já paga —, contra **até 5 s** do vanilla; e a **remoção** passa a 
 consulta/timeout). O que **não** muda: escadinha vertical e água de telhado continuam sem link (B/C seguem em
 aberto, §4) — a P2 é latência, não é a navegação reescrita.
 
-**Limitações (medir no run):** em multiplayer o gancho roda em **quem coloca** (o outro cliente espera os ~5 s do
-vanilla); rota que falha por completo (`Path = [goal]`) **não** arma a carência — se o run mostrar, usar
-`MainPartial` + a posição do alvo; a carência **não** cobre o `no progress` de 12 s do `Goto` (o `BestAt` é do
-build).
+**Medido em jogo (03/11/2026):** o gancho é real — uma `piece_workbench` colocada pelo companheiro (`PlaceDirect`
+→ `WearNTear.OnPlaced`) levou o `nav.stats.pokes` de **0 → 1** e o `rebuilds` do jogo de **291 → 300** (+9,
+exatamente as 9 chaves que o `InvalidateAround` marca); o `build.delete` da mesma peça levou o `pokes` a **2**. O
+`maxCollectMs` ficou em **2,65 ms** (o custo real de um `CollectSources` de 32 m com a casa de 983 peças, que
+faltava medir). No run grande a obra passou dos **720/983** anteriores e chegou a **1045/1078** (o retry pass
+reenfileira), com uma morte no 864 e a retomada no respawn; o fim foi **falta de material**, não navegação (ver
+§16 do `building-notes`).
+
+**Limitações (o que o run não cobriu):** a contagem de `why` deste run **não** foi feita (o `LogOutput.log` foi
+sobrescrito no restart seguinte) — a evidência é a progressão das peças; em multiplayer o gancho roda em **quem
+coloca** (o outro cliente espera os ~5 s do vanilla); rota que falha por completo (`Path = [goal]`) **não** arma a
+carência — se aparecer, usar `MainPartial` + a posição do alvo; a carência **não** cobre o `no progress` de 12 s
+do `Goto` (o `BestAt` é do build), que segue como pendência junto da coleta (o run parou com **77 madeiras**
+faltando, a coleta **300 s** sem entregar e a mochila em **302/300**).

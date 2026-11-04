@@ -1,6 +1,6 @@
 # Plano — vários companheiros na mesma obra (multi-build)
 
-**Status:** desenho, 03/11/2026. **P2 (navmesh/latência) implementado — em teste no jogo**; P0/P1/P3–P5 não
+**Status:** desenho, 03/11/2026. **P2 (navmesh/latência) implementado e medido em jogo em 03/11/2026**; P0/P1/P3–P5 não
 implementados. O teste atual (1 companheiro, `CommHomeBasicBP`) é a base; a obra de 985 peças mostrou que o gargalo
 é a **ordem/navegação**, não o número de trabalhadores.
 
@@ -110,7 +110,7 @@ recusa e pede "para" (evita duas casas ao mesmo tempo).
 2. **P1 — grupo:** `MHR_BuildGroup` + workers/claims + stop/um + morte/retomada + materiais/estação + `Build`
    aceitando a lista de alvos (sem nome = todos os que podem receber ordem; com nome = os nomeados). Teste com
    **2 companheiros** num **6x6** (46 peças) antes do 985.
-3. **P2 — navmesh/latência — EM TESTE (implementado em 03/11/2026):** (a) **medido o `why`** do run de 03/11/2026:
+3. **P2 — navmesh/latência — MEDIDO EM JOGO (implementado e testado em 03/11/2026):** (a) **medido o `why`** do run de 03/11/2026:
    **36 `no progress`**, 17 `no_support`, 9 `no_ground`, 6 `too_steep` — os 36 **não** são "tile invisível": são o
    `SnapToNavMesh` (1,5/3/6/12 m) mandando o alvo para o chão sob o piso, com a trava de 12 s do `Goto` queimando;
    (b) **carência do mover** (`MHR_Mover.Plan`: rota `Partial` + alvo acima → ~6 s antes de `Unstick`/`no progress`,
@@ -118,8 +118,11 @@ recusa e pede "para" (evita duas casas ao mesmo tempo).
    só tiles existentes, 0,35 s; postfix `OnPlaced` + prefix `Destroy` + chamadas em
    `PlaceDirect`/`ClearScaffolds`/`build.delete`/`MHR_Level.NextPass`), config `[Movement] PathingOnBuild` (padrão
    `true`), tools `nav.tiles`/`nav.probe`/`nav.stats` e harness puro `NavTileMath`. O `-1000` literal é tempestade
-   (985×9 bakes); detalhe em `docs/re/navmesh-tiles.md` e `docs/re/navegacao-companheiro.md` §6.1. **Falta:** o run
-   com as duas coisas ligadas, contando os `why` de novo (aceite: nenhum `no progress` repetido na mesma peça).
+   (985×9 bakes); detalhe em `docs/re/navmesh-tiles.md` e `docs/re/navegacao-companheiro.md` §6.1. **Medido em jogo
+   (03/11/2026):** o gancho levou o `pokes` 0 → 1 e o `rebuilds` +9 numa peça colocada pelo companheiro (2 no
+   `build.delete`), `maxCollectMs` 2,65 ms; a obra foi de **720/983 para 1045/1078** e parou por **falta de
+   material** (77 madeiras, coleta 300 s sem entregar, mochila em 302/300) — a contagem de `why` não foi feita
+   (o log foi sobrescrito no restart).
 4. **P3 — UI/feedback:** progresso do grupo (`N/M`, workers), quem está com qual peça; o painel por companheiro
    mostra "obra: X".
 5. **P4 — nomes múltiplos:** `FromMessageList` + `Addressees` + os filtros + harness. **Por último** entre as
