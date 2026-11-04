@@ -28,7 +28,9 @@ namespace AiIntentsCheck;
 /// when the spot refuses it. Section (r) is <c>BuildSupportBelow</c>: the window of the <b>direct support</b> of a piece,
 /// which is the plan index a group drives next when one of its pieces is refused with <c>no_support</c>. Section (t) is
 /// the <b>body barrier</b> of the walk order (<c>BuildFailure.IsTransient</c>/<c>ShortRetry</c> and the piece's level):
-/// the spot a body is standing on is retried 3 times in 2,5 s and the storeys above it wait.</para>
+/// the spot a body is standing on is retried 3 times in 2,5 s and the storeys above it wait. Section (u) is
+/// <c>BuildSupportBelow.FallbackPostAllowed</c>: when the emergency post may take over from a support the plan <b>has</b>
+/// but is not delivering (the Run 9 column that stayed out).</para>
 ///
 /// <para>Run: <c>dotnet run --project tools/ai-intents-check</c> (after <c>dotnet build Companions.sln -c Release</c>,
 /// which the cross-check reads). Exit code 0 only when every case passed and nothing was skipped.</para>
@@ -109,6 +111,8 @@ internal static class Program
 		BodyWindows();
 		Section("(t) a barreira de andar - recusa por corpo (IsTransient/ShortRetry) e o nivel da peca");
 		BodyBarrier();
+		Section("(u) BuildSupportBelow.FallbackPostAllowed - o poste quando o apoio do plano nao vem");
+		FallbackPosts();
 		CrossCheckDoorRule();
 
 		Out.WriteLine();
@@ -778,7 +782,11 @@ internal static class Program
 		FailureCase("NO_GROUND", true, BuildFailure.Kind.Dependency);
 		// a real failure spends an attempt
 		FailureCase("no progress", false, BuildFailure.Kind.Real);
-		FailureCase("blocked_by_player", true, BuildFailure.Kind.Real);
+		// 11/11/2026 (the storey barrier): a body on the spot is its own class - nobody's fault, no attempt spent. The
+		// probe's answer is ignored for it (it is only read for no_ground) and the comparison ignores case.
+		FailureCase("blocked_by_player", true, BuildFailure.Kind.Blocked);
+		FailureCase("blocked_by_player", false, BuildFailure.Kind.Blocked);
+		FailureCase("BLOCKED_BY_PLAYER", true, BuildFailure.Kind.Blocked);
 		FailureCase("clipping", false, BuildFailure.Kind.Real);
 		FailureCase("too_steep", true, BuildFailure.Kind.Real);
 		FailureCase("can't reach it", false, BuildFailure.Kind.Real);
@@ -799,6 +807,17 @@ internal static class Program
 			BuildFailure.IsDependency("no_ground", true), "obtido false");
 		Check("IsDependency(\"no_ground\", false) -> false (nao ha nada embaixo: o local falhou)",
 			!BuildFailure.IsDependency("no_ground", false), "obtido true");
+		// 11/11/2026 (the storey barrier): the yes/no of the body class, in both directions
+		Check("IsBlocked(\"blocked_by_player\", true) -> true (corpo no caminho: nenhuma tentativa gasta)",
+			BuildFailure.IsBlocked("blocked_by_player", true), "obtido false");
+		Check("IsBlocked(\"no_support\", true) -> false (o apoio que falta nao e um corpo)",
+			!BuildFailure.IsBlocked("no_support", true), "obtido true");
+		// the numbers of the storey barrier, so a silent change of the window is caught here
+		Check("constantes da barreira: 2 s de volta, 1 m de andar, 25 s de paciencia",
+			Math.Abs(BuildFailure.BodyRetryDelay - 2f) < 0.001f && Math.Abs(BuildFailure.BodyRetryStep - 1f) < 0.001f
+				&& Math.Abs(BuildFailure.BodyRetryMaxWait - 25f) < 0.001f,
+			"obtido " + BuildFailure.BodyRetryDelay.ToString("F2") + " / " + BuildFailure.BodyRetryStep.ToString("F2")
+				+ " / " + BuildFailure.BodyRetryMaxWait.ToString("F2"));
 	}
 
 	/// <summary>Section (p): one classification, with the probe's answer and what the gate expects.</summary>
@@ -1013,53 +1032,88 @@ internal static class Program
 	}
 
 	/// <summary>
-	/// P1 (04/11/2026): the <b>body window</b> of the placement check (<c>BuildProbe.BlockedByCharacter</c>). The measured
-	/// bug: with the 1 m deck, a floor 1 m above the feet of two companions was 1,0 m from the piece's point in 3D, so the
-	/// old point-vs-transform test (0,6 m) let it through and the floor went <b>over their heads</b> (squeezed to y 37,9, 1 m
-	/// under the ground). The body is a column and the piece a box: both windows have to hold.
+	/// P1 (04/11/2026) and 11/11/2026 (Run 10): the <b>body window</b> of the placement check
+	/// (<c>BuildProbe.BlockedByCharacter</c>). The measured bug of 04/11: with the 1 m deck, a floor 1 m above the feet of
+	/// two companions was 1,0 m from the piece's point in 3D, so the old point-vs-transform test (0,6 m) let it through and
+	/// the floor went <b>over their heads</b> (squeezed to y 37,9, 1 m under the ground). Since the Run 10 the window is the
+	/// game's own shape: the character's <b>capsule</b> against the piece's <b>rotated box</b> - two windows, the vertical
+	/// one (the piece's AABB span vs the capsule's ends) and the flat one (the distance from the capsule's axis to the box,
+	/// in the <b>piece's</b> frame).
 	/// </summary>
 	private static void BodyWindows()
 	{
-		// the measured floor (wood_floor: 2,27 x 0,26 x 2,29 -> flat radius 1,14, half height 0,13) at the deck level 39,8
-		// over a companion standing on the ground at 38,78: the floor crosses the body -> blocked
-		float floor = BuildBody.Spacing(1.14f, 0.6f);
-		Check("o caso medido: piso do deck (39,8) sobre o companheiro (pes 38,78) -> bloqueia",
-			BuildBody.Blocked(0f, 38.78f, 0f, 0f, 39.8f, 0f, 0.13f, floor), "obtido false");
-		// the same floor beside the body (1,7 m) -> free
-		Check("o mesmo piso a 1,7 m do companheiro -> livre",
-			!BuildBody.Blocked(1.7f, 38.78f, 0f, 0f, 39.8f, 0f, 0.13f, floor), "obtido true");
-		// 1,5 m is inside the 1,59 m window (piece radius + body radius)
-		Check("o mesmo piso a 1,5 m -> ainda bloqueia (janela de 1,59 m)",
-			BuildBody.Blocked(1.5f, 38.78f, 0f, 0f, 39.8f, 0f, 0.13f, floor), "obtido false");
-		// a floor above the head: the body ends at 40,78 and the piece starts at 41,67 -> free
-		Check("piso 2 m acima da cabeca -> livre",
-			!BuildBody.Blocked(0f, 38.78f, 0f, 0f, 41.8f, 0f, 0.13f, floor), "obtido true");
-		// a floor at the feet (the piece under the companion)
-		Check("piso no nivel dos pes -> bloqueia",
-			BuildBody.Blocked(0f, 38.78f, 0f, 0f, 38.78f, 0f, 0.13f, floor), "obtido false");
-		// a wall (2,25 x 2,16 x 0,53 -> flat 1,125, half height 1,08): its base at 38,72 crosses the body -> blocked
-		float wall = BuildBody.Spacing(1.125f, 0.6f);
-		Check("parede de 2 m com a base na altura do corpo -> bloqueia",
-			BuildBody.Blocked(0f, 38.78f, 0f, 0f, 39.8f, 0f, 1.08f, wall), "obtido false");
-		// the same wall one metre higher: base 40,92, body ends at 40,78 -> free (the companion walks under it)
-		Check("parede inteira acima da cabeca -> livre",
-			!BuildBody.Blocked(0f, 38.78f, 0f, 0f, 42f, 0f, 1.08f, wall), "obtido true");
-		// a companion standing ON the deck (39,93): the neighbouring tile is 2 m away -> free; on the seam (1,4 m) -> blocked
-		Check("companheiro de pe no deck: a telha vizinha (2 m) -> livre",
-			!BuildBody.Blocked(2f, 39.93f, 0f, 0f, 39.8f, 0f, 0.13f, floor), "obtido true");
-		Check("companheiro na emenda das telhas (1,4 m) -> bloqueia",
-			BuildBody.Blocked(1.4f, 39.93f, 0f, 0f, 39.8f, 0f, 0.13f, floor), "obtido false");
-		// the spacing never goes under the probe's MinSpacing, and it grows with the piece
-		Check("Spacing(0, 0,6) == 0,60", Math.Abs(BuildBody.Spacing(0f, 0.6f) - 0.6f) < 0.001f,
-			"obtido " + BuildBody.Spacing(0f, 0.6f).ToString("F2"));
-		Check("Spacing(0,1, 0,6) == 0,60", Math.Abs(BuildBody.Spacing(0.1f, 0.6f) - 0.6f) < 0.001f,
-			"obtido " + BuildBody.Spacing(0.1f, 0.6f).ToString("F2"));
-		Check("Spacing(1,14, 0,6) == 1,59 (raio do piso + 0,45)", Math.Abs(BuildBody.Spacing(1.14f, 0.6f) - 1.59f) < 0.001f,
-			"obtido " + BuildBody.Spacing(1.14f, 0.6f).ToString("F2"));
-		// the numbers of the window
-		Check("Radius == 0,45 m", Math.Abs(BuildBody.Radius - 0.45f) < 0.001f, "obtido " + BuildBody.Radius.ToString("F2"));
-		Check("Below == 0,50 m", Math.Abs(BuildBody.Below - 0.5f) < 0.001f, "obtido " + BuildBody.Below.ToString("F2"));
-		Check("Above == 2,00 m", Math.Abs(BuildBody.Above - 2f) < 0.001f, "obtido " + BuildBody.Above.ToString("F2"));
+		// the measured floor (wood_floor: 2,27 x 0,26 x 2,29 -> half 1,135 / 0,13 / 1,145) at the deck level 39,8 over a
+		// companion standing on the ground at 38,78 (capsule 38,78-40,58, r 0,3): the floor crosses the body -> blocked
+		BodyCase("o caso medido: piso do deck (39,8) sobre o companheiro (pes 38,78)", true,
+			0f, 0f, 1.135f, 1.145f, 39.67f, 39.93f, 38.78f, 40.58f, 0.3f);
+		// the same floor 2,5 m to the side (past the box and the capsule) -> free: only the box's real width counts now
+		BodyCase("o mesmo piso a 2,5 m do companheiro", false,
+			2.5f, 0f, 1.135f, 1.145f, 39.67f, 39.93f, 38.78f, 40.58f, 0.3f);
+		// ... and at 1,5 m: the old DISC (radius 1,59 = flat + 0,45) refused it, the box does not - dx = 1,5 - 1,135 = 0,365
+		// > 0,3 -> free. It is a FALSE POSITIVE the disc created (a companion beside the tile held it)
+		BodyCase("o mesmo piso a 1,5 m (o disco de 1,59 m recusava)", false,
+			1.5f, 0f, 1.135f, 1.145f, 39.67f, 39.93f, 38.78f, 40.58f, 0.3f);
+		// a floor above the head: the body ends at 40,58 and the piece starts at 41,67 -> free
+		BodyCase("piso 2 m acima da cabeca", false,
+			0f, 0f, 1.135f, 1.145f, 41.67f, 41.93f, 38.78f, 40.58f, 0.3f);
+		// a floor at the feet (the piece under the companion): 38,65-38,91 crosses the capsule -> blocked
+		BodyCase("piso no nivel dos pes", true,
+			0f, 0f, 1.135f, 1.145f, 38.65f, 38.91f, 38.78f, 40.58f, 0.3f);
+		// a wall (2,25 x 2,16 x 0,53 -> half 1,125 / 1,08 / 0,265): its base at 38,72 crosses the body -> blocked
+		BodyCase("parede de 2 m com a base na altura do corpo", true,
+			0f, 0f, 1.125f, 0.265f, 38.72f, 40.88f, 38.78f, 40.58f, 0.3f);
+		// the same wall one metre higher: base 40,92, body ends at 40,58 -> free (the companion walks under it)
+		BodyCase("parede inteira acima da cabeca", false,
+			0f, 0f, 1.125f, 0.265f, 40.92f, 43.08f, 38.78f, 40.58f, 0.3f);
+		// a companion standing ON the deck (feet 39,93) and the deck tile at 39,8: its top IS the capsule's bottom, so it does
+		// not block - neither at the neighbouring tile (2 m) nor on the seam (1,4 m). The old disc refused the seam: a FALSE
+		// POSITIVE (the tile under a companion was held by the companion itself)
+		BodyCase("companheiro de pe no deck: a telha vizinha (2 m)", false,
+			2f, 0f, 1.135f, 1.145f, 39.67f, 39.93f, 39.93f, 41.73f, 0.3f);
+		BodyCase("companheiro na emenda das telhas (1,4 m) - o disco recusava, o topo da peca e o pe do corpo", false,
+			1.4f, 0f, 1.135f, 1.145f, 39.67f, 39.93f, 39.93f, 41.73f, 0.3f);
+		// Run 10 (measured): the wood_beam at 41,8 (half height 0,1 -> bottom 41,7) and the Companion 6 1,08 m away in XZ with
+		// the capsule 39,9-41,7: the beam's bottom is exactly the capsule's top -> FREE (the game accepts it, the disc did not)
+		BodyCase("Run 10: feixe de 2 m (41,7) sobre a capsula 39,9-41,7 -> livre", false,
+			1f, -0.4f, 1f, 0.2f, 41.7f, 41.9f, 39.9f, 41.7f, 0.3f);
+		// the same geometry with the capsule 20 cm taller: the beam's bottom is INSIDE the body -> blocked (the capsule decides)
+		BodyCase("o mesmo feixe com a capsula ate 41,9 -> bloqueia", true,
+			1f, -0.4f, 1f, 0.2f, 41.7f, 41.9f, 39.9f, 41.9f, 0.3f);
+		// the pivot of a roof: its box centre sits 1,5 m ABOVE the pose (bounds center - prefab origin), so with the pose 0,5 m
+		// over the feet the real bottom is point + 1,3 = 40,58 (the head) and not point - 0,2 = 39,08 -> free
+		BodyCase("pivo do telhado (centro +1,5 m): o fundo real e point+1,3, nao point-0,2", false,
+			0f, 0f, 1f, 1f, 40.58f, 40.98f, 38.78f, 40.58f, 0.3f);
+		// a 45° beam: the AABB of the turned box is 0,78 m tall (HalfY) instead of 0,1 m - at 40,9 its bottom is 40,12, inside
+		// the capsule, and it blocks; without the tilt (0,1 m) the same centre would be above the head
+		float tilt = BuildBody.HalfY(1f, 0.1f, 0.1f, 0.70710678f, 0.70710678f, 0f);
+		Check("viga de 45 graus: HalfY(1; 0,1; 0,1) == 0,78 m", Math.Abs(tilt - 0.778f) < 0.01f,
+			"obtido " + tilt.ToString("F3"));
+		BodyCase("viga de 45 graus (centro 40,9 - 0,78 = 40,12) sobre a capsula -> bloqueia", true,
+			0f, 0f, 1f, 0.1f, 40.9f - tilt, 40.9f + tilt, 38.78f, 40.58f, 0.3f);
+		BodyCase("a mesma viga sem a inclinacao (meia altura 0,1) -> livre", false,
+			0f, 0f, 1f, 0.1f, 40.8f, 41f, 38.78f, 40.58f, 0.3f);
+		// a companion BESIDE a wall (0,5 m from its middle plane, the wall 0,2 m thick): 0,5 - 0,1 = 0,4 > 0,3 -> free, and
+		// 0,35 - 0,1 = 0,25 < 0,3 -> blocked. The pair pins the capsule's radius (and says a body in front of a wall is not
+		// "inside" it, which the old disc could not tell)
+		BodyCase("companheiro ao lado da parede (0,5 m do plano medio)", false,
+			0f, 0.5f, 1.125f, 0.1f, 38.72f, 40.88f, 38.78f, 40.58f, 0.3f);
+		BodyCase("companheiro encostado na parede (0,35 m do plano medio)", true,
+			0f, 0.35f, 1.125f, 0.1f, 38.72f, 40.88f, 38.78f, 40.58f, 0.3f);
+		// a companion DEBAIXO do piso (XZ dentro da peca): the floor crosses the body -> blocked, whatever the pose's y is
+		BodyCase("companheiro debaixo do piso (XZ dentro)", true,
+			0f, 0f, 1.135f, 1.145f, 39.87f, 40.13f, 38.78f, 40.58f, 0.3f);
+	}
+
+	/// <summary>11/11/2026 (Run 10): one case of the body window - the expected answer with the numbers
+	/// <c>BuildBody.Blocks</c> takes (local XZ of the capsule's axis, the piece's half extents, its vertical span and the
+	/// capsule's ends and radius).</summary>
+	private static void BodyCase(string name, bool expected, float localX, float localZ, float halfX, float halfZ,
+		float pieceBottom, float pieceTop, float capsuleBottom, float capsuleTop, float capsuleRadius)
+	{
+		bool actual = BuildBody.Blocks(localX, localZ, halfX, halfZ, pieceBottom, pieceTop, capsuleBottom, capsuleTop,
+			capsuleRadius);
+		Check(name + " -> " + (expected ? "bloqueia" : "livre"), actual == expected,
+			"obtido " + (actual ? "bloqueia" : "livre"));
 	}
 
 	/// <summary>
@@ -1152,6 +1206,33 @@ internal static class Program
 	{
 		bool actual = BuildFailure.ShortRetry(why, tries);
 		Check("ShortRetry(" + Show(why) + ", " + tries + ") -> " + (expected ? "true" : "false"), actual == expected,
+			"obtido " + (actual ? "true" : "false"));
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the Run 9: the <c>wood_floor</c> tile at 39,8 was refused by a body, went to the site's queue and the guard
+	/// "never a post where the plan has a support" then froze the three floors above it): the <b>emergency post</b> may take
+	/// over from a support the plan <b>has</b> only when that support is not coming - it was <b>given up</b>, or nobody
+	/// <b>claims</b> it and the refused piece already waited <c>SupportGrace</c> deferrals (the third look, ~20 s = 8 s +
+	/// 12 s of the dependency waits). A support another companion holds is on its way: the piece waits for it.
+	/// </summary>
+	private static void FallbackPosts()
+	{
+		FallbackCase(true, true, 0, true, "apoio desistido: o poste assume, mesmo com outro companheiro em cima");
+		FallbackCase(false, true, 5, false, "apoio reivindicado: esta chegando, a peca espera (mesmo com 5 esperas)");
+		FallbackCase(false, false, 0, false, "sem espera nenhuma: o plano ainda tem a chance de entregar o apoio");
+		FallbackCase(false, false, 1, false, "1 espera (8 s): ainda nao (o caso que congelou a coluna do Run 9)");
+		FallbackCase(false, false, 2, true, "2 esperas (~20 s): o apoio do plano nao veio - o poste assume");
+		Check("SupportGrace == 2 (o terceiro olhar, ~20 s = 8 + 12 s)", BuildSupportBelow.SupportGrace == 2,
+			"obtido " + BuildSupportBelow.SupportGrace);
+	}
+
+	/// <summary>Section (u): one question about the plan's own support and the post that may take over from it.</summary>
+	private static void FallbackCase(bool givenUp, bool claimed, int deferrals, bool expected, string why)
+	{
+		bool actual = BuildSupportBelow.FallbackPostAllowed(givenUp, claimed, deferrals);
+		Check("FallbackPostAllowed(desistido=" + (givenUp ? "sim" : "nao") + ", reivindicado=" + (claimed ? "sim" : "nao")
+			+ ", esperas=" + deferrals + ") -> " + (expected ? "true" : "false") + " (" + why + ")", actual == expected,
 			"obtido " + (actual ? "true" : "false"));
 	}
 

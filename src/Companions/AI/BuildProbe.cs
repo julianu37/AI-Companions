@@ -27,12 +27,11 @@ namespace Companions;
 /// </summary>
 internal static class BuildProbe
 {
-	/// <summary>Players and companions keep this distance from a candidate spot. It is a cheap "not inside a body"
-	/// guard, not the vanilla rule: the game tests the ghost's colliders against every character within 30 m
-	/// (<c>CheckPlacementGhostVSPlayers</c>, <c>Player.cs</c> L4195) and a bench 1 m in front of you is normal. The
-	/// collider test is what E2 adds; 1,5 m here would refuse the obvious spot (measured: the test at 1,5 m in front
-	/// of the player failed with <c>blocked_by_player</c>).</summary>
-	internal const float MinSpacing = 0.6f;
+	/// <summary>11/11/2026 (Run 10): the capsule a character without a readable collider falls back to - the vanilla
+	/// body (1,8 m tall, 0,3 m of radius). It is only used when <c>Character.GetCollider()</c> is null (a custom body
+	/// with the collider turned off), and the log says it once.</summary>
+	private const float FallbackBodyHeight = 1.8f;
+	private const float FallbackBodyRadius = 0.3f;
 
 	private const float ProbeAbove = 4f;
 	private const float ProbeBelow = 8f;
@@ -578,7 +577,7 @@ internal static class BuildProbe
 				}
 			}
 		}
-		if (BlockedByCharacter(piece, point, ignore))
+		if (BlockedByCharacter(piece, point, rot, ignore, out _))
 		{
 			reasons.Add("blocked_by_player");
 		}
@@ -703,37 +702,71 @@ internal static class BuildProbe
 	}
 
 	/// <summary>
-	/// Is a character's <b>body</b> in the way of the piece at <paramref name="point"/>? This is the cheap version of the
-	/// vanilla ghost check (the game tests the ghost's colliders against every character within 30 m,
-	/// <c>CheckPlacementGhostVSPlayers</c>).
+	/// Is a character's <b>body</b> in the way of the piece at <paramref name="point"/>, turned by <paramref name="rot"/>?
+	/// This is the cheap version of the vanilla ghost check (the game tests the ghost's colliders against every character
+	/// within 30 m, <c>CheckPlacementGhostVSPlayers</c>, <c>Player.cs</c> L4195) and <paramref name="blocker"/> is the
+	/// character that blocked it (the caller says who is in the way).
 	///
 	/// <para>P1 (04/11/2026, player's report: "dois companions travados embaixo do piso"): the old test compared the distance
 	/// from the piece's <b>point</b> to the character's <b>transform</b> (the feet) and needed 0,6 m - with the 1 m deck a
 	/// floor 1 m above the feet was 1,0 m away in 3D, so it did not block, and the floor was placed <b>over the head</b> of
-	/// two companions (they were squeezed 1 m under the ground and stuck). The test is now the <b>body window</b> of
-	/// <see cref="BuildBody"/>: the character is a column (feet -0,5 m to feet +2,0 m) and the piece a box (its own flat
-	/// radius + the body's 0,45 m in XZ, its vertical extent in Y) - a floor above the head blocks when its span crosses
-	/// the body, a piece entirely above the head does not.</para>
+	/// two companions (they were squeezed 1 m under the ground and stuck). The test is the <b>body window</b> of
+	/// <see cref="BuildBody"/>: the character's <b>capsule</b> (<c>Character.GetCollider()</c>) against the piece's
+	/// <b>rotated box</b> - a floor above the head blocks while its span crosses the body, a piece entirely above the head
+	/// does not, and a body <b>beside</b> the piece does not either (only the box's real width counts).</para>
+	///
+	/// <para>11/11/2026 (Run 10, measured): the piece used to be a <b>disc</b> of its largest flat side plus 0,45 m and the
+	/// <b>pivot</b> and the yaw were ignored - a 2 m <c>wood_beam</c> became a 1 m disc in every direction, and the
+	/// companion standing 1,08 m from its pose held it for the whole storey barrier. Now the box is the prefab's
+	/// (<see cref="BoxOf"/>) moved by its <b>pivot</b> (<c>box.center - piece.transform.position</c>) and turned by the
+	/// pose, its vertical span is the AABB of the rotated box (<see cref="BuildBody.HalfY"/>) and the flat test is done in
+	/// the <b>piece's own frame</b> (the capsule's axis un-turned by <paramref name="rot"/>), so the beam is 2 m long only
+	/// along its own length.</para>
 	///
 	/// <para>A companion is a character like any other: an earlier version ignored every <see cref="CompanionAI"/> (to stop
 	/// the 17+ <c>blocked_by_player</c> of a crowded site) and the pieces were then placed <b>inside</b> the companions,
 	/// which <b>sank into the floor</b> - the vanilla rule exists for a reason. The placing companion is the caller's
 	/// <paramref name="ignore"/>; every other body blocks the spot and the piece waits in the retry queue until it moves
-	/// (<c>blocked_by_player</c> is a real failure in the support gate, so it spends one of the three attempts).</para>
+	/// (<c>blocked_by_player</c> is a real refusal, so it spends one of the three attempts - or one of the short ones of
+	/// the storey barrier, which spend none).</para>
 	/// </summary>
-	private static bool BlockedByCharacter(Piece piece, Vector3 point, Component ignore)
+	private static bool BlockedByCharacter(Piece piece, Vector3 point, Quaternion rot, Component ignore, out Component blocker)
 	{
-		BodyBox(piece, out float flat, out float halfHeight);
-		float spacing = BuildBody.Spacing(flat, MinSpacing);
+		blocker = null;
+		// the piece as a box AT THE POSE: its pivot decides where its centre lands (a roof's bounds sit 1,5 m above its
+		// origin) and the pose turns both the centre and the box's axes
+		bool known = BodyBox(piece, out Bounds box);
+		Vector3 center = point;
+		float halfX = 0f;
+		float halfZ = 0f;
+		float pieceBottom = point.y;
+		float pieceTop = point.y;
+		if (known)
+		{
+			Vector3 localCenter = box.center - piece.transform.position;
+			center = point + rot * localCenter;
+			halfX = box.extents.x;
+			halfZ = box.extents.z;
+			float halfY = BuildBody.HalfY(halfX, box.extents.y, halfZ, (rot * Vector3.right).y, (rot * Vector3.up).y,
+				(rot * Vector3.forward).y);
+			pieceBottom = center.y - halfY;
+			pieceTop = center.y + halfY;
+		}
+		Quaternion inverse = Quaternion.Inverse(rot);
 		foreach (Player player in Player.GetAllPlayers())
 		{
 			if (player == null || ReferenceEquals(player, ignore))
 			{
 				continue;
 			}
-			Vector3 feet = player.transform.position;
-			if (BuildBody.Blocked(feet.x, feet.y, feet.z, point.x, point.y, point.z, halfHeight, spacing))
+			if (!CapsuleOf(player, out Vector3 axis, out float bottom, out float top, out float radius))
 			{
+				continue;
+			}
+			Vector3 local = inverse * (axis - center);
+			if (BuildBody.Blocks(local.x, local.z, halfX, halfZ, pieceBottom, pieceTop, bottom, top, radius))
+			{
+				blocker = player;
 				return true;
 			}
 		}
@@ -743,9 +776,16 @@ internal static class BuildProbe
 			{
 				continue;
 			}
-			Vector3 feet = setup.transform.position;
-			if (BuildBody.Blocked(feet.x, feet.y, feet.z, point.x, point.y, point.z, halfHeight, spacing))
+			// the companion's body is the Character of the same GameObject (CompanionSetup is the mod's side of it)
+			Character character = setup.GetComponent<Character>();
+			if (character == null || !CapsuleOf(character, out Vector3 axis, out float bottom, out float top, out float radius))
 			{
+				continue;
+			}
+			Vector3 local = inverse * (axis - center);
+			if (BuildBody.Blocks(local.x, local.z, halfX, halfZ, pieceBottom, pieceTop, bottom, top, radius))
+			{
+				blocker = setup;
 				return true;
 			}
 		}
@@ -753,11 +793,66 @@ internal static class BuildProbe
 	}
 
 	/// <summary>
+	/// 11/11/2026 (the Run 10): <b>who</b> is standing on a pose of the plan - the same test
+	/// <see cref="CheckPoint"/> runs, answered with the body instead of a reason name. The build order uses it to say
+	/// which companion is on the piece (and to ask that one to step aside). <paramref name="ignore"/> is the companion
+	/// placing the piece.
+	/// </summary>
+	internal static bool BlockerAt(Piece piece, Vector3 point, Quaternion rot, Component ignore, out Component blocker)
+	{
+		return BlockedByCharacter(piece, point, rot, ignore, out blocker);
+	}
+
+	/// <summary>
+	/// 11/11/2026 (Run 10): the character's <b>capsule</b> as the window needs it - the point on its axis (the collider's
+	/// centre in world space), the AABB's bottom and top (the capsule's real ends, so a crouched or a short body is not
+	/// guessed) and the radius (the wider side of the AABB). The vanilla body has no collider only when a prefab turns it
+	/// off: then the fallback is the 1,8 m / 0,3 m body and the log says it once (never per frame). Also used by the build
+	/// order to name the body that refused a piece (<c>MHR_Build.BlockedByBody</c>).
+	/// </summary>
+	internal static bool CapsuleOf(Character character, out Vector3 axis, out float bottom, out float top, out float radius)
+	{
+		axis = Vector3.zero;
+		bottom = 0f;
+		top = 0f;
+		radius = FallbackBodyRadius;
+		if (character == null)
+		{
+			return false;
+		}
+		CapsuleCollider capsule = character.GetCollider();
+		if (capsule != null)
+		{
+			Bounds bounds = capsule.bounds;
+			axis = capsule.transform.TransformPoint(capsule.center);
+			bottom = bounds.min.y;
+			top = bounds.max.y;
+			radius = Mathf.Max(bounds.extents.x, bounds.extents.z);
+			return true;
+		}
+		Vector3 feet = character.transform.position;
+		axis = feet;
+		bottom = feet.y;
+		top = feet.y + FallbackBodyHeight;
+		if (!_fallbackBodyLogged)
+		{
+			_fallbackBodyLogged = true;
+			if (CompanionsPlugin.LogDetailed)
+			{
+				CompanionsPlugin.Log?.LogDebug("[Build] \"" + character.m_name + "\" sem cápsula de collider - usando o corpo padrão ("
+					+ FallbackBodyHeight.ToString("F1") + " m, r " + FallbackBodyRadius.ToString("F2") + ") no teste do corpo");
+			}
+		}
+		return true;
+	}
+
+	/// <summary>
 	/// The piece's box, memoised for a search: <see cref="BuildSite.Find"/> asks the same prefab's body window once per
 	/// candidate pose (up to 148), and <see cref="BoxOf"/> walks every renderer of the prefab (it allocates). Prefabs do not
-	/// change, so one entry is enough. No box (an exotic prefab) answers a point: flat radius 0 and no vertical extent.
+	/// change, so one entry is enough. False when the prefab has no readable box (an exotic piece) - the caller then tests
+	/// its <b>point</b> (no flat width, no vertical span), never a refusal out of a missing measurement.
 	/// </summary>
-	private static void BodyBox(Piece piece, out float flat, out float halfHeight)
+	private static bool BodyBox(Piece piece, out Bounds box)
 	{
 		if (!_bodyBoxCached || !ReferenceEquals(_bodyPiece, piece))
 		{
@@ -765,20 +860,16 @@ internal static class BuildProbe
 			_bodyBoxCached = true;
 			_bodyBoxOk = BoxOf(piece, out _bodyBox);
 		}
-		if (_bodyBoxOk)
-		{
-			flat = Mathf.Max(_bodyBox.size.x, _bodyBox.size.z) * 0.5f;
-			halfHeight = _bodyBox.extents.y;
-			return;
-		}
-		flat = 0f;
-		halfHeight = 0f;
+		box = _bodyBox;
+		return _bodyBoxOk;
 	}
 
 	private static Piece _bodyPiece;
 	private static Bounds _bodyBox;
 	private static bool _bodyBoxOk;
 	private static bool _bodyBoxCached;
+	/// <summary>11/11/2026: the fallback body was already said out loud (a missing capsule is not news per pose).</summary>
+	private static bool _fallbackBodyLogged;
 
 	/// <summary>
 	/// Tests a ring of candidate spots around a centre: <paramref name="rings"/> distances out to

@@ -841,9 +841,12 @@ public static class ModLocalization
 			// P1 (04/11/2026): the [Building] SupportFallback label - the wooden post planted under a plan piece the file
 			// left without support. Short for the same F8 row.
 			{ "hc_cfg_building_supportfallback", "Emergency support" },
-			// 11/11/2026 (the body barrier): the [Building] BodyRetry label - the spot a body is standing on is retried
-			// right away (3 short retries) and the storeys above it wait. Short for the same F8 row.
-			{ "hc_cfg_building_bodyretry", "Retry a spot blocked by a body" },
+			// 11/11/2026 (the storey barrier): the [Building] BodyRetry label - a piece a body is standing on is not given
+			// up; it comes back before the plan climbs a storey. Short for the same F8 row.
+			{ "hc_cfg_building_bodyretry", "Retry blocked pieces" },
+			// 11/11/2026 (Run 10, the companion blocker): the [Building] StepAside label - a waiting companion of the group
+			// steps out of the way of the piece another one is placing. Short for the same F8 row.
+			{ "hc_cfg_building_stepaside", "Move aside" },
 			// Fase 3.10: voice and personality of ONE companion (its own ZDO), with the [AI] values as the default.
 			// Used by the companion tab of the AI panel and by the starter panel's "AI" section.
 			{ "hc_ai_profile_title", "Companion AI" },

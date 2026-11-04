@@ -39,6 +39,15 @@ internal static class MHR_BuildGroup
 	/// neighbours it needs may be going up right now (it is not retried on the same breath).</summary>
 	internal const float RetryDelay = 2f;
 
+	/// <summary>11/11/2026 (Run 10): how long a <b>step-aside</b> request lives. The companion answers it in its own wait;
+	/// one that is not answered inside this window (it was walking to its own piece, or the refusal was settled) expires,
+	/// so nobody is moved for a piece that is no longer being placed.</summary>
+	internal const float StepAsideSeconds = 5f;
+
+	/// <summary>11/11/2026 (Run 10): the same piece refused by the same body repeats the request every frame of a retry -
+	/// one ask per this many seconds is enough (and the companion walking away takes a moment).</summary>
+	internal const float StepAsideRepeat = 4f;
+
 	/// <summary>P1 (review A1): one piece of the plan that did not stand yet. It stays in the queue until the piece is
 	/// done or runs out of <b>real</b> attempts (<c>MHR_Build.MaxPasses</c>).</summary>
 	private sealed class RetryEntry
@@ -50,6 +59,10 @@ internal static class MHR_BuildGroup
 		/// <summary>How many times it was deferred for lack of a dependency - the wait grows with this number
 		/// (8 s, 12 s, 20 s, then 25 s) and it is never a reason to give the piece up.</summary>
 		internal int Dependency;
+		/// <summary>11/11/2026 (the storey barrier): how many times it was refused because a <b>body</b> was on the spot. It
+		/// never spends an attempt (nobody's fault) and it is not a dependency either: the wait is the short, fixed
+		/// <c>BuildFailure.BodyRetryDelay</c>.</summary>
+		internal int Blocked;
 		/// <summary>When it may be pulled again.</summary>
 		internal float At;
 	}
@@ -92,6 +105,24 @@ internal static class MHR_BuildGroup
 		/// <b>for the site</b> (never per worker: a piece must not get 3 per companion) and capped by
 		/// <c>BuildFailure.MaxShortRetries</c>.</summary>
 		internal readonly Dictionary<int, int> BodyTries = new Dictionary<int, int>();
+		/// <summary>
+		/// 11/11/2026 (Run 10, the companion blocker): worker id -> the request that this companion <b>step aside</b> from a
+		/// piece another one is placing. It is asked by the placer when the body on the piece is a companion of the site and
+		/// consumed by that companion's own wait (<c>MHR_Build.WaitRetry</c>) - nobody moves a body of another order, and
+		/// the player is never asked (the game's ghost check refuses the spot and the piece waits).
+		/// </summary>
+		internal readonly Dictionary<int, StepAside> Aside = new Dictionary<int, StepAside>();
+	}
+
+	/// <summary>11/11/2026 (Run 10): "please move, you are standing on the piece I have to place" - the pose to walk away
+	/// from and when it was asked.</summary>
+	private sealed class StepAside
+	{
+		/// <summary>The pose of the piece the other worker is placing (the point to get away from).</summary>
+		internal Vector3 From;
+		/// <summary>When it was asked - the dedup of <see cref="RequestStepAside"/> and the expiry of
+		/// <see cref="TakeStepAside"/> count from here.</summary>
+		internal float At;
 	}
 
 	private static readonly Dictionary<string, Group> s_groups = new Dictionary<string, Group>();
@@ -450,6 +481,8 @@ internal static class MHR_BuildGroup
 	/// that was placed and then lost its support stays in the world) - the caller asks the pose before paying again
 	/// instead of placing a second one on top of it. P1 (04/11/2026): a piece deferred by <b>dependency</b> counts here too
 	/// (it was tried and did not stand; with the support gate it spends no attempt, so <c>Attempts</c> alone would miss it).
+	/// 11/11/2026: a piece a <b>body</b> held counts too (<c>Blocked</c>) - it was tried, nothing was paid and it may have
+	/// gone up in another worker's hands.
 	/// </summary>
 	internal static bool Retried(string key, int index)
 	{
@@ -461,12 +494,51 @@ internal static class MHR_BuildGroup
 		for (int i = 0; i < group.Retry.Count; i++)
 		{
 			RetryEntry entry = group.Retry[i];
-			if (entry != null && entry.Index == index && (entry.Attempts > 0 || entry.Dependency > 0))
+			if (entry != null && entry.Index == index && (entry.Attempts > 0 || entry.Dependency > 0 || entry.Blocked > 0))
 			{
 				return true;
 			}
 		}
 		return false;
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the <b>emergency post</b> when the plan's own support does not come, Run 9): the piece of this index was
+	/// <b>given up</b> for the site (the retry queue ran out of real attempts, or the stall watchdog dropped it) - so the
+	/// support the plan has under a refused piece is never coming and the post may take over
+	/// (<c>BuildSupportBelow.FallbackPostAllowed</c>). False without a group: the single-worker path keeps its own
+	/// <c>SkippedIndices</c>.
+	/// </summary>
+	internal static bool GivenUp(string key, int index)
+	{
+		Group group;
+		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null || index < 0)
+		{
+			return false;
+		}
+		return group.SkippedIndex.Contains(index);
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the emergency post): how many times this piece of the plan was deferred for lack of a <b>dependency</b> -
+	/// the clock the plan had to deliver what holds it up. 0 when it is not in the queue (never deferred).
+	/// </summary>
+	internal static int DependencyOf(string key, int index)
+	{
+		Group group;
+		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null)
+		{
+			return 0;
+		}
+		for (int i = 0; i < group.Retry.Count; i++)
+		{
+			RetryEntry entry = group.Retry[i];
+			if (entry != null && entry.Index == index)
+			{
+				return entry.Dependency;
+			}
+		}
+		return 0;
 	}
 
 	/// <summary>
@@ -573,7 +645,8 @@ internal static class MHR_BuildGroup
 
 	/// <summary>11/11/2026 (the body barrier): the barriers of the site are dropped with the queue - the stall watchdog's
 	/// verdict is "nothing is moving", and a barrier that is only <b>waiting</b> for a body must not bring the order back
-	/// to the wait (and the watchdog) on the next frame.</summary>
+	/// to the wait (and the watchdog) on the next frame. The step-aside requests go with them (nobody is going to move for
+	/// a queue that was given up).</summary>
 	internal static void ClearBodies(string key)
 	{
 		Group group;
@@ -583,6 +656,57 @@ internal static class MHR_BuildGroup
 		}
 		group.BodyAt.Clear();
 		group.BodyTries.Clear();
+		group.Aside.Clear();
+	}
+
+	/// <summary>
+	/// 11/11/2026 (Run 10, the <b>companion blocker</b>): a companion of the site is standing on the piece another one has to
+	/// place - ask it to step out of the way. Only a live site answers, and only for a <b>worker of that site</b> (a worker
+	/// alone has nobody to move, and a request outside a group would let the build steer a body that belongs to another
+	/// order). A repeat within <see cref="StepAsideRepeat"/> seconds is dropped: the refusal repeats every frame of a retry,
+	/// and one request is enough.
+	/// </summary>
+	internal static void RequestStepAside(string key, int workerId, Vector3 from)
+	{
+		Group group;
+		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null || workerId == 0
+			|| !group.Workers.Contains(workerId))
+		{
+			return;   // only a worker of THIS site: nobody else would answer, and the request would just sit there
+		}
+		StepAside entry;
+		if (group.Aside.TryGetValue(workerId, out entry) && entry != null && Time.time - entry.At < StepAsideRepeat)
+		{
+			return;
+		}
+		group.Aside[workerId] = new StepAside { From = from, At = Time.time };
+	}
+
+	/// <summary>
+	/// 11/11/2026 (Run 10): the request this worker has to answer, consumed <b>once</b> (the worker walks away and comes
+	/// back to its wait). False when it has none, or when the request is older than <see cref="StepAsideSeconds"/> - the
+	/// piece it was about was settled (or given up) in the meantime.
+	/// </summary>
+	internal static bool TakeStepAside(string key, int workerId, out Vector3 from)
+	{
+		from = Vector3.zero;
+		Group group;
+		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null || workerId == 0)
+		{
+			return false;
+		}
+		StepAside entry;
+		if (!group.Aside.TryGetValue(workerId, out entry) || entry == null)
+		{
+			return false;
+		}
+		group.Aside.Remove(workerId);
+		if (Time.time - entry.At > StepAsideSeconds)
+		{
+			return false;
+		}
+		from = entry.From;
+		return true;
 	}
 
 	/// <summary>11/11/2026 (the body barrier): the piece left the queue for good (placed or given up) - its barrier and its
@@ -638,8 +762,13 @@ internal static class MHR_BuildGroup
 	/// yet) is not the piece's fault - it does <b>not</b> spend an attempt, it comes back with a growing wait and the site
 	/// keeps it until it stands or the stall watchdog gives up on the order. Without this the ridge pieces burned their 3
 	/// tries before the support existed and were left out of the house.</para>
+	///
+	/// <para>11/11/2026 (the storey barrier): a piece refused because a <b>body</b> was on the spot
+	/// (<see cref="BuildFailure.Kind.Blocked"/>) spends no attempt either - the pose is fine and the player is walking - and
+	/// comes back after the short <c>BuildFailure.BodyRetryDelay</c> instead of the growing dependency wait. The plan does
+	/// not climb over it: <see cref="NextRetryBelow"/> hands it back before the next storey.</para>
 	/// </summary>
-	internal static bool TryQueueRetry(string key, int index, bool dependency)
+	internal static bool TryQueueRetry(string key, int index, BuildFailure.Kind kind)
 	{
 		Group group;
 		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null)
@@ -660,11 +789,17 @@ internal static class MHR_BuildGroup
 			entry = new RetryEntry { Index = index };
 			group.Retry.Add(entry);
 		}
-		if (dependency)
+		if (kind == BuildFailure.Kind.Dependency)
 		{
 			entry.Dependency++;
 			entry.At = Time.time + MHR_Build.DependencyDelay(entry.Dependency);
 			return true;   // never spends an attempt, never counts as skipped
+		}
+		if (kind == BuildFailure.Kind.Blocked)
+		{
+			entry.Blocked++;
+			entry.At = Time.time + BuildFailure.BodyRetryDelay;
+			return true;   // a body on the spot: never spends an attempt either
 		}
 		if (entry.Attempts >= MHR_Build.MaxPasses)
 		{
@@ -727,6 +862,152 @@ internal static class MHR_BuildGroup
 			return entry.Index;
 		}
 		return -1;
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the <b>storey barrier</b> of the Run 9, the player's rule: "they may skip, but come back and try again
+	/// before going up"): the plan index of a piece of the site's queue that is still <b>below</b> the piece the walk is about
+	/// to take (-1 = none). It is the question <c>MHR_Build.StoreyBarrier</c> asks before climbing a storey: the entrance
+	/// steps (or any piece a body or a missing support left in the queue) are settled first, and the row above waits for them.
+	/// The index is returned (and not a yes/no) so the log can name the piece that did not come back.
+	///
+	/// <para>A candidate is a piece <b>before</b> <paramref name="nextIndex"/> in the plan and <b>below</b>
+	/// <paramref name="nextY"/> (0,01 m of slack), not done, not given up, <b>not a door</b> (class 4 - doors stay last on
+	/// purpose) and not already served by this barrier (<paramref name="served"/>). It does not look at the clock nor at the
+	/// claims: a piece another worker is building below is still a piece the plan must not climb over.</para>
+	/// </summary>
+	internal static int PendingBelow(string key, int nextIndex, float nextY, HashSet<int> served)
+	{
+		Group group;
+		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null || group.Plan == null)
+		{
+			return -1;
+		}
+		int best = -1;
+		float bestY = float.MaxValue;
+		for (int i = 0; i < group.Retry.Count; i++)
+		{
+			RetryEntry entry = group.Retry[i];
+			if (!IsBelow(group, entry, nextIndex, nextY, served))
+			{
+				continue;
+			}
+			float y = group.Plan[entry.Index].Pos.y;
+			if (best < 0 || y < bestY)
+			{
+				best = entry.Index;
+				bestY = y;
+			}
+		}
+		return best;
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the storey barrier, Run 10): when the <b>earliest</b> piece of the site's queue that is still
+	/// <b>below</b> <paramref name="nextY"/> becomes due (<see cref="RetryEntry.At"/>) - the patience of the barrier must
+	/// not run before that (a piece deferred for a dependency comes back in up to 25 s, and the barrier's own 25 s were
+	/// spent before it had its turn). <see cref="float.MaxValue"/> when nothing below is waiting. It is the same window as
+	/// <see cref="PendingBelow"/> - <see cref="IsBelow"/> is the one definition.
+	/// </summary>
+	internal static float NextBelowAt(string key, int nextIndex, float nextY, HashSet<int> served)
+	{
+		Group group;
+		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null || group.Plan == null)
+		{
+			return float.MaxValue;
+		}
+		float due = float.MaxValue;
+		for (int i = 0; i < group.Retry.Count; i++)
+		{
+			RetryEntry entry = group.Retry[i];
+			if (!IsBelow(group, entry, nextIndex, nextY, served))
+			{
+				continue;
+			}
+			if (entry.At < due)
+			{
+				due = entry.At;
+			}
+		}
+		return due;
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the storey barrier): the piece of the queue the barrier hands back <b>now</b> - the lowest one that is
+	/// <b>due</b> (<c>At</c>), not claimed by another worker and not held by a body barrier of the site. It is <b>claimed
+	/// here</b>, exactly like <see cref="NextRetry"/>, so two workers never pull the same index. -1 when nothing below is
+	/// ready (the caller waits) or there is nothing below at all (the caller climbs).
+	///
+	/// <para>The <b>lowest</b> one wins: a column of refused pieces closes from the bottom up, and the bottom piece is the
+	/// one the others lean on.</para>
+	/// </summary>
+	internal static int NextRetryBelow(string key, int nextIndex, float nextY, HashSet<int> served, int workerId)
+	{
+		Group group;
+		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null || group.Plan == null)
+		{
+			return -1;
+		}
+		float now = Time.time;
+		int best = -1;
+		float bestY = float.MaxValue;
+		for (int i = 0; i < group.Retry.Count; i++)
+		{
+			RetryEntry entry = group.Retry[i];
+			if (!IsBelow(group, entry, nextIndex, nextY, served) || now < entry.At)
+			{
+				continue;
+			}
+			int holder = OwnerOf(key, entry.Index);
+			if (holder != 0 && holder != workerId)
+			{
+				continue;   // another worker is on it
+			}
+			if (!MayTake(group, entry.Index))
+			{
+				continue;   // a body barrier of the site holds it
+			}
+			float y = group.Plan[entry.Index].Pos.y;
+			if (best < 0 || y < bestY)
+			{
+				best = entry.Index;
+				bestY = y;
+			}
+		}
+		if (best < 0 || !TryClaim(group, best, workerId))
+		{
+			return -1;
+		}
+		return best;
+	}
+
+	/// <summary>11/11/2026 (the storey barrier): is this queue entry a piece <b>below</b> the next one that the barrier may
+	/// serve? The one definition of the window, shared by <see cref="PendingBelow"/> and <see cref="NextRetryBelow"/>.</summary>
+	private static bool IsBelow(Group group, RetryEntry entry, int nextIndex, float nextY, HashSet<int> served)
+	{
+		if (entry == null || group.Plan == null)
+		{
+			return false;
+		}
+		int index = entry.Index;
+		if (index < 0 || index >= nextIndex || index >= group.Plan.Count)
+		{
+			return false;   // not behind the walk, or not a piece of this plan
+		}
+		if (served != null && served.Contains(index))
+		{
+			return false;   // this barrier already gave it one turn
+		}
+		if (group.Done.Contains(index) || group.SkippedIndex.Contains(index))
+		{
+			return false;   // up, or out of the site for good
+		}
+		MHR_Build.PlannedStep step = group.Plan[index];
+		if (step == null || step.Pos.y >= nextY - 0.01f)
+		{
+			return false;   // same storey or above: not what the barrier settles
+		}
+		return BuildBlueprintParser.ClassOf(step.Prefab) != 4;   // a door is always the last piece
 	}
 
 	/// <summary>

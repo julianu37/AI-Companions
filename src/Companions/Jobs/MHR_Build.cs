@@ -338,6 +338,39 @@ internal static class MHR_Build
 		/// <summary>11/11/2026 (the body barrier, single worker): how many short retries the CURRENT piece already had for a
 		/// body (the same 3 of the group, reset when the piece changes - a group counts them on the site).</summary>
 		internal int BodyTries;
+		/// <summary>
+		/// 11/11/2026 (the <b>storey barrier</b> of the Run 9, the player's rule: "they may skip, but come back and try again
+		/// before going up"): the height of the piece the walk was about to take when the barrier started - 0 when no barrier
+		/// is drawn. While it is set, <see cref="MHR_Build.Advance"/> hands back the pieces of the queue that are
+		/// <b>below</b> it (<see cref="MHR_Build.StoreyBarrier"/>) before taking anything of the storey above.
+		/// </summary>
+		internal float BarrierNextY;
+		/// <summary>The plan index that piece had (the walk resumes there after the barrier is served).</summary>
+		internal int BarrierNextIndex = -1;
+		/// <summary>When the barrier started - it is what bounds it (<see cref="BuildFailure.BodyRetryMaxWait"/>).</summary>
+		internal float BarrierStart;
+		/// <summary>The plan indices this barrier already gave a turn to: a piece is served once per barrier (it may be
+		/// refused again by a body, and the next barrier - after a reset - gives it another turn).</summary>
+		internal readonly HashSet<int> BarrierServed = new HashSet<int>();
+		/// <summary>
+		/// 11/11/2026 (the storey barrier): the plan index the walk goes back to once the piece the barrier served is done
+		/// (-1 = none). <see cref="MHR_Build.Advance"/> restores it as <c>Index - 1</c> so the walk continues at the piece it
+		/// was about to take, <b>without</b> re-walking everything in between.
+		/// </summary>
+		internal int ResumeIndex = -1;
+		/// <summary>11/11/2026 (Run 10): the body on the current piece was already named in the log (the capsule numbers are
+		/// a measurement, not a watch - the refusal repeats every frame of a short retry).</summary>
+		internal bool BodyLogged;
+		/// <summary>11/11/2026 (Run 10, the companion blocker): the "step aside" of the current piece was already said in the
+		/// log (the request itself repeats, and is deduplicated by the site).</summary>
+		internal bool AsideLogged;
+		/// <summary>
+		/// 11/11/2026 (Run 10, the companion blocker): where this worker is walking to in order to leave a piece another one
+		/// is placing (<see cref="MHR_BuildGroup.TakeStepAside"/>) - <see cref="Vector3.zero"/> when it has nowhere to go.
+		/// </summary>
+		internal Vector3 AsideTarget;
+		/// <summary>When the step-aside walk is over (it is a step, not a walk across the site).</summary>
+		internal float AsideUntil;
 	}
 
 	/// <summary>E6: one piece of a plan, already resolved to a world pose.</summary>
@@ -363,6 +396,9 @@ internal static class MHR_Build
 		/// <summary>P1 (04/11/2026): how many times this piece was deferred because what holds it up was not there yet -
 		/// the wait before looking at it again grows with this number.</summary>
 		internal int Dependency;
+		/// <summary>11/11/2026 (the storey barrier): how many times this piece was refused because a <b>body</b> was on the
+		/// spot - it never spends an attempt, so it is counted apart from <see cref="Tries"/>.</summary>
+		internal int Blocked;
 	}
 
 	private static readonly Dictionary<int, State> s_state = new Dictionary<int, State>();
@@ -551,20 +587,32 @@ internal static class MHR_Build
 	/// <para>P1 (04/11/2026, the <b>support gate</b>): a piece that fails because what holds it up is not there yet is a
 	/// <b>dependency</b> - it spends no attempt, is never counted as skipped and comes back with a growing wait (the plan
 	/// is still going to put its support up). Everything else is a real failure and keeps the 3-attempt cap. The
-	/// classification is in <see cref="IsDependency"/>.</para>
+	/// classification is in <see cref="BuildFailure.Classify"/>.</para>
+	///
+	/// <para>11/11/2026 (the <b>storey barrier</b>): a piece refused because a <b>body</b> was on the spot
+	/// (<see cref="BuildFailure.Kind.Blocked"/>) spends no attempt either - the pose is fine, the player is walking - and
+	/// comes back after the short <see cref="BuildFailure.BodyRetryDelay"/>. The plan does not climb over it: the barrier
+	/// hands it back before the next storey.</para>
 	/// </summary>
 	private static void QueueRetry(CompanionAI ai, State state, string why)
 	{
-		bool dependency = IsDependency(state, why);
+		BuildFailure.Kind kind = ClassifyFailure(state, why);
 		if (state.Group != null && ai != null)
 		{
 			// the piece is free again for the others right away (one of them may have the support/tool that was missing)
 			MHR_BuildGroup.Release(state.Group, state.Index, ai.GetInstanceID());
-			if (MHR_BuildGroup.TryQueueRetry(state.Group, state.Index, dependency))
+			if (MHR_BuildGroup.TryQueueRetry(state.Group, state.Index, kind))
 			{
-				Log(ai, (dependency ? "sem apoio ainda: " : "retry no grupo: ") + state.Prefab + " (" + why + ") em ("
-					+ F(state.Pos.x) + ", " + F(state.Pos.y) + ", " + F(state.Pos.z) + ")"
-					+ (dependency ? " - não gasta tentativa, volta com espera" : " - a peça volta para a fila do canteiro"));
+				if (kind == BuildFailure.Kind.Blocked)
+				{
+					Log(ai, "corpo no caminho: " + state.Prefab + " em (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
+						+ F(state.Pos.z) + ") - volta em " + BuildFailure.BodyRetryDelay.ToString("F0")
+						+ " s (não gasta tentativa)");
+					return;
+				}
+				Log(ai, (kind == BuildFailure.Kind.Dependency ? "sem apoio ainda: " : "retry no grupo: ") + state.Prefab
+					+ " (" + why + ") em (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", " + F(state.Pos.z) + ")"
+					+ (kind == BuildFailure.Kind.Dependency ? " - não gasta tentativa, volta com espera" : " - a peça volta para a fila do canteiro"));
 				return;
 			}
 			SkipPiece(ai, state, why);
@@ -591,12 +639,20 @@ internal static class MHR_Build
 			{
 				state.Retry.Add(pending);
 			}
-			if (dependency)
+			if (kind == BuildFailure.Kind.Dependency)
 			{
 				pending.Dependency++;
 				state.RetryAt = Time.time + DependencyDelay(pending.Dependency);
 				Log(ai, "sem apoio ainda: " + state.Prefab + " (" + why + ") em (" + F(state.Pos.x) + ", " + F(state.Pos.y)
 					+ ", " + F(state.Pos.z) + ") - não gasta tentativa, volta com espera");
+				return;
+			}
+			if (kind == BuildFailure.Kind.Blocked)
+			{
+				pending.Blocked++;
+				state.RetryAt = Time.time + BuildFailure.BodyRetryDelay;
+				Log(ai, "corpo no caminho: " + state.Prefab + " em (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
+					+ F(state.Pos.z) + ") - volta em " + BuildFailure.BodyRetryDelay.ToString("F0") + " s (não gasta tentativa)");
 				return;
 			}
 			pending.Tries++;
@@ -620,14 +676,14 @@ internal static class MHR_Build
 	/// probe's answer ("is there anything under the pose?") feeds <c>groundBelow</c>, which <see cref="BuildFailure"/> reads
 	/// for <c>no_ground</c> only.
 	/// </summary>
-	private static bool IsDependency(State state, string why)
+	private static BuildFailure.Kind ClassifyFailure(State state, string why)
 	{
 		if (state == null)
 		{
-			return false;
+			return BuildFailure.Kind.Real;
 		}
 		bool groundBelow = string.Equals(why, "no_ground", StringComparison.OrdinalIgnoreCase) && GroundUnder(state.Pos);
-		return BuildFailure.IsDependency(why, groundBelow);
+		return BuildFailure.Classify(why, groundBelow);
 	}
 
 	/// <summary>
@@ -836,6 +892,14 @@ internal static class MHR_Build
 		{
 			MHR_BuildGroup.ReleaseAllOf(state.Group, worker);
 		}
+		// 11/11/2026 (the storey barrier): the piece the barrier handed back is done - the walk goes back to the piece it
+		// was about to take, WITHOUT re-walking the ones in between (they are already up or skipped). It is restored before
+		// the retry pass and the floor reorder so both see the same walk position as the normal path.
+		if (state.ResumeIndex >= 0)
+		{
+			state.Index = state.ResumeIndex - 1;
+			state.ResumeIndex = -1;
+		}
 		if (state.Group == null && state.Plan != null && state.Index + 1 >= state.Plan.Count
 			&& state.Retry != null && state.Retry.Count > 0)
 		{
@@ -872,6 +936,14 @@ internal static class MHR_Build
 				{
 					state.Phase = Phase.WaitRetry;
 					state.Start = Time.time;
+					return true;
+				}
+				// 11/11/2026 (the STOREY BARRIER, the player's rule of the Run 9: "they may skip, but come back and try again
+				// before going up"): before the plan climbs a storey, the pieces of the queue that are BELOW the next one get
+				// their turn back - the entrance steps a body refused, the floor still waiting for its support. It runs
+				// BEFORE the claim on purpose: a piece the barrier postpones must not stay claimed by this worker for 20 s.
+				if (StoreyBarrier(ai, state, next))
+				{
 					return true;
 				}
 				state.Index = next;
@@ -975,7 +1047,290 @@ internal static class MHR_Build
 		state.BestAt = Time.time;
 		state.NextScaffoldAt = 0f;
 		state.BodyTries = 0;   // 11/11/2026: the short retries of a body are per piece
+		state.BodyLogged = false;   // 11/11/2026 (Run 10): the body of the new piece is named once
+		// 11/11/2026 (Run 10): a new piece ends any step-aside walk - the walk (Goto) is the one steering from here
+		state.AsideTarget = Vector3.zero;
+		state.AsideUntil = 0f;
 		state.Phase = Phase.Goto;
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the <b>storey barrier</b> of the Run 9, the player's rule: "they may skip, but come back and try again
+	/// before going up"): the entrance steps (pieces 8-10 of 988) and a whole column of the east side were refused early -
+	/// by a body, by the support that was still in the plan - went to the site's queue and only came back in the
+	/// end-of-plan retry pass, after the house was already storeys up (Run 9: 977 placed + 11 skipped). This is the gate
+	/// that stops the walk from climbing while something of the storey below is still waiting.
+	///
+	/// <para>Called by <see cref="Advance"/> for the piece it is about to take (<paramref name="nextIndex"/>). It does not
+	/// reorder the plan, does not touch claims and does not change indices: it only <b>enters</b> a queued piece below (the
+	/// site's queue in a group, <see cref="State.Retry"/> for a single worker) and remembers the index to come back to
+	/// (<see cref="State.ResumeIndex"/>).</para>
+	///
+	/// <para>The barrier is drawn once per <b>next piece</b>: when the walk's target changes (a piece was skipped or another
+	/// worker took it) it is redrawn, and it lives at most <see cref="BuildFailure.BodyRetryMaxWait"/> - after that the plan
+	/// goes on and the piece stays in the queue for the end-of-plan pass (a player parked on the spot cannot hold the
+	/// site). A template (no storeys), a single piece (no plan) and <c>[Building] BodyRetry</c> off are out of it.</para>
+	///
+	/// <para>11/11/2026 (Run 10, measured): the drawing used to need a <b>climb</b> of a storey (the next piece 1 m above
+	/// the current one), and the wall of the 1st floor has the <b>same y</b> as the beam whose tiles were waiting at
+	/// 39,8 - the barrier was never drawn and the wall went up over two empty tiles. It is drawn now whenever something is
+	/// waiting <b>below</b> the next piece; the patience of the barrier (<see cref="ServeBarrier"/>) only starts running
+	/// when that piece becomes <b>due</b>.</para>
+	/// </summary>
+	private static bool StoreyBarrier(CompanionAI ai, State state, int nextIndex)
+	{
+		if (!BarrierOn(state) || nextIndex < 0 || nextIndex >= state.Plan.Count)
+		{
+			return false;
+		}
+		PlannedStep next = state.Plan[nextIndex];
+		if (next == null)
+		{
+			return false;
+		}
+		float nextY = next.Pos.y;
+		if (state.BarrierNextY > 0f && Mathf.Abs(state.BarrierNextY - nextY) > 0.01f)
+		{
+			ResetBarrier(state);   // the walk's target changed (a piece done/claimed): the barrier is drawn for this one
+		}
+		if (state.BarrierNextY <= 0f)
+		{
+			// 11/11/2026 (Run 10): the barrier used to exist only while the plan CLIMBED a storey (1 m up) - and the wall of
+			// the 1st floor has the SAME y as the beam whose tiles were waiting at 39,8, so the pending piece below was
+			// never seen and the wall went up over two empty tiles. Now anything waiting below the piece the walk is about
+			// to take draws the barrier, whatever the walk's own height is.
+			int waiting = PendingBelowIndex(ai, state, nextIndex, nextY);
+			if (waiting < 0)
+			{
+				return false;   // nothing of the storey below is waiting: just climb
+			}
+			state.BarrierNextY = nextY;
+			state.BarrierNextIndex = nextIndex;
+			state.BarrierStart = Time.time;
+			state.BarrierServed.Clear();
+			LogDebug(ai, "barreira de andar: " + state.Plan[waiting].Prefab + " (" + (waiting + 1) + "/"
+				+ state.Plan.Count + ") espera embaixo - nada acima de " + F(nextY) + " m sobe antes dela");
+		}
+		return ServeBarrier(ai, state);
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the storey barrier): the part of it that both paths share - <see cref="StoreyBarrier"/> (the walk about to
+	/// climb) and <see cref="WaitRetry"/> (already waiting). It <b>serves</b> the lowest queued piece below the barrier as
+	/// soon as it is due, <b>waits</b> while it is still coming (not due, or another worker holds it) and <b>drops the
+	/// barrier</b> when there is nothing below anymore or its patience is over - the normal path then goes on. True = the
+	/// barrier is holding the plan (a piece was entered or the worker waits).
+	/// </summary>
+	private static bool ServeBarrier(CompanionAI ai, State state)
+	{
+		if (state == null || state.Plan == null || state.BarrierNextY <= 0f || state.BarrierNextIndex < 0
+			|| state.BarrierNextIndex >= state.Plan.Count)
+		{
+			return false;
+		}
+		if (ModConfig.BuildBodyRetry != null && !ModConfig.BuildBodyRetry.Value)
+		{
+			ResetBarrier(state);   // the player turned it off in the F8 panel while the order was running
+			return false;
+		}
+		// 11/11/2026 (Run 10): the patience counts from the moment the waiting piece is DUE, not from the drawing of the
+		// barrier - a piece deferred for a dependency waits 8, 12, 20 then 25 s (DependencyDelay) and the barrier expired
+		// (at 25 s) before the piece could even be tried again. Until the first serve the clock is pushed forward; after it
+		// the 25 s run normally and the watchdog is the final backstop.
+		if (state.BarrierServed.Count == 0
+			&& Time.time < PendingBelowAt(ai, state, state.BarrierNextIndex, state.BarrierNextY))
+		{
+			state.BarrierStart = Time.time;
+		}
+		if (Time.time - state.BarrierStart > BuildFailure.BodyRetryMaxWait)
+		{
+			int stuck = PendingBelowIndex(ai, state, state.BarrierNextIndex, state.BarrierNextY);
+			if (stuck < 0 || stuck >= state.Plan.Count)
+			{
+				stuck = state.BarrierNextIndex;
+			}
+			PlannedStep piece = state.Plan[stuck];
+			Log(ai, "a peça " + (piece != null ? piece.Prefab : state.Prefab) + " travada não voltou - o plano sobe depois de "
+				+ BuildFailure.BodyRetryMaxWait.ToString("F0") + " s");
+			ResetBarrier(state);
+			return false;   // the normal gate: the plan climbs
+		}
+		int serve = NextRetryBelow(ai, state, state.BarrierNextIndex, state.BarrierNextY);
+		if (serve >= 0)
+		{
+			state.BarrierServed.Add(serve);
+			state.ResumeIndex = state.BarrierNextIndex;
+			EnterStep(state, serve);
+			Log(ai, "volta antes de subir: " + state.Prefab + " (" + (serve + 1) + "/" + state.Plan.Count + ") em ("
+				+ F(state.Pos.x) + ", " + F(state.Pos.y) + ", " + F(state.Pos.z) + ")");
+			return true;
+		}
+		if (PendingBelowIndex(ai, state, state.BarrierNextIndex, state.BarrierNextY) >= 0)
+		{
+			state.Phase = Phase.WaitRetry;   // it is coming: wait below the storey instead of climbing over it
+			state.Start = Time.time;
+			return true;
+		}
+		ResetBarrier(state);
+		return false;   // nothing below: the plan climbs
+	}
+
+	/// <summary>11/11/2026: the storey barrier is only for a <b>blueprint</b> of this game (<c>[Building] BodyRetry</c>): a
+	/// template has no storeys to climb and a single piece has no plan to walk.</summary>
+	private static bool BarrierOn(State state)
+	{
+		if (state == null || state.Plan == null || state.Blueprint == null || state.Index < 0)
+		{
+			return false;
+		}
+		if (state.Group == null && state.Retry == null)
+		{
+			return false;   // a single piece: there is no queue to come back to
+		}
+		return ModConfig.BuildBodyRetry == null || ModConfig.BuildBodyRetry.Value;
+	}
+
+	/// <summary>11/11/2026: drops the storey barrier and forgets the pieces it already served (the next one gives them another
+	/// turn).</summary>
+	private static void ResetBarrier(State state)
+	{
+		if (state == null)
+		{
+			return;
+		}
+		state.BarrierNextY = 0f;
+		state.BarrierNextIndex = -1;
+		state.BarrierStart = 0f;
+		state.BarrierServed.Clear();
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the storey barrier): the plan index of a piece of the queue that is still <b>below</b> the next piece, or -1
+	/// (the site's queue in a group, this worker's list otherwise). It is the "is something waiting below?" question of
+	/// <see cref="StoreyBarrier"/> - and the index is what lets the log name the piece that did not come back.
+	/// </summary>
+	private static int PendingBelowIndex(CompanionAI ai, State state, int nextIndex, float nextY)
+	{
+		if (state == null || state.Plan == null)
+		{
+			return -1;
+		}
+		if (state.Group != null)
+		{
+			return MHR_BuildGroup.PendingBelow(state.Group, nextIndex, nextY, state.BarrierServed);
+		}
+		if (state.Retry == null)
+		{
+			return -1;
+		}
+		int best = -1;
+		float bestY = float.MaxValue;
+		for (int i = 0; i < state.Retry.Count; i++)
+		{
+			int index = BelowIndex(ai, state, state.Retry[i], nextIndex, nextY);
+			if (index < 0)
+			{
+				continue;
+			}
+			float y = state.Plan[index].Pos.y;
+			if (best < 0 || y < bestY)
+			{
+				best = index;
+				bestY = y;
+			}
+		}
+		return best;
+	}
+
+	/// <summary>
+	/// 11/11/2026 (Run 10, the storey barrier): <b>when</b> the earliest piece of the queue that is still <b>below</b> the next
+	/// piece becomes due (the site's <c>At</c> in a group, <see cref="State.RetryAt"/> for a single worker). The patience of
+	/// the barrier must not run before it: a piece deferred for a dependency comes back in 8, 12, 20 or 25 s and the 25 s of
+	/// the barrier were spent before the piece had its turn. <see cref="float.MaxValue"/> when nothing below is waiting.
+	/// Same window as <see cref="PendingBelowIndex"/> (one definition of "below").
+	/// </summary>
+	private static float PendingBelowAt(CompanionAI ai, State state, int nextIndex, float nextY)
+	{
+		if (state == null || state.Plan == null)
+		{
+			return float.MaxValue;
+		}
+		if (state.Group != null)
+		{
+			return MHR_BuildGroup.NextBelowAt(state.Group, nextIndex, nextY, state.BarrierServed);
+		}
+		return PendingBelowIndex(ai, state, nextIndex, nextY) >= 0 ? state.RetryAt : float.MaxValue;
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the storey barrier): the queued piece the barrier hands back <b>now</b> - the lowest one that is due (the
+	/// site's <c>At</c> in a group, <see cref="State.RetryAt"/> for a single worker), not served yet and not held by
+	/// anybody else. -1 when nothing below is ready. In a group the index is <b>claimed</b> here, exactly like
+	/// <c>MHR_BuildGroup.NextRetry</c>, so two workers never pull the same piece.
+	/// </summary>
+	private static int NextRetryBelow(CompanionAI ai, State state, int nextIndex, float nextY)
+	{
+		if (ai == null || state == null || state.Plan == null)
+		{
+			return -1;
+		}
+		if (state.Group != null)
+		{
+			return MHR_BuildGroup.NextRetryBelow(state.Group, nextIndex, nextY, state.BarrierServed, ai.GetInstanceID());
+		}
+		if (state.Retry == null || Time.time < state.RetryAt)
+		{
+			return -1;   // nothing queued, or the dependency/body clock has not passed yet
+		}
+		int best = -1;
+		float bestY = float.MaxValue;
+		for (int i = 0; i < state.Retry.Count; i++)
+		{
+			int index = BelowIndex(ai, state, state.Retry[i], nextIndex, nextY);
+			if (index < 0)
+			{
+				continue;
+			}
+			float y = state.Plan[index].Pos.y;
+			if (best < 0 || y < bestY)
+			{
+				best = index;
+				bestY = y;
+			}
+		}
+		return best;
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the storey barrier, single worker): the plan index of this queued step when it is a piece <b>below</b> the
+	/// next one that the barrier may serve - the same window as <c>MHR_BuildGroup.IsBelow</c>: before <paramref name="nextIndex"/>
+	/// in the plan, below <paramref name="nextY"/>, not done, not given up, not served yet and <b>not a door</b> (class 4 -
+	/// doors stay last). A step whose pose was adjusted is a <b>copy outside the plan</b> (see <c>AdjustFallenPose</c>): it has
+	/// no index to come back to and stays for the end-of-plan pass.
+	/// </summary>
+	private static int BelowIndex(CompanionAI ai, State state, PlannedStep step, int nextIndex, float nextY)
+	{
+		if (step == null)
+		{
+			return -1;
+		}
+		int index = state.Plan.IndexOf(step);
+		if (index < 0)
+		{
+			LogDebug(ai, "a peça " + step.Prefab + " da fila não está no plano (pose ajustada) - fica para o fim");
+			return -1;
+		}
+		if (index >= nextIndex || state.PlacedIndices.Contains(index) || state.SkippedIndices.Contains(index)
+			|| state.BarrierServed.Contains(index))
+		{
+			return -1;
+		}
+		PlannedStep planned = state.Plan[index];
+		if (planned == null || planned.Pos.y >= nextY - 0.01f)
+		{
+			return -1;   // same storey or above: not what the barrier settles
+		}
+		return BuildBlueprintParser.ClassOf(planned.Prefab) == 4 ? -1 : index;
 	}
 
 	/// <summary>
@@ -1959,7 +2314,7 @@ internal static class MHR_Build
 			case Phase.WaitGroup:
 				return WaitGroup(ai, state);
 			case Phase.WaitRetry:
-				return WaitRetry(ai, state);
+				return WaitRetry(ai, state, dt);
 			case Phase.Find:
 				return state.Template != null ? FindPlan(ai, state) : Find(ai, state);
 			case Phase.Goto:
@@ -2038,9 +2393,21 @@ internal static class MHR_Build
 	/// queue need a support that is not coming: they are given up (counted as skipped, named in the log) and the order ends
 	/// through the normal end. A single worker (no group) waits on its own <see cref="State.RetryAt"/> and is watched the
 	/// same way.</para>
+	///
+	/// <para>11/11/2026 (Run 10): the wait is also where a companion of the site that is <b>in the way</b> of a piece another
+	/// one has to place steps aside (<see cref="StepAside"/>, <c>[Building] StepAside</c>) - a step of 2,2 m through the
+	/// mover, never a teleport and never the player.</para>
 	/// </summary>
-	private static bool WaitRetry(CompanionAI ai, State state)
+	private static bool WaitRetry(CompanionAI ai, State state, float dt)
 	{
+		// 11/11/2026 (Run 10, the companion blocker): a companion that is only WAITING steps out of the way of a piece
+		// another one of the site has to place. It is a step of 2,2 m through the mover (never a teleport), it is answered
+		// here and nowhere else (Goto/Place/Clear/Gather never move somebody else's piece out of the way) and it expires -
+		// a worker that is not waiting never consumes the request and nobody is moved for a piece that is no longer coming.
+		if (StepAside(ai, state, dt))
+		{
+			return true;
+		}
 		float progress = state.Group != null ? MHR_BuildGroup.LastProgressAt(state.Group) : state.LastProgressAt;
 		if (progress <= 0f)
 		{
@@ -2051,6 +2418,14 @@ internal static class MHR_Build
 		if (Time.time - progress > StallSeconds)
 		{
 			return StallOut(ai, state);
+		}
+		// 11/11/2026 (the storey barrier): while the plan waits below a storey, the pieces of the queue BELOW it are the only
+		// ones served - the normal NextRetry would happily take a piece of the storey above and climb over the entrance the
+		// player asked to be settled first. Nothing below anymore (or patience over) drops the barrier and the normal path
+		// goes on.
+		if (ServeBarrier(ai, state))
+		{
+			return true;
 		}
 		if (state.Group == null)
 		{
@@ -3188,6 +3563,13 @@ internal static class MHR_Build
 		{
 			return false;   // nothing under it that could hold it up: the piece is only retried
 		}
+		// 11/11/2026 (the Run 9): a support the site already GAVE UP is never driven again - its index is in the skipped set,
+		// the workers do not want it, and pulling it would take the whole site back to a piece nobody will build. The
+		// emergency post is the way up for the refused piece (TryFallbackPost).
+		if (SupportGivenUp(state, support))
+		{
+			return false;
+		}
 		// P1 (04/11/2026, incident on the 985-piece house): ONCE per piece. The refused piece goes to the queue, the
 		// support is entered; when the refused piece comes back and is refused again (its support was not the one the
 		// game wants) the pull would fire again, forever - the run of the 290afc1 build wrote 1.4M lines and froze the
@@ -3260,6 +3642,76 @@ internal static class MHR_Build
 	}
 
 	/// <summary>
+	/// 11/11/2026 (the emergency post when the plan's own support does not come): the plan piece at
+	/// <paramref name="support"/> was <b>given up</b> for the site - the retry queue ran out of real attempts or the stall
+	/// watchdog dropped it - so it is never going to hold the refused piece up and the post may take over. In a group the
+	/// skipped set is the site's (<see cref="MHR_BuildGroup.GivenUp"/>); a single worker keeps its own.
+	/// </summary>
+	private static bool SupportGivenUp(State state, int support)
+	{
+		if (state == null || state.Plan == null || support < 0 || support >= state.Plan.Count)
+		{
+			return false;
+		}
+		if (state.Group != null)
+		{
+			return MHR_BuildGroup.GivenUp(state.Group, support);
+		}
+		// the piece's identity in the counters is the FIRST place the step appears (the retry pass appends the same step)
+		PlannedStep step = state.Plan[support];
+		int index = step != null ? state.Plan.IndexOf(step) : support;
+		return state.SkippedIndices.Contains(index >= 0 ? index : support);
+	}
+
+	/// <summary>11/11/2026 (the emergency post): another companion <b>holds</b> the plan's support right now - it is on its
+	/// way and the refused piece only waits for it. A single worker has no claims.</summary>
+	private static bool SupportClaimed(State state, int support)
+	{
+		if (state == null || state.Group == null || support < 0)
+		{
+			return false;
+		}
+		return MHR_BuildGroup.OwnerOf(state.Group, support) != 0;
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the emergency post): how many times the piece this worker is on was deferred for lack of a
+	/// <b>dependency</b> - the clock the plan had to deliver the support under it. In a group it is the site's queue
+	/// (<see cref="MHR_BuildGroup.DependencyOf"/>); a single worker reads the step itself, which is the very object of its
+	/// queue, and falls back to the queue when the pose was adjusted (the step being carried out is then a copy).
+	/// </summary>
+	private static int SupportDeferrals(State state)
+	{
+		if (state == null)
+		{
+			return 0;
+		}
+		if (state.Group != null)
+		{
+			return MHR_BuildGroup.DependencyOf(state.Group, state.Index);
+		}
+		if (state.Plan != null && state.Index >= 0 && state.Index < state.Plan.Count)
+		{
+			PlannedStep current = state.Plan[state.Index];
+			if (SamePiece(current, state))
+			{
+				return current.Dependency;
+			}
+		}
+		if (state.Retry != null)
+		{
+			for (int i = 0; i < state.Retry.Count; i++)
+			{
+				if (SamePiece(state.Retry[i], state))
+				{
+					return state.Retry[i].Dependency;
+				}
+			}
+		}
+		return 0;
+	}
+
+	/// <summary>
 	/// P1 (04/11/2026, measured with the deck run: 16 pieces of the east gable and of the north-west corner - floors and roofs
 	/// from 40,8 to 46,8, all <c>no_support</c> - and the direct-support pull answered -1 for every one of them): the author's
 	/// blueprint has <b>no support piece under those points</b> - his house leaned on something the file does not carry - so
@@ -3276,11 +3728,14 @@ internal static class MHR_Build
 	/// keeps its index, its claim and its pose: the next frame it is placed on top of the post - so a column closes <b>from
 	/// the bottom up</b> (the floor at 40,8 gets a post on the ground, the next one a post on that floor, and so on).</para>
 	///
-	/// <para>One per piece (<see cref="State.FallbackPosts"/>) and capped per order (<see cref="MaxFallbackPosts"/>). It is
-	/// never planted where the plan DOES have something under the piece (<see cref="DirectSupportIndex"/> &gt;= 0): there the
-	/// pull is the path, and a post would sit on top of the plan's own support. Anything that stops it (no post reaches the
-	/// gap, no valid pose, no material, the executor) is said out loud and the piece follows the normal path (retry
-	/// queue / watchdog).</para>
+	/// <para>One per piece (<see cref="State.FallbackPosts"/>) and capped per order (<see cref="MaxFallbackPosts"/>). A support
+	/// the plan <b>has</b> under the piece (<see cref="DirectSupportIndex"/> &gt;= 0) usually blocks the post - the pull is the
+	/// path - but only while that support is <b>really coming</b>: the Run 9 left three floors frozen because the support was
+	/// in the plan, was refused by a body and never went up, and the guard kept refusing the post. So the post is allowed when
+	/// the support was <b>given up</b> or when nobody holds it and the piece already waited
+	/// <see cref="BuildSupportBelow.SupportGrace"/> deferrals for it (<see cref="BuildSupportBelow.FallbackPostAllowed"/>).
+	/// Anything that stops it (no post reaches the gap, no valid pose, no material, the executor) is said out loud and the
+	/// piece follows the normal path (retry queue / watchdog).</para>
 	/// </summary>
 	private static bool TryFallbackPost(CompanionAI ai, State state, CompanionSetup cs)
 	{
@@ -3308,9 +3763,15 @@ internal static class MHR_Build
 		{
 			return false;   // this piece already got one
 		}
-		if (DirectSupportIndex(state) >= 0)
+		// 11/11/2026 (the Run 9: the plan's support was there but NOT in the world): a support of the plan only blocks the
+		// post while it is really coming. Given up (skipped) it never will; claimed by a companion it is on its way; and a
+		// piece that already waited SupportGrace deferrals for it (8 s + 12 s) has given the plan its chance.
+		int support = DirectSupportIndex(state);
+		if (support >= 0
+			&& !BuildSupportBelow.FallbackPostAllowed(SupportGivenUp(state, support), SupportClaimed(state, support),
+				SupportDeferrals(state)))
 		{
-			return false;   // the plan has something under it: the pull is the path (never a post over the plan's own support)
+			return false;   // the plan has something under it and it is coming: the pull is the path (never a post over it)
 		}
 		// where does the post stand? The surface under the piece's own point: the ground, the floor of the storey below, a
 		// beam top. Nothing in 10 m answers the height map (fail-open: the spot is on a hill side).
@@ -4402,6 +4863,11 @@ internal static class MHR_Build
 					// before the stock is taken), the claim stays, the site's barrier holds the storeys above, and the SAME
 					// pose is tried again in a moment (3 short retries per piece). Without this the entrance steps (pieces
 					// 8-10 of 988 in the Run 9) went to the site's queue and only came back after the whole house.
+					if (status == "blocked_by_player")
+					{
+						BlockedByBody(ai, state, cs);
+						AskStepAside(ai, state, cs);
+					}
 					if (TryBodyRetry(ai, state, status))
 					{
 						return true;   // the same pose, after the short wait
@@ -4532,6 +4998,208 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 	private static bool BodyRetryOn()
 	{
 		return ModConfig.BuildBodyRetry == null || ModConfig.BuildBodyRetry.Value;
+	}
+
+	/// <summary>
+	/// 11/11/2026 (Run 10, the <b>companion blocker</b>): the piece was refused with <c>blocked_by_player</c> - say <b>who</b>
+	/// is on it with the <b>real numbers</b> of the body (the capsule the probe used, so "+2,0 m over the feet" stops being
+	/// a guess). The line is written <b>once per piece</b>: the refusal repeats on each short retry and the numbers are a
+	/// measurement, not a watch.
+	///
+	/// <para>The measured case: the <c>wood_beam</c> of the Run 10 at (-168,1, 41,8, -421,1) held by the Companion 6 at
+	/// (-167,1, 39,9, -421,5) - 1,08 m in XZ, 1,9 m below.</para>
+	/// </summary>
+	private static void BlockedByBody(CompanionAI ai, State state, CompanionSetup cs)
+	{
+		if (ai == null || state == null || state.Piece == null || state.BodyLogged)
+		{
+			return;
+		}
+		Component blocker;
+		if (!BuildProbe.BlockerAt(state.Piece, state.Pos, state.Rot, cs, out blocker))
+		{
+			return;   // the world moved since the check (it was a frame ago): nothing to name
+		}
+		state.BodyLogged = true;
+		if (!CompanionsPlugin.LogNormal)
+		{
+			return;
+		}
+		CompanionSetup other = blocker as CompanionSetup;
+		string who = blocker is Player ? "você" : (other != null ? "\"" + CompanionNames.NameOf(other) + "\"" : "um corpo");
+		Log(ai, "corpo na peça " + (state.Index + 1) + "/" + (state.Plan != null ? state.Plan.Count : state.Index + 1)
+			+ " (" + who + ")" + CapsuleText(other != null ? other.GetComponent<Character>() : blocker as Character));
+	}
+
+	/// <summary>
+	/// 11/11/2026 (Run 10, the <b>companion blocker</b>): the body on the piece is a <b>companion of the same site</b> - ask it
+	/// to step aside (<see cref="MHR_BuildGroup.RequestStepAside"/>, <c>[Building] StepAside</c>). That companion answers in
+	/// its own wait and walks 2,2 m away from the piece through the mover (<see cref="StepAside"/>); the <b>player is never
+	/// moved</b> (the piece waits, exactly as before) and a worker alone has no site to ask. The ask repeats on every
+	/// refusal - the request itself is deduplicated by the site (4 s) - while the line is written once per piece.
+	/// </summary>
+	private static void AskStepAside(CompanionAI ai, State state, CompanionSetup cs)
+	{
+		if (ai == null || state == null || state.Piece == null || state.Group == null || !StepAsideOn())
+		{
+			return;
+		}
+		Component blocker;
+		if (!BuildProbe.BlockerAt(state.Piece, state.Pos, state.Rot, cs, out blocker))
+		{
+			return;   // nothing there anymore
+		}
+		CompanionSetup other = blocker as CompanionSetup;
+		if (other == null)
+		{
+			return;   // the player (or a creature) is never moved
+		}
+		CompanionAI mover = other.GetComponent<CompanionAI>();
+		if (mover == null || mover == ai)
+		{
+			return;
+		}
+		MHR_BuildGroup.RequestStepAside(state.Group, mover.GetInstanceID(), state.Pos);
+		if (!state.BodyLogged && CompanionsPlugin.LogNormal)
+		{
+			Log(ai, "\"" + CompanionNames.NameOf(other) + "\" está na peça " + (state.Index + 1)
+				+ " - pedindo para sair da frente");
+		}
+	}
+
+	/// <summary>11/11/2026 (Run 10): the capsule of the body as the probe read it, for the line above
+	/// (<c>" - cápsula 39,90-41,70 m, r 0,30"</c>). Empty when there is no body to read.</summary>
+	private static string CapsuleText(Character body)
+	{
+		if (body == null || !BuildProbe.CapsuleOf(body, out _, out float bottom, out float top, out float radius))
+		{
+			return string.Empty;
+		}
+		return " - cápsula " + F(bottom) + "-" + F(top) + " m, r " + F(radius);
+	}
+
+	/// <summary>11/11/2026 (Run 10): <c>[Building] StepAside</c> - a companion of the site that is only waiting steps out of
+	/// the way of a piece another one has to place (default on; off = the old behaviour, the piece waits in the queue).</summary>
+	private static bool StepAsideOn()
+	{
+		return ModConfig.BuildStepAside == null || ModConfig.BuildStepAside.Value;
+	}
+
+	/// <summary>How far the waiting companion walks away from the piece (the game's body window needs ~0,3 m of clearance
+	/// past the piece's edge; 2,2 m clears the biggest piece of the plan with room for the walk).</summary>
+	private const float AsideDistance = 2.2f;
+
+	/// <summary>How long one step aside may take. It is a <b>step</b>: arriving is not required (the mover may be blocked by
+	/// the site itself), the worker goes back to its wait and the request is gone.</summary>
+	private const float AsideSeconds = 2.5f;
+
+	/// <summary>
+	/// 11/11/2026 (Run 10, the companion blocker): the wait of a worker that was asked to move (<c>TakeStepAside</c>). It
+	/// picks the closest of 8 spots <see cref="AsideDistance"/> from the piece, at the worker's own feet level and reachable
+	/// (<see cref="MHR_Mover.SafeStep"/>), and walks there with the mover; when the spot is reached, the step expires or
+	/// there is none, the mover is released and the normal wait goes on. <b>No teleport and no push</b>: the body is moved by
+	/// the same movement every other order uses, so a blocked step is just a step that did not happen.
+	///
+	/// <para>True while it is still stepping (the caller returns and the normal wait is not asked this frame).</para>
+	/// </summary>
+	private static bool StepAside(CompanionAI ai, State state, float dt)
+	{
+		if (state == null || ai == null)
+		{
+			return false;
+		}
+		if (state.AsideUntil > 0f)
+		{
+			if (Time.time < state.AsideUntil && state.AsideTarget != Vector3.zero
+				&& CharacterDistance(ai, state.AsideTarget) > 0.4f)
+			{
+				MHR_Mover.Go(ai, dt, state.AsideTarget, 0.4f, false, "Build");
+				return true;
+			}
+			state.AsideTarget = Vector3.zero;
+			state.AsideUntil = 0f;
+			MHR_Mover.Release(ai);
+			ai.StopMoving();
+			return true;   // the step is over: the normal wait starts on the next frame
+		}
+		if (state.Group == null || !StepAsideOn())
+		{
+			return false;
+		}
+		Vector3 from;
+		if (!MHR_BuildGroup.TakeStepAside(state.Group, ai.GetInstanceID(), out from))
+		{
+			return false;
+		}
+		Vector3 target;
+		if (!AsideSpot(ai, from, out target))
+		{
+			return false;   // no spot at the worker's level: stay put (the piece waits, as before)
+		}
+		state.AsideTarget = target;
+		state.AsideUntil = Time.time + AsideSeconds;
+		Log(ai, "saindo da frente (peça em " + F(from.x) + ", " + F(from.z) + ") para (" + F(target.x) + ", "
+			+ F(target.z) + ")");
+		MHR_Mover.Go(ai, dt, target, 0.4f, false, "Build");
+		return true;
+	}
+
+	/// <summary>
+	/// 11/11/2026 (Run 10): the spot the waiting companion steps to - 8 directions, <see cref="AsideDistance"/> from the
+	/// piece, at the <b>worker's own feet level</b> (a ray down from 1,5 m above the candidate accepts a ground within
+	/// 0,8 m of its feet, so it does not walk off the deck or up a wall) and reachable (<see cref="MHR_Mover.SafeStep"/>).
+	/// The closest one to the worker wins (the shortest step); none = no step.
+	/// </summary>
+	private static bool AsideSpot(CompanionAI ai, Vector3 from, out Vector3 target)
+	{
+		target = Vector3.zero;
+		if (ai == null)
+		{
+			return false;
+		}
+		Vector3 feet = ai.transform.position;
+		float best = float.MaxValue;
+		bool found = false;
+		for (int dir = 0; dir < 8; dir++)
+		{
+			float angle = Mathf.PI * 2f * dir / 8f;
+			Vector3 spot = new Vector3(from.x + Mathf.Cos(angle) * AsideDistance, feet.y,
+				from.z + Mathf.Sin(angle) * AsideDistance);
+			RaycastHit hit;
+			if (!Physics.Raycast(spot + Vector3.up * 1.5f, Vector3.down, out hit, 4f, BuildProbe.PlaceMask(),
+				QueryTriggerInteraction.Ignore))
+			{
+				continue;
+			}
+			if (Mathf.Abs(hit.point.y - feet.y) > 0.8f)
+			{
+				continue;   // another level (the deck below, a wall above): not a step, a fall
+			}
+			Vector3 goal = new Vector3(spot.x, hit.point.y, spot.z);
+			Vector3 way = goal - feet;
+			way.y = 0f;
+			float flat = way.magnitude;
+			if (flat < 0.3f || !MHR_Mover.SafeStep(feet, way / flat, Mathf.Min(flat, 2.5f)))
+			{
+				continue;
+			}
+			if (flat < best)
+			{
+				best = flat;
+				target = goal;
+				found = true;
+			}
+		}
+		return found;
+	}
+
+	/// <summary>11/11/2026 (Run 10): the flat distance from the companion to a point (the "did it arrive" of the step; the
+	/// mover's own tolerance is 0,4 m).</summary>
+	private static float CharacterDistance(CompanionAI ai, Vector3 point)
+	{
+		Vector3 delta = point - ai.transform.position;
+		delta.y = 0f;
+		return delta.magnitude;
 	}
 
 	/// <summary>

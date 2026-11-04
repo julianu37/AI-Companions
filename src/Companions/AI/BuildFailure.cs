@@ -17,11 +17,17 @@ namespace Companions;
 /// <c>groundBelow</c>.</para>
 ///
 /// <para>11/11/2026 (the <b>body barrier</b>, player's rule: "they may skip, but come back and try again before going
-/// up"): <c>blocked_by_player</c> stays a <b>real</b> failure, but it is also the one reason a spot may be tried again
-/// on the same breath (<see cref="IsTransient"/>/<see cref="ShortRetry"/>) - the player is walking, not the spot
-/// failing. While a body holds a piece, the pieces of the storeys above it wait
+/// up"): <c>blocked_by_player</c> is its own class, <see cref="Kind.Blocked"/> - a body on the spot is nobody's fault,
+/// so it never spends an attempt either. It is also the one reason a spot may be tried again on the same breath
+/// (<see cref="IsTransient"/>/<see cref="ShortRetry"/>) - the player is walking, not the spot failing. While a body
+/// holds a piece, the pieces of the storeys above it wait
 /// (<see cref="BodySameStorey"/>/<see cref="BodyBarrierSeconds"/>, the numbers are here so the harness pins them and no
 /// second copy of the rule exists in the jobs).</para>
+///
+/// <para>11/11/2026 (the <b>storey barrier</b> of the Run 9): the piece a body held came back only in the end-of-plan
+/// retry pass, so the plan climbed a storey without the entrance steps. The barrier's own numbers
+/// (<see cref="BodyRetryDelay"/>/<see cref="BodyRetryStep"/>/<see cref="BodyRetryMaxWait"/>) are here for the same
+/// reason: one copy of the rule, pinned by the harness.</para>
 /// </summary>
 internal static class BuildFailure
 {
@@ -43,12 +49,39 @@ internal static class BuildFailure
 	/// stays in the retry queue (the same rule the player gave for the fall/roof pieces).</summary>
 	internal const float BodyBarrierSeconds = 20f;
 
+	/// <summary>11/11/2026 (the <b>storey barrier</b>): how long a piece refused by a body waits in the site's queue before
+	/// the plan may come back to it. The body is walking, not the spot failing: a couple of seconds is all the player needs
+	/// to step off the entrance (measured in the Run 9 - the spot freed up while the companion was still on the previous
+	/// piece). It is also the wait the queue itself uses for a <see cref="Kind.Blocked"/> entry.</summary>
+	internal const float BodyRetryDelay = 2f;
+
+	/// <summary>11/11/2026 (the storey barrier): how much higher than the piece just built the next one had to be to count as
+	/// <b>climbing a storey</b>. One storey of the measured house is 1 m, so a piece of the same storey (a neighbour, the
+	/// workbench, the next tile of the floor) never triggered the barrier - only the row above did.
+	///
+	/// <para>11/11/2026 (Run 10): the barrier is no longer drawn by a <b>climb</b> - the wall of the 1st floor has the same y
+	/// as the beam whose tiles were waiting 2 m below, and the climb rule never saw the pending piece. The constant stays
+	/// (the harness pins it and it documents the storey of the measured house), but the drawing condition is
+	/// <c>MHR_Build.PendingBelowIndex</c>, not this number.</para>
+	/// </summary>
+	internal const float BodyRetryStep = 1f;
+
+	/// <summary>11/11/2026 (the storey barrier): how long the barrier may hold the plan before it gives up and climbs. It is
+	/// the longest dependency wait (<c>MHR_Build.DependencyDelay</c> = 25 s), so a piece waiting for the support the plan is
+	/// going to put up is never cut off by the barrier - and a piece a player parked on cannot hold the site forever.</summary>
+	internal const float BodyRetryMaxWait = 25f;
+
 	/// <summary>What a piece that could not be placed is waiting for.</summary>
 	internal enum Kind
 	{
 		/// <summary>Something the plan itself is going to put up (a floor below, the bench ahead in the plan): the piece is
 		/// kept and comes back later - it never costs an attempt and is never counted as skipped.</summary>
 		Dependency,
+		/// <summary>11/11/2026 (the storey barrier): a <b>body</b> (the player or another companion) is standing on the
+		/// spot. It is nobody's fault - the pose is fine, the body is walking - so it never costs an attempt either, and it
+		/// comes back after <see cref="BodyRetryDelay"/> instead of the growing dependency wait. Never counted as
+		/// skipped.</summary>
+		Blocked,
 		/// <summary>The spot, the way to it or the payment failed: the piece spends one of the <c>MaxPasses</c> attempts and
 		/// is given up when they run out.</summary>
 		Real
@@ -61,10 +94,14 @@ internal static class BuildFailure
 	/// that was placed and then lost its support), <c>needs_station</c> (the workbench the plan brings is ahead of it) and
 	/// <c>no_ground</c> <b>when the placement probe found something under the pose</b> (the piece of the plan below).</para>
 	///
-	/// <para><b>Real:</b> <c>no progress</c>, <c>blocked_by_player</c>, <c>clipping</c>, <c>verification: ...</c>,
-	/// <c>too_steep</c>, <c>can't reach it</c>, <c>took too long</c>, a <c>no_ground</c> whose probe hit nothing (a hole,
-	/// the sea, the far side of a cliff - the spot itself failing) and anything unknown. <c>null</c>/empty is real
-	/// (a failure nobody named is not something to wait for).</para>
+	/// <para><b>Blocked:</b> <c>blocked_by_player</c> - a body is on the spot (the player walking over the entrance, another
+	/// companion crossing the piece). The spot is not failing and the pose is not wrong, so it is its own class: no
+	/// attempt spent and a short, fixed wait (<see cref="BodyRetryDelay"/>).</para>
+	///
+	/// <para><b>Real:</b> <c>no progress</c>, <c>clipping</c>, <c>verification: ...</c>, <c>too_steep</c>,
+	/// <c>can't reach it</c>, <c>took too long</c>, a <c>no_ground</c> whose probe hit nothing (a hole, the sea, the far
+	/// side of a cliff - the spot itself failing) and anything unknown. <c>null</c>/empty is real (a failure nobody named
+	/// is not something to wait for).</para>
 	///
 	/// <para>The comparison ignores case: a status that comes back upper case from another game version must not turn a
 	/// dependency into a real failure (that is exactly the bug the gate exists for).</para>
@@ -83,6 +120,10 @@ internal static class BuildFailure
 		{
 			return Kind.Dependency;
 		}
+		if (Same(why, "blocked_by_player"))
+		{
+			return Kind.Blocked;   // a body on the spot: nobody's fault, no attempt spent
+		}
 		if (Same(why, "no_ground"))
 		{
 			return groundBelow ? Kind.Dependency : Kind.Real;
@@ -96,11 +137,19 @@ internal static class BuildFailure
 		return Classify(why, groundBelow) == Kind.Dependency;
 	}
 
+	/// <summary>11/11/2026 (the storey barrier): is this refusal only a <b>body on the spot</b>? It is the class
+	/// <see cref="Kind.Blocked"/> and nothing else - the same yes/no <see cref="IsTransient"/> answers from the string, so a
+	/// caller that already classified does not have to compare strings again.</summary>
+	internal static bool IsBlocked(string why, bool groundBelow)
+	{
+		return Classify(why, groundBelow) == Kind.Blocked;
+	}
+
 	/// <summary>
 	/// 11/11/2026 (the body barrier): is this refusal only a <b>body on the spot</b> - the player (or a companion) walking
-	/// over the piece? It is <b>only</b> <c>blocked_by_player</c>: <c>blocked_by_player</c> is still a real failure in
-	/// <see cref="Classify"/> (it spends one of the 3 attempts when the piece finally goes to the retry queue), but it is
-	/// the one reason that may be tried again right away at the same pose, because the obstacle is somebody moving.
+	/// over the piece? It is <b>only</b> <c>blocked_by_player</c>: that reason is its own class in
+	/// <see cref="Classify"/> (<see cref="Kind.Blocked"/>: it never spends one of the 3 attempts), and it is also the one
+	/// reason that may be tried again right away at the same pose, because the obstacle is somebody moving.
 	///
 	/// <para>Nothing else is transient on purpose: <c>no_support</c>/<c>needs_station</c>/<c>no_ground</c> are the
 	/// dependency gate (they never pass the barrier - the plan itself is what is missing) and <c>clipping</c>,

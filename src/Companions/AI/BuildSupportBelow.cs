@@ -212,4 +212,37 @@ internal static class BuildSupportBelow
 		}
 		return pieceClass == 3 || wearSupports;
 	}
+
+	/// <summary>
+	/// 11/11/2026 (the Run 9: the <c>wood_floor</c> tile at 39,8 was refused by a body, went to the site's queue, and the
+	/// guard "never a post where the plan has a support" then blocked the emergency post for the three floors above it -
+	/// the support was <b>in the plan</b> but <b>not in the world</b>): may the emergency post be planted under a piece whose
+	/// direct support <b>exists in the plan</b>?
+	///
+	/// <para>Only when the plan's own support is <b>not coming</b>: it was <b>given up</b> (it is in the skipped set - nobody
+	/// will build it), or <b>nobody holds it</b> and the refused piece has already been deferred <see cref="SupportGrace"/>
+	/// times. A support another companion <b>claims</b> is on its way - the piece only waits. The deferrals are the clock the
+	/// plan had to deliver it: the waits are 8 s, 12 s, 20 s, 25 s (<c>MHR_Build.DependencyDelay</c>), so the third look is
+	/// ~20 s after the first refusal - long enough for a worker to walk to the support and place it.</para>
+	///
+	/// <para>Pure on purpose (three numbers): the harness asserts the table (section (u)).</para>
+	/// </summary>
+	internal static bool FallbackPostAllowed(bool supportGivenUp, bool supportClaimed, int supportDeferrals)
+	{
+		if (supportGivenUp)
+		{
+			return true;   // the plan's support is out of the site for good: the post is the only way up
+		}
+		if (supportClaimed)
+		{
+			return false;   // somebody is building it right now - the piece waits for it
+		}
+		return supportDeferrals >= SupportGrace;
+	}
+
+	/// <summary>How many times a piece has to be deferred by <b>dependency</b> before the plan's own support counts as "not
+	/// coming" and the emergency post takes over (<see cref="FallbackPostAllowed"/>). Two: the third look is ~20 s after the
+	/// first refusal (8 s + 12 s of <c>MHR_Build.DependencyDelay</c>), which is the time the plan had to put the support
+	/// up.</summary>
+	internal const int SupportGrace = 2;
 }
