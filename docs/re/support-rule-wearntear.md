@@ -105,10 +105,12 @@ Ou seja: no ato da colocação **não existe veredito de apoio**. O primeiro ver
   `build.inspect` reporta para o prefab (`min.y = −0,140`, `max.y = +0,123`), que são os do **renderer**.
   Se o collider do piso for só a tábua de ~0,1 m (e não o mesh visual), o número cai para **≈ 0,25 m**.
   Nos dois casos 0,6 m está **fora por 0,19–0,35 m**.
-- Piso a 40,4 com o de baixo a 39,8 **não tem poste possível**: o menor candidato do
+- Piso a 40,4 com o de baixo a 39,8 **ganha poste desde 11/11/2026** (`ae9ebc3`): o menor candidato do
   `BuildSupportBelow.PickPost` é `wood_beam_1` (1 m) e a janela aceita é `gap − ShortTolerance(0,2) ≤
-  1,0 ≤ gap + MaxOverlap(0,35)`, isto é **vão de 0,65 a 1,20 m**. Um vão de 0,6 m fica 5 cm abaixo do
-  mínimo → recusa (é o `maxOverlap`/`ShortTolerance` de `AI/BuildSupportBelow.cs:101,105`).
+  1,0 ≤ gap + MaxOverlap(0,45)`, isto é **vão de 0,55 a 1,20 m** (`AI/BuildSupportBelow.cs:104-119`). Antes, com
+  `MaxOverlap` **0,35**, a janela era **0,65 a 1,20 m** e um vão de 0,6 m ficava 5 cm abaixo do mínimo → recusa. O
+  poste não "conecta por comprimento": a ligação é a **sobreposição de collider** do §4 (o beam atravessa 0,40 m da
+  peça). Ver `docs/re/building-notes.md` §17.14.
 
 ## 5. Medições ao vivo (DevBridge 1.9.6, Valheim 1.0.20, mundo `tests`)
 

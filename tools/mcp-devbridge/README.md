@@ -548,10 +548,24 @@ No parameters. Calls `CompanionManager.SpawnFree` â€” the AI panel's spawn,
 | `name` | string (contains, case-insensitive) | no |
 
 Actions: `follow`, `wood`, `stone`, `ore`, `forage`, `smelt`, `hunt`, `farm`, `fish`, `repair`, `restock`, `cook`,
-`stay`, `stance_balanced`, `stance_passive`, `stance_ranged`, `stance_melee`, `autopickup_on`, `autopickup_off`.
+`stay`, `stance_balanced`, `stance_passive`, `stance_ranged`, `stance_melee`, `autopickup_on`, `autopickup_off`, and the
+**stop order** (`stop` / `cancel` / `para`), which cancels the companion's build and leveling.
 
 ```json
 {"action": "wood", "mode": 1, "applied": true}
+```
+
+The stop order answers whether it cancelled something per system:
+
+```json
+{"action": "stop", "cancelled": true, "name": "Maria", "build": true, "level": false}
+```
+
+Without `name` the stop order stops **every** companion and answers the list:
+
+```json
+{"action": "stop", "cancelled": true, "build": true, "level": false,
+ "companions": [{"name": "Maria", "build": true, "level": false}]}
 ```
 
 Without `name` the **first** companion is used â€” pass the name when there is more than one.

@@ -1573,10 +1573,10 @@ plano** dos 9 candidatos, nivela com a enxada (passadas de 1,5 s) e só então p
 
 ### 17.5 Gate do ciclo
 
-Harness **596 PASS** (471 até a **(o)** + **23** da **(p)** — `AI/BuildFailure.cs` — + **26** da **(q)** —
-`AI/BuildPieceKind.cs` — + **61** da **(r)** — `AI/BuildSupportBelow.cs`: `CanSupport`, o `PickPost`, a
+Harness **601 PASS** (471 até a **(o)** + **23** da **(p)** — `AI/BuildFailure.cs` — + **26** da **(q)** —
+`AI/BuildPieceKind.cs` — + **66** da **(r)** — `AI/BuildSupportBelow.cs`: `CanSupport`, o `PickPost`, a
 `UsefulSurface` e o `HoldsPlacedPiece` — + **15** da **(s)** — `AI/BuildBody.cs`, a janela do corpo; os quatro arquivos
-linkados no `ai-intents-check.csproj`), MCP **101 PASS**, **config 361/25** (medido com
+linkados no `ai-intents-check.csproj`), MCP **107 PASS**, **config 361/25** (medido com
 `python tools/gen_config_doc.py --check`), ES/FR/IT **0 lacunas**, dívida do `gen_translations.py` **45** e build
 **0/0**.
 
@@ -1800,7 +1800,7 @@ workers terminaram com o watchdog em `0 peça(s) sem apoio` e o **terceiro** par
      `a obra sobe 1 m (deck) - N peça(s) de fundação assentadas no terreno` no log.
   Build **0/0** e harness **549** **naquele build** (**539** + as **10** novas da seção **(r)**, então **29** casos:
   `CanSupport` com telhado sobre telhado, telhado no piso/parede/escada, piso e parede **não** apoiados por telhado, a
-  porta que nunca apoia e a porta **como peça**; hoje o harness é **596**, §17.11/§17.12);
+  porta que nunca apoia e a porta **como peça**; hoje o harness é **601** — §17.11/§17.12 e o lote do poste no §17.14);
   **aceite medido ainda não**.
 
 ### 17.11 O apoio de emergência (`[Building] SupportFallback`, 04/11/2026)
@@ -1823,13 +1823,15 @@ workers terminaram com o watchdog em `0 peça(s) sem apoio` e o **terceiro** par
   uma superfície **mais perto que `MinPostGap` = 0,4 m** (`:97`) é **atravessada**, e a próxima começa **5 cm abaixo do
   hit** (`:3292`), até **`MaxPostPasses` = 4** (`:101`) ou o fundo do alcance. Os vãos medidos vão para um buffer fixo
   (`s_postDepths`, `:105`, sem alocação por recusa) e a decisão é **pura**: `BuildSupportBelow.UsefulSurface(depths,
-  count, minGap)` (`AI/BuildSupportBelow.cs:118`) devolve o **primeiro vão que serve** (≥ 0,4 m) ou `-1` (aí usa o
+  holds, count, minGap)` (`AI/BuildSupportBelow.cs:139` — assinatura do lote de 11/11/2026, §17.14) devolve o **primeiro
+  vão que serve** — fundo (≥ 0,4 m) **e** que segura — ou `-1` (aí usa o
   `GetGroundHeight`, fail-open). **Motivo medido:** **318 recusas** com `vão de 0,16 m` — uma **beira de telhado colada**
   sob o piso de 40,8 parava o raio, e o apoio útil era o **piso do deck a 1,02 m** embaixo.
-- **O vão e a escolha do poste:** `gap = piece.y − baseY` (`:3298`); o poste é o **mais curto que alcança**,
-  `BuildSupportBelow.PickPost` (`AI/BuildSupportBelow.cs:74`) — até **0,20 m mais curto** (`ShortTolerance`, `:101`: a
-  caixa de apoio do jogo é crescida em 0,15 m) e no máximo **0,35 m mais longo** (`MaxOverlap`, `:105`: um andar de
-  sobra atravessaria a peça). O centro é `baseY + comprimento/2` (`:3314`) — é o que põe a base **na superfície** em vez
+- **O vão e a escolha do poste:** `gap = piece.y − baseY` (`:3321`); o poste é o **mais curto que alcança**,
+  `BuildSupportBelow.PickPost` (`AI/BuildSupportBelow.cs:80`) — até **0,20 m mais curto** (`ShortTolerance`, `:107`: a
+  caixa de apoio do jogo é crescida em 0,15 m) e no máximo **0,45 m mais longo** (`MaxOverlap`, `:119` — era **0,35**
+  até o lote de 11/11/2026, §17.14; com 0,45 o vão medido de **0,60 m** passa a caber). O centro é
+  `baseY + comprimento/2` (`:3337`) — é o que põe a base **na superfície** em vez
   de enterrá-la. Candidatos, na ordem (`FallbackPostPrefabs`, `:79`): `wood_beam_1`, `wood_beam`, `wood_pole2`,
   `wood_beam_45`, com o comprimento **medido dos snaps de cada prefab** (`MeasurePosts` `/`PostAxis` — uma vez só, em
   cache: um `no_support` não pode varrer prefab por frame).
@@ -1841,14 +1843,16 @@ workers terminaram com o watchdog em `0 peça(s) sem apoio` e o **terceiro** par
 | `wood_pole2` | **2,00 m** | **centro** (snaps `(0, ±1, 0)`) | §11 + `build.inspect` (bounds 0,42 × **2,00** × 0,42) |
 | `wood_beam_45` | **2,83 m** | centro | §11: snaps `(-1,-1,0)`/`(1,1,0)` → diagonal √8 |
 
-  **Não existe peça vertical de ~4 m em vanilla**, então um vão acima de ~3,1 m (2,83 + 0,35) **não recebe poste** — e
+  **Não existe peça vertical de ~4 m em vanilla**, então um vão acima de ~3,28 m (2,83 + 0,45) **não recebe poste** — e
   empilhar dois postes está fora do desenho: a peça segue o caminho normal (fila/watchdog).
 - **As guardas:** **uma vez por peça** (`State.FallbackPosts`) e **teto de 24 por ordem** (`MaxFallbackPosts = 24`,
-  `:109`); **nunca** onde o plano tem apoio (`:3262` — ali o caminho é o pull).
+  `:115`); **peça não estrutural não recebe poste** (`BuildPieceKind.IsStructural`, `:3266`); **nunca** onde o plano tem
+  apoio (`:3275` — ali o caminho é o pull).
 - **Os logs:** sucesso `apoio de emergência: <prefab> (<len> m) sob <peça> em (x, y, z)`; recusas
-  `sem lugar para o apoio de emergência sob <peça> em (…) - vão de X,XX m` (`:3303-3305`, nenhum poste alcança — e o
-  sufixo **`(N superfície(s) colada(s) ignorada(s))`** diz quantas o laço atravessou), `… - <status>` (o
-  `BuildSite.Check` recusou a pose), `sem material para o apoio de emergência …` e `… - <erro>` (o executor falhou — a
+  `sem lugar para o apoio de emergência sob <peça> em (…) - vão de X,XX m` (`:3326-3328`, nenhum poste alcança — e o
+  sufixo **`(N superfície(s) rasa(s) ou sem apoio ignorada(s))`** diz quantas o laço atravessou), `… - <status> (vão X,XX m)`
+  (o `BuildSite.Check` recusou a pose por outra razão que não o apoio), `sem material para o apoio de emergência …` e
+  `… - <erro> (vão X,XX m)` (o executor falhou — a
   madeira volta para a mochila).
 - **A config:** `[Building] SupportFallback` (bool, **padrão true**, `ModConfig.cs:953`; rótulo
   `hc_cfg_building_supportfallback`, "Emergency support" no inglês — `ModLocalization.cs:843`). Desligada, a peça só
@@ -1874,7 +1878,8 @@ workers terminaram com o watchdog em `0 peça(s) sem apoio` e o **terceiro** par
   nunca existia, e por isso o poste nunca subiu.
 - **O que ela fecha:** as **16** do Run 3 (§17.6 — colunas na **empenha leste** e no **canto noroeste**, 40,8→46,8, + 4
   baús) e as **6** de 42,8/44,8/46,8 que sobraram no run do deck (§17.10), que são exatamente o caso "o autor não pôs
-  nada embaixo". **Estado: medido no run de 11/11/2026 (§17.13)** — build **0/0** e harness **596**; no run, **0 postes
+  nada embaixo". **Estado: medido no run de 11/11/2026 (§17.13)** — build **0/0** e harness **601** (596 naquele run;
+  o lote do poste é o §17.14); no run, **0 postes
   foram necessários** (não era apoio que faltava) e o telhado fechou — mas **não** por esta regra: o §17.12 mostrou que
   a classe do telhado era **inócua** (o flag é `true`) e que o que travava era **geometria**.
 
@@ -1927,24 +1932,25 @@ workers terminaram com o watchdog em `0 peça(s) sem apoio` e o **terceiro** par
   §17.13, que fechou em **969 + 18 = 987**): repetia os mesmos índices (`wood_floor` **297/298/304**) e **travou em
   950/987**. Insistir nelas
   seria colocar peça que **o jogo derruba** no segundo seguinte — o `no_support` não escondia bug do validador. **E o
-  poste não cobria esse vão:** com `MaxOverlap` **0,35 m** (`AI/BuildSupportBelow.cs:111`), o `wood_beam_1` (1 m) só
-  alcança vão de **0,65 a 1,20 m** (`PickPost`, `:80`; os dois números em `:107`/`:111`), e a lista de candidatos do mod
-  não tem peça mais curta (`FallbackPostPrefabs`, `MHR_Build.cs:79`).
-- **Pendência aberta — o conserto do degrau está anunciado, não no código desta árvore:** o `package/CHANGELOG.md`
-  (11/11/2026) registra que o poste passou a aceitar `MaxOverlap` **0,45** (vão de **0,55 a 1,20 m** para o
-  `wood_beam_1`) e que **sólido sem `WearNTear`** (pedra, árvore, estrutura) volta a apoiar — mas aqui `MaxOverlap` ainda
-  é **0,35** (`AI/BuildSupportBelow.cs:111`) e `HoldsPlacedPiece` ainda responde **false** para `hasWear == false`
-  (`:178-181`). E o **docstring do `PickPost`** (`:73-78`) **já descreve a janela nova** (`[0,55; 1,20]`) — **doc ≠
-  código** neste tree. Fica registrado para o lote de **código**: o degrau de 0,6 m só ganha poste **depois** dessa
-  mudança.
+  poste não cobria esse vão naquele build:** com `MaxOverlap` **0,35 m** (`AI/BuildSupportBelow.cs:111` na época), o
+  `wood_beam_1` (1 m) só
+  alcançava vão de **0,65 a 1,20 m** (`PickPost`, `:80`; os dois números em `:107`/`:119`), e a lista de candidatos do mod
+  não tem peça mais curta (`FallbackPostPrefabs`, `MHR_Build.cs:79`). **Isso mudou em 11/11/2026 — §17.14.**
+- **Conserto feito, fechado no lote de 11/11/2026 (`ae9ebc3`) — §17.14:** o `MaxOverlap` foi para **0,45**
+  (`AI/BuildSupportBelow.cs:119`), então o `wood_beam_1` cobre **`[0,55; 1,20]`** e o **degrau de 0,6 m passa a receber
+  poste** (a ligação é **sobreposição de collider**, não comprimento exato; o beam atravessa 0,40 m da peça). O que **não**
+  entrou no código é o outro item que o `package/CHANGELOG.md:316` anuncia: **"sólido sem `WearNTear` volta a apoiar"** —
+  `HoldsPlacedPiece` continua devolvendo **false** para `hasWear == false` (`:209-212`) e o `PostBaseHolds` passa
+  `wear != null` (`MHR_Build.cs:3391`). Divergência **doc público × código**, anotada no §17.14.
 - **O que sobra é desenho do plano, não validador** (nota §6): degrau/`DeckLift` **≤ 0,15 m por peça**, ou a
-  parede/viga do andar de baixo **no plano** até o piso de cima (o `PullDirectSupport` só puxa peça **do plano**), ou
-  aceitar `MaxOverlap ≥ 0,40` e fincar um `wood_beam_1` atravessando (fica visível). **Nenhuma das três foi decidida**
-  (o `DeckLift` é decisão do jogador).
+  parede/viga do andar de baixo **no plano** até o piso de cima (o `PullDirectSupport` só puxa peça **do plano**). A
+  terceira saída (aceitar `MaxOverlap ≥ 0,40` e fincar um `wood_beam_1` atravessando) **foi a escolhida** e está no código
+  desde 11/11/2026 (`0,45`, §17.14); as duas primeiras continuam **decisão do jogador** (o `DeckLift` é dele).
 - **Irmão, não gêmeo, do `CanSupport`** (`BuildSupportBelow.cs:145`, a regra do **pull**): lá **telhado só apoia
   telhado** e **porta nunca apoia**; aqui o telhado é apenas **apoiado** por qualquer `WearNTear`. As duas concordam no
   essencial: **porta nunca segura** e **telhado nunca segura um piso**.
-- **Harness:** seção **(r)** de **51 → 61** casos (+10 do `HoldsPlacedPiece`). **Ressalva:** os casos `:947` ("telhado
+- **Harness:** seção **(r)** de **51 → 61** casos (+10 do `HoldsPlacedPiece`; hoje **66** com o lote de 11/11/2026 —
+  §17.14). **Ressalva:** os casos `:947` ("telhado
   sobre telhado: a fileira de baixo apoia pela borda") e `:951` ("piso NAO e apoiado por telhado") de
   `tools/ai-intents-check/Program.cs` passam `m_supports = false` numa peça **estrutural**, estado que **não existe** na
   1.0.20 (só mobília é `false`); com o valor real (`true`) o `HoldsPlacedPiece` devolve `true` nos dois — quem barra o
@@ -1972,6 +1978,64 @@ workers terminaram com o watchdog em `0 peça(s) sem apoio` e o **terceiro** par
   1. **`DeckLift = 0`** — sem deck: acaba o vão, acaba a casa "apoiada nas estacas";
   2. **saia em volta** (fechar o perímetro do deck, transformando o vão num porão fechado);
   3. **regra de rota** no mover: não entrar/parar sob o deck (o companheiro contorna, o vão deixa de ser armadilha).
+
+### 17.14 O lote do poste (11/11/2026, `ae9ebc3`) — os furos medidos e o que mudou
+
+- **O número que abriu o lote:** o **Run 7** fechou em **950/987** com **95 recusas** de `sem lugar para o apoio de
+  emergência … - no_support`. A leitura errada seria "faltou lugar": o poste era reprovado por um check **genérico** — a
+  base que o raio achava era uma **beira de telhado** que o próprio `MinPostGap` manda atravessar (§17.11) —, e os dois
+  vãos que o run tinha (**0,60 m** no degrau entre pisos, **1,60 m** entre a janela de 1 m e a de 2 m) caíam nos
+  **buracos** do `PickPost` com `MaxOverlap` **0,35**.
+- **Furo 1 — a tolerância (`MaxOverlap` 0,35 → 0,45):** `AI/BuildSupportBelow.cs:119`. As janelas por comprimento
+  passaram a ser: `wood_beam_1` (1 m) **`[0,55; 1,20]`**, `wood_beam`/`wood_pole2` (2 m) **`[1,55; 2,20]`**,
+  `wood_beam_45` (2,83 m) **`[2,38; 3,03]`** (docstring do `PickPost`, `:62-79`). Os **buracos em vanilla** são
+  **1,20–1,55 m** e **2,20–2,38 m** (não há peça entre 1 m e 2 m; a de 2,83 m é o degrau seguinte): os vãos medidos
+  **0,60** e **1,60 m** agora têm poste, e o **1,30 m** do harness continua **sem** (1 m fica 0,10 m além da tolerância de
+  baixo, 2 m passaria 0,70 m). Com 0,45 o `wood_beam_1` **atravessa 0,40 m** da peça que segura — e isso é o jogo, não
+  licença nossa: a ligação é **sobreposição de collider**, não comprimento exato (§4/§5 de
+  `docs/re/support-rule-wearntear.md`). A divergência **doc × código** que o §17.12 anotou (docstring descrevendo
+  `[0,55; 1,20]` com o código em 0,35) **acabou**.
+- **Furo 2 — a base tem de segurar (`holds`):** profundidade sozinha não bastava. No Run 7 o **topo de um baú** foi
+  aceito como base (a mobília é a **única** classe com `m_supports = false` na 1.0.20, §5 da nota do `WearNTear`), o
+  poste subiu sobre o nada e o jogo recusou **o próprio poste** com `no_support`. Agora cada hit do raio carrega o
+  veredito num buffer paralelo: `s_postHolds` (`MHR_Build.cs:106-111`), preenchido por `PostBaseHolds` (`:3383-3392`,
+  que pergunta o `HoldsPlacedPiece` com a **classe 2 fixa** — o poste é viga/poste, então valem terreno e peça com
+  `m_supports`), e o `BuildSupportBelow.UsefulSurface(depths, holds, count, minGap)` (`:121-158`) devolve o **primeiro**
+  índice com `depths[i] >= minGap` **e** `holds[i]` (ou −1 sem buffer/flag). A caminhada **atravessa** a superfície rasa
+  **ou** a que não segura, e a recusa nomeia o que ficou de fora:
+  `- vão de X,XX m (N superfície(s) rasa(s) ou sem apoio ignorada(s))` (`:3325-3328`).
+- **Furo 3 — guarda de mobília:** `if (!BuildPieceKind.IsStructural(state.Prefab)) return false;` (`:3263-3269`). Peça
+  do plano que **não é estrutural** (baú, cama, fogueira) **não ganha poste**: o apoio dela é o piso do plano, e esses
+  prefabs têm `m_noClipping` — o jogo recusaria o poste ao lado como `clipping`, pago e perdido.
+- **Furo 4 — o aceite era genérico:** o poste caía no `BuildSite.Check` inteiro. Agora ele passa quando a **única** razão
+  é o apoio: `if (!Ok(check) && !(useful >= 0 && OnlyNoSupport(check)))` (`:3340-3347`), com `OnlyNoSupport`
+  (`:4951-4966`) exigindo `reasons.Count == 1 && reasons[0] == "no_support"`. A prévia de apoio é a **nossa**
+  (o `BuildProbe` lê a peça sob o **centro** e a caixa do footprint) e é **conservadora**; o jogo conecta o poste à base
+  por **sobreposição de collider**. Qualquer outra razão (`clipping`, `needs_station`, `ward`, `blocked_by_player`,
+  `too_steep`) continua barrando, e se o poste cair a peça segue o **retry/`falls`** normal — sem caso especial. O log do
+  executor também diz o vão: `… - <erro> (vão X,XX m)` (`:3363-3364`).
+- **O que NÃO mudou (de propósito):** a **regra de apoio do jogo** continua **0,15 m de sobreposição entre colliders**
+  (`docs/re/support-rule-wearntear.md` §4/§5); o `BuildProbe.FootprintSupported` (`AI/BuildProbe.cs:676`) está
+  **intocado** (mesma caixa crescida em 0,15 m, mesmo `HoldsPlacedPiece`); e `MinPostGap` (0,4 m), `MaxPostPasses` (4),
+  `PostReach` (10 m), `MaxFallbackPosts` (24 por ordem) e o "nunca onde o plano já tem apoio" seguem iguais.
+  O `MaxOverlap` é **constante de código**, não config: **nenhuma** chave nova no F8 (a desta função continua
+  `[Building] SupportFallback`).
+- **Divergência que sobra (doc público × código):** o `package/CHANGELOG.md` (11/11/2026) anuncia, no mesmo lote, que
+  **"sólido sem `WearNTear`"** (pedra, árvore, estrutura) **volta a apoiar** — **isso não está no código**:
+  `HoldsPlacedPiece` continua devolvendo `false` para `hasWear == false` (`AI/BuildSupportBelow.cs:209-212`) e o
+  `PostBaseHolds` passa `wear != null` (`MHR_Build.cs:3390-3391`). Quem for medir o poste sobre pedra/árvore precisa
+  saber disto. (O `package/**` não é desta frente: fica registrado para o dono.)
+- **Docstrings corrigidos no mesmo lote:** `BuildProbe.cs:659-671` e `BuildSupportBelow.cs:183-196` — o motivo escrito
+  antes ("telhado tem `m_supports = false`") era **falso**; a regra é **0,15 m de sobreposição** e o bypass de classe 3 é
+  **inócuo** com os valores medidos (§5 da nota do `WearNTear`).
+- **Testes:** harness **596 → 601**, com a seção **(r)** de **61 → 66** — **3** `PostCase` novos (**0,60 → 0**,
+  **1,30 → −1**, **1,60 → 1**), **2** `SurfaceCase` de `holds` (a de 0,5 m não segura e a de 1,2 m segura → índice 1;
+  nenhuma segura → −1) e a asserção do número reescrita (`MaxOverlap == 0,45`; ela existia em 0,35 — por isso o total
+  sobe **5**, não 6). MCP **101 → 107**: as **6** do `stop` (`tools/mcp-devbridge/test_mcp_devbridge.py:211-231`), que
+  também entraram no `docs/mcp-devbridge.md` e no `tools/ai-intents-check/README.md:81,84`.
+- **Estado do run:** o **Run 8** (validação deste lote) **não tem número ainda** — esta nota **não** afirma resultado de
+  run. Verificado no código desta árvore (build **não** rodado aqui; leitura): o vão de 0,60 m cabe, a base sem apoio não
+  é mais aceita, a mobília não recebe poste e o aceite só abre com `no_support` **único**.
 
 
 

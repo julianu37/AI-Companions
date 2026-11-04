@@ -108,7 +108,7 @@ Uma conexão por chamada; **um JSON por linha**, nas duas direções.
 | `input.click` | `x`, `y` (pixels da tela do jogo) | `x`, `y`, `sent`, `focused` |
 | `companions.list` | — | `count`, `companions[]` |
 | `companions.spawn` | — | `spawned` |
-| `companions.order` | `action`, `name?` | `action`, `mode`/`stance`/`value`, `applied` |
+| `companions.order` | `action`, `name?` | `action`, `mode`/`stance`/`value`, `applied`; no `stop`/`cancel`/`para`: `cancelled`, `build`, `level` (+ `companions[]` sem `name`) |
 | `companions.teleport` | `name?`, `x?`, `y?`, `z?` | `name`, `x`, `y`, `z` |
 | `companions.give` | `item`, `amount`, `name?` | `item`, `amount`, `added` |
 | `companions.zdo` | `name?` | `name`, `keys{}`, `farmZones[]` |
@@ -132,14 +132,19 @@ antes), `missing station: <nome>`, `missing piece: <prefab>` ou `not started` - 
 não entrou**; com `started: true` ele não vai no reply. `started: true` com `workers: N` também
 quando a ordem entrega o canteiro ao **nivelamento** primeiro (o `MHR_Level` leva os N e devolve todos depois): o
 reply **não** tem campo de nivelamento. `plan`/`prefab` continuam sendo ordem de **um** (`workers` = 1). O teste mock
-do adaptador (**101 PASS** em 03/11/2026, **12 asserções novas para o contrato do grupo**) cobre exatamente isto:
+do adaptador (**107 PASS** em 11/11/2026 — **101** até então; **12** asserções para o contrato do grupo de obra em
+03/11/2026 e **6** para o `stop` em 11/11/2026) cobre exatamente isto:
 `workers`, `refused` só quando recusa, sem `leveling` e `name` vazio = todos.
 
 `companions.order` **cancela `MHR_Build` e `MHR_Level`** em qualquer ação aceita (ordem de um tiro, como no
 chat/roda) e aceita: `follow`, `wood`, `stone`, `ore`, `forage`, `smelt`, `hunt`, `farm`, `fish`, `repair`,
 `restock`, `cook`, `stay`, `stance_balanced`, `stance_passive`, `stance_ranged`, `stance_melee`, `autopickup_on`,
-`autopickup_off`. Com o grupo de obra (P1), ele derruba a ordem daquele **companheiro** (o `name`, ou o primeiro): o
-canteiro continua com os outros. Para derrubar a obra inteira, use `para` no jogo/chat, não o bridge.
+`autopickup_off` — mais a **ordem de parar** (11/11/2026): **`stop`**, **`cancel`** e **`para`**
+(`DevBridge/Commands.cs:2191`). Com o grupo de obra (P1), uma ação comum derruba a ordem daquele **companheiro** (o
+`name`, ou o primeiro) e o canteiro continua com os outros; o **`stop`** é a parada do **chat**: cancela obra **e**
+nivelamento e responde o que **estava** rodando, lido **antes** do cancel (`build`/`level`, e `cancelled`); **sem
+`name`**, para **todos** os companheiros do mundo e devolve a lista em `companions` (um objeto por companheiro, com
+`name`, `build` e `level`).
 
 `companions.zdo` devolve as chaves `HC_*`: `Name`, `Owner`, `CompanionId`, `ActionMode`, `CombatStance`, `AutoPickup`,
 `Wander`, `Follow`, `StayHome`, `HomeRadius`, `OrderCap`, `OrderCapMode`, `OrderCapItem`, `TombstoneId`, `Stamina`,

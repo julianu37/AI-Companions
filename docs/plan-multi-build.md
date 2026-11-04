@@ -17,11 +17,12 @@ estagnação**, a **cobertura de bancadas** e o validador (`attached`/`nudge`/`b
 **medida em jogo** em 03/11/2026) fechados; **P3** (UI do grupo), **P4** (nomes múltiplos) e **P5**
 (persistência/limpeza paralela) **não**.
 
-Números deste ciclo (11/11/2026): build **0/0**, harness `tools/ai-intents-check` **596 asserções** (471 + **23** da
-seção **(p)**, `AI/BuildFailure.cs`, + **26** da **(q)**, `AI/BuildPieceKind.cs`, + **61** da **(r)**,
+Números deste ciclo (11/11/2026): build **0/0**, harness `tools/ai-intents-check` **601 asserções** (471 + **23** da
+seção **(p)**, `AI/BuildFailure.cs`, + **26** da **(q)**, `AI/BuildPieceKind.cs`, + **66** da **(r)**,
 `AI/BuildSupportBelow.cs` — `CanSupport`, `PickPost`, `UsefulSurface` e `HoldsPlacedPiece` —, + **15** da **(s)**,
-`AI/BuildBody.cs` — a janela do corpo), teste do MCP **101** (as **12** asserções de 03/11 cobrem o contrato do
-`companions.build` do grupo), config **361 opções / 25 seções** (medido com `python tools/gen_config_doc.py --check`),
+`AI/BuildBody.cs` — a janela do corpo), teste do MCP **107** (as **12** asserções de 03/11 cobrem o contrato do
+`companions.build` do grupo e as **6** de 11/11 o `stop` do `companions.order`), config **361 opções / 25 seções**
+(medido com `python tools/gen_config_doc.py --check`),
 ES/FR/IT **0 lacunas**, dívida do `gen_translations.py` **45** e **nenhuma chave de tradução nova** (as recusas reusam
 `hc_ai_no_companion` e `hc_ai_build_failed`). **O que falta medir** está no §7 (o vão do deck, run com material pago e o
 teste pequeno de 2 companheiros num 6x6).
@@ -203,7 +204,8 @@ não perturbar um canteiro em andamento.
 **DevBridge** (`companions.build` com `blueprint`): `name` vazio = todos os companheiros do jogador; `workers` = em
 quantos a ordem entrou; `refused` (só quando não entrou ninguém) diz por quê (`no companion in range`,
 `the site is busy`, `missing station: …`, `missing piece: …`, `not started`). O reply **não** expõe o nivelamento. O
-teste mock do MCP (**101 PASS**, **12 asserções novas para o contrato do grupo**) cobre justamente esse contrato.
+teste mock do MCP (**107 PASS**, **12 asserções para o contrato do grupo** em 03/11/2026 e **6** do `stop` em
+11/11/2026) cobre justamente esse contrato.
 
 **Limitações declaradas (P1 MVP)**
 1. **Sem reserva de material por peça** — cada worker conta mochila + baús por conta própria: duas pilhas podem ser
@@ -374,9 +376,10 @@ está lá em §17.6, §17.9 e §17.10:
   ERRADO**: medido na 1.0.20 todo telhado de madeira é `m_supports = true`, o bypass é **inócuo** e a causa das 13
   peças em `no_support` era **geometria** (`docs/re/support-rule-wearntear.md` §5, `building-notes` §17.12). O run do
   **degrau de 0,6 m** do mesmo dia **travou em 950/987** com o `no_support` **certo** (8 pisos + 12 baús sem apoio
-  possível, `wood_floor` 297/298/304 repetindo) — pendência de **plano**, não de validador; e o poste só passa a cobrir
-  esse vão com o `MaxOverlap` **0,45** anunciado no `package/CHANGELOG.md`, que **ainda não está no código**
-  (`AI/BuildSupportBelow.cs:111` = 0,35 — §17.12).
+  possível, `wood_floor` 297/298/304 repetindo) — naquele build o poste não cobria o vão porque o `MaxOverlap` era
+  **0,35**. O lote do poste (`ae9ebc3`, 11/11/2026) **fechou isso**: `MaxOverlap` **0,45**
+  (`AI/BuildSupportBelow.cs:119`), janela do `wood_beam_1` `[0,55; 1,20]`, mais o `holds` na base, a guarda de mobília e
+  o aceite só com `no_support` único (`building-notes` §17.14); o run de validação (Run 8) **ainda sem número**.
 - **Ressalva do Run 6 + pendência aberta (o vão do deck):** depois do run o arquiteto **apagou 41 peças do piso do
   deck** (**25 + 16**) para **libertar o jogador e os companheiros presos no vão de ~1 m** — o estado atual da casa
   **não** tem o piso íntegro e mede o que sobrou. O **vão do deck (`DeckLift = 1`)** é a pendência: (1) `DeckLift = 0`
@@ -421,7 +424,7 @@ está lá em §17.6, §17.9 e §17.10:
 "para, Maria" → só a Maria; "para" → todos; "Maria e João, ataquem o greydwarf" → as duas; "Maria, equipa a
 picareta" → só a Maria; "Maria e o cachorro, ..." → Maria + aviso do desconhecido, sem inventar.
 
-**Gate:** harness **596** (471 + 23 da **(p)** + 26 da **(q)** + 61 da **(r)** + 15 da **(s)**), MCP **101** e build
+**Gate:** harness **601** (471 + 23 da **(p)** + 26 da **(q)** + **66** da **(r)** + 15 da **(s)**), MCP **107** e build
 **0/0**.
 
 ## 8. Perguntas para o jogador — respostas registradas (03/11/2026)
