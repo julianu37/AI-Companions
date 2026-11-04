@@ -28,6 +28,12 @@ namespace Companions;
 /// retry pass, so the plan climbed a storey without the entrance steps. The barrier's own numbers
 /// (<see cref="BodyRetryDelay"/>/<see cref="BodyRetryStep"/>/<see cref="BodyRetryMaxWait"/>) are here for the same
 /// reason: one copy of the rule, pinned by the harness.</para>
+///
+/// <para>11/11/2026 (Run 17, <b>one clock</b>): the wait of the site's queue and the gate that holds the storeys above a
+/// body are the <b>same</b> number (<see cref="BodyBarrierSeconds"/> = <see cref="BodyRetryMaxWait"/> = 10 s) - the
+/// measured run had 20 s of gate against 25 s of wait, so the wait always outlived the gate and the workers stood
+/// still. And a piece refused again and again by a parked player waits longer each time
+/// (<see cref="BlockedDelay"/>).</para>
 /// </summary>
 internal static class BuildFailure
 {
@@ -46,13 +52,18 @@ internal static class BuildFailure
 
 	/// <summary>11/11/2026: how long a body barrier lives, counted from the <b>first</b> refusal of that piece. It is what
 	/// keeps a player who parks on the spot from blocking the site forever: after this the plan goes on and the piece
-	/// stays in the retry queue (the same rule the player gave for the fall/roof pieces).</summary>
-	internal const float BodyBarrierSeconds = 20f;
+	/// stays in the retry queue (the same rule the player gave for the fall/roof pieces).
+	///
+	/// <para>11/11/2026 (Run 17): <b>10 s</b> = the 3 short retries (<see cref="MaxShortRetries"/> 3 x
+	/// <see cref="ShortRetryDelay"/> 2,5 = 7,5 s) rounded up. Past that the piece is not coming <b>now</b> - the body is
+	/// still on it - and it stays in the site's queue (it is never lost): holding the storeys above it longer than that is
+	/// only a parked worker (measured: 31 "nothing above ... is taken" lines with 20 s).</para></summary>
+	internal const float BodyBarrierSeconds = 10f;
 
 	/// <summary>11/11/2026 (the <b>storey barrier</b>): how long a piece refused by a body waits in the site's queue before
 	/// the plan may come back to it. The body is walking, not the spot failing: a couple of seconds is all the player needs
 	/// to step off the entrance (measured in the Run 9 - the spot freed up while the companion was still on the previous
-	/// piece). It is also the wait the queue itself uses for a <see cref="Kind.Blocked"/> entry.</summary>
+	/// piece). It is the first wait the queue gives a <see cref="Kind.Blocked"/> entry (<see cref="BlockedDelay"/>).</summary>
 	internal const float BodyRetryDelay = 2f;
 
 	/// <summary>11/11/2026 (the storey barrier): how much higher than the piece just built the next one had to be to count as
@@ -67,9 +78,12 @@ internal static class BuildFailure
 	internal const float BodyRetryStep = 1f;
 
 	/// <summary>11/11/2026 (the storey barrier): how long the barrier may hold the plan before it gives up and climbs. It is
-	/// the longest dependency wait (<c>MHR_Build.DependencyDelay</c> = 25 s), so a piece waiting for the support the plan is
-	/// going to put up is never cut off by the barrier - and a piece a player parked on cannot hold the site forever.</summary>
-	internal const float BodyRetryMaxWait = 25f;
+	/// the <b>same clock</b> as <see cref="BodyBarrierSeconds"/> on purpose (11/11/2026, Run 17: <b>one clock</b>) - the
+	/// patience of <c>MHR_Build.ServeBarrier</c> is never allowed to outlive the <c>MHR_BuildGroup.MayTake</c> gate, or the
+	/// longer one always wins: between 10 and 20+ s the gate would already let the storeys above be taken while the wait
+	/// still held the worker. The name stays because the harness pins it; a different number here would be a <b>second</b>
+	/// rule for the same thing.</summary>
+	internal const float BodyRetryMaxWait = BodyBarrierSeconds;
 
 	/// <summary>What a piece that could not be placed is waiting for.</summary>
 	internal enum Kind
@@ -79,7 +93,7 @@ internal static class BuildFailure
 		Dependency,
 		/// <summary>11/11/2026 (the storey barrier): a <b>body</b> (the player or another companion) is standing on the
 		/// spot. It is nobody's fault - the pose is fine, the body is walking - so it never costs an attempt either, and it
-		/// comes back after <see cref="BodyRetryDelay"/> instead of the growing dependency wait. Never counted as
+		/// comes back after <see cref="BlockedDelay"/> instead of the growing dependency wait. Never counted as
 		/// skipped.</summary>
 		Blocked,
 		/// <summary>The spot, the way to it or the payment failed: the piece spends one of the <c>MaxPasses</c> attempts and
@@ -96,7 +110,7 @@ internal static class BuildFailure
 	///
 	/// <para><b>Blocked:</b> <c>blocked_by_player</c> - a body is on the spot (the player walking over the entrance, another
 	/// companion crossing the piece). The spot is not failing and the pose is not wrong, so it is its own class: no
-	/// attempt spent and a short, fixed wait (<see cref="BodyRetryDelay"/>).</para>
+	/// attempt spent and a short wait that grows with the refusals (<see cref="BlockedDelay"/>).</para>
 	///
 	/// <para><b>Real:</b> <c>no progress</c>, <c>clipping</c>, <c>verification: ...</c>, <c>too_steep</c>,
 	/// <c>can't reach it</c>, <c>took too long</c>, a <c>no_ground</c> whose probe hit nothing (a hole, the sea, the far
@@ -171,6 +185,23 @@ internal static class BuildFailure
 	internal static bool ShortRetry(string why, int tries)
 	{
 		return IsTransient(why) && tries < MaxShortRetries;
+	}
+
+	/// <summary>11/11/2026 (Run 17): how long a piece refused by a BODY waits in the site's queue, by how many body
+	/// refusals it already had. A player walking over the spot is a couple of seconds; a player PARKED on it made the
+	/// same piece be picked, walked to and refused again every 2 s (36 bounces in the Run 16 log, each one a walk across
+	/// the site). The wait grows to keep the peace and stops at the same 6 s: the piece is still retried by the queue.</summary>
+	internal static float BlockedDelay(int blocks)
+	{
+		if (blocks <= 1)
+		{
+			return BodyRetryDelay;   // the walking player: the piece comes back in 2 s
+		}
+		if (blocks == 2)
+		{
+			return 4f;   // refused twice: it is not just somebody crossing the spot
+		}
+		return 6f;   // parked: the queue keeps it, but the workers stop walking to it every other piece
 	}
 
 	private static bool Same(string why, string label)

@@ -836,9 +836,11 @@ internal static class Program
 		Check("IsBlocked(\"no_support\", true) -> false (o apoio que falta nao e um corpo)",
 			!BuildFailure.IsBlocked("no_support", true), "obtido true");
 		// the numbers of the storey barrier, so a silent change of the window is caught here
-		Check("constantes da barreira: 2 s de volta, 1 m de andar, 25 s de paciencia",
+		// 11/11/2026 (Run 17): one clock - the patience is the same 10 s as BodyBarrierSeconds (it used to be 25 s, so the
+		// wait outlived the site's gate and the workers stood still)
+		Check("constantes da barreira: 2 s de volta, 1 m de andar, 10 s de paciencia (o mesmo relogio da barreira)",
 			Math.Abs(BuildFailure.BodyRetryDelay - 2f) < 0.001f && Math.Abs(BuildFailure.BodyRetryStep - 1f) < 0.001f
-				&& Math.Abs(BuildFailure.BodyRetryMaxWait - 25f) < 0.001f,
+				&& Math.Abs(BuildFailure.BodyRetryMaxWait - 10f) < 0.001f,
 			"obtido " + BuildFailure.BodyRetryDelay.ToString("F2") + " / " + BuildFailure.BodyRetryStep.ToString("F2")
 				+ " / " + BuildFailure.BodyRetryMaxWait.ToString("F2"));
 	}
@@ -1182,12 +1184,23 @@ internal static class Program
 		ShortRetryCase("needs_station", 0, false);
 
 		// the numbers of the barrier, so a silent change of the window is caught here
-		Check("constantes: 3 curtas, 2,5 s de espera, 1,5 m de mesmo andar, 20 s de barreira",
+		// 11/11/2026 (Run 17): one clock - 10 s is the 3 short retries (7,5 s) rounded up, and ServeBarrier never outlives
+		// the site's gate (it used to be 20 s of gate against 25 s of wait)
+		Check("constantes: 3 curtas, 2,5 s de espera, 1,5 m de mesmo andar, 10 s de barreira",
 			BuildFailure.MaxShortRetries == 3 && Math.Abs(BuildFailure.ShortRetryDelay - 2.5f) < 0.001f
 				&& Math.Abs(BuildFailure.BodySameStorey - 1.5f) < 0.001f
-				&& Math.Abs(BuildFailure.BodyBarrierSeconds - 20f) < 0.001f,
+				&& Math.Abs(BuildFailure.BodyBarrierSeconds - 10f) < 0.001f,
 			"obtido " + BuildFailure.MaxShortRetries + " / " + BuildFailure.ShortRetryDelay.ToString("F2") + " / "
 				+ BuildFailure.BodySameStorey.ToString("F2") + " / " + BuildFailure.BodyBarrierSeconds.ToString("F2"));
+
+		// 11/11/2026 (Run 17): the wait of a piece refused by a body grows with the refusals and stops at 6 s - the piece
+		// stays in the site's queue, but a PARKED player can no longer make a worker walk to it every other piece (36
+		// bounces in the Run 16 log). 0/1 = the walking player, 2 = 4 s, 3 and beyond = 6 s.
+		BlockedDelayCase(0, 2f);
+		BlockedDelayCase(1, 2f);
+		BlockedDelayCase(2, 4f);
+		BlockedDelayCase(3, 6f);
+		BlockedDelayCase(9, 6f);
 
 		// the LEVEL of each piece: the roof is of the storey of the slab it covers (measured key, 3 m above)
 		System.Collections.Generic.List<BuildBlueprintParser.Line> covered = Plan(
@@ -1230,6 +1243,14 @@ internal static class Program
 		bool actual = BuildFailure.ShortRetry(why, tries);
 		Check("ShortRetry(" + Show(why) + ", " + tries + ") -> " + (expected ? "true" : "false"), actual == expected,
 			"obtido " + (actual ? "true" : "false"));
+	}
+
+	/// <summary>Section (t): one number of body refusals already counted and the wait the site's queue gives the piece.</summary>
+	private static void BlockedDelayCase(int blocks, float expected)
+	{
+		float actual = BuildFailure.BlockedDelay(blocks);
+		Check("BlockedDelay(" + blocks + ") -> " + expected.ToString("F0") + " s", Math.Abs(actual - expected) < 0.001f,
+			"obtido " + actual.ToString("F2"));
 	}
 
 	/// <summary>

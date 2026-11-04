@@ -69,8 +69,8 @@ internal static class MHR_BuildGroup
 		/// (8 s, 12 s, 20 s, then 25 s) and it is never a reason to give the piece up.</summary>
 		internal int Dependency;
 		/// <summary>11/11/2026 (the storey barrier): how many times it was refused because a <b>body</b> was on the spot. It
-		/// never spends an attempt (nobody's fault) and it is not a dependency either: the wait is the short, fixed
-		/// <c>BuildFailure.BodyRetryDelay</c>.</summary>
+		/// never spends an attempt (nobody's fault) and it is not a dependency either: the wait grows with this number
+		/// (<c>BuildFailure.BlockedDelay</c>: 2 s, 4 s, then 6 s).</summary>
 		internal int Blocked;
 		/// <summary>
 		/// 11/11/2026 (Run 14, the spread of the crew): the piece was <b>left for later</b> by <c>MHR_Build.SpreadWindow</c> -
@@ -720,6 +720,29 @@ internal static class MHR_BuildGroup
 	}
 
 	/// <summary>
+	/// 11/11/2026 (Run 17, the wait instrumentation): how many times this piece of the site's queue was refused because a
+	/// <b>body</b> was on the spot. 0 when it is not in the queue (never refused) - it is what tells the order's summary
+	/// whether the barrier held the plan for a <b>body</b> or for a <b>dependency</b> (the two waits are counted apart).
+	/// </summary>
+	internal static int BlockedOf(string key, int index)
+	{
+		Group group;
+		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null)
+		{
+			return 0;
+		}
+		for (int i = 0; i < group.Retry.Count; i++)
+		{
+			RetryEntry entry = group.Retry[i];
+			if (entry != null && entry.Index == index)
+			{
+				return entry.Blocked;
+			}
+		}
+		return 0;
+	}
+
+	/// <summary>
 	/// 11/11/2026 (the <b>body barrier</b> of the walk order): a piece was refused because a <b>body</b> - the player
 	/// walking over the spot - is on it. The <b>first</b> refusal of a plan index is what starts the barrier
 	/// (<c>BuildFailure.BodyBarrierSeconds</c>): the write is idempotent, so the clock is never pushed forward and a
@@ -1014,7 +1037,7 @@ internal static class MHR_BuildGroup
 	///
 	/// <para>11/11/2026 (the storey barrier): a piece refused because a <b>body</b> was on the spot
 	/// (<see cref="BuildFailure.Kind.Blocked"/>) spends no attempt either - the pose is fine and the player is walking - and
-	/// comes back after the short <c>BuildFailure.BodyRetryDelay</c> instead of the growing dependency wait. The plan does
+	/// comes back after the short <c>BuildFailure.BlockedDelay</c> instead of the growing dependency wait. The plan does
 	/// not climb over it: <see cref="NextRetryBelow"/> hands it back before the next storey.</para>
 	/// </summary>
 	internal static bool TryQueueRetry(string key, int index, BuildFailure.Kind kind)
@@ -1050,7 +1073,9 @@ internal static class MHR_BuildGroup
 		if (kind == BuildFailure.Kind.Blocked)
 		{
 			entry.Blocked++;
-			entry.At = Time.time + BuildFailure.BodyRetryDelay;
+			// 11/11/2026 (Run 17): the wait grows with the refusals (2 s, 4 s, then 6 s) - a parked player made the same
+			// piece be walked to and refused again every 2 s across the whole site
+			entry.At = Time.time + BuildFailure.BlockedDelay(entry.Blocked);
 			return true;   // a body on the spot: never spends an attempt either
 		}
 		if (entry.Attempts >= MHR_Build.MaxPasses)
@@ -1230,36 +1255,6 @@ internal static class MHR_BuildGroup
 			}
 		}
 		return best;
-	}
-
-	/// <summary>
-	/// 11/11/2026 (the storey barrier, Run 10): when the <b>earliest</b> piece of the site's queue that is still
-	/// <b>below</b> <paramref name="nextY"/> becomes due (<see cref="RetryEntry.At"/>) - the patience of the barrier must
-	/// not run before that (a piece deferred for a dependency comes back in up to 25 s, and the barrier's own 25 s were
-	/// spent before it had its turn). <see cref="float.MaxValue"/> when nothing below is waiting. It is the same window as
-	/// <see cref="PendingBelow"/> - <see cref="IsBelow"/> is the one definition.
-	/// </summary>
-	internal static float NextBelowAt(string key, int nextIndex, float nextY, HashSet<int> served)
-	{
-		Group group;
-		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null || group.Plan == null)
-		{
-			return float.MaxValue;
-		}
-		float due = float.MaxValue;
-		for (int i = 0; i < group.Retry.Count; i++)
-		{
-			RetryEntry entry = group.Retry[i];
-			if (!IsBelow(group, entry, nextIndex, nextY, served))
-			{
-				continue;
-			}
-			if (entry.At < due)
-			{
-				due = entry.At;
-			}
-		}
-		return due;
 	}
 
 	/// <summary>
