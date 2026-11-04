@@ -67,9 +67,15 @@ internal static class BuildSupportBelow
 	///
 	/// <para><paramref name="lengths"/> are the real lengths of the posts this mod can build, measured from each prefab's own
 	/// snap points (0 or less = the prefab is not in this game and is skipped). A post <b>reaches</b> when it is at most
-	/// <see cref="ShortTolerance"/> shorter than the gap (the game's support box is grown by 0,15 m, so the top may sit a
-	/// little under the piece) and at most <see cref="MaxOverlap"/> longer (a post a storey too long would go through the
-	/// piece it is meant to hold). The shortest one wins: the post must look like the one a player would pick.</para>
+	/// <see cref="ShortTolerance"/> shorter than the gap and at most <see cref="MaxOverlap"/> longer (see both for the
+	/// measured numbers). The shortest one wins: the post must look like the one a player would pick.</para>
+	///
+	/// <para><b>The windows</b> (11/11/2026, measured on the 987-piece house), per post length: <c>wood_beam_1</c> (1 m)
+	/// covers <c>[0,55; 1,20]</c>, <c>wood_beam</c>/<c>wood_pole2</c> (2 m) cover <c>[1,55; 2,20]</c> and
+	/// <c>wood_beam_45</c> (2,83 m) covers <c>[2,38; 3,03]</c>. The gaps of the house that had no post are <b>0,60 m</b>
+	/// (the step between two floors, below the 1 m window before this change) and <b>1,60 m</b> (between the 1 m and the
+	/// 2 m ones). Two gaps are left with <b>no post at all</b> in vanilla: <c>1,20-1,55</c> and <c>2,20-2,38</c> - there is
+	/// no piece between 1 m and 2 m, and the 2,83 m one is the next step.</para>
 	/// </summary>
 	internal static int PickPost(float[] lengths, float gap)
 	{
@@ -100,31 +106,50 @@ internal static class BuildSupportBelow
 	/// is simply retried - better than a post that does not fit.</summary>
 	internal const float ShortTolerance = 0.2f;
 
-	/// <summary>How much longer than the gap a post may be. A little overlap is how the pieces of the house already meet;
-	/// 0,35 m is slack, a whole storey (2 m) would go through the piece above.</summary>
-	internal const float MaxOverlap = 0.35f;
+	/// <summary>How much longer than the gap a post may be. A little overlap is how the pieces of the house already meet,
+	/// and the game reads support by <b>collider overlap</b> (<c>WearNTear.SetupColliders</c> grows each box by 0,15 m, and
+	/// the placement itself does not test support), so the top of the post may sit <b>through</b> the piece it holds.
+	///
+	/// <para>P1 (11/11/2026, measured on the 987-piece house: the gap of the <c>wood_floor</c> step is <b>0,60 m</b>, and with
+	/// 0,35 the shortest post, <c>wood_beam_1</c> (1 m), did not fit - its top stands 0,40 m above the piece): 0,45 turns the
+	/// 1 m window into <c>[0,55; 1,20]</c> and covers the 0,60 m gap, with the beam crossing 0,40 m of the piece it holds -
+	/// which the game accepts, because the bond is the collider overlap. A whole storey (2 m) would still go through the
+	/// piece: the cap stays well under that.</para>
+	/// </summary>
+	internal const float MaxOverlap = 0.45f;
 
 	/// <summary>
 	/// P1 (04/11/2026, measured: the post ray of a floor at 40,8 stopped on a roof eave <b>0,16 m</b> under it - "vão de
 	/// 0,16 m" 318 times - and no post fits in 16 cm, while the surface a post wants, the deck floor, was 1,02 m down): the
 	/// first surface of <paramref name="depths"/> that is <b>deep enough to be a base</b>, i.e. at least
-	/// <paramref name="minGap"/> under the piece. <paramref name="count"/> entries are read (the caller fills a fixed
-	/// buffer in the order the ray met them). Returns the index of that surface, or -1 when none of them is usable (the
-	/// caller then uses the terrain height).
+	/// <paramref name="minGap"/> under the piece <b>and</b> that can hold a post (<paramref name="holds"/>).
+	/// <paramref name="count"/> entries are read (the caller fills fixed buffers in the order the ray met them). Returns the
+	/// index of that surface, or -1 when none of them is usable (the caller then uses the terrain height).
 	///
-	/// <para>Pure on purpose (floats only): the walk itself is a Unity raycast, this is the decision the harness asserts
-	/// (section (r)).</para>
+	/// <para>P1 (11/11/2026, the run that closed at 950 of 987 with <b>95 refusals</b> of the post itself and 20 pieces that
+	/// never went up): depth alone was not enough - a deep hit can still be a surface that <b>cannot carry a post</b>: the top
+	/// of a <b>chest</b>, a bed or a fireplace (furniture is the only class with <c>m_supports = false</c> in 1.0.20), where
+	/// the post was accepted, had nothing under it and the game refused the post with <c>no_support</c>. The surface has to
+	/// <b>hold</b>, not just exist: the caller asks <see cref="HoldsPlacedPiece"/> for every hit and the walk goes on through
+	/// the ones that do not.</para>
+	///
+	/// <para>Pure on purpose (floats and booleans only): the walk itself is a Unity raycast, this is the decision the harness
+	/// asserts (section (r)).</para>
 	/// </summary>
-	internal static int UsefulSurface(float[] depths, int count, float minGap)
+	internal static int UsefulSurface(float[] depths, bool[] holds, int count, float minGap)
 	{
-		if (depths == null)
+		if (depths == null || holds == null)
 		{
-			return -1;
+			return -1;   // no measurement (or nothing known about what holds): the caller uses the terrain
 		}
 		int read = count < depths.Length ? count : depths.Length;
+		if (holds.Length < read)
+		{
+			read = holds.Length;   // never read past the flags the caller filled
+		}
 		for (int i = 0; i < read; i++)
 		{
-			if (depths[i] >= minGap)
+			if (depths[i] >= minGap && holds[i])
 			{
 				return i;
 			}
@@ -160,10 +185,16 @@ internal static class BuildSupportBelow
 	/// "vão de 0,16 m"): can a collider found inside the footprint of a piece of <paramref name="pieceClass"/> hold it?
 	///
 	/// <para>The terrain holds anything. A <b>roof</b> (class 3, which includes <c>wood_wall_roof_*</c>) is held by <b>any</b>
-	/// <see cref="WearNTear"/> - a roof piece has <c>m_supports = false</c> in Valheim (a roof does not carry support; it
-	/// holds the layer above it by the <b>edge</b>, the row below of the same slope), so a rule that demands
-	/// <c>m_supports</c> refuses every roof over another roof. Every other class (floor, wall, beam, pole, stair, door) still
-	/// needs a piece that really carries (<paramref name="wearSupports"/>), otherwise a wall would stand on a chest.</para>
+	/// <see cref="WearNTear"/>, without asking for <c>m_supports</c>. <b>Correction (11/11/2026, measured in 1.0.20 -
+	/// <c>docs/re/support-rule-wearntear.md</c> §5):</b> the reason written here first - "a roof piece has
+	/// <c>m_supports = false</c>" - is <b>wrong</b>: <c>wood_roof</c>, <c>wood_roof_45</c>, <c>wood_roof_top</c>,
+	/// <c>wood_roof_top_45</c>, <c>wood_roof_icorner_45</c>, <c>wood_floor</c>, <c>wood_wall_half</c>,
+	/// <c>wood_stair</c>, <c>wood_stepladder</c>, <c>wood_pole2</c> and <c>wood_beam_1</c> are all
+	/// <c>m_supports = true</c>; only furniture (<c>piece_chest_wood</c>) is <c>false</c>. With both ends <c>true</c>
+	/// this bypass is a <b>no-op</b> for roof over roof (the behaviour never changed) and it was kept for safety. The
+	/// one end where it is <i>not</i> a no-op is the wrong one: a roof standing on <b>furniture</b> passes here (the
+	/// game would refuse it by the ghost hit). Every other class (floor, wall, beam, pole, stair, door) still needs a
+	/// piece that really carries (<paramref name="wearSupports"/>), otherwise a wall would stand on a chest.</para>
 	///
 	/// <para>Sibling of <see cref="CanSupport"/> (the pull's rule): there a roof only holds a <b>roof</b>; here a roof is
 	/// only <b>held</b>, by anything with a <see cref="WearNTear"/>. Both agree that a door never holds and that a roof never

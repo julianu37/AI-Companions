@@ -104,6 +104,12 @@ internal static class MHR_Build
 	/// met them - a scratch buffer, no allocation per refusal.</summary>
 	private static readonly float[] s_postDepths = new float[MaxPostPasses];
 
+	/// <summary>P1 (11/11/2026): whether each of those surfaces can <b>hold</b> the post (<see cref="HoldsPlacedPiece"/> with
+	/// the class of a beam/pole). The ray walks through the ones that do not (a roof eave 2,8 m to the side of the piece, the
+	/// top of a chest) - the depth alone planted the post over nothing and the game refused the post itself with
+	/// <c>no_support</c> 95 times.</summary>
+	private static readonly bool[] s_postHolds = new bool[MaxPostPasses];
+
 	/// <summary>P1 (04/11/2026): how many emergency posts one ORDER may add - the house gets "a few extra posts", never a
 	/// forest of them. One per piece (<c>State.FallbackPosts</c>), never where the plan already has a support.</summary>
 	internal const int MaxFallbackPosts = 24;
@@ -3254,6 +3260,13 @@ internal static class MHR_Build
 		{
 			return false;   // the order already planted its posts
 		}
+		// P1 (11/11/2026): furniture never gets a post. A chest/bed/fireplace is not what a post holds up (the plan's floor
+		// does), and those prefabs have m_noClipping, so the game refuses the post next to them as `clipping` - the post
+		// would be paid and thrown away. Only the structural pieces of the plan are worth a post under them.
+		if (!BuildPieceKind.IsStructural(state.Prefab))
+		{
+			return false;
+		}
 		int index = PieceIndex(state);
 		if (index < 0 || state.FallbackPosts.Contains(index))
 		{
@@ -3270,6 +3283,12 @@ internal static class MHR_Build
 		// under a floor of 40,8, and no post fits in 16 cm - while the useful surface (the deck floor at 39,78) was 1,02 m
 		// down. So the ray is walked down THROUGH the surfaces that are too close to be a base, each pass starting 5 cm
 		// under the last hit; the reach (PostReach) is the total of the whole walk, not of each pass.
+		//
+		// P1 (11/11/2026, the run that closed at 950 of 987): depth was not the only thing to walk through - the surface also
+		// has to HOLD. The top of a chest (furniture has m_supports = false in 1.0.20) was taken as a base, the post was
+		// accepted over it, the game refused the post itself with `no_support` (95 times) and 20 pieces never went up. Each
+		// hit now carries its verdict (s_postHolds) and the walk goes on through a shallow surface OR one that cannot hold.
+		int terrain = LayerMask.NameToLayer("terrain");
 		Vector3 piece = state.Pos;
 		float bottom = piece.y - PostReach;
 		float from = piece.y + 0.05f;
@@ -3283,15 +3302,19 @@ internal static class MHR_Build
 			{
 				break;
 			}
-			s_postDepths[hits++] = piece.y - hit.point.y;
-			if (piece.y - hit.point.y >= MinPostGap)
+			float depth = piece.y - hit.point.y;
+			bool holds = PostBaseHolds(hit.collider, terrain);
+			s_postDepths[hits] = depth;
+			s_postHolds[hits] = holds;
+			hits++;
+			if (depth >= MinPostGap && holds)
 			{
-				break;   // deep enough to be the base of a post
+				break;   // deep enough AND something that can hold the post: this is its base
 			}
 			skipped++;
-			from = hit.point.y - 0.05f;   // 5 cm under the surface that was too close (a roof eave, a lying beam)
+			from = hit.point.y - 0.05f;   // 5 cm under the surface that was too close (a roof eave, a lying beam, a chest)
 		}
-		int useful = BuildSupportBelow.UsefulSurface(s_postDepths, hits, MinPostGap);
+		int useful = BuildSupportBelow.UsefulSurface(s_postDepths, s_postHolds, hits, MinPostGap);
 		float baseY = useful >= 0
 			? piece.y - s_postDepths[useful]
 			: (ZoneSystem.instance != null ? ZoneSystem.instance.GetGroundHeight(piece) : piece.y - 2f);
@@ -3302,7 +3325,7 @@ internal static class MHR_Build
 		{
 			Log(ai, "sem lugar para o apoio de emergência sob " + state.Prefab + " em (" + F(piece.x) + ", " + F(piece.y)
 				+ ", " + F(piece.z) + ") - vão de " + gap.ToString("F2") + " m"
-				+ (skipped > 0 ? " (" + skipped + " superfície(s) colada(s) ignorada(s))" : string.Empty));
+				+ (skipped > 0 ? " (" + skipped + " superfície(s) rasa(s) ou sem apoio ignorada(s))" : string.Empty));
 			return false;
 		}
 		float length = s_postLengths[pick];
@@ -3314,10 +3337,11 @@ internal static class MHR_Build
 		Vector3 pos = new Vector3(piece.x, baseY + length * 0.5f, piece.z);
 		Quaternion rot = VerticalPose(post);
 		Dictionary<string, object> check = BuildSite.Check(post, pos, rot, Self(ai));
-		if (!Ok(check))
+		if (!Ok(check) && !(useful >= 0 && OnlyNoSupport(check)))
 		{
 			Log(ai, "sem lugar para o apoio de emergência sob " + state.Prefab + " em (" + F(pos.x) + ", " + F(pos.y) + ", "
-				+ F(pos.z) + ") - " + (check != null ? Convert.ToString(check["status"]) : "?"));
+				+ F(pos.z) + ") - " + (check != null ? Convert.ToString(check["status"]) : "?") + " (vão "
+				+ gap.ToString("F2") + " m)");
 			return false;
 		}
 		Inventory bag = BagOf(ai);
@@ -3337,13 +3361,34 @@ internal static class MHR_Build
 				Refund(bag, post);   // the post never went up: the wood goes back (with Free nothing was taken)
 			}
 			Log(ai, "sem lugar para o apoio de emergência sob " + state.Prefab + " em (" + F(pos.x) + ", " + F(pos.y) + ", "
-				+ F(pos.z) + ") - " + result.Error);
+				+ F(pos.z) + ") - " + result.Error + " (vão " + gap.ToString("F2") + " m)");
 			return false;
 		}
 		state.FallbackPosts.Add(index);
 		Log(ai, "apoio de emergência: " + FallbackPostPrefabs[pick] + " (" + length.ToString("F2") + " m) sob "
 			+ state.Prefab + " em (" + F(pos.x) + ", " + F(pos.y) + ", " + F(pos.z) + ")");
 		return true;
+	}
+
+	/// <summary>
+	/// P1 (11/11/2026): can the surface this ray hit be the <b>base a post stands on</b>? The class-2 verdict of
+	/// <see cref="BuildSupportBelow.HoldsPlacedPiece"/> - the four emergency posts are beams/poles (class 2), and the rule
+	/// asks what holds <b>that</b> piece: the terrain holds, a piece only when it carries support (<c>m_supports</c>), and a
+	/// collider with no <see cref="WearNTear"/> does not. That is what refuses the tops of <b>chests/beds/fireplaces</b>
+	/// (<c>m_supports = false</c>, measured in 1.0.20) - the base the post had in the run of 11/11, which made the post
+	/// itself a piece with nothing under it and the game refused it with <c>no_support</c>. The rule itself is left untouched
+	/// on purpose: the reverse engineering of 1.0.20 governs it (<c>docs/re/support-rule-wearntear.md</c>), and a roof
+	/// carries support like any other structural piece.
+	/// </summary>
+	private static bool PostBaseHolds(Collider collider, int terrainLayer)
+	{
+		if (collider == null)
+		{
+			return false;
+		}
+		bool isTerrain = terrainLayer >= 0 && collider.gameObject.layer == terrainLayer;
+		WearNTear wear = isTerrain ? null : collider.GetComponentInParent<WearNTear>();
+		return BuildSupportBelow.HoldsPlacedPiece(2, isTerrain, wear != null, wear != null && wear.m_supports);
 	}
 
 	/// <summary>P1 (04/11/2026): fills <see cref="s_postLengths"/> from the prefabs once - the pieces do not change, and a
@@ -4901,6 +4946,23 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 	private static bool Ok(Dictionary<string, object> check)
 	{
 		return check != null && check["ok"] is bool ok && ok;
+	}
+
+	/// <summary>
+	/// P1 (11/11/2026, the measured 95 refusals of the emergency post): the pose was refused <b>only</b> by the support rule -
+	/// one reason, <c>no_support</c>. With a base the ray found and that <b>holds</b> (a floor below, a beam top) the post is
+	/// planted anyway: our own support prediction is the conservative one (<see cref="BuildProbe"/> reads the piece under the
+	/// <b>centre</b> and its own footprint box), while the game connects the post to the base by <b>collider overlap</b>. If the
+	/// post does fall, the piece it was meant to hold fails the game's own verdict on the next frame (<see cref="BuildSupport"/>
+	/// runs after the placement) and follows the normal retry/`falls` path - no special case. Anything else in the list -
+	/// <c>clipping</c>, <c>needs_station</c>, <c>ward</c>, <c>blocked_by_player</c>, <c>too_steep</c> - is a real refusal and
+	/// keeps the post out.
+	/// </summary>
+	private static bool OnlyNoSupport(Dictionary<string, object> check)
+	{
+		object raw = null;
+		List<string> reasons = check != null && check.TryGetValue("reasons", out raw) ? raw as List<string> : null;
+		return reasons != null && reasons.Count == 1 && reasons[0] == "no_support";
 	}
 
 	/// <summary>

@@ -2184,13 +2184,20 @@ internal static class Commands
 		{
 			return Fail("missing 'action'");
 		}
+		string a = action.ToLowerInvariant();
+		// P1 (11/11/2026, player's request: `companions.order` answered "unknown action: stop"): "para"/"stop"/"cancel" is
+		// the order the chat already knows - it drops the one-shot jobs (the build and the leveling, the two a test leaves
+		// running) and it is answered with what was actually running.
+		if (a == "stop" || a == "cancel" || a == "para")
+		{
+			return CompanionsStop(Json.Str(args, "name"));
+		}
 		CompanionSetup target = FindCompanion(Json.Str(args, "name"));
 		if (target == null)
 		{
 			string name = Json.Str(args, "name");
 			return Fail("no companion found" + (string.IsNullOrEmpty(name) ? "" : " named \"" + name + "\""));
 		}
-		string a = action.ToLowerInvariant();
 		if (a.StartsWith("stance_", StringComparison.Ordinal))
 		{
 			int stance = StanceOf(a);
@@ -2225,6 +2232,81 @@ internal static class Commands
 			{ "mode", mode },
 			{ "applied", applied }
 		});
+	}
+
+	/// <summary>
+	/// P1 (11/11/2026, player's request: "companions.order stop" answered <c>unknown action: stop</c>): the chat's stop order,
+	/// reachable from the bridge. A build order and a leveling are <b>one-shot</b> orders that survive everything else, so a
+	/// test that started one has no way to end it from the console - this drops them through the <b>same</b> cancellation the
+	/// chat order uses (<c>CompanionOrders.Run</c> → <see cref="MHR_Build.Cancel"/>/<see cref="MHR_Level.Cancel"/>), and it
+	/// answers which of them were running <b>before</b> the call (that is the honest "what did I just stop").
+	///
+	/// <para>An empty <c>name</c> stops <b>every</b> companion of the world and answers the list, which is what a "para"
+	/// without a name does in the chat (the wheel's "para" drops the whole build group).</para>
+	/// </summary>
+	private static string CompanionsStop(string name)
+	{
+		IReadOnlyList<CompanionSetup> all = CompanionSetup.AllCompanions;
+		if (string.IsNullOrEmpty(name))
+		{
+			List<object> stopped = new List<object>();
+			bool anyBuild = false;
+			bool anyLevel = false;
+			if (all != null)
+			{
+				for (int i = 0; i < all.Count; i++)
+				{
+					CompanionSetup cs = all[i];
+					if (cs == null)
+					{
+						continue;
+					}
+					Dictionary<string, object> one = StopOne(cs);
+					stopped.Add(one);
+					anyBuild = anyBuild || (bool)one["build"];
+					anyLevel = anyLevel || (bool)one["level"];
+				}
+			}
+			return Ok(new Dictionary<string, object>
+			{
+				{ "action", "stop" },
+				{ "cancelled", stopped.Count > 0 },
+				{ "build", anyBuild },
+				{ "level", anyLevel },
+				{ "companions", stopped }
+			});
+		}
+		CompanionSetup target = FindCompanion(name);
+		if (target == null)
+		{
+			return Fail("no companion found named \"" + name + "\"");
+		}
+		Dictionary<string, object> single = StopOne(target);
+		return Ok(new Dictionary<string, object>
+		{
+			{ "action", "stop" },
+			{ "cancelled", true },
+			{ "name", single["name"] },
+			{ "build", single["build"] },
+			{ "level", single["level"] }
+		});
+	}
+
+	/// <summary>P1 (11/11/2026): stops the one-shot build/leveling of ONE companion and says what was running (read before the
+	/// cancel, so the answer is about the order that existed).</summary>
+	private static Dictionary<string, object> StopOne(CompanionSetup cs)
+	{
+		bool build = MHR_Build.Active(cs);
+		bool level = MHR_Level.Active(cs);
+		MHR_Build.Cancel(cs);
+		MHR_Level.Cancel(cs);
+		Humanoid h = cs.GetComponent<Humanoid>();
+		return new Dictionary<string, object>
+		{
+			{ "name", h != null ? h.m_name : cs.name },
+			{ "build", build },
+			{ "level", level }
+		};
 	}
 
 	private static string CompanionsTeleport(Dictionary<string, object> args)

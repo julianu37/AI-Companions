@@ -808,8 +808,9 @@ TOOLS = [
         "name": "companions_order",
         "description": (
             "Gives a companion an order: a work mode (follow, wood, stone, ore, forage, smelt, hunt, farm, fish, "
-            "repair, restock, cook, stay), a stance (stance_balanced, stance_passive, stance_ranged, stance_melee) "
-            "or autopickup_on / autopickup_off."
+            "repair, restock, cook, stay), a stance (stance_balanced, stance_passive, stance_ranged, stance_melee), "
+            "autopickup_on / autopickup_off, or the stop order (stop / cancel / para), which cancels the companion's "
+            "build and leveling; an empty name stops every companion and answers the list."
         ),
         "inputSchema": {
             "type": "object",

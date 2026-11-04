@@ -75,6 +75,16 @@ class MockBridge(threading.Thread):
         if cmd == "companions.list":
             return {"ok": True, "data": {"count": 2, "companions": [{"name": "Maria"}, {"name": "Thorin"}]}}
         if cmd == "companions.order":
+            args = request.get("args") or {}
+            if str(args.get("action", "")).lower() in ("stop", "cancel", "para"):
+                # Mirrors the C# answer (DevBridge/Commands.cs, CompanionsStop): the stop order cancels the
+                # build and the leveling, and an empty name stops every companion and answers the list.
+                if args.get("name"):
+                    return {"ok": True, "data": {"action": "stop", "cancelled": True, "name": args["name"],
+                                                 "build": False, "level": False}}
+                return {"ok": True, "data": {"action": "stop", "cancelled": True, "build": True, "level": False,
+                                             "companions": [{"name": "Maria", "build": True, "level": False},
+                                                            {"name": "Thorin", "build": False, "level": False}]}}
             return {"ok": True, "data": {"action": request["args"]["action"], "applied": True}}
         if cmd == "nav.tiles":
             # Mirrors the C# answer for P2 (the echo/args are this mock's, so the forwarded payload is visible).
@@ -197,6 +207,28 @@ def main():
         text = order["result"]["content"][0]["text"]
         check("companions_order forwards the action", '"wood"' in text and '"applied": true' in text)
         check("companions_order sends the name", any(r.get("args", {}).get("name") == "Maria" for r in bridge.requests))
+
+        # The stop order (player's request, 11/11/2026): "companions.order action=stop" used to answer
+        # "unknown action: stop" - there was no way to cancel an order from the bridge.
+        order_tool = next((t for t in tools if t["name"] == "companions_order"), {})
+        check("companions_order documents the stop order",
+              "stop" in (order_tool.get("description") or "").lower(), order_tool.get("description"))
+        stop = rpc("tools/call", {"name": "companions_order", "arguments": {"action": "stop", "name": "Maria"}},
+                   request_id=24)
+        stop_data = json.loads(stop["result"]["content"][0]["text"])
+        check("companions_order forwards stop",
+              any(r.get("cmd") == "companions.order" and (r.get("args") or {}).get("action") == "stop"
+                  for r in bridge.requests))
+        check("companions_order stop answers action/cancelled",
+              stop_data.get("action") == "stop" and stop_data.get("cancelled") is True, stop_data)
+        check("companions_order stop answers build/level",
+              "build" in stop_data and "level" in stop_data, sorted(stop_data))
+        all_stop = json.loads(rpc("tools/call", {"name": "companions_order", "arguments": {"action": "para"}},
+                                  request_id=25)["result"]["content"][0]["text"])
+        check("companions_order stop without a name answers the list",
+              isinstance(all_stop.get("companions"), list) and len(all_stop["companions"]) == 2, sorted(all_stop))
+        check("companions_order stop lists build/level per companion",
+              all("build" in one and "level" in one for one in all_stop["companions"]), all_stop["companions"])
 
         tail = rpc("tools/call", {"name": "log_tail", "arguments": {"lines": 5}}, request_id=6)
         text = tail["result"]["content"][0]["text"]

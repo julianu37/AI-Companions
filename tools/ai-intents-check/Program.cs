@@ -924,24 +924,34 @@ internal static class Program
 		PostCase(posts, 2.87f, 3, "o segundo degrau medido (piso de 42,8 sobre o de 39,8)");
 		PostCase(posts, 3.2f, -1, "vão de 3,2 m: nem a viga de 45 alcanca");
 		PostCase(posts, 0.5f, -1, "vão de 0,5 m: 1 m passaria 0,5 m atraves da peca");
+		// the two gaps the house of 11/11 actually had, with MaxOverlap 0,45 (0,35 left both without a post): the step between
+		// two floors is 0,60 m and the 1 m beam crosses 0,40 m of the piece (support is collider overlap, not exact length);
+		// the 1,6 m one is reached by the 2 m beam. 1,30 m is the hole between the 1 m and the 2 m windows.
+		PostCase(posts, 0.6f, 0, "o vão medido de 0,60 m (o degrau entre dois pisos) -> viga de 1 m (com 0,35 nao cabia)");
+		PostCase(posts, 1.3f, -1, "vão de 1,3 m cai no buraco: 1 m fica curto (0,1 m alem da tolerancia) e 2 m passa 0,7 m");
+		PostCase(posts, 1.6f, 1, "o outro vão medido, 1,6 m (entre as janelas de 1 m e de 2 m) -> viga de 2 m");
 		PostCase(new[] { 0f, 2f }, 2f, 1, "prefab que o jogo nao tem (comprimento 0) e pulado");
 		PostCase(new[] { 2.83f, 1f, 2f }, 1f, 1, "a escolha e pelo COMPRIMENTO, nao pela ordem da lista");
 		PostCase(null, 1f, -1, "sem lista, sem poste");
 		Check("ShortTolerance == 0,20 m", Math.Abs(BuildSupportBelow.ShortTolerance - 0.2f) < 0.001f,
 			"obtido " + BuildSupportBelow.ShortTolerance.ToString("F2"));
-		Check("MaxOverlap == 0,35 m", Math.Abs(BuildSupportBelow.MaxOverlap - 0.35f) < 0.001f,
+		Check("MaxOverlap == 0,45 m (0,35 deixava o vão medido de 0,60 m sem poste)", Math.Abs(BuildSupportBelow.MaxOverlap - 0.45f) < 0.001f,
 			"obtido " + BuildSupportBelow.MaxOverlap.ToString("F2"));
 		// the WALK of the post ray (04/11/2026: a roof eave 0,16 m under the floor of 40,8 stopped the ray 318 times, while
 		// the deck floor the post wants was 1,02 m down)
-		SurfaceCase(new[] { 0.16f, 1.02f }, 2, 0.4f, 1, "o caso medido: a beira do telhado a 0,16 e o deck a 1,02 -> o deck");
-		SurfaceCase(new[] { 1.02f }, 1, 0.4f, 0, "só o deck: ele mesmo");
-		SurfaceCase(new[] { 0.16f, 0.35f }, 2, 0.4f, -1, "duas superfícies coladas: nenhuma serve (terreno)");
-		SurfaceCase(new[] { 0.4f }, 1, 0.4f, 0, "borda: 0,40 m já serve de base");
-		SurfaceCase(new[] { 0.39f }, 1, 0.4f, -1, "0,39 m ainda é colado");
-		SurfaceCase(new[] { 0.5f, 0.16f, 1.02f }, 3, 0.4f, 0, "o primeiro utilizável manda (a ordem do raio)");
-		SurfaceCase(new[] { 0.16f, 1.02f, 9f }, 2, 0.4f, 1, "só as `count` primeiras entram");
-		SurfaceCase(new float[] { }, 0, 0.4f, -1, "nenhum hit -> terreno");
-		SurfaceCase(null, 0, 0.4f, -1, "sem lista -> terreno");
+		SurfaceCase(new[] { 0.16f, 1.02f }, new[] { true, true }, 2, 0.4f, 1, "o caso medido: a beira do telhado a 0,16 e o deck a 1,02 -> o deck");
+		SurfaceCase(new[] { 1.02f }, new[] { true }, 1, 0.4f, 0, "só o deck: ele mesmo");
+		SurfaceCase(new[] { 0.16f, 0.35f }, new[] { true, true }, 2, 0.4f, -1, "duas superfícies coladas: nenhuma serve (terreno)");
+		SurfaceCase(new[] { 0.4f }, new[] { true }, 1, 0.4f, 0, "borda: 0,40 m já serve de base");
+		SurfaceCase(new[] { 0.39f }, new[] { true }, 1, 0.4f, -1, "0,39 m ainda é colado");
+		SurfaceCase(new[] { 0.5f, 0.16f, 1.02f }, new[] { true, true, true }, 3, 0.4f, 0, "o primeiro utilizável manda (a ordem do raio)");
+		SurfaceCase(new[] { 0.16f, 1.02f, 9f }, new[] { true, true, true }, 2, 0.4f, 1, "só as `count` primeiras entram");
+		SurfaceCase(new float[] { }, new bool[] { }, 0, 0.4f, -1, "nenhum hit -> terreno");
+		SurfaceCase(null, null, 0, 0.4f, -1, "sem lista -> terreno");
+		// the surface has to HOLD, not just exist (11/11/2026: 95 refusals of the post itself, `- no_support`, because it was
+		// planted deep enough but over the top of a chest - furniture carries no support, so the post had nothing under it)
+		SurfaceCase(new[] { 0.5f, 1.2f }, new[] { false, true }, 2, 0.4f, 1, "a de 0,5 m não segura (baú) e a de 1,2 m segura -> a de 1,2 m");
+		SurfaceCase(new[] { 0.5f, 1.2f }, new[] { false, false }, 2, 0.4f, -1, "nenhuma das duas segura -> terreno");
 		// the SUPPORT OF THE PLACED PIECE (FootprintSupported): a roof piece has m_supports = false in Valheim and is held by
 		// the EDGE of the row below - the 13 pieces that stayed out for five rounds and the 318 "vão de 0,16 m"
 		HoldCase(3, false, true, false, true, "telhado sobre telhado: a fileira de baixo apoia pela borda (o caso medido)");
@@ -982,9 +992,9 @@ internal static class Program
 	}
 
 	/// <summary>Section (r): one walk of the post ray and the surface it should use.</summary>
-	private static void SurfaceCase(float[] depths, int count, float minGap, int expected, string why)
+	private static void SurfaceCase(float[] depths, bool[] holds, int count, float minGap, int expected, string why)
 	{
-		int actual = BuildSupportBelow.UsefulSurface(depths, count, minGap);
+		int actual = BuildSupportBelow.UsefulSurface(depths, holds, count, minGap);
 		Check("UsefulSurface(" + count + " hit(s), minGap " + minGap.ToString("F2") + ") -> " + expected + " (" + why + ")",
 			actual == expected, "obtido " + actual);
 	}

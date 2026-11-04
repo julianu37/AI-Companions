@@ -661,13 +661,17 @@ internal static class BuildProbe
 	/// is the elevated-piece half of the <c>no_support</c> rule - the same reach the game's <c>UpdateSupport</c> uses.
 	/// No box to test (an exotic prefab) answers <c>true</c>: never a refusal for a missing measurement.
 	///
-	/// <para>P1 (04/11/2026, measured: 13 pieces of the roof stayed out for FIVE rounds and the emergency post was refused 318
-	/// times with "vão de 0,16 m"): a <b>roof piece has <c>WearNTear.m_supports = false</c> in Valheim</b> - a roof does not
-	/// carry support, it holds the layer above it by the <b>edge</b> (the row below of the same slope). The rule here only
-	/// accepted a piece with <c>m_supports</c>, so a roof over another roof was refused with <c>no_support</c> even with the
-	/// row below standing. The decision is now <see cref="BuildSupportBelow.HoldsPlacedPiece"/>: the terrain holds anything,
-	/// a <b>roof</b> is held by any <see cref="WearNTear"/> in its footprint, and every other class still needs a piece that
-	/// really carries (<c>m_supports</c>) - otherwise a wall would stand on a chest.</para>
+	/// <para>P1 (04/11/2026: 13 pieces of the roof stayed out for FIVE rounds): the rule only accepted a piece with
+	/// <c>m_supports</c> and refused a roof over another roof with <c>no_support</c> even with the row below standing. The
+	/// decision is now <see cref="BuildSupportBelow.HoldsPlacedPiece"/>: the terrain holds anything, a <b>roof</b> is held
+	/// by any <see cref="WearNTear"/> in its footprint, and every other class still needs a piece that really carries
+	/// (<c>m_supports</c>) - otherwise a wall would stand on a chest. <b>Correction (11/11/2026, measured in 1.0.20 -
+	/// <c>docs/re/support-rule-wearntear.md</c> §5):</b> the motive written here first - "a roof piece has
+	/// <c>m_supports = false</c>" - is <b>wrong</b> (every wooden structural prefab measured, roofs included, is
+	/// <c>m_supports = true</c>; only furniture is <c>false</c>), so the class-3 bypass is a <b>no-op</b> and the real
+	/// cause of those 13 pieces is <b>geometry</b>: the game's support reach is <b>0,15 m</b> of collider overlap
+	/// (<c>WearNTear.SetupColliders</c>), which is exactly the <c>+0,15 m</c> grown here - do <b>not</b> stretch it, a
+	/// piece without that connection is placed and then <b>falls</b> (~1 s, 100 % wear).</para>
 	/// </summary>
 	private static bool FootprintSupported(Piece piece, Vector3 pos, Quaternion rot)
 	{
