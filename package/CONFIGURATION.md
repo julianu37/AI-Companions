@@ -569,7 +569,7 @@ How far (meters) around the spot you are looking at the companion looks for a pl
 How far (in meters) the companion may place a piece when it cannot walk any closer. Vanilla allows 5 m; the companion still walks first and only opens this limit after 3 s stuck. 10 is the default; up to 20 for impatient players (it looks less realistic).
 
 **DeckLift** — Default: 1 · Range: 0 – 3  
-How high the whole blueprint rises above the ground: the ground floor sits on a deck on top of the poles, with the stairs reaching it. 0 keeps the blueprint's own level. Default 1 (a low deck).
+The MOST the whole blueprint may rise above the ground: the ground floor sits on a deck on top of the poles, with the stairs reaching it. It only rises what the plan actually needs - a plan whose poles are buried 2 m rises the full value, a plan already drawn on the ground rises nothing (a build lifted in the air has no support and falls). 0 keeps the blueprint's own level. Default 1 (a low deck).
 
 **SupportFallback** — Default: On  
 When a plan piece is refused for no support and the plan has nothing under it, the companion puts a wooden post under it and places the piece (the house gets a few extra posts). Off = the piece waits and is left out. At most 24 posts per order.

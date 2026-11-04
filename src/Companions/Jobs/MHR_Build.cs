@@ -459,8 +459,25 @@ internal static class MHR_Build
 		internal float WaitBody;
 		/// <summary>11/11/2026 (Run 17): seconds spent with the barrier holding the plan for a <b>dependency</b>.</summary>
 		internal float WaitDependency;
-		/// <summary>11/11/2026 (Run 17): seconds spent with the site's queue holding pieces this worker could not take.</summary>
-		internal float WaitQueue;
+		/// <summary>
+		/// 11/11/2026 (Run 17, the wait instrumented; Run 18 split it in two): seconds spent with the site's queue holding
+		/// pieces this worker could not take, at the <b>end</b> of the plan - nothing ahead of the walk, so the queue is
+		/// the legitimate way forward.
+		/// </summary>
+		internal float WaitQueueEnd;
+		/// <summary>
+		/// 11/11/2026 (Run 18, the starvation of the wait): the same wait in the <b>middle</b> of the plan, where there is
+		/// still a piece ahead of the walk. With the <c>ahead</c> guard of <see cref="MHR_Build.WaitRetry"/> this is ≈ 0 by
+		/// construction (the frame goes back to <see cref="MHR_Build.Advance"/> instead of sitting in the queue): a number
+		/// that grows here means the guard stopped catching the case it was written for.
+		/// </summary>
+		internal float WaitAhead;
+		/// <summary>
+		/// 11/11/2026 (Run 18): seconds the site's <b>gate</b> itself held this worker (<c>MHR_BuildGroup.MayTake</c> false
+		/// inside <see cref="MHR_Build.Advance"/>). Until now that time fell in <b>no</b> bucket at all: the wait called
+		/// Advance with <c>dt = 0</c>, so the gate was invisible in the summary line.
+		/// </summary>
+		internal float WaitGate;
 		/// <summary>11/11/2026 (Run 17): seconds spent walking the step aside of a piece another companion places.</summary>
 		internal float WaitAside;
 		/// <summary>11/11/2026 (Run 17): how many times the site's gate kept this worker from taking a piece (a body
@@ -1093,7 +1110,7 @@ internal static class MHR_Build
 	/// step carries its own real attempts (<see cref="PlannedStep.Tries"/>) and the stall watchdog ends a run that stops
 	/// making progress.</para>
 	/// </summary>
-	private static bool Advance(CompanionAI ai, State state)
+	private static bool Advance(CompanionAI ai, State state, float dt = 0f)
 	{
 		int worker = ai.GetInstanceID();
 		if (state.Group != null)
@@ -1144,7 +1161,13 @@ internal static class MHR_Build
 				{
 					// 11/11/2026 (Run 17): one count per continuous hold - the wait is re-asked every frame (Advance is
 					// called from inside WaitRetry), so only the frame that ENTERS the wait is a hold of the gate
-					if (state.Phase != Phase.WaitRetry)
+					if (state.Phase == Phase.WaitRetry)
+					{
+						// 11/11/2026 (Run 18): the seconds of the gate itself, counted where they happen. This branch is
+						// BEFORE ServeBarrier and both return, so it never overlaps the body/dependency seconds.
+						state.WaitGate += dt;
+					}
+					else
 					{
 						state.BarrierHolds++;
 					}
@@ -1156,7 +1179,7 @@ internal static class MHR_Build
 				// before going up"): before the plan climbs a storey, the pieces of the queue that are BELOW the next one get
 				// their turn back - the entrance steps a body refused, the floor still waiting for its support. It runs
 				// BEFORE the claim on purpose: a piece the barrier postpones must not stay claimed by this worker for 20 s.
-				if (StoreyBarrier(ai, state, next))
+				if (StoreyBarrier(ai, state, next, dt))
 				{
 					return true;
 				}
@@ -1324,7 +1347,7 @@ internal static class MHR_Build
 	/// waiting <b>below</b> the next piece; the patience of the barrier (<see cref="ServeBarrier"/>) is the same clock as
 	/// the site's gate (Run 17: one clock - it is never pushed forward, see <see cref="ServeBarrier"/>).</para>
 	/// </summary>
-	private static bool StoreyBarrier(CompanionAI ai, State state, int nextIndex)
+	private static bool StoreyBarrier(CompanionAI ai, State state, int nextIndex, float dt)
 	{
 		if (!BarrierOn(state) || nextIndex < 0 || nextIndex >= state.Plan.Count)
 		{
@@ -1358,9 +1381,10 @@ internal static class MHR_Build
 			LogDebug(ai, "barreira de andar: " + state.Plan[waiting].Prefab + " (" + (waiting + 1) + "/"
 				+ state.Plan.Count + ") espera embaixo - nada acima de " + F(nextY) + " m sobe antes dela");
 		}
-		// 11/11/2026 (Run 17): no dt here - Advance does not carry one and the frame this barrier is DRAWN already returns
-		// to the wait (the wait itself is counted from the next WaitRetry frame, where dt exists).
-		return ServeBarrier(ai, state, 0f);
+		// 11/11/2026 (Run 17): the frame this barrier is DRAWN already returns to the wait, and the seconds are the
+		// caller's dt. 11/11/2026 (Run 18): it used to be 0f, so the drawing frame counted nothing at all - Advance now
+		// carries the dt of the wait down to here.
+		return ServeBarrier(ai, state, dt);
 	}
 
 	/// <summary>
@@ -1510,6 +1534,10 @@ internal static class MHR_Build
 	/// once? The site keeps the count for a group (<c>MHR_BuildGroup.BlockedOf</c>), the single worker keeps it on the
 	/// plan's own step (<see cref="PlannedStep.Blocked"/>). It is only the question the summary line answers - nothing in
 	/// the gate reads it.
+	///
+	/// <para>11/11/2026 (Run 18): in a <b>group</b> the question is the <b>age</b> of the stamp (<c>BodyAt</c>, the same
+	/// clock <c>MayTake</c> reads), never the piece's whole life - <c>Blocked</c> is never reset, so one body that walked
+	/// over the spot once answered "body" for every later wait of that piece and deflated the dependency number.</para>
 	/// </summary>
 	private static bool BlockedBelow(State state, int index)
 	{
@@ -1519,7 +1547,7 @@ internal static class MHR_Build
 		}
 		if (state.Group != null)
 		{
-			return MHR_BuildGroup.BlockedOf(state.Group, index) > 0;
+			return MHR_BuildGroup.BlockedRecently(state.Group, index);
 		}
 		PlannedStep step = state.Plan[index];
 		return step != null && step.Blocked > 0;
@@ -1793,9 +1821,34 @@ internal static class MHR_Build
 		// the lift is put ON the terrain (its own x/z, so each pole finds its own ground) instead of being buried or
 		// floating - the buried foundation is what the game refuses, and every piece above it fails in a cascade (the
 		// east hole of that run).
+		//
+		// 11/11/2026 (Run 19, the floating corpus): the config is a CEILING, not a forced offset. It used to be added to
+		// every plan, so the five flat blueprints of the corpus (Meadow Stilt Hut, Forest Hut, Meadow House, Meadow Manor,
+		// Hobbit Repairhut) ended 1,00 m above a flat terrain with nothing holding the floor up - measured: ground 38,78,
+		// lowest piece 39,78. What a plan needs is the depth of its deepest piece under the terrain: nothing buried needs
+		// NO lift, poles buried 2 m keep the 1 m of the config and the loop below settles the rest of the tips.
 		if (plan.Count > 0)
 		{
-			float lift = ModConfig.BuildDeckLift != null ? ModConfig.BuildDeckLift.Value : DeckLiftDefault;
+			float wanted = ModConfig.BuildDeckLift != null ? ModConfig.BuildDeckLift.Value : DeckLiftDefault;
+			float buried = 0f;   // how deep the deepest piece of the plan is UNDER the terrain
+			if (ZoneSystem.instance != null)
+			{
+				for (int i = 0; i < plan.Count; i++)
+				{
+					float depth = ZoneSystem.instance.GetGroundHeight(plan[i].Pos) - plan[i].Pos.y;   // > 0 = underground
+					if (depth > buried)
+					{
+						buried = depth;
+					}
+				}
+			}
+			float lift = Mathf.Clamp(buried, 0f, wanted);   // never rises more than the plan actually needs
+			// A piece a few centimetres under the ground is settled by the loop below anyway (same 0.05 m), so it must
+			// not cap the whole plan at 0.03 m - that would log a lift nobody asked for (review of the Run 19 patch).
+			if (lift < 0.05f)
+			{
+				lift = 0f;
+			}
 			int grounded = 0;
 			for (int i = 0; i < plan.Count; i++)
 			{
@@ -1812,10 +1865,21 @@ internal static class MHR_Build
 				}
 				plan[i].Pos = pos;
 			}
-			if (lift > 0.001f || grounded > 0)
+			bool capped = lift < wanted - 0.001f;
+			if (lift > 0.001f || grounded > 0 || capped)
 			{
-				CompanionsPlugin.Log?.LogInfo("[Build] blueprint " + blueprint.Label + ": a obra sobe " + lift.ToString("F2")
-					+ " m (deck) - " + grounded + " peça(s) de fundação assentadas no terreno");
+				// 11/11/2026 (Run 19): when the config was CAPPED the line says both numbers - "deck pedido" is what the
+				// config asks and the first number is what the plan needed; the buried depth is what decided it, so a flat
+				// plan reads "nada enterrado" instead of hiding why the house is on the ground. Uncapped, the line is the
+				// one of before, byte for byte (the frozen run of the MACCommHomeBasicBP greps it).
+				string line = "[Build] blueprint " + blueprint.Label + ": a obra sobe " + lift.ToString("F2") + " m";
+				line += capped ? " (deck pedido " + wanted.ToString("F2") + " m)" : " (deck)";
+				line += " - " + grounded + " peça(s) de fundação assentadas no terreno";
+				if (capped)
+				{
+					line += buried > 0.001f ? ", " + buried.ToString("F2") + " m enterrado(s)" : ", nada enterrado";
+				}
+				CompanionsPlugin.Log?.LogInfo(line);
 			}
 		}
 		if (skipped > 0)
@@ -3590,7 +3654,7 @@ internal static class MHR_Build
 			}
 			if (Time.time < state.RetryAt)
 			{
-				state.WaitQueue += dt;   // 11/11/2026 (Run 17): the single worker's queue, counted like the group's
+				state.WaitQueueEnd += dt;   // 11/11/2026 (Run 17): the single worker's queue, counted like the group's
 				return true;
 			}
 			return Advance(ai, state);
@@ -3617,13 +3681,34 @@ internal static class MHR_Build
 			Log(ai, "retry do grupo: " + state.Prefab + " (" + (retry + 1) + "/" + state.Plan.Count + ")");
 			return true;
 		}
+		// 11/11/2026 (Run 18, the starvation of the walk): a worker that entered this wait in the MIDDLE of the plan (the
+		// body gate at `:1151` or the storey barrier at `:1433`) used to never ask the gate again - the wait only walked the
+		// plan when the site's queue was EMPTY (`:3620`), and the queue is fed by the spread on almost every piece. So it sat
+		// out `entry.At` (2-25 s) with a free piece right ahead. When there is still a piece ahead of the walk, Advance is
+		// the one that decides (it re-asks MayTake and the storey barrier, and the end-of-plan guard lives there too, `:1227`).
+		bool ahead = state.Index + 1 < state.Plan.Count;
+		if (ahead)
+		{
+			return Advance(ai, state, dt);
+		}
 		if (!MHR_BuildGroup.RetryPending(state.Group))
 		{
 			return Advance(ai, state);   // nothing left: the plan is done for everybody
 		}
 		// 11/11/2026 (Run 17): there IS something in the queue but this worker may not take it (other worker's, a body, the
-		// spread gate) - it is waiting, and the summary line counts it as such
-		state.WaitQueue += dt;
+		// spread gate) - it is waiting, and the summary line counts it as such.
+		// 11/11/2026 (Run 18): the seconds are split by WHERE the walk is - at the END of the plan (nothing ahead, the queue
+		// is the legitimate way forward) or in the MIDDLE of it (a piece was right ahead). With the `ahead` guard above this
+		// middle number is ≈ 0 by construction; it stays here as the guard of a later edit - the day the early return is
+		// removed or its condition changes, the middle-of-plan wait shows up again in the summary line instead of hiding.
+		if (ahead)
+		{
+			state.WaitAhead += dt;
+		}
+		else
+		{
+			state.WaitQueueEnd += dt;
+		}
 		return true;
 	}
 
@@ -7593,16 +7678,22 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		// body x a dependency, the site's queue, the step aside). It is what makes the A/B of the body barrier honest
 		// instead of a guess.
 		if (state.SpreadSkipped > 0 || state.SpreadResumed > 0 || state.AsideAsked > 0
-			|| state.WaitBody > 0f || state.WaitDependency > 0f || state.WaitQueue > 0f || state.WaitAside > 0f
+			|| state.WaitBody > 0f || state.WaitDependency > 0f || state.WaitQueueEnd > 0f || state.WaitAhead > 0f
+			|| state.WaitGate > 0f || state.WaitAside > 0f
 			|| state.BodyHolds > 0 || state.BarrierHolds > 0)
 		{
+			// 11/11/2026 (Run 18): the queue split by where the walk is (the END of the plan x the MIDDLE of it) and the
+			// gate's own seconds - the gate ran with dt = 0 and fell in no bucket, and a good part of the "fila" of the
+			// Run 17 measure was a worker held by it with a free piece right ahead.
 			float barrier = state.WaitBody + state.WaitDependency;
-			float total = barrier + state.WaitQueue + state.WaitAside;
+			float queue = state.WaitQueueEnd + state.WaitAhead;
+			float total = barrier + queue + state.WaitAside + state.WaitGate;
 			Log(ai, "dispersão: " + state.SpreadSkipped + " adiada(s), " + state.SpreadResumed + " retomada(s) · step-aside: "
 				+ state.AsideAsked + " pedido(s) · espera: " + F(total) + " s (barreira " + F(barrier) + " s em "
 				+ state.BodyHolds + " retenção(ões) " + F(state.WaitBody) + " corpo/" + F(state.WaitDependency)
-				+ " dependência, fila " + F(state.WaitQueue) + " s, passo " + F(state.WaitAside) + " s, portão "
-				+ state.BarrierHolds + ")");
+				+ " dependência, fila " + F(queue) + " s (fim " + F(state.WaitQueueEnd) + " s, meio "
+				+ F(state.WaitAhead) + " s), passo " + F(state.WaitAside) + " s, portão "
+				+ state.BarrierHolds + " (" + F(state.WaitGate) + " s))");
 		}
 		// one line per order end, with the key that was spoken: it is how a test proves which refusal came out
 		Log(ai, "order ended: " + (key ?? "(silent)") + (string.IsNullOrEmpty(why) ? string.Empty : " (" + why + ")"));

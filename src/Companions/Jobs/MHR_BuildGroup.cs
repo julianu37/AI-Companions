@@ -743,6 +743,28 @@ internal static class MHR_BuildGroup
 	}
 
 	/// <summary>
+	/// 11/11/2026 (Run 18, the attribution of the wait): was this piece of the site's queue refused by a <b>body</b>
+	/// <b>inside</b> the window of the barrier - i.e. is the barrier that refusal drew still alive? It is the same clock
+	/// <see cref="MayTake(string,int)"/> reads, asked for one index. <see cref="BlockedOf"/> counts every refusal of the
+	/// piece's whole life (the count is never reset), so a body that walked over the spot once answered "body" for every
+	/// later wait of that piece and <b>deflated</b> the dependency number. Read-only: no new state.
+	/// </summary>
+	internal static bool BlockedRecently(string key, int index)
+	{
+		Group group;
+		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null || index < 0)
+		{
+			return false;
+		}
+		float at;
+		if (!group.BodyAt.TryGetValue(index, out at))
+		{
+			return false;   // no body ever refused it: whatever it is waiting for is a dependency
+		}
+		return Time.time - at < BuildFailure.BodyBarrierSeconds;
+	}
+
+	/// <summary>
 	/// 11/11/2026 (the <b>body barrier</b> of the walk order): a piece was refused because a <b>body</b> - the player
 	/// walking over the spot - is on it. The <b>first</b> refusal of a plan index is what starts the barrier
 	/// (<c>BuildFailure.BodyBarrierSeconds</c>): the write is idempotent, so the clock is never pushed forward and a
