@@ -225,13 +225,46 @@ stopped.
   this first stage: the **materials are counted per companion** (there is no per-piece reservation between the workers
   yet, so the same stack may be counted twice and they can gather more than the plan needs), the group lives **in
   memory** (it is **not in the save**), and the group is **blueprints only** - a single piece and a template still have
-  one companion on them. Build 0/0 and the harness at **471 assertions** pass; **not validated in game yet**.
+  one companion on them. Build 0/0 and the harness at **494 assertions** pass (23 of them are the failure classification of
+  the support gate below); **in test** - the numbers of the 04/11/2026 run end this cycle.
   - **New `[Building] PlaceReach`** (**in test**): how far the companion may place a piece **once it is stuck** - it
     keeps walking to the piece as before, and only after **3 s without getting closer** does it place from farther
     away, up to this distance (float, default **10**, range **5–20**). `5` is the game's own reach
     (`Player.m_maxPlaceDistance`, from the eye) and `20` is for the impatient player: it is a mod, it does not have to
     be realistic. **Why 10 and not 5** (measured in the run of 03/11/2026): of the **97** `no progress` give-ups only
     **3%** happened within **5 m**, and **10 m** covers about **81%** of them.
+  - **The support gate: a piece that is only WAITING for the plan spends no attempt** (**in test**, 04/11/2026): a
+    refusal by **dependency** - `no_support`, `needs_station`, and a `no_ground` whose probe found the piece of the plan
+    under the pose - goes back to the queue with a **growing wait** (8 s, 12 s, 20 s, then 25 s) and is **never counted
+    as skipped**: it comes in as soon as what it needs is up. A **real** failure (`no progress`, `too_steep`, a hole under
+    the pose, a piece that never materializes) keeps the 3 attempts. The table is pure (`AI/BuildFailure.cs`) and the
+    harness asserts it. Why: on the 985-piece house the **ridge pieces** failed with `no_support` **before the support
+    existed**, burned their 3 attempts and were left out of the house. And the old "60 s in the wait" clock became a
+    **stall watchdog** - **60 s without a single piece going up** ends the order, and the log **names every piece left
+    out, with the reason**.
+  - **The final scoreboard counts pieces, not attempts** (**in test**, 04/11/2026): placed and skipped are **sets of plan
+    indices**, so `placed + skipped` closes with the plan - the run of 03/11/2026 said *"957 pieces, 262 skipped"* with
+    **984** in the plan, because every retry of the same piece counted again. A piece that is given up and then goes up
+    counts as **placed**, never both.
+- **The workbenches cover the whole site** (**in test**, 04/11/2026 - and the reason is measured): the station pass walked
+  the plan but stopped after **6 searches** with only **2 benches** planned on a 32 m footprint, and the rest of the plan
+  fell to the fallback that appends a bench at the **end** of the list - the middle of the house had no station in range
+  (the game's rule is per piece, 20 m of *its own* pose). It now reads the **whole plan** (up to **12 benches**, **32
+  searches**; for each piece it tries the anchors outside the footprint - the near ring, a farther one and the **±40°
+  turns** - and every anchor sits **on the ground**, an outside bench does not stand at the house's floor height) and it
+  says what it did: the line `station: N peça(s) precisam, M planejada(s)` now ends with the pieces left **without
+  coverage** (the run said `983 peça(s) precisam, 2 planejada(s)`, and the target of the new pass is `0 sem cobertura`).
+- **A piece leaning on the structure is not refused anymore, and a ground piece on a bank gets a fair pose** (**in test**,
+  04/11/2026): the validator's `no_ground` was a **false negative** on a ridge piece - a `Physics.OverlapSphere` of **2,6 m**
+  now confirms that there **is** structure around the pose before it is refused. And a **ground piece** (a chest, a bed, a
+  fire pit, a workbench) that lands on the bank the leveling did not reach (the site is 32 m and the hoe works 20 m) was
+  refused with `too_steep`/`no_ground` - 4 pieces lost in the run. Before the refusal it now gets **one** chance at the
+  closest pose the game's own rules accept within **2,5 m** (2 rings x 8 directions, the plan keeps the original pose, so a
+  later retry starts from there) and the log says where it went:
+  `log ajustado: <prefab> de (x, y, z) para (x, y, z) - too_steep`.
+- **The run of 04/11/2026 (in test):** ~**957 of 985** pieces, **0 pieces discarded by dependency**, `no progress` give-ups
+  **58 -> 6** and **0 deaths** in the round with the 10 m reach. Build 0/0, harness **494** (23 new assertions of the
+  failure classification), MCP **101** and config **359/25**.
 
 ## 1.9.6 - 02/11/2026
 
