@@ -87,8 +87,22 @@ internal static class MHR_Build
 	private static bool s_postsMeasured;
 
 	/// <summary>P1 (04/11/2026): how far under the piece the surface a post stands on is looked for. The deepest gap the
-	/// measured house has is 7 m (the top of the gable); 10 m is the vanilla placement ray's reach and leaves room.</summary>
+	/// measured house has is 7 m (the top of the gable); 10 m is the vanilla placement ray's reach and leaves room. It is the
+	/// TOTAL of the walk through the close surfaces, not the reach of each pass.</summary>
 	private const float PostReach = 10f;
+
+	/// <summary>P1 (04/11/2026, measured: a roof eave 0,16 m under a floor of 40,8 stopped the ray and no post fits in
+	/// 16 cm): how deep under the piece a surface has to be to serve as the base of a post. Anything closer is walked
+	/// through (a roof eave, a beam lying under the piece); the deck floor 1,02 m down is the base the post wants.</summary>
+	private const float MinPostGap = 0.4f;
+
+	/// <summary>P1 (04/11/2026): how many surfaces (<see cref="MinPostGap"/>) the ray may walk through before the terrain
+	/// height is used. Four is slack: a roof eave, a beam and a rafter are three.</summary>
+	private const int MaxPostPasses = 4;
+
+	/// <summary>P1 (04/11/2026): the depths (piece minus hit, in metres) of the surfaces the post ray met, in the order it
+	/// met them - a scratch buffer, no allocation per refusal.</summary>
+	private static readonly float[] s_postDepths = new float[MaxPostPasses];
 
 	/// <summary>P1 (04/11/2026): how many emergency posts one ORDER may add - the house gets "a few extra posts", never a
 	/// forest of them. One per piece (<c>State.FallbackPosts</c>), never where the plan already has a support.</summary>
@@ -3251,11 +3265,35 @@ internal static class MHR_Build
 		}
 		// where does the post stand? The surface under the piece's own point: the ground, the floor of the storey below, a
 		// beam top. Nothing in 10 m answers the height map (fail-open: the spot is on a hill side).
+		//
+		// P1 (04/11/2026, measured in the run of 5: "vão de 0,16 m" 318 times): a single ray stopped on a ROOF EAVE 0,16 m
+		// under a floor of 40,8, and no post fits in 16 cm - while the useful surface (the deck floor at 39,78) was 1,02 m
+		// down. So the ray is walked down THROUGH the surfaces that are too close to be a base, each pass starting 5 cm
+		// under the last hit; the reach (PostReach) is the total of the whole walk, not of each pass.
 		Vector3 piece = state.Pos;
-		RaycastHit hit;
-		float baseY = Physics.Raycast(new Vector3(piece.x, piece.y + 0.05f, piece.z), Vector3.down, out hit, PostReach,
-			BuildProbe.PlaceMask(), QueryTriggerInteraction.Ignore)
-			? hit.point.y
+		float bottom = piece.y - PostReach;
+		float from = piece.y + 0.05f;
+		int hits = 0;
+		int skipped = 0;
+		for (int pass = 0; pass < MaxPostPasses && from > bottom; pass++)
+		{
+			RaycastHit hit;
+			if (!Physics.Raycast(new Vector3(piece.x, from, piece.z), Vector3.down, out hit, from - bottom,
+				BuildProbe.PlaceMask(), QueryTriggerInteraction.Ignore))
+			{
+				break;
+			}
+			s_postDepths[hits++] = piece.y - hit.point.y;
+			if (piece.y - hit.point.y >= MinPostGap)
+			{
+				break;   // deep enough to be the base of a post
+			}
+			skipped++;
+			from = hit.point.y - 0.05f;   // 5 cm under the surface that was too close (a roof eave, a lying beam)
+		}
+		int useful = BuildSupportBelow.UsefulSurface(s_postDepths, hits, MinPostGap);
+		float baseY = useful >= 0
+			? piece.y - s_postDepths[useful]
 			: (ZoneSystem.instance != null ? ZoneSystem.instance.GetGroundHeight(piece) : piece.y - 2f);
 		float gap = piece.y - baseY;
 		MeasurePosts();
@@ -3263,7 +3301,8 @@ internal static class MHR_Build
 		if (pick < 0)
 		{
 			Log(ai, "sem lugar para o apoio de emergência sob " + state.Prefab + " em (" + F(piece.x) + ", " + F(piece.y)
-				+ ", " + F(piece.z) + ") - vão de " + gap.ToString("F2") + " m");
+				+ ", " + F(piece.z) + ") - vão de " + gap.ToString("F2") + " m"
+				+ (skipped > 0 ? " (" + skipped + " superfície(s) colada(s) ignorada(s))" : string.Empty));
 			return false;
 		}
 		float length = s_postLengths[pick];

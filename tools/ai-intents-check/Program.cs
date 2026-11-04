@@ -931,6 +931,29 @@ internal static class Program
 			"obtido " + BuildSupportBelow.ShortTolerance.ToString("F2"));
 		Check("MaxOverlap == 0,35 m", Math.Abs(BuildSupportBelow.MaxOverlap - 0.35f) < 0.001f,
 			"obtido " + BuildSupportBelow.MaxOverlap.ToString("F2"));
+		// the WALK of the post ray (04/11/2026: a roof eave 0,16 m under the floor of 40,8 stopped the ray 318 times, while
+		// the deck floor the post wants was 1,02 m down)
+		SurfaceCase(new[] { 0.16f, 1.02f }, 2, 0.4f, 1, "o caso medido: a beira do telhado a 0,16 e o deck a 1,02 -> o deck");
+		SurfaceCase(new[] { 1.02f }, 1, 0.4f, 0, "só o deck: ele mesmo");
+		SurfaceCase(new[] { 0.16f, 0.35f }, 2, 0.4f, -1, "duas superfícies coladas: nenhuma serve (terreno)");
+		SurfaceCase(new[] { 0.4f }, 1, 0.4f, 0, "borda: 0,40 m já serve de base");
+		SurfaceCase(new[] { 0.39f }, 1, 0.4f, -1, "0,39 m ainda é colado");
+		SurfaceCase(new[] { 0.5f, 0.16f, 1.02f }, 3, 0.4f, 0, "o primeiro utilizável manda (a ordem do raio)");
+		SurfaceCase(new[] { 0.16f, 1.02f, 9f }, 2, 0.4f, 1, "só as `count` primeiras entram");
+		SurfaceCase(new float[] { }, 0, 0.4f, -1, "nenhum hit -> terreno");
+		SurfaceCase(null, 0, 0.4f, -1, "sem lista -> terreno");
+		// the SUPPORT OF THE PLACED PIECE (FootprintSupported): a roof piece has m_supports = false in Valheim and is held by
+		// the EDGE of the row below - the 13 pieces that stayed out for five rounds and the 318 "vão de 0,16 m"
+		HoldCase(3, false, true, false, true, "telhado sobre telhado: a fileira de baixo apoia pela borda (o caso medido)");
+		HoldCase(3, false, true, true, true, "telhado no topo de parede/viga");
+		HoldCase(3, true, false, false, true, "telhado sobre o terreno");
+		HoldCase(0, false, true, true, true, "piso sobre piso/viga que carrega");
+		HoldCase(0, false, true, false, false, "piso NAO e apoiado por telhado (m_supports = false)");
+		HoldCase(2, false, true, false, false, "parede NAO e apoiada por telhado");
+		HoldCase(1, false, true, false, false, "escada NAO e apoiada por mobilia (m_supports = false)");
+		HoldCase(0, false, false, false, false, "pedra/arvore nao tem WearNTear: nao apoia");
+		HoldCase(3, false, false, false, false, "telhado tambem nao e apoiado por pedra");
+		HoldCase(4, false, true, true, true, "porta apoiada por parede");
 	}
 
 	/// <summary>Section (r): one candidate of the direct-support window.</summary>
@@ -956,6 +979,23 @@ internal static class Program
 		int actual = BuildSupportBelow.PickPost(lengths, gap);
 		Check("PickPost(vão " + gap.ToString("F2") + " m) -> " + expected + " (" + why + ")",
 			actual == expected, "obtido " + actual);
+	}
+
+	/// <summary>Section (r): one walk of the post ray and the surface it should use.</summary>
+	private static void SurfaceCase(float[] depths, int count, float minGap, int expected, string why)
+	{
+		int actual = BuildSupportBelow.UsefulSurface(depths, count, minGap);
+		Check("UsefulSurface(" + count + " hit(s), minGap " + minGap.ToString("F2") + ") -> " + expected + " (" + why + ")",
+			actual == expected, "obtido " + actual);
+	}
+
+	/// <summary>Section (r): one collider of the footprint and whether it holds the piece being placed.</summary>
+	private static void HoldCase(int pieceClass, bool terrain, bool wear, bool supports, bool expected, string why)
+	{
+		bool actual = BuildSupportBelow.HoldsPlacedPiece(pieceClass, terrain, wear, supports);
+		Check("HoldsPlacedPiece(peca " + pieceClass + ", terreno=" + (terrain ? "sim" : "nao") + ", wear="
+			+ (wear ? "sim" : "nao") + ", m_supports=" + (supports ? "sim" : "nao") + ") -> "
+			+ (expected ? "true" : "false") + " (" + why + ")", actual == expected, "obtido " + (actual ? "true" : "false"));
 	}
 
 	/// <summary>

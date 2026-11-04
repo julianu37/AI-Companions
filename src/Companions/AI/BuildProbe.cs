@@ -657,9 +657,17 @@ internal static class BuildProbe
 	}
 
 	/// <summary>
-	/// E6: is there the ground (the terrain) or a supporting piece inside the piece's footprint, grown by 0,15 m? It
+	/// E6: is there the ground (the terrain) or something that can hold this piece inside its footprint, grown by 0,15 m? It
 	/// is the elevated-piece half of the <c>no_support</c> rule - the same reach the game's <c>UpdateSupport</c> uses.
 	/// No box to test (an exotic prefab) answers <c>true</c>: never a refusal for a missing measurement.
+	///
+	/// <para>P1 (04/11/2026, measured: 13 pieces of the roof stayed out for FIVE rounds and the emergency post was refused 318
+	/// times with "vão de 0,16 m"): a <b>roof piece has <c>WearNTear.m_supports = false</c> in Valheim</b> - a roof does not
+	/// carry support, it holds the layer above it by the <b>edge</b> (the row below of the same slope). The rule here only
+	/// accepted a piece with <c>m_supports</c>, so a roof over another roof was refused with <c>no_support</c> even with the
+	/// row below standing. The decision is now <see cref="BuildSupportBelow.HoldsPlacedPiece"/>: the terrain holds anything,
+	/// a <b>roof</b> is held by any <see cref="WearNTear"/> in its footprint, and every other class still needs a piece that
+	/// really carries (<c>m_supports</c>) - otherwise a wall would stand on a chest.</para>
 	/// </summary>
 	private static bool FootprintSupported(Piece piece, Vector3 pos, Quaternion rot)
 	{
@@ -671,6 +679,7 @@ internal static class BuildProbe
 		Vector3 localCenter = box.center - piece.transform.position;
 		Vector3 center = pos + rot * localCenter;
 		Vector3 half = box.extents + new Vector3(0.15f, 0.15f, 0.15f);
+		int classOfPiece = BuildBlueprintParser.ClassOf(piece.gameObject.name);
 		int terrain = LayerMask.NameToLayer("terrain");
 		Collider[] near = Physics.OverlapBox(center, half, rot, PlaceMask(), QueryTriggerInteraction.Ignore);
 		foreach (Collider collider in near)
@@ -679,12 +688,9 @@ internal static class BuildProbe
 			{
 				continue;
 			}
-			if (terrain >= 0 && collider.gameObject.layer == terrain)
-			{
-				return true;
-			}
-			WearNTear wear = collider.GetComponentInParent<WearNTear>();
-			if (wear != null && wear.m_supports)
+			bool isTerrain = terrain >= 0 && collider.gameObject.layer == terrain;
+			WearNTear wear = isTerrain ? null : collider.GetComponentInParent<WearNTear>();
+			if (BuildSupportBelow.HoldsPlacedPiece(classOfPiece, isTerrain, wear != null, wear != null && wear.m_supports))
 			{
 				return true;
 			}

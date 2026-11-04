@@ -105,6 +105,34 @@ internal static class BuildSupportBelow
 	internal const float MaxOverlap = 0.35f;
 
 	/// <summary>
+	/// P1 (04/11/2026, measured: the post ray of a floor at 40,8 stopped on a roof eave <b>0,16 m</b> under it - "vão de
+	/// 0,16 m" 318 times - and no post fits in 16 cm, while the surface a post wants, the deck floor, was 1,02 m down): the
+	/// first surface of <paramref name="depths"/> that is <b>deep enough to be a base</b>, i.e. at least
+	/// <paramref name="minGap"/> under the piece. <paramref name="count"/> entries are read (the caller fills a fixed
+	/// buffer in the order the ray met them). Returns the index of that surface, or -1 when none of them is usable (the
+	/// caller then uses the terrain height).
+	///
+	/// <para>Pure on purpose (floats only): the walk itself is a Unity raycast, this is the decision the harness asserts
+	/// (section (r)).</para>
+	/// </summary>
+	internal static int UsefulSurface(float[] depths, int count, float minGap)
+	{
+		if (depths == null)
+		{
+			return -1;
+		}
+		int read = count < depths.Length ? count : depths.Length;
+		for (int i = 0; i < read; i++)
+		{
+			if (depths[i] >= minGap)
+			{
+				return i;
+			}
+		}
+		return -1;
+	}
+
+	/// <summary>
 	/// P1 (04/11/2026, measured on the 985-piece house): can a piece of the <paramref name="candidateClass"/> class
 	/// (<c>BuildBlueprintParser.ClassOf</c>) hold up a piece of the <paramref name="pieceClass"/> class?
 	///
@@ -125,5 +153,32 @@ internal static class BuildSupportBelow
 			return pieceClass == 3;   // roof on roof: the row below the slope, never the roof over a floor
 		}
 		return true;
+	}
+
+	/// <summary>
+	/// P1 (04/11/2026, measured: 13 roof pieces stayed out for FIVE rounds and the emergency post was refused 318 times with
+	/// "vão de 0,16 m"): can a collider found inside the footprint of a piece of <paramref name="pieceClass"/> hold it?
+	///
+	/// <para>The terrain holds anything. A <b>roof</b> (class 3, which includes <c>wood_wall_roof_*</c>) is held by <b>any</b>
+	/// <see cref="WearNTear"/> - a roof piece has <c>m_supports = false</c> in Valheim (a roof does not carry support; it
+	/// holds the layer above it by the <b>edge</b>, the row below of the same slope), so a rule that demands
+	/// <c>m_supports</c> refuses every roof over another roof. Every other class (floor, wall, beam, pole, stair, door) still
+	/// needs a piece that really carries (<paramref name="wearSupports"/>), otherwise a wall would stand on a chest.</para>
+	///
+	/// <para>Sibling of <see cref="CanSupport"/> (the pull's rule): there a roof only holds a <b>roof</b>; here a roof is
+	/// only <b>held</b>, by anything with a <see cref="WearNTear"/>. Both agree that a door never holds and that a roof never
+	/// holds a floor.</para>
+	/// </summary>
+	internal static bool HoldsPlacedPiece(int pieceClass, bool isTerrain, bool hasWear, bool wearSupports)
+	{
+		if (isTerrain)
+		{
+			return true;   // the ground holds every piece, whatever it is
+		}
+		if (!hasWear)
+		{
+			return false;   // a rock, a tree, an item on the ground: not a support
+		}
+		return pieceClass == 3 || wearSupports;
 	}
 }
