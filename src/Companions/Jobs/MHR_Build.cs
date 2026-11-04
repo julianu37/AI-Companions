@@ -3681,16 +3681,13 @@ internal static class MHR_Build
 			Log(ai, "retry do grupo: " + state.Prefab + " (" + (retry + 1) + "/" + state.Plan.Count + ")");
 			return true;
 		}
-		// 11/11/2026 (Run 18, the starvation of the walk): a worker that entered this wait in the MIDDLE of the plan (the
-		// body gate at `:1151` or the storey barrier at `:1433`) used to never ask the gate again - the wait only walked the
-		// plan when the site's queue was EMPTY (`:3620`), and the queue is fed by the spread on almost every piece. So it sat
-		// out `entry.At` (2-25 s) with a free piece right ahead. When there is still a piece ahead of the walk, Advance is
-		// the one that decides (it re-asks MayTake and the storey barrier, and the end-of-plan guard lives there too, `:1227`).
+		// 11/11/2026 (Run 19 - MEASURED REGRESSION, do NOT re-add the early return without a throttle): returning
+		// Advance here removed the queue starvation (fila 0,0 s on a 32-piece plan) but HALVED the throughput of the
+		// 985-piece house: 38 pieces/min against 78/min of the Run 18, with "corpo na peca" 130 against 33 in the whole
+		// run. Every waiting worker re-walked the plan every frame and fought for the same corner - the wait was traded
+		// for contention, and five companions end up standing on the piece being placed. The re-ask is the classifier
+		// below; the wait is the one of the Run 18 again.
 		bool ahead = state.Index + 1 < state.Plan.Count;
-		if (ahead)
-		{
-			return Advance(ai, state, dt);
-		}
 		if (!MHR_BuildGroup.RetryPending(state.Group))
 		{
 			return Advance(ai, state);   // nothing left: the plan is done for everybody
