@@ -2838,7 +2838,8 @@ custo por peça do `ClaimPoses`, **quantas** peças a dispersão adiou (o contad
 > Continuação do §17.21. A linha da `espera` que o Run 17 estreou mediu, no Run 18, **mais tempo parado do que todos os
 > marcadores de disputa juntos** — e a revisão independente mostrou que **80 %** dele não era disputa nenhuma: era um
 > worker preso esperando uma fila que ele **não precisava** esperar. Este lote corrige a causa em **duas linhas** e
-> instrumenta o que faltava medir. **O A/B (Run 19) ainda não foi rodado** — os números daqui são de **um** run.
+> instrumenta o que faltava medir. *No dia, o A/B (Run 19) ainda não tinha rodado — os números daqui são de **um** run.
+> Depois ele foi medido no **§17.24**: o Run 19 (por frame) foi **revertido** e o **Run 22** (1 Hz) fechou o A/B.*
 
 #### (A) O Run 18 medido
 
@@ -2934,7 +2935,7 @@ por worker.
 - **O relatório:** `tools/build_run_report.py` entende **os dois formatos** (`:184-196`) — o baseline do Run 18
   continua legível — e imprime a fila por metade e os segundos do portão (`:656-682`).
 
-#### (E) O corte do A/B (Run 19) — **pendente**
+#### (E) O corte do A/B (Run 19) — **rodado e fechado no §17.24**
 
 O Run 19 é o **A/B** da mesma casa, com este patch. Aceite:
 
@@ -2947,7 +2948,9 @@ O Run 19 é o **A/B** da mesma casa, com este patch. Aceite:
 
 **Reverte** o lote se aparecer **`puladas > 0`**, **`desistindo > 0`**, **morte**, **`UNSUPPORTED`** ou **watchdog**.
 **Estado hoje:** build **0 erros / 0 avisos** (`-p:SkipDeploy=true`), harness **711 PASS**, `gen_config_doc.py --check`
-`[ok] (367 settings, 25 sections)` — e **o Run 19 não foi rodado**.
+`[ok] (367 settings, 25 sections)`. **O Run 19 foi rodado e o resultado está no §17.24:** o caminho **por frame**
+(este `ahead` sem throttle) **dobrou** o tempo e foi **revertido**; o que valeu foi o **1 Hz** do Run 22 (§17.24(D)) —
+`fila` **4,5 s**, duração **727 s** (**7 s** acima do corte de 720 s), **985/985**, **0 puladas**.
 
 #### (F) Onde cada ponto mora, e o que não foi medido
 
@@ -2962,10 +2965,10 @@ As linhas citadas no lote são as da árvore **anterior** ao patch (as mesmas do
 | a contagem do `BarrierHolds` (fora do `WaitRetry`) | `:1149` | `:1164-1172` |
 | a barreira de andar desenhada no `Advance` | `:1433` | `:1182` → `StoreyBarrier` `:1350` / `ServeBarrier` `:1397` |
 
-**Não medido:** se o patch **encurta** o run (é exatamente o que o Run 19 mede); **quanto** dos 222,1 s de
-"dependência" é o colega e quanto é apoio que não veio (o `PendingBelow` **não distingue** — é desenho, não medida);
-o **custo por frame** das chamadas extras do `Advance`; e se o `WaitAhead` fica mesmo ≈ 0. Também não se mediu
-**`1012` como fila** — e não se deve: ver (B), item 2.
+**Não medido:** **quanto** dos 222,1 s de "dependência" é o colega e quanto é apoio que não veio (o `PendingBelow` **não
+distingue** — é desenho, não medida); o **custo por frame** das chamadas extras do `Advance` (estimado em **~4,2 ms**,
+§17.25); e se o `WaitAhead` fica mesmo ≈ 0. Também não se mediu **`1012` como fila** — e não se deve: ver (B), item 2.
+O "**se o patch encurta o run**" desta lista **saiu**: medido no **§17.24** (**844 → 727 s**).
 
 ### 17.23 O `DeckLift` virou **teto** (11/11/2026) — a obra que subia 1 m no ar e caía
 
@@ -3040,5 +3043,147 @@ dois lados; **não foi medido qual**. O número fica registrado como saiu do log
   esta correção faz é **não criar** o vão em plano que não precisa dele.
 - **`DeckLift = 0`** continua "mantém o nível do arquivo"; o efeito disso num plano com estacas enterradas **não** foi
   medido nesta rodada.
+
+### 17.24 O parque da espera (11/11/2026) — a fila que nunca esvaziava e a regra do 1 Hz
+
+> Continuação do §17.22. Lá o defeito era o `WaitRetry` só olhar o plano com a fila **vazia**; aqui se mede **por que a
+> fila nunca ficava vazia** — e o run que fecha o A/B que ficou pendente lá. A correção do §17.22 **funcionou** (a `fila`
+> caiu de **1040,2 s** para **4,5 s**), mas o caminho óbvio — re-perguntar o plano **por frame** — **custou metade da
+> obra** (Run 19). O que fica é o throttle de **1 Hz**.
+
+#### (A) O defeito: `RetryPending` responde "tem entrada", não "tem peça para mim"
+
+- `MHR_BuildGroup.RetryPending` é literalmente `group.Retry.Count > 0` (`Jobs/MHR_BuildGroup.cs:1181-1185`): responde
+  **"existe alguma entrada na fila do canteiro"**, não "existe **peça que eu possa pegar agora**". [M]
+- Uma entrada de **dependência** é **imortal**: `TryQueueRetry(..., BuildFailure.Kind.Dependency)` faz
+  `entry.Dependency++` e `entry.At = Time.time + DependencyDelay(...)` e **retorna sem gastar tentativa e sem remover**
+  (`MHR_BuildGroup.cs:1089-1094`). O atraso cresce e **para em 25 s** (`MHR_Build.DependencyDelay`,
+  `Jobs/MHR_Build.cs:876-891`: **8** → **12** → **20** → **25 s**). Uma peça esperando o apoio que o **colega** vai
+  construir mantém a fila "não vazia" **pelo resto da obra**. [M]
+- Com o `:3620` do §17.22 (só chamar `Advance` com a fila vazia), o worker que **entrava na espera** — pelas **duas
+  portas**, o portão (`MHR_Build.cs:1177-1194`) e a barreira (`:3662`) — **nunca mais olhava o plano**. [M]
+- **A assinatura do jogador ("3 parados, às vezes 5") é exatamente isso:** cada worker entra quando é atingido (o seu
+  `entry.At`, 2–25 s) e **não volta** — não é *um* worker esperando, são **N** workers parados em momentos diferentes e
+  **sem caminho de saída**. [I]
+
+#### (B) O que foi aplicado: 1 Hz
+
+- `AdvanceAskSeconds = 1f` (`MHR_Build.cs:221`) e `State.AdvanceAskedAt` (`:497`), **zerado no `EnterStep`** (`:1341`)
+  para a peça nova abrir uma janela nova.
+- O `WaitRetry` re-pergunta o plano **no máximo 1×/s**: `if (ahead && Time.time - state.AdvanceAskedAt >=
+  AdvanceAskSeconds) { state.AdvanceAskedAt = Time.time; return Advance(ai, state, dt); }` (`:3722-3726`), e o `dt` é
+  **repassado** em todos os chamadores que o têm — é o que faz o `WaitGate` deixar de somar zero (o achado do §17.22(D)).
+- O `RetryPending` continua sendo o **teste grosso** ("tem algo na fila para alguém") e o `false` dele fecha a ordem do
+  grupo (`:3713-3716`): no **fim do plano** o caminho segue **byte a byte** o de antes. [M]
+- **O comentário do teste fica no código** (`:3717-3721`) explicando por que **não** existe um segundo predicado
+  ("posso pegar algo agora?"): o `NextRetry`, que roda antes no mesmo frame, já percorreu a mesma fila com o mesmo
+  `Ready` e **clamou** o que estava pronto — a resposta seria `false` por construção. [M]
+
+#### (C) Por que 1 Hz e não por frame — o Run 19 é a prova
+
+O Run 19 usou o caminho **por frame** (o `if (ahead) return Advance(...)` do §17.22(D) **sem** throttle) e o resultado é
+uma **regressão medida**: **38 peças/min contra 78** — a taxa **caiu à metade** — com `corpo na peça` **130** nas **347
+peças** que ele entregou, contra **33** no run inteiro do Run 18 (`MHR_Build.cs:3702-3707`, o comentário que fica lá para
+ninguém repetir). A causa também está registrada: o `Advance` faz `ReleaseAllOf` **ao entrar** e os **5** passam a
+disputar o **mesmo canto** — a espera foi trocada por contenção, e cinco companheiros acabam **em cima da peça que está
+sendo colocada**. [M]
+
+**Regra, com o número que a sustenta: a re-pergunta do plano dentro da espera é 1 Hz por worker — nunca por frame.**
+
+#### (D) O run medido — a mesma receita do Run 18 (`CommHomeBasicBP`, **985 peças**, **5 companheiros**, canteiro vazio)
+
+| medida | antes (**Run 18**) | depois (**Run 22**) |
+|---|---|---|
+| duração | **844 s (14 min 04 s)** | **727 s (12 min 07 s)** |
+| `espera` total (5 workers) | **1292,8 s** | **414,1 s** |
+| **`fila`** | **1040,2 s** | **4,5 s** |
+| barreira | **244,9 s** / **73** retenções | **402,7 s** / **99** retenções |
+| dependência | **222,1 s** | **357,0 s** |
+| colocadas / puladas | **985/985 · 0 puladas** | **985/985 · 0 puladas** |
+| mortes / `UNSUPPORTED` / watchdog | **0 / 0 / 0** | **0 / 0 / 0** |
+| `FALTANDO` | vazio | **vazio (23/23 prefabs)** |
+| postes de emergência | **25** | **26** (**11** `sem lugar para o apoio`) |
+| dispersão | **1012** adiadas / **32** retomadas | **1287** / **6** |
+
+#### (E) Leitura obrigatória desta tabela
+
+- **[I] A barreira subiu porque absorveu a fila.** 244,9 → 402,7 s (**+64,4 %**) e 73 → 99 retenções: a espera **mudou de
+  balde**, não necessariamente de tamanho. "Dependência" idem (222,1 → 357,0 s, +60,7 %). Não se lê isso como piora.
+- **[I] O que decide continua sendo a `duração` e as `puladas`.** A `espera` é **soma de 5 workers em paralelo**
+  (§17.22(B), item 1): **68 %** de queda na espera (1292,8 → 414,1 s) viraram **13,9 %** de queda na duração
+  (844 → 727 s) — exatamente o que aquele item previu (só a espera do **último** worker encurta o run).
+- **[I] A conta fecha:** 402,7 (barreira) + 4,5 (fila) + **6,9** (passo + portão, e o portão saiu **0,0 s**) = **414,1 s**.
+  O passo por worker **não** foi transcrito aqui.
+- **Cortes do §17.22(E), conferidos um por um:** `fila ≤ 400 s` → **4,5 s** ✅; `duração ≤ 720 s` → **727 s**, **7 s
+  acima** ⚠️; `WaitAhead ≈ 0` e a espera do **último** worker **não** foram transcritas para esta tabela. **O que fecha a
+  pendência são as `puladas` (0), as mortes (0), o `UNSUPPORTED` (0) e o watchdog (0) — os guardas de reversão — e não o
+  corte de duração**, que ficou **7 s** fora e fica registrado como ficou. O **`desistindo`** também **não** foi
+  transcrito aqui.
+
+#### (F) Dois lotes revertidos no mesmo dia, com o número que os matou
+
+1. **Escopo XZ de 6 m nas duas barreiras** (`BodyScope`/`BodyNear` em `MayTake`/`IsBelow`): run completo de **~33 min**
+   (**2,4×** a linha de base), `dependência` **206** retenções e `sem lugar livre` **179** — o telhado subia **noutro
+   canto** antes de a coluna fechar. Revertido em **`8ec9de7`**. [M]
+2. **Filtro de destino do `step-aside`** (rejeitar candidato cujo corpo ainda cruza a peça que está sendo colocada):
+   `sem lugar livre` **179** e a **mesma** duração de ~33 min. Revertido **no mesmo commit** (`8ec9de7`). [M]
+
+Os dois números estão aqui para **ninguém repetir**: o problema do telhado não é "esperar mais" nem "escolher outro
+canto" — é a **coluna fechar de baixo para cima**, que é o desenho do §17.22.
+
+#### (G) O que ficou aberto desta rodada
+
+- **O `portão` continua `0,0 s`** mesmo com o `dt` **repassado** (`WaitGate += dt` em `MHR_Build.cs:1185`, só quando
+  `Phase == WaitRetry`, `:1181-1186`) — e o `BarrierHolds` voltou a contar (**99**). Com re-pergunta de **1×/s**, esses
+  segundos só poderiam ser o `dt` do frame que re-pergunta. **O instrumento ainda não explica por quê.** [M]
+- **`step-aside`: 42 linhas `sem lugar` para 10 pedidos.** Os dois números **contam coisas diferentes** e não formam
+  taxa: a linha `"…" está na peça X - sem lugar livre para ele sair da frente` é **1 por peça** (`AsideLogged`, zerado
+  em `EnterStep`, `MHR_Build.cs:1332`; impressa em `:6569-6573`) e o `AsideAsked` (`:538`, incrementado em `:6595`)
+  conta **todo pedido aceito** na linha do `Finish` (`:7721`). Fica registrado como saiu do log, com a ressalva de
+  métrica do §17.21. [M]
+- **Os 6,9 s de "passo" não foram abertos por worker** — a soma bate, o detalhe não foi lido.
+- **Um comentário ficou para trás:** `MHR_Build.cs:1461` ainda diz *"the wait is re-asked every frame"* — texto anterior
+  ao throttle; o comportamento de hoje é **1×/s** (§17.25(D)).
+
+### 17.25 O custo por frame da espera (11/11/2026) — 4,2 ms, 10–12 MB/s de GC e uma varredura morta
+
+> Revisão de performance do caminho da espera (§17.22/§17.24) com `arquivo:linha`. Duas das três suspeitas se
+> confirmaram, a terceira era **código morto** — e o que continua **não existindo** é o cronômetro no jogo (ver (C)).
+
+#### (A) O que a revisão mediu [M]
+
+- **Três varreduras a 60 Hz por worker:** o `WaitRetry` chama `ServeBarrier` **todo frame** (`MHR_Build.cs:3662`) e
+  `NextRetry` **todo frame** (`:3691`); o `RetryReady` era uma **segunda** varredura da **mesma** fila com o **mesmo**
+  predicado. O throttle de 1 s do `AdvanceAskSeconds` (`:3722`) estrangula **só o `Advance`**, não estas três.
+- **Com a fila de 985 e 99 barreiras: ~4,2 ms/frame nos 5 workers ≈ 25 % do orçamento de 16,6 ms**, **com alocação**.
+- **`ClassOf` alocava uma string por chamada** (`(prefab ?? "").ToLowerInvariant()`): a regra rodava **por chamada** e o
+  `IsBelow` (`MHR_BuildGroup.cs:1371`, chamado em `:1306` e `:1342`) pergunta por **entrada elegível × 2–3 varreduras** →
+  **~3.000 strings/frame ≈ 170–210 KB/frame ≈ 10–12 MB/s de GC**, exatamente na **fase travada**.
+- **`RetryReady` era 100 % morto:** o `Ready` inclui `ClaimFree` (`MHR_BuildGroup.cs:1196-1218`) e o `NextRetry` — que
+  roda **antes, no mesmo frame** — pergunta a mesma coisa e **clama**; logo `NextRetry == -1 ⟹ RetryReady == false`,
+  **sempre**. Era uma varredura inteira da fila por frame por worker para responder `false` por construção.
+
+#### (B) O que foi corrigido (commit `c0826b4`) [M]
+
+- **`RetryReady` removido** — a regra virou **uma só** cópia em `Ready`, que o `NextRetry` mantém viva
+  (`MHR_BuildGroup.cs:1187-1195`, o comentário que registra por que a segunda varredura saiu).
+- **`ClassOf` memoizado**: `Dictionary<string, int>` com `StringComparer.Ordinal` (`AI/BuildBlueprintParser.cs:302`) e a
+  regra em `ClassOfOnce` (`:321`), que roda **no primeiro prefab**; o valor guardado é **exatamente** o que a regra
+  devolve (`:306-317`). Efeito: **0 strings/frame** nesse caminho, e o cache é limitado (~100 prefabs no corpus inteiro).
+- **Gate do ciclo:** harness **711**, gate **9/9**.
+
+#### (C) O que continua sem medidor [M]
+
+- **`µs/frame` do `Drive`:** **não existe instrumento** — não há `Stopwatch` em `MHR_Build.cs`.
+- **`BodyAt` no pico e no fim do run**, e o **frame time com a obra travada**: não medidos.
+- **A proposta (não implementada):** `Stopwatch` no `Drive` + contador em `Ready` + `GC.GetTotalMemory` na linha do
+  `Finish` — os três números na mesma linha que já carrega a espera (`:7717-7725`).
+- **Ressalva de método:** os **4,2 ms / 25 %** são da revisão de código sobre as varreduras, **não** de cronômetro no
+  jogo; servem para dizer **onde** o custo está, não para fechar orçamento. [I]
+
+#### (D) Drift de comentário registrado
+
+`MHR_Build.cs:1461` afirma *"the wait is re-asked every frame"* — é texto **anterior** ao throttle de 1 Hz. O código de
+hoje re-pergunta **1×/s** (`:3722`); o comentário é o único ponto do caminho que ainda promete o comportamento do Run 19.
 
 

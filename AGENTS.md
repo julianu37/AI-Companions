@@ -418,7 +418,11 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   número ainda; **18 em 11/11/2026** = o run da **`fila`** (o mesmo canteiro vazio e o jogador andando) → **985/985**,
   **0 puladas**, **0 mortes**, **0 `UNSUPPORTED`**, watchdog **0**, **1010 peças** no canteiro (**985 + 25 postes**),
   **14 min 04 s** e a `espera` de **1292,8 s** somada nos 5 workers (dos quais **1040,2 s** de `fila`) — é a medição
-  que abriu o §17.22, e **o Run 19 (A/B) está pendente**. **Dos runs 1–3:** 1 e 2
+  que abriu o §17.22; **19 em 11/11/2026** = o **por frame** (o `Advance` a 60 Hz dentro da espera) → **regressão
+  medida e revertida**: **38 peças/min contra 78** e `corpo na peça` **130** em **347** peças (§17.24(C)); **22 em
+  11/11/2026** = o **1 Hz** (`AdvanceAskSeconds`), mesma casa e mesma receita → **985/985**, **0 puladas**, **0 mortes**,
+  **0 `UNSUPPORTED`**, watchdog **0**, **727 s (12 min 07 s)**, **`fila` 4,5 s** e **`espera` 414,1 s** (§17.24(D),
+  fecha o A/B do §17.22). **Dos runs 1–3:** 1 e 2
   diferem só no `PlaceReach` (10 = padrão do código; 15 = config de teste) e o
   3 roda em 15 com a guarda anti-loop: com **10**,
   **970 + 15 = 985** — a fala final fecha (`970 peças, 15 puladas`), `no_ground` **~25 → 0**, `blocked_by_player`
@@ -658,9 +662,31 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   incluindo o portão** (`:7691-7696`), e o `tools/build_run_report.py` entende **os dois formatos** (`:184-196`).
   **Run 18 medido:** **985/985**, **0 puladas**, **0 mortes**, **0 `UNSUPPORTED`**, watchdog **0**, **1010 peças** no
   canteiro (**985 + 25 postes**), **14 min 04 s** (relógio externo — o log não tem timestamp). **Estado:** build
-  **0/0**, harness **711**, config **367/25**. **O Run 19 (A/B) ainda NÃO foi rodado:** corte `fila ≤ 400 s`,
-  `WaitAhead ≈ 0`, espera do **último** worker `≤ 120 s` e duração `≤ 720 s`; **reverte** com `puladas > 0`,
-  `desistindo > 0`, morte, `UNSUPPORTED` ou watchdog — §17.22.
+  **0/0**, harness **711**, config **367/25**, MCP **122**, gate **9/9**.
+  **Run 19 (por frame) e Run 22 (1 Hz) — o parque da espera (§17.24, 11/11/2026):** o defeito **provado pela revisão**
+  é que `RetryPending` responde `group.Retry.Count > 0` (`MHR_BuildGroup.cs:1181-1185`) — "tem entrada na fila", **não**
+  "tem peça para mim" — e a entrada de **dependência** é **imortal** (`Dependency++`, `At = now + 8/12/20/25 s`, sem teto
+  e sem remoção, `MHR_BuildGroup.cs:1089-1094` com `MHR_Build.DependencyDelay`, `MHR_Build.cs:876-891`): uma peça
+  esperando o apoio do **colega** mantinha a fila "não vazia" **pelo resto da obra** e o worker que entrava na espera
+  (portão `:1177`, barreira `:3662`) **nunca mais olhava o plano** — é o "3 parados, às vezes 5". **A regra: 1 Hz, nunca
+  por frame** — `AdvanceAskSeconds = 1f` (`:221`) + `State.AdvanceAskedAt` (`:497`, zerado no `EnterStep` `:1341`), com
+  `dt` repassado (`:3722-3726`). **O Run 19 é a prova do "nunca por frame":** a 60 Hz **dobrou** o tempo (**38 peças/min
+  contra 78**; `corpo na peça` **130** em **347** peças) porque o `Advance` faz `ReleaseAllOf` ao entrar e os 5 disputam
+  o mesmo canto — o comentário fica no código (`:3702-3707`). **Run 22 medido (mesma receita do Run 18):** duração
+  **844 → 727 s** (12 min 07 s), `espera` **1292,8 → 414,1 s**, **`fila` 1040,2 → 4,5 s**, barreira **244,9 s/73** →
+  **402,7 s/99**, dependência **222,1 → 357,0 s**, **985/985 e 0 puladas** nos dois, **0/0/0** de mortes/`UNSUPPORTED`/
+  watchdog, `FALTANDO` **vazio (23/23)**, postes **25 → 26** (**11** `sem lugar para o apoio`), dispersão **1012/32 → 1287/6**.
+  **Leitura:** *[I]* a **barreira subiu porque absorveu a fila** (+64,4 % — a espera mudou de balde) e o número que
+  decide continua sendo a **duração** e as **puladas**; a queda de **68 %** na espera virou **13,9 %** na duração (soma
+  de 5 workers em paralelo, §17.22(B)). **Dois lotes revertidos com o número que os matou (§17.24(F)):** escopo **XZ de
+  6 m** nas duas barreiras e o **filtro de destino do `step-aside`** — `~33 min` (2,4× a base), `dependência` **206**
+  retenções e `sem lugar livre` **179**; revertidos em **`8ec9de7`**. **Custo por frame (§17.25):** `NextRetry`,
+  `RetryReady` e `ServeBarrier` rodavam a **60 Hz por worker** (**~4,2 ms/frame nos 5 = ~25 %** de 16,6 ms, com
+  alocação), o `ClassOf` alocava **por chamada** (**~3.000 strings/frame ≈ 170–210 KB ≈ 10–12 MB/s de GC**) e o
+  `RetryReady` era **100 % morto** (`NextRetry == -1 ⟹ RetryReady == false`, sempre) — **corrigido em `c0826b4`**:
+  `RetryReady` **removido** e `ClassOf` **memoizado** (`Dictionary<string,int>` `Ordinal`, `AI/BuildBlueprintParser.cs:302-317`)
+  → **0 strings/frame** nesse caminho; harness **711**, gate **9/9**. **Não medido:** `µs/frame` do `Drive` (não existe
+  instrumento), `BodyAt` no pico e o frame time com a obra travada (§17.25(C)).
 - **Pendências conhecidas (abertas):** (1) navegação no andar em obra; (2) a voz não passa pelo mixer do jogo (só
   `[AI] TtsVolume`); (3) sync com o upstream `main` (1.5.8) em dia — conferir antes de cada release; (4) o nome do
   companheiro no centro do radial (cosmético); (5) posse do ZDO no spawn em multiplayer dedicado; (6) a dívida de
@@ -701,18 +727,30 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   (12) **o nivelamento que recusa o terreno mata a obra** — `hc_ai_build_too_steep` (`MHR_Level.cs:282`) **não** está
   na lista de retomada (`:455`, só `done`/`already`/`failed`), então `[Building] LevelGround` (padrão **true**) pode
   encerrar a ordem em vez de devolver ao build; contornado no Run 13 com `LevelGround = false` (§17.18, item (c));
-  (13) **o A/B do Run 19 está PENDENTE** — o patch da `fila` (`ahead`, §17.22) está **aplicado e instrumentado**, mas
-  **nenhum run rodou com ele**: o corte é `fila ≤ 400 s` (era **1040,2 s**), `WaitAhead ≈ 0`, espera do **último** worker
-  `≤ 120 s` (a maior medida foi **289,9 s**, o C5) e duração `≤ 720 s` (era **844 s**); **reverte** com `puladas > 0`,
-  `desistindo > 0`, morte, `UNSUPPORTED` ou watchdog (o baseline fechou **985/985** com **0 puladas**, então `puladas` é
-  o guarda certo). Do mesmo ciclo, também pendente: **o run de revalidação do `DeckLift`** (§17.23) — a escada do corpus
-  com **5** companheiros e o **A/B da casa de referência**;
+  (13) **o A/B do Run 19 está FECHADO** (§17.24): o **Run 22** (1 Hz) fechou **985/985**, **0 puladas**, **0 mortes**,
+  **0 `UNSUPPORTED`**, watchdog **0**, em **727 s** com **`fila` 4,5 s** (era **1040,2 s**) — `fila ≤ 400 s` ✅; a
+  **duração** ficou **727 s** contra o corte `≤ 720 s` ⚠️ (**7 s acima**, registrado como ficou) e o `WaitAhead`/a espera
+  do **último** worker **não foram transcritos**. **A pendência nova é o instrumento:** a **barreira absorveu a fila**
+  (**402,7 s / 99** retenções contra **244,9 s / 73** — *[I]* mudou de balde, não de tamanho) e o **`portão` continua
+  `0,0 s`** mesmo com o `dt` **repassado** (`WaitGate += dt` em `MHR_Build.cs:1185`, só com `Phase == WaitRetry`,
+  `:1181-1186`): **o instrumento ainda não explica por quê**. Junto: **`step-aside` 42 `sem lugar` para 10 pedidos** — os
+  dois números contam **coisas diferentes** (a linha é **1 por peça**, `AsideLogged` zerado em `EnterStep`,
+  `MHR_Build.cs:1332`, impressa em `:6569-6573`; o contador é **todo pedido aceito**, `AsideAsked`, `:6595`, na linha do
+  `Finish` `:7721`), então **não formam taxa** — §17.24(G). Do mesmo ciclo, também pendente: **o run de revalidação do
+  `DeckLift`** (§17.23) — a escada do corpus com **5** companheiros e o **A/B da casa de referência**;
   (14) **o corpus baixado perde linhas por receita e o mod pula em silêncio** — **279 de 354** blueprints perdem pelo
   menos uma linha por `recipe not unlocked` (**387.024** linhas no total, **100 %** delas por receita; **nenhuma** por
   prefab inexistente) e o jogador vê o **número** de puladas, nunca **qual receita** falta. O dado **já existe**
   (`BuildBlueprintReport.SkippedReasons`, devolvido como `skippedReasons` pelo `blueprints.inspect`): falta a **tela e a
   fala**. **É decisão de produto, não bug** — ver `docs/re/blueprint-corpus.md` §6.1 (e o §6.4: a pasta do corpus é a
   que o staging da release **leva**).
+  (15) **o custo por frame da espera não tem medidor** (§17.25) — os **~4,2 ms/frame** nos 5 workers (≈ **25 %** de
+  16,6 ms) e os **~3.000 strings/frame ≈ 170–210 KB ≈ 10–12 MB/s de GC** do `ClassOf` vêm da **revisão de código**, não
+  de cronômetro: falta `Stopwatch` no `Drive` + contador em `Ready` + `GC.GetTotalMemory` na linha do `Finish`, e falta
+  o `BodyAt` no pico/fim e o frame time com a obra **travada**. O que **já foi corrigido** (`c0826b4`): `RetryReady`
+  **removido** (era **100 % morto**: `NextRetry == -1 ⟹ RetryReady == false`, sempre) e `ClassOf` **memoizado**
+  (`Dictionary<string,int>` `Ordinal`, `AI/BuildBlueprintParser.cs:302-317`) → **0 strings/frame** nesse caminho;
+  harness **711**, gate **9/9**.
   **Achado de localização (11/11/2026, CORRIGIDO no mesmo dia):** `hc_cfg_building_blueprintstations`
   (`Core/ModLocalization.cs:852`) e `hc_cfg_controls_buildpanelkey` (`:855`) estavam **só no inglês** e mostravam a
   **chave crua** no F8 em PT/ES/FR/IT. Os dois entraram nos **4** JSONs — `buildpanelkey` em
@@ -770,8 +808,12 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   de teste e o que é produto, com o `arquivo:linha` de cada default, **§17.20 o Run 14** — o ping-pong do `StepAside` e
   o walk spot 7 m abaixo —, **§17.21 a dispersão dos workers** (`[Building] SpreadWorkers`) com o **A/B dos Runs 15/16**
   e a ressalva do contador, **§17.22 o Run 18** — a `fila` como **barreira invisível** (o `ahead`, o `WaitGate`, o
-  `WaitAhead`, as duas correções da revisão e o **corte do A/B do Run 19, pendente**) — e **§17.23 o `DeckLift` como
-  teto** (o corpus que subia **1,00 m** no ar e caía, com a tabela das linhas de log)).
+  `WaitAhead`, as duas correções da revisão e o **corte do A/B do Run 19**), **§17.23 o `DeckLift` como teto** (o corpus
+  que subia **1,00 m** no ar e caía, com a tabela das linhas de log), **§17.24 o parque da espera** — o `RetryPending`
+  que respondia "tem entrada" e não "tem peça para mim", a **regra do 1 Hz** (Run 19 por frame **dobrou** o tempo:
+  38 contra 78 peças/min) e o run que fechou o A/B (**727 s**, **`fila` 4,5 s**, **985/985**, **0 puladas**) — e
+  **§17.25 o custo por frame** (**~4,2 ms/frame ≈ 25 %**, **10–12 MB/s de GC**, o `RetryReady` **morto** e a memoização
+  do `ClassOf`)).
 - `docs/re/blueprint-corpus.md` — **o corpus de blueprints baixado** (medido em 04/11/2026): **353** `.blueprint` +
   **353** `.png` no pacote, **354** na pasta, a auditoria pelo `blueprints.inspect` (**279 de 354** arquivos com linha
   pulada, **387.024** linhas, **100 %** por `recipe not unlocked`), as estações por arquivo, o que subiu em jogo e a
