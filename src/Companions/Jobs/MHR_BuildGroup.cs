@@ -119,6 +119,13 @@ internal static class MHR_BuildGroup
 		/// from the moment a worker entered a wait, which says nothing about the site moving).</summary>
 		internal float LastProgressAt;
 		/// <summary>
+		/// 11/11/2026 (the player's rule "build everything within reach first"): the meters the <b>site</b> walked to the pieces
+		/// it took - <c>MHR_Build.EnterStep</c> measures the body to the piece and sums it here (and in the worker's own
+		/// <c>State.WalkMeters</c>). The summary line prints it as <c>caminhada: X m</c>. It is only a counter: no queue rule
+		/// reads it.
+		/// </summary>
+		internal float WalkMeters;
+		/// <summary>
 		/// 11/11/2026 (the <b>body barrier</b>): plan index -> when a <b>body</b> (the player walking over the spot) first
 		/// refused it. The entry is the barrier: while it is younger than <c>BuildFailure.BodyBarrierSeconds</c>, the pieces
 		/// of the storeys above that one are not taken (<see cref="MayTake"/>). The time is written <b>once</b> per index
@@ -1542,6 +1549,29 @@ internal static class MHR_BuildGroup
 			return 0f;
 		}
 		return group.LastProgressAt;
+	}
+
+	/// <summary>11/11/2026 (the player's rule "build everything within reach first"): the meters the site walked to its pieces -
+	/// only the counter the summary line prints, no queue rule reads it.</summary>
+	internal static void AddWalk(string key, float meters)
+	{
+		Group group;
+		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null || meters <= 0f)
+		{
+			return;
+		}
+		group.WalkMeters += meters;
+	}
+
+	/// <summary>11/11/2026 (the same counter): the meters the site walked so far (0 without a site).</summary>
+	internal static float Walk(string key)
+	{
+		Group group;
+		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null)
+		{
+			return 0f;
+		}
+		return group.WalkMeters;
 	}
 
 	/// <summary>P1: the label of the site (the blueprint's name) - for the log lines of the members.</summary>

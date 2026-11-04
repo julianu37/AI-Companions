@@ -2913,6 +2913,10 @@
             "value": "Espalhar os companheiros"
         },
         {
+            "key": "hc_cfg_building_spreadnear",
+            "value": "Construir o perto primeiro"
+        },
+        {
             "key": "hc_ai_order_command",
             "value": "aceitar comandos"
         },

@@ -543,6 +543,13 @@ internal static class MHR_Build
 		/// <summary>11/11/2026 (Run 14): how many step-aside asks this order really made (a request that the site answered
 		/// <c>Asked</c> - the dedup and the anti ping-pong of a pair are not asks).</summary>
 		internal int AsideAsked;
+		/// <summary>
+		/// 11/11/2026 (the player's rule "build everything within reach first"): how many meters this order walked to the pieces
+		/// it took - <see cref="MHR_Build.EnterStep"/> measures the body to the piece, once per piece entered (the walk, the
+		/// retry and the barrier all go through it). The site keeps its own sum (<c>MHR_BuildGroup.AddWalk</c>) and the summary
+		/// line prints <c>caminhada: X m</c>.
+		/// </summary>
+		internal float WalkMeters;
 	}
 
 	/// <summary>E6: one piece of a plan, already resolved to a world pose.</summary>
@@ -1094,6 +1101,21 @@ internal static class MHR_Build
 	}
 
 	/// <summary>
+	/// 11/11/2026 (the player's rule <i>"build everything within reach before going somewhere else"</i>):
+	/// <c>[Building] SpreadNear</c> - of the pieces of the window that are far from what the others build, take the <b>nearest
+	/// to the body</b> (<see cref="BuildSpread.PickNear"/>, radius <see cref="MaxPlace"/> + 1 m - the same window
+	/// <see cref="PreferNearFloor"/> uses) instead of the first one of the plan's order. Read on every use like the other
+	/// switches; off = the spread of the Run 14, byte for byte.
+	/// </summary>
+	private static bool SpreadNear
+	{
+		get
+		{
+			return ModConfig.BuildSpreadNear == null || ModConfig.BuildSpreadNear.Value;
+		}
+	}
+
+	/// <summary>
 	/// 11/11/2026 (Run 14, the <b>spread of the crew</b>, the player's report <i>"eles parecem estar disputando pra ver quem
 	/// coloca a peça primeiro, em vez de trabalhar em equipe"</i>): the pieces of the plan this worker may take instead of
 	/// <paramref name="next"/> - the next one plus the ones right after it, at most <see cref="BuildSpread.Window"/>, and
@@ -1259,14 +1281,22 @@ internal static class MHR_Build
 				{
 					MHR_BuildGroup.ClaimPoses(state.Group, s_spreadClaims);
 					int passed;
-					int at = BuildSpread.Pick(s_spreadPoses, s_spreadClaims, BuildSpread.SpreadDistance, out passed);
+					// 11/11/2026 (the player's rule "construir tudo o que está ao alcance antes de ir para outro lugar"): among
+					// the far candidates the NEAREST to the body wins while it is inside the reach (MaxPlace + 1 m); when
+					// nothing is near, BuildSpread.PickNear falls back to the spread of the Run 14 (the first far one) and then
+					// to index 0 (the plain next), so `next`/single/template/off are the walk of before, byte for byte.
+					int at = SpreadNear
+						? BuildSpread.PickNear(s_spreadPoses, s_spreadClaims, BuildSpread.SpreadDistance, ai.transform.position,
+							MaxPlace + 1f, out passed)
+						: BuildSpread.Pick(s_spreadPoses, s_spreadClaims, BuildSpread.SpreadDistance, out passed);
 					pick = s_spreadWindow[at];
 					if (pick != next)
 					{
 						state.SpreadSkipped += passed;
 						MHR_BuildGroup.NoteSpread(state.Group, s_spreadWindow, passed);
 						LogDetailed(ai, "dispersão: a peça " + (next + 1) + "/" + state.Plan.Count
-							+ " fica para depois - pegando " + (pick + 1) + " (" + passed + " adiada(s))");
+							+ " fica para depois - pegando " + (pick + 1) + " (" + passed + " adiada(s)) a "
+							+ F(CharacterDistance(ai, state.Plan[pick].Pos)) + " m");
 					}
 				}
 				// P1: a piece another companion is building belongs to it - pass it by (the claim expires in 20 s, and
@@ -1280,8 +1310,9 @@ internal static class MHR_Build
 					state.Index = pick;
 					continue;
 				}
-				EnterStep(state, pick);
-				Log(ai, "next: " + state.Prefab + " (" + (state.Index + 1) + "/" + state.Plan.Count + ")");
+				EnterStep(ai, state, pick);
+				Log(ai, "next: " + state.Prefab + " (" + (state.Index + 1) + "/" + state.Plan.Count + ") a "
+					+ F(CharacterDistance(ai, state.Pos)) + " m");
 				return true;
 			}
 		}
@@ -1299,7 +1330,7 @@ internal static class MHR_Build
 					{
 						state.SpreadResumed++;   // 11/11/2026 (the spread of the crew): a piece left for later came back
 					}
-					EnterStep(state, retry);
+					EnterStep(ai, state, retry);
 					Log(ai, "retry do grupo: " + state.Prefab + " (" + (retry + 1) + "/" + state.Plan.Count + ")");
 					return true;
 				}
@@ -1349,10 +1380,25 @@ internal static class MHR_Build
 	}
 
 	/// <summary>P1: makes <paramref name="index"/> the piece this worker is on (the pose, the clocks and the phase - the
-	/// same block <see cref="Advance"/> always had, now shared with the follower that starts building).</summary>
-	private static void EnterStep(State state, int index)
+	/// same block <see cref="Advance"/> always had, now shared with the follower that starts building).
+	///
+	/// <para>11/11/2026 (the player's rule "build everything within reach first"): it also <b>measures the walk</b> - the XZ
+	/// distance from the body to the piece it is taking - and sums it in the worker (<see cref="State.WalkMeters"/>) and in the
+	/// site (<c>MHR_BuildGroup.AddWalk</c>). Every way into a piece goes through here (the walk, the retry queue, the storey
+	/// barrier, the fallback post), so the number is the order's walk and not just the walk of the first path.</para>
+	/// </summary>
+	private static void EnterStep(CompanionAI ai, State state, int index)
 	{
 		PlannedStep next = state.Plan[index];
+		if (ai != null && next != null)
+		{
+			float walk = CharacterDistance(ai, next.Pos);
+			if (walk > 0f && !float.IsNaN(walk) && !float.IsInfinity(walk))
+			{
+				state.WalkMeters += walk;
+				MHR_BuildGroup.AddWalk(state.Group, walk);
+			}
+		}
 		state.Index = index;
 		state.Prefab = next.Prefab;
 		state.Piece = next.Piece;
@@ -1488,7 +1534,7 @@ internal static class MHR_Build
 		{
 			state.BarrierServed.Add(serve);
 			state.ResumeIndex = state.BarrierNextIndex;
-			EnterStep(state, serve);
+			EnterStep(ai, state, serve);
 			Log(ai, "volta antes de subir: " + state.Prefab + " (" + (serve + 1) + "/" + state.Plan.Count + ") em ("
 				+ F(state.Pos.x) + ", " + F(state.Pos.y) + ", " + F(state.Pos.z) + ")");
 			return true;
@@ -3672,7 +3718,7 @@ internal static class MHR_Build
 		if (state.Index >= 0 && state.Index < state.Plan.Count && !MHR_BuildGroup.IsDone(state.Group, state.Index)
 			&& MHR_BuildGroup.TryClaim(state.Group, state.Index, worker))
 		{
-			EnterStep(state, state.Index);
+			EnterStep(ai, state, state.Index);
 			Log(ai, "o canteiro está pronto - construindo " + state.Prefab + " (" + (state.Index + 1) + "/"
 				+ state.Plan.Count + ")");
 			return true;
@@ -3759,7 +3805,7 @@ internal static class MHR_Build
 			{
 				state.SpreadResumed++;   // 11/11/2026 (the spread of the crew): a piece left for later came back
 			}
-			EnterStep(state, retry);
+			EnterStep(ai, state, retry);
 			Log(ai, "retry do grupo: " + state.Prefab + " (" + (retry + 1) + "/" + state.Plan.Count + ")");
 			return true;
 		}
@@ -4953,7 +4999,7 @@ internal static class MHR_Build
 		QueueRetry(ai, state, "no_support");
 		Log(ai, "apoio imediato: " + step.Prefab + " em (" + F(step.Pos.x) + ", " + F(step.Pos.y) + ", " + F(step.Pos.z)
 			+ ") (" + (support + 1) + "/" + state.Plan.Count + ") - a " + state.Prefab + " espera na fila do canteiro");
-		EnterStep(state, support);
+		EnterStep(ai, state, support);
 		return true;
 	}
 
@@ -6759,6 +6805,14 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 	/// away from the placer's front first (the plan's next pieces are in front of it), then its sides, the closest of each
 	/// rank first, and <b>nothing within 1,5 m of a pending piece</b>. The first candidate with ground at the companion's
 	/// level and a safe step to it wins (<see cref="StepTo"/>); none = no ask at all.
+	///
+	/// <para>11/11/2026 (REVERTED, measured): an exact body test was tried here - the candidate's capsule against the rotated
+	/// box of every pending piece (<c>BuildProbe.BoxOf</c>/<c>CapsuleOf</c> + <c>BuildBody.HalfY</c>/<c>Blocks</c>). It is the
+	/// right idea with the wrong granularity: <c>BuildBody.Blocks</c> has no tolerance, so a pending floor <b>above</b> the spot
+	/// (the box span of <c>HalfY</c> plus the 1,8 m capsule) or a neighbouring tile refused every candidate - the run measured
+	/// <b>424</b> <c>sem lugar livre</c> and <b>429</b> <c>corpo no caminho</c> in 638 pieces (67% of the plan refused for a
+	/// body) against 4,4 per 100 with the circle. Back to the circle; the exact test is debt, not a solution (it needs a
+	/// tolerance/height window that the circle already approximates).</para>
 	/// </summary>
 	private static bool AsideSpot(State state, CompanionAI ai, CompanionAI mover, Vector3 from, out Vector3 target)
 	{
@@ -7766,6 +7820,9 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		// 11/11/2026 (the abandoned piece): the piece this worker was on is NOT lost with it - with the site alive it goes
 		// back to the queue (a dependency: no attempt spent, not counted as skipped), and without a site it is counted.
 		AbandonPiece(state);
+		// 11/11/2026 (the player's rule "build everything within reach first"): the meters the order walked - read while the
+		// site is still alive (the block below drops it), so a crew order prints the SITE's number and a single worker its own.
+		float walked = state.Group != null ? MHR_BuildGroup.Walk(state.Group) : state.WalkMeters;
 		// P1 (multi-build): the worker leaves the site - its piece is free for the others right away, and the group is
 		// dropped when the last one leaves (the plan's pieces that are left are lost with it, like a cancelled order)
 		if (state.Group != null)
@@ -7779,10 +7836,12 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		// 11/11/2026 (Run 17): the same line carries the WAIT - the seconds the crew stood still and why (the barrier with a
 		// body x a dependency, the site's queue, the step aside). It is what makes the A/B of the body barrier honest
 		// instead of a guess.
+		// 11/11/2026 (the player's rule "build everything within reach first"): it also carries the WALK - the meters the
+		// order covered from the body to the pieces it took (the site's sum while it is alive, this worker's otherwise).
 		if (state.SpreadSkipped > 0 || state.SpreadResumed > 0 || state.AsideAsked > 0
 			|| state.WaitBody > 0f || state.WaitDependency > 0f || state.WaitQueueEnd > 0f || state.WaitAhead > 0f
 			|| state.WaitGate > 0f || state.WaitAside > 0f
-			|| state.BodyHolds > 0 || state.BarrierHolds > 0)
+			|| state.BodyHolds > 0 || state.BarrierHolds > 0 || walked > 0f)
 		{
 			// 11/11/2026 (Run 18): the queue split by where the walk is (the END of the plan x the MIDDLE of it) and the
 			// gate's own seconds - the gate ran with dt = 0 and fell in no bucket, and a good part of the "fila" of the
@@ -7795,7 +7854,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 				+ state.BodyHolds + " retenção(ões) " + F(state.WaitBody) + " corpo/" + F(state.WaitDependency)
 				+ " dependência, fila " + F(queue) + " s (fim " + F(state.WaitQueueEnd) + " s, meio "
 				+ F(state.WaitAhead) + " s), passo " + F(state.WaitAside) + " s, portão "
-				+ state.BarrierHolds + " (" + F(state.WaitGate) + " s))");
+				+ state.BarrierHolds + " (" + F(state.WaitGate) + " s)) · caminhada: " + F(walked) + " m");
 		}
 		// one line per order end, with the key that was spoken: it is how a test proves which refusal came out
 		Log(ai, "order ended: " + (key ?? "(silent)") + (string.IsNullOrEmpty(why) ? string.Empty : " (" + why + ")"));

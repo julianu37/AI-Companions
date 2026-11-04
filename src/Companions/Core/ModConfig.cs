@@ -174,6 +174,14 @@ internal static class ModConfig
 	/// pieces it walked past keep their turn in the site's queue. The measured reason: 88 <c>corpo na peça</c> and 32
 	/// step-aside asks in the Run 14 because consecutive indices are neighbours in space.</summary>
 	internal static ConfigEntry<bool> BuildSpreadWorkers;
+	/// <summary>
+	/// 11/11/2026 (the player's rule "construir tudo o que está ao alcance antes de ir para outro lugar"): among the pieces the
+	/// crew spread over (the far ones of the window), take the <b>nearest</b> to the body while it is inside its reach
+	/// (<c>MaxPlace</c> + 1 m) - the companion closes the place it is on before moving to the other end of the house. It never
+	/// overrides the spread: the candidate still has to be far from what the others are building. Off: the first far piece of
+	/// the plan's order (the Run 14 rule, byte for byte).
+	/// </summary>
+	internal static ConfigEntry<bool> BuildSpreadNear;
 	/// <summary>11/11/2026 (Run 10, the companion blocker): a companion of the site that is only <b>waiting</b> steps out of the
 	/// way of a piece another one has to place (2,2 m through the mover, never a teleport, and never the player).</summary>
 	internal static ConfigEntry<bool> BuildStepAside;
@@ -976,6 +984,7 @@ internal static class ModConfig
 		BuildSupportFallback = Bind(cfg, "Building", "SupportFallback", true, "When a plan piece is refused for no support and the plan has nothing under it, the companion puts a wooden post under it and places the piece (the house gets a few extra posts). Off = the piece waits and is left out. At most 24 posts per order.");
 		BuildBodyRetry = Bind(cfg, "Building", "BodyRetry", true, "A piece refused because a body (you or another companion) was in the way is not given up: it goes back to the site's retry queue and is tried again BEFORE the plan climbs a storey, instead of only at the end of the build. The same barrier also settles the pieces still waiting for a support before going up. Off: they only come back in the end-of-plan retry pass.");
 		BuildSpreadWorkers = Bind(cfg, "Building", "SpreadWorkers", true, "The crew does not build in a line: on a shared plan each companion takes a piece of the next few of the same row that is a few meters away from what the others are building, instead of everyone reaching for the same corner at the same time. The pieces a companion walked past keep their turn and are built as soon as that place is free. Off: they work the plan in the order of the file, all together, as before.");
+		BuildSpreadNear = Bind(cfg, "Building", "SpreadNear", true, "Build near first: among the pieces the crew spread over, the companion takes the one NEAREST to it that is still within its reach, so it closes the place it is working on before going to the other end of the house. Off: it takes the first far piece of the plan's order, as before.");
 		BuildStepAside = Bind(cfg, "Building", "StepAside", true, "A companion of the build group that is only waiting steps 2,2 m out of the way of a piece another one has to place (asked by the one placing it, walked with its own movement, never a teleport). You are never moved. Off: the piece waits for the companion to move on its own, as before.");
 		BuildReachWalk = Bind(cfg, "Building", "ReachWalk", true, "Walk to the nearest spot the piece can be reached from (a finished floor or roof row) instead of walking at the piece in mid-air.");
 		BuildMaxDistanceFromHome = Bind(cfg, "Building", "MaxDistanceFromHome", 40f, "A build order is refused when the spot is further than this (meters) from the companion's home, so it does not wander off to build across the world. 0 = no limit.", new AcceptableValueRange<float>(0f, 200f));

@@ -34,8 +34,20 @@ namespace Companions;
 /// </summary>
 internal static class BuildAsideSpot
 {
-	/// <summary>How far in XZ a spot must be from a <b>pending</b> piece of the plan to be free of it. It is the body
-	/// window of the game (<c>BuildBody</c>: the capsule plus the piece's box) with room for the walk.</summary>
+	/// <summary>
+	/// How far in XZ a spot must be from a <b>pending</b> piece to be free of it - the flat rule of <see cref="Plan"/>
+	/// (<see cref="Blocked"/>): the body window of the game (<c>BuildBody</c>: the capsule plus the piece's box) with room for
+	/// the walk.
+	///
+	/// <para>11/11/2026 (the honest cost of this rule, measured): an exact test was tried in its place - the candidate's capsule
+	/// against the rotated box of every pending piece (<c>BuildProbe.BoxOf</c>/<c>CapsuleOf</c> + <c>BuildBody.HalfY</c>/
+	/// <c>Blocks</c>) - and it is the right idea with the wrong granularity: <c>Blocks</c> has no tolerance, so a pending floor
+	/// <b>above</b> the spot and the neighbouring tiles refused every candidate. The run measured <b>424</b> <c>sem lugar
+	/// livre</c> and <b>429</b> <c>corpo no caminho</c> in 638 pieces (<b>67%</b> of the plan refused for a body) against
+	/// <b>4,4 per 100 pieces</b> with this circle, so the circle is back. It stays a <b>debt</b>, not a solution: on a storey
+	/// being roofed the border <b>is made of</b> pending pieces and this 1,5 m rejects the whole ring (measured: 424 refusals),
+	/// and it has no vertical dimension (a piece of the storey above blocks a spot at the same XZ).</para>
+	/// </summary>
 	internal const float Clearance = 1.5f;
 
 	/// <summary>

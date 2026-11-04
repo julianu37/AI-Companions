@@ -580,6 +580,9 @@ A piece refused because a body (you or another companion) was in the way is not 
 **SpreadWorkers** — Default: On  
 The crew does not build in a line: on a shared plan each companion takes a piece of the next few of the same row that is a few meters away from what the others are building, instead of everyone reaching for the same corner at the same time. The pieces a companion walked past keep their turn and are built as soon as that place is free. Off: they work the plan in the order of the file, all together, as before.
 
+**SpreadNear** — Default: On  
+Build near first: among the pieces the crew spread over, the companion takes the one NEAREST to it that is still within its reach, so it closes the place it is working on before going to the other end of the house. Off: it takes the first far piece of the plan's order, as before.
+
 **StepAside** — Default: On  
 A companion of the build group that is only waiting steps 2,2 m out of the way of a piece another one has to place (asked by the one placing it, walked with its own movement, never a teleport). You are never moved. Off: the piece waits for the companion to move on its own, as before.
 

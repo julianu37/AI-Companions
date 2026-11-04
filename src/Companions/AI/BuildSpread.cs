@@ -118,6 +118,59 @@ internal static class BuildSpread
 	}
 
 	/// <summary>
+	/// 11/11/2026 (the player's rule <i>"build everything within reach before going somewhere else"</i>): of the candidates of
+	/// the window that are <see cref="Far"/> from every claim, take the <b>nearest to the body</b> that is also within
+	/// <paramref name="nearRadius"/> - the smallest XZ distance to <paramref name="me"/> wins, and a tie keeps the lower index
+	/// (the plan's own order), so the answer never depends on the order the list was filled in.
+	///
+	/// <para>Three layers, the last two being today's behaviour: <b>(1)</b> the near ones above; <b>(2)</b> <see cref="Pick"/> -
+	/// the first far candidate in the plan's order; <b>(3)</b> <b>0</b> - the first piece of the window, the walk of before the
+	/// spread. <paramref name="passedCount"/> has the same contract as <see cref="Pick"/>: how many candidates came before the
+	/// chosen one, and 0 whenever 0 is answered. Fail-open by design: a <paramref name="me"/> that is not a number or a
+	/// <paramref name="nearRadius"/> of zero or less switch layer 1 off (layers 2 and 3 answer), and a candidate that is not a
+	/// number is never chosen.</para>
+	/// </summary>
+	internal static int PickNear(IList<Vector3> window, IList<Vector3> claims, float minDistance, Vector3 me, float nearRadius,
+		out int passedCount)
+	{
+		passedCount = 0;
+		if (window == null || window.Count == 0)
+		{
+			return 0;
+		}
+		float radius = Finite(nearRadius) && nearRadius > 0f ? nearRadius : 0f;
+		if (Finite(me) && radius > 0f)
+		{
+			int best = -1;
+			float bestFlat = float.MaxValue;
+			for (int i = 0; i < window.Count; i++)
+			{
+				Vector3 piece = window[i];
+				if (!Finite(piece) || !Far(piece, claims, minDistance))
+				{
+					continue;   // never a destination, or not far from what the others are building
+				}
+				float flat = Flat(piece, me);
+				if (flat > radius)
+				{
+					continue;   // far from the crew but also away from me: the next piece of the row first
+				}
+				if (best < 0 || flat < bestFlat)
+				{
+					best = i;   // a tie keeps the first one seen - the lower index, the plan's own order
+					bestFlat = flat;
+				}
+			}
+			if (best >= 0)
+			{
+				passedCount = best;
+				return best;
+			}
+		}
+		return Pick(window, claims, minDistance, out passedCount);
+	}
+
+	/// <summary>
 	/// Are these two pieces of the plan in the <b>same run</b> - the block the parser cuts by its own keys (door flag,
 	/// storey key, class, height)? Here the door flag is not needed: a door is class 4. The storey key
 	/// (<c>PlannedStep.Level</c>) and the height are compared with <see cref="KeySlack"/> and the class exactly; a key

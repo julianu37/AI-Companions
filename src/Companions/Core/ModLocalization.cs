@@ -848,6 +848,10 @@ public static class ModLocalization
 			// the same row each companion takes one that is a few meters from what the others are building. Short for the
 			// same F8 row.
 			{ "hc_cfg_building_spreadworkers", "Spread the crew out" },
+			// 11/11/2026 (the player's rule "build everything within reach first"): the [Building] SpreadNear label - of the
+			// far pieces of the window the companion takes the nearest one that is still within its reach. Short for the same
+			// F8 row.
+			{ "hc_cfg_building_spreadnear", "Build near first" },
 			// 11/11/2026 (Run 10, the companion blocker): the [Building] StepAside label - a waiting companion of the group
 			// steps out of the way of the piece another one is placing. Short for the same F8 row.
 			{ "hc_cfg_building_stepaside", "Move aside" },

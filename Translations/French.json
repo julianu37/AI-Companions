@@ -2913,6 +2913,10 @@
             "value": "Répartir les compagnons"
         },
         {
+            "key": "hc_cfg_building_spreadnear",
+            "value": "Construire le plus proche d'abord"
+        },
+        {
             "key": "hc_ai_order_command",
             "value": "accepter les ordres"
         },
