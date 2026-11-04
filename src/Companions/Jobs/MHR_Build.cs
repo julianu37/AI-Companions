@@ -95,12 +95,13 @@ internal static class MHR_Build
 	private const int ClearMaxRejects = 5;
 	/// <summary>E7: the only station this mod can build by itself (the piece the player's own bench is).</summary>
 	private const string BenchPrefab = "piece_workbench";
-	/// <summary>E7: most workbenches one order adds (a 30 m house with chests on three floors needs a few; a broken file
-	/// must not turn the plan into a bench factory).</summary>
-	private const int MaxPlannedBenches = 8;
-	/// <summary>E7: most spot searches for those benches - every search runs the game's placement ghost up to 96 times and
-	/// a site with nothing free must not freeze the frame (one search is one <c>BuildSite.Check</c> ring walk).</summary>
-	private const int MaxBenchSearches = 6;
+	/// <summary>E7: most workbenches one order adds. P1 (04/11/2026): 8 was not enough for a 32 m house - the pass stopped
+	/// at 6 SEARCHES and the middle of the plan (measured on the 985-piece house) had no station in range.</summary>
+	private const int MaxPlannedBenches = 12;
+	/// <summary>E7: most spot searches for those benches - every search walks the placement ghost over a few poses around
+	/// one anchor (see <see cref="FindBenchSpotOutside"/>: ~36 poses per anchor, up to 4 anchors) and a site with nothing
+	/// free must not freeze the frame. It was 6 and the measured house ran out of it after 2 benches.</summary>
+	private const int MaxBenchSearches = 32;
 	/// <summary>The workbench's coverage in metres when the prefab cannot be read: <c>CraftingStation.m_rangeBuild</c> is 20
 	/// (the radius in which a station frees building - measured, see <c>docs/re/building-notes.md</c>).</summary>
 	private const float BenchDefaultRadius = 20f;
@@ -2188,6 +2189,14 @@ internal static class MHR_Build
 	/// <b>inserts a workbench right before it</b>, at a pose the game accepts. The executor builds it like any other piece:
 	/// it is paid from the same bag/chests and the plan's shortfall counts it. Benches the blueprint itself brings cover
 	/// what is around them.
+	///
+	/// <para>P1 (04/11/2026, measured on the 985-piece house): the pass used to stop after 6 <b>searches</b>, so a 32 m
+	/// site got 2 benches ~18,5 m from the centre and the middle of the house fell into <c>needs_station</c> in the middle
+	/// of the build (and in a group the fallback appends a bench at the END of the plan, so those pieces waited for the
+	/// whole house). Now the budget is per bench (up to <see cref="MaxPlannedBenches"/> planned,
+	/// <see cref="MaxBenchSearches"/> searches) and the search only tries anchors <b>outside</b> the footprint (the piece's
+	/// side, +-40 degrees and a farther ring), all of them standing on the terrain. The pass ends with an honest summary:
+	/// how many pieces need a bench, how many were planned and which ones are left without coverage (prefab and pose).</para>
 	/// </summary>
 	private static int PlanStations(CompanionSetup cs, List<PlannedStep> plan, Vector3 centre, float outside, Quaternion rot,
 		Component who, CompanionAI ai)
@@ -2208,8 +2217,12 @@ internal static class MHR_Build
 		}
 		int needed = 0;
 		int added = 0;
-		int tries = 0;
-		for (int i = 0; i < plan.Count && added < MaxPlannedBenches && tries < MaxBenchSearches; i++)
+		int searches = 0;
+		// the two ways a piece can be left without a station - the log says which one (a budget that ran out is not
+		// "there is no room")
+		List<PlannedStep> noRoom = new List<PlannedStep>();
+		List<PlannedStep> budget = new List<PlannedStep>();
+		for (int i = 0; i < plan.Count; i++)
 		{
 			PlannedStep step = plan[i];
 			if (step.Piece == null || step.Piece.m_craftingStation == null || !IsBenchKind(step.Piece.m_craftingStation.m_name))
@@ -2217,32 +2230,30 @@ internal static class MHR_Build
 				continue;
 			}
 			needed++;
+			// a bench of the WORLD (the player's own, or one the plan already put up) covers it - not a search
 			if (CraftingStation.HaveBuildStationInRange(step.Piece.m_craftingStation.m_name, step.Pos) != null)
 			{
 				continue;
 			}
+			// a bench this pass already planned covers it - not a search either (04/11/2026: the old limit counted these
+			// and the measured house ran out of searches with 981 pieces still waiting)
 			if (CoveredBy(planned, step.Pos, radius))
 			{
 				continue;
 			}
-			// a bench INSIDE the house would take the place of a floor (the blueprint's own grid) - it goes OUTSIDE the
-			// footprint, on the piece's side of the site, and its 20 m still cover the piece (the height is ignored by
-			// HaveBuildStationInRange)
-			Vector3 outward = step.Pos - centre;
-			outward.y = 0f;
-			if (outward.sqrMagnitude < 1f)
+			if (added >= MaxPlannedBenches || searches >= MaxBenchSearches)
 			{
-				outward = new Vector3(1f, 0f, 0f);
+				budget.Add(step);
+				continue;
 			}
-			Vector3 anchor = centre + outward.normalized * Mathf.Max(outside, 2.5f);
+			searches++;
 			Vector3 spot;
 			Quaternion benchRot;
-			tries++;
-			if (!FindBenchSpot(bench, anchor, rot, who, out spot, out benchRot)
-				&& !FindBenchSpot(bench, step.Pos, rot, who, out spot, out benchRot))
+			// the bench must also be within its own radius of the piece it is being planned for (the check is inside: a
+			// rotated or far anchor can find room where the bench would not serve this piece)
+			if (!FindBenchSpotOutside(bench, step.Pos, centre, outside, rot, who, out spot, out benchRot, radius))
 			{
-				LogDebug(ai, "no room for a workbench next to the " + step.Prefab + " at (" + F(step.Pos.x) + ", "
-					+ F(step.Pos.y) + ", " + F(step.Pos.z) + ") - it will be refused and retried");
+				noRoom.Add(step);
 				continue;
 			}
 			plan.Insert(i, new PlannedStep { Prefab = BenchPrefab, Piece = bench, Pos = spot, Rot = benchRot });
@@ -2254,7 +2265,24 @@ internal static class MHR_Build
 		}
 		if (needed > 0)
 		{
-			Log(ai, "station: " + needed + " piece(s) need a workbench, " + added + " workbench(es) added to the plan");
+			Log(ai, "station: " + needed + " peça(s) precisam, " + added + " planejada(s), " + (noRoom.Count + budget.Count)
+				+ " sem cobertura");
+		}
+		if (CompanionsPlugin.LogNormal)
+		{
+			for (int i = 0; i < noRoom.Count; i++)
+			{
+				PlannedStep step = noRoom[i];
+				Log(ai, "sem bancada: " + step.Prefab + " em (" + F(step.Pos.x) + ", " + F(step.Pos.y) + ", " + F(step.Pos.z)
+					+ ") - nenhum lugar fora do footprint");
+			}
+			for (int i = 0; i < budget.Count; i++)
+			{
+				PlannedStep step = budget[i];
+				Log(ai, "sem bancada: " + step.Prefab + " em (" + F(step.Pos.x) + ", " + F(step.Pos.y) + ", " + F(step.Pos.z)
+					+ ") - orçamento de bancadas do plano esgotado (" + added + "/" + MaxPlannedBenches + " planejadas, "
+					+ searches + "/" + MaxBenchSearches + " buscas)");
+			}
 		}
 		return added;
 	}
@@ -2285,18 +2313,12 @@ internal static class MHR_Build
 			return false;
 		}
 		Vector3 centre = state.AnchorKnown ? state.Anchor : state.Pos;
-		Vector3 outward = state.Pos - centre;
-		outward.y = 0f;
-		if (outward.sqrMagnitude < 1f)
-		{
-			outward = new Vector3(1f, 0f, 0f);
-		}
 		float outside = Mathf.Max(state.ClearSize * 0.5f, 6f) + 2.5f;
-		Vector3 anchor = centre + outward.normalized * outside;
 		Vector3 spot;
 		Quaternion benchRot;
-		if (!FindBenchSpot(bench, anchor, state.Rot, Self(ai), out spot, out benchRot)
-			&& !FindBenchSpot(bench, state.Pos, state.Rot, Self(ai), out spot, out benchRot))
+		// P1 (04/11/2026): the same outside-only, on-the-ground search as the station pass - a bench at the piece's own pose
+		// would take the place of a floor (rule of 03/11/2026)
+		if (!FindBenchSpotOutside(bench, state.Pos, centre, outside, state.Rot, Self(ai), out spot, out benchRot))
 		{
 			Log(ai, "no room for a workbench near the " + refusedPrefab + " - the piece is only retried");
 			return false;
@@ -2345,38 +2367,104 @@ internal static class MHR_Build
 	/// A pose next to <paramref name="near"/> <b>at the piece's own height</b> (a bench inside the house stands on the floor,
 	/// not on the terrain under it) that the game's placement rules accept. The four yaws are tried because the bench may
 	/// not fit in one of them (the same thing a player does).
+	///
+	/// <para>P1 (04/11/2026): <paramref name="onGround"/> makes the pose stand on the <b>terrain</b> no matter how far the
+	/// piece's height is from it - an anchor outside the house is on the ground, and the old 3 m tolerance refused a bench
+	/// on a slope (the ground of a 32 m site is metres below the floor). The ring of 1,6 m is walked once per direction and
+	/// the anchor itself is one position, not eight (the old loop repeated it), so a failed search costs 36 checks instead
+	/// of 64.</para>
 	/// </summary>
 	private static bool FindBenchSpot(Piece bench, Vector3 near, Quaternion rot, Component who, out Vector3 spot,
-		out Quaternion benchRot)
+		out Quaternion benchRot, bool onGround = false)
 	{
 		// the OUTDOOR spot is on the ground (a bench outside the house stands on the terrain, not at the floor's height);
 		// the fallback (the piece's own spot) keeps its height, for a bench that has to go inside
 		float groundY = ZoneSystem.instance != null ? ZoneSystem.instance.GetGroundHeight(near) : near.y;
-		bool outdoors = Mathf.Abs(groundY - near.y) < 3f;
-		for (int ring = 0; ring <= 1; ring++)
+		bool outdoors = onGround || Mathf.Abs(groundY - near.y) < 3f;
+		float height = outdoors ? groundY : near.y;
+		for (int dir = -1; dir < 8; dir++)
 		{
-			float distance = 1.6f * ring;
-			for (int dir = 0; dir < 8; dir++)
+			// dir -1 is the anchor itself (one position, whatever the yaw); 0..7 walk a ring of 1,6 m
+			float distance = dir < 0 ? 0f : 1.6f;
+			float angle = Mathf.PI * 2f * Mathf.Max(dir, 0) / 8f;
+			Vector3 candidate = new Vector3(near.x + Mathf.Cos(angle) * distance, height, near.z + Mathf.Sin(angle) * distance);
+			for (int yaw = 0; yaw < 4; yaw++)
 			{
-				float angle = Mathf.PI * 2f * dir / 8f;
-				Vector3 candidate = new Vector3(near.x + Mathf.Cos(angle) * distance, outdoors ? groundY : near.y,
-					near.z + Mathf.Sin(angle) * distance);
-				for (int yaw = 0; yaw < 4; yaw++)
+				Quaternion candidateRot = rot * Quaternion.Euler(0f, yaw * 90f, 0f);
+				Dictionary<string, object> check = BuildSite.Check(bench, candidate, candidateRot, who);
+				if (Ok(check))
 				{
-					Quaternion candidateRot = rot * Quaternion.Euler(0f, yaw * 90f, 0f);
-					Dictionary<string, object> check = BuildSite.Check(bench, candidate, candidateRot, who);
-					if (Ok(check))
-					{
-						spot = candidate;
-						benchRot = candidateRot;
-						return true;
-					}
+					spot = candidate;
+					benchRot = candidateRot;
+					return true;
 				}
 			}
 		}
 		spot = near;
 		benchRot = rot;
 		return false;
+	}
+
+	/// <summary>
+	/// P1 (04/11/2026): a workbench pose <b>outside the plan's footprint</b>, on the side of the piece it will serve. The
+	/// first anchor is the one the pass always used (the piece's direction, <paramref name="outside"/> metres from the
+	/// centre); when it has no room, the same direction at a farther ring and +-40 degrees around it are tried before giving
+	/// up. Every anchor is on the <b>terrain</b> (an outside bench stands on the ground, not at the house's floor height) and
+	/// nothing is ever tried INSIDE the footprint: the bench would take the place of a floor (rule of 03/11/2026) - which is
+	/// also why the rotated anchors sit on the FAR ring (a 40 degree turn at the near radius of a 32 m square lands inside
+	/// it). <paramref name="cover"/> is the radius the bench has to serve: a spot that does not reach the piece is not
+	/// accepted (a rotated or far anchor can find room where the bench is out of range).
+	/// </summary>
+	private static bool FindBenchSpotOutside(Piece bench, Vector3 piece, Vector3 centre, float outside, Quaternion rot,
+		Component who, out Vector3 spot, out Quaternion benchRot, float cover = 0f)
+	{
+		Vector3 outward = piece - centre;
+		outward.y = 0f;
+		if (outward.sqrMagnitude < 1f)
+		{
+			outward = new Vector3(1f, 0f, 0f);
+		}
+		outward.Normalize();
+		float near = Mathf.Max(outside, 2.5f);
+		// the diagonal of a square is ~1,42x its half side: this ring is outside the footprint in ANY direction
+		float far = Mathf.Max(near * 1.5f, near + 2f);
+		if (TryBenchAt(bench, centre + outward * near, piece, rot, who, cover, out spot, out benchRot))
+		{
+			return true;
+		}
+		if (TryBenchAt(bench, centre + outward * far, piece, rot, who, cover, out spot, out benchRot))
+		{
+			return true;
+		}
+		for (int turn = -1; turn <= 1; turn += 2)
+		{
+			Vector3 direction = Quaternion.Euler(0f, turn * 40f, 0f) * outward;
+			if (TryBenchAt(bench, centre + direction * far, piece, rot, who, cover, out spot, out benchRot))
+			{
+				return true;
+			}
+		}
+		spot = piece;
+		benchRot = rot;
+		return false;
+	}
+
+	/// <summary>P1 (04/11/2026): one anchor of <see cref="FindBenchSpotOutside"/> - the pose search plus "does the bench
+	/// really serve the piece" (<paramref name="cover"/> 0 = do not ask).</summary>
+	private static bool TryBenchAt(Piece bench, Vector3 anchor, Vector3 piece, Quaternion rot, Component who, float cover,
+		out Vector3 spot, out Quaternion benchRot)
+	{
+		if (!FindBenchSpot(bench, anchor, rot, who, out spot, out benchRot, true))
+		{
+			return false;
+		}
+		if (cover <= 0f)
+		{
+			return true;
+		}
+		float dx = spot.x - piece.x;
+		float dz = spot.z - piece.z;
+		return dx * dx + dz * dz <= cover * cover;
 	}
 
 	/// <summary>The companion's bag (the scaffold is paid from it, like any piece).</summary>
