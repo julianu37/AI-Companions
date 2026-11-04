@@ -1413,6 +1413,10 @@
             "value": "Tasto del pannello F8"
         },
         {
+            "key": "hc_cfg_controls_buildpanelkey",
+            "value": "Tasto del pannello cantiere"
+        },
+        {
             "key": "hc_cfg_controls_farmzonekey",
             "value": "Tasto delle zone"
         },
@@ -2863,6 +2867,10 @@
         {
             "key": "hc_cfg_building_blueprintfree",
             "value": "Costruire senza materiali"
+        },
+        {
+            "key": "hc_cfg_building_blueprintstations",
+            "value": "Blueprint: senza stazioni"
         },
         {
             "key": "hc_cfg_building_blueprintmaxpieces",

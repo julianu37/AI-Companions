@@ -1413,6 +1413,10 @@
             "value": "Touche du panneau F8"
         },
         {
+            "key": "hc_cfg_controls_buildpanelkey",
+            "value": "Touche du panneau de chantier"
+        },
+        {
             "key": "hc_cfg_controls_farmzonekey",
             "value": "Touche des zones"
         },
@@ -2863,6 +2867,10 @@
         {
             "key": "hc_cfg_building_blueprintfree",
             "value": "Construire sans matériaux"
+        },
+        {
+            "key": "hc_cfg_building_blueprintstations",
+            "value": "Blueprint : sans établis"
         },
         {
             "key": "hc_cfg_building_blueprintmaxpieces",

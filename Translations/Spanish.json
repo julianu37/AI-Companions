@@ -1413,6 +1413,10 @@
             "value": "Tecla del panel F8"
         },
         {
+            "key": "hc_cfg_controls_buildpanelkey",
+            "value": "Tecla del panel de obra"
+        },
+        {
             "key": "hc_cfg_controls_farmzonekey",
             "value": "Tecla de las zonas"
         },
@@ -2863,6 +2867,10 @@
         {
             "key": "hc_cfg_building_blueprintfree",
             "value": "Construir sin material"
+        },
+        {
+            "key": "hc_cfg_building_blueprintstations",
+            "value": "Blueprint: sin estaciones"
         },
         {
             "key": "hc_cfg_building_blueprintmaxpieces",
