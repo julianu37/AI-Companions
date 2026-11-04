@@ -77,6 +77,10 @@ Ou seja: no ato da colocação **não existe veredito de apoio**. O primeiro ver
 (b) `BuildSupport.Supported(wear)` (`src/Companions/AI/BuildSupport.cs:57-80`, reflexão em
 `UpdateSupport()` + `HaveSupport()`), que é o que já aparece no log como `done: … supported`.
 
+O que **a colocação** checa contra corpos (a cápsula do `Character`, `ComputePenetration` sem limiar) e a altura real
+do corpo estão em **`docs/re/colocacao-corpo-e-altura.md`** — junto com o fato de o `ZoneSystem.GetGroundHeight` ser
+só `terrain` (devolve o terreno **abaixo** de um piso; o topo de peça é `GetSolidHeight`).
+
 ## 3. Propaga por conexão de borda? A que distância?
 
 - **Sim, propaga — mas por sobreposição de collider, não por "família"**. `UpdateSupport` não tem
