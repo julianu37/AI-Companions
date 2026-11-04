@@ -696,11 +696,11 @@ internal static class BuildProbe
 	/// A player inside <see cref="MinSpacing"/> of the spot (the vanilla ghost check, cheap version: the game tests the ghost's
 	/// colliders against every character within 30 m).
 	///
-	/// <para>P1 (04/11/2026, measured: <b>17+</b> <c>blocked_by_player</c> in a run of 3 companions on the same site): a
-	/// <b>companion is not a player</b> for placement - the game pushes an NPC out of the way instead of refusing the piece,
-	/// and the workers stand right next to the piece they are building. Any character that has a
-	/// <see cref="CompanionAI"/> is ignored (the one placing the piece is already the caller's
-	/// <paramref name="ignore"/>; the others must not block it). The test against a real player is unchanged.</para>
+	/// <para>P1 (04/11/2026): <b>a companion is a character like any other</b> for placement. An earlier version of this
+	/// check ignored every <see cref="CompanionAI"/> (to stop the 17+ <c>blocked_by_player</c> of a crowded site), but the
+	/// pieces were then placed <b>inside</b> the companions and they <b>sank into the floor</b> (the player's report) - the
+	/// vanilla rule exists for a reason. The placing companion is the caller's <paramref name="ignore"/>; every other one
+	/// blocks the spot and the piece waits in the retry queue until the body moves.</para>
 	/// </summary>
 	private static bool BlockedByCharacter(Vector3 point, Component ignore)
 	{

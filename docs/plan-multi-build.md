@@ -17,11 +17,11 @@ estagnação**, a **cobertura de bancadas** e o validador (`attached`/`nudge`/`b
 **medida em jogo** em 03/11/2026) fechados; **P3** (UI do grupo), **P4** (nomes múltiplos) e **P5**
 (persistência/limpeza paralela) **não**.
 
-Números deste ciclo (04/11/2026): build **0/0**, harness `tools/ai-intents-check` **549 asserções** (471 + **23** da
-seção **(p)**, `AI/BuildFailure.cs`, + **26** da **(q)**, `AI/BuildPieceKind.cs`, + **29** da **(r)**,
-`AI/BuildSupportBelow.cs` — as **10** últimas de `CanSupport`, telhado apoia telhado; as três tabelas puras e
-linkadas), teste do MCP **101** (as **12** asserções de 03/11 cobrem o contrato do `companions.build` do grupo),
-config **360 opções / 25 seções** (medido com `python tools/gen_config_doc.py --check`), ES/FR/IT **0 lacunas**, dívida
+Números deste ciclo (04/11/2026): build **0/0**, harness `tools/ai-intents-check` **562 asserções** (471 + **23** da
+seção **(p)**, `AI/BuildFailure.cs`, + **26** da **(q)**, `AI/BuildPieceKind.cs`, + **42** da **(r)**,
+`AI/BuildSupportBelow.cs` — `CanSupport` + o poste de emergência (`PickPost`), **13** casos novos; as três tabelas
+puras e linkadas), teste do MCP **101** (as **12** asserções de 03/11 cobrem o contrato do `companions.build` do grupo),
+config **361 opções / 25 seções** (medido com `python tools/gen_config_doc.py --check`), ES/FR/IT **0 lacunas**, dívida
 do `gen_translations.py` **45** e **nenhuma chave de tradução nova** (as recusas reusam `hc_ai_no_companion` e
 `hc_ai_build_failed`). **O que falta medir** está no §7 (o run do lote novo, o run com material pago e o teste pequeno
 de 2 companheiros num 6x6).
@@ -249,17 +249,21 @@ teste mock do MCP (**101 PASS**, **12 asserções novas para o contrato do grupo
    (12/32, fora do footprint, no terreno) e o **validador ampliado**: `AttachedToStructure` a **4,0 m** (era 2,6 — o
    grid do telhado tem ~2 m e a vizinha fica na diagonal, a ~2,8–3,5 m), **`NudgePiece` universal** (qualquer peça com
    `too_steep`/`no_ground`, com o raio do `BuildPieceKind`: **estrutural ≤ 1 m**, **mobília até 5 m** desde o `290afc1`,
-   que subiu de 2,5 m e passou a varrer 3 anéis × 12) e `blocked_by_player` **sem contar companheiro**
-   (`BlockedByCharacter` ignora quem tem `CompanionAI` — eram 17+). **Medido nos runs (§7):**
-   `PlaceReach = 10` → **970/985** (15 puladas, `no_ground` ~25 → **0**, `blocked_by_player` 17+ → **0**,
-   `log ajustado` 6, 1 morte); `PlaceReach = 15` (só config) → passada principal **987/987**, **972 colocadas** e **0
-   mortes**; **Run 3** (15 + guarda anti-loop) → **`970 peças, 16 puladas`** = **986**, **0 mortes** e **382 KB** de
-   log; **Run 4** (com o **deck**, `DeckLift = 1`) → ~**972 peças de pé**, **0 mortes**, deck certo, **6 telhados**
-   nomeados e **4 `falls`**. **Fechado depois:** o lote das 13 (nudge de mobília 5 m/3×12, `TryBenchAt` sem `clipping`, apoio imediato)
-   e o **deck (`DeckLift`)**. **Aberto:** a **reserva de material** (`Stock` — cada worker conta o canteiro por conta
-   própria), um run com **material pago**, o run do lote desta rodada (**telhado apoia telhado** + **`falls` com uma
-   segunda tentativa a 1 m**, `building-notes` §17.10, + o **apoio de emergência** do `SupportFallback`, §17.11) e o
-   teste pequeno de 2 companheiros num 6x6.
+   que subiu de 2,5 m e passou a varrer 3 anéis × 12) e o **poste de emergência** (`SupportFallback`: base na superfície
+   de baixo, comprimento pelo **vão** via `PickPost` — ver §17.11). **`blocked_by_player`: o ignore de companheiro foi
+   REVERTIDO** — a peça era colocada **dentro** do companheiro e ele **afundava**; hoje companheiro **é obstáculo**
+   (`BlockedByCharacter`, `BuildProbe.cs:719-729`), o bloqueio voltou a aparecer (**20** no run de 5) e é **retry**
+   (falha real: gasta uma das 3, não é pulada na hora). **Medido nos runs (§7):**
+   `PlaceReach = 10` → **970/985** (15 puladas, `no_ground` ~25 → **0**, `blocked_by_player` 17+ → **0** *naquele
+   build, com o ignore ligado*, `log ajustado` 6, 1 morte); `PlaceReach = 15` (só config) → passada principal
+   **987/987**, **972 colocadas** e **0 mortes**; **Run 3** (15 + guarda anti-loop) → **`970 peças, 16 puladas`** =
+   **986**, **0 mortes** e **382 KB** de log; **Run 4** (com o **deck**, `DeckLift = 1`) → ~**972 peças de pé**, **0
+   mortes**, deck certo, **6 telhados** nomeados e **4 `falls`**; **Run 5** (5 companheiros, antes do poste por vão) →
+   **972 + 13 = 985**, watchdog **0**, **0 mortes**, `apoio de emergência` **0**. **Fechado depois:** o lote das 13
+   (nudge de mobília 5 m/3×12, `TryBenchAt` sem `clipping`, apoio imediato) e o **deck (`DeckLift`)**. **Aberto:** a
+   **reserva de material** (`Stock` — cada worker conta o canteiro por conta própria), um run com **material pago**, o
+   run do lote desta rodada (**telhado apoia telhado** + **`falls` com uma segunda tentativa a 1 m**, `building-notes`
+   §17.10, + o **poste por vão** do `SupportFallback`, §17.11) e o teste pequeno de 2 companheiros num 6x6.
 3. **P2 — navmesh/latência — MEDIDO EM JOGO (implementado e testado em 03/11/2026):** (a) **medido o `why`** do run de 03/11/2026:
    **36 `no progress`**, 17 `no_support`, 9 `no_ground`, 6 `too_steep` — os 36 **não** são "tile invisível": são o
    `SnapToNavMesh` (1,5/3/6/12 m) mandando o alvo para o chão sob o piso, com a trava de 12 s do `Goto` queimando;
@@ -301,9 +305,10 @@ teste mock do MCP (**101 PASS**, **12 asserções novas para o contrato do grupo
 
 ## 7. Critério de aceite
 
-**Medido em jogo (04/11/2026, `CommHomeBasicBP`, 3 companheiros, `BlueprintFree = true`)** — quatro runs: 1 e 2 diferem
-só no `PlaceReach` (10 = padrão do código; 15 = config de teste), o **Run 3** roda em 15 **com a guarda anti-loop**
-(§17.8 de `docs/re/building-notes.md`), e o **Run 4** é o primeiro **com o deck** (`DeckLift = 1`, o padrão). O detalhe
+**Medido em jogo (04/11/2026, `CommHomeBasicBP`, `BlueprintFree = true`)** — cinco runs: 1 e 2 diferem só no
+`PlaceReach` (10 = padrão do código; 15 = config de teste), o **Run 3** roda em 15 **com a guarda anti-loop** (§17.8 de
+`docs/re/building-notes.md`), o **Run 4** é o primeiro **com o deck** (`DeckLift = 1`, o padrão) e o **Run 5** é o de
+**5 companheiros**, antes do poste por vão. O detalhe
 está lá em §17.6, §17.9 e §17.10:
 
 | | Run 1 (`PlaceReach = 10`) | Run 2 (`PlaceReach = 15`) | **Run 3 (15 + guarda)** |
@@ -314,14 +319,17 @@ está lá em §17.6, §17.9 e §17.10:
 | mortes | 1 | **0** | **0** |
 | log | — | — | **382 KB** (sem loop) |
 | `no_ground` | **0** (era ~25) | — | — |
-| `blocked_by_player` | **0** (era 17+) | — | — |
+| `blocked_by_player` | **0** (era 17+) — **revertido depois**, ver o Run 5 | — | — |
 | `log ajustado` | **6** | — | — |
 
 - **fechou:** os **contadores** (`Placed`/`Skipped` por índice → a fala final fecha com o plano), a **cumeeira** deixa de
-  ser `no_ground` (~25 → **0**, `AttachedRadius` 4,0 m), o **companheiro não bloqueia** a colocação (17+ → **0**,
-  `BlockedByCharacter`), o **nudge** age (`log ajustado` 6) e o **baú/cama** de mobília passam a ser ajustados; com
-  15 m a ordem chega a **0 mortes** e a passada principal a **987/987**; o **Run 3** mostra **0 mortes e 382 KB de log**
-  com a guarda anti-loop (o `290afc1` tinha feito 344 MB);
+  ser `no_ground` (~25 → **0**, `AttachedRadius` 4,0 m), o **nudge** age (`log ajustado` 6) e o **baú/cama** de mobília
+  passam a ser ajustados; com 15 m a ordem chega a **0 mortes** e a passada principal a **987/987**; o **Run 3** mostra
+  **0 mortes e 382 KB de log** com a guarda anti-loop (o `290afc1` tinha feito 344 MB);
+- **o padrão `blocked_by_player` foi revertido:** o lote que ignorava companheiro no `BlockedByCharacter` foi **tirado**
+  — a peça era colocada **dentro** do companheiro e ele **afundava** (regressão registrada). Hoje companheiro **é
+  obstáculo** (`MinSpacing` 0,6 m) e o `blocked_by_player` **voltou**: **20** no Run 5, **retry** (falha real no
+  portão, gasta uma das 3 tentativas) e não perda imediata — a peça sobe quando ele sai de cima;
 - **o grupo em si:** um plano por índices distintos (`a peça X já foi construída pelo grupo`), **promoção do líder**
   (`o líder do grupo ... saiu - outro companheiro assumiu`) e **retomada** no mesmo plano (`voltou para o grupo ... na
   peça X`) continuam valendo nos três runs;
@@ -344,6 +352,15 @@ está lá em §17.6, §17.9 e §17.10:
   telhado**. Diagnóstico e correção em `docs/re/building-notes.md` §17.10: **telhado apoia telhado** no pull
   (`BuildSupportBelow.CanSupport`) e **`falls` com uma tentativa em pose ajustada até 1 m**
   (`AdjustFallenPose`/`AdjustPose`). **Sem run** com o código novo.
+- **Run 5 — 5 companheiros, antes do poste por vão:** **972 colocadas + 13 puladas = 985**, watchdog **0**, **0
+  mortes**, `blocked_by_player` **20** (o companheiro **é** obstáculo de novo — ver a reversão acima) e
+  **`apoio de emergência` 0**: o `apoio imediato` disparou **24×** puxando o piso de baixo, mas a coluna terminava
+  **sem base** — o poste fixo de 2 m ficava com **1 m enterrado** e o jogo recusava o próprio poste com `no_support`
+  (`sem lugar para o apoio de emergência … - no_support`). Lote desta rodada: o poste passou a ser **escolhido pelo
+  vão** — base na superfície de baixo (`Physics.Raycast` 10 m), comprimento pelo **`PickPost`** (mais curto que
+  alcança: até **0,20 m mais curto** / **0,35 m mais longo**), candidatos `wood_beam_1`/`wood_beam`/`wood_pole2`/
+  `wood_beam_45` com o comprimento medido dos snaps; sem peça vertical de ~4 m em vanilla, vão > ~3,1 m **não recebe
+  poste** (`docs/re/building-notes.md` §17.11). **Sem run** com o poste novo.
 
 **Coberto pelo código e ainda sem run dedicado:**
 - claim expira em 20 s, renovado por frame; retry real teto de 3 por índice, 2 s; espera por dependência 8/12/20/25 s;
@@ -357,9 +374,10 @@ está lá em §17.6, §17.9 e §17.10:
 1. **O lote de 04/11 (o aceite que falta):** a **empenha leste** fechar e a **água sul** ganhar a faixa — as 6 de
    42,8/44,8/46,8 fora de `sem apoio: <prefab> em (x, y, z)` e em `done: ... supported`; `log ajustado ... - falls`
    aparecendo **antes** de um `skipping it` (a peça que cair de novo depois do ajuste é pulada — não há terceira
-   chance); watchdog idealmente `0 peça(s) sem apoio` nos **3** workers; e o **apoio de emergência**
-   (`[Building] SupportFallback`, `building-notes` §17.11) plantando o `wood_beam` sob as peças que o plano deixa sem
-   apoio — `apoio de emergência: wood_beam sob <prefab> em (x, y, z)` no log, uma vez por peça e teto de 24.
+   chance); watchdog idealmente `0 peça(s) sem apoio` nos **3** workers; e o **poste de emergência**
+   (`[Building] SupportFallback`, `building-notes` §17.11) subindo **pelo vão** — log
+   `apoio de emergência: <prefab> (<len> m) sob <peça> em (…)`, uma vez por peça e teto de 24; sem poste que alcance
+   (vão > ~3,1 m) ele diz `- vão de X,XX m` e a peça segue a fila.
 2. **O deck (`DeckLift`) — medido:** Run 4 (~**972** de pé, **0 mortes**, piso ~1 m, escadas encontrando); o que ficou
    pendente dele é só o telhado do item 1. `DeckLift = 0` mantém o nível do arquivo (só assenta as estacas).
 3. **As 13 peças do Run 2 — atacadas e sem run dedicado:** **2 baús** `piece_chest_wood` em (-168,2, 39,9, -434,9) por
@@ -379,7 +397,7 @@ está lá em §17.6, §17.9 e §17.10:
 "para, Maria" → só a Maria; "para" → todos; "Maria e João, ataquem o greydwarf" → as duas; "Maria, equipa a
 picareta" → só a Maria; "Maria e o cachorro, ..." → Maria + aviso do desconhecido, sem inventar.
 
-**Gate:** harness **549** (471 + 23 da seção **(p)** + 26 da **(q)** + **29** da **(r)**), MCP **101** e build **0/0**.
+**Gate:** harness **562** (471 + 23 da seção **(p)** + 26 da **(q)** + 42 da **(r)**), MCP **101** e build **0/0**.
 
 ## 8. Perguntas para o jogador — respostas registradas (03/11/2026)
 

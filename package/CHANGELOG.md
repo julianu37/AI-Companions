@@ -225,7 +225,7 @@ stopped.
   this first stage: the **materials are counted per companion** (there is no per-piece reservation between the workers
   yet, so the same stack may be counted twice and they can gather more than the plan needs), the group lives **in
   memory** (it is **not in the save**), and the group is **blueprints only** - a single piece and a template still have
-  one companion on them. Build 0/0 and the harness at **549 assertions** pass (23 of them are the failure classification,
+  one companion on them. Build 0/0 and the harness at **562 assertions** pass (23 of them are the failure classification,
   **26** the piece-kind table and **29** the support window of the pose adjustment and of the support gate below);
   **in test** - the numbers of the 04/11/2026 runs end this cycle.
   - **New `[Building] PlaceReach`** (**in test**): how far the companion may place a piece **once it is stuck** - it
@@ -310,7 +310,7 @@ stopped.
     piece stays at **1 m**), a bench spot that **rejects a `clipping` pose**, and the group **pulling the direct support of
     a refused piece by index** (`AI/BuildSupportBelow.cs` - the window is **0,4-2,5 m below** the piece and **≤2,5 m in
     XZ**, harness section **(r)**).
-  Build 0/0, harness **549** (471 + **23** of the failure classification + **26** of the piece-kind table + **29** of the
+  Build 0/0, harness **562** (471 + **23** of the failure classification + **26** of the piece-kind table + **42** of the
   support window, the last 10 of `BuildSupportBelow.CanSupport`), MCP **101** and config **361/25** (`PlaceReach`,
   `DeckLift` and `SupportFallback` are the three keys of this cycle).
 

@@ -1573,11 +1573,11 @@ plano** dos 9 candidatos, nivela com a enxada (passadas de 1,5 s) e só então p
 
 ### 17.5 Gate do ciclo
 
-Harness **549 PASS** (471 até a **(o)** + **23** da seção **(p)** — `AI/BuildFailure.cs` — + **26** da **(q)** —
-`AI/BuildPieceKind.cs` — + **29** da **(r)** — `AI/BuildSupportBelow.cs`, as **10** últimas de `CanSupport`, §17.10; os
-três linkados no `ai-intents-check.csproj`), MCP **101 PASS**, **config 360/25** (medido com
-`python tools/gen_config_doc.py --check`), ES/FR/IT **0 lacunas**, dívida do `gen_translations.py` **45** e build
-**0/0**.
+Harness **562 PASS** (471 até a **(o)** + **23** da seção **(p)** — `AI/BuildFailure.cs` — + **26** da **(q)** —
+`AI/BuildPieceKind.cs` — + **42** da **(r)** — `AI/BuildSupportBelow.cs`, `CanSupport` (§17.10) e o `PickPost` do
+poste de emergência (§17.11); os três linkados no `ai-intents-check.csproj`), MCP **101 PASS**, **config 361/25**
+(medido com `python tools/gen_config_doc.py --check`), ES/FR/IT **0 lacunas**, dívida do `gen_translations.py` **45** e
+build **0/0**.
 
 ### 17.6 O resultado dos três runs (04/11/2026)
 
@@ -1797,32 +1797,73 @@ workers terminaram com o watchdog em `0 peça(s) sem apoio` e o **terceiro** par
   3. watchdog idealmente `0 peça(s) sem apoio` nos **3** workers (2 fecharam assim neste run);
   4. o **deck** segue como medido (piso ~1 m, escadas encontrando), com
      `a obra sobe 1 m (deck) - N peça(s) de fundação assentadas no terreno` no log.
-  Build **0/0** e harness **549** (**539** + as **10** novas da seção **(r)**, agora **29** casos: `CanSupport` com
-  telhado sobre telhado, telhado no piso/parede/escada, piso e parede **não** apoiados por telhado, a porta que nunca
-  apoia e a porta **como peça**); **aceite medido ainda não**.
+  Build **0/0** e harness **549** **naquele build** (**539** + as **10** novas da seção **(r)**, então **29** casos:
+  `CanSupport` com telhado sobre telhado, telhado no piso/parede/escada, piso e parede **não** apoiados por telhado, a
+  porta que nunca apoia e a porta **como peça**; hoje o harness é **562** com o `PickPost`, §17.11);
+  **aceite medido ainda não**.
 
 ### 17.11 O apoio de emergência (`[Building] SupportFallback`, 04/11/2026)
 
 - **O que é:** a resposta para a peça do plano recusada com `no_support` **quando o plano não tem nada embaixo dela** —
   `DirectSupportIndex(state) < 0`, o caso em que o pull do apoio imediato (§17.8) responde `-1` e a peça só podia
-  esperar o watchdog. O companheiro **finca um `wood_beam` vertical sob ela**, com o **topo na base da peça**
-  (`new Vector3(state.Pos.x, state.Pos.y - 1f, state.Pos.z)`, `MHR_Build.cs:3235`; a pose em pé vem dos snap points,
-  `VerticalPose`), validado pelas regras do **jogo** (`BuildSite.Check`: chão, estação no raio, sem clipping, `:3237`),
-  **pago** como qualquer peça (`BuildStock.Take` — baús/mochila; de graça com `BlueprintFree`, `:3248`) e colocado pelo
-  executor (`BuildExecutor.Place`, `:3253`). A peça recusada **mantém índice, claim e pose** e sobe em cima do poste no
-  frame seguinte.
-- **As guardas:** **uma vez por peça** (`State.FallbackPosts`, `:232`/`:3264`) e **teto de 24 por ordem**
-  (`MaxFallbackPosts = 24`, `:81`; checado em `:3217`); **nunca** onde o plano tem apoio (`:3226` — ali o caminho é o
-  pull). Tudo o que impede o poste é dito: `sem lugar para o apoio de emergência …` (`:3240`/`:3260`) e
-  `sem material para o apoio de emergência …` (`:3250`), e a peça segue o caminho normal (fila/watchdog).
-- **O log do sucesso:** `apoio de emergência: wood_beam sob <prefab> em (x, y, z)` (`:3265`).
+  esperar o watchdog. O companheiro **finca um poste vertical sob ela**, com o **topo tocando a base da peça** e a
+  **base na superfície de baixo** (o chão, o piso do andar de baixo, o topo de uma viga), validado pelas regras do
+  **jogo** (`BuildSite.Check`: chão, estação no raio, sem clipping), **pago** como qualquer peça (`BuildStock.Take` —
+  baús/mochila; de graça com `BlueprintFree`) e colocado pelo executor. A peça recusada **mantém índice, claim e
+  pose** e sobe em cima do poste no frame seguinte — a coluna fecha **de baixo para cima** (o piso de 40,8 ganha um
+  poste no chão, o seguinte um poste sobre aquele piso, e assim por diante).
+- **O bug da 1ª versão (medido no run de 5 companheiros):** o poste era um `wood_beam` fixo de **2 m com o centro em
+  `y − 1`** — então, para uma peça ~1 m acima do chão, a **base ficava 1 m enterrada** e o **jogo recusava o próprio
+  poste** (`sem lugar para o apoio de emergência … - no_support`). Naquele run o `apoio imediato` disparou **24×**
+  (puxando o piso de baixo), mas a **coluna terminava sem base** e o `apoio de emergência` ficou em **0** — todas as
+  tentativas morreram com a base enterrada.
+- **O desenho novo (`TryFallbackPost`, `MHR_Build.cs:3229`):** primeiro **onde o poste pisa** — `Physics.Raycast` para
+  baixo de `piece.y + 0,05` por **`PostReach` = 10 m** (`:91`, `:3256`), com `BuildProbe.PlaceMask()` e
+  `QueryTriggerInteraction.Ignore`; o primeiro hit dá `baseY` (peça de baixo **ou** terreno) e, se nada responder, cai
+  no `GetGroundHeight(piece)` (**fail-open**, `:3259`). Depois o **vão**: `gap = piece.y − baseY` (`:3260`). O poste é
+  o **mais curto que alcança**: `BuildSupportBelow.PickPost` (`AI/BuildSupportBelow.cs:74`) — até **0,20 m mais curto**
+  que o vão (`ShortTolerance`, `:101`: a caixa de apoio do jogo é crescida em 0,15 m) e no máximo **0,35 m mais longo**
+  (`MaxOverlap`, `:105`: um andar de sobra atravessaria a peça). O centro é `baseY + comprimento/2` (`:3275`) — é o que
+  põe a base **na superfície** em vez de enterrá-la. Candidatos, na ordem (`FallbackPostPrefabs`, `:79`):
+  `wood_beam_1`, `wood_beam`, `wood_pole2`, `wood_beam_45`, com o comprimento **medido dos snaps de cada prefab**
+  (`MeasurePosts` `:3312`, `PostAxis` `:3338` — uma vez só, em cache: um `no_support` não pode varrer prefab por frame).
+
+| prefab | comprimento | origem | fonte |
+|---|---|---|---|
+| `wood_beam_1` | **1,00 m** | centro | sem medição no repo (nome/prefab; o harness usa 1 m) |
+| `wood_beam` | **2,00 m** | centro | sem medição no repo (o valor que a 1ª versão usava) |
+| `wood_pole2` | **2,00 m** | **centro** (snaps `(0, ±1, 0)`) | §11 + `build.inspect` (bounds 0,42 × **2,00** × 0,42) |
+| `wood_beam_45` | **2,83 m** | centro | §11: snaps `(-1,-1,0)`/`(1,1,0)` → diagonal √8 |
+
+  **Não existe peça vertical de ~4 m em vanilla**, então um vão acima de ~3,1 m (2,83 + 0,35) **não recebe poste** — e
+  empilhar dois postes está fora do desenho: a peça segue o caminho normal (fila/watchdog).
+- **As guardas:** **uma vez por peça** (`State.FallbackPosts`, `:246`/`:3304`) e **teto de 24 por ordem**
+  (`MaxFallbackPosts = 24`, `:95`; checado em `:3239`); **nunca** onde o plano tem apoio (`:3248` — ali o caminho é o
+  pull).
+- **Os logs:** sucesso `apoio de emergência: <prefab> (<len> m) sob <peça> em (x, y, z)` (`:3305`); recusas
+  `sem lugar para o apoio de emergência sob <peça> em (…) - vão de X,XX m` (`:3265`, nenhum poste alcança),
+  `… - <status>` (`:3280`, o `BuildSite.Check` recusou a pose), `sem material para o apoio de emergência …` (`:3290`) e
+  `… - <erro>` (`:3300`, o executor falhou — a madeira volta para a mochila).
 - **A config:** `[Building] SupportFallback` (bool, **padrão true**, `ModConfig.cs:953`; rótulo
   `hc_cfg_building_supportfallback`, "Emergency support" no inglês — `ModLocalization.cs:843`). Desligada, a peça só
   espera e fica de fora, como antes.
+- **A regressão do afundamento (revertida no mesmo lote):** o lote anterior tinha feito `BlockedByCharacter`
+  (`BuildProbe.cs:705`) **ignorar companheiro** para zerar o `blocked_by_player`. O efeito colateral apareceu no run de
+  5: a peça era colocada **dentro** do companheiro e ele **afundava**. O ignore foi **revertido** — hoje o companheiro
+  **é obstáculo** de novo (`:719-729`; o raio é `MinSpacing = 0,6 m`) —, o `blocked_by_player` **voltou a aparecer**
+  (**20** no run de 5) e é **retry, não perda**: é falha **real** no portão (`AI/BuildFailure.cs:39`, gasta uma das 3
+  tentativas), a peça volta para a fila e sobe quando o companheiro sai de cima — o que não acontece mais é a peça
+  nascer dentro dele. **Nota:** o docstring de `BlockedByCharacter` (`:699-703`) ainda descreve o ignore antigo —
+  **comentário desatualizado**, o código é que manda (reportado ao arquiteto, `src/**` não é meu).
+- **O run de 5 companheiros (antes deste lote):** **972 colocadas + 13 puladas = 985**, watchdog **0**, **0 mortes**,
+  `blocked_by_player` **20** (já com o companheiro valendo como obstáculo — a reversão acima), `apoio de emergência`
+  **0** e **24** `apoio imediato` (puxadas do piso de baixo): as **13** restantes são justamente as colunas cuja base
+  nunca existia, e por isso o poste nunca subiu.
 - **O que ela fecha:** as **16** do Run 3 (§17.6 — colunas na **empenha leste** e no **canto noroeste**, 40,8→46,8, + 4
   baús) e as **6** de 42,8/44,8/46,8 que sobraram no run do deck (§17.10), que são exatamente o caso "o autor não pôs
-  nada embaixo". **Estado: em teste no run** — build 0/0 e harness **549**; o aceite é o run seguinte (as peças acima
-  saindo de `sem apoio:` e aparecendo como `done: … supported`, com o log do poste).
+  nada embaixo". **Estado: em teste no run** — build **0/0** e harness **562** (**549** + **13** da `PickPost`, com a
+  seção **(r)** em **42** casos); o aceite é o run seguinte (as peças acima saindo de `sem apoio:` e aparecendo como
+  `done: … supported`, com o log do poste e o comprimento no `(X,XX m)`).
 
 
 
