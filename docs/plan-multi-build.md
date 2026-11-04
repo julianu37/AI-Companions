@@ -263,12 +263,15 @@ teste mock do MCP (**107 PASS**, **12 asserções para o contrato do grupo** em 
    mortes**, deck certo, **6 telhados** nomeados e **4 `falls`**; **Run 5** (5 companheiros, antes do poste por vão) →
    **972 + 13 = 985**, watchdog **0**, **0 mortes**, `apoio de emergência` **0**; **Run 6** (11/11, com os dois lotes)
    → **969 + 18 = 987**, watchdog **0**, **telhado fechado**, **0 postes**, **1 morte**, `blocked_by_player` ≈**770**
-   (o corpo conta e o jogador estava no canteiro). **Fechado depois:** o lote das 13 (nudge de mobília 5 m/3×12,
+   (o corpo conta e o jogador estava no canteiro); **Run 7** (11/11, o degrau de 0,6 m com `MaxOverlap` 0,35) →
+   travou em **950/987**; **Run 8** (11/11, validação do lote do poste) → **987/987**, **0 puladas**, **39 postes**,
+   **`UNSUPPORTED` 0**, **watchdog `0`**, **0 mortes**. **Fechado depois:** o lote das 13 (nudge de mobília 5 m/3×12,
    `TryBenchAt` sem `clipping`, apoio imediato), o **deck (`DeckLift`)**, o **poste por vão** (`PickPost` +
    `UsefulSurface`) e a **regra do telhado** (`HoldsPlacedPiece` — **inócua**: o `m_supports` do telhado é `true`,
-   `docs/re/support-rule-wearntear.md` §5). **Aberto:** o **vão do deck** (`DeckLift = 1` prende
-   corpos; 3 opções, decisão do jogador — §17.13), o **degrau de 0,6 m** do plano (sem apoio e sem poste possível; o
-   run do degrau travou em **950/987** — `building-notes` §17.12), a **reserva de material** (`Stock` — cada worker conta
+   `docs/re/support-rule-wearntear.md` §5), e o **degrau de 0,6 m** (o run do degrau travou em **950/987** —
+   `building-notes` §17.12 — e o **Run 8** fez os pisos de **40,4** subirem em cima de **39** postes, §17.14).
+   **Aberto:** o **vão do deck** (`DeckLift = 1` prende
+   corpos; 3 opções, decisão do jogador — §17.13), a **reserva de material** (`Stock` — cada worker conta
    o canteiro por conta própria), um run com **material pago** e o teste pequeno de 2 companheiros num 6x6.
 3. **P2 — navmesh/latência — MEDIDO EM JOGO (implementado e testado em 03/11/2026):** (a) **medido o `why`** do run de 03/11/2026:
    **36 `no progress`**, 17 `no_support`, 9 `no_ground`, 6 `too_steep` — os 36 **não** são "tile invisível": são o
@@ -315,7 +318,7 @@ teste mock do MCP (**107 PASS**, **12 asserções para o contrato do grupo** em 
 `PlaceReach` (10 = padrão do código; 15 = config de teste), o **Run 3** roda em 15 **com a guarda anti-loop** (§17.8 de
 `docs/re/building-notes.md`), o **Run 4** é o primeiro **com o deck** (`DeckLift = 1`, o padrão) e o **Run 5** é o de
 **5 companheiros**, antes do poste por vão. O detalhe
-está lá em §17.6, §17.9 e §17.10:
+está lá em §17.6, §17.9 e §17.10 (**os Runs 6, 7 e 8, de 11/11/2026, vêm nos bullets abaixo** — §17.12 a §17.14):
 
 | | Run 1 (`PlaceReach = 10`) | Run 2 (`PlaceReach = 15`) | **Run 3 (15 + guarda)** |
 |---|---|---|---|
@@ -379,10 +382,28 @@ está lá em §17.6, §17.9 e §17.10:
   possível, `wood_floor` 297/298/304 repetindo) — naquele build o poste não cobria o vão porque o `MaxOverlap` era
   **0,35**. O lote do poste (`ae9ebc3`, 11/11/2026) **fechou isso**: `MaxOverlap` **0,45**
   (`AI/BuildSupportBelow.cs:119`), janela do `wood_beam_1` `[0,55; 1,20]`, mais o `holds` na base, a guarda de mobília e
-  o aceite só com `no_support` único (`building-notes` §17.14); o run de validação (Run 8) **ainda sem número**.
-- **Ressalva do Run 6 + pendência aberta (o vão do deck):** depois do run o arquiteto **apagou 41 peças do piso do
-  deck** (**25 + 16**) para **libertar o jogador e os companheiros presos no vão de ~1 m** — o estado atual da casa
-  **não** tem o piso íntegro e mede o que sobrou. O **vão do deck (`DeckLift = 1`)** é a pendência: (1) `DeckLift = 0`
+  o aceite só com `no_support` único (`building-notes` §17.14); o run de validação é o **Run 8**, abaixo.
+- **Run 8 — 11/11/2026, a validação do lote do poste (5 companheiros, `DeckLift = 1`, `BlueprintFree`, `PlaceReach`
+  15, `SupportFallback` ligado, `TempScaffold` desligado):** **987 de 987 índices colocados e `skip` = 0**,
+  **39 postes de emergência com 0 recusas**, **1026 peças** no canteiro (**987** do plano = 983 do arquivo + **4
+  bancadas** + **39** postes), **watchdog `0`**, **`UNSUPPORTED` = 0**, **0 mortes**, **0 `falls`**, **telhado
+  fechado** e **empena leste fechada** nas três visões; `blocked_by_player` **120** (116 voltaram à fila + 4
+  `desistindo`, todas recuperadas por outro worker) e `no progress` **11**; o **jogador ficou fora** do canteiro,
+  então o bloqueio foi
+  **companheiro contra companheiro** (`BuildProbe.cs:724-753` conta os dois). O **degrau de 0,6 m** subiu: os
+  `wood_floor` de **40,4** que o Run 7 deixou em `no_support` ganharam poste de 1 m (log
+  `apoio de emergência: wood_beam_1 (1,00 m) sob wood_floor em (…)`, 6 deles em 40,4 e o resto em 39,3/41,4/44,4/
+  45,4/46,4; **1** é `wood_beam_45` de **2,83 m**). Contadores do **grupo** (`Placed`/`Skipped` são **conjuntos de
+  índices**): o `Finish` loga só a chave e a fala final não tocou, então o `987`/`0` **não** aparece no log. As **2
+  linhas** que o parser descarta são `stone_floor_2x2` (`recipe not unlocked` — receita do **talhador de pedras**,
+  `build.inspect` medido), limite do arquivo/save: é o que fecha a **conta do arquivo** (985 linhas − 2 = 983 → + 4
+  bancadas = 987 índices) que aparecia como "2 peças" não explicadas desde o Run 6. Detalhe em
+  `docs/re/building-notes.md` §17.14.
+- **Ressalva do Run 6 + pendência aberta (o vão do deck):** depois do Run 6 o arquiteto **apagou 41 peças do piso do
+  deck** (**25 + 16**) para **libertar o jogador e os companheiros presos no vão de ~1 m**. O **Run 8** voltou a
+  colocar o **plano inteiro** (987/987 índices) no mesmo canteiro, então o piso apagado **entrou de novo** — é
+  inferência dos índices colocados, não uma contagem de `build.pieces`. O **vão do deck (`DeckLift = 1`)** continua a
+  pendência: (1) `DeckLift = 0`
   (sem deck), (2) **saia em volta** fechando o perímetro, (3) **regra de rota** para o mover não entrar/parar sob o
   deck. A decisão é do jogador (`building-notes` §17.13).
 
@@ -402,6 +423,12 @@ está lá em §17.6, §17.9 e §17.10:
    (`[Building] SupportFallback`, `building-notes` §17.11) subindo **pelo vão** — log
    `apoio de emergência: <prefab> (<len> m) sob <peça> em (…)`, uma vez por peça e teto de 24; sem poste que alcance
    (vão > ~3,1 m) ele diz `- vão de X,XX m` e a peça segue a fila.
+   **Atendido pelo Run 8 (11/11/2026):** a **empenha leste** aparece **fechada** nas três visões, o **poste de
+   emergência** subiu **39 vezes** (`apoio de emergência: wood_beam_1 (1,00 m) sob …`, **0** recusas) e o apoio das
+   peças de pé passou a ter o veredito do jogo: **`UNSUPPORTED` = 0**. **Fica em aberto daqui:** a **água sul** (as
+   visões do Run 8 foram lidas como "telhado fechado + empena leste", a faixa sul **não** foi reportada à parte) e o
+   `log ajustado … - falls` **antes** de um `skipping it` — o Run 8 teve **0 `falls`**, então esse caminho **não foi
+   exercitado**.
 2. **O deck (`DeckLift`) — medido e com pendência aberta:** Run 4 (~**972** de pé, **0 mortes**, piso ~1 m, escadas
    encontrando) e Run 6 (11/11, telhado fechado); o que falta é o **vão do deck**: `DeckLift = 1` cria ~1 m entre o piso
    e o chão e **prende corpos** (41 peças do piso foram **apagadas** para libertar o jogador e os companheiros). Opções:

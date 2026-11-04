@@ -1970,8 +1970,10 @@ workers terminaram com o watchdog em `0 peça(s) sem apoio` e o **terceiro** par
 - **`blocked_by_player` ≈ 770**, e o motivo é o §17.11: o **corpo conta** de verdade (a janela do `BuildBody`), e o
   **jogador estava dentro do canteiro** — cada peça perto dele volta para a fila (retry real) até ele sair.
 - **Ressalva honesta (estado atual da casa):** depois do run o arquiteto **apagou 41 peças do piso do deck**
-  (**25 + 16**) para **libertar o jogador e os companheiros presos no vão de 1 m do deck**. Ou seja, o que está no mundo
-  hoje **não** tem o piso íntegro da `CommHomeBasicBP`; qualquer medição nova precisa reconstruí-lo.
+  (**25 + 16**) para **libertar o jogador e os companheiros presos no vão de 1 m do deck**. Ou seja, o que estava no mundo
+  logo depois do Run 6 **não** tinha o piso íntegro da `CommHomeBasicBP`. **Atualização (Run 8, 11/11/2026):** o plano
+  inteiro foi recolocado no mesmo canteiro (**987/987** índices — §17.14), então o piso apagado **voltou**; a ressalva
+  fica como história do Run 6, não como estado de hoje.
 - **Pendência aberta — o vão do deck (`DeckLift = 1`):** a folga de ~1 m entre o piso do deck e o chão prende corpos
   (foi o mesmo caminho do relato "dois companions travados embaixo do piso", §17.11). As três saídas em discussão, e a
   decisão é **do jogador**:
@@ -2033,9 +2035,62 @@ workers terminaram com o watchdog em `0 peça(s) sem apoio` e o **terceiro** par
   nenhuma segura → −1) e a asserção do número reescrita (`MaxOverlap == 0,45`; ela existia em 0,35 — por isso o total
   sobe **5**, não 6). MCP **101 → 107**: as **6** do `stop` (`tools/mcp-devbridge/test_mcp_devbridge.py:211-231`), que
   também entraram no `docs/mcp-devbridge.md` e no `tools/ai-intents-check/README.md:81,84`.
-- **Estado do run:** o **Run 8** (validação deste lote) **não tem número ainda** — esta nota **não** afirma resultado de
-  run. Verificado no código desta árvore (build **não** rodado aqui; leitura): o vão de 0,60 m cabe, a base sem apoio não
-  é mais aceita, a mobília não recebe poste e o aceite só abre com `no_support` **único**.
+- **Resultado do Run 8 (medido em jogo, 11/11/2026) — o lote validado:** **987 de 987 índices colocados, `skip` = 0**;
+  **39 postes de emergência**, **0 recusas**; **1026 peças** no canteiro; **watchdog `0`**, **`UNSUPPORTED` = 0**, **0
+  mortes** e **0 `falls`**; telhado **fechado**, **empena leste fechada**, **porta** e **escada das entradas** no
+  lugar nas três visões (`render_view`). Onde cada número veio (as `linha N` abaixo são do `LogOutput.log` **desta**
+  sessão de 11/11/2026 — o log cresce, então procure pelo texto, não confie no número da linha):
+  - **Montagem do run:** **5 companheiros** num plano só (`grupo de obra "MACCommHomeBasicBP": 5 companheiro(s) no
+    mesmo plano (987 peças)`, log linha 167), `BlueprintFree = true`, `[Building] DeckLift = 1`, `PlaceReach = 15`,
+    `SupportFallback = true`, `TempScaffold = false` e `LogLevel = Normal` (`AiCompanions.cfg:398/404/409/456/461/135`);
+    o **jogador ficou fora do canteiro** o run inteiro (leitura do arquiteto; o `game_status` de agora — (-164,9, 39,5,
+    -405,3) — está a ~24 m do centro do plano, (-160,0, 38,8, -428,8)).
+  - **O plano:** **987** = **983** peças do arquivo + **4 bancadas** do `PlanStations` (`station: 983 peça(s) precisam,
+    4 planejada(s), 0 sem cobertura`, linha 148), com o deck do §17.10 (`a obra sobe 1,00 m (deck) - 2 peça(s) de
+    fundação assentadas no terreno`, linha 142).
+  - **O fim da ordem:** os **4** primeiros workers saíram calados (`a lista de peças acabou para este companheiro (o
+    grupo continua)`, linhas 3878-3881) e o **último** (companheiro 2) fechou com `hc_ai_blueprint_done` (linha 3882)
+    — o cursor tinha chegado em `next: wood_gate (987/987)` (linha 3864) e a fila de retry do canteiro estava vazia
+    (a ordem só termina depois de `NextRetry`/`RetryPending`, `MHR_Build.cs:877-893`). **Ressalva:** o **número**
+    (`placed`/`skipped`) vem do **contador do grupo** (`MHR_BuildGroup.Placed`/`Skipped`, `MHR_Build.cs:903-904`) — o
+    `Finish` loga **só a chave** (`:913`) e a fala final **não tocou** (nenhuma linha `[TTS]` depois do fim da ordem),
+    então o log **não imprime** `987`/`0`.
+  - **As 4 peças que um worker desistiu foram colocadas por outro** (é o que faz o `skip` fechar em 0):
+    `desistindo de wood_floor (blocked_by_player)` (-156,1, 39,8, -436,5) na linha 1207 → `done: wood_floor …
+    supported` na 1238; `woodwall` (-162,6, 42,8, -422,9) 2526 → 3045; `woodwall` (-161,6, 42,8, -421,2) 2532 → 3075;
+    `wood_beam` (-151,1, 44,8, -431,2) 3150 → 3181. O `MarkDone` **tira o índice** do `SkippedIndex`
+    (`MHR_BuildGroup.cs:474-478`): peça dada por perdida e depois de pé conta **uma vez, como colocada**.
+  - **Os postes:** **39** — **38** `wood_beam_1` (**1,00 m**) + **1** `wood_beam_45` (**2,83 m**, sob um `wood_beam`
+    em (-158,8, 41,3, -428,3), linha 2278) — e **0** `sem lugar para o apoio de emergência`. O **degrau de 0,6 m**
+    que o Run 7 deixou em `no_support` (§17.12) **subiu**: os `wood_floor` de **40,4** receberam poste nas linhas 1233,
+    1250, 1264, 1352, 1365 e 1771 — (-152,3, 40,4, -424,9), (-157,1, 40,4, -438,3), (-150,5, 40,4, -425,9),
+    (-164,2, 40,4, -434,5), (-166,8, 40,4, -430,9) e (-158,8, 40,4, -437,3) —, e o mesmo aconteceu **acima** (41,4,
+    44,4, 45,4), nos telhados de 42,4/46,4 e em quatro `wood_floor_1x1` de 44,4. **O teto de 24 é por worker**
+    (`State.FallbackPosts`, `:259-266`; teste em `:3259`): 39 num canteiro com 5 companheiros **não** é exceção ao teto.
+  - **Canteiro:** **1026 peças** = **987** do plano + **39** postes (aritmética dos índices e do log de postes; **não**
+    recontei com `build.pieces` nesta nota).
+  - **`UNSUPPORTED` = 0:** nenhuma peça de pé perdeu apoio no veredito do próprio jogo (`MHR_Build.Verify`,
+    `MHR_Build.cs:4561`) — a busca por `UNSUPPORTED` no log dá **zero** linhas. **Watchdog `0`:** nenhuma linha de
+    `sem progresso há 60,0 s` nem de `sem apoio: <prefab> em (…)` (`LogStall`, `:2100-2107`) — o lote não precisou
+    deixar peça de fora no fim.
+  - **`blocked_by_player` = 120 recusas**, das quais **116** voltaram para a fila do canteiro e **4** terminaram em
+    `desistindo` (as 4 acima, todas recuperadas). Como o **jogador estava fora**, o corpo que bloqueia é
+    **companheiro**: `BlockedByCharacter` conta jogador **e** companheiro (`BuildProbe.cs:724-753`) e, num canteiro de
+    5 workers, o bloqueio é **trânsito interno** — ainda é **falha real** (gasta uma das 3 tentativas), por isso o
+    número alto é esperado e não é o mesmo caso do Run 6 (lá o jogador estava **dentro** do canteiro). **`no progress`
+    = 11.**
+  - **0 mortes e 0 `falls`:** nenhuma linha de morte/respawn no log e nenhuma de queda (`falling from the way …`,
+    `MHR_Build.cs:4127`, e `log ajustado … - falls`, `:4522`).
+- **As 2 `stone_floor_2x2` (o mistério das "2 peças" desde o Run 6):** o arquivo tem **985 linhas aceitas** e o parser
+  **descarta 2** — `blueprint MACCommHomeBasicBP: 2 line(s) skipped, first: stone_floor_2x2 (recipe not unlocked)`
+  (linha 143, repetida a cada worker). O descarte é do `MHR_Build.cs:1117-1125` (`Player.IsRecipeKnown(resolved.m_name)`
+  falso); **não** é falta de estação. Medido ao vivo com `build.inspect prefab=stone_floor_2x2`: `recipeKnown = false`,
+  estação **`$piece_stonecutter`** ("Talhador de pedras", `rangeBuild` **20 m**), **6 pedras**, `m_supports = true`. Ou
+  seja: são peças que exigem **receita desbloqueada** (talhador) neste mundo — **limite do arquivo/save, não falha da
+  obra**. Isto explica a **conta do arquivo** (985 linhas − 2 = 983 peças → + 4 bancadas = **987** índices), que
+  aparecia como "2 peças" não explicadas desde o Run 6. **Ressalva de leitura:** o **985 do canteiro** do Run 6
+  (`building-notes` §17.13: "canteiro com 985 das 987") é **outra** conta — peças de pé contra índices do plano — e
+  **não** é o 985 de linhas do arquivo.
 
 
 

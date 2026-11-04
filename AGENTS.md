@@ -261,10 +261,17 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   **107** (as **12**
   asserções de 03/11/2026 cobrem o contrato do grupo: `workers`, `refused` e `name` vazio = todos; as **6** de
   11/11/2026 cobrem o `stop` do `companions.order`), config **361/25**.
-  **Medido em jogo (`CommHomeBasicBP`, `BlueprintFree = true`) — seis runs entre 04 e 11/11/2026** (1–3 com 3
+  **Medido em jogo (`CommHomeBasicBP`, `BlueprintFree = true`) — oito runs entre 04 e 11/11/2026** (1–3 com 3
   companheiros e `PlaceReach` 10/15/15+guarda; 4 com o deck; 5 com 5 companheiros; **6 em 11/11/2026** com os dois
   lotes → **969 + 18 = 987**, watchdog **0**, **985 de 987** no canteiro, **`apoio de emergência` = 0**, **telhado
-  fechado** no `render_view`, **1 morte** e `blocked_by_player` **≈770**, o jogador dentro do canteiro — §17.13); 1 e 2
+  fechado** no `render_view`, **1 morte** e `blocked_by_player` **≈770**, o jogador dentro do canteiro — §17.13;
+  **7 em 11/11/2026** = o run do **degrau de 0,6 m** com o `MaxOverlap` 0,35 → **travou em 950/987**; **8 em
+  11/11/2026** = a validação do lote do poste → **987 de 987 índices colocados, `skip` = 0**, **39 postes** de
+  emergência (**0** recusas), **1026 peças** no canteiro (**987** do plano = **983** do arquivo + **4 bancadas** +
+  **39 postes**), **watchdog `0`**, **0 `UNSUPPORTED`** (o veredito do próprio jogo, `MHR_Build.Verify`,
+  `MHR_Build.cs:4561`), **0 mortes**, **0 `falls`**, **telhado fechado** e **empena leste fechada** no `render_view`,
+  `blocked_by_player` **120** (116 voltaram para a fila + 4 `desistindo`) e `no progress` **11**, com o jogador **fora**
+  do canteiro — §17.14); 1 e 2
   diferem só no `PlaceReach` (10 = padrão do código; 15 = config de teste) e o
   3 roda em 15 com a guarda anti-loop:** com **10**,
   **970 + 15 = 985** — a fala final fecha (`970 peças, 15 puladas`), `no_ground` **~25 → 0**, `blocked_by_player`
@@ -386,6 +393,13 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   (`apoio de emergência` = 0): **não era apoio que faltava** — o telhado fechou com a regra do pull (a) e o flag do
   telhado não era o problema (b). O **degrau de 0,6 m** passou a ter poste com o lote de 11/11/2026 (o `wood_beam_1` de
   1 m atravessa 0,40 m da peça — a ligação é de **collider**, não de comprimento exato): §17.14.
+  **No Run 8 ele fez o trabalho (medido, 11/11/2026):** **39 postes** — **38** `wood_beam_1` (**1,00 m**) + **1**
+  `wood_beam_45` (**2,83 m**, sob um `wood_beam` em (-158,8, 41,3, -428,3)) —, **0 recusas** (`sem lugar para o apoio
+  de emergência` = **0**) e as peças do **degrau de 0,6 m** (os `wood_floor` de **40,4**) **subiram**: (-152,3, 40,4,
+  -424,9), (-150,5, 40,4, -425,9) e (-157,1, 40,4, -438,3) — as mesmas poses que no Run 7 ficavam em `no_support`
+  (§17.12/§17.14), agora em cima de um poste de 1 m. **O teto `MaxFallbackPosts` = 24 é por *worker***
+  (`State.FallbackPosts`, `MHR_Build.cs:259-266`, e o teste em `:3259`): os 39 do canteiro saíram de **5**
+  companheiros, então a leitura honesta é "24 por companheiro, **sem** teto por canteiro".
   **O validador (lote de
   04/11/2026, medido):** `AttachedToStructure` com **4,0 m** de `OverlapSphere` (2,6 m não achava a vizinha do
   telhado, que fica a ~2,8–3,5 m na diagonal; com 4,0 m o `no_ground` foi **~25 → 0**); **`NudgePiece` universal**
@@ -400,11 +414,12 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   (`BuildProbe.cs:720`) usa `BuildBody.Blocked` para jogador **e** companheiro; o bloqueio (**20** no run de 5,
   **≈770** no de 11/11 — o jogador estava **dentro do canteiro**) é **retry**: falha real (gasta uma das 3), a peça
   volta e sobe quando o corpo sai. Detalhe medido em `docs/re/building-notes.md` §17.11 e §17.13.
-  **Falta medir:** o **Run 8 do lote do poste** (em andamento — §17.14), o **vão do deck** (abaixo), run com **material
-  pago** e o teste pequeno de 2 companheiros num 6x6.
+  **Falta medir:** o **vão do deck** (abaixo), run com **material pago** e o teste pequeno de 2 companheiros num 6x6.
+  O **Run 8** do lote do poste **foi medido** em 11/11/2026 (§17.14) — saiu desta lista.
   **Pendência aberta — o vão do deck (`DeckLift = 1`):** a folga de ~1 m entre o piso do deck e o chão **prende
   corpos**; depois do run de 11/11 o arquiteto **apagou 41 peças do piso** (**25 + 16**) para libertar o jogador e os
-  companheiros, então o estado atual da casa **não** tem o piso íntegro. Opções (decisão **do jogador**): **(1)**
+  companheiros, e a casa ficou de piso furado até o **Run 8** recolocar o plano inteiro (**987/987**, §17.14). Opções
+  (decisão **do jogador**): **(1)**
   `DeckLift = 0` (sem deck), **(2)** **saia em volta** fechando o perímetro, **(3)** **regra de rota** para o mover não
   entrar/parar sob o deck (`docs/re/building-notes.md` §17.13).
 - **Pendências conhecidas (abertas):** (1) navegação no andar em obra; (2) a voz não passa pelo mixer do jogo (só
@@ -664,7 +679,12 @@ comandos de console e spawna coisas, então não é feature de jogador.
   que não serve é **pulada e contada**, `needs_station` nomeia a estação, `BlueprintFree`/`BlueprintMaxPieces`). **Sem
   PlanBuild em runtime** (ele só cria/coloca o fantasma). **Medido: `hs_meadows_hut` 28/28 `supported`**, `TestBox_V2`
   5/5 com 1 pulada. Numa build **grande** da comunidade (Nexus 1807: **985 linhas no arquivo / 983 peças no plano**,
-  porque 2 são puladas na leitura) o teste achou e corrigiu: ordem por
+  porque 2 são puladas na leitura — **as 2 são `stone_floor_2x2`, `recipe not unlocked`**: peça do **talhador de
+  pedras** (`build.inspect`: `$piece_stonecutter`, alcance **20 m**) com `recipeKnown = false` neste mundo, e o
+  `MHR_Build.cs:1117-1125` descarta a linha quando `Player.IsRecipeKnown` é falso — **limite do arquivo/save, não
+  falha da obra**; é o que fecha a **conta do arquivo** (985 linhas − 2 = 983 → + 4 bancadas = 987 índices) e é a
+  **"2 peças"** que vinha sem explicação desde o Run 6 — com a ressalva de que o **985 do canteiro** daquele run é
+  outra conta (peças de pé × índices), ver `building-notes` §17.14) o teste achou e corrigiu: ordem por
   **classe** de peça (piso → parede → telhado; por altura começava num topo de telhado), **footprint centrado na mira**
   (a origem do arquivo é onde o autor estava), **nivelar primeiro** com retomada (e a **mesma área** de 20 m, senão vira
   loop), **estação checada antes** da 1ª peça e **pular** a peça inalcançável/que não materializa em vez de derrubar a
