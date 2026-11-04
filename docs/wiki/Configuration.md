@@ -262,6 +262,7 @@ materials (`GatherForBuild`, `UseChests`) and how far the arm reaches when the p
 | `LevelGround` | `true` | Levels the ground before a structure when it is uneven (needs a hoe in the bag) |
 | `ClearSite` | `true` | Cuts the trees, stumps and logs inside the plan's footprint before the first piece — the wood pays the build |
 | `TempScaffold` | `false` | A temporary 2-wood stair when the piece is above the reach (blueprints, at most 4 per order) |
+| `SupportFallback` | `true` | A plan piece refused for **no support** and with **nothing of the plan under it** gets a **wooden post** planted under it (top at the piece's base, paid like any piece) and is retried - at most **24 per order**; `false` lets the piece wait and it stays out |
 | `GatherForBuild` | `true` | Missing material: it takes the gather of the shortfall and resumes the build by itself |
 | `UseChests` | `true` | Uses the chests before going out to gather (the bag always comes first) |
 | `MaxDistanceFromHome` | `40` | Refuses a build spot farther than this from the home (`0` = no limit) |
@@ -278,6 +279,12 @@ materials (`GatherForBuild`, `UseChests`) and how far the arm reaches when the p
 > foundations can sit below the floor level, and the plan used to be raised by its **lowest piece** — on the 985-piece
 > house the buried poles lifted it **2,00 m**, which looked wrong. The plan now rises by exactly this value and the pole
 > tips that would sink are set on the ground; `0` keeps the file's level.
+>
+> **Why `SupportFallback` exists:** the `.blueprint` of the author does not always carry the piece that holds others up
+> (his house leaned on something the file does not include). Measured on the **`CommHomeBasicBP`** (3 companions, the 1 m
+> deck): **16** pieces stayed **in columns** on the **east gable** and the **north-west corner** - floors and roofs at
+> 40,8/42,8/44,8/46,8 - refused with `no_support`, and there was nothing of the plan under them to pull. With the post
+> they go up (the house gets a few **extra posts** it did not draw).
 >
 > The whole list of the section (with `SiteSearchRadius`, `GatherRadius`, `LevelTolerance`, `RequireHammer` and
 > `Quiet`) is in the `F8` panel, and the generated `CONFIGURATION.md` of the package carries every key.

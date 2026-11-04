@@ -265,6 +265,7 @@ matériau (`GatherForBuild`, `UseChests`) et la portée du bras au moment de pos
 | `LevelGround` | `true` | Nivelle le terrain avant une structure quand il est de travers (il faut une houe dans le sac) |
 | `ClearSite` | `true` | Coupe arbres, souches et troncs dans l'emprise du plan avant la première pièce — le bois paie le chantier |
 | `TempScaffold` | `false` | Escalier provisoire de 2 bois quand la pièce est hors de portée (blueprint, 4 au maximum par ordre) |
+| `SupportFallback` | `true` | Une pièce du plan refusée pour **manque d'appui** et **sans rien du plan en dessous** reçoit un **poteau en bois** planté sous elle (haut à la base de la pièce, payé comme toute pièce) et elle est retentée — **24 au maximum par ordre** ; `false` laisse la pièce attendre et elle reste dehors |
 | `GatherForBuild` | `true` | Matériau manquant : il prend la récolte de ce qui manque et reprend le chantier tout seul |
 | `UseChests` | `true` | Utilise les coffres avant d'aller récolter (le sac passe toujours en premier) |
 | `MaxDistanceFromHome` | `40` | Refuse un emplacement à plus de 40 m de la maison (`0` = sans limite) |
@@ -283,6 +284,12 @@ matériau (`GatherForBuild`, `UseChests`) et la portée du bras au moment de pos
 > bas** — sur la maison de 985 pièces, les poteaux enterrés le levaient de **2,00 m**, ce qui n'allait pas. Le plan monte
 > maintenant exactement de cette valeur et les pieds de poteau qui s'enfonceraient se posent au sol ; `0` garde le niveau
 > du fichier.
+>
+> **Pourquoi `SupportFallback` existe :** le `.blueprint` de l'auteur ne porte pas toujours la pièce qui tient les autres
+> (sa maison s'appuyait sur quelque chose que le fichier n'inclut pas). Mesuré sur la **`CommHomeBasicBP`** (3 compagnons,
+> la terrasse de 1 m) : **16** pièces sont restées **en colonnes** sur le **pignon est** et le **coin nord-ouest** —
+> planchers et toits à 40,8/42,8/44,8/46,8 — refusées avec `no_support`, et il n'y avait rien du plan en dessous à tirer.
+> Avec le poteau elles montent (la maison gagne quelques **poteaux en plus** que l'auteur n'a pas dessinés).
 >
 > La liste complète de la section (avec `SiteSearchRadius`, `GatherRadius`, `LevelTolerance`, `RequireHammer` et
 > `Quiet`) est dans le panneau `F8`, et le `CONFIGURATION.md` généré du paquet porte toutes les clés.

@@ -263,6 +263,7 @@ La costruzione ha una sezione sua: l'ordine stesso (`Enabled`), il terreno (`Lev
 | `LevelGround` | `true` | Livella il terreno prima di una struttura quando è storto (serve una zappa nella borsa) |
 | `ClearSite` | `true` | Taglia alberi, ceppi e tronchi dentro l'area del piano prima del primo pezzo — la legna paga l'opera |
 | `TempScaffold` | `false` | Scaletta provvisoria da 2 legna quando il pezzo è fuori portata (blueprint, al massimo 4 per ordine) |
+| `SupportFallback` | `true` | Un pezzo del piano rifiutato per **mancanza di appoggio** e **senza niente del piano sotto** riceve un **palo di legno** piantato sotto di esso (cima alla base del pezzo, pagato come qualsiasi pezzo) e viene ritentato — al massimo **24 per ordine**; `false` lascia il pezzo in attesa e resta fuori |
 | `GatherForBuild` | `true` | Materiale mancante: prende la raccolta di quello che manca e riprende l'opera da solo |
 | `UseChests` | `true` | Usa le casse prima di uscire a raccogliere (la borsa viene sempre prima) |
 | `MaxDistanceFromHome` | `40` | Rifiuta un punto a più di 40 m da casa (`0` = senza limite) |
@@ -280,6 +281,12 @@ La costruzione ha una sezione sua: l'ordine stesso (`Enabled`), il terreno (`Lev
 > basso** — nella casa da 985 pezzi i pali interrati lo alzavano di **2,00 m**, che era troppo. Ora il piano sale
 > esattamente di quel valore e le punte dei pali che affonderebbero si appoggiano al suolo; `0` tiene il livello del
 > file.
+>
+> **Perché esiste `SupportFallback`:** il `.blueprint` dell'autore non porta sempre il pezzo che sostiene gli altri (la sua
+> casa si appoggiava a qualcosa che il file non include). Misurato sulla **`CommHomeBasicBP`** (3 compagni, la piattaforma
+> da 1 m): **16** pezzi sono rimasti **in colonna** sul **frontone est** e sull'**angolo nord-ovest** — pavimenti e tetti a
+> 40,8/42,8/44,8/46,8 — rifiutati con `no_support`, e sotto non c'era niente del piano da tirare. Con il palo salgono (la
+> casa guadagna qualche **palo in più** che l'autore non ha disegnato).
 >
 > L'elenco completo della sezione (con `SiteSearchRadius`, `GatherRadius`, `LevelTolerance`, `RequireHammer` e
 > `Quiet`) è nel pannello `F8`, e il `CONFIGURATION.md` generato del pacchetto porta tutte le chiavi.

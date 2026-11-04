@@ -225,8 +225,8 @@ stopped.
   this first stage: the **materials are counted per companion** (there is no per-piece reservation between the workers
   yet, so the same stack may be counted twice and they can gather more than the plan needs), the group lives **in
   memory** (it is **not in the save**), and the group is **blueprints only** - a single piece and a template still have
-  one companion on them. Build 0/0 and the harness at **539 assertions** pass (23 of them are the failure classification,
-  **26** the piece-kind table and **19** the support window of the pose adjustment and of the support gate below);
+  one companion on them. Build 0/0 and the harness at **549 assertions** pass (23 of them are the failure classification,
+  **26** the piece-kind table and **29** the support window of the pose adjustment and of the support gate below);
   **in test** - the numbers of the 04/11/2026 runs end this cycle.
   - **New `[Building] PlaceReach`** (**in test**): how far the companion may place a piece **once it is stuck** - it
     keeps walking to the piece as before, and only after **3 s without getting closer** does it place from farther
@@ -277,6 +277,16 @@ stopped.
     **0-3**, in meters): the **whole plan rises** by it, so the ground floor stands **above the ground resting on the
     poles, with the entrance stairs reaching it**, and the **pole tips that would end up below the terrain settle on the
     ground** instead of being refused. `0` keeps the file's own level.
+  - **New `[Building] SupportFallback`: a wooden post under a piece the file does not hold up** (**in test**, 04/11/2026):
+    when a `.blueprint` piece is refused for **no support** and the plan has **nothing under it**, the companion plants a
+    **vertical wooden post** (`wood_beam`, 2 m) with its **top at the base of the piece** - validated by the game's own
+    rules and **paid like any piece** (free with `BlueprintFree`) - and the refused piece is retried on top of it, keeping
+    its index and pose. **One post per piece**, at most **24 per order** (bool, default **true**); `false` lets the piece
+    wait and it stays out of the house. Why (measured): the **`CommHomeBasicBP`** with 3 companions and the 1 m deck left
+    **16 pieces** refused with `no_support` **in columns** on the **east gable** and the **north-west corner** (floors and
+    roofs at 40,8/42,8/44,8/46,8) - the author's file simply has **no support piece** under those points and the
+    direct-support pull answered -1 for every one of them. This is what closes those 16 (the 4 chests of the same run were
+    another case: the spot refused them).
 - **The workbenches cover the whole site** (**in test**, 04/11/2026 - and the reason is measured): the station pass walked
   the plan but stopped after **6 searches** with only **2 benches** planned on a 32 m footprint, and the rest of the plan
   fell to the fallback that appends a bench at the **end** of the list - the middle of the house had no station in range
@@ -300,8 +310,9 @@ stopped.
     piece stays at **1 m**), a bench spot that **rejects a `clipping` pose**, and the group **pulling the direct support of
     a refused piece by index** (`AI/BuildSupportBelow.cs` - the window is **0,4-2,5 m below** the piece and **≤2,5 m in
     XZ**, harness section **(r)**).
-  Build 0/0, harness **539** (471 + **23** of the failure classification + **26** of the piece-kind table + **19** of the
-  support window), MCP **101** and config **360/25** (`PlaceReach` and `DeckLift` are the two keys of this cycle).
+  Build 0/0, harness **549** (471 + **23** of the failure classification + **26** of the piece-kind table + **29** of the
+  support window, the last 10 of `BuildSupportBelow.CanSupport`), MCP **101** and config **361/25** (`PlaceReach`,
+  `DeckLift` and `SupportFallback` are the three keys of this cycle).
 
 ## 1.9.6 - 02/11/2026
 
