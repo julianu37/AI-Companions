@@ -1473,3 +1473,98 @@ plano** dos 9 candidatos, nivela com a enxada (passadas de 1,5 s) e só então p
   **302/300 de peso** (`hc_ai_build_too_heavy` na ordem seguinte, que morreu em 1 min): o suspeito nº 1 é a
   **mochila no teto** — o `HandOver` manda coletar sem olhar o peso e, carregado, o companheiro não pega mais nada.
   **Pendência nova:** guarda de peso antes do `HandOver` (ou descarte no baú).
+
+## 17. O grupo de obra e o portão de apoio (04/11/2026)
+
+**O run:** a mesma `CommHomeBasicBP`, agora com **3 companheiros** no mesmo canteiro, `[Building] BlueprintFree = true`
+(sem pagar material, para o teste medir construção e não coleta) e `[Building] PlaceReach = 10`.
+
+### 17.1 O que o grupo fez (medido)
+
+- **Distribuição:** o plano foi repartido por **índices distintos** (1 plano, claims por índice, retry do canteiro) —
+  nenhum worker construiu a peça de outro (`a peça X já foi construída pelo grupo - seguindo para a próxima`).
+- **Promoção de líder:** a morte do líder foi coberta pelo grupo
+  (`o líder do grupo "..." saiu - outro companheiro assumiu o canteiro`, `MHR_BuildGroup.cs:218`) e o canteiro seguiu.
+- **Retomada:** o companheiro que voltou (respawn) reentrou no mesmo plano e na peça onde estava
+  (`voltou para o grupo "..." na peça X`, `MHR_Build.cs:1701`).
+- **Resultado:** **~957/985 colocadas**. **0 peças descartadas por dependência** (as que não ficaram de pé por falta de
+  apoio voltaram, não foram puladas) e **74** linhas `sem apoio ainda ... - não gasta tentativa, volta com espera`.
+- **Navegação:** `no progress` **58 → 6** com o `PlaceReach = 10` e **mortes 5 → 0** na primeira rodada com 10 m
+  (os números de comparação são os runs de 03/11, com o alcance do jogo).
+- **O que sobrou** apontou dois achados (as duas correções estão no código, **sem aceite medido ainda**):
+  a **cumeeira em y 47,8** era recusada com `no_ground` porque o raio vertical da sonda passa pelo **vão entre as duas
+  águas** (`BuildProbe.cs:468` → `AttachedToStructure`, `:637`: `Physics.OverlapSphere` de **2,6 m** atrás de
+  `Piece`/`WearNTear`, `:45`); o **baú e a cama no barranco** eram `too_steep` e ganharam o `NudgeGroundPiece`
+  (`MHR_Build.cs:3915`: `BuildSite.Find` a **2,5 m**, 2 anéis × 8 direções, 48 candidatos, ignorando o próprio
+  companheiro — o run perdeu **4** peças ali).
+
+### 17.2 O portão de apoio (`AI/BuildFailure.cs` + `MHR_Build.QueueRetry`)
+
+- **Por que existe (medido em 03/11):** as peças da cumeeira falhavam com `no_support` **antes** de o apoio existir,
+  gastavam as 3 tentativas e ficavam fora da casa.
+- **Classificação pura** (`BuildFailure.Classify`, `:51`) — a tabela é a que o harness assegura (seção **(p)**):
+  - **`Dependency`** (não gasta tentativa, **nunca** conta como pulada): `no_support`, `no support` (as duas grafias),
+    `needs_station` e `no_ground` **quando a sonda achou algo embaixo** (`groundBelow`).
+  - **`Real`** (gasta uma das `MaxPasses` = 3): `no progress`, `blocked_by_player`, `clipping`,
+    `too_steep`, `can't reach it`, `took too long`, `verification: ...`, um `no_ground` **sem** nada embaixo (buraco,
+    mar, beirada) e qualquer status desconhecido; `null`/vazio é real.
+  - A comparação **ignora caixa** (`NO_SUPPORT` continua dependência).
+- **O mundo entra num lugar só:** `MHR_Build.IsDependency` (`:528`) pergunta `GroundUnder` (`:543`) apenas para
+  `no_ground` — o mesmo raio da sonda (4 m acima, 12 m no total, `BuildProbe.PlaceMask`).
+- **Espera crescente** (`MHR_Build.DependencyDelay`, `:551`): **8 s** na 1ª deferição, **12 s** na 2ª, **20 s** na 3ª e
+  **25 s** daí em diante — o que falta pode estar subindo agora (`MHR_BuildGroup.TryQueueRetry(key, index, dependency)`,
+  `:502`: incrementa `Dependency` e **não** toca em `Attempts`).
+- **Watchdog de estagnação** (`MHR_Build.StallSeconds` = **60 s**, `:85`): o relógio conta **desde a última peça que
+  subiu** (`MHR_BuildGroup.LastProgressAt`, atualizado em `MarkDone`, `:481`), não desde que um worker começou a
+  esperar. Se nada subiu em 60 s, `StallOut` (`:1951`) descarta a fila (`AbandonRetry`, `:592`), **conta cada índice uma
+  vez** (`SkippedIndex`) e nomeia as peças no log; a ordem termina pelo caminho normal.
+- **Contadores honestos** (`MHR_Build.SkipPiece`, `:602`): todo abandono passa por um lugar e `Placed`/`Skipped` são
+  **conjuntos de índices** — uma peça dada por perdida que depois subiu conta como colocada, nunca como as duas
+  (`MarkDone` tira do `SkippedIndex`, `:478`).
+
+### 17.3 A cobertura de bancadas (medido no mesmo run)
+
+- **O problema:** `PlanStations` parava depois de **6 buscas** e a casa de 32 m ficava com **2 bancadas** a ~18,5 m do
+  centro — o meio do plano caía em `needs_station` no meio da obra (e, num grupo, a bancada de socorro vai para o
+  **fim** do plano, então aquelas peças esperavam a casa toda).
+- **Agora** (`MHR_Build.cs:2192`): orçamento **por bancada** — até **12 planejadas** (`MaxPlannedBenches`, `:100`) e
+  **32 buscas** (`MaxBenchSearches`, `:104`) — e a busca só tenta **fora do footprint**, no lado da peça
+  (`FindBenchSpotOutside`, `:2409`): o anel perto, o anel longe (~1,5× ou +2 m) e **±40° no anel de longe** (até **4
+  âncoras**; as giradas ficam no anel de longe porque 40° no raio curto de um quadrado de 32 m cai **dentro** dele).
+- **A bancada externa fica no terreno** (`FindBenchSpot(..., onGround: true)`, `:2368`): a tolerância antiga de 3 m
+  recusava bancada em barranco (o chão de um sítio de 32 m fica metros abaixo do piso). Cada busca custa **36** checagens
+  (9 posições × 4 yaws) em vez de 64.
+- **Uma bancada planejada cobre a peça** sem gastar busca (`CoveredBy`), e a bancada de socorro (`InsertBenchStep`,
+  `:2288`) continua: com ≥2 workers, anexada ao **fim** do plano (índice de ninguém anda).
+- **Resumo honesto no fim da passada** (`:2259`): `station: N peça(s) precisam, M planejada(s), K sem cobertura`, e cada
+  peça sem cobertura é nomeada com prefab e pose, separando **"nenhum lugar fora do footprint"** de **"orçamento
+  esgotado (M/12 planejadas, S/32 buscas)"**.
+
+### 17.4 O validador: `attached` e `nudge`
+
+- **`attached`** (`BuildProbe.AttachedToStructure`, `:637`): quando o raio vertical da sonda **não acha nada**, a pose
+  ainda é aceita se houver collider de `Piece`/`WearNTear` a ≤ **2,6 m** (`AttachedRadius`, `:45`). Só roda quando o
+  raio falhou (é raro), então custa um `OverlapSphere` nas poses suspeitas. O apoio de verdade continua sendo o veredito
+  do **jogo** (`WearNTear` no `Place`/`Verify`) — o probe não inventa apoio, só não recusa por um raio que passou no vão.
+- **`nudge`** (`NudgeGroundPiece`, `:3915`): peça **de chão** (`m_groundOnly`/`m_groundPiece`: baú, cama, fogueira,
+  bancada) recusada com `too_steep`/`no_ground` ganha **uma** chance na pose válida mais próxima (`BuildSite.Find`, 2,5 m),
+  desde que caiba no `MaxPlace` (plano e olho). Só a pose de **trabalho** muda (`state.Pos`/`state.Rot`); o plano guarda
+  a original, então um retry futuro tenta de novo de lá. É a resposta ao barranco que o nivelamento não alcançou (a
+  enxada cobre 20 m e o sítio tem 32 m).
+
+### 17.5 Gate do ciclo
+
+Harness **494 PASS** (471 + **23** da seção **(p)**, com `AI/BuildFailure.cs` linkado no `ai-intents-check.csproj`; a
+seção **(o)** — `NavTileMath` — já estava nas 471), MCP **101 PASS**, **config 359/25**, ES/FR/IT **0 lacunas**, dívida do
+`gen_translations.py` **45** e build **0/0**.
+
+### 17.6 O que fica pendente
+
+- **Aceite das duas correções**: a cumeeira a 47,8 m (y) e o baú/cama no barranco precisam de um run novo — o run de
+  04/11 é o que **gerou** os diagnósticos, não o que os validou.
+- **Run com material pago** (sem `BlueprintFree`): o P1 nunca foi medido pagando peça por peça com 3 workers; a
+  **reserva de material** continua não existindo (cada worker conta mochila+baús por conta própria → pior caso N× o
+  resto do plano).
+- **Grupo em memória** (não persiste) e **só de blueprint** (template/peça seguem com um).
+- **Guarda de peso antes do `HandOver`** — a pendência do §16 continua aberta.
+

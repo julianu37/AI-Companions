@@ -32,6 +32,7 @@ falha (ou algo foi pulado) e `2` quando o harness não conseguiu subir (assembli
 | `AI/BuildTemplates.cs` | os templates da E6/E6d (aliases nos 5 idiomas, peças, ordem) |
 | `AI/BuildBlueprintParser.cs` | `Parse` (V1/V2), `Ordered` (classe/andar/altura + `NearestWithin`) e a chave do telhado (`StoreyKey`) |
 | `AI/LevelIntent.cs` | a ordem de nivelar o terreno e o tamanho (E10) |
+| `AI/BuildFailure.cs` | `Classify`/`IsDependency` — o **portão de apoio** da obra (dependência × falha real), a tabela de `why` |
 | `AI/MHR_Owner.cs`, `Core/MHR_List.cs` | dependências reais dos acima |
 
 `Stubs.cs` tem **só** os membros do lado Unity/config que esses arquivos tocam, e cada um está comentado com o
@@ -72,6 +73,9 @@ arquivo:linha real de onde veio:
 | (m) | `BuildBlueprintParser.NearestWithin` (a ordem **dentro** do grupo): o zigue-zague vira caminho curto (12 m em vez de 30,05), os grupos não se misturam (y=0 antes de y=4 e o de cima começa onde o de baixo parou), a porta continua por último (inclusive o run das portas), o run de 1 peça não é tocado, 5 mm de altura não abrem grupo, o guloso **nunca fica pior que o arquivo** (o caso da armadilha 0/10/20 a partir de x=10: 30 m × 20 m, o arquivo fica) e a estabilidade (duas listas iguais → mesma ordem; a lista do chamador não é reordenada) |
 | (n) | `BuildBlueprintParser.StoreyKey` (a chave do telhado): a peça de **telhado** (classe 3) pertence ao andar da **laje que ela cobre** — o piso mais próximo **acima** dela (0,3–6 m, 2,5 m em XZ). Casos: telhado escrito ANTES do piso a **3 m** (pé-direito real) → o piso vem antes; piso a **5 m** (pé-direito alto) → o piso ainda vem antes; piso a **7 m** (fora da janela) → não conta e o telhado fica no andar de baixo; piso **2,4 m ao lado** (dentro dos 2,5 m) conta e **3 m ao lado** não conta; com pisos a 3 m e 5 m a laje é a **mais próxima** (a ordem sai 3, 0, 5); telhado sozinho e telhado sobre um piso do **mesmo nível** (dy = 0 não é "acima") → andar de baixo; **porta por último** com piso de baixo, parede, piso de cima e telhado; e um andar só (piso → parede → telhado). **Cobertura provada por mutação** (03/11/2026, cópia do parser em `%TEMP%`, `src/` intocado): voltando a chave a `StoreyOf` puro **6 asserções falham** (3 m, 5 m, 2,4 m ao lado, mais próxima, alturas e a ordem completa do caso da porta); com a chave antiga `StoreyOf + 2` (commit `63d8096`) **as mesmas 6 falham** — antes desta seção o harness passava nos dois casos |
 | (o) | `NavTileMath.Axis` (a matemática do tile da navmesh, `floor((world + size/2)/size)`): 10 casos — as emendas em ±16 nos dois lados (o `Floor`, não o truncamento) e a borda de 2 m (`15` × `17`). |
+| (p) | `BuildFailure.Classify`/`IsDependency` (**o portão de apoio** da obra, `AI/BuildFailure.cs`): 23 casos — `no_support`, `no support` (duas palavras), `needs_station` e `no_ground` **com** algo embaixo (`groundBelow=true`) são **`Dependency`** (não gastam tentativa, nunca contam como pulada); `no_ground` **sem** nada embaixo, `no progress`, `blocked_by_player`, `clipping`, `too_steep`, `can't reach it`, `took too long`, `verification: not_found`/`verification: fallen`, `""`, `null`, e um status desconhecido são **`Real`** (gastam uma das 3 tentativas). Cobre também maiúsculas (`NO_SUPPORT`/`NO_GROUND` continuam dependência — a comparação ignora caixa) e a forma de conveniência `IsDependency` nos dois sentidos do `no_ground`. |
+
+Hoje: **494 asserções** (471 até a (o) + 23 da (p)).
 
 ## O que **não** é coberto (e por quê)
 

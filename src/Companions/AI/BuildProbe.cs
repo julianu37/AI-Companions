@@ -36,6 +36,13 @@ internal static class BuildProbe
 
 	private const float ProbeAbove = 4f;
 	private const float ProbeBelow = 8f;
+	/// <summary>
+	/// P1 (04/11/2026, measured on the 985-piece house): how close to the pose a piece of the structure has to be for the
+	/// probe to accept a pose whose vertical ray found nothing. The ridge at y 47,8 had roofs/beams within 1 m while the ray
+	/// went through the gap between the two slopes; the game accepts the piece (its own <c>WearNTear</c> support verdict is
+	/// what decides), so the probe must not refuse it for a ray that missed.
+	/// </summary>
+	private const float AttachedRadius = 2.6f;
 
 	private static int _placeMask = -1;
 	private static int _waterMask = -1;
@@ -458,8 +465,12 @@ internal static class BuildProbe
 		WearNTear groundWear = groundPiece != null ? groundPiece.GetComponent<WearNTear>() : null;
 		Heightmap.Biome biome = Heightmap.FindBiome(surface);
 
-		if (!hasHit)
+		if (!hasHit && !AttachedToStructure(point))
 		{
+			// P1 (04/11/2026, measured): the vertical ray of the probe goes through the GAP between two roof slopes - the ridge
+			// at y 47,8 had roof/beam pieces within 1 m and the ray found nothing, so every ridge piece was refused with
+			// no_ground and the game would have accepted it. Touching the structure is enough here: the support itself is the
+			// game's own WearNTear verdict, checked when the piece is placed (Place/Verify).
 			reasons.Add("no_ground");
 		}
 		if (piece.m_noInWater && water)
@@ -613,6 +624,32 @@ internal static class BuildProbe
 		result["noBuildZone"] = Location.IsInsideNoBuildLocation(surface);
 		result["groundHeight"] = ZoneSystem.instance != null ? ZoneSystem.instance.GetGroundHeight(surface) : surface.y;
 		return result;
+	}
+
+	/// <summary>
+	/// P1 (04/11/2026, measured on the 985-piece house): is the pose <b>touching the structure</b> even though the vertical
+	/// probe ray found nothing under it? The ridge of a roof sits over the gap between the two slopes: the ray misses while
+	/// the pieces that hold it (roof, beam, gable top) are within a metre. Any collider of a <see cref="Piece"/> or a
+	/// <see cref="WearNTear"/> inside <see cref="AttachedRadius"/> answers yes, and then the probe does not call it
+	/// <c>no_ground</c> - the support rule is the game's own verdict at placement. It only runs when the ray missed (rare),
+	/// so the cost is one overlap sphere on those poses.
+	/// </summary>
+	private static bool AttachedToStructure(Vector3 point)
+	{
+		Collider[] near = Physics.OverlapSphere(point, AttachedRadius, PlaceMask(), QueryTriggerInteraction.Ignore);
+		for (int i = 0; i < near.Length; i++)
+		{
+			Collider collider = near[i];
+			if (collider == null || collider.isTrigger)
+			{
+				continue;
+			}
+			if (collider.GetComponentInParent<Piece>() != null || collider.GetComponentInParent<WearNTear>() != null)
+			{
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/// <summary>

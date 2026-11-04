@@ -520,28 +520,19 @@ internal static class MHR_Build
 	}
 
 	/// <summary>
-	/// P1 (04/11/2026, the <b>support gate</b>): is this refusal the piece waiting for something the plan itself is still
-	/// going to put up? <c>no_support</c> (the floor/wall below is not there yet), <c>needs_station</c> (the workbench the
-	/// plan brings is ahead in it) and <c>no_ground</c> <b>when the probe found something under the pose</b> (the piece of
-	/// the plan below) are dependencies. A <c>no_ground</c> whose probe hits nothing is the SPOT failing (a hole, the sea,
-	/// the far side of a cliff); <c>no progress</c>, <c>blocked_by_player</c>, <c>clipping</c>, <c>verification: ...</c>,
-	/// <c>too_steep</c>, <c>can't reach it</c> and anything unknown are real failures.
+	/// P1 (04/11/2026, the <b>support gate</b>): the classification itself lives in <see cref="BuildFailure"/> - it is pure
+	/// (string → class) and the harness asserts the whole table (section (p)). Here only the world is added: the placement
+	/// probe's answer ("is there anything under the pose?") feeds <c>groundBelow</c>, which <see cref="BuildFailure"/> reads
+	/// for <c>no_ground</c> only.
 	/// </summary>
 	private static bool IsDependency(State state, string why)
 	{
-		if (state == null || string.IsNullOrEmpty(why))
+		if (state == null)
 		{
 			return false;
 		}
-		if (why == "no_support" || why == "no support" || why == "needs_station")
-		{
-			return true;
-		}
-		if (why == "no_ground")
-		{
-			return GroundUnder(state.Pos);
-		}
-		return false;
+		bool groundBelow = string.Equals(why, "no_ground", StringComparison.OrdinalIgnoreCase) && GroundUnder(state.Pos);
+		return BuildFailure.IsDependency(why, groundBelow);
 	}
 
 	/// <summary>
@@ -3776,6 +3767,15 @@ internal static class MHR_Build
 			if (!Ok(check))
 			{
 				string status = check != null ? Convert.ToString(check["status"]) : "unknown";
+				// P1 (04/11/2026, measured on the 985-piece house): a GROUND piece (a chest, a bed, a fire pit) of the
+				// blueprint lands on the bank the leveling did not reach (the site is 32 m, the hoe covers 20 m) and is
+				// refused with too_steep/no_ground. Before the normal refusal it gets ONE chance at the closest valid pose
+				// around the plan's one; the piece and its plan index do not change, only the working pose.
+				if ((status == "too_steep" || status == "no_ground") && IsGroundPiece(state.Piece)
+					&& NudgeGroundPiece(ai, state, status))
+				{
+					return true;   // the next frame re-checks (and places) at the adjusted pose
+				}
 				// E6d (player's test, 02/11/2026): the 6x6 floor was refused with no_support on flat ground and the same
 				// pose passes BuildSite.Check from the bridge - the line carries the pose and the ground it hit so the
 				// next test says WHY instead of guessing
@@ -3893,6 +3893,49 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		state.PlacedAt = Time.time;
 		state.Phase = Phase.Verify;
 		Log(ai, "placed (" + result.Route + "), verifying next frame");
+		return true;
+	}
+
+	/// <summary>P1 (04/11/2026): a piece that <b>stands on the ground</b> (<c>m_groundOnly</c> or <c>m_groundPiece</c>: a chest,
+	/// a bed, a fire pit, a workbench). Those are the ones a sloped spot refuses with <c>too_steep</c>/<c>no_ground</c> and the
+	/// ones a small adjustment of the pose can save.</summary>
+	private static bool IsGroundPiece(Piece piece)
+	{
+		return piece != null && (piece.m_groundOnly || piece.m_groundPiece);
+	}
+
+	/// <summary>
+	/// P1 (04/11/2026, measured on the 985-piece house): a <b>ground piece</b> of the blueprint lands on the bank the leveling
+	/// did not reach (the site is 32 m and the hoe works 20 m) and is refused with <c>too_steep</c>/<c>no_ground</c> - the run
+	/// lost 4 pieces there. Before the normal refusal path, the closest pose the game's own rules accept around the plan's one
+	/// is searched (<see cref="BuildSite.Find"/>: 2,5 m, 2 rings x 8 directions, ignoring the companion itself). On success the
+	/// piece keeps its plan index and prefab and only its <b>working</b> pose changes (the plan keeps the original, so a later
+	/// retry tries it from there again). The game's eye rule still applies (<see cref="MaxPlace"/>).
+	/// </summary>
+	private static bool NudgeGroundPiece(CompanionAI ai, State state, string status)
+	{
+		if (ai == null || state == null || state.Piece == null)
+		{
+			return false;
+		}
+		Vector3 forward = state.Forward.sqrMagnitude > 0.01f ? state.Forward : ai.transform.forward;
+		BuildSiteResult site = BuildSite.Find(state.Piece, state.Pos, forward, 2.5f, 2, 8, 48, Self(ai));
+		if (site == null || !site.Ok)
+		{
+			return false;
+		}
+		Vector3 me = ai.transform.position;
+		Vector3 eye = new Vector3(me.x, me.y + EyeHeight, me.z);
+		float flat = new Vector2(me.x - site.Pos.x, me.z - site.Pos.z).magnitude;
+		if (flat > MaxPlace || Vector3.Distance(eye, site.Pos) > MaxPlace)
+		{
+			return false;   // the closest free pose is out of the eye rule from where it stands
+		}
+		Log(ai, "log ajustado: " + state.Prefab + " de (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", " + F(state.Pos.z)
+			+ ") para (" + F(site.Pos.x) + ", " + F(site.Pos.y) + ", " + F(site.Pos.z) + ") - " + status);
+		state.Pos = site.Pos;
+		state.Rot = site.Rot;
+		state.Checked = false;
 		return true;
 	}
 

@@ -13,12 +13,17 @@ namespace AiIntentsCheck;
 /// <summary>
 /// The word nets of the AI layer, checked <b>outside the game</b> against the real sources: ai-intents-check.csproj
 /// compiles src/Companions/AI/{LlmIntent,RadialIntent,PickupIntent,GatherIntent,InteractionIntent,OrderItems,
-/// CompanionNames,MHR_Owner,NavTileMath}.cs and src/Companions/Core/MHR_List.cs straight into this executable, so every rule
-/// asserted here is the shipped one (Stubs.cs holds only the Unity/config members those files touch).
+/// CompanionNames,MHR_Owner,NavTileMath,BuildCatalog,BuildTemplates,BuildBlueprintParser,LevelIntent,BuildFailure}.cs
+/// and src/Companions/Core/MHR_List.cs straight into this executable, so every rule asserted here is the shipped one
+/// (Stubs.cs holds only the Unity/config members those files touch).
 ///
 /// <para>Two of those members cannot be linked (they live in classes that need the world), so they are copies in
 /// Stubs.cs: <c>CompanionOrders.IsDoorRequest</c> and <c>CompanionOrders.JobMode</c>. Section (h) loads the built
 /// Companions.dll and compares the copies with the real methods - the harness fails if they ever drift.</para>
+///
+/// <para>Section (p) is the <b>support gate</b> of the build (<c>BuildFailure.Classify</c>): the pure string → class table
+/// that decides whether a piece that did not go up is waiting for the plan's own support (no attempt spent) or really
+/// failed (one of the 3 attempts).</para>
 ///
 /// <para>Run: <c>dotnet run --project tools/ai-intents-check</c> (after <c>dotnet build Companions.sln -c Release</c>,
 /// which the cross-check reads). Exit code 0 only when every case passed and nothing was skipped.</para>
@@ -89,6 +94,8 @@ internal static class Program
 		BlueprintRoofKey();
 		Section("(o) NavTileMath.Axis - o tile da navmesh (P2 da navegacao)");
 		NavTiles();
+		Section("(p) BuildFailure.Classify - o portao de apoio da obra (dependencia x falha real)");
+		BuildFailures();
 		CrossCheckDoorRule();
 
 		Out.WriteLine();
@@ -735,6 +742,58 @@ internal static class Program
 		Check("Axis(15, 32) != Axis(17, 32) -> peca na emenda marca dois tiles",
 			NavTileMath.Axis(15f, 32f) != NavTileMath.Axis(17f, 32f),
 			"obtido " + NavTileMath.Axis(15f, 32f) + " / " + NavTileMath.Axis(17f, 32f));
+	}
+
+	/// <summary>
+	/// P1 (04/11/2026): the <b>support gate</b> of the build - is the piece waiting for something the plan itself is still
+	/// going to put up (<c>Dependency</c>: no attempt spent, never counted as skipped) or did it really fail (<c>Real</c>:
+	/// one of the 3 attempts)? The table is <c>src/Companions/AI/BuildFailure.cs</c>; <c>no_ground</c> is the only reason
+	/// that reads the placement probe's answer (<c>groundBelow</c>).
+	/// </summary>
+	private static void BuildFailures()
+	{
+		// the three labels of a dependency, with and without the probe's answer (it is ignored for them)
+		FailureCase("no_support", false, BuildFailure.Kind.Dependency);
+		FailureCase("no_support", true, BuildFailure.Kind.Dependency);
+		FailureCase("no support", false, BuildFailure.Kind.Dependency);
+		FailureCase("needs_station", false, BuildFailure.Kind.Dependency);
+		// the case of the measured run (04/11/2026): a status in another case must not turn a dependency into a real failure
+		FailureCase("NO_SUPPORT", false, BuildFailure.Kind.Dependency);
+		// no_ground is the one that depends on the probe: a hit is the piece of the plan below, a miss is a hole/the sea
+		FailureCase("no_ground", true, BuildFailure.Kind.Dependency);
+		FailureCase("no_ground", false, BuildFailure.Kind.Real);
+		FailureCase("NO_GROUND", true, BuildFailure.Kind.Dependency);
+		// a real failure spends an attempt
+		FailureCase("no progress", false, BuildFailure.Kind.Real);
+		FailureCase("blocked_by_player", true, BuildFailure.Kind.Real);
+		FailureCase("clipping", false, BuildFailure.Kind.Real);
+		FailureCase("too_steep", true, BuildFailure.Kind.Real);
+		FailureCase("can't reach it", false, BuildFailure.Kind.Real);
+		FailureCase("took too long", false, BuildFailure.Kind.Real);
+		FailureCase("verification: not_found", false, BuildFailure.Kind.Real);
+		FailureCase("verification: fallen", true, BuildFailure.Kind.Real);
+		// nobody named the failure: that is not something to wait for
+		FailureCase("", false, BuildFailure.Kind.Real);
+		FailureCase(null, false, BuildFailure.Kind.Real);
+		// an unknown status is real too, even with ground under the pose
+		FailureCase("no_site", true, BuildFailure.Kind.Real);
+		// the convenience form used by the build gate
+		Check("IsDependency(\"no_support\", false) -> true (gasta nenhuma tentativa)",
+			BuildFailure.IsDependency("no_support", false), "obtido false");
+		Check("IsDependency(\"clipping\", false) -> false (gasta uma tentativa)",
+			!BuildFailure.IsDependency("clipping", false), "obtido true");
+		Check("IsDependency(\"no_ground\", true) -> true (a peca de baixo ainda nao subiu)",
+			BuildFailure.IsDependency("no_ground", true), "obtido false");
+		Check("IsDependency(\"no_ground\", false) -> false (nao ha nada embaixo: o local falhou)",
+			!BuildFailure.IsDependency("no_ground", false), "obtido true");
+	}
+
+	/// <summary>Section (p): one classification, with the probe's answer and what the gate expects.</summary>
+	private static void FailureCase(string why, bool groundBelow, BuildFailure.Kind expected)
+	{
+		BuildFailure.Kind actual = BuildFailure.Classify(why, groundBelow);
+		Check("Classify(" + Show(why) + ", groundBelow=" + (groundBelow ? "true" : "false") + ") -> " + expected,
+			actual == expected, "obtido " + actual);
 	}
 
 	/// <summary>The plan of case (a)/(e) of section (m): a fresh list every call (case (e) needs two of them).</summary>

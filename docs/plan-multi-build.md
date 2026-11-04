@@ -1,16 +1,21 @@
 # Plano — vários companheiros na mesma obra (multi-build)
 
-**Status (03/11/2026):** **P1 MVP implementado** na branch `fix/pisos-nivel-2` (**não commitado**), **sem teste em
-jogo**. O código novo é `Jobs/MHR_BuildGroup.cs` (arquivo novo) mais `StartBlueprintGroup`, `Phase.WaitGroup`,
-`Phase.WaitRetry`, `Advance`/`QueueRetry`/`MarkDone`/`IsLeader`/`PlanLocked` em `Jobs/MHR_Build.cs`. **P0** (quem tem
-1 companheiro não vê diferença) e **P2** (navmesh/latência, **medida em jogo** em 03/11/2026) fechados; **P3** (UI do
-grupo), **P4** (nomes múltiplos) e **P5** (persistência/limpeza paralela) **não**.
+**Status (04/11/2026):** **P1 MEDIDO EM JOGO** na branch `fix/pisos-nivel-2` (run com **3 companheiros** na
+`CommHomeBasicBP`, `BlueprintFree = true` e `PlaceReach = 10`: ~**957/985** colocadas, **0** peças descartadas por
+dependência, `no progress` **58 → 6**, mortes **5 → 0**). O código é `Jobs/MHR_BuildGroup.cs` mais
+`StartBlueprintGroup`/`Phase.WaitGroup`/`Phase.WaitRetry`/`QueueRetry`/`MarkDone`/`IsLeader`/`PlanLocked` em
+`Jobs/MHR_Build.cs`, e o ciclo de 04/11 fechou o **portão de apoio** (`AI/BuildFailure.cs`), o **watchdog de
+estagnação**, a **cobertura de bancadas** e o validador (`attached`/`nudge`) — detalhe medido em
+`docs/re/building-notes.md` §17. **P0** (quem tem 1 companheiro não vê diferença) e **P2** (navmesh/latência,
+**medida em jogo** em 03/11/2026) fechados; **P3** (UI do grupo), **P4** (nomes múltiplos) e **P5**
+(persistência/limpeza paralela) **não**.
 
-Números deste ciclo (03/11/2026, com o P1 dentro): build **0/0**, harness `tools/ai-intents-check` **471 asserções**
-(nada mudou nele — o P1 é jogo, não rede por palavra), teste do MCP **101** (as **12** asserções novas cobrem o
-contrato do `companions.build` do grupo: `workers`, `refused` e `name` vazio = todos), config **358 opções / 25 seções**,
-ES/FR/IT **0 lacunas** e **nenhuma chave de tradução nova** (as recusas reusam `hc_ai_no_companion` e
-`hc_ai_build_failed`). **O teste em jogo está pendente** — receita no §7.
+Números deste ciclo (04/11/2026): build **0/0**, harness `tools/ai-intents-check` **494 asserções** (471 + **23** da
+seção **(p)**, com `AI/BuildFailure.cs` linkado — o portão de apoio é puro e testado), teste do MCP **101** (as **12**
+asserções de 03/11 cobrem o contrato do `companions.build` do grupo), config **359 opções / 25 seções**, ES/FR/IT
+**0 lacunas**, dívida do `gen_translations.py` **45** e **nenhuma chave de tradução nova** (as recusas reusam
+`hc_ai_no_companion` e `hc_ai_build_failed`). **O que falta medir** está no §7 (run com material pago e o aceite das
+duas correções do validador).
 
 ## 1. O que existe hoje (medido no código)
 
@@ -53,11 +58,11 @@ ES/FR/IT **0 lacunas** e **nenhuma chave de tradução nova** (as recusas reusam
 
 ## 3. Modelo implementado: `MHR_BuildGroup` (P1 MVP)
 
-**Chave do canteiro** (`MHR_BuildGroup.KeyOf`, `Jobs/MHR_BuildGroup.cs:93`): `label|anchor(x,y,z em 1 m)|yaw(5°)|owner`.
+**Chave do canteiro** (`MHR_BuildGroup.KeyOf`, `Jobs/MHR_BuildGroup.cs:101`): `label|anchor(x,y,z em 1 m)|yaw(5°)|owner`.
 Dois companheiros que miram o mesmo ponto caem na mesma chave (o arredondamento absorve a mão do jogador) e o
 canteiro de outro jogador **nunca** é juntado (`owner` = `MHR_Owner.CreatorId` do líder).
 
-**Uma obra por jogador** (`SiteBusy`, `:111`): a segunda ordem é **recusada** ("já existe um grupo de obra em
+**Uma obra por jogador** (`SiteBusy`, `:119`): a segunda ordem é **recusada** ("já existe um grupo de obra em
 andamento") e o jogador tem que dizer "para" antes. A checagem é **antes** de o líder começar qualquer coisa, para
 não perturbar um canteiro em andamento.
 
@@ -70,13 +75,17 @@ não perturbar um canteiro em andamento.
   (`HashSet<int>`: a peça contada **uma vez**), `Retry` (fila do canteiro), `Placed`, `Skipped`.
 - **Só a main thread** toca no grupo (claims e veredito são por frame: sem lock, buffer de rascunho em campo).
 
-**Tempos (`MHR_BuildGroup.cs:36-40`, `MHR_Build.cs:71`)**
+**Tempos (`MHR_BuildGroup.cs:40`, `MHR_Build.cs:85` e `:551`)**
 - Claim: **20 s** (`ClaimSeconds`) — renovado a **cada frame dirigido** (`Refresh`), então o prazo é para o worker
   que **sumiu**, não para uma caminhada longa.
-- Retry: **2 s** de espera antes de a peça poder ser puxada de novo (`RetryDelay`), teto de **3** tentativas por
-  índice (`MHR_Build.MaxPasses`, **compartilhado pelo canteiro**).
-- Espera na fila: `WaitRetry` sai depois de **60 s** sem a fila andar (`RetryWaitMax`) — um worker cujo jogo caiu não
-  segura o companheiro para sempre.
+- Retry **real**: **2 s** de espera antes de a peça poder ser puxada de novo (`RetryDelay`), teto de **3** tentativas
+  por índice (`MHR_Build.MaxPasses`, **compartilhado pelo canteiro**).
+- Retry por **dependência** (portão de apoio, 04/11/2026): **não** gasta tentativa e volta com espera crescente —
+  **8 / 12 / 20 / 25 s** (`DependencyDelay`).
+- Watchdog de estagnação: o canteiro pode ficar **60 s sem uma peça subir** (`StallSeconds`, contado do
+  `LastProgressAt` do grupo, não do relógio de quem espera) antes de a fila ser descartada e a ordem encerrar pelos
+  números normais. Substituiu o antigo `RetryWaitMax` de 60 s, que media a espera de **um** worker e não dizia se o
+  canteiro estava andando.
 
 **Quem entra**
 - **Blueprint sem nome:** `CompanionOrders.BlueprintWorkers` (`AI/CompanionOrders.cs:1381`) pega todos os
@@ -108,22 +117,39 @@ não perturbar um canteiro em andamento.
   porque com vários workers andando pelo mesmo índice um "mais perto" por worker embaralharia a ordem do plano (e as
   peças que dependem uma da outra: piso → parede → telhado).
 - `PreferNearFloor`, `PullSupports` e `PullFloorsAbove` continuam valendo com **um** worker; com **≥2**
-  (`PlanLocked`, `MHR_Build.cs:689`) ficam desligados — reordenar o plano de um deixaria os índices dos outros
+  (`PlanLocked`, `MHR_Build.cs:878`) ficam desligados — reordenar o plano de um deixaria os índices dos outros
   apontando para outras peças (e os claims com eles). O retry do canteiro é o que cobre o que o reorder resolvia.
 
 **Estação (bancada)**
 - `PlanStations` roda **uma vez**, no plano do líder, antes da 1ª peça (a regra do jogo é por peça, `HaveBuildStationInRange`
   a 20 m com o Y achatado: uma bancada serve para todos).
+- **Cobertura (04/11/2026, medido):** até **12** bancadas planejadas (`MaxPlannedBenches`) e **32** buscas
+  (`MaxBenchSearches`), com a bancada **fora do footprint** e no **terreno** (até 4 âncoras: anel perto, anel longe e
+  ±40° no anel longe). A passada termina com `station: N peça(s) precisam, M planejada(s), K sem cobertura` e nomeia
+  cada peça sem cobertura, separando **"nenhum lugar fora do footprint"** de **"orçamento esgotado"**. Antes eram 6
+  buscas e a casa de 32 m ficava com 2 bancadas (o meio caía em `needs_station`).
 - `InsertBenchStep` (auto-cura do `needs_station`) com **≥2** workers: só o **líder** tenta, e a bancada vai para o
   **fim** do plano (não insere no meio — o índice de ninguém anda); a peça recusada vai para o retry, que roda depois
   da bancada. Com 1 worker continua inserindo **na frente** da peça, como antes.
+
+**O portão de apoio (04/11/2026, medido)**
+- Toda peça que não sobe passa por `QueueRetry` e é **classificada** (`AI/BuildFailure.cs`, pura, seção **(p)** do
+  harness): **dependência** (`no_support`, `no support`, `needs_station`, e `no_ground` **com** algo embaixo) **não
+  gasta tentativa e nunca conta como pulada** — volta com espera crescente (8/12/20/25 s); **falha real** (`no
+  progress`, `too_steep`, `clipping`, `can't reach it`, `verification: …`, `no_ground` sem nada embaixo, status
+  desconhecido) gasta uma das 3.
+- Por que existe: na cumeeira o `no_support` acontecia **antes** de o apoio subir, as 3 tentativas queimavam e a peça
+  ficava fora da casa (medido em 03/11).
+- **Watchdog:** se o canteiro passa **60 s sem uma peça subir**, a fila é descartada (cada índice contado uma vez),
+  nomeada no log, e a ordem encerra — uma dependência que nunca vem (buraco, piso que não existe) não segura a obra
+  para sempre.
 
 **Materiais (o que ainda não existe)**
 - **Sem reserva por peça:** cada worker conta mochila + baús do canteiro para a **peça dele**. Duas pilhas podem ser
   contadas duas vezes e o segundo a chegar entrega a ordem à coleta — o pior caso é **N× o resto do plano**, com até
   **3 coletando ao mesmo tempo** (a coleta é um job por companheiro). O `Stock` do desenho é a metade aberta do P1.
 - Quem vai coletar **sai** do grupo: o `HandOver` entrega o movimento à coleta, grava o `Pending` **com a chave do
-  grupo** e a ordem de obra **termina** (`Finish` → `Leave`, `MHR_Build.cs:3446`). Quando a obra retoma, o
+  grupo** e a ordem de obra **termina** (`Finish` → `Leave`, `MHR_Build.cs:3876`). Quando a obra retoma, o
   `RejoinGroup` põe o companheiro de volta no canteiro e ele reivindica a peça de novo (ou segue, se outro a
   construiu).
 
@@ -137,7 +163,7 @@ não perturbar um canteiro em andamento.
 - Grupo **em memória**: não vai para o save (como o `Pending`).
 
 **Anti-duplicata**
-- Claim **revalidado antes de pagar** (`Place`, `MHR_Build.cs:3314`): se o claim expirou enquanto ele lutava/carregava
+- Claim **revalidado antes de pagar** (`Place`, `MHR_Build.cs:3711`): se o claim expirou enquanto ele lutava/carregava
   madeira, a pose é perguntada ao mundo **antes** de pagar de novo — peça que outro já construiu **nunca** é colocada
   duas vezes.
 - `MarkDone` conta **1× por índice**; `VerifyAt` (pose **e** yaw: `PlacedRadius` = 0,35 m, `PlacedYaw` = ±25°,
@@ -195,11 +221,14 @@ teste mock do MCP (**101 PASS**, **12 asserções novas para o contrato do grupo
 
 1. **P0 — feito:** o comportamento de **1** companheiro é o de antes (claim sempre concedido, `IsLeader` sempre
    verdadeiro, `PlanLocked` falso, retry do worker). Com 1 worker o `StartBlueprintGroup` chama `StartBlueprint`.
-2. **P1 — MVP FEITO, TESTE EM JOGO PENDENTE (03/11/2026):** `MHR_BuildGroup` (plano/claims/retry), `WaitGroup`/
-   `WaitRetry`, líder que nivela/limpa e promove, `PlanLocked`, bancada anexada ao fim, uma obra por jogador,
-   anti-duplicata, `BlueprintWorkers` (sem nome = todos), `SetThenWorkers`/`NoteLeveled` (o **nivelamento devolve o
-   grupo inteiro**) e o `companions.build` do bridge. **Aberto:** a **reserva de material** (`Stock`) e o número
-   honesto da coleta com N workers (hoje cada um conta o canteiro por conta própria).
+2. **P1 — MEDIDO EM JOGO (04/11/2026, 3 companheiros, `BlueprintFree`):** `MHR_BuildGroup` (plano/claims/retry),
+   `WaitGroup`/`WaitRetry`, líder que nivela/limpa e **é promovido quando sai**, `PlanLocked`, bancada anexada ao fim,
+   uma obra por jogador, anti-duplicata, `BlueprintWorkers` (sem nome = todos), `SetThenWorkers`/`NoteLeveled` (o
+   **nivelamento devolve o grupo inteiro**) e o `companions.build` do bridge. O ciclo de 04/11 acrescentou o **portão
+   de apoio** (`BuildFailure`, dependência não gasta tentativa), o **watchdog de 60 s** e a **cobertura de bancadas**
+   (12/32, fora do footprint, no terreno). **Medido:** ~957/985, 0 descartadas por dependência, `no progress` 58 → 6,
+   mortes 5 → 0. **Aberto:** a **reserva de material** (`Stock` — cada worker conta o canteiro por conta própria), um
+   run com **material pago** e o aceite das duas correções do validador (cumeeira `attached`, baú/cama `nudge`).
 3. **P2 — navmesh/latência — MEDIDO EM JOGO (implementado e testado em 03/11/2026):** (a) **medido o `why`** do run de 03/11/2026:
    **36 `no progress`**, 17 `no_support`, 9 `no_ground`, 6 `too_steep` — os 36 **não** são "tile invisível": são o
    `SnapToNavMesh` (1,5/3/6/12 m) mandando o alvo para o chão sob o piso, com a trava de 12 s do `Goto` queimando;
@@ -241,36 +270,42 @@ teste mock do MCP (**101 PASS**, **12 asserções novas para o contrato do grupo
 
 ## 7. Critério de aceite
 
-**Coberto pelo código (revisão A1–A12, 03/11/2026)** — falta o jogo confirmar:
-- uma peça nunca é paga/colocada duas vezes (claim + `VerifyAt` + `MarkDone` por índice);
-- peça de outro worker é pulada **sem** contar como feita;
-- claim expira em 20 s, renovado por frame; `WaitRetry` teto de 60 s; retry com teto de 3 por índice, 2 s de espera;
-- líder faz level/clear; seguidores em `WaitGroup` não andam, não têm relógio e não são pegos pelo ócio;
-- líder que sai é substituído; se saiu antes do `BuildPhase`, a fase abre;
-- plano **não** reordenado com ≥2; bancada anexada ao fim;
-- segunda ordem do jogador é recusada (`SiteBusy`);
+**Medido em jogo (04/11/2026, `CommHomeBasicBP`, 3 companheiros, `BlueprintFree = true`, `PlaceReach = 10`)** — o
+detalhe está em `docs/re/building-notes.md` §17:
+- **um plano, índices distintos:** o grupo distribuiu as peças por índice e o companheiro que voltou encontrou a dele
+  já de pé (`a peça X já foi construída pelo grupo - seguindo para a próxima` — a anti-duplicata no retorno);
+- **promoção de líder:** a morte do líder não parou o canteiro
+  (`o líder do grupo "..." saiu - outro companheiro assumiu o canteiro`);
+- **retomada:** o companheiro que voltou reentrou no mesmo plano e na peça onde estava
+  (`voltou para o grupo "..." na peça X`);
+- **portão de apoio:** **0** peças descartadas por dependência; **74** deferições `sem apoio ainda ... - não gasta
+  tentativa, volta com espera`;
+- **resultado:** ~**957/985** colocadas; `no progress` **58 → 6** com o alcance de 10 m; **mortes 5 → 0** na primeira
+  rodada com 10 m.
+
+**Coberto pelo código e ainda sem run dedicado:**
+- claim expira em 20 s, renovado por frame; retry real teto de 3 por índice, 2 s; espera por dependência 8/12/20/25 s;
+  watchdog de 60 s sem peça subir;
+- seguidores em `WaitGroup` sem relógio e sem guarda de peso; líder que sai antes do `BuildPhase` abre a fase;
+- plano **não** reordenado com ≥2; bancada anexada ao fim; `station: N precisam, M planejadas, K sem cobertura`;
+- segunda ordem do jogador recusada (`SiteBusy`);
 - nivelamento do blueprint devolve **os N** (`SetThenWorkers`/`GroupWorkers`) e `NoteLeveled` impede nivelar de novo.
 
-**Teste em jogo (pendente) — 2 companheiros num 6x6 (46 peças):**
-1. "construa a cabana aqui" **sem nome** → as duas entram (`[Build] grupo: 2 companheiro(s)...`), uma nivela/limpa e
-   a outra espera; depois as duas constroem.
-2. **46 peças colocadas uma vez**, nenhuma duplicada (`build.pieces` não pode ter duplicata no mesmo ponto), e as
-   duas terminam (ou uma em silêncio depois da outra).
-3. "para" → as duas param; matar uma → a peça dela é reivindicada pela outra; ela volta e pega a próxima
-   (ou conta a peça já feita).
-4. "construa a cabana aqui" com **nome** → só aquela começa (caminho antigo).
-5. Segunda ordem de blueprint enquanto a primeira roda → recusada.
-6. Terreno irregular: o nivelamento devolve **as duas** ao canteiro
-   (`the ground is ready - back to the build (2 companheiro(s))`).
-
-**P1 (985 peças, depois do 6x6):** o `next` é o **do canteiro** (não 2×), dois workers com peças distintas, o tempo
-até 720 cai e não há loop de `no progress` (com P2).
+**Falta medir:**
+1. **Run com material pago** (sem `BlueprintFree`): 3 workers pagando peça por peça — é onde a falta de reserva de
+   material aparece (o pior caso documentado é N× o resto do plano, com até 3 coletando ao mesmo tempo).
+2. **Aceite das duas correções do validador:** a cumeeira a **y 47,8** (`no_ground` falso negativo → `attached`,
+   `BuildProbe.AttachedToStructure` 2,6 m) e o **baú/cama no barranco** (`too_steep` → `nudge`, `BuildSite.Find` 2,5 m).
+   O run de 04/11 é o que **gerou** os diagnósticos — o aceite é um run novo.
+3. **2 companheiros num 6x6 (46 peças)** — o teste pequeno que fecha a mecânica sem o ruído de uma casa de 985 peças:
+   as duas entram com a ordem sem nome, uma nivela/limpa, as duas constroem, "para" para as duas, matar uma não para a
+   outra, e com nome só aquela começa.
 
 **P4 (quando existir):** "Maria e João, construam a cabana aqui" → as duas; "Zé, colete 10 madeiras" → só o Zé;
 "para, Maria" → só a Maria; "para" → todos; "Maria e João, ataquem o greydwarf" → as duas; "Maria, equipa a
 picareta" → só a Maria; "Maria e o cachorro, ..." → Maria + aviso do desconhecido, sem inventar.
 
-**Gate:** harness **471** (inalterado no P1), MCP **101** e build **0/0**.
+**Gate:** harness **494** (471 + 23 da seção **(p)**), MCP **101** e build **0/0**.
 
 ## 8. Perguntas para o jogador — respostas registradas (03/11/2026)
 
@@ -287,11 +322,14 @@ picareta" → só a Maria; "Maria e o cachorro, ..." → Maria + aviso do descon
 
 - `Jobs/MHR_BuildGroup.cs` — o canteiro: `KeyOf`, `SiteBusy`, `TryCreate`/`Join`/`Leave`, claims (`TryClaim`,
   `Refresh`, `Release`, `ReleaseAll`), `MarkDone`, `TryQueueRetry`/`NextRetry`, `IsLeader`, `BuildPhase`.
-- `Jobs/MHR_Build.cs` — `StartBlueprintGroup` (`:1017`), `WaitGroup` (`:1636`), `WaitRetry` (`:1683`), `Advance`
-  (`:565`), `QueueRetry` (`:424`), `CountPlaced` (`:716`), `PlanLocked` (`:689`), `IsLeader` (`:699`),
-  `InsertBenchStep` (`:1950`), `RejoinGroup` (`:1433`), `NamesOf`/`GroupWorkers` (`:1145`/`:1166`), `Pending.Group`.
-- `AI/CompanionOrders.cs` — `Run` (modos), `Build` (`:1161`, o blueprint em `:1293`), `BlueprintWorkers` (`:1381`),
+- `Jobs/MHR_Build.cs` — `StartBlueprintGroup` (`:1215`), `WaitGroup` (`:1840`), `WaitRetry` (`:1895`), `Advance`
+  (`:737`), `QueueRetry` (`:461`), `CountPlaced` (`:908`), `PlanLocked` (`:878`), `IsLeader` (`:888`),
+  `InsertBenchStep` (`:2288`), `RejoinGroup` (`:1631`), `NamesOf`/`GroupWorkers` (`:1343`/`:1364`), `Pending.Group`,
+  `StallSeconds`/`StallOut` (`:85`/`:1951`), `DependencyDelay`/`GroundUnder` (`:551`/`:543`).
+- `AI/CompanionOrders.cs` — `Run` (modos), `Build` (`:1161`, o blueprint em `:1295`), `BlueprintWorkers` (`:1381`),
   `LevelOrder`, `IsNotAddressee`; o cancelamento de build de qualquer outra ordem (`:229-240`).
+- `AI/BuildFailure.cs` — **o portão de apoio** (04/11/2026): `Classify`/`IsDependency` puros (a tabela da seção **(p)**
+  do harness), sem Unity e sem config; o mundo entra por `MHR_Build.GroundUnder` (`:543`).
 - `Jobs/MHR_Level.cs` — `SetThenWorkers` (`:138`) e a retomada com `GroupWorkers`/`NoteLeveled` (`:467-497`).
 - `AI/BuildExecutor.cs` — `PlacedRadius`/`PlacedYaw` e `VerifyAt` (`:65-68`, `:278`).
 - `DevBridge/Commands.cs` — `CompanionsBuild` (o ramo do blueprint, `:1107-1193`).
