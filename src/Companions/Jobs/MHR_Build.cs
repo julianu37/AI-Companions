@@ -211,6 +211,12 @@ internal static class MHR_Build
 	private sealed class State
 	{
 		internal bool Active;
+		/// <summary>
+		/// 11/11/2026 (the build panel): the order is <b>paused</b> by the player - <see cref="MHR_Build.Drive"/> answers
+		/// "still running" and does nothing, the plan/claims/counters stay exactly where they are. It is not a "para":
+		/// <see cref="MHR_Build.Resume"/> continues at the same piece.
+		/// </summary>
+		internal bool Paused;
 		internal float Start;
 		internal float LastDrive;
 		internal int StartMode;
@@ -474,6 +480,12 @@ internal static class MHR_Build
 		internal float LastIdleLog;
 		/// <summary>E6b: the last shortfall text written to the log (the watcher is otherwise silent while it waits).</summary>
 		internal string LastLoggedText;
+		/// <summary>
+		/// 11/11/2026 (the build panel): the order waiting for its materials is <b>paused</b> by the player - the watcher
+		/// does not touch it (no resume when the bag is covered, no gather timeout) until
+		/// <see cref="MHR_Build.Resume"/> continues it.
+		/// </summary>
+		internal bool Paused;
 		internal float Start;
 	}
 
@@ -1831,34 +1843,121 @@ internal static class MHR_Build
 			{
 				continue;
 			}
-			string ignoredPrefab;
-			string ignoredStation;
-			// `resuming` + the stored plan: the SAME anchor, the same rotation and the SAME pieces, with no leveling, no
-			// clearing and no station pass (the leader already did all three)
-			if (StartBlueprint(follower, blueprint, hint, out ignoredPrefab, out ignoredStation, 0, first.AnchorRot, true,
-				groupPlan) != BlueprintStart.Started)
+			string why;
+			if (!JoinSite(follower, key, out why))
 			{
-				Log(ai, "não entrou no grupo da obra - fica de fora");
+				Log(ai, "não entrou no grupo da obra (" + why + ") - fica de fora");
 				continue;
 			}
-			State follow;
-			if (!s_state.TryGetValue(ai.GetInstanceID(), out follow) || follow == null)
-			{
-				continue;
-			}
-			follow.Group = key;
-			follow.Plan = groupPlan;   // the very list of the leader (index by index)
-			follow.Phase = Phase.WaitGroup;
-			follow.Start = Time.time;
-			ai.StopMoving();
-			MHR_Mover.Release(ai);
-			MHR_BuildGroup.TryJoin(key, ai.GetInstanceID());
 			joined++;
-			Log(ai, "entrou no grupo da obra \"" + blueprint.Label + "\" - espera o líder preparar o canteiro");
 		}
 		Log(leaderAi, "grupo de obra \"" + blueprint.Label + "\": " + joined + " companheiro(s) no mesmo plano ("
 			+ groupPlan.Count + " peças)");
 		return joined;
+	}
+
+	/// <summary>
+	/// P1 (multi-build, 03/11/2026) + 11/11/2026 (the build panel): puts <b>one more</b> companion on a running site -
+	/// the follower block of <see cref="StartBlueprintGroup"/>, extracted so the panel can add a companion to a site that
+	/// is already up (and so a follower of a fresh order and one of the panel start exactly the same way).
+	///
+	/// <para>It resumes the plan of the site (<c>StartBlueprint</c> with the stored plan: the same anchor, the same
+	/// rotation, the same pieces, no leveling, no clearing, no station pass - the leader did all three), joins the group
+	/// and waits in <see cref="Phase.WaitGroup"/> for <c>MHR_BuildGroup.BuildPhase</c>. The pose and the file of the site
+	/// are the LEADER's state: without a leader with a plan there is nothing to join.</para>
+	///
+	/// <para><paramref name="reason"/> is a short token for the log/panel when it refuses: <c>no companion</c>,
+	/// <c>no site</c>, <c>it's already on the site</c>, <c>it's dead</c>, <c>it's the leader</c>,
+	/// <c>the site is paused</c>, <c>the site has no plan</c>, <c>the blueprint is gone</c>,
+	/// <c>could not start the plan</c>.</para>
+	/// </summary>
+	internal static bool JoinSite(CompanionSetup cs, string key, out string reason)
+	{
+		reason = null;
+		if (cs == null)
+		{
+			reason = "no companion";
+			return false;
+		}
+		CompanionAI ai = cs.GetComponent<CompanionAI>();
+		if (ai == null)
+		{
+			reason = "no companion";
+			return false;
+		}
+		if (!MHR_BuildGroup.Exists(key))
+		{
+			reason = "no site";
+			return false;
+		}
+		if (MHR_BuildGroup.Worker(ai.GetInstanceID()))
+		{
+			// joining twice would restart its own state (StartBlueprint discards it) and throw away the piece it is on
+			reason = "it's already on the site";
+			return false;
+		}
+		Character body = cs.GetComponent<Character>();
+		if (body != null && body.IsDead())
+		{
+			reason = "it's dead";
+			return false;
+		}
+		if (MHR_BuildGroup.IsLeader(key, ai.GetInstanceID()))
+		{
+			reason = "it's the leader";
+			return false;
+		}
+		if (MHR_BuildGroup.Paused(key))
+		{
+			// a paused site is not taking new workers: it would start walking the moment it joined (the pause is the
+			// site's, and the panel resumes the whole site)
+			reason = "the site is paused";
+			return false;
+		}
+		int leaderId = MHR_BuildGroup.LeaderId(key);
+		State lead;
+		if (leaderId == 0 || !s_state.TryGetValue(leaderId, out lead) || lead == null || string.IsNullOrEmpty(lead.BlueprintFile))
+		{
+			reason = "the site has no plan";
+			return false;
+		}
+		Blueprint blueprint = BuildBlueprints.Load(lead.BlueprintFile);
+		if (blueprint == null)
+		{
+			reason = "the blueprint is gone";
+			return false;
+		}
+		List<PlannedStep> groupPlan = MHR_BuildGroup.Plan(key) ?? lead.Plan;
+		if (groupPlan == null || groupPlan.Count == 0)
+		{
+			reason = "the site has no plan";
+			return false;
+		}
+		string ignoredPrefab;
+		string ignoredStation;
+		// `resuming` + the stored plan: the SAME anchor, the same rotation and the SAME pieces, with no leveling, no
+		// clearing and no station pass (the leader already did all three)
+		if (StartBlueprint(cs, blueprint, lead.Hint, out ignoredPrefab, out ignoredStation, 0, lead.AnchorRot, true,
+			groupPlan) != BlueprintStart.Started)
+		{
+			reason = "could not start the plan";
+			return false;
+		}
+		State follow;
+		if (!s_state.TryGetValue(ai.GetInstanceID(), out follow) || follow == null)
+		{
+			reason = "could not start the plan";
+			return false;
+		}
+		follow.Group = key;
+		follow.Plan = groupPlan;   // the very list of the leader (index by index)
+		follow.Phase = Phase.WaitGroup;
+		follow.Start = Time.time;
+		ai.StopMoving();
+		MHR_Mover.Release(ai);
+		MHR_BuildGroup.TryJoin(key, ai.GetInstanceID());
+		Log(ai, "entrou no grupo da obra \"" + blueprint.Label + "\" - espera o líder preparar o canteiro");
+		return true;
 	}
 
 	/// <summary>P1 (review A5, 03/11/2026): the names of the group of an order - the leveling job carries them (a
@@ -1934,11 +2033,12 @@ internal static class MHR_Build
 	}
 
 	/// <summary>E7: this companion's build order is <b>clearing the site</b> - the harvest is the tool then, so it is the
-	/// only job allowed to run (it must not be held still by the order).</summary>
+	/// only job allowed to run (it must not be held still by the order). 11/11/2026 (the build panel): not while the
+	/// order is <b>paused</b> - a pause stops the work, the cutting included.</summary>
 	internal static bool Clearing(Component c)
 	{
 		State state;
-		return StateOf(c, out state) && state.Active && state.Phase == Phase.Clear;
+		return StateOf(c, out state) && state.Active && state.Phase == Phase.Clear && !IsPaused(state);
 	}
 
 	/// <summary>
@@ -1995,21 +2095,18 @@ internal static class MHR_Build
 				MHR_BuildGroup.Leave(state.Group, owner.GetInstanceID());
 				state.Group = null;
 			}
-			// E7 (review, 03/11/2026): the pending must fall even when there is no ACTIVE state (the gather handover removes
-			// the state and leaves the watcher) - its key is the instance id, which Unity reuses
-			if (s_pending.TryGetValue(owner.GetInstanceID(), out pending))
-			{
-				s_pending.Remove(owner.GetInstanceID());
-			}
-			CompanionAI ai = owner;
-			if (ai != null)
-			{
-				MHR_Mover.Release(ai);
-			}
-			ReleaseHarvest(ai, state);
-			// E6b: the gather turned Follow off - another order cancels the build and Follow has to come back
-			RestoreFollow(ai, c.GetComponent<CompanionSetup>(), pending);
+			MHR_Mover.Release(owner);
+			ReleaseHarvest(owner, state);
 		}
+		// E7 (review, 03/11/2026) + 11/11/2026 (the build panel): the pending falls even when there is NO active state -
+		// the gather handover removes the state and leaves only the watcher, and "para" used to leave it alive (the
+		// build came back by itself as soon as the bag was covered). Its key is the instance id, which Unity reuses.
+		if (s_pending.TryGetValue(owner.GetInstanceID(), out pending))
+		{
+			s_pending.Remove(owner.GetInstanceID());
+		}
+		// E6b: the gather turned Follow off - another order cancels the build and Follow has to come back
+		RestoreFollow(owner, c.GetComponent<CompanionSetup>(), pending);
 	}
 
 	internal static void CancelAll()
@@ -2031,6 +2128,152 @@ internal static class MHR_Build
 			}
 			s_state.Remove(key);
 		}
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the build panel): <b>pauses</b> this companion's build without losing anything. The state stays alive
+	/// (<c>Drive</c> answers "still running" and does nothing, so no idle job takes the body) with the same plan, the same
+	/// piece and the same counters; the mover and the harvest are released so the companion stands still, and the
+	/// temporary stairs come down (they are a tool of the work, not of the pause). Nothing is claimed, released or
+	/// finished: a pause is not a "para" - the claims simply expire in <c>MHR_BuildGroup.ClaimSeconds</c> if the pause is
+	/// long, which is exactly what a live worker that went away looks like.
+	/// <para>A companion that is only <b>waiting for materials</b> (the gather handed the order over and there is no
+	/// state) is parked: Follow comes back, the order cap and the work mode are cleared - without that it kept chopping
+	/// wood with nothing to do (the bug of <c>DropPending</c>, which never restored the mode).</para>
+	/// <para>A site (group) is paused as a whole: the leader's pause marks the group, so a worker that is added later or
+	/// comes back from a gather does not walk into a paused site.</para>
+	/// </summary>
+	internal static void Pause(Component c)
+	{
+		CompanionAI ai = AIOf(c);
+		if (ai == null)
+		{
+			return;
+		}
+		CompanionSetup cs = ai.GetComponent<CompanionSetup>();
+		State state;
+		if (s_state.TryGetValue(ai.GetInstanceID(), out state) && state != null && state.Active)
+		{
+			if (state.Group != null)
+			{
+				MHR_BuildGroup.SetPaused(state.Group, true);
+			}
+			if (state.Paused)
+			{
+				return;   // already paused (the panel asks for every worker of the site)
+			}
+			state.Paused = true;
+			ai.StopMoving();
+			MHR_Mover.Release(ai);
+			ReleaseHarvest(ai, state);
+			ClearScaffolds(ai, state);
+			// the event's line is the SITE's (PauseSite); this one is the detail of the worker
+			LogDebug(ai, "obra pausada: " + LabelOf(state) + " (peça " + (state.Index + 1) + "/"
+				+ (state.Plan != null ? state.Plan.Count : 1) + ")");
+			return;
+		}
+		Pending pending;
+		if (s_pending.TryGetValue(ai.GetInstanceID(), out pending) && pending != null)
+		{
+			ParkPending(ai, cs, pending);
+		}
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the build panel): lifts the pause. A paused <b>state</b> goes back to the very piece it was on: the
+	/// clocks that decide "it is stuck" are reset (the same four <c>WaitGroup</c> resets) and the claim is taken again -
+	/// when another worker holds the piece (or the site's queue moved on) the walk advances, exactly like a companion
+	/// that comes back to its site (<see cref="RejoinGroup"/>). A paused <b>pending</b> is resumed through
+	/// <see cref="ResumePending"/>, the very path of a gather that finished.
+	/// </summary>
+	internal static void Resume(Component c)
+	{
+		CompanionAI ai = AIOf(c);
+		if (ai == null)
+		{
+			return;
+		}
+		CompanionSetup cs = ai.GetComponent<CompanionSetup>();
+		State state;
+		if (s_state.TryGetValue(ai.GetInstanceID(), out state) && state != null && state.Active)
+		{
+			if (state.Group != null)
+			{
+				MHR_BuildGroup.SetPaused(state.Group, false);
+			}
+			if (!state.Paused)
+			{
+				return;   // not paused (the panel asks for every worker of the site)
+			}
+			state.Paused = false;
+			state.Checked = false;
+			state.FallDrops = 0;
+			state.BestDistance = 0f;
+			state.BestAt = Time.time;
+			LogDebug(ai, "obra retomada: " + LabelOf(state) + " (peça " + (state.Index + 1) + "/"
+				+ (state.Plan != null ? state.Plan.Count : 1) + ")");
+			if (state.Group != null && !MHR_BuildGroup.TryClaim(state.Group, state.Index, ai.GetInstanceID()))
+			{
+				// the piece is another worker's now (the pause outlived the claim): take the next one of the site
+				Advance(ai, state);
+			}
+			return;
+		}
+		Pending pending;
+		if (s_pending.TryGetValue(ai.GetInstanceID(), out pending) && pending != null && pending.Paused)
+		{
+			pending.Paused = false;
+			// the pause must not be counted as gathering time: the 300 s clock and the "still gathering" grace restart
+			// with the resume (a pause of ten minutes would otherwise time the order out on the next frame)
+			pending.Start = Time.time;
+			pending.LastProgressAt = Time.time;
+			pending.IdleSince = 0f;
+			pending.NextCheck = 0f;
+			ResumePending(ai, cs, pending);
+		}
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the build panel): parks an order that is only <b>waiting for materials</b>. It stays in
+	/// <c>s_pending</c> (the plan, the anchor, the piece and the retry queue travel with it) but the watcher ignores it
+	/// until <see cref="Resume"/>, and the companion goes back to Follow with no gather cap and no work mode - the gather
+	/// it was handed to is over as far as the order is concerned. <c>DropPending</c> cannot be reused: it never restored
+	/// the mode, which is why the companion kept chopping wood with nothing to do.
+	/// </summary>
+	private static void ParkPending(CompanionAI ai, CompanionSetup cs, Pending pending)
+	{
+		if (pending == null)
+		{
+			return;
+		}
+		if (pending.Paused)
+		{
+			return;   // already parked
+		}
+		pending.Paused = true;
+		RestoreFollow(ai, cs, pending);
+		CompanionSetup.ClearOrderCap(cs);
+		CompanionSetup.ApplyActionMode(cs, CompanionSetup.ModeFollow, false);
+		LogDebug(ai, "obra pausada enquanto espera material: " + (pending.Template ?? pending.Blueprint ?? pending.Prefab));
+	}
+
+	/// <summary>11/11/2026 (the build panel): the order waiting for materials of this body is paused (the watcher must
+	/// not touch it).</summary>
+	private static bool PendingPaused(CompanionAI ai)
+	{
+		if (ai == null)
+		{
+			return false;
+		}
+		Pending pending;
+		return s_pending.TryGetValue(ai.GetInstanceID(), out pending) && pending != null && pending.Paused;
+	}
+
+	/// <summary>11/11/2026 (the build panel): this order does not move right now - paused itself or a worker of a paused
+	/// site. The site's flag is the one that holds when only the panel paused it.</summary>
+	private static bool IsPaused(State state)
+	{
+		return state != null && (state.Paused || (state.Group != null && MHR_BuildGroup.Paused(state.Group)));
 	}
 
 	/// <summary>
@@ -2225,6 +2468,631 @@ internal static class MHR_Build
 			+ state.Plan.Count);
 	}
 
+	/// <summary>
+	/// 11/11/2026 (the build panel): one <b>site</b> as the panel shows it - the numbers of the order (plan, placed,
+	/// skipped, emergency posts), its phase as a short token and who is on it. A plain snapshot: the panel asks for it
+	/// about twice a second and must never steer anything (the panel's actions are <see cref="PauseSite"/>,
+	/// <see cref="ResumeSite"/> and <see cref="CancelSite"/>).
+	/// </summary>
+	internal sealed class SiteInfo
+	{
+		/// <summary>The key of the group (<c>MHR_BuildGroup</c>), or null for a single worker / a pending order.</summary>
+		internal string Key;
+		/// <summary>What is being built (the blueprint's label, the template's, or the piece's name).</summary>
+		internal string Label;
+		/// <summary><c>paused</c>, <c>preparing</c>, <c>collecting</c>, <c>building</c>, <c>retrying</c> or <c>done</c>.</summary>
+		internal string Phase;
+		internal bool IsGroup;
+		internal bool Paused;
+		/// <summary>How many pieces the plan has.</summary>
+		internal int Plan;
+		/// <summary>How many of them are up (a set of plan indices - a piece is one piece, whatever it took).</summary>
+		internal int Placed;
+		/// <summary>How many were given up.</summary>
+		internal int Skipped;
+		/// <summary>How many emergency posts the site planted (<c>State.FallbackPosts</c>, summed over the workers).</summary>
+		internal int Posts;
+		internal int Workers;
+		/// <summary>When the site started (the group's creation, the order's clock or the pending's handover).</summary>
+		internal float StartedAt;
+		/// <summary>Where the site is - the anchor the chests are searched around and the distance is measured from.</summary>
+		internal Vector3 Anchor;
+		/// <summary>Who is on it, in the site's own order (the leader is flagged).</summary>
+		internal List<SiteWorker> Members;
+		/// <summary>
+		/// The very plan the site walks (the same list the group/state holds - not a copy). The panel does not need it;
+		/// <see cref="SiteMaterials"/> does, so it can count the need without a second lookup that could disagree.
+		/// </summary>
+		internal List<PlannedStep> Steps;
+	}
+
+	/// <summary>11/11/2026 (the build panel): one companion of a site - the piece of the plan it is on is not exposed,
+	/// the phase token is enough for the list.</summary>
+	internal sealed class SiteWorker
+	{
+		internal int Id;
+		internal string Name;
+		internal bool Leader;
+		internal bool Paused;
+		internal string Phase;
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the build panel): the site of a player, if there is one - the group of the owner first (one site per
+	/// player, <c>MHR_BuildGroup.SiteBusy</c>), then a single worker whose order has a plan (a template or a blueprint
+	/// with nobody else), then an order that is only <b>waiting for materials</b> (its state is gone and the watcher
+	/// carries the plan). False when the player has no build order at all.
+	/// </summary>
+	internal static bool CurrentSite(long owner, out SiteInfo site)
+	{
+		site = null;
+		List<string> keys = MHR_BuildGroup.KeysOf(owner);
+		for (int i = 0; i < keys.Count; i++)
+		{
+			SiteInfo group = GroupSite(keys[i]);
+			if (group != null)
+			{
+				site = group;
+				return true;
+			}
+		}
+		foreach (KeyValuePair<int, State> kv in s_state)
+		{
+			State state = kv.Value;
+			if (state == null || !state.Active || state.Group != null || state.Plan == null || state.Plan.Count == 0)
+			{
+				continue;
+			}
+			if (!IsOwner(kv.Key, owner))
+			{
+				continue;
+			}
+			site = StateSite(kv.Key, state);
+			return true;
+		}
+		foreach (KeyValuePair<int, Pending> kv in s_pending)
+		{
+			Pending pending = kv.Value;
+			if (pending == null || pending.Plan == null || pending.Plan.Count == 0)
+			{
+				continue;
+			}
+			if (pending.Group != null && MHR_BuildGroup.Exists(pending.Group))
+			{
+				continue;   // the site's group answers for it (it is one of the workers gathering for that site)
+			}
+			if (!IsOwner(kv.Key, owner))
+			{
+				continue;
+			}
+			site = PendingSite(kv.Key, pending);
+			return true;
+		}
+		return false;
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the build panel): what the site <b>needs</b>, what it <b>has</b> and what is <b>missing</b>.
+	/// <para>The need is the whole plan (<see cref="BuildMaterials"/> over the pieces the site walks - the same costs
+	/// <c>BuildStock</c> pays per piece). The stock is every bag of the site <b>once</b> plus the usable chests around
+	/// the anchor <b>once</b> (<c>BuildStock.Available</c>), never the same chest once per worker.</para>
+	/// <para>Not called without a site (<see cref="CurrentSite"/> answers that first).</para>
+	/// </summary>
+	internal static void SiteMaterials(SiteInfo site, out Dictionary<string, int> need, out Dictionary<string, int> have,
+		out Dictionary<string, int> missing)
+	{
+		need = new Dictionary<string, int>();
+		have = new Dictionary<string, int>();
+		missing = new Dictionary<string, int>();
+		if (site == null)
+		{
+			return;
+		}
+		Dictionary<string, int> pieces = new Dictionary<string, int>();
+		if (site.Steps != null)
+		{
+			for (int i = 0; i < site.Steps.Count; i++)
+			{
+				PlannedStep step = site.Steps[i];
+				if (step == null || string.IsNullOrEmpty(step.Prefab))
+				{
+					continue;
+				}
+				int seen;
+				pieces.TryGetValue(step.Prefab, out seen);
+				pieces[step.Prefab] = seen + 1;
+			}
+		}
+		Dictionary<string, Piece> cache = new Dictionary<string, Piece>(StringComparer.Ordinal);
+		int noRecipe;
+		need = BuildMaterials.Total(pieces, delegate(string prefab) { return CostsOfPiece(prefab, cache); }, out noRecipe);
+		List<Inventory> bags = new List<Inventory>();
+		Component who = null;
+		if (site.Members != null)
+		{
+			for (int i = 0; i < site.Members.Count; i++)
+			{
+				CompanionSetup cs = SetupOf(site.Members[i].Id);
+				if (cs == null)
+				{
+					continue;
+				}
+				if (who == null || site.Members[i].Leader)
+				{
+					who = cs;   // the leader answers for the site (the chest privacy is the owner's)
+				}
+				Humanoid humanoid = cs.GetComponent<Humanoid>();
+				if (humanoid != null)
+				{
+					bags.Add(humanoid.GetInventory());
+				}
+			}
+		}
+		bool useChests = ModConfig.BuildUseChests == null || ModConfig.BuildUseChests.Value;
+		have = BuildStock.Available(bags, site.Anchor, who, useChests);
+		foreach (KeyValuePair<string, int> kv in need)
+		{
+			int got;
+			have.TryGetValue(kv.Key, out got);
+			if (got < kv.Value)
+			{
+				missing[kv.Key] = kv.Value - got;
+			}
+		}
+	}
+
+	/// <summary>11/11/2026 (the build panel): pauses the whole site - the group's flag and every worker on it.</summary>
+	internal static void PauseSite(SiteInfo site)
+	{
+		if (site == null)
+		{
+			return;
+		}
+		if (site.IsGroup && !string.IsNullOrEmpty(site.Key))
+		{
+			MHR_BuildGroup.SetPaused(site.Key, true);
+		}
+		int count = PauseMembers(site);
+		// a worker that handed the order to the gather is NOT in the group any more (Finish -> Leave) and only its
+		// pending carries the site: it is parked here too, or the site would keep chopping while it is "paused"
+		count += WalkSitePendings(site, false);
+		LogSite("obra pausada: " + (site.Label ?? "?") + " (" + count + " companheiro(s))");
+	}
+
+	/// <summary>11/11/2026 (the build panel): resumes the whole site (the group's flag first, then every worker).</summary>
+	internal static void ResumeSite(SiteInfo site)
+	{
+		if (site == null)
+		{
+			return;
+		}
+		if (site.IsGroup && !string.IsNullOrEmpty(site.Key))
+		{
+			MHR_BuildGroup.SetPaused(site.Key, false);
+		}
+		int count = 0;
+		if (site.Members != null)
+		{
+			for (int i = 0; i < site.Members.Count; i++)
+			{
+				CompanionSetup cs = SetupOf(site.Members[i].Id);
+				if (cs == null)
+				{
+					continue;
+				}
+				Resume(cs);
+				count++;
+			}
+		}
+		count += WalkSitePendings(site, true);
+		LogSite("obra retomada: " + (site.Label ?? "?") + (count > 0 ? " (" + count + " companheiro(s))" : string.Empty));
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the build panel): "para" for the whole site - the same <see cref="Cancel"/> of the chat order for
+	/// every worker (the group is dropped when the last one leaves and the pending orders fall with it).
+	/// </summary>
+	internal static void CancelSite(SiteInfo site)
+	{
+		if (site == null)
+		{
+			return;
+		}
+		if (site.IsGroup && !string.IsNullOrEmpty(site.Key))
+		{
+			MHR_BuildGroup.SetPaused(site.Key, false);
+		}
+		if (site.Members != null)
+		{
+			for (int i = 0; i < site.Members.Count; i++)
+			{
+				CompanionSetup cs = SetupOf(site.Members[i].Id);
+				if (cs != null)
+				{
+					Cancel(cs);
+				}
+			}
+		}
+		// the workers that are gathering for this site are not in the group any more - their pending is what would
+		// bring the build back (the very bug "para" had, fixed in Cancel), so it falls here too
+		WalkSitePendings(site, false, true);
+		LogSite("obra cancelada pelo painel: " + (site.Label ?? "?"));
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the build panel): the pending orders that belong to this site (a worker of it that is gathering) -
+	/// parked (<c>resume: false</c>), resumed, or dropped (<c>cancel: true</c>). Returns how many it reached.
+	/// </summary>
+	private static int WalkSitePendings(SiteInfo site, bool resume, bool cancel = false)
+	{
+		if (site == null || !site.IsGroup || string.IsNullOrEmpty(site.Key))
+		{
+			return 0;   // a single worker's pending IS the site (it is already one of the members)
+		}
+		List<int> ids = new List<int>();
+		foreach (KeyValuePair<int, Pending> kv in s_pending)
+		{
+			if (kv.Value != null && kv.Value.Group == site.Key)
+			{
+				ids.Add(kv.Key);
+			}
+		}
+		int count = 0;
+		for (int i = 0; i < ids.Count; i++)
+		{
+			CompanionSetup cs = SetupOf(ids[i]);
+			if (cs == null)
+			{
+				continue;
+			}
+			if (cancel)
+			{
+				Cancel(cs);
+			}
+			else if (resume)
+			{
+				Resume(cs);
+			}
+			else
+			{
+				Pause(cs);
+			}
+			count++;
+		}
+		return count;
+	}
+
+	private static int PauseMembers(SiteInfo site)
+	{
+		int count = 0;
+		if (site == null || site.Members == null)
+		{
+			return count;
+		}
+		for (int i = 0; i < site.Members.Count; i++)
+		{
+			CompanionSetup cs = SetupOf(site.Members[i].Id);
+			if (cs == null)
+			{
+				continue;
+			}
+			Pause(cs);
+			count++;
+		}
+		return count;
+	}
+
+	/// <summary>The site of a group (<c>MHR_BuildGroup</c>): its plan, its counters and its workers.</summary>
+	private static SiteInfo GroupSite(string key)
+	{
+		if (!MHR_BuildGroup.Exists(key))
+		{
+			return null;
+		}
+		List<PlannedStep> plan = MHR_BuildGroup.Plan(key);
+		List<int> workers = MHR_BuildGroup.WorkerIds(key);
+		bool buildPhase = MHR_BuildGroup.BuildPhase(key);
+		int leaderId = MHR_BuildGroup.LeaderId(key);
+		SiteInfo site = new SiteInfo
+		{
+			Key = key,
+			Label = MHR_BuildGroup.Label(key),
+			IsGroup = true,
+			Paused = MHR_BuildGroup.Paused(key),
+			StartedAt = MHR_BuildGroup.CreatedAt(key),
+			Steps = plan,
+			Plan = plan != null ? plan.Count : 0,
+			Placed = MHR_BuildGroup.Placed(key),
+			Skipped = MHR_BuildGroup.Skipped(key),
+			Workers = workers.Count,
+			Members = new List<SiteWorker>(workers.Count)
+		};
+		bool preparing = false;
+		bool collecting = false;
+		bool building = false;
+		bool retrying = false;
+		for (int i = 0; i < workers.Count; i++)
+		{
+			int id = workers[i];
+			State state;
+			s_state.TryGetValue(id, out state);
+			if (state != null)
+			{
+				site.Posts += state.FallbackPosts.Count;
+			}
+			SiteWorker member = new SiteWorker
+			{
+				Id = id,
+				Name = NameOfWorker(id),
+				Leader = id == leaderId,
+				Paused = state != null && state.Paused,
+				Phase = PhaseToken(state, buildPhase)
+			};
+			site.Members.Add(member);
+			if (member.Phase == "preparing")
+			{
+				preparing = true;
+			}
+			else if (member.Phase == "collecting")
+			{
+				collecting = true;
+			}
+			else if (member.Phase == "building")
+			{
+				building = true;
+			}
+			else if (member.Phase == "retrying")
+			{
+				retrying = true;
+			}
+		}
+		Vector3 anchor;
+		if (SiteAnchor(leaderId, workers, out anchor))
+		{
+			site.Anchor = anchor;
+		}
+		else
+		{
+			// nobody of the site holds a state right now (they are all gathering): the pending knows the anchor
+			site.Anchor = GroupAnchor(key);
+		}
+		// the site's phase: what it is doing as a whole (the priority the panel colors by)
+		if (site.Paused)
+		{
+			site.Phase = "paused";
+		}
+		else if (preparing)
+		{
+			site.Phase = "preparing";
+		}
+		else if (collecting || GroupCollecting(key))
+		{
+			site.Phase = "collecting";
+		}
+		else if (building)
+		{
+			site.Phase = "building";
+		}
+		else if (retrying)
+		{
+			site.Phase = "retrying";
+		}
+		else
+		{
+			site.Phase = "done";
+		}
+		return site;
+	}
+
+	/// <summary>The site of a single worker (a template/blueprint order with no group): its own state is the site.</summary>
+	private static SiteInfo StateSite(int workerId, State state)
+	{
+		SiteInfo site = new SiteInfo
+		{
+			Key = null,
+			Label = state.Blueprint ?? (state.Template != null ? state.Template.Label : LabelOf(state)),
+			IsGroup = false,
+			Paused = state.Paused,
+			StartedAt = state.Start,
+			Steps = state.Plan,
+			Plan = state.Plan != null ? state.Plan.Count : 0,
+			Placed = state.PlacedIndices.Count,
+			Skipped = state.SkippedIndices.Count,
+			Posts = state.FallbackPosts.Count,
+			Workers = 1,
+			Anchor = state.AnchorKnown ? state.Anchor : state.Hint,
+			Members = new List<SiteWorker>(1)
+		};
+		site.Phase = site.Paused ? "paused" : PhaseToken(state, true);
+		site.Members.Add(new SiteWorker
+		{
+			Id = workerId,
+			Name = NameOfWorker(workerId),
+			Leader = true,
+			Paused = site.Paused,
+			Phase = site.Phase
+		});
+		return site;
+	}
+
+	/// <summary>The site of an order waiting for its materials (the state is gone, the plan travels with the pending).</summary>
+	private static SiteInfo PendingSite(int workerId, Pending pending)
+	{
+		SiteInfo site = new SiteInfo
+		{
+			Key = null,
+			Label = pending.Template ?? pending.Blueprint ?? pending.Prefab,
+			IsGroup = false,
+			Paused = pending.Paused,
+			StartedAt = pending.Start,
+			Steps = pending.Plan,
+			Plan = pending.Plan != null ? pending.Plan.Count : 0,
+			Workers = 1,
+			Anchor = pending.Anchor,
+			Members = new List<SiteWorker>(1)
+		};
+		site.Phase = pending.Paused ? "paused" : "collecting";
+		site.Members.Add(new SiteWorker
+		{
+			Id = workerId,
+			Name = NameOfWorker(workerId),
+			Leader = true,
+			Paused = site.Paused,
+			Phase = site.Phase
+		});
+		return site;
+	}
+
+	/// <summary>
+	/// The short token of what one worker is doing (the panel's list). The priority is the site's
+	/// (<see cref="GroupSite"/>): <c>preparing</c> (leveling, clearing, or a follower waiting for the site) &lt;
+	/// <c>collecting</c> (walking to the resource, or the gather that took the order over) &lt; <c>building</c> &lt;
+	/// <c>retrying</c> (the retry queue) &lt; <c>done</c>. A null state is a worker with nothing to show yet.
+	/// </summary>
+	private static string PhaseToken(State state, bool buildPhase)
+	{
+		if (state == null)
+		{
+			return "waiting";
+		}
+		switch (state.Phase)
+		{
+			case Phase.Level:
+			case Phase.Clear:
+				return "preparing";
+			case Phase.WaitGroup:
+				// a follower holds still while the leader works the site; with the site open it is about to build
+				return buildPhase ? "building" : "preparing";
+			case Phase.GatherWalk:
+				return "collecting";
+			case Phase.WaitRetry:
+				return "retrying";
+			case Phase.Find:
+			case Phase.Goto:
+			case Phase.Place:
+			case Phase.BodyRetry:
+			case Phase.Verify:
+				return "building";
+			default:
+				return "done";
+		}
+	}
+
+	/// <summary>The anchor of the site: the leader's pose, else any worker's that knows it (the leader may be away).</summary>
+	private static bool SiteAnchor(int leaderId, List<int> workers, out Vector3 anchor)
+	{
+		anchor = Vector3.zero;
+		State lead;
+		if (leaderId != 0 && s_state.TryGetValue(leaderId, out lead) && lead != null && lead.AnchorKnown)
+		{
+			anchor = lead.Anchor;
+			return true;
+		}
+		if (workers == null)
+		{
+			return false;
+		}
+		for (int i = 0; i < workers.Count; i++)
+		{
+			State state;
+			if (s_state.TryGetValue(workers[i], out state) && state != null && state.AnchorKnown)
+			{
+				anchor = state.Anchor;
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/// <summary>The anchor a pending of this site carries (no worker of it holds a state right now).</summary>
+	private static Vector3 GroupAnchor(string key)
+	{
+		if (!string.IsNullOrEmpty(key))
+		{
+			foreach (KeyValuePair<int, Pending> kv in s_pending)
+			{
+				if (kv.Value != null && kv.Value.Group == key)
+				{
+					return kv.Value.Anchor;
+				}
+			}
+		}
+		return Vector3.zero;
+	}
+
+	/// <summary>Is one of the site's workers collecting for it right now (its order is a pending with this group)?</summary>
+	private static bool GroupCollecting(string key)
+	{
+		if (string.IsNullOrEmpty(key))
+		{
+			return false;
+		}
+		foreach (KeyValuePair<int, Pending> kv in s_pending)
+		{
+			if (kv.Value != null && kv.Value.Group == key && !kv.Value.Paused)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/// <summary>The companion of one worker id (the states and the group's workers are keyed by the CompanionAI's
+	/// instance id; the setup is what has a name and an owner).</summary>
+	private static CompanionSetup SetupOf(int workerId)
+	{
+		IReadOnlyList<CompanionSetup> all = CompanionSetup.AllCompanions;
+		for (int i = 0; i < all.Count; i++)
+		{
+			CompanionSetup cs = all[i];
+			CompanionAI ai = cs != null ? cs.GetComponent<CompanionAI>() : null;
+			if (ai != null && ai.GetInstanceID() == workerId)
+			{
+				return cs;
+			}
+		}
+		return null;
+	}
+
+	private static string NameOfWorker(int workerId)
+	{
+		CompanionSetup cs = SetupOf(workerId);
+		return cs != null ? CompanionNames.NameOf(cs) : null;
+	}
+
+	/// <summary>The worker belongs to that player (the same rule the orders use: an unclaimed companion is the local
+	/// player's, see <c>MHR_Owner.CreatorId</c>).</summary>
+	private static bool IsOwner(int workerId, long owner)
+	{
+		CompanionSetup cs = SetupOf(workerId);
+		return cs != null && MHR_Owner.CreatorId(cs) == owner;
+	}
+
+	/// <summary>The costs of one prefab of the plan (resolved once per call - the panel asks about twice a second).</summary>
+	private static IReadOnlyList<Cost> CostsOfPiece(string prefab, Dictionary<string, Piece> cache)
+	{
+		Piece piece;
+		if (cache == null || !cache.TryGetValue(prefab, out piece))
+		{
+			piece = BuildProbe.PieceOf(prefab);
+			if (cache != null)
+			{
+				cache[prefab] = piece;
+			}
+		}
+		return BuildStock.CostsOf(piece);
+	}
+
+	/// <summary>11/11/2026 (the build panel): one line per site action, without a companion's name (the site is the
+	/// subject, not the worker).</summary>
+	private static void LogSite(string message)
+	{
+		if (CompanionsPlugin.LogNormal && CompanionsPlugin.Log != null)
+		{
+			CompanionsPlugin.Log.LogInfo(LogTag + message);
+		}
+	}
+
 	/// <summary>Driven from <c>CompanionAI.UpdateAI</c> before <see cref="MHR_Collect"/> and <see cref="MHR_Loot"/>:
 	/// true while the order is running.</summary>
 	internal static bool Drive(CompanionAI ai, float dt)
@@ -2236,9 +3104,21 @@ internal static class MHR_Build
 		State state;
 		if (!s_state.TryGetValue(ai.GetInstanceID(), out state) || state == null || !state.Active)
 		{
-			// E4b: nothing to drive, but a build may be waiting for the gather to finish
-			CheckPending(ai);
+			// E4b: nothing to drive, but a build may be waiting for the gather to finish.
+			// 11/11/2026 (the build panel): a PAUSED pending is not touched by the watcher at all - no resume when the
+			// bag is covered, no gather timeout: it waits for the panel (or for "para").
+			if (!PendingPaused(ai))
+			{
+				CheckPending(ai);
+			}
 			return false;
+		}
+		// 11/11/2026 (the build panel): a paused order (or a worker of a paused SITE) is alive but does not move.
+		// LastDrive is NOT touched here on purpose: the shift right below discounts the pause from the order's own
+		// clock when it resumes (that is what keeps the Timeout honest).
+		if (IsPaused(state))
+		{
+			return true;
 		}
 		// a fight in between (or anything else that kept UpdateAI from driving us) does not use up the order's time
 		if (Time.time - state.LastDrive > 0.5f)
@@ -6068,6 +6948,28 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			EndPendingMissing(ai, cs, pending, bag, template, piece, useChests);
 			return;   // still gathering
 		}
+		ResumePending(ai, cs, pending);
+	}
+
+	/// <summary>
+	/// E6b (player's test, 02/11/2026): the materials are in - the SAME order comes back at the same anchor and from the
+	/// same piece. It was the tail of <see cref="CheckPending"/> and it is a method of its own because the build panel's
+	/// "resume" runs exactly this path (a paused order waiting for materials), so a resume after a pause cannot drift
+	/// from a resume after a gather.
+	/// </summary>
+	private static void ResumePending(CompanionAI ai, CompanionSetup cs, Pending pending)
+	{
+		if (ai == null || pending == null)
+		{
+			return;
+		}
+		// the very two resolutions CheckPending made before deciding to resume (the caller's template/blueprint are not
+		// passed: the pending is the source of truth, and a resume may come from the panel much later)
+		BuildTemplates.Template template = pending.Template != null ? BuildTemplates.ByName(pending.Template) : null;
+		Blueprint blueprint = pending.BlueprintFile != null ? BuildBlueprints.Load(pending.BlueprintFile) : null;
+		Humanoid humanoid = ai.GetComponent<Humanoid>();
+		Inventory bag = humanoid != null ? humanoid.GetInventory() : null;
+		bool nearlyFull = bag != null && humanoid != null && bag.GetTotalWeight() >= CompanionCarry.Max(humanoid) * 0.8f;
 		Log(ai, "gather done (" + (nearlyFull ? "bag nearly full" : "nothing missing") + ") - resuming");
 		s_pending.Remove(ai.GetInstanceID());
 		RestoreFollow(ai, cs, pending);

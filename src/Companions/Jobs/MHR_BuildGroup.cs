@@ -78,6 +78,14 @@ internal static class MHR_BuildGroup
 		internal List<MHR_Build.PlannedStep> Plan;
 		/// <summary>The leader finished the site (leveling/clearing) - the followers may build.</summary>
 		internal bool BuildPhase;
+		/// <summary>
+		/// 11/11/2026 (the build panel): the whole site is <b>paused</b> by the player - no worker drives a piece, the
+		/// plan, the claims and the counters stay exactly where they are (a pause is not a "para"). Lifted only by the
+		/// panel or by "para".
+		/// </summary>
+		internal bool Paused;
+		/// <summary>When the site was created (the panel's "running for N s").</summary>
+		internal float CreatedAt;
 		internal int LeaderId;
 		internal readonly List<int> Workers = new List<int>();
 		/// <summary>Plan index -> the worker that owns the piece.</summary>
@@ -190,6 +198,7 @@ internal static class MHR_BuildGroup
 			Owner = owner,
 			Plan = plan,
 			LeaderId = leaderId,
+			CreatedAt = Time.time,
 			LastProgressAt = Time.time
 		};
 		s_groups[key] = group;
@@ -330,6 +339,70 @@ internal static class MHR_BuildGroup
 			return;
 		}
 		group.BuildPhase = on;
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the build panel): pauses or resumes the whole site. Nothing else changes - the plan, the claims (they
+	/// expire in <see cref="ClaimSeconds"/> like any untouched claim), the retry queue and the counters stay where they
+	/// are; the workers simply stop driving pieces (<c>MHR_Build.Drive</c> answers "still running" and does nothing).
+	/// </summary>
+	internal static void SetPaused(string key, bool on)
+	{
+		Group group;
+		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null)
+		{
+			return;
+		}
+		group.Paused = on;
+	}
+
+	/// <summary>11/11/2026 (the build panel): the site is paused by the player.</summary>
+	internal static bool Paused(string key)
+	{
+		Group group;
+		return !string.IsNullOrEmpty(key) && s_groups.TryGetValue(key, out group) && group != null && group.Paused;
+	}
+
+	/// <summary>11/11/2026 (the build panel): when this site was created (0 when there is no such site).</summary>
+	internal static float CreatedAt(string key)
+	{
+		Group group;
+		return !string.IsNullOrEmpty(key) && s_groups.TryGetValue(key, out group) && group != null ? group.CreatedAt : 0f;
+	}
+
+	/// <summary>11/11/2026 (the build panel): the worker this site calls its leader right now (0 when there is no such
+	/// site). The leader is the group's, never a state's own flag (<see cref="IsLeader"/>).</summary>
+	internal static int LeaderId(string key)
+	{
+		Group group;
+		return !string.IsNullOrEmpty(key) && s_groups.TryGetValue(key, out group) && group != null ? group.LeaderId : 0;
+	}
+
+	/// <summary>11/11/2026 (the build panel): the workers of the site (a COPY - the caller walks it while the site may
+	/// change on the next frame). Empty when there is no such site.</summary>
+	internal static List<int> WorkerIds(string key)
+	{
+		Group group;
+		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null)
+		{
+			return new List<int>();
+		}
+		return new List<int>(group.Workers);
+	}
+
+	/// <summary>11/11/2026 (the build panel): the sites of one player. One per player at a time
+	/// (<see cref="SiteBusy"/>), but the list is the honest shape - the panel takes the first.</summary>
+	internal static List<string> KeysOf(long owner)
+	{
+		List<string> keys = new List<string>();
+		foreach (KeyValuePair<string, Group> kv in s_groups)
+		{
+			if (kv.Value != null && kv.Value.Owner == owner)
+			{
+				keys.Add(kv.Key);
+			}
+		}
+		return keys;
 	}
 
 	/// <summary>

@@ -119,6 +119,9 @@ Hold this while looking at a companion to open its command wheel.
 **ConfigPanelKey** — Default: `F8`  
 Opens the in-game settings panel, where all of these settings can be changed.
 
+**BuildPanelKey** — Default: `B`  
+Opens the build panel: the site your companions are building (the plan, the pieces that are up, the materials the rest of the house still needs) with pause, resume and cancel. Esc or this key again closes it. None = no key.
+
 **FarmZoneKey** — Default: `Z`  
 Pressed together with FarmZoneModifier: opens the farm zone editor.
 

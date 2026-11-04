@@ -850,6 +850,9 @@ public static class ModLocalization
 			// Lote 1 (11/11/2026): the [Building] BlueprintStations label - a blueprint is built with no workbench planned and
 			// no piece refused for a missing station (templates and single pieces keep the vanilla rule). Short for the F8 row.
 			{ "hc_cfg_building_blueprintstations", "Blueprint: no stations" },
+			// 11/11/2026 (the build panel): the [Controls] BuildPanelKey label - the key that opens the site's panel.
+			// Short for the same narrow F8 row (the fallback there is the raw key, "BuildPanelKey").
+			{ "hc_cfg_controls_buildpanelkey", "Build panel key" },
 			// Fase 3.10: voice and personality of ONE companion (its own ZDO), with the [AI] values as the default.
 			// Used by the companion tab of the AI panel and by the starter panel's "AI" section.
 			{ "hc_ai_profile_title", "Companion AI" },

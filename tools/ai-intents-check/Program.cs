@@ -32,7 +32,9 @@ namespace AiIntentsCheck;
 /// <c>BuildSupportBelow.FallbackPostAllowed</c>: when the emergency post may take over from a support the plan <b>has</b>
 /// but is not delivering (the Run 9 column that stayed out). Section (v) is <c>BuildStationCover.Required</c>: the
 /// crafting-station rule lifted <b>only</b> for a blueprint (<c>[Building] BlueprintStations</c>), never for a template or
-/// a single piece.</para>
+/// a single piece. Section (w) is <c>BuildMaterials</c>: the material need of a plan (prefab → count folded through each
+/// piece's costs), the number the build panel shows before the order and <c>blueprints.inspect</c> reports as
+/// <c>materials</c>.</para>
 ///
 /// <para>Run: <c>dotnet run --project tools/ai-intents-check</c> (after <c>dotnet build Companions.sln -c Release</c>,
 /// which the cross-check reads). Exit code 0 only when every case passed and nothing was skipped.</para>
@@ -117,6 +119,8 @@ internal static class Program
 		FallbackPosts();
 		Section("(v) BuildStationCover.Required - a bancada exigida so fora do blueprint");
 		StationsCover();
+		Section("(w) BuildMaterials - o custo do plano (necessidade de materiais)");
+		Materials();
 		CrossCheckDoorRule();
 
 		Out.WriteLine();
@@ -1267,6 +1271,133 @@ internal static class Program
 		Check("Required(blueprint=" + (isBlueprint ? "sim" : "nao") + ", config=" + (config ? "ligada" : "desligada")
 			+ ") -> " + (expected ? "true" : "false") + " (" + why + ")", actual == expected,
 			"obtido " + (actual ? "true" : "false"));
+	}
+
+	// ============================================================================================ (w) o custo do plano
+
+	/// <summary>
+	/// Section (w): <c>BuildMaterials</c>, the material need of a plan - the pure half of what <c>BuildStock</c> and
+	/// <c>MHR_Build.TemplateMissing</c> already do per piece, shared with the build panel (the house's cost before the
+	/// order) and with <c>blueprints.inspect</c> (<c>materials</c>). The rules asserted here are the ones the order pays
+	/// with: <c>requirement.GetAmount(1)</c> keyed by the shared item name, and an entry with no item or a
+	/// non-positive amount ignored.
+	/// </summary>
+	private static void Materials()
+	{
+		// 1) the same piece counted twice multiplies its own cost
+		Dictionary<string, int> total = new Dictionary<string, int>();
+		BuildMaterials.Add(total, Costs(One("$item_wood", 4)), 2);
+		CheckInt("2 pecas iguais multiplicam (4 x 2)", 8, Amount(total, "$item_wood"));
+
+		// 2) a prefab that lists the same resource twice adds up inside itself
+		total = new Dictionary<string, int>();
+		BuildMaterials.Add(total, Costs(One("$item_wood", 2), One("$item_wood", 3)), 1);
+		CheckInt("recurso repetido no mesmo prefab soma (2 + 3)", 5, Amount(total, "$item_wood"));
+
+		// 3) a prefab with no recipe at all: no cost, and it is counted as "no recipe"
+		int noRecipe;
+		Dictionary<string, int> plan = new Dictionary<string, int> { { "wood_floor", 3 }, { "mystery", 2 } };
+		Dictionary<string, int> need = BuildMaterials.Total(plan, RecipeOf, out noRecipe);
+		Check("peca sem receita custa 0 e conta em noRecipe (noRecipe=1, sem a chave)",
+			noRecipe == 1 && !need.ContainsKey("mystery"), "noRecipe=" + noRecipe + ", chaves=" + need.Count);
+
+		// 4) an empty plan needs nothing (and has no "no recipe" to report)
+		int emptyNoRecipe;
+		Dictionary<string, int> empty = BuildMaterials.Total(new Dictionary<string, int>(), RecipeOf, out emptyNoRecipe);
+		Check("plano vazio: nada necessario e noRecipe=0", empty.Count == 0 && emptyNoRecipe == 0,
+			"itens=" + empty.Count + ", noRecipe=" + emptyNoRecipe);
+
+		// 5) a piece counted zero times adds nothing
+		total = new Dictionary<string, int>();
+		int zeroIgnored = BuildMaterials.Add(total, Costs(One("$item_wood", 4)), 0);
+		Check("count=0 nao soma nada e nao ignora entrada", total.Count == 0 && zeroIgnored == 0,
+			"itens=" + total.Count + ", ignoradas=" + zeroIgnored);
+
+		// 6) an entry with no item name or with a non-positive amount is ignored and counted
+		total = new Dictionary<string, int>();
+		int ignored = BuildMaterials.Add(total,
+			Costs(One(null, 5), One("", 5), One("$item_wood", 0), One("$item_wood", 7)), 1);
+		Check("item nulo/vazio e quantidade <= 0 ignorados e contados (3)",
+			ignored == 3 && total.Count == 1 && Amount(total, "$item_wood") == 7,
+			"ignoradas=" + ignored + ", itens=" + total.Count + ", wood=" + Amount(total, "$item_wood"));
+
+		// 7) two different pieces that share a resource: the need is the sum of both
+		Dictionary<string, int> mixed = new Dictionary<string, int> { { "wood_floor", 1 }, { "wood_wall", 2 } };
+		int mixedNoRecipe;
+		Dictionary<string, int> mixedNeed = BuildMaterials.Total(mixed, RecipeOf, out mixedNoRecipe);
+		CheckInt("2 pecas diferentes com o mesmo recurso somam (4 + 2x2)", 8, Amount(mixedNeed, "$item_wood"));
+
+		// 8) a big plan stays positive (no overflow to a negative number)
+		total = new Dictionary<string, int>();
+		BuildMaterials.Add(total, Costs(One("$item_wood", 1000)), 1000);
+		CheckInt("valor alto nao vira negativo (1000 x 1000)", 1000000, Amount(total, "$item_wood"));
+
+		// 9) Total has no state between calls: a fresh dictionary, the same answer
+		int firstNoRecipe;
+		int secondNoRecipe;
+		Dictionary<string, int> first = BuildMaterials.Total(plan, RecipeOf, out firstNoRecipe);
+		Dictionary<string, int> second = BuildMaterials.Total(plan, RecipeOf, out secondNoRecipe);
+		Check("Total 2x em dicionario novo da o mesmo resultado",
+			Same(first, second) && firstNoRecipe == secondNoRecipe,
+			"1a=" + Amount(first, "$item_wood") + "/" + firstNoRecipe + ", 2a=" + Amount(second, "$item_wood") + "/" + secondNoRecipe);
+	}
+
+	/// <summary>Section (w): one cost line (the struct's own name is taken by the type, so the helper is "One").</summary>
+	private static Cost One(string item, int amount)
+	{
+		return new Cost { Item = item, Amount = amount };
+	}
+
+	/// <summary>Section (w): the cost list of one piece.</summary>
+	private static IReadOnlyList<Cost> Costs(params Cost[] costs)
+	{
+		return costs;
+	}
+
+	/// <summary>
+	/// Section (w): the resolver <c>BuildMaterials.Total</c> receives - prefab -&gt; its costs. <c>wood_floor</c> is 4
+	/// wood and <c>wood_wall</c> is 2 wood (two different pieces sharing a resource); anything else has no recipe here
+	/// (the game answers null for a prefab that is not a buildable piece).
+	/// </summary>
+	private static IReadOnlyList<Cost> RecipeOf(string prefab)
+	{
+		if (prefab == "wood_floor")
+		{
+			return Costs(One("$item_wood", 4));
+		}
+		if (prefab == "wood_wall")
+		{
+			return Costs(One("$item_wood", 2));
+		}
+		return null;
+	}
+
+	/// <summary>Section (w): the amount of one item in a cost map (0 when it is not there).</summary>
+	private static int Amount(Dictionary<string, int> costs, string item)
+	{
+		int amount;
+		return costs != null && costs.TryGetValue(item, out amount) ? amount : 0;
+	}
+
+	/// <summary>Section (w): two cost maps hold the same pairs (the key count included).</summary>
+	private static bool Same(Dictionary<string, int> a, Dictionary<string, int> b)
+	{
+		if (a == null || b == null)
+		{
+			return a == b;
+		}
+		if (a.Count != b.Count)
+		{
+			return false;
+		}
+		foreach (KeyValuePair<string, int> kv in a)
+		{
+			if (Amount(b, kv.Key) != kv.Value)
+			{
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/// <summary>The plan of case (a)/(e) of section (m): a fresh list every call (case (e) needs two of them).</summary>

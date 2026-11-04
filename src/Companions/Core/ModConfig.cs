@@ -651,6 +651,9 @@ internal static class ModConfig
 
 	internal static ConfigEntry<KeyCode> ConfigPanelKey;
 
+	// 11/11/2026 (the build panel): opens the panel of the running build site (plan, pieces, materials, pause/resume)
+	internal static ConfigEntry<KeyCode> BuildPanelKey;
+
 	internal static ConfigEntry<KeyCode> FarmZoneKey;
 
 	internal static ConfigEntry<KeyCode> FarmZoneModifier;
@@ -809,6 +812,7 @@ internal static class ModConfig
 		DirectTargetKey = Bind(cfg, "Controls", "DirectTargetKey", KeyCode.Z, "The command key. Tap it while looking at something to send your companions to it (move there, attack it, open the door, sit by the fire, repair at the station...). Hold it to call them to you.");
 		RadialMenuKey = Bind(cfg, "Controls", "RadialMenuKey", KeyCode.E, "Hold this while looking at a companion to open its command wheel.");
 		ConfigPanelKey = Bind(cfg, "Controls", "ConfigPanelKey", KeyCode.F8, "Opens the in-game settings panel, where all of these settings can be changed.");
+		BuildPanelKey = Bind(cfg, "Controls", "BuildPanelKey", KeyCode.B, "Opens the build panel: the site your companions are building (the plan, the pieces that are up, the materials the rest of the house still needs) with pause, resume and cancel. Esc or this key again closes it. None = no key.");
 		FarmZoneKey = Bind(cfg, "Controls", "FarmZoneKey", KeyCode.Z, "Pressed together with FarmZoneModifier: opens the farm zone editor.");
 		FarmZoneModifier = Bind(cfg, "Controls", "FarmZoneModifier", KeyCode.LeftAlt, "Hold this and press FarmZoneKey to open the farm zone editor.");
 		RecallRange = Bind(cfg, "Controls", "RecallRange", 40f, "How close (meters) a companion has to be to you to answer a recall (holding the command key) or a point-and-command order. Companions with Command switched off on the wheel ignore both. 0 = no limit.", new AcceptableValueRange<float>(0f, 500f));

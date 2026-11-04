@@ -1296,7 +1296,7 @@ internal static class CompanionOrders
 			// companion is the group on its own (the order reaches that one and nobody else, exactly as before);
 			// with nobody named, every companion that can take an order joins (BlueprintWorkers). ONE call starts
 			// them all - never one StartBlueprint per companion, which would build the same pieces twice.
-			List<CompanionSetup> workers = BlueprintWorkers(addressee, hint, max);
+			List<CompanionSetup> workers = BlueprintWorkers(addressee, hint);
 			if (workers.Count == 0)
 			{
 				// nobody can take it at all (dead, Command off, out of range, combat-only or past its own leash):
@@ -1377,8 +1377,11 @@ internal static class CompanionOrders
 	/// the refusal) and a companion whose <b>own</b> home is past the leash, so one far companion doesn't end the
 	/// build for the others (with a single companion the order refuses with the same "too far" line as before,
 	/// because that check runs on the speaker first).</para>
+	///
+	/// <para>11/11/2026 (the build panel): the whole rule of the nameless case is <see cref="CanWorkSite"/> - the panel
+	/// offers exactly the companions this loop would take, so the two can never disagree.</para>
 	/// </summary>
-	private static List<CompanionSetup> BlueprintWorkers(CompanionSetup addressee, Vector3 hint, float max)
+	private static List<CompanionSetup> BlueprintWorkers(CompanionSetup addressee, Vector3 hint)
 	{
 		List<CompanionSetup> workers = new List<CompanionSetup>(4);
 		if (IsDirected(addressee))
@@ -1389,25 +1392,74 @@ internal static class CompanionOrders
 		IReadOnlyList<CompanionSetup> all = CompanionSetup.AllCompanions;
 		for (int i = 0; i < all.Count; i++)
 		{
-			CompanionSetup companion = all[i];
-			// A4 (review of P1, 03/11/2026): MHR_InScope does NOT check the owner and it takes the companion over,
-			// so without this line a nameless "build X" in a two-player world would also pull the OTHER player's
-			// companion into the site (and hand its game the build). The companion has to be OURS first.
-			if (companion == null || !MHR_Owner.IsMine(companion) || !companion.CanWearArmor())
+			string why;
+			// the very rule the build panel uses to offer a companion for a site (CanWorkSite): mine, alive, not a
+			// combat-only type, inside its own home leash and in scope - and being in scope TAKES IT OVER here, which
+			// is what the order always did
+			if (CanWorkSite(all[i], hint, true, out why))
 			{
-				continue;
+				workers.Add(all[i]);
 			}
-			if (max > 0f && companion.HasHomePosition() && Vector3.Distance(companion.GetHomePosition(), hint) > max)
+			else if (CompanionsPlugin.LogDetailed && all[i] != null && why != null)
 			{
-				continue;
+				CompanionsPlugin.Log?.LogDebug("[Build] \"" + CompanionNames.NameOf(all[i]) + "\" ficou fora da obra: " + why);
 			}
-			if (!CompanionInteract.MHR_InScope(companion))
-			{
-				continue;
-			}
-			workers.Add(companion);
 		}
 		return workers;
+	}
+
+	/// <summary>
+	/// P1 (multi-build) + 11/11/2026 (the build panel): can this companion take a piece of a <b>site</b>? The rule of
+	/// <see cref="BlueprintWorkers"/>, extracted so the panel offers exactly the companions the order would take:
+	/// <list type="bullet">
+	/// <item>it is <b>MINE</b> (<see cref="MHR_Owner.IsMine"/> - <c>MHR_InScope</c> does not check the owner, and in a
+	/// two-player world a nameless order would otherwise pull the other player's companion into the site);</item>
+	/// <item>it is alive (a dead body cannot take an order);</item>
+	/// <item>it is not a combat-only type (<see cref="CompanionSetup.CanWearArmor"/> - the dverger ones refuse work);</item>
+	/// <item>the spot is inside its own <c>[Building] MaxDistanceFromHome</c> leash;</item>
+	/// <item>it is in scope (<c>Command</c> on and within <c>[General] RecallRange</c>) - and with
+	/// <paramref name="takeControl"/> the scope check <b>takes the companion over</b>
+	/// (<see cref="CompanionInteract.MHR_InScope"/>), which is what the order does; without it the check is read-only
+	/// (<see cref="CompanionInteract.MHR_InScopeCheck"/> - the panel must not steal a companion while the player reads
+	/// the list).</item>
+	/// </list>
+	/// <paramref name="reason"/> is a short token when it refuses: <c>owner</c>, <c>dead</c>, <c>combat</c>,
+	/// <c>home</c>, <c>command</c> or <c>range</c>.
+	/// </summary>
+	internal static bool CanWorkSite(CompanionSetup c, Vector3 anchor, bool takeControl, out string reason)
+	{
+		reason = null;
+		if (c == null || !MHR_Owner.IsMine(c))
+		{
+			reason = "owner";
+			return false;
+		}
+		Character body = c.GetComponent<Character>();
+		if (body != null && body.IsDead())
+		{
+			reason = "dead";
+			return false;
+		}
+		if (!c.CanWearArmor())
+		{
+			reason = "combat";
+			return false;
+		}
+		float max = ModConfig.BuildMaxDistanceFromHome != null ? ModConfig.BuildMaxDistanceFromHome.Value : 40f;
+		if (max > 0f && c.HasHomePosition() && Vector3.Distance(c.GetHomePosition(), anchor) > max)
+		{
+			reason = "home";
+			return false;
+		}
+		bool inScope = takeControl ? CompanionInteract.MHR_InScope(c) : CompanionInteract.MHR_InScopeCheck(c);
+		if (!inScope)
+		{
+			// the scope test answers one "no" for two reasons: Command switched off (the companion ignores orders) or
+			// simply too far away. The panel says which one it is.
+			reason = c.GetIsCommandable() ? "range" : "command";
+			return false;
+		}
+		return true;
 	}
 
 	private static bool Apply(CompanionSetup companion, string action, int amount, string resource, OrderOutcome outcome)	{

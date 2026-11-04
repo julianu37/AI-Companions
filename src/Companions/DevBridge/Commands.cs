@@ -672,9 +672,13 @@ internal static class Commands
 	/// <c>Ordered</c> pass that fills the level of every piece), the same prefab resolution (<c>BuildProbe.PieceOf</c>)
 	/// and the same skip rules (<see cref="BuildBlueprintSkip"/>) as <c>MHR_Build.StartBlueprint</c> - reported
 	/// <b>without starting anything</b>: how many pieces the plan would have, which lines are left out and why, the
-	/// prefabs, the stations the whole file needs, the file's own bounds and the levels the plan walks. <c>pieces</c> and
-	/// <c>skipped</c> are the numbers the order's own log line carries. Read-only; it needs the world only because the
-	/// pieces are the game's own prefabs.
+	/// prefabs, the stations the whole file needs, the file's own bounds, the levels the plan walks and the material
+	/// need of the whole plan (<c>materials</c>, the same costs <c>BuildStock</c> pays per piece).
+	/// <c>pieces</c> and <c>skipped</c> are the numbers the order's own log line carries. Read-only; it needs the world
+	/// only because the pieces are the game's own prefabs.
+	///
+	/// <para>The reading itself is <see cref="BuildBlueprintReport.Read"/>: the build panel shows the same numbers before
+	/// the order, and a second reader here would be a second set of rules.</para>
 	/// </summary>
 	private static string BlueprintsInspect(Dictionary<string, object> args)
 	{
@@ -693,113 +697,51 @@ internal static class Commands
 			// the pieces ARE the game's prefabs: without the world there is nothing to resolve them against
 			return Fail("the world isn't loaded (the pieces of the blueprint cannot be resolved)");
 		}
-		string[] lines;
-		try
-		{
-			lines = File.ReadAllLines(file, Encoding.UTF8);
-		}
-		catch (Exception e)
-		{
-			return BlueprintsFault(asked, e.Message);
-		}
-		string name;
-		List<BuildBlueprintParser.Line> parsed;
+		BuildBlueprintReport report;
 		string error;
-		int broken;
-		if (!BuildBlueprintParser.Parse(lines, out name, out parsed, out error, out broken))
+		if (!BuildBlueprintReport.Read(file, out report, out error))
 		{
 			return BlueprintsFault(asked, error);
 		}
-		// the VERY pass the order runs: Ordered() decides the walk and fills Line.Level, the key this report counts as a
-		// level of the plan (never a second rule)
-		List<BuildBlueprintParser.Line> ordered = BuildBlueprintParser.Ordered(parsed);
-		Player local = Player.m_localPlayer;
-		int pieces = 0;
-		int skipped = 0;
-		int needingStation = 0;
-		Dictionary<string, int> prefabs = new Dictionary<string, int>();
-		Dictionary<string, int> stations = new Dictionary<string, int>();
-		Dictionary<string, int> skipAt = new Dictionary<string, int>();
-		List<object> skippedReasons = new List<object>();
-		HashSet<int> floorLevels = new HashSet<int>();
-		// one lookup per prefab: a blueprint repeats them by the hundred and the fallback of BuildProbe.PieceOf scans
-		// every prefab of the game on a case mismatch. A null answer is cached too (it is the "not a piece here").
-		Dictionary<string, Piece> resolvedCache = new Dictionary<string, Piece>(StringComparer.Ordinal);
-		float minX = float.MaxValue;
-		float minY = float.MaxValue;
-		float minZ = float.MaxValue;
-		float maxX = float.MinValue;
-		float maxY = float.MinValue;
-		float maxZ = float.MinValue;
-		foreach (BuildBlueprintParser.Line line in ordered)
-		{
-			Piece resolved;
-			if (!resolvedCache.TryGetValue(line.Prefab, out resolved))
-			{
-				resolved = BuildProbe.PieceOf(line.Prefab);
-				resolvedCache[line.Prefab] = resolved;
-			}
-			if (resolved != null && resolved.m_craftingStation != null)
-			{
-				// the station answers "which stations does this FILE need", so a line skipped by the recipe counts too
-				// (the 2x stone_floor_2x2 under no stonecutter are the measured case)
-				Count(stations, resolved.m_craftingStation.m_name);
-			}
-			string skip = BuildBlueprintSkip.Reason(
-				resolved != null,
-				local == null || (resolved != null && local.IsRecipeKnown(resolved.m_name)));
-			if (skip != null)
-			{
-				skipped++;
-				CountSkip(skippedReasons, skipAt, line.Prefab, skip);
-				continue;
-			}
-			pieces++;
-			if (resolved.m_craftingStation != null)
-			{
-				needingStation++;
-			}
-			Count(prefabs, line.Prefab);
-			minX = Mathf.Min(minX, line.Px);
-			minY = Mathf.Min(minY, line.Py);
-			minZ = Mathf.Min(minZ, line.Pz);
-			maxX = Mathf.Max(maxX, line.Px);
-			maxY = Mathf.Max(maxY, line.Py);
-			maxZ = Mathf.Max(maxZ, line.Pz);
-			if (line.Prefab.IndexOf("floor", StringComparison.OrdinalIgnoreCase) >= 0)
-			{
-				// a storey is a floor slab: the distinct heights of the floors of the plan, 0,1 m apart (the parser's
-				// own "floor" test, the same one Ordered() uses to find the slabs a roof covers)
-				floorLevels.Add((int)Math.Round(line.Py * 10f));
-			}
-		}
 		Dictionary<string, object> bounds = null;
-		if (pieces > 0)
+		if (report.HasBounds)
 		{
 			bounds = new Dictionary<string, object>
 			{
-				{ "min", new Dictionary<string, object> { { "x", Round2(minX) }, { "y", Round2(minY) }, { "z", Round2(minZ) } } },
-				{ "max", new Dictionary<string, object> { { "x", Round2(maxX) }, { "y", Round2(maxY) }, { "z", Round2(maxZ) } } }
+				{ "min", new Dictionary<string, object> { { "x", Round2(report.MinX) }, { "y", Round2(report.MinY) }, { "z", Round2(report.MinZ) } } },
+				{ "max", new Dictionary<string, object> { { "x", Round2(report.MaxX) }, { "y", Round2(report.MaxY) }, { "z", Round2(report.MaxZ) } } }
 			};
 		}
-		// a file with no floor at all (posts and a roof) is still one storey; a file with no piece at all has none
-		int storeys = pieces == 0 ? 0 : (floorLevels.Count > 0 ? floorLevels.Count : 1);
+		List<object> skippedReasons = new List<object>(report.SkippedReasons.Count);
+		foreach (BuildBlueprintReport.SkipReason reason in report.SkippedReasons)
+		{
+			skippedReasons.Add(new Dictionary<string, object>
+			{
+				{ "prefab", reason.Prefab },
+				{ "reason", reason.Reason },
+				{ "count", reason.Count }
+			});
+		}
 		return Ok(new Dictionary<string, object>
 		{
-			{ "file", Path.GetFileName(file) },
+			{ "file", report.File },
 			{ "path", file },
-			{ "name", name },
-			{ "lines", lines.Length },
-			{ "pieceLines", parsed.Count },
-			{ "brokenLines", broken },
-			{ "pieces", pieces },
-			{ "skipped", skipped },
+			{ "name", report.Name },
+			{ "lines", report.Lines },
+			{ "pieceLines", report.PieceLines },
+			{ "brokenLines", report.Broken },
+			{ "pieces", report.Pieces },
+			{ "skipped", report.Skipped },
 			{ "skippedReasons", skippedReasons },
-			{ "prefabs", prefabs },
-			{ "stations", stations },
+			{ "prefabs", report.Prefabs },
+			{ "stations", report.Stations },
 			{ "bounds", bounds },
-			{ "storeys", storeys },
-			{ "piecesNeedingStation", needingStation }
+			{ "storeys", report.Storeys },
+			{ "piecesNeedingStation", report.PiecesNeedingStation },
+			// the material need of the whole plan and how many of its prefabs answered no cost at all (the panel says
+			// "this house needs 1.400 wood" before the order; the order itself pays per piece, unchanged)
+			{ "materials", report.Materials },
+			{ "materialsSkipped", report.NoRecipe }
 		});
 	}
 
@@ -834,36 +776,6 @@ internal static class Commands
 			}
 		}
 		return count;
-	}
-
-	private static void Count(Dictionary<string, int> counts, string key)
-	{
-		if (string.IsNullOrEmpty(key))
-		{
-			return;
-		}
-		counts.TryGetValue(key, out int have);
-		counts[key] = have + 1;
-	}
-
-	/// <summary>Groups the skipped lines by prefab AND reason (the same prefab may be left out for two reasons), in the
-	/// order the plan walks them.</summary>
-	private static void CountSkip(List<object> entries, Dictionary<string, int> at, string prefab, string reason)
-	{
-		string key = prefab + "\n" + reason;
-		if (at.TryGetValue(key, out int index))
-		{
-			Dictionary<string, object> entry = entries[index] as Dictionary<string, object>;
-			entry["count"] = (int)entry["count"] + 1;
-			return;
-		}
-		at[key] = entries.Count;
-		entries.Add(new Dictionary<string, object>
-		{
-			{ "prefab", prefab },
-			{ "reason", reason },
-			{ "count", 1 }
-		});
 	}
 
 	private static float Round2(float value)
