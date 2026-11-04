@@ -2905,6 +2905,10 @@
             "value": "Andar até o alcance"
         },
         {
+            "key": "hc_cfg_building_spreadworkers",
+            "value": "Espalhar os companheiros"
+        },
+        {
             "key": "hc_ai_order_command",
             "value": "aceitar comandos"
         },

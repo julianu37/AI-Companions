@@ -2905,6 +2905,10 @@
             "value": "Camminare a portata"
         },
         {
+            "key": "hc_cfg_building_spreadworkers",
+            "value": "Distribuisci i compagni"
+        },
+        {
             "key": "hc_ai_order_command",
             "value": "accettare ordini"
         },

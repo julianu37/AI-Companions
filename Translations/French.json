@@ -2905,6 +2905,10 @@
             "value": "Marcher à portée"
         },
         {
+            "key": "hc_cfg_building_spreadworkers",
+            "value": "Répartir les compagnons"
+        },
+        {
             "key": "hc_ai_order_command",
             "value": "accepter les ordres"
         },

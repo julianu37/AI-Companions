@@ -613,10 +613,11 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
 - **Pendências conhecidas (abertas):** (1) navegação no andar em obra; (2) a voz não passa pelo mixer do jogo (só
   `[AI] TtsVolume`); (3) sync com o upstream `main` (1.5.8) em dia — conferir antes de cada release; (4) o nome do
   companheiro no centro do radial (cosmético); (5) posse do ZDO no spawn em multiplayer dedicado; (6) a dívida de
-  **106** chaves por idioma do `gen_translations.py --check` (**49 → 106 em 11/11/2026**: o mapa indexa por texto PT e
+  **106 → 107** chaves por idioma do `gen_translations.py --check` (**49 → 106 em 11/11/2026**: o mapa indexa por texto PT e
   não cobre o bloco `hc_cfg_building_*` nem as falas de construção, e o lote do painel de obra pôs **57** chaves novas
   nos **4** JSONs (`48e2e96`, 56 do painel + `hc_cfg_building_reachwalk`) **sem** pôr essas strings no mapa — 49 + 57 =
-  **106**, medido com `python tools/gen_translations.py --check` neste ciclo);
+  **106**; **+1** com a `hc_cfg_building_spreadworkers` traduzida no ciclo do Run 18 = **107**, medido com
+  `python tools/gen_translations.py --check`);
   (7) a coleta do build com a mochila no teto de peso (o run dos 1045 ficou 300 s sem entregar a madeira);
   (8) a sonda de corpo do build **não testa criaturas** (um javali em cima da peça
   ainda passa) — a `[Building] StepAside` e a sonda por **cápsula real × caixa girada** **foram medidas no Run 11**
@@ -658,13 +659,14 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   lacunas** (`python tools/audit_translations.py [--lang …]`); a dívida do `gen_translations.py --check` foi de **47
   para 49** (item 6).
 
-  **Achado de localização ABERTO (11/11/2026, ciclo do Run 15/16):** a chave **nova** `hc_cfg_building_spreadworkers`
-  (`Core/ModLocalization.cs:850`, "Spread the crew out") **não está em nenhum dos 4 JSONs** — o
-  `python tools/audit_translations.py` acusa **1 ausente no PT-BR** (`hc_cfg_building_spreadworkers`) e ES/FR/IT
-  continuam **0 lacunas** só porque a comparação é **contra o PT** (os quatro têm as mesmas **1113** chaves). Efeito: no
-  F8 em PT/ES/FR/IT a linha do `SpreadWorkers` mostra a **chave crua**. **Não corrigido neste ciclo** (o
-  `Translations/**` ficou fora do escopo do agente de docs, por instrução do arquiteto) — **pendente:** pôr a chave nos
-  **4** JSONs e revalidar o audit (PT **0 ausentes** e ES/FR/IT **0 lacunas**).
+  **Achado de localização (11/11/2026, CORRIGIDO no ciclo do Run 18):** a chave **nova**
+  `hc_cfg_building_spreadworkers` (`Core/ModLocalization.cs:850`, "Spread the crew out") estava **só no inglês** (o F8
+  em PT/ES/FR/IT mostrava a **chave crua**) e entrou nos **4** JSONs, depois de `hc_cfg_building_reachwalk` (o bloco
+  `hc_cfg_building_*` **não é alfabético** — é *append*), na **mesma linha (2908) nos quatro** arquivos:
+  PT "Espalhar os companheiros" · ES "Repartir a los compañeros" · FR "Répartir les compagnons" ·
+  IT "Distribuisci i compagni". **Medido:** os 4 JSONs parseiam (`json.load`), `audit_translations.py` com
+  **0 ausentes / 0 sobrando / 0 categorias ausentes** nos quatro idiomas, e a dívida do
+  `gen_translations.py --check` foi **106 → 107** por idioma (o valor novo não existe no mapa por texto PT — item 6).
 
 ## Nossas docs
 

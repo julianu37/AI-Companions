@@ -2905,6 +2905,10 @@
             "value": "Caminar hasta el alcance"
         },
         {
+            "key": "hc_cfg_building_spreadworkers",
+            "value": "Repartir a los compañeros"
+        },
+        {
             "key": "hc_ai_order_command",
             "value": "aceptar comandos"
         },
