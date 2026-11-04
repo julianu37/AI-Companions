@@ -166,6 +166,22 @@ nothing is ordered —, but a form of address keeps working (`mate, collect 10 s
 | `wander around` / `stop wandering` | Turns **wandering** on/off |
 | `take orders` / `ignore orders` | Turns **taking orders** on/off |
 
+### Building
+
+The building orders take the same path: **one piece** (a workbench, a chest, a bed…), a **template** (a house, the
+hut, the bench shelter, the tent), a **`.blueprint`** file by its **file name** (`build the hs_meadows_hut here`) and
+the ground on its own (`level a 10x10 ground here`).
+
+> **With several companions (in test):** the order **without a name** puts **every** companion that can take it (and is
+> close enough to the site) into the **same build** — one plan, each piece built **once**. The **leader** levels the
+> ground and clears the site while the others **wait** for it, and if he dies another one takes over. With the
+> **name**, only that one builds. A plain **`stop`** drops the build for the whole group and **`Sophia, stop`** takes
+> only her out of it (any other order to her does the same). **One build per player** at a time.
+>
+> The limits of this first stage: the **materials are counted per companion** (they can bring more than the plan
+> needs), the group lives **in memory** (it is not in the save) and it is **blueprints only** — a single piece or a
+> template still has one companion on it.
+
 ### Conversation
 
 | You say | What he does |

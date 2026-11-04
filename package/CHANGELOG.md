@@ -212,6 +212,20 @@ stopped.
   once. New `[Movement] PathingOnBuild` (on by default; needs `[Movement] Pathing`). **Measured in game (03/11/2026):**
   a workbench placed by the companion took `nav.stats.pokes` from 0 to 1 and made the game rebuild **+9 tiles**
   (the exact tiles the hook marks); removing it took the counter to 2.
+- **A whole group of companions builds one blueprint together** (**in test**, 03/11/2026 - **P1 of the multi-build
+  plan**): a blueprint order **without a name** ("build the hs_meadows_hut here") now puts **every** companion that can
+  take it (and is close enough to the site) into the **same build** - one plan, and each piece is built **once** (a
+  piece belongs to one worker while it is being placed, so nobody builds the same wall twice). The **leader** does the
+  site work (leveling and clearing) and the others **wait** for it, then each one takes a piece of its own; a piece
+  that does not stand goes to the **site's retry queue**, which any worker may pull again. If the leader dies or
+  leaves, **the next worker is promoted** and carries on with the same plan. With a **name** ("Sophia, build the
+  hs_meadows_hut here") only that one builds, as before. A plain **"stop"** drops the build for the whole group,
+  **"Sophia, stop"** takes only her out of it, and any other order to her ("Sophia, gather wood") does the same.
+  **One build per player** at a time: a second blueprint order is refused until the running one stops. The limits of
+  this first stage: the **materials are counted per companion** (there is no per-piece reservation between the workers
+  yet, so the same stack may be counted twice and they can gather more than the plan needs), the group lives **in
+  memory** (it is **not in the save**), and the group is **blueprints only** - a single piece and a template still have
+  one companion on them. Build 0/0 and the harness at **471 assertions** pass; **not validated in game yet**.
 
 ## 1.9.6 - 02/11/2026
 

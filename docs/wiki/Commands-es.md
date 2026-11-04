@@ -165,6 +165,22 @@ nada —, pero una forma de tratamiento sigue valiendo (`jefe, recoge 10 piedras
 | `vaga por aquí` / `deja de vagar` | Enciende/apaga el **vagar** |
 | `acepta comandos` / `ignora comandos` | Enciende/apaga **aceptar órdenes** |
 
+### Construcción
+
+Las órdenes de construcción van por el mismo camino: **una pieza** (una mesa de trabajo, un cofre, una cama…), una
+**estructura lista** (una casa, la cabaña, el refugio de la mesa de trabajo, la tienda), un archivo **`.blueprint`** por
+el **nombre del archivo** (`construye la hs_meadows_hut aquí`) y el terreno solo (`nivela un terreno 10x10 aquí`).
+
+> **Con varios compañeros (en prueba):** la orden **sin nombre** pone a **todos** los compañeros que pueden tomarla (y
+> están lo bastante cerca del sitio) en la **misma obra** — un plano, cada pieza hecha **una vez**. El **líder** nivela
+> el terreno y limpia el sitio mientras los otros **esperan**; si muere, otro toma el mando. Con el **nombre**, solo
+> ese construye. Un **`para`** sin nombre tumba la obra de todo el grupo y **`Sophia, para`** saca solo a ella
+> (cualquier otra orden para ella hace lo mismo). **Una obra por jugador** a la vez.
+>
+> Los límites de esta primera etapa: los **materiales se cuentan por compañero** (pueden recoger más de lo que el
+> plano necesita), el grupo vive **en la memoria** (no va al guardado) y es **solo para blueprint** — una pieza o una
+> estructura lista siguen con un solo compañero.
+
 ### Conversación
 
 | Dices | Qué hace |

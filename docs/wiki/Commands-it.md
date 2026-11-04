@@ -167,6 +167,22 @@ viene ordinato niente —, ma una forma di cortesia continua a valere (`capo, ra
 | `gironzola qui intorno` / `smetti di gironzolare` | Accende/spegne il **gironzolare** |
 | `accetta ordini` / `ignora ordini` | Accende/spegne **accettare ordini** |
 
+### Costruzione
+
+Gli ordini di costruzione seguono lo stesso percorso: **un pezzo** (un banco da lavoro, una cassa, un letto…), una
+**struttura pronta** (una casa, la capanna, il riparo del banco, la tenda), un file **`.blueprint`** per il **nome del
+file** (`costruisci la hs_meadows_hut qui`) e il terreno da solo (`livella un terreno 10x10 qui`).
+
+> **Con più compagni (in prova):** l'ordine **senza nome** mette **tutti** i compagni che possono prenderlo (e sono
+> abbastanza vicini al cantiere) nella **stessa opera** — un piano, ogni pezzo fatto **una volta**. Il **capo** livella
+> il terreno e libera il cantiere mentre gli altri **aspettano**; se muore, un altro prende il comando. Con il **nome**,
+> costruisce solo quello. Un **`fermati`** senza nome abbandona l'opera di tutto il gruppo e **`Sophia, fermati`**
+> toglie solo lei (qualsiasi altro ordine per lei fa lo stesso). **Un'opera per giocatore** alla volta.
+>
+> I limiti di questa prima tappa: i **materiali sono contati per compagno** (possono raccogliere più di quanto il
+> piano chieda), il gruppo vive **nella memoria** (non va nel salvataggio) ed è **solo per blueprint** — un pezzo
+> singolo o una struttura pronta restano con un compagno solo.
+
 ### Conversazione
 
 | Dici | Cosa fa |
