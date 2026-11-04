@@ -1756,14 +1756,14 @@ workers terminaram com o watchdog em `0 peça(s) sem apoio` e o **terceiro** par
 - **O diagnóstico das 6 (medido):** as 6 estão em **y 42,8 / 44,8 / 46,8** — as **fileiras de cima da empena/da água**.
   Numa empena a fileira de cima é sustentada pela **de baixo**, que também é **telhado** (`wood_wall_roof_45`/`_top` caem
   na **classe 3** de `BuildBlueprintParser.ClassOf`, `AI/BuildBlueprintParser.cs:295-298`). O `DirectSupportIndex`
-  (`MHR_Build.cs:3128`) — o que o `PullDirectSupport` (`:3094`) pode puxar — **excluía toda peça de classe 3** como
+  (`MHR_Build.cs:3177`) — o que o `PullDirectSupport` (`:3143`) pode puxar — **excluía toda peça de classe 3** como
   apoio: só piso/parede/viga/escada podiam ser puxados. Para essas 6 **não havia apoio a puxar**: o pull devolvia `-1`,
   a peça voltava pela fila como **dependência** (sem gastar tentativa, §17.2) e o watchdog a deixava de fora aos **60 s**.
   Ou seja: **a empenha não fecharia nunca** por esse caminho, por mais tempo que se esperasse — não era falta de
   tentativa, era o candidato nunca sendo considerado.
 - **A correção (1): telhado apoia telhado** — `BuildSupportBelow.CanSupport(pieceClass, candidateClass)`
-  (`AI/BuildSupportBelow.cs:72`), chamado em `DirectSupportIndex` (`MHR_Build.cs:3152`) **depois** do
-  `BuildPieceKind.IsStructural` (`:3148`):
+  (`AI/BuildSupportBelow.cs:145`), chamado em `DirectSupportIndex` (`MHR_Build.cs:3177`, a chamada em `:3201`) **depois**
+  do `BuildPieceKind.IsStructural` (`:3197`):
   - **telhado (3)** é apoiado por **telhado (3)** — a fileira de baixo da mesma água, o caso medido —, por **piso (0)**
     (o `roof` em 46,8 sobre o `floor` em 44,8, medido), por **parede/viga (2)** e por **escada (1)**;
   - **piso (0) e parede (2) não são apoiados por telhado** (um telhado acima não segura nada) — é o que impede o pull de
@@ -1771,7 +1771,7 @@ workers terminaram com o watchdog em `0 peça(s) sem apoio` e o **terceiro** par
   - **porta (4) nunca apoia nada** — e a **porta como peça** continua podendo ser apoiada por parede, então "portas por
     último" segue valendo;
   - **mobília nunca entra**, e não é o `CanSupport` que a barra: o `BuildPieceKind.IsStructural` já a corta antes
-    (`:3148`) — baú/cama sob um piso não é o que o jogo lê como apoio;
+    (`:3197`) — baú/cama sob um piso não é o que o jogo lê como apoio;
   - **a janela (0,4–2,5 m abaixo × 2,5 m em XZ) e o `Rank` (a queda pesa 10×) não mudaram** — o que mudou é **quem**
     pode ser candidato.
 - **A correção (2): `falls` com uma segunda chance** — as **4** foram dadas por perdidas com `falling from the way to
@@ -1875,27 +1875,84 @@ workers terminaram com o watchdog em `0 peça(s) sem apoio` e o **terceiro** par
 - **O que ela fecha:** as **16** do Run 3 (§17.6 — colunas na **empenha leste** e no **canto noroeste**, 40,8→46,8, + 4
   baús) e as **6** de 42,8/44,8/46,8 que sobraram no run do deck (§17.10), que são exatamente o caso "o autor não pôs
   nada embaixo". **Estado: medido no run de 11/11/2026 (§17.13)** — build **0/0** e harness **596**; no run, **0 postes
-  foram necessários** (não era apoio que faltava) e o telhado fechou com a regra do §17.12.
+  foram necessários** (não era apoio que faltava) e o telhado fechou — mas **não** por esta regra: o §17.12 mostrou que
+  a classe do telhado era **inócua** (o flag é `true`) e que o que travava era **geometria**.
 
-### 17.12 O telhado que não carrega apoio (`HoldsPlacedPiece`, 11/11/2026)
+### 17.12 O telhado, o `m_supports` e o degrau de 0,6 m (`HoldsPlacedPiece`) — texto corrigido
 
-- **O medido:** **13 peças** de telhado (42,8/44,8/46,8) ficaram **5 rodadas** presas em `no_support` e a casa nunca
-  fechava — com a fileira de baixo **de pé** ao lado delas.
-- **A causa:** `BuildProbe.FootprintSupported` (`AI/BuildProbe.cs:672`, docstring `:659-671`) só aceitava, dentro do
-  footprint, um `WearNTear` com **`m_supports = true`**. No Valheim **telhado tem `m_supports = false`**: ele *não
-  carrega* apoio — ele **se apoia pela borda**, na fileira de baixo da mesma água. A regra, portanto, recusava **todo
-  telhado sobre outro telhado**, mesmo com o de baixo construído.
-- **A correção:** a decisão virou **classe da peça**, em `BuildSupportBelow.HoldsPlacedPiece(pieceClass, isTerrain,
-  hasWear, wearSupports)` (`AI/BuildSupportBelow.cs:172`), chamada em `:693`:
-  - **terreno** segura **qualquer** peça;
-  - **telhado (classe 3**, inclui `wood_wall_roof_*`**)**: apoiado por **qualquer `WearNTear`** no footprint, **mesmo com
-    `m_supports = false`**;
-  - **as outras classes** (piso, parede, viga, pole, escada, porta) continuam exigindo **`m_supports`** — senão uma
-    parede ficaria em cima de um baú; e o que não tem `WearNTear` (pedra, árvore, item no chão) não é apoio.
+> **Correção factual (fonte: `docs/re/support-rule-wearntear.md`, medido em 04/11/2026).** A versão anterior deste § dizia
+> que "no Valheim **telhado tem `m_supports = false`**" e que era por isso que 13 peças ficavam em `no_support`. **É falso
+> na 1.0.20**, medido com o `build.inspect` do DevBridge — ver §1 e §5 da nota.
+
+- **O medido no run de 11/11:** **13 peças** de telhado (42,8/44,8/46,8) ficaram **5 rodadas** presas em `no_support` e a
+  casa não fechava — com a fileira de baixo **de pé** ao lado delas.
+- **Os flags, medidos (`m_supports` do `WearNTear` do prefab, o mesmo campo que o `UpdateSupport` lê):**
+
+| prefab | `m_supports` |
+|---|---|
+| `wood_roof` · `wood_roof_45` · `wood_roof_top` · `wood_roof_top_45` · `wood_roof_icorner_45` | **true** |
+| `wood_floor` · `wood_wall_half` | **true** |
+| `wood_stair` · `wood_stepladder` | **true** |
+| `wood_pole2` · `wood_beam_1` | **true** |
+| `piece_chest_wood` (mobília) | **false** |
+
+  **Todas as peças estruturais de madeira — telhados inclusive — são `true`**; só a **mobília** é `false`. (Os bounds Y
+  de cada prefab e a confirmação no CIL estão em `docs/re/support-rule-wearntear.md` §1/§5.)
+- **Consequência 1 — o bypass de classe 3 é inócuo:** `BuildSupportBelow.HoldsPlacedPiece(pieceClass, isTerrain,
+  hasWear, wearSupports)` (`AI/BuildSupportBelow.cs:172`), o `return pieceClass == 3 || wearSupports` de `:182`,
+  chamado em `BuildProbe.cs:693`, foi escrito sobre a premissa errada, mas **não mudou comportamento nenhum**: com o
+  flag `true` nas duas pontas, "telhado ← qualquer `WearNTear`" e "telhado ← só quem tem `m_supports`" dão o **mesmo
+  resultado**. Ele **ficou por segurança** (a intenção — telhado não é mobília — continua válida), e a **única** ponta
+  em que ele **não** é inócuo é a **errada**: um telhado apoiado em **mobília** (`m_supports = false`) passa no nosso
+  teste; o jogo recusaria pela mira (`Player.cs:3890-3893`) e o telhado cairia de qualquer jeito. As **outras classes**
+  continuam exigindo `m_supports` — senão uma parede subiria em cima de um baú — e o que não tem `WearNTear` (pedra,
+  árvore, item no chão) não é apoio. **Os docstrings que repetem a premissa errada** são os de
+  `BuildSupportBelow.HoldsPlacedPiece` (`:158-171`) e de `BuildProbe.FootprintSupported` (`:659-671`): corrigi-los é
+  lote de **código**, não deste doc.
+- **Consequência 2 — a causa real das 13 era geometria:** o `no_support` do telhado vinha do **alcance de apoio**, não
+  do flag. O `FootprintSupported` (`AI/BuildProbe.cs:672`) testa a caixa do **renderer** (`BoxOf`, `:343`) crescida
+  **0,15 m**; numa água a 45° a fileira de baixo fica **~2 m na diagonal**, **fora** dessa caixa (§5 da nota) — nada a
+  ver com carregar apoio.
+- **A regra do jogo (a que o validador tenta copiar):** o apoio é **geométrico e por collider** — cada collider é
+  crescido **0,3 m no total (0,15 m por lado)** em X/Y/Z (`WearNTear.SetupColliders`: `size += 0,3; size *= 0,5`,
+  `WearNTear.cs:484-514`) e o `UpdateSupport` (`:823-995`) consulta as layers
+  `piece|Default|static_solid|Default_small|terrain`. **A colocação NÃO testa apoio:** o `Player.UpdatePlacementGhost`
+  (`Player.cs:3793-4114`) só lê o `m_supports` da peça **sob a mira** — nada ali chama `UpdateSupport`/`HaveSupport`.
+  A peça sem conexão (`m_support` 0) é **colocada** e o `UpdateWear` (`:525-699`) aplica **100 % de dano** no tick
+  seguinte (~1 s): ela **cai e dropa** os materiais (`:568-575`/`:685-692`). **Não existe "vão generoso"** — acima de
+  **0,15 m** de folga entre superfícies **não há conexão nenhuma**.
+- **O run de 11/11 do degrau de 0,6 m — aqui o `no_support` estava CERTO:** **8 `wood_floor`** em y **40,4/41,4** — a
+  primeira fileira é o **degrau de 0,6 m** sobre o piso do deck em 39,8 (o caso da nota §4: **~4×** o limite de 0,15 m,
+  **fora por 0,19–0,35 m**) — mais os **12 baús** que ficavam em cima deles. É o run que **ficou no retry** (diferente do
+  §17.13, que fechou em **969 + 18 = 987**): repetia os mesmos índices (`wood_floor` **297/298/304**) e **travou em
+  950/987**. Insistir nelas
+  seria colocar peça que **o jogo derruba** no segundo seguinte — o `no_support` não escondia bug do validador. **E o
+  poste não cobria esse vão:** com `MaxOverlap` **0,35 m** (`AI/BuildSupportBelow.cs:111`), o `wood_beam_1` (1 m) só
+  alcança vão de **0,65 a 1,20 m** (`PickPost`, `:80`; os dois números em `:107`/`:111`), e a lista de candidatos do mod
+  não tem peça mais curta (`FallbackPostPrefabs`, `MHR_Build.cs:79`).
+- **Pendência aberta — o conserto do degrau está anunciado, não no código desta árvore:** o `package/CHANGELOG.md`
+  (11/11/2026) registra que o poste passou a aceitar `MaxOverlap` **0,45** (vão de **0,55 a 1,20 m** para o
+  `wood_beam_1`) e que **sólido sem `WearNTear`** (pedra, árvore, estrutura) volta a apoiar — mas aqui `MaxOverlap` ainda
+  é **0,35** (`AI/BuildSupportBelow.cs:111`) e `HoldsPlacedPiece` ainda responde **false** para `hasWear == false`
+  (`:178-181`). E o **docstring do `PickPost`** (`:73-78`) **já descreve a janela nova** (`[0,55; 1,20]`) — **doc ≠
+  código** neste tree. Fica registrado para o lote de **código**: o degrau de 0,6 m só ganha poste **depois** dessa
+  mudança.
+- **O que sobra é desenho do plano, não validador** (nota §6): degrau/`DeckLift` **≤ 0,15 m por peça**, ou a
+  parede/viga do andar de baixo **no plano** até o piso de cima (o `PullDirectSupport` só puxa peça **do plano**), ou
+  aceitar `MaxOverlap ≥ 0,40` e fincar um `wood_beam_1` atravessando (fica visível). **Nenhuma das três foi decidida**
+  (o `DeckLift` é decisão do jogador).
 - **Irmão, não gêmeo, do `CanSupport`** (`BuildSupportBelow.cs:145`, a regra do **pull**): lá **telhado só apoia
   telhado** e **porta nunca apoia**; aqui o telhado é apenas **apoiado** por qualquer `WearNTear`. As duas concordam no
   essencial: **porta nunca segura** e **telhado nunca segura um piso**.
-- **Harness:** seção **(r)** de **51 → 61** casos (+10 do `HoldsPlacedPiece`).
+- **Harness:** seção **(r)** de **51 → 61** casos (+10 do `HoldsPlacedPiece`). **Ressalva:** os casos `:947` ("telhado
+  sobre telhado: a fileira de baixo apoia pela borda") e `:951` ("piso NAO e apoiado por telhado") de
+  `tools/ai-intents-check/Program.cs` passam `m_supports = false` numa peça **estrutural**, estado que **não existe** na
+  1.0.20 (só mobília é `false`); com o valor real (`true`) o `HoldsPlacedPiece` devolve `true` nos dois — quem barra o
+  piso sobre telhado é o **`CanSupport`** (o pull), não o flag. Os casos provam a **regra da classe**, não o bypass;
+  ajustar o `why` é do **dono de `tools/**`**.
+- **O que a nota declara como não verificado:** a espessura real do collider do `wood_floor` (muda só o "vão máximo
+  entre pivôs": 0,41 m pelo renderer, ~0,25 m por uma tábua de 0,1 m) e o ensaio destrutivo (colocar o piso a 0,6 m e
+  vê-lo cair) — não feito de propósito, com o run em andamento (`docs/re/support-rule-wearntear.md` §7).
 
 ### 17.13 O run de 11/11/2026 (5 companheiros, `DeckLift = 1`) — resultado e a ressalva
 

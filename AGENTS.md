@@ -297,12 +297,31 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   agora o `BuildSupportBelow.CanSupport` (`AI/BuildSupportBelow.cs:145`, usado no `MHR_Build`) permite
   telhado→telhado (e telhado no piso/parede/viga/escada), **porta nunca apoia** e a **mobília** continua fora pelo
   `IsStructural`, com a janela 0,4–2,5 m abaixo × 2,5 m em XZ e o `Rank` **intactos**; (b) **a peça colocada**:
-  `BuildProbe.FootprintSupported` (`:672`) só aceitava `WearNTear` com **`m_supports = true`**, e **telhado no Valheim
-  tem `m_supports = false`** (ele se apoia pela **borda**, na fileira de baixo) — **13 peças** de telhado
-  (42,8/44,8/46,8) ficaram **5 rodadas** em `no_support` e a casa não fechava; agora
-  `BuildSupportBelow.HoldsPlacedPiece(pieceClass, isTerrain, hasWear, wearSupports)` (`:172`) decide por **classe**:
-  **terreno** segura tudo, **telhado (3)** é apoiado por **qualquer `WearNTear`** mesmo com `m_supports = false`, e as
-  **outras classes** continuam exigindo `m_supports` (senão uma parede subiria em cima de um baú); (c) **`falls` com
+  `BuildProbe.FootprintSupported` (`:672`) só aceitava `WearNTear` com **`m_supports = true`** e ganhou o bypass de
+  **telhado (classe 3)** em `BuildSupportBelow.HoldsPlacedPiece(pieceClass, isTerrain, hasWear, wearSupports)` (`:172`):
+  **terreno** segura tudo, **telhado (3)** é apoiado por **qualquer `WearNTear`**, e as **outras classes** continuam
+  exigindo `m_supports` (senão uma parede subiria em cima de um baú). **O motivo escrito na época está ERRADO** — a doc
+  dizia "telhado no Valheim tem `m_supports = false`", e **medido na 1.0.20** (`build.inspect` pelo DevBridge,
+  04/11/2026, `docs/re/support-rule-wearntear.md` §5) `wood_roof`, `wood_roof_45`, `wood_roof_top`, `wood_roof_top_45`,
+  `wood_roof_icorner_45`, `wood_floor`, `wood_wall_half`, `wood_stair`, `wood_stepladder`, `wood_pole2` e
+  `wood_beam_1` são **todos `m_supports = true`**; só a **mobília** (`piece_chest_wood`) é `false`. Com as duas pontas
+  em `true` o bypass é **inócuo** (`:182` `return pieceClass == 3 || wearSupports`) — **o comportamento não mudou** com
+  telhado sobre telhado; ele **ficou** por segurança (a intenção era só não exigir de telhado um flag de quem carrega
+  apoio), e a **única** ponta em que ele **não** é inócuo é a **errada**: um telhado apoiado em **mobília**
+  (`m_supports = false`) passa no nosso teste — o jogo recusaria pela mira e derrubaria de qualquer forma. As outras
+  classes seguem exigindo o flag (senão uma parede subiria em cima de um baú). E a **causa real das 13 peças** de
+  telhado (42,8/44,8/46,8), que passaram **5 rodadas** em `no_support`, é **geometria — o alcance de apoio**, não o flag
+  (§5 da mesma nota). **A regra do jogo:** apoio = **0,15 m de sobreposição entre colliders**
+  (`WearNTear.SetupColliders` cresce cada caixa em 0,3 m no total, `WearNTear.cs:484-514`)
+  e a **colocação não testa apoio** (`Player.UpdatePlacementGhost` não chama `UpdateSupport`/`HaveSupport`,
+  `Player.cs:3793-4114`): a peça sem conexão (`m_support` 0) é **colocada** e o `UpdateWear` aplica **100 % de dano** no
+  tick seguinte (~1 s) — ela **cai** e dropa os materiais (`WearNTear.cs:568-575`/`:685-692`). **Medido no run de 11/11
+  do degrau:** um `wood_floor` a **0,6 m** acima do deck não tem apoio (**~4×** os 0,15 m) e nem poste resolve —
+  com `MaxOverlap` **0,35** no código desta árvore (`AI/BuildSupportBelow.cs:111`), o `wood_beam_1` (o mais curto) só
+  cobre vão de **0,65 a 1,20 m** (o conserto anunciado no `package/CHANGELOG.md` — 0,45 → janela 0,55–1,20 — **ainda não
+  está no código**, e o docstring do `PickPost` já o descreve: é divergência anotada no §17.12) → **8 pisos em degrau**
+  (y 40,4/41,4) **+ 12 baús** recusados e o run **travou em 950/987** no retry (`wood_floor` **297/298/304** repetindo):
+  ali o `no_support` estava **CERTO** — colocar faria o jogo derrubar (§17.12 e §4/§6 item 6 da nota); (c) **`falls` com
   uma segunda tentativa** — a peça que sobe e cai **duas vezes** ganha **uma** tentativa em **pose ajustada até 1 m**
   (`AdjustFallenPose`/`AdjustPose`, guarda `State.FallAdjusted`, log `log ajustado … - falls`) e só desiste sem pose
   válida; o `NudgePiece` passou a **delegar** no `AdjustPose`. O grupo distribuiu o plano por índices distintos,
@@ -346,7 +365,10 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   `apoio de emergência: <prefab> (<len> m) sob <prefab> em (x, y, z)`, e as recusas dizem o motivo
   (`- vão de X,XX m (N superfície(s) colada(s) ignorada(s))`, `- <status>`, `sem material …`, `- <erro>`). Não há peça
   vertical de ~4 m em vanilla → vão > ~3,1 m **não recebe poste**. No **run de 11/11** ele **não foi necessário**
-  (`apoio de emergência` = 0): o que faltava era a regra do telhado, abaixo.
+  (`apoio de emergência` = 0): **não era apoio que faltava** — o telhado fechou com a regra do pull (a) e o flag do
+  telhado não era o problema (b), §17.13. Onde o poste **não pode** ajudar é o **degrau de 0,6 m**: o vão fica **abaixo**
+  da janela do `wood_beam_1` (0,65 m) e a lista de candidatos do mod não tem peça mais curta
+  (`FallbackPostPrefabs`, `MHR_Build.cs:79` — §17.12).
   **O validador (lote de
   04/11/2026, medido):** `AttachedToStructure` com **4,0 m** de `OverlapSphere` (2,6 m não achava a vizinha do
   telhado, que fica a ~2,8–3,5 m na diagonal; com 4,0 m o `no_ground` foi **~25 → 0**); **`NudgePiece` universal**
@@ -538,8 +560,9 @@ comandos de console e spawna coisas, então não é feature de jogador.
   `CompanionNameMatch`) e das tabelas puras (`NavTileMath` na **(o)**, `BuildFailure.Classify` na **(p)** — 23 casos,
   `AI/BuildFailure.cs`; `BuildPieceKind` na **(q)** — 26, `AI/BuildPieceKind.cs`; `BuildSupportBelow` na **(r)** — **61**,
   `AI/BuildSupportBelow.cs`, com `CanSupport`, o `PickPost` do poste de emergência, a `UsefulSurface` (a caminhada do
-  raio) e o `HoldsPlacedPiece` (a regra do telhado); `BuildBody` na **(s)** — **15**, `AI/BuildBody.cs`, a janela do
-  corpo do `blocked_by_player`; os quatro linkados no `.csproj`) com os `.cs` reais linkados,
+  raio) e o `HoldsPlacedPiece` (a regra do telhado — **inócua** hoje: dois dos 10 casos usam `m_supports = false` numa
+  peça estrutural, estado que não existe na 1.0.20; ver §17.12 de `building-notes`); `BuildBody` na **(s)** — **15**,
+  `AI/BuildBody.cs`, a janela do corpo do `blocked_by_player`; os quatro linkados no `.csproj`) com os `.cs` reais linkados,
   mais o cross-check das cópias do `Stubs.cs` contra a `Companions.dll` (seção (h) — impede drift). Build 0/0 e exit 0
   são o gate.
 - **Gate de release:** `powershell -ExecutionPolicy Bypass -File tools\release-check.ps1 -Version <versão>` — roda o

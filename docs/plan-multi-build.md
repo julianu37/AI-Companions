@@ -156,7 +156,7 @@ não perturbar um canteiro em andamento.
   **apoio direto** de uma peça recusada com `no_support` é **puxado por fora da ordem** (`AI/BuildSupportBelow.cs`: 0,4–2,5 m
   abaixo × 2,5 m em XZ, seção **(r)**; só peça **estrutural** e nunca já construída), sem tocar no plano —
   a peça recusada fica na fila do canteiro como **dependência**. **Quem pode apoiar** é o `CanSupport`
-  (`AI/BuildSupportBelow.cs:72`, lote de 04/11/2026): **telhado apoia telhado** (a fileira de baixo da água — sem isso a
+  (`AI/BuildSupportBelow.cs:145`, lote de 04/11/2026): **telhado apoia telhado** (a fileira de baixo da água — sem isso a
   **empenha** nunca puxava nada, §7), telhado no piso/parede/viga/escada, **porta nunca apoia** e piso/parede **não** são
   apoiados por telhado; **mobília** já foi cortada antes pelo `BuildPieceKind.IsStructural`. **Guarda obrigatória:**
   `State.PulledSupport` (`MHR_Build.cs:213`/`:3110`) puxa **uma vez por índice de peça** e no máximo **24 por ordem**; na
@@ -263,9 +263,11 @@ teste mock do MCP (**101 PASS**, **12 asserções novas para o contrato do grupo
    → **969 + 18 = 987**, watchdog **0**, **telhado fechado**, **0 postes**, **1 morte**, `blocked_by_player` ≈**770**
    (o corpo conta e o jogador estava no canteiro). **Fechado depois:** o lote das 13 (nudge de mobília 5 m/3×12,
    `TryBenchAt` sem `clipping`, apoio imediato), o **deck (`DeckLift`)**, o **poste por vão** (`PickPost` +
-   `UsefulSurface`) e a **regra do telhado** (`HoldsPlacedPiece`). **Aberto:** o **vão do deck** (`DeckLift = 1` prende
-   corpos; 3 opções, decisão do jogador — §17.13), a **reserva de material** (`Stock` — cada worker conta o canteiro por
-   conta própria), um run com **material pago** e o teste pequeno de 2 companheiros num 6x6.
+   `UsefulSurface`) e a **regra do telhado** (`HoldsPlacedPiece` — **inócua**: o `m_supports` do telhado é `true`,
+   `docs/re/support-rule-wearntear.md` §5). **Aberto:** o **vão do deck** (`DeckLift = 1` prende
+   corpos; 3 opções, decisão do jogador — §17.13), o **degrau de 0,6 m** do plano (sem apoio e sem poste possível; o
+   run do degrau travou em **950/987** — `building-notes` §17.12), a **reserva de material** (`Stock` — cada worker conta
+   o canteiro por conta própria), um run com **material pago** e o teste pequeno de 2 companheiros num 6x6.
 3. **P2 — navmesh/latência — MEDIDO EM JOGO (implementado e testado em 03/11/2026):** (a) **medido o `why`** do run de 03/11/2026:
    **36 `no progress`**, 17 `no_support`, 9 `no_ground`, 6 `too_steep` — os 36 **não** são "tile invisível": são o
    `SnapToNavMesh` (1,5/3/6/12 m) mandando o alvo para o chão sob o piso, com a trava de 12 s do `Goto` queimando;
@@ -367,10 +369,14 @@ está lá em §17.6, §17.9 e §17.10:
   **969 colocadas + 18 puladas = 987**, **watchdog `0`**, canteiro com **985 de 987**, **`apoio de emergência` = 0**
   (não era apoio que faltava), **telhado visualmente fechado** (`render_view`), **1 morte** e `blocked_by_player`
   **≈770** — o **corpo conta** (janela do `BuildBody`, `building-notes` §17.11) e o **jogador estava dentro do
-  canteiro**. O lote do telhado: `FootprintSupported` exigia `WearNTear.m_supports`, e **telhado no Valheim tem
-  `m_supports = false`** (se apoia pela **borda**, na fileira de baixo) — 13 peças passavam **5 rodadas** em
-  `no_support`; agora `BuildSupportBelow.HoldsPlacedPiece` (`:172`) decide por **classe** (terreno segura tudo;
-  telhado é apoiado por **qualquer** `WearNTear`; as outras classes seguem exigindo `m_supports`) — §17.12.
+  canteiro**. O lote do telhado: `FootprintSupported` exigia `WearNTear.m_supports` e ganhou o bypass de classe 3 em
+  `BuildSupportBelow.HoldsPlacedPiece` (`:172`) — **o motivo escrito na época ("telhado tem `m_supports = false`") está
+  ERRADO**: medido na 1.0.20 todo telhado de madeira é `m_supports = true`, o bypass é **inócuo** e a causa das 13
+  peças em `no_support` era **geometria** (`docs/re/support-rule-wearntear.md` §5, `building-notes` §17.12). O run do
+  **degrau de 0,6 m** do mesmo dia **travou em 950/987** com o `no_support` **certo** (8 pisos + 12 baús sem apoio
+  possível, `wood_floor` 297/298/304 repetindo) — pendência de **plano**, não de validador; e o poste só passa a cobrir
+  esse vão com o `MaxOverlap` **0,45** anunciado no `package/CHANGELOG.md`, que **ainda não está no código**
+  (`AI/BuildSupportBelow.cs:111` = 0,35 — §17.12).
 - **Ressalva do Run 6 + pendência aberta (o vão do deck):** depois do run o arquiteto **apagou 41 peças do piso do
   deck** (**25 + 16**) para **libertar o jogador e os companheiros presos no vão de ~1 m** — o estado atual da casa
   **não** tem o piso íntegro e mede o que sobrou. O **vão do deck (`DeckLift = 1`)** é a pendência: (1) `DeckLift = 0`
