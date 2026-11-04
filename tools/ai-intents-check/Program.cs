@@ -26,7 +26,9 @@ namespace AiIntentsCheck;
 /// failed (one of the 3 attempts). Section (q) is the other pure table of the same job
 /// (<c>BuildPieceKind.Classify</c>): structure or furniture, which is how far a piece may be moved from the plan's pose
 /// when the spot refuses it. Section (r) is <c>BuildSupportBelow</c>: the window of the <b>direct support</b> of a piece,
-/// which is the plan index a group drives next when one of its pieces is refused with <c>no_support</c>.</para>
+/// which is the plan index a group drives next when one of its pieces is refused with <c>no_support</c>. Section (t) is
+/// the <b>body barrier</b> of the walk order (<c>BuildFailure.IsTransient</c>/<c>ShortRetry</c> and the piece's level):
+/// the spot a body is standing on is retried 3 times in 2,5 s and the storeys above it wait.</para>
 ///
 /// <para>Run: <c>dotnet run --project tools/ai-intents-check</c> (after <c>dotnet build Companions.sln -c Release</c>,
 /// which the cross-check reads). Exit code 0 only when every case passed and nothing was skipped.</para>
@@ -105,6 +107,8 @@ internal static class Program
 		SupportBelow();
 		Section("(s) BuildBody - a janela do corpo na colocacao (blocked_by_player)");
 		BodyWindows();
+		Section("(t) a barreira de andar - recusa por corpo (IsTransient/ShortRetry) e o nivel da peca");
+		BodyBarrier();
 		CrossCheckDoorRule();
 
 		Out.WriteLine();
@@ -1056,6 +1060,99 @@ internal static class Program
 		Check("Radius == 0,45 m", Math.Abs(BuildBody.Radius - 0.45f) < 0.001f, "obtido " + BuildBody.Radius.ToString("F2"));
 		Check("Below == 0,50 m", Math.Abs(BuildBody.Below - 0.5f) < 0.001f, "obtido " + BuildBody.Below.ToString("F2"));
 		Check("Above == 2,00 m", Math.Abs(BuildBody.Above - 2f) < 0.001f, "obtido " + BuildBody.Above.ToString("F2"));
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the <b>body barrier</b>, the player's rule after the Run 9: "they may skip, but come back and try again
+	/// before going up"): the refusal the barrier exists for is <b>only</b> <c>blocked_by_player</c> - the player walking
+	/// over the spot. <c>IsTransient</c> is the yes/no (the dependency reasons of the support gate and every real failure
+	/// of the piece/spot stay out of it), <c>ShortRetry</c> is the 3-short-retry cap that lets the SAME pose be tried again
+	/// in 2,5 s (site-wide: a piece must not get 3 per companion), and the four constants are the barrier itself. The
+	/// last three cases are the piece's <b>level</b> (<c>BuildBlueprintParser.Line.Level</c>, the very key <c>Ordered</c>
+	/// sorts by): the roof belongs to the slab it covers, a stair to its own height, and filling it must not change the
+	/// order.
+	/// </summary>
+	private static void BodyBarrier()
+	{
+		// IsTransient: the body and only the body (13 checks over the 14 inputs - "" and null are the same rule: a failure
+		// nobody named is not a body)
+		TransientCase("blocked_by_player", true);
+		TransientCase("BLOCKED_BY_PLAYER", true);
+		TransientCase("no_support", false);
+		TransientCase("no support", false);
+		TransientCase("needs_station", false);
+		TransientCase("no_ground", false);
+		TransientCase("clipping", false);
+		TransientCase("too_close_piece", false);
+		TransientCase("no progress", false);
+		TransientCase("can't reach it", false);
+		TransientCase("took too long", false);
+		TransientCase("verification: not_found", false);
+		Check("IsTransient(\"\") e IsTransient(null) -> false (falha sem nome nao e um corpo)",
+			!BuildFailure.IsTransient("") && !BuildFailure.IsTransient(null),
+			"obtido " + BuildFailure.IsTransient("") + " / " + BuildFailure.IsTransient(null));
+
+		// ShortRetry: 0/1/2 yes (the three short retries), 3 and beyond no; case does not matter; another reason never
+		ShortRetryCase("blocked_by_player", 0, true);
+		ShortRetryCase("blocked_by_player", 1, true);
+		ShortRetryCase("blocked_by_player", 2, true);
+		ShortRetryCase("blocked_by_player", 3, false);
+		ShortRetryCase("blocked_by_player", 4, false);
+		ShortRetryCase("BLOCKED_BY_PLAYER", 0, true);
+		ShortRetryCase("no_support", 0, false);
+		ShortRetryCase("clipping", 0, false);
+		ShortRetryCase("no progress", 0, false);
+		ShortRetryCase("needs_station", 0, false);
+
+		// the numbers of the barrier, so a silent change of the window is caught here
+		Check("constantes: 3 curtas, 2,5 s de espera, 1,5 m de mesmo andar, 20 s de barreira",
+			BuildFailure.MaxShortRetries == 3 && Math.Abs(BuildFailure.ShortRetryDelay - 2.5f) < 0.001f
+				&& Math.Abs(BuildFailure.BodySameStorey - 1.5f) < 0.001f
+				&& Math.Abs(BuildFailure.BodyBarrierSeconds - 20f) < 0.001f,
+			"obtido " + BuildFailure.MaxShortRetries + " / " + BuildFailure.ShortRetryDelay.ToString("F2") + " / "
+				+ BuildFailure.BodySameStorey.ToString("F2") + " / " + BuildFailure.BodyBarrierSeconds.ToString("F2"));
+
+		// the LEVEL of each piece: the roof is of the storey of the slab it covers (measured key, 3 m above)
+		System.Collections.Generic.List<BuildBlueprintParser.Line> covered = Plan(
+			Piece("wood_roof_45", 0f, 0f, 0f),
+			Piece("wood_floor", 0f, 3f, 0f));
+		System.Collections.Generic.List<BuildBlueprintParser.Line> coveredOrder = BuildBlueprintParser.Ordered(covered);
+		int roof = IndexOfPrefab(coveredOrder, "wood_roof_45");
+		Check("nivel: o telhado herda o andar do piso que cobre -> 3 (o caso medido da laje 3 m acima)",
+			roof >= 0 && Math.Abs(coveredOrder[roof].Level - 3f) < 0.001f,
+			"obtido " + (roof >= 0 ? coveredOrder[roof].Level.ToString("0.##") : "sem telhado"));
+		// a stair has its own level (a floor on the same height is not "above" it: nothing is inherited)
+		System.Collections.Generic.List<BuildBlueprintParser.Line> stair = BuildBlueprintParser.Ordered(Plan(
+			Piece("wood_stair", 0f, 2f, 0f),
+			Piece("wood_floor", 0f, 2f, 0f)));
+		int ladder = IndexOfPrefab(stair, "wood_stair");
+		Check("nivel: a escada tem o proprio nivel -> 2 (nao herda o piso do mesmo nivel)",
+			ladder >= 0 && Math.Abs(stair[ladder].Level - 2f) < 0.001f,
+			"obtido " + (ladder >= 0 ? stair[ladder].Level.ToString("0.##") : "sem escada"));
+		// filling the level does not change the order: floor/wall of the ground floor, then the upper floor, then the roof
+		System.Collections.Generic.List<BuildBlueprintParser.Line> mixed = Plan(
+			Piece("wood_roof_45", 0f, 0f, 0f),
+			Piece("wood_floor", 0f, 3f, 0f),
+			Piece("woodwall", 0f, 0f, 0f),
+			Piece("wood_floor", 0f, 0f, 0f));
+		CheckText("nivel: preencher o nivel nao muda a ordem", "wood_floor woodwall wood_floor wood_roof_45",
+			TracePrefabs(BuildBlueprintParser.Ordered(mixed)));
+	}
+
+	/// <summary>Section (t): one refusal and whether it is only a body on the spot.</summary>
+	private static void TransientCase(string why, bool expected)
+	{
+		bool actual = BuildFailure.IsTransient(why);
+		Check("IsTransient(" + Show(why) + ") -> " + (expected ? "true" : "false"), actual == expected,
+			"obtido " + (actual ? "true" : "false"));
+	}
+
+	/// <summary>Section (t): one refusal with a number of short retries already spent.</summary>
+	private static void ShortRetryCase(string why, int tries, bool expected)
+	{
+		bool actual = BuildFailure.ShortRetry(why, tries);
+		Check("ShortRetry(" + Show(why) + ", " + tries + ") -> " + (expected ? "true" : "false"), actual == expected,
+			"obtido " + (actual ? "true" : "false"));
 	}
 
 	/// <summary>The plan of case (a)/(e) of section (m): a fresh list every call (case (e) needs two of them).</summary>

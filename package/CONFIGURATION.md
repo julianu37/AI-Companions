@@ -571,6 +571,9 @@ How high the whole blueprint rises above the ground: the ground floor sits on a 
 **SupportFallback** — Default: On  
 When a plan piece is refused for no support and the plan has nothing under it, the companion puts a wooden post under it and places the piece (the house gets a few extra posts). Off = the piece waits and is left out. At most 24 posts per order.
 
+**BodyRetry** — Default: On  
+Retry a spot blocked by a body: when a piece is refused because you (or a companion) are standing on the spot, the companion keeps the piece, waits 2.5 s and tries the same pose again (3 times per piece, for the whole site). While that spot is held, no piece of the storeys above it is taken - the entrance comes first and the upper floors wait. Off = the piece goes to the end of the site's queue as before.
+
 **MaxDistanceFromHome** — Default: 40 · Range: 0 – 200  
 A build order is refused when the spot is further than this (meters) from the companion's home, so it does not wander off to build across the world. 0 = no limit.
 

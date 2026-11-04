@@ -196,6 +196,12 @@ internal static class MHR_Build
 		Find,
 		Goto,
 		Place,
+		/// <summary>
+		/// 11/11/2026 (the body barrier): the pose was refused because a BODY (the player walking) was on it - the piece is
+		/// kept (same index, same claim, nothing paid) and the same pose is tried again after
+		/// <see cref="BuildFailure.ShortRetryDelay"/>.
+		/// </summary>
+		BodyRetry,
 		/// <summary>E4b: walking to the resource BEFORE the gather mode is set (only the build steers here).</summary>
 		GatherWalk,
 		Verify,
@@ -329,6 +335,9 @@ internal static class MHR_Build
 		/// <summary>E7 (review, 03/11/2026): the pieces accepted while a temporary stair stood - they are asked again for
 		/// support before the stair is removed, so a roof that was held up by it does not get a hole.</summary>
 		internal readonly List<GameObject> Scaffolded = new List<GameObject>();
+		/// <summary>11/11/2026 (the body barrier, single worker): how many short retries the CURRENT piece already had for a
+		/// body (the same 3 of the group, reset when the piece changes - a group counts them on the site).</summary>
+		internal int BodyTries;
 	}
 
 	/// <summary>E6: one piece of a plan, already resolved to a world pose.</summary>
@@ -340,6 +349,13 @@ internal static class MHR_Build
 		internal Piece Piece;
 		internal Vector3 Pos;
 		internal Quaternion Rot;
+		/// <summary>
+		/// 11/11/2026 (the body barrier): the <b>storey</b> of the piece - the key the blueprint's order uses
+		/// (<c>BuildBlueprintParser.Line.Level</c>: its own height, or the slab a roof covers). The site holds back only the
+		/// pieces above the storey a body is standing on (<see cref="MHR_BuildGroup.MayTake"/>). 0 for a template (it has no
+		/// storeys: nothing is ever held back).
+		/// </summary>
+		internal float Level;
 		/// <summary>P1 (04/11/2026, the support gate): how many times this piece failed for a <b>real</b> reason while it
 		/// waits in the single worker's retry list (the cap is <see cref="MaxPasses"/>). A failure by dependency does not
 		/// come here.</summary>
@@ -846,6 +862,18 @@ internal static class MHR_Build
 			while (state.Index + 1 < state.Plan.Count)
 			{
 				int next = state.Index + 1;
+				// 11/11/2026 (the body barrier, the player's rule: "they may skip, but come back and try again before going
+				// up"): while a body is holding a piece of a storey below, the pieces ABOVE it are not taken - the worker
+				// waits and the piece that did not go up comes back first (the site's queue keeps it, the claim survives
+				// 20 s). The check is on the plan's own level (the blueprint's storey key), never on a second rule.
+				// It is an EARLY return on purpose: falling through to the end of Advance would close the order of a
+				// single worker (and try the group's end) with the plan still open.
+				if (!MHR_BuildGroup.MayTake(state.Group, next))
+				{
+					state.Phase = Phase.WaitRetry;
+					state.Start = Time.time;
+					return true;
+				}
 				state.Index = next;
 				// P1 (review B1, 03/11/2026): a piece the SITE already built is skipped without a claim and WITHOUT
 				// walking to it - after a retry (which may be an index behind) the tail of the plan must not be walked
@@ -946,6 +974,7 @@ internal static class MHR_Build
 		state.BestDistance = 0f;
 		state.BestAt = Time.time;
 		state.NextScaffoldAt = 0f;
+		state.BodyTries = 0;   // 11/11/2026: the short retries of a body are per piece
 		state.Phase = Phase.Goto;
 	}
 
@@ -1129,7 +1158,8 @@ internal static class MHR_Build
 				Prefab = piece.Prefab,
 				Piece = resolved,
 				Pos = placed,
-				Rot = rot * piece.Rot
+				Rot = rot * piece.Rot,
+				Level = piece.Level
 			});
 		}
 		if (plan.Count == 0)
@@ -1936,6 +1966,8 @@ internal static class MHR_Build
 				return Goto(ai, state, cs, dt);
 			case Phase.Place:
 				return Place(ai, state, cs, bag);
+			case Phase.BodyRetry:
+				return BodyRetry(ai, state);
 			case Phase.GatherWalk:
 				return GatherWalk(ai, state, cs, dt);
 			case Phase.Verify:
@@ -2067,6 +2099,10 @@ internal static class MHR_Build
 	{
 		if (state.Group != null)
 		{
+			// 11/11/2026 (the body barrier): the watchdog's verdict is "this site is not moving" - a barrier that is only
+			// WAITING for a body goes with the queue, or Advance would send the worker back to WaitRetry and the same
+			// pieces would be given up again on the next frame.
+			MHR_BuildGroup.ClearBodies(state.Group);
 			List<int> pending = new List<int>();
 			int dropped = MHR_BuildGroup.AbandonRetry(state.Group, ai.GetInstanceID(), pending);
 			LogStall(ai, state, pending, dropped);
@@ -4215,6 +4251,27 @@ internal static class MHR_Build
 		return true;
 	}
 
+	/// <summary>
+	/// 11/11/2026 (the body barrier): the pose was refused because a <b>body</b> (the player walking over the spot) was on
+	/// it. Nothing was paid (the refusal is before <c>BuildStock.Take</c>) and the claim stays this worker's
+	/// (<see cref="MHR_BuildGroup.Refresh"/> runs on every frame of the wait, so the 20 s expiry never sees it) - after
+	/// <see cref="BuildFailure.ShortRetryDelay"/> the piece is simply tried again at the <b>same</b> pose. The site's
+	/// barrier (<see cref="MHR_BuildGroup.NoteBody"/>) is what holds the storeys above while this happens.
+	/// </summary>
+	private static bool BodyRetry(CompanionAI ai, State state)
+	{
+		if (state == null)
+		{
+			return false;
+		}
+		if (Time.time - state.Start < BuildFailure.ShortRetryDelay)
+		{
+			return true;   // the player is moving - a moment, not a timeout
+		}
+		state.Phase = Phase.Place;
+		return true;
+	}
+
 	private static bool Place(CompanionAI ai, State state, CompanionSetup cs, Inventory bag)
 	{
 		// P1 (multi-build, 03/11/2026): the claim is the right to pay and place the piece. When it is not this worker's
@@ -4340,6 +4397,15 @@ internal static class MHR_Build
 					{
 						return true;   // the post is standing: the piece is tried again at the same pose
 					}
+					// 11/11/2026 (the body barrier - the player's rule: "they may skip, but come back and try again before
+					// going up"): a spot blocked by a BODY is not the piece failing. Nothing was paid yet (the refusal is
+					// before the stock is taken), the claim stays, the site's barrier holds the storeys above, and the SAME
+					// pose is tried again in a moment (3 short retries per piece). Without this the entrance steps (pieces
+					// 8-10 of 988 in the Run 9) went to the site's queue and only came back after the whole house.
+					if (TryBodyRetry(ai, state, status))
+					{
+						return true;   // the same pose, after the short wait
+					}
 					QueueRetry(ai, state, status);
 					return Advance(ai, state);
 				}
@@ -4411,8 +4477,61 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		state.Placed = result.GameObject;
 		state.PlacedAt = Time.time;
 		state.Phase = Phase.Verify;
-		Log(ai, "placed (" + result.Route + "), verifying next frame");
+		Log(ai, "placed (" + result.Route + ") em (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", " + F(state.Pos.z)
+			+ "), verifying next frame");
 		return true;
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the body barrier, the player's rule: "they may skip, but come back and try again before going up"): the
+	/// spot was refused by a <b>body</b> (the player walking over it). The piece is not lost and the plan does not go up on
+	/// it: the site notes the storey (the first refusal draws the barrier) and the worker keeps the piece - same index, same
+	/// pose, <b>nothing paid</b> (the refusal is before <c>BuildStock.Take</c>) - and waits
+	/// <see cref="BuildFailure.ShortRetryDelay"/> for one more try. The claim survives the wait because
+	/// <c>MHR_BuildGroup.Refresh</c> runs every frame of it (the 20 s expiry is for a worker that went away).
+	///
+	/// <para>False when the refusal is not a body (<see cref="BuildFailure.IsTransient"/>: only <c>blocked_by_player</c>),
+	/// when the config is off, or when the short retries of this piece are used up (3 per piece, counted on the site for a
+	/// group) - then the normal path takes over (the site's retry queue, which the barrier keeps <b>below</b> the storeys
+	/// above). A single worker has no barrier (there is no other floor going up) - only the same 3 short retries.</para>
+	/// </summary>
+	private static bool TryBodyRetry(CompanionAI ai, State state, string status)
+	{
+		if (state == null || state.Plan == null || state.Index < 0 || state.Index >= state.Plan.Count
+			|| !BuildFailure.IsTransient(status) || !BodyRetryOn())
+		{
+			return false;
+		}
+		if (state.Group == null)
+		{
+			if (state.BodyTries >= BuildFailure.MaxShortRetries)
+			{
+				return false;
+			}
+			state.BodyTries++;
+			state.Phase = Phase.BodyRetry;
+			state.Start = Time.time;
+			Log(ai, "um corpo está na peça " + (state.Index + 1) + "/" + state.Plan.Count + " (" + status + ") - tentando de novo em "
+				+ BuildFailure.ShortRetryDelay.ToString("F1") + " s (" + state.BodyTries + "/" + BuildFailure.MaxShortRetries + ")");
+			return true;
+		}
+		MHR_BuildGroup.NoteBody(state.Group, state.Index);
+		if (!MHR_BuildGroup.TryShortBody(state.Group, state.Index))
+		{
+			return false;   // the 3 short retries of this piece are used: the site's queue keeps it, below the barrier
+		}
+		state.Phase = Phase.BodyRetry;
+		state.Start = Time.time;
+		Log(ai, "um corpo está na peça " + (state.Index + 1) + "/" + state.Plan.Count + " (" + status + ") - tentando de novo em "
+			+ BuildFailure.ShortRetryDelay.ToString("F1") + " s (curta " + MHR_BuildGroup.ShortBodyTries(state.Group, state.Index)
+			+ "/" + BuildFailure.MaxShortRetries + ")");
+		return true;
+	}
+
+	/// <summary>11/11/2026: <c>[Building] BodyRetry</c> - the short retries of a spot held by a body (default on).</summary>
+	private static bool BodyRetryOn()
+	{
+		return ModConfig.BuildBodyRetry == null || ModConfig.BuildBodyRetry.Value;
 	}
 
 	/// <summary>

@@ -21,6 +21,12 @@ internal static class BuildBlueprintParser
 	{
 		internal string Prefab;
 		internal float Px, Py, Pz, Rx, Ry, Rz, Rw, Scale = 1f;
+		/// <summary>
+		/// 11/11/2026 (the body barrier): the <b>level</b> of the piece - the very key <see cref="Ordered"/> sorts by (its
+		/// own height, or the slab a roof/gable covers). Filled by <see cref="Ordered"/>; 0 until then. The build group uses
+		/// it to hold back only the pieces ABOVE the storey a body is standing on.
+		/// </summary>
+		internal float Level;
 	}
 
 	/// <summary>
@@ -112,6 +118,16 @@ internal static class BuildBlueprintParser
 				&& piece.Prefab.IndexOf("floor", StringComparison.OrdinalIgnoreCase) >= 0)
 			{
 				floors.Add(piece);
+			}
+		}
+		// 11/11/2026 (the body barrier of the walk order): the LEVEL of every piece is kept on the line - it is the very
+		// key the sort below uses (own height, or the slab a roof covers), never a second rule. The order does NOT change:
+		// the keys below still call LevelKey itself; this pass only records the same number for the build site.
+		foreach (Line piece in pieces)
+		{
+			if (piece != null)
+			{
+				piece.Level = LevelKey(floors, piece);
 			}
 		}
 		List<Line> sorted = pieces

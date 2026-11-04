@@ -165,6 +165,9 @@ internal static class ModConfig
 	/// <summary>P1 (04/11/2026): plant a wooden post under a plan piece refused with <c>no_support</c> when the plan has
 	/// nothing under it (the author's blueprint leaned on something the file does not carry).</summary>
 	internal static ConfigEntry<bool> BuildSupportFallback;
+	/// <summary>11/11/2026 (the body barrier): retry a spot a body is standing on right away (3 short retries per piece)
+	/// instead of sending the piece to the end of the site's queue, and hold the storeys above it while that happens.</summary>
+	internal static ConfigEntry<bool> BuildBodyRetry;
 	internal static ConfigEntry<float> BuildMaxDistanceFromHome;
 	internal static ConfigEntry<bool> BuildGatherForBuild;
 	internal static ConfigEntry<float> BuildGatherRadius;
@@ -951,6 +954,7 @@ internal static class ModConfig
 		BuildPlaceReach = Bind(cfg, "Building", "PlaceReach", 10f, "How far (in meters) the companion may place a piece when it cannot walk any closer. Vanilla allows 5 m; the companion still walks first and only opens this limit after 3 s stuck. 10 is the default; up to 20 for impatient players (it looks less realistic).", new AcceptableValueRange<float>(5f, 20f));
 		BuildDeckLift = Bind(cfg, "Building", "DeckLift", 1f, "How high the whole blueprint rises above the ground: the ground floor sits on a deck on top of the poles, with the stairs reaching it. 0 keeps the blueprint's own level. Default 1 (a low deck).", new AcceptableValueRange<float>(0f, 3f));
 		BuildSupportFallback = Bind(cfg, "Building", "SupportFallback", true, "When a plan piece is refused for no support and the plan has nothing under it, the companion puts a wooden post under it and places the piece (the house gets a few extra posts). Off = the piece waits and is left out. At most 24 posts per order.");
+		BuildBodyRetry = Bind(cfg, "Building", "BodyRetry", true, "Retry a spot blocked by a body: when a piece is refused because you (or a companion) are standing on the spot, the companion keeps the piece, waits 2.5 s and tries the same pose again (3 times per piece, for the whole site). While that spot is held, no piece of the storeys above it is taken - the entrance comes first and the upper floors wait. Off = the piece goes to the end of the site's queue as before.");
 		BuildMaxDistanceFromHome = Bind(cfg, "Building", "MaxDistanceFromHome", 40f, "A build order is refused when the spot is further than this (meters) from the companion's home, so it does not wander off to build across the world. 0 = no limit.", new AcceptableValueRange<float>(0f, 200f));
 		BuildGatherForBuild = Bind(cfg, "Building", "GatherForBuild", true, "When the piece's materials are missing and a job can collect them (wood, stone or ore), the companion takes the normal gather order for exactly the shortfall, gathers, and then the build order resumes by itself. Off: it says what is missing and the order ends.");
 		BuildGatherRadius = Bind(cfg, "Building", "GatherRadius", 120f, "How far (meters) from the build spot the companion looks for the resource it has to gather. The harvest's own radius is measured from the player while it follows (25 m), which made the search look tiny; when the resource is farther than 20 m the build walks there itself BEFORE the gather takes over - one owner of the movement at a time.", new AcceptableValueRange<float>(10f, 200f));
@@ -1247,7 +1251,7 @@ internal static class ModConfig
 	/// <summary>1.9.5 (auditoria C2): the version of the config migrations this build knows about. Bump it whenever a
 	/// new one-time migration is added: a file stamped with an older value runs the migration block once more (they are
 	/// all "only the EXACT old default" rules, so running them again is harmless) and gets the new stamp.</summary>
-	private const int CurrentConfigVersion = 196;
+	private const int CurrentConfigVersion = 197;
 
 	/// <summary>1.9.5 (auditoria C2): should the one-time default migrations run on this boot? They used to run on
 	/// <b>every</b> boot, which quietly undid a choice the player made back to an old default (set the silence

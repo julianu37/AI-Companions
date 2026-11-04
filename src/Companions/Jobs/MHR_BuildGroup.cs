@@ -81,6 +81,17 @@ internal static class MHR_BuildGroup
 		/// <summary>P1 (04/11/2026): when a piece of this site last went up - the stall watchdog counts from here (not
 		/// from the moment a worker entered a wait, which says nothing about the site moving).</summary>
 		internal float LastProgressAt;
+		/// <summary>
+		/// 11/11/2026 (the <b>body barrier</b>): plan index -> when a <b>body</b> (the player walking over the spot) first
+		/// refused it. The entry is the barrier: while it is younger than <c>BuildFailure.BodyBarrierSeconds</c>, the pieces
+		/// of the storeys above that one are not taken (<see cref="MayTake"/>). The time is written <b>once</b> per index
+		/// (<see cref="NoteBody"/> is idempotent) - a player who keeps walking over the spot does not hold the site forever.
+		/// </summary>
+		internal readonly Dictionary<int, float> BodyAt = new Dictionary<int, float>();
+		/// <summary>11/11/2026 (the body barrier): plan index -> how many SHORT retries it already had for a body. Counted
+		/// <b>for the site</b> (never per worker: a piece must not get 3 per companion) and capped by
+		/// <c>BuildFailure.MaxShortRetries</c>.</summary>
+		internal readonly Dictionary<int, int> BodyTries = new Dictionary<int, int>();
 	}
 
 	private static readonly Dictionary<string, Group> s_groups = new Dictionary<string, Group>();
@@ -459,6 +470,134 @@ internal static class MHR_BuildGroup
 	}
 
 	/// <summary>
+	/// 11/11/2026 (the <b>body barrier</b> of the walk order): a piece was refused because a <b>body</b> - the player
+	/// walking over the spot - is on it. The <b>first</b> refusal of a plan index is what starts the barrier
+	/// (<c>BuildFailure.BodyBarrierSeconds</c>): the write is idempotent, so the clock is never pushed forward and a
+	/// player who parks on the spot cannot hold the site forever. Measured reason (Run 9, 11/11/2026): the entrance
+	/// steps (pieces 8-10 of 988) were refused by the body, went to the site's queue and only came back at the very end,
+	/// after the whole house - the player's rule is "they may skip, but come back and try again before going up".
+	/// </summary>
+	internal static void NoteBody(string key, int index)
+	{
+		Group group;
+		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null || index < 0)
+		{
+			return;
+		}
+		if (group.BodyAt.ContainsKey(index))
+		{
+			return;   // the barrier of this piece is already drawn - the first refusal is the clock
+		}
+		group.BodyAt[index] = Time.time;
+		float level = group.Plan != null && index < group.Plan.Count ? group.Plan[index].Level : 0f;
+		Log("um corpo está na peça " + (index + 1) + " do canteiro (nível " + level.ToString("F1")
+			+ ") - nada acima de " + (level + BuildFailure.BodySameStorey).ToString("F1") + " m é pego por "
+			+ BuildFailure.BodyBarrierSeconds.ToString("F0") + " s");
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the body barrier): may this piece be tried again <b>right away</b> at the same pose? Three short
+	/// retries per plan index for the <b>whole site</b> (a piece must not get 3 per companion) - they spend none of the
+	/// 3 real attempts. False when they are used up: the piece takes the normal path (the site's queue, which the
+	/// barrier keeps below the storeys above).
+	/// </summary>
+	internal static bool TryShortBody(string key, int index)
+	{
+		Group group;
+		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null || index < 0)
+		{
+			return false;
+		}
+		int tries;
+		group.BodyTries.TryGetValue(index, out tries);
+		if (!BuildFailure.ShortRetry("blocked_by_player", tries))
+		{
+			return false;
+		}
+		group.BodyTries[index] = tries + 1;
+		return true;
+	}
+
+	/// <summary>11/11/2026 (the body barrier): how many short retries this piece already had for a body (for the log).</summary>
+	internal static int ShortBodyTries(string key, int index)
+	{
+		Group group;
+		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null)
+		{
+			return 0;
+		}
+		int tries;
+		return group.BodyTries.TryGetValue(index, out tries) ? tries : 0;
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the body barrier, the player's rule): may the site take this piece <b>now</b>? A piece is held back
+	/// only while a <b>barrier is alive</b> (a body refused one of the plan's pieces less than
+	/// <c>BuildFailure.BodyBarrierSeconds</c> ago): the pieces of the storeys <b>above</b> the blocked one
+	/// (<c>BuildFailure.BodySameStorey</c> = 1,5 m) wait for it, the ones of the same storey do not. The blocked piece
+	/// itself is never held back by its own barrier - it is exactly the one that has to be retried first.
+	///
+	/// <para>Without a group (a single worker, a template) it always answers true: there is no other floor going up.</para>
+	/// </summary>
+	internal static bool MayTake(string key, int index)
+	{
+		Group group;
+		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null)
+		{
+			return true;
+		}
+		return MayTake(group, index);
+	}
+
+	private static bool MayTake(Group group, int index)
+	{
+		if (group.BodyAt.Count == 0 || group.Plan == null || index < 0 || index >= group.Plan.Count)
+		{
+			return true;
+		}
+		float now = Time.time;
+		float level = group.Plan[index].Level;
+		foreach (KeyValuePair<int, float> barrier in group.BodyAt)
+		{
+			if (now - barrier.Value >= BuildFailure.BodyBarrierSeconds || barrier.Key < 0 || barrier.Key >= group.Plan.Count)
+			{
+				continue;
+			}
+			if (level > group.Plan[barrier.Key].Level + BuildFailure.BodySameStorey)
+			{
+				return false;   // a storey above what a body is holding
+			}
+		}
+		return true;
+	}
+
+	/// <summary>11/11/2026 (the body barrier): the barriers of the site are dropped with the queue - the stall watchdog's
+	/// verdict is "nothing is moving", and a barrier that is only <b>waiting</b> for a body must not bring the order back
+	/// to the wait (and the watchdog) on the next frame.</summary>
+	internal static void ClearBodies(string key)
+	{
+		Group group;
+		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null)
+		{
+			return;
+		}
+		group.BodyAt.Clear();
+		group.BodyTries.Clear();
+	}
+
+	/// <summary>11/11/2026 (the body barrier): the piece left the queue for good (placed or given up) - its barrier and its
+	/// short-retry count go with it.</summary>
+	private static void ForgetBody(Group group, int index)
+	{
+		if (group == null)
+		{
+			return;
+		}
+		group.BodyAt.Remove(index);
+		group.BodyTries.Remove(index);
+	}
+
+	/// <summary>
 	/// P1 (review A7, 03/11/2026): the piece of this index is <b>done</b> for the site - counted once, out of the retry
 	/// queue and its claim freed. False when it was already marked (a piece another worker built, or the same one counted
 	/// twice), which is what keeps the numbers honest (<c>Placed</c> and <c>Skipped</c> are sets of indices and a piece
@@ -478,6 +617,7 @@ internal static class MHR_BuildGroup
 		group.SkippedIndex.Remove(index);
 		group.Claims.Remove(index);
 		group.ClaimAt.Remove(index);
+		ForgetBody(group, index);
 		group.LastProgressAt = Time.time;
 		for (int i = group.Retry.Count - 1; i >= 0; i--)
 		{
@@ -574,6 +714,12 @@ internal static class MHR_BuildGroup
 			{
 				continue;
 			}
+			// 11/11/2026 (the body barrier): a piece of a storey ABOVE the one a body is holding is not pulled while the
+			// barrier lives - the entrance that did not go up comes back BEFORE the work goes higher (the player's rule).
+			if (!MayTake(group, entry.Index))
+			{
+				continue;
+			}
 			if (!TryClaim(group, entry.Index, workerId))
 			{
 				continue;   // another worker is on it
@@ -609,6 +755,7 @@ internal static class MHR_BuildGroup
 			{
 				continue;
 			}
+			ForgetBody(group, entry.Index);
 			if (pending != null)
 			{
 				pending.Add(entry.Index);
@@ -657,6 +804,7 @@ internal static class MHR_BuildGroup
 		{
 			return false;
 		}
+		ForgetBody(group, index);
 		return group.SkippedIndex.Add(index);
 	}
 

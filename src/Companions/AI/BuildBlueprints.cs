@@ -14,6 +14,9 @@ internal sealed class BlueprintPiece
 	internal Vector3 Pos;
 	internal Quaternion Rot;
 	internal float Scale = 1f;
+	/// <summary>11/11/2026 (the body barrier): the storey of the piece (<c>BuildBlueprintParser.Line.Level</c>) - the
+	/// build site holds back only the pieces above the storey a body is standing on.</summary>
+	internal float Level;
 }
 
 /// <summary>E7: a <c>.blueprint</c> loaded from the mod's folder.</summary>
@@ -176,7 +179,8 @@ internal static class BuildBlueprints
 					Prefab = line.Prefab,
 					Pos = new Vector3(line.Px, line.Py, line.Pz),
 					Rot = new Quaternion(line.Rx, line.Ry, line.Rz, line.Rw).normalized,
-					Scale = line.Scale
+					Scale = line.Scale,
+					Level = line.Level
 				});
 			}
 			// a small map, not one slot: two companions waiting for DIFFERENT blueprints used to evict each other and
