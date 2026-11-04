@@ -593,6 +593,36 @@ TOOLS = [
         },
     },
     {
+        "name": "blueprints_list",
+        "description": (
+            "Lists the .blueprint library the build order reads (BepInEx/config/AI-Companions/blueprints): the "
+            "folder, how many files there are and, for each one, the file name, size in bytes, line count and "
+            "modification time. It is how the player sees which builds are available BEFORE giving an order. "
+            "Read-only: it touches neither the world nor any companion."
+        ),
+        "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
+        "name": "blueprints_inspect",
+        "description": (
+            "Parses ONE .blueprint of the library and answers what the build order WOULD do with it, without giving "
+            "it: the pieces it would build, how many lines it would SKIP and why (skippedReasons: prefab, reason, "
+            "count - e.g. stone_floor_2x2 refused with 'recipe not unlocked'), the crafting stations the pieces need "
+            "(stations: token -> count, e.g. $piece_workbench), the prefab counts, the bounding box, how many storeys "
+            "the plan has and how many pieces need a station in range. It is the same parse the order does "
+            "(BuildBlueprintParser), so the numbers match what the companion would try to place. Read-only: nothing "
+            "is placed and no companion is ordered."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "file": {"type": "string", "description": "a .blueprint name (e.g. 'CommHomeBasicBP.blueprint') or a full path"},
+            },
+            "required": ["file"],
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "world_setup",
         "description": (
             "Dev setup for driving the player: enables dev commands (once), sets the time of day (0.5 = midday), "
@@ -1132,6 +1162,10 @@ def run_tool(name, args):
             if key in args:
                 payload[key] = args[key]
         return require_ok(call_bridge("build.pieces", **payload))
+    if name == "blueprints_list":
+        return require_ok(call_bridge("blueprints.list"))
+    if name == "blueprints_inspect":
+        return require_ok(call_bridge("blueprints.inspect", file=args["file"]))
     if name == "world_setup":
         payload = {
             "time": args.get("time", 0.5),

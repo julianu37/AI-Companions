@@ -1486,24 +1486,21 @@ internal static class MHR_Build
 		foreach (BlueprintPiece piece in blueprint.Pieces)
 		{
 			Piece resolved = BuildProbe.PieceOf(piece.Prefab);
-			if (resolved == null)
+			// E7 (11/2026): the two skip rules - and the words that explain them - live in BuildBlueprintSkip, which is
+			// pure and shared with the DevBridge's blueprints.inspect: the report and this log cannot disagree. The
+			// recipe is only asked of a resolved piece (local may be null with no player in the world).
+			string skip = BuildBlueprintSkip.Reason(
+				resolved != null,
+				local == null || (resolved != null && local.IsRecipeKnown(resolved.m_name)));
+			if (skip != null)
 			{
-				if (missingPrefab == null)
+				if (resolved == null && missingPrefab == null)
 				{
 					missingPrefab = piece.Prefab;
 				}
 				if (firstSkip == null)
 				{
-					firstSkip = piece.Prefab + " (not a piece here)";
-				}
-				skipped++;
-				continue;
-			}
-			if (local != null && !local.IsRecipeKnown(resolved.m_name))
-			{
-				if (firstSkip == null)
-				{
-					firstSkip = piece.Prefab + " (recipe not unlocked)";
+					firstSkip = piece.Prefab + " (" + skip + ")";
 				}
 				skipped++;
 				continue;
@@ -1595,25 +1592,50 @@ internal static class MHR_Build
 		// bench near the site" - the old check, against the hint - passed while most of the chests of a 30 m house had
 		// none. CommHomeBasicBP has ~70 chests on three floors and brings no workbench at all.
 		missingStation = null;
+		// Lote 1 (player's request, 11/11/2026): with [Building] BlueprintStations on (the default) a blueprint is built
+		// WITHOUT stations. The switch is the player's: off = the vanilla rule, exactly as before (below unchanged).
+		bool stationNeeded = StationRequired(true);
 		if (!resuming)
 		{
-			float extent = hasBounds ? Mathf.Max(maxX - minX, maxZ - minZ) : 0f;
-			PlanStations(cs, plan, hint, extent * 0.5f + 2.5f, rot, Self(ai), ai);
+			if (stationNeeded)
+			{
+				float extent = hasBounds ? Mathf.Max(maxX - minX, maxZ - minZ) : 0f;
+				PlanStations(cs, plan, hint, extent * 0.5f + 2.5f, rot, Self(ai), ai);
+			}
+			else
+			{
+				// the pass that plans workbenches is NOT called (it would insert benches in the player's house): the one
+				// honest line replaces its summary, and it says how many pieces would have needed one
+				int stationPieces = 0;
+				foreach (PlannedStep step in plan)
+				{
+					if (step.Piece != null && step.Piece.m_craftingStation != null)
+					{
+						stationPieces++;
+					}
+				}
+				CompanionsPlugin.Log?.LogInfo("[Build] blueprint " + blueprint.Label + ": estações não exigidas por config ("
+					+ stationPieces + " peça(s) que precisariam)");
+			}
 		}
 		// a station this build cannot make by itself (stonecutter, forge, black forge...) is still a refusal, and it names
-		// the station instead of dying at the piece
-		foreach (PlannedStep step in plan)
+		// the station instead of dying at the piece. Waived (lote 1) = nothing is checked here: no piece of this
+		// blueprint is refused for a station.
+		if (stationNeeded)
 		{
-			if (step.Piece == null || step.Piece.m_craftingStation == null || IsBenchKind(step.Piece.m_craftingStation.m_name))
+			foreach (PlannedStep step in plan)
 			{
-				continue;
-			}
-			if (CraftingStation.HaveBuildStationInRange(step.Piece.m_craftingStation.m_name, step.Pos) == null)
-			{
-				missingStation = step.Piece.m_craftingStation.m_name;
-				CompanionsPlugin.Log?.LogInfo("[Build] blueprint " + blueprint.Label + ": a station is missing ("
-					+ missingStation + ") - refusing before the first piece");
-				return BlueprintStart.Failed;
+				if (step.Piece == null || step.Piece.m_craftingStation == null || IsBenchKind(step.Piece.m_craftingStation.m_name))
+				{
+					continue;
+				}
+				if (CraftingStation.HaveBuildStationInRange(step.Piece.m_craftingStation.m_name, step.Pos) == null)
+				{
+					missingStation = step.Piece.m_craftingStation.m_name;
+					CompanionsPlugin.Log?.LogInfo("[Build] blueprint " + blueprint.Label + ": a station is missing ("
+						+ missingStation + ") - refusing before the first piece");
+					return BlueprintStart.Failed;
+				}
 			}
 		}
 		// E7 (player's call, 02/11/2026): LEVEL THE GROUND FIRST, like the templates do. A downloaded build on uneven
@@ -2694,6 +2716,24 @@ internal static class MHR_Build
 		return station != null && station.IndexOf("workbench", StringComparison.OrdinalIgnoreCase) >= 0;
 	}
 
+	/// <summary>
+	/// Lote 1 (player's request, 11/11/2026): is the station rule still in force for this <b>kind</b> of order?
+	/// <c>[Building] BlueprintStations</c> (default on) lifts it <b>only</b> for a blueprint - a template and a single
+	/// piece keep the vanilla rule and the switch does not reach them (<see cref="BuildStationCover.Required"/>). The
+	/// value is read on every use, so the F8 panel also changes an order that is already running.
+	/// </summary>
+	private static bool StationRequired(bool isBlueprint)
+	{
+		bool waived = ModConfig.BuildBlueprintStations == null ? BuildStationCover.Default : ModConfig.BuildBlueprintStations.Value;
+		return BuildStationCover.Required(isBlueprint, waived);
+	}
+
+	/// <summary>The same question for the order being carried out (a template or a single piece is never waived).</summary>
+	private static bool StationRequired(State state)
+	{
+		return StationRequired(state != null && state.Blueprint != null);
+	}
+
 	/// <summary>The bench's own coverage, read from the prefab (<c>CraftingStation.m_rangeBuild</c>), with 20 m as the floor.</summary>
 	private static float BenchRadius(Piece bench)
 	{
@@ -3057,8 +3097,10 @@ internal static class MHR_Build
 		// station of the world on every frame otherwise (review, 03/11/2026)
 		state.NextScaffoldAt = Time.time + 4f;
 		// every piece needs a workbench in range in 1.0 and the stair is no exception - asking ONCE here saves up to 8 ghost
-		// checks in the loop below (and says nothing when the plan's own bench does not reach this corner)
-		if (stair.m_craftingStation != null
+		// checks in the loop below (and says nothing when the plan's own bench does not reach this corner). Lote 1: a
+		// blueprint with the stations waived places the stair the same way it places the house.
+		bool stationNeeded = StationRequired(state);
+		if (stationNeeded && stair.m_craftingStation != null
 			&& CraftingStation.HaveBuildStationInRange(stair.m_craftingStation.m_name, me) == null)
 		{
 			return false;   // "not now": no attempt is spent, a bench may be built later
@@ -3104,7 +3146,7 @@ internal static class MHR_Build
 					last = "blocked by the plan";
 					continue;   // a planned piece (or one waiting in the retry queue) goes here
 				}
-				Dictionary<string, object> check = BuildSite.Check(stair, candidate, rot, cs);
+				Dictionary<string, object> check = BuildSite.Check(stair, candidate, rot, cs, stationNeeded);
 				if (!Ok(check))
 				{
 					last = check != null ? Convert.ToString(check["status"]) : "unknown";
@@ -3834,7 +3876,7 @@ internal static class MHR_Build
 		}
 		Vector3 pos = new Vector3(piece.x, baseY + length * 0.5f, piece.z);
 		Quaternion rot = VerticalPose(post);
-		Dictionary<string, object> check = BuildSite.Check(post, pos, rot, Self(ai));
+		Dictionary<string, object> check = BuildSite.Check(post, pos, rot, Self(ai), StationRequired(state));
 		if (!Ok(check) && !(useful >= 0 && OnlyNoSupport(check)))
 		{
 			Log(ai, "sem lugar para o apoio de emergência sob " + state.Prefab + " em (" + F(pos.x) + ", " + F(pos.y) + ", "
@@ -4510,10 +4552,14 @@ internal static class MHR_Build
 
 	private static bool Find(CompanionAI ai, State state)
 	{
+		// Lote 1 (11/11/2026): a blueprint with [Building] BlueprintStations on is built without stations - the refusals
+		// below and the pose search follow that, otherwise every candidate would fail with needs_station and the piece
+		// would never be placed.
+		bool stationNeeded = StationRequired(state);
 		// a piece that needs a station (a chest, a bed) is refused with its own line BEFORE the search: without the
 		// station every candidate would fail with needs_station, and "no place for it here" would be a lie - the
 		// player needs a workbench, not more room.
-		if (state.Piece != null && state.Piece.m_craftingStation != null
+		if (stationNeeded && state.Piece != null && state.Piece.m_craftingStation != null
 			&& CraftingStation.HaveBuildStationInRange(state.Piece.m_craftingStation.m_name, state.Hint) == null)
 		{
 			string station = Localization.instance != null ? Localization.instance.Localize(state.Piece.m_craftingStation.m_name) : state.Piece.m_craftingStation.m_name;
@@ -4522,13 +4568,13 @@ internal static class MHR_Build
 			return false;
 		}
 		float radius = ModConfig.BuildSiteSearchRadius != null ? ModConfig.BuildSiteSearchRadius.Value : 8f;
-		BuildSiteResult site = BuildSite.Find(state.Piece, state.Hint, state.Forward, radius, 3, 8, 48, Self(ai));
+		BuildSiteResult site = BuildSite.Find(state.Piece, state.Hint, state.Forward, radius, 3, 8, 48, Self(ai), stationNeeded);
 		state.Tried = site.Tried;
 		if (!site.Ok)
 		{
 			Log(ai, "no site: " + site.Tried + " tried, last " + site.Status + " " + TallyText(site.Tally));
 			// the search may still end on needs_station when the station is near the player but not near the spot
-			if (state.Piece != null && state.Piece.m_craftingStation != null && site.Tally.ContainsKey("needs_station"))
+			if (stationNeeded && state.Piece != null && state.Piece.m_craftingStation != null && site.Tally.ContainsKey("needs_station"))
 			{
 				string station = Localization.instance != null ? Localization.instance.Localize(state.Piece.m_craftingStation.m_name) : state.Piece.m_craftingStation.m_name;
 				Finish(ai, state, "hc_ai_build_needs_station", "no candidate had the station", station);
@@ -4576,7 +4622,7 @@ internal static class MHR_Build
 			&& state.Plan != null && state.Index > 0)
 		{
 			state.Checked = true;
-			Dictionary<string, object> early = BuildSite.Check(state.Piece, state.Pos, state.Rot, cs);
+			Dictionary<string, object> early = BuildSite.Check(state.Piece, state.Pos, state.Rot, cs, StationRequired(state));
 			if (early != null && !Ok(early) && Convert.ToString(early["status"]) == "no_support")
 			{
 				// E7 (player's report, 03/11/2026: "a ladder with no floor again"): the floor over a ladder is pulled forward and
@@ -4789,7 +4835,10 @@ internal static class MHR_Build
 		// comes from the walls, and up-front they were only planned (measured: the roof was refused with no_support)
 		if ((state.Template != null || state.Blueprint != null) && state.Plan != null && state.Index > 0)
 		{
-			Dictionary<string, object> check = BuildSite.Check(state.Piece, state.Pos, state.Rot, cs);
+			// Lote 1 (11/11/2026): a blueprint with [Building] BlueprintStations on places its pieces without a workbench, so
+			// this check must not report needs_station for it (the flag is the order's, and it is the one that keeps the
+			// piece from looping in the retry queue forever).
+			Dictionary<string, object> check = BuildSite.Check(state.Piece, state.Pos, state.Rot, cs, StationRequired(state));
 			if (!Ok(check))
 			{
 				string status = check != null ? Convert.ToString(check["status"]) : "unknown";
@@ -4822,7 +4871,7 @@ internal static class MHR_Build
 				// E7 (player's report, 03/11/2026): a piece refused with needs_station gets a workbench inserted RIGHT BEFORE
 				// it (the station pass only reads the world as it was when the order started; a bench destroyed later - or
 				// the plan's own bench being far - left the far side of the site with none, and the piece was only retried)
-				if (status == "needs_station" && state.Blueprint != null && state.Plan != null && state.Piece != null
+				if (status == "needs_station" && StationRequired(state) && state.Blueprint != null && state.Plan != null && state.Piece != null
 					&& state.Piece.m_craftingStation != null && IsBenchKind(state.Piece.m_craftingStation.m_name)
 					&& state.BenchInserts < MaxPlannedBenches)
 				{
@@ -5285,11 +5334,13 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 	private static bool AdjustPose(CompanionAI ai, State state, string status, float radius, bool wide)
 	{
 		Vector3 forward = state.Forward.sqrMagnitude > 0.01f ? state.Forward : ai.transform.forward;
-		BuildSiteResult site = BuildSite.Find(state.Piece, state.Pos, forward, radius, 2, 8, NudgeChecks, Self(ai));
+		// lote 1: the same station rule as the rest of the order (a waived blueprint must not lose the pose to needs_station)
+		bool stationNeeded = StationRequired(state);
+		BuildSiteResult site = BuildSite.Find(state.Piece, state.Pos, forward, radius, 2, 8, NudgeChecks, Self(ai), stationNeeded);
 		if ((site == null || !site.Ok) && wide)
 		{
 			// the furniture of a bank does not fit inside 2,5 m: walk the wider rings once before losing the piece
-			site = BuildSite.Find(state.Piece, state.Pos, forward, radius, 3, 12, NudgeChecksWide, Self(ai));
+			site = BuildSite.Find(state.Piece, state.Pos, forward, radius, 3, 12, NudgeChecksWide, Self(ai), stationNeeded);
 		}
 		if (site == null || !site.Ok)
 		{
@@ -5319,9 +5370,13 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 	private static bool Verify(CompanionAI ai, State state, CompanionSetup cs)
 	{
 		long creator = BuildExecutor.CreatorOf(cs, Player.m_localPlayer);
+		// Lote 1 (11/11/2026): with the stations waived in a blueprint the registry check is waived too - otherwise the
+		// piece is placed and comes back to the retry queue forever (station_not_registered), since nothing is planned
+		// to register it.
+		bool checkStation = StationRequired(state);
 		string reason = state.Placed != null
-			? BuildExecutor.Verify(state.Placed, state.Piece, creator)
-			: BuildExecutor.VerifyAt(state.Piece, state.Pos, creator, out state.Placed);
+			? BuildExecutor.Verify(state.Placed, state.Piece, creator, checkStation)
+			: BuildExecutor.VerifyAt(state.Piece, state.Pos, creator, out state.Placed, checkStation);
 		if (reason != null)
 		{
 			Log(ai, "verification failed: " + reason);

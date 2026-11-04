@@ -847,6 +847,9 @@ public static class ModLocalization
 			// 11/11/2026 (Run 10, the companion blocker): the [Building] StepAside label - a waiting companion of the group
 			// steps out of the way of the piece another one is placing. Short for the same F8 row.
 			{ "hc_cfg_building_stepaside", "Move aside" },
+			// Lote 1 (11/11/2026): the [Building] BlueprintStations label - a blueprint is built with no workbench planned and
+			// no piece refused for a missing station (templates and single pieces keep the vanilla rule). Short for the F8 row.
+			{ "hc_cfg_building_blueprintstations", "Blueprint: no stations" },
 			// Fase 3.10: voice and personality of ONE companion (its own ZDO), with the [AI] values as the default.
 			// Used by the companion tab of the AI panel and by the starter panel's "AI" section.
 			{ "hc_ai_profile_title", "Companion AI" },

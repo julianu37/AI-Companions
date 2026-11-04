@@ -444,6 +444,17 @@ internal static class BuildProbe
 	/// </summary>
 	internal static Dictionary<string, object> CheckPoint(Piece piece, Vector3 point, Quaternion rot, Component ignore)
 	{
+		return CheckPoint(piece, point, rot, ignore, true);
+	}
+
+	/// <summary>
+	/// The same check with <b>the station rule optional</b> (lote 1, 11/11/2026): a blueprint with
+	/// <c>[Building] BlueprintStations</c> on is built without a workbench, so <paramref name="requireStation"/> = false
+	/// simply does not add <c>needs_station</c> - nothing else changes, and <c>hasStation</c> in the result keeps telling
+	/// the truth about the world (it is the proof of the run). The default preserves every other caller.
+	/// </summary>
+	internal static Dictionary<string, object> CheckPoint(Piece piece, Vector3 point, Quaternion rot, Component ignore, bool requireStation)
+	{
 		Dictionary<string, object> result = new Dictionary<string, object>();
 		result["x"] = point.x;
 		result["y"] = point.y;
@@ -552,7 +563,7 @@ internal static class BuildProbe
 		{
 			reasons.Add("ward");
 		}
-		if (piece.m_craftingStation != null && CraftingStation.HaveBuildStationInRange(piece.m_craftingStation.m_name, surface) == null)
+		if (requireStation && piece.m_craftingStation != null && CraftingStation.HaveBuildStationInRange(piece.m_craftingStation.m_name, surface) == null)
 		{
 			reasons.Add("needs_station");
 		}

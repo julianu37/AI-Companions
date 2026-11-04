@@ -757,6 +757,52 @@ The instrumentation counters since the world loaded: how many probes (`pokes`), 
 and the worst collection time in milliseconds (`maxCollectMs`). Take it before and after a walk to see whether the
 nav data is being rebuilt too often.
 
+## Blueprints (read-only)
+
+Look at the `.blueprint` library **before** giving an order. Both tools only read files: they place nothing, they do
+not touch the world and they do not order a companion. The folder is
+`BepInEx\config\AI-Companions\blueprints` (the same one `companions_build {blueprint}` reads). The bridge commands are
+`blueprints.list` and `blueprints.inspect`.
+
+### `blueprints_list`
+
+No parameters.
+
+```json
+{"path": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Valheim\\BepInEx\\config\\AI-Companions\\blueprints",
+ "count": 2,
+ "blueprints": [{"file": "CommHomeBasicBP.blueprint", "bytes": 41234, "lines": 985, "modified": "2026-11-02T10:14:07"},
+                {"file": "hs_meadows_hut.blueprint", "bytes": 1180, "lines": 34, "modified": "2026-10-28T21:03:51"}]}
+```
+
+The folder, how many `.blueprint` files it has and, per file, the name, the size in bytes, the line count and the
+modification time. Use the `file` it prints as the `blueprints_inspect` argument, or as the `blueprint` of
+`companions_build`.
+
+### `blueprints_inspect`
+
+| param | type | default |
+|---|---|---|
+| `file` | string (a `.blueprint` name or a full path) | - (required) |
+
+```json
+{"file": "CommHomeBasicBP.blueprint", "name": "CommHomeBasicBP", "lines": 985,
+ "pieces": 983, "skipped": 2,
+ "skippedReasons": [{"prefab": "stone_floor_2x2", "reason": "recipe not unlocked", "count": 2}],
+ "prefabs": {"wood_floor": 220, "wood_wall": 180, "wood_roof_45": 160, "wood_beam": 120},
+ "stations": {"$piece_workbench": 983},
+ "bounds": {"min": {"x": -168.4, "y": 37.8, "z": -438.1}, "max": {"x": -146.2, "y": 47.8, "z": -399.3}},
+ "storeys": 3, "piecesNeedingStation": 983}
+```
+
+**What the order would do** with that file, without doing it: `pieces` is what the build would try to place, `skipped`
+is how many lines it would drop and `skippedReasons` says which prefab and why (`recipe not unlocked`, `unknown
+prefab`...), `stations` counts the pieces per crafting-station **token** (`$piece_workbench`, `$piece_stonecutter`),
+`prefabs` counts the pieces per prefab, `bounds` is the box of the plan (the anchor is its centre and `min.y` is the
+ground level) and `storeys` how many floors the plan has. **It is the same parse the order does** (`BuildBlueprintParser`
++ the plan the group receives), so these are the numbers the companion would work with - it is not a second
+implementation. Read-only: nothing is placed and no companion is ordered.
+
 ## Suggested workflows
 
 **Reproduce an order without typing:** `game_console` with `devcommands` + `spawn Troll 2` â†’ `companions_order`

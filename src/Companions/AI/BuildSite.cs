@@ -70,7 +70,18 @@ internal static class BuildSite
 	/// <summary>The full check with a character to ignore (E6: the companion placing the piece is not an obstacle).</summary>
 	internal static Dictionary<string, object> Check(Piece piece, Vector3 pos, Quaternion rot, Component ignore)
 	{
-		Dictionary<string, object> check = BuildProbe.CheckPoint(piece, pos, rot, ignore);
+		return Check(piece, pos, rot, ignore, true);
+	}
+
+	/// <summary>
+	/// The same check with the <b>station rule optional</b> (lote 1, 11/11/2026): a blueprint built with
+	/// <c>[Building] BlueprintStations</c> on has no workbench planned, so this is the flag that keeps the pose from being
+	/// refused with <c>needs_station</c>. Everything else (ground, water, ward, clipping, bodies) is unchanged and the
+	/// default keeps every other caller on the vanilla rule.
+	/// </summary>
+	internal static Dictionary<string, object> Check(Piece piece, Vector3 pos, Quaternion rot, Component ignore, bool requireStation)
+	{
+		Dictionary<string, object> check = BuildProbe.CheckPoint(piece, pos, rot, ignore, requireStation);
 		bool clips = false;
 		if (piece != null && piece.m_noClipping)
 		{
@@ -100,7 +111,7 @@ internal static class BuildSite
 	/// facing); pieces that may rotate get the four 90° yaws tried before the spot is abandoned, which is what a
 	/// player does when the bench does not fit. <paramref name="maxCandidates"/> bounds the work.
 	/// </summary>
-	internal static BuildSiteResult Find(Piece piece, Vector3 hint, Vector3 forward, float radius, int rings, int dirs, int maxCandidates = 48, Component ignore = null)
+	internal static BuildSiteResult Find(Piece piece, Vector3 hint, Vector3 forward, float radius, int rings, int dirs, int maxCandidates = 48, Component ignore = null, bool requireStation = true)
 	{
 		BuildSiteResult result = new BuildSiteResult { Pos = hint, Rot = LookRotation(forward), Distance = 0f };
 		if (piece == null)
@@ -139,7 +150,7 @@ internal static class BuildSite
 			{
 				tried++;
 				Quaternion rot = baseRot * Quaternion.Euler(0f, yaw, 0f);
-				Dictionary<string, object> check = Check(piece, pos, rot, ignore);
+				Dictionary<string, object> check = Check(piece, pos, rot, ignore, requireStation);
 				result.Tried = tried;
 				result.Status = Convert.ToString(check["status"]);
 				result.Reasons = check["reasons"] as List<string> ?? new List<string>();

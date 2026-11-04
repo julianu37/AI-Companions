@@ -186,6 +186,9 @@ internal static class ModConfig
 	/// <summary>E7 (player's idea, 03/11/2026): a temporary wood stair for a piece above the 5 m placement reach.</summary>
 	internal static ConfigEntry<bool> BuildTempScaffold;
 	internal static ConfigEntry<bool> BuildBlueprintFree;
+	/// <summary>Lote 1 (11/11/2026): a blueprint builds without crafting stations - no workbench is planned and a piece
+	/// is not refused for a missing station. Templates and single-piece orders always need the station.</summary>
+	internal static ConfigEntry<bool> BuildBlueprintStations;
 	internal static ConfigEntry<int> BuildBlueprintMaxPieces;
 
 	internal static ConfigEntry<float> TombstoneScanInterval;
@@ -970,6 +973,7 @@ internal static class ModConfig
 		BuildClearSite = Bind(cfg, "Building", "ClearSite", true, "Clear the build site before the first piece: the trees, stumps and fallen logs inside the plan's footprint are cut (the same directed harvest the radial uses) and the wood goes to the bag the build pays from. The ground under them is not changed - leveling is its own step (LevelGround). Up to 40 obstacles / 240 s per order; what is left is handled by the piece retry.");
 		BuildTempScaffold = Bind(cfg, "Building", "TempScaffold", false, "Off by default (the test of 03/11/2026 covered the site in stairs). In a blueprint, after 12 s without getting closer, place a temporary wood stair (2 wood) when the piece is above the placement reach ([Building] PlaceReach - vanilla 5 m) - a ridge, the top of a gable, the last row of a roof. The stair is a ramp the companion walks up, it is paid from the bag/chests like any piece and the wood comes back when it is removed at the end of the order (it is not part of the plan). At most 4 per order and the stair is removed as soon as the piece it was placed for goes up; each stair is +1 m. A stair is kept only when a piece placed next to it has no support without it.");
 		BuildBlueprintFree = Bind(cfg, "Building", "BlueprintFree", false, "Build a blueprint without paying for the pieces (a test/creative switch: the companion places the pieces from the file and takes nothing from the bag or the chests). Off by default - a blueprint costs the same as any other build.");
+		BuildBlueprintStations = Bind(cfg, "Building", "BlueprintStations", true, "A blueprint builds without crafting stations: none is planned and a piece is not refused for a missing station. Off = the vanilla rule. Templates and single-piece orders always need the station.");
 		BuildBlueprintMaxPieces = Bind(cfg, "Building", "BlueprintMaxPieces", 2000, "Refuse a blueprint with more pieces than this (a guard against a huge or broken file). The message says the file has more pieces than the limit.", new AcceptableValueRange<int>(1, 20000));
 		BuildLevelTolerance = Bind(cfg, "Building", "LevelTolerance", 0.35f, "How much height variation (meters) a build site may have before the ground is leveled. Measured: a floor is refused when the ground under it is more than ~0.3 m below the anchor.", new AcceptableValueRange<float>(0.05f, 2f));
 		// [GearRepair]
@@ -1256,7 +1260,7 @@ internal static class ModConfig
 	/// <summary>1.9.5 (auditoria C2): the version of the config migrations this build knows about. Bump it whenever a
 	/// new one-time migration is added: a file stamped with an older value runs the migration block once more (they are
 	/// all "only the EXACT old default" rules, so running them again is harmless) and gets the new stamp.</summary>
-	private const int CurrentConfigVersion = 197;
+	private const int CurrentConfigVersion = 198;
 
 	/// <summary>1.9.5 (auditoria C2): should the one-time default migrations run on this boot? They used to run on
 	/// <b>every</b> boot, which quietly undid a choice the player made back to an old default (set the silence

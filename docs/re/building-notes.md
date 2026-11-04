@@ -2396,6 +2396,12 @@ NO LUGAR`). **1 morte**, ignorada por decisão do jogador (mesma regra do Run 9,
 - **Consequência honesta:** as 2 peças são o **teto do blueprint** nesta instalação, não um bug da obra. Para medir um
   run com elas seria preciso **pedra no inventário do jogador + talhador de pedras de pé e a ≤20 m** do canteiro — isso
   **não foi testado** em nenhum run até aqui.
+- **Ficha medida da estação e da peça (04/11/2026):** `docs/re/stone-and-stonecutter.md` — receita do talhador
+  (Madeira 10 + Ferro 2 + Pedra 4), que ele **exige bancada** a ≤20 m, `m_rangeBuild` **20**, `m_discoverRange` **4**,
+  `noClipping`/`notOnTiltingSurface`/`noInWater` ligados, `m_supports = false` (nada em cima dele), a prova de que a
+  estação instanciada **fora** do `Player.PlacePiece` entra em `m_allStations` (`build.sites → hasStation: true`), a
+  cadeia de unlock (`UpdateStations` 1 s → 4 m → `AddKnownStation` → `UpdateKnownRecipesList`) e o que o nosso
+  `PlaceDirect` **não** faz (o `AddKnownStation` de `Player.cs:3105-3109`).
 
 **Contas e limites desta seção:** os números acima são os **medidos** no run (fala final, contadores do log,
 `accept_run.py` e a contagem do canteiro); **não** foram medidos nesta rodada — a contagem das linhas do `StepAside`, a

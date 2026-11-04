@@ -115,6 +115,39 @@ class MockBridge(threading.Thread):
                 "rebuilds": 3,
                 "maxCollectMs": 1.75,
             }}
+        if cmd == "blueprints.list":
+            # The library listing (blueprints.list): the folder and one entry per .blueprint. The big file is the
+            # real CommHomeBasicBP measurement (985 lines in the file, 983 pieces once the 2 skipped lines go).
+            return {"ok": True, "data": {
+                "path": os.path.join("BepInEx", "config", "AI-Companions", "blueprints"),
+                "count": 2,
+                "blueprints": [
+                    {"file": "CommHomeBasicBP.blueprint", "bytes": 41234, "lines": 985,
+                     "modified": "2026-11-02T10:14:07"},
+                    {"file": "hs_meadows_hut.blueprint", "bytes": 1180, "lines": 34,
+                     "modified": "2026-10-28T21:03:51"},
+                ],
+            }}
+        if cmd == "blueprints.inspect":
+            # Same parse the order does (BuildBlueprintParser), so these numbers are the ones the build would use:
+            # 985 lines -> 983 pieces, because 2 stone_floor_2x2 lines are skipped ("recipe not unlocked").
+            args = request.get("args") or {}
+            return {"ok": True, "data": {
+                "file": args.get("file") or "CommHomeBasicBP.blueprint",
+                "name": "CommHomeBasicBP",
+                "lines": 985,
+                "pieces": 983,
+                "skipped": 2,
+                "skippedReasons": [{"prefab": "stone_floor_2x2", "reason": "recipe not unlocked", "count": 2}],
+                "prefabs": {"wood_floor": 220, "wood_wall": 180, "wood_roof_45": 160, "wood_beam": 120,
+                            "wood_beam_1": 90, "wood_wall_half": 64, "wood_door": 6, "piece_workbench": 4,
+                            "wood_beam_45": 139},
+                "stations": {"$piece_workbench": 983},
+                "bounds": {"min": {"x": -168.4, "y": 37.8, "z": -438.1},
+                           "max": {"x": -146.2, "y": 47.8, "z": -399.3}},
+                "storeys": 3,
+                "piecesNeedingStation": 983,
+            }}
         if cmd == "companions.build":
             # Mirrors the C# answer (DevBridge/Commands.cs, CompanionsBuild): `echo`/`args` are this mock's
             # bookkeeping so the forwarded payload stays visible, the rest is the shape the tool documents.
@@ -187,12 +220,12 @@ def main():
 
         tools = rpc("tools/list", request_id=2).get("result", {}).get("tools", [])
         names = {tool["name"] for tool in tools}
-        check("tools/list has 60 tools", len(tools) == 60, "%d tools" % len(tools))
+        check("tools/list has 62 tools", len(tools) == 62, "%d tools" % len(tools))
         for expected in ("devbridge_ping", "game_status", "companions_list", "companions_order", "screenshot", "log_tail",
                          "player_kill", "player_inventory", "world_time", "companions_kill", "companions_tier",
                          "companions_hire", "companions_resurrect", "companions_farm_zone", "log_watch",
                          "build_inspect", "build_sites", "build_find", "build_pieces", "companions_build", "companions_sethome", "player_look", "build_check", "build_snaps", "build_usable", "terrain_check", "build_hoe", "companions_level",
-                         "nav_tiles", "nav_probe", "nav_stats"):
+                         "nav_tiles", "nav_probe", "nav_stats", "blueprints_list", "blueprints_inspect"):
             check("tools/list includes %s" % expected, expected in names)
 
         ping = rpc("tools/call", {"name": "devbridge_ping", "arguments": {}}, request_id=3)
@@ -388,6 +421,56 @@ def main():
               and stats_data.get("maxCollectMs") == 1.75, stats_data)
         check("nav_stats sends no arguments",
               all(a == {} for a in nav_args("nav.stats")), nav_args("nav.stats"))
+
+        # --- blueprints: see the library without giving an order (player's request, 11/11/2026) ----------------
+        list_tool = next((tool for tool in tools if tool["name"] == "blueprints_list"), {})
+        inspect_tool = next((tool for tool in tools if tool["name"] == "blueprints_inspect"), {})
+        check("blueprints_list takes no arguments",
+              (list_tool.get("inputSchema") or {}).get("properties") == {}, list_tool.get("inputSchema"))
+        inspect_schema = inspect_tool.get("inputSchema") or {}
+        check("blueprints_inspect requires the file argument",
+              (inspect_schema.get("required") or []) == ["file"], inspect_schema.get("required"))
+        inspect_desc = (inspect_tool.get("description") or "").lower()
+        check("blueprints_inspect documents that it is read-only",
+              "read-only" in inspect_desc, inspect_desc[:60])
+        check("blueprints_inspect documents what the order would do",
+              all(word in inspect_desc for word in ("would do", "pieces", "station", "skip")), inspect_desc[:60])
+
+        list_reply = rpc("tools/call", {"name": "blueprints_list", "arguments": {}}, request_id=70)
+        list_data = json.loads(list_reply["result"]["content"][0]["text"])
+        check("blueprints_list returns the folder and the count",
+              bool(list_data.get("path")) and list_data.get("count") == 2, list_data.get("count"))
+        listing = list_data.get("blueprints") or []
+        check("blueprints_list returns file/bytes/lines/modified per blueprint",
+              len(listing) == 2 and all(one.get("file") and one.get("bytes") and one.get("lines")
+                                        and one.get("modified") for one in listing), listing[:1])
+        check("blueprints_list forwards blueprints.list with no arguments",
+              any(r.get("cmd") == "blueprints.list" and (r.get("args") or {}) == {} for r in bridge.requests),
+              [r.get("args") for r in bridge.requests if r.get("cmd") == "blueprints.list"])
+
+        inspect_reply = rpc("tools/call", {"name": "blueprints_inspect",
+                                           "arguments": {"file": "CommHomeBasicBP.blueprint"}}, request_id=71)
+        inspect_data = json.loads(inspect_reply["result"]["content"][0]["text"])
+        check("blueprints_inspect sends the file",
+              any(r.get("cmd") == "blueprints.inspect"
+                  and (r.get("args") or {}).get("file") == "CommHomeBasicBP.blueprint" for r in bridge.requests),
+              [r.get("args") for r in bridge.requests if r.get("cmd") == "blueprints.inspect"])
+        check("blueprints_inspect returns pieces and skipped",
+              inspect_data.get("pieces") == 983 and inspect_data.get("skipped") == 2,
+              (inspect_data.get("pieces"), inspect_data.get("skipped")))
+        reasons = inspect_data.get("skippedReasons") or []
+        check("blueprints_inspect names the skipped prefab and the reason",
+              any(one.get("prefab") == "stone_floor_2x2" and one.get("reason") == "recipe not unlocked"
+                  and one.get("count") == 2 for one in reasons), reasons)
+        check("blueprints_inspect returns the stations by token",
+              (inspect_data.get("stations") or {}).get("$piece_workbench") == 983, inspect_data.get("stations"))
+        check("blueprints_inspect returns prefabs, bounds and storeys",
+              bool(inspect_data.get("prefabs"))
+              and (inspect_data.get("bounds") or {}).get("min", {}).get("y") == 37.8
+              and (inspect_data.get("bounds") or {}).get("max", {}).get("y") == 47.8
+              and inspect_data.get("storeys") == 3, sorted(inspect_data))
+        check("blueprints_inspect returns how many pieces need a station",
+              inspect_data.get("piecesNeedingStation") == 983, inspect_data.get("piecesNeedingStation"))
 
         unknown = rpc("tools/call", {"name": "does_not_exist", "arguments": {}}, request_id=7)
         check("unknown tool is a JSON-RPC error", unknown.get("error", {}).get("code") == -32602)

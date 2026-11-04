@@ -607,6 +607,9 @@ Off by default (the test of 03/11/2026 covered the site in stairs). In a bluepri
 **BlueprintFree** — Default: Off  
 Build a blueprint without paying for the pieces (a test/creative switch: the companion places the pieces from the file and takes nothing from the bag or the chests). Off by default - a blueprint costs the same as any other build.
 
+**BlueprintStations** — Default: On  
+A blueprint builds without crafting stations: none is planned and a piece is not refused for a missing station. Off = the vanilla rule. Templates and single-piece orders always need the station.
+
 **BlueprintMaxPieces** — Default: 2000 · Range: 1 – 20000  
 Refuse a blueprint with more pieces than this (a guard against a huge or broken file). The message says the file has more pieces than the limit.
 

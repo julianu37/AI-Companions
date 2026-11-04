@@ -30,7 +30,9 @@ namespace AiIntentsCheck;
 /// the <b>body barrier</b> of the walk order (<c>BuildFailure.IsTransient</c>/<c>ShortRetry</c> and the piece's level):
 /// the spot a body is standing on is retried 3 times in 2,5 s and the storeys above it wait. Section (u) is
 /// <c>BuildSupportBelow.FallbackPostAllowed</c>: when the emergency post may take over from a support the plan <b>has</b>
-/// but is not delivering (the Run 9 column that stayed out).</para>
+/// but is not delivering (the Run 9 column that stayed out). Section (v) is <c>BuildStationCover.Required</c>: the
+/// crafting-station rule lifted <b>only</b> for a blueprint (<c>[Building] BlueprintStations</c>), never for a template or
+/// a single piece.</para>
 ///
 /// <para>Run: <c>dotnet run --project tools/ai-intents-check</c> (after <c>dotnet build Companions.sln -c Release</c>,
 /// which the cross-check reads). Exit code 0 only when every case passed and nothing was skipped.</para>
@@ -113,6 +115,8 @@ internal static class Program
 		BodyBarrier();
 		Section("(u) BuildSupportBelow.FallbackPostAllowed - o poste quando o apoio do plano nao vem");
 		FallbackPosts();
+		Section("(v) BuildStationCover.Required - a bancada exigida so fora do blueprint");
+		StationsCover();
 		CrossCheckDoorRule();
 
 		Out.WriteLine();
@@ -1233,6 +1237,35 @@ internal static class Program
 		bool actual = BuildSupportBelow.FallbackPostAllowed(givenUp, claimed, deferrals);
 		Check("FallbackPostAllowed(desistido=" + (givenUp ? "sim" : "nao") + ", reivindicado=" + (claimed ? "sim" : "nao")
 			+ ", esperas=" + deferrals + ") -> " + (expected ? "true" : "false") + " (" + why + ")", actual == expected,
+			"obtido " + (actual ? "true" : "false"));
+	}
+
+	/// <summary>
+	/// Section (v): lote 1 (player's request, 11/11/2026) - the workbench/stonecutter requirement lifted <b>only</b> for a
+	/// blueprint. The table is <c>BuildStationCover.Required(isBlueprint, config)</c>: a template and a single piece are
+	/// <b>never</b> waived (the switch does not reach them), and a blueprint is waived only with
+	/// <c>[Building] BlueprintStations</c> on.
+	/// </summary>
+	private static void StationsCover()
+	{
+		StationCase(false, true, true, "template com a chave ligada: continua exigindo (a chave nao alcanca o template)");
+		StationCase(false, false, true, "template com a chave desligada: exige (regra vanilla)");
+		StationCase(true, true, false, "blueprint com a chave ligada: dispensada (sem bancada planejada)");
+		StationCase(true, false, true, "blueprint com a chave desligada: exige (regra vanilla)");
+		// the config entry can be missing (a failed read): the fallback is the switch's default, and it is the same number
+		// MHR_Build.StationRequired uses - a blueprint with no config is waived
+		Check("sem config (padrao " + (BuildStationCover.Default ? "ligada" : "desligada") + "): blueprint nao exige",
+			BuildStationCover.Required(true, BuildStationCover.Default) == false,
+			"obtido " + (BuildStationCover.Required(true, BuildStationCover.Default) ? "true" : "false")
+			+ " (Default=" + (BuildStationCover.Default ? "true" : "false") + ")");
+	}
+
+	/// <summary>Section (v): one kind of order with the switch in one position.</summary>
+	private static void StationCase(bool isBlueprint, bool config, bool expected, string why)
+	{
+		bool actual = BuildStationCover.Required(isBlueprint, config);
+		Check("Required(blueprint=" + (isBlueprint ? "sim" : "nao") + ", config=" + (config ? "ligada" : "desligada")
+			+ ") -> " + (expected ? "true" : "false") + " (" + why + ")", actual == expected,
 			"obtido " + (actual ? "true" : "false"));
 	}
 
