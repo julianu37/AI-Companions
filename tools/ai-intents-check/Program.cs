@@ -35,6 +35,10 @@ namespace AiIntentsCheck;
 /// a single piece. Section (w) is <c>BuildMaterials</c>: the material need of a plan (prefab → count folded through each
 /// piece's costs), the number the build panel shows before the order and <c>blueprints.inspect</c> reports as
 /// <c>materials</c>.</para>
+/// 
+/// <para>Section (x) is <c>BuildWalkSpot</c>: <b>where the companion stands</b> to place a piece that is not at its feet
+/// (Run 13, 11/11/2026 - the ridge of the <c>CommHomeBasicBP</c> walked the wrong way). The same storey first, then the
+/// highest surface the game's eye rule still covers; none = the piece itself, the old target.</para>
 ///
 /// <para>Run: <c>dotnet run --project tools/ai-intents-check</c> (after <c>dotnet build Companions.sln -c Release</c>,
 /// which the cross-check reads). Exit code 0 only when every case passed and nothing was skipped.</para>
@@ -121,6 +125,8 @@ internal static class Program
 		StationsCover();
 		Section("(w) BuildMaterials - o custo do plano (necessidade de materiais)");
 		Materials();
+		Section("(x) BuildWalkSpot.Choose - de onde a peca e alcancada (o ponto do walk, Run 13)");
+		WalkSpotCases();
 		CrossCheckDoorRule();
 
 		Out.WriteLine();
@@ -1398,6 +1404,129 @@ internal static class Program
 			}
 		}
 		return true;
+	}
+
+	// ============================================================================================ (x) de onde a peca e alcancada
+
+	/// <summary>
+	/// Section (x): <c>BuildWalkSpot</c> - <b>where the companion stands</b> to place a piece that is not at its feet.
+	/// Run 13 (11/11/2026) measured it on the ridge of the <c>CommHomeBasicBP</c>: the walk was sent at the piece's own pose
+	/// (a roof row at 48,8, ten metres up), the path snap started the route far from the feet and the companion walked the
+	/// <b>wrong way</b> - "no progress" after 12 s at <b>22,8 m</b>, then <b>23,5 m</b>. The table asserted here is the
+	/// choice of the surface to walk to: the <b>same storey</b> first (2,5 m below to 0,5 m above the piece, the closest one
+	/// to the companion wins), then the <b>highest</b> surface the piece can still be reached from (the game's eye rule,
+	/// <c>MaxPlace</c> from <c>surface + 1,5 m</c>); none = the old target (the piece itself), so the caller never loses its
+	/// walk. The coordinates are exact halves on purpose: the boundary cases (2,5 m and 0,5 m) are about the <b>inclusive</b>
+	/// ends, not about a float rounding.
+	/// </summary>
+	private static void WalkSpotCases()
+	{
+		UnityEngine.Vector3 me = new UnityEngine.Vector3(0f, 5f, 0f);
+		UnityEngine.Vector3 piece = new UnityEngine.Vector3(0f, 10f, 0f);
+
+		// 1) the roof row 1 m under the piece wins over the ground 8 m under it (the same storey is the shortest walk and
+		// the only one the plan built the way to)
+		WalkCase("telhado 1 m abaixo vence o chao 8 m abaixo", me, piece, 10f,
+			new[]
+			{
+				new UnityEngine.Vector3(0f, 9f, 0f),    // 1 m below the piece
+				new UnityEngine.Vector3(0f, 2f, 0f)     // the ground, 8 m below it
+			}, true, new UnityEngine.Vector3(0f, 9f, 0f));
+
+		// 2) two surfaces of the same storey: the closest one to the companion (the shorter walk)
+		WalkCase("dois do mesmo andar: o mais perto ganha", me, piece, 10f,
+			new[]
+			{
+				new UnityEngine.Vector3(0.8f, 8f, 0f),   // first in the list, farther
+				new UnityEngine.Vector3(0f, 8f, 0f)      // the one under the piece
+			}, true, new UnityEngine.Vector3(0f, 8f, 0f));
+
+		// 3) nothing of the piece's own storey: the highest floor the eye rule still covers
+		WalkCase("so chao dentro do olho: o mais alto ganha", new UnityEngine.Vector3(0f, 0f, 0f), piece, 10f,
+			new[]
+			{
+				new UnityEngine.Vector3(0f, 6f, 0f),    // 4 m below
+				new UnityEngine.Vector3(0f, 4f, 0f)     // 6 m below
+			}, true, new UnityEngine.Vector3(0f, 6f, 0f));
+
+		// 4) no surface the piece can be reached from (the eye rule, 5 m here): false and the piece itself comes back
+		WalkCase("nada dentro do olho: false e a peca volta como alvo", new UnityEngine.Vector3(0f, 0f, 0f), piece, 5f,
+			new[]
+			{
+				new UnityEngine.Vector3(0f, 2f, 0f)     // eye at 3,5: 6,5 m from the piece, out of the 5 m rule
+			}, false, piece);
+
+		// 5) a surface 0,5 m ABOVE the piece is still its own storey (the ridge line of a roof, the top of the beam it
+		// leans on) - and it wins over a farther same-storey one
+		WalkCase("superficie 0,5 m acima da peca e aceita", me, piece, 10f,
+			new[]
+			{
+				new UnityEngine.Vector3(0.2f, 10.5f, 0f),   // 0,5 m above: the inclusive end
+				new UnityEngine.Vector3(1f, 8f, 0f)         // 2 m below, farther from the companion
+			}, true, new UnityEngine.Vector3(0.2f, 10.5f, 0f));
+
+		// 6) the 2,5 m end of the same storey is INCLUSIVE: exactly 2,5 m below still counts (and wins over a 2 m one that
+		// is farther), which is what keeps the row under a 2 m wall
+		WalkCase("fronteira de 2,5 m e inclusiva", me, piece, 10f,
+			new[]
+			{
+				new UnityEngine.Vector3(0.1f, 7.5f, 0f),   // exactly 2,5 m below, at the companion's feet
+				new UnityEngine.Vector3(2f, 8f, 0f)        // 2 m below, 2 m away
+			}, true, new UnityEngine.Vector3(0.1f, 7.5f, 0f));
+
+		// 7) a tie is decided by the coordinates, never by the order the surfaces were collected in: two surfaces 1 m to
+		// each side come back as the same point with the list reversed
+		UnityEngine.Vector3 right = new UnityEngine.Vector3(1f, 8f, 0f);
+		UnityEngine.Vector3 left = new UnityEngine.Vector3(-1f, 8f, 0f);
+		UnityEngine.Vector3 first;
+		UnityEngine.Vector3 second;
+		bool okFirst = BuildWalkSpot.Choose(me, piece, 10f, new List<UnityEngine.Vector3> { right, left }, out first);
+		bool okSecond = BuildWalkSpot.Choose(me, piece, 10f, new List<UnityEngine.Vector3> { left, right }, out second);
+		Check("empate a 1 m dos dois lados: a lista invertida da o MESMO ponto -> " + Vec(left),
+			okFirst && okSecond && Same(first, second) && Same(first, left),
+			"1a=" + Vec(first) + ", 2a=" + Vec(second));
+
+		// 8) a surface 2,6 m below is NOT the same storey: it falls to the second pass and is still chosen (it is the only
+		// one, and the piece is 1,1 m above its eye)
+		WalkCase("chao 2,6 m abaixo cai na 2a passada", me, piece, 10f,
+			new[]
+			{
+				new UnityEngine.Vector3(0f, 7.4f, 0f)   // 2,6 m below: the neighbour of the next storey down
+			}, true, new UnityEngine.Vector3(0f, 7.4f, 0f));
+
+		// 9) a piece at the level of a floor is placed from THAT floor, not from the one 3 m under it
+		WalkCase("peca no mesmo nivel: o candidato do mesmo nivel", new UnityEngine.Vector3(0f, 9f, 0f), piece, 10f,
+			new[]
+			{
+				new UnityEngine.Vector3(0.5f, 10f, 0f),   // the piece's own level
+				new UnityEngine.Vector3(0f, 7f, 0f)       // 3 m below
+			}, true, new UnityEngine.Vector3(0.5f, 10f, 0f));
+
+		// 10) no surface at all: false (the caller keeps the piece as its target)
+		WalkCase("lista vazia: false e a peca volta como alvo", me, piece, 10f, new UnityEngine.Vector3[0], false, piece);
+	}
+
+	/// <summary>Section (x): one <c>Choose</c> case - the surfaces in the given order and the expected answer.</summary>
+	private static void WalkCase(string name, UnityEngine.Vector3 me, UnityEngine.Vector3 piece, float maxPlace,
+		UnityEngine.Vector3[] surfaces, bool found, UnityEngine.Vector3 expected)
+	{
+		UnityEngine.Vector3 got;
+		bool ok = BuildWalkSpot.Choose(me, piece, maxPlace, new List<UnityEngine.Vector3>(surfaces), out got);
+		bool right = ok == found && (!ok || Same(got, expected));
+		Check(name + " -> " + (found ? Vec(expected) : "false"), right,
+			"obtido " + (ok ? Vec(got) : "false") + ", esperado " + (found ? Vec(expected) : "false"));
+	}
+
+	/// <summary>Section (x): the same point (a tenth of a millimetre).</summary>
+	private static bool Same(UnityEngine.Vector3 a, UnityEngine.Vector3 b)
+	{
+		return (a - b).sqrMagnitude < 0.00000001f;
+	}
+
+	/// <summary>Section (x): a point for the messages.</summary>
+	private static string Vec(UnityEngine.Vector3 v)
+	{
+		return "(" + v.x.ToString("0.###") + ", " + v.y.ToString("0.###") + ", " + v.z.ToString("0.###") + ")";
 	}
 
 	/// <summary>The plan of case (a)/(e) of section (m): a fresh list every call (case (e) needs two of them).</summary>

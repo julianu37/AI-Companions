@@ -1343,7 +1343,9 @@ Sem a bancada perto o `wood_beam` recusa com `needs_station` e a ordem encerra d
 **De onde baixar (02/11/2026):** as 3 saíram do **BiomeBlueprints** (OverDrive) -
 <https://thunderstore.io/c/valheim/p/OverDrive/BiomeBlueprints/> (download direto:
 <https://thunderstore.io/package/download/OverDrive/BiomeBlueprints/1.0.3/>). Dentro do zip, os 353 arquivos estão na
-pasta **`blueprints/`** - é só copiar os `.blueprint` que quiser para `BepInEx\config\AI-Companions\blueprints\`.
+pasta **`blueprints/`** - é só copiar os `.blueprint` que quiser para `BepInEx\plugins\AI-Companions\blueprints\` (o
+mod **copia** sozinho a pasta antiga, `BepInEx\config\AI-Companions\blueprints\`, na primeira vez que a nova não existe —
+11/11/2026).
 Outras fontes: **valheimians.com** (acervo da comunidade) e a **captura do próprio PlanBuild** (salva um `.blueprint` do
 que você construiu). O mod **não** precisa do PlanBuild para ler nenhum deles.
 
@@ -1364,8 +1366,14 @@ pode acontecer é alguma linha usar um prefab que mudou desde então (ela é **p
 download é do jogador (login no Nexus e a licença **proíbe redistribuir** o arquivo); o teste em jogo ainda não foi
 feito.
 
-**Onde os arquivos ficam:** `BepInEx/config/AI-Companions/blueprints/` (o mod cria a pasta). A ordem usa o **nome do
-arquivo** sem a extensao ("construa a hs_meadows_hut aqui"), porque o `#Name:` de muitas builds e "Custom Name".
+**Onde os arquivos ficam:** `BepInEx\plugins\AI-Companions\blueprints\` — a pasta do **DLL** (`Assembly.Location`, a
+mesma de `tts\`/`whisper\`/`Translations\`), não mais `BepInEx\config\AI-Companions\blueprints\` (até 11/11/2026: a
+mudança foi pedido do jogador, porque a biblioteca é **conteúdo** e assim o pacote pode levá-la). O mod **cria a pasta**
+no primeiro uso e, na primeira vez em que ela **não existe**, **copia** a antiga **uma vez** - nunca move e nunca
+sobrescreve um arquivo homônimo (`AI/BuildBlueprints.cs` → `MigrateLegacy`; log
+`[Build] blueprints: N arquivo(s) migrados de config para plugins`); se a pasta nova já existe (o pacote a traz), a
+migração **não roda**. A ordem usa o **nome do arquivo** sem a extensao ("construa a hs_meadows_hut aqui"), porque o
+`#Name:` de muitas builds e "Custom Name".
 
 ## 13. E10 - nivelar o terreno com a enxada (medido em 01/11/2026)
 
@@ -2524,18 +2532,22 @@ seguem exigindo a estação (`AI/BuildStationCover.cs:35-42` — `isBlueprint ==
 **não** foram medidos nesta rodada: `falls`, a contagem de recusas por corpo (só as **2** da peça de pedra que estão na
 linha), a contagem das linhas do `StepAside` (§17.16/§17.17 seguem sem essa contagem), o `N` da linha
 "peça(s) que precisariam" e quantos dos **30** postes vieram da `FallbackPostAllowed` (§17.16 continua **sem run**
-para ela). O número de **122 checks** é o do lote (rodado pelo arquiteto no `f93f290`/`f36e323`) — **não** foi
-reconferido nesta documentação, assim como o `harness`: a seção **(v)** (`BuildStationCover`, `AI/BuildStationCover.cs`)
-entrou com esse lote e a contagem total **não** foi reconferida (a última medida é **642**). A árvore deste run é
-**365 opções / 25 seções**, contadas no `package/CONFIGURATION.md` **gerado** (que já lista a `BlueprintStations` e a
-`BuildPanelKey`) — o `gen_config_doc.py` **não** foi rodado aqui; o gate continua sendo o `--check`.
+para ela). O resto da árvore é o **medido** fora do run: **656 PASS** no harness (`dotnet run --project
+tools/ai-intents-check -c Release`, depois das seções **(v)** e **(w)** — o Run 11 rodou na árvore de **642**, §17.17),
+**MCP 122**, **config 365/25** (`python tools/gen_config_doc.py`; o `--check` continua sendo o gate) e **0 ausentes no
+PT / 0 lacunas em ES-FR-IT** no `audit_translations.py`.
 
-**Achado de localização deste lote (não corrigido aqui):** o rótulo `hc_cfg_building_blueprintstations` está **só no
-inglês nativo** (`Core/ModLocalization.cs:852`) e **não** existe em nenhum dos **4** JSONs (`Translations/`), então em
-PT/ES/FR/IT o F8 mostra a **chave crua** — e o `audit_translations.py` (modo PT) conta **1 ausente** por chave
-(`tools/audit_translations.py:213-216`, `gaps` em `:225`; **pela leitura do script** — ele **não** foi rodado nesta
-documentação). O mesmo vale para `hc_cfg_controls_buildpanelkey`
-(`ModLocalization.cs:855`), do lote do painel da obra. Os dois são de **11/11/2026** e faltam nos 4 arquivos.
+**Achado de localização deste lote — CORRIGIDO no mesmo dia (11/11/2026):** os rótulos
+`hc_cfg_building_blueprintstations` (`Core/ModLocalization.cs:852`) e `hc_cfg_controls_buildpanelkey` (`:855`) estavam
+**só no inglês nativo** e mostravam a **chave crua** no F8 em PT/ES/FR/IT. Os dois entraram nos **4** JSONs —
+`hc_cfg_controls_buildpanelkey` em `Translations/*.json:1416` ("Tecla do painel de obra" / "Tecla del panel de obra" /
+"Touche du panneau de chantier" / "Tasto del pannello cantiere") e `hc_cfg_building_blueprintstations` em `:2872`
+("Blueprint: sem estações" / "Blueprint: sin estaciones" / "Blueprint : sans établis" / "Blueprint: senza stazioni") —, na
+**mesma posição** dos 4 arquivos (a ordem do PT é o que o auditor cobra). Resultado medido: o modo PT foi de **2
+ausentes para 0** e o `--lang` ficou em **0 lacunas** nos três. A dívida do `gen_translations.py --check` **subiu de 47
+para 49** — não é regressão: o mapa do gerador indexa por **texto PT** e as duas strings novas (`Tecla do painel de
+obra`, `Blueprint: sem estações`) não estão nele; ele só grava quando a lista está **vazia**, então segue sem
+sobrescrever nada.
 
 ### 17.19 Receita de teste × comportamento — o que é do teste e o que é do jogador
 

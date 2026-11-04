@@ -236,6 +236,11 @@ internal static class VoiceInput
 		{
 			return true;
 		}
+		// 11/11/2026: the build panel owns the keyboard while it is open (its blueprint filter is a text box)
+		if (CompanionBuildPanel.IsOpen)
+		{
+			return true;
+		}
 		return false;
 	}
 

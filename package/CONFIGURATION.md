@@ -580,6 +580,9 @@ A piece refused because a body (you or another companion) was in the way is not 
 **StepAside** — Default: On  
 A companion of the build group that is only waiting steps 2,2 m out of the way of a piece another one has to place (asked by the one placing it, walked with its own movement, never a teleport). You are never moved. Off: the piece waits for the companion to move on its own, as before.
 
+**ReachWalk** — Default: On  
+Walk to the nearest spot the piece can be reached from (a finished floor or roof row) instead of walking at the piece in mid-air.
+
 **MaxDistanceFromHome** — Default: 40 · Range: 0 – 200  
 A build order is refused when the spot is further than this (meters) from the companion's home, so it does not wander off to build across the world. 0 = no limit.
 

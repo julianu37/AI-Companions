@@ -172,6 +172,10 @@ internal static class ModConfig
 	/// <summary>11/11/2026 (Run 10, the companion blocker): a companion of the site that is only <b>waiting</b> steps out of the
 	/// way of a piece another one has to place (2,2 m through the mover, never a teleport, and never the player).</summary>
 	internal static ConfigEntry<bool> BuildStepAside;
+	/// <summary>11/11/2026 (Run 13, the ridge of the commercial blueprint): walk to the nearest surface the piece can be
+	/// reached <b>from</b> (a finished floor or roof row) instead of walking at the piece in mid-air, where the path snap
+	/// starts the route far from the feet and the companion walks the wrong way.</summary>
+	internal static ConfigEntry<bool> BuildReachWalk;
 	internal static ConfigEntry<float> BuildMaxDistanceFromHome;
 	internal static ConfigEntry<bool> BuildGatherForBuild;
 	internal static ConfigEntry<float> BuildGatherRadius;
@@ -967,6 +971,7 @@ internal static class ModConfig
 		BuildSupportFallback = Bind(cfg, "Building", "SupportFallback", true, "When a plan piece is refused for no support and the plan has nothing under it, the companion puts a wooden post under it and places the piece (the house gets a few extra posts). Off = the piece waits and is left out. At most 24 posts per order.");
 		BuildBodyRetry = Bind(cfg, "Building", "BodyRetry", true, "A piece refused because a body (you or another companion) was in the way is not given up: it goes back to the site's retry queue and is tried again BEFORE the plan climbs a storey, instead of only at the end of the build. The same barrier also settles the pieces still waiting for a support before going up. Off: they only come back in the end-of-plan retry pass.");
 		BuildStepAside = Bind(cfg, "Building", "StepAside", true, "A companion of the build group that is only waiting steps 2,2 m out of the way of a piece another one has to place (asked by the one placing it, walked with its own movement, never a teleport). You are never moved. Off: the piece waits for the companion to move on its own, as before.");
+		BuildReachWalk = Bind(cfg, "Building", "ReachWalk", true, "Walk to the nearest spot the piece can be reached from (a finished floor or roof row) instead of walking at the piece in mid-air.");
 		BuildMaxDistanceFromHome = Bind(cfg, "Building", "MaxDistanceFromHome", 40f, "A build order is refused when the spot is further than this (meters) from the companion's home, so it does not wander off to build across the world. 0 = no limit.", new AcceptableValueRange<float>(0f, 200f));
 		BuildGatherForBuild = Bind(cfg, "Building", "GatherForBuild", true, "When the piece's materials are missing and a job can collect them (wood, stone or ore), the companion takes the normal gather order for exactly the shortfall, gathers, and then the build order resumes by itself. Off: it says what is missing and the order ends.");
 		BuildGatherRadius = Bind(cfg, "Building", "GatherRadius", 120f, "How far (meters) from the build spot the companion looks for the resource it has to gather. The harvest's own radius is measured from the player while it follows (25 m), which made the search look tiny; when the resource is farther than 20 m the build walks there itself BEFORE the gather takes over - one owner of the movement at a time.", new AcceptableValueRange<float>(10f, 200f));

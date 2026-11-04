@@ -54,6 +54,20 @@ internal static class MHR_Build
 	/// <c>MaxPlace - 0,5</c> only after 3 s without getting closer, and the eye distance is always <see cref="MaxPlace"/>
 	/// (vanilla 5 m, configurable up to 20 m).</summary>
 
+	/// <summary>
+	/// 11/11/2026 (Run 13): <c>[Building] ReachWalk</c> - walk to the nearest surface the piece can be reached <b>from</b>
+	/// (a finished floor or roof row) instead of walking at the piece in mid-air, where the path snap starts the route far
+	/// from the feet and the companion walks the wrong way. Read on every use like <see cref="MaxPlace"/>; a missing entry
+	/// answers the switch's default (on).
+	/// </summary>
+	private static bool ReachWalk
+	{
+		get
+		{
+			return ModConfig.BuildReachWalk == null || ModConfig.BuildReachWalk.Value;
+		}
+	}
+
 	/// <summary>The companion's eye height above its feet (the game measures the placement distance from the eye).</summary>
 	private const float EyeHeight = 1.5f;
 	/// <summary>E7 (player's idea, 03/11/2026: "temporary ladders"): the temporary step of a scaffold. A wood STAIR and
@@ -68,6 +82,22 @@ internal static class MHR_Build
 	internal const int MaxScaffolds = 4;
 	/// <summary>How many floor pieces one step may pull forward (a landing needs ONE tile; 2 is slack).</summary>
 	private const int MaxPulledFloors = 2;
+
+	/// <summary>
+	/// 11/11/2026 (Run 13, the ridge of the <c>CommHomeBasicBP</c>): how far <b>down</b> the surfaces a piece can be placed
+	/// from are looked for (<see cref="WalkSpot"/>). The measured house has its top roof row at 48,8 and the ground at ~38,
+	/// so 12 m covers the whole climb in one look; it is the total of the ray, not of a step.
+	/// </summary>
+	private const float WalkReach = 12f;
+
+	/// <summary>11/11/2026 (Run 13): the radii around the piece's own column that are sampled for those surfaces (the
+	/// surface directly under the piece is <c>r = 0</c>). The rows of a roof/gable are 2 m wide, so 2,4 m reaches the
+	/// neighbour row that stands on the same storey.</summary>
+	private static readonly float[] s_walkRadii = { 0.8f, 1.6f, 2.4f };
+
+	/// <summary>11/11/2026 (Run 13): the surfaces found under the current piece - ONE list reused (the spot is chosen once
+	/// per piece, but a plan has 1000 of them).</summary>
+	private static readonly List<Vector3> s_walkSurfaces = new List<Vector3>();
 
 	/// <summary>P1 (04/11/2026, measured with the deck run of the 985-piece house: 16 pieces - floors and roofs of the east
 	/// gable and of the north-west corner, 40,8 to 46,8 - were left out with <c>no_support</c>): the author's blueprint has
@@ -330,6 +360,15 @@ internal static class MHR_Build
 		/// to the piece and since when - one it cannot get closer to for 12 s is retried instead of timing out in 60 s.</summary>
 		internal float BestDistance;
 		internal float BestAt;
+		/// <summary>
+		/// 11/11/2026 (Run 13, the ridge of the <c>CommHomeBasicBP</c>): the surface the walk is heading for instead of the
+		/// piece in mid-air (<see cref="MHR_Build.WalkSpot"/>, <see cref="BuildWalkSpot.Choose"/>), and the plan index it was
+		/// chosen for. The spot is kept while the piece does not change (<see cref="WalkFor"/>): the rays are not cast on
+		/// every frame of the walk, and a spot of the previous piece is never reused.
+		/// </summary>
+		internal Vector3 WalkTo;
+		internal bool HasWalkTo;
+		internal int WalkFor = -1;
 		/// <summary>E7 (player's idea, 03/11/2026): the temporary stairs placed to reach a piece above the eye rule
 		/// (<see cref="MaxPlace"/> - vanilla 5 m, <c>[Building] PlaceReach</c>). They are NOT part of the plan and are
 		/// removed when the order ends.</summary>
@@ -1064,6 +1103,9 @@ internal static class MHR_Build
 		// 11/11/2026 (Run 10): a new piece ends any step-aside walk - the walk (Goto) is the one steering from here
 		state.AsideTarget = Vector3.zero;
 		state.AsideUntil = 0f;
+		// 11/11/2026 (Run 13): a new piece never reuses the walk spot of the previous one
+		state.WalkFor = -1;
+		state.HasWalkTo = false;
 		state.Phase = Phase.Goto;
 	}
 
@@ -5465,6 +5507,8 @@ internal static class MHR_Build
 		}
 		state.Pos = site.Pos;
 		state.Rot = site.Rot;
+		state.WalkFor = -1;   // 11/11/2026 (Run 13): a new pose is a new walk spot
+		state.HasWalkTo = false;
 		state.Phase = Phase.Goto;
 		Log(ai, "site at (" + F(site.Pos.x) + ", " + F(site.Pos.y) + ", " + F(site.Pos.z) + "), " + F(site.Distance) + " m from the hint, "
 			+ site.Tried + " tried" + (site.Tally.Count > 0 ? " (" + TallyText(site.Tally) + ")" : string.Empty));
@@ -5487,6 +5531,8 @@ internal static class MHR_Build
 				state.Rot = current.Rot;
 				state.BestDistance = 0f;
 				state.BestAt = Time.time;
+				state.WalkFor = -1;   // the piece at this index changed: the spot is chosen again for the new pose
+				state.HasWalkTo = false;
 			}
 		}
 		// E7 (player's report, 03/11/2026: "he is only walking around the site"): the upper storeys of a blueprint were
@@ -5555,6 +5601,33 @@ internal static class MHR_Build
 			}
 		}
 		state.LastY = me.y;
+		// 11/11/2026 (Run 13, the ridge of the CommHomeBasicBP): the walk used to be sent at the piece's own pose - a roof
+		// row 10 m above the feet - and Pathfinding.GetPath snaps the "from" point to the navmesh up to 12 m, so the route
+		// started far from the feet and walked the WRONG way (measured: no progress after 12 s at 22,8 m and then 23,5 m).
+		// Now the walk goes to a SURFACE the piece can be reached from (the plan's own floor/roof row below it), chosen once
+		// per piece. state.Pos stays the PIECE for the placement checks, the falls and the claims - only the target of the
+		// walk changes.
+		if (ReachWalk && state.Pos.y > me.y + 1f)
+		{
+			if (state.WalkFor != state.Index)
+			{
+				state.WalkFor = state.Index;
+				Vector3 walk;
+				state.HasWalkTo = WalkSpot(ai, state, out walk);
+				if (state.HasWalkTo)
+				{
+					state.WalkTo = walk;
+					LogDebug(ai, "walk spot (" + F(walk.x) + ", " + F(walk.y) + ", " + F(walk.z) + ") - the " + state.Prefab
+						+ " is " + F(state.Pos.y - walk.y) + " m above that surface");
+				}
+			}
+		}
+		else if (state.HasWalkTo || state.WalkFor >= 0)
+		{
+			// the switch was turned off or the piece is at the feet: the piece itself is the target (the eye rule covers it)
+			state.HasWalkTo = false;
+			state.WalkFor = -1;
+		}
 		// E7 (same report): walking to a piece it can never get closer to (a roof tip behind the ridge, a beam over a hole)
 		// burned the whole 60 s timeout and looked like "struggling". 12 s without getting 0,5 m closer and the piece goes
 		// to the retry pass - it may stand once the neighbours are up.
@@ -5577,9 +5650,24 @@ internal static class MHR_Build
 			{
 				return true;
 			}
-			Log(ai, "no progress towards the " + state.Prefab + " for 12 s (" + F(walkGap) + " m away) - retrying it later");
-			QueueRetry(ai, state, "no progress");
-			return Advance(ai, state);
+			// 11/11/2026 (Run 13): the clock does not run while the mover is climbing, waiting for a ladder, on a ladder
+			// chain or on a detour - going UP does not get closer to a piece 20 m away, and cutting the climb here would
+			// throw the piece to the retry queue in the middle of the only way it has.
+			if (MHR_Mover.Vertical(ai))
+			{
+				state.BestAt = Time.time;
+			}
+			else
+			{
+				Log(ai, "no progress towards the " + state.Prefab + " for 12 s (" + F(walkGap) + " m away"
+					+ (state.HasWalkTo
+						? ", walk spot (" + F(state.WalkTo.x) + ", " + F(state.WalkTo.y) + ", " + F(state.WalkTo.z) + ")"
+						: ", walk spot -")
+					+ ") - retrying it later, I am at (" + F(me.x) + ", " + F(me.y) + ", " + F(me.z) + "), route "
+					+ (MHR_Mover.RoutePartial(ai) ? "partial" : "full"));
+				QueueRetry(ai, state, "no progress");
+				return Advance(ai, state);
+			}
 		}
 		float flat = new Vector2(me.x - state.Pos.x, me.z - state.Pos.z).magnitude;
 		// a piece may be placed up to <see cref="MaxPlace"/> from the EYE (vanilla Player.m_maxPlaceDistance = 5 m, and
@@ -5622,7 +5710,7 @@ internal static class MHR_Build
 				LogDebug(ai, "a hop to reach the " + state.Prefab + " at " + (gap - MaxPlace).ToString("F1") + " m beyond the reach");
 			}
 		}
-		MHR_Mover.Go(ai, dt, state.Pos, Reach, true, "Build");
+		MHR_Mover.Go(ai, dt, state.HasWalkTo ? state.WalkTo : state.Pos, Reach, true, "Build");
 		if (MHR_Mover.GaveUp(ai))
 		{
 			// "no site" was a lie here: the spot is fine, the way to it is not (a wall, a tree, the furniture the player
@@ -5637,6 +5725,90 @@ internal static class MHR_Build
 			return false;
 		}
 		return true;
+	}
+
+	/// <summary>
+	/// 11/11/2026 (Run 13, the ridge of the <c>CommHomeBasicBP</c>): the surface the walk goes to for the current piece -
+	/// the spot the piece can be placed <b>from</b>, instead of the piece's own pose in mid-air. The surfaces are found with
+	/// rays <b>down</b> from just above the piece: its own column (<c>r = 0</c>) and eight directions at
+	/// <see cref="s_walkRadii"/> (25 samples, cast once per piece - never per frame).
+	///
+	/// <para>Only a surface that can hold a companion counts: the <b>terrain</b>, or a <b>structural</b> piece (a
+	/// <c>Piece</c> with <c>WearNTear</c> that is not furniture - <see cref="BuildPieceKind.IsStructural"/>). A body
+	/// (<c>Character</c>/<c>Player</c>) on the spot is not a floor and is discarded, and so is furniture: the top of a chest
+	/// is not a place to build a roof from. The choice itself is <see cref="BuildWalkSpot.Choose"/> (pure, asserted by the
+	/// harness): the same storey first (the shortest walk), then the highest surface within the eye rule.</para>
+	/// </summary>
+	private static bool WalkSpot(CompanionAI ai, State state, out Vector3 spot)
+	{
+		spot = state != null ? state.Pos : Vector3.zero;
+		if (ai == null || state == null || state.Piece == null)
+		{
+			return false;
+		}
+		int mask = BuildProbe.PlaceMask();
+		int terrain = LayerMask.NameToLayer("terrain");
+		float from = state.Pos.y + 0.6f;
+		s_walkSurfaces.Clear();
+		// sample 0 is the piece's own column; 1..24 are the eight directions at each radius of s_walkRadii
+		for (int sample = 0; sample <= 8 * s_walkRadii.Length; sample++)
+		{
+			float x = state.Pos.x;
+			float z = state.Pos.z;
+			if (sample > 0)
+			{
+				int i = sample - 1;
+				float radius = s_walkRadii[i / 8];
+				float angle = Mathf.PI * 2f * (i % 8) / 8f;
+				x += Mathf.Cos(angle) * radius;
+				z += Mathf.Sin(angle) * radius;
+			}
+			RaycastHit hit;
+			if (!Physics.Raycast(new Vector3(x, from, z), Vector3.down, out hit, WalkReach + 0.6f, mask,
+				QueryTriggerInteraction.Ignore))
+			{
+				continue;
+			}
+			if (hit.point.y > state.Pos.y + BuildWalkSpot.SameStoreyAbove)
+			{
+				continue;   // above the piece: not a surface to place it from (the ray starts 0,6 m over the piece)
+			}
+			if (!StructuralSurface(hit.collider, terrain))
+			{
+				continue;   // a body, furniture, a tree, a rock: nothing a companion may stand on to build
+			}
+			s_walkSurfaces.Add(hit.point);
+		}
+		return BuildWalkSpot.Choose(ai.transform.position, state.Pos, MaxPlace, s_walkSurfaces, out spot);
+	}
+
+	/// <summary>
+	/// 11/11/2026 (Run 13): is this collider a surface the companion may stand on to place a piece - the <b>terrain</b> or a
+	/// <b>structural</b> piece? The same rule the emergency post uses for its base (<see cref="PostBaseHolds"/>), with the
+	/// structural filter on top so a <b>chest</b>, a bed or a bench top is never taken as a floor (the game gives them
+	/// <c>m_supports = false</c>, they are not something to climb). A character is discarded first: a companion standing
+	/// over the sample is not the floor under it.
+	/// </summary>
+	private static bool StructuralSurface(Collider collider, int terrainLayer)
+	{
+		if (collider == null)
+		{
+			return false;
+		}
+		if (terrainLayer >= 0 && collider.gameObject.layer == terrainLayer)
+		{
+			return true;
+		}
+		if (collider.GetComponentInParent<Character>() != null)
+		{
+			return false;   // a body over the sample point: not a surface
+		}
+		Piece piece = collider.GetComponentInParent<Piece>();
+		if (piece == null || piece.GetComponent<WearNTear>() == null)
+		{
+			return false;
+		}
+		return BuildPieceKind.IsStructural(Utils.GetPrefabName(piece.gameObject));
 	}
 
 	/// <summary>

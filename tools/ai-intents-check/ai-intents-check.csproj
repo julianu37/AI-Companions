@@ -71,6 +71,8 @@
     <Compile Include="..\..\src\Companions\AI\BuildSupportBelow.cs" Link="src/AI/BuildSupportBelow.cs" />
     <!-- P1 (04/11/2026): the body window of the placement check (blocked_by_player) - pure arithmetic -->
     <Compile Include="..\..\src\Companions\AI\BuildBody.cs" Link="src/AI/BuildBody.cs" />
+    <!-- 11/11/2026 (Run 13): the surface the walk to a piece goes to (the same storey first, then the highest one) - pure -->
+    <Compile Include="..\..\src\Companions\AI\BuildWalkSpot.cs" Link="src/AI/BuildWalkSpot.cs" />
     <!-- Lote 1 (11/11/2026): does the order still need a crafting station (template/single piece x blueprint switch) - pure -->
     <Compile Include="..\..\src\Companions\AI\BuildStationCover.cs" Link="src/AI/BuildStationCover.cs" />
     <!-- 11/11/2026 (the build panel): the material need of a plan (prefab -> count folded through the costs) - pure -->

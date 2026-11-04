@@ -47,6 +47,12 @@ internal static class PlayerControllerInput_BlockForCompanionUI
 			__result = false;
 			return;
 		}
+		// 11/11/2026: the build panel (a window of the same band)
+		if (CompanionBuildPanel.IsOpen)
+		{
+			__result = false;
+			return;
+		}
 		// Fase 3.20: the appearance editor (a modal window of its own, above the AI panel)
 		if (CompanionAppearancePanel.IsOpen)
 		{

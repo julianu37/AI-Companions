@@ -67,6 +67,11 @@ internal static class ModUiLayers
 	/// (the editor is a window, and the overlay of the window behind it must not draw over it).</summary>
 	internal const int CompanionAppearancePanel = Base + 8;
 
+	/// <summary>11/11/2026: the build panel (<c>[Controls] BuildPanelKey</c>) - the site the companions are building.
+	/// It is the last window of the mod's band (1710), still below the game's modal popup at 1900: a site panel is a
+	/// window, not a dialog.</summary>
+	internal const int BuildPanel = Base + 9;
+
 	/// <summary>upstream 1.5.6: one debug line with the sorting order of the scene canvases (called once per
 	/// panel). Our <see cref="ModUiAudit"/> does the same audit with more detail.</summary>
 	internal static void LogSceneLayers(string panel)

@@ -35,25 +35,28 @@ inseridas** (antes 4–7) e **as 2 de pedra de pé SEM talhador no mundo**, com 
 navegação, não apoio nem alcance**, e a `TempScaffold` está **vetada pelo jogador**. Detalhe: `docs/re/building-notes.md`
 §17.18, com a **receita de teste × comportamento** no §17.19.
 
-Números deste ciclo (11/11/2026): build **0/0**, harness `tools/ai-intents-check` **642 asserções** (471 + **28** da
+Números deste ciclo (11/11/2026): build **0/0**, harness `tools/ai-intents-check` **656 asserções** (471 + **28** da
 seção **(p)**, `AI/BuildFailure.cs` — inclui as constantes da barreira —, + **26** da **(q)**, `AI/BuildPieceKind.cs`,
 + **66** da **(r)**, `AI/BuildSupportBelow.cs` — `CanSupport`, `PickPost`, `UsefulSurface` e `HoldsPlacedPiece` —,
 + **18** da **(s)**, `AI/BuildBody.cs` — `Blocks`, `HalfY` e o par do **falso positivo** do Run 10 —, + **27** da **(t)** — a **barreira
-de andar** — e + **6** da
-**(u)** — `BuildSupportBelow.FallbackPostAllowed`, `SupportGrace` = **2**), teste do MCP **122** (as **12** asserções de
+de andar** —, + **6** da
+**(u)** — `BuildSupportBelow.FallbackPostAllowed`, `SupportGrace` = **2** —, + **5** da **(v)** — `BuildStationCover.Required`,
+`AI/BuildStationCover.cs` — e + **9** da **(w)** — `BuildMaterials.Add`/`Total`, `AI/BuildMaterials.cs`;
+**medido: 656 PASS** em `dotnet run --project tools/ai-intents-check -c Release`), teste do MCP **122** (as **12** asserções de
 03/11 cobrem o contrato
 do `companions.build` do grupo, as **6** de 11/11 o `stop` do `companions.order` e as de 11/11 do
 `blueprints_list`/`blueprints_inspect` a biblioteca e o relatório sem ordem), config **365 opções / 25 seções**
-(as chaves novas são a `[Building] BodyRetry` e a `[Building] StepAside`),
-ES/FR/IT **0 lacunas**, dívida do `gen_translations.py --check` **47** por idioma e **nenhuma chave de tradução funcional
-nova** (as recusas reusam `hc_ai_no_companion` e `hc_ai_build_failed`; os rótulos `hc_cfg_building_bodyretry` e
-`hc_cfg_building_stepaside` são os das chaves novas). **Os Runs 11 e 13 não acrescentam número de build/harness/config:**
-eles rodam na árvore já medida acima (**harness 642**, **config 365/25**) e o que trazem é **medição em jogo** — não foi
-feita reconferência de build/harness nessas rodadas (§17.17 e §17.18). **Depois delas** entraram as seções **(v)** —
-**5**, `BuildStationCover.Required` — e **(w)** — **9**, `BuildMaterials.Add`/`Total` —, com os links
-`AI/BuildStationCover.cs`/`AI/BuildMaterials.cs` no `.csproj`: **a contagem do harness não foi reconferida** (a soma daria
-**656**, número **não medido**) e **2 rótulos novos ficaram fora dos 4 JSONs**
-(`hc_cfg_building_blueprintstations`, `hc_cfg_controls_buildpanelkey` — ver o achado em `docs/re/building-notes.md` §17.18).
+(as chaves novas são a `[Building] BodyRetry`, a `[Building] StepAside`, a `[Building] BlueprintStations` e a
+`[Controls] BuildPanelKey`),
+ES/FR/IT **0 lacunas**, dívida do `gen_translations.py --check` **49** por idioma e **nenhuma chave de tradução funcional
+nova** (as recusas reusam `hc_ai_no_companion` e `hc_ai_build_failed`; os rótulos `hc_cfg_building_bodyretry`,
+`hc_cfg_building_stepaside`, `hc_cfg_building_blueprintstations` e `hc_cfg_controls_buildpanelkey` são os das chaves
+novas). **Os Runs 11 e 13 não acrescentam número de build/harness/config:** eles rodam na árvore já medida acima
+(**harness 656**, **config 365/25**) e o que trazem é **medição em jogo** (§17.17 e §17.18). As seções **(v)** e **(w)**
+vieram do lote de 11/11, com os links `AI/BuildStationCover.cs`/`AI/BuildMaterials.cs` no `.csproj`, e os **2 rótulos
+novos entraram nos 4 JSONs** (`hc_cfg_building_blueprintstations` em `Translations/*.json:2872` e
+`hc_cfg_controls_buildpanelkey` em `:1416` — ver `docs/re/building-notes.md` §17.18): a dívida do gerador foi de
+**47 para 49** porque o mapa dele indexa por **texto PT** e não tem essas duas strings.
 **O que falta medir** está no §7 (o **`FallbackPostAllowed`**, o vão do deck, run com material pago, o teste pequeno de
 2 companheiros num 6x6 e a **rota até a cumeeira**) — a **barreira de andar** foi medida no Run 10 (§7 e
 `docs/re/building-notes.md` §17.16) e a **sonda por cápsula** + o **`StepAside`** no Run 11 (§7 e §17.17).
@@ -601,9 +604,9 @@ está lá em §17.6, §17.9 e §17.10 (**os Runs 6, 7, 8, 9 e 10, de 11/11/2026,
 "para, Maria" → só a Maria; "para" → todos; "Maria e João, ataquem o greydwarf" → as duas; "Maria, equipa a
 picareta" → só a Maria; "Maria e o cachorro, ..." → Maria + aviso do desconhecido, sem inventar.
 
-**Gate:** harness **642** (471 + **28** da **(p)** + 26 da **(q)** + **66** da **(r)** + 18 da **(s)** + **27** da **(t)**
-+ **6** da **(u)**) — **a contagem está sem reconferência**: com a **(v)** (**5**, `BuildStationCover`) e a **(w)** (**9**,
-`BuildMaterials`) a soma daria **656**, número **não medido** —, MCP **122** e build **0/0**.
+**Gate:** harness **656** (471 + **28** da **(p)** + 26 da **(q)** + **66** da **(r)** + 18 da **(s)** + **27** da **(t)**
++ **6** da **(u)** + **5** da **(v)** + **9** da **(w)** — medido em 11/11/2026), MCP **122**, config **365/25** e build
+**0/0**.
 
 ## 8. Perguntas para o jogador — respostas registradas (03/11/2026)
 

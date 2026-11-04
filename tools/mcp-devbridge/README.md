@@ -1,4 +1,4 @@
-# MCP tools (DevBridge)
+﻿# MCP tools (DevBridge)
 
 Every tool returns `content: [{type:"text", text:"<pretty JSON>"}]`, except `screenshot`, which returns an **image**
 content item plus the file path. A failed call returns `isError: true` with the reason as text.
@@ -162,7 +162,7 @@ the ground).
 ```
 
 The piece's snap points in its own space (`Piece.GetSnapPoints`). They are where the template offsets come from: the
-floor's corners are at ±1, the wall's snaps at ±1 in x and y (origin at the centre), the 45° roof rises 2 m over 2 m.
+floor's corners are at Â±1, the wall's snaps at Â±1 in x and y (origin at the centre), the 45Â° roof rises 2 m over 2 m.
 
 ### `build_usable`
 
@@ -268,8 +268,8 @@ a piece that needs a station (chest, bed) answers `hc_ai_build_needs_station` wh
 With `plan` it builds a whole **template** (E6): `plan=hut` (1 floor + 4 walls + 2 roofs) or
 `plan=canopy` (4 poles + 4 roofs over the bench). `x`/`y`/`z` pin the anchor (the canopy must be anchored on
 the bench it shelters). With `blueprint` it builds a **.blueprint** from
-`BepInEx/config/AI-Companions/blueprints` (E7; the file name or a full path); the footprint is centred on the
-hint/aim and the order is floor → stairs → walls → roof → door.
+`BepInEx/plugins/AI-Companions/blueprints` (E7; the file name or a full path); the footprint is centred on the
+hint/aim and the order is floor â†’ stairs â†’ walls â†’ roof â†’ door.
 
 **A blueprint is a group site** (multi-build, P1): with no `name`, **every** companion of the player enters the
 **same** plan in a single call and the pieces are handed out between them (`workers` tells how many joined, `0` = none);
@@ -285,7 +285,7 @@ who levels the ground.
 
 | param | type | default |
 |---|---|---|
-| `item` | string (prefab name) | â€” |
+| `item` | string (prefab name) | Ã¢â‚¬â€ |
 | `amount` | integer | 1 |
 
 ```json
@@ -315,11 +315,11 @@ or debug flight (turn those off with `game_console` first).
 
 | param | type | default |
 |---|---|---|
-| `item` | string (prefab name, optional) | â€” |
-| `set` | integer â‰¥ 0 (optional; requires `item`) | â€” |
+| `item` | string (prefab name, optional) | Ã¢â‚¬â€ |
+| `set` | integer Ã¢â€°Â¥ 0 (optional; requires `item`) | Ã¢â‚¬â€ |
 
 Reads the pack. With `item`, returns `count`. With `set`, **removes every stack of that item and adds exactly that
-many** (only that item is touched â€” useful to put the exact coin amount a test needs).
+many** (only that item is touched Ã¢â‚¬â€ useful to put the exact coin amount a test needs).
 
 ```json
 { "item": "Coins", "count": 2000, "totalStacks": 8, "weight": 120.3, "maxWeight": 300.0,
@@ -330,8 +330,8 @@ many** (only that item is touched â€” useful to put the exact coin amount a
 
 | param | type | default |
 |---|---|---|
-| `prefab` | string | â€” |
-| `count` | integer (1â€“20) | 1 |
+| `prefab` | string | Ã¢â‚¬â€ |
+| `count` | integer (1Ã¢â‚¬â€œ20) | 1 |
 | `x`, `y`, `z` | number | player + 3 m forward |
 
 ```json
@@ -342,9 +342,9 @@ many** (only that item is touched â€” useful to put the exact coin amount a
 
 | param | type | meaning |
 |---|---|---|
-| `day` | integer â‰¥ 0 | 0-based day (`EnvMan.GetDay`; day 1 of the HUD is `0` here) |
+| `day` | integer Ã¢â€°Â¥ 0 | 0-based day (`EnvMan.GetDay`; day 1 of the HUD is `0` here) |
 | `time` | number | seconds into the day (the real length is `dayLength`, 1800 s in this build) |
-| `fraction` | number 0â€“1 | within-day fraction (`0.5` = midday) |
+| `fraction` | number 0Ã¢â‚¬â€œ1 | within-day fraction (`0.5` = midday) |
 | `skip` | number | relative change, in game seconds (negative rewinds) |
 
 No parameters just reads the clock. `time` and `fraction` are alternatives; `skip` wins over `day`/`time`.
@@ -448,7 +448,7 @@ here) is what makes enemies ignore the player.
 Returns the PNG as an image plus the path:
 
 ```json
-[{"type":"image","mimeType":"image/png","data":"<base64>"}, {"type":"text","text":"C:\\â€¦\\BepInEx\\DevBridge\\shot-â€¦.png"}]
+[{"type":"image","mimeType":"image/png","data":"<base64>"}, {"type":"text","text":"C:\\Ã¢â‚¬Â¦\\BepInEx\\DevBridge\\shot-Ã¢â‚¬Â¦.png"}]
 ```
 
 ### `render_view`
@@ -480,7 +480,7 @@ into the Unity **Input System**, which the game reads, so they work even when Wi
 
 | tool | params |
 |---|---|
-| `input_focus` | — |
+| `input_focus` | â€” |
 | `input_key` | `key` (KeyCode name: `Escape`, `F8`, `Return`, `W`, `LeftShift`, `Alpha1`) |
 | `input_key_down` / `input_key_up` | `key` (holds: walk with `W`, run with `LeftShift` + `W`) |
 | `input_text` | `text` (Unicode: accents work) |
@@ -491,7 +491,7 @@ into the Unity **Input System**, which the game reads, so they work even when Wi
 ### `log_tail`
 | param | type | default |
 |---|---|---|
-| `lines` | integer (1â€“2000) | 80 |
+| `lines` | integer (1Ã¢â‚¬â€œ2000) | 80 |
 
 Works with the game closed (it reads the file). The reply includes `cursor`, the byte offset at the end of the file.
 Use it before an action and pass it to `log_watch` as `since`.
@@ -500,9 +500,9 @@ Use it before an action and pass it to `log_watch` as `since`.
 
 | param | type | default |
 |---|---|---|
-| `pattern` | string | â€” |
+| `pattern` | string | Ã¢â‚¬â€ |
 | `regex` | boolean | false |
-| `timeout_ms` | integer (100â€“60000) | 15000 |
+| `timeout_ms` | integer (100Ã¢â‚¬â€œ60000) | 15000 |
 | `since` | integer (byte cursor) | current end |
 | `case_sensitive` | boolean | false |
 
@@ -524,9 +524,9 @@ No parameters.
 
 ```json
 { "count": 1, "companions": [ { "name": "Maria", "prefab": "HC_Companion(Clone)", "hp": 120.0,
-  "maxHp": 120.0, "dead": false, "distanceToPlayer": 3.2, "id": "â€¦", "mode": 1, "stance": 3,
+  "maxHp": 120.0, "dead": false, "distanceToPlayer": 3.2, "id": "Ã¢â‚¬Â¦", "mode": 1, "stance": 3,
   "autoPickup": true, "recovering": false, "owner": "Tester", "x": 120.5, "y": 30.2, "z": -44.1 } ],
-  "tombstones": [ { "name": "Maria", "items": 14, "id": 639â€¦, "x": 120.5, "y": 30.2, "z": -44.1 } ] }
+  "tombstones": [ { "name": "Maria", "items": 14, "id": 639Ã¢â‚¬Â¦, "x": 120.5, "y": 30.2, "z": -44.1 } ] }
 ```
 
 `tombstones[]` are the tombstones owned by the local player. The dead companion object is destroyed by the game;
@@ -534,7 +534,7 @@ No parameters.
 
 ### `companions_spawn`
 
-No parameters. Calls `CompanionManager.SpawnFree` â€” the AI panel's spawn, **no coins**, default look and tier.
+No parameters. Calls `CompanionManager.SpawnFree` Ã¢â‚¬â€ the AI panel's spawn, **no coins**, default look and tier.
 
 ```json
 {"spawned": true}
@@ -568,7 +568,7 @@ Without `name` the stop order stops **every** companion and answers the list:
  "companions": [{"name": "Maria", "build": true, "level": false}]}
 ```
 
-Without `name` the **first** companion is used â€” pass the name when there is more than one.
+Without `name` the **first** companion is used Ã¢â‚¬â€ pass the name when there is more than one.
 
 ### `companions_teleport`
 
@@ -585,9 +585,9 @@ Without `name` the **first** companion is used â€” pass the name when there
 
 | param | type | default |
 |---|---|---|
-| `item` | string | â€” |
+| `item` | string | Ã¢â‚¬â€ |
 | `amount` | integer (**negative takes it away**) | 1 |
-| `name` | string (optional) | â€” |
+| `name` | string (optional) | Ã¢â‚¬â€ |
 
 ### `companions_zdo`
 
@@ -595,7 +595,7 @@ Without `name` the **first** companion is used â€” pass the name when there
 |---|---|
 | `name` | string (optional) |
 
-Dumps the companion's `HC_*` keys â€” the fastest way to diagnose a stuck state (e.g. `AutoPickup: false` with
+Dumps the companion's `HC_*` keys Ã¢â‚¬â€ the fastest way to diagnose a stuck state (e.g. `AutoPickup: false` with
 `Recovering: false`).
 
 ```json
@@ -634,7 +634,7 @@ Lists what a companion is carrying (prefab, name, amount, grid slot).
 | param | type | default |
 |---|---|---|
 | `name` | string (contains, case-insensitive) | first companion |
-| `damage` | number â‰¥ 1 | enough to kill |
+| `damage` | number Ã¢â€°Â¥ 1 | enough to kill |
 
 Applies lethal damage with `Character.ApplyDamage` on the main thread (it bypasses armor on purpose). The mod's
 `OnDeath` runs normally: tombstone, roster and recovery state are all written. Use `companions_list` to see the
@@ -651,7 +651,7 @@ Applies lethal damage with `Character.ApplyDamage` on the main thread (it bypass
 | `tier` | string | yes |
 | `name` | string (optional) | no |
 
-Runs `CompanionManager.ChangeTier` â€” the same swap the AI panel does, with all the carry-over (inventory, skills,
+Runs `CompanionManager.ChangeTier` Ã¢â‚¬â€ the same swap the AI panel does, with all the carry-over (inventory, skills,
 recovery keys, farm zones, name, appearance). Accepted tiers: `companion`, `warrior`, `mage`, `fire`, `ice`, `support`
 or a prefab name (`HC_DvergerFire`). `changed: false` means it was already that tier.
 
@@ -670,7 +670,7 @@ No parameters. Runs the shrine's **paid** path (`CompanionManager.HireWithCoins`
 ```
 
 When there are not enough coins it returns `hired: false`, `reason: "not enough coins"` and the mod logs its
-`[Shrine] Odin asks for an offeringâ€¦` line, exactly like the panel's pre-check.
+`[Shrine] Odin asks for an offeringÃ¢â‚¬Â¦` line, exactly like the panel's pre-check.
 
 ### `companions_resurrect`
 
@@ -678,12 +678,12 @@ When there are not enough coins it returns `hired: false`, `reason: "not enough 
 |---|---|
 | `name` | string (optional; matches the tombstone's respawn name) |
 
-Finds the player's tombstone (by `HC_TombstoneId`/respawn data) and calls the mod's `MHR_ResurrectCore` â€” the same
+Finds the player's tombstone (by `HC_TombstoneId`/respawn data) and calls the mod's `MHR_ResurrectCore` Ã¢â‚¬â€ the same
 path the 7-second hold uses. It does not need the dead object (the game destroys it). With `RecoverFirst`, the new
 companion comes back Passive with auto-pickup off and starts the recovery flow.
 
 ```json
-{"name": "Maria", "resurrected": true, "hp": 25.0, "x": 120.5, "y": 30.2, "z": -44.1, "tombstoneId": 639â€¦}
+{"name": "Maria", "resurrected": true, "hp": 25.0, "x": 120.5, "y": 30.2, "z": -44.1, "tombstoneId": 639Ã¢â‚¬Â¦}
 ```
 
 ### `companions_farm_zone`
@@ -693,11 +693,11 @@ companion comes back Passive with auto-pickup off and starts the recovery flow.
 | `action` | `add`, `list`, `clear` | `list` |
 | `name` | string (optional) | first companion |
 | `x`, `y`, `z` | number | player position |
-| `halfSize` | number â‰¥ 0.5 | 4 |
+| `halfSize` | number Ã¢â€°Â¥ 0.5 | 4 |
 | `crop` | string (seed prefab) | `""` |
 
 Reads/writes `HC_FarmZones` directly (the string format is documented in `docs/protocol.md`). `clear` removes every
-zone. This is the setup helper for the `ChangeTier` Ã— farm-zones test.
+zone. This is the setup helper for the `ChangeTier` Ãƒâ€” farm-zones test.
 
 ```json
 {"action": "add", "count": 1,
@@ -761,7 +761,7 @@ nav data is being rebuilt too often.
 
 Look at the `.blueprint` library **before** giving an order. Both tools only read files: they place nothing, they do
 not touch the world and they do not order a companion. The folder is
-`BepInEx\config\AI-Companions\blueprints` (the same one `companions_build {blueprint}` reads). The bridge commands are
+`BepInEx\plugins\AI-Companions\blueprints` (the same one `companions_build {blueprint}` reads). The bridge commands are
 `blueprints.list` and `blueprints.inspect`.
 
 ### `blueprints_list`
@@ -805,42 +805,42 @@ implementation. Read-only: nothing is placed and no companion is ordered.
 
 ## Suggested workflows
 
-**Reproduce an order without typing:** `game_console` with `devcommands` + `spawn Troll 2` â†’ `companions_order`
-`attack`/`stance_melee` â†’ `companions_list` to watch health â†’ `log_tail` for the order lines.
+**Reproduce an order without typing:** `game_console` with `devcommands` + `spawn Troll 2` Ã¢â€ â€™ `companions_order`
+`attack`/`stance_melee` Ã¢â€ â€™ `companions_list` to watch health Ã¢â€ â€™ `log_tail` for the order lines.
 
 **Test a companion change:** `companions_zdo` before/after, with `screenshot` to see the appearance.
 
-**Check a release in game:** `devbridge_ping` (mod version) â†’ `log_tail` â†’ `game_status`.
+**Check a release in game:** `devbridge_ping` (mod version) Ã¢â€ â€™ `log_tail` Ã¢â€ â€™ `game_status`.
 
 ### The four 1.9.4 tests
 
 Use `log_tail` to capture a `cursor` **before** the action, then `log_watch` with `since` so no line is missed.
 
-**1. Shrine offering.** `player_inventory` `{item:"Coins", set:2000}` â†’ `log_tail` (cursor) â†’ `companions_hire` â†’
+**1. Shrine offering.** `player_inventory` `{item:"Coins", set:2000}` Ã¢â€ â€™ `log_tail` (cursor) Ã¢â€ â€™ `companions_hire` Ã¢â€ â€™
 `log_watch` `"Summoned a companion for an offering"`; check `coinsAfter == 1000`. Then `player_inventory`
-`{item:"Coins", set:999}` (price âˆ’ 1; the price is in the reply) â†’ `companions_hire` â†’ `hired: false` and
+`{item:"Coins", set:999}` (price Ã¢Ë†â€™ 1; the price is in the reply) Ã¢â€ â€™ `companions_hire` Ã¢â€ â€™ `hired: false` and
 `log_watch` `"[Shrine]"`; no companion was created. Coins stack at 999, so the tool fills several stacks for 2000.
-(The tool calls the paid method itself, not the panel's pre-check â€” the "refuses before opening the panel" branch
+(The tool calls the paid method itself, not the panel's pre-check Ã¢â‚¬â€ the "refuses before opening the panel" branch
 lives in `ShrinePanel.Summon`, which still has to be clicked by hand.)
 
-**2. ChangeTier Ã— farm zones.** `companions_farm_zone` `{action:"add", crop:"CarrotSeeds"}` â†’ `companions_order`
-`{action:"farm"}` â†’ **wait ~1.5 s** (`ApplyActionMode` writes the ZDO through `MHR_WriteOrQueue`) â†’ `log_tail`
-(cursor) â†’ `companions_tier` `{tier:"warrior"}` â†’ `companions_tier` `{tier:"companion"}` â†’ `log_watch`
-`"farmZones=yes"` â†’ `companions_zdo` and check `farmZones[0].crop == "CarrotSeeds"`. Note: every dverger tier is
-combat-only (`CanWearArmor = false`), so changing to one **drops work mode 8 by design** (`work mode 8 dropped â€¦ a
-combat-only type`); after returning to Companion, set `farm` again â€” the zones themselves must survive. The `[Tier]`
+**2. ChangeTier Ãƒâ€” farm zones.** `companions_farm_zone` `{action:"add", crop:"CarrotSeeds"}` Ã¢â€ â€™ `companions_order`
+`{action:"farm"}` Ã¢â€ â€™ **wait ~1.5 s** (`ApplyActionMode` writes the ZDO through `MHR_WriteOrQueue`) Ã¢â€ â€™ `log_tail`
+(cursor) Ã¢â€ â€™ `companions_tier` `{tier:"warrior"}` Ã¢â€ â€™ `companions_tier` `{tier:"companion"}` Ã¢â€ â€™ `log_watch`
+`"farmZones=yes"` Ã¢â€ â€™ `companions_zdo` and check `farmZones[0].crop == "CarrotSeeds"`. Note: every dverger tier is
+combat-only (`CanWearArmor = false`), so changing to one **drops work mode 8 by design** (`work mode 8 dropped Ã¢â‚¬Â¦ a
+combat-only type`); after returning to Companion, set `farm` again Ã¢â‚¬â€ the zones themselves must survive. The `[Tier]`
 line also shows `recovering=` for test 3.
 
-**3. ChangeTier Ã— recovery.** `companions_order` `{action:"stance_melee"}` â†’ `log_tail` (cursor) â†’
-`companions_kill` â†’ `companions_resurrect` â†’ `log_watch` `"Revived Passive"` â†’ `companions_tier`
-`{tier:"warrior"}` â†’ `log_watch` `"Found its own tombstone"` â†’ `log_watch` `"Gear back on and fed"` â†’
+**3. ChangeTier Ãƒâ€” recovery.** `companions_order` `{action:"stance_melee"}` Ã¢â€ â€™ `log_tail` (cursor) Ã¢â€ â€™
+`companions_kill` Ã¢â€ â€™ `companions_resurrect` Ã¢â€ â€™ `log_watch` `"Revived Passive"` Ã¢â€ â€™ `companions_tier`
+`{tier:"warrior"}` Ã¢â€ â€™ `log_watch` `"Found its own tombstone"` Ã¢â€ â€™ `log_watch` `"Gear back on and fed"` Ã¢â€ â€™
 `log_watch` `"Recovery over - auto-pickup on"`. The `[Tier]` line must show `recovering=yes`. Observed nuance:
 `MHR_ResurrectCore` already transfers the tombstone's items to the companion, so `"Found its own tombstone"` may not
 appear when the tombstone is emptied by the revive; the recovery still reaches `Gear back on and fed` and
 `Recovery over`.
 
-**4. Double death during recovery.** `companions_kill` â†’ `companions_resurrect` (now recovering) â†’
-`companions_kill` again during the recovery â†’ `log_watch` `"auto-pickup was True"` (must appear twice, with
-`stance N`) â†’ `companions_resurrect` â†’ `log_watch` `"Recovery over - auto-pickup on"`. Counterproof:
-`companions_order` `{action:"autopickup_off"}` â†’ kill/resurrect â†’ the line must say `auto-pickup was False` and the
+**4. Double death during recovery.** `companions_kill` Ã¢â€ â€™ `companions_resurrect` (now recovering) Ã¢â€ â€™
+`companions_kill` again during the recovery Ã¢â€ â€™ `log_watch` `"auto-pickup was True"` (must appear twice, with
+`stance N`) Ã¢â€ â€™ `companions_resurrect` Ã¢â€ â€™ `log_watch` `"Recovery over - auto-pickup on"`. Counterproof:
+`companions_order` `{action:"autopickup_off"}` Ã¢â€ â€™ kill/resurrect Ã¢â€ â€™ the line must say `auto-pickup was False` and the
 end state must stay off.

@@ -196,12 +196,10 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
 - **Provedores (config `[AI]`):** Groq (`openai/gpt-oss-20b`, padrão) → LM Studio/Ollama (`127.0.0.1:1234`) →
   OpenRouter; tudo por `BaseUrl`/`Model`/`ApiKey` (a chave é `ConfigEntry`, nunca hardcoded). Saída estruturada
   `json_schema` → `json_object` → sem formato, **só** em recusa de formato.
-- **Config:** as chaves e os defaults vivem em `Core/ModConfig.cs` (**365** opções / 25 seções, contadas no
-  `package/CONFIGURATION.md` **gerado** em 11/11/2026 — **365** linhas `**Nome** — Default:` e **25** seções; o gerador
-  **não** foi rodado nesta documentação, então quem fecha a conta é `python tools/gen_config_doc.py`, e o gate é o
-  `--check`) — eram **361** em 04/11/2026; as chaves novas são `[Building] BodyRetry`, `[Building] StepAside`,
-  `[Building] BlueprintStations` e `[Controls] BuildPanelKey`. A doc gerada é
-  `package/CONFIGURATION.md` — **nunca** editar à mão: rodar o gerador e depois o `--check`. O `.cfg` é
+- **Config:** as chaves e os defaults vivem em `Core/ModConfig.cs` (**365** opções / 25 seções, medidas em
+  11/11/2026 pelo `python tools/gen_config_doc.py`; eram **361** em 04/11/2026 e as chaves novas do ciclo são
+  `[Building] BodyRetry`, `[Building] StepAside`, `[Building] BlueprintStations` e `[Controls] BuildPanelKey`). A doc
+  gerada é `package/CONFIGURATION.md` — **nunca** editar à mão: rodar o gerador e depois o `--check`. O `.cfg` é
   `BepInEx\config\AiCompanions.cfg`.
   A `[Building] PlaceReach` desta rodada (float, padrão **10**, faixa **5..20**; rótulo `hc_cfg_building_placereach`,
   "Place reach" no inglês nativo) é o `MaxPlace` do `MHR_Build` — ver o alcance de colocação na seção da construção.
@@ -235,10 +233,19 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   `OrderItems`) são a segurança fora do modelo. `build`/`level` são ordens; `companions.order` do bridge
   **cancela** obra/nivelamento.
 - **Construção (Trilha E):** `MHR_Build` — peça única (`prefab`), template (`plan=hut|canopy|tent|house4|…`) e
-  `.blueprint` (`BepInEx/config/AI-Companions/blueprints`). Ordem: **andar → piso → escada → parede → telhado →
-  porta**; a estação é planejada (**fora do blueprint**: no blueprint ela é dispensada com a `[Building] BlueprintStations`,
-  padrão true); nivelar → limpar → construir; a coleta entrega à obra e retoma na mesma peça;
-  retry pass (3); scaffold provisório **off** por padrão. Medições: `building-notes` §15 e `plan-construcao`.
+  `.blueprint` (`<plugin>\blueprints` — era `BepInEx/config/AI-Companions/blueprints` até 11/11/2026). Ordem: **andar →
+  piso → escada → parede → telhado → porta**; a estação é planejada (**fora do blueprint**: no blueprint ela é
+  dispensada com a `[Building] BlueprintStations`, padrão true); nivelar → limpar → construir; a coleta entrega à obra e
+  retoma na mesma peça; retry pass (3); scaffold provisório **off** por padrão. Medições: `building-notes` §15 e
+  `plan-construcao`.
+  **A pasta dos `.blueprint` (11/11/2026, `AI/BuildBlueprints.cs` → `BuildBlueprints.Folder()`):** é
+  **`<plugin>\blueprints`**, isto é `BepInEx\plugins\AI-Companions\blueprints\` — resolvida pelo `Assembly.Location`,
+  como `tts\`, `whisper\` e `Translations\`, porque é **conteúdo e não config** (e assim o pacote pode levá-la);
+  **criada no primeiro uso** e, na primeira vez em que ela ainda **não existe**, o mod **migra** a antiga
+  `BepInEx\config\AI-Companions\blueprints` **uma vez** — **cópia (nunca move)** e **sem sobrescrever** homônimo, com o
+  log PT-BR `[Build] blueprints: N arquivo(s) migrados de config para plugins`; se a pasta nova já existe (o pacote a
+  traz), a migração **não roda**. O pacote **leva** `blueprints\*.blueprint` quando a pasta tem arquivo
+  (`tools/stage_release.py`).
   **Receita de teste × comportamento (regra do jogador, 11/11/2026:** *"âncora, mochilas, auto-pickup, etc é só nos
   testes, depois dos testes ficam normal"* **e** *"ninguém vai fazer a mesma construção no mesmo lugar"***):** âncora
   fixa no script, `BlueprintFree`, `PlaceReach` alto, `LevelGround = false`, mochila zerada
@@ -281,16 +288,16 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   pior caso: N× o resto do plano, com até **3 coletando ao mesmo tempo** — o `Stock` é a metade aberta do P1); grupo
   só de **blueprint**; **em memória** (não persiste); "para" = todos, "para, <nome>" = um, um modo num companheiro
   tira só ele; nivelar/limpar com **um** (P5). **Nenhuma** chave de tradução nova (reusa `hc_ai_no_companion` e
-  `hc_ai_build_failed`) — harness **642** (471 + **28** da **(p)** + 26 da **(q)** + **66** da **(r)** — `CanSupport`,
+  `hc_ai_build_failed`) — harness **656** (471 + **28** da **(p)** + 26 da **(q)** + **66** da **(r)** — `CanSupport`,
   `PickPost`, `UsefulSurface`, `HoldsPlacedPiece` e as constantes da barreira — + **18** da **(s)** — `AI/BuildBody.cs`,
   a janela do corpo (`Blocks`, `HalfY` e os casos medidos do Run 10) — + **27** da **(t)** — a **barreira de andar**,
   11/11/2026 — + **6** da **(u)** —
-  `BuildSupportBelow.FallbackPostAllowed`, o poste quando o apoio do plano não vem), MCP
+  `BuildSupportBelow.FallbackPostAllowed`, o poste quando o apoio do plano não vem — + **5** da **(v)**,
+  `BuildStationCover.Required` — + **9** da **(w)**, `BuildMaterials.Add`/`Total`), MCP
   **122** (as **12**
   asserções de 03/11/2026 cobrem o contrato do grupo: `workers`, `refused` e `name` vazio = todos; as **6** de
   11/11/2026 cobrem o `stop` do `companions.order`; e as do `blueprints_list`/`blueprints_inspect` a biblioteca e o
-  relatório sem ordem), config **365/25** (contagem do `CONFIGURATION.md` gerado — ver o
-  bullet de config acima).
+  relatório sem ordem), config **365/25** e build **0/0**.
   **Medido em jogo (`CommHomeBasicBP`, `BlueprintFree = true`) — doze runs documentados entre 04 e 11/11/2026** (1–3 com 3
   companheiros e `PlaceReach` 10/15/15+guarda; 4 com o deck; 5 com 5 companheiros; **6 em 11/11/2026** com os dois
   lotes → **969 + 18 = 987**, watchdog **0**, **985 de 987** no canteiro, **`apoio de emergência` = 0**, **telhado
@@ -389,7 +396,7 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   peças de pé**, **0 mortes**, piso do térreo ~**1 m** acima do chão com as **escadas das entradas encontrando**; **2 dos
   3** workers fecharam com `0 peça(s) sem apoio` e o terceiro parou com **6 telhados** nomeados (42,8/44,8/46,8) + **4**
   `falls`, e a visão (`render_view`) mostrou a **faixa da água sul** faltando e a **empenha leste aberta**. **Lote do
-  telhado (build 0/0, harness **601** naquele lote — hoje **642**; medido no run de 11/11):** (a) **telhado apoia
+  telhado (build 0/0, harness **601** naquele lote — hoje **656**; medido no run de 11/11):** (a) **telhado apoia
   telhado** — o `DirectSupportIndex`
   excluía a **classe
   3** como apoio, então numa **empena** a fileira de cima (apoiada pela de baixo, também telhado) **nunca** era puxada;
@@ -561,8 +568,9 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
 - **Pendências conhecidas (abertas):** (1) navegação no andar em obra; (2) a voz não passa pelo mixer do jogo (só
   `[AI] TtsVolume`); (3) sync com o upstream `main` (1.5.8) em dia — conferir antes de cada release; (4) o nome do
   companheiro no centro do radial (cosmético); (5) posse do ZDO no spawn em multiplayer dedicado; (6) a dívida de
-  **47** chaves por idioma do `gen_translations.py --check` (o mapa indexa por texto PT e não cobre o bloco
-  `hc_cfg_building_*` nem as falas de construção); (7) a coleta do build com a mochila no teto de peso (o run dos 1045
+  **49** chaves por idioma do `gen_translations.py --check` (**47 → 49 em 11/11/2026**: o mapa indexa por texto PT e
+  não cobre o bloco `hc_cfg_building_*` nem as falas de construção, e as **2** strings novas deste ciclo — `Blueprint:
+  sem estações` e `Tecla do painel de obra` — não estão nele); (7) a coleta do build com a mochila no teto de peso (o run dos 1045
   ficou 300 s sem entregar a madeira); (8) a sonda de corpo do build **não testa criaturas** (um javali em cima da peça
   ainda passa) — a `[Building] StepAside` e a sonda por **cápsula real × caixa girada** **foram medidas no Run 11**
   (§17.17: `987 peças, 0 puladas`, 98 terminais + 145 curtas, barreira disparada **56×**), e o que fica aberto nelas é a
@@ -581,10 +589,14 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   (12) **o nivelamento que recusa o terreno mata a obra** — `hc_ai_build_too_steep` (`MHR_Level.cs:282`) **não** está
   na lista de retomada (`:455`, só `done`/`already`/`failed`), então `[Building] LevelGround` (padrão **true**) pode
   encerrar a ordem em vez de devolver ao build; contornado no Run 13 com `LevelGround = false` (§17.18, item (c)).
-  **Achado de localização (11/11/2026, não corrigido):** `hc_cfg_building_blueprintstations`
-  (`Core/ModLocalization.cs:852`) e `hc_cfg_controls_buildpanelkey` (`:855`) estão **só no inglês** — nenhum dos **4**
-  JSONs os tem, então PT/ES/FR/IT mostram a **chave crua** no F8 e o `audit_translations.py` (modo PT,
-  `tools/audit_translations.py:213-216`) conta **1 ausente** por chave **pela leitura do script** (não rodado aqui).
+  **Achado de localização (11/11/2026, CORRIGIDO no mesmo dia):** `hc_cfg_building_blueprintstations`
+  (`Core/ModLocalization.cs:852`) e `hc_cfg_controls_buildpanelkey` (`:855`) estavam **só no inglês** e mostravam a
+  **chave crua** no F8 em PT/ES/FR/IT. Os dois entraram nos **4** JSONs — `buildpanelkey` em
+  `Translations/*.json:1416` ("Tecla do painel de obra" / "Tecla del panel de obra" / "Touche du panneau de chantier" /
+  "Tasto del pannello cantiere") e `blueprintstations` em `:2872` ("Blueprint: sem estações" / "… sin estaciones" /
+  "… : sans établis" / "…: senza stazioni") — e as auditorias fecharam: **PT 0 ausentes** (eram 2) e **ES/FR/IT 0
+  lacunas** (`python tools/audit_translations.py [--lang …]`); a dívida do `gen_translations.py --check` foi de **47
+  para 49** (item 6).
 
 ## Nossas docs
 
@@ -764,8 +776,8 @@ comandos de console e spawna coisas, então não é feature de jogador.
   mochila **sem dropar** — ferramenta de teste, `DevBridge/Commands.cs:1832-1847`) e `blueprints.list`/`blueprints.inspect`
   (`:628-746`): a biblioteca e **o que a ordem faria** com um arquivo, **sem começar nada**, pelo mesmo leitor do painel
   (`AI/BuildBlueprintReport.cs`).
-- **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check` — **642 asserções** (a última medida;
-  com a **(v)** e a **(w)** de 11/11/2026 o total está **sem reconferência** — ver o fim desta lista) das redes por
+- **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check -c Release` — **656 asserções** (medidas
+  em 11/11/2026) das redes por
   palavras (`RadialIntent`, `PickupIntent`, `GatherIntent`, `InteractionIntent`, `LlmIntent`, `OrderItems`,
   `CompanionNameMatch`) e das tabelas puras (`NavTileMath` na **(o)**, `BuildFailure.Classify` na **(p)** — 28 casos,
   `AI/BuildFailure.cs`, incluindo as constantes da barreira; `BuildPieceKind` na **(q)** — 26, `AI/BuildPieceKind.cs`;
@@ -783,15 +795,14 @@ comandos de console e spawna coisas, então não é feature de jogador.
   **2**, ~**20 s** = 8 + 12 s de espera de dependência; **imediato** se o apoio foi desistido); a **(v)** — **5**,
   `BuildStationCover.Required` (`AI/BuildStationCover.cs`, a `[Building] BlueprintStations`: template e peça única
   nunca dispensam); e a **(w)** — **9**, `BuildMaterials.Add`/`Total` (`AI/BuildMaterials.cs`, a necessidade de
-  material do plano, a mesma conta do painel da obra). **A contagem total não foi reconferida** neste ciclo: a última
-  medida é **642** (anterior à (v) e à (w)) e a soma das seções daria **656** — número **não medido**. Os `.csproj`
-  ganharam dois links com esse lote (`BuildStationCover.cs`, `BuildMaterials.cs`), então o "nenhuma seção nova exigiu
-  arquivo novo" que valia até a (u) **não vale mais**) com os `.cs` reais linkados,
+  material do plano, a mesma conta do painel da obra) — **soma medida em 11/11/2026: 656 PASS** com os `.cs` reais
+  linkados. Os `.csproj` ganharam dois links com esse lote (`BuildStationCover.cs`, `BuildMaterials.cs`), então o
+  "nenhuma seção nova exigiu arquivo novo" que valia até a (u) **não vale mais**),
   mais o cross-check das cópias do `Stubs.cs` contra a `Companions.dll` (seção (h) — impede drift). Build 0/0 e exit 0
   são o gate.
 - **Gate de release:** `powershell -ExecutionPolicy Bypass -File tools\release-check.ps1 -Version <versão>` — roda o
   build, a versão (`PluginVersion` × nome do zip), as 3 traduções, o `locale-fallback-check.ps1` (agora com asserts),
-  o `gen_config_doc.py --check`, o teste do MCP (122) e as 642 asserções; **PASS/FAIL por item e exit 1**. É o que tem
+  o `gen_config_doc.py --check`, o teste do MCP (**122**) e as **656** asserções; **PASS/FAIL por item e exit 1**. É o que tem
   de passar antes de tag/zip (`-SkipGame`/`-SkipIntents` para rodar parte).
 - **Docs:** `docs/mcp-devbridge.md` (arquitetura, protocolo, as **62** ferramentas, a receita de **jogar pelo agente**
   e a de **comandos de console**, e as evidências dos testes da 1.9.4) e `tools/mcp-devbridge/README.md`
@@ -854,7 +865,9 @@ comandos de console e spawna coisas, então não é feature de jogador.
   **empenas estavam com o yaw trocado** (entravam como asas - yaw 180 no lado +x). A **trava de 90° no yaw do plano foi
   tentada e revertida** (deixava a casa torta; o plano usa o yaw da mira, como a 8x8) e o anel de nivelamento caiu de
   4 m para 1,5 m (a casa ia para outro terreno). **Aceite do jogador: "tudo certo!"**. **E7 - os planos do jogador (02/11/2026):** o companheiro constrói as builds
-  da biblioteca **`.blueprint`** (PlanBuild/BiomeBlueprints/valheimians): pasta `BepInEx/config/AI-Companions/blueprints/`,
+  da biblioteca **`.blueprint`** (PlanBuild/BiomeBlueprints/valheimians): pasta `BepInEx\plugins\AI-Companions\blueprints\`
+  (era `BepInEx\config\AI-Companions\blueprints` até 11/11/2026 — a antiga é **copiada uma vez** para a nova, sem
+  sobrescrever; ver a nota da pasta na Trilha E),
   ordem pelo **nome do arquivo** ("construa a hs_meadows_hut aqui"; o **nome mais longo ganha** do template - o 3B
   devolvia "hut" para `hs_meadows_hut`; empate fica com o template - e a pasta tem cache de 10 s para nao abrir 353
   arquivos por mensagem), leitura em `AI/BuildBlueprintParser.cs` (texto,

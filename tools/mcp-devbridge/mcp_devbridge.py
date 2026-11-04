@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """MCP server for the Valheim DevBridge (AI Companions).
 
 It speaks the Model Context Protocol over stdio and forwards every tool call to the in-game BepInEx module
@@ -550,7 +550,7 @@ TOOLS = [
             "it. The piece must be in the allow-list (piece_workbench, piece_chest_wood, fire_pit, bed, piece_bed02)."
             " With 'plan' it builds a whole TEMPLATE instead (E6: hut = 2x2 floor + 4 walls + gable roof; "
             "canopy = 4 poles + 4 roofs over the bench). With 'blueprint' it builds a .blueprint from the player's "
-            "library (E7: BepInEx/config/AI-Companions/blueprints), centered on the hint/aim."
+            "library (E7: BepInEx/plugins/AI-Companions/blueprints), centered on the hint/aim."
             " A blueprint is ONE site handed to a GROUP: with no 'name' EVERY companion of the player joins it and "
             "the pieces are shared between them; with 'name' only that companion works it (a piece or a plan order "
             "is always one companion). The answer carries 'workers' (how many joined the site; 0 = none) and, ONLY "
@@ -595,7 +595,7 @@ TOOLS = [
     {
         "name": "blueprints_list",
         "description": (
-            "Lists the .blueprint library the build order reads (BepInEx/config/AI-Companions/blueprints): the "
+            "Lists the .blueprint library the build order reads (BepInEx/plugins/AI-Companions/blueprints): the "
             "folder, how many files there are and, for each one, the file name, size in bytes, line count and "
             "modification time. It is how the player sees which builds are available BEFORE giving an order. "
             "Read-only: it touches neither the world nor any companion."

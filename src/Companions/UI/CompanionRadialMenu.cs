@@ -319,6 +319,14 @@ public class CompanionRadialMenu : MonoBehaviour
 		}
 	}
 
+	/// <summary>
+	/// 11/11/2026 (the build panel): the frame this wheel closed itself on a key press (Esc, <b>B</b> or the pad's B), or
+	/// -1 when it did not. The wheel and the build panel share the <b>B</b> key, so without this mark one press would
+	/// close the wheel and open the panel on the very same frame - the panel refuses to open while
+	/// <c>Time.frameCount</c> is this number.
+	/// </summary>
+	internal static int LastKeyCloseFrame { get; private set; } = -1;
+
 	internal static void WarmCache()
 	{
 		GetCircleSprite();
@@ -1195,6 +1203,9 @@ public class CompanionRadialMenu : MonoBehaviour
 		}
 		if (ZInput.GetKeyDown(KeyCode.Escape) || ZInput.GetKeyDown(KeyCode.B) || ZInput.GetButtonDown("JoyButtonB"))
 		{
+			// 11/11/2026: the build panel opens with B too - the frame is remembered so the same press cannot close the
+			// wheel and open the panel at once (see CompanionBuildPanel.CanOpen)
+			LastKeyCloseFrame = Time.frameCount;
 			Hide();
 			return;
 		}

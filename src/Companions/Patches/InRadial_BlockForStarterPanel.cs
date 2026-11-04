@@ -43,6 +43,12 @@ internal static class InRadial_BlockForStarterPanel
 			__result = true;
 			return;
 		}
+		// 11/11/2026: the build panel (a window of the same band)
+		if (CompanionBuildPanel.IsOpen)
+		{
+			__result = true;
+			return;
+		}
 		// Fase 3.20: the appearance editor (a modal window of its own, above the AI panel)
 		if (CompanionAppearancePanel.IsOpen)
 		{

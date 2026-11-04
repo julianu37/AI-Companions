@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Text;
 using BepInEx;
 using UnityEngine;
@@ -50,8 +51,10 @@ internal sealed class Blueprint
 }
 
 /// <summary>
-/// E7: the mod's <b>blueprint library</b> - the folder <c>BepInEx/config/AI-Companions/blueprints</c> with the
-/// <c>.blueprint</c> files the player downloaded (BiomeBlueprints, valheimians) or captured in game. Reading a file
+/// E7: the mod's <b>blueprint library</b> - the folder <c>BepInEx/plugins/AI-Companions/blueprints</c> (next to the DLL,
+/// like <c>tts\</c> and <c>whisper\</c>) with the <c>.blueprint</c> files the player downloaded (BiomeBlueprints,
+/// valheimians) or captured in game. It is <i>content</i>, not config, so the package can ship it; the old
+/// <c>BepInEx/config/AI-Companions/blueprints</c> is copied over once (11/11/2026). Reading a file
 /// needs nothing from PlanBuild (the format is text - see <see cref="BuildBlueprintParser"/>); PlanBuild is only needed
 /// to <i>create</i> or <i>place</i> a blueprint.
 /// </summary>
@@ -59,22 +62,126 @@ internal static class BuildBlueprints
 {
 	internal const string Extension = ".blueprint";
 
+	/// <summary>11/11/2026: the one-shot copy of the old folder was already tried this session (the log must not
+	/// repeat on every <see cref="Folder"/> call).</summary>
+	private static bool s_migrated;
+
 	/// <summary>The folder the mod reads (and creates on first use).</summary>
 	internal static string Folder()
 	{
+		// the plugin folder is where the mod loads everything from (tts\, whisper\, Translations\): the same
+		// Assembly.Location lookup CompanionTts/WhisperStt use
+		string folder = Path.Combine(PluginDirectory(), "blueprints");
 		try
 		{
-			string folder = Path.Combine(Paths.ConfigPath, "AI-Companions", "blueprints");
-			if (!Directory.Exists(folder))
+			// the migration only happens while the new folder still does not exist: a library the player already put
+			// there is never touched (the copy also skips any name that is already in it)
+			bool existed = Directory.Exists(folder);
+			if (!existed)
 			{
 				Directory.CreateDirectory(folder);
+				MigrateLegacy(folder);
 			}
 			return folder;
 		}
 		catch (Exception e)
 		{
 			CompanionsPlugin.Log?.LogWarning("[Blueprint] could not create the folder: " + e.Message);
-			return Path.Combine(Paths.ConfigPath, "AI-Companions", "blueprints");
+			return folder;
+		}
+	}
+
+	/// <summary>The folder of <c>Companions.dll</c> (where <c>tts\</c>, <c>whisper\</c> and <c>Translations\</c> live).</summary>
+	private static string PluginDirectory()
+	{
+		try
+		{
+			string location = Assembly.GetExecutingAssembly().Location;
+			if (!string.IsNullOrEmpty(location))
+			{
+				string dir = Path.GetDirectoryName(location);
+				if (!string.IsNullOrEmpty(dir))
+				{
+					return dir;
+				}
+			}
+		}
+		catch (Exception e)
+		{
+			CompanionsPlugin.Log?.LogWarning("[Build] não consegui descobrir a pasta do plugin pelo Assembly.Location: " + e.Message);
+		}
+		return Directory.GetCurrentDirectory();
+	}
+
+	/// <summary>The folder the library lived in before 11/11/2026 (under the config folder).</summary>
+	private static string LegacyFolder()
+	{
+		return Path.Combine(Paths.ConfigPath, "AI-Companions", "blueprints");
+	}
+
+	/// <summary>
+	/// 11/11/2026 (player's request): copies the old library (<see cref="LegacyFolder"/>) into the new one, once. It is a
+	/// COPY, never a move - if anything goes wrong the original is still there - and a file that already exists in the new
+	/// folder is never overwritten (it stays and is counted as "already there"). Nothing is logged when the old folder does
+	/// not exist (the normal case of a fresh install).
+	/// </summary>
+	private static void MigrateLegacy(string folder)
+	{
+		if (s_migrated)
+		{
+			return;
+		}
+		s_migrated = true;
+		try
+		{
+			string legacy = LegacyFolder();
+			if (!Directory.Exists(legacy))
+			{
+				return;
+			}
+			string[] files = Directory.GetFiles(legacy, "*" + Extension);
+			if (files.Length == 0)
+			{
+				return;
+			}
+			Array.Sort(files, StringComparer.OrdinalIgnoreCase);
+			int copied = 0;
+			int existing = 0;
+			foreach (string file in files)
+			{
+				string target = Path.Combine(folder, Path.GetFileName(file));
+				if (File.Exists(target))
+				{
+					existing++;
+					continue;
+				}
+				try
+				{
+					File.Copy(file, target, false);
+					copied++;
+				}
+				catch (Exception e)
+				{
+					CompanionsPlugin.Log?.LogWarning("[Build] blueprints: não consegui copiar " + Path.GetFileName(file) + " de config: " + e.Message);
+				}
+			}
+			if (copied == 0 && existing == 0)
+			{
+				return;
+			}
+			if (CompanionsPlugin.LogNormal)
+			{
+				string line = "[Build] blueprints: " + copied + " arquivo(s) migrados de config para plugins";
+				if (existing > 0)
+				{
+					line += " (" + existing + " já existia(m) na pasta nova e foi(ram) mantido(s))";
+				}
+				CompanionsPlugin.Log?.LogInfo(line);
+			}
+		}
+		catch (Exception e)
+		{
+			CompanionsPlugin.Log?.LogWarning("[Build] blueprints: falha ao migrar de config para plugins: " + e.Message);
 		}
 	}
 

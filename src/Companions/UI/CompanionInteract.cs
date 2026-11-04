@@ -683,6 +683,14 @@ public class CompanionInteract : MonoBehaviour
 			_holdActive = false;
 			return;
 		}
+		// 11/11/2026 (the build panel): a text box of the mod owns the keyboard - typing a "z" in the blueprint filter
+		// (or in a companion's name field) must not send the companions anywhere. It is the same guard the mod's fields
+		// already give the game's own keys (ModTextInputFocus), and this method reads the key straight from Input.
+		if (ModTextInputFocus.AnyFocused)
+		{
+			_holdActive = false;
+			return;
+		}
 		if (Hud.IsPieceSelectionVisible())
 		{
 			_holdActive = false;

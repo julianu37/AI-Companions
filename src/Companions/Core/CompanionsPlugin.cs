@@ -171,6 +171,8 @@ public class CompanionsPlugin : BaseUnityPlugin
 		ConfigPanel.Create();
 		// Fase 3.7: the in-game AI panel (personality, voice, push-to-talk) - built on first open, hidden until then
 		CompanionAiPanel.Create();
+		// 11/11/2026: the build panel ([Controls] BuildPanelKey) - the site the companions are building
+		CompanionBuildPanel.Create();
 		FarmZonePlacer.EnsureInstance();
 	}
 
@@ -337,6 +339,7 @@ public class CompanionsPlugin : BaseUnityPlugin
 		{
 			MHR_Root(ConfigPanel.Instance),
 			MHR_Root(CompanionAiPanel.Instance),
+			MHR_Root(CompanionBuildPanel.Instance),
 			MHR_Root(CompanionAppearancePanel.Instance),
 			MHR_Root(FarmZonePlacer.Instance),
 			MHR_Root(CompanionRadialMenu.Instance),

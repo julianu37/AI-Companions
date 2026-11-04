@@ -800,6 +800,11 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		{
 			return false;
 		}
+		// 11/11/2026: the build panel is a window like this one (it refuses to open while this one is visible)
+		if (CompanionBuildPanel.IsOpen)
+		{
+			return false;
+		}
 		// nor while the appearance editor (opened by this panel) is up: it is the window in front
 		if (CompanionAppearancePanel.IsOpen)
 		{

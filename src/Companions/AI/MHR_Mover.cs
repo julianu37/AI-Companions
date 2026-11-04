@@ -123,6 +123,15 @@ namespace Companions
         }
         // 1.5.3: climbing a planned chain of ladders (Follow leaves it to finish rather than switching to the player's path)
         public static bool OnLadderChain(CompanionAI ai) { S s = Peek(ai); return s != null && s.OnChain && Time.time - s.LastGo < 1f; }
+        // 11/11/2026 (Run 13, the ridge of the blueprint): the mover is on its way UP or AROUND right now (waiting for a
+        // ladder, on a ladder chain, going down one, climbing or on a detour). The walk to a piece 20 m away does not get
+        // closer while he climbs, and the caller's "12 s without getting closer" clock used to cut the climb and throw the
+        // piece back to the retry queue - the caller restarts the clock while this is true.
+        public static bool Vertical(CompanionAI ai)
+        {
+            S s = Peek(ai); float now = Time.time;
+            return s != null && (s.LadderPending || s.OnChain || s.DescendLadder || now < s.ClimbUntil || s.HasDetour);
+        }
         public static bool Progressing(CompanionAI ai) { S s = Peek(ai); return s != null && !s.GaveUp && Time.time - s.ProgressTime < 10f; }
         public static float StuckSeconds(CompanionAI ai) { return GaveUp(ai) ? 11f : 0f; }
         // CompanionRest keeps its bed trip alive while we're still getting somewhere
