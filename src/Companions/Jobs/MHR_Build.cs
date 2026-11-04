@@ -78,9 +78,11 @@ internal static class MHR_Build
 	/// wood that arrives resets it (see <see cref="Pending.LastProgressAt"/>).</summary>
 	internal const float GatherTimeout = 300f;
 
-	/// <summary>P1 (review A1, 03/11/2026): how long a worker waits for the pieces of the group's retry queue before it
-	/// leaves the site (they may be another worker's, and that one may be stuck).</summary>
-	internal const float RetryWaitMax = 60f;
+	/// <summary>P1 (04/11/2026, the stall watchdog): how long the site may go <b>without a piece going up</b> before the
+	/// pieces still waiting in the retry queue are given up and the order ends. It replaces the old "60 s in the wait"
+	/// clock, which said nothing about the site moving (a worker could give up on the queue while another one was placing
+	/// pieces).</summary>
+	internal const float StallSeconds = 60f;
 
 	/// <summary>E7 (player's request, 03/11/2026): how long the site clearing may take before the build goes on without
 	/// it - clearing a whole forest is not a build site.</summary>
@@ -175,15 +177,25 @@ internal static class MHR_Build
 		internal string Group;
 		/// <summary>E7: [Building] BlueprintFree - do not pay for the pieces (a test/creative switch).</summary>
 		internal bool Free;
-		/// <summary>E7: pieces placed and pieces skipped (a blueprint skips what it cannot stand instead of stopping).</summary>
-		internal int PlacedCount;
-		internal int Skipped;
+		/// <summary>P1 (04/11/2026, "contadores honestos"): the plan indices of the pieces that went up and that were given
+		/// up - SETS, so a piece that failed four times is one skipped piece, not four (the run of 03/11/2026 said "262
+		/// skipped" with a plan of 984). They are disjoint: a piece that is given up and then goes up is placed, never both.
+		/// The group keeps the same sets for the site; these are the single-worker path's own numbers (and the fallback when
+		/// the group is gone).</summary>
+		internal readonly HashSet<int> PlacedIndices = new HashSet<int>();
+		internal readonly HashSet<int> SkippedIndices = new HashSet<int>();
 		/// <summary>
 		/// E7 (a ideia do "Build all" deles sem o BuildOrders, 03/11/2026): a piece that does not stand YET (no support: its
 		/// floor is not up, its wall is missing) goes to this queue instead of being lost. When the plan ends it is tried
 		/// again - the second pass is what makes a house converge (floors, then walls, then roof).
 		/// </summary>
 		internal List<PlannedStep> Retry;
+		/// <summary>P1 (04/11/2026): the single worker's own retry clock - the pieces that failed by <b>dependency</b> are not
+		/// walked to again before it (the group has the same wait per entry, see <c>RetryEntry.At</c>).</summary>
+		internal float RetryAt;
+		/// <summary>P1 (04/11/2026): when this worker last saw a piece go up - the stall watchdog's clock for a single
+		/// worker (the group has its own, on the site).</summary>
+		internal float LastProgressAt;
 		internal int Passes;
 		/// <summary>E7: the square the site clearing covers (the plan's footprint, centred on the aim).</summary>
 		internal Vector3 ClearCenter;
@@ -248,6 +260,13 @@ internal static class MHR_Build
 		internal Piece Piece;
 		internal Vector3 Pos;
 		internal Quaternion Rot;
+		/// <summary>P1 (04/11/2026, the support gate): how many times this piece failed for a <b>real</b> reason while it
+		/// waits in the single worker's retry list (the cap is <see cref="MaxPasses"/>). A failure by dependency does not
+		/// come here.</summary>
+		internal int Tries;
+		/// <summary>P1 (04/11/2026): how many times this piece was deferred because what holds it up was not there yet -
+		/// the wait before looking at it again grows with this number.</summary>
+		internal int Dependency;
 	}
 
 	private static readonly Dictionary<int, State> s_state = new Dictionary<int, State>();
@@ -426,43 +445,184 @@ internal static class MHR_Build
 
 	/// <summary>
 	/// E7: the current piece goes back to the retry queue (it may stand once its neighbours are up) or is counted as
-	/// skipped when the passes are used up. This is the "build what stands, come back for the rest" loop of their
+	/// skipped when the attempts are used up. This is the "build what stands, come back for the rest" loop of their
 	/// BuildOrders, done with the game's own verdict instead of a stability simulation.
 	///
 	/// <para>P1 (review A1, 03/11/2026): in a <b>group</b> the queue is the SITE's, not the worker's - the piece was
-	/// skipped by the follower and died with it (the group's counters never saw it). Now the index goes to
-	/// <see cref="MHR_BuildGroup.TryQueueRetry"/> and any worker pulls it again; when the index runs out of attempts it is
-	/// counted as skipped, which is the only place a piece is given up.</para>
+	/// skipped by the follower and died with it (the group's counters never saw it). The index goes to
+	/// <see cref="MHR_BuildGroup.TryQueueRetry"/> and any worker pulls it again.</para>
+	///
+	/// <para>P1 (04/11/2026, the <b>support gate</b>): a piece that fails because what holds it up is not there yet is a
+	/// <b>dependency</b> - it spends no attempt, is never counted as skipped and comes back with a growing wait (the plan
+	/// is still going to put its support up). Everything else is a real failure and keeps the 3-attempt cap. The
+	/// classification is in <see cref="IsDependency"/>.</para>
 	/// </summary>
 	private static void QueueRetry(CompanionAI ai, State state, string why)
 	{
+		bool dependency = IsDependency(state, why);
 		if (state.Group != null && ai != null)
 		{
 			// the piece is free again for the others right away (one of them may have the support/tool that was missing)
 			MHR_BuildGroup.Release(state.Group, state.Index, ai.GetInstanceID());
-			if (MHR_BuildGroup.TryQueueRetry(state.Group, state.Index))
+			if (MHR_BuildGroup.TryQueueRetry(state.Group, state.Index, dependency))
 			{
-				Log(ai, "retry no grupo: " + state.Prefab + " (" + why + ") em (" + F(state.Pos.x) + ", " + F(state.Pos.y)
-					+ ", " + F(state.Pos.z) + ") - a peça volta para a fila do canteiro");
+				Log(ai, (dependency ? "sem apoio ainda: " : "retry no grupo: ") + state.Prefab + " (" + why + ") em ("
+					+ F(state.Pos.x) + ", " + F(state.Pos.y) + ", " + F(state.Pos.z) + ")"
+					+ (dependency ? " - não gasta tentativa, volta com espera" : " - a peça volta para a fila do canteiro"));
 				return;
 			}
-			state.Skipped++;
-			MHR_BuildGroup.AddSkipped(state.Group);
-			Log(ai, "desistindo de " + state.Prefab + " (" + why + ") em (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
-				+ F(state.Pos.z) + ") - " + state.Skipped + " pulada(s)");
+			SkipPiece(ai, state, why);
 			return;
 		}
-		if (state.Retry != null && state.Passes < MaxPasses && state.Piece != null)
+		if (state.Retry != null && state.Piece != null)
 		{
-			state.Retry.Add(new PlannedStep { Prefab = state.Prefab, Piece = state.Piece, Pos = state.Pos, Rot = state.Rot });
+			// the step the worker is on: reusing the plan's own object keeps the piece's Tries/Dependency across the retry
+			// passes (a fresh copy would reset them and the piece would never be given up)
+			PlannedStep pending = null;
+			if (state.Plan != null && state.Index >= 0 && state.Index < state.Plan.Count)
+			{
+				PlannedStep current = state.Plan[state.Index];
+				if (SamePiece(current, state))
+				{
+					pending = current;
+				}
+			}
+			if (pending == null)
+			{
+				pending = new PlannedStep { Prefab = state.Prefab, Piece = state.Piece, Pos = state.Pos, Rot = state.Rot };
+			}
+			if (state.Retry.IndexOf(pending) < 0)
+			{
+				state.Retry.Add(pending);
+			}
+			if (dependency)
+			{
+				pending.Dependency++;
+				state.RetryAt = Time.time + DependencyDelay(pending.Dependency);
+				Log(ai, "sem apoio ainda: " + state.Prefab + " (" + why + ") em (" + F(state.Pos.x) + ", " + F(state.Pos.y)
+					+ ", " + F(state.Pos.z) + ") - não gasta tentativa, volta com espera");
+				return;
+			}
+			pending.Tries++;
+			if (pending.Tries > MaxPasses)
+			{
+				state.Retry.Remove(pending);
+				SkipPiece(ai, state, why);
+				return;
+			}
+			state.RetryAt = Time.time + MHR_BuildGroup.RetryDelay;
 			Log(ai, "retry later: " + state.Prefab + " (" + why + ") at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
-				+ F(state.Pos.z) + ") - pass " + state.Passes);
+				+ F(state.Pos.z) + ") - " + pending.Tries + "/" + MaxPasses);
 			return;
 		}
-		state.Skipped++;
-		MHR_BuildGroup.AddSkipped(state.Group);
-		Log(ai, "skipping " + state.Prefab + " (" + why + ") at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
-			+ F(state.Pos.z) + ") - " + state.Skipped + " skipped");
+		SkipPiece(ai, state, why);
+	}
+
+	/// <summary>
+	/// P1 (04/11/2026, the <b>support gate</b>): is this refusal the piece waiting for something the plan itself is still
+	/// going to put up? <c>no_support</c> (the floor/wall below is not there yet), <c>needs_station</c> (the workbench the
+	/// plan brings is ahead in it) and <c>no_ground</c> <b>when the probe found something under the pose</b> (the piece of
+	/// the plan below) are dependencies. A <c>no_ground</c> whose probe hits nothing is the SPOT failing (a hole, the sea,
+	/// the far side of a cliff); <c>no progress</c>, <c>blocked_by_player</c>, <c>clipping</c>, <c>verification: ...</c>,
+	/// <c>too_steep</c>, <c>can't reach it</c> and anything unknown are real failures.
+	/// </summary>
+	private static bool IsDependency(State state, string why)
+	{
+		if (state == null || string.IsNullOrEmpty(why))
+		{
+			return false;
+		}
+		if (why == "no_support" || why == "no support" || why == "needs_station")
+		{
+			return true;
+		}
+		if (why == "no_ground")
+		{
+			return GroundUnder(state.Pos);
+		}
+		return false;
+	}
+
+	/// <summary>
+	/// P1 (04/11/2026): is there <b>anything</b> under this pose for the placement probe? It mirrors
+	/// <c>BuildProbe.CheckPoint</c> (a ray from 4 m above over 8 m down, on the placement layers): a <c>no_ground</c> that
+	/// hits nothing is the spot failing, while one that hits a piece of the plan is the support that is not up yet.
+	/// </summary>
+	private static bool GroundUnder(Vector3 pos)
+	{
+		return Physics.Raycast(pos + Vector3.up * 4f, Vector3.down, 12f, BuildProbe.PlaceMask(),
+			QueryTriggerInteraction.Ignore);
+	}
+
+	/// <summary>P1 (04/11/2026): how long a piece deferred by <b>dependency</b> waits before it is looked at again - what it
+	/// needs may be going up right now. It grows and stops at 25 s.</summary>
+	internal static float DependencyDelay(int deferrals)
+	{
+		if (deferrals <= 1)
+		{
+			return 8f;
+		}
+		if (deferrals == 2)
+		{
+			return 12f;
+		}
+		if (deferrals == 3)
+		{
+			return 20f;
+		}
+		return 25f;
+	}
+
+	/// <summary>Is the step of the plan the piece this worker is on (prefab and pose)? It is how the single worker's retry
+	/// list finds the same piece again instead of growing a copy per pass.</summary>
+	private static bool SamePiece(PlannedStep step, State state)
+	{
+		return step != null && state != null && step.Prefab == state.Prefab
+			&& (step.Pos - state.Pos).sqrMagnitude < 0.0001f;
+	}
+
+	/// <summary>
+	/// P1 (04/11/2026, "contadores honestos"): the plan index a piece is counted by. For a site it is the plan's index
+	/// (a group never appends to the plan). For a single worker the retry pass <b>appends the same step again</b>, so the
+	/// copy at the end is not another piece: the FIRST place the step appears is the piece's identity.
+	/// </summary>
+	private static int PieceIndex(State state)
+	{
+		if (state == null)
+		{
+			return -1;
+		}
+		if (state.Group != null || state.Plan == null || state.Index < 0 || state.Index >= state.Plan.Count)
+		{
+			return state.Index;
+		}
+		PlannedStep step = state.Plan[state.Index];
+		int first = step != null ? state.Plan.IndexOf(step) : -1;
+		return first >= 0 ? first : state.Index;
+	}
+
+	/// <summary>
+	/// P1 (04/11/2026, "contadores honestos"): one piece is given up - counted <b>once per plan index</b>, in the order and
+	/// in the site. Every path that abandons a piece goes through here (the retry cap, the stall watchdog, a fall and the
+	/// timeout), which is what makes <c>Placed + Skipped</c> close with the plan instead of counting attempts (the run of
+	/// 03/11/2026 said 262 skipped with 984 pieces).
+	/// </summary>
+	private static void SkipPiece(CompanionAI ai, State state, string why)
+	{
+		if (state == null)
+		{
+			return;
+		}
+		int index = PieceIndex(state);
+		if (index < 0 || state.PlacedIndices.Contains(index))
+		{
+			return;   // a piece that is up is never counted as skipped
+		}
+		state.SkippedIndices.Add(index);
+		MHR_BuildGroup.AddSkipped(state.Group, index);
+		int total = state.Group != null ? MHR_BuildGroup.Skipped(state.Group) : state.SkippedIndices.Count;
+		Log(ai, "desistindo de " + state.Prefab + " (" + why + ") em (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
+			+ F(state.Pos.z) + ") - " + total + " pulada(s)");
 	}
 
 	/// <summary>
@@ -576,6 +736,11 @@ internal static class MHR_Build
 	/// site still has pieces in its retry queue: it pulls a free index of it (<see cref="MHR_BuildGroup.NextRetry"/>), or
 	/// waits for the one another worker is on (<see cref="Phase.WaitRetry"/>). The old per-worker retry pass stays for a
 	/// single-worker order (with a group the queue is the site's).</para>
+	///
+	/// <para>P1 (04/11/2026): the single worker's retry pass waits for <see cref="State.RetryAt"/> - the pieces that need a
+	/// support are not walked to again on the same breath - and it is <b>not</b> gated by a number of passes anymore: each
+	/// step carries its own real attempts (<see cref="PlannedStep.Tries"/>) and the stall watchdog ends a run that stops
+	/// making progress.</para>
 	/// </summary>
 	private static bool Advance(CompanionAI ai, State state)
 	{
@@ -585,8 +750,14 @@ internal static class MHR_Build
 			MHR_BuildGroup.ReleaseAllOf(state.Group, worker);
 		}
 		if (state.Group == null && state.Plan != null && state.Index + 1 >= state.Plan.Count
-			&& state.Retry != null && state.Retry.Count > 0 && state.Passes < MaxPasses)
+			&& state.Retry != null && state.Retry.Count > 0)
 		{
+			if (Time.time < state.RetryAt)
+			{
+				state.Phase = Phase.WaitRetry;
+				state.Start = Time.time;
+				return true;
+			}
 			state.Passes++;
 			List<PlannedStep> again = state.Retry;
 			state.Retry = new List<PlannedStep>();
@@ -657,8 +828,9 @@ internal static class MHR_Build
 				// P1 (review A9, 03/11/2026): the group may be gone by now (the last Leave of another worker took it) -
 				// then the counters of this order are the honest answer, never a 0/0
 				bool live = MHR_BuildGroup.Exists(key);
-				int placed = live ? MHR_BuildGroup.Placed(key) : state.PlacedCount;
-				int skipped = live ? MHR_BuildGroup.Skipped(key) : state.Skipped;
+				// P1 (04/11/2026): the counters are SETS of plan indices (a piece is one piece, whatever it took)
+				int placed = live ? MHR_BuildGroup.Placed(key) : state.PlacedIndices.Count;
+				int skipped = live ? MHR_BuildGroup.Skipped(key) : state.SkippedIndices.Count;
 				MHR_BuildGroup.ReleaseAllOf(key, worker);
 				bool last = MHR_BuildGroup.Leave(key, worker);
 				state.Group = null;
@@ -670,12 +842,14 @@ internal static class MHR_Build
 				Finish(ai, state, "hc_ai_blueprint_done", null, state.Blueprint, placed, skipped);
 				return false;
 			}
-			Finish(ai, state, "hc_ai_blueprint_done", null, state.Blueprint, state.PlacedCount, state.Skipped);
+			Finish(ai, state, "hc_ai_blueprint_done", null, state.Blueprint, state.PlacedIndices.Count,
+				state.SkippedIndices.Count);
 			return false;
 		}
 		if (state.Template != null)
 		{
-			Finish(ai, state, "hc_ai_build_plan_done", null, state.Template.Label, state.Plan != null ? state.Plan.Count : 0);
+			// P1 (04/11/2026): the line says the pieces that are UP ("The {0} is up: {1} pieces"), not the plan's size
+			Finish(ai, state, "hc_ai_build_plan_done", null, state.Template.Label, state.PlacedIndices.Count);
 			return false;
 		}
 		// a single piece
@@ -733,8 +907,11 @@ internal static class MHR_Build
 	}
 
 	/// <summary>
-	/// P1 (review A7, 03/11/2026): one piece is <b>counted once</b> - the group remembers the index it was done for, so a
+	/// P1 (review A7, 03/11/2026): one piece is <b>counted once</b> - the site remembers the index it was done for, so a
 	/// piece built by another worker (or a verdict asked twice) does not inflate the numbers of the order.
+	///
+	/// <para>P1 (04/11/2026, "contadores honestos"): the order's own counters are sets of plan indices as well, and a piece
+	/// that had been given up and then went up is <b>placed</b>, never both - it leaves the skipped set.</para>
 	/// </summary>
 	private static void CountPlaced(State state)
 	{
@@ -742,10 +919,17 @@ internal static class MHR_Build
 		{
 			return;
 		}
-		if (state.Group == null || MHR_BuildGroup.MarkDone(state.Group, state.Index))
+		int index = PieceIndex(state);
+		if (index >= 0)
 		{
-			state.PlacedCount++;
+			state.PlacedIndices.Add(index);
+			state.SkippedIndices.Remove(index);
+			if (state.Group != null)
+			{
+				MHR_BuildGroup.MarkDone(state.Group, index);
+			}
 		}
+		state.LastProgressAt = Time.time;
 	}
 
 	/// <summary>
@@ -997,7 +1181,6 @@ internal static class MHR_Build
 			Blueprint = blueprint.Label,
 			BlueprintFile = blueprint.File,
 			Free = free,
-			Skipped = skipped,
 			Hint = hint,
 			Forward = forward,
 			Anchor = hint,
@@ -1602,10 +1785,7 @@ internal static class MHR_Build
 			// E7 (player's test, 02/11/2026): a 983-piece blueprint always has a piece the companion cannot reach in
 			// 60 s (a roof corner, a spot inside the hill). Skipping it keeps the other 982 going - and the log says
 			// WHERE, so a bad anchor is visible instead of "the order took too long"
-			state.Skipped++;
-			MHR_BuildGroup.AddSkipped(state.Group);
-			Log(ai, "skipping " + state.Prefab + " (took too long) at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
-				+ F(state.Pos.z) + ") - " + state.Skipped + " skipped");
+			SkipPiece(ai, state, "took too long");
 			return Advance(ai, state);
 		}
 		if (why != null)
@@ -1712,12 +1892,41 @@ internal static class MHR_Build
 	/// P1 (review A1, 03/11/2026): the worker finished the plan and the site still has pieces in its <b>retry queue</b>
 	/// (they did not stand yet, and they may be another worker's or not due yet). It waits here instead of ending the
 	/// order: the piece is pulled the moment it is free (<see cref="MHR_BuildGroup.NextRetry"/>). When nothing is left the
-	/// group's end runs (<see cref="Advance"/>). The wait is bounded - a queue stuck behind a worker whose game went away
-	/// must not hold the companion forever.
+	/// group's end runs (<see cref="Advance"/>).
+	///
+	/// <para>P1 (04/11/2026, the <b>stall watchdog</b>): the wait is bounded by the SITE's progress, not by a clock that
+	/// starts when this worker happens to wait - if no piece went up in <see cref="StallSeconds"/>, the pieces still in the
+	/// queue need a support that is not coming: they are given up (counted as skipped, named in the log) and the order ends
+	/// through the normal end. A single worker (no group) waits on its own <see cref="State.RetryAt"/> and is watched the
+	/// same way.</para>
 	/// </summary>
 	private static bool WaitRetry(CompanionAI ai, State state)
 	{
-		if (state.Group == null || !MHR_BuildGroup.Exists(state.Group))
+		float progress = state.Group != null ? MHR_BuildGroup.LastProgressAt(state.Group) : state.LastProgressAt;
+		if (progress <= 0f)
+		{
+			// a resumed/just-started order: the clock starts now (nothing has failed for lack of support yet)
+			progress = Time.time;
+			state.LastProgressAt = progress;
+		}
+		if (Time.time - progress > StallSeconds)
+		{
+			return StallOut(ai, state);
+		}
+		if (state.Group == null)
+		{
+			// the single worker's own retry list: wait for the dependency clock, then let Advance append it again
+			if (state.Plan == null || state.Retry == null || state.Retry.Count == 0)
+			{
+				return Advance(ai, state);
+			}
+			if (Time.time < state.RetryAt)
+			{
+				return true;
+			}
+			return Advance(ai, state);
+		}
+		if (!MHR_BuildGroup.Exists(state.Group))
 		{
 			Log(ai, "o grupo da obra não existe mais - a ordem termina");
 			Finish(ai, state, null, "o grupo não existe mais");
@@ -1738,18 +1947,88 @@ internal static class MHR_Build
 		{
 			return Advance(ai, state);   // nothing left: the plan is done for everybody
 		}
-		if (Time.time - state.Start > RetryWaitMax)
-		{
-			// P1 (review B2, 03/11/2026): the entries this worker could have taken are DROPPED and counted as skipped -
-			// the last worker leaves the group right after, and a piece must never disappear with the queue
-			int dropped = MHR_BuildGroup.AbandonRetry(state.Group, ai.GetInstanceID());
-			state.Skipped += dropped;
-			Log(ai, "a fila de retry do grupo não andou em " + F(RetryWaitMax) + " s - saindo da obra ("
-				+ dropped + " peça(s) pulada(s))");
-			Finish(ai, state, null, "a fila de retry parou");
-			return false;
-		}
 		return true;
+	}
+
+	/// <summary>
+	/// P1 (04/11/2026, the <b>stall watchdog</b>): nothing went up in <see cref="StallSeconds"/>, so the pieces still
+	/// waiting in the queue need a support that will never be there (a hole, a floor that was never built). They are given
+	/// up - counted once per plan index - the log names each one (PT-BR, one line per piece), and the order ends through
+	/// <see cref="Advance"/> so the player hears the normal numbers.
+	/// </summary>
+	private static bool StallOut(CompanionAI ai, State state)
+	{
+		if (state.Group != null)
+		{
+			List<int> pending = new List<int>();
+			int dropped = MHR_BuildGroup.AbandonRetry(state.Group, ai.GetInstanceID(), pending);
+			LogStall(ai, state, pending, dropped);
+			return Advance(ai, state);
+		}
+		if (state.Plan == null || state.Retry == null || state.Retry.Count == 0)
+		{
+			return Advance(ai, state);
+		}
+		int single = 0;
+		for (int i = state.Retry.Count - 1; i >= 0; i--)
+		{
+			PlannedStep step = state.Retry[i];
+			state.Retry.RemoveAt(i);
+			if (step == null)
+			{
+				continue;
+			}
+			int index = state.Plan.IndexOf(step);
+			if (index < 0 || state.PlacedIndices.Contains(index))
+			{
+				continue;
+			}
+			if (state.SkippedIndices.Add(index))
+			{
+				single++;
+			}
+			MHR_BuildGroup.AddSkipped(state.Group, index);
+			if (CompanionsPlugin.LogNormal)
+			{
+				Log(ai, "sem apoio: " + step.Prefab + " em (" + F(step.Pos.x) + ", " + F(step.Pos.y) + ", "
+					+ F(step.Pos.z) + ")");
+			}
+		}
+		if (CompanionsPlugin.LogNormal)
+		{
+			Log(ai, "sem progresso há " + F(StallSeconds) + " s - " + single + " peça(s) sem apoio ficam de fora");
+		}
+		return Advance(ai, state);
+	}
+
+	/// <summary>P1 (04/11/2026): the watchdog names the pieces it is leaving out (prefab and pose), so a test in the game
+	/// says exactly what did not go up. One line per piece, inside the log gate.</summary>
+	private static void LogStall(CompanionAI ai, State state, List<int> pending, int dropped)
+	{
+		if (!CompanionsPlugin.LogNormal)
+		{
+			return;
+		}
+		Log(ai, "sem progresso há " + F(StallSeconds) + " s - " + dropped + " peça(s) sem apoio ficam de fora");
+		if (state.Plan == null || pending == null)
+		{
+			return;
+		}
+		for (int i = 0; i < pending.Count; i++)
+		{
+			int index = pending[i];
+			if (index < 0 || index >= state.Plan.Count)
+			{
+				continue;
+			}
+			PlannedStep step = state.Plan[index];
+			if (step == null)
+			{
+				continue;
+			}
+			Log(ai, "sem apoio: " + step.Prefab + " em (" + F(step.Pos.x) + ", " + F(step.Pos.y) + ", "
+				+ F(step.Pos.z) + ")");
+		}
 	}
 
 	/// <summary>
@@ -3260,8 +3539,7 @@ internal static class MHR_Build
 			if (state.FallDrops >= 2 && state.Blueprint != null)
 			{
 				Log(ai, "falling from the way to the " + state.Prefab + " - skipping it (" + state.FallDrops + " fall(s))");
-				state.Skipped++;
-				MHR_BuildGroup.AddSkipped(state.Group);
+				SkipPiece(ai, state, "falls");
 				state.FallDrops = 0;
 				return Advance(ai, state);
 			}
@@ -3396,7 +3674,7 @@ internal static class MHR_Build
 			if (state.Piece != null
 				&& BuildExecutor.VerifyAt(state.Piece, state.Pos, state.Rot, creator, out existing) == null)
 			{
-				state.PlacedCount++;
+				CountPlaced(state);
 				Log(ai, "a peça " + (state.Index + 1) + "/" + state.Plan.Count
 					+ " já está de pé (retry) - seguindo");
 				return Advance(ai, state);

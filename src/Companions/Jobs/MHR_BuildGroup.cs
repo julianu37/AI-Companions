@@ -40,12 +40,16 @@ internal static class MHR_BuildGroup
 	internal const float RetryDelay = 2f;
 
 	/// <summary>P1 (review A1): one piece of the plan that did not stand yet. It stays in the queue until the piece is
-	/// done or runs out of attempts (<c>MHR_Build.MaxPasses</c>).</summary>
+	/// done or runs out of <b>real</b> attempts (<c>MHR_Build.MaxPasses</c>).</summary>
 	private sealed class RetryEntry
 	{
 		internal int Index;
-		/// <summary>How many times it was queued (the cap is per index, shared by the whole site).</summary>
+		/// <summary>How many times it was queued after a real failure (the cap is per index, shared by the whole site).
+		/// A failure by <b>dependency</b> (the piece below or the workbench is not up yet) does not come here.</summary>
 		internal int Attempts;
+		/// <summary>How many times it was deferred for lack of a dependency - the wait grows with this number
+		/// (8 s, 12 s, 20 s, then 25 s) and it is never a reason to give the piece up.</summary>
+		internal int Dependency;
 		/// <summary>When it may be pulled again.</summary>
 		internal float At;
 	}
@@ -69,10 +73,14 @@ internal static class MHR_BuildGroup
 		internal readonly Dictionary<int, float> ClaimAt = new Dictionary<int, float>();
 		/// <summary>P1 (review A7): the plan indices that are DONE for the site - every piece is counted once.</summary>
 		internal readonly HashSet<int> Done = new HashSet<int>();
+		/// <summary>P1 (04/11/2026, "contadores honestos"): the plan indices that were given up - a SET, so a piece that
+		/// failed four times is one skipped piece and not four. Disjoint from <see cref="Done"/>.</summary>
+		internal readonly HashSet<int> SkippedIndex = new HashSet<int>();
 		/// <summary>P1 (review A1): the pieces that did not stand yet - the site's queue, never a worker's.</summary>
 		internal readonly List<RetryEntry> Retry = new List<RetryEntry>();
-		internal int Placed;
-		internal int Skipped;
+		/// <summary>P1 (04/11/2026): when a piece of this site last went up - the stall watchdog counts from here (not
+		/// from the moment a worker entered a wait, which says nothing about the site moving).</summary>
+		internal float LastProgressAt;
 	}
 
 	private static readonly Dictionary<string, Group> s_groups = new Dictionary<string, Group>();
@@ -139,7 +147,8 @@ internal static class MHR_BuildGroup
 			Label = label ?? "?",
 			Owner = owner,
 			Plan = plan,
-			LeaderId = leaderId
+			LeaderId = leaderId,
+			LastProgressAt = Time.time
 		};
 		s_groups[key] = group;
 		Join(group, leaderId);
@@ -428,7 +437,8 @@ internal static class MHR_BuildGroup
 	/// <summary>
 	/// P1 (review B1, 03/11/2026): this piece already failed <b>for the site</b>, so a copy of it may be standing (a piece
 	/// that was placed and then lost its support stays in the world) - the caller asks the pose before paying again
-	/// instead of placing a second one on top of it.
+	/// instead of placing a second one on top of it. P1 (04/11/2026): a piece deferred by <b>dependency</b> counts here too
+	/// (it was tried and did not stand; with the support gate it spends no attempt, so <c>Attempts</c> alone would miss it).
 	/// </summary>
 	internal static bool Retried(string key, int index)
 	{
@@ -440,7 +450,7 @@ internal static class MHR_BuildGroup
 		for (int i = 0; i < group.Retry.Count; i++)
 		{
 			RetryEntry entry = group.Retry[i];
-			if (entry != null && entry.Index == index && entry.Attempts > 0)
+			if (entry != null && entry.Index == index && (entry.Attempts > 0 || entry.Dependency > 0))
 			{
 				return true;
 			}
@@ -451,7 +461,8 @@ internal static class MHR_BuildGroup
 	/// <summary>
 	/// P1 (review A7, 03/11/2026): the piece of this index is <b>done</b> for the site - counted once, out of the retry
 	/// queue and its claim freed. False when it was already marked (a piece another worker built, or the same one counted
-	/// twice), which is what keeps <c>Placed</c> honest.
+	/// twice), which is what keeps the numbers honest (<c>Placed</c> and <c>Skipped</c> are sets of indices and a piece
+	/// that was given up and then went up counts as placed, never as both).
 	/// </summary>
 	internal static bool MarkDone(string key, int index)
 	{
@@ -464,9 +475,10 @@ internal static class MHR_BuildGroup
 		{
 			return false;
 		}
-		group.Placed++;
+		group.SkippedIndex.Remove(index);
 		group.Claims.Remove(index);
 		group.ClaimAt.Remove(index);
+		group.LastProgressAt = Time.time;
 		for (int i = group.Retry.Count - 1; i >= 0; i--)
 		{
 			RetryEntry entry = group.Retry[i];
@@ -479,11 +491,15 @@ internal static class MHR_BuildGroup
 	}
 
 	/// <summary>
-	/// P1 (review A1, 03/11/2026): queues the piece for another attempt. False when the index is out of attempts - the
-	/// caller counts it as <b>skipped</b> (the piece is given up for the site, not silently lost). The attempts are per
-	/// plan index and shared by the workers, so the site tries a piece <c>MHR_Build.MaxPasses</c> times at most.
+	/// P1 (review A1, 03/11/2026): queues the piece for another attempt. False when the index is out of <b>real</b>
+	/// attempts - the caller counts it as <b>skipped</b> (the piece is given up for the site, not silently lost).
+	///
+	/// <para>P1 (04/11/2026, the support gate): a failure by <b>dependency</b> (the piece below or the workbench is not up
+	/// yet) is not the piece's fault - it does <b>not</b> spend an attempt, it comes back with a growing wait and the site
+	/// keeps it until it stands or the stall watchdog gives up on the order. Without this the ridge pieces burned their 3
+	/// tries before the support existed and were left out of the house.</para>
 	/// </summary>
-	internal static bool TryQueueRetry(string key, int index)
+	internal static bool TryQueueRetry(string key, int index, bool dependency)
 	{
 		Group group;
 		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null)
@@ -503,6 +519,12 @@ internal static class MHR_BuildGroup
 		{
 			entry = new RetryEntry { Index = index };
 			group.Retry.Add(entry);
+		}
+		if (dependency)
+		{
+			entry.Dependency++;
+			entry.At = Time.time + MHR_Build.DependencyDelay(entry.Dependency);
+			return true;   // never spends an attempt, never counts as skipped
 		}
 		if (entry.Attempts >= MHR_Build.MaxPasses)
 		{
@@ -562,40 +584,45 @@ internal static class MHR_BuildGroup
 	}
 
 	/// <summary>
-	/// P1 (review B2, 03/11/2026): the worker gave up waiting for the site's retry queue - the entries it could have taken
-	/// are <b>dropped and counted as skipped</b>, so a piece is never silently lost when the group ends with a full queue.
-	/// An entry another live worker is on stays (that piece may still go up). Returns how many were dropped.
+	/// P1 (review B2, 03/11/2026; the watchdog, 04/11/2026): the queue is given up - every entry is dropped and counted as
+	/// skipped <b>once per index</b>, so a piece is never silently lost when the order ends. The caller receives the
+	/// indices it just gave up (to name them in the log). A piece a worker is still building keeps its claim: if it does go
+	/// up, <see cref="MarkDone"/> takes it out of the skipped set - a piece is never counted twice.
 	/// </summary>
-	internal static int AbandonRetry(string key, int workerId)
+	internal static int AbandonRetry(string key, int workerId, List<int> pending)
 	{
 		Group group;
 		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null || group.Retry.Count == 0)
 		{
 			return 0;
 		}
-		float now = Time.time;
 		int dropped = 0;
 		for (int i = group.Retry.Count - 1; i >= 0; i--)
 		{
 			RetryEntry entry = group.Retry[i];
+			group.Retry.RemoveAt(i);
 			if (entry == null)
 			{
-				group.Retry.RemoveAt(i);
 				continue;
 			}
-			int holder;
-			float at;
-			bool live = group.Claims.TryGetValue(entry.Index, out holder) && holder != workerId
-				&& group.ClaimAt.TryGetValue(entry.Index, out at) && now - at < ClaimSeconds;
-			if (live)
+			if (entry.Index < 0)
 			{
 				continue;
 			}
-			group.Retry.RemoveAt(i);
-			group.Claims.Remove(entry.Index);
-			group.ClaimAt.Remove(entry.Index);
-			group.Skipped++;
-			dropped++;
+			if (pending != null)
+			{
+				pending.Add(entry.Index);
+			}
+			if (!group.Done.Contains(entry.Index) && group.SkippedIndex.Add(entry.Index))
+			{
+				dropped++;
+			}
+			int holder;
+			if (workerId != 0 && group.Claims.TryGetValue(entry.Index, out holder) && holder == workerId)
+			{
+				group.Claims.Remove(entry.Index);
+				group.ClaimAt.Remove(entry.Index);
+			}
 		}
 		return dropped;
 	}
@@ -617,17 +644,23 @@ internal static class MHR_BuildGroup
 		return Workers(key) > 1;
 	}
 
-	/// <summary>P1: a piece of the plan was given up by a worker (the retry queue ran out of attempts for it).</summary>
-	internal static void AddSkipped(string key)
+	/// <summary>P1: a piece of the plan was given up (the retry queue ran out of real attempts, or the watchdog dropped
+	/// it). Counted <b>once per plan index</b> - and never for a piece that is already up.</summary>
+	internal static bool AddSkipped(string key, int index)
 	{
 		Group group;
 		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null)
 		{
-			return;
+			return false;
 		}
-		group.Skipped++;
+		if (group.Done.Contains(index))
+		{
+			return false;
+		}
+		return group.SkippedIndex.Add(index);
 	}
 
+	/// <summary>P1 (04/11/2026): the pieces of the plan that are up (a SET of indices - each piece once).</summary>
 	internal static int Placed(string key)
 	{
 		Group group;
@@ -635,9 +668,11 @@ internal static class MHR_BuildGroup
 		{
 			return 0;
 		}
-		return group.Placed;
+		return group.Done.Count;
 	}
 
+	/// <summary>P1 (04/11/2026): the pieces of the plan that were given up (a SET of indices - a piece that failed four
+	/// times is one skipped piece, not four; that was the "262 puladas with 984 pieces" of the run of 03/11).</summary>
 	internal static int Skipped(string key)
 	{
 		Group group;
@@ -645,7 +680,18 @@ internal static class MHR_BuildGroup
 		{
 			return 0;
 		}
-		return group.Skipped;
+		return group.SkippedIndex.Count;
+	}
+
+	/// <summary>P1 (04/11/2026): when a piece of this site last went up - the stall watchdog counts from here.</summary>
+	internal static float LastProgressAt(string key)
+	{
+		Group group;
+		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null)
+		{
+			return 0f;
+		}
+		return group.LastProgressAt;
 	}
 
 	/// <summary>P1: the label of the site (the blueprint's name) - for the log lines of the members.</summary>
