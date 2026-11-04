@@ -258,7 +258,8 @@ teste mock do MCP (**101 PASS**, **12 asserções novas para o contrato do grupo
    nomeados e **4 `falls`**. **Fechado depois:** o lote das 13 (nudge de mobília 5 m/3×12, `TryBenchAt` sem `clipping`, apoio imediato)
    e o **deck (`DeckLift`)**. **Aberto:** a **reserva de material** (`Stock` — cada worker conta o canteiro por conta
    própria), um run com **material pago**, o run do lote desta rodada (**telhado apoia telhado** + **`falls` com uma
-   segunda tentativa a 1 m**, `building-notes` §17.10) e o teste pequeno de 2 companheiros num 6x6.
+   segunda tentativa a 1 m**, `building-notes` §17.10, + o **apoio de emergência** do `SupportFallback`, §17.11) e o
+   teste pequeno de 2 companheiros num 6x6.
 3. **P2 — navmesh/latência — MEDIDO EM JOGO (implementado e testado em 03/11/2026):** (a) **medido o `why`** do run de 03/11/2026:
    **36 `no progress`**, 17 `no_support`, 9 `no_ground`, 6 `too_steep` — os 36 **não** são "tile invisível": são o
    `SnapToNavMesh` (1,5/3/6/12 m) mandando o alvo para o chão sob o piso, com a trava de 12 s do `Goto` queimando;
@@ -356,7 +357,9 @@ está lá em §17.6, §17.9 e §17.10:
 1. **O lote de 04/11 (o aceite que falta):** a **empenha leste** fechar e a **água sul** ganhar a faixa — as 6 de
    42,8/44,8/46,8 fora de `sem apoio: <prefab> em (x, y, z)` e em `done: ... supported`; `log ajustado ... - falls`
    aparecendo **antes** de um `skipping it` (a peça que cair de novo depois do ajuste é pulada — não há terceira
-   chance); e watchdog idealmente `0 peça(s) sem apoio` nos **3** workers.
+   chance); watchdog idealmente `0 peça(s) sem apoio` nos **3** workers; e o **apoio de emergência**
+   (`[Building] SupportFallback`, `building-notes` §17.11) plantando o `wood_beam` sob as peças que o plano deixa sem
+   apoio — `apoio de emergência: wood_beam sob <prefab> em (x, y, z)` no log, uma vez por peça e teto de 24.
 2. **O deck (`DeckLift`) — medido:** Run 4 (~**972** de pé, **0 mortes**, piso ~1 m, escadas encontrando); o que ficou
    pendente dele é só o telhado do item 1. `DeckLift = 0` mantém o nível do arquivo (só assenta as estacas).
 3. **As 13 peças do Run 2 — atacadas e sem run dedicado:** **2 baús** `piece_chest_wood` em (-168,2, 39,9, -434,9) por
