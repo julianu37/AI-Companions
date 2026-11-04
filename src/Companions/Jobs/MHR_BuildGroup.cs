@@ -1185,6 +1185,78 @@ internal static class MHR_BuildGroup
 	}
 
 	/// <summary>
+	/// 11/11/2026 (Run 22, <b>the park</b>): can THIS worker pull something from the site's queue <b>right now</b>? "There is
+	/// something queued" (<see cref="RetryPending"/>) is a different question: one entry waiting for a support for 25 s, or
+	/// one claimed by another companion, keeps it true for the whole build - and a worker that asked it entered the wait and
+	/// never looked at the plan again (the player's "3 stopped, then 5"). Measured: the park was <b>1040,2 s</b> of
+	/// <c>fila</c> in the Run 18 and <b>27,3 s</b> with this question.
+	///
+	/// <para>It asks <b>exactly</b> what <see cref="NextRetry"/> asks before handing a piece over (the same private
+	/// <see cref="Ready"/>): due, not done, the body gate lets it through, the spread neighbourhood is free, and the claim is
+	/// mine or free (an expired claim counts as free). It <b>claims nothing</b> - it is only the question.</para>
+	/// </summary>
+	internal static bool RetryReady(string key, int workerId)
+	{
+		Group group;
+		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null || group.Plan == null)
+		{
+			return false;
+		}
+		float now = Time.time;
+		for (int i = 0; i < group.Retry.Count; i++)
+		{
+			if (Ready(group, group.Retry[i], workerId, now))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/// <summary>
+	/// 11/11/2026 (Run 22): the conditions under which <see cref="NextRetry"/> hands this entry over - <b>one</b> copy, asked
+	/// by the queue itself (which then claims it) and by the "is there anything for me?" of the wait (<see cref="RetryReady"/>,
+	/// which claims nothing). It does not mutate the queue and it does not claim.
+	/// </summary>
+	private static bool Ready(Group group, RetryEntry entry, int workerId, float now)
+	{
+		if (entry == null || entry.Index < 0 || entry.Index >= group.Plan.Count || now < entry.At)
+		{
+			return false;
+		}
+		if (group.Done.Contains(entry.Index))
+		{
+			return false;   // a stale entry (NextRetry drops it from the list before asking)
+		}
+		// 11/11/2026 (the body barrier): a piece of a storey ABOVE the one a body is holding is not pulled while the
+		// barrier lives - the entrance that did not go up comes back BEFORE the work goes higher (the player's rule).
+		if (!MayTake(group, entry.Index))
+		{
+			return false;
+		}
+		// 11/11/2026 (the spread of the crew): a piece left for later waits for the neighbourhood to be free.
+		if (entry.Spread && !SpreadFree(group, entry.Index))
+		{
+			return false;
+		}
+		return ClaimFree(group, entry.Index, workerId);
+	}
+
+	/// <summary>11/11/2026 (Run 22): may this worker claim that piece now - nobody holds it, it holds it already, or the
+	/// claim is older than <c>ClaimSeconds</c> (a worker that went away). The rule <see cref="TryClaim"/> applies, without
+	/// writing anything.</summary>
+	private static bool ClaimFree(Group group, int index, int workerId)
+	{
+		int holder;
+		float at;
+		if (!group.Claims.TryGetValue(index, out holder) || !group.ClaimAt.TryGetValue(index, out at))
+		{
+			return true;   // nobody has it
+		}
+		return holder == workerId || Time.time - at >= ClaimSeconds;
+	}
+
+	/// <summary>
 	/// P1 (review A1): the next piece of the retry queue this worker may take - it is <b>claimed here</b>, so two workers
 	/// never pull the same index. -1 when there is nothing for it right now (all claimed by others, or not due yet).
 	/// A built piece leaves the queue through <see cref="MarkDone"/>; an index that is done anyway (a stale entry) is
@@ -1216,18 +1288,9 @@ internal static class MHR_BuildGroup
 		for (int i = 0; i < group.Retry.Count; i++)
 		{
 			RetryEntry entry = group.Retry[i];
-			if (entry == null || entry.Index < 0 || entry.Index >= group.Plan.Count || now < entry.At)
-			{
-				continue;
-			}
-			// 11/11/2026 (the body barrier): a piece of a storey ABOVE the one a body is holding is not pulled while the
-			// barrier lives - the entrance that did not go up comes back BEFORE the work goes higher (the player's rule).
-			if (!MayTake(group, entry.Index))
-			{
-				continue;
-			}
-			// 11/11/2026 (the spread of the crew): a piece left for later waits for the neighbourhood to be free.
-			if (entry.Spread && !SpreadFree(group, entry.Index))
+			// 11/11/2026 (Run 22): the conditions live in Ready (the same ones RetryReady asks) - this loop only decides
+			// which entry, then claims it.
+			if (!Ready(group, entry, workerId, now))
 			{
 				continue;
 			}

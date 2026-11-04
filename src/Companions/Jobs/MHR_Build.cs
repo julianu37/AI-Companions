@@ -211,6 +211,15 @@ internal static class MHR_Build
 	/// pieces).</summary>
 	internal const float StallSeconds = 60f;
 
+	/// <summary>
+	/// 11/11/2026 (Run 22, <b>the park</b>): how often, at most, a waiting worker may ask the plan again from inside
+	/// <see cref="WaitRetry"/> when the site's queue has something that is <b>not</b> for it (another worker's piece, a
+	/// support that is 8-25 s away). <b>One second, never per frame</b>: the Run 19 re-asked on every frame and the
+	/// 985-piece house dropped from 78 to <b>38 pieces/min</b>, because <see cref="Advance"/> releases the claims on entry and
+	/// every waiter fought for the same corner again.
+	/// </summary>
+	internal const float AdvanceAskSeconds = 1f;
+
 	/// <summary>E7 (player's request, 03/11/2026): how long the site clearing may take before the build goes on without
 	/// it - clearing a whole forest is not a build site.</summary>
 	internal const float ClearBudget = 240f;
@@ -478,6 +487,14 @@ internal static class MHR_Build
 		/// Advance with <c>dt = 0</c>, so the gate was invisible in the summary line.
 		/// </summary>
 		internal float WaitGate;
+		/// <summary>
+		/// 11/11/2026 (Run 22, <b>the park</b>): when this worker last asked the plan again from inside the wait
+		/// (<see cref="MHR_Build.WaitRetry"/> - the queue saying "there is something" is not the same as "something for ME").
+		/// It is the <b>throttle</b> of that re-ask (one second, <c>AdvanceAskSeconds</c>): the Run 19 asked on every frame
+		/// and halved the throughput (38 pieces/min against 78), because <see cref="MHR_Build.Advance"/> releases the claims
+		/// on entry. Reset by <see cref="EnterStep"/> - a new piece starts the window again.
+		/// </summary>
+		internal float AdvanceAskedAt;
 		/// <summary>11/11/2026 (Run 17): seconds spent walking the step aside of a piece another companion places.</summary>
 		internal float WaitAside;
 		/// <summary>11/11/2026 (Run 17): how many times the site's gate kept this worker from taking a piece (a body
@@ -1321,6 +1338,7 @@ internal static class MHR_Build
 		state.HasWalkTo = false;
 		state.WalkRays = 0;   // 11/11/2026 (Run 14): the counters of the surface search are the new piece's own
 		state.WalkFound = 0;
+		state.AdvanceAskedAt = 0f;   // 11/11/2026 (Run 22): a new piece starts the re-ask window of the wait again
 		state.Phase = Phase.Goto;
 	}
 
@@ -3495,7 +3513,7 @@ internal static class MHR_Build
 			// 60 s (a roof corner, a spot inside the hill). Skipping it keeps the other 982 going - and the log says
 			// WHERE, so a bad anchor is visible instead of "the order took too long"
 			SkipPiece(ai, state, "took too long");
-			return Advance(ai, state);
+			return Advance(ai, state, dt);
 		}
 		if (why != null)
 		{
@@ -3517,7 +3535,7 @@ internal static class MHR_Build
 				Log(ai, "o canteiro está pronto - o grupo pode construir");
 				if (!MHR_BuildGroup.TryClaim(state.Group, state.Index, ai.GetInstanceID()))
 				{
-					return Advance(ai, state);
+					return Advance(ai, state, dt);
 				}
 			}
 		}
@@ -3650,14 +3668,14 @@ internal static class MHR_Build
 			// the single worker's own retry list: wait for the dependency clock, then let Advance append it again
 			if (state.Plan == null || state.Retry == null || state.Retry.Count == 0)
 			{
-				return Advance(ai, state);
+				return Advance(ai, state, dt);
 			}
 			if (Time.time < state.RetryAt)
 			{
 				state.WaitQueueEnd += dt;   // 11/11/2026 (Run 17): the single worker's queue, counted like the group's
 				return true;
 			}
-			return Advance(ai, state);
+			return Advance(ai, state, dt);
 		}
 		if (!MHR_BuildGroup.Exists(state.Group))
 		{
@@ -3667,7 +3685,7 @@ internal static class MHR_Build
 		}
 		if (state.Plan == null || state.Plan.Count == 0)
 		{
-			return Advance(ai, state);
+			return Advance(ai, state, dt);
 		}
 		bool spread;
 		int retry = MHR_BuildGroup.NextRetry(state.Group, ai.GetInstanceID(), out spread);
@@ -3685,19 +3703,36 @@ internal static class MHR_Build
 		// Advance here removed the queue starvation (fila 0,0 s on a 32-piece plan) but HALVED the throughput of the
 		// 985-piece house: 38 pieces/min against 78/min of the Run 18, with "corpo na peca" 130 against 33 in the whole
 		// run. Every waiting worker re-walked the plan every frame and fought for the same corner - the wait was traded
-		// for contention, and five companions end up standing on the piece being placed. The re-ask is the classifier
-		// below; the wait is the one of the Run 18 again.
+		// for contention, and five companions end up standing on the piece being placed. The re-ask is the ONE-second
+		// throttle of the Run 22 below; the wait itself is the one of the Run 18 again.
 		bool ahead = state.Index + 1 < state.Plan.Count;
-		if (!MHR_BuildGroup.RetryPending(state.Group))
+		// 11/11/2026 (Run 22, THE park): "there is something in the queue" (RetryPending) is not "there is something for
+		// ME" - one entry waiting for a support for 8-25 s, or one claimed by another companion, kept it true for the whole
+		// build, and the worker that entered this wait never looked at the plan again: it stood there until the end of the
+		// house ("sometimes 3 stop, sometimes all 5"; measured: 1040,2 s of `fila` in the Run 18, 27,3 s with this).
+		// RetryReady is that question, asked BEFORE the guard so a piece for this worker is never delayed by the throttle
+		// below. NOTE: NextRetry (above) has just asked the same predicate and claimed whatever was ready, so `ready` is
+		// false in practice today - it is here because it is what the guard MEANS, and it becomes live the day the claim
+		// moves out of NextRetry.
+		bool ready = MHR_BuildGroup.RetryReady(state.Group, ai.GetInstanceID());
+		if (!ready && !MHR_BuildGroup.RetryPending(state.Group))
 		{
-			return Advance(ai, state);   // nothing left: the plan is done for everybody
+			return Advance(ai, state, dt);   // nothing left for anybody: the plan is done for everybody
+		}
+		// The queue still has something, but not something this worker may take now: re-ask the PLAN instead of standing
+		// still, at most once a second and only while a piece is still ahead of the walk (Advance carries the end-of-plan
+		// guard of :1227 on its own).
+		if (!ready && ahead && Time.time - state.AdvanceAskedAt >= AdvanceAskSeconds)
+		{
+			state.AdvanceAskedAt = Time.time;
+			return Advance(ai, state, dt);
 		}
 		// 11/11/2026 (Run 17): there IS something in the queue but this worker may not take it (other worker's, a body, the
 		// spread gate) - it is waiting, and the summary line counts it as such.
 		// 11/11/2026 (Run 18): the seconds are split by WHERE the walk is - at the END of the plan (nothing ahead, the queue
-		// is the legitimate way forward) or in the MIDDLE of it (a piece was right ahead). With the `ahead` guard above this
-		// middle number is ≈ 0 by construction; it stays here as the guard of a later edit - the day the early return is
-		// removed or its condition changes, the middle-of-plan wait shows up again in the summary line instead of hiding.
+		// is the legitimate way forward) or in the MIDDLE of it (a piece was right ahead). The throttle above returns before
+		// these counters on ONE frame per second, so the middle number keeps growing on the other frames of that second -
+		// it is the number the A/B of the Run 22 reads.
 		if (ahead)
 		{
 			state.WaitAhead += dt;
@@ -5857,7 +5892,7 @@ internal static class MHR_Build
 				// stayed without its floor until the whole house was done).
 				if (PullSupports(ai, state))
 				{
-					return Advance(ai, state);
+					return Advance(ai, state, dt);
 				}
 				// P1 (04/11/2026): in a GROUP the plan is not reordered, so PullSupports above did nothing - the support under
 				// the piece is driven NEXT by this worker, by index, and the piece waits in the site's queue (no attempt spent)
@@ -5874,7 +5909,7 @@ internal static class MHR_Build
 				LogDebug(ai, "deferring " + state.Prefab + " at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
 					+ F(state.Pos.z) + "): it needs what is below it, which is not up yet - retry pass");
 				QueueRetry(ai, state, "no_support");
-				return Advance(ai, state);
+				return Advance(ai, state, dt);
 			}
 		}
 		Vector3 me = ai.transform.position;
@@ -5897,7 +5932,7 @@ internal static class MHR_Build
 				Log(ai, "falling from the way to the " + state.Prefab + " - skipping it (" + state.FallDrops + " fall(s))");
 				SkipPiece(ai, state, "falls");
 				state.FallDrops = 0;
-				return Advance(ai, state);
+				return Advance(ai, state, dt);
 			}
 		}
 		state.LastY = me.y;
@@ -5975,7 +6010,7 @@ internal static class MHR_Build
 					+ ") - retrying it later, I am at (" + F(me.x) + ", " + F(me.y) + ", " + F(me.z) + "), route "
 					+ (MHR_Mover.RoutePartial(ai) ? "partial" : "full"));
 				QueueRetry(ai, state, "no progress");
-				return Advance(ai, state);
+				return Advance(ai, state, dt);
 			}
 		}
 		float flat = new Vector2(me.x - state.Pos.x, me.z - state.Pos.z).magnitude;
@@ -6028,7 +6063,7 @@ internal static class MHR_Build
 			if (state.Blueprint != null)
 			{
 				QueueRetry(ai, state, "can't reach it");
-				return Advance(ai, state);
+				return Advance(ai, state, dt);
 			}
 			Finish(ai, state, "hc_ai_build_cant_reach", null, LabelOf(state));
 			return false;
