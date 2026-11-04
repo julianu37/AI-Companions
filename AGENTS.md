@@ -277,7 +277,7 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   apoiada nas estacas, tipo um deck"). Agora a **obra inteira sobe `[Building] DeckLift` metros** (float, **padrão 1**,
   faixa **0..3**, rótulo `hc_cfg_building_decklift`) e as **pontas de estaca abaixo do terreno assentam no chão**:
   sem a config o deslocamento automático pelo ponto mais baixo levantava **2,00 m** (as
-  estacas do arquivo estão enterradas 2 m) e ficava alto demais. O bloco é um só (`MHR_Build.cs:1093-1124`): sobe
+  estacas do arquivo estão enterradas 2 m) e ficava alto demais. O bloco é um só (`MHR_Build.cs:1102-1124`): sobe
   **todas** as peças e assenta as que ainda ficariam abaixo do chão (log
   `a obra sobe X m (deck) - N peça(s) de fundação assentadas no terreno`, `:1124`; o fallback é
   `DeckLiftDefault = 1f`, `:111`). **Medido no run do deck (04/11/2026, `docs/re/building-notes.md` §17.10):** ~**972
@@ -292,10 +292,9 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   tentativa** — a peça que sobe e cai **duas vezes** ganha **uma** tentativa em **pose ajustada até 1 m**
   (`AdjustFallenPose`/`AdjustPose`, `MHR_Build.cs:4172`/`:4200`, guarda `State.FallAdjusted` `:217`, log
   `log ajustado … - falls`) e só desiste sem pose válida; o `NudgePiece` passou a **delegar** no `AdjustPose`
-  (`:4160`). O grupo
-  distribuiu o plano por índices
-  distintos, **promoveu o líder** depois da morte (`o líder do grupo ... saiu - outro companheiro assumiu`) e
-  **retomou** no mesmo plano (`voltou para o grupo ... na peça X`). O ciclo fechou o **portão de apoio**
+  (`:4160`). O grupo distribuiu o plano por índices distintos, **promoveu o líder** depois da morte
+  (`o líder do grupo ... saiu - outro companheiro assumiu`) e **retomou** no mesmo plano (`voltou para o grupo ... na
+  peça X`). O ciclo fechou o **portão de apoio**
   (`AI/BuildFailure.cs`, puro, tabela da seção **(p)**; `no_support`/`no support`/`needs_station`/`no_ground` **com
   algo embaixo** = dependência, espera **8/12/20/25 s**, não gasta tentativa, nunca conta como pulada; o resto gasta
   uma das 3), o **watchdog de 60 s** sem peça subir (`StallSeconds`, do `LastProgressAt` do canteiro) e a **cobertura
@@ -354,9 +353,9 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   posse, `m_name` é token, `m_spaceRequirement` não é "espaço livre"). As fases 0–9 com critério de aceite
   estão lá, e a §3 é a pesquisa do ecossistema (BuildOrders MIT com API + helpers `Count`/`Next`/`Place`/
   `Blockers`, Quad's Companion que já constrói planos, PlanBuild WTFPL só como fonte de arquivo).
-- `docs/plan-multi-build.md` — **o plano do multi-build**: o **P1 MVP (grupo de obra) implementado e sem teste em
-  jogo** (§3: plano/claims/retry/líder/`PlanLocked`/limitações), a **P2 medida em jogo**, o **P4** (nomes múltiplos)
-  desenhado e o que falta (P3/P5 + a reserva de material).
+- `docs/plan-multi-build.md` — **o plano do multi-build**: o **P1 MVP (grupo de obra) implementado e medido em jogo**
+  (04/11/2026, §3: plano/claims/retry/líder/`PlanLocked`/limitações), a **P2 medida em jogo**, o **P4** (nomes múltiplos)
+  desenhado e o que falta (P3/P5 + a reserva de material + o run do lote da empenha/`falls`).
 - `docs/audit-vs-offline-companions.md` — auditoria do nosso mod anterior vs o upstream.
 - `docs/backlog-1.9.5.md` — **o que ficou sem correção** depois da revisão de 10 especialistas (detalhado: o que
   está quebrado, o que pode quebrar, por que corrigir e o esforço), com o que já foi feito na 1.9.4 no fim.

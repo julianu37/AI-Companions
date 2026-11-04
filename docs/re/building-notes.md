@@ -1494,14 +1494,14 @@ plano** dos 9 candidatos, nivela com a enxada (passadas de 1,5 s) e só então p
   (os números de comparação são os runs de 03/11, com o alcance do jogo).
 - **O que sobrou** desse primeiro run apontou dois achados (as duas correções estão no código e **foram medidas depois**):
   a **cumeeira em y 47,8** era recusada com `no_ground` porque o raio vertical da sonda passa pelo **vão entre as duas
-  águas** (`BuildProbe.cs:468` → `AttachedToStructure`, `:643`: `Physics.OverlapSphere` atrás de
+  águas** (`BuildProbe.cs:468` → `AttachedToStructure`, `:641`: `Physics.OverlapSphere` atrás de
   `Piece`/`WearNTear`); o **baú e a cama no barranco** eram `too_steep` e ganharam o `NudgePiece`
-  (`MHR_Build.cs:3910`: `BuildSite.Find` a **2,5 m** para mobília — estrutural só **1 m** —, 2 anéis × 8 direções, 48
-  candidatos, ignorando o próprio companheiro — o run perdeu **4** peças ali).
+  (`MHR_Build.cs:4148`: `BuildSite.Find` a **2,5 m** para mobília — estrutural só **1 m** —, 2 anéis × 8 direções, 48
+  candidatos, ignorando o próprio companheiro — o run perdeu **4** peças ali; hoje a mobília vai a **5 m**, §17.6).
 - **Resultado final (os três runs com o lote completo): §17.6** — **970/985** com `PlaceReach = 10`, **972
   colocadas + 0 mortes** com `15` e, no **Run 3** (15 + guarda anti-loop), **`970 peças, 16 puladas`** = **986**, **0
   mortes** e **382 KB** de log; o que sobrou no Run 3 é o **plano abaixo do terreno**, agora atacado pelo **deck
-  (`DeckLift`)** — §17.9, em teste.
+  (`DeckLift`)** — §17.9, **medido no run do §17.10** (deck certo; sobrou a **empenha**).
 
 ### 17.2 O portão de apoio (`AI/BuildFailure.cs` + `MHR_Build.QueueRetry`)
 
@@ -1701,10 +1701,10 @@ o **default continua 10**, `ModConfig.cs:948`, faixa 5..20). O **Run 3** roda em
   0,05) placed.y = ground`. Ela tirava a peça enterrada de baixo do chão, mas **deixava o piso do térreo no nível do
   chão**, e o jogador não queria isso: *"a obra inteira deve subir um pouco, apoiada nas estacas, tipo um deck"*.
 - **O desenho final (substitui o clamp):** a **obra inteira sobe `[Building] DeckLift` metros** e cada peça que ainda
-  ficaria abaixo do terreno **assenta no chão** — um bloco único, `MHR_Build.cs:1088-1122`:
+  ficaria abaixo do terreno **assenta no chão** — um bloco único, `MHR_Build.cs:1102-1124`:
 
   ```csharp
-  float lift = ModConfig.BuildDeckLift != null ? ModConfig.BuildDeckLift.Value : DeckLiftDefault;  // :1100, :111
+  float lift = ModConfig.BuildDeckLift != null ? ModConfig.BuildDeckLift.Value : DeckLiftDefault;  // :1104, :111
   for (int i = 0; i < plan.Count; i++)
   {
       Vector3 pos = plan[i].Pos;
@@ -1724,15 +1724,17 @@ o **default continua 10**, `ModConfig.cs:948`, faixa 5..20). O **Run 3** roda em
 
   `DeckLift` é float, **padrão 1**, faixa **0..3** (`ModConfig.cs:949`; rótulo `hc_cfg_building_decklift`, "Deck
   height" no inglês). **0** mantém o nível do arquivo (mas a peça enterrada continua assentando — é o que o jogo
-  recusa). O log resumo é `a obra sobe X m (deck) - N peça(s) de fundação assentadas no terreno` (`:1119-1120`).
+  recusa). O log resumo é `a obra sobe X m (deck) - N peça(s) de fundação assentadas no terreno` (`:1124`).
   Por que **não** seguir o ponto mais baixo do plano: as estacas do arquivo estão enterradas **2 m** sob o piso, então
   "subir pelo mais baixo" levantava a casa inteira **2,00 m** (medido no run de 04/11) — um deck, não uma torre.
 - **Alcance:** o bloco roda quando o **plano é montado** (`StartBlueprint`); a **retomada** reusa o plano guardado
   (`storedPlan`) e herda o que já foi calculado. Os baús/camas de 39,9 do Run 3 (mobília, `too_steep`) continuam
   dependendo do nudge — o deck é outro assunto.
-- **O que ler no run em teste (pendente):** o **piso do térreo ~1 m acima do chão**, apoiado nas estacas e com a
-  escada alcançando; `N peça(s) de fundação assentadas` **> 0** no log (as pontas que iam abaixo do chão); as 16 do
-  Run 3 fora de `sem apoio: <prefab> em (x, y, z)` (as colunas do lado **leste** fecham o buraco da visão); e nenhuma
+- **O que o run devia mostrar (e o que o §17.10 mediu):** o **piso do térreo ~1 m acima do chão**, apoiado nas estacas e
+  com a escada alcançando — **confirmado**; `N peça(s) de fundação assentadas` **> 0** no log (as pontas que iam abaixo
+  do chão); as 16 do
+  Run 3 fora de `sem apoio: <prefab> em (x, y, z)` (as colunas do lado **leste** fecham o buraco da visão) — o que
+  sobrou foi a **camada de cima do telhado**, com causa própria (§17.10); e nenhuma
   peça enterrada recusada. Build **0/0** e harness **539** naquele build; **aceite medido ainda não**.
 - **Medido no run seguinte (04/11/2026):** o deck está **certo** (piso do térreo **~1 m** acima do chão, escadas das
   entradas encontrando) e o **plano abaixo do terreno** deixou de ser o problema — o que falta agora é a **empenha** e

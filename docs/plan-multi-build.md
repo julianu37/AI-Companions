@@ -19,12 +19,12 @@ estagnação**, a **cobertura de bancadas** e o validador (`attached`/`nudge`/`b
 
 Números deste ciclo (04/11/2026): build **0/0**, harness `tools/ai-intents-check` **549 asserções** (471 + **23** da
 seção **(p)**, `AI/BuildFailure.cs`, + **26** da **(q)**, `AI/BuildPieceKind.cs`, + **29** da **(r)**,
-`AI/BuildSupportBelow.cs` — as **10** últimas de `CanSupport`, telhado apoia telhado; as três puras e linkadas), teste do
-MCP **101** (as **12** asserções de 03/11 cobrem o contrato do `companions.build` do grupo), config **360 opções / 25
-seções** (medido com `python tools/gen_config_doc.py --check`), ES/FR/IT **0 lacunas**, dívida do
-`gen_translations.py` **45** e **nenhuma chave de tradução nova** (as
-recusas reusam `hc_ai_no_companion` e `hc_ai_build_failed`). **O que falta medir** está no §7 (o run do lote novo, o
-run com material pago e o teste pequeno de 2 companheiros num 6x6).
+`AI/BuildSupportBelow.cs` — as **10** últimas de `CanSupport`, telhado apoia telhado; as três tabelas puras e
+linkadas), teste do MCP **101** (as **12** asserções de 03/11 cobrem o contrato do `companions.build` do grupo),
+config **360 opções / 25 seções** (medido com `python tools/gen_config_doc.py --check`), ES/FR/IT **0 lacunas**, dívida
+do `gen_translations.py` **45** e **nenhuma chave de tradução nova** (as recusas reusam `hc_ai_no_companion` e
+`hc_ai_build_failed`). **O que falta medir** está no §7 (o run do lote novo, o run com material pago e o teste pequeno
+de 2 companheiros num 6x6).
 
 ## 1. O que existe hoje (medido no código)
 
@@ -300,7 +300,7 @@ teste mock do MCP (**101 PASS**, **12 asserções novas para o contrato do grupo
 
 ## 7. Critério de aceite
 
-**Medido em jogo (04/11/2026, `CommHomeBasicBP`, 3 companheiros, `BlueprintFree = true`)** — três runs: 1 e 2 diferem
+**Medido em jogo (04/11/2026, `CommHomeBasicBP`, 3 companheiros, `BlueprintFree = true`)** — quatro runs: 1 e 2 diferem
 só no `PlaceReach` (10 = padrão do código; 15 = config de teste), o **Run 3** roda em 15 **com a guarda anti-loop**
 (§17.8 de `docs/re/building-notes.md`), e o **Run 4** é o primeiro **com o deck** (`DeckLift = 1`, o padrão). O detalhe
 está lá em §17.6, §17.9 e §17.10:
@@ -333,7 +333,7 @@ está lá em §17.6, §17.9 e §17.10:
   acima falha `no_support` em cascata. **Desenho novo** (substitui o clamp por peça do `0f13878`, que punha o piso no
   nível do chão): a **obra inteira sobe `[Building] DeckLift`** (**padrão 1**, faixa **0..3**, rótulo
   `hc_cfg_building_decklift`) e as **pontas de estaca** que ainda ficariam abaixo do terreno **assentam no chão**
-  (`MHR_Build.cs:1093-1124`, log `a obra sobe X m (deck) - N peça(s) de fundação assentadas no terreno`). Sem a config o
+  (`MHR_Build.cs:1102-1124`, log `a obra sobe X m (deck) - N peça(s) de fundação assentadas no terreno`). Sem a config o
   "subir pelo ponto mais baixo" levantava **2,00 m** (as estacas do arquivo estão enterradas 2 m). **Medido no Run 4.**
 - **Run 4 — o primeiro com o deck:** ~**972 peças de pé**, **0 mortes** e o **deck confirmado** (piso do térreo ~**1 m**
   acima do chão, apoiado nas estacas, e as **escadas das entradas encontrando** o piso); **2 dos 3** workers terminaram
