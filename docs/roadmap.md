@@ -10,8 +10,8 @@ Legenda: ✅ concluído · 🔄 em andamento · ⏳ pendente
 
 | Item | Status |
 |---|---|
-| 10 agentes (1 líder + 9 especialistas) em `.opencode/agents/` | ✅ |
-| 5 skills de dependências (`bepinex`, `jotunn`, `valheim-reverse-engineering`, `valheim-ai-backend`, `valheim-assets`) | ✅ |
+| **17** agentes (1 orquestrador + 16 especialistas) em `.opencode/agents/` — era 10 no início | ✅ |
+| **10** skills (`bepinex`, `jotunn`, `valheim-reverse-engineering`, `valheim-ai-backend`, `valheim-assets`, `kokoro`, `valheim-devbridge`, `valheim-ai-orders`, `valheim-mod-research`, `reverse-engineer-anything`) — eram 5 no início | ✅ |
 | `AGENTS.md`, `opencode.jsonc`, references (BepInEx, Jotunn) | ✅ |
 | MCPs (`alvin` = Visual Studio, `context7`, `learn`) | ✅ |
 | Repositório no GitHub | ✅ |
@@ -54,7 +54,7 @@ Legenda: ✅ concluído · 🔄 em andamento · ⏳ pendente
 | 2.18c | **Carroça** (`CompanionCart` + `[Carroca]`): `modia_cart pull\|release` — ele anda até o engate do `Vagon` e puxa a carroça pelo `ConfigurableJoint` do jogo | ✅ (v0.4.6) |
 | 2.5 | Multiplayer (ZNetView/ZDO, testes com cliente/servidor) | ⏳ |
 | **3** | IA e voz: comandos por voz/chat, STT, TTS, personalidade — **neste projeto, ver Trilha D** | ✅ (3.1, 3.1-saída estruturada, 3.1b, 3.1c, 3.1d, 3.2, 3.2c, 3.3, 3.3b, 3.3c, 3.3d, 3.4, 3.5, 3.6, 3.6b, 3.7, 3.8 — **todas validadas em jogo**) |
-| **4** | Backend híbrido (LLM local + API), endpoints do "cérebro" | ⏳ |
+| **4** | ~~Backend híbrido (LLM local + API), endpoints do "cérebro"~~ — **RETIRADA por decisão do jogador (04/11/2026):** o "cérebro" é uma **API compatível com OpenAI** (Groq → LM Studio/Ollama → OpenRouter) e **só o STT e o TTS rodam locais, dentro do processo** (`Whisper.net` + `Kokoro` via `sherpa-onnx`). Embutir um **modelo de linguagem** no mod o deixaria gigante (GBs) sem ganho sobre um LM Studio na mesma máquina | ❌ retirada |
 | **5** | Empacotamento (README, ícone) + revisão final | ⏳ |
 | **6** | **Construção autônoma** (o companheiro constrói: bancada → oficina → estruturas → blueprints) — ver **Trilha E** | ⏳ planejado |
 
@@ -357,6 +357,13 @@ Ordens em **linguagem natural** por cima do mod do upstream. O companheiro conti
 > **Legenda de status:** `✅ validado em jogo` = o **jogador** testou e confirmou, com evidência no `LogOutput.log`
 > (a citação curta vai no status); `✅ build 0 erros ...` = verificado **só fora do jogo** (build/harness). O que
 > continua aberto está em *Pendências conhecidas*, logo abaixo da tabela.
+
+> **Arquitetura do "cérebro" — FECHADA (decisão do jogador, 04/11/2026):** o LLM é **sempre uma API compatível com
+> OpenAI** (Groq → LM Studio/Ollama → OpenRouter, na ordem de fallback), e **só o STT e o TTS rodam localmente, dentro
+> do processo** (`Whisper.net` e `Kokoro` via `sherpa-onnx`). **Não haverá modelo de linguagem embutido no mod** — a
+> fase "backend híbrido (LLM local + API)" da Trilha B foi **retirada** justamente por isso: embutir um LLM levaria o
+> pacote a GBs sem ganho sobre um LM Studio rodando na mesma máquina. Qualquer proposta futura de "modelo local dentro
+> da DLL" começa por reabrir esta decisão.
 
 | Fase | Descrição | Status |
 |---|---|---|
@@ -2418,7 +2425,9 @@ foi **tentada e revertida** (deixava a casa torta). Harness **405**, MCP **70**,
 
 ## Trilha E — Construção autônoma (planejada, 31/10/2026 · rev. 01/11/2026)
 
-> **E0–E5 feitas** (medidas em jogo, 01/11/2026); E6–E10 são plano. O plano completo (arquitetura, fases,
+> **E0–E7 feitas e medidas em jogo** (01–04/11/2026); **E8** (gerar plano de um JSON) e **E9** (converter `.blueprint`
+> do PlanBuild) são plano — e a última milha da E7 (a obra de blueprint em escala) está em
+> **`docs/backlog-construcao.md`**. O plano completo (arquitetura, fases,
 > critérios de aceite, riscos e a pesquisa do ecossistema) está em **`docs/plan-construcao.md`**.
 
 A meta: `Maria, construa uma bancada de trabalho aqui` → a companheira resolve a receita, os materiais
