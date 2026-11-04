@@ -105,6 +105,27 @@ class MockBridge(threading.Thread):
                 "rebuilds": 3,
                 "maxCollectMs": 1.75,
             }}
+        if cmd == "companions.build":
+            # Mirrors the C# answer (DevBridge/Commands.cs, CompanionsBuild): `echo`/`args` are this mock's
+            # bookkeeping so the forwarded payload stays visible, the rest is the shape the tool documents.
+            args = request.get("args") or {}
+            data = {"echo": cmd, "args": args}
+            if "blueprint" in args:
+                if args["blueprint"] == "empty_site":
+                    # mock-only sentinel for "nothing started": the C# answers Ok with workers 0 + the reason
+                    data.update({"blueprint": "empty_site", "file": "empty_site.blueprint", "pieces": 1,
+                                 "started": False, "workers": 0, "missing": None, "missingStation": None,
+                                 "name": None, "refused": "no companion in range"})
+                else:
+                    # one site for the GROUP: name empty = every companion of the player joins (two here)
+                    data.update({"blueprint": args["blueprint"], "file": args["blueprint"] + ".blueprint",
+                                 "pieces": 28, "started": True, "workers": 1 if args.get("name") else 2,
+                                 "missing": None, "missingStation": None, "name": "maria"})
+            else:
+                data.update({"started": True, "workers": 1, "prefab": args.get("plan") or args.get("prefab"),
+                             "plan": args.get("plan"), "pieces": 1, "name": "maria",
+                             "hint": {"x": 0.0, "y": 0.0, "z": 0.0}})
+            return {"ok": True, "data": data}
         return {"ok": True, "data": {"echo": cmd, "args": request.get("args")}}
 
     def shutdown(self):
@@ -247,6 +268,49 @@ def main():
               any(r.get("cmd") == "companions.kill" and r.get("args", {}).get("name") == "Maria" for r in bridge.requests))
         check("world_time sends day and fraction",
               any(r.get("cmd") == "world.time" and r.get("args", {}).get("fraction") == 0.5 for r in bridge.requests))
+
+        # --- companions.build: the blueprint GROUP contract (P1 multi-build) ----------------------------------
+        build_tool = next((tool for tool in tools if tool["name"] == "companions_build"), {})
+        build_desc = build_tool.get("description", "")
+        name_prop = (build_tool.get("inputSchema", {}).get("properties") or {}).get("name") or {}
+        check("companions_build documents workers/refused",
+              "workers" in build_desc and "refused" in build_desc, build_desc[:60])
+        check("companions_build says an empty name means everybody",
+              "every companion" in (name_prop.get("description") or "").lower(), name_prop.get("description"))
+
+        def build_args():
+            """Every payload sent to companions.build, in call order (read fresh, so later calls count)."""
+            return [r.get("args") or {} for r in bridge.requests if r.get("cmd") == "companions.build"]
+
+        def build_data(arguments, request_id):
+            reply = rpc("tools/call", {"name": "companions_build", "arguments": arguments}, request_id=request_id)
+            return json.loads(reply["result"]["content"][0]["text"])
+
+        group = build_data({"blueprint": "hs_meadows_hut"}, 60)
+        check("companions_build forwards a nameless blueprint without a name (everybody joins)",
+              any(a.get("blueprint") == "hs_meadows_hut" and "name" not in a for a in build_args()), build_args())
+        check("companions_build returns started/workers for a group site",
+              group.get("started") is True and group.get("workers") == 2, group.get("workers"))
+        check("companions_build keeps refused out of a started order", "refused" not in group, sorted(group))
+        check("companions_build answer has no leveling (it left the contract)", "leveling" not in group, sorted(group))
+
+        named = build_data({"blueprint": "hs_meadows_hut", "name": "Maria"}, 61)
+        check("companions_build sends the name of a named blueprint worker",
+              any(a.get("blueprint") == "hs_meadows_hut" and a.get("name") == "Maria" for a in build_args()),
+              build_args())
+        check("companions_build returns a single worker for a named site", named.get("workers") == 1,
+              named.get("workers"))
+
+        empty = build_data({"blueprint": "empty_site"}, 62)
+        check("companions_build answers a refused site with started false and workers 0",
+              empty.get("started") is False and empty.get("workers") == 0, empty)
+        check("companions_build returns refused when nothing started",
+              empty.get("refused") == "no companion in range", empty.get("refused"))
+
+        single = build_data({"prefab": "piece_workbench"}, 63)
+        check("companions_build returns workers 1 for a single piece",
+              single.get("started") is True and single.get("workers") == 1, single.get("workers"))
+        check("companions_build returns no refused for a single piece", "refused" not in single, sorted(single))
 
         # --- P2 navigation instrumentation: payload forwarded and answer shape --------------------------------
         def nav_args(cmd):

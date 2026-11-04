@@ -551,15 +551,22 @@ TOOLS = [
             " With 'plan' it builds a whole TEMPLATE instead (E6: hut = 2x2 floor + 4 walls + gable roof; "
             "canopy = 4 poles + 4 roofs over the bench). With 'blueprint' it builds a .blueprint from the player's "
             "library (E7: BepInEx/config/AI-Companions/blueprints), centered on the hint/aim."
+            " A blueprint is ONE site handed to a GROUP: with no 'name' EVERY companion of the player joins it and "
+            "the pieces are shared between them; with 'name' only that companion works it (a piece or a plan order "
+            "is always one companion). The answer carries 'workers' (how many joined the site; 0 = none) and, ONLY "
+            "when nothing started, 'refused' - one of 'no companion in range', 'the site is busy', 'missing station: "
+            "<x>', 'missing piece: <x>' or 'not started' ('started' means workers > 0). A nameless blueprint with "
+            "nobody to work is that normal answer (started false, workers 0, refused 'no companion in range'), "
+            "while a 'name' nobody has is still an error."
         ),
         "inputSchema": {
             "type": "object",
             "properties": {
                 "prefab": {"type": "string", "description": "e.g. 'piece_workbench' (omit when using plan/blueprint)"},
                 "plan": {"type": "string", "description": "a template: 'hut' or 'canopy'"},
-                "blueprint": {"type": "string", "description": "a .blueprint name or full path (E7)"},
+                "blueprint": {"type": "string", "description": "a .blueprint name or full path (E7); one site for the whole group"},
                 "x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"},
-                "name": {"type": "string", "description": "companion name; default: the first one"},
+                "name": {"type": "string", "description": "companion name; default: every companion of the player on one blueprint site (the group), else the first one"},
             },
             "required": [],
             "additionalProperties": False,

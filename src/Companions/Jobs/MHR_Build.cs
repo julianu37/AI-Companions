@@ -66,6 +66,10 @@ internal static class MHR_Build
 	/// wood that arrives resets it (see <see cref="Pending.LastProgressAt"/>).</summary>
 	internal const float GatherTimeout = 300f;
 
+	/// <summary>P1 (review A1, 03/11/2026): how long a worker waits for the pieces of the group's retry queue before it
+	/// leaves the site (they may be another worker's, and that one may be stuck).</summary>
+	internal const float RetryWaitMax = 60f;
+
 	/// <summary>E7 (player's request, 03/11/2026): how long the site clearing may take before the build goes on without
 	/// it - clearing a whole forest is not a build site.</summary>
 	internal const float ClearBudget = 240f;
@@ -100,6 +104,13 @@ internal static class MHR_Build
 		/// <summary>E7 (player's request, 03/11/2026): cutting the trees/stumps/logs inside the plan's footprint before
 		/// the first piece - they refuse the floors and block the walking.</summary>
 		Clear,
+		/// <summary>P1 (multi-build, 03/11/2026): a <b>follower</b> waits while the leader levels and clears the site. The
+		/// phase does nothing at all (no mover, no timeout, no cancellation) until
+		/// <see cref="MHR_BuildGroup.BuildPhase"/> opens - the order is alive, so the idle job does not take the body.</summary>
+		WaitGroup,
+		/// <summary>P1 (review A1, 03/11/2026): the worker finished the plan and waits for the pieces of the
+		/// <b>group's</b> retry queue (they may be another worker's, or not due yet) instead of ending the order.</summary>
+		WaitRetry,
 		Find,
 		Goto,
 		Place,
@@ -145,6 +156,11 @@ internal static class MHR_Build
 		internal string Blueprint;
 		/// <summary>E7: the file of that blueprint - the order is resumed from it after a gather (the plan is rebuilt).</summary>
 		internal string BlueprintFile;
+		/// <summary>P1 (multi-build, 03/11/2026): the <b>group</b> this worker belongs to (the key of
+		/// <see cref="MHR_BuildGroup"/>; null for a normal single-worker order). The plan is the group's, the pieces are
+		/// claimed per index and the site work (level/clear) is the leader's - <see cref="MHR_BuildGroup.IsLeader"/>
+		/// answers who the leader is NOW (it is reassigned when the old one leaves).</summary>
+		internal string Group;
 		/// <summary>E7: [Building] BlueprintFree - do not pay for the pieces (a test/creative switch).</summary>
 		internal bool Free;
 		/// <summary>E7: pieces placed and pieces skipped (a blueprint skips what it cannot stand instead of stopping).</summary>
@@ -211,7 +227,9 @@ internal static class MHR_Build
 	}
 
 	/// <summary>E6: one piece of a plan, already resolved to a world pose.</summary>
-	private sealed class PlannedStep
+	/// <remarks>P1 (multi-build): <c>internal</c> because the <b>group</b> owns the list - every worker of a site walks
+	/// the same steps by the same index (<see cref="MHR_BuildGroup"/>).</remarks>
+	internal sealed class PlannedStep
 	{
 		internal string Prefab;
 		internal Piece Piece;
@@ -227,6 +245,19 @@ internal static class MHR_Build
 	private static readonly Dictionary<string, float> s_levelTried = new Dictionary<string, float>();
 
 	/// <summary>
+	/// P1 (review A5, 03/11/2026): the level job just worked this blueprint's site - the resumed order must not ask for
+	/// another leveling right away. The guard above is 90 s and a big site takes longer than that to level (the player's
+	/// measured 4 passes of ~24 s), so a resume would level it again and again instead of building.
+	/// </summary>
+	internal static void NoteLeveled(string blueprintFile)
+	{
+		if (!string.IsNullOrEmpty(blueprintFile))
+		{
+			s_levelTried[blueprintFile] = Time.time;
+		}
+	}
+
+	/// <summary>
 	/// E4b: a build order waiting for its materials. The companion is gathering with the NORMAL gather order (the
 	/// harvest owns the movement - one owner at a time, the lesson of 01/11/2026); this record only watches the bag
 	/// and, when the piece is covered, starts a fresh build order (which re-finds the spot and walks back).
@@ -239,6 +270,9 @@ internal static class MHR_Build
 		/// <summary>E7: the blueprint waiting for its materials (label and file; null for a template/piece).</summary>
 		internal string Blueprint;
 		internal string BlueprintFile;
+		/// <summary>P1 (multi-build, 03/11/2026): the group of the site, when the order was a member of one - the resumed
+		/// order goes back to it (if it is still alive) and claims a piece again.</summary>
+		internal string Group;
 		/// <summary>E7 (player's report, 03/11/2026: "it fell and died, and the build did not go on"): the order is waiting
 		/// for the RESPAWN - it resumes by itself (same plan, same anchor, same piece) when the companion is alive again.</summary>
 		internal bool AfterDeath;
@@ -381,9 +415,30 @@ internal static class MHR_Build
 	/// E7: the current piece goes back to the retry queue (it may stand once its neighbours are up) or is counted as
 	/// skipped when the passes are used up. This is the "build what stands, come back for the rest" loop of their
 	/// BuildOrders, done with the game's own verdict instead of a stability simulation.
+	///
+	/// <para>P1 (review A1, 03/11/2026): in a <b>group</b> the queue is the SITE's, not the worker's - the piece was
+	/// skipped by the follower and died with it (the group's counters never saw it). Now the index goes to
+	/// <see cref="MHR_BuildGroup.TryQueueRetry"/> and any worker pulls it again; when the index runs out of attempts it is
+	/// counted as skipped, which is the only place a piece is given up.</para>
 	/// </summary>
 	private static void QueueRetry(CompanionAI ai, State state, string why)
 	{
+		if (state.Group != null && ai != null)
+		{
+			// the piece is free again for the others right away (one of them may have the support/tool that was missing)
+			MHR_BuildGroup.Release(state.Group, state.Index, ai.GetInstanceID());
+			if (MHR_BuildGroup.TryQueueRetry(state.Group, state.Index))
+			{
+				Log(ai, "retry no grupo: " + state.Prefab + " (" + why + ") em (" + F(state.Pos.x) + ", " + F(state.Pos.y)
+					+ ", " + F(state.Pos.z) + ") - a peça volta para a fila do canteiro");
+				return;
+			}
+			state.Skipped++;
+			MHR_BuildGroup.AddSkipped(state.Group);
+			Log(ai, "desistindo de " + state.Prefab + " (" + why + ") em (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
+				+ F(state.Pos.z) + ") - " + state.Skipped + " pulada(s)");
+			return;
+		}
 		if (state.Retry != null && state.Passes < MaxPasses && state.Piece != null)
 		{
 			state.Retry.Add(new PlannedStep { Prefab = state.Prefab, Piece = state.Piece, Pos = state.Pos, Rot = state.Rot });
@@ -392,6 +447,7 @@ internal static class MHR_Build
 			return;
 		}
 		state.Skipped++;
+		MHR_BuildGroup.AddSkipped(state.Group);
 		Log(ai, "skipping " + state.Prefab + " (" + why + ") at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
 			+ F(state.Pos.z) + ") - " + state.Skipped + " skipped");
 	}
@@ -407,7 +463,7 @@ internal static class MHR_Build
 	/// </summary>
 	private static bool PreferNearFloor(CompanionAI ai, State state, int index)
 	{
-		if (state.Plan == null || index < 0 || index + 1 >= state.Plan.Count)
+		if (PlanLocked(state) || state.Plan == null || index < 0 || index + 1 >= state.Plan.Count)
 		{
 			return false;
 		}
@@ -496,10 +552,24 @@ internal static class MHR_Build
 	/// <summary>
 	/// E6/E7: moves to the next piece of the plan (a template or a blueprint) or ends the order. Returns true while
 	/// there is a next piece to build.
+	///
+	/// <para>P1 (multi-build, 03/11/2026): this is where the <b>claims</b> live. The pieces this worker held are freed
+	/// (it holds one at a time), and a piece another worker has claimed is <b>skipped</b> - the index moves on, nothing is
+	/// paid and it is not counted as done, exactly as the plan requires.</para>
+	///
+	/// <para>P1 (review A1, 03/11/2026): a worker that reaches the end of the plan does <b>not</b> end the order when the
+	/// site still has pieces in its retry queue: it pulls a free index of it (<see cref="MHR_BuildGroup.NextRetry"/>), or
+	/// waits for the one another worker is on (<see cref="Phase.WaitRetry"/>). The old per-worker retry pass stays for a
+	/// single-worker order (with a group the queue is the site's).</para>
 	/// </summary>
 	private static bool Advance(CompanionAI ai, State state)
 	{
-		if (state.Plan != null && state.Index + 1 >= state.Plan.Count
+		int worker = ai.GetInstanceID();
+		if (state.Group != null)
+		{
+			MHR_BuildGroup.ReleaseAllOf(state.Group, worker);
+		}
+		if (state.Group == null && state.Plan != null && state.Index + 1 >= state.Plan.Count
 			&& state.Retry != null && state.Retry.Count > 0 && state.Passes < MaxPasses)
 		{
 			state.Passes++;
@@ -516,26 +586,75 @@ internal static class MHR_Build
 		}
 		if (state.Plan != null && state.Index + 1 < state.Plan.Count)
 		{
-			state.Index++;
-			PlannedStep next = state.Plan[state.Index];
-			state.Prefab = next.Prefab;
-			state.Piece = next.Piece;
-			state.Pos = next.Pos;
-			state.Rot = next.Rot;
-			state.Placed = null;
-			state.Start = Time.time;
-			state.Checked = false;
-			state.FloorPreferDone = false;
-			state.FallDrops = 0;
-			state.BestDistance = 0f;
-			state.BestAt = Time.time;
-			state.NextScaffoldAt = 0f;
-			state.Phase = Phase.Goto;
-			Log(ai, "next: " + next.Prefab + " (" + (state.Index + 1) + "/" + state.Plan.Count + ")");
-			return true;
+			while (state.Index + 1 < state.Plan.Count)
+			{
+				int next = state.Index + 1;
+				state.Index = next;
+				// P1 (review B1, 03/11/2026): a piece the SITE already built is skipped without a claim and WITHOUT
+				// walking to it - after a retry (which may be an index behind) the tail of the plan must not be walked
+				// again: the ghost check does not see the standing copy (it only tests clipping for m_noClipping), so the
+				// duplicate would be paid and placed
+				if (state.Group != null && MHR_BuildGroup.IsDone(state.Group, next))
+				{
+					continue;
+				}
+				// P1: a piece another companion is building belongs to it - pass it by (the claim expires in 20 s, and
+				// this worker may come back to it through the retry queue)
+				if (state.Group != null && !MHR_BuildGroup.TryClaim(state.Group, next, worker))
+				{
+					if (CompanionsPlugin.LogNormal)
+					{
+						LogDebug(ai, "a peça " + (next + 1) + "/" + state.Plan.Count + " é de outro companheiro - seguindo");
+					}
+					continue;
+				}
+				EnterStep(state, next);
+				Log(ai, "next: " + state.Prefab + " (" + (state.Index + 1) + "/" + state.Plan.Count + ")");
+				return true;
+			}
 		}
 		if (state.Blueprint != null)
 		{
+			// P1 (review A1): the group's retry queue is worked before the order ends - it is the last chance of the
+			// pieces that did not stand yet
+			if (state.Group != null && state.Plan != null)
+			{
+				int retry = MHR_BuildGroup.NextRetry(state.Group, worker);
+				if (retry >= 0 && retry < state.Plan.Count)
+				{
+					EnterStep(state, retry);
+					Log(ai, "retry do grupo: " + state.Prefab + " (" + (retry + 1) + "/" + state.Plan.Count + ")");
+					return true;
+				}
+				if (MHR_BuildGroup.RetryPending(state.Group))
+				{
+					// something is still queued (another worker's, or not due yet) - wait for it instead of leaving
+					state.Phase = Phase.WaitRetry;
+					state.Start = Time.time;
+					return true;
+				}
+			}
+			// P1: the last worker of a group says the number of the WHOLE site (the others end silently - the plan goes on
+			// without them)
+			if (state.Group != null)
+			{
+				string key = state.Group;
+				// P1 (review A9, 03/11/2026): the group may be gone by now (the last Leave of another worker took it) -
+				// then the counters of this order are the honest answer, never a 0/0
+				bool live = MHR_BuildGroup.Exists(key);
+				int placed = live ? MHR_BuildGroup.Placed(key) : state.PlacedCount;
+				int skipped = live ? MHR_BuildGroup.Skipped(key) : state.Skipped;
+				MHR_BuildGroup.ReleaseAllOf(key, worker);
+				bool last = MHR_BuildGroup.Leave(key, worker);
+				state.Group = null;
+				if (!last)
+				{
+					Finish(ai, state, null, "a lista de peças acabou para este companheiro (o grupo continua)");
+					return false;
+				}
+				Finish(ai, state, "hc_ai_blueprint_done", null, state.Blueprint, placed, skipped);
+				return false;
+			}
 			Finish(ai, state, "hc_ai_blueprint_done", null, state.Blueprint, state.PlacedCount, state.Skipped);
 			return false;
 		}
@@ -547,6 +666,85 @@ internal static class MHR_Build
 		// a single piece
 		Finish(ai, state, "hc_ai_build_done", null, LabelOf(state));
 		return false;
+	}
+
+	/// <summary>P1: makes <paramref name="index"/> the piece this worker is on (the pose, the clocks and the phase - the
+	/// same block <see cref="Advance"/> always had, now shared with the follower that starts building).</summary>
+	private static void EnterStep(State state, int index)
+	{
+		PlannedStep next = state.Plan[index];
+		state.Index = index;
+		state.Prefab = next.Prefab;
+		state.Piece = next.Piece;
+		state.Pos = next.Pos;
+		state.Rot = next.Rot;
+		state.Placed = null;
+		state.Start = Time.time;
+		state.Checked = false;
+		state.FloorPreferDone = false;
+		state.FallDrops = 0;
+		state.BestDistance = 0f;
+		state.BestAt = Time.time;
+		state.NextScaffoldAt = 0f;
+		state.Phase = Phase.Goto;
+	}
+
+	/// <summary>
+	/// P1 (multi-build, 03/11/2026): the plan belongs to the <b>group</b> and every worker walks it by <b>index</b>, so a
+	/// reorder made by one worker would leave the others' indices pointing at other pieces (and their claims with them).
+	/// While the site has more than one worker nobody reorders it - the retry queue builds what the reorder used to fix.
+	/// </summary>
+	private static bool PlanLocked(State state)
+	{
+		return state != null && state.Group != null && MHR_BuildGroup.IsShared(state.Group);
+	}
+
+	/// <summary>
+	/// P1 (review A2, 03/11/2026): the leader is the <b>site's</b>, not the state's - when it leaves (a gather, a death,
+	/// "para, Fulano") the next worker takes the site and a flag copied at the start would lie. Without a group the
+	/// companion is its own leader (the single-worker order of 03/11/2026 is unchanged).
+	/// </summary>
+	private static bool IsLeader(CompanionAI ai, State state)
+	{
+		if (state == null)
+		{
+			return false;
+		}
+		if (state.Group == null)
+		{
+			return true;
+		}
+		return ai != null && MHR_BuildGroup.IsLeader(state.Group, ai.GetInstanceID());
+	}
+
+	/// <summary>
+	/// P1 (review A7, 03/11/2026): one piece is <b>counted once</b> - the group remembers the index it was done for, so a
+	/// piece built by another worker (or a verdict asked twice) does not inflate the numbers of the order.
+	/// </summary>
+	private static void CountPlaced(State state)
+	{
+		if (state == null)
+		{
+			return;
+		}
+		if (state.Group == null || MHR_BuildGroup.MarkDone(state.Group, state.Index))
+		{
+			state.PlacedCount++;
+		}
+	}
+
+	/// <summary>
+	/// P1 (review A11, 03/11/2026): the companion a component belongs to, resolved <b>once</b> - the guards of the jobs
+	/// ask the same GameObject on every frame and a second <c>GetComponent</c> there was pure waste.
+	/// </summary>
+	private static CompanionAI AIOf(Component c)
+	{
+		if (c == null)
+		{
+			return null;
+		}
+		CompanionAI ai = c as CompanionAI;
+		return ai != null ? ai : c.GetComponent<CompanionAI>();
 	}
 
 	/// <summary>
@@ -810,10 +1008,216 @@ internal static class MHR_Build
 		return BlueprintStart.Started;
 	}
 
+	/// <summary>
+	/// P1 (multi-build, 03/11/2026): starts the SAME blueprint on <b>several</b> companions - one plan, distinct pieces.
+	/// It is the entry point of the order layer (<c>CompanionOrders.Build</c>): "build with no name" is every companion
+	/// that can take the order, "build, Maria and João" is the named ones; the first of the list is the <b>leader</b>.
+	///
+	/// <para>The leader starts the real order (it levels the ground, clears the site and plans the workbenches with
+	/// <see cref="StartBlueprint"/>) and its resolved plan becomes the plan of the <b>group</b>. The others start from
+	/// that exact plan (<c>storedPlan</c> - the same path the gather/death resume uses, so the indices line up) in
+	/// <see cref="Phase.WaitGroup"/>: they do nothing at all until the leader opens
+	/// <see cref="MHR_BuildGroup.BuildPhase"/>, and then they claim pieces of their own.</para>
+	///
+	/// <para>Returns how many companions entered the order (0 = refused). <paramref name="missingPrefab"/> and
+	/// <paramref name="missingStation"/> come from the leader's start (the names the player has to hear).</para>
+	/// </summary>
+	internal static int StartBlueprintGroup(IEnumerable<CompanionSetup> workers, Blueprint blueprint, Vector3 hint,
+		out string missingPrefab, out string missingStation)
+	{
+		missingPrefab = null;
+		missingStation = null;
+		if (workers == null || blueprint == null)
+		{
+			return 0;
+		}
+		List<CompanionSetup> list = new List<CompanionSetup>();
+		foreach (CompanionSetup cs in workers)
+		{
+			if (cs == null || list.Contains(cs) || cs.GetComponent<CompanionAI>() == null)
+			{
+				continue;
+			}
+			Character body = cs.GetComponent<Character>();
+			if (body != null && body.IsDead())
+			{
+				continue;   // a dead companion cannot take the order (it would only be a missing worker)
+			}
+			list.Add(cs);
+		}
+		if (list.Count == 0)
+		{
+			return 0;
+		}
+		CompanionSetup leader = list[0];
+		long owner = MHR_Owner.CreatorId(leader);
+		CompanionAI leaderAi = leader.GetComponent<CompanionAI>();
+		// P1: ONE site per player at a time (§3) - a second order would put two leaders over the same ground (or the same
+		// plan with new indices). Said BEFORE anything is started, so a running site is not disturbed.
+		if (MHR_BuildGroup.SiteBusy(owner))
+		{
+			Log(leaderAi, "já existe um grupo de obra em andamento - diga \"para\" antes de começar outra");
+			return 0;
+		}
+		if (list.Count == 1)
+		{
+			// one companion does not need a group: the order is exactly the one of 03/11/2026 (no claims, no waiting)
+			BlueprintStart single = StartBlueprint(leader, blueprint, hint, out missingPrefab, out missingStation);
+			return single == BlueprintStart.Failed ? 0 : 1;
+		}
+		// the key is built from the SAME pieces StartBlueprint uses for the anchor and the rotation (the aim of the
+		// owner), so the leader's state and the group agree on the site
+		Player ownerPlayer = MHR_Owner.Of(leader);
+		Vector3 forward = ownerPlayer != null ? ownerPlayer.transform.forward : leader.transform.forward;
+		Quaternion rot = Quaternion.LookRotation(Flat(forward), Vector3.up);
+		string key = MHR_BuildGroup.KeyOf(blueprint.Label, hint, rot, owner);
+		BlueprintStart started = StartBlueprint(leader, blueprint, hint, out missingPrefab, out missingStation);
+		if (started == BlueprintStart.Failed)
+		{
+			return 0;
+		}
+		State first = null;
+		if (leaderAi != null)
+		{
+			s_state.TryGetValue(leaderAi.GetInstanceID(), out first);
+		}
+		if (started == BlueprintStart.Leveling || first == null || first.Plan == null || first.Plan.Count == 0)
+		{
+			if (started == BlueprintStart.Leveling)
+			{
+				// P1 (review A5, 03/11/2026): the hoe job took the site first (the ground comes before the plan) - it
+				// carries the WHOLE group, so the build comes back with all of them and the plan is created then, with a
+				// flat site (the player's site measured 0,37 m against the 0,35 m tolerance: this path IS the normal one)
+				MHR_Level.SetThenWorkers(leader, NamesOf(list));
+				Log(leaderAi, "o nivelamento vem primeiro - os " + list.Count
+					+ " companheiro(s) voltam quando o chão estiver pronto");
+				return list.Count;
+			}
+			Log(leaderAi, "o plano do canteiro não ficou pronto - o líder segue sozinho");
+			return 1;
+		}
+		if (MHR_BuildGroup.TryCreate(key, blueprint.Label, owner, first.Plan, leaderAi.GetInstanceID()))
+		{
+			first.Group = key;
+			MHR_BuildGroup.SetBuildPhase(key, false);   // the site belongs to the leader until it is ready
+		}
+		else
+		{
+			// the key is taken (SiteBusy already refused the other cases): the leader builds alone, it is the order of
+			// 03/11/2026 unchanged
+			Log(leaderAi, "não deu para abrir o grupo deste canteiro - o líder constrói sozinho");
+			return 1;
+		}
+		int joined = 1;
+		List<PlannedStep> groupPlan = MHR_BuildGroup.Plan(key) ?? first.Plan;
+		for (int i = 1; i < list.Count; i++)
+		{
+			CompanionSetup follower = list[i];
+			CompanionAI ai = follower.GetComponent<CompanionAI>();
+			if (ai == null)
+			{
+				continue;
+			}
+			string ignoredPrefab;
+			string ignoredStation;
+			// `resuming` + the stored plan: the SAME anchor, the same rotation and the SAME pieces, with no leveling, no
+			// clearing and no station pass (the leader already did all three)
+			if (StartBlueprint(follower, blueprint, hint, out ignoredPrefab, out ignoredStation, 0, first.AnchorRot, true,
+				groupPlan) != BlueprintStart.Started)
+			{
+				Log(ai, "não entrou no grupo da obra - fica de fora");
+				continue;
+			}
+			State follow;
+			if (!s_state.TryGetValue(ai.GetInstanceID(), out follow) || follow == null)
+			{
+				continue;
+			}
+			follow.Group = key;
+			follow.Plan = groupPlan;   // the very list of the leader (index by index)
+			follow.Phase = Phase.WaitGroup;
+			follow.Start = Time.time;
+			ai.StopMoving();
+			MHR_Mover.Release(ai);
+			MHR_BuildGroup.TryJoin(key, ai.GetInstanceID());
+			joined++;
+			Log(ai, "entrou no grupo da obra \"" + blueprint.Label + "\" - espera o líder preparar o canteiro");
+		}
+		Log(leaderAi, "grupo de obra \"" + blueprint.Label + "\": " + joined + " companheiro(s) no mesmo plano ("
+			+ groupPlan.Count + " peças)");
+		return joined;
+	}
+
+	/// <summary>P1 (review A5, 03/11/2026): the names of the group of an order - the leveling job carries them (a
+	/// reference to a companion does not survive a death/respawn, a name does).</summary>
+	internal static List<string> NamesOf(List<CompanionSetup> workers)
+	{
+		List<string> names = new List<string>();
+		if (workers == null)
+		{
+			return names;
+		}
+		for (int i = 0; i < workers.Count; i++)
+		{
+			string name = workers[i] != null ? CompanionNames.NameOf(workers[i]) : null;
+			if (!string.IsNullOrEmpty(name) && !names.Contains(name))
+			{
+				names.Add(name);
+			}
+		}
+		return names;
+	}
+
+	/// <summary>P1 (review A5, 03/11/2026): the companions of that list, with <paramref name="leader"/> <b>first</b> (it
+	/// is the one that held the hoe and the one that starts the plan). A companion that is not around anymore (or is
+	/// dead) is simply not in the group.</summary>
+	internal static List<CompanionSetup> GroupWorkers(List<string> names, CompanionSetup leader)
+	{
+		List<CompanionSetup> list = new List<CompanionSetup>();
+		if (leader != null)
+		{
+			list.Add(leader);
+		}
+		if (names == null || names.Count == 0)
+		{
+			return list;
+		}
+		foreach (CompanionSetup cs in CompanionSetup.AllCompanions)
+		{
+			if (cs == null || cs == leader)
+			{
+				continue;
+			}
+			Character body = cs.GetComponent<Character>();
+			if (body != null && body.IsDead())
+			{
+				continue;
+			}
+			string name = CompanionNames.NameOf(cs);
+			if (!string.IsNullOrEmpty(name) && names.Contains(name))
+			{
+				list.Add(cs);
+			}
+		}
+		return list;
+	}
+
 	internal static bool Active(Component c)
 	{
+		// P1 (review A11, 03/11/2026): the companion is resolved ONCE - this guard is asked by every job, every frame
+		CompanionAI ai = AIOf(c);
+		if (ai == null)
+		{
+			return false;
+		}
 		State state;
-		return StateOf(c, out state) && state.Active;
+		if (s_state.TryGetValue(ai.GetInstanceID(), out state) && state != null && state.Active)
+		{
+			return true;
+		}
+		// P1 (multi-build): a worker of a group answers as an order too, even before its state is resolved (a resumed
+		// body joins the group and the idle job must not take it in the meantime)
+		return MHR_BuildGroup.Worker(ai.GetInstanceID());
 	}
 
 	/// <summary>E7: this companion's build order is <b>clearing the site</b> - the harvest is the tool then, so it is the
@@ -852,29 +1256,13 @@ internal static class MHR_Build
 	private static bool StateOf(Component c, out State state)
 	{
 		state = null;
-		if (c == null)
-		{
-			return false;
-		}
-		CompanionAI ai = c as CompanionAI;
-		if (ai == null)
-		{
-			ai = c.GetComponent<CompanionAI>();
-		}
+		CompanionAI ai = AIOf(c);
 		return ai != null && s_state.TryGetValue(ai.GetInstanceID(), out state) && state != null;
 	}
 
 	internal static void Cancel(Component c)
 	{
-		if (c == null)
-		{
-			return;
-		}
-		CompanionAI owner = c as CompanionAI;
-		if (owner == null)
-		{
-			owner = c.GetComponent<CompanionAI>();
-		}
+		CompanionAI owner = AIOf(c);
 		if (owner == null)
 		{
 			return;
@@ -886,6 +1274,14 @@ internal static class MHR_Build
 			ClearScaffolds(owner, state);
 			state.Active = false;
 			s_state.Remove(owner.GetInstanceID());
+			// P1 (multi-build): "para, Maria" takes HER out of the group and frees her piece - the others go on (the group
+			// is dropped only when the last one leaves; the next worker takes the site)
+			if (state.Group != null)
+			{
+				MHR_BuildGroup.ReleaseAllOf(state.Group, owner.GetInstanceID());
+				MHR_BuildGroup.Leave(state.Group, owner.GetInstanceID());
+				state.Group = null;
+			}
 			// E7 (review, 03/11/2026): the pending must fall even when there is no ACTIVE state (the gather handover removes
 			// the state and leaves the watcher) - its key is the instance id, which Unity reuses
 			if (s_pending.TryGetValue(owner.GetInstanceID(), out pending))
@@ -905,6 +1301,9 @@ internal static class MHR_Build
 
 	internal static void CancelAll()
 	{
+		// P1 (multi-build): "para" without a name drops every site (the claims go with it - a piece must never stay
+		// claimed by an order that no longer exists)
+		MHR_BuildGroup.CancelAll();
 		s_pending.Clear();
 		List<int> keys = new List<int>(s_state.Keys);
 		foreach (int key in keys)
@@ -942,6 +1341,14 @@ internal static class MHR_Build
 		ClearScaffolds(ai, state);
 		state.Active = false;
 		s_state.Remove(ai.GetInstanceID());
+		// P1 (multi-build): the dead worker leaves the group (its piece is free for the others right away) - the group
+		// itself goes on, and the pending hands the order back to this companion when it respawns
+		if (state.Group != null)
+		{
+			MHR_BuildGroup.ReleaseAllOf(state.Group, ai.GetInstanceID());
+			MHR_BuildGroup.Leave(state.Group, ai.GetInstanceID());
+			state.Group = null;
+		}
 		MHR_Mover.Release(ai);
 		if (!saved)
 		{
@@ -963,6 +1370,7 @@ internal static class MHR_Build
 			Template = state.Template != null ? state.Template.Name : null,
 			Blueprint = state.Blueprint,
 			BlueprintFile = state.BlueprintFile,
+			Group = state.Group,
 			Hint = state.Hint,
 			Anchor = state.AnchorKnown ? state.Anchor : state.Hint,
 			AnchorRot = state.AnchorRot,
@@ -1024,6 +1432,86 @@ internal static class MHR_Build
 		}
 	}
 
+	/// <summary>
+	/// P1 (multi-build, 03/11/2026): a resumed order (after a death or after the gather) goes back to its <b>group</b>
+	/// when the site is still alive. The plan becomes the group's again (same list, same indices), the companion joins as
+	/// a worker (the leader is the one that started the site) and the piece it was on is claimed again: when another
+	/// worker holds it, or when it was <b>already built</b> while this one was away, it moves on to the next one.
+	/// </summary>
+	private static void RejoinGroup(CompanionAI ai, State state, string key)
+	{
+		if (ai == null || state == null || string.IsNullOrEmpty(key) || !MHR_BuildGroup.Exists(key))
+		{
+			return;
+		}
+		state.Group = key;
+		List<PlannedStep> plan = MHR_BuildGroup.Plan(key);
+		if (plan != null && plan.Count > 0)
+		{
+			state.Plan = plan;
+		}
+		MHR_BuildGroup.TryJoin(key, ai.GetInstanceID());
+		// P1 (review A2): the leader is the SITE's - a companion that comes back is a normal worker again (the group
+		// promoted another one when it left; Leave keeps a leader while anybody is on the site)
+		if (!MHR_BuildGroup.BuildPhase(key))
+		{
+			// the site is still being leveled/cleared: it waits like any follower
+			state.Phase = Phase.WaitGroup;
+			state.Start = Time.time;
+			ai.StopMoving();
+			MHR_Mover.Release(ai);
+			Log(ai, "voltou para o grupo \"" + MHR_BuildGroup.Label(key) + "\" - ainda esperando o canteiro");
+			return;
+		}
+		if (state.Plan == null || state.Index < 0 || state.Index >= state.Plan.Count)
+		{
+			return;
+		}
+		if (MHR_BuildGroup.IsDone(key, state.Index))
+		{
+			// P1 (review B1, 03/11/2026): the piece it was on was built by the group while it was away - the pose is not
+			// even asked (the site's own record is the truth), and Advance skips the rest of the tail it already built
+			Log(ai, "a peça " + (state.Index + 1) + "/" + state.Plan.Count
+				+ " já foi construída pelo grupo - seguindo para a próxima");
+			Advance(ai, state);
+			return;
+		}
+		PlannedStep step = state.Plan[state.Index];
+		if (step != null)
+		{
+			state.Prefab = step.Prefab;
+			state.Piece = step.Piece;
+			state.Pos = step.Pos;
+			state.Rot = step.Rot;
+		}
+		bool mine = MHR_BuildGroup.TryClaim(key, state.Index, ai.GetInstanceID());
+		bool standing = false;
+		if (mine && step != null && step.Piece != null)
+		{
+			// another worker may have built this very piece while this one was dead (or gathering). P1 (review A6): the
+			// pose AND the orientation are asked - a neighbouring piece of the same prefab is not this one
+			GameObject found;
+			long creator = BuildExecutor.CreatorOf(ai.GetComponent<CompanionSetup>(), Player.m_localPlayer);
+			standing = BuildExecutor.VerifyAt(step.Piece, step.Pos, step.Rot, creator, out found) == null;
+		}
+		if (!mine || standing)
+		{
+			if (standing)
+			{
+				CountPlaced(state);   // P1 (review A7): the group's index is marked done - counted once
+				Log(ai, "a peça que ele estava fazendo já foi construída por outro companheiro - seguindo para a próxima");
+			}
+			else
+			{
+				Log(ai, "a peça que ele estava fazendo agora é de outro companheiro - seguindo para a próxima");
+			}
+			Advance(ai, state);
+			return;
+		}
+		Log(ai, "voltou para o grupo \"" + MHR_BuildGroup.Label(key) + "\" na peça " + (state.Index + 1) + "/"
+			+ state.Plan.Count);
+	}
+
 	/// <summary>Driven from <c>CompanionAI.UpdateAI</c> before <see cref="MHR_Collect"/> and <see cref="MHR_Loot"/>:
 	/// true while the order is running.</summary>
 	internal static bool Drive(CompanionAI ai, float dt)
@@ -1071,9 +1559,11 @@ internal static class MHR_Build
 		{
 			why = "another job was picked";
 		}
-		else if (state.Phase != Phase.GatherWalk && state.Phase != Phase.Clear && Time.time - state.Start > Timeout)
+		else if (state.Phase != Phase.GatherWalk && state.Phase != Phase.Clear && state.Phase != Phase.WaitGroup
+			&& state.Phase != Phase.WaitRetry && Time.time - state.Start > Timeout)
 		{
 			// E7: the clearing has its own budget (ClearBudget) - a 60 s clock would end the order on the second tree
+			// P1: a follower WAITING for the leader's site (or for the group's retry queue) has no clock at all
 			why = "the order took too long";
 		}
 		// E6 (measured 01/11/2026): an encumbered companion cannot walk - the game's Encumbered effect slows it to a
@@ -1083,7 +1573,9 @@ internal static class MHR_Build
 		// desistia em 8 s e a ordem dizia "can't get to the spot", uma mentira). Compara o peso com o teto de verdade.
 		// E7: while CLEARING the site the baggage is not an error - the wood of the chopped trees lands in the same bag
 		// the build pays from, and the check fires on the first building frame anyway (with the honest numbers).
-		if (why == null && state.Phase != Phase.Clear && humanoid != null && humanoid.GetInventory() != null
+		if (why == null && state.Phase != Phase.Clear && state.Phase != Phase.WaitGroup && state.Phase != Phase.WaitRetry
+			&& humanoid != null
+			&& humanoid.GetInventory() != null
 			&& humanoid.GetInventory().GetTotalWeight() > CompanionCarry.Max(humanoid))
 		{
 			Log(ai, "overweight: " + humanoid.GetInventory().GetTotalWeight().ToString("F0") + "/" + CompanionCarry.Max(humanoid).ToString("F0"));
@@ -1096,6 +1588,7 @@ internal static class MHR_Build
 			// 60 s (a roof corner, a spot inside the hill). Skipping it keeps the other 982 going - and the log says
 			// WHERE, so a bad anchor is visible instead of "the order took too long"
 			state.Skipped++;
+			MHR_BuildGroup.AddSkipped(state.Group);
 			Log(ai, "skipping " + state.Prefab + " (took too long) at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
 				+ F(state.Pos.z) + ") - " + state.Skipped + " skipped");
 			return Advance(ai, state);
@@ -1106,12 +1599,35 @@ internal static class MHR_Build
 			return false;
 		}
 
+		// P1 (multi-build, 03/11/2026): the <b>claims</b>. A live worker keeps the piece it is on (the 20 s expiry is for
+		// a worker whose game went away, not for a long walk), and the LEADER is the one that opens the build phase for
+		// the others once the site is ready - taking its own piece at that very moment, so the followers do not start on
+		// the same one. P1 (review A2): the leader is asked of the GROUP (it is reassigned when the old one leaves).
+		if (state.Group != null && state.Phase != Phase.WaitGroup)
+		{
+			MHR_BuildGroup.Refresh(state.Group, state.Index, ai.GetInstanceID());
+			if (!MHR_BuildGroup.BuildPhase(state.Group) && IsLeader(ai, state)
+				&& state.Phase != Phase.Clear && state.Phase != Phase.Level)
+			{
+				MHR_BuildGroup.SetBuildPhase(state.Group, true);
+				Log(ai, "o canteiro está pronto - o grupo pode construir");
+				if (!MHR_BuildGroup.TryClaim(state.Group, state.Index, ai.GetInstanceID()))
+				{
+					return Advance(ai, state);
+				}
+			}
+		}
+
 		switch (state.Phase)
 		{
 			case Phase.Level:
 				return LevelGround(ai, state);
 			case Phase.Clear:
 				return ClearSite(ai, state, dt);
+			case Phase.WaitGroup:
+				return WaitGroup(ai, state);
+			case Phase.WaitRetry:
+				return WaitRetry(ai, state);
 			case Phase.Find:
 				return state.Template != null ? FindPlan(ai, state) : Find(ai, state);
 			case Phase.Goto:
@@ -1126,6 +1642,99 @@ internal static class MHR_Build
 				Finish(ai, state, null, "done");
 				return false;
 		}
+	}
+
+	/// <summary>
+	/// P1 (multi-build, 03/11/2026): a <b>follower</b> waits while the leader levels and clears the site. The phase does
+	/// nothing and does not end the order (no mover, no clock, no cancellation) - holding still is the whole job, and the
+	/// idle job does not take the body because the order is alive. When the leader opens
+	/// <see cref="MHR_BuildGroup.BuildPhase"/>, the follower takes a piece nobody else has claimed and starts walking.
+	/// </summary>
+	private static bool WaitGroup(CompanionAI ai, State state)
+	{
+		if (state.Group == null)
+		{
+			state.Phase = Phase.Goto;   // no group (it was dropped): just build what is in the plan
+			return true;
+		}
+		if (!MHR_BuildGroup.Exists(state.Group))
+		{
+			Log(ai, "o grupo da obra não existe mais - a ordem termina");
+			Finish(ai, state, null, "o grupo não existe mais");
+			return false;
+		}
+		if (!MHR_BuildGroup.BuildPhase(state.Group))
+		{
+			return true;   // the leader is still working the ground/site
+		}
+		state.Start = Time.time;
+		state.Checked = false;
+		state.FallDrops = 0;
+		state.BestDistance = 0f;
+		state.BestAt = Time.time;
+		if (state.Plan == null || state.Plan.Count == 0)
+		{
+			Log(ai, "o plano do grupo está vazio - a ordem termina");
+			Finish(ai, state, null, "plano vazio");
+			return false;
+		}
+		int worker = ai.GetInstanceID();
+		// P1 (review B1, 03/11/2026): the piece the follower was going to start may have been built by the leader while it
+		// waited - a done index is skipped (Advance walks from the next one), it is never claimed and never walked to
+		if (state.Index >= 0 && state.Index < state.Plan.Count && !MHR_BuildGroup.IsDone(state.Group, state.Index)
+			&& MHR_BuildGroup.TryClaim(state.Group, state.Index, worker))
+		{
+			EnterStep(state, state.Index);
+			Log(ai, "o canteiro está pronto - construindo " + state.Prefab + " (" + (state.Index + 1) + "/"
+				+ state.Plan.Count + ")");
+			return true;
+		}
+		Log(ai, "o canteiro está pronto - procurando uma peça que ninguém pegou");
+		return Advance(ai, state);
+	}
+
+	/// <summary>
+	/// P1 (review A1, 03/11/2026): the worker finished the plan and the site still has pieces in its <b>retry queue</b>
+	/// (they did not stand yet, and they may be another worker's or not due yet). It waits here instead of ending the
+	/// order: the piece is pulled the moment it is free (<see cref="MHR_BuildGroup.NextRetry"/>). When nothing is left the
+	/// group's end runs (<see cref="Advance"/>). The wait is bounded - a queue stuck behind a worker whose game went away
+	/// must not hold the companion forever.
+	/// </summary>
+	private static bool WaitRetry(CompanionAI ai, State state)
+	{
+		if (state.Group == null || !MHR_BuildGroup.Exists(state.Group))
+		{
+			Log(ai, "o grupo da obra não existe mais - a ordem termina");
+			Finish(ai, state, null, "o grupo não existe mais");
+			return false;
+		}
+		if (state.Plan == null || state.Plan.Count == 0)
+		{
+			return Advance(ai, state);
+		}
+		int retry = MHR_BuildGroup.NextRetry(state.Group, ai.GetInstanceID());
+		if (retry >= 0 && retry < state.Plan.Count)
+		{
+			EnterStep(state, retry);
+			Log(ai, "retry do grupo: " + state.Prefab + " (" + (retry + 1) + "/" + state.Plan.Count + ")");
+			return true;
+		}
+		if (!MHR_BuildGroup.RetryPending(state.Group))
+		{
+			return Advance(ai, state);   // nothing left: the plan is done for everybody
+		}
+		if (Time.time - state.Start > RetryWaitMax)
+		{
+			// P1 (review B2, 03/11/2026): the entries this worker could have taken are DROPPED and counted as skipped -
+			// the last worker leaves the group right after, and a piece must never disappear with the queue
+			int dropped = MHR_BuildGroup.AbandonRetry(state.Group, ai.GetInstanceID());
+			state.Skipped += dropped;
+			Log(ai, "a fila de retry do grupo não andou em " + F(RetryWaitMax) + " s - saindo da obra ("
+				+ dropped + " peça(s) pulada(s))");
+			Finish(ai, state, null, "a fila de retry parou");
+			return false;
+		}
+		return true;
 	}
 
 	/// <summary>
@@ -1365,6 +1974,17 @@ internal static class MHR_Build
 	/// </summary>
 	private static bool InsertBenchStep(CompanionAI ai, State state, CompanionSetup cs, string refusedPrefab)
 	{
+		// P1 (multi-build): only the LEADER touches the plan's stations while more than one worker walks it - the plan is
+		// the group's and inserting a step in the middle of it shifts the indices every other worker walks by (one bench
+		// serves everybody: the game's rule is per piece). In a group the bench goes to the END of the plan instead: the
+		// refused piece is retried after it, and nobody's index moves. P1 (review B1, 03/11/2026): this holds for a group
+		// of ONE too - the site's indices (claims, `Done` and the retry queue) are the site's, not the worker's.
+		bool shared = PlanLocked(state);
+		bool append = state.Group != null;
+		if (shared && !IsLeader(ai, state))
+		{
+			return false;
+		}
 		Piece bench = BuildProbe.PieceOf(BenchPrefab);
 		if (bench == null)
 		{
@@ -1386,6 +2006,14 @@ internal static class MHR_Build
 		{
 			Log(ai, "no room for a workbench near the " + refusedPrefab + " - the piece is only retried");
 			return false;
+		}
+		if (append)
+		{
+			state.Plan.Add(new PlannedStep { Prefab = BenchPrefab, Piece = bench, Pos = spot, Rot = benchRot });
+			state.BenchInserts++;
+			Log(ai, "sem bancada no alcance da " + refusedPrefab + " - uma foi para o FIM do plano (o plano do grupo não é"
+				+ " reordenado) em (" + F(spot.x) + ", " + F(spot.y) + ", " + F(spot.z) + ")");
+			return false;   // the refused piece goes to the retry queue, which runs after the bench
 		}
 		state.Plan.Insert(state.Index, new PlannedStep { Prefab = BenchPrefab, Piece = bench, Pos = spot, Rot = benchRot });
 		state.BenchInserts++;
@@ -1849,7 +2477,7 @@ internal static class MHR_Build
 	/// </summary>
 	private static void PullFloorsAbove(CompanionAI ai, State state, float topY, bool ladder)
 	{
-		if (state.Plan == null || state.Placed == null || state.Index + 1 >= state.Plan.Count)
+		if (PlanLocked(state) || state.Plan == null || state.Placed == null || state.Index + 1 >= state.Plan.Count)
 		{
 			return;
 		}
@@ -1918,7 +2546,7 @@ internal static class MHR_Build
 	/// </summary>
 	private static bool PullSupports(CompanionAI ai, State state)
 	{
-		if (state.Plan == null || state.Index < 0 || state.Index >= state.Plan.Count)
+		if (PlanLocked(state) || state.Plan == null || state.Index < 0 || state.Index >= state.Plan.Count)
 		{
 			return false;
 		}
@@ -2010,6 +2638,14 @@ internal static class MHR_Build
 		ClearScaffolds(ai, old);
 		old.Active = false;
 		s_state.Remove(ai.GetInstanceID());
+		// P1 (multi-build): a new order replaces the running one, and a member of a group must not keep its seat (nor a
+		// claim) in a site it is no longer building
+		if (old.Group != null)
+		{
+			MHR_BuildGroup.ReleaseAllOf(old.Group, ai.GetInstanceID());
+			MHR_BuildGroup.Leave(old.Group, ai.GetInstanceID());
+			old.Group = null;
+		}
 		MHR_Mover.Release(ai);
 	}
 
@@ -2610,6 +3246,7 @@ internal static class MHR_Build
 			{
 				Log(ai, "falling from the way to the " + state.Prefab + " - skipping it (" + state.FallDrops + " fall(s))");
 				state.Skipped++;
+				MHR_BuildGroup.AddSkipped(state.Group);
 				state.FallDrops = 0;
 				return Advance(ai, state);
 			}
@@ -2698,6 +3335,55 @@ internal static class MHR_Build
 
 	private static bool Place(CompanionAI ai, State state, CompanionSetup cs, Inventory bag)
 	{
+		// P1 (multi-build, 03/11/2026): the claim is the right to pay and place the piece. When it is not this worker's
+		// (it was not driven for 20 s - a fight, a load to a chest - and the claim expired), the pose is asked of the world
+		// BEFORE paying again: a piece another companion already built is never placed twice.
+		// P1 (review B1, 03/11/2026): the pose is asked for a piece that ALREADY FAILED once as well, even when the claim
+		// is ours: a piece that was placed and then lost its support stays in the world, and the retry would put a second
+		// one at the same pose (the ghost check only sees clipping for m_noClipping; a piece without it passes and gets
+		// paid twice). The single-worker retry pass has the same hole (state.Passes > 0).
+		if (state.Group != null)
+		{
+			int holder = MHR_BuildGroup.OwnerOf(state.Group, state.Index);
+			bool mine = holder == ai.GetInstanceID();
+			if (!mine || MHR_BuildGroup.Retried(state.Group, state.Index))
+			{
+				GameObject existing;
+				long creator = BuildExecutor.CreatorOf(cs, Player.m_localPlayer);
+				// P1 (review A6): the pose AND the orientation - a neighbouring piece of the same prefab is not this one.
+				// checkStation is not asked here: a bench placed a second ago is not in the registry yet and it IS there.
+				if (state.Piece != null
+					&& BuildExecutor.VerifyAt(state.Piece, state.Pos, state.Rot, creator, out existing) == null)
+				{
+					CountPlaced(state);   // P1 (review A7): the group's index is marked done - counted once
+					Log(ai, "a peça " + (state.Index + 1) + "/" + state.Plan.Count
+						+ " já está de pé (outra tentativa a deixou lá) - seguindo");
+					return Advance(ai, state);
+				}
+			}
+			if (!mine && (holder != 0 || !MHR_BuildGroup.TryClaim(state.Group, state.Index, ai.GetInstanceID())))
+			{
+				if (CompanionsPlugin.LogNormal)
+				{
+					LogDebug(ai, "a peça " + (state.Index + 1) + "/" + state.Plan.Count + " passou para outro companheiro");
+				}
+				return Advance(ai, state);
+			}
+		}
+		else if (state.Passes > 0 && state.Plan != null)
+		{
+			// the legacy retry pass re-walks the pieces that did not stand - the same "is it already there" question
+			GameObject existing;
+			long creator = BuildExecutor.CreatorOf(cs, Player.m_localPlayer);
+			if (state.Piece != null
+				&& BuildExecutor.VerifyAt(state.Piece, state.Pos, state.Rot, creator, out existing) == null)
+			{
+				state.PlacedCount++;
+				Log(ai, "a peça " + (state.Index + 1) + "/" + state.Plan.Count
+					+ " já está de pé (retry) - seguindo");
+				return Advance(ai, state);
+			}
+		}
 		// E6: a plan step is checked AGAIN now, with the pieces the plan already built standing - the roof's support
 		// comes from the walls, and up-front they were only planned (measured: the roof was refused with no_support)
 		if ((state.Template != null || state.Blueprint != null) && state.Plan != null && state.Index > 0)
@@ -2775,6 +3461,10 @@ internal static class MHR_Build
 		// corner of a 32 m house the base chests were ~35 m away - outside the 30 m search - and the companion went
 		// gathering with more than a thousand wood still in them.
 		Vector3 stock = state.Plan != null && state.AnchorKnown ? state.Anchor : state.Pos;
+		// P1 MVP (multi-build, 03/11/2026): there is NO per-piece material reservation between the workers of a group -
+		// each one pays from its own bag and the site's chests with its own shortfall, so the same stack may be counted
+		// twice and the worker that arrives second is the one that hands the order over to the gather (it comes back and
+		// claims another piece). The `Stock` of docs/plan-multi-build.md §3 is the open half of P1.
 		Dictionary<string, int> missing;
 		if (!state.Free && !BuildStock.Take(bag, state.Piece, stock, cs, useChests, out missing))
 		{
@@ -2866,7 +3556,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		Log(ai, "done: " + state.Prefab + " at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", " + F(state.Pos.z) + ") yaw " + F(state.Rot.eulerAngles.y)
 			+ (state.Template != null ? " (" + (state.Index + 1) + "/" + state.Plan.Count + ")" : string.Empty)
 			+ (supported.HasValue ? " supported" : string.Empty));
-		state.PlacedCount++;
+		CountPlaced(state);   // P1 (review A7): one mark per plan index, counted once
 		// E7 (player's requests, 03/11/2026: "he has to know he should place the piece at the top of the ladder and build
 		// the floor there" + "he can build the floor from the bottom up too, he does not need to wait until he is at the floor
 		// height"): a floor that lands on what was just placed comes to the front of the plan, so the upper floor is built
@@ -3017,6 +3707,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			Template = state.Template != null ? state.Template.Name : null,
 			Blueprint = state.Blueprint,
 			BlueprintFile = state.BlueprintFile,
+			Group = state.Group,
 			Hint = state.Hint,
 			Mode = state.GatherMode,
 			Item = state.GatherItem,
@@ -3397,6 +4088,9 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 				{
 					fresh.Retry = pending.Retry;
 					fresh.Passes = pending.Passes;
+					// P1 (multi-build): the body that came back goes to its site again (its piece may be another's now -
+					// RejoinGroup claims again and moves on when it is taken or already built)
+					RejoinGroup(ai, fresh, pending.Group);
 				}
 				Log(ai, "back from the dead - resuming the build at piece " + (pending.Index + 1));
 			}
@@ -3532,6 +4226,11 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 				fresh.Passes = pending.Passes;
 				Log(ai, "carrying " + pending.Retry.Count + " piece(s) that did not stand yet to the resumed order");
 			}
+			// P1 (multi-build): the gather is over - the companion goes back to its site (if the site is still alive)
+			if (s_state.TryGetValue(ai.GetInstanceID(), out fresh) && fresh != null)
+			{
+				RejoinGroup(ai, fresh, pending.Group);
+			}
 			Log(ai, "materials ready - resuming the build");
 		}
 		else
@@ -3575,6 +4274,14 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		s_state.Remove(ai.GetInstanceID());
 		MHR_Mover.Release(ai);
 		ReleaseHarvest(ai, state);
+		// P1 (multi-build): the worker leaves the site - its piece is free for the others right away, and the group is
+		// dropped when the last one leaves (the plan's pieces that are left are lost with it, like a cancelled order)
+		if (state.Group != null)
+		{
+			MHR_BuildGroup.ReleaseAllOf(state.Group, ai.GetInstanceID());
+			MHR_BuildGroup.Leave(state.Group, ai.GetInstanceID());
+			state.Group = null;
+		}
 		// one line per order end, with the key that was spoken: it is how a test proves which refusal came out
 		Log(ai, "order ended: " + (key ?? "(silent)") + (string.IsNullOrEmpty(why) ? string.Empty : " (" + why + ")"));
 		if (key != null)

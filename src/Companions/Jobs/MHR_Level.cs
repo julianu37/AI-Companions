@@ -60,6 +60,9 @@ internal static class MHR_Level
 		internal string ThenBuild;
 		/// <summary>E7: the blueprint FILE to build when the ground is ready (a downloaded build asks for the same).</summary>
 		internal string ThenBlueprint;
+		/// <summary>P1 (review A5, 03/11/2026): the NAMES of the group of that build - the site is leveled by one companion
+		/// and the build has to come back with all of them (a name survives a death/respawn, a reference does not).</summary>
+		internal List<string> ThenWorkers;
 		internal int Pass;
 		internal int Index;
 		internal List<Vector3> Points;
@@ -124,6 +127,22 @@ internal static class MHR_Level
 		s_state[ai.GetInstanceID()] = state;
 		Log(ai, "order: level " + state.Size.ToString("F1") + " m around (" + F(center.x) + ", " + F(center.y) + ", " + F(center.z) + ")");
 		return true;
+	}
+
+	/// <summary>
+	/// P1 (review A5, 03/11/2026): the GROUP of the build this leveling is preparing - the hoe job is one companion's,
+	/// but the order is the whole site's: when the ground is ready the build comes back with all of them (the plan is
+	/// created then, with a flat site - the player's site measured 0,37 m against the 0,35 m tolerance, so this path is
+	/// the normal one, not an edge case).
+	/// </summary>
+	internal static void SetThenWorkers(CompanionSetup cs, List<string> names)
+	{
+		CompanionAI ai = cs != null ? cs.GetComponent<CompanionAI>() : null;
+		State state;
+		if (ai != null && s_state.TryGetValue(ai.GetInstanceID(), out state) && state != null)
+		{
+			state.ThenWorkers = names;
+		}
 	}
 
 	private static CompanionAI Owner(Component c)
@@ -449,12 +468,32 @@ internal static class MHR_Level
 		{
 			CompanionSetup cs = ai.GetComponent<CompanionSetup>();
 			Blueprint blueprint = BuildBlueprints.Load(state.ThenBlueprint);
-			string missingPrefab;
-			string missingStation;
-			if (cs != null && blueprint != null
-				&& MHR_Build.StartBlueprint(cs, blueprint, state.Center, out missingPrefab, out missingStation) == MHR_Build.BlueprintStart.Started)
+			if (cs != null && blueprint != null)
 			{
-				Log(ai, resumeLog);
+				string missingPrefab;
+				string missingStation;
+				// P1 (review A5): the site was worked by THIS job - the resumed order is not allowed to ask for another
+				// leveling on the same breath (a big site takes longer than the 90 s guard of the blueprint)
+				MHR_Build.NoteLeveled(state.ThenBlueprint);
+				// P1 (review A5, 03/11/2026): the leveling carried the GROUP of the order - the build comes back with all
+				// of them (the plan and the group are created now, with the ground ready), not with the one that held the hoe
+				List<CompanionSetup> workers = MHR_Build.GroupWorkers(state.ThenWorkers, cs);
+				if (workers.Count > 1)
+				{
+					int joined = MHR_Build.StartBlueprintGroup(workers, blueprint, state.Center, out missingPrefab,
+						out missingStation);
+					if (joined > 0)
+					{
+						Log(ai, resumeLog + " (" + joined + " companheiro(s))");
+						return;
+					}
+					// the group was refused (the reason is logged): the one that held the hoe still starts the build alone
+				}
+				if (MHR_Build.StartBlueprint(cs, blueprint, state.Center, out missingPrefab, out missingStation)
+					== MHR_Build.BlueprintStart.Started)
+				{
+					Log(ai, resumeLog);
+				}
 			}
 		}
 	}

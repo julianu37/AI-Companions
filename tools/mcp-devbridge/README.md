@@ -235,11 +235,28 @@ from the hint, how many candidates were tried and how many failed for each reaso
 | param | type | default |
 |---|---|---|
 | `prefab` | string | - |
-| `name` | string | the first companion |
+| `plan` | string | - |
+| `blueprint` | string | - |
+| `x`, `y`, `z` | number | what the player is looking at, else 3 m ahead |
+| `name` | string | **every** companion of the player on one blueprint site (the group); otherwise the first companion |
+
+A single piece or a template (always one companion):
 
 ```json
-{"started": true, "prefab": "piece_workbench", "name": "maria",
- "hint": {"x": -223.8, "y": 77.0, "z": -268.7}}
+{"started": true, "workers": 1, "prefab": "piece_workbench", "plan": null, "pieces": 1,
+ "name": "maria", "hint": {"x": -223.8, "y": 77.0, "z": -268.7}}
+```
+
+A blueprint - **one site shared by the group** (`name` empty = everybody joins), and the same order when nothing
+started:
+
+```json
+{"blueprint": "hs_meadows_hut", "file": "hs_meadows_hut.blueprint", "pieces": 28,
+ "started": true, "workers": 2, "missing": null, "missingStation": null, "name": "maria"}
+
+{"blueprint": "hs_meadows_hut", "file": "hs_meadows_hut.blueprint", "pieces": 28,
+ "started": false, "workers": 0, "missing": null, "missingStation": null, "name": null,
+ "refused": "no companion in range"}
 ```
 
 **The build order without the LLM** (E3): the job checks the recipe, finds a valid spot, walks there, pays the
@@ -253,6 +270,16 @@ With `plan` it builds a whole **template** (E6): `plan=hut` (1 floor + 4 walls +
 the bench it shelters). With `blueprint` it builds a **.blueprint** from
 `BepInEx/config/AI-Companions/blueprints` (E7; the file name or a full path); the footprint is centred on the
 hint/aim and the order is floor → stairs → walls → roof → door.
+
+**A blueprint is a group site** (multi-build, P1): with no `name`, **every** companion of the player enters the
+**same** plan in a single call and the pieces are handed out between them (`workers` tells how many joined, `0` = none);
+with `name`, only that companion works the site. A piece or a template order is still one companion (`workers: 1`).
+A dead companion does not take a share, so it is **not** counted in `workers` (all of them dead = `refused: not started`).
+When the order does **not** start, `refused` says why - `no companion in range`, `the site is busy` (this player
+already has a site), `missing station: <x>`, `missing piece: <x>` or `not started` - and `started` is `workers > 0`.
+A nameless call with nobody in the world is that normal answer (`started: false, workers: 0`), not an error; a `name`
+nobody has is still an error (`isError`). The old `leveling` field left the answer: the group does not distinguish
+who levels the ground.
 
 ### `player_give`
 

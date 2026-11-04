@@ -227,6 +227,30 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   **Medido:** a bancada colocada pelo companheiro levou o `pokes` 0 → 1 e o `rebuilds` +9 (2 no `build.delete`),
   `maxCollectMs` 2,65 ms; a `CommHomeBasicBP` foi de **720/983 para 1045/1078** e parou por falta de 77 madeiras
   (coleta 300 s sem entregar, mochila em 302/300).
+- **P1 do multi-build (grupo de obra) — implementado, EM TESTE (03/11/2026, branch `fix/pisos-nivel-2`):** a ordem de
+  **blueprint** sem nome agora vai para **todos** os companheiros que podem receber ordem (`MHR_Owner.IsMine` +
+  `MHR_InScope`, não *combat-only*, casa a ≤ `[Building] MaxDistanceFromHome` do canteiro; morto não entra); **com
+  nome**, só ele — e o caminho de **1** é o de antes (`StartBlueprintGroup` com 1 chama `StartBlueprint`).
+  **Template e peça única continuam com um** (dois workers fariam a mesma peça duas vezes). O canteiro
+  (`Jobs/MHR_BuildGroup.cs`, novo) tem **um plano** (o exato do líder, entregue aos seguidores por `storedPlan`),
+  **claims por índice** (20 s, renovados a cada frame dirigido; peça de outro é **pulada** sem contar como feita),
+  **fila de retry do canteiro** (dedup por índice, teto `MaxPasses` = 3, 2 s entre tentativas, `WaitRetry` com teto
+  de 60 s) e o portão `BuildPhase`. O **líder** faz `Level`/`Clear` e abre a construção; os seguidores ficam em
+  `WaitGroup` (sem relógio de timeout e sem guarda de peso) até lá; se o líder sai (coleta/morte/"para, Fulano") o
+  próximo é promovido (`IsLeader` pergunta ao **grupo**). O **nivelamento devolve os N** (`MHR_Level.SetThenWorkers`
+  por **nome** + `NoteLeveled`, que carimba o guard de 90 s). Com **≥2** o plano **não** é reordenado (`PlanLocked`:
+  `PreferNearFloor`/`PullSupports`/`PullFloorsAbove` desligados) e o `InsertBenchStep` **anexa** a bancada ao fim (o
+  retry cobre); com 1, tudo como antes. **Uma obra por jogador** (`SiteBusy`; a segunda ordem é recusada).
+  **Anti-duplicata:** claim revalidado antes de pagar + `VerifyAt` (0,35 m e yaw ±25°) para "já está de pé";
+  `MarkDone` conta **1× por índice**. DevBridge `companions.build` de blueprint: `workers` e `refused` (`no companion
+  in range`/`the site is busy`/`missing station: …`/`missing piece: …`/`not started`), `name` vazio = todos.
+  **Limitações declaradas:** **sem reserva de material por peça** (cada worker conta mochila+baús por conta própria;
+  pior caso: N× o resto do plano, com até **3 coletando ao mesmo tempo** — o `Stock` é a metade aberta do P1); grupo
+  só de **blueprint**; **em memória** (não persiste); "para" = todos, "para, <nome>" = um, um modo num companheiro
+  tira só ele; nivelar/limpar com **um** (P5). **Nenhuma** chave de tradução nova (reusa `hc_ai_no_companion` e
+  `hc_ai_build_failed`) — harness **471** inalterado, MCP **101** (as **12 asserções novas** de 03/11/2026 cobrem o
+  contrato do grupo: `workers`, `refused` e `name` vazio = todos), config **358/25**. **Teste em jogo pendente**
+  (2 companheiros num 6x6; receita em `docs/plan-multi-build.md` §7).
 - **Pendências conhecidas (abertas):** (1) navegação no andar em obra; (2) a voz não passa pelo mixer do jogo (só
   `[AI] TtsVolume`); (3) sync com o upstream `main` (1.5.8) em dia — conferir antes de cada release; (4) o nome do
   companheiro no centro do radial (cosmético); (5) posse do ZDO no spawn em multiplayer dedicado; (6) a dívida de
@@ -259,8 +283,9 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   posse, `m_name` é token, `m_spaceRequirement` não é "espaço livre"). As fases 0–9 com critério de aceite
   estão lá, e a §3 é a pesquisa do ecossistema (BuildOrders MIT com API + helpers `Count`/`Next`/`Place`/
   `Blockers`, Quad's Companion que já constrói planos, PlanBuild WTFPL só como fonte de arquivo).
-- `docs/plan-multi-build.md` — **o plano do build com vários companheiros** (um grupo, um plano, claims por
-  companheiro; a lista de nomes "Maria e João"; o que fica para depois). Desenho, não implementado.
+- `docs/plan-multi-build.md` — **o plano do multi-build**: o **P1 MVP (grupo de obra) implementado e sem teste em
+  jogo** (§3: plano/claims/retry/líder/`PlanLocked`/limitações), a **P2 medida em jogo**, o **P4** (nomes múltiplos)
+  desenhado e o que falta (P3/P5 + a reserva de material).
 - `docs/audit-vs-offline-companions.md` — auditoria do nosso mod anterior vs o upstream.
 - `docs/backlog-1.9.5.md` — **o que ficou sem correção** depois da revisão de 10 especialistas (detalhado: o que
   está quebrado, o que pode quebrar, por que corrigir e o esforço), com o que já foi feito na 1.9.4 no fim.
@@ -389,14 +414,16 @@ comandos de console e spawna coisas, então não é feature de jogador.
   stamina é reposta **a cada 0,25 s** pelo `Pump` (não há `SetStamina` na 1.0 nem comando de console - o campo privado
   é escrito por reflexão, escolhido **pelo valor** igual ao `GetStamina()`, com uma linha de log dizendo qual).
   `setup: false` no `world_enter` desliga.
-- **Testar:** `python tools/mcp-devbridge/test_mcp_devbridge.py` (mock, sem jogo) — 89 checks.
+- **Testar:** `python tools/mcp-devbridge/test_mcp_devbridge.py` (mock, sem jogo) — **101 checks** (as **12** novas de
+  03/11/2026 cobrem o contrato do `companions.build` do grupo: `workers`, `refused` só quando recusa e `name` vazio =
+  todos).
 - **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check` — **471 asserções** das redes por
   palavras (`RadialIntent`, `PickupIntent`, `GatherIntent`, `InteractionIntent`, `LlmIntent`, `OrderItems`,
   `CompanionNameMatch`) com os `.cs` reais linkados, mais o cross-check das cópias do `Stubs.cs` contra a
   `Companions.dll` (seção (h) — impede drift). Build 0/0 e exit 0 são o gate.
 - **Gate de release:** `powershell -ExecutionPolicy Bypass -File tools\release-check.ps1 -Version <versão>` — roda o
   build, a versão (`PluginVersion` × nome do zip), as 3 traduções, o `locale-fallback-check.ps1` (agora com asserts),
-  o `gen_config_doc.py --check`, o teste do MCP (89) e as 471 asserções; **PASS/FAIL por item e exit 1**. É o que tem
+  o `gen_config_doc.py --check`, o teste do MCP (101) e as 471 asserções; **PASS/FAIL por item e exit 1**. É o que tem
   de passar antes de tag/zip (`-SkipGame`/`-SkipIntents` para rodar parte).
 - **Docs:** `docs/mcp-devbridge.md` (arquitetura, protocolo, as **60** ferramentas, a receita de **jogar pelo agente**
   e a de **comandos de console**, e as evidências dos testes da 1.9.4) e `tools/mcp-devbridge/README.md`

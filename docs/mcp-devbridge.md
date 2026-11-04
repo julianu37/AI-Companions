@@ -98,7 +98,7 @@ Uma conexão por chamada; **um JSON por linha**, nas duas direções.
 | `nav.tiles` | `x?`, `y?`, `z?`, `radius?` | `center{}`, `radius`, `count`, `tiles[]` (`id`, `center{}`, `poke`, `build`, `hasData`, `instanceValid`; só o agente 40, filtro em XZ) |
 | `nav.probe` | `x?`, `y?`, `z?`, `range?` | `found`, `distance`, `point{}` (o `NavMesh.SamplePosition` com o agente/máscara do companheiro) |
 | `nav.stats` | — | `ready`, `broken`, `pokes`, `rebuilds`, `maxCollectMs`, `dirty`, `agentTypeId`, `areaMask` |
-| `companions.build` | `prefab?`, `plan?`, `blueprint?`, `name?`, `x/y/z?` | `started`, `blueprint`, `pieces`, `missing`, `missingStation`, `name` |
+| `companions.build` | `prefab?`, `plan?`, `blueprint?`, `name?`, `x/y/z?` | `started`, `blueprint`, `pieces`, `workers`, `refused?`, `missing`, `missingStation`, `name` |
 | `companions.sethome` | `name?` | `name`, `x`, `y`, `z` |
 | `screenshot` | `path?` | `path` |
 | `render.view` | `x`, `z`, `y?`, `yaw?`, `pitch?`, `dist?`, `size?` | `path`, `size`, `bytes`, `target{}`, `camera{}` |
@@ -124,10 +124,22 @@ Uma conexão por chamada; **um JSON por linha**, nas duas direções.
 `log_watch` não é comando do bridge: o servidor lê o `LogOutput.log` por cursor (devolve a **primeira** linha casada e
 o cursor logo depois dela).
 
+`companions.build` com `blueprint` (P1, 03/11/2026): **`name` vazio = todos** os companheiros do jogador entram no
+mesmo canteiro (só os **do jogador** - `MHR_Owner.IsMine`), um plano só, peças distintas; com `name`, só aquele (o
+caminho de 1 companheiro, idêntico ao de antes). `workers` é em quantos a ordem entrou e, quando não entrou ninguém,
+`refused` diz por quê: `no companion in range`, `the site is busy` (já existe uma obra deste jogador - diga `para`
+antes), `missing station: <nome>`, `missing piece: <prefab>` ou `not started` - **`refused` só aparece quando a ordem
+não entrou**; com `started: true` ele não vai no reply. `started: true` com `workers: N` também
+quando a ordem entrega o canteiro ao **nivelamento** primeiro (o `MHR_Level` leva os N e devolve todos depois): o
+reply **não** tem campo de nivelamento. `plan`/`prefab` continuam sendo ordem de **um** (`workers` = 1). O teste mock
+do adaptador (**101 PASS** em 03/11/2026, **12 asserções novas para o contrato do grupo**) cobre exatamente isto:
+`workers`, `refused` só quando recusa, sem `leveling` e `name` vazio = todos.
+
 `companions.order` **cancela `MHR_Build` e `MHR_Level`** em qualquer ação aceita (ordem de um tiro, como no
 chat/roda) e aceita: `follow`, `wood`, `stone`, `ore`, `forage`, `smelt`, `hunt`, `farm`, `fish`, `repair`,
 `restock`, `cook`, `stay`, `stance_balanced`, `stance_passive`, `stance_ranged`, `stance_melee`, `autopickup_on`,
-`autopickup_off`.
+`autopickup_off`. Com o grupo de obra (P1), ele derruba a ordem daquele **companheiro** (o `name`, ou o primeiro): o
+canteiro continua com os outros. Para derrubar a obra inteira, use `para` no jogo/chat, não o bridge.
 
 `companions.zdo` devolve as chaves `HC_*`: `Name`, `Owner`, `CompanionId`, `ActionMode`, `CombatStance`, `AutoPickup`,
 `Wander`, `Follow`, `StayHome`, `HomeRadius`, `OrderCap`, `OrderCapMode`, `OrderCapItem`, `TombstoneId`, `Stamina`,

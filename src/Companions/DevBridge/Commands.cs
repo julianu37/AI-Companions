@@ -1106,7 +1106,12 @@ internal static class Commands
 		}
 		if (blueprint != null)
 		{
-			CompanionSetup who = null;
+			// P1 (multi-build, frente B): a blueprint is started as ONE group. A named companion is the group on its
+			// own; with no name every companion of the player joins (the "everybody" of a chat order with no name),
+			// and the single call hands out the pieces (MHR_Build.StartBlueprintGroup) - never one start per companion.
+			// A4 of the review: only OUR companions - a nameless build must not pull another player's companion into
+			// the site (the same hole CompanionOrders.BlueprintWorkers fixed for the chat order).
+			List<CompanionSetup> workers = new List<CompanionSetup>();
 			string whoName = (Json.Str(args, "name") ?? string.Empty).Trim();
 			foreach (CompanionSetup setup in CompanionSetup.AllCompanions)
 			{
@@ -1116,20 +1121,24 @@ internal static class Commands
 				}
 				if (whoName.Length == 0)
 				{
-					who = who ?? setup;
+					if (MHR_Owner.IsMine(setup))
+					{
+						workers.Add(setup);
+					}
 					continue;
 				}
 				ZNetView nv = setup.GetComponent<ZNetView>();
 				ZDO zdo = nv != null ? nv.GetZDO() : null;
 				if (zdo != null && string.Equals(zdo.GetString(CompanionSetup.NameHash, string.Empty), whoName, StringComparison.OrdinalIgnoreCase))
 				{
-					who = setup;
+					workers.Add(setup);
 					break;
 				}
 			}
-			if (who == null)
+			if (workers.Count == 0 && whoName.Length > 0)
 			{
-				return Fail(whoName.Length > 0 ? "no companion named '" + whoName + "'" : "no companion in the world");
+				// a bad argument (a name nobody has), not an empty group: still an error, as before
+				return Fail("no companion named '" + whoName + "'");
 			}
 			Vector3 spot;
 			if (args.ContainsKey("x") || args.ContainsKey("z"))
@@ -1140,21 +1149,47 @@ internal static class Commands
 			{
 				spot = player.transform.position + player.transform.forward * 4f;
 			}
-			string missing;
-			string missingStation;
-			MHR_Build.BlueprintStart start = MHR_Build.StartBlueprint(who, blueprint, spot, out missing, out missingStation);
-			bool built = start == MHR_Build.BlueprintStart.Started;
-			return Ok(new Dictionary<string, object>
+			// WHY nothing started, when nothing started: the reasons come in the order MHR_Build.StartBlueprintGroup
+			// refuses (empty list, a site of this player already running, then the leader's own out params), so a test
+			// reads the cause instead of a bare "started: false".
+			string missing = null;
+			string missingStation = null;
+			string refused = null;
+			int joined = 0;
+			if (workers.Count == 0)
+			{
+				refused = "no companion in range";
+			}
+			else if (MHR_BuildGroup.SiteBusy(MHR_Owner.CreatorId(workers[0])))
+			{
+				refused = "the site is busy";
+			}
+			else
+			{
+				joined = MHR_Build.StartBlueprintGroup(workers, blueprint, spot, out missing, out missingStation);
+				if (joined == 0)
+				{
+					refused = !string.IsNullOrEmpty(missingStation)
+						? "missing station: " + missingStation
+						: (!string.IsNullOrEmpty(missing) ? "missing piece: " + missing : "not started");
+				}
+			}
+			Dictionary<string, object> reply = new Dictionary<string, object>
 			{
 				{ "blueprint", blueprint.Label },
 				{ "file", System.IO.Path.GetFileName(blueprint.File) },
 				{ "pieces", blueprint.Pieces.Count },
-				{ "started", built },
-				{ "leveling", start == MHR_Build.BlueprintStart.Leveling },
+				{ "started", joined > 0 },
+				{ "workers", joined },
 				{ "missing", missing },
 				{ "missingStation", missingStation },
-				{ "name", who.name }
-			});
+				{ "name", workers.Count > 0 ? workers[0].GetComponent<ZNetView>()?.GetZDO()?.GetString(CompanionSetup.NameHash, workers[0].name) : null }
+			};
+			if (refused != null)
+			{
+				reply["refused"] = refused;
+			}
+			return Ok(reply);
 		}
 		CompanionSetup target = null;
 		string name = (Json.Str(args, "name") ?? string.Empty).Trim();
@@ -1215,6 +1250,8 @@ internal static class Commands
 		return Ok(new Dictionary<string, object>
 		{
 			{ "started", started },
+			// a template and a single piece are still a one-companion order (two workers would build the same piece twice)
+			{ "workers", 1 },
 			{ "prefab", template != null ? template.Name : prefab },
 			{ "plan", template != null ? template.Name : null },
 			{ "pieces", template != null ? template.Steps.Length : 1 },
