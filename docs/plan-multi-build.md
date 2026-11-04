@@ -34,15 +34,25 @@ inseridas** (antes 4–7) e **as 2 de pedra de pé SEM talhador no mundo**, com 
 **única** fora é a **cumeeira** (`wood_roof_45` em (-152,6, 48,8, -423,6), `no progress` de 22,8 → 23,5 m) — **é
 navegação, não apoio nem alcance**, e a `TempScaffold` está **vetada pelo jogador**. Detalhe: `docs/re/building-notes.md`
 §17.18, com a **receita de teste × comportamento** no §17.19.
+**Estado do Run 14 (11/11/2026, §7 e `docs/re/building-notes.md` §17.20):** o run do **fim da obra** (relato *"eles tão
+muito travados aqui no final da build"*) → **984 colocadas + 1 pulada = 985**, com a **única** fora por
+**`blocked_by_player`** (`wood_roof_45` em **(-161,9, 46,8, -426,2)** — pose e motivo diferentes da cumeeira do Run 13).
+Ele mediu **dois** defeitos e o lote `1ee93b1` consertou os dois: o **`StepAside` caía na peça seguinte** (a saída da
+peça **909** ia para a **910**, e o pedido se repetia peça após peça) — agora o destino vem do `AI/BuildAsideSpot.cs`
+(puro, **fora das peças pendentes do plano**, seção **(y)**) e a **mesma dupla** trocando de peça em < **20 s** não é
+pedida de novo —, e o **walk spot de uma peça de telhado saía 7 m abaixo** dela (41,9 para uma peça a 48,8) — agora
+**anéis de 1,5/3 m** (17 raios) com `WalkHits = 3`. **Nenhum dos dois foi medido em jogo ainda** (é o Run 15).
 
-Números deste ciclo (11/11/2026): build **0/0**, harness `tools/ai-intents-check` **656 asserções** (471 + **28** da
+Números deste ciclo (11/11/2026): build **0/0**, harness `tools/ai-intents-check` **684 asserções** (471 + **28** da
 seção **(p)**, `AI/BuildFailure.cs` — inclui as constantes da barreira —, + **26** da **(q)**, `AI/BuildPieceKind.cs`,
 + **66** da **(r)**, `AI/BuildSupportBelow.cs` — `CanSupport`, `PickPost`, `UsefulSurface` e `HoldsPlacedPiece` —,
 + **18** da **(s)**, `AI/BuildBody.cs` — `Blocks`, `HalfY` e o par do **falso positivo** do Run 10 —, + **27** da **(t)** — a **barreira
 de andar** —, + **6** da
 **(u)** — `BuildSupportBelow.FallbackPostAllowed`, `SupportGrace` = **2** —, + **5** da **(v)** — `BuildStationCover.Required`,
-`AI/BuildStationCover.cs` — e + **9** da **(w)** — `BuildMaterials.Add`/`Total`, `AI/BuildMaterials.cs`;
-**medido: 656 PASS** em `dotnet run --project tools/ai-intents-check -c Release`), teste do MCP **122** (as **12** asserções de
+`AI/BuildStationCover.cs` —, + **9** da **(w)** — `BuildMaterials.Add`/`Total`, `AI/BuildMaterials.cs` —, + **10** da
+**(x)** — `BuildWalkSpot.Choose`, `AI/BuildWalkSpot.cs`, o walk spot do Run 13 — e + **18** da **(y)** —
+`BuildAsideSpot.Plan`, `AI/BuildAsideSpot.cs`, para onde o companheiro sai da frente no Run 14;
+**medido: 684 PASS** em `dotnet run --project tools/ai-intents-check -c Release`), teste do MCP **122** (as **12** asserções de
 03/11 cobrem o contrato
 do `companions.build` do grupo, as **6** de 11/11 o `stop` do `companions.order` e as de 11/11 do
 `blueprints_list`/`blueprints_inspect` a biblioteca e o relatório sem ordem), config **365 opções / 25 seções**
@@ -51,15 +61,18 @@ do `companions.build` do grupo, as **6** de 11/11 o `stop` do `companions.order`
 ES/FR/IT **0 lacunas**, dívida do `gen_translations.py --check` **49** por idioma e **nenhuma chave de tradução funcional
 nova** (as recusas reusam `hc_ai_no_companion` e `hc_ai_build_failed`; os rótulos `hc_cfg_building_bodyretry`,
 `hc_cfg_building_stepaside`, `hc_cfg_building_blueprintstations` e `hc_cfg_controls_buildpanelkey` são os das chaves
-novas). **Os Runs 11 e 13 não acrescentam número de build/harness/config:** eles rodam na árvore já medida acima
-(**harness 656**, **config 365/25**) e o que trazem é **medição em jogo** (§17.17 e §17.18). As seções **(v)** e **(w)**
-vieram do lote de 11/11, com os links `AI/BuildStationCover.cs`/`AI/BuildMaterials.cs` no `.csproj`, e os **2 rótulos
-novos entraram nos 4 JSONs** (`hc_cfg_building_blueprintstations` em `Translations/*.json:2872` e
+novas). **Os Runs 11, 13 e 14 não acrescentam número de build/config:** eles rodam na árvore já medida acima
+(**config 365/25**) e o que trazem é **medição em jogo** (§17.17, §17.18 e §17.20). O harness só mudou nos lotes com
+seção nova de tabela pura — **(v)**/**(w)** (656), **(x)** (666, Run 13) e **(y)** (684, Run 14) —, sempre com o link do
+`.cs` no `.csproj` (`BuildStationCover.cs`, `BuildMaterials.cs`, `BuildWalkSpot.cs`, `BuildAsideSpot.cs`); os **2
+rótulos novos entraram nos 4 JSONs** (`hc_cfg_building_blueprintstations` em `Translations/*.json:2872` e
 `hc_cfg_controls_buildpanelkey` em `:1416` — ver `docs/re/building-notes.md` §17.18): a dívida do gerador foi de
 **47 para 49** porque o mapa dele indexa por **texto PT** e não tem essas duas strings.
 **O que falta medir** está no §7 (o **`FallbackPostAllowed`**, o vão do deck, run com material pago, o teste pequeno de
-2 companheiros num 6x6 e a **rota até a cumeeira**) — a **barreira de andar** foi medida no Run 10 (§7 e
-`docs/re/building-notes.md` §17.16) e a **sonda por cápsula** + o **`StepAside`** no Run 11 (§7 e §17.17).
+2 companheiros num 6x6 e a **rota até a cumeeira** — que ganhou o conserto do walk spot no lote `1ee93b1` e espera o
+**Run 15**) — a **barreira de andar** foi medida no Run 10 (§7 e `docs/re/building-notes.md` §17.16), a **sonda por
+cápsula** + o **`StepAside`** no Run 11 (§7 e §17.17) e o **ping-pong do `StepAside`** + o walk spot 7 m abaixo no
+Run 14 (§7 e §17.20).
 
 ## 1. O que existe hoje (medido no código)
 
@@ -510,6 +523,28 @@ está lá em §17.6, §17.9 e §17.10 (**os Runs 6, 7, 8, 9 e 10, de 11/11/2026,
   `LevelGround = false` no run); e `blueprints.list`/`inspect` entraram no bridge + MCP (**122 checks**, **62
   ferramentas**). Detalhe (tabela Run 11 × Run 13 e o que não foi contado): `docs/re/building-notes.md` §17.18; **o que
   é de teste e o que é produto**: §17.19.
+- **Run 14 — 11/11/2026, o fim da obra e os dois consertos de rota/passo (lote `1ee93b1`):** **984 colocadas + 1 pulada =
+  985**, plano **985** (o mesmo do Run 13), e a **única** fora é um `wood_roof_45` em **(-161,9, 46,8, -426,2)** por
+  **`blocked_by_player`** — **não** é a cumeeira (48,8, `no progress`) do Run 13: outra pose, outro motivo. O run mediu
+  **dois mecanismos**:
+  **(A) o `StepAside` caía na peça seguinte** — o log: `"Companheiro 6" está na peça 909 - pedindo para sair da frente` →
+  `saindo da frente (peça em -160,7, -424,6) para (-162,3, -426,2)` (o destino é a **910**) → o pedido voltava na 910. A
+  regra era "o mais perto dos 8 pontos a 2,2 m", que **não conhece o plano** — na última fileira a peça seguinte está a
+  2 m ao lado. Conserto: `AI/BuildAsideSpot.cs` (**puro**, seção **(y)**, **18** casos) ordena o anel por **rank** (atrás
+  do colocador → lados → **frente nunca**), com o **filtro de 1,5 m em XZ** contra as peças **pendentes** do plano
+  (±2 m de altura) e **nenhum candidato = nenhum pedido** (a peça vai para a fila); no grupo, a mesma dupla **+ mesma
+  peça** em < 4 s é deduplicada e a mesma dupla em **peça diferente** em < **20 s** responde `Repeating` (não pede,
+  `NoteBody` + `QueueRetry`, a barreira de andar continua). `MHR_Build.AsideSpot` (`MHR_Build.cs:6389`),
+  `MHR_BuildGroup.RequestStepAside` (`Jobs/MHR_BuildGroup.cs:791`).
+  **(B) o walk spot de uma peça de telhado saía 7 m abaixo** — `no progress ... (23,4 m away, walk spot (-161,1, 41,9,
+  -422,4))` para uma peça a 48,8. Os raios eram só na **vertical** da peça (0,8/1,6/2,4 m) e cada coluna pegava só o
+  **primeiro** hit: no topo da empena não há piso embaixo e a fileira de onde se coloca está **ao lado**; e uma coluna
+  com o **corpo** de um companheiro no 1º hit era perdida inteira. Conserto: **anéis de 1,5 m e 3 m** (17 raios) e
+  **`WalkHits = 3`** (a coluna atravessa até 3 hits que não são superfície), com dedup por collider+altura e o log
+  `walk spot (...) - a peça está X m acima (N superfície(s) em M raio(s))`. O **`PlaceReach` não mudou**; `17
+  raios/peça` no caso comum, **uma vez por índice** (e quando a pose muda), nunca por frame.
+  **Estado: consertado e no gate; a validação em jogo é o Run 15** (a cumeeira do Run 13 e a contagem das linhas do
+  step-aside). Detalhe: `docs/re/building-notes.md` §17.20.
 - **A sonda de corpo e o `StepAside` — MEDIDOS no Run 11:** o "bloqueador companheiro" do Run 10 era **FALSO POSITIVO** da
   sonda; o caso medido (`wood_beam` em (-168,1, 41,8, -421,1) × **Companheiro 6** em (-167,1, 39,9, -421,5) —
   **1,08 m** em XZ e **1,9 m** abaixo) **não** era corpo atravessando peça: `BuildProbe` calculava
@@ -580,6 +615,9 @@ está lá em §17.6, §17.9 e §17.10 (**os Runs 6, 7, 8, 9 e 10, de 11/11/2026,
    jogador) é a **segunda linha** — as duas rodaram no **Run 11**, o primeiro com **`0 puladas`** (`987 peças, 0 puladas`,
    98 terminais + 145 curtas, barreira disparada **56×**). **Aberto:** a sonda **não testa criaturas** e a **contagem** das
    linhas do step-aside **não** foi feita (o que se mediu é o resultado com a chave ligada, não quantas vezes ele andou).
+   **O Run 14 (§17.20) mediu o defeito do destino** — a saída de uma peça caía na seguinte — e o lote `1ee93b1` passou a
+   escolher o destino entre os pontos **fora das peças pendentes**, com o corte de **20 s** por dupla; a **contagem**
+   segue em aberto.
    **Também sem run:** o `FallbackPostAllowed` (o poste de emergência assume o apoio **do plano** quando ele foi desistido
    ou quando ninguém o reivindica e a peça já esperou `SupportGrace` = 2, ~20 s) — `docs/re/building-notes.md` §17.16.
 7. **As 2 `stone_floor_2x2` do arquivo — MEDIDAS no Run 13:** deixaram de ser "teto do blueprint". O que as mantinha
@@ -588,12 +626,19 @@ está lá em §17.6, §17.9 e §17.10 (**os Runs 6, 7, 8, 9 e 10, de 11/11/2026,
    **2 subiram SEM talhador no mundo** (§17.18 — `done: stone_floor_2x2 at (-159,7, 39,3, -424,6) yaw 228,9 supported`,
    depois de 2 recusas por corpo). **Continua sem teste:** aprender a receita **do zero** num run (exige **pedra no
    jogador** — o catálogo do mod, `AI/BuildCatalog.cs:40-72`, não constrói talhador).
-8. **A rota até a cumeeira (aberto, medido no Run 13):** `wood_roof_45` em **(-152,6, 48,8, -423,6)** — ≈10 m acima do
-   chão do canteiro — ficou **fora** com `no progress` (12 s, **22,8 → 23,5 m**, `MHR_Build.cs:5580`; `desistindo …
-   1 pulada(s)`, `:779-780`). É **navegação**, não apoio (a recusa não é `no_support`) nem alcance (`PlaceReach` 15 no
-   teste, 10 no padrão, contra 22,8 m de distância). A `[Building] TempScaffold` existe para esse sintoma (§15.2q) e está
-   **vetada pelo jogador** — o caminho tem de ser o **mover**. É a mesma frente do item 1 (`building-notes` §17.13/§17.15)
-   com uma pose exata para reproduzir.
+8. **A rota até a cumeeira — conserto no lote `1ee93b1`, validação pendente (Run 15):** no Run 13 o `wood_roof_45` em
+   **(-152,6, 48,8, -423,6)** — ≈10 m acima do chão do canteiro — ficou **fora** com `no progress` (12 s, **22,8 → 23,5
+   m**, `MHR_Build.cs:5580`; `desistindo … 1 pulada(s)`, `:779-780`). É **navegação**, não apoio (a recusa não é
+   `no_support`) nem alcance (`PlaceReach` 15 no teste, 10 no padrão, contra 22,8 m de distância). A `[Building]
+   TempScaffold` existe para esse sintoma (§15.2q) e está **vetada pelo jogador** — o caminho tem de ser o **mover**.
+   **O Run 14 achou o que o walk spot estava perdendo:** para uma peça de telhado ele saía **7 m abaixo** dela
+   (`no progress ... (23,4 m away, walk spot (-161,1, 41,9, -422,4))` com a peça a **48,8**), porque os raios eram só na
+   vertical da peça (0,8/1,6/2,4 m, **primeiro** hit) e no topo da empena a fileira de onde se coloca está **ao lado**,
+   não embaixo. **O que mudou:** anéis de **1,5 m e 3 m** (**17 raios**) e **`WalkHits = 3`** — a coluna atravessa até 3
+   hits que não são superfície (corpo em cima do ponto, peça acima, mobília) —, com dedup por collider+altura e o
+   `M raio(s)` no log (`MHR_Build.WalkSpot`, `MHR_Build.cs:5797`; seção **(x)** do harness, `BuildWalkSpot.Choose`).
+   O **`PlaceReach` não mudou**. **Aberto:** **medir** — a peça é a **mesma pose** do Run 13, então o Run 15 responde
+   com uma linha de log (a contagem de superfícies/raios vem junto). Detalhe: `docs/re/building-notes.md` §17.20.
 9. **Um companheiro acima do peso derruba a obra (aberto):** `MHR_Build.cs:3120-3128` encerra a ordem **daquele** worker
    com `hc_ai_build_too_heavy` e o `Finish` **tira ele do grupo** (`:7006-7013`) — com todos pesados o canteiro morre (no
    ciclo de teste eram **25–32 stacks** cada e o contorno foi a ferramenta de teste `companions.inventory action=clear`,
@@ -604,9 +649,9 @@ está lá em §17.6, §17.9 e §17.10 (**os Runs 6, 7, 8, 9 e 10, de 11/11/2026,
 "para, Maria" → só a Maria; "para" → todos; "Maria e João, ataquem o greydwarf" → as duas; "Maria, equipa a
 picareta" → só a Maria; "Maria e o cachorro, ..." → Maria + aviso do desconhecido, sem inventar.
 
-**Gate:** harness **656** (471 + **28** da **(p)** + 26 da **(q)** + **66** da **(r)** + 18 da **(s)** + **27** da **(t)**
-+ **6** da **(u)** + **5** da **(v)** + **9** da **(w)** — medido em 11/11/2026), MCP **122**, config **365/25** e build
-**0/0**.
+**Gate:** harness **684** (471 + **28** da **(p)** + 26 da **(q)** + **66** da **(r)** + 18 da **(s)** + **27** da **(t)**
++ **6** da **(u)** + **5** da **(v)** + **9** da **(w)** + **10** da **(x)** + **18** da **(y)** — medido em 11/11/2026),
+MCP **122**, config **365/25** e build **0/0**.
 
 ## 8. Perguntas para o jogador — respostas registradas (03/11/2026)
 

@@ -2533,7 +2533,8 @@ seguem exigindo a estação (`AI/BuildStationCover.cs:35-42` — `isBlueprint ==
 linha), a contagem das linhas do `StepAside` (§17.16/§17.17 seguem sem essa contagem), o `N` da linha
 "peça(s) que precisariam" e quantos dos **30** postes vieram da `FallbackPostAllowed` (§17.16 continua **sem run**
 para ela). O resto da árvore é o **medido** fora do run: **656 PASS** no harness (`dotnet run --project
-tools/ai-intents-check -c Release`, depois das seções **(v)** e **(w)** — o Run 11 rodou na árvore de **642**, §17.17),
+tools/ai-intents-check -c Release`, depois das seções **(v)** e **(w)** — o Run 11 rodou na árvore de **642**, §17.17;
+a seção **(x)**, do walk spot deste run, levou o harness a **666** e a **(y)**, do Run 14, a **684** — §17.20),
 **MCP 122**, **config 365/25** (`python tools/gen_config_doc.py`; o `--check` continua sendo o gate) e **0 ausentes no
 PT / 0 lacunas em ES-FR-IT** no `audit_translations.py`.
 
@@ -2594,5 +2595,138 @@ lugar é da receita**; qualquer coisa que **só funcione assim** é bug de desen
   **depender** disso — âncora que só fecha num ponto, plano que só sobe com o terreno já plano, peça que só entra com a
   mochila vazia —, o run bonito esconde um bug para o jogador. É por isso que esta seção existe: **número de run não
   é promessa de comportamento**.
+
+### 17.20 O Run 14 (11/11/2026) — o ping-pong do `StepAside` e o walk spot 7 m abaixo
+
+> A numeração é a do **contador de runs do jogador**; a seção anterior é o **Run 13** (§17.18). Este run nasceu do
+> relato do jogador no fim da obra — *"eles tão muito travados aqui no final da build"* (`AI/BuildAsideSpot.cs:7`) — e
+> mediu **dois** defeitos de uma vez: o passo do `StepAside` caindo **na peça seguinte** e o **walk spot** de uma peça
+> alta saindo **7 m abaixo** dela. O lote `1ee93b1` (11/11/2026) consertou os dois.
+
+**Resultado do run:**
+
+- **984 colocadas + 1 pulada = 985** — o total do plano é **985**, como no Run 13 (que era **983 do arquivo + as 2
+  `stone_floor_2x2`**).
+- A **única** peça fora do plano é um `wood_roof_45` em **(-161,9, 46,8, -426,2)** por **`blocked_by_player`** — é o
+  corpo na peça, **não** o `no progress` da cumeeira do Run 13: pose diferente (46,8 × 48,8) e motivo diferente.
+- O que este run **não** informa nesta seção (não lido para isso): postes de emergência, peças no canteiro, mortes e
+  `falls`. O que ele mede é o **mecanismo** dos dois defeitos (abaixo), não o placar.
+
+**Run 13 × Run 14 — o placar é o mesmo e não é o ponto:**
+
+| | Run 13 (§17.18) | **Run 14** |
+|---|---|---|
+| plano | 985 (983 + 2 de pedra) | **985** (o mesmo) |
+| colocadas | 984 | **984** |
+| **puladas** | **1** | **1** |
+| motivo da pulada | `no progress` (cumeeira em **48,8**) | **`blocked_by_player`** (peça em **46,8**) |
+| defeito que o run expôs | **`no progress`** da peça alta (a rota; origem do `BuildWalkSpot`) | walk spot **7 m abaixo** + **ping-pong do `StepAside`** |
+
+#### (A) O `StepAside` caía na peça seguinte — o ping-pong **medido**
+
+O **defeito** que o log mostrou (as linhas do `MHR_Build.cs:6296`/`:6375` e a peça seguinte):
+
+```
+"Companheiro 6" está na peça 909 - pedindo para sair da frente
+saindo da frente (peça em -160,7, -424,6) para (-162,3, -426,2)      → o destino é a peça 910
+"Companheiro 6" está na peça 910 - pedindo para sair da frente
+```
+
+- **Como ler:** o `StepAside` escolhia o destino como **o mais perto dos 8 pontos a 2,2 m** ao redor da peça — uma
+  regra que **não conhece o plano**. Na **última fileira do telhado** as peças do plano ficam a **~2 m** umas das outras
+  (as fileiras de telhado/empena são de 2 m), então um passo de 2,2 m **cai na seguinte**: a saída da peça **909** ia
+  **em cima da 910**, a da **910** caía na **911**, e dois companheiros passaram o fim da obra **se trocando em volta da
+  cumeeira** enquanto o plano **não andava**.
+- **A conta fecha com as duas poses medidas:** o destino (-162,3, -426,2) está a **0,4 m** em XZ da pose da peça que
+  foi **pulada** (-161,9, -426,2) — o companheiro saía da frente de uma peça **para dentro** da seguinte, que é o que
+  o filtro novo proíbe (abaixo). É aritmética sobre as duas poses do log, não uma medida nova.
+
+**O conserto — `AI/BuildAsideSpot.cs` (novo, puro) + o anti-repetição no grupo:**
+
+- **A regra pura** (`AI/BuildAsideSpot.cs`, **nenhum** `Physics`/`Time` — vetores e floats, como o `BuildWalkSpot`),
+  com **18** casos na seção **(y)** do harness:
+  - anel de **8** direções (`Ring`, `:46`) a **2,2 m** (`MHR_Build.AsideDistance`, `MHR_Build.cs:6322`);
+  - **rank** (`Rank`, `:177`): **0** = atrás do colocador (`dot ≥ 0,5` com o vetor "para trás"), **1** = os dois
+    **lados** (`dot > -0,5`), **2** = a **frente — que nunca é usada** (é onde o plano tem as peças seguintes);
+  - dentro do mesmo rank (`Better`, `:134`): a direção mais **"atrás"** primeiro, depois o **passo mais curto**, e as
+    coordenadas como desempate (o resultado não depende da ordem do anel — `TieSlack`/`CoordinateSlack`, `:49`/`:54`);
+  - **filtro** (`Blocked`, `:193`): o destino a menos de **1,5 m em XZ** (`Clearance`, `:39`) de uma peça **pendente**
+    do plano **dentro de ±2 m de altura** (`Height`, `:43`) **sai da lista** — piso do andar de cima não bloqueia;
+  - **nenhum candidato = nenhum pedido** (`Plan` responde **0** — o laço para em `:117-120` e o `return count` está
+    em `:126`).
+- **O lado Unity** (`MHR_Build.AsideSpot`, `MHR_Build.cs:6389`): as peças **pendentes** (não feitas e não desistidas) num
+  raio de **2,2 + 1,5 = 3,7 m** vêm do `MHR_BuildGroup.PendingNear` (`Jobs/MHR_BuildGroup.cs:860` — varre o plano do
+  grupo, `Done`/`SkippedIndex` fora); o `BuildAsideSpot.Plan` ordena; o **primeiro** candidato que é lugar de ficar
+  **ganha**: chão por um raio **para baixo** de 4 m que começa **1,5 m acima** do ponto, **mesmo nível** (|Δy| ≤ 0,8 m,
+  um passo e não uma queda) e **passo seguro** (`MHR_Mover.SafeStep` — `StepTo`, `MHR_Build.cs:6426`). Um destino a
+  menos de **1 m do próprio colocador** é descartado (`:6404-6409`): a 1ª preferência olha para trás, que é onde ele
+  está — o `SafeStep` **não tem personagem na máscara** (o comentário do lote, `:6403-6405`) e o companheiro andaria
+  **para dentro** de quem pediu.
+- **Sem destino livre, o pedido não é feito** (`AskStepAside` devolve **true**, `MHR_Build.cs:6269-6277`): a peça vai
+  **para a fila do canteiro** (`NoteBody` + `QueueRetry` + `Advance`, `:6063-6065`) e a **barreira de andar continua
+  desenhada** — o plano não sobe por cima da peça só porque um companheiro não pôde sair. A linha do log diz o motivo:
+  `sem lugar livre para ele sair da frente, não peço (a peça vai para a fila)`.
+- **Anti-repetição por dupla** (`MHR_BuildGroup.RequestStepAside`, `MHR_BuildGroup.cs:791`): a mesma dupla
+  (quem coloca, quem sai) sobre a **mesma peça** em < **4 s** (`StepAsideRepeat`, `:49`) é `Deduped`; a mesma dupla em
+  **peça diferente** em < **20 s** (`StepAsidePairSeconds`, `:58`) responde **`Repeating`** — **não pede**, a peça vai
+  para a fila (`MHR_Build.cs:6281-6291`). As chaves são `PairKey` (`:819`, um `long` com os dois ids) e o dicionário
+  `Pairs` (`:136`), limpo junto com a fila (`ClearBodies`, `:775`). **Detalhe que importa:** o registro do par **só é
+  escrito quando o pedido é aceito** (`:812-813`), então o `Repeating` **não renova** a janela — a dupla fica sem
+  pedidos até **20 s depois do último pedido aceito**, e não 20 s a cada recusa. É a rede **de tempo**: o filtro das
+  peças pendentes é a rede **de espaço**, e as duas cobrem o mesmo caso por lados diferentes.
+- **Custo:** `PendingNear` varre o plano (~**1000** `PlannedStep` no `CommHomeBasicBP`) **por pedido** — alguns por
+  minuto, nunca por frame (o buffer é único e reusado, `MHR_Build.cs:116-120`).
+
+#### (B) O walk spot saía 7 m abaixo — os anéis de 1,5/3 m e o `WalkHits`
+
+- **A linha medida:** `no progress ... (23,4 m away, walk spot (-161,1, 41,9, -422,4))` para uma peça de **telhado**.
+  O walk spot é o ponto **de onde** a peça é colocada (o `BuildWalkSpot` do Run 13, §17.18) — e ele saía em **41,9**
+  para uma peça a **48,8**: **7 m abaixo** dela, com o companheiro **parado longe** (`23,4 m`) até a trava de 12 s.
+- **A causa:** os raios eram na **vertical da peça** (0,8/1,6/2,4 m) e cada coluna pegava só o **primeiro** hit. Só que
+  no **topo da empena** o plano não tem **piso embaixo** da peça: a coluna atravessava a empena e achava o piso do
+  andar de baixo, e a fileira **de onde a peça é colocada** está **ao lado**, não sob ela. Além disso, uma coluna cujo
+  1º hit **não é superfície** (o **corpo** de um companheiro passando por cima do ponto, a peça de cima, mobília) era
+  **perdida inteira** — no comentário do lote, com **5 companheiros no telhado** isso era a maior parte do anel.
+- **O conserto** (`MHR_Build.WalkSpot`, `MHR_Build.cs:5797`):
+  - **anéis** de **1,5 m** e **3 m** (`s_walkRadii`, `:99`) além da coluna da própria peça: **17 raios** por peça
+    (1 + 8 + 8). As fileiras de telhado/empena são de **2 m**, então 3 m alcança a fileira vizinha e o piso a que as
+    escadas do plano levam;
+  - **`WalkHits = 3`** (`:106`): a coluna **atravessa** até **3** hits que **não são superfície** — corpo em cima do
+    ponto, peça acima, mobília — em vez de perder a coluna no primeiro; o 1º que é **superfície estrutural** (terreno
+    ou peça com `WearNTear` que não é mobília, `StructuralSurface`) é o que ela vale, e a superfície aceita tem de estar
+    **abaixo da peça** ou no máximo **0,5 m acima** (`<= peça + 0,5 m`, `BuildWalkSpot.SameStoreyAbove`);
+  - **dedup por collider + altura** (`NoteSurface`, `:5858`): duas direções que caem no **mesmo** piso/telhado contam
+    **uma** superfície (o plano é largo; sem isso o `N` do log não significaria nada);
+  - **log com o "onde olhou"**: `walk spot (x, y, z) - a peça está X m acima (N superfície(s) em M raio(s))`
+    (`:5654-5656`) e, na linha do `no progress`, o walk spot **e** os contadores (`:5704-5707`) — o `M raio(s)` é o
+    **custo medido no próprio run**.
+- **Custo e frequência:** **17 raios/peça** no caso comum (até **51** com corpo em cima em todas as colunas), **uma
+  vez por índice** (`EnterStep` zera `WalkRays`/`WalkFound`, `:1141-1142`) e **de novo quando a pose muda**
+  (`:5544-5545`), **nunca por frame**. O **`PlaceReach` não mudou**: os anéis mudam **onde** as superfícies são
+  procuradas, não a distância de colocação (a regra do olho continua sendo o teto).
+
+#### O que fica **a medir no Run 15**
+
+1. **A cumeeira sobe?** A peça que ficou fora no Run 13 (`wood_roof_45` em (-152,6, 48,8, -423,6), `no progress` de
+   22,8 → 23,5 m) é o teste do (B): com os anéis ela tem de achar a superfície **ao lado** e chegar. Essa pose é fixa e
+   reproduz o caso; se o `no progress` voltar, o log agora diz **quantas** superfícies e **quantos** raios — é o mesmo
+   experimento, com o dado que faltava.
+2. **O ping-pong acabou?** O Run 14 mostrou o **defeito**; o lote muda o **destino** e põe o corte de 20 s. O que se
+   mede no Run 15 é a **contagem** das linhas `pedindo para sair da frente`/`saindo da frente` **por peça** e quantas
+   vezes aparece o `não peço` (sem lugar livre) e o `não peço de novo` (`Repeating`) — **nenhuma** dessas contagens foi
+   feita ainda (é a mesma dívida do item (8) das pendências do `AGENTS.md`).
+3. **A peça pulada por corpo volta?** No Run 14 a única fora foi `blocked_by_player` em (-161,9, 46,8, -426,2). Com o
+   pedido podendo **não ser feito**, a peça vai para a fila — o Run 15 diz se ela **sobe** quando o corpo sai (e a
+   barreira de andar é o que a mantém na vez).
+4. **O custo:** o log passa a imprimir `M raio(s)` por peça e o `PendingNear` roda por pedido — nenhum dos dois foi
+   cronometrado. O número sai de graça do Run 15 (é só ler as linhas), mas **não** foi medido em ms.
+
+**Contas e limites desta seção:** o run é o **Run 14** do jogador (**984 + 1 = 985**, a única pulada por
+`blocked_by_player` em (-161,9, 46,8, -426,2)); as duas linhas do ping-pong e a do `no progress` com `walk spot` são as
+**do log do run**, e a distância de **0,4 m** entre o destino e a peça pulada é **aritmética** sobre as poses medidas.
+O resto é o **medido fora do run**: harness **684 PASS** (666 + **18** da seção **(y)**, seção (x) com **10**), build
+**0/0** e gate **9/9** no lote `1ee93b1`; **config 365/25** (o lote **não** acrescentou chave) e **nenhuma chave de
+tradução nova** (as linhas novas são **log em PT-BR**, não texto de jogador). Esta seção **não** rodou harness, build nem
+gate — os números são os do lote, e o que o run **não** contou está listado acima.
 
 
