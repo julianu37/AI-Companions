@@ -751,6 +751,20 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   **removido** (era **100 % morto**: `NextRetry == -1 ⟹ RetryReady == false`, sempre) e `ClassOf` **memoizado**
   (`Dictionary<string,int>` `Ordinal`, `AI/BuildBlueprintParser.cs:302-317`) → **0 strings/frame** nesse caminho;
   harness **711**, gate **9/9**.
+  (16) **multiplayer: a troca de posse do corpo no meio da obra para tudo em silêncio** (§revisão de rede, 11/11/2026) —
+  o servidor redistribui posse a cada **2 s** (`ZDOMan.ReleaseNearbyZDOS`) e o `BaseAI.UpdateAI` do jogo devolve `false`
+  fora do dono, então o `MHR_Build.Drive` **para sem `Finish` e sem `Pending`**; a linha `why = "another player's game runs
+  it now"` (`MHR_Build.cs:3479-3482`) é **código morto** porque o `UpdateAI` já retornou antes. O worker vira **fantasma**,
+  o grupo nunca fecha (`Workers.Count > 0`) e o **`SiteBusy` trava o jogador** ("já existe um grupo de obra") até um
+  "para" ou recarregar o mundo. Não há **hook de desconexão** no mod (grep por `Disconnect|Logout` = 0) e o `Pending` de
+  morte é **memória pura** (perde-se se o corpo voltar noutro peer). **Não medível em single-player** — precisa de
+  host + 1 cliente, e o teste mínimo está na revisão. **A chave do grupo já é por jogador** (`KeyOf` inclui
+  `MHR_Owner.CreatorId`, `MHR_BuildGroup.cs:204-215`), então **duas obras do mesmo canteiro não colidem** — elas
+  simplesmente **não se coordenam** (produto).
+  (17) **o pagamento por baú não usa o caminho seguro** — `BuildStock.Take` (`AI/BuildStock.cs:279-281`) claima e escreve
+  sem `SetInUse`, enquanto o resto do mod usa `MHR_Chests.Open`, que confere a posse depois do claim e recusa
+  (`Jobs/MHR_ToolKeeper.cs:1063-1072`). Com dois jogadores tirando da mesma pilha, um `Save` perde no desempate por
+  `DataRevision` → **duplicar ou perder** material (janela estreita, sem teste aqui).
   **Achado de localização (11/11/2026, CORRIGIDO no mesmo dia):** `hc_cfg_building_blueprintstations`
   (`Core/ModLocalization.cs:852`) e `hc_cfg_controls_buildpanelkey` (`:855`) estavam **só no inglês** e mostravam a
   **chave crua** no F8 em PT/ES/FR/IT. Os dois entraram nos **4** JSONs — `buildpanelkey` em
