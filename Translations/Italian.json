@@ -2553,6 +2553,10 @@
             "value": "Livello di log"
         },
         {
+            "key": "hc_cfg_advanced_configversion",
+            "value": "Versione della config"
+        },
+        {
             "key": "hc_ai_thinking",
             "value": "Sto pensando..."
         },

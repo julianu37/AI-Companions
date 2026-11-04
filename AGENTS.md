@@ -766,8 +766,12 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   (`Jobs/MHR_ToolKeeper.cs:1063-1072`). Com dois jogadores tirando da mesma pilha, um `Save` perde no desempate por
   `DataRevision` → **duplicar ou perder** material (janela estreita, sem teste aqui).
   **Achado de localização (11/11/2026, CORRIGIDO no mesmo dia):** `hc_cfg_building_blueprintstations`
-  (`Core/ModLocalization.cs:852`) e `hc_cfg_controls_buildpanelkey` (`:855`) estavam **só no inglês** e mostravam a
-  **chave crua** no F8 em PT/ES/FR/IT. Os dois entraram nos **4** JSONs — `buildpanelkey` em
+  (`Core/ModLocalization.cs:860`) e `hc_cfg_controls_buildpanelkey` (`:863`) estavam **só no inglês** — em PT/ES/FR/IT
+  o F8 mostrava o **rótulo em inglês** ("Blueprint: no stations", "Build panel key"), **não** a chave crua: as duas
+  estão registradas nos defaults ingleses, que a injeção escreve **primeiro** (`Core/ModLocalization.cs:996-1002`), e o
+  arquivo do idioma só **sobrescreve** o que tem (`:1003-1018`); o rótulo sai do `LocOr` (`:948-959`) sobre a chave
+  montada em `UI/ConfigPanel.cs:1262-1267` (`hc_cfg_<secao>_<chave>` → fallback `entry.Definition.Key`). Os dois
+  entraram nos **4** JSONs — `buildpanelkey` em
   `Translations/*.json:1416` ("Tecla do painel de obra" / "Tecla del panel de obra" / "Touche du panneau de chantier" /
   "Tasto del pannello cantiere") e `blueprintstations` em `:2872` ("Blueprint: sem estações" / "… sin estaciones" /
   "… : sans établis" / "…: senza stazioni") — e as auditorias fecharam: **PT 0 ausentes** (eram 2) e **ES/FR/IT 0
@@ -776,12 +780,24 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
 
   **Achado de localização (11/11/2026, CORRIGIDO no ciclo do Run 18):** a chave **nova**
   `hc_cfg_building_spreadworkers` (`Core/ModLocalization.cs:850`, "Spread the crew out") estava **só no inglês** (o F8
-  em PT/ES/FR/IT mostrava a **chave crua**) e entrou nos **4** JSONs, depois de `hc_cfg_building_reachwalk` (o bloco
-  `hc_cfg_building_*` **não é alfabético** — é *append*), na **mesma linha (2908) nos quatro** arquivos:
+  em PT/ES/FR/IT mostrava o **rótulo em inglês**, "Spread the crew out") e entrou nos **4** JSONs, depois de
+  `hc_cfg_building_reachwalk` (o bloco `hc_cfg_building_*` **não é alfabético** — é *append*), na **mesma linha (2908)
+  nos quatro** arquivos:
   PT "Espalhar os companheiros" · ES "Repartir a los compañeros" · FR "Répartir les compagnons" ·
   IT "Distribuisci i compagni". **Medido:** os 4 JSONs parseiam (`json.load`), `audit_translations.py` com
   **0 ausentes / 0 sobrando / 0 categorias ausentes** nos quatro idiomas, e a dívida do
   `gen_translations.py --check` foi **106 → 107** por idioma (o valor novo não existe no mapa por texto PT — item 6).
+
+  **Achado de localização (04/11/2026, CORRIGIDO):** `hc_cfg_advanced_configversion` (`Core/ModConfig.cs:1161`,
+  `Bind(cfg, "Advanced", "ConfigVersion", 0, …)`) **não tinha entrada em nenhum** dos 4 JSONs: sem default inglês, o
+  `LocOr` caía no **fallback** e o F8 mostrava o **nome curto da opção** (`ConfigVersion`) nos **5** idiomas — nem
+  inglês, nem chave crua. Entrou no fim do bloco `hc_cfg_advanced_*` (o bloco é *append*, não alfabético), na **mesma
+  linha (2556) nos quatro** arquivos: PT "Versão da config" · ES "Versión de la config" · FR "Version de la config" ·
+  IT "Versione della config". **Medido:** `audit_translations.py --check-config` → `chaves de config no codigo: 370` e
+  `ausentes (config): 0`, com a linha `sem rotulo (config, …)` **sumindo** (era
+  `1 chave(s) em 4 arquivo(s) -> hc_cfg_advanced_configversion`); `--lang Spanish|French|Italian` com **0 ausentes /
+  0 sobrando / 0 iguais ao PT / 0 com cara de ingles**; e o `gen_translations.py --check` foi de **107 para 108** por
+  idioma (o texto PT novo não está no mapa `*_UI` — item 6).
 
 ## Nossas docs
 

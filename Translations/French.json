@@ -2553,6 +2553,10 @@
             "value": "Niveau de journal"
         },
         {
+            "key": "hc_cfg_advanced_configversion",
+            "value": "Version de la config"
+        },
+        {
             "key": "hc_ai_thinking",
             "value": "Je réfléchis..."
         },
