@@ -291,28 +291,53 @@ internal static class BuildBlueprintParser
 		return best < float.MaxValue ? piece.Py + best : own;
 	}
 
+	/// <summary>
+	/// 11/11/2026 (the cost of the wait of the build at 60 Hz): the answer is a function of the prefab, so it is
+	/// <b>memoised</b>. This used to build the lower-cased copy of the name on <b>every</b> call (<c>ToLowerInvariant</c>
+	/// allocates), and the site's queue asks it per eligible entry per frame while a storey barrier is up (through
+	/// <c>MHR_BuildGroup.IsBelow</c>, from <c>NextRetryBelow</c>/<c>PendingBelow</c>), plus <c>MHR_Build.SpreadWindow</c> and
+	/// <c>PullSupports</c> - thousands of strings per frame in the stuck phase, all of them identical. One entry per distinct
+	/// prefab (~100 in the whole corpus), so the cache is bounded and the value stored is exactly what the rule returns.
+	/// </summary>
+	private static readonly Dictionary<string, int> s_classes = new Dictionary<string, int>(StringComparer.Ordinal);
+
 	/// <summary>0 = ground (floors, foundations, the workbench), 1 = the way UP (stairs, stepladders, ladders), 2 = what
 	/// stands on it (walls, beams, poles, furniture), 3 = roofs and gables, 4 = doors and gates (LAST).</summary>
 	internal static int ClassOf(string prefab)
 	{
-		string name = (prefab ?? string.Empty).ToLowerInvariant();
-		if (name.IndexOf("workbench", StringComparison.Ordinal) >= 0)
+		string key = prefab ?? string.Empty;
+		int cached;
+		if (s_classes.TryGetValue(key, out cached))
+		{
+			return cached;   // the same int the rule below would compute - the harness pins it per prefab
+		}
+		int cls = ClassOfOnce(key);
+		s_classes[key] = cls;
+		return cls;
+	}
+
+	/// <summary>The rule itself, computed once per prefab (<see cref="ClassOf"/> memoises the answer).
+	/// <paramref name="name"/> is never null - the caller already turned null into the empty string.</summary>
+	private static int ClassOfOnce(string name)
+	{
+		string lower = name.ToLowerInvariant();
+		if (lower.IndexOf("workbench", StringComparison.Ordinal) >= 0)
 		{
 			return 0;      // a blueprint that carries its own station places it first (it enables the rest)
 		}
-		if (name.IndexOf("floor", StringComparison.Ordinal) >= 0 || name.IndexOf("foundation", StringComparison.Ordinal) >= 0)
+		if (lower.IndexOf("floor", StringComparison.Ordinal) >= 0 || lower.IndexOf("foundation", StringComparison.Ordinal) >= 0)
 		{
 			return 0;
 		}
-		if (name.IndexOf("stair", StringComparison.Ordinal) >= 0 || name.IndexOf("ladder", StringComparison.Ordinal) >= 0)
+		if (lower.IndexOf("stair", StringComparison.Ordinal) >= 0 || lower.IndexOf("ladder", StringComparison.Ordinal) >= 0)
 		{
 			return 1;
 		}
-		if (name.IndexOf("roof", StringComparison.Ordinal) >= 0)
+		if (lower.IndexOf("roof", StringComparison.Ordinal) >= 0)
 		{
 			return 3;      // includes wood_wall_roof_45 / _top (a gable is roof)
 		}
-		if (name.IndexOf("door", StringComparison.Ordinal) >= 0 || name.IndexOf("gate", StringComparison.Ordinal) >= 0)
+		if (lower.IndexOf("door", StringComparison.Ordinal) >= 0 || lower.IndexOf("gate", StringComparison.Ordinal) >= 0)
 		{
 			return 4;      // last: the doorway stays open while the work goes on (the templates already do this)
 		}

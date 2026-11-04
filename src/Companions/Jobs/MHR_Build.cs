@@ -3709,23 +3709,20 @@ internal static class MHR_Build
 		// 11/11/2026 (Run 22, THE park): "there is something in the queue" (RetryPending) is not "there is something for
 		// ME" - one entry waiting for a support for 8-25 s, or one claimed by another companion, kept it true for the whole
 		// build, and the worker that entered this wait never looked at the plan again: it stood there until the end of the
-		// house ("sometimes 3 stop, sometimes all 5"; measured: 1040,2 s of `fila` in the Run 18, 27,3 s with this).
-		// RetryReady is that question, asked BEFORE the guard so a piece for this worker is never delayed by the throttle
-		// below. NOTE: NextRetry (above) has just asked the same predicate and claimed whatever was ready, so `ready` is
-		// false in practice today - it is here because it is what the guard MEANS, and it becomes live the day the claim
-		// moves out of NextRetry.
-		bool ready = MHR_BuildGroup.RetryReady(state.Group, ai.GetInstanceID());
-		if (!ready && !MHR_BuildGroup.RetryPending(state.Group))
+		// house ("sometimes 3 stop, sometimes all 5"; measured: 1040,2 s of `fila` in the Run 18, 27,3 s with the re-ask).
+		if (!MHR_BuildGroup.RetryPending(state.Group))
 		{
 			return Advance(ai, state, dt);   // nothing left for anybody: the plan is done for everybody
 		}
-		// The queue still has something, but not something this worker may take now: re-ask the PLAN instead of standing
-		// still, at most once a second and only while a piece is still ahead of the walk (Advance carries the end-of-plan
-		// guard of :1227 on its own).
-		if (!ready && ahead && Time.time - state.AdvanceAskedAt >= AdvanceAskSeconds)
+		// 11/11/2026 (Run 22, the cost of the wait): there is NO second predicate here on purpose. NextRetry (above) has just
+		// walked the same queue with the same conditions (Ready, claim included) and claimed whatever was ready, so "can I
+		// take something right now?" would answer false by construction - it was a full extra scan per frame per worker that
+		// never acted. What decides is the re-ask itself: at most once a second and only while a piece is still ahead of the
+		// walk (Advance carries the end-of-plan guard of :1227 on its own).
+		if (ahead && Time.time - state.AdvanceAskedAt >= AdvanceAskSeconds)
 		{
 			state.AdvanceAskedAt = Time.time;
-			return Advance(ai, state, dt);
+			return Advance(ai, state, dt);   // 1 Hz: re-ask the plan without releasing the claims every frame
 		}
 		// 11/11/2026 (Run 17): there IS something in the queue but this worker may not take it (other worker's, a body, the
 		// spread gate) - it is waiting, and the summary line counts it as such.

@@ -1185,38 +1185,13 @@ internal static class MHR_BuildGroup
 	}
 
 	/// <summary>
-	/// 11/11/2026 (Run 22, <b>the park</b>): can THIS worker pull something from the site's queue <b>right now</b>? "There is
-	/// something queued" (<see cref="RetryPending"/>) is a different question: one entry waiting for a support for 25 s, or
-	/// one claimed by another companion, keeps it true for the whole build - and a worker that asked it entered the wait and
-	/// never looked at the plan again (the player's "3 stopped, then 5"). Measured: the park was <b>1040,2 s</b> of
-	/// <c>fila</c> in the Run 18 and <b>27,3 s</b> with this question.
+	/// 11/11/2026 (Run 22): the conditions under which <see cref="NextRetry"/> hands this entry over - <b>one</b> copy, so the
+	/// queue and anything else that asks "is this piece available?" cannot drift apart. It does not mutate the queue and it
+	/// does not claim.
 	///
-	/// <para>It asks <b>exactly</b> what <see cref="NextRetry"/> asks before handing a piece over (the same private
-	/// <see cref="Ready"/>): due, not done, the body gate lets it through, the spread neighbourhood is free, and the claim is
-	/// mine or free (an expired claim counts as free). It <b>claims nothing</b> - it is only the question.</para>
-	/// </summary>
-	internal static bool RetryReady(string key, int workerId)
-	{
-		Group group;
-		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null || group.Plan == null)
-		{
-			return false;
-		}
-		float now = Time.time;
-		for (int i = 0; i < group.Retry.Count; i++)
-		{
-			if (Ready(group, group.Retry[i], workerId, now))
-			{
-				return true;
-			}
-		}
-		return false;
-	}
-
-	/// <summary>
-	/// 11/11/2026 (Run 22): the conditions under which <see cref="NextRetry"/> hands this entry over - <b>one</b> copy, asked
-	/// by the queue itself (which then claims it) and by the "is there anything for me?" of the wait (<see cref="RetryReady"/>,
-	/// which claims nothing). It does not mutate the queue and it does not claim.
+	/// <para>11/11/2026 (the cost of the wait): this used to also be asked through a public <c>RetryReady</c> from the wait of
+	/// <c>MHR_Build</c>, which was dead work - <see cref="NextRetry"/> walks the same list with the same predicate just before,
+	/// so a "no" there is always a "no" here. That second scan is gone; <see cref="NextRetry"/> keeps the rule alive.</para>
 	/// </summary>
 	private static bool Ready(Group group, RetryEntry entry, int workerId, float now)
 	{
@@ -1288,7 +1263,7 @@ internal static class MHR_BuildGroup
 		for (int i = 0; i < group.Retry.Count; i++)
 		{
 			RetryEntry entry = group.Retry[i];
-			// 11/11/2026 (Run 22): the conditions live in Ready (the same ones RetryReady asks) - this loop only decides
+			// 11/11/2026 (Run 22): the conditions live in Ready (one copy for whoever asks) - this loop only decides
 			// which entry, then claims it.
 			if (!Ready(group, entry, workerId, now))
 			{
