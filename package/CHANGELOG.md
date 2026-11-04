@@ -313,8 +313,9 @@ stopped.
     stall watchdog never named those pieces). The refusal **was right**: 0.6 m is **4x** the game's 0.15 m, so placing
     them would only have the game drop them. The fix now in test is in the emergency post: `PickPost` takes `MaxOverlap`
     **0.35 -> 0.45** (a 1 m beam crossing the board still counts - in the game support is collider **overlap**, not
-    contact) and a **solid without `WearNTear`** (stone, a tree, a structure) counts as support again, as it does in the
-    game.
+    contact). The rest of the rule is **left as it was**: a **solid without `WearNTear`** (stone, a tree, a structure)
+    still **does not** count as support for our probe - the game **does** treat it as maximum support, and that gap
+    stays open (`docs/re/building-notes.md` §17.14).
   - **The emergency post walks the ray down** (**in test**, fix of 11/11/2026): it stopped at the **first** hit - a roof
     eave **0,16 m** under a floor - and refused with *"vão de 0,16 m"* **318 times**. It now skips surfaces closer than
     **0,40 m** (`MinPostGap`, up to **4 passes**) and takes the first **usable** one
