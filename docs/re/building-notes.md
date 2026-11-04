@@ -2823,12 +2823,222 @@ jogador fechar o run). O que ele responde:
 **Contas e limites desta seção:** o A/B é o do jogador — **Runs 15 e 16**, de 11/11/2026, mesma casa/âncora/5 workers
 e canteiro vazio nos dois; os números são os **do log dos runs**, e o único cálculo aqui é a aritmética óbvia
 (`984 + 1 = 985`). O **medido fora dos runs**: harness **706 PASS** (684 + **22** da seção **(z)** — **11** de `Pick`,
-**6** de `Far`, **5** de `SameRun`), **config 367/25** (`SpreadWorkers` é a **367ª**; o `package/CONFIGURATION.md` foi
+**6** de `Far`, **5** de `SameRun`; hoje **711**, ver §17.22), **config 367/25** (`SpreadWorkers` é a **367ª**; o
+`package/CONFIGURATION.md` foi
 regenerado e o `--check` responde `[ok] … (367 settings, 25 sections)`), build **0/0**, gate **9/9** e MCP **122**.
-**Nenhuma** chave de tradução de jogador nova — a linha da dispersão é **log em PT-BR**. **Localização (achado aberto):**
-o rótulo `hc_cfg_building_spreadworkers` está **só no inglês** (o audit acusa **1 ausente no PT-BR**), então o F8 mostra
-a **chave crua** em PT/ES/FR/IT até a chave entrar nos **4** JSONs — ver `AGENTS.md`, pendências. **Não medido:** o
-custo por peça do `ClaimPoses`, **quantas** peças a dispersão adiou (o contador deu **0**), o **A/B limpo** e o **Run
-17**.
+**Nenhuma** chave de tradução de jogador nova — a linha da dispersão é **log em PT-BR**. **Localização (fechada no
+ciclo do Run 18):** o rótulo `hc_cfg_building_spreadworkers` entrou nos **4** JSONs (PT/ES/FR/IT) e o
+`audit_translations.py` fechou em **0 ausentes / 0 sobrando / 0 categorias ausentes** nos quatro idiomas — ver
+`AGENTS.md`, pendências. **Não medido:** o
+custo por peça do `ClaimPoses`, **quantas** peças a dispersão adiou (o contador deu **0** no Run 16; no Run 18 deu
+**1012**, mas ver §17.22(B) — não é tamanho de fila), o **A/B limpo** e o **Run 17**.
+
+### 17.22 O Run 18 (11/11/2026) — a `fila` era uma barreira invisível (e o Run 19 é o A/B)
+
+> Continuação do §17.21. A linha da `espera` que o Run 17 estreou mediu, no Run 18, **mais tempo parado do que todos os
+> marcadores de disputa juntos** — e a revisão independente mostrou que **80 %** dele não era disputa nenhuma: era um
+> worker preso esperando uma fila que ele **não precisava** esperar. Este lote corrige a causa em **duas linhas** e
+> instrumenta o que faltava medir. **O A/B (Run 19) ainda não foi rodado** — os números daqui são de **um** run.
+
+#### (A) O Run 18 medido
+
+| parâmetro | valor |
+|---|---|
+| plano | `CommHomeBasicBP`, **985 peças** |
+| companheiros | **5** |
+| `[Building] DeckLift` / `PlaceReach` | **1** / **15** |
+| `BlueprintFree` / `LevelGround` | **true** / **false** |
+| canteiro | **vazio** |
+| jogador | **andando** (livre depois da ordem; entrou no canteiro várias vezes) |
+| duração | **14 min 04 s** (**844 s**, relógio **externo** — o `LogOutput.log` **não tem timestamp**) |
+
+**Resultado do run:** **985/985 colocadas**, **0 puladas**, **0 mortes**, **0 `UNSUPPORTED`**, **watchdog `0`**,
+**1010 peças** no canteiro (**985 + 25 postes**), **25 postes** de emergência, dispersão **1012 adiada(s) / 32
+retomada(s)** (ver (B) — não é tamanho de fila), `corpo na peça` **33**, `blocked_by_player` **58** (**48** recusas de
+peça por corpo + **10** linhas `sem lugar para o apoio`) e `desistindo` **0**.
+
+**A espera, por worker** (a linha do `Finish`, formato do Run 17 — sem `fim`/`meio` e sem os segundos do portão):
+
+| worker | espera | barreira (corpo / dependência) | `BodyHolds` | fila | passo |
+|---|---|---|---|---|---|
+| C2 | **255,0 s** | 54,8 s (0,9 / 53,9) | 16 | 197,1 s | 3,1 s |
+| C3 | **242,0 s** | 28,5 s (6,3 / 22,2) | 12 | 211,0 s | 2,5 s |
+| C4 | **260,4 s** | 47,9 s (4,8 / 43,1) | 13 | 212,5 s | 0,0 s |
+| C5 | **289,9 s** | 62,6 s (3,9 / 58,6) | 16 | 225,2 s | 2,1 s |
+| C6 | **245,5 s** | 51,1 s (6,8 / 44,3) | 16 | 194,4 s | 0,0 s |
+| **total** | **1292,8 s** | **244,9 s** | **73** | **1040,2 s (80 %)** | **7,7 s** |
+
+**Contas (fecham):** 255,0 + 242,0 + 260,4 + 289,9 + 245,5 = **1292,8 s**; 197,1 + 211,0 + 212,5 + 225,2 + 194,4 =
+**1040,2 s** (80,46 % do total); 54,8 + 28,5 + 47,9 + 62,6 + 51,1 = **244,9 s** (22,7 de corpo + 222,1 de dependência,
+arredondamento de 0,1); os `BodyHolds` somam **73**; o passo, **7,7 s**. O **portão saiu `0`** — e esse zero é **sintoma,
+não medida** (ver (C)).
+
+#### (B) O que a revisão independente corrigiu — duas correções que importam
+
+1. **A soma é por worker, não do run.** 1292,8 s ÷ 5 = **258,6 s por worker** num run de **844 s** = **30,6 %** do
+   **tempo-homem**. E **4 dos 5** workers encerraram **antes** (`Leave`, `last=false`): só a espera do **último**, na
+   parte crítica, encurta o run. **Nada se dimensiona pelos 1040 s** — é soma de cinco esperas que correram **em
+   paralelo**.
+2. **`1012 adiadas` não é tamanho de fila.** `state.SpreadSkipped += passed` (`MHR_Build.cs:1210`) soma o
+   `passedCount` do `BuildSpread.Pick`, que é o **índice do escolhido** (`AI/BuildSpread.cs:113`; no máximo **5** por
+   peça) e o `NoteSpread` **deduplica por índice do plano** (`MHR_BuildGroup.cs:1141-1152`). É **cota superior** de
+   entradas criadas, não a fila — a fila do canteiro tem no máximo um índice por peça pendente.
+
+E dois achados de leitura que mudam a interpretação dos baldes:
+
+- **"dependência" (222,1 s) não é falta de apoio.** O `PendingBelow` (`MHR_BuildGroup.cs:1256`) **não olha o relógio
+  nem os claims** (`:1251-1254`, escrito no próprio código): boa parte desses 222 s é esperar **o colega que constrói
+  a peça de baixo** — que é o desenho (a barreira serve a peça de baixo antes de subir), não um defeito.
+- **`entry.Blocked` nunca é zerado** (`MHR_BuildGroup.cs:1075-1080` acha a entrada existente e `:1097` incrementa):
+  um corpo que passou **uma vez** pelo lugar respondia "corpo" em **toda** espera seguinte daquela peça, **inflando**
+  "corpo" e **deflacionando** "dependência".
+
+#### (C) O defeito: `:3620` e o `ahead`
+
+O caminho da espera (`WaitRetry`) chamava o `Advance` — o único que pergunta o portão do canteiro (`MayTake`) e a
+barreira de andar — **só quando a fila do canteiro estava vazia** (`:3620`). Só que o `Advance` **já tem** essa guarda
+no fim do plano (`:1227`): a condição do lado de fora era **redundante e mais restritiva**, e o efeito foi o inverso
+do pretendido.
+
+**Quem entrava na espera no MEIO do plano** — e entra por **duas portas**, o portão do canteiro (`:1151`) e a barreira
+de andar (`:1433`) — **nunca mais re-perguntava o `MayTake`**. Ficava parado até o `entry.At` vencer (**2 a 25 s**,
+`BuildFailure.BlockedDelay`/`DependencyDelay`) **com peça livre logo à frente**, e o tempo caía em **`fila`**, não em
+barreira. É a explicação do "3 parados de uma vez": três workers no mesmo estado, cada um esperando um relógio de fila
+que não era o caminho.
+
+**E é a explicação do `BarrierHolds` = 0:** ele só conta quando o portão é desenhado **fora** do `WaitRetry`
+(`if (state.Phase == Phase.WaitRetry) … else state.BarrierHolds++`, hoje `:1164-1172`). Como os workers já estavam em
+`WaitRetry`, o portão respondia `false` sem contar — **nenhuma** retenção de portão no resumo, com 197–225 s de "fila"
+por worker.
+
+#### (D) O que foi aplicado (sem config nova, sem tradução nova)
+
+- **O patch de comportamento:** `bool ahead = state.Index + 1 < state.Plan.Count; if (ahead) return Advance(ai, state,
+  dt);` — `MHR_Build.cs:3689-3693`, com o porquê escrito no comentário (`:3684-3688`). No **fim do plano** o caminho
+  continua **byte a byte** o de antes; o `PreferNearFloor` não roda em grupo (`PlanLocked`), então **não há
+  reordenação por frame**.
+- **O livelock existe e é limitado:** o `Advance` pode devolver "espera" e o `WaitRetry` voltar a ele, mas o relógio é
+  único — `BodyRetryMaxWait` **é** `BodyBarrierSeconds` = **10 s** (`AI/BuildFailure.cs:61`/`:86`, o "relógio único"
+  do Run 17) — e o watchdog de **60 s** (`StallSeconds`) é o teto. O custo do livelock é **uma pulada**, e é por isso
+  que `puladas` é o **guarda do run** (abaixo).
+- **Instrumento novo:** `WaitGate` (`MHR_Build.cs:480`, acumulado em `:1168`), o tempo do **portão**, que **não caía
+  em balde nenhum** porque o `Advance` roda com `dt = 0` (default em `:1113`); `WaitQueueEnd` **×** `WaitAhead`
+  (`:467`/`:474`, a fila partida por **onde o caminho está**); `Advance(..., float dt = 0f)` repassando o `dt` ao
+  `StoreyBarrier` (`:1350-1387`, que antes contava **zero** no frame em que desenhava a barreira); e
+  **`BlockedRecently`** (`MHR_BuildGroup.cs:752`, lido em `MHR_Build.cs:1550`) no lugar de `Blocked > 0` — corpo só
+  se `Time.time - BodyAt[index] < BodyBarrierSeconds`, com o carimbo idempotente do `NoteBody`
+  (`MHR_BuildGroup.cs:782-786`).
+- **A linha do `Finish`:** `fila E s (fim P s, meio Q s)` e `portão N (G s)`, e o **`total` passou a incluir o
+  portão** (`MHR_Build.cs:7688-7696`). O `N` é o `BarrierHolds` (quantas vezes o portão segurou) e o `G`, os segundos
+  dele — não confundir com as retenções da **barreira** (`BodyHolds`, a coluna da tabela do (A)).
+- **O relatório:** `tools/build_run_report.py` entende **os dois formatos** (`:184-196`) — o baseline do Run 18
+  continua legível — e imprime a fila por metade e os segundos do portão (`:656-682`).
+
+#### (E) O corte do A/B (Run 19) — **pendente**
+
+O Run 19 é o **A/B** da mesma casa, com este patch. Aceite:
+
+| medida | corte |
+|---|---|
+| `fila` do resumo | **≤ 400 s** (era 1040,2 s) |
+| `WaitAhead` (fila do **meio** do plano) | **≈ 0** (por construção; se crescer, o `ahead` parou de pegar o caso) |
+| espera do **último** worker | **≤ 120 s** (a maior medida foi **289,9 s**, o C5) |
+| duração | **≤ 720 s** (era 844 s) |
+
+**Reverte** o lote se aparecer **`puladas > 0`**, **`desistindo > 0`**, **morte**, **`UNSUPPORTED`** ou **watchdog**.
+**Estado hoje:** build **0 erros / 0 avisos** (`-p:SkipDeploy=true`), harness **711 PASS**, `gen_config_doc.py --check`
+`[ok] (367 settings, 25 sections)` — e **o Run 19 não foi rodado**.
+
+#### (F) Onde cada ponto mora, e o que não foi medido
+
+As linhas citadas no lote são as da árvore **anterior** ao patch (as mesmas dos comentários do código). Mapa para a
+árvore de hoje:
+
+| ponto | árvore do lote | nesta árvore |
+|---|---|---|
+| a chamada do `Advance` só com a fila vazia (**o defeito**) | `:3620` | substituída por `:3689-3693` |
+| a guarda de fim de plano do `Advance` | `:1227` | `:1149-1151` (o `while`) |
+| o portão `MayTake` dentro do `Advance` | `:1151` | `:1160` |
+| a contagem do `BarrierHolds` (fora do `WaitRetry`) | `:1149` | `:1164-1172` |
+| a barreira de andar desenhada no `Advance` | `:1433` | `:1182` → `StoreyBarrier` `:1350` / `ServeBarrier` `:1397` |
+
+**Não medido:** se o patch **encurta** o run (é exatamente o que o Run 19 mede); **quanto** dos 222,1 s de
+"dependência" é o colega e quanto é apoio que não veio (o `PendingBelow` **não distingue** — é desenho, não medida);
+o **custo por frame** das chamadas extras do `Advance`; e se o `WaitAhead` fica mesmo ≈ 0. Também não se mediu
+**`1012` como fila** — e não se deve: ver (B), item 2.
+
+### 17.23 O `DeckLift` virou **teto** (11/11/2026) — a obra que subia 1 m no ar e caía
+
+> O §17.10 mediu o deck funcionando na **casa de referência** (estacas enterradas → a obra sobe 1 m e o térreo fica 1 m
+> acima do chão). Esta seção mede o **mesmo código no corpus**: cinco planos desenhados **no chão** subiam os mesmos
+> 1,00 m e iam para o ar. A chave passou a ser **teto**, não deslocamento forçado.
+
+#### (A) O que foi medido — terreno plano em **38,78 m**
+
+| blueprint (rótulo do log) | linha de log medida |
+|---|---|
+| Meadow Stilt Hut · Forest Hut · Meadow House · Meadow Manor · Hobbit Repairhut | `a obra sobe 1,00 m (deck) - 0 peça(s) de fundação assentadas no terreno` |
+| `MACCommHomeBasicBP` | `a obra sobe 1,00 m (deck) - 3 peça(s) de fundação assentadas no terreno` |
+
+**A peça mais baixa da obra medida no mundo: 39,78 m** = **+1,00 m exatos** sobre o terreno (38,78). E a obra estava
+**flutuando**: peça sem apoio não segura nada — a regra do jogo está medida em `docs/re/support-rule-wearntear.md` §5
+(apoio = **0,15 m de sobreposição de collider**, a colocação **não** testa apoio e o `UpdateWear` aplica **100 % de
+dano** no tick seguinte): a peça **cai**, **dropa o material** e volta para a fila — é o desperdício que o jogador viu.
+
+**Os três runs de 1 companheiro** (os três "em andamento" do §5 de `docs/re/blueprint-corpus.md`; os tamanhos —
+**60**, **96** e **62** peças — batem com `hs_meadows_house`, `hs_meadows_manor` e `hs_meadows_hobbit_repairhut`):
+
+| plano | resultado | duração | fora |
+|---|---|---|---|
+| Meadow House (**60** peças) | **60/60**, 0 puladas | **120 s** | — |
+| Meadow Manor (**96** peças) | **92/96**, **5 puladas** | **152 s** | **5** |
+| Hobbit Repairhut (**62** peças) | **61/62**, **1 pulada** | **220 s** | **1** + **2 `UNSUPPORTED`** |
+
+**Ressalva de conta:** em Meadow Manor **92 colocadas + 5 puladas = 97 contra 96 do plano** — **não fecha**. As duas
+saídas possíveis são uma bancada inserida pelo `InsertBenchStep` (o plano cresce um índice) ou uma peça contada nos
+dois lados; **não foi medido qual**. O número fica registrado como saiu do log, sem ajuste. (Hobbit fecha: 61 + 1 =
+62.)
+
+#### (B) A correção: `Clamp(buried, 0, wanted)`
+
+- **O lift deixou de ser o valor da config** e passou a ser `Mathf.Clamp(buried, 0f, wanted)` — `MHR_Build.cs:1845`.
+- **`buried`** = o quanto a **peça mais funda** do plano está **sob** o terreno: `GetGroundHeight(pos) - pos.y`
+  (**> 0 = enterrada**), medido **uma vez por ordem**, dentro do `StartBlueprint` (`MHR_Build.cs:1830-1844`).
+- **Banda morta de 0,05 m** (`:1848-1851`): uma peça **3 cm** enterrada **não** capa a config em 0,03 m — 0,05 m é a
+  **mesma tolerância** do laço de assentamento (`:1860`), que é quem trata o resíduo.
+- **Consequência:** plano desenhado no chão → **0,00 m**; estacas enterradas **2 m** → sobe o **valor da config** e o
+  laço assenta o resto das pontas no terreno (o comportamento do §17.10, intacto). **A config virou teto.**
+- **A descrição da chave** foi junto (`Core/ModConfig.cs:975`): *"The MOST the whole blueprint may rise above the
+  ground: … It only rises what the plan actually needs - a plan whose poles are buried 2 m rises the full value, a
+  plan already drawn on the ground rises nothing (a build lifted in the air has no support and falls). 0 keeps the
+  blueprint's own level."* O `package/CONFIGURATION.md` foi **regenerado** e o `gen_config_doc.py --check` responde
+  `[ok] (367 settings, 25 sections)` — **nenhuma chave nova**, só o texto.
+
+#### (C) As linhas de log, antes × depois
+
+| caso | antes | depois |
+|---|---|---|
+| os 5 planos rasos do corpus | `a obra sobe 1,00 m (deck) - 0 peça(s) …` | `a obra sobe 0,00 m (deck pedido 1,00 m) - 0 peça(s) de fundação assentadas no terreno, nada enterrado` |
+| a casa de referência (estacas enterradas) | `a obra sobe 1,00 m (deck) - 3 peça(s) …` | **igual, byte a byte** |
+
+- O `capped` é `lift < wanted - 0.001f` (`MHR_Build.cs:1868`): quando **capou**, a linha diz **os dois números** —
+  primeiro o que a obra precisava, depois o que a config pedia (`:1875-1876`) — e, se nada estava enterrado, diz
+  `nada enterrado` em vez de esconder o motivo (`:1878-1881`).
+- Quando **não** capou, a linha é a de antes **caractere por caractere** — de propósito: o run congelado da casa
+  (`MACCommHomeBasicBP`, 985 peças) é lido por `grep` (comentário em `:1871-1874`).
+- A linha só é impressa se `lift > 0,001` **ou** houve assentamento **ou** capou (`:1869`): um plano no chão com a
+  config em `0` não vira ruído.
+
+#### (D) O que ficou pendente
+
+- **O run de revalidação não foi rodado:** a escada do corpus com **5 companheiros** e o **A/B da casa** (o mesmo
+  `CommHomeBasicBP` do §17.22, para provar que o deck da casa de referência **não** mudou). O que se espera — e **não**
+  está medido — é que os 5 planos rasos fiquem no chão, que os **2 `UNSUPPORTED`** do Hobbit desapareçam (eles são o
+  jogo recusando apoio numa obra que flutuava) e que Meadow Manor pare de perder as 5 peças.
+- **A pendência do vão do deck continua** para planos com estacas enterradas: a casa de referência **ainda** sobe
+  1 m (é o que a config pede e o que as estacas precisam) — ver o §17.13 e a pendência aberta no `AGENTS.md`. O que
+  esta correção faz é **não criar** o vão em plano que não precisa dele.
+- **`DeckLift = 0`** continua "mantém o nível do arquivo"; o efeito disso num plano com estacas enterradas **não** foi
+  medido nesta rodada.
 
 

@@ -206,7 +206,10 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   A `[Building] PlaceReach` desta rodada (float, padrão **10**, faixa **5..20**; rótulo `hc_cfg_building_placereach`,
   "Place reach" no inglês nativo) é o `MaxPlace` do `MHR_Build` — ver o alcance de colocação na seção da construção.
   A `[Building] DeckLift` (float, padrão **1**, faixa **0..3**; rótulo `hc_cfg_building_decklift`, "Deck height" no
-  inglês nativo) é o quanto a **obra inteira sobe** acima do chão — ver o deck na seção da construção.
+  inglês nativo) é o **máximo** que a obra sobe acima do chão — desde 11/11/2026 ela sobe **só o que o plano precisa**
+  (o quanto a peça mais funda está enterrada, medido **uma vez por ordem**): plano desenhado no chão sobe **0,00 m** e
+  estacas enterradas 2 m sobem o valor da config — ver o deck na seção da construção e `docs/re/building-notes.md`
+  §17.23.
   A `[Building] SupportFallback` (bool, padrão **true**; rótulo `hc_cfg_building_supportfallback`, "Emergency support"
   no inglês nativo) liga o **apoio de emergência** — ver a empenha na seção da construção.
   A `[Building] BodyRetry` (bool, padrão **true**; rótulo `hc_cfg_building_bodyretry`, "Retry blocked pieces" no inglês
@@ -305,7 +308,7 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   pior caso: N× o resto do plano, com até **3 coletando ao mesmo tempo** — o `Stock` é a metade aberta do P1); grupo
   só de **blueprint**; **em memória** (não persiste); "para" = todos, "para, <nome>" = um, um modo num companheiro
   tira só ele; nivelar/limpar com **um** (P5). **Nenhuma** chave de tradução nova (reusa `hc_ai_no_companion` e
-  `hc_ai_build_failed`) — harness **706** (471 + **28** da **(p)** + 26 da **(q)** + **66** da **(r)** — `CanSupport`,
+  `hc_ai_build_failed`) — harness **711** (471 + **28** da **(p)** + 26 da **(q)** + **66** da **(r)** — `CanSupport`,
   `PickPost`, `UsefulSurface`, `HoldsPlacedPiece` e as constantes da barreira — + **18** da **(s)** — `AI/BuildBody.cs`,
   a janela do corpo (`Blocks`, `HalfY` e os casos medidos do Run 10) — + **27** da **(t)** — a **barreira de andar**,
   11/11/2026 — + **6** da **(u)** —
@@ -313,14 +316,16 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   `BuildStationCover.Required` — + **9** da **(w)**, `BuildMaterials.Add`/`Total` — + **10** da **(x)**,
   `BuildWalkSpot.Choose` (de onde a peça é alcançada, o walk spot do Run 13) — + **18** da **(y)**,
   `BuildAsideSpot.Plan`, para onde o companheiro sai da frente (o `StepAside` do Run 14) — + **22** da **(z)**,
-  `BuildSpread.Far`/`Pick`/`SameRun`, a **dispersão dos workers** (lote `a29dedc`, Run 15/16)), MCP
+  `BuildSpread.Far`/`Pick`/`SameRun`, a **dispersão dos workers** (lote `a29dedc`, Run 15/16) — **706** —, **+ 5** do
+  ciclo da `fila`/`DeckLift` (11/11/2026, **sem seção nova**)), MCP
   **122** (as **12**
   asserções de 03/11/2026 cobrem o contrato do grupo: `workers`, `refused` e `name` vazio = todos; as **6** de
   11/11/2026 cobrem o `stop` do `companions.order`; e as do `blueprints_list`/`blueprints_inspect` a biblioteca e o
   relatório sem ordem), config **367/25** e build **0/0**.
-  **Medido em jogo (`CommHomeBasicBP`, `BlueprintFree = true`) — quinze runs documentados entre 04 e 11/11/2026** (1–3 com 3
-  companheiros e `PlaceReach` 10/15/15+guarda; 4 com o deck; 5 com 5 companheiros; **6 em 11/11/2026** com os dois
-  lotes → **969 + 18 = 987**, watchdog **0**, **985 de 987** no canteiro, **`apoio de emergência` = 0**, **telhado
+  **Medido em jogo (`CommHomeBasicBP`, `BlueprintFree = true`) — dezesseis runs documentados entre 04 e
+  11/11/2026** (1–3 com 3 companheiros e `PlaceReach` 10/15/15+guarda; 4 com o deck; 5 com 5 companheiros; **6 em
+  11/11/2026** com os dois lotes → **969 + 18 = 987**, watchdog **0**, **985 de 987** no canteiro, **`apoio de
+  emergência` = 0**, **telhado
   fechado** no `render_view`, **1 morte** e `blocked_by_player` **≈770**, o jogador dentro do canteiro — §17.13;
   **7 em 11/11/2026** = o run do **degrau de 0,6 m** com o `MaxOverlap` 0,35 → **travou em 950/987**; **8 em
   11/11/2026** = a validação do lote do poste → **987 de 987 índices colocados, `skip` = 0**, **39 postes** de
@@ -410,7 +415,10 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   já estão **nas duas** árvores; como a dispersão **não agiu**, **não se atribui a queda a ela** — o que fecha a conta é
   o **A/B limpo** (mesma árvore, `SpreadWorkers` false × true), que **ainda não foi rodado** — ver §17.21; **17 em
   andamento** (11/11/2026, **canteiro zerado de propósito**, dispersão ligada): é a confirmação da casa do zero, sem
-  número ainda. **Dos runs 1–3:** 1 e 2
+  número ainda; **18 em 11/11/2026** = o run da **`fila`** (o mesmo canteiro vazio e o jogador andando) → **985/985**,
+  **0 puladas**, **0 mortes**, **0 `UNSUPPORTED`**, watchdog **0**, **1010 peças** no canteiro (**985 + 25 postes**),
+  **14 min 04 s** e a `espera` de **1292,8 s** somada nos 5 workers (dos quais **1040,2 s** de `fila`) — é a medição
+  que abriu o §17.22, e **o Run 19 (A/B) está pendente**. **Dos runs 1–3:** 1 e 2
   diferem só no `PlaceReach` (10 = padrão do código; 15 = config de teste) e o
   3 roda em 15 com a guarda anti-loop: com **10**,
   **970 + 15 = 985** — a fala final fecha (`970 peças, 15 puladas`), `no_ground` **~25 → 0**, `blocked_by_player`
@@ -431,14 +439,27 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   apoiada nas estacas, tipo um deck"). Agora a **obra inteira sobe `[Building] DeckLift` metros** (float, **padrão 1**,
   faixa **0..3**, rótulo `hc_cfg_building_decklift`) e as **pontas de estaca abaixo do terreno assentam no chão**:
   sem a config o deslocamento automático pelo ponto mais baixo levantava **2,00 m** (as
-  estacas do arquivo estão enterradas 2 m) e ficava alto demais. O bloco é um só (`MHR_Build.cs:1102-1124`): sobe
+  estacas do arquivo estão enterradas 2 m) e ficava alto demais. O bloco é um só (`MHR_Build.cs:1818-1883`): sobe
   **todas** as peças e assenta as que ainda ficariam abaixo do chão (log
-  `a obra sobe X m (deck) - N peça(s) de fundação assentadas no terreno`, `:1124`; o fallback é
-  `DeckLiftDefault = 1f`, `:111`). **Medido no run do deck (04/11/2026, `docs/re/building-notes.md` §17.10):** ~**972
+  `a obra sobe X m (deck) - N peça(s) de fundação assentadas no terreno`; o fallback é
+  `DeckLiftDefault = 1f`, `:238`). **Medido no run do deck (04/11/2026, `docs/re/building-notes.md` §17.10):** ~**972
   peças de pé**, **0 mortes**, piso do térreo ~**1 m** acima do chão com as **escadas das entradas encontrando**; **2 dos
   3** workers fecharam com `0 peça(s) sem apoio` e o terceiro parou com **6 telhados** nomeados (42,8/44,8/46,8) + **4**
-  `falls`, e a visão (`render_view`) mostrou a **faixa da água sul** faltando e a **empenha leste aberta**. **Lote do
-  telhado (build 0/0, harness **601** naquele lote — hoje **706**; medido no run de 11/11):** (a) **telhado apoia
+  `falls`, e a visão (`render_view`) mostrou a **faixa da água sul** faltando e a **empenha leste aberta**. **A config
+  virou TETO (11/11/2026, `docs/re/building-notes.md` §17.23):** o lift é `Mathf.Clamp(buried, 0f, wanted)`
+  (`MHR_Build.cs:1845`), com `buried` = o quanto a **peça mais funda** do plano está sob o terreno
+  (`GetGroundHeight(pos) - pos.y`, `:1830-1844`, **uma vez por ordem**) e banda morta de **0,05 m** (`:1848-1851`, a
+  mesma do laço de assentamento) para uma peça 3 cm enterrada não capar a config em 0,03 m. **Medido no corpus, terreno
+  plano em 38,78:** os cinco planos rasos (Meadow Stilt Hut, Forest Hut, Meadow House, Meadow Manor, Hobbit Repairhut)
+  logavam `a obra sobe 1,00 m (deck) - 0 peça(s) de fundação assentadas no terreno` e a peça mais baixa ia para
+  **39,78 m** (**+1,00 m exatos**) — obra **flutuando**, e peça no ar não tem apoio: o jogo aplica **100 % de dano** no
+  tick seguinte, ela **cai**, **dropa o material** e volta para a fila (o desperdício que o jogador viu). Hoje o mesmo
+  plano loga `a obra sobe 0,00 m (deck pedido 1,00 m) - 0 peça(s) …, nada enterrado` (`:1868-1882`) e a casa de
+  referência continua logando **byte a byte** `a obra sobe 1,00 m (deck) - 3 peça(s) …` (estacas enterradas →
+  `capped = false`). A descrição da chave diz agora "The MOST the whole blueprint may rise…" (`Core/ModConfig.cs:975`) e
+  o `CONFIGURATION.md` foi **regenerado** (**367/25**, `--check` ok); o run de revalidação (a escada do corpus com 5
+  companheiros + o A/B da casa) **não foi rodado**. **Lote do
+  telhado (build 0/0, harness **601** naquele lote — hoje **711**; medido no run de 11/11):** (a) **telhado apoia
   telhado** — o `DirectSupportIndex`
   excluía a **classe
   3** como apoio, então numa **empena** a fileira de cima (apoiada pela de baixo, também telhado) **nunca** era puxada;
@@ -578,19 +599,23 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   de continuar erguendo pra cima"*. **O que entrou:** `blocked_by_player` virou a classe `Kind.Blocked` do
   `BuildFailure` (não gasta tentativa), a peça ganha **3 curtas na mesma pose** (2,5 s, contadas para o canteiro) e, com
   a chave `[Building] BodyRetry` (bool, **padrão true**, `Core/ModConfig.cs:958`), o canteiro **não entrega nada acima
-  de 1,5 m** do nível da peça bloqueada por **20 s** (a primeira recusa carimba o relógio) e a subida de andar **serve
-  antes** a peça da fila que ficou embaixo, desistindo em **25 s** (`BuildFailure.BodySameStorey`/`BodyBarrierSeconds`/
-  `BodyRetryMaxWait`; `MHR_BuildGroup.MayTake`/`NextRetryBelow`; `MHR_Build.StoreyBarrier`).
+  de 1,5 m** do nível da peça bloqueada enquanto a barreira dela estiver viva (a **primeira** recusa carimba o relógio,
+  `MHR_BuildGroup.NoteBody`, idempotente em `MHR_BuildGroup.cs:782-786`, então um jogador parado no lugar não segura o
+  canteiro para sempre) e a subida de andar **serve antes** a peça da fila que ficou embaixo, desistindo quando o relógio
+  vence — **25 s** no Run 10 e **10 s desde o relógio único do Run 17** (`BodyRetryMaxWait` **é** `BodyBarrierSeconds`,
+  `AI/BuildFailure.cs:61`/`:86`: os 25 s sobreviviam ao portão e seguravam o worker **já liberado**, §17.22)
+  (`BuildFailure.BodySameStorey`/`BodyBarrierSeconds`; `MHR_BuildGroup.MayTake`/`NextRetryBelow`;
+  `MHR_Build.StoreyBarrier`).
   **Refinada no mesmo lote:** a barreira roda **antes do `TryClaim`** (`MHR_Build.cs:945`/`:960`) — peça adiada não fica
   reivindicada 20 s pelo worker que a adiou — e, depois de servir a peça da fila, o `Advance` **volta ao índice da
   subida** (`State.ResumeIndex`, `MHR_Build.cs:898-902`, carimbado em `:1163`), sem re-caminhar o que já subiu.
   **Dois furos reais corrigidos:** (i) ela **só era desenhada** quando a próxima peça estava **>1 m** acima
   (`BodyRetryStep`) — a parede do 1º andar tem o **mesmo y** do feixe (**41,8**) com os tiles pendentes em **39,8**, então
   **nunca desenhava**; agora **qualquer peça pendente abaixo** da próxima desenha (`PendingBelowIndex`,
-  `MHR_Build.cs:1103`; o `BodyRetryStep` ficou como constante **sem uso**); (ii) a paciência contava **do desenho**, mas
-  um `dependency` espera até **25 s** (`DependencyDelay`) e ela expirava antes de a peça ficar **devida** — agora a
-  paciência só corre **depois do "due"** (`PendingBelowAt`, `:1141-1145`), com **25 s de tentativas reais** e o watchdog
-  de **60 s** como teto.
+  `MHR_Build.cs:1499`; o `BodyRetryStep` ficou como constante **sem uso** em `AI/BuildFailure.cs:78`); (ii) a paciência
+  contava **do desenho**, mas um `dependency` espera até **25 s** (`DependencyDelay`) e ela expirava antes de a peça
+  ficar **devida** — o lote fez a paciência correr **só depois do "due"** e o Run 17 a juntou num **relógio único**
+  (`BodyRetryMaxWait` = `BodyBarrierSeconds` = **10 s**, `AI/BuildFailure.cs:86`), com o watchdog de **60 s** como teto.
   **Medido:** **989 + 1 = 990**, **puladas 11 → 1** (a única é a **7ª bancada**, com `clipping`, não peça da casa),
   **16 peças** chegaram a `curta 3/3` e voltaram **antes** de o plano subir. O `blocked_by_player` **não** se compara
   direto: Run 9 **235 terminais** (não havia curta) contra Run 10 **141 terminais + 224 curtas** — o número comparável é
@@ -610,6 +635,32 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   (11/11/2026, §17.17):** rodou **ligada** no run de **0 puladas** (a chave **não existia** na árvore do Run 10); a
   **contagem** das linhas `pedindo para sair da frente`/`saindo da frente` saiu nos **Runs 15/16** (§17.21). **Em aberto:**
   a sonda **não testa criaturas** (um javali em cima da peça ainda passa) — §17.16.
+  **Run 18 (11/11/2026) — a `fila` era uma barreira invisível (§17.22):** a linha da `espera` (estreia do Run 17)
+  mediu, no **Run 18**, **1292,8 s** somados nos **5** workers, dos quais **1040,2 s (80 %)** caíam em `fila`. A revisão
+  independente corrigiu duas leituras: a soma é **por worker** (1292,8 ÷ 5 = **258,6 s** num run de **844 s** =
+  **30,6 %** do tempo-homem; **4 dos 5** saíram antes — só a espera do **último** encurta o run, então **nada se
+  dimensiona pelos 1040 s**) e o
+  `1012 adiada(s)` da dispersão **não é tamanho de fila** (`SpreadSkipped += passed` soma o **índice do escolhido**, no
+  máximo 5 por peça, e o `NoteSpread` **deduplica** — é cota superior de entradas criadas). **O defeito real** (o "3
+  parados de uma vez"): o `WaitRetry` só chamava o `Advance` com a fila do canteiro **vazia** (`:3620` na árvore do lote
+  — guarda que o próprio `Advance` **já tem** no fim do plano, `:1227`), então quem entrava na espera **no meio do
+  plano**, pelas **duas portas** (o portão `:1151` e a barreira `:1433`), **nunca mais re-perguntava o `MayTake`**:
+  ficava `entry.At` (2–25 s) parado **com peça livre logo à frente**, e o tempo caía em `fila`, não em barreira — é por
+  isso que o `BarrierHolds` deu **0** (ele só conta em `:1149`, que exige `Phase != WaitRetry`). **O patch:**
+  `bool ahead = state.Index + 1 < state.Plan.Count; if (ahead) return Advance(ai, state, dt);`
+  (`MHR_Build.cs:3689-3693`; no fim do plano o caminho segue **byte a byte** e o `PlanLocked` não reordena); o livelock
+  existe e é limitado pelo **relógio único** de **10 s** + watchdog de **60 s**, e o custo dele é **uma pulada** — é por
+  isso que `puladas` é o guarda do run. **Instrumento:** `WaitGate` (`:480`/`:1168`, o tempo do **portão**, que não
+  caía em balde nenhum porque o `Advance` roda com `dt = 0`, `:1113`), `WaitQueueEnd` × `WaitAhead` (`:467`/`:474`), o
+  `dt` repassado ao `StoreyBarrier` (`:1350`) e **`BlockedRecently`** (`:1550`; `MHR_BuildGroup.cs:752`) no lugar de
+  `Blocked > 0` (que **nunca é zerado**, `MHR_BuildGroup.cs:1075-1080`/`:1097`, e inflava "corpo" deflacionando
+  "dependência"); a linha do `Finish` imprime `fila E s (fim P s, meio Q s)` e `portão N (G s)` com o **`total`
+  incluindo o portão** (`:7691-7696`), e o `tools/build_run_report.py` entende **os dois formatos** (`:184-196`).
+  **Run 18 medido:** **985/985**, **0 puladas**, **0 mortes**, **0 `UNSUPPORTED`**, watchdog **0**, **1010 peças** no
+  canteiro (**985 + 25 postes**), **14 min 04 s** (relógio externo — o log não tem timestamp). **Estado:** build
+  **0/0**, harness **711**, config **367/25**. **O Run 19 (A/B) ainda NÃO foi rodado:** corte `fila ≤ 400 s`,
+  `WaitAhead ≈ 0`, espera do **último** worker `≤ 120 s` e duração `≤ 720 s`; **reverte** com `puladas > 0`,
+  `desistindo > 0`, morte, `UNSUPPORTED` ou watchdog — §17.22.
 - **Pendências conhecidas (abertas):** (1) navegação no andar em obra; (2) a voz não passa pelo mixer do jogo (só
   `[AI] TtsVolume`); (3) sync com o upstream `main` (1.5.8) em dia — conferir antes de cada release; (4) o nome do
   companheiro no centro do radial (cosmético); (5) posse do ZDO no spawn em multiplayer dedicado; (6) a dívida de
@@ -649,7 +700,19 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   baús, e a **reserva de material** continua sendo a metade aberta do P1;
   (12) **o nivelamento que recusa o terreno mata a obra** — `hc_ai_build_too_steep` (`MHR_Level.cs:282`) **não** está
   na lista de retomada (`:455`, só `done`/`already`/`failed`), então `[Building] LevelGround` (padrão **true**) pode
-  encerrar a ordem em vez de devolver ao build; contornado no Run 13 com `LevelGround = false` (§17.18, item (c)).
+  encerrar a ordem em vez de devolver ao build; contornado no Run 13 com `LevelGround = false` (§17.18, item (c));
+  (13) **o A/B do Run 19 está PENDENTE** — o patch da `fila` (`ahead`, §17.22) está **aplicado e instrumentado**, mas
+  **nenhum run rodou com ele**: o corte é `fila ≤ 400 s` (era **1040,2 s**), `WaitAhead ≈ 0`, espera do **último** worker
+  `≤ 120 s` (a maior medida foi **289,9 s**, o C5) e duração `≤ 720 s` (era **844 s**); **reverte** com `puladas > 0`,
+  `desistindo > 0`, morte, `UNSUPPORTED` ou watchdog (o baseline fechou **985/985** com **0 puladas**, então `puladas` é
+  o guarda certo). Do mesmo ciclo, também pendente: **o run de revalidação do `DeckLift`** (§17.23) — a escada do corpus
+  com **5** companheiros e o **A/B da casa de referência**;
+  (14) **o corpus baixado perde linhas por receita e o mod pula em silêncio** — **279 de 354** blueprints perdem pelo
+  menos uma linha por `recipe not unlocked` (**387.024** linhas no total, **100 %** delas por receita; **nenhuma** por
+  prefab inexistente) e o jogador vê o **número** de puladas, nunca **qual receita** falta. O dado **já existe**
+  (`BuildBlueprintReport.SkippedReasons`, devolvido como `skippedReasons` pelo `blueprints.inspect`): falta a **tela e a
+  fala**. **É decisão de produto, não bug** — ver `docs/re/blueprint-corpus.md` §6.1 (e o §6.4: a pasta do corpus é a
+  que o staging da release **leva**).
   **Achado de localização (11/11/2026, CORRIGIDO no mesmo dia):** `hc_cfg_building_blueprintstations`
   (`Core/ModLocalization.cs:852`) e `hc_cfg_controls_buildpanelkey` (`:855`) estavam **só no inglês** e mostravam a
   **chave crua** no F8 em PT/ES/FR/IT. Os dois entraram nos **4** JSONs — `buildpanelkey` em
@@ -705,8 +768,14 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
 - `docs/re/building-notes.md` — **a construção medida**, run a run (§15 o `.blueprint`, §17 o grupo de obra e o portão de
   apoio, §17.10–§17.17 os runs 4–11, **§17.18 o Run 13**, §17.19 **receita de teste × comportamento**: o que é bancada
   de teste e o que é produto, com o `arquivo:linha` de cada default, **§17.20 o Run 14** — o ping-pong do `StepAside` e
-  o walk spot 7 m abaixo — e **§17.21 a dispersão dos workers** (`[Building] SpreadWorkers`) com o **A/B dos Runs 15/16**
-  e a ressalva do contador).
+  o walk spot 7 m abaixo —, **§17.21 a dispersão dos workers** (`[Building] SpreadWorkers`) com o **A/B dos Runs 15/16**
+  e a ressalva do contador, **§17.22 o Run 18** — a `fila` como **barreira invisível** (o `ahead`, o `WaitGate`, o
+  `WaitAhead`, as duas correções da revisão e o **corte do A/B do Run 19, pendente**) — e **§17.23 o `DeckLift` como
+  teto** (o corpus que subia **1,00 m** no ar e caía, com a tabela das linhas de log)).
+- `docs/re/blueprint-corpus.md` — **o corpus de blueprints baixado** (medido em 04/11/2026): **353** `.blueprint` +
+  **353** `.png` no pacote, **354** na pasta, a auditoria pelo `blueprints.inspect` (**279 de 354** arquivos com linha
+  pulada, **387.024** linhas, **100 %** por `recipe not unlocked`), as estações por arquivo, o que subiu em jogo e a
+  leitura de produto (§6.1 a receita que o jogador **não vê**, §6.4 o corpus na pasta que o **staging leva**).
 - `docs/re/camada-ia-e-construcao.md` — o histórico detalhado da camada de IA e da construção (extraído do
   AGENTS em 03/11/2026; o resumo/estado atual fica aqui).
 - `docs/re/packaging-layout.md` — **o layout do zip** (o que vai em `BepInEx\plugins\AI-Companions\`, por que os
@@ -849,8 +918,8 @@ comandos de console e spawna coisas, então não é feature de jogador.
   mochila **sem dropar** — ferramenta de teste, `DevBridge/Commands.cs:1832-1847`) e `blueprints.list`/`blueprints.inspect`
   (`:628-746`): a biblioteca e **o que a ordem faria** com um arquivo, **sem começar nada**, pelo mesmo leitor do painel
   (`AI/BuildBlueprintReport.cs`).
-- **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check -c Release` — **706 asserções** (medidas
-  em 11/11/2026) das redes por
+- **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check -c Release` — **711 asserções** (medidas
+  em 11/11/2026; eram **706** no lote da dispersão) das redes por
   palavras (`RadialIntent`, `PickupIntent`, `GatherIntent`, `InteractionIntent`, `LlmIntent`, `OrderItems`,
   `CompanionNameMatch`) e das tabelas puras (`NavTileMath` na **(o)**, `BuildFailure.Classify` na **(p)** — 28 casos,
   `AI/BuildFailure.cs`, incluindo as constantes da barreira; `BuildPieceKind` na **(q)** — 26, `AI/BuildPieceKind.cs`;
@@ -877,7 +946,9 @@ comandos de console e spawna coisas, então não é feature de jogador.
   workers** — **11** de `Pick` (a posição da primeira candidata longe de todo claim e quantas ficaram para trás,
   inclusive a janela de 6 com as 5 primeiras ocupadas), **6** de `Far` (XZ, exatamente 3 m é livre, candidata `NaN`
   nunca é longe, claim `NaN` ignorado) e **5** de `SameRun` (as chaves do parser: `Level`/altura com 0,01 e classe
-  exata) — **soma medida em 11/11/2026: 706 PASS** com os `.cs` reais
+  exata) — **soma medida em 11/11/2026: 711 PASS** (eram **706** na enumeração acima; os **+5** vieram no ciclo da
+  `fila`/`DeckLift`, **sem seção nova** — a tabela do `tools/ai-intents-check/README.md` termina na **(z)**) com os
+  `.cs` reais
   linkados. Os `.csproj` ganharam cinco links com esses lotes (`BuildStationCover.cs`, `BuildMaterials.cs`,
   `BuildWalkSpot.cs`, `BuildAsideSpot.cs`, `BuildSpread.cs`), então o
   "nenhuma seção nova exigiu arquivo novo" que valia até a (u) **não vale mais**),
@@ -885,7 +956,7 @@ comandos de console e spawna coisas, então não é feature de jogador.
   são o gate.
 - **Gate de release:** `powershell -ExecutionPolicy Bypass -File tools\release-check.ps1 -Version <versão>` — roda o
   build, a versão (`PluginVersion` × nome do zip), as 3 traduções, o `locale-fallback-check.ps1` (agora com asserts),
-  o `gen_config_doc.py --check`, o teste do MCP (**122**) e as **706** asserções; **PASS/FAIL por item e exit 1**. É o que tem
+  o `gen_config_doc.py --check`, o teste do MCP (**122**) e as **711** asserções; **PASS/FAIL por item e exit 1**. É o que tem
   de passar antes de tag/zip (`-SkipGame`/`-SkipIntents` para rodar parte).
 - **Docs:** `docs/mcp-devbridge.md` (arquitetura, protocolo, as **62** ferramentas, a receita de **jogar pelo agente**
   e a de **comandos de console**, e as evidências dos testes da 1.9.4) e `tools/mcp-devbridge/README.md`
