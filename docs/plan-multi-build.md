@@ -60,7 +60,7 @@ recusa e pede "para" (evita duas casas ao mesmo tempo).
 
 **Nivelar/limpar**
 - P1: **um** trabalhador faz `Level`/`Clear` (o `MHR_Level`/harvest já são de um); os outros esperam o grupo
-  entrar em `Build` (ou seguem/aguardam o jogador). Paralelizar a limpeza fica para P4.
+  entrar em `Build` (ou seguem/aguardam o jogador). Paralelizar a limpeza fica para P5.
 
 **Materiais**
 - `PlanMissing` do grupo conta o **restante não colocado** (não o total), e a mochila/baús **somados** dos
@@ -83,7 +83,7 @@ recusa e pede "para" (evita duas casas ao mesmo tempo).
 - Uma ordem de **modo** em um companheiro (ex.: "Zé, colete") tira **aquele** trabalhador do grupo (ele vai fazer
   o modo) e os outros continuam; o "para" explícito é o que derruba todos. Decidir com o jogador (pergunta 4).
 
-## 4. Nomes múltiplos ("Maria e João")
+## 4. Nomes múltiplos (P4 — por último)
 
 - `CompanionNameMatch.FromMessageList(message, names)` (puro, testável): lê o **prefixo** antes do primeiro verbo
   de ordem/segmento; separa por `,`, `;`, `e`, `&`, `+`, `e o/a`; casa nomes **existentes** (sem caixa/acento,
@@ -101,17 +101,19 @@ recusa e pede "para" (evita duas casas ao mesmo tempo).
 - Harness: casos puros de `FromMessageList` ("Maria e João", "maria, joao", "Maria e o Zé", "Maria e o cachorro",
   "colete 10 pedras", "Ei, Maria e João", nomes repetidos, nome desconhecido) + `IsNotAddressee`.
 
-## 5. Fases
+## 5. Fases (ordem de implementação)
 
 1. **P0 (agora):** manter o comportamento; **não** dar `build` sem nome esperando vários (hoje vai para o speaker).
 2. **P1 — grupo:** `MHR_BuildGroup` + workers/claims + stop/um + morte/retomada + materiais/estação + `Build`
    aceitando a lista de alvos (sem nome = todos os que podem receber ordem; com nome = os nomeados). Teste com
    **2 companheiros** num **6x6** (46 peças) antes do 985.
-3. **P2 — nomes múltiplos:** `FromMessageList` + `Addressees` + os filtros + harness.
-4. **P3 — navmesh:** `WearNTear.OnPlaced`/`Destroy` → `InvalidateAround` no agente 40 (fase B barata do §6);
+3. **P2 — navmesh:** `WearNTear.OnPlaced`/`Destroy` → `InvalidateAround` no agente 40 (fase B barata do §6);
    independente do grupo, mas necessário para o piso novo.
-5. **P4 — UI/feedback:** progresso do grupo (`N/M`, workers), quem está com qual peça; o painel por companheiro
+4. **P3 — UI/feedback:** progresso do grupo (`N/M`, workers), quem está com qual peça; o painel por companheiro
    mostra "obra: X".
+5. **P4 — nomes múltiplos:** `FromMessageList` + `Addressees` + os filtros + harness. **Por último** entre as
+   frentes principais (pedido do jogador, 03/11/2026): o grupo e a navmesh primeiro, porque são o que faz a obra
+   andar; a lista de nomes é conveniência de comando.
 6. **P5 — persistência/multiplayer/limpeza paralela** (depois).
 
 ## 6. Invariantes e riscos
@@ -125,7 +127,7 @@ recusa e pede "para" (evita duas casas ao mesmo tempo).
 - **Não** duplicar peça/estação/coleta; `PlanStations`/`InsertBenchStep` uma vez.
 - O `MHR_Build.Active`/`OtherOrder`/harvest da limpeza precisam responder pelo **grupo** (a limpeza é fase do
   grupo; o harvest do `Clear` continua sendo a ferramenta).
-- A navmesh nova (P3) é pré-requisito para o piso recém-colocado; sem ela, o grupo pode ter o mesmo
+- A navmesh nova (P2) é pré-requisito para o piso recém-colocado; sem ela, o grupo pode ter o mesmo
   `no progress` de hoje, só que com mais trabalhadores.
 
 ## 7. Critério de aceite
@@ -133,8 +135,8 @@ recusa e pede "para" (evita duas casas ao mesmo tempo).
 **P1 (2 companheiros, 6x6):** um grupo, **46 peças colocadas uma vez**, nenhuma duplicada; os dois param com
 "para"; matar um → a peça dele é reivindicada pelo outro; ele volta e pega a próxima; a estação é planejada uma vez.
 **P1 (985):** o `next` é o **do grupo** (não 2×), dois workers com peças distintas, materiais pagos uma vez por
-peça; o tempo até 720 cai; sem loop de `no progress` (com P3).
-**P2:** "Maria e João, construam a cabana aqui" → as duas; "Zé, colete 10 madeiras" → só o Zé; "para, Maria" → só
+peça; o tempo até 720 cai; sem loop de `no progress` (com P2).
+**P4:** "Maria e João, construam a cabana aqui" → as duas; "Zé, colete 10 madeiras" → só o Zé; "para, Maria" → só
 a Maria; "para" → todos; "Maria e João, ataquem o greydwarf" → as duas; "Maria, equipa a picareta" → só a Maria;
 "Maria e o cachorro, ..." → Maria + aviso do desconhecido, sem inventar.
 **Harness:** 461 + os casos novos da lista de nomes; build 0/0.
