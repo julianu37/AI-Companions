@@ -226,8 +226,8 @@ stopped.
   yet, so the same stack may be counted twice and they can gather more than the plan needs), the group lives **in
   memory** (it is **not in the save**), and the group is **blueprints only** - a single piece and a template still have
   one companion on them. Build 0/0 and the harness at **596 assertions** pass (the failure classification, the piece-kind
-  table and the growing support tables of section **(r)**); **in test** - the numbers of **Run 6** and **Run 7** of
-  11/11/2026 end this cycle.
+  table and the growing support tables of section **(r)**); **in test** - the numbers of **Run 6**, **Run 7** and
+  **Run 8** of 11/11/2026 end this cycle.
   - **New `[Building] PlaceReach`** (**in test**): how far the companion may place a piece **once it is stuck** - it
     keeps walking to the piece as before, and only after **3 s without getting closer** does it place from farther
     away, up to this distance (float, default **10**, range **5–20**). `5` is the game's own reach
@@ -311,11 +311,24 @@ stopped.
     repeating the same `wood_floor` (plan indices **297/298/304**) - **8 `wood_floor`** at y **40.4/41.4**, a **0.6 m**
     step above the deck, plus the **12 chests** standing on them, all refused with `no_support` (**0 deaths**, and the
     stall watchdog never named those pieces). The refusal **was right**: 0.6 m is **4x** the game's 0.15 m, so placing
-    them would only have the game drop them. The fix now in test is in the emergency post: `PickPost` takes `MaxOverlap`
-    **0.35 -> 0.45** (a 1 m beam crossing the board still counts - in the game support is collider **overlap**, not
-    contact). The rest of the rule is **left as it was**: a **solid without `WearNTear`** (stone, a tree, a structure)
-    still **does not** count as support for our probe - the game **does** treat it as maximum support, and that gap
-    stays open (`docs/re/building-notes.md` §17.14).
+    them would only have the game drop them. The fix is in the emergency post (validated by **Run 8** below): `PickPost`
+    takes `MaxOverlap` **0.35 -> 0.45** (a 1 m beam crossing the board still counts - in the game support is collider
+    **overlap**, not contact). The rest of the rule is **left as it was**: a **solid without `WearNTear`** (stone, a
+    tree, a structure) still **does not** count as support for our probe - the game **does** treat it as maximum
+    support, and that gap stays open (`docs/re/building-notes.md` §17.14).
+  - **Run 8 of 11/11/2026: the stepped house closes** (**in test** - the validation run of the post batch above):
+    **5 companions**, `BlueprintFree`, `DeckLift = 1`, `PlaceReach = 15`, and the **player outside the site the whole
+    run** (position guard at **(-166.92, 39.92, -401.59)**). **987 of 987 plan indices placed, 0 skipped** - the order
+    ends with `hc_ai_blueprint_done`. **39 emergency posts, 0 refusals**: they land **under the 0.6 m stepped floors
+    at y 40.4** (**(-152.3, 40.4, -424.9)** and others), the exact pieces that never went up in Run 7. The site holds
+    **1026 pieces** = **987 of the plan** (983 from the blueprint + **4 inserted workbenches**) + **39 posts**. **0
+    deaths**, **0 `falls`**, **0 `UNSUPPORTED`** (the game's own verdict on every placed piece), `blocked_by_player`
+    **116** and `no progress` **11**. The three `render_view` shots show the **roof closed** and the **east gable
+    closed**.
+    **Honest note:** the file has **985 accepted lines** and the parser **drops 2** - `stone_floor_2x2` with `recipe
+    not unlocked`; `build.inspect` confirms they need the **`piece_stonecutter`** station (20 m), which this world
+    does not have. That is the **blueprint's boundary**, not a build failure - and it is the same **2 pieces** that
+    were missing in Run 6.
   - **The emergency post walks the ray down** (**in test**, fix of 11/11/2026): it stopped at the **first** hit - a roof
     eave **0,16 m** under a floor - and refused with *"vão de 0,16 m"* **318 times**. It now skips surfaces closer than
     **0,40 m** (`MinPostGap`, up to **4 passes**) and takes the first **usable** one
