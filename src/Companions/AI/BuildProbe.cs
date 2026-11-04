@@ -578,7 +578,7 @@ internal static class BuildProbe
 				}
 			}
 		}
-		if (BlockedByCharacter(surface, ignore))
+		if (BlockedByCharacter(piece, point, ignore))
 		{
 			reasons.Add("blocked_by_player");
 		}
@@ -693,25 +693,36 @@ internal static class BuildProbe
 	}
 
 	/// <summary>
-	/// A player inside <see cref="MinSpacing"/> of the spot (the vanilla ghost check, cheap version: the game tests the ghost's
-	/// colliders against every character within 30 m).
+	/// Is a character's <b>body</b> in the way of the piece at <paramref name="point"/>? This is the cheap version of the
+	/// vanilla ghost check (the game tests the ghost's colliders against every character within 30 m,
+	/// <c>CheckPlacementGhostVSPlayers</c>).
 	///
-	/// <para>P1 (04/11/2026): <b>a companion is a character like any other</b> for placement. An earlier version of this
-	/// check ignored every <see cref="CompanionAI"/> (to stop the 17+ <c>blocked_by_player</c> of a crowded site), but the
-	/// pieces were then placed <b>inside</b> the companions and they <b>sank into the floor</b> (the player's report) - the
-	/// vanilla rule exists for a reason. The placing companion is the caller's <paramref name="ignore"/>; every other one
-	/// blocks the spot and the piece waits in the retry queue until the body moves.</para>
+	/// <para>P1 (04/11/2026, player's report: "dois companions travados embaixo do piso"): the old test compared the distance
+	/// from the piece's <b>point</b> to the character's <b>transform</b> (the feet) and needed 0,6 m - with the 1 m deck a
+	/// floor 1 m above the feet was 1,0 m away in 3D, so it did not block, and the floor was placed <b>over the head</b> of
+	/// two companions (they were squeezed 1 m under the ground and stuck). The test is now the <b>body window</b> of
+	/// <see cref="BuildBody"/>: the character is a column (feet -0,5 m to feet +2,0 m) and the piece a box (its own flat
+	/// radius + the body's 0,45 m in XZ, its vertical extent in Y) - a floor above the head blocks when its span crosses
+	/// the body, a piece entirely above the head does not.</para>
+	///
+	/// <para>A companion is a character like any other: an earlier version ignored every <see cref="CompanionAI"/> (to stop
+	/// the 17+ <c>blocked_by_player</c> of a crowded site) and the pieces were then placed <b>inside</b> the companions,
+	/// which <b>sank into the floor</b> - the vanilla rule exists for a reason. The placing companion is the caller's
+	/// <paramref name="ignore"/>; every other body blocks the spot and the piece waits in the retry queue until it moves
+	/// (<c>blocked_by_player</c> is a real failure in the support gate, so it spends one of the three attempts).</para>
 	/// </summary>
-	private static bool BlockedByCharacter(Vector3 point, Component ignore)
+	private static bool BlockedByCharacter(Piece piece, Vector3 point, Component ignore)
 	{
-		float sqr = MinSpacing * MinSpacing;
+		BodyBox(piece, out float flat, out float halfHeight);
+		float spacing = BuildBody.Spacing(flat, MinSpacing);
 		foreach (Player player in Player.GetAllPlayers())
 		{
 			if (player == null || ReferenceEquals(player, ignore))
 			{
 				continue;
 			}
-			if ((player.transform.position - point).sqrMagnitude < sqr)
+			Vector3 feet = player.transform.position;
+			if (BuildBody.Blocked(feet.x, feet.y, feet.z, point.x, point.y, point.z, halfHeight, spacing))
 			{
 				return true;
 			}
@@ -722,13 +733,42 @@ internal static class BuildProbe
 			{
 				continue;
 			}
-			if ((setup.transform.position - point).sqrMagnitude < sqr)
+			Vector3 feet = setup.transform.position;
+			if (BuildBody.Blocked(feet.x, feet.y, feet.z, point.x, point.y, point.z, halfHeight, spacing))
 			{
 				return true;
 			}
 		}
 		return false;
 	}
+
+	/// <summary>
+	/// The piece's box, memoised for a search: <see cref="BuildSite.Find"/> asks the same prefab's body window once per
+	/// candidate pose (up to 148), and <see cref="BoxOf"/> walks every renderer of the prefab (it allocates). Prefabs do not
+	/// change, so one entry is enough. No box (an exotic prefab) answers a point: flat radius 0 and no vertical extent.
+	/// </summary>
+	private static void BodyBox(Piece piece, out float flat, out float halfHeight)
+	{
+		if (!_bodyBoxCached || !ReferenceEquals(_bodyPiece, piece))
+		{
+			_bodyPiece = piece;
+			_bodyBoxCached = true;
+			_bodyBoxOk = BoxOf(piece, out _bodyBox);
+		}
+		if (_bodyBoxOk)
+		{
+			flat = Mathf.Max(_bodyBox.size.x, _bodyBox.size.z) * 0.5f;
+			halfHeight = _bodyBox.extents.y;
+			return;
+		}
+		flat = 0f;
+		halfHeight = 0f;
+	}
+
+	private static Piece _bodyPiece;
+	private static Bounds _bodyBox;
+	private static bool _bodyBoxOk;
+	private static bool _bodyBoxCached;
 
 	/// <summary>
 	/// Tests a ring of candidate spots around a centre: <paramref name="rings"/> distances out to

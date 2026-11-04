@@ -103,6 +103,8 @@ internal static class Program
 		PieceKinds();
 		Section("(r) BuildSupportBelow - o apoio direto de uma peca (quem o grupo puxa para a frente)");
 		SupportBelow();
+		Section("(s) BuildBody - a janela do corpo na colocacao (blocked_by_player)");
+		BodyWindows();
 		CrossCheckDoorRule();
 
 		Out.WriteLine();
@@ -954,6 +956,56 @@ internal static class Program
 		int actual = BuildSupportBelow.PickPost(lengths, gap);
 		Check("PickPost(vão " + gap.ToString("F2") + " m) -> " + expected + " (" + why + ")",
 			actual == expected, "obtido " + actual);
+	}
+
+	/// <summary>
+	/// P1 (04/11/2026): the <b>body window</b> of the placement check (<c>BuildProbe.BlockedByCharacter</c>). The measured
+	/// bug: with the 1 m deck, a floor 1 m above the feet of two companions was 1,0 m from the piece's point in 3D, so the
+	/// old point-vs-transform test (0,6 m) let it through and the floor went <b>over their heads</b> (squeezed to y 37,9, 1 m
+	/// under the ground). The body is a column and the piece a box: both windows have to hold.
+	/// </summary>
+	private static void BodyWindows()
+	{
+		// the measured floor (wood_floor: 2,27 x 0,26 x 2,29 -> flat radius 1,14, half height 0,13) at the deck level 39,8
+		// over a companion standing on the ground at 38,78: the floor crosses the body -> blocked
+		float floor = BuildBody.Spacing(1.14f, 0.6f);
+		Check("o caso medido: piso do deck (39,8) sobre o companheiro (pes 38,78) -> bloqueia",
+			BuildBody.Blocked(0f, 38.78f, 0f, 0f, 39.8f, 0f, 0.13f, floor), "obtido false");
+		// the same floor beside the body (1,7 m) -> free
+		Check("o mesmo piso a 1,7 m do companheiro -> livre",
+			!BuildBody.Blocked(1.7f, 38.78f, 0f, 0f, 39.8f, 0f, 0.13f, floor), "obtido true");
+		// 1,5 m is inside the 1,59 m window (piece radius + body radius)
+		Check("o mesmo piso a 1,5 m -> ainda bloqueia (janela de 1,59 m)",
+			BuildBody.Blocked(1.5f, 38.78f, 0f, 0f, 39.8f, 0f, 0.13f, floor), "obtido false");
+		// a floor above the head: the body ends at 40,78 and the piece starts at 41,67 -> free
+		Check("piso 2 m acima da cabeca -> livre",
+			!BuildBody.Blocked(0f, 38.78f, 0f, 0f, 41.8f, 0f, 0.13f, floor), "obtido true");
+		// a floor at the feet (the piece under the companion)
+		Check("piso no nivel dos pes -> bloqueia",
+			BuildBody.Blocked(0f, 38.78f, 0f, 0f, 38.78f, 0f, 0.13f, floor), "obtido false");
+		// a wall (2,25 x 2,16 x 0,53 -> flat 1,125, half height 1,08): its base at 38,72 crosses the body -> blocked
+		float wall = BuildBody.Spacing(1.125f, 0.6f);
+		Check("parede de 2 m com a base na altura do corpo -> bloqueia",
+			BuildBody.Blocked(0f, 38.78f, 0f, 0f, 39.8f, 0f, 1.08f, wall), "obtido false");
+		// the same wall one metre higher: base 40,92, body ends at 40,78 -> free (the companion walks under it)
+		Check("parede inteira acima da cabeca -> livre",
+			!BuildBody.Blocked(0f, 38.78f, 0f, 0f, 42f, 0f, 1.08f, wall), "obtido true");
+		// a companion standing ON the deck (39,93): the neighbouring tile is 2 m away -> free; on the seam (1,4 m) -> blocked
+		Check("companheiro de pe no deck: a telha vizinha (2 m) -> livre",
+			!BuildBody.Blocked(2f, 39.93f, 0f, 0f, 39.8f, 0f, 0.13f, floor), "obtido true");
+		Check("companheiro na emenda das telhas (1,4 m) -> bloqueia",
+			BuildBody.Blocked(1.4f, 39.93f, 0f, 0f, 39.8f, 0f, 0.13f, floor), "obtido false");
+		// the spacing never goes under the probe's MinSpacing, and it grows with the piece
+		Check("Spacing(0, 0,6) == 0,60", Math.Abs(BuildBody.Spacing(0f, 0.6f) - 0.6f) < 0.001f,
+			"obtido " + BuildBody.Spacing(0f, 0.6f).ToString("F2"));
+		Check("Spacing(0,1, 0,6) == 0,60", Math.Abs(BuildBody.Spacing(0.1f, 0.6f) - 0.6f) < 0.001f,
+			"obtido " + BuildBody.Spacing(0.1f, 0.6f).ToString("F2"));
+		Check("Spacing(1,14, 0,6) == 1,59 (raio do piso + 0,45)", Math.Abs(BuildBody.Spacing(1.14f, 0.6f) - 1.59f) < 0.001f,
+			"obtido " + BuildBody.Spacing(1.14f, 0.6f).ToString("F2"));
+		// the numbers of the window
+		Check("Radius == 0,45 m", Math.Abs(BuildBody.Radius - 0.45f) < 0.001f, "obtido " + BuildBody.Radius.ToString("F2"));
+		Check("Below == 0,50 m", Math.Abs(BuildBody.Below - 0.5f) < 0.001f, "obtido " + BuildBody.Below.ToString("F2"));
+		Check("Above == 2,00 m", Math.Abs(BuildBody.Above - 2f) < 0.001f, "obtido " + BuildBody.Above.ToString("F2"));
 	}
 
 	/// <summary>The plan of case (a)/(e) of section (m): a fresh list every call (case (e) needs two of them).</summary>
