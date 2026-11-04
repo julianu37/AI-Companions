@@ -76,6 +76,35 @@ class MockBridge(threading.Thread):
             return {"ok": True, "data": {"count": 2, "companions": [{"name": "Maria"}, {"name": "Thorin"}]}}
         if cmd == "companions.order":
             return {"ok": True, "data": {"action": request["args"]["action"], "applied": True}}
+        if cmd == "nav.tiles":
+            # Mirrors the C# answer for P2 (the echo/args are this mock's, so the forwarded payload is visible).
+            return {"ok": True, "data": {
+                "echo": cmd,
+                "args": request.get("args"),
+                "count": 2,
+                "tiles": [
+                    {"id": "1,2,3", "center": {"x": 1.0, "y": 2.0, "z": 3.0}, "poke": 0.5, "build": 0.25,
+                     "hasData": True, "instanceValid": True},
+                    {"id": "5,6,7", "center": {"x": 5.0, "y": 6.0, "z": 7.0}, "poke": 0.0, "build": 1.0,
+                     "hasData": False, "instanceValid": False},
+                ],
+            }}
+        if cmd == "nav.probe":
+            return {"ok": True, "data": {
+                "echo": cmd,
+                "args": request.get("args"),
+                "found": True,
+                "distance": 1.25,
+                "point": {"x": 1.5, "y": 2.5, "z": 3.5},
+            }}
+        if cmd == "nav.stats":
+            return {"ok": True, "data": {
+                "echo": cmd,
+                "args": request.get("args"),
+                "pokes": 42,
+                "rebuilds": 3,
+                "maxCollectMs": 1.75,
+            }}
         return {"ok": True, "data": {"echo": cmd, "args": request.get("args")}}
 
     def shutdown(self):
@@ -127,11 +156,12 @@ def main():
 
         tools = rpc("tools/list", request_id=2).get("result", {}).get("tools", [])
         names = {tool["name"] for tool in tools}
-        check("tools/list has 57 tools", len(tools) == 57, "%d tools" % len(tools))
+        check("tools/list has 60 tools", len(tools) == 60, "%d tools" % len(tools))
         for expected in ("devbridge_ping", "game_status", "companions_list", "companions_order", "screenshot", "log_tail",
                          "player_kill", "player_inventory", "world_time", "companions_kill", "companions_tier",
                          "companions_hire", "companions_resurrect", "companions_farm_zone", "log_watch",
-                         "build_inspect", "build_sites", "build_find", "build_pieces", "companions_build", "companions_sethome", "player_look", "build_check", "build_snaps", "build_usable", "terrain_check", "build_hoe", "companions_level"):
+                         "build_inspect", "build_sites", "build_find", "build_pieces", "companions_build", "companions_sethome", "player_look", "build_check", "build_snaps", "build_usable", "terrain_check", "build_hoe", "companions_level",
+                         "nav_tiles", "nav_probe", "nav_stats"):
             check("tools/list includes %s" % expected, expected in names)
 
         ping = rpc("tools/call", {"name": "devbridge_ping", "arguments": {}}, request_id=3)
@@ -198,6 +228,11 @@ def main():
             (41, "terrain_check", {"size": 8}, "terrain.check"),
             (42, "build_hoe", {}, "build.hoe"),
             (43, "companions_level", {"size": 8}, "companions.level"),
+            (44, "nav_tiles", {}, "nav.tiles"),
+            (45, "nav_tiles", {"x": 10, "y": 20, "z": 30, "radius": 5}, "nav.tiles"),
+            (46, "nav_probe", {}, "nav.probe"),
+            (47, "nav_probe", {"x": 1.5, "y": 2.5, "z": 3.5, "range": 1.5}, "nav.probe"),
+            (48, "nav_stats", {}, "nav.stats"),
         ):
             reply = rpc("tools/call", {"name": tool, "arguments": arguments}, request_id=request_id)
             text = reply.get("result", {}).get("content", [{}])[0].get("text", "")
@@ -212,6 +247,51 @@ def main():
               any(r.get("cmd") == "companions.kill" and r.get("args", {}).get("name") == "Maria" for r in bridge.requests))
         check("world_time sends day and fraction",
               any(r.get("cmd") == "world.time" and r.get("args", {}).get("fraction") == 0.5 for r in bridge.requests))
+
+        # --- P2 navigation instrumentation: payload forwarded and answer shape --------------------------------
+        def nav_args(cmd):
+            """Every payload sent to one bridge command, in call order (read fresh, so later calls count)."""
+            return [r.get("args") or {} for r in bridge.requests if r.get("cmd") == cmd]
+
+        tiles_reply = rpc("tools/call", {"name": "nav_tiles", "arguments": {"radius": 12}}, request_id=49)
+        tiles_data = json.loads(tiles_reply["result"]["content"][0]["text"])
+        probe_reply = rpc("tools/call", {"name": "nav_probe", "arguments": {"x": 7, "y": 8, "z": 9}}, request_id=50)
+        probe_data = json.loads(probe_reply["result"]["content"][0]["text"])
+        stats_reply = rpc("tools/call", {"name": "nav_stats", "arguments": {}}, request_id=51)
+        stats_data = json.loads(stats_reply["result"]["content"][0]["text"])
+
+        check("nav_tiles sends radius 40 by default",
+              any(a.get("radius") == 40 for a in nav_args("nav.tiles")), nav_args("nav.tiles"))
+        check("nav_tiles leaves the centre out by default (the C# uses the player)",
+              any(a.get("radius") == 40 and "x" not in a and "y" not in a and "z" not in a
+                  for a in nav_args("nav.tiles")), nav_args("nav.tiles"))
+        check("nav_tiles sends x/y/z when given",
+              any(a.get("x") == 10 and a.get("y") == 20 and a.get("z") == 30 and a.get("radius") == 5
+                  for a in nav_args("nav.tiles")), nav_args("nav.tiles"))
+        check("nav_tiles sends a radius of 12 when given",
+              any(a.get("radius") == 12 for a in nav_args("nav.tiles")), [a.get("radius") for a in nav_args("nav.tiles")])
+        check("nav_tiles returns count and the tiles",
+              tiles_data.get("count") == 2 and len(tiles_data.get("tiles") or []) == 2, tiles_data.get("count"))
+        first_tile = (tiles_data.get("tiles") or [{}])[0]
+        check("nav_tiles tile has id/center/poke/build/hasData/instanceValid",
+              first_tile.get("id") == "1,2,3" and first_tile.get("center", {}).get("y") == 2.0
+              and "poke" in first_tile and "build" in first_tile
+              and first_tile.get("hasData") is True and first_tile.get("instanceValid") is True, first_tile)
+
+        check("nav_probe sends range 3 by default",
+              any(a.get("range") == 3 and "x" not in a for a in nav_args("nav.probe")), nav_args("nav.probe"))
+        check("nav_probe sends x/y/z and the range when given",
+              any(a.get("x") == 1.5 and a.get("y") == 2.5 and a.get("z") == 3.5 and a.get("range") == 1.5
+                  for a in nav_args("nav.probe")), nav_args("nav.probe"))
+        check("nav_probe returns found/distance/point",
+              probe_data.get("found") is True and probe_data.get("distance") == 1.25
+              and probe_data.get("point", {}).get("z") == 3.5, probe_data)
+
+        check("nav_stats returns pokes/rebuilds/maxCollectMs",
+              stats_data.get("pokes") == 42 and stats_data.get("rebuilds") == 3
+              and stats_data.get("maxCollectMs") == 1.75, stats_data)
+        check("nav_stats sends no arguments",
+              all(a == {} for a in nav_args("nav.stats")), nav_args("nav.stats"))
 
         unknown = rpc("tools/call", {"name": "does_not_exist", "arguments": {}}, request_id=7)
         check("unknown tool is a JSON-RPC error", unknown.get("error", {}).get("code") == -32602)

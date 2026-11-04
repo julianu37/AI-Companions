@@ -1589,6 +1589,10 @@
             "value": "Camino propio"
         },
         {
+            "key": "hc_cfg_movement_pathingonbuild",
+            "value": "Camino en la obra"
+        },
+        {
             "key": "hc_cfg_movement_workrundistance",
             "value": "Correr en el trabajo (m)"
         },

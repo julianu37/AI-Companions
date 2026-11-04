@@ -249,6 +249,22 @@ The companion's weight limit is **from the mod**, not from the game: vanilla doe
 
 ---
 
+## `[Movement]` section — the route while a house goes up
+
+The companion walks on its **own map of the world** (`[Movement] Pathing`), and that map does not know that a piece
+was just placed or taken down: the game rebuilt a tile at most every **5 s**. On a building site that is the
+difference between the new floor being on the route right now and the companion walking into the hole it covers.
+
+| Key | Default | What it does |
+|---|---|---|
+| `PathingOnBuild` | `true` | The companion's route sees a piece as soon as it is placed (the navmesh tile is rebuilt instead of waiting up to 5 s). The rebuilds are **coalesced** (0,35 s) and only touch tiles that already exist, and the same covers a piece that goes **away** — the build's temporary stair and the `build.delete` cleanup. Off = the game's own delay Needs `[Movement] Pathing` on. |
+
+> The mover also gets about **6 s of patience** when the route comes back `Partial` and the target is **above** it (the
+> game snaps a route to the map up to 12 m away) instead of giving up at once — the piece of the storey above is
+> reached as the floor under it goes in.
+
+---
+
 ## What **we** changed compared to the upstream
 
 Besides the translation and the AI layer, the project adjusted a few upstream defaults. If you came from Offline

@@ -241,6 +241,8 @@ internal static class ModConfig
 
 	internal static ConfigEntry<bool> CompanionNavMesh;
 
+	internal static ConfigEntry<bool> PathingOnBuild;
+
 	internal static ConfigEntry<float> CookRange;
 
 	internal static ConfigEntry<int> CookIngredientReserve;
@@ -838,6 +840,7 @@ internal static class ModConfig
 		ViewRange = Bind(cfg, "Movement", "ViewRange", 20f, "How far (meters) a companion can see enemies and other creatures. Takes effect after the world is reloaded.", new AcceptableValueRange<float>(5f, 100f));
 		ViewAngle = Bind(cfg, "Movement", "ViewAngle", 120f, "A companion's field of view (degrees). Takes effect after the world is reloaded.", new AcceptableValueRange<float>(30f, 360f));
 		CompanionNavMesh = Bind(cfg, "Movement", "Pathing", defaultValue: true, "Companions find their way with their own map of the world, where doors don't block the way (they open them as they get there) and steps up to 0.6 m are climbable (they hop them). Off = the same map creatures use, where every closed door is a wall and most stairs don't connect. Takes effect after a restart.");
+		PathingOnBuild = Bind(cfg, "Movement", "PathingOnBuild", defaultValue: true, "The companion's route sees a piece as soon as it is placed (the navmesh tile is rebuilt instead of waiting up to 5 s). Needs [Movement] Pathing on.");
 		WorkRunDistance = Bind(cfg, "Movement", "WorkRunDistance", 25f, "Companions walk while doing jobs (farming, chest trips, smelting, cooking, chores, repairs, gathering) and only run when what they are heading to is further away than this many meters. 0 = never run for work. Following you, fighting and hunting are not affected.", new AcceptableValueRange<float>(0f, 500f));
 		DryDetour = Bind(cfg, "Movement", "DryDetour", 30f, "Companions prefer staying dry, like a player: when the way somewhere crosses water they go round it on land, as long as the dry way is no longer than 1.5x the swimming way plus this many meters. Otherwise they swim.", new AcceptableValueRange<float>(0f, 500f));
 		JobSwim = Bind(cfg, "Movement", "JobSwim", 20f, "The most swimming (meters) a job accepts to reach something: loot from a kill, prey, a bird, a fishing spot. Further than that and it leaves it.", new AcceptableValueRange<float>(0f, 200f));

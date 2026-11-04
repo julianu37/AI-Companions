@@ -1666,6 +1666,10 @@ internal static class MHR_Build
 				Piece piece = go.GetComponent<Piece>();
 				ZNetView view = go.GetComponent<ZNetView>();
 				bool gone = false;
+				// P2 (multi-build): ALL three paths below skip WearNTear.Destroy, so the route map has to be told here -
+				// a stair that came down and stays on the map is a ramp the mover walks up into the air. Read the
+				// position before any of them (Destroy is deferred today, but do not rely on it).
+				MHR_CompanionNavMesh.InvalidateAround(go.transform.position);
 				if (view != null && view.IsValid())
 				{
 					// the claim before the destroy is what makes ZNetScene.Destroy enqueue the ZDO - without it the other

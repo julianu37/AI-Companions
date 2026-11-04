@@ -1,7 +1,8 @@
 # Plano — vários companheiros na mesma obra (multi-build)
 
-**Status:** desenho, 03/11/2026. **Não implementado.** O teste atual (1 companheiro, `CommHomeBasicBP`) é a base;
-a obra de 985 peças mostrou que o gargalo é a **ordem/navegação**, não o número de trabalhadores.
+**Status:** desenho, 03/11/2026. **P2 (navmesh/latência) implementado — em teste no jogo**; P0/P1/P3–P5 não
+implementados. O teste atual (1 companheiro, `CommHomeBasicBP`) é a base; a obra de 985 peças mostrou que o gargalo
+é a **ordem/navegação**, não o número de trabalhadores.
 
 ## 1. O que existe hoje (medido no código)
 
@@ -109,13 +110,16 @@ recusa e pede "para" (evita duas casas ao mesmo tempo).
 2. **P1 — grupo:** `MHR_BuildGroup` + workers/claims + stop/um + morte/retomada + materiais/estação + `Build`
    aceitando a lista de alvos (sem nome = todos os que podem receber ordem; com nome = os nomeados). Teste com
    **2 companheiros** num **6x6** (46 peças) antes do 985.
-3. **P2 — navmesh/latência (medir antes):** (a) **medir os `why`** do run (03/11/2026: 36 `no progress`, 17
-   `no_support`, 9 `no_ground`, 6 `too_steep`); (b) **carência do mover** (`MHR_Mover.Plan`: rota `Partial` + alvo
-   acima → ~6 s antes de `Unstick`/`no progress`, só `Build`/`BuildGather`) — ataca os 36; (c) **invalidação
-   coalescida** (`m_pokeTime` + `m_buildTime = now - 5,1`, só tiles existentes, 0,35 s; postfix `OnPlaced` + prefix
-   `Destroy` + chamadas em `PlaceDirect`/`ClearScaffolds`/`build.delete`), config `[Movement] PathingOnBuild`, tools
-   `nav.tiles`/`nav.probe`/`nav.stats` e harness puro `NavTileMath`. O `-1000` literal é tempestade (985×9 bakes);
-   detalhe em `docs/re/navmesh-tiles.md`.
+3. **P2 — navmesh/latência — EM TESTE (implementado em 03/11/2026):** (a) **medido o `why`** do run de 03/11/2026:
+   **36 `no progress`**, 17 `no_support`, 9 `no_ground`, 6 `too_steep` — os 36 **não** são "tile invisível": são o
+   `SnapToNavMesh` (1,5/3/6/12 m) mandando o alvo para o chão sob o piso, com a trava de 12 s do `Goto` queimando;
+   (b) **carência do mover** (`MHR_Mover.Plan`: rota `Partial` + alvo acima → ~6 s antes de `Unstick`/`no progress`,
+   só `Build`/`BuildGather`) — ataca os 36; (c) **invalidação coalescida** (`m_pokeTime` + `m_buildTime = now - 5,1`,
+   só tiles existentes, 0,35 s; postfix `OnPlaced` + prefix `Destroy` + chamadas em
+   `PlaceDirect`/`ClearScaffolds`/`build.delete`/`MHR_Level.NextPass`), config `[Movement] PathingOnBuild` (padrão
+   `true`), tools `nav.tiles`/`nav.probe`/`nav.stats` e harness puro `NavTileMath`. O `-1000` literal é tempestade
+   (985×9 bakes); detalhe em `docs/re/navmesh-tiles.md` e `docs/re/navegacao-companheiro.md` §6.1. **Falta:** o run
+   com as duas coisas ligadas, contando os `why` de novo (aceite: nenhum `no progress` repetido na mesma peça).
 4. **P3 — UI/feedback:** progresso do grupo (`N/M`, workers), quem está com qual peça; o painel por companheiro
    mostra "obra: X".
 5. **P4 — nomes múltiplos:** `FromMessageList` + `Addressees` + os filtros + harness. **Por último** entre as

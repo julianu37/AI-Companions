@@ -970,6 +970,50 @@ TOOLS = [
             "additionalProperties": False,
         },
     },
+    {
+        "name": "nav_tiles",
+        "description": (
+            "Navigation instrumentation (P2): the navmesh tiles near a point (default: the player) - id, centre, "
+            "whether the tile already carries the poke/build flood data and whether its instance is still valid. It "
+            "is how the nav grid the companion walks on is read from the outside, tile by tile."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "x": {"type": "number", "description": "centre (default: the player)"},
+                "y": {"type": "number"},
+                "z": {"type": "number"},
+                "radius": {"type": "number", "minimum": 1, "maximum": 120, "default": 40},
+            },
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "nav_probe",
+        "description": (
+            "Navigation instrumentation (P2): probes the navmesh around a point (default: the player) and answers "
+            "whether a tile was found, how far it is and where it is. It separates 'there is no navmesh here' from "
+            "'the mover gave up' when a companion refuses to walk somewhere."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "x": {"type": "number", "description": "point to probe (default: the player)"},
+                "y": {"type": "number"},
+                "z": {"type": "number"},
+                "range": {"type": "number", "minimum": 0.5, "maximum": 50, "default": 3},
+            },
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "nav_stats",
+        "description": (
+            "Navigation instrumentation (P2) counters: how many probes (pokes), how many grid rebuilds and the worst "
+            "collection time in ms since the world loaded - the measured cost of the nav instrumentation."
+        ),
+        "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
 ]
 
 TOOL_NAMES = {tool["name"] for tool in TOOLS}
@@ -1201,6 +1245,20 @@ def run_tool(name, args):
             if key in args:
                 payload[key] = args[key]
         return require_ok(call_bridge("companions.farm_zone", **payload))
+    if name == "nav_tiles":
+        payload = {"radius": args.get("radius", 40)}
+        for key in ("x", "y", "z"):
+            if key in args:
+                payload[key] = args[key]
+        return require_ok(call_bridge("nav.tiles", **payload))
+    if name == "nav_probe":
+        payload = {"range": args.get("range", 3)}
+        for key in ("x", "y", "z"):
+            if key in args:
+                payload[key] = args[key]
+        return require_ok(call_bridge("nav.probe", **payload))
+    if name == "nav_stats":
+        return require_ok(call_bridge("nav.stats"))
     raise RuntimeError("unknown tool: " + name)
 
 

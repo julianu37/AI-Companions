@@ -252,6 +252,23 @@ un **bonus de charge** s'ajoutent **par-dessus** :
 
 ---
 
+## Section `[Movement]` — l'itinéraire pendant que la maison monte
+
+Le compagnon marche sur **sa propre carte du monde** (`[Movement] Pathing`), et cette carte ne sait pas qu'une pièce
+vient d'être posée ou retirée : le jeu ne reconstruisait une tuile qu'au plus toutes les **5 s**. Sur un chantier,
+c'est la différence entre le nouveau plancher présent dans l'itinéraire tout de suite et le compagnon qui marche
+dans le trou qu'il recouvre.
+
+| Clé | Défaut | Ce qu'elle fait |
+|---|---|---|
+| `PathingOnBuild` | `true` | L'itinéraire du compagnon voit la pièce dès qu'elle est posée (la tuile du navmesh est reconstruite tout de suite, au lieu d'attendre jusqu'à 5 s). Les reconstructions sont **regroupées** (0,35 s) et ne touchent que des tuiles qui existent déjà, et c'est pareil quand la pièce **disparaît** — l'escalier provisoire du chantier et le nettoyage du `build.delete`. Désactivé = le délai du jeu lui-même Nécessite `[Movement] Pathing` activé. |
+
+> Le mover gagne aussi environ **6 s de patience** quand l'itinéraire revient `Partial` et que la cible est
+> **au-dessus** de lui (le jeu accroche l'itinéraire à la carte jusqu'à 12 m), au lieu d'abandonner tout de suite — la
+> pièce de l'étage au-dessus est atteinte à mesure que le plancher du dessous arrive.
+
+---
+
 ## Ce que **nous** avons changé par rapport à l'upstream
 
 En plus de la traduction et de la couche d'IA, le projet a ajusté quelques valeurs par défaut de l'upstream. Si tu

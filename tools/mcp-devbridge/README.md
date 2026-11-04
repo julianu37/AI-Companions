@@ -663,6 +663,59 @@ zone. This is the setup helper for the `ChangeTier` Ã— farm-zones test.
  "zones": [{"x": 120.5, "y": 30.2, "z": -44.1, "halfSize": 4.0, "crop": "CarrotSeeds", "rotation": 0.0}]}
 ```
 
+## Navigation instrumentation (P2)
+
+Read-only probes of the navigation grid the companion walks on. They answer "does the navmesh know this ground?"
+without moving anyone, so a refused walk can be split into *no navmesh here* and *the mover gave up*. The bridge
+commands are `nav.tiles`, `nav.probe` and `nav.stats`.
+
+### `nav_tiles`
+
+| param | type | default |
+|---|---|---|
+| `x`, `y`, `z` | number | the player's position |
+| `radius` | number (1..120) | 40 |
+
+```json
+{"count": 2,
+ "tiles": [{"id": "1,2,3", "center": {"x": 1.0, "y": 2.0, "z": 3.0}, "poke": 0.5, "build": 0.25,
+            "hasData": true, "instanceValid": true},
+           {"id": "5,6,7", "center": {"x": 5.0, "y": 6.0, "z": 7.0}, "poke": 0.0, "build": 1.0,
+            "hasData": false, "instanceValid": false}]}
+```
+
+The tiles the grid knows inside `radius`, each with its `id` (`"x,y,z"` of the tile), its `center`, the two floats the
+tile carries (`poke`, `build`), whether it already has the collected data (`hasData`) and whether its instance is
+still alive (`instanceValid`). **The centre is optional**: without `x`/`y`/`z` the adapter sends only `radius` and the
+C# side falls back to the player's position (the same pattern as `build_pieces`/`build_sites`).
+
+### `nav_probe`
+
+| param | type | default |
+|---|---|---|
+| `x`, `y`, `z` | number | the player's position |
+| `range` | number (0.5..50) | 3 |
+
+```json
+{"found": true, "distance": 1.25, "point": {"x": 1.5, "y": 2.5, "z": 3.5}}
+```
+
+Probes one point and returns the nearest tile within `range`: `found`, the `distance` from the point and the `point`
+of the tile. `found: false` with no `point` means the navmesh does not cover that spot. Note the parameter is
+**`range`**, not `radius`.
+
+### `nav_stats`
+
+No parameters.
+
+```json
+{"pokes": 42, "rebuilds": 3, "maxCollectMs": 1.75}
+```
+
+The instrumentation counters since the world loaded: how many probes (`pokes`), how many grid rebuilds (`rebuilds`)
+and the worst collection time in milliseconds (`maxCollectMs`). Take it before and after a walk to see whether the
+nav data is being rebuilt too often.
+
 ## Suggested workflows
 
 **Reproduce an order without typing:** `game_console` with `devcommands` + `spawn Troll 2` â†’ `companions_order`

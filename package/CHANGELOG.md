@@ -200,6 +200,15 @@ stopped.
   below (1.5 m guard). It also covers the **first piece of a resumed order** (death/gather), which was the measured
   case. Measured before the fix: 720/983 with the stall on the level-2 floors; the reorder is in test on the same
   plan.
+- **The companion's route map wakes up when a piece goes up or comes down** (the build's walking, **in test**): the map
+  the companion walks on (agent 40, `[Movement] Pathing`) only rebuilt a tile when a route asked for it, and the game
+  throttles that to one rebuild every **5 s** - so a floor placed a moment ago was not on the route yet, and the
+  build's temporary stair, once taken down, stayed on it. Placing and removing a piece now **invalidates the
+  tile right away** (`m_pokeTime` plus `m_buildTime = now - 5,1`), **coalesced into one rebuild every 0,35 s** and only
+  for tiles that already exist - and the same covers a piece going **away**, the build's temporary stair and the
+  `build.delete` cleanup. The mover also waits about **6 s** before giving up when the route comes back `Partial` and
+  the target is **above** it (the game snaps a route to the map up to 12 m away), instead of dropping the piece at
+  once. New `[Movement] PathingOnBuild` (on by default; needs `[Movement] Pathing`). **No acceptance run in game yet.**
 
 ## 1.9.6 - 02/11/2026
 

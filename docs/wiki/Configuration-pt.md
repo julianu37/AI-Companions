@@ -235,6 +235,22 @@ jogador. Duas chaves decidem o comportamento e **as duas são o valor base** —
 
 ---
 
+## Seção `[Movement]` — a rota enquanto a casa sobe
+
+O companheiro anda no **mapa do mundo** dele (`[Movement] Pathing`), e esse mapa não sabe que uma peça acabou de ser
+colocada ou removida: o jogo reconstruía um tile no máximo a cada **5 s**. Num canteiro de obra isso é a diferença
+entre o piso novo estar na rota agora e o companheiro caminhar para o buraco que ele cobre.
+
+| Chave | Padrão | O que faz |
+|---|---|---|
+| `PathingOnBuild` | `true` | A rota do companheiro vê a peça assim que ela é colocada (o tile da navmesh é reconstruído na hora, em vez de esperar até 5 s). As reconstruções são **coalescidas** (0,35 s) e só tocam tiles que já existem, e o mesmo vale quando a peça **sai** — a escada provisória da obra e a limpeza do `build.delete`. Desligado = o atraso do próprio jogo Precisa de `[Movement] Pathing` ligado. |
+
+> O mover também ganha cerca de **6 s de paciência** quando a rota volta `Partial` e o alvo está **acima** dele (o
+> jogo encaixa a rota no mapa a até 12 m de distância), em vez de desistir na hora — a peça do andar de cima é
+> alcançada conforme o piso de baixo entra.
+
+---
+
 ## O que **nós** mudamos em relação ao upstream
 
 Além da tradução e da camada de IA, o projeto ajustou alguns padrões do upstream. Se você veio do Offline

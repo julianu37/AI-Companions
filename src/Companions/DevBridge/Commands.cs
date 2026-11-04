@@ -101,6 +101,9 @@ internal static class Commands
 		case "build.snaps": return BuildSnaps(args);
 		case "build.usable": return BuildUsable(args);
 		case "build.hoe": return BuildHoe();
+		case "nav.tiles": return NavTiles(args);
+		case "nav.probe": return NavProbe(args);
+		case "nav.stats": return NavStats();
 		case "terrain.check": return TerrainCheck(args);
 		case "terrain.level": return TerrainLevel(args);
 		case "terrain.ops": return TerrainOps();
@@ -818,6 +821,11 @@ internal static class Commands
 			{
 				continue;
 			}
+			// P2 (multi-build): ZNetScene.Destroy skips WearNTear.Destroy, so the companions' route map has to be told
+			// here - a wiped test area that stays on the map is a wall they cannot walk through. Read the position
+			// before the destroy (Destroy is deferred today, but do not rely on it).
+			Vector3 lastAt = piece.transform.position;
+			MHR_CompanionNavMesh.InvalidateAround(lastAt);
 			ZNetScene.instance.Destroy(piece.gameObject);
 			pieces++;
 		}
@@ -841,6 +849,59 @@ internal static class Commands
 			{ "radius", radius },
 			{ "center", new Dictionary<string, object> { { "x", center.x }, { "y", center.y }, { "z", center.z } } }
 		});
+	}
+
+	/// <summary>
+	/// P2 (multi-build): the tiles of the companions' route map (agent 40) inside a radius, as the game's own dictionary
+	/// really has them - read-only, it never creates a tile (<c>docs/re/navmesh-tiles.md</c>). Without <c>x</c>/<c>y</c>/
+	/// <c>z</c> the centre is the player's position, the same pattern as <c>build.pieces</c>/<c>build.sites</c>.
+	/// </summary>
+	private static string NavTiles(Dictionary<string, object> args)
+	{
+		Player player = Player.m_localPlayer;
+		Vector3 center = player != null ? player.transform.position : Vector3.zero;
+		center = new Vector3(Json.Float(args, "x", center.x), Json.Float(args, "y", center.y), Json.Float(args, "z", center.z));
+		float radius = Mathf.Clamp(Json.Float(args, "radius", 40f), 1f, 120f);
+		List<Dictionary<string, object>> tiles = MHR_CompanionNavMesh.TilesAround(center, radius);
+		return Ok(new Dictionary<string, object>
+		{
+			{ "center", new Dictionary<string, object> { { "x", center.x }, { "y", center.y }, { "z", center.z } } },
+			{ "radius", radius },
+			{ "count", tiles.Count },
+			{ "tiles", tiles }
+		});
+	}
+
+	/// <summary>
+	/// P2 (multi-build): the route map's own answer for a point, with the companions' agent and area mask (the same
+	/// filter a route uses). <c>found: false</c> and no <c>point</c> = the map does not cover that spot - which is what
+	/// sends a route to the ground under a new floor.
+	/// </summary>
+	private static string NavProbe(Dictionary<string, object> args)
+	{
+		Player player = Player.m_localPlayer;
+		Vector3 point = player != null ? player.transform.position : Vector3.zero;
+		point = new Vector3(Json.Float(args, "x", point.x), Json.Float(args, "y", point.y), Json.Float(args, "z", point.z));
+		float range = Mathf.Clamp(Json.Float(args, "range", 3f), 0.5f, 50f);
+		bool found = MHR_CompanionNavMesh.Probe(point, range, out Vector3 hit, out float distance);
+		Dictionary<string, object> data = new Dictionary<string, object>
+		{
+			{ "found", found },
+			{ "distance", found ? distance : -1f }
+		};
+		if (found)
+		{
+			data["point"] = new Dictionary<string, object> { { "x", hit.x }, { "y", hit.y }, { "z", hit.z } };
+		}
+		return Ok(data);
+	}
+
+	/// <summary>P2 (multi-build): the counters of this world - tiles marked (<c>pokes</c>), companion tiles rebuilt
+	/// (<c>rebuilds</c>) and the worst collection time of one of them in milliseconds (<c>maxCollectMs</c>). Take it
+	/// before and after a walk to see whether the map is being rebuilt too often.</summary>
+	private static string NavStats()
+	{
+		return Ok(MHR_CompanionNavMesh.Stats());
 	}
 
 	private static string BuildFind(Dictionary<string, object> args)

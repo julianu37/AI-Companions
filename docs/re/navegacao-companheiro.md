@@ -116,3 +116,74 @@ impreciso e o `m_buildTime = -1000` literal é uma tempestade. O que o jogo faz:
   escada provisória fica como rampa fantasma).
 - **Complemento (B):** no `MHR_Mover.Plan`, quando a rota é `Partial` e o alvo está acima, dar ~6 s (o intervalo do
   bake) antes de `Unstick`/`no progress`, restrito a `Build`/`BuildGather`.
+
+### 6.1 A P2 implementada — `[Movement] PathingOnBuild` (03/11/2026, **em teste no jogo**)
+
+Decidida pela medição do run de 03/11/2026 (**36 `no progress`**, 17 `no_support`, 9 `no_ground`, 6 `too_steep`) e
+pelo decompilado do 1.0.20 (`docs/re/navmesh-tiles.md` — é a evidência: inventário do `Pathfinding`, a chave do
+dicionário, o rate limit de 5 s e quem **não** invalida). O desenho é o de cima; abaixo, o que ficou de pé.
+
+**a) Invalidação coalescida (o núcleo).** Não é "prioridade máxima": é **adiantar o relógio** do tile que já existe,
+sem derrubar o throttle do jogo.
+
+- `InvalidateAround(pos, 2 m)` marca até **9 chaves**: o centro, os 4 lados e os **4 cantos** — peça em cima da
+  emenda marca os dois tiles (o harness fixa isso: `Axis(15) != Axis(17)`);
+- a chave é a do **próprio jogo** — `Mathf.FloorToInt((p + m_tileSize/2) / m_tileSize)` na composição
+  `Vector3Int(x, z, agent)` (`Pathfinding.cs:797`) —, com a conta pura em `AI/NavTileMath.cs` (sem Unity, para o
+  harness fixar as emendas em ±16) e o `m_tileSize` **lido do componente** (`:91`, campo serializado), nunca presumido
+  32;
+- **só tiles que já estão no `m_tiles`** (`Contains`, `:89`): `GetNavTile`/`PokeTile` (`:770`/`:549`) **criam** o tile,
+  e o `PokeTile` já o deixa elegível (`poke = now` contra `build = -1000`) — um bake de 32×32 m por tile criado;
+- o flush (`Tick`, chamado do `CompanionsPlugin.Update`) grava `m_pokeTime = Time.time` **e**
+  `m_buildTime = Time.time - 5,1` (`m_updateInterval` + 0,1, `:101`): o delta que o `Buildtiles` compara (`:132`)
+  passa de 5 s e o tile fica **elegível no próximo tique de 0,1 s** (`:271`), que é o mínimo que o jogo permite.
+  **`-1000` está fora**: ele anula os 5 s e gera ~8.900 bakes (985 peças × 9 tiles) contra ~500 naturais, todos na
+  **fila única** disputando com o Humanoid (1 tile por tique, `:554`);
+- **coalescida em 0,35 s** (`s_flushAt` + `HashSet<Vector3Int>`): o `OnPlaced` + `Destroy` de uma limpeza em lote vira
+  **uma** passada, e uma casa de 57 peças não escreve 57 vezes no mesmo tique;
+- **fail-open por mundo**: uma exceção de reflexão desliga a feature até o próximo `SetupAgents` (log
+  `[Move] a invalidação da navmesh da obra falhou …`). Colocar peça importa mais que a rota.
+
+**b) Ganchos — quem avisa que a geometria mudou.**
+
+| onde | tipo | por que |
+|---|---|---|
+| `WearNTear.OnPlaced` (`WearNTear.cs:442`) | postfix Harmony | cobre o **jogador** (`Player.PlacePiece`, `Player.cs:3116`) e o **companheiro** (`BuildExecutor.PlaceDirect` chama `wear.OnPlaced()`) |
+| `WearNTear.Destroy` (privado, `:1290`) | prefix Harmony | peça que cai por dano/`RPC_Remove`; o `OnDestroy` do `WearNTear` (`:362`) também roda — o prefix é o ponto com a posição ainda válida |
+| `BuildExecutor.PlaceDirect` | chamada direta | redundante com o postfix **por desenho**: a garantia se o executor parar de chamar o `OnPlaced` |
+| `ClearScaffolds` (`MHR_Build.cs:1645`) | chamada direta | desce a escada provisória por `ZNetView.Destroy` → `ZNetScene.Destroy`, que **pula** o `WearNTear.Destroy` — sem isso a escada fica como rampa fantasma na navmesh |
+| `build.delete` (DevBridge) | chamada direta | idem: remoção em lote por `ZNetScene.Destroy` (área de teste limpa não pode ficar como parede no mapa) |
+| `MHR_Level.NextPass` | chamada direta (raio **max(4 m, metade da área)**) | o **Nivelar da enxada** mexe no `Heightmap` (`mud_road_v2`), que não fala com o `Pathfinding` (`docs/re/navmesh-tiles.md` §4) — o terreno alisado precisa de re-poke igual à peça |
+
+**c) A carência do mover (o outro lado dos 36 `no progress`).** `MHR_Mover.NavMeshGrace = 6 s` (um intervalo de bake
+e alguma folga): quando a rota volta `Partial`, o alvo está **acima** (>1,5 m) e a rota termina **>2,5 m antes** dele, o
+mover **zera `AnchorTime`/`ProgressTime`** — os dois relógios de "parado" e "não chega mais perto" ficam quietos
+enquanto o mapa alcança — por **6 s, uma vez por perna** (`NavGraceUsed`), e **só** em `Build`/`BuildGather` (Follow e
+os jobs ficam com os relógios de sempre). Os 36 não são "tile invisível": são o `SnapToNavMesh`
+(`Pathfinding.cs:458-498`) puxando o alvo para o chão **sob** o piso. A invalidação encurta a janela; a carência
+impede que o **Unstick** dispare antes; o `no progress` de 12 s do `Goto` continua (o `state.BestAt` é do `MHR_Build`, não da navmesh).
+
+**d) Config `[Movement] PathingOnBuild`** (bool, **true**; exige `[Movement] Pathing`): desliga **só** a invalidação — o jogo volta ao vanilla
+(até ~5 s de atraso). A carência do mover **não** depende dela, e o `[Movement] Pathing` (agente 40) continua sendo
+quem decide **qual** navmesh o companheiro usa. Rótulo do F8 nos 5 idiomas: `hc_cfg_movement_pathingonbuild`.
+
+**e) Ferramentas de medida (DevBridge, sem o LLM)** — `nav.tiles` (os tiles **do agente do companheiro** que a grade
+conhece num raio: `id`, `center`, os dois floats do tile — `poke`/`build` —, `hasData` e `instanceValid`; leitura do
+dicionário, nunca cria tile), `nav.probe` (o `NavMesh.SamplePosition` com o **agente e a máscara de área** que a rota
+usa: `found`/`distance`/`point` — "a navmesh cobre este chão?", sem mover ninguém) e `nav.stats` (`pokes`, `rebuilds` e
+`maxCollectMs` — o `CollectSources` síncrono é o que a main thread paga —, mais `ready`/`broken`/`dirty`/
+`agentTypeId`/`areaMask`). É o que separa as duas causas de uma caminhada recusada — **"não há navmesh aqui"** ×
+**"o mover desistiu"** —, pergunta que os 36 `no progress` do log não respondiam. O harness fixa a conta do tile na
+seção (o) (`NavTileMath.Axis`, 10 casos: as emendas em ±16 e o `Floor`, não `Round`).
+
+**Como isso muda o sintoma:** o tile do piso novo fica **elegível** em ≤0,45 s (tique de 0,1 s + coalescência de
+0,35 s); a reconstrução depende da fila única do jogo (um tile por 0,1 s, o de maior delta) e a rota passa a
+enxergá-lo em **~0,3–1,3 s** — inclui o bake assíncrono do tile, o mesmo custo que o
+vanilla já paga —, contra **até 5 s** do vanilla; e a **remoção** passa a ser vista (antes o tile só se curava por
+consulta/timeout). O que **não** muda: escadinha vertical e água de telhado continuam sem link (B/C seguem em
+aberto, §4) — a P2 é latência, não é a navegação reescrita.
+
+**Limitações (medir no run):** em multiplayer o gancho roda em **quem coloca** (o outro cliente espera os ~5 s do
+vanilla); rota que falha por completo (`Path = [goal]`) **não** arma a carência — se o run mostrar, usar
+`MainPartial` + a posição do alvo; a carência **não** cobre o `no progress` de 12 s do `Goto` (o `BestAt` é do
+build).

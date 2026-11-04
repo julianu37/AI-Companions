@@ -372,6 +372,10 @@ internal static class MHR_Level
 	/// <summary>End of a pass: is the ground flat enough? If not, another pass over the same area.</summary>
 	private static bool NextPass(CompanionAI ai, State state)
 	{
+		// P2 (multi-build, 03/11/2026): the hoe moved the ground of this whole area, and the terrain never talks to the
+		// route map (TerrainModifier/Heightmap are not Pathfinding callers) - the next pass has to see the new slope.
+		// Once per pass, coalesced like any other piece.
+		MHR_CompanionNavMesh.InvalidateAround(state.Center, Mathf.Max(4f, state.Size * 0.5f));
 		float tolerance = ModConfig.BuildLevelTolerance != null ? ModConfig.BuildLevelTolerance.Value : BuildTerrain.DefaultTolerance;
 		float min;
 		float max;

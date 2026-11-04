@@ -248,6 +248,22 @@ suman **por encima** de ellas:
 
 ---
 
+## Sección `[Movement]` — la ruta mientras sube la casa
+
+El compañero anda con **su propio mapa del mundo** (`[Movement] Pathing`), y ese mapa no sabe que una pieza acaba de
+colocarse o retirarse: el juego reconstruía un tile como mucho cada **5 s**. En una obra eso es la diferencia entre
+que el piso nuevo esté en la ruta ahora y que el compañero camine hacia el hueco que cubre.
+
+| Clave | Por defecto | Qué hace |
+|---|---|---|
+| `PathingOnBuild` | `true` | La ruta del compañero ve la pieza en cuanto se coloca (el tile del navmesh se reconstruye al momento, en vez de esperar hasta 5 s). Las reconstrucciones se **agrupan** (0,35 s) y solo tocan tiles que ya existen, y lo mismo vale cuando la pieza **desaparece** — la escalera provisional de la obra y la limpieza del `build.delete`. Apagado = el retraso del propio juego Necesita `[Movement] Pathing` activado. |
+
+> El mover además gana unos **6 s de paciencia** cuando la ruta vuelve `Partial` y el objetivo está **encima** de él
+> (el juego ajusta la ruta al mapa a hasta 12 m de distancia), en vez de rendirse al instante — la pieza del piso de
+> arriba se alcanza según entra el piso de abajo.
+
+---
+
 ## Qué **cambiamos** nosotros frente al upstream
 
 Además de la traducción y de la capa de IA, el proyecto ajustó algunos valores por defecto del upstream. Si vienes de

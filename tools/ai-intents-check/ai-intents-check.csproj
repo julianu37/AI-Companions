@@ -61,6 +61,8 @@
   <Compile Include="..\..\src\Companions\AI\BuildTemplates.cs" Link="src/AI/BuildTemplates.cs" />
     <Compile Include="..\..\src\Companions\AI\BuildBlueprintParser.cs" Link="src/AI/BuildBlueprintParser.cs" />
   <Compile Include="..\..\src\Companions\AI\LevelIntent.cs" Link="src/AI/LevelIntent.cs" />
+    <!-- P2 (multi-build): the tile arithmetic of the route map (no Unity in it, on purpose) -->
+    <Compile Include="..\..\src\Companions\AI\NavTileMath.cs" Link="src/AI/NavTileMath.cs" />
     <Compile Include="..\..\src\Companions\AI\MHR_Owner.cs" Link="src\AI\MHR_Owner.cs" />
     <Compile Include="..\..\src\Companions\Core\MHR_List.cs" Link="src\Core\MHR_List.cs" />
   </ItemGroup>

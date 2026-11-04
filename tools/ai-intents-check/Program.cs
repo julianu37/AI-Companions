@@ -13,7 +13,7 @@ namespace AiIntentsCheck;
 /// <summary>
 /// The word nets of the AI layer, checked <b>outside the game</b> against the real sources: ai-intents-check.csproj
 /// compiles src/Companions/AI/{LlmIntent,RadialIntent,PickupIntent,GatherIntent,InteractionIntent,OrderItems,
-/// CompanionNames,MHR_Owner}.cs and src/Companions/Core/MHR_List.cs straight into this executable, so every rule
+/// CompanionNames,MHR_Owner,NavTileMath}.cs and src/Companions/Core/MHR_List.cs straight into this executable, so every rule
 /// asserted here is the shipped one (Stubs.cs holds only the Unity/config members those files touch).
 ///
 /// <para>Two of those members cannot be linked (they live in classes that need the world), so they are copies in
@@ -87,6 +87,8 @@ internal static class Program
 		BlueprintOrder();
 		Section("(n) BuildBlueprintParser.Ordered - a chave do telhado (andar da laje que cobre)");
 		BlueprintRoofKey();
+		Section("(o) NavTileMath.Axis - o tile da navmesh (P2 da navegacao)");
+		NavTiles();
 		CrossCheckDoorRule();
 
 		Out.WriteLine();
@@ -706,6 +708,33 @@ internal static class Program
 			Piece("wood_floor", 0f, 0f, 0f));
 		CheckText("um andar so: piso -> parede -> telhado", "wood_floor woodwall wood_roof_45",
 			TracePrefabs(BuildBlueprintParser.Ordered(oneStorey)));
+	}
+
+	/// <summary>
+	/// Section (o): P2 of the multi-build (03/11/2026) - <see cref="NavTileMath.Axis"/> is one axis of the game's own
+	/// <c>Pathfinding.GetTile</c> (decompiled 1.0.20, <c>:797</c>: <c>FloorToInt((point + m_tileSize/2) / m_tileSize)</c>),
+	/// which is what the coalesced invalidation uses to find the tile a piece falls in. The seams are the cases that
+	/// matter: the grid is shifted by half a tile, so tile 0 spans -16..+16 with a 32 m tile, -16 and +16 are 0 and 1,
+	/// and a sign error there marks the wrong tile - a build 32 m away, and the floor the companion needs stays out of
+	/// the map. The last two cases are the ones a piece lives in: a 2 m piece stays in one tile, a piece on a seam
+	/// marks two (which is why the invalidation marks the four corners as well). Pure - no Unity, no world.
+	/// </summary>
+	private static void NavTiles()
+	{
+		CheckInt("Axis(0, 32) -> o centro do tile 0", 0, NavTileMath.Axis(0f, 32f));
+		CheckInt("Axis(15.99, 32) -> ainda o tile 0 (a emenda e em 16)", 0, NavTileMath.Axis(15.99f, 32f));
+		CheckInt("Axis(16, 32) -> o primeiro tile do lado positivo", 1, NavTileMath.Axis(16f, 32f));
+		CheckInt("Axis(-15.99, 32) -> ainda o tile 0 (a emenda e em -16)", 0, NavTileMath.Axis(-15.99f, 32f));
+		CheckInt("Axis(-16, 32) -> -16 ainda e o tile 0 (Floor, nao Round)", 0, NavTileMath.Axis(-16f, 32f));
+		CheckInt("Axis(-16.01, 32) -> o primeiro tile do lado negativo", -1, NavTileMath.Axis(-16.01f, 32f));
+		CheckInt("Axis(-48, 32) -> -48 cai no tile -1 (e nao em -2)", -1, NavTileMath.Axis(-48f, 32f));
+		CheckInt("Axis(1000, 32) -> 31 (1016/32 = 31,75)", 31, NavTileMath.Axis(1000f, 32f));
+		Check("Axis(1, 32) == Axis(5, 32) -> uma peca de 2 m fica num tile so",
+			NavTileMath.Axis(1f, 32f) == NavTileMath.Axis(5f, 32f),
+			"obtido " + NavTileMath.Axis(1f, 32f) + " / " + NavTileMath.Axis(5f, 32f));
+		Check("Axis(15, 32) != Axis(17, 32) -> peca na emenda marca dois tiles",
+			NavTileMath.Axis(15f, 32f) != NavTileMath.Axis(17f, 32f),
+			"obtido " + NavTileMath.Axis(15f, 32f) + " / " + NavTileMath.Axis(17f, 32f));
 	}
 
 	/// <summary>The plan of case (a)/(e) of section (m): a fresh list every call (case (e) needs two of them).</summary>

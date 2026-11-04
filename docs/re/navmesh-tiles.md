@@ -287,14 +287,25 @@ Não há API pública. O caminho mínimo, todo por reflexão sobre campos/métod
 
 1. `GetTile(Vector3, AgentType)` (`:797`) → devolve o `Vector3Int` certo (não duplicar a matemática de
    `m_tileSize`, que é campo serializado).
-2. `GetNavTile(Vector3Int)` (`:776`) → **cria** o tile se não existir e devolve o objeto.
-3. `m_pokeTime = Time.time` (mantém o tile vivo — `TimeoutTiles` mata em 30 s sem poke).
-4. Opcional: `m_buildTime = Time.time - (m_updateInterval + 0.1f)` para ficar elegível **já** no próximo
-   tique, ou `-1000f` para prioridade máxima (cuidado: derruba o throttle de 5 s).
-   `m_buildTime` no **futuro** faz o delta ficar negativo → **suprime** o rebuild.
+2. **Ler o tile do `m_tiles`** (dicionário privado, `:89`) com a chave do passo 1: **`TryGetValue`**. Não usar
+   `GetNavTile` (`:776`) nem `PokeTile` (`:549`): o `GetNavTile` **cria** o tile quando ele não existe (entra no
+   dicionário com `poke`/`build` em `-1000`) e o `PokeTile` já **cria e pokeia** (`poke = Time.time` contra
+   `build = -1000` → delta de ~1000 s → **elegível no próximo tique**, um bake de 32×32 m por tile criado). Tile
+   inexistente = **ignora**; o `GetPath` do jogo cria o dele quando alguém pedir rota por ali.
+3. `m_pokeTime = Time.time` (mantém o tile vivo — `TimeoutTiles`, `:508`, mata em 30 s sem poke).
+4. `m_buildTime = Time.time - (m_updateInterval + 0.1f)` → **`Time.time - 5,1f`** com o `m_updateInterval = 5f`
+   default (`:101`): o delta de `Buildtiles` (`:132`) passa de 5 s e o tile fica **elegível no próximo tique de
+   0,1 s** (`:271`). É o mínimo que o jogo permite sem furar o rate limit.
+   **Não usar `-1000f`**: `pokeTime - buildTime` vira `Time.time + 1000` e **todo** tile invalidado vira
+   elegível na hora, com prioridade máxima — 985 peças × 9 tiles ≈ **8.900 bakes** contra ~500 naturais, na fila
+   única do `Buildtiles` (1 tile por tique), disputando com o Humanoid. `m_buildTime` no **futuro** faz o delta
+   ficar negativo → **suprime** o rebuild.
+5. **Coalescer** (0,35 s, `HashSet<Vector3Int>` de tiles pendentes) e **fail-open** (campo ausente = no-op + log).
+   A coalescência é sobre o **número de escritas** (uma limpeza em lote repete o mesmo tile dezenas de vezes no
+   mesmo tique) — ela **não** salva o `-1000`, que muda **o que** o jogo reconstrói, não só **quando**.
 
 Alternativa sem reflexão para o passo 3: `FindValidPoint(out _, pos, range, (AgentType)40)` (`:326`) é
-**pública** e poked 1 tile (não 3×3 como `PokeArea`) — mas não mexe em `m_buildTime`.
+**pública** e poked 1 tile (não 3×3 como `PokeArea`) — mas não mexe em `m_buildTime` (o tile fica sujeito aos 5 s).
 
 Custo: 1 rebuild de tile = `CollectSources` síncrono na main thread sobre um bounds de
 `m_tileSize × 6000 × m_tileSize` + `UpdateNavMeshDataAsync` (`:623`). É **exatamente** o custo que o vanilla já
@@ -311,3 +322,5 @@ paga; a parte assíncrona fica fora da main thread e só uma roda por vez.
 - Se `m_layers` inclui a layer `piece` — **inferência forte** (o filtro de `Door` do nosso prefix só faz
   diferença se as portas entrarem na lista de sources), não leitura do prefab.
 - Ordem multiplayer: se o cliente também roda `ZNetScene.Destroy` para peça de outro dono.
+- `nav.tiles` filtra em **XZ** (o `m_center.y` do tile é 2500, o plano da grade); o JSON reporta o X/Z do tile
+  com o y consultado, que é o que o jogador vê.

@@ -48,6 +48,9 @@ namespace Companions
             public float ClimbUntil, ClimbBestY, ClimbProgressAt, NextClimbJump, ClimbRestUntil; public Vector3 ClimbTop;
             public int ClimbTries; public readonly List<Vector3> ClimbTried = new List<Vector3>();
             public bool Direct; public float NextHop, NoDirectUntil;
+            // P2 (multi-build): the one wait for the route map this leg is allowed (a piece appeared above and the map is
+            // a bake behind) - see the Plan grace block
+            public bool NavGraceUsed; public float NavGraceUntil;
             public Door PassDoor; public float PassSide, NextDoorwayCheck;
         }
         class Opened { public Door Door; public float At; }
@@ -65,6 +68,9 @@ namespace Companions
         static float s_nextErr;
 
         public const float StillTime = 2.5f, NoProgressTime = 8f;
+        // P2 (multi-build, 03/11/2026): how long a build route that stops short of a target ABOVE waits for the route map
+        // before the stuck ladder calls it stuck - one bake interval of the game (m_updateInterval = 5 s) plus slack
+        public const float NavMeshGrace = 6f;
 
         static int Mask()
         {
@@ -187,7 +193,14 @@ namespace Companions
                 s.AnchorTime = now; s.Anchor = pos; s.ProgressTime = now; s.Best = float.MaxValue; s.StepUntil = 0f;
                 if (shift > 1.5f) { s.MainBest = float.MaxValue; s.Ladder = 0; s.Passes = 0; s.GaveUp = false; }
             }
-            else if (shift > 1.5f && !s.HasDetour && s.RouteDoor == null) s.NextPlan = 0f;
+            else if (shift > 1.5f && !s.HasDetour && s.RouteDoor == null)
+            {
+                s.NextPlan = 0f;
+                // P2: a new leg (>1.5 m from the last one) gets its own grace; otherwise only the first piece of a
+                // run of close pieces would ever get the 6 s
+                s.NavGraceUsed = false;
+                s.NavGraceUntil = 0f;
+            }
             // 1.4.76: a goal that keeps moving (Follow): re-plan once it has drifted from the planned destination
             else if (!s.HasDetour && s.RouteDoor == null && Vector3.Distance(goal, s.Dest) > 1.5f && s.NextPlan > now + 0.7f) s.NextPlan = Mathf.Min(s.NextPlan, now + 0.3f);
             s.LastGo = now; s.Goal = goal; s.Dist = dist;
@@ -494,6 +507,7 @@ namespace Companions
             s.TooTired = false; s.MainBest = float.MaxValue; s.Passes = 0; s.HasShore = false; s.NextShore = 0f;
             s.NextDoorSearch = 0f; s.NextLog = now + 1f; s.NextStartSearch = 0f;
             s.ClimbUntil = 0f; s.ClimbTries = 0; s.ClimbTried.Clear(); s.ClimbRestUntil = 0f; s.Direct = false;
+            s.NavGraceUsed = false; s.NavGraceUntil = 0f;
             s.UseLadder = null; s.LadderUntil = 0f; s.NextLadderSearch = 0f;
             s.ClimbLadder = false; s.NextLadderClimbSearch = 0f; s.LadderClimbsTried.Clear(); s.HopUpTries = 0;
             s.LadderPending = false;
@@ -693,6 +707,21 @@ namespace Companions
                     }
                 }
             }
+            // P2 (multi-build, 03/11/2026): a route that comes back Partial while the piece is ABOVE is usually the
+            // companions' route map not having the new floor yet: the game's SnapToNavMesh pulls the goal down to the
+            // ground under it (1.5 -> 3 -> 6 -> 12 m, Pathfinding.cs:458) and the mover walks to the wrong place. Give
+            // the bake one interval (~6 s) before the stuck ladder calls it stuck - once per leg, and only for the
+            // build, so following and the jobs keep the clocks they had.
+            if (!s.NavGraceUsed && !s.HasDetour && s.RouteDoor == null && s.Partial
+                && (s.Tag == "Build" || s.Tag == "BuildGather") && goal.y > pos.y + 1.5f
+                && s.Path.Count > 0 && Vector3.Distance(s.Path[s.Path.Count - 1], goal) > 2.5f)
+            {
+                s.NavGraceUsed = true;
+                s.NavGraceUntil = now + NavMeshGrace;
+                if (CompanionsPlugin.LogDetailed) Dbg("[Move|" + s.Tag + "] route stops " + Flat(s.Path[s.Path.Count - 1], goal).ToString("F1") + "m short of " + Fmt(goal) + " with it above - waiting for the map to see it");
+            }
+            // the grace keeps both stuck clocks quiet (standing still / no closer) while the map catches up
+            if (s.NavGraceUntil > now) { s.AnchorTime = now; s.ProgressTime = now; }
             AvoidFire(s, pos, goal, now);
             AvoidLava(s, pos, goal, now);
         }

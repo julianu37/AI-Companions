@@ -250,6 +250,22 @@ non è un giocatore. Due chiavi decidono il comportamento e **tutte e due sono i
 
 ---
 
+## Sezione `[Movement]` — il percorso mentre la casa sale
+
+Il compagno cammina sulla **sua mappa del mondo** (`[Movement] Pathing`), e quella mappa non sa che un pezzo è appena
+stato messo o tolto: il gioco ricostruiva un tile al massimo ogni **5 s**. In un cantiere questa è la differenza tra
+il pavimento nuovo già nel percorso e il compagno che cammina nel buco che copre.
+
+| Chiave | Predefinito | Cosa fa |
+|---|---|---|
+| `PathingOnBuild` | `true` | Il percorso del compagno vede il pezzo appena viene messo (il tile del navmesh viene ricostruito subito, invece di aspettare fino a 5 s). Le ricostruzioni sono **raggruppate** (0,35 s) e toccano solo tile che esistono già, e lo stesso vale quando il pezzo **sparisce** — la scala provvisoria del cantiere e la pulizia del `build.delete`. Spento = il ritardo del gioco stesso Richiede `[Movement] Pathing` attivo. |
+
+> Il mover guadagna anche circa **6 s di pazienza** quando il percorso torna `Partial` e il bersaglio è **sopra** di
+> lui (il gioco aggancia il percorso alla mappa fino a 12 m), invece di arrendersi subito — il pezzo del piano di
+> sopra viene raggiunto man mano che il pavimento sotto entra.
+
+---
+
 ## Cosa **noi** abbiamo cambiato rispetto all'upstream
 
 Oltre alla traduzione e allo strato di IA, il progetto ha regolato alcuni valori predefiniti dell'upstream. Se vieni da

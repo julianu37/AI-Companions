@@ -214,6 +214,9 @@ internal static class BuildExecutor
 		}
 		result.Ok = true;
 		result.GameObject = go;
+		// P2 (multi-build): the route map sees the piece at once. The OnPlaced hook above already covers it, and this is
+		// the deliberate redundancy: a floor the companions cannot route onto is the measured "no progress" of the build.
+		MHR_CompanionNavMesh.InvalidateAround(pos);
 		return result;
 	}
 
