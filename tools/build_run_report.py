@@ -4,7 +4,6 @@
 
 Uso:
     python tools/build_run_report.py [log] [--last|--all] [--json] [--barrier-seconds 10]
-                                     [--stop-lines 10]
 
     log      caminho do LogOutput.log (padrao: DEVRIDGE_LOG, senao o do Valheim desta maquina)
     --last   so a ultima ordem de obra do log (padrao)
@@ -50,26 +49,11 @@ O que ele NAO cobre (declarado): ordens que nao sao blueprint (template/peca uni
 inicio); o `blueprint` de cada seguidor conta como continuacao da mesma ordem (mesmo label, sem
 `order ended` no meio); duas ordens simultaneas de jogadores diferentes no mesmo log seriam somadas.
 
-PARADAS DO CANTEIRO (secao nova, 12/11/2026)
---------------------------------------------
-Cada intervalo ENTRE dois `done:` seguidos e um trecho em que nenhuma peca subiu. O relatorio lista os
-que passam de `--stop-lines` (padrao 10) e, dentro de cada um, conta os motivos pelos regex que ja
-existem: BODY (`corpo na peca` + `corpo no caminho`), ASIDE_NO_ROOM (`sem lugar livre para ele sair da
-frente`), GATE (a barreira `um corpo esta na peca N do canteiro (nivel X) - nada acima de Y m e pego por
-Z s`), DEP (`sem apoio ainda`), RETRY (`retry no grupo` + `retry later`) e POST_NO_PLACE (`sem lugar
-para o apoio de emergencia`). ⚠️ O tamanho e em LINHAS, nunca em segundos: o log nao tem timestamp.
-O `t` de cada episodio so aparece quando a propria linha do log traz `t=<numero>` (log de monitor);
-sem isso a coluna sai `-`. A cauda depois do ultimo `done:` sai contada a parte, e nao como episodio:
-sem um `done:` seguinte ela nao fecha intervalo (pode ser fim da ordem ou a propria parada - o status
-diz qual).
-
 Schema JSON (v1): log, log_lines, scope, order_count, orders[] com index/label/status/start/
 window/end/ends/plan/plan_blueprint/workers/group_workers/lines/build_lines/lines_per_piece/duration_s/
 duration_note/placed/skipped_counter/skipped_named_lines/skipped_named_pieces/watchdog_calls/
 watchdog_dropped/retries{...}/source_totals/body_on_piece/emergency_posts/emergency_refused{...}/deaths/
-unsupported/wait{lines,unparsed,workers[],total{...},holds_cap_s}/spread{...}/aside_lines{...}/
-stops{unit,threshold_lines,count,max_lines,gaps_total,gaps_below,median_gap,p95_gap,lines_in_stops,
-tail_lines,reasons_total{...},episodes[{first_line,last_line,lines,t,reasons{},build_lines}]}.
+unsupported/wait{lines,unparsed,workers[],total{...},holds_cap_s}/spread{...}/aside_lines{...}.
 
 `status`: `done` (o ultimo `order ended` e uma chave de obra concluida: blueprint_done / build_plan_done
 / build_done), `ended` (encerrou com outra chave - `..._too_heavy`, `..._needs_station`, `..._collecting`:
@@ -155,23 +139,6 @@ def num(text):
     return float(str(text).replace(",", "."))
 
 
-def median(values):
-    """Mediana de uma lista de inteiros/float (None quando a lista esta vazia)."""
-    if not values:
-        return None
-    s = sorted(values)
-    n = len(s)
-    return s[n // 2] if n % 2 else (s[n // 2 - 1] + s[n // 2]) / 2.0
-
-
-def p95(values):
-    """p95 nearest-rank de uma lista de inteiros (None quando a lista esta vazia)."""
-    if not values:
-        return None
-    s = sorted(values)
-    return s[max(0, min(len(s) - 1, int(round(0.95 * (len(s) - 1)))))]
-
-
 # --------------------------------------------------------------------------------------------------
 # formatos (arquivo:linha de referencia em src/Companions/Jobs/MHR_Build.cs)
 # --------------------------------------------------------------------------------------------------
@@ -231,14 +198,6 @@ WAIT_UNPARSED = re.compile(r"^dispersão: .*espera: ")
 ASIDE_ASK = re.compile(r'^".+" está na peça \d+ - pedindo para sair da frente')
 ASIDE_NO_ROOM = re.compile(r'^".+" está na peça \d+ - sem lugar livre para ele sair da frente')
 ASIDE_DONE = re.compile(r"^saindo da frente \(peça em ")
-# a barreira de andar (StoreyBarrier): `um corpo esta na peca 246 do canteiro (nivel 0,0) - nada acima
-# de 1,5 m e pego por 10 s`. E a linha que congela TUDO acima do nivel da peca bloqueada - o limiar e
-# `nivel + 1,5 m` (BodyRetryStep) e o teto de cada retencao e o BodyBarrierSeconds.
-GATE = re.compile(
-    r"^um corpo está na peça (?P<piece>\d+) do canteiro \(nível (?P<level>-?[\d.,]+)\) - "
-    r"nada acima de (?P<above>[\d.,]+) m é pego por (?P<secs>[\d.,]+) s")
-# prefixo de tempo opcional: `t=12,5` em qualquer ponto da linha (log de monitor). O BepInEx nao tem.
-T_STAMP = re.compile(r"(?:^|\s)t=(?P<t>-?\d+(?:[.,]\d+)?)")
 
 
 def parse_message(msg):
@@ -266,7 +225,6 @@ def parse_message(msg):
         ("aside_ask", ASIDE_ASK),
         ("aside_no_room", ASIDE_NO_ROOM),
         ("aside_done", ASIDE_DONE),
-        ("gate", GATE),
         ("end", END_RE),
     ):
         m = rx.match(msg)
@@ -295,7 +253,6 @@ class Block:
         self.group_plan = None
         self.events = []          # (line, kind, who, data)
         self.ends = []            # (line, key, why, texto, linhas [Build] ate aqui)
-        self.times = {}           # line -> `t=` da linha (so quando o log traz)
         self.build_count = 0      # toda linha `[Build] ` na janela
         self.window_end = first_line
 
@@ -319,10 +276,6 @@ def scan(path):
         for n, raw in enumerate(fh, 1):
             total = n
             text = strip_prefix(raw.rstrip("\r\n"))
-            if cur is not None and "t=" in raw:
-                m = T_STAMP.search(raw)
-                if m:
-                    cur.times[n] = m.group("t")
             if text is None:
                 continue
             if text.startswith(LEVEL_TAG):
@@ -384,7 +337,7 @@ def scan(path):
 # --------------------------------------------------------------------------------------------------
 
 
-def finalize(block, index, barrier_seconds, stop_lines=10):
+def finalize(block, index, barrier_seconds):
     end = block.ends[-1] if block.ends else None
     end_line = end[0] if end else block.window_end
     plan = block.group_plan if block.group_plan is not None else block.plan_blueprint
@@ -537,54 +490,6 @@ def finalize(block, index, barrier_seconds, stop_lines=10):
         "gate_seconds": round(sum(r["gate_seconds"] for r in wait_rows), 1),
     }
 
-    # ---- PARADAS DO CANTEIRO (12/11/2026): intervalo entre dois `done:` em que NENHUMA peca subiu ----
-    # A unidade e LINHA e isso nao e tempo: o log do BepInEx nao tem timestamp. O `t` so existe quando a
-    # propria linha traz `t=<numero>` (log de monitor) - por isso ele e opcional e a coluna sai `-`.
-    # `--stop-lines 0` lista todos, mas um intervalo de 0 linha nao e parada: o piso e 1.
-    stop_lines = max(1, stop_lines)
-    done_lines = [line for line, kind, _w, _d in events if kind == "done"]
-    gap_sizes = [b - a - 1 for a, b in zip(done_lines, done_lines[1:])]
-    ranges = [(a, b, b - a - 1) for a, b in zip(done_lines, done_lines[1:])
-              if b - a - 1 >= stop_lines]
-    stops = [{"first_line": a + 1, "last_line": b - 1, "lines": size, "t": None,
-              "reasons": Counter(), "build_lines": 0}
-             for a, b, size in ranges]
-    ri = 0
-    for line, kind, _w, _d in events:
-        while ri < len(ranges) and line >= ranges[ri][1]:
-            ri += 1
-        if ri >= len(ranges):
-            break
-        if line <= ranges[ri][0]:
-            continue
-        row = stops[ri]
-        row["build_lines"] += 1
-        if kind in ("body_piece", "body_path"):
-            row["reasons"]["BODY"] += 1
-        elif kind == "aside_no_room":
-            row["reasons"]["ASIDE_NO_ROOM"] += 1
-        elif kind == "gate":
-            row["reasons"]["GATE"] += 1
-        elif kind == "dependency":
-            row["reasons"]["DEP"] += 1
-        elif kind in ("retry_group", "retry_later"):
-            row["reasons"]["RETRY"] += 1
-        elif kind == "post_no_place":
-            row["reasons"]["POST_NO_PLACE"] += 1
-    for row in stops:
-        for ln in range(row["first_line"], row["last_line"] + 1):
-            if ln in block.times:
-                row["t"] = block.times[ln]
-                break
-        row["reasons"] = dict(row["reasons"])
-    # do maior para o menor: a secao e sobre custo, e o RESUMO cita o maior
-    stops.sort(key=lambda r: (-r["lines"], r["first_line"]))
-    reasons_total = Counter()
-    for row in stops:
-        for reason, count in row["reasons"].items():
-            reasons_total[reason] += count
-    tail_lines = (end_line - done_lines[-1]) if done_lines else 0
-
     return {
         "index": index,
         "label": block.label,
@@ -642,21 +547,6 @@ def finalize(block, index, barrier_seconds, stop_lines=10):
             "sem_lugar": aside_no_room,
             "saindo": aside_done,
             "dispersao_detalhe": spread_detail,
-        },
-        "stops": {
-            "unit": "lines",
-            "note": "sem timestamp no log: e contagem de LINHAS, nao tempo",
-            "threshold_lines": stop_lines,
-            "count": len(stops),
-            "max_lines": max([s["lines"] for s in stops]) if stops else 0,
-            "gaps_total": len(gap_sizes),
-            "gaps_below": len(gap_sizes) - len(stops),
-            "median_gap": median(gap_sizes),
-            "p95_gap": p95(gap_sizes),
-            "lines_in_stops": sum(s["lines"] for s in stops),
-            "tail_lines": tail_lines,
-            "reasons_total": dict(reasons_total),
-            "episodes": stops,
         },
     }
 
@@ -820,66 +710,17 @@ def print_order(o, total_orders, out):
         parts = ["%s %s" % (reason, pct(row["total"], total_retry))
                  for reason, row in sorted(o["retries"].items(), key=lambda kv: -kv[1]["total"])]
         print("   distribuição: %s (%d recusa(s))" % (", ".join(parts), total_retry), file=out)
-
-    print("", file=out)
-    print(" PARADAS DO CANTEIRO (intervalos em que nenhum `done:` saiu)", file=out)
-    print("   unidade: LINHAS de log - o log não tem timestamp, então isto NÃO é tempo", file=out)
-    st = o["stops"]
-    if not o["placed"]:
-        print("   nenhuma peça colocada nesta ordem - não há episódio de parada a medir", file=out)
-    elif not st["gaps_total"]:
-        print("   só uma peça colocada - não há intervalo entre dois `done:`", file=out)
-    else:
-        print("   intervalos sem `done:`: %d | >= %d linha(s): %d | maior %d | mediana %s, p95 %s"
-              % (st["gaps_total"], st["threshold_lines"], st["count"], st["max_lines"],
-                 f1(st["median_gap"]) if st["median_gap"] is not None else "-",
-                 f1(st["p95_gap"]) if st["p95_gap"] is not None else "-"), file=out)
-        if st["gaps_below"]:
-            print("   ignorados: %d intervalo(s) abaixo de %d linha(s) (o normal entre duas peças)"
-                  % (st["gaps_below"], st["threshold_lines"]), file=out)
-        if st["tail_lines"]:
-            print("   depois do último `done:`: %d linha(s) até o fim do arquivo - sem um `done:`"
-                  " seguinte não é um episódio fechado (pode ser fim da ordem ou parada: veja o"
-                  " status)" % st["tail_lines"], file=out)
-        if st["count"]:
-            print("   (do maior para o menor)", file=out)
-            print("   %-3s %7s %-13s %8s %5s %6s %5s %4s %6s %5s %6s"
-                  % ("#", "linhas", "janela", "t", "BODY", "ASIDE", "GATE", "DEP", "RETRY",
-                     "POST", "[Build]"), file=out)
-            for i, row in enumerate(st["episodes"][:20], 1):
-                r = row["reasons"]
-                print("   %-3d %7d %-13s %8s %5d %6d %5d %4d %6d %5d %6d"
-                      % (i, row["lines"], "%d-%d" % (row["first_line"], row["last_line"]),
-                         row["t"] if row["t"] is not None else "-",
-                         r.get("BODY", 0), r.get("ASIDE_NO_ROOM", 0), r.get("GATE", 0),
-                         r.get("DEP", 0), r.get("RETRY", 0), r.get("POST_NO_PLACE", 0),
-                         row["build_lines"]), file=out)
-            if st["count"] > 20:
-                print("   (mostrando os 20 maiores; o JSON traz os %d)" % st["count"], file=out)
-            rt = st["reasons_total"]
-            print("   soma dos episódios: %d linha(s) = %s da janela | motivos: BODY %d, "
-                  "ASIDE_NO_ROOM %d, GATE %d, DEP %d, RETRY %d, POST_NO_PLACE %d"
-                  % (st["lines_in_stops"], pct(st["lines_in_stops"], o["lines"]),
-                     rt.get("BODY", 0), rt.get("ASIDE_NO_ROOM", 0), rt.get("GATE", 0),
-                     rt.get("DEP", 0), rt.get("RETRY", 0), rt.get("POST_NO_PLACE", 0)), file=out)
-            print("   (BODY = \"corpo na peça\" + \"corpo no caminho\"; GATE = \"nada acima de … é pego"
-                  " por N s\"; DEP = \"sem apoio ainda\")", file=out)
-        else:
-            print("   nenhum intervalo passou de %d linha(s) - a obra não parou de subir peça por mais"
-                  " que isso" % st["threshold_lines"], file=out)
-
     print("", file=out)
     print(" RESUMO: %s | %s peças | done %d | puladas %d | mortes %d | [Build] %d | "
           "linhas/peça %s | espera %s s (fila %s: fim %s/meio %s, portão %s s) | retenções %d | "
-          "step-aside %d | paradas %d (maior %d linhas) | %s"
+          "step-aside %d | %s"
           % (o["label"], o["plan"], o["placed"], o["skipped_counter"], o["deaths"],
              o["build_lines"],
              f2(o["lines_per_piece"]) if o["lines_per_piece"] is not None else "-",
              f1(o["wait"]["total"]["total"]), f1(o["wait"]["total"]["queue"]),
              f1(o["wait"]["total"]["queue_end"]), f1(o["wait"]["total"]["queue_ahead"]),
              f1(o["wait"]["total"]["gate_seconds"]), o["wait"]["total"]["holds"],
-             o["spread"]["aside_asked"], o["stops"]["count"], o["stops"]["max_lines"],
-             status_text(o)), file=out)
+             o["spread"]["aside_asked"], status_text(o)), file=out)
 
 
 def main(argv=None):
@@ -893,9 +734,6 @@ def main(argv=None):
     parser.add_argument("--json", action="store_true", help="imprime so o JSON (schema 1)")
     parser.add_argument("--barrier-seconds", type=float, default=10.0,
                         help="teto de UMA retencao da barreira (padrao 10 = BodyBarrierSeconds)")
-    parser.add_argument("--stop-lines", type=int, default=10,
-                        help="minimo de LINHAS de um intervalo sem `done:` para virar episodio de "
-                             "parada do canteiro (padrao 10; 0 lista todos)")
     args = parser.parse_args(argv)
 
     if not os.path.isfile(args.log):
@@ -907,7 +745,7 @@ def main(argv=None):
     except OSError as exc:
         print("nao foi possivel ler %s: %s" % (args.log, exc), file=sys.stderr)
         return 2
-    all_reports = [finalize(b, i + 1, args.barrier_seconds, args.stop_lines)
+    all_reports = [finalize(b, i + 1, args.barrier_seconds)
                    for i, b in enumerate(blocks)]
     reports = all_reports if args.all else all_reports[-1:]
 

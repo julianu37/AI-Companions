@@ -784,16 +784,10 @@ internal static class MHR_BuildGroup
 			return;   // the barrier of this piece is already drawn - the first refusal is the clock
 		}
 		group.BodyAt[index] = Time.time;
-		MHR_Build.PlannedStep step = group.Plan != null && index < group.Plan.Count ? group.Plan[index] : null;
-		float level = step != null ? step.Level : 0f;
-		float x = step != null ? step.Pos.x : float.NaN;
-		float z = step != null ? step.Pos.z : float.NaN;
-		// 11/11/2026 (the SCOPE of the barrier): the line used to promise that nothing above the level would be taken -
-		// since the barrier holds only what is around the piece, it says the radius and the pose, or it lies about the house.
+		float level = group.Plan != null && index < group.Plan.Count ? group.Plan[index].Level : 0f;
 		Log("um corpo está na peça " + (index + 1) + " do canteiro (nível " + level.ToString("F1")
 			+ ") - nada acima de " + (level + BuildFailure.BodySameStorey).ToString("F1") + " m é pego por "
-			+ BuildFailure.BodyBarrierSeconds.ToString("F0") + " s (a até " + BuildFailure.BodyScopeRadius.ToString("F0")
-			+ " m de (" + x.ToString("F1") + ", " + z.ToString("F1") + "))");
+			+ BuildFailure.BodyBarrierSeconds.ToString("F0") + " s");
 	}
 
 	/// <summary>
@@ -856,30 +850,17 @@ internal static class MHR_BuildGroup
 		{
 			return true;
 		}
-		MHR_Build.PlannedStep piece = group.Plan[index];
-		if (piece == null)
-		{
-			return true;
-		}
 		float now = Time.time;
+		float level = group.Plan[index].Level;
 		foreach (KeyValuePair<int, float> barrier in group.BodyAt)
 		{
 			if (now - barrier.Value >= BuildFailure.BodyBarrierSeconds || barrier.Key < 0 || barrier.Key >= group.Plan.Count)
 			{
 				continue;
 			}
-			MHR_Build.PlannedStep blocked = group.Plan[barrier.Key];
-			if (blocked == null)
+			if (level > group.Plan[barrier.Key].Level + BuildFailure.BodySameStorey)
 			{
-				continue;
-			}
-			// 11/11/2026 (the SCOPE of the barrier - "sometimes 3 stop, sometimes all 5"): the storey test alone held the
-			// whole house for one body in a corner. The rule now lives in BuildFailure.BodyScope (the same one the site's
-			// queue asks): only the pieces ABOVE the blocked storey AND within BodyScopeRadius of that piece are held.
-			if (BuildFailure.BodyScope(blocked.Level, blocked.Pos.x, blocked.Pos.z,
-				piece.Level, piece.Pos.x, piece.Pos.z, BuildFailure.BodyScopeRadius, BuildFailure.BodySameStorey))
-			{
-				return false;   // a storey above what a body is holding, around that piece
+				return false;   // a storey above what a body is holding
 			}
 		}
 		return true;
@@ -1204,77 +1185,6 @@ internal static class MHR_BuildGroup
 	}
 
 	/// <summary>
-	/// 11/11/2026 (Run 22, <b>the park</b>): can THIS worker pull something from the site's queue <b>right now</b>? "There is
-	/// something queued" (<see cref="RetryPending"/>) is a different question: one entry waiting for a support for 25 s, or
-	/// one claimed by another companion, keeps it true for the whole build - and a worker that asked it entered the wait and
-	/// never looked at the plan again (the player's "3 stopped, then 5").
-	///
-	/// <para>It asks <b>exactly</b> what <see cref="NextRetry"/> asks before handing a piece over (the same private
-	/// <see cref="Ready"/>): due, not done, the body gate lets it through, the spread neighbourhood is free, and the claim is
-	/// mine or free (an expired claim counts as free). It <b>claims nothing</b> - it is only the question.</para>
-	/// </summary>
-	internal static bool RetryReady(string key, int workerId)
-	{
-		Group group;
-		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null || group.Plan == null)
-		{
-			return false;
-		}
-		float now = Time.time;
-		for (int i = 0; i < group.Retry.Count; i++)
-		{
-			if (Ready(group, group.Retry[i], workerId, now))
-			{
-				return true;
-			}
-		}
-		return false;
-	}
-
-	/// <summary>
-	/// 11/11/2026 (Run 22): the conditions under which <see cref="NextRetry"/> hands this entry over - <b>one</b> copy, asked
-	/// by the queue itself (which then claims it) and by the "is there anything for me?" of the wait (<see cref="RetryReady"/>,
-	/// which claims nothing). It does not mutate the queue and it does not claim.
-	/// </summary>
-	private static bool Ready(Group group, RetryEntry entry, int workerId, float now)
-	{
-		if (entry == null || entry.Index < 0 || entry.Index >= group.Plan.Count || now < entry.At)
-		{
-			return false;
-		}
-		if (group.Done.Contains(entry.Index))
-		{
-			return false;   // a stale entry (NextRetry drops it from the list before asking)
-		}
-		// 11/11/2026 (the body barrier): a piece of a storey ABOVE the one a body is holding is not pulled while the
-		// barrier lives - the entrance that did not go up comes back BEFORE the work goes higher (the player's rule).
-		if (!MayTake(group, entry.Index))
-		{
-			return false;
-		}
-		// 11/11/2026 (the spread of the crew): a piece left for later waits for the neighbourhood to be free.
-		if (entry.Spread && !SpreadFree(group, entry.Index))
-		{
-			return false;
-		}
-		return ClaimFree(group, entry.Index, workerId);
-	}
-
-	/// <summary>11/11/2026 (Run 22): may this worker claim that piece now - nobody holds it, it holds it already, or the
-	/// claim is older than <c>ClaimSeconds</c> (a worker that went away). The rule <see cref="TryClaim"/> applies, without
-	/// writing anything.</summary>
-	private static bool ClaimFree(Group group, int index, int workerId)
-	{
-		int holder;
-		float at;
-		if (!group.Claims.TryGetValue(index, out holder) || !group.ClaimAt.TryGetValue(index, out at))
-		{
-			return true;   // nobody has it
-		}
-		return holder == workerId || Time.time - at >= ClaimSeconds;
-	}
-
-	/// <summary>
 	/// P1 (review A1): the next piece of the retry queue this worker may take - it is <b>claimed here</b>, so two workers
 	/// never pull the same index. -1 when there is nothing for it right now (all claimed by others, or not due yet).
 	/// A built piece leaves the queue through <see cref="MarkDone"/>; an index that is done anyway (a stale entry) is
@@ -1306,9 +1216,18 @@ internal static class MHR_BuildGroup
 		for (int i = 0; i < group.Retry.Count; i++)
 		{
 			RetryEntry entry = group.Retry[i];
-			// 11/11/2026 (Run 22): the conditions live in Ready (the same ones RetryReady asks) - this loop only decides
-			// which entry, then claims it.
-			if (!Ready(group, entry, workerId, now))
+			if (entry == null || entry.Index < 0 || entry.Index >= group.Plan.Count || now < entry.At)
+			{
+				continue;
+			}
+			// 11/11/2026 (the body barrier): a piece of a storey ABOVE the one a body is holding is not pulled while the
+			// barrier lives - the entrance that did not go up comes back BEFORE the work goes higher (the player's rule).
+			if (!MayTake(group, entry.Index))
+			{
+				continue;
+			}
+			// 11/11/2026 (the spread of the crew): a piece left for later waits for the neighbourhood to be free.
+			if (entry.Spread && !SpreadFree(group, entry.Index))
 			{
 				continue;
 			}
@@ -1334,7 +1253,7 @@ internal static class MHR_BuildGroup
 	/// purpose) and not already served by this barrier (<paramref name="served"/>). It does not look at the clock nor at the
 	/// claims: a piece another worker is building below is still a piece the plan must not climb over.</para>
 	/// </summary>
-	internal static int PendingBelow(string key, int nextIndex, float nextY, float nextX, float nextZ, HashSet<int> served)
+	internal static int PendingBelow(string key, int nextIndex, float nextY, HashSet<int> served)
 	{
 		Group group;
 		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null || group.Plan == null)
@@ -1346,7 +1265,7 @@ internal static class MHR_BuildGroup
 		for (int i = 0; i < group.Retry.Count; i++)
 		{
 			RetryEntry entry = group.Retry[i];
-			if (!IsBelow(group, entry, nextIndex, nextY, nextX, nextZ, served))
+			if (!IsBelow(group, entry, nextIndex, nextY, served))
 			{
 				continue;
 			}
@@ -1369,8 +1288,7 @@ internal static class MHR_BuildGroup
 	/// <para>The <b>lowest</b> one wins: a column of refused pieces closes from the bottom up, and the bottom piece is the
 	/// one the others lean on.</para>
 	/// </summary>
-	internal static int NextRetryBelow(string key, int nextIndex, float nextY, float nextX, float nextZ,
-		HashSet<int> served, int workerId)
+	internal static int NextRetryBelow(string key, int nextIndex, float nextY, HashSet<int> served, int workerId)
 	{
 		Group group;
 		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null || group.Plan == null)
@@ -1383,7 +1301,7 @@ internal static class MHR_BuildGroup
 		for (int i = 0; i < group.Retry.Count; i++)
 		{
 			RetryEntry entry = group.Retry[i];
-			if (!IsBelow(group, entry, nextIndex, nextY, nextX, nextZ, served) || now < entry.At)
+			if (!IsBelow(group, entry, nextIndex, nextY, served) || now < entry.At)
 			{
 				continue;
 			}
@@ -1412,8 +1330,7 @@ internal static class MHR_BuildGroup
 
 	/// <summary>11/11/2026 (the storey barrier): is this queue entry a piece <b>below</b> the next one that the barrier may
 	/// serve? The one definition of the window, shared by <see cref="PendingBelow"/> and <see cref="NextRetryBelow"/>.</summary>
-	private static bool IsBelow(Group group, RetryEntry entry, int nextIndex, float nextY, float nextX, float nextZ,
-		HashSet<int> served)
+	private static bool IsBelow(Group group, RetryEntry entry, int nextIndex, float nextY, HashSet<int> served)
 	{
 		if (entry == null || group.Plan == null)
 		{
@@ -1436,13 +1353,6 @@ internal static class MHR_BuildGroup
 		if (step == null || step.Pos.y >= nextY - 0.01f)
 		{
 			return false;   // same storey or above: not what the barrier settles
-		}
-		// 11/11/2026 (the SCOPE of the barrier, "sometimes 3 stop, sometimes all 5"): a piece of another part of the house is
-		// not something this walk has to settle first. Same radius as the gate (BuildFailure.BodyScope), so the two barriers
-		// of the site cannot disagree about which pieces belong together.
-		if (!BuildFailure.BodyNear(step.Pos.x, step.Pos.z, nextX, nextZ, BuildFailure.BodyScopeRadius))
-		{
-			return false;   // below, but far away: the walk may climb over the far side
 		}
 		return BuildBlueprintParser.ClassOf(step.Prefab) != 4;   // a door is always the last piece
 	}

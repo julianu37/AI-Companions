@@ -843,93 +843,6 @@ internal static class Program
 				&& Math.Abs(BuildFailure.BodyRetryMaxWait - 10f) < 0.001f,
 			"obtido " + BuildFailure.BodyRetryDelay.ToString("F2") + " / " + BuildFailure.BodyRetryStep.ToString("F2")
 				+ " / " + BuildFailure.BodyRetryMaxWait.ToString("F2"));
-
-		// 13) 11/11/2026 (the SCOPE of the two body barriers, in XZ): the barrier of a body holds only what is ABOVE the
-		// blocked storey (BodySameStorey = 1,5 m) and AROUND it (BodyScopeRadius = 6 m) - never the whole house. The
-		// numbers are the measured house: the entrance stair at 39,8 and the floors at 41,8 / 43,8. A radius of 0 is the
-		// A/B escape (the global rule of before: no config, no key) and a pose that is not a number (NaN) never holds a
-		// piece. BodyNear is the XZ half of the rule, tested directly in case 11.
-		float scopeRadius = BuildFailure.BodyScopeRadius;   // 6 m
-		float sameStorey = BuildFailure.BodySameStorey;     // 1,5 m
-
-		// 1) the same area and above: the pipe of the barrier
-		Check("BodyScope: mesma area e acima (escada 40,8 -> piso 42,8, dXZ 0) -> true",
-			BuildFailure.BodyScope(40.8f, 0f, 0f, 42.8f, 0f, 0f, scopeRadius, sameStorey),
-			"obtido false");
-
-		// 2) the far side of the house: the piece above is held only if it is within the radius
-		Check("BodyScope: outra area e acima (piso 42,8 a 6,01 m em X) -> false",
-			!BuildFailure.BodyScope(40.8f, 0f, 0f, 42.8f, 6.01f, 0f, scopeRadius, sameStorey),
-			"obtido true");
-
-		// 3) the height has no ceiling - only the blocked storey's level and the XZ radius matter
-		Check("BodyScope: muito acima e na mesma area (piso 50,8, dXZ 1) -> true",
-			BuildFailure.BodyScope(40.8f, 0f, 0f, 50.8f, 1f, 0f, scopeRadius, sameStorey),
-			"obtido false");
-
-		// 4) below (or on the same storey) is never held
-		Check("BodyScope: abaixo (peca 2 m abaixo da bloqueada, dXZ 0) -> false",
-			!BuildFailure.BodyScope(40.8f, 0f, 0f, 38.8f, 0f, 0f, scopeRadius, sameStorey),
-			"obtido true");
-
-		// 5) the strict > of the storey: exactly +1,5 m is the same storey (false), 1 cm more is above (true)
-		bool storeyEdge = BuildFailure.BodyScope(40.8f, 0f, 0f, 40.8f + 1.5f, 0f, 0f, scopeRadius, sameStorey);
-		bool storeyOver = BuildFailure.BodyScope(40.8f, 0f, 0f, 40.8f + 1.51f, 0f, 0f, scopeRadius, sameStorey);
-		Check("BodyScope: mesma altura - +1,5 exato -> false; +1,51 -> true (o > da regra)",
-			!storeyEdge && storeyOver, "obtido +1,5: " + storeyEdge + " / +1,51: " + storeyOver);
-
-		// 6) the border of the radius counts as inside; one ten-thousandth past it does not
-		bool radiusEdge = BuildFailure.BodyScope(40.8f, 0f, 0f, 42.8f, 6f, 0f, scopeRadius, sameStorey);
-		bool radiusOver = BuildFailure.BodyScope(40.8f, 0f, 0f, 42.8f, 6.0001f, 0f, scopeRadius, sameStorey);
-		Check("BodyScope: borda do raio no eixo X - 6,0 m -> true; 6,0001 m -> false",
-			radiusEdge && !radiusOver, "obtido 6,0: " + radiusEdge + " / 6,0001: " + radiusOver);
-
-		// 7) the radius is a circle, not a square: 5,86 m in is held, 6,14 m out is not
-		bool diagonalIn = BuildFailure.BodyScope(40.8f, 0f, 0f, 42.8f, 3.5f, 4.7f, scopeRadius, sameStorey);
-		bool diagonalOut = BuildFailure.BodyScope(40.8f, 0f, 0f, 42.8f, 3.7f, 4.9f, scopeRadius, sameStorey);
-		Check("BodyScope: diagonal - (3,5; 4,7) = 5,86 m -> true; (3,7; 4,9) = 6,14 m -> false",
-			diagonalIn && !diagonalOut, "obtido 5,86: " + diagonalIn + " / 6,14: " + diagonalOut);
-
-		// 8) a pose read from the plan that is not a number cannot stop the crew
-		bool nanLevel = BuildFailure.BodyScope(40.8f, 0f, 0f, float.NaN, 0f, 0f, scopeRadius, sameStorey);
-		bool nanX = BuildFailure.BodyScope(40.8f, 0f, 0f, 42.8f, float.NaN, 0f, scopeRadius, sameStorey);
-		bool nanZ = BuildFailure.BodyScope(40.8f, 0f, 0f, 42.8f, 0f, float.NaN, scopeRadius, sameStorey);
-		Check("BodyScope: NaN numa coordenada da peca (nivel, X, Z) -> false",
-			!nanLevel && !nanX && !nanZ, "obtido nivel: " + nanLevel + " / X: " + nanX + " / Z: " + nanZ);
-
-		// 9) the A/B escape: radius 0 is the global rule of before (everything is held), and a NaN radius is not a
-		// reason to freeze the whole site either
-		bool radiusZero = BuildFailure.BodyScope(40.8f, 0f, 0f, 42.8f, 100f, 100f, 0f, sameStorey);
-		bool radiusNan = BuildFailure.BodyScope(40.8f, 0f, 0f, 42.8f, 100f, 100f, float.NaN, sameStorey);
-		Check("BodyScope: raio 0 -> true (o escape do A/B); raio NaN -> true",
-			radiusZero && radiusNan, "obtido raio 0: " + radiusZero + " / raio NaN: " + radiusNan);
-
-		// 10) the measured case (Run 9): the entrance stair holds the two floors of its column, never the same column
-		// 25 m away in XZ
-		bool stairFloor = BuildFailure.BodyScope(39.8f, 0f, 0f, 41.8f, 0f, 0f, scopeRadius, sameStorey);
-		bool stairFloor2 = BuildFailure.BodyScope(39.8f, 0f, 0f, 43.8f, 0f, 0f, scopeRadius, sameStorey);
-		bool farColumn = BuildFailure.BodyScope(39.8f, 0f, 0f, 41.8f, 25f, 0f, scopeRadius, sameStorey);
-		Check("BodyScope: Run 9 - a escada (39,8) segura os pisos 41,8 e 43,8 da coluna e NAO a mesma coluna a 25 m",
-			stairFloor && stairFloor2 && !farColumn,
-			"obtido 41,8: " + stairFloor + " / 43,8: " + stairFloor2 + " / 25 m: " + farColumn);
-
-		// 11) the XZ half of the rule, called directly
-		bool nearEdge = BuildFailure.BodyNear(0f, 0f, 6f, 0f, scopeRadius);
-		bool nearOver = BuildFailure.BodyNear(0f, 0f, 6.0001f, 0f, scopeRadius);
-		bool nearNan = BuildFailure.BodyNear(0f, 0f, float.NaN, 0f, scopeRadius);
-		bool nearZero = BuildFailure.BodyNear(0f, 0f, 100f, 100f, 0f);
-		Check("BodyNear: 6,0 -> true (a borda conta); 6,0001 -> false; NaN -> false; raio 0 -> true",
-			nearEdge && !nearOver && !nearNan && nearZero,
-			"obtido 6,0: " + nearEdge + " / 6,0001: " + nearOver + " / NaN: " + nearNan + " / raio 0: " + nearZero);
-
-		// 12) the numbers of the scope, so a silent change of the window or of the clock is caught here
-		Check("BodyScope: constantes - 6 m de raio, 1,5 m de mesmo andar, 10 s de barreira e o MESMO relogio (MaxWait == Barrier)",
-			Math.Abs(BuildFailure.BodyScopeRadius - 6f) < 0.001f
-				&& Math.Abs(BuildFailure.BodySameStorey - 1.5f) < 0.001f
-				&& Math.Abs(BuildFailure.BodyBarrierSeconds - 10f) < 0.001f
-				&& BuildFailure.BodyRetryMaxWait == BuildFailure.BodyBarrierSeconds,
-			"obtido " + BuildFailure.BodyScopeRadius.ToString("F2") + " / " + BuildFailure.BodySameStorey.ToString("F2")
-				+ " / " + BuildFailure.BodyBarrierSeconds.ToString("F2") + " / " + BuildFailure.BodyRetryMaxWait.ToString("F2"));
 	}
 
 	/// <summary>Section (p): one classification, with the probe's answer and what the gate expects.</summary>
@@ -1748,22 +1661,6 @@ internal static class Program
 		Check("buffer de 2: enche 2 e responde 2", two == 2
 			&& AsideSame(shortBuffer[0], new UnityEngine.Vector3(2.2f, 10f, 0f)),
 			"obtido " + two + " (" + Vec(shortBuffer[0]) + ")");
-
-		// 14) Pick - the two rings of the step aside: the close ring (2,2 m) ALWAYS wins when it has a spot, the far ring
-		// (4,2 m) only answers when the close one found nowhere, and -1 in both = do not ask (the piece goes to the site's
-		// queue instead of drawing the 10 s body barrier of the whole crew). -1 = "this ring found nowhere".
-		Check("Pick: o proximo anel achou e o distante nao -> o proximo", BuildAsideSpot.Pick(0, -1) == 0,
-			"obtido " + BuildAsideSpot.Pick(0, -1));
-		Check("Pick: so o distante achou -> e ele que responde", BuildAsideSpot.Pick(-1, 0) == 0,
-			"obtido " + BuildAsideSpot.Pick(-1, 0));
-		Check("Pick: os dois acharam -> o proximo ganha", BuildAsideSpot.Pick(0, 0) == 0,
-			"obtido " + BuildAsideSpot.Pick(0, 0));
-		Check("Pick: o proximo ganha de qualquer valor do distante (0, 7)", BuildAsideSpot.Pick(0, 7) == 0,
-			"obtido " + BuildAsideSpot.Pick(0, 7));
-		Check("Pick: o valor do distante passa intacto (-1, 3)", BuildAsideSpot.Pick(-1, 3) == 3,
-			"obtido " + BuildAsideSpot.Pick(-1, 3));
-		Check("Pick: nenhum dos dois achou -> nao pede o passo", BuildAsideSpot.Pick(-1, -1) == -1,
-			"obtido " + BuildAsideSpot.Pick(-1, -1));
 	}
 
 	/// <summary>Section (y): one <c>Plan</c> case - the expected count and a spot that must be at <paramref name="slot"/>.

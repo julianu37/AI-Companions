@@ -127,20 +127,6 @@ internal static class BuildAsideSpot
 	}
 
 	/// <summary>
-	/// 11/11/2026 (Run 20, the <b>two rings</b> of the step aside): a destination found in the <b>close</b> ring (2,2 m,
-	/// <c>MHR_Build.AsideDistance</c>) always wins; the <b>far</b> ring (4,2 m, <c>MHR_Build.AsideFar</c>) only answers when
-	/// the close one has none. <paramref name="near"/> and <paramref name="far"/> are the ring's own answer - a value
-	/// <b>&gt;= 0</b> = the ring has a spot, <b>-1</b> = it found nowhere - and -1 back means <b>do not ask</b>: the piece
-	/// goes to the site's queue instead of drawing the 10 s body barrier of the whole crew. Pure on purpose: the rings
-	/// themselves are the Unity side (<c>MHR_Build.AsideSpot</c>: the pending pieces, the ground ray and the safe step), so
-	/// this is the part the harness can lock.
-	/// </summary>
-	internal static int Pick(int near, int far)
-	{
-		return near >= 0 ? near : far;
-	}
-
-	/// <summary>
 	/// Is this candidate better than the current best: the one more directly <b>behind the placer</b> first (its dot with
 	/// the away vector), then the <b>shorter</b> step, then the coordinates. The three keys are what make the answer
 	/// independent of the ring's order and of the order the slots were filled in.

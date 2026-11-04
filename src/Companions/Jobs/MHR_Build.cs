@@ -211,15 +211,6 @@ internal static class MHR_Build
 	/// pieces).</summary>
 	internal const float StallSeconds = 60f;
 
-	/// <summary>
-	/// 11/11/2026 (Run 22, <b>the park</b>): how often, at most, a waiting worker may ask the plan again from inside
-	/// <see cref="WaitRetry"/> when the site's queue has something that is <b>not</b> for it (another worker's piece, a
-	/// support that is 8-25 s away). <b>One second, never per frame</b>: the Run 19 re-asked on every frame and the
-	/// 985-piece house dropped from 78 to <b>38 pieces/min</b>, because <see cref="Advance"/> releases the claims on entry and
-	/// every waiter fought for the same corner again.
-	/// </summary>
-	internal const float AdvanceAskSeconds = 1f;
-
 	/// <summary>E7 (player's request, 03/11/2026): how long the site clearing may take before the build goes on without
 	/// it - clearing a whole forest is not a build site.</summary>
 	internal const float ClearBudget = 240f;
@@ -487,14 +478,6 @@ internal static class MHR_Build
 		/// Advance with <c>dt = 0</c>, so the gate was invisible in the summary line.
 		/// </summary>
 		internal float WaitGate;
-		/// <summary>
-		/// 11/11/2026 (Run 22, <b>the park</b>): when this worker last asked the plan again from inside the wait
-		/// (<see cref="MHR_Build.WaitRetry"/> - the queue saying "there is something" is not the same as "something for ME").
-		/// It is the <b>throttle</b> of that re-ask (one second, <c>AdvanceAskSeconds</c>): the Run 19 asked on every frame
-		/// and halved the throughput (38 pieces/min against 78), because <see cref="MHR_Build.Advance"/> releases the claims
-		/// on entry. Reset by <see cref="EnterStep"/> - a new piece starts the window again.
-		/// </summary>
-		internal float AdvanceAskedAt;
 		/// <summary>11/11/2026 (Run 17): seconds spent walking the step aside of a piece another companion places.</summary>
 		internal float WaitAside;
 		/// <summary>11/11/2026 (Run 17): how many times the site's gate kept this worker from taking a piece (a body
@@ -1338,7 +1321,6 @@ internal static class MHR_Build
 		state.HasWalkTo = false;
 		state.WalkRays = 0;   // 11/11/2026 (Run 14): the counters of the surface search are the new piece's own
 		state.WalkFound = 0;
-		state.AdvanceAskedAt = 0f;   // 11/11/2026 (Run 22): a new piece starts the re-ask window of the wait again
 		state.Phase = Phase.Goto;
 	}
 
@@ -1387,7 +1369,7 @@ internal static class MHR_Build
 			// the 1st floor has the SAME y as the beam whose tiles were waiting at 39,8, so the pending piece below was
 			// never seen and the wall went up over two empty tiles. Now anything waiting below the piece the walk is about
 			// to take draws the barrier, whatever the walk's own height is.
-			int waiting = PendingBelowIndex(ai, state, nextIndex, nextY, next.Pos.x, next.Pos.z);
+			int waiting = PendingBelowIndex(ai, state, nextIndex, nextY);
 			if (waiting < 0)
 			{
 				return false;   // nothing of the storey below is waiting: just climb
@@ -1419,12 +1401,6 @@ internal static class MHR_Build
 		{
 			return false;
 		}
-		// 11/11/2026 (the SCOPE of the barrier, "sometimes 3 stop, sometimes all 5"): both barriers of the site ask the pose
-		// of the piece the walk is about to take (BuildFailure.BodyNear) - the body of one corner no longer holds the far
-		// side of the house. The pose comes from the plan's own step, the same one BarrierNextY came from.
-		PlannedStep barrierNext = state.Plan[state.BarrierNextIndex];
-		float nextX = barrierNext != null ? barrierNext.Pos.x : float.NaN;
-		float nextZ = barrierNext != null ? barrierNext.Pos.z : float.NaN;
 		if (ModConfig.BuildBodyRetry != null && !ModConfig.BuildBodyRetry.Value)
 		{
 			ResetBarrier(state);   // the player turned it off in the F8 panel while the order was running
@@ -1438,7 +1414,7 @@ internal static class MHR_Build
 		// the longer clock always won (Run 16: 31 "nothing above ... is taken" lines with workers standing still).
 		if (Time.time - state.BarrierStart > BuildFailure.BodyRetryMaxWait)
 		{
-			int stuck = PendingBelowIndex(ai, state, state.BarrierNextIndex, state.BarrierNextY, nextX, nextZ);
+			int stuck = PendingBelowIndex(ai, state, state.BarrierNextIndex, state.BarrierNextY);
 			if (stuck < 0 || stuck >= state.Plan.Count)
 			{
 				stuck = state.BarrierNextIndex;
@@ -1449,7 +1425,7 @@ internal static class MHR_Build
 			ResetBarrier(state);
 			return false;   // the normal gate: the plan climbs
 		}
-		int serve = NextRetryBelow(ai, state, state.BarrierNextIndex, state.BarrierNextY, nextX, nextZ);
+		int serve = NextRetryBelow(ai, state, state.BarrierNextIndex, state.BarrierNextY);
 		if (serve >= 0)
 		{
 			state.BarrierServed.Add(serve);
@@ -1459,7 +1435,7 @@ internal static class MHR_Build
 				+ F(state.Pos.x) + ", " + F(state.Pos.y) + ", " + F(state.Pos.z) + ")");
 			return true;
 		}
-		int below = PendingBelowIndex(ai, state, state.BarrierNextIndex, state.BarrierNextY, nextX, nextZ);
+		int below = PendingBelowIndex(ai, state, state.BarrierNextIndex, state.BarrierNextY);
 		if (below >= 0)
 		{
 			// 11/11/2026 (Run 17, the wait instrumented): the seconds the plan stood still here, counted apart - a body and
@@ -1520,7 +1496,7 @@ internal static class MHR_Build
 	/// (the site's queue in a group, this worker's list otherwise). It is the "is something waiting below?" question of
 	/// <see cref="StoreyBarrier"/> - and the index is what lets the log name the piece that did not come back.
 	/// </summary>
-	private static int PendingBelowIndex(CompanionAI ai, State state, int nextIndex, float nextY, float nextX, float nextZ)
+	private static int PendingBelowIndex(CompanionAI ai, State state, int nextIndex, float nextY)
 	{
 		if (state == null || state.Plan == null)
 		{
@@ -1528,7 +1504,7 @@ internal static class MHR_Build
 		}
 		if (state.Group != null)
 		{
-			return MHR_BuildGroup.PendingBelow(state.Group, nextIndex, nextY, nextX, nextZ, state.BarrierServed);
+			return MHR_BuildGroup.PendingBelow(state.Group, nextIndex, nextY, state.BarrierServed);
 		}
 		if (state.Retry == null)
 		{
@@ -1583,7 +1559,7 @@ internal static class MHR_Build
 	/// anybody else. -1 when nothing below is ready. In a group the index is <b>claimed</b> here, exactly like
 	/// <c>MHR_BuildGroup.NextRetry</c>, so two workers never pull the same piece.
 	/// </summary>
-	private static int NextRetryBelow(CompanionAI ai, State state, int nextIndex, float nextY, float nextX, float nextZ)
+	private static int NextRetryBelow(CompanionAI ai, State state, int nextIndex, float nextY)
 	{
 		if (ai == null || state == null || state.Plan == null)
 		{
@@ -1591,8 +1567,7 @@ internal static class MHR_Build
 		}
 		if (state.Group != null)
 		{
-			return MHR_BuildGroup.NextRetryBelow(state.Group, nextIndex, nextY, nextX, nextZ, state.BarrierServed,
-				ai.GetInstanceID());
+			return MHR_BuildGroup.NextRetryBelow(state.Group, nextIndex, nextY, state.BarrierServed, ai.GetInstanceID());
 		}
 		if (state.Retry == null || Time.time < state.RetryAt)
 		{
@@ -3520,7 +3495,7 @@ internal static class MHR_Build
 			// 60 s (a roof corner, a spot inside the hill). Skipping it keeps the other 982 going - and the log says
 			// WHERE, so a bad anchor is visible instead of "the order took too long"
 			SkipPiece(ai, state, "took too long");
-			return Advance(ai, state, dt);
+			return Advance(ai, state);
 		}
 		if (why != null)
 		{
@@ -3542,7 +3517,7 @@ internal static class MHR_Build
 				Log(ai, "o canteiro está pronto - o grupo pode construir");
 				if (!MHR_BuildGroup.TryClaim(state.Group, state.Index, ai.GetInstanceID()))
 				{
-					return Advance(ai, state, dt);
+					return Advance(ai, state);
 				}
 			}
 		}
@@ -3675,14 +3650,14 @@ internal static class MHR_Build
 			// the single worker's own retry list: wait for the dependency clock, then let Advance append it again
 			if (state.Plan == null || state.Retry == null || state.Retry.Count == 0)
 			{
-				return Advance(ai, state, dt);
+				return Advance(ai, state);
 			}
 			if (Time.time < state.RetryAt)
 			{
 				state.WaitQueueEnd += dt;   // 11/11/2026 (Run 17): the single worker's queue, counted like the group's
 				return true;
 			}
-			return Advance(ai, state, dt);
+			return Advance(ai, state);
 		}
 		if (!MHR_BuildGroup.Exists(state.Group))
 		{
@@ -3692,7 +3667,7 @@ internal static class MHR_Build
 		}
 		if (state.Plan == null || state.Plan.Count == 0)
 		{
-			return Advance(ai, state, dt);
+			return Advance(ai, state);
 		}
 		bool spread;
 		int retry = MHR_BuildGroup.NextRetry(state.Group, ai.GetInstanceID(), out spread);
@@ -3710,35 +3685,19 @@ internal static class MHR_Build
 		// Advance here removed the queue starvation (fila 0,0 s on a 32-piece plan) but HALVED the throughput of the
 		// 985-piece house: 38 pieces/min against 78/min of the Run 18, with "corpo na peca" 130 against 33 in the whole
 		// run. Every waiting worker re-walked the plan every frame and fought for the same corner - the wait was traded
-		// for contention, and five companions end up standing on the piece being placed. The re-ask is the ONE-second
-		// throttle of the Run 22 below; the wait itself is the one of the Run 18 again.
+		// for contention, and five companions end up standing on the piece being placed. The re-ask is the classifier
+		// below; the wait is the one of the Run 18 again.
 		bool ahead = state.Index + 1 < state.Plan.Count;
-		// 11/11/2026 (Run 22, THE park): "there is something in the queue" (RetryPending) is not "there is something for
-		// ME" - one entry waiting for a support for 8-25 s, or one claimed by another companion, kept it true for the whole
-		// build, and the worker that entered this wait never looked at the plan again: it stood there until the end of the
-		// house ("sometimes 3 stop, sometimes all 5"). RetryReady is that question, asked BEFORE the guard so a piece for
-		// this worker is never delayed by the throttle below. NOTE: NextRetry (above) has just asked the same predicate and
-		// claimed whatever was ready, so `ready` is false in practice today - it is here because it is what the guard
-		// MEANS, and it becomes live the day the claim moves out of NextRetry.
-		bool ready = MHR_BuildGroup.RetryReady(state.Group, ai.GetInstanceID());
-		if (!ready && !MHR_BuildGroup.RetryPending(state.Group))
+		if (!MHR_BuildGroup.RetryPending(state.Group))
 		{
-			return Advance(ai, state, dt);   // nothing left for anybody: the plan is done for everybody
-		}
-		// The queue still has something, but not something this worker may take now: re-ask the PLAN instead of standing
-		// still, at most once a second and only while a piece is still ahead of the walk (Advance carries the end-of-plan
-		// guard of :1227 on its own).
-		if (!ready && ahead && Time.time - state.AdvanceAskedAt >= AdvanceAskSeconds)
-		{
-			state.AdvanceAskedAt = Time.time;
-			return Advance(ai, state, dt);
+			return Advance(ai, state);   // nothing left: the plan is done for everybody
 		}
 		// 11/11/2026 (Run 17): there IS something in the queue but this worker may not take it (other worker's, a body, the
 		// spread gate) - it is waiting, and the summary line counts it as such.
 		// 11/11/2026 (Run 18): the seconds are split by WHERE the walk is - at the END of the plan (nothing ahead, the queue
-		// is the legitimate way forward) or in the MIDDLE of it (a piece was right ahead). The throttle above returns before
-		// these counters on ONE frame per second, so the middle number keeps growing on the other frames of that second -
-		// it is the number the A/B of the Run 22 reads.
+		// is the legitimate way forward) or in the MIDDLE of it (a piece was right ahead). With the `ahead` guard above this
+		// middle number is ≈ 0 by construction; it stays here as the guard of a later edit - the day the early return is
+		// removed or its condition changes, the middle-of-plan wait shows up again in the summary line instead of hiding.
 		if (ahead)
 		{
 			state.WaitAhead += dt;
@@ -5898,7 +5857,7 @@ internal static class MHR_Build
 				// stayed without its floor until the whole house was done).
 				if (PullSupports(ai, state))
 				{
-					return Advance(ai, state, dt);
+					return Advance(ai, state);
 				}
 				// P1 (04/11/2026): in a GROUP the plan is not reordered, so PullSupports above did nothing - the support under
 				// the piece is driven NEXT by this worker, by index, and the piece waits in the site's queue (no attempt spent)
@@ -5915,7 +5874,7 @@ internal static class MHR_Build
 				LogDebug(ai, "deferring " + state.Prefab + " at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
 					+ F(state.Pos.z) + "): it needs what is below it, which is not up yet - retry pass");
 				QueueRetry(ai, state, "no_support");
-				return Advance(ai, state, dt);
+				return Advance(ai, state);
 			}
 		}
 		Vector3 me = ai.transform.position;
@@ -5938,7 +5897,7 @@ internal static class MHR_Build
 				Log(ai, "falling from the way to the " + state.Prefab + " - skipping it (" + state.FallDrops + " fall(s))");
 				SkipPiece(ai, state, "falls");
 				state.FallDrops = 0;
-				return Advance(ai, state, dt);
+				return Advance(ai, state);
 			}
 		}
 		state.LastY = me.y;
@@ -6016,7 +5975,7 @@ internal static class MHR_Build
 					+ ") - retrying it later, I am at (" + F(me.x) + ", " + F(me.y) + ", " + F(me.z) + "), route "
 					+ (MHR_Mover.RoutePartial(ai) ? "partial" : "full"));
 				QueueRetry(ai, state, "no progress");
-				return Advance(ai, state, dt);
+				return Advance(ai, state);
 			}
 		}
 		float flat = new Vector2(me.x - state.Pos.x, me.z - state.Pos.z).magnitude;
@@ -6069,7 +6028,7 @@ internal static class MHR_Build
 			if (state.Blueprint != null)
 			{
 				QueueRetry(ai, state, "can't reach it");
-				return Advance(ai, state, dt);
+				return Advance(ai, state);
 			}
 			Finish(ai, state, "hc_ai_build_cant_reach", null, LabelOf(state));
 			return false;
@@ -6531,34 +6490,8 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		}
 		CompanionSetup other = blocker as CompanionSetup;
 		string who = blocker is Player ? "você" : (other != null ? "\"" + CompanionNames.NameOf(other) + "\"" : "um corpo");
-		// 11/11/2026 (Run 20): the capsule says WHERE the body is, never WHAT it is doing - a blocker that is walking the
-		// plan leaves by itself, one that is waiting is the case the step aside exists for. The phase is the cheapest honest
-		// answer (no new state, no probe).
 		Log(ai, "corpo na peça " + (state.Index + 1) + "/" + (state.Plan != null ? state.Plan.Count : state.Index + 1)
-			+ " (" + who + ")" + CapsuleText(other != null ? other.GetComponent<Character>() : blocker as Character)
-			+ " - bloqueador: " + BlockerPhaseText(other));
-	}
-
-	/// <summary>
-	/// 11/11/2026 (Run 20, the dense row): <b>what the blocker is doing</b> - "parado" (a build order that is only
-	/// waiting, paused, or already done: the piece is held by somebody with nothing to do but the step) or "construindo"
-	/// (it is driving the site: leveling, clearing, walking, placing, verifying - it may walk away on its own).
-	/// "indefinido" is a companion with <b>no build order</b> (another job, or none) or a blocker that is not a companion
-	/// (the player, a creature): the phase of a companion that is not building is not guessed.
-	/// </summary>
-	private static string BlockerPhaseText(CompanionSetup other)
-	{
-		State st;
-		if (other == null || !StateOf(other, out st) || st == null)
-		{
-			return "indefinido";
-		}
-		if (st.Paused || !st.Active || st.Phase == Phase.WaitGroup || st.Phase == Phase.WaitRetry
-			|| st.Phase == Phase.Done)
-		{
-			return "parado";
-		}
-		return "construindo";
+			+ " (" + who + ")" + CapsuleText(other != null ? other.GetComponent<Character>() : blocker as Character));
 	}
 
 	/// <summary>
@@ -6660,18 +6593,9 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 	/// past the piece's edge; 2,2 m clears the biggest piece of the plan with room for the walk).</summary>
 	private const float AsideDistance = 2.2f;
 
-	/// <summary>
-	/// 11/11/2026 (Run 20, the dense row): the <b>second</b> ring of the step aside - 4,2 m out, only tried when the 2,2 m
-	/// one has nowhere to stand. In a dense row the only side with built ground is the one behind the placer, and at 2,2 m
-	/// that spot lands inside the 1 m that keeps the two bodies apart (<see cref="AsideSpot"/>), so the step was never
-	/// asked - and every refusal draws the site's 10 s body barrier.
-	/// </summary>
-	private const float AsideFar = 4.2f;
-
 	/// <summary>How long one step aside may take. It is a <b>step</b>: arriving is not required (the mover may be blocked by
-	/// the site itself), the worker goes back to its wait and the request is gone. 11/11/2026 (Run 20): 3,5 s - the 2,5 s
-	/// were measured on the 2,2 m ring and the far one is 4,2 m of walk.</summary>
-	private const float AsideSeconds = 3.5f;
+	/// the site itself), the worker goes back to its wait and the request is gone.</summary>
+	private const float AsideSeconds = 2.5f;
 
 	/// <summary>
 	/// 11/11/2026 (Run 10, the companion blocker): the wait of a worker that was asked to move (<c>TakeStepAside</c>). The
@@ -6733,10 +6657,6 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 	/// away from the placer's front first (the plan's next pieces are in front of it), then its sides, the closest of each
 	/// rank first, and <b>nothing within 1,5 m of a pending piece</b>. The first candidate with ground at the companion's
 	/// level and a safe step to it wins (<see cref="StepTo"/>); none = no ask at all.
-	///
-	/// <para>11/11/2026 (Run 20): <b>two rings</b>. The 2,2 m one is tried first, and only when it has nowhere to stand is the
-	/// 4,2 m one paid (a dense row has built ground only behind the placer, and at 2,2 m that spot is inside the 1 m that
-	/// keeps the two bodies apart). Nothing on either = no ask at all, as before.</para>
 	/// </summary>
 	private static bool AsideSpot(State state, CompanionAI ai, CompanionAI mover, Vector3 from, out Vector3 target)
 	{
@@ -6750,84 +6670,6 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		Vector3 away = new Vector3(-facing.x, 0f, -facing.z);
 		MHR_BuildGroup.PendingNear(state.Group, from, AsideDistance + BuildAsideSpot.Clearance, s_asidePending);
 		int count = BuildAsideSpot.Plan(feet, from, away, s_asidePending, AsideDistance, s_asideSpots);
-		Vector3 nearSpot = Vector3.zero;
-		int near = PickAsideSpot(ai, mover, feet, count, state.Piece, from, state.Rot, out nearSpot) ? 0 : -1;
-		Vector3 farSpot = Vector3.zero;
-		int far = -1;
-		if (near < 0)
-		{
-			// 11/11/2026 (Run 20, the dense row of the corpus): the 2,2 m ring has ONE side with built ground - behind the
-			// placer, where the row already stands - and at 2,2 m that spot sits 0,3-0,8 m from him (one metre keeps the two
-			// capsules apart in PickAsideSpot), while the sides fall within Clearance of a pending piece. The whole row then
-			// answered "sem lugar livre" and the piece went to the queue - and every refusal also stamped the site's 10 s body
-			// barrier (NoteBody), stopping the crew. The far ring is only paid when the near one found nowhere: 4,2 m, with the
-			// pending set of that reach. `PendingNear` clears and refills the buffer, and `BuildAsideSpot.Plan` is untouched
-			// (its Clearance is the same 1,5 m, so the pieces that can block a spot 4,2 m out are the ones within 4,2 + 1,5 of
-			// the piece).
-			MHR_BuildGroup.PendingNear(state.Group, from, AsideFar + BuildAsideSpot.Clearance, s_asidePending);
-			count = BuildAsideSpot.Plan(feet, from, away, s_asidePending, AsideFar, s_asideSpots);
-			far = PickAsideSpot(ai, mover, feet, count, state.Piece, from, state.Rot, out farSpot) ? 0 : -1;
-		}
-		// 11/11/2026 (Run 20): WHICH ring answers is a pure rule (BuildAsideSpot.Pick), so the harness can lock it - the
-		// close ring always wins, the far one only speaks when the close one has none, and nothing on either means no ask at
-		// all (the piece goes to the site's queue instead of drawing the body barrier). The 0/-1 above is that ring's own
-		// answer: the spot inside the ring is walked by PickAsideSpot (first one that is not inside the placer, has ground
-		// and leaves the piece being placed), so what is left to decide here is only which ring it came from.
-		int pick = BuildAsideSpot.Pick(near, far);
-		if (pick < 0)
-		{
-			return false;   // nowhere on either ring: no ask, the piece goes to the queue
-		}
-		target = pick == near ? nearSpot : farSpot;
-		return true;
-	}
-
-	/// <summary>
-	/// 11/11/2026 (Run 20): the first spot of <b>one</b> ring the mover can really take - the spot must not be inside the
-	/// <b>placer</b>, the ground under it must be a step (<see cref="StepTo"/>) and the body must have <b>left the piece
-	/// being placed</b> (the window of <c>BuildProbe.BlockedByCharacter</c>, asked at the candidate). Shared by the two rings
-	/// of <see cref="AsideSpot"/> so the filters of the near ring are the same ones of the far ring.
-	///
-	/// <para>11/11/2026 (Run 22, the log episode: <c>C6: saindo da frente ... para (-174,1,-430,7)</c> four times and the
-	/// piece still refused): a spot where the body <b>still crosses the piece</b> is no step aside at all - it is a walk that
-	/// costs 3,5 s, draws the site's 10 s body barrier and leaves the piece refused. <paramref name="piece"/> is that piece
-	/// (its pose is <paramref name="piecePos"/>/<paramref name="pieceRot"/>); nothing free around it means <b>no ask</b>, as
-	/// before.</para>
-	/// </summary>
-	private static bool PickAsideSpot(CompanionAI ai, CompanionAI mover, Vector3 feet, int count, Piece piece,
-		Vector3 piecePos, Quaternion pieceRot, out Vector3 target)
-	{
-		target = Vector3.zero;
-		// the piece as the body window sees it, ONCE per ring (the box walk is not free): the same numbers
-		// BuildProbe.BlockedByCharacter builds - the box of the prefab, its centre moved by the PIVOT and the pose, and the
-		// vertical span as the AABB of the rotated box (BuildBody.HalfY).
-		bool known = BuildProbe.BoxOf(piece, out Bounds box);
-		Vector3 center = piecePos;
-		float halfX = 0f;
-		float halfZ = 0f;
-		float pieceBottom = piecePos.y;
-		float pieceTop = piecePos.y;
-		if (known)
-		{
-			Vector3 localCenter = box.center - piece.transform.position;
-			center = piecePos + pieceRot * localCenter;
-			halfX = box.extents.x;
-			halfZ = box.extents.z;
-			float halfY = BuildBody.HalfY(halfX, box.extents.y, halfZ, (pieceRot * Vector3.right).y,
-				(pieceRot * Vector3.up).y, (pieceRot * Vector3.forward).y);
-			pieceBottom = center.y - halfY;
-			pieceTop = center.y + halfY;
-		}
-		Quaternion inverse = Quaternion.Inverse(pieceRot);
-		// the mover's own capsule, read once - the candidate is that same body standing somewhere else. The four values are
-		// initialised on purpose: an `out` inside `&&` is not definitely assigned when the left side is false (CS0165).
-		Character body = mover != null ? mover.GetComponent<Character>() : null;
-		Vector3 axis = Vector3.zero;
-		float capBottom = 0f;
-		float capTop = 0f;
-		float capRadius = 0f;
-		bool capsule = body != null
-			&& BuildProbe.CapsuleOf(body, out axis, out capBottom, out capTop, out capRadius);
 		for (int i = 0; i < count; i++)
 		{
 			// 11/11/2026 (Run 14): the spot must not be inside the PLACER either - the first preference points that way
@@ -6838,26 +6680,11 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 				continue;
 			}
 			Vector3 goal;
-			if (!StepTo(feet, s_asideSpots[i], out goal))
+			if (StepTo(feet, s_asideSpots[i], out goal))
 			{
-				continue;
+				target = goal;
+				return true;
 			}
-			// 11/11/2026 (Run 22): and the body has to LEAVE the piece - the same window BuildProbe.BlockedByCharacter
-			// applies to the refusal (capsule x rotated box, in the piece's own frame), asked at the spot the mover would
-			// stand on. A spot that still crosses it is skipped; none left on either ring means no ask.
-			if (capsule)
-			{
-				float shiftY = goal.y - feet.y;
-				Vector3 moved = axis + (goal - feet);
-				Vector3 local = inverse * (moved - center);
-				if (BuildBody.Blocks(local.x, local.z, halfX, halfZ, pieceBottom, pieceTop, capBottom + shiftY,
-					capTop + shiftY, capRadius))
-				{
-					continue;
-				}
-			}
-			target = goal;
-			return true;
 		}
 		return false;
 	}

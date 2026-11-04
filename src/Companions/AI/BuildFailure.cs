@@ -50,17 +50,6 @@ internal static class BuildFailure
 	/// the piece, the workbench) and holds back everything above it.</summary>
 	internal const float BodySameStorey = 1.5f;
 
-	/// <summary>
-	/// 11/11/2026 (the <b>scope</b> of the barrier, the player's "sometimes 3 stop, sometimes all 5"): the barrier of a
-	/// body holds only the pieces <b>above</b> the blocked one that are <b>around</b> it - never the whole house.
-	///
-	/// <para>Why 6 m: the biggest support the planner knows is <c>BuildSupportBelow.MaxFlat</c> = <b>2,5 m</b> in XZ, so
-	/// every piece the blocked one can hold up is within 2,5 m of it; 6 m is a 2,4x margin and still nowhere near the far
-	/// side of a 32 m house. The footprint (32 m) would be the global rule with another name - it is exactly what made the
-	/// 5 companions stand still for one body in a corner.</para>
-	/// </summary>
-	internal const float BodyScopeRadius = 6f;
-
 	/// <summary>11/11/2026: how long a body barrier lives, counted from the <b>first</b> refusal of that piece. It is what
 	/// keeps a player who parks on the spot from blocking the site forever: after this the plan goes on and the piece
 	/// stays in the retry queue (the same rule the player gave for the fall/roof pieces).
@@ -213,49 +202,6 @@ internal static class BuildFailure
 			return 4f;   // refused twice: it is not just somebody crossing the spot
 		}
 		return 6f;   // parked: the queue keeps it, but the workers stop walking to it every other piece
-	}
-
-	/// <summary>
-	/// 11/11/2026 (the <b>scope</b> of the two body barriers): are these two XZ points inside the radius? A radius of
-	/// <b>0 or less</b> - <b>and also <c>NaN</c></b>, which is what an unbound/broken config read answers - returns
-	/// <b>true</b> for everything: it is the global rule of before, which is the A/B escape (no config, no key: the caller
-	/// passes <c>0</c>). The test is written as <c>!(radius &gt; 0f)</c> on purpose: with <c>radius &lt;= 0f</c> a <c>NaN</c>
-	/// radius fell through to the comparison below and answered <b>false</b> - the opposite of the contract. A <c>NaN</c>
-	/// <b>coordinate</b> never holds a piece (a pose read from the plan that is not a number cannot stop the crew). The
-	/// border counts as <b>inside</b>.
-	/// </summary>
-	internal static bool BodyNear(float ax, float az, float bx, float bz, float radius)
-	{
-		if (!(radius > 0f))
-		{
-			return true;   // 0, negative and NaN: the global rule (the A/B escape)
-		}
-		float dx = ax - bx;
-		float dz = az - bz;
-		float sq = dx * dx + dz * dz;
-		if (float.IsNaN(sq))
-		{
-			return false;
-		}
-		return sq <= radius * radius;
-	}
-
-	/// <summary>
-	/// 11/11/2026 (the <b>scope</b> of the two body barriers): does the barrier of a piece blocked by a body hold
-	/// <paramref name="pieceLevel"/> / (<paramref name="pieceX"/>, <paramref name="pieceZ"/>)? It holds only what is
-	/// <b>above</b> the blocked storey (<see cref="BodySameStorey"/>) and <b>around</b> it (<see cref="BodyNear"/> /
-	/// <see cref="BodyScopeRadius"/>) - the piece's own storey and everything below are never held, and neither is the far
-	/// side of the house. Pure: the gate (<c>MHR_BuildGroup.MayTake</c>) and the queue (<c>MHR_BuildGroup.IsBelow</c>) both
-	/// ask <b>this</b>, so the two barriers cannot drift apart.
-	/// </summary>
-	internal static bool BodyScope(float blockedLevel, float blockedX, float blockedZ,
-		float pieceLevel, float pieceX, float pieceZ, float radius, float step)
-	{
-		if (!(pieceLevel > blockedLevel + step))
-		{
-			return false;   // below or same storey: never held
-		}
-		return BodyNear(blockedX, blockedZ, pieceX, pieceZ, radius);
 	}
 
 	private static bool Same(string why, string label)
