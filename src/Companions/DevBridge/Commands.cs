@@ -1917,6 +1917,22 @@ internal static class Commands
 		{
 			return Fail("the companion has no inventory");
 		}
+		// 11/11/2026 (player: "limpa o inventario dele... antes de matar ele, pra ele nao pegar da lapide"): the
+		// build refuses an encumbered companion, and dismissing/killing it leaves the items in a tombstone that it
+		// picks up again. "action": "clear" deletes the stacks for good (no drop) - a test tool, like the rest.
+		string action = Json.Str(args, "action", "list");
+		if (action == "clear")
+		{
+			int clearedStacks = inv.NrOfItems();
+			inv.RemoveAll();
+			return Ok(new Dictionary<string, object>
+			{
+				{ "name", humanoid != null ? humanoid.m_name : setup.name },
+				{ "action", action },
+				{ "clearedStacks", clearedStacks },
+				{ "weightNow", inv.GetTotalWeight() }
+			});
+		}
 		List<object> stacks = new List<object>();
 		foreach (ItemDrop.ItemData data in inv.GetAllItems())
 		{
