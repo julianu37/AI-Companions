@@ -203,6 +203,10 @@ internal static class MHR_Build
 		/// the group is gone).</summary>
 		internal readonly HashSet<int> PlacedIndices = new HashSet<int>();
 		internal readonly HashSet<int> SkippedIndices = new HashSet<int>();
+		/// <summary>P1 (04/11/2026, incident): the plan indices whose direct support was already pulled for this worker.
+		/// Pulling it again for the same piece loops forever (refused -> support -> refused; the log of the 290afc1 run
+		/// had 1.4M lines and the game froze), so it is once per piece, with a small cap per order.</summary>
+		internal readonly HashSet<int> PulledSupport = new HashSet<int>();
 		/// <summary>
 		/// E7 (a ideia do "Build all" deles sem o BuildOrders, 03/11/2026): a piece that does not stand YET (no support: its
 		/// floor is not up, its wall is missing) goes to this queue instead of being lost. When the plan ends it is tried
@@ -3052,6 +3056,14 @@ internal static class MHR_Build
 		if (support < 0)
 		{
 			return false;   // nothing under it that could hold it up: the piece is only retried
+		}
+		// P1 (04/11/2026, incident on the 985-piece house): ONCE per piece. The refused piece goes to the queue, the
+		// support is entered; when the refused piece comes back and is refused again (its support was not the one the
+		// game wants) the pull would fire again, forever - the run of the 290afc1 build wrote 1.4M lines and froze the
+		// game. The cap bounds an order that keeps finding new refusals.
+		if (!state.PulledSupport.Add(state.Index) || state.PulledSupport.Count > 24)
+		{
+			return false;
 		}
 		if (!MHR_BuildGroup.TryClaim(state.Group, support, ai.GetInstanceID()))
 		{
