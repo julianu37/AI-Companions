@@ -289,13 +289,29 @@ stopped.
     **north-west corner** (floors and roofs at 40,8/42,8/44,8/46,8) - the author's file simply has **no support piece**
     under those points and the direct-support pull answered -1 for every one of them. This is what closes those 16 (the 4
     chests of the same run were another case: the spot refused them).
-  - **A roof over a roof is supported again** (**in test**, fix of 11/11/2026): our validator demanded a piece with
-    `WearNTear.m_supports` inside the footprint to accept an elevated piece - but **a roof piece has `m_supports =
-    false`** in Valheim (a roof does not carry support; the upper row rests on the **edge** of the row below). That
-    refused **13 roof pieces for five runs**, so the house never closed. `BuildProbe.FootprintSupported` now decides by
-    **piece class** (`BuildSupportBelow.HoldsPlacedPiece`): the **terrain** still holds anything, a **roof** is held by
-    **any `WearNTear`** in its footprint (even with `m_supports = false`) and every other class still needs a piece that
-    really carries - otherwise a wall would stand on a chest.
+  - **The real support rule, and why our preventive `no_support` matters** (**correction**, 11/11/2026 - a
+    **documentation** fix, not a behavior change): a piece's support in Valheim 1.0 is **geometric and per collider** -
+    `WearNTear.SetupColliders` grows every collider box by **0.3 m in total** (`size += 0.3; size *= 0.5`, that is
+    **0.15 m per side**) and asks `Physics.OverlapBoxNonAlloc` what touches it. With no connection `m_support` stays
+    **0** and `UpdateWear` applies **100 % of the piece's health**: the piece **falls in about a second** and drops its
+    materials. And **placing a piece does not test support at all** - `Player.UpdatePlacementGhost` never calls
+    `UpdateSupport`/`HaveSupport` (it only reads the `m_supports` of the piece **under the crosshair**, to refuse
+    building on furniture). That is exactly why the validator's **preventive** `no_support` matters: the game itself
+    would accept the piece and then **drop it**. The earlier note in this changelog said **"a roof piece has
+    `m_supports = false`"** - **that was wrong**: `build.inspect` on 1.0.20 reports `m_supports = true` for
+    `wood_roof`, `wood_roof_45`, `wood_roof_top`, `wood_roof_top_45`, `wood_roof_icorner_45`, `wood_floor`,
+    `wood_wall_half`, `wood_stair`, `wood_stepladder`, `wood_pole2` and `wood_beam_1` (only furniture such as
+    `piece_chest_wood` is `false`). `BuildSupportBelow.HoldsPlacedPiece` **keeps** the roof exception (class 3 is held by
+    **any `WearNTear`**) **for safety**, but the flag is not the reason and, with the measured values, the bypass is a
+    **no-op**. The **13 roof pieces** refused for five runs were **geometry**: the row below sits **~2 m away on the
+    diagonal**, outside the grown collider box of the piece above.
+  - **What the 11/11 run actually hit: a 0.6 m step between floors** (**in test**, fix of 11/11/2026): the retry stalled
+    repeating the same `wood_floor` (plan indices **297/298/304**) with **950 of 987** pieces up - **8 `wood_floor`** at
+    y **40.4/41.4**, a **0.6 m** step above the deck, plus the **12 chests** standing on them, all refused with
+    `no_support`. The refusal **was right**: 0.6 m is **4x** the game's 0.15 m, so placing them would only have the game
+    drop them. The fix now in test is in the emergency post: `PickPost` takes `MaxOverlap` **0.35 -> 0.45** (a 1 m beam
+    crossing the board still counts - in the game support is collider **overlap**, not contact) and a **solid without
+    `WearNTear`** (stone, a tree, a structure) counts as support again, as it does in the game.
   - **The emergency post walks the ray down** (**in test**, fix of 11/11/2026): it stopped at the **first** hit - a roof
     eave **0,16 m** under a floor - and refused with *"vão de 0,16 m"* **318 times**. It now skips surfaces closer than
     **0,40 m** (`MinPostGap`, up to **4 passes**) and takes the first **usable** one
