@@ -249,6 +249,35 @@ The companion's weight limit is **from the mod**, not from the game: vanilla doe
 
 ---
 
+## `[Building]` section — how the companion works the site
+
+The construction has a section of its own: the order itself (`Enabled`), the ground (`LevelGround`, `ClearSite`), the
+materials (`GatherForBuild`, `UseChests`) and how far the arm reaches when the piece goes up (`PlaceReach`).
+
+| Key | Default | What it does |
+|---|---|---|
+| `PlaceReach` | `10` | How far (meters) it may place a piece **once it is stuck**: it keeps walking to the piece as before, and only after **3 s without getting closer** does it place from farther away. `5` is the game's own reach (`Player.m_maxPlaceDistance`, from the eye) and `20` is for the impatient player (5–20) |
+| `Enabled` | `true` | Lets a companion build when you ask it |
+| `LevelGround` | `true` | Levels the ground before a structure when it is uneven (needs a hoe in the bag) |
+| `ClearSite` | `true` | Cuts the trees, stumps and logs inside the plan's footprint before the first piece — the wood pays the build |
+| `TempScaffold` | `false` | A temporary 2-wood stair when the piece is above the reach (blueprints, at most 4 per order) |
+| `GatherForBuild` | `true` | Missing material: it takes the gather of the shortfall and resumes the build by itself |
+| `UseChests` | `true` | Uses the chests before going out to gather (the bag always comes first) |
+| `MaxDistanceFromHome` | `40` | Refuses a build spot farther than this from the home (`0` = no limit) |
+| `BlueprintFree` | `false` | A blueprint without paying for the pieces (test/creative) |
+| `BlueprintMaxPieces` | `2000` | Refuses a blueprint with more pieces than this |
+
+> **Why `PlaceReach` ships at 10 m:** measured in the run of 03/11/2026, of the **97** `no progress` give-ups only
+> **3%** happened within **5 m** — **10 m** covers about **81%** of them. And it **walks first**: this distance only
+> comes in after **3 s** without getting closer, so a piece within arm's reach is still placed from up close. It is a
+> mod, it does not have to be realistic — whoever is impatient turns it up. It is read on **every use**: changing it in
+> the `F8` panel already applies to the order that is running, and with `5` the behaviour is exactly the old one.
+>
+> The whole list of the section (with `SiteSearchRadius`, `GatherRadius`, `LevelTolerance`, `RequireHammer` and
+> `Quiet`) is in the `F8` panel, and the generated `CONFIGURATION.md` of the package carries every key.
+
+---
+
 ## `[Movement]` section — the route while a house goes up
 
 The companion walks on its **own map of the world** (`[Movement] Pathing`), and that map does not know that a piece

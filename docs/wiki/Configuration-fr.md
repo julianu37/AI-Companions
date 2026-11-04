@@ -252,6 +252,36 @@ un **bonus de charge** s'ajoutent **par-dessus** :
 
 ---
 
+## Section `[Building]` — comment le compagnon travaille le chantier
+
+La construction a sa propre section : l'ordre lui-même (`Enabled`), le terrain (`LevelGround`, `ClearSite`), le
+matériau (`GatherForBuild`, `UseChests`) et la portée du bras au moment de poser la pièce (`PlaceReach`).
+
+| Clé | Par défaut | Ce qu'elle fait |
+|---|---|---|
+| `PlaceReach` | `10` | Jusqu'où (mètres) il pose la pièce **quand il est bloqué** : il continue de marcher jusqu'à la pièce comme avant, et ce n'est qu'après **3 s sans se rapprocher** qu'il pose de loin. `5` est la portée du jeu lui-même (`Player.m_maxPlaceDistance`, depuis l'œil) et `20` est pour l'impatient (5–20) |
+| `Enabled` | `true` | Autorise le compagnon à construire quand tu le demandes |
+| `LevelGround` | `true` | Nivelle le terrain avant une structure quand il est de travers (il faut une houe dans le sac) |
+| `ClearSite` | `true` | Coupe arbres, souches et troncs dans l'emprise du plan avant la première pièce — le bois paie le chantier |
+| `TempScaffold` | `false` | Escalier provisoire de 2 bois quand la pièce est hors de portée (blueprint, 4 au maximum par ordre) |
+| `GatherForBuild` | `true` | Matériau manquant : il prend la récolte de ce qui manque et reprend le chantier tout seul |
+| `UseChests` | `true` | Utilise les coffres avant d'aller récolter (le sac passe toujours en premier) |
+| `MaxDistanceFromHome` | `40` | Refuse un emplacement à plus de 40 m de la maison (`0` = sans limite) |
+| `BlueprintFree` | `false` | Blueprint sans payer les pièces (test/créatif) |
+| `BlueprintMaxPieces` | `2000` | Refuse un blueprint avec plus de pièces que ça |
+
+> **Pourquoi le `PlaceReach` sort à 10 m :** mesuré sur le run du 03/11/2026, sur les **97** abandons
+> (`no progress`) seuls **3 %** ont eu lieu à **5 m ou moins** — **10 m** en couvrent environ **81 %**. Et il
+> **marche d'abord** : cette distance n'entre qu'après **3 s** sans se rapprocher, donc une pièce à portée de main est
+> toujours posée de près. C'est un mod, il n'a pas besoin d'être réaliste — qui est pressé monte la valeur. Elle est lue
+> à **chaque usage** : la changer dans le panneau `F8` vaut déjà pour l'ordre en cours, et avec `5` le comportement est
+> exactement celui d'avant.
+>
+> La liste complète de la section (avec `SiteSearchRadius`, `GatherRadius`, `LevelTolerance`, `RequireHammer` et
+> `Quiet`) est dans le panneau `F8`, et le `CONFIGURATION.md` généré du paquet porte toutes les clés.
+
+---
+
 ## Section `[Movement]` — l'itinéraire pendant que la maison monte
 
 Le compagnon marche sur **sa propre carte du monde** (`[Movement] Pathing`), et cette carte ne sait pas qu'une pièce

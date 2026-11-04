@@ -250,6 +250,35 @@ non è un giocatore. Due chiavi decidono il comportamento e **tutte e due sono i
 
 ---
 
+## Sezione `[Building]` — come il compagno lavora il cantiere
+
+La costruzione ha una sezione sua: l'ordine stesso (`Enabled`), il terreno (`LevelGround`, `ClearSite`), il materiale
+(`GatherForBuild`, `UseChests`) e fin dove arriva il braccio quando mette il pezzo (`PlaceReach`).
+
+| Chiave | Predefinito | Cosa fa |
+|---|---|---|
+| `PlaceReach` | `10` | Fin dove (metri) mette il pezzo **quando resta bloccato**: continua a camminare fino al pezzo come prima, e solo dopo **3 s senza avvicinarsi** mette da lontano. `5` è la portata del gioco stesso (`Player.m_maxPlaceDistance`, dall'occhio) e `20` è per chi ha fretta (5–20) |
+| `Enabled` | `true` | Lascia che il compagno costruisca quando glielo chiedi |
+| `LevelGround` | `true` | Livella il terreno prima di una struttura quando è storto (serve una zappa nella borsa) |
+| `ClearSite` | `true` | Taglia alberi, ceppi e tronchi dentro l'area del piano prima del primo pezzo — la legna paga l'opera |
+| `TempScaffold` | `false` | Scaletta provvisoria da 2 legna quando il pezzo è fuori portata (blueprint, al massimo 4 per ordine) |
+| `GatherForBuild` | `true` | Materiale mancante: prende la raccolta di quello che manca e riprende l'opera da solo |
+| `UseChests` | `true` | Usa le casse prima di uscire a raccogliere (la borsa viene sempre prima) |
+| `MaxDistanceFromHome` | `40` | Rifiuta un punto a più di 40 m da casa (`0` = senza limite) |
+| `BlueprintFree` | `false` | Blueprint senza pagare i pezzi (prova/creativo) |
+| `BlueprintMaxPieces` | `2000` | Rifiuta un blueprint con più pezzi di così |
+
+> **Perché il `PlaceReach` esce a 10 m:** misurato nel run del 03/11/2026, dei **97** abbandoni (`no progress`) solo
+> il **3%** è avvenuto entro **5 m** — **10 m** ne coprono circa l'**81%**. E **cammina prima**: quella distanza entra
+> solo dopo **3 s** senza avvicinarsi, quindi un pezzo a portata di mano viene ancora messo da vicino. È un mod, non
+> deve essere realistico — chi ha fretta alza il valore. Viene letto a **ogni uso**: cambiarlo nel pannello `F8` vale già
+> per l'ordine in corso, e con `5` il comportamento è esattamente quello di prima.
+>
+> L'elenco completo della sezione (con `SiteSearchRadius`, `GatherRadius`, `LevelTolerance`, `RequireHammer` e
+> `Quiet`) è nel pannello `F8`, e il `CONFIGURATION.md` generato del pacchetto porta tutte le chiavi.
+
+---
+
 ## Sezione `[Movement]` — il percorso mentre la casa sale
 
 Il compagno cammina sulla **sua mappa del mondo** (`[Movement] Pathing`), e quella mappa non sa che un pezzo è appena

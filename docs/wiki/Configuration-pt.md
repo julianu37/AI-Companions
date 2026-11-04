@@ -235,6 +235,35 @@ jogador. Duas chaves decidem o comportamento e **as duas são o valor base** —
 
 ---
 
+## Seção `[Building]` — como o companheiro trabalha o canteiro
+
+A construção tem uma seção própria: a ordem em si (`Enabled`), o terreno (`LevelGround`, `ClearSite`), o material
+(`GatherForBuild`, `UseChests`) e até onde o braço alcança na hora de colocar a peça (`PlaceReach`).
+
+| Chave | Padrão | O que faz |
+|---|---|---|
+| `PlaceReach` | `10` | Até onde (metros) ele coloca a peça **quando fica preso**: ele continua andando até a peça como antes, e só depois de **3 s sem chegar mais perto** coloca de longe. `5` é o alcance do próprio jogo (`Player.m_maxPlaceDistance`, do olho) e `20` é para quem tem pressa (5–20) |
+| `Enabled` | `true` | Deixa o companheiro construir quando você pede |
+| `LevelGround` | `true` | Nivela o terreno antes de uma estrutura quando ele está torto (precisa de enxada na mochila) |
+| `ClearSite` | `true` | Corta árvores, tocos e toras dentro da área do plano antes da primeira peça — a madeira paga a obra |
+| `TempScaffold` | `false` | Escadinha provisória de 2 madeiras quando a peça está acima do alcance (blueprint, no máximo 4 por obra) |
+| `GatherForBuild` | `true` | Faltando material: pega a coleta do que falta e retoma a obra sozinho |
+| `UseChests` | `true` | Usa os baús antes de sair para coletar (a mochila vem sempre primeiro) |
+| `MaxDistanceFromHome` | `40` | Recusa um lugar de obra a mais de 40 m da casa (`0` = sem limite) |
+| `BlueprintFree` | `false` | Blueprint sem pagar as peças (teste/criativo) |
+| `BlueprintMaxPieces` | `2000` | Recusa um blueprint com mais peças que isso |
+
+> **Por que o `PlaceReach` vem com 10 m:** medido no run de 03/11/2026, das **97** desistências (`no progress`) só
+> **3%** aconteceram a até **5 m** — **10 m** cobrem cerca de **81%** delas. E ele **anda primeiro**: essa distância só
+> entra depois de **3 s** sem chegar mais perto, então peça ao alcance da mão continua sendo colocada de perto. É um
+> mod, não precisa ser realista — quem tem pressa sobe o valor. Ele é lido a **cada uso**: mudar no painel `F8` já vale
+> para a ordem que está rodando, e com `5` o comportamento é exatamente o de antes.
+>
+> A lista inteira da seção (com `SiteSearchRadius`, `GatherRadius`, `LevelTolerance`, `RequireHammer` e `Quiet`) está
+> no painel `F8`, e o `CONFIGURATION.md` gerado do pacote traz todas as chaves.
+
+---
+
 ## Seção `[Movement]` — a rota enquanto a casa sobe
 
 O companheiro anda no **mapa do mundo** dele (`[Movement] Pathing`), e esse mapa não sabe que uma peça acabou de ser

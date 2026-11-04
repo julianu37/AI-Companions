@@ -248,6 +248,36 @@ suman **por encima** de ellas:
 
 ---
 
+## Sección `[Building]` — cómo trabaja el compañero en la obra
+
+La construcción tiene su propia sección: la orden en sí (`Enabled`), el terreno (`LevelGround`, `ClearSite`), el
+material (`GatherForBuild`, `UseChests`) y hasta dónde llega el brazo al colocar la pieza (`PlaceReach`).
+
+| Clave | Por defecto | Qué hace |
+|---|---|---|
+| `PlaceReach` | `10` | Hasta dónde (metros) coloca la pieza **cuando se queda atascado**: sigue caminando hasta la pieza como antes, y solo después de **3 s sin acercarse** coloca de lejos. `5` es el alcance del propio juego (`Player.m_maxPlaceDistance`, desde el ojo) y `20` es para quien tiene prisa (5–20) |
+| `Enabled` | `true` | Deja que el compañero construya cuando se lo pides |
+| `LevelGround` | `true` | Nivela el terreno antes de una estructura cuando está torcido (necesita una azada en la bolsa) |
+| `ClearSite` | `true` | Corta árboles, tocones y troncos dentro del área del plano antes de la primera pieza — la madera paga la obra |
+| `TempScaffold` | `false` | Escalera provisional de 2 maderas cuando la pieza está fuera del alcance (blueprint, máximo 4 por obra) |
+| `GatherForBuild` | `true` | Faltando material: toma la recogida de lo que falta y retoma la obra solo |
+| `UseChests` | `true` | Usa los cofres antes de salir a recoger (la bolsa siempre va primero) |
+| `MaxDistanceFromHome` | `40` | Rechaza un sitio de obra a más de 40 m de la casa (`0` = sin límite) |
+| `BlueprintFree` | `false` | Blueprint sin pagar las piezas (prueba/creativo) |
+| `BlueprintMaxPieces` | `2000` | Rechaza un blueprint con más piezas que eso |
+
+> **Por qué el `PlaceReach` viene con 10 m:** medido en la prueba del 03/11/2026, de los **97** abandonos
+> (`no progress`) solo el **3%** ocurrió a **5 m o menos** — **10 m** cubren cerca del **81%**. Y **camina primero**:
+> esa distancia solo entra después de **3 s** sin acercarse, así que una pieza al alcance de la mano se sigue
+> colocando de cerca. Es un mod, no tiene que ser realista — quien tiene prisa sube el valor. Se lee en **cada uso**:
+> cambiarlo en el panel `F8` ya vale para la orden que está en marcha, y con `5` el comportamiento es exactamente el de
+> antes.
+>
+> La lista completa de la sección (con `SiteSearchRadius`, `GatherRadius`, `LevelTolerance`, `RequireHammer` y
+> `Quiet`) está en el panel `F8`, y el `CONFIGURATION.md` generado del paquete trae todas las claves.
+
+---
+
 ## Sección `[Movement]` — la ruta mientras sube la casa
 
 El compañero anda con **su propio mapa del mundo** (`[Movement] Pathing`), y ese mapa no sabe que una pieza acaba de

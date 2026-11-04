@@ -226,6 +226,12 @@ stopped.
   yet, so the same stack may be counted twice and they can gather more than the plan needs), the group lives **in
   memory** (it is **not in the save**), and the group is **blueprints only** - a single piece and a template still have
   one companion on them. Build 0/0 and the harness at **471 assertions** pass; **not validated in game yet**.
+  - **New `[Building] PlaceReach`** (**in test**): how far the companion may place a piece **once it is stuck** - it
+    keeps walking to the piece as before, and only after **3 s without getting closer** does it place from farther
+    away, up to this distance (float, default **10**, range **5–20**). `5` is the game's own reach
+    (`Player.m_maxPlaceDistance`, from the eye) and `20` is for the impatient player: it is a mod, it does not have to
+    be realistic. **Why 10 and not 5** (measured in the run of 03/11/2026): of the **97** `no progress` give-ups only
+    **3%** happened within **5 m**, and **10 m** covers about **81%** of them.
 
 ## 1.9.6 - 02/11/2026
 
