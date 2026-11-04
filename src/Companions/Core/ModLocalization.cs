@@ -838,6 +838,9 @@ public static class ModLocalization
 			// P1 (04/11/2026): the [Building] DeckLift label - how high the whole blueprint rises (the ground floor on a deck
 			// over the poles). Short like the one above: the F8 rows cut at ~55 chars.
 			{ "hc_cfg_building_decklift", "Deck height" },
+			// P1 (04/11/2026): the [Building] SupportFallback label - the wooden post planted under a plan piece the file
+			// left without support. Short for the same F8 row.
+			{ "hc_cfg_building_supportfallback", "Emergency support" },
 			// Fase 3.10: voice and personality of ONE companion (its own ZDO), with the [AI] values as the default.
 			// Used by the companion tab of the AI panel and by the starter panel's "AI" section.
 			{ "hc_ai_profile_title", "Companion AI" },

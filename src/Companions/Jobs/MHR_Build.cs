@@ -69,6 +69,17 @@ internal static class MHR_Build
 	/// <summary>How many floor pieces one step may pull forward (a landing needs ONE tile; 2 is slack).</summary>
 	private const int MaxPulledFloors = 2;
 
+	/// <summary>P1 (04/11/2026, measured with the deck run of the 985-piece house: 16 pieces - floors and roofs of the east
+	/// gable and of the north-west corner, 40,8 to 46,8 - were left out with <c>no_support</c>): the author's blueprint has
+	/// <b>no support piece under them</b> (his house leaned on something the file does not carry), so the direct-support pull
+	/// of the plan answers -1 and the piece can never stand. This is the wooden post planted under it: a 2 m
+	/// <c>wood_beam</c> stood up, its top at the piece's base.</summary>
+	private const string FallbackPostPrefab = "wood_beam";
+
+	/// <summary>P1 (04/11/2026): how many emergency posts one ORDER may add - the house gets "a few extra posts", never a
+	/// forest of them. One per piece (<c>State.FallbackPosts</c>), never where the plan already has a support.</summary>
+	internal const int MaxFallbackPosts = 24;
+
 	/// <summary>E10: how many leveling passes a job may apply before it gives up (each moves the ground by at most 1 m).</summary>
 	internal const int MaxLevelPasses = 4;
 	/// <summary>E10: above this height variation (metres) the soft level cannot win - the spot is refused instead of digging a crater.</summary>
@@ -215,6 +226,10 @@ internal static class MHR_Build
 		/// companion fell from twice, see <c>MHR_Build.AdjustFallenPose</c>) - one adjustment per piece, like the support
 		/// pull: repeating it every two falls would walk him into the same hole again.</summary>
 		internal readonly HashSet<int> FallAdjusted = new HashSet<int>();
+		/// <summary>P1 (04/11/2026): the plan indices that already got an <b>emergency post</b> under them (a wooden post
+		/// planted because the plan has nothing under the piece - <c>MHR_Build.TryFallbackPost</c>). One per piece, and the
+		/// size of the set is the order's budget (<c>MaxFallbackPosts</c>).</summary>
+		internal readonly HashSet<int> FallbackPosts = new HashSet<int>();
 		/// <summary>
 		/// E7 (a ideia do "Build all" deles sem o BuildOrders, 03/11/2026): a piece that does not stand YET (no support: its
 		/// floor is not up, its wall is missing) goes to this queue instead of being lost. When the plan ends it is tried
@@ -3174,6 +3189,121 @@ internal static class MHR_Build
 		return best;
 	}
 
+	/// <summary>
+	/// P1 (04/11/2026, measured with the deck run: 16 pieces of the east gable and of the north-west corner - floors and roofs
+	/// from 40,8 to 46,8, all <c>no_support</c> - and the direct-support pull answered -1 for every one of them): the author's
+	/// blueprint has <b>no support piece under those points</b> - his house leaned on something the file does not carry - so
+	/// the piece can never stand on its own. This plants a wooden post under it: a 2 m <c>wood_beam</c> stood up with its
+	/// <b>top at the base of the refused piece</b>, validated by the game's own rules (<see cref="BuildSite.Check"/>: the
+	/// ground, the station in range, no clipping) and placed the same way any piece is (paid from the bag/chests, free with
+	/// <see cref="State.Free"/>). The refused piece keeps its index, its claim and its pose: the next frame it is placed on
+	/// top of the post.
+	///
+	/// <para>One per piece (<see cref="State.FallbackPosts"/>) and capped per order (<see cref="MaxFallbackPosts"/>). It is
+	/// never planted where the plan DOES have something under the piece (<see cref="DirectSupportIndex"/> &gt;= 0): there the
+	/// pull is the path, and a post would sit on top of the plan's own support. Anything that stops it (no valid pose, no
+	/// material, the executor) is said out loud and the piece follows the normal path (retry queue / watchdog).</para>
+	/// </summary>
+	private static bool TryFallbackPost(CompanionAI ai, State state, CompanionSetup cs)
+	{
+		if (ModConfig.BuildSupportFallback == null || !ModConfig.BuildSupportFallback.Value)
+		{
+			return false;
+		}
+		if (ai == null || state == null || state.Blueprint == null || state.Plan == null || state.Piece == null)
+		{
+			return false;
+		}
+		if (state.FallbackPosts.Count >= MaxFallbackPosts)
+		{
+			return false;   // the order already planted its posts
+		}
+		int index = PieceIndex(state);
+		if (index < 0 || state.FallbackPosts.Contains(index))
+		{
+			return false;   // this piece already got one
+		}
+		if (DirectSupportIndex(state) >= 0)
+		{
+			return false;   // the plan has something under it: the pull is the path (never a post over the plan's own support)
+		}
+		Piece post = BuildProbe.PieceOf(FallbackPostPrefab);
+		if (post == null)
+		{
+			return false;
+		}
+		Vector3 pos = new Vector3(state.Pos.x, state.Pos.y - 1f, state.Pos.z);
+		Quaternion rot = VerticalPose(post);
+		Dictionary<string, object> check = BuildSite.Check(post, pos, rot, Self(ai));
+		if (!Ok(check))
+		{
+			Log(ai, "sem lugar para o apoio de emergência sob " + state.Prefab + " em (" + F(pos.x) + ", " + F(pos.y) + ", "
+				+ F(pos.z) + ") - " + (check != null ? Convert.ToString(check["status"]) : "?"));
+			return false;
+		}
+		Inventory bag = BagOf(ai);
+		bool useChests = ModConfig.BuildUseChests == null || ModConfig.BuildUseChests.Value;
+		Vector3 stock = state.AnchorKnown ? state.Anchor : state.Pos;
+		Dictionary<string, int> missing;
+		if (!state.Free && !BuildStock.Take(bag, post, stock, cs, useChests, out missing))
+		{
+			Log(ai, "sem material para o apoio de emergência sob " + state.Prefab + " (" + MissingText(missing) + ")");
+			return false;
+		}
+		BuildResult result = BuildExecutor.Place(cs, post, pos, rot);
+		if (!result.Ok)
+		{
+			if (!state.Free)
+			{
+				Refund(bag, post);   // the post never went up: the wood goes back (with Free nothing was taken)
+			}
+			Log(ai, "sem lugar para o apoio de emergência sob " + state.Prefab + " em (" + F(pos.x) + ", " + F(pos.y) + ", "
+				+ F(pos.z) + ") - " + result.Error);
+			return false;
+		}
+		state.FallbackPosts.Add(index);
+		Log(ai, "apoio de emergência: " + FallbackPostPrefab + " sob " + state.Prefab + " em (" + F(pos.x) + ", "
+			+ F(pos.y) + ", " + F(pos.z) + ")");
+		return true;
+	}
+
+	/// <summary>P1 (04/11/2026): the pose that stands a post up. The piece's own <b>snap points</b> are its tips, so the
+	/// widest pair is the long axis in the prefab's own space; rotating that axis onto the world up is the vertical pose - no
+	/// guessing which local axis the artist used (the straight beam and the 45 degree one are not authored on the same axis,
+	/// measured in <c>docs/re/building-notes.md</c> §11). A prefab that answers no pair of snap points gets a quarter turn
+	/// about Z, the axis the beam family is authored on.</summary>
+	private static Quaternion VerticalPose(Piece post)
+	{
+		s_snaps.Clear();
+		post.GetSnapPoints(s_snaps);
+		Vector3 axis = Vector3.zero;
+		float longest = 0f;
+		for (int i = 0; i < s_snaps.Count; i++)
+		{
+			for (int j = i + 1; j < s_snaps.Count; j++)
+			{
+				Transform a = s_snaps[i];
+				Transform b = s_snaps[j];
+				if (a == null || b == null)
+				{
+					continue;
+				}
+				Vector3 delta = post.transform.InverseTransformPoint(b.position) - post.transform.InverseTransformPoint(a.position);
+				if (delta.sqrMagnitude > longest)
+				{
+					longest = delta.sqrMagnitude;
+					axis = delta;
+				}
+			}
+		}
+		s_snaps.Clear();
+		return longest > 0.01f ? Quaternion.FromToRotation(axis.normalized, Vector3.up) : Quaternion.Euler(0f, 0f, 90f);
+	}
+
+	/// <summary>P1 (04/11/2026): scratch of <see cref="VerticalPose"/> - the snap points are filled by the game into a list,
+	/// and a no_support event must not allocate one (main thread only).</summary>
+	private static readonly List<Transform> s_snaps = new List<Transform>();
+
 	/// <summary>Is this pose close enough to a temporary stair to have been held up by it? (the same 4 m / 3 m window)</summary>
 	private static bool NearScaffold(State state, Vector3 pos, float radius = 6f)
 	{
@@ -3810,6 +3940,12 @@ internal static class MHR_Build
 				{
 					return true;   // the support is the step being carried out now
 				}
+				// P1 (04/11/2026): the plan has NOTHING under it (the author's file leans on something it does not carry) -
+				// plant a wooden post once per piece and try the piece again at the same pose
+				if (TryFallbackPost(ai, state, cs))
+				{
+					return true;   // the post is standing: the piece is placed on top of it
+				}
 				LogDebug(ai, "deferring " + state.Prefab + " at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
 					+ F(state.Pos.z) + "): it needs what is below it, which is not up yet - retry pass");
 				QueueRetry(ai, state, "no_support");
@@ -4043,6 +4179,11 @@ internal static class MHR_Build
 					if (status == "no_support" && PullDirectSupport(ai, state))
 					{
 						return true;   // the support is the step being carried out now
+					}
+					// P1 (04/11/2026): and when the plan has nothing under it, a wooden post is planted once (see TryFallbackPost)
+					if (status == "no_support" && TryFallbackPost(ai, state, cs))
+					{
+						return true;   // the post is standing: the piece is tried again at the same pose
 					}
 					QueueRetry(ai, state, status);
 					return Advance(ai, state);

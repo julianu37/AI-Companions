@@ -2881,6 +2881,10 @@
             "value": "Élévation de l'ouvrage"
         },
         {
+            "key": "hc_cfg_building_supportfallback",
+            "value": "Appui d'urgence"
+        },
+        {
             "key": "hc_ai_order_command",
             "value": "accepter les ordres"
         },

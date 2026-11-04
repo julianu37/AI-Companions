@@ -2881,6 +2881,10 @@
             "value": "Elevación de la obra"
         },
         {
+            "key": "hc_cfg_building_supportfallback",
+            "value": "Apoyo de emergencia"
+        },
+        {
             "key": "hc_ai_order_command",
             "value": "aceptar comandos"
         },

@@ -1801,5 +1801,29 @@ workers terminaram com o watchdog em `0 peça(s) sem apoio` e o **terceiro** par
   telhado sobre telhado, telhado no piso/parede/escada, piso e parede **não** apoiados por telhado, a porta que nunca
   apoia e a porta **como peça**); **aceite medido ainda não**.
 
+### 17.11 O apoio de emergência (`[Building] SupportFallback`, 04/11/2026)
+
+- **O que é:** a resposta para a peça do plano recusada com `no_support` **quando o plano não tem nada embaixo dela** —
+  `DirectSupportIndex(state) < 0`, o caso em que o pull do apoio imediato (§17.8) responde `-1` e a peça só podia
+  esperar o watchdog. O companheiro **finca um `wood_beam` vertical sob ela**, com o **topo na base da peça**
+  (`new Vector3(state.Pos.x, state.Pos.y - 1f, state.Pos.z)`, `MHR_Build.cs:3235`; a pose em pé vem dos snap points,
+  `VerticalPose`), validado pelas regras do **jogo** (`BuildSite.Check`: chão, estação no raio, sem clipping, `:3237`),
+  **pago** como qualquer peça (`BuildStock.Take` — baús/mochila; de graça com `BlueprintFree`, `:3248`) e colocado pelo
+  executor (`BuildExecutor.Place`, `:3253`). A peça recusada **mantém índice, claim e pose** e sobe em cima do poste no
+  frame seguinte.
+- **As guardas:** **uma vez por peça** (`State.FallbackPosts`, `:232`/`:3264`) e **teto de 24 por ordem**
+  (`MaxFallbackPosts = 24`, `:81`; checado em `:3217`); **nunca** onde o plano tem apoio (`:3226` — ali o caminho é o
+  pull). Tudo o que impede o poste é dito: `sem lugar para o apoio de emergência …` (`:3240`/`:3260`) e
+  `sem material para o apoio de emergência …` (`:3250`), e a peça segue o caminho normal (fila/watchdog).
+- **O log do sucesso:** `apoio de emergência: wood_beam sob <prefab> em (x, y, z)` (`:3265`).
+- **A config:** `[Building] SupportFallback` (bool, **padrão true**, `ModConfig.cs:953`; rótulo
+  `hc_cfg_building_supportfallback`, "Emergency support" no inglês — `ModLocalization.cs:843`). Desligada, a peça só
+  espera e fica de fora, como antes.
+- **O que ela fecha:** as **16** do Run 3 (§17.6 — colunas na **empenha leste** e no **canto noroeste**, 40,8→46,8, + 4
+  baús) e as **6** de 42,8/44,8/46,8 que sobraram no run do deck (§17.10), que são exatamente o caso "o autor não pôs
+  nada embaixo". **Estado: em teste no run** — build 0/0 e harness **549**; o aceite é o run seguinte (as peças acima
+  saindo de `sem apoio:` e aparecendo como `done: … supported`, com o log do poste).
+
+
 
 

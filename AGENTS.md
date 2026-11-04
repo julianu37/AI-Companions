@@ -196,14 +196,16 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
 - **Provedores (config `[AI]`):** Groq (`openai/gpt-oss-20b`, padrão) → LM Studio/Ollama (`127.0.0.1:1234`) →
   OpenRouter; tudo por `BaseUrl`/`Model`/`ApiKey` (a chave é `ConfigEntry`, nunca hardcoded). Saída estruturada
   `json_schema` → `json_object` → sem formato, **só** em recusa de formato.
-- **Config:** as chaves e os defaults vivem em `Core/ModConfig.cs` (**360** opções / 25 seções, medidas em 04/11/2026
-  com `python tools/gen_config_doc.py`, que imprime `360 settings 25 sections`); a doc gerada é
+- **Config:** as chaves e os defaults vivem em `Core/ModConfig.cs` (**361** opções / 25 seções, medidas em 04/11/2026
+  com `python tools/gen_config_doc.py`, que imprime `361 settings 25 sections`); a doc gerada é
   `package/CONFIGURATION.md` — **nunca** editar à mão: rodar o gerador e depois o `--check`. O `.cfg` é
   `BepInEx\config\AiCompanions.cfg`.
   A `[Building] PlaceReach` desta rodada (float, padrão **10**, faixa **5..20**; rótulo `hc_cfg_building_placereach`,
   "Place reach" no inglês nativo) é o `MaxPlace` do `MHR_Build` — ver o alcance de colocação na seção da construção.
   A `[Building] DeckLift` (float, padrão **1**, faixa **0..3**; rótulo `hc_cfg_building_decklift`, "Deck height" no
   inglês nativo) é o quanto a **obra inteira sobe** acima do chão — ver o deck na seção da construção.
+  A `[Building] SupportFallback` (bool, padrão **true**; rótulo `hc_cfg_building_supportfallback`, "Emergency support"
+  no inglês nativo) liga o **apoio de emergência** — ver a empenha na seção da construção.
 - **5 idiomas (PT/EN/ES/FR/IT):** `CompanionLocale` resolve voz/idioma; o inglês é **nativo** (sem arquivo) e os
   **4** JSONs são PT/ES/FR/IT; contrato/prompt/presets por idioma; o texto livre do jogador **nunca** é traduzido.
 - **Voz:** STT `Whisper.net` in-process (16 kHz mono, `whisper\ggml-small-q5_1.bin`); TTS `Kokoro-82M` via
@@ -256,7 +258,7 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   tira só ele; nivelar/limpar com **um** (P5). **Nenhuma** chave de tradução nova (reusa `hc_ai_no_companion` e
   `hc_ai_build_failed`) — harness **549** (471 + 23 da **(p)** + 26 da **(q)** + **29** da **(r)**, as **10** últimas de
   `BuildSupportBelow.CanSupport`), MCP **101** (as **12**
-  asserções de 03/11/2026 cobrem o contrato do grupo: `workers`, `refused` e `name` vazio = todos), config **360/25**.
+  asserções de 03/11/2026 cobrem o contrato do grupo: `workers`, `refused` e `name` vazio = todos), config **361/25**.
   **Medido em jogo (04/11/2026, `CommHomeBasicBP`, 3 companheiros, `BlueprintFree = true`) — quatro runs (o 4º, com o
   deck, em `building-notes` §17.10); 1 e 2 diferem só no `PlaceReach` (10 = padrão do código; 15 = config de teste) e o
   3 roda em 15 com a guarda anti-loop:** com **10**,
@@ -310,7 +312,17 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   congelado (434/930/722) e o **jogo travado**; o watchdog não protege disso porque só é lido em `WaitRetry` e o loop
   nunca espera. Corrigido em `797003c` (build 0/0; o harness era **539** naquele build); no run seguinte o log ficou em
   **30 KB em 20 s**.
-  Detalhe e lições em `docs/re/building-notes.md` §17.8. **O validador (lote de
+  Detalhe e lições em `docs/re/building-notes.md` §17.8. **O apoio de emergência (`[Building] SupportFallback`, bool,
+  padrão true, rótulo `hc_cfg_building_supportfallback`; 04/11/2026):** quando a peça do plano é recusada com
+  `no_support` e **o plano não tem nada embaixo dela** (`DirectSupportIndex < 0` — o pull do apoio imediato responde
+  −1), o companheiro **finca um `wood_beam` vertical sob ela** com o **topo na base da peça** (`state.Pos.y − 1`),
+  validado pelas regras do jogo (`BuildSite.Check`: chão, estação, sem clipping), **pago** como qualquer peça
+  (`BuildStock.Take` — baús/mochila, ou de graça com `BlueprintFree`) e colocado pelo executor; a peça recusada
+  mantém índice, claim e pose e sobe em cima do poste no frame seguinte. **Uma vez por peça** (`State.FallbackPosts`)
+  e **teto de 24 por ordem** (`MaxFallbackPosts`), nunca onde o plano já tem apoio; log
+  `apoio de emergência: wood_beam sob <prefab> em (x, y, z)`. É o que fecha as **16 peças** que sobravam na
+  `CommHomeBasicBP` (colunas na **empenha leste** e no **canto noroeste**, 40,8→46,8, + 4 baús) — **em teste no run**.
+  **O validador (lote de
   04/11/2026, medido):** `AttachedToStructure` com **4,0 m** de `OverlapSphere` (2,6 m não achava a vizinha do
   telhado, que fica a ~2,8–3,5 m na diagonal; com 4,0 m o `no_ground` foi **~25 → 0**); **`NudgePiece` universal**
   (qualquer peça com `too_steep`/`no_ground`, não só mobília de chão) com raio por tipo via `BuildPieceKind` —
