@@ -14,8 +14,8 @@ namespace AiIntentsCheck;
 /// The word nets of the AI layer, checked <b>outside the game</b> against the real sources: ai-intents-check.csproj
 /// compiles src/Companions/AI/{LlmIntent,RadialIntent,PickupIntent,GatherIntent,InteractionIntent,OrderItems,
 /// CompanionNames,MHR_Owner,NavTileMath,BuildCatalog,BuildTemplates,BuildBlueprintParser,LevelIntent,BuildFailure,
-/// BuildPieceKind}.cs and src/Companions/Core/MHR_List.cs straight into this executable, so every rule asserted here is the
-/// shipped one (Stubs.cs holds only the Unity/config members those files touch).
+/// BuildPieceKind,BuildSupportBelow}.cs and src/Companions/Core/MHR_List.cs straight into this executable, so every rule
+/// asserted here is the shipped one (Stubs.cs holds only the Unity/config members those files touch).
 ///
 /// <para>Two of those members cannot be linked (they live in classes that need the world), so they are copies in
 /// Stubs.cs: <c>CompanionOrders.IsDoorRequest</c> and <c>CompanionOrders.JobMode</c>. Section (h) loads the built
@@ -25,7 +25,8 @@ namespace AiIntentsCheck;
 /// that decides whether a piece that did not go up is waiting for the plan's own support (no attempt spent) or really
 /// failed (one of the 3 attempts). Section (q) is the other pure table of the same job
 /// (<c>BuildPieceKind.Classify</c>): structure or furniture, which is how far a piece may be moved from the plan's pose
-/// when the spot refuses it.</para>
+/// when the spot refuses it. Section (r) is <c>BuildSupportBelow</c>: the window of the <b>direct support</b> of a piece,
+/// which is the plan index a group drives next when one of its pieces is refused with <c>no_support</c>.</para>
 ///
 /// <para>Run: <c>dotnet run --project tools/ai-intents-check</c> (after <c>dotnet build Companions.sln -c Release</c>,
 /// which the cross-check reads). Exit code 0 only when every case passed and nothing was skipped.</para>
@@ -100,6 +101,8 @@ internal static class Program
 		BuildFailures();
 		Section("(q) BuildPieceKind.Classify - estrutura x mobilia (quanto a peca pode sair do plano)");
 		PieceKinds();
+		Section("(r) BuildSupportBelow - o apoio direto de uma peca (quem o grupo puxa para a frente)");
+		SupportBelow();
 		CrossCheckDoorRule();
 
 		Out.WriteLine();
@@ -804,7 +807,8 @@ internal static class Program
 	/// P1 (04/11/2026): <b>structure or furniture</b> - the piece's name decides how far it may be moved from the plan's pose
 	/// when the spot refuses it (<c>too_steep</c>/<c>no_ground</c>): a structural piece (floor, wall, roof, beam, pole, stair,
 	/// door) only up to 1 m (moved further it no longer lines up with the house), furniture (a chest, a bed, a fire pit, a
-	/// workbench, a fermenter) up to the whole 2,5 m search radius. An unknown name is structural (the safe side).
+	/// workbench, a fermenter) up to the whole 5 m search radius (3 rings x 12 on the wide attempt). An unknown name is
+	/// furniture; an empty/null one is structural (the safe side).
 	/// </summary>
 	private static void PieceKinds()
 	{
@@ -840,7 +844,7 @@ internal static class Program
 		// the convenience form the nudge uses
 		Check("IsStructural(\"woodwall\") -> true (so 1 m no maximo)", BuildPieceKind.IsStructural("woodwall"),
 			"obtido false");
-		Check("IsStructural(\"piece_chest_wood\") -> false (vai ate 2,5 m)",
+		Check("IsStructural(\"piece_chest_wood\") -> false (vai ate 5 m)",
 			!BuildPieceKind.IsStructural("piece_chest_wood"), "obtido true");
 	}
 
@@ -849,6 +853,59 @@ internal static class Program
 	{
 		BuildPieceKind.Kind actual = BuildPieceKind.Classify(prefab);
 		Check("Classify(" + Show(prefab) + ") -> " + expected, actual == expected, "obtido " + actual);
+	}
+
+	/// <summary>
+	/// P1 (04/11/2026): the <b>direct support</b> of a piece - the one decision <c>MHR_Build.PullDirectSupport</c> makes when
+	/// a piece of a group's plan is refused with <c>no_support</c>: which plan piece (0,4 to 2,5 m <b>below</b>, up to 2,5 m
+	/// in XZ) is what holds it up. The measured case: <c>wood_floor</c>/<c>wood_roof_45</c> at y 43,8/45,8 waiting for the
+	/// floor/beam at 42,8 that was still ahead in the plan (the group may not reorder it).
+	/// </summary>
+	private static void SupportBelow()
+	{
+		// the measured house: the piece 1 m below it, right under it (43,8 -> 42,8 in the log of 04/11/2026)
+		SupportCase(0f, 0f, 1f, true, "1 m abaixo, embaixo dela (o caso medido)");
+		// the same storey is a NEIGHBOUR, not a support - and this is what keeps the pull descending
+		SupportCase(0f, 0f, 0f, false, "mesmo andar: vizinha, nao apoio");
+		SupportCase(0f, 0f, -1f, false, "acima dela: o apoio nunca vem de cima");
+		// the drop window
+		SupportCase(0f, 0f, 0.39f, false, "logo abaixo, mas menos de 0,4 m: ainda e o mesmo andar");
+		SupportCase(0f, 0f, 0.4f, true, "borda de baixo da janela");
+		SupportCase(0f, 0f, 2.5f, true, "borda de cima da janela (parede/telhado de 2 m)");
+		SupportCase(0f, 0f, 2.6f, false, "abaixo demais: nao e o que segura a peca");
+		// the flat window
+		SupportCase(2.5f, 0f, 1f, true, "2,5 m ao lado");
+		SupportCase(2.6f, 0f, 1f, false, "2,6 m ao lado: fora");
+		SupportCase(1.7f, 1.7f, 1f, true, "diagonal de 2,40 m");
+		SupportCase(1.8f, 1.8f, 1f, false, "diagonal de 2,55 m: fora");
+		SupportCase(-2f, -1f, 1f, true, "para o outro lado, 2,24 m");
+		// the ranking: what is directly under it beats what is nearer but lower
+		Check("Rank(0,0,1) == 10 (a queda pesa 10x a distancia)", Math.Abs(BuildSupportBelow.Rank(0f, 0f, 1f) - 10f) < 0.001f,
+			"obtido " + BuildSupportBelow.Rank(0f, 0f, 1f).ToString("F2"));
+		Check("Rank(2,0,1) == 12", Math.Abs(BuildSupportBelow.Rank(2f, 0f, 1f) - 12f) < 0.001f,
+			"obtido " + BuildSupportBelow.Rank(2f, 0f, 1f).ToString("F2"));
+		Check("Rank(2.4,0,0.5) < Rank(0,0,2.0): o de 0,5 m abaixo ganha do de 2 m",
+			BuildSupportBelow.Rank(2.4f, 0f, 0.5f) < BuildSupportBelow.Rank(0f, 0f, 2f),
+			"obtido " + BuildSupportBelow.Rank(2.4f, 0f, 0.5f).ToString("F2") + " x "
+				+ BuildSupportBelow.Rank(0f, 0f, 2f).ToString("F2"));
+		Check("Rank(0,0,1) < Rank(2,0,1): com a mesma queda, o mais perto ganha",
+			BuildSupportBelow.Rank(0f, 0f, 1f) < BuildSupportBelow.Rank(2f, 0f, 1f), "obtido a ordem invertida");
+		// the numbers themselves, so a silent change of the window is caught here
+		Check("MaxFlat == 2,5 m", Math.Abs(BuildSupportBelow.MaxFlat - 2.5f) < 0.001f,
+			"obtido " + BuildSupportBelow.MaxFlat.ToString("F2"));
+		Check("MaxDrop == 2,5 m", Math.Abs(BuildSupportBelow.MaxDrop - 2.5f) < 0.001f,
+			"obtido " + BuildSupportBelow.MaxDrop.ToString("F2"));
+		Check("MinDrop == 0,4 m", Math.Abs(BuildSupportBelow.MinDrop - 0.4f) < 0.001f,
+			"obtido " + BuildSupportBelow.MinDrop.ToString("F2"));
+	}
+
+	/// <summary>Section (r): one candidate of the direct-support window.</summary>
+	private static void SupportCase(float dx, float dz, float drop, bool expected, string why)
+	{
+		bool actual = BuildSupportBelow.IsDirectSupport(dx, dz, drop);
+		Check("IsDirectSupport(" + dx.ToString("F1") + ", " + dz.ToString("F1") + ", " + drop.ToString("F2") + ") -> "
+			+ (expected ? "true" : "false") + " (" + why + ")", actual == expected,
+			"obtido " + (actual ? "true" : "false"));
 	}
 
 	/// <summary>The plan of case (a)/(e) of section (m): a fresh list every call (case (e) needs two of them).</summary>

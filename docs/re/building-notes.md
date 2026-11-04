@@ -1487,16 +1487,19 @@ plano** dos 9 candidatos, nivela com a enxada (passadas de 1,5 s) e só então p
   (`o líder do grupo "..." saiu - outro companheiro assumiu o canteiro`, `MHR_BuildGroup.cs:218`) e o canteiro seguiu.
 - **Retomada:** o companheiro que voltou (respawn) reentrou no mesmo plano e na peça onde estava
   (`voltou para o grupo "..." na peça X`, `MHR_Build.cs:1701`).
-- **Resultado:** **~957/985 colocadas**. **0 peças descartadas por dependência** (as que não ficaram de pé por falta de
-  apoio voltaram, não foram puladas) e **74** linhas `sem apoio ainda ... - não gasta tentativa, volta com espera`.
+- **Primeiro run do dia (antes do lote do validador):** ~**957/985 colocadas**, **0 peças descartadas por
+  dependência** (as que não ficaram de pé por falta de apoio voltaram, não foram puladas) e **74** linhas
+  `sem apoio ainda ... - não gasta tentativa, volta com espera`.
 - **Navegação:** `no progress` **58 → 6** com o `PlaceReach = 10` e **mortes 5 → 0** na primeira rodada com 10 m
   (os números de comparação são os runs de 03/11, com o alcance do jogo).
-- **O que sobrou** apontou dois achados (as duas correções estão no código, **em teste no run de 04/11**):
+- **O que sobrou** desse primeiro run apontou dois achados (as duas correções estão no código e **foram medidas depois**):
   a **cumeeira em y 47,8** era recusada com `no_ground` porque o raio vertical da sonda passa pelo **vão entre as duas
   águas** (`BuildProbe.cs:468` → `AttachedToStructure`, `:643`: `Physics.OverlapSphere` atrás de
   `Piece`/`WearNTear`); o **baú e a cama no barranco** eram `too_steep` e ganharam o `NudgePiece`
   (`MHR_Build.cs:3910`: `BuildSite.Find` a **2,5 m** para mobília — estrutural só **1 m** —, 2 anéis × 8 direções, 48
   candidatos, ignorando o próprio companheiro — o run perdeu **4** peças ali).
+- **Resultado final (os dois runs com o lote completo): §17.6** — **970/985** com `PlaceReach = 10` e **972
+  colocadas + 0 mortes** com `15`.
 
 ### 17.2 O portão de apoio (`AI/BuildFailure.cs` + `MHR_Build.QueueRetry`)
 
@@ -1549,7 +1552,7 @@ plano** dos 9 candidatos, nivela com a enxada (passadas de 1,5 s) e só então p
   **O raio era menor que o grid (04/11/2026):** com **2,6 m** a esfera não achava a vizinha do telhado — o grid de
   telhado é de ~2 m e a peça mais próxima de uma `wood_roof_45` fica na **diagonal, a ~2,8–3,5 m**. Medido no run: o
   `log ajustado` ficou em **0** e a cumeeira continuou presa em `no_ground`. Agora são **4,0 m** (`:49`), e o custo é o
-  mesmo (a esfera só roda quando o raio falhou).
+  mesmo (a esfera só roda quando o raio falhou) — **medido depois: `no_ground` ~25 → 0** (§17.6, Run 1).
 - **`nudge`** (`NudgePiece`, `MHR_Build.cs:3910`): **qualquer peça** recusada pelo **lugar** (`too_steep`/`no_ground`)
   ganha **uma** chance na pose válida mais próxima (`BuildSite.Find`), desde que caiba no `MaxPlace` (plano e olho). Só
   a pose de **trabalho** muda (`state.Pos`/`state.Rot`); o plano guarda a original, então um retry futuro tenta de novo
@@ -1572,11 +1575,54 @@ Harness **520 PASS** (471 até a **(o)** + **23** da seção **(p)** — `AI/Bui
 `AI/BuildPieceKind.cs`; os dois linkados no `ai-intents-check.csproj`), MCP **101 PASS**, **config 359/25**, ES/FR/IT
 **0 lacunas**, dívida do `gen_translations.py` **45** e build **0/0**.
 
-### 17.6 O que fica pendente
+### 17.6 O resultado dos dois runs (04/11/2026)
 
-- **Aceite do validador está EM TESTE no run de 04/11**: o raio de 4,0 m (cumeeira a y 47,8), o `NudgePiece` universal
-  (baú/cama em y 39,9) e o companheiro fora do `blocked_by_player` (17+). O run que gerou os números **não** é o que
-  fecha essas três — o aceite é o run seguinte.
+Os dois runs são a mesma casa (`CommHomeBasicBP`), os mesmos 3 companheiros, `BlueprintFree = true` e o lote do
+validador já no código (4,0 m, `NudgePiece` universal, companheiro fora do `blocked_by_player`). A **única diferença**
+entre eles é `[Building] PlaceReach`: **10** (o padrão do código) × **15** (valor de teste, mudado só no `.cfg` — o
+**default continua 10**, `ModConfig.cs:945`, faixa 5..20).
+
+| | Run 1 | Run 2 |
+|---|---|---|
+| `PlaceReach` | **10** | **15** (config de teste) |
+| colocadas | **970** | **972** |
+| fora (puladas) | **15** | **13** (watchdog) |
+| total fechado | **985** (`970 peças, 15 puladas` — `hc_ai_blueprint_done`) | passada principal **987/987** |
+| mortes | **1** | **0** |
+| `no_ground` | **0** (era ~25) | — |
+| `blocked_by_player` | **0** (era **17+**) | — |
+| `log ajustado` (nudge) | **6** | — |
+| `too_steep` | **4** | — |
+| `no progress` | **69** | — |
+| watchdog | `15 peça(s) sem apoio` | `13 peça(s) sem apoio` |
+
+- **O que fechou no Run 1:** o `no_ground` da cumeeira **zerou** (~25 → 0) com o `AttachedRadius` de **4,0 m**, o
+  `blocked_by_player` **zerou** (17+ → 0) com o companheiro fora do teste de personagem, e o `log ajustado` **6** é o
+  `NudgePiece` universal agindo (antes o ajuste era 0). Os contadores fecham: **970 + 15 = 985**, que é o total do
+  plano, e a fala final diz **"970 peças, 15 puladas"** (`A {0} está de pé: {1} peças, {2} puladas.`).
+- **Run 2 (só config):** `PlaceReach = 15` levou a passada principal a **987/987**, com **972 colocadas** e **0
+  mortes**. O canteiro tinha **984 peças** no raio (inclui a base do jogador) e o `PlanStations` **insere bancadas** no
+  plano (`MHR_Build.cs:2250`), então os denominadores (984/985/987) não são o mesmo número por construção — os valores
+  acima são os do log, `Placed`/`Skipped` contam **índices**.
+- **As 13 que sobraram no Run 2, com a causa de cada uma:**
+  1. **2 baús** (`piece_chest_wood`) em **(-168,2, 39,9, -434,9)** — `too_steep`: o nudge de mobília tem **2,5 m** e
+     não achou pose válida nesse raio (é o achado que motivou o lote seguinte).
+  2. **1 bancada** (`piece_workbench`) em **(-178,3, 38,6, -431,7)** — **`clipping`**: a âncora externa encontrada
+     (`FindBenchSpotOutside`/`TryBenchAt`, `MHR_Build.cs:2409`/`:2445`) colide com algo que o `Ok(check)` não estava
+     rejeitando (o `TryBenchAt` não olha `clipping` hoje).
+  3. **≈10 do andar de cima** — `wood_floor`/`wood_roof_45` em **43,8/45,8**, `no_support` **até o watchdog**: a
+     cadeia de apoio do andar de cima não fecha (o piso/telhado de cima não tem, no momento da tentativa, o que o
+     sustenta — e o portão de apoio, corretamente, não gasta tentativa: espera até o watchdog).
+- **O lote seguinte (em implementação, ainda não no código):** nudge de **mobília até 5 m** com **3 anéis × 12
+  direções** (hoje é 2,5 m, `NudgePiece` `MHR_Build.cs:3910`, `BuildSite.Find` 2 × 8); `TryBenchAt` **rejeitando
+  `clipping`** (hoje `Ok(check)` deixa passar, e a bancada é perdida depois); e a **cadeia de apoio do andar de cima**
+  (os ~10 pisos/telhados que param em `no_support`). Estes três são exatamente as 13 peças acima — nenhum deles tem
+  aceite medido ainda.
+
+### 17.7 O que fica pendente
+
+- **As 13 peças do Run 2** (2 baús `too_steep`, 1 bancada `clipping`, ~10 pisos/telhados de cima `no_support`) são o
+  alvo do **lote seguinte** (§17.6) — **sem aceite**.
 - **Run com material pago** (sem `BlueprintFree`): o P1 nunca foi medido pagando peça por peça com 3 workers; a
   **reserva de material** continua não existindo (cada worker conta mochila+baús por conta própria → pior caso N× o
   resto do plano).

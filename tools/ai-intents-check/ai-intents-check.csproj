@@ -67,6 +67,8 @@
     <Compile Include="..\..\src\Companions\AI\BuildFailure.cs" Link="src/AI/BuildFailure.cs" />
     <!-- P1 (04/11/2026): structure or furniture (how far a piece may move from the plan's pose) - pure name -> kind -->
     <Compile Include="..\..\src\Companions\AI\BuildPieceKind.cs" Link="src/AI/BuildPieceKind.cs" />
+    <!-- P1 (04/11/2026): the window of the direct support of a piece (which plan index the group pulls next) - pure geometry -->
+    <Compile Include="..\..\src\Companions\AI\BuildSupportBelow.cs" Link="src/AI/BuildSupportBelow.cs" />
     <Compile Include="..\..\src\Companions\AI\MHR_Owner.cs" Link="src\AI\MHR_Owner.cs" />
     <Compile Include="..\..\src\Companions\Core\MHR_List.cs" Link="src\Core\MHR_List.cs" />
   </ItemGroup>

@@ -106,6 +106,24 @@ internal static class MHR_Build
 	/// (the radius in which a station frees building - measured, see <c>docs/re/building-notes.md</c>).</summary>
 	private const float BenchDefaultRadius = 20f;
 
+	/// <summary>P1 (04/11/2026): the pose budget of the <b>first</b> nudge search (2 rings x 8 directions = 17 spots, up to
+	/// 4 yaws each, capped at 48 checks - the number of 03/11/2026). <see cref="BuildSite.Find"/> counts CHECKS and not
+	/// spots, and a piece the game lets rotate is tried with the 4 yaws before the spot is abandoned.</summary>
+	private const int NudgeChecks = 48;
+
+	/// <summary>P1 (04/11/2026): the wide search of the <b>furniture</b> nudge - 3 rings x 12 directions out to the 5 m
+	/// radius (37 spots with the hint) x 4 yaws. The cap is exactly the spots' worth of checks: a bigger radius with the
+	/// old 48 would spend the whole budget on the first ring and never reach the 5 m.</summary>
+	private const int NudgeChecksWide = 37 * 4;
+
+	/// <summary>P1 (04/11/2026): how far a <b>furniture</b> piece may be moved from the plan's pose - 5 m, the radius the
+	/// two chests of the measured run needed (2,5 m found no valid pose on the bank at y 39,9). A <b>structural</b> piece
+	/// keeps the 1 m of 03/11/2026: a wall or a roof row metres off the plan is not the same house.</summary>
+	private const float NudgeFurnitureRadius = 5f;
+
+	/// <summary>P1 (04/11/2026): the small radius of a structural piece (<see cref="NudgeFurnitureRadius"/>).</summary>
+	private const float NudgeStructuralRadius = 1f;
+
 	/// <summary>E7: the clearing square never grows past this. It was 30 m and the player's plan measured 32,1 m, so the
 	/// outer ring of the site kept its trees and the logs of the ones inside rolled into it (report, 03/11/2026).</summary>
 	private const float ClearMaxSize = 40f;
@@ -2265,7 +2283,7 @@ internal static class MHR_Build
 			{
 				PlannedStep step = noRoom[i];
 				Log(ai, "sem bancada: " + step.Prefab + " em (" + F(step.Pos.x) + ", " + F(step.Pos.y) + ", " + F(step.Pos.z)
-					+ ") - nenhum lugar fora do footprint");
+					+ ") - nenhum lugar livre fora do footprint (âncora que colide é recusada)");
 			}
 			for (int i = 0; i < budget.Count; i++)
 			{
@@ -2363,11 +2381,13 @@ internal static class MHR_Build
 	/// piece's height is from it - an anchor outside the house is on the ground, and the old 3 m tolerance refused a bench
 	/// on a slope (the ground of a 32 m site is metres below the floor). The ring of 1,6 m is walked once per direction and
 	/// the anchor itself is one position, not eight (the old loop repeated it), so a failed search costs 36 checks instead
-	/// of 64.</para>
+	/// of 64. The verdict of the accepted pose comes out in <paramref name="verdict"/> so the caller can refuse a pose the
+	/// game calls <c>clipping</c> (see <see cref="TryBenchAt"/>).</para>
 	/// </summary>
 	private static bool FindBenchSpot(Piece bench, Vector3 near, Quaternion rot, Component who, out Vector3 spot,
-		out Quaternion benchRot, bool onGround = false)
+		out Quaternion benchRot, out Dictionary<string, object> verdict, bool onGround = false)
 	{
+		verdict = null;
 		// the OUTDOOR spot is on the ground (a bench outside the house stands on the terrain, not at the floor's height);
 		// the fallback (the piece's own spot) keeps its height, for a bench that has to go inside
 		float groundY = ZoneSystem.instance != null ? ZoneSystem.instance.GetGroundHeight(near) : near.y;
@@ -2387,6 +2407,7 @@ internal static class MHR_Build
 				{
 					spot = candidate;
 					benchRot = candidateRot;
+					verdict = check;
 					return true;
 				}
 			}
@@ -2441,13 +2462,27 @@ internal static class MHR_Build
 	}
 
 	/// <summary>P1 (04/11/2026): one anchor of <see cref="FindBenchSpotOutside"/> - the pose search plus "does the bench
-	/// really serve the piece" (<paramref name="cover"/> 0 = do not ask).</summary>
+	/// really serve the piece" (<paramref name="cover"/> 0 = do not ask).
+	///
+	/// <para>P1 (04/11/2026, second run: the planned bench at (-178,3, 38,6, -431,7) was refused at placement with
+	/// <c>clipping</c>): a pose the game's verdict calls <b>clipping</b> is never accepted here - the anchor is abandoned and
+	/// the next one (farther out, or turned 40 degrees) is tried. <c>BuildSite.Check</c> runs the ghost test for a piece with
+	/// <c>m_noClipping</c> (the workbench has it) and already clears <c>ok</c> when it clips; this is the <b>second barrier</b>,
+	/// read from the verdict itself (the <c>clipping</c> flag and the status), so no anchoring rule can put a clipping pose in
+	/// the plan even if the caller's <c>Ok</c> changes. The world can still change between the plan and the placement - that is
+	/// what <c>MHR_Build.NudgePiece</c> handles.</para>
+	/// </summary>
 	private static bool TryBenchAt(Piece bench, Vector3 anchor, Vector3 piece, Quaternion rot, Component who, float cover,
 		out Vector3 spot, out Quaternion benchRot)
 	{
-		if (!FindBenchSpot(bench, anchor, rot, who, out spot, out benchRot, true))
+		Dictionary<string, object> verdict;
+		if (!FindBenchSpot(bench, anchor, rot, who, out spot, out benchRot, out verdict, true))
 		{
 			return false;
+		}
+		if (ClippingVerdict(verdict))
+		{
+			return false;   // a pose the game calls clipping (a log, a tree, a piece of the site): try the next anchor
 		}
 		if (cover <= 0f)
 		{
@@ -2456,6 +2491,23 @@ internal static class MHR_Build
 		float dx = spot.x - piece.x;
 		float dz = spot.z - piece.z;
 		return dx * dx + dz * dz <= cover * cover;
+	}
+
+	/// <summary>P1 (04/11/2026): the pose the game calls <c>clipping</c> - the flag of <c>BuildSite.Check</c> or the status
+	/// it derives from it. A bench that clips is not a bench with room: another anchor has to be found.</summary>
+	private static bool ClippingVerdict(Dictionary<string, object> verdict)
+	{
+		if (verdict == null)
+		{
+			return false;
+		}
+		object flag;
+		if (verdict.TryGetValue("clipping", out flag) && flag is bool clips && clips)
+		{
+			return true;
+		}
+		object status;
+		return verdict.TryGetValue("status", out status) && Convert.ToString(status) == "clipping";
 	}
 
 	/// <summary>The companion's bag (the scaffold is paid from it, like any piece).</summary>
@@ -2971,6 +3023,95 @@ internal static class MHR_Build
 		state.Index = at - 1;
 		Log(ai, pulled.Count + " support piece(s) under the " + state.Prefab + " brought forward so it can stand");
 		return true;
+	}
+
+	/// <summary>
+	/// P1 (04/11/2026, measured with 3 companions on the 985-piece house: ~10 pieces of the upper storey - <c>wood_floor</c>
+	/// and <c>wood_roof_45</c> at y 43,8/45,8 - were refused with <c>no_support</c> until the stall watchdog dropped them
+	/// after 60 s): in a <b>group</b> the plan is walked by index and nobody may reorder it (<see cref="PlanLocked"/> - the
+	/// indices are the site's, shared by the claims), so <see cref="PullSupports"/> does nothing and the piece that would
+	/// hold the refused one up may still be <b>ahead</b> in the plan, or it was skipped by whichever worker's turn it was
+	/// and nobody went back to it. This drives that support <b>next</b> for this worker: the index is claimed and entered
+	/// out of order, the plan itself is not touched (no index moves), and the refused piece keeps its own index and waits in
+	/// the site's retry queue as a <b>dependency</b> (no attempt spent) - <see cref="Advance"/> pulls it again from there.
+	///
+	/// <para>The candidate is the best one of <see cref="BuildSupportBelow"/>: 0,4 to 2,5 m below and up to 2,5 m in XZ, a
+	/// <b>structural</b> piece only (<see cref="BuildPieceKind"/>: a chest or a bed under a floor is not support), a roof or a
+	/// door never (<c>ClassOf</c> 3/4 - a door stays last), and never a piece the site already built. Because the drop is
+	/// always positive the pull only walks <b>down</b> the plan, so a chain of refusals cannot loop. A support that another
+	/// companion holds is left to it (the piece is only retried): the support is already on its way.</para>
+	/// </summary>
+	private static bool PullDirectSupport(CompanionAI ai, State state)
+	{
+		if (ai == null || state == null || state.Group == null || state.Plan == null
+			|| state.Index < 0 || state.Index >= state.Plan.Count)
+		{
+			return false;
+		}
+		int support = DirectSupportIndex(state);
+		if (support < 0)
+		{
+			return false;   // nothing under it that could hold it up: the piece is only retried
+		}
+		if (!MHR_BuildGroup.TryClaim(state.Group, support, ai.GetInstanceID()))
+		{
+			return false;   // another companion is already building it
+		}
+		PlannedStep step = state.Plan[support];
+		QueueRetry(ai, state, "no_support");
+		Log(ai, "apoio imediato: " + step.Prefab + " em (" + F(step.Pos.x) + ", " + F(step.Pos.y) + ", " + F(step.Pos.z)
+			+ ") (" + (support + 1) + "/" + state.Plan.Count + ") - a " + state.Prefab + " espera na fila do canteiro");
+		EnterStep(state, support);
+		return true;
+	}
+
+	/// <summary>P1 (04/11/2026): the plan index that is the direct support of the piece this worker is on, or -1 (see
+	/// <see cref="PullDirectSupport"/> for the window and for why only <b>below</b> counts).</summary>
+	private static int DirectSupportIndex(State state)
+	{
+		int best = -1;
+		float bestRank = float.MaxValue;
+		for (int i = 0; i < state.Plan.Count; i++)
+		{
+			if (i == state.Index)
+			{
+				continue;
+			}
+			PlannedStep step = state.Plan[i];
+			if (step == null || step.Prefab == null)
+			{
+				continue;
+			}
+			// only a STRUCTURAL piece holds another one up (walls, beams, poles, floors, stairs) - a chest or a bed under a
+			// floor is not what the game reads as support, and pulling it first would only delay the real one
+			if (!BuildPieceKind.IsStructural(step.Prefab))
+			{
+				continue;
+			}
+			int cls = BuildBlueprintParser.ClassOf(step.Prefab);
+			if (cls == 3 || cls == 4)
+			{
+				continue;   // a roof or a door never holds a piece up - and pulling a door would break "doors last"
+			}
+			if (MHR_BuildGroup.IsDone(state.Group, i))
+			{
+				continue;   // already standing: the refusal of the piece is not about this one
+			}
+			float dx = step.Pos.x - state.Pos.x;
+			float dz = step.Pos.z - state.Pos.z;
+			float drop = state.Pos.y - step.Pos.y;
+			if (!BuildSupportBelow.IsDirectSupport(dx, dz, drop))
+			{
+				continue;
+			}
+			float rank = BuildSupportBelow.Rank(dx, dz, drop);
+			if (rank < bestRank)
+			{
+				bestRank = rank;
+				best = i;
+			}
+		}
+		return best;
 	}
 
 	/// <summary>Is this pose close enough to a temporary stair to have been held up by it? (the same 4 m / 3 m window)</summary>
@@ -3603,6 +3744,12 @@ internal static class MHR_Build
 				{
 					return Advance(ai, state);
 				}
+				// P1 (04/11/2026): in a GROUP the plan is not reordered, so PullSupports above did nothing - the support under
+				// the piece is driven NEXT by this worker, by index, and the piece waits in the site's queue (no attempt spent)
+				if (PullDirectSupport(ai, state))
+				{
+					return true;   // the support is the step being carried out now
+				}
 				LogDebug(ai, "deferring " + state.Prefab + " at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
 					+ F(state.Pos.z) + "): it needs what is below it, which is not up yet - retry pass");
 				QueueRetry(ai, state, "no_support");
@@ -3769,8 +3916,11 @@ internal static class MHR_Build
 				string status = check != null ? Convert.ToString(check["status"]) : "unknown";
 				// P1 (04/11/2026, measured on the 985-piece house): a piece refused by the SPOT (too_steep/no_ground - the bank
 				// the 32 m leveling did not reach) gets ONE chance at the closest valid pose around the plan's one, before the
-				// normal refusal; a structural piece only moves 1 m, furniture up to 2,5 m.
-				if ((status == "too_steep" || status == "no_ground") && NudgePiece(ai, state, status))
+				// normal refusal; a structural piece only moves 1 m, furniture up to 5 m (3 rings x 12 on the second try).
+				// P1 (04/11/2026, second run): a CLIPPING furniture piece gets the same chance - the plan is validated before
+				// the clearing and the leveling, so a log that rolled onto the anchor (the bench at -178,3, 38,6, -431,7) is
+				// the world changing under the plan, not a bad pose (see NudgePiece).
+				if ((status == "too_steep" || status == "no_ground" || status == "clipping") && NudgePiece(ai, state, status))
 				{
 					return true;   // the next frame re-checks (and places) at the adjusted pose
 				}
@@ -3819,6 +3969,12 @@ internal static class MHR_Build
 					// E7: a blueprint is a build somebody else designed - a piece that does not fit in THIS spot (or that
 					// the terrain refuses) is retried at the end (the neighbours may not be up yet), not a reason to drop
 					// the whole build
+					// P1 (04/11/2026): a refusal by no_support in a GROUP gets its direct support driven next (the same pull
+					// the early check does) - the plan is not reordered and the piece waits in the site's queue
+					if (status == "no_support" && PullDirectSupport(ai, state))
+					{
+						return true;   // the support is the step being carried out now
+					}
 					QueueRetry(ai, state, status);
 					return Advance(ai, state);
 				}
@@ -3903,9 +4059,22 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 	/// <para>How far it may move depends on the piece (<see cref="BuildPieceKind"/>): a <b>structural</b> piece (floor, wall,
 	/// roof, beam, pole, stair, door) only up to <b>1 m</b> - the search is asked with that radius and the resulting XZ distance
 	/// is checked again, because a wall or a roof row 2,5 m off the plan no longer lines up with the house - while
-	/// <b>furniture</b> (a chest, a bed, a fire pit, a workbench) may go to the whole <b>2,5 m</b> radius: the blueprint's pose
+	/// <b>furniture</b> (a chest, a bed, a fire pit, a workbench) may go to the whole <b>5 m</b> radius: the blueprint's pose
 	/// for it is a suggestion. <see cref="BuildSite.Find"/> already answers <c>Ok</c> only for a <c>valid</c> pose. The game's
 	/// eye rule is still the limit (<see cref="MaxPlace"/>).</para>
+	///
+	/// <para>P1 (04/11/2026, second run: two chests <c>piece_chest_wood</c> at (-168,2, 39,9, -434,9) refused with
+	/// <c>too_steep</c> - the 2,5 m search found no pose for them): the furniture radius is <b>5 m</b>, and when the 2-ring
+	/// pass of the first attempt fails the search is widened to <b>3 rings x 12 directions</b> (both bounded, see
+	/// <see cref="NudgeChecks"/>): the site's bank has posts and trees around, and only the wider ring gets past them.</para>
+	///
+	/// <para>P1 (04/11/2026, second run: the planned <c>piece_workbench</c> at (-178,3, 38,6, -431,7) refused with
+	/// <c>clipping</c> at placement): <see cref="PlanStations"/> validates the anchors BEFORE the leveling and the clearing of
+	/// the site (<c>StartBlueprint</c>), so what refuses the pose later is the <b>world changing</b> under the plan - a log of
+	/// a cut tree rolling onto the anchor, the ground moving. <b>Furniture</b> gets the same chance there (the plan's pose for
+	/// a chest or a bench is a suggestion, and the bench covers 20 m, so 5 m does not cost coverage); a <b>structural</b> piece
+	/// does not: a wall or a roof off the plan is not the same house, and its clipping is the plan's own overlap. The wide
+	/// rings are not walked for a clipping refusal - one pass, the world is what changed.</para>
 	/// </summary>
 	private static bool NudgePiece(CompanionAI ai, State state, string status)
 	{
@@ -3914,9 +4083,18 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			return false;
 		}
 		bool structural = BuildPieceKind.IsStructural(state.Prefab);
-		float radius = structural ? 1f : 2.5f;
+		if (structural && status == "clipping")
+		{
+			return false;   // a structural piece is not moved off the plan for a clipping verdict (the plan overlaps itself)
+		}
+		float radius = structural ? NudgeStructuralRadius : NudgeFurnitureRadius;
 		Vector3 forward = state.Forward.sqrMagnitude > 0.01f ? state.Forward : ai.transform.forward;
-		BuildSiteResult site = BuildSite.Find(state.Piece, state.Pos, forward, radius, 2, 8, 48, Self(ai));
+		BuildSiteResult site = BuildSite.Find(state.Piece, state.Pos, forward, radius, 2, 8, NudgeChecks, Self(ai));
+		if ((site == null || !site.Ok) && !structural && status != "clipping")
+		{
+			// the furniture of a bank does not fit inside 2,5 m: walk the wider rings once before losing the piece
+			site = BuildSite.Find(state.Piece, state.Pos, forward, radius, 3, 12, NudgeChecksWide, Self(ai));
+		}
 		if (site == null || !site.Ok)
 		{
 			return false;   // no pose of the game's rules accepted: the retry queue / refusal takes over
@@ -3925,7 +4103,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		{
 			float dx = site.Pos.x - state.Pos.x;
 			float dz = site.Pos.z - state.Pos.z;
-			if (dx * dx + dz * dz > 1f)
+			if (dx * dx + dz * dz > NudgeStructuralRadius * NudgeStructuralRadius)
 			{
 				return false;   // a structural piece 1 m off the plan is not the same house
 			}

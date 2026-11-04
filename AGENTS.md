@@ -254,9 +254,15 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   tira só ele; nivelar/limpar com **um** (P5). **Nenhuma** chave de tradução nova (reusa `hc_ai_no_companion` e
   `hc_ai_build_failed`) — harness **520** (471 + 23 da seção **(p)** + 26 da **(q)**), MCP **101** (as **12** asserções
   de 03/11/2026 cobrem o contrato do grupo: `workers`, `refused` e `name` vazio = todos), config **359/25**.
-  **Medido em jogo (04/11/2026, `CommHomeBasicBP`, 3 companheiros, `BlueprintFree = true`, `PlaceReach = 10`):**
-  ~**957/985** colocadas, **0** peças descartadas por dependência (**74** `sem apoio ainda ... não gasta tentativa`),
-  `no progress` **58 → 6** e mortes **5 → 0** com o alcance de 10 m; o grupo distribuiu o plano por índices
+  **Medido em jogo (04/11/2026, `CommHomeBasicBP`, 3 companheiros, `BlueprintFree = true`) — dois runs, a única diferença
+  é o `PlaceReach` (10 = padrão do código; 15 = config de teste):** com **10**, **970 + 15 = 985** — a fala final fecha
+  (`970 peças, 15 puladas`), `no_ground` **~25 → 0**, `blocked_by_player` **17+ → 0**, `log ajustado` **6** (o nudge
+  agindo), **1 morte** e watchdog `15 peça(s) sem apoio`; com **15**, a passada principal chegou a **987/987**, **972
+  colocadas**, **0 mortes** e watchdog `13 peça(s) sem apoio`. **As 13 que sobraram:** **2 baús** (`piece_chest_wood`
+  em (-168,2, 39,9, -434,9), `too_steep` — o nudge de mobília de 2,5 m não achou lugar), **1 bancada**
+  (`piece_workbench` em (-178,3, 38,6, -431,7), `clipping` — âncora externa colidindo) e **≈10 do andar de cima**
+  (`wood_floor`/`wood_roof_45` em 43,8/45,8, `no_support` até o watchdog) — é o alvo do lote seguinte (nudge 5 m com
+  3 anéis × 12, `TryBenchAt` sem `clipping`, cadeia de apoio do andar de cima). O grupo distribuiu o plano por índices
   distintos, **promoveu o líder** depois da morte (`o líder do grupo ... saiu - outro companheiro assumiu`) e
   **retomou** no mesmo plano (`voltou para o grupo ... na peça X`). O ciclo fechou o **portão de apoio**
   (`AI/BuildFailure.cs`, puro, tabela da seção **(p)**; `no_support`/`no support`/`needs_station`/`no_ground` **com
@@ -264,15 +270,14 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   uma das 3), o **watchdog de 60 s** sem peça subir (`StallSeconds`, do `LastProgressAt` do canteiro) e a **cobertura
   de bancadas** (`MaxPlannedBenches` 8 → **12**, `MaxBenchSearches` 6 → **32**, âncoras **fora do footprint** e no
   **terreno**, até 4 por peça, resumo `station: N precisam, M planejadas, K sem cobertura`). **O validador (lote de
-  04/11/2026, em teste no run):** `AttachedToStructure` com **4,0 m** de `OverlapSphere` (2,6 m não achava a vizinha
-  do telhado, que fica a ~2,8–3,5 m na diagonal — medido: `log ajustado` = 0 e a cumeeira presa em `no_ground`);
-  **`NudgePiece` universal** (qualquer peça com `too_steep`/`no_ground`, não só mobília de chão) com raio por tipo via
-  `BuildPieceKind` — **estrutural ≤ 1 m**, **mobília até 2,5 m** (baú/cama em y 39,9 eram mobília e nunca eram
-  ajustados); e `blocked_by_player` **não conta companheiro como jogador** (`BlockedByCharacter` pula quem tem
-  `CompanionAI`: a peça é empurrada, não recusada — **17+** no run de 3 companheiros). Detalhe medido em
-  `docs/re/building-notes.md` §17. **Falta medir:** run com material pago (a reserva por peça não existe); o **aceite
-  do validador está em teste** no run de 04/11 (a cumeeira, o baú/cama e o `blocked_by_player`); o teste pequeno de 2
-  companheiros num 6x6 segue como receita barata em `docs/plan-multi-build.md` §7.
+  04/11/2026, medido):** `AttachedToStructure` com **4,0 m** de `OverlapSphere` (2,6 m não achava a vizinha do
+  telhado, que fica a ~2,8–3,5 m na diagonal; com 4,0 m o `no_ground` foi **~25 → 0**); **`NudgePiece` universal**
+  (qualquer peça com `too_steep`/`no_ground`, não só mobília de chão) com raio por tipo via `BuildPieceKind` —
+  **estrutural ≤ 1 m**, **mobília até 2,5 m** (baú/cama em y 39,9 eram mobília e nunca eram ajustados; `log ajustado`
+  **6** no run); e `blocked_by_player` **não conta companheiro como jogador** (`BlockedByCharacter` pula quem tem
+  `CompanionAI`: a peça é empurrada, não recusada — **17+ → 0**). Detalhe medido em `docs/re/building-notes.md` §17.
+  **Falta medir:** run com material pago (a reserva por peça não existe); **as 13 do Run 2** (o lote seguinte acima);
+  e o teste pequeno de 2 companheiros num 6x6 segue como receita barata em `docs/plan-multi-build.md` §7.
 - **Pendências conhecidas (abertas):** (1) navegação no andar em obra; (2) a voz não passa pelo mixer do jogo (só
   `[AI] TtsVolume`); (3) sync com o upstream `main` (1.5.8) em dia — conferir antes de cada release; (4) o nome do
   companheiro no centro do radial (cosmético); (5) posse do ZDO no spawn em multiplayer dedicado; (6) a dívida de
