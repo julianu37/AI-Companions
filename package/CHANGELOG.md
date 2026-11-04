@@ -225,9 +225,9 @@ stopped.
   this first stage: the **materials are counted per companion** (there is no per-piece reservation between the workers
   yet, so the same stack may be counted twice and they can gather more than the plan needs), the group lives **in
   memory** (it is **not in the save**), and the group is **blueprints only** - a single piece and a template still have
-  one companion on them. Build 0/0 and the harness at **562 assertions** pass (23 of them are the failure classification,
-  **26** the piece-kind table and **29** the support window of the pose adjustment and of the support gate below);
-  **in test** - the numbers of the 04/11/2026 runs end this cycle.
+  one companion on them. Build 0/0 and the harness at **596 assertions** pass (the failure classification, the piece-kind
+  table and the growing support tables of section **(r)**); **in test** - the numbers of the 11/11/2026 run end this
+  cycle.
   - **New `[Building] PlaceReach`** (**in test**): how far the companion may place a piece **once it is stuck** - it
     keeps walking to the piece as before, and only after **3 s without getting closer** does it place from farther
     away, up to this distance (float, default **10**, range **5–20**). `5` is the game's own reach
@@ -261,10 +261,11 @@ stopped.
     workbench, a fermenter) goes up to the whole **2,5 m** radius, because the blueprint's pose for it is a suggestion.
     The piece, the prefab and the plan index do not change: only its **working** pose does (the plan keeps the original,
     so a retry starts from there again) and the log says `log ajustado: <prefab> de (x, y, z) para (x, y, z) - <status>`.
-  - **Another companion no longer blocks a piece** (**in test**, 04/11/2026): **17+** `blocked_by_player` in the run of
-    three companions on the same site - the space test walked the player list and the workers stand right next to the
-    piece they are building. A **companion is not a player** for placement (the game pushes an NPC out of the way instead
-    of refusing the piece), so any character with a `CompanionAI` is ignored; only a **real player** still blocks it.
+  - **A companion IS an obstacle for the piece again** (**correction**, 11/11/2026): the 04/11 attempt to ignore companions
+    in the space test was **reverted** - the piece was being placed **inside** the companion and he **sank** through the
+    floor (regression seen in the run of 11/11). A companion counts as a player for placement again, so
+    `blocked_by_player` is back (**20** in the 11/11 run) and it is a **real** failure - it spends one of the 3 attempts,
+    comes back and goes up once he steps away. What never happens again is the piece being **born inside** him.
   - **The group only pulls the piece below it once** (**in test**, fix of 04/11/2026): the first version of the "build
     the support first" pass could **loop** - a piece refused for `no_support` pulled the piece under it, which failed,
     came back, pulled again. In about ten minutes the log reached **344 MB** (**1,4 million lines**) and the game
@@ -279,14 +280,26 @@ stopped.
     ground** instead of being refused. `0` keeps the file's own level.
   - **New `[Building] SupportFallback`: a wooden post under a piece the file does not hold up** (**in test**, 04/11/2026):
     when a `.blueprint` piece is refused for **no support** and the plan has **nothing under it**, the companion plants a
-    **vertical wooden post** (`wood_beam`, 2 m) with its **top at the base of the piece** - validated by the game's own
-    rules and **paid like any piece** (free with `BlueprintFree`) - and the refused piece is retried on top of it, keeping
-    its index and pose. **One post per piece**, at most **24 per order** (bool, default **true**); `false` lets the piece
-    wait and it stays out of the house. Why (measured): the **`CommHomeBasicBP`** with 3 companions and the 1 m deck left
-    **16 pieces** refused with `no_support` **in columns** on the **east gable** and the **north-west corner** (floors and
-    roofs at 40,8/42,8/44,8/46,8) - the author's file simply has **no support piece** under those points and the
-    direct-support pull answered -1 for every one of them. This is what closes those 16 (the 4 chests of the same run were
-    another case: the spot refused them).
+    **vertical wooden post** with its **base on the surface under the piece** (the ground, the floor of the storey below,
+    a beam top) and its **length chosen by the gap** (`BuildSupportBelow.PickPost`: the shortest beam that reaches it) -
+    validated by the game's own rules and **paid like any piece** (free with `BlueprintFree`) - and the refused piece is
+    retried on top of it, keeping its index and pose. **One post per piece**, at most **24 per order** (bool, default
+    **true**); `false` lets the piece wait and it stays out of the house. Why (measured): the **`CommHomeBasicBP`** with 3
+    companions and the 1 m deck left **16 pieces** refused with `no_support` **in columns** on the **east gable** and the
+    **north-west corner** (floors and roofs at 40,8/42,8/44,8/46,8) - the author's file simply has **no support piece**
+    under those points and the direct-support pull answered -1 for every one of them. This is what closes those 16 (the 4
+    chests of the same run were another case: the spot refused them).
+  - **A roof over a roof is supported again** (**in test**, fix of 11/11/2026): our validator demanded a piece with
+    `WearNTear.m_supports` inside the footprint to accept an elevated piece - but **a roof piece has `m_supports =
+    false`** in Valheim (a roof does not carry support; the upper row rests on the **edge** of the row below). That
+    refused **13 roof pieces for five runs**, so the house never closed. `BuildProbe.FootprintSupported` now decides by
+    **piece class** (`BuildSupportBelow.HoldsPlacedPiece`): the **terrain** still holds anything, a **roof** is held by
+    **any `WearNTear`** in its footprint (even with `m_supports = false`) and every other class still needs a piece that
+    really carries - otherwise a wall would stand on a chest.
+  - **The emergency post walks the ray down** (**in test**, fix of 11/11/2026): it stopped at the **first** hit - a roof
+    eave **0,16 m** under a floor - and refused with *"vão de 0,16 m"* **318 times**. It now skips surfaces closer than
+    **0,40 m** (`MinPostGap`, up to **4 passes**) and takes the first **usable** one
+    (`BuildSupportBelow.UsefulSurface`), so a floor 1 m above the deck gets a **1 m post**.
 - **The workbenches cover the whole site** (**in test**, 04/11/2026 - and the reason is measured): the station pass walked
   the plan but stopped after **6 searches** with only **2 benches** planned on a 32 m footprint, and the rest of the plan
   fell to the fallback that appends a bench at the **end** of the list - the middle of the house had no station in range
@@ -298,9 +311,10 @@ stopped.
 - **The run of 04/11/2026 (in test)** - two runs of the **CommHomeBasicBP** (**985** pieces, **3 companions**,
   `BlueprintFree`), the only difference being `PlaceReach` (**10** is the code default, **15** was a test config):
   - **With the default reach (10 m):** **970 placed + 15 skipped = 985** - the closing line adds up now ("970 pieces, 15
-    skipped"); `no_ground` on the ridge **~25 -> 0** (the 4 m sphere), `blocked_by_player` **17+ -> 0** (a companion no
-    longer counts as a player for placement), `log ajustado` **6** (the pose nudge acting on the chest and the bed), `no
-    progress` give-ups **58 -> 6** and **1 death**; **no piece was lost by dependency**.
+    skipped"); `no_ground` on the ridge **~25 -> 0** (the 4 m sphere), `blocked_by_player` **17+ -> 0** *in that build* (the
+    companion-ignore of 04/11 was **reverted** on 11/11 - see the correction above), `log ajustado` **6** (the pose nudge
+    acting on the chest and the bed), `no progress` give-ups **58 -> 6** and **1 death**; **no piece was lost by
+    dependency**.
   - **With `PlaceReach = 15`** (a test config; the code default is **still 10**): the main pass reached **987/987**, **972
     placed** and **0 deaths**, and the stall watchdog reported the **13 pieces left out**: **2 chests**
     (`piece_chest_wood` at -168,2 / 39,9 / -434,9, `too_steep` - the 2,5 m furniture nudge found no place), **1 workbench**
@@ -310,9 +324,14 @@ stopped.
     piece stays at **1 m**), a bench spot that **rejects a `clipping` pose**, and the group **pulling the direct support of
     a refused piece by index** (`AI/BuildSupportBelow.cs` - the window is **0,4-2,5 m below** the piece and **≤2,5 m in
     XZ**, harness section **(r)**).
-  Build 0/0, harness **562** (471 + **23** of the failure classification + **26** of the piece-kind table + **42** of the
-  support window, the last 10 of `BuildSupportBelow.CanSupport`), MCP **101** and config **361/25** (`PlaceReach`,
+  Build 0/0, harness **596** (the failure classification, the piece-kind table and the support tables of section **(r)**,
+  which grew with `CanSupport`, `HoldsPlacedPiece` and `PickPost`), MCP **101** and config **361/25** (`PlaceReach`,
   `DeckLift` and `SupportFallback` are the three keys of this cycle).
+- **The run of 11/11/2026 (5 companions, in test):** **969 placed + 18 skipped = 987** - the closing line adds up, the
+  **watchdog reported nothing** (`0 peça(s) sem apoio`), **985 of 987** stand in the site, **zero emergency posts** (the
+  roof never needed one) and the **roof is visually closed**. Harness **596**. **Honest note:** at the end the deck's
+  **1 m crawlspace trapped the player and the companions** and **41 deck-floor pieces were deleted to free them** - the
+  deck gap is **open** (decision pending: 0 m, a skirt, or a route rule).
 
 ## 1.9.6 - 02/11/2026
 
