@@ -711,10 +711,6 @@ internal static class BuildProbe
 			{
 				continue;
 			}
-			if (player.GetComponent<CompanionAI>() != null)
-			{
-				continue;   // a companion built from the player prefab: an NPC, not a player (04/11/2026)
-			}
 			if ((player.transform.position - point).sqrMagnitude < sqr)
 			{
 				return true;
@@ -725,10 +721,6 @@ internal static class BuildProbe
 			if (setup == null || ReferenceEquals(setup, ignore))
 			{
 				continue;
-			}
-			if (setup.GetComponent<CompanionAI>() != null)
-			{
-				continue;   // every companion: it is pushed aside, it does not refuse the piece (04/11/2026)
 			}
 			if ((setup.transform.position - point).sqrMagnitude < sqr)
 			{
