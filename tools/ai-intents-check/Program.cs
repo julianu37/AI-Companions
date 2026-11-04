@@ -13,9 +13,9 @@ namespace AiIntentsCheck;
 /// <summary>
 /// The word nets of the AI layer, checked <b>outside the game</b> against the real sources: ai-intents-check.csproj
 /// compiles src/Companions/AI/{LlmIntent,RadialIntent,PickupIntent,GatherIntent,InteractionIntent,OrderItems,
-/// CompanionNames,MHR_Owner,NavTileMath,BuildCatalog,BuildTemplates,BuildBlueprintParser,LevelIntent,BuildFailure}.cs
-/// and src/Companions/Core/MHR_List.cs straight into this executable, so every rule asserted here is the shipped one
-/// (Stubs.cs holds only the Unity/config members those files touch).
+/// CompanionNames,MHR_Owner,NavTileMath,BuildCatalog,BuildTemplates,BuildBlueprintParser,LevelIntent,BuildFailure,
+/// BuildPieceKind}.cs and src/Companions/Core/MHR_List.cs straight into this executable, so every rule asserted here is the
+/// shipped one (Stubs.cs holds only the Unity/config members those files touch).
 ///
 /// <para>Two of those members cannot be linked (they live in classes that need the world), so they are copies in
 /// Stubs.cs: <c>CompanionOrders.IsDoorRequest</c> and <c>CompanionOrders.JobMode</c>. Section (h) loads the built
@@ -23,7 +23,9 @@ namespace AiIntentsCheck;
 ///
 /// <para>Section (p) is the <b>support gate</b> of the build (<c>BuildFailure.Classify</c>): the pure string → class table
 /// that decides whether a piece that did not go up is waiting for the plan's own support (no attempt spent) or really
-/// failed (one of the 3 attempts).</para>
+/// failed (one of the 3 attempts). Section (q) is the other pure table of the same job
+/// (<c>BuildPieceKind.Classify</c>): structure or furniture, which is how far a piece may be moved from the plan's pose
+/// when the spot refuses it.</para>
 ///
 /// <para>Run: <c>dotnet run --project tools/ai-intents-check</c> (after <c>dotnet build Companions.sln -c Release</c>,
 /// which the cross-check reads). Exit code 0 only when every case passed and nothing was skipped.</para>
@@ -96,6 +98,8 @@ internal static class Program
 		NavTiles();
 		Section("(p) BuildFailure.Classify - o portao de apoio da obra (dependencia x falha real)");
 		BuildFailures();
+		Section("(q) BuildPieceKind.Classify - estrutura x mobilia (quanto a peca pode sair do plano)");
+		PieceKinds();
 		CrossCheckDoorRule();
 
 		Out.WriteLine();
@@ -794,6 +798,57 @@ internal static class Program
 		BuildFailure.Kind actual = BuildFailure.Classify(why, groundBelow);
 		Check("Classify(" + Show(why) + ", groundBelow=" + (groundBelow ? "true" : "false") + ") -> " + expected,
 			actual == expected, "obtido " + actual);
+	}
+
+	/// <summary>
+	/// P1 (04/11/2026): <b>structure or furniture</b> - the piece's name decides how far it may be moved from the plan's pose
+	/// when the spot refuses it (<c>too_steep</c>/<c>no_ground</c>): a structural piece (floor, wall, roof, beam, pole, stair,
+	/// door) only up to 1 m (moved further it no longer lines up with the house), furniture (a chest, a bed, a fire pit, a
+	/// workbench, a fermenter) up to the whole 2,5 m search radius. An unknown name is structural (the safe side).
+	/// </summary>
+	private static void PieceKinds()
+	{
+		// the structure - every one of them only gets the small nudge
+		KindCase("wood_floor", BuildPieceKind.Kind.Structural);
+		KindCase("wood_foundation", BuildPieceKind.Kind.Structural);
+		KindCase("woodwall", BuildPieceKind.Kind.Structural);
+		KindCase("wood_wall_half", BuildPieceKind.Kind.Structural);
+		KindCase("wood_roof_45", BuildPieceKind.Kind.Structural);
+		KindCase("wood_wall_roof_top_45", BuildPieceKind.Kind.Structural);
+		KindCase("wood_beam_45", BuildPieceKind.Kind.Structural);
+		KindCase("wood_pole2", BuildPieceKind.Kind.Structural);
+		KindCase("wood_stair", BuildPieceKind.Kind.Structural);
+		KindCase("wood_stepladder", BuildPieceKind.Kind.Structural);
+		KindCase("wood_door", BuildPieceKind.Kind.Structural);
+		KindCase("wood_gate", BuildPieceKind.Kind.Structural);
+		// the case of the measured run (04/11/2026): chests and a bed refused with too_steep and never adjusted
+		KindCase("piece_chest_wood", BuildPieceKind.Kind.Furniture);
+		KindCase("bed", BuildPieceKind.Kind.Furniture);
+		KindCase("piece_bed02", BuildPieceKind.Kind.Furniture);
+		KindCase("fire_pit", BuildPieceKind.Kind.Furniture);
+		KindCase("piece_workbench", BuildPieceKind.Kind.Furniture);
+		KindCase("fermenter", BuildPieceKind.Kind.Furniture);
+		KindCase("piece_cauldron", BuildPieceKind.Kind.Furniture);
+		// case does not matter (the prefab names come from a file somebody typed)
+		KindCase("WOOD_FLOOR", BuildPieceKind.Kind.Structural);
+		KindCase("Piece_Chest_Wood", BuildPieceKind.Kind.Furniture);
+		// nobody said what it is: the safe side (never move it); a name the vocabulary does not know is furniture (the piece
+		// still gets placed, and "furniture = everything that is not structure" is the rule)
+		KindCase("", BuildPieceKind.Kind.Structural);
+		KindCase(null, BuildPieceKind.Kind.Structural);
+		KindCase("xyz", BuildPieceKind.Kind.Furniture);
+		// the convenience form the nudge uses
+		Check("IsStructural(\"woodwall\") -> true (so 1 m no maximo)", BuildPieceKind.IsStructural("woodwall"),
+			"obtido false");
+		Check("IsStructural(\"piece_chest_wood\") -> false (vai ate 2,5 m)",
+			!BuildPieceKind.IsStructural("piece_chest_wood"), "obtido true");
+	}
+
+	/// <summary>Section (q): one piece name and the kind the nudge expects for it.</summary>
+	private static void KindCase(string prefab, BuildPieceKind.Kind expected)
+	{
+		BuildPieceKind.Kind actual = BuildPieceKind.Classify(prefab);
+		Check("Classify(" + Show(prefab) + ") -> " + expected, actual == expected, "obtido " + actual);
 	}
 
 	/// <summary>The plan of case (a)/(e) of section (m): a fresh list every call (case (e) needs two of them).</summary>

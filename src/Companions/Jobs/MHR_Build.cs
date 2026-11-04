@@ -3767,12 +3767,10 @@ internal static class MHR_Build
 			if (!Ok(check))
 			{
 				string status = check != null ? Convert.ToString(check["status"]) : "unknown";
-				// P1 (04/11/2026, measured on the 985-piece house): a GROUND piece (a chest, a bed, a fire pit) of the
-				// blueprint lands on the bank the leveling did not reach (the site is 32 m, the hoe covers 20 m) and is
-				// refused with too_steep/no_ground. Before the normal refusal it gets ONE chance at the closest valid pose
-				// around the plan's one; the piece and its plan index do not change, only the working pose.
-				if ((status == "too_steep" || status == "no_ground") && IsGroundPiece(state.Piece)
-					&& NudgeGroundPiece(ai, state, status))
+				// P1 (04/11/2026, measured on the 985-piece house): a piece refused by the SPOT (too_steep/no_ground - the bank
+				// the 32 m leveling did not reach) gets ONE chance at the closest valid pose around the plan's one, before the
+				// normal refusal; a structural piece only moves 1 m, furniture up to 2,5 m.
+				if ((status == "too_steep" || status == "no_ground") && NudgePiece(ai, state, status))
 				{
 					return true;   // the next frame re-checks (and places) at the adjusted pose
 				}
@@ -3896,33 +3894,41 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		return true;
 	}
 
-	/// <summary>P1 (04/11/2026): a piece that <b>stands on the ground</b> (<c>m_groundOnly</c> or <c>m_groundPiece</c>: a chest,
-	/// a bed, a fire pit, a workbench). Those are the ones a sloped spot refuses with <c>too_steep</c>/<c>no_ground</c> and the
-	/// ones a small adjustment of the pose can save.</summary>
-	private static bool IsGroundPiece(Piece piece)
-	{
-		return piece != null && (piece.m_groundOnly || piece.m_groundPiece);
-	}
-
 	/// <summary>
-	/// P1 (04/11/2026, measured on the 985-piece house): a <b>ground piece</b> of the blueprint lands on the bank the leveling
-	/// did not reach (the site is 32 m and the hoe works 20 m) and is refused with <c>too_steep</c>/<c>no_ground</c> - the run
-	/// lost 4 pieces there. Before the normal refusal path, the closest pose the game's own rules accept around the plan's one
-	/// is searched (<see cref="BuildSite.Find"/>: 2,5 m, 2 rings x 8 directions, ignoring the companion itself). On success the
-	/// piece keeps its plan index and prefab and only its <b>working</b> pose changes (the plan keeps the original, so a later
-	/// retry tries it from there again). The game's eye rule still applies (<see cref="MaxPlace"/>).
+	/// P1 (04/11/2026, measured on the 985-piece house): a piece refused by the <b>spot</b> (<c>too_steep</c>/<c>no_ground</c>)
+	/// gets one chance at the closest pose the game's own rules accept around the plan's one before the normal refusal path
+	/// (retry queue / refusal). The piece, its prefab and its plan index do not change - only its <b>working</b> pose (the plan
+	/// keeps the original, so a later retry tries it from there again).
+	///
+	/// <para>How far it may move depends on the piece (<see cref="BuildPieceKind"/>): a <b>structural</b> piece (floor, wall,
+	/// roof, beam, pole, stair, door) only up to <b>1 m</b> - the search is asked with that radius and the resulting XZ distance
+	/// is checked again, because a wall or a roof row 2,5 m off the plan no longer lines up with the house - while
+	/// <b>furniture</b> (a chest, a bed, a fire pit, a workbench) may go to the whole <b>2,5 m</b> radius: the blueprint's pose
+	/// for it is a suggestion. <see cref="BuildSite.Find"/> already answers <c>Ok</c> only for a <c>valid</c> pose. The game's
+	/// eye rule is still the limit (<see cref="MaxPlace"/>).</para>
 	/// </summary>
-	private static bool NudgeGroundPiece(CompanionAI ai, State state, string status)
+	private static bool NudgePiece(CompanionAI ai, State state, string status)
 	{
 		if (ai == null || state == null || state.Piece == null)
 		{
 			return false;
 		}
+		bool structural = BuildPieceKind.IsStructural(state.Prefab);
+		float radius = structural ? 1f : 2.5f;
 		Vector3 forward = state.Forward.sqrMagnitude > 0.01f ? state.Forward : ai.transform.forward;
-		BuildSiteResult site = BuildSite.Find(state.Piece, state.Pos, forward, 2.5f, 2, 8, 48, Self(ai));
+		BuildSiteResult site = BuildSite.Find(state.Piece, state.Pos, forward, radius, 2, 8, 48, Self(ai));
 		if (site == null || !site.Ok)
 		{
-			return false;
+			return false;   // no pose of the game's rules accepted: the retry queue / refusal takes over
+		}
+		if (structural)
+		{
+			float dx = site.Pos.x - state.Pos.x;
+			float dz = site.Pos.z - state.Pos.z;
+			if (dx * dx + dz * dz > 1f)
+			{
+				return false;   // a structural piece 1 m off the plan is not the same house
+			}
 		}
 		Vector3 me = ai.transform.position;
 		Vector3 eye = new Vector3(me.x, me.y + EyeHeight, me.z);

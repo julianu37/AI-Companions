@@ -65,6 +65,8 @@
     <Compile Include="..\..\src\Companions\AI\NavTileMath.cs" Link="src/AI/NavTileMath.cs" />
     <!-- P1 (04/11/2026): the classification of a placement failure (the support gate of the build) - pure string -> class -->
     <Compile Include="..\..\src\Companions\AI\BuildFailure.cs" Link="src/AI/BuildFailure.cs" />
+    <!-- P1 (04/11/2026): structure or furniture (how far a piece may move from the plan's pose) - pure name -> kind -->
+    <Compile Include="..\..\src\Companions\AI\BuildPieceKind.cs" Link="src/AI/BuildPieceKind.cs" />
     <Compile Include="..\..\src\Companions\AI\MHR_Owner.cs" Link="src\AI\MHR_Owner.cs" />
     <Compile Include="..\..\src\Companions\Core\MHR_List.cs" Link="src\Core\MHR_List.cs" />
   </ItemGroup>

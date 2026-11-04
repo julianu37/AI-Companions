@@ -1491,12 +1491,12 @@ plano** dos 9 candidatos, nivela com a enxada (passadas de 1,5 s) e só então p
   apoio voltaram, não foram puladas) e **74** linhas `sem apoio ainda ... - não gasta tentativa, volta com espera`.
 - **Navegação:** `no progress` **58 → 6** com o `PlaceReach = 10` e **mortes 5 → 0** na primeira rodada com 10 m
   (os números de comparação são os runs de 03/11, com o alcance do jogo).
-- **O que sobrou** apontou dois achados (as duas correções estão no código, **sem aceite medido ainda**):
+- **O que sobrou** apontou dois achados (as duas correções estão no código, **em teste no run de 04/11**):
   a **cumeeira em y 47,8** era recusada com `no_ground` porque o raio vertical da sonda passa pelo **vão entre as duas
-  águas** (`BuildProbe.cs:468` → `AttachedToStructure`, `:637`: `Physics.OverlapSphere` de **2,6 m** atrás de
-  `Piece`/`WearNTear`, `:45`); o **baú e a cama no barranco** eram `too_steep` e ganharam o `NudgeGroundPiece`
-  (`MHR_Build.cs:3915`: `BuildSite.Find` a **2,5 m**, 2 anéis × 8 direções, 48 candidatos, ignorando o próprio
-  companheiro — o run perdeu **4** peças ali).
+  águas** (`BuildProbe.cs:468` → `AttachedToStructure`, `:643`: `Physics.OverlapSphere` atrás de
+  `Piece`/`WearNTear`); o **baú e a cama no barranco** eram `too_steep` e ganharam o `NudgePiece`
+  (`MHR_Build.cs:3910`: `BuildSite.Find` a **2,5 m** para mobília — estrutural só **1 m** —, 2 anéis × 8 direções, 48
+  candidatos, ignorando o próprio companheiro — o run perdeu **4** peças ali).
 
 ### 17.2 O portão de apoio (`AI/BuildFailure.cs` + `MHR_Build.QueueRetry`)
 
@@ -1540,28 +1540,43 @@ plano** dos 9 candidatos, nivela com a enxada (passadas de 1,5 s) e só então p
   peça sem cobertura é nomeada com prefab e pose, separando **"nenhum lugar fora do footprint"** de **"orçamento
   esgotado (M/12 planejadas, S/32 buscas)"**.
 
-### 17.4 O validador: `attached` e `nudge`
+### 17.4 O validador: `attached`, `nudge` e o companheiro que bloqueava
 
 - **`attached`** (`BuildProbe.AttachedToStructure`, `:637`): quando o raio vertical da sonda **não acha nada**, a pose
-  ainda é aceita se houver collider de `Piece`/`WearNTear` a ≤ **2,6 m** (`AttachedRadius`, `:45`). Só roda quando o
-  raio falhou (é raro), então custa um `OverlapSphere` nas poses suspeitas. O apoio de verdade continua sendo o veredito
-  do **jogo** (`WearNTear` no `Place`/`Verify`) — o probe não inventa apoio, só não recusa por um raio que passou no vão.
-- **`nudge`** (`NudgeGroundPiece`, `:3915`): peça **de chão** (`m_groundOnly`/`m_groundPiece`: baú, cama, fogueira,
-  bancada) recusada com `too_steep`/`no_ground` ganha **uma** chance na pose válida mais próxima (`BuildSite.Find`, 2,5 m),
-  desde que caiba no `MaxPlace` (plano e olho). Só a pose de **trabalho** muda (`state.Pos`/`state.Rot`); o plano guarda
-  a original, então um retry futuro tenta de novo de lá. É a resposta ao barranco que o nivelamento não alcançou (a
-  enxada cobre 20 m e o sítio tem 32 m).
+  ainda é aceita se houver collider de `Piece`/`WearNTear` dentro de `AttachedRadius` (`:49`). Só roda quando o raio
+  falhou (é raro), então custa um `OverlapSphere` nas poses suspeitas. O apoio de verdade continua sendo o veredito do
+  **jogo** (`WearNTear` no `Place`/`Verify`) — o probe não inventa apoio, só não recusa por um raio que passou no vão.
+  **O raio era menor que o grid (04/11/2026):** com **2,6 m** a esfera não achava a vizinha do telhado — o grid de
+  telhado é de ~2 m e a peça mais próxima de uma `wood_roof_45` fica na **diagonal, a ~2,8–3,5 m**. Medido no run: o
+  `log ajustado` ficou em **0** e a cumeeira continuou presa em `no_ground`. Agora são **4,0 m** (`:49`), e o custo é o
+  mesmo (a esfera só roda quando o raio falhou).
+- **`nudge`** (`NudgePiece`, `MHR_Build.cs:3910`): **qualquer peça** recusada pelo **lugar** (`too_steep`/`no_ground`)
+  ganha **uma** chance na pose válida mais próxima (`BuildSite.Find`), desde que caiba no `MaxPlace` (plano e olho). Só
+  a pose de **trabalho** muda (`state.Pos`/`state.Rot`); o plano guarda a original, então um retry futuro tenta de novo
+  de lá. É a resposta ao barranco que o nivelamento não alcançou (a enxada cobre 20 m e o sítio tem 32 m).
+  **Até 04/11 ele só valia para peça de chão (`m_groundOnly`/`m_groundPiece`)** — e o run mostrou baús e uma cama em
+  **y 39,9** (e 43,9) recusados com `too_steep` que **nunca eram ajustados**, porque são mobília e não peça "de chão".
+  Agora o raio vem do tipo da peça (`AI/BuildPieceKind.cs`, seção **(q)** do harness): **estrutural** (piso, parede,
+  telhado, viga, pole, escada, porta, portão) só anda **≤ 1 m** — 2,5 m fora do plano e a parede/telhado não fecha com
+  a casa, e o resultado é conferido em XZ (`:3924-3932`); **mobília** (baú, cama, fogueira, bancada, fermentador) vai
+  até **2,5 m**, porque a pose dela no blueprint é **sugestão**. Nome vazio/desconhecido fica do lado seguro
+  (`Structural` para vazio, `Furniture` para nome não reconhecido — a peça ainda sobe).
+- **`blocked_by_player` era companheiro contra companheiro (04/11/2026):** o teste de personagem
+  (`BuildProbe.BlockedByCharacter`, `:705`) contava **companheiro como jogador**, e no canteiro os três trabalhavam
+  lado a lado da peça — **17+** recusas no run. Agora quem tem `CompanionAI` é **ignorado** (`:714-717` e `:729-732`):
+  o jogo **empurra** um NPC, não recusa a peça. O teste contra um **jogador de verdade** continua igual.
 
 ### 17.5 Gate do ciclo
 
-Harness **494 PASS** (471 + **23** da seção **(p)**, com `AI/BuildFailure.cs` linkado no `ai-intents-check.csproj`; a
-seção **(o)** — `NavTileMath` — já estava nas 471), MCP **101 PASS**, **config 359/25**, ES/FR/IT **0 lacunas**, dívida do
-`gen_translations.py` **45** e build **0/0**.
+Harness **520 PASS** (471 até a **(o)** + **23** da seção **(p)** — `AI/BuildFailure.cs` — + **26** da **(q)** —
+`AI/BuildPieceKind.cs`; os dois linkados no `ai-intents-check.csproj`), MCP **101 PASS**, **config 359/25**, ES/FR/IT
+**0 lacunas**, dívida do `gen_translations.py` **45** e build **0/0**.
 
 ### 17.6 O que fica pendente
 
-- **Aceite das duas correções**: a cumeeira a 47,8 m (y) e o baú/cama no barranco precisam de um run novo — o run de
-  04/11 é o que **gerou** os diagnósticos, não o que os validou.
+- **Aceite do validador está EM TESTE no run de 04/11**: o raio de 4,0 m (cumeeira a y 47,8), o `NudgePiece` universal
+  (baú/cama em y 39,9) e o companheiro fora do `blocked_by_player` (17+). O run que gerou os números **não** é o que
+  fecha essas três — o aceite é o run seguinte.
 - **Run com material pago** (sem `BlueprintFree`): o P1 nunca foi medido pagando peça por peça com 3 workers; a
   **reserva de material** continua não existindo (cada worker conta mochila+baús por conta própria → pior caso N× o
   resto do plano).

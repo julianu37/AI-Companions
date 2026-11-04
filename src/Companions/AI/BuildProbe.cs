@@ -38,11 +38,15 @@ internal static class BuildProbe
 	private const float ProbeBelow = 8f;
 	/// <summary>
 	/// P1 (04/11/2026, measured on the 985-piece house): how close to the pose a piece of the structure has to be for the
-	/// probe to accept a pose whose vertical ray found nothing. The ridge at y 47,8 had roofs/beams within 1 m while the ray
+	/// probe to accept a pose whose vertical ray found nothing. The ridge at y 47,8 had roofs/beams around it while the ray
 	/// went through the gap between the two slopes; the game accepts the piece (its own <c>WearNTear</c> support verdict is
 	/// what decides), so the probe must not refuse it for a ray that missed.
+	///
+	/// <para><b>4,0 m and not 2,6 m</b> (measured in the run of 04/11/2026: a 2,6 m sphere found nothing and the ridge stayed
+	/// <c>no_ground</c>): the roof grid is ~2 m and the nearest neighbour of a <c>wood_roof_45</c> sits on the DIAGONAL, ~2,8
+	/// to 3,5 m away. Only runs when the vertical ray missed (rare), so the cost is one overlap sphere on those poses.</para>
 	/// </summary>
-	private const float AttachedRadius = 2.6f;
+	private const float AttachedRadius = 4f;
 
 	private static int _placeMask = -1;
 	private static int _waterMask = -1;
@@ -688,21 +692,45 @@ internal static class BuildProbe
 		return false;
 	}
 
-	/// <summary>A player or a companion inside <see cref="MinSpacing"/> of the spot (the vanilla ghost check, cheap
-	/// version: the game tests the ghost's colliders against every character within 30 m).</summary>
+	/// <summary>
+	/// A player inside <see cref="MinSpacing"/> of the spot (the vanilla ghost check, cheap version: the game tests the ghost's
+	/// colliders against every character within 30 m).
+	///
+	/// <para>P1 (04/11/2026, measured: <b>17+</b> <c>blocked_by_player</c> in a run of 3 companions on the same site): a
+	/// <b>companion is not a player</b> for placement - the game pushes an NPC out of the way instead of refusing the piece,
+	/// and the workers stand right next to the piece they are building. Any character that has a
+	/// <see cref="CompanionAI"/> is ignored (the one placing the piece is already the caller's
+	/// <paramref name="ignore"/>; the others must not block it). The test against a real player is unchanged.</para>
+	/// </summary>
 	private static bool BlockedByCharacter(Vector3 point, Component ignore)
 	{
 		float sqr = MinSpacing * MinSpacing;
 		foreach (Player player in Player.GetAllPlayers())
 		{
-			if (player != null && !ReferenceEquals(player, ignore) && (player.transform.position - point).sqrMagnitude < sqr)
+			if (player == null || ReferenceEquals(player, ignore))
+			{
+				continue;
+			}
+			if (player.GetComponent<CompanionAI>() != null)
+			{
+				continue;   // a companion built from the player prefab: an NPC, not a player (04/11/2026)
+			}
+			if ((player.transform.position - point).sqrMagnitude < sqr)
 			{
 				return true;
 			}
 		}
 		foreach (CompanionSetup setup in CompanionSetup.AllCompanions)
 		{
-			if (setup != null && !ReferenceEquals(setup, ignore) && (setup.transform.position - point).sqrMagnitude < sqr)
+			if (setup == null || ReferenceEquals(setup, ignore))
+			{
+				continue;
+			}
+			if (setup.GetComponent<CompanionAI>() != null)
+			{
+				continue;   // every companion: it is pushed aside, it does not refuse the piece (04/11/2026)
+			}
+			if ((setup.transform.position - point).sqrMagnitude < sqr)
 			{
 				return true;
 			}

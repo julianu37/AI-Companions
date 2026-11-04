@@ -10,12 +10,12 @@ estagnação**, a **cobertura de bancadas** e o validador (`attached`/`nudge`) �
 **medida em jogo** em 03/11/2026) fechados; **P3** (UI do grupo), **P4** (nomes múltiplos) e **P5**
 (persistência/limpeza paralela) **não**.
 
-Números deste ciclo (04/11/2026): build **0/0**, harness `tools/ai-intents-check` **494 asserções** (471 + **23** da
-seção **(p)**, com `AI/BuildFailure.cs` linkado — o portão de apoio é puro e testado), teste do MCP **101** (as **12**
-asserções de 03/11 cobrem o contrato do `companions.build` do grupo), config **359 opções / 25 seções**, ES/FR/IT
-**0 lacunas**, dívida do `gen_translations.py` **45** e **nenhuma chave de tradução nova** (as recusas reusam
-`hc_ai_no_companion` e `hc_ai_build_failed`). **O que falta medir** está no §7 (run com material pago e o aceite das
-duas correções do validador).
+Números deste ciclo (04/11/2026): build **0/0**, harness `tools/ai-intents-check` **520 asserções** (471 + **23** da
+seção **(p)**, `AI/BuildFailure.cs`, + **26** da **(q)**, `AI/BuildPieceKind.cs` — os dois puros e linkados), teste do
+MCP **101** (as **12** asserções de 03/11 cobrem o contrato do `companions.build` do grupo), config **359 opções / 25
+seções**, ES/FR/IT **0 lacunas**, dívida do `gen_translations.py` **45** e **nenhuma chave de tradução nova** (as
+recusas reusam `hc_ai_no_companion` e `hc_ai_build_failed`). **O que falta medir** está no §7 (run com material pago; o
+aceite do validador está **em teste** no run de 04/11).
 
 ## 1. O que existe hoje (medido no código)
 
@@ -225,10 +225,13 @@ teste mock do MCP (**101 PASS**, **12 asserções novas para o contrato do grupo
    `WaitGroup`/`WaitRetry`, líder que nivela/limpa e **é promovido quando sai**, `PlanLocked`, bancada anexada ao fim,
    uma obra por jogador, anti-duplicata, `BlueprintWorkers` (sem nome = todos), `SetThenWorkers`/`NoteLeveled` (o
    **nivelamento devolve o grupo inteiro**) e o `companions.build` do bridge. O ciclo de 04/11 acrescentou o **portão
-   de apoio** (`BuildFailure`, dependência não gasta tentativa), o **watchdog de 60 s** e a **cobertura de bancadas**
-   (12/32, fora do footprint, no terreno). **Medido:** ~957/985, 0 descartadas por dependência, `no progress` 58 → 6,
-   mortes 5 → 0. **Aberto:** a **reserva de material** (`Stock` — cada worker conta o canteiro por conta própria), um
-   run com **material pago** e o aceite das duas correções do validador (cumeeira `attached`, baú/cama `nudge`).
+   de apoio** (`BuildFailure`, dependência não gasta tentativa), o **watchdog de 60 s**, a **cobertura de bancadas**
+   (12/32, fora do footprint, no terreno) e o **validador ampliado**: `AttachedToStructure` a **4,0 m** (era 2,6 — o
+   grid do telhado tem ~2 m e a vizinha fica na diagonal, a ~2,8–3,5 m), **`NudgePiece` universal** (qualquer peça com
+   `too_steep`/`no_ground`: **estrutural ≤ 1 m**, **mobília até 2,5 m**, por `BuildPieceKind`) e `blocked_by_player`
+   **sem contar companheiro** (`BlockedByCharacter` ignora quem tem `CompanionAI` — eram 17+ no run). **Medido:**
+   ~957/985, 0 descartadas por dependência, `no progress` 58 → 6, mortes 5 → 0; **validador em teste**. **Aberto:** a
+   **reserva de material** (`Stock` — cada worker conta o canteiro por conta própria) e um run com **material pago**.
 3. **P2 — navmesh/latência — MEDIDO EM JOGO (implementado e testado em 03/11/2026):** (a) **medido o `why`** do run de 03/11/2026:
    **36 `no progress`**, 17 `no_support`, 9 `no_ground`, 6 `too_steep` — os 36 **não** são "tile invisível": são o
    `SnapToNavMesh` (1,5/3/6/12 m) mandando o alvo para o chão sob o piso, com a trava de 12 s do `Goto` queimando;
@@ -294,9 +297,11 @@ detalhe está em `docs/re/building-notes.md` §17:
 **Falta medir:**
 1. **Run com material pago** (sem `BlueprintFree`): 3 workers pagando peça por peça — é onde a falta de reserva de
    material aparece (o pior caso documentado é N× o resto do plano, com até 3 coletando ao mesmo tempo).
-2. **Aceite das duas correções do validador:** a cumeeira a **y 47,8** (`no_ground` falso negativo → `attached`,
-   `BuildProbe.AttachedToStructure` 2,6 m) e o **baú/cama no barranco** (`too_steep` → `nudge`, `BuildSite.Find` 2,5 m).
-   O run de 04/11 é o que **gerou** os diagnósticos — o aceite é um run novo.
+2. **Aceite do validador — EM TESTE no run de 04/11:** a cumeeira a **y 47,8** (`no_ground` falso negativo →
+   `attached` com `AttachedRadius` **4,0 m**), o **baú/cama no barranco** (`too_steep` → `NudgePiece` universal:
+   estrutural ≤ 1 m, mobília até 2,5 m, via `BuildPieceKind`) e o **`blocked_by_player`** de companheiro contra
+   companheiro (`BlockedByCharacter` ignora `CompanionAI`; 17+ no run). O run de 04/11 **gerou** os diagnósticos — o
+   aceite é o run seguinte.
 3. **2 companheiros num 6x6 (46 peças)** — o teste pequeno que fecha a mecânica sem o ruído de uma casa de 985 peças:
    as duas entram com a ordem sem nome, uma nivela/limpa, as duas constroem, "para" para as duas, matar uma não para a
    outra, e com nome só aquela começa.
@@ -305,7 +310,7 @@ detalhe está em `docs/re/building-notes.md` §17:
 "para, Maria" → só a Maria; "para" → todos; "Maria e João, ataquem o greydwarf" → as duas; "Maria, equipa a
 picareta" → só a Maria; "Maria e o cachorro, ..." → Maria + aviso do desconhecido, sem inventar.
 
-**Gate:** harness **494** (471 + 23 da seção **(p)**), MCP **101** e build **0/0**.
+**Gate:** harness **520** (471 + 23 da seção **(p)** + 26 da **(q)**), MCP **101** e build **0/0**.
 
 ## 8. Perguntas para o jogador — respostas registradas (03/11/2026)
 
@@ -330,6 +335,10 @@ picareta" → só a Maria; "Maria e o cachorro, ..." → Maria + aviso do descon
   `LevelOrder`, `IsNotAddressee`; o cancelamento de build de qualquer outra ordem (`:229-240`).
 - `AI/BuildFailure.cs` — **o portão de apoio** (04/11/2026): `Classify`/`IsDependency` puros (a tabela da seção **(p)**
   do harness), sem Unity e sem config; o mundo entra por `MHR_Build.GroundUnder` (`:543`).
+- `AI/BuildPieceKind.cs` — **estrutural × mobília** (04/11/2026, seção **(q)** do harness): `Classify`/`IsStructural`
+  por nome do prefab; decide o raio do `NudgePiece` (**1 m** × **2,5 m**) em `MHR_Build.cs:3916-3932`.
+- `AI/BuildProbe.cs` — `AttachedRadius` **4,0 m** (`:49`, `AttachedToStructure` em `:637`) e
+  `BlockedByCharacter` (`:705`: companheiro com `CompanionAI` não conta como jogador).
 - `Jobs/MHR_Level.cs` — `SetThenWorkers` (`:138`) e a retomada com `GroupWorkers`/`NoteLeveled` (`:467-497`).
 - `AI/BuildExecutor.cs` — `PlacedRadius`/`PlacedYaw` e `VerifyAt` (`:65-68`, `:278`).
 - `DevBridge/Commands.cs` — `CompanionsBuild` (o ramo do blueprint, `:1107-1193`).

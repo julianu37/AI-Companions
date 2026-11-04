@@ -252,8 +252,8 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   pior caso: N× o resto do plano, com até **3 coletando ao mesmo tempo** — o `Stock` é a metade aberta do P1); grupo
   só de **blueprint**; **em memória** (não persiste); "para" = todos, "para, <nome>" = um, um modo num companheiro
   tira só ele; nivelar/limpar com **um** (P5). **Nenhuma** chave de tradução nova (reusa `hc_ai_no_companion` e
-  `hc_ai_build_failed`) — harness **494** (471 + 23 da seção **(p)**), MCP **101** (as **12 asserções de 03/11/2026**
-  cobrem o contrato do grupo: `workers`, `refused` e `name` vazio = todos), config **359/25**.
+  `hc_ai_build_failed`) — harness **520** (471 + 23 da seção **(p)** + 26 da **(q)**), MCP **101** (as **12** asserções
+  de 03/11/2026 cobrem o contrato do grupo: `workers`, `refused` e `name` vazio = todos), config **359/25**.
   **Medido em jogo (04/11/2026, `CommHomeBasicBP`, 3 companheiros, `BlueprintFree = true`, `PlaceReach = 10`):**
   ~**957/985** colocadas, **0** peças descartadas por dependência (**74** `sem apoio ainda ... não gasta tentativa`),
   `no progress` **58 → 6** e mortes **5 → 0** com o alcance de 10 m; o grupo distribuiu o plano por índices
@@ -263,13 +263,16 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   algo embaixo** = dependência, espera **8/12/20/25 s**, não gasta tentativa, nunca conta como pulada; o resto gasta
   uma das 3), o **watchdog de 60 s** sem peça subir (`StallSeconds`, do `LastProgressAt` do canteiro) e a **cobertura
   de bancadas** (`MaxPlannedBenches` 8 → **12**, `MaxBenchSearches` 6 → **32**, âncoras **fora do footprint** e no
-  **terreno**, até 4 por peça, resumo `station: N precisam, M planejadas, K sem cobertura`). O que sobrou no run
-  virou o **validador**: `AttachedToStructure` no probe (**2,6 m** de `OverlapSphere`, só quando o raio vertical falha
-  — a cumeeira a y 47,8 era `no_ground` falso negativo) e **`NudgeGroundPiece`** (`too_steep`/`no_ground` de peça de
-  chão → a pose válida mais próxima por `BuildSite.Find` 2,5 m, mudando só a pose de trabalho). Detalhe medido em
-  `docs/re/building-notes.md` §17. **Falta medir:** run com material pago (a reserva por peça não existe) e o aceite
-  das duas correções do validador (o run de 04/11 gerou o diagnóstico, não o fechou); o teste pequeno de 2 companheiros
-  num 6x6 segue como receita barata em `docs/plan-multi-build.md` §7.
+  **terreno**, até 4 por peça, resumo `station: N precisam, M planejadas, K sem cobertura`). **O validador (lote de
+  04/11/2026, em teste no run):** `AttachedToStructure` com **4,0 m** de `OverlapSphere` (2,6 m não achava a vizinha
+  do telhado, que fica a ~2,8–3,5 m na diagonal — medido: `log ajustado` = 0 e a cumeeira presa em `no_ground`);
+  **`NudgePiece` universal** (qualquer peça com `too_steep`/`no_ground`, não só mobília de chão) com raio por tipo via
+  `BuildPieceKind` — **estrutural ≤ 1 m**, **mobília até 2,5 m** (baú/cama em y 39,9 eram mobília e nunca eram
+  ajustados); e `blocked_by_player` **não conta companheiro como jogador** (`BlockedByCharacter` pula quem tem
+  `CompanionAI`: a peça é empurrada, não recusada — **17+** no run de 3 companheiros). Detalhe medido em
+  `docs/re/building-notes.md` §17. **Falta medir:** run com material pago (a reserva por peça não existe); o **aceite
+  do validador está em teste** no run de 04/11 (a cumeeira, o baú/cama e o `blocked_by_player`); o teste pequeno de 2
+  companheiros num 6x6 segue como receita barata em `docs/plan-multi-build.md` §7.
 - **Pendências conhecidas (abertas):** (1) navegação no andar em obra; (2) a voz não passa pelo mixer do jogo (só
   `[AI] TtsVolume`); (3) sync com o upstream `main` (1.5.8) em dia — conferir antes de cada release; (4) o nome do
   companheiro no centro do radial (cosmético); (5) posse do ZDO no spawn em multiplayer dedicado; (6) a dívida de
@@ -436,14 +439,15 @@ comandos de console e spawna coisas, então não é feature de jogador.
 - **Testar:** `python tools/mcp-devbridge/test_mcp_devbridge.py` (mock, sem jogo) — **101 checks** (as **12** novas de
   03/11/2026 cobrem o contrato do `companions.build` do grupo: `workers`, `refused` só quando recusa e `name` vazio =
   todos).
-- **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check` — **494 asserções** das redes por
+- **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check` — **520 asserções** das redes por
   palavras (`RadialIntent`, `PickupIntent`, `GatherIntent`, `InteractionIntent`, `LlmIntent`, `OrderItems`,
   `CompanionNameMatch`) e das tabelas puras (`NavTileMath` na **(o)**, `BuildFailure.Classify` na **(p)** — 23 casos,
-  `AI/BuildFailure.cs` linkado) com os `.cs` reais linkados, mais o cross-check das cópias do `Stubs.cs` contra a
+  `AI/BuildFailure.cs` e `BuildPieceKind` na **(q)** — 26 casos, `AI/BuildPieceKind.cs`; os dois linkados no
+  `.csproj`) com os `.cs` reais linkados, mais o cross-check das cópias do `Stubs.cs` contra a
   `Companions.dll` (seção (h) — impede drift). Build 0/0 e exit 0 são o gate.
 - **Gate de release:** `powershell -ExecutionPolicy Bypass -File tools\release-check.ps1 -Version <versão>` — roda o
   build, a versão (`PluginVersion` × nome do zip), as 3 traduções, o `locale-fallback-check.ps1` (agora com asserts),
-  o `gen_config_doc.py --check`, o teste do MCP (101) e as 494 asserções; **PASS/FAIL por item e exit 1**. É o que tem
+  o `gen_config_doc.py --check`, o teste do MCP (101) e as 520 asserções; **PASS/FAIL por item e exit 1**. É o que tem
   de passar antes de tag/zip (`-SkipGame`/`-SkipIntents` para rodar parte).
 - **Docs:** `docs/mcp-devbridge.md` (arquitetura, protocolo, as **60** ferramentas, a receita de **jogar pelo agente**
   e a de **comandos de console**, e as evidências dos testes da 1.9.4) e `tools/mcp-devbridge/README.md`
