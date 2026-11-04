@@ -226,8 +226,8 @@ stopped.
   yet, so the same stack may be counted twice and they can gather more than the plan needs), the group lives **in
   memory** (it is **not in the save**), and the group is **blueprints only** - a single piece and a template still have
   one companion on them. Build 0/0 and the harness at **596 assertions** pass (the failure classification, the piece-kind
-  table and the growing support tables of section **(r)**); **in test** - the numbers of the 11/11/2026 run end this
-  cycle.
+  table and the growing support tables of section **(r)**); **in test** - the numbers of **Run 6** and **Run 7** of
+  11/11/2026 end this cycle.
   - **New `[Building] PlaceReach`** (**in test**): how far the companion may place a piece **once it is stuck** - it
     keeps walking to the piece as before, and only after **3 s without getting closer** does it place from farther
     away, up to this distance (float, default **10**, range **5–20**). `5` is the game's own reach
@@ -305,13 +305,16 @@ stopped.
     **any `WearNTear`**) **for safety**, but the flag is not the reason and, with the measured values, the bypass is a
     **no-op**. The **13 roof pieces** refused for five runs were **geometry**: the row below sits **~2 m away on the
     diagonal**, outside the grown collider box of the piece above.
-  - **What the 11/11 run actually hit: a 0.6 m step between floors** (**in test**, fix of 11/11/2026): the retry stalled
-    repeating the same `wood_floor` (plan indices **297/298/304**) with **950 of 987** pieces up - **8 `wood_floor`** at
-    y **40.4/41.4**, a **0.6 m** step above the deck, plus the **12 chests** standing on them, all refused with
-    `no_support`. The refusal **was right**: 0.6 m is **4x** the game's 0.15 m, so placing them would only have the game
-    drop them. The fix now in test is in the emergency post: `PickPost` takes `MaxOverlap` **0.35 -> 0.45** (a 1 m beam
-    crossing the board still counts - in the game support is collider **overlap**, not contact) and a **solid without
-    `WearNTear`** (stone, a tree, a structure) counts as support again, as it does in the game.
+  - **What Run 7 hit: a 0.6 m step between floors** (**in test**, fix of 11/11/2026): the run of 11/11 **with
+    `HoldsPlacedPiece`** already in place and the **position guard** active (the player stayed **outside the site the
+    whole run**, at **(-166.92, 39.92, -401.59)**) went up to **950 of 987** pieces and **stalled in the retry**,
+    repeating the same `wood_floor` (plan indices **297/298/304**) - **8 `wood_floor`** at y **40.4/41.4**, a **0.6 m**
+    step above the deck, plus the **12 chests** standing on them, all refused with `no_support` (**0 deaths**, and the
+    stall watchdog never named those pieces). The refusal **was right**: 0.6 m is **4x** the game's 0.15 m, so placing
+    them would only have the game drop them. The fix now in test is in the emergency post: `PickPost` takes `MaxOverlap`
+    **0.35 -> 0.45** (a 1 m beam crossing the board still counts - in the game support is collider **overlap**, not
+    contact) and a **solid without `WearNTear`** (stone, a tree, a structure) counts as support again, as it does in the
+    game.
   - **The emergency post walks the ray down** (**in test**, fix of 11/11/2026): it stopped at the **first** hit - a roof
     eave **0,16 m** under a floor - and refused with *"vão de 0,16 m"* **318 times**. It now skips surfaces closer than
     **0,40 m** (`MinPostGap`, up to **4 passes**) and takes the first **usable** one
@@ -343,11 +346,13 @@ stopped.
   Build 0/0, harness **596** (the failure classification, the piece-kind table and the support tables of section **(r)**,
   which grew with `CanSupport`, `HoldsPlacedPiece` and `PickPost`), MCP **101** and config **361/25** (`PlaceReach`,
   `DeckLift` and `SupportFallback` are the three keys of this cycle).
-- **The run of 11/11/2026 (5 companions, in test):** **969 placed + 18 skipped = 987** - the closing line adds up, the
-  **watchdog reported nothing** (`0 peça(s) sem apoio`), **985 of 987** stand in the site, **zero emergency posts** (the
-  roof never needed one) and the **roof is visually closed**. Harness **596**. **Honest note:** at the end the deck's
-  **1 m crawlspace trapped the player and the companions** and **41 deck-floor pieces were deleted to free them** - the
-  deck gap is **open** (decision pending: 0 m, a skirt, or a route rule).
+- **Run 6 of 11/11/2026 (5 companions, before `HoldsPlacedPiece`, in test):** **969 placed + 18 skipped = 987** - the
+  closing line adds up, the **watchdog reported nothing** (`0 peça(s) sem apoio`), **985 of 987** stand in the site,
+  **zero emergency posts** (the roof never needed one), the **roof is visually closed** and **1 death**. **Run 7** (the
+  bullet above) came after it, with `HoldsPlacedPiece` and the same 5 companions. Harness **596**.
+  **Honest note:** at the end the deck's **1 m crawlspace trapped the player and the companions** and **41 deck-floor
+  pieces were deleted after that run** (**25 + 16**) to free them - the deck gap is **open** (decision pending: 0 m, a
+  skirt, or a route rule).
 
 ## 1.9.6 - 02/11/2026
 
