@@ -561,12 +561,12 @@ public class ConfigPanel : MonoBehaviour
 			{
 				Hide();
 			}
-			else if ((CompanionAiPanel.Instance == null || !CompanionAiPanel.Instance.IsVisible) && !CompanionAppearancePanel.IsOpen
-				&& !CompanionBuildPanel.IsOpen)
+			// Fase 3.7: never on top of the AI panel (the AI panel refuses to open while this one is visible).
+			// Fase 3.20: nor on top of the appearance editor, which is opened from that panel.
+			// 11/11/2026: nor on top of any other window of the mod - one list, in ModUiLayers (the build panel, the
+			// starter picker, a companion's own window, the shrine menu...). The wheel is not a window and is left out.
+			else if (!ModUiLayers.AnyWindowOpen)
 			{
-				// Fase 3.7: never on top of the AI panel (the AI panel refuses to open while this one is visible).
-				// Fase 3.20: nor on top of the appearance editor, which is opened from that panel.
-				// 11/11/2026: nor on top of the build panel (which refuses to open while this one is visible).
 				Show();
 			}
 		}

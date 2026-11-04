@@ -698,7 +698,11 @@ public class CompanionInteract : MonoBehaviour
 		}
 		// 1.5.44 (issue #17): the stance keys
 		MHR_StanceKeys.Tick(localPlayer);
-		if (CompanionRadialMenu.Instance != null && CompanionRadialMenu.Instance.IsVisible)
+		// 11/11/2026 (the player): the direct command key is inert while <b>any</b> UI of the mod is on screen - with the
+		// build panel, the AI panel, F8, the wheel (this check was the wheel only) or an aiming overlay open the player is
+		// inside a UI, not playing, and a "z" there would send the companions off from inside it. The text-box case is
+		// covered above; the list of windows lives in ModUiLayers, never here.
+		if (ModUiLayers.AnyOpen)
 		{
 			_holdActive = false;
 			return;

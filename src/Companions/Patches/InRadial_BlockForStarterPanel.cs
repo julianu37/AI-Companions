@@ -19,38 +19,10 @@ internal static class InRadial_BlockForStarterPanel
 		{
 			return;
 		}
-		StarterCompanionPanel instance = StarterCompanionPanel.Instance;
-		if (instance != null && instance.IsVisible)
-		{
-			__result = true;
-			return;
-		}
-		ConfigPanel instance2 = ConfigPanel.Instance;
-		if (instance2 != null && instance2.IsVisible)
-		{
-			__result = true;
-			return;
-		}
-		HomeZonePanel instance3 = HomeZonePanel.Instance;
-		if (instance3 != null && instance3.IsVisible)
-		{
-			__result = true;
-			return;
-		}
-		CompanionAiPanel instance4 = CompanionAiPanel.Instance;
-		if (instance4 != null && instance4.IsVisible)
-		{
-			__result = true;
-			return;
-		}
-		// 11/11/2026: the build panel (a window of the same band)
-		if (CompanionBuildPanel.IsOpen)
-		{
-			__result = true;
-			return;
-		}
-		// Fase 3.20: the appearance editor (a modal window of its own, above the AI panel)
-		if (CompanionAppearancePanel.IsOpen)
+		// 11/11/2026: one list for every window of the mod (ModUiLayers.AnyWindowOpen) - the same answer the panels, the
+		// voice key and the command key read. Winning this fake keeps the game's own windows (inventory, menu) from
+		// opening over ours. The farm zone placer is not here: it is aimed while walking (see ModUiLayers).
+		if (ModUiLayers.AnyWindowOpen)
 		{
 			__result = true;
 		}

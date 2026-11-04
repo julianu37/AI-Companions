@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using BepInEx.Configuration;
@@ -43,8 +43,9 @@ namespace Companions;
 /// <c>Player.TakeInput</c> and <c>PlayerController.TakeInput</c> guards plus <see cref="VoiceInput"/>), and it refuses
 /// to <b>open</b> over a window that owns the mouse and the keyboard (the inventory, the map, the menu, the text input,
 /// the console, the store, the chat with focus, the mod's F8/AI/starter/home/appearance windows and the wheel) - while
-/// the F8 and the AI panels refuse to open over this one. The wheel closes itself with <b>B</b>, the same key, so
-/// <see cref="CompanionRadialMenu.LastKeyCloseFrame"/> keeps the panel of opening on that very frame.</para>
+/// the F8 and the AI panels refuse to open over this one. The wheel closes itself with <b>Esc</b> (and the pad's B);
+/// the keyboard <b>B</b> belongs to this panel alone ("one key, one owner"), so <see cref="CompanionRadialMenu.LastKeyCloseFrame"/>
+/// is only a guard for the pad path.</para>
 /// </summary>
 internal sealed class CompanionBuildPanel : MonoBehaviour
 {
@@ -478,9 +479,9 @@ internal sealed class CompanionBuildPanel : MonoBehaviour
 
 	/// <summary>
 	/// May the panel open right now? The same windows the AI panel refuses, plus the wheel (it is above the panels in
-	/// the band of <see cref="ModUiLayers"/> and closes itself) and the frame guard below: the wheel closes itself with
-	/// <b>B</b>, so without <see cref="CompanionRadialMenu.LastKeyCloseFrame"/> a single press would close the wheel and
-	/// open this panel at once.
+	/// the band of <see cref="ModUiLayers"/> and closes itself with <b>Esc</b>/pad B) and the frame guard below: on the
+	/// pad a single press could close the wheel and open this panel at once, so <see cref="CompanionRadialMenu.LastKeyCloseFrame"/>
+	/// keeps them apart.
 	/// </summary>
 	private bool CanOpen()
 	{

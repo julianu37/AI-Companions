@@ -11,50 +11,10 @@ internal static class TakeInput_BlockForCompanionUI
 		{
 			return;
 		}
-		StarterCompanionPanel instance = StarterCompanionPanel.Instance;
-		if (instance != null && instance.IsVisible)
-		{
-			__result = false;
-			return;
-		}
-		ConfigPanel instance2 = ConfigPanel.Instance;
-		if (instance2 != null && instance2.IsVisible)
-		{
-			__result = false;
-			return;
-		}
-		CompanionInteractPanel instance3 = CompanionInteractPanel.Instance;
-		if (instance3 != null && instance3.IsVisible)
-		{
-			__result = false;
-			return;
-		}
-		CompanionRadialMenu instance4 = CompanionRadialMenu.Instance;
-		if (instance4 != null && instance4.IsVisible)
-		{
-			__result = false;
-			return;
-		}
-		HomeZonePanel instance5 = HomeZonePanel.Instance;
-		if (instance5 != null && instance5.IsVisible)
-		{
-			__result = false;
-			return;
-		}
-		CompanionAiPanel instance6 = CompanionAiPanel.Instance;
-		if (instance6 != null && instance6.IsVisible)
-		{
-			__result = false;
-			return;
-		}
-		// 11/11/2026: the build panel (a window of the same band)
-		if (CompanionBuildPanel.IsOpen)
-		{
-			__result = false;
-			return;
-		}
-		// Fase 3.20: the appearance editor (a modal window of its own, above the AI panel)
-		if (CompanionAppearancePanel.IsOpen)
+		// 11/11/2026: one list for every UI of the mod (ModUiLayers) - the same answer the panels, the voice key and the
+		// command key read. The wheel is not a window, so it is asked apart; the farm zone placer is left out on purpose
+		// (it is aimed while the player still walks).
+		if (ModUiLayers.WheelOpen || ModUiLayers.AnyWindowOpen)
 		{
 			__result = false;
 		}
