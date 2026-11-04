@@ -186,8 +186,9 @@ WAIT = re.compile(
     r"^dispersão: (?P<skipped>\d+) adiada\(s\), (?P<resumed>\d+) retomada\(s\) \u00b7 "
     r"step-aside: (?P<asked>\d+) pedido\(s\) \u00b7 espera: (?P<total>-?[\d.,]+) s "
     r"\(barreira (?P<barrier>-?[\d.,]+) s em (?P<holds>\d+) retenção\(ões\) "
-    r"(?P<body>-?[\d.,]+) corpo/(?P<dep>-?[\d.,]+) dependência, fila (?P<queue>-?[\d.,]+) s, "
-    r"passo (?P<aside>-?[\d.,]+) s, portão (?P<gate>\d+)\)")
+    r"(?P<body>-?[\d.,]+) corpo/(?P<dep>-?[\d.,]+) dependência, "
+    r"fila (?P<queue>-?[\d.,]+) s(?: \(fim (?P<queue_end>-?[\d.,]+) s, meio (?P<queue_ahead>-?[\d.,]+) s\))?, "
+    r"passo (?P<aside>-?[\d.,]+) s, portão (?P<gate>\d+)(?: \((?P<gate_seconds>-?[\d.,]+) s\))?\)")
 # detalhe da dispersao (so com LogDetailed) :1189
 SPREAD_DETAIL = re.compile(r"^dispersão: a peça (?P<i>\d+)/(?P<n>\d+) fica para depois - pegando ")
 # a linha do Finish com `espera:` que o WAIT acima nao entendeu (o formato mudou?): nao perde em
@@ -424,6 +425,7 @@ def finalize(block, index, barrier_seconds):
                 row = wait_by_worker[w] = {
                     "worker": w, "total": 0.0, "barrier": 0.0, "body": 0.0,
                     "dependency": 0.0, "queue": 0.0, "aside": 0.0, "holds": 0, "gate": 0,
+                    "queue_end": 0.0, "queue_ahead": 0.0, "gate_seconds": 0.0,
                 }
             row["total"] += num(data["total"])
             row["barrier"] += num(data["barrier"])
@@ -433,6 +435,12 @@ def finalize(block, index, barrier_seconds):
             row["aside"] += num(data["aside"])
             row["holds"] += int(data["holds"])
             row["gate"] += int(data["gate"])
+            # 11/11/2026 (Run 19): the fields of the single-clock barrier - the two halves of the queue
+            # (end of plan x middle of plan) and the seconds the gate itself held. Absent on the older
+            # format (Run 18 and before), so they default to 0 instead of breaking the line.
+            row["queue_end"] += num(data.get("queue_end") or 0)
+            row["queue_ahead"] += num(data.get("queue_ahead") or 0)
+            row["gate_seconds"] += num(data.get("gate_seconds") or 0)
             sp = spread_workers.setdefault(w, {
                 "skipped": 0, "resumed": 0, "aside_asked": 0, "lines": 0,
             })
@@ -464,6 +472,9 @@ def finalize(block, index, barrier_seconds):
             "aside": round(row["aside"], 1),
             "holds": row["holds"],
             "gate": row["gate"],
+            "queue_end": round(row["queue_end"], 1),
+            "queue_ahead": round(row["queue_ahead"], 1),
+            "gate_seconds": round(row["gate_seconds"], 1),
         })
     wait_total = {
         "total": round(sum(r["total"] for r in wait_rows), 1),
@@ -474,6 +485,9 @@ def finalize(block, index, barrier_seconds):
         "aside": round(sum(r["aside"] for r in wait_rows), 1),
         "holds": sum(r["holds"] for r in wait_rows),
         "gate": sum(r["gate"] for r in wait_rows),
+        "queue_end": round(sum(r["queue_end"] for r in wait_rows), 1),
+        "queue_ahead": round(sum(r["queue_ahead"] for r in wait_rows), 1),
+        "gate_seconds": round(sum(r["gate_seconds"] for r in wait_rows), 1),
     }
 
     return {
@@ -657,6 +671,9 @@ def print_order(o, total_orders, out):
               "medido;" % (t["holds"], f1(o["wait"]["barrier_seconds"]),
                            f1(o["wait"]["holds_cap_s"])), file=out)
         print("   o tempo medido é a coluna \"espera\", somada por frame pelo próprio mod)", file=out)
+        # 11/11/2026 (Run 19): the queue split and the gate's own seconds (fields of the run 19+ line)
+        print("   fila por metade: fim de plano %s s | meio de plano %s s | portão %s s em %d retenção(ões)"
+              % (f1(t["queue_end"]), f1(t["queue_ahead"]), f1(t["gate_seconds"]), t["gate"]), file=out)
     else:
         if not o["wait"]["unparsed"]:
             print("   nenhuma linha \"espera:\" nesta ordem (a linha só sai quando algum contador é > 0)",
@@ -695,11 +712,14 @@ def print_order(o, total_orders, out):
         print("   distribuição: %s (%d recusa(s))" % (", ".join(parts), total_retry), file=out)
     print("", file=out)
     print(" RESUMO: %s | %s peças | done %d | puladas %d | mortes %d | [Build] %d | "
-          "linhas/peça %s | espera %s s | retenções %d | step-aside %d | %s"
+          "linhas/peça %s | espera %s s (fila %s: fim %s/meio %s, portão %s s) | retenções %d | "
+          "step-aside %d | %s"
           % (o["label"], o["plan"], o["placed"], o["skipped_counter"], o["deaths"],
              o["build_lines"],
              f2(o["lines_per_piece"]) if o["lines_per_piece"] is not None else "-",
-             f1(o["wait"]["total"]["total"]), o["wait"]["total"]["holds"],
+             f1(o["wait"]["total"]["total"]), f1(o["wait"]["total"]["queue"]),
+             f1(o["wait"]["total"]["queue_end"]), f1(o["wait"]["total"]["queue_ahead"]),
+             f1(o["wait"]["total"]["gate_seconds"]), o["wait"]["total"]["holds"],
              o["spread"]["aside_asked"], status_text(o)), file=out)
 
 
