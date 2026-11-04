@@ -60,6 +60,51 @@ internal static class BuildSupportBelow
 	}
 
 	/// <summary>
+	/// P1 (04/11/2026, measured: the emergency post of the deck run was planted with its CENTRE 1 m under the piece, so a
+	/// piece 1 m above the ground got a 2 m post buried 1 m deep and the game refused the post itself with
+	/// <c>no_support</c>): which of the available posts reaches a gap? Returns the <b>index</b> of the shortest post that
+	/// does, or -1 (nothing that reaches it: the caller does not plant one - stacking would be needed).
+	///
+	/// <para><paramref name="lengths"/> are the real lengths of the posts this mod can build, measured from each prefab's own
+	/// snap points (0 or less = the prefab is not in this game and is skipped). A post <b>reaches</b> when it is at most
+	/// <see cref="ShortTolerance"/> shorter than the gap (the game's support box is grown by 0,15 m, so the top may sit a
+	/// little under the piece) and at most <see cref="MaxOverlap"/> longer (a post a storey too long would go through the
+	/// piece it is meant to hold). The shortest one wins: the post must look like the one a player would pick.</para>
+	/// </summary>
+	internal static int PickPost(float[] lengths, float gap)
+	{
+		if (lengths == null)
+		{
+			return -1;
+		}
+		int best = -1;
+		float bestLength = float.MaxValue;
+		for (int i = 0; i < lengths.Length; i++)
+		{
+			float length = lengths[i];
+			if (length <= 0.01f || length < gap - ShortTolerance || length > gap + MaxOverlap)
+			{
+				continue;
+			}
+			if (length < bestLength)
+			{
+				bestLength = length;
+				best = i;
+			}
+		}
+		return best;
+	}
+
+	/// <summary>How much shorter than the gap a post may be. 0,2 m is the slack of the measured ladder (1 m under a 1,2 m gap,
+	/// 2 m under a 2,2 m); the game's support box is grown by 0,15 m, so a post at the very edge sits 5 cm short and the piece
+	/// is simply retried - better than a post that does not fit.</summary>
+	internal const float ShortTolerance = 0.2f;
+
+	/// <summary>How much longer than the gap a post may be. A little overlap is how the pieces of the house already meet;
+	/// 0,35 m is slack, a whole storey (2 m) would go through the piece above.</summary>
+	internal const float MaxOverlap = 0.35f;
+
+	/// <summary>
 	/// P1 (04/11/2026, measured on the 985-piece house): can a piece of the <paramref name="candidateClass"/> class
 	/// (<c>BuildBlueprintParser.ClassOf</c>) hold up a piece of the <paramref name="pieceClass"/> class?
 	///

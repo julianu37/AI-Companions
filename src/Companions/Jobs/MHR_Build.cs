@@ -72,9 +72,23 @@ internal static class MHR_Build
 	/// <summary>P1 (04/11/2026, measured with the deck run of the 985-piece house: 16 pieces - floors and roofs of the east
 	/// gable and of the north-west corner, 40,8 to 46,8 - were left out with <c>no_support</c>): the author's blueprint has
 	/// <b>no support piece under them</b> (his house leaned on something the file does not carry), so the direct-support pull
-	/// of the plan answers -1 and the piece can never stand. This is the wooden post planted under it: a 2 m
-	/// <c>wood_beam</c> stood up, its top at the piece's base.</summary>
-	private const string FallbackPostPrefab = "wood_beam";
+	/// of the plan answers -1 and the piece can never stand. These are the posts planted under such a piece, <b>shortest
+	/// first</b>: the smallest one that reaches from the surface below to the piece, so the base stands on the ground/floor and
+	/// the top touches the piece (measured in the run: planting a 2 m post under a piece 1 m above the ground buried it 1 m and
+	/// the game refused the POST).</summary>
+	private static readonly string[] FallbackPostPrefabs = { "wood_beam_1", "wood_beam", "wood_pole2", "wood_beam_45" };
+
+	/// <summary>P1 (04/11/2026): the length of each <see cref="FallbackPostPrefabs"/> entry, measured from the prefab's own
+	/// snap points on first use (they do not change; 0 = the prefab is not in this game, skipped). Measured this way and not
+	/// hard-coded because the repo only had <c>wood_pole2</c> confirmed (2,00 m, <c>docs/re/building-notes.md</c> §11) - and a
+	/// wrong length is exactly what broke the first version.</summary>
+	private static readonly float[] s_postLengths = new float[FallbackPostPrefabs.Length];
+
+	private static bool s_postsMeasured;
+
+	/// <summary>P1 (04/11/2026): how far under the piece the surface a post stands on is looked for. The deepest gap the
+	/// measured house has is 7 m (the top of the gable); 10 m is the vanilla placement ray's reach and leaves room.</summary>
+	private const float PostReach = 10f;
 
 	/// <summary>P1 (04/11/2026): how many emergency posts one ORDER may add - the house gets "a few extra posts", never a
 	/// forest of them. One per piece (<c>State.FallbackPosts</c>), never where the plan already has a support.</summary>
@@ -3193,16 +3207,24 @@ internal static class MHR_Build
 	/// P1 (04/11/2026, measured with the deck run: 16 pieces of the east gable and of the north-west corner - floors and roofs
 	/// from 40,8 to 46,8, all <c>no_support</c> - and the direct-support pull answered -1 for every one of them): the author's
 	/// blueprint has <b>no support piece under those points</b> - his house leaned on something the file does not carry - so
-	/// the piece can never stand on its own. This plants a wooden post under it: a 2 m <c>wood_beam</c> stood up with its
-	/// <b>top at the base of the refused piece</b>, validated by the game's own rules (<see cref="BuildSite.Check"/>: the
-	/// ground, the station in range, no clipping) and placed the same way any piece is (paid from the bag/chests, free with
-	/// <see cref="State.Free"/>). The refused piece keeps its index, its claim and its pose: the next frame it is placed on
-	/// top of the post.
+	/// the piece can never stand on its own. This plants a wooden post under it, standing on the <b>surface below</b> (the
+	/// ground, the floor of the storey under it, a beam top) with its top touching the base of the refused piece.
+	///
+	/// <para>The post is the <b>shortest one that reaches the gap</b> (<see cref="BuildSupportBelow.PickPost"/>): the first
+	/// version used a fixed 2 m beam with its centre 1 m under the piece, so a piece ~1 m above the ground got the beam
+	/// <b>buried 1 m</b> and the game refused the beam itself (<c>no_support</c> - measured in the run of 5 companions). The
+	/// lengths are read from each prefab's own snap points (<see cref="PostAxis"/>), so the pick cannot drift from the asset.</para>
+	///
+	/// <para>Validated by the game's own rules (<see cref="BuildSite.Check"/>: the ground, the station in range, no clipping)
+	/// and placed the same way any piece is (paid from the bag/chests, free with <see cref="State.Free"/>). The refused piece
+	/// keeps its index, its claim and its pose: the next frame it is placed on top of the post - so a column closes <b>from
+	/// the bottom up</b> (the floor at 40,8 gets a post on the ground, the next one a post on that floor, and so on).</para>
 	///
 	/// <para>One per piece (<see cref="State.FallbackPosts"/>) and capped per order (<see cref="MaxFallbackPosts"/>). It is
 	/// never planted where the plan DOES have something under the piece (<see cref="DirectSupportIndex"/> &gt;= 0): there the
-	/// pull is the path, and a post would sit on top of the plan's own support. Anything that stops it (no valid pose, no
-	/// material, the executor) is said out loud and the piece follows the normal path (retry queue / watchdog).</para>
+	/// pull is the path, and a post would sit on top of the plan's own support. Anything that stops it (no post reaches the
+	/// gap, no valid pose, no material, the executor) is said out loud and the piece follows the normal path (retry
+	/// queue / watchdog).</para>
 	/// </summary>
 	private static bool TryFallbackPost(CompanionAI ai, State state, CompanionSetup cs)
 	{
@@ -3227,12 +3249,30 @@ internal static class MHR_Build
 		{
 			return false;   // the plan has something under it: the pull is the path (never a post over the plan's own support)
 		}
-		Piece post = BuildProbe.PieceOf(FallbackPostPrefab);
+		// where does the post stand? The surface under the piece's own point: the ground, the floor of the storey below, a
+		// beam top. Nothing in 10 m answers the height map (fail-open: the spot is on a hill side).
+		Vector3 piece = state.Pos;
+		RaycastHit hit;
+		float baseY = Physics.Raycast(new Vector3(piece.x, piece.y + 0.05f, piece.z), Vector3.down, out hit, PostReach,
+			BuildProbe.PlaceMask(), QueryTriggerInteraction.Ignore)
+			? hit.point.y
+			: (ZoneSystem.instance != null ? ZoneSystem.instance.GetGroundHeight(piece) : piece.y - 2f);
+		float gap = piece.y - baseY;
+		MeasurePosts();
+		int pick = BuildSupportBelow.PickPost(s_postLengths, gap);
+		if (pick < 0)
+		{
+			Log(ai, "sem lugar para o apoio de emergência sob " + state.Prefab + " em (" + F(piece.x) + ", " + F(piece.y)
+				+ ", " + F(piece.z) + ") - vão de " + gap.ToString("F2") + " m");
+			return false;
+		}
+		float length = s_postLengths[pick];
+		Piece post = BuildProbe.PieceOf(FallbackPostPrefabs[pick]);
 		if (post == null)
 		{
 			return false;
 		}
-		Vector3 pos = new Vector3(state.Pos.x, state.Pos.y - 1f, state.Pos.z);
+		Vector3 pos = new Vector3(piece.x, baseY + length * 0.5f, piece.z);
 		Quaternion rot = VerticalPose(post);
 		Dictionary<string, object> check = BuildSite.Check(post, pos, rot, Self(ai));
 		if (!Ok(check))
@@ -3262,17 +3302,40 @@ internal static class MHR_Build
 			return false;
 		}
 		state.FallbackPosts.Add(index);
-		Log(ai, "apoio de emergência: " + FallbackPostPrefab + " sob " + state.Prefab + " em (" + F(pos.x) + ", "
-			+ F(pos.y) + ", " + F(pos.z) + ")");
+		Log(ai, "apoio de emergência: " + FallbackPostPrefabs[pick] + " (" + length.ToString("F2") + " m) sob "
+			+ state.Prefab + " em (" + F(pos.x) + ", " + F(pos.y) + ", " + F(pos.z) + ")");
 		return true;
 	}
 
-	/// <summary>P1 (04/11/2026): the pose that stands a post up. The piece's own <b>snap points</b> are its tips, so the
-	/// widest pair is the long axis in the prefab's own space; rotating that axis onto the world up is the vertical pose - no
-	/// guessing which local axis the artist used (the straight beam and the 45 degree one are not authored on the same axis,
-	/// measured in <c>docs/re/building-notes.md</c> §11). A prefab that answers no pair of snap points gets a quarter turn
-	/// about Z, the axis the beam family is authored on.</summary>
-	private static Quaternion VerticalPose(Piece post)
+	/// <summary>P1 (04/11/2026): fills <see cref="s_postLengths"/> from the prefabs once - the pieces do not change, and a
+	/// <c>no_support</c> event must not scan the prefabs on every refusal.</summary>
+	private static void MeasurePosts()
+	{
+		if (s_postsMeasured)
+		{
+			return;
+		}
+		bool any = false;
+		for (int i = 0; i < FallbackPostPrefabs.Length; i++)
+		{
+			Piece post = BuildProbe.PieceOf(FallbackPostPrefabs[i]);
+			if (post == null)
+			{
+				continue;   // this game does not have it: the pick skips the 0
+			}
+			s_postLengths[i] = PostAxis(post).magnitude;
+			any = true;
+		}
+		// only latch when something was really measured: a call before the scene is ready must not freeze four zeroes
+		s_postsMeasured = any;
+	}
+
+	/// <summary>P1 (04/11/2026): the pose that stands a post up - and the axis it stands along. The piece's own <b>snap
+	/// points</b> are its tips, so the widest pair is the long axis in the prefab's own space; rotating that axis onto the
+	/// world up is the vertical pose, and its length is what the post really is (the run of 04/11/2026 planted a 2 m beam
+	/// under a 1 m gap). No guessing which local axis the artist used (the straight beam and the 45 degree one are not
+	/// authored on the same axis, measured in <c>docs/re/building-notes.md</c> §11).</summary>
+	private static Vector3 PostAxis(Piece post)
 	{
 		s_snaps.Clear();
 		post.GetSnapPoints(s_snaps);
@@ -3297,10 +3360,18 @@ internal static class MHR_Build
 			}
 		}
 		s_snaps.Clear();
-		return longest > 0.01f ? Quaternion.FromToRotation(axis.normalized, Vector3.up) : Quaternion.Euler(0f, 0f, 90f);
+		return axis;
 	}
 
-	/// <summary>P1 (04/11/2026): scratch of <see cref="VerticalPose"/> - the snap points are filled by the game into a list,
+	/// <summary>P1 (04/11/2026): the rotation that puts <paramref name="post"/>'s own long axis along the world up. A prefab
+	/// with no pair of snap points gets a quarter turn about Z, the axis the beam family is authored on.</summary>
+	private static Quaternion VerticalPose(Piece post)
+	{
+		Vector3 axis = PostAxis(post);
+		return axis.sqrMagnitude > 0.01f ? Quaternion.FromToRotation(axis.normalized, Vector3.up) : Quaternion.Euler(0f, 0f, 90f);
+	}
+
+	/// <summary>P1 (04/11/2026): scratch of <see cref="PostAxis"/> - the snap points are filled by the game into a list,
 	/// and a no_support event must not allocate one (main thread only).</summary>
 	private static readonly List<Transform> s_snaps = new List<Transform>();
 

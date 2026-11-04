@@ -910,6 +910,25 @@ internal static class Program
 		CanSupportCase(0, 4, false, "porta nunca apoia nada (piso)");
 		CanSupportCase(0, 0, true, "piso sobre piso");
 		CanSupportCase(4, 2, true, "a porta e a PECA: pode ser apoiada por uma parede");
+		// the POST of the emergency support (04/11/2026, the deck run: a fixed 2 m beam under a 1 m gap was buried and the
+		// game refused the post itself). The lengths are the measured ones, shortest first: beam 1 m, beam 2 m, pole 2 m,
+		// beam 45 (2*sqrt2)
+		float[] posts = { 1f, 2f, 2f, 2.83f };
+		PostCase(posts, 1.02f, 0, "o caso medido: peca ~1 m acima do chao -> viga de 1 m");
+		PostCase(posts, 1.4f, -1, "vão de 1,4 m: nenhum poste alcanca (1 m fica curto, 2 m passa demais)");
+		PostCase(posts, 1.9f, 1, "-> viga de 2 m (o empate com a ponta de 2 m fica com a primeira)");
+		PostCase(posts, 2.2f, 1, "2 m ainda alcanca (borda)");
+		PostCase(posts, 2.5f, 3, "2 m fica curto, 2,83 m alcanca");
+		PostCase(posts, 2.87f, 3, "o segundo degrau medido (piso de 42,8 sobre o de 39,8)");
+		PostCase(posts, 3.2f, -1, "vão de 3,2 m: nem a viga de 45 alcanca");
+		PostCase(posts, 0.5f, -1, "vão de 0,5 m: 1 m passaria 0,5 m atraves da peca");
+		PostCase(new[] { 0f, 2f }, 2f, 1, "prefab que o jogo nao tem (comprimento 0) e pulado");
+		PostCase(new[] { 2.83f, 1f, 2f }, 1f, 1, "a escolha e pelo COMPRIMENTO, nao pela ordem da lista");
+		PostCase(null, 1f, -1, "sem lista, sem poste");
+		Check("ShortTolerance == 0,20 m", Math.Abs(BuildSupportBelow.ShortTolerance - 0.2f) < 0.001f,
+			"obtido " + BuildSupportBelow.ShortTolerance.ToString("F2"));
+		Check("MaxOverlap == 0,35 m", Math.Abs(BuildSupportBelow.MaxOverlap - 0.35f) < 0.001f,
+			"obtido " + BuildSupportBelow.MaxOverlap.ToString("F2"));
 	}
 
 	/// <summary>Section (r): one candidate of the direct-support window.</summary>
@@ -927,6 +946,14 @@ internal static class Program
 		bool actual = BuildSupportBelow.CanSupport(piece, candidate);
 		Check("CanSupport(peca " + piece + ", apoio " + candidate + ") -> " + (expected ? "true" : "false") + " (" + why + ")",
 			actual == expected, "obtido " + (actual ? "true" : "false"));
+	}
+
+	/// <summary>Section (r): one gap and the post the emergency support picks for it.</summary>
+	private static void PostCase(float[] lengths, float gap, int expected, string why)
+	{
+		int actual = BuildSupportBelow.PickPost(lengths, gap);
+		Check("PickPost(vão " + gap.ToString("F2") + " m) -> " + expected + " (" + why + ")",
+			actual == expected, "obtido " + actual);
 	}
 
 	/// <summary>The plan of case (a)/(e) of section (m): a fresh list every call (case (e) needs two of them).</summary>
