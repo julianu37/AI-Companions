@@ -127,6 +127,8 @@ internal static class Program
 		Materials();
 		Section("(x) BuildWalkSpot.Choose - de onde a peca e alcancada (o ponto do walk, Run 13)");
 		WalkSpotCases();
+		Section("(y) BuildAsideSpot.Plan - para onde o companheiro sai da frente (o StepAside do Run 14)");
+		AsideSpots();
 		CrossCheckDoorRule();
 
 		Out.WriteLine();
@@ -1527,6 +1529,139 @@ internal static class Program
 	private static string Vec(UnityEngine.Vector3 v)
 	{
 		return "(" + v.x.ToString("0.###") + ", " + v.y.ToString("0.###") + ", " + v.z.ToString("0.###") + ")";
+	}
+
+	// ============================================================================================ (y) para onde sair da frente
+
+	/// <summary>
+	/// Section (y): <c>BuildAsideSpot</c> - <b>where the companion of the site steps to</b> when another one has to place a
+	/// piece on its body (the step aside of <c>MHR_Build</c>). Run 14 (11/11/2026) measured the ping-pong of the last roof
+	/// row: the step out of piece 909 landed on <b>910</b> (the next piece of the plan), the step out of 910 landed on the
+	/// next one, and two companions took turns moving each other around the ridge while the plan did not move.
+	///
+	/// <para>The table asserted here is the ring <c>Plan</c> returns: away from the placer's front first (the 3 directions
+	/// behind it - straight behind and the two 45 degrees), then its two <b>sides</b>, its <b>front never</b> (the plan's
+	/// next pieces are there); inside a rank the direction most directly behind wins, then the shortest step; and a spot
+	/// <b>1,5 m</b> (XZ) from a <b>pending</b> piece of the same row (within 2 m of the piece being placed) is out. All of
+	/// them out = <b>no step at all</b> (the caller does not ask and the piece goes to the site's queue). The coordinates
+	/// are the exact ring values (2,2 m and 2,2 x cos45) and the tolerance is a centimetre: the cases are about the rule,
+	/// not about float rounding.</para>
+	/// </summary>
+	private static void AsideSpots()
+	{
+		UnityEngine.Vector3 piece = new UnityEngine.Vector3(0f, 10f, 0f);
+		UnityEngine.Vector3 back = new UnityEngine.Vector3(1f, 0f, 0f);   // the placer's BACK: its front is -X
+		float diag = 2.2f * 0.70710678f;
+
+		// 1) the plain ring: 3 behind + 2 sides, straight behind first, the front never; the deterministic order is
+		// straight behind, the two 45 degrees (z ascending) and the two sides (z ascending)
+		AsideCase("anel livre: 5 destinos, o de tras primeiro e a frente nunca", piece, back, new UnityEngine.Vector3[0],
+			5, new UnityEngine.Vector3(2.2f, 10f, 0f));
+		AsideCase("o 2o e o 3o sao os 45 graus de tras", piece, back, new UnityEngine.Vector3[0], 5,
+			new UnityEngine.Vector3(diag, 10f, -diag), 1);
+		AsideCase("o 4o e o 5o sao os dois lados", piece, back, new UnityEngine.Vector3[0], 5,
+			new UnityEngine.Vector3(0f, 10f, 2.2f), 4);
+
+		// 2) a pending piece where the first candidate lands: it is dropped and the next one comes first (piece 910 of the
+		// Run 14 is exactly this - the step out of 909 was on the next piece)
+		AsideCase("peça pendente no 1o destino: ele sai da lista", piece, back,
+			new[] { new UnityEngine.Vector3(2.2f, 10f, 0f) }, 4, new UnityEngine.Vector3(diag, 10f, -diag));
+
+		// 3) every candidate on a pending piece: nowhere to go (the caller does not ask - the piece goes to the queue)
+		UnityEngine.Vector3[] blocked =
+		{
+			new UnityEngine.Vector3(2.2f, 10f, 0f),
+			new UnityEngine.Vector3(diag, 10f, -diag),
+			new UnityEngine.Vector3(diag, 10f, diag),
+			new UnityEngine.Vector3(0f, 10f, -2.2f),
+			new UnityEngine.Vector3(0f, 10f, 2.2f)
+		};
+		AsideCount("todos os 5 destinos com peça pendente: nenhum destino", piece, back, blocked, 0);
+
+		// 4) a pending piece of ANOTHER storey does not block (a floor 4 m above the piece being placed is not the row)
+		AsideCase("peça pendente 4 m acima nao bloqueia", piece, back,
+			new[] { new UnityEngine.Vector3(2.2f, 14f, 0f) }, 5, new UnityEngine.Vector3(2.2f, 10f, 0f));
+
+		// 5) the 2 m band is EXCLUSIVE-ish: 2,1 m above is already another storey (the boundary is 2,0 m, which does block)
+		AsideCase("peça pendente 2,1 m acima ja nao bloqueia", piece, back,
+			new[] { new UnityEngine.Vector3(2.2f, 12.1f, 0f) }, 5, new UnityEngine.Vector3(2.2f, 10f, 0f));
+		AsideCase("peça pendente 2,0 m acima ainda bloqueia", piece, back,
+			new[] { new UnityEngine.Vector3(2.2f, 12f, 0f) }, 4, new UnityEngine.Vector3(diag, 10f, -diag));
+
+		// 6) the 1,5 m clearance is INCLUSIVE at the edge: exactly 1,5 m away is free, 1,4 m is out
+		AsideCase("peça pendente a 1,5 m do destino: livre", piece, back,
+			new[] { new UnityEngine.Vector3(0.7f, 10f, 0f) }, 5, new UnityEngine.Vector3(2.2f, 10f, 0f));
+		AsideCase("peça pendente a 1,4 m do destino: bloqueado", piece, back,
+			new[] { new UnityEngine.Vector3(0.8f, 10f, 0f) }, 4, new UnityEngine.Vector3(diag, 10f, -diag));
+
+		// 7) the preference order is about the DIRECTION, not the distance: the companion one metre to the side would
+		// rather take the 45 degrees on its side (1,65 m) than the straight-behind step (2,42 m) - but straight behind is
+		// the direction most behind the placer, so it still comes first
+		AsideCase("a direcao de tras ganha do passo mais curto", new UnityEngine.Vector3(0f, 10f, -1f), back,
+			new UnityEngine.Vector3[0], 5, new UnityEngine.Vector3(2.2f, 10f, 0f));
+
+		// 8) same dot (the two 45 degrees, then the two sides): the shorter step comes first - on the +Z side of the piece
+		// that is the +Z diagonal and the +Z side, and the coordinates alone would have said the opposite
+		AsideCase("mesmo angulo: o 45 graus mais perto ganha", new UnityEngine.Vector3(0f, 10f, 1f), back,
+			new UnityEngine.Vector3[0], 5, new UnityEngine.Vector3(diag, 10f, diag), 1);
+		AsideCase("mesmo angulo: o lado mais perto ganha", new UnityEngine.Vector3(0f, 10f, 1f), back,
+			new UnityEngine.Vector3[0], 5, new UnityEngine.Vector3(0f, 10f, 2.2f), 3);
+
+		// 9) the ring follows the placer's back: facing +X (back = +Z) the first candidate is +Z
+		AsideCase("anel medido pelo -yaw do colocador", piece, new UnityEngine.Vector3(0f, 0f, 1f),
+			new UnityEngine.Vector3[0], 5, new UnityEngine.Vector3(0f, 10f, 2.2f));
+
+		// 10) without a facing (the placer looking straight up/down) there is no front to avoid: the 8 directions are all
+		// candidates and the front is allowed (fail-open - the pending pieces still filter)
+		AsideCase("sem frente utilizavel: os 8 destinos, a frente incluida", piece, UnityEngine.Vector3.zero,
+			new UnityEngine.Vector3[0], 8, new UnityEngine.Vector3(-2.2f, 10f, 0f));
+
+		// 11) a pending piece that is not a number is left out of the filter (it cannot decide anything)
+		AsideCase("peça pendente NaN nao bloqueia", piece, back,
+			new[] { new UnityEngine.Vector3(float.NaN, 10f, 0f) }, 5, new UnityEngine.Vector3(2.2f, 10f, 0f));
+
+		// 12) a step of zero length is no step at all
+		UnityEngine.Vector3[] spots = new UnityEngine.Vector3[BuildAsideSpot.Ring];
+		int none = BuildAsideSpot.Plan(piece, piece, back, new System.Collections.Generic.List<UnityEngine.Vector3>(),
+			0f, spots);
+		Check("passo de 0 m: nenhum destino", none == 0, "obtido " + none);
+
+		// 13) a short buffer never overflows: it is filled up to its size and the count says how many fit
+		UnityEngine.Vector3[] shortBuffer = new UnityEngine.Vector3[2];
+		int two = BuildAsideSpot.Plan(piece, piece, back, new System.Collections.Generic.List<UnityEngine.Vector3>(),
+			2.2f, shortBuffer);
+		Check("buffer de 2: enche 2 e responde 2", two == 2
+			&& AsideSame(shortBuffer[0], new UnityEngine.Vector3(2.2f, 10f, 0f)),
+			"obtido " + two + " (" + Vec(shortBuffer[0]) + ")");
+	}
+
+	/// <summary>Section (y): one <c>Plan</c> case - the expected count and a spot that must be at <paramref name="slot"/>.
+	/// The piece being placed is always (0, 10, 0) here; <paramref name="me"/> is the companion's own feet.</summary>
+	private static void AsideCase(string name, UnityEngine.Vector3 me, UnityEngine.Vector3 away,
+		UnityEngine.Vector3[] pending, int expected, UnityEngine.Vector3 spot, int slot = 0)
+	{
+		UnityEngine.Vector3[] spots = new UnityEngine.Vector3[BuildAsideSpot.Ring];
+		int count = BuildAsideSpot.Plan(me, new UnityEngine.Vector3(0f, 10f, 0f), away,
+			new System.Collections.Generic.List<UnityEngine.Vector3>(pending), 2.2f, spots);
+		bool ok = count == expected && slot < count && AsideSame(spots[slot], spot);
+		Check(name + " -> #" + (slot + 1) + " " + Vec(spot) + " (" + expected + " destinos)", ok,
+			"obtido " + count + " destino(s), #" + (slot + 1) + " " + (slot < count ? Vec(spots[slot]) : "-"));
+	}
+
+	/// <summary>Section (y): one <c>Plan</c> case that only counts the destinations.</summary>
+	private static void AsideCount(string name, UnityEngine.Vector3 me, UnityEngine.Vector3 away,
+		UnityEngine.Vector3[] pending, int expected)
+	{
+		UnityEngine.Vector3[] spots = new UnityEngine.Vector3[BuildAsideSpot.Ring];
+		int count = BuildAsideSpot.Plan(me, new UnityEngine.Vector3(0f, 10f, 0f), away,
+			new System.Collections.Generic.List<UnityEngine.Vector3>(pending), 2.2f, spots);
+		Check(name + " -> " + expected + " destino(s)", count == expected, "obtido " + count);
+	}
+
+	/// <summary>Section (y): the same point within a centimetre (the ring is exact up to the float of cos45).</summary>
+	private static bool AsideSame(UnityEngine.Vector3 a, UnityEngine.Vector3 b)
+	{
+		return (a - b).sqrMagnitude < 0.0001f;
 	}
 
 	/// <summary>The plan of case (a)/(e) of section (m): a fresh list every call (case (e) needs two of them).</summary>

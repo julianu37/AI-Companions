@@ -73,6 +73,8 @@
     <Compile Include="..\..\src\Companions\AI\BuildBody.cs" Link="src/AI/BuildBody.cs" />
     <!-- 11/11/2026 (Run 13): the surface the walk to a piece goes to (the same storey first, then the highest one) - pure -->
     <Compile Include="..\..\src\Companions\AI\BuildWalkSpot.cs" Link="src/AI/BuildWalkSpot.cs" />
+    <!-- 11/11/2026 (Run 14): where a companion of the site steps to when another one has to place a piece on its body - pure -->
+    <Compile Include="..\..\src\Companions\AI\BuildAsideSpot.cs" Link="src/AI/BuildAsideSpot.cs" />
     <!-- Lote 1 (11/11/2026): does the order still need a crafting station (template/single piece x blueprint switch) - pure -->
     <Compile Include="..\..\src\Companions\AI\BuildStationCover.cs" Link="src/AI/BuildStationCover.cs" />
     <!-- 11/11/2026 (the build panel): the material need of a plan (prefab -> count folded through the costs) - pure -->

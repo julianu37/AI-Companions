@@ -91,13 +91,37 @@ internal static class MHR_Build
 	private const float WalkReach = 12f;
 
 	/// <summary>11/11/2026 (Run 13): the radii around the piece's own column that are sampled for those surfaces (the
-	/// surface directly under the piece is <c>r = 0</c>). The rows of a roof/gable are 2 m wide, so 2,4 m reaches the
-	/// neighbour row that stands on the same storey.</summary>
-	private static readonly float[] s_walkRadii = { 0.8f, 1.6f, 2.4f };
+	/// surface directly under the piece is <c>r = 0</c>).
+	/// <para>11/11/2026 (Run 14): the measured ridge had the row it is placed from <b>beside</b> it, not under it - the ray
+	/// down its own column went through the gable and reached the floor of the storey below (walk spot 41,9 for a piece at
+	/// 48,8). The rings are 1,5 m and 3 m now (the rows of a roof/gable are 2 m apart, so 3 m reaches the neighbour row and
+	/// the floor the plan's ladders lead to): <b>17 rays</b> per piece (the column + 8 + 8).</para></summary>
+	private static readonly float[] s_walkRadii = { 1.5f, 3f };
+
+	/// <summary>11/11/2026 (Run 14): how many hits one sample column may walk <b>through</b> before it gives up. A column
+	/// whose first hit is not a surface - a <b>body</b> of a companion walking over the sample, a piece above the one being
+	/// placed, furniture - used to lose the column entirely: the ray stops on the first collider, and with 5 companions on the
+	/// roof that was most of the ring. The ray goes down past up to this many of them and takes the first surface it can
+	/// stand on.</summary>
+	private const int WalkHits = 3;
+
+	/// <summary>11/11/2026 (Run 14): the surfaces of the piece's columns - ONE list reused and the keys already noted (a
+	/// plane hit by two rings is one surface).</summary>
+	private static readonly HashSet<int> s_walkSeen = new HashSet<int>();
 
 	/// <summary>11/11/2026 (Run 13): the surfaces found under the current piece - ONE list reused (the spot is chosen once
 	/// per piece, but a plan has 1000 of them).</summary>
 	private static readonly List<Vector3> s_walkSurfaces = new List<Vector3>();
+
+	/// <summary>
+	/// 11/11/2026 (Run 14, the step aside): the <b>pending</b> pieces of the site around the piece being placed - ONE list
+	/// reused (<c>MHR_BuildGroup.PendingNear</c>, asked once per piece, never per frame).
+	/// </summary>
+	private static readonly List<Vector3> s_asidePending = new List<Vector3>();
+
+	/// <summary>11/11/2026 (Run 14, the step aside): the spots a companion may step to, in the order they are tried
+	/// (<see cref="BuildAsideSpot.Plan"/>: away from the placer's front first, then its sides).</summary>
+	private static readonly Vector3[] s_asideSpots = new Vector3[BuildAsideSpot.Ring];
 
 	/// <summary>P1 (04/11/2026, measured with the deck run of the 985-piece house: 16 pieces - floors and roofs of the east
 	/// gable and of the north-west corner, 40,8 to 46,8 - were left out with <c>no_support</c>): the author's blueprint has
@@ -416,6 +440,14 @@ internal static class MHR_Build
 		internal Vector3 AsideTarget;
 		/// <summary>When the step-aside walk is over (it is a step, not a walk across the site).</summary>
 		internal float AsideUntil;
+		/// <summary>
+		/// 11/11/2026 (Run 14): what the surface search of the current piece cost - how many rays were cast and how many
+		/// surfaces came back (<see cref="MHR_Build.WalkSpot"/>). It is what tells the tester <b>where it looked</b> when the
+		/// chosen spot is the floor of the storey below (the Run 14 ridge: walk spot 41,9 for a piece at 48,8).
+		/// </summary>
+		internal int WalkRays;
+		/// <summary>11/11/2026 (Run 14): the surfaces that search found (see <see cref="WalkRays"/>).</summary>
+		internal int WalkFound;
 	}
 
 	/// <summary>E6: one piece of a plan, already resolved to a world pose.</summary>
@@ -1106,6 +1138,8 @@ internal static class MHR_Build
 		// 11/11/2026 (Run 13): a new piece never reuses the walk spot of the previous one
 		state.WalkFor = -1;
 		state.HasWalkTo = false;
+		state.WalkRays = 0;   // 11/11/2026 (Run 14): the counters of the surface search are the new piece's own
+		state.WalkFound = 0;
 		state.Phase = Phase.Goto;
 	}
 
@@ -5618,7 +5652,13 @@ internal static class MHR_Build
 				{
 					state.WalkTo = walk;
 					LogDebug(ai, "walk spot (" + F(walk.x) + ", " + F(walk.y) + ", " + F(walk.z) + ") - the " + state.Prefab
-						+ " is " + F(state.Pos.y - walk.y) + " m above that surface");
+						+ " is " + F(state.Pos.y - walk.y) + " m above that surface (" + state.WalkFound + " superfície(s) em "
+						+ state.WalkRays + " raio(s))");
+				}
+				else
+				{
+					LogDebug(ai, "sem walk spot para a peça - " + state.WalkFound + " superfície(s) em " + state.WalkRays
+						+ " raio(s)" + (state.WalkFound == 0 ? " (nenhuma superfície estrutural no alcance dos raios)" : string.Empty));
 				}
 			}
 		}
@@ -5663,6 +5703,9 @@ internal static class MHR_Build
 					+ (state.HasWalkTo
 						? ", walk spot (" + F(state.WalkTo.x) + ", " + F(state.WalkTo.y) + ", " + F(state.WalkTo.z) + ")"
 						: ", walk spot -")
+					+ (state.WalkRays > 0
+						? ", " + state.WalkFound + " superfície(s) em " + state.WalkRays + " raio(s)"
+						: ", sem busca de superfície")
 					+ ") - retrying it later, I am at (" + F(me.x) + ", " + F(me.y) + ", " + F(me.z) + "), route "
 					+ (MHR_Mover.RoutePartial(ai) ? "partial" : "full"));
 				QueueRetry(ai, state, "no progress");
@@ -5730,14 +5773,26 @@ internal static class MHR_Build
 	/// <summary>
 	/// 11/11/2026 (Run 13, the ridge of the <c>CommHomeBasicBP</c>): the surface the walk goes to for the current piece -
 	/// the spot the piece can be placed <b>from</b>, instead of the piece's own pose in mid-air. The surfaces are found with
-	/// rays <b>down</b> from just above the piece: its own column (<c>r = 0</c>) and eight directions at
-	/// <see cref="s_walkRadii"/> (25 samples, cast once per piece - never per frame).
+	/// rays <b>down</b> from just above the piece: its own column (<c>r = 0</c>) and eight directions at each radius of the
+	/// <see cref="s_walkRadii"/> rings - <b>17 rays per piece</b>, cast once per plan index (a new pose, <c>EnterStep</c> or
+	/// a nudge, asks again), never per frame.
 	///
 	/// <para>Only a surface that can hold a companion counts: the <b>terrain</b>, or a <b>structural</b> piece (a
 	/// <c>Piece</c> with <c>WearNTear</c> that is not furniture - <see cref="BuildPieceKind.IsStructural"/>). A body
 	/// (<c>Character</c>/<c>Player</c>) on the spot is not a floor and is discarded, and so is furniture: the top of a chest
 	/// is not a place to build a roof from. The choice itself is <see cref="BuildWalkSpot.Choose"/> (pure, asserted by the
-	/// harness): the same storey first (the shortest walk), then the highest surface within the eye rule.</para>
+	/// harness): the same storey first (the shortest walk), then the highest surface within the eye rule. The eye rule
+	/// (<see cref="MaxPlace"/>, <c>[Building] PlaceReach</c>) is the ceiling - the rings widen <b>where</b> the surfaces are
+	/// looked for, never how far the piece may be placed from.</para>
+	///
+	/// <para>11/11/2026 (Run 14, measured: the walk spot of a <c>wood_roof_45</c> at 48,8 was the floor at <b>41,9</b> - 7 m
+	/// below, 20 m away - and the companion never got closer): the rings were 0,8/1,6/2,4 m and each column took only its
+	/// <b>first</b> hit. Two things were lost: the row the piece is placed from can be <b>beside</b> it (the top rows have the
+	/// gable under the ridge, not a floor), and a column whose first hit is not a surface - a <b>body</b> of a companion
+	/// walking over the sample, the row above the piece - threw the whole column away. Now the ring reaches 1,5 m and 3 m and
+	/// a column walks down past up to <see cref="WalkHits"/> hits that are not a surface. Both counters
+	/// (<see cref="State.WalkRays"/>, <see cref="State.WalkFound"/>) are in the log, so "where did it look" is never a
+	/// guess.</para>
 	/// </summary>
 	private static bool WalkSpot(CompanionAI ai, State state, out Vector3 spot)
 	{
@@ -5748,9 +5803,12 @@ internal static class MHR_Build
 		}
 		int mask = BuildProbe.PlaceMask();
 		int terrain = LayerMask.NameToLayer("terrain");
-		float from = state.Pos.y + 0.6f;
+		float top = state.Pos.y + 0.6f;
+		float bottom = state.Pos.y - WalkReach;
 		s_walkSurfaces.Clear();
-		// sample 0 is the piece's own column; 1..24 are the eight directions at each radius of s_walkRadii
+		s_walkSeen.Clear();
+		state.WalkRays = 0;
+		// sample 0 is the piece's own column; 1.. are the eight directions at each radius of s_walkRadii
 		for (int sample = 0; sample <= 8 * s_walkRadii.Length; sample++)
 		{
 			float x = state.Pos.x;
@@ -5763,23 +5821,51 @@ internal static class MHR_Build
 				x += Mathf.Cos(angle) * radius;
 				z += Mathf.Sin(angle) * radius;
 			}
-			RaycastHit hit;
-			if (!Physics.Raycast(new Vector3(x, from, z), Vector3.down, out hit, WalkReach + 0.6f, mask,
-				QueryTriggerInteraction.Ignore))
+			float y = top;
+			for (int hit = 0; hit < WalkHits; hit++)
 			{
-				continue;
+				RaycastHit found;
+				state.WalkRays++;
+				if (!Physics.Raycast(new Vector3(x, y, z), Vector3.down, out found, y - bottom, mask,
+					QueryTriggerInteraction.Ignore))
+				{
+					break;   // nothing else under this column
+				}
+				if (found.point.y <= state.Pos.y + BuildWalkSpot.SameStoreyAbove
+					&& StructuralSurface(found.collider, terrain))
+				{
+					NoteSurface(found.collider, found.point);
+					break;   // the first surface of the column is the one it would stand on
+				}
+				// not a surface (a body over the sample, a piece above this one, furniture): go on under it
+				y = found.point.y - 0.05f;
+				if (y <= bottom)
+				{
+					break;
+				}
 			}
-			if (hit.point.y > state.Pos.y + BuildWalkSpot.SameStoreyAbove)
-			{
-				continue;   // above the piece: not a surface to place it from (the ray starts 0,6 m over the piece)
-			}
-			if (!StructuralSurface(hit.collider, terrain))
-			{
-				continue;   // a body, furniture, a tree, a rock: nothing a companion may stand on to build
-			}
-			s_walkSurfaces.Add(hit.point);
 		}
+		state.WalkFound = s_walkSurfaces.Count;
 		return BuildWalkSpot.Choose(ai.transform.position, state.Pos, MaxPlace, s_walkSurfaces, out spot);
+	}
+
+	/// <summary>
+	/// 11/11/2026 (Run 14): note a surface of the search <b>once</b>. Two rays of the rings land on the same floor/roof row
+	/// all the time (a plane is 2 m wide); the key is the collider and the height of the point, so the same plane found from
+	/// two directions is one surface (the pure choice does not care about duplicates, but the count in the log must mean
+	/// something).
+	/// </summary>
+	private static void NoteSurface(Collider collider, Vector3 point)
+	{
+		if (collider == null)
+		{
+			return;
+		}
+		int key = unchecked(collider.GetInstanceID() * 397) ^ Mathf.RoundToInt(point.y * 100f);
+		if (s_walkSeen.Add(key))
+		{
+			s_walkSurfaces.Add(point);
+		}
 	}
 
 	/// <summary>
@@ -5968,7 +6054,16 @@ internal static class MHR_Build
 					if (status == "blocked_by_player")
 					{
 						BlockedByBody(ai, state, cs);
-						AskStepAside(ai, state, cs);
+						if (AskStepAside(ai, state, cs))
+						{
+							// 11/11/2026 (Run 14): there is nowhere free to step to, or the same pair is taking turns from
+							// piece to piece - the piece goes to the site's queue now (waiting through the 3 shorts for a
+							// companion nobody asked would only repeat the ping-pong). The body barrier is still drawn: a body
+							// holds this storey exactly as in TryBodyRetry, so the plan does not climb over the piece.
+							MHR_BuildGroup.NoteBody(state.Group, state.Index);
+							QueueRetry(ai, state, status);
+							return Advance(ai, state);
+						}
 					}
 					if (TryBodyRetry(ai, state, status))
 					{
@@ -6139,35 +6234,69 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 	/// its own wait and walks 2,2 m away from the piece through the mover (<see cref="StepAside"/>); the <b>player is never
 	/// moved</b> (the piece waits, exactly as before) and a worker alone has no site to ask. The ask repeats on every
 	/// refusal - the request itself is deduplicated by the site (4 s) - while the line is written once per piece.
+	///
+	/// <para>11/11/2026 (Run 14): the ask only happens when there is <b>somewhere to step to</b> - a spot 2,2 m out that is
+	/// clear of the plan's pending pieces and reachable at the companion's level (<see cref="AsideSpot"/> / <see
+	/// cref="BuildAsideSpot"/>). Nothing free, or the same pair already shuffling pieces from one piece to the next
+	/// (<see cref="MHR_BuildGroup.AsideAsk.Repeating"/>): no ask, the log says why and <b>true</b> comes back - the piece goes
+	/// to the site's queue instead of repeating the ping-pong of the ridge rows.</para>
 	/// </summary>
-	private static void AskStepAside(CompanionAI ai, State state, CompanionSetup cs)
+	private static bool AskStepAside(CompanionAI ai, State state, CompanionSetup cs)
 	{
 		if (ai == null || state == null || state.Piece == null || state.Group == null || !StepAsideOn())
 		{
-			return;
+			return false;
 		}
 		Component blocker;
 		if (!BuildProbe.BlockerAt(state.Piece, state.Pos, state.Rot, cs, out blocker))
 		{
-			return;   // nothing there anymore
+			return false;   // nothing there anymore
 		}
 		CompanionSetup other = blocker as CompanionSetup;
 		if (other == null)
 		{
-			return;   // the player (or a creature) is never moved
+			return false;   // the player (or a creature) is never moved
 		}
 		CompanionAI mover = other.GetComponent<CompanionAI>();
 		if (mover == null || mover == ai)
 		{
-			return;
+			return false;
 		}
-		MHR_BuildGroup.RequestStepAside(state.Group, mover.GetInstanceID(), state.Pos);
-		if (!state.AsideLogged && CompanionsPlugin.LogNormal)
+		string who = CompanionNames.NameOf(other);
+		Vector3 to;
+		if (!AsideSpot(state, ai, mover, state.Pos, out to))
+		{
+			// 11/11/2026 (Run 14): nowhere free around the piece - do not ask, the piece waits in the queue (the measured
+			// ping-pong: the "closest" spot was the next piece of the ridge row, over and over)
+			if (!state.AsideLogged && CompanionsPlugin.LogNormal)
+			{
+				state.AsideLogged = true;
+				Log(ai, "\"" + who + "\" está na peça " + (state.Index + 1) + " - sem lugar livre para ele sair da frente, "
+					+ "não peço (a peça vai para a fila)");
+			}
+			return true;
+		}
+		MHR_BuildGroup.AsideAsk ask = MHR_BuildGroup.RequestStepAside(state.Group, mover.GetInstanceID(),
+			ai.GetInstanceID(), state.Index, state.Pos, to);
+		if (ask == MHR_BuildGroup.AsideAsk.Repeating)
+		{
+			// 11/11/2026 (Run 14): the same pair took turns on the piece before this one - stop asking (the piece goes to the
+			// queue, the companion walks on with its own work)
+			if (!state.AsideLogged && CompanionsPlugin.LogNormal)
+			{
+				state.AsideLogged = true;
+				Log(ai, "\"" + who + "\" saiu da frente da peça anterior e voltou para a peça " + (state.Index + 1)
+					+ " - não peço de novo, a peça vai para a fila");
+			}
+			return true;
+		}
+		if (ask == MHR_BuildGroup.AsideAsk.Asked && !state.AsideLogged && CompanionsPlugin.LogNormal)
 		{
 			state.AsideLogged = true;
-			Log(ai, "\"" + CompanionNames.NameOf(other) + "\" está na peça " + (state.Index + 1)
-				+ " - pedindo para sair da frente");
+			Log(ai, "\"" + who + "\" está na peça " + (state.Index + 1) + " - pedindo para sair da frente ("
+				+ F(to.x) + ", " + F(to.z) + ")");
 		}
+		return false;
 	}
 
 	/// <summary>11/11/2026 (Run 10): the capsule of the body as the probe read it, for the line above
@@ -6197,11 +6326,12 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 	private const float AsideSeconds = 2.5f;
 
 	/// <summary>
-	/// 11/11/2026 (Run 10, the companion blocker): the wait of a worker that was asked to move (<c>TakeStepAside</c>). It
-	/// picks the closest of 8 spots <see cref="AsideDistance"/> from the piece, at the worker's own feet level and reachable
-	/// (<see cref="MHR_Mover.SafeStep"/>), and walks there with the mover; when the spot is reached, the step expires or
-	/// there is none, the mover is released and the normal wait goes on. <b>No teleport and no push</b>: the body is moved by
-	/// the same movement every other order uses, so a blocked step is just a step that did not happen.
+	/// 11/11/2026 (Run 10, the companion blocker): the wait of a worker that was asked to move (<c>TakeStepAside</c>). The
+	/// <b>spot was chosen by the placer</b> (11/11/2026, Run 14: <see cref="AsideSpot"/> keeps it off the plan's pending
+	/// pieces), so this only checks that it is still a place to stand (the ground under it, the same level, reachable) and
+	/// walks there with the mover; when the spot is reached, the step expires or there is none, the mover is released and
+	/// the normal wait goes on. <b>No teleport and no push</b>: the body is moved by the same movement every other order
+	/// uses, so a blocked step is just a step that did not happen.
 	///
 	/// <para>True while it is still stepping (the caller returns and the normal wait is not asked this frame).</para>
 	/// </summary>
@@ -6230,14 +6360,15 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			return false;
 		}
 		Vector3 from;
-		if (!MHR_BuildGroup.TakeStepAside(state.Group, ai.GetInstanceID(), out from))
+		Vector3 to;
+		if (!MHR_BuildGroup.TakeStepAside(state.Group, ai.GetInstanceID(), out from, out to))
 		{
 			return false;
 		}
 		Vector3 target;
-		if (!AsideSpot(ai, from, out target))
+		if (!StepTo(ai.transform.position, to, out target))
 		{
-			return false;   // no spot at the worker's level: stay put (the piece waits, as before)
+			return false;   // the spot is gone (the world changed): stay put, the piece waits in the queue
 		}
 		state.AsideTarget = target;
 		state.AsideUntil = Time.time + AsideSeconds;
@@ -6248,52 +6379,86 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 	}
 
 	/// <summary>
-	/// 11/11/2026 (Run 10): the spot the waiting companion steps to - 8 directions, <see cref="AsideDistance"/> from the
-	/// piece, at the <b>worker's own feet level</b> (a ray down from 1,5 m above the candidate accepts a ground within
-	/// 0,8 m of its feet, so it does not walk off the deck or up a wall) and reachable (<see cref="MHR_Mover.SafeStep"/>).
-	/// The closest one to the worker wins (the shortest step); none = no step.
+	/// 11/11/2026 (Run 14): the spot the standing companion steps to, chosen by the <b>placer</b> - it is the one that knows
+	/// the piece, its own facing and the site's plan. The plan's <b>pending</b> pieces within the reach of the step are
+	/// gathered (<c>MHR_BuildGroup.PendingNear</c>) and <see cref="BuildAsideSpot.Plan"/> orders the ring of 8 directions:
+	/// away from the placer's front first (the plan's next pieces are in front of it), then its sides, the closest of each
+	/// rank first, and <b>nothing within 1,5 m of a pending piece</b>. The first candidate with ground at the companion's
+	/// level and a safe step to it wins (<see cref="StepTo"/>); none = no ask at all.
 	/// </summary>
-	private static bool AsideSpot(CompanionAI ai, Vector3 from, out Vector3 target)
+	private static bool AsideSpot(State state, CompanionAI ai, CompanionAI mover, Vector3 from, out Vector3 target)
 	{
 		target = Vector3.zero;
-		if (ai == null)
+		if (state == null || ai == null || mover == null)
 		{
 			return false;
 		}
-		Vector3 feet = ai.transform.position;
-		float best = float.MaxValue;
-		bool found = false;
-		for (int dir = 0; dir < 8; dir++)
+		Vector3 feet = mover.transform.position;
+		Vector3 facing = ai.transform.forward;   // the placer's front: the piece is in it
+		Vector3 away = new Vector3(-facing.x, 0f, -facing.z);
+		MHR_BuildGroup.PendingNear(state.Group, from, AsideDistance + BuildAsideSpot.Clearance, s_asidePending);
+		int count = BuildAsideSpot.Plan(feet, from, away, s_asidePending, AsideDistance, s_asideSpots);
+		for (int i = 0; i < count; i++)
 		{
-			float angle = Mathf.PI * 2f * dir / 8f;
-			Vector3 spot = new Vector3(from.x + Mathf.Cos(angle) * AsideDistance, feet.y,
-				from.z + Mathf.Sin(angle) * AsideDistance);
-			RaycastHit hit;
-			if (!Physics.Raycast(spot + Vector3.up * 1.5f, Vector3.down, out hit, 4f, BuildProbe.PlaceMask(),
-				QueryTriggerInteraction.Ignore))
+			// 11/11/2026 (Run 14): the spot must not be inside the PLACER either - the first preference points that way
+			// (the row behind it is the one already built) and the mover's step check has no characters in its mask, so it
+			// would walk into the body that asked it to move. One metre keeps the two capsules apart.
+			if (CharacterDistance(ai, s_asideSpots[i]) < 1f)
 			{
 				continue;
 			}
-			if (Mathf.Abs(hit.point.y - feet.y) > 0.8f)
+			Vector3 goal;
+			if (StepTo(feet, s_asideSpots[i], out goal))
 			{
-				continue;   // another level (the deck below, a wall above): not a step, a fall
-			}
-			Vector3 goal = new Vector3(spot.x, hit.point.y, spot.z);
-			Vector3 way = goal - feet;
-			way.y = 0f;
-			float flat = way.magnitude;
-			if (flat < 0.3f || !MHR_Mover.SafeStep(feet, way / flat, Mathf.Min(flat, 2.5f)))
-			{
-				continue;
-			}
-			if (flat < best)
-			{
-				best = flat;
 				target = goal;
-				found = true;
+				return true;
 			}
 		}
-		return found;
+		return false;
+	}
+
+	/// <summary>
+	/// 11/11/2026 (Run 14): is this candidate a place the companion can <b>stand</b>? The ground is looked for straight down
+	/// from 1,5 m above it (a ray, so a spot over the void or above a wall is out), it must be within 0,8 m of the
+	/// companion's own feet (a step, not a fall) and the way to it must be a safe step (<see cref="MHR_Mover.SafeStep"/>:
+	/// no wall, no ledge, no deep water, no fire, no spikes).
+	/// </summary>
+	private static bool StepTo(Vector3 feet, Vector3 spot, out Vector3 goal)
+	{
+		goal = Vector3.zero;
+		if (!Finite(spot))
+		{
+			return false;
+		}
+		RaycastHit hit;
+		if (!Physics.Raycast(new Vector3(spot.x, spot.y + 1.5f, spot.z), Vector3.down, out hit, 4f, BuildProbe.PlaceMask(),
+			QueryTriggerInteraction.Ignore))
+		{
+			return false;
+		}
+		if (Mathf.Abs(hit.point.y - feet.y) > 0.8f)
+		{
+			return false;   // another level (the deck below, a wall above): not a step, a fall
+		}
+		Vector3 point = new Vector3(spot.x, hit.point.y, spot.z);
+		Vector3 way = point - feet;
+		way.y = 0f;
+		float flat = way.magnitude;
+		if (flat < 0.3f || !MHR_Mover.SafeStep(feet, way / flat, Mathf.Min(flat, 2.5f)))
+		{
+			return false;
+		}
+		goal = point;
+		return true;
+	}
+
+	/// <summary>11/11/2026 (Run 14): are the three coordinates real numbers? (a pose read from a ray or from the plan that
+	/// is not a number cannot decide a walk).</summary>
+	private static bool Finite(Vector3 v)
+	{
+		return !float.IsNaN(v.x) && !float.IsInfinity(v.x)
+			&& !float.IsNaN(v.y) && !float.IsInfinity(v.y)
+			&& !float.IsNaN(v.z) && !float.IsInfinity(v.z);
 	}
 
 	/// <summary>11/11/2026 (Run 10): the flat distance from the companion to a point (the "did it arrive" of the step; the

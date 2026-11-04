@@ -48,6 +48,15 @@ internal static class MHR_BuildGroup
 	/// one ask per this many seconds is enough (and the companion walking away takes a moment).</summary>
 	internal const float StepAsideRepeat = 4f;
 
+	/// <summary>
+	/// 11/11/2026 (Run 14, the ping-pong of the roof rows): how long a <b>pair</b> (the one placing, the one stepping out) is
+	/// left alone after it asked for two <b>different</b> pieces inside this window. On the last row of tiles the step out of
+	/// piece 909 landed on 910, the step out of 910 landed on 911: two companions took turns moving each other around the
+	/// ridge and the plan did not move. From the second piece on for the same pair nothing is asked - the piece goes to the
+	/// site's queue and the companion walks on with its own work.
+	/// </summary>
+	internal const float StepAsidePairSeconds = 20f;
+
 	/// <summary>P1 (review A1): one piece of the plan that did not stand yet. It stays in the queue until the piece is
 	/// done or runs out of <b>real</b> attempts (<c>MHR_Build.MaxPasses</c>).</summary>
 	private sealed class RetryEntry
@@ -120,17 +129,49 @@ internal static class MHR_BuildGroup
 		/// the player is never asked (the game's ghost check refuses the spot and the piece waits).
 		/// </summary>
 		internal readonly Dictionary<int, StepAside> Aside = new Dictionary<int, StepAside>();
+		/// <summary>
+		/// 11/11/2026 (Run 14): pair (placer, stepping-out companion) -> the last piece it was asked about - the anti
+		/// ping-pong of <see cref="StepAsidePairSeconds"/>. Keyed by <see cref="PairKey"/>.
+		/// </summary>
+		internal readonly Dictionary<long, PairAsk> Pairs = new Dictionary<long, PairAsk>();
 	}
 
-	/// <summary>11/11/2026 (Run 10): "please move, you are standing on the piece I have to place" - the pose to walk away
-	/// from and when it was asked.</summary>
+	/// <summary>11/11/2026 (Run 10): "please move, you are standing on the piece I have to place" - where to walk to, from
+	/// where, and when it was asked.</summary>
 	private sealed class StepAside
 	{
 		/// <summary>The pose of the piece the other worker is placing (the point to get away from).</summary>
 		internal Vector3 From;
+		/// <summary>11/11/2026 (Run 14): the spot the placer already found for it (the one that is not on a pending piece of
+		/// the plan) - the companion walks there instead of looking for a spot on its own.</summary>
+		internal Vector3 To;
+		/// <summary>The plan index it is about (the dedup and the anti ping-pong count pieces, never frames).</summary>
+		internal int Index = -1;
 		/// <summary>When it was asked - the dedup of <see cref="RequestStepAside"/> and the expiry of
 		/// <see cref="TakeStepAside"/> count from here.</summary>
 		internal float At;
+	}
+
+	/// <summary>11/11/2026 (Run 14): the last ask of a pair - the piece it was about and when (the window of
+	/// <see cref="StepAsidePairSeconds"/>).</summary>
+	private sealed class PairAsk
+	{
+		internal int Index = -1;
+		internal float At;
+	}
+
+	/// <summary>11/11/2026 (Run 14): what came out of a step-aside ask.</summary>
+	internal enum AsideAsk
+	{
+		/// <summary>The request was stored: the companion answers it in its own wait.</summary>
+		Asked,
+		/// <summary>The same ask (same pair, same piece) was made less than <see cref="StepAsideRepeat"/> ago - nothing new.</summary>
+		Deduped,
+		/// <summary>
+		/// The same pair asked about two <b>different</b> pieces inside <see cref="StepAsidePairSeconds"/>: they are shuffling
+		/// each other from piece to piece. Nothing is asked - the caller sends the piece to the site's queue.
+		/// </summary>
+		Repeating
 	}
 
 	private static readonly Dictionary<string, Group> s_groups = new Dictionary<string, Group>();
@@ -719,7 +760,8 @@ internal static class MHR_BuildGroup
 	/// <summary>11/11/2026 (the body barrier): the barriers of the site are dropped with the queue - the stall watchdog's
 	/// verdict is "nothing is moving", and a barrier that is only <b>waiting</b> for a body must not bring the order back
 	/// to the wait (and the watchdog) on the next frame. The step-aside requests go with them (nobody is going to move for
-	/// a queue that was given up).</summary>
+	/// a queue that was given up) - and so do the pairs (11/11/2026, Run 14: the queue was given up, so the window of the
+	/// anti ping-pong has nothing left to protect).</summary>
 	internal static void ClearBodies(string key)
 	{
 		Group group;
@@ -730,39 +772,65 @@ internal static class MHR_BuildGroup
 		group.BodyAt.Clear();
 		group.BodyTries.Clear();
 		group.Aside.Clear();
+		group.Pairs.Clear();
 	}
 
 	/// <summary>
 	/// 11/11/2026 (Run 10, the <b>companion blocker</b>): a companion of the site is standing on the piece another one has to
 	/// place - ask it to step out of the way. Only a live site answers, and only for a <b>worker of that site</b> (a worker
 	/// alone has nobody to move, and a request outside a group would let the build steer a body that belongs to another
-	/// order). A repeat within <see cref="StepAsideRepeat"/> seconds is dropped: the refusal repeats every frame of a retry,
-	/// and one request is enough.
+	/// order). A repeat for the <b>same piece</b> within <see cref="StepAsideRepeat"/> seconds is dropped: the refusal repeats
+	/// every frame of a retry, and one request is enough.
+	///
+	/// <para>11/11/2026 (Run 14): <paramref name="to"/> is the spot the <b>caller</b> already found for it (clear of the
+	/// plan's pending pieces, <c>BuildAsideSpot</c>) - the request is only made when there is one, so a companion is never
+	/// sent onto the piece the next worker is about to place. And the <b>same pair</b> (the placer, this companion) asking
+	/// for two different pieces inside <see cref="StepAsidePairSeconds"/> is answered <see cref="AsideAsk.Repeating"/>:
+	/// nothing is stored, the caller queues the piece and the two stop taking turns moving each other.</para>
 	/// </summary>
-	internal static void RequestStepAside(string key, int workerId, Vector3 from)
+	internal static AsideAsk RequestStepAside(string key, int workerId, int requesterId, int index, Vector3 from, Vector3 to)
 	{
 		Group group;
 		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null || workerId == 0
-			|| !group.Workers.Contains(workerId))
+			|| requesterId == 0 || requesterId == workerId || !group.Workers.Contains(workerId))
 		{
-			return;   // only a worker of THIS site: nobody else would answer, and the request would just sit there
+			return AsideAsk.Deduped;   // only a worker of THIS site (and never the asker itself): nobody would answer
+		}
+		long pair = PairKey(requesterId, workerId);
+		PairAsk last;
+		if (group.Pairs.TryGetValue(pair, out last) && last != null && last.Index != index
+			&& Time.time - last.At < StepAsidePairSeconds)
+		{
+			return AsideAsk.Repeating;   // piece 909 -> 910 of the Run 14: it just moved for the previous one
 		}
 		StepAside entry;
-		if (group.Aside.TryGetValue(workerId, out entry) && entry != null && Time.time - entry.At < StepAsideRepeat)
+		if (group.Aside.TryGetValue(workerId, out entry) && entry != null && entry.Index == index
+			&& Time.time - entry.At < StepAsideRepeat)
 		{
-			return;
+			return AsideAsk.Deduped;
 		}
-		group.Aside[workerId] = new StepAside { From = from, At = Time.time };
+		group.Aside[workerId] = new StepAside { From = from, To = to, Index = index, At = Time.time };
+		group.Pairs[pair] = new PairAsk { Index = index, At = Time.time };
+		return AsideAsk.Asked;
+	}
+
+	/// <summary>11/11/2026 (Run 14): the key of a pair of the site - the one placing (high half) and the one stepping out
+	/// (low half) of a 64-bit key.</summary>
+	private static long PairKey(int requesterId, int workerId)
+	{
+		return ((long)(uint)requesterId << 32) | (uint)workerId;
 	}
 
 	/// <summary>
 	/// 11/11/2026 (Run 10): the request this worker has to answer, consumed <b>once</b> (the worker walks away and comes
 	/// back to its wait). False when it has none, or when the request is older than <see cref="StepAsideSeconds"/> - the
-	/// piece it was about was settled (or given up) in the meantime.
+	/// piece it was about was settled (or given up) in the meantime. <paramref name="to"/> is the spot the placer picked
+	/// (11/11/2026, Run 14) and <paramref name="from"/> the piece it was about (the line in the log).
 	/// </summary>
-	internal static bool TakeStepAside(string key, int workerId, out Vector3 from)
+	internal static bool TakeStepAside(string key, int workerId, out Vector3 from, out Vector3 to)
 	{
 		from = Vector3.zero;
+		to = Vector3.zero;
 		Group group;
 		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null || workerId == 0)
 		{
@@ -779,7 +847,51 @@ internal static class MHR_BuildGroup
 			return false;
 		}
 		from = entry.From;
-		return true;
+		to = entry.To;
+		return to != Vector3.zero;   // an ask stored without a spot (there is none today) has nowhere to walk to
+	}
+
+	/// <summary>
+	/// 11/11/2026 (Run 14): the poses of the plan's <b>pending</b> pieces around a point - not done, not given up - which is
+	/// what a step aside must not land on. Clears and fills <paramref name="into"/> (a buffer of the caller: it is the main
+	/// thread and the ask is per piece, never per frame) and answers how many there are. The radius the caller asks with is
+	/// the step plus <c>BuildAsideSpot.Clearance</c> - a piece farther than that cannot block any of the spots.
+	/// </summary>
+	internal static int PendingNear(string key, Vector3 around, float radius, List<Vector3> into)
+	{
+		if (into != null)
+		{
+			into.Clear();
+		}
+		Group group;
+		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null || group.Plan == null
+			|| into == null || !(radius > 0f))
+		{
+			return 0;
+		}
+		float limit = radius * radius;
+		int found = 0;
+		for (int i = 0; i < group.Plan.Count; i++)
+		{
+			if (group.Done.Contains(i) || group.SkippedIndex.Contains(i))
+			{
+				continue;   // up, or out of the site for good: not something the step can land on
+			}
+			MHR_Build.PlannedStep step = group.Plan[i];
+			if (step == null)
+			{
+				continue;
+			}
+			float dx = step.Pos.x - around.x;
+			float dz = step.Pos.z - around.z;
+			if (dx * dx + dz * dz > limit)
+			{
+				continue;
+			}
+			into.Add(step.Pos);
+			found++;
+		}
+		return found;
 	}
 
 	/// <summary>11/11/2026 (the body barrier): the piece left the queue for good (placed or given up) - its barrier and its
