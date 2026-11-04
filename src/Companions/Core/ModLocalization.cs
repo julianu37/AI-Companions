@@ -835,6 +835,9 @@ public static class ModLocalization
 			// (hc_cfg_<section>_<key>); the English native default is the short name for the narrow F8 field, because the
 			// fallback there is the raw config key ("PlaceReach").
 			{ "hc_cfg_building_placereach", "Place reach" },
+			// P1 (04/11/2026): the [Building] DeckLift label - how high the whole blueprint rises (the ground floor on a deck
+			// over the poles). Short like the one above: the F8 rows cut at ~55 chars.
+			{ "hc_cfg_building_decklift", "Deck height" },
 			// Fase 3.10: voice and personality of ONE companion (its own ZDO), with the [AI] values as the default.
 			// Used by the companion tab of the AI panel and by the starter panel's "AI" section.
 			{ "hc_ai_profile_title", "Companion AI" },

@@ -2877,6 +2877,10 @@
             "value": "Portée de pose"
         },
         {
+            "key": "hc_cfg_building_decklift",
+            "value": "Élévation de l'ouvrage"
+        },
+        {
             "key": "hc_ai_order_command",
             "value": "accepter les ordres"
         },

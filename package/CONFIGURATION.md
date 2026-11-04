@@ -565,6 +565,9 @@ How far (meters) around the spot you are looking at the companion looks for a pl
 **PlaceReach** — Default: 10 · Range: 5 – 20  
 How far (in meters) the companion may place a piece when it cannot walk any closer. Vanilla allows 5 m; the companion still walks first and only opens this limit after 3 s stuck. 10 is the default; up to 20 for impatient players (it looks less realistic).
 
+**DeckLift** — Default: 1 · Range: 0 – 3  
+How high the whole blueprint rises above the ground: the ground floor sits on a deck on top of the poles, with the stairs reaching it. 0 keeps the blueprint's own level. Default 1 (a low deck).
+
 **MaxDistanceFromHome** — Default: 40 · Range: 0 – 200  
 A build order is refused when the spot is further than this (meters) from the companion's home, so it does not wander off to build across the world. 0 = no limit.
 

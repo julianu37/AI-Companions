@@ -159,6 +159,9 @@ internal static class ModConfig
 	internal static ConfigEntry<float> BuildSiteSearchRadius;
 	/// <summary>How far (metres) from the eye the companion may place a piece (vanilla allows 5). Request of 03/11/2026.</summary>
 	internal static ConfigEntry<float> BuildPlaceReach;
+	/// <summary>P1 (04/11/2026, player's request): how high a blueprint's whole plan rises above the ground, so the ground
+	/// floor sits on a deck on top of the poles (0 keeps the blueprint's own level).</summary>
+	internal static ConfigEntry<float> BuildDeckLift;
 	internal static ConfigEntry<float> BuildMaxDistanceFromHome;
 	internal static ConfigEntry<bool> BuildGatherForBuild;
 	internal static ConfigEntry<float> BuildGatherRadius;
@@ -943,6 +946,7 @@ internal static class ModConfig
 		BuildEnabled = Bind(cfg, "Building", "Enabled", true, "Let a companion build when you ask it (\"Maria, build a workbench here\"). It checks the recipe, looks for a free spot with the game's own rules, walks there, places the piece and confirms it. Phase E3: it builds from its own bag only (no gathering yet) and only the pieces of the workshop (workbench, chest, fire pit, bed).");
 		BuildSiteSearchRadius = Bind(cfg, "Building", "SiteSearchRadius", 8f, "How far (meters) around the spot you are looking at the companion looks for a place where the piece fits (the game's rules: ground, water, ward, no-build zone, station in range and no clipping into other pieces).", new AcceptableValueRange<float>(1f, 30f));
 		BuildPlaceReach = Bind(cfg, "Building", "PlaceReach", 10f, "How far (in meters) the companion may place a piece when it cannot walk any closer. Vanilla allows 5 m; the companion still walks first and only opens this limit after 3 s stuck. 10 is the default; up to 20 for impatient players (it looks less realistic).", new AcceptableValueRange<float>(5f, 20f));
+		BuildDeckLift = Bind(cfg, "Building", "DeckLift", 1f, "How high the whole blueprint rises above the ground: the ground floor sits on a deck on top of the poles, with the stairs reaching it. 0 keeps the blueprint's own level. Default 1 (a low deck).", new AcceptableValueRange<float>(0f, 3f));
 		BuildMaxDistanceFromHome = Bind(cfg, "Building", "MaxDistanceFromHome", 40f, "A build order is refused when the spot is further than this (meters) from the companion's home, so it does not wander off to build across the world. 0 = no limit.", new AcceptableValueRange<float>(0f, 200f));
 		BuildGatherForBuild = Bind(cfg, "Building", "GatherForBuild", true, "When the piece's materials are missing and a job can collect them (wood, stone or ore), the companion takes the normal gather order for exactly the shortfall, gathers, and then the build order resumes by itself. Off: it says what is missing and the order ends.");
 		BuildGatherRadius = Bind(cfg, "Building", "GatherRadius", 120f, "How far (meters) from the build spot the companion looks for the resource it has to gather. The harvest's own radius is measured from the player while it follows (25 m), which made the search look tiny; when the resource is farther than 20 m the build walks there itself BEFORE the gather takes over - one owner of the movement at a time.", new AcceptableValueRange<float>(10f, 200f));

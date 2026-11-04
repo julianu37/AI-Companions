@@ -2877,6 +2877,10 @@
             "value": "Alcance de colocação"
         },
         {
+            "key": "hc_cfg_building_decklift",
+            "value": "Elevação da obra"
+        },
+        {
             "key": "hc_ai_order_command",
             "value": "aceitar comandos"
         },

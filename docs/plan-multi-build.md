@@ -5,7 +5,8 @@
 ~25 → 0**, **`blocked_by_player` 17+ → 0**, `log ajustado` **6**, 1 morte; com `PlaceReach = 15` (config de teste) a
 passada principal chegou a **987/987**, **972 colocadas** e **0 mortes**, sobrando **13**; no **Run 3** (15 + a
 guarda anti-loop) **`970 peças, 16 puladas`** = **986**, **0 mortes** e **382 KB** de log, e as 16 nomeadas revelaram
-o **plano abaixo do terreno** — corrigido (`0f13878`: **nenhuma peça abaixo do chão**) e **em teste** (§7). O código é
+o **plano abaixo do terreno** — o desenho novo é a **obra inteira subir `[Building] DeckLift`** (padrão 1) com as
+pontas de estaca assentadas no chão (**em teste**, §7). O código é
 `Jobs/MHR_BuildGroup.cs` mais
 `StartBlueprintGroup`/`Phase.WaitGroup`/`Phase.WaitRetry`/`QueueRetry`/`MarkDone`/`IsLeader`/`PlanLocked` em
 `Jobs/MHR_Build.cs`, e o ciclo de 04/11 fechou o **portão de apoio** (`AI/BuildFailure.cs`), o **watchdog de
@@ -247,7 +248,7 @@ teste mock do MCP (**101 PASS**, **12 asserções novas para o contrato do grupo
    `log ajustado` 6, 1 morte); `PlaceReach = 15` (só config) → passada principal **987/987**, **972 colocadas** e **0
    mortes**; **Run 3** (15 + guarda anti-loop) → **`970 peças, 16 puladas`** = **986**, **0 mortes** e **382 KB** de
    log. **Aberto:** a **reserva de material** (`Stock` — cada worker conta o canteiro por conta própria), um run com
-   **material pago**, o **clamp do terreno** (`0f13878`) **em teste** e o lote que ataca as 13 (nudge 5 m/3×12,
+   **material pago**, o **deck (`DeckLift`) em teste** e o lote que ataca as 13 (nudge 5 m/3×12,
    `TryBenchAt` sem `clipping`, cadeia de apoio do andar de cima).
 3. **P2 — navmesh/latência — MEDIDO EM JOGO (implementado e testado em 03/11/2026):** (a) **medido o `why`** do run de 03/11/2026:
    **36 `no progress`**, 17 `no_support`, 9 `no_ground`, 6 `too_steep` — os 36 **não** são "tile invisível": são o
@@ -319,8 +320,12 @@ só no `PlaceReach` (10 = padrão do código; 15 = config de teste), o **Run 3**
   (`wood_beam_45` em y 37,8/39,8 a oeste; `wood_floor` 39,8/43,8 + `wood_roof_45` 41,8/45,8 a leste; 4 baús em 39,9) e
   a visão (`render_view`) mostrou o telhado **quase completo com um buraco no lado leste**. Causa: o plano ancora pela
   **origem do arquivo** e a fundação do blueprint está **1 m abaixo do terreno** — o jogo recusa a peça enterrada e tudo
-  acima falha `no_support` em cascata. Correção `0f13878`: **nenhuma peça abaixo do terreno**
-  (`MHR_Build.cs:1075-1082`, sobe para `GetGroundHeight - 0,05`). **Em teste** (run em andamento).
+  acima falha `no_support` em cascata. **Desenho novo** (substitui o clamp por peça do `0f13878`, que punha o piso no
+  nível do chão): a **obra inteira sobe `[Building] DeckLift`** (**padrão 1**, faixa **0..3**, rótulo
+  `hc_cfg_building_decklift`) e as **pontas de estaca** que ainda ficariam abaixo do terreno **assentam no chão**
+  (`MHR_Build.cs:1088-1122`, log `a obra sobe X m (deck) - N peça(s) de fundação assentadas no terreno`). Sem a config o
+  "subir pelo ponto mais baixo" levantava **2,00 m** (as estacas do arquivo estão enterradas 2 m). **Em teste** (run em
+  andamento).
 
 **Coberto pelo código e ainda sem run dedicado:**
 - claim expira em 20 s, renovado por frame; retry real teto de 3 por índice, 2 s; espera por dependência 8/12/20/25 s;
@@ -331,17 +336,17 @@ só no `PlaceReach` (10 = padrão do código; 15 = config de teste), o **Run 3**
 - nivelamento do blueprint devolve **os N** (`SetThenWorkers`/`GroupWorkers`) e `NoteLeveled` impede nivelar de novo.
 
 **Falta medir:**
-1. **O clamp do terreno (`0f13878`) — em teste:** as **16 nomeadas do Run 3** (colunas verticais a oeste/leste + os 4
-   baús em 39,9) devem subir com a fundação **assentada no chão** (`MHR_Build.cs:1075-1082`, `placed.y <
-   GetGroundHeight - 0,05` → `placed.y = ground`) e o buraco do lado leste da visão deve fechar; ler `sem apoio:
-   <prefab> em (x, y, z)` do watchdog (idealmente vazio), o log (pequeno, sem loop) e a fala final
-   (`hc_ai_blueprint_done`). Aceite ainda não.
+1. **O deck (`DeckLift`) — em teste:** as **16 nomeadas do Run 3** (colunas verticais a oeste/leste + os 4 baús em
+   39,9) devem subir com a **obra inteira `DeckLift` m acima do chão** e as pontas de estaca **assentadas**
+   (`MHR_Build.cs:1088-1122`); ler `N peça(s) de fundação assentadas no terreno` (> 0), o piso do térreo ~1 m acima do
+   chão com a escada alcançando, `sem apoio: <prefab> em (x, y, z)` do watchdog (idealmente vazio), o buraco do lado
+   leste fechado e o log pequeno. `DeckLift = 0` mantém o nível do arquivo (só assenta as estacas). Aceite ainda não.
 2. **As 13 peças do Run 2** (o alvo do lote em implementação, nenhuma com aceite): **2 baús** `piece_chest_wood` em
    (-168,2, 39,9, -434,9) por `too_steep` (o nudge de 2,5 m não achou lugar); **1 bancada** `piece_workbench` em
    (-178,3, 38,6, -431,7) por `clipping` (a âncora externa colide); parte do **andar de cima**
    (`wood_floor`/`wood_roof_45` em 43,8/45,8) por `no_support` até o watchdog — o resto dessa lista pode ser o mesmo
-   bug do clamp (por isso o Run 3 e o §17.9 vinham primeiro). O lote ataca: nudge de mobília **5 m** com **3 anéis ×
-   12**, `TryBenchAt` rejeitando `clipping` e a **cadeia de apoio do andar de cima**.
+   **plano abaixo do terreno** (por isso o Run 3 e o §17.9 vinham primeiro). O lote ataca: nudge de mobília **5 m** com
+   **3 anéis × 12**, `TryBenchAt` rejeitando `clipping` e a **cadeia de apoio do andar de cima**.
 3. **Run com material pago** (sem `BlueprintFree`): 3 workers pagando peça por peça — é onde a falta de reserva de
    material aparece (o pior caso documentado é N× o resto do plano, com até 3 coletando ao mesmo tempo).
 4. **2 companheiros num 6x6 (46 peças)** — o teste pequeno que fecha a mecânica sem o ruído de uma casa de 985 peças:

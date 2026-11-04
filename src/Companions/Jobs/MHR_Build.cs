@@ -106,6 +106,10 @@ internal static class MHR_Build
 	/// (the radius in which a station frees building - measured, see <c>docs/re/building-notes.md</c>).</summary>
 	private const float BenchDefaultRadius = 20f;
 
+	/// <summary>P1 (04/11/2026): how high the whole plan of a blueprint rises when <c>[Building] DeckLift</c> is not bound
+	/// (the config's own default: 1 m - the ground floor sits on a low deck over the poles).</summary>
+	private const float DeckLiftDefault = 1f;
+
 	/// <summary>P1 (04/11/2026): the pose budget of the <b>first</b> nudge search (2 rings x 8 directions = 17 spots, up to
 	/// 4 yaws each, capped at 48 checks - the number of 03/11/2026). <see cref="BuildSite.Find"/> counts CHECKS and not
 	/// spots, and a piece the game lets rotate is tried with the 4 yaws before the spot is abandoned.</summary>
@@ -1081,31 +1085,39 @@ internal static class MHR_Build
 				+ skipped + " line(s) skipped, first '" + (missingPrefab ?? "?") + "')");
 			return BlueprintStart.Failed;
 		}
-		// P1 (04/11/2026, player's report: "the whole build should be raised, not only the entrance stairs - the ground
-		// floor should sit a little above the ground, on the poles; it is like a deck"): the plan is anchored by the
-		// FILE's origin, so a blueprint whose foundations sit 1 m below its floor level was built with the floor ON the
-		// terrain and the foundations buried (clamping each buried piece to the ground puts the floor at the ground too,
-		// which is the bug the player saw). The WHOLE plan rises by the depth of its lowest piece: the foundations stand
-		// on the ground and the floor lands on the deck the author drew, on top of the poles, with the stairs reaching it.
-		if (ZoneSystem.instance != null && plan.Count > 0)
+		// P1 (04/11/2026, player's request: "the whole build should be raised, not only the entrance stairs - the ground
+		// floor should sit a little above the ground, on the poles; it is like a deck"): the ground floor rises by
+		// [Building] DeckLift (default 1 m) so it sits on the poles the author drew, with the stairs reaching it.
+		//
+		// The plan may NOT follow its own lowest piece: a blueprint whose poles are buried 2 m has its lowest piece 2 m
+		// under the floor, so "raise by the lowest" lifted the WHOLE house 2,00 m (measured in the run of 04/11/2026) -
+		// the player asked for a deck, not a tower. What is left is the pole TIPS: a piece still below the terrain after
+		// the lift is put ON the terrain (its own x/z, so each pole finds its own ground) instead of being buried or
+		// floating - the buried foundation is what the game refuses, and every piece above it fails in a cascade (the
+		// east hole of that run).
+		if (plan.Count > 0)
 		{
-			float lowest = float.MaxValue;
+			float lift = ModConfig.BuildDeckLift != null ? ModConfig.BuildDeckLift.Value : DeckLiftDefault;
+			int grounded = 0;
 			for (int i = 0; i < plan.Count; i++)
 			{
-				if (plan[i].Pos.y < lowest)
+				Vector3 pos = plan[i].Pos;
+				pos.y += lift;
+				if (ZoneSystem.instance != null)
 				{
-					lowest = plan[i].Pos.y;
+					float ground = ZoneSystem.instance.GetGroundHeight(pos);
+					if (pos.y < ground - 0.05f)
+					{
+						pos.y = ground;   // the pole tip stands on the ground instead of disappearing under it
+						grounded++;
+					}
 				}
+				plan[i].Pos = pos;
 			}
-			float lift = ZoneSystem.instance.GetGroundHeight(hint) - lowest;
-			if (lift > 0.05f && lift < 3f)
+			if (lift > 0.001f || grounded > 0)
 			{
-				for (int i = 0; i < plan.Count; i++)
-				{
-					plan[i].Pos = new Vector3(plan[i].Pos.x, plan[i].Pos.y + lift, plan[i].Pos.z);
-				}
-				CompanionsPlugin.Log?.LogInfo("[Build] blueprint " + blueprint.Label + ": o ponto mais baixo do plano estava "
-					+ lift.ToString("F2") + " m abaixo do terreno - a obra inteira sobe para o piso ficar sobre as estacas");
+				CompanionsPlugin.Log?.LogInfo("[Build] blueprint " + blueprint.Label + ": a obra sobe " + lift.ToString("F2")
+					+ " m (deck) - " + grounded + " peça(s) de fundação assentadas no terreno");
 			}
 		}
 		if (skipped > 0)

@@ -196,12 +196,14 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
 - **Provedores (config `[AI]`):** Groq (`openai/gpt-oss-20b`, padrão) → LM Studio/Ollama (`127.0.0.1:1234`) →
   OpenRouter; tudo por `BaseUrl`/`Model`/`ApiKey` (a chave é `ConfigEntry`, nunca hardcoded). Saída estruturada
   `json_schema` → `json_object` → sem formato, **só** em recusa de formato.
-- **Config:** as chaves e os defaults vivem em `Core/ModConfig.cs` (**359** opções / 25 seções, medidas em 03/11/2026
-  com `python tools/gen_config_doc.py`, que imprime `359 settings 25 sections`); a doc gerada é
+- **Config:** as chaves e os defaults vivem em `Core/ModConfig.cs` (**360** opções / 25 seções, medidas em 04/11/2026
+  com `python tools/gen_config_doc.py`, que imprime `360 settings 25 sections`); a doc gerada é
   `package/CONFIGURATION.md` — **nunca** editar à mão: rodar o gerador e depois o `--check`. O `.cfg` é
   `BepInEx\config\AiCompanions.cfg`.
   A `[Building] PlaceReach` desta rodada (float, padrão **10**, faixa **5..20**; rótulo `hc_cfg_building_placereach`,
   "Place reach" no inglês nativo) é o `MaxPlace` do `MHR_Build` — ver o alcance de colocação na seção da construção.
+  A `[Building] DeckLift` (float, padrão **1**, faixa **0..3**; rótulo `hc_cfg_building_decklift`, "Deck height" no
+  inglês nativo) é o quanto a **obra inteira sobe** acima do chão — ver o deck na seção da construção.
 - **5 idiomas (PT/EN/ES/FR/IT):** `CompanionLocale` resolve voz/idioma; o inglês é **nativo** (sem arquivo) e os
   **4** JSONs são PT/ES/FR/IT; contrato/prompt/presets por idioma; o texto livre do jogador **nunca** é traduzido.
 - **Voz:** STT `Whisper.net` in-process (16 kHz mono, `whisper\ggml-small-q5_1.bin`); TTS `Kokoro-82M` via
@@ -253,7 +255,7 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   só de **blueprint**; **em memória** (não persiste); "para" = todos, "para, <nome>" = um, um modo num companheiro
   tira só ele; nivelar/limpar com **um** (P5). **Nenhuma** chave de tradução nova (reusa `hc_ai_no_companion` e
   `hc_ai_build_failed`) — harness **539** (471 + 23 da **(p)** + 26 da **(q)** + 19 da **(r)**), MCP **101** (as **12**
-  asserções de 03/11/2026 cobrem o contrato do grupo: `workers`, `refused` e `name` vazio = todos), config **359/25**.
+  asserções de 03/11/2026 cobrem o contrato do grupo: `workers`, `refused` e `name` vazio = todos), config **360/25**.
   **Medido em jogo (04/11/2026, `CommHomeBasicBP`, 3 companheiros, `BlueprintFree = true`) — três runs, 1 e 2 diferem
   só no `PlaceReach` (10 = padrão do código; 15 = config de teste) e o 3 roda em 15 com a guarda anti-loop:** com **10**,
   **970 + 15 = 985** — a fala final fecha (`970 peças, 15 puladas`), `no_ground` **~25 → 0**, `blocked_by_player`
@@ -268,9 +270,16 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   verticais** (`wood_beam_45` em y 37,8/39,8 a oeste; `wood_floor` 39,8/43,8 + `wood_roof_45` 41,8/45,8 a leste; 4 baús
   em 39,9) e a **visão** (`render_view`) mostrou o telhado quase completo com **buraco no lado leste** — diagnóstico:
   o plano ancora pela **origem do arquivo** e a fundação do blueprint fica **1 m abaixo do terreno**, o jogo recusa a
-  peça enterrada e tudo acima falha em cascata. **Correção `0f13878`: nenhuma peça abaixo do terreno** — no plano, se
-  `placed.y < GetGroundHeight(placed) − 0,05`, ela **sobe para o chão** e segura as de cima (`MHR_Build.cs:1075-1082`);
-  build 0/0 e harness **539**, **run com o clamp em teste**. O grupo distribuiu o plano por índices
+  peça enterrada e tudo acima falha em cascata. **Desenho novo (substitui o clamp por peça do `0f13878`):** o clamp
+  deixava o **piso no nível do chão** — justamente o que o jogador não queria ("a obra inteira deve subir um pouco,
+  apoiada nas estacas, tipo um deck"). Agora a **obra inteira sobe `[Building] DeckLift` metros** (float, **padrão 1**,
+  faixa **0..3**, rótulo `hc_cfg_building_decklift`) e as **pontas de estaca abaixo do terreno assentam no chão**:
+  sem a config o deslocamento automático pelo ponto mais baixo levantava **2,00 m** (as
+  estacas do arquivo estão enterradas 2 m) e ficava alto demais. O bloco é um só (`MHR_Build.cs:1088-1122`): sobe
+  **todas** as peças e assenta as que ainda ficariam abaixo do chão (log
+  `a obra sobe X m (deck) - N peça(s) de fundação assentadas no terreno`, `:1119-1120`; o fallback é
+  `DeckLiftDefault = 1f`, `:111`). Build 0/0 e harness **539**; **run em teste**. O grupo
+  distribuiu o plano por índices
   distintos, **promoveu o líder** depois da morte (`o líder do grupo ... saiu - outro companheiro assumiu`) e
   **retomou** no mesmo plano (`voltou para o grupo ... na peça X`). O ciclo fechou o **portão de apoio**
   (`AI/BuildFailure.cs`, puro, tabela da seção **(p)**; `no_support`/`no support`/`needs_station`/`no_ground` **com

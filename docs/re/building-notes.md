@@ -1500,7 +1500,8 @@ plano** dos 9 candidatos, nivela com a enxada (passadas de 1,5 s) e só então p
   candidatos, ignorando o próprio companheiro — o run perdeu **4** peças ali).
 - **Resultado final (os três runs com o lote completo): §17.6** — **970/985** com `PlaceReach = 10`, **972
   colocadas + 0 mortes** com `15` e, no **Run 3** (15 + guarda anti-loop), **`970 peças, 16 puladas`** = **986**, **0
-  mortes** e **382 KB** de log; o que sobrou no Run 3 é o **clamp do terreno** (§17.9, em teste).
+  mortes** e **382 KB** de log; o que sobrou no Run 3 é o **plano abaixo do terreno**, agora atacado pelo **deck
+  (`DeckLift`)** — §17.9, em teste.
 
 ### 17.2 O portão de apoio (`AI/BuildFailure.cs` + `MHR_Build.QueueRetry`)
 
@@ -1681,38 +1682,52 @@ o **default continua 10**, `ModConfig.cs:945`, faixa 5..20). O **Run 3** roda em
   3. **Log de diagnóstico dentro de caminho que pode repetir por frame precisa de dedupe/rate-limit próprio** —
      `[Build]` escreve por evento; num ciclo de recusa→pull ele virou 344 MB.
 
-### 17.9 O clamp do terreno: nenhuma peça abaixo do chão (04/11/2026)
+### 17.9 Do clamp ao deck: `DeckLift` + estacas assentadas (04/11/2026)
 
 - **O problema (as 16 do Run 3, medidas):** o plano ancora pela **origem do arquivo** do blueprint — `centre` é o centro
   em XZ com **`y = 0`** (`MHR_Build.cs:1043`) e a pose sai de `hint + rot·(piece.Pos − centre)`
-  (`:1074`) —, então o **Y do arquivo** é somado ao Y da mira *como está*. Na `CommHomeBasicBP` a fundação está em
+  (`:1069`) —, então o **Y do arquivo** é somado ao Y da mira *como está*. Na `CommHomeBasicBP` a fundação está em
   **y 37,8** e o terreno do sítio é plano na altura da mira: **1 m abaixo do chão**. O jogo **recusa/destrói peça
   enterrada**, e o que estava acima dela falha em **cascata** de `no_support` — exatamente as colunas verticais
   nomeadas no §17.6 (`wood_beam_45` em 37,8/39,8 a oeste; `wood_floor` 39,8/43,8 e `wood_roof_45` 41,8/45,8 a leste) e
   os 4 baús em 39,9. Nenhum ajuste de alcance ou de bancada resolveria: **a base da casa não existia**.
-- **A correção (build `0f13878`):** **nenhuma peça é planejada abaixo do terreno que ela pisa** —
-  `MHR_Build.cs:1075-1082`:
+- **A 1ª correção (`0f13878`) e por que ela caiu:** um **clamp por peça** — `if (placed.y < GetGroundHeight(placed) −
+  0,05) placed.y = ground`. Ela tirava a peça enterrada de baixo do chão, mas **deixava o piso do térreo no nível do
+  chão**, e o jogador não queria isso: *"a obra inteira deve subir um pouco, apoiada nas estacas, tipo um deck"*.
+- **O desenho final (substitui o clamp):** a **obra inteira sobe `[Building] DeckLift` metros** e cada peça que ainda
+  ficaria abaixo do terreno **assenta no chão** — um bloco único, `MHR_Build.cs:1088-1122`:
 
   ```csharp
-  if (ZoneSystem.instance != null)
+  float lift = ModConfig.BuildDeckLift != null ? ModConfig.BuildDeckLift.Value : DeckLiftDefault;  // :1100, :111
+  for (int i = 0; i < plan.Count; i++)
   {
-      float ground = ZoneSystem.instance.GetGroundHeight(placed);
-      if (placed.y < ground - 0.05f)
+      Vector3 pos = plan[i].Pos;
+      pos.y += lift;
+      if (ZoneSystem.instance != null)
       {
-          placed.y = ground;   // a peça enterrada assenta no chão e segura as de cima
+          float ground = ZoneSystem.instance.GetGroundHeight(pos);
+          if (pos.y < ground - 0.05f)
+          {
+              pos.y = ground;   // a ponta de estaca pisa no chão em vez de sumir sob ele
+              grounded++;
+          }
       }
+      plan[i].Pos = pos;
   }
   ```
 
-  A tolerância de **0,05 m** é folga de arredondamento, não uma licença para enterrar. A fundação passa a ficar **no
-  chão** e o resto da coluna encontra apoio nela; o `no_support` em cascata some pela raiz em vez de ser retentado.
-- **Alcance:** o clamp roda quando o **plano é montado** (`StartBlueprint`); a **retomada** reusa o plano guardado
-  (`storedPlan`) e herda o que já foi calculado.
-- **O que ler no run em teste (pendente):** as **16 que o Run 3 nomeou** deixam de aparecer em `sem apoio: <prefab> em
-  (x, y, z)` — em especial as colunas do lado **leste** (piso/telhado), que fecham o **buraco da visão**; o log
-  continua pequeno (sem loop); se sobrar algum `no_support`, olhar se o apoio daquela peça agora é a fundação
-  assentada e se o terreno sob ela é o mesmo sítio plano (o clamp usa o **chão sob cada peça**, não a média do sítio).
-  Build **0/0** e harness **539**; **aceite medido ainda não**.
+  `DeckLift` é float, **padrão 1**, faixa **0..3** (`ModConfig.cs:949`; rótulo `hc_cfg_building_decklift`, "Deck
+  height" no inglês). **0** mantém o nível do arquivo (mas a peça enterrada continua assentando — é o que o jogo
+  recusa). O log resumo é `a obra sobe X m (deck) - N peça(s) de fundação assentadas no terreno` (`:1119-1120`).
+  Por que **não** seguir o ponto mais baixo do plano: as estacas do arquivo estão enterradas **2 m** sob o piso, então
+  "subir pelo mais baixo" levantava a casa inteira **2,00 m** (medido no run de 04/11) — um deck, não uma torre.
+- **Alcance:** o bloco roda quando o **plano é montado** (`StartBlueprint`); a **retomada** reusa o plano guardado
+  (`storedPlan`) e herda o que já foi calculado. Os baús/camas de 39,9 do Run 3 (mobília, `too_steep`) continuam
+  dependendo do nudge — o deck é outro assunto.
+- **O que ler no run em teste (pendente):** o **piso do térreo ~1 m acima do chão**, apoiado nas estacas e com a
+  escada alcançando; `N peça(s) de fundação assentadas` **> 0** no log (as pontas que iam abaixo do chão); as 16 do
+  Run 3 fora de `sem apoio: <prefab> em (x, y, z)` (as colunas do lado **leste** fecham o buraco da visão); e nenhuma
+  peça enterrada recusada. Build **0/0** e harness **539**; **aceite medido ainda não**.
 
 
 
