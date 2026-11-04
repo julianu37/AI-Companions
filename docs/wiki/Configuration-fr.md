@@ -260,6 +260,7 @@ matériau (`GatherForBuild`, `UseChests`) et la portée du bras au moment de pos
 | Clé | Par défaut | Ce qu'elle fait |
 |---|---|---|
 | `PlaceReach` | `10` | Jusqu'où (mètres) il pose la pièce **quand il est bloqué** : il continue de marcher jusqu'à la pièce comme avant, et ce n'est qu'après **3 s sans se rapprocher** qu'il pose de loin. `5` est la portée du jeu lui-même (`Player.m_maxPlaceDistance`, depuis l'œil) et `20` est pour l'impatient (5–20) |
+| `DeckLift` | `1` | De combien (mètres) **monte le plan entier d'un `.blueprint`** : le plancher du rez-de-chaussée se pose **au-dessus du sol, sur les poteaux, comme une terrasse**, et les pieds de poteau qui passeraient sous le terrain se posent au sol. `0` garde le niveau du fichier (0–3) |
 | `Enabled` | `true` | Autorise le compagnon à construire quand tu le demandes |
 | `LevelGround` | `true` | Nivelle le terrain avant une structure quand il est de travers (il faut une houe dans le sac) |
 | `ClearSite` | `true` | Coupe arbres, souches et troncs dans l'emprise du plan avant la première pièce — le bois paie le chantier |
@@ -276,6 +277,12 @@ matériau (`GatherForBuild`, `UseChests`) et la portée du bras au moment de pos
 > toujours posée de près. C'est un mod, il n'a pas besoin d'être réaliste — qui est pressé monte la valeur. Elle est lue
 > à **chaque usage** : la changer dans le panneau `F8` vaut déjà pour l'ordre en cours, et avec `5` le comportement est
 > exactement celui d'avant.
+>
+> **Pourquoi le `DeckLift` sort à 1 m et non au décalage automatique :** un `.blueprint` est ancré sur l'**origine du
+> fichier**, donc ses fondations peuvent se trouver sous le niveau du plancher, et le plan montait de son **point le plus
+> bas** — sur la maison de 985 pièces, les poteaux enterrés le levaient de **2,00 m**, ce qui n'allait pas. Le plan monte
+> maintenant exactement de cette valeur et les pieds de poteau qui s'enfonceraient se posent au sol ; `0` garde le niveau
+> du fichier.
 >
 > La liste complète de la section (avec `SiteSearchRadius`, `GatherRadius`, `LevelTolerance`, `RequireHammer` et
 > `Quiet`) est dans le panneau `F8`, et le `CONFIGURATION.md` généré du paquet porte toutes les clés.

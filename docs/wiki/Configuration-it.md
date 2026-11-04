@@ -258,6 +258,7 @@ La costruzione ha una sezione sua: l'ordine stesso (`Enabled`), il terreno (`Lev
 | Chiave | Predefinito | Cosa fa |
 |---|---|---|
 | `PlaceReach` | `10` | Fin dove (metri) mette il pezzo **quando resta bloccato**: continua a camminare fino al pezzo come prima, e solo dopo **3 s senza avvicinarsi** mette da lontano. `5` è la portata del gioco stesso (`Player.m_maxPlaceDistance`, dall'occhio) e `20` è per chi ha fretta (5–20) |
+| `DeckLift` | `1` | Di quanto (metri) **sale l'intero piano di un `.blueprint`**: il pavimento del piano terra sta **sopra il terreno, appoggiato ai pali, come una piattaforma**, e le punte dei pali che finirebbero sotto il terreno si appoggiano al suolo. `0` tiene il livello del file (0–3) |
 | `Enabled` | `true` | Lascia che il compagno costruisca quando glielo chiedi |
 | `LevelGround` | `true` | Livella il terreno prima di una struttura quando è storto (serve una zappa nella borsa) |
 | `ClearSite` | `true` | Taglia alberi, ceppi e tronchi dentro l'area del piano prima del primo pezzo — la legna paga l'opera |
@@ -273,6 +274,12 @@ La costruzione ha una sezione sua: l'ordine stesso (`Enabled`), il terreno (`Lev
 > solo dopo **3 s** senza avvicinarsi, quindi un pezzo a portata di mano viene ancora messo da vicino. È un mod, non
 > deve essere realistico — chi ha fretta alza il valore. Viene letto a **ogni uso**: cambiarlo nel pannello `F8` vale già
 > per l'ordine in corso, e con `5` il comportamento è esattamente quello di prima.
+>
+> **Perché il `DeckLift` esce a 1 m e non con lo spostamento automatico:** un `.blueprint` è ancorato all'**origine del
+> file**, quindi le fondazioni possono stare sotto il livello del pavimento, e il piano saliva dal suo **punto più
+> basso** — nella casa da 985 pezzi i pali interrati lo alzavano di **2,00 m**, che era troppo. Ora il piano sale
+> esattamente di quel valore e le punte dei pali che affonderebbero si appoggiano al suolo; `0` tiene il livello del
+> file.
 >
 > L'elenco completo della sezione (con `SiteSearchRadius`, `GatherRadius`, `LevelTolerance`, `RequireHammer` e
 > `Quiet`) è nel pannello `F8`, e il `CONFIGURATION.md` generato del pacchetto porta tutte le chiavi.

@@ -270,6 +270,13 @@ stopped.
     came back, pulled again. In about ten minutes the log reached **344 MB** (**1,4 million lines**) and the game
     **froze**. The support is now pulled **once per piece** (and at most **24 per order**); on the second refusal the
     piece follows the normal wait (**8-25 s**, stall watchdog). Same build, next run: the log stayed at **30 KB**.
+  - **New `[Building] DeckLift`: the whole plan rises a little, like a deck** (**in test**, 04/11/2026 - player's
+    request: "the ground floor should sit a little above the ground, on the poles; it is like a deck"): a `.blueprint` is
+    anchored by the **file's origin**, so the plan used to be raised by its **lowest piece** - on the 985-piece house the
+    buried poles lifted it **2,00 m**, which was **too much**. The lift is the config now (float, default **1**, range
+    **0-3**, in meters): the **whole plan rises** by it, so the ground floor stands **above the ground resting on the
+    poles, with the entrance stairs reaching it**, and the **pole tips that would end up below the terrain settle on the
+    ground** instead of being refused. `0` keeps the file's own level.
 - **The workbenches cover the whole site** (**in test**, 04/11/2026 - and the reason is measured): the station pass walked
   the plan but stopped after **6 searches** with only **2 benches** planned on a 32 m footprint, and the rest of the plan
   fell to the fallback that appends a bench at the **end** of the list - the middle of the house had no station in range
@@ -294,7 +301,7 @@ stopped.
     a refused piece by index** (`AI/BuildSupportBelow.cs` - the window is **0,4-2,5 m below** the piece and **≤2,5 m in
     XZ**, harness section **(r)**).
   Build 0/0, harness **539** (471 + **23** of the failure classification + **26** of the piece-kind table + **19** of the
-  support window), MCP **101** and config **359/25**.
+  support window), MCP **101** and config **360/25** (`PlaceReach` and `DeckLift` are the two keys of this cycle).
 
 ## 1.9.6 - 02/11/2026
 

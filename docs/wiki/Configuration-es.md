@@ -256,6 +256,7 @@ material (`GatherForBuild`, `UseChests`) y hasta dónde llega el brazo al coloca
 | Clave | Por defecto | Qué hace |
 |---|---|---|
 | `PlaceReach` | `10` | Hasta dónde (metros) coloca la pieza **cuando se queda atascado**: sigue caminando hasta la pieza como antes, y solo después de **3 s sin acercarse** coloca de lejos. `5` es el alcance del propio juego (`Player.m_maxPlaceDistance`, desde el ojo) y `20` es para quien tiene prisa (5–20) |
+| `DeckLift` | `1` | Cuánto (metros) **sube el plano entero de un `.blueprint`**: el piso de la planta baja queda **sobre el suelo, apoyado en los postes, como una tarima**, y las puntas de poste que quedarían bajo el terreno se asientan en el suelo. `0` mantiene el nivel del archivo (0–3) |
 | `Enabled` | `true` | Deja que el compañero construya cuando se lo pides |
 | `LevelGround` | `true` | Nivela el terreno antes de una estructura cuando está torcido (necesita una azada en la bolsa) |
 | `ClearSite` | `true` | Corta árboles, tocones y troncos dentro del área del plano antes de la primera pieza — la madera paga la obra |
@@ -272,6 +273,12 @@ material (`GatherForBuild`, `UseChests`) y hasta dónde llega el brazo al coloca
 > colocando de cerca. Es un mod, no tiene que ser realista — quien tiene prisa sube el valor. Se lee en **cada uso**:
 > cambiarlo en el panel `F8` ya vale para la orden que está en marcha, y con `5` el comportamiento es exactamente el de
 > antes.
+>
+> **Por qué el `DeckLift` viene con 1 m y no con el desplazamiento automático:** un `.blueprint` se ancla en la **origen
+> del archivo**, así que la cimentación puede quedar por debajo del nivel del piso, y el plano subía por su **punto más
+> bajo** — en la casa de 985 piezas los postes enterrados lo levantaban **2,00 m**, lo que quedaba mal. Ahora el plano
+> sube exactamente ese valor y las puntas de poste que se hundirían se asientan en el suelo; `0` mantiene el nivel del
+> archivo.
 >
 > La lista completa de la sección (con `SiteSearchRadius`, `GatherRadius`, `LevelTolerance`, `RequireHammer` y
 > `Quiet`) está en el panel `F8`, y el `CONFIGURATION.md` generado del paquete trae todas las claves.

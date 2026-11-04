@@ -257,6 +257,7 @@ materials (`GatherForBuild`, `UseChests`) and how far the arm reaches when the p
 | Key | Default | What it does |
 |---|---|---|
 | `PlaceReach` | `10` | How far (meters) it may place a piece **once it is stuck**: it keeps walking to the piece as before, and only after **3 s without getting closer** does it place from farther away. `5` is the game's own reach (`Player.m_maxPlaceDistance`, from the eye) and `20` is for the impatient player (5–20) |
+| `DeckLift` | `1` | How much (meters) the **whole plan of a `.blueprint` rises**: the ground floor stands **above the ground on the poles, like a deck**, and the pole tips that would end up below the terrain settle on the ground. `0` keeps the file's own level (0–3) |
 | `Enabled` | `true` | Lets a companion build when you ask it |
 | `LevelGround` | `true` | Levels the ground before a structure when it is uneven (needs a hoe in the bag) |
 | `ClearSite` | `true` | Cuts the trees, stumps and logs inside the plan's footprint before the first piece — the wood pays the build |
@@ -272,6 +273,11 @@ materials (`GatherForBuild`, `UseChests`) and how far the arm reaches when the p
 > comes in after **3 s** without getting closer, so a piece within arm's reach is still placed from up close. It is a
 > mod, it does not have to be realistic — whoever is impatient turns it up. It is read on **every use**: changing it in
 > the `F8` panel already applies to the order that is running, and with `5` the behaviour is exactly the old one.
+>
+> **Why `DeckLift` ships at 1 m and not the automatic lift:** a `.blueprint` is anchored by the **file's origin**, so its
+> foundations can sit below the floor level, and the plan used to be raised by its **lowest piece** — on the 985-piece
+> house the buried poles lifted it **2,00 m**, which looked wrong. The plan now rises by exactly this value and the pole
+> tips that would sink are set on the ground; `0` keeps the file's level.
 >
 > The whole list of the section (with `SiteSearchRadius`, `GatherRadius`, `LevelTolerance`, `RequireHammer` and
 > `Quiet`) is in the `F8` panel, and the generated `CONFIGURATION.md` of the package carries every key.

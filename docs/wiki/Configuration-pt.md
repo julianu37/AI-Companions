@@ -243,6 +243,7 @@ A construção tem uma seção própria: a ordem em si (`Enabled`), o terreno (`
 | Chave | Padrão | O que faz |
 |---|---|---|
 | `PlaceReach` | `10` | Até onde (metros) ele coloca a peça **quando fica preso**: ele continua andando até a peça como antes, e só depois de **3 s sem chegar mais perto** coloca de longe. `5` é o alcance do próprio jogo (`Player.m_maxPlaceDistance`, do olho) e `20` é para quem tem pressa (5–20) |
+| `DeckLift` | `1` | Quanto (metros) o **plano inteiro de um `.blueprint` sobe**: o piso do térreo fica **acima do chão, apoiado nas estacas, tipo um deck**, e as pontas de estaca que ficariam abaixo do terreno assentam no chão. `0` mantém o nível do arquivo (0–3) |
 | `Enabled` | `true` | Deixa o companheiro construir quando você pede |
 | `LevelGround` | `true` | Nivela o terreno antes de uma estrutura quando ele está torto (precisa de enxada na mochila) |
 | `ClearSite` | `true` | Corta árvores, tocos e toras dentro da área do plano antes da primeira peça — a madeira paga a obra |
@@ -258,6 +259,11 @@ A construção tem uma seção própria: a ordem em si (`Enabled`), o terreno (`
 > entra depois de **3 s** sem chegar mais perto, então peça ao alcance da mão continua sendo colocada de perto. É um
 > mod, não precisa ser realista — quem tem pressa sobe o valor. Ele é lido a **cada uso**: mudar no painel `F8` já vale
 > para a ordem que está rodando, e com `5` o comportamento é exatamente o de antes.
+>
+> **Por que o `DeckLift` vem com 1 m e não com o deslocamento automático:** um `.blueprint` é ancorado pela **origem do
+> arquivo**, então a fundação pode ficar abaixo do nível do piso, e o plano subia pelo **ponto mais baixo** — na casa de
+> 985 peças as estacas enterradas levantavam **2,00 m**, o que ficava errado. Agora o plano sobe exatamente esse valor e
+> as pontas de estaca que afundariam assentam no chão; `0` mantém o nível do arquivo.
 >
 > A lista inteira da seção (com `SiteSearchRadius`, `GatherRadius`, `LevelTolerance`, `RequireHammer` e `Quiet`) está
 > no painel `F8`, e o `CONFIGURATION.md` gerado do pacote traz todas as chaves.
