@@ -152,6 +152,45 @@ internal static class MHR_Build
 	/// (<see cref="MHR_BuildGroup.ClaimPoses"/>) - what a candidate keeps away from. ONE list reused.</summary>
 	private static readonly List<Vector3> s_spreadClaims = new List<Vector3>();
 
+	/// <summary>
+	/// 11/11/2026 (the P0 of the redesign, <b>stay and place</b>): the plan indices of the <b>whole run</b> the next piece
+	/// belongs to (the same run <see cref="BuildSpread.SameRun"/> cuts, with no <see cref="BuildSpread.Window"/> limit), and
+	/// their poses - the candidates of <see cref="BuildSpread.Nearest"/>. ONE list each, reused: it is filled once per piece
+	/// entered (<see cref="StayPick"/>), never per frame.
+	/// </summary>
+	private static readonly List<int> s_stayWindow = new List<int>(32);
+
+	/// <summary>11/11/2026 (the stay): the poses of <see cref="s_stayWindow"/>, in the same order - the index
+	/// <see cref="BuildSpread.Nearest"/> answers is read back from both lists.</summary>
+	private static readonly List<Vector3> s_stayPoses = new List<Vector3>(32);
+
+	/// <summary>11/11/2026 (the stay): the poses the site is building right now (<see cref="MHR_BuildGroup.ClaimPoses"/>).
+	/// It cannot share <see cref="s_spreadClaims"/>: the stay asks <b>before</b> the spread of the same frame, and the
+	/// fallback path would then have to fill it again. ONE list reused.</summary>
+	private static readonly List<Vector3> s_stayClaims = new List<Vector3>();
+
+	/// <summary>11/11/2026 (the stay): the pieces a jump went over, on their way to the site's queue
+	/// (<see cref="MHR_BuildGroup.NoteStay"/>). ONE list reused.</summary>
+	private static readonly List<int> s_stayCovered = new List<int>();
+
+	/// <summary>
+	/// 11/11/2026 (the repulsion of the P0, the player's rule <i>"eles não podem se agrupar, devem ser repelidos um de perto
+	/// do outro pra não travar tudo"</i>): the <b>bodies of the other companions of the site</b> - the poses a piece has to
+	/// keep away from (<see cref="BuildSpread.NearestApart"/>/<see cref="BuildSpread.PickNearApart"/>) - and the setup each
+	/// one belongs to (the name the line of the detail prints). ONE list each, reused: filled once per piece entered
+	/// (<see cref="Bodies"/>), never per frame.
+	/// </summary>
+	private static readonly List<Vector3> s_bodies = new List<Vector3>();
+
+	private static readonly List<CompanionSetup> s_bodySetups = new List<CompanionSetup>();
+
+	/// <summary>
+	/// 11/11/2026 (the stay): how many candidates one entry may refuse (its own capsule, the eye rule, a claim another
+	/// worker took in the meantime) before the walk of today takes over. Each refusal <b>removes</b> the candidate, so the
+	/// loop always ends - the bound is only there so a pathological plan cannot spend the frame here.
+	/// </summary>
+	private const int StayTries = 6;
+
 	/// <summary>P1 (04/11/2026, measured with the deck run of the 985-piece house: 16 pieces - floors and roofs of the east
 	/// gable and of the north-west corner, 40,8 to 46,8 - were left out with <c>no_support</c>): the author's blueprint has
 	/// <b>no support piece under them</b> (his house leaned on something the file does not carry), so the direct-support pull
@@ -581,6 +620,62 @@ internal static class MHR_Build
 		internal int PiecesHere;
 		/// <summary>The XZ point of the last placement (the reference of the 1,5 m).</summary>
 		internal Vector3 LastPlaced;
+		/// <summary>
+		/// 11/11/2026 (the P0 of the redesign, <b>stay and place</b>): the current piece was <b>taken from the reach</b>
+		/// (<see cref="MHR_Build.StayPick"/>) and not from a walk - the companion stands still and places it. It is what
+		/// <see cref="MHR_Build.Goto"/> reads to accept a piece that is already inside the game's reach <b>without</b> the 3 s
+		/// gate (that gate is for a walk that stopped getting closer). It is per piece: <see cref="MHR_Build.EnterStep"/>
+		/// sets it (false for every piece that comes from a walk, a retry or the storey barrier) and an order never carries
+		/// it over.
+		/// </summary>
+		internal bool Stay;
+		/// <summary>11/11/2026 (the stay): how many pieces this order took from where it stands - the number of the summary
+		/// line that says how much of the plan was placed without walking to it (<see cref="MHR_Build.StayPick"/>).</summary>
+		internal int Stayed;
+		/// <summary>
+		/// 11/11/2026 (the repulsion of the P0): how many pieces this order took <b>away</b> from the plain nearest one -
+		/// the nearest candidate was next to another companion's body, so the piece chosen was another one
+		/// (<see cref="BuildSpread.NearestApart"/>). It is the number that proves the repulsion acted, and the summary line
+		/// prints it next to the positions.
+		/// </summary>
+		internal int Repelled;
+		/// <summary>
+		/// 12/11/2026 (the <b>partition of the phase</b>, the player's rule <i>"cada companheiro é dono de um trecho, não
+		/// negocia peça"</i>): the stretch of the plan this worker <b>owns</b> - <see cref="BuildSpread.Chunk"/> applied to
+		/// the run the cursor is in (<see cref="MHR_Build.ChunkBounds"/>). <see cref="ChunkFirst"/> is the 0-based first
+		/// index and <see cref="ChunkLength"/> how many indices it covers; <see cref="ChunkSlots"/> is <b>0</b> while the
+		/// worker has no stretch at all (a single worker, a template, a single piece, the switch off), and then every pick
+		/// is the one of before, byte for byte.
+		/// </summary>
+		internal int ChunkFirst = -1;
+		/// <summary>How many plan indices <see cref="ChunkFirst"/> covers (0 = an empty chunk, the phase is shorter than
+		/// the crew).</summary>
+		internal int ChunkLength;
+		/// <summary>This worker's slot among the crew (0-based, the position in the site's <b>sorted</b> worker list).</summary>
+		internal int ChunkSlot;
+		/// <summary>How many slots the phase was cut into (0 = no partition). It is also the cache key of the bounds: a
+		/// worker leaving or joining changes the cut, so the bounds are recomputed.</summary>
+		internal int ChunkSlots;
+		/// <summary>The phase itself - the first and the one-past-the-last plan index of the contiguous block with the
+		/// cursor's key. The chunks of the other slots are cut out of it when this worker has to steal a tail.</summary>
+		internal int ChunkRegionFirst = -1;
+		internal int ChunkRegionEnd = -1;
+		/// <summary>The key of the phase the bounds above belong to (the class exactly, the storey key and the height with
+		/// the parser's own slack): the walk entering another run invalidates the bound. -1/NaN = never computed.</summary>
+		internal int ChunkClass = -1;
+		internal float ChunkLevel = float.NaN;
+		internal float ChunkY = float.NaN;
+		/// <summary>12/11/2026 (the partition): how many pieces this worker took <b>outside</b> its chunk - the tail of the
+		/// largest one when its own stretch was done. The number of the summary line.</summary>
+		internal int ChunkStolen;
+		/// <summary>12/11/2026 (the partition): how many of the pieces this worker picked were <b>refused by the claim</b>
+		/// (another companion was already going to them). It is the number that judges the design: a partition that works
+		/// leaves it at ~0, because nobody reaches for a piece that belongs to somebody else's stretch. It used to be a
+		/// <c>LogDebug</c> line nobody counted.</summary>
+		internal int ChunkDisputes;
+		/// <summary>12/11/2026 (the partition): the "step-aside inside my own chunk" line was already written for the
+		/// current piece (the request repeats on every refusal - the line is the alarm, not a watch).</summary>
+		internal bool ChunkAsideLogged;
 		/// <summary>
 		/// 11/11/2026 (the instrument): how many positions have 1..32 pieces, plus the overflow at index 32 (33 = "33 or more").
 		/// <see cref="MHR_Build.NotePosition"/> keeps it exact by moving the current position one bucket up per piece.
@@ -1181,12 +1276,27 @@ internal static class MHR_Build
 	/// ends. Fills <paramref name="indices"/> and <paramref name="poses"/> in the same order (the first one is always
 	/// <paramref name="next"/>) and answers how many there are: 0 or 1 means there is nothing to spread with and the walk
 	/// takes <paramref name="next"/>, exactly as before.</para>
+	///
+	/// <para>11/11/2026 (the stay of the redesign): <paramref name="limit"/> is how many pieces of the run the caller wants -
+	/// the spread asks <see cref="BuildSpread.Window"/> (6) and the <b>stay</b> asks the whole run (the plan's size), because
+	/// what it needs is not "the next few" but "everything of this row I can reach from here". The exclusion rules are the
+	/// same ones, which is the point of sharing this method: a done piece and a piece another worker holds are out of both.</para>
+	///
+	/// <para>12/11/2026 (the partition of the phase): <paramref name="last"/> is the one-past-the-last index of the worker's
+	/// <b>chunk</b> (-1 = no chunk, the window of before) - the window never leaves the stretch this worker owns, which is
+	/// what makes the crew stop reaching for the same pieces. The start (<paramref name="next"/>) is already inside the
+	/// chunk: the caller's <c>ChunkBounds</c> jumped the walk there.</para>
 	/// </summary>
-	private static int SpreadWindow(State state, int next, List<int> indices, List<Vector3> poses)
+	private static int SpreadWindow(State state, int next, List<int> indices, List<Vector3> poses,
+		int limit = BuildSpread.Window, int last = -1)
 	{
 		if (state == null || state.Plan == null || indices == null || poses == null || next < 0 || next >= state.Plan.Count)
 		{
 			return 0;
+		}
+		if (last >= 0 && next >= last)
+		{
+			return 0;   // the cursor is past my chunk: it has no candidate at all
 		}
 		PlannedStep first = state.Plan[next];
 		if (first == null)
@@ -1198,8 +1308,16 @@ internal static class MHR_Build
 		int firstClass = BuildBlueprintParser.ClassOf(first.Prefab);
 		indices.Add(next);
 		poses.Add(first.Pos);
-		for (int i = next + 1; i < state.Plan.Count && indices.Count < BuildSpread.Window; i++)
+		if (limit <= 1)
 		{
+			return indices.Count;
+		}
+		for (int i = next + 1; i < state.Plan.Count && indices.Count < limit; i++)
+		{
+			if (last >= 0 && i >= last)
+			{
+				break;   // 12/11/2026 (the partition): the window never leaves the worker's stretch
+			}
 			PlannedStep step = state.Plan[i];
 			if (step == null || string.IsNullOrEmpty(step.Prefab))
 			{
@@ -1225,6 +1343,575 @@ internal static class MHR_Build
 	}
 
 	/// <summary>
+	/// 12/11/2026 (the <b>partition of the phase</b>, the player's rule <i>"cada companheiro é dono de um trecho, não
+	/// negocia peça"</i>): the stretch of the plan this worker <b>owns</b>. With a shared site the crew used to race for
+	/// the same piece: the <c>é de outro companheiro - seguindo</c> line was a <c>LogDebug</c> nobody counted, and the run
+	/// that measured the repulsion rose to 125 pieces/min and <b>decayed to 107</b> at the end, exactly when more workers
+	/// were reaching for the same corner.
+	///
+	/// <para>The plan is a nearest-neighbour tour inside each run (<c>BuildBlueprintParser.Ordered</c>), so the pieces of
+	/// one run are a contiguous walk in space: a <b>contiguous cut by index</b> cuts the site into contiguous stretches and
+	/// nothing has to be negotiated (<see cref="BuildSpread.Chunk"/>). The phase is the contiguous block that shares the
+	/// cursor's key - the very keys of <see cref="BuildSpread.SameRun"/> (storey, class, height), never a second rule - and
+	/// the walk goes <b>back</b> first so the pieces of the same key that were <b>delayed</b> behind the cursor are part of
+	/// the phase too: they are cut into the chunks like the rest instead of being left outside the partition.</para>
+	///
+	/// <para>The bounds are <b>cached</b> in the state and recomputed only when the key or the <b>number of workers</b>
+	/// changes (<see cref="State.ChunkSlots"/>): the chunk of a worker is a property of the phase and of the crew, not of
+	/// the frame. Answers <b>false</b> - no chunk at all - for a single worker, a template, a single piece and the switch
+	/// off (<see cref="SpreadOn"/>): the picks of before run byte for byte. <paramref name="first"/> is 0-based inclusive
+	/// and <paramref name="last"/> 0-based exclusive, and a chunk <b>may be empty</b> (last == first) when the phase has
+	/// fewer pieces than the crew - the caller then steals the tail of the largest one.</para>
+	/// </summary>
+	private static bool ChunkBounds(CompanionAI ai, State state, int next, out int first, out int last)
+	{
+		first = -1;
+		last = -1;
+		if (ai == null || !SpreadOn(state) || next < 0 || next >= state.Plan.Count)
+		{
+			return false;
+		}
+		PlannedStep step = state.Plan[next];
+		if (step == null || string.IsNullOrEmpty(step.Prefab) || !BuildSpread.Finite(step.Pos))
+		{
+			return false;
+		}
+		if (!MHR_BuildGroup.WorkerSlot(state.Group, ai.GetInstanceID(), out int slot, out int slots) || slots < 2)
+		{
+			// one worker (or a worker the site does not know anymore): there is nothing to partition - today's picks
+			state.ChunkSlots = 0;
+			state.ChunkFirst = -1;
+			state.ChunkLength = 0;
+			return false;
+		}
+		int cls = BuildBlueprintParser.ClassOf(step.Prefab);
+		if (state.ChunkSlots != slots || state.ChunkSlot != slot || state.ChunkFirst < 0
+			|| !BuildSpread.SameRun(state.ChunkClass, state.ChunkLevel, state.ChunkY, cls, step.Level, step.Pos.y))
+		{
+			int start = next;
+			while (start > 0 && SamePhaseKey(state, start - 1, cls, step.Level, step.Pos.y))
+			{
+				start--;   // the delayed pieces of the same key behind the cursor are the start of the phase
+			}
+			int end = next + 1;
+			while (end < state.Plan.Count && SamePhaseKey(state, end, cls, step.Level, step.Pos.y))
+			{
+				end++;
+			}
+			state.ChunkClass = cls;
+			state.ChunkLevel = step.Level;
+			state.ChunkY = step.Pos.y;
+			state.ChunkSlot = slot;
+			state.ChunkSlots = slots;
+			state.ChunkRegionFirst = start;
+			state.ChunkRegionEnd = end;
+			BuildSpread.Chunk(start, end, slots, slot, out int mine, out int length);
+			state.ChunkFirst = mine;
+			state.ChunkLength = length;
+			if (CompanionsPlugin.LogDetailed)
+			{
+				LogDetailed(ai, "trecho " + (slot + 1) + "/" + slots + " da fase " + (start + 1) + "-" + end + ": as peças "
+					+ (mine + 1) + "-" + (mine + length) + " são minhas");
+			}
+		}
+		first = state.ChunkFirst;
+		last = state.ChunkFirst + state.ChunkLength;
+		return first >= 0;
+	}
+
+	/// <summary>12/11/2026 (the partition): is the plan's <paramref name="index"/> a piece of the phase of the cursor - the
+	/// same run of <see cref="BuildSpread.SameRun"/>? A step that cannot be built (null, no prefab, a pose that is not a
+	/// number) <b>ends</b> the phase: it is not a piece a chunk may hold open.</summary>
+	private static bool SamePhaseKey(State state, int index, int cls, float level, float y)
+	{
+		if (state == null || state.Plan == null || index < 0 || index >= state.Plan.Count)
+		{
+			return false;
+		}
+		PlannedStep step = state.Plan[index];
+		if (step == null || string.IsNullOrEmpty(step.Prefab) || !BuildSpread.Finite(step.Pos))
+		{
+			return false;
+		}
+		return BuildSpread.SameRun(cls, level, y, BuildBlueprintParser.ClassOf(step.Prefab), step.Level, step.Pos.y);
+	}
+
+	/// <summary>12/11/2026 (the partition): this plan index is a piece the site may still build - a usable step that is
+	/// neither up nor given up. A piece <b>another worker holds</b> is pending on purpose: its owner is walking to it, and
+	/// the claim is the last word (that refusal is what <see cref="State.ChunkDisputes"/> counts).
+	///
+	/// <para>A piece the site's queue is already <b>waiting to retry</b> (<see cref="MHR_BuildGroup.Retried"/>: a real
+	/// failure, a dependency, a body) is <b>not</b> picked by the stretch - it keeps its own clock there, exactly as the walk
+	/// of before left it to the queue. Without this the wrap of <see cref="ChunkFirstPending"/> would walk to the piece that
+	/// just failed on the very next frame and burn its three attempts in a second.</para>
+	/// </summary>
+	private static bool PendingPiece(State state, int index)
+	{
+		if (state == null || state.Plan == null || index < 0 || index >= state.Plan.Count)
+		{
+			return false;
+		}
+		PlannedStep step = state.Plan[index];
+		if (step == null || string.IsNullOrEmpty(step.Prefab) || !BuildSpread.Finite(step.Pos))
+		{
+			return false;
+		}
+		if (state.Group != null
+			&& (MHR_BuildGroup.IsDone(state.Group, index) || MHR_BuildGroup.GivenUp(state.Group, index)
+				|| MHR_BuildGroup.Retried(state.Group, index)))
+		{
+			return false;
+		}
+		return true;
+	}
+
+	/// <summary>
+	/// 12/11/2026 (the partition): the first <b>pending</b> piece of my chunk from <paramref name="from"/> on, or -1. When
+	/// the cursor is already past the chunk's last index the search restarts at the chunk's <b>first</b> one: the stretch is
+	/// not finished, and a walk that reached its end (a steal or a piece of the site's queue took it far ahead) is exactly
+	/// the case the wrap exists for - the pieces behind are still mine. An <b>empty</b> chunk (the phase shorter than the
+	/// crew) always answers -1: the caller then steals the tail of the largest one. Nothing outside
+	/// <c>[first, last)</c> is ever answered - the ranges of the other workers are not this worker's business.
+	///
+	/// <para>A piece <b>another companion holds</b> is not answered either (the rule the spread window already uses): the
+	/// owner is walking to it, and the claim is what says so. That keeps <see cref="State.ChunkDisputes"/> meaning what it
+	/// has to mean - the <b>only</b> way two workers meet here is the tail steal, so a dispute that is not ~0 is the cut
+	/// being wrong, not a race that was expected.</para>
+	/// </summary>
+	private static int ChunkFirstPending(State state, int first, int last, int from)
+	{
+		if (state == null || state.Plan == null || first < 0 || last <= first)
+		{
+			return -1;
+		}
+		int end = last > state.Plan.Count ? state.Plan.Count : last;
+		int start = from > first ? from : first;
+		for (int i = start; i < end; i++)
+		{
+			if (PendingPiece(state, i) && FreeOfOthers(state, i))
+			{
+				return i;
+			}
+		}
+		if (start <= first)
+		{
+			return -1;   // the cursor is at the stretch's first one: there is nothing behind it
+		}
+		int wrap = start < end ? start : end;
+		for (int i = first; i < wrap; i++)
+		{
+			if (PendingPiece(state, i) && FreeOfOthers(state, i))
+			{
+				return i;
+			}
+		}
+		return -1;
+	}
+
+	/// <summary>12/11/2026 (the partition): nobody of the site is on this piece right now (an expired claim is nobody's,
+	/// exactly like <c>MHR_BuildGroup.OwnerOf</c> answers). This worker holds nothing while it picks - the claims are
+	/// released at the top of <see cref="Advance"/> - so any live claim here belongs to somebody else.</summary>
+	private static bool FreeOfOthers(State state, int index)
+	{
+		return state.Group == null || MHR_BuildGroup.OwnerOf(state.Group, index) == 0;
+	}
+
+	/// <summary>12/11/2026 (the partition): how many pieces of a chunk are still to be built.</summary>
+	private static int ChunkPendingCount(State state, int first, int last)
+	{
+		if (state == null || state.Plan == null || first < 0)
+		{
+			return 0;
+		}
+		int end = last > state.Plan.Count ? state.Plan.Count : last;
+		int count = 0;
+		for (int i = first; i < end; i++)
+		{
+			if (PendingPiece(state, i))
+			{
+				count++;
+			}
+		}
+		return count;
+	}
+
+	/// <summary>
+	/// 12/11/2026 (the partition, the <b>tail</b>): my stretch has nothing left to build, so this worker takes the <b>last
+	/// pending piece</b> of the <b>largest remaining chunk</b> of the phase - the one with the most pending pieces, a tie
+	/// keeping the one further along the plan (deterministic, and the site closes forward). It is the only place where two
+	/// workers can meet, and it is why the pick goes through the <b>claim</b> afterwards: the owner may be walking to that
+	/// very piece, and the refusal is a <see cref="State.ChunkDisputes"/>. -1 when the whole phase is done (or when there is
+	/// no phase to steal from).
+	/// </summary>
+	private static int StealTail(State state)
+	{
+		if (state == null || state.Plan == null || state.ChunkSlots < 2
+			|| state.ChunkRegionFirst < 0 || state.ChunkRegionEnd <= state.ChunkRegionFirst)
+		{
+			return -1;
+		}
+		int bestFirst = -1;
+		int bestLast = -1;
+		int bestCount = 0;
+		for (int slot = 0; slot < state.ChunkSlots; slot++)
+		{
+			if (slot == state.ChunkSlot)
+			{
+				continue;   // my own stretch: the caller already knows it has nothing pending
+			}
+			BuildSpread.Chunk(state.ChunkRegionFirst, state.ChunkRegionEnd, state.ChunkSlots, slot,
+				out int first, out int last);
+			if (last <= first)
+			{
+				continue;   // an empty chunk of a phase shorter than the crew
+			}
+			int count = ChunkPendingCount(state, first, last);
+			if (count <= 0)
+			{
+				continue;
+			}
+			if (count > bestCount || (count == bestCount && first > bestFirst))
+			{
+				bestCount = count;
+				bestFirst = first;
+				bestLast = last;
+			}
+		}
+		if (bestFirst < 0)
+		{
+			return -1;   // the whole phase is up (or given up)
+		}
+		for (int i = bestLast - 1; i >= bestFirst; i--)
+		{
+			if (PendingPiece(state, i))
+			{
+				return i;   // the tail: the last pending piece of the largest chunk
+			}
+		}
+		return -1;
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the P0 of the redesign, <b>stay and place</b>): is this an order that may stay? It has to be a
+	/// <b>blueprint of a site</b>: the pieces a stay goes over must have somewhere to go back to - the site's queue
+	/// (<see cref="MHR_BuildGroup.NoteStay"/>) - and the claims of the other workers are what says "this piece is already
+	/// somebody's". A single worker, a template and a single piece keep the walk of before, <b>byte for byte</b>.
+	///
+	/// <para>There is no new switch: the reach <b>is</b> the config of the reach (<see cref="MaxPlace"/>,
+	/// <c>[Building] PlaceReach</c>), and it is read on every use like the walk's own rule. The <b>measured</b> baseline this
+	/// is against: 4,55 s per piece on the 985-piece house, with 2,0 s of median inside <c>Goto</c>.</para>
+	/// </summary>
+	private static bool StayOn(State state)
+	{
+		return state != null && state.Plan != null && state.Plan.Count > 0 && state.Blueprint != null && state.Group != null;
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the repulsion of the P0, the player's rule <i>"eles não podem se agrupar, devem ser repelidos um de perto
+	/// do outro pra não travar tudo"</i>): the <b>bodies of the other companions of the site</b> into the reused
+	/// <see cref="s_bodies"/>/<see cref="s_bodySetups"/> - the poses a piece has to keep away from
+	/// (<see cref="BuildSpread.NearestApart"/>/<see cref="BuildSpread.PickNearApart"/>). The crew is the site's worker list
+	/// (<see cref="MHR_BuildGroup.WorkerIds(string)"/>): a companion that is not building there is not in the way of this
+	/// plan. When that list is gone (the group was dropped with the state still alive) the player's own companions are the
+	/// fallback - the question is "who is near", never "nobody".
+	///
+	/// <para>A dead companion is <b>not</b> a body (a corpse blocks no placement) and a pose that is not a number is dropped.
+	/// This worker is never in its own list: the repulsion is <b>between</b> companions, and a body repelled by itself would
+	/// stop taking the pieces at its own feet. Called once per piece entered, never per frame: the only allocation is the
+	/// small copy of the site's worker list the group hands out.</para>
+	/// </summary>
+	private static void Bodies(CompanionAI ai, State state)
+	{
+		s_bodies.Clear();
+		s_bodySetups.Clear();
+		if (ai == null)
+		{
+			return;
+		}
+		int self = ai.GetInstanceID();
+		if (state != null && !string.IsNullOrEmpty(state.Group))
+		{
+			List<int> workers = MHR_BuildGroup.WorkerIds(state.Group);
+			for (int i = 0; i < workers.Count; i++)
+			{
+				if (workers[i] == self)
+				{
+					continue;   // never mine: the repulsion is between companions
+				}
+				AddBody(SetupOf(workers[i]));
+			}
+		}
+		if (s_bodies.Count > 0)
+		{
+			return;
+		}
+		IReadOnlyList<CompanionSetup> all = CompanionSetup.AllCompanions;
+		for (int i = 0; i < all.Count; i++)
+		{
+			CompanionSetup cs = all[i];
+			CompanionAI other = cs != null ? cs.GetComponent<CompanionAI>() : null;
+			if (other == null || other.GetInstanceID() == self || !MHR_Owner.IsMine(cs))
+			{
+				continue;
+			}
+			AddBody(cs);
+		}
+	}
+
+	/// <summary>11/11/2026 (the repulsion): one living body of a companion into the lists of <see cref="Bodies"/> - a dead
+	/// one and a pose that is not a number are left out (neither is in the way of a placement).</summary>
+	private static void AddBody(CompanionSetup cs)
+	{
+		if (cs == null)
+		{
+			return;
+		}
+		Character body = cs.GetComponent<Character>();
+		if (body == null || body.IsDead())
+		{
+			return;
+		}
+		Vector3 pos = body.transform.position;
+		if (!BuildSpread.Finite(pos))
+		{
+			return;
+		}
+		s_bodies.Add(pos);
+		s_bodySetups.Add(cs);
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the repulsion): the index of the <b>nearest</b> body of <see cref="s_bodies"/> to this pose (XZ) and its
+	/// distance - -1 and 0 when there is none. It is <b>only</b> the line of the detail: the decision was already made by the
+	/// pure <see cref="BuildSpread.NearestApart"/>, which answers an index and nothing else.
+	/// </summary>
+	private static int NearestBody(Vector3 piece, out float gap)
+	{
+		gap = 0f;
+		int best = -1;
+		float bestGap = float.MaxValue;
+		for (int i = 0; i < s_bodies.Count; i++)
+		{
+			float distance = FlatDistance(piece, s_bodies[i]);
+			if (distance < bestGap)
+			{
+				bestGap = distance;
+				best = i;
+			}
+		}
+		if (best >= 0)
+		{
+			gap = bestGap;
+		}
+		return best;
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the repulsion): the piece this worker is <b>about to take</b> is not the piece the pick of before would
+	/// have taken - that one is next to another companion's body, so the repulsion moved the choice. Counts it
+	/// (<see cref="State.Repelled"/>, the number of the summary line) and, with <c>LogDetailed</c>, says which piece it left
+	/// and which companion was there. Both paths report it (the stay and the walk), and the check runs <b>only</b> when a
+	/// piece is actually taken - never per frame.
+	///
+	/// <para>The poses and the plan indices come as parameters on purpose: the stay answers indices into
+	/// <see cref="s_stayWindow"/> and the walk indices into <see cref="s_spreadWindow"/>, and the line has to print the plan
+	/// position the plan itself uses (1-based), never a window index.</para>
+	/// </summary>
+	private static void Repelled(CompanionAI ai, State state, Vector3 plain, Vector3 taken, int plainIndex, int takenIndex)
+	{
+		if (state == null || s_bodies.Count == 0)
+		{
+			return;
+		}
+		state.Repelled++;
+		if (!CompanionsPlugin.LogDetailed)
+		{
+			return;
+		}
+		int near = NearestBody(plain, out float nearGap);
+		NearestBody(taken, out float takenGap);
+		CompanionSetup who = near >= 0 && near < s_bodySetups.Count ? s_bodySetups[near] : null;
+		string name = who != null ? CompanionNames.NameOf(who) : null;
+		LogDetailed(ai, "repulsão: a peça " + (plainIndex + 1) + " ficou perto de "
+			+ (string.IsNullOrEmpty(name) ? "?" : name) + " (a " + F(nearGap) + " m) - pegando " + (takenIndex + 1)
+			+ " (a " + F(takenGap) + " m do mais perto)");
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the P0 of the redesign): the plan index of the piece this worker should <b>stay</b> for - the nearest one
+	/// of the current run that it can place from where it stands - or -1 when the walk of today takes over (nothing inside
+	/// the reach, or every candidate refused).
+	///
+	/// <para><see cref="BuildSpread.Nearest"/> answers the XZ side (pure, and the harness asserts it). The two rules a pure
+	/// function cannot know are added here, and they are the two risks both reviews named: <b>(1)</b> the game's reach is
+	/// measured from the <b>eye</b> (<see cref="MaxPlace"/> - a piece 12 m over the head is 1 m away flat and out of the
+	/// game's reach); <b>(2)</b> the worker's <b>own capsule</b> has to be out of the piece - the vanilla body check skips the
+	/// placer on purpose (<see cref="BuildProbe.BlockerAt"/>), and a floor placed under its own feet put a companion 1 m
+	/// under the ground in the run of 04/11/2026. A candidate is also never taken from another worker: <b>the claim is
+	/// taken here</b> (<see cref="MHR_BuildGroup.TryClaim"/>), so the caller falls through to the walk with nothing claimed
+	/// when this answers -1.</para>
+	///
+	/// <para>Nothing else of the order changes: the storey gate (<see cref="MHR_BuildGroup.MayTake"/>) and the storey barrier
+	/// ran <b>before</b> this, and the window is one <b>run</b> (<see cref="BuildSpread.SameRun"/>: same storey key, same
+	/// class, same height), so a stay never takes a piece of another storey or of another class.</para>
+	///
+	/// <para>11/11/2026 (the repulsion of the P0): the candidate is not the plain nearest any more -
+	/// <see cref="BuildSpread.NearestApart"/> asks for the nearest one that is also at least
+	/// <see cref="BuildSpread.SpreadDistance"/> (XZ) from <b>every other body</b> of the crew (<see cref="Bodies"/>). The
+	/// rules a pure function cannot know - the eye, the own capsule, the claim - are the same ones, applied on top of that
+	/// answer, so a repelled candidate that turns out to be unusable is removed and the next nearest apart one is tried.</para>
+	///
+	/// <para>12/11/2026 (the partition of the phase): <paramref name="last"/> is the end of this worker's <b>chunk</b> (-1 = no
+	/// chunk): the stay only takes pieces of the stretch it owns, which is the point of the cut - the reach of five workers
+	/// overlaps, the chunks do not.</para>
+	/// </summary>
+	private static int StayPick(CompanionAI ai, State state, int next, int last = -1)
+	{
+		if (ai == null || state == null || state.Plan == null || state.Group == null)
+		{
+			return -1;
+		}
+		// the WHOLE run (the plan's size as the limit) - not the 6 of the spread: what is wanted here is every piece of this
+		// row the body can reach from where it is
+		if (SpreadWindow(state, next, s_stayWindow, s_stayPoses, state.Plan.Count, last) <= 0)
+		{
+			return -1;
+		}
+		MHR_BuildGroup.ClaimPoses(state.Group, s_stayClaims);
+		Vector3 me = ai.transform.position;
+		if (!BuildSpread.Finite(me))
+		{
+			return -1;
+		}
+		Vector3 eye = new Vector3(me.x, me.y + EyeHeight, me.z);
+		float reach = MaxPlace - 0.5f;
+		int worker = ai.GetInstanceID();
+		for (int tries = 0; tries < StayTries && s_stayPoses.Count > 0; tries++)
+		{
+			// the window starts at the NEXT piece, so the piece this worker is on is never a candidate: skip = -1 (the
+			// parameter is an index into the list, never a plan index - a plan index here would skip a stranger)
+			//
+			// 11/11/2026 (the repulsion of the P0): the nearest piece that is ALSO at least SpreadDistance away from every
+			// other body of the crew (BuildSpread.NearestApart). The P0 alone made each companion stay in its own corner and
+			// the corners of five 10 m reaches overlap - the crew bunched up. No candidate far enough from the others answers
+			// the plain Nearest: building next to a companion is better than not building.
+			int at = BuildSpread.NearestApart(s_stayPoses, s_stayClaims, s_bodies, me, reach,
+				BuildSpread.SpreadDistance, -1);
+			if (at < 0)
+			{
+				return -1;   // nothing of this run is inside the reach: the walk takes today's piece
+			}
+			int index = s_stayWindow[at];
+			PlannedStep step = state.Plan[index];
+			if (step == null || Vector3.Distance(eye, s_stayPoses[at]) > MaxPlace
+				|| OwnBodyOn(ai, step.Piece, s_stayPoses[at], step.Rot))
+			{
+				s_stayWindow.RemoveAt(at);
+				s_stayPoses.RemoveAt(at);
+				continue;   // out of the game's reach from the eye, or under its own feet: the next nearest
+			}
+			if (!MHR_BuildGroup.TryClaim(state.Group, index, worker))
+			{
+				s_stayWindow.RemoveAt(at);
+				s_stayPoses.RemoveAt(at);
+				continue;   // another companion took it: it is not this worker's piece any more
+			}
+			// 11/11/2026 (the repulsion): was the piece taken a DIFFERENT one from the plain nearest because the nearest is
+			// next to a companion? The number of the summary line and, with LogDetailed, the line of the detail
+			if (s_bodies.Count > 0)
+			{
+				int plain = BuildSpread.Nearest(s_stayPoses, s_stayClaims, me, reach, -1);
+				if (plain >= 0 && plain != at)
+				{
+					Repelled(ai, state, s_stayPoses[plain], s_stayPoses[at], s_stayWindow[plain], s_stayWindow[at]);
+				}
+			}
+			return index;
+		}
+		return -1;
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the stay, the risk both reviews named): is the <b>worker's own capsule</b> through the piece at this pose?
+	/// The body window of the placement check (<see cref="BuildProbe.BlockerAt"/> → <c>BlockedByCharacter</c>) skips the
+	/// companion that is placing on purpose - it always stands inside its own build - and that is right for a walk (it stops
+	/// 2,5 m away). It is <b>wrong for a stay</b>: the piece is at its feet, and a floor placed there in the run of
+	/// 04/11/2026 squeezed two companions 1 m under the ground. The geometry is the probe's own (the capsule's axis and ends
+	/// against the piece's rotated box, its pivot and its vertical span), so nothing else of the rule changes - only "which
+	/// body" does. The pose is a parameter (not <c>state.Pos</c>) because both callers ask about a piece that is not the
+	/// current one yet: a candidate of the reach and the pose a nudge wants to move to.
+	/// </summary>
+	private static bool OwnBodyOn(CompanionAI ai, Piece piece, Vector3 pos, Quaternion rot)
+	{
+		if (ai == null || piece == null)
+		{
+			return false;
+		}
+		Character self = ai.GetComponent<Character>();
+		if (self == null || !BuildProbe.CapsuleOf(self, out Vector3 axis, out float bottom, out float top, out float radius))
+		{
+			return false;
+		}
+		Vector3 center = pos;
+		float halfX = 0f;
+		float halfZ = 0f;
+		float pieceBottom = pos.y;
+		float pieceTop = pos.y;
+		if (BuildProbe.BoxOf(piece, out Bounds box))
+		{
+			Vector3 localCenter = box.center - piece.transform.position;
+			center = pos + rot * localCenter;
+			halfX = box.extents.x;
+			halfZ = box.extents.z;
+			float halfY = BuildBody.HalfY(halfX, box.extents.y, halfZ, (rot * Vector3.right).y,
+				(rot * Vector3.up).y, (rot * Vector3.forward).y);
+			pieceBottom = center.y - halfY;
+			pieceTop = center.y + halfY;
+		}
+		Vector3 local = Quaternion.Inverse(rot) * (axis - center);
+		return BuildBody.Blocks(local.x, local.z, halfX, halfZ, pieceBottom, pieceTop, bottom, top, radius);
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the stay): the plan indices the jump went <b>over</b> - from the piece the walk was on
+	/// (<paramref name="firstIndex"/>) to the one it stayed for (<paramref name="lastIndex"/>, exclusive) - go back to the
+	/// site's <b>queue</b> (<see cref="MHR_BuildGroup.NoteStay"/>): the plan is only ever taken by index, so without them those
+	/// pieces would never be seen again. Nothing failed: no attempt is spent, no delay is added and they are not a
+	/// <c>Spread</c> entry (the neighbourhood gate is what would freeze them). A piece that is already up or that another
+	/// worker holds is not queued - it is not work looking for a body.
+	/// </summary>
+	private static void StayCovered(CompanionAI ai, State state, int firstIndex, int lastIndex)
+	{
+		if (state == null || state.Group == null || state.Plan == null || firstIndex < 0 || lastIndex > state.Plan.Count)
+		{
+			return;
+		}
+		s_stayCovered.Clear();
+		for (int i = firstIndex; i < lastIndex; i++)
+		{
+			PlannedStep step = state.Plan[i];
+			if (step == null || string.IsNullOrEmpty(step.Prefab) || !BuildSpread.Finite(step.Pos))
+			{
+				continue;
+			}
+			if (MHR_BuildGroup.IsDone(state.Group, i) || MHR_BuildGroup.OwnerOf(state.Group, i) != 0)
+			{
+				continue;
+			}
+			s_stayCovered.Add(i);
+		}
+		if (s_stayCovered.Count == 0)
+		{
+			return;
+		}
+		MHR_BuildGroup.NoteStay(state.Group, s_stayCovered, s_stayCovered.Count);
+		if (CompanionsPlugin.LogDetailed)
+		{
+			LogDetailed(ai, "as " + s_stayCovered.Count + " peça(s) que o salto deixou atrás voltam para a fila do canteiro");
+		}
+	}
+
+	/// <summary>
 	/// E6/E7: moves to the next piece of the plan (a template or a blueprint) or ends the order. Returns true while
 	/// there is a next piece to build.
 	///
@@ -1241,6 +1928,28 @@ internal static class MHR_Build
 	/// support are not walked to again on the same breath - and it is <b>not</b> gated by a number of passes anymore: each
 	/// step carries its own real attempts (<see cref="PlannedStep.Tries"/>) and the stall watchdog ends a run that stops
 	/// making progress.</para>
+	///
+	/// <para>11/11/2026 (the P0 of the redesign, <b>stay and place</b>): before the spread of the crew, the <b>reach</b> -
+	/// <see cref="StayPick"/> takes the nearest piece of the run the worker can place from where it stands, the phase goes
+	/// straight to <see cref="Phase.Place"/> and the walk to it does not happen. The order of the plan is untouched (the
+	/// storey gate and the barrier ran above, the window is one run), the pieces a jump goes over go back to the site's
+	/// queue (<see cref="StayCovered"/>), and a stay that is refused for any reason is a <b>no-op</b>: today's pick runs and
+	/// nothing is counted as a failure.</para>
+	///
+	/// <para>11/11/2026 (the repulsion): the bodies of the crew are read <b>once</b> per piece entered (<see cref="Bodies"/>)
+	/// and both picks keep away from them - the stay (<see cref="BuildSpread.NearestApart"/>) and the walk
+	/// (<see cref="BuildSpread.PickNearApart"/>). Empty list (a single worker) = the picks of the P0 and of the Run 14, byte
+	/// for byte.</para>
+	///
+	/// <para>12/11/2026 (the <b>partition of the phase</b>, the player's rule <i>"cada companheiro é dono de um trecho, não
+	/// negocia peça"</i>): with a shared site the plan is cut by <b>index</b> into one contiguous chunk per worker
+	/// (<see cref="ChunkBounds"/> over <see cref="BuildSpread.Chunk"/>) and each worker takes the first <b>pending</b> piece
+	/// of its own stretch (<see cref="ChunkFirstPending"/>); when the stretch is done it steals the <b>tail</b> of the largest
+	/// remaining one (<see cref="StealTail"/>), which is the only place two of them can meet - and the claim is the word
+	/// there, counted in <see cref="State.ChunkDisputes"/>. The reach, the spread, the repulsion, the storey gate and the
+	/// barriers are untouched: they now run <b>inside</b> the stretch. The contention is gone by construction instead of by
+	/// negotiation: the run that measured the repulsion rose to 125 pieces/min and decayed to 107 at the end, with the
+	/// "another companion's piece - going on" line hidden behind <c>LogDebug</c>.</para>
 	/// </summary>
 	private static bool Advance(CompanionAI ai, State state, float dt = 0f)
 	{
@@ -1278,11 +1987,28 @@ internal static class MHR_Build
 		{
 			PreferNearFloor(ai, state, state.Index + 1);
 		}
+		// 11/11/2026 (the repulsion of the P0): who the other bodies of the crew are - ONE scan per piece entered (the lists
+		// are reused) and only for the orders that read them (the reach and the spread). With no other companion the list is
+		// empty and both picks are the ones of before, byte for byte.
+		if (StayOn(state) || SpreadOn(state))
+		{
+			Bodies(ai, state);
+		}
 		if (state.Plan != null && state.Index + 1 < state.Plan.Count)
 		{
 			while (state.Index + 1 < state.Plan.Count)
 			{
 				int next = state.Index + 1;
+				// 12/11/2026 (the PARTITION of the phase, the player's rule "cada companheiro é dono de um trecho, não negocia
+				// peça"): with a shared site each worker owns a contiguous chunk of the run (BuildSpread.Chunk) and the pick
+				// below takes the pieces of that stretch - the indices before it belong to another companion, so they are
+				// neither taken nor sent to the site's queue (their owner walks them; a worker that leaves is covered because
+				// the bounds are recomputed when the number of workers changes, and a chunk left behind is exactly what the
+				// tail steal of the pick takes). Without a chunk (single worker, template, single piece, the switch off) this
+				// is `false` and every line below is the one of before, byte for byte.
+				int chunkFirst = -1;
+				int chunkLast = -1;
+				bool chunked = ChunkBounds(ai, state, next, out chunkFirst, out chunkLast);
 				// 11/11/2026 (the body barrier, the player's rule: "they may skip, but come back and try again before going
 				// up"): while a body is holding a piece of a storey below, the pieces ABOVE it are not taken - the worker
 				// waits and the piece that did not go up comes back first (the site's queue keeps it, the claim survives
@@ -1327,8 +2053,66 @@ internal static class MHR_Build
 				// from what the others are building (BuildSpread); the pieces it walked past keep their turn in the site's
 				// queue (NoteSpread) and come back when that place is free. Single worker, template or the switch off: pick
 				// is next, byte for byte the walk of before.
+				//
+				// 11/11/2026 (the P0 of the redesign - "stay and place", approved by two independent reviews): BEFORE the
+				// spread, the reach. The piece the companion places does not need the body next to it (BuildExecutor
+				// instantiates it), so what is inside [Building] PlaceReach is placed FROM WHERE IT STANDS: the nearest piece
+				// of the run wins (BuildSpread.Nearest), the phase goes straight to Place and the walk of 2,0 s of median per
+				// piece does not happen. The order of the plan is untouched - the storey gate and the barrier ran above, the
+				// window is one run - and when nothing is inside the reach (or every candidate is another worker's piece, out
+				// of the eye's reach, or under its own feet) this is a no-op: today's pick runs with nothing claimed and
+				// nothing counted as an error.
 				int pick = next;
-				if (SpreadOn(state) && SpreadWindow(state, next, s_spreadWindow, s_spreadPoses) > 1)
+				bool stay = false;
+				// 12/11/2026 (the PARTITION of the phase): the pieces this worker may take are the ones of ITS chunk - the
+				// first PENDING piece of the stretch from the cursor on (a piece that is up or given up is not work looking
+				// for a body). When the stretch has nothing left the worker STEALS the tail of the largest remaining one (the
+				// last pending piece of it): it is the only place two workers can meet, and there the claim is the word -
+				// that refusal is the `disputa` of the summary line. No chunk = `next` and every line below is the one of
+				// before, byte for byte.
+				bool stole = false;
+				bool mine = false;   // the picked piece is inside my stretch (the only case the reach/spread are bounded)
+				if (chunked)
+				{
+					int at = ChunkFirstPending(state, chunkFirst, chunkLast, next);
+					if (at >= 0)
+					{
+						pick = at;
+						mine = true;
+					}
+					else
+					{
+						int tail = StealTail(state);
+						if (tail >= 0)
+						{
+							pick = tail;
+							stole = true;
+							LogDetailed(ai, "o meu trecho (" + (chunkFirst + 1) + "-" + chunkLast
+								+ ") acabou - roubando a cauda: a peça " + (tail + 1) + "/" + state.Plan.Count);
+						}
+						// nothing pending anywhere in the phase: the pick falls through to `next`, unbounded - the
+						// exhausted phase must not freeze the worker (the plan's own end is right below)
+					}
+				}
+				if (StayOn(state) && !stole)
+				{
+					int near = StayPick(ai, state, pick, mine ? chunkLast : -1);
+					if (near >= 0)
+					{
+						pick = near;
+						stay = true;
+					}
+				}
+				if (stay)
+				{
+					// the pieces the jump went over are NOT lost: they go to the site's queue due now (MHR_BuildGroup.NoteStay)
+					if (pick > next)
+					{
+						StayCovered(ai, state, next, pick);
+					}
+				}
+				else if (!stole && SpreadOn(state)
+					&& SpreadWindow(state, pick, s_spreadWindow, s_spreadPoses, BuildSpread.Window, mine ? chunkLast : -1) > 1)
 				{
 					MHR_BuildGroup.ClaimPoses(state.Group, s_spreadClaims);
 					int passed;
@@ -1336,11 +2120,29 @@ internal static class MHR_Build
 					// the far candidates the NEAREST to the body wins while it is inside the reach (MaxPlace + 1 m); when
 					// nothing is near, BuildSpread.PickNear falls back to the spread of the Run 14 (the first far one) and then
 					// to index 0 (the plain next), so `next`/single/template/off are the walk of before, byte for byte.
+					//
+					// 11/11/2026 (the repulsion of the P0): the piece the companion WALKS to also has to be away from the bodies
+					// of the crew (BuildSpread.PickNearApart) - both paths repel, not only the stay. Its first layer is the one
+					// above with the bodies filter; with no isolated candidate it IS the PickNear of the P0, and with the switch
+					// off (`SpreadNear`) the Run 14 pick stays untouched.
 					int at = SpreadNear
-						? BuildSpread.PickNear(s_spreadPoses, s_spreadClaims, BuildSpread.SpreadDistance, ai.transform.position,
-							MaxPlace + 1f, out passed)
+						? BuildSpread.PickNearApart(s_spreadPoses, s_spreadClaims, s_bodies, BuildSpread.SpreadDistance,
+							ai.transform.position, MaxPlace + 1f, BuildSpread.SpreadDistance, out passed)
 						: BuildSpread.Pick(s_spreadPoses, s_spreadClaims, BuildSpread.SpreadDistance, out passed);
 					pick = s_spreadWindow[at];
+					// 11/11/2026 (the repulsion): the walk would have taken another piece - count and name it (only with
+					// the switch on: off, the pick IS the one of the Run 14 and there is nothing to compare with)
+					if (SpreadNear && s_bodies.Count > 0)
+					{
+						int plainPassed;
+						int plainAt = BuildSpread.PickNear(s_spreadPoses, s_spreadClaims, BuildSpread.SpreadDistance,
+							ai.transform.position, MaxPlace + 1f, out plainPassed);
+						if (plainAt != at)
+						{
+							Repelled(ai, state, s_spreadPoses[plainAt], s_spreadPoses[at], s_spreadWindow[plainAt],
+								s_spreadWindow[at]);
+						}
+					}
 					if (pick != next)
 					{
 						state.SpreadSkipped += passed;
@@ -1354,16 +2156,39 @@ internal static class MHR_Build
 				// this worker may come back to it through the retry queue)
 				if (state.Group != null && !MHR_BuildGroup.TryClaim(state.Group, pick, worker))
 				{
-					if (CompanionsPlugin.LogNormal)
+					// 12/11/2026 (the PARTITION of the phase): this is the DISPUTE, and it is the number that judges the
+					// design - "a peça N é de outro companheiro - seguindo" used to be a LogDebug nobody counted, so the
+					// contention of the Run 15-22 was invisible. With one stretch per worker it should be ~0: a number that
+					// is not ~0 says the cut is wrong. Normal level on purpose (one line per refused piece).
+					state.ChunkDisputes++;
+					Log(ai, "a peça " + (pick + 1) + "/" + state.Plan.Count + " é de outro companheiro - seguindo");
+					if (pick > state.Index)
 					{
-						LogDebug(ai, "a peça " + (pick + 1) + "/" + state.Plan.Count + " é de outro companheiro - seguindo");
+						state.Index = pick;   // the walk continues AFTER the piece another companion took
 					}
-					state.Index = pick;
+					// 12/11/2026 (the partition): a pick that came from the WRAP of the stretch (a piece behind the cursor,
+					// still mine) never moves the walk backwards here - the loop would ask for the same refused piece
+					// forever. It stays at `next` and the loop goes on to the next index.
 					continue;
 				}
-				EnterStep(ai, state, pick);
+				if (stole)
+				{
+					state.ChunkStolen++;   // 12/11/2026 (the partition): counted on the PIECE, not on the try - a refused tail is a dispute
+				}
+				EnterStep(ai, state, pick, stay);
+				if (stay)
+				{
+					// 11/11/2026 (the stay): the placement is made STANDING STILL - the walk of the previous piece may still
+					// be steering, and the body was checked against the piece a few lines above and one frame ago. It is the
+					// same stop Goto makes when it enters the reach; then the piece is placed next frame, exactly like a
+					// piece that was walked to (ONE placement per frame: Place -> Verify -> Advance -> Place, never two in the
+					// same frame).
+					ai.StopMoving();
+					MHR_Mover.Release(ai);
+					state.Phase = Phase.Place;
+				}
 				Log(ai, "next: " + state.Prefab + " (" + (state.Index + 1) + "/" + state.Plan.Count + ") a "
-					+ F(CharacterDistance(ai, state.Pos)) + " m");
+					+ F(CharacterDistance(ai, state.Pos)) + " m" + (stay ? " (ao alcance - sem caminhada)" : string.Empty));
 				return true;
 			}
 		}
@@ -1381,7 +2206,9 @@ internal static class MHR_Build
 					{
 						state.SpreadResumed++;   // 11/11/2026 (the spread of the crew): a piece left for later came back
 					}
-					EnterStep(ai, state, retry);
+					// 11/11/2026 (the stay): a piece the walk went OVER (the companion placed something ahead of it inside
+					// the reach) comes back with the mark - Goto then places it from where it stands, without the 3 s gate
+					EnterStep(ai, state, retry, MHR_BuildGroup.IsStay(state.Group, retry));
 					Log(ai, "retry do grupo: " + state.Prefab + " (" + (retry + 1) + "/" + state.Plan.Count + ")");
 					return true;
 				}
@@ -1445,11 +2272,22 @@ internal static class MHR_Build
 	/// distance from the body to the piece it is taking - and sums it in the worker (<see cref="State.WalkMeters"/>) and in the
 	/// site (<c>MHR_BuildGroup.AddWalk</c>). Every way into a piece goes through here (the walk, the retry queue, the storey
 	/// barrier, the fallback post), so the number is the order's walk and not just the walk of the first path.</para>
+	///
+	/// <para>11/11/2026 (the stay of the redesign): <paramref name="stay"/> says the piece came from the <b>reach</b> - the
+	/// companion places it from where it stands and therefore does <b>not</b> walk to it: the meters are not added (the line is
+	/// the walk, and charging it a distance nobody walked would hide exactly what the redesign measures) and the piece is
+	/// counted in <see cref="State.Stayed"/>. The mark is per piece and is cleared here for every other path, so an order
+	/// never carries a stay over to a piece that will be walked to.</para>
 	/// </summary>
-	private static void EnterStep(CompanionAI ai, State state, int index)
+	private static void EnterStep(CompanionAI ai, State state, int index, bool stay = false)
 	{
 		PlannedStep next = state.Plan[index];
-		if (ai != null && next != null)
+		state.Stay = stay;
+		if (stay)
+		{
+			state.Stayed++;
+		}
+		else if (ai != null && next != null)
 		{
 			float walk = CharacterDistance(ai, next.Pos);
 			if (walk > 0f && !float.IsNaN(walk) && !float.IsInfinity(walk))
@@ -1474,6 +2312,7 @@ internal static class MHR_Build
 		state.BodyTries = 0;   // 11/11/2026: the short retries of a body are per piece
 		state.BodyLogged = false;   // 11/11/2026 (Run 10): the body of the new piece is named once
 		state.AsideLogged = false;   // 11/11/2026 (Run 10): and the step-aside of the new piece is asked once in the log
+		state.ChunkAsideLogged = false;   // 12/11/2026 (the partition): the "inside my own chunk" alarm is per piece
 		// 11/11/2026 (Run 10): a new piece ends any step-aside walk - the walk (Goto) is the one steering from here
 		state.AsideTarget = Vector3.zero;
 		state.AsideUntil = 0f;
@@ -2666,6 +3505,7 @@ internal static class MHR_Build
 			// otherwise it vanished (not rebuilt, not counted) and the final number came out smaller than the plan.
 			AbandonPiece(state);
 			state.Active = false;
+			state.Stay = false;   // 11/11/2026 (the stay): the mark of the piece dies with the order
 			s_state.Remove(owner.GetInstanceID());
 			// P1 (multi-build): "para, Maria" takes HER out of the group and frees her piece - the others go on (the group
 			// is dropped only when the last one leaves; the next worker takes the site)
@@ -3995,7 +4835,8 @@ internal static class MHR_Build
 			{
 				state.SpreadResumed++;   // 11/11/2026 (the spread of the crew): a piece left for later came back
 			}
-			EnterStep(ai, state, retry);
+			// 11/11/2026 (the stay): a piece a stay went over is placed from where the worker stands (Goto's shortcut)
+			EnterStep(ai, state, retry, MHR_BuildGroup.IsStay(state.Group, retry));
 			Log(ai, "retry do grupo: " + state.Prefab + " (" + (retry + 1) + "/" + state.Plan.Count + ")");
 			return true;
 		}
@@ -6325,13 +7166,16 @@ internal static class MHR_Build
 		// Reach + 0,5 = 3,0 m while the game allows 5 m from the EYE - the gable top at 42,8 with the companion standing
 		// 3,15 m away flat (3,3 m in 3D) was refused by 15 cm and he walked in circles for 12 s. The eye rule is the
 		// game's own (now configurable); the flat cap only has to keep him from placing through the far side of the house.
-		bool inReach = flat <= Reach + 0.5f && Vector3.Distance(eye, state.Pos) <= MaxPlace;
-		// E7 (player's report, 03/11/2026: "he is still struggling to place a piece on the high roof"): the flat cap of 3,0 m
-		// was stricter than the eye rule and refused a gable top 3,15 m away by 15 cm. The relaxed cap (<c>MaxPlace - 0,5</c>,
-		// which is 4,5 m at the vanilla 5 and 9,5 m at the default 10) is used ONLY when he stopped getting closer for 3 s:
-		// the normal walk still ends at Reach, so a piece is not placed from far away just because he walked past the radius.
-		if (!inReach && flat <= MaxPlace - 0.5f && Vector3.Distance(eye, state.Pos) <= MaxPlace
-			&& Time.time - state.BestAt > 3f)
+		// The relaxed cap (<c>MaxPlace - 0,5</c>, which is 4,5 m at the vanilla 5 and 9,5 m at the default 10) is used ONLY
+		// when he stopped getting closer for 3 s: the normal walk still ends at Reach, so a piece is not placed from far away
+		// just because he walked past the radius.
+		// 11/11/2026 (the stay of the redesign): a piece taken from the REACH (State.Stay) is already inside the reach when it
+		// is entered - the 3 s gate is for a walk that stopped getting closer, and there was no walk at all. Without this the
+		// piece came back through the retry queue (a body, a short retry) and stood waiting 3 s in front of a piece it could
+		// place from where it was.
+		float toEye = Vector3.Distance(eye, state.Pos);
+		bool inReach = flat <= Reach + 0.5f && toEye <= MaxPlace;
+		if (!inReach && flat <= MaxPlace - 0.5f && toEye <= MaxPlace && (state.Stay || Time.time - state.BestAt > 3f))
 		{
 			inReach = true;
 		}
@@ -6900,6 +7744,17 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			}
 			return true;
 		}
+		// 12/11/2026 (the PARTITION of the phase): with one stretch per worker a companion of the crew standing on a piece
+		// is a BOUNDARY event - two stretches only touch at their first and last index. A companion blocking a piece in the
+		// MIDDLE of my stretch means the partition is not holding: the ask still happens (the piece has to go up, never a
+		// teleport and never the player), but the log says it, once per piece.
+		if (!state.ChunkAsideLogged && state.ChunkSlots > 1 && state.ChunkFirst >= 0
+			&& state.Index > state.ChunkFirst && state.Index < state.ChunkFirst + state.ChunkLength - 1)
+		{
+			state.ChunkAsideLogged = true;
+			Log(ai, "step-aside dentro do meu chunk (bug): a peça " + (state.Index + 1) + " está no meio do trecho "
+				+ (state.ChunkFirst + 1) + "-" + (state.ChunkFirst + state.ChunkLength) + " e \"" + who + "\" está nela");
+		}
 		MHR_BuildGroup.AsideAsk ask = MHR_BuildGroup.RequestStepAside(state.Group, mover.GetInstanceID(),
 			ai.GetInstanceID(), state.Index, state.Pos, to);
 		if (ask == MHR_BuildGroup.AsideAsk.Repeating)
@@ -7243,6 +8098,13 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		if (flat > MaxPlace || Vector3.Distance(eye, site.Pos) > MaxPlace)
 		{
 			return false;   // the closest free pose is out of the eye rule from where it stands
+		}
+		// 11/11/2026 (the stay of the redesign): the pose the companion is on is at its FEET, so a 1 m nudge can land the
+		// piece under its own body - and that is exactly the run of 04/11/2026, when a floor placed there squeezed two
+		// companions 1 m under the ground. A walked-to piece is 2,5 m away and never asks this; a stay does.
+		if (state.Stay && OwnBodyOn(ai, state.Piece, site.Pos, site.Rot))
+		{
+			return false;   // the new pose is under its own feet: the refusal path of the piece takes over
 		}
 		Log(ai, "log ajustado: " + state.Prefab + " de (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", " + F(state.Pos.z)
 			+ ") para (" + F(site.Pos.x) + ", " + F(site.Pos.y) + ", " + F(site.Pos.z) + ") - " + status);
@@ -8054,6 +8916,9 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 	{
 		ClearScaffolds(ai, state);
 		state.Active = false;
+		// 11/11/2026 (the stay): the mark is per piece - an order never ends holding one (the state is dropped right below;
+		// this keeps the flag honest for whoever reads it after the order, like the panel).
+		state.Stay = false;
 		s_state.Remove(ai.GetInstanceID());
 		MHR_Mover.Release(ai);
 		ReleaseHarvest(ai, state);
@@ -8093,8 +8958,18 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		if (state.SpreadSkipped > 0 || state.SpreadResumed > 0 || state.AsideAsked > 0
 			|| state.WaitBody > 0f || state.WaitDependency > 0f || state.WaitQueueEnd > 0f || state.WaitAhead > 0f
 			|| state.WaitGate > 0f || state.WaitAside > 0f
-			|| state.BodyHolds > 0 || state.BarrierHolds > 0 || siteWalked > 0f)
+			|| state.BodyHolds > 0 || state.BarrierHolds > 0 || siteWalked > 0f || state.Stayed > 0
+			|| state.Repelled > 0 || state.ChunkStolen > 0 || state.ChunkDisputes > 0)
 		{
+			// 12/11/2026 (the PARTITION of the phase): the stretch this worker owned (`chunks: 2/5 201-300`, both ends
+			// 1-based like the `peça N/M` of the rest of the log) and the two numbers that judge the design - `roubou`
+			// (pieces taken outside its own stretch) and `disputa` (claims refused: the piece another companion was already
+			// going to). A partition that works leaves `disputa` at ~0: it is the number that proves the contention of the
+			// Run 15-22 is gone by construction, and the one that was invisible while the line was a LogDebug.
+			string stretch = state.ChunkSlots > 1 && state.ChunkFirst >= 0
+				? " · chunks: " + (state.ChunkSlot + 1) + "/" + state.ChunkSlots + " " + (state.ChunkFirst + 1) + "-"
+					+ (state.ChunkFirst + state.ChunkLength)
+				: string.Empty;
 			// 11/11/2026 (Run 18): the queue split by where the walk is (the END of the plan x the MIDDLE of it) and the
 			// gate's own seconds - the gate ran with dt = 0 and fell in no bucket, and a good part of the "fila" of the
 			// Run 17 measure was a worker held by it with a free piece right ahead.
@@ -8116,7 +8991,16 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 				+ F(cpuFrame) + " µs/frame em " + state.CpuFrames + " frame(s), goto " + F((float)(state.GotoMs / 1000.0))
 				+ " s, place " + F((float)(state.PlaceMs / 1000.0)) + " s · posições: " + state.Positions
 				+ ", peças/posição p50 " + PositionPercentText(state, 0.5f) + " p90 "
-				+ PositionPercentText(state, 0.9f));
+				+ PositionPercentText(state, 0.9f)
+				// 11/11/2026 (the repulsion of the P0): how many pieces were taken AWAY from the plain nearest one because it
+				// was next to another companion's body - the number that proves the crew stopped bunching up
+				+ ", repeleu: " + state.Repelled
+				// 11/11/2026 (the stay of the redesign): how many pieces were taken from the reach, i.e. placed without
+				// walking to them - it is the number of the change, next to the positions it is meant to lower
+				+ " · no alcance: " + state.Stayed + " peça(s)" + stretch
+				// 12/11/2026 (the partition of the phase): how many pieces were taken OUTSIDE the stretch and how many picks
+				// the claim refused - the two numbers the design is judged by
+				+ " · roubou: " + state.ChunkStolen + " peça(s) · disputa: " + state.ChunkDisputes);
 		}
 		// one line per order end, with the key that was spoken: it is how a test proves which refusal came out
 		Log(ai, "order ended: " + (key ?? "(silent)") + (string.IsNullOrEmpty(why) ? string.Empty : " (" + why + ")"));

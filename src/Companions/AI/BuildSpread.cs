@@ -22,6 +22,19 @@ namespace Companions;
 /// <para>Pure on purpose (plain vectors, no <c>Physics</c>, no <c>Time</c>, no group): the harness asserts the table
 /// (section (z)). The Unity side - the window of the plan and the claimed poses of the site - is
 /// <c>MHR_Build.Advance</c>/<c>SpreadWindow</c>.</para>
+///
+/// <para>11/11/2026 (the P0 of the redesign, approved by two independent reviews): the same file answers the <b>opposite</b>
+/// question as well - <see cref="Nearest"/> is the piece this worker can place <b>from where it stands</b> (the smallest XZ
+/// distance inside the reach, no <see cref="SpreadDistance"/> at all). The order measured 4,55 s per piece with 2,0 s of
+/// it inside <c>Goto</c>, walking to pieces the game lets it place from afar; with the reach the companion <b>stays and
+/// places</b> what is around it and only walks when the run has nothing inside the reach.</para>
+///
+/// <para>11/11/2026 (the repulsion, the effect the P0 created and both reviews predicted): five companions staying in their
+/// own corners bunch up, because the corners of five 10 m reaches overlap. The isolation of
+/// <see cref="SpreadDistance"/> therefore moved from the <b>pieces</b> to the <b>positions</b>:
+/// <see cref="NearestApart"/>/<see cref="PickNearApart"/> answer a piece that is also at least
+/// <see cref="SpreadDistance"/> (XZ) away from <b>every other body</b> of the crew, and fall back to the answer of before
+/// when there is no such piece - the order never starves for the comfort of the crew.</para>
 /// </summary>
 internal static class BuildSpread
 {
@@ -141,26 +154,7 @@ internal static class BuildSpread
 		float radius = Finite(nearRadius) && nearRadius > 0f ? nearRadius : 0f;
 		if (Finite(me) && radius > 0f)
 		{
-			int best = -1;
-			float bestFlat = float.MaxValue;
-			for (int i = 0; i < window.Count; i++)
-			{
-				Vector3 piece = window[i];
-				if (!Finite(piece) || !Far(piece, claims, minDistance))
-				{
-					continue;   // never a destination, or not far from what the others are building
-				}
-				float flat = Flat(piece, me);
-				if (flat > radius)
-				{
-					continue;   // far from the crew but also away from me: the next piece of the row first
-				}
-				if (best < 0 || flat < bestFlat)
-				{
-					best = i;   // a tie keeps the first one seen - the lower index, the plan's own order
-					bestFlat = flat;
-				}
-			}
+			int best = NearInside(window, claims, null, 0f, me, radius, minDistance);
 			if (best >= 0)
 			{
 				passedCount = best;
@@ -168,6 +162,277 @@ internal static class BuildSpread
 			}
 		}
 		return Pick(window, claims, minDistance, out passedCount);
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the repulsion of the P0, the player's rule <i>"eles não podem se agrupar, devem ser repelidos um de perto
+	/// do outro pra não travar tudo"</i>): <see cref="PickNear"/> with <b>one</b> extra filter - the piece the worker walks to
+	/// has to be at least <paramref name="isolation"/> (XZ) from <b>every</b> body of the crew as well. The P0 made each
+	/// companion stay in its own corner and place everything its reach covers; the corners of five 10 m reaches overlap, so
+	/// the crew bunched up (the measured run: 48 <c>corpo na peça</c>, 40 <c>sem lugar livre</c> and four of the five workers
+	/// holding 21-32 % of the samples).
+	///
+	/// <para>Same contract as <see cref="PickNear"/>: the answer is an index into <paramref name="window"/> and
+	/// <paramref name="passedCount"/> is how many candidates came before it (the caller queues exactly those). The layers are
+	/// the ones of today plus the isolation on the first one: <b>(1)</b> near, far from the claims <b>and</b> apart from the
+	/// bodies; <b>(2)</b> <see cref="PickNear"/> itself - the walk must never starve for the comfort of the crew; <b>(3)</b> its
+	/// own layers (the spread of the Run 14 and then 0). No <paramref name="bodies"/> (or an empty list) and an
+	/// <paramref name="isolation"/> of zero or less (or one that is not a number) are <see cref="PickNear"/>, byte for
+	/// byte.</para>
+	/// </summary>
+	internal static int PickNearApart(IList<Vector3> window, IList<Vector3> claims, IList<Vector3> bodies,
+		float minDistance, Vector3 me, float nearRadius, float isolation, out int passedCount)
+	{
+		passedCount = 0;
+		if (window == null || window.Count == 0)
+		{
+			return 0;
+		}
+		if (bodies == null || bodies.Count == 0 || !Finite(isolation) || isolation <= 0f)
+		{
+			return PickNear(window, claims, minDistance, me, nearRadius, out passedCount);   // nothing to keep away from
+		}
+		float radius = Finite(nearRadius) && nearRadius > 0f ? nearRadius : 0f;
+		if (Finite(me) && radius > 0f)
+		{
+			int best = NearInside(window, claims, bodies, isolation, me, radius, minDistance);
+			if (best >= 0)
+			{
+				passedCount = best;
+				return best;
+			}
+		}
+		return PickNear(window, claims, minDistance, me, nearRadius, out passedCount);
+	}
+
+	/// <summary>
+	/// The first layer of <see cref="PickNear"/>/<see cref="PickNearApart"/>, shared so the two cannot drift: the candidate
+	/// has to be a number, <see cref="Far"/> from every claim, <see cref="Apart"/> from every body (<paramref name="bodies"/>
+	/// null or an <paramref name="isolation"/> of zero or less switch that filter off) and at most
+	/// <paramref name="radius"/> away from <paramref name="me"/>. The nearest one wins, a tie keeping the lower index.
+	/// </summary>
+	private static int NearInside(IList<Vector3> window, IList<Vector3> claims, IList<Vector3> bodies, float isolation,
+		Vector3 me, float radius, float minDistance)
+	{
+		int best = -1;
+		float bestFlat = float.MaxValue;
+		for (int i = 0; i < window.Count; i++)
+		{
+			Vector3 piece = window[i];
+			if (!Finite(piece) || !Far(piece, claims, minDistance))
+			{
+				continue;   // never a destination, or not far from what the others are building
+			}
+			if (!Apart(piece, bodies, isolation))
+			{
+				continue;   // a companion's body is there: the crew is not supposed to bunch up on one spot
+			}
+			float flat = Flat(piece, me);
+			if (flat > radius)
+			{
+				continue;   // far from the crew but also away from me: the next piece of the row first
+			}
+			if (best < 0 || flat < bestFlat)
+			{
+				best = i;   // a tie keeps the first one seen - the lower index, the plan's own order
+				bestFlat = flat;
+			}
+		}
+		return best;
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the P0 of the redesign, approved by two independent reviews): the <b>nearest</b> pending piece this
+	/// worker can place <b>from where it stands</b> - the smallest XZ distance to <paramref name="me"/> among the candidates
+	/// that are at most <paramref name="reach"/> away (exactly <paramref name="reach"/> is inside), skipping the candidate
+	/// at <paramref name="skip"/>. It answers the index into <paramref name="poses"/> (the caller keeps the plan index of
+	/// each pose next to it), or <b>-1</b> when there is none - and -1 means "walk to today's piece, byte for byte".
+	///
+	/// <para>It is <b>not</b> <see cref="PickNear"/>: <see cref="PickNear"/> only looks at pieces that are
+	/// <see cref="Far"/> from the crew, and that <see cref="SpreadDistance"/> of 3 m is exactly what keeps the companion
+	/// walking from piece to piece (4,55 s/piece measured, 2,0 s of it inside <c>Goto</c>). Here what is already inside the
+	/// reach is placed from there, no matter how close to another companion it is; the placement itself does not need the
+	/// body next to the piece (<c>BuildExecutor.Place</c> instantiates it), so the reach is 100 % the caller's rule.</para>
+	///
+	/// <para><paramref name="claims"/> are the poses the site is <b>building right now</b> (<c>MHR_BuildGroup.ClaimPoses</c>):
+	/// a candidate that is the very same piece as a claim belongs to another worker and is never chosen (see
+	/// <see cref="Claimed"/>). The caller's <c>TryClaim</c> is the final word. <paramref name="skip"/> is an index into
+	/// <paramref name="poses"/> (-1 = nothing to skip) - it is <b>not</b> a plan index: the caller's window starts after the
+	/// piece it is on, so that piece is never a candidate anyway.</para>
+	///
+	/// <para>Fail-open by design: an empty list, a <paramref name="reach"/> of zero or less (or one that is not a number)
+	/// and a <paramref name="me"/> that is not a number answer -1, and a candidate that is not a number is never chosen. A
+	/// tie keeps the first one seen (the plan's own order), so the answer never depends on the order the list was filled
+	/// in.</para>
+	/// </summary>
+	internal static int Nearest(IList<Vector3> poses, IList<Vector3> claims, Vector3 me, float reach, int skip)
+	{
+		if (poses == null || poses.Count == 0)
+		{
+			return -1;
+		}
+		if (!Finite(me) || !Finite(reach) || reach <= 0f)
+		{
+			return -1;
+		}
+		int best = -1;
+		float bestFlat = float.MaxValue;
+		for (int i = 0; i < poses.Count; i++)
+		{
+			if (i == skip)
+			{
+				continue;
+			}
+			Vector3 piece = poses[i];
+			if (!Finite(piece))
+			{
+				continue;   // never a destination
+			}
+			float flat = Flat(piece, me);
+			if (flat > reach)
+			{
+				continue;   // outside the reach
+			}
+			if (Claimed(piece, claims))
+			{
+				continue;   // another companion is on this very piece
+			}
+			if (best < 0 || flat < bestFlat)
+			{
+				best = i;   // a tie keeps the first one seen - the lower index, the plan's own order
+				bestFlat = flat;
+			}
+		}
+		return best;
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the repulsion of the P0, the player's rule <i>"eles não podem se agrupar, devem ser repelidos um de perto
+	/// do outro pra não travar tudo"</i>): the <see cref="Nearest"/> piece that is <b>also</b> away from the bodies of the
+	/// crew - the isolation moved from the <b>pieces</b> to the <b>positions</b>. The P0 (stay and place) fixed the walking
+	/// (65 → 156 pieces/min, 52 % of the pieces without a walk) and created the effect both reviews predicted: each companion
+	/// stays in its own corner and the corners of five 10 m reaches overlap, so the bodies bunch up (the measured run: 48
+	/// <c>corpo na peça</c>, 40 <c>sem lugar livre</c>, 25 <c>nada acima de</c> and four of the five workers holding 21-32 %
+	/// of the samples).
+	///
+	/// <para>The rule is the one of <see cref="Nearest"/> (inside <paramref name="reach"/> with the edge counting, no
+	/// <paramref name="skip"/>, no claim, a pose that is not a number never chosen, a tie keeping the lower index) with
+	/// <b>one</b> extra filter: the piece has to be at least <paramref name="isolation"/> (XZ) from <b>every</b> entry of
+	/// <paramref name="bodies"/> in the same pass - not "take the nearest and check it after", because a refused nearest
+	/// would only fall back to walking. Among the isolated ones, the nearest to <paramref name="me"/> wins.</para>
+	///
+	/// <para><b>Never starves:</b> when <b>no</b> candidate satisfies the isolation the answer is exactly
+	/// <see cref="Nearest"/> - building next to a companion is better than not building. No <paramref name="bodies"/> (or an
+	/// empty list) and an <paramref name="isolation"/> of zero or less (or one that is not a number) are
+	/// <see cref="Nearest"/> itself; a body that is not a number is <b>ignored</b> (a broken pose cannot repel anybody).
+	/// <b>-1</b> when there is nothing within the reach at all, the same contract of <see cref="Nearest"/>.</para>
+	///
+	/// <para>Pure on purpose (plain vectors, no <c>Physics</c>, no group): the harness pins the table next to the one of
+	/// <see cref="Nearest"/>. The Unity side - who the other bodies are - is <c>MHR_Build.Bodies</c>.</para>
+	/// </summary>
+	internal static int NearestApart(IList<Vector3> poses, IList<Vector3> claims, IList<Vector3> bodies,
+		Vector3 me, float reach, float isolation, int skip)
+	{
+		if (bodies == null || bodies.Count == 0 || !Finite(isolation) || isolation <= 0f)
+		{
+			return Nearest(poses, claims, me, reach, skip);   // nothing to keep away from: today's answer
+		}
+		if (poses == null || poses.Count == 0)
+		{
+			return -1;
+		}
+		if (!Finite(me) || !Finite(reach) || reach <= 0f)
+		{
+			return -1;
+		}
+		int best = -1;
+		float bestFlat = float.MaxValue;
+		for (int i = 0; i < poses.Count; i++)
+		{
+			if (i == skip)
+			{
+				continue;
+			}
+			Vector3 piece = poses[i];
+			if (!Finite(piece))
+			{
+				continue;   // never a destination
+			}
+			float flat = Flat(piece, me);
+			if (flat > reach)
+			{
+				continue;   // outside the reach
+			}
+			if (Claimed(piece, claims))
+			{
+				continue;   // another companion is on this very piece
+			}
+			if (!Apart(piece, bodies, isolation))
+			{
+				continue;   // a companion's body is there: another piece of the run first
+			}
+			if (best < 0 || flat < bestFlat)
+			{
+				best = i;   // a tie keeps the first one seen - the lower index, the plan's own order
+				bestFlat = flat;
+			}
+		}
+		// nowhere apart from the crew: the nearest of today, byte for byte - the order never starves for the isolation
+		return best >= 0 ? best : Nearest(poses, claims, me, reach, skip);
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the repulsion): is this piece at least <paramref name="isolation"/> (XZ) away from <b>every</b> body?
+	/// Exactly the isolation is <b>apart</b> (the edge counts, like the reach of the placement). A body that is not a
+	/// number is ignored - a broken pose must not repel the whole crew - and no bodies, or a distance of zero or less,
+	/// is always apart (fail-open: without bodies there is no repulsion at all).
+	/// </summary>
+	internal static bool Apart(Vector3 piece, IList<Vector3> bodies, float isolation)
+	{
+		if (bodies == null || bodies.Count == 0 || !Finite(isolation) || isolation <= 0f)
+		{
+			return true;
+		}
+		for (int i = 0; i < bodies.Count; i++)
+		{
+			Vector3 body = bodies[i];
+			if (!Finite(body))
+			{
+				continue;   // a body that is not a number cannot repel anybody
+			}
+			if (Flat(piece, body) < isolation)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/// <summary>
+	/// Is this pose one of the <b>claimed</b> ones? A claim carries the plan's own pose (<c>MHR_BuildGroup.ClaimPoses</c>),
+	/// so "the same piece" is the same point: XZ within <see cref="KeySlack"/> <b>and</b> the same height - a floor and the
+	/// roof right above it share the XZ and are two different pieces, and the roof must not be dropped because the floor is
+	/// claimed. A claim that is not a number is <b>ignored</b> (a broken pose in the site's claims must not freeze the crew).
+	/// </summary>
+	private static bool Claimed(Vector3 piece, IList<Vector3> claims)
+	{
+		if (claims == null || claims.Count == 0)
+		{
+			return false;
+		}
+		for (int i = 0; i < claims.Count; i++)
+		{
+			Vector3 claim = claims[i];
+			if (!Finite(claim))
+			{
+				continue;
+			}
+			if (Flat(piece, claim) <= KeySlack && System.Math.Abs(piece.y - claim.y) <= KeySlack)
+			{
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/// <summary>
@@ -184,6 +449,42 @@ internal static class BuildSpread
 			return false;
 		}
 		return Near(levelA, levelB) && Near(yA, yB);
+	}
+
+	/// <summary>
+	/// 12/11/2026 (the <b>partition of the phase</b> - the player's report <i>"a redistribuição de peças é o gargalo: o run
+	/// sobe a 125/min e decai para 107/min no fim"</i>, approved by the player): the rule that makes the contention of the
+	/// crew <b>disappear by construction</b> instead of being negotiated piece by piece. The plan is a nearest-neighbour tour
+	/// inside each run (<c>BuildBlueprintParser.Ordered</c>/<c>NearestWithin</c>), so a <b>contiguous cut by index</b> is a
+	/// contiguous stretch of the site - no geometry needed, only arithmetic.
+	///
+	/// <para>The phase <c>[start, end)</c> is cut into <paramref name="slots"/> chunks of (almost) equal size and the chunk of
+	/// <paramref name="slot"/> is answered: its first index and how many indices it covers. Two chunks never differ by more
+	/// than 1 piece and the <b>remainder goes to the first chunks</b>, so the chunks are non-increasing in size and cover
+	/// <c>[start, end)</c> exactly once: each piece of the plan belongs to exactly <b>one</b> worker.</para>
+	///
+	/// <para>Pure on purpose (no plan, no Unity, no group): the harness pins the table. The fail-safe answer is
+	/// <c>first = start, length = 0</c> - an empty chunk, never a piece of somebody else - for an empty phase
+	/// (<paramref name="end"/> &lt;= <paramref name="start"/>), a number of slots of zero or less and a slot outside
+	/// <c>[0, slots)</c>: the caller keeps the picks it had instead of splitting a plan by a number that makes no sense. A
+	/// chunk <b>may</b> be empty when the phase has fewer pieces than the crew (the tail slots); the caller then falls back
+	/// to the tail of the largest one.</para>
+	/// </summary>
+	internal static void Chunk(int start, int end, int slots, int slot, out int first, out int length)
+	{
+		first = start;
+		length = 0;
+		if (slots <= 0 || slot < 0 || slot >= slots || end <= start)
+		{
+			return;
+		}
+		int total = end - start;
+		int size = total / slots;
+		int extra = total % slots;
+		// the remainder goes to the FIRST chunks: slot < extra gets one extra piece, and every chunk before it also took
+		// one, which is exactly the offset the `min` adds
+		first = start + slot * size + (slot < extra ? slot : extra);
+		length = size + (slot < extra ? 1 : 0);
 	}
 
 	/// <summary>Two keys of a run are the same one: both real numbers and at most <see cref="KeySlack"/> apart.</summary>

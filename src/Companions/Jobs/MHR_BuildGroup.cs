@@ -79,6 +79,16 @@ internal static class MHR_BuildGroup
 		/// only when the neighbourhood is free. A real retry never has this mark.
 		/// </summary>
 		internal bool Spread;
+		/// <summary>
+		/// 11/11/2026 (the P0 of the redesign, "stay and place"): the piece was left behind by a <b>stay</b> - the worker placed
+		/// a piece of its reach that was <b>ahead</b> of this one in the plan, and a piece is only ever taken by index, so this
+		/// one goes back to the queue <b>due now</b> (<see cref="NoteStay"/>). Nothing failed: no attempt is spent, it is not
+		/// waiting for a support, and it is <b>not</b> <see cref="Spread"/> - the neighbourhood gate that holds a spread piece
+		/// back is the last thing this one needs (it is right where the worker stands). It is only a mark of origin, read by
+		/// <see cref="IsStay"/> so the walk places it from where it stands instead of walking to it first
+		/// (<c>MHR_Build.Goto</c>).
+		/// </summary>
+		internal bool Stay;
 		/// <summary>When it may be pulled again.</summary>
 		internal float At;
 	}
@@ -202,6 +212,11 @@ internal static class MHR_BuildGroup
 	/// neighbourhood a queued piece waits to be free of (<see cref="SpreadFree"/>). ONE list reused (main thread, asked
 	/// per queue entry, never per frame).</summary>
 	private static readonly List<Vector3> s_claims = new List<Vector3>();
+
+	/// <summary>12/11/2026 (the partition of the phase): the worker list of a site, sorted - the buffer
+	/// <see cref="WorkerSlot"/> reads the slot from. ONE list reused: the question is asked per piece entered, and the
+	/// answer must not allocate (the site has 2-5 workers).</summary>
+	private static readonly List<int> s_slots = new List<int>();
 
 	/// <summary>
 	/// P1: the key of a site - the label of the blueprint/template, the anchor rounded to 1 m, the yaw rounded to 5
@@ -448,6 +463,42 @@ internal static class MHR_BuildGroup
 			return new List<int>();
 		}
 		return new List<int>(group.Workers);
+	}
+
+	/// <summary>
+	/// 12/11/2026 (the <b>partition of the phase</b>, the player's rule: <i>"cada companheiro é dono de um trecho, não
+	/// negocia peça"</i>): the <b>slot</b> of this worker among the workers of the site - its position in the worker list
+	/// <b>ordered by instance id</b> - and how many slots there are. It is the number <c>BuildSpread.Chunk</c> cuts the plan
+	/// with, so every worker has to get the <b>same</b> answer: the order a site was joined in is not stable (the leader
+	/// leaves and is promoted) and the only thing that is the same on every client is the id, so the list is sorted before
+	/// the position is read.
+	///
+	/// <para><b>False</b> when there is no site, no worker or this id is not one of them (a worker that already left): the
+	/// caller keeps the picks of before, byte for byte. One reused buffer - the question is asked per piece entered and it
+	/// does not allocate.</para>
+	/// </summary>
+	internal static bool WorkerSlot(string key, int workerId, out int slot, out int slots)
+	{
+		slot = 0;
+		slots = 0;
+		Group group;
+		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null || group.Workers.Count == 0)
+		{
+			return false;
+		}
+		s_slots.Clear();
+		s_slots.AddRange(group.Workers);
+		s_slots.Sort();
+		int at = s_slots.IndexOf(workerId);
+		if (at < 0)
+		{
+			s_slots.Clear();
+			return false;
+		}
+		slot = at;
+		slots = s_slots.Count;
+		s_slots.Clear();
+		return true;
 	}
 
 	/// <summary>11/11/2026 (the build panel): the sites of one player. One per player at a time
@@ -1159,6 +1210,72 @@ internal static class MHR_BuildGroup
 			}
 			group.Retry.Add(new RetryEntry { Index = index, At = Time.time + RetryDelay, Spread = true });
 		}
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the P0 of the redesign, <b>stay and place</b>): the pieces a stay <b>went over</b>. The companion placed a
+	/// piece that was <paramref name="count"/> indices ahead because it was inside its reach (<c>BuildSpread.Nearest</c>), and
+	/// the plan is only ever taken <b>by index</b> - without this entry those pieces would never be seen again. They go to the
+	/// site's queue <b>due now</b> (<c>At = Time.time</c>): nothing failed (no attempt is spent - <see cref="TryQueueRetry"/>
+	/// would charge the dependency/body delays of a refusal that did not happen) and they are <b>not</b>
+	/// <see cref="RetryEntry.Spread"/> (that mark waits for the neighbourhood to be free, which is precisely what would freeze
+	/// a piece the worker is standing next to). The dedup is the same one-per-plan-index rule of
+	/// <see cref="TryQueueRetry"/>/<see cref="NoteSpread"/>: an entry that already exists keeps its own clock and kind.
+	/// </summary>
+	internal static void NoteStay(string key, List<int> indices, int count)
+	{
+		Group group;
+		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null || group.Plan == null
+			|| indices == null || count <= 0)
+		{
+			return;
+		}
+		int limit = count < indices.Count ? count : indices.Count;
+		for (int i = 0; i < limit; i++)
+		{
+			int index = indices[i];
+			if (index < 0 || index >= group.Plan.Count || group.Done.Contains(index) || group.SkippedIndex.Contains(index))
+			{
+				continue;   // up, or out of the site for good: not a piece to come back to
+			}
+			bool queued = false;
+			for (int j = 0; j < group.Retry.Count; j++)
+			{
+				if (group.Retry[j] != null && group.Retry[j].Index == index)
+				{
+					queued = true;
+					break;
+				}
+			}
+			if (queued)
+			{
+				continue;   // one entry per plan index
+			}
+			group.Retry.Add(new RetryEntry { Index = index, At = Time.time, Stay = true });
+		}
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the stay): was this piece left behind by a stay (<see cref="NoteStay"/>)? It is asked by the wait right
+	/// after <see cref="NextRetry"/> hands the piece over, so the piece is entered with the mark and
+	/// <c>MHR_Build.Goto</c> places it from where the worker stands - no <c>State.Stay</c> on a piece that came from a walk.
+	/// </summary>
+	internal static bool IsStay(string key, int index)
+	{
+		Group group;
+		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null || group.Retry == null)
+		{
+			return false;
+		}
+		for (int i = 0; i < group.Retry.Count; i++)
+		{
+			RetryEntry entry = group.Retry[i];
+			if (entry != null && entry.Index == index)
+			{
+				return entry.Stay;
+			}
+		}
+		return false;
 	}
 
 	/// <summary>

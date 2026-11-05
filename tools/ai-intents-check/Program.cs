@@ -45,6 +45,12 @@ namespace AiIntentsCheck;
 /// not walked in a line: a worker takes the first piece of a small window of the same run that is far from what the others
 /// are building, and the pieces it walked past keep their turn in the site's queue.</para>
 ///
+/// <para>Section (aa) is <c>BuildSpread.Nearest</c>, the <b>opposite</b> question asked by the redesign of the build order
+/// (11/11/2026): the nearest pending piece this worker can place <b>from where it stands</b> - the smallest XZ distance
+/// inside a reach, with no spread distance at all - answered as the index of the caller's window (-1 = walk to today's
+/// piece, byte for byte). A piece another companion already claimed is not a candidate, and a claimed piece of another
+/// storey (a floor and the roof above it share the XZ) does not take the roof away.</para>
+///
 /// <para>Run: <c>dotnet run --project tools/ai-intents-check</c> (after <c>dotnet build Companions.sln -c Release</c>,
 /// which the cross-check reads). Exit code 0 only when every case passed and nothing was skipped.</para>
 /// </summary>
@@ -136,6 +142,10 @@ internal static class Program
 		AsideSpots();
 		Section("(z) BuildSpread - a dispersao dos workers (ninguem disputa a peca, Run 14)");
 		SpreadCases();
+		Section("(aa) BuildSpread.Nearest - a peca que eu consigo colocar daqui (o P0 do redesenho)");
+		NearestCases();
+		Section("(ab) BuildSpread.Chunk - o trecho de cada companheiro (a particao da obra)");
+		ChunkCases();
 		CrossCheckDoorRule();
 
 		Out.WriteLine();
@@ -1817,6 +1827,214 @@ internal static class Program
 	private static UnityEngine.Vector3 SpreadPoint(float x, float z = 0f)
 	{
 		return new UnityEngine.Vector3(x, 40f, z);
+	}
+
+	// ============================================================================================ (aa) a peca que eu coloco daqui
+
+	/// <summary>
+	/// Section (aa): <c>BuildSpread.Nearest</c> - the <b>nearest pending piece this worker can place from where it stands</b>
+	/// (the P0 of the redesign of the build order, 11/11/2026). The rule is one distance and one filter: the smallest
+	/// <b>XZ</b> distance to the body among the candidates at most <c>reach</c> away (exactly the reach is inside), one
+	/// index skipped and every pose another companion already claimed left out.
+	///
+	/// <para>Three things separate it from <c>PickNear</c> and are exactly what the table pins: there is <b>no</b>
+	/// <c>SpreadDistance</c> of 3 m (a piece at the feet is taken no matter how many companions are around), the limit is
+	/// the <b>reach</b> (the caller's rule - the placement itself needs no body next to the piece) and the answer is the
+	/// index of the caller's window, never a distance. <b>-1</b> means "walk to today's piece, byte for byte": an empty
+	/// list, a reach of zero or less (or one that is not a number) and a body that is not a number all answer it, and a
+	/// candidate that is not a number is never chosen. A tie keeps the <b>lower index</b> (the plan's own order), so the
+	/// answer never depends on the order the list was filled in.</para>
+	/// </summary>
+	private static void NearestCases()
+	{
+		UnityEngine.Vector3 me = SpreadPoint(0f);   // the companion's own feet: (0, 40, 0)
+
+		// 1) the nearest inside the reach wins - 2 / 5 / 9 m of XZ with a reach of 6 is the piece at 2 m
+		NearestCase("3 pecas a 2 / 5 / 9 m de XZ, alcance 6", new[] { SpreadPoint(2f), SpreadPoint(5f), SpreadPoint(9f) },
+			null, me, 6f, -1, 0);
+
+		// 2) the nearest one is outside the reach: nothing to place from here (the caller walks to today's piece)
+		NearestCase("a mais perto fora do alcance (2 e 5 m, alcance 1)", new[] { SpreadPoint(2f), SpreadPoint(5f) },
+			null, me, 1f, -1, -1);
+
+		// 3) the edge is INCLUSIVE: exactly 6,0 m is inside, 6,0001 m is not
+		NearestCase("borda exata: 6,0 m com alcance 6 (a borda conta)", new[] { SpreadPoint(6f) }, null, me, 6f, -1, 0);
+		NearestCase("borda exata: 6,0001 m com alcance 6 (passou da borda)", new[] { SpreadPoint(6.0001f) }, null, me,
+			6f, -1, -1);
+
+		// 4) skip is the index of the piece the caller is on: the nearest is left out and the second one is taken
+		NearestCase("skip do indice da mais perto: a segunda (5 m)",
+			new[] { SpreadPoint(2f), SpreadPoint(5f), SpreadPoint(9f) }, null, me, 6f, 0, 1);
+
+		// 5) -1 skips nothing
+		NearestCase("skip -1: nada e ignorado (a de 2 m)", new[] { SpreadPoint(2f), SpreadPoint(5f) }, null, me, 6f, -1, 0);
+
+		// 6) the nearest piece belongs to another companion (it is claimed): the next free one is taken
+		NearestCase("a mais perto reivindicada: a proxima livre (5 m)", new[] { SpreadPoint(2f), SpreadPoint(5f) },
+			new[] { SpreadPoint(2f) }, me, 6f, -1, 1);
+
+		// 7) a claim of ANOTHER storey is not this piece: the floor and the roof right above it share the XZ (here 2 m
+		// apart, far beyond KeySlack = 0,01 m), so the claimed floor must not take the roof away
+		NearestCase("reivindicada 2 m acima (piso x telhado): a de baixo e escolhida", new[] { SpreadPoint(2f) },
+			new[] { new UnityEngine.Vector3(2f, 42f, 0f) }, me, 6f, -1, 0);
+
+		// 8) fail-open: a pose that is not a number is never chosen, and a body / reach that is not a number (or a reach
+		// of zero) answers -1 - the caller keeps today's piece
+		NearestCase("pose NaN: a proxima e escolhida (5 m)",
+			new[] { new UnityEngine.Vector3(float.NaN, 40f, 0f), SpreadPoint(5f) }, null, me, 6f, -1, 1);
+		NearestCase("me (o corpo) NaN: -1", new[] { SpreadPoint(2f) }, null,
+			new UnityEngine.Vector3(float.NaN, 40f, 0f), 6f, -1, -1);
+		NearestCase("alcance NaN: -1", new[] { SpreadPoint(2f) }, null, me, float.NaN, -1, -1);
+		NearestCase("alcance 0: -1", new[] { SpreadPoint(2f) }, null, me, 0f, -1, -1);
+
+		// 9) no candidates at all (an empty window, and a null one: the caller has nothing to place)
+		int empty = BuildSpread.Nearest(new List<UnityEngine.Vector3>(), null, me, 6f, -1);
+		int noList = BuildSpread.Nearest(null, null, me, 6f, -1);
+		Check("Nearest: lista vazia e lista null -> -1", empty == -1 && noList == -1,
+			"obtido " + NearestAt(empty) + " / " + NearestAt(noList));
+
+		// 10) an exact tie keeps the lower index - the plan's own order, never the order the list was filled in
+		NearestCase("empate exato de distancia: o indice menor", new[] { SpreadPoint(2f), SpreadPoint(-2f) }, null, me,
+			6f, -1, 0);
+
+		// and the distance is XZ, not 3D: the piece 7 m UP but 2 m to the side is nearer than the one at the feet's
+		// height and 5 m away - in 3D it is the other way round (7,28 m against 5 m, so a 3D rule would take #2)
+		NearestCase("a distancia e XZ: peca 7 m acima a 2 m ganha da de 5 m no mesmo nivel",
+			new[] { new UnityEngine.Vector3(2f, 47f, 0f), SpreadPoint(5f) }, null, me, 6f, -1, 0);
+	}
+
+	/// <summary>Section (aa): one <c>Nearest</c> case - the expected index into the list (-1 = none to place from here).</summary>
+	private static void NearestCase(string name, UnityEngine.Vector3[] poses, UnityEngine.Vector3[] claims,
+		UnityEngine.Vector3 me, float reach, int skip, int expected)
+	{
+		List<UnityEngine.Vector3> pool = poses == null ? null : new List<UnityEngine.Vector3>(poses);
+		List<UnityEngine.Vector3> known = claims == null ? null : new List<UnityEngine.Vector3>(claims);
+		int at = BuildSpread.Nearest(pool, known, me, reach, skip);
+		Check("Nearest: " + name + " -> " + NearestAt(expected), at == expected, "obtido " + NearestAt(at));
+	}
+
+	/// <summary>Section (aa): the index as the messages print it - the plan's position (#1) or the -1 of "none".</summary>
+	private static string NearestAt(int at)
+	{
+		return at < 0 ? "-1 (nenhuma)" : "#" + (at + 1);
+	}
+
+	// ============================================================================================ (ab) o trecho de cada um
+
+	/// <summary>
+	/// Section (ab): <c>BuildSpread.Chunk</c> - <b>the stretch of the plan one worker owns</b> (12/11/2026, the player's rule
+	/// <i>"cada companheiro é dono de um trecho, não negocia peça"</i>). The plan is a nearest-neighbour tour inside each run
+	/// (<c>BuildBlueprintParser.Ordered</c>), so cutting the run <b>by index</b> cuts the site into contiguous stretches and
+	/// the contention of the crew is gone by construction: the run that measured the repulsion rose to 125 pieces/min and
+	/// <b>decayed to 107</b> at the end, when more workers were reaching for the same corner.
+	///
+	/// <para>Three properties are pinned here and they are the whole contract: the chunks <b>cover</b> the phase exactly once
+	/// (no piece twice, no piece lost, in order), two chunks never differ by more than <b>1</b> piece (the remainder goes to
+	/// the first ones) and the fail-safe for a phase or a crew number that makes no sense is an <b>empty</b> chunk starting at
+	/// the phase's first index - never a piece of somebody else.</para>
+	/// </summary>
+	private static void ChunkCases()
+	{
+		// 1-3) one and two workers over a phase of 10: half each, in order
+		ChunkCase("10 pecas, 1 worker: a fase inteira", 0, 10, 1, 0, 0, 10);
+		ChunkCase("10 pecas, 2 workers: o primeiro leva 5", 0, 10, 2, 0, 0, 5);
+		ChunkCase("10 pecas, 2 workers: o segundo leva 5", 0, 10, 2, 1, 5, 5);
+
+		// 4-6) the remainder goes to the FIRST chunks: 10 over 3 is 4 + 3 + 3, never 3 + 3 + 4
+		ChunkCase("10 pecas, 3 workers: o primeiro leva o resto (4)", 0, 10, 3, 0, 0, 4);
+		ChunkCase("10 pecas, 3 workers: o segundo leva 3", 0, 10, 3, 1, 4, 3);
+		ChunkCase("10 pecas, 3 workers: o terceiro leva 3", 0, 10, 3, 2, 7, 3);
+
+		// 7-9) 7 over 3 is 3 + 2 + 2 (the remainder is 1 and only the first chunk takes it)
+		ChunkCase("7 pecas, 3 workers: o primeiro leva 3", 0, 7, 3, 0, 0, 3);
+		ChunkCase("7 pecas, 3 workers: o segundo leva 2", 0, 7, 3, 1, 3, 2);
+		ChunkCase("7 pecas, 3 workers: o terceiro leva 2", 0, 7, 3, 2, 5, 2);
+
+		// 10-11) a phase of 100 over 5 workers, and the offset of a phase that does not start at 0
+		ChunkCase("100 pecas, 5 workers, fase a partir de 100: o primeiro", 100, 200, 5, 0, 100, 20);
+		ChunkCase("100 pecas, 5 workers: o ultimo comeca em 180", 100, 200, 5, 4, 180, 20);
+
+		// 12-13) fewer pieces than workers: the first chunks take one each and the tail ones are EMPTY (never a copy)
+		ChunkCase("1 peca, 5 workers: o primeiro fica com ela", 100, 101, 5, 0, 100, 1);
+		ChunkCase("1 peca, 5 workers: o ultimo fica vazio no fim", 100, 101, 5, 4, 101, 0);
+
+		// 14-15) an empty phase and a phase that ends before it starts: empty, never a negative length
+		ChunkCase("fase vazia (start == end): nada", 100, 100, 3, 0, 100, 0);
+		ChunkCase("fase invertida (end < start): nada", 100, 90, 3, 0, 100, 0);
+
+		// 16-20) the fail-safe of the numbers that make no sense: 0 slots, a negative count, a slot out of range
+		ChunkCase("0 workers: nada", 0, 10, 0, 0, 0, 0);
+		ChunkCase("-3 workers: nada", 0, 10, -3, 0, 0, 0);
+		ChunkCase("slot -1: nada", 0, 10, 3, -1, 0, 0);
+		ChunkCase("slot == slots: nada", 0, 10, 3, 3, 0, 0);
+		ChunkCase("slot > slots: nada", 0, 10, 3, 4, 0, 0);
+
+		// 21) the property over the whole small table: the chunks cover [start, end) exactly once and in order
+		bool covered = true;
+		string broken = null;
+		for (int pieces = 2; pieces <= 12 && covered; pieces++)
+		{
+			for (int slots = 1; slots <= 6 && covered; slots++)
+			{
+				int at = 100;
+				for (int slot = 0; slot < slots; slot++)
+				{
+					BuildSpread.Chunk(100, 100 + pieces, slots, slot, out int first, out int length);
+					if (first != at || length < 0)
+					{
+						covered = false;
+						broken = pieces + " peca(s), " + slots + " worker(s), slot " + slot + ": " + first + "+" + length
+							+ " (esperado " + at + ")";
+						break;
+					}
+					at += length;
+				}
+				if (covered && at != 100 + pieces)
+				{
+					covered = false;
+					broken = pieces + " peca(s), " + slots + " worker(s): cobriu ate " + at;
+				}
+			}
+		}
+		Check("2..12 pecas x 1..6 workers: os trechos cobrem a fase exatamente uma vez, em ordem", covered, broken);
+
+		// 22) and they never differ by more than 1 piece - the same sweep, the largest minus the smallest
+		bool even = true;
+		string uneven = null;
+		for (int pieces = 2; pieces <= 12 && even; pieces++)
+		{
+			for (int slots = 1; slots <= 6 && even; slots++)
+			{
+				int min = int.MaxValue;
+				int max = int.MinValue;
+				for (int slot = 0; slot < slots; slot++)
+				{
+					BuildSpread.Chunk(100, 100 + pieces, slots, slot, out int first, out int length);
+					if (length < min)
+					{
+						min = length;
+					}
+					if (length > max)
+					{
+						max = length;
+					}
+				}
+				if (max - min > 1)
+				{
+					even = false;
+					uneven = pieces + " peca(s), " + slots + " worker(s): " + min + ".." + max;
+				}
+			}
+		}
+		Check("2..12 pecas x 1..6 workers: o maior trecho e no maximo 1 peca maior que o menor", even, uneven);
+	}
+
+	/// <summary>Section (ab): one <c>Chunk</c> case - the phase, the crew, the slot and the expected first index/length.</summary>
+	private static void ChunkCase(string name, int start, int end, int slots, int slot, int expectedFirst, int expectedLength)
+	{
+		BuildSpread.Chunk(start, end, slots, slot, out int first, out int length);
+		Check(name + " -> " + expectedFirst + "+" + expectedLength, first == expectedFirst && length == expectedLength,
+			"obtido " + first + "+" + length);
 	}
 
 	/// <summary>The plan of case (a)/(e) of section (m): a fresh list every call (case (e) needs two of them).</summary>
