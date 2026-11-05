@@ -143,7 +143,12 @@ internal static class BuildSite
 			{
 				break;
 			}
-			float y = ZoneSystem.instance != null ? ZoneSystem.instance.GetGroundHeight(candidate) : candidate.y;
+			// 04/11/2026 (review R13): the candidate used to be forced onto the terrain. `GetGroundHeight` sees ONLY the
+			// terrain layer, so an "adjusted pose" for a piece of the 2nd floor was moved to the GROUND - the measured
+			// "log ajustado" that put chests at 39,9 when the plan wanted 43,9. A pose already above the ground is the
+			// plan's own y and must stay there; only a pose at/below the ground snaps to it.
+			float ground = ZoneSystem.instance != null ? ZoneSystem.instance.GetGroundHeight(candidate) : candidate.y;
+			float y = candidate.y > ground + 0.1f ? candidate.y : ground;
 			Vector3 pos = new Vector3(candidate.x, y, candidate.z);
 			float[] yaws = piece.m_canRotate ? new float[] { 0f, 90f, 180f, 270f } : new float[] { 0f };
 			foreach (float yaw in yaws)

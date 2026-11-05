@@ -452,8 +452,11 @@ internal static class MHR_Level
 		// E7 (player's report, 03/11/2026: "não fez"): it ALSO resumes when the leveling GAVE UP - the game's level is a
 		// smooth with a floor, so a site can stop at 0,30 m and never reach the 0,20 m tolerance; before, that ended the
 		// whole order (the build never started)
-		bool resumeBuild = key == "hc_ai_level_done" || key == "hc_ai_level_already" || key == "hc_ai_level_failed";
-		string resumeLog = key == "hc_ai_level_failed" ? "the ground is as flat as it gets - back to the build" : "the ground is ready - back to the build";
+		bool resumeBuild = key == "hc_ai_level_done" || key == "hc_ai_level_already" || key == "hc_ai_level_failed"
+			|| key == "hc_ai_build_too_steep";   // 04/11/2026 (review R17): a refusal must not kill the build
+		string resumeLog = key == "hc_ai_level_failed" ? "the ground is as flat as it gets - back to the build"
+			: key == "hc_ai_build_too_steep" ? "too steep to level - building anyway"
+			: "the ground is ready - back to the build";
 		if (state.ThenBuild != null && resumeBuild)
 		{
 			CompanionSetup cs = ai.GetComponent<CompanionSetup>();

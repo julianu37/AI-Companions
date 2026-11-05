@@ -2647,11 +2647,16 @@ internal static class MHR_Build
 	/// <summary>
 	/// P1 (multi-build, 03/11/2026): the plan belongs to the <b>group</b> and every worker walks it by <b>index</b>, so a
 	/// reorder made by one worker would leave the others' indices pointing at other pieces (and their claims with them).
-	/// While the site has more than one worker nobody reorders it - the retry queue builds what the reorder used to fix.
+	/// 04/11/2026 (review R15): the lock follows the SITE, not the crew size. It used to be <c>IsShared</c> (2+ workers),
+	/// so when a site fell to ONE worker (a death took the others - measured in the Run 9 and Run 10) the reorder came
+	/// back while <c>MHR_BuildGroup</c> still indexed <c>Claims</c>/<c>Done</c>/<c>SkippedIndex</c>/<c>Retry</c> by index:
+	/// <c>PreferNearFloor</c> swaps two positions, <c>PullSupports</c>/<c>PullFloorsAbove</c> rebuild the list and
+	/// <c>InsertBenchStep</c> inserts into it - a queue entry then points at ANOTHER piece, `Done` marks a pending piece
+	/// as standing, and the paid duplicate becomes possible. There is a site (even with one worker) whenever Group != null.
 	/// </summary>
 	private static bool PlanLocked(State state)
 	{
-		return state != null && state.Group != null && MHR_BuildGroup.IsShared(state.Group);
+		return state != null && state.Group != null;
 	}
 
 	/// <summary>
@@ -6684,25 +6689,27 @@ internal static class MHR_Build
 			return true;
 		}
 		Log(ai, "flattest spot around the hint: " + bestVariation.ToString("F2") + " m of variation (target " + bestTarget.ToString("F1") + ")");
+		// 04/11/2026 (review R17): leveling is a PREPARATION, not a gate. Each of the three refusals below used to call
+		// Finish and end the whole order - so a companion without a hoe, on a bank, or in a game build without the level
+		// piece could not build a house at all, while the blueprint path (which never asks these) built anyway. The
+		// product rule is the blueprint's: build anyway; the pieces that do not fit go through the retry gate and the
+		// emergency post, and the order reports what it skipped. The reason still goes to the log.
 		if (bestVariation > MaxLevelVariation)
 		{
-			Log(ai, "too steep to level (" + bestVariation.ToString("F2") + " m)");
-			Finish(ai, state, "hc_ai_build_too_steep", "too steep", bestVariation.ToString("F1"));
-			return false;
+			Log(ai, "too steep to level (" + bestVariation.ToString("F2") + " m) - building anyway");
+			return true;
 		}
 		Humanoid humanoid = ai.GetComponent<Humanoid>();
 		Inventory bag = humanoid != null ? humanoid.GetInventory() : null;
 		if (bag == null || !bag.HaveItem("$item_hoe"))
 		{
-			Log(ai, "the ground is uneven (" + bestVariation.ToString("F2") + " m) and there is no hoe");
-			Finish(ai, state, "hc_ai_build_no_hoe", "no hoe", bestVariation.ToString("F1"));
-			return false;
+			Log(ai, "the ground is uneven (" + bestVariation.ToString("F2") + " m) and there is no hoe - building anyway");
+			return true;
 		}
 		if (!BuildTerrain.Available())
 		{
-			Log(ai, "the hoe's level piece was not found in this game version");
-			Finish(ai, state, "hc_ai_build_level_failed", "no level piece", bestVariation.ToString("F1"));
-			return false;
+			Log(ai, "the hoe's level piece was not found in this game version - building anyway");
+			return true;
 		}
 		// E7 (review C1, 03/11/2026): the leveling may GIVE UP (the soft level has a floor) and the order comes back here -
 		// without this guard it is an endless level -> build -> level (the blueprint path has s_levelTried for exactly
@@ -8150,6 +8157,17 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			: BuildExecutor.VerifyAt(state.Piece, state.Pos, creator, out state.Placed, checkStation);
 		if (reason != null)
 		{
+			// 04/11/2026 (reviews R12/R18, measured in the §17.27 run): a piece WE placed a moment ago that is gone by
+			// this frame was DESTROYED by the game, and the measured cause is "nothing under it" (100 % damage on the next
+			// wear tick). `verification: not_found` was classified as a REAL failure, so the piece burned one of its 3
+			// attempts and ended as "desistindo" even when the support it needed was arriving from the next worker - and
+			// the log lost the real reason (the `UNSUPPORTED … support X < min Y` line never printed on this path).
+			// Our own piece, gone within the first 1,5 s, is a support problem: it goes through the dependency gate, which
+			// waits (8/12/20/25 s) and never counts it as skipped.
+			if (reason == "not_found" && state.Placed == null && Time.time - state.PlacedAt < 1.5f)
+			{
+				reason = "no support";
+			}
 			Log(ai, "verification failed: " + reason);
 			if (state.Blueprint != null)
 			{

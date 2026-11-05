@@ -3512,3 +3512,44 @@ linha antiga byte a byte precisa saber disto.
 
 **Não medido:** a revalidação do `stone_cottage` com a DLL corrigida — exige reiniciar o jogo (a DLL é carregada no
 boot). É o próximo run.
+
+## §17.28 O lote que as revisões R11-R20 acharam (04/11/2026)
+
+Dez rodadas independentes de leitura (read-only) sobre o código da construção. O que foi **aplicado** neste ciclo, com
+o porquê medido e o número que deve mover:
+
+| # | defeito (revisor) | onde | o que fazia | conserto |
+|---|---|---|---|---|
+| 1 | **plano reordenado com 1 worker** (R15 F1) | `MHR_Build.PlanLocked` | o cadeado era `IsShared` (**2+** workers). Quando o canteiro caía para **1** (uma morte levava os outros — Run 9 e Run 10), `PreferNearFloor` **trocava duas posições**, `PullSupports`/`PullFloorsAbove` **reconstruíam** a lista e `InsertBenchStep` **inseria** — e o `MHR_BuildGroup` indexa `Claims`/`Done`/`SkippedIndex`/`Retry` **por índice**: a entrada da fila passava a apontar para **outra peça** | `state.Group != null` (o cadeado segue o **canteiro**, não o tamanho da equipe) |
+| 2 | **`GaveUp` pegajoso queimava tentativa da vizinha** (R18 b) | `MHR_Mover.ClearGiveUp` + chamada no `EnterStep` | `GaveUp` só era limpo por `Reset`, `Release` ou `shift > 1,5 m`. Duas peças de uma fileira estão a **1 m** e o `Go` seguinte vem **1 frame** depois ⇒ o `Go` respondia `false` na hora e a peça ia para a fila como **`can't reach it`** = falha **Real** = **1 das 3 tentativas**, sem andar um metro. Três bounces e uma peça nunca tentada virava **pulada** — em silêncio, e `puladas == 0` é a régua do produto | limpar `GaveUp`/`GaveUpAt` na **fronteira da peça** |
+| 3 | **`Vertical` sem guarda de `LastGo`** (R18 c) | `MHR_Mover.Vertical` | era a única consulta sem guarda (`OnTheWayUp`/`OnLadderChain` 1 s, `RoutePartial` 0,5 s). Uma chain/`ClimbUntil` sobrada da peça anterior a mantinha `true`, o chamador **reiniciava o relógio de 12 s sem chegar mais perto** e a peça só caía no **watchdog de 60 s** (a cumeeira do Run 13/15) | `now - s.LastGo < 1f` na condição |
+| 4 | **`not_found` como falha real** (R12 A1) | `MHR_Build.Verify` | peça **nossa**, colocada há instantes e **destruída** pelo jogo (100 % de dano no tick seguinte por falta de apoio) voltava como `verification: not_found` classificado **Real**: queimava tentativa e o log perdia o `UNSUPPORTED … support X < min Y`. É o **mesmo mecanismo** do §17.27 por outra porta | `not_found` + peça nossa + < 1,5 s ⇒ `no support` (classe `Dependency`: espera, não gasta tentativa, nunca conta como pulada) |
+| 5 | **`too_steep` matava a obra** (R17 A1, pendência 12) | `MHR_Level` (`resumeBuild`) | o nivelamento é o **único dono** da obra naquele instante (o `State` já foi destruído e o `Finish` **não grava `Pending`**): a recusa `hc_ai_build_too_steep` **não estava** na lista de retomada e o jogador ficava **sem casa**, no caminho **padrão** (`LevelGround = true`) | `hc_ai_build_too_steep` entra em `resumeBuild` com a fala `too steep to level - building anyway` |
+| 6 | **sem enxada matava a obra** (R17 A2) | `MHR_Build.LevelGround` (template) | `hc_ai_build_no_hoe` e `hc_ai_build_level_failed` chamavam `Finish`. O caminho de **blueprint** nunca pergunta isso e **constrói assim mesmo** — assimetria sem motivo | nivelar é **preparação, não portão**: os três `Finish` viraram `log + return true` (constrói; o que não couber passa pelo retry e pelo poste) |
+
+**Números do gate:** build **0/0**, harness **775 PASS**, config **368/25**. O lote **não** acrescentou asserção (as
+correções são de estado/movimento, Unity-side e não linkáveis no harness) — o que o harness pinou neste ciclo foi a
+seção **(ac)** do §17.27.
+
+**Fica aberto (declarado, não aplicado):** R15 F5 (a fila do canteiro não viaja no `Pending` — se o **último** worker
+morre, as peças da fila somem sem contar como puladas), R12 A2 (`AbandonPiece` só abandona a peça **corrente**;
+"para"/outra ordem descartam `state.Retry` sem contagem), R17 A3 (morte **durante** o nivelamento perde a obra: não há
+`MHR_Level.OnDeath` nem hook equivalente), R17 D1 (o nivelamento aplica a operação **sem alcance e sem custo** — ~5 m numa
+casa 8x8 e ~12 m numa área de 20 m), R18 (a chain lembrada atravessa a fronteira da peça e manda o corpo ao pé da escada
+anterior), R20 (descrições de config que mentem: `Enabled`/"no gathering yet", `PlaceReach`/"walks first, 3 s") e o
+mojibake `recolecciÃ³n` no `Translations/Spanish.json:2853`.
+
+**Não medido:** nenhuma das seis correções foi vista em jogo — a DLL é carregada no boot e o jogo que rodou o §17.27
+ainda estava com a DLL anterior. O primeiro run depois do restart mede as seis juntas (o guarda continua sendo
+`puladas`, `UNSUPPORTED` e a duração).
+
+### Segundo lote (R13/R14 — o dinheiro do jogador e a receita)
+
+| # | defeito (revisor) | onde | o que fazia | conserto |
+|---|---|---|---|---|
+| 7 | **Material DESTRUÍDO ao tirar do baú** (R14) | `BuildStock.MoveFromChests` | `chestBag.RemoveItem(name, take)` tirava tudo e `bag.AddItem(prefab, take)` **capa em UMA pilha** (`Min(amount, m_maxStackSize)`) e devolve `bool` **ignorado**. Medido no caso da casa 8x8: **123 madeiras**, mochila vazia, baú com 200 → **50 entram, 73 são destruídas**, e o log diz `moved 123x` | encher a mochila **de um em um**, tirar do baú **só o que entrou**, e logar o que ficou (`the bag is full - Nx … stay in the chest`) |
+| 8 | **A estação construída não ensinava a receita** (R14) | `BuildExecutor.PlaceDirect` | o vanilla registra a estação no jogador (`Player.PlacePiece` → `GetComponentInChildren<CraftingStation>()` → `AddKnownStation`); nós não. O leitor de blueprint barra cada linha em `Player.IsRecipeKnown` — então o talhador de pedras **de pé** não destravava nada e as peças de pedra ficavam `recipe not unlocked` (as 2 `stone_floor_2x2` da casa de referência, §17.18; e o corpus inteiro) | `station != null && local != null → local.AddKnownStation(station)` |
+| 9 | **A "pose ajustada" caía no chão** (R13) | `BuildSite.Find` | `GetGroundHeight` só vê a camada **terreno**, mas o candidato era **forçado** para ela: uma peça do **2º andar** (y 43,8) ajustada ia para o **chão** (y 39,9) — é o `log ajustado` que pôs baús em 39,9 quando o plano queria 43,9 | pose **acima** do terreno mantém o y do plano; só a que está no nível/abaixo encosta no chão |
+| 10 | **A razão da recusa mentia** (R13) | `BuildProbe` (`status`) | `status = reasons[0]` (a **primeira** na ordem do vanilla). Peça no ar sobre um barranco = `["too_steep", "no_support"]` → `too_steep` = falha **Real**: queimava tentativa e **nunca** entrava no pull do apoio nem no poste de emergência, com a causa verdadeira sendo o apoio | `FirstBlocking`: `blocked_by_player`/`needs_station`/`no_support` vencem as razões de superfície |
+
+**Estado do gate depois dos dois lotes:** build **0/0**, harness **775 PASS**, config **368/25**, árvore limpa.

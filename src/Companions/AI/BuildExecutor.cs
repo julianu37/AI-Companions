@@ -182,6 +182,17 @@ internal static class BuildExecutor
 		{
 			area.Setup(Game.instance.GetPlayerProfile().GetName());
 		}
+		// 04/11/2026 (review R14): the vanilla registers the station with the player when HE places it
+		// (`Player.PlacePiece`: `GetComponentInChildren<CraftingStation>()` -> `AddKnownStation`). We did not, so a
+		// workbench/stonecutter built by the companion never unlocked the recipe for the player - and the blueprint
+		// reader gates every line on `Player.IsRecipeKnown`, so the stone pieces of a downloaded plan stayed
+		// "recipe not unlocked" (the 2 `stone_floor_2x2` of the reference house, §17.18) with the stonecutter standing
+		// right there. It is the same gap that keeps third-party stone builds short of their plan.
+		CraftingStation station = go.GetComponentInChildren<CraftingStation>();
+		if (station != null && local != null)
+		{
+			local.AddKnownStation(station);
+		}
 		WearNTear wear = go.GetComponent<WearNTear>();
 		if (wear != null)
 		{

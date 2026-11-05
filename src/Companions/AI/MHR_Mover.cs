@@ -130,7 +130,12 @@ namespace Companions
         public static bool Vertical(CompanionAI ai)
         {
             S s = Peek(ai); float now = Time.time;
-            return s != null && (s.LadderPending || s.OnChain || s.DescendLadder || now < s.ClimbUntil || s.HasDetour);
+            // 04/11/2026 (review R18): every sibling query is guarded by LastGo (OnTheWayUp/OnLadderChain 1 s,
+            // RoutePartial 0.5 s); this one was not, so a chain/LadderPending/ClimbUntil left over from the PREVIOUS piece
+            // kept it true. The caller restarts its "12 s without getting closer" clock while this is true, so the piece
+            // never went to the retry and only the 60 s watchdog killed it (the unreachable ridge, Run 13/15).
+            return s != null && now - s.LastGo < 1f
+                && (s.LadderPending || s.OnChain || s.DescendLadder || now < s.ClimbUntil || s.HasDetour);
         }
         public static bool Progressing(CompanionAI ai) { S s = Peek(ai); return s != null && !s.GaveUp && Time.time - s.ProgressTime < 10f; }
         public static float StuckSeconds(CompanionAI ai) { return GaveUp(ai) ? 11f : 0f; }
@@ -148,6 +153,22 @@ namespace Companions
         s.DetourTries = 0; s.NextDetourAt = 0f;   // a new goal gets its own 3 alternative-route tries
             Character c = ai.GetComponent<Character>();
             if (c != null && s.Walking) { c.SetWalk(false); s.Walking = false; }
+        }
+
+        /// <summary>
+        /// 04/11/2026 (review R18): the piece boundary clears the give-up. <c>GaveUp</c> is set by <c>Unstick</c> on the
+        /// last step and only cleared by <c>Reset</c>, <c>Release</c> or the "new goal is far away" branch of
+        /// <c>GoInner</c> (<c>shift &gt; 1.5f</c>). Two pieces of a row are 1 m apart, and the next <c>Go</c> happens one
+        /// frame later, so neither branch fires: the body answered <c>false</c> immediately for the NEXT piece and the
+        /// caller queued it as <c>can't reach it</c> - a <b>Real</b> failure that burns one of the 3 attempts, without
+        /// walking a metre. Three bounces and a piece that was never tried is skipped (the player's pass mark is
+        /// "0 skipped"), silently. A row of <c>wood_wall_half</c>, <c>wood_beam_1</c> or chests side by side is enough.
+        /// </summary>
+        public static void ClearGiveUp(CompanionAI ai)
+        {
+            S s = Peek(ai);
+            if (s == null) return;
+            s.GaveUp = false; s.GaveUpAt = 0f;
         }
 
         // 1.9.5 (auditoria B8): the per-companion state is keyed by the GameObject's instance id and nothing ever

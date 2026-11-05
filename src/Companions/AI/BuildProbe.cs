@@ -614,7 +614,12 @@ internal static class BuildProbe
 		}
 
 		result["ok"] = reasons.Count == 0;
-		result["status"] = reasons.Count == 0 ? "valid" : reasons[0];
+		// 04/11/2026 (review R13): the status used to be `reasons[0]` - the FIRST reason, in the vanilla overwrite order.
+		// A dependency reason could then be masked by a surface one: a piece in the air over a bank produced
+		// ["too_steep", "no_support"] -> "too_steep", which BuildFailure classifies as a REAL failure - it burned one of
+		// the 3 attempts and never entered the support pull / emergency post path, while the true cause was the support.
+		// The reasons that are not the piece's fault win, so it waits for its support instead of being thrown away.
+		result["status"] = reasons.Count == 0 ? "valid" : FirstBlocking(reasons);
 		result["elevated"] = elevated;
 		result["reasons"] = reasons;
 		result["ground"] = new Dictionary<string, object>
@@ -683,6 +688,25 @@ internal static class BuildProbe
 	/// (<c>WearNTear.SetupColliders</c>), which is exactly the <c>+0,15 m</c> grown here - do <b>not</b> stretch it, a
 	/// piece without that connection is placed and then <b>falls</b> (~1 s, 100 % wear).</para>
 	/// </summary>
+	/// <summary>
+	/// 04/11/2026 (review R13): the first reason that is <b>not the piece's fault</b> - a body in the way, a missing
+	/// station or a missing support. They decide the class of the failure (<c>BuildFailure</c>: wait, do not burn an
+	/// attempt); the surface reasons (<c>too_steep</c>, <c>no_ground</c>, <c>clipping</c>...) are real failures and must
+	/// not hide them. Falls back to the first reason, which is what the caller used to get.
+	/// </summary>
+	private static string FirstBlocking(List<string> reasons)
+	{
+		for (int i = 0; i < reasons.Count; i++)
+		{
+			string reason = reasons[i];
+			if (reason == "blocked_by_player" || reason == "needs_station" || reason == "no_support")
+			{
+				return reason;
+			}
+		}
+		return reasons[0];
+	}
+
 	private static bool FootprintSupported(Piece piece, Vector3 pos, Quaternion rot)
 	{
 		Bounds box;
