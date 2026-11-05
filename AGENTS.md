@@ -2,6 +2,30 @@
 
 Mod de **companheiro NPC com IA** para **Valheim 1.0**, em **PT-BR**.
 
+## Início rápido (leia isto antes de qualquer coisa)
+
+- **Build/deploy:** `dotnet build Companions.sln -c Release` (compila e copia para `BepInEx\plugins\AI-Companions`).
+  Sem tocar na pasta do jogo: `-p:SkipDeploy=true`. **O build/deploy é só do arquiteto.**
+- **Os dois testes que valem antes de qualquer commit:** `dotnet run --project tools/ai-intents-check -c Release`
+  (**778 PASS**, exit 0) e `python tools/mcp-devbridge/test_mcp_devbridge.py` (**122 PASS**).
+- **Doc de config (nunca editar à mão):** `python tools/gen_config_doc.py --check src/Companions/Core/ModConfig.cs
+  package/CONFIGURATION.md` → `[ok] (368 settings, 25 sections)`.
+- **Gate de release:** `powershell -ExecutionPolicy Bypass -File tools\release-check.ps1 -Version <versão>`.
+- **REGRA 12 (absoluta, ver adiante):** entrar no mundo é `Espaço` em rajadas (pula o cinemático) → `Seta para baixo`
+  **uma vez** → `Enter` ×3 a **0,5 s**, **pelo bridge** (`mcp_devbridge.world_enter` → `input.key`). Sem mouse, sem
+  `SendKeys`/`PostMessage`, sem `Tab`, sem reimplementar a sequência. O jogo é lançado **desanexado**
+  (`Start-Process valheim.exe -console`) — como filho de um script, abortar a execução mata o Valheim junto.
+- **REGRA 13 (absoluta):** **todo deploy termina em restart** — build → reiniciar (regra 12) → **só então** medir,
+  alegar ou reportar. Prova de que subiu: `LastWriteTime` da DLL **anterior** ao `StartTime` do processo + `ping`
+  com `inGame: true`.
+- **Nunca editar** o `BepInEx\config\AiCompanions.cfg` do jogador (o BepInEx o reescreve a cada boot e preserva os
+  valores dele).
+- **Idioma:** doc interna (este arquivo, `docs/**`) em **PT-BR**; público (README, `package/**`, wiki, release notes)
+  em **EN**; **comentários de código em inglês** e **logs em PT-BR**.
+- **O que ler para o estado atual:** `docs/re/building-notes.md` (§17.27–§17.30 = a construção de 04–05/11) e
+  `docs/backlog-construcao.md` (a fila por ordem de ataque). O resto deste arquivo é **referência detalhada**, não
+  leitura linear.
+
 Este projeto é um **projeto independente** baseado em [Offline Companions Reborn](https://github.com/MaddhattrRocks/Offline-Companions-Reborn)
 (**MIT**), que já implementa a visão de "companheiro como membro da equipe" (trabalhos, comida, stamina,
 skills, casa, dormir, portais, carroça, menu radial). Nosso trabalho aqui é:
@@ -577,16 +601,21 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   `NudgeFurnitureRadius` em `MHR_Build.cs:126`; baú/cama em y 39,9 eram mobília e nunca eram ajustados; `log ajustado`
   **6** no run); e **`blocked_by_player` voltou**, agora pela **janela do corpo** (`AI/BuildBody.cs`, seção **(s)**): o
   companheiro **é obstáculo** — o ignore dele foi **REVERTIDO** (a peça era colocada **dentro** do companheiro e ele
-  **afundava**). A janela é a do jogo (`Player.UpdatePlacementGhost` → `Character`): a **cápsula real** do corpo
-  (`Collider.bounds.min.y`/`max.y` + raio, `BuildProbe.CapsuleOf`, `AI/BuildProbe.cs:813`) contra a **caixa girada** da
-  peça (`center = point + rot*(box.center − piece.transform.position)`, `halfY` pelo `BuildBody.HalfY`, `:733-793`), com
+  **afundava**). *Histórico do vai-e-vem (05/11/2026): o laço dos companheiros foi **removido** de novo ("não deixando
+  que se vejam"), o ganho foi medido (**7 planos, 861 → 188 s**), mas o defeito voltou em jogo — **piso colocado em
+  cima do companheiro o prende embaixo** — e o laço foi **restaurado** no mesmo dia. O ganho de 188 s **não** vinha do
+  corpo (era o `DependencyCap = 3`); o custo do corpo é **6,2 s** de `corpo` num plano de 148 s. Ver §17.30 e a
+  decisão aberta na onda de planejamento do "ignorar com refino".* A janela é a do jogo
+  (`Player.UpdatePlacementGhost` → `Character`): a **cápsula real** do corpo
+  (`Collider.bounds.min.y`/`max.y` + raio, `BuildProbe.CapsuleOf`, `AI/BuildProbe.cs:854`) contra a **caixa girada** da
+  peça (`center = point + rot*(box.center − piece.transform.position)`, `halfY` pelo `BuildBody.HalfY`, `:768-834`), com
   **toque = livre** (`pieceTop <= capsuleBottom || pieceBottom >= capsuleTop`, `AI/BuildBody.cs:45`): um piso **sobre a
   cabeça** bloqueia (era o bug "dois companions travados embaixo do piso") e um vizinho **ao lado** não. Isso **matou o
   disco**: até 11/11 o teste tratava a peça como um **disco** de `max(size.x, size.z)/2` (sem pivô nem rotação) e o
   **Run 10 pagou** — um feixe de 2 m virava um disco de 1 m e "prendia" o Companheiro 6 a 1,08 m (§17.16).
-  O bloqueio (**20** no run de 5, **≈770** no de 11/11 — o jogador estava **dentro do canteiro**) é **retry**: falha
-  real (gasta uma das 3), a peça volta e sobe quando o corpo sai. Detalhe medido em `docs/re/building-notes.md` §17.11,
-  §17.13 e §17.16.
+  O bloqueio (**20** no run de 5, **≈770** no de 11/11 — o jogador estava **dentro do canteiro**) é **`Kind.Blocked`**:
+  **3 curtas de 2,5 s e nenhuma tentativa gasta** (`AI/BuildFailure.cs:139`), a peça volta e sobe quando o corpo sai.
+  Detalhe medido em `docs/re/building-notes.md` §17.11, §17.13 e §17.16.
   **Falta medir:** o **vão do deck** (abaixo), run com **material pago** e o teste pequeno de 2 companheiros num 6x6.
   A **barreira de andar** foi **MEDIDA no Run 10** (abaixo) — saiu desta lista.
   O **Run 8** do lote do poste **foi medido** em 11/11/2026 (§17.14) — saiu desta lista também.
