@@ -485,6 +485,13 @@ internal static class MHR_Build
 		/// body (the same 3 of the group, reset when the piece changes - a group counts them on the site).</summary>
 		internal int BodyTries;
 		/// <summary>
+		/// 04/11/2026 (o jogador, com print: "com um companion estatico onde precisa colocar pecas nunca vai dar bom"): how
+		/// many times the CURRENT piece already made the companion walk off its own spot. A piece that needs the tile the
+		/// placer is standing on is never placed while he stands there (the body check ignores the placer, so nobody else
+		/// builds it either) - he steps out and places it from the walk spot. Reset per piece, capped at 2.
+		/// </summary>
+		internal int SelfStep;
+		/// <summary>
 		/// 11/11/2026 (the <b>storey barrier</b> of the Run 9, the player's rule: "they may skip, but come back and try again
 		/// before going up"): the height of the piece the walk was about to take when the barrier started - 0 when no barrier
 		/// is drawn. While it is set, <see cref="MHR_Build.Advance"/> hands back the pieces of the queue that are
@@ -2320,6 +2327,8 @@ internal static class MHR_Build
 		state.BestAt = Time.time;
 		state.NextScaffoldAt = 0f;
 		state.BodyTries = 0;   // 11/11/2026: the short retries of a body are per piece
+		state.SelfStep = 0;    // 04/11/2026: the "step off my own piece" tries are per piece too
+		state.PlacedAt = 0f;   // 04/11/2026 (review, ALTO): o relógio do "acabei de colocar" não vaza para a peça seguinte
 		state.BodyLogged = false;   // 11/11/2026 (Run 10): the body of the new piece is named once
 		state.AsideLogged = false;   // 11/11/2026 (Run 10): and the step-aside of the new piece is asked once in the log
 		state.ChunkAsideLogged = false;   // 12/11/2026 (the partition): the "inside my own chunk" alarm is per piece
@@ -3815,9 +3824,9 @@ internal static class MHR_Build
 	/// </summary>
 	internal static void Reattach(CompanionSetup cs)
 	{
-		if (cs == null)
+		if (cs == null || s_pending.Count == 0)
 		{
-			return;
+			return;   // 04/11/2026 (review, ALTO): sem pendências ele alocava uma List<int> por frame por companheiro ocioso
 		}
 		CompanionAI ai = cs.GetComponent<CompanionAI>();
 		if (ai == null)
@@ -7067,7 +7076,7 @@ internal static class MHR_Build
 		// whose top has no landing yet: that is what killed him in the hall of a blueprint, and it is guarded in MHR_Mover
 		// (LadderLanding). The piece used to be deferred to the retry pass, which left the house without a ladder for hours.
 		if (!state.Checked && cs != null && (state.Template != null || state.Blueprint != null)
-			&& state.Plan != null && state.Index > 0)
+			&& state.Plan != null)
 		{
 			state.Checked = true;
 			Dictionary<string, object> early = BuildSite.Check(state.Piece, state.Pos, state.Rot, cs, StationRequired(state));
@@ -7466,9 +7475,29 @@ internal static class MHR_Build
 				return Advance(ai, state);
 			}
 		}
+		// 04/11/2026 (o jogador, com print: "com um companion estatico onde precisa colocar pecas nunca vai dar bom"):
+		// o buraco no piso era a peça que precisa do lugar onde o PRÓPRIO colocador está - o `BuildSite.Check` ignora o
+		// corpo de quem coloca (ele é o `ignore`), então a peça ficava sem ninguém que a colocasse e o tile continuava
+		// vazio (o "fica e coloca" do P0 piora isso: ele nunca sai do lugar). Agora ele SAI de cima da peça: escolhe um
+		// walk spot FORA dela e coloca de lá. Duas tentativas; sem walk spot, segue o caminho de sempre (a fila).
+		if (state.Piece != null && state.SelfStep < 2 && OwnBodyOn(ai, state.Piece, state.Pos, state.Rot))
+		{
+			Vector3 outside;
+			if (WalkSpot(ai, state, out outside))
+			{
+				state.SelfStep++;
+				state.HasWalkTo = true;
+				state.WalkTo = outside;
+				state.WalkFor = state.Index;
+				state.Phase = Phase.Goto;
+				Log(ai, "a peça " + (state.Index + 1) + "/" + (state.Plan != null ? state.Plan.Count : 1)
+					+ " precisa do lugar onde eu estou - saio para (" + F(outside.x) + ", " + F(outside.y) + ", " + F(outside.z) + ")");
+				return true;
+			}
+		}
 		// E6: a plan step is checked AGAIN now, with the pieces the plan already built standing - the roof's support
 		// comes from the walls, and up-front they were only planned (measured: the roof was refused with no_support)
-		if ((state.Template != null || state.Blueprint != null) && state.Plan != null && state.Index > 0)
+		if ((state.Template != null || state.Blueprint != null) && state.Plan != null)
 		{
 			// Lote 1 (11/11/2026): a blueprint with [Building] BlueprintStations on places its pieces without a workbench, so
 			// this check must not report needs_station for it (the flag is the order's, and it is the one that keeps the
@@ -8783,6 +8812,13 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			}
 			return;
 		}
+		// 04/11/2026 (review de coerência, ALTO): o `Load` abaixo faz `File.GetLastWriteTimeUtc` em TODA chamada (mesmo no
+		// cache hit) e rodava ANTES do portão de 1 s - uma stat de disco por frame por worker na main thread. O portão vem
+		// primeiro; o resto do vigia (recomputar o que falta) continua a 1 Hz.
+		if (Time.time < pending.NextCheck)
+		{
+			return;
+		}
 		// E6b: a plan waiting for its materials (a template, or a blueprint) or a single piece
 		BuildTemplates.Template template = pending.Template != null ? BuildTemplates.ByName(pending.Template) : null;
 		Blueprint blueprint = pending.BlueprintFile != null ? BuildBlueprints.Load(pending.BlueprintFile) : null;
@@ -8814,11 +8850,8 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		// E6b (player's test, 02/11/2026): the watcher RECOMPUTES what is still missing with the same function the build
 		// uses (the plan from the piece that was short, or the piece's own cost) and resumes when nothing is missing.
 		// Comparing the bag TOTAL with the shortfall looped the 4x4 forever: the bag already had the 2 it asked for and
-		// the door's 4 were never covered. Once a second is enough for this.
-		if (Time.time < pending.NextCheck)
-		{
-			return;
-		}
+		// the door's 4 were never covered. Once a second is enough for this (the gate itself is now at the top, before
+		// the `Load`).
 		pending.NextCheck = Time.time + 1f;
 		Dictionary<string, int> still = pending.Plan != null && pending.Plan.Count > 0
 			? PlanMissing(bag, pending.Plan, pending.Index, pending.Anchor, cs, useChests)
@@ -8987,9 +9020,12 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		AbandonPiece(state);
 		// 04/11/2026 (review R12 A2, measured in the sequence of blueprints): the queue of the SITE dies with the group,
 		// and a piece waiting in it was counted neither as placed nor as skipped - the Forest Hobbit Repairhut ended
-		// "61/62, 0 pulada(s)" with nothing naming the missing piece. Draining it here marks each index once, so the
-		// count closes and the log says which pieces were left (the measured case: 1, after 181,8 s of `dependência`).
-		if (state.Group != null)
+		// "61/62, 0 pulada(s)" with nothing naming the missing piece.
+		// 04/11/2026 (review de coerência, CRÍTICO): só o ÚLTIMO worker drena. Isto rodava a cada saída de worker -
+		// coleta (`hc_ai_build_collecting`), sobrepeso, falha do executor - e marcava como puladas as peças que estavam na
+		// fila dos OUTROS, logo depois de o `AbandonPiece` acima devolver a peça corrente à fila (ou seja, o próprio dreno
+		// desfazia o abandono). A varredura de órfãs quinze linhas abaixo já usava a guarda certa: `!IsShared`.
+		if (state.Group != null && !MHR_BuildGroup.IsShared(state.Group))
 		{
 			List<int> left = new List<int>();
 			int dropped = MHR_BuildGroup.AbandonRetry(state.Group, ai.GetInstanceID(), left);

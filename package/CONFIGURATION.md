@@ -560,22 +560,22 @@ With Auto Pickup on in the wheel, a companion picks up items within this many me
 
 
 **Enabled** — Default: On  
-Let a companion build when you ask it ("Maria, build a workbench here"). It checks the recipe, looks for a free spot with the game's own rules, walks there, places the piece and confirms it. Phase E3: it builds from its own bag only (no gathering yet) and only the pieces of the workshop (workbench, chest, fire pit, bed).
+Let a companion build when you ask it: a single piece ("Maria, build a workbench here"), a whole structure (hut, canopy, tent, 4x4/6x6/8x8 house) or a downloaded .blueprint. It checks the recipe, looks for a free spot with the game's own rules, places the piece and confirms it with the world. It builds from its own bag, then from the chests it may use, and when the material is missing it hands the order to the gathering and resumes by itself. The crew of a blueprint builds the same plan together.
 
 **SiteSearchRadius** — Default: 8 · Range: 1 – 30  
 How far (meters) around the spot you are looking at the companion looks for a place where the piece fits (the game's rules: ground, water, ward, no-build zone, station in range and no clipping into other pieces).
 
 **PlaceReach** — Default: 10 · Range: 5 – 20  
-How far (in meters) the companion may place a piece when it cannot walk any closer. Vanilla allows 5 m; the companion still walks first and only opens this limit after 3 s stuck. 10 is the default; up to 20 for impatient players (it looks less realistic).
+How far (in meters) from its feet/eye the companion may place a piece. Vanilla allows 5 m. Inside this reach it places FROM WHERE IT STANDS (it does not walk first: measured, that is what makes a big plan fast); it only walks when the piece is out of the reach or out of sight. 10 is the default; up to 20 for impatient players (it looks less realistic).
 
 **DeckLift** — Default: 1 · Range: 0 – 3  
 The MOST the whole blueprint may rise above the ground: the ground floor sits on a deck on top of the poles, with the stairs reaching it. It only rises what the plan actually needs - a plan whose poles are buried 2 m rises the full value, a plan already drawn on the ground rises nothing (a build lifted in the air has no support and falls). 0 keeps the blueprint's own level. Default 1 (a low deck).
 
 **SupportFallback** — Default: On  
-When a plan piece is refused for no support and the plan has nothing under it, the companion puts a wooden post under it and places the piece (the house gets a few extra posts). Off = the piece waits and is left out. At most 24 posts per order.
+When a plan piece is refused for no support and the plan has nothing under it, the companion puts a wooden post under it and places the piece (the house gets a few extra posts). Off = the piece waits and is left out. At most 24 posts per companion (the site adds them up).
 
 **BodyRetry** — Default: On  
-A piece refused because a body (you or another companion) was in the way is not given up: it goes back to the site's retry queue and is tried again BEFORE the plan climbs a storey, instead of only at the end of the build. The same barrier also settles the pieces still waiting for a support before going up. Off: they only come back in the end-of-plan retry pass.
+A piece refused because YOUR body was in the way is not given up: it goes back to the site's retry queue and is tried again BEFORE the plan climbs a storey, instead of only at the end of the build. The same barrier also settles the pieces still waiting for a support before going up. Off: they only come back in the end-of-plan retry pass.
 
 **SpreadWorkers** — Default: On  
 The crew does not build in a line: on a shared plan each companion takes a piece of the next few of the same row that is a few meters away from what the others are building, instead of everyone reaching for the same corner at the same time. The pieces a companion walked past keep their turn and are built as soon as that place is free. Off: they work the plan in the order of the file, all together, as before.
@@ -584,7 +584,7 @@ The crew does not build in a line: on a shared plan each companion takes a piece
 Build near first: among the pieces the crew spread over, the companion takes the one NEAREST to it that is still within its reach, so it closes the place it is working on before going to the other end of the house. Off: it takes the first far piece of the plan's order, as before.
 
 **StepAside** — Default: On  
-A companion of the build group that is only waiting steps 2,2 m out of the way of a piece another one has to place (asked by the one placing it, walked with its own movement, never a teleport). You are never moved. Off: the piece waits for the companion to move on its own, as before.
+A companion of the build group that is only waiting steps 2,2 m out of the way of a piece another one has to place (asked by the one placing it, walked with its own movement, never a teleport). You are never moved. NOTE: a companion no longer blocks another one's piece (only YOU do, and the placer steps off its own piece), so in practice this only fires when the ask reaches a companion that is waiting.
 
 **ReachWalk** — Default: On  
 Walk to the nearest spot the piece can be reached from (a finished floor or roof row) instead of walking at the piece in mid-air.
@@ -608,7 +608,7 @@ Only build with a hammer in the companion's bag. Off by default: the placement d
 Do not make the placement noise (the game adds one when a piece goes up, which can pull creatures). Only the hand-written placement path is silenced; the vanilla Player.PlacePiece path keeps its noise.
 
 **LevelGround** — Default: On  
-Level the ground before a structure (a plan) when it is uneven: a house of 8x8 needs a flat area, and the walls and roof are all at the anchor's height. It uses the game's own leveling (the hoe's level operation) and needs a hoe in the companion's bag - without one it says so and the order ends.
+Level the ground before a structure (a plan) when it is uneven: a house of 8x8 needs a flat area, and the walls and roof are all at the anchor's height. It uses the game's own leveling (the hoe's level operation) and needs a hoe in the companion's bag - without one, or when the ground is too steep for the hoe, it builds anyway and the pieces that do not fit go through the retry.
 
 **ClearSite** — Default: On  
 Clear the build site before the first piece: the trees, stumps and fallen logs inside the plan's footprint are cut (the same directed harvest the radial uses) and the wood goes to the bag the build pays from. The ground under them is not changed - leveling is its own step (LevelGround). Up to 40 obstacles / 240 s per order; what is left is handled by the piece retry.
@@ -623,7 +623,7 @@ Build a blueprint without paying for the pieces (a test/creative switch: the com
 A blueprint builds without crafting stations: none is planned and a piece is not refused for a missing station. Off = the vanilla rule. Templates and single-piece orders always need the station.
 
 **BlueprintMaxPieces** — Default: 2000 · Range: 1 – 20000  
-Refuse a blueprint with more pieces than this (a guard against a huge or broken file). The message says the file has more pieces than the limit.
+Refuse a blueprint with more pieces than this (a guard against a huge or broken file). The refusal is written to the BepInEx log; the companion says it could not build the plan.
 
 **LevelTolerance** — Default: 0.35 · Range: 0.05 – 2  
 How much height variation (meters) a build site may have before the ground is leveled. Measured: a floor is refused when the ground under it is more than ~0.3 m below the anchor.

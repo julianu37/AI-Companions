@@ -188,7 +188,16 @@ internal static class MHR_CompanionNavMesh
 			{
 				return;
 			}
-			InvalidateAround(__instance.transform.position);
+			// 04/11/2026 (review dos patches): este gancho roda DENTRO do `BuildExecutor.PlaceDirect` (o `wear.OnPlaced()`),
+			// e uma exceção aqui subiria e pularia `MakePiece`, `IPlaced.OnPlaced`, o efeito, o ruído e o invalida — a peça
+			// ficaria no mundo mas inconsistente, o canteiro a contaria como não colocada e pagaria de novo. Fail-open.
+			try
+			{
+				InvalidateAround(__instance.transform.position);
+			}
+			catch (Exception)
+			{
+			}
 		}
 	}
 
@@ -203,7 +212,15 @@ internal static class MHR_CompanionNavMesh
 			{
 				return;
 			}
-			InvalidateAround(__instance.transform.position);
+			// 04/11/2026 (review dos patches): um prefix que lança faz o Harmony ABORTAR o original - a peça ficaria com
+			// vida cheia ("zumbi"), o tick seguinte repetiria e o log encheria para sempre. Fail-open.
+			try
+			{
+				InvalidateAround(__instance.transform.position);
+			}
+			catch (Exception)
+			{
+			}
 		}
 	}
 

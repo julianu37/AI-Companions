@@ -96,7 +96,7 @@ def world_enter(args):
     delay = max(0, min(180, int(args.get("delay", 0))))
     if delay:
         time.sleep(delay)
-    steps = [("DownArrow", 0.7), ("Return", 1.5), ("Return", 1.5), ("Return", 1.5)]
+    steps = [("DownArrow", 1.2), ("Return", 1.2), ("Return", 1.2)]
 
     def poll(seconds):
         deadline = time.time() + seconds
@@ -113,10 +113,15 @@ def world_enter(args):
 
     for attempt in range(1, 4):
         entered = None
-        for _ in range(16):
-            focus_game()
+        # O cinematico come as primeiras pressoes e comeca DEPOIS dos logos: 16 pressoes a 0,7 s (11 s) acabavam antes
+        # dele em algumas aberturas e o jogo rodava o video inteiro ("ta demorando demais na cutscene denovo"). Agora
+        # sao ate 60 pressoes a 0,3 s (18 s), com o foco renovado a cada 4 (o focus_game e o que custa). Space no menu
+        # nao faz nada, entao insistir e seguro.
+        for i in range(60):
+            if i % 4 == 0:
+                focus_game()
             require_ok(call_bridge("input.key", key="Space"))
-            time.sleep(0.7)
+            time.sleep(0.3)
             try:
                 ping = require_ok(call_bridge("ping"))
                 if ping.get("inGame"):

@@ -805,25 +805,14 @@ internal static class BuildProbe
 				return true;
 			}
 		}
-		foreach (CompanionSetup setup in CompanionSetup.AllCompanions)
-		{
-			if (setup == null || ReferenceEquals(setup, ignore))
-			{
-				continue;
-			}
-			// the companion's body is the Character of the same GameObject (CompanionSetup is the mod's side of it)
-			Character character = setup.GetComponent<Character>();
-			if (character == null || !CapsuleOf(character, out Vector3 axis, out float bottom, out float top, out float radius))
-			{
-				continue;
-			}
-			Vector3 local = inverse * (axis - center);
-			if (BuildBody.Blocks(local.x, local.z, halfX, halfZ, pieceBottom, pieceTop, bottom, top, radius))
-			{
-				blocker = setup;
-				return true;
-			}
-		}
+		// 04/11/2026 (pedido do jogador: "dá pra tirar isso de um atrapalhar o outro com o corpo, não deixando que se
+		// vejam?"): um COMPANHEIRO não bloqueia a peça de outro. Medido no stone_cottage: 5 corpos num canteiro de 6x6
+		// geravam `corpo no caminho ... volta em 6 s` em série e `sem lugar livre para ele sair da frente`, e o plano que
+		// devia fechar em ~40 s levava 140 s. O que o jogo exige é o FANTASMA não sobrepor o corpo
+		// (Player.CheckPlacementGhostVSPlayers); nós instanciamos sem fantasma, então este teste é só nosso.
+		// O JOGADOR continua bloqueando (o corpo dele na pose recusa a peça) e o próprio colocador também, pelo `ignore`
+		// que o BuildSite.Check passa. O laço dos companheiros foi removido junto com o `blocker = setup`: se algum dia
+		// aparecer companheiro empurrado para baixo do piso, o caminho de volta é reativar o laço que existia aqui.
 		return false;
 	}
 

@@ -1325,7 +1325,7 @@ internal static class MHR_BuildGroup
 	/// end anyway. A real dependency (a support another worker is about to place) resolves in the first two or three waits
 	/// (8/12/20 s); after this the sweep of the end names the piece instead of the clock paying for it.
 	/// </summary>
-	internal const int DependencyCap = 6;
+	internal const int DependencyCap = 3;
 
 	private static bool Ready(Group group, RetryEntry entry, int workerId, float now)
 	{
