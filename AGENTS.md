@@ -380,7 +380,7 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   posicionado uma vez em (-166,92, 39,92, -401,59) e depois livre, entrando no canteiro) → **989 colocadas + 1 pulada =
   990** (a fala final: `989 peças, 1 puladas`), **watchdog `0`**, **0 `UNSUPPORTED`**, **1022 peças** no canteiro
   (**989 + 33 postes**), **33 postes** de emergência (**0** recusas) e **23/23 prefabs do blueprint no lugar**
-  (`accept_run.py`), **1 morte** (ignorada por decisão do jogador); **o plano fecha: 983 do arquivo + 7 bancadas
+  (`accept_run.py` - script de bancada em `%TEMP%\opencode`, **nao versionado**), **1 morte** (ignorada por decisão do jogador); **o plano fecha: 983 do arquivo + 7 bancadas
   inseridas = 990** (o run nasceu com **986** e o planejador inseriu bancadas durante a obra; **6 de pé + 1 recusada por
   `clipping` = 7**). **A única pulada não é peça da casa** — `piece_workbench` em (-156,5, 38,4, -410,6) por
   **`clipping`**, a 7ª bancada do `PlanStations`/`InsertBenchStep` (as outras **6** subiram), e é ela que fecha a conta
@@ -394,7 +394,7 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   (-166,92, 39,92, -401,59), depois livre, entrou no canteiro várias vezes e **subiu até y 45**) → **987 colocadas + 0
   puladas = 987** (a fala final medida: `987 peças, 0 puladas`), **watchdog `0`**, **0 `UNSUPPORTED`**, **0 mortes**,
   **0 `falls`**, **1020 peças** no canteiro (**987 + 33 postes**), **4 bancadas** inseridas e **todas colocadas** (a 7ª
-  bancada com `clipping` do Run 10 **não apareceu**) e **23/23 prefabs do blueprint no lugar** (`accept_run.py`); corpo:
+  bancada com `clipping` do Run 10 **não apareceu**) e **23/23 prefabs do blueprint no lugar** (`accept_run.py` - script de bancada em `%TEMP%\opencode`, **nao versionado**); corpo:
   **98** recusas terminais + **145** curtas e a **barreira disparou 56×** (`nada acima de … m é pego por … s`). **O plano
   do Run 11 tem 987 índices** (983 do arquivo + **4** bancadas) contra **990** (983 + **7**) do Run 10: menos bancadas,
   total absoluto menor — o número que conta é **puladas 1 → 0**. Fora do plano continuam só as **2 `stone_floor_2x2`**,
