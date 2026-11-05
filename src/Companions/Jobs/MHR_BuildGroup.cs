@@ -1317,6 +1317,16 @@ internal static class MHR_BuildGroup
 	/// <c>MHR_Build</c>, which was dead work - <see cref="NextRetry"/> walks the same list with the same predicate just before,
 	/// so a "no" there is always a "no" here. That second scan is gone; <see cref="NextRetry"/> keeps the rule alive.</para>
 	/// </summary>
+	/// <summary>
+	/// 04/11/2026 (the sequence of blueprints, the Forest Stone Manor): how many <c>Dependency</c> waits a queue entry may
+	/// collect before the site stops pulling it. A <c>no_support</c> piece never spends an attempt (correct - it is not the
+	/// piece's fault), so its entry used to live FOREVER. Measured: 3 <c>wood_beam</c> 4,90 m above any surface (the
+	/// emergency post has no candidate) held the crew for <b>203,6 s</b> of the 228 s of that order and were skipped at the
+	/// end anyway. A real dependency (a support another worker is about to place) resolves in the first two or three waits
+	/// (8/12/20 s); after this the sweep of the end names the piece instead of the clock paying for it.
+	/// </summary>
+	internal const int DependencyCap = 6;
+
 	private static bool Ready(Group group, RetryEntry entry, int workerId, float now)
 	{
 		if (entry == null || entry.Index < 0 || entry.Index >= group.Plan.Count || now < entry.At)
@@ -1341,6 +1351,10 @@ internal static class MHR_BuildGroup
 		if (entry.Spread && !SpreadFree(group, entry.Index))
 		{
 			return false;
+		}
+		if (entry.Dependency >= DependencyCap)
+		{
+			return false;   // the support never came (see DependencyCap): the end-of-order sweep names it
 		}
 		return ClaimFree(group, entry.Index, workerId);
 	}

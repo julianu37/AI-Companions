@@ -973,6 +973,16 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
     consolida os achados por severidade, **aplica as correções, roda build/gate, documenta e commita** — nenhuma
     frente relevante entra sem a leitura de um especialista, e número/medida se confirma com o engenheiro reverso ou o
     QA (nunca "de memória"). Registrar no mesmo ciclo quem foi acionado, o que achou e o que foi aplicado.
+12. **REGRA ABSOLUTA — ENTRAR NO MUNDO (imutável).** O jogador definiu e **proibiu alterar** (04/11/2026: *"documenta
+    essa merda como regra absoluta e que não pode ser alterada"*). A sequência é, **nesta ordem e só com teclado**:
+    **`Espaço` → `Seta para baixo` → `Enter` → `Enter` → `Enter`**, com o `Espaço` **repetido a cada ~0,7 s por ~11 s**
+    até o cinemático sair (ele engole as primeiras pressões). Ela é executada **pelo bridge, dentro do jogo**
+    (`mcp_devbridge.world_enter({})` → `input.key`), que é o **único** caminho que o Unity 6 lê.
+    **Proibido, sem exceção:** clique/mouse/coordenada de tela; `SendKeys`/`PostMessage` de fora do jogo; `{SPACE}` como
+    token; `Tab` (não existe nesses menus); "melhorar", reimplementar ou trocar a sequência; editar o
+    `BepInEx\config\AiCompanions.cfg` do jogador. Se algo falhar, **o defeito é do que está em volta** (foco, processo,
+    bridge) — **nunca da sequência**. Detalhe operacional e as armadilhas já pagas: seção **DevBridge**, item
+    *"Recarregar a DLL sozinho"*.
 
 ## Equipe de agentes (`.opencode/agents/`)
 
@@ -1032,16 +1042,25 @@ comandos de console e spawna coisas, então não é feature de jogador.
   `Commands.cs` chama `CompanionSetup`/`CompanionManager` **direto** (mesma assembly), sem reflexão.
 - **Ligar:** `[Advanced] DevBridge = true` no `AiCompanions.cfg` e reiniciar o jogo; o log diz
   `[DevBridge] listening on 127.0.0.1:47110`.
-- **Recarregar a DLL sozinho (o agente faz; pedido do jogador em 04/11/2026: *"carrega a porra da dll nova… não me
-  peça mais isso, nunca mais"*):** o assembly só é lido no boot — **não** existe recarregar em quente. Com o jogo no
-  mundo, o procedimento é: (1) **salvar** pelo bridge (`console command="save"` → `Saving..`); (2) `Stop-Process` no
-  `valheim`; (3) relançar `valheim.exe -console` com `Start-Process` (WorkingDirectory = pasta do jogo); (4) esperar o
-  **cinemático** (~2 min) e o menu; (5) clicar **Iniciar jogo** → **personagem** → **Iniciar** → **mundo** → **Iniciar**
-  com clique relativo na janela (helper em `%TEMP%\opencode\click.ps1`: `GetClientRect` + `ClientToScreen` +
-  `mouse_event`; a tela é `1440x900` nesta máquina: menu `0.5/0.723`, personagem `0.5/0.966`, mundo `0.323/0.733`);
-  (6) confirmar com `ping` → **`inGame: true`** e `world: "<nome>"`. **Conferir sempre** `(Get-Item
-  ...\Companions.dll).LastWriteTime` **antes** do `StartTime` do processo — é a única prova de que a DLL nova subiu. O
-  `-world` **não** serve para o cliente (é o `ParseServerArguments` do servidor dedicado, sem chamador no cliente).
+- **Recarregar a DLL sozinho (o agente faz; pedidos do jogador em 04/11/2026: *"carrega a porra da dll nova… não me
+  peça mais isso"*, *"sem click, sem mouse, só as teclas"* e *"a sequência é espaço seta pra baixo enter enter enter"*):**
+  o assembly só é lido no boot — **não** existe recarregar em quente. O caminho é **um comando que já existe**:
+  1. **salvar**: bridge `console command="save"` → `Saving..`;
+  2. `Stop-Process` no `valheim` e `Start-Process valheim.exe -console` (WorkingDirectory = pasta do jogo);
+  3. **entrar no mundo**: `mcp_devbridge.world_enter({})` — **não** reimplemente teclas. Ele manda as teclas **pelo
+     bridge** (`input.key`, dentro do jogo, que é o único caminho que o Unity 6 lê), com **Space repetido a cada 0,7 s
+     por ~11 s** (o cinemático come as primeiras pressões), depois **Down → Enter → Enter → Enter**, chamando
+     `focus_game()` antes de cada tecla e confirmando por `ping` (`tools/mcp-devbridge/mcp_devbridge.py:90-142`);
+  4. ele **já roda** o `world.setup` ao entrar (`devcommands`, `tod 0.5`, `god` + `heal`, stamina infinita).
+  **Prova de que subiu:** `(Get-Item ...\Companions.dll).LastWriteTime` **anterior** ao `StartTime` do processo, mais
+  `ping` com `inGame: true`.
+  **Armadilhas já pagas (não repetir):** (a) `SendKeys`/`PostMessage` de fora do jogo **não funciona** — o processo tem
+  **duas** janelas e a `MainWindowHandle` aponta para o **console do BepInEx**, e o Unity 6 ignora `WM_KEYDOWN` postado;
+  (b) `SetForegroundWindow` sozinho é **bloqueado** pelo Windows para processo em segundo plano; (c) `{SPACE}` **não** é
+  sintaxe válida de `SendKeys` e **não existe Tab** nesses menus (o jogador corrigiu os dois); (d) o `AiCompanions.cfg`
+  **é reescrito pelo BepInEx a cada boot** (mtime muda sem ninguém editar) e **preserva** os valores do jogador — o
+  agente **não edita** esse arquivo, só lê. O `-world` **não** serve para o cliente (é o `ParseServerArguments` do
+  servidor dedicado, sem chamador no cliente).
 - **Regra ao entrar no mundo:** `world_enter` já roda o `world.setup` — `devcommands` (**uma vez**; o comando é um
   toggle), `tod 0.5` (meio-dia) e `god on` + `heal`, mais a **stamina infinita** (`stamina`, padrão ligado;
   `stamina: false` desliga; comando solto `player.stamina`). O `god` do Valheim 1.0 **não** cancela o dano: ele trava

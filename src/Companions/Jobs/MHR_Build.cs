@@ -9003,6 +9003,34 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 				Log(ai, "fila do canteiro: " + dropped + " peça(s) não ficaram de pé (índice(s) " + list + ")");
 			}
 		}
+		// 04/11/2026 (the sequence of blueprints, the Forest Stone Manor): the LAST worker of a site sweeps the plan. A
+		// piece that no worker's chunk wrapped to and that never reached the queue was counted NEITHER as placed NOR as
+		// skipped - the manor ended "151/152, 0 pulada(s)" twice, with the queue already drained. The sweep marks what is
+		// left and names the indices, so Placed + Skipped closes with the plan in every path, with a line that says why.
+		if (state.Group != null && state.Plan != null && !MHR_BuildGroup.IsShared(state.Group))
+		{
+			List<int> strays = new List<int>();
+			for (int i = 0; i < state.Plan.Count; i++)
+			{
+				if (MHR_BuildGroup.IsDone(state.Group, i) || MHR_BuildGroup.GivenUp(state.Group, i))
+				{
+					continue;
+				}
+				if (MHR_BuildGroup.AddSkipped(state.Group, i))
+				{
+					strays.Add(i);
+				}
+			}
+			if (strays.Count > 0)
+			{
+				string list = string.Empty;
+				for (int i = 0; i < strays.Count && i < 12; i++)
+				{
+					list += (i > 0 ? ", " : string.Empty) + (strays[i] + 1);
+				}
+				Log(ai, "nenhum companheiro pegou " + strays.Count + " peça(s) do plano (índice(s) " + list + ")");
+			}
+		}
 		// 11/11/2026 (the line of the run of 20:06 LIED in three things): the site's numbers come from the group while it is
 		// alive, from the capture of the end of the plan when this worker was the one that closed it (Advance drops the group
 		// before calling here), and from the worker itself only when the order never had a site. Reading the walk after the
