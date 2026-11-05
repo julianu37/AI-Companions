@@ -308,7 +308,7 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   pior caso: N× o resto do plano, com até **3 coletando ao mesmo tempo** — o `Stock` é a metade aberta do P1); grupo
   só de **blueprint**; **em memória** (não persiste); "para" = todos, "para, <nome>" = um, um modo num companheiro
   tira só ele; nivelar/limpar com **um** (P5). **Nenhuma** chave de tradução nova (reusa `hc_ai_no_companion` e
-  `hc_ai_build_failed`) — harness **711** (471 + **28** da **(p)** + 26 da **(q)** + **66** da **(r)** — `CanSupport`,
+  `hc_ai_build_failed`) — harness **775** (471 + **28** da **(p)** + 26 da **(q)** + **66** da **(r)** — `CanSupport`,
   `PickPost`, `UsefulSurface`, `HoldsPlacedPiece` e as constantes da barreira — + **18** da **(s)** — `AI/BuildBody.cs`,
   a janela do corpo (`Blocks`, `HalfY` e os casos medidos do Run 10) — + **27** da **(t)** — a **barreira de andar**,
   11/11/2026 — + **6** da **(u)** —
@@ -317,11 +317,14 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   `BuildWalkSpot.Choose` (de onde a peça é alcançada, o walk spot do Run 13) — + **18** da **(y)**,
   `BuildAsideSpot.Plan`, para onde o companheiro sai da frente (o `StepAside` do Run 14) — + **22** da **(z)**,
   `BuildSpread.Far`/`Pick`/`SameRun`, a **dispersão dos workers** (lote `a29dedc`, Run 15/16) — **706** —, **+ 5** do
-  ciclo da `fila`/`DeckLift` (11/11/2026, **sem seção nova**)), MCP
+  ciclo da `fila`/`DeckLift` (11/11/2026, **sem seção nova**), **+ 15** da **(aa)** — `BuildSpread.Nearest`,
+  a peça que o companheiro coloca **de onde está** (o P0 do §17.26) — e **+ 22** da **(ab)** — `BuildSpread.Chunk`, a
+  **partição da fase** (20 casos + 2 propriedades de cobertura/desvio ≤ 1 peça): **718 + 15 + 22 + 20 = 775**; o **711** que
+  estava aqui era **stale** e diferia em **7** do `718` medido que o `docs/backlog-construcao.md` registrou), MCP
   **122** (as **12**
   asserções de 03/11/2026 cobrem o contrato do grupo: `workers`, `refused` e `name` vazio = todos; as **6** de
   11/11/2026 cobrem o `stop` do `companions.order`; e as do `blueprints_list`/`blueprints_inspect` a biblioteca e o
-  relatório sem ordem), config **367/25** e build **0/0**.
+  relatório sem ordem), config **368/25** (a 368ª é a `[Building] SpreadNear`, `Core/ModConfig.cs:987`) e build **0/0**.
   **Medido em jogo (`CommHomeBasicBP`, `BlueprintFree = true`) — dezesseis runs documentados entre 04 e
   11/11/2026** (1–3 com 3 companheiros e `PlaceReach` 10/15/15+guarda; 4 com o deck; 5 com 5 companheiros; **6 em
   11/11/2026** com os dois lotes → **969 + 18 = 987**, watchdog **0**, **985 de 987** no canteiro, **`apoio de
@@ -461,9 +464,10 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   plano loga `a obra sobe 0,00 m (deck pedido 1,00 m) - 0 peça(s) …, nada enterrado` (`:1868-1882`) e a casa de
   referência continua logando **byte a byte** `a obra sobe 1,00 m (deck) - 3 peça(s) …` (estacas enterradas →
   `capped = false`). A descrição da chave diz agora "The MOST the whole blueprint may rise…" (`Core/ModConfig.cs:975`) e
-  o `CONFIGURATION.md` foi **regenerado** (**367/25**, `--check` ok); o run de revalidação (a escada do corpus com 5
+  o `CONFIGURATION.md` foi **regenerado** (**368/25** hoje — o `[Building] SpreadNear` foi a 368ª; **367/25** naquele
+  lote, `--check` ok); o run de revalidação (a escada do corpus com 5
   companheiros + o A/B da casa) **não foi rodado**. **Lote do
-  telhado (build 0/0, harness **601** naquele lote — hoje **711**; medido no run de 11/11):** (a) **telhado apoia
+  telhado (build 0/0, harness **601** naquele lote — hoje **775**; medido no run de 11/11):** (a) **telhado apoia
   telhado** — o `DirectSupportIndex`
   excluía a **classe
   3** como apoio, então numa **empena** a fileira de cima (apoiada pela de baixo, também telhado) **nunca** era puxada;
@@ -662,7 +666,7 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   incluindo o portão** (`:7691-7696`), e o `tools/build_run_report.py` entende **os dois formatos** (`:184-196`).
   **Run 18 medido:** **985/985**, **0 puladas**, **0 mortes**, **0 `UNSUPPORTED`**, watchdog **0**, **1010 peças** no
   canteiro (**985 + 25 postes**), **14 min 04 s** (relógio externo — o log não tem timestamp). **Estado:** build
-  **0/0**, harness **711**, config **367/25**, MCP **122**, gate **9/9**.
+  **0/0**, harness **775**, config **368/25**, MCP **122**, gate **9/9**.
   **Run 19 (por frame) e Run 22 (1 Hz) — o parque da espera (§17.24, 11/11/2026):** o defeito **provado pela revisão**
   é que `RetryPending` responde `group.Retry.Count > 0` (`MHR_BuildGroup.cs:1181-1185`) — "tem entrada na fila", **não**
   "tem peça para mim" — e a entrada de **dependência** é **imortal** (`Dependency++`, `At = now + 8/12/20/25 s`, sem teto
@@ -685,8 +689,41 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   alocação), o `ClassOf` alocava **por chamada** (**~3.000 strings/frame ≈ 170–210 KB ≈ 10–12 MB/s de GC**) e o
   `RetryReady` era **100 % morto** (`NextRetry == -1 ⟹ RetryReady == false`, sempre) — **corrigido em `c0826b4`**:
   `RetryReady` **removido** e `ClassOf` **memoizado** (`Dictionary<string,int>` `Ordinal`, `AI/BuildBlueprintParser.cs:302-317`)
-  → **0 strings/frame** nesse caminho; harness **711**, gate **9/9**. **Não medido:** `µs/frame` do `Drive` (não existe
-  instrumento), `BodyAt` no pico e o frame time com a obra travada (§17.25(C)).
+  → **0 strings/frame** nesse caminho; harness **775**, gate **9/9**. **Não medido:** `BodyAt` no pico e o frame time com a
+  obra travada — o `µs/frame` do `Drive` **passou a existir** e foi medido no §17.26 (**97–226 µs/frame** por worker).
+  **O redesenho da execução (§17.26, 04/11/2026) — a mesma casa em `324 s`.** Três peças, cada uma medida **sozinha**,
+  na receita de teste de sempre (`CommHomeBasicBP`, **985 peças**, **5** companheiros, `BlueprintFree`, canteiro
+  **vazio**, jogador **andando**): **P0 "fica e coloca"** — o executável já colocava sem o corpo perto, mas o job
+  **obrigava** `flat <= Reach + 0,5` (**3 m**) e só abria `MaxPlace − 0,5` **depois de 3 s sem chegar mais perto**
+  (`MHR_Build.cs:7177-7178`), então ele **preferia andar**; agora `State.Stay`/`StayPick` (`:631`/`:1768`) tomam a peça
+  mais perto da run, a **cápsula do próprio corpo** e a **regra do olho** são checadas por candidato (`OwnBodyOn`,
+  `:1844`), a fase vai **direto** para `Place` sem `Goto` (`:2179-2189`) e as peças ultrapassadas voltam pela **fila**
+  (`NoteStay`, `MHR_BuildGroup.cs:1225`) **sem gastar tentativa**; **repulsão** (ideia do jogador) —
+  `BuildSpread.NearestApart`/`PickNearApart` (`AI/BuildSpread.cs:333`/`:183`) tiram a isolação de **3 m** das **peças**
+  e a põem nos **corpos**: sem ela o P0 **agrupava** os cinco e a taxa **caía de 260 para 54 peças/min** (run de
+  21:33); **partição por fase** (ideia do arquiteto) — `BuildSpread.Chunk` (`AI/BuildSpread.cs:473`, pura), `WorkerSlot`
+  por **instance id ordenado** (`MHR_BuildGroup.cs:480`) e `ChunkBounds`/`ChunkFirstPending`/`StealTail`
+  (`MHR_Build.cs:1366`/`:1481`/`:1546`): o parser já faz um **tour de vizinho mais próximo** dentro da run, então
+  **cortar por índice** é cortar um trecho **contíguo** do canteiro e a negociação peça a peça **desaparece por
+  construção**. **Duração:** **844 → 727 → (897, o lote do *limite de pedidos* — pior) → 578 (P0+repulsão) → 324 s**
+  (com a partição), **985/985**, **0 puladas**, **0 mortes**, **0 `UNSUPPORTED`**, watchdog **0** nos cinco.
+  **Medido no run de 22:11:** `no alcance` **728/985 = 74 %** das peças colocadas **sem andar** (e **91 %** das
+  linhas `next:` ao alcance — **denominadores diferentes**, ver §17.26(B)), `caminhada` **2,5 m/peça** (era **8,4**),
+  `repeleu` **139**, `disputa` **150**, `travada não voltou` **31** (era **109**), `nada acima de` **17** (era
+  **47–75**), maior congelamento **12,2 s** (era **60,8**), `corpo-curto` **52,6 s** e `cpu` **97–226 µs/frame**
+  (o instrumento que faltava da pendência 15). **Aberto:** **C6 259 × C5 126** (**2,05×** — a partição é por
+  **contagem**, não por **custo**), **~90 s de `dependência` por worker** (a peça de baixo é de **outra** fase, e o
+  `PendingBelow`, `MHR_BuildGroup.cs:1256`, não separa **colega vivo** de **órfã**), `disputa` **150** (o corte vale na
+  **pegada**, não na **fila**: `NextRetry` entra em `EnterStep` sem `ChunkBounds`, `MHR_Build.cs:2202-2213`) e
+  `sem lugar livre` **149**. **Estado:** build **0/0**, harness **775**, config **368/25**, MCP **122**, gate **9/9**.
+  **Regras do jogador para a obra (produto, não bancada de teste):** (i) *"não tem problema ficar parado, desde que
+  esteja colocando peças que estiverem no alcance dele"* — **parado colocando é o alvo**, `% imóvel` **não** é defeito
+  (o que se mede é `no alcance / peças` e a duração); (ii) *"eles não podem se agrupar, devem ser repelidos"* — a
+  isolação de **3 m** é **entre corpos** e **pode** custar caminhada; (iii) *"nunca passar do lado de uma peça colocável
+  sem colocá-la"* — **não implementada**: hoje o `Advance` tenta **uma** peça ao alcance e, se ela falhar, **anda**; o
+  desenho é **varredura do alcance** + memória de **"já tentei daqui"**; (iv) *"a `CommHomeBasicBP` em menos de
+  5 minutos"* — **324 s** na receita de **teste** (**faltam 24 s**), e o corte vale para a **receita de produto**, que
+  ainda **não** rodou.
 - **Pendências conhecidas (abertas):** (1) navegação no andar em obra; (2) a voz não passa pelo mixer do jogo (só
   `[AI] TtsVolume`); (3) sync com o upstream `main` (1.5.8) em dia — conferir antes de cada release; (4) o nome do
   companheiro no centro do radial (cosmético); (5) posse do ZDO no spawn em multiplayer dedicado; (6) a dívida de
@@ -744,13 +781,15 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   (`BuildBlueprintReport.SkippedReasons`, devolvido como `skippedReasons` pelo `blueprints.inspect`): falta a **tela e a
   fala**. **É decisão de produto, não bug** — ver `docs/re/blueprint-corpus.md` §6.1 (e o §6.4: a pasta do corpus é a
   que o staging da release **leva**).
-  (15) **o custo por frame da espera não tem medidor** (§17.25) — os **~4,2 ms/frame** nos 5 workers (≈ **25 %** de
-  16,6 ms) e os **~3.000 strings/frame ≈ 170–210 KB ≈ 10–12 MB/s de GC** do `ClassOf` vêm da **revisão de código**, não
-  de cronômetro: falta `Stopwatch` no `Drive` + contador em `Ready` + `GC.GetTotalMemory` na linha do `Finish`, e falta
-  o `BodyAt` no pico/fim e o frame time com a obra **travada**. O que **já foi corrigido** (`c0826b4`): `RetryReady`
+  (15) **o custo por frame — fechado no `µs/frame`, aberto no pico** (§17.25/§17.26): o **`Stopwatch` do `Drive`
+  entrou** e o `Finish` imprime `cpu: Z µs/frame em FR frame(s), goto …, place …` (`MHR_Build.cs:4525`/`:4546-4547`),
+  medido em **97–226 µs/frame** por worker no run de 22:11 — **bem abaixo** dos ~4,2 ms/frame da estimativa de revisão
+  e das **~3.000 strings/frame** do `ClassOf`, que **já foi memoizado**. **Continua aberto:** o `BodyAt` no pico/fim, o
+  frame time com a obra **travada** e um contador de avaliações de `Ready`/`GC.GetTotalMemory` (a proposta não
+  implementada). O que **já foi corrigido** (`c0826b4`): `RetryReady`
   **removido** (era **100 % morto**: `NextRetry == -1 ⟹ RetryReady == false`, sempre) e `ClassOf` **memoizado**
   (`Dictionary<string,int>` `Ordinal`, `AI/BuildBlueprintParser.cs:302-317`) → **0 strings/frame** nesse caminho;
-  harness **711**, gate **9/9**.
+  harness **775**, gate **9/9**.
   (16) **multiplayer: a troca de posse do corpo no meio da obra para tudo em silêncio** (§revisão de rede, 11/11/2026) —
   o servidor redistribui posse a cada **2 s** (`ZDOMan.ReleaseNearbyZDOS`) e o `BaseAI.UpdateAI` do jogo devolve `false`
   fora do dono, então o `MHR_Build.Drive` **para sem `Finish` e sem `Pending`**; a linha `why = "another player's game runs
@@ -849,7 +888,18 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   que respondia "tem entrada" e não "tem peça para mim", a **regra do 1 Hz** (Run 19 por frame **dobrou** o tempo:
   38 contra 78 peças/min) e o run que fechou o A/B (**727 s**, **`fila` 4,5 s**, **985/985**, **0 puladas**) — e
   **§17.25 o custo por frame** (**~4,2 ms/frame ≈ 25 %**, **10–12 MB/s de GC**, o `RetryReady` **morto** e a memoização
-  do `ClassOf`)).
+  do `ClassOf`)) e **§17.26 o redesenho da execução** — a mesma casa de **727 → 324 s** em três peças (o **P0 "fica e
+  coloca"** com a regra dos **3 m** que obrigava a andar, a **repulsão** de 3 m entre **corpos** e a **partição da fase**
+  com o `Chunk` + 22 asserções), a tabela dos **cinco runs**, o **caminhada 8,4 → 2,5 m/peça** e o que ficou aberto
+  (**C6 259 × C5 126**, `dependência` ~90 s/worker, `disputa` 150) e **§17.27 o primeiro blueprint de terceiro** — o
+  `stone_cottage` que parou em **24/64** com **161 postes** e **28 `not_found`**: o assentamento por peça quebrava o plano
+  rígido (fundação 1,48 m enterrada + lift 1,00 m → vão de 1,0 m → o jogo destrói a peça sem apoio), o `capped` que se
+  comparava consigo mesmo e escondia o limite no log, e o conserto (**`BuildPieceKind.IsTip`**: só ponta é assentada
+  sozinha; seção **(ac)**, **+20** asserções).
+- `docs/backlog-construcao.md` — **a fila da construção por ordem de ataque** (single-player): o run da **receita de
+  produto** (o único cenário que falta), o desbalanceamento da partição (**chunk por custo** e **partição por coluna
+  XZ**), a **varredura do alcance** (a regra "nunca passar do lado de uma peça colocável"), a `dependência` partida em
+  **colega vivo × órfã**, o custo por frame medido, o `step-aside`, a cumeeira e o vão do deck.
 - `docs/re/blueprint-corpus.md` — **o corpus de blueprints baixado** (medido em 04/11/2026): **353** `.blueprint` +
   **353** `.png` no pacote, **354** na pasta, a auditoria pelo `blueprints.inspect` (**279 de 354** arquivos com linha
   pulada, **387.024** linhas, **100 %** por `recipe not unlocked`), as estações por arquivo, o que subiu em jogo e a
@@ -1001,8 +1051,8 @@ comandos de console e spawna coisas, então não é feature de jogador.
   mochila **sem dropar** — ferramenta de teste, `DevBridge/Commands.cs:1832-1847`) e `blueprints.list`/`blueprints.inspect`
   (`:628-746`): a biblioteca e **o que a ordem faria** com um arquivo, **sem começar nada**, pelo mesmo leitor do painel
   (`AI/BuildBlueprintReport.cs`).
-- **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check -c Release` — **711 asserções** (medidas
-  em 11/11/2026; eram **706** no lote da dispersão) das redes por
+- **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check -c Release` — **755 asserções** (medidas
+  no ciclo do §17.26; eram **718** antes das seções **(aa)**/**+15** e **(ab)**/**+22**) das redes por
   palavras (`RadialIntent`, `PickupIntent`, `GatherIntent`, `InteractionIntent`, `LlmIntent`, `OrderItems`,
   `CompanionNameMatch`) e das tabelas puras (`NavTileMath` na **(o)**, `BuildFailure.Classify` na **(p)** — 28 casos,
   `AI/BuildFailure.cs`, incluindo as constantes da barreira; `BuildPieceKind` na **(q)** — 26, `AI/BuildPieceKind.cs`;
@@ -1029,17 +1079,29 @@ comandos de console e spawna coisas, então não é feature de jogador.
   workers** — **11** de `Pick` (a posição da primeira candidata longe de todo claim e quantas ficaram para trás,
   inclusive a janela de 6 com as 5 primeiras ocupadas), **6** de `Far` (XZ, exatamente 3 m é livre, candidata `NaN`
   nunca é longe, claim `NaN` ignorado) e **5** de `SameRun` (as chaves do parser: `Level`/altura com 0,01 e classe
-  exata) — **soma medida em 11/11/2026: 711 PASS** (eram **706** na enumeração acima; os **+5** vieram no ciclo da
-  `fila`/`DeckLift`, **sem seção nova** — a tabela do `tools/ai-intents-check/README.md` termina na **(z)**) com os
+  exata); a **(aa)** — **15** (`AI/BuildSpread.cs:268`, `Nearest`: a peça **ao alcance** que o P0 coloca de onde está —
+  borda inclusiva, sem `SpreadDistance`, claim de **outro andar** não tira a peça, `skip`, `NaN` e empate pelo índice
+  menor); e a **(ab)** — **22** (`AI/BuildSpread.cs:473`, `Chunk`: a **partição da fase** — 20 casos tabelados + **2
+  propriedades** varrendo 2..12 peças × 1..6 workers, cobertura exata e desvio máximo de 1 peça) — e a **(ac)** — **20**
+  (`AI/BuildPieceKind.cs:63`, `IsTip`: a **única** peça que o assentamento pode mover sozinha — as pontas
+  `pole`/`beam`/`pillar`, caixa alta, e as rígidas `floor`/`wall`/`roof`/`door`/`stair`/mobília/`""`/`null`, §17.27) —
+  **soma medida no ciclo do §17.27: 775 PASS** (**718** antes das seções novas; **+37** = **15 + 22**, **+20** da (ac)) com os
   `.cs` reais
   linkados. Os `.csproj` ganharam cinco links com esses lotes (`BuildStationCover.cs`, `BuildMaterials.cs`,
   `BuildWalkSpot.cs`, `BuildAsideSpot.cs`, `BuildSpread.cs`), então o
   "nenhuma seção nova exigiu arquivo novo" que valia até a (u) **não vale mais**),
   mais o cross-check das cópias do `Stubs.cs` contra a `Companions.dll` (seção (h) — impede drift). Build 0/0 e exit 0
   são o gate.
+  **Dívidas de contagem/cobertura do harness (medidas no ciclo do §17.26):** (a) a **repulsão**
+  (`BuildSpread.NearestApart`/`PickNearApart`/`Apart`) **não tem asserção nenhuma** — `AI/BuildSpread.cs:330-331`
+  promete *"the harness pins the table next to the one of `Nearest`"* e o `Program.cs` **não chama** nenhuma das três
+  (a única ocorrência de `Apart` lá é um **comentário**, `:1928`); (b) a tabela do `tools/ai-intents-check/README.md`
+  **para na (w)** e diz **656** asserções, atrás de (x)/(y)/(z)/(aa)/(ab); (c) a soma itemizada por seção chega a
+  **748** contra as **775** medidas — **7 não estão itemizadas** em lugar nenhum. As três são do dono do `tools/`
+  (`docs/backlog-construcao.md`, item 15) e **não** invalidam o total medido, que é o que o gate roda.
 - **Gate de release:** `powershell -ExecutionPolicy Bypass -File tools\release-check.ps1 -Version <versão>` — roda o
   build, a versão (`PluginVersion` × nome do zip), as 3 traduções, o `locale-fallback-check.ps1` (agora com asserts),
-  o `gen_config_doc.py --check`, o teste do MCP (**122**) e as **711** asserções; **PASS/FAIL por item e exit 1**. É o que tem
+  o `gen_config_doc.py --check`, o teste do MCP (**122**) e as **775** asserções; **PASS/FAIL por item e exit 1**. É o que tem
   de passar antes de tag/zip (`-SkipGame`/`-SkipIntents` para rodar parte).
 - **Docs:** `docs/mcp-devbridge.md` (arquitetura, protocolo, as **62** ferramentas, a receita de **jogar pelo agente**
   e a de **comandos de console**, e as evidências dos testes da 1.9.4) e `tools/mcp-devbridge/README.md`

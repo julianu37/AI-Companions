@@ -3174,7 +3174,14 @@ canto" — é a **coluna fechar de baixo para cima**, que é o desenho do §17.2
 
 #### (C) O que continua sem medidor [M]
 
-- **`µs/frame` do `Drive`:** **não existe instrumento** — não há `Stopwatch` em `MHR_Build.cs`.
+> **Atualizado no §17.26(E):** o `Stopwatch` do `Drive` **entrou** e o número **existe** agora — a linha do `Finish`
+> imprime `cpu: Z µs/frame em FR frame(s), goto …, place …` (`MHR_Build.cs:8983-8992`, `s_cpuClock` em `:4525`,
+> acumulado em `:4546-4547`) e o run de 22:11 mediu **97–226 µs/frame** por worker. O que continua aberto é o resto
+> desta lista.
+
+- **`µs/frame` do `Drive`:** ~~não existe instrumento~~ — **fechado no §17.26(E)**, e o número real ficou **abaixo**
+  da estimativa de revisão: **97–226 µs/frame por worker** contra os ~4,2 ms/frame dos 5 desta seção (≈ **0,84
+  ms/worker**), ou seja **4× a 9×** menor.
 - **`BodyAt` no pico e no fim do run**, e o **frame time com a obra travada**: não medidos.
 - **A proposta (não implementada):** `Stopwatch` no `Drive` + contador em `Ready` + `GC.GetTotalMemory` na linha do
   `Finish` — os três números na mesma linha que já carrega a espera (`:7717-7725`).
@@ -3186,4 +3193,322 @@ canto" — é a **coluna fechar de baixo para cima**, que é o desenho do §17.2
 `MHR_Build.cs:1461` afirma *"the wait is re-asked every frame"* — é texto **anterior** ao throttle de 1 Hz. O código de
 hoje re-pergunta **1×/s** (`:3722`); o comentário é o único ponto do caminho que ainda promete o comportamento do Run 19.
 
+### 17.26 O redesenho da execução (04/11/2026) — ficar e colocar, repelir e partir a fase
 
+> Continuação do §17.24. Lá o alvo era a **espera** (o worker parado sem caminho de volta ao plano); aqui é o
+> **caminho entre duas peças** — o que o companheiro faz desde pegar a peça até colocá-la. A **mesma** casa
+> (`CommHomeBasicBP`, **985 peças**, **5** companheiros, `BlueprintFree`, `DeckLift` 1, `PlaceReach` 15, `LevelGround`
+> **false**, canteiro **vazio**, jogador **andando**) saiu de **727 s** (Run 22) para **324 s** com **985/985** e
+> **0 puladas** nos **cinco** runs da série (A). Cada uma das três peças do desenho entrou **sozinha** e foi medida
+> **sozinha**, na ordem em que aparece aqui: **P0 — fica e coloca** (B), **repulsão** (C) e **partição da fase** (D).
+> Duas são ideias **do jogador**; a partição é do **arquiteto**.
+
+#### (A) Os cinco runs [M]
+
+| run | duração | peças | puladas | `espera` (soma dos 5) | barreira | `caminhada` |
+|---|---|---|---|---|---|---|
+| **18** — baseline do §17.22 | 844 s | 985/985 | 0 | 1292,8 s | 244,9 s / 73 | — (não transcrita) |
+| **22** — 1 Hz do §17.24 | 727 s | 985/985 | 0 | 414,1 s | 402,7 s / 99 | — (não transcrita) |
+| **20:55** — o lote do *limite de pedidos* | 897 s | 985/985 | 0 | 1249,0 s | 1167,9 s / 147 | **8,4 m/peça** |
+| **21:49** — P0 **+** repulsão | 578 s | 985/985 | 0 | 1407,4 s | 1322,0 s / 165 | **3,2 m/peça** |
+| **22:11** — **+** partição por fase | **324 s** | **985/985** | **0** | 598,0 s | 539,2 s / 106 | **2,5 m/peça** |
+
+**Três leituras obrigatórias antes de qualquer conclusão:**
+
+1. **[I] A `espera` não acompanha a duração — e não deve.** Os **598,0 s** do run de **324 s** são a soma de **cinco**
+   esperas **em paralelo**: 598,0 ÷ 5 = **119,6 s por worker** = **37 %** do tempo-homem, e **só a espera do último**
+   worker encurta o run (§17.22(B), item 1). Comparar 598,0 s com 324 s é comparar coisas diferentes.
+2. **[I] Espera maior com run mais rápido não é contradição.** **1407,4 s** (21:49, **578 s**) contra **1249,0 s**
+   (20:55, **897 s**): no 20:55 o companheiro **andava** (8,4 m/peça) — o tempo dele estava na **caminhada**, não na
+   espera; no 21:49 ele **ficava** e o tempo não gasto andando virou espera de barreira/fila.
+3. **[I] `caminhada` é o campo que separa as três peças:** **8,4 → 3,2 m/peça** é o **P0** (colocar sem andar) e
+   **3,2 → 2,5 m/peça** é a **partição** (o trecho é contíguo, então ele anda menos **entre** peças). A **repulsão**
+   empurra o número **para cima** por desenho — afasta o worker da peça mais perto —, então o P0 **sozinho** deve ter
+   caminhado **menos** que 3,2 m/peça: **não medido** (o run de 21:33 é o do P0 sem repulsão e a caminhada dele não
+   foi transcrita). O que a série mostra é que o conjunto **pagou**: 2,05× menos tempo e a mesma obra fechada.
+
+**O run de 20:55 não foi um ganho:** limitar **pedidos** sem mudar **quem coloca o quê** levou o run a **897 s**
+(**+23 %** sobre o Run 22). Ele está na tabela como o **contraexemplo** que sobrou do ciclo: é o que motivou atacar o
+**caminho da execução** em vez do volume de pedidos.
+
+#### (B) P0 — "fica e coloca": o código **preferia andar** [M]
+
+O **executável** já sabia colocar sem o corpo perto: o `PlaceDirect` instancia a peça na pose, sem fantasma e sem
+`Player.PlacePiece` (a E6, §12). Quem **obrigava a andar** era o **job**:
+
+| regra da árvore anterior | linha |
+|---|---|
+| para colocar: `flat <= Reach + 0,5` (**2,5 + 0,5 = 3,0 m**) **e** o olho dentro de `MaxPlace` | `MHR_Build.cs:7177` |
+| o limite relaxado (`MaxPlace − 0,5` → **9,5 m** no padrão 10) só abria **depois de 3 s sem chegar mais perto** | `MHR_Build.cs:7178` |
+
+Ou seja: uma peça a **4 m** dos pés — com o olho dentro dos **10 m** que o jogo permite — era **recusada** e o
+companheiro **caminhava até ela** para, no fim, colocar do mesmo jeito. A regra nasceu com o relato do telhado alto de
+03/11 (o `E7`, comentário em `:7165-7175`) e fazia sentido para **uma** peça; num plano em que **tudo** está ao
+alcance, ela transformou cada peça num deslocamento: **4,55 s por peça**, com **2,0 s de mediana dentro do `Goto`**
+(o número que está no comentário de `AI/BuildSpread.cs:26-30`).
+
+**O que entrou (sem config nova de execução, sem tradução nova):**
+
+- **`State.Stay`** (`:631`, o porquê em `:623-630`) e **`StayPick`** (`:1768`): a peça **mais perto** da run atual que
+  o worker coloca **de onde está**. A parte pura é `BuildSpread.Nearest` (`AI/BuildSpread.cs:268`: XZ, borda
+  inclusiva, **sem** `SpreadDistance` — uma peça nos pés é pega mesmo com a equipe em volta, e é isso que a difere do
+  `PickNear`). O que uma função pura não pode saber fica no job, e são **os dois riscos que as revisões nomearam**:
+  **(1)** o alcance do jogo é medido do **olho** (`Vector3.Distance(eye, pose) > MaxPlace` → candidato **removido**,
+  `:1806`, com `EyeHeight` **1,5 m** em `:86`); **(2)** a **cápsula do próprio corpo** (`OwnBodyOn`, chamado em
+  `:1807`, definido em `:1844` — a geometria é a do `BuildBody.Blocks`, **sem** o "quem coloca é ignorado" do
+  `BlockerAt`: num run de 04/11 um piso nos pés enterrou **dois** companheiros 1 m). Cada recusa **remove** o
+  candidato (`StayTries` = **6**, `:192`), então o laço sempre termina.
+- **`Phase.Place` direto:** peça tomada pela estadia → `StopMoving` + `MHR_Mover.Release` + `Phase.Place`, **sem
+  `Goto`** (`:2179-2189`). O `Goto` continua sendo o dono da peça que veio de **caminhada**, e o `Stay` só afrouxa a
+  regra dos 3 s para a peça que **veio** da estadia (`:7176-7181`).
+- **As peças ultrapassadas não se perdem.** O salto de índice deixa peças **para trás**, e o plano só é tomado **por
+  índice** — sem tratamento, elas nunca mais seriam vistas. `StayCovered` (`:1883`) as manda para a fila do canteiro
+  por `NoteStay` (`:1907` → `MHR_BuildGroup.NoteStay`, `:1225`): entrada **devida agora** (`At = Time.time`),
+  marcada `Stay = true` (`:1254`), dedup **por índice**, **sem gastar tentativa** e **sem** virar `Spread` (o portão
+  de vizinhança travaria justamente a peça que o worker tem ao lado). `IsStay` (`:1263`) devolve a marca quando a
+  peça volta pela fila, para o `Goto` não exigir os 3 s de uma peça que já está ao alcance.
+- **`StayOn`** (`:1604-1607`): só **blueprint de canteiro** (`Plan` + `Blueprint` + `Group`). Template, peça única e
+  worker sozinho continuam **byte a byte** como eram — a garantia de não-regressão do desenho.
+- **`[Building] SpreadNear`** (`Core/ModConfig.cs:987`, padrão **true**, leitura em `:1257-1263`): entre as peças
+  **longe** do que os outros constroem, a que se **anda** a pegar é a **mais perto do corpo** (raio `MaxPlace + 1 m`,
+  `:2128-2131`) e não a primeira da ordem do arquivo. É a regra do jogador *"construir tudo o que está ao alcance
+  antes de ir para outro lugar"* aplicada ao outro lado do caminho: o P0 decide **não andar**; esta decide **andar
+  menos**. Desligada, a pegada é a do Run 14, byte a byte.
+
+**Medido no run de 22:11 [M]:** `no alcance: 728 peça(s)` de **985** = **74 %** das peças colocadas **sem andar** —
+e **91 %** das **linhas `next:`** são ao alcance. Os dois números **não são a mesma porcentagem** e não devem ser
+confundidos: a linha `next:` sai **só na pegada principal** (`:2190`), e a peça servida pelo retry do canteiro
+(`:2211`), pela barreira (`:2435`), pela retomada (`:4751`), pelo retry pass (`:4839`) e pelo apoio (`:6033`) entra
+**sem** ela — **663** linhas de `next:` para **985** peças num run de 11/2026. O `tools/build_run_report.py` imprime
+os dois (`next.walk`/`next.stay` e `no alcance`) com o aviso de denominador diferente (`:81-96`, `:1326-1332`).
+
+**Ressalva de número (drift de comentário):** `AI/BuildSpread.cs:312-316` registra *"65 → 156 peças/min, 52 % das
+peças sem caminhada"* — são de um **primeiro** run do P0, **não** desta tabela (a taxa destes runs é **65,9 →
+102 peças/min**: 985 peças ÷ 897 s e ÷ 578 s). Vale como direção, não como medida desta série.
+
+#### (C) Repulsão — a isolação sai das **peças** e vai para as **posições** (ideia do jogador) [M]
+
+O P0 criou, como as duas revisões previram, o efeito colateral: **cada companheiro fica no seu canto e os cantos de
+cinco alcances de 10 m se sobrepõem** — a equipe **se agrupa**. Medido no run de **21:33** (P0 **sem** repulsão): a
+taxa do run **caiu de 260 para 54 peças/min** até o fim, com os cinco no mesmo metro quadrado disputando a mesma
+peça. [M]
+
+**A regra** (a do jogador, *"eles não podem se agrupar, devem ser repelidos"*): a isolação de **3 m**
+(`BuildSpread.SpreadDistance`, `AI/BuildSpread.cs:47`) deixa de ser medida contra as **peças** que a equipe constrói
+(o `Far`/`Pick` do Run 14) e passa a ser medida contra as **posições/corpos** dos companheiros — dois companheiros
+não trabalham no mesmo metro quadrado.
+
+| peça | onde |
+|---|---|
+| `NearestApart` — a `Nearest` que **também** está a ≥ 3 m de **todo** corpo da equipe (XZ), e cai na `Nearest` pura quando não há nenhuma (a ordem **nunca passa fome** pelo conforto da equipe) | `AI/BuildSpread.cs:333` |
+| `Apart` — a regra de XZ: exatamente 3 m é **livre**; corpo `NaN` é **ignorado**; sem corpos = sempre livre (fail-open) | `:390` |
+| `PickNearApart` — o mesmo filtro no caminho da **caminhada**, com as camadas do `PickNear` por baixo | `:183` |
+| `Bodies`/`AddBody` — quem são os corpos: os workers **do canteiro** (`MHR_BuildGroup.WorkerIds`, `MHR_BuildGroup.cs:458`), morto **não** é corpo, pose `NaN` é descartada, e este worker **nunca** entra na própria lista | `MHR_Build.cs:1623`/`:1663` |
+| `Repelled` — conta a peça tomada **longe** da mais próxima por causa de um corpo e, com `LogDetailed`, diz **qual** companheiro estava lá | `:1720` |
+
+**A repulsão não tem tabela no harness** — o comentário de `AI/BuildSpread.cs:330-331` promete *"the harness pins the
+table next to the one of `Nearest`"*, mas o `Program.cs` **não chama** `NearestApart`/`PickNearApart`/`Apart` (a única
+ocorrência de `Apart` lá é um comentário, `:1928`). É a única peça do redesenho **sem** asserção (o P0 tem a **(aa)**, a
+partição tem a **(ab)**); está como item 15(a) do `docs/backlog-construcao.md`.
+
+**Medido no run de 22:11 [M]:** `repeleu: 139` peças — a repulsão agiu em **14 %** das 985. O preço é a caminhada
+(o worker abre mão da peça mais perto); a direção do ganho já estava medida no A/B dos Runs 15/16 do §17.21
+(**`corpo na peça` 194 → 50** e **`pedindo para sair da frente` 33 → 12**), e no run de 22:11 `sem lugar livre`
+ficou em **149** linhas.
+
+#### (D) Partição por fase — `Chunk` corta o plano por índice (ideia do arquiteto) [M]
+
+O `BuildBlueprintParser.Ordered`/`NearestWithin` já percorre **cada run** como um **tour de vizinho mais próximo** —
+ou seja, **índices consecutivos são vizinhos no espaço**. Logo a partição não precisa de geometria: é **corte de
+índice**.
+
+| peça | onde |
+|---|---|
+| **`BuildSpread.Chunk(start, end, slots, slot, out first, out length)`** — pura: corta a fase `[start, end)` em `slots` trechos de tamanho **quase igual** (dois trechos nunca diferem por mais de **1** peça e o **resto vai para os primeiros**), cobrindo a fase **exatamente uma vez**; o fail-safe (fase vazia/invertida, `slots <= 0`, slot fora da faixa) é **trecho vazio** no início da fase — **nunca** peça de outro | `AI/BuildSpread.cs:473` (contrato em `:454-472`) |
+| **`MHR_BuildGroup.WorkerSlot`** — o slot é a posição deste worker na lista de workers **ordenada por instance id** (a ordem de entrada no canteiro **não** é estável: o líder sai e é promovido; o id é o que todo cliente responde igual) | `Jobs/MHR_BuildGroup.cs:480` (`Sort` `:491`, `IndexOf` `:492`) |
+| **`ChunkBounds`** — recalcula o trecho quando muda `slots`, `slot` **ou a chave da run** (`SameRun`: classe exata, chave de andar e altura com 0,01 m); a fase é o bloco contíguo com a mesma chave, andando **para trás** (`:1392`) e **para frente** (`:1397`) do cursor | `MHR_Build.cs:1366` |
+| **`ChunkFirstPending`** — a primeira peça **pendente** do meu trecho a partir do cursor; quando o cursor **passou** do fim do trecho, ele **volta ao início** do trecho (o trecho **não** acabou: as peças de trás são minhas) | `:1481` |
+| **`PendingPiece`** — pendente = existe, não está `done`, não foi `given up` **e não está na fila de retry**; sem a última condição o retorno do trecho pegaria a peça que **acabou de falhar** e queimaria as 3 tentativas num segundo | `:1448` (o porquê em `:1443-1446`) |
+| **`StealTail`** — trecho vazio → **rouba a cauda da maior** chunk restante (a **última** peça pendente dela; empate fica com a mais adiantada). É o **único** lugar em que dois workers podem se encontrar, e é por isso que a pegada passa pelo **claim** depois | `:1546` |
+| **A conta no `Finish`** — `chunks: s/N a-b`, `roubou:` (`ChunkStolen`, `:670`/`:2176`) e `disputa:` (`ChunkDisputes`, `:675`/`:2163`) | `:8964-8972`, `:9001-9003` |
+
+**No `Advance`** o corte é o **primeiro** passo da pegada: trecho → se acabou, `StealTail` → só então a estadia (que
+recebe `chunkLast` como limite, `:2099`) → só então a dispersão/caminhada (`:2075-2105`). Com **1** worker, template,
+peça única ou a chave desligada, `ChunkSlots = 0` e todas as linhas abaixo são as de antes, **byte a byte**
+(`:1379-1386`).
+
+**A função pura está no harness — seção (ab)** (`tools/ai-intents-check/Program.cs:147`, `ChunkCases` `:1936`):
+**22 asserções** = 20 casos tabelados (1 e 2 workers, o resto para os primeiros, fase que não começa em 0, fase menor
+que a equipe com trecho **vazio**, fase vazia/invertida, `0`/`-3` workers e slot `-1`/`== slots`/`> slots`) **+ 2
+propriedades** varrendo **2..12 peças × 1..6 workers** (cobertura exata e em ordem; maior − menor ≤ 1).
+
+**Medido no run de 22:11 [M]:** **324 s** (contra **578 s** sem a partição), `caminhada` **3,2 → 2,5 m/peça**,
+barreira **1322,0 s/165 → 539,2 s/106** retenções. **A `disputa` ficou em 150**, e isso **não** é o ~0 que o desenho
+prometia: **o corte vale para a pegada (`Advance`), não para a fila.** A peça que volta pelo `NextRetry`
+(`:2202` → `EnterStep` `:2211`) e a que o `NoteStay` devolve entram **sem** passar pelo `ChunkBounds` — é o encontro
+das duas rotas, e é a pendência (G), item 3.
+
+#### (E) A linha do `Finish` — o que passou a ser impresso [M]
+
+A linha do §17.24 ganhou os **campos do redesenho** e os do **instrumento** (todos opcionais: um log antigo continua
+legível, e o `tools/build_run_report.py` imprime `-` para eles — `:98-114`):
+
+`MHR_Build.cs:8983-9003`
+
+| campo | de onde sai |
+|---|---|
+| `corpo-curto C s` | `State.WaitShort` (`:612`) — a espera curta do `Phase.BodyRetry` (2,5 s cada, até 3), que **não** caía em balde nenhum e entra no **total** (`:8980`) |
+| `cpu: Z µs/frame em FR frame(s), goto …, place …` | `State.CpuMs`/`CpuFrames` (`:601-602`), lidos por `Stopwatch` no `Drive` (`s_cpuClock` `:4525`, acumulado em `:4546-4547`); `goto`/`place` são `GotoMs`/`PlaceMs` (`:604-606`) |
+| `posições: N, peças/posição p50 … p90 …` | `State.Positions` + `PositionSizes` (`:618`, `:683`), por `NotePosition` (`:2715`: posição nova = colocação a mais de **1,5 m em XZ** da anterior) |
+| `repeleu: R` | `State.Repelled` (`:641`), incrementado em `Repelled` (`:1726`) |
+| `no alcance: S peça(s)` | `State.Stayed` (`:634`), incrementado em `:2288` |
+| `chunks: s/N a-b` · `roubou: K peça(s)` · `disputa: D` | `ChunkSlot`/`ChunkSlots`/`ChunkFirst`/`ChunkLength` (`:650-658`), `ChunkStolen` (`:670`), `ChunkDisputes` (`:675`) |
+
+**A leitura do run de 22:11 [M]:** `no alcance` **728/985 (74 %)**, `repeleu` **139**, `disputa` **150**,
+`corpo-curto` **52,6 s**, `cpu` **97–226 µs/frame** por worker. O que **só sai do log** (não são campos do `Finish`
+— conferido em `:8958-9003`) é o bloco abaixo:
+
+| medida | 22:11 | antes (a série) | de onde |
+|---|---|---|---|
+| `nada acima de … m é pego por …` (a barreira de andar **desenhou**) | **17** | **47–75** | `MHR_BuildGroup.cs:847` |
+| `travada não voltou` (a paciência acabou e o plano **subiu**) | **31** | **109** | `MHR_Build.cs:2425` (relógio único de **10 s**, `:2417`) |
+| maior congelamento | **12,2 s** | **60,8 s** | leitura do log do run — **não** reconferida aqui: o log não tem timestamp e não há campo do `Finish` para ela |
+| `sem lugar livre` (o `step-aside` não achou destino) | **149** | — | `tools/build_run_report.py:298` |
+
+**[I] O que esses quatro dizem juntos:** a partição **não** acabou com a barreira (17 desenhos e 31 desistências
+continuam existindo) — ela **encurtou** o congelamento (60,8 → 12,2 s) e diminuiu as vezes em que a barreira foi
+desenhada. O teto de **10 s** do relógio único (`BuildFailure.BodyBarrierSeconds`, `AI/BuildFailure.cs:86`) é o que
+limita o pior caso; o número que decide continua sendo a **duração** e as **puladas**.
+
+#### (F) O desbalanceamento da partição, por worker [M]
+
+| worker | peças | vs. o mais produtivo |
+|---|---|---|
+| **C6** | **259** | — |
+| C2 | 210 | 0,81× |
+| C4 | 201 | 0,78× |
+| C3 | 188 | 0,73× |
+| **C5** | **126** | **0,49×** |
+
+**Razão:** **2,05×** entre o mais e o menos produtivo. **Ressalva honesta:** a soma dos cinco dá **984** — **1 peça**
+abaixo das **985** do canteiro. Os contadores por worker são **fotografia do momento em que cada um saiu** (o
+`Advance` captura o contador do **sítio** em `:2232-2241` quando ele existe, e quem sai antes imprime o sítio **no seu
+momento** — o comentário de `:2234-2238` diz isso com todas as letras). O que este número serve para mostrar é a
+**razão**, não o total; o total é o do canteiro, **985/985**.
+
+**Por que C5 fica para trás:** é o que a partição **por contagem** não enxerga. O `Chunk` divide por **número de
+peças**, e as peças não custam o mesmo: um `wood_roof_45` no alto custa uma **caminhada** (e às vezes uma barreira);
+um `wood_floor` no chão custa um passo. Quem caiu num trecho caro paga a diferença até o fim da fase — e a partição
+**não reequilibra** (não há roubo de peça entre trechos vivos: o `StealTail` só age quando o trecho **acabou**).
+
+#### (G) O que ficou aberto [M]/[I]
+
+1. **O desbalanceamento (F):** **C6 259 × C5 126**. O próximo passo desenhado é **partir por custo**, não por
+   contagem — as peças do custo **já existem** no plano (classe, altura e o ΔY até o walk spot do `BuildWalkSpot`),
+   falta **combiná-las num peso** — e, depois, **partição por coluna XZ** (o trecho contíguo de índice vira uma
+   **faixa espacial**, o que também torna o trecho estável quando a fila devolve peças fora de ordem).
+2. **A `dependência` (~90 s por worker)** continua sendo o **maior balde** da barreira de 539,2 s/106: é a peça
+   **de baixo** que está em **outra fase/trecho** — o worker espera o **colega** que constrói o apoio. Não está
+   separado "colega vivo" de "órfã" (peça de apoio que ninguém vai construir): o `PendingBelow`
+   (`MHR_BuildGroup.cs:1256`) **não distingue** — é desenho, não medida. Separar os dois é o que decide se o número
+   é espera legítima ou defeito.
+3. **`disputa` 150:** o corte vale na **pegada**, não na **fila** (D). Ou a fila aprende o trecho (`NextRetry` com o
+   `ChunkBounds`), ou os 150 viram o número honesto de "o canto de um é o canto do outro" — e aí o alvo não é 0, é
+   `~0` **só** para as peças que nunca passaram por retry.
+4. **`sem lugar livre` 149** — o `step-aside` continua sem destino num andar em obra (a dívida do `Clearance` de
+   1,5 m, `docs/backlog-construcao.md` item 3). A partição não toca nisso.
+5. **A regra do jogador *"nunca passar do lado de uma peça colocável sem colocá-la"* NÃO está implementada.** Hoje o
+   `Advance` tenta **uma** peça ao alcance (`StayPick` → `Nearest`) e, se ela falhar, **anda** — a peça seguinte ao
+   alcance não é tentada. O desenho pendente é **varredura do alcance** (tentar as N peças ao alcance antes de andar)
+   + **memória de "já tentei daqui"** (pose + conjunto de índices já recusados naquela posição), para não repetir a
+   falha a cada frame.
+6. **O run da receita de produto** (material **pago**, `PlaceReach` **10**, `LevelGround` **true**, peso real)
+   continua **não rodado** — os cinco runs da série (A) são todos **receita de teste** (§17.19). É o item 1 do
+   `docs/backlog-construcao.md`.
+7. **`roubou` e `posições`/p50/p90 do run de 22:11 não foram transcritos** para esta seção.
+
+#### (H) As regras do jogador que passam a valer (produto)
+
+Registradas como **regra de produto** — as três primeiras são **regra** (valem para a receita de produto, não só para a
+bancada de teste) e a quarta é a **meta**:
+
+1. ***"Não tem problema ficar parado, desde que esteja colocando peças que estiverem no alcance dele."*** O
+   companheiro **parado colocando é o alvo**: `% imóvel` deixa de ser defeito. O que se mede é `no alcance / peças`
+   (74 %) e a **duração**, não o tempo em movimento.
+2. ***"Eles não podem se agrupar, devem ser repelidos."*** A isolação de **3 m** é entre **corpos**, não entre peças
+   (C) — e ela **pode** custar caminhada; o preço se mede na `disputa` e no `sem lugar livre`, não na caminhada.
+3. ***"Nunca passar do lado de uma peça colocável sem colocá-la."*** **Ainda não implementada** (item 5 de (G)) — é
+   a próxima peça do redesenho.
+4. ***"A `CommHomeBasicBP` em menos de 5 minutos."*** **324 s** medidos em 22:11: **faltam 24 s** — e o corte vale
+   para a **receita de produto**, que ainda não rodou (item 6 de (G)).
+
+**Nota de data:** esta seção segue a data do ciclo em que foi escrita; a divergência entre `04/11/2026` e
+`11/11/2026` nas seções §17.10–§17.25 está registrada em `docs/backlog-construcao.md` item 9 e **não** foi resolvida
+aqui (passe dedicado, ~200 ocorrências).
+
+
+
+## §17.27 O primeiro blueprint de terceiro derrubou a obra (04/11/2026)
+
+**A sequência**: sete `.blueprint` de desenhos distintos, escolhidos por **footprint** (≤ 24 m, para caber no canteiro) e
+por **0 linhas puladas na leitura**, do menor ao maior — `stone_cottage` (78 linhas → 64 peças), `hobbit_repairhut` (80),
+`longhouse` (128), `great_hall` (155), `igloo` (172), `stone_manor` (173) e `villa` (201) — rodados em sequência com
+`build.delete` entre eles. Medido com o `companions.build` na âncora fixa `(-160, 38.78, -428.8)`, 5 companheiros,
+canteiro **vazio**.
+
+| # | plano | peças | resultado medido |
+|---|---|---|---|
+| 1 | `hs_blackforest_stone_cottage` | **64** (78 no arquivo) | **24/64 colocadas**, **10 `UNSUPPORTED`**, **161 postes de emergência**, 3 desistências, **28 `verification failed: not_found`** |
+| 2 | `hs_meadows_hobbit_repairhut` | 62 | **62/62**, 0 `UNSUPPORTED`, 5 postes |
+
+Mesmo código, mesma equipe, mesmo canteiro: o defeito aparece **só** no plano com **fundação enterrada**. O plano 2
+(nada enterrado) fechou inteiro.
+
+### O que estava errado (duas coisas no mesmo bloco, `MHR_Build.StartBlueprint`)
+
+O arquivo do `stone_cottage` tem a fundação de pedra em **y = −1,50** (16 peças: 10 `stone_wall_2x1` + 6
+`stone_floor_2x2`) e o piso de madeira em **y = 0,00**. No nosso canteiro isso deu `buried` = **1,48 m** e a config
+`[Building] DeckLift` (padrão **1,00**) limitou o lift:
+
+1. **O assentamento por peça quebrava o plano rígido.** `lift = clamp(1,48; 0; 1,00) = 1,00` deixava 0,48 m enterrados,
+   e o laço então **rebaixava cada uma das 16 peças de fundação ao chão, uma por uma** (`pos.y = ground`) — enquanto as
+   **48 peças acima mantinham o +1,00**. Resultado: o piso de madeira ficou a **1,02 m** da fundação em vez dos 1,5 m do
+   arquivo, **no ar**. Peça sem apoio leva **100 % de dano** no tick seguinte de `WearNTear.UpdateWear` e é **destruída**;
+   o `Verify` do frame seguinte encontra o `GameObject` nulo e devolve **`not_found`** → a peça volta para a fila → tenta
+   de novo → some de novo (28 vezes). Os 161 postes de emergência e os 10 `UNSUPPORTED` são a equipe tentando segurar
+   esse vão.
+2. **O log escondia o limite.** `capped = lift < wanted - 0,001` comparava o **lift já limitado com ele mesmo** — nunca
+   verdadeiro — então a linha dizia `(deck)` em vez de `(deck pedido 1,00 m) … 1,48 m enterrado(s)`. O número que
+   explicava a falha estava sendo omitido **pelo próprio instrumento** que a §17.23 criou para expô-la.
+
+**Por que a casa de referência nunca quebrou:** lá as 3 peças enterradas são **estacas de 2 m**; assentar o **centro**
+delas no chão deixa o **topo** exatamente no piso a +1,00 m — o próprio comprimento da peça absorve o movimento. O
+assentamento só é inofensivo numa **ponta**. Em piso/parede ele abre vão.
+
+### O conserto
+
+- `AI/BuildPieceKind.IsTip(prefab)` (novo, puro): **ponta = `pole`/`beam`/`pillar`**. Nome desconhecido → **não é ponta**
+  (o lado seguro, igual ao `Classify`).
+- `MHR_Build.StartBlueprint`: o assentamento passa a mover **só** pontas (`pos.y = ground`), e o resto fica **na pose do
+  plano** — o plano é rígido, e o que a config deixou enterrado continua enterrado, **contado** (`kept`) e dito na linha:
+  `… - 0 peça(s) de fundação assentadas no terreno, 1,48 m enterrado(s), 16 peça(s) enterradas mantidas na pose do plano`.
+- `capped = buried > wanted + 0,001` → a linha volta a expor o limite: `a obra sobe 1,00 m (deck pedido 1,00 m)`.
+- Harness **755 → 775**: a seção **(ac)** (`TipCases`, **20** asserções) pina as pontas (`wood_pole2`, `wood_pole`,
+  `wood_beam`, `wood_beam_45`, `stone_pillar`, caixa alta) e as rígidas (`wood_floor`, `stone_floor_2x2`,
+  `stone_wall_2x1`, `woodwall`, `wood_roof_45`, `wood_wall_roof_top_45`, `wood_door`, `wood_stair`, `piece_chest_wood`,
+  `fire_pit`, `""`, `null`) mais a linha do caso medido.
+
+**A linha congelada da casa de referência muda de `(deck)` para `(deck pedido 1,00 m)`** (lá `buried` = 2,00 > `wanted` =
+1,00): o **número** (`a obra sobe 1,00 m`) e o `3 peça(s) de fundação assentadas no terreno` ficam iguais. Quem grepar a
+linha antiga byte a byte precisa saber disto.
+
+### Achados de produto que a sequência já entregou
+
+- **O pulo silencioso é de terceiro, não de receita:** `stone_cottage` perdeu **14 de 78** linhas na leitura — são os 14
+  marcadores `square` (a categoria que não é peça no arquivo do Biome Blueprints), não receita. O jogador vê o **número**
+  de puladas, nunca **qual** linha (pendência 14).
+- **O `hobbit_repairhut` fecha 62/62 em 30 s** numa receita de teste — é o plano sem enterro; serve de **controle** para
+  separar "código da obra" de "geometria do arquivo".
+
+**Não medido:** a revalidação do `stone_cottage` com a DLL corrigida — exige reiniciar o jogo (a DLL é carregada no
+boot). É o próximo run.
