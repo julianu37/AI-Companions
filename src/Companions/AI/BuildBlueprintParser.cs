@@ -130,6 +130,51 @@ internal static class BuildBlueprintParser
 				piece.Level = LevelKey(floors, piece);
 			}
 		}
+		// 05/11/2026 (o igloo medido: 44 s -> 104 s, com 86,4 s de `dependencia` e 40 desistencias do poste de emergencia,
+		// todas em `wood_beam` a 3,90/4,90/7,90 m do piso): num DOMO a viga se apoia nas aguas CURVAS do telhado, que sao
+		// classe 3 e vinham DEPOIS - a viga era tentada antes, recusada por `no_support` e esperava 8/12/20 s. Uma viga que
+		// nao tem NADA embaixo no plano e tem telhado ao lado e construida junto do telhado.
+		HashSet<Line> hangs = null;
+		foreach (Line beam in pieces)
+		{
+			if (beam == null || beam.Prefab == null
+				|| beam.Prefab.IndexOf("beam", StringComparison.OrdinalIgnoreCase) < 0
+				|| ClassOf(beam.Prefab) != 2)
+			{
+				continue;
+			}
+			bool below = false;
+			bool roof = false;
+			foreach (Line other in pieces)
+			{
+				if (other == null || ReferenceEquals(other, beam))
+				{
+					continue;
+				}
+				float dx = other.Px - beam.Px;
+				float dz = other.Pz - beam.Pz;
+				if (dx * dx + dz * dz > 6.25f)
+				{
+					continue;
+				}
+				if (other.Py < beam.Py - 0.4f && other.Py > beam.Py - 2.5f)
+				{
+					below = true;
+				}
+				if (ClassOf(other.Prefab) == 3 && Math.Abs(other.Py - beam.Py) <= 2.5f)
+				{
+					roof = true;
+				}
+			}
+			if (!below && roof)
+			{
+				if (hangs == null)
+				{
+					hangs = new HashSet<Line>();
+				}
+				hangs.Add(beam);
+			}
+		}
 		List<Line> sorted = pieces
 			// E7 (player's report, 03/11/2026: "he built the ground floor doors while still working on the ground floor"):
 			// doors and gates are the LAST thing of the WHOLE BUILD, not of the storey - a door that exists is a door he
@@ -144,14 +189,15 @@ internal static class BuildBlueprintParser
 			// at y=-0,5 and was built BEFORE that floor; the house has levels every metre and the site came out as floating
 			// floors. By own height the build walks the levels upwards: floors -> walls -> roofs of one level, then the next.
 			.ThenBy(delegate (Line piece) { return LevelKey(floors, piece); })
-			.ThenBy(delegate (Line piece) { return ClassOf(piece.Prefab); })
+			// a viga que pende do telhado entra com o telhado (classe 3): ver o bloco `hangs` acima
+			.ThenBy(delegate (Line piece) { return hangs != null && hangs.Contains(piece) ? 3 : ClassOf(piece.Prefab); })
 			.ThenBy(delegate (Line piece) { return piece.Py; })
 			.ToList();
 		// E7 (player's report, 03/11/2026: "he walks back and forth across the build even on the ground floor"): the four keys
 		// above decided the GROUPS, but inside a group the order was the one written in the .blueprint - and that file is in the
 		// order the author placed the pieces, not a path. Each group is reordered by NEAREST NEIGHBOUR from where the previous
 		// group ended; no piece changes group, is added or is removed.
-		NearestWithin(sorted, floors);
+		NearestWithin(sorted, floors, hangs);
 		return sorted;
 	}
 
@@ -161,7 +207,14 @@ internal static class BuildBlueprintParser
 	/// themselves, the storeys, the classes and the last-place doors are untouched: this only decides WHICH piece of a group
 	/// comes first. Pure, like the rest of the parser (no Unity).
 	/// </summary>
-	private static void NearestWithin(List<Line> sorted, List<Line> floors)
+	/// <summary>05/11/2026: a classe usada pelo sort E pelo tour - a viga que pende do telhado conta como 3 nos dois,
+	/// senão o tour (que reagrupa) desfaz o que o sort fez.</summary>
+	private static int Cls(Line piece, HashSet<Line> hangs)
+	{
+		return hangs != null && hangs.Contains(piece) ? 3 : ClassOf(piece.Prefab);
+	}
+
+	private static void NearestWithin(List<Line> sorted, List<Line> floors, HashSet<Line> hangs)
 	{
 		if (sorted == null || sorted.Count < 3)
 		{
@@ -175,14 +228,14 @@ internal static class BuildBlueprintParser
 			Line first = sorted[start];
 			int door = ClassOf(first.Prefab) == 4 ? 1 : 0;
 			float storey = LevelKey(floors, first);
-			int cls = ClassOf(first.Prefab);
+			int cls = Cls(first, hangs);
 			float y = first.Py;
 			int end = start + 1;
 			while (end < sorted.Count)
 			{
 				Line next = sorted[end];
 				if ((ClassOf(next.Prefab) == 4 ? 1 : 0) != door || Math.Abs(LevelKey(floors, next) - storey) > 0.01f
-					|| ClassOf(next.Prefab) != cls || Math.Abs(next.Py - y) > 0.01f)
+					|| Cls(next, hangs) != cls || Math.Abs(next.Py - y) > 0.01f)
 				{
 					break;
 				}

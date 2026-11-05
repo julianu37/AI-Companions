@@ -148,6 +148,8 @@ internal static class Program
 		ChunkCases();
 		Section("(ac) BuildPieceKind.IsTip - a unica peca que pode ser assentada sozinha (o Forest Stone Cottage)");
 		TipCases();
+		Section("(ad) BuildBlueprintParser.Ordered - a viga que pende do telhado (o igloo, 05/11/2026)");
+		HangingBeams();
 		CrossCheckDoorRule();
 
 		Out.WriteLine();
@@ -983,6 +985,46 @@ internal static class Program
 	{
 		bool actual = BuildPieceKind.IsTip(prefab);
 		Check("IsTip(" + Show(prefab) + ") -> " + expected, actual == expected, "obtido " + actual);
+	}
+
+	/// <summary>
+	/// Section (ad), 05/11/2026 - o igloo medido: 44 s -> 104 s com **86,4 s de `dependência`** e 40 desistências do poste
+	/// de emergência, todas em `wood_beam` a 3,90/4,90/7,90 m do piso. Num domo a viga se apoia nas águas CURVAS do
+	/// telhado (classe 3), que vinham DEPOIS: a viga era tentada antes, recusada por `no_support` e esperava 8/12/20 s.
+	/// A regra que o `Ordered` passou a aplicar: uma viga (classe 2) que <b>não tem nada embaixo no plano</b> (0,4 a 2,5 m
+	/// abaixo, 2,5 m em XZ) e <b>tem telhado ao lado</b> (classe 3, |Δy| ≤ 2,5 m) é construída <b>junto do telhado</b>.
+	/// Uma viga com parede/viga embaixo continua classe 2 - é o caso da casa normal.
+	/// </summary>
+	private static void HangingBeams()
+	{
+		// a viga 3 m acima do piso, com telhado ao lado e uma PAREDE no mesmo nível: ela vai DEPOIS da parede (classe 3),
+		// junto do telhado. Sem a regra ela viria antes da parede (classe 2).
+		CheckText("viga que pende do telhado vai junto do telhado (depois da parede)",
+			"wood_floor wood_wall wood_beam wood_roof_45",
+			TracePrefabs(BuildBlueprintParser.Ordered(Plan(
+				Piece("wood_floor", 0f, 0f, 0f),
+				Piece("wood_beam", 0f, 3f, 0f),
+				Piece("wood_roof_45", 2f, 3f, 0f),
+				Piece("wood_wall", 0f, 3f, 2f)))));
+
+		// a mesma viga COM uma parede 1 m embaixo: aí ela é viga de verdade e NÃO entra no conjunto `hangs`. A ordem sai
+		// igual à de cima, mas por outro motivo - a parede está num NÍVEL menor (y=2), e a chave de nível vem antes da
+		// classe. O que este caso fixa é que a viga com apoio embaixo continua classe 2 (o conjunto não a pega).
+		CheckText("viga com parede embaixo continua classe 2 (não é 'pendurada')",
+			"wood_floor wood_wall wood_beam wood_roof_45",
+			TracePrefabs(BuildBlueprintParser.Ordered(Plan(
+				Piece("wood_floor", 0f, 0f, 0f),
+				Piece("wood_beam", 0f, 3f, 0f),
+				Piece("wood_roof_45", 2f, 3f, 0f),
+				Piece("wood_wall", 0f, 2f, 0f)))));
+
+		// sem telhado ao lado não há o que segurar: continua classe 2
+		CheckText("viga sem telhado ao lado não muda de classe",
+			"wood_floor wood_beam wood_wall",
+			TracePrefabs(BuildBlueprintParser.Ordered(Plan(
+				Piece("wood_floor", 0f, 0f, 0f),
+				Piece("wood_beam", 0f, 3f, 0f),
+				Piece("wood_wall", 0f, 3f, 2f)))));
 	}
 
 	/// <summary>
