@@ -7217,7 +7217,13 @@ internal static class MHR_Build
 		// piece came back through the retry queue (a body, a short retry) and stood waiting 3 s in front of a piece it could
 		// place from where it was.
 		float toEye = Vector3.Distance(eye, state.Pos);
-		bool inReach = flat <= Reach + 0.5f && toEye <= MaxPlace;
+		// 04/11/2026 (review R18): a walk spot is a surface WE chose, 1,5 or 3 m from the piece (the rings), and the mover
+		// stops `Reach` (2,5 m) before its target - so `flat` could land anywhere between 0,5 and 5,5 m and the strict rule
+		// below rejected it, paying the relaxed 3 s gate on every elevated piece. Standing ON the spot we chose is being in
+		// place, exactly like the stay already is.
+		bool onWalkSpot = state.HasWalkTo
+			&& new Vector2(me.x - state.WalkTo.x, me.z - state.WalkTo.z).magnitude <= 1.0f;
+		bool inReach = (flat <= Reach + 0.5f || onWalkSpot) && toEye <= MaxPlace;
 		if (!inReach && flat <= MaxPlace - 0.5f && toEye <= MaxPlace && (state.Stay || Time.time - state.BestAt > 3f))
 		{
 			inReach = true;
@@ -7244,7 +7250,7 @@ internal static class MHR_Build
 				LogDebug(ai, "a hop to reach the " + state.Prefab + " at " + (gap - MaxPlace).ToString("F1") + " m beyond the reach");
 			}
 		}
-		MHR_Mover.Go(ai, dt, state.HasWalkTo ? state.WalkTo : state.Pos, Reach, true, "Build");
+		MHR_Mover.Go(ai, dt, state.HasWalkTo ? state.WalkTo : state.Pos, state.HasWalkTo ? 0.8f : Reach, true, "Build");
 		if (MHR_Mover.GaveUp(ai))
 		{
 			// "no site" was a lie here: the spot is fine, the way to it is not (a wall, a tree, the furniture the player

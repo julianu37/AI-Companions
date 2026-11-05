@@ -3586,3 +3586,18 @@ continua valendo como régua é `puladas` (é conjunto de índices) e a duraçã
 
 Os dois primeiros mexem na **âncora** e no **assentamento** — exatamente o que o próximo run mede —, então entram
 **depois** de o `stone_cottage` fechar com a árvore atual; senão o run não isola o conserto do §17.27.
+
+### Quarto lote — trabalho desperdiçado (performance, 04/11/2026)
+
+Duas correções que o jogador só sente como **tempo**, e que não dependem de decisão nenhuma:
+
+| # | defeito (revisor) | onde | o que fazia | conserto |
+|---|---|---|---|---|
+| 16 | **peça dada por perdida continuava servível pela fila** (R15 F2) | `MHR_BuildGroup.Ready` | `SkipPiece` a marca em `SkippedIndex` e **não** tira a entrada; o `Ready` só olhava `Done`. A peça dada por perdida voltava para um worker, ele **andava até ela**, falhava e a devolvia à fila como `Dependency` (que **não gasta tentativa**), **para o resto da obra**. O watchdog não pega: `MarkDone` de **outras** peças renova o relógio de progresso do canteiro | `Ready` também recusa `SkippedIndex` |
+| 17 | **o walk spot pagava 3 s por peça elevada** (R18 d.4) | `MHR_Build.Goto` | o alvo era o ponto que **nós** escolhemos (anel de 1,5/3 m), mas o mover parava `Reach` (**2,5 m**) antes dele: a distância plana à peça caía entre 0,5 e 5,5 m e a regra estrita (`flat <= Reach + 0,5`) recusava → caía no portão relaxado de **3 s**, peça após peça. Era exatamente o que o P0 queria eliminar | chegada a **0,8 m** do walk spot e `onWalkSpot` (≤ 1,0 m do ponto escolhido) contando como "no lugar", do mesmo jeito que o `Stay` já contava |
+
+**Estado:** build **0/0**, harness **775 PASS**, MCP **122 PASS**, árvore limpa.
+
+**Não medido:** o ganho das duas — depende do run em jogo (a DLL só recarrega no boot). O que se espera medir no
+próximo run: menos `no progress`/caminhada por peça e a duração; o contador honesto disso é `cam.(este)` e o relógio
+externo.

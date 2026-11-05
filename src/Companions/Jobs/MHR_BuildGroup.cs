@@ -1323,9 +1323,13 @@ internal static class MHR_BuildGroup
 		{
 			return false;
 		}
-		if (group.Done.Contains(entry.Index))
+		if (group.Done.Contains(entry.Index) || group.SkippedIndex.Contains(entry.Index))
 		{
-			return false;   // a stale entry (NextRetry drops it from the list before asking)
+			// a stale entry (NextRetry drops it from the list before asking). 04/11/2026 (review R15): a piece GIVEN UP
+			// by SkipPiece used to stay servable - the queue handed it to a worker that walked to it, failed, and put it
+			// back (Dependency never burns an attempt), for the rest of the order. The watchdog does not catch it because
+			// MarkDone of OTHER pieces keeps renewing the site's progress clock.
+			return false;
 		}
 		// 11/11/2026 (the body barrier): a piece of a storey ABOVE the one a body is holding is not pulled while the
 		// barrier lives - the entrance that did not go up comes back BEFORE the work goes higher (the player's rule).
