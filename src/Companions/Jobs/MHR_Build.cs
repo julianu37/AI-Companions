@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using UnityEngine;
 
 namespace Companions;
@@ -552,6 +553,39 @@ internal static class MHR_Build
 		internal int AsideTries;
 		/// <summary>The plan index <see cref="AsideTries"/> belongs to (-1 = none yet).</summary>
 		internal int AsideTriesAt = -1;
+		/// <summary>
+		/// 11/11/2026 (the instrument of the redesign, approved by two independent reviews): the milliseconds the order spent
+		/// inside <see cref="MHR_Build.Drive"/> and the frames it ran - the quotient is the average per frame the summary line
+		/// prints. Measured with a <see cref="Stopwatch"/> (two reads per frame, no allocation); <b>nothing</b> here changes a
+		/// decision - the phases, the thresholds and the order are untouched.
+		/// </summary>
+		internal double CpuMs;
+		internal int CpuFrames;
+		/// <summary>11/11/2026 (the instrument): the milliseconds of the order spent inside <see cref="MHR_Build.Goto"/>.</summary>
+		internal double GotoMs;
+		/// <summary>11/11/2026 (the instrument): the milliseconds of the order spent inside <see cref="MHR_Build.Place"/>.</summary>
+		internal double PlaceMs;
+		/// <summary>
+		/// 11/11/2026 (the instrument): the seconds spent in <see cref="Phase.BodyRetry"/> - the <b>short</b> wait for a body
+		/// (2,5 s each, up to three). It entered <b>no</b> bucket of the wait line before, and it is the ~1,28 s per piece that
+		/// was hidden. Counting only: the wait is untouched.
+		/// </summary>
+		internal float WaitShort;
+		/// <summary>
+		/// 11/11/2026 (the instrument of the redesign): how many <b>work positions</b> the order used. A new position is a
+		/// placement more than 1,5 m in XZ from the previous one (<see cref="MHR_Build.NotePosition"/>); the baseline is one
+		/// position per piece, and the point of the number is to prove the redesign lowers it.
+		/// </summary>
+		internal int Positions;
+		/// <summary>The pieces already placed in the current position (feeds <see cref="PositionSizes"/>).</summary>
+		internal int PiecesHere;
+		/// <summary>The XZ point of the last placement (the reference of the 1,5 m).</summary>
+		internal Vector3 LastPlaced;
+		/// <summary>
+		/// 11/11/2026 (the instrument): how many positions have 1..32 pieces, plus the overflow at index 32 (33 = "33 or more").
+		/// <see cref="MHR_Build.NotePosition"/> keeps it exact by moving the current position one bucket up per piece.
+		/// </summary>
+		internal readonly int[] PositionSizes = new int[33];
 		/// <summary>
 		/// 11/11/2026 (the line of the run of 20:06: it printed THIS WORKER's numbers with the site's label): the site's counters
 		/// captured in <see cref="MHR_Build.Advance"/> <b>before</b> the group is released and dropped - by the time
@@ -1815,14 +1849,96 @@ internal static class MHR_Build
 		int index = PieceIndex(state);
 		if (index >= 0)
 		{
+			// 11/11/2026 (the instrument of the redesign): the work-position histogram is fed ONCE per piece - a verdict asked
+			// twice must not invent a second position (the set below is what says "already counted")
+			bool first = !state.PlacedIndices.Contains(index);
 			state.PlacedIndices.Add(index);
 			state.SkippedIndices.Remove(index);
 			if (state.Group != null)
 			{
 				MHR_BuildGroup.MarkDone(state.Group, index);
 			}
+			if (first)
+			{
+				NotePosition(state);
+			}
 		}
 		state.LastProgressAt = Time.time;
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the instrument of the redesign): one placement, one <b>work position</b> entry. The definition a review
+	/// approved: a new position starts when the body places a piece more than <b>1,5 m in XZ</b> from where it placed the
+	/// previous one; closer than that it is the same position, and the piece counts in it. The histogram
+	/// (<see cref="State.PositionSizes"/>) stays exact without a list: the current position leaves its old bucket and enters
+	/// the next one per piece. Measurement only - it decides nothing.
+	/// </summary>
+	private static void NotePosition(State state)
+	{
+		if (state == null)
+		{
+			return;
+		}
+		Vector3 at = state.Pos;
+		if (state.Positions > 0)
+		{
+			float dx = at.x - state.LastPlaced.x;
+			float dz = at.z - state.LastPlaced.z;
+			if (dx * dx + dz * dz > 1.5f * 1.5f)
+			{
+				state.Positions++;
+				state.PiecesHere = 0;
+			}
+		}
+		else
+		{
+			state.Positions = 1;
+			state.PiecesHere = 0;
+		}
+		state.LastPlaced = at;
+		int before = state.PiecesHere;
+		state.PiecesHere++;
+		if (before <= 0)
+		{
+			// the position starts now: it enters the histogram with 1 piece (or straight into the overflow)
+			state.PositionSizes[0]++;
+		}
+		else if (before <= 32)
+		{
+			// the position was "before pieces" and became "before + 1": it moves one bucket up, or into the overflow
+			state.PositionSizes[before - 1]--;
+			int bucket = state.PiecesHere <= 32 ? state.PiecesHere - 1 : 32;
+			state.PositionSizes[bucket]++;
+		}
+		// before > 32: the position is already inside the overflow bucket (one entry, however many pieces it gets)
+	}
+
+	/// <summary>11/11/2026 (the instrument): the size at <paramref name="percent"/> of the positions - nearest rank over the
+	/// histogram. 33 means "33 or more" (the overflow bucket).</summary>
+	private static int PositionPercentile(State state, float percent)
+	{
+		if (state == null || state.Positions <= 0)
+		{
+			return 0;
+		}
+		int rank = Mathf.Clamp(Mathf.CeilToInt(state.Positions * percent), 1, state.Positions);
+		int seen = 0;
+		for (int i = 0; i < state.PositionSizes.Length; i++)
+		{
+			seen += state.PositionSizes[i];
+			if (seen >= rank)
+			{
+				return i < 32 ? i + 1 : 33;
+			}
+		}
+		return 33;
+	}
+
+	/// <summary>11/11/2026 (the instrument): the percentile as the line prints it ("33+" is the overflow bucket).</summary>
+	private static string PositionPercentText(State state, float percent)
+	{
+		int size = PositionPercentile(state, percent);
+		return size >= 33 ? "33+" : size.ToString();
 	}
 
 	/// <summary>
@@ -3560,9 +3676,41 @@ internal static class MHR_Build
 		}
 	}
 
+	/// <summary>
+	/// 11/11/2026 (the instrument of the redesign): the order's CPU time. <see cref="Drive"/> clocks itself and the two phases
+	/// that decide the cost (<see cref="Goto"/> and <see cref="Place"/>) and the summary line prints the average per frame -
+	/// no per-piece timing, the order's sum over the frame count is the average. Two clock reads per frame, one per measured
+	/// phase, no allocation and <b>no behaviour</b>: every call, condition and threshold below is the one of before.
+	/// </summary>
+	private static readonly Stopwatch s_cpuClock = new Stopwatch();
+
+	/// <summary>11/11/2026 (the instrument): the clock of one phase inside <see cref="Drive"/> - a second instance because the
+	/// two measurements are nested (restarting the same clock would truncate the total).</summary>
+	private static readonly Stopwatch s_phaseClock = new Stopwatch();
+
 	/// <summary>Driven from <c>CompanionAI.UpdateAI</c> before <see cref="MHR_Collect"/> and <see cref="MHR_Loot"/>:
-	/// true while the order is running.</summary>
+	/// true while the order is running. This is the <b>timing</b> wrapper of <see cref="DriveCore"/> (11/11/2026, the
+	/// instrument of the redesign): the body below is the order itself, untouched.</summary>
 	internal static bool Drive(CompanionAI ai, float dt)
+	{
+		s_cpuClock.Restart();
+		bool running = DriveCore(ai, dt);
+		s_cpuClock.Stop();
+		if (ai != null)
+		{
+			// read AFTER the body: a frame that ended the order is already out of s_state, so the last frame of the order does
+			// not enter the numbers (the line was printed inside DriveCore) - one frame of ~0,05 ms, on purpose
+			State state;
+			if (s_state.TryGetValue(ai.GetInstanceID(), out state) && state != null)
+			{
+				state.CpuMs += s_cpuClock.Elapsed.TotalMilliseconds;
+				state.CpuFrames++;
+			}
+		}
+		return running;
+	}
+
+	private static bool DriveCore(CompanionAI ai, float dt)
 	{
 		if (ai == null)
 		{
@@ -3688,10 +3836,27 @@ internal static class MHR_Build
 			case Phase.Find:
 				return state.Template != null ? FindPlan(ai, state) : Find(ai, state);
 			case Phase.Goto:
-				return Goto(ai, state, cs, dt);
+			{
+				// 11/11/2026 (the instrument): the walk's own milliseconds - the same call, only clocked
+				s_phaseClock.Restart();
+				bool walking = Goto(ai, state, cs, dt);
+				s_phaseClock.Stop();
+				state.GotoMs += s_phaseClock.Elapsed.TotalMilliseconds;
+				return walking;
+			}
 			case Phase.Place:
-				return Place(ai, state, cs, bag);
+			{
+				// 11/11/2026 (the instrument): the placement's own milliseconds - the same call, only clocked
+				s_phaseClock.Restart();
+				bool placed = Place(ai, state, cs, bag);
+				s_phaseClock.Stop();
+				state.PlaceMs += s_phaseClock.Elapsed.TotalMilliseconds;
+				return placed;
+			}
 			case Phase.BodyRetry:
+				// 11/11/2026 (the instrument): the SHORT wait for a body (2,5 s, up to three) fell in no bucket of the summary
+				// line - counting only, the wait itself is untouched
+				state.WaitShort += dt;
 				return BodyRetry(ai, state);
 			case Phase.GatherWalk:
 				return GatherWalk(ai, state, cs, dt);
@@ -7935,14 +8100,23 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			// Run 17 measure was a worker held by it with a free piece right ahead.
 			float barrier = state.WaitBody + state.WaitDependency;
 			float queue = state.WaitQueueEnd + state.WaitAhead;
-			float total = barrier + queue + state.WaitAside + state.WaitGate;
+			// 11/11/2026 (the instrument): the short body wait (Phase.BodyRetry, 2,5 s each) enters the TOTAL and the text -
+			// it was the ~1,28 s per piece that no bucket of this line showed
+			float total = barrier + queue + state.WaitAside + state.WaitGate + state.WaitShort;
+			float perPiece = placed > 0 ? siteWalked / placed : 0f;
+			float cpuFrame = state.CpuFrames > 0 ? (float)(state.CpuMs * 1000.0 / state.CpuFrames) : 0f;
 			Log(ai, "dispersão: " + state.SpreadSkipped + " adiada(s), " + state.SpreadResumed + " retomada(s) · step-aside: "
 				+ state.AsideAsked + " pedido(s) · espera: " + F(total) + " s (barreira " + F(barrier) + " s em "
 				+ state.BodyHolds + " retenção(ões) " + F(state.WaitBody) + " corpo/" + F(state.WaitDependency)
 				+ " dependência, fila " + F(queue) + " s (fim " + F(state.WaitQueueEnd) + " s, meio "
 				+ F(state.WaitAhead) + " s), passo " + F(state.WaitAside) + " s, portão "
-				+ state.BarrierHolds + " (" + F(state.WaitGate) + " s)) · peças: " + placed + "/" + planned + ", "
-				+ skippedCount + " pulada(s) · caminhada: " + F(siteWalked) + " m (este: " + F(state.WalkMeters) + " m)");
+				+ state.BarrierHolds + " (" + F(state.WaitGate) + " s), corpo-curto " + F(state.WaitShort)
+				+ " s) · peças: " + placed + "/" + planned + ", " + skippedCount + " pulada(s) · caminhada: "
+				+ F(siteWalked) + " m (" + F(perPiece) + " m/peça) (este: " + F(state.WalkMeters) + " m) · cpu: "
+				+ F(cpuFrame) + " µs/frame em " + state.CpuFrames + " frame(s), goto " + F((float)(state.GotoMs / 1000.0))
+				+ " s, place " + F((float)(state.PlaceMs / 1000.0)) + " s · posições: " + state.Positions
+				+ ", peças/posição p50 " + PositionPercentText(state, 0.5f) + " p90 "
+				+ PositionPercentText(state, 0.9f));
 		}
 		// one line per order end, with the key that was spoken: it is how a test proves which refusal came out
 		Log(ai, "order ended: " + (key ?? "(silent)") + (string.IsNullOrEmpty(why) ? string.Empty : " (" + why + ")"));
