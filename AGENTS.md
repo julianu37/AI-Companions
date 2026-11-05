@@ -796,9 +796,11 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   morre** (no ciclo de teste eram **25–32 stacks** cada, resolvido com a ferramenta de teste
   `companions.inventory action=clear`, `DevBridge/Commands.cs:1832-1847`); num jogo normal a saída é a mochila e os
   baús, e a **reserva de material** continua sendo a metade aberta do P1;
-  (12) **o nivelamento que recusa o terreno mata a obra** — `hc_ai_build_too_steep` (`MHR_Level.cs:282`) **não** está
-  na lista de retomada (`:455`, só `done`/`already`/`failed`), então `[Building] LevelGround` (padrão **true**) pode
-  encerrar a ordem em vez de devolver ao build; contornado no Run 13 com `LevelGround = false` (§17.18, item (c));
+  (12) **FECHADO (05/11/2026, revisão R17): `hc_ai_build_too_steep` entrou na lista de retomada** (`MHR_Level.cs:455`:
+  `resumeBuild = … || key == "hc_ai_build_too_steep"`), com a fala "too steep to level - building anyway". Antes disso
+  `[Building] LevelGround` (padrão **true**) podia **encerrar** a ordem em vez de devolver ao build (contornado no
+  Run 13 com `LevelGround = false`, §17.18 item (c)); **o mesmo lote tirou do `LevelGround` os três `Finish`** (sem
+  enxada / sem peça de nível / íngreme) — nivelar é preparação, não portão;
   (13) **o A/B do Run 19 está FECHADO** (§17.24): o **Run 22** (1 Hz) fechou **985/985**, **0 puladas**, **0 mortes**,
   **0 `UNSUPPORTED`**, watchdog **0**, em **727 s** com **`fila` 4,5 s** (era **1040,2 s**) — `fila ≤ 400 s` ✅; a
   **duração** ficou **727 s** contra o corte `≤ 720 s` ⚠️ (**7 s acima**, registrado como ficou) e o `WaitAhead`/a espera
