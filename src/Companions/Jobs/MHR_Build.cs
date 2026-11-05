@@ -6753,8 +6753,11 @@ internal static class MHR_Build
 		CompanionSetup self = ai.GetComponent<CompanionSetup>();
 		if (self == null || !MHR_Level.Start(self, best, size, state.Template.Name))
 		{
-			Finish(ai, state, "hc_ai_build_level_failed", "could not start the leveling", bestVariation.ToString("F1"));
-			return false;
+			// 05/11/2026: o MESMO princípio dos outros três caminhos (sem enxada / sem peça de nível / íngreme) — nivelar
+			// é preparação, não portão. Este quarto caminho ("não consegui começar o nivelamento") ainda encerrava a obra;
+			// agora segue no terreno como está, e as peças que não couberem passam pelo retry e pelo poste.
+			Log(ai, "could not start the leveling (" + bestVariation.ToString("F2") + " m) - building anyway");
+			return true;
 		}
 		s_levelTried["template:" + state.Template.Name] = Time.time;
 		Log(ai, "leveling first, with the hoe (" + size.ToString("F1") + " m, " + bestVariation.ToString("F2") + " m of variation)");
