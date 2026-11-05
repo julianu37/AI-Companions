@@ -1032,6 +1032,16 @@ comandos de console e spawna coisas, então não é feature de jogador.
   `Commands.cs` chama `CompanionSetup`/`CompanionManager` **direto** (mesma assembly), sem reflexão.
 - **Ligar:** `[Advanced] DevBridge = true` no `AiCompanions.cfg` e reiniciar o jogo; o log diz
   `[DevBridge] listening on 127.0.0.1:47110`.
+- **Recarregar a DLL sozinho (o agente faz; pedido do jogador em 04/11/2026: *"carrega a porra da dll nova… não me
+  peça mais isso, nunca mais"*):** o assembly só é lido no boot — **não** existe recarregar em quente. Com o jogo no
+  mundo, o procedimento é: (1) **salvar** pelo bridge (`console command="save"` → `Saving..`); (2) `Stop-Process` no
+  `valheim`; (3) relançar `valheim.exe -console` com `Start-Process` (WorkingDirectory = pasta do jogo); (4) esperar o
+  **cinemático** (~2 min) e o menu; (5) clicar **Iniciar jogo** → **personagem** → **Iniciar** → **mundo** → **Iniciar**
+  com clique relativo na janela (helper em `%TEMP%\opencode\click.ps1`: `GetClientRect` + `ClientToScreen` +
+  `mouse_event`; a tela é `1440x900` nesta máquina: menu `0.5/0.723`, personagem `0.5/0.966`, mundo `0.323/0.733`);
+  (6) confirmar com `ping` → **`inGame: true`** e `world: "<nome>"`. **Conferir sempre** `(Get-Item
+  ...\Companions.dll).LastWriteTime` **antes** do `StartTime` do processo — é a única prova de que a DLL nova subiu. O
+  `-world` **não** serve para o cliente (é o `ParseServerArguments` do servidor dedicado, sem chamador no cliente).
 - **Regra ao entrar no mundo:** `world_enter` já roda o `world.setup` — `devcommands` (**uma vez**; o comando é um
   toggle), `tod 0.5` (meio-dia) e `god on` + `heal`, mais a **stamina infinita** (`stamina`, padrão ligado;
   `stamina: false` desliga; comando solto `player.stamina`). O `god` do Valheim 1.0 **não** cancela o dano: ele trava
