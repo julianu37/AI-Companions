@@ -87,7 +87,9 @@ arquivo:linha real de onde veio:
 | (v) | `BuildStationCover.Required` (**a bancada exigida só fora do blueprint**, `AI/BuildStationCover.cs`): 5 casos — template com a chave ligada → **true** e com a chave desligada → **true** (a chave não alcança template nem peça única); blueprint com a chave ligada → **false** (dispensada) e desligada → **true** (regra vanilla); e o **fallback da config ausente** (`BuildStationCover.Default`, o mesmo número que o `MHR_Build.StationRequired` usa) com blueprint → **false**. |
 | (w) | `BuildMaterials.Add`/`Total` (**a necessidade de materiais de um plano**, `AI/BuildMaterials.cs`): 9 casos — 2 peças iguais multiplicam (4 × 2 = 8); o recurso repetido no mesmo prefab soma (2 + 3 = 5); peça sem receita custa 0 e conta em `noRecipe` (1); plano vazio → nada e `noRecipe` 0; `count = 0` não soma e não ignora entrada; item nulo/vazio e quantidade ≤ 0 ignorados **e contados** (3 de 4); 2 peças diferentes com o mesmo recurso somam (4 + 2×2 = 8); valor alto (1000 × 1000) não vira negativo; e `Total` duas vezes em dicionário novo dá o mesmo resultado (sem estado entre chamadas). |
 
-Hoje: **656 asserções** (471 até a (o) + 28 da (p) + 26 da (q) + 66 da (r) + 18 da (s) + 27 da (t) + 6 da (u) + 5 da (v) + 9 da (w)).
+Hoje: **775 asserções medidas** — 656 até a (w) (471 até a (o) + 28 da (p) + 26 da (q) + 66 da (r) + 18 da (s) + 27 da (t) + 6 da (u) + 5 da (v) + 9 da (w)), **+ 10 da (x)** (`BuildWalkSpot.Choose`), **+ 18 da (y)** (`BuildAsideSpot.Plan`), **+ 22 da (z)** (`BuildSpread`, a dispersão), **+ 15 da (aa)** (`BuildSpread.Nearest`), **+ 22 da (ab)** (`BuildSpread.Chunk`), **+ 5** do ciclo da `fila`/`DeckLift` (sem seção nova) e **+ 20 da (ac)** (`BuildPieceKind.IsTip`, §17.27 do `building-notes`).
+
+A soma itemizada dá **768**: **7** asserções antigas não estão em nenhuma seção listada aqui (dívida registrada em `docs/backlog-construcao.md` item 15). O número que vale é o medido, e é o que o gate roda.
 
 ## O que **não** é coberto (e por quê)
 

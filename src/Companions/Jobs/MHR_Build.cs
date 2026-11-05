@@ -2951,7 +2951,19 @@ internal static class MHR_Build
 			{
 				lift = 0f;
 			}
+			// 04/11/2026 (the Forest Stone Cottage run - the first third-party blueprint of the sequence): the settle below
+			// used to move EVERY buried piece up to the ground ON ITS OWN, and that breaks a rigid plan. Measured: that
+			// blueprint's stone foundation sits 1,48 m under its wooden floor, the config lifted the plan 1,00 m and the
+			// remaining 0,48 m was settled piece by piece - the foundation landed on the ground while the wood floor above
+			// it kept the +1,00 m, opening a 1,0 m gap. A piece with nothing under it takes 100 % damage on the next wear
+			// tick and is destroyed, so every floor of that run came back "verification failed: not_found" (28 times), the
+			// crew answered with 161 emergency posts and the plan stopped at 24 of 64 pieces.
+			// The settle is only harmless on a buried TIP (pole/beam/pillar): its own length absorbs the move, so the piece
+			// above still lands on its top - that is the measured reference house (3 tips, lift 1,00 m, unchanged). A
+			// floor, a wall, a roof or a door is NEVER moved alone: the plan is rigid, and whatever depth the config left
+			// underground stays underground, counted and logged (never silently moved).
 			int grounded = 0;
+			int kept = 0;
 			for (int i = 0; i < plan.Count; i++)
 			{
 				Vector3 pos = plan[i].Pos;
@@ -2961,25 +2973,37 @@ internal static class MHR_Build
 					float ground = ZoneSystem.instance.GetGroundHeight(pos);
 					if (pos.y < ground - 0.05f)
 					{
-						pos.y = ground;   // the pole tip stands on the ground instead of disappearing under it
-						grounded++;
+						if (BuildPieceKind.IsTip(plan[i].Prefab))
+						{
+							pos.y = ground;   // the pole tip stands on the ground instead of disappearing under it
+							grounded++;
+						}
+						else
+						{
+							kept++;   // rigid piece: moving it alone would open a gap above it
+						}
 					}
 				}
 				plan[i].Pos = pos;
 			}
-			bool capped = lift < wanted - 0.001f;
-			if (lift > 0.001f || grounded > 0 || capped)
+			// The config was CAPPED when the plan needs more than it asks: it used to compare the already clamped lift with
+			// itself (never true), so the line hid the cap and read "(deck)" for a plan that was left underground.
+			bool capped = buried > wanted + 0.001f;
+			if (lift > 0.001f || grounded > 0 || kept > 0 || capped)
 			{
 				// 11/11/2026 (Run 19): when the config was CAPPED the line says both numbers - "deck pedido" is what the
 				// config asks and the first number is what the plan needed; the buried depth is what decided it, so a flat
-				// plan reads "nada enterrado" instead of hiding why the house is on the ground. Uncapped, the line is the
-				// one of before, byte for byte (the frozen run of the MACCommHomeBasicBP greps it).
+				// plan reads "nada enterrado" instead of hiding why the house is on the ground.
 				string line = "[Build] blueprint " + blueprint.Label + ": a obra sobe " + lift.ToString("F2") + " m";
 				line += capped ? " (deck pedido " + wanted.ToString("F2") + " m)" : " (deck)";
 				line += " - " + grounded + " peça(s) de fundação assentadas no terreno";
 				if (capped)
 				{
 					line += buried > 0.001f ? ", " + buried.ToString("F2") + " m enterrado(s)" : ", nada enterrado";
+				}
+				if (kept > 0)
+				{
+					line += ", " + kept + " peça(s) enterradas mantidas na pose do plano";
 				}
 				CompanionsPlugin.Log?.LogInfo(line);
 			}

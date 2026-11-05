@@ -146,6 +146,8 @@ internal static class Program
 		NearestCases();
 		Section("(ab) BuildSpread.Chunk - o trecho de cada companheiro (a particao da obra)");
 		ChunkCases();
+		Section("(ac) BuildPieceKind.IsTip - a unica peca que pode ser assentada sozinha (o Forest Stone Cottage)");
+		TipCases();
 		CrossCheckDoorRule();
 
 		Out.WriteLine();
@@ -933,6 +935,54 @@ internal static class Program
 	{
 		BuildPieceKind.Kind actual = BuildPieceKind.Classify(prefab);
 		Check("Classify(" + Show(prefab) + ") -> " + expected, actual == expected, "obtido " + actual);
+	}
+
+	/// <summary>
+	/// Section (ac), 04/11/2026 - the first third-party blueprint of the sequence (the Forest Stone Cottage) failed with
+	/// 24 of 64 pieces and 28 "verification failed: not_found": the plan's stone foundation sits 1,48 m under its wooden
+	/// floor, the config lifted the whole plan 1,00 m and the <b>settle</b> then moved each of the 16 buried foundation
+	/// pieces up to the ground <b>on its own</b> - the floors above kept the +1,00 m, nothing was holding them and the game
+	/// destroyed them on the next wear tick.
+	/// <para>The rule pinned here: only a buried <b>tip</b> (a pole, a beam, a pillar) may be settled alone, because its own
+	/// length absorbs the move and the piece above still lands on its top (that is the reference house: 3 tips, 1,00 m
+	/// lift, unchanged). A floor, a wall, a roof or a door must NEVER be moved on its own.</para>
+	/// </summary>
+	private static void TipCases()
+	{
+		// the tips: the reference house's buried poles/beams and the pillar vocabulary
+		TipCase("wood_pole2", true);
+		TipCase("wood_pole", true);
+		TipCase("wood_beam", true);
+		TipCase("wood_beam_45", true);
+		TipCase("stone_pillar", true);
+		// the prefab name is compared in lower case, like Classify
+		TipCase("WOOD_POLE", true);
+		TipCase("Wood_Beam_45", true);
+		// the rigid pieces: the Forest Stone Cottage foundation (16 pieces) and everything that opens a gap above it
+		TipCase("wood_floor", false);
+		TipCase("stone_floor_2x2", false);
+		TipCase("stone_wall_2x1", false);
+		TipCase("woodwall", false);
+		TipCase("wood_roof_45", false);
+		TipCase("wood_wall_roof_top_45", false);
+		TipCase("wood_door", false);
+		TipCase("wood_stair", false);
+		TipCase("piece_chest_wood", false);
+		TipCase("fire_pit", false);
+		// an unknown name is never moved alone (the same safe side as Classify)
+		TipCase("", false);
+		TipCase(null, false);
+		// the measured failure, as one assertion: neither of the 16 foundation pieces may be settled on its own
+		Check("a fundacao do Forest Stone Cottage (stone_floor_2x2 + stone_wall_2x1) nao e ponta",
+			!BuildPieceKind.IsTip("stone_floor_2x2") && !BuildPieceKind.IsTip("stone_wall_2x1"),
+			"obtido: uma das duas seria assentada sozinha");
+	}
+
+	/// <summary>Section (ac): one prefab name and whether the settle may move it on its own.</summary>
+	private static void TipCase(string prefab, bool expected)
+	{
+		bool actual = BuildPieceKind.IsTip(prefab);
+		Check("IsTip(" + Show(prefab) + ") -> " + expected, actual == expected, "obtido " + actual);
 	}
 
 	/// <summary>

@@ -60,6 +60,25 @@ internal static class BuildPieceKind
 		return Classify(prefab) == Kind.Structural;
 	}
 
+	/// <summary>
+	/// Is this prefab a buried TIP - a pole, a beam or a pillar? Only a tip may be settled up to the terrain on its own:
+	/// its own length absorbs the move, so the piece above still lands on its top (measured: the reference house has 3
+	/// tips buried 2 m and a 1 m lift, and the floors sit on them).
+	/// <para>A floor, a wall, a roof or a door moved alone opens a gap above it and the game destroys the piece that is
+	/// left with nothing under it. Measured on the Forest Stone Cottage (04/11/2026): its stone foundation is 1,48 m
+	/// under its wooden floor, the config lifted the plan 1,00 m, the settle moved the 16 foundation pieces to the
+	/// ground and the floors above stayed at +1,00 m - every one of them came back "verification failed: not_found".</para>
+	/// </summary>
+	internal static bool IsTip(string prefab)
+	{
+		if (string.IsNullOrEmpty(prefab))
+		{
+			return false;   // an unknown name is never moved on its own (the safe side, same as Classify)
+		}
+		string name = prefab.ToLowerInvariant();
+		return Has(name, "pole") || Has(name, "beam") || Has(name, "pillar");
+	}
+
 	private static bool Has(string name, string part)
 	{
 		return name.IndexOf(part, StringComparison.Ordinal) >= 0;
