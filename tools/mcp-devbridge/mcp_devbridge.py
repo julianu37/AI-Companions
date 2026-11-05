@@ -118,6 +118,7 @@ def world_enter(args):
 
     entered = None
     attempt = 0
+    downed = False
     while entered is None and time.time() < deadline:
         attempt += 1
         # rajada curta de Espaco: o cinematico engole as primeiras, e o menu (se ja estiver na frente) nao liga
@@ -127,8 +128,12 @@ def world_enter(args):
             focus_game()
             require_ok(call_bridge("input.key", key="Space"))
             time.sleep(0.2)
-        # a sequencia do jogador, sem enrolacao
-        for key, step_delay in steps:
+        # 05/11/2026 (o jogador: "vc ta apertando seta pra baixo 2x????????"): a SETA E UMA VEZ SO. Repetir a rodada
+        # inteira apertava o Down de novo e, no menu, cada Down DESCE a selecao ("Iniciar jogo" -> "Cinematicas") -
+        # o Enter seguinte abria a tela errada. As rodadas seguintes mandam so Enter (o foco ja esta no botao certo).
+        sequencia = steps if not downed else steps[1:]
+        downed = True
+        for key, step_delay in sequencia:
             focus_game()
             require_ok(call_bridge("input.key", key=key))
             time.sleep(step_delay)
