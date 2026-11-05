@@ -899,6 +899,11 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
    **subagentes em paralelo** para agilizar (frentes com arquivos disjuntos). O **orquestrador revisa o diff, roda
    build/testes e commita** — nada entra sem revisão; e **tudo é documentado no mesmo ciclo** (AGENTS/CHANGELOG/
    release notes/roadmap/backlog), como na regra 2.
+10b. **TODO subagente é despachado em SEGUNDO PLANO (regra do jogador, 04/11/2026 — regra do harness).** Ao delegar,
+   passe sempre `background: true`: o orquestrador **delega e segue trabalhando** (outra frente, medição, doc, commit),
+   e o resultado chega por **notificação**. Nunca bloquear a sessão esperando subagente, nunca dormir/pollar o arquivo
+   de saída dele, e nunca reportar o trabalho dele como concluído antes da notificação. Se o resultado dele for
+   necessário para o próximo passo, o passo é **outra coisa útil** até ele chegar — não espera.
 11. **Padrão de trabalho: arquiteto-orquestrador + especialistas (regra do jogador, 03/11/2026).** Toda frente que
     mexe em comportamento, rede, assets, localização ou release **começa distribuída**: carregue a skill da área e
     acione os subagentes especialistas em **paralelo e read-only** (`ai-companions-architect` comanda;
