@@ -3601,3 +3601,49 @@ Duas correções que o jogador só sente como **tempo**, e que não dependem de 
 **Não medido:** o ganho das duas — depende do run em jogo (a DLL só recarrega no boot). O que se espera medir no
 próximo run: menos `no progress`/caminhada por peça e a duração; o contador honesto disso é `cam.(este)` e o relógio
 externo.
+
+## §17.29 A sequência dos sete blueprints com a DLL corrigida (04/11/2026)
+
+Receita de teste de sempre: `companions.build` na âncora `(-160, 38.8, -428.8)`, **5** companheiros, canteiro
+**vazio** entre os planos, `[Building] PlaceReach 15`, `DeckLift 1`, `BlueprintFree true`, `LevelGround false`,
+`BlueprintStations true`, `TempScaffold false`, `SpreadWorkers`/`SpreadNear`/`BodyRetry`/`StepAside`/`ReachWalk`
+ligados. Artefato versionado: **`docs/runs/2026-11-04-sequencia-7-blueprints.json`**.
+
+| # | plano | peças | tempo | colocadas | puladas | `not_found` | `UNSUPPORTED` | mortes | postes |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | `hs_blackforest_stone_cottage` | 64 | **40 s** | **64/64** | 0 | **0** | **0** | 0 | 5 |
+| 2 | `hs_meadows_hobbit_repairhut` | 62 | 200 s | 61/62 | 0 | 0 | 0 | 0 | 6 |
+| 3 | `hs_blackforest_longhouse` | 108 | **32 s** | **108/108** | 0 | 0 | 0 | 0 | 6 |
+| 4 | `hs_blackforest_great_hall` | 132 | 40 s | **132/132** | 0 | 0 | 0 | 0 | 10 |
+| 5 | `hs_meadows_modestypooh_igloo` | 151 | 36 s | **151/151** | 0 | 0 | 0 | 0 | 0 |
+| 6 | `hs_blackforest_stone_manor` | 152 | 176 s | 151/152 | 0 | 0 | 0 | 0 | 12 |
+| 7 | `hs_blackforest_villa` | 178 | 72 s | 175/178 | **3** | 0 | 0 | 0 | 4 |
+
+**O plano nº 1 é o que motivou o lote:** antes da correção do §17.27 ele fechou **24/64, 161 postes, 10
+`UNSUPPORTED` e 28 `not_found`**; agora **64/64 em 40 s, 5 postes, 0/0/0**. E o log do arranque mostra a decisão nova,
+exatamente como desenhada:
+
+```
+blueprint Forest Stone Cottage: a obra sobe 1,00 m (deck pedido 1,00 m) - 0 peça(s) de fundação assentadas no
+terreno, 1,50 m enterrado(s), 16 peça(s) enterradas mantidas na pose do plano
+```
+
+O `capped` corrigido (o `buried` = 1,50 > `wanted` = 1,00) e as **16 peças enterradas mantidas** — nenhuma movida
+sozinha — e a casa subiu. Na villa, as peças recusadas apareceram como **`verification: no support`** (a classificação
+correta do §17.28): `wood_beam` em **y 46,8** × 3, cada uma com **1 tentativa** e depois pulada — antes seriam
+`not_found` classificadas como falha real.
+
+### O que a sequência expôs (e o que já foi corrigido)
+
+1. **Peça que fica na fila do canteiro não era contada** (R12 A2): o hobbit fechou **61/62 com 0 pulada(s)** e o manor
+   **151/152 com 0 pulada(s)** — `Placed + Skipped` **não fechava** com o plano e o jogador não sabia qual peça faltou.
+   Causa: a fila é memória do **grupo** e morre com ele; o `Finish` só abandonava a peça **corrente**. Conserto: no
+   `Finish`, **drenar a fila** para `SkippedIndex` (`MHR_BuildGroup.AbandonRetry`) e **nomear os índices** na linha
+   `fila do canteiro: N peça(s) não ficaram de pé (índice(s) …)`.
+2. **`dependência` domina a espera**: 181,8 s dos 193,1 s da `espera` do hobbit, 155,2 dos 163,2 do manor. É a peça
+   esperando um apoio que não vem — a mesma peça do item 1. O portão está certo em **não** gastar tentativa; o que
+   faltava era o desfecho contado.
+3. **A dispersão nunca age**: `dispersão: 0 adiada(s), 0 retomada(s)` nos **sete** planos (e `0` em todos os runs
+   anteriores desde que a chave entrou). O caminho existe e é testado no harness, mas **não é exercitado em jogo** — é
+   instrumento morto até alguém achar o porquê (as peças de uma fase já nascem longe o bastante, ou o `SpreadFree`
+   sempre responde livre).

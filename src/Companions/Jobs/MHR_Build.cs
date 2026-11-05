@@ -8985,6 +8985,24 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		// 11/11/2026 (the abandoned piece): the piece this worker was on is NOT lost with it - with the site alive it goes
 		// back to the queue (a dependency: no attempt spent, not counted as skipped), and without a site it is counted.
 		AbandonPiece(state);
+		// 04/11/2026 (review R12 A2, measured in the sequence of blueprints): the queue of the SITE dies with the group,
+		// and a piece waiting in it was counted neither as placed nor as skipped - the Forest Hobbit Repairhut ended
+		// "61/62, 0 pulada(s)" with nothing naming the missing piece. Draining it here marks each index once, so the
+		// count closes and the log says which pieces were left (the measured case: 1, after 181,8 s of `dependência`).
+		if (state.Group != null)
+		{
+			List<int> left = new List<int>();
+			int dropped = MHR_BuildGroup.AbandonRetry(state.Group, ai.GetInstanceID(), left);
+			if (dropped > 0)
+			{
+				string list = string.Empty;
+				for (int i = 0; i < left.Count && i < 12; i++)
+				{
+					list += (i > 0 ? ", " : string.Empty) + (left[i] + 1);
+				}
+				Log(ai, "fila do canteiro: " + dropped + " peça(s) não ficaram de pé (índice(s) " + list + ")");
+			}
+		}
 		// 11/11/2026 (the line of the run of 20:06 LIED in three things): the site's numbers come from the group while it is
 		// alive, from the capture of the end of the plan when this worker was the one that closed it (Advance drops the group
 		// before calling here), and from the worker itself only when the order never had a site. Reading the walk after the
