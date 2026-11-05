@@ -716,6 +716,12 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   `PendingBelow`, `MHR_BuildGroup.cs:1256`, não separa **colega vivo** de **órfã**), `disputa` **150** (o corte vale na
   **pegada**, não na **fila**: `NextRetry` entra em `EnterStep` sem `ChunkBounds`, `MHR_Build.cs:2202-2213`) e
   `sem lugar livre` **149**. **Estado:** build **0/0**, harness **775**, config **368/25**, MCP **122**, gate **9/9**.
+  **Correção de instrumento (R19, 04/11/2026, §17.28 3º lote):** o `no alcance` contava **entradas** (`Stayed++` em todo
+  `EnterStep` com `stay`), não peças — a linha do run dizia **71** com **24** colocadas e o relatório imprimia **296 %**;
+  agora é **1 por índice** (`StayedIndices`). Ou seja: **todo `no alcance` medido antes disto está inflado** (o "74 %"
+  acima inclusive) e **não é comparável** com os runs seguintes. O `posições` também passou a medir a posição do
+  **corpo** (era a pose da **peça**: `p50 = 1` por construção, cego ao P0). A régua que continua valendo é `puladas`
+  (conjunto de índices) e a **duração**.
   **Regras do jogador para a obra (produto, não bancada de teste):** (i) *"não tem problema ficar parado, desde que
   esteja colocando peças que estiverem no alcance dele"* — **parado colocando é o alvo**, `% imóvel` **não** é defeito
   (o que se mede é `no alcance / peças` e a duração); (ii) *"eles não podem se agrupar, devem ser repelidos"* — a
