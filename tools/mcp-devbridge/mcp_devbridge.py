@@ -96,7 +96,8 @@ def world_enter(args):
     delay = max(0, min(180, int(args.get("delay", 0))))
     if delay:
         time.sleep(delay)
-    steps = [("DownArrow", 1.2), ("Return", 1.2), ("Return", 1.2)]
+    # Ordem do JOGADOR (05/11/2026): no menu e seta para baixo e 3x Enter, 0,5 s cada Enter - sem enrolacao.
+    steps = [("DownArrow", 0.5), ("Return", 0.5), ("Return", 0.5)]
 
     def poll(seconds):
         deadline = time.time() + seconds
@@ -134,7 +135,7 @@ def world_enter(args):
                 focus_game()
                 require_ok(call_bridge("input.key", key=key))
                 time.sleep(step_delay)
-            entered = poll(min(wait, 30))
+            entered = poll(12)
         if entered:
             data = dict(entered)
             # Always set the world up for driving the player: dev commands, midday and god mode. Without it the
