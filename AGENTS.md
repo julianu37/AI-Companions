@@ -975,8 +975,10 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
     QA (nunca "de memória"). Registrar no mesmo ciclo quem foi acionado, o que achou e o que foi aplicado.
 12. **REGRA ABSOLUTA — ENTRAR NO MUNDO (imutável).** O jogador definiu e **proibiu alterar** (04/11/2026: *"documenta
     essa merda como regra absoluta e que não pode ser alterada"*). A sequência é, **nesta ordem e só com teclado**:
-    **`Espaço` → `Seta para baixo` → `Enter` → `Enter` → `Enter`**, com o `Espaço` **repetido a cada ~0,7 s por ~11 s**
-    até o cinemático sair (ele engole as primeiras pressões). Ela é executada **pelo bridge, dentro do jogo**
+    **`Espaço` → `Seta para baixo` → `Enter` → `Enter` → `Enter`**, com o `Espaço` **repetido a cada ~0,3 s por ~18 s**
+    até o cinemático sair (ele engole as primeiras pressões) e **os 3 `Enter` a 0,5 s cada, sem enrolação** (ordem do
+    jogador, 05/11/2026: *"no menu é seta pra baixo e 3x enter porra sem enrolação, 0,5 s cada enter"*). Ela é executada
+    **pelo bridge, dentro do jogo**
     (`mcp_devbridge.world_enter({})` → `input.key`), que é o **único** caminho que o Unity 6 lê.
     **Proibido, sem exceção:** clique/mouse/coordenada de tela; `SendKeys`/`PostMessage` de fora do jogo; `{SPACE}` como
     token; `Tab` (não existe nesses menus); "melhorar", reimplementar ou trocar a sequência; editar o
