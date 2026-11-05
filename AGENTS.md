@@ -913,6 +913,10 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   A wiki publicada vive em **repositório git separado** (`https://github.com/julianu37/AI-Companions.wiki.git`,
   branch `master`): edite aqui e publique com `git clone <url>.wiki.git` + copiar os `.md` e a pasta `images/` +
   commit/push. (O repositório da wiki só existe depois da 1ª página salva pelo site — não há API para isso.)
+- `docs/checklist-blueprints.md` — **a checklist de trabalho** do esforço "companheiro constrói `.blueprint`": o que já
+  foi **feito e medido** (para não repetir), a **fila em ordem de valor** (fechar o aceite → receita de produto →
+  planejamento → pendências sem causa → release), as **regras que invalidam o run**, a receita de teste × produto, e o
+  que cada campo do `Finish` quer dizer. É o "onde eu parei"; este `AGENTS.md` continua sendo a referência.
 - `docs/vision.md` — a visão/escopo (companheiro como membro da equipe) e o que falta.
 - `docs/roadmap.md` — fases e status.
 - `docs/plan-fases.md` — plano das fases com mapa do upstream.
