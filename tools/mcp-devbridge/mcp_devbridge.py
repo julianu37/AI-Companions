@@ -118,7 +118,7 @@ def world_enter(args):
         # dele em algumas aberturas e o jogo rodava o video inteiro ("ta demorando demais na cutscene denovo"). Agora
         # sao ate 60 pressoes a 0,3 s (18 s), com o foco renovado a cada 4 (o focus_game e o que custa). Space no menu
         # nao faz nada, entao insistir e seguro.
-        for i in range(60):
+        for i in range(13):   # 4 s de Espaco e JA a sequencia do menu (era 18 s de Espaco antes de qualquer tecla)
             if i % 4 == 0:
                 focus_game()
             require_ok(call_bridge("input.key", key="Space"))
