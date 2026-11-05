@@ -3647,3 +3647,50 @@ correta do §17.28): `wood_beam` em **y 46,8** × 3, cada uma com **1 tentativa*
    anteriores desde que a chave entrou). O caminho existe e é testado no harness, mas **não é exercitado em jogo** — é
    instrumento morto até alguém achar o porquê (as peças de uma fase já nascem longe o bastante, ou o `SpreadFree`
    sempre responde livre).
+
+## §17.30 O mesmo dia, quatro DLLs depois: 861 s → 188 s nos sete planos (05/11/2026)
+
+**Uma DLL só** (00:02:16, o lote `c345f8c`), receita de teste de sempre (`BlueprintFree`, `PlaceReach 15`,
+`LevelGround false`, `BlueprintStations true`, 5 companheiros, canteiro vazio entre os planos). Medido pelo
+`cycle8` (save → restart → `world_enter` → 7 planos), artefato em `blueprint-seq8.json`.
+
+| plano | peças | baseline do dia | **agora** | puladas | not_found | UNSUPPORTED | mortes |
+|---|---|---|---|---|---|---|---|
+| `hs_blackforest_stone_cottage` | 64 | 148 s | **12 s** | 0 | 0 | 0 | 0 |
+| `hs_meadows_hobbit_repairhut` | 62 | 48 s | **16 s** | 0 | 0 | 0 | 0 |
+| `hs_blackforest_longhouse` | 108 | 32 s | 36 s | **1** | 0 | 0 | 0 |
+| `hs_blackforest_great_hall` | 132 | 28 s | **20 s** | 0 | 0 | 0 | 0 |
+| `hs_meadows_modestypooh_igloo` | 151 | 104 s (regressão) | **36 s** | 0 | 0 | 0 | 0 |
+| `hs_blackforest_stone_manor` | 152 | 176 s | **32 s** | 0 | 0 | 0 | 0 |
+| `hs_blackforest_villa` | 178 | 72 s | **36 s** | 0 | 0 | 0 | 0 |
+
+**846 peças em 188 s = 0,22 s/peça** (o baseline somado dava **861 s**, 0,98 s/peça): **4,5×**. Em **todos** os planos
+`corpo 0,0 s` — o companheiro deixou de ser obstáculo, que era a regra pedida pelo jogador. `0 mortes` e
+`0 UNSUPPORTED` nos sete; `0 not_found` nos sete.
+
+### O que ainda não fecha: 1 pulada no `longhouse`
+
+A peça é **`wood_beam` em (-160,9, 42,8, -428,4)**, `desistindo de … (verification: no support)`, e o log tem **21**
+desistências do poste de emergência com vãos de até **7,90 m** em **y 46,8**. É a **mesma causa do igloo**: num telhado
+curvo (domo) ou numa água alta, a **viga se apoia no telhado**, que é classe 3 e vinha **depois** da viga (classe 2) — a
+viga era tentada antes, recusada por `no_support`, esperava 8/12/20 s e batia no `DependencyCap`.
+
+**Correção (`1a9fe5c`)**: `BuildBlueprintParser.Ordered` põe a viga que **não tem nada embaixo no plano** (0,4–2,5 m
+abaixo, 2,5 m em XZ) e **tem telhado ao lado** (classe 3, |Δy| ≤ 2,5 m) **junto do telhado**. Viga com parede/viga
+embaixo continua classe 2.
+**O teste achou o furo que a leitura não pegaria:** mudar a chave do sort não bastava — o tour de vizinho mais próximo
+(`NearestWithin`) **reagrupa por classe recalculada** e desfazia a mudança; o agrupamento do tour passou a usar a mesma
+função (`Cls`, `BuildBlueprintParser.cs`). Harness **775 → 778** (seção **(ad)**: pendurada, com apoio embaixo, sem
+telhado ao lado).
+
+### O que mudou de gargalo no dia (para não repetir a leitura errada)
+
+| lote | o que ele matou | número que provou |
+|---|---|---|
+| §17.27 (`IsTip`) | peça sem apoio destruída (`not_found` 28 → 0) | `stone_cottage` 24/64 → **64/64** |
+| corpo não bloqueia + `DependencyCap` | a espera por corpo (6,2 s → **0,0 s**) e a espera imortal por apoio | `stone_cottage` 148 → **16 s** |
+| dreno da fila só no último + índice 0 validado + `CheckPending` sem stat/frame + `Reattach` sem alocação/frame | contagem e custo por frame | `manor` 176 → **32 s** |
+| `1a9fe5c` (viga pendurada) | a espera da viga que depende do telhado | `seq9`, em medição |
+
+**Aberto:** o `longhouse` com `puladas == 0` (é o critério), a tabela com `cpu`/`place` transcritos, e a `dependência` que
+sobra (~27 s no igloo) — agora só por peças de apoio real, não por corpo.
