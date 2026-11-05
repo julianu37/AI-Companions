@@ -799,8 +799,10 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   (12) **FECHADO (05/11/2026, revisão R17): `hc_ai_build_too_steep` entrou na lista de retomada** (`MHR_Level.cs:455`:
   `resumeBuild = … || key == "hc_ai_build_too_steep"`), com a fala "too steep to level - building anyway". Antes disso
   `[Building] LevelGround` (padrão **true**) podia **encerrar** a ordem em vez de devolver ao build (contornado no
-  Run 13 com `LevelGround = false`, §17.18 item (c)); **o mesmo lote tirou do `LevelGround` os três `Finish`** (sem
-  enxada / sem peça de nível / íngreme) — nivelar é preparação, não portão;
+  Run 13 com `LevelGround = false`, §17.18 item (c)); **o mesmo lote tirou do `LevelGround` os `Finish`** (sem
+  enxada / sem peça de nível / íngreme) e um **quarto** caminho ("não consegui começar o nivelamento",
+  `MHR_Build.cs:6754`) foi fechado depois (`9308123`) — **nivelar é preparação, não portão**, e hoje **nenhum** caminho
+  do `LevelGround` encerra a ordem;
   (13) **o A/B do Run 19 está FECHADO** (§17.24): o **Run 22** (1 Hz) fechou **985/985**, **0 puladas**, **0 mortes**,
   **0 `UNSUPPORTED`**, watchdog **0**, em **727 s** com **`fila` 4,5 s** (era **1040,2 s**) — `fila ≤ 400 s` ✅; a
   **duração** ficou **727 s** contra o corte `≤ 720 s` ⚠️ (**7 s acima**, registrado como ficou) e o `WaitAhead`/a espera
@@ -847,6 +849,22 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   obra de blueprint terminar **985/985 sem pulada, sem morte e sem greve** na receita de produto (material pago,
   `PlaceReach` 10, `LevelGround` ligado, peso real). Nada de desenho de rede entra no caminho crítico até essa ordem
   mudar.
+  (18) **os TRÊS BUILDS GRANDES nunca foram medidos até o fim** (05/11/2026): `CommHomeBasicBP` (**985**),
+  `hs_meadows_madzobuild_modernstarterhouse` (**657**) e `hs_blackforest_villa` (201) são os maiores que cabem no
+  canteiro (footprint ≤ 32 m, ≤ 1900 peças, 0 puladas na leitura). Os runs foram interrompidos (mortos no meio), então
+  **o número do plano grande na receita de teste é o que falta** para dizer se a meta dos 5 minutos está batida —
+  o `§17.30` cobre só os 7 planos pequenos (846 peças em 188 s). O script de bancada lê a contagem da **linha do
+  `Finish`** (`peças: P/N, S pulada(s)`), não de linhas `done:` (que se misturam entre ordens).
+  (19) **o planejamento do "ignorar o corpo sem prender" está na onda 1 de 5** (05/11/2026): 50 rodadas de
+  especialistas, **10 feitas**, só teoria — **nada aplicado**. A onda 1 achou **9 defeitos na sonda de corpo**
+  (erra **0,15 m para "livre"** por não somar a margem do jogo; peça sem box vira **ponto**; ignora o **próprio
+  colocador** quando não há walk spot; trata as **tampas** da cápsula como cilindro; usa **AABB** em toda a altura;
+  cápsula **inclinada** vira comprimento; `toque = livre` é o furo da stay; os 0,15 m só existem em
+  `FootprintSupported`; `HalfY` é **no-op** em produção) e provou que **não há cura depois de colocar**: o
+  `UpdateMotion` reescreve `linearVelocity` a cada fixed step, a depenetração é limitada a **2 m/s** e o mover **não
+  tem teste de teto** (o resgate é teleporte e não dispara no mesmo nível). **A onda 2 (geometria e margem) começa
+  resolvendo uma contradição entre duas rodadas:** os **+0,3 m** do jogo são do **collider físico** (`SetupColliders`)
+  ou só do **`m_bounds`** usado na varredura de apoio? A resposta decide se a faixa de 15 cm existe.
   **Achado de localização (11/11/2026, CORRIGIDO no mesmo dia):** `hc_cfg_building_blueprintstations`
   (`Core/ModLocalization.cs:860`) e `hc_cfg_controls_buildpanelkey` (`:863`) estavam **só no inglês** — em PT/ES/FR/IT
   o F8 mostrava o **rótulo em inglês** ("Blueprint: no stations", "Build panel key"), **não** a chave crua: as duas
@@ -945,6 +963,10 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   AGENTS em 03/11/2026; o resumo/estado atual fica aqui).
 - `docs/re/packaging-layout.md` — **o layout do zip** (o que vai em `BepInEx\plugins\AI-Companions\`, por que os
   modelos ficam lá, o histórico da regressão 1.9.2/1.9.3 e o gate de conferência antes de zipar).
+- `docs/runs/` — **os artefatos das medições em jogo**, versionados (o `LogOutput.log` é **apagado a cada boot** do
+  BepInEx, então o run tem de virar arquivo no mesmo ciclo): `2026-11-04-sequencia-7-blueprints.json` (a primeira
+  sequência, 6 de 7) e `2026-11-05-sequencia-7-planos-dll-c345f8c.json` (os 7 numa DLL só, **846 peças em 188 s**).
+  Cada um leva `file/plan/placed/skipped/duration_s/not_found/unsupported/mortes/postes` e a linha do `Finish`.
 - `docs/re/stt-whisper-net-spike.md` — o spike do STT local (Whisper.net in-process) e o loader nativo.
 - `docs/re/stt-voz-pipeline.md` — o pipeline de voz da Fase 3.3 (push-to-talk → STT → ordens) e a receita de teste.
 - `docs/re/tts-kokoro-sherpa-onnx.md` — a Fase 3.4 (Kokoro-82M via sherpa-onnx: carregamento dos nativos,
