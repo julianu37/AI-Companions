@@ -983,6 +983,14 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
     `BepInEx\config\AiCompanions.cfg` do jogador. Se algo falhar, **o defeito é do que está em volta** (foco, processo,
     bridge) — **nunca da sequência**. Detalhe operacional e as armadilhas já pagas: seção **DevBridge**, item
     *"Recarregar a DLL sozinho"*.
+13. **REGRA ABSOLUTA — TODO DEPLOY TERMINA EM RESTART (imutável).** Pedido do jogador (04/11/2026: *"só reiniciar depois
+    do deploy… anota isso tbm pra não esquecer denovo!"*). `dotnet build Companions.sln -c Release` **funciona com o jogo
+    aberto** — a cópia substitui o arquivo, o jogo mantém a assembly **antiga** em memória — e só o **boot** carrega a
+    nova. Então a ordem é sempre: **build/deploy → reiniciar (regra 12) → só então medir, alegar ou reportar**.
+    **Proibido:** dizer "está em jogo", "foi medido" ou "está consertado" antes do restart; pular o restart "porque o
+    deploy deu certo"; e deixar uma medição rodando enquanto se deploya (matar a medição antes, senão o número sai de
+    duas DLLs). Prova de que subiu: `LastWriteTime` da DLL **anterior** ao `StartTime` do processo + `ping` com
+    `inGame: true`.
 
 ## Equipe de agentes (`.opencode/agents/`)
 

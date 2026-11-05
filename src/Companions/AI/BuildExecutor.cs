@@ -64,6 +64,13 @@ internal static class BuildExecutor
 	/// 1,5 m, and a blueprint's neighbour of the same prefab (a <c>wood_wall_half</c> 0,5 m away) answered for it.</summary>
 	internal const float PlacedRadius = 0.35f;
 
+	/// <summary>
+	/// 04/11/2026 (review R14): the buffer of <see cref="FindPlaced"/> - the pieces near the pose. Reused between calls so
+	/// a verification allocates nothing (the old scene-wide <c>FindObjectsByType</c> allocated an array of every piece).
+	/// Only touched on the main thread, from the build drive.
+	/// </summary>
+	private static readonly List<Piece> s_near = new List<Piece>(32);
+
 	/// <summary>P1 (review A6): how far the yaw of a candidate may be from the requested one (±degrees).</summary>
 	internal const float PlacedYaw = 25f;
 
@@ -251,8 +258,16 @@ internal static class BuildExecutor
 		GameObject best = null;
 		float bestDistance = PlacedRadius;
 		float yaw = rot.eulerAngles.y;
-		foreach (Piece candidate in UnityEngine.Object.FindObjectsByType<Piece>(FindObjectsSortMode.None))
+		// 04/11/2026 (review R14): the search used to be `FindObjectsByType<Piece>` - EVERY piece of the loaded scene,
+		// marshalled into a NEW ARRAY, once per verified piece (985 times in the reference house). The game keeps its own
+		// registry (`Piece.s_allPieces`) and `Piece.GetAllPiecesInRadius` walks it without allocating and already filters by
+		// the radius we care about (0,35 m). Same result, a fraction of the cost - it is the per-piece cost that shows in
+		// the `cpu`/`place` of the Finish line.
+		s_near.Clear();
+		Piece.GetAllPiecesInRadius(pos, PlacedRadius + 0.05f, s_near);
+		for (int i = 0; i < s_near.Count; i++)
 		{
+			Piece candidate = s_near[i];
 			if (candidate == null || candidate.gameObject.name != prefabName + "(Clone)")
 			{
 				continue;
@@ -270,6 +285,7 @@ internal static class BuildExecutor
 			bestDistance = distance;
 			best = candidate.gameObject;
 		}
+		s_near.Clear();
 		return best;
 	}
 
