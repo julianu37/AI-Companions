@@ -196,8 +196,8 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
 - **Provedores (config `[AI]`):** Groq (`openai/gpt-oss-20b`, padrão) → LM Studio/Ollama (`127.0.0.1:1234`) →
   OpenRouter; tudo por `BaseUrl`/`Model`/`ApiKey` (a chave é `ConfigEntry`, nunca hardcoded). Saída estruturada
   `json_schema` → `json_object` → sem formato, **só** em recusa de formato.
-- **Config:** as chaves e os defaults vivem em `Core/ModConfig.cs` (**367** opções / 25 seções, medidas em
-  11/11/2026 pelo `python tools/gen_config_doc.py --check …` → `[ok] … (367 settings, 25 sections)`; eram **361** em
+- **Config:** as chaves e os defaults vivem em `Core/ModConfig.cs` (**368** opções / 25 seções, medidas em
+  11/11/2026 pelo `python tools/gen_config_doc.py --check …` → `[ok] … (368 settings, 25 sections)`; eram **361** em
   04/11/2026 e as chaves novas do ciclo são `[Building] BodyRetry`, `[Building] StepAside`,
   `[Building] BlueprintStations`, `[Controls] BuildPanelKey`, `[Building] ReachWalk` (**365 → 366**) e
   `[Building] SpreadWorkers` (**366 → 367**)). A doc
@@ -733,7 +733,7 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
 - **Pendências conhecidas (abertas):** (1) navegação no andar em obra; (2) a voz não passa pelo mixer do jogo (só
   `[AI] TtsVolume`); (3) sync com o upstream `main` (1.5.8) em dia — conferir antes de cada release; (4) o nome do
   companheiro no centro do radial (cosmético); (5) posse do ZDO no spawn em multiplayer dedicado; (6) a dívida de
-  **106 → 107** chaves por idioma do `gen_translations.py --check` (**49 → 106 em 11/11/2026**: o mapa indexa por texto PT e
+  **109** chaves por idioma do `gen_translations.py --check` (**49 → 106 em 11/11/2026**: o mapa indexa por texto PT e
   não cobre o bloco `hc_cfg_building_*` nem as falas de construção, e o lote do painel de obra pôs **57** chaves novas
   nos **4** JSONs (`48e2e96`, 56 do painel + `hc_cfg_building_reachwalk`) **sem** pôr essas strings no mapa — 49 + 57 =
   **106**; **+1** com a `hc_cfg_building_spreadworkers` traduzida no ciclo do Run 18 = **107**, medido com
@@ -837,7 +837,7 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   PT "Espalhar os companheiros" · ES "Repartir a los compañeros" · FR "Répartir les compagnons" ·
   IT "Distribuisci i compagni". **Medido:** os 4 JSONs parseiam (`json.load`), `audit_translations.py` com
   **0 ausentes / 0 sobrando / 0 categorias ausentes** nos quatro idiomas, e a dívida do
-  `gen_translations.py --check` foi **106 → 107** por idioma (o valor novo não existe no mapa por texto PT — item 6).
+  `gen_translations.py --check` foi **109** por idioma (o valor novo não existe no mapa por texto PT — item 6).
 
   **Achado de localização (04/11/2026, CORRIGIDO):** `hc_cfg_advanced_configversion` (`Core/ModConfig.cs:1161`,
   `Bind(cfg, "Advanced", "ConfigVersion", 0, …)`) **não tinha entrada em nenhum** dos 4 JSONs: sem default inglês, o
@@ -1094,7 +1094,7 @@ comandos de console e spawna coisas, então não é feature de jogador.
   mochila **sem dropar** — ferramenta de teste, `DevBridge/Commands.cs:1832-1847`) e `blueprints.list`/`blueprints.inspect`
   (`:628-746`): a biblioteca e **o que a ordem faria** com um arquivo, **sem começar nada**, pelo mesmo leitor do painel
   (`AI/BuildBlueprintReport.cs`).
-- **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check -c Release` — **755 asserções** (medidas
+- **Testes versionados da IA:** `dotnet run --project tools/ai-intents-check -c Release` — **775 asserções** (medidas
   no ciclo do §17.26; eram **718** antes das seções **(aa)**/**+15** e **(ab)**/**+22**) das redes por
   palavras (`RadialIntent`, `PickupIntent`, `GatherIntent`, `InteractionIntent`, `LlmIntent`, `OrderItems`,
   `CompanionNameMatch`) e das tabelas puras (`NavTileMath` na **(o)**, `BuildFailure.Classify` na **(p)** — 28 casos,
@@ -1140,7 +1140,7 @@ comandos de console e spawna coisas, então não é feature de jogador.
   promete *"the harness pins the table next to the one of `Nearest`"* e o `Program.cs` **não chama** nenhuma das três
   (a única ocorrência de `Apart` lá é um **comentário**, `:1928`); (b) a tabela do `tools/ai-intents-check/README.md`
   **para na (w)** e diz **656** asserções, atrás de (x)/(y)/(z)/(aa)/(ab); (c) a soma itemizada por seção chega a
-  **748** contra as **775** medidas — **7 não estão itemizadas** em lugar nenhum. As três são do dono do `tools/`
+  **768** contra as **775** medidas — **7 não estão itemizadas** em lugar nenhum. As três são do dono do `tools/`
   (`docs/backlog-construcao.md`, item 15) e **não** invalidam o total medido, que é o que o gate roda.
 - **Gate de release:** `powershell -ExecutionPolicy Bypass -File tools\release-check.ps1 -Version <versão>` — roda o
   build, a versão (`PluginVersion` × nome do zip), as 3 traduções, o `locale-fallback-check.ps1` (agora com asserts),

@@ -2822,10 +2822,10 @@ jogador fechar o run). O que ele responde:
 
 **Contas e limites desta seção:** o A/B é o do jogador — **Runs 15 e 16**, de 11/11/2026, mesma casa/âncora/5 workers
 e canteiro vazio nos dois; os números são os **do log dos runs**, e o único cálculo aqui é a aritmética óbvia
-(`984 + 1 = 985`). O **medido fora dos runs**: harness **706 PASS** (684 + **22** da seção **(z)** — **11** de `Pick`,
+(`984 + 1 = 985`). O **medido fora dos runs**: harness **775 PASS** (o de 11/11; hoje 775 com (aa)/(ab)/(ac)) — **11** de `Pick`,
 **6** de `Far`, **5** de `SameRun`; hoje **711**, ver §17.22), **config 367/25** (`SpreadWorkers` é a **367ª**; o
 `package/CONFIGURATION.md` foi
-regenerado e o `--check` responde `[ok] … (367 settings, 25 sections)`), build **0/0**, gate **9/9** e MCP **122**.
+regenerado e o `--check` responde `[ok] … (368 settings, 25 sections)`), build **0/0**, gate **9/9** e MCP **122**.
 **Nenhuma** chave de tradução de jogador nova — a linha da dispersão é **log em PT-BR**. **Localização (fechada no
 ciclo do Run 18):** o rótulo `hc_cfg_building_spreadworkers` entrou nos **4** JSONs (PT/ES/FR/IT) e o
 `audit_translations.py` fechou em **0 ausentes / 0 sobrando / 0 categorias ausentes** nos quatro idiomas — ver
@@ -2947,8 +2947,8 @@ O Run 19 é o **A/B** da mesma casa, com este patch. Aceite:
 | duração | **≤ 720 s** (era 844 s) |
 
 **Reverte** o lote se aparecer **`puladas > 0`**, **`desistindo > 0`**, **morte**, **`UNSUPPORTED`** ou **watchdog**.
-**Estado hoje:** build **0 erros / 0 avisos** (`-p:SkipDeploy=true`), harness **711 PASS**, `gen_config_doc.py --check`
-`[ok] (367 settings, 25 sections)`. **O Run 19 foi rodado e o resultado está no §17.24:** o caminho **por frame**
+**Estado hoje:** build **0 erros / 0 avisos** (`-p:SkipDeploy=true`), harness **775 PASS**, `gen_config_doc.py --check`
+`[ok] (368 settings, 25 sections)`. **O Run 19 foi rodado e o resultado está no §17.24:** o caminho **por frame**
 (este `ahead` sem throttle) **dobrou** o tempo e foi **revertido**; o que valeu foi o **1 Hz** do Run 22 (§17.24(D)) —
 `fila` **4,5 s**, duração **727 s** (**7 s** acima do corte de 720 s), **985/985**, **0 puladas**.
 
@@ -3015,7 +3015,7 @@ dois lados; **não foi medido qual**. O número fica registrado como saiu do log
   ground: … It only rises what the plan actually needs - a plan whose poles are buried 2 m rises the full value, a
   plan already drawn on the ground rises nothing (a build lifted in the air has no support and falls). 0 keeps the
   blueprint's own level."* O `package/CONFIGURATION.md` foi **regenerado** e o `gen_config_doc.py --check` responde
-  `[ok] (367 settings, 25 sections)` — **nenhuma chave nova**, só o texto.
+  `[ok] (368 settings, 25 sections)` — **nenhuma chave nova**, só o texto.
 
 #### (C) As linhas de log, antes × depois
 
@@ -3170,7 +3170,7 @@ canto" — é a **coluna fechar de baixo para cima**, que é o desenho do §17.2
 - **`ClassOf` memoizado**: `Dictionary<string, int>` com `StringComparer.Ordinal` (`AI/BuildBlueprintParser.cs:302`) e a
   regra em `ClassOfOnce` (`:321`), que roda **no primeiro prefab**; o valor guardado é **exatamente** o que a regra
   devolve (`:306-317`). Efeito: **0 strings/frame** nesse caminho, e o cache é limitado (~100 prefabs no corpus inteiro).
-- **Gate do ciclo:** harness **711**, gate **9/9**.
+- **Gate do ciclo:** harness **775**, gate **9/9**.
 
 #### (C) O que continua sem medidor [M]
 

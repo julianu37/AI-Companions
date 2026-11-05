@@ -680,7 +680,7 @@ está lá em §17.6, §17.9 e §17.10 (**os Runs 6, 7, 8, 9 e 10, de 11/11/2026,
 "para, Maria" → só a Maria; "para" → todos; "Maria e João, ataquem o greydwarf" → as duas; "Maria, equipa a
 picareta" → só a Maria; "Maria e o cachorro, ..." → Maria + aviso do desconhecido, sem inventar.
 
-**Gate:** harness **706** (471 + **28** da **(p)** + 26 da **(q)** + **66** da **(r)** + 18 da **(s)** + **27** da **(t)** + **6** da **(u)** + **5** da **(v)** + **9** da **(w)** + **10** da **(x)** + **18** da **(y)** + **22** da **(z)** — medido em 11/11/2026), MCP **122**, config **367/25** e build **0/0**.
+**Gate:** harness **775** (471 + **28** da **(p)** + 26 da **(q)** + **66** da **(r)** + 18 da **(s)** + **27** da **(t)** + **6** da **(u)** + **5** da **(v)** + **9** da **(w)** + **10** da **(x)** + **18** da **(y)** + **22** da **(z)** — medido em 11/11/2026), MCP **122**, config **367/25** e build **0/0**.
 
 ## 8. Perguntas para o jogador — respostas registradas (03/11/2026)
 
