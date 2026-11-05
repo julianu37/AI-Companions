@@ -905,6 +905,44 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   (64/64; só a de meadows pula 3) — o plano que parava em **24/64** antes do lote.
   **Antes de mexer em comportamento: nomear a peça abandonada e contar o `S` do plano.**
   Artefato: `docs/runs/2026-11-05-corpus-82-planos.json` (o runner é bancada em `%TEMP%\opencode\all_fit.py`).
+  **A rodada de UM companheiro (05/11/2026, abortada de propósito em 40/82)** — mesma receita, `name=<um>` no
+  `companions.build` (o `BlueprintWorkers` devolve **um** quando a ordem é dirigida,
+  `AI/CompanionOrders.cs:1387-1390`): nos **40 comparáveis**, **16 planos o 1 ganha, 18 o 5 ganha, 6 empatam**;
+  soma **1697 s × 1896 s (−10 %)** e puladas **7 × 14**. **Leitura honesta: empate técnico em tempo**, com o 1
+  fazendo **metade das puladas**. **Não** é "1 é mais rápido": `hs_meadows_house` deu **36 s** num teste avulso e
+  **96–105 s** dentro da varredura (mesma DLL, mesma config) — a variação de sessão come **2,7×** e engole qualquer
+  delta de ±10 s. O que sobrevive é a **qualidade** (puladas) e os planos de **deck/estaca**, onde o 1 ganha por
+  **−80 a −124 s** porque anda em ordem estrita e **nunca espera apoio** (`espera 0,0` nos 33 primeiros planos com 1
+  worker, contra `sem apoio ainda`/poste de emergência com 5). **A rodada NÃO foi concluída** (a maior build ficou
+  para a DLL corrigida): o dado parcial está em `%TEMP%\opencode\blueprint-all-1w.json`, não versionado.
+  (21) **o companheiro entra e fica preso sob o piso térreo da própria obra (05/11/2026, visto pelo jogador).** O
+  `[Building] DeckLift` (padrão 1) levanta a obra **1,00 m** e a cápsula do companheiro tem **~1,80 m**: o vão **não
+  cabe o corpo**. Medido em jogo (`terrain_check` + `companions.list`): terreno **38,78**, piso **39,78**, e o
+  Companheiro 3 em **y 37,90** — **0,88 m DENTRO do terreno**; ele só saiu quando o jogador **demoliu o piso**
+  (`build.delete`), não por conta própria (a depenetração é limitada a **2 m/s**). **São DOIS defeitos distintos, e
+  eu tinha juntado os dois:** (a) a peça nascer **em cima** de quem está no lugar — é o `4ebce87` (o laço dos
+  companheiros no `BuildProbe`, `:814` na `HEAD`), que **NÃO está na DLL em jogo** (`git show 1a9fe5c:...` tem zero
+  `AllCompanions`); (b) o corpo **entrar** no corredor de 1 m — o `4ebce87` **não** resolve, porque a colisão é
+  lateral. **Decisão do jogador (05/11/2026): regra de teto/clearance no mover** (as outras duas — `DeckLift = 0` e
+  saia em volta — foram recusadas; a primeira nem chegaria no `.cfg` dele, que já grava `DeckLift = 1`).
+  **O mover não tem teste de teto** (`AI/MHR_Mover.cs`: tem `DropAhead` `:2802` para **baixo**, `HazardAhead`
+  `:2519`, `SafeStep` `:3008` — **nada olha para cima**; já estava registrado no §17.19). A regra é **não ENTRAR
+  onde a cápsula não cabe**, **não** "não passar por lugar apertado" (andar sob beiral não pode virar estátua).
+  O desenho geométrico está em **`docs/re/deck-clearance.md`**.
+  (22) **7 ordens declaram `hc_ai_blueprint_done` FALTANDO peça (05/11/2026, medido na rodada de 1 worker — é mais
+  grave que o deck).** `placed + skipped != plan` e a ordem diz "concluída":
+  `hs_*_stone_cottage` **64 + 1 = 65 contra plan 76** (11 peças, nas 6 variantes) e `hs_meadows_hobbit_repairhut`
+  **62 + 1 = 63 contra 67** (4). O log mostra o worker varrendo até o fim com
+  `a peça 75/76 já está de pé (retry) - seguindo` / `next: wood_beam (76/76)` e então fechando; `espera` 20,0 s
+  (barreira 10,0 s em 2 retenções) e **1** poste. No corpus de 5 workers esses mesmos planos fecharam **64/64** —
+  ou seja, o plano **lido agora tem 76**, e as 11 restantes nem entraram na conta. **Consequência para o aceite:**
+  hoje o critério é `puladas == 0` e **esse plano passa nele** (1 pulada) enquanto faltam 11 peças; o critério tem
+  de ser **`placed + skipped == plan`** antes de qualquer número virar release. Em investigação com o especialista
+  (a condição do `Finish`, o veredito `já está de pé (retry)` e o escritor silencioso de `SkippedIndices`,
+  `MHR_Build.cs:1150`).
+  (23) **a rodada da MAIOR build (985 peças) fica para a DLL corrigida** (decisão do jogador, 05/11/2026: *"com a
+  dll corrigida né, pra que fazer agora?"*). O runner está pronto (`%TEMP%\opencode\big_one.py`, teto de 60 min,
+  marcos a cada 100 peças); a comparação é contra os **470 s** do corpus de 5 workers.
   **Achado de localização (11/11/2026, CORRIGIDO no mesmo dia):** `hc_cfg_building_blueprintstations`
   (`Core/ModLocalization.cs:860`) e `hc_cfg_controls_buildpanelkey` (`:863`) estavam **só no inglês** — em PT/ES/FR/IT
   o F8 mostrava o **rótulo em inglês** ("Blueprint: no stations", "Build panel key"), **não** a chave crua: as duas

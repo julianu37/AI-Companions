@@ -62,6 +62,16 @@ peso real, material nos baús do canteiro.
 - [x] **`IsTip` segurou nas 6 variantes de `stone_cottage`** (5 fecham 64/64; só a de meadows pula 3) — era o plano
       que parava em 24/64 (§17.27). O log mostra a regra agindo em **todos** os 82 (`N peça(s) enterradas mantidas na
       pose do plano`, `MHR_Build.cs:3032`): o assentamento por peça não quebra mais o plano rígido.
+- [x] **a rodada de UM companheiro** (05/11/2026, **abortada de propósito em 40/82** para não medir na DLL velha):
+      nos **40 comparáveis**, **1 ganha 16 / 5 ganha 18 / 6 empates**, soma **1697 s × 1896 s (−10 %)** e puladas
+      **7 × 14**. **Empate técnico em tempo**, metade das puladas com 1. **Não** virar "1 é mais rápido":
+      `hs_meadows_house` deu **36 s** avulso e **96–105 s** na varredura (mesma DLL) — a variação de sessão come 2,7×.
+      O ganho real do 1 é nos planos de **deck/estaca** (−80 a −124 s), onde ele anda em ordem estrita e
+      **`espera 0,0`**; com 5 aparece `sem apoio ainda` e poste de emergência. Dado: `%TEMP%\opencode\blueprint-all-1w.json`.
+- [x] **o vão do deck, medido** (05/11/2026): terreno **38,78** / piso **39,78** = vão **1,00 m**; cápsula **1,80 m**;
+      Companheiro 3 medido em **y 37,90** (**0,88 m dentro do terreno**) e só saiu quando o piso foi **demolido**.
+      Separação que estava faltando: `4ebce87` = peça nascer **em cima** do corpo; **entrar** no corredor é outro
+      defeito, e é o que a **regra de teto** resolve.
 
 ## Tentado e DESFEITO — não repetir sem um número novo
 
@@ -134,8 +144,16 @@ mas **nunca é exercitado em jogo**; e as **24 asserções da repulsão** não e
 ### 4. Pendências sem causa
 - [ ] **morte no hobbit** (peça 47/62, logo depois de um `wood_wall_roof_45`, **sem linha de queda**) — apareceu no
       `seq9` e não no `seq8`. Abrir o log da morte, decidir se é criatura, fall ou squeeze.
-- [ ] **vão do deck (~1 m)**: prende corpo. Decisão do jogador entre `DeckLift = 0`, **saia em volta** ou regra de rota.
+- [ ] **vão do deck (~1 m)** — **medido em jogo (05/11/2026)**: terreno 38,78, piso 39,78, corpo em **y 37,90**
+      (0,88 m dentro do terreno); só saiu quando o piso foi **demolido**. Cápsula 1,80 m × vão 1,00 m.
+      **Decisão do jogador: regra de teto/clearance no mover** (`4ebce87` NÃO resolve — ele impede a peça nascer em
+      cima, não o corpo entrar). O mover não tem teste de teto (`MHR_Mover.cs`: `DropAhead` `:2802` olha para baixo).
+      Desenho em `docs/re/deck-clearance.md`.
 - [ ] **cumeeira** (`wood_roof_45` a 48,8, `no progress`): navegação; `TempScaffold` vetada.
+- [ ] **⚠️ 7 ordens fecham com `hc_ai_blueprint_done` FALTANDO peça** (05/11/2026, rodada de 1 worker):
+      `hs_*_stone_cottage` **64 + 1 = 65 contra plan 76** (11 peças) e `hobbit_repairhut` **62 + 1 = 63 contra 67**.
+      **Isto invalida o critério de aceite atual** — `puladas == 0` deixa passar um plano que perdeu 11 peças.
+      O critério passa a ser **`placed + skipped == plan`**. Em investigação com o especialista.
 
 ### 5. Release (só depois de 1 e 2)
 - [ ] merge na `main` (`fix/pisos-nivel-2` → `main`), versão, `CHANGELOG` + `LEIA-ME` + release notes (EN).
