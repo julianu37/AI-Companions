@@ -52,6 +52,16 @@ peso real, material nos baús do canteiro.
       (`UpdateMotion` anula a depenetração, 2 m/s). Custo medido do bloqueio: **6,2 s** num plano de 148 s.
 - [x] **7 planos numa DLL só** (`c345f8c`): **846 peças em 188 s** = 0,22 s/peça, `corpo 0,0 s`, 0 `not_found`,
       0 `UNSUPPORTED`, 0 mortes. Baseline do mesmo dia: 861 s. Artefato em `docs/runs/`.
+- [x] **a varredura dos 82** (05/11/2026, a mesma DLL, canteiro zerado por plano): **82/82** fecham
+      `placed + skipped == plan`, **8410 peças em 5730 s (0,68 s/peça)**, **0 mortes / 0 `UNSUPPORTED` / 0 travados**.
+      Artefato: `docs/runs/2026-11-05-corpus-82-planos.json`. **A pulada se concentra em 3 famílias** — e é isso que
+      muda a fila: `stone_manor` 5 de 6 planos (**15** peças), `longhouse` 5/6 (7), `stone_house` 4/6 (6),
+      `stilt_house` 4/6 (5), `stilt_cottage` 2/6 (3), `stone_cottage` 1/6 (3), `hut` 1/7 (2), `stilt_hut` 1/6 (2),
+      `great_hall` 1/6 (1) = **24 planos / 44 peças**; `villa`, `manor`, `house`, `cottage`, `igloo` e os dois grandes
+      fecham **100 %** (o `CommHomeBasicBP` **985/985 em 470 s**, ainda **170 s** acima da meta dos 5 min).
+- [x] **`IsTip` segurou nas 6 variantes de `stone_cottage`** (5 fecham 64/64; só a de meadows pula 3) — era o plano
+      que parava em 24/64 (§17.27). O log mostra a regra agindo em **todos** os 82 (`N peça(s) enterradas mantidas na
+      pose do plano`, `MHR_Build.cs:3032`): o assentamento por peça não quebra mais o plano rígido.
 
 ## Tentado e DESFEITO — não repetir sem um número novo
 
@@ -96,14 +106,17 @@ mas **nunca é exercitado em jogo**; e as **24 asserções da repulsão** não e
 
 ## Fila (em ordem de valor)
 
-### 1. Fechar o aceite em jogo — 1 pulada pendente
+### 1. Fechar o aceite em jogo — a última pulada conhecida **continua**
 - [ ] deploy do `9308123` (4º caminho do nivelamento) + restart (regras 12/13).
-- [ ] rodar os **3 grandes**: `CommHomeBasicBP` (985), `madzobuild` (657), `villa` (201) — os maiores que cabem no
-      canteiro (footprint ≤ 32 m, ≤ 1900 peças, 0 puladas na leitura). **Nunca medidos até o fim.**
-- [ ] rodar os **7 planos** na mesma DLL e transcrever **colocadas / puladas / `cpu µs/frame` / `place` / duração**.
-- [ ] **critério:** `puladas == 0` nos 7, `0 not_found`, `0 UNSUPPORTED`, `0 mortes`, **nenhum companheiro preso**
+- [x] rodar os **3 grandes** — feito na varredura dos 82: `CommHomeBasicBP` **985/985 em 470 s** (35 postes),
+      `madzobuild` **612/612 em 121 s** (47 postes), `villa` **178/178 em 36–56 s**.
+- [x] rodar os **7 planos** na mesma DLL: **846 peças em 188 s**, 0 puladas (arte em `docs/runs/`).
+- [ ] **critério:** `puladas == 0`, `0 not_found`, `0 UNSUPPORTED`, `0 mortes`, **nenhum companheiro preso**
       (conferir `build.pieces` e a ausência de corpo preso no log).
-      *A última pulada conhecida: `wood_beam` em y 42,8 no `longhouse` — corrigida em `1a9fe5c`, ainda não medida.*
+      *A última pulada conhecida: `wood_beam` em y **42,8** no `longhouse` — o `1a9fe5c` mudou a **ordem** (a viga sobe
+      junto do telhado) e **não** eliminou o caso: na varredura dos 82 ela voltou **11×** (`desistindo de wood_beam
+      (verification: no support)`, y **42,8 / 44,8**), e é a família `longhouse` que concentra 5 de 6 planos com
+      pulada. **É o alvo nº 1.***
 
 ### 2. A receita de produto (o gate real da release)
 - [ ] `PlaceReach 10`, `BlueprintFree false`, `LevelGround true`, peso real, material nos baús, jogador **andando**.
@@ -139,3 +152,9 @@ mas **nunca é exercitado em jogo**; e as **24 asserções da repulsão** não e
 | `cpu µs/frame` | custo do `Drive` por worker | declarar o fps medido (o jogo não roda a 60) |
 | `caminhada` | distância **reta** na pegada | não é metro andado |
 | `puladas` | peça dada por perdida | **o número que decide** |
+
+**Três escritores de `SkippedIndices`, um silencioso** (medido na varredura dos 82): `MHR_Build.cs:1113` loga
+`desistindo de <prefab> (<why>)` (`:1116`), `:4978` loga `sem apoio: <prefab> em (...)` (`:4985`, só com `LogNormal`) e
+**`AbandonPiece` (`:1150-1151`) conta a pulada sem logar**. Saíram **70** linhas nomeadas (**59** `sem apoio:` + **11**
+`desistindo`) para **44** peças: **a linha é por worker e a peça é por plano**, então elas **não formam contagem**.
+Quem quiser pulada por peça: **nomear no `AbandonPiece` primeiro** — hoje o número fecha e a peça fica anônima.

@@ -22,9 +22,18 @@ Mod de **companheiro NPC com IA** para **Valheim 1.0**, em **PT-BR**.
   valores dele).
 - **Idioma:** doc interna (este arquivo, `docs/**`) em **PT-BR**; público (README, `package/**`, wiki, release notes)
   em **EN**; **comentários de código em inglês** e **logs em PT-BR**.
-- **O que ler para o estado atual:** `docs/re/building-notes.md` (§17.27–§17.30 = a construção de 04–05/11) e
-  `docs/backlog-construcao.md` (a fila por ordem de ataque). O resto deste arquivo é **referência detalhada**, não
-  leitura linear.
+- **O que ler para o estado atual:** `docs/checklist-blueprints.md` (**onde eu parei**: feito / tentado e DESFEITO /
+  fila, com o número que matou cada ideia), `docs/re/building-notes.md` (§17.1–§17.30 = a construção medida, run a run)
+  e `docs/backlog-construcao.md` (a fila por ordem de ataque). O resto deste arquivo é **referência detalhada**, não
+  leitura linear: os blocos "**Run N**" da seção da construção são **histórico** — o detalhe vive no `building-notes`,
+  não aqui.
+- **Branches (05/11/2026):** `main` = **1.9.6 publicada** (tag `v1.9.6`); a linha de trabalho é **`fix/pisos-nivel-2`**
+  (+120 commits: construção autônoma, **painel de obra** e o lote R11–R20). **O painel de obra só existe nela.**
+  O merge na `main` é **só depois do gate** e está **parado por decisão do jogador**.
+- **Medição do corpus (05/11/2026):** **82** blueprints cabem no canteiro; **82/82** fecham `placed + skipped == plan`,
+  **8410 peças em 5730 s (0,68 s/peça)**, **24 planos com pulada (44 peças)**, **0** mortes, **0** `UNSUPPORTED`,
+  **0** travados. Artefato versionado: `docs/runs/2026-11-05-corpus-82-planos.json`; o diagnóstico está na pendência
+  (20) e em `docs/checklist-blueprints.md`.
 
 Este projeto é um **projeto independente** baseado em [Offline Companions Reborn](https://github.com/MaddhattrRocks/Offline-Companions-Reborn)
 (**MIT**), que já implementa a visão de "companheiro como membro da equipe" (trabalhos, comida, stamina,
@@ -124,15 +133,14 @@ config é **`BepInEx\config\AiCompanions.cfg`** (o GUID não dá mais nome a ele
   distintos) está em **`docs/audit-bughunt-1.9.4.md`** — é de lá que sai o escopo da 1.9.4/1.9.5. Histórico: as
   releases saíram em sequência em 23–26/10 (`1.7.0` → `1.8.0` → `1.8.1` → `1.8.2` → `1.8.3` → `1.9.0` → `1.9.1`;
   a **1.7.1 foi pulada de propósito**, pedido do jogador) e a **1.9.1** só tirou o `ggml-base-q5_1.bin` (57 MB) do
-  pacote (~368 MB → ~314 MB no zip completo). **Branches de fase** (conferido em 31/10/2026 com
-  `git branch --merged main`): **mergeadas na `main` e apagáveis** — `feat/multi-companheiro` (3.9–3.20),
-  `fix/peso-cinto` (3.22), `fix/renascer-30` (`RespawnDelay` 300→30), `fix/dverger-combate` (dverger só combate),
-  `feat/idiomas-auto` (M1–M5), `languages` (4.0), `feat/llm-groq` (1.8.1), `feat/provedor-llm` (3.24),
-  `feat/upstream-1.5.8` (o merge 1.5.4→1.5.8 que virou a 1.9.2), `fix/teto-e-tokens` e `fix/barba-sentinela`
-  (as duas da 1.9.4 já na `main`, merge `f36e311`), **`fix/altos-194`** (o resto da 1.9.4, tag `v1.9.4`) e
-  **`feat/1.9.5`** (o lote da revisão, tag `v1.9.5`); a
-  `feat/ordens-interacao` foi apagada (local e `origin`) depois do merge da 1.9.2. As que existem no `origin` saem com
-  `git push origin --delete <nome>`. A `main` é a linha de release.
+  pacote (~368 MB → ~314 MB no zip completo).
+  **Branches (limpeza de 05/11/2026, verificada com `git branch --merged main`):** sobram **2 locais** — `main`
+  (linha de release, 1.9.6) e **`fix/pisos-nivel-2`** (linha de trabalho, +120 commits) — e **3 no `origin`**:
+  `main`, `fix/pisos-nivel-2` e a **`claude/relaxed-archimedes-ecoh6h`** (WIP do autor do upstream: **não usar**,
+  ver "Upstream e licença"). Foram apagadas **13 locais + 10 remotas** (`feat/1.9.5`, `feat/idiomas-auto`,
+  `feat/llm-groq`, `feat/multi-companheiro`, `feat/provedor-llm`, `feat/upstream-1.5.8`, `fix/altos-194`,
+  `fix/barba-sentinela`, `fix/dverger-combate`, `fix/peso-cinto`, `fix/renascer-30`, `fix/teto-e-tokens`, `languages`),
+  todas com **0 commits fora da `main`**. Se voltar entulho, o teste é `git rev-list --left-right --count main...<b>`.
 
 ## Caminhos desta máquina
 
@@ -272,6 +280,16 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   global). `TtsVoice`/`TtsLanguage` com `auto` pela tabela.
 - **Painel `I`:** abas por companheiro, voz (Ouvir/push-to-talk), personalidade, nome/tipo, aparência; o **F8** é a
   config global. Camadas de UI `1701+` (`ModUiLayers`), acima do HUD (400) e abaixo do `UnifiedPopup` (1900).
+- **Painel de obra (`B`, `[Controls] BuildPanelKey`, camada 1710):** `UI/CompanionBuildPanel.cs` (~1800 linhas,
+  criado em `CompanionsPlugin.Create`), **56** chaves `hc_ui_build_*` nos 5 idiomas. Lê o `MHR_Build.SiteInfo` do
+  canteiro: obra (nome, líder, progresso, fase), equipe (entrar/sair, marca de líder), **15 motivos** de "por que não
+  está na obra" (`hc_ui_build_why_*`), materiais, biblioteca de `.blueprint` (filtro, detalhe, abrir pasta, apagar com
+  confirmação) e pausar/retomar/cancelar. **Só existe na `fix/pisos-nivel-2`** (commits `21257a7` + `aa2bba4`, este
+  último deixou o `B` exclusivo e o `Z` inerte com UI aberta — helper único `ModUiLayers.WheelOpen/AnyWindowOpen`).
+  **Nunca testado em jogo** — o que está medido é o que ele **lê**. 3 defeitos conhecidos: (i) o **nome da obra sai em
+  PT nos 5 idiomas** (`:765` usa o `site.Label` do template — "Construction: cabana"); (ii) o **`why_solo` mente por
+  omissão** (não diz que ordem **sem nome** forma equipe); (iii) não diz **qual receita** falta quando o blueprint pula
+  linha (o dado existe em `BuildBlueprintReport.SkippedReasons`, não chega à tela — pendência 14).
 - **Ordens:** as **37** ações de `CompanionChatAI.ValidActions` (fonte do `enum` do schema); as redes por palavra
   (`RadialIntent`, `PickupIntent`, `GatherIntent`, `InteractionIntent`, `IsDoorRequest`, `IsInventoryRequest`,
   `OrderItems`) são a segurança fora do modelo. `build`/`level` são ordens; `companions.order` do bridge
@@ -332,7 +350,7 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   pior caso: N× o resto do plano, com até **3 coletando ao mesmo tempo** — o `Stock` é a metade aberta do P1); grupo
   só de **blueprint**; **em memória** (não persiste); "para" = todos, "para, <nome>" = um, um modo num companheiro
   tira só ele; nivelar/limpar com **um** (P5). **Nenhuma** chave de tradução nova (reusa `hc_ai_no_companion` e
-  `hc_ai_build_failed`) — harness **775** (471 + **28** da **(p)** + 26 da **(q)** + **66** da **(r)** — `CanSupport`,
+  `hc_ai_build_failed`) — harness **778** (471 + **28** da **(p)** + 26 da **(q)** + **66** da **(r)** — `CanSupport`,
   `PickPost`, `UsefulSurface`, `HoldsPlacedPiece` e as constantes da barreira — + **18** da **(s)** — `AI/BuildBody.cs`,
   a janela do corpo (`Blocks`, `HalfY` e os casos medidos do Run 10) — + **27** da **(t)** — a **barreira de andar**,
   11/11/2026 — + **6** da **(u)** —
@@ -343,7 +361,9 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   `BuildSpread.Far`/`Pick`/`SameRun`, a **dispersão dos workers** (lote `a29dedc`, Run 15/16) — **706** —, **+ 5** do
   ciclo da `fila`/`DeckLift` (11/11/2026, **sem seção nova**), **+ 15** da **(aa)** — `BuildSpread.Nearest`,
   a peça que o companheiro coloca **de onde está** (o P0 do §17.26) — e **+ 22** da **(ab)** — `BuildSpread.Chunk`, a
-  **partição da fase** (20 casos + 2 propriedades de cobertura/desvio ≤ 1 peça): **718 + 15 + 22 + 20 = 775**; o **711** que
+  **partição da fase** (20 casos + 2 propriedades de cobertura/desvio ≤ 1 peça): **718 + 15 + 22 + 20 = 775**, mais
+  **+ 3** da **(ad)** — `BuildBlueprintParser.Ordered`, a **viga que pende do telhado** (o igloo, `1a9fe5c`) — =
+  **778 medido**; o **711** que
   estava aqui era **stale** e diferia em **7** do `718` medido que o `docs/backlog-construcao.md` registrou), MCP
   **122** (as **12**
   asserções de 03/11/2026 cobrem o contrato do grupo: `workers`, `refused` e `name` vazio = todos; as **6** de
@@ -491,7 +511,7 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   o `CONFIGURATION.md` foi **regenerado** (**368/25** hoje — o `[Building] SpreadNear` foi a 368ª; **367/25** naquele
   lote, `--check` ok); o run de revalidação (a escada do corpus com 5
   companheiros + o A/B da casa) **não foi rodado**. **Lote do
-  telhado (build 0/0, harness **601** naquele lote — hoje **775**; medido no run de 11/11):** (a) **telhado apoia
+  telhado (build 0/0, harness **601** naquele lote — hoje **778**; medido no run de 11/11):** (a) **telhado apoia
   telhado** — o `DirectSupportIndex`
   excluía a **classe
   3** como apoio, então numa **empena** a fileira de cima (apoiada pela de baixo, também telhado) **nunca** era puxada;
@@ -695,7 +715,7 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   incluindo o portão** (`:7691-7696`), e o `tools/build_run_report.py` entende **os dois formatos** (`:184-196`).
   **Run 18 medido:** **985/985**, **0 puladas**, **0 mortes**, **0 `UNSUPPORTED`**, watchdog **0**, **1010 peças** no
   canteiro (**985 + 25 postes**), **14 min 04 s** (relógio externo — o log não tem timestamp). **Estado:** build
-  **0/0**, harness **775**, config **368/25**, MCP **122**, gate **9/9**.
+  **0/0**, harness **778**, config **368/25**, MCP **122**, gate **9/9**.
   **Run 19 (por frame) e Run 22 (1 Hz) — o parque da espera (§17.24, 11/11/2026):** o defeito **provado pela revisão**
   é que `RetryPending` responde `group.Retry.Count > 0` (`MHR_BuildGroup.cs:1181-1185`) — "tem entrada na fila", **não**
   "tem peça para mim" — e a entrada de **dependência** é **imortal** (`Dependency++`, `At = now + 8/12/20/25 s`, sem teto
@@ -718,7 +738,7 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   alocação), o `ClassOf` alocava **por chamada** (**~3.000 strings/frame ≈ 170–210 KB ≈ 10–12 MB/s de GC**) e o
   `RetryReady` era **100 % morto** (`NextRetry == -1 ⟹ RetryReady == false`, sempre) — **corrigido em `c0826b4`**:
   `RetryReady` **removido** e `ClassOf` **memoizado** (`Dictionary<string,int>` `Ordinal`, `AI/BuildBlueprintParser.cs:302-317`)
-  → **0 strings/frame** nesse caminho; harness **775**, gate **9/9**. **Não medido:** `BodyAt` no pico e o frame time com a
+  → **0 strings/frame** nesse caminho; harness **778**, gate **9/9**. **Não medido:** `BodyAt` no pico e o frame time com a
   obra travada — o `µs/frame` do `Drive` **passou a existir** e foi medido no §17.26 (**97–226 µs/frame** por worker).
   **O redesenho da execução (§17.26, 04/11/2026) — a mesma casa em `324 s`.** Três peças, cada uma medida **sozinha**,
   na receita de teste de sempre (`CommHomeBasicBP`, **985 peças**, **5** companheiros, `BlueprintFree`, canteiro
@@ -744,7 +764,7 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   **contagem**, não por **custo**), **~90 s de `dependência` por worker** (a peça de baixo é de **outra** fase, e o
   `PendingBelow`, `MHR_BuildGroup.cs:1256`, não separa **colega vivo** de **órfã**), `disputa` **150** (o corte vale na
   **pegada**, não na **fila**: `NextRetry` entra em `EnterStep` sem `ChunkBounds`, `MHR_Build.cs:2202-2213`) e
-  `sem lugar livre` **149**. **Estado:** build **0/0**, harness **775**, config **368/25**, MCP **122**, gate **9/9**.
+  `sem lugar livre` **149**. **Estado:** build **0/0**, harness **778**, config **368/25**, MCP **122**, gate **9/9**.
   **Correção de instrumento (R19, 04/11/2026, §17.28 3º lote):** o `no alcance` contava **entradas** (`Stayed++` em todo
   `EnterStep` com `stay`), não peças — a linha do run dizia **71** com **24** colocadas e o relatório imprimia **296 %**;
   agora é **1 por índice** (`StayedIndices`). Ou seja: **todo `no alcance` medido antes disto está inflado** (o "74 %"
@@ -828,7 +848,7 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   implementada). O que **já foi corrigido** (`c0826b4`): `RetryReady`
   **removido** (era **100 % morto**: `NextRetry == -1 ⟹ RetryReady == false`, sempre) e `ClassOf` **memoizado**
   (`Dictionary<string,int>` `Ordinal`, `AI/BuildBlueprintParser.cs:302-317`) → **0 strings/frame** nesse caminho;
-  harness **775**, gate **9/9**.
+  harness **778**, gate **9/9**.
   (16) **multiplayer: a troca de posse do corpo no meio da obra para tudo em silêncio** (§revisão de rede, 11/11/2026) —
   o servidor redistribui posse a cada **2 s** (`ZDOMan.ReleaseNearbyZDOS`) e o `BaseAI.UpdateAI` do jogo devolve `false`
   fora do dono, então o `MHR_Build.Drive` **para sem `Finish` e sem `Pending`**; a linha `why = "another player's game runs
@@ -849,12 +869,13 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   obra de blueprint terminar **985/985 sem pulada, sem morte e sem greve** na receita de produto (material pago,
   `PlaceReach` 10, `LevelGround` ligado, peso real). Nada de desenho de rede entra no caminho crítico até essa ordem
   mudar.
-  (18) **os TRÊS BUILDS GRANDES nunca foram medidos até o fim** (05/11/2026): `CommHomeBasicBP` (**985**),
-  `hs_meadows_madzobuild_modernstarterhouse` (**657**) e `hs_blackforest_villa` (201) são os maiores que cabem no
-  canteiro (footprint ≤ 32 m, ≤ 1900 peças, 0 puladas na leitura). Os runs foram interrompidos (mortos no meio), então
-  **o número do plano grande na receita de teste é o que falta** para dizer se a meta dos 5 minutos está batida —
-  o `§17.30` cobre só os 7 planos pequenos (846 peças em 188 s). O script de bancada lê a contagem da **linha do
-  `Finish`** (`peças: P/N, S pulada(s)`), não de linhas `done:` (que se misturam entre ordens).
+  (18) **FECHADO (05/11/2026): os três builds grandes foram medidos na receita de teste.**
+  `CommHomeBasicBP` **985/985 em 470 s** (**0** puladas, **35** postes, 0 mortes/`UNSUPPORTED`) — **170 s acima** da meta
+  dos 5 min; `hs_meadows_madzobuild_modernstarterhouse` **612/612 em 121 s** (**47** postes; o arquivo tem 657 linhas e
+  as 45 restantes saem na leitura) e `hs_blackforest_villa` **178/178 em 36–56 s** (0 postes). **A meta não está batida
+  no plano grande**, e a causa não é a taxa das casas pequenas (**0,24 s/peça** na villa): é a **densidade de apoio** do
+  plano (**0,48 s/peça** com 35 postes de emergência). O script de bancada lê a contagem da **linha do `Finish`**
+  (`peças: P/N, S pulada(s)`), não de linhas `done:` (que se misturam entre ordens).
   (19) **o planejamento do "ignorar o corpo sem prender" está na onda 1 de 5** (05/11/2026): 50 rodadas de
   especialistas, **10 feitas**, só teoria — **nada aplicado**. A onda 1 achou **9 defeitos na sonda de corpo**
   (erra **0,15 m para "livre"** por não somar a margem do jogo; peça sem box vira **ponto**; ignora o **próprio
@@ -865,6 +886,25 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   tem teste de teto** (o resgate é teleporte e não dispara no mesmo nível). **A onda 2 (geometria e margem) começa
   resolvendo uma contradição entre duas rodadas:** os **+0,3 m** do jogo são do **collider físico** (`SetupColliders`)
   ou só do **`m_bounds`** usado na varredura de apoio? A resposta decide se a faixa de 15 cm existe.
+  (20) **a varredura dos 82 (05/11/2026): 24 planos pulam peça, e o log nomeia a peça por WORKER, não por plano.** Todos
+  os **82** blueprints que cabem no canteiro rodaram na receita de teste (mesma DLL, canteiro zerado por plano, âncora
+  fixa do script): **82/82** fecham `placed + skipped == plan`, **8410 peças em 5730 s (0,68 s/peça)**, **0 mortes**,
+  **0 `UNSUPPORTED`**, **0 travados**, e **24 planos pulam 44 peças**. A pulada **não é uniforme**: `stone_manor`
+  (5 de 6 planos, **15** peças), `longhouse` (5/6, 7), `stone_house` (4/6, 6), `stilt_house` (4/6, 5), `stilt_cottage`
+  (2/6, 3), `stone_cottage` (1/6, 3), `hut` (1/7, 2), `stilt_hut` (1/6, 2), `great_hall` (1/6, 1) — **pedra, deck e
+  casa comprida**; fecham **100 %** `villa`, `manor`, `house`, `cottage`, `igloo`, `CommHomeBasicBP` e `madzobuild`.
+  O tempo varia **20×** no mesmo layout (`stilt_cottage`: 8 s × 148 s) e o log aponta **apoio**, não rota: **265**
+  `sem apoio ainda`, **199** `sem lugar para o apoio de emergência` e `no progress` em **18** linhas (o suspeito nº 1
+  continua sendo o **vão do deck**, `DeckLift` = 1, com as peças em `y` **39,8/43,8**). **O que impede fechar o
+  diagnóstico:** `SkippedIndices` tem **3** escritores e **só um é silencioso** — `AbandonPiece`
+  (`Jobs/MHR_Build.cs:1150-1151`, sem `Log`) — contra `:1116` (`desistindo de …`) e `:4985` (`sem apoio: …`, só com
+  `LogNormal`). Na coleta saíram **70** linhas nomeadas (`sem apoio:` **59** + `desistindo` **11**, estas todas em
+  `wood_beam` por `verification: no support`) para **44** peças: **a linha é por worker, a peça é por plano** — não
+  formam contagem. Prefabs das 59: `wood_floor` 22, `woodwall` 16, `wood_beam` 13, `wood_roof` 5, `wood_door` 2,
+  `stone_wall_2x1` 1. **O `IsTip` do §17.27 segurou nas 6 variantes:** `stone_cottage` fecha **5 de 6 em 100 %**
+  (64/64; só a de meadows pula 3) — o plano que parava em **24/64** antes do lote.
+  **Antes de mexer em comportamento: nomear a peça abandonada e contar o `S` do plano.**
+  Artefato: `docs/runs/2026-11-05-corpus-82-planos.json` (o runner é bancada em `%TEMP%\opencode\all_fit.py`).
   **Achado de localização (11/11/2026, CORRIGIDO no mesmo dia):** `hc_cfg_building_blueprintstations`
   (`Core/ModLocalization.cs:860`) e `hc_cfg_controls_buildpanelkey` (`:863`) estavam **só no inglês** — em PT/ES/FR/IT
   o F8 mostrava o **rótulo em inglês** ("Blueprint: no stations", "Build panel key"), **não** a chave crua: as duas
@@ -969,8 +1009,11 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   modelos ficam lá, o histórico da regressão 1.9.2/1.9.3 e o gate de conferência antes de zipar).
 - `docs/runs/` — **os artefatos das medições em jogo**, versionados (o `LogOutput.log` é **apagado a cada boot** do
   BepInEx, então o run tem de virar arquivo no mesmo ciclo): `2026-11-04-sequencia-7-blueprints.json` (a primeira
-  sequência, 6 de 7) e `2026-11-05-sequencia-7-planos-dll-c345f8c.json` (os 7 numa DLL só, **846 peças em 188 s**).
-  Cada um leva `file/plan/placed/skipped/duration_s/not_found/unsupported/mortes/postes` e a linha do `Finish`.
+  sequência, 6 de 7), `2026-11-05-sequencia-7-planos-dll-c345f8c.json` (os 7 numa DLL só, **846 peças em 188 s**) e
+  **`2026-11-05-corpus-82-planos.json`** (a varredura dos **82** que cabem no canteiro — **8410 peças em 5730 s**, 24
+  planos com pulada; é a base da pendência 20). Cada um leva
+  `file/plan/placed/skipped/duration_s/not_found/unsupported/mortes/postes` (o do corpus também `cpu/frames/place/goto/walk`)
+  e a linha do `Finish`.
 - `docs/re/stt-whisper-net-spike.md` — o spike do STT local (Whisper.net in-process) e o loader nativo.
 - `docs/re/stt-voz-pipeline.md` — o pipeline de voz da Fase 3.3 (push-to-talk → STT → ordens) e a receita de teste.
 - `docs/re/tts-kokoro-sherpa-onnx.md` — a Fase 3.4 (Kokoro-82M via sherpa-onnx: carregamento dos nativos,
@@ -1199,11 +1242,11 @@ comandos de console e spawna coisas, então não é feature de jogador.
   promete *"the harness pins the table next to the one of `Nearest`"* e o `Program.cs` **não chama** nenhuma das três
   (a única ocorrência de `Apart` lá é um **comentário**, `:1928`); (b) a tabela do `tools/ai-intents-check/README.md`
   **para na (w)** e diz **656** asserções, atrás de (x)/(y)/(z)/(aa)/(ab); (c) a soma itemizada por seção chega a
-  **768** contra as **775** medidas — **7 não estão itemizadas** em lugar nenhum. As três são do dono do `tools/`
+  **771** contra as **778** medidas — **7 não estão itemizadas** em lugar nenhum. As três são do dono do `tools/`
   (`docs/backlog-construcao.md`, item 15) e **não** invalidam o total medido, que é o que o gate roda.
 - **Gate de release:** `powershell -ExecutionPolicy Bypass -File tools\release-check.ps1 -Version <versão>` — roda o
   build, a versão (`PluginVersion` × nome do zip), as 3 traduções, o `locale-fallback-check.ps1` (agora com asserts),
-  o `gen_config_doc.py --check`, o teste do MCP (**122**) e as **775** asserções; **PASS/FAIL por item e exit 1**. É o que tem
+  o `gen_config_doc.py --check`, o teste do MCP (**122**) e as **778** asserções; **PASS/FAIL por item e exit 1**. É o que tem
   de passar antes de tag/zip (`-SkipGame`/`-SkipIntents` para rodar parte).
 - **Docs:** `docs/mcp-devbridge.md` (arquitetura, protocolo, as **62** ferramentas, a receita de **jogar pelo agente**
   e a de **comandos de console**, e as evidências dos testes da 1.9.4) e `tools/mcp-devbridge/README.md`
