@@ -53,6 +53,47 @@ peso real, material nos baús do canteiro.
 - [x] **7 planos numa DLL só** (`c345f8c`): **846 peças em 188 s** = 0,22 s/peça, `corpo 0,0 s`, 0 `not_found`,
       0 `UNSUPPORTED`, 0 mortes. Baseline do mesmo dia: 861 s. Artefato em `docs/runs/`.
 
+## Tentado e DESFEITO — não repetir sem um número novo
+
+> Cada linha aqui foi **implementada, medida e revertida**. O motivo está escrito com o número que a matou; repetir
+> qualquer uma sem um run que a contradiga é **regressão**.
+
+| tentativa | por que parecia boa | por que foi desfeita (o número) | onde está hoje |
+|---|---|---|---|
+| **ignorar o corpo do companheiro** na sonda | `corpo 0,0 s` e 861 → 188 s | **piso nasce em cima do companheiro e ele fica preso** (print do jogador, 05/11): o `UpdateMotion` reescreve `linearVelocity` a cada fixed step e a depenetração (2 m/s) perde. O ganho **não** era do corpo (era o `DependencyCap`) | **laço restaurado** (`4ebce87`); custo do bloqueio **6,2 s** |
+| **`IgnoreCollision` corpo × peça** | o corpo atravessaria a peça | ele **cai do piso que acabou de subir** (a obra usa o telhado como andaime); é estado do PhysX local e morre ao recriar collider | rejeitada na onda 1, **não implementar** |
+| **empurrar o corpo depois de colocar** | "o jogo resolve" | a física **já tenta** e o resultado medido foi o companheiro **1 m abaixo do chão**; empurrar por `transform` é teleporte disfarçado | rejeitada (onda 1) |
+| **teleporte de resgate** | tirar o preso na hora | o jogo o **esmaga de novo** no tick seguinte; e o resgate existente (`MHR_PlaceAt`) **não dispara no mesmo nível** | rejeitada (onda 1) |
+| **barrar só no pick da peça** (O2) | mais barato que barrar no place | a **janela entre pick e place** reabre exatamente o preso | **proibida** (§17.30) |
+| **`ahead` por frame** na espera (Run 19) | reagir rápido | **dobrou** o tempo: **38 peças/min contra 78** e `corpo na peça` **130** em 347 peças (5 corpos disputando o mesmo canto) | **1 Hz** (`AdvanceAskSeconds = 1f`) |
+| **barreira de andar com escopo XZ de 6 m** | localizar a espera | **~33 min** (2,4× a base) e `dependência` **206** | revertida (`8ec9de7`) |
+| **filtro de destino do step-aside (`CrossesPending`)** | não pisar em peça pendente | **67 % do plano recusado** | revertida (`8ec9de7`) |
+| **`Release`/`PlanLocked` = "2+ workers"** | reordenar o plano com 1 worker | com o canteiro em **1** worker a reordenação desalinha `Claims`/`Done`/`Retry` (tudo é por **índice**) | `PlanLocked = Group != null` |
+| **clamp por peça do deck** (`0f13878`) | assentar a fundação no chão | o piso ficava **no nível do chão** (o jogador queria deck) **e** quebrava o plano rígido (vão de 1 m → peça destruída) | **lift rígido** + `IsTip` (§17.23/§17.27) |
+| **`DeckLift` como deslocamento forçado** | subir a obra sempre | os planos rasos do corpus **flutuavam 1,00 m** e caíam | virou **teto** (`clamp(buried, 0, wanted)`) |
+| **sonda por "disco"** (`max(size.x, size.z)/2`) | simples | **falso positivo**: um feixe de 2 m virava disco de 1 m e "prendia" o companheiro a 1,08 m (Run 10) | **cápsula real × caixa girada** |
+| **`HasLanding` no build** (pular escada sem pouso) | não subir para o vazio | a casa **ficava sem escada** | removido; quem recusa o vazio é o **mover** (`LadderLanding`) |
+| **nivelar andando até cada ponto** (enxada) | "como um jogador" | o mover **desistia e ele tremia** no lugar | opera do **centro** (animação + 0,45 s) |
+| **grade denso no nivelamento** (1,5 m) | mais preciso | **divergia**: 0,55 → 2,01 m; o espaçado converge 1,01 → 0,39 | grade **espaçado pelo raio** (3 m) |
+| **`rise`/`FillLow` no nivelamento** | levantar o terreno | "não compõe" e foi **vetado pelo jogador** ("esquece o rise") | código morto, `Fill` sempre `false` |
+| **escada provisória (`TempScaffold`)** | alcançar a cumeeira | o canteiro **encheu de escadas** | **vetada pelo jogador**, default `false` |
+| **`RetryReady`** | filtrar a fila | **100 % morto** (`NextRetry == -1 ⟹ false`, sempre) | removido (`c0826b4`) |
+| **`ClassOf` sem memoização** | código simples | **~3.000 strings/frame** (170–210 KB ≈ 10–12 MB/s de GC) | memoizado (`Dictionary` `Ordinal`) |
+| **executor pela rota `Player.PlacePiece`** | "mais parecido com o jogador" | dá **crédito/barulho/estatística ao jogador** e não devolve o objeto | `Instantiate` próprio (`PlaceDirect`) |
+| **contar `done:` para medir** | simples | a janela do log **se mistura entre ordens** (`112/108`!) | **linha do `Finish`** |
+| **dock do `no alcance` por entradas** | — | dava **296 %** de peças | 1 por **índice** (`StayedIndices`) |
+| **relatório escolhendo a variante com mais puladas** | "a linha mais completa" | no empate pegava **985/985/0 × 984/985/1** e reportava 1 pulada a mais | desempate por `placed` e `-skipped` |
+| **dreno da fila em TODA saída de worker** (meu bug de hoje) | fechar a conta | marcava como puladas as peças **dos outros** e desfazia o `AbandonPiece` | só o **último** drena (`!IsShared`) |
+| **login por clique** e depois por `SendKeys`/`PostMessage` | "sem tocar no jogo" | coordenada erra quando o cinemático muda a tela; `MainWindowHandle` é o **console do BepInEx**; o Unity 6 ignora `WM_KEYDOWN` | **regra 12**: teclas **pelo bridge** |
+| **login com 3 tentativas fixas** | orçamento claro | o bridge responde **no boot** (3 s), as 3 tentativas acabavam **no cinemático** e o login falhava | **rodadas até entrar**, prazo de parede |
+| **repetir a seta em cada rodada do login** | "idempotente" | no menu cada `Down` **desce a seleção** → o Enter abria a tela errada | seta **uma vez** |
+
+**Coisas que continuam de pé mas NÃO se sustentam no uso** (não são regressão; são instrumento morto):
+`dispersão` (`SpreadWorkers`) sai **`0 adiada(s)` em todos os runs** desde que entrou — o caminho existe e tem 22 asserções,
+mas **nunca é exercitado em jogo**; e as **24 asserções da repulsão** não existem (o `BuildSpread` promete estar pinado).
+
+
+
 ## Fila (em ordem de valor)
 
 ### 1. Fechar o aceite em jogo — 1 pulada pendente
