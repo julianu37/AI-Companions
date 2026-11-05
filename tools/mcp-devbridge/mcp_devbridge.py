@@ -88,64 +88,61 @@ def require_ok(result):
 
 
 def world_enter(args):
-    """Skips the intro and enters the world with the KEY sequence the player uses:
-    Space (repeated) > Down > Enter > Enter > Enter. No mouse. The intro video only consumes a Space while it is
-    up, so one 0.9 s press used to be eaten by the logos and the first retry waited up to 45 s - the player watched
-    almost the whole video. Now Space is pressed every 0.7 s for the first ~11 s, until the intro is gone."""
+    """Entra no mundo com a sequencia do JOGADOR, por teclado e pelo bridge (5/11/2026).
+
+    `Espaco` em rajadas curtas (pula o cinematico) e depois `Seta para baixo` + `Enter` x3 a 0,5 s, repetindo a
+    rodada INTEIRA ate entrar. Por que repetir e nao "3 tentativas": o bridge responde no BOOT (o plugin sobe com o
+    jogo, ~3 s apos o launch), muito antes de existir menu - com 3 tentativas o orcamento acabava durante o
+    cinematico e o login FALHAVA (medido: "the key sequence did not load the world in 120 s"). O relogio aqui e de
+    parede (`wait` segundos), nao um numero de tentativas.
+    """
     wait = max(10, min(300, int(args.get("wait", 120))))
     delay = max(0, min(180, int(args.get("delay", 0))))
     if delay:
         time.sleep(delay)
-    # Ordem do JOGADOR (05/11/2026): no menu e seta para baixo e 3x Enter, 0,5 s cada Enter - sem enrolacao.
     steps = [("DownArrow", 0.5), ("Return", 0.5), ("Return", 0.5)]
+    deadline = time.time() + wait
 
     def poll(seconds):
-        deadline = time.time() + seconds
+        end = time.time() + seconds
         last = None
-        while time.time() < deadline:
+        while time.time() < end:
             try:
                 last = require_ok(call_bridge("ping"))
                 if last.get("inGame"):
                     return last
             except Exception as exc:  # noqa: BLE001 - the bridge may be busy while the world loads
                 last = {"error": str(exc)}
-            time.sleep(2)
+            time.sleep(1.5)
         return None
 
-    for attempt in range(1, 4):
-        entered = None
-        # O cinematico come as primeiras pressoes e comeca DEPOIS dos logos: 16 pressoes a 0,7 s (11 s) acabavam antes
-        # dele em algumas aberturas e o jogo rodava o video inteiro ("ta demorando demais na cutscene denovo"). Agora
-        # sao ate 60 pressoes a 0,3 s (18 s), com o foco renovado a cada 4 (o focus_game e o que custa). Space no menu
-        # nao faz nada, entao insistir e seguro.
-        for i in range(13):   # 4 s de Espaco e JA a sequencia do menu (era 18 s de Espaco antes de qualquer tecla)
-            if i % 4 == 0:
-                focus_game()
+    entered = None
+    attempt = 0
+    while entered is None and time.time() < deadline:
+        attempt += 1
+        # rajada curta de Espaco: o cinematico engole as primeiras, e o menu (se ja estiver na frente) nao liga
+        for _ in range(5):
+            if time.time() >= deadline:
+                break
+            focus_game()
             require_ok(call_bridge("input.key", key="Space"))
-            time.sleep(0.3)
-            try:
-                ping = require_ok(call_bridge("ping"))
-                if ping.get("inGame"):
-                    entered = ping
-                    break
-            except Exception:  # noqa: BLE001 - the bridge may be busy while the world loads
-                pass
-        if entered is None:
-            for key, step_delay in steps:
-                focus_game()
-                require_ok(call_bridge("input.key", key=key))
-                time.sleep(step_delay)
-            entered = poll(12)
-        if entered:
-            data = dict(entered)
-            # Always set the world up for driving the player: dev commands, midday and god mode. Without it the
-            # agent dies to a greyling while it is busy with the bridge.
-            if args.get("setup", True):
-                time.sleep(1.5)
-                data["setup"] = require_ok(call_bridge("world.setup", time=args.get("time", 0.5)))
-            return data
-        time.sleep(2)
-    raise RuntimeError("the key sequence did not load the world in %d s (Space > Down > Enter x3, 3 attempts)" % wait)
+            time.sleep(0.2)
+        # a sequencia do jogador, sem enrolacao
+        for key, step_delay in steps:
+            focus_game()
+            require_ok(call_bridge("input.key", key=key))
+            time.sleep(step_delay)
+        entered = poll(3)
+
+    if entered is None:
+        raise RuntimeError("the key sequence did not load the world in %d s (Space > Down > Enter x3, %d rounds)"
+                           % (wait, attempt))
+
+    data = dict(entered)
+    if args.get("setup", True):
+        time.sleep(1.5)
+        data["setup"] = require_ok(call_bridge("world.setup", time=args.get("time", 0.5)))
+    return data
 
 
 def log_tail(lines):
