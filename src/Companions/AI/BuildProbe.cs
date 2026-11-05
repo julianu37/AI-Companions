@@ -805,14 +805,31 @@ internal static class BuildProbe
 				return true;
 			}
 		}
-		// 04/11/2026 (pedido do jogador: "dá pra tirar isso de um atrapalhar o outro com o corpo, não deixando que se
-		// vejam?"): um COMPANHEIRO não bloqueia a peça de outro. Medido no stone_cottage: 5 corpos num canteiro de 6x6
-		// geravam `corpo no caminho ... volta em 6 s` em série e `sem lugar livre para ele sair da frente`, e o plano que
-		// devia fechar em ~40 s levava 140 s. O que o jogo exige é o FANTASMA não sobrepor o corpo
-		// (Player.CheckPlacementGhostVSPlayers); nós instanciamos sem fantasma, então este teste é só nosso.
-		// O JOGADOR continua bloqueando (o corpo dele na pose recusa a peça) e o próprio colocador também, pelo `ignore`
-		// que o BuildSite.Check passa. O laço dos companheiros foi removido junto com o `blocker = setup`: se algum dia
-		// aparecer companheiro empurrado para baixo do piso, o caminho de volta é reativar o laço que existia aqui.
+		// 05/11/2026 (o jogador, com print: "piso sobre o amiguinho e travou ele debaixo"): o laço dos companheiros VOLTOU.
+		// Ele tinha sido removido horas antes ("não deixando que se vejam") e o ganho de agilidade foi grande, mas o custo
+		// foi este: sem bloqueador, a peça nasce em cima de quem está no lugar e o corpo fica preso sob o piso (o incidente
+		// de 04/11 no §17.16, de novo). O que o corpo custa é PEQUENO e está medido: 6,2 s de `corpo` no `stone_cottage`
+		// contra 126,2 s de `dependência` - o gargalo era a espera por apoio, não o corpo. Com o bloqueio de volta, a peça
+		// recusa, o colega sai da frente (StepAside) ou ela volta para a fila - e **ninguém é enterrado**.
+		foreach (CompanionSetup setup in CompanionSetup.AllCompanions)
+		{
+			if (setup == null || ReferenceEquals(setup, ignore))
+			{
+				continue;
+			}
+			// the companion's body is the Character of the same GameObject (CompanionSetup is the mod's side of it)
+			Character character = setup.GetComponent<Character>();
+			if (character == null || !CapsuleOf(character, out Vector3 axis, out float bottom, out float top, out float radius))
+			{
+				continue;
+			}
+			Vector3 local = inverse * (axis - center);
+			if (BuildBody.Blocks(local.x, local.z, halfX, halfZ, pieceBottom, pieceTop, bottom, top, radius))
+			{
+				blocker = setup;
+				return true;
+			}
+		}
 		return false;
 	}
 
