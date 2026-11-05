@@ -632,6 +632,13 @@ internal static class MHR_Build
 		/// <summary>11/11/2026 (the stay): how many pieces this order took from where it stands - the number of the summary
 		/// line that says how much of the plan was placed without walking to it (<see cref="MHR_Build.StayPick"/>).</summary>
 		internal int Stayed;
+	/// <summary>
+	/// 04/11/2026 (review R19): the indices behind <see cref="Stayed"/>. The field counted ENTRIES - a piece that comes
+	/// back from the queue with <c>IsStay</c> enters again - so the line read "no alcance: 71 peça(s)" for 24 placed
+	/// pieces and the report printed <b>296 %</b>. Counting each index once makes the number mean what its label says
+	/// (the "<c>no alcance / peças</c>" rate the redesign is judged by).
+	/// </summary>
+	internal readonly HashSet<int> StayedIndices = new HashSet<int>();
 		/// <summary>
 		/// 11/11/2026 (the repulsion of the P0): how many pieces this order took <b>away</b> from the plain nearest one -
 		/// the nearest candidate was next to another companion's body, so the piece chosen was another one
@@ -2285,7 +2292,10 @@ internal static class MHR_Build
 		state.Stay = stay;
 		if (stay)
 		{
-			state.Stayed++;
+			if (state.StayedIndices.Add(index))
+			{
+				state.Stayed++;   // once per PIECE (see StayedIndices): the same piece back from the queue is not a second one
+			}
 		}
 		else if (ai != null && next != null)
 		{
@@ -2684,7 +2694,7 @@ internal static class MHR_Build
 	/// <para>P1 (04/11/2026, "contadores honestos"): the order's own counters are sets of plan indices as well, and a piece
 	/// that had been given up and then went up is <b>placed</b>, never both - it leaves the skipped set.</para>
 	/// </summary>
-	private static void CountPlaced(State state)
+	private static void CountPlaced(State state, CompanionAI ai)
 	{
 		if (state == null)
 		{
@@ -2704,7 +2714,10 @@ internal static class MHR_Build
 			}
 			if (first)
 			{
-				NotePosition(state);
+				// 04/11/2026 (review R19): the histogram used to be fed with the PIECE's pose, so it measured piece clusters
+				// and `p50 = 1` by construction - blind to the very thing the P0 does (stay put and place what is in
+				// reach). The work position is where the BODY was when it placed.
+				NotePosition(state, ai != null ? ai.transform.position : state.Pos);
 			}
 		}
 		state.LastProgressAt = Time.time;
@@ -2717,13 +2730,12 @@ internal static class MHR_Build
 	/// (<see cref="State.PositionSizes"/>) stays exact without a list: the current position leaves its old bucket and enters
 	/// the next one per piece. Measurement only - it decides nothing.
 	/// </summary>
-	private static void NotePosition(State state)
+	private static void NotePosition(State state, Vector3 at)
 	{
 		if (state == null)
 		{
 			return;
 		}
-		Vector3 at = state.Pos;
 		if (state.Positions > 0)
 		{
 			float dx = at.x - state.LastPlaced.x;
@@ -3906,7 +3918,7 @@ internal static class MHR_Build
 		{
 			if (standing)
 			{
-				CountPlaced(state);   // P1 (review A7): the group's index is marked done - counted once
+				CountPlaced(state, ai);   // P1 (review A7): the group's index is marked done - counted once
 				Log(ai, "a peça que ele estava fazendo já foi construída por outro companheiro - seguindo para a próxima");
 			}
 			else
@@ -7419,7 +7431,7 @@ internal static class MHR_Build
 				if (state.Piece != null
 					&& BuildExecutor.VerifyAt(state.Piece, state.Pos, state.Rot, creator, out existing) == null)
 				{
-					CountPlaced(state);   // P1 (review A7): the group's index is marked done - counted once
+					CountPlaced(state, ai);   // P1 (review A7): the group's index is marked done - counted once
 					Log(ai, "a peça " + (state.Index + 1) + "/" + state.Plan.Count
 						+ " já está de pé (outra tentativa a deixou lá) - seguindo");
 					return Advance(ai, state);
@@ -7442,7 +7454,7 @@ internal static class MHR_Build
 			if (state.Piece != null
 				&& BuildExecutor.VerifyAt(state.Piece, state.Pos, state.Rot, creator, out existing) == null)
 			{
-				CountPlaced(state);
+				CountPlaced(state, ai);
 				Log(ai, "a peça " + (state.Index + 1) + "/" + state.Plan.Count
 					+ " já está de pé (retry) - seguindo");
 				return Advance(ai, state);
@@ -8204,7 +8216,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		Log(ai, "done: " + state.Prefab + " at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", " + F(state.Pos.z) + ") yaw " + F(state.Rot.eulerAngles.y)
 			+ (state.Template != null ? " (" + (state.Index + 1) + "/" + state.Plan.Count + ")" : string.Empty)
 			+ (supported.HasValue ? " supported" : string.Empty));
-		CountPlaced(state);   // P1 (review A7): one mark per plan index, counted once
+		CountPlaced(state, ai);   // P1 (review A7): one mark per plan index, counted once
 		// E7 (player's requests, 03/11/2026: "he has to know he should place the piece at the top of the ladder and build
 		// the floor there" + "he can build the floor from the bottom up too, he does not need to wait until he is at the floor
 		// height"): a floor that lands on what was just placed comes to the front of the plan, so the upper floor is built

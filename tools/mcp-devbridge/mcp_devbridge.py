@@ -916,10 +916,17 @@ TOOLS = [
     },
     {
         "name": "companions_inventory",
-        "description": "Lists what a companion is carrying (prefab, name, amount, grid slot).",
+        "description": (
+            "Lists what a companion is carrying (prefab, name, amount, grid slot). "
+            "`action: clear` empties the bag WITHOUT dropping (the weight test tool of the build recipe): it is what "
+            "MHR_Build cooks use, and it used to be unreachable from here because the schema had no `action`."
+        ),
         "inputSchema": {
             "type": "object",
-            "properties": {"name": {"type": "string", "description": "companion name (contains, case-insensitive)"}},
+            "properties": {
+                "name": {"type": "string", "description": "companion name (contains, case-insensitive)"},
+                "action": {"type": "string", "enum": ["clear"], "description": "clear = empty the bag without dropping"},
+            },
             "required": ["name"],
             "additionalProperties": False,
         },
@@ -1258,7 +1265,10 @@ def run_tool(name, args):
     if name == "companions_dismiss":
         return require_ok(call_bridge("companions.dismiss", name=args["name"]))
     if name == "companions_inventory":
-        return require_ok(call_bridge("companions.inventory", name=args["name"]))
+        payload = {"name": args["name"]}
+        if args.get("action"):
+            payload["action"] = args["action"]
+        return require_ok(call_bridge("companions.inventory", **payload))
     if name == "world_tombstones":
         return require_ok(call_bridge("world.tombstones"))
     if name == "world_tombstone_take":

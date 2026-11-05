@@ -751,7 +751,7 @@ def finalize(block, index, barrier_seconds, order_seconds=None):
     # (worker que saiu antes do fim pode ter impresso o numero parcial - vale a linha MAIS completa)
     site_score = None
     if site_scores:
-        best = max(site_scores, key=lambda s: (s[0] + s[2], s[2]))
+        best = max(site_scores, key=lambda s: (s[0] + s[2], s[0], -s[2]))
         site_score = {
             "lines": len(site_scores),
             "placed": best[0],

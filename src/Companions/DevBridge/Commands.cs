@@ -2456,7 +2456,8 @@ internal static class Commands
 			return Ok(new Dictionary<string, object>
 			{
 				{ "action", "stop" },
-				{ "cancelled", stopped.Count > 0 },
+				// 04/11/2026 (review R19): `stopped.Count > 0` meant "there is a companion", not "something was cancelled".
+				{ "cancelled", anyBuild || anyLevel },
 				{ "build", anyBuild },
 				{ "level", anyLevel },
 				{ "companions", stopped }
@@ -2471,7 +2472,9 @@ internal static class Commands
 		return Ok(new Dictionary<string, object>
 		{
 			{ "action", "stop" },
-			{ "cancelled", true },
+			// 04/11/2026 (review R19): this used to be a hard `true` - the answer said "cancelled" even when there was
+			// nothing to cancel (build and level both false), which makes a test unable to tell the two apart.
+			{ "cancelled", (bool)single["build"] || (bool)single["level"] },
 			{ "name", single["name"] },
 			{ "build", single["build"] },
 			{ "level", single["level"] }

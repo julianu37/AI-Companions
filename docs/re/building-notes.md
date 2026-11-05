@@ -3553,3 +3553,36 @@ ainda estava com a DLL anterior. O primeiro run depois do restart mede as seis j
 | 10 | **A razão da recusa mentia** (R13) | `BuildProbe` (`status`) | `status = reasons[0]` (a **primeira** na ordem do vanilla). Peça no ar sobre um barranco = `["too_steep", "no_support"]` → `too_steep` = falha **Real**: queimava tentativa e **nunca** entrava no pull do apoio nem no poste de emergência, com a causa verdadeira sendo o apoio | `FirstBlocking`: `blocked_by_player`/`needs_station`/`no_support` vencem as razões de superfície |
 
 **Estado do gate depois dos dois lotes:** build **0/0**, harness **775 PASS**, config **368/25**, árvore limpa.
+
+### Terceiro lote (R19/R11) — o instrumento é que estava mentindo
+
+| # | achado (revisor) | onde | o que fazia | conserto |
+|---|---|---|---|---|
+| 11 | **`no alcance` contava ENTRADAS** (R19 B1) | `MHR_Build.EnterStep` | a linha dizia `no alcance: 71 peça(s)` com **24 peças colocadas** e o relatório imprimia **296 %**; o "74 % sem andar" do §17.26 estava **inflado** | `StayedIndices` (`HashSet`): 1 por **índice** |
+| 12 | **`posições` media cluster de PEÇA** (R19 B2) | `NotePosition` | `Vector3 at = state.Pos` — `p50 = 1` **por construção**, cego justamente para o P0 (o corpo parado colocando) | usa `ai.transform.position` no instante da colocação |
+| 13 | **o desempate do placar escolhia a pior variante** (R19) | `tools/build_run_report.py` | com `placed+skipped` empatado, `max(...)` ficava com a de **MAIS puladas** (985/985/0 × 984/985/1 → o relatório reportava 1 pulada) | `key=(placed+skipped, placed, -skipped)` |
+| 14 | **`companions_inventory action=clear` inalcançável** (R19 E1) | `tools/mcp-devbridge` | o schema não tinha `action`: a **receita de teste** que o `AGENTS.md` manda usar **não funcionava** pela ferramenta | `action` no schema + repasse |
+| 15 | **`cancelled` sempre `true`** (R19 E2) | `DevBridge/Commands.cs` | respondia `cancelled: true` mesmo sem nada a cancelar (nem build nem level) | `build \|\| level` |
+
+**Estado:** build **0/0**, harness **775 PASS**, MCP **122 PASS**.
+
+**Consequência para a leitura dos runs antigos:** todo `no alcance` medido até aqui é **entrada**, não peça — a taxa
+`no alcance / peças` dos runs 18/22/§17.26 **não é comparável** com o que vier depois desta correção. O número que
+continua valendo como régua é `puladas` (é conjunto de índices) e a duração.
+
+**Não aplicado (declarado, R11):**
+
+1. **O blueprint é o ÚNICO caminho que não re-deriva o chão.** A âncora usa o `y` cru da mira e só `buried` — que só
+   **sobe** — é medido. Mirar no topo de uma pedra/tronco/assoalho (ou o nivelamento baixar a mediana) deixa a fundação
+   **X m no ar**, o probe diz `valid`, o jogo destrói → `not_found`. O template (`FindAnchor`) e a peça única
+   (`BuildSite`) já re-derivam o chão. **Alto.**
+2. **O assentamento da ponta não tem limite.** `pos.y = ground` move a peça pelo que for preciso; a premissa "o próprio
+   comprimento absorve" só vale se o deslocamento ≤ comprimento. Com `DeckLift = 0` e estaca enterrada 2 m, a ponta sobe
+   2 m sozinha e o piso acima fica abaixo dela. **Alto, e a opção "sem deck" da config é armadilha sem isso.**
+3. **A bancada planejada pode cair DENTRO do footprint** (o anel "near" só é externo para meia-extensão < 6,04 m) e o
+   passe roda **antes** da limpeza do canteiro, contra as árvores em pé. **Médio.**
+4. **O `skipped` não é devolvido** ao chamador: o jogador vê o **número** de puladas e nunca **qual receita** falta
+   (o dado existe em `firstSkip` e morre na assinatura de `StartBlueprint`). **Médio.**
+
+Os dois primeiros mexem na **âncora** e no **assentamento** — exatamente o que o próximo run mede —, então entram
+**depois** de o `stone_cottage` fechar com a árvore atual; senão o run não isola o conserto do §17.27.
