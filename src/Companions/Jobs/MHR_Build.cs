@@ -7745,10 +7745,10 @@ internal static class MHR_Build
 		// corpo de quem coloca (ele é o `ignore`), então a peça ficava sem ninguém que a colocasse e o tile continuava
 		// vazio (o "fica e coloca" do P0 piora isso: ele nunca sai do lugar). Agora ele SAI de cima da peça: escolhe um
 		// walk spot FORA dela e coloca de lá. Duas tentativas; sem walk spot, segue o caminho de sempre (a fila).
-		if (state.Piece != null && OwnBodyOn(ai, state.Piece, state.Pos, state.Rot))
+		if (state.Piece != null && state.SelfStep < 2 && OwnBodyOn(ai, state.Piece, state.Pos, state.Rot))
 		{
 			Vector3 outside;
-			if (state.SelfStep < 2 && WalkSpot(ai, state, out outside))
+			if (WalkSpot(ai, state, out outside))
 			{
 				state.SelfStep++;
 				state.HasWalkTo = true;
@@ -7759,16 +7759,6 @@ internal static class MHR_Build
 					+ " precisa do lugar onde eu estou - saio para (" + F(outside.x) + ", " + F(outside.y) + ", " + F(outside.z) + ")");
 				return true;
 			}
-			// 06/11/2026 (the body that ended UNDER the deck with `fits: false` while the build was still going): this
-			// guard used to be `state.SelfStep < 2 && OwnBodyOn(...)` - on the THIRD try the whole block was skipped and
-			// the piece was placed ACROSS the body (measured: `wood_floor` at 39,78 on a body whose capsule ends at
-			// 40,58, 0,71 m away). The tries are a way to look for a pose, never a licence to place through him: once
-			// they are spent the piece waits in the queue (nothing was paid, the claim stays) and the body keeps free.
-			BlockedByBody(ai, state, cs);
-			Log(ai, "a peça " + (state.Index + 1) + "/" + (state.Plan != null ? state.Plan.Count : 1)
-				+ " cruzaria o meu corpo e não achei lugar para sair - volta para a fila");
-			QueueRetry(ai, state, "blocked_by_player");
-			return Advance(ai, state);
 		}
 		// E6: a plan step is checked AGAIN now, with the pieces the plan already built standing - the roof's support
 		// comes from the walls, and up-front they were only planned (measured: the roof was refused with no_support)
