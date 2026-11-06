@@ -150,6 +150,13 @@ mas **nunca é exercitado em jogo**; e as **24 asserções da repulsão** não e
       cima, não o corpo entrar). O mover não tem teste de teto (`MHR_Mover.cs`: `DropAhead` `:2802` olha para baixo).
       Desenho em `docs/re/deck-clearance.md`.
 - [ ] **cumeeira** (`wood_roof_45` a 48,8, `no progress`): navegação; `TempScaffold` vetada.
+- [ ] **🚨 o placar passa e a obra prende o companheiro** (05/11/2026, medido com print `render_view`): o run fechou
+      **`64/64, 0 pulada(s)`** e o corpo terminou em **y 37,90 = 0,88 m DENTRO do terreno** (terreno 38,78), **parado
+      11 s / 0,02 m**, só saindo por demolição. **Nada no `Finish` denuncia** (`corpo-curto` 0,0 s).
+      **Aceite novo, obrigatório:** **`0 companheiro abaixo do terreno`**, por sonda (`terrain_check` × corpo).
+      O resgate do jogo (`UnderWorldCheck`, 1,00 m) **quase pegou** — faltaram **12 cm**.
+      **Piso enterrado não é bug:** o `stone_floor` do arquivo está em **y −1,50** e o `DeckLift` em **1** ⇒ 0,50 m
+      enterrados (`IsTip` não move peça rígida de propósito, `MHR_Build.cs:3066-3076`). Saída: `DeckLift = 1,5` no F8.
 - [x] **o denominador inflado pelo retry** (`bb5aed9`, 05/11/2026, build 0/0, harness **778**): o retry pass só
       anexa o que está pendente (`PendingRetry`), o `AbandonPiece` usa **identidade** (`PieceIndex`) e **loga**, e o
       `Finish` imprime o tamanho **base** (`State.BaseCount`, incrementado no `InsertBenchStep` porque a bancada

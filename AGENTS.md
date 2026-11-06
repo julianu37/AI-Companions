@@ -954,6 +954,8 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   sempre. O caminho de **grupo** não passa por nada disso e imprime exatamente o que imprimia.
   **Aceite a medir:** `stone_cottage` com **UM** companheiro tem de imprimir **`peças: 64/64, 0 pulada(s)`** —
   **não** validar com 5 workers (o bug não aparece no caminho de grupo; `64/64` ali é falso positivo).
+  **MEDIDO no primeiro run da DLL corrigida (05/11/2026, 21:5x): `peças: 64/64, 0 pulada(s)` — o denominador está
+  certo.** Mas o run provou outra coisa, mais grave (pendência 24): **o placar pode estar perfeito e a obra presa.**
   **Fora de escopo, registrado:** a **retomada** não carrega o `BaseCount` (`Pending` não tem o campo) e o
   `ResumeBlueprint` reusa o `storedPlan`, que pode já vir com os apêndices; e com `BlueprintStations` **desligada** o
   denominador inclui a bancada inserida (`64/(64+n)`) — o executor **não escondeu** isso, porque a bancada é peça real.
@@ -966,6 +968,30 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   `Loading [AI Companions 1.9.6]`, `loaded successfully! (95 methods patched)` e `ping` com `inGame: true`.
   **Atenção para as próximas rodadas:** os números anteriores a este boot (o corpus dos 82, a rodada de 1 worker
   em 40/82, o teste avulso de 36 s) são de **outro motor** e não são comparáveis com o que sair daqui.
+  (24) **O PLACAR PODE ESTAR PERFEITO E A OBRA PRESA — o aceite por contagem não basta (05/11/2026, medido com
+  print).** O primeiro run da DLL corrigida fechou **`peças: 64/64, 0 pulada(s)`** (`hs_meadows_stone_cottage`, 64 s,
+  1 poste) e **o companheiro terminou ENTERRADO**: `terreno 38,78` / `stone_floor 38,30` / `wood_floor 39,80` /
+  **corpo em y 37,90** = **0,88 m dentro do terreno**, **parado 11 s com 0,02 m de deslocamento**, e só sairia
+  demolindo o piso (foi o que aconteceu). **O `Finish` não tem nenhum campo que denuncie isso** — `corpo-curto` deu
+  **0,0 s**, `espera` 20,0 s, e nenhum `blocked_by_player`. **Regra nova:** o aceite passa a exigir **`0 companheiro
+  abaixo do terreno`**, medido por **sonda** (`terrain_check` × posição do corpo) e não por contagem de peças.
+  **O jogo quase o salvou:** `Character.UnderWorldCheck` (`Character.cs:893`) teleporta a **1,00 m** abaixo do terreno
+  e ele estava a **0,88 m** — **faltaram 12 cm**. Não dá para depender dele.
+  **A vista resolveu o diagnóstico:** o `render_view` mostrou a casa **flutuando** com o companheiro **só com a cabeça
+  de fora** do chão — nenhuma das 65 peças explicava isso sozinha (o offset do plano estava **correto**, `+39,80`
+  constante nas 65). **Lição de método:** contagem e offset provam fidelidade, **não** provam habitabilidade.
+  **O piso enterrado NÃO é bug — é config menor que a necessidade do arquivo:** a linha do deck mediu
+  `a obra sobe 1,00 m (deck pedido 1,00 m) - 0 peça(s) de fundação assentadas, 1,50 m enterrado(s), 16 peça(s)
+  enterradas mantidas na pose do plano`. O `stone_floor` está em **y −1,50** no arquivo, então precisaria de **1,50 m**
+  de lift; com `DeckLift = 1` sobram **0,50 m** enterrados. O mod **não move peça rígida sozinha** de propósito
+  (`IsTip`, linhas `3066-3076`) — mover o piso abriria vão e a parede de pedra acima cairia (o §17.27 dos 161 postes).
+  **Saída:** subir `DeckLift` para **1,5** no F8 (eu não edito o `.cfg`) ou aceitar a fundação enterrada — **o vão que
+  prende o corpo existe de qualquer jeito** (é entre o terreno e o `wood_floor`, 1,02 m).
+  **Correção aprovada pelo jogador:** **teto + resgate próprio** (dois, não um: a regra impede **entrar**; o resgate
+  tira quem **já** está embaixo). Desenho com as guardas: barra só `!Fits(dest) && Fits(pos)`; máscara própria **sem
+  `vehicle`** (`Mask()` `:75-79` inclui `vehicle` e **não exclui o próprio corpo**, que vive em `Default`); cápsula do
+  **corpo real** (`BuildProbe.CapsuleOf`), nunca constante; `SafeSpot` **fica** com a régua antiga (1,70 m); resgate
+  **não** em `Character.InInterior` (caverna), com teto por tempo e por ordem.
   **Achado de localização (11/11/2026, CORRIGIDO no mesmo dia):** `hc_cfg_building_blueprintstations`
   (`Core/ModLocalization.cs:860`) e `hc_cfg_controls_buildpanelkey` (`:863`) estavam **só no inglês** — em PT/ES/FR/IT
   o F8 mostrava o **rótulo em inglês** ("Blueprint: no stations", "Build panel key"), **não** a chave crua: as duas
