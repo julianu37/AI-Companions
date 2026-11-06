@@ -38,7 +38,7 @@ param(
 )
 
 $root = Split-Path -Parent $PSScriptRoot
-$total = 9
+$total = 10
 $script:index = 0
 $script:failures = New-Object System.Collections.Generic.List[string]
 $script:summary = New-Object System.Collections.Generic.List[object]
@@ -214,6 +214,18 @@ try {
     else { $intentsDetail = "$intentsDetail, sem a linha de resumo" }
     Report 'ai-intents-check: redes por palavras' $intentsOk $intentsDetail $intents.Lines
   }
+
+  # ------------------------------------------------------------------ 10. datas no futuro
+  # 05/11/2026 (REGRA 14): o agente escreveu uma data futura em 619 linhas de 48 arquivos. Este check fecha a
+  # classe: qualquer data dd/mm/aaaa ou aaaa-mm-dd posterior a HOJE (local, nunca UTC) em arquivo rastreado.
+  Write-Host ''
+  Write-Host '== 10. datas no futuro' -ForegroundColor Cyan
+  $dates = Invoke-Tool 'python' @('tools\check_dates.py', '--quiet')
+  $datesOk = ($dates.ExitCode -eq 0)
+  $datesDetail = "exit $($dates.ExitCode)"
+  $datesLine = ($dates.Lines | Where-Object { $_ -match '\[ok\]|\[!\]' } | Select-Object -First 1)
+  if ($datesLine) { $datesDetail = "$($datesLine.Trim()), $datesDetail" }
+  Report 'datas no futuro (REGRA 14)' $datesOk $datesDetail $dates.Lines
 
   # ------------------------------------------------------------------ resumo
   Write-Host ''
