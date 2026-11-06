@@ -1,0 +1,56 @@
+[
+ {
+  "dll": "2b469d6",
+  "data": "2026-11-06",
+  "blueprint": "hs_meadows_madzobuild_modernstarterhouse.blueprint",
+  "workers": 1,
+  "decklift": 0,
+  "duracao_s": 600,
+  "colocadas": 608,
+  "plano": 612,
+  "plano_cresceu": false,
+  "fits_false_amostras": 1015,
+  "amostras": 1150,
+  "selado_em_s": 70.7,
+  "selado_em": [
+   -158.11,
+   38.53,
+   -429.54
+  ],
+  "y_das_amostras_selado": [
+   38.53,
+   38.78
+  ],
+  "parado_s": 476,
+  "parado_pct": 79,
+  "saio_para": 22,
+  "cruzaria": 0,
+  "corpo_no_caminho": 108,
+  "esta_no_meu_corpo": 0,
+  "blocked_by_player": 756,
+  "un_supported": 0,
+  "peca_que_selou": {
+   "prefab": "wood_floor",
+   "pos": [
+    -158.1,
+    39.8,
+    -430.0
+   ],
+   "indice": 81,
+   "de": 612,
+   "feet_do_companheiro_no_destino": 38.8,
+   "vao_m": 1.0,
+   "capsula_m": 1.8
+  },
+  "passo_pedido": {
+   "destino": [
+    -158.1,
+    38.8,
+    -430.0
+   ],
+   "mesma_coluna_xz_da_peca": true,
+   "passo_xz_m": 0.0
+  },
+  "nota": "WalkSpot devolve a PROPRIA coluna da peca (sample 0); o 'saio para' e' no-op e na 3a tentativa o guarda e' pulado e a peca e' colocada sobre o corpo."
+ }
+]

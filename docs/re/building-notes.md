@@ -3700,3 +3700,113 @@ telhado ao lado).
 
 **Aberto:** o `longhouse` com `puladas == 0` (é o critério), a tabela com `cpu`/`place` transcritos, e a `dependência` que
 sobra (~27 s no igloo) — agora só por peças de apoio real, não por corpo.
+
+---
+
+## §17.31 POR QUE ele ficou preso sob o piso — e o que o guarda terminal fazia (06/11/2026)
+
+**A pergunta do jogador:** *"o que foi feito que ele parou de ficar preso no deck/piso antes? é nisso que temos que chegar"*.
+Esta seção é a resposta com o log na mão, e **nada foi corrigido** (pedido dele: *"sem corrigir ainda"*).
+
+### O numero que a pergunta produziu
+
+O rastro de 0,5 s (`trace_build.py`) da run do `2b469d6` (1 worker, `DeckLift = 0`, canteiro zerado) tem a sequencia
+inteira, e ela **nao e' ambigua**:
+
+| t (s) | o que aconteceu |
+|---|---|
+| 0 | ordem `hs_meadows_madzobuild_modernstarterhouse` (612 peças) |
+| **38,0** | `a peça 81/612 precisa do lugar onde eu estou - saio para (-158,1, 38,8, -430,0)` |
+| **38,0** | **a MESMA linha de novo** (2ª tentativa, `SelfStep` 1 → 2) |
+| **38,1** | `placed (Direct) em (-158,1, 39,8, -430,0)` |
+| **38,1** | `done: wood_floor at (-158,1, 39,8, -430,0) yaw 96,2 supported` |
+| **70,7** | 1ª amostra com `fits: false` — corpo em **(-158,11, 38,53, -429,54)** |
+
+**Correção (06/11, depois de reler o rastro):** a peça 81 **não selou o corpo aos 38 s**. O que os 38 s mostram é a
+tentativa: o destino que ele pediu para sair (`38,8`) fica **1,00 m abaixo dos pés da peça** (o `wood_floor` em
+**39,8**), num vão de **1,00 m** para uma cápsula de **1,80 m** — não cabia, e a peça foi colocada assim mesmo. **O corpo
+só entrou nesse vão aos 70,7 s** (primeira amostra com `fits: false`, em y 38,53, abaixo do terreno de 38,78; antes
+disso `fits: true` em todas as 1 150 amostras até 70,2 s). **A ligação causal "o no-op de 38 s → a entrada de 70 s" é
+hipótese**, não medida: o rastro não diz por que ele andou para lá 32 s depois.
+
+### A causa raiz: o destino do `WalkSpot` e' a PROPRIA coluna da peça
+
+`WalkSpot` (`MHR_Build.cs:7568`) varre `sample = 0 .. 8*raios` e o **sample 0 e' a coluna da própria peça**
+(`:7582-7583`). Para uma peça **no chão**, a "superfície de onde alcança-la" e' o chão **onde ele ja' esta'** — e o
+`BuildWalkSpot.Choose` (`AI/BuildWalkSpot.cs:49`) devolve exatamente esse ponto. Medido nos 11 pedidos da run:
+
+| peça | destino do "saio para" | peça | passo XZ |
+|---|---|---|---|
+| 2 | (-149,9, 38,2, -430,4) | (-149,9, 37,8, -428,9) | 1,50 m |
+| **81** | **(-158,1, 38,8, -430,0)** | **(-158,1, 39,8, -430,0)** | **0,00 m** ← no-op |
+| 160 | (-156,9, 39,9, -426,1) | (-156,9, 40,3, -423,1) | 3,00 m |
+| **191** | **(-157,2, 39,9, -430,6)** | **(-157,2, 40,3, -430,6)** | **0,00 m** ← no-op |
+| 192 | (-157,1, 39,9, -431,1) | (-157,1, 40,3, -429,6) | 1,50 m |
+
+**2 dos 11 sao passo zero** — e o da peça **81** e' justamente o que o selou. Todos os outros andam **na vertical**
+(ΔY **-0,4 / -1,0**): sao o `WalkSpot` ache uma superficie **abaixo** (o piso de baixo, o terreno), nunca **ao lado**.
+O `Goto` entao leva o companheiro para... o lugar onde ele ja' estava.
+
+### O que o guarda TERMINAL fazia (e por que a run boa nao prendeu)
+
+O guarda tem duas versoes, e a diferenca e' **uma condicao**:
+
+```csharp
+// 2b469d6 (a run que prendeu)  -  3a tentativa PULA o bloco inteiro:
+if (state.Piece != null && state.SelfStep < 2 && OwnBodyOn(...))  { ... 2 tentativas ... }
+// e depois do bloco: o codigo segue para o `Place` e coloca DE QUALQUER JEITO
+
+// 7f352e0 (a run que NAO prendeu)  -  sem o `SelfStep < 2`: o bloco roda sempre e,
+// esgotadas as tentativas, a peca NAO e' colocada:
+if (state.Piece != null && OwnBodyOn(...)) {
+    if (state.SelfStep < 2 && WalkSpot(...)) { ...sai... }
+    BlockedByBody(...); QueueRetry(...); return Advance(...);   // <-- a peça volta para a fila
+}
+```
+
+Ou seja: **com o guarda terminal, quando o "sair" era um no-op (o proprio lugar), a peça ia para a fila em vez de ser
+colocada atravessando o corpo.** Ele nao "prendeu" naquela run porque **a peça nunca nasceu sobre ele** — ela foi
+adiada. Sem o guarda, a 3ª tentativa coloca — e o corpo fica embaixo.
+
+**O numero que prova, nas mesmas duas runs:**
+
+| | `7f352e0` (guarda terminal) | `2b469d6` (2 tentativas) |
+|---|---|---|
+| `cruzaria o meu corpo` | **366** | **0** |
+| `fits: false` no fim | **0** (`enterrado: 0`) | **1015 de 1150 amostras** |
+| o que aconteceu | a peça foi **adiada** 366× | a peça foi **colocada** sobre o corpo |
+
+### Por que o guarda nao pode simplesmente voltar (o numero que o matou)
+
+Ele **custa caro**, e o custo esta' medido na mesma run: **366 `cruzaria`**, **uma pausa de 204,1 s** parada no mesmo
+ponto e **45 % do tempo parado**. A causa do custo: `SelfAside` — o anel de 2,2 m feito **exatamente** para "sair do
+proprio corpo" (`MHR_Build.cs:7854` → `:8367`) — **nunca disparou** (`está no meu corpo` = **0** linhas) porque ele so'
+e' perguntado **dentro do ramo `blocked_by_player`**, e o `blocked_by_player` **nao acontece** quando o corpo e' o do
+**proprio colocador** (o `BuildSite.Check` e' chamado com ele como `ignore`). O `SelfBlocked` existe para cobrir isso,
+mas chega **depois** do guarda do `Place` — que age primeiro e manda a peça para a fila.
+
+### O que **isto** significa para o desenho (nao aplicado)
+
+O conserto nao e' "guarda terminal sim/nao". Sao **duas perguntas** que o codigo hoje responde com uma so':
+
+1. **"o corpo atravessa a peça?"** — sim/nao (`OwnBodyOn`, correto).
+2. **"existe um lugar para onde sair?"** — e a resposta de hoje (`WalkSpot`) e' **a propria coluna da peca** para
+   peça de chao, o que a torna **inutil para essa pergunta**. O `SelfAside` faz a pergunta certa (anel **ao lado**),
+   mas so' e' chamado num ramo que o caso do proprio corpo **nao** entra.
+
+A ordem minima que fecha as duas sem voltar o custo: perguntar **`SelfAside` primeiro** (anel de 2,2 m, ao lado, na
+altura dos **pes**) e so' mandar para a fila **se ele nao achar lugar** — que e' o desenho que o §27 ja' registrou como
+"o companheiro tem de sair **ANTES** de fincar o poste". O numero que mata essa tentativa ingenua continua valido e
+esta' na pendencia (27): o **poste de emergencia** fica onde ele esta', e o ciclo `no_support` → poste → corpo → fila
+**nao termina**. Por isso: **medir antes de aplicar**.
+
+### Instrumento que ficou (e o que ele ja' corrigiu)
+
+- `trace_build.py` mede a pausa em **3D** (a "pausa de 57 s" do dia era ele **subindo de andar**; o rastro so' olhava
+  XZ) e grava o **`fits`** de cada amostra — foi o `fits: false` em **1015 de 1150** que mostrou que o corpo estava
+  preso, e nao apenas parado.
+- O artefato deste run esta' em **`docs/runs/2026-11-06-madzo-preso-sob-o-piso.json`** (o `LogOutput.log` e' apagado
+  a cada boot).
+- **A pergunta "por que parou" tem DUAS respostas diferentes** e o log separa: `79 % parado` (o corpo preso, que para
+  de andar porque a rota nao existe) contra `45 % parado` do guarda terminal (que anda e volta). **Nao sao o mesmo
+  defeito** e nao se somam.
