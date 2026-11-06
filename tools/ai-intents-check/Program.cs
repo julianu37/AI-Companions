@@ -1317,6 +1317,20 @@ internal static class Program
 		// a floor above the head: the body ends at 40,58 and the piece starts at 41,67 -> free
 		BodyCase("piso 2 m acima da cabeca", false,
 			0f, 0f, 1.135f, 1.145f, 41.67f, 41.93f, 38.78f, 40.58f, 0.3f);
+		// 06/11/2026 (o corpo preso sob o assoalho do madzobuild): 6 cm acima da cabeca NAO cruza a capsula (o topo
+		// e 40,58 e a peca comeca em 40,64), entao o `Blocks` responde livre - e o companheiro ficou num vao de 1,86 m
+		// que cabe o CORPO e nao cabe a NAVEGACAO. `ClosesHeadroom` e o teste que faltava (funcao pura, no BuildBody).
+		HeadroomCase("piso 6 cm acima da cabeca: cabe o corpo, nao cabe a rota", true, 40.64f, 40.58f);
+		HeadroomCase("piso 20 cm acima da cabeca: ainda fecha (o vao de 2,0 m do plano)", true, 40.78f, 40.58f);
+		HeadroomCase("piso 40 cm acima da cabeca: folga suficiente", false, 40.98f, 40.58f);
+		HeadroomCase("piso 2 m acima da cabeca", false, 42.58f, 40.58f);
+		HeadroomCase("peça que cruza a cabeça não é caso de folga (é do Blocks)", false, 40.20f, 40.58f);
+		HeadroomCase("folga zero (peça exatamente no topo) -> bloqueia", true, 40.58f, 40.58f);
+		// 06/11/2026: o portao de FOOTPRINT - sem ele o teste de folga disparou 440 vezes numa ordem (vigas a 6 m).
+		FootprintCase("peca sobre a cabeca (eixo dentro da caixa)", true, 0f, 0f, 1.135f, 1.145f, 0.65f);
+		FootprintCase("viga de 2 m a 1,55 m (dx = 1,55 - 1,0 = 0,55 <= 0,65): ainda sobre", true, 1.55f, 0f, 1.0f, 0.2f, 0.65f);
+		FootprintCase("viga de 2 m a 2,5 m (dx = 1,5 > 0,65): AO LADO, nao dispara", false, 2.5f, 0f, 1.0f, 0.2f, 0.65f);
+		FootprintCase("viga de 2 m a 6 m: muito longe", false, 6f, 0f, 1.0f, 0.2f, 0.65f);
 		// a floor at the feet (the piece under the companion): 38,65-38,91 crosses the capsule -> blocked
 		BodyCase("piso no nivel dos pes", true,
 			0f, 0f, 1.135f, 1.145f, 38.65f, 38.91f, 38.78f, 40.58f, 0.3f);
@@ -1375,6 +1389,31 @@ internal static class Program
 			capsuleRadius);
 		Check(name + " -> " + (expected ? "bloqueia" : "livre"), actual == expected,
 			"obtido " + (actual ? "bloqueia" : "livre"));
+	}
+
+	/// <summary>Section (s), 06/11/2026: the headroom the placer needs above its own head (the crawl space that fit the
+	/// body and not the route). <c>BuildBody.ClosesHeadroom</c> is the decision the build reads; the footprint is what
+	/// keeps a piece SEVERAL METRES AWAY from being mistaken for a ceiling (the first version fired 440 times in one
+	/// order, for beams six metres from the body).</summary>
+	private static void HeadroomCase(string name, bool expected, float pieceBottom, float capsuleTop)
+	{
+		bool actual = BuildBody.ClosesHeadroom(pieceBottom, capsuleTop, 0.35f);
+		Check(name + " -> " + (expected ? "bloqueia" : "livre"), actual == expected,
+			"obtido " + (actual ? "bloqueia" : "livre"));
+	}
+
+	/// <summary>Section (s), 06/11/2026: the footprint gate that has to come BEFORE the headroom test - a beam beside the
+	/// body is in the same vertical band and must stay free.</summary>
+	private static void FootprintCase(string name, bool expected, float localX, float localZ, float halfX, float halfZ,
+		float reach)
+	{
+		float dx = (localX < 0f ? -localX : localX) - halfX;
+		if (dx < 0f) dx = 0f;
+		float dz = (localZ < 0f ? -localZ : localZ) - halfZ;
+		if (dz < 0f) dz = 0f;
+		bool actual = dx * dx + dz * dz <= reach * reach;
+		Check(name + " -> " + (expected ? "sobre o corpo" : "ao lado"), actual == expected,
+			"obtido " + (actual ? "sobre o corpo" : "ao lado"));
 	}
 
 	/// <summary>

@@ -60,6 +60,24 @@ internal static class BuildBody
 	}
 
 	/// <summary>
+	/// 06/11/2026 (the body that ended UNDER the deck floor of the madzobuild, in a 1,86 m crawl space): <see cref="Blocks"/>
+	/// treats TOUCH as free, so a piece 6 cm ABOVE the head does not block - and the companion was sealed in a space that
+	/// fits the <b>body</b> and not the <b>navigation</b> (an agent 1,80 m tall is not baked there; measured: 1 tile, and
+	/// 9,7 m walked in zig-zag without getting out - <c>docs/re/navmesh-agent-id.md</c>).
+	/// <para>Pure and separate from <see cref="Blocks"/> on purpose: this is about the HEADROOM only (a ceiling closer
+	/// than <paramref name="headroom"/>), never about the sides - a piece beside the body is the other test, which has its
+	/// own table in the harness (section (s)).</para>
+	/// </summary>
+	internal static bool ClosesHeadroom(float pieceBottom, float capsuleTop, float headroom)
+	{
+		if (headroom <= 0f || pieceBottom < capsuleTop)
+		{
+			return false;   // crossing the body is not a headroom question (Blocks owns that)
+		}
+		return pieceBottom - capsuleTop < headroom;
+	}
+
+	/// <summary>
 	/// 04/11/2026 (Run 10): the vertical half of the piece's box <b>at a pose</b> - the Y half extent of the AABB of a box
 	/// with half extents (<paramref name="halfX"/>, <paramref name="halfY"/>, <paramref name="halfZ"/>) turned by a
 	/// rotation whose unit axes have these Y components (<paramref name="axisXy"/> for X, <paramref name="axisYy"/> for

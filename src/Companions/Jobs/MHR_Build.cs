@@ -84,6 +84,22 @@ internal static class MHR_Build
 
 	/// <summary>The companion's eye height above its feet (the game measures the placement distance from the eye).</summary>
 	private const float EyeHeight = 1.5f;
+	/// <summary>06/11/2026 (the body that ended under the deck floor in a 1,86 m crawl space): the clearance the placer
+	/// needs <b>above its head</b> so the piece it is placing does not seal it in. The body is 1,80 m; a ceiling closer
+	/// than this leaves an agent too tall to be baked into the navigation map, and the companion then walks in zig-zag
+	/// without ever getting out (`docs/re/navmesh-agent-id.md`). <b>0,35 m</b>: measured against the 1,86 m space of the
+	/// madzobuild (6 cm over the head - sealed) and the walkable floors the plan builds (2,0 m and up). It is the value
+	/// the specialist measured; the first draft used the capsule radius (0,30) and was too tight for the navmesh bake.</summary>
+	private const float Headroom = 0.35f;
+	/// <summary>06/11/2026 — <b>REVERTIDO PARA 0</b>. Desceu a obra inteira por 0,5 m no experimento do jogador e <b>quebrou
+	/// o plano grande</b>: no `madzobuild` (<c>ModernStarterHouse</c>) as <b>14</b> <c>wood_beam</c> que ficam em <c>y 39,3</c>
+	/// passaram a flutuar 0,50 m acima do chão e o jogo as recusou com <c>UNSUPPORTED: support 0,0 &lt; min 10,0</c> — e o
+	/// <c>FallbackPost</c> <b>não cobre</b> esse vão (o poste mais curto é 1 m, janela <c>[0,55; 1,20]</c>; abaixo disso não
+	/// há nada). Resultado medido: loop <c>placed → UNSUPPORTED → espera 10 s</c> × 14 na mesma peça, 18 de 612 colocadas.
+	/// Nas <b>10 menores</b> o mesmo drop tinha melhorado (<c>fits:false</c> 2 → 0, custo 103 s → 346 s); a diferença é que
+	/// elas não têm viga horizontal solta apoiada no chão. Fica <b>0</b>; se o produto quiser a casa mais baixa, o caminho
+	/// é encurtar a <b>estaca</b> (o `y` mínimo do plano), não descer o plano inteiro.</summary>
+	private const float TestDropY = 0f;
 	/// <summary>E7 (player's idea, 03/11/2026: "temporary ladders"): the temporary step of a scaffold. A wood STAIR and
 	/// not a ladder: it is a ramp the mover walks up as plain geometry (no ladder logic and no landing to fall from - the
 	/// trap of 03/11/2026). Measured with build.snaps: +1 m, rising towards its own -Z.</summary>
@@ -494,6 +510,10 @@ internal static class MHR_Build
 		/// builds it either) - he steps out and places it from the walk spot. Reset per piece, capped at 2.
 		/// </summary>
 		internal int SelfStep;
+		/// <summary>06/11/2026 (the piece the companion held with his own body): the walk of the "step off my own piece"
+		/// was thrown away by <see cref="MHR_Build.Goto"/> when the piece was not <c>&gt; feet.y + 1f</c>, and a floor on
+		/// the ground never is. Set by the self-step, cleared in <see cref="MHR_Build.EnterStep"/> with the rest.</summary>
+		internal bool SelfWalk;
 		/// <summary>
 		/// 04/11/2026 (the <b>storey barrier</b> of the Run 9, the player's rule: "they may skip, but come back and try again
 		/// before going up"): the height of the piece the walk was about to take when the barrier started - 0 when no barrier
@@ -1934,6 +1954,14 @@ internal static class MHR_Build
 	/// </summary>
 	private static bool OwnBodyOn(CompanionAI ai, Piece piece, Vector3 pos, Quaternion rot)
 	{
+		return ai != null && OwnBodyOn(ai, piece, pos, rot, ai.transform.position);
+	}
+
+	/// <summary>06/11/2026 (the SelfAside): the same question at <b>hypothetical feet</b> - "if I stood THERE, would this
+	/// piece still cross my body?". The capsule's lift above the transform is measured (<c>CapsuleOf</c> already answers
+	/// it), so the geometry is the very same <see cref="BuildBody.Blocks"/> that has its own cases in the harness.</summary>
+	private static bool OwnBodyOn(CompanionAI ai, Piece piece, Vector3 pos, Quaternion rot, Vector3 feet)
+	{
 		if (ai == null || piece == null)
 		{
 			return false;
@@ -1943,6 +1971,10 @@ internal static class MHR_Build
 		{
 			return false;
 		}
+		float lift = feet.y - ai.transform.position.y;
+		bottom += lift;
+		top += lift;
+		axis.y += lift;
 		Vector3 center = pos;
 		float halfX = 0f;
 		float halfZ = 0f;
@@ -1960,7 +1992,44 @@ internal static class MHR_Build
 			pieceTop = center.y + halfY;
 		}
 		Vector3 local = Quaternion.Inverse(rot) * (axis - center);
-		return BuildBody.Blocks(local.x, local.z, halfX, halfZ, pieceBottom, pieceTop, bottom, top, radius);
+		bool crosses = BuildBody.Blocks(local.x, local.z, halfX, halfZ, pieceBottom, pieceTop, bottom, top, radius);
+		if (crosses)
+		{
+			return true;
+		}
+		// 06/11/2026 (the body that ended UNDER the deck floor of the madzobuild): `BuildBody.Blocks` treats TOUCH as
+		// free (`pieceTop <= capsuleBottom ... pieceBottom >= capsuleTop`), so a piece 6 cm ABOVE the head does not
+		// block - and the companion ended in a 1,86 m crawl space that fits the bODY but not the NAVIGATION (an agent
+		// 1,80 m tall is not baked there; measured: 1 tile and 9,7 m walked in zig-zag without getting out).
+		//
+		// 06/11/2026 (the run that followed, 440 hits in one order): the headroom test is about a piece ABOVE the
+		// body, so it must ALSO be over the body's FOOTPRINT - the first version looked at the vertical band only and
+		// fired for a `wood_beam` six metres away. The footprint is the same box distance `Blocks` uses, asked with the
+		// capsule radius scaled up by the headroom: a piece whose edge is farther than that from the capsule's axis
+		// is beside the body, not above it.
+		if (!OverFootprint(local.x, local.z, halfX, halfZ, radius + Headroom))
+		{
+			return false;   // beside the body (the vertical band is not enough: a beam 6 m away is in it)
+		}
+		return BuildBody.ClosesHeadroom(pieceBottom, top, Headroom);
+	}
+
+	/// <summary>06/11/2026: is the piece's box over the body's footprint, with <paramref name="reach"/> of margin? The
+	/// same flat distance <see cref="BuildBody.Blocks"/> computes (axis to box, 0 while the axis is over it), asked
+	/// separately so the headroom test can use it without the vertical part.</summary>
+	private static bool OverFootprint(float localX, float localZ, float halfX, float halfZ, float reach)
+	{
+		float dx = (localX < 0f ? -localX : localX) - halfX;
+		if (dx < 0f)
+		{
+			dx = 0f;
+		}
+		float dz = (localZ < 0f ? -localZ : localZ) - halfZ;
+		if (dz < 0f)
+		{
+			dz = 0f;
+		}
+		return dx * dx + dz * dz <= reach * reach;
 	}
 
 	/// <summary>
@@ -2432,6 +2501,7 @@ internal static class MHR_Build
 		state.NextScaffoldAt = 0f;
 		state.BodyTries = 0;   // 04/11/2026: the short retries of a body are per piece
 		state.SelfStep = 0;    // 04/11/2026: the "step off my own piece" tries are per piece too
+		state.SelfWalk = false;   // 06/11/2026: and so is the walk it may have asked for
 		state.PlacedAt = 0f;   // 04/11/2026 (review, ALTO): o relógio do "acabei de colocar" não vaza para a peça seguinte
 		state.BodyLogged = false;   // 04/11/2026 (Run 10): the body of the new piece is named once
 		state.AsideLogged = false;   // 04/11/2026 (Run 10): and the step-aside of the new piece is asked once in the log
@@ -3004,7 +3074,9 @@ internal static class MHR_Build
 			maxZ = Mathf.Max(maxZ, piece.Pos.z);
 			hasBounds = true;
 		}
-		Vector3 centre = hasBounds ? new Vector3((minX + maxX) * 0.5f, 0f, (minZ + maxZ) * 0.5f) : Vector3.zero;
+		// 06/11/2026 (TESTE do jogador: "joga 0,5 pra baixo e testa"): deslocamento de experimento, NAO e produto.
+		// Desce o plano inteiro para ver se a casa deixa de flutuar e se o corpo para de entrar sob o deck.
+		Vector3 centre = hasBounds ? new Vector3((minX + maxX) * 0.5f, TestDropY, (minZ + maxZ) * 0.5f) : Vector3.zero;
 		foreach (BlueprintPiece piece in blueprint.Pieces)
 		{
 			Piece resolved = BuildProbe.PieceOf(piece.Prefab);
@@ -7331,7 +7403,7 @@ internal static class MHR_Build
 		// Now the walk goes to a SURFACE the piece can be reached from (the plan's own floor/roof row below it), chosen once
 		// per piece. state.Pos stays the PIECE for the placement checks, the falls and the claims - only the target of the
 		// walk changes.
-		if (ReachWalk && state.Pos.y > me.y + 1f)
+		if (ReachWalk && (state.SelfWalk || state.Pos.y > me.y + 1f))
 		{
 			if (state.WalkFor != state.Index)
 			{
@@ -7673,10 +7745,10 @@ internal static class MHR_Build
 		// corpo de quem coloca (ele é o `ignore`), então a peça ficava sem ninguém que a colocasse e o tile continuava
 		// vazio (o "fica e coloca" do P0 piora isso: ele nunca sai do lugar). Agora ele SAI de cima da peça: escolhe um
 		// walk spot FORA dela e coloca de lá. Duas tentativas; sem walk spot, segue o caminho de sempre (a fila).
-		if (state.Piece != null && state.SelfStep < 2 && OwnBodyOn(ai, state.Piece, state.Pos, state.Rot))
+		if (state.Piece != null && OwnBodyOn(ai, state.Piece, state.Pos, state.Rot))
 		{
 			Vector3 outside;
-			if (WalkSpot(ai, state, out outside))
+			if (state.SelfStep < 2 && WalkSpot(ai, state, out outside))
 			{
 				state.SelfStep++;
 				state.HasWalkTo = true;
@@ -7687,6 +7759,16 @@ internal static class MHR_Build
 					+ " precisa do lugar onde eu estou - saio para (" + F(outside.x) + ", " + F(outside.y) + ", " + F(outside.z) + ")");
 				return true;
 			}
+			// 06/11/2026 (the body that ended UNDER the deck with `fits: false` while the build was still going): this
+			// guard used to be `state.SelfStep < 2 && OwnBodyOn(...)` - on the THIRD try the whole block was skipped and
+			// the piece was placed ACROSS the body (measured: `wood_floor` at 39,78 on a body whose capsule ends at
+			// 40,58, 0,71 m away). The tries are a way to look for a pose, never a licence to place through him: once
+			// they are spent the piece waits in the queue (nothing was paid, the claim stays) and the body keeps free.
+			BlockedByBody(ai, state, cs);
+			Log(ai, "a peça " + (state.Index + 1) + "/" + (state.Plan != null ? state.Plan.Count : 1)
+				+ " cruzaria o meu corpo e não achei lugar para sair - volta para a fila");
+			QueueRetry(ai, state, "blocked_by_player");
+			return Advance(ai, state);
 		}
 		// E6: a plan step is checked AGAIN now, with the pieces the plan already built standing - the roof's support
 		// comes from the walls, and up-front they were only planned (measured: the roof was refused with no_support)
@@ -7772,6 +7854,24 @@ internal static class MHR_Build
 					// 8-10 of 988 in the Run 9) went to the site's queue and only came back after the whole house.
 					if (status == "blocked_by_player")
 					{
+						// 06/11/2026 (the pauses on the madzobuild with one companion): `AskStepAside` gives up TWICE before it
+						// even looks - `state.Group == null` (a one-companion order has no site) and `mover == ai` (it refuses
+						// to ask itself). So a piece held by the PLACER'S OWN BODY fell through to `TryBodyRetry`, which
+						// waits 2 s, 4 s, 6 s, 6 s and hands the piece to the 10 s watchdog - measured: 7 x "corpo no caminho"
+						// on the SAME piece (wood_floor_1x1) and 38 x "precisa do lugar onde eu estou" in one order. The path
+						// that gets the body out of the way already exists (`SelfAside`); it just was not asked here.
+						Vector3 selfTo;
+						if (SelfBlocked(ai, state, cs) && SelfAside(ai, state, out selfTo))
+						{
+							state.SelfWalk = true;
+							state.HasWalkTo = true;
+							state.WalkTo = selfTo;
+							state.WalkFor = state.Index;
+							state.Phase = Phase.Goto;
+							Log(ai, "a peça " + (state.Index + 1) + "/" + (state.Plan != null ? state.Plan.Count : 1)
+								+ " está no meu corpo - saio para (" + F(selfTo.x) + ", " + F(selfTo.y) + ", " + F(selfTo.z) + ")");
+							return true;
+						}
 						BlockedByBody(ai, state, cs);
 						if (AskStepAside(ai, state, cs))
 						{
@@ -8246,7 +8346,71 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		return true;
 	}
 
-	/// <summary>04/11/2026 (Run 14): are the three coordinates real numbers? (a pose read from a ray or from the plan that
+	/// <summary>
+	/// 06/11/2026 (the pauses on the madzobuild with one companion): <b>is the body holding this piece my own?</b>
+	/// <c>BuildSite.Check</c> is called with the placer as the ignore (it has to be: otherwise he would never place
+	/// anything near himself), so the normal check can never answer this - it asks again WITHOUT the ignore and compares
+	/// the answer with himself. Same probe the refusal came from (<c>BuildProbe.BlockerAt</c>): no new physics.
+	/// </summary>
+	private static bool SelfBlocked(CompanionAI ai, State state, CompanionSetup cs)
+	{
+		if (ai == null || state == null || state.Piece == null || cs == null)
+		{
+			return false;
+		}
+		Component blocker;
+		if (!BuildProbe.BlockerAt(state.Piece, state.Pos, state.Rot, null, out blocker))
+		{
+			return false;   // nothing holds it (the refusal came from something else)
+		}
+		return ReferenceEquals(blocker, cs);
+	}
+
+	/// <summary>
+	/// 06/11/2026 (the piece the companion held with his own body, 7 refusals on the same <c>wood_floor_1x1</c>): where
+	/// the placer steps to when the piece is under HIS body. Not <see cref="WalkSpot"/> - that one answers "a surface the
+	/// piece can be reached FROM", and for a piece on the ground the answer is the ground he already stands on. It is the
+	/// ring the Run 14 measured (<see cref="BuildAsideSpot.Plan"/>), with the ring built at the FEET (the `Plan` puts the
+	/// spots at `me.y`, and <see cref="StepTo"/> refuses anything more than 0,8 m from the feet: with the piece's own y
+	/// every candidate was refused - measured), and the piece must not cross the body THERE either.
+	/// </summary>
+	private static bool SelfAside(CompanionAI ai, State state, out Vector3 target)
+	{
+		target = Vector3.zero;
+		if (ai == null || state == null || state.Piece == null)
+		{
+			return false;
+		}
+		Vector3 feet = ai.transform.position;
+		Vector3 away = feet - state.Pos;
+		away.y = 0f;
+		if (away.sqrMagnitude < 0.01f)
+		{
+			away = -ai.transform.forward;
+			away.y = 0f;
+		}
+		MHR_BuildGroup.PendingNear(state.Group, state.Pos, AsideDistance + BuildAsideSpot.Clearance, s_asidePending);
+		Vector3 feetRing = new Vector3(feet.x, feet.y, feet.z);
+		int count = BuildAsideSpot.Plan(feetRing, state.Pos, away.normalized, s_asidePending, AsideDistance, s_asideSpots);
+		for (int i = 0; i < count; i++)
+		{
+			Vector3 goal;
+			if (!StepTo(feet, s_asideSpots[i], out goal))
+			{
+				continue;   // another level, the void, or a step the mover refuses
+			}
+			if (OwnBodyOn(ai, state.Piece, state.Pos, state.Rot, goal))
+			{
+				continue;   // the piece would still cross the body there
+			}
+			target = goal;
+			return true;
+		}
+		return false;
+	}
+
+	/// <summary>
+	/// 04/11/2026 (Run 14): are the three coordinates real numbers? (a pose read from a ray or from the plan that
 	/// is not a number cannot decide a walk).</summary>
 	private static bool Finite(Vector3 v)
 	{

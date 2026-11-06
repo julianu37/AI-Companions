@@ -1097,6 +1097,18 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   medido** (a ordem ficou mais longa em segundos porque **fez mais** — colocou tudo andando em vez de esperar parado).
   **Lição:** o "10 s" do watchdog não era o problema — era o **sintoma**. A causa era confiar num apoio que a
   geometria **proibia** de chegar, e o conserto foi **perguntar se algum poste cobre o vão** antes de esperar.
+  (29) **A OBRA DESCE 0,5 m — APROVADO PELO JOGADOR, COM CUSTO EM TEMPO ANOTADO (06/11/2026).** Experimento pedido por
+  ele (*"joga 0,5 pra baixo e testa denovo, quero ver"*): `TestDropY = 0.5f` (`Jobs/MHR_Build.cs`, somado ao `centre.y`
+  da âncora em `StartBlueprint`). **Resultado nas 10 menores, medido:** `296/296` peças, **0 puladas**, **`fits: false`
+  2 → 0** (`meadows_stilt_hut` e `mistlands_stilt_hut` deixaram de prender o companheiro) e **0** `no_support`/`retry`/
+  postes nos dez. **Percepção do jogador (a régua que vale):** *"a altura das casas que precisam de estaca ficaram boa e
+  ele já não fica mais debaixo; as casas que não têm estaca de apoio ficaram impressionantemente bem assentadas"*.
+  **O CUSTO, que ele mandou anotar para depois:** a duração das 10 subiu de **103 s → 346 s (3,4×)** — os `hut` de
+  28 peças passaram de **8 s para 30–37 s**. **Ainda NÃO investigado** por que baixar a obra desacelera (hipóteses: as
+  peças ficam mais perto do chão e o `CeilingBlocks`/`Headroom` recusa mais; ou ele anda mais para achar pose). **É a
+  pendência aberta deste lote** — o visual e o `fits` estão melhores, o tempo piorou.
+  **Nota de escopo:** `TestDropY` **não é produto**: se virar default, precisa virar chave de config (`[Building]`) com
+  descrição nos 5 idiomas e `CONFIGURATION.md` regenerado. Hoje é constante de experimento, com o comentário dizendo isso.
   **Achado de localização (04/11/2026, CORRIGIDO no mesmo dia):** `hc_cfg_building_blueprintstations`
   (`Core/ModLocalization.cs:860`) e `hc_cfg_controls_buildpanelkey` (`:863`) estavam **só no inglês** — em PT/ES/FR/IT
   o F8 mostrava o **rótulo em inglês** ("Blueprint: no stations", "Build panel key"), **não** a chave crua: as duas
