@@ -1,21 +1,26 @@
 # -*- coding: utf-8 -*-
 """Falha se algum arquivo rastreado tiver uma DATA NO FUTURO.
 
-Por que existe (05/11/2026): o agente escreveu "05/11/2026" em 614 linhas de 48 arquivos
-enquanto a data real era 05/11 - a data vinha da memoria, nao do relogio. Isso destroi a
+Por que existe (registrado em 06/11/2026, quando este script foi escrito): o agente escreveu uma
+data FUTURA em 619 linhas de 48 arquivos - a data vinha da memoria, nao do relogio. Isso destroi a
 cronologia de um projeto que registra tudo por data. Ver a REGRA 14 no AGENTS.md.
 
 Regra: a data de um comentario/doc vem de `git log -1 --format=%ad` (a data do commit que
 escreveu a linha) ou da saida de `date` - nunca da cabeca.
 
 Uso:
-    python tools/check_dates.py            # falha (exit 1) se houver data futura
+    python tools/check_dates.py            # falha (exit 1) se houver data futura (inclui QUOTE_FILES)
     python tools/check_dates.py --fix     # reescreve cada data futura pela data do COMMIT da linha
     python tools/check_dates.py --quiet   # so o veredito
 
 --fix usa `git blame -w -M` para achar o commit de cada linha; uma substituicao unica para
 todo o repo estaria ERRADA (a maioria das linhas vem de commits de 04/11, nao de 05/11).
 A troca e no lugar: nao muda numero de linha, entao as citacoes arquivo:linha continuam validas.
+
+QUOTE_FILES (AGENTS.md e este arquivo) CITAM uma data antiga de proposito: a REGRA 14 e a docstring
+abaixo falam do erro pelo nome. Eles ficam fora do --fix (senao a citacao seria reescrita e a
+explicacao perderia o sentido - aconteceu no primeiro uso), mas NUNCA fora da checagem: o loop de
+verificacao os inclui, e uma data futura neles REPROVA como em qualquer outro arquivo.
 """
 import datetime
 import os
@@ -28,12 +33,11 @@ DATE = re.compile(r"\b(\d{2})/(\d{2})/(\d{4})\b|\b(\d{4})-(\d{2})-(\d{2})\b")
 # so nos importam arquivos de texto que o projeto versiona
 EXTS = (".cs", ".md", ".py", ".ps1", ".json", ".txt", ".cfg", ".csproj", ".props", ".example")
 
-# 05/11/2026: arquivos que CITAM uma data antiga de proposito - o AGENTS.md explica o proprio erro e a REGRA 14,
-# e o check_dates.py documenta o caso na docstring. O --fix nunca os reescreve (use --allow= para forcar).
-QUOTE_FILES = {
-    "AGENTS.md",
-    "tools/check_dates.py",
-}
+# 06/11/2026: marcador de CITACAO. Uma linha que cita uma data antiga de proposito (a REGRA 14 descrevendo o erro,
+# a docstring deste script) poe isto no texto, e o check ignora o que vem ANTES do marcador NAQUELA linha.
+# Antes disto havia uma lista QUOTE_FILES: ela deixava o AGENTS.md fora da CHECAGEM (o arquivo com mais data errada,
+# 53) - ou, incluindo-o, reprovava as citacoes legitimas. O marcador resolve os dois: checagem completa, citacao viva.
+MARK_QUOTED = "[data-citada]"
 
 
 def repo_root():
@@ -59,9 +63,16 @@ def today_local():
 
 
 def future_dates(text, today):
-    """[(linha_1based, data_str, data_obj)] das datas posteriores a hoje (dd/mm/aaaa e ISO)."""
+    """[(linha_1based, data_str, data_obj)] das datas posteriores a hoje (dd/mm/aaaa e ISO).
+
+    06/11/2026: uma linha que CITA uma data de proposito (a REGRA 14 falando do erro, a docstring deste script)
+    carrega o marcador `[data-citada]`. Essas linhas ficam fora da checagem - mas isso vale SO para o texto antes
+    do marcador na mesma linha, para nao abrir um buraco no arquivo inteiro.
+    """
     hits = []
     for i, line in enumerate(text.splitlines(), 1):
+        if MARK_QUOTED in line:
+            continue        # linha que CITA uma data de proposito (REGRA 14, a docstring deste script): fora da checagem
         for m in DATE.finditer(line):
             try:
                 if m.group(4):                                  # ISO aaaa-mm-dd
@@ -138,18 +149,15 @@ def main():
     for a in sys.argv:
         if a.startswith("--skip="):
             skip.update(x.strip() for x in a[7:].split(",") if x.strip())
+    # 06/11/2026: a excecao por arquivo deu lugar ao marcador por linha (MARK_QUOTED) - ver future_dates.
     # --allow=<arquivo...>: conserta tambem os arquivos que CITAM uma data antiga de proposito (ver abaixo).
     allow = set()
     for a in sys.argv:
         if a.startswith("--allow="):
             allow.update(x.strip() for x in a[7:].split(",") if x.strip())
 
-    # 05/11/2026 (o proprio bug deste script, pego no primeiro uso): o AGENTS.md DESCREVE o erro - "o agente escreveu
-    # 11/11/2026 em 619 linhas" - e o --fix trocou a citacao, deixando a explicacao sem sentido. Um arquivo que cita
-    # uma data ANTIGA de proposito nao pode ser reescrito as cegas: fica fora do --fix e vai para revisao manual.
-    for rel in QUOTE_FILES:
-        if rel not in allow:
-            skip.add(rel)
+    # 06/11/2026: a checagem le TODOS os arquivos. Quem cita uma data antiga de proposito marca a linha com
+    # MARK_QUOTED (ver future_dates), e o --fix nunca reescreve uma linha marcada.
 
     bad_files = {}
     for rel in tracked(root):
@@ -184,6 +192,8 @@ def main():
     changed = 0
     manual = []
     for rel, hits in bad_files.items():
+        if rel in skip:
+            continue
         path = os.path.join(root, rel)
         when = blame_dates(root, rel)
         lines = open(path, encoding="utf-8", errors="replace").read().splitlines(keepends=True)
