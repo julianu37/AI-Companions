@@ -399,6 +399,9 @@ internal static class MHR_Build
 		/// Pulling it again for the same piece loops forever (refused -> support -> refused; the log of the 290afc1 run
 		/// had 1.4M lines and the game froze), so it is once per piece, with a small cap per order.</summary>
 		internal readonly HashSet<int> PulledSupport = new HashSet<int>();
+		/// <summary>P1 (05/11/2026): how many support pulls this worker actually carried out (a claim that came back
+		/// false spends the attempt in <see cref="PulledSupport"/> but not a slot here). The cap is 24 per order.</summary>
+		internal int PulledOk;
 		/// <summary>P1 (04/11/2026): the plan indices whose pose was already adjusted ONCE after a fall (a piece the
 		/// companion fell from twice, see <c>MHR_Build.AdjustFallenPose</c>) - one adjustment per piece, like the support
 		/// pull: repeating it every two falls would walk him into the same hole again.</summary>
@@ -6207,23 +6210,26 @@ internal static class MHR_Build
 		// game wants) the pull would fire again, forever - the run of the 290afc1 build wrote 1.4M lines and froze the
 		// game. The cap bounds an order that keeps finding new refusals.
 		//
-		// 05/11/2026 (review of the Claude audit): the claim comes FIRST. The mark used to be written before the claim,
-		// so when another worker already held the support this worker spent its "once per piece" AND one of the 24
-		// slots without pulling anything - the behaviour then depended on who arrived first. A failed claim returns
-		// before EnterStep, so nothing else is left half-done.
-		if (state.PulledSupport.Count >= 24)
-		{
-			return false;
-		}
+		// 05/11/2026 (review of the Claude audit, and the correction of my own first patch): these are TWO accounts, not
+		// one. The CLAIM is asked first, so a support another worker already holds does not cost anything; but the
+		// "once per piece" mark must still be written even when the claim FAILS, otherwise the refused piece is refused
+		// again, asks for the same support again and the 290afc1 loop is back (with the site's queue instead of the
+		// walk). A separate counter (`pulled`) tracks the 24 slots and only a successful claim spends one.
 		if (state.PulledSupport.Contains(state.Index))
 		{
 			return false;   // this piece already pulled its support once (the 290afc1 loop)
 		}
-		if (!MHR_BuildGroup.TryClaim(state.Group, support, ai.GetInstanceID()))
+		if (state.PulledOk >= 24)
 		{
-			return false;   // another companion is already building it - do not spend the mark
+			return false;
 		}
-		state.PulledSupport.Add(state.Index);
+		bool claimed = MHR_BuildGroup.TryClaim(state.Group, support, ai.GetInstanceID());
+		state.PulledSupport.Add(state.Index);   // the attempt is spent whether the claim worked or not
+		if (!claimed)
+		{
+			return false;   // another companion is already building it - no slot spent, no loop opened
+		}
+		state.PulledOk++;
 		PlannedStep step = state.Plan[support];
 		QueueRetry(ai, state, "no_support");
 		Log(ai, "apoio imediato: " + step.Prefab + " em (" + F(step.Pos.x) + ", " + F(step.Pos.y) + ", " + F(step.Pos.z)
