@@ -6415,11 +6415,30 @@ internal static class MHR_Build
 		// post while it is really coming. Given up (skipped) it never will; claimed by a companion it is on its way; and a
 		// piece that already waited SupportGrace deferrals for it (8 s + 12 s) has given the plan its chance.
 		int support = DirectSupportIndex(state);
-		if (support >= 0
-			&& !BuildSupportBelow.FallbackPostAllowed(SupportGivenUp(state, support), SupportClaimed(state, support),
-				SupportDeferrals(state)))
+		if (support >= 0)
 		{
-			return false;   // the plan has something under it and it is coming: the pull is the path (never a post over it)
+			// 06/11/2026 (the 20,9 s stall): ask whether ANY post the game sells would span the gap to the plan's support.
+			// If none does, waiting for that support is a guaranteed wait - 1,50 m falls in the hole between the 1 m post
+			// ([0,55; 1,20]) and the 2 m one ([1,55; 2,20]), and the crew then walks piece after piece refusing them.
+			float supportGap = state.Plan[support].Pos.y - state.Pos.y;
+			if (supportGap < 0f)
+			{
+				supportGap = -supportGap;
+			}
+			bool postCouldFit = false;
+			for (int i = 0; i < FallbackPostPrefabs.Length; i++)
+			{
+				if (BuildSupportBelow.PostSpansGap(PostLength(FallbackPostPrefabs[i]), supportGap))
+				{
+					postCouldFit = true;
+					break;
+				}
+			}
+			if (!BuildSupportBelow.FallbackPostAllowed(SupportGivenUp(state, support), SupportClaimed(state, support),
+				SupportDeferrals(state), postCouldFit))
+			{
+				return false;   // the plan has something under it and it is coming: the pull is the path (never a post over it)
+			}
 		}
 		// where does the post stand? The surface under the piece's own point: the ground, the floor of the storey below, a
 		// beam top. Nothing in 10 m answers the height map (fail-open: the spot is on a hill side).
@@ -6559,13 +6578,27 @@ internal static class MHR_Build
 		s_postsMeasured = any;
 	}
 
+	/// <summary>P1 (04/11/2026): the length of each <see cref="FallbackPostPrefabs"/> entry, measured from the prefab's own
+	/// snaps by <see cref="MeasurePosts"/> (0 = the game does not have that piece).</summary>
+	private static float PostLength(string prefab)
+	{
+		MeasurePosts();
+		for (int i = 0; i < FallbackPostPrefabs.Length; i++)
+		{
+			if (string.Equals(FallbackPostPrefabs[i], prefab, StringComparison.Ordinal))
+			{
+				return s_postLengths[i];
+			}
+		}
+		return 0f;
+	}
+
 	/// <summary>P1 (04/11/2026): the pose that stands a post up - and the axis it stands along. The piece's own <b>snap
 	/// points</b> are its tips, so the widest pair is the long axis in the prefab's own space; rotating that axis onto the
 	/// world up is the vertical pose, and its length is what the post really is (the run of 04/11/2026 planted a 2 m beam
 	/// under a 1 m gap). No guessing which local axis the artist used (the straight beam and the 45 degree one are not
 	/// authored on the same axis, measured in <c>docs/re/building-notes.md</c> §11).</summary>
-	private static Vector3 PostAxis(Piece post)
-	{
+	private static Vector3 PostAxis(Piece post)	{
 		s_snaps.Clear();
 		post.GetSnapPoints(s_snaps);
 		Vector3 axis = Vector3.zero;

@@ -1505,6 +1505,34 @@ internal static class Program
 		FallbackCase(false, false, 2, true, "2 esperas (~20 s): o apoio do plano nao veio - o poste assume");
 		Check("SupportGrace == 2 (o terceiro olhar, ~20 s = 8 + 12 s)", BuildSupportBelow.SupportGrace == 2,
 			"obtido " + BuildSupportBelow.SupportGrace);
+		// 06/11/2026 (the 20,9 s stall, medido com o rastro de posicao): o apoio do plano EXISTE mas nenhum poste do jogo
+		// cobre o vao - esperar por ele e espera garantida. Medido: pedra em 38,30, piso em 39,80, vao de 1,50 m, e as
+		// janelas sao [0,55; 1,20] (1 m) e [1,55; 2,20] (2 m) - 1,50 m cai no buraco entre as duas.
+		// 06/11/2026: quando NENHUM poste cobre o vao, a espera do plano e garantida - mas a peca ainda ganha a chance
+		// de o plano entregar nas primeiras esperas? NAO: se nenhum poste alcanca, o plano NAO alcanca (a peca do plano
+		// esta a 1,50 m e nao ha peca de 1,50 m). Por isso `postFits=false` autoriza na hora.
+		GapCase(false, false, 0, true, false, "vao com poste que CABE: nao planta (o plano entrega, nunca poste sobre ele)");
+		GapCase(false, false, 0, false, true, "vao SEM poste que caiba: o poste assume JA (esperar o plano e espera garantida)");
+		GapCase(false, true, 0, false, true, "apoio reivindicado e nenhum poste cabe: o poste assume (o plano nao alcanca o vao)");
+		GapCase(true, false, 0, false, true, "apoio desistido: poste assume (a regra antiga ja cobria)");
+		Check("PostSpansGap(1,00; 1,50) -> false (o buraco de 1,20-1,55 m do AGENTS)",
+			!BuildSupportBelow.PostSpansGap(1f, 1.5f), "obtido " + BuildSupportBelow.PostSpansGap(1f, 1.5f));
+		Check("PostSpansGap(2,00; 1,50) -> false (2 m e longo demais para 1,50)",
+			!BuildSupportBelow.PostSpansGap(2f, 1.5f), "obtido " + BuildSupportBelow.PostSpansGap(2f, 1.5f));
+		Check("PostSpansGap(1,00; 0,90) -> true (o vao normal do Run 8)",
+			BuildSupportBelow.PostSpansGap(1f, 0.9f), "obtido " + BuildSupportBelow.PostSpansGap(1f, 0.9f));
+		Check("PostSpansGap(2,00; 1,70) -> true (o degrau de 1,7 m)",
+			BuildSupportBelow.PostSpansGap(2f, 1.7f), "obtido " + BuildSupportBelow.PostSpansGap(2f, 1.7f));
+	}
+
+	/// <summary>Section (u), 06/11/2026: the second reason to allow the post - the plan has a support, but no post spans it.</summary>
+	private static void GapCase(bool givenUp, bool claimed, int deferrals, bool postFits, bool expected, string why)
+	{
+		bool actual = BuildSupportBelow.FallbackPostAllowed(givenUp, claimed, deferrals, postFits);
+		Check("FallbackPostAllowed(desistido=" + (givenUp ? "sim" : "nao") + ", reivindicado=" + (claimed ? "sim" : "nao")
+			+ ", esperas=" + deferrals + ", algum_poste_cabe=" + (postFits ? "sim" : "nao") + ") -> "
+			+ (expected ? "true" : "false") + " (" + why + ")", actual == expected,
+			"obtido " + (actual ? "true" : "false"));
 	}
 
 	/// <summary>Section (u): one question about the plan's own support and the post that may take over from it.</summary>

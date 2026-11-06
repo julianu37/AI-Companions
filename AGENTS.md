@@ -1060,6 +1060,43 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   (`NearestApart`/`PickNearApart`/`Apart`) **não tem asserção nenhuma** e o comentário de `BuildSpread.cs:330-331`
   **promete** que tem; o README **para na (w)**; `companions.inventory` e os campos `buried`/`depth`/`fits` **não**
   estão no teste do MCP (122 PASS) nem na descrição da ferramenta.
+  (27) **O "sair de cima da própria peça" foi tentado DUAS vezes em 06/11/2026 e as duas REGREDIRAM — está revertido.**
+  O defeito (companheiro preso entre lajes, `fits: false` com `64/64`) **continua aberto**; o que ficou são os números
+  que matam cada tentativa:
+  **(1) anel de 4,5 m no `WalkSpot`:** 52 s → **72 s** e `fits: false` do mesmo jeito (o `WalkSpot` escolhe *superfície
+  de onde alcançar*; para peça no chão é o chão onde ele já está — raio não muda destino).
+  **(2) `SelfAside` + `SelfStep` terminal + `OwnBodyOn(feet)` + `State.SelfWalk`:** **51/64, 13 puladas** (era 64/64).
+  Duas causas, as duas minhas: (a) o anel do `BuildAsideSpot.Plan` era montado na altura da **peça** (39,80) e o
+  `StepTo` recusa mais de 0,8 m dos **pés** (38,78) → **todos** os 8 candidatos recusados; (b) mesmo corrigido para a
+  altura dos pés, o guarda **mata o poste de emergência**: o companheiro finca o `wood_beam_1` e fica **em cima dele**;
+  a peça então "cruzaria o meu corpo" para sempre e volta à fila — e o ciclo `no_support` → poste → corpo → fila
+  **não termina**. A 2,2 m o piso de 2,27 m ainda alcança a cápsula.
+  **A conclusão que importa:** *"não colocar sobre o corpo"* e *"o poste de emergência fica onde eu estou"* são
+  **incompatíveis** por construção. O conserto **não é patch de número** — é desenho: o companheiro tem de sair
+  **ANTES** de fincar o poste (ou o poste tem de ser fincado de um ponto a ≥ 1,45 m do corpo). Sem esse desenho, o
+  caminho atual (a peça nasce sobre o corpo e o **resgate** tira) é o **menos ruim** — e é o que está no ar.
+  (28) **A PARADA DE 20,9 s: o poste era recusado porque o plano "ia entregar" um apoio que nunca alcança** (06/11/2026,
+  **medido com rastro de posição a cada 0,5 s** — `%TEMP%\opencode\trace_build.py`, guardado em `trace-build.json`).
+  O número: **27 s parado de 50 s (54 %)**, com **um único período de 20,9 s** no mesmo ponto. O rastro + o log deram a
+  sequência exata: a peça 17 recusa por `no_support` → o companheiro **anda** para a 18, 19, … 28 (10 peças, todas na
+  mesma situação) → volta para a 17 → **`a peça wood_floor travada não voltou - o plano sobe depois de 10 s`** ← **é
+  aqui que os 10 s vão embora** → só então `apoio de emergência: wood_beam_1`.
+  **A causa:** o `FallbackPostAllowed` só libera o poste quando o apoio do plano "não vem" (desistido, reivindicado ou
+  após 2 esperas). Aqui ele **vem** — a fundação de pedra está a **1,50 m** abaixo — e o `TryFallbackPost` **confiava
+  nisso**. Mas **nenhum poste do jogo cobre 1,50 m**: as janelas são `[0,55; 1,20]` (1 m) e `[1,55; 2,20]` (2 m), e
+  1,50 m cai **no buraco 1,20–1,55 m já documentado** (§17.12). Ou seja: esperar era **espera garantida**.
+  **Correção:** `BuildSupportBelow.PostSpansGap(length, gap)` (pura, mesma janela do `PickPost`) +
+  `FallbackPostAllowed(..., bool postFitsTheGap)`: quando **nenhum** poste cobre o vão, o poste assume **na hora**, como
+  se o apoio tivesse sido desistido. `TryFallbackPost` mede o vão até `state.Plan[support].Pos.y` e pergunta por cada
+  `FallbackPostPrefabs` (via `PostLength`, memoizado em `MeasurePosts`). **8 asserções** na seção (u) — harness
+  **807 → 815**. **Custo declarado antes:** ~25 linhas, 1× por peça, **zero query de física** (só a tabela de
+  comprimentos com memo).
+  **MEDIDO DEPOIS (o mesmo rastro de 0,5 s, canteiro zerado):** **parado 27 s → 8 s** (54 % → **9 %** de uma ordem que
+  durou 50 → 86 s) e o **maior período parado caiu 20,9 s → 3,1 s**. Caminhada 33 m → **193 m** (0,66 → **2,24 m/s**):
+  ele passou a **andar** em vez de **esperar**. A ordem fecha `hc_ai_blueprint_done` nos dois casos. Custo real: **nenhum
+  medido** (a ordem ficou mais longa em segundos porque **fez mais** — colocou tudo andando em vez de esperar parado).
+  **Lição:** o "10 s" do watchdog não era o problema — era o **sintoma**. A causa era confiar num apoio que a
+  geometria **proibia** de chegar, e o conserto foi **perguntar se algum poste cobre o vão** antes de esperar.
   **Achado de localização (04/11/2026, CORRIGIDO no mesmo dia):** `hc_cfg_building_blueprintstations`
   (`Core/ModLocalization.cs:860`) e `hc_cfg_controls_buildpanelkey` (`:863`) estavam **só no inglês** — em PT/ES/FR/IT
   o F8 mostrava o **rótulo em inglês** ("Blueprint: no stations", "Build panel key"), **não** a chave crua: as duas
@@ -1132,8 +1169,7 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
 - `docs/backlog-1.9.5.md` — **o que ficou sem correção** depois da revisão de 10 especialistas (detalhado: o que
   está quebrado, o que pode quebrar, por que corrigir e o esforço), com o que já foi feito na 1.9.4 no fim.
 - `docs/re/` — engenharia reversa do Valheim 1.0 (APIs, diff de versão).
-- `docs/re/building-notes.md` — **a construção medida**, run a run (§15 o `.blueprint`, §17 o grupo de obra e o portão de
-  apoio, §17.10–§17.17 os runs 4–11, **§17.18 o Run 13**, §17.19 **receita de teste × comportamento**: o que é bancada
+- `docs/re/building-notes.md` — **a construção medida**, run a run (§15 o `.blueprint`, §17 o grupo de obra e o portão de  apoio, §17.10–§17.17 os runs 4–11, **§17.18 o Run 13**, §17.19 **receita de teste × comportamento**: o que é bancada
   de teste e o que é produto, com o `arquivo:linha` de cada default, **§17.20 o Run 14** — o ping-pong do `StepAside` e
   o walk spot 7 m abaixo —, **§17.21 a dispersão dos workers** (`[Building] SpreadWorkers`) com o **A/B dos Runs 15/16**
   e a ressalva do contador, **§17.22 o Run 18** — a `fila` como **barreira invisível** (o `ahead`, o `WaitGate`, o

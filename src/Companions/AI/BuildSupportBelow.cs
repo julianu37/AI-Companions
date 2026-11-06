@@ -245,4 +245,45 @@ internal static class BuildSupportBelow
 	/// first refusal (8 s + 12 s of <c>MHR_Build.DependencyDelay</c>), which is the time the plan had to put the support
 	/// up.</summary>
 	internal const int SupportGrace = 2;
+
+	/// <summary>
+	/// 06/11/2026 (the 20,9 s stall measured with the position trace): the plan HAS a support under the piece, but no post
+	/// the game sells can span the gap to it - so waiting for it is a <b>guaranteed</b> wait. Measured on
+	/// <c>hs_meadows_stone_cottage</c>: the stone floor sits at 38,30 and the wooden floor of the plan at 39,80 - a gap of
+	/// <b>1,50 m</b> - and the game's posts cover <c>[0,55; 1,20]</c> (1 m) and <c>[1,55; 2,20]</c> (2 m). 1,50 m falls in
+	/// the hole between them, so the post of the plan under the piece is "coming" forever, the workbench watchdog waits
+	/// its 10 s, and the crew walks ten pieces refusing them by <c>no_support</c>.
+	/// <para>This is the second reason to allow the emergency post: not "the support is not coming", but "the support
+	/// cannot reach". The caller passes whether <b>some</b> post would fit the gap (that is
+	/// <see cref="PickPost"/>/<see cref="ShortTolerance"/>/<see cref="MaxOverlap"/> asked with a single length, a pure
+	/// question with no physics).</para>
+	/// </summary>
+	internal static bool FallbackPostAllowed(bool supportGivenUp, bool supportClaimed, int supportDeferrals,
+		bool postFitsTheGap)
+	{
+		if (!postFitsTheGap)
+		{
+			// 06/11/2026: no post the game sells spans the gap to the plan's own support, so that support can never carry
+			// this piece - waiting for it is a GUARANTEED wait (measured: 1,50 m between the stone floor and the wooden
+			// one, and the windows are [0,55; 1,20] and [1,55; 2,20]). The post takes over at once, as if the support had
+			// been given up.
+			return true;
+		}
+		return FallbackPostAllowed(supportGivenUp, supportClaimed, supportDeferrals);
+	}
+
+	/// <summary>
+	/// 06/11/2026: would a post of <paramref name="length"/> reach from <paramref name="baseY"/> to
+	/// <paramref name="pieceY"/>? Same windows as <see cref="PickPost"/> (a post up to <see cref="ShortTolerance"/>
+	/// shorter or <see cref="MaxOverlap"/> longer than the gap), asked for ONE length - the question the fallback needs is
+	/// "does the game have a post for this gap", not "which one".
+	/// </summary>
+	internal static bool PostSpansGap(float length, float gap)
+	{
+		if (length <= 0.01f || gap <= 0.01f)
+		{
+			return false;
+		}
+		return length >= gap - ShortTolerance && length <= gap + MaxOverlap;
+	}
 }
