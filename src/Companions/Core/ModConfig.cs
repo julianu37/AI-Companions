@@ -165,27 +165,27 @@ internal static class ModConfig
 	/// <summary>P1 (04/11/2026): plant a wooden post under a plan piece refused with <c>no_support</c> when the plan has
 	/// nothing under it (the author's blueprint leaned on something the file does not carry).</summary>
 	internal static ConfigEntry<bool> BuildSupportFallback;
-	/// <summary>11/11/2026 (the storey barrier of the Run 9): a piece refused because a body was on the spot goes back to the
+	/// <summary>04/11/2026 (the storey barrier of the Run 9): a piece refused because a body was on the spot goes back to the
 	/// site's retry queue and is tried again <b>before the plan climbs a storey</b> (instead of only in the end-of-plan retry
 	/// pass); the same barrier settles the pieces still waiting for a support before going up.</summary>
 	internal static ConfigEntry<bool> BuildBodyRetry;
-	/// <summary>11/11/2026 (Run 14, the spread of the crew): a shared plan is not walked in a line - each worker takes a
+	/// <summary>04/11/2026 (Run 14, the spread of the crew): a shared plan is not walked in a line - each worker takes a
 	/// piece of the next few of its run that is <b>far</b> from what the others are building (<c>BuildSpread</c>), and the
 	/// pieces it walked past keep their turn in the site's queue. The measured reason: 88 <c>corpo na peça</c> and 32
 	/// step-aside asks in the Run 14 because consecutive indices are neighbours in space.</summary>
 	internal static ConfigEntry<bool> BuildSpreadWorkers;
 	/// <summary>
-	/// 11/11/2026 (the player's rule "construir tudo o que está ao alcance antes de ir para outro lugar"): among the pieces the
+	/// 04/11/2026 (the player's rule "construir tudo o que está ao alcance antes de ir para outro lugar"): among the pieces the
 	/// crew spread over (the far ones of the window), take the <b>nearest</b> to the body while it is inside its reach
 	/// (<c>MaxPlace</c> + 1 m) - the companion closes the place it is on before moving to the other end of the house. It never
 	/// overrides the spread: the candidate still has to be far from what the others are building. Off: the first far piece of
 	/// the plan's order (the Run 14 rule, byte for byte).
 	/// </summary>
 	internal static ConfigEntry<bool> BuildSpreadNear;
-	/// <summary>11/11/2026 (Run 10, the companion blocker): a companion of the site that is only <b>waiting</b> steps out of the
+	/// <summary>04/11/2026 (Run 10, the companion blocker): a companion of the site that is only <b>waiting</b> steps out of the
 	/// way of a piece another one has to place (2,2 m through the mover, never a teleport, and never the player).</summary>
 	internal static ConfigEntry<bool> BuildStepAside;
-	/// <summary>11/11/2026 (Run 13, the ridge of the commercial blueprint): walk to the nearest surface the piece can be
+	/// <summary>04/11/2026 (Run 13, the ridge of the commercial blueprint): walk to the nearest surface the piece can be
 	/// reached <b>from</b> (a finished floor or roof row) instead of walking at the piece in mid-air, where the path snap
 	/// starts the route far from the feet and the companion walks the wrong way.</summary>
 	internal static ConfigEntry<bool> BuildReachWalk;
@@ -203,7 +203,7 @@ internal static class ModConfig
 	/// <summary>E7 (player's idea, 03/11/2026): a temporary wood stair for a piece above the 5 m placement reach.</summary>
 	internal static ConfigEntry<bool> BuildTempScaffold;
 	internal static ConfigEntry<bool> BuildBlueprintFree;
-	/// <summary>Lote 1 (11/11/2026): a blueprint builds without crafting stations - no workbench is planned and a piece
+	/// <summary>Lote 1 (04/11/2026): a blueprint builds without crafting stations - no workbench is planned and a piece
 	/// is not refused for a missing station. Templates and single-piece orders always need the station.</summary>
 	internal static ConfigEntry<bool> BuildBlueprintStations;
 	internal static ConfigEntry<int> BuildBlueprintMaxPieces;
@@ -668,7 +668,7 @@ internal static class ModConfig
 
 	internal static ConfigEntry<KeyCode> ConfigPanelKey;
 
-	// 11/11/2026 (the build panel): opens the panel of the running build site (plan, pieces, materials, pause/resume)
+	// 04/11/2026 (the build panel): opens the panel of the running build site (plan, pieces, materials, pause/resume)
 	internal static ConfigEntry<KeyCode> BuildPanelKey;
 
 	internal static ConfigEntry<KeyCode> FarmZoneKey;

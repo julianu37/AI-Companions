@@ -683,7 +683,7 @@ public class CompanionInteract : MonoBehaviour
 			_holdActive = false;
 			return;
 		}
-		// 11/11/2026 (the build panel): a text box of the mod owns the keyboard - typing a "z" in the blueprint filter
+		// 04/11/2026 (the build panel): a text box of the mod owns the keyboard - typing a "z" in the blueprint filter
 		// (or in a companion's name field) must not send the companions anywhere. It is the same guard the mod's fields
 		// already give the game's own keys (ModTextInputFocus), and this method reads the key straight from Input.
 		if (ModTextInputFocus.AnyFocused)
@@ -698,7 +698,7 @@ public class CompanionInteract : MonoBehaviour
 		}
 		// 1.5.44 (issue #17): the stance keys
 		MHR_StanceKeys.Tick(localPlayer);
-		// 11/11/2026 (the player): the direct command key is inert while <b>any</b> UI of the mod is on screen - with the
+		// 04/11/2026 (the player): the direct command key is inert while <b>any</b> UI of the mod is on screen - with the
 		// build panel, the AI panel, F8, the wheel (this check was the wheel only) or an aiming overlay open the player is
 		// inside a UI, not playing, and a "z" there would send the companions off from inside it. The text-box case is
 		// covered above; the list of windows lives in ModUiLayers, never here.

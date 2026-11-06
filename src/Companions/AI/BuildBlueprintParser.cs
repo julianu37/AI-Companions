@@ -22,7 +22,7 @@ internal static class BuildBlueprintParser
 		internal string Prefab;
 		internal float Px, Py, Pz, Rx, Ry, Rz, Rw, Scale = 1f;
 		/// <summary>
-		/// 11/11/2026 (the body barrier): the <b>level</b> of the piece - the very key <see cref="Ordered"/> sorts by (its
+		/// 04/11/2026 (the body barrier): the <b>level</b> of the piece - the very key <see cref="Ordered"/> sorts by (its
 		/// own height, or the slab a roof/gable covers). Filled by <see cref="Ordered"/>; 0 until then. The build group uses
 		/// it to hold back only the pieces ABOVE the storey a body is standing on.
 		/// </summary>
@@ -120,7 +120,7 @@ internal static class BuildBlueprintParser
 				floors.Add(piece);
 			}
 		}
-		// 11/11/2026 (the body barrier of the walk order): the LEVEL of every piece is kept on the line - it is the very
+		// 04/11/2026 (the body barrier of the walk order): the LEVEL of every piece is kept on the line - it is the very
 		// key the sort below uses (own height, or the slab a roof covers), never a second rule. The order does NOT change:
 		// the keys below still call LevelKey itself; this pass only records the same number for the build site.
 		foreach (Line piece in pieces)
@@ -182,8 +182,10 @@ internal static class BuildBlueprintParser
 			.OrderBy(delegate (Line piece) { return ClassOf(piece.Prefab) == 4 ? 1 : 0; })
 			// E7 (player's report, 03/11/2026: "he still tries to place those beams up top before the time"): a roof/gable piece
 			// (class 3) covers the slab of the level ABOVE it, so it belongs to that storey - the sort key moves it there instead of
-			// moving pieces around (the first version pulled the floor out of its storey and broke the invariant the StoreyOf exists
-			// for: "in this hall the 2nd floor is really the 3rd"). Review, 03/11/2026.
+			// moving pieces around (the first version pulled the floor out of its storey and broke the invariant of the
+			// old StoreyOf: "in this hall the 2nd floor is really the 3rd"). Review, 03/11/2026. That helper was REMOVED on
+			// 05/11/2026 (review of the Claude audit): it had no caller left - `LevelKey` (below) replaced it, and the code
+			// had been dead since.
 			// E7 (player's report, 03/11/2026: "the site is too ugly, storey by storey would be perfect"): the key is the
 			// piece's OWN height, not the floor below it. With the floor below, a wall at y=0 belonged to the storey of the floor
 			// at y=-0,5 and was built BEFORE that floor; the house has levels every metre and the site came out as floating
@@ -345,7 +347,7 @@ internal static class BuildBlueprintParser
 	}
 
 	/// <summary>
-	/// 11/11/2026 (the cost of the wait of the build at 60 Hz): the answer is a function of the prefab, so it is
+	/// 04/11/2026 (the cost of the wait of the build at 60 Hz): the answer is a function of the prefab, so it is
 	/// <b>memoised</b>. This used to build the lower-cased copy of the name on <b>every</b> call (<c>ToLowerInvariant</c>
 	/// allocates), and the site's queue asks it per eligible entry per frame while a storey barrier is up (through
 	/// <c>MHR_BuildGroup.IsBelow</c>, from <c>NextRetryBelow</c>/<c>PendingBelow</c>), plus <c>MHR_Build.SpreadWindow</c> and
@@ -397,52 +399,6 @@ internal static class BuildBlueprintParser
 		return 2;
 	}
 
-	/// <summary>
-	/// The height of the floor a piece stands on: the highest floor under it within 3 m in XZ (a player builds around him),
-	/// then within 8 m, and only as a last resort the highest floor anywhere below - that last one is what made the hall of
-	/// the player's blueprint put the ladder at a level with no floor (<c>falling off the ladder in a loop</c>).
-	/// </summary>
-	internal static float StoreyOf(List<Line> floors, Line piece)
-	{
-		if (floors == null || floors.Count == 0 || piece == null)
-		{
-			return 0f;
-		}
-		float near = float.MinValue;
-		float mid = float.MinValue;
-		float anywhere = float.MinValue;
-		foreach (Line floor in floors)
-		{
-			if (floor == null || floor.Py > piece.Py + 0.6f)
-			{
-				continue;
-			}
-			if (floor.Py > anywhere)
-			{
-				anywhere = floor.Py;
-			}
-			float dx = floor.Px - piece.Px;
-			float dz = floor.Pz - piece.Pz;
-			float square = dx * dx + dz * dz;
-			if (square <= 9f && floor.Py > near)
-			{
-				near = floor.Py;          // 3 m
-			}
-			if (square <= 64f && floor.Py > mid)
-			{
-				mid = floor.Py;           // 8 m
-			}
-		}
-		if (near > float.MinValue)
-		{
-			return near;
-		}
-		if (mid > float.MinValue)
-		{
-			return mid;
-		}
-		return anywhere > float.MinValue ? anywhere : 0f;
-	}
 
 	private static Line ParseLine(string line)
 	{

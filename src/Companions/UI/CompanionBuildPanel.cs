@@ -9,7 +9,7 @@ using UnityEngine.UI;
 namespace Companions;
 
 /// <summary>
-/// 11/11/2026 - <b>the build panel</b> (<c>[Controls] BuildPanelKey</c>, default <b>B</b>): the window of the build
+/// 04/11/2026 - <b>the build panel</b> (<c>[Controls] BuildPanelKey</c>, default <b>B</b>): the window of the build
 /// site the companions are working on. The four blocks are the player's list, in his order:
 /// <list type="number">
 /// <item><b>the site</b> - what is being built, how many pieces of the plan are up, how many were given up, how many

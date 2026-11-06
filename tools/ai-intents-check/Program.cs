@@ -37,16 +37,16 @@ namespace AiIntentsCheck;
 /// <c>materials</c>.</para>
 /// 
 /// <para>Section (x) is <c>BuildWalkSpot</c>: <b>where the companion stands</b> to place a piece that is not at its feet
-/// (Run 13, 11/11/2026 - the ridge of the <c>CommHomeBasicBP</c> walked the wrong way). The same storey first, then the
+/// (Run 13, 04/11/2026 - the ridge of the <c>CommHomeBasicBP</c> walked the wrong way). The same storey first, then the
 /// highest surface the game's eye rule still covers; none = the piece itself, the old target.</para>
 ///
-/// <para>Section (z) is <c>BuildSpread</c>: <b>how far apart the crew of a site builds</b> (Run 14, 11/11/2026 - the player
+/// <para>Section (z) is <c>BuildSpread</c>: <b>how far apart the crew of a site builds</b> (Run 14, 04/11/2026 - the player
 /// measured five companions racing for the same corner: 88 <c>corpo na peça</c> and 32 step-aside asks). A shared plan is
 /// not walked in a line: a worker takes the first piece of a small window of the same run that is far from what the others
 /// are building, and the pieces it walked past keep their turn in the site's queue.</para>
 ///
 /// <para>Section (aa) is <c>BuildSpread.Nearest</c>, the <b>opposite</b> question asked by the redesign of the build order
-/// (11/11/2026): the nearest pending piece this worker can place <b>from where it stands</b> - the smallest XZ distance
+/// (04/11/2026): the nearest pending piece this worker can place <b>from where it stands</b> - the smallest XZ distance
 /// inside a reach, with no spread distance at all - answered as the index of the caller's window (-1 = walk to today's
 /// piece, byte for byte). A piece another companion already claimed is not a candidate, and a claimed piece of another
 /// storey (a floor and the roof above it share the XZ) does not take the roof away.</para>
@@ -150,6 +150,8 @@ internal static class Program
 		TipCases();
 		Section("(ad) BuildBlueprintParser.Ordered - a viga que pende do telhado (o igloo, 05/11/2026)");
 		HangingBeams();
+		Section("(ae) MHR_Clearance - o corpo cabe onde ele vai? (o vao de 1 m do deck, 05/11/2026)");
+		Clearance();
 		CrossCheckDoorRule();
 
 		Out.WriteLine();
@@ -819,7 +821,7 @@ internal static class Program
 		FailureCase("NO_GROUND", true, BuildFailure.Kind.Dependency);
 		// a real failure spends an attempt
 		FailureCase("no progress", false, BuildFailure.Kind.Real);
-		// 11/11/2026 (the storey barrier): a body on the spot is its own class - nobody's fault, no attempt spent. The
+		// 04/11/2026 (the storey barrier): a body on the spot is its own class - nobody's fault, no attempt spent. The
 		// probe's answer is ignored for it (it is only read for no_ground) and the comparison ignores case.
 		FailureCase("blocked_by_player", true, BuildFailure.Kind.Blocked);
 		FailureCase("blocked_by_player", false, BuildFailure.Kind.Blocked);
@@ -844,13 +846,13 @@ internal static class Program
 			BuildFailure.IsDependency("no_ground", true), "obtido false");
 		Check("IsDependency(\"no_ground\", false) -> false (nao ha nada embaixo: o local falhou)",
 			!BuildFailure.IsDependency("no_ground", false), "obtido true");
-		// 11/11/2026 (the storey barrier): the yes/no of the body class, in both directions
+		// 04/11/2026 (the storey barrier): the yes/no of the body class, in both directions
 		Check("IsBlocked(\"blocked_by_player\", true) -> true (corpo no caminho: nenhuma tentativa gasta)",
 			BuildFailure.IsBlocked("blocked_by_player", true), "obtido false");
 		Check("IsBlocked(\"no_support\", true) -> false (o apoio que falta nao e um corpo)",
 			!BuildFailure.IsBlocked("no_support", true), "obtido true");
 		// the numbers of the storey barrier, so a silent change of the window is caught here
-		// 11/11/2026 (Run 17): one clock - the patience is the same 10 s as BodyBarrierSeconds (it used to be 25 s, so the
+		// 04/11/2026 (Run 17): one clock - the patience is the same 10 s as BodyBarrierSeconds (it used to be 25 s, so the
 		// wait outlived the site's gate and the workers stood still)
 		Check("constantes da barreira: 2 s de volta, 1 m de andar, 10 s de paciencia (o mesmo relogio da barreira)",
 			Math.Abs(BuildFailure.BodyRetryDelay - 2f) < 0.001f && Math.Abs(BuildFailure.BodyRetryStep - 1f) < 0.001f
@@ -858,7 +860,7 @@ internal static class Program
 			"obtido " + BuildFailure.BodyRetryDelay.ToString("F2") + " / " + BuildFailure.BodyRetryStep.ToString("F2")
 				+ " / " + BuildFailure.BodyRetryMaxWait.ToString("F2"));
 
-		// 11/11/2026 (the cut of the storey barrier): does the site hold a worker for a piece whose clock says dueAt?
+		// 04/11/2026 (the cut of the storey barrier): does the site hold a worker for a piece whose clock says dueAt?
 		// True while the patience left covers it - with the lowest piece due in 20 s and one above it due in 2 s what is
 		// read is the 2 s (the min(At) of the barrier) - false for a NaN clock or an exhausted patience, and a clock of
 		// 0 or less is "there is no clock to read": hold, the behaviour of before this cut.
@@ -985,6 +987,118 @@ internal static class Program
 	{
 		bool actual = BuildPieceKind.IsTip(prefab);
 		Check("IsTip(" + Show(prefab) + ") -> " + expected, actual == expected, "obtido " + actual);
+	}
+
+	/// <summary>
+	/// Section (ae), 05/11/2026 - the gap of the deck, measured with a print by the player: <c>hs_meadows_stone_cottage</c>
+	/// with a SINGLE companion closed <c>peças: 64/64, 0 pulada(s)</c> and the body ended <b>0,88 m inside the terrain</b>
+	/// (feet 37,90 against a ground of 38,78), squeezed under the deck's floor (a 1,00 m gap for a 1,80 m body). The game
+	/// has no head room test in the movement (see <c>docs/re/deck-clearance.md</c>) and its own rescue fires only 1,00 m
+	/// under the ground, so the rule is ours.
+	///
+	/// <para>The two halves that must never be confused: <c>MayEnter</c> refuses the step only when the <b>destination</b>
+	/// does not fit <b>and</b> the place the body is in right now <b>does</b> - a body already inside the gap keeps every
+	/// direction (without it the companion becomes a statue and the player has to demolish the piece, which is what
+	/// happened). The geometry is pinned too: the two spheres of the capsule come from the capsule that was actually
+	/// measured (<c>BuildProbe.CapsuleOf</c>), never from a constant, because the Dverger prefabs may have another body.</para>
+	/// </summary>
+	private static void Clearance()
+	{
+		// --- the rule, all four combinations: the destination decides only while the body fits where it stands
+		Check("MayEnter(cabe no destino) -> true (o passo livre)",
+			MHR_Clearance.MayEnter(true, true), "obtido false");
+		Check("MayEnter(NAO cabe no destino, cabe aqui) -> false (nao ENTRA no vao de 1 m)",
+			!MHR_Clearance.MayEnter(false, true), "obtido true");
+		// the half that saves the companion: already inside a space that does not fit, every direction is allowed - the
+		// way OUT must never be refused (this is the measured statue: parado, 0,02 m em 11 s)
+		Check("MayEnter(NAO cabe no destino nem aqui) -> true (quem ja esta dentro sai)",
+			MHR_Clearance.MayEnter(false, false), "obtido false");
+		Check("MayEnter(cabe no destino, NAO cabe aqui) -> true (saindo do vao)",
+			MHR_Clearance.MayEnter(true, false), "obtido false");
+
+		// --- the spheres: the measured body (1,80 m, r 0,30) standing on the ground at 38,78
+		float lower, upper, r;
+		Check("esferas do corpo medido (1,80 m, r 0,30, pes 38,78) -> medidas",
+			MHR_Clearance.Spheres(38.78f, 40.58f, 0.3f, 38.78f, out lower, out upper, out r),
+			"obtido false");
+		CheckFloat("  ... esfera de baixo = pes + r + 1 cm (38,78 + 0,30 + 0,01) = 39,09", 39.09f, lower);
+		CheckFloat("  ... esfera de cima = pes + h - r = 38,78 + 1,80 - 0,30 = 40,28", 40.28f, upper);
+		CheckFloat("  ... raio com 1 cm de folga (0,29)", 0.29f, r);
+
+		// the collider's bottom is a PREFAB number: the lift between it and the feet is measured, not assumed
+		Check("pes 38,78 com o collider comecando 0,20 m acima (bottom 38,98) -> medidas",
+			MHR_Clearance.Spheres(38.98f, 40.78f, 0.3f, 38.78f, out lower, out upper, out r),
+			"obtido false");
+		CheckFloat("  ... o levantamento entra nas duas esferas (baixo 39,29)", 39.29f, lower);
+		CheckFloat("  ... e a altura e a do collider, nao a do transform (cima 40,48)", 40.48f, upper);
+
+		// a body shorter than two radii collapses to ONE sphere: CheckCapsule with the ends crossed is undefined
+		Check("corpo curto (topo - fundo = 0,40 m, r 0,30) -> medidas",
+			MHR_Clearance.Spheres(38.78f, 39.18f, 0.3f, 38.78f, out lower, out upper, out r),
+			"obtido false");
+		Check("  ... as duas esferas ficam no mesmo ponto (uma so)",
+			Math.Abs(lower - upper) < 0.001f, "obtido " + lower.ToString("F2") + " / " + upper.ToString("F2"));
+
+		// a body that cannot be measured is never a refusal: fail-open, like the rest of the probe
+		Check("corpo sem medida (altura 0) -> false (nunca recusa por medida ruim)",
+			!MHR_Clearance.Spheres(38.78f, 38.78f, 0.3f, 38.78f, out lower, out upper, out r), "obtido true");
+		Check("corpo sem raio utilizavel (r 0,01) -> false",
+			!MHR_Clearance.Spheres(38.78f, 40.58f, 0.01f, 38.78f, out lower, out upper, out r), "obtido true");
+
+		// --- what counts as an obstacle: the load-bearing distinction is the BOTTOM, never the top
+		// the measured ceiling: the deck's floor (bottom 39,67 = 0,89 m over the feet) is inside the body -> BLOCKED
+		Check("o piso do deck (fundo 39,67, 0,89 m acima dos pes) -> BLOQUEIA (e o vao de 1 m medido)",
+			MHR_Clearance.Blocks(39.67f, false, false, 38.78f + MHR_Clearance.StepIgnore),
+			"obtido false");
+		// the floor he stands on / walks onto: its collider reaches the ground, so it is not a ceiling
+		Check("a telha sob os pes (fundo 38,50) -> livre",
+			!MHR_Clearance.Blocks(38.5f, false, false, 38.78f + MHR_Clearance.StepIgnore),
+			"obtido true");
+		// a step at the foot of a stair: bottom at the ground, its body right in front of the feet -> never a ceiling
+		Check("degrau com o fundo no chao (38,70) -> livre (a escada nao vira teto)",
+			!MHR_Clearance.Blocks(38.70f, false, false, 38.78f + MHR_Clearance.StepIgnore),
+			"obtido true");
+		// a wall: bottom at the ground, top 2 m up -> libre for the ceiling test (the horizontal check is what stops him)
+		Check("parede com o fundo no chao (38,72) -> livre para o teto (quem barra a parede e o teste horizontal)",
+			!MHR_Clearance.Blocks(38.72f, false, false, 38.78f + MHR_Clearance.StepIgnore),
+			"obtido true");
+		// a low beam floating 1,20 m over the feet: inside the body -> BLOCKED
+		Check("viga flutuando 1,20 m acima dos pes -> BLOQUEIA",
+			MHR_Clearance.Blocks(39.98f, false, false, 38.78f + MHR_Clearance.StepIgnore),
+			"obtido false");
+		Check("o terreno nunca e teto (heightmap nao tem beiral)",
+			!MHR_Clearance.Blocks(60f, true, false, 38.78f + MHR_Clearance.StepIgnore), "obtido true");
+		Check("outro Character nao e teto (o corpo e assunto do jogo)",
+			!MHR_Clearance.Blocks(41f, false, true, 38.78f + MHR_Clearance.StepIgnore), "obtido true");
+
+		// --- the rescue and the `enterrado` count share one rule, and the measured number is the one that must fire
+		Check("os 0,88 m medidos -> enterrado (acima da margem de 0,40 m)",
+			MHR_Clearance.IsBuried(0.88f), "obtido false");
+		Check("0,40 m exato -> nao e enterrado (a margem e o teto)",
+			!MHR_Clearance.IsBuried(MHR_Clearance.BuriedDepth), "obtido true");
+		Check("0,39 m (terreno irregular, degrau) -> nao e enterrado",
+			!MHR_Clearance.IsBuried(0.39f), "obtido true");
+		Check("acima do terreno (profundidade negativa) -> nao e enterrado",
+			!MHR_Clearance.IsBuried(-1f), "obtido true");
+
+		// the numbers the rule walks with: a silent change of them is caught here
+		Check("constantes: 1 cm de folga, 0,25 m da faixa do degrau, 0,40 m de enterrado, 1,20 m de sonda",
+			Math.Abs(MHR_Clearance.Slack - 0.01f) < 0.0001f && Math.Abs(MHR_Clearance.StepIgnore - 0.25f) < 0.0001f
+				&& Math.Abs(MHR_Clearance.BuriedDepth - 0.4f) < 0.0001f
+				&& Math.Abs(MHR_Clearance.LookAhead - 1.2f) < 0.0001f,
+			"obtido " + MHR_Clearance.Slack.ToString("F3") + " / " + MHR_Clearance.StepIgnore.ToString("F2") + " / "
+				+ MHR_Clearance.BuriedDepth.ToString("F2") + " / " + MHR_Clearance.LookAhead.ToString("F2"));
+		// the look-ahead has to land the refusal BEFORE the body touches: 1,2 m minus the 0,30 m radius of the measured body
+		Check("a sonda deixa ~0,9 m de margem antes do toque (1,20 - 0,30)",
+			MHR_Clearance.LookAhead - 0.3f > 0.8f, "obtido " + (MHR_Clearance.LookAhead - 0.3f).ToString("F2"));
+		// no zero in the deviations: that is the direction that was just refused
+		bool noZero = true;
+		for (int i = 0; i < MHR_Clearance.Deviations.Length; i++)
+		{
+			if (Math.Abs(MHR_Clearance.Deviations[i]) < 0.001f) noZero = false;
+		}
+		Check("desvios laterais sem zero (" + MHR_Clearance.Deviations.Length + " direcoes)",
+			noZero && MHR_Clearance.Deviations.Length == 6, "obtido " + MHR_Clearance.Deviations.Length);
 	}
 
 	/// <summary>
@@ -1118,7 +1232,7 @@ internal static class Program
 		SurfaceCase(new[] { 0.16f, 1.02f, 9f }, new[] { true, true, true }, 2, 0.4f, 1, "só as `count` primeiras entram");
 		SurfaceCase(new float[] { }, new bool[] { }, 0, 0.4f, -1, "nenhum hit -> terreno");
 		SurfaceCase(null, null, 0, 0.4f, -1, "sem lista -> terreno");
-		// the surface has to HOLD, not just exist (11/11/2026: 95 refusals of the post itself, `- no_support`, because it was
+		// the surface has to HOLD, not just exist (04/11/2026: 95 refusals of the post itself, `- no_support`, because it was
 		// planted deep enough but over the top of a chest - furniture carries no support, so the post had nothing under it)
 		SurfaceCase(new[] { 0.5f, 1.2f }, new[] { false, true }, 2, 0.4f, 1, "a de 0,5 m não segura (baú) e a de 1,2 m segura -> a de 1,2 m");
 		SurfaceCase(new[] { 0.5f, 1.2f }, new[] { false, false }, 2, 0.4f, -1, "nenhuma das duas segura -> terreno");
@@ -1179,7 +1293,7 @@ internal static class Program
 	}
 
 	/// <summary>
-	/// P1 (04/11/2026) and 11/11/2026 (Run 10): the <b>body window</b> of the placement check
+	/// P1 (04/11/2026) and 04/11/2026 (Run 10): the <b>body window</b> of the placement check
 	/// (<c>BuildProbe.BlockedByCharacter</c>). The measured bug of 04/11: with the 1 m deck, a floor 1 m above the feet of
 	/// two companions was 1,0 m from the piece's point in 3D, so the old point-vs-transform test (0,6 m) let it through and
 	/// the floor went <b>over their heads</b> (squeezed to y 37,9, 1 m under the ground). Since the Run 10 the window is the
@@ -1251,7 +1365,7 @@ internal static class Program
 			0f, 0f, 1.135f, 1.145f, 39.87f, 40.13f, 38.78f, 40.58f, 0.3f);
 	}
 
-	/// <summary>11/11/2026 (Run 10): one case of the body window - the expected answer with the numbers
+	/// <summary>04/11/2026 (Run 10): one case of the body window - the expected answer with the numbers
 	/// <c>BuildBody.Blocks</c> takes (local XZ of the capsule's axis, the piece's half extents, its vertical span and the
 	/// capsule's ends and radius).</summary>
 	private static void BodyCase(string name, bool expected, float localX, float localZ, float halfX, float halfZ,
@@ -1264,7 +1378,7 @@ internal static class Program
 	}
 
 	/// <summary>
-	/// 11/11/2026 (the <b>body barrier</b>, the player's rule after the Run 9: "they may skip, but come back and try again
+	/// 04/11/2026 (the <b>body barrier</b>, the player's rule after the Run 9: "they may skip, but come back and try again
 	/// before going up"): the refusal the barrier exists for is <b>only</b> <c>blocked_by_player</c> - the player walking
 	/// over the spot. <c>IsTransient</c> is the yes/no (the dependency reasons of the support gate and every real failure
 	/// of the piece/spot stay out of it), <c>ShortRetry</c> is the 3-short-retry cap that lets the SAME pose be tried again
@@ -1306,7 +1420,7 @@ internal static class Program
 		ShortRetryCase("needs_station", 0, false);
 
 		// the numbers of the barrier, so a silent change of the window is caught here
-		// 11/11/2026 (Run 17): one clock - 10 s is the 3 short retries (7,5 s) rounded up, and ServeBarrier never outlives
+		// 04/11/2026 (Run 17): one clock - 10 s is the 3 short retries (7,5 s) rounded up, and ServeBarrier never outlives
 		// the site's gate (it used to be 20 s of gate against 25 s of wait)
 		Check("constantes: 3 curtas, 2,5 s de espera, 1,5 m de mesmo andar, 10 s de barreira",
 			BuildFailure.MaxShortRetries == 3 && Math.Abs(BuildFailure.ShortRetryDelay - 2.5f) < 0.001f
@@ -1315,7 +1429,7 @@ internal static class Program
 			"obtido " + BuildFailure.MaxShortRetries + " / " + BuildFailure.ShortRetryDelay.ToString("F2") + " / "
 				+ BuildFailure.BodySameStorey.ToString("F2") + " / " + BuildFailure.BodyBarrierSeconds.ToString("F2"));
 
-		// 11/11/2026 (Run 17): the wait of a piece refused by a body grows with the refusals and stops at 6 s - the piece
+		// 04/11/2026 (Run 17): the wait of a piece refused by a body grows with the refusals and stops at 6 s - the piece
 		// stays in the site's queue, but a PARKED player can no longer make a worker walk to it every other piece (36
 		// bounces in the Run 16 log). 0/1 = the walking player, 2 = 4 s, 3 and beyond = 6 s.
 		BlockedDelayCase(0, 2f);
@@ -1376,7 +1490,7 @@ internal static class Program
 	}
 
 	/// <summary>
-	/// 11/11/2026 (the Run 9: the <c>wood_floor</c> tile at 39,8 was refused by a body, went to the site's queue and the guard
+	/// 04/11/2026 (the Run 9: the <c>wood_floor</c> tile at 39,8 was refused by a body, went to the site's queue and the guard
 	/// "never a post where the plan has a support" then froze the three floors above it): the <b>emergency post</b> may take
 	/// over from a support the plan <b>has</b> only when that support is not coming - it was <b>given up</b>, or nobody
 	/// <b>claims</b> it and the refused piece already waited <c>SupportGrace</c> deferrals (the third look, ~20 s = 8 s +
@@ -1403,7 +1517,7 @@ internal static class Program
 	}
 
 	/// <summary>
-	/// Section (v): lote 1 (player's request, 11/11/2026) - the workbench/stonecutter requirement lifted <b>only</b> for a
+	/// Section (v): lote 1 (player's request, 04/11/2026) - the workbench/stonecutter requirement lifted <b>only</b> for a
 	/// blueprint. The table is <c>BuildStationCover.Required(isBlueprint, config)</c>: a template and a single piece are
 	/// <b>never</b> waived (the switch does not reach them), and a blueprint is waived only with
 	/// <c>[Building] BlueprintStations</c> on.
@@ -1562,7 +1676,7 @@ internal static class Program
 
 	/// <summary>
 	/// Section (x): <c>BuildWalkSpot</c> - <b>where the companion stands</b> to place a piece that is not at its feet.
-	/// Run 13 (11/11/2026) measured it on the ridge of the <c>CommHomeBasicBP</c>: the walk was sent at the piece's own pose
+	/// Run 13 (04/11/2026) measured it on the ridge of the <c>CommHomeBasicBP</c>: the walk was sent at the piece's own pose
 	/// (a roof row at 48,8, ten metres up), the path snap started the route far from the feet and the companion walked the
 	/// <b>wrong way</b> - "no progress" after 12 s at <b>22,8 m</b>, then <b>23,5 m</b>. The table asserted here is the
 	/// choice of the surface to walk to: the <b>same storey</b> first (2,5 m below to 0,5 m above the piece, the closest one
@@ -1685,7 +1799,7 @@ internal static class Program
 
 	/// <summary>
 	/// Section (y): <c>BuildAsideSpot</c> - <b>where the companion of the site steps to</b> when another one has to place a
-	/// piece on its body (the step aside of <c>MHR_Build</c>). Run 14 (11/11/2026) measured the ping-pong of the last roof
+	/// piece on its body (the step aside of <c>MHR_Build</c>). Run 14 (04/11/2026) measured the ping-pong of the last roof
 	/// row: the step out of piece 909 landed on <b>910</b> (the next piece of the plan), the step out of 910 landed on the
 	/// next one, and two companions took turns moving each other around the ridge while the plan did not move.
 	///
@@ -1734,7 +1848,7 @@ internal static class Program
 			new[] { new UnityEngine.Vector3(2.2f, 14f, 0f) }, 5, new UnityEngine.Vector3(2.2f, 10f, 0f));
 
 		// 5) the band is Height = 1,8 m - the body's capsule, not the storey - and the edge is INCLUSIVE. It was 2,0 m
-		// (11/11/2026, measured: 42 of the 52 pieces blocked by a companion never moved anybody, 81%): the 46,8 tiles of
+		// (04/11/2026, measured: 42 of the 52 pieces blocked by a companion never moved anybody, 81%): the 46,8 tiles of
 		// the house against the 48,8 ones are exactly 2,0 m apart, and they took a destination from a companion that was
 		// only UNDER them. So 2,1 m above was never the first free height - 2,0 m already is one.
 		AsideCase("peça pendente 2,1 m acima ja nao bloqueia", piece, back,
@@ -1829,7 +1943,7 @@ internal static class Program
 	// ============================================================================================ (z) a dispersao dos workers
 
 	/// <summary>
-	/// Section (z): <c>BuildSpread</c> - <b>how far apart the crew builds</b> (11/11/2026, Run 14: the player's report
+	/// Section (z): <c>BuildSpread</c> - <b>how far apart the crew builds</b> (04/11/2026, Run 14: the player's report
 	/// <i>"eles parecem estar disputando pra ver quem coloca a peça primeiro, em vez de trabalhar em equipe"</i>, with 88
 	/// <c>corpo na peça</c> and 32 step-aside asks in the log). The plan's consecutive indices are neighbours in space (the
 	/// parser orders by storey/class/height and then walks each run as a nearest-neighbour path), so a worker takes the
@@ -1925,7 +2039,7 @@ internal static class Program
 
 	/// <summary>
 	/// Section (aa): <c>BuildSpread.Nearest</c> - the <b>nearest pending piece this worker can place from where it stands</b>
-	/// (the P0 of the redesign of the build order, 11/11/2026). The rule is one distance and one filter: the smallest
+	/// (the P0 of the redesign of the build order, 04/11/2026). The rule is one distance and one filter: the smallest
 	/// <b>XZ</b> distance to the body among the candidates at most <c>reach</c> away (exactly the reach is inside), one
 	/// index skipped and every pose another companion already claimed left out.
 	///
@@ -2014,7 +2128,7 @@ internal static class Program
 	// ============================================================================================ (ab) o trecho de cada um
 
 	/// <summary>
-	/// Section (ab): <c>BuildSpread.Chunk</c> - <b>the stretch of the plan one worker owns</b> (12/11/2026, the player's rule
+	/// Section (ab): <c>BuildSpread.Chunk</c> - <b>the stretch of the plan one worker owns</b> (04/11/2026, the player's rule
 	/// <i>"cada companheiro é dono de um trecho, não negocia peça"</i>). The plan is a nearest-neighbour tour inside each run
 	/// (<c>BuildBlueprintParser.Ordered</c>), so cutting the run <b>by index</b> cuts the site into contiguous stretches and
 	/// the contention of the crew is gone by construction: the run that measured the repulsion rose to 125 pieces/min and

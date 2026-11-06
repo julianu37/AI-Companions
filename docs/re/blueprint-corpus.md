@@ -229,9 +229,9 @@ relatório (`UI/CompanionBuildPanel.cs:1115`) — ver §6.2.
 |---|---|---|
 | `hs_meadows_stilt_hut` | **32** peças, **1** andar, **50** linhas | **32/32**, **0** puladas, **0** mortes, **0** `UNSUPPORTED`, **32** peças no mundo e **0** duplicatas (`build.pieces`), **100** linhas de log |
 | `hs_blackforest_hut` | **28** peças | **28/28** em **24 s**, **0** puladas |
-| `hs_meadows_house` | **60** peças | **60/60** em **120 s**, **0 puladas** (medido em 11/11/2026) |
-| `hs_meadows_manor` | **96** peças | **92/96** em **152 s**, **5 puladas** (medido em 11/11/2026) |
-| `hs_meadows_hobbit_repairhut` | **62** peças | **61/62** em **220 s**, **1 pulada** e **2 `UNSUPPORTED`** (medido em 11/11/2026) |
+| `hs_meadows_house` | **60** peças | **60/60** em **120 s**, **0 puladas** (medido em 04/11/2026) |
+| `hs_meadows_manor` | **96** peças | **92/96** em **152 s**, **5 puladas** (medido em 04/11/2026) |
+| `hs_meadows_hobbit_repairhut` | **62** peças | **61/62** em **220 s**, **1 pulada** e **2 `UNSUPPORTED`** (medido em 04/11/2026) |
 
 Os três ficaram **em andamento** quando esta nota foi escrita e fecharam depois; o que eles mediram do `DeckLift`
 (terreno plano em 38,78, obra 1 m no ar e peça mais baixa em 39,78) está em `docs/re/building-notes.md` §17.23 — e a
@@ -343,7 +343,7 @@ automática não a consulta. As saídas continuam sendo duas, e a escolha é do 
     declarada"**; o que o autor permite de fato não foi verificado (a página do Thunderstore não foi lida nesta
     nota) — é o que decide o §6.4.
 11. **Os três runs que estavam em andamento** (`hs_meadows_house` 60, `hs_meadows_manor` 96,
-    `hs_meadows_hobbit_repairhut` 62): **medidos depois** (11/11/2026) — **60/60** em **120 s**, **92/96** em **152 s**
+    `hs_meadows_hobbit_repairhut` 62): **medidos depois** (04/11/2026) — **60/60** em **120 s**, **92/96** em **152 s**
     (**5 puladas**) e **61/62** em **220 s** (**1 pulada**, **2 `UNSUPPORTED`**). O que eles mediram está em
     `docs/re/building-notes.md` §17.23; a conta do Manor (**92 + 5 = 97** contra **96**) **não fecha** e não foi
     explicada. O que continua não medido é a **causa** das 5 e da 1, e os **2 `UNSUPPORTED`** antes da correção do

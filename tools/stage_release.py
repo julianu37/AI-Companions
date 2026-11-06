@@ -300,7 +300,7 @@ def plan_stage(from_dir, to_dir, package_dir, include_models):
                 notes.append("whisper\\%s entra no pacote mas nao e o modelo padrao (%s)"
                              % (path.name, DEFAULT_WHISPER_MODEL))
 
-    # 11/11/2026: a biblioteca de planos do jogador mudou de BepInEx\config\AI-Companions\blueprints para
+    # 04/11/2026: a biblioteca de planos do jogador mudou de BepInEx\config\AI-Companions\blueprints para
     # <pasta do plugin>\blueprints (conteudo, como Translations\ e Speech\). E opcional: so entra quando a pasta
     # existe e tem pelo menos um .blueprint - o mod cria a pasta no primeiro uso e zip nao precisa de pasta vazia.
     plans = from_dir / "blueprints"

@@ -71,12 +71,261 @@ namespace Companions
         // P2 (multi-build, 03/11/2026): how long a build route that stops short of a target ABOVE waits for the route map
         // before the stuck ladder calls it stuck - one bake interval of the game (m_updateInterval = 5 s) plus slack
         public const float NavMeshGrace = 6f;
+        // 05/11/2026 (the deck gap): the memo of the clearance test per body - at most two capsules every 0,1 s instead of
+        // two per frame (the same pattern as `s_agent`), and the step below which the test is not worth a query (the body
+        // is already there and a centimeter of room decides nothing)
+        public const float FitSeconds = 0.1f, MinBodyStep = 0.3f;
+        /// <summary>05/11/2026: how far the body may drift before the memoised clearance answer is asked again (see
+        /// <c>CeilingBlocks</c>).</summary>
+        public const float FitMove = 0.8f;
+        // 05/11/2026 (the rescue under the terrain): one ground query per companion every 2 s (the game's own
+        // UnderWorldCheck runs every 5 s and only for the owner), one rescue every 10 s, and 3 inside 5 minutes - the
+        // third one that does not solve it means the spot is not the problem and the log says so once
+        public const float SunkCheckSeconds = 2f, SunkRepeatSeconds = 10f, SunkWindowSeconds = 300f;
+        public const int SunkMaxRescues = 3;
 
         static int Mask()
         {
             if (s_mask == -1) s_mask = LayerMask.GetMask("Default", "static_solid", "Default_small", "piece", "terrain", "vehicle");
             return s_mask;
         }
+
+        // ---------- 05/11/2026: does the body fit where it is going? (the deck gap the player measured) ----------
+        // Measured in the game (docs/re/deck-clearance.md): the stone cottage closed "peças: 64/64, 0 pulada(s)" and the
+        // companion ended 0,88 m INSIDE the terrain (feet 37,90 against a ground of 38,78), squeezed under the deck's
+        // floor (a 1,00 m gap for a 1,80 m body). The game has no head room test in the movement at all
+        // (CheckCapsule/OverlapCapsule appear once in the whole assembly, in Fireplace), no crouch that shortens the
+        // collider, depenetration is capped at 2 m/s and its own rescue (Character.UnderWorldCheck) teleports only
+        // 1,00 m below the ground - he was at 0,88 m and 12 cm were missing. He only left when the player demolished
+        // the floor, so the rule is ours.
+        //
+        // It is a mask of its own, NOT Mask(): that one carries `vehicle` (a narrow boat deck would become a wall) and
+        // it does not exclude the body itself, whose collider lives in `Default`.
+        static int s_clearMask = -1;
+        static int s_bodyTerrain = -2;
+        static int ClearanceMask()
+        {
+            if (s_clearMask == -1) s_clearMask = LayerMask.GetMask("Default", "static_solid", "piece", "terrain");
+            return s_clearMask;
+        }
+        static int TerrainLayer()
+        {
+            if (s_bodyTerrain == -2) s_bodyTerrain = LayerMask.NameToLayer("terrain");
+            return s_bodyTerrain;
+        }
+        // 64 slots: inside a house a capsule crosses the floor, the walls, the beams and the roof at once, and a truncated
+        // buffer could hide the very slab the rule exists for (the same lesson the door search learned at 16, `s_doorCols`)
+        static readonly Collider[] s_fitCols = new Collider[64];
+        static readonly Dictionary<int, Fit> s_fit = new Dictionary<int, Fit>();
+        class Fit
+        {
+            public float At = -99f; public Vector3 From;
+            /// <summary>The step is refused (see <see cref="CeilingBlocks"/>).</summary>
+            public bool Block;
+        }
+
+        /// <summary>
+        /// 05/11/2026: the body's capsule is free with its feet at <paramref name="feet"/>? The capsule is the
+        /// <b>real</b> one (<see cref="BuildProbe.CapsuleOf"/> reads the prefab's <c>CapsuleCollider</c>: the Dverger
+        /// variants may differ from the vanilla 1,80 m / r 0,30 - the measured capsule of the log is
+        /// "39,90-41,70 m, r 0,30"), never a constant, and the answer is not "is the volume empty": the terrain, the
+        /// other bodies and the floor under the feet have to be told apart (<see cref="MHR_Clearance.Blocks"/>).
+        /// A body that cannot be measured answers <b>true</b> - never a refusal out of a bad measurement.
+        /// </summary>
+        static bool FitsBody(Character c, Vector3 feet)
+        {
+            if (c == null) return true;
+            float bottom, top, radius;
+            if (!BuildProbe.CapsuleOf(c, out _, out bottom, out top, out radius)) return true;
+            float lower, upper, r;
+            if (!MHR_Clearance.Spheres(bottom, top, radius, feet.y, out lower, out upper, out r)) return true;
+            Vector3 a = new Vector3(feet.x, lower, feet.z), b = new Vector3(feet.x, upper, feet.z);
+            int n = Physics.OverlapCapsuleNonAlloc(a, b, r, s_fitCols, ClearanceMask(), QueryTriggerInteraction.Ignore);
+            float floorY = feet.y + MHR_Clearance.StepIgnore;
+            int terrain = TerrainLayer();
+            for (int i = 0; i < n; i++)
+            {
+                Collider col = s_fitCols[i];
+                if (col == null || col.isTrigger) continue;
+                bool isBody = col.GetComponentInParent<Character>() != null || col.transform.root == c.transform.root;
+                bool isTerrain = terrain >= 0 && col.gameObject.layer == terrain;
+                if (MHR_Clearance.Blocks(col.bounds.min.y, isTerrain, isBody, floorY)) return false;
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// 05/11/2026 (the player's rule, <c>docs/re/deck-clearance.md</c> §6): <b>do not ENTER a space the body does not
+        /// fit in</b> - and nothing more than that. The destination is probed <c>min(remain, 1,2 m)</c> ahead and the
+        /// refusal only stands when the place the body is in right now <b>does</b> fit
+        /// (<see cref="MHR_Clearance.MayEnter"/>): a companion already inside the gap keeps every direction, otherwise he
+        /// becomes a statue and the player has to demolish the piece again.
+        ///
+        /// <para>When the way ahead does not fit, the lateral deviations are tried at the same distance before the step is
+        /// given up (a deck has sides, and the companion walks round its edge instead of standing at it).</para>
+        ///
+        /// <para><b>Cost:</b> this is the funnel of every direction. The <b>terminal refusal</b> - the one that repeats every
+        /// frame while the body stands at a wall it cannot pass - is memoised for <see cref="FitSeconds"/> per body
+        /// (<c>s_agent</c> set the pattern), so a companion held at a slab costs no <c>Physics</c> query at all. A step that
+        /// is allowed, and the search for a deviation, are asked every frame: they are what decides where the body goes next,
+        /// and reusing an answer from 0,8 m ago is how it would walk into the very slab the rule is about.</para>
+        /// </summary>
+        static bool CeilingBlocks(Character c, Vector3 pos, Vector3 dir, float remain, out Vector3 around)
+        {
+            around = Vector3.zero;
+            if (c == null || remain < MinBodyStep || dir.sqrMagnitude < 0.0001f) return false;
+            // only a body walking on the ground is judged: mid-jump and swimming the capsule's shape says nothing about
+            // where it can come down, and refusing there would cut a leap in the air
+            if (c.IsSwimming() || !c.IsOnGround()) return false;
+            float now = Time.time, ahead = Mathf.Min(remain, MHR_Clearance.LookAhead);
+            Vector3 flat = new Vector3(dir.x, 0f, dir.z);
+            if (flat.sqrMagnitude < 0.0001f) return false;
+            Vector3 dest = pos + flat.normalized * ahead;
+            int id = c.gameObject.GetInstanceID();
+            Fit memo;
+            if (!s_fit.TryGetValue(id, out memo)) { memo = new Fit(); s_fit[id] = memo; }
+            else if (memo.Block && now - memo.At < FitSeconds && Flat(memo.From, pos) < FitMove)
+            {
+                // Only the TERMINAL refusal is reused: it is the answer that repeats every frame while the body stands at a
+                // wall it cannot pass, which is the cost this memo exists for. A deviation is never reused - the direction it
+                // points at was verified from where the body was up to 0,8 m ago, and steering on a stale one would walk it
+                // into the very slab the rule is about. 0,1 s at 5 m/s is 0,5 m of drift against the 0,9 m the probe leaves
+                // before contact, so even the reused refusal still lands before the body touches.
+                return true;
+            }
+            memo.At = now; memo.From = pos; memo.Block = false;
+            if (MHR_Clearance.MayEnter(FitsBody(c, dest), FitsBody(c, pos)))
+            {
+                return false;
+            }
+            for (int i = 0; i < MHR_Clearance.Deviations.Length; i++)
+            {
+                Vector3 alt = Quaternion.Euler(0f, MHR_Clearance.Deviations[i], 0f) * flat.normalized;
+                if (!FitsBody(c, pos + alt * ahead)) continue;
+                around = alt;
+                return true;
+            }
+            memo.Block = true;
+            return true;
+        }
+
+        /// <summary>
+        /// 05/11/2026: the body is under the terrain and the game never rescued it. <c>Character.UnderWorldCheck</c>
+        /// (<c>Character.cs:893</c>) fires at <b>1,00 m</b> below the ground and the measured companion was at
+        /// <b>0,88 m</b>; the depenetration is capped at 2 m/s, so he stood there - "parado, 0,02 m em 11 s" - until the
+        /// player demolished the floor. <c>Unstick</c> cannot help: it looks for a route and there is none under a slab.
+        ///
+        /// <para>Guards: not inside a dungeon (<c>InInterior</c>, or it would teleport inside a cave); one ground query per
+        /// companion per <see cref="SunkCheckSeconds"/> and never per frame; at most one rescue every
+        /// <see cref="SunkRepeatSeconds"/> and <see cref="SunkMaxRescues"/> inside <see cref="SunkWindowSeconds"/>; after
+        /// the last one it stops and says so once.</para>
+        /// </summary>
+        static void RescueSunk(CompanionAI ai)
+        {
+            if (ai == null) return;
+            Character c = ai.GetComponent<Character>();
+            if (c == null || c.IsDead() || c.IsAttached() || ZoneSystem.instance == null) return;
+            float now = Time.time;
+            int id = ai.gameObject.GetInstanceID();
+            Sunk st;
+            if (!s_sunk.TryGetValue(id, out st)) { st = new Sunk(); s_sunk[id] = st; }
+            if (st.GaveUp || now < st.NextAt) return;
+            st.NextAt = now + SunkCheckSeconds;
+            if (c.InInterior()) return;
+            Vector3 pos = ai.transform.position;
+            // the bool overload, never the float one: `float GetGroundHeight` answers `p.y` when it finds nothing
+            // (fail-open), which would read as "buried 0 m" here. The game's ray starts at y 6000 whatever the point is
+            // (`ZoneSystem.cs:2738-2747`), so the height of the probe is only the point whose x/z is asked.
+            float ground;
+            if (!ZoneSystem.instance.GetGroundHeight(new Vector3(pos.x, pos.y + 50f, pos.z), out ground)) return;
+            float depth = ground - pos.y;
+            if (!MHR_Clearance.IsBuried(depth)) return;
+            if (st.FirstAt <= 0f || now - st.FirstAt > SunkWindowSeconds) { st.FirstAt = now; st.Tries = 0; }
+            if (st.Tries >= SunkMaxRescues)
+            {
+                st.GaveUp = true;
+                if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Move] still " + depth.ToString("F2")
+                    + " m under the ground after " + SunkMaxRescues + " rescues at " + Fmt(pos) + " - not trying again");
+                return;
+            }
+            st.Tries++;
+            Vector3 to = Landing(c, pos, ground);
+            ai.MHR_PlaceAt(to);
+            st.NextAt = now + SunkRepeatSeconds;
+            if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Move] o corpo estava " + depth.ToString("F2")
+                + " m abaixo do terreno - resgatado para a superfície (" + to.y.ToString("F1") + " m)"
+                + (Flat(to, pos) > 0.1f ? " a " + Flat(to, pos).ToString("F1") + " m do ponto" : string.Empty));
+            // the body is somewhere else now: the stuck ladder of the leg it was on says nothing about this spot
+            S s = Peek(ai);
+            if (s != null)
+            {
+                s.Ladder = 0; s.Passes = 0; s.GaveUp = false; s.GaveUpAt = 0f;
+                s.Anchor = to; s.AnchorTime = now; s.ProgressTime = now; s.Best = float.MaxValue;
+            }
+        }
+
+        static readonly Dictionary<int, Sunk> s_sunk = new Dictionary<int, Sunk>();
+        class Sunk
+        {
+            public float NextAt; public int Tries; public float FirstAt; public bool GaveUp;
+        }
+
+        /// <summary>
+        /// 05/11/2026 (the rescue's landing spot): where a buried body is put back. The straight answer - the ground right under
+        /// it - is <b>wrong for the measured case</b>: the companion was under the deck's <b>floor</b>, so the ground under its
+        /// feet is still inside the 1,00 m gap, the depenetration pushes it down again and the three rescues would be spent on
+        /// the same hole. So the spot must also <b>fit</b> (<see cref="FitsBody"/>): the feet on the ground first, then a ring of
+        /// 1..3 m around it - and when nothing fits, the ground itself is still better than staying buried (the next rescue
+        /// tries again).
+        ///
+        /// <para>The surface is always the terrain under the point (<c>ZoneSystem.GetGroundHeight</c>: it sees only the
+        /// <c>terrain</c> layer, which is exactly what "under the ground" means here).</para>
+        /// </summary>
+        static Vector3 Landing(Character c, Vector3 pos, float ground)
+        {
+            Vector3 best = new Vector3(pos.x, ground + 0.1f, pos.z);
+            if (FitsBody(c, best)) return best;
+            for (int ring = 1; ring <= 3; ring++)
+            {
+                float r = ring;
+                for (int i = 0; i < 8; i++)
+                {
+                    Vector3 p = pos + Quaternion.Euler(0f, i * 45f, 0f) * Vector3.forward * r;
+                    float g;
+                    if (ZoneSystem.instance == null || !ZoneSystem.instance.GetGroundHeight(new Vector3(p.x, p.y + 50f, p.z), out g)) continue;
+                    Vector3 candidate = new Vector3(p.x, g + 0.1f, p.z);
+                    if (!FitsBody(c, candidate)) continue;
+                    return candidate;
+                }
+            }
+            return best;
+        }
+
+        /// <summary>
+        /// 05/11/2026 (the closing line of the order that LIED): how many meters the body is <b>under the terrain</b>, by the
+        /// same query and the same rule the rescue uses (<see cref="MHR_Clearance.IsBuried"/>), so the count and the fix
+        /// cannot drift. <b>0</b> when it is not under the ground, when it is inside a dungeon (the heightfield says nothing
+        /// there) or when the ground cannot be found.
+        ///
+        /// <para>It is what <c>MHR_Build.Finish</c> prints as <c>enterrado: N</c>: the run of 05/11/2026 said
+        /// "peças: 64/64, 0 pulada(s)" with the companion <b>0,88 m</b> inside the ground and nothing in the line said so.</para>
+        /// </summary>
+        public static float DepthUnderGround(Character c)
+        {
+            if (c == null || c.IsDead() || ZoneSystem.instance == null || c.InInterior()) return 0f;
+            Vector3 pos = c.transform.position;
+            float ground;
+            if (!ZoneSystem.instance.GetGroundHeight(new Vector3(pos.x, pos.y + 50f, pos.z), out ground)) return 0f;
+            float depth = ground - pos.y;
+            return depth > 0f ? depth : 0f;
+        }
+
+        /// <summary>05/11/2026: is the body under the terrain by more than <see cref="MHR_Clearance.BuriedDepth"/>?</summary>
+        public static bool Buried(Character c)
+        {
+            return MHR_Clearance.IsBuried(DepthUnderGround(c));
+        }
+
         static S Get(Component c)
         {
             if (c == null) return null;
@@ -123,7 +372,7 @@ namespace Companions
         }
         // 1.5.3: climbing a planned chain of ladders (Follow leaves it to finish rather than switching to the player's path)
         public static bool OnLadderChain(CompanionAI ai) { S s = Peek(ai); return s != null && s.OnChain && Time.time - s.LastGo < 1f; }
-        // 11/11/2026 (Run 13, the ridge of the blueprint): the mover is on its way UP or AROUND right now (waiting for a
+        // 04/11/2026 (Run 13, the ridge of the blueprint): the mover is on its way UP or AROUND right now (waiting for a
         // ladder, on a ladder chain, going down one, climbing or on a detour). The walk to a piece 20 m away does not get
         // closer while he climbs, and the caller's "12 s without getting closer" clock used to cut the climb and throw the
         // piece back to the retry queue - the caller restarts the clock while this is true.
@@ -179,6 +428,9 @@ namespace Companions
         {
             s_s.Remove(id);
             s_opened.Remove(id);
+            // 05/11/2026: the clearance memo and the rescue clocks are per body too - Unity reuses instance ids
+            s_fit.Remove(id);
+            s_sunk.Remove(id);
         }
 
         // ---------- main entry ----------
@@ -488,6 +740,25 @@ namespace Companions
                     if (now - s.AnchorTime >= StillTime) Unstick(ai, c, s, pos, s.Goal, now, tag, now - s.AnchorTime, now - s.ProgressTime);
                     return false;
                 }
+            }
+
+            // 05/11/2026 (the deck gap, docs/re/deck-clearance.md §6): the body is 1,80 m and the gap under the deck's floor
+            // is 1,00 m - never walk INTO a space the capsule does not fit. Only the passage is refused (a body already
+            // inside keeps every direction, see CeilingBlocks) and a lateral deviation is tried before giving the step up,
+            // so walking under a bevel or round the edge of a deck stays free. The ledge/step/jump checks below are the
+            // ones that used to approve that gap: DropAhead takes the slab for the ground and StepAhead calls it a step.
+            Vector3 around;
+            if (CeilingBlocks(c, pos, dir, remain, out around))
+            {
+                if (around.sqrMagnitude < 0.0001f)
+                {
+                    Halt(ai, c, s);
+                    if (now >= s.NextEdgeLog) { s.NextEdgeLog = now + 5f; if (CompanionsPlugin.LogDetailed) Dbg("[Move|" + tag + "] the body does not fit ahead at " + Fmt(pos + dir * MHR_Clearance.LookAhead) + " - not walking in"); }
+                    if (now - s.AnchorTime >= StillTime) Unstick(ai, c, s, pos, s.Goal, now, tag, now - s.AnchorTime, now - s.ProgressTime);
+                    return false;
+                }
+                dir = around;
+                if (now >= s.NextEdgeLog) { s.NextEdgeLog = now + 5f; if (CompanionsPlugin.LogDetailed) Dbg("[Move|" + tag + "] the body does not fit ahead - going round it at " + Fmt(pos + around * MHR_Clearance.LookAhead)); }
             }
 
             float runDist = ModConfig.WorkRunDistance != null ? ModConfig.WorkRunDistance.Value : 25f;
@@ -2717,6 +2988,12 @@ namespace Companions
         }
 
         // the nearest spot to stand on that isn't in a fire, not on furniture
+        // 05/11/2026: the capsule asked here is 0,50..1,60 m with r 0,30 (1,70 m of body, no slack) while the clearance rule
+        // of CeilingBlocks reads the REAL capsule (1,80 m and r 0,30 measured in the game) with a centimeter of slack. The
+        // two rulers differ on purpose and neither is "the right one": this one answers "is this spot to STAND on free of
+        // furniture and walls", a coarse pick among 48 candidates where a taller test would refuse the spot beside a
+        // table; the clearance one answers "can the body WALK there" and a false "fits" there is a body inside the terrain.
+        // Tightening this one to 1,80 m was not done - it is not the measured path of the defect.
         static bool SafeSpot(Vector3 pos, out Vector3 spot)
         {
             spot = pos;
@@ -3593,6 +3870,9 @@ namespace Companions
                     if (c != null) c.SetWalk(false);
                     s.Walking = false;
                 }
+                // 05/11/2026: a body under the terrain is rescued from here, BEFORE the door bookkeeping below - that block
+                // returns early when there is no door to close, which is the normal case
+                RescueSunk(ai);
                 List<Opened> list;
                 if (!s_opened.TryGetValue(ai.gameObject.GetInstanceID(), out list) || list.Count == 0) return;
                 Vector3 pos = ai.transform.position;

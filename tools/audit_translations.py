@@ -27,12 +27,12 @@ O que ele checa no modo PT-BR (e o que cada numero quer dizer):
               hover, botoes, labels, `Say(`...) e que NAO passam por `Loc`. Linhas de log/diagnostico
               (`Log*`, `Dbg`, `Diag`) e nomes de GameObject/componente sao descartados de proposito - o
               jogador nao os ve (so no LogOutput.log).
-5. Config   - (11/11/2026) as chaves de rotulo do F8 (`hc_cfg_<secao>_<chave>`, montadas por `ConfigPanel.EntryLabel`)
+5. Config   - (04/11/2026) as chaves de rotulo do F8 (`hc_cfg_<secao>_<chave>`, montadas por `ConfigPanel.EntryLabel`)
               saem do CODIGO - os literais `hc_cfg_*` do `ModLocalization.cs` mais uma por opcao do `ModConfig.cs` - e
               sao cruzadas com os QUATRO arquivos de idioma, em qualquer modo. E a checagem que faltava: essas chaves
               nao tem default em ingles (o ingles mostra o nome curto da opcao), entao uma delas ausente dos 4 JSONs
               aparecia so como "sobrando por desenho" e o F8 ficava com o rotulo em ingles (foi o
-              `hc_cfg_building_spreadworkers`, 11/11/2026). Conta no exit code como as outras; as chaves que so
+              `hc_cfg_building_spreadworkers`, 04/11/2026). Conta no exit code como as outras; as chaves que so
               existem no ModConfig e faltam entram como aviso (ver `CONFIG_OPTION_ONLY_FAILS`).
 
 O modo `--lang <NomeDoArquivoSemExtensao>` (Multilanguage M3) valida `Translations/<Nome>.json` e
@@ -181,11 +181,11 @@ def code_keys():
 
 
 # ----------------------------------------------------------------------------------------------------------------
-# Checagem de CONFIG (11/11/2026) - a que faltava: uma chave `hc_cfg_*` ausente dos 4 arquivos passava verde.
+# Checagem de CONFIG (04/11/2026) - a que faltava: uma chave `hc_cfg_*` ausente dos 4 arquivos passava verde.
 # O rotulo de uma opcao do F8 e montado por `ConfigPanel.EntryLabel` (`hc_cfg_<secao>_<chave>`, minusculas) e, em
 # ingles, cai no nome curto da opcao (`entry.Definition.Key`); por isso a maioria dessas chaves NAO tem default no
 # `_englishDefaults` e o modo PT so as via como "sobrando por desenho" (nao tem contraparte em ingles para faltar).
-# Defeito real (11/11/2026): o `hc_cfg_building_spreadworkers` (registrado, `ModLocalization.cs:850`) ficou fora dos
+# Defeito real (04/11/2026): o `hc_cfg_building_spreadworkers` (registrado, `ModLocalization.cs:850`) ficou fora dos
 # 4 arquivos e o F8 mostrou o rotulo em ingles em PT/ES/FR/IT. As chaves saem do CODIGO e sao cruzadas com os QUATRO
 # arquivos em qualquer modo, e o exit code nao passa verde com chave de config faltando.
 #
@@ -549,7 +549,7 @@ def report_language(lang):
 # --selftest-config: a prova negativa da checagem de config, sem tocar em `Translations/`.
 # ----------------------------------------------------------------------------------------------------------------
 
-SELFTEST_VICTIM = 'hc_cfg_building_spreadworkers'   # a chave que passou verde em 11/11/2026
+SELFTEST_VICTIM = 'hc_cfg_building_spreadworkers'   # a chave que passou verde em 04/11/2026
 SELFTEST_VICTIM_ES = 'hc_cfg_building_stepaside'    # a mesma classe, tirando de outro arquivo (o ES)
 
 

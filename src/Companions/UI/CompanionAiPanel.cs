@@ -790,7 +790,7 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 			return false;
 		}
 		// never on top of another window of the mod - one list, in ModUiLayers (F8, the build panel, the appearance
-		// editor opened by this very panel, the starter picker, a companion's own window, the shrine menu). 11/11/2026:
+		// editor opened by this very panel, the starter picker, a companion's own window, the shrine menu). 04/11/2026:
 		// this method is also the CLOSE key when the panel is visible (see Update), so the list may only answer for the
 		// "may open" side - this panel is in it.
 		if (!_visible && ModUiLayers.AnyWindowOpen)

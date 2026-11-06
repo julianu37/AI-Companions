@@ -1473,7 +1473,7 @@ public class CompanionPanel
 		}
 	}
 
-	/// <summary>The invisible bar of a scroll area (11/11/2026: the one implementation lives in
+	/// <summary>The invisible bar of a scroll area (04/11/2026: the one implementation lives in
 	/// <see cref="GameLook.CreateHiddenScrollbar"/> - the build panel needed the same widget).</summary>
 	private static Scrollbar CreateHiddenScrollbar(Transform parent)
 	{

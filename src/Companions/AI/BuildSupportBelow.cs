@@ -70,7 +70,7 @@ internal static class BuildSupportBelow
 	/// <see cref="ShortTolerance"/> shorter than the gap and at most <see cref="MaxOverlap"/> longer (see both for the
 	/// measured numbers). The shortest one wins: the post must look like the one a player would pick.</para>
 	///
-	/// <para><b>The windows</b> (11/11/2026, measured on the 987-piece house), per post length: <c>wood_beam_1</c> (1 m)
+	/// <para><b>The windows</b> (04/11/2026, measured on the 987-piece house), per post length: <c>wood_beam_1</c> (1 m)
 	/// covers <c>[0,55; 1,20]</c>, <c>wood_beam</c>/<c>wood_pole2</c> (2 m) cover <c>[1,55; 2,20]</c> and
 	/// <c>wood_beam_45</c> (2,83 m) covers <c>[2,38; 3,03]</c>. The gaps of the house that had no post are <b>0,60 m</b>
 	/// (the step between two floors, below the 1 m window before this change) and <b>1,60 m</b> (between the 1 m and the
@@ -110,7 +110,7 @@ internal static class BuildSupportBelow
 	/// and the game reads support by <b>collider overlap</b> (<c>WearNTear.SetupColliders</c> grows each box by 0,15 m, and
 	/// the placement itself does not test support), so the top of the post may sit <b>through</b> the piece it holds.
 	///
-	/// <para>P1 (11/11/2026, measured on the 987-piece house: the gap of the <c>wood_floor</c> step is <b>0,60 m</b>, and with
+	/// <para>P1 (04/11/2026, measured on the 987-piece house: the gap of the <c>wood_floor</c> step is <b>0,60 m</b>, and with
 	/// 0,35 the shortest post, <c>wood_beam_1</c> (1 m), did not fit - its top stands 0,40 m above the piece): 0,45 turns the
 	/// 1 m window into <c>[0,55; 1,20]</c> and covers the 0,60 m gap, with the beam crossing 0,40 m of the piece it holds -
 	/// which the game accepts, because the bond is the collider overlap. A whole storey (2 m) would still go through the
@@ -126,7 +126,7 @@ internal static class BuildSupportBelow
 	/// <paramref name="count"/> entries are read (the caller fills fixed buffers in the order the ray met them). Returns the
 	/// index of that surface, or -1 when none of them is usable (the caller then uses the terrain height).
 	///
-	/// <para>P1 (11/11/2026, the run that closed at 950 of 987 with <b>95 refusals</b> of the post itself and 20 pieces that
+	/// <para>P1 (04/11/2026, the run that closed at 950 of 987 with <b>95 refusals</b> of the post itself and 20 pieces that
 	/// never went up): depth alone was not enough - a deep hit can still be a surface that <b>cannot carry a post</b>: the top
 	/// of a <b>chest</b>, a bed or a fireplace (furniture is the only class with <c>m_supports = false</c> in 1.0.20), where
 	/// the post was accepted, had nothing under it and the game refused the post with <c>no_support</c>. The surface has to
@@ -185,7 +185,7 @@ internal static class BuildSupportBelow
 	/// "vão de 0,16 m"): can a collider found inside the footprint of a piece of <paramref name="pieceClass"/> hold it?
 	///
 	/// <para>The terrain holds anything. A <b>roof</b> (class 3, which includes <c>wood_wall_roof_*</c>) is held by <b>any</b>
-	/// <see cref="WearNTear"/>, without asking for <c>m_supports</c>. <b>Correction (11/11/2026, measured in 1.0.20 -
+	/// <see cref="WearNTear"/>, without asking for <c>m_supports</c>. <b>Correction (04/11/2026, measured in 1.0.20 -
 	/// <c>docs/re/support-rule-wearntear.md</c> §5):</b> the reason written here first - "a roof piece has
 	/// <c>m_supports = false</c>" - is <b>wrong</b>: <c>wood_roof</c>, <c>wood_roof_45</c>, <c>wood_roof_top</c>,
 	/// <c>wood_roof_top_45</c>, <c>wood_roof_icorner_45</c>, <c>wood_floor</c>, <c>wood_wall_half</c>,
@@ -214,7 +214,7 @@ internal static class BuildSupportBelow
 	}
 
 	/// <summary>
-	/// 11/11/2026 (the Run 9: the <c>wood_floor</c> tile at 39,8 was refused by a body, went to the site's queue, and the
+	/// 04/11/2026 (the Run 9: the <c>wood_floor</c> tile at 39,8 was refused by a body, went to the site's queue, and the
 	/// guard "never a post where the plan has a support" then blocked the emergency post for the three floors above it -
 	/// the support was <b>in the plan</b> but <b>not in the world</b>): may the emergency post be planted under a piece whose
 	/// direct support <b>exists in the plan</b>?

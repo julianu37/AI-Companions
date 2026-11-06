@@ -1,7 +1,7 @@
 namespace Companions;
 
 /// <summary>
-/// P1 (04/11/2026) and 11/11/2026 (Run 10): the <b>body window</b> of the placement check - would a piece at a pose be
+/// P1 (04/11/2026) and 04/11/2026 (Run 10): the <b>body window</b> of the placement check - would a piece at a pose be
 /// built <b>through a character</b>?
 ///
 /// <para>The measured bug of 04/11/2026: with the 1 m deck the floor was placed <b>over the head</b> of two companions
@@ -12,7 +12,7 @@ namespace Companions;
 /// every character (<c>CheckPlacementGhostVSPlayers</c>), which is the body, not a point.</para>
 ///
 /// <para>Then it became a column: the character was <c>feet - 0,5 m .. feet + 2,0 m</c> and the piece a <b>disc</b> of
-/// its largest flat side plus 0,45 m. The disc is what the <b>Run 10</b> (11/11/2026) paid for: a <b>2 m beam</b> became
+/// its largest flat side plus 0,45 m. The disc is what the <b>Run 10</b> (04/11/2026) paid for: a <b>2 m beam</b> became
 /// a 1 m disc in every direction, so a companion standing 1,08 m from the beam's pose, <b>1,9 m below it</b>, held the
 /// piece for the whole barrier (three short retries), while the game's own ghost check would accept it - the beam's
 /// box ends well before him. The window is now the real shape the game uses: the character is a <b>capsule</b> (its
@@ -60,7 +60,7 @@ internal static class BuildBody
 	}
 
 	/// <summary>
-	/// 11/11/2026 (Run 10): the vertical half of the piece's box <b>at a pose</b> - the Y half extent of the AABB of a box
+	/// 04/11/2026 (Run 10): the vertical half of the piece's box <b>at a pose</b> - the Y half extent of the AABB of a box
 	/// with half extents (<paramref name="halfX"/>, <paramref name="halfY"/>, <paramref name="halfZ"/>) turned by a
 	/// rotation whose unit axes have these Y components (<paramref name="axisXy"/> for X, <paramref name="axisYy"/> for
 	/// Y, <paramref name="axisZy"/> for Z). A 45° beam is <b>0,78 m</b> tall instead of 0,1 m, which is exactly the case

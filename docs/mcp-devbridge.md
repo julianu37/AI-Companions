@@ -132,14 +132,14 @@ antes), `missing station: <nome>`, `missing piece: <prefab>` ou `not started` - 
 não entrou**; com `started: true` ele não vai no reply. `started: true` com `workers: N` também
 quando a ordem entrega o canteiro ao **nivelamento** primeiro (o `MHR_Level` leva os N e devolve todos depois): o
 reply **não** tem campo de nivelamento. `plan`/`prefab` continuam sendo ordem de **um** (`workers` = 1). O teste mock
-do adaptador (**107 PASS** em 11/11/2026 — **101** até então; **12** asserções para o contrato do grupo de obra em
-03/11/2026 e **6** para o `stop` em 11/11/2026) cobre exatamente isto:
+do adaptador (**107 PASS** em 04/11/2026 — **101** até então; **12** asserções para o contrato do grupo de obra em
+03/11/2026 e **6** para o `stop` em 04/11/2026) cobre exatamente isto:
 `workers`, `refused` só quando recusa, sem `leveling` e `name` vazio = todos.
 
 `companions.order` **cancela `MHR_Build` e `MHR_Level`** em qualquer ação aceita (ordem de um tiro, como no
 chat/roda) e aceita: `follow`, `wood`, `stone`, `ore`, `forage`, `smelt`, `hunt`, `farm`, `fish`, `repair`,
 `restock`, `cook`, `stay`, `stance_balanced`, `stance_passive`, `stance_ranged`, `stance_melee`, `autopickup_on`,
-`autopickup_off` — mais a **ordem de parar** (11/11/2026): **`stop`**, **`cancel`** e **`para`**
+`autopickup_off` — mais a **ordem de parar** (04/11/2026): **`stop`**, **`cancel`** e **`para`**
 (`DevBridge/Commands.cs:2191`). Com o grupo de obra (P1), uma ação comum derruba a ordem daquele **companheiro** (o
 `name`, ou o primeiro) e o canteiro continua com os outros; o **`stop`** é a parada do **chat**: cancela obra **e**
 nivelamento e responde o que **estava** rodando, lido **antes** do cancel (`build`/`level`, e `cancelled`); **sem

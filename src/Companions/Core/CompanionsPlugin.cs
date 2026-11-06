@@ -171,7 +171,7 @@ public class CompanionsPlugin : BaseUnityPlugin
 		ConfigPanel.Create();
 		// Fase 3.7: the in-game AI panel (personality, voice, push-to-talk) - built on first open, hidden until then
 		CompanionAiPanel.Create();
-		// 11/11/2026: the build panel ([Controls] BuildPanelKey) - the site the companions are building
+		// 04/11/2026: the build panel ([Controls] BuildPanelKey) - the site the companions are building
 		CompanionBuildPanel.Create();
 		FarmZonePlacer.EnsureInstance();
 	}

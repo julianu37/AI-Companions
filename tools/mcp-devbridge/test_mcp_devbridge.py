@@ -241,7 +241,7 @@ def main():
         check("companions_order forwards the action", '"wood"' in text and '"applied": true' in text)
         check("companions_order sends the name", any(r.get("args", {}).get("name") == "Maria" for r in bridge.requests))
 
-        # The stop order (player's request, 11/11/2026): "companions.order action=stop" used to answer
+        # The stop order (player's request, 04/11/2026): "companions.order action=stop" used to answer
         # "unknown action: stop" - there was no way to cancel an order from the bridge.
         order_tool = next((t for t in tools if t["name"] == "companions_order"), {})
         check("companions_order documents the stop order",
@@ -422,7 +422,7 @@ def main():
         check("nav_stats sends no arguments",
               all(a == {} for a in nav_args("nav.stats")), nav_args("nav.stats"))
 
-        # --- blueprints: see the library without giving an order (player's request, 11/11/2026) ----------------
+        # --- blueprints: see the library without giving an order (player's request, 04/11/2026) ----------------
         list_tool = next((tool for tool in tools if tool["name"] == "blueprints_list"), {})
         inspect_tool = next((tool for tool in tools if tool["name"] == "blueprints_inspect"), {})
         check("blueprints_list takes no arguments",

@@ -27,7 +27,7 @@ namespace Companions;
 /// </summary>
 internal static class BuildProbe
 {
-	/// <summary>11/11/2026 (Run 10): the capsule a character without a readable collider falls back to - the vanilla
+	/// <summary>04/11/2026 (Run 10): the capsule a character without a readable collider falls back to - the vanilla
 	/// body (1,8 m tall, 0,3 m of radius). It is only used when <c>Character.GetCollider()</c> is null (a custom body
 	/// with the collider turned off), and the log says it once.</summary>
 	private const float FallbackBodyHeight = 1.8f;
@@ -448,7 +448,7 @@ internal static class BuildProbe
 	}
 
 	/// <summary>
-	/// The same check with <b>the station rule optional</b> (lote 1, 11/11/2026): a blueprint with
+	/// The same check with <b>the station rule optional</b> (lote 1, 04/11/2026): a blueprint with
 	/// <c>[Building] BlueprintStations</c> on is built without a workbench, so <paramref name="requireStation"/> = false
 	/// simply does not add <c>needs_station</c> - nothing else changes, and <c>hasStation</c> in the result keeps telling
 	/// the truth about the world (it is the proof of the run). The default preserves every other caller.
@@ -680,7 +680,7 @@ internal static class BuildProbe
 	/// <c>m_supports</c> and refused a roof over another roof with <c>no_support</c> even with the row below standing. The
 	/// decision is now <see cref="BuildSupportBelow.HoldsPlacedPiece"/>: the terrain holds anything, a <b>roof</b> is held
 	/// by any <see cref="WearNTear"/> in its footprint, and every other class still needs a piece that really carries
-	/// (<c>m_supports</c>) - otherwise a wall would stand on a chest. <b>Correction (11/11/2026, measured in 1.0.20 -
+	/// (<c>m_supports</c>) - otherwise a wall would stand on a chest. <b>Correction (04/11/2026, measured in 1.0.20 -
 	/// <c>docs/re/support-rule-wearntear.md</c> §5):</b> the motive written here first - "a roof piece has
 	/// <c>m_supports = false</c>" - is <b>wrong</b> (every wooden structural prefab measured, roofs included, is
 	/// <c>m_supports = true</c>; only furniture is <c>false</c>), so the class-3 bypass is a <b>no-op</b> and the real
@@ -750,7 +750,7 @@ internal static class BuildProbe
 	/// <b>rotated box</b> - a floor above the head blocks while its span crosses the body, a piece entirely above the head
 	/// does not, and a body <b>beside</b> the piece does not either (only the box's real width counts).</para>
 	///
-	/// <para>11/11/2026 (Run 10, measured): the piece used to be a <b>disc</b> of its largest flat side plus 0,45 m and the
+	/// <para>04/11/2026 (Run 10, measured): the piece used to be a <b>disc</b> of its largest flat side plus 0,45 m and the
 	/// <b>pivot</b> and the yaw were ignored - a 2 m <c>wood_beam</c> became a 1 m disc in every direction, and the
 	/// companion standing 1,08 m from its pose held it for the whole storey barrier. Now the box is the prefab's
 	/// (<see cref="BoxOf"/>) moved by its <b>pivot</b> (<c>box.center - piece.transform.position</c>) and turned by the
@@ -834,7 +834,7 @@ internal static class BuildProbe
 	}
 
 	/// <summary>
-	/// 11/11/2026 (the Run 10): <b>who</b> is standing on a pose of the plan - the same test
+	/// 04/11/2026 (the Run 10): <b>who</b> is standing on a pose of the plan - the same test
 	/// <see cref="CheckPoint"/> runs, answered with the body instead of a reason name. The build order uses it to say
 	/// which companion is on the piece (and to ask that one to step aside). <paramref name="ignore"/> is the companion
 	/// placing the piece.
@@ -845,7 +845,7 @@ internal static class BuildProbe
 	}
 
 	/// <summary>
-	/// 11/11/2026 (Run 10): the character's <b>capsule</b> as the window needs it - the point on its axis (the collider's
+	/// 04/11/2026 (Run 10): the character's <b>capsule</b> as the window needs it - the point on its axis (the collider's
 	/// centre in world space), the AABB's bottom and top (the capsule's real ends, so a crouched or a short body is not
 	/// guessed) and the radius (the wider side of the AABB). The vanilla body has no collider only when a prefab turns it
 	/// off: then the fallback is the 1,8 m / 0,3 m body and the log says it once (never per frame). Also used by the build
@@ -909,7 +909,7 @@ internal static class BuildProbe
 	private static Bounds _bodyBox;
 	private static bool _bodyBoxOk;
 	private static bool _bodyBoxCached;
-	/// <summary>11/11/2026: the fallback body was already said out loud (a missing capsule is not news per pose).</summary>
+	/// <summary>04/11/2026: the fallback body was already said out loud (a missing capsule is not news per pose).</summary>
 	private static bool _fallbackBodyLogged;
 
 	/// <summary>

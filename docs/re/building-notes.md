@@ -991,7 +991,13 @@ olho sobe com o corpo e a mesma regra cobre a peca, exatamente o que um jogador 
 **0,9 s** (`State.NextJumpAt`) para nao virar pula-pula, e o log (Detailed) diz
 `a hop to reach the <peca> at 0,4 m beyond the reach`.
 
-### 15.2l Escadinha que termina no vazio + queda em loop (03/11/2026)
+### 15.2l Escadinha que termina no vazio + queda em loop (03/11/2026) — **HISTÓRICO**
+
+> **Esta seção descreve um mecanismo que NÃO existe mais (anotado em 05/11/2026).** O `StoreyOf` que ela cita foi
+> **substituído pelo `LevelKey`** (a altura da própria peça) e o código ficou **sem chamador**; foi **removido** em
+> 05/11/2026. A decisão de "quem recusa a subida para o vazio" que sobreviveu é a do **`MHR_Mover.LadderLanding`**
+> (fail-open, só o vazio é recusado), e a ordenação por andar hoje é o `LevelKey` no `BuildBlueprintParser`. Ler esta
+> seção como **histórico da investigação**, não como descrição do código atual.
 
 Relato do jogador com screenshot: *"ele ficou em loop caindo da escada ate morrer"*. A casa tem um **salao de pe-direito
 duplo**: naquela area **nao existe piso no nivel 2** (o "2o piso" do blueprint ali e o 3o nivel). O plano traz uma
@@ -1345,7 +1351,7 @@ Sem a bancada perto o `wood_beam` recusa com `needs_station` e a ordem encerra d
 <https://thunderstore.io/package/download/OverDrive/BiomeBlueprints/1.0.3/>). Dentro do zip, os 353 arquivos estão na
 pasta **`blueprints/`** - é só copiar os `.blueprint` que quiser para `BepInEx\plugins\AI-Companions\blueprints\` (o
 mod **copia** sozinho a pasta antiga, `BepInEx\config\AI-Companions\blueprints\`, na primeira vez que a nova não existe —
-11/11/2026).
+04/11/2026).
 Outras fontes: **valheimians.com** (acervo da comunidade) e a **captura do próprio PlanBuild** (salva um `.blueprint` do
 que você construiu). O mod **não** precisa do PlanBuild para ler nenhum deles.
 
@@ -1367,7 +1373,7 @@ download é do jogador (login no Nexus e a licença **proíbe redistribuir** o a
 feito.
 
 **Onde os arquivos ficam:** `BepInEx\plugins\AI-Companions\blueprints\` — a pasta do **DLL** (`Assembly.Location`, a
-mesma de `tts\`/`whisper\`/`Translations\`), não mais `BepInEx\config\AI-Companions\blueprints\` (até 11/11/2026: a
+mesma de `tts\`/`whisper\`/`Translations\`), não mais `BepInEx\config\AI-Companions\blueprints\` (até 04/11/2026: a
 mudança foi pedido do jogador, porque a biblioteca é **conteúdo** e assim o pacote pode levá-la). O mod **cria a pasta**
 no primeiro uso e, na primeira vez em que ela **não existe**, **copia** a antiga **uma vez** - nunca move e nunca
 sobrescreve um arquivo homônimo (`AI/BuildBlueprints.cs` → `MigrateLegacy`; log
@@ -1831,14 +1837,14 @@ workers terminaram com o watchdog em `0 peça(s) sem apoio` e o **terceiro** par
   uma superfície **mais perto que `MinPostGap` = 0,4 m** (`:97`) é **atravessada**, e a próxima começa **5 cm abaixo do
   hit** (`:3292`), até **`MaxPostPasses` = 4** (`:101`) ou o fundo do alcance. Os vãos medidos vão para um buffer fixo
   (`s_postDepths`, `:105`, sem alocação por recusa) e a decisão é **pura**: `BuildSupportBelow.UsefulSurface(depths,
-  holds, count, minGap)` (`AI/BuildSupportBelow.cs:139` — assinatura do lote de 11/11/2026, §17.14) devolve o **primeiro
+  holds, count, minGap)` (`AI/BuildSupportBelow.cs:139` — assinatura do lote de 04/11/2026, §17.14) devolve o **primeiro
   vão que serve** — fundo (≥ 0,4 m) **e** que segura — ou `-1` (aí usa o
   `GetGroundHeight`, fail-open). **Motivo medido:** **318 recusas** com `vão de 0,16 m` — uma **beira de telhado colada**
   sob o piso de 40,8 parava o raio, e o apoio útil era o **piso do deck a 1,02 m** embaixo.
 - **O vão e a escolha do poste:** `gap = piece.y − baseY` (`:3321`); o poste é o **mais curto que alcança**,
   `BuildSupportBelow.PickPost` (`AI/BuildSupportBelow.cs:80`) — até **0,20 m mais curto** (`ShortTolerance`, `:107`: a
   caixa de apoio do jogo é crescida em 0,15 m) e no máximo **0,45 m mais longo** (`MaxOverlap`, `:119` — era **0,35**
-  até o lote de 11/11/2026, §17.14; com 0,45 o vão medido de **0,60 m** passa a caber). O centro é
+  até o lote de 04/11/2026, §17.14; com 0,45 o vão medido de **0,60 m** passa a caber). O centro é
   `baseY + comprimento/2` (`:3337`) — é o que põe a base **na superfície** em vez
   de enterrá-la. Candidatos, na ordem (`FallbackPostPrefabs`, `:79`): `wood_beam_1`, `wood_beam`, `wood_pole2`,
   `wood_beam_45`, com o comprimento **medido dos snaps de cada prefab** (`MeasurePosts` `/`PostAxis` — uma vez só, em
@@ -1879,7 +1885,7 @@ workers terminaram com o watchdog em `0 peça(s) sem apoio` e o **terceiro** par
   `BlockedByCharacter` (`BuildProbe.cs:720`) passou a receber a peça e usa essa janela para **todo** personagem —
   jogador **e** companheiro (o docstring `:714-718` já explica a reversão do ignore). Harness: **15** casos na **(s)**
   **naquele lote**.
-  > **Superado em 11/11/2026 (§17.16):** a "coluna + disco de 0,45 m" era **conservadora demais** — o disco de 1 m
+  > **Superado em 04/11/2026 (§17.16):** a "coluna + disco de 0,45 m" era **conservadora demais** — o disco de 1 m
   > ignorava **pivô e rotação** e o **Run 10** pagou por isso (um feixe de 2 m "prendia" um companheiro a 1,08 m, falso
   > positivo). A janela hoje é a **cápsula real** do corpo contra a **caixa girada** da peça, com **toque = livre**
   > (`BuildProbe.CapsuleOf`, `BlockedByCharacter` em `BuildProbe.cs:733-793`, `BuildBody.Blocks`/`HalfY`; **(s)** com
@@ -1892,7 +1898,7 @@ workers terminaram com o watchdog em `0 peça(s) sem apoio` e o **terceiro** par
   nunca existia, e por isso o poste nunca subiu.
 - **O que ela fecha:** as **16** do Run 3 (§17.6 — colunas na **empenha leste** e no **canto noroeste**, 40,8→46,8, + 4
   baús) e as **6** de 42,8/44,8/46,8 que sobraram no run do deck (§17.10), que são exatamente o caso "o autor não pôs
-  nada embaixo". **Estado: medido no run de 11/11/2026 (§17.13)** — build **0/0** e harness **601** (596 naquele run;
+  nada embaixo". **Estado: medido no run de 04/11/2026 (§17.13)** — build **0/0** e harness **601** (596 naquele run;
   o lote do poste é o §17.14); no run, **0 postes
   foram necessários** (não era apoio que faltava) e o telhado fechou — mas **não** por esta regra: o §17.12 mostrou que
   a classe do telhado era **inócua** (o flag é `true`) e que o que travava era **geometria**.
@@ -1949,8 +1955,8 @@ workers terminaram com o watchdog em `0 peça(s) sem apoio` e o **terceiro** par
   poste não cobria esse vão naquele build:** com `MaxOverlap` **0,35 m** (`AI/BuildSupportBelow.cs:111` na época), o
   `wood_beam_1` (1 m) só
   alcançava vão de **0,65 a 1,20 m** (`PickPost`, `:80`; os dois números em `:107`/`:119`), e a lista de candidatos do mod
-  não tem peça mais curta (`FallbackPostPrefabs`, `MHR_Build.cs:79`). **Isso mudou em 11/11/2026 — §17.14.**
-- **Conserto feito, fechado no lote de 11/11/2026 (`ae9ebc3`) — §17.14:** o `MaxOverlap` foi para **0,45**
+  não tem peça mais curta (`FallbackPostPrefabs`, `MHR_Build.cs:79`). **Isso mudou em 04/11/2026 — §17.14.**
+- **Conserto feito, fechado no lote de 04/11/2026 (`ae9ebc3`) — §17.14:** o `MaxOverlap` foi para **0,45**
   (`AI/BuildSupportBelow.cs:119`), então o `wood_beam_1` cobre **`[0,55; 1,20]`** e o **degrau de 0,6 m passa a receber
   poste** (a ligação é **sobreposição de collider**, não comprimento exato; o beam atravessa 0,40 m da peça). O que **não**
   entrou no código é o outro item que o `package/CHANGELOG.md:316` anuncia: **"sólido sem `WearNTear` volta a apoiar"** —
@@ -1959,11 +1965,11 @@ workers terminaram com o watchdog em `0 peça(s) sem apoio` e o **terceiro** par
 - **O que sobra é desenho do plano, não validador** (nota §6): degrau/`DeckLift` **≤ 0,15 m por peça**, ou a
   parede/viga do andar de baixo **no plano** até o piso de cima (o `PullDirectSupport` só puxa peça **do plano**). A
   terceira saída (aceitar `MaxOverlap ≥ 0,40` e fincar um `wood_beam_1` atravessando) **foi a escolhida** e está no código
-  desde 11/11/2026 (`0,45`, §17.14); as duas primeiras continuam **decisão do jogador** (o `DeckLift` é dele).
+  desde 04/11/2026 (`0,45`, §17.14); as duas primeiras continuam **decisão do jogador** (o `DeckLift` é dele).
 - **Irmão, não gêmeo, do `CanSupport`** (`BuildSupportBelow.cs:145`, a regra do **pull**): lá **telhado só apoia
   telhado** e **porta nunca apoia**; aqui o telhado é apenas **apoiado** por qualquer `WearNTear`. As duas concordam no
   essencial: **porta nunca segura** e **telhado nunca segura um piso**.
-- **Harness:** seção **(r)** de **51 → 61** casos (+10 do `HoldsPlacedPiece`; hoje **66** com o lote de 11/11/2026 —
+- **Harness:** seção **(r)** de **51 → 61** casos (+10 do `HoldsPlacedPiece`; hoje **66** com o lote de 04/11/2026 —
   §17.14). **Ressalva:** os casos `:947` ("telhado
   sobre telhado: a fileira de baixo apoia pela borda") e `:951` ("piso NAO e apoiado por telhado") de
   `tools/ai-intents-check/Program.cs` passam `m_supports = false` numa peça **estrutural**, estado que **não existe** na
@@ -1974,7 +1980,7 @@ workers terminaram com o watchdog em `0 peça(s) sem apoio` e o **terceiro** par
   entre pivôs": 0,41 m pelo renderer, ~0,25 m por uma tábua de 0,1 m) e o ensaio destrutivo (colocar o piso a 0,6 m e
   vê-lo cair) — não feito de propósito, com o run em andamento (`docs/re/support-rule-wearntear.md` §7).
 
-### 17.13 O run de 11/11/2026 (5 companheiros, `DeckLift = 1`) — resultado e a ressalva
+### 17.13 O run de 04/11/2026 (5 companheiros, `DeckLift = 1`) — resultado e a ressalva
 
 - **Números:** **969 colocadas + 18 puladas = 987** (`hc_ai_blueprint_done`), **watchdog `0`**, canteiro com **985 das
   987** peças, **1 morte** e **`apoio de emergência` = 0** — com o poste por vão e a caminhada do raio no lugar, **não
@@ -1985,7 +1991,7 @@ workers terminaram com o watchdog em `0 peça(s) sem apoio` e o **terceiro** par
   **jogador estava dentro do canteiro** — cada peça perto dele volta para a fila (retry real) até ele sair.
 - **Ressalva honesta (estado atual da casa):** depois do run o arquiteto **apagou 41 peças do piso do deck**
   (**25 + 16**) para **libertar o jogador e os companheiros presos no vão de 1 m do deck**. Ou seja, o que estava no mundo
-  logo depois do Run 6 **não** tinha o piso íntegro da `CommHomeBasicBP`. **Atualização (Run 8, 11/11/2026):** o plano
+  logo depois do Run 6 **não** tinha o piso íntegro da `CommHomeBasicBP`. **Atualização (Run 8, 04/11/2026):** o plano
   inteiro foi recolocado no mesmo canteiro (**987/987** índices — §17.14), então o piso apagado **voltou**; a ressalva
   fica como história do Run 6, não como estado de hoje.
 - **Pendência aberta — o vão do deck (`DeckLift = 1`):** a folga de ~1 m entre o piso do deck e o chão prende corpos
@@ -1995,7 +2001,7 @@ workers terminaram com o watchdog em `0 peça(s) sem apoio` e o **terceiro** par
   2. **saia em volta** (fechar o perímetro do deck, transformando o vão num porão fechado);
   3. **regra de rota** no mover: não entrar/parar sob o deck (o companheiro contorna, o vão deixa de ser armadilha).
 
-### 17.14 O lote do poste (11/11/2026, `ae9ebc3`) — os furos medidos e o que mudou
+### 17.14 O lote do poste (04/11/2026, `ae9ebc3`) — os furos medidos e o que mudou
 
 - **O número que abriu o lote:** o **Run 7** fechou em **950/987** com **95 recusas** de `sem lugar para o apoio de
   emergência … - no_support`. A leitura errada seria "faltou lugar": o poste era reprovado por um check **genérico** — a
@@ -2036,7 +2042,7 @@ workers terminaram com o watchdog em `0 peça(s) sem apoio` e o **terceiro** par
   `PostReach` (10 m), `MaxFallbackPosts` (24 por ordem) e o "nunca onde o plano já tem apoio" seguem iguais.
   O `MaxOverlap` é **constante de código**, não config: **nenhuma** chave nova no F8 (a desta função continua
   `[Building] SupportFallback`).
-- **Divergência que sobra (doc público × código):** o `package/CHANGELOG.md` (11/11/2026) anuncia, no mesmo lote, que
+- **Divergência que sobra (doc público × código):** o `package/CHANGELOG.md` (04/11/2026) anuncia, no mesmo lote, que
   **"sólido sem `WearNTear`"** (pedra, árvore, estrutura) **volta a apoiar** — **isso não está no código**:
   `HoldsPlacedPiece` continua devolvendo `false` para `hasWear == false` (`AI/BuildSupportBelow.cs:209-212`) e o
   `PostBaseHolds` passa `wear != null` (`MHR_Build.cs:3390-3391`). Quem for medir o poste sobre pedra/árvore precisa
@@ -2049,11 +2055,11 @@ workers terminaram com o watchdog em `0 peça(s) sem apoio` e o **terceiro** par
   nenhuma segura → −1) e a asserção do número reescrita (`MaxOverlap == 0,45`; ela existia em 0,35 — por isso o total
   sobe **5**, não 6). MCP **101 → 107**: as **6** do `stop` (`tools/mcp-devbridge/test_mcp_devbridge.py:211-231`), que
   também entraram no `docs/mcp-devbridge.md` e no `tools/ai-intents-check/README.md:81,84`.
-- **Resultado do Run 8 (medido em jogo, 11/11/2026) — o lote validado:** **987 de 987 índices colocados, `skip` = 0**;
+- **Resultado do Run 8 (medido em jogo, 04/11/2026) — o lote validado:** **987 de 987 índices colocados, `skip` = 0**;
   **39 postes de emergência**, **0 recusas**; **1026 peças** no canteiro; **watchdog `0`**, **`UNSUPPORTED` = 0**, **0
   mortes** e **0 `falls`**; telhado **fechado**, **empena leste fechada**, **porta** e **escada das entradas** no
   lugar nas três visões (`render_view`). Onde cada número veio (as `linha N` abaixo são do `LogOutput.log` **desta**
-  sessão de 11/11/2026 — o log cresce, então procure pelo texto, não confie no número da linha):
+  sessão de 04/11/2026 — o log cresce, então procure pelo texto, não confie no número da linha):
   - **Montagem do run:** **5 companheiros** num plano só (`grupo de obra "MACCommHomeBasicBP": 5 companheiro(s) no
     mesmo plano (987 peças)`, log linha 167), `BlueprintFree = true`, `[Building] DeckLift = 1`, `PlaceReach = 15`,
     `SupportFallback = true`, `TempScaffold = false` e `LogLevel = Normal` (`AiCompanions.cfg:398/404/409/456/461/135`);
@@ -2106,7 +2112,7 @@ workers terminaram com o watchdog em `0 peça(s) sem apoio` e o **terceiro** par
   (`building-notes` §17.13: "canteiro com 985 das 987") é **outra** conta — peças de pé contra índices do plano — e
   **não** é o 985 de linhas do arquivo.
 
-### 17.15 O Run 9 (11/11/2026) — o jogador andando no canteiro, as 11 puladas e o defeito da barreira
+### 17.15 O Run 9 (04/11/2026) — o jogador andando no canteiro, as 11 puladas e o defeito da barreira
 
 - **O que muda em relação ao Run 8:** a **guarda de posição do jogador foi removida**. Ele foi posicionado **uma vez**
   antes da ordem e depois **andou livre** pelo canteiro — pedido dele: *"pra que eu possa andar com ele pelo jogo
@@ -2175,7 +2181,7 @@ workers terminaram com o watchdog em `0 peça(s) sem apoio` e o **terceiro** par
   (`[Building] BodyRetry`) **só entra no lote `fbda4ee`**, medido no Run 10 (§17.16) — as **361 opções / 25 seções** eram
   a medida de 04/11/2026, não uma reconferência daquela rodada.
 
-### 17.16 O Run 10 (11/11/2026) — a barreira de andar **MEDIDA** (lote `fbda4ee`)
+### 17.16 O Run 10 (04/11/2026) — a barreira de andar **MEDIDA** (lote `fbda4ee`)
 
 - **A pergunta do run:** a **barreira de andar** resolve o defeito do Run 9? Lá as **escadas da entrada** (peças **8, 9 e
   10 de 988**) foram recusadas **por corpo** e só subiram no **retry do fim**, depois da casa inteira (§17.15). A regra do
@@ -2290,7 +2296,7 @@ NO LUGAR`). **1 morte**, ignorada por decisão do jogador (mesma regra do Run 9,
   aconteceu. A resposta só existe no **wait** (`WaitRetry`, `:2402`/`:2408`): worker que não está esperando **não** consome
   o pedido, e o pedido expira se a peça já foi resolvida. Desligada, a peça espera o companheiro sair sozinho (o
   comportamento do Run 10).
-- **Medida no Run 11 (11/11/2026) — §17.17:** a `StepAside` foi implementada em **11/11/2026** e **não existia** na
+- **Medida no Run 11 (04/11/2026) — §17.17:** a `StepAside` foi implementada em **04/11/2026** e **não existia** na
   árvore do Run 10 (o lote é posterior a `fbda4ee`); ela rodou **ligada** (`true`, o padrão) no **Run 11**, o run com
   **0 puladas**. As duas linhas de log do caminho — `"<nome>" está na peça N - pedindo para sair da frente` (`:5067`) e
   `saindo da frente (peça em x, z) para (x, z)` (`:5143`) — **não foram contadas** nesta rodada: o que está medido é o
@@ -2315,11 +2321,11 @@ NO LUGAR`). **1 morte**, ignorada por decisão do jogador (mesma regra do Run 9,
   está reivindicado e não vem (`SupportGrace` = **2**: ~**20 s** = 8 + 12 s de espera por dependência; **imediato** se o
   apoio foi desistido) — o congelamento da coluna do Run 9, §17.15; **em teste, sem run**. MCP **107** (inalterado).
 
-### 17.17 O Run 11 (11/11/2026) — o primeiro run com **`0 puladas`** (sonda por cápsula + os dois furos da barreira)
+### 17.17 O Run 11 (04/11/2026) — o primeiro run com **`0 puladas`** (sonda por cápsula + os dois furos da barreira)
 
 - **A pergunta do run:** o lote da **sonda de corpo** (cápsula real × caixa girada) mais os **dois furos da barreira de
   andar** (`PendingBelowIndex` e a paciência só **depois do "due"**, §17.16) mantêm a casa de pé **sem pulada**? E a
-  `[Building] StepAside` — implementada em 11/11/2026 e **sem run** até aqui (§17.16) — roda em jogo?
+  `[Building] StepAside` — implementada em 04/11/2026 e **sem run** até aqui (§17.16) — roda em jogo?
 - **Montagem:** **5 companheiros**, `BlueprintFree = true`, `[Building] DeckLift = 1`, `PlaceReach = 15`,
   **`[Building] BodyRetry = true`** e **`[Building] StepAside = true`** (as duas no **padrão**). O `SupportFallback` e o
   `TempScaffold` **não foram reconferidos** nesta rodada (a leitura é a dos runs anteriores). A chave que **distingue**
@@ -2423,7 +2429,7 @@ contagem de falsos positivos do disco (não há como reler a sonda antiga), quai
 A árvore é a do §17.16 — **363 opções / 25 seções** (`gen_config_doc.py`) e **harness 642** —, medidas naquele lote:
 **não** houve reconferência nesta rodada e **nenhuma chave nova** entrou com o run.
 
-### 17.18 O Run 13 (11/11/2026) — a `[Building] BlueprintStations` **MEDIDA**: a casa sobe sem bancada e as 2 de pedra entram
+### 17.18 O Run 13 (04/11/2026) — a `[Building] BlueprintStations` **MEDIDA**: a casa sobe sem bancada e as 2 de pedra entram
 
 > A numeração é a do **contador de runs do jogador**; a seção anterior documentada é o **Run 11** (§17.17).
 
@@ -2478,7 +2484,7 @@ seguem exigindo a estação (`AI/BuildStationCover.cs:35-42` — `isBlueprint ==
   perto **+** peça acima do alcance" (§15.2q), mas o jogador **vetou** — a chave fica **false** e o problema tem de ser
   resolvido por **navegação** (a mesma frente da pendência (1) e dos `no progress` do §17.13/§17.15).
 
-**O ciclo de teste — o que apareceu e foi consertado, na ordem (11/11/2026):**
+**O ciclo de teste — o que apareceu e foi consertado, na ordem (04/11/2026):**
 
 1. **(a) A âncora da ordem.** `companions.build` **sem `x`/`z`** ancorava longe: a casa foi para o **barranco** e o run
    **perdeu-se**. Agora, sem coordenada, a âncora é o **ponto sob a mira** (`BuildFindCommand.Hint`,
@@ -2538,7 +2544,7 @@ a seção **(x)**, do walk spot deste run, levou o harness a **666** e a **(y)**
 **MCP 122**, **config 365/25** (`python tools/gen_config_doc.py`; o `--check` continua sendo o gate) e **0 ausentes no
 PT / 0 lacunas em ES-FR-IT** no `audit_translations.py`.
 
-**Achado de localização deste lote — CORRIGIDO no mesmo dia (11/11/2026):** os rótulos
+**Achado de localização deste lote — CORRIGIDO no mesmo dia (04/11/2026):** os rótulos
 `hc_cfg_building_blueprintstations` (`Core/ModLocalization.cs:852`) e `hc_cfg_controls_buildpanelkey` (`:855`) estavam
 **só no inglês nativo** e mostravam a **chave crua** no F8 em PT/ES/FR/IT. Os dois entraram nos **4** JSONs —
 `hc_cfg_controls_buildpanelkey` em `Translations/*.json:1416` ("Tecla do painel de obra" / "Tecla del panel de obra" /
@@ -2552,7 +2558,7 @@ sobrescrever nada.
 
 ### 17.19 Receita de teste × comportamento — o que é do teste e o que é do jogador
 
-A regra é do jogador (11/11/2026), e ela existe porque os números dos runs são de uma **bancada de teste**, não de uma
+A regra é do jogador (04/11/2026), e ela existe porque os números dos runs são de uma **bancada de teste**, não de uma
 partida: *"âncora, mochilas, auto-pickup, etc é só nos testes, depois dos testes ficam normal"* e *"ninguém vai fazer a
 mesma construção no mesmo lugar"*. Traduzindo para o projeto: **preparar o canteiro para repetir a mesma casa no mesmo
 lugar é da receita**; qualquer coisa que **só funcione assim** é bug de desenho.
@@ -2596,12 +2602,12 @@ lugar é da receita**; qualquer coisa que **só funcione assim** é bug de desen
   mochila vazia —, o run bonito esconde um bug para o jogador. É por isso que esta seção existe: **número de run não
   é promessa de comportamento**.
 
-### 17.20 O Run 14 (11/11/2026) — o ping-pong do `StepAside` e o walk spot 7 m abaixo
+### 17.20 O Run 14 (04/11/2026) — o ping-pong do `StepAside` e o walk spot 7 m abaixo
 
 > A numeração é a do **contador de runs do jogador**; a seção anterior é o **Run 13** (§17.18). Este run nasceu do
 > relato do jogador no fim da obra — *"eles tão muito travados aqui no final da build"* (`AI/BuildAsideSpot.cs:7`) — e
 > mediu **dois** defeitos de uma vez: o passo do `StepAside` caindo **na peça seguinte** e o **walk spot** de uma peça
-> alta saindo **7 m abaixo** dela. O lote `1ee93b1` (11/11/2026) consertou os dois.
+> alta saindo **7 m abaixo** dela. O lote `1ee93b1` (04/11/2026) consertou os dois.
 
 **Resultado do run:**
 
@@ -2733,7 +2739,7 @@ O resto é o **medido fora do run**: harness **684 PASS** (666 + **18** da seç�
 tradução nova** (as linhas novas são **log em PT-BR**, não texto de jogador). Esta seção **não** rodou harness, build nem
 gate — os números são os do lote, e o que o run **não** contou está listado acima.
 
-### 17.21 A dispersão dos workers (11/11/2026, `[Building] SpreadWorkers`, lote `a29dedc`) — o A/B dos Runs 15 e 16
+### 17.21 A dispersão dos workers (04/11/2026, `[Building] SpreadWorkers`, lote `a29dedc`) — o A/B dos Runs 15 e 16
 
 > Continuação do **Run 14** (§17.20) pelo contador de runs do jogador. O Run 14 mediu **dois defeitos** de rota e de
 > passo; este lote ataca a **disputa** que o jogador descreveu — *"eles parecem estar disputando pra ver quem coloca a
@@ -2778,7 +2784,7 @@ gate — os números são os do lote, e o que o run **não** contou está listad
   (`:6438`) e conta **todo** pedido aceito; a linha crua `… pedindo para sair da frente` é **1 por peça**
   (`AsideLogged` zerado em `EnterStep`, `:1270`).
 
-#### (B) O A/B (11/11/2026): a mesma casa, a mesma âncora, 5 workers, canteiro vazio nos dois
+#### (B) O A/B (04/11/2026): a mesma casa, a mesma âncora, 5 workers, canteiro vazio nos dois
 
 | | **Run 15** (árvore `1ee93b1`, **sem** a dispersão) | **Run 16** (árvore `a29dedc`, **com**) |
 |---|---|---|
@@ -2810,7 +2816,7 @@ gate — os números são os do lote, e o que o run **não** contou está listad
 
 #### (C) O Run 17 — em andamento
 
-**Run 17** (11/11/2026, **canteiro zerado de propósito**, dispersão ligada) é a confirmação da **casa do zero**, sem
+**Run 17** (04/11/2026, **canteiro zerado de propósito**, dispersão ligada) é a confirmação da **casa do zero**, sem
 herança de peças de runs anteriores no terreno. **Status: em andamento — sem número** (o placar entra aqui quando o
 jogador fechar o run). O que ele responde:
 
@@ -2820,7 +2826,7 @@ jogador fechar o run). O que ele responde:
 3. as linhas de disputa (`corpo na peça` / `pedindo`) se sustentam no mesmo patamar (**50** / **12**) ou o número do
    Run 16 era sorte de caminho.
 
-**Contas e limites desta seção:** o A/B é o do jogador — **Runs 15 e 16**, de 11/11/2026, mesma casa/âncora/5 workers
+**Contas e limites desta seção:** o A/B é o do jogador — **Runs 15 e 16**, de 04/11/2026, mesma casa/âncora/5 workers
 e canteiro vazio nos dois; os números são os **do log dos runs**, e o único cálculo aqui é a aritmética óbvia
 (`984 + 1 = 985`). O **medido fora dos runs**: harness **775 PASS** (o de 11/11; hoje 775 com (aa)/(ab)/(ac)) — **11** de `Pick`,
 **6** de `Far`, **5** de `SameRun`; hoje **711**, ver §17.22), **config 367/25** (`SpreadWorkers` é a **367ª**; o
@@ -2833,7 +2839,7 @@ ciclo do Run 18):** o rótulo `hc_cfg_building_spreadworkers` entrou nos **4** J
 custo por peça do `ClaimPoses`, **quantas** peças a dispersão adiou (o contador deu **0** no Run 16; no Run 18 deu
 **1012**, mas ver §17.22(B) — não é tamanho de fila), o **A/B limpo** e o **Run 17**.
 
-### 17.22 O Run 18 (11/11/2026) — a `fila` era uma barreira invisível (e o Run 19 é o A/B)
+### 17.22 O Run 18 (04/11/2026) — a `fila` era uma barreira invisível (e o Run 19 é o A/B)
 
 > Continuação do §17.21. A linha da `espera` que o Run 17 estreou mediu, no Run 18, **mais tempo parado do que todos os
 > marcadores de disputa juntos** — e a revisão independente mostrou que **80 %** dele não era disputa nenhuma: era um
@@ -2970,7 +2976,7 @@ distingue** — é desenho, não medida); o **custo por frame** das chamadas ext
 §17.25); e se o `WaitAhead` fica mesmo ≈ 0. Também não se mediu **`1012` como fila** — e não se deve: ver (B), item 2.
 O "**se o patch encurta o run**" desta lista **saiu**: medido no **§17.24** (**844 → 727 s**).
 
-### 17.23 O `DeckLift` virou **teto** (11/11/2026) — a obra que subia 1 m no ar e caía
+### 17.23 O `DeckLift` virou **teto** (04/11/2026) — a obra que subia 1 m no ar e caía
 
 > O §17.10 mediu o deck funcionando na **casa de referência** (estacas enterradas → a obra sobe 1 m e o térreo fica 1 m
 > acima do chão). Esta seção mede o **mesmo código no corpus**: cinco planos desenhados **no chão** subiam os mesmos
@@ -3044,7 +3050,7 @@ dois lados; **não foi medido qual**. O número fica registrado como saiu do log
 - **`DeckLift = 0`** continua "mantém o nível do arquivo"; o efeito disso num plano com estacas enterradas **não** foi
   medido nesta rodada.
 
-### 17.24 O parque da espera (11/11/2026) — a fila que nunca esvaziava e a regra do 1 Hz
+### 17.24 O parque da espera (04/11/2026) — a fila que nunca esvaziava e a regra do 1 Hz
 
 > Continuação do §17.22. Lá o defeito era o `WaitRetry` só olhar o plano com a fila **vazia**; aqui se mede **por que a
 > fila nunca ficava vazia** — e o run que fecha o A/B que ficou pendente lá. A correção do §17.22 **funcionou** (a `fila`
@@ -3145,7 +3151,7 @@ canto" — é a **coluna fechar de baixo para cima**, que é o desenho do §17.2
 - **Um comentário ficou para trás:** `MHR_Build.cs:1461` ainda diz *"the wait is re-asked every frame"* — texto anterior
   ao throttle; o comportamento de hoje é **1×/s** (§17.25(D)).
 
-### 17.25 O custo por frame da espera (11/11/2026) — 4,2 ms, 10–12 MB/s de GC e uma varredura morta
+### 17.25 O custo por frame da espera (04/11/2026) — 4,2 ms, 10–12 MB/s de GC e uma varredura morta
 
 > Revisão de performance do caminho da espera (§17.22/§17.24) com `arquivo:linha`. Duas das três suspeitas se
 > confirmaram, a terceira era **código morto** — e o que continua **não existindo** é o cronômetro no jogo (ver (C)).
@@ -3443,7 +3449,7 @@ bancada de teste) e a quarta é a **meta**:
    para a **receita de produto**, que ainda não rodou (item 6 de (G)).
 
 **Nota de data:** esta seção segue a data do ciclo em que foi escrita; a divergência entre `04/11/2026` e
-`11/11/2026` nas seções §17.10–§17.25 está registrada em `docs/backlog-construcao.md` item 9 e **não** foi resolvida
+`04/11/2026` nas seções §17.10–§17.25 está registrada em `docs/backlog-construcao.md` item 9 e **não** foi resolvida
 aqui (passe dedicado, ~200 ocorrências).
 
 

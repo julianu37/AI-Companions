@@ -62,7 +62,7 @@ pelo `SkipPiece`: o numero vai para o conjunto do canteiro e sai **na fala** do 
 continua no JSON como estava. Foi o que separou, num run de 11/2026, as 3 puladas reais do 0 do
 contador (o watchdog tinha dado 7 pecas por vencidas e 4 voltaram a subir).
 
-A CAMINHADA (11/11/2026)
+A CAMINHADA (04/11/2026)
 ------------------------
 O sufixo `· caminhada: X m` depois do `)` do `espera:` e o que CADA WORKER andou: a soma da distancia do
 corpo ate a peca no instante em que a peca e tomada (`MHR_Build.EnterStep` -> `State.WalkMeters`). A
@@ -70,7 +70,7 @@ linha sai uma vez por worker, e no fim do plano de um grupo o `state.Group` ja e
 (`MHR_Build.cs:1358`), entao **cada linha e de um worker** - a soma das linhas e a caminhada da ORDEM e
 nenhuma linha e um pedaco das outras. Por isso o relatorio soma e divide pelas pecas colocadas.
 
-⚠️ MUDOU EM 11/11/2026 (o redesenho): a linha passou a ter DOIS numeros de caminhada -
+⚠️ MUDOU EM 04/11/2026 (o redesenho): a linha passou a ter DOIS numeros de caminhada -
 `caminhada: 3196,6 m (3,2 m/peça) (este: 598,8 m)`. O **primeiro e do CANTEIRO** (a soma dos metros de
 todos os workers, `MHR_BuildGroup.Walk`) e o `(este: W m)` e o DESTE worker. Somar o primeiro numero das
 5 linhas daria **5x** o total; o relatorio passou a somar o `este:` (e cai no primeiro numero so quando a
@@ -78,7 +78,7 @@ linha e do formato antigo, que nao tem `(este:)`). O total do canteiro lido da l
 `wait.total.walk_site` e a soma dos `este:` em `wait.total.walk`; os dois tem de bater (o relatorio avisa
 quando divergem mais de 1%).
 
-O REDESENHO (P0) - o par `next:` (11/11/2026)
+O REDESENHO (P0) - o par `next:` (04/11/2026)
 --------------------------------------------
 A peca que o worker vai pegar sai em DUAS variantes, e o par e o KPI do redesenho:
 
@@ -100,7 +100,7 @@ linha do Run 22 e anteriores termina no `)`, e ai o relatorio imprime `-`):
 
     · peças: 985/985, 0 pulada(s)          o placar do CANTEIRO (igual nas N linhas do grupo), com o
                                            mesmo `placed`/`skipped` da fala - e a fonte PREFERIDA do
-                                           `skipped` desde 11/11/2026 (a fala fica como alternativa e o
+                                           `skipped` desde 04/11/2026 (a fala fica como alternativa e o
                                            relatorio AVISA quando as fontes divergem)
     · caminhada: 3196,6 m (3,2 m/peça) (este: 598,8 m)   ver a secao acima
     · cpu: 105,9 µs/frame em 11572 frame(s), goto 0,5 s, place 0,5 s
@@ -123,7 +123,7 @@ speech_distinct/placed_from_speech/skipped_counter/skipped_named_lines/skipped_n
 watchdog_dropped/retries{...}/source_totals/body_on_piece/emergency_posts/emergency_refused{...}/deaths/
 unsupported/wait{lines,unparsed,workers[],total{...},holds_cap_s,walk,walk_per_piece,walk_site,
 walk_este_sum,total_check}/spread{...}/aside_lines{...}/site_score{...}/next{lines,walk,stay,stay_pct}/
-redesign{lines,workers[],total{...},balance{...}} - as tres ultimas sao de 11/11/2026 (o redesenho P0) e
+redesign{lines,workers[],total{...},balance{...}} - as tres ultimas sao de 04/11/2026 (o redesenho P0) e
 saem com `-`/null quando o log e do formato antigo.
 
 `status`: `done` (o ultimo `order ended` e uma chave de obra concluida: blueprint_done / build_plan_done
@@ -188,7 +188,7 @@ WORKER_MSGS = (
     "já existe um grupo de obra",
     "order ended: ",
     "saindo da frente",
-    # 11/11/2026 (o redesenho): a peca que o worker vai pegar - duas variantes, contadas separadas
+    # 04/11/2026 (o redesenho): a peca que o worker vai pegar - duas variantes, contadas separadas
     "next: ",
     '"',
 )
@@ -256,7 +256,7 @@ DIED = re.compile(r"^it died during the build - the order resumes after the resp
 # veredito do jogo :6812
 UNSUPPORTED = re.compile(r"^UNSUPPORTED: (?P<prefab>\S+) \(support (?P<detail>[^)]*)\)")
 # a linha unica do Finish (:7601) - dispersao + step-aside + espera
-# 11/11/2026 (o redesenho P0): a linha ganhou - DEPOIS do `)` do `espera:` - o placar do canteiro, a
+# 04/11/2026 (o redesenho P0): a linha ganhou - DEPOIS do `)` do `espera:` - o placar do canteiro, a
 # caminhada do canteiro x a deste worker (`este:`), o custo por frame com `goto`/`place`, as posicoes e o
 # `no alcance:`. Cada bloco e OPCIONAL: a linha do Run 22 e anteriores termina no `)`, e ai os campos saem
 # `None` (o relatorio imprime `-`, nunca estoura).
@@ -267,23 +267,23 @@ WAIT = re.compile(
     r"(?P<body>-?[\d.,]+) corpo/(?P<dep>-?[\d.,]+) dependência, "
     r"fila (?P<queue>-?[\d.,]+) s(?: \(fim (?P<queue_end>-?[\d.,]+) s, meio (?P<queue_ahead>-?[\d.,]+) s\))?, "
     r"passo (?P<aside>-?[\d.,]+) s, portão (?P<gate>\d+)(?: \((?P<gate_seconds>-?[\d.,]+) s\))?"
-    # 11/11/2026: o `corpo-curto` (BodyRetry, 2,5 s por curta) DENTRO do parentese - estava fora de todos
+    # 04/11/2026: o `corpo-curto` (BodyRetry, 2,5 s por curta) DENTRO do parentese - estava fora de todos
     # os baldes da linha antiga
     r"(?:, corpo-curto (?P<wait_short>-?[\d.,]+) s)?\)"
-    # 11/11/2026: o placar do CANTEIRO (`peças: P/N, S pulada(s)`), igual nas N linhas do grupo
+    # 04/11/2026: o placar do CANTEIRO (`peças: P/N, S pulada(s)`), igual nas N linhas do grupo
     r"(?: \u00b7 peças: (?P<site_placed>\d+)/(?P<site_plan>\d+), (?P<site_skipped>\d+) pulada\(s\))?"
-    # 11/11/2026: o primeiro numero e a caminhada do CANTEIRO; o `(este: W m)` e a deste worker
+    # 04/11/2026: o primeiro numero e a caminhada do CANTEIRO; o `(este: W m)` e a deste worker
     r"(?: \u00b7 caminhada: (?P<walk_site>-?[\d.,]+) m"
     r"(?: \((?P<walk_avg>-?[\d.,]+) m/peça\))?(?: \(este: (?P<walk_este>-?[\d.,]+) m\))?)?"
-    # 11/11/2026: o custo do Drive por frame e o tempo das duas chamadas do corpo
+    # 04/11/2026: o custo do Drive por frame e o tempo das duas chamadas do corpo
     r"(?: \u00b7 cpu: (?P<cpu_us>-?[\d.,]+) \u00b5s/frame em (?P<cpu_frames>\d+) frame\(s\), "
     r"goto (?P<goto_s>-?[\d.,]+) s, place (?P<place_s>-?[\d.,]+) s)?"
-    # 11/11/2026: as posicoes (a unidade de trabalho do redesenho), os percentis (o p90 vem `33+` no balde
+    # 04/11/2026: as posicoes (a unidade de trabalho do redesenho), os percentis (o p90 vem `33+` no balde
     # de overflow) e a repulsao (peca tomada longe da mais proxima por causa de outro corpo)
     r"(?: \u00b7 posições: (?P<positions>\d+), peças/posição p50 (?P<p50>\d+\+?) p90 (?P<p90>\d+\+?), "
     r"repeleu: (?P<repelled>\d+))?"
     r"(?: \u00b7 no alcance: (?P<reached>\d+) peça\(s\))?")
-# 11/11/2026 (o redesenho): a peca que o worker vai pegar. DUAS variantes - com caminhada e ao alcance
+# 04/11/2026 (o redesenho): a peca que o worker vai pegar. DUAS variantes - com caminhada e ao alcance
 # (`MHR_Build.cs:2104`); o par e o KPI do redesenho.
 NEXT = re.compile(
     r"^next: (?P<prefab>\S+) \((?P<i>\d+)/(?P<n>\d+)\) a (?P<dist>[^ ]+) m(?P<tail>.*)$")
@@ -530,7 +530,7 @@ def finalize(block, index, barrier_seconds, order_seconds=None):
     aside_done = 0
     spread_detail = 0
     wait_unparsed = 0
-    # 11/11/2026 (o redesenho): o par do `next:` (a peca e buscada andando x colocada de onde esta) e o
+    # 04/11/2026 (o redesenho): o par do `next:` (a peca e buscada andando x colocada de onde esta) e o
     # placar do canteiro que cada linha do Finish carrega
     next_walk = 0
     next_stay = 0
@@ -597,7 +597,7 @@ def finalize(block, index, barrier_seconds, order_seconds=None):
                     "dependency": 0.0, "queue": 0.0, "aside": 0.0, "holds": 0, "gate": 0,
                     "queue_end": 0.0, "queue_ahead": 0.0, "gate_seconds": 0.0,
                     "walk": 0.0, "walk_lines": 0,
-                    # 11/11/2026 (o redesenho P0): campos novos da mesma linha. Ficam em None/0 quando a
+                    # 04/11/2026 (o redesenho P0): campos novos da mesma linha. Ficam em None/0 quando a
                     # linha e do formato antigo, e a saida imprime `-` por causa disso.
                     "wait_short": 0.0, "wait_short_lines": 0,
                     "walk_site": None, "walk_avg": None, "walk_este": 0.0, "walk_este_lines": 0,
@@ -613,7 +613,7 @@ def finalize(block, index, barrier_seconds, order_seconds=None):
             row["aside"] += num(data["aside"])
             row["holds"] += int(data["holds"])
             row["gate"] += int(data["gate"])
-            # 11/11/2026: os metros que ESTE worker andou. No formato novo o primeiro numero e a caminhada
+            # 04/11/2026: os metros que ESTE worker andou. No formato novo o primeiro numero e a caminhada
             # do CANTEIRO e o `(este: W m)` e a deste worker: somar o primeiro daria N x o total, entao a
             # soma usa o `este:` e so cai no primeiro numero quando ele e o unico (formato do Run 22).
             if data.get("walk_este") is not None:
@@ -628,7 +628,7 @@ def finalize(block, index, barrier_seconds, order_seconds=None):
                 row["walk_site"] = num(data["walk_site"])
             if data.get("walk_avg") is not None:
                 row["walk_avg"] = num(data["walk_avg"])
-            # 11/11/2026: o corpo-curto (BodyRetry) e o custo por frame com as duas chamadas do corpo
+            # 04/11/2026: o corpo-curto (BodyRetry) e o custo por frame com as duas chamadas do corpo
             if data.get("wait_short") is not None:
                 row["wait_short"] += num(data["wait_short"])
                 row["wait_short_lines"] += 1
@@ -639,7 +639,7 @@ def finalize(block, index, barrier_seconds, order_seconds=None):
                 row["cpu_frames"] += int(data["cpu_frames"])
             row["goto_s"] += num(data.get("goto_s") or 0)
             row["place_s"] += num(data.get("place_s") or 0)
-            # 11/11/2026: as posicoes, os percentis e a repulsao do redesenho. `p50`/`p90` sao a ULTIMA
+            # 04/11/2026: as posicoes, os percentis e a repulsao do redesenho. `p50`/`p90` sao a ULTIMA
             # linha do worker (o percentil e um retrato, nao um acumulado) e o p90 pode vir `33+`.
             if data.get("positions") is not None:
                 row["positions"] += int(data["positions"])
@@ -651,11 +651,11 @@ def finalize(block, index, barrier_seconds, order_seconds=None):
             if data.get("reached") is not None:
                 row["reached"] += int(data["reached"])
                 row["reached_lines"] += 1
-            # 11/11/2026: o placar do CANTEIRO de cada linha (as N linhas do grupo tem de concordar)
+            # 04/11/2026: o placar do CANTEIRO de cada linha (as N linhas do grupo tem de concordar)
             if data.get("site_placed") is not None:
                 site_scores.append((int(data["site_placed"]), int(data["site_plan"]),
                                     int(data["site_skipped"])))
-            # 11/11/2026 (Run 19): the fields of the single-clock barrier - the two halves of the queue
+            # 04/11/2026 (Run 19): the fields of the single-clock barrier - the two halves of the queue
             # (end of plan x middle of plan) and the seconds the gate itself held. Absent on the older
             # format (Run 18 and before), so they default to 0 instead of breaking the line.
             row["queue_end"] += num(data.get("queue_end") or 0)
@@ -669,7 +669,7 @@ def finalize(block, index, barrier_seconds, order_seconds=None):
             sp["aside_asked"] += int(data["asked"])
             sp["lines"] += 1
         elif kind == "next":
-            # 11/11/2026 (o KPI do redesenho): a peca e buscada ANDANDO (a linha diz a distancia) ou o
+            # 04/11/2026 (o KPI do redesenho): a peca e buscada ANDANDO (a linha diz a distancia) ou o
             # worker ja esta ao alcance e coloca de onde esta (` (ao alcance - sem caminhada)`).
             if NEXT_STAY in (data.get("tail") or ""):
                 next_stay += 1
@@ -689,7 +689,7 @@ def finalize(block, index, barrier_seconds, order_seconds=None):
     named_unique = len(set(named))
     wait_rows = []
     for row in wait_by_worker.values():
-        # 11/11/2026 (o redesenho): o balanco do worker. O `corpo-curto` NAO entra de novo - ele ja esta
+        # 04/11/2026 (o redesenho): o balanco do worker. O `corpo-curto` NAO entra de novo - ele ja esta
         # DENTRO do `total` (total = barreira + fila + passo + portao + curto, `MHR_Build.cs:8869-8873`);
         # `balance_literal_s` guarda a soma do pedido (goto + place + espera + curto) para quem comparar.
         balance = row["goto_s"] + row["place_s"] + row["total"]
@@ -708,7 +708,7 @@ def finalize(block, index, barrier_seconds, order_seconds=None):
             "gate_seconds": round(row["gate_seconds"], 1),
             "walk": round(row["walk"], 1),
             "walk_lines": row["walk_lines"],
-            # --- 11/11/2026 (o redesenho P0) - None quando a linha do Finish e do formato antigo ---
+            # --- 04/11/2026 (o redesenho P0) - None quando a linha do Finish e do formato antigo ---
             "wait_short": round(row["wait_short"], 1) if row["wait_short_lines"] else None,
             "walk_site": round(row["walk_site"], 1) if row["walk_site"] is not None else None,
             "walk_avg": row["walk_avg"],
@@ -745,7 +745,7 @@ def finalize(block, index, barrier_seconds, order_seconds=None):
     wait_total["walk_per_piece"] = (round(wait_total["walk"] / placed, 2) if placed else None)
 
     # ----------------------------------------------------------------------------------------------
-    # 11/11/2026 (o redesenho P0) - o placar do CANTEIRO, o par do `next:` e o bloco do redesenho
+    # 04/11/2026 (o redesenho P0) - o placar do CANTEIRO, o par do `next:` e o bloco do redesenho
     # ----------------------------------------------------------------------------------------------
     # o placar do canteiro sai igual em todas as linhas do grupo; `variants` guarda o que veio diferente
     # (worker que saiu antes do fim pode ter impresso o numero parcial - vale a linha MAIS completa)
@@ -874,7 +874,7 @@ def finalize(block, index, barrier_seconds, order_seconds=None):
         "stay_pct": (round(100.0 * next_stay / next_total, 1) if next_total else None),
     }
 
-    # 11/11/2026: a linha carrega o total E as parcelas - conferir se fecham (o `portao` ja ficou fora de
+    # 04/11/2026: a linha carrega o total E as parcelas - conferir se fecham (o `portao` ja ficou fora de
     # todos os baldes uma vez e o total nao o incluia; `total_diff` e o quanto sobra)
     for row in wait_rows:
         parts = (row["barrier"] + row["queue"] + row["aside"] + row["gate_seconds"]
@@ -909,7 +909,7 @@ def finalize(block, index, barrier_seconds, order_seconds=None):
         "duration_s": None,
         "duration_note": "sem timestamp no log - nao estimada a partir de linhas",
         "placed": placed,
-        # 11/11/2026 (o redesenho): o `skipped`/`placed` do CANTEIRO vem da linha do Finish (`peças: P/N,
+        # 04/11/2026 (o redesenho): o `skipped`/`placed` do CANTEIRO vem da linha do Finish (`peças: P/N,
         # S pulada(s)`, igual nas N linhas do grupo) quando ela existe - ela e o mesmo numero da fala sem
         # depender do TTS estar ligado. A fala continua como fonte alternativa e o contador das linhas
         # (`desistindo de`) como ultimo recurso; `skipped_sources` mostra as tres para a divergencia.
@@ -962,7 +962,7 @@ def finalize(block, index, barrier_seconds, order_seconds=None):
             "saindo": aside_done,
             "dispersao_detalhe": spread_detail,
         },
-        # 11/11/2026 (o redesenho P0): o par do `next:` e o bloco do redesenho (posicoes, repulsao, no
+        # 04/11/2026 (o redesenho P0): o par do `next:` e o bloco do redesenho (posicoes, repulsao, no
         # alcance, cpu/goto/place, corpo-curto e o balanco) - tudo `None` no log do formato antigo
         "next": next_block,
         "redesign": redesign,
@@ -1040,7 +1040,7 @@ def print_order(o, total_orders, out):
     print("   done (colocadas): ........... %d" % o["placed"], file=out)
     print("   puladas (contador): ......... %d   (maior \"N pulada(s)\" do run)"
           % o["skipped_counter"], file=out)
-    # 11/11/2026 (o redesenho): o placar do CANTEIRO, que a linha do Finish imprime igual em todas as N
+    # 04/11/2026 (o redesenho): o placar do CANTEIRO, que a linha do Finish imprime igual em todas as N
     # linhas do grupo - e a fonte do `skipped` desde entao; as outras duas ficam para a divergencia.
     site = o.get("site_score")
     if site:
@@ -1133,10 +1133,10 @@ def print_order(o, total_orders, out):
               "medido;" % (t["holds"], f1(o["wait"]["barrier_seconds"]),
                            f1(o["wait"]["holds_cap_s"])), file=out)
         print("   o tempo medido é a coluna \"espera\", somada por frame pelo próprio mod)", file=out)
-        # 11/11/2026 (Run 19): the queue split and the gate's own seconds (fields of the run 19+ line)
+        # 04/11/2026 (Run 19): the queue split and the gate's own seconds (fields of the run 19+ line)
         print("   fila por metade: fim de plano %s s | meio de plano %s s | portão %s s em %d retenção(ões)"
               % (f1(t["queue_end"]), f1(t["queue_ahead"]), f1(t["gate_seconds"]), t["gate"]), file=out)
-        # 11/11/2026 (o redesenho): o corpo-curto estava FORA de todos os baldes da linha antiga - agora ele
+        # 04/11/2026 (o redesenho): o corpo-curto estava FORA de todos os baldes da linha antiga - agora ele
         # entra no `espera` e a conferencia abaixo diz se as parcelas fecham com o total
         if short_total is not None:
             print("   corpo-curto: %s s no total (BodyRetry, ~2,5 s por curta) - ja DENTRO da coluna "
@@ -1149,7 +1149,7 @@ def print_order(o, total_orders, out):
         else:
             print("   conferência: barreira+fila+passo+portão+corpo-curto fecha com o \"espera\" (%s s de "
                   "diferença)" % f1(t["total_diff"]), file=out)
-        # 11/11/2026: a caminhada - uma linha por worker, entao a soma e a da ORDEM
+        # 04/11/2026: a caminhada - uma linha por worker, entao a soma e a da ORDEM
         if t["walk_lines"]:
             media = ("%s m/peça" % f2(t["walk_per_piece"])) if t["walk_per_piece"] else "-"
             print("   caminhada: %s m somando as %d linha(s) = %s - CADA LINHA E DE UM WORKER, nao um"
@@ -1200,7 +1200,7 @@ def print_order(o, total_orders, out):
               file=out)
 
     # ----------------------------------------------------------------------------------------------
-    # 11/11/2026 (o redesenho P0): a peca e buscada andando ou colocada de onde ele esta, quantas
+    # 04/11/2026 (o redesenho P0): a peca e buscada andando ou colocada de onde ele esta, quantas
     # posicoes cada worker usa, quanto ele foi repelido e quanto custa a chamada - por worker e no total
     # ----------------------------------------------------------------------------------------------
     red = o.get("redesign") or {}
@@ -1316,14 +1316,14 @@ def print_order(o, total_orders, out):
         parts = ["%s %s" % (reason, pct(row["total"], total_retry))
                  for reason, row in sorted(o["retries"].items(), key=lambda kv: -kv[1]["total"])]
         print("   distribuição: %s (%d recusa(s))" % (", ".join(parts), total_retry), file=out)
-    # 11/11/2026 (o KPI do redesenho): quantas pecas cada worker pegou ANDANDO x quantas ele colocou de
+    # 04/11/2026 (o KPI do redesenho): quantas pecas cada worker pegou ANDANDO x quantas ele colocou de
     # onde estava. O segundo numero e o que o redesenho quer subir.
     nxt = o.get("next") or {}
     if nxt.get("lines"):
         print("   next: %d peça(s) -> %d com caminhada (%s) | %d ao alcance (%s)   <-- o par do redesenho"
               % (nxt["lines"], nxt["walk"], pct(nxt["walk"], nxt["lines"]),
                  nxt["stay"], pct(nxt["stay"], nxt["lines"])), file=out)
-        # 11/11/2026: o `next:` sai so na PEGADA principal (`MHR_Build.cs:2178`); a peca servida pelo
+        # 04/11/2026: o `next:` sai so na PEGADA principal (`MHR_Build.cs:2178`); a peca servida pelo
         # retry do canteiro (:2211), pela barreira (:2435), a retomada (:4751), o retry pass (:4839) e o
         # apoio (:6033) chamam o `EnterStep` SEM logar - por isso as linhas do `next:` sao MENOS que as
         # pecas colocadas, e a porcentagem NAO e a mesma do `no alcance / peças`.
@@ -1348,7 +1348,7 @@ def print_order(o, total_orders, out):
              o["spread"]["aside_asked"],
              (f1(o["wait"]["total"]["walk"]) + " m") if o["wait"]["total"]["walk_lines"] else "-",
              status_text(o)), file=out)
-    # 11/11/2026: a linha de baixo e o redesenho inteiro em uma frase (o que o A/B compara)
+    # 04/11/2026: a linha de baixo e o redesenho inteiro em uma frase (o que o A/B compara)
     red_total = (o.get("redesign") or {}).get("total") or {}
     if red_total.get("reached") is not None:
         print(" REDESENHO: no alcance %d/%s (%s) | caminhada %s m/peça | repeleu %s | corpo-curto %s s | "
@@ -1377,7 +1377,7 @@ def main(argv=None):
     parser.add_argument("--json", action="store_true", help="imprime so o JSON (schema 1)")
     parser.add_argument("--barrier-seconds", type=float, default=10.0,
                         help="teto de UMA retencao da barreira (padrao 10 = BodyBarrierSeconds)")
-    # 11/11/2026: a duracao da obra nao esta no log (sem timestamp) - quem mediu o relogio de fora (o caso
+    # 04/11/2026: a duracao da obra nao esta no log (sem timestamp) - quem mediu o relogio de fora (o caso
     # do run do §17.22) informa aqui e o BALANCO sai em % do tempo da ordem
     parser.add_argument("--order-seconds", type=float, default=None,
                         help="duracao da ordem em segundos, medida FORA do log (relogio); so alimenta o "

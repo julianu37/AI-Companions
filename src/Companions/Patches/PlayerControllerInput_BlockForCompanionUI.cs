@@ -11,7 +11,7 @@ internal static class PlayerControllerInput_BlockForCompanionUI
 		{
 			return;
 		}
-		// 11/11/2026: one list for every UI of the mod (ModUiLayers) - the same answer the panels, the voice key and the
+		// 04/11/2026: one list for every UI of the mod (ModUiLayers) - the same answer the panels, the voice key and the
 		// command key read. The wheel is not a window, so it is asked apart; the farm zone placer is left out on purpose
 		// (it is aimed while the player still walks).
 		if (ModUiLayers.WheelOpen || ModUiLayers.AnyWindowOpen)

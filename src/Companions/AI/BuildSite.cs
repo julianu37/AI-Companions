@@ -74,7 +74,7 @@ internal static class BuildSite
 	}
 
 	/// <summary>
-	/// The same check with the <b>station rule optional</b> (lote 1, 11/11/2026): a blueprint built with
+	/// The same check with the <b>station rule optional</b> (lote 1, 04/11/2026): a blueprint built with
 	/// <c>[Building] BlueprintStations</c> on has no workbench planned, so this is the flag that keeps the pose from being
 	/// refused with <c>needs_station</c>. Everything else (ground, water, ward, clipping, bodies) is unchanged and the
 	/// default keeps every other caller on the vanilla rule.

@@ -196,7 +196,7 @@ internal static class VoiceInput
 		{
 			return true;
 		}
-		// 11/11/2026: every UI of the mod owns the keyboard while it is up - one list, in ModUiLayers (it used to be
+		// 04/11/2026: every UI of the mod owns the keyboard while it is up - one list, in ModUiLayers (it used to be
 		// repeated here). The panels, the wheel, the aiming overlays and the shrine menu are all "not talking now".
 		if (ModUiLayers.AnyOpen)
 		{

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Falha se algum arquivo rastreado tiver uma DATA NO FUTURO.
 
-Por que existe (05/11/2026): o agente escreveu "11/11/2026" em 614 linhas de 48 arquivos
+Por que existe (05/11/2026): o agente escreveu "05/11/2026" em 614 linhas de 48 arquivos
 enquanto a data real era 05/11 - a data vinha da memoria, nao do relogio. Isso destroi a
 cronologia de um projeto que registra tudo por data. Ver a REGRA 14 no AGENTS.md.
 
@@ -27,6 +27,13 @@ import sys
 DATE = re.compile(r"\b(\d{2})/(\d{2})/(\d{4})\b|\b(\d{4})-(\d{2})-(\d{2})\b")
 # so nos importam arquivos de texto que o projeto versiona
 EXTS = (".cs", ".md", ".py", ".ps1", ".json", ".txt", ".cfg", ".csproj", ".props", ".example")
+
+# 05/11/2026: arquivos que CITAM uma data antiga de proposito - o AGENTS.md explica o proprio erro e a REGRA 14,
+# e o check_dates.py documenta o caso na docstring. O --fix nunca os reescreve (use --allow= para forcar).
+QUOTE_FILES = {
+    "AGENTS.md",
+    "tools/check_dates.py",
+}
 
 
 def repo_root():
@@ -131,6 +138,18 @@ def main():
     for a in sys.argv:
         if a.startswith("--skip="):
             skip.update(x.strip() for x in a[7:].split(",") if x.strip())
+    # --allow=<arquivo...>: conserta tambem os arquivos que CITAM uma data antiga de proposito (ver abaixo).
+    allow = set()
+    for a in sys.argv:
+        if a.startswith("--allow="):
+            allow.update(x.strip() for x in a[7:].split(",") if x.strip())
+
+    # 05/11/2026 (o proprio bug deste script, pego no primeiro uso): o AGENTS.md DESCREVE o erro - "o agente escreveu
+    # 11/11/2026 em 619 linhas" - e o --fix trocou a citacao, deixando a explicacao sem sentido. Um arquivo que cita
+    # uma data ANTIGA de proposito nao pode ser reescrito as cegas: fica fora do --fix e vai para revisao manual.
+    for rel in QUOTE_FILES:
+        if rel not in allow:
+            skip.add(rel)
 
     bad_files = {}
     for rel in tracked(root):

@@ -15,7 +15,7 @@ internal sealed class BlueprintPiece
 	internal Vector3 Pos;
 	internal Quaternion Rot;
 	internal float Scale = 1f;
-	/// <summary>11/11/2026 (the body barrier): the storey of the piece (<c>BuildBlueprintParser.Line.Level</c>) - the
+	/// <summary>04/11/2026 (the body barrier): the storey of the piece (<c>BuildBlueprintParser.Line.Level</c>) - the
 	/// build site holds back only the pieces above the storey a body is standing on.</summary>
 	internal float Level;
 }
@@ -54,7 +54,7 @@ internal sealed class Blueprint
 /// E7: the mod's <b>blueprint library</b> - the folder <c>BepInEx/plugins/AI-Companions/blueprints</c> (next to the DLL,
 /// like <c>tts\</c> and <c>whisper\</c>) with the <c>.blueprint</c> files the player downloaded (BiomeBlueprints,
 /// valheimians) or captured in game. It is <i>content</i>, not config, so the package can ship it; the old
-/// <c>BepInEx/config/AI-Companions/blueprints</c> is copied over once (11/11/2026). Reading a file
+/// <c>BepInEx/config/AI-Companions/blueprints</c> is copied over once (04/11/2026). Reading a file
 /// needs nothing from PlanBuild (the format is text - see <see cref="BuildBlueprintParser"/>); PlanBuild is only needed
 /// to <i>create</i> or <i>place</i> a blueprint.
 /// </summary>
@@ -62,7 +62,7 @@ internal static class BuildBlueprints
 {
 	internal const string Extension = ".blueprint";
 
-	/// <summary>11/11/2026: the one-shot copy of the old folder was already tried this session (the log must not
+	/// <summary>04/11/2026: the one-shot copy of the old folder was already tried this session (the log must not
 	/// repeat on every <see cref="Folder"/> call).</summary>
 	private static bool s_migrated;
 
@@ -113,14 +113,14 @@ internal static class BuildBlueprints
 		return Directory.GetCurrentDirectory();
 	}
 
-	/// <summary>The folder the library lived in before 11/11/2026 (under the config folder).</summary>
+	/// <summary>The folder the library lived in before 04/11/2026 (under the config folder).</summary>
 	private static string LegacyFolder()
 	{
 		return Path.Combine(Paths.ConfigPath, "AI-Companions", "blueprints");
 	}
 
 	/// <summary>
-	/// 11/11/2026 (player's request): copies the old library (<see cref="LegacyFolder"/>) into the new one, once. It is a
+	/// 04/11/2026 (player's request): copies the old library (<see cref="LegacyFolder"/>) into the new one, once. It is a
 	/// COPY, never a move - if anything goes wrong the original is still there - and a file that already exists in the new
 	/// folder is never overwritten (it stays and is counted as "already there"). Nothing is logged when the old folder does
 	/// not exist (the normal case of a fresh install).

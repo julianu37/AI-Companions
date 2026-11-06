@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Companions;
 
 /// <summary>
-/// 11/11/2026 (Run 14, the player's report <i>"eles parecem estar disputando pra ver quem coloca a peça primeiro, em vez
+/// 04/11/2026 (Run 14, the player's report <i>"eles parecem estar disputando pra ver quem coloca a peça primeiro, em vez
 /// de trabalhar em equipe"</i>): <b>how far apart the crew of a site builds</b>. The plan of a blueprint is ordered by
 /// storey, class and height and each run of equal keys is then walked as a nearest-neighbour path
 /// (<c>BuildBlueprintParser.Ordered</c>/<c>NearestWithin</c>), so <b>consecutive indices are neighbours in space</b>:
@@ -23,13 +23,13 @@ namespace Companions;
 /// (section (z)). The Unity side - the window of the plan and the claimed poses of the site - is
 /// <c>MHR_Build.Advance</c>/<c>SpreadWindow</c>.</para>
 ///
-/// <para>11/11/2026 (the P0 of the redesign, approved by two independent reviews): the same file answers the <b>opposite</b>
+/// <para>04/11/2026 (the P0 of the redesign, approved by two independent reviews): the same file answers the <b>opposite</b>
 /// question as well - <see cref="Nearest"/> is the piece this worker can place <b>from where it stands</b> (the smallest XZ
 /// distance inside the reach, no <see cref="SpreadDistance"/> at all). The order measured 4,55 s per piece with 2,0 s of
 /// it inside <c>Goto</c>, walking to pieces the game lets it place from afar; with the reach the companion <b>stays and
 /// places</b> what is around it and only walks when the run has nothing inside the reach.</para>
 ///
-/// <para>11/11/2026 (the repulsion, the effect the P0 created and both reviews predicted): five companions staying in their
+/// <para>04/11/2026 (the repulsion, the effect the P0 created and both reviews predicted): five companions staying in their
 /// own corners bunch up, because the corners of five 10 m reaches overlap. The isolation of
 /// <see cref="SpreadDistance"/> therefore moved from the <b>pieces</b> to the <b>positions</b>:
 /// <see cref="NearestApart"/>/<see cref="PickNearApart"/> answer a piece that is also at least
@@ -131,7 +131,7 @@ internal static class BuildSpread
 	}
 
 	/// <summary>
-	/// 11/11/2026 (the player's rule <i>"build everything within reach before going somewhere else"</i>): of the candidates of
+	/// 04/11/2026 (the player's rule <i>"build everything within reach before going somewhere else"</i>): of the candidates of
 	/// the window that are <see cref="Far"/> from every claim, take the <b>nearest to the body</b> that is also within
 	/// <paramref name="nearRadius"/> - the smallest XZ distance to <paramref name="me"/> wins, and a tie keeps the lower index
 	/// (the plan's own order), so the answer never depends on the order the list was filled in.
@@ -165,7 +165,7 @@ internal static class BuildSpread
 	}
 
 	/// <summary>
-	/// 11/11/2026 (the repulsion of the P0, the player's rule <i>"eles não podem se agrupar, devem ser repelidos um de perto
+	/// 04/11/2026 (the repulsion of the P0, the player's rule <i>"eles não podem se agrupar, devem ser repelidos um de perto
 	/// do outro pra não travar tudo"</i>): <see cref="PickNear"/> with <b>one</b> extra filter - the piece the worker walks to
 	/// has to be at least <paramref name="isolation"/> (XZ) from <b>every</b> body of the crew as well. The P0 made each
 	/// companion stay in its own corner and place everything its reach covers; the corners of five 10 m reaches overlap, so
@@ -242,7 +242,7 @@ internal static class BuildSpread
 	}
 
 	/// <summary>
-	/// 11/11/2026 (the P0 of the redesign, approved by two independent reviews): the <b>nearest</b> pending piece this
+	/// 04/11/2026 (the P0 of the redesign, approved by two independent reviews): the <b>nearest</b> pending piece this
 	/// worker can place <b>from where it stands</b> - the smallest XZ distance to <paramref name="me"/> among the candidates
 	/// that are at most <paramref name="reach"/> away (exactly <paramref name="reach"/> is inside), skipping the candidate
 	/// at <paramref name="skip"/>. It answers the index into <paramref name="poses"/> (the caller keeps the plan index of
@@ -307,7 +307,7 @@ internal static class BuildSpread
 	}
 
 	/// <summary>
-	/// 11/11/2026 (the repulsion of the P0, the player's rule <i>"eles não podem se agrupar, devem ser repelidos um de perto
+	/// 04/11/2026 (the repulsion of the P0, the player's rule <i>"eles não podem se agrupar, devem ser repelidos um de perto
 	/// do outro pra não travar tudo"</i>): the <see cref="Nearest"/> piece that is <b>also</b> away from the bodies of the
 	/// crew - the isolation moved from the <b>pieces</b> to the <b>positions</b>. The P0 (stay and place) fixed the walking
 	/// (65 → 156 pieces/min, 52 % of the pieces without a walk) and created the effect both reviews predicted: each companion
@@ -382,7 +382,7 @@ internal static class BuildSpread
 	}
 
 	/// <summary>
-	/// 11/11/2026 (the repulsion): is this piece at least <paramref name="isolation"/> (XZ) away from <b>every</b> body?
+	/// 04/11/2026 (the repulsion): is this piece at least <paramref name="isolation"/> (XZ) away from <b>every</b> body?
 	/// Exactly the isolation is <b>apart</b> (the edge counts, like the reach of the placement). A body that is not a
 	/// number is ignored - a broken pose must not repel the whole crew - and no bodies, or a distance of zero or less,
 	/// is always apart (fail-open: without bodies there is no repulsion at all).
@@ -452,7 +452,7 @@ internal static class BuildSpread
 	}
 
 	/// <summary>
-	/// 12/11/2026 (the <b>partition of the phase</b> - the player's report <i>"a redistribuição de peças é o gargalo: o run
+	/// 04/11/2026 (the <b>partition of the phase</b> - the player's report <i>"a redistribuição de peças é o gargalo: o run
 	/// sobe a 125/min e decai para 107/min no fim"</i>, approved by the player): the rule that makes the contention of the
 	/// crew <b>disappear by construction</b> instead of being negotiated piece by piece. The plan is a nearest-neighbour tour
 	/// inside each run (<c>BuildBlueprintParser.Ordered</c>/<c>NearestWithin</c>), so a <b>contiguous cut by index</b> is a

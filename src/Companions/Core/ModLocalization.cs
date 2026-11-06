@@ -841,28 +841,28 @@ public static class ModLocalization
 			// P1 (04/11/2026): the [Building] SupportFallback label - the wooden post planted under a plan piece the file
 			// left without support. Short for the same F8 row.
 			{ "hc_cfg_building_supportfallback", "Emergency support" },
-			// 11/11/2026 (the storey barrier): the [Building] BodyRetry label - a piece a body is standing on is not given
+			// 04/11/2026 (the storey barrier): the [Building] BodyRetry label - a piece a body is standing on is not given
 			// up; it comes back before the plan climbs a storey. Short for the same F8 row.
 			{ "hc_cfg_building_bodyretry", "Retry blocked pieces" },
-			// 11/11/2026 (Run 14, the spread of the crew): the [Building] SpreadWorkers label - of the next few pieces of
+			// 04/11/2026 (Run 14, the spread of the crew): the [Building] SpreadWorkers label - of the next few pieces of
 			// the same row each companion takes one that is a few meters from what the others are building. Short for the
 			// same F8 row.
 			{ "hc_cfg_building_spreadworkers", "Spread the crew out" },
-			// 11/11/2026 (the player's rule "build everything within reach first"): the [Building] SpreadNear label - of the
+			// 04/11/2026 (the player's rule "build everything within reach first"): the [Building] SpreadNear label - of the
 			// far pieces of the window the companion takes the nearest one that is still within its reach. Short for the same
 			// F8 row.
 			{ "hc_cfg_building_spreadnear", "Build near first" },
-			// 11/11/2026 (Run 10, the companion blocker): the [Building] StepAside label - a waiting companion of the group
+			// 04/11/2026 (Run 10, the companion blocker): the [Building] StepAside label - a waiting companion of the group
 			// steps out of the way of the piece another one is placing. Short for the same F8 row.
 			{ "hc_cfg_building_stepaside", "Move aside" },
-			// 11/11/2026 (Run 13, the ridge of the blueprint): the [Building] ReachWalk label - the companion walks to the
+			// 04/11/2026 (Run 13, the ridge of the blueprint): the [Building] ReachWalk label - the companion walks to the
 			// nearest floor/roof row the piece can be reached from instead of walking at the piece in mid-air. Short for
 			// the same F8 row.
 			{ "hc_cfg_building_reachwalk", "Walk within reach" },
-			// Lote 1 (11/11/2026): the [Building] BlueprintStations label - a blueprint is built with no workbench planned and
+			// Lote 1 (04/11/2026): the [Building] BlueprintStations label - a blueprint is built with no workbench planned and
 			// no piece refused for a missing station (templates and single pieces keep the vanilla rule). Short for the F8 row.
 			{ "hc_cfg_building_blueprintstations", "Blueprint: no stations" },
-			// 11/11/2026 (the build panel): the [Controls] BuildPanelKey label - the key that opens the site's panel.
+			// 04/11/2026 (the build panel): the [Controls] BuildPanelKey label - the key that opens the site's panel.
 			// Short for the same narrow F8 row (the fallback there is the raw key, "BuildPanelKey").
 			{ "hc_cfg_controls_buildpanelkey", "Build panel key" },
 			// Fase 3.10: voice and personality of ONE companion (its own ZDO), with the [AI] values as the default.
@@ -873,7 +873,7 @@ public static class ModLocalization
 			{ "hc_ai_profile_hint", "Voice and personality belong to this companion: left unset, it follows the [AI] settings (AI tab)." },
 			{ "hc_ai_comp_profile_title", "Voice and personality of this companion" },
 			{ "hc_ai_profile_save_failed", "I couldn't save the companion's profile (its data is not under my control right now). Try again in a moment." },
-			// 11/11/2026: the build panel ([Controls] BuildPanelKey). Four blocks - the site, the companions, the
+			// 04/11/2026: the build panel ([Controls] BuildPanelKey). Four blocks - the site, the companions, the
 			// materials and the blueprints - and every number of a site comes from MHR_Build.SiteInfo/SiteMaterials.
 			{ "hc_ui_build_title", "Build panel" },
 			{ "hc_ui_build_hint", "Esc or {0} closes." },

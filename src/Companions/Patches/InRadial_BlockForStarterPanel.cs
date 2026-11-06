@@ -19,7 +19,7 @@ internal static class InRadial_BlockForStarterPanel
 		{
 			return;
 		}
-		// 11/11/2026: one list for every window of the mod (ModUiLayers.AnyWindowOpen) - the same answer the panels, the
+		// 04/11/2026: one list for every window of the mod (ModUiLayers.AnyWindowOpen) - the same answer the panels, the
 		// voice key and the command key read. Winning this fake keeps the game's own windows (inventory, menu) from
 		// opening over ours. The farm zone placer is not here: it is aimed while walking (see ModUiLayers).
 		if (ModUiLayers.AnyWindowOpen)

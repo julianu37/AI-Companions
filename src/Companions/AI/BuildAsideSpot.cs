@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Companions;
 
 /// <summary>
-/// 11/11/2026 (Run 14, the player's report <i>"eles tão muito travados aqui no final da build"</i>): <b>where does the
+/// 04/11/2026 (Run 14, the player's report <i>"eles tão muito travados aqui no final da build"</i>): <b>where does the
 /// companion of the site step to</b> when another one has to place a piece on its body (<c>[Building] StepAside</c>)?
 /// The step used to be "the closest of 8 spots 2,2 m around the piece", and on the last row of roof tiles that spot was
 /// <b>the next piece of the plan</b>: the companion walked out of piece 909 onto 910, the placer of 910 asked it to move
@@ -39,7 +39,7 @@ internal static class BuildAsideSpot
 	/// (<see cref="Blocked"/>): the body window of the game (<c>BuildBody</c>: the capsule plus the piece's box) with room for
 	/// the walk.
 	///
-	/// <para>11/11/2026 (the honest cost of this rule, measured): an exact test was tried in its place - the candidate's capsule
+	/// <para>04/11/2026 (the honest cost of this rule, measured): an exact test was tried in its place - the candidate's capsule
 	/// against the rotated box of every pending piece (<c>BuildProbe.BoxOf</c>/<c>CapsuleOf</c> + <c>BuildBody.HalfY</c>/
 	/// <c>Blocks</c>) - and it is the right idea with the wrong granularity: <c>Blocks</c> has no tolerance, so a pending floor
 	/// <b>above</b> the spot and the neighbouring tiles refused every candidate. The run measured <b>424</b> <c>sem lugar
@@ -54,7 +54,7 @@ internal static class BuildAsideSpot
 	/// How far above/below the spot another pending piece still shares its <b>row</b> - a piece of the storey above (a floor
 	/// 2 m up) is not something the step lands on.
 	///
-	/// <para>11/11/2026 (measured: <b>42 of 52</b> blocked pieces never moved anybody, 81%): it was <b>2,0 m</b> and the test
+	/// <para>04/11/2026 (measured: <b>42 of 52</b> blocked pieces never moved anybody, 81%): it was <b>2,0 m</b> and the test
 	/// is <c>&gt; Height</c>, so a row <b>exactly</b> 2,0 m above (the 46,8 tiles of the measured house against the 48,8 ones)
 	/// counted as blocking a spot where the companion was only <b>under</b> it - the body is 1,8 m tall
 	/// (<c>BuildProbe.CapsuleOf</c>/<c>BuildBody</c>), so a piece 2,0 m up cannot be what the step lands on. <b>1,8 m</b> is the

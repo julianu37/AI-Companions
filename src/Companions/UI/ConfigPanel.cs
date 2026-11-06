@@ -563,7 +563,7 @@ public class ConfigPanel : MonoBehaviour
 			}
 			// Fase 3.7: never on top of the AI panel (the AI panel refuses to open while this one is visible).
 			// Fase 3.20: nor on top of the appearance editor, which is opened from that panel.
-			// 11/11/2026: nor on top of any other window of the mod - one list, in ModUiLayers (the build panel, the
+			// 04/11/2026: nor on top of any other window of the mod - one list, in ModUiLayers (the build panel, the
 			// starter picker, a companion's own window, the shrine menu...). The wheel is not a window and is left out.
 			else if (!ModUiLayers.AnyWindowOpen)
 			{
@@ -1245,7 +1245,7 @@ public class ConfigPanel : MonoBehaviour
 		}
 	}
 
-	/// <summary>The invisible bar of the scroll area (11/11/2026: the one implementation lives in
+	/// <summary>The invisible bar of the scroll area (04/11/2026: the one implementation lives in
 	/// <see cref="GameLook.CreateHiddenScrollbar"/> - the build panel needed the same widget).</summary>
 	private static Scrollbar CreateHiddenScrollbar(Transform parent)
 	{

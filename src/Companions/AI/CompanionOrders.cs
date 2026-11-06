@@ -1378,7 +1378,7 @@ internal static class CompanionOrders
 	/// build for the others (with a single companion the order refuses with the same "too far" line as before,
 	/// because that check runs on the speaker first).</para>
 	///
-	/// <para>11/11/2026 (the build panel): the whole rule of the nameless case is <see cref="CanWorkSite"/> - the panel
+	/// <para>04/11/2026 (the build panel): the whole rule of the nameless case is <see cref="CanWorkSite"/> - the panel
 	/// offers exactly the companions this loop would take, so the two can never disagree.</para>
 	/// </summary>
 	private static List<CompanionSetup> BlueprintWorkers(CompanionSetup addressee, Vector3 hint)
@@ -1409,7 +1409,7 @@ internal static class CompanionOrders
 	}
 
 	/// <summary>
-	/// P1 (multi-build) + 11/11/2026 (the build panel): can this companion take a piece of a <b>site</b>? The rule of
+	/// P1 (multi-build) + 04/11/2026 (the build panel): can this companion take a piece of a <b>site</b>? The rule of
 	/// <see cref="BlueprintWorkers"/>, extracted so the panel offers exactly the companions the order would take:
 	/// <list type="bullet">
 	/// <item>it is <b>MINE</b> (<see cref="MHR_Owner.IsMine"/> - <c>MHR_InScope</c> does not check the owner, and in a

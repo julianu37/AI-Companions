@@ -1829,7 +1829,7 @@ internal static class Commands
 		{
 			return Fail("the companion has no inventory");
 		}
-		// 11/11/2026 (player: "limpa o inventario dele... antes de matar ele, pra ele nao pegar da lapide"): the
+		// 04/11/2026 (player: "limpa o inventario dele... antes de matar ele, pra ele nao pegar da lapide"): the
 		// build refuses an encumbered companion, and dismissing/killing it leaves the items in a tombstone that it
 		// picks up again. "action": "clear" deletes the stacks for good (no drop) - a test tool, like the rest.
 		string action = Json.Str(args, "action", "list");
@@ -2351,6 +2351,11 @@ internal static class Commands
 			{ "stance", zdo != null ? zdo.GetInt(CompanionSetup.CombatStanceHash) : 0 },
 			{ "autoPickup", zdo != null && zdo.GetBool(CompanionSetup.AutoPickupHash, defaultValue: true) },
 			{ "recovering", zdo != null && zdo.GetBool(MHR_Recover.RecoveringHash) },
+			// 05/11/2026 (the order that closed 64/64 with the companion 0,88 m inside the terrain): the body under the
+			// terrain is what the closing line counts and what the mover's own rescue fires on - the test recipe that
+			// measures the acceptance needs to see it without a separate `terrain_check`
+			{ "buried", MHR_Mover.Buried(h) },
+			{ "depth", MHR_Mover.DepthUnderGround(h) },
 			{ "owner", zdo != null ? zdo.GetString(CompanionSetup.OwnerHash, "") : null }
 		};
 	}
@@ -2371,7 +2376,7 @@ internal static class Commands
 			return Fail("missing 'action'");
 		}
 		string a = action.ToLowerInvariant();
-		// P1 (11/11/2026, player's request: `companions.order` answered "unknown action: stop"): "para"/"stop"/"cancel" is
+		// P1 (04/11/2026, player's request: `companions.order` answered "unknown action: stop"): "para"/"stop"/"cancel" is
 		// the order the chat already knows - it drops the one-shot jobs (the build and the leveling, the two a test leaves
 		// running) and it is answered with what was actually running.
 		if (a == "stop" || a == "cancel" || a == "para")
@@ -2421,7 +2426,7 @@ internal static class Commands
 	}
 
 	/// <summary>
-	/// P1 (11/11/2026, player's request: "companions.order stop" answered <c>unknown action: stop</c>): the chat's stop order,
+	/// P1 (04/11/2026, player's request: "companions.order stop" answered <c>unknown action: stop</c>): the chat's stop order,
 	/// reachable from the bridge. A build order and a leveling are <b>one-shot</b> orders that survive everything else, so a
 	/// test that started one has no way to end it from the console - this drops them through the <b>same</b> cancellation the
 	/// chat order uses (<c>CompanionOrders.Run</c> → <see cref="MHR_Build.Cancel"/>/<see cref="MHR_Level.Cancel"/>), and it
@@ -2481,7 +2486,7 @@ internal static class Commands
 		});
 	}
 
-	/// <summary>P1 (11/11/2026): stops the one-shot build/leveling of ONE companion and says what was running (read before the
+	/// <summary>P1 (04/11/2026): stops the one-shot build/leveling of ONE companion and says what was running (read before the
 	/// cancel, so the answer is about the order that existed).</summary>
 	private static Dictionary<string, object> StopOne(CompanionSetup cs)
 	{

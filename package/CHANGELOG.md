@@ -227,7 +227,7 @@ stopped.
   memory** (it is **not in the save**), and the group is **blueprints only** - a single piece and a template still have
   one companion on them. Build 0/0 and the harness at **596 assertions** pass (the failure classification, the piece-kind
   table and the growing support tables of section **(r)**); **in test** - the numbers of **Run 6**, **Run 7** and
-  **Run 8** of 11/11/2026 end this cycle.
+  **Run 8** of 04/11/2026 end this cycle.
   - **New `[Building] PlaceReach`** (**in test**): how far the companion may place a piece **once it is stuck** - it
     keeps walking to the piece as before, and only after **3 s without getting closer** does it place from farther
     away, up to this distance (float, default **10**, range **5–20**). `5` is the game's own reach
@@ -261,7 +261,7 @@ stopped.
     workbench, a fermenter) goes up to the whole **2,5 m** radius, because the blueprint's pose for it is a suggestion.
     The piece, the prefab and the plan index do not change: only its **working** pose does (the plan keeps the original,
     so a retry starts from there again) and the log says `log ajustado: <prefab> de (x, y, z) para (x, y, z) - <status>`.
-  - **A companion IS an obstacle for the piece again** (**correction**, 11/11/2026): the 04/11 attempt to ignore companions
+  - **A companion IS an obstacle for the piece again** (**correction**, 04/11/2026): the 04/11 attempt to ignore companions
     in the space test was **reverted** - the piece was being placed **inside** the companion and he **sank** through the
     floor (regression seen in the run of 11/11). A companion counts as a player for placement again, so
     `blocked_by_player` is back (**20** in the 11/11 run) and it is a **real** failure - it spends one of the 3 attempts,
@@ -289,7 +289,7 @@ stopped.
     **north-west corner** (floors and roofs at 40,8/42,8/44,8/46,8) - the author's file simply has **no support piece**
     under those points and the direct-support pull answered -1 for every one of them. This is what closes those 16 (the 4
     chests of the same run were another case: the spot refused them).
-  - **The real support rule, and why our preventive `no_support` matters** (**correction**, 11/11/2026 - a
+  - **The real support rule, and why our preventive `no_support` matters** (**correction**, 04/11/2026 - a
     **documentation** fix, not a behavior change): a piece's support in Valheim 1.0 is **geometric and per collider** -
     `WearNTear.SetupColliders` grows every collider box by **0.3 m in total** (`size += 0.3; size *= 0.5`, that is
     **0.15 m per side**) and asks `Physics.OverlapBoxNonAlloc` what touches it. With no connection `m_support` stays
@@ -305,7 +305,7 @@ stopped.
     **any `WearNTear`**) **for safety**, but the flag is not the reason and, with the measured values, the bypass is a
     **no-op**. The **13 roof pieces** refused for five runs were **geometry**: the row below sits **~2 m away on the
     diagonal**, outside the grown collider box of the piece above.
-  - **What Run 7 hit: a 0.6 m step between floors** (**in test**, fix of 11/11/2026): the run of 11/11 **with
+  - **What Run 7 hit: a 0.6 m step between floors** (**in test**, fix of 04/11/2026): the run of 11/11 **with
     `HoldsPlacedPiece`** already in place and the **position guard** active (the player stayed **outside the site the
     whole run**, at **(-166.92, 39.92, -401.59)**) went up to **950 of 987** pieces and **stalled in the retry**,
     repeating the same `wood_floor` (plan indices **297/298/304**) - **8 `wood_floor`** at y **40.4/41.4**, a **0.6 m**
@@ -316,7 +316,7 @@ stopped.
     **overlap**, not contact). The rest of the rule is **left as it was**: a **solid without `WearNTear`** (stone, a
     tree, a structure) still **does not** count as support for our probe - the game **does** treat it as maximum
     support, and that gap stays open (`docs/re/building-notes.md` §17.14).
-  - **Run 8 of 11/11/2026: the stepped house closes** (**in test** - the validation run of the post batch above):
+  - **Run 8 of 04/11/2026: the stepped house closes** (**in test** - the validation run of the post batch above):
     **5 companions**, `BlueprintFree`, `DeckLift = 1`, `PlaceReach = 15`, and the **player outside the site the whole
     run** (position guard at **(-166.92, 39.92, -401.59)**). **987 of 987 plan indices placed, 0 skipped** - the order
     ends with `hc_ai_blueprint_done`. **39 emergency posts, 0 refusals**: they land **under the 0.6 m stepped floors
@@ -329,7 +329,7 @@ stopped.
     not unlocked`; `build.inspect` confirms they need the **`piece_stonecutter`** station (20 m), which this world
     does not have. That is the **blueprint's boundary**, not a build failure - and it is the same **2 pieces** that
     were missing in Run 6.
-  - **The emergency post walks the ray down** (**in test**, fix of 11/11/2026): it stopped at the **first** hit - a roof
+  - **The emergency post walks the ray down** (**in test**, fix of 04/11/2026): it stopped at the **first** hit - a roof
     eave **0,16 m** under a floor - and refused with *"vão de 0,16 m"* **318 times**. It now skips surfaces closer than
     **0,40 m** (`MinPostGap`, up to **4 passes**) and takes the first **usable** one
     (`BuildSupportBelow.UsefulSurface`), so a floor 1 m above the deck gets a **1 m post**.
@@ -360,7 +360,7 @@ stopped.
   Build 0/0, harness **596** (the failure classification, the piece-kind table and the support tables of section **(r)**,
   which grew with `CanSupport`, `HoldsPlacedPiece` and `PickPost`), MCP **101** and config **361/25** (`PlaceReach`,
   `DeckLift` and `SupportFallback` are the three keys of this cycle).
-- **Run 6 of 11/11/2026 (5 companions, before `HoldsPlacedPiece`, in test):** **969 placed + 18 skipped = 987** - the
+- **Run 6 of 04/11/2026 (5 companions, before `HoldsPlacedPiece`, in test):** **969 placed + 18 skipped = 987** - the
   closing line adds up, the **watchdog reported nothing** (`0 peça(s) sem apoio`), **985 of 987** stand in the site,
   **zero emergency posts** (the roof never needed one), the **roof is visually closed** and **1 death**. **Run 7** (the
   bullet above) came after it, with `HoldsPlacedPiece` and the same 5 companions. Harness **596**.

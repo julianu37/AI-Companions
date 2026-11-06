@@ -71,16 +71,18 @@
     <Compile Include="..\..\src\Companions\AI\BuildSupportBelow.cs" Link="src/AI/BuildSupportBelow.cs" />
     <!-- P1 (04/11/2026): the body window of the placement check (blocked_by_player) - pure arithmetic -->
     <Compile Include="..\..\src\Companions\AI\BuildBody.cs" Link="src/AI/BuildBody.cs" />
-    <!-- 11/11/2026 (Run 13): the surface the walk to a piece goes to (the same storey first, then the highest one) - pure -->
+    <!-- 04/11/2026 (Run 13): the surface the walk to a piece goes to (the same storey first, then the highest one) - pure -->
     <Compile Include="..\..\src\Companions\AI\BuildWalkSpot.cs" Link="src/AI/BuildWalkSpot.cs" />
-    <!-- 11/11/2026 (Run 14): where a companion of the site steps to when another one has to place a piece on its body - pure -->
+    <!-- 04/11/2026 (Run 14): where a companion of the site steps to when another one has to place a piece on its body - pure -->
     <Compile Include="..\..\src\Companions\AI\BuildAsideSpot.cs" Link="src/AI/BuildAsideSpot.cs" />
-    <!-- 11/11/2026 (Run 14): how far apart the crew builds (a shared plan is not walked in a line) - pure -->
+    <!-- 04/11/2026 (Run 14): how far apart the crew builds (a shared plan is not walked in a line) - pure -->
     <Compile Include="..\..\src\Companions\AI\BuildSpread.cs" Link="src/AI/BuildSpread.cs" />
-    <!-- Lote 1 (11/11/2026): does the order still need a crafting station (template/single piece x blueprint switch) - pure -->
+    <!-- Lote 1 (04/11/2026): does the order still need a crafting station (template/single piece x blueprint switch) - pure -->
     <Compile Include="..\..\src\Companions\AI\BuildStationCover.cs" Link="src/AI/BuildStationCover.cs" />
-    <!-- 11/11/2026 (the build panel): the material need of a plan (prefab -> count folded through the costs) - pure -->
+    <!-- 04/11/2026 (the build panel): the material need of a plan (prefab -> count folded through the costs) - pure -->
     <Compile Include="..\..\src\Companions\AI\BuildMaterials.cs" Link="src/AI/BuildMaterials.cs" />
+    <!-- 05/11/2026 (the deck gap): does the body fit where it is going, and is it under the terrain - pure -->
+    <Compile Include="..\..\src\Companions\AI\MHR_Clearance.cs" Link="src/AI/MHR_Clearance.cs" />
     <Compile Include="..\..\src\Companions\AI\MHR_Owner.cs" Link="src\AI\MHR_Owner.cs" />
     <Compile Include="..\..\src\Companions\Core\MHR_List.cs" Link="src\Core\MHR_List.cs" />
   </ItemGroup>

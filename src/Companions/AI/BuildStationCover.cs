@@ -1,7 +1,7 @@
 namespace Companions;
 
 /// <summary>
-/// Lote 1 (player's request, 11/11/2026): <b>does this order still need a crafting station?</b> - the one decision behind
+/// Lote 1 (player's request, 04/11/2026): <b>does this order still need a crafting station?</b> - the one decision behind
 /// <c>[Building] BlueprintStations</c>, kept in a single place so the probe, the order and the executor can never disagree.
 ///
 /// <para>The player asked for the workbench/stonecutter requirement to be lifted <b>only for blueprints</b>: a template

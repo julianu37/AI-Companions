@@ -5,7 +5,7 @@ corpo, apoio/queda, `GetGroundHeight` sobre piso construído e altura real do co
 
 Fontes: decompilado de `valheim_Data\Managed\assembly_valheim.dll` (1.0.20) em
 `%TEMP%\opencode\vh-decomp\valheim\` — as linhas citadas são desse arquivo. O que é **medido** em jogo vem do log
-dos runs de 11/11/2026 (`docs/re/building-notes.md` §17.13/§17.16) e está marcado como tal. **Nada foi re-medido
+dos runs de 04/11/2026 (`docs/re/building-notes.md` §17.13/§17.16) e está marcado como tal. **Nada foi re-medido
 nesta rodada** (sem acesso ao jogo/harness daqui): o resto é **lido no código**.
 
 ## 0. Resumo em 6 linhas

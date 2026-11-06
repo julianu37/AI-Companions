@@ -181,7 +181,7 @@ internal static class GameLook
 	}
 
 	/// <summary>
-	/// The invisible vertical bar of a <see cref="ScrollRect"/> of the mod. Extracted (11/11/2026, the build panel) from
+	/// The invisible vertical bar of a <see cref="ScrollRect"/> of the mod. Extracted (04/11/2026, the build panel) from
 	/// the two copies the F8 panel and the companion window used to carry: the bar and its handle are
 	/// <b>not</b> raycast targets and the bar is the <b>first</b> sibling of the viewport, so the topmost graphic of a
 	/// list is a control and never a decorative element (that was one of the suspects of the swallowed click of the

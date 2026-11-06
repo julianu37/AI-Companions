@@ -1180,9 +1180,9 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
     deploy deu certo"; e deixar uma medição rodando enquanto se deploya (matar a medição antes, senão o número sai de
     duas DLLs). Prova de que subiu: `LastWriteTime` da DLL **anterior** ao `StartTime` do processo + `ping` com
     `inGame: true`.
-14. **REGRA — A DATA VEM DO RELÓGIO, NUNCA DA MEMÓRIA (05/11/2026).** O agente escreveu **`11/11/2026`** em
-    **619 linhas de 48 arquivos** enquanto a data real era **05/11**; com o passar do dia virou `12/11`. Isso
-    **destrói a cronologia** de um projeto que registra tudo por data ("medido em …, commit de …") — e o erro já
+14. **REGRA — A DATA VEM DO RELÓGIO, NUNCA DA MEMÓRIA (05/11/2026).** O agente escreveu a data **11/11/2026** (e depois
+    a 12/11) em **619 linhas de 48 arquivos** enquanto a data real era **05/11**; a data errada vinha da cabeça e
+    **destruía a cronologia** de um projeto que registra tudo por data ("medido em …, commit de …") — e o erro já
     tinha se espalhado para `src/`, `docs/`, `tools/`, `package/CHANGELOG.md` e para comentários de código.
     **A data de um comentário/doc é a data do COMMIT que o escreveu** (`git log -1 --format=%ad --date=short`), ou
     a do relógio (`date`) para o que ainda não foi commitado. **Nunca** de cabeça, nunca "reaproveitando" a data de

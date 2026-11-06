@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Companions;
 
 /// <summary>
-/// 11/11/2026 (Run 13, the ridge of the <c>CommHomeBasicBP</c>): <b>where should the companion stand</b> to place a piece
+/// 04/11/2026 (Run 13, the ridge of the <c>CommHomeBasicBP</c>): <b>where should the companion stand</b> to place a piece
 /// that is not at its feet? The walk used to be sent straight at the piece's pose - a roof row at 48,8, ten metres above
 /// the ground - and <c>Pathfinding.GetPath</c> snaps the <c>from</c> point to the navmesh up to 12 m, so the route started
 /// far from the feet and walked the <b>wrong way</b>: measured <c>no progress</c> after 12 s at <b>22,8 m</b> and then

@@ -67,7 +67,7 @@ internal static class ModUiLayers
 	/// (the editor is a window, and the overlay of the window behind it must not draw over it).</summary>
 	internal const int CompanionAppearancePanel = Base + 8;
 
-	/// <summary>11/11/2026: the build panel (<c>[Controls] BuildPanelKey</c>) - the site the companions are building.
+	/// <summary>04/11/2026: the build panel (<c>[Controls] BuildPanelKey</c>) - the site the companions are building.
 	/// It is the last window of the mod's band (1710), still below the game's modal popup at 1900: a site panel is a
 	/// window, not a dialog.</summary>
 	internal const int BuildPanel = Base + 9;

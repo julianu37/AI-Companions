@@ -92,7 +92,7 @@ entrar/parar sob o deck. Nada disso se decide sem ele.
 ordena **por altura primeiro**, `AI/BuildBlueprintParser.cs:146`). Correção de uma linha cada, com o mesmo ciclo.
 
 ### 9. A data dos documentos
-`AGENTS.md` e `docs/re/building-notes.md` datam os runs de hoje como **11/11/2026**; o `git log` desta máquina diz
+`AGENTS.md` e `docs/re/building-notes.md` datam os runs de hoje como **04/11/2026**; o `git log` desta máquina diz
 **04/11/2026**. Uma das duas está errada em ~200 ocorrências — passe dedicado, não no meio de um ciclo de código.
 **O §17.26 foi escrito com a data do ciclo (`04/11/2026`)** e cita o **baseline** (§17.22/§17.24) sem repetir data:
 a divergência **continua** e agora aparece **dentro** da mesma nota (a linha do §17.26 não é evidência de qual das duas
