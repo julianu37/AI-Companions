@@ -992,6 +992,39 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   `vehicle`** (`Mask()` `:75-79` inclui `vehicle` e **não exclui o próprio corpo**, que vive em `Default`); cápsula do
   **corpo real** (`BuildProbe.CapsuleOf`), nunca constante; `SafeSpot` **fica** com a régua antiga (1,70 m); resgate
   **não** em `Character.InInterior` (caverna), com teto por tempo e por ordem.
+  (25) **O COMPANHEIRO PRESO NÃO É (SÓ) O VÃO — é o `WalkSpot` que não achou lugar** (05/11/2026, medido com print).
+  Depois de o teto+resgate entrarem, uma build LIMPA (`hs_meadows_stone_cottage`, canteiro zerado) fechou **64/64,
+  0 pulada(s), enterrado: 0** e o companheiro terminou **preso entre duas lajes** — `fits: false`, pé em 38,78 (no
+  terreno, logo `buried: false`), `wood_floor` a 39,80 a **0,56 m** em XZ, corpo de **1,80 m**. **Nenhuma das duas
+  métricas antigas pegava** (ele não está abaixo do terreno); a sonda nova `fits` pega.
+  **Causa raiz, e é uma linha:** o caminho "sair de cima da própria peça" **já existia** (`OwnBodyOn` → `WalkSpot` →
+  `saio para`, `MHR_Build.cs:7652`+). Ele **disparou** e o `WalkSpot` **não devolveu lugar nenhum** — e **não loga o
+  fracasso**, então o código caía no caminho normal e **colocava o piso sobre o companheiro**. Os raios do `WalkSpot`
+  eram **1,5 m e 3,0 m** (`s_walkRadii`), e o piso desta casa tem **2,27 m de lado** (`halfX 1,135`) + cápsula 0,30 →
+  o primeiro ponto livre fica a **~1,44 m**: o anel de 1,5 m passa por um fio e qualquer candidato recusado deixa o
+  companheiro sem opção. **Mesma classe de defeito do `AbandonPiece` silencioso: o fracasso não fala.**
+  **Correção (05/11/2026):** (a) terceiro anel de **4,5 m** (`s_walkRadii`, 25 raios em vez de 17); (b) se ainda assim
+  não houver lugar, a peça **volta para a fila** em vez de ser colocada em cima dele (`BlockedByBody` + `QueueRetry`,
+  mesmo veredito do `Kind.Blocked`: nada foi pago, o claim fica) e **loga** `a peça N/M cruzaria o meu corpo e não
+  achei lugar para sair`.
+  **Nota de método:** eu tinha proposto "tirar o `ignore` do colocador" e pedir a outro especialista; a resposta certa
+  foi menor — **a funcionalidade já existia** (`OwnBodyOn` → `WalkSpot`, de 04/11) e estava cega. **Antes de desenhar,
+  grepe pelo comportamento.**
+  **TENTADO E DESFEITO NO MESMO DIA — a regressão (05/11/2026).** O primeiro conserto foi **errado** e está revertido:
+  (a) **anel de 4,5 m** no `s_walkRadii` passando de 17 para **25 raios por peça** — **inútil**, porque o `WalkSpot`
+  escolhe uma **superfície de onde alcançar** a peça, e para uma peça **no chão** essa superfície é **o chão onde ele
+  já está**; o anel não muda o destino, só o custo; (b) `QueueRetry` no ramo "sem destino". **Medido: 52 s → 72 s
+  (+38 %) e o companheiro terminou de novo `fits: false`.** O log mostrou a causa real: o caminho **funcionou 8 vezes**
+  (`precisa do lugar onde eu estou` → `saio para`) e **0 vezes** o meu plano B — ou seja, paguei 20 s de caminhada e
+  **não comprei nada**. **Revertido** (`MHR_Build.cs` volta a `668666f`).
+  **O que o especialista achou e eu NÃO vi (o patch certo, ainda não aplicado):** o bloco `:7643` tem **dois furos**:
+  (i) o guarda é `state.SelfStep < 2` — na **3ª** tentativa ele **pula o bloco inteiro** e coloca a peça atravessando o
+  corpo (é isso que deixa `fits: false`); (ii) o `Goto` só usa o destino do walk spot se `state.Pos.y > me.y + 1f`
+  (`:7306`) e a peça está **exatamente +1,00 m** → **`false`** → o destino é descartado e ele nunca anda. O caminho
+  certo é `BuildAsideSpot.Plan` + `StepTo` (**não** o `WalkSpot`), `OwnBodyOn(feet)` com pés hipotéticos e um flag
+  `State.SelfWalk` para o `Goto` não jogar fora o destino deliberado. **E NÃO tirar o `ignore` do colocador**: ele
+  também libera a **peça baixa no chão dos pés** (`wood_beam_1`, metade das peças do piso) e esse custo **nunca foi
+  medido**.
   **Achado de localização (04/11/2026, CORRIGIDO no mesmo dia):** `hc_cfg_building_blueprintstations`
   (`Core/ModLocalization.cs:860`) e `hc_cfg_controls_buildpanelkey` (`:863`) estavam **só no inglês** — em PT/ES/FR/IT
   o F8 mostrava o **rótulo em inglês** ("Blueprint: no stations", "Build panel key"), **não** a chave crua: as duas
@@ -1192,6 +1225,25 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
     último commit às 21:52 em −03:00 já é o dia seguinte em UTC, e um gate em UTC deixaria passar.
     **Cuidado com paralelismo:** rodar o `--fix` com outro agente editando os mesmos arquivos **sobrescreve o
     trabalho dele** — passar `--skip=<arquivos>` com tudo o que o outro está tocando.
+15. **REGRA — ANTES DE DESENHAR, PROCURE O CAMINHO QUE JÁ EXISTE; E SEMPRE MEÇA O CUSTO (05/11/2026).** Duas
+    regressões do mesmo dia, as duas minhas, as duas por pular este passo:
+    **(a) o `WalkSpot` do próprio corpo.** Passei ~2 h desenhando "o companheiro sai de baixo da peça" — e o caminho
+    **já existia** desde 04/11 (`OwnBodyOn` → `WalkSpot` → `"saio para"`). Grep de 30 s teria mostrado.
+    **(b) o conserto errado.** Achei que faltava **raio** e adicionei um anel de 4,5 m (17 → **25 raios por peça**).
+    Não era raio: o `WalkSpot` escolhe **superfície de onde alcançar**, e para peça **no chão** ela é **o chão onde ele
+    já está** — o anel só pagou custo. Medido: **52 s → 72 s (+38 %)** e o defeito **continuou** (`fits: false`).
+    **Revertido no mesmo dia.**
+    **A regra, em três passos, antes de qualquer patch de comportamento:**
+    1. **`grep` pelo comportamento** (o nome do sintoma, o log que ele produziria, o estado que ele mudaria). Se existe
+       caminho, o trabalho é **consertar o que existe**, não escrever outro;
+    2. **entenda a CONTRADIÇÃO lendo o código até o fim** — eu vi o `OwnBodyOn` e assumi que o destino era usado; a
+       linha seguinte (`Goto:7306`, `piece.y > feet.y + 1f`) **descartava** o destino quando a peça estava a **exatamente
+       1,00 m** (o `DeckLift`). Um `if` de uma linha anulou o bloco inteiro;
+    3. **declare o custo ANTES** (ms, raios, alocações, segundos) e **só aceite** se o ganho for medido. "Ficou mais
+       seguro" sem número não é ganho: foi assim que 20 s de caminhada compraram **zero**.
+    **Corolário:** quando um caminho "não funciona", o primeiro suspeito é **o log que falta** — três defeitos de hoje
+    (`AbandonPiece`, `WalkSpot`, o retry) eram **falhas silenciosas**. Se o código pode desistir sem falar, ele **vai**
+    esconder a causa.
 
 ## Equipe de agentes (`.opencode/agents/`)
 

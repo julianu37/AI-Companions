@@ -132,6 +132,17 @@ namespace Companions
         /// other bodies and the floor under the feet have to be told apart (<see cref="MHR_Clearance.Blocks"/>).
         /// A body that cannot be measured answers <b>true</b> - never a refusal out of a bad measurement.
         /// </summary>
+        /// <summary>
+        /// 05/11/2026 (the run that closed <c>enterrado: 0</c> with the companion stuck BETWEEN two slabs): the probe the
+        /// runner reads. <see cref="Buried"/> only compares the body to the TERRAIN, so a body wedged between the stone
+        /// floor and the wooden floor - the measured case: terrain 38,78, stone 38,30, wood 39,80 - reads as fine.
+        /// "Does the body fit where it stands" covers both shapes of the defect at once.
+        /// </summary>
+        public static bool Fits(Character c)
+        {
+            return c == null || FitsBody(c, c.transform.position);
+        }
+
         static bool FitsBody(Character c, Vector3 feet)
         {
             if (c == null) return true;

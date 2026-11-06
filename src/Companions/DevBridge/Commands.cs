@@ -2356,6 +2356,9 @@ internal static class Commands
 			// measures the acceptance needs to see it without a separate `terrain_check`
 			{ "buried", MHR_Mover.Buried(h) },
 			{ "depth", MHR_Mover.DepthUnderGround(h) },
+			// 05/11/2026: `buried` only compares the body to the TERRAIN - a body wedged between the stone floor and the
+			// wooden one read as fine while it was stuck. `fits` is the rule the mover itself uses.
+			{ "fits", MHR_Mover.Fits(h) },
 			{ "owner", zdo != null ? zdo.GetString(CompanionSetup.OwnerHash, "") : null }
 		};
 	}

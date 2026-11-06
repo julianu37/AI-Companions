@@ -74,12 +74,12 @@ peso real, material nos baús do canteiro.
       defeito, e é o que a **regra de teto** resolve.
 
 ## Tentado e DESFEITO — não repetir sem um número novo
-
 > Cada linha aqui foi **implementada, medida e revertida**. O motivo está escrito com o número que a matou; repetir
 > qualquer uma sem um run que a contradiga é **regressão**.
 
 | tentativa | por que parecia boa | por que foi desfeita (o número) | onde está hoje |
 |---|---|---|---|
+| **anel de 4,5 m no `WalkSpot`** + `QueueRetry` "sem destino" (05/11) | pensei que faltava raio para achar lugar de sair de cima da peça | **52 s → 72 s (+38 %)** e o companheiro terminou **`fits: false` do mesmo jeito**. O log: o caminho funcionou **8×** (`saio para`) e o meu plano B **0×** — os 20 s extras foram caminhada comprada **sem ganho**. Causa real: o `WalkSpot` escolhe **superfície de onde alcançar**, e para peça **no chão** é o **chão onde ele já está**; raio não muda destino | **revertido** (`MHR_Build.cs` volta a `668666f`) — REGRA 15 |
 | **ignorar o corpo do companheiro** na sonda | `corpo 0,0 s` e 861 → 188 s | **piso nasce em cima do companheiro e ele fica preso** (print do jogador, 05/11): o `UpdateMotion` reescreve `linearVelocity` a cada fixed step e a depenetração (2 m/s) perde. O ganho **não** era do corpo (era o `DependencyCap`) | **laço restaurado** (`4ebce87`); custo do bloqueio **6,2 s** |
 | **`IgnoreCollision` corpo × peça** | o corpo atravessaria a peça | ele **cai do piso que acabou de subir** (a obra usa o telhado como andaime); é estado do PhysX local e morre ao recriar collider | rejeitada na onda 1, **não implementar** |
 | **empurrar o corpo depois de colocar** | "o jogo resolve" | a física **já tenta** e o resultado medido foi o companheiro **1 m abaixo do chão**; empurrar por `transform` é teleporte disfarçado | rejeitada (onda 1) |
@@ -186,6 +186,8 @@ mas **nunca é exercitado em jogo**; e as **24 asserções da repulsão** não e
 | `cpu µs/frame` | custo do `Drive` por worker | declarar o fps medido (o jogo não roda a 60) |
 | `caminhada` | distância **reta** na pegada | não é metro andado |
 | `puladas` | peça dada por perdida | **o número que decide** |
+| **`enterrado: N`** | companheiros que terminaram **abaixo do terreno** (fim da linha do `Finish`) | **não basta**: um corpo **entre duas lajes** lê `0` (não está abaixo do terreno) |
+| **`fits`** (`companions_list`) | **o corpo cabe onde está?** | **é o critério do aceite.** `fits: false` = preso, mesmo com `buried: false` e `enterrado: 0`. Medido hoje: `64/64`, `enterrado: 0` e **`fits: false`** na mesma build |
 
 **Três escritores de `SkippedIndices`, um silencioso** (medido na varredura dos 82): `MHR_Build.cs:1113` loga
 `desistindo de <prefab> (<why>)` (`:1116`), `:4978` loga `sem apoio: <prefab> em (...)` (`:4985`, só com `LogNormal`) e
