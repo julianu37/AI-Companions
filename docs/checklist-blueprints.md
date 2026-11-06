@@ -150,10 +150,14 @@ mas **nunca é exercitado em jogo**; e as **24 asserções da repulsão** não e
       cima, não o corpo entrar). O mover não tem teste de teto (`MHR_Mover.cs`: `DropAhead` `:2802` olha para baixo).
       Desenho em `docs/re/deck-clearance.md`.
 - [ ] **cumeeira** (`wood_roof_45` a 48,8, `no progress`): navegação; `TempScaffold` vetada.
-- [ ] **⚠️ 7 ordens fecham com `hc_ai_blueprint_done` FALTANDO peça** (05/11/2026, rodada de 1 worker):
-      `hs_*_stone_cottage` **64 + 1 = 65 contra plan 76** (11 peças) e `hobbit_repairhut` **62 + 1 = 63 contra 67**.
-      **Isto invalida o critério de aceite atual** — `puladas == 0` deixa passar um plano que perdeu 11 peças.
-      O critério passa a ser **`placed + skipped == plan`**. Em investigação com o especialista.
+- [ ] **⚠️ ordens fecham com o denominador INFLADO** (05/11/2026, rodada de 1 worker + confirmado no código):
+      `hs_*_stone_cottage` **64/76** e `hobbit_repairhut` **62/67** — mas **não falta peça**: `64 + 12 duplicatas = 76`
+      e as 12 subiram pelo retry. Causa: `Advance:1996` faz `Plan.AddRange(retry)` sem filtrar o já colocado (só no
+      caminho **sem grupo**), `AbandonPiece` grava o **índice cru** (`:1137`/`:1150`) → "1 pulada" fantasma, e o
+      `Finish` só imprime.
+      **Critério de aceite corrigido (eu tinha errado):** **`placed` contra o tamanho BASE do plano** (o `64` da linha
+      de abertura), **não** `placed + skipped == plan` — esse reprova plano fisicamente perfeito e travaria ordens
+      (o run fez retry em **5 de 40** planos).
 
 ### 5. Release (só depois de 1 e 2)
 - [ ] merge na `main` (`fix/pisos-nivel-2` → `main`), versão, `CHANGELOG` + `LEIA-ME` + release notes (EN).
@@ -164,7 +168,7 @@ mas **nunca é exercitado em jogo**; e as **24 asserções da repulsão** não e
 
 | campo do `Finish` | o que é | cuidado |
 |---|---|---|
-| `peças: P/N, S pulada(s)` | placar do **canteiro** (índices) | é a **régua**; `P + S` tem de fechar com `N` |
+| `peças: P/N, S pulada(s)` | placar do **canteiro** (índices) | a régua é **`P` contra o `N` da ABERTURA da ordem** — o `N` do `Finish` foi inflado pelo retry até o lote de 05/11/2026 (`Plan.AddRange` sem filtro) |
 | `no alcance` | peças colocadas **sem andar** (1 por índice) | antes contava entradas e inflava |
 | `corpo` / `dependência` / `fila` / `barreira` | segundos de espera **por worker** | somar os 5 é tempo-homem, não relógio |
 | `cpu µs/frame` | custo do `Drive` por worker | declarar o fps medido (o jogo não roda a 60) |

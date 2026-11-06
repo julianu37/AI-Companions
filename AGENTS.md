@@ -929,17 +929,24 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   `:2519`, `SafeStep` `:3008` — **nada olha para cima**; já estava registrado no §17.19). A regra é **não ENTRAR
   onde a cápsula não cabe**, **não** "não passar por lugar apertado" (andar sob beiral não pode virar estátua).
   O desenho geométrico está em **`docs/re/deck-clearance.md`**.
-  (22) **7 ordens declaram `hc_ai_blueprint_done` FALTANDO peça (05/11/2026, medido na rodada de 1 worker — é mais
-  grave que o deck).** `placed + skipped != plan` e a ordem diz "concluída":
-  `hs_*_stone_cottage` **64 + 1 = 65 contra plan 76** (11 peças, nas 6 variantes) e `hs_meadows_hobbit_repairhut`
-  **62 + 1 = 63 contra 67** (4). O log mostra o worker varrendo até o fim com
-  `a peça 75/76 já está de pé (retry) - seguindo` / `next: wood_beam (76/76)` e então fechando; `espera` 20,0 s
-  (barreira 10,0 s em 2 retenções) e **1** poste. No corpus de 5 workers esses mesmos planos fecharam **64/64** —
-  ou seja, o plano **lido agora tem 76**, e as 11 restantes nem entraram na conta. **Consequência para o aceite:**
-  hoje o critério é `puladas == 0` e **esse plano passa nele** (1 pulada) enquanto faltam 11 peças; o critério tem
-  de ser **`placed + skipped == plan`** antes de qualquer número virar release. Em investigação com o especialista
-  (a condição do `Finish`, o veredito `já está de pé (retry)` e o escritor silencioso de `SkippedIndices`,
-  `MHR_Build.cs:1150`).
+  (22) **ordens fecham com o denominador INFLADO — o plano não perde peça, a conta é que mente (05/11/2026).**
+  Medido na rodada de 1 worker e **confirmado no código** depois: uma ordem de 1 companheiro (caminho **sem grupo**)
+  fecha dizendo `hc_ai_blueprint_done` com a linha `peças: 64/76, 1 pulada(s)` quando o plano real tem **64 peças e
+  todas estão de pé**. A conta fecha assim: **`64 reais + 12 duplicatas = 76`**. **Causa raiz (três, todas lidas no
+  código):** (i) `Advance` no bloco do retry pass faz `state.Plan.AddRange(again)` (`MHR_Build.cs:1996`) **sem filtrar**
+  o que já está em `PlacedIndices`/`SkippedIndices`, e a guarda é `state.Group == null` (`:1983`) — o caminho de
+  **grupo** não passa por ali, e é por isso que o corpus de 5 workers fecha **64/64**; (ii) `AbandonPiece` usa o
+  **índice cru** `state.Index` (`:1137`/`:1150`) em vez de `PieceIndex` (`:1081`), e depois do retry ele aponta para a
+  **cópia anexada** (75/76) → a **"1 pulada" fantasma**, fora da faixa real; (iii) o `Finish` (`:9011`) só **imprime**
+  os números que recebe — não há `if` de coerência (`:9079-9083`).
+  **Consequência para o aceite, e eu errei aqui antes de medir:** `placed + skipped == plan` **também está errado** —
+  com o denominador inflado ele **reprova um plano fisicamente perfeito** (o run fez retry em **5 de 40** planos, então
+  o portão travaria ordens boas). O critério certo é **`placed` contra o tamanho BASE do plano** (o número da linha de
+  abertura, `64`), com o `Finish` imprimindo o **base** e não o `Plan.Count` mutável. **Nada de portão que impeça
+  fechar** — ordem que não termina é regressão pior que número errado.
+  `hs_*_stone_cottage` (6) e `hs_meadows_hobbit_repairhut` mediram **64/76** e **62/67**; `espera` 20,0 s
+  (barreira 10,0 s) e **1** poste. Lote em implementação (retry filtra → `AbandonPiece` por identidade e logando →
+  `Finish` com o base).
   (23) **a rodada da MAIOR build (985 peças) fica para a DLL corrigida** (decisão do jogador, 05/11/2026: *"com a
   dll corrigida né, pra que fazer agora?"*). O runner está pronto (`%TEMP%\opencode\big_one.py`, teto de 60 min,
   marcos a cada 100 peças); a comparação é contra os **470 s** do corpus de 5 workers.
