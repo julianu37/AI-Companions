@@ -1025,6 +1025,41 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   `State.SelfWalk` para o `Goto` não jogar fora o destino deliberado. **E NÃO tirar o `ignore` do colocador**: ele
   também libera a **peça baixa no chão dos pés** (`wood_beam_1`, metade das peças do piso) e esse custo **nunca foi
   medido**.
+  (26) **A VARREDURA DE 8 FRENTES (05/11/2026) — o que ficou levantado e NÃO corrigido.** Relatórios read-only de
+  `valheim-mod-reviewer` (código), `valheim-specialist` (jogo), `valheim-docs-writer` (doc), `multilanguage-verifier`
+  (5 idiomas), `valheim-mod-architect` (build/pacote) e `valheim-qa-engineer` (harness). **Confirmado por mim** só o
+  que está marcado ✔; o resto é relato a verificar antes de agir (REGRA 15).
+  **Código (`MHR_Build.cs`, 9.484 linhas):** 13 métodos com > 100 linhas (pior: `StartBlueprint` ~376, `Advance` ~340,
+  `Place` ~246); **4 definições de "é piso"** com semânticas diferentes (`ClassOfOnce:383`, a lista de `floors` do
+  `LevelKey:118` que **exclui `foundation`**, `IsFloorStep:1319`, `PullFloorsAbove:6058`) — a de `:118` muda o `Level`
+  do telhado em casa com fundação; **código morto**: `MaxLevelPasses:240`, `State.Tried:361` (escrito, nunca lido),
+  `Phase.Done:339`; **alocação por frame**: `Reattach:3960` faz `new List<int>` **por frame por companheiro ocioso**
+  enquanto existir **uma** pendência, e `ServeBarrier`/`NextRetry` varrem a fila **por frame por worker** (suspeito nº
+  1 dos `389 µs/frame`); `Log()` monta a string **antes** do gate (`:9449`); ✔ **`PulledOk >= 24` (`:6222`) é literal
+  com o mesmo 24 de `MaxFallbackPosts` (`:237`)** — dois tetos, um número, nenhuma constante.
+  **Comentários que mentem:** ✔ `:7647` (diz "sem walk spot, segue o caminho de sempre" e o código manda para a fila),
+  `:8-26` (cabeçalho diz que o arquivo **não** coleta material nem constrói blueprint — faz os dois, `:8460`/`:2938`),
+  `:7443` (diz 17 raios; são 25 com o meu anel — **revertido**, voltou a 17), `:6130` (diz que telhado nunca sustenta;
+  `CanSupport:176` permite telhado→telhado).
+  **5 idiomas:** ✔ **`PadBindListener.cs:50`** `"Press a button..."` e ✔ **`ConfigPanel.cs:1196`**
+  `"[A] Change [X] Clear …"` são **hardcoded em inglês e visíveis ao jogador** em PT/ES/FR/IT (não existe
+  `hc_ui_press_button`); `KeyBindListener.cs:49` idem, latente. ES/FR/IT **0 lacunas**, config **0 ausentes**,
+  `gen_config_doc [ok] 368/25`, e a dívida do `gen_translations --check` é **109** nos 3 (56 painel de obra + 32 falas
+  de construção + 18 `hc_cfg_building_*` + 3 avulsas) — **não cresceu**. ✔ **Nenhum bloqueio de release aqui.**
+  **Build/pacote:** ✔ `PluginVersion` continua **1.9.6** com a tag `v1.9.6` **já publicada** e a branch **+120 commits**
+  à frente — uma release daqui **colide nome e tag** (bump é decisão do jogador); o `stage_release.py` **levaria
+  ~62,8 MB** de `.blueprint` do corpus (pasta de deploy tem 300+), **decisão de produto antes de zipar**; ✔ pacotes
+  congelados conferem (Whisper 1.9.1, sherpa 1.13.8, STJ 10.0.2) e **zero Jotunn**; o item 6 do gate valida a **DLL
+  publicada** e passa se o deploy foi pulado; o item 1 só olha **erro**, não aviso.
+  **Doc:** ✔ **0 de 15** citações `arquivo:linha` a `MHR_Build.cs` ainda apontam para o texto citado (o arquivo mudou
+  muito hoje) — **parar de citar `MHR_Build.cs` por número** enquanto ele estiver em movimento; `StoreyOf` ainda
+  aparece como mecanismo **vivo** em `AGENTS.md:1479/1548` e em **6 linhas** do `building-notes`; harness **778** em 11
+  lugares (real **807**); `docs/mcp-devbridge.md` diz **46** ferramentas (são **62**); `deck-clearance.md:16/399` diz
+  "não implementou nada" (implementado).
+  **Harness:** ✔ **807 PASS**; a conta itemizada fecha em **800 + 7 órfãs**, não 771; a **repulsão**
+  (`NearestApart`/`PickNearApart`/`Apart`) **não tem asserção nenhuma** e o comentário de `BuildSpread.cs:330-331`
+  **promete** que tem; o README **para na (w)**; `companions.inventory` e os campos `buried`/`depth`/`fits` **não**
+  estão no teste do MCP (122 PASS) nem na descrição da ferramenta.
   **Achado de localização (04/11/2026, CORRIGIDO no mesmo dia):** `hc_cfg_building_blueprintstations`
   (`Core/ModLocalization.cs:860`) e `hc_cfg_controls_buildpanelkey` (`:863`) estavam **só no inglês** — em PT/ES/FR/IT
   o F8 mostrava o **rótulo em inglês** ("Blueprint: no stations", "Build panel key"), **não** a chave crua: as duas
