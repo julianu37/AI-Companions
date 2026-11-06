@@ -854,9 +854,9 @@ internal static class Program
 		// the numbers of the storey barrier, so a silent change of the window is caught here
 		// 04/11/2026 (Run 17): one clock - the patience is the same 10 s as BodyBarrierSeconds (it used to be 25 s, so the
 		// wait outlived the site's gate and the workers stood still)
-		Check("constantes da barreira: 2 s de volta, 1 m de andar, 10 s de paciencia (o mesmo relogio da barreira)",
+		Check("constantes da barreira: 2 s de volta, 1 m de andar, 5 s de paciencia (o mesmo relogio da barreira, 06/11/2026)",
 			Math.Abs(BuildFailure.BodyRetryDelay - 2f) < 0.001f && Math.Abs(BuildFailure.BodyRetryStep - 1f) < 0.001f
-				&& Math.Abs(BuildFailure.BodyRetryMaxWait - 10f) < 0.001f,
+				&& Math.Abs(BuildFailure.BodyRetryMaxWait - 5f) < 0.001f,
 			"obtido " + BuildFailure.BodyRetryDelay.ToString("F2") + " / " + BuildFailure.BodyRetryStep.ToString("F2")
 				+ " / " + BuildFailure.BodyRetryMaxWait.ToString("F2"));
 
@@ -1461,11 +1461,10 @@ internal static class Program
 		// the numbers of the barrier, so a silent change of the window is caught here
 		// 04/11/2026 (Run 17): one clock - 10 s is the 3 short retries (7,5 s) rounded up, and ServeBarrier never outlives
 		// the site's gate (it used to be 20 s of gate against 25 s of wait)
-		Check("constantes: 3 curtas, 2,5 s de espera, 1,5 m de mesmo andar, 10 s de barreira",
+		Check("constantes: 3 curtas, 2,5 s de espera, 1,5 m de mesmo andar, 5 s de barreira (06/11/2026)",
 			BuildFailure.MaxShortRetries == 3 && Math.Abs(BuildFailure.ShortRetryDelay - 2.5f) < 0.001f
 				&& Math.Abs(BuildFailure.BodySameStorey - 1.5f) < 0.001f
-				&& Math.Abs(BuildFailure.BodyBarrierSeconds - 10f) < 0.001f,
-			"obtido " + BuildFailure.MaxShortRetries + " / " + BuildFailure.ShortRetryDelay.ToString("F2") + " / "
+				&& Math.Abs(BuildFailure.BodyBarrierSeconds - 5f) < 0.001f,			"obtido " + BuildFailure.MaxShortRetries + " / " + BuildFailure.ShortRetryDelay.ToString("F2") + " / "
 				+ BuildFailure.BodySameStorey.ToString("F2") + " / " + BuildFailure.BodyBarrierSeconds.ToString("F2"));
 
 		// 04/11/2026 (Run 17): the wait of a piece refused by a body grows with the refusals and stops at 6 s - the piece

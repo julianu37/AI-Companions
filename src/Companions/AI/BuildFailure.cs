@@ -57,8 +57,14 @@ internal static class BuildFailure
 	/// <para>04/11/2026 (Run 17): <b>10 s</b> = the 3 short retries (<see cref="MaxShortRetries"/> 3 x
 	/// <see cref="ShortRetryDelay"/> 2,5 = 7,5 s) rounded up. Past that the piece is not coming <b>now</b> - the body is
 	/// still on it - and it stays in the site's queue (it is never lost): holding the storeys above it longer than that is
-	/// only a parked worker (measured: 31 "nothing above ... is taken" lines with 20 s).</para></summary>
-	internal const float BodyBarrierSeconds = 10f;
+	/// only a parked worker (measured: 31 "nothing above ... is taken" lines with 20 s).</para>
+	///
+	/// <para>06/11/2026 (o jogador, depois de ver a obra parada: <b>"2 5s?"</b>): <b>5 s</b>. The number that justified 10
+	/// was the 3 short retries (7,5 s), but the retry of the SAME storey now goes back into the plan beside its neighbours
+	/// (<c>MHR_Build.RequeueSameStorey</c>), so the barrier no longer has to wait for a piece that is being retried
+	/// anyway - it only has to outlast a body that is <b>walking off the spot</b>, which the Run 9 measured as "a couple
+	/// of seconds". A longer hold is a worker parked with the storey above already buildable.</para></summary>
+	internal const float BodyBarrierSeconds = 5f;
 
 	/// <summary>04/11/2026 (the <b>storey barrier</b>): how long a piece refused by a body waits in the site's queue before
 	/// the plan may come back to it. The body is walking, not the spot failing: a couple of seconds is all the player needs
