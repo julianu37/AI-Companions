@@ -945,11 +945,27 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   abertura, `64`), com o `Finish` imprimindo o **base** e não o `Plan.Count` mutável. **Nada de portão que impeça
   fechar** — ordem que não termina é regressão pior que número errado.
   `hs_*_stone_cottage` (6) e `hs_meadows_hobbit_repairhut` mediram **64/76** e **62/67**; `espera` 20,0 s
-  (barreira 10,0 s) e **1** poste. Lote em implementação (retry filtra → `AbandonPiece` por identidade e logando →
-  `Finish` com o base).
+  (barreira 10,0 s) e **1** poste. **Fechado em `bb5aed9`** (05/11/2026, build 0/0, harness **778**): (A) `PendingRetry`
+  novo + `Advance` só anexa o que ainda está pendente, e quando o filtro esvazia a lista o `Passes` **não** incrementa
+  (ele tem leitor de **comportamento**, `Place:7584`, não só de log); (B) `AbandonPiece(state, ai, why)` usa
+  `PieceIndex` (identidade) e **loga** no formato do `SkipPiece`, com o `Add` guardado para não logar duas vezes;
+  (C) `Finish` imprime `State.BaseCount` (gravado em `StartBlueprint`/`FindPlan` e **incrementado** no
+  `InsertBenchStep`, porque a bancada inserida é peça real da ordem), **sem portão novo** — a ordem continua fechando
+  sempre. O caminho de **grupo** não passa por nada disso e imprime exatamente o que imprimia.
+  **Aceite a medir:** `stone_cottage` com **UM** companheiro tem de imprimir **`peças: 64/64, 0 pulada(s)`** —
+  **não** validar com 5 workers (o bug não aparece no caminho de grupo; `64/64` ali é falso positivo).
+  **Fora de escopo, registrado:** a **retomada** não carrega o `BaseCount` (`Pending` não tem o campo) e o
+  `ResumeBlueprint` reusa o `storedPlan`, que pode já vir com os apêndices; e com `BlueprintStations` **desligada** o
+  denominador inclui a bancada inserida (`64/(64+n)`) — o executor **não escondeu** isso, porque a bancada é peça real.
   (23) **a rodada da MAIOR build (985 peças) fica para a DLL corrigida** (decisão do jogador, 05/11/2026: *"com a
   dll corrigida né, pra que fazer agora?"*). O runner está pronto (`%TEMP%\opencode\big_one.py`, teto de 60 min,
   marcos a cada 100 peças); a comparação é contra os **470 s** do corpus de 5 workers.
+  **A DLL corrigida foi deployada em 05/11/2026 (21:44:31, processo 21:44:42)** — é `bb5aed9` e traz, de uma vez,
+  `4ebce87` (o companheiro volta a ser obstáculo) + `9308123` (4º caminho do nivelamento) + o lote do denominador.
+  Prova do boot: `LastWriteTime` da DLL (21:44:31) **anterior** ao `StartTime` do processo (21:44:42),
+  `Loading [AI Companions 1.9.6]`, `loaded successfully! (95 methods patched)` e `ping` com `inGame: true`.
+  **Atenção para as próximas rodadas:** os números anteriores a este boot (o corpus dos 82, a rodada de 1 worker
+  em 40/82, o teste avulso de 36 s) são de **outro motor** e não são comparáveis com o que sair daqui.
   **Achado de localização (11/11/2026, CORRIGIDO no mesmo dia):** `hc_cfg_building_blueprintstations`
   (`Core/ModLocalization.cs:860`) e `hc_cfg_controls_buildpanelkey` (`:863`) estavam **só no inglês** — em PT/ES/FR/IT
   o F8 mostrava o **rótulo em inglês** ("Blueprint: no stations", "Build panel key"), **não** a chave crua: as duas

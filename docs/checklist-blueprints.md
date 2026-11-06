@@ -150,11 +150,16 @@ mas **nunca é exercitado em jogo**; e as **24 asserções da repulsão** não e
       cima, não o corpo entrar). O mover não tem teste de teto (`MHR_Mover.cs`: `DropAhead` `:2802` olha para baixo).
       Desenho em `docs/re/deck-clearance.md`.
 - [ ] **cumeeira** (`wood_roof_45` a 48,8, `no progress`): navegação; `TempScaffold` vetada.
-- [ ] **⚠️ ordens fecham com o denominador INFLADO** (05/11/2026, rodada de 1 worker + confirmado no código):
-      `hs_*_stone_cottage` **64/76** e `hobbit_repairhut` **62/67** — mas **não falta peça**: `64 + 12 duplicatas = 76`
-      e as 12 subiram pelo retry. Causa: `Advance:1996` faz `Plan.AddRange(retry)` sem filtrar o já colocado (só no
-      caminho **sem grupo**), `AbandonPiece` grava o **índice cru** (`:1137`/`:1150`) → "1 pulada" fantasma, e o
-      `Finish` só imprime.
+- [x] **o denominador inflado pelo retry** (`bb5aed9`, 05/11/2026, build 0/0, harness **778**): o retry pass só
+      anexa o que está pendente (`PendingRetry`), o `AbandonPiece` usa **identidade** (`PieceIndex`) e **loga**, e o
+      `Finish` imprime o tamanho **base** (`State.BaseCount`, incrementado no `InsertBenchStep` porque a bancada
+      inserida é peça real). **Sem portão novo** — a ordem continua fechando sempre; só o número mudou.
+      **Aceite:** `stone_cottage` com **UM** companheiro → `peças: 64/64, 0 pulada(s)` (com 5 workers o bug nem
+      aparece, então `64/64` ali seria falso positivo).
+      *O defeito medido (para não confundir com peça faltando):* `hs_*_stone_cottage` **64/76** e `hobbit_repairhut`
+      **62/67** — **não faltava peça**: `64 reais + 12 duplicatas = 76`, e as 12 subiram pelo retry. O `plan` vinha de
+      `Advance:1996` (`Plan.AddRange(retry)` sem filtro, **só no caminho sem grupo**) e o "1 pulada" era o
+      `AbandonPiece` gravando o **índice cru** (`:1137`/`:1150`), que depois do retry aponta para a cópia anexada.
       **Critério de aceite corrigido (eu tinha errado):** **`placed` contra o tamanho BASE do plano** (o `64` da linha
       de abertura), **não** `placed + skipped == plan` — esse reprova plano fisicamente perfeito e travaria ordens
       (o run fez retry em **5 de 40** planos).
