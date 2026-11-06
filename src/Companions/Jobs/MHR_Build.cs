@@ -711,6 +711,15 @@ internal static class MHR_Build
 		/// line prints <c>caminhada: &lt;site&gt; m (este: &lt;worker&gt; m)</c> - this field is the second number.
 		/// </summary>
 		internal float WalkMeters;
+		/// <summary>
+		/// 05/11/2026 (the inflated denominator measured in the game): the size of the plan <b>as the order read it</b> - the
+		/// number of the opening line ("blueprint X: N pieces near ..."). The single worker's retry pass <b>appends</b> the
+		/// steps that did not stand to the plan, so <see cref="Plan"/>.Count grows and is not the size of the house: the run of
+		/// one worker printed <c>peças: 64/76</c> on a 64-piece cottage with every piece standing (<c>64 placed + 12 appended
+		/// copies</c>). <see cref="MHR_Build.Finish"/> prints this one; 0 (a state that never had a plan) falls back to the
+		/// plan's count, which is what it always printed.
+		/// </summary>
+		internal int BaseCount;
 	}
 
 	/// <summary>E6: one piece of a plan, already resolved to a world pose.</summary>
@@ -1094,6 +1103,44 @@ internal static class MHR_Build
 	}
 
 	/// <summary>
+	/// 05/11/2026 (the inflated denominator measured in the game): the steps of the single worker's retry queue that are
+	/// still <b>pending</b>. A piece that went up (or was given up) while it waited in the queue is not appended to the
+	/// plan again. It is what made a 64-piece stone cottage end <c>64/76, 1 pulada(s)</c>: the retry pass appended the 12
+	/// steps the storey barrier had already placed, the plan grew by copies of finished pieces and <see cref="Finish"/>
+	/// printed the grown size as the denominator.
+	///
+	/// <para>The identity of a piece is the FIRST place its step appears in the plan (the same rule as
+	/// <see cref="PieceIndex"/>) - the copies a previous pass appended are not pieces. A step that is not in the plan at
+	/// all (nothing to compare against) is <b>kept</b>: dropping it would lose the piece.</para>
+	///
+	/// <para>It allocates one list per call, which is the cost of a retry pass (the block that calls it runs when the walk
+	/// reaches the end of the plan, not per frame).</para>
+	/// </summary>
+	private static List<PlannedStep> PendingRetry(State state)
+	{
+		List<PlannedStep> pending = new List<PlannedStep>();
+		if (state == null || state.Plan == null || state.Retry == null)
+		{
+			return pending;
+		}
+		for (int i = 0; i < state.Retry.Count; i++)
+		{
+			PlannedStep step = state.Retry[i];
+			if (step == null)
+			{
+				continue;
+			}
+			int index = state.Plan.IndexOf(step);
+			if (index >= 0 && (state.PlacedIndices.Contains(index) || state.SkippedIndices.Contains(index)))
+			{
+				continue;   // up, or given up: the queue kept a step that is already settled (the inflated denominator)
+			}
+			pending.Add(step);
+		}
+		return pending;
+	}
+
+	/// <summary>
 	/// P1 (04/11/2026, "contadores honestos"): one piece is given up - counted <b>once per plan index</b>, in the order and
 	/// in the site. Every path that abandons a piece goes through here (the retry cap, the stall watchdog, a fall and the
 	/// timeout), which is what makes <c>Placed + Skipped</c> close with the plan instead of counting attempts (the run of
@@ -1127,28 +1174,48 @@ internal static class MHR_Build
 	/// <para>With the site alive the piece goes back to its queue as a <b>dependency</b>: it spends no attempt and is not
 	/// counted as skipped (it was never tried). Without a site there is nobody to rebuild it, so it is counted skipped here -
 	/// <c>Placed + Skipped</c> closes with the plan either way.</para>
+	///
+	/// <para>05/11/2026 (the inflated denominator): the index is the piece's <b>identity</b> (<see cref="PieceIndex"/>), not
+	/// the raw <c>state.Index</c>. After a retry pass the walk points at the COPY that was appended to the plan, and counting
+	/// that copy is what made a 64-piece plan report a phantom <c>1 pulada(s)</c> at index 75/76. It is also the third writer
+	/// of <see cref="State.SkippedIndices"/> and the only one that used to write nothing to the log - the line below is the
+	/// same one <see cref="SkipPiece"/> uses, so a piece that is given up always has a name and a pose in the log.</para>
 	/// </summary>
-	private static void AbandonPiece(State state)
+	private static void AbandonPiece(State state, CompanionAI ai = null, string why = null)
 	{
 		if (state == null || state.Plan == null || state.Index < 0 || state.Index >= state.Plan.Count)
 		{
 			return;
 		}
-		if (state.PlacedIndices.Contains(state.Index) || state.SkippedIndices.Contains(state.Index))
+		// 05/11/2026: the identity of the piece - the raw index may be the copy a retry pass appended (see note above)
+		int index = PieceIndex(state);
+		if (index < 0)
+		{
+			return;
+		}
+		if (state.PlacedIndices.Contains(index) || state.SkippedIndices.Contains(index))
 		{
 			return;   // up, or already given up by this worker
 		}
-		if (state.Group != null && (MHR_BuildGroup.IsDone(state.Group, state.Index)
-			|| MHR_BuildGroup.GivenUp(state.Group, state.Index)))
+		if (state.Group != null && (MHR_BuildGroup.IsDone(state.Group, index)
+			|| MHR_BuildGroup.GivenUp(state.Group, index)))
 		{
 			return;   // the SITE already has it: another worker put it up, or the watchdog gave it up (that verdict is final)
 		}
-		if (state.Group != null && MHR_BuildGroup.TryQueueRetry(state.Group, state.Index, BuildFailure.Kind.Dependency))
+		if (state.Group != null && MHR_BuildGroup.TryQueueRetry(state.Group, index, BuildFailure.Kind.Dependency))
 		{
 			return;   // the site keeps it: another worker (or this one, after a resume) puts it up
 		}
-		state.SkippedIndices.Add(state.Index);
-		MHR_BuildGroup.AddSkipped(state.Group, state.Index);
+		if (!state.SkippedIndices.Add(index))
+		{
+			return;
+		}
+		MHR_BuildGroup.AddSkipped(state.Group, index);
+		// 05/11/2026: the same line SkipPiece writes - a given-up piece is named, with its pose and the running total, so
+		// the log never has a skipped piece without a reason
+		int total = state.Group != null ? MHR_BuildGroup.Skipped(state.Group) : state.SkippedIndices.Count;
+		Log(ai, "desistindo de " + state.Prefab + " (" + (why ?? "a ordem terminou") + ") em (" + F(state.Pos.x) + ", "
+			+ F(state.Pos.y) + ", " + F(state.Pos.z) + ") - " + total + " pulada(s)");
 	}
 
 	/// <summary>
@@ -1980,6 +2047,12 @@ internal static class MHR_Build
 			state.Index = state.ResumeIndex - 1;
 			state.ResumeIndex = -1;
 		}
+		// 05/11/2026 (the inflated denominator, measured in the game): the retry pass appends ONLY the steps that are still
+		// pending. It used to `AddRange(state.Retry)` whole, and the queue keeps a step whose piece went up in the meantime
+		// (the storey barrier places it and the queue is not told) - so the plan grew copies of finished pieces and the run
+		// of one worker ended `peças: 64/76, 1 pulada(s)` on a 64-piece plan with every piece standing. The guard below keeps
+		// this path to the SINGLE worker: a site never appends to the plan (the group walks distinct indices by construction,
+		// which is why the 5-worker corpus closes 64/64).
 		if (state.Group == null && state.Plan != null && state.Index + 1 >= state.Plan.Count
 			&& state.Retry != null && state.Retry.Count > 0)
 		{
@@ -1989,13 +2062,26 @@ internal static class MHR_Build
 				state.Start = Time.time;
 				return true;
 			}
-			state.Passes++;
-			List<PlannedStep> again = state.Retry;
+			// only the steps that are still pending are appended (see PendingRetry)
+			int queued = state.Retry.Count;
+			List<PlannedStep> again = PendingRetry(state);
 			state.Retry = new List<PlannedStep>();
-			int first = state.Plan.Count;
-			state.Plan.AddRange(again);
-			state.Index = first - 1;
-			Log(ai, "retry pass " + state.Passes + " with " + again.Count + " piece(s) that did not stand yet");
+			if (again.Count == 0)
+			{
+				// the plan is done - the pieces the queue still held were settled while they waited (placed, or given up by
+				// another rule). Nothing is appended, the pass is NOT counted (`state.Passes` is "how many retry passes
+				// ran", and a pass that appends nothing did not run) and the flow goes on to the close of the order, which
+				// is the honest ending.
+				Log(ai, "retry: as " + queued + " peça(s) da fila já estavam resolvidas - o plano está pronto");
+			}
+			else
+			{
+				state.Passes++;
+				int first = state.Plan.Count;
+				state.Plan.AddRange(again);
+				state.Index = first - 1;
+				Log(ai, "retry pass " + state.Passes + " with " + again.Count + " piece(s) that did not stand yet");
+			}
 		}
 		if (state.Plan != null && state.Blueprint != null)
 		{
@@ -3180,6 +3266,9 @@ internal static class MHR_Build
 			AnchorRot = rot,
 			AnchorKnown = true,
 			Plan = plan,
+			// 05/11/2026 (the inflated denominator): the size the order read - the retry pass appends copies to `Plan` and
+			// Finish prints this number instead (see State.BaseCount)
+			BaseCount = plan.Count,
 			Retry = new List<PlannedStep>(),
 			Index = start,
 			Prefab = plan[start].Prefab,
@@ -3553,7 +3642,7 @@ internal static class MHR_Build
 			ClearScaffolds(owner, state);
 			// 11/11/2026 (the abandoned piece): "para, Fulano" gives the piece BACK to the site before the claim is freed -
 			// otherwise it vanished (not rebuilt, not counted) and the final number came out smaller than the plan.
-			AbandonPiece(state);
+			AbandonPiece(state, owner, "a ordem foi cancelada");
 			state.Active = false;
 			state.Stay = false;   // 11/11/2026 (the stay): the mark of the piece dies with the order
 			s_state.Remove(owner.GetInstanceID());
@@ -3596,7 +3685,8 @@ internal static class MHR_Build
 				ClearScaffolds(null, state);
 				// 11/11/2026 (the abandoned piece): the sites were dropped above (the player cancelled the whole thing), so
 				// there is no queue to give the piece back to - it is counted here so this worker's numbers still close.
-				AbandonPiece(state);
+				CompanionSetup abandoned = SetupOf(key);
+				AbandonPiece(state, abandoned != null ? abandoned.GetComponent<CompanionAI>() : null, "a ordem foi cancelada");
 				state.Active = false;
 			}
 			s_state.Remove(key);
@@ -5341,6 +5431,10 @@ internal static class MHR_Build
 			return false;   // the refused piece goes to the retry queue, which runs after the bench
 		}
 		state.Plan.Insert(state.Index, new PlannedStep { Prefab = BenchPrefab, Piece = bench, Pos = spot, Rot = benchRot });
+		// 05/11/2026 (the inflated denominator): this bench is a piece the ORDER added to its own plan - it belongs to the
+		// base the summary prints (the retry pass appends COPIES, which do not). Without this the single-worker path would
+		// print one more placed piece than planned the moment a bench is inserted.
+		state.BaseCount++;
 		state.BenchInserts++;
 		state.Prefab = BenchPrefab;
 		state.Piece = bench;
@@ -6893,6 +6987,9 @@ internal static class MHR_Build
 			Log(ai, "plan short at the start: " + MissingText(missing) + " - the gather takes over when the first piece needs it");
 		}
 		state.Plan = plan;
+		// 05/11/2026 (the inflated denominator): a template plan is the size the order resolved - the same number Finish
+		// prints (State.BaseCount)
+		state.BaseCount = plan.Count;
 		state.Anchor = anchor;
 		state.AnchorRot = baseRot;
 		state.AnchorKnown = true;
@@ -9020,7 +9117,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		ReleaseHarvest(ai, state);
 		// 11/11/2026 (the abandoned piece): the piece this worker was on is NOT lost with it - with the site alive it goes
 		// back to the queue (a dependency: no attempt spent, not counted as skipped), and without a site it is counted.
-		AbandonPiece(state);
+		AbandonPiece(state, ai, "a ordem terminou");
 		// 04/11/2026 (review R12 A2, measured in the sequence of blueprints): the queue of the SITE dies with the group,
 		// and a piece waiting in it was counted neither as placed nor as skipped - the Forest Hobbit Repairhut ended
 		// "61/62, 0 pulada(s)" with nothing naming the missing piece.
@@ -9080,7 +9177,17 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			: (state.SitePlaced >= 0 ? state.SitePlaced : state.PlacedIndices.Count);
 		int skippedCount = state.Group != null ? MHR_BuildGroup.Skipped(state.Group)
 			: (state.SiteSkipped >= 0 ? state.SiteSkipped : state.SkippedIndices.Count);
-		int planned = state.Plan != null && state.Plan.Count > 0 ? state.Plan.Count : 1;
+		// 05/11/2026 (the inflated denominator measured in the game): for a SINGLE worker the denominator is the size the
+		// ORDER READ (the opening line "blueprint X: N pieces near ..."), never `Plan.Count` - the retry pass appended copies
+		// of the pieces that did not stand and a 64-piece stone cottage ended "peças: 64/76, 1 pulada(s)" with all 64
+		// standing (64 placed + 12 appended copies). A SITE keeps the plan's own size: it never appends copies (the group
+		// walks distinct indices, which is why the 5-worker corpus closes 64/64) and the number it printed before was right.
+		// The predicate is the SAME one `placed` above uses - the group key is dropped before this line by the last worker,
+		// so `Group != null` alone would read a site as a single order and print one placed piece more than planned.
+		bool site = state.Group != null || state.SitePlaced >= 0;
+		int planned = site
+			? (state.Plan != null && state.Plan.Count > 0 ? state.Plan.Count : 1)
+			: (state.BaseCount > 0 ? state.BaseCount : (state.Plan != null && state.Plan.Count > 0 ? state.Plan.Count : 1));
 		float siteWalked = state.Group != null ? MHR_BuildGroup.Walk(state.Group)
 			: (state.SiteWalk >= 0f ? state.SiteWalk : state.WalkMeters);
 		// P1 (multi-build): the worker leaves the site - its piece is free for the others right away, and the group is
