@@ -4,6 +4,21 @@ All the changes to this project, derived from ProfMags' Offline Companions. The 
 
 ## 1.9.7 - in progress
 
+**Blueprint build: the companion no longer ends up sealed under the floor, and the silent give-ups now speak.**
+
+- **Stepping off his own piece actually moves him.** The companion stands where the piece goes, and the two tries that
+  used to step him aside were no-ops: the walk target was the column he already stood on (a 0 m step, measured in 2 of
+  11 tries), and the walk order dropped the target on the next frame for a piece at his feet. The step-off now asks for
+  a surface away from his feet (1 m) and from the piece's column (1.5 m), and the order keeps that target. This is the
+  path that ended with a floor placed across his body and the body left under it.
+- **A body parked on a piece no longer retries forever.** Waiting for a body still does not spend a try (a body is not
+  the piece failing), but after 6 refusals (~30 s of waiting) the next one counts, so the retry limit applies. Before
+  this only the 60 s watchdog stopped a piece under a player who never moves.
+- **Four give-ups say why.** No place to step to, a piece below that will not come back in time, a queue entry that left
+  without a piece, and a piece handed to the site's queue were all silent in the log. Nothing changed in the decisions.
+
+**Gate:** the harness guard (rule 4 - the harness only gains assertions) is now a release gate item, and it compares with
+main, so a commit that removes an assertion cannot pass. It also has its own self-test.
 **Build the plans you download (E7 - the blueprint library).** The companion reads the `.blueprint` files the Valheim
 community shares - the 353 of BiomeBlueprints, the valheimians library and your own captures - and builds them with the
 same executor as the structures: it pays from its bag and the chests, gathers what is missing and resumes where it
