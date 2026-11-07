@@ -3877,6 +3877,11 @@ Artefato: `docs/runs/2026-11-07-madzo-3-workers.json`.
 
 ### O achado que vale mais que o tempo: o bloqueio agora é do colega
 
+> **CORRIGIDO em §17.34 (07/11/2026):** a leitura abaixo estava **errada**. O run media `corpo na peça` sem separar
+> **quem** era o corpo, e o `AskStepAside` **não** desiste por o alvo estar trabalhando. Medido depois, com o motivo
+> instrumentado: **o jogador bloqueou 112** e o companheiro **61**; a desistência real é `outro nível` (**50**), porque o
+> anel de 2,2 m caía fora da laje. O texto fica como registro do erro, não como diagnóstico.
+
 | quem bloqueou a peça | linhas |
 |---|---|
 | **outro companheiro** | **323** |
@@ -3903,4 +3908,63 @@ corpo **saiu sozinho** - mas o caminho que o colocou lá existe: foi outro worke
   workers isso acontece 323 vezes. É a próxima frente (fazer o colega sair também quando está trabalhando).
 - **13 `verification failed` e 30 `travada não voltou`** não foram investigados neste run.
 - **A receita é de teste** (`BlueprintFree`, `PlaceReach 15`, `LevelGround false`): a de produto não rodou.
+
+
+---
+
+## §17.34 A instrumentacao derrubou a leitura do §17.33 (07/11/2026)
+
+O §17.33 fechou com *"323 de 328 bloqueios são de OUTRO COMPANHEIRO - o `AskStepAside` desiste quando o alvo não está
+em espera"*. **Essa leitura estava errada**, e o próprio run seguinte mostrou: ele media as linhas de `corpo na peça`
+sem separar **quem** era o corpo, e o `AskStepAside` **não** desiste por o alvo estar trabalhando - ele tenta
+`AsideSpot` e só desiste quando não há **lugar**.
+
+### O que a instrumentação mostrou (run de 3 workers, madzobuild, `DeckLift 0`)
+
+O `StepTo` recusava por três motivos **sem dizer qual**. Cada recusa passou a ser contada
+(`sem chão` / `outro nível` / `perto demais` / `passo inseguro`) e o log imprime o motivo **uma vez por peça**:
+
+`"Companheiro 3" está na peça 64 - sem lugar livre para ele sair da frente (sem chão 0, outro nível 0, perto demais 0, passo inseguro 2)`
+
+| motivo | ocorrências |
+|---|---|
+| **outro nível** (> 0,8 m dos pés) | **50** |
+| passo inseguro | 5 |
+| perto demais | 1 |
+| sem chão | **0** |
+
+**A causa é geométrica e agora está provada:** o anel do `BuildAsideSpot.Plan` nasce a **2,2 m** em volta do
+companheiro, e numa **laje** esse raio cai **fora do piso**: o raycast acha o chão 1,5 m abaixo e o `StepTo` recusa por
+`|hit.y - pés| > 0,8`. As 7 linhas com todos os contadores em **zero** são o outro filtro, o de 1,0 m do próprio
+colocador, no topo do laço (nenhum candidato chegou ao `StepTo`).
+
+### E o bloqueio dominante NAO era o colega
+
+| quem bloqueou (`corpo na peça`) | linhas |
+|---|---|
+| **o jogador** | **112** |
+| companheiro | 61 |
+
+O rastro do run anterior registrou o jogador a **10,4 m do centro** do canteiro - mas ele **entrou** durante a obra
+(a receita não prende o jogador, e não deve). Isso também explica o outro número que eu tinha lido errado:
+`precisa do lugar onde eu estou` = **168** no run com o jogador andando, contra **6** no run de 1 worker com o jogador
+fora - o próprio corpo voltou a ser o caminho mais usado, e o A2/A3 o está tratando (as tentativas andam).
+
+### O conserto (aplicado em `17fa857`)
+
+`BuildAsideSpot.PlanNear` tenta o anel em **2,2 / 1,5 / 1,0 m**, do maior para o menor, com a mesma ordem de preferência
+dentro de cada raio (atrás do colocador primeiro, lados depois, **frente nunca**). `Plan` continua intacto e o harness
+assere que `PlanNear` com **um** raio responde exatamente como `Plan` - a compatibilidade é testada, não presumida.
+O buffer de spots foi de 8 para 24 (3 raios x 8 direções).
+
+**Custo declarado:** até 24 candidatos em vez de 8 **por tentativa de step-aside**, e cada um custa um `Physics.Raycast`
+(mais o `SafeStep` só quando o raio acha chão no nível). O step-aside é evento, não laço por frame: a medida
+anterior deste caminho é de poucos pedidos por obra (`step-aside: 3` e `5` nos runs de 3).
+
+### Lição de método (a terceira vez nesta semana)
+
+O número existia, mas **sem o motivo**: `sem lugar livre` não dizia *sem chão, outro nível ou inseguro*. Eu li o número
+agregado e escrevi uma causa (`AskStepAside` desiste com o alvo trabalhando) que o código **não** tinha. A instrumentação
+custou ~30 linhas e derrubou a hipótese em um run. **Instrumentar antes de teorizar** é a regra 6 do `AGENTS.md` vista
+pelo outro lado: o log que falta não esconde só a causa do defeito, esconde também a causa que você **inventou**.
 
