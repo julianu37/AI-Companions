@@ -128,14 +128,18 @@ Estas regras existem porque **cada uma já foi violada e custou uma run inteira*
 
 ## Pendências ativas (resumo; detalhe no histórico e na checklist)
 
-- **Por que ele fica sob o piso (§17.31, revisão de 06/11 em `docs/revisao-executor-2026-11-06.md`):** o `Goto` apaga o
-  destino de "saio para" quando a peça está à altura dos pés (A2, confirmado no código) e o `WalkSpot` pode devolver a
-  própria coluna da peça (A3, 2 de 11 tentativas com passo de 0 m). As duas tentativas viram no-op e a peça é colocada
-  sobre o corpo. **Conserto candidato = par A2 + A3** (`SelfWalk = true` no ramo do `Place` + excluir destinos a menos de
-  X m de `me` no `BuildWalkSpot.Choose`), **não aplicado**: precisa de caso no harness e de A/B medido (1 worker,
-  madzobuild, `DeckLift 0`, linha de base 183/612, `fits:false`, 79 % parado).
-- **Retry de corpo sem teto (M4, confirmado no código, magnitude não medida):** `Kind.Blocked` não incrementa `Tries`, então
-  nunca chega a `MaxPasses`, e `Passes` não tem limite. Hoje quem segura é o watchdog de 60 s.
+- **Por que ele fica sob o piso (§17.31, revisão de 06/11 em `docs/revisao-executor-2026-11-06.md`):** o `Goto` apagava o
+  destino de "saio para" quando a peça está à altura dos pés (A2) e o `WalkSpot` pode devolver a própria coluna da peça
+  (A3, 2 de 11 tentativas com passo de 0 m). As duas tentativas viravam no-op e a peça era colocada sobre o corpo.
+  **CORRIGIDO em `08611c9`:** par A2 + A3 (`SelfWalk` independente de `ReachWalk` e sem recálculo no `Goto`; novo
+  `BuildWalkSpot.ChooseAway` filtrando < 1,0 m dos pés e < 1,5 m da coluna da peça). Harness seção (af), **+7 casos**.
+  `Choose` (caminho normal) não mudou, e o harness asserta isso.
+- **Retry de corpo sem teto (M4):** `Kind.Blocked` não incrementava `Tries`, então nunca chegava a `MaxPasses`.
+  **CORRIGIDO em `50b1cb3`:** `BuildFailure.BlockedExhausted` + `BlockedCap = 6` (~30 s de espera gratuita); depois, a
+  recusa gasta tentativa e o `MaxPasses` limita. A magnitude **não foi medida**.
+- **Fracassos silenciosos do executor (A4/M3/M6/B1): CORRIGIDO em `edc6d04`** — todos logam o motivo; nenhuma decisão mudou.
+- **A/B do A2+A3 ainda pendente** (1 worker, madzobuild, `DeckLift 0`): a linha de base é **183/612, `fits:false`, 79 %
+  parado**. É o número que decide se o conserto fica.
 - **Peça colocada sobre o corpo na 3ª tentativa:** o conserto exige **impedir a re-inserção no plano**, não um guarda cego.
   A tentativa de re-inserir no mesmo andar (`RequeueSameStorey`) cresceu o plano de **612 para 1303** (691 cópias) e foi
   revertida.
