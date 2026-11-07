@@ -128,6 +128,10 @@ Estas regras existem porque **cada uma já foi violada e custou uma run inteira*
 
 ## Pendências ativas (resumo; detalhe no histórico e na checklist)
 
+- **Teto de workers: `[Building] MaxWorkers`, padrão 3** (07/11/2026, pedido do jogador). Antes não havia teto. **Medido
+  com 3** (§17.33): **612/612 em 165 s**, `UNSUPPORTED` 0, mas **323 de 328 bloqueios de peça são de OUTRO COMPANHEIRO**
+  (`AskStepAside` desiste quando o alvo não está em espera). É a próxima frente com grupo.
+
 - **Por que ele fica sob o piso (§17.31, revisão de 06/11 em `docs/revisao-executor-2026-11-06.md`):** o `Goto` apagava o
   destino de "saio para" quando a peça está à altura dos pés (A2) e o `WalkSpot` pode devolver a própria coluna da peça
   (A3, 2 de 11 tentativas com passo de 0 m). As duas tentativas viravam no-op e a peça era colocada sobre o corpo.

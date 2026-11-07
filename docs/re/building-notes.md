@@ -3846,3 +3846,61 @@ Artefato: `docs/runs/2026-11-07-madzo-a2a3-m4-corrigido.json`.
 - **A 3ª tentativa ainda coloca a peça** se as duas tentativas de sair falharem. Neste run não houve nenhuma
   (`não achei onde sair` = 0), mas o caminho continua no código.
 
+---
+
+## §17.33 O teto de 3 workers: 612/612 em 165 s, e a disputa agora é entre COMPANHEIROS (07/11/2026)
+
+Pedido do jogador: *"5 é muito, vamos mudar o teto para 3 companions na mesma build/grupo"*. Antes **não havia teto**:
+`CompanionOrders.BlueprintWorkers` (ordem de chat) e a lista do bridge (`companions.build` sem `name`) aceitavam **todo**
+companheiro que pudesse trabalhar o canteiro. Entrou `[Building] MaxWorkers` (int, padrão **3**, faixa 1..10, lido a cada
+uso), aplicado nos **dois** caminhos. O corte é pela ordem de `CompanionSetup.AllCompanions`, então duas ordens iguais
+montam o mesmo grupo.
+
+**Run medido** (`5c0447e`, ordem **sem nome** para o teto decidir, `DeckLift 0`, `PlaceReach 15`, `BlueprintFree true`,
+`LevelGround false`, canteiro zerado, mochilas zeradas):
+
+| régua | valor |
+|---|---|
+| `workers` na abertura da ordem | **3** (o teto funcionou) |
+| resultado | **612/612**, `hc_ai_blueprint_done` no líder |
+| **duração** | **165 s** (0,27 s/peça) |
+| `done:` / `placed (Direct)` | 610 / 623 |
+| `UNSUPPORTED` / `sem progresso` | 0 / 0 |
+| `verification failed` | 13 |
+| `travada não voltou` | 30 |
+| `fits: false` | 49 de 924 amostras (**5,3 %**), só no **#2**, entre 36,5 s e 68,1 s |
+| parado por worker | 37 % / 53 % / 63 % |
+| caminhado | 234 / 201 / 129 m |
+| `espera` (barreira) | 50,6 s (27,0 s) / 49,7 s (32,2 s) / 33,1 s (13,0 s) |
+
+Artefato: `docs/runs/2026-11-07-madzo-3-workers.json`.
+
+### O achado que vale mais que o tempo: o bloqueio agora é do colega
+
+| quem bloqueou a peça | linhas |
+|---|---|
+| **outro companheiro** | **323** |
+| o jogador | **5** |
+
+O log nomeia: `corpo na peça 170/612 ("Companheiro 3") - cápsula 40,0-41,8 m` seguido de *"está na peça 170 - sem lugar
+livre para ele sair da frente, não peço (a peça vai para a fila)"*. Ou seja: **com 3 corpos no mesmo canteiro, o
+companheiro virou o obstáculo principal** e a peça espera pela fila em vez de o colega sair.
+
+Isto é **coerente com a decisão de 05/11** (o companheiro volta a ser obstáculo, porque a peça nascer dentro dele o
+prendia) e com o `StepAside`, que só move quem está **em espera**. O custo aparece agora porque há 3 disputando o mesmo
+españo - com 1 worker esse caminho quase não existia.
+
+### O `fits: false` volta, e é transitório
+
+O **#2** ficou 32 s com o corpo sem caber (y 38,17-38,87 sob o piso de 39,8) enquanto **outro** construía por cima dele.
+Terminou **fora** do canteiro em **y 37,90** e o `fits` voltou a `true` (medido depois do run: os três estão em
+y 37,66 / 37,90 / 38,69, `fits: true`). Diferente do §17.31 (1 worker, 88 % do run sem caber e o corpo parado), aqui o
+corpo **saiu sozinho** - mas o caminho que o colocou lá existe: foi outro worker fechando o piso sobre ele.
+
+### Aberto
+
+- **`não peço` quando o corpo é de outro companheiro:** o `AskStepAside` desiste se o alvo não está em espera. Com 3
+  workers isso acontece 323 vezes. É a próxima frente (fazer o colega sair também quando está trabalhando).
+- **13 `verification failed` e 30 `travada não voltou`** não foram investigados neste run.
+- **A receita é de teste** (`BlueprintFree`, `PlaceReach 15`, `LevelGround false`): a de produto não rodou.
+
