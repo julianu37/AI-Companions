@@ -28,6 +28,9 @@
 #       item passa a valer sozinho quando o modo entrar)
 #   8. python tools/mcp-devbridge/test_mcp_devbridge.py                       0 FAIL
 #   9. dotnet run --project tools/ai-intents-check -c Release                 0 FAIL
+#  10. datas no futuro (REGRA 14): python tools/check_dates.py --quiet        exit 0
+#  11. trava do harness (regra 4): python tools/check_harness_additions.py    exit 0 (sem Check( removida/alterada vs HEAD)
+#  12. selftest da trava: python tools/check_harness_additions.py --selftest  0 FAIL
 #
 # Exit: 0 = release liberada, 1 = algum item falhou. As ultimas linhas do comando que falhou saem indentadas.
 # O que este gate NAO cobre (fica com o agente de docs/release): CHANGELOG, release notes, tag, staging e zip.
@@ -38,7 +41,7 @@ param(
 )
 
 $root = Split-Path -Parent $PSScriptRoot
-$total = 10
+$total = 12
 $script:index = 0
 $script:failures = New-Object System.Collections.Generic.List[string]
 $script:summary = New-Object System.Collections.Generic.List[object]
@@ -226,6 +229,25 @@ try {
   $datesLine = ($dates.Lines | Where-Object { $_ -match '\[ok\]|\[!\]' } | Select-Object -First 1)
   if ($datesLine) { $datesDetail = "$($datesLine.Trim()), $datesDetail" }
   Report 'datas no futuro (REGRA 14)' $datesOk $datesDetail $dates.Lines
+
+  # ------------------------------------------------------------------ 11-12. trava do harness (regra 4)
+  # AGENTS.md regra 4: o harness so GANHA asserção. Compara com HEAD (working tree + staged): uma Check( removida ou
+  # alterada reprova. Sem --allow-removal aqui: a exceção e decisão explicita do arquiteto, nao do gate.
+  Write-Host ''
+  Write-Host '== 11-12. trava de asserções do harness (regra 4)' -ForegroundColor Cyan
+  $harnessGuard = Invoke-Tool 'python' @('tools\check_harness_additions.py')
+  $guardLine = ($harnessGuard.Lines | Where-Object { $_ -match '\[ok\]|\[falha\]' } | Select-Object -First 1)
+  $guardDetail = "exit $($harnessGuard.ExitCode)"
+  if ($guardLine) { $guardDetail = "$($guardLine.Trim()), $guardDetail" }
+  Report 'harness: nenhuma asserção Check( removida ou alterada (regra 4)' ($harnessGuard.ExitCode -eq 0) $guardDetail $harnessGuard.Lines
+
+  $guardSelf = Invoke-Tool 'python' @('tools\check_harness_additions.py', '--selftest')
+  $guardSelfSummary = Get-HarnessSummary $guardSelf.Lines
+  $guardSelfOk = ($guardSelf.ExitCode -eq 0) -and ($guardSelfSummary -ne '') -and ($guardSelfSummary -match '/ 0 FAIL$')
+  $guardSelfDetail = "exit $($guardSelf.ExitCode)"
+  if ($guardSelfSummary -ne '') { $guardSelfDetail = "$guardSelfSummary, $guardSelfDetail" }
+  else { $guardSelfDetail = "$guardSelfDetail, sem a linha de resumo" }
+  Report 'harness: selftest da trava (check_harness_additions.py)' $guardSelfOk $guardSelfDetail $guardSelf.Lines
 
   # ------------------------------------------------------------------ resumo
   Write-Host ''

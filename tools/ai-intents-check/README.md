@@ -119,3 +119,4 @@ A soma itemizada dá **768**: **7** asserções antigas não estão em nenhuma s
 - Depois de mexer em qualquer um dos arquivos linkados acima (o build já compila o harness; o `dotnet run` é a
   prova).
 - Antes de release que mexa em ordens, parser, contrato ou nas redes por palavras.
+- Trava da regra 4 (o harness só ganha asserção): `python tools/check_harness_additions.py` falha se alguma `Check(`/`KnownFail(` foi removida ou alterada contra HEAD (`--base <ref> [--to <ref>]` para um commit; `--selftest` para os casos sintéticos).
