@@ -3810,3 +3810,39 @@ esta' na pendencia (27): o **poste de emergencia** fica onde ele esta', e o cicl
 - **A pergunta "por que parou" tem DUAS respostas diferentes** e o log separa: `79 % parado` (o corpo preso, que para
   de andar porque a rota nao existe) contra `45 % parado` do guarda terminal (que anda e volta). **Nao sao o mesmo
   defeito** e nao se somam.
+
+---
+
+## §17.32 O A/B do A2+A3 e do M4: `fits: false` some e a obra anda (07/11/2026)
+
+A pergunta do §17.31 era *o que fazia o companheiro parar sob o piso*. As duas causas confirmadas no código (A2: o `Goto`
+apagava o destino de "saio para" para peça na altura dos pés; A3: o `WalkSpot` devolvia a própria coluna da peça) foram
+corrigidas em `edc6d04`, o teto do retry de corpo em `50b1cb3` e os quatro logs em `08611c9`. **A/B medido na mesma
+receita dos dois lados** (1 worker, `hs_meadows_madzobuild_modernstarterhouse`, `DeckLift 0`, `PlaceReach 15`,
+`BlueprintFree true`, `LevelGround false`, canteiro zerado, 600 s):
+
+| régua | base (`2b469d6`) | corrigido | leitura |
+|---|---|---|---|
+| **`fits: false`** (rastro 0,5 s) | **1015 de 1150 (88 %)** | **0 de 1068** | o corpo deixou de ser selado |
+| **parado** | **79 %** (476 s) | **17 %** (101 s) | |
+| **colocadas em 600 s** | **183** | **257** | +40 % |
+| denominador do plano | 612 | **612** | não cresceu |
+| `precisa do lugar onde eu estou` | (o no-op) | 6, e **as 6 andaram** (0,8-0,9 m em 8 s) | o passo existe |
+| `blocked_by_player` | 2 | **2** | |
+| `corpo no caminho` / `corpo parado em cima` | 0 / - | **0 / 0** | o cap do M4 não foi exercitado |
+| `retry later` / `travada não voltou` / `não volta a tempo` | 0 / 1 / - | **0 / 0 / 0** | |
+| `UNSUPPORTED` / `verification failed` / `sem progresso` | 0 / 0 / 0 | **0 / 0 / 0** | |
+| caminhado | 211 m (0,35 m/s) | **1261 m (2,10 m/s)** | ele anda em vez de esperar |
+
+Artefato: `docs/runs/2026-11-07-madzo-a2a3-m4-corrigido.json`.
+
+### O que este run **não** prova
+
+- **O M4 não foi exercitado:** `corpo parado em cima` = **0** e `blocked_by_player` = **2**, então o `BlockedCap` não foi
+  cruzado. O commit fica pelo argumento de código (o retry sem teto é real, ver a revisão M4), **não** por este número.
+- **A obra não terminou em 600 s** (257 de 612): o run mede 10 min, não a conclusão. O que mudou é que ele **não fica
+  preso** - antes, com `fits: false` em 88 % das amostras, ele parava de se mexer.
+- **Um worker**, um plano, um canteiro. Nada aqui diz nada sobre 5 workers (a partição e a repulsão mudam a disputa).
+- **A 3ª tentativa ainda coloca a peça** se as duas tentativas de sair falharem. Neste run não houve nenhuma
+  (`não achei onde sair` = 0), mas o caminho continua no código.
+

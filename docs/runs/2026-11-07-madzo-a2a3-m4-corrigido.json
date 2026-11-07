@@ -1,0 +1,40 @@
+[
+ {
+  "data": "2026-11-07",
+  "dll": "edc6d04+50b1cb3+08611c9 (A2+A3, M4, logs)",
+  "blueprint": "hs_meadows_madzobuild_modernstarterhouse.blueprint",
+  "workers": 1,
+  "decklift": 0,
+  "placeReach": 15,
+  "blueprintFree": true,
+  "levelGround": false,
+  "duracao_s": 600,
+  "colocadas": 257,
+  "plano": 612,
+  "plano_cresceu": false,
+  "fits_false_amostras": 0,
+  "amostras": 1068,
+  "parado_s": 102.4,
+  "parado_pct": 17.1,
+  "caminhado_m": 1261,
+  "precisa_do_lugar": 6,
+  "nao_achei_onde_sair": 0,
+  "cruzaria": 0,
+  "blocked_by_player": 2,
+  "corpo_no_caminho": 0,
+  "corpo_parado_em_cima": 0,
+  "retry_later": 1,
+  "travada_nao_voltou": 0,
+  "fila_do_canteiro": 0,
+  "nao_volta_a_tempo": 0,
+  "unstupported": 0,
+  "verification_failed": 1,
+  "sem_progresso": 0,
+  "linha_de_base": {
+   "colocadas": 183,
+   "fits_false_amostras": 1015,
+   "amostras": 1150,
+   "parado_pct": 79
+  }
+ }
+]

@@ -138,8 +138,11 @@ Estas regras existem porque **cada uma já foi violada e custou uma run inteira*
   **CORRIGIDO em `50b1cb3`:** `BuildFailure.BlockedExhausted` + `BlockedCap = 6` (~30 s de espera gratuita); depois, a
   recusa gasta tentativa e o `MaxPasses` limita. A magnitude **não foi medida**.
 - **Fracassos silenciosos do executor (A4/M3/M6/B1): CORRIGIDO em `08611c9`** — todos logam o motivo; nenhuma decisão mudou.
-- **A/B do A2+A3 ainda pendente** (1 worker, madzobuild, `DeckLift 0`): a linha de base é **183/612, `fits:false`, 79 %
-  parado**. É o número que decide se o conserto fica.
+- **A/B do A2+A3: MEDIDO em 07/11/2026, e o conserto FICA.** Mesma receita dos dois lados (1 worker, madzobuild,
+  `DeckLift 0`, 600 s): **`fits:false` 88 % → 0** (1015/1150 → 0/1068), **parado 79 % → 17 %**, **colocadas 183 → 257**,
+  plano estável em 612, `UNSUPPORTED`/`sem progresso` 0. As tentativas de sair agora **andam** (0,8–0,9 m; antes 0 m).
+  §17.32 de `building-notes`. Ressalvas: **o M4 não foi exercitado** (`blocked_by_player` 2, cap não cruzado), a obra não
+  terminou em 600 s (257/612) e é **1 worker** — nada diz sobre 5.
 - **Peça colocada sobre o corpo na 3ª tentativa:** o conserto exige **impedir a re-inserção no plano**, não um guarda cego.
   A tentativa de re-inserir no mesmo andar (`RequeueSameStorey`) cresceu o plano de **612 para 1303** (691 cópias) e foi
   revertida.
