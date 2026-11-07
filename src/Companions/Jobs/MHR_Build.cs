@@ -1037,11 +1037,18 @@ internal static class MHR_Build
 			if (kind == BuildFailure.Kind.Blocked)
 			{
 				pending.Blocked++;
-				float wait = BuildFailure.BlockedDelay(pending.Blocked);
-				state.RetryAt = Time.time + wait;
-				Log(ai, "corpo no caminho: " + state.Prefab + " em (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
-					+ F(state.Pos.z) + ") - volta em " + wait.ToString("F0") + " s (não gasta tentativa)");
-				return;
+				if (!BuildFailure.BlockedExhausted(pending.Blocked))
+				{
+					float wait = BuildFailure.BlockedDelay(pending.Blocked);
+					state.RetryAt = Time.time + wait;
+					Log(ai, "corpo no caminho: " + state.Prefab + " em (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
+						+ F(state.Pos.z) + ") - volta em " + wait.ToString("F0") + " s (não gasta tentativa)");
+					return;
+				}
+				// review M4 (06/11/2026): the body has outlived its free refusals. From here on each refusal spends a try, so
+				// the MaxPasses limit below bounds the piece - before this a parked body was re-appended forever.
+				Log(ai, "corpo parado em cima: " + state.Prefab + " em (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
+					+ F(state.Pos.z) + ") - " + pending.Blocked + " recusas sem sair, agora gasta tentativa");
 			}
 			pending.Tries++;
 			if (pending.Tries > MaxPasses)

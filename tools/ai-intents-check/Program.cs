@@ -152,8 +152,9 @@ internal static class Program
 		HangingBeams();
 		Section("(ae) MHR_Clearance - o corpo cabe onde ele vai? (o vao de 1 m do deck, 05/11/2026)");
 		Clearance();
-		Section("(af) BuildWalkSpot.ChooseAway - o passo que sai de cima da propria peca (revisao de 06/11/2026, A3)");
+		Section("(af) BuildWalkSpot.ChooseAway e BuildFailure.BlockedExhausted (revisao de 06/11/2026: A3 e M4)");
 		StepOffCases();
+		BlockedCapCases();
 		CrossCheckDoorRule();
 
 		Out.WriteLine();
@@ -1934,6 +1935,31 @@ internal static class Program
 		bool right = ok == found && (!ok || Same(got, expected));
 		Check(name + " -> " + (found ? Vec(expected) : "false"), right,
 			"obtido " + (ok ? Vec(got) : "false") + ", esperado " + (found ? Vec(expected) : "false"));
+	}
+
+	/// <summary>
+	/// Section (af), 06/11/2026 (review M4): <c>BuildFailure.BlockedExhausted</c> - a body refusal does not spend a try by
+	/// default (it is not the piece failing), and that left a piece parked under a player who never leaves with no ceiling:
+	/// the retry pass re-appended it every time and <c>MaxPasses</c> was never reached. Past <c>BlockedCap</c> refusals the
+	/// wait spends a try, so the pass limit bounds it.
+	/// </summary>
+	private static void BlockedCapCases()
+	{
+		for (int blocks = 0; blocks <= BuildFailure.BlockedCap + 2; blocks++)
+		{
+			bool expected = blocks > BuildFailure.BlockedCap;
+			Check("BlockedExhausted(" + blocks + ") -> " + expected, BuildFailure.BlockedExhausted(blocks) == expected,
+				"cap " + BuildFailure.BlockedCap);
+		}
+		// the free refusals must still fit inside the barrier's patience, or the cap would spend a try while the body is
+		// still a body and not a failure of the piece
+		float free = 0f;
+		for (int blocks = 1; blocks <= BuildFailure.BlockedCap; blocks++)
+		{
+			free += BuildFailure.BlockedDelay(blocks);
+		}
+		Check("as " + BuildFailure.BlockedCap + " recusas gratuitas somam " + free.ToString("F0") + " s (o corpo tem tempo de sair)",
+			free >= 20f, "soma " + free.ToString("F1") + " s");
 	}
 
 	/// <summary>Section (x): the same point (a tenth of a millimetre).</summary>

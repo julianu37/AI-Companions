@@ -30,7 +30,7 @@ namespace Companions;
 /// reason: one copy of the rule, pinned by the harness.</para>
 ///
 /// <para>04/11/2026 (Run 17, <b>one clock</b>): the wait of the site's queue and the gate that holds the storeys above a
-/// body are the <b>same</b> number (<see cref="BodyBarrierSeconds"/> = <see cref="BodyRetryMaxWait"/> = 10 s) - the
+/// body are the <b>same</b> number (<see cref="BodyBarrierSeconds"/> = <see cref="BodyRetryMaxWait"/> = 5 s since 06/11/2026, were 10 s) - the
 /// measured run had 20 s of gate against 25 s of wait, so the wait always outlived the gate and the workers stood
 /// still. And a piece refused again and again by a parked player waits longer each time
 /// (<see cref="BlockedDelay"/>).</para>
@@ -208,6 +208,19 @@ internal static class BuildFailure
 			return 4f;   // refused twice: it is not just somebody crossing the spot
 		}
 		return 6f;   // parked: the queue keeps it, but the workers stop walking to it every other piece
+	}
+
+	/// <summary>How many body refusals in a row a piece may wait out before the wait counts as a TRY (review M4,
+	/// 06/11/2026). A body is not a failure of the piece, so it does not spend a try by default - which left a piece
+	/// parked under a player that never leaves with no ceiling at all: the retry pass re-appended it every time, and
+	/// `MaxPasses` (the only bound) was never reached by a body. With the cap, a parked body costs one try per pass after
+	/// the cap, and the pass limit bounds it. 6 refusals is about 2 + 4 + 4 x 6 s = 30 s of waiting by BlockedDelay.</summary>
+	internal const int BlockedCap = 6;
+
+	/// <summary>Has the body waited out its free refusals (<see cref="BlockedCap"/>)? Past it, the next refusal spends a try.</summary>
+	internal static bool BlockedExhausted(int blocks)
+	{
+		return blocks > BlockedCap;
 	}
 
 	/// <summary>
