@@ -39,7 +39,7 @@ internal static class MHR_Build
 	/// (<c>[Building] PlaceReach</c>, 5..20, 10 by default - "it is a mod, it does not have to be realistic", request of
 	/// 03/11/2026). The flat cap used to be 2,5 m and could not reach the upper roof row of the house (y = 5, i.e. 4,9 m
 	/// above the feet) - the companion walked in circles until the order timed out (player report, 01/11/2026: "parece
-	/// que não alcança").
+	/// que n├úo alcan├ºa").
 	///
 	/// <para>It is read from the config on every use (a property, not a const): a value changed in the F8 panel applies to
 	/// the orders that are already running, and a missing entry falls back to the vanilla 5 m.</para>
@@ -91,14 +91,14 @@ internal static class MHR_Build
 	/// madzobuild (6 cm over the head - sealed) and the walkable floors the plan builds (2,0 m and up). It is the value
 	/// the specialist measured; the first draft used the capsule radius (0,30) and was too tight for the navmesh bake.</summary>
 	private const float Headroom = 0.35f;
-	/// <summary>06/11/2026 — <b>REVERTIDO PARA 0</b>. Desceu a obra inteira por 0,5 m no experimento do jogador e <b>quebrou
+	/// <summary>06/11/2026 ÔÇö <b>REVERTIDO PARA 0</b>. Desceu a obra inteira por 0,5 m no experimento do jogador e <b>quebrou
 	/// o plano grande</b>: no `madzobuild` (<c>ModernStarterHouse</c>) as <b>14</b> <c>wood_beam</c> que ficam em <c>y 39,3</c>
-	/// passaram a flutuar 0,50 m acima do chão e o jogo as recusou com <c>UNSUPPORTED: support 0,0 &lt; min 10,0</c> — e o
-	/// <c>FallbackPost</c> <b>não cobre</b> esse vão (o poste mais curto é 1 m, janela <c>[0,55; 1,20]</c>; abaixo disso não
-	/// há nada). Resultado medido: loop <c>placed → UNSUPPORTED → espera 10 s</c> × 14 na mesma peça, 18 de 612 colocadas.
-	/// Nas <b>10 menores</b> o mesmo drop tinha melhorado (<c>fits:false</c> 2 → 0, custo 103 s → 346 s); a diferença é que
-	/// elas não têm viga horizontal solta apoiada no chão. Fica <b>0</b>; se o produto quiser a casa mais baixa, o caminho
-	/// é encurtar a <b>estaca</b> (o `y` mínimo do plano), não descer o plano inteiro.</summary>
+	/// passaram a flutuar 0,50 m acima do ch├úo e o jogo as recusou com <c>UNSUPPORTED: support 0,0 &lt; min 10,0</c> ÔÇö e o
+	/// <c>FallbackPost</c> <b>n├úo cobre</b> esse v├úo (o poste mais curto ├® 1 m, janela <c>[0,55; 1,20]</c>; abaixo disso n├úo
+	/// h├í nada). Resultado medido: loop <c>placed ÔåÆ UNSUPPORTED ÔåÆ espera 10 s</c> ├ù 14 na mesma pe├ºa, 18 de 612 colocadas.
+	/// Nas <b>10 menores</b> o mesmo drop tinha melhorado (<c>fits:false</c> 2 ÔåÆ 0, custo 103 s ÔåÆ 346 s); a diferen├ºa ├® que
+	/// elas n├úo t├¬m viga horizontal solta apoiada no ch├úo. Fica <b>0</b>; se o produto quiser a casa mais baixa, o caminho
+	/// ├® encurtar a <b>estaca</b> (o `y` m├¡nimo do plano), n├úo descer o plano inteiro.</summary>
 	private const float TestDropY = 0f;
 	/// <summary>E7 (player's idea, 03/11/2026: "temporary ladders"): the temporary step of a scaffold. A wood STAIR and
 	/// not a ladder: it is a ramp the mover walks up as plain geometry (no ladder logic and no landing to fall from - the
@@ -153,6 +153,8 @@ internal static class MHR_Build
 	/// (<see cref="BuildAsideSpot.Plan"/>: away from the placer's front first, then its sides).</summary>
 	private static readonly Vector3[] s_asideSpots = new Vector3[BuildAsideSpot.Ring];
 
+
+
 	/// <summary>
 	/// 04/11/2026 (Run 14, the spread of the crew): the plan indices of the current <b>window</b> (the piece the walk is on
 	/// plus the next ones of the same run, at most <see cref="BuildSpread.Window"/>), and their poses - ONE list each,
@@ -190,8 +192,8 @@ internal static class MHR_Build
 	private static readonly List<int> s_stayCovered = new List<int>();
 
 	/// <summary>
-	/// 04/11/2026 (the repulsion of the P0, the player's rule <i>"eles não podem se agrupar, devem ser repelidos um de perto
-	/// do outro pra não travar tudo"</i>): the <b>bodies of the other companions of the site</b> - the poses a piece has to
+	/// 04/11/2026 (the repulsion of the P0, the player's rule <i>"eles n├úo podem se agrupar, devem ser repelidos um de perto
+	/// do outro pra n├úo travar tudo"</i>): the <b>bodies of the other companions of the site</b> - the poses a piece has to
 	/// keep away from (<see cref="BuildSpread.NearestApart"/>/<see cref="BuildSpread.PickNearApart"/>) - and the setup each
 	/// one belongs to (the name the line of the detail prints). ONE list each, reused: filled once per piece entered
 	/// (<see cref="Bodies"/>), never per frame.
@@ -218,7 +220,7 @@ internal static class MHR_Build
 
 	/// <summary>P1 (04/11/2026): the length of each <see cref="FallbackPostPrefabs"/> entry, measured from the prefab's own
 	/// snap points on first use (they do not change; 0 = the prefab is not in this game, skipped). Measured this way and not
-	/// hard-coded because the repo only had <c>wood_pole2</c> confirmed (2,00 m, <c>docs/re/building-notes.md</c> §11) - and a
+	/// hard-coded because the repo only had <c>wood_pole2</c> confirmed (2,00 m, <c>docs/re/building-notes.md</c> ┬º11) - and a
 	/// wrong length is exactly what broke the first version.</summary>
 	private static readonly float[] s_postLengths = new float[FallbackPostPrefabs.Length];
 
@@ -546,7 +548,7 @@ internal static class MHR_Build
 		internal float WaitQueueEnd;
 		/// <summary>
 		/// 04/11/2026 (Run 18, the starvation of the wait): the same wait in the <b>middle</b> of the plan, where there is
-		/// still a piece ahead of the walk. With the <c>ahead</c> guard of <see cref="MHR_Build.WaitRetry"/> this is ≈ 0 by
+		/// still a piece ahead of the walk. With the <c>ahead</c> guard of <see cref="MHR_Build.WaitRetry"/> this is Ôëê 0 by
 		/// construction (the frame goes back to <see cref="MHR_Build.Advance"/> instead of sitting in the queue): a number
 		/// that grows here means the guard stopped catching the case it was written for.
 		/// </summary>
@@ -664,9 +666,9 @@ internal static class MHR_Build
 		internal int Stayed;
 	/// <summary>
 	/// 04/11/2026 (review R19): the indices behind <see cref="Stayed"/>. The field counted ENTRIES - a piece that comes
-	/// back from the queue with <c>IsStay</c> enters again - so the line read "no alcance: 71 peça(s)" for 24 placed
+	/// back from the queue with <c>IsStay</c> enters again - so the line read "no alcance: 71 pe├ºa(s)" for 24 placed
 	/// pieces and the report printed <b>296 %</b>. Counting each index once makes the number mean what its label says
-	/// (the "<c>no alcance / peças</c>" rate the redesign is judged by).
+	/// (the "<c>no alcance / pe├ºas</c>" rate the redesign is judged by).
 	/// </summary>
 	internal readonly HashSet<int> StayedIndices = new HashSet<int>();
 		/// <summary>
@@ -677,8 +679,8 @@ internal static class MHR_Build
 		/// </summary>
 		internal int Repelled;
 		/// <summary>
-		/// 04/11/2026 (the <b>partition of the phase</b>, the player's rule <i>"cada companheiro é dono de um trecho, não
-		/// negocia peça"</i>): the stretch of the plan this worker <b>owns</b> - <see cref="BuildSpread.Chunk"/> applied to
+		/// 04/11/2026 (the <b>partition of the phase</b>, the player's rule <i>"cada companheiro ├® dono de um trecho, n├úo
+		/// negocia pe├ºa"</i>): the stretch of the plan this worker <b>owns</b> - <see cref="BuildSpread.Chunk"/> applied to
 		/// the run the cursor is in (<see cref="MHR_Build.ChunkBounds"/>). <see cref="ChunkFirst"/> is the 0-based first
 		/// index and <see cref="ChunkLength"/> how many indices it covers; <see cref="ChunkSlots"/> is <b>0</b> while the
 		/// worker has no stretch at all (a single worker, a template, a single piece, the switch off), and then every pick
@@ -745,7 +747,7 @@ internal static class MHR_Build
 		/// 05/11/2026 (the inflated denominator measured in the game): the size of the plan <b>as the order read it</b> - the
 		/// number of the opening line ("blueprint X: N pieces near ..."). The single worker's retry pass <b>appends</b> the
 		/// steps that did not stand to the plan, so <see cref="Plan"/>.Count grows and is not the size of the house: the run of
-		/// one worker printed <c>peças: 64/76</c> on a 64-piece cottage with every piece standing (<c>64 placed + 12 appended
+		/// one worker printed <c>pe├ºas: 64/76</c> on a 64-piece cottage with every piece standing (<c>64 placed + 12 appended
 		/// copies</c>). <see cref="MHR_Build.Finish"/> prints this one; 0 (a state that never had a plan) falls back to the
 		/// plan's count, which is what it always printed.
 		/// </summary>
@@ -994,12 +996,12 @@ internal static class MHR_Build
 					float wait = BuildFailure.BlockedDelay(MHR_BuildGroup.BlockedOf(state.Group, state.Index));
 					Log(ai, "corpo no caminho: " + state.Prefab + " em (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
 						+ F(state.Pos.z) + ") - volta em " + wait.ToString("F0")
-						+ " s (não gasta tentativa)");
+						+ " s (n├úo gasta tentativa)");
 					return;
 				}
 				Log(ai, (kind == BuildFailure.Kind.Dependency ? "sem apoio ainda: " : "retry no grupo: ") + state.Prefab
 					+ " (" + why + ") em (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", " + F(state.Pos.z) + ")"
-					+ (kind == BuildFailure.Kind.Dependency ? " - não gasta tentativa, volta com espera" : " - a peça volta para a fila do canteiro"));
+					+ (kind == BuildFailure.Kind.Dependency ? " - n├úo gasta tentativa, volta com espera" : " - a pe├ºa volta para a fila do canteiro"));
 				return;
 			}
 			SkipPiece(ai, state, why);
@@ -1031,7 +1033,7 @@ internal static class MHR_Build
 				pending.Dependency++;
 				state.RetryAt = Time.time + DependencyDelay(pending.Dependency);
 				Log(ai, "sem apoio ainda: " + state.Prefab + " (" + why + ") em (" + F(state.Pos.x) + ", " + F(state.Pos.y)
-					+ ", " + F(state.Pos.z) + ") - não gasta tentativa, volta com espera");
+					+ ", " + F(state.Pos.z) + ") - n├úo gasta tentativa, volta com espera");
 				return;
 			}
 			if (kind == BuildFailure.Kind.Blocked)
@@ -1042,7 +1044,7 @@ internal static class MHR_Build
 					float wait = BuildFailure.BlockedDelay(pending.Blocked);
 					state.RetryAt = Time.time + wait;
 					Log(ai, "corpo no caminho: " + state.Prefab + " em (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
-						+ F(state.Pos.z) + ") - volta em " + wait.ToString("F0") + " s (não gasta tentativa)");
+						+ F(state.Pos.z) + ") - volta em " + wait.ToString("F0") + " s (n├úo gasta tentativa)");
 					return;
 				}
 				// review M4 (06/11/2026): the body has outlived its free refusals. From here on each refusal spends a try, so
@@ -1067,7 +1069,7 @@ internal static class MHR_Build
 
 	/// <summary>
 	/// P1 (04/11/2026, the <b>support gate</b>): the classification itself lives in <see cref="BuildFailure"/> - it is pure
-	/// (string → class) and the harness asserts the whole table (section (p)). Here only the world is added: the placement
+	/// (string ÔåÆ class) and the harness asserts the whole table (section (p)). Here only the world is added: the placement
 	/// probe's answer ("is there anything under the pose?") feeds <c>groundBelow</c>, which <see cref="BuildFailure"/> reads
 	/// for <c>no_ground</c> only.
 	/// </summary>
@@ -1244,7 +1246,7 @@ internal static class MHR_Build
 			// review-06/11 B1: the hand-over to the site's queue is said out loud (it was silent)
 			if (ai != null)
 			{
-				Log(ai, "a peça " + (index + 1) + "/" + state.Plan.Count + " foi para a fila do canteiro"
+				Log(ai, "a pe├ºa " + (index + 1) + "/" + state.Plan.Count + " foi para a fila do canteiro"
 					+ (string.IsNullOrEmpty(why) ? string.Empty : " (" + why + ")"));
 			}
 			return;   // the site keeps it: another worker (or this one, after a resume) puts it up
@@ -1388,12 +1390,12 @@ internal static class MHR_Build
 
 	/// <summary>
 	/// 04/11/2026 (Run 14, the <b>spread of the crew</b>, the player's report <i>"eles parecem estar disputando pra ver quem
-	/// coloca a peça primeiro, em vez de trabalhar em equipe"</i>): the pieces of the plan this worker may take instead of
+	/// coloca a pe├ºa primeiro, em vez de trabalhar em equipe"</i>): the pieces of the plan this worker may take instead of
 	/// <paramref name="next"/> - the next one plus the ones right after it, at most <see cref="BuildSpread.Window"/>, and
 	/// only while they are the <b>same run</b> (<see cref="BuildSpread.SameRun"/>: same storey key, same class, same
 	/// height, which is exactly the block <c>BuildBlueprintParser.NearestWithin</c> reorders). The plan's consecutive
 	/// indices are neighbours in space, so five companions on the same plan reach for the same corner at the same time -
-	/// the Run 14 log measured 88 <c>corpo na peça</c> and 32 step-aside asks.
+	/// the Run 14 log measured 88 <c>corpo na pe├ºa</c> and 32 step-aside asks.
 	///
 	/// <para>A piece another worker already holds or that the site already built is <b>not a candidate</b> (it is not work
 	/// looking for a body); the first piece of another run <b>ends</b> the window - the plan's own order says where the row
@@ -1467,9 +1469,9 @@ internal static class MHR_Build
 	}
 
 	/// <summary>
-	/// 04/11/2026 (the <b>partition of the phase</b>, the player's rule <i>"cada companheiro é dono de um trecho, não
-	/// negocia peça"</i>): the stretch of the plan this worker <b>owns</b>. With a shared site the crew used to race for
-	/// the same piece: the <c>é de outro companheiro - seguindo</c> line was a <c>LogDebug</c> nobody counted, and the run
+	/// 04/11/2026 (the <b>partition of the phase</b>, the player's rule <i>"cada companheiro ├® dono de um trecho, n├úo
+	/// negocia pe├ºa"</i>): the stretch of the plan this worker <b>owns</b>. With a shared site the crew used to race for
+	/// the same piece: the <c>├® de outro companheiro - seguindo</c> line was a <c>LogDebug</c> nobody counted, and the run
 	/// that measured the repulsion rose to 125 pieces/min and <b>decayed to 107</b> at the end, exactly when more workers
 	/// were reaching for the same corner.
 	///
@@ -1534,8 +1536,8 @@ internal static class MHR_Build
 			state.ChunkLength = length;
 			if (CompanionsPlugin.LogDetailed)
 			{
-				LogDetailed(ai, "trecho " + (slot + 1) + "/" + slots + " da fase " + (start + 1) + "-" + end + ": as peças "
-					+ (mine + 1) + "-" + (mine + length) + " são minhas");
+				LogDetailed(ai, "trecho " + (slot + 1) + "/" + slots + " da fase " + (start + 1) + "-" + end + ": as pe├ºas "
+					+ (mine + 1) + "-" + (mine + length) + " s├úo minhas");
 			}
 		}
 		first = state.ChunkFirst;
@@ -1731,8 +1733,8 @@ internal static class MHR_Build
 	}
 
 	/// <summary>
-	/// 04/11/2026 (the repulsion of the P0, the player's rule <i>"eles não podem se agrupar, devem ser repelidos um de perto
-	/// do outro pra não travar tudo"</i>): the <b>bodies of the other companions of the site</b> into the reused
+	/// 04/11/2026 (the repulsion of the P0, the player's rule <i>"eles n├úo podem se agrupar, devem ser repelidos um de perto
+	/// do outro pra n├úo travar tudo"</i>): the <b>bodies of the other companions of the site</b> into the reused
 	/// <see cref="s_bodies"/>/<see cref="s_bodySetups"/> - the poses a piece has to keep away from
 	/// (<see cref="BuildSpread.NearestApart"/>/<see cref="BuildSpread.PickNearApart"/>). The crew is the site's worker list
 	/// (<see cref="MHR_BuildGroup.WorkerIds(string)"/>): a companion that is not building there is not in the way of this
@@ -1856,7 +1858,7 @@ internal static class MHR_Build
 		NearestBody(taken, out float takenGap);
 		CompanionSetup who = near >= 0 && near < s_bodySetups.Count ? s_bodySetups[near] : null;
 		string name = who != null ? CompanionNames.NameOf(who) : null;
-		LogDetailed(ai, "repulsão: a peça " + (plainIndex + 1) + " ficou perto de "
+		LogDetailed(ai, "repuls├úo: a pe├ºa " + (plainIndex + 1) + " ficou perto de "
 			+ (string.IsNullOrEmpty(name) ? "?" : name) + " (a " + F(nearGap) + " m) - pegando " + (takenIndex + 1)
 			+ " (a " + F(takenGap) + " m do mais perto)");
 	}
@@ -1957,7 +1959,7 @@ internal static class MHR_Build
 
 	/// <summary>
 	/// 04/11/2026 (the stay, the risk both reviews named): is the <b>worker's own capsule</b> through the piece at this pose?
-	/// The body window of the placement check (<see cref="BuildProbe.BlockerAt"/> → <c>BlockedByCharacter</c>) skips the
+	/// The body window of the placement check (<see cref="BuildProbe.BlockerAt"/> ÔåÆ <c>BlockedByCharacter</c>) skips the
 	/// companion that is placing on purpose - it always stands inside its own build - and that is right for a walk (it stops
 	/// 2,5 m away). It is <b>wrong for a stay</b>: the piece is at its feet, and a floor placed there in the run of
 	/// 04/11/2026 squeezed two companions 1 m under the ground. The geometry is the probe's own (the capsule's axis and ends
@@ -2080,7 +2082,7 @@ internal static class MHR_Build
 		MHR_BuildGroup.NoteStay(state.Group, s_stayCovered, s_stayCovered.Count);
 		if (CompanionsPlugin.LogDetailed)
 		{
-			LogDetailed(ai, "as " + s_stayCovered.Count + " peça(s) que o salto deixou atrás voltam para a fila do canteiro");
+			LogDetailed(ai, "as " + s_stayCovered.Count + " pe├ºa(s) que o salto deixou atr├ís voltam para a fila do canteiro");
 		}
 	}
 
@@ -2114,8 +2116,8 @@ internal static class MHR_Build
 	/// (<see cref="BuildSpread.PickNearApart"/>). Empty list (a single worker) = the picks of the P0 and of the Run 14, byte
 	/// for byte.</para>
 	///
-	/// <para>04/11/2026 (the <b>partition of the phase</b>, the player's rule <i>"cada companheiro é dono de um trecho, não
-	/// negocia peça"</i>): with a shared site the plan is cut by <b>index</b> into one contiguous chunk per worker
+	/// <para>04/11/2026 (the <b>partition of the phase</b>, the player's rule <i>"cada companheiro ├® dono de um trecho, n├úo
+	/// negocia pe├ºa"</i>): with a shared site the plan is cut by <b>index</b> into one contiguous chunk per worker
 	/// (<see cref="ChunkBounds"/> over <see cref="BuildSpread.Chunk"/>) and each worker takes the first <b>pending</b> piece
 	/// of its own stretch (<see cref="ChunkFirstPending"/>); when the stretch is done it steals the <b>tail</b> of the largest
 	/// remaining one (<see cref="StealTail"/>), which is the only place two of them can meet - and the claim is the word
@@ -2142,7 +2144,7 @@ internal static class MHR_Build
 		// 05/11/2026 (the inflated denominator, measured in the game): the retry pass appends ONLY the steps that are still
 		// pending. It used to `AddRange(state.Retry)` whole, and the queue keeps a step whose piece went up in the meantime
 		// (the storey barrier places it and the queue is not told) - so the plan grew copies of finished pieces and the run
-		// of one worker ended `peças: 64/76, 1 pulada(s)` on a 64-piece plan with every piece standing. The guard below keeps
+		// of one worker ended `pe├ºas: 64/76, 1 pulada(s)` on a 64-piece plan with every piece standing. The guard below keeps
 		// this path to the SINGLE worker: a site never appends to the plan (the group walks distinct indices by construction,
 		// which is why the 5-worker corpus closes 64/64).
 		if (state.Group == null && state.Plan != null && state.Index + 1 >= state.Plan.Count
@@ -2164,7 +2166,7 @@ internal static class MHR_Build
 				// another rule). Nothing is appended, the pass is NOT counted (`state.Passes` is "how many retry passes
 				// ran", and a pass that appends nothing did not run) and the flow goes on to the close of the order, which
 				// is the honest ending.
-				Log(ai, "retry: as " + queued + " peça(s) da fila já estavam resolvidas - o plano está pronto");
+				Log(ai, "retry: as " + queued + " pe├ºa(s) da fila j├í estavam resolvidas - o plano est├í pronto");
 			}
 			else
 			{
@@ -2191,8 +2193,8 @@ internal static class MHR_Build
 			while (state.Index + 1 < state.Plan.Count)
 			{
 				int next = state.Index + 1;
-				// 04/11/2026 (the PARTITION of the phase, the player's rule "cada companheiro é dono de um trecho, não negocia
-				// peça"): with a shared site each worker owns a contiguous chunk of the run (BuildSpread.Chunk) and the pick
+				// 04/11/2026 (the PARTITION of the phase, the player's rule "cada companheiro ├® dono de um trecho, n├úo negocia
+				// pe├ºa"): with a shared site each worker owns a contiguous chunk of the run (BuildSpread.Chunk) and the pick
 				// below takes the pieces of that stretch - the indices before it belong to another companion, so they are
 				// neither taken nor sent to the site's queue (their owner walks them; a worker that leaves is covered because
 				// the bounds are recomputed when the number of workers changes, and a chunk left behind is exactly what the
@@ -2209,7 +2211,7 @@ internal static class MHR_Build
 				// single worker (and try the group's end) with the plan still open.
 				if (!MHR_BuildGroup.MayTake(state.Group, next))
 				{
-					// 04/11/2026 (the line of the run of 20:06: "portão 0 (8,6 s)"): the count was "the phase was not WaitRetry",
+					// 04/11/2026 (the line of the run of 20:06: "port├úo 0 (8,6 s)"): the count was "the phase was not WaitRetry",
 					// which NEVER fires for a gate re-asked from the wait - it printed 0 while the gate held 8,6 s. The count is
 					// a NEW hold: the flag is only false after the gate let the walk through (or a piece was entered).
 					if (!state.GateHeld)
@@ -2240,7 +2242,7 @@ internal static class MHR_Build
 					continue;
 				}
 				// 04/11/2026 (Run 14, the spread of the crew): the plan's consecutive indices are NEIGHBOURS in space, so
-				// five companions all reach for the same corner (88 "corpo na peça" and 32 step-aside asks in the measured
+				// five companions all reach for the same corner (88 "corpo na pe├ºa" and 32 step-aside asks in the measured
 				// log). With a shared site this worker takes the first piece of a small window of the SAME RUN that is FAR
 				// from what the others are building (BuildSpread); the pieces it walked past keep their turn in the site's
 				// queue (NoteSpread) and come back when that place is free. Single worker, template or the switch off: pick
@@ -2280,7 +2282,7 @@ internal static class MHR_Build
 							pick = tail;
 							stole = true;
 							LogDetailed(ai, "o meu trecho (" + (chunkFirst + 1) + "-" + chunkLast
-								+ ") acabou - roubando a cauda: a peça " + (tail + 1) + "/" + state.Plan.Count);
+								+ ") acabou - roubando a cauda: a pe├ºa " + (tail + 1) + "/" + state.Plan.Count);
 						}
 						// nothing pending anywhere in the phase: the pick falls through to `next`, unbounded - the
 						// exhausted phase must not freeze the worker (the plan's own end is right below)
@@ -2308,7 +2310,7 @@ internal static class MHR_Build
 				{
 					MHR_BuildGroup.ClaimPoses(state.Group, s_spreadClaims);
 					int passed;
-					// 04/11/2026 (the player's rule "construir tudo o que está ao alcance antes de ir para outro lugar"): among
+					// 04/11/2026 (the player's rule "construir tudo o que est├í ao alcance antes de ir para outro lugar"): among
 					// the far candidates the NEAREST to the body wins while it is inside the reach (MaxPlace + 1 m); when
 					// nothing is near, BuildSpread.PickNear falls back to the spread of the Run 14 (the first far one) and then
 					// to index 0 (the plain next), so `next`/single/template/off are the walk of before, byte for byte.
@@ -2339,7 +2341,7 @@ internal static class MHR_Build
 					{
 						state.SpreadSkipped += passed;
 						MHR_BuildGroup.NoteSpread(state.Group, s_spreadWindow, passed);
-						LogDetailed(ai, "dispersão: a peça " + (next + 1) + "/" + state.Plan.Count
+						LogDetailed(ai, "dispers├úo: a pe├ºa " + (next + 1) + "/" + state.Plan.Count
 							+ " fica para depois - pegando " + (pick + 1) + " (" + passed + " adiada(s)) a "
 							+ F(CharacterDistance(ai, state.Plan[pick].Pos)) + " m");
 					}
@@ -2349,11 +2351,11 @@ internal static class MHR_Build
 				if (state.Group != null && !MHR_BuildGroup.TryClaim(state.Group, pick, worker))
 				{
 					// 04/11/2026 (the PARTITION of the phase): this is the DISPUTE, and it is the number that judges the
-					// design - "a peça N é de outro companheiro - seguindo" used to be a LogDebug nobody counted, so the
+					// design - "a pe├ºa N ├® de outro companheiro - seguindo" used to be a LogDebug nobody counted, so the
 					// contention of the Run 15-22 was invisible. With one stretch per worker it should be ~0: a number that
 					// is not ~0 says the cut is wrong. Normal level on purpose (one line per refused piece).
 					state.ChunkDisputes++;
-					Log(ai, "a peça " + (pick + 1) + "/" + state.Plan.Count + " é de outro companheiro - seguindo");
+					Log(ai, "a pe├ºa " + (pick + 1) + "/" + state.Plan.Count + " ├® de outro companheiro - seguindo");
 					if (pick > state.Index)
 					{
 						state.Index = pick;   // the walk continues AFTER the piece another companion took
@@ -2444,7 +2446,7 @@ internal static class MHR_Build
 				state.Group = null;
 				if (!last)
 				{
-					Finish(ai, state, null, "a lista de peças acabou para este companheiro (o grupo continua)");
+					Finish(ai, state, null, "a lista de pe├ºas acabou para este companheiro (o grupo continua)");
 					return false;
 				}
 				Finish(ai, state, "hc_ai_blueprint_done", null, state.Blueprint, placed, skipped);
@@ -2515,7 +2517,7 @@ internal static class MHR_Build
 		state.BodyTries = 0;   // 04/11/2026: the short retries of a body are per piece
 		state.SelfStep = 0;    // 04/11/2026: the "step off my own piece" tries are per piece too
 		state.SelfWalk = false;   // 06/11/2026: and so is the walk it may have asked for
-		state.PlacedAt = 0f;   // 04/11/2026 (review, ALTO): o relógio do "acabei de colocar" não vaza para a peça seguinte
+		state.PlacedAt = 0f;   // 04/11/2026 (review, ALTO): o rel├│gio do "acabei de colocar" n├úo vaza para a pe├ºa seguinte
 		state.BodyLogged = false;   // 04/11/2026 (Run 10): the body of the new piece is named once
 		state.AsideLogged = false;   // 04/11/2026 (Run 10): and the step-aside of the new piece is asked once in the log
 		state.ChunkAsideLogged = false;   // 04/11/2026 (the partition): the "inside my own chunk" alarm is per piece
@@ -2628,7 +2630,7 @@ internal static class MHR_Build
 				stuck = state.BarrierNextIndex;
 			}
 			PlannedStep piece = state.Plan[stuck];
-			Log(ai, "a peça " + (piece != null ? piece.Prefab : state.Prefab) + " travada não voltou - o plano sobe depois de "
+			Log(ai, "a pe├ºa " + (piece != null ? piece.Prefab : state.Prefab) + " travada n├úo voltou - o plano sobe depois de "
 				+ BuildFailure.BodyBarrierSeconds.ToString("F0") + " s");
 			ResetBarrier(state);
 			return false;   // the normal gate: the plan climbs
@@ -2649,7 +2651,7 @@ internal static class MHR_Build
 			// 04/11/2026 (the REVIEW of the barrier's cost): a piece that cannot be served inside the patience that is left is
 			// not worth standing still for. `NextRetryBelow` answers -1 while the entry is not due (its `At`), but this
 			// question (`PendingBelowIndex`) ignores the clock - so the worker could wait for something 8-25 s away while the
-			// patience is 5 s since 06/11/2026 (a DependencyDelay of 8 s or more never fits inside BodyRetryMaxWait = 5 s). The `dependência`
+			// patience is 5 s since 06/11/2026 (a DependencyDelay of 8 s or more never fits inside BodyRetryMaxWait = 5 s). The `depend├¬ncia`
 			// bucket of the measured Run 22 was 357,0 s of the 402,7 s of barrier wait, and the impossible subset is at most
 			// that - the bucket is the measure, the waste is a ceiling on it, not the other way round.
 			//
@@ -2662,8 +2664,8 @@ internal static class MHR_Build
 			if (!BuildFailure.BodyWaitsFor(dueAt, Time.time, patience))
 			{
 				// review-06/11 M3: said out loud - the storey climbs with a piece below still in the queue
-				Log(ai, "a peça " + (state.BarrierNextIndex + 1) + "/" + state.Plan.Count + " de baixo não volta a tempo ("
-					+ "a paciência acaba antes) - o plano sobe");
+				Log(ai, "a pe├ºa " + (state.BarrierNextIndex + 1) + "/" + state.Plan.Count + " de baixo n├úo volta a tempo ("
+					+ "a paci├¬ncia acaba antes) - o plano sobe");
 				ResetBarrier(state);
 				return false;   // it cannot be served before the patience runs out: climb instead of waiting the impossible
 			}
@@ -2837,7 +2839,7 @@ internal static class MHR_Build
 		int index = state.Plan.IndexOf(step);
 		if (index < 0)
 		{
-			LogDebug(ai, "a peça " + step.Prefab + " da fila não está no plano (pose ajustada) - fica para o fim");
+			LogDebug(ai, "a pe├ºa " + step.Prefab + " da fila n├úo est├í no plano (pose ajustada) - fica para o fim");
 			return -1;
 		}
 		if (index >= nextIndex || state.PlacedIndices.Contains(index) || state.SkippedIndices.Contains(index)
@@ -3214,7 +3216,7 @@ internal static class MHR_Build
 				// plan reads "nada enterrado" instead of hiding why the house is on the ground.
 				string line = "[Build] blueprint " + blueprint.Label + ": a obra sobe " + lift.ToString("F2") + " m";
 				line += capped ? " (deck pedido " + wanted.ToString("F2") + " m)" : " (deck)";
-				line += " - " + grounded + " peça(s) de fundação assentadas no terreno";
+				line += " - " + grounded + " pe├ºa(s) de funda├º├úo assentadas no terreno";
 				if (capped)
 				{
 					line += buried > 0.001f ? ", " + buried.ToString("F2") + " m enterrado(s)" : ", nada enterrado";
@@ -3225,7 +3227,7 @@ internal static class MHR_Build
 					// left underground is a DEFECT of the build against this terrain, not a detail of the log - the run
 					// was declared "correct" while the foundation sat 0,50 m under the ground. It is a warning now, and
 					// the closing line of the order carries `enterrado: N` for the bodies (MHR_Build.Finish).
-					line += ", " + kept + " peça(s) enterradas mantidas na pose do plano";
+					line += ", " + kept + " pe├ºa(s) enterradas mantidas na pose do plano";
 					CompanionsPlugin.Log?.LogWarning(line);
 				}
 				else
@@ -3292,8 +3294,8 @@ internal static class MHR_Build
 						stationPieces++;
 					}
 				}
-				CompanionsPlugin.Log?.LogInfo("[Build] blueprint " + blueprint.Label + ": estações não exigidas por config ("
-					+ stationPieces + " peça(s) que precisariam)");
+				CompanionsPlugin.Log?.LogInfo("[Build] blueprint " + blueprint.Label + ": esta├º├Áes n├úo exigidas por config ("
+					+ stationPieces + " pe├ºa(s) que precisariam)");
 			}
 		}
 		// a station this build cannot make by itself (stonecutter, forge, black forge...) is still a refusal, and it names
@@ -3405,7 +3407,7 @@ internal static class MHR_Build
 	/// <summary>
 	/// P1 (multi-build, 03/11/2026): starts the SAME blueprint on <b>several</b> companions - one plan, distinct pieces.
 	/// It is the entry point of the order layer (<c>CompanionOrders.Build</c>): "build with no name" is every companion
-	/// that can take the order, "build, Maria and João" is the named ones; the first of the list is the <b>leader</b>.
+	/// that can take the order, "build, Maria and Jo├úo" is the named ones; the first of the list is the <b>leader</b>.
 	///
 	/// <para>The leader starts the real order (it levels the ground, clears the site and plans the workbenches with
 	/// <see cref="StartBlueprint"/>) and its resolved plan becomes the plan of the <b>group</b>. The others start from
@@ -3446,11 +3448,11 @@ internal static class MHR_Build
 		CompanionSetup leader = list[0];
 		long owner = MHR_Owner.CreatorId(leader);
 		CompanionAI leaderAi = leader.GetComponent<CompanionAI>();
-		// P1: ONE site per player at a time (§3) - a second order would put two leaders over the same ground (or the same
+		// P1: ONE site per player at a time (┬º3) - a second order would put two leaders over the same ground (or the same
 		// plan with new indices). Said BEFORE anything is started, so a running site is not disturbed.
 		if (MHR_BuildGroup.SiteBusy(owner))
 		{
-			Log(leaderAi, "já existe um grupo de obra em andamento - diga \"para\" antes de começar outra");
+			Log(leaderAi, "j├í existe um grupo de obra em andamento - diga \"para\" antes de come├ºar outra");
 			return 0;
 		}
 		if (list.Count == 1)
@@ -3484,10 +3486,10 @@ internal static class MHR_Build
 				// flat site (the player's site measured 0,37 m against the 0,35 m tolerance: this path IS the normal one)
 				MHR_Level.SetThenWorkers(leader, NamesOf(list));
 				Log(leaderAi, "o nivelamento vem primeiro - os " + list.Count
-					+ " companheiro(s) voltam quando o chão estiver pronto");
+					+ " companheiro(s) voltam quando o ch├úo estiver pronto");
 				return list.Count;
 			}
-			Log(leaderAi, "o plano do canteiro não ficou pronto - o líder segue sozinho");
+			Log(leaderAi, "o plano do canteiro n├úo ficou pronto - o l├¡der segue sozinho");
 			return 1;
 		}
 		if (MHR_BuildGroup.TryCreate(key, blueprint.Label, owner, first.Plan, leaderAi.GetInstanceID()))
@@ -3499,7 +3501,7 @@ internal static class MHR_Build
 		{
 			// the key is taken (SiteBusy already refused the other cases): the leader builds alone, it is the order of
 			// 03/11/2026 unchanged
-			Log(leaderAi, "não deu para abrir o grupo deste canteiro - o líder constrói sozinho");
+			Log(leaderAi, "n├úo deu para abrir o grupo deste canteiro - o l├¡der constr├│i sozinho");
 			return 1;
 		}
 		int joined = 1;
@@ -3515,13 +3517,13 @@ internal static class MHR_Build
 			string why;
 			if (!JoinSite(follower, key, out why))
 			{
-				Log(ai, "não entrou no grupo da obra (" + why + ") - fica de fora");
+				Log(ai, "n├úo entrou no grupo da obra (" + why + ") - fica de fora");
 				continue;
 			}
 			joined++;
 		}
 		Log(leaderAi, "grupo de obra \"" + blueprint.Label + "\": " + joined + " companheiro(s) no mesmo plano ("
-			+ groupPlan.Count + " peças)");
+			+ groupPlan.Count + " pe├ºas)");
 		return joined;
 	}
 
@@ -3625,7 +3627,7 @@ internal static class MHR_Build
 		ai.StopMoving();
 		MHR_Mover.Release(ai);
 		MHR_BuildGroup.TryJoin(key, ai.GetInstanceID());
-		Log(ai, "entrou no grupo da obra \"" + blueprint.Label + "\" - espera o líder preparar o canteiro");
+		Log(ai, "entrou no grupo da obra \"" + blueprint.Label + "\" - espera o l├¡der preparar o canteiro");
 		return true;
 	}
 
@@ -3845,7 +3847,7 @@ internal static class MHR_Build
 			ReleaseHarvest(ai, state);
 			ClearScaffolds(ai, state);
 			// the event's line is the SITE's (PauseSite); this one is the detail of the worker
-			LogDebug(ai, "obra pausada: " + LabelOf(state) + " (peça " + (state.Index + 1) + "/"
+			LogDebug(ai, "obra pausada: " + LabelOf(state) + " (pe├ºa " + (state.Index + 1) + "/"
 				+ (state.Plan != null ? state.Plan.Count : 1) + ")");
 			return;
 		}
@@ -3887,7 +3889,7 @@ internal static class MHR_Build
 			state.FallDrops = 0;
 			state.BestDistance = 0f;
 			state.BestAt = Time.time;
-			LogDebug(ai, "obra retomada: " + LabelOf(state) + " (peça " + (state.Index + 1) + "/"
+			LogDebug(ai, "obra retomada: " + LabelOf(state) + " (pe├ºa " + (state.Index + 1) + "/"
 				+ (state.Plan != null ? state.Plan.Count : 1) + ")");
 			if (state.Group != null && !MHR_BuildGroup.TryClaim(state.Group, state.Index, ai.GetInstanceID()))
 			{
@@ -4030,7 +4032,7 @@ internal static class MHR_Build
 	{
 		if (cs == null || s_pending.Count == 0)
 		{
-			return;   // 04/11/2026 (review, ALTO): sem pendências ele alocava uma List<int> por frame por companheiro ocioso
+			return;   // 04/11/2026 (review, ALTO): sem pend├¬ncias ele alocava uma List<int> por frame por companheiro ocioso
 		}
 		CompanionAI ai = cs.GetComponent<CompanionAI>();
 		if (ai == null)
@@ -4104,8 +4106,8 @@ internal static class MHR_Build
 		{
 			// P1 (review B1, 03/11/2026): the piece it was on was built by the group while it was away - the pose is not
 			// even asked (the site's own record is the truth), and Advance skips the rest of the tail it already built
-			Log(ai, "a peça " + (state.Index + 1) + "/" + state.Plan.Count
-				+ " já foi construída pelo grupo - seguindo para a próxima");
+			Log(ai, "a pe├ºa " + (state.Index + 1) + "/" + state.Plan.Count
+				+ " j├í foi constru├¡da pelo grupo - seguindo para a pr├│xima");
 			Advance(ai, state);
 			return;
 		}
@@ -4132,16 +4134,16 @@ internal static class MHR_Build
 			if (standing)
 			{
 				CountPlaced(state, ai);   // P1 (review A7): the group's index is marked done - counted once
-				Log(ai, "a peça que ele estava fazendo já foi construída por outro companheiro - seguindo para a próxima");
+				Log(ai, "a pe├ºa que ele estava fazendo j├í foi constru├¡da por outro companheiro - seguindo para a pr├│xima");
 			}
 			else
 			{
-				Log(ai, "a peça que ele estava fazendo agora é de outro companheiro - seguindo para a próxima");
+				Log(ai, "a pe├ºa que ele estava fazendo agora ├® de outro companheiro - seguindo para a pr├│xima");
 			}
 			Advance(ai, state);
 			return;
 		}
-		Log(ai, "voltou para o grupo \"" + MHR_BuildGroup.Label(key) + "\" na peça " + (state.Index + 1) + "/"
+		Log(ai, "voltou para o grupo \"" + MHR_BuildGroup.Label(key) + "\" na pe├ºa " + (state.Index + 1) + "/"
 			+ state.Plan.Count);
 	}
 
@@ -4716,7 +4718,7 @@ internal static class MHR_Build
 
 	/// <summary>
 	/// 05/11/2026 (the closing line of the order that LIED): how many companions finished the order <b>under the
-	/// terrain</b>. The measured run said <c>peças: 64/64, 0 pulada(s)</c> while the companion stood <b>0,88 m</b> inside the
+	/// terrain</b>. The measured run said <c>pe├ºas: 64/64, 0 pulada(s)</c> while the companion stood <b>0,88 m</b> inside the
 	/// ground, stuck under the deck's floor - the count proved the plan was faithful, not that the site was usable. The
 	/// depth rule is the rescue's own (<see cref="MHR_Mover.DepthUnderGround"/>/<see cref="MHR_Clearance.IsBuried"/>), so a
 	/// body the rescue already pulled out is not counted and the two numbers cannot drift.
@@ -4930,7 +4932,7 @@ internal static class MHR_Build
 				&& state.Phase != Phase.Clear && state.Phase != Phase.Level)
 			{
 				MHR_BuildGroup.SetBuildPhase(state.Group, true);
-				Log(ai, "o canteiro está pronto - o grupo pode construir");
+				Log(ai, "o canteiro est├í pronto - o grupo pode construir");
 				if (!MHR_BuildGroup.TryClaim(state.Group, state.Index, ai.GetInstanceID()))
 				{
 					return Advance(ai, state, dt);
@@ -4998,8 +5000,8 @@ internal static class MHR_Build
 		}
 		if (!MHR_BuildGroup.Exists(state.Group))
 		{
-			Log(ai, "o grupo da obra não existe mais - a ordem termina");
-			Finish(ai, state, null, "o grupo não existe mais");
+			Log(ai, "o grupo da obra n├úo existe mais - a ordem termina");
+			Finish(ai, state, null, "o grupo n├úo existe mais");
 			return false;
 		}
 		if (!MHR_BuildGroup.BuildPhase(state.Group))
@@ -5013,7 +5015,7 @@ internal static class MHR_Build
 		state.BestAt = Time.time;
 		if (state.Plan == null || state.Plan.Count == 0)
 		{
-			Log(ai, "o plano do grupo está vazio - a ordem termina");
+			Log(ai, "o plano do grupo est├í vazio - a ordem termina");
 			Finish(ai, state, null, "plano vazio");
 			return false;
 		}
@@ -5024,11 +5026,11 @@ internal static class MHR_Build
 			&& MHR_BuildGroup.TryClaim(state.Group, state.Index, worker))
 		{
 			EnterStep(ai, state, state.Index);
-			Log(ai, "o canteiro está pronto - construindo " + state.Prefab + " (" + (state.Index + 1) + "/"
+			Log(ai, "o canteiro est├í pronto - construindo " + state.Prefab + " (" + (state.Index + 1) + "/"
 				+ state.Plan.Count + ")");
 			return true;
 		}
-		Log(ai, "o canteiro está pronto - procurando uma peça que ninguém pegou");
+		Log(ai, "o canteiro est├í pronto - procurando uma pe├ºa que ningu├®m pegou");
 		return Advance(ai, state);
 	}
 
@@ -5094,8 +5096,8 @@ internal static class MHR_Build
 		}
 		if (!MHR_BuildGroup.Exists(state.Group))
 		{
-			Log(ai, "o grupo da obra não existe mais - a ordem termina");
-			Finish(ai, state, null, "o grupo não existe mais");
+			Log(ai, "o grupo da obra n├úo existe mais - a ordem termina");
+			Finish(ai, state, null, "o grupo n├úo existe mais");
 			return false;
 		}
 		if (state.Plan == null || state.Plan.Count == 0)
@@ -5222,11 +5224,11 @@ internal static class MHR_Build
 		}
 		if (orphan > 0 && CompanionsPlugin.LogNormal)
 		{
-			Log(ai, orphan + " entrada(s) da fila sem posição no plano saíram sem peça (review M6)");
+			Log(ai, orphan + " entrada(s) da fila sem posi├º├úo no plano sa├¡ram sem pe├ºa (review M6)");
 		}
 		if (CompanionsPlugin.LogNormal)
 		{
-			Log(ai, "sem progresso há " + F(StallSeconds) + " s - " + single + " peça(s) sem apoio ficam de fora");
+			Log(ai, "sem progresso h├í " + F(StallSeconds) + " s - " + single + " pe├ºa(s) sem apoio ficam de fora");
 		}
 		return Advance(ai, state);
 	}
@@ -5239,7 +5241,7 @@ internal static class MHR_Build
 		{
 			return;
 		}
-		Log(ai, "sem progresso há " + F(StallSeconds) + " s - " + dropped + " peça(s) sem apoio ficam de fora");
+		Log(ai, "sem progresso h├í " + F(StallSeconds) + " s - " + dropped + " pe├ºa(s) sem apoio ficam de fora");
 		if (state.Plan == null || pending == null)
 		{
 			return;
@@ -5512,7 +5514,7 @@ internal static class MHR_Build
 		}
 		if (needed > 0)
 		{
-			Log(ai, "station: " + needed + " peça(s) precisam, " + added + " planejada(s), " + (noRoom.Count + budget.Count)
+			Log(ai, "station: " + needed + " pe├ºa(s) precisam, " + added + " planejada(s), " + (noRoom.Count + budget.Count)
 				+ " sem cobertura");
 		}
 		if (CompanionsPlugin.LogNormal)
@@ -5521,13 +5523,13 @@ internal static class MHR_Build
 			{
 				PlannedStep step = noRoom[i];
 				Log(ai, "sem bancada: " + step.Prefab + " em (" + F(step.Pos.x) + ", " + F(step.Pos.y) + ", " + F(step.Pos.z)
-					+ ") - nenhum lugar livre fora do footprint (âncora que colide é recusada)");
+					+ ") - nenhum lugar livre fora do footprint (├óncora que colide ├® recusada)");
 			}
 			for (int i = 0; i < budget.Count; i++)
 			{
 				PlannedStep step = budget[i];
 				Log(ai, "sem bancada: " + step.Prefab + " em (" + F(step.Pos.x) + ", " + F(step.Pos.y) + ", " + F(step.Pos.z)
-					+ ") - orçamento de bancadas do plano esgotado (" + added + "/" + MaxPlannedBenches + " planejadas, "
+					+ ") - or├ºamento de bancadas do plano esgotado (" + added + "/" + MaxPlannedBenches + " planejadas, "
 					+ searches + "/" + MaxBenchSearches + " buscas)");
 			}
 		}
@@ -5574,7 +5576,7 @@ internal static class MHR_Build
 		{
 			state.Plan.Add(new PlannedStep { Prefab = BenchPrefab, Piece = bench, Pos = spot, Rot = benchRot });
 			state.BenchInserts++;
-			Log(ai, "sem bancada no alcance da " + refusedPrefab + " - uma foi para o FIM do plano (o plano do grupo não é"
+			Log(ai, "sem bancada no alcance da " + refusedPrefab + " - uma foi para o FIM do plano (o plano do grupo n├úo ├®"
 				+ " reordenado) em (" + F(spot.x) + ", " + F(spot.y) + ", " + F(spot.z) + ")");
 			return false;   // the refused piece goes to the retry queue, which runs after the bench
 		}
@@ -6544,7 +6546,7 @@ internal static class MHR_Build
 		// where does the post stand? The surface under the piece's own point: the ground, the floor of the storey below, a
 		// beam top. Nothing in 10 m answers the height map (fail-open: the spot is on a hill side).
 		//
-		// P1 (04/11/2026, measured in the run of 5: "vão de 0,16 m" 318 times): a single ray stopped on a ROOF EAVE 0,16 m
+		// P1 (04/11/2026, measured in the run of 5: "v├úo de 0,16 m" 318 times): a single ray stopped on a ROOF EAVE 0,16 m
 		// under a floor of 40,8, and no post fits in 16 cm - while the useful surface (the deck floor at 39,78) was 1,02 m
 		// down. So the ray is walked down THROUGH the surfaces that are too close to be a base, each pass starting 5 cm
 		// under the last hit; the reach (PostReach) is the total of the whole walk, not of each pass.
@@ -6588,9 +6590,9 @@ internal static class MHR_Build
 		int pick = BuildSupportBelow.PickPost(s_postLengths, gap);
 		if (pick < 0)
 		{
-			Log(ai, "sem lugar para o apoio de emergência sob " + state.Prefab + " em (" + F(piece.x) + ", " + F(piece.y)
-				+ ", " + F(piece.z) + ") - vão de " + gap.ToString("F2") + " m"
-				+ (skipped > 0 ? " (" + skipped + " superfície(s) rasa(s) ou sem apoio ignorada(s))" : string.Empty));
+			Log(ai, "sem lugar para o apoio de emerg├¬ncia sob " + state.Prefab + " em (" + F(piece.x) + ", " + F(piece.y)
+				+ ", " + F(piece.z) + ") - v├úo de " + gap.ToString("F2") + " m"
+				+ (skipped > 0 ? " (" + skipped + " superf├¡cie(s) rasa(s) ou sem apoio ignorada(s))" : string.Empty));
 			return false;
 		}
 		float length = s_postLengths[pick];
@@ -6604,8 +6606,8 @@ internal static class MHR_Build
 		Dictionary<string, object> check = BuildSite.Check(post, pos, rot, Self(ai), StationRequired(state));
 		if (!Ok(check) && !(useful >= 0 && OnlyNoSupport(check)))
 		{
-			Log(ai, "sem lugar para o apoio de emergência sob " + state.Prefab + " em (" + F(pos.x) + ", " + F(pos.y) + ", "
-				+ F(pos.z) + ") - " + (check != null ? Convert.ToString(check["status"]) : "?") + " (vão "
+			Log(ai, "sem lugar para o apoio de emerg├¬ncia sob " + state.Prefab + " em (" + F(pos.x) + ", " + F(pos.y) + ", "
+				+ F(pos.z) + ") - " + (check != null ? Convert.ToString(check["status"]) : "?") + " (v├úo "
 				+ gap.ToString("F2") + " m)");
 			return false;
 		}
@@ -6615,7 +6617,7 @@ internal static class MHR_Build
 		Dictionary<string, int> missing;
 		if (!state.Free && !BuildStock.Take(bag, post, stock, cs, useChests, out missing))
 		{
-			Log(ai, "sem material para o apoio de emergência sob " + state.Prefab + " (" + MissingText(missing) + ")");
+			Log(ai, "sem material para o apoio de emerg├¬ncia sob " + state.Prefab + " (" + MissingText(missing) + ")");
 			return false;
 		}
 		BuildResult result = BuildExecutor.Place(cs, post, pos, rot);
@@ -6625,12 +6627,12 @@ internal static class MHR_Build
 			{
 				Refund(bag, post);   // the post never went up: the wood goes back (with Free nothing was taken)
 			}
-			Log(ai, "sem lugar para o apoio de emergência sob " + state.Prefab + " em (" + F(pos.x) + ", " + F(pos.y) + ", "
-				+ F(pos.z) + ") - " + result.Error + " (vão " + gap.ToString("F2") + " m)");
+			Log(ai, "sem lugar para o apoio de emerg├¬ncia sob " + state.Prefab + " em (" + F(pos.x) + ", " + F(pos.y) + ", "
+				+ F(pos.z) + ") - " + result.Error + " (v├úo " + gap.ToString("F2") + " m)");
 			return false;
 		}
 		state.FallbackPosts.Add(index);
-		Log(ai, "apoio de emergência: " + FallbackPostPrefabs[pick] + " (" + length.ToString("F2") + " m) sob "
+		Log(ai, "apoio de emerg├¬ncia: " + FallbackPostPrefabs[pick] + " (" + length.ToString("F2") + " m) sob "
 			+ state.Prefab + " em (" + F(pos.x) + ", " + F(pos.y) + ", " + F(pos.z) + ")");
 		return true;
 	}
@@ -6698,7 +6700,7 @@ internal static class MHR_Build
 	/// points</b> are its tips, so the widest pair is the long axis in the prefab's own space; rotating that axis onto the
 	/// world up is the vertical pose, and its length is what the post really is (the run of 04/11/2026 planted a 2 m beam
 	/// under a 1 m gap). No guessing which local axis the artist used (the straight beam and the 45 degree one are not
-	/// authored on the same axis, measured in <c>docs/re/building-notes.md</c> §11).</summary>
+	/// authored on the same axis, measured in <c>docs/re/building-notes.md</c> ┬º11).</summary>
 	private static Vector3 PostAxis(Piece post)	{
 		s_snaps.Clear();
 		post.GetSnapPoints(s_snaps);
@@ -7041,9 +7043,9 @@ internal static class MHR_Build
 		CompanionSetup self = ai.GetComponent<CompanionSetup>();
 		if (self == null || !MHR_Level.Start(self, best, size, state.Template.Name))
 		{
-			// 05/11/2026: o MESMO princípio dos outros três caminhos (sem enxada / sem peça de nível / íngreme) — nivelar
-			// é preparação, não portão. Este quarto caminho ("não consegui começar o nivelamento") ainda encerrava a obra;
-			// agora segue no terreno como está, e as peças que não couberem passam pelo retry e pelo poste.
+			// 05/11/2026: o MESMO princ├¡pio dos outros tr├¬s caminhos (sem enxada / sem pe├ºa de n├¡vel / ├¡ngreme) ÔÇö nivelar
+			// ├® prepara├º├úo, n├úo port├úo. Este quarto caminho ("n├úo consegui come├ºar o nivelamento") ainda encerrava a obra;
+			// agora segue no terreno como est├í, e as pe├ºas que n├úo couberem passam pelo retry e pelo poste.
 			Log(ai, "could not start the leveling (" + bestVariation.ToString("F2") + " m) - building anyway");
 			return true;
 		}
@@ -7450,13 +7452,13 @@ internal static class MHR_Build
 				{
 					state.WalkTo = walk;
 					LogDebug(ai, "walk spot (" + F(walk.x) + ", " + F(walk.y) + ", " + F(walk.z) + ") - the " + state.Prefab
-						+ " is " + F(state.Pos.y - walk.y) + " m above that surface (" + state.WalkFound + " superfície(s) em "
+						+ " is " + F(state.Pos.y - walk.y) + " m above that surface (" + state.WalkFound + " superf├¡cie(s) em "
 						+ state.WalkRays + " raio(s))");
 				}
 				else
 				{
-					LogDebug(ai, "sem walk spot para a peça - " + state.WalkFound + " superfície(s) em " + state.WalkRays
-						+ " raio(s)" + (state.WalkFound == 0 ? " (nenhuma superfície estrutural no alcance dos raios)" : string.Empty));
+					LogDebug(ai, "sem walk spot para a pe├ºa - " + state.WalkFound + " superf├¡cie(s) em " + state.WalkRays
+						+ " raio(s)" + (state.WalkFound == 0 ? " (nenhuma superf├¡cie estrutural no alcance dos raios)" : string.Empty));
 				}
 			}
 		}
@@ -7502,8 +7504,8 @@ internal static class MHR_Build
 						? ", walk spot (" + F(state.WalkTo.x) + ", " + F(state.WalkTo.y) + ", " + F(state.WalkTo.z) + ")"
 						: ", walk spot -")
 					+ (state.WalkRays > 0
-						? ", " + state.WalkFound + " superfície(s) em " + state.WalkRays + " raio(s)"
-						: ", sem busca de superfície")
+						? ", " + state.WalkFound + " superf├¡cie(s) em " + state.WalkRays + " raio(s)"
+						: ", sem busca de superf├¡cie")
 					+ ") - retrying it later, I am at (" + F(me.x) + ", " + F(me.y) + ", " + F(me.z) + "), route "
 					+ (MHR_Mover.RoutePartial(ai) ? "partial" : "full"));
 				QueueRetry(ai, state, "no progress");
@@ -7753,8 +7755,8 @@ internal static class MHR_Build
 					&& BuildExecutor.VerifyAt(state.Piece, state.Pos, state.Rot, creator, out existing) == null)
 				{
 					CountPlaced(state, ai);   // P1 (review A7): the group's index is marked done - counted once
-					Log(ai, "a peça " + (state.Index + 1) + "/" + state.Plan.Count
-						+ " já está de pé (outra tentativa a deixou lá) - seguindo");
+					Log(ai, "a pe├ºa " + (state.Index + 1) + "/" + state.Plan.Count
+						+ " j├í est├í de p├® (outra tentativa a deixou l├í) - seguindo");
 					return Advance(ai, state);
 				}
 			}
@@ -7762,7 +7764,7 @@ internal static class MHR_Build
 			{
 				if (CompanionsPlugin.LogNormal)
 				{
-					LogDebug(ai, "a peça " + (state.Index + 1) + "/" + state.Plan.Count + " passou para outro companheiro");
+					LogDebug(ai, "a pe├ºa " + (state.Index + 1) + "/" + state.Plan.Count + " passou para outro companheiro");
 				}
 				return Advance(ai, state);
 			}
@@ -7776,21 +7778,21 @@ internal static class MHR_Build
 				&& BuildExecutor.VerifyAt(state.Piece, state.Pos, state.Rot, creator, out existing) == null)
 			{
 				CountPlaced(state, ai);
-				Log(ai, "a peça " + (state.Index + 1) + "/" + state.Plan.Count
-					+ " já está de pé (retry) - seguindo");
+				Log(ai, "a pe├ºa " + (state.Index + 1) + "/" + state.Plan.Count
+					+ " j├í est├í de p├® (retry) - seguindo");
 				return Advance(ai, state);
 			}
 		}
 		// 04/11/2026 (o jogador, com print: "com um companion estatico onde precisa colocar pecas nunca vai dar bom"):
-		// o buraco no piso era a peça que precisa do lugar onde o PRÓPRIO colocador está - o `BuildSite.Check` ignora o
-		// corpo de quem coloca (ele é o `ignore`), então a peça ficava sem ninguém que a colocasse e o tile continuava
-		// vazio (o "fica e coloca" do P0 piora isso: ele nunca sai do lugar). Agora ele SAI de cima da peça: escolhe um
-		// walk spot FORA dela e coloca de lá. Duas tentativas; sem walk spot, segue o caminho de sempre (a fila).
+		// o buraco no piso era a pe├ºa que precisa do lugar onde o PR├ôPRIO colocador est├í - o `BuildSite.Check` ignora o
+		// corpo de quem coloca (ele ├® o `ignore`), ent├úo a pe├ºa ficava sem ningu├®m que a colocasse e o tile continuava
+		// vazio (o "fica e coloca" do P0 piora isso: ele nunca sai do lugar). Agora ele SAI de cima da pe├ºa: escolhe um
+		// walk spot FORA dela e coloca de l├í. Duas tentativas; sem walk spot, segue o caminho de sempre (a fila).
 		if (state.Piece != null && state.SelfStep < 2 && OwnBodyOn(ai, state.Piece, state.Pos, state.Rot))
 		{
 			Vector3 outside;
 			// review A3 (06/11/2026): the step-off asks for a surface AWAY from his feet and from the piece's column (the
-			// plain choice answered his own column: a 0 m walk, measured twice in the 11 tries of building-notes §17.31).
+			// plain choice answered his own column: a 0 m walk, measured twice in the 11 tries of building-notes ┬º17.31).
 			if (WalkSpot(ai, state, out outside, true))
 			{
 				state.SelfStep++;
@@ -7802,14 +7804,14 @@ internal static class MHR_Build
 				// tries were no-ops (the same two "saio para" lines, same position, in the trace)
 				state.SelfWalk = true;
 				state.Phase = Phase.Goto;
-				Log(ai, "a peça " + (state.Index + 1) + "/" + (state.Plan != null ? state.Plan.Count : 1)
+				Log(ai, "a pe├ºa " + (state.Index + 1) + "/" + (state.Plan != null ? state.Plan.Count : 1)
 					+ " precisa do lugar onde eu estou - saio para (" + F(outside.x) + ", " + F(outside.y) + ", " + F(outside.z) + ")");
 				return true;
 			}
 			// review-06/11 A4: no place to step to is said out loud (it was a LogDebug in Goto, silent in a normal
 			// run). The piece is placed anyway below - the log is the proof of how often that happens.
-			Log(ai, "a peça " + (state.Index + 1) + "/" + (state.Plan != null ? state.Plan.Count : 1)
-				+ " está no meu corpo e não achei onde sair - coloco mesmo assim (tentativa " + state.SelfStep + ")");
+			Log(ai, "a pe├ºa " + (state.Index + 1) + "/" + (state.Plan != null ? state.Plan.Count : 1)
+				+ " est├í no meu corpo e n├úo achei onde sair - coloco mesmo assim (tentativa " + state.SelfStep + ")");
 		}
 		// E6: a plan step is checked AGAIN now, with the pieces the plan already built standing - the roof's support
 		// comes from the walls, and up-front they were only planned (measured: the roof was refused with no_support)
@@ -7909,8 +7911,8 @@ internal static class MHR_Build
 							state.WalkTo = selfTo;
 							state.WalkFor = state.Index;
 							state.Phase = Phase.Goto;
-							Log(ai, "a peça " + (state.Index + 1) + "/" + (state.Plan != null ? state.Plan.Count : 1)
-								+ " está no meu corpo - saio para (" + F(selfTo.x) + ", " + F(selfTo.y) + ", " + F(selfTo.z) + ")");
+							Log(ai, "a pe├ºa " + (state.Index + 1) + "/" + (state.Plan != null ? state.Plan.Count : 1)
+								+ " est├í no meu corpo - saio para (" + F(selfTo.x) + ", " + F(selfTo.y) + ", " + F(selfTo.z) + ")");
 							return true;
 						}
 						BlockedByBody(ai, state, cs);
@@ -7956,7 +7958,7 @@ internal static class MHR_Build
 		// P1 MVP (multi-build, 03/11/2026): there is NO per-piece material reservation between the workers of a group -
 		// each one pays from its own bag and the site's chests with its own shortfall, so the same stack may be counted
 		// twice and the worker that arrives second is the one that hands the order over to the gather (it comes back and
-		// claims another piece). The `Stock` of docs/plan-multi-build.md §3 is the open half of P1.
+		// claims another piece). The `Stock` of docs/plan-multi-build.md ┬º3 is the open half of P1.
 		Dictionary<string, int> missing;
 		if (!state.Free && !BuildStock.Take(bag, state.Piece, stock, cs, useChests, out missing))
 		{
@@ -8034,7 +8036,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			state.BodyTries++;
 			state.Phase = Phase.BodyRetry;
 			state.Start = Time.time;
-			Log(ai, "um corpo está na peça " + (state.Index + 1) + "/" + state.Plan.Count + " (" + status + ") - tentando de novo em "
+			Log(ai, "um corpo est├í na pe├ºa " + (state.Index + 1) + "/" + state.Plan.Count + " (" + status + ") - tentando de novo em "
 				+ BuildFailure.ShortRetryDelay.ToString("F1") + " s (" + state.BodyTries + "/" + BuildFailure.MaxShortRetries + ")");
 			return true;
 		}
@@ -8045,7 +8047,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		}
 		state.Phase = Phase.BodyRetry;
 		state.Start = Time.time;
-		Log(ai, "um corpo está na peça " + (state.Index + 1) + "/" + state.Plan.Count + " (" + status + ") - tentando de novo em "
+		Log(ai, "um corpo est├í na pe├ºa " + (state.Index + 1) + "/" + state.Plan.Count + " (" + status + ") - tentando de novo em "
 			+ BuildFailure.ShortRetryDelay.ToString("F1") + " s (curta " + MHR_BuildGroup.ShortBodyTries(state.Group, state.Index)
 			+ "/" + BuildFailure.MaxShortRetries + ")");
 		return true;
@@ -8083,8 +8085,8 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			return;
 		}
 		CompanionSetup other = blocker as CompanionSetup;
-		string who = blocker is Player ? "você" : (other != null ? "\"" + CompanionNames.NameOf(other) + "\"" : "um corpo");
-		Log(ai, "corpo na peça " + (state.Index + 1) + "/" + (state.Plan != null ? state.Plan.Count : state.Index + 1)
+		string who = blocker is Player ? "voc├¬" : (other != null ? "\"" + CompanionNames.NameOf(other) + "\"" : "um corpo");
+		Log(ai, "corpo na pe├ºa " + (state.Index + 1) + "/" + (state.Plan != null ? state.Plan.Count : state.Index + 1)
 			+ " (" + who + ")" + CapsuleText(other != null ? other.GetComponent<Character>() : blocker as Character));
 	}
 
@@ -8138,8 +8140,8 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			state.AsideLogged = true;
 			if (CompanionsPlugin.LogNormal)
 			{
-				Log(ai, "\"" + who + "\" já foi chamado " + state.AsideTries + "x para a peça " + (state.Index + 1)
-					+ " - não peço de novo, a peça vai para a fila");
+				Log(ai, "\"" + who + "\" j├í foi chamado " + state.AsideTries + "x para a pe├ºa " + (state.Index + 1)
+					+ " - n├úo pe├ºo de novo, a pe├ºa vai para a fila");
 			}
 			return true;
 		}
@@ -8151,8 +8153,8 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			if (!state.AsideLogged && CompanionsPlugin.LogNormal)
 			{
 				state.AsideLogged = true;
-				Log(ai, "\"" + who + "\" está na peça " + (state.Index + 1) + " - sem lugar livre para ele sair da frente, "
-					+ "não peço (a peça vai para a fila)");
+				Log(ai, "\"" + who + "\" est├í na pe├ºa " + (state.Index + 1) + " - sem lugar livre para ele sair da frente ("
+					+ StepRefusalText() + "), n├úo pe├ºo (a pe├ºa vai para a fila)");
 			}
 			return true;
 		}
@@ -8164,8 +8166,8 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			&& state.Index > state.ChunkFirst && state.Index < state.ChunkFirst + state.ChunkLength - 1)
 		{
 			state.ChunkAsideLogged = true;
-			Log(ai, "step-aside dentro do meu chunk (bug): a peça " + (state.Index + 1) + " está no meio do trecho "
-				+ (state.ChunkFirst + 1) + "-" + (state.ChunkFirst + state.ChunkLength) + " e \"" + who + "\" está nela");
+			Log(ai, "step-aside dentro do meu chunk (bug): a pe├ºa " + (state.Index + 1) + " est├í no meio do trecho "
+				+ (state.ChunkFirst + 1) + "-" + (state.ChunkFirst + state.ChunkLength) + " e \"" + who + "\" est├í nela");
 		}
 		MHR_BuildGroup.AsideAsk ask = MHR_BuildGroup.RequestStepAside(state.Group, mover.GetInstanceID(),
 			ai.GetInstanceID(), state.Index, state.Pos, to);
@@ -8176,8 +8178,8 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			if (!state.AsideLogged && CompanionsPlugin.LogNormal)
 			{
 				state.AsideLogged = true;
-				Log(ai, "\"" + who + "\" saiu da frente da peça anterior e voltou para a peça " + (state.Index + 1)
-					+ " - não peço de novo, a peça vai para a fila");
+				Log(ai, "\"" + who + "\" saiu da frente da pe├ºa anterior e voltou para a pe├ºa " + (state.Index + 1)
+					+ " - n├úo pe├ºo de novo, a pe├ºa vai para a fila");
 			}
 			return true;
 		}
@@ -8197,7 +8199,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			if (!state.AsideLogged && CompanionsPlugin.LogNormal)
 			{
 				state.AsideLogged = true;
-				Log(ai, "\"" + who + "\" está na peça " + (state.Index + 1) + " - pedindo para sair da frente ("
+				Log(ai, "\"" + who + "\" est├í na pe├ºa " + (state.Index + 1) + " - pedindo para sair da frente ("
 					+ F(to.x) + ", " + F(to.z) + ")");
 			}
 		}
@@ -8205,14 +8207,14 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 	}
 
 	/// <summary>04/11/2026 (Run 10): the capsule of the body as the probe read it, for the line above
-	/// (<c>" - cápsula 39,90-41,70 m, r 0,30"</c>). Empty when there is no body to read.</summary>
+	/// (<c>" - c├ípsula 39,90-41,70 m, r 0,30"</c>). Empty when there is no body to read.</summary>
 	private static string CapsuleText(Character body)
 	{
 		if (body == null || !BuildProbe.CapsuleOf(body, out _, out float bottom, out float top, out float radius))
 		{
 			return string.Empty;
 		}
-		return " - cápsula " + F(bottom) + "-" + F(top) + " m, r " + F(radius);
+		return " - c├ípsula " + F(bottom) + "-" + F(top) + " m, r " + F(radius);
 	}
 
 	/// <summary>04/11/2026 (Run 10): <c>[Building] StepAside</c> - a companion of the site that is only waiting steps out of
@@ -8287,7 +8289,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		}
 		state.AsideTarget = target;
 		state.AsideUntil = Time.time + AsideSeconds;
-		Log(ai, "saindo da frente (peça em " + F(from.x) + ", " + F(from.z) + ") para (" + F(target.x) + ", "
+		Log(ai, "saindo da frente (pe├ºa em " + F(from.x) + ", " + F(from.z) + ") para (" + F(target.x) + ", "
 			+ F(target.z) + ")");
 		MHR_Mover.Go(ai, dt, target, 0.4f, false, "Build");
 		return true;
@@ -8321,17 +8323,48 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 	/// 770,1). The only filters here are the placer's 1 m, <see cref="StepTo"/> and the circle of the pure <see cref="BuildAsideSpot.Plan"/>.
 	/// The step aside is a step, not a guarantee: it is the walk that frees the piece when it can.</para>
 	/// </summary>
+	/// <summary>07/11/2026 (<c>feat/refino-construcao</c>): why the step-aside had no place to go. The three rules of
+	/// <see cref="StepTo"/> are asked one by one in the log, so the next run answers "another level, no ground or not
+	/// safe?" instead of only "no place".</summary>
+	private enum StepRefusal
+	{
+		NotFinite = 0,
+		NoGround = 1,
+		AnotherLevel = 2,
+		TooClose = 3,
+		NotSafe = 4,
+		Count = 5,
+	}
+
+	/// <summary>07/11/2026: the refusal counts of the last <see cref="AsideSpot"/> call (fixed, no allocation).</summary>
+	private static readonly int[] s_stepRefusals = new int[(int)StepRefusal.Count];
+
+	/// <summary>07/11/2026: the one line that says why there was no place to step to (once per piece, by the caller).</summary>
+	private static string StepRefusalText()
+	{
+		return "sem ch├úo " + s_stepRefusals[(int)StepRefusal.NoGround]
+			+ ", outro n├¡vel " + s_stepRefusals[(int)StepRefusal.AnotherLevel]
+			+ ", perto demais " + s_stepRefusals[(int)StepRefusal.TooClose]
+			+ ", passo inseguro " + s_stepRefusals[(int)StepRefusal.NotSafe]
+			+ (s_stepRefusals[(int)StepRefusal.NotFinite] > 0 ? ", inv├ílido " + s_stepRefusals[(int)StepRefusal.NotFinite] : string.Empty);
+	}
+
 	private static bool AsideSpot(State state, CompanionAI ai, CompanionAI mover, Vector3 from, out Vector3 target)
 	{
-		target = Vector3.zero;
-		if (state == null || ai == null || mover == null)
-		{
-			return false;
-		}
 		Vector3 feet = mover.transform.position;
 		Vector3 facing = ai.transform.forward;   // the placer's front: the piece is in it
+		target = Vector3.zero;
 		Vector3 away = new Vector3(-facing.x, 0f, -facing.z);
+		// 07/11/2026 (the run with 3 workers, 310 of 328 refusals): the reasons of the refusals are counted per call, in
+		// fixed ints - the caller says them once per piece so the next run reads WHY there was no place to step to.
+		for (int r = 0; r < s_stepRefusals.Length; r++)
+		{
+			s_stepRefusals[r] = 0;
+		}
 		MHR_BuildGroup.PendingNear(state.Group, from, AsideDistance + BuildAsideSpot.Clearance, s_asidePending);
+		// 07/11/2026 (feat/refino-construcao): the ring is tried at the full 2,2 m first and then at shorter radii - on a
+		// floor slab a 2,2 m step lands past its edge and the ray finds the ground a storey below ("outro n├¡vel": 50 of the
+		// refusals measured with 3 workers). A smaller step that stays on the slab is a step.
 		int count = BuildAsideSpot.Plan(feet, from, away, s_asidePending, AsideDistance, s_asideSpots);
 		for (int i = 0; i < count; i++)
 		{
@@ -8357,30 +8390,42 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 	/// from 1,5 m above it (a ray, so a spot over the void or above a wall is out), it must be within 0,8 m of the
 	/// companion's own feet (a step, not a fall) and the way to it must be a safe step (<see cref="MHR_Mover.SafeStep"/>:
 	/// no wall, no ledge, no deep water, no fire, no spikes).
+	/// <para>07/11/2026 (<c>feat/refino-construcao</c>, the run with 3 workers: 310 of 328 refusals of a piece were
+	/// "sem lugar livre para ele sair da frente", and the log did not say <b>which</b> of the three rules refused): counts
+	/// go into <c>s_stepRefusals</c> so the caller can say why once per piece.</para>
 	/// </summary>
 	private static bool StepTo(Vector3 feet, Vector3 spot, out Vector3 goal)
 	{
 		goal = Vector3.zero;
 		if (!Finite(spot))
 		{
+			s_stepRefusals[(int)StepRefusal.NotFinite]++;
 			return false;
 		}
 		RaycastHit hit;
 		if (!Physics.Raycast(new Vector3(spot.x, spot.y + 1.5f, spot.z), Vector3.down, out hit, 4f, BuildProbe.PlaceMask(),
 			QueryTriggerInteraction.Ignore))
 		{
+			s_stepRefusals[(int)StepRefusal.NoGround]++;
 			return false;
 		}
 		if (Mathf.Abs(hit.point.y - feet.y) > 0.8f)
 		{
+			s_stepRefusals[(int)StepRefusal.AnotherLevel]++;
 			return false;   // another level (the deck below, a wall above): not a step, a fall
 		}
 		Vector3 point = new Vector3(spot.x, hit.point.y, spot.z);
 		Vector3 way = point - feet;
 		way.y = 0f;
 		float flat = way.magnitude;
-		if (flat < 0.3f || !MHR_Mover.SafeStep(feet, way / flat, Mathf.Min(flat, 2.5f)))
+		if (flat < 0.3f)
 		{
+			s_stepRefusals[(int)StepRefusal.TooClose]++;
+			return false;
+		}
+		if (!MHR_Mover.SafeStep(feet, way / flat, Mathf.Min(flat, 2.5f)))
+		{
+			s_stepRefusals[(int)StepRefusal.NotSafe]++;
 			return false;
 		}
 		goal = point;
@@ -8602,11 +8647,11 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			: BuildExecutor.VerifyAt(state.Piece, state.Pos, creator, out state.Placed, checkStation);
 		if (reason != null)
 		{
-			// 04/11/2026 (reviews R12/R18, measured in the §17.27 run): a piece WE placed a moment ago that is gone by
+			// 04/11/2026 (reviews R12/R18, measured in the ┬º17.27 run): a piece WE placed a moment ago that is gone by
 			// this frame was DESTROYED by the game, and the measured cause is "nothing under it" (100 % damage on the next
 			// wear tick). `verification: not_found` was classified as a REAL failure, so the piece burned one of its 3
 			// attempts and ended as "desistindo" even when the support it needed was arriving from the next worker - and
-			// the log lost the real reason (the `UNSUPPORTED … support X < min Y` line never printed on this path).
+			// the log lost the real reason (the `UNSUPPORTED ÔÇª support X < min Y` line never printed on this path).
 			// Our own piece, gone within the first 1,5 s, is a support problem: it goes through the dependency gate, which
 			// waits (8/12/20/25 s) and never counts it as skipped.
 			if (reason == "not_found" && state.Placed == null && Time.time - state.PlacedAt < 1.5f)
@@ -8622,7 +8667,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			Finish(ai, state, "hc_ai_build_failed", reason, LabelOf(state));
 			return false;
 		}
-		// E6: the acceptance "sem peça solta no ar" - the game's own verdict (WearNTear.UpdateSupport/HaveSupport).
+		// E6: the acceptance "sem pe├ºa solta no ar" - the game's own verdict (WearNTear.UpdateSupport/HaveSupport).
 		// It is asked for every piece, single or plan; null (the reflection did not resolve) is never a refusal.
 		// The support of a piece flows from what is below it, and the piece below may have had its own support computed
 		// in the same frame: a "no support" answer is asked again for a couple of frames before it becomes a refusal.
@@ -9210,8 +9255,8 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			}
 			return;
 		}
-		// 04/11/2026 (review de coerência, ALTO): o `Load` abaixo faz `File.GetLastWriteTimeUtc` em TODA chamada (mesmo no
-		// cache hit) e rodava ANTES do portão de 1 s - uma stat de disco por frame por worker na main thread. O portão vem
+		// 04/11/2026 (review de coer├¬ncia, ALTO): o `Load` abaixo faz `File.GetLastWriteTimeUtc` em TODA chamada (mesmo no
+		// cache hit) e rodava ANTES do port├úo de 1 s - uma stat de disco por frame por worker na main thread. O port├úo vem
 		// primeiro; o resto do vigia (recomputar o que falta) continua a 1 Hz.
 		if (Time.time < pending.NextCheck)
 		{
@@ -9419,10 +9464,10 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		// 04/11/2026 (review R12 A2, measured in the sequence of blueprints): the queue of the SITE dies with the group,
 		// and a piece waiting in it was counted neither as placed nor as skipped - the Forest Hobbit Repairhut ended
 		// "61/62, 0 pulada(s)" with nothing naming the missing piece.
-		// 04/11/2026 (review de coerência, CRÍTICO): só o ÚLTIMO worker drena. Isto rodava a cada saída de worker -
-		// coleta (`hc_ai_build_collecting`), sobrepeso, falha do executor - e marcava como puladas as peças que estavam na
-		// fila dos OUTROS, logo depois de o `AbandonPiece` acima devolver a peça corrente à fila (ou seja, o próprio dreno
-		// desfazia o abandono). A varredura de órfãs quinze linhas abaixo já usava a guarda certa: `!IsShared`.
+		// 04/11/2026 (review de coer├¬ncia, CR├ìTICO): s├│ o ├ÜLTIMO worker drena. Isto rodava a cada sa├¡da de worker -
+		// coleta (`hc_ai_build_collecting`), sobrepeso, falha do executor - e marcava como puladas as pe├ºas que estavam na
+		// fila dos OUTROS, logo depois de o `AbandonPiece` acima devolver a pe├ºa corrente ├á fila (ou seja, o pr├│prio dreno
+		// desfazia o abandono). A varredura de ├│rf├ús quinze linhas abaixo j├í usava a guarda certa: `!IsShared`.
 		if (state.Group != null && !MHR_BuildGroup.IsShared(state.Group))
 		{
 			List<int> left = new List<int>();
@@ -9434,7 +9479,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 				{
 					list += (i > 0 ? ", " : string.Empty) + (left[i] + 1);
 				}
-				Log(ai, "fila do canteiro: " + dropped + " peça(s) não ficaram de pé (índice(s) " + list + ")");
+				Log(ai, "fila do canteiro: " + dropped + " pe├ºa(s) n├úo ficaram de p├® (├¡ndice(s) " + list + ")");
 			}
 		}
 		// 04/11/2026 (the sequence of blueprints, the Forest Stone Manor): the LAST worker of a site sweeps the plan. A
@@ -9462,14 +9507,14 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 				{
 					list += (i > 0 ? ", " : string.Empty) + (strays[i] + 1);
 				}
-				Log(ai, "nenhum companheiro pegou " + strays.Count + " peça(s) do plano (índice(s) " + list + ")");
+				Log(ai, "nenhum companheiro pegou " + strays.Count + " pe├ºa(s) do plano (├¡ndice(s) " + list + ")");
 			}
 		}
 		// 04/11/2026 (the line of the run of 20:06 LIED in three things): the site's numbers come from the group while it is
 		// alive, from the capture of the end of the plan when this worker was the one that closed it (Advance drops the group
 		// before calling here), and from the worker itself only when the order never had a site. Reading the walk after the
 		// group was dropped printed THIS WORKER's meters with the site's label (the five lines of the measured run were not
-		// even monotonic: 1380,0 · 1584,6 · 1724,9 · 1625,4 · 1638,8, and the site walked 7.953,7 m). `placed`/`skipped` are
+		// even monotonic: 1380,0 ┬À 1584,6 ┬À 1724,9 ┬À 1625,4 ┬À 1638,8, and the site walked 7.953,7 m). `placed`/`skipped` are
 		// the same numbers the speech gets.
 		int placed = state.Group != null ? MHR_BuildGroup.Placed(state.Group)
 			: (state.SitePlaced >= 0 ? state.SitePlaced : state.PlacedIndices.Count);
@@ -9477,7 +9522,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			: (state.SiteSkipped >= 0 ? state.SiteSkipped : state.SkippedIndices.Count);
 		// 05/11/2026 (the inflated denominator measured in the game): for a SINGLE worker the denominator is the size the
 		// ORDER READ (the opening line "blueprint X: N pieces near ..."), never `Plan.Count` - the retry pass appended copies
-		// of the pieces that did not stand and a 64-piece stone cottage ended "peças: 64/76, 1 pulada(s)" with all 64
+		// of the pieces that did not stand and a 64-piece stone cottage ended "pe├ºas: 64/76, 1 pulada(s)" with all 64
 		// standing (64 placed + 12 appended copies). A SITE keeps the plan's own size: it never appends copies (the group
 		// walks distinct indices, which is why the 5-worker corpus closes 64/64) and the number it printed before was right.
 		// The predicate is the SAME one `placed` above uses - the group key is dropped before this line by the last worker,
@@ -9489,7 +9534,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		float siteWalked = state.Group != null ? MHR_BuildGroup.Walk(state.Group)
 			: (state.SiteWalk >= 0f ? state.SiteWalk : state.WalkMeters);
 		// 05/11/2026 (the closing line of the order that LIED): how many companions of the order finished it <b>under the
-		// terrain</b>. The run of 05/11/2026 closed "peças: 64/64, 0 pulada(s)" with the companion 0,88 m inside the ground
+		// terrain</b>. The run of 05/11/2026 closed "pe├ºas: 64/64, 0 pulada(s)" with the companion 0,88 m inside the ground
 		// (feet 37,90 against a ground of 38,78), stuck under the deck's floor until the player demolished a piece - the
 		// count was perfect and the site was unusable.
 		// A worker that ends its part through ANY path (a cancel, too heavy, the list ended) is counted into the site while
@@ -9510,7 +9555,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			state.Group = null;
 		}
 		// 04/11/2026 (Run 14, the spread of the crew): the three numbers of the order in ONE line - what the acceptance run
-		// reads (the Run 14 log had to be grepped line by line for "corpo na peça" and "pedindo para sair da frente").
+		// reads (the Run 14 log had to be grepped line by line for "corpo na pe├ºa" and "pedindo para sair da frente").
 		// 04/11/2026 (Run 17): the same line carries the WAIT - the seconds the crew stood still and why (the barrier with a
 		// body x a dependency, the site's queue, the step aside). It is what makes the A/B of the body barrier honest
 		// instead of a guess.
@@ -9529,12 +9574,12 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			|| buried > 0)
 		{
 			// 04/11/2026 (the PARTITION of the phase): the stretch this worker owned (`chunks: 2/5 201-300`, both ends
-			// 1-based like the `peça N/M` of the rest of the log) and the two numbers that judge the design - `roubou`
+			// 1-based like the `pe├ºa N/M` of the rest of the log) and the two numbers that judge the design - `roubou`
 			// (pieces taken outside its own stretch) and `disputa` (claims refused: the piece another companion was already
 			// going to). A partition that works leaves `disputa` at ~0: it is the number that proves the contention of the
 			// Run 15-22 is gone by construction, and the one that was invisible while the line was a LogDebug.
 			string stretch = state.ChunkSlots > 1 && state.ChunkFirst >= 0
-				? " · chunks: " + (state.ChunkSlot + 1) + "/" + state.ChunkSlots + " " + (state.ChunkFirst + 1) + "-"
+				? " ┬À chunks: " + (state.ChunkSlot + 1) + "/" + state.ChunkSlots + " " + (state.ChunkFirst + 1) + "-"
 					+ (state.ChunkFirst + state.ChunkLength)
 				: string.Empty;
 			// 04/11/2026 (Run 18): the queue split by where the walk is (the END of the plan x the MIDDLE of it) and the
@@ -9547,34 +9592,34 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			float total = barrier + queue + state.WaitAside + state.WaitGate + state.WaitShort;
 			float perPiece = placed > 0 ? siteWalked / placed : 0f;
 			float cpuFrame = state.CpuFrames > 0 ? (float)(state.CpuMs * 1000.0 / state.CpuFrames) : 0f;
-			Log(ai, "dispersão: " + state.SpreadSkipped + " adiada(s), " + state.SpreadResumed + " retomada(s) · step-aside: "
-				+ state.AsideAsked + " pedido(s) · espera: " + F(total) + " s (barreira " + F(barrier) + " s em "
-				+ state.BodyHolds + " retenção(ões) " + F(state.WaitBody) + " corpo/" + F(state.WaitDependency)
-				+ " dependência, fila " + F(queue) + " s (fim " + F(state.WaitQueueEnd) + " s, meio "
-				+ F(state.WaitAhead) + " s), passo " + F(state.WaitAside) + " s, portão "
+			Log(ai, "dispers├úo: " + state.SpreadSkipped + " adiada(s), " + state.SpreadResumed + " retomada(s) ┬À step-aside: "
+				+ state.AsideAsked + " pedido(s) ┬À espera: " + F(total) + " s (barreira " + F(barrier) + " s em "
+				+ state.BodyHolds + " reten├º├úo(├Áes) " + F(state.WaitBody) + " corpo/" + F(state.WaitDependency)
+				+ " depend├¬ncia, fila " + F(queue) + " s (fim " + F(state.WaitQueueEnd) + " s, meio "
+				+ F(state.WaitAhead) + " s), passo " + F(state.WaitAside) + " s, port├úo "
 				+ state.BarrierHolds + " (" + F(state.WaitGate) + " s), corpo-curto " + F(state.WaitShort)
-				+ " s) · peças: " + placed + "/" + planned + ", " + skippedCount + " pulada(s) · caminhada: "
-				+ F(siteWalked) + " m (" + F(perPiece) + " m/peça) (este: " + F(state.WalkMeters) + " m) · cpu: "
-				+ F(cpuFrame) + " µs/frame em " + state.CpuFrames + " frame(s), goto " + F((float)(state.GotoMs / 1000.0))
-				+ " s, place " + F((float)(state.PlaceMs / 1000.0)) + " s · posições: " + state.Positions
-				+ ", peças/posição p50 " + PositionPercentText(state, 0.5f) + " p90 "
+				+ " s) ┬À pe├ºas: " + placed + "/" + planned + ", " + skippedCount + " pulada(s) ┬À caminhada: "
+				+ F(siteWalked) + " m (" + F(perPiece) + " m/pe├ºa) (este: " + F(state.WalkMeters) + " m) ┬À cpu: "
+				+ F(cpuFrame) + " ┬Ás/frame em " + state.CpuFrames + " frame(s), goto " + F((float)(state.GotoMs / 1000.0))
+				+ " s, place " + F((float)(state.PlaceMs / 1000.0)) + " s ┬À posi├º├Áes: " + state.Positions
+				+ ", pe├ºas/posi├º├úo p50 " + PositionPercentText(state, 0.5f) + " p90 "
 				+ PositionPercentText(state, 0.9f)
 				// 04/11/2026 (the repulsion of the P0): how many pieces were taken AWAY from the plain nearest one because it
 				// was next to another companion's body - the number that proves the crew stopped bunching up
 				+ ", repeleu: " + state.Repelled
 				// 04/11/2026 (the stay of the redesign): how many pieces were taken from the reach, i.e. placed without
 				// walking to them - it is the number of the change, next to the positions it is meant to lower
-				+ " · no alcance: " + state.Stayed + " peça(s)" + stretch
+				+ " ┬À no alcance: " + state.Stayed + " pe├ºa(s)" + stretch
 				// 04/11/2026 (the partition of the phase): how many pieces were taken OUTSIDE the stretch and how many picks
 				// the claim refused - the two numbers the design is judged by
-				+ " · roubou: " + state.ChunkStolen + " peça(s) · disputa: " + state.ChunkDisputes
+				+ " ┬À roubou: " + state.ChunkStolen + " pe├ºa(s) ┬À disputa: " + state.ChunkDisputes
 				// 05/11/2026 (the closing line that LIED): how many companions finished the order UNDER the terrain. The run
-				// that measured it said "peças: 64/64, 0 pulada(s)" with the companion 0,88 m inside the ground, stuck under
+				// that measured it said "pe├ºas: 64/64, 0 pulada(s)" with the companion 0,88 m inside the ground, stuck under
 				// the deck's floor until the player demolished a piece - the score proved the plan was faithful, not that the
 				// site was usable. It goes at the END of the line on purpose: the automatic reader of the runs
 				// (tools/build_run_report.py) takes the blocks in this exact order, and a field in the middle would make the
 				// walk and the cpu of every future log unreadable.
-				+ " · enterrado: " + buried);
+				+ " ┬À enterrado: " + buried);
 		}
 		// one line per order end, with the key that was spoken: it is how a test proves which refusal came out
 		Log(ai, "order ended: " + (key ?? "(silent)") + (string.IsNullOrEmpty(why) ? string.Empty : " (" + why + ")"));

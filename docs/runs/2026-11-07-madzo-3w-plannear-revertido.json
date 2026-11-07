@@ -1,0 +1,49 @@
+[
+ {
+  "data": "2026-11-07",
+  "dll": "17fa857 (BuildAsideSpot.PlanNear: anel em 2,2/1,5/1,0 m)",
+  "blueprint": "hs_meadows_madzobuild_modernstarterhouse.blueprint",
+  "workers": 3,
+  "duracao_s": 420.2,
+  "colocadas_done": 520,
+  "terminou": false,
+  "blocked_by_player": 387,
+  "corpo_no_caminho": 355,
+  "travada_nao_voltou": 118,
+  "sem_lugar_livre": 251,
+  "motivos_agregados": {
+   "outro_nivel": 403,
+   "passo_inseguro": 97,
+   "sem_chao": 0,
+   "perto_demais": 0
+  },
+  "pedidos_de_step_aside": 8,
+  "movimentos_de_step_aside": 8,
+  "jogador_bloqueou": 91,
+  "companheiro_bloqueou": 268,
+  "fits_false": 83,
+  "comparacao_baseline_17fa857_anterior": {
+   "colocadas": {
+    "antes": 521,
+    "depois": 520
+   },
+   "blocked_by_player": {
+    "antes": 237,
+    "depois": 387
+   },
+   "travada_nao_voltou": {
+    "antes": 92,
+    "depois": 118
+   },
+   "outro_nivel": {
+    "antes": 50,
+    "depois": 403
+   },
+   "step_aside_pedidos": {
+    "antes": 0,
+    "depois": 8
+   }
+  },
+  "veredito": "REVERTIDO. O PlanNear faz o step-aside ACONTECER (8 pedidos contra 0), mas cada 'saindo da frente' e' seguido de novo bloqueio na peca seguinte: o ping-pong do 17.20. As pecas 167 e 184 acumularam 63 e 46 linhas sem subir. Nenhum ganho de peca (520 x 521) e mais disputa (387 x 237)."
+ }
+]
