@@ -171,6 +171,8 @@ public class CompanionsPlugin : BaseUnityPlugin
 		ConfigPanel.Create();
 		// Fase 3.7: the in-game AI panel (personality, voice, push-to-talk) - built on first open, hidden until then
 		CompanionAiPanel.Create();
+		// 04/11/2026: the build panel ([Controls] BuildPanelKey) - the site the companions are building
+		CompanionBuildPanel.Create();
 		FarmZonePlacer.EnsureInstance();
 	}
 
@@ -337,6 +339,7 @@ public class CompanionsPlugin : BaseUnityPlugin
 		{
 			MHR_Root(ConfigPanel.Instance),
 			MHR_Root(CompanionAiPanel.Instance),
+			MHR_Root(CompanionBuildPanel.Instance),
 			MHR_Root(CompanionAppearancePanel.Instance),
 			MHR_Root(FarmZonePlacer.Instance),
 			MHR_Root(CompanionRadialMenu.Instance),
@@ -470,6 +473,15 @@ public class CompanionsPlugin : BaseUnityPlugin
 		catch (Exception ex6)
 		{
 			Log.LogWarning("[TTS] Error: " + ex6.ToString());
+		}
+		try
+		{
+			// P2 (multi-build): hands the tiles of a piece that went up or down to the route map (coalesced, never blocks)
+			MHR_CompanionNavMesh.Tick();
+		}
+		catch (Exception ex7)
+		{
+			Log.LogWarning("[Move] Invalidação da navmesh: " + ex7.ToString());
 		}
 		// development tool: runs whatever the MCP server queued (no-op when [Advanced] DevBridge is off)
 		_devBridge?.Pump();

@@ -27,15 +27,25 @@ namespace Companions;
 /// </summary>
 internal static class BuildProbe
 {
-	/// <summary>Players and companions keep this distance from a candidate spot. It is a cheap "not inside a body"
-	/// guard, not the vanilla rule: the game tests the ghost's colliders against every character within 30 m
-	/// (<c>CheckPlacementGhostVSPlayers</c>, <c>Player.cs</c> L4195) and a bench 1 m in front of you is normal. The
-	/// collider test is what E2 adds; 1,5 m here would refuse the obvious spot (measured: the test at 1,5 m in front
-	/// of the player failed with <c>blocked_by_player</c>).</summary>
-	internal const float MinSpacing = 0.6f;
+	/// <summary>04/11/2026 (Run 10): the capsule a character without a readable collider falls back to - the vanilla
+	/// body (1,8 m tall, 0,3 m of radius). It is only used when <c>Character.GetCollider()</c> is null (a custom body
+	/// with the collider turned off), and the log says it once.</summary>
+	private const float FallbackBodyHeight = 1.8f;
+	private const float FallbackBodyRadius = 0.3f;
 
 	private const float ProbeAbove = 4f;
 	private const float ProbeBelow = 8f;
+	/// <summary>
+	/// P1 (04/11/2026, measured on the 985-piece house): how close to the pose a piece of the structure has to be for the
+	/// probe to accept a pose whose vertical ray found nothing. The ridge at y 47,8 had roofs/beams around it while the ray
+	/// went through the gap between the two slopes; the game accepts the piece (its own <c>WearNTear</c> support verdict is
+	/// what decides), so the probe must not refuse it for a ray that missed.
+	///
+	/// <para><b>4,0 m and not 2,6 m</b> (measured in the run of 04/11/2026: a 2,6 m sphere found nothing and the ridge stayed
+	/// <c>no_ground</c>): the roof grid is ~2 m and the nearest neighbour of a <c>wood_roof_45</c> sits on the DIAGONAL, ~2,8
+	/// to 3,5 m away. Only runs when the vertical ray missed (rare), so the cost is one overlap sphere on those poses.</para>
+	/// </summary>
+	private const float AttachedRadius = 4f;
 
 	private static int _placeMask = -1;
 	private static int _waterMask = -1;
@@ -434,6 +444,17 @@ internal static class BuildProbe
 	/// </summary>
 	internal static Dictionary<string, object> CheckPoint(Piece piece, Vector3 point, Quaternion rot, Component ignore)
 	{
+		return CheckPoint(piece, point, rot, ignore, true);
+	}
+
+	/// <summary>
+	/// The same check with <b>the station rule optional</b> (lote 1, 04/11/2026): a blueprint with
+	/// <c>[Building] BlueprintStations</c> on is built without a workbench, so <paramref name="requireStation"/> = false
+	/// simply does not add <c>needs_station</c> - nothing else changes, and <c>hasStation</c> in the result keeps telling
+	/// the truth about the world (it is the proof of the run). The default preserves every other caller.
+	/// </summary>
+	internal static Dictionary<string, object> CheckPoint(Piece piece, Vector3 point, Quaternion rot, Component ignore, bool requireStation)
+	{
 		Dictionary<string, object> result = new Dictionary<string, object>();
 		result["x"] = point.x;
 		result["y"] = point.y;
@@ -458,8 +479,12 @@ internal static class BuildProbe
 		WearNTear groundWear = groundPiece != null ? groundPiece.GetComponent<WearNTear>() : null;
 		Heightmap.Biome biome = Heightmap.FindBiome(surface);
 
-		if (!hasHit)
+		if (!hasHit && !AttachedToStructure(point))
 		{
+			// P1 (04/11/2026, measured): the vertical ray of the probe goes through the GAP between two roof slopes - the ridge
+			// at y 47,8 had roof/beam pieces within 1 m and the ray found nothing, so every ridge piece was refused with
+			// no_ground and the game would have accepted it. Touching the structure is enough here: the support itself is the
+			// game's own WearNTear verdict, checked when the piece is placed (Place/Verify).
 			reasons.Add("no_ground");
 		}
 		if (piece.m_noInWater && water)
@@ -538,7 +563,7 @@ internal static class BuildProbe
 		{
 			reasons.Add("ward");
 		}
-		if (piece.m_craftingStation != null && CraftingStation.HaveBuildStationInRange(piece.m_craftingStation.m_name, surface) == null)
+		if (requireStation && piece.m_craftingStation != null && CraftingStation.HaveBuildStationInRange(piece.m_craftingStation.m_name, surface) == null)
 		{
 			reasons.Add("needs_station");
 		}
@@ -563,7 +588,7 @@ internal static class BuildProbe
 				}
 			}
 		}
-		if (BlockedByCharacter(surface, ignore))
+		if (BlockedByCharacter(piece, point, rot, ignore, out _))
 		{
 			reasons.Add("blocked_by_player");
 		}
@@ -589,7 +614,12 @@ internal static class BuildProbe
 		}
 
 		result["ok"] = reasons.Count == 0;
-		result["status"] = reasons.Count == 0 ? "valid" : reasons[0];
+		// 04/11/2026 (review R13): the status used to be `reasons[0]` - the FIRST reason, in the vanilla overwrite order.
+		// A dependency reason could then be masked by a surface one: a piece in the air over a bank produced
+		// ["too_steep", "no_support"] -> "too_steep", which BuildFailure classifies as a REAL failure - it burned one of
+		// the 3 attempts and never entered the support pull / emergency post path, while the true cause was the support.
+		// The reasons that are not the piece's fault win, so it waits for its support instead of being thrown away.
+		result["status"] = reasons.Count == 0 ? "valid" : FirstBlocking(reasons);
 		result["elevated"] = elevated;
 		result["reasons"] = reasons;
 		result["ground"] = new Dictionary<string, object>
@@ -616,10 +646,67 @@ internal static class BuildProbe
 	}
 
 	/// <summary>
-	/// E6: is there the ground (the terrain) or a supporting piece inside the piece's footprint, grown by 0,15 m? It
+	/// P1 (04/11/2026, measured on the 985-piece house): is the pose <b>touching the structure</b> even though the vertical
+	/// probe ray found nothing under it? The ridge of a roof sits over the gap between the two slopes: the ray misses while
+	/// the pieces that hold it (roof, beam, gable top) are within a metre. Any collider of a <see cref="Piece"/> or a
+	/// <see cref="WearNTear"/> inside <see cref="AttachedRadius"/> answers yes, and then the probe does not call it
+	/// <c>no_ground</c> - the support rule is the game's own verdict at placement. It only runs when the ray missed (rare),
+	/// so the cost is one overlap sphere on those poses.
+	/// </summary>
+	private static bool AttachedToStructure(Vector3 point)
+	{
+		Collider[] near = Physics.OverlapSphere(point, AttachedRadius, PlaceMask(), QueryTriggerInteraction.Ignore);
+		for (int i = 0; i < near.Length; i++)
+		{
+			Collider collider = near[i];
+			if (collider == null || collider.isTrigger)
+			{
+				continue;
+			}
+			if (collider.GetComponentInParent<Piece>() != null || collider.GetComponentInParent<WearNTear>() != null)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/// <summary>
+	/// E6: is there the ground (the terrain) or something that can hold this piece inside its footprint, grown by 0,15 m? It
 	/// is the elevated-piece half of the <c>no_support</c> rule - the same reach the game's <c>UpdateSupport</c> uses.
 	/// No box to test (an exotic prefab) answers <c>true</c>: never a refusal for a missing measurement.
+	///
+	/// <para>P1 (04/11/2026: 13 pieces of the roof stayed out for FIVE rounds): the rule only accepted a piece with
+	/// <c>m_supports</c> and refused a roof over another roof with <c>no_support</c> even with the row below standing. The
+	/// decision is now <see cref="BuildSupportBelow.HoldsPlacedPiece"/>: the terrain holds anything, a <b>roof</b> is held
+	/// by any <see cref="WearNTear"/> in its footprint, and every other class still needs a piece that really carries
+	/// (<c>m_supports</c>) - otherwise a wall would stand on a chest. <b>Correction (04/11/2026, measured in 1.0.20 -
+	/// <c>docs/re/support-rule-wearntear.md</c> §5):</b> the motive written here first - "a roof piece has
+	/// <c>m_supports = false</c>" - is <b>wrong</b> (every wooden structural prefab measured, roofs included, is
+	/// <c>m_supports = true</c>; only furniture is <c>false</c>), so the class-3 bypass is a <b>no-op</b> and the real
+	/// cause of those 13 pieces is <b>geometry</b>: the game's support reach is <b>0,15 m</b> of collider overlap
+	/// (<c>WearNTear.SetupColliders</c>), which is exactly the <c>+0,15 m</c> grown here - do <b>not</b> stretch it, a
+	/// piece without that connection is placed and then <b>falls</b> (~1 s, 100 % wear).</para>
 	/// </summary>
+	/// <summary>
+	/// 04/11/2026 (review R13): the first reason that is <b>not the piece's fault</b> - a body in the way, a missing
+	/// station or a missing support. They decide the class of the failure (<c>BuildFailure</c>: wait, do not burn an
+	/// attempt); the surface reasons (<c>too_steep</c>, <c>no_ground</c>, <c>clipping</c>...) are real failures and must
+	/// not hide them. Falls back to the first reason, which is what the caller used to get.
+	/// </summary>
+	private static string FirstBlocking(List<string> reasons)
+	{
+		for (int i = 0; i < reasons.Count; i++)
+		{
+			string reason = reasons[i];
+			if (reason == "blocked_by_player" || reason == "needs_station" || reason == "no_support")
+			{
+				return reason;
+			}
+		}
+		return reasons[0];
+	}
+
 	private static bool FootprintSupported(Piece piece, Vector3 pos, Quaternion rot)
 	{
 		Bounds box;
@@ -630,6 +717,7 @@ internal static class BuildProbe
 		Vector3 localCenter = box.center - piece.transform.position;
 		Vector3 center = pos + rot * localCenter;
 		Vector3 half = box.extents + new Vector3(0.15f, 0.15f, 0.15f);
+		int classOfPiece = BuildBlueprintParser.ClassOf(piece.gameObject.name);
 		int terrain = LayerMask.NameToLayer("terrain");
 		Collider[] near = Physics.OverlapBox(center, half, rot, PlaceMask(), QueryTriggerInteraction.Ignore);
 		foreach (Collider collider in near)
@@ -638,12 +726,9 @@ internal static class BuildProbe
 			{
 				continue;
 			}
-			if (terrain >= 0 && collider.gameObject.layer == terrain)
-			{
-				return true;
-			}
-			WearNTear wear = collider.GetComponentInParent<WearNTear>();
-			if (wear != null && wear.m_supports)
+			bool isTerrain = terrain >= 0 && collider.gameObject.layer == terrain;
+			WearNTear wear = isTerrain ? null : collider.GetComponentInParent<WearNTear>();
+			if (BuildSupportBelow.HoldsPlacedPiece(classOfPiece, isTerrain, wear != null, wear != null && wear.m_supports))
 			{
 				return true;
 			}
@@ -651,27 +736,181 @@ internal static class BuildProbe
 		return false;
 	}
 
-	/// <summary>A player or a companion inside <see cref="MinSpacing"/> of the spot (the vanilla ghost check, cheap
-	/// version: the game tests the ghost's colliders against every character within 30 m).</summary>
-	private static bool BlockedByCharacter(Vector3 point, Component ignore)
+	/// <summary>
+	/// Is a character's <b>body</b> in the way of the piece at <paramref name="point"/>, turned by <paramref name="rot"/>?
+	/// This is the cheap version of the vanilla ghost check (the game tests the ghost's colliders against every character
+	/// within 30 m, <c>CheckPlacementGhostVSPlayers</c>, <c>Player.cs</c> L4195) and <paramref name="blocker"/> is the
+	/// character that blocked it (the caller says who is in the way).
+	///
+	/// <para>P1 (04/11/2026, player's report: "dois companions travados embaixo do piso"): the old test compared the distance
+	/// from the piece's <b>point</b> to the character's <b>transform</b> (the feet) and needed 0,6 m - with the 1 m deck a
+	/// floor 1 m above the feet was 1,0 m away in 3D, so it did not block, and the floor was placed <b>over the head</b> of
+	/// two companions (they were squeezed 1 m under the ground and stuck). The test is the <b>body window</b> of
+	/// <see cref="BuildBody"/>: the character's <b>capsule</b> (<c>Character.GetCollider()</c>) against the piece's
+	/// <b>rotated box</b> - a floor above the head blocks while its span crosses the body, a piece entirely above the head
+	/// does not, and a body <b>beside</b> the piece does not either (only the box's real width counts).</para>
+	///
+	/// <para>04/11/2026 (Run 10, measured): the piece used to be a <b>disc</b> of its largest flat side plus 0,45 m and the
+	/// <b>pivot</b> and the yaw were ignored - a 2 m <c>wood_beam</c> became a 1 m disc in every direction, and the
+	/// companion standing 1,08 m from its pose held it for the whole storey barrier. Now the box is the prefab's
+	/// (<see cref="BoxOf"/>) moved by its <b>pivot</b> (<c>box.center - piece.transform.position</c>) and turned by the
+	/// pose, its vertical span is the AABB of the rotated box (<see cref="BuildBody.HalfY"/>) and the flat test is done in
+	/// the <b>piece's own frame</b> (the capsule's axis un-turned by <paramref name="rot"/>), so the beam is 2 m long only
+	/// along its own length.</para>
+	///
+	/// <para>A companion is a character like any other: an earlier version ignored every <see cref="CompanionAI"/> (to stop
+	/// the 17+ <c>blocked_by_player</c> of a crowded site) and the pieces were then placed <b>inside</b> the companions,
+	/// which <b>sank into the floor</b> - the vanilla rule exists for a reason. The placing companion is the caller's
+	/// <paramref name="ignore"/>; every other body blocks the spot and the piece waits in the retry queue until it moves
+	/// (<c>blocked_by_player</c> is a real refusal, so it spends one of the three attempts - or one of the short ones of
+	/// the storey barrier, which spend none).</para>
+	/// </summary>
+	private static bool BlockedByCharacter(Piece piece, Vector3 point, Quaternion rot, Component ignore, out Component blocker)
 	{
-		float sqr = MinSpacing * MinSpacing;
+		blocker = null;
+		// the piece as a box AT THE POSE: its pivot decides where its centre lands (a roof's bounds sit 1,5 m above its
+		// origin) and the pose turns both the centre and the box's axes
+		bool known = BodyBox(piece, out Bounds box);
+		Vector3 center = point;
+		float halfX = 0f;
+		float halfZ = 0f;
+		float pieceBottom = point.y;
+		float pieceTop = point.y;
+		if (known)
+		{
+			Vector3 localCenter = box.center - piece.transform.position;
+			center = point + rot * localCenter;
+			halfX = box.extents.x;
+			halfZ = box.extents.z;
+			float halfY = BuildBody.HalfY(halfX, box.extents.y, halfZ, (rot * Vector3.right).y, (rot * Vector3.up).y,
+				(rot * Vector3.forward).y);
+			pieceBottom = center.y - halfY;
+			pieceTop = center.y + halfY;
+		}
+		Quaternion inverse = Quaternion.Inverse(rot);
 		foreach (Player player in Player.GetAllPlayers())
 		{
-			if (player != null && !ReferenceEquals(player, ignore) && (player.transform.position - point).sqrMagnitude < sqr)
+			if (player == null || ReferenceEquals(player, ignore))
 			{
+				continue;
+			}
+			if (!CapsuleOf(player, out Vector3 axis, out float bottom, out float top, out float radius))
+			{
+				continue;
+			}
+			Vector3 local = inverse * (axis - center);
+			if (BuildBody.Blocks(local.x, local.z, halfX, halfZ, pieceBottom, pieceTop, bottom, top, radius))
+			{
+				blocker = player;
 				return true;
 			}
 		}
+		// 05/11/2026 (o jogador, com print: "piso sobre o amiguinho e travou ele debaixo"): o laço dos companheiros VOLTOU.
+		// Ele tinha sido removido horas antes ("não deixando que se vejam") e o ganho de agilidade foi grande, mas o custo
+		// foi este: sem bloqueador, a peça nasce em cima de quem está no lugar e o corpo fica preso sob o piso (o incidente
+		// de 04/11 no §17.16, de novo). O que o corpo custa é PEQUENO e está medido: 6,2 s de `corpo` no `stone_cottage`
+		// contra 126,2 s de `dependência` - o gargalo era a espera por apoio, não o corpo. Com o bloqueio de volta, a peça
+		// recusa, o colega sai da frente (StepAside) ou ela volta para a fila - e **ninguém é enterrado**.
 		foreach (CompanionSetup setup in CompanionSetup.AllCompanions)
 		{
-			if (setup != null && !ReferenceEquals(setup, ignore) && (setup.transform.position - point).sqrMagnitude < sqr)
+			if (setup == null || ReferenceEquals(setup, ignore))
 			{
+				continue;
+			}
+			// the companion's body is the Character of the same GameObject (CompanionSetup is the mod's side of it)
+			Character character = setup.GetComponent<Character>();
+			if (character == null || !CapsuleOf(character, out Vector3 axis, out float bottom, out float top, out float radius))
+			{
+				continue;
+			}
+			Vector3 local = inverse * (axis - center);
+			if (BuildBody.Blocks(local.x, local.z, halfX, halfZ, pieceBottom, pieceTop, bottom, top, radius))
+			{
+				blocker = setup;
 				return true;
 			}
 		}
 		return false;
 	}
+
+	/// <summary>
+	/// 04/11/2026 (the Run 10): <b>who</b> is standing on a pose of the plan - the same test
+	/// <see cref="CheckPoint"/> runs, answered with the body instead of a reason name. The build order uses it to say
+	/// which companion is on the piece (and to ask that one to step aside). <paramref name="ignore"/> is the companion
+	/// placing the piece.
+	/// </summary>
+	internal static bool BlockerAt(Piece piece, Vector3 point, Quaternion rot, Component ignore, out Component blocker)
+	{
+		return BlockedByCharacter(piece, point, rot, ignore, out blocker);
+	}
+
+	/// <summary>
+	/// 04/11/2026 (Run 10): the character's <b>capsule</b> as the window needs it - the point on its axis (the collider's
+	/// centre in world space), the AABB's bottom and top (the capsule's real ends, so a crouched or a short body is not
+	/// guessed) and the radius (the wider side of the AABB). The vanilla body has no collider only when a prefab turns it
+	/// off: then the fallback is the 1,8 m / 0,3 m body and the log says it once (never per frame). Also used by the build
+	/// order to name the body that refused a piece (<c>MHR_Build.BlockedByBody</c>).
+	/// </summary>
+	internal static bool CapsuleOf(Character character, out Vector3 axis, out float bottom, out float top, out float radius)
+	{
+		axis = Vector3.zero;
+		bottom = 0f;
+		top = 0f;
+		radius = FallbackBodyRadius;
+		if (character == null)
+		{
+			return false;
+		}
+		CapsuleCollider capsule = character.GetCollider();
+		if (capsule != null)
+		{
+			Bounds bounds = capsule.bounds;
+			axis = capsule.transform.TransformPoint(capsule.center);
+			bottom = bounds.min.y;
+			top = bounds.max.y;
+			radius = Mathf.Max(bounds.extents.x, bounds.extents.z);
+			return true;
+		}
+		Vector3 feet = character.transform.position;
+		axis = feet;
+		bottom = feet.y;
+		top = feet.y + FallbackBodyHeight;
+		if (!_fallbackBodyLogged)
+		{
+			_fallbackBodyLogged = true;
+			if (CompanionsPlugin.LogDetailed)
+			{
+				CompanionsPlugin.Log?.LogDebug("[Build] \"" + character.m_name + "\" sem cápsula de collider - usando o corpo padrão ("
+					+ FallbackBodyHeight.ToString("F1") + " m, r " + FallbackBodyRadius.ToString("F2") + ") no teste do corpo");
+			}
+		}
+		return true;
+	}
+
+	/// <summary>
+	/// The piece's box, memoised for a search: <see cref="BuildSite.Find"/> asks the same prefab's body window once per
+	/// candidate pose (up to 148), and <see cref="BoxOf"/> walks every renderer of the prefab (it allocates). Prefabs do not
+	/// change, so one entry is enough. False when the prefab has no readable box (an exotic piece) - the caller then tests
+	/// its <b>point</b> (no flat width, no vertical span), never a refusal out of a missing measurement.
+	/// </summary>
+	private static bool BodyBox(Piece piece, out Bounds box)
+	{
+		if (!_bodyBoxCached || !ReferenceEquals(_bodyPiece, piece))
+		{
+			_bodyPiece = piece;
+			_bodyBoxCached = true;
+			_bodyBoxOk = BoxOf(piece, out _bodyBox);
+		}
+		box = _bodyBox;
+		return _bodyBoxOk;
+	}
+
+	private static Piece _bodyPiece;
+	private static Bounds _bodyBox;
+	private static bool _bodyBoxOk;
+	private static bool _bodyBoxCached;
+	/// <summary>04/11/2026: the fallback body was already said out loud (a missing capsule is not news per pose).</summary>
+	private static bool _fallbackBodyLogged;
 
 	/// <summary>
 	/// Tests a ring of candidate spots around a centre: <paramref name="rings"/> distances out to

@@ -1,0 +1,76 @@
+[
+ {
+  "data": "2026-11-07",
+  "dll": "5c0447e (MaxWorkers = 3) + edc6d04/50b1cb3/08611c9",
+  "blueprint": "hs_meadows_madzobuild_modernstarterhouse.blueprint",
+  "ordem": "sem nome (o teto MaxWorkers decidiu quem entra)",
+  "workers_que_entraram": 3,
+  "maxworkers_cfg": 3,
+  "decklift": 0,
+  "placeReach": 15,
+  "blueprintFree": true,
+  "levelGround": false,
+  "duracao_s": 165.0,
+  "colocadas_done": 610,
+  "placed_direct": 623,
+  "plano": 612,
+  "resultado": "fechou 612/612 (hc_ai_blueprint_done no lider)",
+  "fits_false_amostras": 49,
+  "amostras": 924,
+  "fits_false_janela_s": [
+   36.5,
+   68.1
+  ],
+  "fits_false_quem": "companheiro #2, sob o piso que outro estava construindo; terminou fora (y 37,90) com fits=true",
+  "bloqueios_total": 328,
+  "bloqueios_de_companheiro": 323,
+  "bloqueios_do_jogador": 5,
+  "por_worker": {
+   "C2": {
+    "dispersao_adiada": 1,
+    "step_aside": 3,
+    "espera_s": 50.6,
+    "barreira_s": 27.0,
+    "retencoes": 14,
+    "corpo_s": 4.9,
+    "dependencia_s": 22.1,
+    "fila_s": 0.0
+   },
+   "C4": {
+    "dispersao_adiada": 1,
+    "step_aside": 5,
+    "espera_s": 49.7,
+    "barreira_s": 32.2,
+    "retencoes": 18,
+    "corpo_s": 0.0,
+    "dependencia_s": 32.2,
+    "fila_s": 0.1
+   },
+   "C3": {
+    "dispersao_adiada": 1,
+    "step_aside": 2,
+    "espera_s": 33.1,
+    "barreira_s": 13.0,
+    "retencoes": 10,
+    "corpo_s": 2.6,
+    "dependencia_s": 10.4,
+    "fila_s": 0.1
+   }
+  },
+  "parado_por_worker_pct": [
+   37,
+   53,
+   63
+  ],
+  "caminhado_m": [
+   234,
+   201,
+   129
+  ],
+  "travada_nao_voltou": 30,
+  "verification_failed": 13,
+  "un_supported": 0,
+  "sem_progresso": 0,
+  "nota": "Com 3 workers na MESMA obra a disputa e entre COMPANHEIROS (323 de 328 bloqueios). O 'sem lugar livre para ele sair da frente' aparece quando o corpo na peca e de outro companheiro, e ai a peca vai para a fila."
+ }
+]

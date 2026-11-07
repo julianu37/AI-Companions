@@ -28,6 +28,9 @@
 #       item passa a valer sozinho quando o modo entrar)
 #   8. python tools/mcp-devbridge/test_mcp_devbridge.py                       0 FAIL
 #   9. dotnet run --project tools/ai-intents-check -c Release                 0 FAIL
+#  10. datas no futuro (REGRA 14): python tools/check_dates.py --quiet        exit 0
+#  11. trava do harness (regra 4): python tools/check_harness_additions.py --base main   exit 0 (sem Check( removida/alterada desde o main; HEAD se nao houver main)
+#  12. selftest da trava: python tools/check_harness_additions.py --selftest  0 FAIL
 #
 # Exit: 0 = release liberada, 1 = algum item falhou. As ultimas linhas do comando que falhou saem indentadas.
 # O que este gate NAO cobre (fica com o agente de docs/release): CHANGELOG, release notes, tag, staging e zip.
@@ -38,7 +41,7 @@ param(
 )
 
 $root = Split-Path -Parent $PSScriptRoot
-$total = 9
+$total = 12
 $script:index = 0
 $script:failures = New-Object System.Collections.Generic.List[string]
 $script:summary = New-Object System.Collections.Generic.List[object]
@@ -214,6 +217,46 @@ try {
     else { $intentsDetail = "$intentsDetail, sem a linha de resumo" }
     Report 'ai-intents-check: redes por palavras' $intentsOk $intentsDetail $intents.Lines
   }
+
+  # ------------------------------------------------------------------ 10. datas no futuro
+  # 05/11/2026 (REGRA 14): o agente escreveu uma data futura em 619 linhas de 48 arquivos. Este check fecha a
+  # classe: qualquer data dd/mm/aaaa ou aaaa-mm-dd posterior a HOJE (local, nunca UTC) em arquivo rastreado.
+  Write-Host ''
+  Write-Host '== 10. datas no futuro' -ForegroundColor Cyan
+  $dates = Invoke-Tool 'python' @('tools\check_dates.py', '--quiet')
+  $datesOk = ($dates.ExitCode -eq 0)
+  $datesDetail = "exit $($dates.ExitCode)"
+  $datesLine = ($dates.Lines | Where-Object { $_ -match '\[ok\]|\[!\]' } | Select-Object -First 1)
+  if ($datesLine) { $datesDetail = "$($datesLine.Trim()), $datesDetail" }
+  Report 'datas no futuro (REGRA 14)' $datesOk $datesDetail $dates.Lines
+
+  # ------------------------------------------------------------------ 11-12. trava do harness (regra 4)
+  # AGENTS.md regra 4: o harness so GANHA asserção. A comparacao e com o `main` (a ultima release): comparar com o HEAD
+  # so veria o que esta nao commitado, e um commit que remova asserção passaria o gate depois de commitado. Contra o main
+  # a trava garante que a branch NAO PERDEU nenhuma asserção desde a release. Sem --allow-removal aqui: a exceção e
+  # decisão explicita do arquiteto, nao do gate.
+  Write-Host ''
+  Write-Host '== 11-12. trava de asserções do harness (regra 4)' -ForegroundColor Cyan
+  $guardBase = 'main'
+  $guard = Invoke-Tool 'git' @('rev-parse', '--verify', 'main')
+  if ($guard.ExitCode -ne 0)
+  {
+    $guardBase = 'HEAD'
+    Write-Host '    (a branch main nao existe neste clone: comparando com HEAD)' -ForegroundColor Yellow
+  }
+  $harnessGuard = Invoke-Tool 'python' @('tools\check_harness_additions.py', '--base', $guardBase)
+  $guardLine = ($harnessGuard.Lines | Where-Object { $_ -match '\[ok\]|\[falha\]' } | Select-Object -First 1)
+  $guardDetail = "base $guardBase, exit $($harnessGuard.ExitCode)"
+  if ($guardLine) { $guardDetail = "$($guardLine.Trim()), $guardDetail" }
+  Report 'harness: nenhuma asserção Check( removida ou alterada desde o main (regra 4)' ($harnessGuard.ExitCode -eq 0) $guardDetail $harnessGuard.Lines
+
+  $guardSelf = Invoke-Tool 'python' @('tools\check_harness_additions.py', '--selftest')
+  $guardSelfSummary = Get-HarnessSummary $guardSelf.Lines
+  $guardSelfOk = ($guardSelf.ExitCode -eq 0) -and ($guardSelfSummary -ne '') -and ($guardSelfSummary -match '/ 0 FAIL$')
+  $guardSelfDetail = "exit $($guardSelf.ExitCode)"
+  if ($guardSelfSummary -ne '') { $guardSelfDetail = "$guardSelfSummary, $guardSelfDetail" }
+  else { $guardSelfDetail = "$guardSelfDetail, sem a linha de resumo" }
+  Report 'harness: selftest da trava (check_harness_additions.py)' $guardSelfOk $guardSelfDetail $guardSelf.Lines
 
   # ------------------------------------------------------------------ resumo
   Write-Host ''

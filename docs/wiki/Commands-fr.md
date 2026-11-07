@@ -168,6 +168,23 @@ signalé — et rien n'est ordonné —, mais une forme d'adresse continue à va
 | `flâne dans le coin` / `arrête de flâner` | Active/désactive le **flâner** |
 | `accepte les ordres` / `ignore les ordres` | Active/désactive **accepter les ordres** |
 
+### Construction
+
+Les ordres de construction suivent le même chemin : **une pièce** (un établi, un coffre, un lit…), une **structure
+prête** (une maison, la cabane, l'abri de l'établi, la tente), un fichier **`.blueprint`** par son **nom de fichier**
+(`construis la hs_meadows_hut ici`) et le terrain tout seul (`nivelle un terrain 10x10 ici`).
+
+> **Avec plusieurs compagnons (en test) :** l'ordre **sans nom** met **tous** les compagnons qui peuvent le prendre (et
+> qui sont assez près du chantier) sur le **même chantier** — un plan, chaque pièce faite **une fois**. Le **chef**
+> nivelle le terrain et déblaie le chantier pendant que les autres **attendent** ; s'il meurt, un autre prend la
+> relève. Avec le **nom**, seul celui-là construit. Un **`arrête`** sans nom abandonne le chantier de tout le groupe et
+> **`Sophia, arrête`** ne retire qu'elle (n'importe quel autre ordre pour elle fait pareil). **Un chantier par joueur**
+> à la fois.
+>
+> Les limites de cette première étape : les **matériaux sont comptés par compagnon** (ils peuvent récolter plus que le
+> plan n'en demande), le groupe vit **en mémoire** (il ne va pas dans la sauvegarde) et il est **blueprint seulement** —
+> une pièce seule ou une structure prête reste avec un seul compagnon.
+
 ### Conversation
 
 | Tu dis | Ce qu'il fait |

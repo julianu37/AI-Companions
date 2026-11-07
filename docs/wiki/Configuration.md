@@ -249,6 +249,64 @@ The companion's weight limit is **from the mod**, not from the game: vanilla doe
 
 ---
 
+## `[Building]` section — how the companion works the site
+
+The construction has a section of its own: the order itself (`Enabled`), the ground (`LevelGround`, `ClearSite`), the
+materials (`GatherForBuild`, `UseChests`) and how far the arm reaches when the piece goes up (`PlaceReach`).
+
+| Key | Default | What it does |
+|---|---|---|
+| `PlaceReach` | `10` | How far (meters) it may place a piece **once it is stuck**: it keeps walking to the piece as before, and only after **3 s without getting closer** does it place from farther away. `5` is the game's own reach (`Player.m_maxPlaceDistance`, from the eye) and `20` is for the impatient player (5–20) |
+| `DeckLift` | `1` | How much (meters) the **whole plan of a `.blueprint` rises**: the ground floor stands **above the ground on the poles, like a deck**, and the pole tips that would end up below the terrain settle on the ground. `0` keeps the file's own level (0–3) |
+| `Enabled` | `true` | Lets a companion build when you ask it |
+| `LevelGround` | `true` | Levels the ground before a structure when it is uneven (needs a hoe in the bag) |
+| `ClearSite` | `true` | Cuts the trees, stumps and logs inside the plan's footprint before the first piece — the wood pays the build |
+| `TempScaffold` | `false` | A temporary 2-wood stair when the piece is above the reach (blueprints, at most 4 per order) |
+| `SupportFallback` | `true` | A plan piece refused for **no support** and with **nothing of the plan under it** gets a **wooden post** planted under it (top at the piece's base, paid like any piece) and is retried - at most **24 per order**; `false` lets the piece wait and it stays out |
+| `GatherForBuild` | `true` | Missing material: it takes the gather of the shortfall and resumes the build by itself |
+| `UseChests` | `true` | Uses the chests before going out to gather (the bag always comes first) |
+| `MaxDistanceFromHome` | `40` | Refuses a build spot farther than this from the home (`0` = no limit) |
+| `BlueprintFree` | `false` | A blueprint without paying for the pieces (test/creative) |
+| `BlueprintMaxPieces` | `2000` | Refuses a blueprint with more pieces than this |
+
+> **Why `PlaceReach` ships at 10 m:** measured in the run of 03/11/2026, of the **97** `no progress` give-ups only
+> **3%** happened within **5 m** — **10 m** covers about **81%** of them. And it **walks first**: this distance only
+> comes in after **3 s** without getting closer, so a piece within arm's reach is still placed from up close. It is a
+> mod, it does not have to be realistic — whoever is impatient turns it up. It is read on **every use**: changing it in
+> the `F8` panel already applies to the order that is running, and with `5` the behaviour is exactly the old one.
+>
+> **Why `DeckLift` ships at 1 m and not the automatic lift:** a `.blueprint` is anchored by the **file's origin**, so its
+> foundations can sit below the floor level, and the plan used to be raised by its **lowest piece** — on the 985-piece
+> house the buried poles lifted it **2,00 m**, which looked wrong. The plan now rises by exactly this value and the pole
+> tips that would sink are set on the ground; `0` keeps the file's level.
+>
+> **Why `SupportFallback` exists:** the `.blueprint` of the author does not always carry the piece that holds others up
+> (his house leaned on something the file does not include). Measured on the **`CommHomeBasicBP`** (3 companions, the 1 m
+> deck): **16** pieces stayed **in columns** on the **east gable** and the **north-west corner** - floors and roofs at
+> 40,8/42,8/44,8/46,8 - refused with `no_support`, and there was nothing of the plan under them to pull. With the post
+> they go up (the house gets a few **extra posts** it did not draw).
+>
+> The whole list of the section (with `SiteSearchRadius`, `GatherRadius`, `LevelTolerance`, `RequireHammer` and
+> `Quiet`) is in the `F8` panel, and the generated `CONFIGURATION.md` of the package carries every key.
+
+---
+
+## `[Movement]` section — the route while a house goes up
+
+The companion walks on its **own map of the world** (`[Movement] Pathing`), and that map does not know that a piece
+was just placed or taken down: the game rebuilt a tile at most every **5 s**. On a building site that is the
+difference between the new floor being on the route right now and the companion walking into the hole it covers.
+
+| Key | Default | What it does |
+|---|---|---|
+| `PathingOnBuild` | `true` | The companion's route sees a piece as soon as it is placed (the navmesh tile is rebuilt instead of waiting up to 5 s). The rebuilds are **coalesced** (0,35 s) and only touch tiles that already exist, and the same covers a piece that goes **away** — the build's temporary stair and the `build.delete` cleanup. Off = the game's own delay Needs `[Movement] Pathing` on. |
+
+> The mover also gets about **6 s of patience** when the route comes back `Partial` and the target is **above** it (the
+> game snaps a route to the map up to 12 m away) instead of giving up at once — the piece of the storey above is
+> reached as the floor under it goes in.
+
+---
+
 ## What **we** changed compared to the upstream
 
 Besides the translation and the AI layer, the project adjusted a few upstream defaults. If you came from Offline

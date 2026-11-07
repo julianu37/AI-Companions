@@ -15,7 +15,19 @@
     },
     "offline-companions": {
       "repository": "MaddhattrRocks/Offline-Companions-Reborn",
-      "description": "Mod companheiro (MIT, uso livre) para Valheim 1.0: IA de movimento/combate, jobs de coleta/farm/fish/hunt/cook/smelt/repair, UI (menu radial, painéis, HUD), patches. Consulte para ideias e implementação — ver docs/references.md."
+      "description": "Mod companheiro (MIT, uso livre) para Valheim 1.0: IA de movimento/combate, jobs de coleta/farm/fish/hunt/cook/smelt/repair, UI (menu radial, painéis, HUD), patches. Consulte para ideias e implementação - ver docs/references.md."
+    },
+    "mod-buildorders": {
+      "repository": "HardHeadHackerHead/valheim-mods",
+      "description": "BuildOrders (MIT) + AICompanion (Quad's Companion): construção por plano com NPC. Referência para ordem de construção, dependência explícita de apoio e portão de estação por peça. Ver docs/re/mods/HardHeadHackerHead-valheim-mods-BuildOrders.md."
+    },
+    "mod-planbuild": {
+      "repository": "sirskunkalot/PlanBuild",
+      "description": "PlanBuild (WTFPL, JOTUNN-ONLY): o formato .blueprint que lemos e a execução por fantasma que é WearNTear (apoio = veredito do jogo). Ideia, não código - ver docs/re/mods/sirskunkalot-PlanBuild.md."
+    },
+    "mod-serverside": {
+      "repository": "Sergentval/Valheim-serverside",
+      "description": "Receita de posse de ZDO em servidor dedicado (MIT, alpha): m_sessionID por reflexão + SetOwner(serverUid) + DataRevision++. Referência para a pendência (5) - ver docs/re/mods/Sergentval-Valheim-serverside.md."
     }
   },
   "mcp": {

@@ -128,6 +128,7 @@ SECTION_LABELS = {
     "speech": "falas (Speech)",
     "tts": "modelo de voz (tts\\kokoro)",
     "whisper": "modelo de STT (whisper)",
+    "blueprints": "planos do jogador (blueprints)",
 }
 SECTION_ORDER = tuple(SECTION_LABELS)
 
@@ -298,6 +299,18 @@ def plan_stage(from_dir, to_dir, package_dir, include_models):
             if path.name.casefold() != DEFAULT_WHISPER_MODEL.casefold():
                 notes.append("whisper\\%s entra no pacote mas nao e o modelo padrao (%s)"
                              % (path.name, DEFAULT_WHISPER_MODEL))
+
+    # 04/11/2026: a biblioteca de planos do jogador mudou de BepInEx\config\AI-Companions\blueprints para
+    # <pasta do plugin>\blueprints (conteudo, como Translations\ e Speech\). E opcional: so entra quando a pasta
+    # existe e tem pelo menos um .blueprint - o mod cria a pasta no primeiro uso e zip nao precisa de pasta vazia.
+    plans = from_dir / "blueprints"
+    if plans.is_dir():
+        for path in sorted(plans.glob("*.blueprint")):
+            add(path, PLUGIN_SUBDIR / "blueprints" / path.name, "blueprints")
+        extra_plans = sorted(p.name for p in plans.iterdir()
+                             if p.is_file() and p.suffix.casefold() != ".blueprint")
+        if extra_plans:
+            notes.append("arquivo solto em blueprints\\ (nao entra): " + ", ".join(extra_plans))
 
     # drift: o que existe na origem e NAO entra (visibilidade, nao bloqueia)
     extra_root = sorted(set(dlls_in(from_dir)) - set(MANAGED_DLLS))

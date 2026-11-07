@@ -45,6 +45,9 @@ def normalize(text):
 ES_UI = {
     'Construcao': 'Construccion',
     'Escada provisoria': 'Escalera provisional',
+    'Alcance de colocacao': 'Alcance de colocación',
+    'Elevacao da obra': 'Elevación de la obra',
+    'Apoio de emergencia': 'Apoyo de emergencia',
     'DevBridge (ferramenta de desenvolvimento)': 'DevBridge (herramienta de desarrollo)',
     'Porta do DevBridge': 'Puerto del DevBridge',
     'Token do DevBridge': 'Token del DevBridge',
@@ -1025,6 +1028,9 @@ ES_UI = {
 FR_UI = {
     'Construcao': 'Construction',
     'Escada provisoria': 'Escalier provisoire',
+    'Alcance de colocacao': 'Portée de pose',
+    'Elevacao da obra': "Élévation de l'ouvrage",
+    'Apoio de emergencia': "Appui d'urgence",
     'DevBridge (ferramenta de desenvolvimento)': 'DevBridge (outil de développement)',
     'Porta do DevBridge': 'Port du DevBridge',
     'Token do DevBridge': 'Jeton du DevBridge',
@@ -2542,6 +2548,9 @@ FR_SPEECH = {
 IT_UI = {
     'Construcao': 'Costruzione',
     'Escada provisoria': 'Scala provvisoria',
+    'Alcance de colocacao': 'Portata di posa',
+    'Elevacao da obra': "Elevazione dell'opera",
+    'Apoio de emergencia': "Supporto d'emergenza",
     'DevBridge (ferramenta de desenvolvimento)': 'DevBridge (strumento di sviluppo)',
     'Porta do DevBridge': 'Porta del DevBridge',
     'Token do DevBridge': 'Token del DevBridge',

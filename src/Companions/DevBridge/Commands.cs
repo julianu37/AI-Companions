@@ -101,6 +101,11 @@ internal static class Commands
 		case "build.snaps": return BuildSnaps(args);
 		case "build.usable": return BuildUsable(args);
 		case "build.hoe": return BuildHoe();
+		case "blueprints.list": return BlueprintsList(args);
+		case "blueprints.inspect": return BlueprintsInspect(args);
+		case "nav.tiles": return NavTiles(args);
+		case "nav.probe": return NavProbe(args);
+		case "nav.stats": return NavStats();
 		case "terrain.check": return TerrainCheck(args);
 		case "terrain.level": return TerrainLevel(args);
 		case "terrain.ops": return TerrainOps();
@@ -621,6 +626,174 @@ internal static class Commands
 	}
 
 	/// <summary>
+	/// E7 (player's request, 11/2026: "improve the MCP so it can see the blueprints"): the mod's <b>blueprint library</b>
+	/// as an order sees it - every <c>.blueprint</c> of the folder <c>MHR_Build.StartBlueprint</c> reads (the same
+	/// non-recursive listing of <c>BuildBlueprints.Files</c>), with the size, the line count and the write time of each
+	/// file. Read-only: it starts nothing, touches no world and writes no file (it works with no world loaded; the empty
+	/// library folder is the one the mod already creates on first use).
+	/// </summary>
+	private static string BlueprintsList(Dictionary<string, object> args)
+	{
+		string folder = BuildBlueprints.Folder();
+		List<object> entries = new List<object>();
+		foreach (string file in BuildBlueprints.Files())
+		{
+			try
+			{
+				FileInfo info = new FileInfo(file);
+				if (!info.Exists)
+				{
+					continue;
+				}
+				entries.Add(new Dictionary<string, object>
+				{
+					{ "file", info.Name },
+					{ "bytes", info.Length },
+					{ "lines", CountLines(file) },
+					{ "modified", info.LastWriteTime.ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture) }
+				});
+			}
+			catch (Exception e)
+			{
+				// one unreadable file must not hide the rest of the library
+				CompanionsPlugin.Log?.LogWarning("[DevBridge] blueprints.list: não consegui ler " + file + ": " + e.Message);
+			}
+		}
+		return Ok(new Dictionary<string, object>
+		{
+			{ "path", folder },
+			{ "count", entries.Count },
+			{ "blueprints", entries }
+		});
+	}
+
+	/// <summary>
+	/// E7: <b>one</b> blueprint read the way the order reads it - the same parser (<c>BuildBlueprintParser</c>, with the
+	/// <c>Ordered</c> pass that fills the level of every piece), the same prefab resolution (<c>BuildProbe.PieceOf</c>)
+	/// and the same skip rules (<see cref="BuildBlueprintSkip"/>) as <c>MHR_Build.StartBlueprint</c> - reported
+	/// <b>without starting anything</b>: how many pieces the plan would have, which lines are left out and why, the
+	/// prefabs, the stations the whole file needs, the file's own bounds, the levels the plan walks and the material
+	/// need of the whole plan (<c>materials</c>, the same costs <c>BuildStock</c> pays per piece).
+	/// <c>pieces</c> and <c>skipped</c> are the numbers the order's own log line carries. Read-only; it needs the world
+	/// only because the pieces are the game's own prefabs.
+	///
+	/// <para>The reading itself is <see cref="BuildBlueprintReport.Read"/>: the build panel shows the same numbers before
+	/// the order, and a second reader here would be a second set of rules.</para>
+	/// </summary>
+	private static string BlueprintsInspect(Dictionary<string, object> args)
+	{
+		string asked = (Json.Str(args, "file") ?? string.Empty).Trim();
+		if (asked.Length == 0)
+		{
+			return Fail("file is required (e.g. CommHomeBasicBP.blueprint)");
+		}
+		string file = BlueprintPath(asked);
+		if (!File.Exists(file))
+		{
+			return BlueprintsFault(asked, "no such file (folder: " + BuildBlueprints.Folder() + ")");
+		}
+		if (ZNetScene.instance == null)
+		{
+			// the pieces ARE the game's prefabs: without the world there is nothing to resolve them against
+			return Fail("the world isn't loaded (the pieces of the blueprint cannot be resolved)");
+		}
+		BuildBlueprintReport report;
+		string error;
+		if (!BuildBlueprintReport.Read(file, out report, out error))
+		{
+			return BlueprintsFault(asked, error);
+		}
+		Dictionary<string, object> bounds = null;
+		if (report.HasBounds)
+		{
+			bounds = new Dictionary<string, object>
+			{
+				{ "min", new Dictionary<string, object> { { "x", Round2(report.MinX) }, { "y", Round2(report.MinY) }, { "z", Round2(report.MinZ) } } },
+				{ "max", new Dictionary<string, object> { { "x", Round2(report.MaxX) }, { "y", Round2(report.MaxY) }, { "z", Round2(report.MaxZ) } } }
+			};
+		}
+		List<object> skippedReasons = new List<object>(report.SkippedReasons.Count);
+		foreach (BuildBlueprintReport.SkipReason reason in report.SkippedReasons)
+		{
+			skippedReasons.Add(new Dictionary<string, object>
+			{
+				{ "prefab", reason.Prefab },
+				{ "reason", reason.Reason },
+				{ "count", reason.Count }
+			});
+		}
+		return Ok(new Dictionary<string, object>
+		{
+			{ "file", report.File },
+			{ "path", file },
+			{ "name", report.Name },
+			{ "lines", report.Lines },
+			{ "pieceLines", report.PieceLines },
+			{ "brokenLines", report.Broken },
+			{ "pieces", report.Pieces },
+			{ "skipped", report.Skipped },
+			{ "skippedReasons", skippedReasons },
+			{ "prefabs", report.Prefabs },
+			{ "stations", report.Stations },
+			{ "bounds", bounds },
+			{ "storeys", report.Storeys },
+			{ "piecesNeedingStation", report.PiecesNeedingStation },
+			// the material need of the whole plan and how many of its prefabs answered no cost at all (the panel says
+			// "this house needs 1.400 wood" before the order; the order itself pays per piece, unchanged)
+			{ "materials", report.Materials },
+			{ "materialsSkipped", report.NoRecipe }
+		});
+	}
+
+	/// <summary>
+	/// The file a <c>blueprints.inspect</c> argument names: a full path is taken as it is (the <c>companions.build</c>
+	/// blueprint argument accepts one too), anything else is looked up in the library folder and the extension may be
+	/// left out.
+	/// </summary>
+	private static string BlueprintPath(string asked)
+	{
+		if (Path.IsPathRooted(asked))
+		{
+			return asked;
+		}
+		string direct = Path.Combine(BuildBlueprints.Folder(), asked);
+		if (!File.Exists(direct) && Path.GetExtension(asked).Length == 0)
+		{
+			return direct + BuildBlueprints.Extension;
+		}
+		return direct;
+	}
+
+	/// <summary>The lines of a text file, counted while streaming it (the file is never held in memory for the count).</summary>
+	private static int CountLines(string file)
+	{
+		int count = 0;
+		using (StreamReader reader = new StreamReader(file, Encoding.UTF8, true))
+		{
+			while (reader.ReadLine() != null)
+			{
+				count++;
+			}
+		}
+		return count;
+	}
+
+	private static float Round2(float value)
+	{
+		return (float)Math.Round(value, 2);
+	}
+
+	/// <summary>
+	/// A failed <c>blueprints.*</c> command: the reply names the file and the reason (what the MCP shows) and the log
+	/// gets the same in PT-BR (what the next session reads).
+	/// </summary>
+	private static string BlueprintsFault(string file, string reason)
+	{
+		CompanionsPlugin.Log?.LogWarning("[DevBridge] blueprints: '" + file + "': " + reason);
+		return Fail("'" + file + "': " + reason);
+	}
+
+	/// <summary>
 	/// Trilha E (E10): how uneven is the ground over a square area? The same sampling the build order does before it
 	/// decides to level (<see cref="BuildTerrain.FlatEnough"/>), with the median height it would level to.
 	/// </summary>
@@ -818,6 +991,11 @@ internal static class Commands
 			{
 				continue;
 			}
+			// P2 (multi-build): ZNetScene.Destroy skips WearNTear.Destroy, so the companions' route map has to be told
+			// here - a wiped test area that stays on the map is a wall they cannot walk through. Read the position
+			// before the destroy (Destroy is deferred today, but do not rely on it).
+			Vector3 lastAt = piece.transform.position;
+			MHR_CompanionNavMesh.InvalidateAround(lastAt);
 			ZNetScene.instance.Destroy(piece.gameObject);
 			pieces++;
 		}
@@ -841,6 +1019,59 @@ internal static class Commands
 			{ "radius", radius },
 			{ "center", new Dictionary<string, object> { { "x", center.x }, { "y", center.y }, { "z", center.z } } }
 		});
+	}
+
+	/// <summary>
+	/// P2 (multi-build): the tiles of the companions' route map (agent 40) inside a radius, as the game's own dictionary
+	/// really has them - read-only, it never creates a tile (<c>docs/re/navmesh-tiles.md</c>). Without <c>x</c>/<c>y</c>/
+	/// <c>z</c> the centre is the player's position, the same pattern as <c>build.pieces</c>/<c>build.sites</c>.
+	/// </summary>
+	private static string NavTiles(Dictionary<string, object> args)
+	{
+		Player player = Player.m_localPlayer;
+		Vector3 center = player != null ? player.transform.position : Vector3.zero;
+		center = new Vector3(Json.Float(args, "x", center.x), Json.Float(args, "y", center.y), Json.Float(args, "z", center.z));
+		float radius = Mathf.Clamp(Json.Float(args, "radius", 40f), 1f, 120f);
+		List<Dictionary<string, object>> tiles = MHR_CompanionNavMesh.TilesAround(center, radius);
+		return Ok(new Dictionary<string, object>
+		{
+			{ "center", new Dictionary<string, object> { { "x", center.x }, { "y", center.y }, { "z", center.z } } },
+			{ "radius", radius },
+			{ "count", tiles.Count },
+			{ "tiles", tiles }
+		});
+	}
+
+	/// <summary>
+	/// P2 (multi-build): the route map's own answer for a point, with the companions' agent and area mask (the same
+	/// filter a route uses). <c>found: false</c> and no <c>point</c> = the map does not cover that spot - which is what
+	/// sends a route to the ground under a new floor.
+	/// </summary>
+	private static string NavProbe(Dictionary<string, object> args)
+	{
+		Player player = Player.m_localPlayer;
+		Vector3 point = player != null ? player.transform.position : Vector3.zero;
+		point = new Vector3(Json.Float(args, "x", point.x), Json.Float(args, "y", point.y), Json.Float(args, "z", point.z));
+		float range = Mathf.Clamp(Json.Float(args, "range", 3f), 0.5f, 50f);
+		bool found = MHR_CompanionNavMesh.Probe(point, range, out Vector3 hit, out float distance);
+		Dictionary<string, object> data = new Dictionary<string, object>
+		{
+			{ "found", found },
+			{ "distance", found ? distance : -1f }
+		};
+		if (found)
+		{
+			data["point"] = new Dictionary<string, object> { { "x", hit.x }, { "y", hit.y }, { "z", hit.z } };
+		}
+		return Ok(data);
+	}
+
+	/// <summary>P2 (multi-build): the counters of this world - tiles marked (<c>pokes</c>), companion tiles rebuilt
+	/// (<c>rebuilds</c>) and the worst collection time of one of them in milliseconds (<c>maxCollectMs</c>). Take it
+	/// before and after a walk to see whether the map is being rebuilt too often.</summary>
+	private static string NavStats()
+	{
+		return Ok(MHR_CompanionNavMesh.Stats());
 	}
 
 	private static string BuildFind(Dictionary<string, object> args)
@@ -1045,7 +1276,12 @@ internal static class Commands
 		}
 		if (blueprint != null)
 		{
-			CompanionSetup who = null;
+			// P1 (multi-build, frente B): a blueprint is started as ONE group. A named companion is the group on its
+			// own; with no name every companion of the player joins (the "everybody" of a chat order with no name),
+			// and the single call hands out the pieces (MHR_Build.StartBlueprintGroup) - never one start per companion.
+			// A4 of the review: only OUR companions - a nameless build must not pull another player's companion into
+			// the site (the same hole CompanionOrders.BlueprintWorkers fixed for the chat order).
+			List<CompanionSetup> workers = new List<CompanionSetup>();
 			string whoName = (Json.Str(args, "name") ?? string.Empty).Trim();
 			foreach (CompanionSetup setup in CompanionSetup.AllCompanions)
 			{
@@ -1055,20 +1291,28 @@ internal static class Commands
 				}
 				if (whoName.Length == 0)
 				{
-					who = who ?? setup;
+					if (MHR_Owner.IsMine(setup))
+					{
+						// 07/11/2026: the same ceiling the chat order uses ([Building] MaxWorkers, default 3)
+						if (workers.Count < CompanionOrders.MaxWorkers())
+						{
+							workers.Add(setup);
+						}
+					}
 					continue;
 				}
 				ZNetView nv = setup.GetComponent<ZNetView>();
 				ZDO zdo = nv != null ? nv.GetZDO() : null;
 				if (zdo != null && string.Equals(zdo.GetString(CompanionSetup.NameHash, string.Empty), whoName, StringComparison.OrdinalIgnoreCase))
 				{
-					who = setup;
+					workers.Add(setup);
 					break;
 				}
 			}
-			if (who == null)
+			if (workers.Count == 0 && whoName.Length > 0)
 			{
-				return Fail(whoName.Length > 0 ? "no companion named '" + whoName + "'" : "no companion in the world");
+				// a bad argument (a name nobody has), not an empty group: still an error, as before
+				return Fail("no companion named '" + whoName + "'");
 			}
 			Vector3 spot;
 			if (args.ContainsKey("x") || args.ContainsKey("z"))
@@ -1079,21 +1323,47 @@ internal static class Commands
 			{
 				spot = player.transform.position + player.transform.forward * 4f;
 			}
-			string missing;
-			string missingStation;
-			MHR_Build.BlueprintStart start = MHR_Build.StartBlueprint(who, blueprint, spot, out missing, out missingStation);
-			bool built = start == MHR_Build.BlueprintStart.Started;
-			return Ok(new Dictionary<string, object>
+			// WHY nothing started, when nothing started: the reasons come in the order MHR_Build.StartBlueprintGroup
+			// refuses (empty list, a site of this player already running, then the leader's own out params), so a test
+			// reads the cause instead of a bare "started: false".
+			string missing = null;
+			string missingStation = null;
+			string refused = null;
+			int joined = 0;
+			if (workers.Count == 0)
+			{
+				refused = "no companion in range";
+			}
+			else if (MHR_BuildGroup.SiteBusy(MHR_Owner.CreatorId(workers[0])))
+			{
+				refused = "the site is busy";
+			}
+			else
+			{
+				joined = MHR_Build.StartBlueprintGroup(workers, blueprint, spot, out missing, out missingStation);
+				if (joined == 0)
+				{
+					refused = !string.IsNullOrEmpty(missingStation)
+						? "missing station: " + missingStation
+						: (!string.IsNullOrEmpty(missing) ? "missing piece: " + missing : "not started");
+				}
+			}
+			Dictionary<string, object> reply = new Dictionary<string, object>
 			{
 				{ "blueprint", blueprint.Label },
 				{ "file", System.IO.Path.GetFileName(blueprint.File) },
 				{ "pieces", blueprint.Pieces.Count },
-				{ "started", built },
-				{ "leveling", start == MHR_Build.BlueprintStart.Leveling },
+				{ "started", joined > 0 },
+				{ "workers", joined },
 				{ "missing", missing },
 				{ "missingStation", missingStation },
-				{ "name", who.name }
-			});
+				{ "name", workers.Count > 0 ? workers[0].GetComponent<ZNetView>()?.GetZDO()?.GetString(CompanionSetup.NameHash, workers[0].name) : null }
+			};
+			if (refused != null)
+			{
+				reply["refused"] = refused;
+			}
+			return Ok(reply);
 		}
 		CompanionSetup target = null;
 		string name = (Json.Str(args, "name") ?? string.Empty).Trim();
@@ -1154,6 +1424,8 @@ internal static class Commands
 		return Ok(new Dictionary<string, object>
 		{
 			{ "started", started },
+			// a template and a single piece are still a one-companion order (two workers would build the same piece twice)
+			{ "workers", 1 },
 			{ "prefab", template != null ? template.Name : prefab },
 			{ "plan", template != null ? template.Name : null },
 			{ "pieces", template != null ? template.Steps.Length : 1 },
@@ -1560,6 +1832,22 @@ internal static class Commands
 		if (inv == null)
 		{
 			return Fail("the companion has no inventory");
+		}
+		// 04/11/2026 (player: "limpa o inventario dele... antes de matar ele, pra ele nao pegar da lapide"): the
+		// build refuses an encumbered companion, and dismissing/killing it leaves the items in a tombstone that it
+		// picks up again. "action": "clear" deletes the stacks for good (no drop) - a test tool, like the rest.
+		string action = Json.Str(args, "action", "list");
+		if (action == "clear")
+		{
+			int clearedStacks = inv.NrOfItems();
+			inv.RemoveAll();
+			return Ok(new Dictionary<string, object>
+			{
+				{ "name", humanoid != null ? humanoid.m_name : setup.name },
+				{ "action", action },
+				{ "clearedStacks", clearedStacks },
+				{ "weightNow", inv.GetTotalWeight() }
+			});
 		}
 		List<object> stacks = new List<object>();
 		foreach (ItemDrop.ItemData data in inv.GetAllItems())
@@ -2067,6 +2355,14 @@ internal static class Commands
 			{ "stance", zdo != null ? zdo.GetInt(CompanionSetup.CombatStanceHash) : 0 },
 			{ "autoPickup", zdo != null && zdo.GetBool(CompanionSetup.AutoPickupHash, defaultValue: true) },
 			{ "recovering", zdo != null && zdo.GetBool(MHR_Recover.RecoveringHash) },
+			// 05/11/2026 (the order that closed 64/64 with the companion 0,88 m inside the terrain): the body under the
+			// terrain is what the closing line counts and what the mover's own rescue fires on - the test recipe that
+			// measures the acceptance needs to see it without a separate `terrain_check`
+			{ "buried", MHR_Mover.Buried(h) },
+			{ "depth", MHR_Mover.DepthUnderGround(h) },
+			// 05/11/2026: `buried` only compares the body to the TERRAIN - a body wedged between the stone floor and the
+			// wooden one read as fine while it was stuck. `fits` is the rule the mover itself uses.
+			{ "fits", MHR_Mover.Fits(h) },
 			{ "owner", zdo != null ? zdo.GetString(CompanionSetup.OwnerHash, "") : null }
 		};
 	}
@@ -2086,13 +2382,20 @@ internal static class Commands
 		{
 			return Fail("missing 'action'");
 		}
+		string a = action.ToLowerInvariant();
+		// P1 (04/11/2026, player's request: `companions.order` answered "unknown action: stop"): "para"/"stop"/"cancel" is
+		// the order the chat already knows - it drops the one-shot jobs (the build and the leveling, the two a test leaves
+		// running) and it is answered with what was actually running.
+		if (a == "stop" || a == "cancel" || a == "para")
+		{
+			return CompanionsStop(Json.Str(args, "name"));
+		}
 		CompanionSetup target = FindCompanion(Json.Str(args, "name"));
 		if (target == null)
 		{
 			string name = Json.Str(args, "name");
 			return Fail("no companion found" + (string.IsNullOrEmpty(name) ? "" : " named \"" + name + "\""));
 		}
-		string a = action.ToLowerInvariant();
 		if (a.StartsWith("stance_", StringComparison.Ordinal))
 		{
 			int stance = StanceOf(a);
@@ -2127,6 +2430,84 @@ internal static class Commands
 			{ "mode", mode },
 			{ "applied", applied }
 		});
+	}
+
+	/// <summary>
+	/// P1 (04/11/2026, player's request: "companions.order stop" answered <c>unknown action: stop</c>): the chat's stop order,
+	/// reachable from the bridge. A build order and a leveling are <b>one-shot</b> orders that survive everything else, so a
+	/// test that started one has no way to end it from the console - this drops them through the <b>same</b> cancellation the
+	/// chat order uses (<c>CompanionOrders.Run</c> → <see cref="MHR_Build.Cancel"/>/<see cref="MHR_Level.Cancel"/>), and it
+	/// answers which of them were running <b>before</b> the call (that is the honest "what did I just stop").
+	///
+	/// <para>An empty <c>name</c> stops <b>every</b> companion of the world and answers the list, which is what a "para"
+	/// without a name does in the chat (the wheel's "para" drops the whole build group).</para>
+	/// </summary>
+	private static string CompanionsStop(string name)
+	{
+		IReadOnlyList<CompanionSetup> all = CompanionSetup.AllCompanions;
+		if (string.IsNullOrEmpty(name))
+		{
+			List<object> stopped = new List<object>();
+			bool anyBuild = false;
+			bool anyLevel = false;
+			if (all != null)
+			{
+				for (int i = 0; i < all.Count; i++)
+				{
+					CompanionSetup cs = all[i];
+					if (cs == null)
+					{
+						continue;
+					}
+					Dictionary<string, object> one = StopOne(cs);
+					stopped.Add(one);
+					anyBuild = anyBuild || (bool)one["build"];
+					anyLevel = anyLevel || (bool)one["level"];
+				}
+			}
+			return Ok(new Dictionary<string, object>
+			{
+				{ "action", "stop" },
+				// 04/11/2026 (review R19): `stopped.Count > 0` meant "there is a companion", not "something was cancelled".
+				{ "cancelled", anyBuild || anyLevel },
+				{ "build", anyBuild },
+				{ "level", anyLevel },
+				{ "companions", stopped }
+			});
+		}
+		CompanionSetup target = FindCompanion(name);
+		if (target == null)
+		{
+			return Fail("no companion found named \"" + name + "\"");
+		}
+		Dictionary<string, object> single = StopOne(target);
+		return Ok(new Dictionary<string, object>
+		{
+			{ "action", "stop" },
+			// 04/11/2026 (review R19): this used to be a hard `true` - the answer said "cancelled" even when there was
+			// nothing to cancel (build and level both false), which makes a test unable to tell the two apart.
+			{ "cancelled", (bool)single["build"] || (bool)single["level"] },
+			{ "name", single["name"] },
+			{ "build", single["build"] },
+			{ "level", single["level"] }
+		});
+	}
+
+	/// <summary>P1 (04/11/2026): stops the one-shot build/leveling of ONE companion and says what was running (read before the
+	/// cancel, so the answer is about the order that existed).</summary>
+	private static Dictionary<string, object> StopOne(CompanionSetup cs)
+	{
+		bool build = MHR_Build.Active(cs);
+		bool level = MHR_Level.Active(cs);
+		MHR_Build.Cancel(cs);
+		MHR_Level.Cancel(cs);
+		Humanoid h = cs.GetComponent<Humanoid>();
+		return new Dictionary<string, object>
+		{
+			{ "name", h != null ? h.m_name : cs.name },
+			{ "build", build },
+			{ "level", level }
+		};
 	}
 
 	private static string CompanionsTeleport(Dictionary<string, object> args)

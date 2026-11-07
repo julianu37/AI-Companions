@@ -711,8 +711,8 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   vazias, **placeholders divergentes**, valores **iguais ao PT** (só os legitimamente iguais passam: nome de voz,
   string só com placeholders/códigos e a lista documentada `IDENTICAL_OK` — palavra que o idioma escreve igual, token
   técnico, nome próprio) e **cara de inglês** (`EN_HINTS`, sem as palavras que o ES/FR também usam, como "panel"),
-  mais as falas (categorias/contagem/linhas iguais ao PT). O modo sem argumento continua idêntico, agora com **368
-  lacunas** (03/11/2026): **361** são as `hc_cfg_*`/`hc_cat_*` que só existem no JSON (por desenho) e **7** são
+  mais as falas (categorias/contagem/linhas iguais ao PT). O modo sem argumento continua idêntico, agora com **369
+  lacunas** (03/11/2026): **362** são as `hc_cfg_*`/`hc_cat_*` que só existem no JSON (por desenho) e **7** são
   literais em inglês em linhas de UI, dos quais 3 são o `why` que só vai para o log (`MHR_Build`) e 2 são pré-existentes
   (`KeyBindListener`/`PadBindListener`). Resultado: **ES 0, FR 0 e IT 0**.
 - **Correção do teste em francês da M3 (branch `feat/idiomas-auto`) — o contrato do LLM no idioma do jogador + a
@@ -828,12 +828,13 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   nome do mundo aparece por trás do centro transparente da roda — cosmético, visto nas capturas da 1.7.0); o
   **risco médio do roster com N companheiros**; a
   **posse do ZDO no spawn em multiplayer** (revisar quando houver teste em servidor dedicado); e o
-  **débito do `tools/gen_translations.py`** (medido em 03/11/2026): o mapa `ES_UI`/`FR_UI`/`IT_UI` está **44 chaves
+  **débito do `tools/gen_translations.py`** (medido em 03/11/2026): o mapa `ES_UI`/`FR_UI`/`IT_UI` está **45 chaves
   atrás** do PT — o bloco `hc_cfg_building_*` e as falas de construção/nivelamento (`hc_ai_build_*`, `hc_ai_level_*`)
   foram escritas à mão nos 4 JSONs e nunca entraram no gerador, então **`python tools/gen_translations.py --check`
-  sai 1 (44 chaves sem tradução por idioma)** e, sem `--check`, o script **não grava nada** (só escreve quando a lista
+  sai 1 (45 chaves sem tradução por idioma)** e, sem `--check`, o script **não grava nada** (só escreve quando a lista
   está vazia). Cada `hc_cfg_*`/fala nova escrita só nos JSONs **aumenta** esse número (as 5 `hc_cfg_building_*` de
-  03/11/2026 o levaram de 39 para 44). O `tools/release-check.ps1` **não roda esse script** (roda só o
+  03/11/2026 o levaram de 39 para 44; a `hc_cfg_movement_pathingonbuild`, da P2, de 44 para 45). O
+  `tools/release-check.ps1` **não roda esse script** (roda só o
   `audit_translations.py` dos 3 idiomas), por isso o gate de release passa com o gerador quebrado. Consertar =
   completar os mapas, não relaxar o `--check`.
   O **release/empacotamento da 1.9.2 e da 1.9.3 está fechado** (31/10/2026): tags `v1.9.2` (no merge `e9953e1`, **sem** o fix

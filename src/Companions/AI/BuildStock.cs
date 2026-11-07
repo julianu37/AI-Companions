@@ -127,12 +127,36 @@ internal static class BuildStock
 					continue;
 				}
 				MHR_Chests.Claim(chest);
-				chestBag.RemoveItem(name, take);
-				bag.AddItem(prefab, take);
-				left -= take;
-				moved += take;
-				CompanionsPlugin.Log?.LogInfo("[Build] stock: moved " + take + "x " + name + " from the chest \"" + chest.gameObject.name
-					+ "\" to the bag (" + Vector3.Distance(chest.transform.position, center).ToString("F0") + " m from the spot)");
+				// 04/11/2026 (review R14): `Inventory.AddItem(prefab, amount)` caps the call at ONE stack
+				// (`Min(amount, m_maxStackSize)`) and returns false when there is no slot - and the return was IGNORED
+				// while the chest had already lost the whole amount. Measured case of the 8x8 house: 123 wood, empty bag,
+				// chest with 200 -> 50 went in and 73 were DESTROYED, with the log saying "moved 123x". Now the bag is
+				// filled one item at a time, the chest only loses what actually went in, and the log says the rest stayed.
+				int added = 0;
+				for (int i = 0; i < take; i++)
+				{
+					if (!bag.AddItem(prefab, 1))
+					{
+						break;   // the bag is full (or out of slots): the rest stays in the chest
+					}
+					added++;
+				}
+				if (added > 0)
+				{
+					chestBag.RemoveItem(name, added);
+				}
+				left -= added;
+				moved += added;
+				if (added > 0)
+				{
+					CompanionsPlugin.Log?.LogInfo("[Build] stock: moved " + added + "x " + name + " from the chest \"" + chest.gameObject.name
+						+ "\" to the bag (" + Vector3.Distance(chest.transform.position, center).ToString("F0") + " m from the spot)");
+				}
+				if (added < take)
+				{
+					CompanionsPlugin.Log?.LogInfo("[Build] stock: the bag is full - " + (take - added) + "x " + name + " stay in the chest");
+					break;   // nowhere to put it: no point hoarding more
+				}
 			}
 		}
 		return moved;
@@ -164,7 +188,25 @@ internal static class BuildStock
 		{
 			return have;
 		}
-		AddFrom(have, bag);
+		return Available(new Inventory[] { bag }, center, who, useChests);
+	}
+
+	/// <summary>
+	/// The stock of a whole site (the build panel's "what do we already have"): every bag of the list counted
+	/// <b>once</b> and the usable chests around <paramref name="center"/> counted <b>once</b> - the same
+	/// <see cref="AddFrom"/> and the same <see cref="Chests"/> the piece path uses, so a group of companions shares the
+	/// site's stock instead of counting the same chest once per worker.
+	/// </summary>
+	internal static Dictionary<string, int> Available(IEnumerable<Inventory> bags, Vector3 center, Component who, bool useChests)
+	{
+		Dictionary<string, int> have = new Dictionary<string, int>();
+		if (bags != null)
+		{
+			foreach (Inventory bag in bags)
+			{
+				AddFrom(have, bag);
+			}
+		}
 		if (useChests)
 		{
 			foreach (Container chest in Chests(center, who))
@@ -278,6 +320,34 @@ internal static class BuildStock
 			}
 		}
 		return true;
+	}
+
+	/// <summary>
+	/// The costs of a <b>resolved</b> piece in the shape <see cref="BuildMaterials"/> counts (the shared item name and
+	/// how many a single piece takes): one line per <c>Piece.Requirement</c> that has an item - a null requirement
+	/// carries no name and is dropped here (like every other reader of <c>m_resources</c> in this file), while a
+	/// non-positive amount is left for the pure side to ignore. Null when the piece has no recipe at all.
+	/// </summary>
+	internal static IReadOnlyList<Cost> CostsOf(Piece piece)
+	{
+		if (piece == null || piece.m_resources == null || piece.m_resources.Length == 0)
+		{
+			return null;
+		}
+		List<Cost> costs = new List<Cost>(piece.m_resources.Length);
+		foreach (Piece.Requirement requirement in piece.m_resources)
+		{
+			if (requirement == null || requirement.m_resItem == null)
+			{
+				continue;
+			}
+			costs.Add(new Cost
+			{
+				Item = requirement.m_resItem.m_itemData.m_shared.m_name,
+				Amount = requirement.GetAmount(1)
+			});
+		}
+		return costs;
 	}
 
 	/// <summary>The usable chests around a point (the mod's rules, the same list the jobs use).</summary>

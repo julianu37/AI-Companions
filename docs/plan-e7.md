@@ -90,7 +90,9 @@ colocar um totem — o companheiro viraria "operador de totem". Fora.
 
 ### Como a **B** funcionaria (o desenho)
 
-1. **Pasta de builds:** `BepInEx/config/AI-Companions/blueprints/*.blueprint` (o mod cria a pasta; o LEIA-ME/wiki
+1. **Pasta de builds:** `BepInEx/plugins/AI-Companions/blueprints/*.blueprint` (era
+   `BepInEx/config/AI-Companions/blueprints` até 04/11/2026; o mod cria a pasta no primeiro uso e **copia** a antiga
+   uma vez, sem sobrescrever; o LEIA-ME/wiki
    ensina a baixar).
 2. **Ordem:** "construa a `<nome>` aqui" / `build <nome>` → o `BuildCatalog`-like resolve o nome do arquivo (sem
    acento, sem espaços); sem nome, ele lista as builds disponíveis na fala ("tenho 3: casa viking, celeiro, torre").

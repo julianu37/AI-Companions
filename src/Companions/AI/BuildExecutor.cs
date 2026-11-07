@@ -60,6 +60,20 @@ internal sealed class BuildResult
 /// </summary>
 internal static class BuildExecutor
 {
+	/// <summary>P1 (review A6, 03/11/2026): how close to the requested pose a piece must be to be <b>the</b> piece. It was
+	/// 1,5 m, and a blueprint's neighbour of the same prefab (a <c>wood_wall_half</c> 0,5 m away) answered for it.</summary>
+	internal const float PlacedRadius = 0.35f;
+
+	/// <summary>
+	/// 04/11/2026 (review R14): the buffer of <see cref="FindPlaced"/> - the pieces near the pose. Reused between calls so
+	/// a verification allocates nothing (the old scene-wide <c>FindObjectsByType</c> allocated an array of every piece).
+	/// Only touched on the main thread, from the build drive.
+	/// </summary>
+	private static readonly List<Piece> s_near = new List<Piece>(32);
+
+	/// <summary>P1 (review A6): how far the yaw of a candidate may be from the requested one (±degrees).</summary>
+	internal const float PlacedYaw = 25f;
+
 	/// <summary>
 	/// Places <paramref name="piece"/> at <paramref name="pos"/>/<paramref name="rot"/>. <paramref name="builder"/> is
 	/// the companion (or null, for a test): it decides the creator and whether the player route can be used.
@@ -112,8 +126,8 @@ internal static class BuildExecutor
 			result.Ok = true;
 			result.Piece = piece;
 			// PlacePiece returns void and instantiates inside; the verification (the caller's) is what proves it
-			// worked. We still look for the new object to hand it back: the closest piece of that prefab to the pose.
-			result.GameObject = FindPlaced(piece.gameObject.name, pos);
+			// worked. We still look for the new object to hand it back: the piece of that prefab at the pose.
+			result.GameObject = FindPlaced(piece.gameObject.name, pos, rot, true);
 		}
 		catch (Exception ex)
 		{
@@ -175,6 +189,17 @@ internal static class BuildExecutor
 		{
 			area.Setup(Game.instance.GetPlayerProfile().GetName());
 		}
+		// 04/11/2026 (review R14): the vanilla registers the station with the player when HE places it
+		// (`Player.PlacePiece`: `GetComponentInChildren<CraftingStation>()` -> `AddKnownStation`). We did not, so a
+		// workbench/stonecutter built by the companion never unlocked the recipe for the player - and the blueprint
+		// reader gates every line on `Player.IsRecipeKnown`, so the stone pieces of a downloaded plan stayed
+		// "recipe not unlocked" (the 2 `stone_floor_2x2` of the reference house, §17.18) with the stonecutter standing
+		// right there. It is the same gap that keeps third-party stone builds short of their plan.
+		CraftingStation station = go.GetComponentInChildren<CraftingStation>();
+		if (station != null && local != null)
+		{
+			local.AddKnownStation(station);
+		}
 		WearNTear wear = go.GetComponent<WearNTear>();
 		if (wear != null)
 		{
@@ -214,27 +239,53 @@ internal static class BuildExecutor
 		}
 		result.Ok = true;
 		result.GameObject = go;
+		// P2 (multi-build): the route map sees the piece at once. The OnPlaced hook above already covers it, and this is
+		// the deliberate redundancy: a floor the companions cannot route onto is the measured "no progress" of the build.
+		MHR_CompanionNavMesh.InvalidateAround(pos);
 		return result;
 	}
 
-	/// <summary>The closest object with that prefab name to the pose (route A gets no object back).</summary>
-	private static GameObject FindPlaced(string prefabName, Vector3 pos)
+	/// <summary>
+	/// The object with that prefab name <b>at</b> the pose (route A gets no object back).
+	///
+	/// <para>P1 (review A6, 03/11/2026): the radius is <see cref="PlacedRadius"/> (0,35 m) and, when the caller has an
+	/// orientation, the yaw must match within <see cref="PlacedYaw"/> - it used to be 1,5 m with no orientation at all, and
+	/// in a dense blueprint a neighbouring piece of the same prefab (a <c>wood_wall_half</c> 0,5 m away) answered for the
+	/// piece being asked, which made the order believe a piece was already up (and skip it).</para>
+	/// </summary>
+	private static GameObject FindPlaced(string prefabName, Vector3 pos, Quaternion rot, bool checkRotation)
 	{
 		GameObject best = null;
-		float bestDistance = 1.5f;
-		foreach (Piece candidate in UnityEngine.Object.FindObjectsByType<Piece>(FindObjectsSortMode.None))
+		float bestDistance = PlacedRadius;
+		float yaw = rot.eulerAngles.y;
+		// 04/11/2026 (review R14): the search used to be `FindObjectsByType<Piece>` - EVERY piece of the loaded scene,
+		// marshalled into a NEW ARRAY, once per verified piece (985 times in the reference house). The game keeps its own
+		// registry (`Piece.s_allPieces`) and `Piece.GetAllPiecesInRadius` walks it without allocating and already filters by
+		// the radius we care about (0,35 m). Same result, a fraction of the cost - it is the per-piece cost that shows in
+		// the `cpu`/`place` of the Finish line.
+		s_near.Clear();
+		Piece.GetAllPiecesInRadius(pos, PlacedRadius + 0.05f, s_near);
+		for (int i = 0; i < s_near.Count; i++)
 		{
+			Piece candidate = s_near[i];
 			if (candidate == null || candidate.gameObject.name != prefabName + "(Clone)")
 			{
 				continue;
 			}
-			float distance = Vector3.Distance(candidate.transform.position, pos);
-			if (distance <= bestDistance)
+			Vector3 at = candidate.transform.position;
+			float distance = Vector3.Distance(at, pos);
+			if (distance > bestDistance)
 			{
-				bestDistance = distance;
-				best = candidate.gameObject;
+				continue;
 			}
+			if (checkRotation && Mathf.Abs(Mathf.DeltaAngle(yaw, candidate.transform.eulerAngles.y)) > PlacedYaw)
+			{
+				continue;
+			}
+			bestDistance = distance;
+			best = candidate.gameObject;
 		}
+		s_near.Clear();
 		return best;
 	}
 
@@ -245,12 +296,26 @@ internal static class BuildExecutor
 	/// </summary>
 	internal static string VerifyAt(Piece prefab, Vector3 pos, long expectedCreator, out GameObject found, bool checkStation = true)
 	{
+		return VerifyAt(prefab, pos, Quaternion.identity, expectedCreator, out found, checkStation, false);
+	}
+
+	/// <summary>P1 (review A6, 03/11/2026): the same question <b>with the orientation</b> - a piece of the same prefab next
+	/// to this one must not answer for it (the station is not asked: the caller is asking "is it there", not "is it
+	/// registered").</summary>
+	internal static string VerifyAt(Piece prefab, Vector3 pos, Quaternion rot, long expectedCreator, out GameObject found)
+	{
+		return VerifyAt(prefab, pos, rot, expectedCreator, out found, false, true);
+	}
+
+	private static string VerifyAt(Piece prefab, Vector3 pos, Quaternion rot, long expectedCreator, out GameObject found,
+		bool checkStation, bool checkRotation)
+	{
 		found = null;
 		if (prefab == null)
 		{
 			return "no_piece";
 		}
-		found = FindPlaced(prefab.gameObject.name, pos);
+		found = FindPlaced(prefab.gameObject.name, pos, rot, checkRotation);
 		return Verify(found, prefab, expectedCreator, checkStation);
 	}
 

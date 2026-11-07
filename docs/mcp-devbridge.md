@@ -95,7 +95,10 @@ Uma conexão por chamada; **um JSON por linha**, nas duas direções.
 | `build.check` | `prefab`, `x`, `y`, `z`, `yaw?` | o **mesmo** veredito do `BuildSite.Check` numa pose **exata** (o `y` não é achatado no chão - é assim que se testa parede sobre piso e telhado sobre parede) |
 | `build.snaps` | `prefab` | `count`, `points[]` (`name`, `x`, `y`, `z`) - os `snappoint` do prefab (a origem dos deslocamentos dos templates da E6) |
 | `build.usable` | `x?`, `y?`, `z?` | `station`, `usable` (o `CraftingStation.CheckUsable` do jogo: a regra do **telhado**, 70% de cobertura), `cover`, `underRoof`, `x/y/z` da estação **mais próxima** |
-| `companions.build` | `prefab?`, `plan?`, `blueprint?`, `name?`, `x/y/z?` | `started`, `blueprint`, `pieces`, `missing`, `missingStation`, `name` |
+| `nav.tiles` | `x?`, `y?`, `z?`, `radius?` | `center{}`, `radius`, `count`, `tiles[]` (`id`, `center{}`, `poke`, `build`, `hasData`, `instanceValid`; só o agente 40, filtro em XZ) |
+| `nav.probe` | `x?`, `y?`, `z?`, `range?` | `found`, `distance`, `point{}` (o `NavMesh.SamplePosition` com o agente/máscara do companheiro) |
+| `nav.stats` | — | `ready`, `broken`, `pokes`, `rebuilds`, `maxCollectMs`, `dirty`, `agentTypeId`, `areaMask` |
+| `companions.build` | `prefab?`, `plan?`, `blueprint?`, `name?`, `x/y/z?` | `started`, `blueprint`, `pieces`, `workers`, `refused?`, `missing`, `missingStation`, `name` |
 | `companions.sethome` | `name?` | `name`, `x`, `y`, `z` |
 | `screenshot` | `path?` | `path` |
 | `render.view` | `x`, `z`, `y?`, `yaw?`, `pitch?`, `dist?`, `size?` | `path`, `size`, `bytes`, `target{}`, `camera{}` |
@@ -105,7 +108,7 @@ Uma conexão por chamada; **um JSON por linha**, nas duas direções.
 | `input.click` | `x`, `y` (pixels da tela do jogo) | `x`, `y`, `sent`, `focused` |
 | `companions.list` | — | `count`, `companions[]` |
 | `companions.spawn` | — | `spawned` |
-| `companions.order` | `action`, `name?` | `action`, `mode`/`stance`/`value`, `applied` |
+| `companions.order` | `action`, `name?` | `action`, `mode`/`stance`/`value`, `applied`; no `stop`/`cancel`/`para`: `cancelled`, `build`, `level` (+ `companions[]` sem `name`) |
 | `companions.teleport` | `name?`, `x?`, `y?`, `z?` | `name`, `x`, `y`, `z` |
 | `companions.give` | `item`, `amount`, `name?` | `item`, `amount`, `added` |
 | `companions.zdo` | `name?` | `name`, `keys{}`, `farmZones[]` |
@@ -121,16 +124,33 @@ Uma conexão por chamada; **um JSON por linha**, nas duas direções.
 `log_watch` não é comando do bridge: o servidor lê o `LogOutput.log` por cursor (devolve a **primeira** linha casada e
 o cursor logo depois dela).
 
+`companions.build` com `blueprint` (P1, 03/11/2026): **`name` vazio = todos** os companheiros do jogador entram no
+mesmo canteiro (só os **do jogador** - `MHR_Owner.IsMine`), um plano só, peças distintas; com `name`, só aquele (o
+caminho de 1 companheiro, idêntico ao de antes). `workers` é em quantos a ordem entrou e, quando não entrou ninguém,
+`refused` diz por quê: `no companion in range`, `the site is busy` (já existe uma obra deste jogador - diga `para`
+antes), `missing station: <nome>`, `missing piece: <prefab>` ou `not started` - **`refused` só aparece quando a ordem
+não entrou**; com `started: true` ele não vai no reply. `started: true` com `workers: N` também
+quando a ordem entrega o canteiro ao **nivelamento** primeiro (o `MHR_Level` leva os N e devolve todos depois): o
+reply **não** tem campo de nivelamento. `plan`/`prefab` continuam sendo ordem de **um** (`workers` = 1). O teste mock
+do adaptador (**107 PASS** em 04/11/2026 — **101** até então; **12** asserções para o contrato do grupo de obra em
+03/11/2026 e **6** para o `stop` em 04/11/2026) cobre exatamente isto:
+`workers`, `refused` só quando recusa, sem `leveling` e `name` vazio = todos.
+
 `companions.order` **cancela `MHR_Build` e `MHR_Level`** em qualquer ação aceita (ordem de um tiro, como no
 chat/roda) e aceita: `follow`, `wood`, `stone`, `ore`, `forage`, `smelt`, `hunt`, `farm`, `fish`, `repair`,
 `restock`, `cook`, `stay`, `stance_balanced`, `stance_passive`, `stance_ranged`, `stance_melee`, `autopickup_on`,
-`autopickup_off`.
+`autopickup_off` — mais a **ordem de parar** (04/11/2026): **`stop`**, **`cancel`** e **`para`**
+(`DevBridge/Commands.cs:2191`). Com o grupo de obra (P1), uma ação comum derruba a ordem daquele **companheiro** (o
+`name`, ou o primeiro) e o canteiro continua com os outros; o **`stop`** é a parada do **chat**: cancela obra **e**
+nivelamento e responde o que **estava** rodando, lido **antes** do cancel (`build`/`level`, e `cancelled`); **sem
+`name`**, para **todos** os companheiros do mundo e devolve a lista em `companions` (um objeto por companheiro, com
+`name`, `build` e `level`).
 
 `companions.zdo` devolve as chaves `HC_*`: `Name`, `Owner`, `CompanionId`, `ActionMode`, `CombatStance`, `AutoPickup`,
 `Wander`, `Follow`, `StayHome`, `HomeRadius`, `OrderCap`, `OrderCapMode`, `OrderCapItem`, `TombstoneId`, `Stamina`,
 `Recovering`, `RecoverStance`, `RecoverPickup`, `Voice`, `Gen`, `FarmZones` (`"<none>"` ou `"N chars"`).
 
-## Ferramentas MCP (57 em 03/11/2026)
+## Ferramentas MCP (60 em 03/11/2026)
 
 Genéricas: `devbridge_ping`, `game_status` (posição, hp/stamina, bioma, dia, **yaw** do player, **camYaw/pitch** da
 câmera e **god**), `game_console` (**roda um comando do console e devolve a saída**: liga os dev commands sozinho e,

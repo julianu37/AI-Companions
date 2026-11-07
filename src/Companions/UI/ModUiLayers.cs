@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace Companions;
 
@@ -66,6 +66,106 @@ internal static class ModUiLayers
 	/// AI panel, so it has to be above that panel - and above its dropdown overlay too, which is closed when it opens
 	/// (the editor is a window, and the overlay of the window behind it must not draw over it).</summary>
 	internal const int CompanionAppearancePanel = Base + 8;
+
+	/// <summary>04/11/2026: the build panel (<c>[Controls] BuildPanelKey</c>) - the site the companions are building.
+	/// It is the last window of the mod's band (1710), still below the game's modal popup at 1900: a site panel is a
+	/// window, not a dialog.</summary>
+	internal const int BuildPanel = Base + 9;
+
+	// ------------------------------------------------------------------ "is the player in a UI of ours?"
+
+	/// <summary>
+	/// Is the companion wheel on screen right now? It is tested apart from the windows because it is not one: it draws
+	/// over the panels (see <see cref="RadialMenu"/>) and its own camera/hud behaviour is not the game's radial, so the
+	/// callers that fake the game's radial mode leave it out.
+	/// </summary>
+	internal static bool WheelOpen
+	{
+		get
+		{
+			return CompanionRadialMenu.Instance != null && CompanionRadialMenu.Instance.IsVisible;
+		}
+	}
+
+	/// <summary>
+	/// Is any <b>window</b> of the mod open? This is the mod's single list of windows, and every caller that has to know
+	/// "the player is inside one of our panels" reads it from here instead of repeating the list: the panels refuse to
+	/// open over each other, <see cref="VoiceInput"/> refuses to record over one, and the game's input patches stop the
+	/// player's own keys. A new window of the mod is added <b>here</b>, once.
+	///
+	/// <para>Cheap on purpose: one null/reference test per panel, no allocation and no <c>GetComponent</c> - the direct
+	/// command key reads <see cref="AnyOpen"/> on every frame.</para>
+	/// </summary>
+	internal static bool AnyWindowOpen
+	{
+		get
+		{
+			if (CompanionInteractPanel.Instance != null && CompanionInteractPanel.Instance.IsVisible)
+			{
+				return true;
+			}
+			if (Companions.ConfigPanel.Instance != null && Companions.ConfigPanel.Instance.IsVisible)
+			{
+				return true;
+			}
+			if (CompanionAiPanel.Instance != null && CompanionAiPanel.Instance.IsVisible)
+			{
+				return true;
+			}
+			if (Companions.StarterCompanionPanel.Instance != null && Companions.StarterCompanionPanel.Instance.IsVisible)
+			{
+				return true;
+			}
+			if (Companions.HomeZonePanel.Instance != null && Companions.HomeZonePanel.Instance.IsVisible)
+			{
+				return true;
+			}
+			if (Companions.CompanionAppearancePanel.IsOpen)
+			{
+				return true;
+			}
+			if (CompanionBuildPanel.IsOpen)
+			{
+				return true;
+			}
+			// the shrine menu (recover/purchase) draws over the game's own modal popup
+			if (ShrinePanel.IsOpen)
+			{
+				return true;
+			}
+			return false;
+		}
+	}
+
+	/// <summary>
+	/// Is the player aiming a farm zone right now (the placer or its crop picker)? It counts as "in a UI" for the keys
+	/// that must not fire an order from inside one, but it is <b>not</b> a window: the cursor stays locked and the player
+	/// has to keep walking and looking around, so the input patches leave it out.
+	/// </summary>
+	internal static bool AimOverlayOpen
+	{
+		get
+		{
+			if (Companions.FarmZonePlacer.Instance != null && Companions.FarmZonePlacer.Instance.IsVisible)
+			{
+				return true;
+			}
+			return Companions.FarmZoneCropPicker.IsOpen;
+		}
+	}
+
+	/// <summary>
+	/// Is any UI of the mod on screen right now - a window, the wheel or an aiming overlay? The answer to "the player is
+	/// in a UI, not playing", which is what the direct command key (<c>[Controls] DirectTargetKey</c>) asks before firing
+	/// an order: a <b>Z</b> typed inside one of our panels must never send the companions anywhere.
+	/// </summary>
+	internal static bool AnyOpen
+	{
+		get
+		{
+			return WheelOpen || AnyWindowOpen || AimOverlayOpen;
+		}
+	}
 
 	/// <summary>upstream 1.5.6: one debug line with the sorting order of the scene canvases (called once per
 	/// panel). Our <see cref="ModUiAudit"/> does the same audit with more detail.</summary>

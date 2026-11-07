@@ -70,7 +70,18 @@ internal static class BuildSite
 	/// <summary>The full check with a character to ignore (E6: the companion placing the piece is not an obstacle).</summary>
 	internal static Dictionary<string, object> Check(Piece piece, Vector3 pos, Quaternion rot, Component ignore)
 	{
-		Dictionary<string, object> check = BuildProbe.CheckPoint(piece, pos, rot, ignore);
+		return Check(piece, pos, rot, ignore, true);
+	}
+
+	/// <summary>
+	/// The same check with the <b>station rule optional</b> (lote 1, 04/11/2026): a blueprint built with
+	/// <c>[Building] BlueprintStations</c> on has no workbench planned, so this is the flag that keeps the pose from being
+	/// refused with <c>needs_station</c>. Everything else (ground, water, ward, clipping, bodies) is unchanged and the
+	/// default keeps every other caller on the vanilla rule.
+	/// </summary>
+	internal static Dictionary<string, object> Check(Piece piece, Vector3 pos, Quaternion rot, Component ignore, bool requireStation)
+	{
+		Dictionary<string, object> check = BuildProbe.CheckPoint(piece, pos, rot, ignore, requireStation);
 		bool clips = false;
 		if (piece != null && piece.m_noClipping)
 		{
@@ -100,7 +111,7 @@ internal static class BuildSite
 	/// facing); pieces that may rotate get the four 90° yaws tried before the spot is abandoned, which is what a
 	/// player does when the bench does not fit. <paramref name="maxCandidates"/> bounds the work.
 	/// </summary>
-	internal static BuildSiteResult Find(Piece piece, Vector3 hint, Vector3 forward, float radius, int rings, int dirs, int maxCandidates = 48, Component ignore = null)
+	internal static BuildSiteResult Find(Piece piece, Vector3 hint, Vector3 forward, float radius, int rings, int dirs, int maxCandidates = 48, Component ignore = null, bool requireStation = true)
 	{
 		BuildSiteResult result = new BuildSiteResult { Pos = hint, Rot = LookRotation(forward), Distance = 0f };
 		if (piece == null)
@@ -132,14 +143,19 @@ internal static class BuildSite
 			{
 				break;
 			}
-			float y = ZoneSystem.instance != null ? ZoneSystem.instance.GetGroundHeight(candidate) : candidate.y;
+			// 04/11/2026 (review R13): the candidate used to be forced onto the terrain. `GetGroundHeight` sees ONLY the
+			// terrain layer, so an "adjusted pose" for a piece of the 2nd floor was moved to the GROUND - the measured
+			// "log ajustado" that put chests at 39,9 when the plan wanted 43,9. A pose already above the ground is the
+			// plan's own y and must stay there; only a pose at/below the ground snaps to it.
+			float ground = ZoneSystem.instance != null ? ZoneSystem.instance.GetGroundHeight(candidate) : candidate.y;
+			float y = candidate.y > ground + 0.1f ? candidate.y : ground;
 			Vector3 pos = new Vector3(candidate.x, y, candidate.z);
 			float[] yaws = piece.m_canRotate ? new float[] { 0f, 90f, 180f, 270f } : new float[] { 0f };
 			foreach (float yaw in yaws)
 			{
 				tried++;
 				Quaternion rot = baseRot * Quaternion.Euler(0f, yaw, 0f);
-				Dictionary<string, object> check = Check(piece, pos, rot, ignore);
+				Dictionary<string, object> check = Check(piece, pos, rot, ignore, requireStation);
 				result.Tried = tried;
 				result.Status = Convert.ToString(check["status"]);
 				result.Reasons = check["reasons"] as List<string> ?? new List<string>();

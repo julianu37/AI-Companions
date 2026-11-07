@@ -1473,39 +1473,11 @@ public class CompanionPanel
 		}
 	}
 
+	/// <summary>The invisible bar of a scroll area (04/11/2026: the one implementation lives in
+	/// <see cref="GameLook.CreateHiddenScrollbar"/> - the build panel needed the same widget).</summary>
 	private static Scrollbar CreateHiddenScrollbar(Transform parent)
 	{
-		float num = 10f;
-		GameObject gameObject = new GameObject("Scrollbar", typeof(RectTransform));
-		gameObject.transform.SetParent(parent, worldPositionStays: false);
-		RectTransform component = gameObject.GetComponent<RectTransform>();
-		component.anchorMin = new Vector2(1f, 0f);
-		component.anchorMax = new Vector2(1f, 1f);
-		component.pivot = new Vector2(1f, 0.5f);
-		component.sizeDelta = new Vector2(num, 0f);
-		component.offsetMin = new Vector2(0f - num, 4f);
-		component.offsetMax = new Vector2(-2f, -4f);
-		gameObject.AddComponent<Image>().color = Color.clear;
-		GameObject gameObject2 = new GameObject("Sliding Area", typeof(RectTransform));
-		gameObject2.transform.SetParent(gameObject.transform, worldPositionStays: false);
-		RectTransform component2 = gameObject2.GetComponent<RectTransform>();
-		component2.anchorMin = Vector2.zero;
-		component2.anchorMax = Vector2.one;
-		component2.offsetMin = Vector2.zero;
-		component2.offsetMax = Vector2.zero;
-		GameObject gameObject3 = new GameObject("Handle", typeof(RectTransform), typeof(Image));
-		gameObject3.transform.SetParent(gameObject2.transform, worldPositionStays: false);
-		RectTransform component3 = gameObject3.GetComponent<RectTransform>();
-		component3.anchorMin = Vector2.zero;
-		component3.anchorMax = Vector2.one;
-		component3.offsetMin = Vector2.zero;
-		component3.offsetMax = Vector2.zero;
-		gameObject3.GetComponent<Image>().color = Color.clear;
-		Scrollbar scrollbar = gameObject.AddComponent<Scrollbar>();
-		scrollbar.handleRect = component3;
-		scrollbar.direction = Scrollbar.Direction.BottomToTop;
-		scrollbar.targetGraphic = gameObject3.GetComponent<Image>();
-		return scrollbar;
+		return GameLook.CreateHiddenScrollbar(parent);
 	}
 
 	private static float PlacePlainLabel(Transform parent, TMP_FontAsset font, string text, float y, float h, string goName = null)

@@ -1413,6 +1413,10 @@
             "value": "Tecla del panel F8"
         },
         {
+            "key": "hc_cfg_controls_buildpanelkey",
+            "value": "Tecla del panel de obra"
+        },
+        {
             "key": "hc_cfg_controls_farmzonekey",
             "value": "Tecla de las zonas"
         },
@@ -1587,6 +1591,10 @@
         {
             "key": "hc_cfg_movement_pathing",
             "value": "Camino propio"
+        },
+        {
+            "key": "hc_cfg_movement_pathingonbuild",
+            "value": "Camino en la obra"
         },
         {
             "key": "hc_cfg_movement_workrundistance",
@@ -2545,6 +2553,10 @@
             "value": "Nivel de log"
         },
         {
+            "key": "hc_cfg_advanced_configversion",
+            "value": "Versión de la config"
+        },
+        {
             "key": "hc_ai_thinking",
             "value": "Pensando..."
         },
@@ -2861,12 +2873,52 @@
             "value": "Construir sin material"
         },
         {
+            "key": "hc_cfg_building_blueprintstations",
+            "value": "Blueprint: sin estaciones"
+        },
+        {
             "key": "hc_cfg_building_blueprintmaxpieces",
             "value": "Máximo de piezas (construcción)"
         },
         {
             "key": "hc_cfg_building_leveltolerance",
             "value": "Tolerancia del nivelado (m)"
+        },
+        {
+            "key": "hc_cfg_building_maxworkers",
+            "value": "Máximo de compañeros en la obra"
+        },
+        {
+            "key": "hc_cfg_building_placereach",
+            "value": "Alcance de colocación"
+        },
+        {
+            "key": "hc_cfg_building_decklift",
+            "value": "Elevación de la obra"
+        },
+        {
+            "key": "hc_cfg_building_supportfallback",
+            "value": "Apoyo de emergencia"
+        },
+        {
+            "key": "hc_cfg_building_bodyretry",
+            "value": "Reintentar cuando alguien está en el sitio"
+        },
+        {
+            "key": "hc_cfg_building_stepaside",
+            "value": "Apartarse cuando alguien va a construir"
+        },
+        {
+            "key": "hc_cfg_building_reachwalk",
+            "value": "Caminar hasta el alcance"
+        },
+        {
+            "key": "hc_cfg_building_spreadworkers",
+            "value": "Repartir a los compañeros"
+        },
+        {
+            "key": "hc_cfg_building_spreadnear",
+            "value": "Construir antes lo cercano"
         },
         {
             "key": "hc_ai_order_command",
@@ -4191,6 +4243,230 @@
         {
             "key": "hc_say_portal_left",
             "value": "He dejado {0} en el cofre junto al portal."
+        },
+        {
+            "key": "hc_ui_build_title",
+            "value": "Panel de obra"
+        },
+        {
+            "key": "hc_ui_build_hint",
+            "value": "Esc o {0} cierra."
+        },
+        {
+            "key": "hc_ui_build_site",
+            "value": "Sitio"
+        },
+        {
+            "key": "hc_ui_build_none",
+            "value": "No hay ninguna orden de construcción en marcha. Pídele a un compañero que construya algo y aparecerá aquí."
+        },
+        {
+            "key": "hc_ui_build_site_label",
+            "value": "Construyendo: {0}"
+        },
+        {
+            "key": "hc_ui_build_site_progress",
+            "value": "Colocadas: {0} de {1}    Omitidas: {2}    Postes: {3}"
+        },
+        {
+            "key": "hc_ui_build_site_state",
+            "value": "Fase: {0}    Tiempo: {1}"
+        },
+        {
+            "key": "hc_ui_build_site_leader",
+            "value": "Jefe: {0}"
+        },
+        {
+            "key": "hc_ui_build_btn_pause",
+            "value": "Pausa"
+        },
+        {
+            "key": "hc_ui_build_btn_resume",
+            "value": "Reanudar"
+        },
+        {
+            "key": "hc_ui_build_btn_cancel",
+            "value": "Cancelar el sitio"
+        },
+        {
+            "key": "hc_ui_build_phase_paused",
+            "value": "en pausa"
+        },
+        {
+            "key": "hc_ui_build_phase_preparing",
+            "value": "preparándose"
+        },
+        {
+            "key": "hc_ui_build_phase_collecting",
+            "value": "recogiendo"
+        },
+        {
+            "key": "hc_ui_build_phase_building",
+            "value": "construyendo"
+        },
+        {
+            "key": "hc_ui_build_phase_retrying",
+            "value": "reintentando"
+        },
+        {
+            "key": "hc_ui_build_phase_done",
+            "value": "terminado"
+        },
+        {
+            "key": "hc_ui_build_phase_waiting",
+            "value": "esperando"
+        },
+        {
+            "key": "hc_ui_build_workers",
+            "value": "Compañeros ({0})"
+        },
+        {
+            "key": "hc_ui_build_workers_none",
+            "value": "Ninguno de tus compañeros puede unirse a este sitio ahora."
+        },
+        {
+            "key": "hc_ui_build_workers_no_site",
+            "value": "No hay ningún sitio en marcha, así que nadie está trabajando en uno."
+        },
+        {
+            "key": "hc_ui_build_btn_join",
+            "value": "Unirse"
+        },
+        {
+            "key": "hc_ui_build_btn_leave",
+            "value": "Salir"
+        },
+        {
+            "key": "hc_ui_build_leader_tag",
+            "value": "{0} (jefe)"
+        },
+        {
+            "key": "hc_ui_build_why_owner",
+            "value": "no es tuyo"
+        },
+        {
+            "key": "hc_ui_build_why_dead",
+            "value": "muerto"
+        },
+        {
+            "key": "hc_ui_build_why_combat",
+            "value": "solo combate"
+        },
+        {
+            "key": "hc_ui_build_why_home",
+            "value": "lejos de casa"
+        },
+        {
+            "key": "hc_ui_build_why_command",
+            "value": "órdenes desactivadas"
+        },
+        {
+            "key": "hc_ui_build_why_range",
+            "value": "fuera de alcance"
+        },
+        {
+            "key": "hc_ui_build_why_solo",
+            "value": "un solo trabajador"
+        },
+        {
+            "key": "hc_ui_build_why_paused",
+            "value": "sitio en pausa"
+        },
+        {
+            "key": "hc_ui_build_why_nosite",
+            "value": "sin sitio"
+        },
+        {
+            "key": "hc_ui_build_why_leader",
+            "value": "es el jefe"
+        },
+        {
+            "key": "hc_ui_build_why_plan",
+            "value": "sin plan"
+        },
+        {
+            "key": "hc_ui_build_why_blueprint",
+            "value": "falta el archivo"
+        },
+        {
+            "key": "hc_ui_build_why_start",
+            "value": "no arrancó"
+        },
+        {
+            "key": "hc_ui_build_why_already",
+            "value": "ya está en el sitio"
+        },
+        {
+            "key": "hc_ui_build_why_unknown",
+            "value": "rechazado ({0})"
+        },
+        {
+            "key": "hc_ui_build_materials",
+            "value": "Materiales"
+        },
+        {
+            "key": "hc_ui_build_material_ok",
+            "value": "{0}: {1} / {2}"
+        },
+        {
+            "key": "hc_ui_build_material_missing",
+            "value": "{0}: {1} / {2} (faltan {3})"
+        },
+        {
+            "key": "hc_ui_build_materials_none",
+            "value": "Todavía no hay lista de materiales."
+        },
+        {
+            "key": "hc_ui_build_blueprints",
+            "value": "Biblioteca de construcciones"
+        },
+        {
+            "key": "hc_ui_build_bp_filter",
+            "value": "Escribe para filtrar..."
+        },
+        {
+            "key": "hc_ui_build_bp_open_folder",
+            "value": "Abrir carpeta"
+        },
+        {
+            "key": "hc_ui_build_bp_delete",
+            "value": "Borrar"
+        },
+        {
+            "key": "hc_ui_build_bp_confirm",
+            "value": "Confirma"
+        },
+        {
+            "key": "hc_ui_build_bp_delete_confirm",
+            "value": "Haz clic otra vez para borrar {0} - un sitio en espera de material lo necesita."
+        },
+        {
+            "key": "hc_ui_build_bp_deleted",
+            "value": "{0} borrado."
+        },
+        {
+            "key": "hc_ui_build_bp_delete_failed",
+            "value": "No pude borrar {0}: {1}"
+        },
+        {
+            "key": "hc_ui_build_bp_none",
+            "value": "Todavía no hay ningún archivo .blueprint en la carpeta."
+        },
+        {
+            "key": "hc_ui_build_bp_detail",
+            "value": "Seleccionado: {0} - {1} piezas, {2} omitidas, {3} líneas"
+        },
+        {
+            "key": "hc_ui_build_bp_detail_error",
+            "value": "No pude leer {0}: {1}"
+        },
+        {
+            "key": "hc_ui_build_bp_count",
+            "value": "{0} de {1} archivo(s)"
+        },
+        {
+            "key": "hc_ui_build_folder_failed",
+            "value": "No pude abrir la carpeta: {0}"
         }
     ]
 }
