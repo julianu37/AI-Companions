@@ -3968,3 +3968,60 @@ agregado e escrevi uma causa (`AskStepAside` desiste com o alvo trabalhando) que
 custou ~30 linhas e derrubou a hipótese em um run. **Instrumentar antes de teorizar** é a regra 6 do `AGENTS.md` vista
 pelo outro lado: o log que falta não esconde só a causa do defeito, esconde também a causa que você **inventou**.
 
+---
+
+## §17.35 O A/B do `PlanNear`: o step-aside passou a acontecer e a obra PIOROU (07/11/2026)
+
+O conserto do §17.34 (`BuildAsideSpot.PlanNear`, o anel em 2,2 / 1,5 / 1,0 m) foi medido com 3 workers, o mesmo
+blueprint e a mesma receita, 420 s:
+
+| régua | antes (2,2 m só) | depois (2,2/1,5/1,0) |
+|---|---|---|
+| **peças colocadas** | **521** | **520** |
+| **`blocked_by_player`** | **237** | **387** |
+| `travada não voltou` | 92 | **118** |
+| `step-aside` pedidos | **0** | **8** |
+| `fits: false` | 0 | 83 (3,5 %) |
+
+**O que funcionou:** o step-aside passou a **acontecer** (8 pedidos contra 0). O passo existia e era recusado por
+`outro nível`; com os raios menores ele sai.
+
+**O que matou:** cada `saindo da frente` é seguido de **novo bloqueio na peça seguinte** - o **ping-pong do §17.20**,
+agora entre companheiros. Trecho real do log:
+
+```
+Companheiro 3: "Companheiro 4" está na peça 167 - pedindo para sair da frente (-158,0, -422,8)
+Companheiro 4: saindo da frente (peça em -156,7, -422,1) para (-158,0, -422,8)
+Companheiro 3: "Companheiro 4" está na peça 167 - pedindo para sair da frente (-158,0, -422,7)
+Companheiro 4: saindo da frente (peça em -156,7, -422,1) para (-158,0, -422,7)
+Companheiro 2: "Companheiro 4" está na peça 167 - pedindo para sair da frente (-157,6, -424,1)
+Companheiro 4: saindo da frente (peça em -156,7, -422,1) para (-157,6, -424,1)
+```
+
+Três colocadores diferentes movendo o **mesmo** companheiro na **mesma** peça. As peças 167 e 184 acumularam 63 e 46
+linhas de log **sem subir**.
+
+### A armadilha do número: `outro nível` 50 -> 403
+
+O agregado subiu **porque a regra multiplica os candidatos por 3** (24 em vez de 8 por tentativa). O número **não é
+comparável** antes x depois, e lê-lo como piora seria o mesmo erro de sempre. A régua que decide é **peças** e
+**bloqueios** - e nela o conserto perdeu.
+
+### Revertido, mas a instrumentação FICA
+
+`e8fa850` reverte o `PlanNear`. O que **fica** é o `StepRefusal`/`StepRefusalText`: o `StepTo` passa a dizer **por que**
+recusou, em vez de só "sem lugar livre". Foi a instrumentação que derrubou a leitura errada do §17.33 e ela custa
+nada quando não há step-aside (contadores em buffers fixos).
+
+### O que este A/B ensina para a próxima tentativa
+
+Mover o colega **não resolve** enquanto o destino for escolhido só pela geometria: o lugar livre de hoje é a peça
+pendente de amanhã, e três workers pedem ao mesmo tempo. O que a medição pede, na ordem:
+
+1. **um pedido por vez por peça** (hoje três colocadores perguntam ao mesmo companheiro na mesma peça);
+2. **o destino tem de estar fora de TODAS as peças pendentes num raio maior que 1,5 m** - o `Clearance` atual aceita um
+   lugar que a próxima peça vai ocupar;
+3. só então o raio menor faz sentido: ele é inúcil como conserto solto.
+
+Artefato: `docs/runs/2026-11-07-madzo-3w-plannear-revertido.json`.
+
