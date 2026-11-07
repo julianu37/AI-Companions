@@ -28,11 +28,14 @@ Não o leia inteiro; use `grep`. Este arquivo é o resumo operacional — o que 
 | doc de config (nunca editar à mão) | `python tools/gen_config_doc.py --check src/Companions/Core/ModConfig.cs package/CONFIGURATION.md` | `[ok] ... (368 settings, 25 sections)` |
 | tradução ES/FR/IT | `python tools/audit_translations.py --lang Spanish` (idem French, Italian) | `lacunas: 0` |
 | datas nos docs/código | `python tools/check_dates.py` | `[ok] nenhuma data no futuro` |
-| gate de release (não rodado nesta revisão) | `powershell -ExecutionPolicy Bypass -File tools\release-check.ps1 -Version <v>` | só para release |
+| gate de release | `powershell -ExecutionPolicy Bypass -File tools\release-check.ps1 -Version <v>` | 12 itens; **o item 1 faz deploy** (ver nota abaixo) |
 
 - **Pré-requisito:** `Environment.props` na raiz (gitignored; copie de `Environment.props.example`). Sem ele o build usa
   o caminho padrão do Valheim.
 - **Não há CI** (`.github/` não existe). A verificação é a que você roda.
+- **Nota do gate:** o item 1 do `release-check.ps1` é `dotnet build` **com deploy**. Com o jogo aberto, prefira rodar o build
+  com `-p:SkipDeploy=true` e os demais itens à mão (foi o que se fez em 06/11: todos PASS, incl. harness 825 e MCP 122).
+  Deploy sem restart viola a regra 13.
 - **Harness serializado:** nunca dois `dotnet run` ao mesmo tempo (disputam `obj/bin`).
 - O harness **linka** os `.cs` de `src/Companions/AI/` (ver `tools/ai-intents-check/ai-intents-check.csproj`). Código puro
   novo em `AI/` só é testado se o `.csproj` do harness ganhar o link.
@@ -78,6 +81,10 @@ Estas regras existem porque **cada uma já foi violada e custou uma run inteira*
    histórico: `96f6c25` (−15 / +7 asserções), `35128fc` (−2 / +3), `45ac792` (2 valores trocados — o último commit
    desta rodada). Se uma regra mudou de propósito, **acrescente** a asserção nova ao lado da antiga, com comentário, e
    deixe a antiga viva enquanto o comportamento antigo for válido.
+   **A trava existe:** `python tools/check_harness_additions.py` (compara com HEAD; `--base <ref> --to <ref>` audita um
+   commit; `--allow-removal "motivo"` é exceção visível). Está no `release-check.ps1` (itens 11–12). Testada em 06/11:
+   pega os três commits acima com exit 1 e passa no working tree. Ela só vê o que está **não commitado** por padrão: contra
+   `--base main` a branch dá `+93, 0 removida(s)` (as remoções do histórico foram repostas depois).
 5. **Procure o caminho que já existe antes de desenhar.** `grep` pelo sintoma (o texto do log, o estado). Ex.: `SelfAside`
    já existia; o "conserto" do `WalkSpot` com anel de 4,5 m foi revertido (52 s → 72 s, sem ganho). Regra completa na
    pendência do AGENTS histórico (regra 15).
@@ -121,9 +128,17 @@ Estas regras existem porque **cada uma já foi violada e custou uma run inteira*
 
 ## Pendências ativas (resumo; detalhe no histórico e na checklist)
 
-- **Peça colocada sobre o corpo na 3ª tentativa** (o furo original do guarda): o conserto exige **impedir a re-inserção no
-  plano**, não um guarda cego. A tentativa de re-inserir no mesmo andar (`RequeueSameStorey`) cresceu o plano de **612
-  para 1303** (691 cópias) e foi revertida.
+- **Por que ele fica sob o piso (§17.31, revisão de 06/11 em `docs/revisao-executor-2026-11-06.md`):** o `Goto` apaga o
+  destino de "saio para" quando a peça está à altura dos pés (A2, confirmado no código) e o `WalkSpot` pode devolver a
+  própria coluna da peça (A3, 2 de 11 tentativas com passo de 0 m). As duas tentativas viram no-op e a peça é colocada
+  sobre o corpo. **Conserto candidato = par A2 + A3** (`SelfWalk = true` no ramo do `Place` + excluir destinos a menos de
+  X m de `me` no `BuildWalkSpot.Choose`), **não aplicado**: precisa de caso no harness e de A/B medido (1 worker,
+  madzobuild, `DeckLift 0`, linha de base 183/612, `fits:false`, 79 % parado).
+- **Retry de corpo sem teto (M4, confirmado no código, magnitude não medida):** `Kind.Blocked` não incrementa `Tries`, então
+  nunca chega a `MaxPasses`, e `Passes` não tem limite. Hoje quem segura é o watchdog de 60 s.
+- **Peça colocada sobre o corpo na 3ª tentativa:** o conserto exige **impedir a re-inserção no plano**, não um guarda cego.
+  A tentativa de re-inserir no mesmo andar (`RequeueSameStorey`) cresceu o plano de **612 para 1303** (691 cópias) e foi
+  revertida.
 - **Barreira de andar: 5 s ou 10 s?** Não decidido. Só um A/B (mesma árvore, 1 worker, `DeckLift 0`) decide.
 - **Vão do deck × cápsula de 1,80 m:** decisão do jogador entre `DeckLift 0`, sair em volta ou regra de rota.
 - **Rota até a cumeeira** (`no progress` em `wood_roof_45`): aberta, `TempScaffold` vetado.
