@@ -2885,6 +2885,10 @@
             "value": "Tolleranza del livellamento (m)"
         },
         {
+            "key": "hc_cfg_building_maxworkers",
+            "value": "Compagni massimi nel cantiere"
+        },
+        {
             "key": "hc_cfg_building_placereach",
             "value": "Portata di posa"
         },

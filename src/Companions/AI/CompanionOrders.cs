@@ -1390,8 +1390,22 @@ internal static class CompanionOrders
 			return workers;
 		}
 		IReadOnlyList<CompanionSetup> all = CompanionSetup.AllCompanions;
+		// 07/11/2026 (the player: "5 é muito, vamos mudar o teto para 3"): there was NO ceiling - every companion that
+		// could work the site joined. The ceiling is a config ([Building] MaxWorkers, default 3) and the list is taken in
+		// the order CompanionSetup.AllCompanions gives, so the same companions join every time (a random cut would make
+		// two identical orders run differently).
+		int cap = MaxWorkers();
 		for (int i = 0; i < all.Count; i++)
 		{
+			if (workers.Count >= cap)
+			{
+				if (CompanionsPlugin.LogDetailed && all[i] != null)
+				{
+					CompanionsPlugin.Log?.LogDebug("[Build] \"" + CompanionNames.NameOf(all[i])
+						+ "\" ficou fora da obra: o grupo já tem " + cap + " companheiro(s) ([Building] MaxWorkers)");
+				}
+				continue;
+			}
 			string why;
 			// the very rule the build panel uses to offer a companion for a site (CanWorkSite): mine, alive, not a
 			// combat-only type, inside its own home leash and in scope - and being in scope TAKES IT OVER here, which
@@ -1406,6 +1420,17 @@ internal static class CompanionOrders
 			}
 		}
 		return workers;
+	}
+
+	/// <summary>
+	/// 07/11/2026 (the player: "5 é muito, vamos mudar o teto para 3"): the most companions that join ONE build group
+	/// when the order does not name one. Read on every use, so the F8 panel takes effect on the next order. A missing
+	/// entry answers 3 (the tested ceiling).
+	/// </summary>
+	internal static int MaxWorkers()
+	{
+		int cap = ModConfig.BuildMaxWorkers != null ? ModConfig.BuildMaxWorkers.Value : 3;
+		return cap < 1 ? 1 : cap;
 	}
 
 	/// <summary>

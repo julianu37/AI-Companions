@@ -2885,6 +2885,10 @@
             "value": "Tolérance du nivellement (m)"
         },
         {
+            "key": "hc_cfg_building_maxworkers",
+            "value": "Compagnons maximum sur le chantier"
+        },
+        {
             "key": "hc_cfg_building_placereach",
             "value": "Portée de pose"
         },

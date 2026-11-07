@@ -2885,6 +2885,10 @@
             "value": "Tolerancia del nivelado (m)"
         },
         {
+            "key": "hc_cfg_building_maxworkers",
+            "value": "Máximo de compañeros en la obra"
+        },
+        {
             "key": "hc_cfg_building_placereach",
             "value": "Alcance de colocación"
         },

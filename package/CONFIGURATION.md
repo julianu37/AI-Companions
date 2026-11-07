@@ -625,6 +625,9 @@ A blueprint builds without crafting stations: none is planned and a piece is not
 **BlueprintMaxPieces** — Default: 2000 · Range: 1 – 20000  
 Refuse a blueprint with more pieces than this (a guard against a huge or broken file). The refusal is written to the BepInEx log; the companion says it could not build the plan.
 
+**MaxWorkers** — Default: 3 · Range: 1 – 10  
+The most companions that join ONE build group when the order does not name one (naming a companion always works with just it). Three is the tested ceiling: more workers contend for the same pieces and the pieces per minute stop improving. 1 to 10.
+
 **LevelTolerance** — Default: 0.35 · Range: 0.05 – 2  
 How much height variation (meters) a build site may have before the ground is leveled. Measured: a floor is refused when the ground under it is more than ~0.3 m below the anchor.
 

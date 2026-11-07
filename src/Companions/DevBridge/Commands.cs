@@ -1293,7 +1293,11 @@ internal static class Commands
 				{
 					if (MHR_Owner.IsMine(setup))
 					{
-						workers.Add(setup);
+						// 07/11/2026: the same ceiling the chat order uses ([Building] MaxWorkers, default 3)
+						if (workers.Count < CompanionOrders.MaxWorkers())
+						{
+							workers.Add(setup);
+						}
 					}
 					continue;
 				}

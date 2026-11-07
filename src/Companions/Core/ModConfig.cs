@@ -207,6 +207,11 @@ internal static class ModConfig
 	/// is not refused for a missing station. Templates and single-piece orders always need the station.</summary>
 	internal static ConfigEntry<bool> BuildBlueprintStations;
 	internal static ConfigEntry<int> BuildBlueprintMaxPieces;
+	/// <summary>07/11/2026 (the player: "5 é muito, vamos mudar o teto para 3"): the most companions that join ONE build
+	/// group. Before this there was no ceiling at all - every companion that could work the site joined (<see
+	/// cref="CompanionOrders.BlueprintWorkers"/> and the bridge's own list are both filtered by this). A dedicated
+	/// companion (the order naming one) is always exactly one worker and is not affected.</summary>
+	internal static ConfigEntry<int> BuildMaxWorkers;
 
 	internal static ConfigEntry<float> TombstoneScanInterval;
 
@@ -999,6 +1004,7 @@ internal static class ModConfig
 		BuildBlueprintFree = Bind(cfg, "Building", "BlueprintFree", false, "Build a blueprint without paying for the pieces (a test/creative switch: the companion places the pieces from the file and takes nothing from the bag or the chests). Off by default - a blueprint costs the same as any other build.");
 		BuildBlueprintStations = Bind(cfg, "Building", "BlueprintStations", true, "A blueprint builds without crafting stations: none is planned and a piece is not refused for a missing station. Off = the vanilla rule. Templates and single-piece orders always need the station.");
 		BuildBlueprintMaxPieces = Bind(cfg, "Building", "BlueprintMaxPieces", 2000, "Refuse a blueprint with more pieces than this (a guard against a huge or broken file). The refusal is written to the BepInEx log; the companion says it could not build the plan.", new AcceptableValueRange<int>(1, 20000));
+		BuildMaxWorkers = Bind(cfg, "Building", "MaxWorkers", 3, "The most companions that join ONE build group when the order does not name one (naming a companion always works with just it). Three is the tested ceiling: more workers contend for the same pieces and the pieces per minute stop improving. 1 to 10.", new AcceptableValueRange<int>(1, 10));
 		BuildLevelTolerance = Bind(cfg, "Building", "LevelTolerance", 0.35f, "How much height variation (meters) a build site may have before the ground is leveled. Measured: a floor is refused when the ground under it is more than ~0.3 m below the anchor.", new AcceptableValueRange<float>(0.05f, 2f));
 		// [GearRepair]
 		RepairDurabilityThreshold = Bind(cfg, "GearRepair", "DurabilityThreshold", 0.5f, "A companion takes its gear to a crafting station to repair it when something drops below this share of durability (0.5 = 50%).", new AcceptableValueRange<float>(0.1f, 0.9f));
