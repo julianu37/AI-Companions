@@ -9,10 +9,11 @@ Não o leia inteiro; use `grep`. Este arquivo é o resumo operacional — o que 
 
 ## Antes de mexer em qualquer coisa
 
-- **Estado atual:** branch de trabalho `fix/pisos-nivel-2` (HEAD `2b469d6`, **137 commits à frente de `main`**). `main` = 1.9.6
-  publicada (tag `v1.9.6`). Merge na `main` **só** com o jogador pedindo.
+- **Estado atual (07/11/2026):** `main` = **`f6c6ee8`**, com a linha `fix/pisos-nivel-2` mergeada (151 commits); a `main`
+  **não** é só a 1.9.6 publicada — o código anda à frente da tag. Linha de trabalho: **`feat/refino-construcao`** (parte de
+  `f6c6ee8`). Merge/release continuam dependendo do pedido do jogador.
 - **Onde está o "onde eu parei":** `docs/checklist-blueprints.md` (feito, **tentado e desfeito com o número que matou**, fila).
-  Medições de construção: `docs/re/building-notes.md` (§17.x; o último diagnóstico é §17.31). Artefatos das runs:
+  Medições de construção: `docs/re/building-notes.md` (§17.x; os últimos são §17.32 e §17.33). Artefatos das runs:
   `docs/runs/*.json` (o `LogOutput.log` é apagado a cada boot — o run vira arquivo no mesmo ciclo).
 - **Não copie números deste arquivo para outro doc.** Eles envelhecem (ex.: este arquivo citava 778 asserções em 12
   lugares; o harness mede 825). Rode o comando e use a saída.
