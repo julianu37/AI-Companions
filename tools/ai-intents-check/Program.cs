@@ -140,6 +140,7 @@ internal static class Program
 		WalkSpotCases();
 		Section("(y) BuildAsideSpot.Plan - para onde o companheiro sai da frente (o StepAside do Run 14)");
 		AsideSpots();
+		AsideNearCases();
 		Section("(z) BuildSpread - a dispersao dos workers (ninguem disputa a peca, Run 14)");
 		SpreadCases();
 		Section("(aa) BuildSpread.Nearest - a peca que eu consigo colocar daqui (o P0 do redesenho)");
@@ -2111,6 +2112,57 @@ internal static class Program
 		int count = BuildAsideSpot.Plan(me, new UnityEngine.Vector3(0f, 10f, 0f), away,
 			new System.Collections.Generic.List<UnityEngine.Vector3>(pending), 2.2f, spots);
 		Check(name + " -> " + expected + " destino(s)", count == expected, "obtido " + count);
+	}
+
+	/// <summary>
+	/// Section (y), 07/11/2026 (feat/refino-construcao): <c>BuildAsideSpot.PlanNear</c> - the same ring at shorter radii.
+	/// The run with 3 workers measured <b>outro nível = 50</b> in the refusals of "no place to step to": a 2,2 m step off a
+	/// floor slab lands past its edge, the ground ray finds the storey below and the step is refused. The radii are tried
+	/// longest first, so the answer of the full ring is unchanged whenever it works; the spots of the next radius come
+	/// after all of the previous one.
+	/// </summary>
+	private static void AsideNearCases()
+	{
+		UnityEngine.Vector3 me = new UnityEngine.Vector3(0f, 10f, 0f);
+		UnityEngine.Vector3 back = new UnityEngine.Vector3(1f, 0f, 0f);
+		UnityEngine.Vector3 piece = new UnityEngine.Vector3(0f, 10f, 0f);
+		float[] radii = new float[] { 2.2f, 1.5f, 1.0f };
+
+		// 1) the full ring works: 5 destinations per radius, the first is the one behind the placer at 2,2 m (Plan unchanged)
+		UnityEngine.Vector3[] spots = new UnityEngine.Vector3[BuildAsideSpot.Ring * 3];
+		int count = BuildAsideSpot.PlanNear(me, piece, back, new System.Collections.Generic.List<UnityEngine.Vector3>(),
+			radii, spots);
+		Check("PlanNear: tres raios livres -> 15 destinos (5 por raio), o 1o atras a 2,2 m",
+			count == 15 && AsideSame(spots[0], new UnityEngine.Vector3(2.2f, 10f, 0f)),
+			"obtido " + count + " destino(s), #1 " + (count > 0 ? Vec(spots[0]) : "-"));
+
+		// 2) the two shorter radii add their own rings after the full one (8 + 8 + 8 when nothing blocks)
+		count = BuildAsideSpot.PlanNear(me, piece, back, new System.Collections.Generic.List<UnityEngine.Vector3>(),
+			new float[] { 2.2f, 1.5f }, spots);
+		Check("PlanNear: dois raios -> o 2o anel entra depois do 1o (5 + 5 = 10)",
+			count == 10 && AsideSame(spots[5], new UnityEngine.Vector3(1.5f, 10f, 0f)),
+			"obtido " + count + ", #6 " + (count > 5 ? Vec(spots[5]) : "-"));
+
+		// 3) a single radius answers exactly what Plan answers (the compatibility of the two entry points)
+		UnityEngine.Vector3[] one = new UnityEngine.Vector3[BuildAsideSpot.Ring];
+		UnityEngine.Vector3[] same = new UnityEngine.Vector3[BuildAsideSpot.Ring];
+		int a = BuildAsideSpot.Plan(me, piece, back, new System.Collections.Generic.List<UnityEngine.Vector3>(), 2.2f, one);
+		int b = BuildAsideSpot.PlanNear(me, piece, back, new System.Collections.Generic.List<UnityEngine.Vector3>(),
+			new float[] { 2.2f }, same);
+		bool equal = a == b;
+		for (int i = 0; equal && i < a; i++)
+		{
+			equal = AsideSame(one[i], same[i]);
+		}
+		Check("PlanNear com um raio == Plan (mesmo resultado, mesmo ordem)", equal, "Plan " + a + " x PlanNear " + b);
+
+		// 4) degenerate input never invents a destination
+		Check("PlanNear: lista de raios vazia -> 0",
+			BuildAsideSpot.PlanNear(me, piece, back, new System.Collections.Generic.List<UnityEngine.Vector3>(),
+				new float[0], spots) == 0, "esperado 0");
+		Check("PlanNear: raio <= 0 nao entra",
+			BuildAsideSpot.PlanNear(me, piece, back, new System.Collections.Generic.List<UnityEngine.Vector3>(),
+				new float[] { 0f, -1f }, spots) == 0, "esperado 0");
 	}
 
 	/// <summary>Section (y): the same point within a centimetre (the ring is exact up to the float of cos45).</summary>

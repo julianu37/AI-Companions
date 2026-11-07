@@ -88,17 +88,49 @@ internal static class BuildAsideSpot
 	internal static int Plan(Vector3 me, Vector3 from, Vector3 away, IList<Vector3> pending, float distance,
 		Vector3[] spots)
 	{
-		if (spots == null || spots.Length == 0 || !Finite(me) || !Finite(from))
+		int count = 0;
+		Fill(me, from, away, pending, distance, spots, ref count);
+		return count;
+	}
+
+	/// <summary>
+	/// 07/11/2026 (<c>feat/refino-construcao</c>, the run with 3 workers: <b>outro nível = 50</b> of the refusals of "no
+	/// place to step to"). The ring of <see cref="Plan"/> is built at <see cref="MHR_Build.AsideDistance"/> (2,2 m) around
+	/// the companion and every spot is then asked for ground straight down: on a floor SLAB a 2,2 m step lands past its
+	/// edge, the ray finds the ground a storey below and the step is refused as "another level". So the same ring is
+	/// tried at <b>shorter</b> radii before giving up - a smaller step that stays on the slab is a step. The order of
+	/// preference inside a radius is the very one of <see cref="Plan"/> (behind the placer, then its sides, never its
+	/// front), and the radii are tried from the longest to the shortest, so nothing changes when the big ring works.
+	/// </summary>
+	internal static int PlanNear(Vector3 me, Vector3 from, Vector3 away, IList<Vector3> pending, float[] distances,
+		Vector3[] spots)
+	{
+		if (distances == null || spots == null)
 		{
 			return 0;
+		}
+		int count = 0;
+		for (int d = 0; d < distances.Length && count < spots.Length; d++)
+		{
+			Fill(me, from, away, pending, distances[d], spots, ref count);
+		}
+		return count;
+	}
+
+	/// <summary>The body of <see cref="Plan"/>: fills <paramref name="spots"/> from <paramref name="count"/> on.</summary>
+	private static void Fill(Vector3 me, Vector3 from, Vector3 away, IList<Vector3> pending, float distance,
+		Vector3[] spots, ref int count)
+	{
+		if (spots == null || spots.Length == 0 || !Finite(me) || !Finite(from))
+		{
+			return;
 		}
 		if (!Finite(distance) || distance <= 0f)
 		{
-			return 0;
+			return;
 		}
 		Vector3 flat;
 		bool facing = Facing(away, out flat);
-		int count = 0;
 		uint taken = 0;
 		for (int rank = 0; rank < 2; rank++)
 		{
@@ -143,7 +175,6 @@ internal static class BuildAsideSpot
 				count++;
 			}
 		}
-		return count;
 	}
 
 	/// <summary>

@@ -151,7 +151,13 @@ internal static class MHR_Build
 
 	/// <summary>04/11/2026 (Run 14, the step aside): the spots a companion may step to, in the order they are tried
 	/// (<see cref="BuildAsideSpot.Plan"/>: away from the placer's front first, then its sides).</summary>
-	private static readonly Vector3[] s_asideSpots = new Vector3[BuildAsideSpot.Ring];
+	private static readonly Vector3[] s_asideSpots = new Vector3[BuildAsideSpot.Ring * 3];
+
+	/// <summary>07/11/2026 (feat/refino-construcao): the radii the step-aside ring is tried at, longest first. 2,2 m is
+	/// the full step (the Run 14 rule); the shorter ones keep the step on the slab the companion stands on.
+	/// <para>The ring is 8 directions, and the whole point of it is to leave the piece's column: below 1,0 m the step is
+	/// too small to clear a 2,27 m floor piece, so 1,0 m is the floor.</para></summary>
+	private static readonly float[] s_asideRadii = new float[] { 2.2f, 1.5f, 1.0f };
 
 	/// <summary>
 	/// 04/11/2026 (Run 14, the spread of the crew): the plan indices of the current <b>window</b> (the piece the walk is on
@@ -8151,8 +8157,8 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			if (!state.AsideLogged && CompanionsPlugin.LogNormal)
 			{
 				state.AsideLogged = true;
-				Log(ai, "\"" + who + "\" está na peça " + (state.Index + 1) + " - sem lugar livre para ele sair da frente, "
-					+ "não peço (a peça vai para a fila)");
+				Log(ai, "\"" + who + "\" está na peça " + (state.Index + 1) + " - sem lugar livre para ele sair da frente ("
+					+ StepRefusalText() + "), não peço (a peça vai para a fila)");
 			}
 			return true;
 		}
@@ -8321,18 +8327,49 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 	/// 770,1). The only filters here are the placer's 1 m, <see cref="StepTo"/> and the circle of the pure <see cref="BuildAsideSpot.Plan"/>.
 	/// The step aside is a step, not a guarantee: it is the walk that frees the piece when it can.</para>
 	/// </summary>
+	/// <summary>07/11/2026 (<c>feat/refino-construcao</c>): why the step-aside had no place to go. The three rules of
+	/// <see cref="StepTo"/> are asked one by one in the log, so the next run answers "another level, no ground or not
+	/// safe?" instead of only "no place".</summary>
+	private enum StepRefusal
+	{
+		NotFinite = 0,
+		NoGround = 1,
+		AnotherLevel = 2,
+		TooClose = 3,
+		NotSafe = 4,
+		Count = 5,
+	}
+
+	/// <summary>07/11/2026: the refusal counts of the last <see cref="AsideSpot"/> call (fixed, no allocation).</summary>
+	private static readonly int[] s_stepRefusals = new int[(int)StepRefusal.Count];
+
+	/// <summary>07/11/2026: the one line that says why there was no place to step to (once per piece, by the caller).</summary>
+	private static string StepRefusalText()
+	{
+		return "sem chão " + s_stepRefusals[(int)StepRefusal.NoGround]
+			+ ", outro nível " + s_stepRefusals[(int)StepRefusal.AnotherLevel]
+			+ ", perto demais " + s_stepRefusals[(int)StepRefusal.TooClose]
+			+ ", passo inseguro " + s_stepRefusals[(int)StepRefusal.NotSafe]
+			+ (s_stepRefusals[(int)StepRefusal.NotFinite] > 0 ? ", inválido " + s_stepRefusals[(int)StepRefusal.NotFinite] : string.Empty);
+	}
+
 	private static bool AsideSpot(State state, CompanionAI ai, CompanionAI mover, Vector3 from, out Vector3 target)
 	{
-		target = Vector3.zero;
-		if (state == null || ai == null || mover == null)
-		{
-			return false;
-		}
 		Vector3 feet = mover.transform.position;
 		Vector3 facing = ai.transform.forward;   // the placer's front: the piece is in it
+		target = Vector3.zero;
 		Vector3 away = new Vector3(-facing.x, 0f, -facing.z);
+		// 07/11/2026 (the run with 3 workers, 310 of 328 refusals): the reasons of the refusals are counted per call, in
+		// fixed ints - the caller says them once per piece so the next run reads WHY there was no place to step to.
+		for (int r = 0; r < s_stepRefusals.Length; r++)
+		{
+			s_stepRefusals[r] = 0;
+		}
 		MHR_BuildGroup.PendingNear(state.Group, from, AsideDistance + BuildAsideSpot.Clearance, s_asidePending);
-		int count = BuildAsideSpot.Plan(feet, from, away, s_asidePending, AsideDistance, s_asideSpots);
+		// 07/11/2026 (feat/refino-construcao): the ring is tried at the full 2,2 m first and then at shorter radii - on a
+		// floor slab a 2,2 m step lands past its edge and the ray finds the ground a storey below ("outro nível": 50 of the
+		// refusals measured with 3 workers). A smaller step that stays on the slab is a step.
+		int count = BuildAsideSpot.PlanNear(feet, from, away, s_asidePending, s_asideRadii, s_asideSpots);
 		for (int i = 0; i < count; i++)
 		{
 			// 04/11/2026 (Run 14): the spot must not be inside the PLACER either - the first preference points that way
@@ -8357,30 +8394,42 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 	/// from 1,5 m above it (a ray, so a spot over the void or above a wall is out), it must be within 0,8 m of the
 	/// companion's own feet (a step, not a fall) and the way to it must be a safe step (<see cref="MHR_Mover.SafeStep"/>:
 	/// no wall, no ledge, no deep water, no fire, no spikes).
+	/// <para>07/11/2026 (<c>feat/refino-construcao</c>, the run with 3 workers: 310 of 328 refusals of a piece were
+	/// "sem lugar livre para ele sair da frente", and the log did not say <b>which</b> of the three rules refused): counts
+	/// go into <c>s_stepRefusals</c> so the caller can say why once per piece.</para>
 	/// </summary>
 	private static bool StepTo(Vector3 feet, Vector3 spot, out Vector3 goal)
 	{
 		goal = Vector3.zero;
 		if (!Finite(spot))
 		{
+			s_stepRefusals[(int)StepRefusal.NotFinite]++;
 			return false;
 		}
 		RaycastHit hit;
 		if (!Physics.Raycast(new Vector3(spot.x, spot.y + 1.5f, spot.z), Vector3.down, out hit, 4f, BuildProbe.PlaceMask(),
 			QueryTriggerInteraction.Ignore))
 		{
+			s_stepRefusals[(int)StepRefusal.NoGround]++;
 			return false;
 		}
 		if (Mathf.Abs(hit.point.y - feet.y) > 0.8f)
 		{
+			s_stepRefusals[(int)StepRefusal.AnotherLevel]++;
 			return false;   // another level (the deck below, a wall above): not a step, a fall
 		}
 		Vector3 point = new Vector3(spot.x, hit.point.y, spot.z);
 		Vector3 way = point - feet;
 		way.y = 0f;
 		float flat = way.magnitude;
-		if (flat < 0.3f || !MHR_Mover.SafeStep(feet, way / flat, Mathf.Min(flat, 2.5f)))
+		if (flat < 0.3f)
 		{
+			s_stepRefusals[(int)StepRefusal.TooClose]++;
+			return false;
+		}
+		if (!MHR_Mover.SafeStep(feet, way / flat, Mathf.Min(flat, 2.5f)))
+		{
+			s_stepRefusals[(int)StepRefusal.NotSafe]++;
 			return false;
 		}
 		goal = point;
@@ -8432,7 +8481,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		}
 		MHR_BuildGroup.PendingNear(state.Group, state.Pos, AsideDistance + BuildAsideSpot.Clearance, s_asidePending);
 		Vector3 feetRing = new Vector3(feet.x, feet.y, feet.z);
-		int count = BuildAsideSpot.Plan(feetRing, state.Pos, away.normalized, s_asidePending, AsideDistance, s_asideSpots);
+		int count = BuildAsideSpot.PlanNear(feetRing, state.Pos, away.normalized, s_asidePending, s_asideRadii, s_asideSpots);
 		for (int i = 0; i < count; i++)
 		{
 			Vector3 goal;
