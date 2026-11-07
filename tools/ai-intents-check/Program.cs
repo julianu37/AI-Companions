@@ -152,6 +152,8 @@ internal static class Program
 		HangingBeams();
 		Section("(ae) MHR_Clearance - o corpo cabe onde ele vai? (o vao de 1 m do deck, 05/11/2026)");
 		Clearance();
+		Section("(af) BuildWalkSpot.ChooseAway - o passo que sai de cima da propria peca (revisao de 06/11/2026, A3)");
+		StepOffCases();
 		CrossCheckDoorRule();
 
 		Out.WriteLine();
@@ -1844,6 +1846,91 @@ internal static class Program
 	{
 		UnityEngine.Vector3 got;
 		bool ok = BuildWalkSpot.Choose(me, piece, maxPlace, new List<UnityEngine.Vector3>(surfaces), out got);
+		bool right = ok == found && (!ok || Same(got, expected));
+		Check(name + " -> " + (found ? Vec(expected) : "false"), right,
+			"obtido " + (ok ? Vec(got) : "false") + ", esperado " + (found ? Vec(expected) : "false"));
+	}
+
+	// ============================================================================================ (af) sair de cima da propria peca
+
+	/// <summary>
+	/// Section (af), 06/11/2026 (review A3): <c>BuildWalkSpot.ChooseAway</c> - the surface to step to when the companion
+	/// stands UNDER the piece he is placing. The plain <c>Choose</c> answered his own column (the nearest surface was the
+	/// one he already stood on): measured twice in the 11 tries of <c>building-notes</c> §17.31, both 0 m - the walk was a
+	/// no-op and the piece was laid across the body on the third try. The rule asserted here is the filter: a surface
+	/// closer than <see cref="BuildWalkSpot.AwayFromMe"/> to his feet, or than <see cref="BuildWalkSpot.AwayFromPiece"/>
+	/// to the piece's column, is not a place to step to; if every surface is one of those, there is no step (false) and the
+	/// caller keeps the piece as its target.
+	/// </summary>
+	private static void StepOffCases()
+	{
+		// the companion stands at the piece's column, the piece is one metre above him (the measured case: feet 38,8,
+		// floor 39,8 - the vao that does not fit a 1,8 m capsule)
+		UnityEngine.Vector3 me = new UnityEngine.Vector3(0f, 38.8f, 0f);
+		UnityEngine.Vector3 piece = new UnityEngine.Vector3(0f, 39.8f, 0f);
+
+		// 1) the only surface is the one he stands on: no step at all (this is the 0 m walk that used to be returned)
+		AwayCase("so o chao onde eu estou: nao ha passo (false)", me, piece, 10f,
+			new[] { new UnityEngine.Vector3(0f, 38.8f, 0f) }, false, piece);
+
+		// 2) the floor beside him wins over the one under his feet: the step-off needs to LEAVE, not to stand still
+		AwayCase("o piso ao lado vence o de baixo dos meus pes", me, piece, 10f,
+			new[]
+			{
+				new UnityEngine.Vector3(0f, 38.8f, 0f),     // under his feet (0 m): out
+				new UnityEngine.Vector3(2.5f, 38.8f, 0f)     // 2,5 m beside him: the step
+			}, true, new UnityEngine.Vector3(2.5f, 38.8f, 0f));
+
+		// 3) the surface under the PIECE is out even when it is far from him: it is the floor the piece goes on, not a
+		// place to build from (the sample 0 of the ray search - the second measured 0 m case)
+		AwayCase("o piso sob a peca nao conta, mesmo longe de mim", new UnityEngine.Vector3(3f, 38.8f, 0f), piece, 10f,
+			new[]
+			{
+				new UnityEngine.Vector3(0f, 38.8f, 0f),     // under the piece (0 m from its column): out
+				new UnityEngine.Vector3(3f, 38.8f, 0f)      // under his feet (0 m): out as well
+			}, false, piece);
+
+		// 4) the boundary is inclusive-free: exactly at the limit is still "too close" (a step of 1,0 m does not leave a
+		// 2,27 m footprint), and a centimetre past it counts. The piece is 5 m away so the two rules do not overlap here:
+		// what is being asserted is the distance to the FEET.
+		UnityEngine.Vector3 far = new UnityEngine.Vector3(5f, 39.8f, 0f);
+		// the rule is "strictly closer than the limit is out": 0,99 m is out, exactly 1,00 m is a step
+		AwayCase("a 0,99 m dos meus pes ainda nao conta", me, far, 10f,
+			new[]
+			{
+				new UnityEngine.Vector3(0.99f, 38.8f, 0f),
+				new UnityEngine.Vector3(0f, 38.8f, 0f)
+			}, false, far);
+		AwayCase("a 1,00 m exato dos meus pes ja conta", me, far, 10f,
+			new[]
+			{
+				new UnityEngine.Vector3(1.0f, 38.8f, 0f),
+				new UnityEngine.Vector3(0f, 38.8f, 0f)
+			}, true, new UnityEngine.Vector3(1.0f, 38.8f, 0f));
+
+		// 5) a candidate that is not finite never wins (nor is it allowed to silence the real one)
+		AwayCase("candidato NaN e ignorado", me, piece, 10f,
+			new[]
+			{
+				new UnityEngine.Vector3(float.NaN, 38.8f, 0f),
+				new UnityEngine.Vector3(2.5f, 38.8f, 0f)
+			}, true, new UnityEngine.Vector3(2.5f, 38.8f, 0f));
+
+		// 6) the plain choice is unchanged: the same list that ChooseAway rejects is still answered by Choose (this is the
+		// guard against the step-off rule leaking into the normal walk of every other piece)
+		UnityEngine.Vector3 plain;
+		bool plainOk = BuildWalkSpot.Choose(me, piece, 10f,
+			new List<UnityEngine.Vector3> { new UnityEngine.Vector3(0f, 38.8f, 0f) }, out plain);
+		Check("Choose (o caminho normal) devolve o proprio lugar - ChooseAway e que filtra",
+			plainOk && Same(plain, new UnityEngine.Vector3(0f, 38.8f, 0f)), "obtido " + (plainOk ? Vec(plain) : "false"));
+	}
+
+	/// <summary>Section (af): one <c>ChooseAway</c> case.</summary>
+	private static void AwayCase(string name, UnityEngine.Vector3 me, UnityEngine.Vector3 piece, float maxPlace,
+		UnityEngine.Vector3[] surfaces, bool found, UnityEngine.Vector3 expected)
+	{
+		UnityEngine.Vector3 got;
+		bool ok = BuildWalkSpot.ChooseAway(me, piece, maxPlace, new List<UnityEngine.Vector3>(surfaces), out got);
 		bool right = ok == found && (!ok || Same(got, expected));
 		Check(name + " -> " + (found ? Vec(expected) : "false"), right,
 			"obtido " + (ok ? Vec(got) : "false") + ", esperado " + (found ? Vec(expected) : "false"));

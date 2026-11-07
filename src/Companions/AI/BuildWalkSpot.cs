@@ -38,6 +38,15 @@ internal static class BuildWalkSpot
 	/// <c>MHR_Build</c> uses the same number.</summary>
 	internal const float EyeHeight = 1.5f;
 
+	/// <summary>06/11/2026 (review A3): the walk of a companion that stands UNDER the piece must leave where he stands. A
+	/// target closer than this to his own feet (flat distance) is not a walk: 2 of the 11 tries measured on the madzobuild
+	/// were 0 m, because the nearest surface was the one he already stood on.</summary>
+	internal const float AwayFromMe = 1.0f;
+
+	/// <summary>06/11/2026 (review A3): and it must be outside the piece's own column - the surface under the piece is the
+	/// floor the piece is put on, not a place to build <b>from</b>. 1,5 m covers the footprint of the common pieces.</summary>
+	internal const float AwayFromPiece = 1.5f;
+
 	/// <summary>Distances closer than this are a tie and the geometric order decides (metres: half a millimetre).</summary>
 	private const float TieSlack = 0.0005f;
 
@@ -104,6 +113,37 @@ internal static class BuildWalkSpot
 			spot = best;
 		}
 		return found;
+	}
+
+	/// <summary>
+	/// 06/11/2026 (review A3, the walk that LEAVES the piece's own spot): <see cref="Choose"/> over the surfaces that are
+	/// neither under the companion (<see cref="AwayFromMe"/>) nor under the piece (<see cref="AwayFromPiece"/>). Used by the
+	/// step-off of a companion that stands under the piece he is placing (<c>MHR_Build.Place</c>), where the plain choice
+	/// answered his own column and the walk was a 0 m no-op. The plain <see cref="Choose"/> is unchanged for every other
+	/// caller. Pure: the caller collects the surfaces, this only filters and chooses.
+	/// </summary>
+	internal static bool ChooseAway(Vector3 me, Vector3 piece, float maxPlace, IList<Vector3> surfaces, out Vector3 spot)
+	{
+		spot = piece;
+		if (surfaces == null || !Finite(me) || !Finite(piece))
+		{
+			return false;
+		}
+		List<Vector3> away = new List<Vector3>(surfaces.Count);
+		for (int i = 0; i < surfaces.Count; i++)
+		{
+			Vector3 surface = surfaces[i];
+			if (!Finite(surface))
+			{
+				continue;
+			}
+			if (Flat(me, surface) < AwayFromMe || Flat(piece, surface) < AwayFromPiece)
+			{
+				continue;
+			}
+			away.Add(surface);
+		}
+		return Choose(me, piece, maxPlace, away, out spot);
 	}
 
 	/// <summary>Is the piece within the placement reach from the <b>eye</b> of a companion standing on this surface? The

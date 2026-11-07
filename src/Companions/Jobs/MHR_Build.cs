@@ -2603,7 +2603,7 @@ internal static class MHR_Build
 		}
 		// 04/11/2026 (Run 17, ONE CLOCK): the patience runs from the drawing of the barrier and is never pushed forward.
 		// INVARIANT: ServeBarrier never outlives the site's gate (MHR_BuildGroup.MayTake) - BodyRetryMaxWait IS
-		// BodyBarrierSeconds (10 s), so the moment the gate lets the storeys above be taken the wait is over too. The old
+		// BodyBarrierSeconds (5 s since 06/11/2026), so the moment the gate lets the storeys above be taken the wait is over too. The old
 		// push (while nothing had been served and the piece below was not due yet) made the patience indefinite, and the
 		// 25 s that followed were longer than the 20 s of the gate: the gate opened, the wait held the worker anyway, and
 		// the longer clock always won (Run 16: 31 "nothing above ... is taken" lines with workers standing still).
@@ -2636,7 +2636,7 @@ internal static class MHR_Build
 			// 04/11/2026 (the REVIEW of the barrier's cost): a piece that cannot be served inside the patience that is left is
 			// not worth standing still for. `NextRetryBelow` answers -1 while the entry is not due (its `At`), but this
 			// question (`PendingBelowIndex`) ignores the clock - so the worker could wait for something 8-25 s away while the
-			// patience is 10 s (a DependencyDelay of 12 s or more never fits inside BodyRetryMaxWait = 10 s). The `dependência`
+			// patience is 5 s since 06/11/2026 (a DependencyDelay of 8 s or more never fits inside BodyRetryMaxWait = 5 s). The `dependência`
 			// bucket of the measured Run 22 was 357,0 s of the 402,7 s of barrier wait, and the impossible subset is at most
 			// that - the bucket is the measure, the waste is a ceiling on it, not the other way round.
 			//
@@ -7403,9 +7403,16 @@ internal static class MHR_Build
 		// Now the walk goes to a SURFACE the piece can be reached from (the plan's own floor/roof row below it), chosen once
 		// per piece. state.Pos stays the PIECE for the placement checks, the falls and the claims - only the target of the
 		// walk changes.
-		if (ReachWalk && (state.SelfWalk || state.Pos.y > me.y + 1f))
+		// review-06/11 A2: `SelfWalk` is a target the caller asked for on purpose (stepping off his own piece), so it
+		// does not depend on `[Building] ReachWalk` - that switch is about walking to a surface BELOW a piece above the
+		// head, not about this. With the switch off the step-off was still cleared on the first frame.
+		// review-06/11 A2 (second half): the caller may have ALREADY set the target (the step-off does, with
+		// `WalkFor = Index`), and this block used to recompute it from the plain walk spot on the first frame - the same
+		// 0 m answer. A target that is already this piece's is kept.
+		bool targetSet = state.SelfWalk && state.HasWalkTo && state.WalkFor == state.Index;
+		if (state.SelfWalk || (ReachWalk && state.Pos.y > me.y + 1f))
 		{
-			if (state.WalkFor != state.Index)
+			if (!targetSet && state.WalkFor != state.Index)
 			{
 				state.WalkFor = state.Index;
 				Vector3 walk;
@@ -7565,7 +7572,7 @@ internal static class MHR_Build
 	/// (<see cref="State.WalkRays"/>, <see cref="State.WalkFound"/>) are in the log, so "where did it look" is never a
 	/// guess.</para>
 	/// </summary>
-	private static bool WalkSpot(CompanionAI ai, State state, out Vector3 spot)
+	private static bool WalkSpot(CompanionAI ai, State state, out Vector3 spot, bool away = false)
 	{
 		spot = state != null ? state.Pos : Vector3.zero;
 		if (ai == null || state == null || state.Piece == null)
@@ -7617,6 +7624,11 @@ internal static class MHR_Build
 			}
 		}
 		state.WalkFound = s_walkSurfaces.Count;
+		// review A3 (06/11/2026): the step-off asks for a surface AWAY from where he stands and from the piece's column
+		if (away)
+		{
+			return BuildWalkSpot.ChooseAway(ai.transform.position, state.Pos, MaxPlace, s_walkSurfaces, out spot);
+		}
 		return BuildWalkSpot.Choose(ai.transform.position, state.Pos, MaxPlace, s_walkSurfaces, out spot);
 	}
 
@@ -7748,12 +7760,18 @@ internal static class MHR_Build
 		if (state.Piece != null && state.SelfStep < 2 && OwnBodyOn(ai, state.Piece, state.Pos, state.Rot))
 		{
 			Vector3 outside;
-			if (WalkSpot(ai, state, out outside))
+			// review A3 (06/11/2026): the step-off asks for a surface AWAY from his feet and from the piece's column (the
+			// plain choice answered his own column: a 0 m walk, measured twice in the 11 tries of building-notes §17.31).
+			if (WalkSpot(ai, state, out outside, true))
 			{
 				state.SelfStep++;
 				state.HasWalkTo = true;
 				state.WalkTo = outside;
 				state.WalkFor = state.Index;
+				// review A2 (06/11/2026): `Goto` drops a walk target for a piece at the feet unless the walk was asked as a
+				// step-off (`SelfWalk`) - without this flag the target set above was cleared on the first frame and the
+				// tries were no-ops (the same two "saio para" lines, same position, in the trace)
+				state.SelfWalk = true;
 				state.Phase = Phase.Goto;
 				Log(ai, "a peça " + (state.Index + 1) + "/" + (state.Plan != null ? state.Plan.Count : 1)
 					+ " precisa do lugar onde eu estou - saio para (" + F(outside.x) + ", " + F(outside.y) + ", " + F(outside.z) + ")");
