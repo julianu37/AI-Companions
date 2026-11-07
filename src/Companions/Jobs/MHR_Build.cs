@@ -1241,6 +1241,12 @@ internal static class MHR_Build
 		}
 		if (state.Group != null && MHR_BuildGroup.TryQueueRetry(state.Group, index, BuildFailure.Kind.Dependency))
 		{
+			// review-06/11 B1: the hand-over to the site's queue is said out loud (it was silent)
+			if (ai != null)
+			{
+				Log(ai, "a peça " + (index + 1) + "/" + state.Plan.Count + " foi para a fila do canteiro"
+					+ (string.IsNullOrEmpty(why) ? string.Empty : " (" + why + ")"));
+			}
 			return;   // the site keeps it: another worker (or this one, after a resume) puts it up
 		}
 		if (!state.SkippedIndices.Add(index))
@@ -2655,6 +2661,9 @@ internal static class MHR_Build
 				state.BarrierServed);
 			if (!BuildFailure.BodyWaitsFor(dueAt, Time.time, patience))
 			{
+				// review-06/11 M3: said out loud - the storey climbs with a piece below still in the queue
+				Log(ai, "a peça " + (state.BarrierNextIndex + 1) + "/" + state.Plan.Count + " de baixo não volta a tempo ("
+					+ "a paciência acaba antes) - o plano sobe");
 				ResetBarrier(state);
 				return false;   // it cannot be served before the patience runs out: climb instead of waiting the impossible
 			}
@@ -5178,16 +5187,25 @@ internal static class MHR_Build
 			return Advance(ai, state);
 		}
 		int single = 0;
+		// review-06/11 M6: the entries that leave the queue without a plan index used to vanish without a word
+		// (`continue`), so the piece was gone from the count and from the log. They are counted and said once below.
+		int orphan = 0;
 		for (int i = state.Retry.Count - 1; i >= 0; i--)
 		{
 			PlannedStep step = state.Retry[i];
 			state.Retry.RemoveAt(i);
 			if (step == null)
 			{
+				orphan++;
 				continue;
 			}
 			int index = state.Plan.IndexOf(step);
-			if (index < 0 || state.PlacedIndices.Contains(index))
+			if (index < 0)
+			{
+				orphan++;
+				continue;
+			}
+			if (state.PlacedIndices.Contains(index))
 			{
 				continue;
 			}
@@ -5201,6 +5219,10 @@ internal static class MHR_Build
 				Log(ai, "sem apoio: " + step.Prefab + " em (" + F(step.Pos.x) + ", " + F(step.Pos.y) + ", "
 					+ F(step.Pos.z) + ")");
 			}
+		}
+		if (orphan > 0 && CompanionsPlugin.LogNormal)
+		{
+			Log(ai, orphan + " entrada(s) da fila sem posição no plano saíram sem peça (review M6)");
 		}
 		if (CompanionsPlugin.LogNormal)
 		{
@@ -7784,6 +7806,10 @@ internal static class MHR_Build
 					+ " precisa do lugar onde eu estou - saio para (" + F(outside.x) + ", " + F(outside.y) + ", " + F(outside.z) + ")");
 				return true;
 			}
+			// review-06/11 A4: no place to step to is said out loud (it was a LogDebug in Goto, silent in a normal
+			// run). The piece is placed anyway below - the log is the proof of how often that happens.
+			Log(ai, "a peça " + (state.Index + 1) + "/" + (state.Plan != null ? state.Plan.Count : 1)
+				+ " está no meu corpo e não achei onde sair - coloco mesmo assim (tentativa " + state.SelfStep + ")");
 		}
 		// E6: a plan step is checked AGAIN now, with the pieces the plan already built standing - the roof's support
 		// comes from the walls, and up-front they were only planned (measured: the roof was refused with no_support)
