@@ -1,5 +1,10 @@
 # Revisão do executor (MHR_Build) — 06/11/2026
 
+> **ESTADO (07/11/2026): os itens A2, A3, A4, M3, M4, M6, B1 e B6 foram CORRIGIDOS.**
+> `edc6d04` = A2 + A3 (o par, com `ChooseAway` e a seção (af) do harness); `50b1cb3` = M4 (`BlockedCap`);
+> `08611c9` = os quatro logs. **O A/B do A2 + A3 e do M4 ainda não rodou** — é o número que decide se ficam.
+> Este documento continua sendo o diagnóstico original; mantenha o texto abaixo como registro do que foi encontrado.
+
 Revisão independente de `Place`, da barreira de andar e do retry, feita em HEAD `ff9d8ab` (código igual ao de `2b469d6`,
 o guarda de 2 tentativas). Objetivo: explicar por que o companheiro fica sob o piso (§17.31 de `building-notes.md`) e
 achar o que mais pode regredir. **Nada foi corrigido de comportamento** — esta revisão não pede patch, pede medição.
