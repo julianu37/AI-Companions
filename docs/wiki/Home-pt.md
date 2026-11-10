@@ -101,7 +101,7 @@ vem do upstream e continua funcionando igual — a IA é só uma **nova entrada*
 | **[Configuração](Configuration-pt)** | O `.cfg`, a seção `[AI]` e os painéis `F8` e `I` |
 | **[Problemas comuns](Troubleshooting-pt)** | Sintoma → causa → solução |
 | **[Como funciona](How-it-works-pt)** | Arquitetura e o caminho de uma ordem |
-| **[Histórico de versões](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)** | O changelog completo, da 1.6.0 à 1.9.5 |
+| **[Histórico de versões](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)** | O changelog completo, da 1.6.0 à 1.9.6 |
 | **[Créditos e licença](Credits-and-license-pt)** | Upstream, terceiros e licenças |
 
 ## Links rápidos

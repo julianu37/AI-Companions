@@ -96,7 +96,7 @@ continua a funzionare uguale — l'IA è solo un **nuovo ingresso** per le stess
 | **[Configurazione](Configuration-it)** | Il `.cfg`, la sezione `[AI]` e i pannelli `F8` e `I` |
 | **[Problemi comuni](Troubleshooting-it)** | Sintomo → causa → soluzione |
 | **[Come funziona](How-it-works-it)** | Architettura e il percorso di un ordine |
-| **[Cronologia delle versioni](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)** | Il changelog completo, dalla 1.6.0 alla 1.9.5 |
+| **[Cronologia delle versioni](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)** | Il changelog completo, dalla 1.6.0 alla 1.9.6 |
 | **[Crediti e licenza](Credits-and-license-it)** | Upstream, terzi e licenze |
 
 ## Link rapidi
