@@ -56,7 +56,7 @@ agente ⇄ MCP/stdio ⇄ tools/mcp-devbridge/mcp_devbridge.py ⇄ TCP 127.0.0.1:
   "mcp": {
     "valheim-devbridge": {
       "type": "local",
-      "command": ["python", "C:\\Users\\revenda33\\Desktop\\ModAI-BR-Companions\\tools\\mcp-devbridge\\mcp_devbridge.py"],
+      "command": ["python", "C:\\Users\\revenda33\\Desktop\\ValheinCompanions\\tools\\mcp-devbridge\\mcp_devbridge.py"],
       "enabled": true
     }
   }

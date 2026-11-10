@@ -51,7 +51,7 @@
         "type": "local",
         "command": [
           "python",
-          "C:\\Users\\revenda33\\Desktop\\ModAI-BR-Companions\\tools\\mcp-devbridge\\mcp_devbridge.py"
+          "C:\\Users\\revenda33\\Desktop\\ValheinCompanions\\tools\\mcp-devbridge\\mcp_devbridge.py"
         ],
         "enabled": true
       },
