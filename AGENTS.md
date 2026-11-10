@@ -51,6 +51,10 @@ python tools/gen_translations.py --check                 # dívida conhecida: ho
 # relatório de um run de obra a partir do BepInEx\LogOutput.log
 python tools/build_run_report.py [log] [--last|--all] [--json]
 
+# wiki: valida a fonte (docs/wiki/) e publica no repo separado da GitHub Wiki
+python tools/publish_wiki.py --check
+python tools/publish_wiki.py
+
 # staging do pacote (NUNCA montar o zip à mão)
 python tools/stage_release.py --version 1.9.6 --from "C:\Program Files (x86)\Steam\steamapps\common\Valheim\BepInEx\plugins\AI-Companions" --to pkg\1.9.6\stage [--no-models]
 ```
@@ -217,7 +221,8 @@ padrão** (`[Advanced] DevBridge`), loopback only, porta **47110**; liga-se no `
 - `docs/re/packaging-layout.md` — layout do zip (e por que os modelos ficam dentro da pasta do plugin).
 - `docs/re/blueprint-corpus.md`, `docs/re/navmesh-tiles.md`, `docs/re/support-rule-wearntear.md`,
   `docs/re/stt-*.md`, `docs/re/tts-kokoro-sherpa-onnx.md` — engenharia reversa e medições pontuais.
-- `docs/wiki/` — **fonte da GitHub Wiki** (repo separado `AI-Companions.wiki`). `docs/SESSION_HANDOFF.md` é
+- `docs/wiki/` — **fonte da GitHub Wiki** (repo separado `AI-Companions.wiki`); publicar com
+  `python tools/publish_wiki.py` (`--check` valida a fonte e avisa o passo manual). `docs/SESSION_HANDOFF.md` é
   **histórico do upstream**, não handoff nosso.
 
 ## Definição de pronto
