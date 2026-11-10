@@ -96,7 +96,7 @@ upstream y sigue funcionando igual — la IA es solo una **nueva entrada** para 
 | **[Configuración](Configuration-es)** | El `.cfg`, la sección `[AI]` y los paneles `F8` e `I` |
 | **[Problemas comunes](Troubleshooting-es)** | Síntoma → causa → solución |
 | **[Cómo funciona](How-it-works-es)** | Arquitectura y el camino de una orden |
-| **[Historial de versiones](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)** | El changelog completo, de la 1.6.0 a la 1.9.5 |
+| **[Historial de versiones](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)** | El changelog completo, de la 1.6.0 a la 1.9.6 |
 | **[Créditos y licencia](Credits-and-license-es)** | Upstream, terceros y licencias |
 
 ## Enlaces rápidos
@@ -108,15 +108,23 @@ upstream y sigue funcionando igual — la IA es solo una **nueva entrada** para 
 | **Changelog** | https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md |
 | **Upstream (MIT)** | https://github.com/MaddhattrRocks/Offline-Companions-Reborn |
 
-La release publicada más reciente es la **1.9.5** (31/10/2026), con **un** paquete:
+La release publicada más reciente es la **1.9.6** (02/11/2026), con **un** paquete:
 
 | Archivo | Tamaño | Qué viene |
 |---|---|---|
-| `AI_Companions-1.9.5.zip` | ~314 MB | El mod, las traducciones **y** los modelos de voz (STT + TTS) ya listos |
+| `AI_Companions-1.9.6.zip` | ~314 MB | El mod, las traducciones **y** los modelos de voz (STT + TTS) ya listos |
 
 > **Un solo paquete.** Desde la **1.9.4** la release viene **con** los modelos de voz, ya **dentro** de
 > `BepInEx\plugins\AI-Companions\` (`whisper\` y `tts\`) — no hay nada que descargar aparte. El paquete
 > **sin modelos** quedó **descontinuado** (el último fue el de la 1.9.1).
+
+> **La 1.9.6 — la actualización de la construcción.** El compañero ahora **construye lo que le pides**: una
+> bancada, un cofre, una cama, un refugio, una tienda, una cabaña 2x2 o la casa entera (4x4, 6x6 y 8x8), en los
+> cinco idiomas. Encuentra el sitio con las reglas del propio juego, paga pieza por pieza de la mochila y de los
+> cofres, recoge lo que falta, **allana el terreno con la azada** y vuelve solo a terminar la obra, en el mismo
+> ancla y la misma pieza. La puerta va siempre **la última**. Órdenes: `construye una bancada aquí`, `construye
+> una cabaña aquí`, `construye una casa aquí`, `construye una casa 6x6 aquí`, `allana un terreno 10x10 aquí` (la
+> tabla completa está en **[Comandos](Commands-es#construcción)**).
 
 > **La 1.9.5 en resumen — el lote de la revisión de 10 especialistas.** Veinte correcciones, ninguna función nueva:
 >
