@@ -45,6 +45,14 @@ stopped.
   blamed the spot. It now compares the real weight with the carry ceiling and says `hc_ai_build_too_heavy`.
   Measured right after: with **120 wood (240 of 300 weight)** the same 983-piece blueprint **walked and built 60 pieces**
   in ~3 minutes (all supported) before handing the order to the gather for the rest.
+- **"level the ground" understood in every language** (measured, 11/11/2026): asking for the ground to be leveled in
+  English, Spanish, French or Italian failed - the model answered `build` with "8x8" as the target ("I don't know a build
+  called 8x8") - because the `level` rule and its example only existed in the Portuguese prompt. The five prompts now
+  teach it (and `level` is in the action list of all five), the rule says what it is **not** (not chat, and not `build`:
+  "build a 4x4 house here" still builds and levels what it needs by itself), and `LlmIntent` keeps the action instead of
+  rewriting it to `none`. **Measured in game, English, three times in a row:** `{"action":"level",...}` straight from the
+  model, no rescue line, and `[Level] ... order ended: hc_ai_level_done` on the first. The harness now fails if any of the
+  37 actions is missing from a prompt or from the alias table.
 - **A leveling that gives up no longer kills the build** (player's report, 03/11/2026: "não fez"): the handover back to the
   house/blueprint only happened on "leveled" or "already flat", so a site that stopped at 0,30 m against the 0,20 m
   tolerance ended the whole order without a single piece. A failed leveling now hands the order back too, and the build

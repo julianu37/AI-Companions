@@ -9,17 +9,17 @@ IA** (LLM/voz/fala) + **localização** por cima.
 > **Este arquivo é uma referência operacional, não um diário.** O histórico detalhado mora em `docs/`. Se você precisa
 > do "porquê" de uma decisão da construção/IA, **não** invente: leia o doc apontado no fim deste arquivo.
 
-## Estado agora (medido em 10/11/2026)
+## Estado agora (medido em 11/11/2026)
 
 | item | valor |
 |---|---|
 | versão | **1.9.6** (`PluginVersion` em `src/Companions/Core/CompanionsPlugin.cs`); `package/CHANGELOG.md` já tem a seção `1.9.7 - in progress` |
 | build | `dotnet build Companions.sln -c Release` → **0 erros, 0 avisos** |
-| harness (redes por palavras + tabelas puras) | **718 PASS / 0 FAIL** |
+| harness (redes por palavras + tabelas puras) | **891 PASS / 0 FAIL** em **32 seções** (`--list` imprime todas; `--only=(p)` roda uma) |
 | MCP mock (sem jogo) | **122 PASS / 0 FAIL** |
 | config documentada | **368 opções / 25 seções** (`gen_config_doc.py --check`) |
 | gate de release | **9/9 PASS** |
-| branch de trabalho | `fix/pisos-nivel-2` (a linha de release é a `main`) |
+| branch de trabalho | `fix/harness-integridade` (a linha de release é a `main`) |
 
 Se algum número acima não bater, **o código ganha** — rode o comando e corrija a tabela.
 
@@ -34,6 +34,9 @@ dotnet build Companions.sln -c Release -p:SkipDeploy=true
 
 # harness das redes por palavras + tabelas puras — precisa do build acima (lê a Companions.dll)
 dotnet run --project tools/ai-intents-check -c Release
+#   -- --list (as 32 seções na ordem do run) | --only=(p),(aa) (só elas) | --quiet (só FAIL e o resumo)
+#   -- --strict (a DLL mais velha que o fonte vira FAIL em vez de nota)
+#   O filtro NUNCA esconde FAIL/SKIP; chave de seção inexistente sai com exit 2.
 
 # MCP DevBridge em modo mock (não precisa do jogo)
 python tools/mcp-devbridge/test_mcp_devbridge.py

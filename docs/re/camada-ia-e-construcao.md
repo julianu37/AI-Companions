@@ -821,6 +821,20 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   escada/telhado na navmesh) e **C** (navmesh própria por grade, como o Vikings for Hire) ficam como opções se a A não
   resolver. Base da pesquisa: a navmesh do jogo não serve para base de jogador (Vikings for Hire, Nexus 4057); nosso
   `MHR_CompanionNavMesh` já usa agente próprio (tipo 40, sem portas, sobe 0,6 m).
+- **O harness passou a provar o que dizia provar (branch `fix/harness-integridade`, 11/11/2026):** o
+  `tools/ai-intents-check` rodava **718 PASS / 0 FAIL** e mesmo assim a confiança na prova estava errada em quatro
+  pontos, todos medidos e fechados nesta rodada (o README do harness é a referência atual): a seção (h) comparava a
+  cópia do `CompanionOrders` com **qualquer** `Companions.dll`, inclusive uma velha; o corpus do `JobMode` era fixo em
+  18 ações enquanto o `ValidActions` já tinha 37; a seção (f) provava o **texto de fábrica copiado no `Stubs.cs`**, não
+  a regra; e `KnownFail`/`HarnessLog` existiam sem ninguém os ler. Agora a (h) recusa DLL mais velha que o fonte
+  (**nota** por padrão, **FAIL** com `--strict`) e compara as **37** ações lidas por reflexão; a **(aa)** falha se
+  qualquer ação do `ValidActions` faltar num dos 5 contratos; a **(ab)** falha se uma ação do schema não voltar dela
+  mesma do `LlmIntent` (a classe do bug do `level`); a **(f)** seta as quatro listas de coleta explicitamente
+  (`WithLists`) e sobrevive ao texto de fábrica virar lixo; a **(ae)** afirma que as redes **não logam** debug no
+  caminho feliz (as 7 chamadas de log dos arquivos linkados estão todas em `catch`). `--only`/`--quiet`/`--list`/`--strict`
+  fecham a rodada: **FAIL e SKIP nunca são escondidos**, e `--only` com chave inexistente sai com **exit 2**.
+  **Medido:** 891 PASS / 0 FAIL em 32 seções; cada asserção nova foi provada **ao contrário** (mexer na regra e ver o
+  run falhar) antes de voltar ao verde.
 - **Pendências conhecidas (abertas):** a **voz não passa pelo
   mixer do jogo** (por isso ignora os sliders de volume do Valheim e só obedece `[AI] TtsVolume`); o **sync com o
   upstream** está **em dia com a 1.5.8** (era 1.5.4 — ver a seção *Upstream e licença*), mas o autor publica
@@ -923,6 +937,16 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   (`RadialIntent`, `PickupIntent`, `GatherIntent`, `InteractionIntent`, `IsDoorRequest`, `IsInventoryRequest`,
   `OrderItems`) são a segurança fora do modelo. `build`/`level` são ordens; `companions.order` do bridge
   **cancela** obra/nivelamento.
+  **Medido em jogo em 11/11/2026 (o fixture do `level`):** Valheim aberto pela Steam, mundo `tests`, bridge em
+  `127.0.0.1:47110`, LLM local `qwen2.5-3b-instruct`, **jogo em inglês** (o contrato segue `CompanionLocale`). Três
+  envios de `level the ground 8x8 here` pelo chat: **3/3** com `{"action":"level",...}` **na resposta crua** e **zero**
+  linhas de resgate (`O modelo devolveu "none"…`) — antes dos dois fixes de contrato/`Aliases` a mesma frase dava
+  `"action":"build"` com `target="8x8"`. A ordem executou de verdade na primeira (`[Level] … pass 1..3`, variação
+  **1,09 m → 0,23 m**, `hc_ai_level_done`) e nas seguintes respondeu `hc_ai_level_already` (chão plano, 0,21 m e
+  0,01 m) — o comportamento correto. Smoke do mesmo build: `companions.order wood` → `applied: true` e, pelo chat,
+  `gather wood` → `[IA] Order "wood" -> 1 companion(s)` + `Applied "wood" in 975 ms`; em PT,
+  `nivele o terreno 6x6 aqui` → `[Level] … 6,0 m around` + `hc_ai_level_already`. Log do boot desta sessão:
+  `Loading [AI Companions 1.9.6]` e `loaded successfully! (95 methods patched)`.
 - **Construção (Trilha E):** `MHR_Build` — peça única (`prefab`), template (`plan=hut|canopy|tent|house4|…`) e
   `.blueprint` (`<plugin>\blueprints` — era `BepInEx/config/AI-Companions/blueprints` até 11/11/2026). Ordem: **andar →
   piso → escada → parede → telhado → porta**; a estação é planejada (**fora do blueprint**: no blueprint ela é
