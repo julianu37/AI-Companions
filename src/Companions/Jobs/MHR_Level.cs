@@ -451,9 +451,12 @@ internal static class MHR_Level
 		// E4b gather uses: one owner of the work at a time).
 		// E7 (player's report, 03/11/2026: "não fez"): it ALSO resumes when the leveling GAVE UP - the game's level is a
 		// smooth with a floor, so a site can stop at 0,30 m and never reach the 0,20 m tolerance; before, that ended the
-		// whole order (the build never started)
-		bool resumeBuild = key == "hc_ai_level_done" || key == "hc_ai_level_already" || key == "hc_ai_level_failed";
-		string resumeLog = key == "hc_ai_level_failed" ? "the ground is as flat as it gets - back to the build" : "the ground is ready - back to the build";
+		// whole order (the build never started).
+		// Pendência 12 (11/11/2026): and when the job REFUSES the site as too steep - the key was missing from the old
+		// inline list, so a blueprint on a bank ended the order (measured, §17.21(c) of the building notes). The table
+		// lives in LevelResume, where the harness asserts it.
+		bool resumeBuild = LevelResume.Resumes(key);
+		string resumeLog = LevelResume.Message(key);
 		if (state.ThenBuild != null && resumeBuild)
 		{
 			CompanionSetup cs = ai.GetComponent<CompanionSetup>();

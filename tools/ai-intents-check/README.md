@@ -46,12 +46,17 @@ falha (ou algo foi pulado) e `2` quando o harness não conseguiu subir (assembli
 | `AI/BuildSpread.cs` | a **dispersão dos workers** num plano compartilhado (ninguém disputa a mesma peça) |
 | `AI/BuildBlueprintSkip.cs` | `Reason` — **por que** uma linha do `.blueprint` não entra no plano, e as duas constantes que são o contrato do `skippedReasons` |
 | `AI/LlmProviders.cs` | a tabela do dropdown do provedor e o `Suggest` — **voltar** de uma URL (colada pelo jogador) para o item dela |
+| `AI/LevelResume.cs` | `Resumes`/`Message` — **qual fim do nivelamento devolve o canteiro à obra** (pendência 12: `hc_ai_build_too_steep` faltava na lista e matava a obra) |
 | `AI/MHR_Owner.cs`, `Core/MHR_List.cs` | dependências reais dos acima |
 
 > A **fonte** desta lista é o `<Compile Include>` de `ai-intents-check.csproj`, não este comentário: se um arquivo
 > estiver linkado lá e não aqui, o README está atrasado (foi o que aconteceu com os seis `Build*` acima). O `<summary>`
 > do `Program.cs` parou de repetir a lista por esse motivo: ele dizia 16 arquivos e omitia os seis mais novos que o
 > csproj linkava.
+>
+> O último link (`LevelResume`, 11/11/2026) nasceu da regra do repo aplicada ao contrário: a **pendência 12** era uma
+> tabela de strings escrita dentro de `MHR_Level.Finish`, e uma chave faltando ali não tem como aparecer em teste —
+> o job simplesmente encerrava a obra em jogo. A tabela virou arquivo puro em `AI/` e a seção **(af)** a prende.
 
 `Stubs.cs` tem **só** os membros do lado Unity/config que esses arquivos tocam, e cada um diz de onde veio pelo
 **nome do membro** (`Arquivo.cs` → `Método`), nunca por faixa de linhas — uma faixa é uma promessa sobre um arquivo que
@@ -110,9 +115,10 @@ outra pessoa edita, e seis delas já tinham derivado:
 
 | (ac) | `BuildBlueprintSkip` (**por que uma linha do `.blueprint` não entra no plano**, `AI/BuildBlueprintSkip.cs`): 7 casos — as duas constantes são **exatamente** `"not a piece here"` e `"recipe not unlocked"` (elas são o contrato do `skippedReasons` que o `BuildBlueprintReport` preenche e o `blueprints.inspect` publica: renomear uma quebra o painel e a ponte **sem erro de compilação em lugar nenhum**) e a tabela de decisão inteira — sem peça (com e sem a receita conhecida) → `NotAPiece`; com peça e sem a receita → `RecipeLocked`; com as duas → `null`. A última asserção exige que as duas razões continuem **textos distintos** (se colapsarem, o painel deixa de dizer ao jogador se ele desbloqueia a receita ou desiste do prefab). |
 | (ad) | `LlmProviders` (**o dropdown do provedor no painel**, `AI/LlmProviders.cs`): 28 casos — a tabela (`Count` 4, `CustomIndex` 3, os `IdAt` e os `KeyUrlAt` dos quatro, `Fills` só falso no "Personalizado", índice fora da faixa caindo no último item) e o **casamento tolerante do `Suggest`**: a URL da tabela → o item dela, `localhost` ≡ `127.0.0.1` (o `Alias` do LM Studio), barra no fim, sem o `/v1`, **com** `/chat/completions` (que o `LlmClient` acrescenta sozinho) e as duas juntas `…/v1/chat/completions/` — **a ordem das normalizações importa** e é isso que o caso prende; espaços e caixa alta; servidor desconhecido, `""` e `null` → "Personalizado". As URLs em si não mudam aqui: o que a seção prova é que **voltar** delas para o item continua funcionando. |
-| (ae) | **o log das redes ficou calado** (`Program.QuietLog`): as chamadas de `CompanionsPlugin.Log` dos arquivos linkados estão todas dentro de um `catch`, então uma linha de debug numa run verde é uma exceção engolida — o tipo de defeito que nenhum valor esperado pega, porque a rede devolve `null` por desenho. O contador é zerado no começo do run e lido aqui, no fim; a seção prova o próprio instrumento por **delta** (um `LogDebug` move o contador) antes de afirmar que ele ficou em zero. |
+| (ae) | **o log das redes ficou calado** (`Program.QuietLog`): as chamadas de `CompanionsPlugin.Log` dos arquivos linkados estão todas dentro de um `catch`, então uma linha de debug numa run verde é uma exceção engolida — o tipo de defeito que nenhum valor esperado pega, porque a rede devolve `null` por desenho. O contador é zerado no começo do run e lido aqui, no fim; a seção prova o próprio instrumento por **delta** (um `LogDebug` move o contador) antes de afirmar que ele ficou em zero. É a **última** da ordem por isso: ela lê os contadores de todas as outras, inclusive da (af). |
+| (af) | `LevelResume.Resumes`/`Message` (**qual fim do nivelamento devolve o canteiro à obra**, `AI/LevelResume.cs`): 14 casos — `done`/`already`/`failed` → `true` (o terreno foi trabalhado), **`hc_ai_build_too_steep` → `true`** (a pendência 12: o terreno é íngreme demais, a obra volta e constrói o que dá) e `no_hoe`/`null`/`""`/chave desconhecida → `false`; as duas linhas de "terreno pronto" são a mesma e a de `failed` é outra; a de `too_steep` fala do declive (não diz que o chão está pronto) e `Message(no_hoe)` é nulo. A última asserção prende o invariante que torna o par seguro: **`Resumes(x)` verdadeiro exatamente quando `Message(x)` não é nulo**. Sem `no_hoe` de fora, a obra voltaria, mediria a mesma variação, pediria o mesmo nivelamento e encerraria do mesmo jeito — uma ordem que se reinicia para sempre. |
 
-Hoje: **891 asserções** — a conta por seção sai do próprio run (uma linha por seção):
+Hoje: **905 asserções** — a conta por seção sai do próprio run (uma linha por seção):
 
 | seção | n | seção | n | seção | n | seção | n |
 |---|---|---|---|---|---|---|---|
@@ -124,6 +130,7 @@ Hoje: **891 asserções** — a conta por seção sai do próprio run (uma linha
 | (e) | 34 | (k) | 20 | (q) | 26 | (w) | 9 |
 | (x) | 10 | (y) | 19 | (z) | 22 | (aa) | 12 |
 | (ab) | 37 | (ac) | 7 | (ad) | 28 | (ae) | 2 |
+| (af) | 14 | | | | | | |
 
 Para reconferir a tabela por seção: `--only=(p)` conta só a seção pedida, então
 `dotnet run --project tools/ai-intents-check -c Release -- --only=(p) | grep -c '^PASS'` dá o número daquela linha, e

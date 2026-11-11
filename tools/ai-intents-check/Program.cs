@@ -95,7 +95,7 @@ internal static class Program
 	/// as (h) <b>after</b> (z) - the number and the position disagreed.)
 	///
 	/// <para>(h) is the cross-check against the DLL and sits where its number says, between (g) and (i); (ae) is last
-	/// because it reads the log counters of every section above it.</para>
+	/// because it reads the log counters of every section above it (that is why (af) sits before it, not after).</para>
 	/// </summary>
 	private static readonly SectionDef[] SectionOrder = new SectionDef[]
 	{
@@ -128,7 +128,9 @@ internal static class Program
 		new SectionDef("z", "BuildSpread - a dispersao dos workers (ninguem disputa a peca, Run 14)", SpreadCases),
 		new SectionDef("aa", "CompanionChatAI - as 37 acoes do schema sao ensinadas nos 5 contratos", ContractCoverage),
 		new SectionDef("ab", "LlmIntent.Parse - toda acao do schema sobrevive ao Canonicalize", CanonicalRoundTrip),
-		new SectionDef("ac", "BuildBlueprintSkip - por que uma linha do .blueprint nao entra no plano", BlueprintSkips),		new SectionDef("ad", "LlmProviders - o dropdown do painel casa a URL com o provedor", ProviderTable),
+		new SectionDef("ac", "BuildBlueprintSkip - por que uma linha do .blueprint nao entra no plano", BlueprintSkips),
+		new SectionDef("ad", "LlmProviders - o dropdown do painel casa a URL com o provedor", ProviderTable),
+		new SectionDef("af", "LevelResume - qual fim do nivelamento devolve o canteiro a obra", LevelResumes),
 		new SectionDef("ae", "o log das redes ficou calado - nenhuma regra engoliu excecao", QuietLog)
 	};
 
@@ -2776,6 +2778,55 @@ internal static class Program
 	}
 
 	/// <summary>
+	/// Section (af): <c>LevelResume</c> - <b>which ending of the leveling hands the site back to the build</b>.
+	///
+	/// <para>This is the pendência 12 of the building backlog, and it is the reason the section exists: the resume set
+	/// was three keys written inline in <c>MHR_Level.Finish</c>, and <c>hc_ai_build_too_steep</c> was not one of them.
+	/// With <c>[Building] LevelGround</c> on by default - the <b>product</b> recipe, the run nobody has played yet - a
+	/// steep site ended the whole order instead of building what fits. Nothing failed; the order simply stopped, and it
+	/// only shows up in a game run. The table is now pure and asserted here.</para>
+	///
+	/// <para>The case that must NOT resume is <c>hc_ai_build_no_hoe</c>: without a hoe the ground is never touched, so
+	/// the build that came back would measure the same variation, ask for the same leveling and end the same way - an
+	/// order that restarts itself forever. <c>null</c> (a silent end) has no reason to bring the build back either.</para>
+	/// </summary>
+	private static void LevelResumes()
+	{
+		ResumeCase("hc_ai_level_done", true, "o terreno foi nivelado - a obra volta");
+		ResumeCase("hc_ai_level_already", true, "o terreno ja estava plano - a obra volta");
+		ResumeCase("hc_ai_level_failed", true, "o nivelamento desistiu no piso do jogo - a obra volta com o que tem");
+		ResumeCase("hc_ai_build_too_steep", true, "pendencia 12: o terreno e ingreme demais - a obra volta mesmo assim");
+		ResumeCase("hc_ai_build_no_hoe", false, "sem enxada o terreno nunca foi tocado - voltar seria repetir a mesma recusa");
+		ResumeCase(null, false, "fim silencioso nao devolve nada");
+		ResumeCase("", false, "chave vazia nao devolve nada");
+		ResumeCase("hc_ai_level_whatever", false, "chave desconhecida nao devolve nada (a tabela e fechada)");
+
+		// the two "won" endings share one line; the two "not ready" endings say different things on purpose - the player
+		// reads the log to know whether the ground is ready or the house is going up on a slope
+		CheckText("Message(done)", "the ground is ready - back to the build", LevelResume.Message("hc_ai_level_done"));
+		CheckText("Message(already)", "the ground is ready - back to the build", LevelResume.Message("hc_ai_level_already"));
+		CheckText("Message(failed)", "the ground is as flat as it gets - back to the build",
+			LevelResume.Message("hc_ai_level_failed"));
+		Check("Message(too_steep) fala do declive (nao diz que o chao esta pronto)",
+			LevelResume.Message("hc_ai_build_too_steep") != null
+			&& LevelResume.Message("hc_ai_build_too_steep").IndexOf("steep", StringComparison.OrdinalIgnoreCase) >= 0,
+			"obtido: " + Show(LevelResume.Message("hc_ai_build_too_steep")));
+		Check("Message(no_hoe) == null (nao retoma, nao fala de retomada)", LevelResume.Message("hc_ai_build_no_hoe") == null,
+			"obtido: " + Show(LevelResume.Message("hc_ai_build_no_hoe")));
+		// the invariant that makes the pair safe: there is a line exactly when the build resumes
+		Check("Resumes(x) verdadeiro <=> Message(x) nao nulo (os dois andam juntos)",
+			LevelResume.Resumes("hc_ai_build_too_steep") && LevelResume.Message("hc_ai_build_too_steep") != null
+			&& !LevelResume.Resumes("hc_ai_build_no_hoe") && LevelResume.Message("hc_ai_build_no_hoe") == null);
+	}
+
+	private static void ResumeCase(string key, bool expected, string why)
+	{
+		bool actual = LevelResume.Resumes(key);
+		Check("Resumes(" + (key == null ? "null" : "\"" + key + "\"") + ") -> " + (expected ? "true" : "false") + " ("
+			+ why + ")", actual == expected, "obtido " + (actual ? "true" : "false"));
+	}
+
+	/// <summary>
 	/// Section (ae): the <b>log the linked rules produce</b>, read as an instrument.
 	///
 	/// <para>Every <c>CompanionsPlugin.Log</c> call in the linked files is inside a <c>catch</c> (measured: 7 calls in
@@ -2799,7 +2850,7 @@ internal static class Program
 
 		// and now the claim of the whole run. The detail names the message, because the first thing anybody asks is
 		// WHICH rule threw.
-		Check("nenhuma regra engoliu excecao nas secoes (a)-(ad): " + runLines + " linha(s) de debug",
+		Check("nenhuma regra engoliu excecao nas secoes (a)-(af): " + runLines + " linha(s) de debug",
 			runLines == 0,
 			"ultima linha: " + (CompanionsPlugin.Log.Last.Count == 0
 				? "(nenhuma)"
