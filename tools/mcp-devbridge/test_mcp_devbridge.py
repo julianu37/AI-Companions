@@ -220,9 +220,9 @@ def main():
 
         tools = rpc("tools/list", request_id=2).get("result", {}).get("tools", [])
         names = {tool["name"] for tool in tools}
-        check("tools/list has 62 tools", len(tools) == 62, "%d tools" % len(tools))
+        check("tools/list has 63 tools", len(tools) == 63, "%d tools" % len(tools))
         for expected in ("devbridge_ping", "game_status", "companions_list", "companions_order", "screenshot", "log_tail",
-                         "player_kill", "player_inventory", "world_time", "companions_kill", "companions_tier",
+                         "player_kill", "player_inventory", "world_time", "world_chest", "companions_kill", "companions_tier",
                          "companions_hire", "companions_resurrect", "companions_farm_zone", "log_watch",
                          "build_inspect", "build_sites", "build_find", "build_pieces", "companions_build", "companions_sethome", "player_look", "build_check", "build_snaps", "build_usable", "terrain_check", "build_hoe", "companions_level",
                          "nav_tiles", "nav_probe", "nav_stats", "blueprints_list", "blueprints_inspect"):

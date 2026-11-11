@@ -369,6 +369,30 @@ TOOLS = [
         },
     },
     {
+        "name": "world_chest",
+        "description": (
+            "Puts items INSIDE a chest (dev tool for the paid build run). Without 'spawn' it uses the nearest "
+            "chest a companion may use; with 'spawn' it first places a piece_chest_wood at the given spot. "
+            "world_spawn alone creates an EMPTY chest - the contents only reach the ZDO through the container's "
+            "own save, which this command goes through by opening and closing it."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "item": {"type": "string", "description": "prefab name, e.g. 'Wood'"},
+                "amount": {"type": "integer", "minimum": 1, "maximum": 9999, "default": 100},
+                "spawn": {"type": "boolean", "default": False, "description": "place a fresh piece_chest_wood first"},
+                "radius": {"type": "number", "minimum": 1, "maximum": 60, "default": 30},
+                "yaw": {"type": "number", "default": 0},
+                "x": {"type": "number"},
+                "y": {"type": "number"},
+                "z": {"type": "number"},
+            },
+            "required": ["item"],
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "world_aim",
         "description": "Raycasts the crosshair and reports what is under it (name, distance, point, whether it is a tree or which creature).",
         "inputSchema": {
@@ -1090,6 +1114,14 @@ def run_tool(name, args):
             if key in args:
                 payload[key] = args[key]
         return require_ok(call_bridge("world.spawn", **payload))
+    if name == "world_chest":
+        payload = {"item": args["item"], "amount": args.get("amount", 100)}
+        if args.get("spawn"):
+            payload["spawn"] = True
+        for key in ("radius", "yaw", "x", "y", "z"):
+            if key in args:
+                payload[key] = args[key]
+        return require_ok(call_bridge("world.chest", **payload))
     if name == "world_aim":
         return require_ok(call_bridge("world.aim", max=args.get("max", 100)))
     if name == "world_nearest":

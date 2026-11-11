@@ -88,6 +88,7 @@ internal static class Commands
 			case "player.kill": return PlayerKill();
 			case "player.inventory": return PlayerInventory(args);
 			case "world.spawn": return WorldSpawn(args);
+			case "world.chest": return WorldChest(args);
 			case "world.time": return WorldTime(args);
 			case "world.aim": return WorldAim(args);
 			case "world.nearest": return WorldNearest(args);
@@ -2102,6 +2103,164 @@ internal static class Commands
 			UnityEngine.Object.Instantiate(prefab, pos + new Vector3(i * 1.5f, 0f, 0f), Quaternion.identity);
 		}
 		return Ok(new Dictionary<string, object> { { "prefab", name }, { "count", count } });
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the paid run of the product recipe): <b>fills a chest with items</b> - the tool the bridge
+	/// docstring said was missing. The build's chest path (<c>BuildStock</c>) only reads chests a player placed, so a
+	/// run with <c>BlueprintFree=false</c> needs real stocked chests next to the site, and until now nothing could
+	/// produce one (<c>world.spawn</c> creates an <i>empty</i> <c>piece_chest_wood</c>; the contents of a
+	/// <c>Container</c> only reach the ZDO through <c>Container.Save</c>, which is private and fires on the
+	/// inventory's change).
+	///
+	/// <para>What this does instead: finds the nearest chest a companion may use (<see cref="MHR_Chests.Usable"/> -
+	/// a piece a player built, not a tombstone/cart/ship, inside the ward and not open), opens it through
+	/// <see cref="MHR_Chests.Open"/> (which claims ownership, so the contents are saved), adds the items and closes
+	/// it again. With <c>spawn</c> it creates a <c>piece_chest_wood</c> by our own placement sequence first
+	/// (<see cref="BuildExecutor.Place"/> with no builder: the local player is credited, which is exactly what
+	/// makes <c>IsPlacedByPlayer</c> true and the chest usable).</para>
+	///
+	/// <para>Dev tool only: it is on the same TCP loopback server as the rest (<c>[Advanced] DevBridge</c>, off by
+	/// default).</para>
+	/// </summary>
+	private static string WorldChest(Dictionary<string, object> args)
+	{
+		if (ZNetScene.instance == null)
+		{
+			return Fail("the world isn't loaded");
+		}
+		Player player = Player.m_localPlayer;
+		if (player == null)
+		{
+			return Fail("no player in the world");
+		}
+		string item = (Json.Str(args, "item") ?? string.Empty).Trim();
+		if (item.Length == 0)
+		{
+			return Fail("item is required (e.g. Wood)");
+		}
+		int amount = Mathf.Clamp(Json.Int(args, "amount", 100), 1, 9999);
+		GameObject prefab = ObjectDB.instance != null ? ObjectDB.instance.GetItemPrefab(item) : null;
+		if (prefab == null)
+		{
+			return Fail("unknown item: " + item);
+		}
+		float radius = Mathf.Clamp(Json.Float(args, "radius", 30f), 1f, 60f);
+		Vector3 center = TargetPosition(args, player.transform.position + player.transform.forward * 2f);
+		bool spawn = Json.Bool(args, "spawn", false);
+		float yaw = Json.Float(args, "yaw", 0f);
+		string shared = ItemSharedName(prefab);
+		// the chests to fill, nearest first. With "spawn" a fresh piece_chest_wood is placed for EACH one the amount
+		// needs - a wood chest is 2x4 slots and Wood stacks 50, so 2 445 wood is ~7 chests and a single one answers
+		// "added: 400" without ever covering a house
+		List<Container> chests = new List<Container>();
+		if (spawn)
+		{
+			Piece chestPiece = BuildProbe.PieceOf("piece_chest_wood");
+			if (chestPiece == null)
+			{
+				return Fail("no piece_chest_wood prefab");
+			}
+			Container fresh = SpawnChest(chestPiece, center, yaw);
+			if (fresh == null)
+			{
+				return Fail("could not place a piece_chest_wood at the given spot");
+			}
+			chests.Add(fresh);
+		}
+		else
+		{
+			Component who = player;
+			foreach (Container candidate in MHR_Chests.Near(center, radius))
+			{
+				if (MHR_Chests.Usable(candidate, who))
+				{
+					chests.Add(candidate);
+				}
+			}
+			if (chests.Count == 0)
+			{
+				return Fail("no usable chest within " + radius.ToString("F0") + " m (pass spawn=true to place them)");
+			}
+		}
+		int remaining = amount;
+		int total = 0;
+		List<object> filled = new List<object>();
+		for (int i = 0; remaining > 0; i++)
+		{
+			if (i >= chests.Count)
+			{
+				if (!spawn)
+				{
+					break;   // an existing chest list is finite: report what did not fit
+				}
+				// one more chest, 1,5 m to the side of the first (a wood chest is 1 m wide, so they do not overlap)
+				Container next = SpawnChest(BuildProbe.PieceOf("piece_chest_wood"), center + Vector3.right * (1.5f * i), yaw);
+				if (next == null)
+				{
+					break;
+				}
+				chests.Add(next);
+			}
+			Container chest = chests[i];
+			Inventory bag = chest != null ? chest.GetInventory() : null;
+			if (bag == null)
+			{
+				continue;
+			}
+			// the ownership claim and the inUse flag are what make the write stick (MHR_Chests.Open); the chest is
+			// closed again right after, so a job that refuses a chest "in use" sees it free
+			if (!MHR_Chests.Open(chest))
+			{
+				continue;
+			}
+			int before = shared != null ? bag.CountItems(shared) : 0;
+			int added = AddItems(bag, prefab, remaining);
+			chest.SetInUse(false);
+			remaining -= added;
+			total += added;
+			Vector3 at = chest.transform.position;
+			filled.Add(new Dictionary<string, object>
+			{
+				{ "name", chest.gameObject.name },
+				{ "added", added },
+				{ "had", before },
+				{ "stacks", bag.NrOfItems() },
+				{ "x", at.x },
+				{ "y", at.y },
+				{ "z", at.z }
+			});
+		}
+		return Ok(new Dictionary<string, object>
+		{
+			{ "item", item },
+			{ "amount", total },
+			{ "requested", amount },
+			{ "left", remaining },
+			{ "chests", filled.Count },
+			{ "spawned", spawn },
+			{ "chestData", filled }
+		});
+	}
+
+	/// <summary>Places a <c>piece_chest_wood</c> by the mod's own placement sequence and answers its container
+	/// (null when the spot refuses the piece). No builder: the local player is credited, which is what makes the
+	/// chest a piece a player built - the very thing <see cref="MHR_Chests.Usable"/> asks for.</summary>
+	private static Container SpawnChest(Piece chestPiece, Vector3 pos, float yaw)
+	{
+		if (chestPiece == null)
+		{
+			return null;
+		}
+		BuildResult placed = BuildExecutor.Place(null, chestPiece, pos, Quaternion.Euler(0f, yaw, 0f), true);
+		return placed != null && placed.Ok && placed.GameObject != null ? placed.GameObject.GetComponentInChildren<Container>() : null;
+	}
+
+	/// <summary>The shared item name of a prefab (<c>$item_wood</c>), which is what every inventory counts by.</summary>
+	private static string ItemSharedName(GameObject prefab)
+	{
+		ItemDrop drop = prefab != null ? prefab.GetComponent<ItemDrop>() : null;
+		return drop != null && drop.m_itemData != null && drop.m_itemData.m_shared != null ? drop.m_itemData.m_shared.m_name : null;
 	}
 
 	private static string WorldTime(Dictionary<string, object> args)

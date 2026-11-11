@@ -150,12 +150,14 @@ nivelamento e responde o que **estava** rodando, lido **antes** do cancel (`buil
 `Wander`, `Follow`, `StayHome`, `HomeRadius`, `OrderCap`, `OrderCapMode`, `OrderCapItem`, `TombstoneId`, `Stamina`,
 `Recovering`, `RecoverStance`, `RecoverPickup`, `Voice`, `Gen`, `FarmZones` (`"<none>"` ou `"N chars"`).
 
-## Ferramentas MCP (60 em 03/11/2026)
+## Ferramentas MCP (63 em 11/11/2026)
 
 Genéricas: `devbridge_ping`, `game_status` (posição, hp/stamina, bioma, dia, **yaw** do player, **camYaw/pitch** da
 câmera e **god**), `game_console` (**roda um comando do console e devolve a saída**: liga os dev commands sozinho e,
 num `spawn`, diz se o prefab existe), `player_give`, `player_teleport`, `player_kill`, `player_inventory`, `world_spawn`,
-`world_time`, `world_aim` (o que está **sob a mira**: nome, distância, ponto, se é árvore/criatura), `world_nearest`
+`world_chest` (**põe itens DENTRO de um baú** — ver a receita em "Encher um baú"; `world_spawn` cria o
+`piece_chest_wood` **vazio**), `world_time`, `world_aim` (o que está **sob a mira**: nome, distância, ponto, se é
+árvore/criatura), `world_nearest`
 (a **árvore** ou **criatura** mais próxima — o alvo para mirar), `world_prefabs` (os nomes de prefab que o mundo
 conhece, filtrados — é como se descobre `AxeBlackMetal` em vez de adivinhar), `world_setup` (**devcommands + `tod` +
 `god on` + `heal`** — o setup para dirigir o player), `screenshot` (a visão do jogador), `render_view` (câmera
@@ -374,14 +376,18 @@ Números medidos: andar ~3,5 m/s; correr ~5,1 m/s (stamina 50 → 33,6 em 2 s); 
 - `ScreenCapture.CaptureScreenshot` grava **no fim do quadro** → o servidor espera o arquivo (até 4 s).
 - `companions.order` sem `name` usa o **primeiro** companheiro — com vários, passe o nome.
 - O módulo é compilado junto: renomear um campo `*Hash` do mod **quebra o build** (é o que se quer).
-- **Encher um baú não tem ferramenta** (pedido do jogador em 03/11/2026: *"criar 4 baús cheios de madeira do lado do
-  player"* — **cancelado** por ele quando soube do custo). O `world.spawn` cria o `piece_chest_wood` mas ele nasce
-  **vazio**, e o conteúdo de um `Container` só chega ao ZDO pelo `Container.Save` (**privado**, disparado no
-  `Inventory.m_onChanged` → `OnContainerChanged`); o bridge escreve só chaves tipadas (`companions.zdo`), não o
-  `byte[]` dos itens. Encher exigiria um comando novo (`world.chest`: `Player.PlacePiece` + `Inventory.AddItem`), e
-  comando novo só vale **depois de reiniciar o jogo** (a DLL carrega no boot) — o que derrubaria a obra de 985 peças
-  que estava em andamento. Alternativa sem reinício: `player.give` põe a madeira no inventário do jogador (mas ele
-  fica acima do peso e anda travado), e o companheiro já corta o que falta pelo próprio canteiro.
+- **Encher um baú: resolvido em 11/11/2026 pelo `world.chest`.** O pedido de 03/11/2026 (*"criar 4 baús cheios de
+  madeira do lado do player"*) tinha sido **cancelado** pelo jogador quando soube do custo, e o comando não existia: o
+  `world.spawn` cria o `piece_chest_wood` mas ele nasce **vazio**, e o conteúdo de um `Container` só chega ao ZDO pelo
+  `Container.Save` (**privado**, disparado no `Inventory.m_onChanged` → `OnContainerChanged`). O `world.chest` entra
+  pelo caminho que o próprio jogo usa: acha o baú mais próximo que um companheiro **pode** usar (`MHR_Chests.Usable` —
+  peça posta por jogador, dentro do ward, não aberta), **abre** com `MHR_Chests.Open` (que reivindica a posse, e é a
+  posse que faz a escrita pegar), adiciona os itens e fecha. Com `spawn: true` ele primeiro **põe** um
+  `piece_chest_wood` na sua frente pela sequência de colocação do mod (`BuildExecutor.Place` sem builder: o crédito é
+  do jogador, que é o que torna `IsPlacedByPlayer` verdadeiro). Custo: um comando no bridge e um reinício do jogo (a
+  DLL carrega no boot) — foi por isso que ele esperou uma sessão em que o reinício já era necessário.
+  **Ressalva medida antes do primeiro uso:** um baú comum do jogo é **2×4 = 8 posições**, e 2 445 de madeira são
+  **21 pilhas de 120** — um baú não cabe a casa. Ver a receita abaixo.
 
 ## Segurança
 
