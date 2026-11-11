@@ -11,11 +11,14 @@ using Out = System.Console;
 namespace AiIntentsCheck;
 
 /// <summary>
-/// The word nets of the AI layer, checked <b>outside the game</b> against the real sources: ai-intents-check.csproj
-/// compiles src/Companions/AI/{LlmIntent,RadialIntent,PickupIntent,GatherIntent,InteractionIntent,OrderItems,
-/// CompanionNames,MHR_Owner,NavTileMath,BuildCatalog,BuildTemplates,BuildBlueprintParser,LevelIntent,BuildFailure,
-/// BuildPieceKind,BuildSupportBelow}.cs and src/Companions/Core/MHR_List.cs straight into this executable, so every rule
-/// asserted here is the shipped one (Stubs.cs holds only the Unity/config members those files touch).
+/// The word nets of the AI layer, checked <b>outside the game</b> against the real sources.
+///
+/// <para><b>The file list lives in <c>ai-intents-check.csproj</c>, not in this comment</b> (11/11/2026). The
+/// <c>&lt;Compile Include&gt;</c> items there are what actually compiles, so they are the single source: this summary
+/// said "16 files" and was missing the six newest <c>Build*</c> modules while the csproj linked them - a list in prose
+/// cannot stay right on its own. What the comment keeps is the <b>shape</b>: the pure files of <c>src/Companions/AI/</c>
+/// and <c>Core/MHR_List.cs</c> are compiled straight into this executable (nothing is copied, nothing is
+/// reimplemented), and <c>Stubs.cs</c> holds only the Unity/config members those files touch.</para>
 ///
 /// <para>Two of those members cannot be linked (they live in classes that need the world), so they are copies in
 /// Stubs.cs: <c>CompanionOrders.IsDoorRequest</c> and <c>CompanionOrders.JobMode</c>. Section (h) loads the built
@@ -35,7 +38,7 @@ namespace AiIntentsCheck;
 /// a single piece. Section (w) is <c>BuildMaterials</c>: the material need of a plan (prefab → count folded through each
 /// piece's costs), the number the build panel shows before the order and <c>blueprints.inspect</c> reports as
 /// <c>materials</c>.</para>
-/// 
+///
 /// <para>Section (x) is <c>BuildWalkSpot</c>: <b>where the companion stands</b> to place a piece that is not at its feet
 /// (Run 13, 11/11/2026 - the ridge of the <c>CommHomeBasicBP</c> walked the wrong way). The same storey first, then the
 /// highest surface the game's eye rule still covers; none = the piece itself, the old target.</para>
@@ -47,6 +50,14 @@ namespace AiIntentsCheck;
 ///
 /// <para>Run: <c>dotnet run --project tools/ai-intents-check</c> (after <c>dotnet build Companions.sln -c Release</c>,
 /// which the cross-check reads). Exit code 0 only when every case passed and nothing was skipped.</para>
+///
+/// <para><b>Arguments</b> (11/11/2026) - all optional, and <b>no argument means exactly what it meant before</b> (same
+/// assertions, same count, same exit code):
+/// <c>--list</c> prints the sections in the order they run and stops; <c>--only=(a),(p)</c> rules on the listed
+/// sections only (the others still <b>run</b> - they cost microseconds and skipping them would change the state the
+/// later ones read, so the filter is on what gets <b>counted and printed</b>); <c>--quiet</c> prints only the FAILs and
+/// the summary; <c>--strict</c> turns a stale DLL into a FAIL (see section (h)). The reason for <c>--only</c> is reading
+/// the output, not time: the whole run is ~10 s.</para>
 /// </summary>
 internal static class Program
 {
@@ -64,9 +75,99 @@ internal static class Program
 	/// by default (a <c>git checkout</c> rewrites mtimes and would cry wolf), a FAIL here.</summary>
 	private static bool _strict;
 
+	/// <summary>11/11/2026 (<c>--quiet</c>): only the FAILs and the summary are printed.</summary>
+	private static bool _quiet;
+
+	/// <summary>11/11/2026 (<c>--list</c>): print the section headers in run order and stop before anything runs.</summary>
+	private static bool _list;
+
+	/// <summary>11/11/2026 (<c>--only=(a),(p)</c>): the sections whose cases are <b>counted and printed</b>. Null = all.
+	/// The other sections still run - see the summary of the class for why the filter is not a skip.</summary>
+	private static HashSet<string> _only;
+
+	/// <summary>The key of the section currently running (<c>a</c>, <c>p</c>, <c>ab</c>...), or null outside one.</summary>
+	private static string _current;
+
+	/// <summary>
+	/// The sections, in the order they run - <b>the one place</b> that list exists (11/11/2026). <see cref="Main"/>
+	/// executes it and <c>--list</c> prints it, which is what keeps the printed order honest. (Before this, the run
+	/// order was written inline and the cross-check section printed its own header from inside its body, so it showed up
+	/// as (h) <b>after</b> (z) - the number and the position disagreed.)
+	///
+	/// <para>(h) is the cross-check against the DLL and sits where its number says, between (g) and (i); (ae) is last
+	/// because it reads the log counters of every section above it.</para>
+	/// </summary>
+	private static readonly SectionDef[] SectionOrder = new SectionDef[]
+	{
+		new SectionDef("0", "pre-condicoes: o harness roda FORA do jogo", Preconditions),
+		new SectionDef("a", "RadialIntent.Correct - postura, vagar, comando, trabalho e as guardas", Radial),
+		new SectionDef("b", "PickupIntent.NeighborAction - nopickup que o jogador desmente", Pickup),
+		new SectionDef("c", "GatherIntent.FromModelAction - coleta com numero", Gather),
+		new SectionDef("d", "InteractionIntent.Correct - colmeia, porta, navio, sentar, bau", Interaction),
+		new SectionDef("e", "LlmIntent.Parse / ExtractContent - o JSON do modelo", Parser),
+		new SectionDef("f", "OrderItems.Resolve / GatherAction - o item da ordem nos 5 idiomas", Items),
+		new SectionDef("g", "CompanionNameMatch - quem o jogador chamou (bonus)", Names),
+		new SectionDef("h", "as copias do Stubs.cs contra a DLL real (Companions.dll)", CrossCheckDoorRule),
+		new SectionDef("i", "BuildCatalog - o nome da peca vira o prefab (E5: oficina)", Build),
+		new SectionDef("j", "BuildTemplates - a estrutura por template (E6: cabana e abrigo)", Templates),
+		new SectionDef("k", "LevelIntent - a ordem de nivelar o terreno (E10)", Leveling),
+		new SectionDef("l", "BuildBlueprintParser - o .blueprint do PlanBuild (E7)", Blueprints),
+		new SectionDef("m", "BuildBlueprintParser.NearestWithin - a ordem dentro do grupo (vizinho mais proximo)", BlueprintOrder),
+		new SectionDef("n", "BuildBlueprintParser.Ordered - a chave do telhado (andar da laje que cobre)", BlueprintRoofKey),
+		new SectionDef("o", "NavTileMath.Axis - o tile da navmesh (P2 da navegacao)", NavTiles),
+		new SectionDef("p", "BuildFailure.Classify - o portao de apoio da obra (dependencia x falha real)", BuildFailures),
+		new SectionDef("q", "BuildPieceKind.Classify - estrutura x mobilia (quanto a peca pode sair do plano)", PieceKinds),
+		new SectionDef("r", "BuildSupportBelow - o apoio direto de uma peca (quem o grupo puxa para a frente)", SupportBelow),
+		new SectionDef("s", "BuildBody - a janela do corpo na colocacao (blocked_by_player)", BodyWindows),
+		new SectionDef("t", "a barreira de andar - recusa por corpo (IsTransient/ShortRetry) e o nivel da peca", BodyBarrier),
+		new SectionDef("u", "BuildSupportBelow.FallbackPostAllowed - o poste quando o apoio do plano nao vem", FallbackPosts),
+		new SectionDef("v", "BuildStationCover.Required - a bancada exigida so fora do blueprint", StationsCover),
+		new SectionDef("w", "BuildMaterials - o custo do plano (necessidade de materiais)", Materials),
+		new SectionDef("x", "BuildWalkSpot.Choose - de onde a peca e alcancada (o ponto do walk, Run 13)", WalkSpotCases),
+		new SectionDef("y", "BuildAsideSpot.Plan - para onde o companheiro sai da frente (o StepAside do Run 14)", AsideSpots),
+		new SectionDef("z", "BuildSpread - a dispersao dos workers (ninguem disputa a peca, Run 14)", SpreadCases),
+		new SectionDef("aa", "CompanionChatAI - as 37 acoes do schema sao ensinadas nos 5 contratos", ContractCoverage),
+		new SectionDef("ab", "LlmIntent.Parse - toda acao do schema sobrevive ao Canonicalize", CanonicalRoundTrip),
+		new SectionDef("ac", "BuildBlueprintSkip - por que uma linha do .blueprint nao entra no plano", BlueprintSkips),		new SectionDef("ad", "LlmProviders - o dropdown do painel casa a URL com o provedor", ProviderTable),
+		new SectionDef("ae", "o log das redes ficou calado - nenhuma regra engoliu excecao", QuietLog)
+	};
+
+	/// <summary>One line of <see cref="SectionOrder"/>: the key, the title the header shows, and the cases.</summary>
+	private sealed class SectionDef
+	{
+		internal readonly string Key;
+		internal readonly string Title;
+		internal readonly Action Body;
+
+		internal SectionDef(string key, string title, Action body)
+		{
+			Key = key;
+			Title = title;
+			Body = body;
+		}
+	}
+
+	/// <summary>Is a case in the running section counted? (True when there is no filter, or the section is in it.)</summary>
+	private static bool Counted
+	{
+		get { return _only == null || (_current != null && _only.Contains(_current)); }
+	}
+
 	private static int Main(string[] args)
 	{
 		_strict = Array.IndexOf(args, "--strict") >= 0;
+		_quiet = Array.IndexOf(args, "--quiet") >= 0;
+		_list = Array.IndexOf(args, "--list") >= 0;
+		string only = ArgumentValue(args, "--only=");
+		if (only != null)
+		{
+			_only = new HashSet<string>(StringComparer.Ordinal);
+			foreach (string part in only.Split(new char[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries))
+			{
+				// "(a)", "a", "(aa)" and "aa" all mean the same section
+				_only.Add(part.Trim().Trim('(', ')').ToLowerInvariant());
+			}
+		}
 		try
 		{
 			Out.OutputEncoding = Encoding.UTF8;
@@ -78,82 +179,51 @@ internal static class Program
 
 		InstallAssemblyProbe();
 
-		Out.WriteLine("AI Companions - harness das redes por palavras (net472, fontes reais de src/)");
-		Out.WriteLine("pastas do jogo: " + (ProbeDirs.Count == 0 ? "(nenhuma encontrada)" : string.Join(" | ", ProbeDirs)));
-
-		Section("(0) pre-condicoes: o harness roda FORA do jogo");
-		// (ae) reads this counter at the end: from here on, a log line is a swallowed exception, not noise
-		CompanionsPlugin.Log.Reset();
-		Preconditions();
-		if (_fail > 0)
+		if (_list)
 		{
-			Out.WriteLine();
-			Out.WriteLine("FATAL: o ambiente do harness esta errado (veja acima). As assemblies do jogo sao procuradas em: "
-				+ (ProbeDirs.Count == 0 ? "(nenhuma pasta)" : string.Join(" | ", ProbeDirs.ToArray())));
-			return 2;
+			PrintSectionList();
+			return 0;
 		}
 
-		Section("(a) RadialIntent.Correct - postura, vagar, comando, trabalho e as guardas");
-		Radial();
-		Section("(b) PickupIntent.NeighborAction - nopickup que o jogador desmente");
-		Pickup();
-		Section("(c) GatherIntent.FromModelAction - coleta com numero");
-		Gather();
-		Section("(d) InteractionIntent.Correct - colmeia, porta, navio, sentar, bau");
-		Interaction();
-		Section("(e) LlmIntent.Parse / ExtractContent - o JSON do modelo");
-		Parser();
-		Section("(f) OrderItems.Resolve / GatherAction - o item da ordem nos 5 idiomas");
-		Items();
-		Section("(g) CompanionNameMatch - quem o jogador chamou (bonus)");
-		Names();
-		Section("(i) BuildCatalog - o nome da peca vira o prefab (E5: oficina)");
-		Build();
-		Section("(j) BuildTemplates - a estrutura por template (E6: cabana e abrigo)");
-		Templates();
-		Section("(k) LevelIntent - a ordem de nivelar o terreno (E10)");
-		Leveling();
-		Section("(l) BuildBlueprintParser - o .blueprint do PlanBuild (E7)");
-		Blueprints();
-		Section("(m) BuildBlueprintParser.NearestWithin - a ordem dentro do grupo (vizinho mais proximo)");
-		BlueprintOrder();
-		Section("(n) BuildBlueprintParser.Ordered - a chave do telhado (andar da laje que cobre)");
-		BlueprintRoofKey();
-		Section("(o) NavTileMath.Axis - o tile da navmesh (P2 da navegacao)");
-		NavTiles();
-		Section("(p) BuildFailure.Classify - o portao de apoio da obra (dependencia x falha real)");
-		BuildFailures();
-		Section("(q) BuildPieceKind.Classify - estrutura x mobilia (quanto a peca pode sair do plano)");
-		PieceKinds();
-		Section("(r) BuildSupportBelow - o apoio direto de uma peca (quem o grupo puxa para a frente)");
-		SupportBelow();
-		Section("(s) BuildBody - a janela do corpo na colocacao (blocked_by_player)");
-		BodyWindows();
-		Section("(t) a barreira de andar - recusa por corpo (IsTransient/ShortRetry) e o nivel da peca");
-		BodyBarrier();
-		Section("(u) BuildSupportBelow.FallbackPostAllowed - o poste quando o apoio do plano nao vem");
-		FallbackPosts();
-		Section("(v) BuildStationCover.Required - a bancada exigida so fora do blueprint");
-		StationsCover();
-		Section("(w) BuildMaterials - o custo do plano (necessidade de materiais)");
-		Materials();
-		Section("(x) BuildWalkSpot.Choose - de onde a peca e alcancada (o ponto do walk, Run 13)");
-		WalkSpotCases();
-		Section("(y) BuildAsideSpot.Plan - para onde o companheiro sai da frente (o StepAside do Run 14)");
-		AsideSpots();
-		Section("(z) BuildSpread - a dispersao dos workers (ninguem disputa a peca, Run 14)");
-		SpreadCases();
-		Section("(aa) CompanionChatAI - as 37 acoes do schema sao ensinadas nos 5 contratos");
-		ContractCoverage();
-		Section("(ab) LlmIntent.Parse - toda acao do schema sobrevive ao Canonicalize");
-		CanonicalRoundTrip();
-		Section("(ac) BuildBlueprintSkip - por que uma linha do .blueprint nao entra no plano");
-		BlueprintSkips();
-		Section("(ad) LlmProviders - o dropdown do painel casa a URL com o provedor");
-		ProviderTable();
-		Section("(ae) o log das redes ficou calado - nenhuma regra engoliu excecao");
-		QuietLog();
-		CrossCheckDoorRule();
+		// a typo in --only must not read as a green run: "(zz)" would count nothing and exit 0
+		if (_only != null)
+		{
+			List<string> unknown = new List<string>();
+			foreach (string key in Sorted(_only))
+			{
+				if (!IsSectionKey(key))
+				{
+					unknown.Add(key);
+				}
+			}
+			if (unknown.Count > 0)
+			{
+				Out.WriteLine("--only: secao(oes) que nao existem: (" + string.Join("), (", unknown) + ")");
+				Out.WriteLine("  as secoes sao as de --list");
+				return 2;
+			}
+		}
+
+		Out.WriteLine("AI Companions - harness das redes por palavras (net472, fontes reais de src/)");
+		Out.WriteLine("pastas do jogo: " + (ProbeDirs.Count == 0 ? "(nenhuma encontrada)" : string.Join(" | ", ProbeDirs)));
+		if (_only != null)
+		{
+			Out.WriteLine("filtro --only: so " + (_only.Count == 0 ? "(nenhuma secao)" : "(" + string.Join("), (", Sorted(_only)) + ")")
+				+ " e contada (todas rodam)");
+		}
+
+		for (int i = 0; i < SectionOrder.Length; i++)
+		{
+			RunSection(SectionOrder[i].Key, SectionOrder[i].Title, SectionOrder[i].Body);
+			if (i == 0 && _fail > 0)
+			{
+				// (0) is the environment: if it fails the rest of the run means nothing
+				Out.WriteLine();
+				Out.WriteLine("FATAL: o ambiente do harness esta errado (veja acima). As assemblies do jogo sao procuradas em: "
+					+ (ProbeDirs.Count == 0 ? "(nenhuma pasta)" : string.Join(" | ", ProbeDirs.ToArray())));
+				return 2;
+			}
+		}
 
 		Out.WriteLine();
 		Out.WriteLine("=== " + _pass + " PASS / " + _fail + " FAIL ===");
@@ -2738,7 +2808,6 @@ internal static class Program
 
 	private static void CrossCheckDoorRule()
 	{
-		Section("(h) as copias do Stubs.cs contra a DLL real (Companions.dll)");
 		string path = FindCompanionsDll();
 		if (path == null)
 		{
@@ -3103,18 +3172,46 @@ internal static class Program
 
 	// ============================================================================================ the plumbing
 
+	/// <summary>
+	/// Opens a section, runs its cases, and puts the section key back. Every section of <see cref="Main"/> goes through
+	/// here (11/11/2026), which is what makes <c>--only</c> and <c>--list</c> possible with a single key per section
+	/// instead of a copy of the list in a second place.
+	///
+	/// <para>The cases of a filtered-out section <b>still run</b>: skipping them would let independent rules drift (a
+	/// section reads <c>ModConfig</c>, the log counters and the DLL, and the next one inherits that state), and the
+	/// whole run is ~10 s. What the filter changes is only whether <c>Check</c>/<c>Fail</c>/<c>Skip</c> count and print.</para>
+	/// </summary>
+	private static void RunSection(string key, string title, Action body)
+	{
+		_current = key;
+		Section("(" + key + ") " + title);
+		body();
+		_current = null;
+	}
 	private static void Section(string title)
 	{
+		if (_quiet)
+		{
+			// --quiet: no headers either - what is left is the FAILs (which Fail always prints) and the summary
+			return;
+		}
 		Out.WriteLine();
 		Out.WriteLine("=== " + title + " ===");
 	}
 
 	private static void Check(string name, bool ok, string detail = null)
 	{
+		if (!Counted)
+		{
+			return;
+		}
 		if (ok)
 		{
 			_pass++;
-			Out.WriteLine("PASS  " + name);
+			if (!_quiet)
+			{
+				Out.WriteLine("PASS  " + name);
+			}
 			return;
 		}
 		Fail(name, detail);
@@ -3122,6 +3219,10 @@ internal static class Program
 
 	private static void CheckText(string name, string expected, string actual)
 	{
+		if (!Counted)
+		{
+			return;
+		}
 		Check(name + " -> " + Show(expected), string.Equals(expected, actual, StringComparison.Ordinal),
 			"obtido " + Show(actual));
 	}
@@ -3129,14 +3230,28 @@ internal static class Program
 	/// <summary>E6: a float assertion with a small tolerance (the template offsets are metres).</summary>
 	private static void CheckFloat(string name, float expected, float actual)
 	{
+		if (!Counted)
+		{
+			return;
+		}
 		Check(name + " -> " + expected.ToString("0.##"), Math.Abs(expected - actual) < 0.001f, "obtido " + actual.ToString("0.###"));
 	}
 
 	private static void CheckInt(string name, int expected, int actual)
 	{
+		if (!Counted)
+		{
+			return;
+		}
 		Check(name + " -> " + expected, expected == actual, "obtido " + actual);
 	}
 
+	/// <summary>
+	/// A FAIL is <b>never</b> silent: not in <c>--quiet</c> and not outside <c>--only</c>. The filter narrows what is
+	/// <b>counted and printed as passing</b>; a failure anywhere still reaches the summary and the exit code, because a
+	/// harness that hides a red case behind a filter is worse than no filter (11/11/2026: with the naive filter,
+	/// <c>--only=(p) --strict</c> swallowed the stale-DLL FAIL of section (h) and exited 0).
+	/// </summary>
 	private static void Fail(string name, string detail)
 	{
 		_fail++;
@@ -3145,6 +3260,7 @@ internal static class Program
 		Out.WriteLine("FAIL  " + line);
 	}
 
+	/// <summary>A SKIP decides the exit code, so it follows the same rule as <see cref="Fail"/>: never filtered out.</summary>
 	private static void Skip(string name, string why)
 	{
 		_skip++;
@@ -3166,11 +3282,64 @@ internal static class Program
 		if (stillBroken)
 		{
 			// a record, not an assertion: it is counted apart and does not decide the exit code
+			if (!Counted)
+			{
+				return;
+			}
 			_knownFail++;
 			Out.WriteLine("KNOWN-FAIL  " + name + "  [" + detail + "]");
 			return;
 		}
 		Fail(name, detail + " - o bug sumiu: a marca KNOWN-FAIL pode sair");
+	}
+
+	/// <summary>The value of a <c>--name=value</c> argument, or null when it is not there.</summary>
+	private static string ArgumentValue(string[] args, string prefix)
+	{
+		for (int i = 0; i < args.Length; i++)
+		{
+			if (args[i] != null && args[i].StartsWith(prefix, StringComparison.Ordinal))
+			{
+				return args[i].Substring(prefix.Length);
+			}
+		}
+		return null;
+	}
+
+	private static List<string> Sorted(HashSet<string> set)
+	{
+		List<string> list = new List<string>(set);
+		list.Sort(StringComparer.Ordinal);
+		return list;
+	}
+
+	/// <summary>Is this a section key of <see cref="SectionOrder"/>? (<c>--only</c> refuses the ones that are not.)</summary>
+	private static bool IsSectionKey(string key)
+	{
+		for (int i = 0; i < SectionOrder.Length; i++)
+		{
+			if (string.Equals(SectionOrder[i].Key, key, StringComparison.Ordinal))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/// <summary>
+	/// <c>--list</c>: prints the sections in the order they run, read from the same <see cref="SectionOrder"/> table
+	/// <see cref="Main"/> runs from, so the two cannot disagree. It runs before anything else (no DLL, no game folders
+	/// needed), so it also answers "what is in this harness" on a machine without the game installed.
+	/// </summary>
+	private static void PrintSectionList()
+	{
+		Out.WriteLine("secoes, na ordem em que rodam (--only=(x) conta so a secao x; as outras rodam e nao contam):");
+		for (int i = 0; i < SectionOrder.Length; i++)
+		{
+			Out.WriteLine("  (" + SectionOrder[i].Key + ") " + SectionOrder[i].Title);
+		}
+		Out.WriteLine();
+		Out.WriteLine("argumentos: --only=(a),(p)  --quiet  --list  --strict");
 	}
 
 	private static string Show(string value)

@@ -10,6 +10,9 @@ dotnet build Companions.sln -c Release
 
 # 2. o harness
 dotnet run --project tools/ai-intents-check
+
+# variantes: --list (as seções, na ordem) | --only=(p) | --quiet | --strict
+dotnet run --project tools/ai-intents-check -- --only=(p)
 ```
 
 Sai `=== N PASS / M FAIL ===` + `TODOS OS TESTES PASSARAM` e **exit 0** quando não há FAIL nem SKIP; `1` quando há
@@ -46,7 +49,9 @@ falha (ou algo foi pulado) e `2` quando o harness não conseguiu subir (assembli
 | `AI/MHR_Owner.cs`, `Core/MHR_List.cs` | dependências reais dos acima |
 
 > A **fonte** desta lista é o `<Compile Include>` de `ai-intents-check.csproj`, não este comentário: se um arquivo
-> estiver linkado lá e não aqui, o README está atrasado (foi o que aconteceu com os seis `Build*` acima).
+> estiver linkado lá e não aqui, o README está atrasado (foi o que aconteceu com os seis `Build*` acima). O `<summary>`
+> do `Program.cs` parou de repetir a lista por esse motivo: ele dizia 16 arquivos e omitia os seis mais novos que o
+> csproj linkava.
 
 `Stubs.cs` tem **só** os membros do lado Unity/config que esses arquivos tocam, e cada um diz de onde veio pelo
 **nome do membro** (`Arquivo.cs` → `Método`), nunca por faixa de linhas — uma faixa é uma promessa sobre um arquivo que
@@ -120,9 +125,10 @@ Hoje: **891 asserções** — a conta por seção sai do próprio run (uma linha
 | (x) | 10 | (y) | 19 | (z) | 22 | (aa) | 12 |
 | (ab) | 37 | (ac) | 7 | (ad) | 28 | (ae) | 2 |
 
-Para reconferir a tabela:
-`dotnet run --project tools/ai-intents-check -c Release | grep -c '^PASS'` dá o total, e cada `=== (x) …` abre a seção
-seguinte. (Um filtro `--count` por seção é o item 8 do plano; enquanto ele não existe, a conta é esta linha de shell.)
+Para reconferir a tabela por seção: `--only=(p)` conta só a seção pedida, então
+`dotnet run --project tools/ai-intents-check -c Release -- --only=(p) | grep -c '^PASS'` dá o número daquela linha, e
+`--list` imprime os nomes na ordem em que rodam. Nenhum número desta tabela é digitado à mão: cada um sai de um
+`--only`.
 
 ## O que **não** é coberto (e por quê)
 
@@ -155,6 +161,14 @@ seguinte. (Um filtro `--count` por seção é o item 8 do plano; enquanto ele n�
 - O harness **não** altera `src/`, não escreve config e não roda o jogo.
 - `AI_COMPANIONS_DLL` aponta para outra `Companions.dll` no cross-check; `VALHEIM_DIR`/`AI_COMPANIONS_MANAGED`
   apontam para a instalação do jogo (por padrão, o caminho do `Environment.props` / Steam).
+- **Argumentos** (11/11/2026). Sem argumento, **nada muda**: mesma ordem, mesmas asserções, mesma contagem, mesmo exit
+  code. `--list` imprime as seções na ordem em que rodam (lê a tabela `SectionOrder`, a mesma que o run executa) e
+  sai. `--only=(a),(p)` faz `PASS`/`KNOWN-FAIL` das outras seções **não contarem nem imprimirem** — mas as outras
+  seções **rodam**: pular a execução mudaria o estado que as seguintes leem, e o run inteiro leva ~10 s. `--quiet`
+  imprime só FAIL e o resumo. Um `--only` com nome que não existe **falha com exit 2**, em vez de contar zero e sair
+  verde. **`FAIL` e `SKIP` nunca são filtrados** — nem por `--only`, nem por `--quiet`: um harness que esconde um caso
+  vermelho atrás de um filtro é pior que nenhum filtro (foi o que a primeira versão fez: `--only=(p) --strict` engolia
+  o FAIL da DLL velha e saía 0).
 - `--strict` (11/11/2026) liga o gate de release: hoje ele só muda uma coisa — uma DLL mais velha que o fonte vira
   **FAIL** em vez de `nota:`. Sem argumento nada muda (mesmo exit code, mesma contagem).
 
