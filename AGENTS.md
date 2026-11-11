@@ -16,7 +16,7 @@ IA** (LLM/voz/fala) + **localização** por cima.
 | versão | **1.9.6** (`PluginVersion` em `src/Companions/Core/CompanionsPlugin.cs`); `package/CHANGELOG.md` já tem a seção `1.9.7 - in progress` |
 | build | `dotnet build Companions.sln -c Release` → **0 erros, 0 avisos** |
 | harness (redes por palavras + tabelas puras) | **905 PASS / 0 FAIL** em **33 seções** (`--list` imprime todas; `--only=(p)` roda uma) |
-| MCP mock (sem jogo) | **122 PASS / 0 FAIL** |
+| MCP mock (sem jogo) | **123 PASS / 0 FAIL** |
 | config documentada | **368 opções / 25 seções** (`gen_config_doc.py --check`) |
 | gate de release | **9/9 PASS** |
 | branch de trabalho | `fix/harness-integridade` (a linha de release é a `main`) |
