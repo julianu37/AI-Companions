@@ -47,6 +47,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\release-check.ps1 -Ver
 
 # report for one build run, read from BepInEx\LogOutput.log
 python tools/build_run_report.py [log] [--last|--all] [--json]
+python tools/test_build_run_report.py                    # 4 synthetic-log cases (the report is the instrument for every run)
 
 # GitHub Wiki source (docs/wiki/) -> separate .wiki repo
 python tools/publish_wiki.py --check

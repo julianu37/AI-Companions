@@ -53,6 +53,7 @@ python tools/gen_translations.py --check                 # dívida conhecida: ho
 
 # relatório de um run de obra a partir do BepInEx\LogOutput.log
 python tools/build_run_report.py [log] [--last|--all] [--json]
+python tools/test_build_run_report.py                    # 4 casos de log sintético (o relatório é o instrumento de todo run)
 
 # wiki: valida a fonte (docs/wiki/) e publica no repo separado da GitHub Wiki
 python tools/publish_wiki.py --check
