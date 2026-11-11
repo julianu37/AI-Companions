@@ -136,6 +136,8 @@ internal static class Program
 		AsideSpots();
 		Section("(z) BuildSpread - a dispersao dos workers (ninguem disputa a peca, Run 14)");
 		SpreadCases();
+		Section("(aa) CompanionChatAI - as 37 acoes do schema sao ensinadas nos 5 contratos");
+		ContractCoverage();
 		CrossCheckDoorRule();
 
 		Out.WriteLine();
@@ -2237,9 +2239,200 @@ internal static class Program
 	/// Section (h): the two copies in Stubs.cs against the REAL methods in the built Companions.dll. This is what
 	/// keeps a copy from drifting away from CompanionOrders.cs.
 	/// </summary>
-	private static void CrossCheckDoorRule()
+	/// <summary>
+	/// Section (aa): every action the JSON schema lets the model answer with (<c>CompanionChatAI.ValidActions</c>, the
+	/// single source of the schema's "enum") has to be TAUGHT in each of the five prompt contracts - the list the model
+	/// reads first, and the rules/examples below it.
+	///
+	/// <para>This is the assertion that would have caught the <c>level</c> bug of 1.9.6: the action was in
+	/// <c>ValidActions</c> (so the schema offered it) and in the PT contract only, so in EN/ES/FR/IT the model had no
+	/// reason to ever answer "level" - it answered "build" with the size as the target ("level the ground 8x8 here" ->
+	/// <c>{"action":"build","target":"8x8"}</c>, spoken as "I don't know a build called 8x8"). Whole-word,
+	/// case-insensitive: "level" must not be satisfied by "levels" or by another word's substring.</para>
+	///
+	/// <para>The contracts are read from the built Companions.dll by reflection (the same load (h) does), because
+	/// CompanionChatAI.cs cannot be linked here: it needs Unity, the network and the game. An action counts as taught
+	/// when its word is in the contract's <b>prose</b> - the text with every <c>{...}</c> example removed. That is
+	/// stricter than "somewhere in the string" (an action that only ever shows up inside an example is not being
+	/// taught) and it needs no per-language section markers. The action-list region is asserted separately, with the
+	/// one marker pair per language: the model reads that list first, so a rule below it is not enough.</para>
+	/// </summary>
+	private static void ContractCoverage()
 	{
-		Section("(h) as copias do Stubs.cs contra a DLL real (Companions.dll)");
+		string path = FindCompanionsDll();
+		if (path == null)
+		{
+			Skip("contratos x ValidActions", "Companions.dll nao encontrada - rode dotnet build Companions.sln -c Release");
+			return;
+		}
+
+		const BindingFlags flags = BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public;
+		Type chat;
+		string[] actions;
+		string[] contracts = new string[5];
+		string[] languages = { "Pt", "En", "Es", "Fr", "It" };
+		try
+		{
+			Assembly asm = Assembly.LoadFrom(path);
+			chat = asm.GetType("Companions.CompanionChatAI", true);
+			FieldInfo actionsField = chat.GetField("ValidActions", flags);
+			if (actionsField == null)
+			{
+				Fail("reflexao em CompanionChatAI", "ValidActions nao encontrado");
+				return;
+			}
+			actions = (string[])actionsField.GetValue(null);
+			for (int i = 0; i < languages.Length; i++)
+			{
+				// Contract is a property (its getter reads CompanionLocale, which outside the game answers EN), so the
+				// five texts are read from the const fields themselves - the same strings the property picks from.
+				FieldInfo field = chat.GetField("Contract" + languages[i], BindingFlags.NonPublic | BindingFlags.Static);
+				if (field == null)
+				{
+					Fail("reflexao em CompanionChatAI", "Contract" + languages[i] + " nao encontrado");
+					return;
+				}
+				contracts[i] = (string)field.GetRawConstantValue();
+			}
+		}
+		catch (Exception e)
+		{
+			Fail("reflexao em CompanionChatAI (" + path + ")", Describe(e));
+			return;
+		}
+
+		CheckInt("ValidActions.Length (a fonte do enum do schema)", 37, actions.Length);
+
+		// The heading of the action list and of the rules, per language - the two markers the model's reading order has.
+		string[] listStart = { "Ações válidas:", "Valid actions:", "Acciones válidas:", "Actions valides", "Azioni valide" };
+		string[] listEnd = { "Regras:", "Rules:", "Reglas:", "Règles", "Regole:" };
+
+		for (int i = 0; i < contracts.Length; i++)
+		{
+			string language = languages[i];
+			string contract = contracts[i] ?? "";
+			string prose = StripExamples(contract);
+
+			// (1) every action appears in the prose (a rule or the list - not only inside an example)
+			List<string> missingProse = new List<string>();
+			for (int a = 0; a < actions.Length; a++)
+			{
+				if (!HasWord(prose, actions[a]))
+				{
+					missingProse.Add(actions[a]);
+				}
+			}
+			Check(language + ": as " + actions.Length + " acoes sao ensinadas na prosa do contrato",
+				missingProse.Count == 0,
+				missingProse.Count == 0 ? null : "nao ensinada(s): " + string.Join(", ", missingProse.ToArray())
+					+ " (o modelo nunca tera motivo para responde-las neste idioma)");
+
+			// (2) every action appears in the ACTION LIST region, which is what the model reads first
+			int start = contract.IndexOf(listStart[i], StringComparison.Ordinal);
+			int end = start < 0 ? -1 : contract.IndexOf(listEnd[i], start + 1, StringComparison.Ordinal);
+			if (start < 0 || end < 0)
+			{
+				Fail(language + ": marcadores da lista de acoes", "\"" + listStart[i] + "\" ate \"" + listEnd[i] + "\"");
+				continue;
+			}
+			string region = contract.Substring(start, end - start);
+			List<string> missingList = new List<string>();
+			for (int a = 0; a < actions.Length; a++)
+			{
+				if (!HasWord(region, actions[a]))
+				{
+					missingList.Add(actions[a]);
+				}
+			}
+			Check(language + ": as " + actions.Length + " acoes estao na lista que o modelo le primeiro",
+				missingList.Count == 0,
+				missingList.Count == 0 ? null : "fora da lista: " + string.Join(", ", missingList.ToArray()));
+		}
+
+		// (3) the schema enum and the contracts are built from the same array: Contract switches on the locale and is
+		//     fed to the model, so a contract nobody returns would be dead text. The five are distinct.
+		Check("os 5 contratos sao textos distintos", ContractsDistinct(contracts));
+	}
+
+	/// <summary>The contract text with every <c>{...}</c> example removed: what is LEFT is the teaching prose.</summary>
+	private static string StripExamples(string text)
+	{
+		StringBuilder output = new StringBuilder(text.Length);
+		int depth = 0;
+		for (int i = 0; i < text.Length; i++)
+		{
+			char c = text[i];
+			if (c == '{')
+			{
+				depth++;
+				continue;
+			}
+			if (c == '}')
+			{
+				if (depth > 0)
+				{
+					depth--;
+					output.Append(' ');
+				}
+				continue;
+			}
+			if (depth == 0)
+			{
+				output.Append(c);
+			}
+		}
+		return output.ToString();
+	}
+
+	/// <summary>Whole-word, case-insensitive: "level" is not found inside "levels" nor in "flatten".</summary>
+	private static bool HasWord(string text, string word)
+	{
+		if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(word))
+		{
+			return false;
+		}
+		int from = 0;
+		while (true)
+		{
+			int at = text.IndexOf(word, from, StringComparison.OrdinalIgnoreCase);
+			if (at < 0)
+			{
+				return false;
+			}
+			bool leftOk = at == 0 || !IsWordChar(text[at - 1]);
+			int after = at + word.Length;
+			bool rightOk = after >= text.Length || !IsWordChar(text[after]);
+			if (leftOk && rightOk)
+			{
+				return true;
+			}
+			from = at + 1;
+		}
+	}
+
+	private static bool IsWordChar(char c)
+	{
+		return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
+	}
+
+	private static bool ContractsDistinct(string[] contracts)
+	{
+		for (int i = 0; i < contracts.Length; i++)
+		{
+			for (int j = i + 1; j < contracts.Length; j++)
+			{
+				if (string.Equals(contracts[i], contracts[j], StringComparison.Ordinal))
+				{
+					Fail("contratos " + i + " e " + j + " sao identicos", "um dos idiomas herdou o texto do outro");
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
+	private static void CrossCheckDoorRule()
+	{		Section("(h) as copias do Stubs.cs contra a DLL real (Companions.dll)");
 		string path = FindCompanionsDll();
 		if (path == null)
 		{
