@@ -33,13 +33,26 @@ namespace Companions
 	// Nothing in this file decides what an order means: every rule the tests assert lives in src/.
 	// ================================================================================================================
 
-	/// <summary>The BepInEx logger, reduced to the calls the linked sources make. Counts the debug lines so a test
-	/// could assert that a net logged nothing on the happy path (it does not - see Program).</summary>
+	/// <summary>The BepInEx logger, reduced to the calls the linked sources make.
+	///
+	/// <para>An <b>instrument</b>, not decoration (11/11/2026). Every <c>CompanionsPlugin.Log</c> call in the linked
+	/// files sits inside a <c>catch</c> (measured: 7 calls across the six nets and the item map), so a log line in this
+	/// harness means <b>a rule threw and swallowed the exception</b> - a real failure no other section can see, because
+	/// the nets answer <c>null</c> by design and a case that expects <c>null</c> stays green either way. Section (ae)
+	/// reads the counters at the end of the run, and re-proves that they count by calling the logger itself.</para>
+	/// </summary>
 	internal sealed class HarnessLog
 	{
 		internal int DebugLines;
 		internal int InfoLines;
 		internal readonly List<string> Last = new List<string>();
+
+		/// <summary>Zeroes the counters (the list of lines is kept: it is the history of the run).</summary>
+		internal void Reset()
+		{
+			DebugLines = 0;
+			InfoLines = 0;
+		}
 
 		internal void LogDebug(string message) { DebugLines++; Remember(message); }
 		internal void LogInfo(string message) { InfoLines++; Remember(message); }

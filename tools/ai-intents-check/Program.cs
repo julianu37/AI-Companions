@@ -82,6 +82,8 @@ internal static class Program
 		Out.WriteLine("pastas do jogo: " + (ProbeDirs.Count == 0 ? "(nenhuma encontrada)" : string.Join(" | ", ProbeDirs)));
 
 		Section("(0) pre-condicoes: o harness roda FORA do jogo");
+		// (ae) reads this counter at the end: from here on, a log line is a swallowed exception, not noise
+		CompanionsPlugin.Log.Reset();
 		Preconditions();
 		if (_fail > 0)
 		{
@@ -149,6 +151,8 @@ internal static class Program
 		BlueprintSkips();
 		Section("(ad) LlmProviders - o dropdown do painel casa a URL com o provedor");
 		ProviderTable();
+		Section("(ae) o log das redes ficou calado - nenhuma regra engoliu excecao");
+		QuietLog();
 		CrossCheckDoorRule();
 
 		Out.WriteLine();
@@ -2701,6 +2705,37 @@ internal static class Program
 		CheckInt("Suggest(" + Show(url) + ") - " + why, expected, LlmProviders.Suggest(url));
 	}
 
+	/// <summary>
+	/// Section (ae): the <b>log the linked rules produce</b>, read as an instrument.
+	///
+	/// <para>Every <c>CompanionsPlugin.Log</c> call in the linked files is inside a <c>catch</c> (measured: 7 calls in
+	/// the six nets and the item map). So a debug line during a green run is not noise - it means some rule threw and
+	/// the exception was swallowed, which is a bug no expected value can catch: the nets answer <c>null</c> on the way
+	/// out, and a case that expects <c>null</c> ("an order naming an item nobody knows", "a message that is not an
+	/// order") passes for the wrong reason. Before this section the counters existed and nobody read them.</para>
+	///
+	/// <para>The counter is <b>reset once, in Main</b>, before the first section, so what is read here covers the whole
+	/// run. The instrument is proven first (a counter nobody increments would make the claim vacuous) without zeroing
+	/// the evidence: the probe compares the value before and after one call, not against a hardcoded number.</para>
+	/// </summary>
+	private static void QuietLog()
+	{
+		// what the whole run produced, read BEFORE the probe so the probe cannot contaminate the evidence
+		int runLines = CompanionsPlugin.Log.DebugLines;
+
+		// the instrument: the counters move on a call, proved by delta (not against a hardcoded number)
+		CompanionsPlugin.Log.LogDebug("(ae) prova do contador");
+		CheckInt("o contador conta um LogDebug (delta)", runLines + 1, CompanionsPlugin.Log.DebugLines);
+
+		// and now the claim of the whole run. The detail names the message, because the first thing anybody asks is
+		// WHICH rule threw.
+		Check("nenhuma regra engoliu excecao nas secoes (a)-(ad): " + runLines + " linha(s) de debug",
+			runLines == 0,
+			"ultima linha: " + (CompanionsPlugin.Log.Last.Count == 0
+				? "(nenhuma)"
+				: CompanionsPlugin.Log.Last[CompanionsPlugin.Log.Last.Count - 1]));
+	}
+
 	private static void CrossCheckDoorRule()
 	{
 		Section("(h) as copias do Stubs.cs contra a DLL real (Companions.dll)");
@@ -3117,12 +3152,25 @@ internal static class Program
 		Out.WriteLine("SKIP  " + name + "  [" + why + "]");
 	}
 
-	/// <summary>A case whose expected value is the BUG. Not counted as PASS/FAIL: the orchestrator decides.</summary>
+	/// <summary>
+	/// A case whose expected value is the BUG. Not counted as PASS/FAIL: the orchestrator decides.
+	///
+	/// <para><b>The mark cannot rot</b> (11/11/2026). Until this change <c>KNOWN-FAIL*</c> - the mark that means "the bug
+	/// is gone" - was printed and otherwise ignored, so a fixed bug left a line somebody had to remember to remove, and
+	/// the run stayed green. It is now a <b>real FAIL</b> with the message "a marca pode sair": keeping a KNOWN-FAIL is
+	/// only allowed while the bug is still there. The normal path (<paramref name="stillBroken"/> true) still counts as
+	/// neither PASS nor FAIL, exactly as before - it is a record, not an assertion.</para>
+	/// </summary>
 	private static void KnownFail(string name, bool stillBroken, string detail)
 	{
-		_knownFail++;
-		Out.WriteLine((stillBroken ? "KNOWN-FAIL  " : "KNOWN-FAIL* ") + name + "  [" + detail + "]"
-			+ (stillBroken ? "" : "  <-- o bug sumiu: a marca pode sair"));
+		if (stillBroken)
+		{
+			// a record, not an assertion: it is counted apart and does not decide the exit code
+			_knownFail++;
+			Out.WriteLine("KNOWN-FAIL  " + name + "  [" + detail + "]");
+			return;
+		}
+		Fail(name, detail + " - o bug sumiu: a marca KNOWN-FAIL pode sair");
 	}
 
 	private static string Show(string value)

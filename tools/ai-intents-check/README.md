@@ -105,8 +105,9 @@ outra pessoa edita, e seis delas já tinham derivado:
 
 | (ac) | `BuildBlueprintSkip` (**por que uma linha do `.blueprint` não entra no plano**, `AI/BuildBlueprintSkip.cs`): 7 casos — as duas constantes são **exatamente** `"not a piece here"` e `"recipe not unlocked"` (elas são o contrato do `skippedReasons` que o `BuildBlueprintReport` preenche e o `blueprints.inspect` publica: renomear uma quebra o painel e a ponte **sem erro de compilação em lugar nenhum**) e a tabela de decisão inteira — sem peça (com e sem a receita conhecida) → `NotAPiece`; com peça e sem a receita → `RecipeLocked`; com as duas → `null`. A última asserção exige que as duas razões continuem **textos distintos** (se colapsarem, o painel deixa de dizer ao jogador se ele desbloqueia a receita ou desiste do prefab). |
 | (ad) | `LlmProviders` (**o dropdown do provedor no painel**, `AI/LlmProviders.cs`): 28 casos — a tabela (`Count` 4, `CustomIndex` 3, os `IdAt` e os `KeyUrlAt` dos quatro, `Fills` só falso no "Personalizado", índice fora da faixa caindo no último item) e o **casamento tolerante do `Suggest`**: a URL da tabela → o item dela, `localhost` ≡ `127.0.0.1` (o `Alias` do LM Studio), barra no fim, sem o `/v1`, **com** `/chat/completions` (que o `LlmClient` acrescenta sozinho) e as duas juntas `…/v1/chat/completions/` — **a ordem das normalizações importa** e é isso que o caso prende; espaços e caixa alta; servidor desconhecido, `""` e `null` → "Personalizado". As URLs em si não mudam aqui: o que a seção prova é que **voltar** delas para o item continua funcionando. |
+| (ae) | **o log das redes ficou calado** (`Program.QuietLog`): as chamadas de `CompanionsPlugin.Log` dos arquivos linkados estão todas dentro de um `catch`, então uma linha de debug numa run verde é uma exceção engolida — o tipo de defeito que nenhum valor esperado pega, porque a rede devolve `null` por desenho. O contador é zerado no começo do run e lido aqui, no fim; a seção prova o próprio instrumento por **delta** (um `LogDebug` move o contador) antes de afirmar que ele ficou em zero. |
 
-Hoje: **889 asserções** — a conta por seção sai do próprio run (uma linha por seção):
+Hoje: **891 asserções** — a conta por seção sai do próprio run (uma linha por seção):
 
 | seção | n | seção | n | seção | n | seção | n |
 |---|---|---|---|---|---|---|---|
@@ -117,7 +118,7 @@ Hoje: **889 asserções** — a conta por seção sai do próprio run (uma linha
 | (d) | 32 | (j) | 154 | (p) | 34 | (v) | 5 |
 | (e) | 34 | (k) | 20 | (q) | 26 | (w) | 9 |
 | (x) | 10 | (y) | 19 | (z) | 22 | (aa) | 12 |
-| (ab) | 37 | (ac) | 7 | (ad) | 28 | | |
+| (ab) | 37 | (ac) | 7 | (ad) | 28 | (ae) | 2 |
 
 Para reconferir a tabela:
 `dotnet run --project tools/ai-intents-check -c Release | grep -c '^PASS'` dá o total, e cada `=== (x) …` abre a seção
@@ -142,8 +143,15 @@ seguinte. (Um filtro `--count` por seção é o item 8 do plano; enquanto ele n�
 ## Convenções
 
 - **`KNOWN-FAIL`**: quando um caso revela um bug real, o caso **não** é consertado nem vira `PASS`: use
-  `KnownFail("nome", aindaQuebrado, "detalhe")`. Ele sai como `KNOWN-FAIL` (fora da conta PASS/FAIL) e, se o bug
-  sumir, sai como `KNOWN-FAIL*` com o aviso de que a marca pode sair. **Nenhum caso usa a marca hoje.**
+  `KnownFail("nome", aindaQuebrado, "detalhe")`. Enquanto o bug existe sai `KNOWN-FAIL` (contado à parte, fora da conta
+  PASS/FAIL, e não decide o exit code). **Se o bug sumir, a marca passa a derrubar o run** (11/11/2026): sai
+  `FAIL … o bug sumiu: a marca KNOWN-FAIL pode sair`. Antes ela só era impressa como `KNOWN-FAIL*` e a run continuava
+  verde — a marca apodrecia em silêncio. **Nenhum caso usa a marca hoje.**
+- **O log é um instrumento** (11/11/2026): a seção (ae) lê os contadores de `CompanionsPlugin.Log` depois de todas as
+  outras. Todas as chamadas de log dos arquivos linkados estão dentro de um `catch` (medido: 7 chamadas), então uma
+  linha de debug numa run verde significa **uma regra que lançou e engoliu a exceção** — invisível de outro jeito,
+  porque a rede devolve `null` por desenho e um caso que espera `null` fica verde do mesmo jeito. A seção também prova
+  o contador por delta, para não ser vacuamente verde.
 - O harness **não** altera `src/`, não escreve config e não roda o jogo.
 - `AI_COMPANIONS_DLL` aponta para outra `Companions.dll` no cross-check; `VALHEIM_DIR`/`AI_COMPANIONS_MANAGED`
   apontam para a instalação do jogo (por padrão, o caminho do `Environment.props` / Steam).
