@@ -3189,3 +3189,36 @@ canto" — é a **coluna fechar de baixo para cima**, que é o desenho do §17.2
 hoje re-pergunta **1×/s** (`:3722`); o comentário é o único ponto do caminho que ainda promete o comportamento do Run 19.
 
 
+
+### 17.26 O relatório lia um hand-over como fim de obra (11/11/2026) — 114 × 369 colocadas
+
+> O `build_run_report.py` é o instrumento com que **todo** run é lido; este achado vale para trás, não só para o run
+> em que apareceu.
+
+#### (A) O número, lado a lado [M]
+
+O run da receita de produto (sítio `-180,-320`, `CommHomeBasicBP`, 985 peças, 2 companheiros) devolve a mão duas
+vezes — nivelamento (`hc_ai_build_too_steep` → retoma) e coleta (`hc_ai_build_collecting` → retoma em `piece 58`) — e o
+relatório fechava a janela no **primeiro** `order ended` da ordem:
+
+| | janela | status | done |
+|---|---|---|---|
+| antes | 1825–2358 (`hc_ai_build_collecting`) | **ENCERRADA sem concluir a obra** | **114** |
+| depois | 1825–fim do log | **EM ANDAMENTO (parcial)** | **369** |
+
+A diferença não é de leitura: **255 peças colocadas ficavam fora do placar**, e o veredito da receita de produto
+("985/985 ou falta nomeada") seria dado sobre um número que parava no primeiro hand-over.
+
+#### (B) A correção [M]
+
+`Block.resumes` guarda as linhas `blueprint ... - resuming at piece N`; o `finalize` passa a escolher o **último
+`order ended` depois da última retomada**. Sem nenhum, a ordem está **rodando** — que é o estado verdadeiro de uma obra
+interrompida no meio de um hand-over. A ordem 1 do mesmo log (conclui em `hc_ai_build_done`, zero retomadas) sai
+idêntica, então o caso normal não mudou. Commit `da86ad7`.
+
+#### (C) Por que não é "só o relatório" [M]
+
+A mesma leitura errada aparece em qualquer run que devolva a mão — e **todos** os runs com `LevelGround=true` devolvem
+(nivelamento) e todos com material pago devolvem (coleta). Os placares de runs antigos que passaram por hand-over estão
+**subestimados**; os que terminaram em `hc_ai_build_done`/`hc_ai_blueprint_done` sem retomada estão corretos. Não há
+como recontar os antigos pelo log: as linhas estão lá, mas cada um precisa ser reconferido com o script novo.
