@@ -121,7 +121,11 @@ namespace Companions
 #pragma warning restore 0649
 	}
 
-	/// <summary>Core/CompanionLocale.cs, reduced to the one property CompanionNames.PromptLine reads.</summary>
+	/// <summary>Core/CompanionLocale.cs, reduced to the one property CompanionNames.PromptLine reads.
+	/// <para><c>KokoroCode</c> is writable on purpose (11/11/2026): the per-language texts of the build templates
+	/// (<c>BuildTemplates.Template.Label</c>) are picked by it, so a test sets it to each of the five languages and checks
+	/// the name that comes out - the same switch <c>CompanionPersona.Pick</c> uses in the mod. Nothing else writes it, and
+	/// it starts at the real default (pt-br).</para></summary>
 	internal sealed class CompanionLocale
 	{
 		internal string KokoroCode = "pt-br";

@@ -2118,6 +2118,13 @@ internal static class Program
 		CheckInt("tenda: 2 telhados", 2, CountPrefab(tent, "wood_roof_45"));
 		CheckInt("tenda: nenhum piso (aberta)", 0, CountPrefab(tent, "wood_floor"));
 
+		// E10 (11/11/2026): o NOME que o jogador ouve, no idioma do JOGO. Ele sai em duas linhas que o jogador le e ouve:
+		// a confirmacao ("Ok: build the 4x4 house") e a fala de conclusao ("The 4x4 house is up: 21 pieces"). O caso
+		// real: num jogo em ingles a confirmacao saiu "Ok: build the casa 4x4" - metade ingles (a chave) e metade
+		// portugues (este rotulo, que era uma unica string PT). Por isso a prova que importa e: o ingles nunca mostra o
+		// nome portugues, e o log continua igual em qualquer idioma (ele usa o Name ASCII, nao o rotulo falado).
+		LanguageLabels();
+
 		// a ordem de construcao: fundacao -> parede -> telhado
 		System.Collections.Generic.List<BuildTemplates.Step> ordered = hut.Ordered();
 		CheckText("cabana: a 1a peca e o piso", "wood_floor", ordered[0].Prefab);
@@ -2212,6 +2219,73 @@ internal static class Program
 	{
 		BuildTemplates.Template template = BuildTemplates.Resolve(text);
 		CheckText("Template(" + Show(text) + ")", expected, template != null ? template.Name : null);
+	}
+
+	/// <summary>
+	/// E10: the name of each template in the five languages, as the player HEARS it.
+	///
+	/// <para>The label goes into two spoken lines: the confirmation (<c>hc_ai_order_build_plan</c> ->
+	/// "Ok: build the {0}") and the completion (<c>hc_ai_build_plan_done</c> -> "The {0} is up: {1} pieces"). The
+	/// measured bug: in an English game the confirmation said <b>"Ok: build the casa 4x4"</b>. The label was one PT
+	/// string, so it was right in at most one of the five languages the mod ships.</para>
+	///
+	/// <para>What is asserted, and why each one earns its place:</para>
+	/// <list type="bullet">
+	/// <item>the exact name per language - pins the table, including the two "false friends" (ES/IT <c>casa</c> is the
+	/// same word as the PT <c>casa</c> but is the <i>4x4</i> house there and the plain one here). The English column is
+	/// the one that ends the reported bug: nothing there may be a Portuguese word;</item>
+	/// <item>an unknown code (<c>de-de</c>, a German game) falls back to English, exactly like the persona and the voice
+	/// table of <c>CompanionLocale</c> do;</item>
+	/// <item><c>Name</c> is the ASCII key the logs use and does not move with the language, so a run read in another
+	/// language stays comparable.</item>
+	/// </list>
+	/// </summary>
+	private static void LanguageLabels()
+	{
+		// the table: name -> (pt, en, es, fr, it)
+		string[][] table = new string[][]
+		{
+			new[] { "hut", "cabana", "hut", "choza", "cabane", "capanna" },
+			new[] { "canopy", "abrigo da bancada", "bench shelter", "cobertizo de la mesa", "auvent pour l'établi", "riparo del banco" },
+			new[] { "house", "casa", "house", "casa", "maison", "casa" },
+			new[] { "house6", "casa 6x6", "6x6 house", "casa 6x6", "maison 6x6", "casa 6x6" },
+			new[] { "house4", "casa 4x4", "4x4 house", "casa 4x4", "maison 4x4", "casa 4x4" },
+			new[] { "tent", "tenda", "tent", "tienda", "tente", "tenda" }
+		};
+		string[] codes = new string[] { "pt-br", "en-us", "es", "fr", "it" };
+
+		string original = CompanionLocale.Current.KokoroCode;
+		try
+		{
+			for (int t = 0; t < table.Length; t++)
+			{
+				string name = table[t][0];
+				BuildTemplates.Template template = BuildTemplates.ByName(name);
+				if (template == null)
+				{
+					Fail("Label(" + name + ")", "o template nao existe");
+					continue;
+				}
+				for (int i = 0; i < codes.Length; i++)
+				{
+					CompanionLocale.Current.KokoroCode = codes[i];
+					CheckText("Label(" + name + ") em " + codes[i], table[t][i + 1], template.Label);
+				}
+
+				// idioma desconhecido (jogo em alemao, russo...) cai no ingles, como a persona e a voz
+				CompanionLocale.Current.KokoroCode = "de-de";
+				CheckText("Label(" + name + ") com codigo desconhecido -> ingles", template.Label, table[t][2]);
+
+				// o log nao anda com o idioma: a ordem e nomeada pelo Name ASCII ("house4"), nao pelo rotulo falado
+				CompanionLocale.Current.KokoroCode = "pt-br";
+				CheckText("Label(" + name + ") acompanha Name (ASCII)", name, template.Name);
+			}
+		}
+		finally
+		{
+			// a secao (j) e o ultimo lugar que mexe no idioma: devolver o default real para as que vierem depois
+			CompanionLocale.Current.KokoroCode = original;
+		}
 	}
 
 	private static void BuildCase(string text, string expected)

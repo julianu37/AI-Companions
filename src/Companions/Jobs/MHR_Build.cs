@@ -1378,7 +1378,9 @@ internal static class MHR_Build
 		}
 		if (state.Template != null)
 		{
-			// P1 (04/11/2026): the line says the pieces that are UP ("The {0} is up: {1} pieces"), not the plan's size
+			// P1 (04/11/2026): the line says the pieces that are UP ("The {0} is up: {1} pieces"), not the plan's size.
+			// 11/11/2026: `Label` follows the game's language - it is SPOKEN, and "Ok: build the casa 4x4" was half PT in
+			// an English game. The log is untouched by this: it names the plan by `Name` ("house4"), which never moves.
 			Finish(ai, state, "hc_ai_build_plan_done", null, state.Template.Label, state.PlacedIndices.Count);
 			return false;
 		}
