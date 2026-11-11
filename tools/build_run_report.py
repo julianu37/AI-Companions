@@ -326,6 +326,7 @@ class Block:
         self.group_plan = None
         self.events = []          # (line, kind, who, data)
         self.ends = []            # (line, key, why, texto, linhas [Build] ate aqui)
+        self.resumes = []         # linhas `blueprint ... - resuming at piece N` desta mesma ordem
         self.speeches = []        # (line, {label, placed, skipped, sum, text}) - as linhas do TTS
         self.build_count = 0      # toda linha `[Build] ` na janela
         self.window_end = first_line
@@ -382,6 +383,12 @@ def scan(path):
                         blocks.append(cur)
                     cur = Block(n)
                 if kind == "start_blueprint":
+                    if " - resuming at piece " in msg:
+                        # 11/2026 (o run da receita de produto): a obra VOLTA depois de um hand-over
+                        # (`hc_ai_build_collecting`, `..._leveling`) e o `order ended` daquele hand-over
+                        # nao fecha a ordem - o `- resuming at piece N` prova que ela continuou. Sem isto
+                        # o relatorio lia "ENCERRADA" com 114 de 985 pecas enquanto a obra ia em 250.
+                        cur.resumes.append(n)
                     if cur.blueprint_line is None:
                         cur.blueprint_line = n
                         cur.blueprint_text = rest
@@ -422,7 +429,12 @@ def scan(path):
 
 
 def finalize(block, index, barrier_seconds):
-    end = block.ends[-1] if block.ends else None
+    # 11/2026: um `order ended` SEGUIDO de `- resuming at piece N` e hand-over, nao fim de ordem (o build
+    # devolve a mao para o nivelamento ou para a coleta e volta). O fim de verdade e o ultimo `order ended`
+    # depois da ultima retomada; sem nenhum, a ordem ainda esta rodando.
+    last_resume = block.resumes[-1] if block.resumes else 0
+    after = [e for e in block.ends if e[0] > last_resume]
+    end = after[-1] if after else None
     end_line = end[0] if end else block.window_end
     plan = block.group_plan if block.group_plan is not None else block.plan_blueprint
     first_line = block.first_line
