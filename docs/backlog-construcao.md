@@ -37,8 +37,22 @@ entrou nela com **linha própria** ("the ground is too steep to level - back to 
 `hc_ai_build_no_hoe` continua fora **de propósito**: sem enxada o terreno nunca é tocado, e a obra que voltasse pediria
 o mesmo nivelamento e encerraria do mesmo jeito. A guarda de 90 s (`s_levelTried` / `NoteLeveled`) já existia e impede
 o nivelamento imediato na volta.
-**Falta:** a prova em jogo (terreno com variação > 1,8 m + `LevelGround=true`) — ela entra junto com o run da receita de
-produto (item 1), que é justamente onde a chave importa.
+**Provado em jogo (11/11/2026)**, terreno com variação **2,48 m** em 20 m (sítio `-180,-320`, `terrain.check size=20`),
+`LevelGround=true`, `CommHomeBasicBP.blueprint`, 2 companheiros com enxada — `BepInEx\LogOutput.log`:
+
+```
+[Build] blueprint footprint 32,1 m (leveling 20,0 m), ground variation 2,48 m (tolerance 0,35) - leveling needed
+[Build] the ground is uneven (2,48 m in 20,0 m) - leveling first
+[Level] too steep (2,48 m)
+[Level] order ended: hc_ai_build_too_steep (too steep)
+[Level] the ground is too steep to level - back to the build with what it has (2 companheiro(s))
+[Build] clearing the site: 9 tree(s)/log(s) inside the 32,1 m footprint
+```
+
+A ordem **não** morre: o nivelamento recusa, a obra volta sozinha e segue para a limpeza do sítio. Na segunda passagem da
+mesma ordem a guarda de 90 s aparece como a linha `the ground is still uneven after leveling (2,48 m) - building anyway
+(the pieces that do not fit are skipped)` — sem um segundo `leveling first`, que é o laço infinito de 02/11/2026
+impedido de voltar.
 
 ### 3. `step-aside` no andar sendo telado (a dívida do `Clearance`)
 `BuildAsideSpot.Clearance = 1,5 m` (`AI/BuildAsideSpot.cs:39`) é um **círculo em XZ** contra peças pendentes: num
