@@ -15,7 +15,7 @@ IA** (LLM/voz/fala) + **localização** por cima.
 |---|---|
 | versão | **1.9.6** (`PluginVersion` em `src/Companions/Core/CompanionsPlugin.cs`); `package/CHANGELOG.md` já tem a seção `1.9.7 - in progress` |
 | build | `dotnet build Companions.sln -c Release` → **0 erros, 0 avisos** |
-| harness (redes por palavras + tabelas puras) | **891 PASS / 0 FAIL** em **32 seções** (`--list` imprime todas; `--only=(p)` roda uma) |
+| harness (redes por palavras + tabelas puras) | **905 PASS / 0 FAIL** em **33 seções** (`--list` imprime todas; `--only=(p)` roda uma) |
 | MCP mock (sem jogo) | **122 PASS / 0 FAIL** |
 | config documentada | **368 opções / 25 seções** (`gen_config_doc.py --check`) |
 | gate de release | **9/9 PASS** |
@@ -34,7 +34,7 @@ dotnet build Companions.sln -c Release -p:SkipDeploy=true
 
 # harness das redes por palavras + tabelas puras — precisa do build acima (lê a Companions.dll)
 dotnet run --project tools/ai-intents-check -c Release
-#   -- --list (as 32 seções na ordem do run) | --only=(p),(aa) (só elas) | --quiet (só FAIL e o resumo)
+#   -- --list (as 33 seções na ordem do run) | --only=(p),(aa) (só elas) | --quiet (só FAIL e o resumo)
 #   -- --strict (a DLL mais velha que o fonte vira FAIL em vez de nota)
 #   O filtro NUNCA esconde FAIL/SKIP; chave de seção inexistente sai com exit 2.
 

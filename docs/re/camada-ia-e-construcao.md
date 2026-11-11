@@ -833,7 +833,8 @@ thread-safe drenada no `Update`) → `LlmIntent` (parser tolerante: `action`, `r
   (`WithLists`) e sobrevive ao texto de fábrica virar lixo; a **(ae)** afirma que as redes **não logam** debug no
   caminho feliz (as 7 chamadas de log dos arquivos linkados estão todas em `catch`). `--only`/`--quiet`/`--list`/`--strict`
   fecham a rodada: **FAIL e SKIP nunca são escondidos**, e `--only` com chave inexistente sai com **exit 2**.
-  **Medido:** 891 PASS / 0 FAIL em 32 seções; cada asserção nova foi provada **ao contrário** (mexer na regra e ver o
+  **Medido:** 891 PASS / 0 FAIL em 32 seções naquela rodada; hoje **905 PASS / 0 FAIL em 33 seções** (a **(af)**,
+  `LevelResume`, entrou depois); cada asserção nova foi provada **ao contrário** (mexer na regra e ver o
   run falhar) antes de voltar ao verde.
 - **Pendências conhecidas (abertas):** a **voz não passa pelo
   mixer do jogo** (por isso ignora os sliders de volume do Valheim e só obedece `[AI] TtsVolume`); o **sync com o
@@ -1086,7 +1087,8 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   `jogador + 4 m`, `DevBridge/Commands.cs:1313-1321`; antes a casa foi para o **barranco** e um run se perdeu); o
   **companheiro pesado** (25–32 stacks cada) ganhou a ferramenta de teste `companions.inventory action=clear`
   (`f36e323`); o **nivelamento que dá `hc_ai_build_too_steep` não devolve a obra** (a chave não está na lista de
-  retomada, `MHR_Level.cs:455`) — contornado com `LevelGround = false`; e `blueprints.list`/`inspect` entraram no
+  retomada, `MHR_Level.cs:455`) — contornado com `LevelGround = false`, **corrigido em 11/11/2026** (`AI/LevelResume.cs`
+  + seção (af) do harness; falta o run de produto); e `blueprints.list`/`inspect` entraram no
   bridge + MCP (**122 checks**, **62 ferramentas**). Detalhe, tabela Run 11 × Run 13 e o que **não** foi contado:
   `docs/re/building-notes.md` §17.18, com a seção **"receita de teste × comportamento"** no §17.19; **14 em 11/11/2026** =
   o run do **fim da obra** (lote `1ee93b1`) → **984 colocadas + 1 pulada = 985**, e a **única** fora é um `wood_roof_45`
@@ -1419,9 +1421,11 @@ O detalhe por fase (3.1 → 4.0, M1–M5, Trilha E E0–E10, navegação) está 
   morre** (no ciclo de teste eram **25–32 stacks** cada, resolvido com a ferramenta de teste
   `companions.inventory action=clear`, `DevBridge/Commands.cs:1832-1847`); num jogo normal a saída é a mochila e os
   baús, e a **reserva de material** continua sendo a metade aberta do P1;
-  (12) **o nivelamento que recusa o terreno mata a obra** — `hc_ai_build_too_steep` (`MHR_Level.cs:282`) **não** está
-  na lista de retomada (`:455`, só `done`/`already`/`failed`), então `[Building] LevelGround` (padrão **true**) pode
-  encerrar a ordem em vez de devolver ao build; contornado no Run 13 com `LevelGround = false` (§17.18, item (c));
+  (12) **o nivelamento que recusa o terreno mata a obra** — `hc_ai_build_too_steep` (`MHR_Level.cs:280`) **não** está
+  na lista de retomada (`:452`, só `done`/`already`/`failed`), então `[Building] LevelGround` (padrão **true**) pode
+  encerrar a ordem em vez de devolver ao build; contornado no Run 13 com `LevelGround = false` (§17.18, item (c)).
+  **Corrigido em 11/11/2026**: a lista virou a tabela pura `AI/LevelResume.cs` com a chave dentro e a seção **(af)**
+  a prende; falta o run de produto (item 1 do `docs/backlog-construcao.md`);
   (13) **o A/B do Run 19 está FECHADO** (§17.24): o **Run 22** (1 Hz) fechou **985/985**, **0 puladas**, **0 mortes**,
   **0 `UNSUPPORTED`**, watchdog **0**, em **727 s** com **`fila` 4,5 s** (era **1040,2 s**) — `fila ≤ 400 s` ✅; a
   **duração** ficou **727 s** contra o corte `≤ 720 s` ⚠️ (**7 s acima**, registrado como ficou) e o `WaitAhead`/a espera

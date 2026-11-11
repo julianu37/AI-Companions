@@ -13,7 +13,8 @@ stopped.
   extension) is what you say, because many blueprints carry "Custom Name" inside. The **longest name wins**: the file
   "hs_meadows_hut" beats the built-in "hut" template (a small language model answered "hut" for that order), and a file
   that ties with a built-in name loses to it. Without a name the answer lists the builds in the folder.
-- **The folder:** `BepInEx/config/AI-Companions/blueprints/` (the mod creates it). **PlanBuild is not needed in game**:
+- **The folder:** `BepInEx/plugins/AI-Companions/blueprints/` (the mod creates it; the old
+  `BepInEx/config/AI-Companions/blueprints/` is copied over once). **PlanBuild is not needed in game**:
   it is only how you *create* or *place* a blueprint; the file format is text and the mod reads it directly.
 - **What it reads:** the `#Name:` and the `#Pieces` section (`prefab;category;px;py;pz;rx;ry;rz;rw;info;sx;sy;sz`, dots
   or commas, V1 files without headers too). `#SnapPoints`/`#Terrain` are left for later (level the ground first with
@@ -32,12 +33,13 @@ stopped.
 - **Measured:** a 28-piece meadow hut from BiomeBlueprints built **28/28 supported** (floors, beams, walls, door, roof,
   gable tops), plus the PlanBuild fixtures (6 pieces, 1 skipped by the recipe gate).
 - **Big community builds** (a starter home from the Nexus: **985 lines in the file, 983 pieces in the plan** - two are
-  skipped at load - on a 30x30 m spot): the build order is **by piece class**
-  (floor/workbench, then walls/beams/poles/furniture, then roofs) instead of by height (which started with a roof top -
-  the file's origin is below the build); the footprint is **centred on the spot you aim at**; the ground is **leveled
-  first** when it is uneven (the hoe job takes over and the build resumes); a workbench in range is asked **before** the
-  first piece (and one is planned when there is none; only a station the mod cannot make is refused, by name); and a
-  piece that cannot be reached, that takes too long or that does not
+  skipped at load - on a 30x30 m spot): the build order is **storey by storey**, bottom-up: the piece's own height
+  first, then its class (floor/wall/beam/furniture, roofs last) and its height again inside the group, with the doors
+  and gates of the **whole build** after every storey and each group walked by nearest neighbour. Sorting by class
+  alone started with a roof top - the file's origin is below the build; the footprint is **centred on the spot you
+  aim at**; the ground is **leveled first** when it is uneven (the hoe job takes over and the build resumes); a
+  workbench in range is asked **before** the first piece (and one is planned when there is none; only a station the
+  mod cannot make is refused, by name); and a piece that cannot be reached, that takes too long or that does not
   materialize is **skipped and counted** instead of ending the build.
 - **The "carrying too much to build" line never fired** (the player's test, 03/11/2026: the companion would not walk and
   the order said "I can't get to the spot"): `CompanionCarry.Fraction` clamps to 0..1 for the HUD bar, so the
@@ -57,6 +59,13 @@ stopped.
   house/blueprint only happened on "leveled" or "already flat", so a site that stopped at 0,30 m against the 0,20 m
   tolerance ended the whole order without a single piece. A failed leveling now hands the order back too, and the build
   goes on with the ground it has (the pieces that do not fit are retried).
+- **A site too steep to level no longer kills the build either** (found in the review of 11/11/2026, pendência 12 of the
+  backlog): the hoe job refuses a bank over **1,8 m** of variation with `hc_ai_build_too_steep`, and that refusal was
+  **not** in the handover list - with `[Building] LevelGround` on by default, a steep site ended the whole order instead of
+  building what fits. It hands the order back now, with its own line ("the ground is too steep to level - back to the
+  build with what it has"), and the 90 s guard that already existed means the resumed order cannot ask for another
+  leveling on the same breath. The three-key list became the pure table `AI/LevelResume.cs`, asserted by section **(af)**
+  of the harness - a key missing from it is invisible in game and now fails a test.
 - **The build survives the companion's death, for real** (player's report, 03/11/2026: "he died and did not go on with the
   build", still with the previous fix in place): the build never saw the death - the job is not driven on a dead body, so
   the plan was never saved - and the respawn may build a NEW object (a new instance id), which orphaned a pending keyed by

@@ -2493,10 +2493,12 @@ seguem exigindo a estação (`AI/BuildStationCover.cs:35-42` — `isBlueprint ==
    `DevBridge/Commands.cs:1832-1847` — o próprio comentário diz que é ferramenta de teste). **No jogo isso não existe:**
    o caminho é a mochila do jogador e a guarda de peso real (§17.19).
 3. **(c) O nivelamento opcional matando a obra.** Com `LevelGround` no **padrão (true)** o nivelamento recusou o
-   terreno com `hc_ai_build_too_steep` (`Core/ModLocalization.cs:628`) e **a obra não voltou**: a retomada só conhece
+   terreno com `hc_ai_build_too_steep` (`Core/ModLocalization.cs:628`) e **a obra não voltou**: a retomada só conhecia
    `hc_ai_level_done`/`hc_ai_level_already`/`hc_ai_level_failed` (`Jobs/MHR_Level.cs:455`), e a chave `too_steep` sai
    no `:282` **sem estar nessa lista**. Contornado no run com **`LevelGround = false`**; o defeito **continua no
-   código** — é a pendência (12).
+   código** — é a pendência (12). **Corrigido em 11/11/2026** (sem run ainda): a lista virou a tabela pura
+   `AI/LevelResume.cs`, a chave entrou com linha própria e a seção **(af)** do harness a prende. O run da receita de
+   produto (item 1 do backlog) é onde isso se mede em jogo.
 4. **(d) A biblioteca de blueprints sem jogar.** `blueprints.list` e `blueprints.inspect` no bridge
    (`DevBridge/Commands.cs:104-105` → `BlueprintsList`/`BlueprintsInspect`, `:628-746`) e no MCP (`blueprints_list`,
    `blueprints_inspect`): a pasta com tamanho/linhas/data por arquivo e, por arquivo, **o que a ordem faria** — peças,

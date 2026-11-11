@@ -27,11 +27,18 @@ duração ≤ ~800 s, **sem** `missing material` em loop e **sem** `too_heavy` e
 **Risco previsto:** com 25–32 stacks por companheiro o `MHR_Build.cs:3564-3567` encerra a ordem daquele worker; a
 reserva de material é a metade aberta do P1 (`MHR_BuildGroup.cs:27-30`).
 
-### 2. `too_steep` no nivelamento **mata a obra** (pendência 12)
-`hc_ai_build_too_steep` (`Jobs/MHR_Level.cs:282`) não está na lista de retomada (`:455`, só `done`/`already`/
-`failed`), então `LevelGround` (padrão **true**) encerra a ordem em terreno íngreme em vez de devolver ao build.
-**Menor mudança:** incluir a recusa do nivelamento no `resumeBuild` (a obra volta e constrói o que dá).
-**Aceite:** num terreno com variação > `LevelTolerance`, a obra **não** encerra — ela constrói ou diz o que falta.
+### 2. ~~`too_steep` no nivelamento **mata a obra** (pendência 12)~~ — **fechado 11/11/2026**
+`hc_ai_build_too_steep` (`Jobs/MHR_Level.cs:280`) não estava na lista de retomada (`:455`, só `done`/`already`/
+`failed`), então `LevelGround` (padrão **true**) encerrava a ordem em terreno íngreme em vez de devolver ao build.
+
+**O que foi feito:** a lista virou a tabela pura `AI/LevelResume.cs` (`Resumes`/`Message`), `hc_ai_build_too_steep`
+entrou nela com **linha própria** ("the ground is too steep to level - back to the build with what it has") e a seção
+**(af)** do harness a prende (14 asserções, incluindo o invariante `Resumes(x)` ⇔ `Message(x) != null`).
+`hc_ai_build_no_hoe` continua fora **de propósito**: sem enxada o terreno nunca é tocado, e a obra que voltasse pediria
+o mesmo nivelamento e encerraria do mesmo jeito. A guarda de 90 s (`s_levelTried` / `NoteLeveled`) já existia e impede
+o nivelamento imediato na volta.
+**Falta:** a prova em jogo (terreno com variação > 1,8 m + `LevelGround=true`) — ela entra junto com o run da receita de
+produto (item 1), que é justamente onde a chave importa.
 
 ### 3. `step-aside` no andar sendo telado (a dívida do `Clearance`)
 `BuildAsideSpot.Clearance = 1,5 m` (`AI/BuildAsideSpot.cs:39`) é um **círculo em XZ** contra peças pendentes: num
@@ -70,10 +77,12 @@ já tirou a alocação, mas a **varredura** de `IsBelow`/`ServeBarrier` a 60 Hz 
 Opções: **A** `DeckLift=0`; **B** saia em volta fechando o perímetro; **C** regra de rota para o mover não
 entrar/parar sob o deck. Nada disso se decide sem ele.
 
-### 8. As duas frases erradas do `CHANGELOG` público (revisão de lógica, A8)
-`package/CHANGELOG.md:16` diz que os blueprints ficam em `config/…/blueprints` (o código usa `<plugin>/blueprints`,
-`AI/BuildBlueprints.cs:54/70-74`) e `:35` diz que a ordem é "por classe de peça … em vez de por altura" (o parser
-ordena **por altura primeiro**, `AI/BuildBlueprintParser.cs:146`). Correção de uma linha cada, com o mesmo ciclo.
+### 8. ~~As duas frases erradas do `CHANGELOG` público (revisão de lógica, A8)~~ — **fechado 11/11/2026**
+`package/CHANGELOG.md:16` dizia que os blueprints ficam em `config/…/blueprints` (o código usa `<plugin>/blueprints`,
+`AI/BuildBlueprints.cs:54/70-74`) e `:35` dizia que a ordem é "por classe de peça … em vez de por altura" (o parser
+ordena **por altura primeiro**, `AI/BuildBlueprintParser.cs:146`). As duas foram reescritas: a pasta é
+`BepInEx/plugins/AI-Companions/blueprints/` (com a migração da antiga citada) e a ordem está descrita como
+**andar a andar**, com a altura como primeira chave, a classe depois e as portas de toda a obra por último.
 
 ### 9. A data dos documentos
 `AGENTS.md` e `docs/re/building-notes.md` datam os runs de hoje como **11/11/2026**; o `git log` desta máquina diz
