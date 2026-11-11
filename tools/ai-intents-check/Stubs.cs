@@ -16,13 +16,19 @@ namespace Companions
 	//
 	// What is here is the FEW members of the Unity/config side they touch, and nothing else:
 	//   * CompanionsPlugin.Log   - the BepInEx logger (only LogDebug/LogInfo are called by the linked files);
-	//   * ModConfig              - the four gather lists, with the values the .cfg ships with (ModConfig.cs:928-931);
-	//   * CompanionSetup         - the work-mode constants (CompanionSetup.cs:137-161) and the name/owner ZDO keys;
-	//   * CompanionLocale        - only Current.KokoroCode (CompanionNames.PromptLine);
+	//   * ModConfig              - the four gather lists, with the values the .cfg ships with (ModConfig.cs -> the
+	//                              "Gathering" Bind calls);
+	//   * CompanionSetup         - the work-mode constants (CompanionSetup.cs -> ModeFollow..ModeCook) and the name/owner
+	//                              ZDO keys;
+	//   * CompanionLocale        - only Current.KokoroCode (CompanionNames.PromptLine and BuildTemplates.Template.Label);
 	//   * MHR_GatherRules        - only Parse/ItemLocal, the two members OrderItems reads (see the note there);
-	//   * CompanionOrders        - only JobMode and IsDoorRequest, the two pure members the nets call. IsDoorRequest
-	//                              is a verbatim copy of CompanionOrders.cs:812-869 and the harness CHECKS it against
-	//                              the built Companions.dll (Program.CrossCheckDoorRule), so it cannot drift silently.
+	//   * CompanionOrders        - only JobMode and IsDoorRequest, the two pure members the nets call. Both are verbatim
+	//                              copies (see the note on CompanionOrders below) and the harness CHECKS them against the
+	//                              built Companions.dll (Program.CrossCheckDoorRule), so they cannot drift silently.
+	//
+	// 11/11/2026: the citations here name the MEMBER, not a line range. A "file.cs:812-869" is a promise about a file
+	// somebody else edits - six of them had already drifted (the gather lists were cited as 928-931, which is the
+	// [Combat] section; the lists live at 1020-1023). A method name survives an edit above it.
 	//
 	// Nothing in this file decides what an order means: every rule the tests assert lives in src/.
 	// ================================================================================================================
@@ -89,9 +95,9 @@ namespace Companions
 
 	/// <summary>
 	/// Companion/CompanionSetup.cs, reduced to what the linked files read: the work-mode constants (the real values,
-	/// CompanionSetup.cs:137-161), the two ZDO keys and the roster. It derives from MonoBehaviour because the real
-	/// one does (MHR_Owner.IsMine takes a Component). The harness never instantiates it: the Unity half of
-	/// CompanionNames needs a live world and is out of scope (see the README).
+	/// <c>CompanionSetup.cs</c> → <c>ModeFollow</c> … <c>ModeCook</c>), the two ZDO keys and the roster. It derives from
+	/// MonoBehaviour because the real one does (MHR_Owner.IsMine takes a Component). The harness never instantiates it:
+	/// the Unity half of CompanionNames needs a live world and is out of scope (see the README).
 	/// </summary>
 	internal sealed class CompanionSetup : MonoBehaviour
 	{
@@ -136,12 +142,12 @@ namespace Companions
 	/// <summary>
 	/// Jobs/MHR_GatherRules.cs, reduced to the two members OrderItems reads. Both are faithful outside the game:
 	/// <list type="bullet">
-	/// <item><c>Parse(mode)</c> is <c>ListFor(mode)</c> + <c>MHR_List.Get</c> (MHR_GatherRules.cs:44-69). The real one
-	/// also calls <c>CheckKnown</c>, which only logs a warning about a misspelt name when <c>ObjectDB.instance</c>
+	/// <item><c>Parse(mode)</c> is <c>ListFor(mode)</c> + <c>MHR_List.Get</c> (<c>MHR_GatherRules.cs</c> → <c>Parse</c>). The
+	/// real one also calls <c>CheckKnown</c>, which only logs a warning about a misspelt name when <c>ObjectDB.instance</c>
 	/// exists - it is a no-op here. Note the real <c>ListFor</c> answers null for any mode but 1/2/3 (there is no
 	/// forage list in it), and this stub keeps that.</item>
-	/// <item><c>ItemLocal(prefab)</c> is the ObjectDB lookup (MHR_GatherRules.cs:71-80): with no world there is no
-	/// item prefab, so it answers null - exactly what the real one answers outside the game.</item>
+	/// <item><c>ItemLocal(prefab)</c> is the ObjectDB lookup (<c>MHR_GatherRules.cs</c> → <c>ItemLocal</c>): with no world
+	/// there is no item prefab, so it answers null - exactly what the real one answers outside the game.</item>
 	/// </list>
 	/// </summary>
 	internal static class MHR_GatherRules
@@ -174,16 +180,16 @@ namespace Companions
 	/// AI/CompanionOrders.cs, reduced to the two PURE members the nets call. Everything else in that file needs the
 	/// world (companions, ZDO, inventory), so it cannot be linked here.
 	///
-	/// <para><b>IsDoorRequest</b> is a verbatim copy of CompanionOrders.cs:812-869 (with the PackWords set it shares
-	/// with IsInventoryRequest, CompanionOrders.cs:780-783). Because a copy can drift, Program.CrossCheckDoorRule
+	/// <para><b>IsDoorRequest</b> is a verbatim copy of <c>CompanionOrders.cs</c> → <c>IsDoorRequest</c> (with the
+	/// <c>PackWords</c> set it shares with <c>IsInventoryRequest</c>). Because a copy can drift, Program.CrossCheckDoorRule
 	/// loads the built Companions.dll and compares this copy with the real method on a corpus - the harness fails if
 	/// they ever disagree.</para>
 	///
-	/// <para><b>JobMode</b> is a verbatim copy of CompanionOrders.cs:1168-1195.</para>
+	/// <para><b>JobMode</b> is a verbatim copy of <c>CompanionOrders.cs</c> → <c>JobMode</c>.</para>
 	/// </summary>
 	internal static class CompanionOrders
 	{
-		/// <summary>The work mode behind an order, or -1 when the action isn't a job (CompanionOrders.cs:1168).</summary>
+		/// <summary>The work mode behind an order, or -1 when the action isn't a job (<c>CompanionOrders.cs</c> → <c>JobMode</c>).</summary>
 		internal static int JobMode(string action)
 		{
 			switch (action)
@@ -213,7 +219,7 @@ namespace Companions
 			}
 		}
 
-		/// <summary>Does the player's own message ask for a DOOR? (copy of CompanionOrders.cs:812-846)</summary>
+		/// <summary>Does the player's own message ask for a DOOR? (copy of <c>CompanionOrders.cs</c> → <c>IsDoorRequest</c>)</summary>
 		internal static bool IsDoorRequest(string message)
 		{
 			if (string.IsNullOrEmpty(message) || message.IndexOf('?') >= 0)
@@ -250,19 +256,19 @@ namespace Companions
 			return door && verb && !pack;
 		}
 
-		/// <summary>copy of CompanionOrders.cs:780-783</summary>
+		/// <summary>copy of <c>CompanionOrders.cs</c> → <c>PackWords</c></summary>
 		private static readonly HashSet<string> PackWords = new HashSet<string>(StringComparer.Ordinal)
 		{
 			"inventario", "inventarios", "invent", "inventory", "mochila", "bolsa", "bag", "carrega", "carregas"
 		};
 
-		/// <summary>copy of CompanionOrders.cs:850-853</summary>
+		/// <summary>copy of <c>CompanionOrders.cs</c> → <c>DoorWords</c></summary>
 		private static readonly HashSet<string> DoorWords = new HashSet<string>(StringComparer.Ordinal)
 		{
 			"porta", "portas", "portao", "portoes", "puerta", "puertas", "porte", "portes", "door", "doors"
 		};
 
-		/// <summary>copy of CompanionOrders.cs:857-869</summary>
+		/// <summary>copy of <c>CompanionOrders.cs</c> → <c>DoorVerbs</c></summary>
 		private static readonly HashSet<string> DoorVerbs = new HashSet<string>(StringComparer.Ordinal)
 		{
 			// pt

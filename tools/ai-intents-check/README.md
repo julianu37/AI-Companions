@@ -44,15 +44,16 @@ falha (ou algo foi pulado) e `2` quando o harness não conseguiu subir (assembli
 arquivo:linha real de onde veio:
 
 - `CompanionsPlugin.Log` (o logger do BepInEx);
-- `ModConfig` — as quatro listas de coleta com os **valores de fábrica** (`ModConfig.cs:928-931`), num `ConfigFile`
+- `ModConfig` — as quatro listas de coleta com os **valores de fábrica** (`ModConfig.cs` → os `Bind` de
+  `"Gathering"`), num `ConfigFile`
   que **nunca** toca o disco (o `.cfg` do jogador não é lido nem escrito). Se o default de uma lista mudar no
   `ModConfig.cs`, o texto aqui tem de acompanhar (só o caso "lista do trabalho" da seção (f) depende dele);
-- `CompanionSetup` — as constantes de modo (`CompanionSetup.cs:137-161`) e as chaves de ZDO. Se um número de modo
-  mudar, a cópia do `JobMode` diverge da DLL e a seção (h) acusa;
+- `CompanionSetup` — as constantes de modo (`CompanionSetup.cs` → `ModeFollow`…`ModeCook`) e as chaves de ZDO. Se um
+  número de modo mudar, a cópia do `JobMode` diverge da DLL e a seção (h) acusa;
 - `CompanionLocale` — só `Current.KokoroCode`;
 - `MHR_GatherRules` — só `Parse`/`ItemLocal`, fiéis ao comportamento **fora do jogo** (sem `ObjectDB`);
-- `CompanionOrders` — só `JobMode` e `IsDoorRequest`, **cópias verbatim** (`CompanionOrders.cs:1168-1195` e
-  `812-869`), porque o resto da classe precisa do mundo. A cópia é conferida contra a DLL real na seção (h) — se
+- `CompanionOrders` — só `JobMode` e `IsDoorRequest`, **cópias verbatim** (`CompanionOrders.cs` → `JobMode` e
+  `IsDoorRequest`), porque o resto da classe precisa do mundo. A cópia é conferida contra a DLL real na seção (h) — se
   ela divergir, o harness **falha**;
 - `ObjectDB` (namespace global, de propósito) — o banco de itens do jogo. O tipo real **não carrega** fora do Unity
   (`UnityEngine.Object` estoura no inicializador de tipo), e `OrderItems.Known` é escrito justamente para o caso
