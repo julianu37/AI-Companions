@@ -344,7 +344,29 @@ internal static class Program
 		Check("IsIntentWord(\"Fulano\") == false", !LlmIntent.IsIntentWord("Fulano"));
 	}
 
+	/// <summary>
+	/// Section (f): the item an order named. Every case runs inside a <b>list fixture the section sets itself</b>.
+	///
+	/// <para>The four gather lists are configuration, and the harness's <c>ModConfig</c> stub exists only so the type
+	/// has somewhere to read from. Until 11/11/2026 the case "the job's own list is the last place looked at" read the
+	/// factory text copied into <c>Stubs.cs</c> - so the section proved the <b>copy</b>, not the rule, and a default
+	/// changed in <c>ModConfig.cs</c> would have made it fail for the wrong reason (or, worse, pass for one). The
+	/// values below are now the scenario, written here on purpose; the stub's defaults cannot reach any assertion.
+	/// The acceptance for that is destructive: replace the factory text in <c>Stubs.cs</c> with garbage and this
+	/// section stays green.</para>
+	/// </summary>
 	private static void Items()
+	{
+		WithLists(
+			"Wood, FineWood, RoundLog, ElderBark, YggdrasilWood, Blackwood, Resin",
+			"Stone, Flint, BlackMarble, Grausten",
+			"CopperOre, TinOre, IronScrap, SilverOre, BlackMetalScrap, CopperScrap, FlametalOreNew, Obsidian",
+			"Raspberry,Blueberries,Cloudberry,Mushroom,MushroomYellow,MushroomBlue,MushroomMagecap,MushroomJotunPuffs,"
+				+ "MushroomSmokePuff,Thistle,Dandelion,Carrot,Turnip,Onion,Barley,Flax,RoyalJelly,Honey",
+			ItemsOnFixture);
+	}
+
+	private static void ItemsOnFixture()
 	{
 		// (f) the same resource, in the five languages of the mod
 		ItemCase("stone", "pedra", 0, "Stone");           // pt
@@ -374,17 +396,19 @@ internal static class Program
 		ItemCase("forage", null, 0, null);
 		ItemCase("wood", "diamante", 0, null); // named something the game doesn't know: the job's list decides
 
-		// the job's own list is the last place looked at (a name that is not in the alias map)
-		string original = ModConfig.GatherStone.Value;
-		try
+		// the job's own list is the last place looked at: Cloudberry is in no alias table, so the only way to get it
+		// back is the stone list naming it
+		WithLists(null, "Stone, Cloudberry", null, null, delegate
 		{
-			ModConfig.GatherStone.Value = "Stone, Cloudberry";
 			ItemCase("stone", "cloudberry", 2, "Cloudberry");
-		}
-		finally
+		});
+
+		// and the precedence, with a stone list that does NOT name Stone ("Flint" only):
+		WithLists(null, "Flint", null, null, delegate
 		{
-			ModConfig.GatherStone.Value = original;
-		}
+			ItemCase("stone", "pedra", 0, "Stone");     // the alias map decides, the list is not consulted
+			ItemCase("stone", "cloudberry", 2, null);   // neither the alias map nor the list knows it
+		});
 
 		// the resource wins over the generic action (Fase 3.1)
 		CheckText("GatherAction(\"wood\", \"stone\") -> o recurso manda", "stone", OrderItems.GatherAction("wood", "stone"));
@@ -3009,6 +3033,37 @@ internal static class Program
 			return;
 		}
 		CheckText("OrderItems.Resolve(" + Show(action) + ", " + Show(resource) + ", " + mode + ")", expected, actual);
+	}
+
+	/// <summary>
+	/// Runs <paramref name="body"/> with the four gather lists set to the given text, then puts them back exactly as
+	/// they were - including the ones the caller passed as null. That is the point of the helper (11/11/2026): a test
+	/// must never read the factory default that <c>Stubs.cs</c> happens to carry, because then it proves the copy
+	/// and not the rule. The stub's <c>ConfigFile</c> is never written to disk, so this only changes this process.
+	///     <para>The values are restored in a <c>finally</c>: a FAIL inside a case must not leak a list into the next
+	/// section (that is how a "green for the wrong reason" run is born).</para>
+	/// </summary>
+	private static void WithLists(string wood, string stone, string ore, string forage, Action body)
+	{
+		string oldWood = ModConfig.GatherWood.Value;
+		string oldStone = ModConfig.GatherStone.Value;
+		string oldOre = ModConfig.GatherOre.Value;
+		string oldForage = ModConfig.ForageItems.Value;
+		try
+		{
+			if (wood != null) ModConfig.GatherWood.Value = wood;
+			if (stone != null) ModConfig.GatherStone.Value = stone;
+			if (ore != null) ModConfig.GatherOre.Value = ore;
+			if (forage != null) ModConfig.ForageItems.Value = forage;
+			body();
+		}
+		finally
+		{
+			ModConfig.GatherWood.Value = oldWood;
+			ModConfig.GatherStone.Value = oldStone;
+			ModConfig.GatherOre.Value = oldOre;
+			ModConfig.ForageItems.Value = oldForage;
+		}
 	}
 
 	// ============================================================================================ the plumbing

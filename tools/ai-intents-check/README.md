@@ -53,10 +53,11 @@ falha (ou algo foi pulado) e `2` quando o harness não conseguiu subir (assembli
 outra pessoa edita, e seis delas já tinham derivado:
 
 - `CompanionsPlugin.Log` (o logger do BepInEx);
-- `ModConfig` — as quatro listas de coleta com os **valores de fábrica** (`ModConfig.cs` → os `Bind` de
-  `"Gathering"`), num `ConfigFile`
-  que **nunca** toca o disco (o `.cfg` do jogador não é lido nem escrito). Se o default de uma lista mudar no
-  `ModConfig.cs`, o texto aqui tem de acompanhar (só o caso "lista do trabalho" da seção (f) depende dele);
+- `ModConfig` — as quatro listas de coleta, num `ConfigFile` que **nunca** toca o disco (o `.cfg` do jogador não é lido
+  nem escrito). O texto de fábrica que está aqui **não sustenta nenhuma asserção desde 11/11/2026**: a seção (f) seta as
+  quatro listas explicitamente com o helper `WithLists` (e restaura no `finally`), então o cenário do teste é escrito no
+  teste. A prova é destrutiva: trocar as quatro por `"LIXO"` no `Stubs.cs` **não muda a contagem** — e com a seção (f)
+  antiga, que lia o default, o mesmo lixo dava **3 FAILs**;
 - `CompanionSetup` — as constantes de modo (`CompanionSetup.cs` → `ModeFollow`…`ModeCook`) e as chaves de ZDO. Se um
   número de modo mudar, a cópia do `JobMode` diverge da DLL e a seção (h) acusa;
 - `CompanionLocale` — só `Current.KokoroCode`;
@@ -78,7 +79,7 @@ outra pessoa edita, e seis delas já tinham derivado:
 | (c) | `GatherIntent.FromModelAction`: `"colete 10 pedras"` → `stone/10`, `"ramasse 10 bois"` → `wood/10`, `"raccogli 5 pietre"` → `stone/5`, `"pega a madeira do chão"` mantém `pickup`, lado `none` exige verbo de coleta |
 | (d) | `InteractionIntent.Correct`: `"fecha a porta"` (com o modelo dizendo `inventory_close`) → `door`, `"senta na fogueira"` → `sit`, `"guarda isso no baú"` (com `drop`) → `deposit`, `"esvazia a colmeia"` → `hive`, `"sobe no barco"` → `board`, e as recusas (pergunta, `"para de…"`, negação, `"joga a madeira no chão"`, mochila na mesma frase) |
 | (e) | `LlmIntent.Parse`/`ExtractContent`: JSON válido, JSON com texto em volta, `amount` entre aspas, `amount` inválido/negativo, ação desconhecida → `none`, `"null"` → `none`, uma palavra solta, `target` × `resource` em `drop`, corpo de `chat/completions` |
-| (f) | `OrderItems.Resolve` nos **5 idiomas** (PT/EN/ES/FR/IT) para madeira, pedra, minério e forrageio, o caminho "sem recurso" (`wood` → `Wood`, `ore` → `null`), o recurso desconhecido, e a **lista do trabalho** como último lugar procurado; `GatherAction` (o recurso manda) |
+| (f) | `OrderItems.Resolve` nos **5 idiomas** (PT/EN/ES/FR/IT) para madeira, pedra, minério e forrageio, o caminho "sem recurso" (`wood` → `Wood`, `ore` → `null`), o recurso desconhecido, e a **lista do trabalho** como último lugar procurado; `GatherAction` (o recurso manda). Toda a seção roda dentro de `WithLists`, que **seta as quatro listas** e as restaura no `finally`: nenhuma asserção lê o default do `Stubs.cs` (a precedência é pinada com uma lista que **não** nomeia `Stone` — `"Flint"` — e o alias continua vencendo). |
 | (g) | `CompanionNameMatch`: nome no começo, com vírgula, depois de `"Ei,"`, nunca no meio da frase, artigo, acento, e o `AddressCandidate` (`"Fulano,"` sim; `"mano,"`, `"bom dia,"`, sem separador, `"Ei,"` não) |
 | (h) | as cópias do `Stubs.cs` contra a **`Companions.dll` real** por reflexão: 18 mensagens × `IsDoorRequest`, as 18 ações do corpus fixo × `JobMode` e, desde 11/11/2026, **as 37 ações de `ValidActions` × `JobMode`** (o corpus fixo não pode envelhecer sozinho). Também compara a **mtime da DLL com o `.cs` mais novo de `src/Companions`**: se a DLL é mais velha que o fonte, sai uma `nota:` e, com `--strict`, um FAIL — sem isso a seção compararia com uma compilação antiga e sairia verde |
 | (i) | `BuildCatalog`: o nome da peça vira o prefab (bancada, baú, fogueira, cama) nos 5 idiomas e as palavras (`HasWord`/`HasAnyWord`) |
@@ -105,11 +106,11 @@ outra pessoa edita, e seis delas já tinham derivado:
 | (ac) | `BuildBlueprintSkip` (**por que uma linha do `.blueprint` não entra no plano**, `AI/BuildBlueprintSkip.cs`): 7 casos — as duas constantes são **exatamente** `"not a piece here"` e `"recipe not unlocked"` (elas são o contrato do `skippedReasons` que o `BuildBlueprintReport` preenche e o `blueprints.inspect` publica: renomear uma quebra o painel e a ponte **sem erro de compilação em lugar nenhum**) e a tabela de decisão inteira — sem peça (com e sem a receita conhecida) → `NotAPiece`; com peça e sem a receita → `RecipeLocked`; com as duas → `null`. A última asserção exige que as duas razões continuem **textos distintos** (se colapsarem, o painel deixa de dizer ao jogador se ele desbloqueia a receita ou desiste do prefab). |
 | (ad) | `LlmProviders` (**o dropdown do provedor no painel**, `AI/LlmProviders.cs`): 28 casos — a tabela (`Count` 4, `CustomIndex` 3, os `IdAt` e os `KeyUrlAt` dos quatro, `Fills` só falso no "Personalizado", índice fora da faixa caindo no último item) e o **casamento tolerante do `Suggest`**: a URL da tabela → o item dela, `localhost` ≡ `127.0.0.1` (o `Alias` do LM Studio), barra no fim, sem o `/v1`, **com** `/chat/completions` (que o `LlmClient` acrescenta sozinho) e as duas juntas `…/v1/chat/completions/` — **a ordem das normalizações importa** e é isso que o caso prende; espaços e caixa alta; servidor desconhecido, `""` e `null` → "Personalizado". As URLs em si não mudam aqui: o que a seção prova é que **voltar** delas para o item continua funcionando. |
 
-Hoje: **887 asserções** — a conta por seção sai do próprio run (uma linha por seção):
+Hoje: **889 asserções** — a conta por seção sai do próprio run (uma linha por seção):
 
 | seção | n | seção | n | seção | n | seção | n |
 |---|---|---|---|---|---|---|---|
-| (0) | 1 | (f) | 32 | (l) | 25 | (r) | 66 |
+| (0) | 1 | (f) | 34 | (l) | 25 | (r) | 66 |
 | (a) | 40 | (g) | 12 | (m) | 19 | (s) | 18 |
 | (b) | 15 | (h) | 74 | (n) | 12 | (t) | 32 |
 | (c) | 27 | (i) | 49 | (o) | 10 | (u) | 6 |
