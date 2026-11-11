@@ -41,13 +41,16 @@ falha (ou algo foi pulado) e `2` quando o harness não conseguiu subir (assembli
 | `AI/BuildWalkSpot.cs` | `Choose` — **de onde a peça é alcançada** pelo companheiro (o mesmo andar primeiro, depois a superfície mais alta que a regra de olho do jogo cobre) |
 | `AI/BuildAsideSpot.cs` | `Plan` — **para onde o companheiro sai da frente** quando outro precisa da peça no corpo dele (o `StepAside` do Run 14) |
 | `AI/BuildSpread.cs` | a **dispersão dos workers** num plano compartilhado (ninguém disputa a mesma peça) |
+| `AI/BuildBlueprintSkip.cs` | `Reason` — **por que** uma linha do `.blueprint` não entra no plano, e as duas constantes que são o contrato do `skippedReasons` |
+| `AI/LlmProviders.cs` | a tabela do dropdown do provedor e o `Suggest` — **voltar** de uma URL (colada pelo jogador) para o item dela |
 | `AI/MHR_Owner.cs`, `Core/MHR_List.cs` | dependências reais dos acima |
 
 > A **fonte** desta lista é o `<Compile Include>` de `ai-intents-check.csproj`, não este comentário: se um arquivo
 > estiver linkado lá e não aqui, o README está atrasado (foi o que aconteceu com os seis `Build*` acima).
 
-`Stubs.cs` tem **só** os membros do lado Unity/config que esses arquivos tocam, e cada um está comentado com o
-arquivo:linha real de onde veio:
+`Stubs.cs` tem **só** os membros do lado Unity/config que esses arquivos tocam, e cada um diz de onde veio pelo
+**nome do membro** (`Arquivo.cs` → `Método`), nunca por faixa de linhas — uma faixa é uma promessa sobre um arquivo que
+outra pessoa edita, e seis delas já tinham derivado:
 
 - `CompanionsPlugin.Log` (o logger do BepInEx);
 - `ModConfig` — as quatro listas de coleta com os **valores de fábrica** (`ModConfig.cs` → os `Bind` de
@@ -99,7 +102,10 @@ arquivo:linha real de onde veio:
 | (aa) | **os 37 contratos × as 5 línguas** (`Program.ContractCoverage`): lê `CompanionChatAI.ValidActions` e os cinco campos `private const string Contract{Pt,En,Es,Fr,It}` da DLL por reflexão, e assere que cada uma das 37 ações aparece nos cinco contratos — uma asserção por medição, com os nomes ausentes no detalhe. Também assere que os cinco contratos são distintos entre si (uma língua que herdou o texto da outra falha aqui) e que o tamanho de `ValidActions` continua 37. **É a seção que nasceu do bug do `level`** (a ação estava no enum do schema e em nenhuma palavra do EN/ES/FR/IT). |
 | (ab) | **o round trip do schema** (`Program.CanonicalRoundTrip`): para cada ação de `ValidActions`, `LlmIntent.Parse("{\"action\":\"…\"}")` tem de voltar com a **mesma** ação. Era o segundo andar do bug do `level`: o modelo respondia `{"action":"level"}` e o `Canonicalize` reescrevia para `"none"` porque a ação nunca entrou na tabela `Aliases` — a rede do `LevelIntent` resgatava depois e o log culpava o modelo. Uma ação nova que esquecer a tabela agora falha aqui, pelo nome. O único desvio documentado é `attack` → `hunt` (um ataque sem criatura nomeada é o trabalho de caça), e ele sai impresso numa linha `nota:`. |
 
-Hoje: **852 asserções** — a conta por seção sai do próprio run (uma linha por seção):
+| (ac) | `BuildBlueprintSkip` (**por que uma linha do `.blueprint` não entra no plano**, `AI/BuildBlueprintSkip.cs`): 7 casos — as duas constantes são **exatamente** `"not a piece here"` e `"recipe not unlocked"` (elas são o contrato do `skippedReasons` que o `BuildBlueprintReport` preenche e o `blueprints.inspect` publica: renomear uma quebra o painel e a ponte **sem erro de compilação em lugar nenhum**) e a tabela de decisão inteira — sem peça (com e sem a receita conhecida) → `NotAPiece`; com peça e sem a receita → `RecipeLocked`; com as duas → `null`. A última asserção exige que as duas razões continuem **textos distintos** (se colapsarem, o painel deixa de dizer ao jogador se ele desbloqueia a receita ou desiste do prefab). |
+| (ad) | `LlmProviders` (**o dropdown do provedor no painel**, `AI/LlmProviders.cs`): 28 casos — a tabela (`Count` 4, `CustomIndex` 3, os `IdAt` e os `KeyUrlAt` dos quatro, `Fills` só falso no "Personalizado", índice fora da faixa caindo no último item) e o **casamento tolerante do `Suggest`**: a URL da tabela → o item dela, `localhost` ≡ `127.0.0.1` (o `Alias` do LM Studio), barra no fim, sem o `/v1`, **com** `/chat/completions` (que o `LlmClient` acrescenta sozinho) e as duas juntas `…/v1/chat/completions/` — **a ordem das normalizações importa** e é isso que o caso prende; espaços e caixa alta; servidor desconhecido, `""` e `null` → "Personalizado". As URLs em si não mudam aqui: o que a seção prova é que **voltar** delas para o item continua funcionando. |
+
+Hoje: **887 asserções** — a conta por seção sai do próprio run (uma linha por seção):
 
 | seção | n | seção | n | seção | n | seção | n |
 |---|---|---|---|---|---|---|---|
@@ -110,7 +116,7 @@ Hoje: **852 asserções** — a conta por seção sai do próprio run (uma linha
 | (d) | 32 | (j) | 154 | (p) | 34 | (v) | 5 |
 | (e) | 34 | (k) | 20 | (q) | 26 | (w) | 9 |
 | (x) | 10 | (y) | 19 | (z) | 22 | (aa) | 12 |
-| (ab) | 37 | | | | | | |
+| (ab) | 37 | (ac) | 7 | (ad) | 28 | | |
 
 Para reconferir a tabela:
 `dotnet run --project tools/ai-intents-check -c Release | grep -c '^PASS'` dá o total, e cada `=== (x) …` abre a seção

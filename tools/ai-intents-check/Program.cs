@@ -145,6 +145,10 @@ internal static class Program
 		ContractCoverage();
 		Section("(ab) LlmIntent.Parse - toda acao do schema sobrevive ao Canonicalize");
 		CanonicalRoundTrip();
+		Section("(ac) BuildBlueprintSkip - por que uma linha do .blueprint nao entra no plano");
+		BlueprintSkips();
+		Section("(ad) LlmProviders - o dropdown do painel casa a URL com o provedor");
+		ProviderTable();
 		CrossCheckDoorRule();
 
 		Out.WriteLine();
@@ -2585,6 +2589,92 @@ internal static class Program
 		{
 			Out.WriteLine("nota: " + aliased.Count + " acao(oes) com desvio documentado: " + string.Join(", ", aliased.ToArray()));
 		}
+	}
+
+	/// <summary>
+	/// Section (ac): <c>BuildBlueprintSkip</c> - <b>why</b> a <c>.blueprint</c> line does not become part of the plan.
+	///
+	/// <para>The class is four lines of decision, so the <b>reason table</b> is what is really being pinned: the two
+	/// strings are not messages shown for a second, they are the enum the rest of the mod compares against.
+	/// <c>BuildBlueprintReport</c> fills <c>SkippedReasons</c> with them, <c>MHR_Build</c> logs them and the DevBridge
+	/// publishes them as <c>skippedReasons</c> in <c>blueprints.inspect</c>. Renaming one breaks the panel and the
+	/// bridge with no compiler error anywhere - which is exactly what this section is for.</para>
+	/// </summary>
+	private static void BlueprintSkips()
+	{
+		// the contract: these two spellings are consumed elsewhere, so they are asserted, not just used
+		CheckText("NotAPiece e o texto do contrato", "not a piece here", BuildBlueprintSkip.NotAPiece);
+		CheckText("RecipeLocked e o texto do contrato", "recipe not unlocked", BuildBlueprintSkip.RecipeLocked);
+
+		// the decision table, all four combinations of the two questions the caller answers
+		SkipCase(false, false, BuildBlueprintSkip.NotAPiece, "sem Piece: a receita nem e perguntada");
+		SkipCase(false, true, BuildBlueprintSkip.NotAPiece, "sem Piece mesmo com a receita conhecida");
+		SkipCase(true, false, BuildBlueprintSkip.RecipeLocked, "e peca, mas o jogador nao desbloqueou");
+		SkipCase(true, true, null, "e peca e a receita e conhecida: entra no plano");
+
+		// the two reasons must be distinguishable: if they ever collapse, the panel can no longer tell the player
+		// whether to unlock the recipe or give up the prefab
+		Check("as duas razoes sao textos diferentes",
+			!string.Equals(BuildBlueprintSkip.NotAPiece, BuildBlueprintSkip.RecipeLocked, StringComparison.Ordinal));
+	}
+
+	private static void SkipCase(bool hasPiece, bool recipeKnown, string expected, string why)
+	{
+		CheckText("Reason(hasPiece: " + (hasPiece ? "true" : "false") + ", recipeKnown: "
+			+ (recipeKnown ? "true" : "false") + ") - " + why,
+			expected, BuildBlueprintSkip.Reason(hasPiece, recipeKnown));
+	}
+
+	/// <summary>
+	/// Section (ad): <c>LlmProviders</c> - the provider table behind the panel's dropdown.
+	///
+	/// <para>Nothing here is about the <b>URLs</b> being right (they are the ones the panel shows and they work); it is
+	/// about <c>Suggest</c> mapping a URL back to its item. That comparison is <b>tolerant on purpose</b>: the player
+	/// pastes the URL with a trailing slash, without the <c>/v1</c>, or with <c>/chat/completions</c> (which
+	/// <c>LlmClient</c> appends by itself), and <c>localhost</c> is the same LM Studio as <c>127.0.0.1</c>. Four
+	/// normalisations run in a fixed order - the trailing slash before <c>/chat/completions</c>, or
+	/// <c>…/v1/chat/completions/</c> would not match - and nothing outside the game would notice if one moved.</para>
+	/// </summary>
+	private static void ProviderTable()
+	{
+		CheckInt("Count: 3 provedores + Personalizado", 4, LlmProviders.Count);
+		CheckInt("CustomIndex e o ultimo", 3, LlmProviders.CustomIndex);
+		CheckText("IdAt(0)", "Groq", LlmProviders.IdAt(0));
+		CheckText("IdAt(1)", "LM Studio", LlmProviders.IdAt(1));
+		CheckText("IdAt(2)", "OpenRouter", LlmProviders.IdAt(2));
+		Check("Fills(0) (Groq preenche URL e modelo)", LlmProviders.Fills(0));
+		Check("Fills(1) (LM Studio preenche URL e modelo)", LlmProviders.Fills(1));
+		Check("Fills(2) (OpenRouter preenche URL e modelo)", LlmProviders.Fills(2));
+		Check("Fills(3) == false (Personalizado nao preenche nada)", !LlmProviders.Fills(3));
+		// the key page drives the "create your key" link; LM Studio and the custom item have none
+		Check("KeyUrlAt(0) (Groq tem pagina de chave)", LlmProviders.KeyUrlAt(0).Length > 0);
+		Check("KeyUrlAt(1) == \"\" (LM Studio roda local, nao tem chave)", LlmProviders.KeyUrlAt(1).Length == 0);
+		Check("KeyUrlAt(2) (OpenRouter tem pagina de chave)", LlmProviders.KeyUrlAt(2).Length > 0);
+		Check("KeyUrlAt(3) == \"\" (Personalizado)", LlmProviders.KeyUrlAt(3).Length == 0);
+
+		// out of range never throws: the dropdown may ask for a stale index after the table changes
+		CheckText("IdAt(-1) cai no Personalizado", "personalizado", LlmProviders.IdAt(-1));
+		CheckText("IdAt(99) cai no Personalizado", "personalizado", LlmProviders.IdAt(99));
+		CheckText("BaseUrlAt(99) == \"\" (o item que nao preenche)", "", LlmProviders.BaseUrlAt(99));
+
+		// the tolerant matching - every line here is a URL a player could paste
+		SuggestCase("https://api.groq.com/openai/v1", 0, "a URL da tabela");
+		SuggestCase("http://127.0.0.1:1234/v1", 1, "o LM Studio, como o painel grava");
+		SuggestCase("http://localhost:1234/v1", 1, "o alias localhost do LM Studio");
+		SuggestCase("http://127.0.0.1:1234/v1/", 1, "com barra no fim");
+		SuggestCase("http://127.0.0.1:1234/v1/chat/completions", 1, "a URL do endpoint que o cliente monta");
+		SuggestCase("http://127.0.0.1:1234/v1/chat/completions/", 1, "barra no fim E o endpoint (a ordem importa)");
+		SuggestCase("https://api.groq.com/openai", 0, "sem o /v1");
+		SuggestCase("  HTTPS://API.GROQ.COM/OPENAI/V1  ", 0, "espacos e caixa alta");
+		SuggestCase("https://openrouter.ai/api/v1", 2, "a URL da tabela");
+		SuggestCase("http://meu-servidor:8080/v1", 3, "Ollama/servidor proprio cai no Personalizado");
+		SuggestCase("", 3, "config sem URL");
+		SuggestCase(null, 3, "config sem valor");
+	}
+
+	private static void SuggestCase(string url, int expected, string why)
+	{
+		CheckInt("Suggest(" + Show(url) + ") - " + why, expected, LlmProviders.Suggest(url));
 	}
 
 	private static void CrossCheckDoorRule()

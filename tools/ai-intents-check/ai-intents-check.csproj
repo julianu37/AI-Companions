@@ -81,6 +81,12 @@
     <Compile Include="..\..\src\Companions\AI\BuildStationCover.cs" Link="src/AI/BuildStationCover.cs" />
     <!-- 11/11/2026 (the build panel): the material need of a plan (prefab -> count folded through the costs) - pure -->
     <Compile Include="..\..\src\Companions\AI\BuildMaterials.cs" Link="src/AI/BuildMaterials.cs" />
+    <!-- 11/11/2026: why a .blueprint line does not become part of the plan - the two strings ARE the report's
+         skippedReasons contract (BuildBlueprintReport + DevBridge blueprints.inspect) - pure -->
+    <Compile Include="..\..\src\Companions\AI\BuildBlueprintSkip.cs" Link="src/AI/BuildBlueprintSkip.cs" />
+    <!-- 11/11/2026: the LLM provider table of the panel (the dropdown fills Url+Model) - pure by design, its own
+         docstring says it can be checked outside the game -->
+    <Compile Include="..\..\src\Companions\AI\LlmProviders.cs" Link="src/AI/LlmProviders.cs" />
     <Compile Include="..\..\src\Companions\AI\MHR_Owner.cs" Link="src\AI\MHR_Owner.cs" />
     <Compile Include="..\..\src\Companions\Core\MHR_List.cs" Link="src\Core\MHR_List.cs" />
   </ItemGroup>
