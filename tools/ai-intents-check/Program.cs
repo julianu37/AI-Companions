@@ -138,6 +138,8 @@ internal static class Program
 		SpreadCases();
 		Section("(aa) CompanionChatAI - as 37 acoes do schema sao ensinadas nos 5 contratos");
 		ContractCoverage();
+		Section("(ab) LlmIntent.Parse - toda acao do schema sobrevive ao Canonicalize");
+		CanonicalRoundTrip();
 		CrossCheckDoorRule();
 
 		Out.WriteLine();
@@ -287,6 +289,15 @@ internal static class Program
 
 		CheckText("Parse(acao desconhecida) -> none", "none", LlmIntent.Parse("{\"action\":\"dance\"}").Action);
 		CheckText("Parse(action \"null\") -> none", "none", LlmIntent.Parse("{\"action\":\"null\"}").Action);
+		// The bug of 1.9.6: "level" is in CompanionChatAI.ValidActions (the schema's enum), so the model answers it -
+		// and Canonicalize only returns actions its Aliases table knows, so the correct answer came back as "none"
+		// and the LevelIntent net rescued it, logging that the MODEL had answered "none" (it had not). Section (ab)
+		// makes this structural: every ValidAction has to survive Parse.
+		CheckText("Parse(acao \"level\") sobrevive", "level", LlmIntent.Parse("{\"action\":\"level\"}").Action);
+		CheckText("Parse(acao \"build\") sobrevive", "build", LlmIntent.Parse("{\"action\":\"build\"}").Action);
+		CheckText("Parse(\"nivele o terreno\") -> level", "level", LlmIntent.Parse("{\"action\":\"nivele\"}").Action);
+		CheckText("Parse(\"flatten\") -> level", "level", LlmIntent.Parse("{\"action\":\"flatten\"}").Action);
+		CheckText("Parse(\"livellare\") -> level", "level", LlmIntent.Parse("{\"action\":\"livellare\"}").Action);
 		CheckText("Parse(sem json, uma palavra) -> a acao", "wood", LlmIntent.Parse("wood").Action);
 		CheckText("Parse(vazio) -> none", "none", LlmIntent.Parse("").Action);
 		CheckText("Parse(null) -> none", "none", LlmIntent.Parse(null).Action);
@@ -2429,6 +2440,72 @@ internal static class Program
 			}
 		}
 		return true;
+	}
+
+	/// <summary>
+	/// Section (ab): the round trip that broke in 1.9.6, made structural.
+	///
+	/// <para><c>CompanionChatAI.ValidActions</c> is the single source of the JSON schema's "enum", so it is the exact
+	/// list of actions the model is allowed to answer. <c>LlmIntent.Canonicalize</c>, however, only returns actions
+	/// its own <c>Aliases</c> table knows - anything else falls through to <c>"none"</c> at the end. Every action was
+	/// added to the table as it was added to the vocabulary, except <c>level</c>: the model answered
+	/// <c>{"action":"level"}</c> and the parser rewrote it to <c>"none"</c>, the <c>LevelIntent</c> net rescued the
+	/// message afterwards and the log said "o modelo devolveu none" (it had not). The order worked, so nothing
+	/// looked wrong.</para>
+	///
+	/// <para>This section is the invariant that closes that gap: for each of the actions, <c>Parse</c> of the very
+	/// JSON the schema allows must come back with the same action. A new action that forgets the alias table now
+	/// fails here, by name, instead of depending on a net existing for it.</para>
+	/// </summary>
+	private static void CanonicalRoundTrip()
+	{
+		string path = FindCompanionsDll();
+		if (path == null)
+		{
+			Skip("round trip das acoes", "Companions.dll nao encontrada - rode dotnet build Companions.sln -c Release");
+			return;
+		}
+
+		string[] actions;
+		try
+		{
+			Assembly asm = Assembly.LoadFrom(path);
+			FieldInfo field = asm.GetType("Companions.CompanionChatAI", true)
+				.GetField("ValidActions", BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public);
+			if (field == null)
+			{
+				Fail("reflexao em CompanionChatAI", "ValidActions nao encontrado");
+				return;
+			}
+			actions = (string[])field.GetValue(null);
+		}
+		catch (Exception e)
+		{
+			Fail("reflexao em CompanionChatAI (" + path + ")", Describe(e));
+			return;
+		}
+
+		// A handful of actions are answered by the model together with a field that changes the canonical action on
+		// purpose (an "attack" with no creature named is the hunt JOB - see Canonicalize). Those are the documented
+		// cases and are asserted with their real expected value below; everything else is a plain identity.
+		List<string> aliased = new List<string>();
+		for (int i = 0; i < actions.Length; i++)
+		{
+			string action = actions[i];
+			LlmIntent intent = LlmIntent.Parse("{\"action\":\"" + action + "\"}");
+			string expected = action == "attack" ? "hunt" : action;
+			if (expected != action)
+			{
+				aliased.Add(action + "->" + expected);
+			}
+			Check("Parse({\"action\":\"" + action + "\"}) volta como \"" + expected + "\"",
+				string.Equals(expected, intent.Action, StringComparison.Ordinal),
+				"obtido \"" + intent.Action + "\" - a acao esta no schema mas nao na tabela Aliases do LlmIntent");
+		}
+		if (aliased.Count > 0)
+		{
+			Out.WriteLine("nota: " + aliased.Count + " acao(oes) com desvio documentado: " + string.Join(", ", aliased.ToArray()));
+		}
 	}
 
 	private static void CrossCheckDoorRule()
