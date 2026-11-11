@@ -60,8 +60,13 @@ internal static class Program
 
 	private static readonly List<string> ProbeDirs = new List<string>();
 
-	private static int Main()
+	/// <summary>11/11/2026: the release gate. Today it only decides what a <b>stale DLL</b> means in section (h) - a note
+	/// by default (a <c>git checkout</c> rewrites mtimes and would cry wolf), a FAIL here.</summary>
+	private static bool _strict;
+
+	private static int Main(string[] args)
 	{
+		_strict = Array.IndexOf(args, "--strict") >= 0;
 		try
 		{
 			Out.OutputEncoding = Encoding.UTF8;
@@ -2583,7 +2588,8 @@ internal static class Program
 	}
 
 	private static void CrossCheckDoorRule()
-	{		Section("(h) as copias do Stubs.cs contra a DLL real (Companions.dll)");
+	{
+		Section("(h) as copias do Stubs.cs contra a DLL real (Companions.dll)");
 		string path = FindCompanionsDll();
 		if (path == null)
 		{
@@ -2591,13 +2597,15 @@ internal static class Program
 			return;
 		}
 		Out.WriteLine("dll: " + path);
+		CheckDllFreshness(path);
 
 		const BindingFlags flags = BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public;
+		Assembly asm;
 		MethodInfo door;
 		MethodInfo job;
 		try
 		{
-			Assembly asm = Assembly.LoadFrom(path);
+			asm = Assembly.LoadFrom(path);
 			Type orders = asm.GetType("Companions.CompanionOrders", true);
 			door = orders.GetMethod("IsDoorRequest", flags);
 			job = orders.GetMethod("JobMode", flags);
@@ -2658,6 +2666,166 @@ internal static class Program
 				continue;
 			}
 			Check("JobMode(" + Show(action) + "): copia == DLL", local == real, "copia " + local + ", dll " + real);
+		}
+
+		// 11/11/2026: the list above is a hand-kept corpus, and the schema has more actions than it names - a new action
+		// ("build", "level", the next one) reaches the real JobMode and is never compared with the copy. This walks the
+		// DLL's own ValidActions instead (the single source of the JSON schema's enum), so the corpus cannot fall behind.
+		CrossCheckJobModeOverSchema(asm, job);
+	}
+
+	/// <summary>
+	/// Section (h), part 2 (11/11/2026): the copy of <c>JobMode</c> against <b>every action the schema allows</b>.
+	///
+	/// <para>The hand-kept corpus was 18 entries; <c>CompanionChatAI.ValidActions</c> has 37. Reading the list from the
+	/// DLL removes the chance of the corpus ageing: adding an action to the schema and a job to the real method while
+	/// forgetting the copy now fails here, by name.</para>
+	/// </summary>
+	private static void CrossCheckJobModeOverSchema(Assembly asm, MethodInfo job)
+	{
+		string[] schema;
+		try
+		{
+			FieldInfo field = asm.GetType("Companions.CompanionChatAI", true)
+				.GetField("ValidActions", BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public);
+			if (field == null)
+			{
+				Fail("reflexao em CompanionChatAI", "ValidActions nao encontrado");
+				return;
+			}
+			schema = (string[])field.GetValue(null);
+		}
+		catch (Exception e)
+		{
+			Fail("reflexao em CompanionChatAI.ValidActions", Describe(e));
+			return;
+		}
+		if (schema == null || schema.Length == 0)
+		{
+			Fail("CompanionChatAI.ValidActions", "a lista veio vazia - o schema nao tem acao nenhuma");
+			return;
+		}
+		for (int i = 0; i < schema.Length; i++)
+		{
+			string action = schema[i];
+			int local = CompanionOrders.JobMode(action);
+			int real;
+			try
+			{
+				real = (int)job.Invoke(null, new object[] { action });
+			}
+			catch (TargetInvocationException e)
+			{
+				Fail("DLL JobMode (schema) " + Show(action), Describe(e.InnerException ?? e));
+				continue;
+			}
+			Check("JobMode(" + Show(action) + ") [ValidActions]: copia == DLL", local == real,
+				"copia " + local + ", dll " + real);
+		}
+		Out.WriteLine("nota: " + schema.Length + " acoes do ValidActions comparadas (o corpus fixo tem 18)");
+	}
+
+	/// <summary>
+	/// Section (h), part 3 (11/11/2026): <b>a DLL é a do código?</b>
+	///
+	/// <para>The cross-check loads whatever <c>Companions.dll</c> it finds. If <c>src/</c> changed and nobody built, it
+	/// compares the copies against an <b>older</b> compilation and reports green - the one section whose job is to catch
+	/// drift would be blind to its own staleness. This compares the DLL's timestamp with the newest <c>.cs</c> under
+	/// <c>src/Companions</c> (<c>obj/</c> and <c>bin/</c> excluded).</para>
+	///
+	/// <para>Why a note and not a FAIL: <c>git checkout</c> rewrites the mtime of files that did not change, so a fresh
+	/// branch would scream for nothing. <c>--strict</c> (Program.Main) turns it into a FAIL for a release gate.</para>
+	/// </summary>
+	private static void CheckDllFreshness(string dllPath)
+	{
+		DateTime dll;
+		try
+		{
+			dll = File.GetLastWriteTimeUtc(dllPath);
+		}
+		catch (Exception e)
+		{
+			Fail("mtime da DLL", Describe(e));
+			return;
+		}
+
+		// the newest source, walking up from the DLL's own repo (bin/Release/net472 -> the repo root)
+		string newestPath = null;
+		DateTime newest = DateTime.MinValue;
+		for (int depth = 0; depth < 8; depth++)
+		{
+			DirectoryInfo dir = new DirectoryInfo(AppDomain.CurrentDomain.BaseDirectory);
+			for (int up = 0; up < depth && dir != null; up++)
+			{
+				dir = dir.Parent;
+			}
+			if (dir == null)
+			{
+				break;
+			}
+			string sourceDir = Path.Combine(dir.FullName, @"src\Companions");
+			if (!Directory.Exists(sourceDir))
+			{
+				continue;
+			}
+			ScanSources(sourceDir, ref newest, ref newestPath);
+			break;
+		}
+		if (newestPath == null)
+		{
+			Skip("a DLL e a do codigo", "src/Companions nao encontrada a partir de " + AppDomain.CurrentDomain.BaseDirectory);
+			return;
+		}
+
+		string dllText = dll.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
+		string srcText = newest.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
+		if (dll >= newest)
+		{
+			Check("a DLL e a do codigo (a mais nova)", true);
+			Out.WriteLine("nota: dll " + dllText + " >= fonte " + srcText + " (" + Path.GetFileName(newestPath) + ")");
+			return;
+		}
+
+		string detail = "dll " + dllText + " e MAIS VELHA que " + Path.GetFileName(newestPath) + " (" + srcText
+			+ ") - o cross-check esta comparando com uma compilacao antiga; rode dotnet build Companions.sln -c Release"
+			+ (_strict ? "" : " (vira FAIL com --strict)");
+		if (_strict)
+		{
+			Fail("a DLL e a do codigo", detail);
+		}
+		else
+		{
+			Out.WriteLine("nota: " + detail);
+			Check("a DLL e a do codigo (a mais nova)", true, detail);
+		}
+	}
+
+	/// <summary>The newest <c>.cs</c> of a folder, skipping <c>obj/</c> and <c>bin/</c> (the build's own output).</summary>
+	private static void ScanSources(string folder, ref DateTime newest, ref string newestPath)
+	{
+		string[] files;
+		try
+		{
+			files = Directory.GetFiles(folder, "*.cs", SearchOption.AllDirectories);
+		}
+		catch (Exception)
+		{
+			return;
+		}
+		for (int i = 0; i < files.Length; i++)
+		{
+			string file = files[i];
+			if (file.IndexOf(@"\obj\", StringComparison.OrdinalIgnoreCase) >= 0
+				|| file.IndexOf(@"\bin\", StringComparison.OrdinalIgnoreCase) >= 0)
+			{
+				continue;
+			}
+			DateTime stamp = File.GetLastWriteTimeUtc(file);
+			if (stamp > newest)
+			{
+				newest = stamp;
+				newestPath = file;
+			}
 		}
 	}
 
