@@ -114,8 +114,8 @@ because the downloaded models live there.
 
 - **The build deploys.** Plain `dotnet build` copies the DLL into the game folder. Use `-p:SkipDeploy=true` when you
   must not touch the install.
-- **`gh` resolves the `upstream` remote by default** (this fork shares history): always pass
-  `gh release <cmd> -R julianu37/AI-Companions` (or `gh repo view julianu37/AI-Companions`, positional).
+- **`gh` targets `julianu37/AI-Companions`** (the `upstream` remote was removed on 11/11/2026; `gh set-default` is
+  local, so still pass `gh release <cmd> -R julianu37/AI-Companions`).
 - **Paths resolved by `Assembly.Location`, not config:** `tts\`, `whisper\`, `blueprints\`, `Translations\` and
   `Speech\` must sit **inside** the plugin folder. This broke voice on fresh installs in 1.9.2/1.9.3.
 - **Preserved on purpose** (worlds, saves and network depend on it): the GUID `Maddhattr.OfflineCompanionsReborn`,

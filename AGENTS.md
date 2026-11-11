@@ -78,12 +78,13 @@ Valheim e não há de onde copiá-los depois.
 - **`Environment.props` é gitignored** (copie de `Environment.props.example`). Sem ele o csproj cai no caminho padrão
   da Steam e não acha as DLLs do jogo. As referências do jogo vêm de `$(ValheimDir)\valheim_Data\Managed` e
   `$(ValheimDir)\BepInEx\core` — **não** há pacote NuGet do Valheim.
-- **`gh` resolve o remote `upstream` por padrão** neste repositório (o fork compartilha a história): sem indicar o
-  repo, você opera no repositório do **autor do upstream**. As formas que funcionam: `gh release <cmd> -R
-  julianu37/AI-Companions` (ou `--repo`), `gh api repos/julianu37/AI-Companions/...` e, no `gh repo view` (que **não**
-  aceita `-R`/`--repo`), o repo vai **posicional**: `gh repo view julianu37/AI-Companions`. `gh repo set-default
-  julianu37/AI-Companions` grava `gh-resolved = base` no `.git/config` e resolve a sessão, mas é **local** — não conte
-  com ele em outra máquina/worktree.
+- **O remote `upstream` foi removido** (regra do jogador, 11/11/2026): o único remote é **`origin` =
+  `julianu37/AI-Companions`**, e o `gh` está com `set-default` nele (`gh-resolved = base` no `.git/config`, local —
+  em outra máquina, rode `gh repo set-default julianu37/AI-Companions` uma vez). O **histórico do autor original
+  continua no `git log`** (o fork compartilha a história); o que saiu foi só o ponteiro de busca. Sem o remote não
+  há como `git fetch` do MaddhattrRocks — para voltar a sincronizar, `git remote add upstream
+  https://github.com/MaddhattrRocks/Offline-Companions-Reborn.git`. Ainda assim, **passe `-R julianu37/AI-Companions`
+  em `gh release`/`gh api`**: é barato e não depende de config local.
 - **O harness lê os `.cs` reais por `<Compile Include>`** no `tools/ai-intents-check/ai-intents-check.csproj`. Regra
   pura nova exige (a) criar o arquivo em `src/Companions/AI/`, (b) **linkar** no csproj do harness, (c) adicionar as
   asserções. Só o harness e o build **0/0** provam a mudança.
@@ -148,7 +149,9 @@ sherpa-onnx) rodam **locais, no processo**.
 
 1. **Nada entra sem estar documentado no mesmo ciclo.** Documentação é entrega, não sobra.
 2. **Código em branch**, nunca direto na `main`: `feat/<tema>` ou `fix/<tema>` → **o jogador testa em jogo** → merge na
-   `main`. **Um commit por hipótese.** Docs e release podem ir direto na `main`.
+   `main`. **Um commit por hipótese.** Docs e release podem ir direto na `main`. **`git push` não precisa de pedido**
+   (regra do jogador, 11/11/2026): se o ciclo fechou verde e o jogador disse para subir, empurre para `origin`
+   (`julianu37/AI-Companions`) com `-u` na primeira vez. Nunca `--force`; nada de `upstream`.
 3. **Nenhum arquivo fica editado sem commit.** A árvore termina o ciclo limpa (`git status` vazio); trabalho pela
    metade é `wip(...)` na branch, não árvore suja.
 4. Mensagem de commit: `tipo(escopo): resumo`. O arquiteto usa `git add -A`; **os demais agentes usam caminhos
