@@ -116,6 +116,7 @@ Uma conexão por chamada; **um JSON por linha**, nas duas direções.
 | `player.inventory` | `item?`, `set?` | `count`, `stacks[]`, `totalStacks`, `weight`, `maxWeight` |
 | `world.time` | `day?`, `time?`, `fraction?`, `skip?` | `before`, `time`, `day`, `fraction`, `dayLength` |
 | `world.quit` | `save?` (padrão `true`) | `quitting`, `save`, `loggedOut` |
+| `companions.build_status` | — | `site`, `label`, `phase`, `plan`, `placed`, `skipped`, `remaining`, `done`, `posts`, `workers`, `elapsed`, `anchor`, `members[]` |
 | `companions.kill` | `name?`, `damage?` | `name`, `killed`, `hpBefore`, `hpAfter` |
 | `companions.tier` | `name?`, `tier` | `name`, `tier`, `prefabBefore`, `prefabAfter`, `changed` |
 | `companions.hire` | — | `hired`, `price`, `coinsBefore`, `coinsAfter` |
@@ -132,6 +133,15 @@ para fechar o jogo entre dois builds. A resposta é montada **depois** do logout
 `Application.Quit` no fim do frame), então a linha chega ao cliente antes de o processo sumir; `loggedOut: false`
 significa que não havia `Game.instance` (tela de menu) e só o quit aconteceu. `save: false` sai sem gravar - mundo
 quebrado, teste descartável.
+
+`companions.build_status` (12/11/2026) é o **lado da leitura** de uma obra: a ponte sabia começar uma ordem
+(`companions.build`) mas não sabia ler uma, então todo número de aceite do run vinha de **raspar o
+`LogOutput.log` com regex**. O log é a metade frágil do instrumento — é narrativa escrita para o jogador e a redação
+muda à vontade; os contadores do `build_status` são **o estado**. É uma leitura pura de `MHR_Build.CurrentSite`, **o
+mesmo snapshot que o painel de obra desenha**, então a ponte nunca discorda do que o jogador vê; não pausa, não
+direciona, não reivindica nada. `{site: false}` quando não há ordem nenhuma (nunca começou, ou já terminou) — **não é
+erro**, e é o que deixa um poller esperar. `phase` é `preparing`/`collecting`/`building`/`retrying`/`paused`, e `done`
+é `placed + skipped >= plan` (o plano fechou); `remaining` é a subtração, para o teste não fazer aritmética.
 
 `companions.build` com `blueprint` (P1, 03/11/2026): **`name` vazio = todos** os companheiros do jogador entram no
 mesmo canteiro (só os **do jogador** - `MHR_Owner.IsMine`), um plano só, peças distintas; com `name`, só aquele (o

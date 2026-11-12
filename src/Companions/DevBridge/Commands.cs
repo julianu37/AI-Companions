@@ -112,6 +112,7 @@ internal static class Commands
 		case "terrain.level": return TerrainLevel(args);
 		case "terrain.ops": return TerrainOps();
 		case "companions.build": return CompanionsBuild(args);
+		case "companions.build_status": return CompanionsBuildStatus(args);
 		case "companions.level": return CompanionsLevel(args);
 		case "companions.sethome": return CompanionsSetHome(args);
 			case "world.tombstones": return WorldTombstones(args);
@@ -1129,6 +1130,84 @@ internal static class Commands
 			{ "tried", site.Tried },
 			{ "reasons", site.Reasons },
 			{ "tally", site.Tally }
+		});
+	}
+
+	/// <summary>
+	/// 12/11/2026 (the free run of the <c>CommHomeBasicBP</c>): what the build order of this player is doing right now,
+	/// without reading <c>LogOutput.log</c>. The run of 12/11 had to be measured by scraping the log with regex - the
+	/// bridge could <b>start</b> an order (<c>companions.build</c>) but not <b>read</b> one, so every acceptance number
+	/// (placed, skipped, plan, phase) came from a line of text. That is the fragile half of the instrument: the log is a
+	/// narrative written for the player, and its wording changes freely; the counters below are the state itself.
+	/// <para>It is a plain read of <see cref="MHR_Build.CurrentSite"/> - <b>the very snapshot the build panel draws</b>
+	/// (<c>CompanionBuildPanel</c>), so the bridge can never disagree with what the player sees. Nothing here steers,
+	/// pauses or claims anything.</para>
+	/// <para><c>{site: false}</c> when there is no order at all - not an error: a finished order empties the site, and a
+	/// test that polls this must be able to see that. <c>phase</c> is <c>preparing</c>/<c>collecting</c>/<c>building</c>/
+	/// <c>retrying</c>/<c>paused</c>, and <c>done</c> when <c>placed + skipped == plan</c> (the order closed).</para>
+	/// </summary>
+	private static string CompanionsBuildStatus(Dictionary<string, object> args)
+	{
+		if (ZNetScene.instance == null)
+		{
+			return Fail("the world isn't loaded");
+		}
+		Player player = Player.m_localPlayer;
+		if (player == null)
+		{
+			return Fail("no player in the world");
+		}
+		MHR_Build.SiteInfo site;
+		if (!MHR_Build.CurrentSite(player.GetPlayerID(), out site) || site == null)
+		{
+			return Ok(new Dictionary<string, object>
+			{
+				{ "site", false },
+				{ "note", "this player has no build order (never started, or already finished)" }
+			});
+		}
+		List<object> members = new List<object>();
+		if (site.Members != null)
+		{
+			for (int i = 0; i < site.Members.Count; i++)
+			{
+				MHR_Build.SiteWorker member = site.Members[i];
+				if (member == null)
+				{
+					continue;
+				}
+				members.Add(new Dictionary<string, object>
+				{
+					{ "id", member.Id },
+					{ "name", member.Name },
+					{ "leader", member.Leader },
+					{ "paused", member.Paused },
+					{ "phase", member.Phase }
+				});
+			}
+		}
+		return Ok(new Dictionary<string, object>
+		{
+			{ "site", true },
+			{ "key", site.Key },
+			{ "label", site.Label },
+			{ "group", site.IsGroup },
+			{ "paused", site.Paused },
+			{ "phase", site.Phase },
+			{ "plan", site.Plan },
+			{ "placed", site.Placed },
+			{ "skipped", site.Skipped },
+			{ "remaining", site.Plan - site.Placed - site.Skipped },
+			{ "done", site.Plan > 0 && site.Placed + site.Skipped >= site.Plan },
+			{ "posts", site.Posts },
+			{ "workers", site.Workers },
+			{ "elapsed", site.StartedAt > 0f ? Time.time - site.StartedAt : 0f },
+			{ "anchor", new Dictionary<string, object>
+				{
+					{ "x", site.Anchor.x }, { "y", site.Anchor.y }, { "z", site.Anchor.z }
+				}
+			},
+			{ "members", members }
 		});
 	}
 

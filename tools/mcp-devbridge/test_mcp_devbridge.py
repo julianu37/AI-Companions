@@ -148,6 +148,20 @@ class MockBridge(threading.Thread):
                 "storeys": 3,
                 "piecesNeedingStation": 983,
             }}
+        if cmd == "companions.build_status":
+            # Mirrors the C# answer (DevBridge/Commands.cs, CompanionsBuildStatus): the snapshot of the site the
+            # build panel draws. A plan mid-run, so `done` is false and `remaining` is a real subtraction.
+            return {"ok": True, "data": {
+                "echo": cmd, "site": True, "key": "hs_meadows_hut|-158.9,38.8,-427.7|0", "label": "hs_meadows_hut",
+                "group": True, "paused": False, "phase": "building",
+                "plan": 900, "placed": 617, "skipped": 0, "remaining": 283, "done": False,
+                "posts": 26, "workers": 2, "elapsed": 412.5,
+                "anchor": {"x": -158.9, "y": 38.8, "z": -427.7},
+                "members": [
+                    {"id": 1001, "name": "Maria", "leader": True, "paused": False, "phase": "building"},
+                    {"id": 1002, "name": "Joana", "leader": False, "paused": False, "phase": "building"},
+                ],
+            }}
         if cmd == "companions.build":
             # Mirrors the C# answer (DevBridge/Commands.cs, CompanionsBuild): `echo`/`args` are this mock's
             # bookkeeping so the forwarded payload stays visible, the rest is the shape the tool documents.
@@ -220,11 +234,11 @@ def main():
 
         tools = rpc("tools/list", request_id=2).get("result", {}).get("tools", [])
         names = {tool["name"] for tool in tools}
-        check("tools/list has 64 tools", len(tools) == 64, "%d tools" % len(tools))
+        check("tools/list has 65 tools", len(tools) == 65, "%d tools" % len(tools))
         for expected in ("devbridge_ping", "game_status", "companions_list", "companions_order", "screenshot", "log_tail",
                          "player_kill", "player_inventory", "world_time", "world_quit", "world_chest", "companions_kill", "companions_tier",
                          "companions_hire", "companions_resurrect", "companions_farm_zone", "log_watch",
-                         "build_inspect", "build_sites", "build_find", "build_pieces", "companions_build", "companions_sethome", "player_look", "build_check", "build_snaps", "build_usable", "terrain_check", "build_hoe", "companions_level",
+                         "build_inspect", "build_sites", "build_find", "build_pieces", "companions_build", "companions_build_status", "companions_sethome", "player_look", "build_check", "build_snaps", "build_usable", "terrain_check", "build_hoe", "companions_level",
                          "nav_tiles", "nav_probe", "nav_stats", "blueprints_list", "blueprints_inspect"):
             check("tools/list includes %s" % expected, expected in names)
 
@@ -296,6 +310,7 @@ def main():
             (23, "player_inventory", {"item": "Coins", "set": 1500}, "player.inventory"),
             (24, "world_time", {"day": 3, "fraction": 0.5}, "world.time"),
             (49, "world_quit", {"save": False}, "world.quit"),
+            (50, "companions_build_status", {}, "companions.build_status"),
             (25, "companions_kill", {"name": "Maria"}, "companions.kill"),
             (26, "companions_tier", {"name": "Maria", "tier": "warrior"}, "companions.tier"),
             (27, "companions_hire", {}, "companions.hire"),
@@ -336,6 +351,31 @@ def main():
               any(r.get("cmd") == "world.time" and r.get("args", {}).get("fraction") == 0.5 for r in bridge.requests))
         check("world_quit sends save",
               any(r.get("cmd") == "world.quit" and r.get("args", {}).get("save") is False for r in bridge.requests))
+
+        # --- companions.build_status: the read side of a build order (12/11/2026) ------------------------------
+        status_tool = next((tool for tool in tools if tool["name"] == "companions_build_status"), {})
+        status_desc = status_tool.get("description", "")
+        check("companions_build_status says it is read-only",
+              "read-only" in status_desc.lower(), status_desc[:60])
+        check("companions_build_status explains the {site: false} answer",
+              "site: false" in status_desc.lower(), status_desc[:60])
+        status_data = json.loads(rpc("tools/call", {"name": "companions_build_status", "arguments": {}},
+                                     request_id=61)["result"]["content"][0]["text"])
+        check("companions_build_status sends no argument",
+              any(r.get("cmd") == "companions.build_status" and not r.get("args")
+                  for r in bridge.requests), bridge.requests[-3:])
+        check("companions_build_status reports the counters of the site",
+              status_data.get("site") is True and status_data.get("plan") == 900
+              and status_data.get("placed") == 617 and status_data.get("remaining") == 283,
+              status_data)
+        check("companions_build_status lists one entry per worker",
+              [m.get("name") for m in status_data.get("members", [])] == ["Maria", "Joana"],
+              status_data.get("members"))
+        check("companions_build_status flags the leader",
+              [m.get("leader") for m in status_data.get("members", [])] == [True, False],
+              status_data.get("members"))
+        check("companions_build_status says the order is not done yet",
+              status_data.get("done") is False, status_data.get("done"))
 
         # --- companions.build: the blueprint GROUP contract (P1 multi-build) ----------------------------------
         build_tool = next((tool for tool in tools if tool["name"] == "companions_build"), {})

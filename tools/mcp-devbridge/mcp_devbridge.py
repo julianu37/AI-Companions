@@ -567,6 +567,18 @@ TOOLS = [
         },
     },
     {
+        "name": "companions_build_status",
+        "description": (
+            "Reads the build order of the local player WITHOUT touching the log (12/11/2026): label, phase, plan, "
+            "placed, skipped, remaining, done, posts, workers, elapsed and the anchor, plus one entry per worker "
+            "(name, leader, paused, phase). It is the very snapshot the in-game build panel draws, so it can never "
+            "disagree with what the player sees. Read-only: it never pauses, steers or claims anything. "
+            "Answers {site: false} when the player has no order (never started, or already finished) - not an error, "
+            "so a poller can wait on it. 'done' is true when placed + skipped >= plan, i.e. the order closed."
+        ),
+        "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
         "name": "companions_build",
         "description": (
             "Gives a companion a build order without the LLM (Trilha E, E3): it checks the recipe, finds a valid spot "
@@ -1188,6 +1200,8 @@ def run_tool(name, args):
             if key in args:
                 payload[key] = args[key]
         return require_ok(call_bridge("companions.level", **payload))
+    if name == "companions_build_status":
+        return require_ok(call_bridge("companions.build_status"))
     if name == "companions_build":
         payload = {}
         if args.get("prefab"):

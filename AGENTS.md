@@ -226,6 +226,12 @@ padrão** (`[Advanced] DevBridge`), loopback only, porta **47110**; liga-se no `
 mesmo caminho do menu (grava mundo e perfil). Existe porque o **console do 1.0.20 não tem `quit`** e matar o processo
 por fora descarta a sessão — sem ele o agente tinha que pedir ao jogador para fechar o jogo entre dois builds.
 `save: false` sai sem gravar. A resposta chega **antes** do processo sumir.
+**`companions.build_status`** (12/11/2026) é o lado da **leitura** de uma obra: `label`, `phase`, `plan`, `placed`,
+`skipped`, `remaining`, `done`, `workers`, `elapsed`, `anchor` e um item por companheiro. É leitura pura de
+`MHR_Build.CurrentSite` — **o mesmo snapshot do painel de obra** —, então nunca discorda do que o jogador vê, e
+`{site: false}` (sem ordem, ou ordem já terminada) **não é erro**: é o que deixa um poller esperar. Existe porque o
+run grátis de 12/11 teve todos os números de aceite **raspados do `LogOutput.log`** com regex — o log é narrativa
+para o jogador e a redação muda; os contadores do `build_status` são o estado.
 `docs/mcp-devbridge.md` tem a arquitetura e as receitas.
 
 ## Onde está o resto
