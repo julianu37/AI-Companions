@@ -3436,3 +3436,46 @@ O comentário ficou com a conclusão e a data; a narrativa continua neste arquiv
 
 **Aceite:** build 0 erros/0 avisos, harness verde (a contagem não muda — nenhum código foi tocado), e o diff provado
 só de comentário. Feito: `641 insertions(+), 945 deletions(-)` no `git diff --stat`, e 0 linhas de código alteradas.
+
+### 17.36 O run grátis de 12/11/2026 — a colocação não perde peça; o contador mentia (12/11/2026)
+
+> [M] Sítio `CommHomeBasicBP` limpo (`build.delete` → 1138 peças apagadas, `build.pieces` = 0), terreno plano
+> (0,024 m em 20 m), `BlueprintFree = true`, 2 companheiros, âncora (-158,9 · 38,8 · -427,7). DLL `1.9.6`, 95 métodos
+> patcheados. Relato completo em [free-run-11-11-2026.md](free-run-11-11-2026.md).
+
+**O invariante que o ciclo inteiro queria:** `placed (` == `done:` **985/985** no fim (no meio do run, `+1`/`+2` com
+peça em verificação, que é o normal), conferido contra a cena em pontos independentes — a colocação **não perde nem
+duplica** peça. A linha final imprime `peças: 985/985, 0 pulada(s)` e `order ended: hc_ai_blueprint_done`.
+`build.pieces` na cena = **1011** (985 + escadas temporárias e apoios de emergência de pé). Os termos duros do aceite
+ficaram em zero: **0 mortes, 0 `UNSUPPORTED`, 0 `too_heavy`**. As **5 quedas** são todas na chegada à cumeeira
+(`route partial`, y≈46,8-48,6) e é o item 11 do backlog (rota segura até o walk spot do telhado), não este ciclo.
+
+**O defeito que o run pagou — 37 peças "perdidas" que estavam de pé.** A barreira de andar, ao estourar a paciência
+de 10 s, chamava `SkipPiece` na peça que `PendingBelowIndex` tinha acabado de ler **da fila do canteiro**. Era uma
+peça que o canteiro ainda possuía — ou porque outro companheiro a tinha reivindicado e colocou segundos depois, ou
+porque a fila ainda ia servi-la. As **37** linhas `desistindo de` do run foram conferidas uma a uma contra a cena por
+casamento de pose: **37 de pé, `sumidas de fato: 0`**.
+
+O número se denunciava sozinho, e o `build_run_report.py` fecha os três sinais na mesma tela: a cauda `N pulada(s)`
+**andava para trás** no log (4 → 3), porque `MarkDone` tira a peça do conjunto de puladas quando ela sobe; o maior
+`N pulada(s)` do run é **18** enquanto as linhas somam **37**; e a fala final diz `985 colocada(s) + 0`. Contador
+monotônico não regride — a regressão era a prova.
+
+**A correção:** o ramo de estouro em `ServeBarrier` deixou de chamar `SkipPiece` e só escreve `LogDebug`. A regra não
+é nova — é a que o próprio `AbandonPiece` já escrevia desde 11/11: **peça nunca tentada que volta pela fila é ADIADA,
+nunca contada**. Quem realmente descarta (e conta) é o watchdog de estalo (`AbandonRetry`), que continua no mesmo
+lugar do `WaitRetry` (item 17.30).
+
+**Por que a correção vale mais que o número:** o run pago é o cenário que o jogador enfrenta, e lá o `desistindo`
+alimenta a percepção de "a casa saiu faltando". Um contador que infla por peça que a fila ainda tem transforma um run
+limpo em run quebrado aos olhos de quem lê o log.
+
+**Ainda por medir:** o mesmo run com o contador corrigido (`desistindo de` = 0 com o número certo). A colocação já
+está provada; falta o número fechar. **O DLL deste run é o de antes da correção** — `MHR_Build.cs` editado às
+08:59:44, DLL no jogo às 08:42:55 —, então os 37 são a medição do defeito, de propósito.
+
+**Os números de espera** (linha do `Finish`, somada por frame pelo mod): 87,4 s no total, 56,0 s de barreira em 22
+retenções (32,5 + 23,5), 31,4 s de fila, 0,0 s de passo e de portão; 754 adiadas / 8 retomadas / 3 `step-aside`;
+`3,28` linhas `[Build]` por peça. A recusa por motivo: barreira 37 (44 %), `no progress` 31 (36 %),
+`blocked_by_player` 14 (16 %), `no_support` 2.
+

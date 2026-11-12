@@ -132,22 +132,22 @@ pré-requisito para saber qual dos dois é.
 raso e a queda é curta; no íngreme o deck sobe e a mesma peça vira armadilha. **Não** é um defeito que se vê no run
 de teste (lá o `DeckLift` é absorvido pelo terreno plano).
 
-### 12. O run **grátis** da `CommHomeBasicBP` — 10 commits esperando a medição (novo 12/11/2026)
-O ciclo `fix/plano-remap` fechou os oito defeitos de código do `MHR_Build` que a varredura leu no fonte (remapeamento
-do plano, "já está de pé" antes de pagar, abandono contado, watchdog × barreira, `LastY`/walk spot, escada sob o corpo,
-números do fim do grupo) mais duas refatorações — **1.586 linhas mexidas, todas medidas**. O build está 0/0 e o harness
-em 930 PASS, mas **nenhuma dessas correções foi vista em jogo**: o run que as prova não começou.
+### 12. ~~O run **grátis** da `CommHomeBasicBP`~~ — **medido 12/11/2026**
+O ciclo `fix/plano-remap` fechou os oito defeitos de código do `MHR_Build` (remapeamento do plano, "já está de pé"
+antes de pagar, abandono contado, watchdog × barreira, `LastY`/walk spot, escada sob o corpo, números do fim do grupo)
+mais duas refatorações — **1.586 linhas mexidas, todas medidas**. O run que os prova **rodou em 12/11/2026** e está em
+[re/free-run-11-11-2026.md](re/free-run-11-11-2026.md): a colocação **não perde nem duplica** (`placed (` == `done:`
+idênticos do começo ao fim, 0 `falls`, 0 mortes, 0 `UNSUPPORTED`), e o único aceite que não fechou foi **contador**.
 
-O jogo estava aberto desde 20:08, oito commits antes do build final; ele carregou o DLL antigo e leu
-`BlueprintFree = false`. O `quit` do console vanilla não existe e matar o processo por fora descartaria a sessão. O
-`save` foi feito; falta o jogador fechar o jogo, e aí o agente relança pela Steam e roda.
+**O defeito que o run pagou (37 peças):** a barreira de andar, ao estourar a paciência, chamava `SkipPiece` na peça
+que `PendingBelowIndex` acabara de ler **da fila do canteiro** — uma peça que o canteiro ainda possuía (e que, nas 37
+vezes, foi conferida de pé na cena: `sumidas de fato: 0`). A cauda `N pulada(s)` chegou a **andar para trás** (4 → 3)
+porque `MarkDone` a tirava do conjunto, e o maior `N pulada(s)` do run foi **18** enquanto as linhas somavam **37**.
+Correção no mesmo ciclo: o ramo de estouro só escreve `LogDebug`; peça que a fila ainda tem é **adiada**, nunca
+contada (a regra que o `AbandonPiece` já escrevia), e quem conta o que realmente cai é o watchdog.
+**Falta medir:** o run com o contador corrigido (`desistindo de` = 0 de verdade) — só o número, a colocação já está
+provada (`985/985`, `0 mortes`, `0 UNSUPPORTED`, `0 too_heavy`, `5 quedas` na cumeeira = item 11).
 
-**O aceite e o passo a passo estão em [re/free-run-11-11-2026.md](re/free-run-11-11-2026.md)** — sítio
-`CommHomeBasicBP`, âncora (-158,9 · 38,8 · -427,7), `BlueprintFree = true` já gravado no `.cfg`. Lá também está a
-única pergunta do run: `placed (` == `done:` == 985, sem índice repetido.
-
-**Regra que vale aqui (a mesma do item 2):** se um aceite falhar, o run é **revertido**, não "ajustado" — o defeito
-volta para esta fila com o número que o matou.
 
 ## Declarado e **fora** do caminho crítico
 

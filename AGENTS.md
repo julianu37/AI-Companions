@@ -207,10 +207,13 @@ Não redesenhe isso de cabeça: **`docs/re/building-notes.md`** é a fonte (§17
    meio da obra, pagamento por baú sem `SetInUse`). O alvo do produto hoje é **single-player**.
 6. Corpus de blueprints: **279 de 354** arquivos perdem linha por `recipe not unlocked` e o mod **pula em silêncio** —
    falta a tela e a fala dizendo qual receita falta (o dado já existe em `BuildBlueprintReport.SkippedReasons`).
-7. **O run grátis da `CommHomeBasicBP` não começou** (12/11/2026): os oito defeitos de código do `MHR_Build` e as duas
-   refatorações do `fix/plano-remap` estão no DLL (build 0/0, harness 930 PASS) mas **nenhum foi visto em jogo**. O
-   Valheim estava aberto antes do build final, então carregou o DLL antigo; falta fechá-lo e relançar. Aceite e passo a
-   passo em `docs/re/free-run-11-11-2026.md`.
+7. **O run grátis da `CommHomeBasicBP` rodou** (12/11/2026, `docs/re/free-run-11-11-2026.md`): a colocação **não perde
+   nem duplica** — `placed (` == `done:` == **985/985**, `peças: 985/985, 0 pulada(s)`, `order ended:
+   hc_ai_blueprint_done`, 0 mortes, 0 `UNSUPPORTED`, 0 `too_heavy`; as **5 quedas** são todas na cumeeira (item do
+   backlog da rota, não deste ciclo). O único aceite que não fechou foi **contador**: **37** `desistindo de` em peças
+   que a fila do canteiro ainda tinha (**37 de 37 estavam de pé**, `sumidas de fato: 0`; a cauda `N pulada(s)` andou
+   para trás, 4 → 3, e nunca passou de 18). Corrigido no mesmo ciclo — a barreira não conta mais peça que a fila
+   possui; falta **re-rodar** para medir `desistindo de` = 0 com o contador certo.
 
 ## DevBridge (testar no jogo)
 
@@ -219,6 +222,10 @@ padrão** (`[Advanced] DevBridge`), loopback only, porta **47110**; liga-se no `
 `[DevBridge] listening on 127.0.0.1:47110`). `world_enter` já roda o setup: `devcommands` (uma vez), `tod 0.5`,
 `god on` + `heal` e stamina infinita — **`god` no Valheim 1.0 trava o HP em 1 em vez de cancelar o dano**, por isso o
 `heal` é obrigatório. `companions.order action=stop` cancela obra e nivelamento (a mesma parada do chat).
+**`world.quit`** (12/11/2026) fecha o jogo: `Game.Logout(save, changeToStartScene: false)` + `Application.Quit`, o
+mesmo caminho do menu (grava mundo e perfil). Existe porque o **console do 1.0.20 não tem `quit`** e matar o processo
+por fora descarta a sessão — sem ele o agente tinha que pedir ao jogador para fechar o jogo entre dois builds.
+`save: false` sai sem gravar. A resposta chega **antes** do processo sumir.
 `docs/mcp-devbridge.md` tem a arquitetura e as receitas.
 
 ## Onde está o resto

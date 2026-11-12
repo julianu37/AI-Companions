@@ -899,9 +899,13 @@ internal static class MHR_Build
 		LogSkipped(ai, state, prefab, pos, why);
 	}
 
-	/// <summary>11/11/2026 (the counted abandonment): <b>the</b> line of a piece given up - one format, so the report counts 
-	/// every abandonment the same way (<c>build_run_report.py</c> reads <c>desistindo de</c> and the <c>N pulada(s)</c> tail). 
-	/// It is written after the skip was recorded, so the counter it prints is the one that just grew.</summary>
+	/// <summary>11/11/2026 (the counted abandonment): <b>the</b> line of a piece given up - one format, so the report counts
+	/// every abandonment the same way (<c>build_run_report.py</c> reads <c>desistindo de</c> and the <c>N pulada(s)</c> tail).
+	/// It is written after the skip was recorded, so the counter it prints is the one that just grew.
+	/// <para>12/11/2026 (the free run): the tail is the count <b>of the verdict just written</b> - one per plan index - and it
+	/// must never be smaller than the line before it. The barrier used to print 4 and then 3 for the same run, because it
+	/// counted pieces the site's queue still owned and <c>MarkDone</c> took them back out.</para>
+	/// </summary>
 	private static void LogSkipped(CompanionAI ai, State state, string prefab, Vector3 pos, string why)
 	{
 		// the site's set while it exists, the worker's own otherwise - a cancelled site (CancelAll) is already gone when the
@@ -1464,13 +1468,18 @@ internal static class MHR_Build
 		if (Time.time - state.BarrierStart > BuildFailure.BodyRetryMaxWait)
 		{
 			int stuck = PendingBelowIndex(ai, state, state.BarrierNextIndex, state.BarrierNextY);
-			// 11/11/2026 (the counted abandonment): the piece the barrier waited for is <b>given up</b>, not only forgotten
-			// (it used to be neither placed nor counted). Same verdict and same line as every other skip: `desistindo de`.
-			// If the queue puts it up later, MarkDone takes it out of the skipped set.
+			// 12/11/2026 (the free run, measured): the piece the barrier waited for is NOT given up here. It is still in the
+			// site's queue (that is what PendingBelowIndex just read), so the queue still owns it - the rule AbandonPiece
+			// already states: a piece that was never tried and comes back through the queue is DEFERRED, never counted.
+			// Counting it here made the number lie twice over: 7 `desistindo de` in the first 300 pieces of the free run
+			// while every one of those pieces ended up standing (placed by the other worker, or served later by the queue),
+			// and the counter printed in the line went backwards (4 pulada(s) -> 3) when MarkDone took one back out.
+			// The piece is abandoned - and counted - by the path that really drops it: the stall watchdog's AbandonRetry.
 			if (stuck >= 0 && stuck < state.Plan.Count)
 			{
-				SkipPiece(ai, state, stuck, "a barreira esperou " + BuildFailure.BodyBarrierSeconds.ToString("F0")
-					+ " s e a peça não voltou");
+				LogDebug(ai, "barreira de andar: a peça " + (stuck + 1) + "/" + state.Plan.Count
+					+ " não voltou em " + BuildFailure.BodyBarrierSeconds.ToString("F0")
+					+ " s - fica na fila do canteiro e o plano sobe");
 			}
 			else
 			{
