@@ -39,6 +39,13 @@ moved the piece's pose without invalidating its walk spot, so the companion walk
 1 m drop, two of them skip a piece). The guard is inside `ClearScaffolds` now, a stair that survives to the end of the
 order is named in the log so you can take it down, and `NearScaffold` lost its unused radius parameter. See §17.32.
 
+**Less code where the duplication was measured (no behaviour change).** Five questions the file asked twice now have
+one owner each: the `BuildBodyRetry` key (`BarrierOn` returns `BodyRetryOn`, which is the only reader of the setting),
+the piece-requirement press (`AddNeed`/`Shortfall` shared by `TemplateMissing` and `PlanMissing`), the five exits of
+`ClearSite` (`EndClear`), and the `(x, y, z)` blocks the lines write (~38 of them) through a `Pose(Vector3)` helper
+that returns the exact format `build_run_report.py` parses - checked against a synthetic log. Two dead members went
+with them (`MaxLevelPasses`, never read; `Phase.Done`, never assigned). 111 insertions / 132 deletions. See §17.34.
+
 **The end of a site reports the site's numbers.** `Advance` read the site's placed/skipped counters, then left the group,
 and only then called `Finish` - which re-read them and, on the path of a worker that is **not** the last one, printed
 that worker's numbers under the site's label. `last` is decided before leaving now (`Workers(key) <= 1`) and both paths

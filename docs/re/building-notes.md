@@ -3382,3 +3382,26 @@ e pelo `Finish` — a fala e a linha não podem discordar.
 
 **Aceite:** a linha `order ended:` de um worker que não é o último traz os números do **canteiro** em `peças:` (o mesmo
 que o último worker fala), e a última saída do site fala o número final.
+
+### 17.34 As duplicações medidas do `MHR_Build` (11/11/2026) — 1 dono de cada pergunta, −21 linhas
+
+> [C] Refatoração sem mudança de comportamento: as cinco duplicações que a varredura mediu, cada uma com o mesmo
+> aceite — o build com 0 erros/0 avisos e o harness em 930 PASS/0 FAIL, e o `build_run_report.py` lendo as linhas
+> novas com os mesmos números.
+
+| duplicação | antes | agora |
+|---|---|---|
+| a chave `ModConfig.BuildBodyRetry` escrita e lida em dois helpers | `BarrierOn` e `ServeBarrier` liam a config cada um | `BarrierOn` devolve `BodyRetryOn()`; **um** lugar lê a chave (:6874) |
+| a prensa de `Piece.Requirement` (nome → quantidade) | `TemplateMissing` e `PlanMissing`, uma cópia cada | `AddNeed(need, piece)` + `Shortfall(need, have)` |
+| a saída do `ClearSite` | 5 blocos iguais (`Phase`, `Start`, `Checked`) | `EndClear(state)` |
+| `(x, y, z)` montado à mão | ~38 blocos de 3 `F(...)` | `Pose(Vector3)` (:8237) — o formato que o relatório lê |
+| `MaxLevelPasses` (só definido) e `Phase.Done` (nunca atribuído) | membros mortos | apagados; o `default:` do `Drive` virou `return false` com o comentário |
+
+**O `Pose` é o único que toca o instrumento.** As linhas `done:`, `desistindo de`, `sem apoio:` e `retry later:` são
+lidas por regex no `build_run_report.py`; o helper devolve exatamente `"(" + F(x) + ", " + F(y) + ", " + F(z) + ")"`,
+o mesmo bloco de antes, então o relatório não mudou — e foi conferido com um log sintético no formato novo (20 `done`,
+1 `desistindo`, 1 `sem apoio`, 1 `corpo no caminho`, 1 `retry later`, 1 `apoio de emergência`): o placar saiu
+`done 20 / puladas 1 / sem apoio 1` com o mesmo `RESUMO` do formato antigo.
+
+**O que não foi feito, de propósito:** o `Pose` não foi aplicado aos 4 logs que imprimem `(x, z)` (a ordem do piso, o
+`StepAside`, o par `from`/`to`) — eles não têm o `y` e o relatório não os lê; forçá-los no helper perderia a informação.

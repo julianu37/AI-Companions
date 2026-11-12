@@ -196,8 +196,6 @@ internal static class MHR_Build
 	/// forest of them. One per piece (<c>State.FallbackPosts</c>), never where the plan already has a support.</summary>
 	internal const int MaxFallbackPosts = 24;
 
-	/// <summary>E10: how many leveling passes a job may apply before it gives up (each moves the ground by at most 1 m).</summary>
-	internal const int MaxLevelPasses = 4;
 	/// <summary>E10: above this height variation (metres) the soft level cannot win - the spot is refused instead of digging a crater.</summary>
 	internal const float MaxLevelVariation = 1.8f;
 
@@ -295,8 +293,7 @@ internal static class MHR_Build
 		BodyRetry,
 		/// <summary>E4b: walking to the resource BEFORE the gather mode is set (only the build steers here).</summary>
 		GatherWalk,
-		Verify,
-		Done
+		Verify
 	}
 
 	private sealed class State
@@ -708,7 +705,7 @@ internal static class MHR_Build
 		DiscardState(ai);
 		s_state[ai.GetInstanceID()] = state;
 		DropPending(ai, cs);
-		Log(ai, "order: build " + prefab + " near (" + F(hint.x) + ", " + F(hint.y) + ", " + F(hint.z) + ")");
+		Log(ai, "order: build " + prefab + " near " + Pose(hint));
 		return true;
 	}
 
@@ -762,7 +759,7 @@ internal static class MHR_Build
 		DiscardState(ai);
 		s_state[ai.GetInstanceID()] = state;
 		DropPending(ai, cs);
-		Log(ai, "order: build plan " + template.Name + " (" + template.Steps.Length + " pieces) near (" + F(hint.x) + ", " + F(hint.y) + ", " + F(hint.z) + ")");
+		Log(ai, "order: build plan " + template.Name + " (" + template.Steps.Length + " pieces) near " + Pose(hint));
 		return true;
 	}
 
@@ -801,13 +798,12 @@ internal static class MHR_Build
 				{
 					// 11/11/2026 (Run 17): the wait it really got (it grows with the refusals) - the line said 2 s always
 					float wait = BuildFailure.BlockedDelay(MHR_BuildGroup.BlockedOf(state.Group, state.Index));
-					Log(ai, "corpo no caminho: " + state.Prefab + " em (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
-						+ F(state.Pos.z) + ") - volta em " + wait.ToString("F0")
+					Log(ai, "corpo no caminho: " + state.Prefab + " em " + Pose(state.Pos) + " - volta em " + wait.ToString("F0")
 						+ " s (não gasta tentativa)");
 					return;
 				}
 				Log(ai, (kind == BuildFailure.Kind.Dependency ? "sem apoio ainda: " : "retry no grupo: ") + state.Prefab
-					+ " (" + why + ") em (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", " + F(state.Pos.z) + ")"
+					+ " (" + why + ") em " + Pose(state.Pos)
 					+ (kind == BuildFailure.Kind.Dependency ? " - não gasta tentativa, volta com espera" : " - a peça volta para a fila do canteiro"));
 				return;
 			}
@@ -839,8 +835,7 @@ internal static class MHR_Build
 			{
 				pending.Dependency++;
 				state.RetryAt = Time.time + DependencyDelay(pending.Dependency);
-				Log(ai, "sem apoio ainda: " + state.Prefab + " (" + why + ") em (" + F(state.Pos.x) + ", " + F(state.Pos.y)
-					+ ", " + F(state.Pos.z) + ") - não gasta tentativa, volta com espera");
+				Log(ai, "sem apoio ainda: " + state.Prefab + " (" + why + ") em " + Pose(state.Pos) + " - não gasta tentativa, volta com espera");
 				return;
 			}
 			if (kind == BuildFailure.Kind.Blocked)
@@ -848,8 +843,7 @@ internal static class MHR_Build
 				pending.Blocked++;
 				float wait = BuildFailure.BlockedDelay(pending.Blocked);
 				state.RetryAt = Time.time + wait;
-				Log(ai, "corpo no caminho: " + state.Prefab + " em (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
-					+ F(state.Pos.z) + ") - volta em " + wait.ToString("F0") + " s (não gasta tentativa)");
+				Log(ai, "corpo no caminho: " + state.Prefab + " em " + Pose(state.Pos) + " - volta em " + wait.ToString("F0") + " s (não gasta tentativa)");
 				return;
 			}
 			pending.Tries++;
@@ -860,8 +854,7 @@ internal static class MHR_Build
 				return;
 			}
 			state.RetryAt = Time.time + MHR_BuildGroup.RetryDelay;
-			Log(ai, "retry later: " + state.Prefab + " (" + why + ") at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
-				+ F(state.Pos.z) + ") - " + pending.Tries + "/" + MaxPasses);
+			Log(ai, "retry later: " + state.Prefab + " (" + why + ") at " + Pose(state.Pos) + " - " + pending.Tries + "/" + MaxPasses);
 			return;
 		}
 		SkipPiece(ai, state, why);
@@ -992,7 +985,7 @@ internal static class MHR_Build
 		// piece is counted, and printing its 0 would read as if nothing had been given up
 		int site = state.Group != null ? MHR_BuildGroup.Skipped(state.Group) : 0;
 		int total = Math.Max(site, state.SkippedIndices.Count);
-		Log(ai, "desistindo de " + prefab + " (" + why + ") em (" + F(pos.x) + ", " + F(pos.y) + ", " + F(pos.z) + ") - "
+		Log(ai, "desistindo de " + prefab + " (" + why + ") em " + Pose(pos) + " - "
 			+ total + " pulada(s)");
 	}
 
@@ -1575,7 +1568,7 @@ internal static class MHR_Build
 		{
 			return false;
 		}
-		if (ModConfig.BuildBodyRetry != null && !ModConfig.BuildBodyRetry.Value)
+		if (!BodyRetryOn())
 		{
 			ResetBarrier(state);   // the player turned it off in the F8 panel while the order was running
 			return false;
@@ -1614,8 +1607,7 @@ internal static class MHR_Build
 			state.BarrierServed.Add(serve);
 			state.ResumeIndex = state.BarrierNextIndex;
 			EnterStep(ai, state, serve);
-			Log(ai, "volta antes de subir: " + state.Prefab + " (" + (serve + 1) + "/" + state.Plan.Count + ") em ("
-				+ F(state.Pos.x) + ", " + F(state.Pos.y) + ", " + F(state.Pos.z) + ")");
+			Log(ai, "volta antes de subir: " + state.Prefab + " (" + (serve + 1) + "/" + state.Plan.Count + ") em " + Pose(state.Pos));
 			return true;
 		}
 		int below = PendingBelowIndex(ai, state, state.BarrierNextIndex, state.BarrierNextY);
@@ -1675,7 +1667,7 @@ internal static class MHR_Build
 		{
 			return false;   // a single piece: there is no queue to come back to
 		}
-		return ModConfig.BuildBodyRetry == null || ModConfig.BuildBodyRetry.Value;
+		return BodyRetryOn();
 	}
 
 	/// <summary>11/11/2026: drops the storey barrier and forgets the pieces it already served (the next one gives them another
@@ -2356,7 +2348,7 @@ internal static class MHR_Build
 		DiscardState(ai);
 		s_state[ai.GetInstanceID()] = state;
 		DropPending(ai, cs);
-		Log(ai, "blueprint " + blueprint.Label + ": " + plan.Count + " pieces near (" + F(hint.x) + ", " + F(hint.y) + ", " + F(hint.z) + ")"
+		Log(ai, "blueprint " + blueprint.Label + ": " + plan.Count + " pieces near " + Pose(hint)
 			+ (start > 0 ? " - resuming at piece " + (start + 1) : string.Empty)
 			+ (free ? " - BlueprintFree is on (no material)" : string.Empty));
 		return BlueprintStart.Started;
@@ -3876,8 +3868,7 @@ internal static class MHR_Build
 			case Phase.Verify:
 				return Verify(ai, state, cs);
 			default:
-				Finish(ai, state, null, "done");
-				return false;
+				return false;   // never reached: every member of Phase has an arm above
 		}
 	}
 
@@ -4103,8 +4094,7 @@ internal static class MHR_Build
 				// its own wording: it is not a `desistindo de` (there is no index, and the plan's own piece stays).
 				if (index < 0 && CompanionsPlugin.LogNormal)
 				{
-					Log(ai, "cópia ajustada fora do plano: " + step.Prefab + " em (" + F(step.Pos.x) + ", " + F(step.Pos.y) + ", "
-						+ F(step.Pos.z) + ") - sem índice para contar");
+					Log(ai, "cópia ajustada fora do plano: " + step.Prefab + " em " + Pose(step.Pos) + " - sem índice para contar");
 				}
 				continue;
 			}
@@ -4115,8 +4105,7 @@ internal static class MHR_Build
 			MHR_BuildGroup.AddSkipped(state.Group, index);
 			if (CompanionsPlugin.LogNormal)
 			{
-				Log(ai, "sem apoio: " + step.Prefab + " em (" + F(step.Pos.x) + ", " + F(step.Pos.y) + ", "
-					+ F(step.Pos.z) + ")");
+				Log(ai, "sem apoio: " + step.Prefab + " em " + Pose(step.Pos));
 			}
 		}
 		if (CompanionsPlugin.LogNormal)
@@ -4151,8 +4140,7 @@ internal static class MHR_Build
 			{
 				continue;
 			}
-			Log(ai, "sem apoio: " + step.Prefab + " em (" + F(step.Pos.x) + ", " + F(step.Pos.y) + ", "
-				+ F(step.Pos.z) + ")");
+			Log(ai, "sem apoio: " + step.Prefab + " em " + Pose(step.Pos));
 		}
 	}
 
@@ -4176,7 +4164,7 @@ internal static class MHR_Build
 		if (harvest == null)
 		{
 			Log(ai, "there is no harvest to clear the site with - building as it is");
-			state.Phase = state.Template != null ? Phase.Find : Phase.Goto;
+			EndClear(state);
 			return true;
 		}
 		if (state.ClearStart <= 0f)
@@ -4186,7 +4174,7 @@ internal static class MHR_Build
 			if (state.ClearTotal == 0)
 			{
 				Log(ai, "the site is clear (nothing to cut inside " + F(state.ClearSize) + " m)");
-				state.Phase = state.Template != null ? Phase.Find : Phase.Goto;
+				EndClear(state);
 				return true;
 			}
 			Log(ai, "clearing the site: " + state.ClearTotal + " tree(s)/log(s) inside the " + F(state.ClearSize)
@@ -4232,11 +4220,7 @@ internal static class MHR_Build
 		if (state.ClearCount >= ClearMaxObstacles || Time.time - state.ClearStart > ClearBudget)
 		{
 			harvest.CancelDirectedTarget();
-			state.Phase = state.Template != null ? Phase.Find : Phase.Goto;
-			// the order's clock follows the PIECE (the site is clear before the first one) - without this the first piece
-			// (here the workbench the station pass added) was already far past the 60 s and was skipped as "took too long"
-			state.Start = Time.time;
-			state.Checked = false;
+			EndClear(state);
 			Log(ai, "clearing stopped (" + state.ClearCount + " cut, " + (Time.time - state.ClearStart).ToString("F0")
 				+ " s) - building with what is clear");
 			return true;
@@ -4263,11 +4247,7 @@ internal static class MHR_Build
 				return true;
 			}
 			harvest.CancelDirectedTarget();
-			state.Phase = state.Template != null ? Phase.Find : Phase.Goto;
-			// the order's clock follows the PIECE: without this the first piece was already 156 s old when the clearing
-			// ended and it was skipped as "took too long" (measured 03/11/2026)
-			state.Start = Time.time;
-			state.Checked = false;
+			EndClear(state);
 			Log(ai, "the site is clear (" + state.ClearCount + " obstacle(s) in " + (Time.time - state.ClearStart).ToString("F0")
 				+ " s)");
 			return true;
@@ -4280,7 +4260,7 @@ internal static class MHR_Build
 			Log(ai, "can't cut \"" + next.name + "\" (no tool for it) - leaving it");
 			if (state.ClearRejects >= ClearMaxRejects)
 			{
-				state.Phase = state.Template != null ? Phase.Find : Phase.Goto;
+				EndClear(state);
 				Log(ai, "nothing here I can cut - building as it is");
 			}
 			return true;
@@ -4292,6 +4272,19 @@ internal static class MHR_Build
 		state.ClearTargetAt = Time.time;
 		Log(ai, "clearing the site: cutting \"" + next.name + "\" (#" + state.ClearCount + ")");
 		return true;
+	}
+
+	/// <summary>
+	/// 11/11/2026: the site is clear - back to the walk and to the first piece. The order's clock follows the <b>piece</b>
+	/// (the clearing happens before the first one): without restarting `Start` the first piece - the workbench the station
+	/// pass added - was already past the 60 s of the piece timeout and was skipped as "took too long" (measured 03/11/2026:
+	/// 156 s of clearing). The five exits of <see cref="ClearSite"/> used to carry this block each.
+	/// </summary>
+	private static void EndClear(State state)
+	{
+		state.Phase = state.Template != null ? Phase.Find : Phase.Goto;
+		state.Start = Time.time;
+		state.Checked = false;
 	}
 
 	/// <summary>Is this the station the mod can build (the workbench)?</summary>
@@ -4402,8 +4395,7 @@ internal static class MHR_Build
 			planned.Add(spot);
 			added++;
 			i++;   // the bench that was just inserted is the step to look at now
-			Log(ai, "workbench for the " + step.Prefab + " (none in range of it): added at (" + F(spot.x) + ", "
-				+ F(spot.y) + ", " + F(spot.z) + ") - covers " + radius.ToString("F1") + " m");
+			Log(ai, "workbench for the " + step.Prefab + " (none in range of it): added at " + Pose(spot) + " - covers " + radius.ToString("F1") + " m");
 		}
 		if (needed > 0)
 		{
@@ -4415,14 +4407,12 @@ internal static class MHR_Build
 			for (int i = 0; i < noRoom.Count; i++)
 			{
 				PlannedStep step = noRoom[i];
-				Log(ai, "sem bancada: " + step.Prefab + " em (" + F(step.Pos.x) + ", " + F(step.Pos.y) + ", " + F(step.Pos.z)
-					+ ") - nenhum lugar livre fora do footprint (âncora que colide é recusada)");
+				Log(ai, "sem bancada: " + step.Prefab + " em " + Pose(step.Pos) + " - nenhum lugar livre fora do footprint (âncora que colide é recusada)");
 			}
 			for (int i = 0; i < budget.Count; i++)
 			{
 				PlannedStep step = budget[i];
-				Log(ai, "sem bancada: " + step.Prefab + " em (" + F(step.Pos.x) + ", " + F(step.Pos.y) + ", " + F(step.Pos.z)
-					+ ") - orçamento de bancadas do plano esgotado (" + added + "/" + MaxPlannedBenches + " planejadas, "
+				Log(ai, "sem bancada: " + step.Prefab + " em " + Pose(step.Pos) + " - orçamento de bancadas do plano esgotado (" + added + "/" + MaxPlannedBenches + " planejadas, "
 					+ searches + "/" + MaxBenchSearches + " buscas)");
 			}
 		}
@@ -4469,7 +4459,7 @@ internal static class MHR_Build
 			state.Plan.Add(new PlannedStep { Prefab = BenchPrefab, Piece = bench, Pos = spot, Rot = benchRot });
 			state.BenchInserts++;
 			Log(ai, "sem bancada no alcance da " + refusedPrefab + " - uma foi para o FIM do plano (o plano do grupo não é"
-				+ " reordenado) em (" + F(spot.x) + ", " + F(spot.y) + ", " + F(spot.z) + ")");
+				+ " reordenado) em " + Pose(spot));
 			return false;   // the refused piece goes to the retry queue, which runs after the bench
 		}
 		// the bench becomes the step being carried out and the refused piece comes right after it: an insertion in the
@@ -4492,8 +4482,7 @@ internal static class MHR_Build
 		state.Start = Time.time;
 		state.Checked = false;
 		state.Phase = Phase.Goto;
-		Log(ai, "no workbench in range of the " + refusedPrefab + " - one added in front of it at (" + F(spot.x) + ", "
-			+ F(spot.y) + ", " + F(spot.z) + ")");
+		Log(ai, "no workbench in range of the " + refusedPrefab + " - one added in front of it at " + Pose(spot));
 		return true;
 	}
 
@@ -4768,8 +4757,7 @@ internal static class MHR_Build
 				state.ScaffoldTries++;   // the budget counts STAIRS PLACED, not attempts (a 'blocked by the plan' is not a stair)
 				state.BestDistance = 0f;
 				state.BestAt = Time.time;
-				Log(ai, "temporary stair at (" + F(candidate.x) + ", " + F(candidate.y) + ", " + F(candidate.z)
-					+ ") to reach the " + state.Prefab + " above - it is removed when the order ends");
+				Log(ai, "temporary stair at " + Pose(candidate) + " to reach the " + state.Prefab + " above - it is removed when the order ends");
 				return true;
 			}
 		}
@@ -5269,8 +5257,7 @@ internal static class MHR_Build
 		}
 		PlannedStep step = state.Plan[support];
 		QueueRetry(ai, state, "no_support");
-		Log(ai, "apoio imediato: " + step.Prefab + " em (" + F(step.Pos.x) + ", " + F(step.Pos.y) + ", " + F(step.Pos.z)
-			+ ") (" + (support + 1) + "/" + state.Plan.Count + ") - a " + state.Prefab + " espera na fila do canteiro");
+		Log(ai, "apoio imediato: " + step.Prefab + " em " + Pose(step.Pos) + " (" + (support + 1) + "/" + state.Plan.Count + ") - a " + state.Prefab + " espera na fila do canteiro");
 		EnterStep(ai, state, support);
 		return true;
 	}
@@ -5505,8 +5492,7 @@ internal static class MHR_Build
 		int pick = BuildSupportBelow.PickPost(s_postLengths, gap);
 		if (pick < 0)
 		{
-			Log(ai, "sem lugar para o apoio de emergência sob " + state.Prefab + " em (" + F(piece.x) + ", " + F(piece.y)
-				+ ", " + F(piece.z) + ") - vão de " + gap.ToString("F2") + " m"
+			Log(ai, "sem lugar para o apoio de emergência sob " + state.Prefab + " em " + Pose(piece) + " - vão de " + gap.ToString("F2") + " m"
 				+ (skipped > 0 ? " (" + skipped + " superfície(s) rasa(s) ou sem apoio ignorada(s))" : string.Empty));
 			return false;
 		}
@@ -5521,8 +5507,7 @@ internal static class MHR_Build
 		Dictionary<string, object> check = BuildSite.Check(post, pos, rot, Self(ai), StationRequired(state));
 		if (!Ok(check) && !(useful >= 0 && OnlyNoSupport(check)))
 		{
-			Log(ai, "sem lugar para o apoio de emergência sob " + state.Prefab + " em (" + F(pos.x) + ", " + F(pos.y) + ", "
-				+ F(pos.z) + ") - " + (check != null ? Convert.ToString(check["status"]) : "?") + " (vão "
+			Log(ai, "sem lugar para o apoio de emergência sob " + state.Prefab + " em " + Pose(pos) + " - " + (check != null ? Convert.ToString(check["status"]) : "?") + " (vão "
 				+ gap.ToString("F2") + " m)");
 			return false;
 		}
@@ -5542,13 +5527,12 @@ internal static class MHR_Build
 			{
 				Refund(bag, post);   // the post never went up: the wood goes back (with Free nothing was taken)
 			}
-			Log(ai, "sem lugar para o apoio de emergência sob " + state.Prefab + " em (" + F(pos.x) + ", " + F(pos.y) + ", "
-				+ F(pos.z) + ") - " + result.Error + " (vão " + gap.ToString("F2") + " m)");
+			Log(ai, "sem lugar para o apoio de emergência sob " + state.Prefab + " em " + Pose(pos) + " - " + result.Error + " (vão " + gap.ToString("F2") + " m)");
 			return false;
 		}
 		state.FallbackPosts.Add(index);
 		Log(ai, "apoio de emergência: " + FallbackPostPrefabs[pick] + " (" + length.ToString("F2") + " m) sob "
-			+ state.Prefab + " em (" + F(pos.x) + ", " + F(pos.y) + ", " + F(pos.z) + ")");
+			+ state.Prefab + " em " + Pose(pos));
 		return true;
 	}
 
@@ -5999,7 +5983,7 @@ internal static class MHR_Build
 			// (searching again could pick another spot and start a second house next to the first one)
 			anchor = state.Anchor;
 			baseRot = state.AnchorRot;
-			Log(ai, "resuming at the same anchor (" + F(anchor.x) + ", " + F(anchor.y) + ", " + F(anchor.z) + ") from piece " + (state.StartIndex + 1));
+			Log(ai, "resuming at the same anchor " + Pose(anchor) + " from piece " + (state.StartIndex + 1));
 		}
 		else if (!FindAnchor(steps, state.Hint, state.Forward, radius, Self(ai), out anchor, out baseRot, out anchorStatus, out anchorTried))
 		{
@@ -6087,8 +6071,7 @@ internal static class MHR_Build
 		state.Pos = plan[state.Index].Pos;
 		state.Rot = plan[state.Index].Rot;
 		state.Phase = Phase.Goto;
-		Log(ai, "plan " + state.Template.Name + ": " + plan.Count + " pieces, " + checkedPoses + " poses checked, anchor at ("
-			+ F(anchor.x) + ", " + F(anchor.y) + ", " + F(anchor.z) + ")");
+		Log(ai, "plan " + state.Template.Name + ": " + plan.Count + " pieces, " + checkedPoses + " poses checked, anchor at " + Pose(anchor));
 		return true;
 	}
 
@@ -6230,7 +6213,7 @@ internal static class MHR_Build
 		state.WalkFor = -1;   // 11/11/2026 (Run 13): a new pose is a new walk spot
 		state.HasWalkTo = false;
 		state.Phase = Phase.Goto;
-		Log(ai, "site at (" + F(site.Pos.x) + ", " + F(site.Pos.y) + ", " + F(site.Pos.z) + "), " + F(site.Distance) + " m from the hint, "
+		Log(ai, "site at " + Pose(site.Pos) + ", " + F(site.Distance) + " m from the hint, "
 			+ site.Tried + " tried" + (site.Tally.Count > 0 ? " (" + TallyText(site.Tally) + ")" : string.Empty));
 		return true;
 	}
@@ -6291,8 +6274,7 @@ internal static class MHR_Build
 				{
 					return true;   // the post is standing: the piece is placed on top of it
 				}
-				LogDebug(ai, "deferring " + state.Prefab + " at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
-					+ F(state.Pos.z) + "): it needs what is below it, which is not up yet - retry pass");
+				LogDebug(ai, "deferring " + state.Prefab + " at " + Pose(state.Pos) + ": it needs what is below it, which is not up yet - retry pass");
 				QueueRetry(ai, state, "no_support");
 				return Advance(ai, state, dt);
 			}
@@ -6337,7 +6319,7 @@ internal static class MHR_Build
 				if (state.HasWalkTo)
 				{
 					state.WalkTo = walk;
-					LogDebug(ai, "walk spot (" + F(walk.x) + ", " + F(walk.y) + ", " + F(walk.z) + ") - the " + state.Prefab
+					LogDebug(ai, "walk spot " + Pose(walk) + " - the " + state.Prefab
 						+ " is " + F(state.Pos.y - walk.y) + " m above that surface (" + state.WalkFound + " superfície(s) em "
 						+ state.WalkRays + " raio(s))");
 				}
@@ -6387,12 +6369,12 @@ internal static class MHR_Build
 			{
 				Log(ai, "no progress towards the " + state.Prefab + " for 12 s (" + F(walkGap) + " m away"
 					+ (state.HasWalkTo
-						? ", walk spot (" + F(state.WalkTo.x) + ", " + F(state.WalkTo.y) + ", " + F(state.WalkTo.z) + ")"
+						? ", walk spot " + Pose(state.WalkTo)
 						: ", walk spot -")
 					+ (state.WalkRays > 0
 						? ", " + state.WalkFound + " superfície(s) em " + state.WalkRays + " raio(s)"
 						: ", sem busca de superfície")
-					+ ") - retrying it later, I am at (" + F(me.x) + ", " + F(me.y) + ", " + F(me.z) + "), route "
+					+ ") - retrying it later, I am at " + Pose(me) + ", route "
 					+ (MHR_Mover.RoutePartial(ai) ? "partial" : "full"));
 				QueueRetry(ai, state, "no progress");
 				return Advance(ai, state, dt);
@@ -6661,8 +6643,7 @@ internal static class MHR_Build
 				try
 				{
 					Dictionary<string, object> ground = check != null && check.ContainsKey("ground") ? check["ground"] as Dictionary<string, object> : null;
-					Log(ai, "piece " + state.Prefab + " refused now (" + status + ") at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
-						+ F(state.Pos.z) + ") yaw " + F(state.Rot.eulerAngles.y) + (ground != null
+					Log(ai, "piece " + state.Prefab + " refused now (" + status + ") at " + Pose(state.Pos) + " yaw " + F(state.Rot.eulerAngles.y) + (ground != null
 							? " | ground=" + Convert.ToString(ground["name"]) + " drop=" + Convert.ToString(ground["drop"])
 								+ " heightmap=" + Convert.ToString(ground["isHeightmap"]) + " wear=" + Convert.ToString(ground["wearSupports"])
 							: string.Empty) + " - the plan stops");
@@ -6805,8 +6786,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		state.Placed = result.GameObject;
 		state.PlacedAt = Time.time;
 		state.Phase = Phase.Verify;
-		Log(ai, "placed (" + result.Route + ") em (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", " + F(state.Pos.z)
-			+ "), verifying next frame");
+		Log(ai, "placed (" + result.Route + ") em " + Pose(state.Pos) + ", verifying next frame");
 		return true;
 	}
 
@@ -7363,8 +7343,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		{
 			return false;   // the closest free pose is out of the eye rule from where it stands
 		}
-		Log(ai, "log ajustado: " + state.Prefab + " de (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", " + F(state.Pos.z)
-			+ ") para (" + F(site.Pos.x) + ", " + F(site.Pos.y) + ", " + F(site.Pos.z) + ") - " + status);
+		Log(ai, "log ajustado: " + state.Prefab + " de " + Pose(state.Pos) + " para " + Pose(site.Pos) + " - " + status);
 		state.Pos = site.Pos;
 		state.Rot = site.Rot;
 		state.Checked = false;
@@ -7422,7 +7401,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			Finish(ai, state, "hc_ai_build_unsupported", "no support", LabelOf(state));
 			return false;
 		}
-		Log(ai, "done: " + state.Prefab + " at (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", " + F(state.Pos.z) + ") yaw " + F(state.Rot.eulerAngles.y)
+		Log(ai, "done: " + state.Prefab + " at " + Pose(state.Pos) + " yaw " + F(state.Rot.eulerAngles.y)
 			+ (state.Template != null ? " (" + (state.Index + 1) + "/" + state.Plan.Count + ")" : string.Empty)
 			+ (supported.HasValue ? " supported" : string.Empty));
 		CountPlaced(state);   // P1 (review A7): one mark per plan index, counted once
@@ -7683,47 +7662,16 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 	/// </summary>
 	private static Dictionary<string, int> TemplateMissing(Inventory bag, BuildTemplates.Template template, Vector3 center, Component who, bool useChests)
 	{
-		Dictionary<string, int> missing = new Dictionary<string, int>();
 		if (bag == null || template == null || template.Steps.Length == 0)
 		{
-			return missing;
+			return new Dictionary<string, int>();
 		}
 		Dictionary<string, int> need = new Dictionary<string, int>();
 		foreach (BuildTemplates.Step step in template.Steps)
 		{
-			Piece piece = BuildProbe.PieceOf(step.Prefab);
-			if (piece == null || piece.m_resources == null)
-			{
-				continue;
-			}
-			foreach (Piece.Requirement requirement in piece.m_resources)
-			{
-				if (requirement == null || requirement.m_resItem == null)
-				{
-					continue;
-				}
-				string name = requirement.m_resItem.m_itemData.m_shared.m_name;
-				int amount = requirement.GetAmount(1);
-				if (amount <= 0)
-				{
-					continue;
-				}
-				int seen;
-				need.TryGetValue(name, out seen);
-				need[name] = seen + amount;
-			}
+			AddNeed(need, BuildProbe.PieceOf(step.Prefab));
 		}
-		Dictionary<string, int> have = BuildStock.Available(bag, BuildProbe.PieceOf(template.Steps[0].Prefab), center, who, useChests);
-		foreach (KeyValuePair<string, int> kv in need)
-		{
-			int got;
-			have.TryGetValue(kv.Key, out got);
-			if (got < kv.Value)
-			{
-				missing[kv.Key] = kv.Value - got;
-			}
-		}
-		return missing;
+		return Shortfall(need, BuildStock.Available(bag, BuildProbe.PieceOf(template.Steps[0].Prefab), center, who, useChests));
 	}
 
 	private static Dictionary<string, int> PlanMissing(Inventory bag, List<PlannedStep> plan, Vector3 center, Component who, bool useChests)
@@ -7737,41 +7685,62 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 	/// </summary>
 	private static Dictionary<string, int> PlanMissing(Inventory bag, List<PlannedStep> plan, int startIndex, Vector3 center, Component who, bool useChests)
 	{
-		Dictionary<string, int> missing = new Dictionary<string, int>();
 		if (bag == null || plan == null || plan.Count == 0)
 		{
-			return missing;
+			return new Dictionary<string, int>();
 		}
-		Dictionary<string, int> have = BuildStock.Available(bag, plan[0].Piece, center, who, useChests);
 		Dictionary<string, int> need = new Dictionary<string, int>();
 		for (int index = Mathf.Clamp(startIndex, 0, plan.Count - 1); index < plan.Count; index++)
 		{
 			PlannedStep step = plan[index];
-			if (step.Piece == null || step.Piece.m_resources == null)
+			if (step != null)
+			{
+				AddNeed(need, step.Piece);
+			}
+		}
+		return Shortfall(need, BuildStock.Available(bag, plan[0].Piece, center, who, useChests));
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the shortfall of a plan): folds one piece's <c>Piece.Requirement</c> list into the need (name -&gt;
+	/// amount) - the press both <see cref="TemplateMissing"/> and <see cref="PlanMissing"/> used to carry twice, one copy each.
+	/// </summary>
+	private static void AddNeed(Dictionary<string, int> need, Piece piece)
+	{
+		if (piece == null || piece.m_resources == null)
+		{
+			return;
+		}
+		foreach (Piece.Requirement requirement in piece.m_resources)
+		{
+			if (requirement == null || requirement.m_resItem == null)
 			{
 				continue;
 			}
-			foreach (Piece.Requirement requirement in step.Piece.m_resources)
+			int amount = requirement.GetAmount(1);
+			if (amount <= 0)
 			{
-				if (requirement == null || requirement.m_resItem == null)
-				{
-					continue;
-				}
-				string name = requirement.m_resItem.m_itemData.m_shared.m_name;
-				int amount = requirement.GetAmount(1);
-				if (amount <= 0)
-				{
-					continue;
-				}
-				int seen;
-				need.TryGetValue(name, out seen);
-				need[name] = seen + amount;
+				continue;
 			}
+			string name = requirement.m_resItem.m_itemData.m_shared.m_name;
+			int seen;
+			need.TryGetValue(name, out seen);
+			need[name] = seen + amount;
 		}
+	}
+
+	/// <summary>11/11/2026: what the bag (and the chests) does not have of <paramref name="need"/> - the second half of both
+	/// shortfall questions, also one copy each before.</summary>
+	private static Dictionary<string, int> Shortfall(Dictionary<string, int> need, Dictionary<string, int> have)
+	{
+		Dictionary<string, int> missing = new Dictionary<string, int>();
 		foreach (KeyValuePair<string, int> kv in need)
 		{
-			int got;
-			have.TryGetValue(kv.Key, out got);
+			int got = 0;
+			if (have != null)
+			{
+				have.TryGetValue(kv.Key, out got);
+			}
 			if (got < kv.Value)
 			{
 				missing[kv.Key] = kv.Value - got;
@@ -8265,6 +8234,16 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 	private static string F(float value)
 	{
 		return value.ToString("F1");
+	}
+
+	/// <summary>
+	/// 11/11/2026: a position as every line writes it - <c>(x, y, z)</c>, one decimal. It is the format
+	/// <c>build_run_report.py</c> parses out of <c>DONE</c>/<c>GIVE_UP</c>/<c>SKIP_NAMED</c>; the 3-value blocks were
+	/// written by hand in ~30 places and a missing pair in one of them is a line the report cannot read.
+	/// </summary>
+	private static string Pose(Vector3 pos)
+	{
+		return "(" + F(pos.x) + ", " + F(pos.y) + ", " + F(pos.z) + ")";
 	}
 
 	private static string MissingText(Dictionary<string, int> missing)
