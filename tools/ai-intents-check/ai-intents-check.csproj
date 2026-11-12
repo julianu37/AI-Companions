@@ -95,6 +95,7 @@
          the inline list ended the whole order on a steep site, and no test could see it - pure -->
     <Compile Include="..\..\src\Companions\AI\LevelResume.cs" Link="src/AI/LevelResume.cs" />
     <Compile Include="..\..\src\Companions\AI\ClimbRule.cs" Link="src/AI/ClimbRule.cs" />
+    <Compile Include="..\..\src\Companions\AI\EscapeRule.cs" Link="src/AI/EscapeRule.cs" />
     <Compile Include="..\..\src\Companions\Core\MHR_List.cs" Link="src\Core\MHR_List.cs" />
   </ItemGroup>
 

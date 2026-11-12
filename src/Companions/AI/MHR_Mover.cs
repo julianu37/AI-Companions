@@ -42,6 +42,11 @@ namespace Companions
             public AutoJumpLedge[] ClimbLedges; public float ChainProgressAt, ChainBestY, ChainJumpAt, ChainPushAt, ChainRestUntil, ChainFootBest, ChainFootAt, ChainViaUntil;
         public int DropTries; public float DropY, DropUntil;
         public int DetourTries; public float NextDetourAt; public Vector3 ChainVia; public Vector3 ClimbVia; public int ClimbJumps; public int ClimbLadderId; public float NextLadderClimbSearch, NextLadderLog; public readonly HashSet<int> LadderClimbsTried = new HashSet<int>(); public readonly Dictionary<int, Vector2> LadderUses = new Dictionary<int, Vector2>();
+        // 12/11/2026 (the detour livelock): the spots already used as an alternative - TryDetour scored 48 probes every
+        // time and always picked the same best one, so the same three non-answers came back forever.
+        public readonly List<Vector3> DetourTried = new List<Vector3>();
+        // how many times this body gave up FROM THIS PLACE: the wait before trying again grows with it (15 -> 30 -> 60 -> 120 s)
+        public int GiveUps; public Vector3 GiveUpFrom;
             public Ladder UseLadder; public float LadderUntil, NextLadderSearch; public readonly HashSet<Ladder> LaddersUsed = new HashSet<Ladder>();
             public bool MainPartial;
             public Vector3 GoodPos; public float GoodAt; public bool HasGood;
@@ -146,6 +151,7 @@ namespace Companions
             if (s == null) return;
             s.LastGo = 0f; s.GaveUp = false; s.Path.Clear(); s.HasDetour = false; s.RouteDoor = null;
         s.DetourTries = 0; s.NextDetourAt = 0f;   // a new goal gets its own 3 alternative-route tries
+            s.DetourTried.Clear(); s.GiveUps = 0;     // and a stop order clears what this place taught us
             Character c = ai.GetComponent<Character>();
             if (c != null && s.Walking) { c.SetWalk(false); s.Walking = false; }
         }
@@ -189,7 +195,24 @@ namespace Companions
             Vector3 pos = ai.transform.position;
             float shift = Vector3.Distance(goal, s.Goal);
             bool fresh = shift > 4f || now - s.LastGo > 2f || s.Tag != tag;
-            if (s.GaveUp && now - s.GaveUpAt > 15f) fresh = true;   // try again after a while
+            // 12/11/2026 (the trap): "try again after a while" used a fixed 15 s, so a body with no way out bought the
+            // same answer every 15 s forever. Two things were missing. The wait now grows with the number of give-ups
+            // from the same place (EscapeRule.RetryWait), and it starts over only once the body has actually LEFT the
+            // place (> EscapeRule.MovedAway) - stepping about inside the pocket is not a different problem. A goal that
+            // keeps moving (Follow: the player walking on) keeps the old 15 s floor, because the player can open a way
+            // the companion cannot see from inside; only a goal that stays put earns the longer wait. Another tag (a
+            // move order, a fight) takes the body over straight away, exactly as before.
+            if (s.GaveUp && s.Tag == tag)
+            {
+                Vector3 gave = s.GiveUpFrom - pos; gave.y = 0f;
+                if (gave.sqrMagnitude > EscapeRule.MovedAway * EscapeRule.MovedAway)
+                {
+                    s.GiveUps = 0;
+                    s.DetourTried.Clear();
+                    fresh = true;
+                }
+                else fresh = now - s.GaveUpAt > EscapeRule.RetryWait(s.GiveUps, shift > 4f);
+            }
             if (fresh) Reset(s, goal, pos, now, tag);
             // 1.4.78: a new nearby target (the farmer's next crop 2 m on) or carrying on after a pause (harvesting,
             // swinging) starts the stuck clocks over. They used to keep running while he stood working, so the next
@@ -1124,6 +1147,10 @@ namespace Companions
                 case 5: Hop(ai, c, s, pos, dir, now, tag, why); s.Ladder = s.Passes >= 2 ? 6 : 0; return;
                 default:
                     s.GaveUp = true; s.GaveUpAt = now;
+                    // 12/11/2026: count the give-up so the next attempt waits longer (EscapeRule.RetryWait) - a fixed
+                    // 15 s clock is what let the same three detours of the same trap come back forever
+                    if (s.GiveUps == 0) s.GiveUpFrom = pos;
+                    s.GiveUps++;
                     Halt(ai, c, s);
                     if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Move|" + tag + "] couldn't get to " + Fmt(s.Goal) + " from " + Fmt(pos) + " - giving up");
                     // 1.5.42: say so when it's about you or your order (following, a move order, a fight, a hunt); for a job
@@ -2387,8 +2414,7 @@ namespace Companions
         // sprint-jumping gets out). After a full stuck ladder, well below the last spot that had a full route and still
         // no route from here: put him back there.
         static void Rescue(CompanionAI ai, Character c, S s, Vector3 pos, float now, string tag)
-        {
-            if (!s.HasGood || !s.MainPartial || c.IsSwimming() || ai.IsInCombat) return;
+        {            if (!s.HasGood || !s.MainPartial || c.IsSwimming() || ai.IsInCombat) return;
             if (pos.y > s.GoodPos.y - 2f || Vector3.Distance(pos, s.GoodPos) > 40f || now - s.GoodAt > 300f) return;
             if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Move|" + tag + "] trapped at " + Fmt(pos) + " (" + (s.GoodPos.y - pos.y).ToString("F1") + "m below the last good spot) - moving back to " + Fmt(s.GoodPos));
             ai.MHR_PlaceAt(s.GoodPos);
@@ -2882,6 +2908,9 @@ namespace Companions
                                 hit.point + Vector3.up * 1.5f, radius, mask, QueryTriggerInteraction.Ignore)) continue;   // no room to stand
                         }
                         if (flat > flatHere - 0.3f && (!goalAbove || gain < 0.7f)) continue;            // neither closer nor higher
+                        // 12/11/2026 (the livelock): a spot already used is not an alternative - the same best probe came
+                        // back every three tries, from inside the pocket, forever
+                        if (EscapeRule.AlreadyTried(s.DetourTried, hit.point, EscapeRule.SameSpot)) continue;
                         float score = gain * 2f + (flatHere - flat);
                         if (score > bestScore) { bestScore = score; best = hit.point; found = true; }
                     }
@@ -2893,6 +2922,7 @@ namespace Companions
                 return false;
             }
             s.DetourTries++;
+            s.DetourTried.Add(best);
             s.NextDetourAt = now + 3f;
             s.HasDetour = true; s.Detour = best; s.DetourUntil = now + 4f; s.NextPlan = 0f;
             if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Move|" + tag + "] the way is blocked - trying another one at "

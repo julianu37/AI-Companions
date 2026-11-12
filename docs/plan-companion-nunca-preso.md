@@ -65,12 +65,15 @@ A recusa atual (`rise > 1.0f && layer != terrain`) existe para não tratar pared
 no topo é `StandingRoom` (cápsula de 0,3 m de raio, corpo de 0,5 a 1,6 m), então beirada de telhado e parede alta
 continuam recusadas. Seção **(ah)** no harness, 948 PASS / 0 FAIL.
 
-### 3. Fim do livelock: desvio repetido não conta de novo
+### 3. Fim do livelock: desvio repetido não conta de novo — **feito**
 `TryDetour` memoriza os pontos que já tentou por peregrinação (`s.DetourTried`, como `ClimbTried` já faz) e **não
 devolve o mesmo ponto**; ao esgotar, marca `GaveUp` com o motivo `no exit` **sem** o `Reset` reabrir as mesmas 3
 tentativas em 15 s — o relógio de re-avaliação passa a crescer (15 s → 30 s → 60 s, teto 120 s) enquanto o corpo não
 sair do raio.
 **Aceite:** o log do run não repete a mesma coordenada de desvio mais de uma vez.
+**Estado:** a regra pura é `AI/EscapeRule.cs` (`AlreadyTried` com raio de um corpo, `RetryWait` 15→30→60→120 e
+`MovedAway = 6 m` para zerar). O `GoInner` deixou de usar o relógio fixo de 15 s e o `GiveUps` só zera quando o corpo
+anda mais de 6 m ou leva `Release`. Seção **(ai)**: 966 PASS / 0 FAIL.
 
 ### 4. A saída de emergência para o corpo que não tem saída física
 Quando os itens 1–3 falharem (não há degrau, o desvio não existe), **depois de N segundos** (proposto 90 s) o mover usa

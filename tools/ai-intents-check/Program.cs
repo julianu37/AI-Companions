@@ -7,6 +7,8 @@ using Companions;
 // The game ships its own Console (the dev console) in assembly_valheim, and this file is outside any Valheim
 // namespace: a bare "Console" binds to that one, so the harness writes through this alias.
 using Out = System.Console;
+// Only the struct: a plain "using UnityEngine" would bring Object and Debug into a file that names neither.
+using Vector3 = UnityEngine.Vector3;
 
 namespace AiIntentsCheck;
 
@@ -133,6 +135,7 @@ internal static class Program
 		new SectionDef("af", "LevelResume - qual fim do nivelamento devolve o canteiro a obra", LevelResumes),
 		new SectionDef("ag", "BuildPlanOrder - o reordenamento do plano remapeia os indices (a identidade da peca)", PlanOrders),
 		new SectionDef("ah", "ClimbRule - o degrau que o companheiro escalou (a saida do cercado)", ClimbRules),
+		new SectionDef("ai", "EscapeRule - o desvio repetido nao conta de novo e a espera cresce (o livelock)", EscapeRules),
 		new SectionDef("ae", "o log das redes ficou calado - nenhuma regra engoliu excecao", QuietLog)
 	};
 
@@ -2884,7 +2887,80 @@ internal static class Program
 		PlanIdentity("append", new[] { 0, 1, 2 }, 2, new[] { 0, 1, 2, -1 });
 	}
 
-	/// <summary>Section (ag): one <c>Map</c> case - the new plan as old indices, the old size, and the expected map.</summary>
+	/// <summary>
+	/// Section (ai): <c>EscapeRule</c> - <b>how a trapped body stops asking the same question forever</b>.
+	///
+	/// <para>Measured 12/11/2026: <c>TryDetour</c> scored 48 probes around the body and every time picked the same
+	/// best one, which lay inside the enclosure; <c>Unstick</c> gave up after three, and <c>Reset</c> zeroed the tries
+	/// on a fixed 15 s clock, so the same three points came back. Two companions repeated that for over 20 minutes
+	/// without a single exception. Nothing caught it because nothing was wrong with any one decision - only with the
+	/// sequence of them.</para>
+	///
+	/// <para>The table pins the three pieces that break the cycle: same-spot recognition (with a body-width radius, so
+	/// a probe 1,5 m away is the same square of floor), the growing wait, and the reset that must happen when the body
+	/// actually leaves. The first attempt is untouched by design: <c>RetryWait(1)</c> is the 15 s the mover always had.</para>
+	/// </summary>
+	private static void EscapeRules()
+	{
+		// --- the wait grows: the fixed clock is the defect
+		CheckFloat("RetryWait(0) = 15 s (nenhuma desistencia ainda - o valor de sempre)", 15f, EscapeRule.RetryWait(0));
+		CheckFloat("RetryWait(1) = 15 s (a primeira desistencia nao muda nada - o movimento de antes)", 15f, EscapeRule.RetryWait(1));
+		CheckFloat("RetryWait(2) = 30 s", 30f, EscapeRule.RetryWait(2));
+		CheckFloat("RetryWait(3) = 60 s", 60f, EscapeRule.RetryWait(3));
+		CheckFloat("RetryWait(4) = 120 s (teto)", 120f, EscapeRule.RetryWait(4));
+		CheckFloat("RetryWait(9) = 120 s (o teto nao cresce sem fim)", 120f, EscapeRule.RetryWait(9));
+		Check("a espera nunca diminui com mais desistencias", EscapeRule.RetryWait(3) > EscapeRule.RetryWait(2));
+		Check("a espera tem teto (nao vira um corpo morto para sempre)",
+			EscapeRule.RetryWait(50) <= 120f);
+
+		// --- the same spot is not an alternative
+		List<Vector3> tried = new List<Vector3>();
+		Check("lista vazia: nada foi tentado", !EscapeRule.AlreadyTried(tried, new Vector3(0f, 0f, 0f), EscapeRule.SameSpot));
+		tried.Add(new Vector3(-152.5f, 38.8f, -413.8f));
+		Check("o ponto exato ja foi tentado",
+			EscapeRule.AlreadyTried(tried, new Vector3(-152.5f, 38.8f, -413.8f), EscapeRule.SameSpot));
+		Check("1 m ao lado e o mesmo lugar (dentro do raio de um corpo)",
+			EscapeRule.AlreadyTried(tried, new Vector3(-151.5f, 38.8f, -413.8f), EscapeRule.SameSpot));
+		Check("3 m ao lado ja e outro lugar",
+			!EscapeRule.AlreadyTried(tried, new Vector3(-149.5f, 38.8f, -413.8f), EscapeRule.SameSpot));
+		Check("a altura nao separa dois pontos (o desvio e uma caminhada)",
+			EscapeRule.AlreadyTried(tried, new Vector3(-152.5f, 42.8f, -413.8f), EscapeRule.SameSpot));
+		Check("SameSpot == 1,5 (uma largura de corpo)", EscapeRule.SameSpot == 1.5f);
+
+		// --- three tries of the normal stuck ladder are all DIFFERENT places
+		tried.Clear();
+		int distinct = 0;
+		Vector3[] probes =
+		{
+			new Vector3(-152.5f, 38.8f, -413.8f),
+			new Vector3(-150.0f, 38.8f, -413.8f),
+			new Vector3(-155.0f, 38.8f, -416.0f)
+		};
+		for (int i = 0; i < probes.Length; i++)
+		{
+			if (!EscapeRule.AlreadyTried(tried, probes[i], EscapeRule.SameSpot)) { distinct++; tried.Add(probes[i]); }
+		}
+		CheckInt("3 desvios distintos continuam 3 tentativas (o comportamento de antes)", 3, distinct);
+
+		// --- and the fourth probe of the SAME square is refused, which is what ends the cycle
+		Check("voltar ao primeiro ponto depois dos tres e recusado",
+			EscapeRule.AlreadyTried(tried, new Vector3(-152.2f, 38.8f, -413.6f), EscapeRule.SameSpot));
+
+		// --- the reset only when the body really left
+		Check("MovedAway == 6 (sair do cercado zera a contagem)", EscapeRule.MovedAway == 6f);
+		Check("3 m de caminhada NAO zera (ainda dentro)",
+			3f < EscapeRule.MovedAway);
+
+		// --- but a goal that keeps moving keeps the short wait: the player can open a way nobody inside can see
+		CheckFloat("goal movendo: continua 15 s com 4 desistencias (seguindo o jogador)",
+			15f, EscapeRule.RetryWait(4, true));
+		CheckFloat("goal parado: 120 s com 4 desistencias (uma ordem ou uma peca)",
+			120f, EscapeRule.RetryWait(4, false));
+		CheckFloat("goal movendo: 15 s mesmo na 1a desistencia",
+			15f, EscapeRule.RetryWait(1, true));
+	}
+
+
 	private static void PlanMap(string name, int[] order, int oldCount, int[] expected)
 	{
 		int[] map = BuildPlanOrder.Map(order, oldCount);
