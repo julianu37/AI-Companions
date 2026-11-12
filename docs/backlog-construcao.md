@@ -231,7 +231,7 @@ próxima: **4,0 m** no 4º andar e **11,6 m** no 5º.
 **A correção:** `AI/BuildFloorStart.cs` (regra pura) escolhe a **ponta da subida** que serve o andar — a `stair`/
 `ladder`/`stepladder` de 0,4 a 3,0 m abaixo do nível, a até 6 m de alguma laje do run, a mais alta vencendo — e o
 `NearestWithin` semeia o run de lajes ali, **térreo incluído**; o guarda "nunca pior que o arquivo" não se aplica a
-esse run (o arquivo nunca começa na escada). Seção **(aj)** no harness, 32 casos.
+esse run (o arquivo nunca começa na escada). Seção **(aj)** no harness, 31 casos.
 
 **Medido com o build de verdade sobre o blueprint real (antes → depois):** y=0 2,8 → **2,0 m**; y=1 2,8 → **1,5 m**;
 y=2 2,1 → **1,5 m**; y=4 4,0 → **1,5 m**; y=5 **11,6 → 1,5 m**. O percurso do plano muda de 2.947,9 m para 3.028,8 m
