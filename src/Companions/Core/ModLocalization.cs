@@ -362,6 +362,7 @@ public static class ModLocalization
 			{ "hc_why_gather_none", "Nothing left to gather around here." },
 			{ "hc_why_no_way", "I can't find a way there." },
 			{ "hc_why_cant_reach_up", "I can't get up there." },
+			{ "hc_why_trapped_out", "I have no way out of here - going back to the last spot I can walk from." },
 			{ "hc_why_chests_full", "The chests near home are full." },
 			{ "hc_why_chest_unreachable", "I can't get to that chest." },
 			{ "hc_why_farm_no_zones", "Nothing ripe, and nowhere to plant." },

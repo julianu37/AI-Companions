@@ -648,7 +648,15 @@ namespace Companions
                 if (!s.HasDetour && s.RouteDoor == null)
                 {
                     s.MainPartial = s.Partial;
-                    if (!s.Partial && c.IsOnGround() && !c.IsSwimming()) { s.GoodPos = pos; s.GoodAt = now; s.HasGood = true; }
+                    // 1.4.82: the last place a full route to the goal started from, for the trapped rescue below.
+                    // 12/11/2026: only when the body really moved (EscapeRule.WorthRecording, 1 m). Rewritten every frame
+                    // the route was full, it WAS the body's own feet - the rescue then moved him to where he already
+                    // stood, which is the one case it exists for.
+                    if (!s.Partial && c.IsOnGround() && !c.IsSwimming()
+                        && (!s.HasGood || EscapeRule.WorthRecording(s.GoodPos, pos)))
+                    {
+                        s.GoodPos = pos; s.GoodAt = now; s.HasGood = true;
+                    }
                 }
                 // tired: a swim longer than the stamina allows -> a dry route, or wait on the bank
                 s.TooTired = false;
@@ -2413,13 +2421,58 @@ namespace Companions
         // 1.4.82: fell somewhere with no route out (1.4.81 log: down a dry moat with sheer walls, only a player's
         // sprint-jumping gets out). After a full stuck ladder, well below the last spot that had a full route and still
         // no route from here: put him back there.
+        // 12/11/2026 (the trapped companion, measured: frozen for over 20 min inside the site he was building): this
+        // used to require `s.MainPartial` - "the route doesn't reach the goal". An enclosure OPEN to the sky has a full
+        // route on paper and no way to walk it, so the one exit that always works was off exactly where it was needed.
+        // The guard is now "the body has not moved for EscapeRule.RescueAfter seconds", never in water, never in a fight.
         static void Rescue(CompanionAI ai, Character c, S s, Vector3 pos, float now, string tag)
-        {            if (!s.HasGood || !s.MainPartial || c.IsSwimming() || ai.IsInCombat) return;
-            if (pos.y > s.GoodPos.y - 2f || Vector3.Distance(pos, s.GoodPos) > 40f || now - s.GoodAt > 300f) return;
-            if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Move|" + tag + "] trapped at " + Fmt(pos) + " (" + (s.GoodPos.y - pos.y).ToString("F1") + "m below the last good spot) - moving back to " + Fmt(s.GoodPos));
-            ai.MHR_PlaceAt(s.GoodPos);
-            s.HasGood = false;
-            Reset(s, s.Goal, s.GoodPos, now, tag);
+        {
+            if (c == null) return;
+            Vector3 target;
+            bool have = FindEscapeSpot(s, pos, out target);
+            if (!EscapeRule.CanRescue(now - s.AnchorTime, c.IsSwimming(), ai.IsInCombat, have)) return;
+            if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Move|" + tag + "] trapped at " + Fmt(pos) + " for "
+                + (now - s.AnchorTime).ToString("F0") + "s with no way out - moving to the nearest spot that has one at " + Fmt(target));
+            // 1.5.42: it says so - a teleport is a visible, unusual thing and the player should hear why
+            CompanionStatus.Why(ai, "hc_why_trapped_out", speak: true);
+            ai.MHR_PlaceAt(target);
+            s.HasGood = false; s.GiveUps = 0; s.DetourTried.Clear();
+            Reset(s, s.Goal, target, now, tag);
+        }
+
+        // Where the emergency goes: the remembered last good spot when it is far enough away to BE an exit (the old code
+        // teleported to wherever the body stood, because GoodPos was rewritten every frame the route was full), else a
+        // ring of probes around the body looking for ground that a full route to the goal can start from.
+        static bool FindEscapeSpot(S s, Vector3 pos, out Vector3 spot)
+        {
+            spot = pos;
+            if (s.HasGood)
+            {
+                Vector3 back = s.GoodPos - pos; back.y = 0f;
+                if (back.magnitude >= 2f) { spot = s.GoodPos; return true; }
+            }
+            int mask = Mask();
+            float best = float.MaxValue;
+            bool found = false;
+            foreach (float r in EscapeRule.ProbeRings)
+            {
+                for (int k = 0; k < 16; k++)
+                {
+                    Vector3 dir = Quaternion.Euler(0f, k * 22.5f, 0f) * Vector3.forward;
+                    Vector3 probe = pos + dir * r;
+                    RaycastHit hit;
+                    if (!Physics.Raycast(new Vector3(probe.x, pos.y + 3.5f, probe.z), Vector3.down, out hit, 7f,
+                        mask, QueryTriggerInteraction.Ignore)) continue;
+                    Vector3 d = hit.point - pos; d.y = 0f;
+                    if (!EscapeRule.GoodProbe(d.magnitude, MHR_Water.DepthAt(hit.point))) continue;
+                    if (Physics.Raycast(hit.point + Vector3.up * 0.15f, Vector3.up, 1.9f, mask, QueryTriggerInteraction.Ignore)) continue;
+                    float len;
+                    if (!WalkRoute(hit.point, s.Goal, out len)) continue;
+                    if (len < best) { best = len; spot = hit.point; found = true; }
+                }
+                if (found) return true;   // the nearest ring wins: the smallest move that works
+            }
+            return found;
         }
 
         // 1.4.83: the straight line from -> to, every half meter: each step up no more than a hop (1.1 m), no big drop,

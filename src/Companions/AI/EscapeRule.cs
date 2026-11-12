@@ -35,6 +35,23 @@ internal static class EscapeRule
 	internal const float MovedAway = 6f;
 
 	/// <summary>
+	/// How long a body may stay trapped before the emergency is allowed: stuck, every detour already tried, no step up,
+	/// and still in the same place after a minute and a half. Measured runs had the companions frozen for over <b>twenty
+	/// minutes</b>, so 90 s is already very generous - it leaves the whole stuck ladder, the climb and all three detours
+	/// more than enough time to succeed on their own.
+	/// </summary>
+	internal const float RescueAfter = 90f;
+
+	/// <summary>How far the last good spot is kept up to date: only when the body has really moved (<b>1 m</b>). The
+    /// position was recorded every frame the route was full, so "the last place a full route started from" was the
+    /// body's own feet - teleporting there is teleporting nowhere.</summary>
+	internal const float GoodMoved = 1f;
+
+	/// <summary>Rings of the emergency probe around a trapped body, in meters. The first ring clears a pocket of a body's
+    /// width (the measured one was 2-3 m across); the last one reaches past a small room.</summary>
+	internal static readonly float[] ProbeRings = { 3f, 5.5f, 8f };
+
+	/// <summary>
 	/// How long the mover waits after the <paramref name="giveUps"/>-th give-up <b>from the same place</b>: 15 s the
 	/// first time, then 30, 60, and a 120 s ceiling. A fixed 15 s is what turned the trap into a livelock - it kept
 	/// buying the same three detours again.
@@ -68,5 +85,34 @@ internal static class EscapeRule
 			if (d.sqrMagnitude <= radius * radius) return true;
 		}
 		return false;
+	}
+
+	/// <summary>
+	/// May the emergency move happen? All of it has to hold, in this order: the body has been in the SAME place for
+	/// <see cref="RescueAfter"/> seconds (<paramref name="stuckFor"/>); it is not swimming and not fighting, because a
+	/// teleport there is a way to lose a fight or to land in deep water; and there is a last good spot to go back to.
+	/// </summary>
+	internal static bool CanRescue(float stuckFor, bool swimming, bool inCombat, bool hasGoodSpot)
+	{
+		if (!hasGoodSpot || swimming || inCombat) return false;
+		return stuckFor >= RescueAfter;
+	}
+
+	/// <summary>
+	/// Is this probe worth moving to? A spot must be on the ground layer (the raycast found it), clear of deep water,
+	/// and far enough from where the body stands that the move is an exit rather than a shuffle (<b>2 m</b>).
+	/// </summary>
+	internal static bool GoodProbe(float distance, float waterDepth)
+	{
+		return distance >= 2f && waterDepth < 0.5f;
+	}
+
+	/// <summary>
+	/// Has the last good spot changed enough to be worth recording? Only when the body moved more than
+	/// <see cref="GoodMoved"/>: with the position rewritten every frame the "last good spot" is the body's own feet.
+	/// </summary>
+	internal static bool WorthRecording(Vector3 good, Vector3 pos)
+	{
+		return Vector3.Distance(good, pos) > GoodMoved;
 	}
 }

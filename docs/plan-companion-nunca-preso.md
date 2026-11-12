@@ -75,13 +75,18 @@ sair do raio.
 `MovedAway = 6 m` para zerar). O `GoInner` deixou de usar o relógio fixo de 15 s e o `GiveUps` só zera quando o corpo
 anda mais de 6 m ou leva `Release`. Seção **(ai)**: 966 PASS / 0 FAIL.
 
-### 4. A saída de emergência para o corpo que não tem saída física
+### 4. A saída de emergência para o corpo que não tem saída física — **feito**
 Quando os itens 1–3 falharem (não há degrau, o desvio não existe), **depois de N segundos** (proposto 90 s) o mover usa
 o que a ponte agora usa: `MHR_PlaceAt` para o último ponto com rota completa (`GoodPos`) — o `Rescue` que já existe
 ([MHR_Mover.cs:2373](src/Companions/AI/MHR_Mover.cs#L2373)) **sem** a guarda `MainPartial`.
 **Regra de produto:** só para o companheiro **preso**, nunca em combate, nunca em água, e sempre **falando** (*"não tenho
 saída daqui, vou pular para o último lugar seguro"*).
 **Aceite:** no cenário reproduzido (bolsão cercado, sem teto), o companheiro sai **sozinho** em ≤ 120 s.
+**Estado:** `EscapeRule.CanRescue` exige 90 s na mesma posição, fora de água e fora de combate; `FindEscapeSpot` usa o
+`GoodPos` só quando ele está a ≥ 2 m e, se não houver, sonda anéis de 3 · 5,5 · 8 m atrás de chão seco com rota completa.
+O `GoodPos` deixou de ser reescrito a cada frame (`WorthRecording`, 1 m) — era a própria posição do corpo, então o
+resgate teleportava para o lugar onde ele já estava. Fala `hc_why_trapped_out`, novo nos 4 JSONs. Seção (ai) cobre a
+regra: **987 PASS / 0 FAIL**; `--check-config` 0 lacunas e os 3 idiomas 0.
 
 ### 5. Regra pura + harness (a prova antes do jogo) — **feito**
 `AI/ClimbRule.cs` — função pura que decide "este degrau é escalável?" dados `rise`, `layer`, `tem apoio no topo`,

@@ -4137,6 +4137,10 @@
             "value": "Je ne peux pas monter là-haut."
         },
         {
+            "key": "hc_why_trapped_out",
+            "value": "Je n'ai pas de sortie d'ici — je retourne au dernier endroit d'où je peux marcher."
+        },
+        {
             "key": "hc_why_chests_full",
             "value": "Les coffres près de la maison sont pleins."
         },

@@ -4137,6 +4137,10 @@
             "value": "No puedo subir hasta allí."
         },
         {
+            "key": "hc_why_trapped_out",
+            "value": "No tengo salida de aquí: me voy al último sitio desde el que se puede caminar."
+        },
+        {
             "key": "hc_why_chests_full",
             "value": "Los cofres cerca de casa están llenos."
         },

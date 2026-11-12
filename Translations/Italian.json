@@ -4137,6 +4137,10 @@
             "value": "Non riesco a salire lassù."
         },
         {
+            "key": "hc_why_trapped_out",
+            "value": "Non ho una via d'uscita da qui: torno all'ultimo punto da cui si può camminare."
+        },
+        {
             "key": "hc_why_chests_full",
             "value": "I bauli vicino a casa sono pieni."
         },

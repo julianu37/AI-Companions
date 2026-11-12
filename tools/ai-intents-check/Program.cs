@@ -2958,6 +2958,37 @@ internal static class Program
 			120f, EscapeRule.RetryWait(4, false));
 		CheckFloat("goal movendo: 15 s mesmo na 1a desistencia",
 			15f, EscapeRule.RetryWait(1, true));
+
+		// --- the emergency: only a body that has NOT moved for the whole 90 s, never in water, never in a fight
+		Check("RescueAfter == 90 s", EscapeRule.RescueAfter == 90f);
+		Check("89 s: ainda nao (a escada toda tem tempo)",
+			!EscapeRule.CanRescue(89f, false, false, true));
+		Check("90 s exatos: sim", EscapeRule.CanRescue(90f, false, false, true));
+		Check("600 s parado: sim (o caso medido de 20 min)",
+			EscapeRule.CanRescue(600f, false, false, true));
+		Check("90 s mas nadando: NAO (evita cair em agua funda)",
+			!EscapeRule.CanRescue(90f, true, false, true));
+		Check("90 s mas em combate: NAO (nao foge da luta teleportando)",
+			!EscapeRule.CanRescue(90f, false, true, true));
+		Check("90 s mas sem ponto bom conhecido: NAO",
+			!EscapeRule.CanRescue(90f, false, false, false));
+
+		// --- the probe: far enough to be an exit, dry enough to stand on
+		Check("sonda a 1 m: não (e um passo, nao uma saida)", !EscapeRule.GoodProbe(1f, 0f));
+		Check("sonda a 2 m: sim", EscapeRule.GoodProbe(2f, 0f));
+		Check("sonda a 5 m em agua funda (1,2 m): NAO", !EscapeRule.GoodProbe(5f, 1.2f));
+		Check("sonda a 5 m em agua rasa (0,3 m): sim", EscapeRule.GoodProbe(5f, 0.3f));
+		CheckInt("3 aneis de sonda (3, 5,5 e 8 m)", 3, EscapeRule.ProbeRings.Length);
+		CheckFloat("o 1o anel e 3 m (sai do bolsao de 2-3 m)", 3f, EscapeRule.ProbeRings[0]);
+		CheckFloat("o ultimo anel e 8 m (passa de um quarto pequeno)", 8f, EscapeRule.ProbeRings[2]);
+
+		// --- GoodPos is only rewritten when the body really moved, else it is the body's own feet
+		Check("0,4 m: nao grava (seria gravar a propria posicao)",
+			!EscapeRule.WorthRecording(new Vector3(0f, 0f, 0f), new Vector3(0.4f, 0f, 0f)));
+		Check("1,5 m: grava", EscapeRule.WorthRecording(new Vector3(0f, 0f, 0f), new Vector3(1.5f, 0f, 0f)));
+		Check("5 m so na vertical tambem grava (uma queda acha chao novo)",
+			EscapeRule.WorthRecording(new Vector3(0f, 0f, 0f), new Vector3(0f, 5f, 0f)));
+		Check("GoodMoved == 1 m", EscapeRule.GoodMoved == 1f);
 	}
 
 
