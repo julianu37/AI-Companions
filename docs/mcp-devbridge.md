@@ -115,6 +115,7 @@ Uma conexão por chamada; **um JSON por linha**, nas duas direções.
 | `player.kill` | — | `killed`, `hpBefore`, `hpAfter` |
 | `player.inventory` | `item?`, `set?` | `count`, `stacks[]`, `totalStacks`, `weight`, `maxWeight` |
 | `world.time` | `day?`, `time?`, `fraction?`, `skip?` | `before`, `time`, `day`, `fraction`, `dayLength` |
+| `world.quit` | `save?` (padrão `true`) | `quitting`, `save`, `loggedOut` |
 | `companions.kill` | `name?`, `damage?` | `name`, `killed`, `hpBefore`, `hpAfter` |
 | `companions.tier` | `name?`, `tier` | `name`, `tier`, `prefabBefore`, `prefabAfter`, `changed` |
 | `companions.hire` | — | `hired`, `price`, `coinsBefore`, `coinsAfter` |
@@ -123,6 +124,14 @@ Uma conexão por chamada; **um JSON por linha**, nas duas direções.
 
 `log_watch` não é comando do bridge: o servidor lê o `LogOutput.log` por cursor (devolve a **primeira** linha casada e
 o cursor logo depois dela).
+
+`world.quit` (12/11/2026) fecha o jogo **como o menu fecha**: `Game.Logout(save, changeToStartScene: false)` (grava o
+mundo e o perfil do jogador) e depois `Application.Quit`. Existe porque **o console do Valheim 1.0.20 não tem `quit`**
+(o `help` não lista um) e matar o processo por fora descarta a sessão - sem ele o agente tinha que pedir ao jogador
+para fechar o jogo entre dois builds. A resposta é montada **depois** do logout e **antes** do quit (o Unity executa o
+`Application.Quit` no fim do frame), então a linha chega ao cliente antes de o processo sumir; `loggedOut: false`
+significa que não havia `Game.instance` (tela de menu) e só o quit aconteceu. `save: false` sai sem gravar - mundo
+quebrado, teste descartável.
 
 `companions.build` com `blueprint` (P1, 03/11/2026): **`name` vazio = todos** os companheiros do jogador entram no
 mesmo canteiro (só os **do jogador** - `MHR_Owner.IsMine`), um plano só, peças distintas; com `name`, só aquele (o

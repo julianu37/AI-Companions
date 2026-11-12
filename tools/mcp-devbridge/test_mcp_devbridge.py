@@ -220,9 +220,9 @@ def main():
 
         tools = rpc("tools/list", request_id=2).get("result", {}).get("tools", [])
         names = {tool["name"] for tool in tools}
-        check("tools/list has 63 tools", len(tools) == 63, "%d tools" % len(tools))
+        check("tools/list has 64 tools", len(tools) == 64, "%d tools" % len(tools))
         for expected in ("devbridge_ping", "game_status", "companions_list", "companions_order", "screenshot", "log_tail",
-                         "player_kill", "player_inventory", "world_time", "world_chest", "companions_kill", "companions_tier",
+                         "player_kill", "player_inventory", "world_time", "world_quit", "world_chest", "companions_kill", "companions_tier",
                          "companions_hire", "companions_resurrect", "companions_farm_zone", "log_watch",
                          "build_inspect", "build_sites", "build_find", "build_pieces", "companions_build", "companions_sethome", "player_look", "build_check", "build_snaps", "build_usable", "terrain_check", "build_hoe", "companions_level",
                          "nav_tiles", "nav_probe", "nav_stats", "blueprints_list", "blueprints_inspect"):
@@ -295,6 +295,7 @@ def main():
             (22, "player_kill", {}, "player.kill"),
             (23, "player_inventory", {"item": "Coins", "set": 1500}, "player.inventory"),
             (24, "world_time", {"day": 3, "fraction": 0.5}, "world.time"),
+            (49, "world_quit", {"save": False}, "world.quit"),
             (25, "companions_kill", {"name": "Maria"}, "companions.kill"),
             (26, "companions_tier", {"name": "Maria", "tier": "warrior"}, "companions.tier"),
             (27, "companions_hire", {}, "companions.hire"),
@@ -333,6 +334,8 @@ def main():
               any(r.get("cmd") == "companions.kill" and r.get("args", {}).get("name") == "Maria" for r in bridge.requests))
         check("world_time sends day and fraction",
               any(r.get("cmd") == "world.time" and r.get("args", {}).get("fraction") == 0.5 for r in bridge.requests))
+        check("world_quit sends save",
+              any(r.get("cmd") == "world.quit" and r.get("args", {}).get("save") is False for r in bridge.requests))
 
         # --- companions.build: the blueprint GROUP contract (P1 multi-build) ----------------------------------
         build_tool = next((tool for tool in tools if tool["name"] == "companions_build"), {})

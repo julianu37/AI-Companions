@@ -680,6 +680,22 @@ TOOLS = [
         },
     },
     {
+        "name": "world_quit",
+        "description": (
+            "Closes the game the way the menu does: Game.Logout (saves the world and the player profile) then "
+            "Application.Quit. The F5 console has no 'quit' in 1.0.20 and the process kill discards the session, so "
+            "this is the only way to close the game between builds. The bridge answers before the process goes away; "
+            "pass save=false to quit without saving (a broken world, a throwaway test)."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "save": {"type": "boolean", "default": True},
+            },
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "screenshot",
         "description": "Takes a screenshot of the game and returns it as an image (plus the file path).",
         "inputSchema": {
@@ -1211,6 +1227,8 @@ def run_tool(name, args):
             if key in args:
                 payload[key] = args[key]
         return require_ok(call_bridge("world.time", **payload))
+    if name == "world_quit":
+        return require_ok(call_bridge("world.quit", save=args.get("save", True)))
     if name == "screenshot":
         return screenshot(args)
     if name == "render_view":

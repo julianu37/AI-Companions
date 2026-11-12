@@ -90,6 +90,7 @@ internal static class Commands
 			case "world.spawn": return WorldSpawn(args);
 			case "world.chest": return WorldChest(args);
 			case "world.time": return WorldTime(args);
+			case "world.quit": return WorldQuit(args);
 			case "world.aim": return WorldAim(args);
 			case "world.nearest": return WorldNearest(args);
 			case "world.prefabs": return WorldPrefabs(args);
@@ -2316,6 +2317,37 @@ internal static class Commands
 			{ "fraction", wrapped / dayLength },
 			{ "dayLength", dayLength }
 		});
+	}
+
+	/// <summary>
+	/// 12/11/2026: closes the game the way the menu does - <see cref="Game.Logout"/> (which saves the world and the player
+	/// profile) and then <c>Application.Quit</c>. The F5 console has no 'quit' in 1.0.20 (<c>help</c> does not list one) and
+	/// the test loop needs the game closed to load a new DLL: without this the agent had to ask the player to close it
+	/// between builds. <paramref name="save"/> false leaves the world unsaved (a broken save, a throwaway test).
+	/// <para>The order is deliberate: the answer is built <b>after</b> the logout and <b>before</b> the quit. Unity runs
+	/// <c>Application.Quit</c> at the end of the frame, so the line the caller is waiting for is already written by the
+	/// time the process goes away.</para>
+	/// </summary>
+	private static string WorldQuit(Dictionary<string, object> args)
+	{
+		bool save = !args.ContainsKey("save") || Json.Bool(args, "save", true);
+		bool loggedOut = false;
+		if (Game.instance != null)
+		{
+			try
+			{
+				// changeToStartScene: false - the game is going away, not back to the main menu.
+				Game.instance.Logout(save, changeToStartScene: false);
+				loggedOut = true;
+			}
+			catch (Exception ex)
+			{
+				CompanionsPlugin.Log?.LogWarning("[DevBridge] logout before quit failed: " + ex.Message);
+			}
+		}
+		CompanionsPlugin.Log?.LogInfo("[DevBridge] world.quit - closing the game" + (save ? " (world saved)" : " (world NOT saved)"));
+		Application.Quit();
+		return Ok(new Dictionary<string, object> { { "quitting", true }, { "save", save }, { "loggedOut", loggedOut } });
 	}
 
 	private static string Screenshot(Dictionary<string, object> args)
