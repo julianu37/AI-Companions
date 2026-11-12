@@ -1017,21 +1017,24 @@ internal static class MHR_Build
 		{
 			return;
 		}
-		if (state.PlacedIndices.Contains(state.Index) || state.SkippedIndices.Contains(state.Index))
+		// the piece's identity, not the position of its copy: the single worker's retry pass appends the same step again, and
+		// counting the copy would put a second index of the same piece into the sets (the piece would be "placed and skipped")
+		int index = PieceIndex(state);
+		if (index < 0 || state.PlacedIndices.Contains(index) || state.SkippedIndices.Contains(index))
 		{
 			return;   // up, or already given up by this worker
 		}
-		if (state.Group != null && (MHR_BuildGroup.IsDone(state.Group, state.Index)
-			|| MHR_BuildGroup.GivenUp(state.Group, state.Index)))
+		if (state.Group != null && (MHR_BuildGroup.IsDone(state.Group, index)
+			|| MHR_BuildGroup.GivenUp(state.Group, index)))
 		{
 			return;   // the SITE already has it: another worker put it up, or the watchdog gave it up (that verdict is final)
 		}
-		if (state.Group != null && MHR_BuildGroup.TryQueueRetry(state.Group, state.Index, BuildFailure.Kind.Dependency))
+		if (state.Group != null && MHR_BuildGroup.TryQueueRetry(state.Group, index, BuildFailure.Kind.Dependency))
 		{
 			return;   // the site keeps it: another worker (or this one, after a resume) puts it up
 		}
-		state.SkippedIndices.Add(state.Index);
-		MHR_BuildGroup.AddSkipped(state.Group, state.Index);
+		state.SkippedIndices.Add(index);
+		MHR_BuildGroup.AddSkipped(state.Group, index);
 		LogSkipped(ai, state, state.Prefab, state.Pos, "saiu da obra antes de colocar");
 	}
 
@@ -1394,18 +1397,17 @@ internal static class MHR_Build
 			// without them)
 			if (state.Group != null)
 			{
-				string key = state.Group;
-				// P1 (review A9, 03/11/2026): the group may be gone by now (the last Leave of another worker took it) -
-				// then the counters of this order are the honest answer, never a 0/0
-				bool live = MHR_BuildGroup.Exists(key);
-				// P1 (04/11/2026): the counters are SETS of plan indices (a piece is one piece, whatever it took)
-				int placed = live ? MHR_BuildGroup.Placed(key) : state.PlacedIndices.Count;
-				int skipped = live ? MHR_BuildGroup.Skipped(key) : state.SkippedIndices.Count;
-				MHR_BuildGroup.ReleaseAllOf(key, worker);
-				bool last = MHR_BuildGroup.Leave(key, worker);
-				state.Group = null;
+				// 11/11/2026 (the end of the group): `last` is decided BEFORE leaving, not from the answer of `Leave` -
+				// `Leave` drops the site on the last one, and the numbers of the order (and the speech) are the SITE's, which
+				// only exist while it does. The two counters are read here, by the same helper `Finish` uses for its own line,
+				// so the speech and the line can never disagree.
+				bool last = MHR_BuildGroup.Workers(state.Group) <= 1;
+				int placed;
+				int skipped;
+				SiteCounters(state, out placed, out skipped);
 				if (!last)
 				{
+					// `Finish` releases and leaves the site itself (the plan goes on with the others)
 					Finish(ai, state, null, "a lista de peças acabou para este companheiro (o grupo continua)");
 					return false;
 				}
@@ -1427,6 +1429,19 @@ internal static class MHR_Build
 		// a single piece
 		Finish(ai, state, "hc_ai_build_done", null, LabelOf(state));
 		return false;
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the end of the group): the two counters of the order as they are spoken and printed - the <b>site</b>'s
+	/// while it exists (a group never appends to the plan, and a piece built by another worker is the site's piece) and this
+	/// worker's own once it is gone. One copy for the two places that print them (<see cref="Advance"/>'s end and
+	/// <see cref="Finish"/>), so the speech and the log line can never disagree.
+	/// </summary>
+	private static void SiteCounters(State state, out int placed, out int skipped)
+	{
+		bool live = state != null && state.Group != null && MHR_BuildGroup.Exists(state.Group);
+		placed = live ? MHR_BuildGroup.Placed(state.Group) : (state != null ? state.PlacedIndices.Count : 0);
+		skipped = live ? MHR_BuildGroup.Skipped(state.Group) : (state != null ? state.SkippedIndices.Count : 0);
 	}
 
 	/// <summary>P1: makes <paramref name="index"/> the piece this worker is on (the pose, the clocks and the phase - the
@@ -8173,9 +8188,11 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		// 11/11/2026 (the line of the run of 20:06 LIED in three things): every number below is read HERE, while the site is
 		// still alive - the block below drops it, and reading the walk after that printed THIS WORKER's meters with the site's
 		// label (the five lines of the measured run were not even monotonic: 1380,0 · 1584,6 · 1724,9 · 1625,4 · 1638,8, and the
-		// site walked 7.953,7 m). `placed`/`skipped` are the same numbers the speech gets (the site's sets while it exists).
-		int placed = state.Group != null ? MHR_BuildGroup.Placed(state.Group) : state.PlacedIndices.Count;
-		int skippedCount = state.Group != null ? MHR_BuildGroup.Skipped(state.Group) : state.SkippedIndices.Count;
+		// site walked 7.953,7 m). `placed`/`skipped` are the same numbers the speech gets (the site's sets while it exists) -
+		// the same helper `Advance` reads for the last worker's end.
+		int placed;
+		int skippedCount;
+		SiteCounters(state, out placed, out skippedCount);
 		int planned = state.Plan != null && state.Plan.Count > 0 ? state.Plan.Count : 1;
 		float siteWalked = state.Group != null ? MHR_BuildGroup.Walk(state.Group) : state.WalkMeters;
 		// P1 (multi-build): the worker leaves the site - its piece is free for the others right away, and the group is

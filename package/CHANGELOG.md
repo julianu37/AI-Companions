@@ -39,6 +39,12 @@ moved the piece's pose without invalidating its walk spot, so the companion walk
 1 m drop, two of them skip a piece). The guard is inside `ClearScaffolds` now, a stair that survives to the end of the
 order is named in the log so you can take it down, and `NearScaffold` lost its unused radius parameter. See §17.32.
 
+**The end of a site reports the site's numbers.** `Advance` read the site's placed/skipped counters, then left the group,
+and only then called `Finish` - which re-read them and, on the path of a worker that is **not** the last one, printed
+that worker's numbers under the site's label. `last` is decided before leaving now (`Workers(key) <= 1`) and both paths
+call `Finish` with the site still alive; the two counters come from one helper (`SiteCounters`) shared with the line, so
+the speech and the log cannot disagree. See §17.33.
+
 **Build the plans you download (E7 - the blueprint library).** The companion reads the `.blueprint` files the Valheim
 community shares - the 353 of BiomeBlueprints, the valheimians library and your own captures - and builds them with the
 same executor as the structures: it pays from its bag and the chests, gathers what is missing and resumes where it

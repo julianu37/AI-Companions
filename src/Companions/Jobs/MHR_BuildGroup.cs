@@ -1447,8 +1447,10 @@ internal static class MHR_BuildGroup
 		return dropped;
 	}
 
-	/// <summary>P1: how many companions are on the site (the plan is reordered only while it is a single one).</summary>
-	private static int Workers(string key)
+	/// <summary>P1: how many companions are on the site (the plan is reordered only while it is a single one).
+	/// 11/11/2026 (the end of the group): also how <c>MHR_Build.Advance</c> decides whether this leaving worker is the last
+	/// one - asked <b>before</b> the <c>Leave</c>, which drops the site on the last one.</summary>
+	internal static int Workers(string key)
 	{
 		Group group;
 		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null)

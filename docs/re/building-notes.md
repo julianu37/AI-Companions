@@ -3365,3 +3365,20 @@ raio de sempre (6 m).
 
 **Aceite:** no fim da ordem, ou a linha `N temporary stair(s) removed`, ou o `kept … standing on` nomeando a escada —
 nunca a queda.
+
+### 17.33 Os números do fim do grupo são lidos antes do `Leave` (11/11/2026)
+
+> [C] Defeito lido no código: `Advance` lia os contadores, fazia `Leave` e só então chamava `Finish`.
+
+`Finish` lê `placed`/`skipped` do **canteiro** para a linha e para a fala. O `Advance` lia os mesmos dois números antes
+do `Leave` e passava-os à fala só do último worker; o `Finish` relia, e no ramo silencioso (o worker que não é o
+último) imprimia **os números deste worker** com o rótulo do canteiro. Além disso o `last` vinha do retorno de
+`Leave` — que já derrubou o grupo no último, então um segundo caminho lia um canteiro morto.
+
+Agora `last` é decidido **antes** (`MHR_BuildGroup.Workers(key) <= 1`, o acessor que o `IsShared` já usava, tornado
+`internal`) e `Finish` é chamado **com o grupo vivo** nos dois casos; ele mesmo faz `ReleaseAllOf` + `Leave`. Os dois
+números saem de um helper só, `SiteCounters` (o do canteiro enquanto existe, o do worker depois), usado pelo `Advance`
+e pelo `Finish` — a fala e a linha não podem discordar.
+
+**Aceite:** a linha `order ended:` de um worker que não é o último traz os números do **canteiro** em `peças:` (o mesmo
+que o último worker fala), e a última saída do site fala o número final.
