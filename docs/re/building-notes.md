@@ -3292,3 +3292,76 @@ está no registro e **está** lá) — chamado **uma vez, sempre**, antes da cla
 Uma varredura de `Piece` por peça: a mesma que o caminho de grupo já pagava hoje (`BuildExecutor.FindPlaced`), a ~1
 peça/s ela não compete com nada. A prova do ciclo é o run grátis (`placed (` == `done:`), porque com `BlueprintFree`
 ligado nenhum material entra na conta e o que sobra é exatamente "quantas peças o mod acha que subiram".
+
+### 17.29 O abandono de peça passa a ser contado — quatro furos, um formato (11/11/2026)
+
+> [C] Defeito lido no código: `SkipPiece` se documenta como "todo caminho que abandona uma peça passa por aqui", e
+> quatro não passavam. O efeito é sempre o mesmo: a peça sai do plano e o número que o jogador ouve sai menor.
+
+#### (A) Os quatro furos [C]
+
+| onde | o que acontecia |
+|---|---|
+| `AbandonPiece` (`:1005`) | tentava devolver a peça ao site e, quando não havia site, contava em `SkippedIndices`**sem logar nada** |
+| `ServeBarrier` (o corte de 10 s, `:1566`) | logava "a peça X travada não voltou" e **não** chamava `SkipPiece` — a peça continuava sem estar nem colocada nem contada |
+| `OnDeath` (`:2896`) | soltava a claim e saía do grupo sem `AbandonPiece` — a peça do corpo morto sumia |
+| `StallOut` (`:4047`, caminho do worker único) | descartava em silêncio a cópia de retry cujo `Plan.IndexOf` falha (pose ajustada, sem índice) |
+
+#### (B) A correção [C]
+
+Um formato só, `LogSkipped` (`desistindo de <prefab> (<motivo>) em (x, y, z) - N pulada(s)`) — o que
+`build_run_report.py` já lê (`GIVE_UP` + as linhas de `sem apoio:`). `SkipPiece` ganhou a sobrecarga por
+**índice explícito** (a barreira dá por vencida uma peça abaixo da que o worker está — o nome e a pose vêm do plano, não
+do passo corrente) e passou a **logar só quando conta de verdade**: a segunda pergunta sobre o mesmo índice não escreve,
+senão o `desistindo de` do relatório mediria chamadas e não peças. `AbandonPiece` loga no ramo que conta; com a
+**morte**, a chamada só acontece **sem pendente salvo** (com pendente a peça volta com o mesmo companheiro no respawn, e
+contá-la faria `placed + skipped` estourar o plano). O watchdog nomeia a cópia ajustada numa frase própria
+(`cópia ajustada fora do plano: …`), sem contá-la — ela não tem índice.
+
+#### (C) Aceite [C]
+
+`desistindo de` (o contador oficial) + as linhas de barreira/morte/watchdog fecham com `985 − done` no run grátis; e
+nenhuma chamada de `SkipPiece` escreve duas linhas para o mesmo índice.
+
+### 17.30 O watchdog espera a barreira de andar (11/11/2026)
+
+> [C] Defeito lido no código: a ordem das duas perguntas em `WaitRetry`.
+
+`WaitRetry` perguntava "sem progresso há N s?" **antes** de `ServeBarrier`. A barreira tem relógio próprio (10 s,
+`BuildFailure.BodyBarrierSeconds`) e serve a peça de baixo ou desiste sozinha; o watchdog, quando dispara, chama
+`StallOut` → `MHR_BuildGroup.AbandonRetry`, que **descarta a fila inteira do canteiro**. Uma espera legítima por um
+corpo (a barreira ainda dentro da paciência) podia chegar no watchdog primeiro e encerrar o andar de cima por um
+veredito que pertence a um andar. Agora a barreira responde primeiro; o watchdog continua no mesmo lugar, um frame
+depois, com o mesmo clock (`LastProgressAt` do canteiro).
+
+**Aceite:** nenhuma linha `sem progresso há …` num run em que a barreira nunca passou dos 10 s.
+
+### 17.31 Duas armadilhas de estado que custavam a peça (11/11/2026)
+
+> [C] Os dois defeitos são de leitura de código; a correção é de uma linha cada.
+
+| onde | o que acontecia | correção |
+|---|---|---|
+| `EnterStep` | reseta pose, clocks, `FallDrops`, `BodyTries`, walk spot e `GateHeld` — mas **não** `LastY`. A primeira frame de `Goto` na peça nova compara a altura do corpo com a da peça **anterior**: numa peça de andar mais baixo isso é "queda" de um andar, e duas quedas pulam a peça | `state.LastY = 0f` (0 = sem referência: a primeira frame só registra onde o corpo está) |
+| `AdjustPose` | muda `Pos`/`Rot` do passo e **não** invalida o walk spot, que foi escolhido para a pose antiga — o corpo caminha até onde a peça estava | `WalkFor = -1; HasWalkTo = false;` (o que `EnterStep`, `Goto` e `FindPlan` já fazem quando mudam o alvo) |
+
+**Aceite:** `log ajustado:` seguido de `walk spot (` na mesma peça (o alvo é recalculado), e nenhum `falling from the
+way` na primeira frame de uma peça de andar diferente.
+
+### 17.32 A escada não cai debaixo do corpo no fim da ordem (11/11/2026)
+
+> [C] Defeito lido no código: a guarda existia num caminho só.
+
+`Verify` só chamava `ClearScaffolds` com `!NearScaffold(ai, 1.5f)` — a escada em que o companheiro está **não** era
+removida ali, exatamente para que o 1 m de queda da frame seguinte não contasse como queda. `Finish` (fim da ordem) e
+`OnDeath` chamavam `ClearScaffolds` **sem** a guarda: o piso sumia sob o corpo no fim da obra, e as duas quedas que
+seguem pulam uma peça — ou matam.
+
+A guarda passou para **dentro** de `ClearScaffolds` (`OnStair`, 1,5 m em XZ e 3 m em Y, uma cópia da regra). A escada
+fica na lista e o próximo chamado a remove quando ele sair de cima; a que sobrevive até o fim da ordem é nomeada
+(`kept N temporary stair(s) the companion is standing on - remove it when he is off it`) — o jogador remove, e o
+alternativo (teleportar o companheiro) é pior. `NearScaffold` perdeu o `radius` opcional: sobrou um chamador, com o
+raio de sempre (6 m).
+
+**Aceite:** no fim da ordem, ou a linha `N temporary stair(s) removed`, ou o `kept … standing on` nomeando a escada —
+nunca a queda.

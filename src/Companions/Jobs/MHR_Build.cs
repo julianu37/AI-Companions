@@ -949,20 +949,51 @@ internal static class MHR_Build
 	/// </summary>
 	private static void SkipPiece(CompanionAI ai, State state, string why)
 	{
-		if (state == null)
-		{
-			return;
-		}
-		int index = PieceIndex(state);
-		if (index < 0 || state.PlacedIndices.Contains(index))
+		SkipPiece(ai, state, PieceIndex(state), why);
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the counted abandonment): the same verdict for a <b>named</b> plan index - the piece the barrier was
+	/// waiting below is not the piece this worker is on, and it is the one that gets the line. The line is written only by
+	/// the call that <b>counted</b> the piece: a second verdict on the same index (a path that asks twice) says nothing, so
+	/// the report's <c>desistindo de</c> count is the number of pieces given up and not the number of calls.
+	/// </summary>
+	private static void SkipPiece(CompanionAI ai, State state, int index, string why)
+	{
+		if (state == null || index < 0 || state.PlacedIndices.Contains(index))
 		{
 			return;   // a piece that is up is never counted as skipped
 		}
-		state.SkippedIndices.Add(index);
-		MHR_BuildGroup.AddSkipped(state.Group, index);
-		int total = state.Group != null ? MHR_BuildGroup.Skipped(state.Group) : state.SkippedIndices.Count;
-		Log(ai, "desistindo de " + state.Prefab + " (" + why + ") em (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", "
-			+ F(state.Pos.z) + ") - " + total + " pulada(s)");
+		bool mine = state.SkippedIndices.Add(index);
+		bool site = MHR_BuildGroup.AddSkipped(state.Group, index);
+		if (!mine && !site)
+		{
+			return;   // this worker, or the site, already gave it up
+		}
+		// the piece that gets the line is the one of THIS index: the barrier gives up a piece the worker never entered
+		string prefab = state.Prefab;
+		Vector3 pos = state.Pos;
+		if (index != state.Index && state.Plan != null && index < state.Plan.Count && state.Plan[index] != null)
+		{
+			prefab = state.Plan[index].Prefab;
+			pos = state.Plan[index].Pos;
+		}
+		LogSkipped(ai, state, prefab, pos, why);
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the counted abandonment): <b>the</b> line of a piece given up - one format, so the report counts every
+	/// abandonment the same way (<c>build_run_report.py</c> reads <c>desistindo de</c> and the <c>N pulada(s)</c> tail). It
+	/// is written after the skip was recorded, so the counter it prints is the one that just grew.
+	/// </summary>
+	private static void LogSkipped(CompanionAI ai, State state, string prefab, Vector3 pos, string why)
+	{
+		// the site's set while it exists, the worker's own otherwise - a cancelled site (CancelAll) is already gone when the
+		// piece is counted, and printing its 0 would read as if nothing had been given up
+		int site = state.Group != null ? MHR_BuildGroup.Skipped(state.Group) : 0;
+		int total = Math.Max(site, state.SkippedIndices.Count);
+		Log(ai, "desistindo de " + prefab + " (" + why + ") em (" + F(pos.x) + ", " + F(pos.y) + ", " + F(pos.z) + ") - "
+			+ total + " pulada(s)");
 	}
 
 	/// <summary>
@@ -975,8 +1006,12 @@ internal static class MHR_Build
 	/// <para>With the site alive the piece goes back to its queue as a <b>dependency</b>: it spends no attempt and is not
 	/// counted as skipped (it was never tried). Without a site there is nobody to rebuild it, so it is counted skipped here -
 	/// <c>Placed + Skipped</c> closes with the plan either way.</para>
+	///
+	/// <para>11/11/2026 (the counted abandonment): the counted branch <b>says so</b>, in the same format as every other
+	/// skip (<see cref="LogSkipped"/>) - that is the line the report counts, and without it a "para, Fulano" left a piece out
+	/// of the plan with nothing in the log.</para>
 	/// </summary>
-	private static void AbandonPiece(State state)
+	private static void AbandonPiece(CompanionAI ai, State state)
 	{
 		if (state == null || state.Plan == null || state.Index < 0 || state.Index >= state.Plan.Count)
 		{
@@ -997,6 +1032,7 @@ internal static class MHR_Build
 		}
 		state.SkippedIndices.Add(state.Index);
 		MHR_BuildGroup.AddSkipped(state.Group, state.Index);
+		LogSkipped(ai, state, state.Prefab, state.Pos, "saiu da obra antes de colocar");
 	}
 
 	/// <summary>
@@ -1439,6 +1475,11 @@ internal static class MHR_Build
 		state.WalkFound = 0;
 		state.AdvanceAskedAt = 0f;   // 11/11/2026 (Run 22): a new piece starts the re-ask window of the wait again
 		state.GateHeld = false;      // 11/11/2026 (the review of the gate): a new piece is not standing at the gate
+		// 11/11/2026 (the drop trap): the height of the body is measured against the LAST piece's own frame. A piece on
+		// another storey makes the first frame of the walk compare the new (higher) height with the old one - or, worse, a
+		// piece BELOW makes the body "fall" from the previous storey to the one it is standing on. Two of those on the same
+		// piece skip it. 0 = no reference yet: the first frame of the new piece only records where the body is.
+		state.LastY = 0f;
 		state.Phase = Phase.Goto;
 	}
 
@@ -1533,13 +1574,22 @@ internal static class MHR_Build
 		if (Time.time - state.BarrierStart > BuildFailure.BodyRetryMaxWait)
 		{
 			int stuck = PendingBelowIndex(ai, state, state.BarrierNextIndex, state.BarrierNextY);
-			if (stuck < 0 || stuck >= state.Plan.Count)
+			// 11/11/2026 (the counted abandonment): the piece the barrier waited for is <b>given up</b>, not only forgotten -
+			// it used to lose the wait and go on being neither placed nor counted, and the number the player hears came out
+			// smaller than the plan. It is the same verdict (and the same line) of every other skip: `desistindo de`, with the
+			// counter. If the queue still puts it up later, MarkDone takes it out of the skipped set, exactly like a piece the
+			// watchdog gave up and another worker then built.
+			if (stuck >= 0 && stuck < state.Plan.Count)
 			{
-				stuck = state.BarrierNextIndex;
+				SkipPiece(ai, state, stuck, "a barreira esperou " + BuildFailure.BodyBarrierSeconds.ToString("F0")
+					+ " s e a peça não voltou");
 			}
-			PlannedStep piece = state.Plan[stuck];
-			Log(ai, "a peça " + (piece != null ? piece.Prefab : state.Prefab) + " travada não voltou - o plano sobe depois de "
-				+ BuildFailure.BodyBarrierSeconds.ToString("F0") + " s");
+			else
+			{
+				// nothing below is waiting anymore (served, or up by another worker): there is no piece to give up, and the
+				// NEXT piece is not the one that failed - it is only where the walk was going. It is never counted here.
+				LogDebug(ai, "barreira de andar: nada abaixo espera mais - o plano sobe");
+			}
 			ResetBarrier(state);
 			return false;   // the normal gate: the plan climbs
 		}
@@ -2651,7 +2701,7 @@ internal static class MHR_Build
 			ClearScaffolds(owner, state);
 			// 11/11/2026 (the abandoned piece): "para, Fulano" gives the piece BACK to the site before the claim is freed -
 			// otherwise it vanished (not rebuilt, not counted) and the final number came out smaller than the plan.
-			AbandonPiece(state);
+			AbandonPiece(owner, state);
 			state.Active = false;
 			s_state.Remove(owner.GetInstanceID());
 			// P1 (multi-build): "para, Maria" takes HER out of the group and frees her piece - the others go on (the group
@@ -2693,7 +2743,7 @@ internal static class MHR_Build
 				ClearScaffolds(null, state);
 				// 11/11/2026 (the abandoned piece): the sites were dropped above (the player cancelled the whole thing), so
 				// there is no queue to give the piece back to - it is counted here so this worker's numbers still close.
-				AbandonPiece(state);
+				AbandonPiece(null, state);
 				state.Active = false;
 			}
 			s_state.Remove(key);
@@ -2865,6 +2915,16 @@ internal static class MHR_Build
 		}
 		bool saved = TrySaveDeathPending(ai, state, ai.GetComponent<CompanionSetup>());
 		ClearScaffolds(ai, state);
+		// 11/11/2026 (the counted abandonment): with a pending saved the piece is NOT lost - the plan, its index and the
+		// retry queue travel with it and the same companion takes the same piece again on the respawn, so counting it
+		// skipped here would name a piece that goes up minutes later (and the final `placed + skipped` would overshoot the
+		// plan). Without a pending there is nobody to resume it: with the site alive it goes back to the site's queue as a
+		// dependency (no attempt spent, not counted), and with no site it is counted - `Placed + Skipped` closes either way.
+		// It runs BEFORE the group block below, which drops the site of the last worker.
+		if (!saved)
+		{
+			AbandonPiece(ai, state);
+		}
 		state.Active = false;
 		s_state.Remove(ai.GetInstanceID());
 		// P1 (multi-build): the dead worker leaves the group (its piece is free for the others right away) - the group
@@ -3882,6 +3942,16 @@ internal static class MHR_Build
 			state.WaitAside += dt;   // 11/11/2026 (Run 17): the step aside is a wait of the order too
 			return true;
 		}
+		// 11/11/2026 (the counted abandonment): the storey barrier is asked BEFORE the stall watchdog. While the plan waits
+		// below a storey, the pieces of the queue BELOW it are the only ones served (the plain retry would climb over the
+		// entrance the player asked to settle first); the barrier has a clock of its own - 10 s, `BodyBarrierSeconds` - and
+		// serves the piece below or drops the wait by itself, so it can never hold here for good. Asking the watchdog first
+		// made a legitimate wait for a body end in `StallOut` -> `AbandonRetry`, which drops the WHOLE queue of the site on a
+		// verdict that belongs to one storey.
+		if (ServeBarrier(ai, state, dt))
+		{
+			return true;
+		}
 		float progress = state.Group != null ? MHR_BuildGroup.LastProgressAt(state.Group) : state.LastProgressAt;
 		if (progress <= 0f)
 		{
@@ -3892,14 +3962,6 @@ internal static class MHR_Build
 		if (Time.time - progress > StallSeconds)
 		{
 			return StallOut(ai, state);
-		}
-		// 11/11/2026 (the storey barrier): while the plan waits below a storey, the pieces of the queue BELOW it are the only
-		// ones served - the normal NextRetry would happily take a piece of the storey above and climb over the entrance the
-		// player asked to be settled first. Nothing below anymore (or patience over) drops the barrier and the normal path
-		// goes on.
-		if (ServeBarrier(ai, state, dt))
-		{
-			return true;
 		}
 		if (state.Group == null)
 		{
@@ -4020,6 +4082,15 @@ internal static class MHR_Build
 			int index = state.Plan.IndexOf(step);
 			if (index < 0 || state.PlacedIndices.Contains(index))
 			{
+				// 11/11/2026 (the counted abandonment): the copy of a piece whose pose was adjusted is NOT in the plan
+				// (`Plan.IndexOf` cannot find it), so it has no index to be counted by - it used to be dropped in silence and
+				// the plan's final number came out one piece short with no line saying which. It is named here instead, in
+				// its own wording: it is not a `desistindo de` (there is no index, and the plan's own piece stays).
+				if (index < 0 && CompanionsPlugin.LogNormal)
+				{
+					Log(ai, "cópia ajustada fora do plano: " + step.Prefab + " em (" + F(step.Pos.x) + ", " + F(step.Pos.y) + ", "
+						+ F(step.Pos.z) + ") - sem índice para contar");
+				}
 				continue;
 			}
 			if (state.SkippedIndices.Add(index))
@@ -4752,6 +4823,12 @@ internal static class MHR_Build
 	/// piece of the house. <paramref name="ai"/> may be null (CancelAll has no component to ask, and then nothing is
 	/// refunded). A stair is KEPT only when a piece placed <b>next to it</b> has no support without it - see
 	/// <see cref="StairHoldsPiece"/> (review, 03/11/2026).
+	///
+	/// <para>11/11/2026 (the stair under the body): a stair the companion is <b>standing on</b> is not removed either - the
+	/// floor under him would vanish and the 1 m drop of the next frame counts as a fall (two of them skip the piece; it is
+	/// the reason <see cref="Verify"/> asked before calling this). The guard lives <b>here</b> now, so the end of the order
+	/// and the death take it too; the stair stays in the list and the next call removes it once he is off it, and the one
+	/// that survives to the end of the order is named (<see cref="LogWarning"/>) so the player can take it down.</para>
 	/// </summary>
 	private static void ClearScaffolds(CompanionAI ai, State state)
 	{
@@ -4761,10 +4838,18 @@ internal static class MHR_Build
 		}
 		int removed = 0;
 		int kept = 0;
+		int standing = 0;
+		List<GameObject> live = new List<GameObject>();
 		foreach (GameObject go in state.Scaffolds)
 		{
 			if (go == null)
 			{
+				continue;
+			}
+			if (ai != null && OnStair(ai, go))
+			{
+				standing++;   // he is on it: the next call (off the stair) takes it
+				live.Add(go);
 				continue;
 			}
 			if (StairHoldsPiece(state, go))
@@ -4813,7 +4898,12 @@ internal static class MHR_Build
 			}
 		}
 		state.Scaffolds.Clear();
-		state.Scaffolded.Clear();
+		state.Scaffolds.AddRange(live);
+		if (live.Count == 0)
+		{
+			// nothing is left to look for a piece held up by one of them (`Scaffolded` is only read by StairHoldsPiece)
+			state.Scaffolded.Clear();
+		}
 		if (removed > 0)
 		{
 			CompanionsPlugin.Log?.LogInfo("[Build] " + removed + " temporary stair(s) removed");
@@ -4822,6 +4912,27 @@ internal static class MHR_Build
 		{
 			CompanionsPlugin.Log?.LogWarning("[Build] kept " + kept + " temporary stair(s): a piece placed next to it has no support without it");
 		}
+		if (standing > 0)
+		{
+			CompanionsPlugin.Log?.LogWarning("[Build] kept " + standing
+				+ " temporary stair(s) the companion is standing on - remove it when he is off it");
+		}
+	}
+
+	/// <summary>11/11/2026 (the stair under the body): is the companion standing on this stair? The same 1,5 m around the
+	/// stair that <see cref="Verify"/> used (still on it after going up for the piece, so the 1 m drop of the next frame is
+	/// not counted as a fall) - now the single copy of the rule, asked by every path that removes stairs.</summary>
+	private static bool OnStair(CompanionAI ai, GameObject stair)
+	{
+		if (ai == null || stair == null)
+		{
+			return false;
+		}
+		Vector3 at = stair.transform.position;
+		Vector3 me = ai.transform.position;
+		float dx = at.x - me.x;
+		float dz = at.z - me.z;
+		return dx * dx + dz * dz < 2.25f && Mathf.Abs(at.y - me.y) < 3f;
 	}
 
 	/// <summary>
@@ -5515,8 +5626,8 @@ internal static class MHR_Build
 	/// and a no_support event must not allocate one (main thread only).</summary>
 	private static readonly List<Transform> s_snaps = new List<Transform>();
 
-	/// <summary>Is this pose close enough to a temporary stair to have been held up by it? (the same 4 m / 3 m window)</summary>
-	private static bool NearScaffold(State state, Vector3 pos, float radius = 6f)
+	/// <summary>Is this pose close enough to a temporary stair to have been held up by it? (6 m in XZ, 3 m in Y)</summary>
+	private static bool NearScaffold(State state, Vector3 pos)
 	{
 		foreach (GameObject stair in state.Scaffolds)
 		{
@@ -5527,7 +5638,7 @@ internal static class MHR_Build
 			Vector3 at = stair.transform.position;
 			float dx = at.x - pos.x;
 			float dz = at.z - pos.z;
-			if (dx * dx + dz * dz < radius * radius && Mathf.Abs(at.y - pos.y) < 3f)
+			if (dx * dx + dz * dz < 36f && Mathf.Abs(at.y - pos.y) < 3f)
 			{
 				return true;
 			}
@@ -7242,6 +7353,12 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		state.Pos = site.Pos;
 		state.Rot = site.Rot;
 		state.Checked = false;
+		// 11/11/2026 (the adjusted pose): the walk target of this piece was chosen for the pose it no longer has - the
+		// body kept walking to where the piece used to be. Invalidated here exactly like a new piece does it (`EnterStep`)
+		// and like `Goto`/`FindPlan` do when they change the target; the next frame of the walk picks a surface for the new
+		// pose (`WalkFor != Index`).
+		state.WalkFor = -1;
+		state.HasWalkTo = false;
 		return true;
 	}
 
@@ -7312,10 +7429,10 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			state.Scaffolded.Add(state.Placed);
 		}
 		// E7 (player's test, 03/11/2026: "the site filled with little stairs"): the stair did its job - it goes away NOW,
-		// not at the end of the order. ClearScaffolds keeps it only when this very piece has no support without it.
-		// E7 (review, 03/11/2026): the stair is removed now, but not with him standing on it - he went up for the piece, so a
-		// 1 m drop on the next frame would count as a fall (two of them skip the piece). 1,5 m around the stair = still on it.
-		if (usedStairs && !NearScaffold(state, ai.transform.position, 1.5f))
+		// not at the end of the order. ClearScaffolds keeps it only when this very piece has no support without it, and
+		// (11/11/2026) never one the companion is standing on - the 1 m drop of the next frame would count as a fall (two of
+		// them skip the piece). That guard is inside ClearScaffolds, so the end of the order and the death take it too.
+		if (usedStairs)
 		{
 			ClearScaffolds(ai, state);
 		}
@@ -8052,7 +8169,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		ReleaseHarvest(ai, state);
 		// 11/11/2026 (the abandoned piece): the piece this worker was on is NOT lost with it - with the site alive it goes
 		// back to the queue (a dependency: no attempt spent, not counted as skipped), and without a site it is counted.
-		AbandonPiece(state);
+		AbandonPiece(ai, state);
 		// 11/11/2026 (the line of the run of 20:06 LIED in three things): every number below is read HERE, while the site is
 		// still alive - the block below drops it, and reading the walk after that printed THIS WORKER's meters with the site's
 		// label (the five lines of the measured run were not even monotonic: 1380,0 · 1584,6 · 1724,9 · 1625,4 · 1638,8, and the

@@ -16,6 +16,29 @@ companion** - no longer reorders at all (`PlanLocked` is now `Group != null`, no
 and claims are the site's, not one worker's, and the retry queue builds what the reorder used to fix. See
 `docs/re/building-notes.md` §17.27.
 
+**Every abandoned piece is counted.** Four paths dropped a piece out of the plan without counting it - a worker that
+left the site (`AbandonPiece`), the storey barrier after its 10 s of patience, a death with no plan to resume, and the
+watchdog's copy of a piece whose pose had been adjusted. They all write the same `desistindo de … - N pulada(s)` line
+the report reads, and a piece is counted (and named) only once, so the number of lines is the number of pieces given
+up and not the number of calls. With a pending saved the death path does **not** count the piece: the order resumes
+with the same companion and the same piece. See `docs/re/building-notes.md` §17.29.
+
+**The stall watchdog waits for the storey barrier.** `WaitRetry` asked "no progress in N s?" before serving the barrier,
+and the watchdog drops the **whole queue of the site** (`AbandonRetry`). The barrier has a clock of its own (10 s) and
+serves the piece below it or drops the wait by itself, so a legitimate wait for a body could end a whole storey first.
+The barrier is asked first now. See §17.30.
+
+**A piece is not skipped by a height that was never a fall, and an adjusted piece does not keep the old walk target.**
+`EnterStep` did not clear `LastY`, so the first frame on a piece of another storey compared the body's height with the
+previous piece's: on a lower storey that reads as a one-storey drop, and two of those skip the piece. `AdjustPose`
+moved the piece's pose without invalidating its walk spot, so the companion walked to where the piece used to be. See
+§17.31.
+
+**A temporary stair never disappears from under the companion.** The "not with him standing on it" guard existed only in
+`Verify`; the end of the order and a death called `ClearScaffolds` without it and the floor vanished under the body (a
+1 m drop, two of them skip a piece). The guard is inside `ClearScaffolds` now, a stair that survives to the end of the
+order is named in the log so you can take it down, and `NearScaffold` lost its unused radius parameter. See §17.32.
+
 **Build the plans you download (E7 - the blueprint library).** The companion reads the `.blueprint` files the Valheim
 community shares - the 353 of BiomeBlueprints, the valheimians library and your own captures - and builds them with the
 same executor as the structures: it pays from its bag and the chests, gathers what is missing and resumes where it
