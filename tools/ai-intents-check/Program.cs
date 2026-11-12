@@ -2989,6 +2989,11 @@ internal static class Program
 		Check("5 m so na vertical tambem grava (uma queda acha chao novo)",
 			EscapeRule.WorthRecording(new Vector3(0f, 0f, 0f), new Vector3(0f, 5f, 0f)));
 		Check("GoodMoved == 1 m", EscapeRule.GoodMoved == 1f);
+
+		// --- the {stuckFor} clock of companions.list is the same one the emergency reads
+		Check("StuckMove == 0,5 m (abaixo disso o corpo so se remexe)", EscapeRule.StuckMove == 0.5f);
+		Check("a sonda de resgate (>= 2 m) anda mais que o StuckMove (nao conta como saida trivial)",
+			2f > EscapeRule.StuckMove);
 	}
 
 

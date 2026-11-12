@@ -86,18 +86,26 @@ saída daqui, vou pular para o último lugar seguro"*).
 `GoodPos` só quando ele está a ≥ 2 m e, se não houver, sonda anéis de 3 · 5,5 · 8 m atrás de chão seco com rota completa.
 O `GoodPos` deixou de ser reescrito a cada frame (`WorthRecording`, 1 m) — era a própria posição do corpo, então o
 resgate teleportava para o lugar onde ele já estava. Fala `hc_why_trapped_out`, novo nos 4 JSONs. Seção (ai) cobre a
-regra: **987 PASS / 0 FAIL**; `--check-config` 0 lacunas e os 3 idiomas 0.
+regra: **989 PASS / 0 FAIL**; `--check-config` 0 lacunas e os 3 idiomas 0.
+
+**Correção de projeto durante a implementação:** o relógio do item 4 não pode ser o `AnchorTime`. O `Unstick` zera
+`AnchorTime` na primeira linha, e o `Rescue` é chamado de dentro do `Unstick` — `now - AnchorTime` seria sempre ~0 e a
+emergência **nunca** dispararia. Por isso nasceu o par `MovedPos`/`MovedAt`, mantido em `TrackMoved` no `GoInner`
+(fora da escada) e reiniciado no `Reset`; os itens 4 e 6 leem o mesmo relógio.
 
 ### 5. Regra pura + harness (a prova antes do jogo) — **feito**
 `AI/ClimbRule.cs` — função pura que decide "este degrau é escalável?" dados `rise`, `layer`, `tem apoio no topo`,
 `stepMax`. Linkada em `tools/ai-intents-check/ai-intents-check.csproj`, seção `(ah)`.
 **Aceite:** harness verde, contagem crescendo. **948 PASS / 0 FAIL** (eram 930).
 
-### 6. Instrumento: a ponte passa a dizer *preso*
+### 6. Instrumento: a ponte passa a dizer *preso* — **feito**
 `companions.build_status` já lê a obra; falta a **saúde do corpo**. Um campo novo em `companions.list` — `stuckFor`
 (segundos desde a última mudança de posição além de 0,5 m) — deixa a próxima sessão medir "preso há X s" pela ponte em
 vez de por captura de tela.
 **Aceite:** no cenário do item 4, `stuckFor` sobe monotonicamente e **zera** depois da saída.
+**Estado:** `MHR_Mover.StuckFor(ai)` lê o relógio `MovedPos`/`MovedAt` (novo, `EscapeRule.StuckMove` = 0,5 m), que é o
+**mesmo** que a emergência lê — e que a escada de destravar não zera (o `AnchorTime` zera, e por isso não servia: a
+emergência nunca dispararia). `DescribeCompanion` devolve `stuckFor`. MCP mock 135/0.
 
 ## Teste em jogo (o mesmo cenário que falhou)
 

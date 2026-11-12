@@ -47,6 +47,11 @@ internal static class EscapeRule
     /// body's own feet - teleporting there is teleporting nowhere.</summary>
 	internal const float GoodMoved = 1f;
 
+	/// <summary>How far the body has to move for it to count as "not stuck" (<b>0,5 m</b>): the clock behind
+    /// <c>stuckFor</c> and behind the emergency. Below this a body shifting on its feet is still the same body in the
+    /// same place.</summary>
+	internal const float StuckMove = 0.5f;
+
 	/// <summary>Rings of the emergency probe around a trapped body, in meters. The first ring clears a pocket of a body's
     /// width (the measured one was 2-3 m across); the last one reaches past a small room.</summary>
 	internal static readonly float[] ProbeRings = { 3f, 5.5f, 8f };

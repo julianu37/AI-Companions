@@ -50,6 +50,9 @@ namespace Companions
             public Ladder UseLadder; public float LadderUntil, NextLadderSearch; public readonly HashSet<Ladder> LaddersUsed = new HashSet<Ladder>();
             public bool MainPartial;
             public Vector3 GoodPos; public float GoodAt; public bool HasGood;
+            // 12/11/2026 (the trap): the last time the BODY really moved (>0,5 m) - not reset by the stuck ladder, so it is
+            // the honest "stuck for" clock (AnchorTime is zeroed at the top of Unstick, which is why it cannot be used).
+            public Vector3 MovedPos; public float MovedAt; public bool HasMovedPos;
             public float ClimbUntil, ClimbBestY, ClimbProgressAt, NextClimbJump, ClimbRestUntil; public Vector3 ClimbTop;
             public int ClimbTries; public readonly List<Vector3> ClimbTried = new List<Vector3>();
             public bool Direct; public float NextHop, NoDirectUntil;
@@ -139,6 +142,22 @@ namespace Companions
         }
         public static bool Progressing(CompanionAI ai) { S s = Peek(ai); return s != null && !s.GaveUp && Time.time - s.ProgressTime < 10f; }
         public static float StuckSeconds(CompanionAI ai) { return GaveUp(ai) ? 11f : 0f; }
+        /// <summary>
+        /// 12/11/2026 (the bridge, to measure "stuck" instead of guessing from a screenshot): how long the BODY has been
+        /// without moving more than <see cref="EscapeRule.StuckMove"/> - the same clock the emergency rescue uses, and
+        /// unlike <c>AnchorTime</c> it is never zeroed by the stuck ladder. Zero for a companion that never walked (the
+        /// clock starts on its first step) and for one that is not in the mover at all.
+        /// </summary>
+        public static float StuckFor(CompanionAI ai)
+        {
+            S s = Peek(ai);
+            return s == null || !s.HasMovedPos ? 0f : Time.time - s.MovedAt;
+        }
+        static void TrackMoved(S s, Vector3 pos, float now)
+        {
+            if (!s.HasMovedPos) { s.MovedPos = pos; s.MovedAt = now; s.HasMovedPos = true; return; }
+            if (Vector3.Distance(pos, s.MovedPos) > EscapeRule.StuckMove) { s.MovedPos = pos; s.MovedAt = now; }
+        }
         // CompanionRest keeps its bed trip alive while we're still getting somewhere
         public static bool KeepAlive(Component c)
         {
@@ -255,6 +274,7 @@ namespace Companions
             if (remain < s.Best - 0.75f) { s.Best = remain; s.ProgressTime = now; }
             if (!s.HasDetour && s.RouteDoor == null && remain < s.MainBest - 1.5f) { s.MainBest = remain; s.Ladder = 0; s.Passes = 0; }
             if (Vector3.Distance(pos, s.Anchor) > 0.6f) { s.Anchor = pos; s.AnchorTime = now; }
+            TrackMoved(s, pos, now);
 
             Log(s, pos, remain, now, c);
 
@@ -535,6 +555,8 @@ namespace Companions
             Ladder ladder = s.UseLadder; float ladderUntil = s.LadderUntil;
             s.Goal = goal; s.Dest = goal; s.Tag = tag; s.Path.Clear(); s.Corner = 0; s.NextPlan = 0f; s.PathOk = false; s.Partial = false;
             s.Best = float.MaxValue; s.ProgressTime = now; s.AnchorTime = now; s.Anchor = pos;
+            // 12/11/2026: the "stuck for" clock starts here, at the position the body is in. A new goal is a new question.
+            s.MovedPos = pos; s.MovedAt = now; s.HasMovedPos = true;
             s.Ladder = 0; s.StepUntil = 0f; s.HasDetour = false; s.GaveUp = false; s.DoorBlocked = false; s.RouteDoor = null; s.WaitStamina = false; s.PassDoor = null;
             s.TooTired = false; s.MainBest = float.MaxValue; s.Passes = 0; s.HasShore = false; s.NextShore = 0f;
             s.NextDoorSearch = 0f; s.NextLog = now + 1f; s.NextStartSearch = 0f;
@@ -2428,15 +2450,17 @@ namespace Companions
         static void Rescue(CompanionAI ai, Character c, S s, Vector3 pos, float now, string tag)
         {
             if (c == null) return;
+            float stuckFor = s.HasMovedPos ? now - s.MovedAt : 0f;
             Vector3 target;
             bool have = FindEscapeSpot(s, pos, out target);
-            if (!EscapeRule.CanRescue(now - s.AnchorTime, c.IsSwimming(), ai.IsInCombat, have)) return;
+            if (!EscapeRule.CanRescue(stuckFor, c.IsSwimming(), ai.IsInCombat, have)) return;
             if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Move|" + tag + "] trapped at " + Fmt(pos) + " for "
-                + (now - s.AnchorTime).ToString("F0") + "s with no way out - moving to the nearest spot that has one at " + Fmt(target));
+                + stuckFor.ToString("F0") + "s with no way out - moving to the nearest spot that has one at " + Fmt(target));
             // 1.5.42: it says so - a teleport is a visible, unusual thing and the player should hear why
             CompanionStatus.Why(ai, "hc_why_trapped_out", speak: true);
             ai.MHR_PlaceAt(target);
             s.HasGood = false; s.GiveUps = 0; s.DetourTried.Clear();
+            s.MovedPos = target; s.MovedAt = now; s.HasMovedPos = true;
             Reset(s, s.Goal, target, now, tag);
         }
 

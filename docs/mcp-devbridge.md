@@ -106,7 +106,7 @@ Uma conexão por chamada; **um JSON por linha**, nas duas direções.
 | `input.key` / `input.key_down` / `input.key_up` | `key` | `key`, `vk`, `mode`, `sent`, `focused` |
 | `input.text` | `text` | `text`, `sent`, `focused` |
 | `input.click` | `x`, `y` (pixels da tela do jogo) | `x`, `y`, `sent`, `focused` |
-| `companions.list` | — | `count`, `companions[]` |
+| `companions.list` | — | `count`, `companions[]` (`name`, `x/y/z`, `hp`/`maxHp`, `dead`, `stuckFor`, …), `tombstones[]` |
 | `companions.spawn` | — | `spawned` |
 | `companions.order` | `action`, `name?` | `action`, `mode`/`stance`/`value`, `applied`; no `stop`/`cancel`/`para`: `cancelled`, `build`, `level` (+ `companions[]` sem `name`) |
 | `companions.teleport` | `name?`, `x?`, `y?`, `z?` | `name`, `x`, `y`, `z`, `moved` |
@@ -168,6 +168,12 @@ nivelamento e responde o que **estava** rodando, lido **antes** do cancel (`buil
 `companions.zdo` devolve as chaves `HC_*`: `Name`, `Owner`, `CompanionId`, `ActionMode`, `CombatStance`, `AutoPickup`,
 `Wander`, `Follow`, `StayHome`, `HomeRadius`, `OrderCap`, `OrderCapMode`, `OrderCapItem`, `TombstoneId`, `Stamina`,
 `Recovering`, `RecoverStance`, `RecoverPickup`, `Voice`, `Gen`, `FarmZones` (`"<none>"` ou `"N chars"`).
+
+`stuckFor` (12/11/2026, em cada item de `companions.list`): **há quantos segundos o corpo não anda mais de 0,5 m**.
+Existe porque os dois companheiros presos dentro da própria obra ficaram **mais de 20 min** parados ao milímetro e a
+única forma de saber isso era captura de tela com carimbo de tempo. É o **mesmo relógio** que a saída de emergência
+do `MHR_Mover` lê (`EscapeRule.CanRescue`, 90 s), e ao contrário do `AnchorTime` ele **não é zerado** pela escada de
+destravar - é o número honesto. `0` significa "nunca andou desde que a ordem começou" ou "não está no mover".
 
 ## Ferramentas MCP (63 em 11/11/2026)
 
