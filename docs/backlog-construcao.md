@@ -106,6 +106,32 @@ ordena **por altura primeiro**, `AI/BuildBlueprintParser.cs:146`). As duas foram
 Cada worker conta a mesma pilha por conta própria (pior caso: N× o resto do plano, com até 3 coletando juntos). Só
 aparece no run **pago** (item 1). O desenho é o `Stock` da metade aberta do P1 em `docs/plan-multi-build.md`.
 
+### 11. O companheiro **cai do telhado em construção** e morre (novo 11/11/2026, medido)
+No run interrompido do sítio `-180,-320` (terreno íngreme, deck a y=40) o log registra **quatro quedas** e **duas
+mortes**, ambas no mesmo ponto do plano (781 e 782 de 985):
+
+```
+[Move] "Companion 2" fell 6,0 m and took 12 fall damage
+[Move] "Companion 2" fell 7,3 m and took 21 fall damage     <- morte 1
+[Move] "Companion 2" fell 8,5 m and took 28 fall damage     <- morte 2
+[Move] "Companion 2" fell 6,8 m and took 17 fall damage
+[Build] Companion 2: it died during the build - the order resumes after the respawn (piece 782/985)
+```
+
+**O que se sabe [M]:** a morte é tratada (a ordem retoma na peça, o túmulo é criado com os 11 itens e o respawn é
+agendado); o que **não** existe é a prevenção. O `MHR_Mover` anda até o walk spot do telhado e a queda acontece na
+subida — as peças em volta estão a y=40 e o chão a y≈34, então qualquer passo errado é uma queda de 6–8 m, que é
+morte certa com 25 de vida.
+
+**Hipótese, não medida:** o walk spot (`BuildWalkSpot`) escolhe a superfície mais alta coberta pela regra de olho, mas
+nada verifica se o **caminho até ela** é andável — é o mesmo `StepTo`/`SafeStep` do item 3, um andar acima. Se for
+isso, a resposta não é ajuste de anel: é recusar a peça enquanto não houver rota segura, e o item 4 (triagem) é o
+pré-requisito para saber qual dos dois é.
+
+**Por que importa para a receita de produto (item 1):** "0 mortes" está no aceite. Num terreno plano o deck fica
+raso e a queda é curta; no íngreme o deck sobe e a mesma peça vira armadilha. **Não** é um defeito que se vê no run
+de teste (lá o `DeckLift` é absorvido pelo terreno plano).
+
 ## Declarado e **fora** do caminho crítico
 
 - **Multiplayer** (pendências 5, 16, 17): troca de posse do corpo a cada 2 s para a obra em silêncio e trava o
