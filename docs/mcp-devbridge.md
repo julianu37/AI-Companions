@@ -109,7 +109,7 @@ Uma conexão por chamada; **um JSON por linha**, nas duas direções.
 | `companions.list` | — | `count`, `companions[]` |
 | `companions.spawn` | — | `spawned` |
 | `companions.order` | `action`, `name?` | `action`, `mode`/`stance`/`value`, `applied`; no `stop`/`cancel`/`para`: `cancelled`, `build`, `level` (+ `companions[]` sem `name`) |
-| `companions.teleport` | `name?`, `x?`, `y?`, `z?` | `name`, `x`, `y`, `z` |
+| `companions.teleport` | `name?`, `x?`, `y?`, `z?` | `name`, `x`, `y`, `z`, `moved` |
 | `companions.give` | `item`, `amount`, `name?` | `item`, `amount`, `added` |
 | `companions.zdo` | `name?` | `name`, `keys{}`, `farmZones[]` |
 | `player.kill` | — | `killed`, `hpBefore`, `hpAfter` |
@@ -234,6 +234,16 @@ seguida (`player_give`, `player_teleport`, `world_spawn`, `companions_give`, `co
 - `game_console help` e `world_time` (sem argumentos, mesmo instante) → ok; `dayLength = 1800` confirmado.
 - `companions_list` → 2 companheiros (`Maria`); `companions_zdo` → todas as chaves `HC_*` resolvidas.
 - `companions_order follow` → `applied: true`; `companions_teleport` e `player_teleport` → posições conferidas.
+
+**Sem `x`/`y`/`z`, `companions.teleport` leva o companheiro para o lado do jogador** (2 m na frente dele): é o
+`fallback` do comando, e é o que se usa para tirar um companheiro de um lugar ruim. `moved` diz quantos metros ele
+andou de fato — **12/11/2026:** essa resposta já foi `ok` com o corpo parado no lugar, porque o comando atribuía só o
+`transform` e o `Rigidbody` reescrevia no frame seguinte. Hoje ele move o corpo inteiro (`MHR_PlaceAt`: `transform`,
+`_body.position`, velocidade zero, `StopMoving`, ZDO) e solta o estado do mover (`MHR_Mover.Release`), então `moved`
+reflete o deslocamento real. Se `moved` vier ~0, o corpo não saiu de onde estava.
+
+**`name` casa por nome exato primeiro** (12/11/2026): com `Companion` e `Companion 2` na lista, `name=Companion`
+resolvia para o `Companion 2` porque o match era substring. Hoje o exato vence e a substring é o último recurso.
 - `companions_farm_zone list` → 1 zona (a do teste 2); `companions_tier companion` → mesmo prefab (no-op esperado).
 - `companions_kill` → `Maria` com `hpAfter: 0`; `companions_resurrect` → `resurrected: true`, `hp: 25`.
 - `companions_hire` → `hired: false`, `reason: "not enough coins"` (0 moedas) — a recusa é o comportamento certo; com

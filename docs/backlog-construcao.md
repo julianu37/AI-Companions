@@ -124,6 +124,21 @@ segundos** (o `no progress` já detecta isso); e `FindClimb` precisa de uma exce
 próprio companheiro** (o `Piece`/`WearNTear` é dele, e uma cerca de 1–2 m é escalável como uma parede de pedra). Sem
 essa exceção, qualquer casa que ele construa em volta de si é uma armadilha.
 
+**Plano de execução:** [`docs/plan-companion-nunca-preso.md`](plan-companion-nunca-preso.md) — 6 itens, cada um com
+aceite, incluindo o livelock de desvio medido no log (o `TryDetour` devolve o **mesmo** ponto dentro do cercado, o
+`Reset` reabre as 3 tentativas a cada 15 s, e nada muda de ideia).
+
+**Duas ferramentas consertadas neste ciclo (medidas, não teorizadas):**
+
+| defeito | correção | prova |
+|---|---|---|
+| `companions.teleport` **não movia o corpo** — atribuía só `cs.transform.position`, e o `Rigidbody` reescrevia no frame seguinte | delega a `CompanionAI.MHR_PlaceAt` (transform + `_body.position` + velocidade zero + `StopMoving` + `ZDO.SetPosition`) e chama `MHR_Mover.Release` (limpa `GaveUp` e `LastGo`) | antes: respondeu `{x:-165, z:-435}` e o corpo ficou em `-152,97 · -416,81`. Depois: `moved: 21,84 m` e **permaneceu** em `-165,06 · -435,09` |
+| `FindCompanion` casava nome por **substring** — `"Companion"` resolvia para `"Companion 2"` | nome **exato** vence; substring é o último recurso | o jogador viu: *"só o companion 2 veio teleportado"*; depois da correção `Companion` moveu 27,13 m e `Companion 2` 1,37 m, os dois a ~2 m do jogador |
+
+**`companions.order stop` está correto** — medido: responde `build:false, level:false` quando não há ordem, e
+`MHR_Build.Cancel → MHR_Mover.Release` **limpa o `GaveUp`** (`MHR_Mover.cs:143-151`). O que ele não faz, e não deve
+fazer, é mover um corpo sem saída física; quem move é o teleporte, agora consertado.
+
 ### 8. ~~As duas frases erradas do `CHANGELOG` público (revisão de lógica, A8)~~ — **fechado 11/11/2026**
 `package/CHANGELOG.md:16` dizia que os blueprints ficam em `config/…/blueprints` (o código usa `<plugin>/blueprints`,
 `AI/BuildBlueprints.cs:54/70-74`) e `:35` dizia que a ordem é "por classe de peça … em vez de por altura" (o parser

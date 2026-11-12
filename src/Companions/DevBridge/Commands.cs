@@ -2765,6 +2765,23 @@ internal static class Commands
 		};
 	}
 
+	/// <summary>
+	/// Puts the companion at a position - <b>the whole body</b>, not just its transform.
+	///
+	/// <para>12/11/2026 (measured: <c>companions.teleport</c> answered <c>{x: -165, y: 38.8, z: -435}</c> and the companion
+	/// was still at <c>-152.97, 38.78, -416.81</c> 3 s later, i.e. it answered ok and <b>never moved</b>): this method used
+	/// to assign <c>cs.transform.position</c> and nothing else. The transform is a <b>reading</b> of the rigidbody for a
+	/// character driven by physics, so the solver put it back on the next frame and the mover, whose goal, path and
+	/// give-up clock were all still the old ones, kept steering the old body. The complete move already existed as
+	/// <see cref="CompanionAI.MHR_PlaceAt"/> (the trapped rescue of <c>MHR_Mover</c>): it sets the transform, the
+	/// <c>Rigidbody</c>'s position, zeroes the velocity, stops the walk state and writes the ZDO - and this method
+	/// <b>delegates to it</b> instead of redoing it, so a fix there is a fix here.</para>
+	///
+	/// <para><see cref="MHR_Mover.Release"/> after it is what makes the body <b>usable</b> again: it clears the <c>GaveUp</c>
+	/// flag (a trapped companion carried it into the new position, and <c>GoInner</c> halts on it before planning) and
+	/// zeroes <c>LastGo</c>, so the next goal plans from the new position with fresh clocks instead of resuming a route
+	/// that started 20 m away.</para>
+	/// </summary>
 	private static string CompanionsTeleport(Dictionary<string, object> args)
 	{
 		CompanionSetup cs = FindCompanion(Json.Str(args, "name"));
@@ -2772,12 +2789,24 @@ internal static class Commands
 		{
 			return Fail("no companion found");
 		}
+		CompanionAI ai = cs.GetComponent<CompanionAI>();
+		if (ai == null)
+		{
+			return Fail("no CompanionAI on " + cs.name);
+		}
 		Vector3 fallback = Player.m_localPlayer != null
 			? Player.m_localPlayer.transform.position + Player.m_localPlayer.transform.forward * 2f
 			: cs.transform.position;
 		Vector3 pos = TargetPosition(args, fallback);
-		cs.transform.position = pos;
-		return Ok(new Dictionary<string, object> { { "name", cs.name }, { "x", pos.x }, { "y", pos.y }, { "z", pos.z } });
+		Vector3 from = cs.transform.position;
+		ai.MHR_PlaceAt(pos);
+		MHR_Mover.Release(ai);
+		return Ok(new Dictionary<string, object>
+		{
+			{ "name", cs.name },
+			{ "x", pos.x }, { "y", pos.y }, { "z", pos.z },
+			{ "moved", Vector3.Distance(from, pos) }
+		});
 	}
 
 	private static string CompanionsGive(Dictionary<string, object> args)
@@ -3304,6 +3333,10 @@ internal static class Commands
 			}
 			return null;
 		}
+		// 12/11/2026 (measured: `companions.teleport name=Companion` moved "Companion 2"): the name used to be matched as a
+		// plain substring, so the shorter of two names prefix-sharing companions ("Companion" / "Companion 2") resolved to
+		// whichever came first in the roster. An EXACT name now wins, and the substring is only the last resort.
+		CompanionSetup partial = null;
 		for (int i = 0; i < all.Count; i++)
 		{
 			CompanionSetup cs = all[i];
@@ -3313,12 +3346,20 @@ internal static class Commands
 			}
 			Humanoid h = cs.GetComponent<Humanoid>();
 			string n = h != null ? h.m_name : cs.name;
-			if (!string.IsNullOrEmpty(n) && n.IndexOf(name, StringComparison.OrdinalIgnoreCase) >= 0)
+			if (string.IsNullOrEmpty(n))
+			{
+				continue;
+			}
+			if (string.Equals(n, name, StringComparison.OrdinalIgnoreCase))
 			{
 				return cs;
 			}
+			if (partial == null && n.IndexOf(name, StringComparison.OrdinalIgnoreCase) >= 0)
+			{
+				partial = cs;
+			}
 		}
-		return null;
+		return partial;
 	}
 
 	private static CompanionSetup FindLiveCompanion(string name)
