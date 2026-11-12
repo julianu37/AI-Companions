@@ -128,6 +128,27 @@ essa exceção, qualquer casa que ele construa em volta de si é uma armadilha.
 aceite, incluindo o livelock de desvio medido no log (o `TryDetour` devolve o **mesmo** ponto dentro do cercado, o
 `Reset` reabre as 3 tentativas a cada 15 s, e nada muda de ideia).
 
+**Estado dos 6 itens do plano (12/11/2026, branch `fix/plano-remap`):** os seis estão **implementados**; o que falta é o
+**run em jogo** que mede o conjunto. Nada foi medido ainda no cenário do bolsão.
+
+| # | o que mudou | prova fora do jogo |
+|---|---|---|
+| 1 | `TryStartClimb` aceita rota completa: parado 2,5 s é sinal suficiente | build 0/0; aceite de jogo pendente |
+| 2 | `FindClimb` decide por `ClimbRule` (terreno anda até 6 m; obra só até 1,6 m **e** com `StandingRoom` no topo) | seção **(ah)**, 18 casos |
+| 3 | `EscapeRule`: desvio já tentado não conta (`AlreadyTried`, 1,5 m); espera 15→30→60→120 s; `MovedAway` 6 m zera | seção **(ai)** |
+| 4 | `Rescue` sem `MainPartial`: 90 s parado, fora de água e de combate, com sonda de 3/5,5/8 m; fala `hc_why_trapped_out` | seção **(ai)**; `--check-config` e os 3 idiomas 0 |
+| 5 | regra pura + harness | **995 PASS / 0 FAIL** (930 no início do ciclo) |
+| 6 | `companions.list` devolve `stuckFor` (mesmo relógio da emergência) | MCP mock **135/0** |
+
+**O que o plano errou e a implementação corrigiu:** o relógio da emergência **não pode** ser o `AnchorTime` — o
+`Unstick` o zera na primeira linha e o `Rescue` é chamado de dentro dele, então a emergência **nunca** dispararia. Nasceu
+`MovedPos`/`MovedAt` (0,5 m, mantido no `GoInner`, reiniciado no `Reset`), que os itens 4 e 6 compartilham.
+
+**Ainda não medido:** o `Rescue` agora tem **duas portas** — o braço final do `Unstick` e o `GaveUp` com `NoExit`
+(só o "não há saída física", nunca o de lava ou fogo, onde mover o corpo é pior que deixá-lo onde está). Um corpo que
+fique preso **sem** chegar a nenhuma das duas (por exemplo `Follow` re-entrando no mesmo alvo antes da escada rodar)
+continua fora do alcance; é a primeira coisa a olhar se o run mostrar `stuckFor` passando de 120 s.
+
 **Duas ferramentas consertadas neste ciclo (medidas, não teorizadas):**
 
 | defeito | correção | prova |

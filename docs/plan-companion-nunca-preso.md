@@ -86,7 +86,7 @@ saída daqui, vou pular para o último lugar seguro"*).
 `GoodPos` só quando ele está a ≥ 2 m e, se não houver, sonda anéis de 3 · 5,5 · 8 m atrás de chão seco com rota completa.
 O `GoodPos` deixou de ser reescrito a cada frame (`WorthRecording`, 1 m) — era a própria posição do corpo, então o
 resgate teleportava para o lugar onde ele já estava. Fala `hc_why_trapped_out`, novo nos 4 JSONs. Seção (ai) cobre a
-regra: **989 PASS / 0 FAIL**; `--check-config` 0 lacunas e os 3 idiomas 0.
+regra: **995 PASS / 0 FAIL**; `--check-config` 0 lacunas e os 3 idiomas 0.
 
 **Correção de projeto durante a implementação:** o relógio do item 4 não pode ser o `AnchorTime`. O `Unstick` zera
 `AnchorTime` na primeira linha, e o `Rescue` é chamado de dentro do `Unstick` — `now - AnchorTime` seria sempre ~0 e a

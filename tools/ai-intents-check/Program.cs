@@ -2973,6 +2973,16 @@ internal static class Program
 		Check("90 s mas sem ponto bom conhecido: NAO",
 			!EscapeRule.CanRescue(90f, false, false, false));
 
+		// --- the cheap half: asked BEFORE the 48-raycast probe, so a waiting body never pays for it
+		Check("TrappedEnough(89 s) falso", !EscapeRule.TrappedEnough(89f, false, false));
+		Check("TrappedEnough(90 s) verdadeiro", EscapeRule.TrappedEnough(90f, false, false));
+		Check("TrappedEnough ignora o ponto bom (nao sabe dele)",
+			EscapeRule.TrappedEnough(90f, false, false));
+		Check("TrappedEnough nadando falso", !EscapeRule.TrappedEnough(600f, true, false));
+		Check("TrappedEnough em combate falso", !EscapeRule.TrappedEnough(600f, false, true));
+		Check("CanRescue e TrappedEnough concordam quando ha ponto bom",
+			EscapeRule.CanRescue(90f, false, false, true) == EscapeRule.TrappedEnough(90f, false, false));
+
 		// --- the probe: far enough to be an exit, dry enough to stand on
 		Check("sonda a 1 m: não (e um passo, nao uma saida)", !EscapeRule.GoodProbe(1f, 0f));
 		Check("sonda a 2 m: sim", EscapeRule.GoodProbe(2f, 0f));

@@ -22,6 +22,10 @@ namespace Companions
             public int Ladder; public float StepUntil; public Vector3 StepDir; public bool StepRun;
             public bool HasDetour; public Vector3 Detour; public float DetourUntil;
             public bool GaveUp; public float GaveUpAt;
+            // 12/11/2026: the give-up was "there is no physical way out" (the stuck ladder ran out), not "that way is
+            // forbidden" (lava, fire, a door it won't open). Only the first may be answered by the emergency move: a lava
+            // give-up is the ONE case where teleporting forward is worse than standing still.
+            public bool NoExit;
             public bool DoorBlocked;   // 1.5.65: a fight chase came to a closed door it won't open
             public float LastGo, NextLog, NextDoorSearch, NextDoorPeek, NextJump, NextDive, NextWaterPeek, NextLineLog, NextFireLog;
             public Door RouteDoor; public Vector3 RouteDoorSpot;
@@ -168,7 +172,7 @@ namespace Companions
         {
             S s = Peek(ai);
             if (s == null) return;
-            s.LastGo = 0f; s.GaveUp = false; s.Path.Clear(); s.HasDetour = false; s.RouteDoor = null;
+            s.LastGo = 0f; s.GaveUp = false; s.NoExit = false; s.Path.Clear(); s.HasDetour = false; s.RouteDoor = null;
         s.DetourTries = 0; s.NextDetourAt = 0f;   // a new goal gets its own 3 alternative-route tries
             s.DetourTried.Clear(); s.GiveUps = 0;     // and a stop order clears what this place taught us
             Character c = ai.GetComponent<Character>();
@@ -262,7 +266,17 @@ namespace Companions
 
             // arrived: within reach on the same level (not standing under it on the floor below)
             if (Flat(pos, goal) <= dist && Mathf.Abs(pos.y - goal.y) <= 1.5f) { Halt(ai, c, s); return true; }
-            if (s.GaveUp) { Halt(ai, c, s); return false; }
+            if (s.GaveUp)
+            {
+                // 12/11/2026 (the trap): a body that gave up far from the goal sits still, and the stuck ladder that ends
+                // in `Rescue` is only reached by a body that keeps trying. The emergency gets its own door here, with
+                // the same 90 s clock - otherwise "no way out" answers "rest until the player comes back", which is the
+                // 20 frozen minutes this whole cycle exists to end. Only for `NoExit`: a lava or fire give-up is the one
+                // case where moving the body is worse than leaving it where it stands.
+                if (s.NoExit) Rescue(ai, c, s, pos, now, tag);
+                Halt(ai, c, s);
+                return false;
+            }
             if (c == null || c.InAttack()) return false;
 
             // steering target: a detour point, the door we're routing through, or the path
@@ -557,7 +571,7 @@ namespace Companions
             s.Best = float.MaxValue; s.ProgressTime = now; s.AnchorTime = now; s.Anchor = pos;
             // 12/11/2026: the "stuck for" clock starts here, at the position the body is in. A new goal is a new question.
             s.MovedPos = pos; s.MovedAt = now; s.HasMovedPos = true;
-            s.Ladder = 0; s.StepUntil = 0f; s.HasDetour = false; s.GaveUp = false; s.DoorBlocked = false; s.RouteDoor = null; s.WaitStamina = false; s.PassDoor = null;
+            s.Ladder = 0; s.StepUntil = 0f; s.HasDetour = false; s.GaveUp = false; s.NoExit = false; s.DoorBlocked = false; s.RouteDoor = null; s.WaitStamina = false; s.PassDoor = null;
             s.TooTired = false; s.MainBest = float.MaxValue; s.Passes = 0; s.HasShore = false; s.NextShore = 0f;
             s.NextDoorSearch = 0f; s.NextLog = now + 1f; s.NextStartSearch = 0f;
             s.ClimbUntil = 0f; s.ClimbTries = 0; s.ClimbTried.Clear(); s.ClimbRestUntil = 0f; s.Direct = false;
@@ -1176,7 +1190,7 @@ namespace Companions
                     }
                 case 5: Hop(ai, c, s, pos, dir, now, tag, why); s.Ladder = s.Passes >= 2 ? 6 : 0; return;
                 default:
-                    s.GaveUp = true; s.GaveUpAt = now;
+                    s.GaveUp = true; s.GaveUpAt = now; s.NoExit = true;
                     // 12/11/2026: count the give-up so the next attempt waits longer (EscapeRule.RetryWait) - a fixed
                     // 15 s clock is what let the same three detours of the same trap come back forever
                     if (s.GiveUps == 0) s.GiveUpFrom = pos;
@@ -2450,7 +2464,10 @@ namespace Companions
         static void Rescue(CompanionAI ai, Character c, S s, Vector3 pos, float now, string tag)
         {
             if (c == null) return;
+            // the cheap half first: a body that is walking, swimming or fighting is not trapped, and the probe below is 48
+            // raycasts plus a navmesh path - it must not run every frame against a companion that is just waiting a door out
             float stuckFor = s.HasMovedPos ? now - s.MovedAt : 0f;
+            if (!EscapeRule.TrappedEnough(stuckFor, c.IsSwimming(), ai.IsInCombat)) return;
             Vector3 target;
             bool have = FindEscapeSpot(s, pos, out target);
             if (!EscapeRule.CanRescue(stuckFor, c.IsSwimming(), ai.IsInCombat, have)) return;

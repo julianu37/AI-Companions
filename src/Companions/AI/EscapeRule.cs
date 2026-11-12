@@ -99,7 +99,18 @@ internal static class EscapeRule
 	/// </summary>
 	internal static bool CanRescue(float stuckFor, bool swimming, bool inCombat, bool hasGoodSpot)
 	{
-		if (!hasGoodSpot || swimming || inCombat) return false;
+		return hasGoodSpot && TrappedEnough(stuckFor, swimming, inCombat);
+	}
+
+	/// <summary>
+	/// The half of <see cref="CanRescue"/> that costs nothing to ask: the body has not moved for
+	/// <see cref="RescueAfter"/> seconds, and it is neither swimming nor fighting. Split out because the caller has to
+	/// answer this BEFORE probing for a spot - the probe is 48 raycasts and a navmesh path, and doing it every frame
+	/// against a body that is simply waiting for a door would be worse than the bug it fixes.
+	/// </summary>
+	internal static bool TrappedEnough(float stuckFor, bool swimming, bool inCombat)
+	{
+		if (swimming || inCombat) return false;
 		return stuckFor >= RescueAfter;
 	}
 
