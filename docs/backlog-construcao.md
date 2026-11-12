@@ -91,6 +91,28 @@ já tirou a alocação, mas a **varredura** de `IsBelow`/`ServeBarrier` a 60 Hz 
 Opções: **A** `DeckLift=0`; **B** saia em volta fechando o perímetro; **C** regra de rota para o mover não
 entrar/parar sob o deck. Nada disso se decide sem ele.
 
+**Medido ao vivo em 12/11/2026** (segunda run grátis, captura do jogador + ponte): o companheiro ficou em
+**y=38,76** com o piso do deck em **y=39,80** — vão de **1,04 m** para um corpo de **1,8 m**. Ele ficou **parado ao
+milímetro** por mais de 10 minutos (`placed` subindo de 420 a 502 enquanto ele não saía do lugar), viu `hp 25`,
+`dead false`, ZDO saudável, e **continuou reivindicando peças do plano** — 3 das 3 desistências da run foram dele.
+Nenhuma intervenção o tirou: `companions.teleport` (colisão devolve o corpo), `companions.order follow` (a IA
+recoloca) e `companions.order stop` (só o tirou do grupo; ele ficou preso igual). A run seguiu com 1 companheiro.
+
+**As três portas fechadas, lidas no código:**
+
+| onde | a condição | por que falha aqui |
+|---|---|---|
+| `MHR_Mover.cs:2177` `FindClimb` | `if (rise > 1.0f && layer != terrain) break;` | recusa degrau de obra construída (regra certa contra parede), e o `wood_floor` do deck está nessa camada |
+| `MHR_Mover.cs:2144` `TryStartClimb` | exige `s.MainPartial` | o log diz **`route full`** — ele "acha" que tem caminho, então nunca entra |
+| `MHR_Mover.cs:2373` `Rescue` | exige `s.MainPartial` | mesma porta: sem `MainPartial` não há resgate |
+
+O padrão é o pior tipo: **ele sabe que está preso** (a escada de `Unstick` roda, `no progress` estoura), **tenta**, e
+não tem nenhuma saída desenhada para "confinado sob uma superfície construída". A resposta provável é uma quarta
+condição: quando o corpo está **abaixo** de uma superfície a menos de ~1,2 m e a rota "completa" não move a posição
+por N segundos, tratar como preso e usar o caminho de `Rescue`/`PlaceAt` — que hoje também é bloqueado pela colisão,
+então provavelmente **destruir a peça que prende** (ou reposicionar com folga vertical) em vez de empurrar o corpo.
+Isto é item de código, não de decisão de produto: acontece com A, B e C.
+
 ### 8. ~~As duas frases erradas do `CHANGELOG` público (revisão de lógica, A8)~~ — **fechado 11/11/2026**
 `package/CHANGELOG.md:16` dizia que os blueprints ficam em `config/…/blueprints` (o código usa `<plugin>/blueprints`,
 `AI/BuildBlueprints.cs:54/70-74`) e `:35` dizia que a ordem é "por classe de peça … em vez de por altura" (o parser
