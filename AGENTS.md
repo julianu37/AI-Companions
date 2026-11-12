@@ -19,7 +19,7 @@ IA** (LLM/voz/fala) + **localização** por cima.
 | MCP mock (sem jogo) | **123 PASS / 0 FAIL** |
 | config documentada | **368 opções / 25 seções** (`gen_config_doc.py --check`) |
 | gate de release | **9/9 PASS** |
-| branch de trabalho | `fix/harness-integridade` (a linha de release é a `main`) |
+| branch de trabalho | `fix/plano-remap` (a linha de release é a `main`) |
 
 Se algum número acima não bater, **o código ganha** — rode o comando e corrija a tabela.
 
@@ -207,6 +207,10 @@ Não redesenhe isso de cabeça: **`docs/re/building-notes.md`** é a fonte (§17
    meio da obra, pagamento por baú sem `SetInUse`). O alvo do produto hoje é **single-player**.
 6. Corpus de blueprints: **279 de 354** arquivos perdem linha por `recipe not unlocked` e o mod **pula em silêncio** —
    falta a tela e a fala dizendo qual receita falta (o dado já existe em `BuildBlueprintReport.SkippedReasons`).
+7. **O run grátis da `CommHomeBasicBP` não começou** (12/11/2026): os oito defeitos de código do `MHR_Build` e as duas
+   refatorações do `fix/plano-remap` estão no DLL (build 0/0, harness 930 PASS) mas **nenhum foi visto em jogo**. O
+   Valheim estava aberto antes do build final, então carregou o DLL antigo; falta fechá-lo e relançar. Aceite e passo a
+   passo em `docs/re/free-run-11-11-2026.md`.
 
 ## DevBridge (testar no jogo)
 
