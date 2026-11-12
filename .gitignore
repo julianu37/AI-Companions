@@ -32,3 +32,8 @@ __pycache__/
 # staging de pacote/release e modelos (ficam no projeto, fora do git)
 pkg/
 
+
+# run samplers write here (free_run_acceptance.py reads them, they are not source)
+tools/mcp-devbridge/*-watch.log
+tools/mcp-devbridge/*-site.jsonl
+tools/mcp-devbridge/free-run-site-*.jsonl
