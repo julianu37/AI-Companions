@@ -130,6 +130,10 @@ because the downloaded models live there.
   exists because the game's HUD is at 400 and its modal popup at 1900 sits above the mod on purpose).
 - **Workflow:** code goes in a `feat/<theme>` / `fix/<theme>` branch (never `main`); one commit per hypothesis;
   the tree ends clean; docs land in the same commit cycle; no `--force`.
+  **One long-lived branch per theme, not per commit** (player's rule, 12/11/2026: *"não ficar mais criando tantas
+  branches separadas pra cada coisinha"*). A theme branch stays open while the work is measured, receives every
+  commit of that arc, and is merged and deleted when it closes — 17 open branches once came from one branch per
+  small fix, and the merges then had to be replayed by hand in order.
 - **Documented dates run ahead of `git log`** — a known, registered divergence (`docs/backlog-construcao.md` item 9);
   don't "fix" run dates to match commits.
 

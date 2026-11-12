@@ -1092,7 +1092,7 @@ namespace Companions
             if (step == 0 && TryLadderDown(ai, c, s, pos, now, tag)) { s.Ladder = 0; return; }
             if (step == 0 && TryDropDown(ai, c, s, pos, now, tag)) { s.Ladder = 0; return; }
             // 1.4.82: down in a pit with no route out: climb out like a player before anything else
-            if (step == 0 && TryStartClimb(ai, c, s, pos, now, tag, why)) { s.Ladder = 0; return; }
+            if (step == 0 && TryStartClimb(ai, c, s, pos, now, tag, why, still)) { s.Ladder = 0; return; }
             // E7 (review, 03/11/2026): the alternative route comes AFTER the way out of a pit - it used to spend its three
             // tries on a 2 m ledge while the climb-out could have solved it
             if (step == 0 && TryDetour(ai, s, pos, now, tag, dir)) { s.Ladder = 0; return; }
@@ -2139,9 +2139,16 @@ namespace Companions
             Steer(ai, c, s, dir, false, false);
         }
 
-        static bool TryStartClimb(CompanionAI ai, Character c, S s, Vector3 pos, float now, string tag, string why)
+        static bool TryStartClimb(CompanionAI ai, Character c, S s, Vector3 pos, float now, string tag, string why, float still)
         {
-            if (!s.MainPartial || c.IsSwimming() || !c.IsOnGround() || s.ClimbTries >= ClimbMaxTries) return false;
+            // 12/11/2026 (measured: two companions frozen inside a wall of the site they were building for over 20 min):
+            // the climb used to require `s.MainPartial` - "the route doesn't reach the goal". An enclosure the companion
+            // built himself is OPEN to the sky: the planner finds a full route over the ground it can see and answers
+            // `route full`, so the one exit that works was never even tried, and `Rescue` (which required the same flag)
+            // was off too. The condition is now "stuck AND standing still": a full route that the body cannot walk is as
+            // blocked as a missing one. `Unstick` resets `AnchorTime` on entry, so `still` is measured over this ladder.
+            bool climbed = s.MainPartial || still >= StillTime;
+            if (!climbed || c.IsSwimming() || !c.IsOnGround() || s.ClimbTries >= ClimbMaxTries) return false;
             // how high we need to get: the last spot a full route started from, else the goal itself
             float needY = s.HasGood && s.GoodPos.y > pos.y + 1.5f && Vector3.Distance(pos, s.GoodPos) < 40f ? s.GoodPos.y : s.Goal.y;
             if (needY < pos.y + 1.5f) return false;
