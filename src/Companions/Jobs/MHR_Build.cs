@@ -6480,52 +6480,31 @@ internal static class MHR_Build
 
 	private static bool Place(CompanionAI ai, State state, CompanionSetup cs, Inventory bag)
 	{
+		// 11/11/2026 (the "already there" gate): ONE question, asked on every attempt of every plan piece, always
+		// <b>before</b> anything is paid. It used to be two partial ones - the group asked only when the claim was not
+		// this worker's or the piece had been retried, and the single worker only from the second retry pass on
+		// (`state.Passes > 0`). A worker RESUMED from a hand-over (a gather, a respawn, a `startIndex > 0`) starts with
+		// Passes == 0 and paid again for pieces another attempt had already left standing.
+		// P1 (review B1, 03/11/2026): the pose AND the orientation are the question (the ghost check only sees clipping for
+		// m_noClipping) - a piece that was placed and then lost its support stays in the world, and placing a second one at
+		// the same pose would pay twice. See <see cref="AlreadyStanding"/>.
+		if (AlreadyStanding(ai, state, cs))
+		{
+			return Advance(ai, state);
+		}
 		// P1 (multi-build, 03/11/2026): the claim is the right to pay and place the piece. When it is not this worker's
-		// (it was not driven for 20 s - a fight, a load to a chest - and the claim expired), the pose is asked of the world
-		// BEFORE paying again: a piece another companion already built is never placed twice.
-		// P1 (review B1, 03/11/2026): the pose is asked for a piece that ALREADY FAILED once as well, even when the claim
-		// is ours: a piece that was placed and then lost its support stays in the world, and the retry would put a second
-		// one at the same pose (the ghost check only sees clipping for m_noClipping; a piece without it passes and gets
-		// paid twice). The single-worker retry pass has the same hole (state.Passes > 0).
+		// (it was not driven for 20 s - a fight, a load to a chest - and the claim expired), the piece belongs to whoever
+		// claimed it, or is claimed now; a piece another companion already built was left by the check above.
 		if (state.Group != null)
 		{
 			int holder = MHR_BuildGroup.OwnerOf(state.Group, state.Index);
 			bool mine = holder == ai.GetInstanceID();
-			if (!mine || MHR_BuildGroup.Retried(state.Group, state.Index))
-			{
-				GameObject existing;
-				long creator = BuildExecutor.CreatorOf(cs, Player.m_localPlayer);
-				// P1 (review A6): the pose AND the orientation - a neighbouring piece of the same prefab is not this one.
-				// checkStation is not asked here: a bench placed a second ago is not in the registry yet and it IS there.
-				if (state.Piece != null
-					&& BuildExecutor.VerifyAt(state.Piece, state.Pos, state.Rot, creator, out existing) == null)
-				{
-					CountPlaced(state);   // P1 (review A7): the group's index is marked done - counted once
-					Log(ai, "a peça " + (state.Index + 1) + "/" + state.Plan.Count
-						+ " já está de pé (outra tentativa a deixou lá) - seguindo");
-					return Advance(ai, state);
-				}
-			}
 			if (!mine && (holder != 0 || !MHR_BuildGroup.TryClaim(state.Group, state.Index, ai.GetInstanceID())))
 			{
 				if (CompanionsPlugin.LogNormal)
 				{
 					LogDebug(ai, "a peça " + (state.Index + 1) + "/" + state.Plan.Count + " passou para outro companheiro");
 				}
-				return Advance(ai, state);
-			}
-		}
-		else if (state.Passes > 0 && state.Plan != null)
-		{
-			// the legacy retry pass re-walks the pieces that did not stand - the same "is it already there" question
-			GameObject existing;
-			long creator = BuildExecutor.CreatorOf(cs, Player.m_localPlayer);
-			if (state.Piece != null
-				&& BuildExecutor.VerifyAt(state.Piece, state.Pos, state.Rot, creator, out existing) == null)
-			{
-				CountPlaced(state);
-				Log(ai, "a peça " + (state.Index + 1) + "/" + state.Plan.Count
-					+ " já está de pé (retry) - seguindo");
 				return Advance(ai, state);
 			}
 		}
@@ -6702,6 +6681,38 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		state.Phase = Phase.Verify;
 		Log(ai, "placed (" + result.Route + ") em (" + F(state.Pos.x) + ", " + F(state.Pos.y) + ", " + F(state.Pos.z)
 			+ "), verifying next frame");
+		return true;
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the "already there" gate, one place): is the piece this worker is about to pay for <b>already standing</b>
+	/// in the world? The question is <c>BuildExecutor.VerifyAt</c> with the pose <b>and</b> the orientation - a neighbouring
+	/// piece of the same prefab is not this one (review A6, 03/11/2026) - and the station is not asked: a bench placed a
+	/// second ago is not in the registry yet and it <b>is</b> there.
+	///
+	/// <para>A yes counts the piece (<see cref="CountPlaced"/>, which marks the site's index done and drops it from the
+	/// skipped set) and says the line, so the caller only has to advance. The caller is <see cref="Place"/>, before
+	/// <c>BuildStock.Take</c>: nothing is ever paid twice for the same pose.</para>
+	///
+	/// <para><paramref name="what"/> names the path in the line ("outra tentativa a deixou lá"): the player reading the log
+	/// is looking at a piece that did not need to be built, and the difference between "another worker's attempt" and
+	/// "the retry pass of this one" is what tells him which half found it.</para>
+	/// </summary>
+	private static bool AlreadyStanding(CompanionAI ai, State state, CompanionSetup cs, string what = "outra tentativa a deixou lá")
+	{
+		if (state == null || state.Piece == null)
+		{
+			return false;
+		}
+		GameObject existing;
+		long creator = BuildExecutor.CreatorOf(cs, Player.m_localPlayer);
+		if (BuildExecutor.VerifyAt(state.Piece, state.Pos, state.Rot, creator, out existing) != null)
+		{
+			return false;
+		}
+		CountPlaced(state);
+		Log(ai, "a peça " + (state.Index + 1) + "/" + (state.Plan != null ? state.Plan.Count : state.Index + 1)
+			+ " já está de pé (" + what + ") - seguindo");
 		return true;
 	}
 

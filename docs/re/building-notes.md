@@ -3264,3 +3264,31 @@ reordena; quando um voltar a reordenar, o remap do grupo nasce junto com a chama
 `Map` para identidade, troca, inserção no meio, puxada, append, remoção, ordem nula, plano vazio, índice fora do plano
 e índice repetido; `Remap` e `RemapAll` (um conjunto nunca guarda `-1`); e o invariante que dá sentido a tudo — **a
 peça marcada como feita continua, depois do reorder, na posição que tem o mesmo prefab**.
+
+### 17.28 "A peça já está de pé" era perguntado duas vezes, e nunca na hora certa (11/11/2026)
+
+> [C] Defeito lido no código, sem run antigo de apoio: a pergunta existia em dois blocos parciais em `Place`.
+
+#### (A) O que estava quebrado [C]
+
+| caminho | quando perguntava |
+|---|---|
+| grupo (`:6354-6372`) | só se a claim **não** era deste worker, ou se a peça já tinha sido retentada |
+| worker único (`:6382-6395`) | só a partir da **segunda** passada de retry (`state.Passes > 0`) |
+
+Um worker **retomado** — hand-over da coleta ("resuming at the same anchor ... from piece N"), respawn (o corpo novo
+assume o pendente) — anda com `Passes == 0` e cai fora dos dois blocos: paga de novo por peças que uma tentativa
+anterior deixou de pé. O pagamento é `BuildStock.Take` (`:6525`), **depois** dos dois blocos.
+
+#### (B) A correção [C]
+
+Um helper `AlreadyStanding(ai, state, cs)` — a pergunta de `BuildExecutor.VerifyAt` com **pose e orientação** (uma peça
+vizinha do mesmo prefab não é esta, review A6) e sem a pergunta de estação (uma bancada colocada há um segundo ainda não
+está no registro e **está** lá) — chamado **uma vez, sempre**, antes da claim e antes de `BuildStock.Take`. O
+`CountPlaced` e a linha vêm com ele. Os dois blocos antigos somem.
+
+#### (C) Custo e prova [C]
+
+Uma varredura de `Piece` por peça: a mesma que o caminho de grupo já pagava hoje (`BuildExecutor.FindPlaced`), a ~1
+peça/s ela não compete com nada. A prova do ciclo é o run grátis (`placed (` == `done:`), porque com `BlueprintFree`
+ligado nenhum material entra na conta e o que sobra é exatamente "quantas peças o mod acha que subiram".
