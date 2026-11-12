@@ -3405,3 +3405,34 @@ o mesmo bloco de antes, então o relatório não mudou — e foi conferido com u
 
 **O que não foi feito, de propósito:** o `Pose` não foi aplicado aos 4 logs que imprimem `(x, z)` (a ordem do piso, o
 `StepAside`, o par `from`/`to`) — eles não têm o `y` e o relatório não os lê; forçá-los no helper perderia a informação.
+
+### 17.35 Os comentários guardam a regra; o relato fica aqui (11/11/2026) — −304 linhas
+
+> [C] Refatoração só de comentário: `git diff -U0` filtrado por linha alterada que **não** começa com `//` dá **0**.
+> Nenhum número medido foi perdido — o que saiu foi a prosa que repetia o mesmo fato duas vezes.
+
+O `MHR_Build.cs` do `HEAD` tinha **2.079 linhas de comentário** em 8.357 (docs `///` + inline `//`). O que estava
+lá não era documentação do código, era o diário dos runs: a mesma medição contada de dois jeitos, o "por que a
+primeira versão falhou" narrado duas vezes, e o parágrafo que explicava o parágrafo. A regra adotada:
+
+> Um comentário guarda **a regra + no máximo um dado medido**. O relato de um run que precisa de mais do que isso
+> vive nas seções acima deste arquivo, não no `.cs`.
+
+| o que foi feito | efeito |
+|---|---|
+| blocos narrativos comprimidos, um a um, conferidos contra o código que descrevem | 1.403 → 1.152 linhas de doc |
+| blocos inline (o relato do defeito) fundidos na regra, mantendo a data e o número | 676 → 623 linhas inline |
+| `<summary>`/`</summary>` em linha própria, em bloco de 1 a 4 linhas de texto puro | 52 blocos: −104 linhas, sem tirar uma palavra |
+| blocos de `<summary>` já fundido, relineados em 126 colunas | 37 blocos: +5 linhas (foi **custo**, não ganho — a linha de 207 colunas é o motivo) |
+| **total** | 8.357 → 8.053 linhas (−304), **2.079 → 1.775 comentários (−304)** |
+
+**O que sobreviveu intacto, por ser a regra e não o relato:** todo `<see cref>`/`<c>` (o mapa do arquivo), toda
+contagem medida que uma decisão depende (`295 peças`, `48,8`, `41,9`, `0,16 m`, `17 raios`, `-21 linhas`, os 3
+retries, os 12 asks), toda frase do jogador que originou a regra, e todo ponteiro para a seção que conta o run.
+
+**O que foi movido para cá em vez de apagado:** o desfecho dos runs cujo número o comentário só resumia — a Run 14
+do `wood_roof_45` (§17.2x), as 95 recusas do post de emergência, os 424 `sem lugar livre` do teste de corpo exato.
+O comentário ficou com a conclusão e a data; a narrativa continua neste arquivo.
+
+**Aceite:** build 0 erros/0 avisos, harness verde (a contagem não muda — nenhum código foi tocado), e o diff provado
+só de comentário. Feito: `641 insertions(+), 945 deletions(-)` no `git diff --stat`, e 0 linhas de código alteradas.
