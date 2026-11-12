@@ -48,17 +48,22 @@ está **dentro** do cercado; `DetourTries` chega a 3, desiste, `Reset` zera `Det
 
 ## Itens, na ordem de ataque
 
-### 1. A escalada para de exigir rota parcial
+### 1. A escalada para de exigir rota parcial — **feito** (`e265c6d`)
 `TryStartClimb` ganha a condição que importa: **a posição não muda há N segundos** (o `no progress` já detecta isso em
 `Progressing`/`AnchorTime`) **e** existe um degrau alcançável na direção do alvo. Hoje ela exige `MainPartial`, que é
 exatamente o que um bolsão aberto para o céu **não** tem.
 **Aceite:** no bolsão de 12/11, com rota completa, a escalada é tentada em até ~8 s; o log mostra o `climbing out at`.
+**Estado:** `bool climbed = s.MainPartial || still >= StillTime;` — parado por 2,5 s é sinal suficiente; o build fecha
+0/0 e o harness segue verde. O aceite de jogo (a linha `climbing out at`) fica para o run do item 4.
 
-### 2. `FindClimb` aceita a obra que o companheiro pode escalar
+### 2. `FindClimb` aceita a obra que o companheiro pode escalar — **feito**
 A recusa atual (`rise > 1.0f && layer != terrain`) existe para não tratar parede de casa como rampa. Ela precisa de uma
-**exceção medida**: um degrau de obra **≤ `ClimbStepMax` (proposto 1,6 m)** com **superfície de apoio no topo** (o
+**exceção medida**: um degrau de obra **≤ `ClimbRule.BuiltStepMax` (1,6 m)** com **superfície de apoio no topo** (o
 `CheckCapsule` que o `TryHopUp` já usa) é escalável. Acima disso continua recusado.
 **Aceite:** seção nova no harness para a regra pura de aceitação do degrau (ver item 5).
+**Estado:** a regra virou `AI/ClimbRule.cs` (`CanClimb`/`KeepsGoing`) e o laço do `FindClimb` só decide com ela; o apoio
+no topo é `StandingRoom` (cápsula de 0,3 m de raio, corpo de 0,5 a 1,6 m), então beirada de telhado e parede alta
+continuam recusadas. Seção **(ah)** no harness, 948 PASS / 0 FAIL.
 
 ### 3. Fim do livelock: desvio repetido não conta de novo
 `TryDetour` memoriza os pontos que já tentou por peregrinação (`s.DetourTried`, como `ClimbTried` já faz) e **não
@@ -75,10 +80,10 @@ o que a ponte agora usa: `MHR_PlaceAt` para o último ponto com rota completa (`
 saída daqui, vou pular para o último lugar seguro"*).
 **Aceite:** no cenário reproduzido (bolsão cercado, sem teto), o companheiro sai **sozinho** em ≤ 120 s.
 
-### 5. Regra pura + harness (a prova antes do jogo)
+### 5. Regra pura + harness (a prova antes do jogo) — **feito**
 `AI/ClimbRule.cs` — função pura que decide "este degrau é escalável?" dados `rise`, `layer`, `tem apoio no topo`,
 `stepMax`. Linkada em `tools/ai-intents-check/ai-intents-check.csproj`, seção `(ah)`.
-**Aceite:** harness verde, contagem crescendo.
+**Aceite:** harness verde, contagem crescendo. **948 PASS / 0 FAIL** (eram 930).
 
 ### 6. Instrumento: a ponte passa a dizer *preso*
 `companions.build_status` já lê a obra; falta a **saúde do corpo**. Um campo novo em `companions.list` — `stuckFor`

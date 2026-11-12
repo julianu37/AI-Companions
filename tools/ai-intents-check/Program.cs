@@ -132,6 +132,7 @@ internal static class Program
 		new SectionDef("ad", "LlmProviders - o dropdown do painel casa a URL com o provedor", ProviderTable),
 		new SectionDef("af", "LevelResume - qual fim do nivelamento devolve o canteiro a obra", LevelResumes),
 		new SectionDef("ag", "BuildPlanOrder - o reordenamento do plano remapeia os indices (a identidade da peca)", PlanOrders),
+		new SectionDef("ah", "ClimbRule - o degrau que o companheiro escalou (a saida do cercado)", ClimbRules),
 		new SectionDef("ae", "o log das redes ficou calado - nenhuma regra engoliu excecao", QuietLog)
 	};
 
@@ -2888,6 +2889,55 @@ internal static class Program
 	{
 		int[] map = BuildPlanOrder.Map(order, oldCount);
 		CheckInts("Map(" + name + ")", expected, map);
+	}
+
+	/// <summary>
+	/// Section (ah): <c>ClimbRule</c> - <b>which step up is a way out of an enclosure</b>.
+	///
+	/// <para>This is the defect of 12/11/2026 and the reason the section exists: <c>MHR_Mover.FindClimb</c> broke on
+	/// every built piece taller than one meter, so a companion surrounded by the fence, the beams and the half walls he
+	/// had just placed saw no way up in any of the 16 directions and stood still for over 20 minutes. Nothing threw;
+	/// the companion simply had nowhere to go, and it only shows up in a game run.</para>
+	///
+	/// <para>What the table pins, in the order that matters: land is walked at any slope up to the cliff limit
+	/// (<c>TerrainStepMax</c>); a <b>built</b> step is vaulted only up to <c>BuiltStepMax</c> <b>and</b> has somewhere to
+	/// stand; and a step that dips back down ends that direction. The two cases that must NOT become climbable are the
+	/// player's own house wall (2 m, no lip) and the low piece with a void behind it - climbing either would leave the
+	/// companion worse off than standing still.</para>
+	/// </summary>
+	private static void ClimbRules()
+	{
+		// --- land: walked, not vaulted - the slope limit is the cliff limit
+		Check("terreno 0,3 m sobe (degrau de encosta)", ClimbRule.CanClimb(0.3f, true, false));
+		Check("terreno 1,2 m sobe (mais alto que um pulo, e chao)", ClimbRule.CanClimb(1.2f, true, false));
+		Check("terreno 5,9 m sobe (ainda abaixo do limite de encosta)", ClimbRule.CanClimb(5.9f, true, false));
+		Check("terreno 6,1 m NAO sobe (e um penhasco, nao uma encosta)", !ClimbRule.CanClimb(6.1f, true, false));
+
+		// --- built: vaulted up to the ceiling, and only with somewhere to stand past the lip
+		Check("obra 0,9 m com apoio sobe (a cerca que o cercou)", ClimbRule.CanClimb(0.9f, false, true));
+		Check("obra 1,5 m com apoio sobe (o vao do deck)", ClimbRule.CanClimb(1.5f, false, true));
+		Check("obra 1,0 m SEM apoio NAO sobe (beirada de telhado, parede alta)",
+			!ClimbRule.CanClimb(1.0f, false, false));
+		Check("obra 1,7 m com apoio NAO sobe (acima do teto de pulo)", !ClimbRule.CanClimb(1.7f, false, true));
+		Check("obra 2,0 m com apoio NAO sobe (a parede da casa do jogador)",
+			!ClimbRule.CanClimb(2.0f, false, true));
+		Check("obra 3,0 m com apoio NAO sobe", !ClimbRule.CanClimb(3.0f, false, true));
+		Check("descer 0,5 m com apoio sobe (o degrau negativo e chao)",
+			ClimbRule.CanClimb(-0.5f, false, true));
+
+		// --- the boundary itself, so a later edit of the constant has to face this line
+		Check("BuiltStepMax == 1,6 (o teto do pulo de obra)", ClimbRule.BuiltStepMax == 1.6f);
+		Check("exatamente BuiltStepMax com apoio sobe", ClimbRule.CanClimb(ClimbRule.BuiltStepMax, false, true));
+		Check("BuiltStepMax + 0,01 com apoio NAO sobe",
+			!ClimbRule.CanClimb(ClimbRule.BuiltStepMax + 0.01f, false, true));
+		Check("TerrainStepMax == 6 (o mesmo limite que o FindClimb ja tinha)", ClimbRule.TerrainStepMax == 6f);
+
+		// --- the second half of the loop: a step that dips back down ends that direction
+		Check("KeepsGoing(0) verdadeiro", ClimbRule.KeepsGoing(0f));
+		Check("KeepsGoing(-1,4) verdadeiro (desce um pouco, ainda e caminho)",
+			ClimbRule.KeepsGoing(-1.4f));
+		Check("KeepsGoing(-1,6) falso (mergulha: nao e caminho de subida)",
+			!ClimbRule.KeepsGoing(-1.6f));
 	}
 
 	/// <summary>Section (ag): one <c>RemapAll</c> case - the map built from a new plan, the set, and where the set goes.</summary>

@@ -2164,6 +2164,14 @@ namespace Companions
 
         // Ground heights along 16 directions, a meter at a time out to 16 m: the way up whose steepest one-meter step is
         // smallest (shorter ways win ties), skipping ways already tried and anything through deep water.
+        // 12/11/2026 (the trapped companion): is there somewhere to STAND past this lip? A step up whose top is a roof
+        // edge, a wall top or a piece with the void behind it is not a way out - climbing it would leave the companion
+        // worse off than standing still. Same capsule the side-step already uses (0,3 m radius, body from 0,5 to 1,6 m).
+        static bool StandingRoom(Vector3 top, int mask)
+        {
+            return !Physics.CheckCapsule(top + Vector3.up * 0.5f, top + Vector3.up * 1.6f, 0.3f, mask, QueryTriggerInteraction.Ignore);
+        }
+
         static bool FindClimb(S s, Vector3 pos, float needY, out Vector3 top, out float steep)
         {
             top = Vector3.zero; steep = 0f;
@@ -2180,9 +2188,12 @@ namespace Companions
                     if (!Physics.Raycast(new Vector3(p.x, needY + 4f, p.z), Vector3.down, out hit, needY + 4f - (pos.y - 3f), mask)) break;
                     if (MHR_Water.DepthAt(hit.point) >= 1.0f) break;
                     float rise = hit.point.y - prevY;
-                    if (rise < -1.5f) break;   // dips back down: not a way up
-                    if (rise > 1.0f && hit.collider.gameObject.layer != s_terrainLayer) break;   // a built wall or a roof, not a slope
-                    if (rise > 6f) break;
+                    if (!ClimbRule.KeepsGoing(rise)) break;   // dips back down: not a way up
+                    // 12/11/2026: land is walked, a BUILT step is vaulted - and only up to ClimbRule.BuiltStepMax, with
+                    // room to stand past the lip. The old rule refused every built piece over 1 m, which included the
+                    // fence the companion had just placed around himself (see ClimbRule for the measured case).
+                    bool room = rise <= 0f || StandingRoom(hit.point, mask);
+                    if (!ClimbRule.CanClimb(rise, hit.collider.gameObject.layer == s_terrainLayer, room)) break;
                     if (rise > maxStep) maxStep = rise;
                     prevY = hit.point.y;
                     if (hit.point.y >= needY - 0.5f)
