@@ -160,6 +160,13 @@ internal static class BuildBlueprintParser
 	/// height) the greedy path from where the previous run ended decides the order - the "nearest neighbour" walk. The runs
 	/// themselves, the storeys, the classes and the last-place doors are untouched: this only decides WHICH piece of a group
 	/// comes first. Pure, like the rest of the parser (no Unity).
+	///
+	/// <para>12/11/2026 (player's report: "he should start at the floor piece at the top of the stair and go on from there,
+	/// so he is already walking on top of it - and the same from the very first ground-floor piece"): a run of <b>slabs</b>
+	/// is the exception to "walk from where the last run ended". A wall or a roof is placed from a surface that already
+	/// exists, but a floor IS that surface, so a slab run starts at the landing of the way up that arrives at its storey
+	/// (<see cref="BuildFloorStart.Seat"/>) and grows from there. Measured on the 985-piece house: the first floor piece of
+	/// each storey sits 1,5-2,1 m from its stair instead of 3,5-12,6 m.</para>
 	/// </summary>
 	private static void NearestWithin(List<Line> sorted, List<Line> floors)
 	{
@@ -167,6 +174,7 @@ internal static class BuildBlueprintParser
 		{
 			return;
 		}
+		List<BuildFloorStart.Way> ways = WaysUp(sorted);
 		float cursorX = sorted[0].Px;
 		float cursorZ = sorted[0].Pz;
 		int start = 0;
@@ -195,6 +203,26 @@ internal static class BuildBlueprintParser
 				List<Line> path = new List<Line>(count);
 				float cx = cursorX;
 				float cz = cursorZ;
+				// 12/11/2026: a run of slabs starts at the landing of the way up (the floor under his feet first), every
+				// storey including the ground one. "seated" also turns the length guard below off: for a slab run the walk
+				// being 3 m longer is worth nothing against the companion starting on a surface he can stand on.
+				bool seated = false;
+				if (BuildFloorStart.IsSlab(first.Prefab))
+				{
+					List<BuildFloorStart.Slab> slabs = new List<BuildFloorStart.Slab>(count);
+					foreach (Line piece in run)
+					{
+						slabs.Add(new BuildFloorStart.Slab(piece.Px, piece.Pz));
+					}
+					float seatX;
+					float seatZ;
+					if (BuildFloorStart.Seat(slabs, ways, storey, out seatX, out seatZ))
+					{
+						cx = seatX;
+						cz = seatZ;
+						seated = true;
+					}
+				}
 				while (run.Count > 0)
 				{
 					int best = 0;
@@ -219,7 +247,9 @@ internal static class BuildBlueprintParser
 				// E7 (review, 03/11/2026): the greedy walk is better on every realistic layout measured (12-23% of the original
 				// path), but a pathological one is not impossible - if it comes out LONGER than the run as it was, the original
 				// order stays. Three lines, and "never worse than the file" becomes a guarantee instead of a measurement.
-				if (PathLength(path) <= PathLength(sorted.GetRange(start, count)))
+				// 12/11/2026: not for a seated slab run (see above) - its whole point is to start on the landing of the stair,
+				// and the file order never does.
+				if (seated || PathLength(path) <= PathLength(sorted.GetRange(start, count)))
 				{
 					for (int i = 0; i < count; i++)
 					{
@@ -236,6 +266,24 @@ internal static class BuildBlueprintParser
 			}
 			start = end;
 		}
+	}
+
+	/// <summary>
+	/// 12/11/2026: the ways up of the whole plan, as the plain feet the floor rule reads (<see cref="BuildFloorStart"/>).
+	/// The class-1 pieces are the stairs, ladders and stepladders - the same vocabulary <see cref="ClassOf"/> sorts with,
+	/// so a new way-up prefab is picked up here without a second list.
+	/// </summary>
+	private static List<BuildFloorStart.Way> WaysUp(List<Line> sorted)
+	{
+		List<BuildFloorStart.Way> ways = new List<BuildFloorStart.Way>();
+		foreach (Line piece in sorted)
+		{
+			if (piece != null && ClassOf(piece.Prefab) == 1)
+			{
+				ways.Add(new BuildFloorStart.Way(piece.Px, piece.Py, piece.Pz));
+			}
+		}
+		return ways;
 	}
 
 	/// <summary>The length of a walk that visits the pieces in the given order (XZ only: the climbs are the same).</summary>

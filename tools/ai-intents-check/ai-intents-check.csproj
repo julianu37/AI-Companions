@@ -96,6 +96,8 @@
     <Compile Include="..\..\src\Companions\AI\LevelResume.cs" Link="src/AI/LevelResume.cs" />
     <Compile Include="..\..\src\Companions\AI\ClimbRule.cs" Link="src/AI/ClimbRule.cs" />
     <Compile Include="..\..\src\Companions\AI\EscapeRule.cs" Link="src/AI/EscapeRule.cs" />
+    <!-- 12/11/2026: where the run of slabs of a storey starts (at the landing of the way up, ground floor included) - pure -->
+    <Compile Include="..\..\src\Companions\AI\BuildFloorStart.cs" Link="src/AI/BuildFloorStart.cs" />
     <Compile Include="..\..\src\Companions\Core\MHR_List.cs" Link="src\Core\MHR_List.cs" />
   </ItemGroup>
 

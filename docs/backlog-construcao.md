@@ -217,6 +217,29 @@ contada (a regra que o `AbandonPiece` já escrevia), e quem conta o que realment
 **Falta medir:** o run com o contador corrigido (`desistindo de` = 0 de verdade) — só o número, a colocação já está
 provada (`985/985`, `0 mortes`, `0 UNSUPPORTED`, `0 too_heavy`, `5 quedas` na cumeeira = item 11).
 
+### 13. O piso é posto de longe: o andar não começa na ponta da escada — **feito 12/11/2026**
+Sugestão do jogador sobre três capturas: *"depois de colocar a escada, ou quando for colocar os pisos do segundo andar,
+começar pelo piso na ponta da escada e ir colocando a partir dali, pra eles já irem andando por cima"*, e em seguida
+*"isso também seria bom desde o primeiro piso no térreo, pra ajudar a evitar de eles ficarem presos debaixo"*.
+
+**O defeito medido** (o parser já no `HEAD`, `CommHomeBasicBP`, 985 peças): `NearestWithin` semeia **todo** run de
+peças no cursor do run anterior. Para parede, viga e telhado isso é o certo — são postos a partir de uma superfície
+que já existe. Para laje é o contrário: a laje **é** a superfície, e o companheiro começava o andar por uma peça a
+que ele não tinha acesso direto, só dentro do alcance do olho. Primeira peça de piso de cada andar → subida mais
+próxima: **4,0 m** no 4º andar e **11,6 m** no 5º.
+
+**A correção:** `AI/BuildFloorStart.cs` (regra pura) escolhe a **ponta da subida** que serve o andar — a `stair`/
+`ladder`/`stepladder` de 0,4 a 3,0 m abaixo do nível, a até 6 m de alguma laje do run, a mais alta vencendo — e o
+`NearestWithin` semeia o run de lajes ali, **térreo incluído**; o guarda "nunca pior que o arquivo" não se aplica a
+esse run (o arquivo nunca começa na escada). Seção **(aj)** no harness, 32 casos.
+
+**Medido com o build de verdade sobre o blueprint real (antes → depois):** y=0 2,8 → **2,0 m**; y=1 2,8 → **1,5 m**;
+y=2 2,1 → **1,5 m**; y=4 4,0 → **1,5 m**; y=5 **11,6 → 1,5 m**. O percurso do plano muda de 2.947,9 m para 3.028,8 m
+(+2,7%, todo ele dentro dos runs de piso: é o preço de começar na chegada em vez da borda mais próxima). Os andares
+sem subida ao alcance (−0,5 e 6,0) ficam **exatamente** como estavam.
+**Não medido:** o efeito em jogo (o `stuckFor` do run e o número de viagens). É aceite de jogo, na fila junto com o
+item 12.
+
 
 ## Declarado e **fora** do caminho crítico
 

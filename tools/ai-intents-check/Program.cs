@@ -136,6 +136,7 @@ internal static class Program
 		new SectionDef("ag", "BuildPlanOrder - o reordenamento do plano remapeia os indices (a identidade da peca)", PlanOrders),
 		new SectionDef("ah", "ClimbRule - o degrau que o companheiro escalou (a saida do cercado)", ClimbRules),
 		new SectionDef("ai", "EscapeRule - o desvio repetido nao conta de novo e a espera cresce (o livelock)", EscapeRules),
+		new SectionDef("aj", "BuildFloorStart - o piso comeca na ponta da escada (e o terreo tambem)", FloorStarts),
 		new SectionDef("ae", "o log das redes ficou calado - nenhuma regra engoliu excecao", QuietLog)
 	};
 
@@ -3004,6 +3005,169 @@ internal static class Program
 		Check("StuckMove == 0,5 m (abaixo disso o corpo so se remexe)", EscapeRule.StuckMove == 0.5f);
 		Check("a sonda de resgate (>= 2 m) anda mais que o StuckMove (nao conta como saida trivial)",
 			2f > EscapeRule.StuckMove);
+	}
+
+	/// <summary>
+	/// Section (aj): 12/11/2026 (the player's report over three screenshots: "after placing the stair, or when he is going
+	/// to lay the second floor, he should start at the floor piece at the TOP of the stair and go from there, so he is
+	/// already walking on top of it - and the same from the very first ground-floor piece, so he does not get stuck UNDER
+	/// it"). <see cref="BuildFloorStart"/> decides which way up seeds a run of slabs.
+	///
+	/// <para>What this section pins: the rise window (a stair on the slab it serves is not a way up to it; a slab five
+	/// metres up belongs to another stair); the reach (a stair from the other wing does not anchor the storey); the
+	/// highest landing wins; the ground floor is anchored too; and the whole ordering, end to end - the first floor piece
+	/// of every storey really comes out at the stair, the storeys are still in order, no piece is invented or lost, and
+	/// the door still goes last. Pure, like sections (m)/(n): every plan is written by hand, there is no .blueprint.</para>
+	/// </summary>
+	private static void FloorStarts()
+	{
+		// --- the window: a way up serves a storey only between 0,4 and 3 m above its own height
+		Check("MinRise == 0,4 m (a escada em cima da propria laje nao sobe para ela)", BuildFloorStart.MinRise == 0.4f);
+		Check("MaxRise == 3 m (o degrau que pula meio andar ainda serve)", BuildFloorStart.MaxRise == 3f);
+		Check("Near == 6 m (a chegada de outra ala nao ancora o andar)", BuildFloorStart.Near == 6f);
+		Check("IsSlab: wood_floor", BuildFloorStart.IsSlab("wood_floor"));
+		Check("IsSlab: stone_floor_2x2", BuildFloorStart.IsSlab("stone_floor_2x2"));
+		Check("IsSlab: wood_foundation", BuildFloorStart.IsSlab("wood_foundation"));
+		Check("IsSlab: a parede NAO e laje", !BuildFloorStart.IsSlab("woodwall"));
+		Check("IsSlab: a escada NAO e laje", !BuildFloorStart.IsSlab("wood_stair"));
+		Check("IsSlab: nulo/vazio NAO e laje",
+			!BuildFloorStart.IsSlab(null) && !BuildFloorStart.IsSlab(string.Empty));
+
+		// --- a storey with a landing right under it is seated at the landing, not at the run's own first piece
+		System.Collections.Generic.List<BuildFloorStart.Slab> run = Slabs(0f, 0f, 0f, 2f, 0f, 4f);
+		System.Collections.Generic.List<BuildFloorStart.Way> stair = Ways(Way(0.5f, -1f, 0.5f));
+		float x;
+		float z;
+		Check("o andar se ancora na chegada em (0,5, 0,5)", BuildFloorStart.Seat(run, stair, 0f, out x, out z));
+		CheckFloat("a ancora X e a da escada", 0.5f, x);
+		CheckFloat("a ancora Z e a da escada", 0.5f, z);
+
+		// --- no way up at all: the caller keeps its cursor
+		Check("sem subida: nao ancora", !BuildFloorStart.Seat(run, Ways(), 0f, out x, out z));
+		Check("lista de lajes vazia: nao ancora", !BuildFloorStart.Seat(Slabs(), stair, 0f, out x, out z));
+
+		// --- the rise window, one metre at a time: the stair at 4 m under a storey is too far, at 3 m it still serves
+		Check("a escada 4 m abaixo NAO serve o andar", !BuildFloorStart.Seat(run, Ways(Way(0f, -4f, 0f)), 0f, out x, out z));
+		Check("a escada 3 m abaixo serve o andar", BuildFloorStart.Seat(run, Ways(Way(0f, -3f, 0f)), 0f, out x, out z));
+		Check("a escada no MESMO nivel do piso nao sobe para ele",
+			!BuildFloorStart.Seat(run, Ways(Way(0f, 0f, 0f)), 0f, out x, out z));
+		Check("a escada 0,3 m abaixo ainda nao (o limite e 0,4)",
+			!BuildFloorStart.Seat(run, Ways(Way(0f, -0.3f, 0f)), 0f, out x, out z));
+		Check("a escada 0,5 m abaixo serve (o degrau de 0,5 m e chegar no terreo)",
+			BuildFloorStart.Seat(run, Ways(Way(0f, -0.5f, 0f)), 0f, out x, out z));
+
+		// --- the reach: the same stair 7 m to the side does not anchor this run anymore (the run is at x = 0)
+		Check("a escada a 7 m da laje mais proxima NAO ancora",
+			!BuildFloorStart.Seat(run, Ways(Way(7f, -1f, 0f)), 0f, out x, out z));
+		Check("a escada a 6 m da laje mais proxima ancora",
+			BuildFloorStart.Seat(run, Ways(Way(6f, -1f, 0f)), 0f, out x, out z));
+
+		// --- two candidate landings: the HIGHEST one wins (it is the one that lands on this storey)
+		Check("duas subidas: a mais alta vence",
+			BuildFloorStart.Seat(run, Ways(Way(8f, -3f, 0f), Way(0f, -1f, 0f)), 0f, out x, out z) && Math.Abs(x) < 0.01f);
+
+		// --- the ground floor is anchored exactly like the floors above (y=0 with the stair at -1)
+		System.Collections.Generic.List<BuildFloorStart.Slab> ground = Slabs(-5f, 3f, -3f, 3f, -1f, 3f, -5f, 5f);
+		Check("o terreo tambem se ancora (y=0, escada em -1)",
+			BuildFloorStart.Seat(ground, Ways(Way(-4f, -1f, 4f)), 0f, out x, out z));
+		CheckFloat("o terreo ancora no X da escada", -4f, x);
+		CheckFloat("o terreo ancora no Z da escada", 4f, z);
+
+		// --- end to end through Ordered(): the first floor piece of every storey comes out AT the stair, and a stair too
+		// far from the run changes nothing
+		System.Collections.Generic.List<BuildBlueprintParser.Line> plan = Plan(
+			Piece("woodwall", 0f, -1f, -10f),
+			Piece("wood_stair", 10f, -1f, 0f),
+			Piece("wood_floor", -10f, 0f, 0f),
+			Piece("wood_floor", 10f, 0f, 0f),
+			Piece("wood_floor", 10f, 0f, 4f),
+			Piece("wood_floor", -10f, 0f, 4f),
+			Piece("wood_stepladder", 10f, 0f, 4f),
+			Piece("wood_floor", 10f, 2f, 4f),
+			Piece("wood_floor", 10f, 2f, 8f),
+			Piece("wood_floor", -10f, 2f, 8f));
+		System.Collections.Generic.List<BuildBlueprintParser.Line> order = BuildBlueprintParser.Ordered(plan);
+		Check("ponta da escada: o 1o piso do terreo e o da escada (10, 0)",
+			FirstAt(order, 0f, new[] { 10f }, new[] { 0f }));
+		Check("ponta da escada: o 1o piso do 2o andar e o do degrau (10, 4)",
+			FirstAt(order, 2f, new[] { 10f }, new[] { 4f }));
+		Check("ponta da escada: nenhuma peca inventada nem perdida", SamePieces(plan, order));
+		CheckInt("ponta da escada: a mesma contagem de pecas", plan.Count, order.Count);
+		Check("ponta da escada: o andar de cima continua depois do de baixo",
+			IndexOfFirstAbove(order, 0.5f) > IndexOfFirstAbove(order, -0.5f));
+
+		// a way up 12 m from every slab of the run is not its landing: the order must be EXACTLY the one the same plan
+		// gives without the stair (nothing to anchor to - the cursor of the previous piece decides). This is the guard that
+		// keeps a stair of the other wing from rewriting the walk of this one.
+		System.Collections.Generic.List<BuildBlueprintParser.Line> withFar = Plan(
+			Piece("wood_stair", 0f, -1f, 0f),
+			Piece("wood_floor", -6f, 0f, 6f),
+			Piece("wood_floor", 6f, 0f, 6f),
+			Piece("wood_floor", -6f, 0f, -6f),
+			Piece("wood_floor", 6f, 0f, -6f));
+		System.Collections.Generic.List<BuildBlueprintParser.Line> withoutFar = Plan(
+			Piece("wood_floor", -6f, 0f, 6f),
+			Piece("wood_floor", 6f, 0f, 6f),
+			Piece("wood_floor", -6f, 0f, -6f),
+			Piece("wood_floor", 6f, 0f, -6f));
+		CheckText("subida longe: a ordem dos pisos e a mesma do plano sem escada",
+			TraceXZ(BuildBlueprintParser.Ordered(withoutFar)),
+			TraceXZ(BuildBlueprintParser.Ordered(withFar).GetRange(1, 4)));
+	}
+
+	/// <summary>Build a list of slabs from x,z pairs.</summary>
+	private static System.Collections.Generic.List<BuildFloorStart.Slab> Slabs(params float[] xz)
+	{
+		System.Collections.Generic.List<BuildFloorStart.Slab> slabs = new System.Collections.Generic.List<BuildFloorStart.Slab>();
+		for (int i = 0; i + 1 < xz.Length; i += 2)
+		{
+			slabs.Add(new BuildFloorStart.Slab(xz[i], xz[i + 1]));
+		}
+		return slabs;
+	}
+
+	private static BuildFloorStart.Way Way(float x, float y, float z)
+	{
+		return new BuildFloorStart.Way(x, y, z);
+	}
+
+	private static System.Collections.Generic.List<BuildFloorStart.Way> Ways(params BuildFloorStart.Way[] ways)
+	{
+		return new System.Collections.Generic.List<BuildFloorStart.Way>(ways);
+	}
+
+	/// <summary>Section (aj): the first piece of the storey <paramref name="py"/> is at one of the given (x, z) pairs.</summary>
+	private static bool FirstAt(System.Collections.Generic.List<BuildBlueprintParser.Line> order, float py, float[] xs, float[] zs)
+	{
+		for (int i = 0; i < order.Count; i++)
+		{
+			if (Math.Abs(order[i].Py - py) > 0.01f)
+			{
+				continue;
+			}
+			for (int k = 0; k < xs.Length; k++)
+			{
+				if (Math.Abs(order[i].Px - xs[k]) < 0.01f && Math.Abs(order[i].Pz - zs[k]) < 0.01f)
+				{
+					return true;
+				}
+			}
+			return false;   // the FIRST piece of that storey is not on the landing
+		}
+		return false;
+	}
+
+	/// <summary>Section (aj): the index of the first piece above <paramref name="py"/> in the ordered plan.</summary>
+	private static int IndexOfFirstAbove(System.Collections.Generic.List<BuildBlueprintParser.Line> order, float py)
+	{
+		for (int i = 0; i < order.Count; i++)
+		{
+			if (order[i].Py > py)
+			{
+				return i;
+			}
+		}
+		return -1;
 	}
 
 
