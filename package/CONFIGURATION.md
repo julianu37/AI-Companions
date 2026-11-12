@@ -119,6 +119,9 @@ Hold this while looking at a companion to open its command wheel.
 **ConfigPanelKey** — Default: `F8`  
 Opens the in-game settings panel, where all of these settings can be changed.
 
+**BuildPanelKey** — Default: `B`  
+Opens the build panel: the site your companions are building (the plan, the pieces that are up, the materials the rest of the house still needs) with pause, resume and cancel. Esc or this key again closes it. None = no key.
+
 **FarmZoneKey** — Default: `Z`  
 Pressed together with FarmZoneModifier: opens the farm zone editor.
 
@@ -262,6 +265,9 @@ A companion's field of view (degrees). Takes effect after the world is reloaded.
 
 **Pathing** — Default: On  
 Companions find their way with their own map of the world, where doors don't block the way (they open them as they get there) and steps up to 0.6 m are climbable (they hop them). Off = the same map creatures use, where every closed door is a wall and most stairs don't connect. Takes effect after a restart.
+
+**PathingOnBuild** — Default: On  
+The companion's route sees a piece as soon as it is placed (the navmesh tile is rebuilt instead of waiting up to 5 s). Needs [Movement] Pathing on.
 
 **WorkRunDistance** — Default: 25 · Range: 0 – 500  
 Companions walk while doing jobs (farming, chest trips, smelting, cooking, chores, repairs, gathering) and only run when what they are heading to is further away than this many meters. 0 = never run for work. Following you, fighting and hunting are not affected.
@@ -559,6 +565,30 @@ Let a companion build when you ask it ("Maria, build a workbench here"). It chec
 **SiteSearchRadius** — Default: 8 · Range: 1 – 30  
 How far (meters) around the spot you are looking at the companion looks for a place where the piece fits (the game's rules: ground, water, ward, no-build zone, station in range and no clipping into other pieces).
 
+**PlaceReach** — Default: 10 · Range: 5 – 20  
+How far (in meters) the companion may place a piece when it cannot walk any closer. Vanilla allows 5 m; the companion still walks first and only opens this limit after 3 s stuck. 10 is the default; up to 20 for impatient players (it looks less realistic).
+
+**DeckLift** — Default: 1 · Range: 0 – 3  
+The MOST the whole blueprint may rise above the ground: the ground floor sits on a deck on top of the poles, with the stairs reaching it. It only rises what the plan actually needs - a plan whose poles are buried 2 m rises the full value, a plan already drawn on the ground rises nothing (a build lifted in the air has no support and falls). 0 keeps the blueprint's own level. Default 1 (a low deck).
+
+**SupportFallback** — Default: On  
+When a plan piece is refused for no support and the plan has nothing under it, the companion puts a wooden post under it and places the piece (the house gets a few extra posts). Off = the piece waits and is left out. At most 24 posts per order.
+
+**BodyRetry** — Default: On  
+A piece refused because a body (you or another companion) was in the way is not given up: it goes back to the site's retry queue and is tried again BEFORE the plan climbs a storey, instead of only at the end of the build. The same barrier also settles the pieces still waiting for a support before going up. Off: they only come back in the end-of-plan retry pass.
+
+**SpreadWorkers** — Default: On  
+The crew does not build in a line: on a shared plan each companion takes a piece of the next few of the same row that is a few meters away from what the others are building, instead of everyone reaching for the same corner at the same time. The pieces a companion walked past keep their turn and are built as soon as that place is free. Off: they work the plan in the order of the file, all together, as before.
+
+**SpreadNear** — Default: On  
+Build near first: among the pieces the crew spread over, the companion takes the one NEAREST to it that is still within its reach, so it closes the place it is working on before going to the other end of the house. Off: it takes the first far piece of the plan's order, as before.
+
+**StepAside** — Default: On  
+A companion of the build group that is only waiting steps 2,2 m out of the way of a piece another one has to place (asked by the one placing it, walked with its own movement, never a teleport). You are never moved. Off: the piece waits for the companion to move on its own, as before.
+
+**ReachWalk** — Default: On  
+Walk to the nearest spot the piece can be reached from (a finished floor or roof row) instead of walking at the piece in mid-air.
+
 **MaxDistanceFromHome** — Default: 40 · Range: 0 – 200  
 A build order is refused when the spot is further than this (meters) from the companion's home, so it does not wander off to build across the world. 0 = no limit.
 
@@ -584,10 +614,13 @@ Level the ground before a structure (a plan) when it is uneven: a house of 8x8 n
 Clear the build site before the first piece: the trees, stumps and fallen logs inside the plan's footprint are cut (the same directed harvest the radial uses) and the wood goes to the bag the build pays from. The ground under them is not changed - leveling is its own step (LevelGround). Up to 40 obstacles / 240 s per order; what is left is handled by the piece retry.
 
 **TempScaffold** — Default: Off  
-Off by default (the test of 03/11/2026 covered the site in stairs). In a blueprint, after 12 s without getting closer, place a temporary wood stair (2 wood) when the piece is above the game's 5 m placement reach - a ridge, the top of a gable, the last row of a roof. The stair is a ramp the companion walks up, it is paid from the bag/chests like any piece and the wood comes back when it is removed at the end of the order (it is not part of the plan). At most 4 per order and the stair is removed as soon as the piece it was placed for goes up; each stair is +1 m. A stair is kept only when a piece placed next to it has no support without it.
+Off by default (the test of 03/11/2026 covered the site in stairs). In a blueprint, after 12 s without getting closer, place a temporary wood stair (2 wood) when the piece is above the placement reach ([Building] PlaceReach - vanilla 5 m) - a ridge, the top of a gable, the last row of a roof. The stair is a ramp the companion walks up, it is paid from the bag/chests like any piece and the wood comes back when it is removed at the end of the order (it is not part of the plan). At most 4 per order and the stair is removed as soon as the piece it was placed for goes up; each stair is +1 m. A stair is kept only when a piece placed next to it has no support without it.
 
 **BlueprintFree** — Default: Off  
 Build a blueprint without paying for the pieces (a test/creative switch: the companion places the pieces from the file and takes nothing from the bag or the chests). Off by default - a blueprint costs the same as any other build.
+
+**BlueprintStations** — Default: On  
+A blueprint builds without crafting stations: none is planned and a piece is not refused for a missing station. Off = the vanilla rule. Templates and single-piece orders always need the station.
 
 **BlueprintMaxPieces** — Default: 2000 · Range: 1 – 20000  
 Refuse a blueprint with more pieces than this (a guard against a huge or broken file). The message says the file has more pieces than the limit.

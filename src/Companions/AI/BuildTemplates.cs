@@ -50,17 +50,61 @@ internal static class BuildTemplates
 	internal sealed class Template
 	{
 		internal readonly string Name;
-		/// <summary>How it is called in the log/refusal (the game has no name for a whole structure).</summary>
-		internal readonly string Label;
+		/// <summary>How the structure is called to the PLAYER, in the language of the game - it ends up in the confirmation
+		/// ("Ok: build the casa 4x4") and in the completion line ("{0} is up: 21 pieces").
+		///
+		/// <para>Player's report, 11/11/2026: in an English game the line came out <b>"Ok: build the casa 4x4"</b> -
+		/// half English (the key), half Portuguese (this label). The label was a single PT string, so it could only be
+		/// right in one of the five languages the mod ships. Each template now carries its own name in all five and
+		/// <see cref="Pick"/> picks by <see cref="CompanionLocale.Current"/> - the same table the persona, the voice and
+		/// the prompt contracts use. A language without a name of its own gets English, exactly like the persona.</para>
+		///
+		/// <para>The LOG does not use this: it names the plan by <see cref="Name"/> ("house4"), which is ASCII and never
+		/// moves, so two runs in different languages stay comparable.</para></summary>
+		internal string Label
+		{
+			get
+			{
+				return Pick(_pt, _en, _es, _fr, _it);
+			}
+		}
+
 		internal readonly string[] Aliases;
 		internal readonly Step[] Steps;
 
-		internal Template(string name, string label, string[] aliases, Step[] steps)
+		private readonly string _pt;
+		private readonly string _en;
+		private readonly string _es;
+		private readonly string _fr;
+		private readonly string _it;
+
+		internal Template(string name, string pt, string en, string es, string fr, string it, string[] aliases, Step[] steps)
 		{
 			Name = name;
-			Label = label;
+			_pt = pt;
+			_en = en;
+			_es = es;
+			_fr = fr;
+			_it = it;
 			Aliases = aliases;
 			Steps = steps;
+		}
+
+		private static string Pick(string pt, string en, string es, string fr, string it)
+		{
+			switch (CompanionLocale.Current.KokoroCode)
+			{
+			case "pt-br":
+				return pt;
+			case "es":
+				return es;
+			case "fr":
+				return fr;
+			case "it":
+				return it;
+			default:
+				return en;
+			}
 		}
 
 		/// <summary>The steps in build order (foundation, walls, roof), stable inside a level (the authored order).</summary>
@@ -114,7 +158,8 @@ internal static class BuildTemplates
 	/// A 2x2 m hut: one floor tile, four walls and a two-piece gable roof - the acceptance of E6 ("2x2 de piso +
 	/// 4 paredes + telhado"). The roof overhangs 1 m on each side and meets at the ridge 2 m above the walls.
 	/// </summary>
-	private static readonly Template Hut = new Template("hut", "cabana", new[]
+	private static readonly Template Hut = new Template("hut", "cabana",
+		"hut", "choza", "cabane", "capanna", new[]
 	{
 		"cabana", "choupana", "barraco", "barracao", "chao 2x2", "chao de 2x2", "quatro paredes",
 		"hut", "small hut", "shack", "shed",
@@ -142,7 +187,8 @@ internal static class BuildTemplates
 	/// <c>CraftingStation.CheckUsable</c> asks for (a roof with 70% cover) and it is the "usável" half of E5.
 	/// The poles stand at the eaves, outside the bench's footprint (the bench is 3,7 x 2,1 m).
 	/// </summary>
-	private static readonly Template Canopy = new Template("canopy", "abrigo da bancada", new[]
+	private static readonly Template Canopy = new Template("canopy", "abrigo da bancada",
+		"bench shelter", "cobertizo de la mesa", "auvent pour l'établi", "riparo del banco", new[]
 	{
 		"abrigo da bancada", "abrigo para a bancada", "telhado para a bancada", "telhado da bancada", "cobertura", "toldo",
 		"bench shelter", "canopy", "roof for the bench", "shelter for the bench",
@@ -173,7 +219,8 @@ internal static class BuildTemplates
 	/// wall's place), and <c>wood_wall_half</c> is 2x1 with its origin at the centre - placed at y = 0,5 it leaves a
 	/// 1 m opening above it, which is the window.</para>
 	/// </summary>
-	private static readonly Template House = new Template("house", "casa", new[]
+	private static readonly Template House = new Template("house", "casa",
+		"house", "casa", "maison", "casa", new[]
 	{
 		"abrigo", "casa", "casinha", "casa simples", "casa de madeira", "casebre", "casa grande",
 		"house", "small house", "shelter", "cabin", "big house",
@@ -188,7 +235,8 @@ internal static class BuildTemplates
 	/// takes <b>2 pieces per slope with the eave 1 m past the wall</b> (the player's choice) - and a roof 1 m past the
 	/// wall has nothing under it, so the plan brings a <b>2 m post at each corner of the eave</b> (the veranda look).
 	/// </summary>
-	private static readonly Template House6 = new Template("house6", "casa 6x6", new[]
+	private static readonly Template House6 = new Template("house6", "casa 6x6",
+		"6x6 house", "casa 6x6", "maison 6x6", "casa 6x6", new[]
 	{
 		"casa 6x6", "casa media", "casa média", "casa mediana", "casa de 6x6", "6x6",
 		"house 6x6", "medium house", "6x6 house",
@@ -203,7 +251,8 @@ internal static class BuildTemplates
 	/// floor, so this one needs a bench (any crafting station) within the game's radius. Door and window share the two
 	/// front slots.
 	/// </summary>
-	private static readonly Template House4 = new Template("house4", "casa 4x4", new[]
+	private static readonly Template House4 = new Template("house4", "casa 4x4",
+		"4x4 house", "casa 4x4", "maison 4x4", "casa 4x4", new[]
 	{
 		"casa 4x4", "casa pequena", "casa pequena 4x4", "casa de 4x4", "4x4", "casebre 4x4",
 		"house 4x4", "small house 4x4", "4x4 house",
@@ -218,7 +267,8 @@ internal static class BuildTemplates
 	/// the cheap "cover the bench" shelter (the piece covers 2 m). The poles stand on the roof's own snap points (the
 	/// outer corners of the high edge), which is what gives the pieces their support.
 	/// </summary>
-	private static readonly Template Tent = new Template("tent", "tenda", new[]
+	private static readonly Template Tent = new Template("tent", "tenda",
+		"tent", "tienda", "tente", "tenda", new[]
 	{
 		"tenda", "toldo", "abrigo de uma agua", "abrigo de 1 agua", "abrigo de uma água", "barraca",
 		"tent", "lean to", "lean-to", "awning",

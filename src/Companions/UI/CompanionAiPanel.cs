@@ -789,19 +789,11 @@ internal sealed class CompanionAiPanel : MonoBehaviour
 		{
 			return false;
 		}
-		// never on top of the mod's own F8 panel (ConfigPanel refuses to open while this one is visible)
-		if (ConfigPanel.Instance != null && ConfigPanel.Instance.IsVisible)
-		{
-			return false;
-		}
-		// nor on top of the starter companion picker of the first spawn: that one is choosing the very companion this
-		// panel could now summon (Fase 3.9), and stacking two of the mod's panels is never what the player meant
-		if (StarterCompanionPanel.Instance != null && StarterCompanionPanel.Instance.IsVisible)
-		{
-			return false;
-		}
-		// nor while the appearance editor (opened by this panel) is up: it is the window in front
-		if (CompanionAppearancePanel.IsOpen)
+		// never on top of another window of the mod - one list, in ModUiLayers (F8, the build panel, the appearance
+		// editor opened by this very panel, the starter picker, a companion's own window, the shrine menu). 11/11/2026:
+		// this method is also the CLOSE key when the panel is visible (see Update), so the list may only answer for the
+		// "may open" side - this panel is in it.
+		if (!_visible && ModUiLayers.AnyWindowOpen)
 		{
 			return false;
 		}

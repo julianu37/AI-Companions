@@ -269,9 +269,10 @@ internal static class CompanionOrders
 			return outcome;
 		}
 
-		// Trilha E: build a NEW piece on the ground ("Maria, construa uma bancada de trabalho aqui"). One companion,
-		// like attack/equip/drop; the piece comes from the model's target or from the player's own words
-		// (BuildCatalog), and the spot is the one the player is looking at.
+		// Trilha E: build a NEW piece on the ground ("Maria, construa uma bancada de trabalho aqui"). A single piece or
+		// a template goes to one companion, like attack/equip/drop; a blueprint may go to a GROUP of them (P1); the
+		// piece comes from the model's target or from the player's own words (BuildCatalog), and the spot is the one
+		// the player is looking at.
 		if (action == "build")
 		{
 			return Build(player, intent, userText, outcome, addressee, speaker);
@@ -1076,10 +1077,15 @@ internal static class CompanionOrders
 	/// <summary>True when this companion took the order. Null-safe, main thread only.</summary>
 	/// <summary>
 	/// Trilha E (E3): "Maria, construa uma bancada de trabalho aqui". The piece comes from the model's target, or from
-	/// the player's own words (<see cref="BuildCatalog"/>) - the same net as the 3.6b drop/equip. The order goes to one
-	/// companion (the addressed one, else the speaker of the message) and the spot is the one the player is looking
-	/// at (<see cref="BuildFindCommand.Hint"/>) or 3 m ahead. The job itself (find, walk, pay, place, verify) is
-	/// <see cref="MHR_Build"/>.
+	/// the player's own words (<see cref="BuildCatalog"/>) - the same net as the 3.6b drop/equip. The spot is the one
+	/// the player is looking at (<see cref="BuildFindCommand.Hint"/>) or 3 m ahead. The job itself (find, walk, pay,
+	/// place, verify) is <see cref="MHR_Build"/>.
+	///
+	/// <para>P1 (multi-build, frente B): a <b>blueprint</b> is a plan several companions can share, so it goes to a
+	/// group - the named companion alone, or every companion that can take an order when nobody was named
+	/// (<see cref="BlueprintWorkers"/>), started in ONE call (<see cref="MHR_Build.StartBlueprintGroup"/>). A
+	/// template and a single piece still go to one companion (the addressed one, else the speaker of the message):
+	/// two workers on those would build the same piece twice.</para>
 	/// </summary>
 	/// <summary>
 	/// E10: the leveling order - "nivele um terreno 10x10 aqui". The size is read from the player's own words (the model
@@ -1135,14 +1141,20 @@ internal static class CompanionOrders
 			Refuse(string.Format(ModLocalization.Loc("hc_ai_build_too_far"), Mathf.RoundToInt(max)));
 			return outcome;
 		}
+		string sizeLabel = Mathf.RoundToInt(size) + "x" + Mathf.RoundToInt(size);
 		if (!MHR_Level.Start(target, hint, size))
 		{
-			Refuse(ModLocalization.Loc("hc_ai_build_failed"));
+			// Review of P1 (03/11/2026): this line was passed with NO argument, so the player read a literal "{0}"
+			// ("Não consegui construir a {0}."). The key takes the label of what the order was about; the leveling
+			// order's own label is "level the ground 10x10" (<c>hc_ai_order_level</c>), the same one the success
+			// path announces. MHR_Level.Start only refuses a companion without a body, so there is no piece to name.
+			Refuse(string.Format(ModLocalization.Loc("hc_ai_build_failed"),
+				ModLocalization.LocFmt("hc_ai_order_level", sizeLabel)));
 			return outcome;
 		}
 		outcome.Count = 1;
 		outcome.LabelKey = "hc_ai_order_level";
-		outcome.LabelArg = Mathf.RoundToInt(size) + "x" + Mathf.RoundToInt(size);
+		outcome.LabelArg = sizeLabel;
 		return outcome;
 	}
 
@@ -1280,29 +1292,52 @@ internal static class CompanionOrders
 		}
 		else if (blueprint != null)
 		{
+			// P1 (multi-build, frente B): a blueprint is the ONE plan a group of companions can share. A named
+			// companion is the group on its own (the order reaches that one and nobody else, exactly as before);
+			// with nobody named, every companion that can take an order joins (BlueprintWorkers). ONE call starts
+			// them all - never one StartBlueprint per companion, which would build the same pieces twice.
+			List<CompanionSetup> workers = BlueprintWorkers(addressee, hint);
+			if (workers.Count == 0)
+			{
+				// nobody can take it at all (dead, Command off, out of range, combat-only or past its own leash):
+				// say THAT - "I don't know how to build it" would be a lie, the piece was resolved right above
+				Refuse(ModLocalization.Loc("hc_ai_no_companion"));
+				return outcome;
+			}
+			// P1 (§3 of the plan): ONE site per player at a time. MHR_Build.StartBlueprintGroup refuses the same way,
+			// and the refusal has to tell the truth here - the companion knows the house, there is just another one
+			// being built. The owner is read off the LEADER (the first of the list), the very key the group uses.
+			long groupOwner = MHR_Owner.CreatorId(workers[0]);
+			if (MHR_BuildGroup.SiteBusy(groupOwner))
+			{
+				CompanionsPlugin.Log?.LogInfo($"[Build] já existe uma obra em andamento do jogador - a nova ordem do {blueprint.Label} foi recusada");
+				Refuse(string.Format(ModLocalization.Loc("hc_ai_build_failed"), blueprint.Label));
+				return outcome;
+			}
 			string missingPiece;
 			string missingStation;
-			MHR_Build.BlueprintStart bpStart = MHR_Build.StartBlueprint(target, blueprint, hint, out missingPiece, out missingStation);
-			if (bpStart == MHR_Build.BlueprintStart.Leveling)
+			int joined = MHR_Build.StartBlueprintGroup(workers, blueprint, hint, out missingPiece, out missingStation);
+			if (joined == 0)
 			{
-				// the hoe job took over; the build comes back by itself when the ground is ready
-				outcome.Count = 1;
-				outcome.LabelKey = "hc_ai_order_build_plan";
-				outcome.LabelArg = blueprint.Label;
+				if (!string.IsNullOrEmpty(missingStation))
+				{
+					string station = Localization.instance != null ? Localization.instance.Localize(missingStation) : missingStation;
+					Refuse(string.Format(ModLocalization.Loc("hc_ai_build_needs_station"), station));
+					return outcome;
+				}
+				if (!string.IsNullOrEmpty(missingPiece))
+				{
+					Refuse(string.Format(ModLocalization.Loc("hc_ai_blueprint_piece_missing"), missingPiece));
+					return outcome;
+				}
+				Refuse(ModLocalization.Loc("hc_ai_build_no_recipe"));
 				return outcome;
 			}
-			started = bpStart == MHR_Build.BlueprintStart.Started;
-			if (!started && !string.IsNullOrEmpty(missingStation))
-			{
-				string station = Localization.instance != null ? Localization.instance.Localize(missingStation) : missingStation;
-				Refuse(string.Format(ModLocalization.Loc("hc_ai_build_needs_station"), station));
-				return outcome;
-			}
-			if (!started && !string.IsNullOrEmpty(missingPiece))
-			{
-				Refuse(string.Format(ModLocalization.Loc("hc_ai_blueprint_piece_missing"), missingPiece));
-				return outcome;
-			}
+			CompanionsPlugin.Log?.LogInfo($"[Build] grupo: {joined} companheiro(s) na obra {blueprint.Label}");
+			outcome.Count = joined;
+			outcome.LabelKey = "hc_ai_order_build_plan";
+			outcome.LabelArg = blueprint.Label;
+			return outcome;
 		}
 		else
 		{
@@ -1320,15 +1355,111 @@ internal static class CompanionOrders
 			outcome.LabelArg = template.Label;
 			return outcome;
 		}
-		if (blueprint != null)
-		{
-			outcome.LabelKey = "hc_ai_order_build_plan";
-			outcome.LabelArg = blueprint.Label;
-			return outcome;
-		}
 		outcome.LabelKey = "hc_ai_order_build";
 		outcome.LabelArg = Localization.instance != null ? Localization.instance.Localize(piece.m_name) : prefab;
 		return outcome;
+	}
+
+	/// <summary>
+	/// P1 (multi-build, frente B): the companions that join a blueprint order.
+	///
+	/// <para>A <b>named</b> companion is the whole group: the order reaches that one and nobody else, exactly the
+	/// behaviour of the single-worker build (the refusals of a combat-only type and of the
+	/// <c>[Building] MaxDistanceFromHome</c> leash already happened in <see cref="Build"/>).</para>
+	///
+	/// <para>With <b>nobody named</b>, every companion of the player that can take an order joins - the same set the
+	/// work modes without a name reach (<see cref="Run"/>): the companion has to be <b>MINE</b>
+	/// (<see cref="MHR_Owner.IsMine"/> - <see cref="CompanionInteract.MHR_InScope"/> does not check the owner, and in
+	/// a two-player world a nameless order would otherwise take the other player's companion over) and
+	/// <see cref="CompanionInteract.MHR_InScope"/> is the gate (Command switch on, within
+	/// <c>[General] RecallRange</c>), which takes the companion over - what the order does anyway. Two kinds stay
+	/// out: a combat-only type (the dverger ones refuse work orders, see fix/dverger-combate - it would only answer
+	/// the refusal) and a companion whose <b>own</b> home is past the leash, so one far companion doesn't end the
+	/// build for the others (with a single companion the order refuses with the same "too far" line as before,
+	/// because that check runs on the speaker first).</para>
+	///
+	/// <para>11/11/2026 (the build panel): the whole rule of the nameless case is <see cref="CanWorkSite"/> - the panel
+	/// offers exactly the companions this loop would take, so the two can never disagree.</para>
+	/// </summary>
+	private static List<CompanionSetup> BlueprintWorkers(CompanionSetup addressee, Vector3 hint)
+	{
+		List<CompanionSetup> workers = new List<CompanionSetup>(4);
+		if (IsDirected(addressee))
+		{
+			workers.Add(addressee);
+			return workers;
+		}
+		IReadOnlyList<CompanionSetup> all = CompanionSetup.AllCompanions;
+		for (int i = 0; i < all.Count; i++)
+		{
+			string why;
+			// the very rule the build panel uses to offer a companion for a site (CanWorkSite): mine, alive, not a
+			// combat-only type, inside its own home leash and in scope - and being in scope TAKES IT OVER here, which
+			// is what the order always did
+			if (CanWorkSite(all[i], hint, true, out why))
+			{
+				workers.Add(all[i]);
+			}
+			else if (CompanionsPlugin.LogDetailed && all[i] != null && why != null)
+			{
+				CompanionsPlugin.Log?.LogDebug("[Build] \"" + CompanionNames.NameOf(all[i]) + "\" ficou fora da obra: " + why);
+			}
+		}
+		return workers;
+	}
+
+	/// <summary>
+	/// P1 (multi-build) + 11/11/2026 (the build panel): can this companion take a piece of a <b>site</b>? The rule of
+	/// <see cref="BlueprintWorkers"/>, extracted so the panel offers exactly the companions the order would take:
+	/// <list type="bullet">
+	/// <item>it is <b>MINE</b> (<see cref="MHR_Owner.IsMine"/> - <c>MHR_InScope</c> does not check the owner, and in a
+	/// two-player world a nameless order would otherwise pull the other player's companion into the site);</item>
+	/// <item>it is alive (a dead body cannot take an order);</item>
+	/// <item>it is not a combat-only type (<see cref="CompanionSetup.CanWearArmor"/> - the dverger ones refuse work);</item>
+	/// <item>the spot is inside its own <c>[Building] MaxDistanceFromHome</c> leash;</item>
+	/// <item>it is in scope (<c>Command</c> on and within <c>[General] RecallRange</c>) - and with
+	/// <paramref name="takeControl"/> the scope check <b>takes the companion over</b>
+	/// (<see cref="CompanionInteract.MHR_InScope"/>), which is what the order does; without it the check is read-only
+	/// (<see cref="CompanionInteract.MHR_InScopeCheck"/> - the panel must not steal a companion while the player reads
+	/// the list).</item>
+	/// </list>
+	/// <paramref name="reason"/> is a short token when it refuses: <c>owner</c>, <c>dead</c>, <c>combat</c>,
+	/// <c>home</c>, <c>command</c> or <c>range</c>.
+	/// </summary>
+	internal static bool CanWorkSite(CompanionSetup c, Vector3 anchor, bool takeControl, out string reason)
+	{
+		reason = null;
+		if (c == null || !MHR_Owner.IsMine(c))
+		{
+			reason = "owner";
+			return false;
+		}
+		Character body = c.GetComponent<Character>();
+		if (body != null && body.IsDead())
+		{
+			reason = "dead";
+			return false;
+		}
+		if (!c.CanWearArmor())
+		{
+			reason = "combat";
+			return false;
+		}
+		float max = ModConfig.BuildMaxDistanceFromHome != null ? ModConfig.BuildMaxDistanceFromHome.Value : 40f;
+		if (max > 0f && c.HasHomePosition() && Vector3.Distance(c.GetHomePosition(), anchor) > max)
+		{
+			reason = "home";
+			return false;
+		}
+		bool inScope = takeControl ? CompanionInteract.MHR_InScope(c) : CompanionInteract.MHR_InScopeCheck(c);
+		if (!inScope)
+		{
+			// the scope test answers one "no" for two reasons: Command switched off (the companion ignores orders) or
+			// simply too far away. The panel says which one it is.
+			reason = c.GetIsCommandable() ? "range" : "command";
+			return false;
+		}
+		return true;
 	}
 
 	private static bool Apply(CompanionSetup companion, string action, int amount, string resource, OrderOutcome outcome)	{

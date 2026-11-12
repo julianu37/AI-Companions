@@ -179,4 +179,49 @@ internal static class GameLook
 	{
 		return InventoryGui.instance != null && InventoryGui.instance.m_craftButton != null ? InventoryGui.instance.m_craftButton.gameObject : null;
 	}
+
+	/// <summary>
+	/// The invisible vertical bar of a <see cref="ScrollRect"/> of the mod. Extracted (11/11/2026, the build panel) from
+	/// the two copies the F8 panel and the companion window used to carry: the bar and its handle are
+	/// <b>not</b> raycast targets and the bar is the <b>first</b> sibling of the viewport, so the topmost graphic of a
+	/// list is a control and never a decorative element (that was one of the suspects of the swallowed click of the
+	/// UI audit). The <see cref="ScrollRect"/> holds it by reference, so neither the wheel nor the drag depends on it
+	/// being drawn - the scroll area (the viewport image) and the rows receive those.
+	/// </summary>
+	internal static Scrollbar CreateHiddenScrollbar(Transform parent)
+	{
+		GameObject bar = new GameObject("Scrollbar", typeof(RectTransform));
+		bar.transform.SetParent(parent, worldPositionStays: false);
+		RectTransform barRT = bar.GetComponent<RectTransform>();
+		barRT.anchorMin = new Vector2(1f, 0f);
+		barRT.anchorMax = new Vector2(1f, 1f);
+		barRT.pivot = new Vector2(1f, 0.5f);
+		barRT.sizeDelta = new Vector2(10f, 0f);
+		Image barImage = bar.AddComponent<Image>();
+		barImage.color = Color.clear;
+		barImage.raycastTarget = false;
+		GameObject area = new GameObject("Sliding Area", typeof(RectTransform));
+		area.transform.SetParent(bar.transform, worldPositionStays: false);
+		RectTransform areaRT = area.GetComponent<RectTransform>();
+		areaRT.anchorMin = Vector2.zero;
+		areaRT.anchorMax = Vector2.one;
+		areaRT.offsetMin = Vector2.zero;
+		areaRT.offsetMax = Vector2.zero;
+		GameObject handle = new GameObject("Handle", typeof(RectTransform), typeof(Image));
+		handle.transform.SetParent(area.transform, worldPositionStays: false);
+		Image handleImage = handle.GetComponent<Image>();
+		handleImage.color = Color.clear;
+		handleImage.raycastTarget = false;
+		RectTransform handleRT = handle.GetComponent<RectTransform>();
+		handleRT.anchorMin = Vector2.zero;
+		handleRT.anchorMax = new Vector2(1f, 0.5f);
+		handleRT.offsetMin = Vector2.zero;
+		handleRT.offsetMax = Vector2.zero;
+		Scrollbar scrollbar = bar.AddComponent<Scrollbar>();
+		scrollbar.handleRect = handleRT;
+		scrollbar.direction = Scrollbar.Direction.BottomToTop;
+		// first sibling of the viewport: the invisible bar sits BELOW the content instead of on top of it
+		bar.transform.SetAsFirstSibling();
+		return scrollbar;
+	}
 }

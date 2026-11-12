@@ -60,6 +60,13 @@ internal sealed class BuildResult
 /// </summary>
 internal static class BuildExecutor
 {
+	/// <summary>P1 (review A6, 03/11/2026): how close to the requested pose a piece must be to be <b>the</b> piece. It was
+	/// 1,5 m, and a blueprint's neighbour of the same prefab (a <c>wood_wall_half</c> 0,5 m away) answered for it.</summary>
+	internal const float PlacedRadius = 0.35f;
+
+	/// <summary>P1 (review A6): how far the yaw of a candidate may be from the requested one (±degrees).</summary>
+	internal const float PlacedYaw = 25f;
+
 	/// <summary>
 	/// Places <paramref name="piece"/> at <paramref name="pos"/>/<paramref name="rot"/>. <paramref name="builder"/> is
 	/// the companion (or null, for a test): it decides the creator and whether the player route can be used.
@@ -112,8 +119,8 @@ internal static class BuildExecutor
 			result.Ok = true;
 			result.Piece = piece;
 			// PlacePiece returns void and instantiates inside; the verification (the caller's) is what proves it
-			// worked. We still look for the new object to hand it back: the closest piece of that prefab to the pose.
-			result.GameObject = FindPlaced(piece.gameObject.name, pos);
+			// worked. We still look for the new object to hand it back: the piece of that prefab at the pose.
+			result.GameObject = FindPlaced(piece.gameObject.name, pos, rot, true);
 		}
 		catch (Exception ex)
 		{
@@ -214,26 +221,43 @@ internal static class BuildExecutor
 		}
 		result.Ok = true;
 		result.GameObject = go;
+		// P2 (multi-build): the route map sees the piece at once. The OnPlaced hook above already covers it, and this is
+		// the deliberate redundancy: a floor the companions cannot route onto is the measured "no progress" of the build.
+		MHR_CompanionNavMesh.InvalidateAround(pos);
 		return result;
 	}
 
-	/// <summary>The closest object with that prefab name to the pose (route A gets no object back).</summary>
-	private static GameObject FindPlaced(string prefabName, Vector3 pos)
+	/// <summary>
+	/// The object with that prefab name <b>at</b> the pose (route A gets no object back).
+	///
+	/// <para>P1 (review A6, 03/11/2026): the radius is <see cref="PlacedRadius"/> (0,35 m) and, when the caller has an
+	/// orientation, the yaw must match within <see cref="PlacedYaw"/> - it used to be 1,5 m with no orientation at all, and
+	/// in a dense blueprint a neighbouring piece of the same prefab (a <c>wood_wall_half</c> 0,5 m away) answered for the
+	/// piece being asked, which made the order believe a piece was already up (and skip it).</para>
+	/// </summary>
+	private static GameObject FindPlaced(string prefabName, Vector3 pos, Quaternion rot, bool checkRotation)
 	{
 		GameObject best = null;
-		float bestDistance = 1.5f;
+		float bestDistance = PlacedRadius;
+		float yaw = rot.eulerAngles.y;
 		foreach (Piece candidate in UnityEngine.Object.FindObjectsByType<Piece>(FindObjectsSortMode.None))
 		{
 			if (candidate == null || candidate.gameObject.name != prefabName + "(Clone)")
 			{
 				continue;
 			}
-			float distance = Vector3.Distance(candidate.transform.position, pos);
-			if (distance <= bestDistance)
+			Vector3 at = candidate.transform.position;
+			float distance = Vector3.Distance(at, pos);
+			if (distance > bestDistance)
 			{
-				bestDistance = distance;
-				best = candidate.gameObject;
+				continue;
 			}
+			if (checkRotation && Mathf.Abs(Mathf.DeltaAngle(yaw, candidate.transform.eulerAngles.y)) > PlacedYaw)
+			{
+				continue;
+			}
+			bestDistance = distance;
+			best = candidate.gameObject;
 		}
 		return best;
 	}
@@ -245,12 +269,26 @@ internal static class BuildExecutor
 	/// </summary>
 	internal static string VerifyAt(Piece prefab, Vector3 pos, long expectedCreator, out GameObject found, bool checkStation = true)
 	{
+		return VerifyAt(prefab, pos, Quaternion.identity, expectedCreator, out found, checkStation, false);
+	}
+
+	/// <summary>P1 (review A6, 03/11/2026): the same question <b>with the orientation</b> - a piece of the same prefab next
+	/// to this one must not answer for it (the station is not asked: the caller is asking "is it there", not "is it
+	/// registered").</summary>
+	internal static string VerifyAt(Piece prefab, Vector3 pos, Quaternion rot, long expectedCreator, out GameObject found)
+	{
+		return VerifyAt(prefab, pos, rot, expectedCreator, out found, false, true);
+	}
+
+	private static string VerifyAt(Piece prefab, Vector3 pos, Quaternion rot, long expectedCreator, out GameObject found,
+		bool checkStation, bool checkRotation)
+	{
 		found = null;
 		if (prefab == null)
 		{
 			return "no_piece";
 		}
-		found = FindPlaced(prefab.gameObject.name, pos);
+		found = FindPlaced(prefab.gameObject.name, pos, rot, checkRotation);
 		return Verify(found, prefab, expectedCreator, checkStation);
 	}
 

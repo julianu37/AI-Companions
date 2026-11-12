@@ -561,10 +561,12 @@ public class ConfigPanel : MonoBehaviour
 			{
 				Hide();
 			}
-			else if ((CompanionAiPanel.Instance == null || !CompanionAiPanel.Instance.IsVisible) && !CompanionAppearancePanel.IsOpen)
+			// Fase 3.7: never on top of the AI panel (the AI panel refuses to open while this one is visible).
+			// Fase 3.20: nor on top of the appearance editor, which is opened from that panel.
+			// 11/11/2026: nor on top of any other window of the mod - one list, in ModUiLayers (the build panel, the
+			// starter picker, a companion's own window, the shrine menu...). The wheel is not a window and is left out.
+			else if (!ModUiLayers.AnyWindowOpen)
 			{
-				// Fase 3.7: never on top of the AI panel (the AI panel refuses to open while this one is visible).
-				// Fase 3.20: nor on top of the appearance editor, which is opened from that panel.
 				Show();
 			}
 		}
@@ -1243,48 +1245,11 @@ public class ConfigPanel : MonoBehaviour
 		}
 	}
 
+	/// <summary>The invisible bar of the scroll area (11/11/2026: the one implementation lives in
+	/// <see cref="GameLook.CreateHiddenScrollbar"/> - the build panel needed the same widget).</summary>
 	private static Scrollbar CreateHiddenScrollbar(Transform parent)
 	{
-		GameObject gameObject = new GameObject("Scrollbar", typeof(RectTransform));
-		gameObject.transform.SetParent(parent, worldPositionStays: false);
-		RectTransform component = gameObject.GetComponent<RectTransform>();
-		component.anchorMin = new Vector2(1f, 0f);
-		component.anchorMax = new Vector2(1f, 1f);
-		component.pivot = new Vector2(1f, 0.5f);
-		component.sizeDelta = new Vector2(10f, 0f);
-		// Invisible bar and handle: they are NOT raycast targets. Nobody can aim at something that is not drawn, and
-		// as the last siblings of the viewport they used to be the topmost graphics of the whole panel - the first
-		// suspects of "the click is swallowed". The ScrollRect holds them by reference (verticalScrollbar/handleRect),
-		// so this changes nothing for the wheel or the drag: those are received by the scroll area (the viewport
-		// Image) and by the rows above it.
-		Image barImage = gameObject.AddComponent<Image>();
-		barImage.color = Color.clear;
-		barImage.raycastTarget = false;
-		GameObject gameObject2 = new GameObject("Sliding Area", typeof(RectTransform));
-		gameObject2.transform.SetParent(gameObject.transform, worldPositionStays: false);
-		RectTransform component2 = gameObject2.GetComponent<RectTransform>();
-		component2.anchorMin = Vector2.zero;
-		component2.anchorMax = Vector2.one;
-		component2.offsetMin = Vector2.zero;
-		component2.offsetMax = Vector2.zero;
-		GameObject gameObject3 = new GameObject("Handle", typeof(RectTransform), typeof(Image));
-		gameObject3.transform.SetParent(gameObject2.transform, worldPositionStays: false);
-		Image handleImage = gameObject3.GetComponent<Image>();
-		handleImage.color = Color.clear;
-		handleImage.raycastTarget = false;
-		RectTransform component3 = gameObject3.GetComponent<RectTransform>();
-		component3.anchorMin = Vector2.zero;
-		component3.anchorMax = new Vector2(1f, 0.5f);
-		component3.offsetMin = Vector2.zero;
-		component3.offsetMax = Vector2.zero;
-		Scrollbar scrollbar = gameObject.AddComponent<Scrollbar>();
-		scrollbar.handleRect = component3;
-		scrollbar.direction = Scrollbar.Direction.BottomToTop;
-		// First sibling of the viewport: the invisible bar (and its handle) now sit BELOW the content instead of on
-		// top of it, so the topmost graphic of the panel is a control, never a decorative element. The ScrollRect
-		// does not care about the sibling order (it holds the references).
-		gameObject.transform.SetAsFirstSibling();
-		return scrollbar;
+		return GameLook.CreateHiddenScrollbar(parent);
 	}
 
 	/// <summary>

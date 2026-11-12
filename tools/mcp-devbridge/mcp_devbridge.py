@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """MCP server for the Valheim DevBridge (AI Companions).
 
 It speaks the Model Context Protocol over stdio and forwards every tool call to the in-game BepInEx module
@@ -89,13 +89,14 @@ def require_ok(result):
 
 def world_enter(args):
     """Skips the intro and enters the world with the KEY sequence the player uses:
-    Space > Down > Enter > Enter > Enter. No mouse. If the first pass lands before the intro video starts, it tries
-    again (the Space is only consumed while the video/menu is up)."""
+    Space (repeated) > Down > Enter > Enter > Enter. No mouse. The intro video only consumes a Space while it is
+    up, so one 0.9 s press used to be eaten by the logos and the first retry waited up to 45 s - the player watched
+    almost the whole video. Now Space is pressed every 0.7 s for the first ~11 s, until the intro is gone."""
     wait = max(10, min(300, int(args.get("wait", 120))))
     delay = max(0, min(180, int(args.get("delay", 0))))
     if delay:
         time.sleep(delay)
-    steps = [("Space", 0.9), ("DownArrow", 0.7), ("Return", 1.5), ("Return", 1.5), ("Return", 1.5)]
+    steps = [("DownArrow", 0.7), ("Return", 1.5), ("Return", 1.5), ("Return", 1.5)]
 
     def poll(seconds):
         deadline = time.time() + seconds
@@ -111,17 +112,30 @@ def world_enter(args):
         return None
 
     for attempt in range(1, 4):
-        for key, step_delay in steps:
+        entered = None
+        for _ in range(16):
             focus_game()
-            require_ok(call_bridge("input.key", key=key))
-            time.sleep(step_delay)
-        data = poll(min(wait, 45))
-        if data:
+            require_ok(call_bridge("input.key", key="Space"))
+            time.sleep(0.7)
+            try:
+                ping = require_ok(call_bridge("ping"))
+                if ping.get("inGame"):
+                    entered = ping
+                    break
+            except Exception:  # noqa: BLE001 - the bridge may be busy while the world loads
+                pass
+        if entered is None:
+            for key, step_delay in steps:
+                focus_game()
+                require_ok(call_bridge("input.key", key=key))
+                time.sleep(step_delay)
+            entered = poll(min(wait, 30))
+        if entered:
+            data = dict(entered)
             # Always set the world up for driving the player: dev commands, midday and god mode. Without it the
             # agent dies to a greyling while it is busy with the bridge.
             if args.get("setup", True):
                 time.sleep(1.5)
-                data = dict(data)
                 data["setup"] = require_ok(call_bridge("world.setup", time=args.get("time", 0.5)))
             return data
         time.sleep(2)
@@ -355,6 +369,30 @@ TOOLS = [
         },
     },
     {
+        "name": "world_chest",
+        "description": (
+            "Puts items INSIDE a chest (dev tool for the paid build run). Without 'spawn' it uses the nearest "
+            "chest a companion may use; with 'spawn' it first places a piece_chest_wood at the given spot. "
+            "world_spawn alone creates an EMPTY chest - the contents only reach the ZDO through the container's "
+            "own save, which this command goes through by opening and closing it."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "item": {"type": "string", "description": "prefab name, e.g. 'Wood'"},
+                "amount": {"type": "integer", "minimum": 1, "maximum": 9999, "default": 100},
+                "spawn": {"type": "boolean", "default": False, "description": "place a fresh piece_chest_wood first"},
+                "radius": {"type": "number", "minimum": 1, "maximum": 60, "default": 30},
+                "yaw": {"type": "number", "default": 0},
+                "x": {"type": "number"},
+                "y": {"type": "number"},
+                "z": {"type": "number"},
+            },
+            "required": ["item"],
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "world_aim",
         "description": "Raycasts the crosshair and reports what is under it (name, distance, point, whether it is a tree or which creature).",
         "inputSchema": {
@@ -536,16 +574,23 @@ TOOLS = [
             "it. The piece must be in the allow-list (piece_workbench, piece_chest_wood, fire_pit, bed, piece_bed02)."
             " With 'plan' it builds a whole TEMPLATE instead (E6: hut = 2x2 floor + 4 walls + gable roof; "
             "canopy = 4 poles + 4 roofs over the bench). With 'blueprint' it builds a .blueprint from the player's "
-            "library (E7: BepInEx/config/AI-Companions/blueprints), centered on the hint/aim."
+            "library (E7: BepInEx/plugins/AI-Companions/blueprints), centered on the hint/aim."
+            " A blueprint is ONE site handed to a GROUP: with no 'name' EVERY companion of the player joins it and "
+            "the pieces are shared between them; with 'name' only that companion works it (a piece or a plan order "
+            "is always one companion). The answer carries 'workers' (how many joined the site; 0 = none) and, ONLY "
+            "when nothing started, 'refused' - one of 'no companion in range', 'the site is busy', 'missing station: "
+            "<x>', 'missing piece: <x>' or 'not started' ('started' means workers > 0). A nameless blueprint with "
+            "nobody to work is that normal answer (started false, workers 0, refused 'no companion in range'), "
+            "while a 'name' nobody has is still an error."
         ),
         "inputSchema": {
             "type": "object",
             "properties": {
                 "prefab": {"type": "string", "description": "e.g. 'piece_workbench' (omit when using plan/blueprint)"},
                 "plan": {"type": "string", "description": "a template: 'hut' or 'canopy'"},
-                "blueprint": {"type": "string", "description": "a .blueprint name or full path (E7)"},
+                "blueprint": {"type": "string", "description": "a .blueprint name or full path (E7); one site for the whole group"},
                 "x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"},
-                "name": {"type": "string", "description": "companion name; default: the first one"},
+                "name": {"type": "string", "description": "companion name; default: every companion of the player on one blueprint site (the group), else the first one"},
             },
             "required": [],
             "additionalProperties": False,
@@ -568,6 +613,36 @@ TOOLS = [
                 "radius": {"type": "number", "minimum": 0.5, "maximum": 100, "default": 10},
                 "filter": {"type": "string", "description": "case-insensitive substring of the prefab or piece name"},
             },
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "blueprints_list",
+        "description": (
+            "Lists the .blueprint library the build order reads (BepInEx/plugins/AI-Companions/blueprints): the "
+            "folder, how many files there are and, for each one, the file name, size in bytes, line count and "
+            "modification time. It is how the player sees which builds are available BEFORE giving an order. "
+            "Read-only: it touches neither the world nor any companion."
+        ),
+        "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
+        "name": "blueprints_inspect",
+        "description": (
+            "Parses ONE .blueprint of the library and answers what the build order WOULD do with it, without giving "
+            "it: the pieces it would build, how many lines it would SKIP and why (skippedReasons: prefab, reason, "
+            "count - e.g. stone_floor_2x2 refused with 'recipe not unlocked'), the crafting stations the pieces need "
+            "(stations: token -> count, e.g. $piece_workbench), the prefab counts, the bounding box, how many storeys "
+            "the plan has and how many pieces need a station in range. It is the same parse the order does "
+            "(BuildBlueprintParser), so the numbers match what the companion would try to place. Read-only: nothing "
+            "is placed and no companion is ordered."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "file": {"type": "string", "description": "a .blueprint name (e.g. 'CommHomeBasicBP.blueprint') or a full path"},
+            },
+            "required": ["file"],
             "additionalProperties": False,
         },
     },
@@ -787,8 +862,9 @@ TOOLS = [
         "name": "companions_order",
         "description": (
             "Gives a companion an order: a work mode (follow, wood, stone, ore, forage, smelt, hunt, farm, fish, "
-            "repair, restock, cook, stay), a stance (stance_balanced, stance_passive, stance_ranged, stance_melee) "
-            "or autopickup_on / autopickup_off."
+            "repair, restock, cook, stay), a stance (stance_balanced, stance_passive, stance_ranged, stance_melee), "
+            "autopickup_on / autopickup_off, or the stop order (stop / cancel / para), which cancels the companion's "
+            "build and leveling; an empty name stops every companion and answers the list."
         ),
         "inputSchema": {
             "type": "object",
@@ -956,6 +1032,50 @@ TOOLS = [
             "additionalProperties": False,
         },
     },
+    {
+        "name": "nav_tiles",
+        "description": (
+            "Navigation instrumentation (P2): the navmesh tiles near a point (default: the player) - id, centre, "
+            "whether the tile already carries the poke/build flood data and whether its instance is still valid. It "
+            "is how the nav grid the companion walks on is read from the outside, tile by tile."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "x": {"type": "number", "description": "centre (default: the player)"},
+                "y": {"type": "number"},
+                "z": {"type": "number"},
+                "radius": {"type": "number", "minimum": 1, "maximum": 120, "default": 40},
+            },
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "nav_probe",
+        "description": (
+            "Navigation instrumentation (P2): probes the navmesh around a point (default: the player) and answers "
+            "whether a tile was found, how far it is and where it is. It separates 'there is no navmesh here' from "
+            "'the mover gave up' when a companion refuses to walk somewhere."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "x": {"type": "number", "description": "point to probe (default: the player)"},
+                "y": {"type": "number"},
+                "z": {"type": "number"},
+                "range": {"type": "number", "minimum": 0.5, "maximum": 50, "default": 3},
+            },
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "nav_stats",
+        "description": (
+            "Navigation instrumentation (P2) counters: how many probes (pokes), how many grid rebuilds and the worst "
+            "collection time in ms since the world loaded - the measured cost of the nav instrumentation."
+        ),
+        "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
 ]
 
 TOOL_NAMES = {tool["name"] for tool in TOOLS}
@@ -994,6 +1114,14 @@ def run_tool(name, args):
             if key in args:
                 payload[key] = args[key]
         return require_ok(call_bridge("world.spawn", **payload))
+    if name == "world_chest":
+        payload = {"item": args["item"], "amount": args.get("amount", 100)}
+        if args.get("spawn"):
+            payload["spawn"] = True
+        for key in ("radius", "yaw", "x", "y", "z"):
+            if key in args:
+                payload[key] = args[key]
+        return require_ok(call_bridge("world.chest", **payload))
     if name == "world_aim":
         return require_ok(call_bridge("world.aim", max=args.get("max", 100)))
     if name == "world_nearest":
@@ -1066,6 +1194,10 @@ def run_tool(name, args):
             if key in args:
                 payload[key] = args[key]
         return require_ok(call_bridge("build.pieces", **payload))
+    if name == "blueprints_list":
+        return require_ok(call_bridge("blueprints.list"))
+    if name == "blueprints_inspect":
+        return require_ok(call_bridge("blueprints.inspect", file=args["file"]))
     if name == "world_setup":
         payload = {
             "time": args.get("time", 0.5),
@@ -1187,6 +1319,20 @@ def run_tool(name, args):
             if key in args:
                 payload[key] = args[key]
         return require_ok(call_bridge("companions.farm_zone", **payload))
+    if name == "nav_tiles":
+        payload = {"radius": args.get("radius", 40)}
+        for key in ("x", "y", "z"):
+            if key in args:
+                payload[key] = args[key]
+        return require_ok(call_bridge("nav.tiles", **payload))
+    if name == "nav_probe":
+        payload = {"range": args.get("range", 3)}
+        for key in ("x", "y", "z"):
+            if key in args:
+                payload[key] = args[key]
+        return require_ok(call_bridge("nav.probe", **payload))
+    if name == "nav_stats":
+        return require_ok(call_bridge("nav.stats"))
     raise RuntimeError("unknown tool: " + name)
 
 

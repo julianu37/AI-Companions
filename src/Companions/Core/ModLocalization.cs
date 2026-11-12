@@ -831,6 +831,40 @@ public static class ModLocalization
 			// Multilanguage M2 fix: the short form for the narrow field of the F8 rows (the long one above is the AI
 			// panel's footer, where "outro idioma" fits). "pf_dora is the pick; af_heart is what is spoken".
 			{ "hc_cfg_voice_out_of_language", "{0} ({1}) - using {2}" },
+			// Request of 03/11/2026: the [Building] PlaceReach label. The settings labels come from the language file
+			// (hc_cfg_<section>_<key>); the English native default is the short name for the narrow F8 field, because the
+			// fallback there is the raw config key ("PlaceReach").
+			{ "hc_cfg_building_placereach", "Place reach" },
+			// P1 (04/11/2026): the [Building] DeckLift label - how high the whole blueprint rises (the ground floor on a deck
+			// over the poles). Short like the one above: the F8 rows cut at ~55 chars.
+			{ "hc_cfg_building_decklift", "Deck height" },
+			// P1 (04/11/2026): the [Building] SupportFallback label - the wooden post planted under a plan piece the file
+			// left without support. Short for the same F8 row.
+			{ "hc_cfg_building_supportfallback", "Emergency support" },
+			// 11/11/2026 (the storey barrier): the [Building] BodyRetry label - a piece a body is standing on is not given
+			// up; it comes back before the plan climbs a storey. Short for the same F8 row.
+			{ "hc_cfg_building_bodyretry", "Retry blocked pieces" },
+			// 11/11/2026 (Run 14, the spread of the crew): the [Building] SpreadWorkers label - of the next few pieces of
+			// the same row each companion takes one that is a few meters from what the others are building. Short for the
+			// same F8 row.
+			{ "hc_cfg_building_spreadworkers", "Spread the crew out" },
+			// 11/11/2026 (the player's rule "build everything within reach first"): the [Building] SpreadNear label - of the
+			// far pieces of the window the companion takes the nearest one that is still within its reach. Short for the same
+			// F8 row.
+			{ "hc_cfg_building_spreadnear", "Build near first" },
+			// 11/11/2026 (Run 10, the companion blocker): the [Building] StepAside label - a waiting companion of the group
+			// steps out of the way of the piece another one is placing. Short for the same F8 row.
+			{ "hc_cfg_building_stepaside", "Move aside" },
+			// 11/11/2026 (Run 13, the ridge of the blueprint): the [Building] ReachWalk label - the companion walks to the
+			// nearest floor/roof row the piece can be reached from instead of walking at the piece in mid-air. Short for
+			// the same F8 row.
+			{ "hc_cfg_building_reachwalk", "Walk within reach" },
+			// Lote 1 (11/11/2026): the [Building] BlueprintStations label - a blueprint is built with no workbench planned and
+			// no piece refused for a missing station (templates and single pieces keep the vanilla rule). Short for the F8 row.
+			{ "hc_cfg_building_blueprintstations", "Blueprint: no stations" },
+			// 11/11/2026 (the build panel): the [Controls] BuildPanelKey label - the key that opens the site's panel.
+			// Short for the same narrow F8 row (the fallback there is the raw key, "BuildPanelKey").
+			{ "hc_cfg_controls_buildpanelkey", "Build panel key" },
 			// Fase 3.10: voice and personality of ONE companion (its own ZDO), with the [AI] values as the default.
 			// Used by the companion tab of the AI panel and by the starter panel's "AI" section.
 			{ "hc_ai_profile_title", "Companion AI" },
@@ -838,7 +872,69 @@ public static class ModLocalization
 			{ "hc_ai_profile_inherited", "{0} (default)" },
 			{ "hc_ai_profile_hint", "Voice and personality belong to this companion: left unset, it follows the [AI] settings (AI tab)." },
 			{ "hc_ai_comp_profile_title", "Voice and personality of this companion" },
-			{ "hc_ai_profile_save_failed", "I couldn't save the companion's profile (its data is not under my control right now). Try again in a moment." }
+			{ "hc_ai_profile_save_failed", "I couldn't save the companion's profile (its data is not under my control right now). Try again in a moment." },
+			// 11/11/2026: the build panel ([Controls] BuildPanelKey). Four blocks - the site, the companions, the
+			// materials and the blueprints - and every number of a site comes from MHR_Build.SiteInfo/SiteMaterials.
+			{ "hc_ui_build_title", "Build panel" },
+			{ "hc_ui_build_hint", "Esc or {0} closes." },
+			// block 1: the site
+			{ "hc_ui_build_site", "Site" },
+			{ "hc_ui_build_none", "No build order is running. Ask a companion to build something and it shows up here." },
+			{ "hc_ui_build_site_label", "Building: {0}" },
+			{ "hc_ui_build_site_progress", "Placed: {0} of {1}    Skipped: {2}    Posts: {3}" },
+			{ "hc_ui_build_site_state", "Phase: {0}    Time: {1}" },
+			{ "hc_ui_build_site_leader", "Leader: {0}" },
+			{ "hc_ui_build_btn_pause", "Pause" },
+			{ "hc_ui_build_btn_resume", "Resume" },
+			{ "hc_ui_build_btn_cancel", "Cancel site" },
+			{ "hc_ui_build_phase_paused", "paused" },
+			{ "hc_ui_build_phase_preparing", "getting ready" },
+			{ "hc_ui_build_phase_collecting", "collecting" },
+			{ "hc_ui_build_phase_building", "building" },
+			{ "hc_ui_build_phase_retrying", "retrying" },
+			{ "hc_ui_build_phase_done", "done" },
+			{ "hc_ui_build_phase_waiting", "waiting" },
+			// block 2: the companions of the site (join/leave) and why one cannot work there
+			{ "hc_ui_build_workers", "Companions ({0})" },
+			{ "hc_ui_build_workers_none", "No companion of yours can join this site right now." },
+			{ "hc_ui_build_workers_no_site", "No site is running, so nobody is working on one." },
+			{ "hc_ui_build_btn_join", "Join" },
+			{ "hc_ui_build_btn_leave", "Leave" },
+			{ "hc_ui_build_leader_tag", "{0} (leader)" },
+			{ "hc_ui_build_why_owner", "not yours" },
+			{ "hc_ui_build_why_dead", "dead" },
+			{ "hc_ui_build_why_combat", "combat only" },
+			{ "hc_ui_build_why_home", "too far from home" },
+			{ "hc_ui_build_why_command", "orders are off" },
+			{ "hc_ui_build_why_range", "out of range" },
+			{ "hc_ui_build_why_solo", "the site has a single worker" },
+			{ "hc_ui_build_why_paused", "the site is paused" },
+			{ "hc_ui_build_why_nosite", "there is no site" },
+			{ "hc_ui_build_why_leader", "it is the leader" },
+			{ "hc_ui_build_why_plan", "the site has no plan" },
+			{ "hc_ui_build_why_blueprint", "the blueprint file is gone" },
+			{ "hc_ui_build_why_start", "could not start the plan" },
+			{ "hc_ui_build_why_already", "it is already on the site" },
+			{ "hc_ui_build_why_unknown", "refused ({0})" },
+			// block 3: the materials of the plan (needed, in the bags/chests, missing)
+			{ "hc_ui_build_materials", "Materials" },
+			{ "hc_ui_build_material_ok", "{0}: {1} / {2}" },
+			{ "hc_ui_build_material_missing", "{0}: {1} / {2} (missing {3})" },
+			{ "hc_ui_build_materials_none", "No material list yet." },
+			// block 4: the blueprint library (filter, open the folder, delete after a second click)
+			{ "hc_ui_build_blueprints", "Blueprints" },
+			{ "hc_ui_build_bp_filter", "Type to filter..." },
+			{ "hc_ui_build_bp_open_folder", "Open folder" },
+			{ "hc_ui_build_bp_delete", "Delete" },
+			{ "hc_ui_build_bp_confirm", "Confirm" },
+			{ "hc_ui_build_bp_delete_confirm", "Click again to delete {0} - a site waiting for materials needs it." },
+			{ "hc_ui_build_bp_deleted", "{0} deleted." },
+			{ "hc_ui_build_bp_delete_failed", "Could not delete {0}: {1}" },
+			{ "hc_ui_build_bp_none", "No .blueprint file in the folder yet." },
+			{ "hc_ui_build_bp_detail", "Selected: {0} - {1} pieces, {2} skipped, {3} lines" },
+			{ "hc_ui_build_bp_detail_error", "Could not read {0}: {1}" },
+			{ "hc_ui_build_bp_count", "{0} of {1} file(s)" },
+			{ "hc_ui_build_folder_failed", "Could not open the folder: {0}" }
 		};
 	}
 

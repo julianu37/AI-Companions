@@ -96,7 +96,7 @@ and keeps working the same — the AI is only a **new entry point** for the same
 | **[Configuration](Configuration)** | The `.cfg`, the `[AI]` section and the `F8` and `I` panels |
 | **[Troubleshooting](Troubleshooting)** | Symptom → cause → solution |
 | **[How it works](How-it-works)** | Architecture and the path of an order |
-| **[Changelog](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)** | The full changelog, from 1.6.0 to 1.9.5 |
+| **[Changelog](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)** | The full changelog, from 1.6.0 to 1.9.6 |
 | **[Credits and license](Credits-and-license)** | Upstream, third parties and licenses |
 
 ## Quick links
@@ -108,15 +108,22 @@ and keeps working the same — the AI is only a **new entry point** for the same
 | **Changelog** | https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md |
 | **Upstream (MIT)** | https://github.com/MaddhattrRocks/Offline-Companions-Reborn |
 
-The most recent published release is **1.9.5** (31/10/2026), with **one** package:
+The most recent published release is **1.9.6** (02/11/2026), with **one** package:
 
 | File | Size | What comes in it |
 |---|---|---|
-| `AI_Companions-1.9.5.zip` | ~314 MB | The mod, the translations **and** the voice models (STT + TTS) ready to use |
+| `AI_Companions-1.9.6.zip` | ~314 MB | The mod, the translations **and** the voice models (STT + TTS) ready to use |
 
 > **One package only.** Since **1.9.4** the release ships **with** the voice models, already **inside**
 > `BepInEx\plugins\AI-Companions\` (`whisper\` and `tts\`) — there is nothing to download separately. The
 > *no-models* package was **discontinued** (the last one was 1.9.1).
+
+> **1.9.6 — the building update.** Your companion now **builds what you ask**: a workbench, a chest, a bed, a
+> shelter, a tent, a 2x2 hut or a whole house (4x4, 6x6 and 8x8), all in the five languages. It finds the spot with
+> the game's own rules, pays piece by piece from its bag and the chests, gathers what is missing, **levels the ground
+> with the hoe** and comes back to finish the job by itself, at the same anchor and the same piece. The door always
+> goes in **last**. Orders: `build a workbench here`, `build a hut here`, `build a house here`, `build a house 6x6
+> here`, `level the ground 10x10 here` (the full table is in **[Commands](Commands#building)**).
 
 > **1.9.5 in short — the batch from the 10-specialist review.** Twenty fixes, no new gameplay feature:
 >

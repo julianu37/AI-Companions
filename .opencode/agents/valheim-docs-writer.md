@@ -60,11 +60,11 @@ Você cuida de **documentação e localização**. Leia `AGENTS.md` (regra 9 e *
 - `python tools/gen_config_doc.py src/Companions/Core/ModConfig.cs package/CONFIGURATION.md` — o
   `CONFIGURATION.md` é **gerado**; nunca edite à mão.
 - `python tools/gen_translations.py` escreve ES/FR/IT a partir do PT (mapas `*_UI`/`*_SPEECH`). **Ele só grava
-  quando a lista de chaves sem tradução está VAZIA**: hoje a dívida é de **44 chaves por idioma** (bloco
+  quando a lista de chaves sem tradução está VAZIA**: hoje a dívida é de **45 chaves por idioma** (bloco
   `hc_cfg_building_*` e falas de construção/nivelamento, escritas à mão), então sem `--check` ele **não grava nada**
   (não sobrescreve o que existe). Mexeu no PT? Rode `--check`, complete os mapas, rode o gerador e o audit.
-- Contagens atuais (medidas em **03/11/2026**): **1048 chaves de UI** e **20 categorias / 221 falas** por idioma;
-  **357 opções** de config em **25** seções (o gerador imprime `N settings M sections`). **Nunca** confie neste
+- Contagens atuais (medidas em **03/11/2026**): **1049 chaves de UI** e **20 categorias / 221 falas** por idioma;
+  **358 opções** de config em **25** seções (o gerador imprime `N settings M sections`). **Nunca** confie neste
   número: ele apodrece a cada chave nova — conte com
   `python tools/audit_translations.py --lang Spanish` e `python tools/gen_config_doc.py --check ...`.
 

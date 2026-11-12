@@ -10,6 +10,9 @@ dotnet build Companions.sln -c Release
 
 # 2. o harness
 dotnet run --project tools/ai-intents-check
+
+# variantes: --list (as seções, na ordem) | --only=(p) | --quiet | --strict
+dotnet run --project tools/ai-intents-check -- --only=(p)
 ```
 
 Sai `=== N PASS / M FAIL ===` + `TODOS OS TESTES PASSARAM` e **exit 0** quando não há FAIL nem SKIP; `1` quando há
@@ -32,21 +35,45 @@ falha (ou algo foi pulado) e `2` quando o harness não conseguiu subir (assembli
 | `AI/BuildTemplates.cs` | os templates da E6/E6d (aliases nos 5 idiomas, peças, ordem) |
 | `AI/BuildBlueprintParser.cs` | `Parse` (V1/V2), `Ordered` (classe/andar/altura + `NearestWithin`) e a chave do telhado (`StoreyKey`) |
 | `AI/LevelIntent.cs` | a ordem de nivelar o terreno e o tamanho (E10) |
+| `AI/BuildFailure.cs` | `Classify`/`IsDependency` — o **portão de apoio** da obra (dependência × falha real), a tabela de `why` |
+| `AI/BuildPieceKind.cs` | `Classify`/`IsStructural` — **estrutura × mobília**: quanto uma peça pode sair da pose do plano (1 m × 5 m) |
+| `AI/BuildSupportBelow.cs` | `IsDirectSupport`/`Rank`/`CanSupport`/`PickPost`/`UsefulSurface` — o **apoio direto** de uma peça (a janela 0,4–2,5 m abaixo × 2,5 m em XZ), as classes que apoiam o quê, o **poste de emergência** que alcança um vão e a **caminhada do raio** até a superfície útil |
+| `AI/BuildBody.cs` | `Blocks`/`HalfY` — a **janela do corpo** na colocação (`blocked_by_player`): a cápsula do personagem contra a caixa **girada** da peça (o painel vertical e o plano, no frame da peça) |
+| `AI/BuildStationCover.cs` | `Required` — a **bancada exigida só fora do blueprint** (`[Building] BlueprintStations`): template e peça única nunca dispensam, blueprint dispensa com a chave ligada |
+| `AI/BuildMaterials.cs` | `Add`/`Total` — a **necessidade de materiais** de um plano (custo por peça × quantidade, o recurso repetido soma, entrada sem item ou com quantidade ≤ 0 ignorada e contada), a mesma conta que `BuildStock` paga peça por peça |
+| `AI/BuildWalkSpot.cs` | `Choose` — **de onde a peça é alcançada** pelo companheiro (o mesmo andar primeiro, depois a superfície mais alta que a regra de olho do jogo cobre) |
+| `AI/BuildAsideSpot.cs` | `Plan` — **para onde o companheiro sai da frente** quando outro precisa da peça no corpo dele (o `StepAside` do Run 14) |
+| `AI/BuildSpread.cs` | a **dispersão dos workers** num plano compartilhado (ninguém disputa a mesma peça) |
+| `AI/BuildBlueprintSkip.cs` | `Reason` — **por que** uma linha do `.blueprint` não entra no plano, e as duas constantes que são o contrato do `skippedReasons` |
+| `AI/LlmProviders.cs` | a tabela do dropdown do provedor e o `Suggest` — **voltar** de uma URL (colada pelo jogador) para o item dela |
+| `AI/LevelResume.cs` | `Resumes`/`Message` — **qual fim do nivelamento devolve o canteiro à obra** (pendência 12: `hc_ai_build_too_steep` faltava na lista e matava a obra) |
 | `AI/MHR_Owner.cs`, `Core/MHR_List.cs` | dependências reais dos acima |
 
-`Stubs.cs` tem **só** os membros do lado Unity/config que esses arquivos tocam, e cada um está comentado com o
-arquivo:linha real de onde veio:
+> A **fonte** desta lista é o `<Compile Include>` de `ai-intents-check.csproj`, não este comentário: se um arquivo
+> estiver linkado lá e não aqui, o README está atrasado (foi o que aconteceu com os seis `Build*` acima). O `<summary>`
+> do `Program.cs` parou de repetir a lista por esse motivo: ele dizia 16 arquivos e omitia os seis mais novos que o
+> csproj linkava.
+>
+> O último link (`LevelResume`, 11/11/2026) nasceu da regra do repo aplicada ao contrário: a **pendência 12** era uma
+> tabela de strings escrita dentro de `MHR_Level.Finish`, e uma chave faltando ali não tem como aparecer em teste —
+> o job simplesmente encerrava a obra em jogo. A tabela virou arquivo puro em `AI/` e a seção **(af)** a prende.
+
+`Stubs.cs` tem **só** os membros do lado Unity/config que esses arquivos tocam, e cada um diz de onde veio pelo
+**nome do membro** (`Arquivo.cs` → `Método`), nunca por faixa de linhas — uma faixa é uma promessa sobre um arquivo que
+outra pessoa edita, e seis delas já tinham derivado:
 
 - `CompanionsPlugin.Log` (o logger do BepInEx);
-- `ModConfig` — as quatro listas de coleta com os **valores de fábrica** (`ModConfig.cs:928-931`), num `ConfigFile`
-  que **nunca** toca o disco (o `.cfg` do jogador não é lido nem escrito). Se o default de uma lista mudar no
-  `ModConfig.cs`, o texto aqui tem de acompanhar (só o caso "lista do trabalho" da seção (f) depende dele);
-- `CompanionSetup` — as constantes de modo (`CompanionSetup.cs:137-161`) e as chaves de ZDO. Se um número de modo
-  mudar, a cópia do `JobMode` diverge da DLL e a seção (h) acusa;
+- `ModConfig` — as quatro listas de coleta, num `ConfigFile` que **nunca** toca o disco (o `.cfg` do jogador não é lido
+  nem escrito). O texto de fábrica que está aqui **não sustenta nenhuma asserção desde 11/11/2026**: a seção (f) seta as
+  quatro listas explicitamente com o helper `WithLists` (e restaura no `finally`), então o cenário do teste é escrito no
+  teste. A prova é destrutiva: trocar as quatro por `"LIXO"` no `Stubs.cs` **não muda a contagem** — e com a seção (f)
+  antiga, que lia o default, o mesmo lixo dava **3 FAILs**;
+- `CompanionSetup` — as constantes de modo (`CompanionSetup.cs` → `ModeFollow`…`ModeCook`) e as chaves de ZDO. Se um
+  número de modo mudar, a cópia do `JobMode` diverge da DLL e a seção (h) acusa;
 - `CompanionLocale` — só `Current.KokoroCode`;
 - `MHR_GatherRules` — só `Parse`/`ItemLocal`, fiéis ao comportamento **fora do jogo** (sem `ObjectDB`);
-- `CompanionOrders` — só `JobMode` e `IsDoorRequest`, **cópias verbatim** (`CompanionOrders.cs:1168-1195` e
-  `812-869`), porque o resto da classe precisa do mundo. A cópia é conferida contra a DLL real na seção (h) — se
+- `CompanionOrders` — só `JobMode` e `IsDoorRequest`, **cópias verbatim** (`CompanionOrders.cs` → `JobMode` e
+  `IsDoorRequest`), porque o resto da classe precisa do mundo. A cópia é conferida contra a DLL real na seção (h) — se
   ela divergir, o harness **falha**;
 - `ObjectDB` (namespace global, de propósito) — o banco de itens do jogo. O tipo real **não carrega** fora do Unity
   (`UnityEngine.Object` estoura no inicializador de tipo), e `OrderItems.Known` é escrito justamente para o caso
@@ -62,15 +89,53 @@ arquivo:linha real de onde veio:
 | (c) | `GatherIntent.FromModelAction`: `"colete 10 pedras"` → `stone/10`, `"ramasse 10 bois"` → `wood/10`, `"raccogli 5 pietre"` → `stone/5`, `"pega a madeira do chão"` mantém `pickup`, lado `none` exige verbo de coleta |
 | (d) | `InteractionIntent.Correct`: `"fecha a porta"` (com o modelo dizendo `inventory_close`) → `door`, `"senta na fogueira"` → `sit`, `"guarda isso no baú"` (com `drop`) → `deposit`, `"esvazia a colmeia"` → `hive`, `"sobe no barco"` → `board`, e as recusas (pergunta, `"para de…"`, negação, `"joga a madeira no chão"`, mochila na mesma frase) |
 | (e) | `LlmIntent.Parse`/`ExtractContent`: JSON válido, JSON com texto em volta, `amount` entre aspas, `amount` inválido/negativo, ação desconhecida → `none`, `"null"` → `none`, uma palavra solta, `target` × `resource` em `drop`, corpo de `chat/completions` |
-| (f) | `OrderItems.Resolve` nos **5 idiomas** (PT/EN/ES/FR/IT) para madeira, pedra, minério e forrageio, o caminho "sem recurso" (`wood` → `Wood`, `ore` → `null`), o recurso desconhecido, e a **lista do trabalho** como último lugar procurado; `GatherAction` (o recurso manda) |
+| (f) | `OrderItems.Resolve` nos **5 idiomas** (PT/EN/ES/FR/IT) para madeira, pedra, minério e forrageio, o caminho "sem recurso" (`wood` → `Wood`, `ore` → `null`), o recurso desconhecido, e a **lista do trabalho** como último lugar procurado; `GatherAction` (o recurso manda). Toda a seção roda dentro de `WithLists`, que **seta as quatro listas** e as restaura no `finally`: nenhuma asserção lê o default do `Stubs.cs` (a precedência é pinada com uma lista que **não** nomeia `Stone` — `"Flint"` — e o alias continua vencendo). |
 | (g) | `CompanionNameMatch`: nome no começo, com vírgula, depois de `"Ei,"`, nunca no meio da frase, artigo, acento, e o `AddressCandidate` (`"Fulano,"` sim; `"mano,"`, `"bom dia,"`, sem separador, `"Ei,"` não) |
-| (h) | as cópias do `Stubs.cs` contra a **`Companions.dll` real** por reflexão (18 mensagens × `IsDoorRequest`, 18 ações × `JobMode`) |
+| (h) | as cópias do `Stubs.cs` contra a **`Companions.dll` real** por reflexão: 18 mensagens × `IsDoorRequest`, as 18 ações do corpus fixo × `JobMode` e, desde 11/11/2026, **as 37 ações de `ValidActions` × `JobMode`** (o corpus fixo não pode envelhecer sozinho). Também compara a **mtime da DLL com o `.cs` mais novo de `src/Companions`**: se a DLL é mais velha que o fonte, sai uma `nota:` e, com `--strict`, um FAIL — sem isso a seção compararia com uma compilação antiga e sairia verde |
 | (i) | `BuildCatalog`: o nome da peça vira o prefab (bancada, baú, fogueira, cama) nos 5 idiomas e as palavras (`HasWord`/`HasAnyWord`) |
 | (j) | `BuildTemplates`: os nomes nos 5 idiomas, a composição de cada estrutura (cabana 7, abrigo 8, casa 57/46/21, tenda 4), a ordem (bancada → piso → parede → telhado → porta) e os deslocamentos medidos |
 | (k) | `LevelIntent`: a ordem de nivelar nos 5 idiomas e o tamanho que o jogador disse |
 | (l) | `BuildBlueprintParser.Parse`: V1/V2, vírgula decimal, linha quebrada, arquivo vazio, `(Clone)` fora do prefab, e `Ordered` pela classe/altura |
 | (m) | `BuildBlueprintParser.NearestWithin` (a ordem **dentro** do grupo): o zigue-zague vira caminho curto (12 m em vez de 30,05), os grupos não se misturam (y=0 antes de y=4 e o de cima começa onde o de baixo parou), a porta continua por último (inclusive o run das portas), o run de 1 peça não é tocado, 5 mm de altura não abrem grupo, o guloso **nunca fica pior que o arquivo** (o caso da armadilha 0/10/20 a partir de x=10: 30 m × 20 m, o arquivo fica) e a estabilidade (duas listas iguais → mesma ordem; a lista do chamador não é reordenada) |
 | (n) | `BuildBlueprintParser.StoreyKey` (a chave do telhado): a peça de **telhado** (classe 3) pertence ao andar da **laje que ela cobre** — o piso mais próximo **acima** dela (0,3–6 m, 2,5 m em XZ). Casos: telhado escrito ANTES do piso a **3 m** (pé-direito real) → o piso vem antes; piso a **5 m** (pé-direito alto) → o piso ainda vem antes; piso a **7 m** (fora da janela) → não conta e o telhado fica no andar de baixo; piso **2,4 m ao lado** (dentro dos 2,5 m) conta e **3 m ao lado** não conta; com pisos a 3 m e 5 m a laje é a **mais próxima** (a ordem sai 3, 0, 5); telhado sozinho e telhado sobre um piso do **mesmo nível** (dy = 0 não é "acima") → andar de baixo; **porta por último** com piso de baixo, parede, piso de cima e telhado; e um andar só (piso → parede → telhado). **Cobertura provada por mutação** (03/11/2026, cópia do parser em `%TEMP%`, `src/` intocado): voltando a chave a `StoreyOf` puro **6 asserções falham** (3 m, 5 m, 2,4 m ao lado, mais próxima, alturas e a ordem completa do caso da porta); com a chave antiga `StoreyOf + 2` (commit `63d8096`) **as mesmas 6 falham** — antes desta seção o harness passava nos dois casos |
+| (o) | `NavTileMath.Axis` (a matemática do tile da navmesh, `floor((world + size/2)/size)`): 10 casos — as emendas em ±16 nos dois lados (o `Floor`, não o truncamento) e a borda de 2 m (`15` × `17`). |
+| (p) | `BuildFailure.Classify`/`IsDependency`/`IsBlocked` (**o portão de apoio** da obra, `AI/BuildFailure.cs`): 34 casos — `no_support`, `no support` (duas palavras), `needs_station` e `no_ground` **com** algo embaixo (`groundBelow=true`) são **`Dependency`** (não gastam tentativa, nunca contam como pulada); `blocked_by_player` é a classe **`Blocked`** (11/11/2026: um corpo no lugar não é culpa da peça — também não gasta tentativa, com ou sem `groundBelow` e em qualquer caixa, `BLOCKED_BY_PLAYER` incluso); `no_ground` **sem** nada embaixo, `no progress`, `clipping`, `too_steep`, `can't reach it`, `took too long`, `verification: not_found`/`verification: fallen`, `""`, `null`, e um status desconhecido são **`Real`** (gastam uma das 3 tentativas). Cobre também maiúsculas (`NO_SUPPORT`/`NO_GROUND` continuam dependência — a comparação ignora caixa), a forma de conveniência `IsDependency` nos dois sentidos do `no_ground`, o `IsBlocked` nos dois sentidos e as **constantes da barreira de andar** (`BodyRetryDelay` 2 s, `BodyRetryStep` 1 m, `BodyRetryMaxWait` **10 s** — o mesmo relógio de `BodyBarrierSeconds` desde o Run 17; era 25 s). |
+| (q) | `BuildPieceKind.Classify`/`IsStructural` (**estrutura × mobília**, `AI/BuildPieceKind.cs`): 26 casos — piso, fundação, parede (inteira e meia), telhado, empena, viga, pole, escada, escadinha, porta e portão = **`Structural`** (o ajuste de pose só pode andar **≤ 1 m**); baú, cama (as duas), fogueira, bancada, fermentador e caldeirão = **`Furniture`** (até **5 m**, e 3 anéis × 12 direções na segunda tentativa); maiúsculas (`WOOD_FLOOR`, `Piece_Chest_Wood`) caem no mesmo lado; `""`/`null` = **`Structural`** (peça sem nome não se move) e um nome que o vocabulário não conhece (`xyz`) = **`Furniture`** (mobília é "tudo o que não é estrutura": a peça ainda sobe). É a decisão que o `NudgePiece` usa depois de um `too_steep`/`no_ground`. |
+| (r) | `BuildSupportBelow.IsDirectSupport`/`Rank`/`CanSupport`/`PickPost`/`UsefulSurface`/`HoldsPlacedPiece` (**o apoio de uma peça**, `AI/BuildSupportBelow.cs`): 66 casos — a janela do que segura uma peça (0,4 a 2,5 m **abaixo**, até 2,5 m em XZ, o caso medido do andar de cima a 1 m) e as bordas (mesmo andar = vizinha e não apoio, peça **acima** = nunca, 0,39/0,4 m, 2,5/2,6 m abaixo, 2,5/2,6 m ao lado, diagonais de 2,40/2,55 m e o lado negativo); o `Rank` (a queda pesa **10×** a distância: o de 0,5 m abaixo ganha do de 2 m, e com a mesma queda o mais perto ganha) e os três números da janela; a **classe do pull** (`CanSupport`): **telhado sobre telhado** (a fileira de baixo da água — a empenha leste do run de 04/11 ficou aberta porque todo telhado era recusado como apoio), telhado apoiado no **piso** 2 m abaixo (roof 46,8 / floor 44,8, medido), na **parede/viga** e na **escada**; piso e parede **não** são apoiados por telhado; telhado e piso **não** são apoiados por porta; piso sobre piso; e a porta como **peça** (apoiada por parede). O **poste do apoio de emergência** (`PickPost`): o comprimento sai do **vão** entre a peça e a superfície de baixo — 1,02 m → viga de 1 m (o caso medido do deck), 1,4 m → **nenhum** (1 m curto demais, 2 m passaria), 1,9/2,2 m → viga de 2 m, 2,5/2,87 m → a de 45° (2,83 m), 3,2 m → nenhum, 0,5 m → nenhum (passaria através da peça); os dois vãos **medidos** da casa de 11/11 — **0,60 m** (o degrau entre dois pisos) → viga de 1 m e **1,60 m** → viga de 2 m — e o **buraco** de 1,30 m → **nenhum** (1 m fica 0,1 m além da tolerância e 2 m passaria 0,7 m); prefab inexistente (comprimento 0) é pulado, a escolha é pelo **comprimento** e não pela ordem, lista nula → −1, e os dois números da janela (0,20 m de folga para baixo, **0,45 m** de sobreposição — com 0,35 o vão de 0,60 m ficava sem poste). A **caminhada do raio** (`UsefulSurface`): a beira do telhado a **0,16 m** + o deck a **1,02 m** → o **deck** (o caso medido das 318 recusas "vão de 0,16 m"), só o deck, duas superfícies coladas (0,16/0,35) → nenhuma (terreno), a borda de 0,40 m que serve e 0,39 que ainda é colado, o primeiro utilizável mandando na ordem do raio, só as `count` primeiras entrando, e sem hit/sem lista → terreno; e a superfície tem de **segurar** (11/11/2026: o poste nasceu em cima de **baú** e o jogo recusou o poste com `no_support` 95 vezes) — profundidade 0,5/1,2 m com `holds` falso/verdadeiro → a de 1,2 m, e as duas falsas → −1 (terreno). E o **apoio da peça colocada** (`HoldsPlacedPiece`, o `FootprintSupported`): **telhado sobre telhado** com `m_supports = false` → **true** (o caso das 13 peças que ficaram 5 rodadas de fora), telhado no topo de parede/viga, telhado no **terreno**; piso sobre piso/viga que carrega → true e piso/parede/escada sobre peça com `m_supports = false` → **false** (mobília não carrega); pedra/árvore (sem `WearNTear`) não apoia nada; e a **porta** apoiada por parede. |
+| (s) | `BuildBody` (**a janela do corpo** na colocação, `AI/BuildBody.cs`): 18 casos — o **caso medido** (piso do deck a 39,8 sobre o companheiro com os pés em 38,78 → **bloqueia**; era o bug "dois companions travados embaixo do piso"), o mesmo piso a 2,5 m → livre e a 1,5 m → **livre** (o **disco** de 1,59 m recusava: era falso positivo — só a largura real da caixa conta); piso **2 m acima da cabeça** → livre e piso **no nível dos pés** → bloqueia; **parede** de 2 m com a base na altura do corpo → bloqueia e a mesma parede inteira acima da cabeça → livre (o companheiro passa embaixo); companheiro **de pé no deck**: a telha vizinha a 2 m → livre e **na emenda (1,4 m) → livre** (o topo da peça é o pé do corpo: o disco recusava, falso positivo); **Run 10** (medido): o feixe de 2 m com o fundo em 41,7 sobre a cápsula 39,9–41,7 → **livre**, e a mesma geometria com a cápsula até 41,9 → **bloqueia** (a cápsula decide); o **pivô** do telhado (centro +1,5 m: o fundo real é `point+1,3`, não `point-0,2`) → livre; a **viga de 45°** (`HalfY` ≈ 0,78 m) → bloqueia contra 0,1 m sem a inclinação → livre; companheiro **ao lado** da parede (0,5 m do plano médio) → livre e **encostado** (0,35 m) → bloqueia (o par fixa o raio de 0,3 m); e o companheiro **debaixo do piso** (XZ dentro) → bloqueia. |
+| (t) | **a barreira de andar** (11/11/2026, o Run 9: a escadinha da entrada, peças 8-10 de 988, recusada por corpo e só retomada no fim): 32 casos — `BuildFailure.IsTransient` é **só** `blocked_by_player` (13 checagens sobre 14 entradas: `blocked_by_player`/`BLOCKED_BY_PLAYER` → true; `no_support`, `no support`, `needs_station`, `no_ground`, `clipping`, `too_close_piece`, `no progress`, `can't reach it`, `took too long`, `verification: not_found`, `""`+`null` → false); `BuildFailure.ShortRetry` (10: 0/1/2 → true, 3/4 → false, a caixa e quatro falsos de outros motivos); as **constantes** da barreira (3 curtas, 2,5 s, 1,5 m de mesmo andar, **10 s** — era 20 s até o Run 17, quando o portão da obra passou a ser o mesmo relógio); e o **nível** da peça (`BuildBlueprintParser.Line.Level`, a mesma chave do `Ordered`): o telhado herda o piso que cobre (3 m → nível 3), a escada tem o próprio nível (2, com um piso no mesmo nível) e preenchê-lo **não muda a ordem** (piso/parede do térreo → piso de cima → telhado). |
+| (u) | `BuildSupportBelow.FallbackPostAllowed` (**o poste de emergência quando o apoio do plano não vem**, `AI/BuildSupportBelow.cs`): 6 casos — apoio **desistido** (no `SkippedIndex`) → `true` mesmo com outro companheiro em cima (ele nunca vai subir); apoio **reivindicado** (`OwnerOf != 0`) → `false` mesmo depois de 5 esperas (está chegando); sem reivindicação e com **0 ou 1 espera** → `false` (o plano ainda tem a chance — o caso que congelou a coluna do Run 9) e com **2 esperas** → `true` (o terceiro olhar, ~20 s = 8 s + 12 s do `DependencyDelay`); e `SupportGrace == 2`. |
+| (v) | `BuildStationCover.Required` (**a bancada exigida só fora do blueprint**, `AI/BuildStationCover.cs`): 5 casos — template com a chave ligada → **true** e com a chave desligada → **true** (a chave não alcança template nem peça única); blueprint com a chave ligada → **false** (dispensada) e desligada → **true** (regra vanilla); e o **fallback da config ausente** (`BuildStationCover.Default`, o mesmo número que o `MHR_Build.StationRequired` usa) com blueprint → **false**. |
+| (w) | `BuildMaterials.Add`/`Total` (**a necessidade de materiais de um plano**, `AI/BuildMaterials.cs`): 9 casos — 2 peças iguais multiplicam (4 × 2 = 8); o recurso repetido no mesmo prefab soma (2 + 3 = 5); peça sem receita custa 0 e conta em `noRecipe` (1); plano vazio → nada e `noRecipe` 0; `count = 0` não soma e não ignora entrada; item nulo/vazio e quantidade ≤ 0 ignorados **e contados** (3 de 4); 2 peças diferentes com o mesmo recurso somam (4 + 2×2 = 8); valor alto (1000 × 1000) não vira negativo; e `Total` duas vezes em dicionário novo dá o mesmo resultado (sem estado entre chamadas). |
+| (x) | `BuildWalkSpot.Choose` (**de onde a peça é alcançada**, `AI/BuildWalkSpot.cs`): 10 casos — o mesmo andar primeiro, depois a superfície mais alta que a regra de olho do jogo ainda cobre, e nenhuma = a própria peça (o alvo antigo). É o Run 13: a cumeeira do `CommHomeBasicBP` caminhava para o lado errado. |
+| (y) | `BuildAsideSpot.Plan` (**para onde o companheiro sai da frente**, `AI/BuildAsideSpot.cs`): 19 casos — o `StepAside` do Run 14, quando outro worker precisa colocar uma peça no corpo dele. |
+| (z) | `BuildSpread` (**a dispersão dos workers**, `AI/BuildSpread.cs`): 22 casos — o Run 14 medido (5 companheiros correndo para o mesmo canto: 88 `corpo na peça` e 32 pedidos de step-aside). Um plano compartilhado não é andado em fila: um worker pega a primeira peça de uma janela pequena do mesmo run que está longe do que os outros constroem. |
+| (aa) | **os 37 contratos × as 5 línguas** (`Program.ContractCoverage`): lê `CompanionChatAI.ValidActions` e os cinco campos `private const string Contract{Pt,En,Es,Fr,It}` da DLL por reflexão, e assere que cada uma das 37 ações aparece nos cinco contratos — uma asserção por medição, com os nomes ausentes no detalhe. Também assere que os cinco contratos são distintos entre si (uma língua que herdou o texto da outra falha aqui) e que o tamanho de `ValidActions` continua 37. **É a seção que nasceu do bug do `level`** (a ação estava no enum do schema e em nenhuma palavra do EN/ES/FR/IT). |
+| (ab) | **o round trip do schema** (`Program.CanonicalRoundTrip`): para cada ação de `ValidActions`, `LlmIntent.Parse("{\"action\":\"…\"}")` tem de voltar com a **mesma** ação. Era o segundo andar do bug do `level`: o modelo respondia `{"action":"level"}` e o `Canonicalize` reescrevia para `"none"` porque a ação nunca entrou na tabela `Aliases` — a rede do `LevelIntent` resgatava depois e o log culpava o modelo. Uma ação nova que esquecer a tabela agora falha aqui, pelo nome. O único desvio documentado é `attack` → `hunt` (um ataque sem criatura nomeada é o trabalho de caça), e ele sai impresso numa linha `nota:`. |
+
+| (ac) | `BuildBlueprintSkip` (**por que uma linha do `.blueprint` não entra no plano**, `AI/BuildBlueprintSkip.cs`): 7 casos — as duas constantes são **exatamente** `"not a piece here"` e `"recipe not unlocked"` (elas são o contrato do `skippedReasons` que o `BuildBlueprintReport` preenche e o `blueprints.inspect` publica: renomear uma quebra o painel e a ponte **sem erro de compilação em lugar nenhum**) e a tabela de decisão inteira — sem peça (com e sem a receita conhecida) → `NotAPiece`; com peça e sem a receita → `RecipeLocked`; com as duas → `null`. A última asserção exige que as duas razões continuem **textos distintos** (se colapsarem, o painel deixa de dizer ao jogador se ele desbloqueia a receita ou desiste do prefab). |
+| (ad) | `LlmProviders` (**o dropdown do provedor no painel**, `AI/LlmProviders.cs`): 28 casos — a tabela (`Count` 4, `CustomIndex` 3, os `IdAt` e os `KeyUrlAt` dos quatro, `Fills` só falso no "Personalizado", índice fora da faixa caindo no último item) e o **casamento tolerante do `Suggest`**: a URL da tabela → o item dela, `localhost` ≡ `127.0.0.1` (o `Alias` do LM Studio), barra no fim, sem o `/v1`, **com** `/chat/completions` (que o `LlmClient` acrescenta sozinho) e as duas juntas `…/v1/chat/completions/` — **a ordem das normalizações importa** e é isso que o caso prende; espaços e caixa alta; servidor desconhecido, `""` e `null` → "Personalizado". As URLs em si não mudam aqui: o que a seção prova é que **voltar** delas para o item continua funcionando. |
+| (ae) | **o log das redes ficou calado** (`Program.QuietLog`): as chamadas de `CompanionsPlugin.Log` dos arquivos linkados estão todas dentro de um `catch`, então uma linha de debug numa run verde é uma exceção engolida — o tipo de defeito que nenhum valor esperado pega, porque a rede devolve `null` por desenho. O contador é zerado no começo do run e lido aqui, no fim; a seção prova o próprio instrumento por **delta** (um `LogDebug` move o contador) antes de afirmar que ele ficou em zero. É a **última** da ordem por isso: ela lê os contadores de todas as outras, inclusive da (af). |
+| (af) | `LevelResume.Resumes`/`Message` (**qual fim do nivelamento devolve o canteiro à obra**, `AI/LevelResume.cs`): 14 casos — `done`/`already`/`failed` → `true` (o terreno foi trabalhado), **`hc_ai_build_too_steep` → `true`** (a pendência 12: o terreno é íngreme demais, a obra volta e constrói o que dá) e `no_hoe`/`null`/`""`/chave desconhecida → `false`; as duas linhas de "terreno pronto" são a mesma e a de `failed` é outra; a de `too_steep` fala do declive (não diz que o chão está pronto) e `Message(no_hoe)` é nulo. A última asserção prende o invariante que torna o par seguro: **`Resumes(x)` verdadeiro exatamente quando `Message(x)` não é nulo**. Sem `no_hoe` de fora, a obra voltaria, mediria a mesma variação, pediria o mesmo nivelamento e encerraria do mesmo jeito — uma ordem que se reinicia para sempre. |
+
+Hoje: **905 asserções** — a conta por seção sai do próprio run (uma linha por seção):
+
+| seção | n | seção | n | seção | n | seção | n |
+|---|---|---|---|---|---|---|---|
+| (0) | 1 | (f) | 34 | (l) | 25 | (r) | 66 |
+| (a) | 40 | (g) | 12 | (m) | 19 | (s) | 18 |
+| (b) | 15 | (h) | 74 | (n) | 12 | (t) | 32 |
+| (c) | 27 | (i) | 49 | (o) | 10 | (u) | 6 |
+| (d) | 32 | (j) | 154 | (p) | 34 | (v) | 5 |
+| (e) | 34 | (k) | 20 | (q) | 26 | (w) | 9 |
+| (x) | 10 | (y) | 19 | (z) | 22 | (aa) | 12 |
+| (ab) | 37 | (ac) | 7 | (ad) | 28 | (ae) | 2 |
+| (af) | 14 | | | | | | |
+
+Para reconferir a tabela por seção: `--only=(p)` conta só a seção pedida, então
+`dotnet run --project tools/ai-intents-check -c Release -- --only=(p) | grep -c '^PASS'` dá o número daquela linha, e
+`--list` imprime os nomes na ordem em que rodam. Nenhum número desta tabela é digitado à mão: cada um sai de um
+`--only`.
 
 ## O que **não** é coberto (e por quê)
 
@@ -81,19 +146,38 @@ arquivo:linha real de onde veio:
   endereçamento moram.
 - **"Esse prefab é um item que o jogo tem"** (`OrderItems.Known`): fora do jogo não há `ObjectDB`; o harness roda o
   ramo "sem banco de itens, o mapa é confiado". Um nome errado no mapa só apareceria em jogo.
-- **`CompanionChatAI.ValidActions` / `Contract`** (35 ações e o schema): não são redes por palavras; o número é
-  conferido por reflexão na DLL em auditoria. Se quiser fixá-lo aqui, é uma seção nova lendo a DLL.
+- **`CompanionChatAI.ValidActions` / `Contract`** (as 37 ações e o schema): **passaram a ser cobertos** — a seção (aa)
+  lê os dois por reflexão na DLL e compara as cinco línguas entre si, e a (ab) exige que toda ação do schema sobreviva
+  ao `LlmIntent.Canonicalize`. O que continua fora: o **texto** das regras (se a regra é clara para o modelo, só o teste
+  em jogo responde) e o `enum` do JSON schema como o modelo o recebe.
 - **`IsInventoryRequest`**: o harness cobre o caso da porta que o `InteractionIntent` usa; a outra metade (abrir a
   mochila) não foi pedida nesta rodada.
 
 ## Convenções
 
 - **`KNOWN-FAIL`**: quando um caso revela um bug real, o caso **não** é consertado nem vira `PASS`: use
-  `KnownFail("nome", aindaQuebrado, "detalhe")`. Ele sai como `KNOWN-FAIL` (fora da conta PASS/FAIL) e, se o bug
-  sumir, sai como `KNOWN-FAIL*` com o aviso de que a marca pode sair. **Nenhum caso usa a marca hoje.**
+  `KnownFail("nome", aindaQuebrado, "detalhe")`. Enquanto o bug existe sai `KNOWN-FAIL` (contado à parte, fora da conta
+  PASS/FAIL, e não decide o exit code). **Se o bug sumir, a marca passa a derrubar o run** (11/11/2026): sai
+  `FAIL … o bug sumiu: a marca KNOWN-FAIL pode sair`. Antes ela só era impressa como `KNOWN-FAIL*` e a run continuava
+  verde — a marca apodrecia em silêncio. **Nenhum caso usa a marca hoje.**
+- **O log é um instrumento** (11/11/2026): a seção (ae) lê os contadores de `CompanionsPlugin.Log` depois de todas as
+  outras. Todas as chamadas de log dos arquivos linkados estão dentro de um `catch` (medido: 7 chamadas), então uma
+  linha de debug numa run verde significa **uma regra que lançou e engoliu a exceção** — invisível de outro jeito,
+  porque a rede devolve `null` por desenho e um caso que espera `null` fica verde do mesmo jeito. A seção também prova
+  o contador por delta, para não ser vacuamente verde.
 - O harness **não** altera `src/`, não escreve config e não roda o jogo.
 - `AI_COMPANIONS_DLL` aponta para outra `Companions.dll` no cross-check; `VALHEIM_DIR`/`AI_COMPANIONS_MANAGED`
   apontam para a instalação do jogo (por padrão, o caminho do `Environment.props` / Steam).
+- **Argumentos** (11/11/2026). Sem argumento, **nada muda**: mesma ordem, mesmas asserções, mesma contagem, mesmo exit
+  code. `--list` imprime as seções na ordem em que rodam (lê a tabela `SectionOrder`, a mesma que o run executa) e
+  sai. `--only=(a),(p)` faz `PASS`/`KNOWN-FAIL` das outras seções **não contarem nem imprimirem** — mas as outras
+  seções **rodam**: pular a execução mudaria o estado que as seguintes leem, e o run inteiro leva ~10 s. `--quiet`
+  imprime só FAIL e o resumo. Um `--only` com nome que não existe **falha com exit 2**, em vez de contar zero e sair
+  verde. **`FAIL` e `SKIP` nunca são filtrados** — nem por `--only`, nem por `--quiet`: um harness que esconde um caso
+  vermelho atrás de um filtro é pior que nenhum filtro (foi o que a primeira versão fez: `--only=(p) --strict` engolia
+  o FAIL da DLL velha e saía 0).
+- `--strict` (11/11/2026) liga o gate de release: hoje ele só muda uma coisa — uma DLL mais velha que o fonte vira
+  **FAIL** em vez de `nota:`. Sem argumento nada muda (mesmo exit code, mesma contagem).
 
 ## Quando rodar
 

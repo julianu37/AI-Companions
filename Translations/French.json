@@ -1413,6 +1413,10 @@
             "value": "Touche du panneau F8"
         },
         {
+            "key": "hc_cfg_controls_buildpanelkey",
+            "value": "Touche du panneau de chantier"
+        },
+        {
             "key": "hc_cfg_controls_farmzonekey",
             "value": "Touche des zones"
         },
@@ -1587,6 +1591,10 @@
         {
             "key": "hc_cfg_movement_pathing",
             "value": "Chemin propre"
+        },
+        {
+            "key": "hc_cfg_movement_pathingonbuild",
+            "value": "Chemin sur le chantier"
         },
         {
             "key": "hc_cfg_movement_workrundistance",
@@ -2545,6 +2553,10 @@
             "value": "Niveau de journal"
         },
         {
+            "key": "hc_cfg_advanced_configversion",
+            "value": "Version de la config"
+        },
+        {
             "key": "hc_ai_thinking",
             "value": "Je réfléchis..."
         },
@@ -2861,12 +2873,48 @@
             "value": "Construire sans matériaux"
         },
         {
+            "key": "hc_cfg_building_blueprintstations",
+            "value": "Blueprint : sans établis"
+        },
+        {
             "key": "hc_cfg_building_blueprintmaxpieces",
             "value": "Pièces maximum (construction)"
         },
         {
             "key": "hc_cfg_building_leveltolerance",
             "value": "Tolérance du nivellement (m)"
+        },
+        {
+            "key": "hc_cfg_building_placereach",
+            "value": "Portée de pose"
+        },
+        {
+            "key": "hc_cfg_building_decklift",
+            "value": "Élévation de l'ouvrage"
+        },
+        {
+            "key": "hc_cfg_building_supportfallback",
+            "value": "Appui d'urgence"
+        },
+        {
+            "key": "hc_cfg_building_bodyretry",
+            "value": "Réessayer quand quelqu'un occupe la place"
+        },
+        {
+            "key": "hc_cfg_building_stepaside",
+            "value": "S'écarter quand quelqu'un va construire"
+        },
+        {
+            "key": "hc_cfg_building_reachwalk",
+            "value": "Marcher à portée"
+        },
+        {
+            "key": "hc_cfg_building_spreadworkers",
+            "value": "Répartir les compagnons"
+        },
+        {
+            "key": "hc_cfg_building_spreadnear",
+            "value": "Construire le plus proche d'abord"
         },
         {
             "key": "hc_ai_order_command",
@@ -4191,6 +4239,230 @@
         {
             "key": "hc_say_portal_left",
             "value": "J'ai laissé {0} dans le coffre près du portail."
+        },
+        {
+            "key": "hc_ui_build_title",
+            "value": "Panneau de chantier"
+        },
+        {
+            "key": "hc_ui_build_hint",
+            "value": "Esc ou {0} ferme."
+        },
+        {
+            "key": "hc_ui_build_site",
+            "value": "Chantier"
+        },
+        {
+            "key": "hc_ui_build_none",
+            "value": "Aucune construction en cours. Demande à un compagnon de construire quelque chose et elle apparaîtra ici."
+        },
+        {
+            "key": "hc_ui_build_site_label",
+            "value": "Construction : {0}"
+        },
+        {
+            "key": "hc_ui_build_site_progress",
+            "value": "Posées : {0} sur {1}    Ignorées : {2}    Poteaux : {3}"
+        },
+        {
+            "key": "hc_ui_build_site_state",
+            "value": "Phase : {0}    Temps : {1}"
+        },
+        {
+            "key": "hc_ui_build_site_leader",
+            "value": "Chef : {0}"
+        },
+        {
+            "key": "hc_ui_build_btn_pause",
+            "value": "Pause"
+        },
+        {
+            "key": "hc_ui_build_btn_resume",
+            "value": "Reprendre"
+        },
+        {
+            "key": "hc_ui_build_btn_cancel",
+            "value": "Annuler le chantier"
+        },
+        {
+            "key": "hc_ui_build_phase_paused",
+            "value": "en pause"
+        },
+        {
+            "key": "hc_ui_build_phase_preparing",
+            "value": "préparation"
+        },
+        {
+            "key": "hc_ui_build_phase_collecting",
+            "value": "collecte"
+        },
+        {
+            "key": "hc_ui_build_phase_building",
+            "value": "en construction"
+        },
+        {
+            "key": "hc_ui_build_phase_retrying",
+            "value": "nouvel essai"
+        },
+        {
+            "key": "hc_ui_build_phase_done",
+            "value": "terminé"
+        },
+        {
+            "key": "hc_ui_build_phase_waiting",
+            "value": "en attente"
+        },
+        {
+            "key": "hc_ui_build_workers",
+            "value": "Compagnons ({0})"
+        },
+        {
+            "key": "hc_ui_build_workers_none",
+            "value": "Aucun de tes compagnons ne peut rejoindre ce chantier pour l'instant."
+        },
+        {
+            "key": "hc_ui_build_workers_no_site",
+            "value": "Aucun chantier n'est en cours, donc personne n'y travaille."
+        },
+        {
+            "key": "hc_ui_build_btn_join",
+            "value": "Rejoindre"
+        },
+        {
+            "key": "hc_ui_build_btn_leave",
+            "value": "Quitter"
+        },
+        {
+            "key": "hc_ui_build_leader_tag",
+            "value": "{0} (chef)"
+        },
+        {
+            "key": "hc_ui_build_why_owner",
+            "value": "pas à toi"
+        },
+        {
+            "key": "hc_ui_build_why_dead",
+            "value": "mort"
+        },
+        {
+            "key": "hc_ui_build_why_combat",
+            "value": "combat seul"
+        },
+        {
+            "key": "hc_ui_build_why_home",
+            "value": "loin de la maison"
+        },
+        {
+            "key": "hc_ui_build_why_command",
+            "value": "ordres désactivés"
+        },
+        {
+            "key": "hc_ui_build_why_range",
+            "value": "hors de portée"
+        },
+        {
+            "key": "hc_ui_build_why_solo",
+            "value": "un seul ouvrier"
+        },
+        {
+            "key": "hc_ui_build_why_paused",
+            "value": "chantier en pause"
+        },
+        {
+            "key": "hc_ui_build_why_nosite",
+            "value": "pas de chantier"
+        },
+        {
+            "key": "hc_ui_build_why_leader",
+            "value": "c'est le chef"
+        },
+        {
+            "key": "hc_ui_build_why_plan",
+            "value": "pas de plan"
+        },
+        {
+            "key": "hc_ui_build_why_blueprint",
+            "value": "fichier disparu"
+        },
+        {
+            "key": "hc_ui_build_why_start",
+            "value": "n'a pas démarré"
+        },
+        {
+            "key": "hc_ui_build_why_already",
+            "value": "déjà sur le chantier"
+        },
+        {
+            "key": "hc_ui_build_why_unknown",
+            "value": "refusé ({0})"
+        },
+        {
+            "key": "hc_ui_build_materials",
+            "value": "Matériaux"
+        },
+        {
+            "key": "hc_ui_build_material_ok",
+            "value": "{0}: {1} / {2}"
+        },
+        {
+            "key": "hc_ui_build_material_missing",
+            "value": "{0}: {1} / {2} (manquent {3})"
+        },
+        {
+            "key": "hc_ui_build_materials_none",
+            "value": "Pas encore de liste de matériaux."
+        },
+        {
+            "key": "hc_ui_build_blueprints",
+            "value": "Bibliothèque de constructions"
+        },
+        {
+            "key": "hc_ui_build_bp_filter",
+            "value": "Tape pour filtrer..."
+        },
+        {
+            "key": "hc_ui_build_bp_open_folder",
+            "value": "Ouvrir le dossier"
+        },
+        {
+            "key": "hc_ui_build_bp_delete",
+            "value": "Supprimer"
+        },
+        {
+            "key": "hc_ui_build_bp_confirm",
+            "value": "Confirmer"
+        },
+        {
+            "key": "hc_ui_build_bp_delete_confirm",
+            "value": "Clique encore pour supprimer {0} - un chantier en attente de matériaux en a besoin."
+        },
+        {
+            "key": "hc_ui_build_bp_deleted",
+            "value": "{0} supprimé."
+        },
+        {
+            "key": "hc_ui_build_bp_delete_failed",
+            "value": "Impossible de supprimer {0} : {1}"
+        },
+        {
+            "key": "hc_ui_build_bp_none",
+            "value": "Pas encore de fichier .blueprint dans le dossier."
+        },
+        {
+            "key": "hc_ui_build_bp_detail",
+            "value": "Sélection : {0} - {1} pièces, {2} ignorées, {3} lignes"
+        },
+        {
+            "key": "hc_ui_build_bp_detail_error",
+            "value": "Impossible de lire {0} : {1}"
+        },
+        {
+            "key": "hc_ui_build_bp_count",
+            "value": "{0} sur {1} fichier(s)"
+        },
+        {
+            "key": "hc_ui_build_folder_failed",
+            "value": "Impossible d'ouvrir le dossier : {0}"
         }
     ]
 }

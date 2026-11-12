@@ -248,6 +248,66 @@ suman **por encima** de ellas:
 
 ---
 
+## Sección `[Building]` — cómo trabaja el compañero en la obra
+
+La construcción tiene su propia sección: la orden en sí (`Enabled`), el terreno (`LevelGround`, `ClearSite`), el
+material (`GatherForBuild`, `UseChests`) y hasta dónde llega el brazo al colocar la pieza (`PlaceReach`).
+
+| Clave | Por defecto | Qué hace |
+|---|---|---|
+| `PlaceReach` | `10` | Hasta dónde (metros) coloca la pieza **cuando se queda atascado**: sigue caminando hasta la pieza como antes, y solo después de **3 s sin acercarse** coloca de lejos. `5` es el alcance del propio juego (`Player.m_maxPlaceDistance`, desde el ojo) y `20` es para quien tiene prisa (5–20) |
+| `DeckLift` | `1` | Cuánto (metros) **sube el plano entero de un `.blueprint`**: el piso de la planta baja queda **sobre el suelo, apoyado en los postes, como una tarima**, y las puntas de poste que quedarían bajo el terreno se asientan en el suelo. `0` mantiene el nivel del archivo (0–3) |
+| `Enabled` | `true` | Deja que el compañero construya cuando se lo pides |
+| `LevelGround` | `true` | Nivela el terreno antes de una estructura cuando está torcido (necesita una azada en la bolsa) |
+| `ClearSite` | `true` | Corta árboles, tocones y troncos dentro del área del plano antes de la primera pieza — la madera paga la obra |
+| `TempScaffold` | `false` | Escalera provisional de 2 maderas cuando la pieza está fuera del alcance (blueprint, máximo 4 por obra) |
+| `SupportFallback` | `true` | Una pieza del plano rechazada por **falta de apoyo** y **sin nada del plano debajo** recibe un **poste de madera** clavado bajo ella (arriba en la base de la pieza, pagado como cualquier pieza) y se reintenta — como máximo **24 por obra**; `false` deja que la pieza espere y se queda fuera |
+| `GatherForBuild` | `true` | Faltando material: toma la recogida de lo que falta y retoma la obra solo |
+| `UseChests` | `true` | Usa los cofres antes de salir a recoger (la bolsa siempre va primero) |
+| `MaxDistanceFromHome` | `40` | Rechaza un sitio de obra a más de 40 m de la casa (`0` = sin límite) |
+| `BlueprintFree` | `false` | Blueprint sin pagar las piezas (prueba/creativo) |
+| `BlueprintMaxPieces` | `2000` | Rechaza un blueprint con más piezas que eso |
+
+> **Por qué el `PlaceReach` viene con 10 m:** medido en la prueba del 03/11/2026, de los **97** abandonos
+> (`no progress`) solo el **3%** ocurrió a **5 m o menos** — **10 m** cubren cerca del **81%**. Y **camina primero**:
+> esa distancia solo entra después de **3 s** sin acercarse, así que una pieza al alcance de la mano se sigue
+> colocando de cerca. Es un mod, no tiene que ser realista — quien tiene prisa sube el valor. Se lee en **cada uso**:
+> cambiarlo en el panel `F8` ya vale para la orden que está en marcha, y con `5` el comportamiento es exactamente el de
+> antes.
+>
+> **Por qué el `DeckLift` viene con 1 m y no con el desplazamiento automático:** un `.blueprint` se ancla en la **origen
+> del archivo**, así que la cimentación puede quedar por debajo del nivel del piso, y el plano subía por su **punto más
+> bajo** — en la casa de 985 piezas los postes enterrados lo levantaban **2,00 m**, lo que quedaba mal. Ahora el plano
+> sube exactamente ese valor y las puntas de poste que se hundirían se asientan en el suelo; `0` mantiene el nivel del
+> archivo.
+>
+> **Por qué existe `SupportFallback`:** el `.blueprint` del autor no siempre trae la pieza que sostiene a las demás (su casa
+> se apoyaba en algo que el archivo no incluye). Medido en la **`CommHomeBasicBP`** (3 compañeros, la tarima de 1 m): **16**
+> piezas quedaron **en columna** en la **fachada este** y en la **esquina noroeste** — pisos y tejados en
+> 40,8/42,8/44,8/46,8 — rechazadas con `no_support`, y no había nada del plano debajo de ellas para tirar. Con el poste
+> suben (la casa gana unos **postes de más** que el autor no dibujó).
+>
+> La lista completa de la sección (con `SiteSearchRadius`, `GatherRadius`, `LevelTolerance`, `RequireHammer` y
+> `Quiet`) está en el panel `F8`, y el `CONFIGURATION.md` generado del paquete trae todas las claves.
+
+---
+
+## Sección `[Movement]` — la ruta mientras sube la casa
+
+El compañero anda con **su propio mapa del mundo** (`[Movement] Pathing`), y ese mapa no sabe que una pieza acaba de
+colocarse o retirarse: el juego reconstruía un tile como mucho cada **5 s**. En una obra eso es la diferencia entre
+que el piso nuevo esté en la ruta ahora y que el compañero camine hacia el hueco que cubre.
+
+| Clave | Por defecto | Qué hace |
+|---|---|---|
+| `PathingOnBuild` | `true` | La ruta del compañero ve la pieza en cuanto se coloca (el tile del navmesh se reconstruye al momento, en vez de esperar hasta 5 s). Las reconstrucciones se **agrupan** (0,35 s) y solo tocan tiles que ya existen, y lo mismo vale cuando la pieza **desaparece** — la escalera provisional de la obra y la limpieza del `build.delete`. Apagado = el retraso del propio juego Necesita `[Movement] Pathing` activado. |
+
+> El mover además gana unos **6 s de paciencia** cuando la ruta vuelve `Partial` y el objetivo está **encima** de él
+> (el juego ajusta la ruta al mapa a hasta 12 m de distancia), en vez de rendirse al instante — la pieza del piso de
+> arriba se alcanza según entra el piso de abajo.
+
+---
+
 ## Qué **cambiamos** nosotros frente al upstream
 
 Además de la traducción y de la capa de IA, el proyecto ajustó algunos valores por defecto del upstream. Si vienes de

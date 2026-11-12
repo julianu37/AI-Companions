@@ -101,7 +101,7 @@ vem do upstream e continua funcionando igual — a IA é só uma **nova entrada*
 | **[Configuração](Configuration-pt)** | O `.cfg`, a seção `[AI]` e os painéis `F8` e `I` |
 | **[Problemas comuns](Troubleshooting-pt)** | Sintoma → causa → solução |
 | **[Como funciona](How-it-works-pt)** | Arquitetura e o caminho de uma ordem |
-| **[Histórico de versões](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)** | O changelog completo, da 1.6.0 à 1.9.5 |
+| **[Histórico de versões](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)** | O changelog completo, da 1.6.0 à 1.9.6 |
 | **[Créditos e licença](Credits-and-license-pt)** | Upstream, terceiros e licenças |
 
 ## Links rápidos
@@ -113,15 +113,22 @@ vem do upstream e continua funcionando igual — a IA é só uma **nova entrada*
 | **Changelog** | https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md |
 | **Upstream (MIT)** | https://github.com/MaddhattrRocks/Offline-Companions-Reborn |
 
-A release publicada mais recente é a **1.9.5** (31/10/2026), com **um** pacote:
+A release publicada mais recente é a **1.9.6** (02/11/2026), com **um** pacote:
 
 | Arquivo | Tamanho | O que vem |
 |---|---|---|
-| `AI_Companions-1.9.5.zip` | ~314 MB | O mod, as traduções **e** os modelos de voz (STT + TTS) já prontos |
+| `AI_Companions-1.9.6.zip` | ~314 MB | O mod, as traduções **e** os modelos de voz (STT + TTS) já prontos |
 
 > **Um pacote só.** Desde a **1.9.4** a release vem **com** os modelos de voz, já **dentro** de
 > `BepInEx\plugins\AI-Companions\` (`whisper\` e `tts\`) — não há nada para baixar por fora. O pacote
 > **sem-modelos** foi **descontinuado** (o último foi o da 1.9.1).
+
+> **A 1.9.6 — a atualização da construção.** O companheiro agora **constrói o que você pede**: bancada, baú,
+> cama, abrigo, tenda, cabana 2x2 ou a casa inteira (4x4, 6x6 e 8x8), nos cinco idiomas. Ele acha o lugar com as
+> regras do próprio jogo, paga peça por peça da mochila e dos baús, coleta o que falta, **nivela o terreno com a
+> enxada** e volta sozinho para terminar a obra, na mesma âncora e na mesma peça. A porta é sempre a **última**.
+> Ordens: `construa uma bancada aqui`, `construa uma cabana aqui`, `construa uma casa aqui`, `construa uma casa
+> 6x6 aqui`, `nivele um terreno 10x10 aqui` (a tabela completa está em **[Comandos](Commands-pt#construção)**).
 
 > **A 1.9.5 em resumo — o lote da revisão de 10 especialistas.** Vinte correções, nenhuma feature nova:
 >

@@ -165,6 +165,22 @@ ordenado —, mas uma forma de tratamento continua valendo (`mano, colete 10 ped
 | `vaga por aqui` / `para de vagar` | Liga/desliga o **vagar** |
 | `aceita comandos` / `ignora comandos` | Liga/desliga **aceitar ordens** |
 
+### Construção
+
+As ordens de construção seguem o mesmo caminho: **uma peça** (uma bancada, um baú, uma cama…), uma **estrutura
+pronta** (uma casa, a cabana, o abrigo da bancada, a tenda), um arquivo **`.blueprint`** pelo **nome do arquivo**
+(`construa a hs_meadows_hut aqui`) e o terreno sozinho (`nivele um terreno 10x10 aqui`).
+
+> **Com vários companheiros (em teste):** a ordem **sem nome** põe **todos** os companheiros que conseguem pegar a
+> ordem (e estão perto o bastante do canteiro) na **mesma obra** — um plano, cada peça feita **uma vez**. O **líder**
+> nivela o terreno e limpa o canteiro enquanto os outros **esperam**; se ele morre, outro assume. Com o **nome**, só
+> aquele constrói. Um **`para`** sem nome derruba a obra do grupo inteiro e **`Sophia, para`** tira só ela (qualquer
+> outra ordem para ela faz o mesmo). **Uma obra por jogador** por vez.
+>
+> Os limites desta primeira etapa: os **materiais são contados por companheiro** (eles podem colher mais do que o
+> plano precisa), o grupo vive **na memória** (não vai para o save) e é **só para blueprint** — peça única e
+> estruturas prontas continuam com um companheiro só.
+
 ### Conversa
 
 | Você diz | O que ele faz |

@@ -56,7 +56,7 @@ agente ⇄ MCP/stdio ⇄ tools/mcp-devbridge/mcp_devbridge.py ⇄ TCP 127.0.0.1:
   "mcp": {
     "valheim-devbridge": {
       "type": "local",
-      "command": ["python", "C:\\Users\\revenda33\\Desktop\\ModAI-BR-Companions\\tools\\mcp-devbridge\\mcp_devbridge.py"],
+      "command": ["python", "C:\\Users\\revenda33\\Desktop\\ValheinCompanions\\tools\\mcp-devbridge\\mcp_devbridge.py"],
       "enabled": true
     }
   }
@@ -95,7 +95,10 @@ Uma conexão por chamada; **um JSON por linha**, nas duas direções.
 | `build.check` | `prefab`, `x`, `y`, `z`, `yaw?` | o **mesmo** veredito do `BuildSite.Check` numa pose **exata** (o `y` não é achatado no chão - é assim que se testa parede sobre piso e telhado sobre parede) |
 | `build.snaps` | `prefab` | `count`, `points[]` (`name`, `x`, `y`, `z`) - os `snappoint` do prefab (a origem dos deslocamentos dos templates da E6) |
 | `build.usable` | `x?`, `y?`, `z?` | `station`, `usable` (o `CraftingStation.CheckUsable` do jogo: a regra do **telhado**, 70% de cobertura), `cover`, `underRoof`, `x/y/z` da estação **mais próxima** |
-| `companions.build` | `prefab?`, `plan?`, `blueprint?`, `name?`, `x/y/z?` | `started`, `blueprint`, `pieces`, `missing`, `missingStation`, `name` |
+| `nav.tiles` | `x?`, `y?`, `z?`, `radius?` | `center{}`, `radius`, `count`, `tiles[]` (`id`, `center{}`, `poke`, `build`, `hasData`, `instanceValid`; só o agente 40, filtro em XZ) |
+| `nav.probe` | `x?`, `y?`, `z?`, `range?` | `found`, `distance`, `point{}` (o `NavMesh.SamplePosition` com o agente/máscara do companheiro) |
+| `nav.stats` | — | `ready`, `broken`, `pokes`, `rebuilds`, `maxCollectMs`, `dirty`, `agentTypeId`, `areaMask` |
+| `companions.build` | `prefab?`, `plan?`, `blueprint?`, `name?`, `x/y/z?` | `started`, `blueprint`, `pieces`, `workers`, `refused?`, `missing`, `missingStation`, `name` |
 | `companions.sethome` | `name?` | `name`, `x`, `y`, `z` |
 | `screenshot` | `path?` | `path` |
 | `render.view` | `x`, `z`, `y?`, `yaw?`, `pitch?`, `dist?`, `size?` | `path`, `size`, `bytes`, `target{}`, `camera{}` |
@@ -105,7 +108,7 @@ Uma conexão por chamada; **um JSON por linha**, nas duas direções.
 | `input.click` | `x`, `y` (pixels da tela do jogo) | `x`, `y`, `sent`, `focused` |
 | `companions.list` | — | `count`, `companions[]` |
 | `companions.spawn` | — | `spawned` |
-| `companions.order` | `action`, `name?` | `action`, `mode`/`stance`/`value`, `applied` |
+| `companions.order` | `action`, `name?` | `action`, `mode`/`stance`/`value`, `applied`; no `stop`/`cancel`/`para`: `cancelled`, `build`, `level` (+ `companions[]` sem `name`) |
 | `companions.teleport` | `name?`, `x?`, `y?`, `z?` | `name`, `x`, `y`, `z` |
 | `companions.give` | `item`, `amount`, `name?` | `item`, `amount`, `added` |
 | `companions.zdo` | `name?` | `name`, `keys{}`, `farmZones[]` |
@@ -121,21 +124,40 @@ Uma conexão por chamada; **um JSON por linha**, nas duas direções.
 `log_watch` não é comando do bridge: o servidor lê o `LogOutput.log` por cursor (devolve a **primeira** linha casada e
 o cursor logo depois dela).
 
+`companions.build` com `blueprint` (P1, 03/11/2026): **`name` vazio = todos** os companheiros do jogador entram no
+mesmo canteiro (só os **do jogador** - `MHR_Owner.IsMine`), um plano só, peças distintas; com `name`, só aquele (o
+caminho de 1 companheiro, idêntico ao de antes). `workers` é em quantos a ordem entrou e, quando não entrou ninguém,
+`refused` diz por quê: `no companion in range`, `the site is busy` (já existe uma obra deste jogador - diga `para`
+antes), `missing station: <nome>`, `missing piece: <prefab>` ou `not started` - **`refused` só aparece quando a ordem
+não entrou**; com `started: true` ele não vai no reply. `started: true` com `workers: N` também
+quando a ordem entrega o canteiro ao **nivelamento** primeiro (o `MHR_Level` leva os N e devolve todos depois): o
+reply **não** tem campo de nivelamento. `plan`/`prefab` continuam sendo ordem de **um** (`workers` = 1). O teste mock
+do adaptador (**107 PASS** em 11/11/2026 — **101** até então; **12** asserções para o contrato do grupo de obra em
+03/11/2026 e **6** para o `stop` em 11/11/2026) cobre exatamente isto:
+`workers`, `refused` só quando recusa, sem `leveling` e `name` vazio = todos.
+
 `companions.order` **cancela `MHR_Build` e `MHR_Level`** em qualquer ação aceita (ordem de um tiro, como no
 chat/roda) e aceita: `follow`, `wood`, `stone`, `ore`, `forage`, `smelt`, `hunt`, `farm`, `fish`, `repair`,
 `restock`, `cook`, `stay`, `stance_balanced`, `stance_passive`, `stance_ranged`, `stance_melee`, `autopickup_on`,
-`autopickup_off`.
+`autopickup_off` — mais a **ordem de parar** (11/11/2026): **`stop`**, **`cancel`** e **`para`**
+(`DevBridge/Commands.cs:2191`). Com o grupo de obra (P1), uma ação comum derruba a ordem daquele **companheiro** (o
+`name`, ou o primeiro) e o canteiro continua com os outros; o **`stop`** é a parada do **chat**: cancela obra **e**
+nivelamento e responde o que **estava** rodando, lido **antes** do cancel (`build`/`level`, e `cancelled`); **sem
+`name`**, para **todos** os companheiros do mundo e devolve a lista em `companions` (um objeto por companheiro, com
+`name`, `build` e `level`).
 
 `companions.zdo` devolve as chaves `HC_*`: `Name`, `Owner`, `CompanionId`, `ActionMode`, `CombatStance`, `AutoPickup`,
 `Wander`, `Follow`, `StayHome`, `HomeRadius`, `OrderCap`, `OrderCapMode`, `OrderCapItem`, `TombstoneId`, `Stamina`,
 `Recovering`, `RecoverStance`, `RecoverPickup`, `Voice`, `Gen`, `FarmZones` (`"<none>"` ou `"N chars"`).
 
-## Ferramentas MCP (57 em 03/11/2026)
+## Ferramentas MCP (63 em 11/11/2026)
 
 Genéricas: `devbridge_ping`, `game_status` (posição, hp/stamina, bioma, dia, **yaw** do player, **camYaw/pitch** da
 câmera e **god**), `game_console` (**roda um comando do console e devolve a saída**: liga os dev commands sozinho e,
 num `spawn`, diz se o prefab existe), `player_give`, `player_teleport`, `player_kill`, `player_inventory`, `world_spawn`,
-`world_time`, `world_aim` (o que está **sob a mira**: nome, distância, ponto, se é árvore/criatura), `world_nearest`
+`world_chest` (**põe itens DENTRO de um baú** — ver a receita em "Encher um baú"; `world_spawn` cria o
+`piece_chest_wood` **vazio**), `world_time`, `world_aim` (o que está **sob a mira**: nome, distância, ponto, se é
+árvore/criatura), `world_nearest`
 (a **árvore** ou **criatura** mais próxima — o alvo para mirar), `world_prefabs` (os nomes de prefab que o mundo
 conhece, filtrados — é como se descobre `AxeBlackMetal` em vez de adivinhar), `world_setup` (**devcommands + `tod` +
 `god on` + `heal`** — o setup para dirigir o player), `screenshot` (a visão do jogador), `render_view` (câmera
@@ -354,14 +376,18 @@ Números medidos: andar ~3,5 m/s; correr ~5,1 m/s (stamina 50 → 33,6 em 2 s); 
 - `ScreenCapture.CaptureScreenshot` grava **no fim do quadro** → o servidor espera o arquivo (até 4 s).
 - `companions.order` sem `name` usa o **primeiro** companheiro — com vários, passe o nome.
 - O módulo é compilado junto: renomear um campo `*Hash` do mod **quebra o build** (é o que se quer).
-- **Encher um baú não tem ferramenta** (pedido do jogador em 03/11/2026: *"criar 4 baús cheios de madeira do lado do
-  player"* — **cancelado** por ele quando soube do custo). O `world.spawn` cria o `piece_chest_wood` mas ele nasce
-  **vazio**, e o conteúdo de um `Container` só chega ao ZDO pelo `Container.Save` (**privado**, disparado no
-  `Inventory.m_onChanged` → `OnContainerChanged`); o bridge escreve só chaves tipadas (`companions.zdo`), não o
-  `byte[]` dos itens. Encher exigiria um comando novo (`world.chest`: `Player.PlacePiece` + `Inventory.AddItem`), e
-  comando novo só vale **depois de reiniciar o jogo** (a DLL carrega no boot) — o que derrubaria a obra de 985 peças
-  que estava em andamento. Alternativa sem reinício: `player.give` põe a madeira no inventário do jogador (mas ele
-  fica acima do peso e anda travado), e o companheiro já corta o que falta pelo próprio canteiro.
+- **Encher um baú: resolvido em 11/11/2026 pelo `world.chest`.** O pedido de 03/11/2026 (*"criar 4 baús cheios de
+  madeira do lado do player"*) tinha sido **cancelado** pelo jogador quando soube do custo, e o comando não existia: o
+  `world.spawn` cria o `piece_chest_wood` mas ele nasce **vazio**, e o conteúdo de um `Container` só chega ao ZDO pelo
+  `Container.Save` (**privado**, disparado no `Inventory.m_onChanged` → `OnContainerChanged`). O `world.chest` entra
+  pelo caminho que o próprio jogo usa: acha o baú mais próximo que um companheiro **pode** usar (`MHR_Chests.Usable` —
+  peça posta por jogador, dentro do ward, não aberta), **abre** com `MHR_Chests.Open` (que reivindica a posse, e é a
+  posse que faz a escrita pegar), adiciona os itens e fecha. Com `spawn: true` ele primeiro **põe** um
+  `piece_chest_wood` na sua frente pela sequência de colocação do mod (`BuildExecutor.Place` sem builder: o crédito é
+  do jogador, que é o que torna `IsPlacedByPlayer` verdadeiro). Custo: um comando no bridge e um reinício do jogo (a
+  DLL carrega no boot) — foi por isso que ele esperou uma sessão em que o reinício já era necessário.
+  **Ressalva medida antes do primeiro uso:** um baú comum do jogo é **2×4 = 8 posições**, e 2 445 de madeira são
+  **21 pilhas de 120** — um baú não cabe a casa. Ver a receita abaixo.
 
 ## Segurança
 

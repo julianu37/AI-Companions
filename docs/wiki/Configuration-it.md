@@ -250,6 +250,65 @@ non è un giocatore. Due chiavi decidono il comportamento e **tutte e due sono i
 
 ---
 
+## Sezione `[Building]` — come il compagno lavora il cantiere
+
+La costruzione ha una sezione sua: l'ordine stesso (`Enabled`), il terreno (`LevelGround`, `ClearSite`), il materiale
+(`GatherForBuild`, `UseChests`) e fin dove arriva il braccio quando mette il pezzo (`PlaceReach`).
+
+| Chiave | Predefinito | Cosa fa |
+|---|---|---|
+| `PlaceReach` | `10` | Fin dove (metri) mette il pezzo **quando resta bloccato**: continua a camminare fino al pezzo come prima, e solo dopo **3 s senza avvicinarsi** mette da lontano. `5` è la portata del gioco stesso (`Player.m_maxPlaceDistance`, dall'occhio) e `20` è per chi ha fretta (5–20) |
+| `DeckLift` | `1` | Di quanto (metri) **sale l'intero piano di un `.blueprint`**: il pavimento del piano terra sta **sopra il terreno, appoggiato ai pali, come una piattaforma**, e le punte dei pali che finirebbero sotto il terreno si appoggiano al suolo. `0` tiene il livello del file (0–3) |
+| `Enabled` | `true` | Lascia che il compagno costruisca quando glielo chiedi |
+| `LevelGround` | `true` | Livella il terreno prima di una struttura quando è storto (serve una zappa nella borsa) |
+| `ClearSite` | `true` | Taglia alberi, ceppi e tronchi dentro l'area del piano prima del primo pezzo — la legna paga l'opera |
+| `TempScaffold` | `false` | Scaletta provvisoria da 2 legna quando il pezzo è fuori portata (blueprint, al massimo 4 per ordine) |
+| `SupportFallback` | `true` | Un pezzo del piano rifiutato per **mancanza di appoggio** e **senza niente del piano sotto** riceve un **palo di legno** piantato sotto di esso (cima alla base del pezzo, pagato come qualsiasi pezzo) e viene ritentato — al massimo **24 per ordine**; `false` lascia il pezzo in attesa e resta fuori |
+| `GatherForBuild` | `true` | Materiale mancante: prende la raccolta di quello che manca e riprende l'opera da solo |
+| `UseChests` | `true` | Usa le casse prima di uscire a raccogliere (la borsa viene sempre prima) |
+| `MaxDistanceFromHome` | `40` | Rifiuta un punto a più di 40 m da casa (`0` = senza limite) |
+| `BlueprintFree` | `false` | Blueprint senza pagare i pezzi (prova/creativo) |
+| `BlueprintMaxPieces` | `2000` | Rifiuta un blueprint con più pezzi di così |
+
+> **Perché il `PlaceReach` esce a 10 m:** misurato nel run del 03/11/2026, dei **97** abbandoni (`no progress`) solo
+> il **3%** è avvenuto entro **5 m** — **10 m** ne coprono circa l'**81%**. E **cammina prima**: quella distanza entra
+> solo dopo **3 s** senza avvicinarsi, quindi un pezzo a portata di mano viene ancora messo da vicino. È un mod, non
+> deve essere realistico — chi ha fretta alza il valore. Viene letto a **ogni uso**: cambiarlo nel pannello `F8` vale già
+> per l'ordine in corso, e con `5` il comportamento è esattamente quello di prima.
+>
+> **Perché il `DeckLift` esce a 1 m e non con lo spostamento automatico:** un `.blueprint` è ancorato all'**origine del
+> file**, quindi le fondazioni possono stare sotto il livello del pavimento, e il piano saliva dal suo **punto più
+> basso** — nella casa da 985 pezzi i pali interrati lo alzavano di **2,00 m**, che era troppo. Ora il piano sale
+> esattamente di quel valore e le punte dei pali che affonderebbero si appoggiano al suolo; `0` tiene il livello del
+> file.
+>
+> **Perché esiste `SupportFallback`:** il `.blueprint` dell'autore non porta sempre il pezzo che sostiene gli altri (la sua
+> casa si appoggiava a qualcosa che il file non include). Misurato sulla **`CommHomeBasicBP`** (3 compagni, la piattaforma
+> da 1 m): **16** pezzi sono rimasti **in colonna** sul **frontone est** e sull'**angolo nord-ovest** — pavimenti e tetti a
+> 40,8/42,8/44,8/46,8 — rifiutati con `no_support`, e sotto non c'era niente del piano da tirare. Con il palo salgono (la
+> casa guadagna qualche **palo in più** che l'autore non ha disegnato).
+>
+> L'elenco completo della sezione (con `SiteSearchRadius`, `GatherRadius`, `LevelTolerance`, `RequireHammer` e
+> `Quiet`) è nel pannello `F8`, e il `CONFIGURATION.md` generato del pacchetto porta tutte le chiavi.
+
+---
+
+## Sezione `[Movement]` — il percorso mentre la casa sale
+
+Il compagno cammina sulla **sua mappa del mondo** (`[Movement] Pathing`), e quella mappa non sa che un pezzo è appena
+stato messo o tolto: il gioco ricostruiva un tile al massimo ogni **5 s**. In un cantiere questa è la differenza tra
+il pavimento nuovo già nel percorso e il compagno che cammina nel buco che copre.
+
+| Chiave | Predefinito | Cosa fa |
+|---|---|---|
+| `PathingOnBuild` | `true` | Il percorso del compagno vede il pezzo appena viene messo (il tile del navmesh viene ricostruito subito, invece di aspettare fino a 5 s). Le ricostruzioni sono **raggruppate** (0,35 s) e toccano solo tile che esistono già, e lo stesso vale quando il pezzo **sparisce** — la scala provvisoria del cantiere e la pulizia del `build.delete`. Spento = il ritardo del gioco stesso Richiede `[Movement] Pathing` attivo. |
+
+> Il mover guadagna anche circa **6 s di pazienza** quando il percorso torna `Partial` e il bersaglio è **sopra** di
+> lui (il gioco aggancia il percorso alla mappa fino a 12 m), invece di arrendersi subito — il pezzo del piano di
+> sopra viene raggiunto man mano che il pavimento sotto entra.
+
+---
+
 ## Cosa **noi** abbiamo cambiato rispetto all'upstream
 
 Oltre alla traduzione e allo strato di IA, il progetto ha regolato alcuni valori predefiniti dell'upstream. Se vieni da

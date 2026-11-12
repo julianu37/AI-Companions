@@ -655,6 +655,12 @@ internal sealed class LlmIntent
 		Add(map, "nopickup", "nopickup", "no_pickup", "nao_recolher", "parar_de_recolher", "nao_pegar", "nao_catar");
 		// Trilha E: "construa uma bancada de trabalho aqui" - build a NEW piece on the ground (BuildCatalog).
 		Add(map, "build", "build", "construir", "construa", "constroi", "constroem", "levanta", "levante", "levantar", "ergue", "erguer", "edifica", "edificar", "faz_uma", "fazer_uma", "build_it", "erigir", "monta", "montar", "cria", "criar");
+		// E10: "nivele o terreno 8x8" - level the GROUND with the hoe (MHR_Level). The verbs are the ones LevelIntent
+		// reads from the player's own words in the five languages; here they are what turns the model's own "level"
+		// answer back into the canonical action. Without this entry an answer that named "level" (the schema offers
+		// it - see CompanionChatAI.ValidActions) was rewritten to "none" at the end of Canonicalize, and the order
+		// only worked because the LevelIntent net rescued the "none" afterwards.
+		Add(map, "level", "level", "nivelar", "nivele", "nivela", "nivelamento", "flatten", "leveling", "smooth", "grade", "aplanar", "aplana", "aplane", "allanar", "allana", "alise", "alisar", "niveler", "nivelle", "aplanir", "aplatir", "livellare", "livella", "appianare", "appiana", "spianare", "spiana");
 		Add(map, "command", "command", "commandable", "comandos", "aceitar_comandos", "obedecer", "ligar_comandos", "me_obedeca");
 		Add(map, "nocommand", "nocommand", "no_command", "nocommandable", "ignorar_comandos", "desobedecer", "desligar_comandos", "nao_obedecer");
 		Add(map, "stance_balanced", "stance_balanced", "balanced", "equilibrado", "balanceado", "postura_equilibrada", "normal", "neutro", "modo_normal");

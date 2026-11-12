@@ -96,7 +96,7 @@ vient de l'upstream et continue à fonctionner pareil — l'IA n'est qu'une **no
 | **[Configuration](Configuration-fr)** | Le `.cfg`, la section `[AI]` et les panneaux `F8` et `I` |
 | **[Problèmes courants](Troubleshooting-fr)** | Symptôme → cause → solution |
 | **[Comment ça marche](How-it-works-fr)** | Architecture et le chemin d'un ordre |
-| **[Historique des versions](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)** | Le changelog complet, de la 1.6.0 à la 1.9.5 |
+| **[Historique des versions](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)** | Le changelog complet, de la 1.6.0 à la 1.9.6 |
 | **[Crédits et licence](Credits-and-license-fr)** | Upstream, tiers et licences |
 
 ## Liens rapides
@@ -108,15 +108,23 @@ vient de l'upstream et continue à fonctionner pareil — l'IA n'est qu'une **no
 | **Changelog** | https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md |
 | **Upstream (MIT)** | https://github.com/MaddhattrRocks/Offline-Companions-Reborn |
 
-La release publiée la plus récente est la **1.9.5** (31/10/2026), avec **un** paquet :
+La release publiée la plus récente est la **1.9.6** (02/11/2026), avec **un** paquet :
 
 | Fichier | Taille | Ce qu'il contient |
 |---|---|---|
-| `AI_Companions-1.9.5.zip` | ~314 Mo | Le mod, les traductions **et** les modèles de voix (STT + TTS) déjà prêts |
+| `AI_Companions-1.9.6.zip` | ~314 Mo | Le mod, les traductions **et** les modèles de voix (STT + TTS) déjà prêts |
 
 > **Un seul paquet.** Depuis la **1.9.4**, la release vient **avec** les modèles de voix, déjà **dans**
 > `BepInEx\plugins\AI-Companions\` (`whisper\` et `tts\`) — il n'y a rien à télécharger à part. Le paquet
 > **sans modèles** a été **abandonné** (le dernier était celui de la 1.9.1).
+
+> **La 1.9.6 — la mise à jour de la construction.** Le compagnon **construit maintenant ce que tu demandes** : un
+> établi, un coffre, un lit, un abri, une tente, une cabane 2x2 ou la maison entière (4x4, 6x6 et 8x8), dans les
+> cinq langues. Il trouve l'emplacement avec les règles du jeu, paie pièce par pièce depuis son sac et les
+> coffres, ramasse ce qui manque, **aplanit le terrain à la houe** et revient seul finir le chantier, à la même
+> ancre et sur la même pièce. La porte est toujours la **dernière**. Ordres : `construis un établi ici`,
+> `construis une cabane ici`, `construis une maison ici`, `construis une maison 6x6 ici`, `aplanis un terrain
+> 10x10 ici` (le tableau complet est dans **[Commandes](Commands-fr#construction)**).
 
 > **La 1.9.5 en bref — le lot de la revue des 10 spécialistes.** Vingt correctifs, aucune nouvelle fonctionnalité :
 >

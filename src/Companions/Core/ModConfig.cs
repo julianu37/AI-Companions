@@ -157,6 +157,38 @@ internal static class ModConfig
 	// [Building] (Trilha E)
 	internal static ConfigEntry<bool> BuildEnabled;
 	internal static ConfigEntry<float> BuildSiteSearchRadius;
+	/// <summary>How far (metres) from the eye the companion may place a piece (vanilla allows 5). Request of 03/11/2026.</summary>
+	internal static ConfigEntry<float> BuildPlaceReach;
+	/// <summary>P1 (04/11/2026, player's request): how high a blueprint's whole plan rises above the ground, so the ground
+	/// floor sits on a deck on top of the poles (0 keeps the blueprint's own level).</summary>
+	internal static ConfigEntry<float> BuildDeckLift;
+	/// <summary>P1 (04/11/2026): plant a wooden post under a plan piece refused with <c>no_support</c> when the plan has
+	/// nothing under it (the author's blueprint leaned on something the file does not carry).</summary>
+	internal static ConfigEntry<bool> BuildSupportFallback;
+	/// <summary>11/11/2026 (the storey barrier of the Run 9): a piece refused because a body was on the spot goes back to the
+	/// site's retry queue and is tried again <b>before the plan climbs a storey</b> (instead of only in the end-of-plan retry
+	/// pass); the same barrier settles the pieces still waiting for a support before going up.</summary>
+	internal static ConfigEntry<bool> BuildBodyRetry;
+	/// <summary>11/11/2026 (Run 14, the spread of the crew): a shared plan is not walked in a line - each worker takes a
+	/// piece of the next few of its run that is <b>far</b> from what the others are building (<c>BuildSpread</c>), and the
+	/// pieces it walked past keep their turn in the site's queue. The measured reason: 88 <c>corpo na peça</c> and 32
+	/// step-aside asks in the Run 14 because consecutive indices are neighbours in space.</summary>
+	internal static ConfigEntry<bool> BuildSpreadWorkers;
+	/// <summary>
+	/// 11/11/2026 (the player's rule "construir tudo o que está ao alcance antes de ir para outro lugar"): among the pieces the
+	/// crew spread over (the far ones of the window), take the <b>nearest</b> to the body while it is inside its reach
+	/// (<c>MaxPlace</c> + 1 m) - the companion closes the place it is on before moving to the other end of the house. It never
+	/// overrides the spread: the candidate still has to be far from what the others are building. Off: the first far piece of
+	/// the plan's order (the Run 14 rule, byte for byte).
+	/// </summary>
+	internal static ConfigEntry<bool> BuildSpreadNear;
+	/// <summary>11/11/2026 (Run 10, the companion blocker): a companion of the site that is only <b>waiting</b> steps out of the
+	/// way of a piece another one has to place (2,2 m through the mover, never a teleport, and never the player).</summary>
+	internal static ConfigEntry<bool> BuildStepAside;
+	/// <summary>11/11/2026 (Run 13, the ridge of the commercial blueprint): walk to the nearest surface the piece can be
+	/// reached <b>from</b> (a finished floor or roof row) instead of walking at the piece in mid-air, where the path snap
+	/// starts the route far from the feet and the companion walks the wrong way.</summary>
+	internal static ConfigEntry<bool> BuildReachWalk;
 	internal static ConfigEntry<float> BuildMaxDistanceFromHome;
 	internal static ConfigEntry<bool> BuildGatherForBuild;
 	internal static ConfigEntry<float> BuildGatherRadius;
@@ -171,6 +203,9 @@ internal static class ModConfig
 	/// <summary>E7 (player's idea, 03/11/2026): a temporary wood stair for a piece above the 5 m placement reach.</summary>
 	internal static ConfigEntry<bool> BuildTempScaffold;
 	internal static ConfigEntry<bool> BuildBlueprintFree;
+	/// <summary>Lote 1 (11/11/2026): a blueprint builds without crafting stations - no workbench is planned and a piece
+	/// is not refused for a missing station. Templates and single-piece orders always need the station.</summary>
+	internal static ConfigEntry<bool> BuildBlueprintStations;
 	internal static ConfigEntry<int> BuildBlueprintMaxPieces;
 
 	internal static ConfigEntry<float> TombstoneScanInterval;
@@ -240,6 +275,8 @@ internal static class ModConfig
 	internal static ConfigEntry<bool> FollowStuckTeleport;
 
 	internal static ConfigEntry<bool> CompanionNavMesh;
+
+	internal static ConfigEntry<bool> PathingOnBuild;
 
 	internal static ConfigEntry<float> CookRange;
 
@@ -631,6 +668,9 @@ internal static class ModConfig
 
 	internal static ConfigEntry<KeyCode> ConfigPanelKey;
 
+	// 11/11/2026 (the build panel): opens the panel of the running build site (plan, pieces, materials, pause/resume)
+	internal static ConfigEntry<KeyCode> BuildPanelKey;
+
 	internal static ConfigEntry<KeyCode> FarmZoneKey;
 
 	internal static ConfigEntry<KeyCode> FarmZoneModifier;
@@ -789,6 +829,7 @@ internal static class ModConfig
 		DirectTargetKey = Bind(cfg, "Controls", "DirectTargetKey", KeyCode.Z, "The command key. Tap it while looking at something to send your companions to it (move there, attack it, open the door, sit by the fire, repair at the station...). Hold it to call them to you.");
 		RadialMenuKey = Bind(cfg, "Controls", "RadialMenuKey", KeyCode.E, "Hold this while looking at a companion to open its command wheel.");
 		ConfigPanelKey = Bind(cfg, "Controls", "ConfigPanelKey", KeyCode.F8, "Opens the in-game settings panel, where all of these settings can be changed.");
+		BuildPanelKey = Bind(cfg, "Controls", "BuildPanelKey", KeyCode.B, "Opens the build panel: the site your companions are building (the plan, the pieces that are up, the materials the rest of the house still needs) with pause, resume and cancel. Esc or this key again closes it. None = no key.");
 		FarmZoneKey = Bind(cfg, "Controls", "FarmZoneKey", KeyCode.Z, "Pressed together with FarmZoneModifier: opens the farm zone editor.");
 		FarmZoneModifier = Bind(cfg, "Controls", "FarmZoneModifier", KeyCode.LeftAlt, "Hold this and press FarmZoneKey to open the farm zone editor.");
 		RecallRange = Bind(cfg, "Controls", "RecallRange", 40f, "How close (meters) a companion has to be to you to answer a recall (holding the command key) or a point-and-command order. Companions with Command switched off on the wheel ignore both. 0 = no limit.", new AcceptableValueRange<float>(0f, 500f));
@@ -838,6 +879,7 @@ internal static class ModConfig
 		ViewRange = Bind(cfg, "Movement", "ViewRange", 20f, "How far (meters) a companion can see enemies and other creatures. Takes effect after the world is reloaded.", new AcceptableValueRange<float>(5f, 100f));
 		ViewAngle = Bind(cfg, "Movement", "ViewAngle", 120f, "A companion's field of view (degrees). Takes effect after the world is reloaded.", new AcceptableValueRange<float>(30f, 360f));
 		CompanionNavMesh = Bind(cfg, "Movement", "Pathing", defaultValue: true, "Companions find their way with their own map of the world, where doors don't block the way (they open them as they get there) and steps up to 0.6 m are climbable (they hop them). Off = the same map creatures use, where every closed door is a wall and most stairs don't connect. Takes effect after a restart.");
+		PathingOnBuild = Bind(cfg, "Movement", "PathingOnBuild", defaultValue: true, "The companion's route sees a piece as soon as it is placed (the navmesh tile is rebuilt instead of waiting up to 5 s). Needs [Movement] Pathing on.");
 		WorkRunDistance = Bind(cfg, "Movement", "WorkRunDistance", 25f, "Companions walk while doing jobs (farming, chest trips, smelting, cooking, chores, repairs, gathering) and only run when what they are heading to is further away than this many meters. 0 = never run for work. Following you, fighting and hunting are not affected.", new AcceptableValueRange<float>(0f, 500f));
 		DryDetour = Bind(cfg, "Movement", "DryDetour", 30f, "Companions prefer staying dry, like a player: when the way somewhere crosses water they go round it on land, as long as the dry way is no longer than 1.5x the swimming way plus this many meters. Otherwise they swim.", new AcceptableValueRange<float>(0f, 500f));
 		JobSwim = Bind(cfg, "Movement", "JobSwim", 20f, "The most swimming (meters) a job accepts to reach something: loot from a kill, prey, a bird, a fishing spot. Further than that and it leaves it.", new AcceptableValueRange<float>(0f, 200f));
@@ -937,6 +979,14 @@ internal static class ModConfig
 		// [Building] (Trilha E) - the autonomous construction. E3: one piece per order, from its own bag.
 		BuildEnabled = Bind(cfg, "Building", "Enabled", true, "Let a companion build when you ask it (\"Maria, build a workbench here\"). It checks the recipe, looks for a free spot with the game's own rules, walks there, places the piece and confirms it. Phase E3: it builds from its own bag only (no gathering yet) and only the pieces of the workshop (workbench, chest, fire pit, bed).");
 		BuildSiteSearchRadius = Bind(cfg, "Building", "SiteSearchRadius", 8f, "How far (meters) around the spot you are looking at the companion looks for a place where the piece fits (the game's rules: ground, water, ward, no-build zone, station in range and no clipping into other pieces).", new AcceptableValueRange<float>(1f, 30f));
+		BuildPlaceReach = Bind(cfg, "Building", "PlaceReach", 10f, "How far (in meters) the companion may place a piece when it cannot walk any closer. Vanilla allows 5 m; the companion still walks first and only opens this limit after 3 s stuck. 10 is the default; up to 20 for impatient players (it looks less realistic).", new AcceptableValueRange<float>(5f, 20f));
+		BuildDeckLift = Bind(cfg, "Building", "DeckLift", 1f, "The MOST the whole blueprint may rise above the ground: the ground floor sits on a deck on top of the poles, with the stairs reaching it. It only rises what the plan actually needs - a plan whose poles are buried 2 m rises the full value, a plan already drawn on the ground rises nothing (a build lifted in the air has no support and falls). 0 keeps the blueprint's own level. Default 1 (a low deck).", new AcceptableValueRange<float>(0f, 3f));
+		BuildSupportFallback = Bind(cfg, "Building", "SupportFallback", true, "When a plan piece is refused for no support and the plan has nothing under it, the companion puts a wooden post under it and places the piece (the house gets a few extra posts). Off = the piece waits and is left out. At most 24 posts per order.");
+		BuildBodyRetry = Bind(cfg, "Building", "BodyRetry", true, "A piece refused because a body (you or another companion) was in the way is not given up: it goes back to the site's retry queue and is tried again BEFORE the plan climbs a storey, instead of only at the end of the build. The same barrier also settles the pieces still waiting for a support before going up. Off: they only come back in the end-of-plan retry pass.");
+		BuildSpreadWorkers = Bind(cfg, "Building", "SpreadWorkers", true, "The crew does not build in a line: on a shared plan each companion takes a piece of the next few of the same row that is a few meters away from what the others are building, instead of everyone reaching for the same corner at the same time. The pieces a companion walked past keep their turn and are built as soon as that place is free. Off: they work the plan in the order of the file, all together, as before.");
+		BuildSpreadNear = Bind(cfg, "Building", "SpreadNear", true, "Build near first: among the pieces the crew spread over, the companion takes the one NEAREST to it that is still within its reach, so it closes the place it is working on before going to the other end of the house. Off: it takes the first far piece of the plan's order, as before.");
+		BuildStepAside = Bind(cfg, "Building", "StepAside", true, "A companion of the build group that is only waiting steps 2,2 m out of the way of a piece another one has to place (asked by the one placing it, walked with its own movement, never a teleport). You are never moved. Off: the piece waits for the companion to move on its own, as before.");
+		BuildReachWalk = Bind(cfg, "Building", "ReachWalk", true, "Walk to the nearest spot the piece can be reached from (a finished floor or roof row) instead of walking at the piece in mid-air.");
 		BuildMaxDistanceFromHome = Bind(cfg, "Building", "MaxDistanceFromHome", 40f, "A build order is refused when the spot is further than this (meters) from the companion's home, so it does not wander off to build across the world. 0 = no limit.", new AcceptableValueRange<float>(0f, 200f));
 		BuildGatherForBuild = Bind(cfg, "Building", "GatherForBuild", true, "When the piece's materials are missing and a job can collect them (wood, stone or ore), the companion takes the normal gather order for exactly the shortfall, gathers, and then the build order resumes by itself. Off: it says what is missing and the order ends.");
 		BuildGatherRadius = Bind(cfg, "Building", "GatherRadius", 120f, "How far (meters) from the build spot the companion looks for the resource it has to gather. The harvest's own radius is measured from the player while it follows (25 m), which made the search look tiny; when the resource is farther than 20 m the build walks there itself BEFORE the gather takes over - one owner of the movement at a time.", new AcceptableValueRange<float>(10f, 200f));
@@ -945,8 +995,9 @@ internal static class ModConfig
 		BuildQuiet = Bind(cfg, "Building", "Quiet", false, "Do not make the placement noise (the game adds one when a piece goes up, which can pull creatures). Only the hand-written placement path is silenced; the vanilla Player.PlacePiece path keeps its noise.");
 		BuildLevelGround = Bind(cfg, "Building", "LevelGround", true, "Level the ground before a structure (a plan) when it is uneven: a house of 8x8 needs a flat area, and the walls and roof are all at the anchor's height. It uses the game's own leveling (the hoe's level operation) and needs a hoe in the companion's bag - without one it says so and the order ends.");
 		BuildClearSite = Bind(cfg, "Building", "ClearSite", true, "Clear the build site before the first piece: the trees, stumps and fallen logs inside the plan's footprint are cut (the same directed harvest the radial uses) and the wood goes to the bag the build pays from. The ground under them is not changed - leveling is its own step (LevelGround). Up to 40 obstacles / 240 s per order; what is left is handled by the piece retry.");
-		BuildTempScaffold = Bind(cfg, "Building", "TempScaffold", false, "Off by default (the test of 03/11/2026 covered the site in stairs). In a blueprint, after 12 s without getting closer, place a temporary wood stair (2 wood) when the piece is above the game's 5 m placement reach - a ridge, the top of a gable, the last row of a roof. The stair is a ramp the companion walks up, it is paid from the bag/chests like any piece and the wood comes back when it is removed at the end of the order (it is not part of the plan). At most 4 per order and the stair is removed as soon as the piece it was placed for goes up; each stair is +1 m. A stair is kept only when a piece placed next to it has no support without it.");
+		BuildTempScaffold = Bind(cfg, "Building", "TempScaffold", false, "Off by default (the test of 03/11/2026 covered the site in stairs). In a blueprint, after 12 s without getting closer, place a temporary wood stair (2 wood) when the piece is above the placement reach ([Building] PlaceReach - vanilla 5 m) - a ridge, the top of a gable, the last row of a roof. The stair is a ramp the companion walks up, it is paid from the bag/chests like any piece and the wood comes back when it is removed at the end of the order (it is not part of the plan). At most 4 per order and the stair is removed as soon as the piece it was placed for goes up; each stair is +1 m. A stair is kept only when a piece placed next to it has no support without it.");
 		BuildBlueprintFree = Bind(cfg, "Building", "BlueprintFree", false, "Build a blueprint without paying for the pieces (a test/creative switch: the companion places the pieces from the file and takes nothing from the bag or the chests). Off by default - a blueprint costs the same as any other build.");
+		BuildBlueprintStations = Bind(cfg, "Building", "BlueprintStations", true, "A blueprint builds without crafting stations: none is planned and a piece is not refused for a missing station. Off = the vanilla rule. Templates and single-piece orders always need the station.");
 		BuildBlueprintMaxPieces = Bind(cfg, "Building", "BlueprintMaxPieces", 2000, "Refuse a blueprint with more pieces than this (a guard against a huge or broken file). The message says the file has more pieces than the limit.", new AcceptableValueRange<int>(1, 20000));
 		BuildLevelTolerance = Bind(cfg, "Building", "LevelTolerance", 0.35f, "How much height variation (meters) a build site may have before the ground is leveled. Measured: a floor is refused when the ground under it is more than ~0.3 m below the anchor.", new AcceptableValueRange<float>(0.05f, 2f));
 		// [GearRepair]
@@ -1233,7 +1284,7 @@ internal static class ModConfig
 	/// <summary>1.9.5 (auditoria C2): the version of the config migrations this build knows about. Bump it whenever a
 	/// new one-time migration is added: a file stamped with an older value runs the migration block once more (they are
 	/// all "only the EXACT old default" rules, so running them again is harmless) and gets the new stamp.</summary>
-	private const int CurrentConfigVersion = 196;
+	private const int CurrentConfigVersion = 199;
 
 	/// <summary>1.9.5 (auditoria C2): should the one-time default migrations run on this boot? They used to run on
 	/// <b>every</b> boot, which quietly undid a choice the player made back to an old default (set the silence

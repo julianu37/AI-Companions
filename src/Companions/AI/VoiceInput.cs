@@ -174,7 +174,8 @@ internal static class VoiceInput
 	}
 
 	/// <summary>
-	/// Any open window means "not talking now": the same list the mod's command key uses, plus the mod's own panels.
+	/// Any open window means "not talking now": the game's own windows, plus every UI of the mod
+	/// (<see cref="ModUiLayers.AnyOpen"/> - the panels, the wheel, the aiming overlays and the shrine menu).
 	/// Cheap on purpose - it only runs on the frame the key goes down.
 	/// </summary>
 	private static bool BlockedByUi()
@@ -195,44 +196,9 @@ internal static class VoiceInput
 		{
 			return true;
 		}
-		if (CompanionRadialMenu.Instance != null && CompanionRadialMenu.Instance.IsVisible)
-		{
-			return true;
-		}
-		if (CompanionInteractPanel.Instance != null && CompanionInteractPanel.Instance.IsVisible)
-		{
-			return true;
-		}
-		if (ConfigPanel.Instance != null && ConfigPanel.Instance.IsVisible)
-		{
-			return true;
-		}
-		if (FarmZonePlacer.Instance != null && FarmZonePlacer.Instance.IsVisible)
-		{
-			return true;
-		}
-		// Fase 3.7: the AI panel owns the keyboard while it is open (the push-to-talk key is one of its controls)
-		if (CompanionAiPanel.Instance != null && CompanionAiPanel.Instance.IsVisible)
-		{
-			return true;
-		}
-		if (FarmZoneCropPicker.IsOpen)
-		{
-			return true;
-		}
-		// Fase 3.19 (auditoria): the starter panel and the home zone panel own the keyboard too - they were missing
-		// here, so push-to-talk started recording under them (and the voice path could see the keys they use)
-		if (StarterCompanionPanel.Instance != null && StarterCompanionPanel.Instance.IsVisible)
-		{
-			return true;
-		}
-		if (HomeZonePanel.Instance != null && HomeZonePanel.Instance.IsVisible)
-		{
-			return true;
-		}
-		// Fase 3.20: the appearance editor of an existing companion owns the keyboard too (it has no text box, but the
-		// push-to-talk key must not start a recording under it)
-		if (CompanionAppearancePanel.IsOpen)
+		// 11/11/2026: every UI of the mod owns the keyboard while it is up - one list, in ModUiLayers (it used to be
+		// repeated here). The panels, the wheel, the aiming overlays and the shrine menu are all "not talking now".
+		if (ModUiLayers.AnyOpen)
 		{
 			return true;
 		}

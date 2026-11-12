@@ -96,7 +96,7 @@ continua a funzionare uguale — l'IA è solo un **nuovo ingresso** per le stess
 | **[Configurazione](Configuration-it)** | Il `.cfg`, la sezione `[AI]` e i pannelli `F8` e `I` |
 | **[Problemi comuni](Troubleshooting-it)** | Sintomo → causa → soluzione |
 | **[Come funziona](How-it-works-it)** | Architettura e il percorso di un ordine |
-| **[Cronologia delle versioni](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)** | Il changelog completo, dalla 1.6.0 alla 1.9.5 |
+| **[Cronologia delle versioni](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)** | Il changelog completo, dalla 1.6.0 alla 1.9.6 |
 | **[Crediti e licenza](Credits-and-license-it)** | Upstream, terzi e licenze |
 
 ## Link rapidi
@@ -108,15 +108,23 @@ continua a funzionare uguale — l'IA è solo un **nuovo ingresso** per le stess
 | **Changelog** | https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md |
 | **Upstream (MIT)** | https://github.com/MaddhattrRocks/Offline-Companions-Reborn |
 
-La release pubblicata più recente è la **1.9.5** (31/10/2026), con **un** pacchetto:
+La release pubblicata più recente è la **1.9.6** (02/11/2026), con **un** pacchetto:
 
 | File | Dimensione | Cosa contiene |
 |---|---|---|
-| `AI_Companions-1.9.5.zip` | ~314 MB | La mod, le traduzioni **e** i modelli di voce (STT + TTS) già pronti |
+| `AI_Companions-1.9.6.zip` | ~314 MB | La mod, le traduzioni **e** i modelli di voce (STT + TTS) già pronti |
 
 > **Un pacchetto solo.** Dalla **1.9.4** la release arriva **con** i modelli di voce, già **dentro**
 > `BepInEx\plugins\AI-Companions\` (`whisper\` e `tts\`) — non c'è niente da scaricare a parte. Il pacchetto
 > **senza modelli** è stato **dismesso** (l'ultimo è stato quello della 1.9.1).
+
+> **La 1.9.6 — l'aggiornamento della costruzione.** Il compagno ora **costruisce quello che chiedi**: un banco da
+> lavoro, una cassa, un letto, un riparo, una tenda, una capanna 2x2 o la casa intera (4x4, 6x6 e 8x8), nelle
+> cinque lingue. Trova il posto con le regole del gioco stesso, paga pezzo per pezzo dallo zaino e dalle casse,
+> raccoglie quello che manca, **livella il terreno con la zappa** e torna da solo a finire il lavoro, allo stesso
+> ancoraggio e sullo stesso pezzo. La porta va sempre **per ultima**. Ordini: `costruisci un banco qui`,
+> `costruisci una capanna qui`, `costruisci una casa qui`, `costruisci una casa 6x6 qui`, `livella un terreno
+> 10x10 qui` (la tabella completa è in **[Comandi](Commands-it#costruzione)**).
 
 > **La 1.9.5 in breve — il lotto della revisione dei 10 specialisti.** Venti correzioni, nessuna funzione nuova:
 >

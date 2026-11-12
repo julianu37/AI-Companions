@@ -10,8 +10,8 @@ Legenda: ✅ concluído · 🔄 em andamento · ⏳ pendente
 
 | Item | Status |
 |---|---|
-| 10 agentes (1 líder + 9 especialistas) em `.opencode/agents/` | ✅ |
-| 5 skills de dependências (`bepinex`, `jotunn`, `valheim-reverse-engineering`, `valheim-ai-backend`, `valheim-assets`) | ✅ |
+| **17** agentes (1 orquestrador + 16 especialistas) em `.opencode/agents/` — era 10 no início | ✅ |
+| **10** skills (`bepinex`, `jotunn`, `valheim-reverse-engineering`, `valheim-ai-backend`, `valheim-assets`, `kokoro`, `valheim-devbridge`, `valheim-ai-orders`, `valheim-mod-research`, `reverse-engineer-anything`) — eram 5 no início | ✅ |
 | `AGENTS.md`, `opencode.jsonc`, references (BepInEx, Jotunn) | ✅ |
 | MCPs (`alvin` = Visual Studio, `context7`, `learn`) | ✅ |
 | Repositório no GitHub | ✅ |
@@ -54,7 +54,7 @@ Legenda: ✅ concluído · 🔄 em andamento · ⏳ pendente
 | 2.18c | **Carroça** (`CompanionCart` + `[Carroca]`): `modia_cart pull\|release` — ele anda até o engate do `Vagon` e puxa a carroça pelo `ConfigurableJoint` do jogo | ✅ (v0.4.6) |
 | 2.5 | Multiplayer (ZNetView/ZDO, testes com cliente/servidor) | ⏳ |
 | **3** | IA e voz: comandos por voz/chat, STT, TTS, personalidade — **neste projeto, ver Trilha D** | ✅ (3.1, 3.1-saída estruturada, 3.1b, 3.1c, 3.1d, 3.2, 3.2c, 3.3, 3.3b, 3.3c, 3.3d, 3.4, 3.5, 3.6, 3.6b, 3.7, 3.8 — **todas validadas em jogo**) |
-| **4** | Backend híbrido (LLM local + API), endpoints do "cérebro" | ⏳ |
+| **4** | ~~Backend híbrido (LLM local + API), endpoints do "cérebro"~~ — **RETIRADA por decisão do jogador (04/11/2026):** o "cérebro" é uma **API compatível com OpenAI** (Groq → LM Studio/Ollama → OpenRouter) e **só o STT e o TTS rodam locais, dentro do processo** (`Whisper.net` + `Kokoro` via `sherpa-onnx`). Embutir um **modelo de linguagem** no mod o deixaria gigante (GBs) sem ganho sobre um LM Studio na mesma máquina | ❌ retirada |
 | **5** | Empacotamento (README, ícone) + revisão final | ⏳ |
 | **6** | **Construção autônoma** (o companheiro constrói: bancada → oficina → estruturas → blueprints) — ver **Trilha E** | ⏳ planejado |
 
@@ -357,6 +357,13 @@ Ordens em **linguagem natural** por cima do mod do upstream. O companheiro conti
 > **Legenda de status:** `✅ validado em jogo` = o **jogador** testou e confirmou, com evidência no `LogOutput.log`
 > (a citação curta vai no status); `✅ build 0 erros ...` = verificado **só fora do jogo** (build/harness). O que
 > continua aberto está em *Pendências conhecidas*, logo abaixo da tabela.
+
+> **Arquitetura do "cérebro" — FECHADA (decisão do jogador, 04/11/2026):** o LLM é **sempre uma API compatível com
+> OpenAI** (Groq → LM Studio/Ollama → OpenRouter, na ordem de fallback), e **só o STT e o TTS rodam localmente, dentro
+> do processo** (`Whisper.net` e `Kokoro` via `sherpa-onnx`). **Não haverá modelo de linguagem embutido no mod** — a
+> fase "backend híbrido (LLM local + API)" da Trilha B foi **retirada** justamente por isso: embutir um LLM levaria o
+> pacote a GBs sem ganho sobre um LM Studio rodando na mesma máquina. Qualquer proposta futura de "modelo local dentro
+> da DLL" começa por reabrir esta decisão.
 
 | Fase | Descrição | Status |
 |---|---|---|
@@ -2369,6 +2376,21 @@ Evidência: `docs/re/building-notes.md` §15.2o-§15.2r; gate 9/9 (461 asserçõ
   `BuildBlueprintParser.NearestWithin` agora reordena cada run por **vizinho mais próximo** (guloso, a partir de onde o
   run anterior terminou), sem mudar grupo e com as portas ainda por último. Coberto pelo harness.
 
+- **O piso do andar de cima (03/11/2026, medido na `fix/pisos-nivel-2`):** a `CommHomeBasicBP` (985 peças) subiu
+  720/983 e travou nos pisos do nível 2 (`no_support`/`no progress ... 12 s`, 12–17 m): o plano é um snake que começa
+  no fim do run anterior e, depois de queda/morte, o companheiro fica longe. `MHR_Build.PreferNearFloor` passa a
+  escolher, para pisos do **mesmo nível**, o mais perto dele (primeiro um que ele coloque sem andar, 3,0 m; depois até
+  7 m), uma vez por peça, sem tocar no que `PullSupports`/`PullFloorsAbove` puxou (`PullUntil`) e com guarda de 1,5 m
+  para não trocar andar. Cobre também a 1ª peça da retomada (morte/gather). **Aceite:** o mesmo plano de 985 passa dos
+  720/983 sem o `no progress` repetido.
+
+- **Medido em jogo (03/11/2026) — o piso do andar de cima + a navmesh da obra:** a mesma `CommHomeBasicBP` foi de
+  **575 → 981/986** e, com o retry pass, a **1045/1078** (uma morte no 864, retomada no respawn); o que parou o run
+  foi **falta de material** (77 madeiras; a coleta ficou 300 s sem entregar e a mochila estava em 302/300), não a
+  rota. A P2 da navmesh foi provada à parte: uma bancada colocada pelo companheiro levou `pokes` 0 → 1 e
+  `rebuilds` +9 (2 no `build.delete`), `maxCollectMs` 2,65 ms. Detalhe em `docs/re/building-notes.md` §16 e
+  `docs/re/navegacao-companheiro.md` §6.1.
+
 #### 1.9.6 — a construção autônoma (02/11/2026) — ✅ publicada, tag `v1.9.6` (GitHub + Nexus)
 
 A **Trilha E** inteira (E0-E10) entrou nesta release: o companheiro constrói sozinho, do pedido ao último prego, nos
@@ -2403,7 +2425,9 @@ foi **tentada e revertida** (deixava a casa torta). Harness **405**, MCP **70**,
 
 ## Trilha E — Construção autônoma (planejada, 31/10/2026 · rev. 01/11/2026)
 
-> **E0–E5 feitas** (medidas em jogo, 01/11/2026); E6–E10 são plano. O plano completo (arquitetura, fases,
+> **E0–E7 feitas e medidas em jogo** (01–04/11/2026); **E8** (gerar plano de um JSON) e **E9** (converter `.blueprint`
+> do PlanBuild) são plano — e a última milha da E7 (a obra de blueprint em escala) está em
+> **`docs/backlog-construcao.md`**. O plano completo (arquitetura, fases,
 > critérios de aceite, riscos e a pesquisa do ecossistema) está em **`docs/plan-construcao.md`**.
 
 A meta: `Maria, construa uma bancada de trabalho aqui` → a companheira resolve a receita, os materiais
@@ -2430,7 +2454,7 @@ estouro do prazo o vigia **fala** o que falta. **`MaxDistanceFromHome` exercitad
 | **E6** | Estruturas pequenas por **template**: peças relativas, snap e ordem topológica com suporte | ✅ 01/11/2026 - `AI/BuildTemplates.cs` (puro, 43 casos no harness): `hut` (1 piso + 4 paredes + 2 telhados = 7) e `canopy` (4 postes + 4 telhados = 8), com os deslocamentos tirados dos **snaps** medidos. `MHR_Build` em modo plano: `FindAnchor` valida o **template inteiro**, o material é checado antes da 1ª peça, o prazo é por peça. **Aceite medido:** cabana **7/7 `supported`**, todas `placed (Direct)` - o companheiro constrói **sozinho** (o executor não usa mais o `Player.PlacePiece`, que dava o crédito/barulho/estatística ao jogador). Apoio pelo **próprio jogo** (`WearNTear.UpdateSupport`/`HaveSupport`, reflexão fail-open). Três lições: o apoio não existe antes das peças (revalidar no `Place`), o companheiro bloqueava a própria peça (`ignore` no validador) e o âncora é do template (11 m de erro antes). MCP 54 ferramentas / 64 checks, harness 316. **O abrigo fecha o "usável" da E5:** a bancada sob o `canopy`
 responde `usable=True cover=0.94 underRoof=True` e as descobertas ao lado `usable=False cover=0.18` |
 | **E10** | **Terraformar**: a ordem "nivele um terreno 10x10 aqui" e o nivelamento automático antes da obra | ✅ 01/11/2026 - o jogo não tem "level" duro (o Nivelar da enxada é um **smooth**, ±1 m por operação): grid espaçado pelo raio (o denso divergia), alvo na mediana, até 10 passadas ou 0,2 m, recusa acima de 1,2 m. O companheiro vai ao **centro** e bate a enxada ponto por ponto (andar até cada ponto o fazia tremer no lugar). **Aceite: 1,06 m → 0,33 m em 3 passadas, 165 s**; a casa nivela antes do `FindAnchor` (o canto mais plano). `ValidActions` 36 → 37, 5 idiomas, MCP 57/70, harness 363 |
-| **E7** | **Os planos do jogador**: o companheiro constrói as builds da biblioteca **`.blueprint`** (e a ponte do BuildOrders fica como opção de quem planeja no F11) | ✅ 02/11/2026 - o caminho do `.blueprint`: `AI/BuildBlueprintParser.cs` (texto, `#Name` + `#Pieces`, V1/V2, vírgula antiga, prefab sem caixa) + `BuildBlueprints` (pasta `BepInEx/config/AI-Companions/blueprints/`, ordem pelo **nome do arquivo**) + `MHR_Build.StartBlueprint` (de baixo para cima, linha que não serve é **pulada e contada**, `needs_station` nomeia a estação, `BlueprintFree`/`BlueprintMaxPieces`), **sem PlanBuild em runtime**. **Medido: `hs_meadows_hut` 28/28 `supported`** e `TestBox_V2` 5/5 (1 pulada por receita). Harness **405 → 430**. **03/11/2026 (a build de 985 linhas / 983 peças):** limpeza do canteiro (`Phase.Clear`/`ClearSite`), cepos e troncos, pedra/tronco no retry, bancada **planejada por peça** + **auto-curada** (`PlanStations`/`InsertBenchStep`), retomada como **blueprint** (plano exato + `Retry`), baús na **âncora** e o fim do "tremendo e parou" (`StateOf`/`Owner`) - ver a seção **1.9.7** e `docs/re/building-notes.md` §15.2b-§15.2h. A ponte do BuildOrders (F11) segue como próximo passo |
+| **E7** | **Os planos do jogador**: o companheiro constrói as builds da biblioteca **`.blueprint`** (e a ponte do BuildOrders fica como opção de quem planeja no F11) | ✅ 02/11/2026 - o caminho do `.blueprint`: `AI/BuildBlueprintParser.cs` (texto, `#Name` + `#Pieces`, V1/V2, vírgula antiga, prefab sem caixa) + `BuildBlueprints` (pasta `BepInEx\plugins\AI-Companions\blueprints\` — era `config/AI-Companions/blueprints/` até 11/11/2026, quando passou para a pasta do DLL e a antiga é copiada uma vez; ordem pelo **nome do arquivo**) + `MHR_Build.StartBlueprint` (de baixo para cima, linha que não serve é **pulada e contada**, `needs_station` nomeia a estação, `BlueprintFree`/`BlueprintMaxPieces`), **sem PlanBuild em runtime**. **Medido: `hs_meadows_hut` 28/28 `supported`** e `TestBox_V2` 5/5 (1 pulada por receita). Harness **405 → 430**. **03/11/2026 (a build de 985 linhas / 983 peças):** limpeza do canteiro (`Phase.Clear`/`ClearSite`), cepos e troncos, pedra/tronco no retry, bancada **planejada por peça** + **auto-curada** (`PlanStations`/`InsertBenchStep`), retomada como **blueprint** (plano exato + `Retry`), baús na **âncora** e o fim do "tremendo e parou" (`StateOf`/`Owner`) - ver a seção **1.9.7** e `docs/re/building-notes.md` §15.2b-§15.2h. A ponte do BuildOrders (F11) segue como próximo passo |
 | **E8** | O companheiro **gera** o plano de um blueprint JSON (`TryCreateGhostPlan`/`TryCreateBuildingShell`, até 2.048 peças) | ⏳ |
 | **E9** | Conversão de `.blueprint` do PlanBuild para o JSON do BuildOrders (acervo do BiomeBlueprints/valheimians) — só se o jogador pedir | ⏳ |
 

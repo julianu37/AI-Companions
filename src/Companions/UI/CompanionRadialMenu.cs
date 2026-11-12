@@ -319,6 +319,15 @@ public class CompanionRadialMenu : MonoBehaviour
 		}
 	}
 
+	/// <summary>
+	/// 11/11/2026 (the build panel): the frame this wheel closed itself on a key press (Esc or the pad's B), or -1 when it
+	/// did not. It used to be needed because the wheel also closed on the keyboard <b>B</b>, the very key that opens the
+	/// build panel: one press would close the wheel and open the panel on the same frame. The wheel no longer takes
+	/// <b>B</b> (one key, one owner), so the mark is no longer needed for that pair - it stays as the general "the wheel
+	/// closed by a key on this frame" guard the panel reads before opening.
+	/// </summary>
+	internal static int LastKeyCloseFrame { get; private set; } = -1;
+
 	internal static void WarmCache()
 	{
 		GetCircleSprite();
@@ -1193,8 +1202,12 @@ public class CompanionRadialMenu : MonoBehaviour
 			_pendingStance = -1;
 			RefreshSegmentStates();
 		}
-		if (ZInput.GetKeyDown(KeyCode.Escape) || ZInput.GetKeyDown(KeyCode.B) || ZInput.GetButtonDown("JoyButtonB"))
+		// 11/11/2026 (the player): Esc and the pad's B close the wheel - the keyboard B does not: it is the build panel's
+		// key alone ("one key, one owner"). The frame is still marked, so a press that closes the wheel cannot open the
+		// panel behind it on the same frame (CompanionBuildPanel.CanOpen).
+		if (ZInput.GetKeyDown(KeyCode.Escape) || ZInput.GetButtonDown("JoyButtonB"))
 		{
+			LastKeyCloseFrame = Time.frameCount;
 			Hide();
 			return;
 		}
