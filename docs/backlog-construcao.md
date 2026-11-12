@@ -86,32 +86,43 @@ já tirou a alocação, mas a **varredura** de `IsBelow`/`ServeBarrier` a 60 Hz 
 `WalkHits` 3) e ainda falha. `TempScaffold` está **vetada** pelo jogador — a resposta é rota, não andaime.
 **Antes:** a triagem do item 4 (pose + walk spot + rota) para não repetir o Run 14 (walk spot 7 m abaixo).
 
-### 7. Vão do deck — **decisão do jogador**
+### 7. O companheiro fica **cercado pela própria obra** e não sai — *[M] 12/11/2026, os dois de uma vez*
 `DeckLift=1` deixa ~1 m entre o piso e o chão e prende corpos (41 peças de piso foram apagadas à mão uma vez).
-Opções: **A** `DeckLift=0`; **B** saia em volta fechando o perímetro; **C** regra de rota para o mover não
-entrar/parar sob o deck. Nada disso se decide sem ele.
+Opções de produto: **A** `DeckLift=0`; **B** saia em volta fechando o perímetro; **C** regra de rota para o mover não
+entrar/parar sob o deck. Mas o run de 12/11 mostrou que o problema é **maior** que o deck e não depende dessas opções:
+o corpo fica **cercado por paredes e vigas** (sem teto) e o mod não sabe escalar a própria obra. **Isto é item de
+código**, e é o mais grave medido até agora.
 
-**Medido ao vivo em 12/11/2026** (segunda run grátis, captura do jogador + ponte): o companheiro ficou em
-**y=38,76** com o piso do deck em **y=39,80** — vão de **1,04 m** para um corpo de **1,8 m**. Ele ficou **parado ao
-milímetro** por mais de 10 minutos (`placed` subindo de 420 a 502 enquanto ele não saía do lugar), viu `hp 25`,
-`dead false`, ZDO saudável, e **continuou reivindicando peças do plano** — 3 das 3 desistências da run foram dele.
-Nenhuma intervenção o tirou: `companions.teleport` (colisão devolve o corpo), `companions.order follow` (a IA
-recoloca) e `companions.order stop` (só o tirou do grupo; ele ficou preso igual). A run seguiu com 1 companheiro.
+**Medido ao vivo em 12/11/2026** (segunda run grátis, captura do jogador + ponte): **os dois companheiros acabaram em
+bolsões cercados pela própria obra** e não saíram mais. O `Companion` ficou em `(-157,06 · 38,77 · -423,18)` e o
+`Companion 2` em `(-151,02 · 38,78 · -417,61)` — posições **idênticas ao milímetro** por mais de 20 minutos, com
+`hp 25`, `dead false`, ZDO saudável, e o `placed` subindo de 420 a 824 enquanto um deles trabalhava.
 
-**As três portas fechadas, lidas no código:**
+**O diagnóstico correto (o primeiro estava errado):** não é o vão do `DeckLift` — o `Companion 2` **não tem piso
+nenhum acima dele**. A medição do raio curto mostra o que o cerca: `woodwall` a 0,9 m e `wood_beam_45`/`wood_pole2`
+em `y=40,80` a 0,9–2,8 m, ou seja **vigas e paredes em volta, no chão, sem teto** — o corpo não consegue pular para
+fora e o mod não sabe escalar a própria obra.
+
+**As duas condições que fecham a única saída, lidas no código:**
 
 | onde | a condição | por que falha aqui |
 |---|---|---|
-| `MHR_Mover.cs:2177` `FindClimb` | `if (rise > 1.0f && layer != terrain) break;` | recusa degrau de obra construída (regra certa contra parede), e o `wood_floor` do deck está nessa camada |
-| `MHR_Mover.cs:2144` `TryStartClimb` | exige `s.MainPartial` | o log diz **`route full`** — ele "acha" que tem caminho, então nunca entra |
-| `MHR_Mover.cs:2373` `Rescue` | exige `s.MainPartial` | mesma porta: sem `MainPartial` não há resgate |
+| `MHR_Mover.cs:2144` `TryStartClimb` | `if (!s.MainPartial ...) return false;` | a rota que ele acha é **completa** (o log diz `route full`), então a subida **nunca é tentada** |
+| `MHR_Mover.cs:2177` `FindClimb` | `if (rise > 1.0f && layer != terrain) break;` | mesmo se tentasse, recusa qualquer degrau >1 m que seja obra construída — **recusa a própria parede a escalar** |
+| `MHR_Mover.cs:223` `GaveUp` | `if (s.GaveUp) { Halt(...); return false; }` | depois de desistir ele para; só limpa com `shift > 4f`, e o alvo do `Follow` pode ser ele mesmo (`crosshair is on it`) → trava circular |
 
-O padrão é o pior tipo: **ele sabe que está preso** (a escada de `Unstick` roda, `no progress` estoura), **tenta**, e
-não tem nenhuma saída desenhada para "confinado sob uma superfície construída". A resposta provável é uma quarta
-condição: quando o corpo está **abaixo** de uma superfície a menos de ~1,2 m e a rota "completa" não move a posição
-por N segundos, tratar como preso e usar o caminho de `Rescue`/`PlaceAt` — que hoje também é bloqueado pela colisão,
-então provavelmente **destruir a peça que prende** (ou reposicionar com folga vertical) em vez de empurrar o corpo.
-Isto é item de código, não de decisão de produto: acontece com A, B e C.
+**O padrão:** ele **sabe** que está preso (a escada de `Unstick` roda, `no progress` estoura, ele fala *"I can't get up
+there"*), **tenta**, e as saídas desenhadas exigem exatamente o que a situação nega (rota parcial; degrau de terreno).
+
+**Intervenções que NÃO funcionaram** (medidas): `companions.teleport` para terreno aberto a 20 m (a IA reescreve a
+posição no frame seguinte), `companions.order follow`, `companions.order stop`, e **destruir o piso sobre eles**
+(`build.delete` — continuaram parados, só 1 m deslocados pelo empurrão da destruição). Isso prova que não é colisão
+com o teto: é a IA insistindo num destino e nunca desistindo de desistir.
+
+**Direção da correção:** `TryStartClimb` deveria disparar também com rota completa quando a posição **não muda há N
+segundos** (o `no progress` já detecta isso); e `FindClimb` precisa de uma exceção medida para obra **construída pelo
+próprio companheiro** (o `Piece`/`WearNTear` é dele, e uma cerca de 1–2 m é escalável como uma parede de pedra). Sem
+essa exceção, qualquer casa que ele construa em volta de si é uma armadilha.
 
 ### 8. ~~As duas frases erradas do `CHANGELOG` público (revisão de lógica, A8)~~ — **fechado 11/11/2026**
 `package/CHANGELOG.md:16` dizia que os blueprints ficam em `config/…/blueprints` (o código usa `<plugin>/blueprints`,
