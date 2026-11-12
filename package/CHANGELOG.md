@@ -4,6 +4,18 @@ All the changes to this project, derived from ProfMags' Offline Companions. The 
 
 ## 1.9.7 - in progress
 
+**A piece keeps its identity when the plan is reordered.** Every structure of the build state names a piece by its
+position in the plan (`PlacedIndices`, `SkippedIndices`, `PulledSupport`, `FallAdjusted`, `FallbackPosts`,
+`BarrierServed`, `Index`, and on a site `Done`/`SkippedIndex`/`Claims`/`BodyAt`), and four functions used to change
+that order without moving any of them: `PreferNearFloor` swapped two steps, `InsertBenchStep` inserted one in the
+middle, `PullFloorsAbove` rebuilt the list and `PullSupports` removed and re-inserted. A piece already up could be paid
+for twice, a skipped index could name a good piece, and a claim could name a neighbour. The reorder now goes through
+`MHR_Build.Reorder`, whose arithmetic is the pure table `AI/BuildPlanOrder.cs` (harness section **(ag)**, including the
+invariant "the index marked as done still points at the same prefab"). A site - **including one with a single
+companion** - no longer reorders at all (`PlanLocked` is now `Group != null`, not "more than one worker"): its counters
+and claims are the site's, not one worker's, and the retry queue builds what the reorder used to fix. See
+`docs/re/building-notes.md` §17.27.
+
 **Build the plans you download (E7 - the blueprint library).** The companion reads the `.blueprint` files the Valheim
 community shares - the 353 of BiomeBlueprints, the valheimians library and your own captures - and builds them with the
 same executor as the structures: it pays from its bag and the chests, gathers what is missing and resumes where it

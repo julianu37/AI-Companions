@@ -1069,8 +1069,12 @@ internal static class MHR_Build
 			return false;
 		}
 		PlannedStep pick = state.Plan[best];
-		state.Plan[best] = next;
-		state.Plan[index] = pick;
+		// 11/11/2026: the swap goes through Reorder, so every index-bearing structure of the state follows the two steps
+		// instead of pointing at the other piece (the piece marked as done was the pick's position, not this one).
+		List<int> order = IdentityOrder(state.Plan.Count);
+		order[index] = best;
+		order[best] = index;
+		Reorder(state, order);
 		LogDebug(ai, "floor order: (" + F(pick.Pos.x) + ", " + F(pick.Pos.z) + ") is " + F(bestDist)
 			+ " m from the companion - before the one at " + F(current) + " m");
 		return true;
@@ -1759,11 +1763,125 @@ internal static class MHR_Build
 	/// <summary>
 	/// P1 (multi-build, 03/11/2026): the plan belongs to the <b>group</b> and every worker walks it by <b>index</b>, so a
 	/// reorder made by one worker would leave the others' indices pointing at other pieces (and their claims with them).
-	/// While the site has more than one worker nobody reorders it - the retry queue builds what the reorder used to fix.
+	/// While the site has a group nobody reorders it - the retry queue builds what the reorder used to fix.
+	///
+	/// <para>11/11/2026: the test is <c>Group != null</c>, not <c>IsShared</c> (<c>Workers &gt; 1</c>). A site whose other
+	/// workers left is still a <b>site</b> - its <c>Done</c>/<c>SkippedIndex</c>/<c>Claims</c>/<c>BodyAt</c> are indexed by
+	/// the plan's positions and no worker owns them alone, so one worker reordering the plan would move the site's own
+	/// numbers. The reorder now survives only on the <b>no-group</b> path (a plain order, and
+	/// <see cref="StartBlueprintGroup"/> with a single companion, which does not create a group at all), and there it is
+	/// remapped by <see cref="Reorder"/>.</para>
 	/// </summary>
 	private static bool PlanLocked(State state)
 	{
-		return state != null && state.Group != null && MHR_BuildGroup.IsShared(state.Group);
+		return state != null && state.Group != null;
+	}
+
+	/// <summary>
+	/// 11/11/2026 (the plan's identity): rebuilds the plan in the order <paramref name="order"/> gives and moves
+	/// <b>every</b> index-bearing structure of the state with it, so a piece keeps its identity across a reorder. The
+	/// arithmetic is <see cref="BuildPlanOrder"/>'s and the harness asserts it (section (ag)); this is the Unity side.
+	///
+	/// <para><c>order[i]</c> is the <b>old</b> index of the step that ends up at position <c>i</c>; <c>-1</c> is a step
+	/// that did not exist before and it becomes <paramref name="fresh"/> (<see cref="InsertBenchStep"/> is the only caller
+	/// that adds one). The plan is rebuilt <b>in place</b> (<c>Clear</c> + <c>AddRange</c>) because <c>Pending.Plan</c>
+	/// holds the same list reference for a resumed order (see <see cref="PullFloorsAbove"/>).</para>
+	///
+	/// <para>Nothing here is a group's plan: every caller is behind <see cref="PlanLocked"/>. If the site ever reorders
+	/// again, the group's <c>Done</c>/<c>SkippedIndex</c>/<c>Claims</c>/<c>BodyAt</c>/<c>RetryEntry.Index</c> have to be
+	/// remapped in the same call - they are the site's, not the worker's.</para>
+	/// </summary>
+	private static void Reorder(State state, List<int> order, PlannedStep fresh = null)
+	{
+		if (state == null || state.Plan == null || order == null)
+		{
+			return;
+		}
+		int oldCount = state.Plan.Count;
+		List<PlannedStep> rebuilt = new List<PlannedStep>(order.Count);
+		for (int i = 0; i < order.Count; i++)
+		{
+			int old = order[i];
+			if (old >= 0 && old < oldCount)
+			{
+				rebuilt.Add(state.Plan[old]);
+			}
+			else
+			{
+				rebuilt.Add(old < 0 ? fresh : null);   // the new step; an out-of-range index names nothing
+			}
+		}
+		int[] map = BuildPlanOrder.Map(order, oldCount);
+		state.Plan.Clear();
+		state.Plan.AddRange(rebuilt);
+		RemapIndices(state, map);
+	}
+
+	/// <summary>The identity order of a plan of <paramref name="count"/> steps: <c>0, 1, 2, ...</c> - what
+	/// <see cref="Reorder"/> gets when the change is an insertion or a swap of two positions.</summary>
+	private static List<int> IdentityOrder(int count)
+	{
+		List<int> order = new List<int>(count > 0 ? count : 0);
+		for (int i = 0; i < count; i++)
+		{
+			order.Add(i);
+		}
+		return order;
+	}
+
+	/// <summary>
+	/// 11/11/2026: the state's indices follow <paramref name="map"/> (see <see cref="Reorder"/>). The three sets are the
+	/// counters and the per-piece budgets (<c>PlacedIndices</c>, <c>SkippedIndices</c>, <c>PulledSupport</c>,
+	/// <c>FallAdjusted</c>, <c>FallbackPosts</c>, <c>BarrierServed</c>); the scalars are the walk's own position and the
+	/// anchors of the barriers (<c>Index</c>, <c>PullUntil</c>, <c>BarrierNextIndex</c>, <c>ResumeIndex</c>,
+	/// <c>WalkFor</c>, <c>AsideTriesAt</c>). <c>StartIndex</c> is not touched: it is only read when the plan is built.
+	///
+	/// <para>None of the four reorder sites removes a step, so <see cref="BuildPlanOrder.Remap"/> answers -1 only for an
+	/// index that never existed - and a scalar that would map to -1 keeps its old value (pointing at some step of the new
+	/// plan) instead of becoming "no piece".</para>
+	/// </summary>
+	private static void RemapIndices(State state, int[] map)
+	{
+		RemapSet(state.PlacedIndices, map);
+		RemapSet(state.SkippedIndices, map);
+		RemapSet(state.PulledSupport, map);
+		RemapSet(state.FallAdjusted, map);
+		RemapSet(state.FallbackPosts, map);
+		RemapSet(state.BarrierServed, map);
+		state.Index = Remapped(map, state.Index);
+		state.PullUntil = Remapped(map, state.PullUntil);
+		state.BarrierNextIndex = Remapped(map, state.BarrierNextIndex);
+		state.ResumeIndex = Remapped(map, state.ResumeIndex);
+		state.WalkFor = Remapped(map, state.WalkFor);
+		state.AsideTriesAt = Remapped(map, state.AsideTriesAt);
+	}
+
+	/// <summary>A set of plan indices follows the map, in place (the fields are readonly): the indices that left the plan
+	/// lose their entry instead of keeping a hole.</summary>
+	private static void RemapSet(HashSet<int> set, int[] map)
+	{
+		if (set == null || set.Count == 0)
+		{
+			return;
+		}
+		HashSet<int> moved = BuildPlanOrder.RemapAll(map, set);
+		set.Clear();
+		foreach (int index in moved)
+		{
+			set.Add(index);
+		}
+	}
+
+	/// <summary>Where a scalar index went, keeping the -1 sentinel of "no piece" and the old value when the map has no
+	/// answer for it (see <see cref="RemapIndices"/>).</summary>
+	private static int Remapped(int[] map, int index)
+	{
+		if (index < 0)
+		{
+			return index;
+		}
+		int at = BuildPlanOrder.Remap(map, index);
+		return at >= 0 ? at : index;
 	}
 
 	/// <summary>
@@ -4234,14 +4352,13 @@ internal static class MHR_Build
 	/// </summary>
 	private static bool InsertBenchStep(CompanionAI ai, State state, CompanionSetup cs, string refusedPrefab)
 	{
-		// P1 (multi-build): only the LEADER touches the plan's stations while more than one worker walks it - the plan is
-		// the group's and inserting a step in the middle of it shifts the indices every other worker walks by (one bench
+		// P1 (multi-build): only the LEADER touches the plan's stations while the plan is a site's - the plan is the
+		// group's and inserting a step in the middle of it shifts the indices every other worker walks by (one bench
 		// serves everybody: the game's rule is per piece). In a group the bench goes to the END of the plan instead: the
 		// refused piece is retried after it, and nobody's index moves. P1 (review B1, 03/11/2026): this holds for a group
 		// of ONE too - the site's indices (claims, `Done` and the retry queue) are the site's, not the worker's.
-		bool shared = PlanLocked(state);
-		bool append = state.Group != null;
-		if (shared && !IsLeader(ai, state))
+		bool append = PlanLocked(state);
+		if (append && !IsLeader(ai, state))
 		{
 			return false;
 		}
@@ -4269,7 +4386,17 @@ internal static class MHR_Build
 				+ " reordenado) em (" + F(spot.x) + ", " + F(spot.y) + ", " + F(spot.z) + ")");
 			return false;   // the refused piece goes to the retry queue, which runs after the bench
 		}
-		state.Plan.Insert(state.Index, new PlannedStep { Prefab = BenchPrefab, Piece = bench, Pos = spot, Rot = benchRot });
+		// the bench becomes the step being carried out and the refused piece comes right after it: an insertion in the
+		// middle of the plan, so every index-bearing structure of the state follows it (Reorder)
+		int at = state.Index;
+		List<int> order = new List<int>(state.Plan.Count + 1);
+		for (int i = 0; i < state.Plan.Count; i++)
+		{
+			order.Add(i < at ? i : i + 1);
+		}
+		order.Insert(at, -1);
+		Reorder(state, order, new PlannedStep { Prefab = BenchPrefab, Piece = bench, Pos = spot, Rot = benchRot });
+		state.Index = at;   // the bench's own position - the refused piece moved one place down, not the bench
 		state.BenchInserts++;
 		state.Prefab = BenchPrefab;
 		state.Piece = bench;
@@ -4872,27 +4999,29 @@ internal static class MHR_Build
 		}
 		int take = Mathf.Min(MaxPulledFloors, candidates.Count);
 		HashSet<int> chosen = new HashSet<int>();
-		List<PlannedStep> pulled = new List<PlannedStep>();
 		for (int i = 0; i < take; i++)
 		{
 			chosen.Add(candidates[i]);
-			pulled.Add(state.Plan[candidates[i]]);
 		}
-		List<PlannedStep> head = state.Plan.GetRange(0, state.Index + 1);
-		List<PlannedStep> rest = new List<PlannedStep>();
+		List<int> order = new List<int>(state.Plan.Count);
+		for (int i = 0; i <= state.Index; i++)
+		{
+			order.Add(i);   // the head, untouched
+		}
+		for (int i = 0; i < take; i++)
+		{
+			order.Add(candidates[i]);
+		}
 		for (int i = state.Index + 1; i < state.Plan.Count; i++)
 		{
 			if (!chosen.Contains(i))
 			{
-				rest.Add(state.Plan[i]);
+				order.Add(i);
 			}
 		}
-		state.Plan.Clear();
-		state.Plan.AddRange(head);
-		state.Plan.AddRange(pulled);
-		state.Plan.AddRange(rest);
-		state.PullUntil = state.Index + pulled.Count;
-		Log(ai, pulled.Count + " floor piece(s) over the " + state.Prefab + " brought forward so it leads somewhere");
+		Reorder(state, order);
+		state.PullUntil = state.Index + take;
+		Log(ai, take + " floor piece(s) over the " + state.Prefab + " brought forward so it leads somewhere");
 	}
 
 	/// <summary>
@@ -4907,7 +5036,6 @@ internal static class MHR_Build
 			return false;
 		}
 		List<int> found = new List<int>();
-		List<PlannedStep> pulled = new List<PlannedStep>();
 		for (int i = state.Index + 1; i < state.Plan.Count && found.Count < 3; i++)
 		{
 			PlannedStep step = state.Plan[i];
@@ -4934,25 +5062,33 @@ internal static class MHR_Build
 				continue;
 			}
 			found.Add(i);
-			pulled.Add(step);
 		}
-		if (pulled.Count == 0)
+		if (found.Count == 0)
 		{
 			return false;
 		}
-		PlannedStep current = state.Plan[state.Index];
-		for (int i = found.Count - 1; i >= 0; i--)
-		{
-			state.Plan.RemoveAt(found[i]);
-		}
+		// the supports first, right after the step BEFORE the current one, and the refused piece right after them
+		// (review, 03/11/2026); the plan and every index follow through Reorder
 		int at = state.Index;
-		state.Plan.RemoveAt(at);
-		state.Plan.InsertRange(at, pulled);
-		state.Plan.Insert(at + pulled.Count, current);
+		List<int> order = new List<int>(state.Plan.Count);
+		for (int i = 0; i < at; i++)
+		{
+			order.Add(i);
+		}
+		order.AddRange(found);
+		order.Add(at);
+		for (int i = at + 1; i < state.Plan.Count; i++)
+		{
+			if (!found.Contains(i))
+			{
+				order.Add(i);
+			}
+		}
+		Reorder(state, order);
 		// the NEXT Advance takes the first support; the refused piece comes right after them (review, 03/11/2026)
-		state.PullUntil = at + pulled.Count - 1;
+		state.PullUntil = at + found.Count - 1;
 		state.Index = at - 1;
-		Log(ai, pulled.Count + " support piece(s) under the " + state.Prefab + " brought forward so it can stand");
+		Log(ai, found.Count + " support piece(s) under the " + state.Prefab + " brought forward so it can stand");
 		return true;
 	}
 

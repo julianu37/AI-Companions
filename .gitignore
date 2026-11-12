@@ -33,7 +33,9 @@ __pycache__/
 pkg/
 
 
-# run samplers write here (free_run_acceptance.py reads them, they are not source)
+# amostras dos runs do DevBridge (dados de uma sessao, nao fazem parte do repo)
+# -watch.log e -site.jsonl: o free_run_acceptance.py le como instrumento, nao como fonte
+tools/mcp-devbridge/*.jsonl
 tools/mcp-devbridge/*-watch.log
 tools/mcp-devbridge/*-site.jsonl
 tools/mcp-devbridge/free-run-site-*.jsonl

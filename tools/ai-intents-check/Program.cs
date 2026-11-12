@@ -131,6 +131,7 @@ internal static class Program
 		new SectionDef("ac", "BuildBlueprintSkip - por que uma linha do .blueprint nao entra no plano", BlueprintSkips),
 		new SectionDef("ad", "LlmProviders - o dropdown do painel casa a URL com o provedor", ProviderTable),
 		new SectionDef("af", "LevelResume - qual fim do nivelamento devolve o canteiro a obra", LevelResumes),
+		new SectionDef("ag", "BuildPlanOrder - o reordenamento do plano remapeia os indices (a identidade da peca)", PlanOrders),
 		new SectionDef("ae", "o log das redes ficou calado - nenhuma regra engoliu excecao", QuietLog)
 	};
 
@@ -2824,6 +2825,146 @@ internal static class Program
 		bool actual = LevelResume.Resumes(key);
 		Check("Resumes(" + (key == null ? "null" : "\"" + key + "\"") + ") -> " + (expected ? "true" : "false") + " ("
 			+ why + ")", actual == expected, "obtido " + (actual ? "true" : "false"));
+	}
+
+	/// <summary>
+	/// Section (ag): <c>BuildPlanOrder</c> - <b>a reorder of the plan must not change which piece an index names</b>.
+	///
+	/// <para>Every structure of the build state that remembers a piece does it by its <b>position in the plan</b>:
+	/// <c>PlacedIndices</c>, <c>SkippedIndices</c>, <c>PulledSupport</c>, <c>FallAdjusted</c>, <c>FallbackPosts</c>,
+	/// <c>BarrierServed</c>, <c>Index</c>, <c>PullUntil</c>, <c>ResumeIndex</c>, <c>WalkFor</c>, and on a site the
+	/// group's <c>Done</c>/<c>SkippedIndex</c>/<c>Claims</c>/<c>BodyAt</c>/<c>RetryEntry.Index</c>. Four functions of
+	/// <c>MHR_Build</c> used to change that order without moving any of them (<c>PreferNearFloor</c> swapped two steps,
+	/// <c>InsertBenchStep</c> inserted one, <c>PullFloorsAbove</c> rebuilt the list, <c>PullSupports</c> removed and
+	/// re-inserted), so a piece already up could be paid again and a skipped index could name a good piece. Nothing
+	/// failed - the order just lost and duplicated pieces, which only a game run shows.</para>
+	///
+	/// <para>What the section pins is the <b>map</b> (<c>Map</c>/<c>Remap</c>/<c>RemapAll</c>) and, above everything, the
+	/// invariant the whole thing exists for: after a swap, an insert, a removal and an append, <b>the index marked as
+	/// done points at the same prefab</b>. The three kinds of change are the callers' own - a swap of two positions
+	/// (<c>PreferNearFloor</c>), a step inserted before another (<c>InsertBenchStep</c>) and a pull that moves a handful
+	/// to the front (<c>PullFloorsAbove</c>/<c>PullSupports</c>).</para>
+	/// </summary>
+	private static void PlanOrders()
+	{
+		// --- Map: the old index of each new position, read backwards
+		PlanMap("identidade", new[] { 0, 1, 2, 3 }, 4, new[] { 0, 1, 2, 3 });
+		PlanMap("troca de dois (PreferNearFloor)", new[] { 3, 1, 2, 0 }, 4, new[] { 3, 1, 2, 0 });
+		PlanMap("insercao no meio (InsertBenchStep): -1 e a nova peca", new[] { 0, 1, -1, 2, 3 }, 4, new[] { 0, 1, 3, 4 });
+		PlanMap("puxada para a frente (PullSupports): 2,3 na frente do 1",
+			new[] { 0, 2, 3, 1, 4 }, 5, new[] { 0, 3, 1, 2, 4 });
+		PlanMap("append: o passo novo nao move ninguem", new[] { 0, 1, 2, -1 }, 3, new[] { 0, 1, 2 });
+		PlanMap("remocao: o indice que saiu vira -1", new[] { 0, 2, 3 }, 4, new[] { 0, -1, 1, 2 });
+		PlanMap("ordem nula: nada do plano antigo sobrevive", null, 3, new[] { -1, -1, -1 });
+		PlanMap("plano vazio: o mapa nao tem entrada", new int[0], 0, new int[0]);
+		PlanMap("indice fora do plano antigo e ignorado", new[] { 0, 7, -3, 1 }, 2, new[] { 0, 3 });
+		// a repeated index keeps the FIRST position: the plan holds a step once, and a second entry is a caller bug
+		PlanMap("indice repetido: vale a primeira posicao", new[] { 2, 0, 2 }, 3, new[] { 1, -1, 0 });
+
+		// --- Remap: the single index, and the -1 for an index that is not in the old plan at all
+		CheckInt("Remap(identidade, 2)", 2, BuildPlanOrder.Remap(new[] { 0, 1, 2 }, 2));
+		CheckInt("Remap(insercao, 2): o 2 andou para 3", 3, BuildPlanOrder.Remap(new[] { 0, 1, 3, 4 }, 2));
+		CheckInt("Remap(indice que saiu)", -1, BuildPlanOrder.Remap(new[] { 0, -1, 1 }, 1));
+		CheckInt("Remap(-1): nao ha peca", -1, BuildPlanOrder.Remap(new[] { 0, 1 }, -1));
+		CheckInt("Remap(passou do plano)", -1, BuildPlanOrder.Remap(new[] { 0, 1 }, 2));
+		CheckInt("Remap(mapa nulo)", -1, BuildPlanOrder.Remap(null, 0));
+
+		// --- RemapAll: a set of indices moves whole, and an index with no place loses the entry (never a -1 in a set)
+		PlanSet("conjunto vazio", new[] { 0, 1, 2 }, new int[0], new int[0]);
+		PlanSet("conjunto que fica igual", new[] { 0, 1, 2 }, new[] { 1, 2 }, new[] { 1, 2 });
+		PlanSet("conjunto que anda com a insercao", new[] { 0, -1, 1, 2, 3 }, new[] { 1, 2 }, new[] { 2, 3 });
+		PlanSet("conjunto que perde o indice removido", new[] { 0, 2 }, new[] { 0, 1, 2 }, new[] { 0, 1 });
+		PlanSet("conjunto nulo", new[] { 0, 1 }, null, new int[0]);
+
+		// --- THE invariant: the index marked as done still points at the same prefab
+		PlanIdentity("troca de dois", new[] { 0, 1, 2, 3 }, 2, new[] { 3, 1, 2, 0 });
+		PlanIdentity("insercao no meio", new[] { 0, 1, 2, 3 }, 1, new[] { 0, -1, 1, 2, 3 });
+		PlanIdentity("puxada para a frente", new[] { 0, 1, 2, 3, 4 }, 4, new[] { 0, 2, 3, 1, 4 });
+		PlanIdentity("append", new[] { 0, 1, 2 }, 2, new[] { 0, 1, 2, -1 });
+	}
+
+	/// <summary>Section (ag): one <c>Map</c> case - the new plan as old indices, the old size, and the expected map.</summary>
+	private static void PlanMap(string name, int[] order, int oldCount, int[] expected)
+	{
+		int[] map = BuildPlanOrder.Map(order, oldCount);
+		CheckInts("Map(" + name + ")", expected, map);
+	}
+
+	/// <summary>Section (ag): one <c>RemapAll</c> case - the map built from a new plan, the set, and where the set goes.</summary>
+	private static void PlanSet(string name, int[] order, int[] set, int[] expected)
+	{
+		List<int> old = set == null ? null : new List<int>(set);
+		HashSet<int> moved = BuildPlanOrder.RemapAll(BuildPlanOrder.Map(order, CountOld(order, set)), old);
+		int[] actual = new int[moved.Count];
+		moved.CopyTo(actual);
+		Array.Sort(actual);
+		int[] wanted = (int[])expected.Clone();
+		Array.Sort(wanted);
+		CheckInts("RemapAll(" + name + ")", wanted, actual);
+	}
+
+	/// <summary>How many steps the old plan had, for a <c>RemapAll</c> case: the highest index the order or the set names,
+	/// plus one (the map is built for the old plan and an index past it is an index of a piece that never existed).</summary>
+	private static int CountOld(int[] order, int[] set)
+	{
+		int top = -1;
+		if (order != null)
+		{
+			for (int i = 0; i < order.Length; i++)
+			{
+				top = Math.Max(top, order[i]);
+			}
+		}
+		if (set != null)
+		{
+			for (int i = 0; i < set.Length; i++)
+			{
+				top = Math.Max(top, set[i]);
+			}
+		}
+		return top + 1;
+	}
+
+	/// <summary>
+	/// Section (ag): THE invariant, in one place - <paramref name="oldPlan"/> is the prefab of each step of the old plan
+	/// (numbered by the case, which is why a read "piece #N" is the array's value), <paramref name="doneAt"/> is the step
+	/// the mod counted as done, and <paramref name="order"/> is the reorder. After it, the index the map answers for the
+	/// done step must hold a step whose <b>prefab says the same number</b>. A failure here is exactly the defect: the
+	/// number the mod counted as done naming a different piece.
+	///
+	/// <para><c>-1</c> in <paramref name="order"/> is a step that did not exist before and it becomes <c>fresh</c> in the
+	/// rebuilt plan (the workbench <c>InsertBenchStep</c> adds).</para>
+	/// </summary>
+	private static void PlanIdentity(string name, int[] oldPlan, int doneAt, int[] order)
+	{
+		int[] map = BuildPlanOrder.Map(order, oldPlan.Length);
+		int at = BuildPlanOrder.Remap(map, doneAt);
+		// the plan as Reorder builds it: the prefab of each position of the new plan
+		int[] rebuilt = new int[order.Length];
+		for (int i = 0; i < order.Length; i++)
+		{
+			rebuilt[i] = order[i] >= 0 ? oldPlan[order[i]] : PlanFresh;
+		}
+		bool ok = at >= 0 && at < rebuilt.Length && rebuilt[at] == oldPlan[doneAt];
+		Check("invariante (" + name + "): a peca feita #" + oldPlan[doneAt] + " continua na posicao " + at
+			+ " depois do reorder", ok,
+			"obtido: posicao " + at + " tem " + (at >= 0 && at < rebuilt.Length ? "#" + rebuilt[at] : "(nada)"));
+	}
+
+	/// <summary>The prefab of a step an <c>order</c> entry of -1 creates in a section (ag) case: it must not be one of the
+	/// plan's own numbers, so a moved done index can never "coincidentally" land on it.</summary>
+	private const int PlanFresh = -99;
+
+	/// <summary>An int array vs. an int array, printed whole on a failure (a map is short and the positions are the case).</summary>
+	private static void CheckInts(string name, int[] expected, int[] actual)
+	{
+		bool ok = expected.Length == actual.Length;
+		for (int i = 0; ok && i < expected.Length; i++)
+		{
+			ok = expected[i] == actual[i];
+		}
+		Check(name + " -> [" + string.Join(", ", Array.ConvertAll(expected, v => v.ToString())) + "]", ok,
+			"obtido [" + string.Join(", ", Array.ConvertAll(actual, v => v.ToString())) + "]");
 	}
 
 	/// <summary>

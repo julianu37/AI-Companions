@@ -3222,3 +3222,45 @@ A mesma leitura errada aparece em qualquer run que devolva a mão — e **todos*
 (nivelamento) e todos com material pago devolvem (coleta). Os placares de runs antigos que passaram por hand-over estão
 **subestimados**; os que terminaram em `hc_ai_build_done`/`hc_ai_blueprint_done` sem retomada estão corretos. Não há
 como recontar os antigos pelo log: as linhas estão lá, mas cada um precisa ser reconferido com o script novo.
+
+### 17.27 A identidade da peça é o índice — o reordenamento do plano remapeia (11/11/2026)
+
+> Defeito achado **lendo o código**, não contando log: os quatro reordenadores do plano mexiam na lista sem mover
+> nenhum dos oito conjuntos indexados do estado. Nenhum run antigo serve de prova aqui (§17.26 mostra que os placares
+> anteriores estão subestimados) — a prova é a seção (ag) do harness e o run grátis do §17.28.
+
+#### (A) O que estava quebrado [C]
+
+Todo o estado de uma obra guarda a peça pela **posição dela no plano**: `State.PlacedIndices`, `SkippedIndices`,
+`PulledSupport`, `FallAdjusted`, `FallbackPosts`, `BarrierServed`, `Index`, `PullUntil`, `ResumeIndex`, `WalkFor`; e,
+num canteiro, `MHR_BuildGroup.Done`, `SkippedIndex`, `Claims`, `BodyAt`, `RetryEntry.Index`. Quatro funções mudavam a
+ordem da lista **sem tocar em nenhum deles**:
+
+| onde | o que fazia |
+|---|---|
+| `PreferNearFloor` (`:1071-1073`) | trocava dois passos de lugar |
+| `InsertBenchStep` (`:4272`) | `Insert(state.Index, …)` empurrava toda a cauda |
+| `PullFloorsAbove` (`:4890-4894`) | `Clear` + `AddRange`, reconstruindo a lista inteira |
+| `PullSupports` (`:4946-4951`) | `RemoveAt` + `InsertRange` |
+
+`PlanLocked` só bloqueava com **mais de um** worker (`IsShared` = `Workers > 1`), e `StartBlueprintGroup` com **um**
+companheiro nem cria grupo — o caso mais comum do jogador era exatamente o desprotegido. Um índice que muda de dono
+transforma "peça já de pé" em "peça nova" (paga de novo), um `done` antigo em outra peça e uma peça pulada em peça boa.
+
+#### (B) A correção [C]
+
+`AI/BuildPlanOrder.cs` (puro): `Map(order, oldCount)` devolve **antigo → novo** a partir da nova ordem expressa em
+índices antigos (`-1` = passo que não existia). `MHR_Build.Reorder` reconstrói `state.Plan` **no lugar** (`Clear` +
+`AddRange`, porque `Pending.Plan` guarda a mesma referência) e aplica o mapa aos seis conjuntos e aos seis escalares.
+Os quatro reordenadores passam a **montar a lista `order`** e chamar `Reorder` — nenhum mexe mais no `List` na mão.
+
+`PlanLocked` passa a ser `state.Group != null`: um canteiro com um worker só continua sendo um canteiro, com
+`Done`/`Claims` que não são de ninguém sozinho. A reordenação sobrevive só no caminho **sem grupo**, agora remapeada.
+Nada muda em `MHR_BuildGroup` neste ciclo — um `Reorder` do lado do grupo seria código morto enquanto nenhum site
+reordena; quando um voltar a reordenar, o remap do grupo nasce junto com a chamada.
+
+#### (C) O que a seção (ag) prova [M]
+
+`Map` para identidade, troca, inserção no meio, puxada, append, remoção, ordem nula, plano vazio, índice fora do plano
+e índice repetido; `Remap` e `RemapAll` (um conjunto nunca guarda `-1`); e o invariante que dá sentido a tudo — **a
+peça marcada como feita continua, depois do reorder, na posição que tem o mesmo prefab**.
