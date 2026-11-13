@@ -4,6 +4,27 @@ All the changes to this project, derived from ProfMags' Offline Companions. The 
 
 ## 1.9.7 - in progress
 
+**A companion that is carrying too much no longer loses the build.** When the bag passed the carry ceiling the order
+**ended** (`hc_ai_build_too_heavy`) - and in the measured solo run of 13/11/2026 that cost an 86 % finished house: the
+companion died, came back, collected the items of its own tombstone, reached **470/300** and the order stopped at
+851/985 with nothing wrong with the house. Being heavy is the companion's own problem to solve, not a reason to drop
+the plan. It now goes to a **chest** within 30 m (the mod's own deposit order, so the stock only changes shelf); with
+no chest it **drops what it can spare** on the ground with auto-pickup off, and the order goes on at the **same
+piece**. Equipment, food and quest items are never dropped, and the build's own materials (wood, stone...) go **last**.
+The choice is all-or-nothing: if shedding everything allowed would still leave the bag over the ceiling, nothing is
+dropped and the companion waits (`AI/BuildOverweight.cs`, harness section **(al)**). See `docs/re/building-notes.md`
+§17.39.
+
+**The confirmation run of the support fix: the fall loop is gone.** Measured on the 985-piece house, one companion:
+`no_support` **29 → 3**, the climb-and-fall loop **gone** (the ladder whose top has no floor is now **refused** and the
+companion walks to a real one: `has no floor at its top - not climbing it`, then `climbed the ladder`), ladder chains
+work, and the new pending-floor count on the storey barrier falls **63 → 17** across the run. Two things it did not
+prove and that are now registered with numbers: 20 emergency posts still get planted (19 of them from the **early
+check**, which never gives the new support pull a chance - backlog 19), and a fall at piece 851 ended the run because
+`AdjustPose` replaces the target's **Y** with the ground height, aiming a piece of the 44,9 storey at 38,8 (backlog 18).
+The three `no_support` that remain are floors the blueprint itself does not hold up - probed in the file, the nearest
+column is at the **same level**, not below.
+
 **The floor above the stair is no longer laid before the beams that hold it.** `PullFloorsAbove` brought up to two
 floors to the front of the plan right after a ladder, chosen by distance, height and the side it climbs to - and by
 nothing else. The blueprint order puts a `stair`/`ladder` (class 1) before the beams and poles of the same storey

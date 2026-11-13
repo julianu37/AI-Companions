@@ -301,7 +301,52 @@ início da ordem no `State` (setado em `StartBlueprint`, não em `EnterStep`) e 
 do piso para não misturar medição com refactor; é pequeno e provável no harness (a conta é pura).
 
 
-## Declarado e **fora** do caminho crítico
+### 17. A bolsa acima do teto **encerrava** a obra (`too_heavy`) — *feito 13/11/2026, run de confirmação pendente*
+Medido no run solo de **13/11/2026** (`CommHomeBasicBP`, 985 peças, 1 companheiro, DLL 1.9.6 com o fix do piso). A obra
+ia **851/985** (86 %) quando o companheiro morreu por uma queda de 6,8 m (`AdjustPose` troca o Y pelo
+`GetGroundHeight` e mirou o chão 6 m abaixo). Ele voltou, o `Reattach` entregou a ordem de volta
+(`the build order ... was handed to the companion that just came back`, peça 851), andou até a própria lápide,
+pegou os itens — e o peso foi a **470/300**:
+
+```
+[Build] Companion: overweight: 470/300
+[Build] Companion: order ended: hc_ai_build_too_heavy (encumbered)
+```
+
+**O defeito:** `MHR_Build.cs:3688-3695` comparava o peso com `CompanionCarry.Max` e chamava `Finish(...)`. Nada da
+casa tinha mudado, a peça continuava lá, e a bolsa é do companheiro — encerrar era o veredito errado. O jogador:
+*"mesmo assim, ele deveria continuar construindo depois de tirar um pouco de itens/peso da bag dele"*.
+
+**O fix (o mesmo commit):** `Phase.Unload` + `AI/BuildOverweight.cs` (puro, harness **(al)**, 26 casos). Ordem das
+saídas: **baú** perto do sítio (`MHR_Chests.Usable`, 30 m, via `SetPendingDeposit` — o material não se perde, muda de
+prateleira) → **chão** (`ItemDrop.DropItem` com `m_autoPickup = false`, a mesma mecânica do `CompanionOrders.DropNamed`)
+→ **espera** com teto de 30 s, e então a obra segue com o que dá para carregar. O que **nunca** cai: equipamento,
+comida e item de missão. O que cai **por último**: o material da obra (madeira, pedra...). E o plano é **tudo ou
+nada**: se jogar fora tudo o que pode não traz a bolsa para baixo do alvo, nada cai (470 → 357 não é "aliviado", é uma
+casa que perdeu o material). O alvo guarda a margem da peça mais pesada do plano (teto de 20 de folga), senão a ordem
+descarregaria a cada peça.
+
+**Aceite do run de confirmação:** a obra **não** termina em `hc_ai_build_too_heavy`; com peso acima do teto o log
+mostra `sobrecarregado: ... - a obra continua` e as peças seguem subindo. Mortes por queda continuam sendo o item 11
+(rota do beirado), não este.
+
+### 18. `AdjustPose` troca o **Y** do alvo pelo chão — *medido 13/11/2026, não corrigido*
+`AdjustPose` (`MHR_Build.cs:7275`) protege o XZ (raio de 1 m para peça estrutural) mas `BuildSite.Find` monta o
+candidato com `ZoneSystem.GetGroundHeight` (`AI/BuildSite.cs:146`) — o **Y do plano é jogado fora**. Medido no run de
+13/11/2026: um baú do andar de **44,9** virou alvo em **38,8** (`log ajustado: piece_chest_wood de (-161,4, 44,9, ...)
+para (-161,4, 38,8, ...) - falls`) e o companheiro caiu os 6,8 m que o mataram, encerrando a obra em 851/985.
+**Correção proposta:** `Find` recebe a altura do plano e o ajuste só varre XZ nessa altura (ou, para peça estrutural,
+recusa qualquer pose cujo Y difira do plano mais que a tolerância). Provar no harness com a tabela pura do filtro de
+candidato. É o próximo item do tema "rota vertical" (com o 11).
+
+### 19. O early check planta poste de emergência **sem** dar chance ao `PullSupportBehind`
+Medido em 13/11/2026: **19 dos 20** postes de emergência saíram do early check (`Goto`, `MHR_Build.cs:6253`), que
+chama `TryFallbackPost` sem passar pela recusa `no_support` e portanto sem nunca tentar `PullSupports`/
+`PullSupportBehind`. Resultado: `no_support` caiu de 29 para 3 (o objetivo) mas os postes subiram de 15 para 20.
+**Correção proposta:** no early check, tentar a puxada (frente e atrás) antes do poste, exatamente como `Advance` faz
+na recusa; o poste fica como último recurso. Aceite: `apoio de emergência < 5` no mesmo run solo.
+
+
 
 - **Multiplayer** (pendências 5, 16, 17): troca de posse do corpo a cada 2 s para a obra em silêncio e trava o
   `SiteBusy`; pagamento por baú sem `SetInUse`. **Último item de todos**, só se o jogador investir.
@@ -315,6 +360,6 @@ do piso para não misturar medição com refactor; é pequeno e provável no har
 1. **Uma mudança por build**, com o corte de aceite escrito **antes** do run.
 2. **Reverter na hora** se `puladas > 0`, `desistindo > 0`, morte, `UNSUPPORTED` ou watchdog — o baseline fecha
    985/985 com 0, então qualquer um deles é regressão.
-3. Regra pura vai para o harness **no mesmo ciclo** (hoje **1051** asserções); quem implementa não afrouxa a asserção.
+3. Regra pura vai para o harness **no mesmo ciclo** (hoje **1077** asserções); quem implementa não afrouxa a asserção.
 4. O que foi revertido fica **documentado com o número que o matou** (escopo XZ: ~33 min; `ahead` por frame: 38 vs 78
    peças/min; `CrossesPending`: 67 % do plano).

@@ -138,6 +138,7 @@ internal static class Program
 		new SectionDef("ai", "EscapeRule - o desvio repetido nao conta de novo e a espera cresce (o livelock)", EscapeRules),
 		new SectionDef("aj", "BuildFloorStart - o piso comeca na ponta da escada (e o terreo tambem)", FloorStarts),
 		new SectionDef("ak", "LandingFloors/SettledPieces - o piso so sobe com apoio de pe (e o solo ve o que o grupo ve)", LandingsAndSettled),
+		new SectionDef("al", "BuildOverweight - o companheiro sobrecarregado descarrega e continua a obra", OverweightUnloads),
 		new SectionDef("ae", "o log das redes ficou calado - nenhuma regra engoliu excecao", QuietLog)
 	};
 
@@ -3802,9 +3803,72 @@ internal static class Program
 		return keep.ToArray();
 	}
 
+	/// <summary>Section (al): <c>BuildOverweight</c> - the bag that has to come down before the build goes on.</summary>
+	private static void OverweightUnloads()
+	{
+		// --- Keeps: what never leaves the bag for the build
+		Check("equipavel nunca cai (picareta e a obra)", BuildOverweight.Keeps("PickaxeBronze", true, false, false, false));
+		Check("comida nunca cai (companheiro com fome nao constroi)", BuildOverweight.Keeps("RawMeat", false, false, true, false));
+		Check("item de missao nunca cai (o jogo recusa)", BuildOverweight.Keeps("TrophyDragonQueen", false, true, false, false));
+		Check("gema/couro NAO e material de obra: fica na bolsa", BuildOverweight.Keeps("LeatherScraps", false, false, false, false));
+		Check("resina fica (nao e material estrutural)", BuildOverweight.Keeps("Resin", false, false, false, false));
+		Check("madeira E material de obra: pode cair", !BuildOverweight.Keeps("Wood", false, false, false, true));
+		Check("pedra E material de obra: pode cair", !BuildOverweight.Keeps("Stone", false, false, false, true));
+
+		// --- Drops: the two questions the walk needs
+		Check("pilha com peso que pode ir: cai", BuildOverweight.Drops(50f, false));
+		Check("pilha que fica: nao cai", !BuildOverweight.Drops(50f, true));
+		Check("pilha de peso zero: nao cai", !BuildOverweight.Drops(0f, false));
+
+		// --- Slack / Target: the margin that stops the order unloading on every piece
+		CheckFloat("slack = a peca mais pesada do plano", 3f, BuildOverweight.Slack(3f, 20f));
+		CheckFloat("slack tem teto", 20f, BuildOverweight.Slack(40f, 20f));
+		CheckFloat("slack sem peca (0): nenhum", 0f, BuildOverweight.Slack(0f, 20f));
+		CheckFloat("slack negativo: nenhum", 0f, BuildOverweight.Slack(-5f, 20f));
+		CheckFloat("target = teto - slack", 297f, BuildOverweight.Target(300f, 3f));
+		CheckFloat("target nunca fica negativo", 0f, BuildOverweight.Target(10f, 20f));
+
+		// --- Plan: which stacks leave the bag, in which order
+		//     w 0..7: two kept (equipment/food), one structural beam (idx 4, 50f), five loose stacks
+		float[] w = { 8f, 2f, 25f, 1f, 50f, 0.5f, 6f, 30f };
+		bool[] keeps = { true, true, false, false, false, false, false, false };
+		bool[] mat = { false, false, false, false, true, false, false, false };
+		// gems first (heaviest first): 7 (30) then 2 (25) - 470 down to 415 is still over 297, and the beam alone
+		// cannot close it, so the whole answer is EMPTY: the bag keeps its wood instead of throwing it away for nothing
+		CheckInts("nem tudo que pode cair chega ao alvo: o bag NAO perde o material da obra", new int[0],
+			WeightPlan(w, keeps, mat, 470f, 297f));
+		CheckInts("sem nada a tirar (todo mundo fica): lista vazia", new int[0],
+			WeightPlan(w, new bool[8] { true, true, true, true, true, true, true, true }, mat, 470f, 297f));
+		CheckInts("ja esta abaixo do alvo: nada sai", new int[0], WeightPlan(w, keeps, mat, 200f, 297f));
+		CheckInts("peso exatamente no alvo: nada sai", new int[0], WeightPlan(w, keeps, mat, 297f, 297f));
+		// 470 -> target 620 is already met, but with target 400 the gems (30+25+6+1+0,5=62,5) do not get there
+		// (470-62,5-50=357,5 > 400? no: 357,5 < 400) -> gems then the beam, and it lands
+		CheckInts("os materiais de obra so saem depois de todo o resto", new int[] { 7, 2, 6, 3, 5, 4 },
+			WeightPlan(w, keeps, mat, 470f, 400f));
+		// a light bag where only the gem has to go: one stack, and the beam stays
+		CheckInts("um pouco acima: so a gema mais pesada sai e o material de obra fica", new int[] { 7 },
+			WeightPlan(w, keeps, mat, 320f, 300f));
+		CheckInts("o mais pesado primeiro dentro do grupo", new int[] { 2, 1, 3, 0 },
+			WeightPlan(new float[] { 1f, 25f, 40f, 4f }, new bool[] { false, false, false, false },
+				new bool[] { false, false, false, false }, 170f, 100f));
+		CheckInts("empate de peso: a ordem do plano desempata", new int[] { 0, 1 },
+			WeightPlan(new float[] { 6f, 6f }, new bool[] { false, false }, new bool[] { false, false }, 100f, 88f));
+		CheckInts("lista vazia de pilhas", new int[0],
+			WeightPlan(new float[0], new bool[0], new bool[0], 500f, 100f));
+
+		// the same bag must always shed the same stacks (a test can assert the list, not a set)
+		CheckInts("deterministico: a mesma bolsa tira as mesmas pilhas", new int[] { 7, 2, 6, 3, 5, 4 },
+			WeightPlan(w, keeps, mat, 470f, 400f));
+	}
+
+	/// <summary>Section (al): the helper that runs <see cref="BuildOverweight.Plan"/> over parallel arrays.</summary>
+	private static int[] WeightPlan(float[] weights, bool[] keeps, bool[] material, float weight, float target)
+	{
+		return BuildOverweight.Plan(weights, keeps, material, weight, target).ToArray();
+	}
+
 	// ============================================================================================ the plumbing
-	/// <summary>
-	/// Opens a section, runs its cases, and puts the section key back. Every section of <see cref="Main"/> goes through
+
 	/// here (11/11/2026), which is what makes <c>--only</c> and <c>--list</c> possible with a single key per section
 	/// instead of a copy of the list in a second place.
 	///

@@ -3589,5 +3589,64 @@ para a fila com o número.
 
 **Verificação até aqui:** build 0 erros / 0 avisos; harness **1051 PASS / 0 FAIL** (era 1026; a seção `(ak)` traz 25
 casos novos); `test_mcp_devbridge.py` 135/0; `--check-config` 0 lacunas; `gen_config_doc --check` atualizado.
-**Não medido:** o run solo de confirmação — os alvos são `no_support < 5` (era 29), `apoio de emergência < 5` (era
-15), `sem lugar` = 0 (era 1), 985/985 com 0 duplicatas e as quedas abaixo de 5.
+
+### 17.39 O run solo de confirmação (13/11/2026): o laço de queda morreu, e a bolsa matou a obra
+
+O run de confirmação do fix de 17.38 — `CommHomeBasicBP`, **985** peças, **1** companheiro (`name=` = caminho solo),
+sítio limpo, DLL recém-deployada (1.9.6, 95 métodos patchados) — **não** fechou 985/985. Fechou em **851** e parou,
+mas o que o parou **não** é o defeito do piso: é a bolsa.
+
+| métrica | run cancelado de 12/11 | este run | veredito |
+|---|---|---|---|
+| `no_support` (`sem apoio ainda`) | 29 | **3** | alvo `< 5` — **passou** |
+| `apoio de emergência` | 15 | **20** | acima do alvo `< 5` — **falhou**, ver abaixo |
+| `sem lugar para o apoio` | 1 | **3** | alvo `0` — falhou |
+| `fell N m` | 2 | **3** (4,4 / 6,5 / 6,8 m) | o laço sumiu, mas ainda cai |
+| mortes | 0 | **1** | a morte **encerrou** o run |
+| `desistindo de` / `pulada` | 1 / 1 | 1 / 1 | igual |
+| `no progress` | 12 | **18** | 11 são de telhado (`wood_roof_45`), item 11 |
+| `done` | 699 | **851** | não fechou |
+| `order ended` | cancelado | **`hc_ai_build_too_heavy`** | defeito novo, fechado no mesmo ciclo (item 17) |
+
+**O que o fix do piso mudou, medido.** O laço que o jogador descreveu — sobe no piso da ponta da escada, anda e cai,
+repetidamente — **sumiu**. A prova está no log, na mesma escada que antes era a armadilha:
+
+```
+[Move|Build] the ladder wood_stepladder at (-166,4, 42,8, -436,9) has no floor at its top (top 43,9) - not climbing it
+[Move|Build] 4,0m below where it needs to be - heading for the ladder wood_stepladder, foot at (-162,7, 39,9, -436,1)
+[Move|Build] climbed the ladder at (-165,1, 41,9, -438,0)
+```
+
+Ele **recusa** o patamar falso e caminha até uma escada de verdade, em vez de subir no poste de emergência e cair. As
+cadeias funcionam (`climbing a chain of 2 ladders up to 43,9`, 4 ocorrências) e o piso só sobe onde tem apoio de pé.
+E o contador novo da barreira de andar **caiu de 63 para 17** ao longo do run: os pisos pendentes do andar de cima
+estavam sendo servidos, não abandonados. As três `no_support` que sobraram são pisos que o **próprio blueprint** não
+sustenta: na sonda do arquivo, sob `(-158,7, 43,8, -426,3)` a janela de `BuildSupportBelow` acha pisos e paredes do
+andar de baixo, mas **nenhuma viga**, e a coluna mais próxima (`wood_pole2`) está no **mesmo nível**, não abaixo.
+Nesses três o `PullSupportBehind` corretamente não tem o que puxar; duas delas o poste de emergência resolveu.
+
+**Os 20 postes de emergência não vêm de `no_support`.** Só 1 dos 20 tem uma recusa registrada antes dele: os outros
+saem do **early check** (`Goto`, `BuildSite.Check` antes da caminhada, `MHR_Build.cs:6253`), que planta o poste sem
+gastar tentativa nem escrever `sem apoio ainda`. É por isso que o contador de `no_support` desabou enquanto o de postes
+subiu: o early check está pegando os casos cedo demais para a rede nova (o `PullSupportBehind`) ter chance. Fica
+registrado como o próximo alvo do tema — **a puxada tem de acontecer também no early check**, não só na recusa.
+
+**A morte não é do piso.** Peça 851, um `piece_chest_wood` no andar de 44,9: oito peças antes ele caiu 6,5 m, e o
+`AdjustFallenPose` chamou `AdjustPose`, que por sua vez usa `BuildSite.Find` — e `Find` **troca o Y do alvo pelo
+`ZoneSystem.GetGroundHeight`** (`BuildSite.cs:146`). O alvo do baú passou de `y 44,9` para **`y 38,8`**: o companheiro
+andou 6 m para baixo e caiu os 6,8 m que o mataram.
+
+```
+[Build] Companion: log ajustado: piece_chest_wood de (-161,4, 44,9, -433,7) para (-161,4, 38,8, -433,7) - falls
+[Move] "Companion" fell 6,8 m and took 18 fall damage
+[Build] Companion: it died during the build - the order resumes after the respawn (piece 851/985)
+```
+
+O `AdjustPose` protege o XZ (o raio de 1 m) mas **não o Y**. Um ajuste para uma peça que não é do chão tem de manter a
+altura do plano; é o próximo item do tema (junto com o item 11, que é a rota do beirado que gerou a queda anterior).
+
+**E a bolsa.** Ele voltou (o `Reattach` **funcionou**: `the build order ... was handed to the companion that just came
+back`), andou até a própria lápide, pegou os itens e chegou a **470/300** — e aí o `MHR_Build` **encerrou** a obra:
+`order ended: hc_ai_build_too_heavy (encumbered)`. Uma casa 86 % pronta foi perdida por causa do peso na mochila.
+Corrigido no mesmo ciclo: `Phase.Unload` + `BuildOverweight` (item 17 do backlog).
+

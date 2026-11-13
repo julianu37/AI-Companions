@@ -240,6 +240,15 @@ internal static class MHR_Build
 	/// outer ring of the site kept its trees and the logs of the ones inside rolled into it (report, 03/11/2026).</summary>
 	private const float ClearMaxSize = 40f;
 
+	/// <summary>13/11/2026 (the encumbered order): the most pieces this order will shed its bag for. A companion that
+	/// keeps refilling from a tombstone next to the site would otherwise walk back and forth for ever - after this many
+	/// unloads the order says so and ends with the honest number (a player's mistake to fix, not a silent hold).</summary>
+	private const int MaxUnloadDrops = 8;
+
+	/// <summary>13/11/2026: how far the chest the bag is unloaded into is looked for (the same leash the gather jobs
+	/// use, <c>BuildStock.ChestRadius</c>).</summary>
+	private const float UnloadChestRadius = 30f;
+
 	private const string LogTag = "[Build] ";
 
 	private enum Phase
@@ -259,10 +268,16 @@ internal static class MHR_Build
 		Find,
 		Goto,
 		Place,
-		/// <summary>11/11/2026 (the body barrier): the pose was refused because a BODY (the player walking) was on it - the piece 
-		/// is kept (same index, same claim, nothing paid) and tried again at the same pose after 
+		/// <summary>11/11/2026 (the body barrier): the pose was refused because a BODY (the player walking) was on it - the piece
+		/// is kept (same index, same claim, nothing paid) and tried again at the same pose after
 		/// <see cref="BuildFailure.ShortRetryDelay"/>.</summary>
 		BodyRetry,
+		/// <summary>13/11/2026 (the player: "ele deveria continuar construindo depois de tirar um pouco de itens/peso da
+		/// bag dele"): the bag is over the carry ceiling - the stacks of <see cref="BuildOverweight.Plan"/> are dropped
+		/// on the ground (auto-pickup off, so the bag does not take them straight back) and the SAME piece goes on. The
+		/// order no longer ends with <c>hc_ai_build_too_heavy</c>: measured in the solo run of 12/11/2026, where the
+		/// companion collected its own tombstone, reached 470/300 and killed a 851/985 order that had nothing wrong.</summary>
+		Unload,
 		/// <summary>E4b: walking to the resource BEFORE the gather mode is set (only the build steers here).</summary>
 		GatherWalk,
 		Verify
@@ -277,6 +292,14 @@ internal static class MHR_Build
 		internal bool Paused;
 		internal float Start;
 		internal float LastDrive;
+		/// <summary>13/11/2026 (the encumbered order): when the bag first went over the ceiling - the clock of
+		/// <see cref="BuildOverweight.MaxWait"/>, so a companion that cannot shed the weight says so instead of holding
+		/// still forever. 0 = not overweight (the phase is not <see cref="Phase.Unload"/>).</summary>
+		internal float HeavySince;
+		/// <summary>13/11/2026: how many unloads this order did so far - the cap of the loop
+		/// (<see cref="MaxUnloadDrops"/>): a bag that keeps refilling from a tombstone next to the site must not shed it
+		/// forever.</summary>
+		internal int UnloadDrops;
 		internal int StartMode;
 		internal string Prefab;
 		internal Piece Piece;
@@ -3685,14 +3708,20 @@ internal static class MHR_Build
 		// dead code and the mover gave up in 8 s ("can't get to the spot", a lie). The weight is compared with the real cap now.
 		// E7: while CLEARING the site baggage is not an error - the chopped wood lands in the bag the build pays from, and the
 		// check fires on the first building frame anyway, with the honest numbers.
+		// 13/11/2026 (the player: "ele deveria continuar construindo depois de tirar um pouco de itens/peso da bag dele"):
+		// it no longer ENDS the order. The solo run of 12/11/2026 died here at 851/985 (470/300, the items of its own
+		// tombstone on top of the wood it carried) with the house 86% done and nothing wrong with it. The bag is the
+		// companion's own to shed: the phase below drops what it may and comes back to the SAME piece.
 		if (why == null && state.Phase != Phase.Clear && state.Phase != Phase.WaitGroup && state.Phase != Phase.WaitRetry
+			&& state.Phase != Phase.Unload
 			&& humanoid != null
 			&& humanoid.GetInventory() != null
 			&& humanoid.GetInventory().GetTotalWeight() > CompanionCarry.Max(humanoid))
 		{
-			Log(ai, "overweight: " + humanoid.GetInventory().GetTotalWeight().ToString("F0") + "/" + CompanionCarry.Max(humanoid).ToString("F0"));
-			Finish(ai, state, "hc_ai_build_too_heavy", "encumbered", humanoid.GetInventory().GetTotalWeight().ToString("F0"), CompanionCarry.Max(humanoid).ToString("F0"));
-			return false;
+			state.Phase = Phase.Unload;
+			state.HeavySince = Time.time;
+			state.LastDrive = Time.time;
+			return true;   // the next frame sheds what it can (see UnloadBag)
 		}
 		if (why == "the order took too long" && state.Blueprint != null)
 		{
@@ -3745,6 +3774,8 @@ internal static class MHR_Build
 				return Place(ai, state, cs, bag);
 			case Phase.BodyRetry:
 				return BodyRetry(ai, state);
+			case Phase.Unload:
+				return UnloadBag(ai, state);
 			case Phase.GatherWalk:
 				return GatherWalk(ai, state, cs, dt);
 			case Phase.Verify:
@@ -6577,6 +6608,228 @@ internal static class MHR_Build
 		}
 		state.Phase = Phase.Place;
 		return true;
+	}
+
+	/// <summary>
+	/// 13/11/2026 (the player: *"mesmo assim, ele deveria continuar construindo depois de tirar um pouco de itens/peso da
+	/// bag dele"*): the bag is over the carry ceiling and the order does <b>not</b> end. Two ways out, both ending at the
+	/// <b>same piece</b> the order was on:
+	///
+	/// <list type="number">
+	/// <item><b>A chest close by</b> (<see cref="MHR_Chests"/> rules, <see cref="UnloadChestRadius"/>): the structural
+	/// material goes into it through the mod's own deposit order (<c>CompanionAI.SetPendingDeposit</c>, the path the
+	/// gather jobs use) - nothing leaves the player's stock, it only changes shelf.</item>
+	/// <item><b>No chest</b>: the stacks of <see cref="BuildOverweight.Plan"/> are dropped on the ground at the
+	/// companion's feet, with auto-pickup off so the bag does not take them straight back (<c>ItemDrop.DropItem</c>, the
+	/// same call <c>CompanionOrders.DropNamed</c> makes). The build's own wood is the last thing to go and never goes
+	/// alone: if dropping everything allowed does not bring the bag under the line, NOTHING is dropped and the
+	/// companion waits.</item>
+	/// </list>
+	///
+	/// <para>A bag that is already under the ceiling, or one nothing more can be done to, walks on to
+	/// <see cref="Phase.Goto"/> - the build continues with what it has. Holding still is bounded by
+	/// <see cref="BuildOverweight.MaxWait"/> (a companion parked at 470/300 is not a silent order: after it the order
+	/// says so with the honest numbers), and the number of unloads by <see cref="MaxUnloadDrops"/>.</para>
+	/// </summary>
+	private static bool UnloadBag(CompanionAI ai, State state)
+	{
+		Humanoid humanoid = ai != null ? ai.GetComponent<Humanoid>() : null;
+		Inventory bag = humanoid != null ? humanoid.GetInventory() : null;
+		if (bag == null)
+		{
+			state.Phase = Phase.Goto;
+			return true;
+		}
+		float weight = bag.GetTotalWeight();
+		float ceiling = CompanionCarry.Max(humanoid);
+		if (weight <= ceiling)
+		{
+			Log(ai, "bolsa aliviada: " + F(weight) + "/" + F(ceiling) + " - a obra continua na peça "
+				+ (state.Index + 1) + "/" + (state.Plan != null ? state.Plan.Count : 1));
+			state.Phase = Phase.Goto;
+			state.HeavySince = 0f;
+			StateResetForPiece(state);
+			return true;
+		}
+		if (state.HeavySince <= 0f)
+		{
+			state.HeavySince = Time.time;
+		}
+		// 1) the chest first: the stock stays in the player's world, only on another shelf
+		if (UnloadToChest(ai, state, humanoid, bag, weight, ceiling))
+		{
+			return true;
+		}
+		// 2) no chest (or it could not take it): drop what may go - the plan's answer, never a piece at a time
+		if (state.UnloadDrops < MaxUnloadDrops && DropForRoom(ai, state, humanoid, bag, weight, ceiling))
+		{
+			return true;
+		}
+		// nothing more to do: the order says so instead of holding still for ever, and the build goes on with the bag it has
+		if (Time.time - state.HeavySince > BuildOverweight.MaxWait)
+		{
+			Log(ai, "sobrecarregado e sem com quem dividir o peso: " + F(weight) + "/" + F(ceiling)
+				+ " - a obra segue com o que dá para carregar");
+			state.Phase = Phase.Goto;
+			state.HeavySince = 0f;
+			StateResetForPiece(state);
+		}
+		return true;
+	}
+
+	/// <summary>13/11/2026: the chest half of <see cref="UnloadBag"/> - true when a load is on its way to a chest (the
+	/// deposit order takes over the body, like the gather jobs), so the phase does not have to do anything else.</summary>
+	private static bool UnloadToChest(CompanionAI ai, State state, Humanoid humanoid, Inventory bag, float weight, float ceiling)
+	{
+		if (ai.PendingDepositContainer != null)
+		{
+			return true;   // the deposit order is already walking
+		}
+		Vector3 center = state.Hint;
+		List<Container> chests = MHR_Chests.Near(center, UnloadChestRadius);
+		Component who = ai.GetComponent<CompanionSetup>();
+		for (int i = 0; i < chests.Count; i++)
+		{
+			Container chest = chests[i];
+			if (chest == null || !MHR_Chests.Usable(chest, who))
+			{
+				continue;
+			}
+			if (chest.GetInventory() == null || chest.GetInventory().NrOfItems() >= chest.GetInventory().GetWidth() * chest.GetInventory().GetHeight())
+			{
+				continue;   // full: it would take the walk and give the weight back
+			}
+			Log(ai, "sobrecarregado: levando a carga para \"" + chest.m_name + "\" ("
+				+ F(weight) + "/" + F(ceiling) + ") - a obra continua depois");
+			ai.SetPendingDeposit(chest, humanoid);
+			state.UnloadDrops++;
+			return true;
+		}
+		return false;
+	}
+
+	/// <summary>13/11/2026: the ground half of <see cref="UnloadBag"/> - drops the stacks the pure rule chose. The
+	/// returned false means "nothing could be dropped" (every stack left is kept, or dropping them all still leaves the
+	/// bag over the line), and the caller keeps the bag as it is.</summary>
+	private static bool DropForRoom(CompanionAI ai, State state, Humanoid humanoid, Inventory bag, float weight, float ceiling)
+	{
+		List<ItemDrop.ItemData> items = new List<ItemDrop.ItemData>(bag.GetAllItems());
+		float[] weights = new float[items.Count];
+		bool[] keeps = new bool[items.Count];
+		bool[] material = new bool[items.Count];
+		float heaviest = 0f;
+		for (int i = 0; i < items.Count; i++)
+		{
+			ItemDrop.ItemData item = items[i];
+			weights[i] = item != null && item.m_shared != null ? item.m_shared.m_weight * item.m_stack : 0f;
+			string prefab = item != null && item.m_shared != null ? item.m_shared.m_name : null;
+			keeps[i] = item == null || item.m_shared == null
+				|| BuildOverweight.Keeps(prefab, item.IsEquipable(), item.m_shared.m_questItem,
+					item.m_shared.m_food > 0f, BuildingMaterial(item));
+			material[i] = BuildingMaterial(item);
+		}
+		// the margin: the heaviest material the plan still has to place, capped - below it the very next piece puts the
+		// companion back over the line and the order would unload on every single piece
+		if (state.Plan != null && state.Plan.Count > 0 && state.Index >= 0 && state.Index < state.Plan.Count)
+		{
+			PlannedStep step = state.Plan[state.Index];
+			heaviest = step != null && step.Piece != null ? PieceWeight(step.Piece) : 0f;
+		}
+		float target = BuildOverweight.Target(ceiling, BuildOverweight.Slack(heaviest, BuildOverweight.MaxSlack));
+		List<int> plan = BuildOverweight.Plan(weights, keeps, material, weight, target);
+		if (plan.Count == 0)
+		{
+			return false;
+		}
+		float dropped = 0f;
+		for (int i = 0; i < plan.Count; i++)
+		{
+			ItemDrop.ItemData item = items[plan[i]];
+			if (item == null)
+			{
+				continue;
+			}
+			if (humanoid.IsItemEquiped(item))
+			{
+				humanoid.UnequipItem(item, triggerEquipEffects: false);
+			}
+			Vector3 at = humanoid.transform.position + humanoid.transform.forward * 0.8f + Vector3.up * 0.5f;
+			ItemDrop drop = ItemDrop.DropItem(item, item.m_stack, at, Quaternion.identity);
+			if (drop != null)
+			{
+				// the companion's own auto-pickup would otherwise grab it straight back (the same rule DropNamed uses)
+				drop.m_autoPickup = false;
+			}
+			bag.RemoveItem(item, item.m_stack);
+			dropped += weights[plan[i]];
+		}
+		state.UnloadDrops++;
+		Log(ai, "sobrecarregado: " + plan.Count + " pilha(s), " + F(dropped) + " de peso no chão ("
+			+ F(weight) + " -> " + F(weight - dropped) + "/" + F(ceiling) + ") - a obra continua");
+		return true;
+	}
+
+	/// <summary>13/11/2026: the pieces the house is built from - what <see cref="BuildStock"/> hands to a piece is what
+	/// may be dropped to make room (<c>Wood</c>, <c>Stone</c>, <c>RoundLog</c>, <c>FineWood</c>...). A prefab that costs
+	/// one of these is a building material; nothing else is.</summary>
+	private static bool BuildingMaterial(ItemDrop.ItemData item)
+	{
+		if (item == null || item.m_shared == null)
+		{
+			return false;
+		}
+		return BuildingMaterial(item.m_shared.m_name);
+	}
+
+	private static bool BuildingMaterial(string prefab)
+	{
+		if (string.IsNullOrEmpty(prefab))
+		{
+			return false;
+		}
+		string name = prefab.IndexOf("$", StringComparison.Ordinal) == 0 ? prefab.Substring(prefab.LastIndexOf('_') + 1) : prefab;
+		return BuildingMaterialName(name);
+	}
+
+	/// <summary>13/11/2026: the materials a build pays with (the same names <c>Piece.m_resources</c> carries). Kept small
+	/// and explicit: a name that is not here stays in the bag, which is the safe side.</summary>
+	private static bool BuildingMaterialName(string name)
+	{
+		string lower = name != null ? name.ToLowerInvariant() : string.Empty;
+		return lower == "wood" || lower == "stone" || lower == "roundlog" || lower == "finewood"
+			|| lower == "corewood" || lower == "elderbark" || lower == "yggdrasilwood" || lower == "blackmarble"
+			|| lower == "grausten" || lower == "tar" || lower == "bronze" || lower == "iron" || lower == "flametal";
+	}
+
+	/// <summary>13/11/2026: what one placement of this piece costs, in weight - the sum of its requirements. It is the
+	/// margin the bag has to keep free so the next piece does not put the companion back over the ceiling.</summary>
+	private static float PieceWeight(Piece piece)
+	{
+		if (piece == null || piece.m_resources == null)
+		{
+			return 0f;
+		}
+		float total = 0f;
+		foreach (Piece.Requirement requirement in piece.m_resources)
+		{
+			if (requirement == null || requirement.m_resItem == null || requirement.m_resItem.m_itemData == null
+				|| requirement.m_resItem.m_itemData.m_shared == null)
+			{
+				continue;
+			}
+			total += requirement.m_resItem.m_itemData.m_shared.m_weight * requirement.GetAmount(1);
+		}
+		return total;
+	}
+
+	/// <summary>13/11/2026: the clocks a resumed piece needs reset - the same four <see cref="WaitRetry"/> resets, so the
+	/// walk to the piece it was already on does not start over from "it is stuck".</summary>
+	private static void StateResetForPiece(State state)
+	{
+		state.Checked = false;
+		state.FallDrops = 0;
+		state.BestDistance = 0f;
+		state.BestAt = Time.time;
 	}
 
 	private static bool Place(CompanionAI ai, State state, CompanionSetup cs, Inventory bag)
