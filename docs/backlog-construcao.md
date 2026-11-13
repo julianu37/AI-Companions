@@ -256,7 +256,41 @@ trecho). A regra decide onde o run começa, não reatribui trechos — alinhar a
 por andar é candidato a item novo, **só com número**. Números completos em
 [re/building-notes.md §17.37](re/building-notes.md#1737-o-contador-fechou-e-o-piso-começou-na-escada--o-run-de-12112026-com-o-dll-novo-12112026).
 
-### 14. `build_status.elapsed` no run de **um** companheiro reporta o relógio da peça, não o da ordem
+### 15. O piso da escada sobe **antes** do apoio, e o solo não tem a socorrista do grupo — *feito 12/11/2026, run de confirmação pendente*
+Os dois sintomas que o jogador viu nas capturas de 12/11/2026 — *"ele sobe no piso da ponta da escada e fica andando e
+caindo ao invés de colocar os pisos à frente"* e *"ele desceu a escada sem terminar de colocar todos os pisos"* — saem
+do mesmo lugar, e a hipótese dele (*"ainda não tinha colocado todos os suportes abaixo do piso superior"*) estava certa.
+
+**O mecanismo, medido no run solo de 12/11/2026** (699/985 quando foi cancelado; 29 `no_support`, 15 apoios de
+emergência, 12 `no progress`):
+
+- `PullFloorsAbove` (`MHR_Build.cs:4882`, chamado só depois de colocar um `ladder`/`stepladder`, `:7144`) puxa **até
+  2 pisos** para logo depois da escada filtrando por distância, altura e lado — e **por nada mais**. O
+  `ClassOf` do parser põe `ladder` (classe 1) **antes** das vigas e postes do mesmo nível (classe 2), então o puxão
+  mete o piso **à frente do próprio apoio**: `no_support` na primeira tentativa. O log confirma: `the ladder
+  wood_stepladder at (-169,4, 42,8, -424,6) has no floor at its top (top 43,9)` logo depois de `2 floor piece(s) over
+  the wood_stepladder brought forward`. Aí o `TryFallbackPost` espera a `SupportGrace` (~20 s), planta um `wood_beam_1`
+  que **não está no blueprint** — e com o poste a escada ganha o patamar que não tinha. Ele sobe num piso que só existe
+  porque a rede de segurança pegou, anda até a borda e cai.
+- **No caminho solo a socorrista do grupo não existe:** `PullDirectSupport` (`:5028`) tem
+  `state.Group == null → return false`. Sobra para o companheiro sozinho o `PullSupports` (`:4951`), que só procura
+  **para a frente** (`i > state.Index`) e portanto nunca acha o apoio que ficou atrás, a fila de retry (8/12/20/25 s)
+  e, por último, o poste. É a origem dos 29 `no_support`.
+- **Um defeito menor junto:** `DirectSupportIndex` (`:5068`) decidia "já construído" por
+  `MHR_BuildGroup.IsDone(state.Group, i)`, que responde **`false` para chave nula** (`MHR_BuildGroup.cs:654`) — no solo,
+  peça já de pé continuava candidata a apoio.
+
+**O que o fix faz (12/11/2026):** `LandingFloors.Select` (puro, harness `(ak)`) só deixa subir o piso cujo apoio **já
+está de pé**; `PullSupportBehind` (novo, caminho sem grupo) puxa para antes da peça recusada o apoio que está **atrás**
+no plano, com o mesmo `Reorder` do `PullSupports` (sem pular índice); `SettledPieces.Out` é a regra única de "peça de
+pé ou desistida" para os dois caminhos; e o `PullSupports` passou a usar a janela real do jogo
+(`BuildSupportBelow.MaxFlat` = 2,5 m) em vez de 1,5 m. O `ServeBarrier` ganhou instrumentação: a linha
+`volta antes de subir` agora diz quantos **pisos do andar de cima** estão pendentes naquele instante — é o número que
+decide se a descida precisa de regra própria (hipótese: não precisa; era consequência dos 29 pisos na fila).
+
+Números do run de confirmação em [re/building-notes.md](re/building-notes.md).
+
+### 16. `build_status.elapsed` no run de **um** companheiro reporta o relógio da peça, não o da ordem
 O `StateSite` (a obra de um worker só, sem grupo) publica `StartedAt = state.Start`, mas no `State` esse campo é o
 relógio **da peça atual**: `EnterStep` o reescreve a cada peça (`MHR_Build.cs:1370`). Medido no run solo de
 12/11/2026: `elapsed` ficou **0 s** na peça 85, **2,08 s** na peça 120 — recomeçando a cada peça, quando a obra já
@@ -281,6 +315,6 @@ do piso para não misturar medição com refactor; é pequeno e provável no har
 1. **Uma mudança por build**, com o corte de aceite escrito **antes** do run.
 2. **Reverter na hora** se `puladas > 0`, `desistindo > 0`, morte, `UNSUPPORTED` ou watchdog — o baseline fecha
    985/985 com 0, então qualquer um deles é regressão.
-3. Regra pura vai para o harness **no mesmo ciclo** (hoje **718** asserções); quem implementa não afrouxa a asserção.
+3. Regra pura vai para o harness **no mesmo ciclo** (hoje **1051** asserções); quem implementa não afrouxa a asserção.
 4. O que foi revertido fica **documentado com o número que o matou** (escopo XZ: ~33 min; `ahead` por frame: 38 vs 78
    peças/min; `CrossesPending`: 67 % do plano).

@@ -137,6 +137,7 @@ internal static class Program
 		new SectionDef("ah", "ClimbRule - o degrau que o companheiro escalou (a saida do cercado)", ClimbRules),
 		new SectionDef("ai", "EscapeRule - o desvio repetido nao conta de novo e a espera cresce (o livelock)", EscapeRules),
 		new SectionDef("aj", "BuildFloorStart - o piso comeca na ponta da escada (e o terreo tambem)", FloorStarts),
+		new SectionDef("ak", "LandingFloors/SettledPieces - o piso so sobe com apoio de pe (e o solo ve o que o grupo ve)", LandingsAndSettled),
 		new SectionDef("ae", "o log das redes ficou calado - nenhuma regra engoliu excecao", QuietLog)
 	};
 
@@ -3700,6 +3701,108 @@ internal static class Program
 
 	// ============================================================================================ the plumbing
 
+	private static void LandingsAndSettled()
+	{
+		// --- LandingFloors.Select: which floors of a landing come to the front of the plan
+		System.Collections.Generic.List<int> candidates = Indexes(10, 20, 30, 40);
+		CheckInts("sem apoio de pe: nada e puxado", new int[0], Landing(candidates, Supported(false, false, false, false), 2));
+		CheckInts("todos com apoio: os 2 mais perto (a ordem da chegada)", new int[] { 10, 20 },
+			Landing(candidates, Supported(true, true, true, true), 2));
+		CheckInts("o 1o sem apoio NAO gasta a vaga: os 2 seguintes entram", new int[] { 20, 30 },
+			Landing(candidates, Supported(false, true, true, false), 2));
+		CheckInts("um so com apoio no fim", new int[] { 40 }, Landing(candidates, Supported(false, false, false, true), 2));
+		CheckInts("max = 1 puxa o primeiro apoiado", new int[] { 10 }, Landing(candidates, Supported(true, true, true, true), 1));
+		CheckInts("max = 0 nao puxa nada", new int[0], Landing(candidates, Supported(true, true, true, true), 0));
+		CheckInts("max negativo nao puxa nada", new int[0], Landing(candidates, Supported(true, true, true, true), -3));
+		CheckInts("lista vazia", new int[0], Landing(Indexes(), Supported(), 2));
+
+		// --- the shape the plan really gives: a landing whose support is still ahead is NOT pulled (the defect of 12/11)
+		CheckInts("o piso do patamar sem as vigas embaixo fica onde o andar o poe",
+			new int[0], Landing(Indexes(579, 598), Supported(false, false), 2));
+		CheckInts("as mesmas duas depois das vigas: as duas sobem", new int[] { 579, 598 },
+			Landing(Indexes(579, 598), Supported(true, true), 2));
+
+		// --- the guards: an index repeated (or negative) names no second piece, and the flags run out with the candidates
+		CheckInts("indice repetido entra uma vez so", new int[] { 7 }, Landing(Indexes(7, 7), Supported(true, true), 3));
+		CheckInts("indice negativo e ignorado", new int[] { 5 }, Landing(Indexes(-1, 5), Supported(true, true), 3));
+		CheckInts("menos flags que candidatos: os candidatos sem resposta nao entram", new int[] { 1 },
+			Landing(Indexes(1, 2, 3), Supported(true), 3));
+		CheckInts("mais flags que candidatos: so os candidatos contam", new int[0],
+			Landing(Indexes(), Supported(true, true), 2));
+
+		// --- SettledPieces.Out: the SAME answer for a solo order and for a crew (the rule the fix exists for)
+		System.Collections.Generic.HashSet<int> placed = Set(3, 9);
+		System.Collections.Generic.HashSet<int> givenUp = Set(5);
+		Check("solo: a peca 3 esta de pe - fora", SettledPieces.Out(3, placed, givenUp));
+		Check("grupo: a peca 3 esta de pe - fora", SettledPieces.Out(3, Set(3, 9), Set(5)));
+		Check("solo: a peca 5 foi desistida - fora", SettledPieces.Out(5, placed, givenUp));
+		Check("grupo: a peca 5 foi desistida - fora", SettledPieces.Out(5, Set(3, 9), Set(5)));
+		Check("solo: a peca 7 ainda vale como apoio", !SettledPieces.Out(7, placed, givenUp));
+		Check("grupo: a peca 7 ainda vale como apoio", !SettledPieces.Out(7, Set(3, 9), Set(5)));
+		Check("os dois caminhos respondem igual em 0..11",
+			SameSettled(placed, givenUp, Set(3, 9), Set(5)));
+		Check("conjuntos nulos (nada colocado): nada esta fora", !SettledPieces.Out(0, null, null));
+		Check("indice negativo nomeia nenhuma peca - fora", SettledPieces.Out(-1, placed, givenUp));
+		Check("conjunto so de desistentes: a peca viva continua valendo", !SettledPieces.Out(2, null, Set(5)));
+
+		// --- the whole point: IsDone(null, i) is false, so the solo path used to keep a STANDING piece as a support
+		CheckInts("apoio escolhido (solo, com a peca 3 de pe): a 7, nao a 3",
+			new int[] { 7 }, SupportPickOrder(new int[] { 3, 7 }, placed, givenUp));
+	}
+
+	/// <summary>Section (ak): the kept indexes, in the order given.</summary>
+	private static int[] Landing(System.Collections.Generic.List<int> candidates,
+		System.Collections.Generic.List<bool> supported, int max)
+	{
+		return LandingFloors.Select(candidates, supported, max).ToArray();
+	}
+
+	private static System.Collections.Generic.List<int> Indexes(params int[] values)
+	{
+		return new System.Collections.Generic.List<int>(values);
+	}
+
+	private static System.Collections.Generic.List<bool> Supported(params bool[] values)
+	{
+		return new System.Collections.Generic.List<bool>(values);
+	}
+
+	private static System.Collections.Generic.HashSet<int> Set(params int[] values)
+	{
+		return new System.Collections.Generic.HashSet<int>(values);
+	}
+
+	/// <summary>Section (ak): do the two paths answer the same for every index 0..11?</summary>
+	private static bool SameSettled(System.Collections.Generic.HashSet<int> soloPlaced,
+		System.Collections.Generic.HashSet<int> soloSkipped, System.Collections.Generic.HashSet<int> sitePlaced,
+		System.Collections.Generic.HashSet<int> siteSkipped)
+	{
+		for (int i = -1; i <= 11; i++)
+		{
+			if (SettledPieces.Out(i, soloPlaced, soloSkipped) != SettledPieces.Out(i, sitePlaced, siteSkipped))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/// <summary>Section (ak): the candidates that survive <see cref="SettledPieces"/>, in the order they were given.</summary>
+	private static int[] SupportPickOrder(int[] candidates, System.Collections.Generic.HashSet<int> placed,
+		System.Collections.Generic.HashSet<int> skipped)
+	{
+		System.Collections.Generic.List<int> keep = new System.Collections.Generic.List<int>();
+		foreach (int index in candidates)
+		{
+			if (!SettledPieces.Out(index, placed, skipped))
+			{
+				keep.Add(index);
+			}
+		}
+		return keep.ToArray();
+	}
+
+	// ============================================================================================ the plumbing
 	/// <summary>
 	/// Opens a section, runs its cases, and puts the section key back. Every section of <see cref="Main"/> goes through
 	/// here (11/11/2026), which is what makes <c>--only</c> and <c>--list</c> possible with a single key per section

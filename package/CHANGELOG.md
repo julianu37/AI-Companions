@@ -4,6 +4,32 @@ All the changes to this project, derived from ProfMags' Offline Companions. The 
 
 ## 1.9.7 - in progress
 
+**The floor above the stair is no longer laid before the beams that hold it.** `PullFloorsAbove` brought up to two
+floors to the front of the plan right after a ladder, chosen by distance, height and the side it climbs to - and by
+nothing else. The blueprint order puts a `stair`/`ladder` (class 1) before the beams and poles of the same storey
+(class 2), so the floor was moved **in front of its own support**: the placement came back `no_support`, the emergency
+post then planted a beam the blueprint does not carry, and with that beam the ladder finally had a landing. The
+companion climbed onto a floor that only existed because the safety net had caught it, walked to its edge and fell -
+over and over. A floor now comes forward only when what holds it is **already standing** (`AI/LandingFloors.cs`,
+harness section **(ak)**); otherwise the storey keeps its order, the beams go up first and the upper floor is laid from
+the floor below, inside the placement reach.
+
+**A companion building alone has the same support rescue as a crew.** `PullDirectSupport`, which sends the builder to
+the piece that holds a refused one up, answered `false` whenever there was no group (`state.Group == null`) - and a
+single companion's order has no group. It was left with a search that only looks **forward** in the plan, the retry
+queue (8 to 25 s) and the emergency post. A support that is **behind** the cursor in the plan is now pulled to just
+before the refused piece, through the same `Reorder` the plan already uses, so nothing is entered out of order
+(`MHR_Build.PullSupportBehind`). The "already standing" test is one rule for both paths now
+(`AI/SettledPieces.cs`): the site's `Done`/`SkippedIndex` in a crew, the worker's own `PlacedIndices`/`SkippedIndices`
+alone - `MHR_BuildGroup.IsDone` answers `false` for a solo order, so a piece already up used to stay a candidate. The
+support search also reads the game's own window (2.5 m) instead of a 1.5 m of its own. Measured on the solo run of the
+985-piece house before the fix: 29 `no_support` and 15 emergency posts, where the same blueprint finished 985/985 with
+two workers. See `docs/re/building-notes.md` §17.38.
+
+**"Back down before climbing" now says how many floors above are still pending.** Every `volta antes de subir` line
+carries the count (`MHR_Build.PendingAbove`). It measures and does not decide: the storey barrier is deliberate and
+tested, and the question "did he come down with floors unfinished?" is answered by this number on the next run.
+
 **A piece keeps its identity when the plan is reordered.** Every structure of the build state names a piece by its
 position in the plan (`PlacedIndices`, `SkippedIndices`, `PulledSupport`, `FallAdjusted`, `FallbackPosts`,
 `BarrierServed`, `Index`, and on a site `Done`/`SkippedIndex`/`Claims`/`BodyAt`), and four functions used to change

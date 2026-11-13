@@ -1496,7 +1496,12 @@ internal static class MHR_Build
 			state.BarrierServed.Add(serve);
 			state.ResumeIndex = state.BarrierNextIndex;
 			EnterStep(ai, state, serve);
-			Log(ai, "volta antes de subir: " + state.Prefab + " (" + (serve + 1) + "/" + state.Plan.Count + ") em " + Pose(state.Pos));
+			// 12/11/2026 (the player's report "he came down the stair without finishing the floors"): the line says how many
+			// floors of the storey ABOVE are still pending at the moment the walk is sent back down. It is the number the
+			// question is decided by - if it stays at zero after the landing floors stop being pulled ahead of their support,
+			// the descent is a consequence of the queue and needs no rule of its own.
+			Log(ai, "volta antes de subir: " + state.Prefab + " (" + (serve + 1) + "/" + state.Plan.Count + ") em " + Pose(state.Pos)
+				+ PendingAbove(state, state.BarrierNextY));
 			return true;
 		}
 		int below = PendingBelowIndex(ai, state, state.BarrierNextIndex, state.BarrierNextY);
@@ -1537,6 +1542,41 @@ internal static class MHR_Build
 		}
 		ResetBarrier(state);
 		return false;   // nothing below: the plan climbs
+	}
+
+	/// <summary>
+	/// 12/11/2026 (the player's report: "he came down the stair without finishing the floors"): how many <b>floor</b> pieces
+	/// of the storey <b>above</b> <paramref name="storeyY"/> are still pending - neither up nor given up - at this instant.
+	/// Read from the plan itself, so it is the same number for a solo order and a crew; the line that prints it is the
+	/// <c>volta antes de subir</c> of <see cref="ServeBarrier"/>.
+	///
+	/// <para>It measures, it does not decide: the descent is the storey barrier doing its job (the rule of the Run 9, "they
+	/// may skip, but come back and try again before going up"). A non-zero number with every descent would say the barrier is
+	/// the place to put a rule; a zero one says the floors were already laid and the descent is only the queue.</para>
+	/// </summary>
+	private static string PendingAbove(State state, float storeyY)
+	{
+		if (state == null || state.Plan == null || storeyY <= 0f)
+		{
+			return string.Empty;
+		}
+		int pending = 0;
+		ISet<int> placed = PlacedSet(state);
+		ISet<int> givenUp = SkippedSet(state);
+		for (int i = 0; i < state.Plan.Count; i++)
+		{
+			PlannedStep step = state.Plan[i];
+			if (step == null || step.Pos.y <= storeyY + 0.01f || !IsFloorStep(step))
+			{
+				continue;
+			}
+			if (SettledPieces.Out(PieceIdentity(state, i), placed, givenUp))
+			{
+				continue;
+			}
+			pending++;
+		}
+		return pending > 0 ? " (" + pending + " piso(s) pendente(s) acima)" : string.Empty;
 	}
 
 	/// <summary>11/11/2026: the storey barrier is only for a <b>blueprint</b> of this game (<c>[Building] BodyRetry</c>): a
@@ -4918,20 +4958,34 @@ internal static class MHR_Build
 		{
 			return;
 		}
-		int take = Mathf.Min(MaxPulledFloors, candidates.Count);
-		HashSet<int> chosen = new HashSet<int>();
-		for (int i = 0; i < take; i++)
+		// 12/11/2026 (the solo run: 29 no_support and 15 emergency posts): a floor only comes forward when what holds it is
+		// already STANDING. The storey order puts the ladder (class 1) before the beams and poles of the same storey (class 2),
+		// so at this moment the support of the upper floor may still be ahead: pulling the floor in front of it is a
+		// no_support, the emergency post then plants a beam the blueprint does not have, and the ladder gets a landing out of
+		// the safety net - which is how the companion ended up walking and falling on a floor nothing really held.
+		List<bool> holds = new List<bool>(candidates.Count);
+		for (int i = 0; i < candidates.Count; i++)
 		{
-			chosen.Add(candidates[i]);
+			holds.Add(SupportStanding(state, state.Plan[candidates[i]]));
+		}
+		List<int> take = LandingFloors.Select(candidates, holds, MaxPulledFloors);
+		if (take.Count == 0)
+		{
+			return;   // nothing under the landing is up yet: the storey order builds the support first
+		}
+		HashSet<int> chosen = new HashSet<int>();
+		for (int i = 0; i < take.Count; i++)
+		{
+			chosen.Add(take[i]);
 		}
 		List<int> order = new List<int>(state.Plan.Count);
 		for (int i = 0; i <= state.Index; i++)
 		{
 			order.Add(i);   // the head, untouched
 		}
-		for (int i = 0; i < take; i++)
+		for (int i = 0; i < take.Count; i++)
 		{
-			order.Add(candidates[i]);
+			order.Add(take[i]);
 		}
 		for (int i = state.Index + 1; i < state.Plan.Count; i++)
 		{
@@ -4941,8 +4995,64 @@ internal static class MHR_Build
 			}
 		}
 		Reorder(state, order);
-		state.PullUntil = state.Index + take;
-		Log(ai, take + " floor piece(s) over the " + state.Prefab + " brought forward so it leads somewhere");
+		state.PullUntil = state.Index + take.Count;
+		Log(ai, take.Count + " floor piece(s) over the " + state.Prefab + " brought forward so it leads somewhere");
+	}
+
+	/// <summary>
+	/// 12/11/2026 (the floor of a landing that has nothing holding it up): is the <b>support</b> of <paramref name="floor"/>
+	/// already standing? The window is the one the game itself reads (<see cref="BuildSupportBelow.IsDirectSupport"/>: 0,4 to
+	/// 2,5 m below, up to 2,5 m in XZ), the piece has to be structural and allowed to hold it
+	/// (<see cref="BuildSupportBelow.CanSupport"/>) and it has to be <b>up</b> - a support pulled forward by the same plan is
+	/// not standing yet and does not count.
+	///
+	/// <para>The pieces of the plan are read first (the poses are exact); when the plan has none in the window the world is
+	/// asked, because the floor of the storey below may well be something the blueprint does not carry (terrain, a rock). The
+	/// world answer is the game's own verdict on the spot (<see cref="BuildProbe.CheckPoint(Piece, Vector3, Quaternion, Component, bool)"/>),
+	/// which is the same one the placement will give - so a floor with no support anywhere stays where the storey order put
+	/// it, and the emergency post (a separate path with its own budgets and its own grace) keeps being the last resort.</para>
+	/// </summary>
+	private static bool SupportStanding(State state, PlannedStep floor)
+	{
+		if (state == null || floor == null || state.Plan == null)
+		{
+			return false;
+		}
+		int own = BuildBlueprintParser.ClassOf(floor.Prefab);
+		for (int i = 0; i < state.Plan.Count; i++)
+		{
+			PlannedStep step = state.Plan[i];
+			if (step == null || step.Prefab == null || step == floor)
+			{
+				continue;
+			}
+			if (!BuildPieceKind.IsStructural(step.Prefab)
+				|| !BuildSupportBelow.CanSupport(own, BuildBlueprintParser.ClassOf(step.Prefab)))
+			{
+				continue;
+			}
+			float dx = step.Pos.x - floor.Pos.x;
+			float dz = step.Pos.z - floor.Pos.z;
+			if (!BuildSupportBelow.IsDirectSupport(dx, dz, floor.Pos.y - step.Pos.y))
+			{
+				continue;
+			}
+			if (Standing(state, PieceIdentity(state, i)))
+			{
+				return true;   // a piece of the plan under it that is already up
+			}
+		}
+		// nothing of the plan under it: ask the game about the spot (terrain, a rock, a piece the file does not carry)
+		return BuildProbe.CheckPoint(floor.Piece, floor.Pos, floor.Rot, null, false) is Dictionary<string, object> answer
+			&& Ok(answer);
+	}
+
+	/// <summary>12/11/2026: is the plan piece at <paramref name="index"/> already up? The site's own set in a crew, this
+	/// worker's in a solo order - the same rule, one place (<see cref="SettledPieces"/>).</summary>
+	private static bool Standing(State state, int index)
+	{
+		ISet<int> placed = PlacedSet(state);
+		return placed != null && placed.Contains(index);
 	}
 
 	/// <summary>E7 (player's report, 03/11/2026: "a ladder with no floor again"): a piece refused with <c>no_support</c> needs 
@@ -4955,6 +5065,8 @@ internal static class MHR_Build
 			return false;
 		}
 		List<int> found = new List<int>();
+		ISet<int> placed = PlacedSet(state);
+		ISet<int> givenUp = SkippedSet(state);
 		for (int i = state.Index + 1; i < state.Plan.Count && found.Count < 3; i++)
 		{
 			PlannedStep step = state.Plan[i];
@@ -4969,14 +5081,23 @@ internal static class MHR_Build
 			{
 				continue;
 			}
+			// 12/11/2026 (the solo run): a longer reach and the window of the game's own rule (BuildSupportBelow: 2,5 m in
+			// XZ, 0,4-2,6 m below). The 1,5 m here missed the beam one tile out - the plan carries supports up to 2,5 m away
+			// from the piece's centre, which is what DirectSupportIndex already reads, and the two must agree.
 			float dx = step.Pos.x - state.Pos.x;
 			float dz = step.Pos.z - state.Pos.z;
-			if (dx * dx + dz * dz > 2.25f)
+			if (dx * dx + dz * dz > BuildSupportBelow.MaxFlat * BuildSupportBelow.MaxFlat)
 			{
 				continue;
 			}
 			float dy = state.Pos.y - step.Pos.y;
 			if (dy < 0.5f || dy > 2.6f)
+			{
+				continue;
+			}
+			// 12/11/2026: a piece that is up or was given up is not a support anymore - it was pulled forward and placed by
+			// an earlier pass, and pulling it again only re-walks the plan (the support is right behind the cursor).
+			if (SettledPieces.Out(PieceIdentity(state, i), placed, givenUp))
 			{
 				continue;
 			}
@@ -5063,6 +5184,102 @@ internal static class MHR_Build
 		return true;
 	}
 
+	/// <summary>
+	/// 12/11/2026 (the solo run: 29 <c>no_support</c> and 15 emergency posts, the same blueprint finishing with two workers):
+	/// the single companion's version of <see cref="PullDirectSupport"/>. A piece refused with <c>no_support</c> whose
+	/// support is <b>behind</b> the cursor in the plan is never rescued: <see cref="PullSupports"/> only looks forward, the
+	/// retry pass waits 8-25 s and the emergency post plants a beam the blueprint does not carry. This pulls the support to
+	/// <b>right before the refused piece</b> - the same reorder as <see cref="PullSupports"/>, so the worker walks the plan by
+	/// index and never enters a step out of order (the group's <see cref="PullDirectSupport"/> can jump the index because a
+	/// site is walked by claims; here the plan is a plain list and the reorder is the safe road).
+	///
+	/// <para>Only a support <b>behind</b> the cursor is taken: one ahead is <see cref="PullSupports"/>'s case, which runs
+	/// first, and taking it here would walk the same ground twice. A support that is up or given up is not a support
+	/// (<see cref="SettledPieces"/>), which is what <see cref="DirectSupportIndex"/> already answers.</para>
+	/// </summary>
+	private static bool PullSupportBehind(CompanionAI ai, State state)
+	{
+		if (PlanLocked(state) || state.Plan == null || state.Index <= 0 || state.Index >= state.Plan.Count)
+		{
+			return false;
+		}
+		int support = DirectSupportIndex(state);
+		if (support < 0 || support >= state.Index)
+		{
+			return false;   // nothing under it, or it is ahead: PullSupports already had that case
+		}
+		// P1 (04/11/2026, the 1.4M-line incident on the group path): ONCE per refused piece and never more than 24 per
+		// order. Without it a piece whose real support this search cannot see comes back, is refused, and is pulled
+		// again - and the reorder makes the same pair flip forever.
+		if (!state.PulledSupport.Add(state.Index) || state.PulledSupport.Count > 24)
+		{
+			return false;
+		}
+		List<int> order = new List<int>(state.Plan.Count);
+		for (int i = 0; i < state.Index; i++)
+		{
+			if (i != support)
+			{
+				order.Add(i);
+			}
+		}
+		order.Add(support);
+		order.Add(state.Index);
+		for (int i = state.Index + 1; i < state.Plan.Count; i++)
+		{
+			order.Add(i);
+		}
+		int at = state.Index;
+		string prefab = state.Plan[support].Prefab;
+		Vector3 pos = state.Plan[support].Pos;
+		string refused = state.Prefab;
+		Reorder(state, order);
+		// the next Advance takes the support; the refused piece is right behind it (the shape PullSupports leaves too)
+		state.PullUntil = at;
+		state.Index = at - 1;
+		Log(ai, "apoio atrás no plano: " + prefab + " em " + Pose(pos) + " vem antes do " + refused);
+		return true;
+	}
+
+	/// <summary>12/11/2026: the pieces already up, as the current path keeps them - the site's set in a crew, the worker's
+	/// own in a solo order. Null when neither exists.</summary>
+	private static ISet<int> PlacedSet(State state)
+	{
+		if (state == null)
+		{
+			return null;
+		}
+		return state.Group != null ? MHR_BuildGroup.DoneSet(state.Group) : state.PlacedIndices;
+	}
+
+	/// <summary>
+	/// 12/11/2026 (the solo run: the same piece twice in the plan): the index a plan position is <b>known by</b> in the
+	/// placed/skipped sets. A crew walks one plan and appends nothing, so the position is the index. A single worker's retry
+	/// pass appends the <b>same step object</b> again (<see cref="Advance"/>), and every count and every skip is recorded
+	/// under the <b>first</b> place it appears (<see cref="PieceIndex"/>) - asking the appended copy's own position would
+	/// answer "not placed" for a piece that is standing, and it would be chosen as a support and paid for twice.
+	/// </summary>
+	private static int PieceIdentity(State state, int index)
+	{
+		if (state == null || state.Group != null || state.Plan == null || index < 0 || index >= state.Plan.Count)
+		{
+			return index;
+		}
+		PlannedStep step = state.Plan[index];
+		int first = step != null ? state.Plan.IndexOf(step) : -1;
+		return first >= 0 ? first : index;
+	}
+
+	/// <summary>12/11/2026: the pieces given up, as the current path keeps them (see <see cref="PlacedSet"/>).</summary>
+	private static ISet<int> SkippedSet(State state)
+	{
+		if (state == null)
+		{
+			return null;
+		}
+		return state.Group != null ? MHR_BuildGroup.SkippedSet(state.Group) : state.SkippedIndices;
+	}
+
 	/// <summary>P1 (04/11/2026): the plan index that is the direct support of the piece this worker is on, or -1 (see
 	/// <see cref="PullDirectSupport"/> for the window and for why only <b>below</b> counts).</summary>
 	private static int DirectSupportIndex(State state)
@@ -5096,6 +5313,13 @@ internal static class MHR_Build
 			if (MHR_BuildGroup.IsDone(state.Group, i))
 			{
 				continue;   // already standing: the refusal of the piece is not about this one
+			}
+			// 12/11/2026 (the solo run): In a crew the line above covers it; for a single worker IsDone is always FALSE (no
+			// site key), so a piece already standing stayed a candidate and the pull went back to a finished spot. One rule
+			// for both paths.
+			if (state.Group == null && SettledPieces.Out(i, state.PlacedIndices, state.SkippedIndices))
+			{
+				continue;
 			}
 			float dx = step.Pos.x - state.Pos.x;
 			float dz = step.Pos.z - state.Pos.z;
@@ -6034,6 +6258,13 @@ internal static class MHR_Build
 				// piece is tried again RIGHT AFTER them - not at the end of the plan (review, 03/11/2026: the ladder stayed
 				// without its floor until the whole house was done).
 				if (PullSupports(ai, state))
+				{
+					return Advance(ai, state, dt);
+				}
+				// 12/11/2026 (the solo run): the support is BEHIND the cursor - PullSupports above only looks forward, and a
+				// single worker has no site whose claim would drive it (PullDirectSupport below answers false without a group).
+				// The reorder brings it right before the refused piece, so the next step walked is the support.
+				if (PullSupportBehind(ai, state))
 				{
 					return Advance(ai, state, dt);
 				}

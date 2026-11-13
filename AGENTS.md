@@ -15,11 +15,11 @@ IA** (LLM/voz/fala) + **localização** por cima.
 |---|---|
 | versão | **1.9.6** (`PluginVersion` em `src/Companions/Core/CompanionsPlugin.cs`); `package/CHANGELOG.md` já tem a seção `1.9.7 - in progress` |
 | build | `dotnet build Companions.sln -c Release` → **0 erros, 0 avisos** |
-| harness (redes por palavras + tabelas puras) | **930 PASS / 0 FAIL** em **34 seções** (`--list` imprime todas; `--only=(p)` roda uma) |
-| MCP mock (sem jogo) | **123 PASS / 0 FAIL** |
+| harness (redes por palavras + tabelas puras) | **1051 PASS / 0 FAIL** em **35 seções** (`--list` imprime todas; `--only=(p)` roda uma) |
+| MCP mock (sem jogo) | **135 PASS / 0 FAIL** |
 | config documentada | **368 opções / 25 seções** (`gen_config_doc.py --check`) |
 | gate de release | **9/9 PASS** |
-| branch de trabalho | `fix/plano-remap` (a linha de release é a `main`) |
+| branch de trabalho | `fix/piso-apoio` (a linha de release é a `main`) |
 
 Se algum número acima não bater, **o código ganha** — rode o comando e corrija a tabela.
 
@@ -222,6 +222,15 @@ Não redesenhe isso de cabeça: **`docs/re/building-notes.md`** é a fonte (§17
    (medido: 1,5-2,0 m onde o trecho contém a chegada; 16,2 m no andar 1 do `Companion`). `AI/BuildFloorStart.cs`
    decide **onde o run começa**, não reatribui trechos. Alinhar a divisão do `BuildSpread` às chegadas por andar é
    candidato a item, **só com número** (§17.37).
+9. **O piso só sobe com o apoio de pé, e o solo tem o mesmo socorro do grupo** (12/11/2026, §17.38) — o run solo da
+   `CommHomeBasicBP` parou em **699/985** com **29 `no_support`** e **15 apoios de emergência** porque o
+   `PullFloorsAbove` puxava o piso para cima da escada **antes** das vigas que o sustentam (o `ClassOf` põe a escada,
+   classe 1, antes das vigas, classe 2), e porque `PullDirectSupport` responde `false` sem grupo
+   (`state.Group == null`). O fix: `AI/LandingFloors.cs` (puro) só deixa subir piso com apoio já de pé,
+   `PullSupportBehind` puxa para a frente o apoio que está **atrás** no plano pelo `Reorder`, e `AI/SettledPieces.cs`
+   é a regra única de "peça de pé ou desistida" nos dois caminhos. `volta antes de subir` agora diz quantos pisos do
+   andar de cima estão pendentes — é o número que decide se a descida precisa de regra própria.
+   **Não medido ainda:** o run solo de confirmação (alvos: `no_support < 5`, `apoio de emergência < 5`, 985/985).
 
 ## DevBridge (testar no jogo)
 

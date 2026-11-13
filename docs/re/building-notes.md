@@ -3524,3 +3524,70 @@ andar — é decisão de próximo ciclo, com o número acima na mão.
 **Custos do run** (linha do `Finish`): espera 41,0 s (barreira 31,8 s em 12 retenções, fila 9,1 s, passo 0,0 s,
 portão 0,0 s); 411 adiadas / 9 retomadas / 2 `step-aside`; `3,16` linhas `[Build]` por peça (era `3,28`).
 
+
+### 17.38 O piso subia antes do apoio, e o solo não tinha a socorrista do grupo (12/11/2026)
+
+O run **solo** (1 companheiro, `CommHomeBasicBP`, 985 peças) foi cancelado em **699/985** com **29 `no_support`**,
+**15 apoios de emergência** (14 `wood_beam_1` plantados + 1 `sem lugar`), **12 `no progress`**, **1 pulada** e **2
+quedas**. O jogador viu nas capturas duas coisas que são o mesmo defeito: *"ele sobe no piso da ponta da escada e
+fica andando e caindo ao invés de colocar os pisos à frente"* e *"ele desceu a escada sem terminar de colocar todos os
+pisos"*, com a hipótese — **certa** — de que os apoios do piso superior não estavam no lugar antes da subida.
+
+**A prova no log**, na ordem em que aconteceu:
+
+```
+[Build] Companion: 2 floor piece(s) over the wood_stepladder brought forward so it leads somewhere
+[Move|Build] the ladder wood_stepladder at (-169,4, 42,8, -424,6) has no floor at its top (top 43,9) - not climbing it
+[Move|Build] at the foot of the ladder - climbing
+[Build] Companion: 2 floor piece(s) over the wood_stepladder brought forward so it leads somewhere
+[Build] Companion: apoio de emergência: wood_beam_1 (1,00 m) sob wood_floor em (-154,2, 41,4, -418,5)
+[Move|Build] climbed the ladder at (-170,4, 41,9, -426,0)
+```
+
+O `PullFloorsAbove` (`MHR_Build.cs:4882`, só depois de colocar um `ladder`/`stepladder`, `:7144`) puxa **2 pisos** para
+logo depois da escada com três filtros — distância (2,5 m), altura (±1,2 m do topo) e lado de subida — e **nenhum sobre
+apoio**. Como `BuildBlueprintParser.ClassOf` ordena `stair`/`ladder` (**classe 1**) antes das vigas de `wood_beam`/
+`wood_pole` (**classe 2**) do mesmo nível, no instante em que a escada sobe o apoio do piso de cima está **à frente**
+no plano: o puxão põe o piso na frente do próprio apoio. A sonda no blueprint real mostra o lado oposto do mesmo fato —
+na ordem pristina os candidatos de apoio ficam `antes=6..11, depois=0` em **18 de 18** pisos medidos. Quem os joga para
+trás é o puxão, em tempo de execução.
+
+O piso falha `no_support` → o `TryFallbackPost` espera a `SupportGrace` (2 adiamentos, ~20 s) → planta um `wood_beam_1`
+que **não está no blueprint**. Com o poste, a escada ganha o patamar que não tinha: `LadderLanding`
+(`MHR_Mover.cs:1303`) libera a subida, o companheiro sobe num piso que só existe porque a rede de segurança pegou, anda
+até a borda e cai. É o laço que o jogador descreveu — e o custo de tempo do run.
+
+**Por que o solo é pior que o grupo.** `PullDirectSupport` (`:5028`), que dirige o apoio seguinte pelo
+`DirectSupportIndex` (`:5068`, varre o plano **inteiro**, para trás e para a frente, com a janela real de
+`BuildSupportBelow`: 2,5 m em XZ, 0,4-2,5 m abaixo), tem `state.Group == null → return false` na primeira condição. O
+companheiro sozinho — o caso mais comum do jogador — nunca usa esse caminho. O que lhe resta é o `PullSupports`
+(`:4951`), que só procura `i > state.Index` (nunca acha o apoio atrás), a fila de retry (8/12/20/25 s) e o poste. Daí
+os 29 `no_support` num run em que esse mesmo blueprint fechou 985/985 com dois workers.
+
+Junto, um defeito menor no mesmo lugar: `DirectSupportIndex` perguntava "já construído?" a
+`MHR_BuildGroup.IsDone(state.Group, i)`, que responde **`false` para chave nula** (`MHR_BuildGroup.cs:654-662`) — no
+solo, peça já de pé continuava candidata a apoio.
+
+**O fix (branch `fix/piso-apoio`), quatro peças pequenas:**
+
+| peça | onde | o que decide |
+|---|---|---|
+| `LandingFloors.Select` (puro, harness `(ak)`) | `src/Companions/AI/LandingFloors.cs` | só sobe o piso cujo apoio **já está de pé**; sem apoio, o andar segue a ordem normal (viga primeiro, piso de cima construído de baixo, 1 m acima dos pés) |
+| `SupportStanding` | `MHR_Build.cs` | responde "o que está embaixo está de pé?" — peças do plano na janela de `BuildSupportBelow` já colocadas, ou o veredito do jogo no ponto (`BuildProbe.CheckPoint`) para o que o arquivo não carrega |
+| `PullSupportBehind` (novo, só sem grupo) | `MHR_Build.cs` | com o apoio **atrás** do cursor, puxa-o para antes da peça recusada com o **mesmo `Reorder`** do `PullSupports` — sem `EnterStep` fora de ordem, sem pular índice |
+| `SettledPieces.Out` (puro, harness `(ak)`) | `src/Companions/AI/SettledPieces.cs` | a regra única de "peça de pé ou desistida" para solo e grupo; é o que faz o `DirectSupportIndex` responder o mesmo nos dois caminhos |
+
+Mais duas mudanças de alcance: o `PullSupports` passou a usar `BuildSupportBelow.MaxFlat` (2,5 m) em vez dos 1,5 m
+literais que não batiam com a janela do `DirectSupportIndex`, e o `ServeBarrier` passou a **imprimir** quantos pisos do
+andar de cima estão pendentes em cada `volta antes de subir` (`PendingAbove`).
+
+**Sobre o sintoma 2 (descer sem terminar):** não ganhou regra. O `StoreyBarrier`/`ServeBarrier` são mecanismos
+deliberados e medidos (Run 17/18, patience de 10 s, `NextRetryBelow`, `ResumeIndex`), e uma regra "não desça com piso
+pendente" brigaria com eles e travaria o sítio num andar impossível. A leitura é que a descida era **consequência** dos
+29 pisos na fila de retry; o número novo no log é o que decide. Se continuar diferente de zero com o fix, o item volta
+para a fila com o número.
+
+**Verificação até aqui:** build 0 erros / 0 avisos; harness **1051 PASS / 0 FAIL** (era 1026; a seção `(ak)` traz 25
+casos novos); `test_mcp_devbridge.py` 135/0; `--check-config` 0 lacunas; `gen_config_doc --check` atualizado.
+**Não medido:** o run solo de confirmação — os alvos são `no_support < 5` (era 29), `apoio de emergência < 5` (era
+15), `sem lugar` = 0 (era 1), 985/985 com 0 duplicatas e as quedas abaixo de 5.

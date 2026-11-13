@@ -1542,6 +1542,33 @@ internal static class MHR_BuildGroup
 		return group.SkippedIndex.Count;
 	}
 
+	/// <summary>
+	/// 12/11/2026 (the support a solo order could not reach): the site's <b>done</b> set itself, for the queries that ask
+	/// "is this plan index settled?" rather than "how many are done" (<c>MHR_Build.DirectSupportIndex</c> and
+	/// <c>MHR_Build.SupportStanding</c>). Null without a site - the caller then reads its own set. Read-only: the set is
+	/// the group's identity and only <see cref="MarkDone"/> / <see cref="AddSkipped"/> change it.
+	/// </summary>
+	internal static HashSet<int> DoneSet(string key)
+	{
+		Group group;
+		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null)
+		{
+			return null;
+		}
+		return group.Done;
+	}
+
+	/// <summary>12/11/2026: the site's <b>given up</b> set (see <see cref="DoneSet"/>). Null without a site.</summary>
+	internal static HashSet<int> SkippedSet(string key)
+	{
+		Group group;
+		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null)
+		{
+			return null;
+		}
+		return group.SkippedIndex;
+	}
+
 	/// <summary>P1 (04/11/2026): when a piece of this site last went up - the stall watchdog counts from here.</summary>
 	internal static float LastProgressAt(string key)
 	{
