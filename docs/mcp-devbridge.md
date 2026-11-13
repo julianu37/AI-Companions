@@ -300,6 +300,40 @@ resolvia para o `Companion 2` porque o match era substring. Hoje o exato vence e
 
 ## Receitas
 
+### Ciclo completo de um run de construção (build novo → run → números)
+
+Foi este ciclo que **custou tempo de verdade** em 12/11/2026, porque cada pedaço estava espalhado. A ordem importa:
+
+1. **Buildar e publicar o DLL.** `dotnet build Companions.sln -c Release` (sem `SkipDeploy`) copia o
+   `Companions.dll` para `$(DeployDir)`. Confira o **carimbo** antes de seguir:
+   `(Get-Item "<DeployDir>\Companions.dll").LastWriteTime` tem de ser **mais novo** que
+   `src/Companions/bin/Release/net472/Companions.dll` de antes do build. Se o jogo já estava aberto, ele está
+   rodando o DLL **antigo** — a DLL carrega no *boot*, não há reload.
+2. **Sair com gravamento.** `world.quit` (`save: true`) → `{"quitting": true, "loggedOut": true}`. Matar o processo
+   por fora **descarta a sessão**; `save: false` só para mundo descartável.
+3. **Reabrir**: `Start-Process "steam://rungameid/892970"` e esperar a ponte: `ping` até responder (leva ~20-40 s).
+   Nesse momento a ponte já diz `mod: <versão>` — é a confirmação de que o DLL novo entrou.
+4. **Entrar no mundo:** `world_enter` (nunca mouse; ver a receita acima).
+5. **Conferir o carregamento no log** (o `ping` não prova os patches):
+   `BepInEx\LogOutput.log` precisa ter `Loading [AI Companions <v>]` **e**
+   `loaded successfully! (N methods patched)`.
+6. **Limpar o sítio do run anterior** (é o passo que exige cuidado):
+   `build.pieces x= y= z= radius=` **primeiro**, e leia a resposta — `count`, e que todos os itens são `mine: true`.
+   Só depois `build.delete` **com o mesmo raio e o mesmo centro**, e **verifique**: `destroyed` igual ao `count`
+   lido, e um `build.pieces` de volta em `0`. Sem `x/y/z` o centro é o **player** e sem `radius` o padrão é **10 m**
+   — foi assim que um run anterior apagou o sítio errado. Se o sítio tiver estrutura que **não** é do run, use
+   `filter` (substring de prefab ou `m_name`) para não levar junto.
+7. **Sampler em background** (`run_watch.py --out ...jsonl --baseline <linhas atuais do log>`) **antes** da ordem.
+   O `--baseline` evita que os contadores do run anterior entrem na conta.
+8. **A ordem:** `companions.build blueprint=<arquivo sem .blueprint> name=<companion> x= y= z=`. Sem `name` entram
+   **todos** os companheiros do jogador no mesmo canteiro; com `name`, um só — é o **caminho solo**, sem grupo.
+   O reply traz `pieces` (o plano inteiro) e `workers`.
+9. **Esperar e fechar:** `companions.build_status` até `site: false` (a ordem acabou — não é erro), depois
+   `python tools/build_run_report.py --last` para o relatório saido do log.
+
+**Armadilha desta máquina:** os dois `run_watch.py` de runs anteriores continuam rodando em background se não forem
+parados, e aí dois samplers escrevem no mesmo sítio. Pare-os (`TaskStop`) **antes** de começar.
+
 ### Entrar no mundo sozinho
 
 **`world_enter`** faz a sequência que o jogador usa e espera o mundo carregar:
