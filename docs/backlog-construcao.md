@@ -256,6 +256,16 @@ trecho). A regra decide onde o run começa, não reatribui trechos — alinhar a
 por andar é candidato a item novo, **só com número**. Números completos em
 [re/building-notes.md §17.37](re/building-notes.md#1737-o-contador-fechou-e-o-piso-começou-na-escada--o-run-de-12112026-com-o-dll-novo-12112026).
 
+### 14. `build_status.elapsed` no run de **um** companheiro reporta o relógio da peça, não o da ordem
+O `StateSite` (a obra de um worker só, sem grupo) publica `StartedAt = state.Start`, mas no `State` esse campo é o
+relógio **da peça atual**: `EnterStep` o reescreve a cada peça (`MHR_Build.cs:1370`). Medido no run solo de
+12/11/2026: `elapsed` ficou **0 s** na peça 85, **2,08 s** na peça 120 — recomeçando a cada peça, quando a obra já
+tinha ~15 min. No caminho com grupo o campo é `MHR_BuildGroup.CreatedAt(key)` e está certo; o defeito é só no solo.
+**Consequência:** um poller/relatório que leia `elapsed` num run solo (o caso mais comum do jogador) não tem a
+duração — foi preciso usar o relógio de fora (hora da linha da ordem). **Correção proposta:** um campo próprio de
+início da ordem no `State` (setado em `StartBlueprint`, não em `EnterStep`) e `StateSite` lê esse. Não entrou no ciclo
+do piso para não misturar medição com refactor; é pequeno e provável no harness (a conta é pura).
+
 
 ## Declarado e **fora** do caminho crítico
 
