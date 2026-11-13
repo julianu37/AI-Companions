@@ -139,6 +139,7 @@ internal static class Program
 		new SectionDef("aj", "BuildFloorStart - o piso comeca na ponta da escada (e o terreo tambem)", FloorStarts),
 		new SectionDef("ak", "LandingFloors/SettledPieces - o piso so sobe com apoio de pe (e o solo ve o que o grupo ve)", LandingsAndSettled),
 		new SectionDef("al", "BuildOverweight - o companheiro sobrecarregado descarrega e continua a obra", OverweightUnloads),
+		new SectionDef("am", "BuildRecovery - a peca dada por perdida volta antes de a obra se dizer pronta", BuildRecoveries),
 		new SectionDef("ae", "o log das redes ficou calado - nenhuma regra engoliu excecao", QuietLog)
 	};
 
@@ -3894,6 +3895,51 @@ internal static class Program
 	private static int[] WeightPlan(float[] weights, bool[] keeps, bool[] material, float weight, float target)
 	{
 		return BuildOverweight.Plan(weights, keeps, material, weight, target).ToArray();
+	}
+
+	/// <summary>
+	/// Section (am): <see cref="BuildRecovery"/> - the piece the order gave up comes back to the plan until it stands. The
+	/// numbers are the measured run of 13/11/2026 (<c>CommHomeBasicBP</c>): 983 done, 2 given up, and the house that finished
+	/// around them is what would have held them.
+	/// </summary>
+	private static void BuildRecoveries()
+	{
+		// --- Due: who gets the second chance, and who does not
+		Check("blueprint com peca dada por perdida, nenhum passe ainda: a vez chegou", BuildRecovery.Due(true, 2, 0, -1));
+		Check("template nao tem plano para onde voltar", !BuildRecovery.Due(false, 2, 0, -1));
+		Check("nada foi dado por perdido: nao ha o que voltar", !BuildRecovery.Due(true, 0, 0, -1));
+		Check("conjunto negativo tambem nao", !BuildRecovery.Due(true, -1, 0, -1));
+		Check("passe anterior colocou peca: ha o proximo", BuildRecovery.Due(true, 2, 1, 1));
+		Check("passe anterior colocou 5: ha o proximo", BuildRecovery.Due(true, 2, 1, 5));
+		Check("passe anterior nao colocou NADA: acabou (a peca achou a parede dela)", !BuildRecovery.Due(true, 2, 1, 0));
+		Check("teto de passes: dois passos e o fim (o plano nao cresce sem limite)", !BuildRecovery.Due(true, 2, 2, 9));
+		Check("contagem de passes maior que o teto (bug): nao recupera", !BuildRecovery.Due(true, 2, 7, 9));
+		Check("contagem de passes negativa (bug): nao recupera", !BuildRecovery.Due(true, 2, -1, 1));
+
+		// --- Select: lowest first, once each, and never a piece that is already up
+		CheckInts("a ordem do plano, do menor indice para o maior", new int[] { 3, 660, 679 },
+			Recover(new int[] { 679, 660, 3 }));
+		CheckInts("indice repetido entra uma vez so", new int[] { 5, 9 }, Recover(new int[] { 9, 5, 9, 5 }));
+		CheckInts("indice negativo nomeia nenhuma peca", new int[] { 4 }, Recover(new int[] { -1, 4 }));
+		CheckInts("peca ja de pe nao volta (o conjunto pode estar velho)", new int[] { 2 },
+			BuildRecovery.Select(new int[] { 2, 7 }, Set(7), 0).ToArray());
+		CheckInts("tudo ja de pe: nada volta", new int[0], BuildRecovery.Select(new int[] { 7, 8 }, Set(7, 8), 0).ToArray());
+		CheckInts("conjunto nulo: nada volta", new int[0],
+			BuildRecovery.Select(null, Set(), 0).ToArray());
+		CheckInts("o teto mantem os MENORES indices (o andar de baixo primeiro)", new int[] { 2, 3 },
+			BuildRecovery.Select(new int[] { 9, 3, 2 }, Set(), 2).ToArray());
+
+		// --- the shape of the measured house: the two floors of the top storey that failed by `no progress`
+		//     plan order is bottom-up, so a floor comes back before anything above it
+		CheckInts("as duas lajes do run de 13/11: a 660 antes da 679", new int[] { 660, 679 },
+			Recover(new int[] { 679, 660 }));
+		Check("a ordem da recuperacao e a do plano, nao a do acaso", Recover(new int[] { 40, 5, 12 })[0] == 5);
+	}
+
+	/// <summary>Section (am): <see cref="BuildRecovery.Select"/> over a list of skipped indexes, no cap.</summary>
+	private static int[] Recover(int[] skipped)
+	{
+		return BuildRecovery.Select(skipped, Set(), 0).ToArray();
 	}
 
 	// ============================================================================================ the plumbing

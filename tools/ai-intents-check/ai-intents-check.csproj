@@ -100,6 +100,7 @@
     <Compile Include="..\..\src\Companions\AI\BuildFloorStart.cs" Link="src/AI/BuildFloorStart.cs" />
     <Compile Include="..\..\src\Companions\AI\LandingFloors.cs" Link="src/AI/LandingFloors.cs" />
     <Compile Include="..\..\src\Companions\AI\SettledPieces.cs" Link="src/AI/SettledPieces.cs" />
+    <Compile Include="..\..\src\Companions\AI\BuildRecovery.cs" Link="src/AI/BuildRecovery.cs" />
     <!-- 13/11/2026: an encumbered companion unloads and builds on (it used to END the order at 470/300) - pure -->
     <Compile Include="..\..\src\Companions\AI\BuildOverweight.cs" Link="src/AI/BuildOverweight.cs" />
     <Compile Include="..\..\src\Companions\Core\MHR_List.cs" Link="src\Core\MHR_List.cs" />

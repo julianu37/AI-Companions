@@ -14,14 +14,30 @@ in (**2 m**, the same radius the probe uses for "this is an exit, not a shuffle"
 (`trappedFor`) is closed **only** by real progress towards the goal or by the rescue itself — never by a new answer
 to the same trap. A failed spot search backs off **2 s** instead of running 48 raycasts every frame (the pit body was
 asked **439 times**). `companions.list` now reports `trappedFor` next to `stuckFor`. Harness section **(ai)**,
-1093 assertions. See `docs/re/building-notes.md` §17.40.
+1112 assertions. See `docs/re/building-notes.md` §17.40.
+
+**A piece the order gave up comes back until it stands.** The plan was a **forward-only** walk, and the only way out of
+the "skipped" set was a piece that had already been placed — so a piece that spent its three attempts was out **for
+good**, even when the reason it failed stopped being true two hundred pieces later. Measured in the solo run of
+13/11/2026: two floors of the top storey failed with `no progress` (the companion was one `storey` below, `route
+partial`, the way up not built yet), lost their attempts and were given up; the order then closed at **983/985** saying
+`hc_ai_blueprint_done`, and the finished house around them is exactly what would have held them — the player read it off
+the screenshot before the log was read: *"aqueles dois ali que faltaram não iriam cair se ele tivesse colocado, pois
+estariam ancorados nos das laterais"*. Now, at the **end** of the plan, the pieces that were given up enter the walk
+again — plan order (lowest first, which for a blueprint is bottom-up), attempts **and** the self-healing budget
+(support pull, emergency post, pose adjustment) cleared, so the second attempt is a different attempt, not a copy of the
+first. The pass repeats while it **places** something; a pass that places nothing is the last one, and the order then
+ends with the pieces the world actually refused named in the line. Not a rule for one blueprint: it reads only "is it a
+blueprint", the skipped set and the pass count. `AI/BuildRecovery.cs`, harness section **(am)**, 1112 assertions.
+Remaining work on the same theme: backlog 22 (the stair climbs to a storey that does not exist yet).
 
 **The solo support fix, confirmed on a full house: 983/985 with the run reaching the end.** The
 985-piece house built by **one** companion ended with `hc_ai_blueprint_done`, **983** placed, **2** skipped,
 **0** deaths, **0** `UNSUPPORTED`, **0** watchdog and no repeated piece — against 851 and a death in the previous
 run. The climb-and-fall loop stays gone, the storey barrier costs **31,9 s in 4 holds** (it was 834 s in 177), and the
-2 pieces that did not stand are floors the blueprint itself does not hold up: probed in the file, the plan has
-**zero** pieces in the support window below them, so they wait for a post that answers "gap of 3,90 m". Registered
+2 pieces that did not stand failed by **`no progress`, not by support**: probed in the file, the plan has pieces in the
+support window below them, and the house that finished around them is what would have held them — they were refused while
+the companion was one storey below and never got another try (fixed above). Registered
 with the number: **23** emergency posts still get planted (all of them from the early check, backlog 19), **13**
 falls, and the plan still raises a storey's ladder before its own structure is up — measured at **0 %** structure on
 the storey below every one of the 4 ladders (backlog 22).

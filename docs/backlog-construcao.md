@@ -364,7 +364,7 @@ não é queda, é **confinamento sob o piso**. Correção proposta: quando o com
 teleportar pela escada mais próxima ou recusar o walk spot e pedir outro. Aceite: nenhuma linha `route full` seguida de
 `desistindo` no run solo. **Não corrigido — registrado com o número que o matou.**
 
-### 21. A obra "termina" em `hc_ai_blueprint_done` com **490 peças puladas** — *medido 13/11/2026, o item mais grave*
+### 21. A obra "termina" em `hc_ai_blueprint_done` com **490 peças puladas** — *medido 13/11/2026, o item mais grave; correção implementada 13/11/2026, run de confirmação pendente*
 O run fechou assim, e **não** é sucesso:
 
 ```
@@ -442,11 +442,28 @@ texto. É a mesma ideia do `ResumeIndex` que a barreira de andar já usa — a d
 3. **Pular peça estrutural (`wood_beam`, `wood_pole2`, `wood_floor`) não pode ser silencioso**: hoje ela entra na
    mesma fila de uma cadeira, e é ela que segura a largura do telhado.
 
-Aceite: run solo do `CommHomeBasicBP` fecha **985/985 com 0 puladas**, ou para com um veredito "incompleto" e o número
-— nunca `blueprint_done` pela metade. **Não corrigido — registrado com o número que o matou.**
+**Correção implementada (13/11/2026, ciclo do `fix/piso-apoio`):** a peça dada por perdida **volta ao plano** quando a
+caminhada chega ao fim, na ordem do plano (índice menor primeiro = de baixo para cima), com as tentativas e o orçamento de
+auto-cura (puxão de apoio, poste de emergência, ajuste de pose) **zerados** — o segundo ataque não é cópia do primeiro, é
+outro ataque: a casa em volta mudou e os recursos que foram negados voltam a estar disponíveis. A regra pura está em
+`src/Companions/AI/BuildRecovery.cs` e o ponto de chamada é `MHR_Build.RecoverSkipped`, no `Advance`, **antes** do gate de
+peça e do fim da ordem. **Não é regra deste blueprint:** ela lê só "é blueprint?", o conjunto de puladas e a contagem de
+passes — qualquer `.blueprint` que o jogador carregar recebe a mesma segunda chance.
 
-**Mortes por queda continuam sendo o item 11**
-(rota do beirado), não este.
+**Quando ela para:** um passe que **não coloca nenhuma peça** é o último (o instrumento é o mesmo do watchdog de inércia).
+Um passe que coloca ganha o seguinte, então uma casa com várias peças inalcançáveis as recupera conforme a estrutura fecha,
+e uma peça que o mundo realmente não aceita encerra a ordem com o número na linha em vez de segurar o companheiro ali para
+sempre. O teto `BuildRecovery.MaxPasses` = 2 fecha o outro lado: cada passe **anexa** as peças ao plano (a caminhada nunca
+volta sozinha), então o crescimento do plano é limitado por construção (no pior caso, 3× o tamanho original).
+
+**O que o run de 13/11/2026 mediu e este fix ataca:** as duas lajes do andar 43,8 falharam com `no progress` (o corpo
+estava em 39,7, `route partial`, a subida ainda não existia) e o companheiro ficou um andar abaixo sem rota até elas:
+3 tentativas cada, `desistindo de wood_floor` duas vezes, e a obra declarada pronta em **983/985**. A casa que terminou em
+volta delas é exatamente o que as sustentaria — a leitura do jogador, antes do log: *"aqueles dois ali que faltaram não
+iriam cair se ele tivesse colocado, pois estariam ancorados nos das laterais"*.
+
+Aceite: run solo do `CommHomeBasicBP` fecha **985/985** ou termina com **as peças que o mundo recusou** nomeadas na linha
+final — nunca mais `blueprint_done` com peça faltando por falta de tentativa.
 
 ### 22. A escada sobe **para um andar que ainda não existe** — *medido 13/11/2026, o item do "deb.→ cima, andar inteiro"*
 O jogador descreveu o defeito em três frases e as três estão certas, com número:
@@ -527,6 +544,6 @@ na recusa; o poste fica como último recurso. Aceite: `apoio de emergência < 5`
 1. **Uma mudança por build**, com o corte de aceite escrito **antes** do run.
 2. **Reverter na hora** se `puladas > 0`, `desistindo > 0`, morte, `UNSUPPORTED` ou watchdog — o baseline fecha
    985/985 com 0, então qualquer um deles é regressão.
-3. Regra pura vai para o harness **no mesmo ciclo** (hoje **1093** asserções); quem implementa não afrouxa a asserção.
+3. Regra pura vai para o harness **no mesmo ciclo** (hoje **1112** asserções); quem implementa não afrouxa a asserção.
 4. O que foi revertido fica **documentado com o número que o matou** (escopo XZ: ~33 min; `ahead` por frame: 38 vs 78
    peças/min; `CrossesPending`: 67 % do plano).
