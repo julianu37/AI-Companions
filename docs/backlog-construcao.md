@@ -364,6 +364,87 @@ não é queda, é **confinamento sob o piso**. Correção proposta: quando o com
 teleportar pela escada mais próxima ou recusar o walk spot e pedir outro. Aceite: nenhuma linha `route full` seguida de
 `desistindo` no run solo. **Não corrigido — registrado com o número que o matou.**
 
+### 21. A obra "termina" em `hc_ai_blueprint_done` com **490 peças puladas** — *medido 13/11/2026, o item mais grave*
+O run fechou assim, e **não** é sucesso:
+
+```
+espera: 1014,4 s (barreira 834,0 s em 177 retenção(ões) ...) · peças: 495/1029, 490 pulada(s)
+order ended: hc_ai_blueprint_done
+```
+
+O que ficou de pé a partir das imagens e das contagens (`build.pieces` + o `.blueprint`):
+
+| | plano | feito | falta |
+|---|---|---|---|
+| `wood_beam` | 147 | 74 | **73** |
+| `wood_roof_45` | 107 | 34 | **73** |
+| `wood_pole2` | 129 | 67 | **62** |
+| `wood_floor` | 173 | 113 | 60 |
+| `wood_beam_45` | 86 | 34 | 52 |
+| `piece_chest_wood` | 65 | 26 | 39 |
+| `wood_wall_roof_top_45` | 35 | 4 | 31 |
+| `wood_beam_1` (apoio de emergência) | 2 | **16** | −14 (a mais) |
+| **TOTAL** | **985** | **519** | **466** |
+
+**A leitura do jogador estava certa, e a causa não é o `BuildSpread` nem o "andar por andar".** A ordem do plano
+**já** sobe por andar (`BuildBlueprintParser.Ordered`: `LevelKey` → classe → altura), e o log confirma: os andares
+aparecem em sequência (`38,8 → 39,8 → 40,8 → 41,8 → 42,8 → 43,8 → 44,8 → 45,8 → 46,8`, com poucas voltas). O que
+aconteceu é pior e mais simples: **ele parou de subir.** A construção ficou **vertical e estreita** — as cordas de
+`wood_beam`/`wood_pole2`/`wood_roof_45` que dão a **largura e a profundidade** no topo quase não foram colocadas,
+enquanto as peças do miolo (chão, parede, baú) foram. Daí a forma da imagem: um miolo alto com as beiradas do
+telhado penduradas.
+
+**O erro é de veredito, não de ordem.** As puladas por andar, do log:
+
+```
+39,8: 44 + 16      40,3: 13      40,8: 11      41,8: 11      42,8: 5
+44,8: 4   45,8: 1   46,8: 1   48,8: 1        (38,8: 1, 39,6: 1, 43,x: 2)
+motivos: "no progress" 68 · "took too long" 44
+```
+
+E a espera dominante é a **barreira de andar**: `834,0 s` em **177 retenções**, contra `180,4 s` de fila e
+`12 492 m` de caminhada. Ou seja, numa casa de **7 andares e 985 peças o companheiro passou 14 minutos parado
+esperando** e, no fim, o `hc_ai_blueprint_done` foi declarado com **metade da casa em pé**. `Done` conta a peça
+resolvida, e **pulada conta como resolvida** — `hc_ai_blueprint_done` com 490 puladas narra "terminou" para uma obra
+que falta metade.
+
+O agravante é o **apoio de emergência**: 16 `wood_beam_1` contra 2 do plano. Quando uma peça estrutural era pulada,
+o `TryFallbackPost` plantava um poste que **não está no blueprint** — a rede de segurança virou a estrutura.
+
+**A causa raiz, no código: o plano é uma varredura só para a FRENTE e a peça pulada nunca é revisitada.**
+`Advance` (`MHR_Build.cs:1206`) avança com `int next = state.Index + 1` e **`State.Index` nunca volta** — não existe
+uma segunda passada. `SkipPiece` (`:904`) e `AbandonPiece` (`:951`) fazem `SkippedIndices.Add(index)` e
+`MHR_BuildGroup.AddSkipped`, e o **único** caminho que remove um índice de `SkippedIndices` é `PlacedIndices` no
+`NoteDone` (`:1917`) — ou seja, sair de "pulada" exige a peça **já ter sido colocada**. Uma peça estrutural que falhou
+uma vez (sem apoio, sem caminho até o walk spot) está fora do plano **para sempre**, e o laço de
+`while (state.Index + 1 < state.Plan.Count)` chega ao fim e declara `hc_ai_blueprint_done`.
+
+É por isso que a forma final é a da imagem: as `wood_beam`/`wood_pole2`/`wood_roof_45` que dão **largura e
+profundidade** no topo foram as que mais falharam cedo (eram as que exigiam apoio ou caminhada longa) e ficaram
+puladas; o miolo (chão, parede, baú) foi. E o `wood_beam_1` de emergência (16 contra 2 do plano) tapou o buraco
+estrutural com poste que não está no blueprint.
+
+**Correção mínima proposta (não implementada):** antes de fechar a ordem, uma **segunda passada** sobre
+`SkippedIndices` — `Index` volta ao **menor índice pulado não colocado**, a peça reentra com o estado limpo
+(`StateResetForPiece`), e ela só pode ser pulada de novo **uma vez** (contador por índice, teto 1-2) para não virar
+laço. O `hc_ai_blueprint_done` passa a exigir `SkippedIndices` vazio (ou só o que excedeu o teto), com o número no
+texto. É a mesma ideia do `ResumeIndex` que a barreira de andar já usa — a diferença é que hoje ele só serve peça
+**abaixo**, nunca peça **já abandonada**.
+
+**Correção proposta, em ordem de valor:**
+1. **`hc_ai_blueprint_done` só com 0 puladas** (ou com um teto explícito e configurável): com puladas o veredito tem
+   de ser "incompleto", com o número, e a ordem tem de **voltar** às puladas antes de fechar — é o que o jogador pediu
+   ("tem que construir debaixo pra cima, não um lado depois o outro"): fechar o andar **inteiro**, largura incluída,
+   antes de subir.
+2. **A barreira de andar não pode custar 834 s de 1014 s.** Ela é `BodyRetryMaxWait` (10 s) por retenção; 177
+   retenções significam que o plano sobe antes de o andar de baixo estar completo — a decisão de subir está errada na
+   origem, não a espera.
+3. **Pular peça estrutural (`wood_beam`, `wood_pole2`, `wood_floor`) não pode ser silencioso**: hoje ela entra na
+   mesma fila de uma cadeira, e é ela que segura a largura do telhado.
+
+Aceite: run solo do `CommHomeBasicBP` fecha **985/985 com 0 puladas**, ou para com um veredito "incompleto" e o número
+— nunca `blueprint_done` pela metade. **Não corrigido — registrado com o número que o matou.**
+
 **Mortes por queda continuam sendo o item 11**
 (rota do beirado), não este.
 
