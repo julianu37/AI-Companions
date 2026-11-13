@@ -448,6 +448,56 @@ Aceite: run solo do `CommHomeBasicBP` fecha **985/985 com 0 puladas**, ou para c
 **Mortes por queda continuam sendo o item 11**
 (rota do beirado), não este.
 
+### 22. A escada sobe **para um andar que ainda não existe** — *medido 13/11/2026, o item do "deb.→ cima, andar inteiro"*
+O jogador descreveu o defeito em três frases e as três estão certas, com número:
+
+1. *"o segundo lançe de escada antes da hora"* — **medido no run solo de 13/11/2026** (983/985, `pit-fix.jsonl`): a
+   `wood_stepladder` que sai do andar **2.0** foi posta na **peça #470** do run, quando o andar 2.0 tinha **17 de 85**
+   peças e **0 de 61** vigas/postes/paredes. Ela desemboca em **4.0**, e o andar 4.0 tinha **0 de 91**. O primeiro
+   lanço (índice 187, andar 0.0) sai na peça #184 com **84 de 149** do próprio andar e **0 de 54** de estrutura.
+2. *"o segundo piso fica na verdade no terceiro andar"* — é literal: cada lanço sobe **dois** andares de projeto
+   (0.0 → 2.0 e 2.0 → 4.0), porque o piso de 1.0 é um **mezanino** e o de 3.0 é a **água-furtada**. Ele só conta como
+   "segundo andar" se o andar de baixo inteiro estiver de pé, e nunca está no momento em que a escada sobe.
+3. *"tudo precisa subir junto para ter onde colocar os pisos"* — a escada é classe 1 no `BuildBlueprintParser.Ordered`
+   e vem **antes** das vigas e postes do mesmo andar (classe 2). Medido: **0 %** da estrutura do próprio andar está de
+   pé quando qualquer uma das 4 escadas é posta.
+
+**Por que o `PullFloorsAbove` não salva:** ele puxa o piso do topo para logo depois da escada, mas o piso do
+desembarque é classe 0 e vem **antes** das vigas no plano; o `LandingFloors.Select` (fix de 12/11) então recusa o
+puxão, porque o apoio do piso ainda **não está de pé** — corretamente. O resultado líquido é o do run: a escada sobe
+para um andar vazio, o corpo sobe, não acha piso, desce, e o andar de baixo é terminado **depois** (medido: das 146
+peças do andar 0.0, **60** foram postas depois de o run já ter subido; das 85 do andar 2.0, **68**; das 80 do andar
+3.0, **as 80**).
+
+**Onde a regra tem de viver:** não é o `Ordered` (a ordem por andar já está certa: 26 trocas de andar no plano, 7
+quedas e todas são `wood_gate`, que é último por desenho). É o `Advance`: uma escada só é *entrada* quando o andar
+**que ela desemboca** já tem o piso e a estrutura abaixo dele de pé — ou o equivalente em "a escada é a última peça
+do andar de baixo", que é a mesma coisa com outro nome. As peças que dependem dela (piso do topo) já estão
+protegidas pelo `LandingFloors`.
+
+**Aceite:** num run solo do `CommHomeBasicBP`, **nenhuma** das 4 escadas é posta com o andar de desembarque em 0 %; e
+as peças de um andar postas depois de o run subir acima dele caem de **60/68/80/82/128** para **< 5** por andar.
+
+### 23. O companheiro **se cerca** e tem de demolir a própria saída — *pedido do jogador 13/11/2026, medido*
+O jogador viu o corpo cair num vão da obra e ficar **cercado** pela própria construção (captura de 13/11/2026), e
+**abriu o buraco à mão** para soltá-lo. O pedido, literal: *"ele fica preso assim cercado e ele mesmo demoli a saída,
+mas sem causar instabilidade na estrutura acima"*.
+
+**O que o run mediu:** o relógio novo do `EscapeRule.Trapped` (`trappedFor`) **nunca chegou a 90 s** porque o jogador
+soltou o corpo antes; a sonda de fuga (`Rescue`, 48 raycasts em 3 anéis) também não achou saída — o vão era fechado
+por todos os lados. Ou seja: a emergência por **teleporte** não cobre este caso, e não deve cobrir; o certo é
+**abrir caminho**.
+
+**Direção da correção (registrada, não implementada):** quando `trappedFor` passa do limite **e** a sonda não acha
+saída, escolher a **peça da própria obra** que fecha o bolsão (a mais próxima do corpo, na altura do peito) e
+**demolir** — `WearNTear.Destroy` no objeto, registrando a peça como "a refazer" para o plano a recolocar depois. O
+critério de segurança *"sem instabilidade na estrutura acima"* é medi-lo **antes** de demolir: o jogo já responde
+isso (`WearNTear`/`Support`), então a regra é "só demole se o que está **acima** continuar apoiado" — a mesma
+verificação que o `BuildSupportBelow` já faz para o sentido contrário. O `MHR_CompanionNavMesh.InvalidateAround` (já
+usado pelo `build.delete` da ponte) é o que mantém a rota andável depois da demolição.
+**Aceite:** corpo em bolsão fechado, sem saída pela sonda → demole **1** peça, sai, e a estrutura acima continua de pé
+(`build.pieces` por altura igual antes/depois); a peça demolida volta ao plano e é recolocada.
+
 ### 18. `AdjustPose` troca o **Y** do alvo pelo chão — *medido 13/11/2026, não corrigido*
 `AdjustPose` (`MHR_Build.cs:7275`) protege o XZ (raio de 1 m para peça estrutural) mas `BuildSite.Find` monta o
 candidato com `ZoneSystem.GetGroundHeight` (`AI/BuildSite.cs:146`) — o **Y do plano é jogado fora**. Medido no run de
@@ -460,7 +510,6 @@ candidato. É o próximo item do tema "rota vertical" (com o 11).
 ### 19. O early check planta poste de emergência **sem** dar chance ao `PullSupportBehind`
 Medido em 13/11/2026: **19 dos 20** postes de emergência saíram do early check (`Goto`, `MHR_Build.cs:6253`), que
 chama `TryFallbackPost` sem passar pela recusa `no_support` e portanto sem nunca tentar `PullSupports`/
-`PullSupportBehind`. Resultado: `no_support` caiu de 29 para 3 (o objetivo) mas os postes subiram de 15 para 20.
 **Correção proposta:** no early check, tentar a puxada (frente e atrás) antes do poste, exatamente como `Advance` faz
 na recusa; o poste fica como último recurso. Aceite: `apoio de emergência < 5` no mesmo run solo.
 
@@ -478,6 +527,6 @@ na recusa; o poste fica como último recurso. Aceite: `apoio de emergência < 5`
 1. **Uma mudança por build**, com o corte de aceite escrito **antes** do run.
 2. **Reverter na hora** se `puladas > 0`, `desistindo > 0`, morte, `UNSUPPORTED` ou watchdog — o baseline fecha
    985/985 com 0, então qualquer um deles é regressão.
-3. Regra pura vai para o harness **no mesmo ciclo** (hoje **1078** asserções); quem implementa não afrouxa a asserção.
+3. Regra pura vai para o harness **no mesmo ciclo** (hoje **1093** asserções); quem implementa não afrouxa a asserção.
 4. O que foi revertido fica **documentado com o número que o matou** (escopo XZ: ~33 min; `ahead` por frame: 38 vs 78
    peças/min; `CrossesPending`: 67 % do plano).

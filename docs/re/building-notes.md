@@ -3660,3 +3660,66 @@ seguinte, um pingue-pongue até o `Timeout` de 60 s **encerrar a ordem pelo moti
 o peso da desistência e só um peso menor reabre a fase. Harness **1078/0**. O run de confirmação do despejo segue
 **pendente**: o que este ciclo prova é o piso, não a bolsa.
 
+### 17.40 O run solo de 13/11/2026 fechou 983/985 — e o número que ele entrega é o do jogador, não o do contador
+
+Segundo run do mesmo ciclo (`fix/piso-apoio`), `CommHomeBasicBP`, **985** peças, **1** companheiro, `BlueprintFree`,
+sítio limpo (519 peças destruídas antes), DLL de 18:07 (1.9.6, 95 métodos patchados). Desta vez ele **fechou**:
+`order ended: hc_ai_blueprint_done`, **983** `done`, **2** puladas, **0** mortes, **0** `UNSUPPORTED`, **0** watchdog,
+0 duplicatas. Duração medida pelo amostrador de fora: **18:19:02 → 18:51** (≈ 32 min para 727 peças amostradas).
+
+| métrica | §17.39 (851, morto) | este run | veredito |
+|---|---|---|---|
+| `done` | 851 | **983** | fecha, com 2 puladas |
+| `no_support` | 3 | **7** | piorou, ver abaixo |
+| `apoio de emergência` | 20 | **23** plantados | alvo `< 5` — não passou (item 19) |
+| `sem lugar para o apoio` | 3 | **7** (4 `blocked_by_player`, 2 vão de 3,9 m) | não passou |
+| `no progress` | 18 | **19** (2 viraram `desistindo`) | igual |
+| `fell N m` | 3 | **13** (o maior 6,6 m) | piorou, mas sem morte |
+| `order ended` | `hc_ai_build_too_heavy` | **`hc_ai_blueprint_done`** | o despejo (**item 17**) funcionou |
+| `espera` / retenções | 834 s / 177 | **31,9 s / 4** | o parque não voltou |
+
+**O veredito é o do jogador, e o dado concorda com ele.** O jogador mandou cinco capturas com três frases; as três se
+conferem no plano e no log, com o número em volta:
+
+- *"tudo precisa subir junto"*. A `wood_stepladder` que sai do andar **2.0** foi posta na **peça #470** do run, com o
+  andar 2.0 em **17/85** peças e **0/61** de estrutura (viga/poste/parede) — e **0/91** no andar 4.0, que é onde ela
+  desemboca. A escada do andar 0.0 sai na peça #184 com **0/54** de estrutura do próprio andar. Nas **4** escadas a
+  estrutura do andar em que ela está **está em 0 %** no momento em que ela sobe.
+- *"o segundo piso fica na verdade no terceiro andar"*. Literal: cada lanço sobe **dois** andares de projeto (0.0 → 2.0
+  e 2.0 → 4.0); o piso de 1.0 é mezanino, o de 3.0 é a água-furtada. O "segundo andar" que ele conta só fica pronto
+  quando o de baixo inteiro está de pé — e nunca está quando a escada sobe.
+- *"um tempão depois que ele começou a construir o que faltava abaixo dos pisos do outro lado"*. Medido por andar: das
+  **146** peças do andar 0.0, **60** foram postas depois de o run já ter subido para um andar acima; do andar 2.0,
+  **68 de 85**; do andar 3.0, **as 80**; do 4.0, **82 de 91**. E o lado da escada puxa: no andar 4.0, **22 das 62**
+  peças do lado da escada já estavam postas quando a primeira peça do outro lado apareceu; no andar 2.0, **9 de 39**
+  (23 %) e a outra metade só começou na peça **#463** do run, mais de 270 colocações depois.
+- *"as peças de suporte da cobertura, assim como os baús, só deveriam ser colocados depois do segundo piso"*. Medido:
+  quando o piso do andar **4.0** fechou (peça #753), já estavam de pé **10 `piece_chest_wood`** do andar 4.1, **1**
+  `wood_wall_half` do 4.5, **2** `wood_pole` do 4.5 e **1** `wood_floor` do 5.0. Nos outros andares a contagem é
+  **0** — o 4.0 é o único em que a cobertura do andar de cima passou na frente do piso.
+
+**Os 2 pisos que faltam.** As duas `wood_floor` puladas (`no progress`, mundo `(-160,3, 43,8, -427,3)` e
+`(-158,5, 43,8, -426,3)`) e os dois pisos ausentes no fim são a **mesma coisa**: são pisos do andar **4.0** que o
+companheiro não conseguiu alcançar, e o posto de apoio de emergência para eles respondeu *"vão de 3,90 m"* — ou seja,
+abaixo deles **não há nada do plano na janela de `BuildSupportBelow`**. Confere na sonda do arquivo: na janela de 0,4 a
+2,5 m abaixo, ao redor dos dois pontos, o plano tem **zero** peças. Não é a rede de segurança que falhou; é o
+blueprint que não tem o que os sustente — e o `LandingFloors` recusou puxá-los, corretamente.
+
+**Quatro vigas reportadas `done` não estão na cena.** Comparando os 983 `done:` com `build.pieces` (1003 peças, 1
+`piece_workbench` a mais, 25 `wood_beam_1` de emergência contra 2 do plano): **4** `wood_beam_45` — duas do andar
+-1.0 e duas do 1.0 — foram verificadas como `supported` e **não existem mais** na cena, e nenhuma foi demolida pelo
+log. Fica registrado como instrumento a olhar (o `Verify` aprova na pose do plano, e o `PullFloorsAbove`/`Reorder`
+pode colocar a peça noutro ponto depois); **não** é o defeito deste ciclo.
+
+**As 7 `no_support` e as 23 + 7 de apoio.** Ainda todas do caminho do **early check** (item 19): dois pisos do andar
+1.0 e um do 0.0 não têm viga do plano abaixo, e o early check planta o poste antes de qualquer puxada. O número
+subiu de 3 para 7 neste run porque o run foi **mais longe** (983 contra 851) e os pisos do topo (andar 9.0, 41 peças)
+entraram: `wood_roof_45` do 9.0 respondeu `no progress` três vezes e terminou colocado.
+
+**A confinamento (bolsão).** O jogador viu o corpo cair num vão e ficar **cercado** pela própria obra, e abriu o
+buraco à mão para soltá-lo. O log deste run **não tem uma linha de `trapped at`**: o relógio novo
+(`MHR_Mover.TrappedFor` / `EscapeRule.Trapped`) nunca chegou aos 90 s porque o jogador soltou o corpo antes. A regra
+está de pé e provada no harness (seção `(ai)`: 1093 asserções); o que ela **não** prova em jogo é o disparo — para
+isso a própria obra tem de fechar o bolsão por tempo suficiente, e o certo nesse caso é demolir a saída, não
+teleportar (backlog 22, item novo).
+

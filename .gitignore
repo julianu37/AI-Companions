@@ -39,3 +39,6 @@ tools/mcp-devbridge/*.jsonl
 tools/mcp-devbridge/*-watch.log
 tools/mcp-devbridge/*-site.jsonl
 tools/mcp-devbridge/free-run-site-*.jsonl
+# rascunhos de analise de um run (despejos da cena, indices): dado de uma sessao, nao fonte
+tools/mcp-devbridge/scratch/
+tools/plan-probe/plan-dump.txt

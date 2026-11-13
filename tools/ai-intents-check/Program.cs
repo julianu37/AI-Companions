@@ -3007,6 +3007,33 @@ internal static class Program
 		Check("StuckMove == 0,5 m (abaixo disso o corpo so se remexe)", EscapeRule.StuckMove == 0.5f);
 		Check("a sonda de resgate (>= 2 m) anda mais que o StuckMove (nao conta como saida trivial)",
 			2f > EscapeRule.StuckMove);
+
+		// --- 13/11/2026 (the pit, measured live): pacing inside a 1 m circle reset the stuck clock for ever. The clock
+		// now restarts only on LEAVING the pocket, never on shuffling inside it.
+		CheckFloat("PocketRadius == 2 m", 2f, EscapeRule.PocketRadius);
+		Check("dentro do bolsao (1 m de lado): continua preso",
+			EscapeRule.InPocket(new Vector3(0f, 0f, 0f), new Vector3(1f, 0f, 0f)));
+		Check("na borda exata (2 m): continua preso (limite fechado)",
+			EscapeRule.InPocket(new Vector3(0f, 0f, 0f), new Vector3(2f, 0f, 0f)));
+		Check("saiu do bolsao (3 m): deixou de estar preso",
+			!EscapeRule.InPocket(new Vector3(0f, 0f, 0f), new Vector3(3f, 0f, 0f)));
+		Check("so subiu/desceu no mesmo lugar: continua preso (y nao e saida)",
+			EscapeRule.InPocket(new Vector3(0f, 0f, 0f), new Vector3(0.5f, 4f, 0f)));
+		Check("a diagonal conta em XZ (1,4 m de cada lado = 2 m)",
+			!EscapeRule.InPocket(new Vector3(0f, 0f, 0f), new Vector3(1.42f, 0f, 1.42f)));
+
+		// --- the three clocks: any one of them at 90 s is enough (the first two are rewritten by Reset/Unstick)
+		CheckFloat("ProbeWait == 2 s (uma sonda que nao acha nada nao repete a cada quadro)", 2f, EscapeRule.ProbeWait);
+		Check("nenhum relogio em 90 s: falso", !EscapeRule.Trapped(89f, 89f, 89f, false, false));
+		Check("so o relogio de bolsao: verdadeiro", EscapeRule.Trapped(90f, 0f, 0f, false, false));
+		Check("so o relogio de progresso: verdadeiro", EscapeRule.Trapped(0f, 90f, 0f, false, false));
+		Check("so o relogio de preso: verdadeiro (o do pit de 13/11)", EscapeRule.Trapped(0f, 0f, 90f, false, false));
+		Check("o medido no pit (stuckFor 12,7 s, noCloser 4 s, preso 90 s): verdadeiro",
+			EscapeRule.Trapped(12.7f, 4f, 90f, false, false));
+		Check("o pit antes do fix (stuckFor 12,7 s, noCloser 4 s, sem o 3o relogio): falso",
+			!EscapeRule.Trapped(12.7f, 4f, 0f, false, false));
+		Check("nadando: nenhum relogio serve", !EscapeRule.Trapped(600f, 600f, 600f, true, false));
+		Check("em combate: nenhum relogio serve", !EscapeRule.Trapped(600f, 600f, 600f, false, true));
 	}
 
 	/// <summary>

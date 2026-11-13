@@ -52,9 +52,70 @@ internal static class EscapeRule
     /// same place.</summary>
 	internal const float StuckMove = 0.5f;
 
+	/// <summary>
+	/// 13/11/2026 (measured live: a companion teleported into the pit the run left behind at (-163,4, 37,9, -429,0)
+    /// patrolled <b>1 m laps for 40 s without ever rising above y=37,9</b>, and <c>stuckFor</c> read 0,0 / 4,8 / 9,8 /
+    /// 4,2 / 0,5 / 2,7 / 7,7 / 12,7 - it never reached the 90 s of <see cref="RescueAfter"/>): the "has not moved" clock
+    /// was <b>any 0,5 m of travel</b>, so pacing in a circle inside a pocket reset it for ever. The emergency could not
+    /// fire in the one situation it exists for.
+    ///
+    /// <para>The fix is not a longer clock - a body that paces faster would still reset it. It is a <b>pocket</b>: the
+    /// clock only restarts when the body leaves the circle it was in, not when it shuffles within it. A body that is
+    /// really walking away covers more than <paramref name="pocketRadius"/> and resets honestly; a body going round and
+    /// round stays inside and the clock runs.</para>
+	/// </summary>
+	internal const float PocketRadius = 2f;
+
+	/// <summary>
+	/// Does a body that stands at <paramref name="pos"/> still count as being in the pocket it was recorded at
+    /// (<paramref name="anchor"/>)? True means <b>do not reset</b> the trapped clock. The radius is the same one
+    /// <see cref="GoodProbe"/> uses for "this spot is an exit rather than a shuffle", so the two agree on what a
+    /// different place is.
+	/// </summary>
+	internal static bool InPocket(Vector3 anchor, Vector3 pos)
+	{
+		Vector3 d = pos - anchor;
+		d.y = 0f;   // pacing on a slope must not read as leaving the pocket
+		return d.sqrMagnitude <= PocketRadius * PocketRadius;
+	}
+
+	/// <summary>
+	/// 13/11/2026 (the pit): the three clocks a trapped body is judged by, in one place.
+	///
+	/// <para><paramref name="stuckFor"/> is how long it has been inside the pocket it was recorded in;
+	/// <paramref name="noCloser"/> is how long it has failed to get nearer the goal; and
+	/// <paramref name="trappedFor"/> is how long it has been trapped without ever getting anywhere. Any one of them is
+	/// enough for the emergency.</para>
+	///
+	/// <para>Measured live: the companion that could not leave the pit at (-163,4, 37,9, -429,0) was asked by this
+	/// rule <b>439 times</b> over the rest of the run and never reached 90 s on either clock, while it placed 326 more
+	/// pieces from the bottom of the hole. The third clock is only closed by real progress towards the goal (a rebuild
+	/// of <c>Remaining</c>, 1 m closer) or by the rescue itself, so a body being handed a new answer to the same trap
+	/// keeps counting.</para>
+	///
+	/// <para>The other two guards the emergency has always had are here too, for the same reason the clocks are: the
+	/// caller must answer this BEFORE the 48-raycast probe. Swimming and fighting answer "no" to all of it - a teleport
+	/// there is a way to lose a fight or to land in deep water.</para>
+	/// </summary>
+	internal static bool Trapped(float stuckFor, float noCloser, float trappedFor, bool swimming, bool inCombat)
+	{
+		if (swimming || inCombat) return false;
+		return stuckFor >= RescueAfter || noCloser >= RescueAfter || trappedFor >= RescueAfter;
+	}
+
 	/// <summary>Rings of the emergency probe around a trapped body, in meters. The first ring clears a pocket of a body's
     /// width (the measured one was 2-3 m across); the last one reaches past a small room.</summary>
 	internal static readonly float[] ProbeRings = { 3f, 5.5f, 8f };
+
+	/// <summary>
+	/// 13/11/2026 (the pit): how long to wait before searching again after a search that found <b>no</b> spot. The probe
+	/// is 48 raycasts plus a navmesh path, and the trapped clock is no longer restarted by anything that is trying to
+	/// help (that is the point of <see cref="Trapped"/>), so a body walled in with nowhere to walk to would otherwise
+	/// search every frame for the rest of the order - the run of 13/11 had exactly that body in the pit, asked about
+	/// <b>439 times</b>. Two seconds is short enough that a spot which opens up (a piece finished, a wall broken) is
+	/// found quickly, and long enough to keep the cost off the frame.
+	/// </summary>
+	internal const float ProbeWait = 2f;
 
 	/// <summary>
 	/// How long the mover waits after the <paramref name="giveUps"/>-th give-up <b>from the same place</b>: 15 s the

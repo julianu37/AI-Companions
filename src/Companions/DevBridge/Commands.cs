@@ -2620,6 +2620,9 @@ internal static class Commands
 			// 12/11/2026: how long the body has not moved (>0,5 m) - the number this session had to guess from
 			// screenshots while two companions stood frozen for 20 min. It is the same clock the emergency rescue reads.
 			{ "stuckFor", ai != null ? MHR_Mover.StuckFor(ai) : 0f },
+			// 13/11/2026 (the pit): the clock the emergency rescue actually fires on. `stuckFor` kept reading small
+			// numbers while the body paced inside the hole; this one is what reaches the 90 s and lets it out.
+			{ "trappedFor", ai != null ? MHR_Mover.TrappedFor(ai) : 0f },
 			{ "id", zdo != null ? zdo.GetString(CompanionSetup.MHR_CompanionIdHash, "") : null },
 			{ "mode", zdo != null ? zdo.GetInt(CompanionSetup.ActionModeHash) : 0 },
 			{ "stance", zdo != null ? zdo.GetInt(CompanionSetup.CombatStanceHash) : 0 },

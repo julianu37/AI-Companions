@@ -4,6 +4,28 @@ All the changes to this project, derived from ProfMags' Offline Companions. The 
 
 ## 1.9.7 - in progress
 
+**A companion walled in by its own build no longer stays walled in.** The emergency escape had three clocks and every
+one of them was reset by the thing that was trying to help: walking 0,5 m restarted "has not moved", a retry
+restarted "no closer", and every detour re-opened the three tries. Measured live: a companion in the pit the run left
+behind paced **1 m laps for 40 s without ever rising above y=37,9** while `stuckFor` read 0,0 / 4,8 / 9,8 / 4,2 /
+0,5 / 2,7 / 7,7 / 12,7 — it never reached the 90 s the emergency needs, so the emergency could not fire in the one
+case it exists for. The clock is now a **pocket**: it only restarts when the body leaves the circle it was recorded
+in (**2 m**, the same radius the probe uses for "this is an exit, not a shuffle"), and a third clock
+(`trappedFor`) is closed **only** by real progress towards the goal or by the rescue itself — never by a new answer
+to the same trap. A failed spot search backs off **2 s** instead of running 48 raycasts every frame (the pit body was
+asked **439 times**). `companions.list` now reports `trappedFor` next to `stuckFor`. Harness section **(ai)**,
+1093 assertions. See `docs/re/building-notes.md` §17.40.
+
+**The solo support fix, confirmed on a full house: 983/985 with the run reaching the end.** The
+985-piece house built by **one** companion ended with `hc_ai_blueprint_done`, **983** placed, **2** skipped,
+**0** deaths, **0** `UNSUPPORTED`, **0** watchdog and no repeated piece — against 851 and a death in the previous
+run. The climb-and-fall loop stays gone, the storey barrier costs **31,9 s in 4 holds** (it was 834 s in 177), and the
+2 pieces that did not stand are floors the blueprint itself does not hold up: probed in the file, the plan has
+**zero** pieces in the support window below them, so they wait for a post that answers "gap of 3,90 m". Registered
+with the number: **23** emergency posts still get planted (all of them from the early check, backlog 19), **13**
+falls, and the plan still raises a storey's ladder before its own structure is up — measured at **0 %** structure on
+the storey below every one of the 4 ladders (backlog 22).
+
 **A companion that is carrying too much no longer loses the build.** When the bag passed the carry ceiling the order
 **ended** (`hc_ai_build_too_heavy`) - and in the measured solo run of 13/11/2026 that cost an 86 % finished house: the
 companion died, came back, collected the items of its own tombstone, reached **470/300** and the order stopped at

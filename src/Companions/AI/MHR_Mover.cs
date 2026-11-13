@@ -57,6 +57,16 @@ namespace Companions
             // 12/11/2026 (the trap): the last time the BODY really moved (>0,5 m) - not reset by the stuck ladder, so it is
             // the honest "stuck for" clock (AnchorTime is zeroed at the top of Unstick, which is why it cannot be used).
             public Vector3 MovedPos; public float MovedAt; public bool HasMovedPos;
+            // 13/11/2026 (the pit): the emergency's own clock. `MovedAt` cannot serve it (any 0,5 m of pacing reset it)
+            // and neither can `ProgressTime` (Unstick sets it to `now - (NoProgressTime - 4)` and the `Direct` branch
+            // rewrites the whole stuck ladder every few seconds, so it never reaches the 90 s the rescue asks for).
+            // This one is only ever moved by the rescue itself: it says how long this body has been trapped SINCE the
+            // last time it was let out.
+            public float TrapAt; public bool HasTrapAt;
+            // 13/11/2026 (the pit): the emergency probe is 48 raycasts plus a navmesh path. With the trapped clock no
+            // longer rewritten by `Reset`/`Unstick`, a body with nowhere to go would ask every frame after the 90 s - so
+            // a search that finds no spot backs the next one off instead of repeating it 60 times a second.
+            public float NextEscapeAt;
             public float ClimbUntil, ClimbBestY, ClimbProgressAt, NextClimbJump, ClimbRestUntil; public Vector3 ClimbTop;
             public int ClimbTries; public readonly List<Vector3> ClimbTried = new List<Vector3>();
             public bool Direct; public float NextHop, NoDirectUntil;
@@ -157,10 +167,25 @@ namespace Companions
             S s = Peek(ai);
             return s == null || !s.HasMovedPos ? 0f : Time.time - s.MovedAt;
         }
+        /// <summary>
+        /// 13/11/2026 (the pit, so the next run measures it instead of inferring it from a screenshot): how long this
+        /// body has been trapped - the clock the emergency actually fires on. Unlike <see cref="StuckFor"/> it is not
+        /// reset by pacing inside the pocket, by a new goal or by the stuck ladder; only real progress (1 m closer to
+        /// the goal) or a rescue closes it. It is the number that says "this companion is about to be let out".
+        /// </summary>
+        public static float TrappedFor(CompanionAI ai)
+        {
+            S s = Peek(ai);
+            return s == null || !s.HasTrapAt ? 0f : Time.time - s.TrapAt;
+        }
         static void TrackMoved(S s, Vector3 pos, float now)
         {
             if (!s.HasMovedPos) { s.MovedPos = pos; s.MovedAt = now; s.HasMovedPos = true; return; }
-            if (Vector3.Distance(pos, s.MovedPos) > EscapeRule.StuckMove) { s.MovedPos = pos; s.MovedAt = now; }
+            // 13/11/2026 (the pit): the clock used to restart on ANY 0,5 m of travel, so a body pacing in a 1 m circle
+            // inside a hole reset it every few seconds and never reached the 90 s of the emergency - measured live at
+            // (-163,4, 37,9, -429,0), stuckFor 0,0/4,8/9,8/4,2/0,5/2,7/7,7/12,7 over 40 s while it stayed at y=37,9.
+            // The restart is now on LEAVING the pocket, not on moving inside it (EscapeRule.InPocket).
+            if (!EscapeRule.InPocket(s.MovedPos, pos)) { s.MovedPos = pos; s.MovedAt = now; }
         }
         // CompanionRest keeps its bed trip alive while we're still getting somewhere
         public static bool KeepAlive(Component c)
@@ -265,7 +290,12 @@ namespace Companions
             s.Quiet = cst != null && cst.IsCrouching;
 
             // arrived: within reach on the same level (not standing under it on the floor below)
-            if (Flat(pos, goal) <= dist && Mathf.Abs(pos.y - goal.y) <= 1.5f) { Halt(ai, c, s); return true; }
+            if (Flat(pos, goal) <= dist && Mathf.Abs(pos.y - goal.y) <= 1.5f)
+            {
+                s.TrapAt = now;   // getting there is progress by definition: the next 90 s are the next trap's
+                Halt(ai, c, s);
+                return true;
+            }
             if (s.GaveUp)
             {
                 // 12/11/2026 (the trap): a body that gave up far from the goal sits still, and the stuck ladder that ends
@@ -285,7 +315,15 @@ namespace Companions
             AdvanceCorner(s, pos);
             float remain = Remaining(s, pos);
             if (s.NewLeg) { s.NewLeg = false; s.Best = remain; }
-            if (remain < s.Best - 0.75f) { s.Best = remain; s.ProgressTime = now; }
+            if (remain < s.Best - 0.75f)
+            {
+                // 13/11/2026 (the pit): only a real improvement counts as progress for the emergency's clock. `Reset` parks
+                // `Best` at float.MaxValue, so the first measurement after it always satisfies the comparison - crediting
+                // that would close the trapped clock on every retry, which is the defect this whole block exists for.
+                bool real = s.Best < float.MaxValue;
+                s.Best = remain; s.ProgressTime = now;
+                if (real) s.TrapAt = now;
+            }
             if (!s.HasDetour && s.RouteDoor == null && remain < s.MainBest - 1.5f) { s.MainBest = remain; s.Ladder = 0; s.Passes = 0; }
             if (Vector3.Distance(pos, s.Anchor) > 0.6f) { s.Anchor = pos; s.AnchorTime = now; }
             TrackMoved(s, pos, now);
@@ -2467,17 +2505,40 @@ namespace Companions
             // the cheap half first: a body that is walking, swimming or fighting is not trapped, and the probe below is 48
             // raycasts plus a navmesh path - it must not run every frame against a companion that is just waiting a door out
             float stuckFor = s.HasMovedPos ? now - s.MovedAt : 0f;
-            if (!EscapeRule.TrappedEnough(stuckFor, c.IsSwimming(), ai.IsInCombat)) return;
+            // 13/11/2026 (the pit): the clock this rescue actually trusts. It is opened the first time the body is asked
+            // about (so it measures "trapped", not "alive"), and it is only closed by a successful rescue below - never
+            // by pacing (MovedAt), never by Unstick (ProgressTime) and never by the 15 s give-up ladder.
+            if (!s.HasTrapAt) { s.TrapAt = now; s.HasTrapAt = true; }
+            // 13/11/2026 (the pit): `stuckFor` alone cannot see a body that PACES - it walks in 1 m laps and gets nowhere
+            // near the goal. The second clock is the one that catches it: how long it has failed to get any closer
+            // (ProgressTime is moved by the 0,75 m of Remaining, never by raw travel). Measured live: 40 s of circling at
+            // (-163,4, 37,9, -429,0) with stuckFor never above 12,7 s and no progress towards the goal at all.
+            float noCloser = s.HasMovedPos ? now - s.ProgressTime : 0f;
+            float trappedFor = s.HasTrapAt ? now - s.TrapAt : 0f;
+            // a goal that keeps moving is not a trap: the player is the exit and can walk back (same reason `noCloser` is
+            // zeroed for Follow at the stuck ladder) - only a goal that stays put can trap a body
+            if (tag == FollowTag) trappedFor = 0f;
+            if (!EscapeRule.Trapped(stuckFor, noCloser, trappedFor, c.IsSwimming(), ai.IsInCombat)) return;
+            if (now < s.NextEscapeAt) return;   // the last search here found nothing: let the ladder try again first
             Vector3 target;
-            bool have = FindEscapeSpot(s, pos, out target);
-            if (!EscapeRule.CanRescue(stuckFor, c.IsSwimming(), ai.IsInCombat, have)) return;
+            if (!FindEscapeSpot(s, pos, out target))
+            {
+                // no spot to go to: nothing to do, and the body stays put - but the clock keeps running, so the next
+                // search is spaced out instead of repeating 48 raycasts every frame for the rest of the order
+                s.NextEscapeAt = now + EscapeRule.ProbeWait;
+                return;
+            }
+            s.NextEscapeAt = 0f;
             if (CompanionsPlugin.LogNormal) CompanionsPlugin.Log.LogInfo("[Move|" + tag + "] trapped at " + Fmt(pos) + " for "
-                + stuckFor.ToString("F0") + "s with no way out - moving to the nearest spot that has one at " + Fmt(target));
+                + stuckFor.ToString("F0") + "s with no way out (" + noCloser.ToString("F0")
+                + "s without getting closer, " + trappedFor.ToString("F0")
+                + "s trapped) - moving to the nearest spot that has one at " + Fmt(target));
             // 1.5.42: it says so - a teleport is a visible, unusual thing and the player should hear why
             CompanionStatus.Why(ai, "hc_why_trapped_out", speak: true);
             ai.MHR_PlaceAt(target);
             s.HasGood = false; s.GiveUps = 0; s.DetourTried.Clear();
             s.MovedPos = target; s.MovedAt = now; s.HasMovedPos = true;
+            s.TrapAt = now; s.HasTrapAt = true;   // let out: the next 90 s are the next trap's, not this one's
             Reset(s, s.Goal, target, now, tag);
         }
 
