@@ -317,17 +317,54 @@ pegou os itens — e o peso foi a **470/300**:
 casa tinha mudado, a peça continuava lá, e a bolsa é do companheiro — encerrar era o veredito errado. O jogador:
 *"mesmo assim, ele deveria continuar construindo depois de tirar um pouco de itens/peso da bag dele"*.
 
-**O fix (o mesmo commit):** `Phase.Unload` + `AI/BuildOverweight.cs` (puro, harness **(al)**, 26 casos). Ordem das
+**O fix (o mesmo commit):** `Phase.Unload` + `AI/BuildOverweight.cs` (puro, harness **(al)**, 27 casos). Ordem das
 saídas: **baú** perto do sítio (`MHR_Chests.Usable`, 30 m, via `SetPendingDeposit` — o material não se perde, muda de
-prateleira) → **chão** (`ItemDrop.DropItem` com `m_autoPickup = false`, a mesma mecânica do `CompanionOrders.DropNamed`)
-→ **espera** com teto de 30 s, e então a obra segue com o que dá para carregar. O que **nunca** cai: equipamento,
-comida e item de missão. O que cai **por último**: o material da obra (madeira, pedra...). E o plano é **tudo ou
-nada**: se jogar fora tudo o que pode não traz a bolsa para baixo do alvo, nada cai (470 → 357 não é "aliviado", é uma
-casa que perdeu o material). O alvo guarda a margem da peça mais pesada do plano (teto de 20 de folga), senão a ordem
-descarregaria a cada peça.
+prateleira, e o `BuildStock.Withdraw` volta a buscá-lo de lá) → **chão** (`ItemDrop.DropItem` com
+`m_autoPickup = false`, a mesma mecânica do `CompanionOrders.DropNamed`), e a obra segue na **mesma peça**. O que
+**nunca** cai: equipamento, comida e item de missão. O que cai **primeiro**: o que **não** é material de obra (gema,
+troféu, resina — a casa não paga com isso). O que cai **por último**: o material da obra (madeira, pedra...), mas
+**cai também** quando é o que resta: acima do teto o companheiro fica `Encumbered` e **não anda**, então "guardar a
+madeira" não é a opção segura — é a obra que para. O alvo guarda a margem da peça mais pesada do plano (teto de 20 de
+folga), senão a ordem descarregaria a cada peça.
 
-**Aceite do run de confirmação:** a obra **não** termina em `hc_ai_build_too_heavy`; com peso acima do teto o log
-mostra `sobrecarregado: ... - a obra continua` e as peças seguem subindo. Mortes por queda continuam sendo o item 11
+**Três defeitos da primeira versão, corrigidos ainda no mesmo ciclo (achados relendo o código, antes do run):**
+1. `Keeps` e `Plan` se contradiziam — `Keeps` devolvia "fica" para gema e "pode cair" para madeira, e o `Plan` tratava
+   o material como último recurso. No caso medido (470/300) o plano saía **vazio** e o fix era inerte.
+2. `Plan` era **tudo ou nada** e limpava a resposta quando o alvo não era alcançável: mesma inércia, com o companheiro
+   `Encumbered` para sempre. Agora devolve **tudo o que pode cair** — a bolsa tem de descer abaixo do **teto**, que é o
+   que o deixa andar; o alvo (teto − folga) é só a meta boa.
+3. Laço `Goto` ↔ `Unload`: desistir devolvia a fase para `Goto`, o portão do peso disparava no frame seguinte e
+   reentrava com o relógio zerado — pingue-pongue até o `Timeout` de 60 s encerrar a ordem com o motivo **errado**.
+   `State.GivenUpAt` guarda o peso em que a ordem desistiu; só um peso **menor** reabre a fase.
+
+**Aceite do run de confirmação — PASSou (13/11/2026, mesmo dia).** Cenário montado para reproduzir o defeito: o
+companheiro recebeu `Silver` ×300 + `Obsidian` ×60 (`companions.give`) e começou a obra a **4530/300**. O log:
+
+```
+sobrecarregado: 11 pilha(s), 4300,0 de peso no chão (4530,3 -> 230,3/300,0) - a obra continua
+bolsa aliviada: 230,3/300,0 - a obra continua na peça 1/985
+```
+
+Uma descida só, na **peça 1**, e nenhum `too_heavy` em todo o run (o contador `too_heavy` do `run_watch` ficou em
+**0**). A ordem seguiu de 1/985 até **185/985** e não parou pela bolsa em momento nenhum — as 11 pilhas que caíram
+foram prata e obsidiana (não-material), e a madeira/pedra da obra **ficou na bolsa**, que é a ordem pretendida.
+O que parou o run em 185 é **outro defeito** (item 20). O aceite de "a obra não termina em `hc_ai_build_too_heavy`"
+está cumprido; o de "985/985" depende do item 20.
+
+**Item 20 (novo, medido neste run): o companheiro fica 2 m ABAIXO do sítio e o `route full` o prende lá.**
+Com 185/985 colocadas ele foi para `(-163,4, 37,9, -429,0)` — o sítio está em **39,8** — e de lá repetiu
+`2,0m below where it needs to be - jumping up onto (...)` (0,9 m de subida) e `stuck (standing still 3s) ... climbing
+out`, sempre voltando ao mesmo ponto. Cada peça seguinte vira `no progress ... route full` e depois
+`desistindo de <peça> (took too long)`; as puladas subiram de 3 para **12** e `done` congelou em 185. A sonda
+`nav.probe` em `(-163,4, 37,9, -429,0)` responde `found: false`: **não há navmesh no ponto** — ele está fora da malha,
+sob o piso que a própria obra construiu por cima dele, e o `route full` é o path saindo vazio. O `climbing out` mira
+um ponto a 1,1 m e o mover volta para o buraco. É o mesmo tema do item 18 (rota vertical), mas o sintoma é outro:
+não é queda, é **confinamento sob o piso**. Correção proposta: quando o companheiro está abaixo do sítio e o
+`nav.probe` do ponto atual não acha malha, o mover não deve tentar "subir 0,9 m" (é uma beirada, não um degrau) — deve
+teleportar pela escada mais próxima ou recusar o walk spot e pedir outro. Aceite: nenhuma linha `route full` seguida de
+`desistindo` no run solo. **Não corrigido — registrado com o número que o matou.**
+
+**Mortes por queda continuam sendo o item 11**
 (rota do beirado), não este.
 
 ### 18. `AdjustPose` troca o **Y** do alvo pelo chão — *medido 13/11/2026, não corrigido*
@@ -360,6 +397,6 @@ na recusa; o poste fica como último recurso. Aceite: `apoio de emergência < 5`
 1. **Uma mudança por build**, com o corte de aceite escrito **antes** do run.
 2. **Reverter na hora** se `puladas > 0`, `desistindo > 0`, morte, `UNSUPPORTED` ou watchdog — o baseline fecha
    985/985 com 0, então qualquer um deles é regressão.
-3. Regra pura vai para o harness **no mesmo ciclo** (hoje **1077** asserções); quem implementa não afrouxa a asserção.
+3. Regra pura vai para o harness **no mesmo ciclo** (hoje **1078** asserções); quem implementa não afrouxa a asserção.
 4. O que foi revertido fica **documentado com o número que o matou** (escopo XZ: ~33 min; `ahead` por frame: 38 vs 78
    peças/min; `CrossesPending`: 67 % do plano).

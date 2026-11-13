@@ -3807,13 +3807,13 @@ internal static class Program
 	private static void OverweightUnloads()
 	{
 		// --- Keeps: what never leaves the bag for the build
-		Check("equipavel nunca cai (picareta e a obra)", BuildOverweight.Keeps("PickaxeBronze", true, false, false, false));
-		Check("comida nunca cai (companheiro com fome nao constroi)", BuildOverweight.Keeps("RawMeat", false, false, true, false));
-		Check("item de missao nunca cai (o jogo recusa)", BuildOverweight.Keeps("TrophyDragonQueen", false, true, false, false));
-		Check("gema/couro NAO e material de obra: fica na bolsa", BuildOverweight.Keeps("LeatherScraps", false, false, false, false));
-		Check("resina fica (nao e material estrutural)", BuildOverweight.Keeps("Resin", false, false, false, false));
-		Check("madeira E material de obra: pode cair", !BuildOverweight.Keeps("Wood", false, false, false, true));
-		Check("pedra E material de obra: pode cair", !BuildOverweight.Keeps("Stone", false, false, false, true));
+		Check("equipavel nunca cai (picareta e a obra)", BuildOverweight.Keeps(true, false, false));
+		Check("comida nunca cai (companheiro com fome nao constroi)", BuildOverweight.Keeps(false, false, true));
+		Check("item de missao nunca cai (o jogo recusa)", BuildOverweight.Keeps(false, true, false));
+		Check("gema/couro PODE cair: a obra nao paga com ele", !BuildOverweight.Keeps(false, false, false));
+		Check("resina PODE cair (nao e material estrutural)", !BuildOverweight.Keeps(false, false, false));
+		Check("madeira E material de obra: cai por ultimo, mas cai", !BuildOverweight.Keeps(false, false, false));
+		Check("pedra E material de obra: cai por ultimo, mas cai", !BuildOverweight.Keeps(false, false, false));
 
 		// --- Drops: the two questions the walk needs
 		Check("pilha com peso que pode ir: cai", BuildOverweight.Drops(50f, false));
@@ -3833,16 +3833,15 @@ internal static class Program
 		float[] w = { 8f, 2f, 25f, 1f, 50f, 0.5f, 6f, 30f };
 		bool[] keeps = { true, true, false, false, false, false, false, false };
 		bool[] mat = { false, false, false, false, true, false, false, false };
-		// gems first (heaviest first): 7 (30) then 2 (25) - 470 down to 415 is still over 297, and the beam alone
-		// cannot close it, so the whole answer is EMPTY: the bag keeps its wood instead of throwing it away for nothing
-		CheckInts("nem tudo que pode cair chega ao alvo: o bag NAO perde o material da obra", new int[0],
-			WeightPlan(w, keeps, mat, 470f, 297f));
+		// the measured case of 13/11/2026 (470/300) took the bag 470 -> 357,5 and STILL over the old target: the first
+		// version answered "nothing", the companion stayed Encumbered and could not walk at all. Every stack that may go
+		// now goes (gems first, the beam last) - the bag must come down under the ceiling even if it cannot reach the margin
+		CheckInts("nao chega ao alvo: mesmo assim tira tudo o que pode (a bolsa pesada nao anda)",
+			new int[] { 7, 2, 6, 3, 5, 4 }, WeightPlan(w, keeps, mat, 470f, 297f));
 		CheckInts("sem nada a tirar (todo mundo fica): lista vazia", new int[0],
 			WeightPlan(w, new bool[8] { true, true, true, true, true, true, true, true }, mat, 470f, 297f));
 		CheckInts("ja esta abaixo do alvo: nada sai", new int[0], WeightPlan(w, keeps, mat, 200f, 297f));
 		CheckInts("peso exatamente no alvo: nada sai", new int[0], WeightPlan(w, keeps, mat, 297f, 297f));
-		// 470 -> target 620 is already met, but with target 400 the gems (30+25+6+1+0,5=62,5) do not get there
-		// (470-62,5-50=357,5 > 400? no: 357,5 < 400) -> gems then the beam, and it lands
 		CheckInts("os materiais de obra so saem depois de todo o resto", new int[] { 7, 2, 6, 3, 5, 4 },
 			WeightPlan(w, keeps, mat, 470f, 400f));
 		// a light bag where only the gem has to go: one stack, and the beam stays
@@ -3859,6 +3858,9 @@ internal static class Program
 		// the same bag must always shed the same stacks (a test can assert the list, not a set)
 		CheckInts("deterministico: a mesma bolsa tira as mesmas pilhas", new int[] { 7, 2, 6, 3, 5, 4 },
 			WeightPlan(w, keeps, mat, 470f, 400f));
+		// the material goes LAST: 470 -> 440 (30) -> 415 (25) -> 409 (6), under the target of 410 - the beam stays
+		CheckInts("com gema suficiente para chegar ao alvo, a madeira fica na bolsa", new int[] { 7, 2, 6 },
+			WeightPlan(w, keeps, mat, 470f, 410f));
 	}
 
 	/// <summary>Section (al): the helper that runs <see cref="BuildOverweight.Plan"/> over parallel arrays.</summary>

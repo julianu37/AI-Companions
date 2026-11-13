@@ -292,14 +292,16 @@ internal static class MHR_Build
 		internal bool Paused;
 		internal float Start;
 		internal float LastDrive;
-		/// <summary>13/11/2026 (the encumbered order): when the bag first went over the ceiling - the clock of
-		/// <see cref="BuildOverweight.MaxWait"/>, so a companion that cannot shed the weight says so instead of holding
-		/// still forever. 0 = not overweight (the phase is not <see cref="Phase.Unload"/>).</summary>
-		internal float HeavySince;
 		/// <summary>13/11/2026: how many unloads this order did so far - the cap of the loop
 		/// (<see cref="MaxUnloadDrops"/>): a bag that keeps refilling from a tombstone next to the site must not shed it
 		/// forever.</summary>
 		internal int UnloadDrops;
+		/// <summary>13/11/2026: the bag this order has already given up on - the weight it stood at when
+		/// <see cref="UnloadBag"/> concluded nothing more could be done. Without it the phase and
+		/// <see cref="Phase.Goto"/> would hand the same bag back and forth for ever (the gate re-enters
+		/// <see cref="Phase.Unload"/> on the very next frame), and the order would end on the 60 s clock with the
+		/// wrong reason instead of building. Cleared when the weight actually falls (the piece paid, a stack went).</summary>
+		internal float GivenUpAt;
 		internal int StartMode;
 		internal string Prefab;
 		internal Piece Piece;
@@ -3716,10 +3718,10 @@ internal static class MHR_Build
 			&& state.Phase != Phase.Unload
 			&& humanoid != null
 			&& humanoid.GetInventory() != null
-			&& humanoid.GetInventory().GetTotalWeight() > CompanionCarry.Max(humanoid))
+			&& humanoid.GetInventory().GetTotalWeight() > CompanionCarry.Max(humanoid)
+			&& humanoid.GetInventory().GetTotalWeight() > state.GivenUpAt)
 		{
 			state.Phase = Phase.Unload;
-			state.HeavySince = Time.time;
 			state.LastDrive = Time.time;
 			return true;   // the next frame sheds what it can (see UnloadBag)
 		}
@@ -6621,15 +6623,15 @@ internal static class MHR_Build
 	/// gather jobs use) - nothing leaves the player's stock, it only changes shelf.</item>
 	/// <item><b>No chest</b>: the stacks of <see cref="BuildOverweight.Plan"/> are dropped on the ground at the
 	/// companion's feet, with auto-pickup off so the bag does not take them straight back (<c>ItemDrop.DropItem</c>, the
-	/// same call <c>CompanionOrders.DropNamed</c> makes). The build's own wood is the last thing to go and never goes
-	/// alone: if dropping everything allowed does not bring the bag under the line, NOTHING is dropped and the
-	/// companion waits.</item>
+	/// same call <c>CompanionOrders.DropNamed</c> makes). What is not a building material goes first, the build's own
+	/// wood is the last thing to go - but it <b>does</b> go: being over the ceiling is what makes the companion
+	/// <c>Encumbered</c> and unable to walk, so a bag kept intact is a build that does not move.</item>
 	/// </list>
 	///
 	/// <para>A bag that is already under the ceiling, or one nothing more can be done to, walks on to
-	/// <see cref="Phase.Goto"/> - the build continues with what it has. Holding still is bounded by
-	/// <see cref="BuildOverweight.MaxWait"/> (a companion parked at 470/300 is not a silent order: after it the order
-	/// says so with the honest numbers), and the number of unloads by <see cref="MaxUnloadDrops"/>.</para>
+	/// <see cref="Phase.Goto"/> - the build continues with what it has. The second case records the weight in
+	/// <see cref="State.GivenUpAt"/> so the gate does not hand the same bag back, and says so with the honest numbers;
+	/// the number of unloads is bounded by <see cref="MaxUnloadDrops"/>.</para>
 	/// </summary>
 	private static bool UnloadBag(CompanionAI ai, State state)
 	{
@@ -6647,33 +6649,30 @@ internal static class MHR_Build
 			Log(ai, "bolsa aliviada: " + F(weight) + "/" + F(ceiling) + " - a obra continua na peça "
 				+ (state.Index + 1) + "/" + (state.Plan != null ? state.Plan.Count : 1));
 			state.Phase = Phase.Goto;
-			state.HeavySince = 0f;
+			state.GivenUpAt = 0f;
 			StateResetForPiece(state);
 			return true;
-		}
-		if (state.HeavySince <= 0f)
-		{
-			state.HeavySince = Time.time;
 		}
 		// 1) the chest first: the stock stays in the player's world, only on another shelf
 		if (UnloadToChest(ai, state, humanoid, bag, weight, ceiling))
 		{
 			return true;
 		}
-		// 2) no chest (or it could not take it): drop what may go - the plan's answer, never a piece at a time
+		// 2) no chest (or it could not take it): drop what may go - the plan's answer, never a piece at a time.
+		//    The plan answers "everything allowed" when the target cannot be reached, so this either sheds or has
+		//    nothing left to shed: the second frame gets an empty plan and falls through below.
 		if (state.UnloadDrops < MaxUnloadDrops && DropForRoom(ai, state, humanoid, bag, weight, ceiling))
 		{
 			return true;
 		}
-		// nothing more to do: the order says so instead of holding still for ever, and the build goes on with the bag it has
-		if (Time.time - state.HeavySince > BuildOverweight.MaxWait)
-		{
-			Log(ai, "sobrecarregado e sem com quem dividir o peso: " + F(weight) + "/" + F(ceiling)
-				+ " - a obra segue com o que dá para carregar");
-			state.Phase = Phase.Goto;
-			state.HeavySince = 0f;
-			StateResetForPiece(state);
-		}
+		// Nothing left to shed and the bag is still over: say so WITH the number, remember this weight so the gate
+		// stops handing the same bag back, and build with what it has. Waiting would not change it - the kept stacks
+		// are the ones it must not drop - and a companion parked in this phase is a silent order.
+		state.GivenUpAt = weight;
+		Log(ai, "sobrecarregado e sem com quem dividir o peso: " + F(weight) + "/" + F(ceiling)
+			+ " - a obra segue com o que dá para carregar");
+		state.Phase = Phase.Goto;
+		StateResetForPiece(state);
 		return true;
 	}
 
@@ -6708,9 +6707,8 @@ internal static class MHR_Build
 		return false;
 	}
 
-	/// <summary>13/11/2026: the ground half of <see cref="UnloadBag"/> - drops the stacks the pure rule chose. The
-	/// returned false means "nothing could be dropped" (every stack left is kept, or dropping them all still leaves the
-	/// bag over the line), and the caller keeps the bag as it is.</summary>
+	/// <summary>13/11/2026: the ground half of <see cref="UnloadBag"/> - drops the stacks the pure rule chose. False
+	/// means "the plan had nothing to drop" (every stack left is kept), and the caller says so and builds on.</summary>
 	private static bool DropForRoom(CompanionAI ai, State state, Humanoid humanoid, Inventory bag, float weight, float ceiling)
 	{
 		List<ItemDrop.ItemData> items = new List<ItemDrop.ItemData>(bag.GetAllItems());
@@ -6722,10 +6720,8 @@ internal static class MHR_Build
 		{
 			ItemDrop.ItemData item = items[i];
 			weights[i] = item != null && item.m_shared != null ? item.m_shared.m_weight * item.m_stack : 0f;
-			string prefab = item != null && item.m_shared != null ? item.m_shared.m_name : null;
 			keeps[i] = item == null || item.m_shared == null
-				|| BuildOverweight.Keeps(prefab, item.IsEquipable(), item.m_shared.m_questItem,
-					item.m_shared.m_food > 0f, BuildingMaterial(item));
+				|| BuildOverweight.Keeps(item.IsEquipable(), item.m_shared.m_questItem, item.m_shared.m_food > 0f);
 			material[i] = BuildingMaterial(item);
 		}
 		// the margin: the heaviest material the plan still has to place, capped - below it the very next piece puts the

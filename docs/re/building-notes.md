@@ -3650,3 +3650,13 @@ back`), andou até a própria lápide, pegou os itens e chegou a **470/300** —
 `order ended: hc_ai_build_too_heavy (encumbered)`. Uma casa 86 % pronta foi perdida por causa do peso na mochila.
 Corrigido no mesmo ciclo: `Phase.Unload` + `BuildOverweight` (item 17 do backlog).
 
+**O fix e os três defeitos que ele teve antes de rodar.** A primeira versão foi escrita, buildada e o harness passou
+(1077/0) — e mesmo assim estava **inerte no caso que a motivou**. Relendo o código antes do run:
+(1) `Keeps` marcava gema como "fica" e madeira como "pode cair", o oposto do que o `Plan` fazia, e no 470/300 o plano
+saía **vazio**; (2) o plano era **tudo ou nada** e limpava a resposta quando o alvo não era alcançável, deixando o
+companheiro `Encumbered` para sempre — agora devolve tudo o que pode cair, porque o que o deixa **andar** é ficar
+abaixo do **teto**, não abaixo da folga; (3) desistir devolvia para `Goto` e o portão do peso reentrava no frame
+seguinte, um pingue-pongue até o `Timeout` de 60 s **encerrar a ordem pelo motivo errado** — `State.GivenUpAt` guarda
+o peso da desistência e só um peso menor reabre a fase. Harness **1078/0**. O run de confirmação do despejo segue
+**pendente**: o que este ciclo prova é o piso, não a bolsa.
+

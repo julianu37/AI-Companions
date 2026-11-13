@@ -16,10 +16,17 @@ namespace Companions;
 ///
 /// <para><b>What is never dropped:</b> equipment and gear (weapons, tools, shields, torches, armour, ammo, utility) -
 /// a pickaxe on the ground is a job the companion cannot do - food, and quest items (the game refuses those anyway,
-/// <c>$msg_cantdrop</c>). <b>What is dropped first:</b> the <b>structural</b> materials the house itself pays for
-/// (wood, stone, and what <c>BuildStock</c> can take back from the ground) - a stock the build can pick up again is
-/// not a loss, a gem or a trophy is worth more than the shelf it sits on. Then everything else by <b>heaviest
-/// first</b>, so the fewest stacks come out.</para>
+/// <c>$msg_cantdrop</c>). <b>What is dropped first:</b> everything that is <b>not</b> a building material - a gem,
+/// a trophy, resin - because the build does not pay with it. <b>What is dropped last:</b> the <b>structural</b>
+/// materials the house itself pays for (wood, stone, and what <c>BuildStock</c> can take back from the ground): they
+/// are the order's own stock, and shedding them is what makes the companion gather again. Inside each group the
+/// <b>heaviest first</b>, so the fewest stacks come out.</para>
+///
+/// <para><b>Why the material may still go:</b> the alternative is the order <b>ending</b> - which is what it used to
+/// do, at 470/300 with the house 86 % built. A companion that is over the ceiling cannot walk (the <c>Encumbered</c>
+/// effect), so "keep the wood" is not a safe default: it is a build that stops. Wood on the ground next to the site
+/// is picked up again by the same companion (<c>build.gather</c>, or the next <c>Take</c>); the 50 wood it sheds is
+/// worth less than the 134 pieces the order never reaches.</para>
 ///
 /// <para><b>Enough is enough:</b> the walk stops as soon as the bag is under the ceiling minus a margin
 /// (<see cref="Slack"/>) - unloading 470 to 299 would put the companion straight back over the line on the next
@@ -28,15 +35,12 @@ namespace Companions;
 /// </summary>
 internal static class BuildOverweight
 {
-	/// <summary>Items whose weight the companion carries anyway: <b>never</b> dropped for the build. The structural
-	/// materials (wood/stone) are deliberate exceptions - they are what the house consumes.</summary>
-	internal static bool Keeps(string prefab, bool equipable, bool quest, bool food, bool material)
+	/// <summary>Items whose weight the companion carries anyway: <b>never</b> dropped for the build. Everything else
+	/// may go - including gems, trophies and resin: they are <b>not</b> what the house is paid with, so dropping them
+	/// costs the order nothing. Only gear, food and quest items are untouchable.</summary>
+	internal static bool Keeps(bool equipable, bool quest, bool food)
 	{
-		if (quest || food || equipable)
-		{
-			return true;   // the game refuses the first, a hungry companion cannot build, and gear is the job itself
-		}
-		return !material;   // anything that is not a building material stays (gems, trophies, resin, trophies...)
+		return quest || food || equipable;   // the game refuses the first, a hungry companion cannot build, and gear is the job itself
 	}
 
 	/// <summary>"Is this stack worth taking to make room?" - the two questions the walk order needs are the weight and
@@ -47,14 +51,16 @@ internal static class BuildOverweight
 	}
 
 	/// <summary>
-	/// The stacks to drop, as indices into <paramref name="weights"/>, in the order they leave the bag: the
-	/// <b>structural materials last</b> (they are the build's own stock) and, inside each group, the <b>heaviest
-	/// first</b>. Stops as soon as <paramref name="weight"/> would fall to <paramref name="target"/>.
+	/// The stacks to drop, as indices into <paramref name="weights"/>, in the order they leave the bag: everything that
+	/// is <b>not</b> a building material first (it costs the order nothing), the <b>structural materials last</b> (they
+	/// are the build's own stock) and, inside each group, the <b>heaviest first</b>. Stops as soon as
+	/// <paramref name="weight"/> would fall to <paramref name="target"/>.
 	///
-	/// <para><b>All or nothing.</b> When even dropping every stack it is allowed to drop cannot reach
-	/// <paramref name="target"/>, the answer is <b>empty</b>: the companion is still over the ceiling either way, and
-	/// the only thing the partial walk would buy is its own wood on the ground (470 to 357 is not "unencumbered", it
-	/// is a house that lost its material). An empty answer is the caller's cue to keep the bag and wait or say so.</para>
+	/// <para><b>When the target cannot be reached</b> (the kept stacks alone are too heavy) the answer is everything
+	/// allowed, not nothing: being under the <b>ceiling</b> is what lets the companion walk, and a bag that sheds
+	/// nothing stays <c>Encumbered</c> for ever - the build does not move at all. The assumed invariant is that
+	/// <paramref name="weights"/> adds up to <paramref name="weight"/> (it is the same inventory), so this only ends
+	/// short of the target when the kept gear alone is heavy - and then no answer can do better.</para>
 	/// </summary>
 	internal static List<int> Plan(IList<float> weights, IList<bool> keeps, IList<bool> material, float weight, float target)
 	{
@@ -81,10 +87,6 @@ internal static class BuildOverweight
 		float left = weight;
 		Append(order, gems, weights, ref left, target);
 		Append(order, stock, weights, ref left, target);
-		if (left > target)
-		{
-			order.Clear();   // still over the ceiling after everything allowed: the bag stays as it is
-		}
 		return order;
 	}
 
@@ -126,10 +128,6 @@ internal static class BuildOverweight
 		float target = ceiling - (slack > 0f ? slack : 0f);
 		return target > 0f ? target : 0f;
 	}
-
-	/// <summary>P1: never more than this many seconds waiting for the bag to come down by itself before the order
-	/// says so and lets the player act (a companion holding still forever is a silent order).</summary>
-	internal const float MaxWait = 30f;
 
 	/// <summary>The cap of <see cref="Slack"/>: one full stack of the heaviest building material (wood, 50 x 0,5 =
 	/// 25; stone 50 x 2 = 100) would be too much, two floors (2 x 1,5 = 3) is exactly what the piece needs.</summary>

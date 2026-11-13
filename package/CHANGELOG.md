@@ -10,10 +10,11 @@ companion died, came back, collected the items of its own tombstone, reached **4
 851/985 with nothing wrong with the house. Being heavy is the companion's own problem to solve, not a reason to drop
 the plan. It now goes to a **chest** within 30 m (the mod's own deposit order, so the stock only changes shelf); with
 no chest it **drops what it can spare** on the ground with auto-pickup off, and the order goes on at the **same
-piece**. Equipment, food and quest items are never dropped, and the build's own materials (wood, stone...) go **last**.
-The choice is all-or-nothing: if shedding everything allowed would still leave the bag over the ceiling, nothing is
-dropped and the companion waits (`AI/BuildOverweight.cs`, harness section **(al)**). See `docs/re/building-notes.md`
-§17.39.
+piece**. A gem, a trophy or resin goes **first** (the house is not paid with it); equipment, food and quest items are
+**never** dropped; the build's own materials (wood, stone...) go **last**, but they do go - over the ceiling the
+companion is **Encumbered and cannot walk**, so a bag kept intact is a build that stops. If it still ends heavy, the
+log says so with the number and the build goes on with what it has (`AI/BuildOverweight.cs`, harness section
+**(al)**). See `docs/re/building-notes.md` §17.39.
 
 **The confirmation run of the support fix: the fall loop is gone.** Measured on the 985-piece house, one companion:
 `no_support` **29 → 3**, the climb-and-fall loop **gone** (the ladder whose top has no floor is now **refused** and the
