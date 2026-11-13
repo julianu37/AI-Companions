@@ -3479,3 +3479,48 @@ retenções (32,5 + 23,5), 31,4 s de fila, 0,0 s de passo e de portão; 754 adia
 `3,28` linhas `[Build]` por peça. A recusa por motivo: barreira 37 (44 %), `no progress` 31 (36 %),
 `blocked_by_player` 14 (16 %), `no_support` 2.
 
+### 17.37 O contador fechou e o piso começou na escada — o run de 12/11/2026 com o DLL novo (12/11/2026)
+
+> [M] Mesmo sítio, mesma âncora (-158,9 · 38,8 · -427,7), mesmo `BlueprintFree = true`, 2 companheiros. Sítio limpo
+> (`build.delete` → 835 peças apagadas, `build.pieces` = 0), terreno plano (variação 0,024 m em 20 m). DLL desta
+> branch, `1.9.6`, `stuckFor` já presente em `companions.list`. Ordem às 21:22, fim às 21:45 (~23 min, 985 peças).
+
+**O aceite do item 12 fechou:** `desistindo de` = **0** (era 37 no run anterior), `985/985` colocadas, **0**
+`UNSUPPORTED`, **0** `too_heavy`, **0** `sem progresso` no placar. A linha do `Finish` imprime `peças: 985/985,
+0 pulada(s)` e `order ended: hc_ai_blueprint_done`. `build.pieces` = **1012** (985 + 27 apoios de emergência).
+A colocação continua sem perder nem duplicar: **985 linhas `done:` para 985 peças distintas, 0 duplicatas**
+(Companion 490, Companion 2 495).
+
+**O que este run pagou e não é do ciclo:** **1 morte** (Companion 2, na peça 900/985 — a ordem retomou depois do
+respawn, como o item 5 do ciclo prevê) e **5 quedas**, todas na chegada à cumeeira (y≈46,8-48,6), que é o item 11
+do backlog (rota segura até o walk spot do telhado). **9** `no progress`, **8** `no_support`, **6**
+`blocked_by_player`, **1** `verification` — todas resolvidas pela fila de retry, nenhuma virou peça pulada.
+
+**`stuckFor` do run:** os corpos nunca ficaram parados mais de **~0,7 s** (0,65 s e 0,69 s na amostra do meio do
+run). O limiar de "mesmo lugar" é `EscapeRule.StuckMove` = **0,5 m** e a emergência só abre aos **90 s**
+(`RescueAfter`), então o run inteiro passou a duas ordens de grandeza do resgate: **0 `trapped at`, 0
+`no way out`**. É o número que o item 13 queria para "evitar de eles ficarem presos debaixo".
+
+**O piso começou na escada — mas só onde o worker tinha a chegada no seu trecho.** A obra é dividida entre os dois
+companheiros (`BuildSpread`): cada um recebe um trecho **contíguo** do plano, então a primeira laje *do worker* num
+andar não é a primeira laje *da crew*. Lido por worker, a distância da primeira laje do andar até a subida que o
+serve:
+
+| andar | Companion | Companion 2 |
+|---|---|---|
+| térreo (0,0) | **2,0 m** (stair, rise 1,0) | 5,6 m (stair) |
+| 1,0 | 16,2 m (sem a chegada no trecho) | **1,5 m** (stepladder) |
+| 2,0 | 7,2 m | 4,3 m (stepladder) |
+| 4,0 | — (sem subida no trecho) | **1,5 m** (stepladder) |
+| 5,0 | — (sem subida no trecho) | **1,5 m** (stepladder) |
+| 6,0 | — | — (o andar não tem subida ao alcance) |
+
+Nos andares em que o trecho do worker contém a chegada, a primeira laje é a do assento: **1,5-2,0 m**. Nos andares
+em que ele começa no meio do run (o outro worker já passou pela chegada), ele começa onde o trecho dele começa — a
+regra decide **onde o run começa**, não reatribui trechos entre workers. **Não medido:** o que isso muda em
+"viagens" (o run não tem viagem contada) e se um dia vale alinhar a divisão do `BuildSpread` às chegadas de cada
+andar — é decisão de próximo ciclo, com o número acima na mão.
+
+**Custos do run** (linha do `Finish`): espera 41,0 s (barreira 31,8 s em 12 retenções, fila 9,1 s, passo 0,0 s,
+portão 0,0 s); 411 adiadas / 9 retomadas / 2 `step-aside`; `3,16` linhas `[Build]` por peça (era `3,28`).
+

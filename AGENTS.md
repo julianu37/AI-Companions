@@ -212,8 +212,16 @@ Não redesenhe isso de cabeça: **`docs/re/building-notes.md`** é a fonte (§17
    hc_ai_blueprint_done`, 0 mortes, 0 `UNSUPPORTED`, 0 `too_heavy`; as **5 quedas** são todas na cumeeira (item do
    backlog da rota, não deste ciclo). O único aceite que não fechou foi **contador**: **37** `desistindo de` em peças
    que a fila do canteiro ainda tinha (**37 de 37 estavam de pé**, `sumidas de fato: 0`; a cauda `N pulada(s)` andou
-   para trás, 4 → 3, e nunca passou de 18). Corrigido no mesmo ciclo — a barreira não conta mais peça que a fila
-   possui; falta **re-rodar** para medir `desistindo de` = 0 com o contador certo.
+   para trás, 4 → 3, e nunca passou de 18). Corrigido no mesmo ciclo.
+   **Re-rodado 12/11/2026 (21:22-21:45, DLL com a correção):** `desistindo de` = **0**, `985/985`, `0 pulada(s)`,
+   985 linhas `done:` para 985 peças distintas (0 duplicatas); **1 morte** (peça 900/985, retomada no respawn) e as
+   mesmas 5 quedas na cumeeira. O mesmo run mediu o item 13: `stuckFor` nunca passou de ~0,7 s (limiar 0,5 m,
+   resgate aos 90 s) e **0 `trapped at` / 0 `no way out`**. §17.37 de `docs/re/building-notes.md`.
+8. **O piso começa na chegada da escada, mas só dentro do trecho do worker** — a obra é dividida em trechos
+   CONTÍGUOS (`BuildSpread`), então o companheiro que começa no meio do run de um andar não começa na escada
+   (medido: 1,5-2,0 m onde o trecho contém a chegada; 16,2 m no andar 1 do `Companion`). `AI/BuildFloorStart.cs`
+   decide **onde o run começa**, não reatribui trechos. Alinhar a divisão do `BuildSpread` às chegadas por andar é
+   candidato a item, **só com número** (§17.37).
 
 ## DevBridge (testar no jogo)
 

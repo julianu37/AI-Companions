@@ -217,7 +217,13 @@ contada (a regra que o `AbandonPiece` já escrevia), e quem conta o que realment
 **Falta medir:** o run com o contador corrigido (`desistindo de` = 0 de verdade) — só o número, a colocação já está
 provada (`985/985`, `0 mortes`, `0 UNSUPPORTED`, `0 too_heavy`, `5 quedas` na cumeeira = item 11).
 
-### 13. O piso é posto de longe: o andar não começa na ponta da escada — **feito 12/11/2026**
+**Fechado 12/11/2026 (run das 21:22-21:45, DLL desta branch):** `desistindo de` = **0** de verdade, `985/985`,
+`0 pulada(s)`, `0 UNSUPPORTED`, `0 too_heavy`; 985 linhas `done:` para 985 peças distintas (0 duplicatas). O run
+também pagou **1 morte** (peça 900/985, retomada após o respawn — mecanismo do item 5) e **5 quedas** na cumeeira
+(item 11, não deste ciclo). Números completos em
+[re/building-notes.md §17.37](re/building-notes.md#1737-o-contador-fechou-e-o-piso-começou-na-escada--o-run-de-12112026-com-o-dll-novo-12112026).
+
+### 13. O piso é posto de longe: o andar não começa na ponta da escada — **feito e medido 12/11/2026**
 Sugestão do jogador sobre três capturas: *"depois de colocar a escada, ou quando for colocar os pisos do segundo andar,
 começar pelo piso na ponta da escada e ir colocando a partir dali, pra eles já irem andando por cima"*, e em seguida
 *"isso também seria bom desde o primeiro piso no térreo, pra ajudar a evitar de eles ficarem presos debaixo"*.
@@ -239,6 +245,16 @@ y=2 2,1 → **1,5 m**; y=4 4,0 → **1,5 m**; y=5 **11,6 → 1,5 m**. O percurso
 sem subida ao alcance (−0,5 e 6,0) ficam **exatamente** como estavam.
 **Não medido:** o efeito em jogo (o `stuckFor` do run e o número de viagens). É aceite de jogo, na fila junto com o
 item 12.
+
+**Medido em jogo 12/11/2026** (run das 21:22-21:45, `stuckFor` já no DLL): os corpos nunca passaram de **~0,7 s**
+parados (limiar de "mesmo lugar" = 0,5 m; o resgate só abre aos 90 s), e o run fechou com **0 `trapped at` e 0
+`no way out`**. O piso passou a começar **na chegada** em todo andar cujo trecho do worker contém a subida:
+**1,5-2,0 m** (térreo 2,0 m no Companion; 1,5 m nos andares 1, 4 e 5 no Companion 2). **O limite que apareceu:** a
+obra é dividida em trechos contíguos (`BuildSpread`), então o worker que começa no *meio* do run de um andar começa
+onde o trecho dele começa, não na escada (medido: 16,2 m no andar 1, 7,2 m no 2, e dois andares sem subida no
+trecho). A regra decide onde o run começa, não reatribui trechos — alinhar a divisão do `BuildSpread` às chegadas
+por andar é candidato a item novo, **só com número**. Números completos em
+[re/building-notes.md §17.37](re/building-notes.md#1737-o-contador-fechou-e-o-piso-começou-na-escada--o-run-de-12112026-com-o-dll-novo-12112026).
 
 
 ## Declarado e **fora** do caminho crítico
